@@ -62,15 +62,15 @@ func NewCustomGRC20Swap(recipient std.Address, hashlock string, timelock time.Ti
 	sender := std.PrevRealm().Addr()
 	curAddr := std.CurrentRealm().Addr()
 	// userBanker := grc20.PrevRealmBanker(bank)
-	userBanker := grc20.AccountBanker(bank, "")
+	userTeller := grc20.SubAccountTeller(bank, "")
 
-	allowance := userBanker.Allowance(sender, curAddr)
+	allowance := userTeller.Allowance(sender, curAddr)
 	require(allowance > 0, "no allowance")
-	err := userBanker.TransferFrom(sender, curAddr, allowance)
+	err := userTeller.TransferFrom(sender, curAddr, allowance)
 	checkErr(err, "cannot retrieve tokens from allowance")
-	amountStr := ufmt.Sprintf("%d%s", allowance, userBanker.GetSymbol())
+	amountStr := ufmt.Sprintf("%d%s", allowance, userTeller.GetSymbol())
 	sendFn := func(to std.Address) {
-		err := userBanker.Transfer(to, allowance)
+		err := userTeller.Transfer(to, allowance)
 		checkErr(err, "cannot transfer tokens")
 	}
 	swap := newSwap(sender, recipient, hashlock, timelock, amountStr, sendFn)

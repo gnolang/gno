@@ -14,9 +14,9 @@ import (
 
 var (
 	Token, Ledger    = grc20.NewToken("Test20", "TST", 4)
-	PrevRealmBanker  = grc20.PrevRealmBanker(Token)
-	AccountBanker    = grc20.AccountBanker(Token, "")
-	AccountBankerFoo = grc20.AccountBanker(Token, "foo")
+	PrevRealmTeller  = grc20.PrevRealmTeller(Token)
+	AccountTeller    = grc20.SubAccountTeller(Token, "")
+	AccountTellerFoo = grc20.SubAccountTeller(Token, "foo")
 )
 
 // XXX func init() { grc20reg.Register(Pub, "") } // circular dep (testing)

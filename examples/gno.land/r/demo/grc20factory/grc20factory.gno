@@ -15,6 +15,7 @@ var instances avl.Tree // symbol -> instance
 
 type instance struct {
 	token  *grc20.Token
+	ledger *grc20.AdminLedger
 	admin  *ownable.Ownable
 	faucet uint64 // per-request amount. disabled if 0.
 }
@@ -30,13 +31,14 @@ func NewWithAdmin(name, symbol string, decimals uint, initialMint, faucet uint64
 		panic("token already exists")
 	}
 
-	token := grc20.NewToken(name, symbol, decimals)
+	token, ledger := grc20.NewToken(name, symbol, decimals)
 	if initialMint > 0 {
-		bank.Mint(admin, initialMint)
+		ledger.Mint(admin, initialMint)
 	}
 
 	inst := instance{
 		token:  token,
+		ledger: ledger,
 		admin:  ownable.NewWithAddress(admin),
 		faucet: faucet,
 	}
@@ -44,43 +46,43 @@ func NewWithAdmin(name, symbol string, decimals uint, initialMint, faucet uint64
 	grc20reg.Register(token, symbol)
 }
 
-func (inst instance) PrevRealmBanker() grc20.GRC20 {
-	return grc20.PrevRealmBanker(inst.token)
+func (inst instance) PrevRealmTeller() grc20.GRC20 {
+	return grc20.PrevRealmTeller(inst.token)
 }
 
-func Bank(symbol string) *grc20.Bank {
+func Bank(symbol string) *grc20.Token {
 	inst := mustGetInstance(symbol)
 	return inst.token
 }
 
 func TotalSupply(symbol string) uint64 {
 	inst := mustGetInstance(symbol)
-	return grc20.PrevRealmBanker(inst.token).TotalSupply()
+	return grc20.PrevRealmTeller(inst.token).TotalSupply()
 }
 
 func BalanceOf(symbol string, owner std.Address) uint64 {
 	inst := mustGetInstance(symbol)
-	return grc20.PrevRealmBanker(inst.token).BalanceOf(owner)
+	return grc20.PrevRealmTeller(inst.token).BalanceOf(owner)
 }
 
 func Allowance(symbol string, owner, spender std.Address) uint64 {
 	inst := mustGetInstance(symbol)
-	return grc20.PrevRealmBanker(inst.token).Allowance(owner, spender)
+	return grc20.PrevRealmTeller(inst.token).Allowance(owner, spender)
 }
 
 func Transfer(symbol string, to std.Address, amount uint64) {
 	inst := mustGetInstance(symbol)
-	checkErr(grc20.PrevRealmBanker(inst.token).Transfer(to, amount))
+	checkErr(grc20.PrevRealmTeller(inst.token).Transfer(to, amount))
 }
 
 func Approve(symbol string, spender std.Address, amount uint64) {
 	inst := mustGetInstance(symbol)
-	checkErr(grc20.PrevRealmBanker(inst.token).Approve(spender, amount))
+	checkErr(grc20.PrevRealmTeller(inst.token).Approve(spender, amount))
 }
 
 func TransferFrom(symbol string, from, to std.Address, amount uint64) {
 	inst := mustGetInstance(symbol)
-	checkErr(grc20.PrevRealmBanker(inst.token).TransferFrom(from, to, amount))
+	checkErr(grc20.PrevRealmTeller(inst.token).TransferFrom(from, to, amount))
 }
 
 // faucet.
@@ -92,19 +94,19 @@ func Faucet(symbol string) {
 	// FIXME: add limits?
 	// FIXME: add payment in gnot?
 	caller := std.PrevRealm().Addr()
-	checkErr(inst.token.Mint(caller, inst.faucet))
+	checkErr(inst.ledger.Mint(caller, inst.faucet))
 }
 
 func Mint(symbol string, to std.Address, amount uint64) {
 	inst := mustGetInstance(symbol)
 	inst.admin.AssertCallerIsOwner()
-	checkErr(inst.token.Mint(to, amount))
+	checkErr(inst.ledger.Mint(to, amount))
 }
 
 func Burn(symbol string, from std.Address, amount uint64) {
 	inst := mustGetInstance(symbol)
 	inst.admin.AssertCallerIsOwner()
-	checkErr(inst.token.Burn(from, amount))
+	checkErr(inst.ledger.Burn(from, amount))
 }
 
 func Render(path string) string {
@@ -122,7 +124,7 @@ func Render(path string) string {
 		symbol := parts[0]
 		inst := mustGetInstance(symbol)
 		owner := std.Address(parts[2])
-		balance := grc20.PrevRealmBanker(inst.token).BalanceOf(owner)
+		balance := grc20.PrevRealmTeller(inst.token).BalanceOf(owner)
 		return ufmt.Sprintf("%d", balance)
 	default:
 		return "404\n"

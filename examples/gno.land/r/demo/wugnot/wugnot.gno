@@ -11,7 +11,7 @@ import (
 	"gno.land/r/demo/users"
 )
 
-var Bank, adm = grc20.NewToken("wrapped GNOT", "wugnot", 0)
+var Token, adm = grc20.NewToken("wrapped GNOT", "wugnot", 0)
 
 const (
 	ugnotMinDeposit  uint64 = 1000
@@ -78,21 +78,21 @@ func Allowance(owner, spender pusers.AddressOrName) uint64 {
 
 func Transfer(to pusers.AddressOrName, amount uint64) {
 	toAddr := users.Resolve(to)
-	userBanker := grc20.PrevRealmBanker(Token)
-	checkErr(userBanker.Transfer(toAddr, amount))
+	userTeller := grc20.PrevRealmTeller(Token)
+	checkErr(userTeller.Transfer(toAddr, amount))
 }
 
 func Approve(spender pusers.AddressOrName, amount uint64) {
 	spenderAddr := users.Resolve(spender)
-	userBanker := grc20.PrevRealmBanker(Token)
-	checkErr(userBanker.Approve(spenderAddr, amount))
+	userTeller := grc20.PrevRealmTeller(Token)
+	checkErr(userTeller.Approve(spenderAddr, amount))
 }
 
 func TransferFrom(from, to pusers.AddressOrName, amount uint64) {
 	fromAddr := users.Resolve(from)
 	toAddr := users.Resolve(to)
-	userBanker := grc20.PrevRealmBanker(Token)
-	checkErr(userBanker.TransferFrom(fromAddr, toAddr, amount))
+	userTeller := grc20.PrevRealmTeller(Token)
+	checkErr(userTeller.TransferFrom(fromAddr, toAddr, amount))
 }
 
 func require(condition bool, msg string) {

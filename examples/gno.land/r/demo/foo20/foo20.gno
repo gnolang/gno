@@ -15,13 +15,13 @@ import (
 )
 
 var (
-	Token, ledger = grc20.NewToken("Foo", "FOO", 4)
-	UserTeller    = grc20.PrevRealmTeller(Token)
-	owner         = ownable.NewWithAddress("g1u7y667z64x2h7vc6fmpcprgey4ck233jaww9zq") // @manfred
+	Token, admin = grc20.NewToken("Foo", "FOO", 4)
+	UserTeller   = grc20.PrevRealmTeller(Token)
+	owner        = ownable.NewWithAddress("g1u7y667z64x2h7vc6fmpcprgey4ck233jaww9zq") // @manfred
 )
 
 func init() {
-	ledger.Mint(owner.Owner(), 1_000_000*10_000) // @administrator (1M)
+	admin.Mint(owner.Owner(), 1_000_000*10_000) // @administrator (1M)
 	grc20reg.Register(Token, "")
 }
 
@@ -61,19 +61,19 @@ func TransferFrom(from, to pusers.AddressOrName, amount uint64) {
 func Faucet() {
 	caller := std.PrevRealm().Addr()
 	amount := uint64(1_000 * 10_000) // 1k
-	checkErr(ledger.Mint(caller, amount))
+	checkErr(admin.Mint(caller, amount))
 }
 
 func Mint(to pusers.AddressOrName, amount uint64) {
 	owner.AssertCallerIsOwner()
 	toAddr := users.Resolve(to)
-	checkErr(ledger.Mint(toAddr, amount))
+	checkErr(admin.Mint(toAddr, amount))
 }
 
 func Burn(from pusers.AddressOrName, amount uint64) {
 	owner.AssertCallerIsOwner()
 	fromAddr := users.Resolve(from)
-	checkErr(ledger.Burn(fromAddr, amount))
+	checkErr(admin.Burn(fromAddr, amount))
 }
 
 func Render(path string) string {

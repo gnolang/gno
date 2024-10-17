@@ -13,12 +13,12 @@ import (
 )
 
 var (
-	Token, ledger = grc20.NewToken("Bar", "BAR", 4)
-	UserBanker    = grc20.PrevRealmBanker(Bank)
+	Token, adm = grc20.NewToken("Bar", "BAR", 4)
+	UserTeller = grc20.PrevRealmTeller(Token)
 )
 
 func init() {
-	grc20reg.Register(Bank, "")
+	grc20reg.Register(Token, "")
 }
 
 func Faucet() string {
@@ -35,10 +35,10 @@ func Render(path string) string {
 
 	switch {
 	case path == "":
-		return Bank.RenderHome() // XXX: should be Token.RenderHome()
+		return Token.RenderHome() // XXX: should be Token.RenderHome()
 	case c == 2 && parts[0] == "balance":
 		owner := std.Address(parts[1])
-		balance := Bank.BalanceOf(owner)
+		balance := Token.BalanceOf(owner)
 		return ufmt.Sprintf("%d\n", balance)
 	default:
 		return "404\n"

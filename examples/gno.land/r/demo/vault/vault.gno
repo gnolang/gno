@@ -1,5 +1,7 @@
 package vault
 
+// XXX: NOT WORKING AS EXPECTED
+
 import (
 	"std"
 
@@ -14,7 +16,7 @@ type Vault interface {
 	Redeem() error
 }
 
-func New(adminToken *grc20.Banker) Vault {
+func New(adminToken *grc20.Token) Vault {
 	return &impl{
 		adminToken: adminToken,
 		users:      avl.Tree{},
@@ -22,7 +24,7 @@ func New(adminToken *grc20.Banker) Vault {
 }
 
 type impl struct {
-	adminToken *grc20.Banker
+	adminToken *grc20.Token
 	users      avl.Tree // std.Address -> userVault
 }
 
@@ -49,11 +51,16 @@ func (v *impl) Deposit(amount uint, recover std.Address, lockDuration uint) erro
 	}
 
 	// deposit.
-	err := v.adminToken.Transfer(caller, pkgAddr, uint64(amount))
-	if err != nil {
-		return err
-	}
-	v.users.Set(caller.String(), &uv)
+	panic("NOT IMPLEMETED")
+	_ = uv
+	_ = pkgAddr
+	/*
+		err := v.adminToken.Transfer(caller, pkgAddr, uint64(amount))
+		if err != nil {
+			return err
+		}
+		v.users.Set(caller.String(), &uv)
+	*/
 
 	return nil
 }
@@ -93,14 +100,20 @@ func (v *impl) Redeem() error {
 	// TODO: check balance. (should be optional, but let's be sure).
 	// TODO: check height.
 
-	// transfer token.
-	err = v.adminToken.Transfer(pkgAddr, caller, uint64(uv.unvaultedAmount))
-	if err != nil {
-		return err
-	}
+	panic("NOT IMPLEMETED")
+	_ = uv
+	_ = pkgAddr
+	/*
+		// transfer token.
+		err = v.adminToken.Transfer(pkgAddr, caller, uint64(uv.unvaultedAmount))
+		if err != nil {
+			return err
+		}
 
-	uv.unvaultedAmount = 0
-	// TODO: if balance == 0 -> destroy?
+		uv.unvaultedAmount = 0
+		// TODO: if balance == 0 -> destroy?
+	*/
+
 	return nil
 }
 

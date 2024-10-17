@@ -37,7 +37,7 @@ func NewDEX() *DEX {
 func (dex *DEX) PlaceOrder(tokenFrom, tokenTo *grc20.Token, amount uint64, isBuy bool) int {
 	trader := std.PrevRealm().Addr()
 	curAddr := std.CurrentRealm().Addr()
-	userBanker := grc20.AccountBanker(tokenFrom, "")
+	userBanker := grc20.SubAccountTeller(tokenFrom, "")
 
 	allowance := userBanker.Allowance(trader, curAddr)
 	require(allowance >= amount, "insufficient allowance")
@@ -91,8 +91,8 @@ func (dex *DEX) matchPairOrders(tokenFrom, tokenTo *grc20.Token) int {
 				amount := min(order1.amount, order2.amount)
 				order1.amount -= amount
 				order2.amount -= amount
-				banker1 := grc20.AccountBanker(order1.tokenFrom, "")
-				banker2 := grc20.AccountBanker(order2.tokenFrom, "")
+				banker1 := grc20.SubAccountTeller(order1.tokenFrom, "")
+				banker2 := grc20.SubAccountTeller(order2.tokenFrom, "")
 				banker1.Transfer(order2.trader, amount)
 				banker2.Transfer(order1.trader, amount)
 				matched++
@@ -127,7 +127,7 @@ func (dex *DEX) CancelOrders() {
 		ordersTree.Iterate("", "", func(key string, value interface{}) bool {
 			order := value.(*Order)
 			if order.trader == trader {
-				userBanker := grc20.AccountBanker(order.tokenFrom, "")
+				userBanker := grc20.SubAccountTeller(order.tokenFrom, "")
 				err := userBanker.Transfer(trader, order.amount)
 				checkErr(err, "cannot refund tokens")
 				ordersTree.Remove(key)
