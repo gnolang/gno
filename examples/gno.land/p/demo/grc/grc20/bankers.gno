@@ -10,14 +10,14 @@ func PrevRealmBanker(b *Bank) GRC20 {
 			caller := std.PrevRealm().Addr()
 			return caller
 		},
-		bank: b,
+		Bank: b,
 	}
 }
 
 func ReadonlyBanker(b *Bank) GRC20 {
 	return &fnBanker{
 		accountFn: nil,
-		bank:      b,
+		Bank:      b,
 	}
 }
 
@@ -28,29 +28,16 @@ func AccountBanker(b *Bank, slug string) GRC20 {
 		accountFn: func() std.Address {
 			return account
 		},
-		bank: b,
+		Bank: b,
 	}
 }
-
-// read-only methods
-
-func (ab fnBanker) GetName() string                    { return ab.bank.name }
-func (ab fnBanker) GetSymbol() string                  { return ab.bank.symbol }
-func (ab fnBanker) GetDecimals() uint                  { return ab.bank.decimals }
-func (ab fnBanker) TotalSupply() uint64                { return ab.bank.adm.totalSupply }
-func (ab fnBanker) BalanceOf(owner std.Address) uint64 { return ab.bank.BalanceOf(owner) }
-func (ab fnBanker) Allowance(owner, spender std.Address) uint64 {
-	return ab.bank.Allowance(owner, spender)
-}
-
-// read-write methods
 
 func (ab *fnBanker) Transfer(to std.Address, amount uint64) error {
 	if ab.accountFn == nil {
 		return ErrReadonly
 	}
 	caller := ab.accountFn()
-	return ab.bank.adm.Transfer(caller, to, amount)
+	return ab.Bank.adm.Transfer(caller, to, amount)
 }
 
 func (ab *fnBanker) Approve(spender std.Address, amount uint64) error {
@@ -58,7 +45,7 @@ func (ab *fnBanker) Approve(spender std.Address, amount uint64) error {
 		return ErrReadonly
 	}
 	caller := ab.accountFn()
-	return ab.bank.adm.Approve(caller, spender, amount)
+	return ab.Bank.adm.Approve(caller, spender, amount)
 }
 
 func (ab *fnBanker) TransferFrom(owner, to std.Address, amount uint64) error {
@@ -66,5 +53,5 @@ func (ab *fnBanker) TransferFrom(owner, to std.Address, amount uint64) error {
 		return ErrReadonly
 	}
 	spender := ab.accountFn()
-	return ab.bank.adm.TransferFrom(owner, spender, to, amount)
+	return ab.Bank.adm.TransferFrom(owner, spender, to, amount)
 }

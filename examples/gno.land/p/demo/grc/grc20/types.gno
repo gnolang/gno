@@ -17,6 +17,8 @@ var (
 	ErrRestrictedBankOwner   = errors.New("restricted to bank owner")
 )
 
+// Bank represents a token's bank, including its name, symbol,
+// decimals, and administrative functions.
 type Bank struct {
 	name     string
 	symbol   string
@@ -24,12 +26,14 @@ type Bank struct {
 	adm      *AdminBanker
 }
 
+// AdminBanker is a struct that holds administrative functions for the token.
 type AdminBanker struct {
 	totalSupply uint64
 	balances    avl.Tree // std.Address -> uint64
 	allowances  avl.Tree // owner.(std.Address)+":"+spender.(std.Address)) -> uint64
 }
 
+// GRC20 interface defines the methods that a GRC20 token must implement.
 type GRC20 interface {
 	exts.TokenMetadata
 
@@ -71,13 +75,16 @@ type GRC20 interface {
 	TransferFrom(from, to std.Address, amount uint64) error
 }
 
+// fnBanker is a wrapper around Bank that provides a custom account address
+// through a function. This allows for dynamic account addressing in GRC20 operations.
 type fnBanker struct {
 	accountFn func() std.Address
-	bank      *Bank
+	*Bank
 }
 
 var _ GRC20 = (*fnBanker)(nil)
 
+// adminBanker is a struct that holds administrative functions for the token.
 type adminBanker struct {
 	bank *Bank
 }
