@@ -19,6 +19,7 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/sdk"
 	"github.com/gnolang/gno/tm2/pkg/sdk/auth"
 	"github.com/gnolang/gno/tm2/pkg/sdk/bank"
+	"github.com/gnolang/gno/tm2/pkg/sdk/params"
 	"github.com/gnolang/gno/tm2/pkg/std"
 	"github.com/gnolang/gno/tm2/pkg/store"
 	"github.com/gnolang/gno/tm2/pkg/store/dbadapter"
@@ -88,12 +89,13 @@ func NewAppWithOptions(cfg *AppOptions) (abci.Application, error) {
 	// Construct keepers.
 	acctKpr := auth.NewAccountKeeper(mainKey, ProtoGnoAccount)
 	bankKpr := bank.NewBankKeeper(acctKpr)
-	vmk := vm.NewVMKeeper(baseKey, mainKey, acctKpr, bankKpr, cfg.MaxCycles)
+	paramsKpr := params.NewParamsKeeper(mainKey, "vm")
+	vmk := vm.NewVMKeeper(baseKey, mainKey, acctKpr, bankKpr, paramsKpr, cfg.MaxCycles)
 
 	// Set InitChainer
 	icc := cfg.InitChainerConfig
 	icc.baseApp = baseApp
-	icc.acctKpr, icc.bankKpr, icc.vmKpr = acctKpr, bankKpr, vmk
+	icc.acctKpr, icc.bankKpr, icc.vmKpr, icc.paramsKpr = acctKpr, bankKpr, vmk, paramsKpr
 	baseApp.SetInitChainer(icc.InitChainer)
 
 	// Set AnteHandler
@@ -148,6 +150,7 @@ func NewAppWithOptions(cfg *AppOptions) (abci.Application, error) {
 	// Set a handler Route.
 	baseApp.Router().AddRoute("auth", auth.NewHandler(acctKpr))
 	baseApp.Router().AddRoute("bank", bank.NewHandler(bankKpr))
+	baseApp.Router().AddRoute("params", params.NewHandler(paramsKpr))
 	baseApp.Router().AddRoute("vm", vm.NewHandler(vmk))
 
 	// Load latest version.
@@ -225,10 +228,11 @@ type InitChainerConfig struct {
 
 	// These fields are passed directly by NewAppWithOptions, and should not be
 	// configurable by end-users.
-	baseApp *sdk.BaseApp
-	vmKpr   vm.VMKeeperI
-	acctKpr auth.AccountKeeperI
-	bankKpr bank.BankKeeperI
+	baseApp   *sdk.BaseApp
+	vmKpr     vm.VMKeeperI
+	acctKpr   auth.AccountKeeperI
+	bankKpr   bank.BankKeeperI
+	paramsKpr params.ParamsKeeperI
 }
 
 // InitChainer is the function that can be used as a [sdk.InitChainer].
