@@ -84,7 +84,7 @@ func VoteRed() {
 
         redVotes = redVotes + ugnotAmount/750
         red, green, blue := calculateRGB(redVotes, greenVotes, blueVotes)
-        currentColor = ufmt.Sprintf(`rgb(%v, %v, %v)`, red, green, blue)
+        currentColor = ufmt.Sprintf(`rgb(%d, %d, %d)`, red, green, blue)
 }
 
 func VoteGreen() {
@@ -92,7 +92,7 @@ func VoteGreen() {
 
         greenVotes = greenVotes + ugnotAmount/750
         red, green, blue := calculateRGB(redVotes, greenVotes, blueVotes)
-        currentColor = ufmt.Sprintf(`rgb(%v, %v, %v)`, red, green, blue)
+        currentColor = ufmt.Sprintf(`rgb(%d, %d, %d)`, red, green, blue)
 }
 
 func VoteBlue() {
@@ -100,7 +100,7 @@ func VoteBlue() {
 
         blueVotes = blueVotes + ugnotAmount/750
         red, green, blue := calculateRGB(redVotes, greenVotes, blueVotes)
-        currentColor = ufmt.Sprintf(`rgb(%v, %v, %v)`, red, green, blue)
+        currentColor = ufmt.Sprintf(`rgb(%d, %d, %d)`, red, green, blue)
 
 }
 
@@ -174,8 +174,6 @@ func renderGitHubProjects() string {
 }
 
 func renderButtons() string {
-        red, green, blue := calculateRGB(redVotes, greenVotes, blueVotes)
-
         out := "<div style='display: flex; justify-content: space-around; padding-top: 20px;'>\n\n"
 
         // Red Button
@@ -206,7 +204,7 @@ func renderButtons() string {
 
         // Current RGB Display
         out += "<div style='text-align: center; margin-top: 20px;'>\n"
-        out += ufmt.Sprintf("<p style='color: %s;'>Current RGB: rgb(%d, %d, %d)</p>\n", currentColor, red, green, blue)
+        out += ufmt.Sprintf("<p style='color: %s;'>Current RGB: %s</p>\n", currentColor, currentColor)
         out += "</div>\n\n"
 
         return out
