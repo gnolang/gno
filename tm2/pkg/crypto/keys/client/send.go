@@ -4,6 +4,7 @@ import (
 	"context"
 	"flag"
 
+	"github.com/gnolang/gno/gno.land/pkg/sdk/vm"
 	"github.com/gnolang/gno/tm2/pkg/amino"
 	"github.com/gnolang/gno/tm2/pkg/commands"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
@@ -104,12 +105,34 @@ func execMakeSend(cfg *MakeSendCfg, args []string, io commands.IO) error {
 		return errors.Wrap(err, "parsing gas fee coin")
 	}
 
-	// construct msg & tx and marshal.
 	msg := bank.MsgSend{
 		FromAddress: fromAddr,
 		ToAddress:   toAddr,
 		Amount:      send,
 	}
+
+	// if a sponsor onchain address is specified
+	if cfg.RootCfg.Sponsor != "" {
+		sponsorAddress, err := crypto.AddressFromBech32(cfg.RootCfg.Sponsor)
+		if err != nil {
+			return errors.Wrap(err, "invalid sponsor address")
+		}
+
+		tx := std.Tx{
+			Msgs: []std.Msg{
+				vm.NewMsgNoop(sponsorAddress), // sponsored noop msg
+				msg,                           // original msg
+			},
+			Fee:        std.NewFee(gaswanted, gasfee),
+			Signatures: nil,
+			Memo:       cfg.RootCfg.Memo,
+		}
+
+		io.Println(string(amino.MustMarshalJSON(tx)))
+
+		return nil
+	}
+
 	tx := std.Tx{
 		Msgs:       []std.Msg{msg},
 		Fee:        std.NewFee(gaswanted, gasfee),
@@ -125,5 +148,6 @@ func execMakeSend(cfg *MakeSendCfg, args []string, io commands.IO) error {
 	} else {
 		io.Println(string(amino.MustMarshalJSON(tx)))
 	}
+
 	return nil
 }

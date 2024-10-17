@@ -33,6 +33,8 @@ func (vh vmHandler) Process(ctx sdk.Context, msg std.Msg) sdk.Result {
 		return vh.handleMsgCall(ctx, msg)
 	case MsgRun:
 		return vh.handleMsgRun(ctx, msg)
+	case MsgNoop:
+		return sdk.Result{}
 	default:
 		errMsg := fmt.Sprintf("unrecognized vm message type: %T", msg)
 		return abciResult(std.ErrUnknownRequest(errMsg))

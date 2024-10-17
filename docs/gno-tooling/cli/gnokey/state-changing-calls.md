@@ -88,6 +88,7 @@ The `addpkg` subcommmand uses the following flags and arguments:
 - `-gas-fee` - amount of GNOTs to pay per gas unit
 - `-chain-id` - id of the chain that we are sending the transaction to
 - `-remote` - specifies the remote node RPC listener address
+- `-sponsor` - bech32 address of the sponsor who pay gas fee for the transaction
 
 The `-pkgpath` and `-pkgdir` flags are unique to the `addpkg` subcommand, while
 `-broadcast`,`-send`, `-gas-wanted`, `-gas-fee`, `-chain-id`, and `-remote` are
