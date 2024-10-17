@@ -1,10 +1,10 @@
-package teams
+package teams_test
 
 import (
 	"testing"
 	"std"
 	"gno.land/p/demo/users"
-	"gno.land/r/sys/teams"
+	"gno.land/p/demo/teams"
 )
 
 func TestCreateTeam(t *testing.T) {
@@ -97,5 +97,52 @@ func TestRemovePermission(t *testing.T) {
 	err = teams.RemovePermission(teamAddress, permission)
 	if err != nil {
 		t.Errorf("Expected no error when removing a non-existing permission, got %v", err)
+	}
+}
+
+func TestAddMemberPermission(t *testing.T) {
+	teamAddress := std.Address("g1teamaddress")
+	owner := std.Address("g1owneraddress")
+	_ = teams.CreateTeam(teamAddress, "Test Team", owner)
+
+	user := users.User{Name: "Test User", Address: std.Address("g1useraddress")}
+	_ = teams.AddMember(teamAddress, user)
+
+	permission := "manage_tasks"
+	_ = teams.AddPermission(teamAddress, permission)
+
+	err := teams.AddMemberPermission(teamAddress, user.Address, permission)
+	if err != nil {
+		t.Errorf("Failed to add permission to member: %v", err)
+	}
+
+	// Attempt to add a permission that does not exist in the team, should fail
+	err = teams.AddMemberPermission(teamAddress, user.Address, "non_existing_permission")
+	if err == nil {
+		t.Errorf("Expected error when adding a non-existing permission to member, got nil")
+	}
+}
+
+func TestRemoveMemberPermission(t *testing.T) {
+	teamAddress := std.Address("g1teamaddress")
+	owner := std.Address("g1owneraddress")
+	_ = teams.CreateTeam(teamAddress, "Test Team", owner)
+
+	user := users.User{Name: "Test User", Address: std.Address("g1useraddress")}
+	_ = teams.AddMember(teamAddress, user)
+
+	permission := "manage_tasks"
+	_ = teams.AddPermission(teamAddress, permission)
+	_ = teams.AddMemberPermission(teamAddress, user.Address, permission)
+
+	err := teams.RemoveMemberPermission(teamAddress, user.Address, permission)
+	if err != nil {
+		t.Errorf("Failed to remove permission from member: %v", err)
+	}
+
+	// Attempt to remove a permission that the member does not have, should not fail
+	err = teams.RemoveMemberPermission(teamAddress, user.Address, permission)
+	if err != nil {
+		t.Errorf("Expected no error when removing a non-existing permission from member, got %v", err)
 	}
 }

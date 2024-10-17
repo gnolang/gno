@@ -108,6 +108,67 @@ func RemovePermission(teamAddress std.Address, permission string) error {
 	return nil
 }
 
+// AddMemberPermission adds a permission to a specific member of the team
+func AddMemberPermission(teamAddress std.Address, userAddress std.Address, permission string) error {
+    team, err := getTeam(teamAddress)
+    if err != nil {
+        return err
+    }
+
+    // Check if the permission exists in the team's permissions
+    permissionExists := false
+    for _, perm := range team.Permissions {
+        if strings.EqualFold(perm, permission) {
+            permissionExists = true
+            break
+        }
+    }
+    if !permissionExists {
+        return errors.New("permission does not exist in the team")
+    }
+
+    // Find the member and add the permission if they don't already have it
+    for i, member := range team.Members {
+        if member.User.Address == userAddress {
+            for _, memberPerm := range member.Permissions {
+                if strings.EqualFold(memberPerm, permission) {
+                    return errors.New("member already has the permission")
+                }
+            }
+            team.Members[i].Permissions = append(team.Members[i].Permissions, permission)
+            Teams.Set(teamAddress.String(), team)
+            return nil
+        }
+    }
+
+    return errors.New("member not found")
+}
+
+// RemoveMemberPermission removes a permission from a specific member of the team
+func RemoveMemberPermission(teamAddress std.Address, userAddress std.Address, permission string) error {
+    team, err := getTeam(teamAddress)
+    if err != nil {
+        return err
+    }
+
+    // Find the member and remove the permission
+    for i, member := range team.Members {
+        if member.User.Address == userAddress {
+            for j, memberPerm := range member.Permissions {
+                if strings.EqualFold(memberPerm, permission) {
+                    team.Members[i].Permissions = append(member.Permissions[:j], member.Permissions[j+1:]...)
+                    Teams.Set(teamAddress.String(), team)
+                    return nil
+                }
+            }
+            return errors.New("permission not found for the member")
+        }
+    }
+
+    return errors.New("member not found")
+}
+
+
 // helper function to retrieve a team by address
 func getTeam(teamAddress std.Address) (*Team, error) {
 	team, exists := Teams.Get(teamAddress.String())
