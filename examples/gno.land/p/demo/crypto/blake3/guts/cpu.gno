@@ -1,6 +1,3 @@
-//go:build !darwin
-// +build !darwin
-
 package guts
 
 // XXX: removed unused cpuid detection
