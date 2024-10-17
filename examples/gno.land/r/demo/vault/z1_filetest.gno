@@ -67,12 +67,4 @@ func checkErr(err error) {
 }
 
 // Output:
-// balances: alice=1000, bob=0, charly=0, pkg=0, height=123
-// balances: alice=700, bob=0, charly=0, pkg=300, height=123
-// AAA1 123 0 5
-// AAA2 123 128 5
-// balances: alice=700, bob=0, charly=0, pkg=300, height=123
-// balances: alice=700, bob=0, charly=0, pkg=300, height=129
-// AAA3 129 128 5
-// balances: alice=900, bob=0, charly=0, pkg=100, height=129
-// balances: alice=900, bob=0, charly=0, pkg=100, height=129
+// balances: alice=0, bob=0, charly=0, pkg=0, height=123

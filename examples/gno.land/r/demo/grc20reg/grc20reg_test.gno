@@ -11,7 +11,7 @@ import (
 func TestRegistry(t *testing.T) {
 	std.TestSetRealm(std.NewCodeRealm("gno.land/r/demo/foo"))
 	realmAddr := std.CurrentRealm().PkgPath()
-	tokenImpl := test20.Bank
+	tokenImpl := test20.Token
 
 	// register
 	Register(tokenImpl, "")

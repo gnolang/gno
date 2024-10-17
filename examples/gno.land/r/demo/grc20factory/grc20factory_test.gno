@@ -18,7 +18,7 @@ func TestReadOnlyPublicMethods(t *testing.T) {
 	std.TestSetRealm(std.NewUserRealm(admin))
 	NewWithAdmin("Foo", "FOO", 4, 10_000*1_000_000, 10_000, admin)
 	NewWithAdmin("Bar", "BAR", 4, 10_000*1_000, 10_000, admin)
-	mustGetInstance("FOO").bank.Mint(bob, 100_000_000)
+	mustGetInstance("FOO").ledger.Mint(bob, 100_000_000)
 
 	type test struct {
 		name    string
