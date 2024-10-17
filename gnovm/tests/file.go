@@ -21,6 +21,7 @@ import (
 	osm "github.com/gnolang/gno/tm2/pkg/os"
 	"github.com/gnolang/gno/tm2/pkg/sdk"
 	"github.com/gnolang/gno/tm2/pkg/std"
+	"github.com/gnolang/gno/tm2/pkg/store/types"
 	"github.com/pmezard/go-difflib/difflib"
 )
 
@@ -104,8 +105,9 @@ func WithSyncWanted(v bool) RunFileTestOption {
 
 // RunFileTest executes the filetest at the given path, using rootDir as
 // the directory where to find the "stdlibs" directory.
-func RunFileTest(rootDir string, path string, opts ...RunFileTestOption) error {
+func RunFileTest(rootDir string, path string, opts ...RunFileTestOption) (int64, error) {
 	var f runFileTestOptions
+	var gasUsed int64
 	for _, opt := range opts {
 		opt(&f)
 	}
@@ -125,8 +127,10 @@ func RunFileTest(rootDir string, path string, opts ...RunFileTestOption) error {
 	store := TestStore(rootDir, "./files", stdin, stdout, stderr, mode)
 	store.SetLogStoreOps(true)
 	m := testMachineCustom(store, pkgPath, stdout, maxAlloc, send)
+	// Set a gas meter for machine that runs the tests.
+	m.GasMeter = types.NewGasMeter(10000 * 1000 * 1000)
+	beforeGas := m.GasMeter.GasConsumed()
 	checkMachineIsEmpty := true
-
 	// TODO support stdlib groups, but make testing safe;
 	// e.g. not be able to make network connections.
 	// interp.New(interp.Options{GoPath: goPath, Stdout: &stdout, Stderr: &stderr})
@@ -135,7 +139,7 @@ func RunFileTest(rootDir string, path string, opts ...RunFileTestOption) error {
 	// m.Use(unsafe.Symbols)
 	bz, err := os.ReadFile(path)
 	if err != nil {
-		return err
+		return gasUsed, err
 	}
 	{ // Validate result, errors, etc.
 		var pnc interface{}
@@ -284,6 +288,7 @@ func RunFileTest(rootDir string, path string, opts ...RunFileTestOption) error {
 					// NOTE: ignores any gno.GetDebugErrors().
 					gno.ClearDebugErrors()
 					checkMachineIsEmpty = false // nothing more to do.
+					return gasUsed, nil
 				} else {
 					// record errors when errWanted is empty and pnc not nil
 					if pnc != nil {
@@ -312,6 +317,7 @@ func RunFileTest(rootDir string, path string, opts ...RunFileTestOption) error {
 					}
 					// pnc is nil, errWanted empty, no gno debug errors
 					checkMachineIsEmpty = false
+					return gasUsed, nil
 				}
 			case "Output":
 				// panic if got unexpected error
@@ -404,9 +410,12 @@ func RunFileTest(rootDir string, path string, opts ...RunFileTestOption) error {
 				checkMachineIsEmpty = false
 			default:
 				checkMachineIsEmpty = false
+				return gasUsed, nil
 			}
 		}
 	}
+	afterGas := m.GasMeter.GasConsumed()
+	gasUsed = afterGas - beforeGas
 
 	if checkMachineIsEmpty {
 		// Check that machine is empty.
@@ -418,7 +427,7 @@ func RunFileTest(rootDir string, path string, opts ...RunFileTestOption) error {
 			panic(fmt.Sprintf("fail on %s: machine not empty after main: %v", path, err))
 		}
 	}
-	return nil
+	return gasUsed, nil
 }
 
 func wantedFromComment(p string) (directives []string, pkgPath, res, err, rops, stacktrace string, maxAlloc int64, send std.Coins) {

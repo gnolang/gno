@@ -25,6 +25,7 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/errors"
 	"github.com/gnolang/gno/tm2/pkg/random"
 	"github.com/gnolang/gno/tm2/pkg/std"
+	"github.com/gnolang/gno/tm2/pkg/store"
 	"github.com/gnolang/gno/tm2/pkg/testutils"
 )
 
@@ -194,7 +195,7 @@ func execTest(cfg *testCfg, args []string, io commands.IO) error {
 		sort.Strings(pkg.FiletestGnoFiles)
 
 		startedAt := time.Now()
-		err = gnoTestPkg(pkg.Dir, pkg.TestGnoFiles, pkg.FiletestGnoFiles, cfg, io)
+		gasUsed, err := gnoTestPkg(pkg.Dir, pkg.TestGnoFiles, pkg.FiletestGnoFiles, cfg, io)
 		duration := time.Since(startedAt)
 		dstr := fmtDuration(duration)
 
@@ -205,7 +206,7 @@ func execTest(cfg *testCfg, args []string, io commands.IO) error {
 			io.ErrPrintfln("FAIL")
 			testErrCount++
 		} else {
-			io.ErrPrintfln("ok      %s \t%s", pkg.Dir, dstr)
+			io.ErrPrintfln("ok      %s \ttotal gas used: %d \t(%s)", pkg.Dir, gasUsed, dstr)
 		}
 	}
 	if testErrCount > 0 || buildErrCount > 0 {
@@ -222,7 +223,7 @@ func gnoTestPkg(
 	filetestFiles []string,
 	cfg *testCfg,
 	io commands.IO,
-) error {
+) (int64, error) {
 	var (
 		verbose             = cfg.verbose
 		rootDir             = cfg.rootDir
@@ -234,7 +235,7 @@ func gnoTestPkg(
 		stderr = io.Err()
 		errs   error
 	)
-
+	var gasUsed int64
 	mode := tests.ImportModeStdlibsOnly
 	if cfg.withNativeFallback {
 		// XXX: display a warn?
@@ -271,7 +272,7 @@ func gnoTestPkg(
 		})
 
 		if hasError {
-			return commands.ExitCodeError(1)
+			return gasUsed, commands.ExitCodeError(1)
 		}
 		testPkgName := getPkgNameFromFileset(ifiles)
 
@@ -287,6 +288,8 @@ func gnoTestPkg(
 			}
 
 			m := tests.TestMachine(testStore, stdout, gnoPkgPath)
+			// initial new gasMeter
+			m.GasMeter = store.NewGasMeter(10_000_000_000)
 			if printRuntimeMetrics {
 				// from tm2/pkg/sdk/vm/keeper.go
 				// XXX: make maxAllocTx configurable.
@@ -295,7 +298,10 @@ func gnoTestPkg(
 				m.Alloc = gno.NewAllocator(maxAllocTx)
 			}
 			m.RunMemPackage(memPkg, true)
+			beforeGasUsed := m.GasMeter.GasConsumed()
 			err := runTestFiles(m, tfiles, memPkg.Name, verbose, printRuntimeMetrics, runFlag, io)
+			afterGasUsed := m.GasMeter.GasConsumed()
+			gasUsed += (afterGasUsed - beforeGasUsed)
 			if err != nil {
 				errs = multierr.Append(errs, err)
 			}
@@ -357,7 +363,9 @@ func gnoTestPkg(
 			}
 
 			testFilePath := filepath.Join(pkgPath, testFileName)
-			err := tests.RunFileTest(rootDir, testFilePath, tests.WithSyncWanted(cfg.updateGoldenTests))
+			var err error
+			gasUsedInThisPeriod, err := tests.RunFileTest(rootDir, testFilePath, tests.WithSyncWanted(cfg.updateGoldenTests))
+			gasUsed += gasUsedInThisPeriod
 			duration := time.Since(startedAt)
 			dstr := fmtDuration(duration)
 
@@ -375,13 +383,13 @@ func gnoTestPkg(
 			}
 
 			if verbose {
-				io.ErrPrintfln("--- PASS: %s (%s)", testName, dstr)
+				io.ErrPrintfln("--- PASS: %s (%s) with gas used: %d", testName, dstr, gasUsedInThisPeriod)
 			}
 			// XXX: add per-test metrics
 		}
 	}
 
-	return errs
+	return gasUsed, errs
 }
 
 // attempts to determine the full gno pkg path by analyzing the directory.
