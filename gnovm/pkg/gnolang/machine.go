@@ -330,7 +330,7 @@ type redeclarationErrors []Name
 
 func (r redeclarationErrors) Error() string {
 	var b strings.Builder
-	b.WriteString("invalid redeclarations for identifiers: ")
+	b.WriteString("redeclarations for identifiers: ")
 	for idx, s := range r {
 		b.WriteString(strconv.Quote(string(s)))
 		if idx != len(r)-1 {
