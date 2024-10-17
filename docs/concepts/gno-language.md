@@ -21,8 +21,8 @@ serialize and deserialize objects to persist them into a database (unlike progra
 
 ## How Gno Differs from Go
 
-The composable nature of Go/Gno allows for type-checked interactions between contracts, making Gno.land safer and more
-powerful, as well as operationally cheaper and faster. Smart contracts on Gno.land are light, simple, more focused, and
+The composable nature of Go/Gno allows for type-checked interactions between contracts, making gno.land safer and more
+powerful, as well as operationally cheaper and faster. Smart contracts on gno.land are light, simple, more focused, and
 easily interoperable - they represent a network of interconnected contracts rather than siloed monoliths that limit
 interactions with other contracts.
 

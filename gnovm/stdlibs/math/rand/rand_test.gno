@@ -8,7 +8,6 @@ import (
 	"errors"
 	"fmt"
 	"math"
-	"os"
 	"testing"
 )
 

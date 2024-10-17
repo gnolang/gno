@@ -4,7 +4,7 @@ id: gno-tooling-gnoland
 
 # gnoland
 
-`gnoland` is the Gno.land blockchain client binary, which is capable of managing
+`gnoland` is the gno.land blockchain client binary, which is capable of managing
 node working files, as well as starting the blockchain client itself.
 
 ### gnoland start [flags]

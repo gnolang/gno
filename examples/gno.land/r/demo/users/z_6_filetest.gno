@@ -3,11 +3,10 @@ package main
 import (
 	"std"
 
-	"gno.land/p/demo/testutils"
 	"gno.land/r/demo/users"
 )
 
-const admin = std.Address("g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj")
+const admin = std.Address("g1u7y667z64x2h7vc6fmpcprgey4ck233jaww9zq")
 
 func main() {
 	caller := std.GetOrigCaller()

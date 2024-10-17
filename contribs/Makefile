@@ -3,7 +3,7 @@ help:
 	@echo "Available make commands:"
 	@cat Makefile | grep '^[a-z][^:]*:' | cut -d: -f1 | sort | sed 's/^/  /'
 
-programs=gnodev gnofaucet
+programs=$(wildcard */)
 
 # command to run dependency utilities, like goimports.
 rundep=go run -modfile ../misc/devdeps/go.mod

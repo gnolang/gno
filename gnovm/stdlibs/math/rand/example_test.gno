@@ -7,9 +7,7 @@ package rand_test
 import (
 	"fmt"
 	"math/rand"
-	"os"
 	"strings"
-	"time"
 )
 
 // These tests serve as an example but also make sure we don't change

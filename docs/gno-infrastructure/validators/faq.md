@@ -6,17 +6,17 @@ id: validators-faq
 
 ## General Concepts
 
-### What is a Gno.land validator?
+### What is a gno.land validator?
 
 Gno.land is based on [Tendermint2](https://docs.gno.land/concepts/tendermint2) that relies on a set of validators
 selected based on [Proof of Contribution](https://docs.gno.land/concepts/proof-of-contribution) (PoC) to secure the
 network. Validators are tasked with participating in consensus by committing new blocks and broadcasting votes.
-Validators are compensated with a portion of transaction fees generated in the network. In Gno.land, the voting power of
+Validators are compensated with a portion of transaction fees generated in the network. In gno.land, the voting power of
 all validators are equally weighted to achieve a high nakamoto coefficient and fairness.
 
 ### What is Tendermint2?
 
-[Tendermint2](https://docs.gno.land/concepts/tendermint2) (TM2) is the consensus protocol that powers Gno.land. TM2 is a
+[Tendermint2](https://docs.gno.land/concepts/tendermint2) (TM2) is the consensus protocol that powers gno.land. TM2 is a
 successor of [Tendermint Core](https://github.com/tendermint/tendermint2), a de facto consensus framework for building
 Proof of Stake blockchains. The design philosophy of TM2 is to create “complete software” without any vulnerabilities
 with development focused on minimalism, dependency removal, and modularity.
@@ -24,36 +24,36 @@ with development focused on minimalism, dependency removal, and modularity.
 ### What is Proof of Contribution?
 
 [Proof of Contribution](https://docs.gno.land/concepts/proof-of-contribution) (PoC) is a novel consensus mechanism that
-secures Gno.land. PoC weighs expertise and alignment with the project to evaluate the contribution of individuals or
+secures gno.land. PoC weighs expertise and alignment with the project to evaluate the contribution of individuals or
 teams who govern and operate the chain. Unlike Proof of Stake (PoS), validators are selected via governance of
 Contributors based on their reputation and technical proficiency. The voting power of the network is equally distributed
 across all validators for higher decentralization. A portion of all transaction fees paid to the network are evenly
 shared between all validators to provide a fair incentive structure.
 
-### How does Gno.land differ from the Cosmos Hub?
+### How does gno.land differ from the Cosmos Hub?
 
 In Cosmos Hub, validators are selected based on the amount of staked `ATOM` tokens delegated. This means that anyone
 with enough capital can join as a validator only to seek economic incentives without any alignment or technical
 expertise. This system leads to an undesirable incentive structure in which validators are rewarded purely based on the
 capital delegated, regardless of the quality of their infrastructure or service.
 
-On the contrary, validators in Gno.land must be reviewed and verified to have made significant contributions in order to
+On the contrary, validators in gno.land must be reviewed and verified to have made significant contributions in order to
 join the validator set. This property resembles the validator selection mechanism
 in [Proof of Authority](https://openethereum.github.io/Proof-of-Authority-Chains). Furthermore, all validators are
 evenly rewarded to ensure that the entire validator set is fairly incentivized to ensure the sustainability of the
 network.
 
-### What stage is the Gno.land project in?
+### What stage is the gno.land project in?
 
 Gno.land is currently in Testnet 3, the single-node testnet stage. The next version, Testnet 4, is scheduled to go live
-in Q2 2024, which will include a validator set implementation for a multinode environment.
+in Q3 2024, which will include a validator set implementation for a multinode environment.
 
 ## Becoming a Validator
 
 ### How do I join the testnet as a validator?
 
 Out of many official Gno testnets, Testnet4 (`test4`) is the purpose-built network for testing the multi-node validator
-environment prior to mainnet launch. Testnet4 is scheduled to go live in Q2 2024 with genesis validators consisting of
+environment prior to mainnet launch. Testnet4 is scheduled to go live in Q3 2024 with genesis validators consisting of
 the Gno Core Team, partners, and external contributors.
 
 For more information about joining testnet4,
@@ -62,7 +62,7 @@ testnets, visit [Gno Testnets](https://docs.gno.land/concepts/testnets).
 
 ### What are the incentives for running a validator?
 
-Network transaction fees paid on the Gno.land in `GNOT` are collected, from which a portion is directed to reward
+Network transaction fees paid on the gno.land in `GNOT` are collected, from which a portion is directed to reward
 validators for their work. All validators fairly receive an equal amount of rewards.
 
 ### How many validators will there be in mainnet?

@@ -2,6 +2,8 @@ module loop
 
 go 1.22
 
+toolchain go1.22.4
+
 require github.com/gnolang/gno v0.0.0-20240125181217-b6193518e278
 
 require (

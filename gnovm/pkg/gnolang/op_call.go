@@ -27,6 +27,11 @@ func (m *Machine) doOpPrecall() {
 	case TypeValue:
 		// Do not pop type yet.
 		// No need for frames.
+		xv := m.PeekValue(1)
+		if cx.GetAttribute(ATTR_SHIFT_RHS) == true {
+			xv.AssertNonNegative("runtime error: negative shift amount")
+		}
+
 		m.PushOp(OpConvert)
 		if debug {
 			if len(cx.Args) != 1 {
@@ -427,7 +432,9 @@ func (m *Machine) doOpPanic2() {
 			for i, ex := range m.Exceptions {
 				exs[i] = ex.Sprint(m)
 			}
-			panic(strings.Join(exs, "\n\t"))
+			panic(UnhandledPanicError{
+				Descriptor: strings.Join(exs, "\n\t"),
+			})
 		}
 		m.PushOp(OpPanic2)
 		m.PushOp(OpReturnCallDefers) // XXX rename, not return?

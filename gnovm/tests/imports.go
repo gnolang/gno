@@ -89,6 +89,7 @@ func TestStore(rootDir, filesPath string, stdin io.Reader, stdout, stderr io.Wri
 				// pkg := gno.NewPackageNode(gno.Name(memPkg.Name), memPkg.Path, nil)
 				// pv := pkg.NewPackage()
 				// m2.SetActivePackage(pv)
+				// XXX remove second arg 'false' and remove all gonative stuff.
 				return m2.RunMemPackage(memPkg, false)
 			}
 		}
@@ -227,12 +228,23 @@ func TestStore(rootDir, filesPath string, stdin io.Reader, stdout, stderr io.Wri
 				pkg.DefineGoNativeValue("Hour", time.Hour)
 				pkg.DefineGoNativeValue("Date", time.Date)
 				pkg.DefineGoNativeValue("Now", func() time.Time { return time.Unix(0, 0).UTC() }) // deterministic
+				pkg.DefineGoNativeValue("January", time.January)
+				pkg.DefineGoNativeValue("February", time.February)
+				pkg.DefineGoNativeValue("March", time.March)
+				pkg.DefineGoNativeValue("April", time.April)
+				pkg.DefineGoNativeValue("May", time.May)
+				pkg.DefineGoNativeValue("June", time.June)
+				pkg.DefineGoNativeValue("July", time.July)
+				pkg.DefineGoNativeValue("August", time.August)
+				pkg.DefineGoNativeValue("September", time.September)
 				pkg.DefineGoNativeValue("November", time.November)
+				pkg.DefineGoNativeValue("December", time.December)
 				pkg.DefineGoNativeValue("UTC", time.UTC)
 				pkg.DefineGoNativeValue("Unix", time.Unix)
 				pkg.DefineGoNativeType(reflect.TypeOf(time.Time{}))
 				pkg.DefineGoNativeType(reflect.TypeOf(time.Duration(0)))
 				pkg.DefineGoNativeType(reflect.TypeOf(time.Month(0)))
+				pkg.DefineGoNativeValue("LoadLocation", time.LoadLocation)
 				return pkg, pkg.NewPackage()
 			case "strings":
 				pkg := gno.NewPackageNode("strings", pkgPath, nil)
@@ -464,7 +476,7 @@ func testPackageInjector(store gno.Store, pn *gno.PackageNode) {
 	}
 }
 
-//----------------------------------------
+// ----------------------------------------
 
 type dummyReader struct{}
 
@@ -475,7 +487,7 @@ func (*dummyReader) Read(b []byte) (n int, err error) {
 	return len(b), nil
 }
 
-//----------------------------------------
+// ----------------------------------------
 
 type TestReport struct {
 	Name    string

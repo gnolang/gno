@@ -35,6 +35,7 @@ func newTxsCmd(io commands.IO) *commands.Command {
 		newTxsAddCmd(cfg, io),
 		newTxsRemoveCmd(cfg, io),
 		newTxsExportCmd(cfg, io),
+		newTxsListCmd(cfg, io),
 	)
 
 	return cmd

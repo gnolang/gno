@@ -23,7 +23,7 @@ export PATH=$GOPATH/bin:$PATH
 ```
 
 ## 1. Cloning the repository
-To get started with a local Gno.land development environment, you must clone the
+To get started with a local gno.land development environment, you must clone the
 GitHub repository somewhere on disk:
 
 ```bash
@@ -35,7 +35,7 @@ git clone https://github.com/gnolang/gno.git
 There are three tools that should be used for getting started with Gno development:
 - `gno` - the GnoVM binary
 - `gnodev` - the Gno [development helper](../../gno-tooling/cli/gnodev.md)
-- `gnokey` - the Gno [keypair manager](working-with-key-pairs.md)
+- `gnokey` - the Gno [keypair manager](../../gno-tooling/cli/gnokey/working-with-key-pairs.md)
 
 To install all three  tools, simply run the following in the root of the repo:
 ```bash
@@ -85,9 +85,9 @@ You should get the following output:
 
 ### `gnokey`
 
-`gnokey` is the Gno.land keypair management CLI tool. It allows you to create
-keypairs, sign transactions, and broadcast them to Gno.land chains. Read more
-about `gnokey` [here](../../gno-tooling/cli/gnokey.md).
+`gnokey` is the gno.land keypair management CLI tool. It allows you to create
+keypairs, sign transactions, and broadcast them to gno.land chains. Read more
+about `gnokey` [here](../../gno-tooling/cli/gnokey/gnokey.md).
 
 To verify that the `gnokey` binary is installed system-wide, you can run:
 
@@ -106,5 +106,5 @@ That's it 🎉
 You have successfully built out and installed the necessary tools for Gno
 development!
 
-In further documents, you will gain a better understanding on how they are used
+In further documents, you will gain a better understanding of how they are used
 to make Gno work.

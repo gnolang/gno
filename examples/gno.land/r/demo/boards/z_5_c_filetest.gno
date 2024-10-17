@@ -1,6 +1,6 @@
 package main
 
-// SEND: 2000000000ugnot
+// SEND: 200000000ugnot
 
 import (
 	"std"

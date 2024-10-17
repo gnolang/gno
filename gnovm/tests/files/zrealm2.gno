@@ -72,6 +72,17 @@ func main() {
 //     "Values": [
 //         {
 //             "T": {
+//                 "@type": "/gno.RefType",
+//                 "ID": "gno.land/r/test.InnerNode"
+//             },
+//             "V": {
+//                 "@type": "/gno.RefValue",
+//                 "Hash": "61d4aa77a87c01e07038c6030d6aca299d0fdc1b",
+//                 "ObjectID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:5"
+//             }
+//         },
+//         {
+//             "T": {
 //                 "@type": "/gno.TypeType"
 //             },
 //             "V": {
@@ -172,7 +183,7 @@ func main() {
 //                 },
 //                 "FileName": "main.gno",
 //                 "IsMethod": false,
-//                 "Name": "init.3",
+//                 "Name": "init.4",
 //                 "NativeName": "",
 //                 "NativePkg": "",
 //                 "PkgPath": "gno.land/r/test",
@@ -227,17 +238,6 @@ func main() {
 //                     "Params": [],
 //                     "Results": []
 //                 }
-//             }
-//         },
-//         {
-//             "T": {
-//                 "@type": "/gno.RefType",
-//                 "ID": "gno.land/r/test.InnerNode"
-//             },
-//             "V": {
-//                 "@type": "/gno.RefValue",
-//                 "Hash": "61d4aa77a87c01e07038c6030d6aca299d0fdc1b",
-//                 "ObjectID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:5"
 //             }
 //         }
 //     ]

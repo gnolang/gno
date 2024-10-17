@@ -11,15 +11,6 @@
 
 package rand
 
-import (
-	"bytes"
-	"fmt"
-	"io"
-	"os"
-	"strings"
-	"testing"
-)
-
 /*
 XXX: disabled because reflect, but would be good to enable it
 switching reflect to simple fn calls.

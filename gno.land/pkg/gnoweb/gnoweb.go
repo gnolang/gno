@@ -1,6 +1,7 @@
 package gnoweb
 
 import (
+	"bytes"
 	"embed"
 	"encoding/json"
 	"errors"
@@ -79,34 +80,11 @@ func MakeApp(logger *slog.Logger, cfg Config) gotuna.App {
 		Static:    static.EmbeddedStatic,
 	}
 
-	// realm aliases
-	aliases := map[string]string{
-		"/":               "/r/gnoland/home",
-		"/about":          "/r/gnoland/pages:p/about",
-		"/gnolang":        "/r/gnoland/pages:p/gnolang",
-		"/ecosystem":      "/r/gnoland/pages:p/ecosystem",
-		"/partners":       "/r/gnoland/pages:p/partners",
-		"/testnets":       "/r/gnoland/pages:p/testnets",
-		"/start":          "/r/gnoland/pages:p/start",
-		"/license":        "/r/gnoland/pages:p/license",
-		"/game-of-realms": "/r/gnoland/pages:p/gor", // XXX: replace with gor realm
-		"/events":         "/r/gnoland/events",
-	}
-
-	for from, to := range aliases {
+	for from, to := range Aliases {
 		app.Router.Handle(from, handlerRealmAlias(logger, app, &cfg, to))
 	}
-	// http redirects
-	redirects := map[string]string{
-		"/r/demo/boards:gnolang/6": "/r/demo/boards:gnolang/3", // XXX: temporary
-		"/blog":                    "/r/gnoland/blog",
-		"/gor":                     "/game-of-realms",
-		"/grants":                  "/partners",
-		"/language":                "/gnolang",
-		"/getting-started":         "/start",
-		"/gophercon24":             "https://docs.gno.land",
-	}
-	for from, to := range redirects {
+
+	for from, to := range Redirects {
 		app.Router.Handle(from, handlerRedirect(logger, app, &cfg, to))
 	}
 	// realm routes
@@ -335,6 +313,15 @@ func handleRealmRender(logger *slog.Logger, app gotuna.App, cfg *Config, w http.
 			return
 		}
 	}
+
+	dirdata := []byte(rlmpath)
+	dirres, err := makeRequest(logger, cfg, qFileStr, dirdata)
+	if err != nil {
+		writeError(logger, w, err)
+		return
+	}
+	hasReadme := bytes.Contains(append(dirres.Data, '\n'), []byte("README.md\n"))
+
 	// linkify querystr.
 	queryParts := strings.Split(querystr, "/")
 	pathLinks := []pathLink{}
@@ -354,6 +341,7 @@ func handleRealmRender(logger *slog.Logger, app gotuna.App, cfg *Config, w http.
 	tmpl.Set("PathLinks", pathLinks)
 	tmpl.Set("Contents", string(res.Data))
 	tmpl.Set("Config", cfg)
+	tmpl.Set("HasReadme", hasReadme)
 	tmpl.Render(w, r, "realm_render.html", "funcs.html")
 }
 
@@ -488,7 +476,7 @@ func handleNotFound(logger *slog.Logger, app gotuna.App, cfg *Config, path strin
 	// decode path for non-ascii characters
 	decodedPath, err := url.PathUnescape(path)
 	if err != nil {
-		logger.Error("failed to decode path", err)
+		logger.Error("failed to decode path", "error", err)
 		decodedPath = path
 	}
 	w.WriteHeader(http.StatusNotFound)
@@ -503,7 +491,7 @@ func writeError(logger *slog.Logger, w http.ResponseWriter, err error) {
 	if details := errors.Unwrap(err); details != nil {
 		logger.Error("handler", "error", err, "details", details)
 	} else {
-		logger.Error("handler", "error:", err)
+		logger.Error("handler", "error", err)
 	}
 
 	// XXX: writeError should return an error page template.
