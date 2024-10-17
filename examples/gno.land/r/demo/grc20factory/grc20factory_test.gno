@@ -14,49 +14,57 @@ func TestReadOnlyPublicMethods(t *testing.T) {
 	bob := testutils.TestAddress("bob")
 	carl := testutils.TestAddress("carl")
 
-	std.TestSetOrigCaller(admin)
-	std.TestSetRealm(std.NewUserRealm(admin))
-	NewWithAdmin("Foo", "FOO", 4, 10_000*1_000_000, 10_000, admin)
-	NewWithAdmin("Bar", "BAR", 4, 10_000*1_000, 10_000, admin)
-	mustGetInstance("FOO").ledger.Mint(bob, 100_000_000)
-
 	type test struct {
 		name    string
 		balance uint64
 		fn      func() uint64
 	}
 
-	// check balances #1.
-	{
+	checkBalances := func(totSup, balAdm, balBob, allowAdmBob, balCarl uint64) {
 		tests := []test{
-			{"TotalSupply", 10_000_000_000, func() uint64 { return TotalSupply("FOO") }},
-			{"BalanceOf(admin)", 10_000_000_000, func() uint64 { return BalanceOf("FOO", admin) }},
-			{"BalanceOf(bob)", 0, func() uint64 { return BalanceOf("FOO", bob) }},
-			{"Allowance(admin, bob)", 0, func() uint64 { return Allowance("FOO", admin, bob) }},
-			{"BalanceOf(carl)", 0, func() uint64 { return BalanceOf("FOO", carl) }},
+			{"TotalSupply", totSup, func() uint64 { return TotalSupply("FOO") }},
+			{"BalanceOf(admin)", balAdm, func() uint64 { return BalanceOf("FOO", admin) }},
+			{"BalanceOf(bob)", balBob, func() uint64 { return BalanceOf("FOO", bob) }},
+			{"Allowance(admin, bob)", allowAdmBob, func() uint64 { return Allowance("FOO", admin, bob) }},
+			{"BalanceOf(carl)", balCarl, func() uint64 { return BalanceOf("FOO", carl) }},
 		}
 		for _, tc := range tests {
-			uassert.Equal(t, tc.balance, tc.fn(), "balance does not match")
+			uassert.Equal(t, tc.balance, tc.fn(), "balances do not match")
 		}
 	}
+
+	// admin creates FOO and BAR.
+	std.TestSetOrigCaller(admin)
+	std.TestSetRealm(std.NewUserRealm(admin))
+	NewWithAdmin("Foo", "FOO", 3, 1_111_111_000, 5_555, admin)
+	NewWithAdmin("Bar", "BAR", 3, 2_222_000, 6_666, admin)
+	checkBalances(1_111_111_000, 1_111_111_000, 0, 0, 0)
+
+	// admin mints to bob.
+	mustGetInstance("FOO").ledger.Mint(bob, 333_333_000)
+	checkBalances(1_444_444_000, 1_111_111_000, 333_333_000, 0, 0)
 
 	// carl uses the faucet.
-	// std.TestSetOrigCaller(carl)
-	// std.TestSetRealm(std.NewUserRealm(carl))
+	std.TestSetOrigCaller(carl)
+	std.TestSetRealm(std.NewUserRealm(carl))
 	Faucet("FOO")
-	return
+	checkBalances(1_444_449_555, 1_111_111_000, 333_333_000, 0, 5_555)
 
-	// check balances #2.
-	{
-		tests := []test{
-			{"TotalSupply", 10_000_010_000, func() uint64 { return TotalSupply("FOO") }},
-			{"BalanceOf(admin)", 10_000_000_000, func() uint64 { return BalanceOf("FOO", admin) }},
-			{"BalanceOf(bob)", 0, func() uint64 { return BalanceOf("FOO", bob) }},
-			{"Allowance(admin, bob)", 0, func() uint64 { return Allowance("FOO", admin, bob) }},
-			{"BalanceOf(carl)", 10_000, func() uint64 { return BalanceOf("FOO", carl) }},
-		}
-		for _, tc := range tests {
-			uassert.Equal(t, tc.balance, tc.fn(), "balance does not match")
-		}
-	}
+	// admin gives to bob some allowance.
+	std.TestSetOrigCaller(admin)
+	std.TestSetRealm(std.NewUserRealm(admin))
+	Approve("FOO", bob, 1_000_000)
+	checkBalances(1_444_449_555, 1_111_111_000, 333_333_000, 1_000_000, 5_555)
+
+	// bob uses a part of the allowance.
+	std.TestSetOrigCaller(bob)
+	std.TestSetRealm(std.NewUserRealm(bob))
+	TransferFrom("FOO", admin, carl, 400_000)
+	checkBalances(1_444_449_555, 1_110_711_000, 333_333_000, 600_000, 405_555)
+
+	// bob uses a part of the allowance.
+	std.TestSetOrigCaller(bob)
+	std.TestSetRealm(std.NewUserRealm(bob))
+	TransferFrom("FOO", admin, carl, 600_000)
+	checkBalances(1_444_449_555, 1_110_111_000, 333_333_000, 0, 1_005_555)
 }
