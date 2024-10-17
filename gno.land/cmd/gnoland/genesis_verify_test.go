@@ -57,7 +57,7 @@ func TestGenesis_Verify(t *testing.T) {
 		args := []string{
 			"genesis",
 			"verify",
-			"--genesis-path",
+			"--genesis",
 			tempFile.Name(),
 		}
 
@@ -88,7 +88,7 @@ func TestGenesis_Verify(t *testing.T) {
 		args := []string{
 			"genesis",
 			"verify",
-			"--genesis-path",
+			"--genesis",
 			tempFile.Name(),
 		}
 
@@ -116,7 +116,7 @@ func TestGenesis_Verify(t *testing.T) {
 		args := []string{
 			"genesis",
 			"verify",
-			"--genesis-path",
+			"--genesis",
 			tempFile.Name(),
 		}
 
@@ -139,7 +139,7 @@ func TestGenesis_Verify(t *testing.T) {
 		args := []string{
 			"genesis",
 			"verify",
-			"--genesis-path",
+			"--genesis",
 			tempFile.Name(),
 		}
 
@@ -163,7 +163,7 @@ func TestGenesis_Verify(t *testing.T) {
 		args := []string{
 			"genesis",
 			"verify",
-			"--genesis-path",
+			"--genesis",
 			tempFile.Name(),
 		}
 

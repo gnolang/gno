@@ -24,7 +24,7 @@ func TestGenesis_Txs_Remove(t *testing.T) {
 			"genesis",
 			"txs",
 			"remove",
-			"--genesis-path",
+			"--genesis",
 			"dummy-path",
 		}
 
@@ -49,7 +49,7 @@ func TestGenesis_Txs_Remove(t *testing.T) {
 			"genesis",
 			"txs",
 			"remove",
-			"--genesis-path",
+			"--genesis",
 			tempGenesis.Name(),
 		}
 
@@ -78,7 +78,7 @@ func TestGenesis_Txs_Remove(t *testing.T) {
 			"genesis",
 			"txs",
 			"remove",
-			"--genesis-path",
+			"--genesis",
 			tempGenesis.Name(),
 		}
 
@@ -111,7 +111,7 @@ func TestGenesis_Txs_Remove(t *testing.T) {
 			"genesis",
 			"txs",
 			"remove",
-			"--genesis-path",
+			"--genesis",
 			tempGenesis.Name(),
 			txHash,
 		}
