@@ -441,13 +441,13 @@ func (kb dbKeybase) Delete(nameOrBech32, passphrase string, skipPass bool) error
 	return nil
 }
 
-// Update changes the passphrase with which an already stored key is
+// Rotate changes the passphrase with which an already stored key is
 // encrypted.
 //
 // oldpass must be the current passphrase used for encryption,
 // getNewpass is a function to get the passphrase to permanently replace
 // the current passphrase
-func (kb dbKeybase) Update(nameOrBech32, oldpass string, getNewpass func() (string, error)) error {
+func (kb dbKeybase) Rotate(nameOrBech32, oldpass string, getNewpass func() (string, error)) error {
 	info, err := kb.GetByNameOrAddress(nameOrBech32)
 	if err != nil {
 		return err

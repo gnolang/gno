@@ -179,14 +179,14 @@ func (lkb lazyKeybase) CreateMulti(name string, pubkey crypto.PubKey) (info Info
 	return NewDBKeybase(db).CreateMulti(name, pubkey)
 }
 
-func (lkb lazyKeybase) Update(name, oldpass string, getNewpass func() (string, error)) error {
+func (lkb lazyKeybase) Rotate(name, oldpass string, getNewpass func() (string, error)) error {
 	db, err := db.NewDB(lkb.name, dbBackend, lkb.dir)
 	if err != nil {
 		return err
 	}
 	defer db.Close()
 
-	return NewDBKeybase(db).Update(name, oldpass, getNewpass)
+	return NewDBKeybase(db).Rotate(name, oldpass, getNewpass)
 }
 
 func (lkb lazyKeybase) Import(name string, armor string) (err error) {
