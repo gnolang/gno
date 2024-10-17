@@ -14,6 +14,7 @@ import (
 
 	"github.com/gnolang/gno/tm2/pkg/bft/appconn"
 	"github.com/gnolang/gno/tm2/pkg/bft/state/eventstore/file"
+	types2 "github.com/gnolang/gno/tm2/pkg/p2p/types"
 	"github.com/rs/cors"
 
 	"github.com/gnolang/gno/tm2/pkg/amino"
@@ -86,7 +87,7 @@ func DefaultNewNode(
 	logger *slog.Logger,
 ) (*Node, error) {
 	// Generate node PrivKey
-	nodeKey, err := p2p.LoadOrGenNodeKey(config.NodeKeyFile())
+	nodeKey, err := types2.LoadOrGenNodeKey(config.NodeKeyFile())
 	if err != nil {
 		return nil, err
 	}
@@ -130,10 +131,10 @@ type Node struct {
 	privValidator types.PrivValidator // local node's validator key
 
 	// network
-	transport   *p2p.MultiplexTransport
+	transport   *p2p.Transport
 	sw          *p2p.Switch // p2p connections
-	nodeInfo    p2p.NodeInfo
-	nodeKey     *p2p.NodeKey // our node privkey
+	nodeInfo    types2.NodeInfo
+	nodeKey     *types2.NodeKey // our node privkey
 	isListening bool
 
 	// services
@@ -313,25 +314,10 @@ func createConsensusReactor(config *cfg.Config,
 	return consensusReactor, consensusState
 }
 
-func createTransport(config *cfg.Config, nodeInfo p2p.NodeInfo, nodeKey *p2p.NodeKey) *p2p.MultiplexTransport {
-	var (
-		mConnConfig = p2p.MultiplexConfigFromP2P(config.P2P)
-		transport   = p2p.NewMultiplexTransport(nodeInfo, *nodeKey, mConnConfig)
-		connFilters = []p2p.ConnFilterFunc{}
-	)
-
-	if !config.P2P.AllowDuplicateIP {
-		connFilters = append(connFilters, p2p.ConnDuplicateIPFilter())
-	}
-
-	p2p.MultiplexTransportConnFilters(connFilters...)(transport)
-	return transport
-}
-
 // NewNode returns a new, ready to go, Tendermint Node.
 func NewNode(config *cfg.Config,
 	privValidator types.PrivValidator,
-	nodeKey *p2p.NodeKey,
+	nodeKey *types2.NodeKey,
 	clientCreator appconn.ClientCreator,
 	genesisDocProvider GenesisDocProvider,
 	dbProvider DBProvider,
@@ -444,24 +430,31 @@ func NewNode(config *cfg.Config,
 		return nil, errors.Wrap(err, "error making NodeInfo")
 	}
 
-	// Setup Transport.
-	transport := createTransport(config, nodeInfo, nodeKey)
-
-	// Setup Switch.
 	p2pLogger := logger.With("module", "p2p")
 
-	peerAddrs, errs := p2p.NewNetAddressFromStrings(splitAndTrimEmpty(config.P2P.PersistentPeers, ",", " "))
+	// Setup the multiplex transport, used by the P2P switch
+	// TODO cleanup
+	transport := p2p.NewMultiplexTransport(
+		nodeInfo,
+		*nodeKey,
+		conn.MConfigFromP2P(config.P2P),
+		p2pLogger.With("transport", "multiplex"),
+	)
+
+	// Setup Switch.
+	peerAddrs, errs := types2.NewNetAddressFromStrings(splitAndTrimEmpty(config.P2P.PersistentPeers, ",", " "))
 	for _, err := range errs {
 		p2pLogger.Error("invalid persistent peer address", "err", err)
 	}
 
 	sw := p2p.NewSwitch(
-		config.P2P,
 		transport,
 		p2p.WithReactor("MEMPOOL", mempoolReactor),
 		p2p.WithReactor("BLOCKCHAIN", bcReactor),
 		p2p.WithReactor("CONSENSUS", consensusReactor),
 		p2p.WithPersistentPeers(peerAddrs),
+		p2p.WithMaxInboundPeers(config.P2P.MaxNumInboundPeers),
+		p2p.WithMaxOutboundPeers(config.P2P.MaxNumOutboundPeers),
 	)
 
 	sw.SetLogger(p2pLogger)
@@ -541,7 +534,7 @@ func (n *Node) OnStart() error {
 	}
 
 	// Start the transport.
-	addr, err := p2p.NewNetAddressFromString(p2p.NetAddressString(n.nodeKey.ID(), n.config.P2P.ListenAddress))
+	addr, err := types2.NewNetAddressFromString(types2.NetAddressString(n.nodeKey.ID(), n.config.P2P.ListenAddress))
 	if err != nil {
 		return err
 	}
@@ -569,7 +562,7 @@ func (n *Node) OnStart() error {
 	}
 
 	// Always connect to persistent peers
-	peerAddrs, errs := p2p.NewNetAddressFromStrings(splitAndTrimEmpty(n.config.P2P.PersistentPeers, ",", " "))
+	peerAddrs, errs := types2.NewNetAddressFromStrings(splitAndTrimEmpty(n.config.P2P.PersistentPeers, ",", " "))
 	for _, err := range errs {
 		n.Logger.Error("invalid persistent peer address", "err", err)
 	}
@@ -589,6 +582,11 @@ func (n *Node) OnStop() {
 	// first stop the non-reactor services
 	n.evsw.Stop()
 	n.eventStoreService.Stop()
+
+	// Stop the node p2p transport
+	if err := n.transport.Close(); err != nil {
+		n.Logger.Error("unable to gracefully close transport", "err", err)
+	}
 
 	// now stop the reactors
 	n.sw.Stop()
@@ -792,17 +790,17 @@ func (n *Node) IsListening() bool {
 }
 
 // NodeInfo returns the Node's Info from the Switch.
-func (n *Node) NodeInfo() p2p.NodeInfo {
+func (n *Node) NodeInfo() types2.NodeInfo {
 	return n.nodeInfo
 }
 
 func makeNodeInfo(
 	config *cfg.Config,
-	nodeKey *p2p.NodeKey,
+	nodeKey *types2.NodeKey,
 	txEventStore eventstore.TxEventStore,
 	genDoc *types.GenesisDoc,
 	state sm.State,
-) (p2p.NodeInfo, error) {
+) (types2.NodeInfo, error) {
 	txIndexerStatus := eventstore.StatusOff
 	if txEventStore.GetType() != null.EventStoreType {
 		txIndexerStatus = eventstore.StatusOn
@@ -815,7 +813,7 @@ func makeNodeInfo(
 		Version: state.AppVersion,
 	})
 
-	nodeInfo := p2p.NodeInfo{
+	nodeInfo := types2.NodeInfo{
 		VersionSet: vset,
 		Network:    genDoc.ChainID,
 		Version:    version.Version,
@@ -825,7 +823,7 @@ func makeNodeInfo(
 			mempl.MempoolChannel,
 		},
 		Moniker: config.Moniker,
-		Other: p2p.NodeInfoOther{
+		Other: types2.NodeInfoOther{
 			TxIndex:    txIndexerStatus,
 			RPCAddress: config.RPC.ListenAddress,
 		},
@@ -835,7 +833,7 @@ func makeNodeInfo(
 	if lAddr == "" {
 		lAddr = config.P2P.ListenAddress
 	}
-	addr, err := p2p.NewNetAddressFromString(p2p.NetAddressString(nodeKey.ID(), lAddr))
+	addr, err := types2.NewNetAddressFromString(types2.NetAddressString(nodeKey.ID(), lAddr))
 	if err != nil {
 		return nodeInfo, errors.Wrap(err, "invalid (local) node net address")
 	}

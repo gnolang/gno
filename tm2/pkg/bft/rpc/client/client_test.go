@@ -14,7 +14,7 @@ import (
 	ctypes "github.com/gnolang/gno/tm2/pkg/bft/rpc/core/types"
 	types "github.com/gnolang/gno/tm2/pkg/bft/rpc/lib/types"
 	bfttypes "github.com/gnolang/gno/tm2/pkg/bft/types"
-	types2 "github.com/gnolang/gno/tm2/pkg/p2p"
+	types2 "github.com/gnolang/gno/tm2/pkg/p2p/types"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )

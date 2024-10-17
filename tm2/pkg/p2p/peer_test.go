@@ -12,6 +12,7 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/cmap"
 	"github.com/gnolang/gno/tm2/pkg/p2p/config"
 	"github.com/gnolang/gno/tm2/pkg/p2p/conn"
+	"github.com/gnolang/gno/tm2/pkg/p2p/types"
 	"github.com/gnolang/gno/tm2/pkg/service"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -68,7 +69,7 @@ func TestPeer_Properties(t *testing.T) {
 			tcpAddr, err := net.ResolveTCPAddr("tcp", "localhost:8080")
 			require.NoError(t, err)
 
-			netAddr, err := NewNetAddress(GenerateNodeKey().ID(), tcpAddr)
+			netAddr, err := types.NewNetAddress(types.GenerateNodeKey().ID(), tcpAddr)
 			require.NoError(t, err)
 
 			var (
@@ -175,7 +176,7 @@ func TestPeer_Properties(t *testing.T) {
 			t.Parallel()
 
 			var (
-				info = NodeInfo{
+				info = types.NodeInfo{
 					Network: "gnoland",
 				}
 
@@ -231,7 +232,7 @@ func TestPeer_Properties(t *testing.T) {
 					t.Parallel()
 
 					var (
-						id       = GenerateNodeKey().ID()
+						id       = types.GenerateNodeKey().ID()
 						mConnStr = "description"
 
 						p = &peer{
@@ -240,8 +241,8 @@ func TestPeer_Properties(t *testing.T) {
 									return mConnStr
 								},
 							},
-							nodeInfo: NodeInfo{
-								NetAddress: &NetAddress{
+							nodeInfo: types.NodeInfo{
+								NetAddress: &types.NetAddress{
 									ID: id,
 								},
 							},
@@ -365,7 +366,7 @@ func TestPeer_Send(t *testing.T) {
 			}
 
 			p = &peer{
-				nodeInfo: NodeInfo{
+				nodeInfo: types.NodeInfo{
 					Channels: []byte{
 						chID,
 					},
@@ -403,7 +404,7 @@ func TestPeer_Send(t *testing.T) {
 			}
 
 			p = &peer{
-				nodeInfo: NodeInfo{
+				nodeInfo: types.NodeInfo{
 					Channels: []byte{},
 				},
 				mConn: mockConn,
@@ -445,7 +446,7 @@ func TestPeer_Send(t *testing.T) {
 			}
 
 			p = &peer{
-				nodeInfo: NodeInfo{
+				nodeInfo: types.NodeInfo{
 					Channels: []byte{
 						chID,
 					},
@@ -493,7 +494,7 @@ func TestPeer_TrySend(t *testing.T) {
 			}
 
 			p = &peer{
-				nodeInfo: NodeInfo{
+				nodeInfo: types.NodeInfo{
 					Channels: []byte{
 						chID,
 					},
@@ -531,7 +532,7 @@ func TestPeer_TrySend(t *testing.T) {
 			}
 
 			p = &peer{
-				nodeInfo: NodeInfo{
+				nodeInfo: types.NodeInfo{
 					Channels: []byte{},
 				},
 				mConn: mockConn,
@@ -573,7 +574,7 @@ func TestPeer_TrySend(t *testing.T) {
 			}
 
 			p = &peer{
-				nodeInfo: NodeInfo{
+				nodeInfo: types.NodeInfo{
 					Channels: []byte{
 						chID,
 					},
@@ -604,7 +605,7 @@ func TestPeer_NewPeer(t *testing.T) {
 	tcpAddr, err := net.ResolveTCPAddr("tcp", "localhost:8080")
 	require.NoError(t, err)
 
-	netAddr, err := NewNetAddress(GenerateNodeKey().ID(), tcpAddr)
+	netAddr, err := types.NewNetAddress(types.GenerateNodeKey().ID(), tcpAddr)
 	require.NoError(t, err)
 
 	var (
@@ -616,8 +617,8 @@ func TestPeer_NewPeer(t *testing.T) {
 			SocketAddr: netAddr,
 		}
 
-		mConfig = &MultiplexConnConfig{
-			MConfig:      MultiplexConfigFromP2P(config.DefaultP2PConfig()),
+		mConfig = &ConnConfig{
+			MConfig:      conn.MConfigFromP2P(config.DefaultP2PConfig()),
 			ReactorsByCh: make(map[byte]Reactor),
 			ChDescs:      make([]*conn.ChannelDescriptor, 0),
 			OnPeerError:  nil,
@@ -625,6 +626,6 @@ func TestPeer_NewPeer(t *testing.T) {
 	)
 
 	assert.NotPanics(t, func() {
-		_ = NewPeer(connInfo, NodeInfo{}, mConfig)
+		_ = NewPeer(connInfo, types.NodeInfo{}, mConfig)
 	})
 }

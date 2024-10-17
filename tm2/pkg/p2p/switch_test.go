@@ -4,7 +4,7 @@ package p2p
 //
 // func init() {
 // 	cfg = config.DefaultP2PConfig()
-// 	cfg.PexReactor = true
+// 	cfg.PeerExchange = true
 // 	cfg.AllowDuplicateIP = true
 // }
 //

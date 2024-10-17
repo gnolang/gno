@@ -17,6 +17,7 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/events"
 	"github.com/gnolang/gno/tm2/pkg/log"
 	"github.com/gnolang/gno/tm2/pkg/p2p"
+	types2 "github.com/gnolang/gno/tm2/pkg/p2p/types"
 )
 
 const (
@@ -123,9 +124,9 @@ conR:
 }
 
 // GetChannels implements Reactor
-func (conR *ConsensusReactor) GetChannels() []*p2p.ChannelDescriptor {
+func (conR *ConsensusReactor) GetChannels() []*types2.ChannelDescriptor {
 	// TODO optimize
-	return []*p2p.ChannelDescriptor{
+	return []*types2.ChannelDescriptor{
 		{
 			ID:                  StateChannel,
 			Priority:            5,

@@ -609,14 +609,6 @@ func TestConfig_Get_P2P(t *testing.T) {
 			true,
 		},
 		{
-			"upnp toggle",
-			"p2p.upnp",
-			func(loadedCfg *config.Config, value []byte) {
-				assert.Equal(t, loadedCfg.P2P.UPNP, unmarshalJSONCommon[bool](t, value))
-			},
-			false,
-		},
-		{
 			"max inbound peers",
 			"p2p.max_num_inbound_peers",
 			func(loadedCfg *config.Config, value []byte) {
@@ -668,15 +660,7 @@ func TestConfig_Get_P2P(t *testing.T) {
 			"pex reactor toggle",
 			"p2p.pex",
 			func(loadedCfg *config.Config, value []byte) {
-				assert.Equal(t, loadedCfg.P2P.PexReactor, unmarshalJSONCommon[bool](t, value))
-			},
-			false,
-		},
-		{
-			"seed mode",
-			"p2p.seed_mode",
-			func(loadedCfg *config.Config, value []byte) {
-				assert.Equal(t, loadedCfg.P2P.SeedMode, unmarshalJSONCommon[bool](t, value))
+				assert.Equal(t, loadedCfg.P2P.PeerExchange, unmarshalJSONCommon[bool](t, value))
 			},
 			false,
 		},
@@ -695,30 +679,6 @@ func TestConfig_Get_P2P(t *testing.T) {
 				assert.Equal(t, loadedCfg.P2P.PrivatePeerIDs, escapeNewline(value))
 			},
 			true,
-		},
-		{
-			"allow duplicate IP",
-			"p2p.allow_duplicate_ip",
-			func(loadedCfg *config.Config, value []byte) {
-				assert.Equal(t, loadedCfg.P2P.AllowDuplicateIP, unmarshalJSONCommon[bool](t, value))
-			},
-			false,
-		},
-		{
-			"handshake timeout",
-			"p2p.handshake_timeout",
-			func(loadedCfg *config.Config, value []byte) {
-				assert.Equal(t, loadedCfg.P2P.HandshakeTimeout, unmarshalJSONCommon[time.Duration](t, value))
-			},
-			false,
-		},
-		{
-			"dial timeout",
-			"p2p.dial_timeout",
-			func(loadedCfg *config.Config, value []byte) {
-				assert.Equal(t, loadedCfg.P2P.DialTimeout, unmarshalJSONCommon[time.Duration](t, value))
-			},
-			false,
 		},
 	}
 

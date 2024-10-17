@@ -6,14 +6,15 @@ import (
 	"net"
 
 	"github.com/gnolang/gno/tm2/pkg/cmap"
-	connm "github.com/gnolang/gno/tm2/pkg/p2p/conn"
+	"github.com/gnolang/gno/tm2/pkg/p2p/conn"
+	"github.com/gnolang/gno/tm2/pkg/p2p/types"
 	"github.com/gnolang/gno/tm2/pkg/service"
 )
 
-type MultiplexConnConfig struct {
-	MConfig      connm.MConnConfig
+type ConnConfig struct {
+	MConfig      conn.MConnConfig
 	ReactorsByCh map[byte]Reactor
-	ChDescs      []*connm.ChannelDescriptor
+	ChDescs      []*conn.ChannelDescriptor
 	OnPeerError  func(Peer, error)
 }
 
@@ -23,7 +24,7 @@ type ConnInfo struct {
 	Persistent bool     // flag indicating if the connection is persistent
 	Conn       net.Conn // the source connection
 	RemoteIP   net.IP   // the remote IP of the peer
-	SocketAddr *NetAddress
+	SocketAddr *types.NetAddress
 }
 
 type multiplexConn interface {
@@ -33,7 +34,7 @@ type multiplexConn interface {
 	Send(byte, []byte) bool
 	TrySend(byte, []byte) bool
 	SetLogger(*slog.Logger)
-	Status() connm.ConnectionStatus
+	Status() conn.ConnectionStatus
 	String() string
 }
 
@@ -42,9 +43,9 @@ type multiplexConn interface {
 type peer struct {
 	service.BaseService
 
-	connInfo *ConnInfo     // Metadata about the connection
-	nodeInfo NodeInfo      // Information about the peer's node
-	mConn    multiplexConn // The multiplexed connection
+	connInfo *ConnInfo      // Metadata about the connection
+	nodeInfo types.NodeInfo // Information about the peer's node
+	mConn    multiplexConn  // The multiplexed connection
 
 	data *cmap.CMap // Arbitrary data store associated with the peer
 }
@@ -52,8 +53,8 @@ type peer struct {
 // NewPeer creates an uninitialized peer instance
 func NewPeer(
 	connInfo *ConnInfo,
-	nodeInfo NodeInfo,
-	mConfig *MultiplexConnConfig,
+	nodeInfo types.NodeInfo,
+	mConfig *ConnConfig,
 ) Peer {
 	p := &peer{
 		connInfo: connInfo,
@@ -103,7 +104,7 @@ func (p *peer) IsPersistent() bool {
 // For outbound peers, it's the address dialed (after DNS resolution).
 // For inbound peers, it's the address returned by the underlying connection
 // (not what's reported in the peer's NodeInfo).
-func (p *peer) SocketAddr() *NetAddress {
+func (p *peer) SocketAddr() *types.NetAddress {
 	return p.connInfo.SocketAddr
 }
 
@@ -152,17 +153,17 @@ func (p *peer) OnStop() {
 }
 
 // ID returns the peer's ID - the hex encoded hash of its pubkey.
-func (p *peer) ID() ID {
+func (p *peer) ID() types.ID {
 	return p.nodeInfo.NetAddress.ID
 }
 
 // NodeInfo returns a copy of the peer's NodeInfo.
-func (p *peer) NodeInfo() NodeInfo {
+func (p *peer) NodeInfo() types.NodeInfo {
 	return p.nodeInfo
 }
 
 // Status returns the peer's ConnectionStatus.
-func (p *peer) Status() connm.ConnectionStatus {
+func (p *peer) Status() conn.ConnectionStatus {
 	return p.mConn.Status()
 }
 
@@ -211,9 +212,9 @@ func (p *peer) hasChannel(chID byte) bool {
 }
 
 func (p *peer) createMConnection(
-	conn net.Conn,
-	config *MultiplexConnConfig,
-) *connm.MConnection {
+	c net.Conn,
+	config *ConnConfig,
+) *conn.MConnection {
 	onReceive := func(chID byte, msgBytes []byte) {
 		reactor := config.ReactorsByCh[chID]
 		if reactor == nil {
@@ -229,8 +230,8 @@ func (p *peer) createMConnection(
 		config.OnPeerError(p, r)
 	}
 
-	return connm.NewMConnectionWithConfig(
-		conn,
+	return conn.NewMConnectionWithConfig(
+		c,
 		config.ChDescs,
 		onReceive,
 		onError,

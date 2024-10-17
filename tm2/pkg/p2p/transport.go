@@ -12,20 +12,24 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/crypto"
 	"github.com/gnolang/gno/tm2/pkg/errors"
 	"github.com/gnolang/gno/tm2/pkg/p2p/conn"
+	"github.com/gnolang/gno/tm2/pkg/p2p/types"
 	"golang.org/x/sync/errgroup"
 )
 
-// TODO make options
-const (
-	defaultDialTimeout      = time.Second
-	defaultHandshakeTimeout = 3 * time.Second
+// defaultHandshakeTimeout is the timeout for the STS handshaking protocol
+const defaultHandshakeTimeout = 3 * time.Second
+
+var (
+	errTransportClosed     = errors.New("transport is closed")
+	errTransportInactive   = errors.New("transport is inactive")
+	errDuplicateConnection = errors.New("duplicate peer connection")
 )
 
 // peerInfo is a wrapper for an unverified peer connection
 type peerInfo struct {
-	addr     *NetAddress // the dial address of the peer
-	conn     net.Conn    // the connection associated with the peer
-	nodeInfo NodeInfo    // the relevant peer node info
+	addr     *types.NetAddress // the dial address of the peer
+	conn     net.Conn          // the connection associated with the peer
+	nodeInfo types.NodeInfo    // the relevant peer node info
 }
 
 // MultiplexTransport accepts and dials tcp connections and upgrades them to
@@ -36,9 +40,9 @@ type MultiplexTransport struct {
 
 	logger *slog.Logger
 
-	netAddr  NetAddress // the node's P2P dial address, used for handshaking
-	nodeInfo NodeInfo   // the node's P2P info, used for handshaking
-	nodeKey  NodeKey    // the node's private P2P key, used for handshaking
+	netAddr  types.NetAddress // the node's P2P dial address, used for handshaking
+	nodeInfo types.NodeInfo   // the node's P2P info, used for handshaking
+	nodeKey  types.NodeKey    // the node's private P2P key, used for handshaking
 
 	listener    net.Listener  // listener for inbound peer connections
 	peerCh      chan peerInfo // pipe for inbound peer connections
@@ -52,14 +56,12 @@ type MultiplexTransport struct {
 	mConfig conn.MConnConfig
 }
 
-// Test multiplexTransport for interface completeness.
-var _ Transport = (*MultiplexTransport)(nil)
-
 // NewMultiplexTransport returns a tcp connected multiplexed peer.
 func NewMultiplexTransport(
-	nodeInfo NodeInfo,
-	nodeKey NodeKey,
+	nodeInfo types.NodeInfo,
+	nodeKey types.NodeKey,
 	mConfig conn.MConnConfig,
+	logger *slog.Logger,
 ) *MultiplexTransport {
 	return &MultiplexTransport{
 		peerCh:           make(chan peerInfo, 1),
@@ -67,22 +69,29 @@ func NewMultiplexTransport(
 		mConfig:          mConfig,
 		nodeInfo:         nodeInfo,
 		nodeKey:          nodeKey,
+		logger:           logger,
 	}
 }
 
 // NetAddress returns the transport's listen address (for p2p connections)
-func (mt *MultiplexTransport) NetAddress() NetAddress {
+func (mt *MultiplexTransport) NetAddress() types.NetAddress {
 	return mt.netAddr
 }
 
 // Accept waits for a verified inbound Peer to connect, and returns it [BLOCKING]
 func (mt *MultiplexTransport) Accept(ctx context.Context, behavior PeerBehavior) (Peer, error) {
+	// Sanity check, no need to wait
+	// on an inactive transport
+	if mt.listener == nil {
+		return nil, errTransportInactive
+	}
+
 	select {
 	case <-ctx.Done():
 		return nil, ctx.Err()
 	case info, ok := <-mt.peerCh:
 		if !ok {
-			return nil, errors.New("transport closed") // TODO make constant
+			return nil, errTransportClosed
 		}
 
 		return mt.newMultiplexPeer(info, behavior, false)
@@ -93,7 +102,7 @@ func (mt *MultiplexTransport) Accept(ctx context.Context, behavior PeerBehavior)
 // verifies it (performs handshaking) [BLOCKING]
 func (mt *MultiplexTransport) Dial(
 	ctx context.Context,
-	addr NetAddress,
+	addr types.NetAddress,
 	behavior PeerBehavior,
 ) (Peer, error) {
 	// Set a dial timeout for the connection
@@ -108,7 +117,7 @@ func (mt *MultiplexTransport) Dial(
 		// Close the net peer connection
 		_ = c.Close()
 
-		return nil, err
+		return nil, fmt.Errorf("unable to process connection, %w", err)
 	}
 
 	return mt.newMultiplexPeer(info, behavior, true)
@@ -126,7 +135,7 @@ func (mt *MultiplexTransport) Close() error {
 }
 
 // Listen starts an active process of listening for incoming connections [NON-BLOCKING]
-func (mt *MultiplexTransport) Listen(addr NetAddress) error {
+func (mt *MultiplexTransport) Listen(addr types.NetAddress) error {
 	// Reserve a port, and start listening
 	ln, err := net.Listen("tcp", addr.DialString())
 	if err != nil {
@@ -164,6 +173,8 @@ func (mt *MultiplexTransport) runAcceptLoop() {
 	for {
 		select {
 		case <-mt.ctx.Done():
+			mt.logger.Debug("transport accept context closed")
+
 			return
 		default:
 			// Accept an incoming peer connection
@@ -204,12 +215,12 @@ func (mt *MultiplexTransport) runAcceptLoop() {
 }
 
 // processConn handles the raw connection by upgrading it and verifying it
-func (mt *MultiplexTransport) processConn(c net.Conn, expectedID ID) (peerInfo, error) {
+func (mt *MultiplexTransport) processConn(c net.Conn, expectedID types.ID) (peerInfo, error) {
 	dialAddr := c.RemoteAddr().String()
 
 	// Check if the connection is a duplicate one
 	if _, exists := mt.activeConns.LoadOrStore(dialAddr, struct{}{}); exists {
-		return peerInfo{}, errors.New("duplicate peer connection") // TODO make constant
+		return peerInfo{}, errDuplicateConnection
 	}
 
 	// Handshake with the peer, through STS
@@ -217,12 +228,17 @@ func (mt *MultiplexTransport) processConn(c net.Conn, expectedID ID) (peerInfo, 
 	if err != nil {
 		mt.activeConns.Delete(dialAddr)
 
-		return peerInfo{}, fmt.Errorf("unable to upgrade connection: %w", err)
+		return peerInfo{}, fmt.Errorf("unable to upgrade connection, %w", err)
 	}
 
 	// Verify the connection ID
 	id := secretConn.RemotePubKey().Address().ID()
 
+	// The reason the dial ID needs to be verified is because
+	// for outbound peers (peers the node dials), there is an expected peer ID
+	// when initializing the outbound connection, that can differ from the exchanged one.
+	// For inbound peers, the ID is whatever the peer exchanges during the
+	// handshaking process, and is verified separately
 	if !expectedID.IsZero() && id.String() != expectedID.String() {
 		mt.activeConns.Delete(dialAddr)
 
@@ -233,7 +249,7 @@ func (mt *MultiplexTransport) processConn(c net.Conn, expectedID ID) (peerInfo, 
 		)
 	}
 
-	netAddr, _ := NewNetAddress(id, c.RemoteAddr())
+	netAddr, _ := types.NewNetAddress(id, c.RemoteAddr())
 
 	return peerInfo{
 		addr:     netAddr,
@@ -249,28 +265,31 @@ func (mt *MultiplexTransport) Remove(p Peer) {
 
 // upgradeAndVerifyConn upgrades the connections (performs the handshaking process)
 // and verifies that the connecting peer is valid
-func (mt *MultiplexTransport) upgradeAndVerifyConn(c net.Conn) (*conn.SecretConnection, NodeInfo, error) {
-	// Upgrade to a secret connection
+func (mt *MultiplexTransport) upgradeAndVerifyConn(c net.Conn) (*conn.SecretConnection, types.NodeInfo, error) {
+	// Upgrade to a secret connection.
+	// A secret connection is a connection that has passed
+	// an initial handshaking process, as defined by the STS
+	// protocol, and is considered to be secure and authentic
 	secretConn, err := upgradeToSecretConn(
 		c,
 		mt.handshakeTimeout,
 		mt.nodeKey.PrivKey,
 	)
 	if err != nil {
-		return nil, NodeInfo{}, fmt.Errorf("unable to upgrade p2p connection, %w", err)
+		return nil, types.NodeInfo{}, fmt.Errorf("unable to upgrade p2p connection, %w", err)
 	}
 
 	// Exchange node information
 	nodeInfo, err := exchangeNodeInfo(secretConn, mt.handshakeTimeout, mt.nodeInfo)
 	if err != nil {
-		return nil, NodeInfo{}, fmt.Errorf("unable to exchange node information, %w", err)
+		return nil, types.NodeInfo{}, fmt.Errorf("unable to exchange node information, %w", err)
 	}
 
 	// Ensure the connection ID matches the node's reported ID
 	connID := secretConn.RemotePubKey().Address().ID()
 
 	if connID != nodeInfo.ID() {
-		return nil, NodeInfo{}, fmt.Errorf(
+		return nil, types.NodeInfo{}, fmt.Errorf(
 			"connection ID does not match node info ID (expected %q got %q)",
 			connID.String(),
 			nodeInfo.ID().String(),
@@ -279,7 +298,7 @@ func (mt *MultiplexTransport) upgradeAndVerifyConn(c net.Conn) (*conn.SecretConn
 
 	// Check compatibility with the node
 	if err = mt.nodeInfo.CompatibleWith(nodeInfo); err != nil {
-		return nil, NodeInfo{}, fmt.Errorf("incompatible node info, %w", err)
+		return nil, types.NodeInfo{}, fmt.Errorf("incompatible node info, %w", err)
 	}
 
 	return secretConn, nodeInfo, nil
@@ -319,7 +338,7 @@ func (mt *MultiplexTransport) newMultiplexPeer(
 	}
 
 	// Create the info related to the multiplex connection
-	mConfig := &MultiplexConnConfig{
+	mConfig := &ConnConfig{
 		MConfig:      mt.mConfig,
 		ReactorsByCh: behavior.Reactors(),
 		ChDescs:      behavior.ReactorChDescriptors(),
@@ -329,19 +348,19 @@ func (mt *MultiplexTransport) newMultiplexPeer(
 	return NewPeer(peerConn, info.nodeInfo, mConfig), nil
 }
 
-// exchangeNodeInfo performs a "handshake", where node
-// info is exchanged between the current node and a peer
+// exchangeNodeInfo performs a data swap, where node
+// info is exchanged between the current node and a peer async
 func exchangeNodeInfo(
 	c net.Conn,
 	timeout time.Duration,
-	nodeInfo NodeInfo,
-) (NodeInfo, error) {
+	nodeInfo types.NodeInfo,
+) (types.NodeInfo, error) {
 	if err := c.SetDeadline(time.Now().Add(timeout)); err != nil {
-		return NodeInfo{}, err
+		return types.NodeInfo{}, err
 	}
 
 	var (
-		peerNodeInfo NodeInfo
+		peerNodeInfo types.NodeInfo
 		ourNodeInfo  = nodeInfo
 	)
 
@@ -357,22 +376,22 @@ func exchangeNodeInfo(
 		_, err := amino.UnmarshalSizedReader(
 			c,
 			&peerNodeInfo,
-			MaxNodeInfoSize,
+			types.MaxNodeInfoSize,
 		)
 
 		return err
 	})
 
 	if err := g.Wait(); err != nil {
-		return NodeInfo{}, err
+		return types.NodeInfo{}, err
 	}
 
 	// Validate the received node information
 	if err := nodeInfo.Validate(); err != nil {
-		return NodeInfo{}, fmt.Errorf("unable to validate node info, %w", err)
+		return types.NodeInfo{}, fmt.Errorf("unable to validate node info, %w", err)
 	}
 
-	return peerNodeInfo, nil
+	return peerNodeInfo, c.SetDeadline(time.Time{})
 }
 
 // upgradeToSecretConn takes an active TCP connection,

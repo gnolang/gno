@@ -10,20 +10,34 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/p2p/conn"
 	"github.com/gnolang/gno/tm2/pkg/p2p/dial"
 	"github.com/gnolang/gno/tm2/pkg/p2p/events"
+	"github.com/gnolang/gno/tm2/pkg/p2p/types"
 	"github.com/gnolang/gno/tm2/pkg/service"
 	"github.com/gnolang/gno/tm2/pkg/telemetry"
 	"github.com/gnolang/gno/tm2/pkg/telemetry/metrics"
 )
 
-// MultiplexConfigFromP2P returns a multiplex connection configuration
-// with fields updated from the P2PConfig
-func MultiplexConfigFromP2P(cfg *config.P2PConfig) conn.MConnConfig {
-	mConfig := conn.DefaultMConnConfig()
-	mConfig.FlushThrottle = cfg.FlushThrottleTimeout
-	mConfig.SendRate = cfg.SendRate
-	mConfig.RecvRate = cfg.RecvRate
-	mConfig.MaxPacketMsgPayloadSize = cfg.MaxPacketMsgPayloadSize
-	return mConfig
+type reactorPeerBehavior struct {
+	chDescs      []*conn.ChannelDescriptor
+	reactorsByCh map[byte]Reactor
+
+	handlePeerErrFn    func(Peer, error)
+	isPersistentPeerFn func(*types.NetAddress) bool
+}
+
+func (r *reactorPeerBehavior) ReactorChDescriptors() []*conn.ChannelDescriptor {
+	return r.chDescs
+}
+
+func (r *reactorPeerBehavior) Reactors() map[byte]Reactor {
+	return r.reactorsByCh
+}
+
+func (r *reactorPeerBehavior) HandlePeerError(p Peer, err error) {
+	r.handlePeerErrFn(p, err)
+}
+
+func (r *reactorPeerBehavior) IsPersistentPeer(address *types.NetAddress) bool {
+	return r.isPersistentPeerFn(address)
 }
 
 // Switch handles peer connections and exposes an API to receive incoming messages
@@ -33,11 +47,11 @@ func MultiplexConfigFromP2P(cfg *config.P2PConfig) conn.MConnConfig {
 type Switch struct {
 	service.BaseService
 
-	config *config.P2PConfig // TODO remove this dependency
+	maxInboundPeers  uint64
+	maxOutboundPeers uint64
 
-	reactors     map[string]Reactor        // TODO wrap
-	chDescs      []*conn.ChannelDescriptor // TODO wrap
-	reactorsByCh map[byte]Reactor          // TODO wrap
+	reactors     map[string]Reactor
+	peerBehavior *reactorPeerBehavior
 
 	peers           PeerSet  // currently active peer set
 	persistentPeers sync.Map // ID -> *NetAddress; peers whose connections are constant
@@ -49,19 +63,29 @@ type Switch struct {
 
 // NewSwitch creates a new Switch with the given config.
 func NewSwitch(
-	cfg *config.P2PConfig,
 	transport Transport,
 	options ...SwitchOption,
 ) *Switch {
+	defaultCfg := config.DefaultP2PConfig()
+
 	sw := &Switch{
-		config:       cfg,
-		reactors:     make(map[string]Reactor),
-		chDescs:      make([]*conn.ChannelDescriptor, 0),
-		reactorsByCh: make(map[byte]Reactor),
-		peers:        NewSet(),
-		transport:    transport,
-		dialQueue:    dial.NewQueue(),
-		events:       events.New(),
+		reactors:         make(map[string]Reactor),
+		peers:            newSet(),
+		transport:        transport,
+		dialQueue:        dial.NewQueue(),
+		events:           events.New(),
+		maxInboundPeers:  defaultCfg.MaxNumInboundPeers,
+		maxOutboundPeers: defaultCfg.MaxNumOutboundPeers,
+	}
+
+	// Set up the peer dial behavior
+	sw.peerBehavior = &reactorPeerBehavior{
+		chDescs:         make([]*conn.ChannelDescriptor, 0),
+		reactorsByCh:    make(map[byte]Reactor),
+		handlePeerErrFn: sw.StopPeerForError,
+		isPersistentPeerFn: func(peer *types.NetAddress) bool {
+			return sw.isPersistentPeer(peer.ID)
+		},
 	}
 
 	sw.BaseService = *service.NewBaseService(nil, "P2P Switch", sw)
@@ -108,11 +132,6 @@ func (sw *Switch) OnStart() error {
 
 // OnStop implements BaseService. It stops all peers and reactors.
 func (sw *Switch) OnStop() {
-	// Stop transport
-	if err := sw.transport.Close(); err != nil { // TODO move to node
-		sw.Logger.Error("unable to gracefully close transport", "err", err)
-	}
-
 	// Stop peers
 	for _, p := range sw.peers.List() {
 		sw.stopAndRemovePeer(p, nil)
@@ -126,33 +145,22 @@ func (sw *Switch) OnStop() {
 	}
 }
 
-// Broadcast broadcasts the given data to the given channel, across the
-// entire switch peer set
+// Broadcast broadcasts the given data to the given channel,
+// across the entire switch peer set, without blocking
 func (sw *Switch) Broadcast(chID byte, data []byte) {
-	var wg sync.WaitGroup
-
 	for _, p := range sw.peers.List() {
-		wg.Add(1)
-
 		go func() {
-			defer wg.Done()
-
-			// TODO propagate the context, instead of relying
-			// on the underlying multiplex conn
+			// This send context is managed internally
+			// by the Peer's underlying connection implementation
 			if !p.Send(chID, data) {
 				sw.Logger.Error(
-					"unable to perform broadcast, channel ID %X, peer ID %s",
-					chID, p.ID(),
+					"unable to perform broadcast",
+					"chID", chID,
+					"peerID", p.ID(),
 				)
 			}
 		}()
 	}
-
-	// Wait for all the sends to complete,
-	// at the mercy of the multiplex connection
-	// send routine :)
-	// TODO: I'm not sure Broadcast should be blocking, at all
-	wg.Wait()
 }
 
 // Peers returns the set of peers that are connected to the switch.
@@ -161,14 +169,15 @@ func (sw *Switch) Peers() PeerSet {
 }
 
 // StopPeerForError disconnects from a peer due to external error.
-// If the peer is persistent, it will attempt to reconnect.
-// TODO: make record depending on reason.
+// If the peer is persistent, it will attempt to reconnect
 func (sw *Switch) StopPeerForError(peer Peer, err error) {
 	sw.Logger.Error("Stopping peer for error", "peer", peer, "err", err)
 
 	sw.stopAndRemovePeer(peer, err)
 
 	if !peer.IsPersistent() {
+		// Peer is not a persistent peer,
+		// no need to initiate a redial
 		return
 	}
 
@@ -254,15 +263,7 @@ func (sw *Switch) runDialLoop(ctx context.Context) {
 
 			peerAddr := item.Address
 
-			// TODO pass context to dial
-			p, err := sw.transport.Dial(*peerAddr, peerConfig{
-				chDescs:     sw.chDescs,
-				onPeerError: sw.StopPeerForError,
-				isPersistent: func(address *NetAddress) bool {
-					return sw.isPersistentPeer(address.ID)
-				},
-				reactorsByCh: sw.reactorsByCh,
-			})
+			p, err := sw.transport.Dial(ctx, *peerAddr, sw.peerBehavior)
 			if err != nil {
 				sw.Logger.Error(
 					"unable to dial peer",
@@ -342,11 +343,22 @@ func (sw *Switch) runRedialLoop(ctx context.Context) {
 
 // DialPeers adds the peers to the dial queue for async dialing.
 // To monitor dial progress, subscribe to adequate p2p Switch events
-func (sw *Switch) DialPeers(peerAddrs ...*NetAddress) {
+func (sw *Switch) DialPeers(peerAddrs ...*types.NetAddress) {
 	for _, peerAddr := range peerAddrs {
 		// Check if this is our address
 		if peerAddr.Same(sw.transport.NetAddress()) {
 			sw.Logger.Warn("ignoring request for self-dial")
+
+			continue
+		}
+
+		// Ignore dial if the limit is reached
+		if out := sw.Peers().NumOutbound(); out >= sw.maxOutboundPeers {
+			sw.Logger.Warn(
+				"ignoring dial request: already have max outbound peers",
+				"have", out,
+				"max", sw.maxOutboundPeers,
+			)
 
 			continue
 		}
@@ -362,7 +374,7 @@ func (sw *Switch) DialPeers(peerAddrs ...*NetAddress) {
 
 // isPersistentPeer returns a flag indicating if a peer
 // is present in the persistent peer set
-func (sw *Switch) isPersistentPeer(id ID) bool {
+func (sw *Switch) isPersistentPeer(id types.ID) bool {
 	_, persistent := sw.persistentPeers.Load(id)
 
 	return persistent
@@ -379,14 +391,7 @@ func (sw *Switch) runAcceptLoop(ctx context.Context) {
 
 			return
 		default:
-			p, err := sw.transport.Accept(peerConfig{
-				chDescs:      sw.chDescs,
-				onPeerError:  sw.StopPeerForError,
-				reactorsByCh: sw.reactorsByCh,
-				isPersistent: func(address *NetAddress) bool {
-					return sw.isPersistentPeer(address.ID)
-				},
-			})
+			p, err := sw.transport.Accept(ctx, sw.peerBehavior)
 			if err != nil {
 				sw.Logger.Error(
 					"error encountered during peer connection accept",
@@ -397,12 +402,12 @@ func (sw *Switch) runAcceptLoop(ctx context.Context) {
 			}
 
 			// Ignore connection if we already have enough peers.
-			if in := sw.Peers().NumInbound(); in >= sw.config.MaxNumInboundPeers {
+			if in := sw.Peers().NumInbound(); in >= sw.maxInboundPeers {
 				sw.Logger.Info(
 					"Ignoring inbound connection: already have enough inbound peers",
 					"address", p.SocketAddr(),
 					"have", in,
-					"max", sw.config.MaxNumInboundPeers,
+					"max", sw.maxInboundPeers,
 				)
 
 				sw.transport.Remove(p)

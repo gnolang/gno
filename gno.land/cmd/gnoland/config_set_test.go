@@ -493,19 +493,6 @@ func TestConfig_Set_P2P(t *testing.T) {
 			},
 		},
 		{
-			"upnp toggle updated",
-			[]string{
-				"p2p.upnp",
-				"false",
-			},
-			func(loadedCfg *config.Config, value string) {
-				boolVal, err := strconv.ParseBool(value)
-				require.NoError(t, err)
-
-				assert.Equal(t, boolVal, loadedCfg.P2P.UPNP)
-			},
-		},
-		{
 			"max inbound peers updated",
 			[]string{
 				"p2p.max_num_inbound_peers",
@@ -575,20 +562,7 @@ func TestConfig_Set_P2P(t *testing.T) {
 				boolVal, err := strconv.ParseBool(value)
 				require.NoError(t, err)
 
-				assert.Equal(t, boolVal, loadedCfg.P2P.PexReactor)
-			},
-		},
-		{
-			"seed mode updated",
-			[]string{
-				"p2p.seed_mode",
-				"false",
-			},
-			func(loadedCfg *config.Config, value string) {
-				boolVal, err := strconv.ParseBool(value)
-				require.NoError(t, err)
-
-				assert.Equal(t, boolVal, loadedCfg.P2P.SeedMode)
+				assert.Equal(t, boolVal, loadedCfg.P2P.PeerExchange)
 			},
 		},
 		{
@@ -599,39 +573,6 @@ func TestConfig_Set_P2P(t *testing.T) {
 			},
 			func(loadedCfg *config.Config, value string) {
 				assert.Equal(t, value, loadedCfg.P2P.PrivatePeerIDs)
-			},
-		},
-		{
-			"allow duplicate IPs updated",
-			[]string{
-				"p2p.allow_duplicate_ip",
-				"false",
-			},
-			func(loadedCfg *config.Config, value string) {
-				boolVal, err := strconv.ParseBool(value)
-				require.NoError(t, err)
-
-				assert.Equal(t, boolVal, loadedCfg.P2P.AllowDuplicateIP)
-			},
-		},
-		{
-			"handshake timeout updated",
-			[]string{
-				"p2p.handshake_timeout",
-				"1s",
-			},
-			func(loadedCfg *config.Config, value string) {
-				assert.Equal(t, value, loadedCfg.P2P.HandshakeTimeout.String())
-			},
-		},
-		{
-			"dial timeout updated",
-			[]string{
-				"p2p.dial_timeout",
-				"1s",
-			},
-			func(loadedCfg *config.Config, value string) {
-				assert.Equal(t, value, loadedCfg.P2P.DialTimeout.String())
 			},
 		},
 	}

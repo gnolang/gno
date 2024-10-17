@@ -5,6 +5,7 @@ import (
 	"sort"
 	"testing"
 
+	"github.com/gnolang/gno/tm2/pkg/p2p/types"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -16,9 +17,9 @@ func generatePeers(t *testing.T, count int) []*mockPeer {
 	peers := make([]*mockPeer, count)
 
 	for i := 0; i < count; i++ {
-		id := GenerateNodeKey().ID()
+		id := types.GenerateNodeKey().ID()
 		peers[i] = &mockPeer{
-			idFn: func() ID {
+			idFn: func() types.ID {
 				return id
 			},
 		}
@@ -34,7 +35,7 @@ func TestSet_Add(t *testing.T) {
 		numPeers = 100
 		peers    = generatePeers(t, numPeers)
 
-		s = NewSet()
+		s = newSet()
 	)
 
 	for _, peer := range peers {
@@ -55,7 +56,7 @@ func TestSet_Remove(t *testing.T) {
 		numPeers = 100
 		peers    = generatePeers(t, numPeers)
 
-		s = NewSet()
+		s = newSet()
 	)
 
 	// Add the initial peers
@@ -90,7 +91,7 @@ func TestSet_HasIP(t *testing.T) {
 			peers = generatePeers(t, 100)
 			ip    = net.ParseIP("0.0.0.0")
 
-			s = NewSet()
+			s = newSet()
 		)
 
 		// Make sure at least one peer has the set IP
@@ -114,7 +115,7 @@ func TestSet_HasIP(t *testing.T) {
 			peers = generatePeers(t, 100)
 			ip    = net.ParseIP("0.0.0.0")
 
-			s = NewSet()
+			s = newSet()
 		)
 
 		// Add the peers
@@ -135,7 +136,7 @@ func TestSet_Get(t *testing.T) {
 
 		var (
 			peers = generatePeers(t, 100)
-			s     = NewSet()
+			s     = newSet()
 		)
 
 		for _, peer := range peers {
@@ -151,7 +152,7 @@ func TestSet_Get(t *testing.T) {
 
 		var (
 			peers = generatePeers(t, 100)
-			s     = NewSet()
+			s     = newSet()
 		)
 
 		for _, peer := range peers {
@@ -170,7 +171,7 @@ func TestSet_List(t *testing.T) {
 		t.Parallel()
 
 		// Empty set
-		s := NewSet()
+		s := newSet()
 
 		// Linearize the set
 		assert.Len(t, s.List(), 0)
@@ -181,7 +182,7 @@ func TestSet_List(t *testing.T) {
 
 		var (
 			peers = generatePeers(t, 100)
-			s     = NewSet()
+			s     = newSet()
 		)
 
 		for _, peer := range peers {

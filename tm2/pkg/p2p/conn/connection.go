@@ -17,6 +17,7 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/amino"
 	"github.com/gnolang/gno/tm2/pkg/errors"
 	"github.com/gnolang/gno/tm2/pkg/flow"
+	"github.com/gnolang/gno/tm2/pkg/p2p/config"
 	"github.com/gnolang/gno/tm2/pkg/service"
 	"github.com/gnolang/gno/tm2/pkg/timer"
 )
@@ -145,6 +146,18 @@ func DefaultMConnConfig() MConnConfig {
 		PingInterval:            defaultPingInterval,
 		PongTimeout:             defaultPongTimeout,
 	}
+}
+
+// MConfigFromP2P returns a multiplex connection configuration
+// with fields updated from the P2PConfig
+func MConfigFromP2P(cfg *config.P2PConfig) MConnConfig {
+	mConfig := DefaultMConnConfig()
+	mConfig.FlushThrottle = cfg.FlushThrottleTimeout
+	mConfig.SendRate = cfg.SendRate
+	mConfig.RecvRate = cfg.RecvRate
+	mConfig.MaxPacketMsgPayloadSize = cfg.MaxPacketMsgPayloadSize
+
+	return mConfig
 }
 
 // NewMConnection wraps net.Conn and creates multiplex connection

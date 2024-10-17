@@ -6,20 +6,21 @@ import (
 	"time"
 
 	"github.com/gnolang/gno/tm2/pkg/p2p/conn"
+	"github.com/gnolang/gno/tm2/pkg/p2p/types"
 	"github.com/gnolang/gno/tm2/pkg/service"
 )
 
 type (
 	flushStopDelegate    func()
-	idDelegate           func() ID
+	idDelegate           func() types.ID
 	remoteIPDelegate     func() net.IP
 	remoteAddrDelegate   func() net.Addr
 	isOutboundDelegate   func() bool
 	isPersistentDelegate func() bool
 	closeConnDelegate    func() error
-	nodeInfoDelegate     func() NodeInfo
+	nodeInfoDelegate     func() types.NodeInfo
 	statusDelegate       func() conn.ConnectionStatus
-	socketAddrDelegate   func() *NetAddress
+	socketAddrDelegate   func() *types.NetAddress
 	sendDelegate         func(byte, []byte) bool
 	trySendDelegate      func(byte, []byte) bool
 	setDelegate          func(string, any)
@@ -51,7 +52,7 @@ func (m *mockPeer) FlushStop() {
 	}
 }
 
-func (m *mockPeer) ID() ID {
+func (m *mockPeer) ID() types.ID {
 	if m.idFn != nil {
 		return m.idFn()
 	}
@@ -99,12 +100,12 @@ func (m *mockPeer) CloseConn() error {
 	return nil
 }
 
-func (m *mockPeer) NodeInfo() NodeInfo {
+func (m *mockPeer) NodeInfo() types.NodeInfo {
 	if m.nodeInfoFn != nil {
 		return m.nodeInfoFn()
 	}
 
-	return NodeInfo{}
+	return types.NodeInfo{}
 }
 
 func (m *mockPeer) Status() conn.ConnectionStatus {
@@ -115,7 +116,7 @@ func (m *mockPeer) Status() conn.ConnectionStatus {
 	return conn.ConnectionStatus{}
 }
 
-func (m *mockPeer) SocketAddr() *NetAddress {
+func (m *mockPeer) SocketAddr() *types.NetAddress {
 	if m.socketAddrFn != nil {
 		return m.socketAddrFn()
 	}

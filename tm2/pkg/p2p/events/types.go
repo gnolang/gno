@@ -1,6 +1,8 @@
 package events
 
-import "github.com/gnolang/gno/tm2/pkg/p2p"
+import (
+	"github.com/gnolang/gno/tm2/pkg/p2p/types"
+)
 
 type EventType string
 
@@ -16,8 +18,8 @@ type Event interface {
 }
 
 type PeerConnectedEvent struct {
-	PeerID  p2p.ID         // the ID of the peer
-	Address p2p.NetAddress // the dial address of the peer
+	PeerID  types.ID         // the ID of the peer
+	Address types.NetAddress // the dial address of the peer
 }
 
 func (p *PeerConnectedEvent) Type() EventType {
@@ -25,9 +27,9 @@ func (p *PeerConnectedEvent) Type() EventType {
 }
 
 type PeerDisconnectedEvent struct {
-	PeerID  p2p.ID         // the ID of the peer
-	Address p2p.NetAddress // the dial address of the peer
-	Reason  error          // the disconnect reason, if any
+	PeerID  types.ID         // the ID of the peer
+	Address types.NetAddress // the dial address of the peer
+	Reason  error            // the disconnect reason, if any
 }
 
 func (p *PeerDisconnectedEvent) Type() EventType {

@@ -3,27 +3,29 @@ package p2p
 import (
 	"net"
 	"sync"
+
+	"github.com/gnolang/gno/tm2/pkg/p2p/types"
 )
 
-type Set struct {
+type set struct {
 	mux sync.RWMutex
 
-	peers    map[ID]Peer
+	peers    map[types.ID]Peer
 	outbound uint64
 	inbound  uint64
 }
 
-// NewSet creates an empty peer set
-func NewSet() *Set {
-	return &Set{
-		peers:    make(map[ID]Peer),
+// newSet creates an empty peer set
+func newSet() *set {
+	return &set{
+		peers:    make(map[types.ID]Peer),
 		outbound: 0,
 		inbound:  0,
 	}
 }
 
 // Add adds the peer to the set
-func (s *Set) Add(peer Peer) {
+func (s *set) Add(peer Peer) {
 	s.mux.Lock()
 	defer s.mux.Unlock()
 
@@ -40,7 +42,7 @@ func (s *Set) Add(peer Peer) {
 
 // Has returns true if the set contains the peer referred to by this
 // peerKey, otherwise false.
-func (s *Set) Has(peerKey ID) bool {
+func (s *set) Has(peerKey types.ID) bool {
 	s.mux.RLock()
 	defer s.mux.RUnlock()
 
@@ -51,7 +53,7 @@ func (s *Set) Has(peerKey ID) bool {
 
 // HasIP returns true if the set contains the peer referred to by this IP
 // address, otherwise false.
-func (s *Set) HasIP(peerIP net.IP) bool {
+func (s *set) HasIP(peerIP net.IP) bool {
 	s.mux.RLock()
 	defer s.mux.RUnlock()
 
@@ -64,9 +66,9 @@ func (s *Set) HasIP(peerIP net.IP) bool {
 	return false
 }
 
-// Get looks up a peer by the provided peerKey. Returns nil if peer is not
+// Get looks up a peer by the provtypes.IDed peerKey. Returns nil if peer is not
 // found.
-func (s *Set) Get(key ID) Peer {
+func (s *set) Get(key types.ID) Peer {
 	s.mux.RLock()
 	defer s.mux.RUnlock()
 
@@ -83,7 +85,7 @@ func (s *Set) Get(key ID) Peer {
 // Remove discards peer by its Key, if the peer was previously memoized.
 // Returns true if the peer was removed, and false if it was not found.
 // in the set.
-func (s *Set) Remove(key ID) bool {
+func (s *set) Remove(key types.ID) bool {
 	s.mux.Lock()
 	defer s.mux.Unlock()
 
@@ -106,7 +108,7 @@ func (s *Set) Remove(key ID) bool {
 }
 
 // Size returns the number of unique peers in the peer table
-func (s *Set) Size() int {
+func (s *set) Size() int {
 	s.mux.RLock()
 	defer s.mux.RUnlock()
 
@@ -114,7 +116,7 @@ func (s *Set) Size() int {
 }
 
 // NumInbound returns the number of inbound peers
-func (s *Set) NumInbound() uint64 {
+func (s *set) NumInbound() uint64 {
 	s.mux.RLock()
 	defer s.mux.RUnlock()
 
@@ -122,7 +124,7 @@ func (s *Set) NumInbound() uint64 {
 }
 
 // NumOutbound returns the number of outbound peers
-func (s *Set) NumOutbound() uint64 {
+func (s *set) NumOutbound() uint64 {
 	s.mux.RLock()
 	defer s.mux.RUnlock()
 
@@ -130,7 +132,7 @@ func (s *Set) NumOutbound() uint64 {
 }
 
 // List returns the list of peers
-func (s *Set) List() []Peer {
+func (s *set) List() []Peer {
 	s.mux.RLock()
 	defer s.mux.RUnlock()
 

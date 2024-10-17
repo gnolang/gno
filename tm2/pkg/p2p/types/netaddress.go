@@ -2,7 +2,7 @@
 // Originally Copyright (c) 2013-2014 Conformal Systems LLC.
 // https://github.com/conformal/btcd/blob/master/LICENSE
 
-package p2p
+package types
 
 import (
 	"context"
@@ -25,6 +25,8 @@ var (
 	errUnsetIPAddress    = errors.New("unset IP address")
 	errInvalidIP         = errors.New("invalid IP address")
 	errUnspecifiedIP     = errors.New("unspecified IP address")
+	errInvalidNetAddress = errors.New("invalid net address")
+	errEmptyHost         = errors.New("empty host address")
 )
 
 // NetAddress defines information about a peer on the network
@@ -80,7 +82,7 @@ func NewNetAddressFromString(idaddr string) (*NetAddress, error) {
 	)
 
 	if len(spl) != 2 {
-		return nil, NetAddressNoIDError{prunedAddr}
+		return nil, errInvalidNetAddress
 	}
 
 	var (
@@ -90,27 +92,24 @@ func NewNetAddressFromString(idaddr string) (*NetAddress, error) {
 
 	// Validate the ID
 	if err := id.Validate(); err != nil {
-		return nil, NetAddressInvalidError{prunedAddr, err}
+		return nil, fmt.Errorf("unable to verify address ID, %w", err)
 	}
 
 	// Extract the host and port
 	host, portStr, err := net.SplitHostPort(addr)
 	if err != nil {
-		return nil, NetAddressInvalidError{addr, err}
+		return nil, fmt.Errorf("unable to split host and port, %w", err)
 	}
 
 	if host == "" {
-		return nil, NetAddressInvalidError{
-			addr,
-			errors.New("host is empty"),
-		}
+		return nil, errEmptyHost
 	}
 
 	ip := net.ParseIP(host)
 	if ip == nil {
 		ips, err := net.LookupIP(host)
 		if err != nil {
-			return nil, NetAddressLookupError{host, err}
+			return nil, fmt.Errorf("unable to look up IP, %w", err)
 		}
 
 		ip = ips[0]
@@ -118,7 +117,7 @@ func NewNetAddressFromString(idaddr string) (*NetAddress, error) {
 
 	port, err := strconv.ParseUint(portStr, 10, 16)
 	if err != nil {
-		return nil, NetAddressInvalidError{portStr, err}
+		return nil, fmt.Errorf("unable to parse port %s, %w", portStr, err)
 	}
 
 	na := NewNetAddressFromIPPort(ip, uint16(port))

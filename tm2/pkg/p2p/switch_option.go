@@ -1,6 +1,10 @@
 package p2p
 
-import "fmt"
+import (
+	"fmt"
+
+	"github.com/gnolang/gno/tm2/pkg/p2p/types"
+)
 
 // SwitchOption is a callback used for configuring the p2p Switch
 type SwitchOption func(*Switch)
@@ -10,13 +14,21 @@ func WithReactor(name string, reactor Reactor) SwitchOption {
 	return func(sw *Switch) {
 		for _, chDesc := range reactor.GetChannels() {
 			chID := chDesc.ID
+
 			// No two reactors can share the same channel
-			if sw.reactorsByCh[chID] != nil {
-				panic(fmt.Sprintf("Channel %X has multiple reactors %v & %v", chID, sw.reactorsByCh[chID], reactor))
+			if sw.peerBehavior.reactorsByCh[chID] != nil {
+				panic(
+					fmt.Sprintf(
+						"Channel %X has multiple reactors %v & %v",
+						chID,
+						sw.peerBehavior.reactorsByCh[chID],
+						reactor,
+					),
+				)
 			}
 
-			sw.chDescs = append(sw.chDescs, chDesc)
-			sw.reactorsByCh[chID] = reactor
+			sw.peerBehavior.chDescs = append(sw.peerBehavior.chDescs, chDesc)
+			sw.peerBehavior.reactorsByCh[chID] = reactor
 		}
 
 		sw.reactors[name] = reactor
@@ -26,10 +38,24 @@ func WithReactor(name string, reactor Reactor) SwitchOption {
 }
 
 // WithPersistentPeers sets the p2p switch's persistent peer set
-func WithPersistentPeers(peerAddrs []*NetAddress) SwitchOption {
+func WithPersistentPeers(peerAddrs []*types.NetAddress) SwitchOption {
 	return func(sw *Switch) {
 		for _, addr := range peerAddrs {
 			sw.persistentPeers.Store(addr.ID, addr)
 		}
+	}
+}
+
+// WithMaxInboundPeers sets the p2p switch's maximum inbound peer limit
+func WithMaxInboundPeers(maxInbound uint64) SwitchOption {
+	return func(sw *Switch) {
+		sw.maxInboundPeers = maxInbound
+	}
+}
+
+// WithMaxOutboundPeers sets the p2p switch's maximum outbound peer limit
+func WithMaxOutboundPeers(maxOutbound uint64) SwitchOption {
+	return func(sw *Switch) {
+		sw.maxOutboundPeers = maxOutbound
 	}
 }

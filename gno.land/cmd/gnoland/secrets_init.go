@@ -12,7 +12,7 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/commands"
 	"github.com/gnolang/gno/tm2/pkg/crypto/ed25519"
 	osm "github.com/gnolang/gno/tm2/pkg/os"
-	"github.com/gnolang/gno/tm2/pkg/p2p"
+	"github.com/gnolang/gno/tm2/pkg/p2p/types"
 )
 
 var errOverwriteNotEnabled = errors.New("overwrite not enabled")
@@ -200,6 +200,6 @@ func generateLastSignValidatorState() *privval.FilePVLastSignState {
 }
 
 // generateNodeKey generates the p2p node key
-func generateNodeKey() *p2p.NodeKey {
-	return p2p.GenerateNodeKey()
+func generateNodeKey() *types.NodeKey {
+	return types.GenerateNodeKey()
 }

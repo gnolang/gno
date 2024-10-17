@@ -13,6 +13,7 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/commands"
 	osm "github.com/gnolang/gno/tm2/pkg/os"
 	"github.com/gnolang/gno/tm2/pkg/p2p"
+	"github.com/gnolang/gno/tm2/pkg/p2p/types"
 )
 
 var errInvalidSecretsGetArgs = errors.New("invalid number of secrets get arguments provided")
@@ -169,7 +170,7 @@ func readValidatorState(path string) (*validatorStateInfo, error) {
 
 // readNodeID reads the node p2p info from the given path
 func readNodeID(path string) (*nodeIDInfo, error) {
-	nodeKey, err := readSecretData[p2p.NodeKey](path)
+	nodeKey, err := readSecretData[types.NodeKey](path)
 	if err != nil {
 		return nil, fmt.Errorf("unable to read node key, %w", err)
 	}

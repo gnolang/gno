@@ -12,6 +12,7 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/bft/store"
 	"github.com/gnolang/gno/tm2/pkg/bft/types"
 	"github.com/gnolang/gno/tm2/pkg/p2p"
+	types2 "github.com/gnolang/gno/tm2/pkg/p2p/types"
 )
 
 const (
@@ -128,8 +129,8 @@ func (bcR *BlockchainReactor) OnStop() {
 }
 
 // GetChannels implements Reactor
-func (bcR *BlockchainReactor) GetChannels() []*p2p.ChannelDescriptor {
-	return []*p2p.ChannelDescriptor{
+func (bcR *BlockchainReactor) GetChannels() []*types2.ChannelDescriptor {
+	return []*types2.ChannelDescriptor{
 		{
 			ID:                  BlockchainChannel,
 			Priority:            10,

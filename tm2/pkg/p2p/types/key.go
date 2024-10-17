@@ -1,4 +1,4 @@
-package p2p
+package types
 
 import (
 	"fmt"
@@ -9,6 +9,9 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/crypto/ed25519"
 	osm "github.com/gnolang/gno/tm2/pkg/os"
 )
+
+// ID represents the cryptographically unique Peer ID
+type ID = crypto.ID
 
 // NodeKey is the persistent peer key.
 // It contains the nodes private key for authentication.

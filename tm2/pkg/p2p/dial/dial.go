@@ -4,7 +4,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/gnolang/gno/tm2/pkg/p2p"
+	"github.com/gnolang/gno/tm2/pkg/p2p/types"
 	queue "github.com/sig-0/insertion-queue"
 )
 
@@ -12,8 +12,8 @@ import (
 // the approximately appropriate dial time, and the
 // peer dial address
 type Item struct {
-	Time    time.Time       // appropriate dial time
-	Address *p2p.NetAddress // the dial address of the peer
+	Time    time.Time         // appropriate dial time
+	Address *types.NetAddress // the dial address of the peer
 }
 
 // Less is the comparison method for the dial queue Item (time ascending)

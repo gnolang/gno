@@ -13,6 +13,7 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/bft/types"
 	"github.com/gnolang/gno/tm2/pkg/clist"
 	"github.com/gnolang/gno/tm2/pkg/p2p"
+	types2 "github.com/gnolang/gno/tm2/pkg/p2p/types"
 )
 
 const (
@@ -127,8 +128,8 @@ func (memR *Reactor) OnStart() error {
 
 // GetChannels implements Reactor.
 // It returns the list of channels for this reactor.
-func (memR *Reactor) GetChannels() []*p2p.ChannelDescriptor {
-	return []*p2p.ChannelDescriptor{
+func (memR *Reactor) GetChannels() []*types2.ChannelDescriptor {
+	return []*types2.ChannelDescriptor{
 		{
 			ID:       MempoolChannel,
 			Priority: 5,

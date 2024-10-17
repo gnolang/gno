@@ -22,9 +22,6 @@ type P2PConfig struct {
 	// Comma separated list of nodes to keep persistent connections to
 	PersistentPeers string `json:"persistent_peers" toml:"persistent_peers" comment:"Comma separated list of nodes to keep persistent connections to"`
 
-	// UPNP port forwarding
-	UPNP bool `json:"upnp" toml:"upnp" comment:"UPNP port forwarding"`
-
 	// Maximum number of inbound peers
 	MaxNumInboundPeers uint64 `json:"max_num_inbound_peers" toml:"max_num_inbound_peers" comment:"Maximum number of inbound peers"`
 
@@ -44,24 +41,10 @@ type P2PConfig struct {
 	RecvRate int64 `json:"recv_rate" toml:"recv_rate" comment:"Rate at which packets can be received, in bytes/second"`
 
 	// Set true to enable the peer-exchange reactor
-	PexReactor bool `json:"pex" toml:"pex" comment:"Set true to enable the peer-exchange reactor"`
+	PeerExchange bool `json:"pex" toml:"pex" comment:"Set true to enable the peer-exchange reactor"`
 
-	// Seed mode, in which node constantly crawls the network and looks for
-	// peers. If another node asks it for addresses, it responds and disconnects.
-	//
-	// Does not work if the peer-exchange reactor is disabled.
-	SeedMode bool `json:"seed_mode" toml:"seed_mode" comment:"Seed mode, in which node constantly crawls the network and looks for\n peers. If another node asks it for addresses, it responds and disconnects.\n\n Does not work if the peer-exchange reactor is disabled."`
-
-	// Comma separated list of peer IDs to keep private (will not be gossiped to
-	// other peers)
+	// Comma separated list of peer IDs to keep private (will not be gossiped to other peers)
 	PrivatePeerIDs string `json:"private_peer_ids" toml:"private_peer_ids" comment:"Comma separated list of peer IDs to keep private (will not be gossiped to other peers)"`
-
-	// Toggle to disable guard against peers connecting from the same ip.
-	AllowDuplicateIP bool `json:"allow_duplicate_ip" toml:"allow_duplicate_ip" comment:"Toggle to disable guard against peers connecting from the same ip."`
-
-	// Peer connection configuration.
-	HandshakeTimeout time.Duration `json:"handshake_timeout" toml:"handshake_timeout" comment:"Peer connection configuration."`
-	DialTimeout      time.Duration `json:"dial_timeout" toml:"dial_timeout"`
 }
 
 // DefaultP2PConfig returns a default configuration for the peer-to-peer layer
@@ -69,18 +52,13 @@ func DefaultP2PConfig() *P2PConfig {
 	return &P2PConfig{
 		ListenAddress:           "tcp://0.0.0.0:26656",
 		ExternalAddress:         "",
-		UPNP:                    false,
 		MaxNumInboundPeers:      40,
 		MaxNumOutboundPeers:     10,
 		FlushThrottleTimeout:    100 * time.Millisecond,
 		MaxPacketMsgPayloadSize: 1024,    // 1 kB
 		SendRate:                5120000, // 5 mB/s
 		RecvRate:                5120000, // 5 mB/s
-		PexReactor:              true,
-		SeedMode:                false,
-		AllowDuplicateIP:        false,
-		HandshakeTimeout:        20 * time.Second,
-		DialTimeout:             3 * time.Second,
+		PeerExchange:            true,
 	}
 }
 
@@ -89,7 +67,7 @@ func TestP2PConfig() *P2PConfig {
 	cfg := DefaultP2PConfig()
 	cfg.ListenAddress = "tcp://0.0.0.0:26656"
 	cfg.FlushThrottleTimeout = 10 * time.Millisecond
-	cfg.AllowDuplicateIP = true
+
 	return cfg
 }
 

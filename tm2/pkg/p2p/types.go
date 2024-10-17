@@ -4,9 +4,8 @@ import (
 	"context"
 	"net"
 
-	"github.com/gnolang/gno/tm2/pkg/crypto"
 	"github.com/gnolang/gno/tm2/pkg/p2p/conn"
-	connm "github.com/gnolang/gno/tm2/pkg/p2p/conn"
+	"github.com/gnolang/gno/tm2/pkg/p2p/types"
 	"github.com/gnolang/gno/tm2/pkg/service"
 )
 
@@ -15,15 +14,13 @@ type (
 	ConnectionStatus  = conn.ConnectionStatus
 )
 
-type ID = crypto.ID
-
 // Peer is a wrapper for a connected peer
 type Peer interface {
 	service.Service
 
 	FlushStop()
 
-	ID() ID               // peer's cryptographic ID
+	ID() types.ID         // peer's cryptographic ID
 	RemoteIP() net.IP     // remote IP of the connection
 	RemoteAddr() net.Addr // remote address of the connection
 
@@ -32,9 +29,9 @@ type Peer interface {
 
 	CloseConn() error // close original connection
 
-	NodeInfo() NodeInfo // peer's info
-	Status() connm.ConnectionStatus
-	SocketAddr() *NetAddress // actual address of the socket
+	NodeInfo() types.NodeInfo // peer's info
+	Status() ConnectionStatus
+	SocketAddr() *types.NetAddress // actual address of the socket
 
 	Send(byte, []byte) bool
 	TrySend(byte, []byte) bool
@@ -46,10 +43,10 @@ type Peer interface {
 // PeerSet has a (immutable) subset of the methods of PeerSet.
 type PeerSet interface {
 	Add(peer Peer)
-	Remove(key ID) bool
-	Has(key ID) bool
+	Remove(key types.ID) bool
+	Has(key types.ID) bool
 	HasIP(ip net.IP) bool
-	Get(key ID) Peer
+	Get(key types.ID) Peer
 	List() []Peer // TODO consider implementing an iterator
 	Size() int    // TODO remove
 
@@ -62,13 +59,13 @@ type PeerSet interface {
 // Peers returned by the transport are considered to be verified and sound
 type Transport interface {
 	// NetAddress returns the Transport's dial address
-	NetAddress() NetAddress
+	NetAddress() types.NetAddress
 
 	// Accept returns a newly connected inbound peer
 	Accept(context.Context, PeerBehavior) (Peer, error)
 
 	// Dial dials a peer, and returns it
-	Dial(context.Context, NetAddress, PeerBehavior) (Peer, error)
+	Dial(context.Context, types.NetAddress, PeerBehavior) (Peer, error)
 
 	// Remove drops any resources associated
 	// with the Peer in the transport
@@ -92,5 +89,5 @@ type PeerBehavior interface {
 	HandlePeerError(Peer, error)
 
 	// IsPersistentPeer returns a flag indicating if the given peer is persistent
-	IsPersistentPeer(*NetAddress) bool
+	IsPersistentPeer(*types.NetAddress) bool
 }
