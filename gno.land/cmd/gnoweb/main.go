@@ -37,7 +37,7 @@ func runMain(args []string) error {
 	fs.StringVar(&cfg.HelpRemote, "help-remote", cfg.HelpRemote, "help page's remote addr")
 	fs.BoolVar(&cfg.WithAnalytics, "with-analytics", cfg.WithAnalytics, "enable privacy-first analytics")
 	fs.StringVar(&bindAddress, "bind", "127.0.0.1:8888", "server listening address")
-	fs.BoolVar(&cfg.ExpNoHTML, "exp-no-html", cfg.ExpNoHTML, "Disable HTML parsing in markdown rendering")
+	fs.BoolVar(&cfg.WithHTML, "with-html", cfg.WithHTML, "Enable HTML parsing in markdown rendering")
 
 	if err := fs.Parse(args); err != nil {
 		return err

@@ -46,7 +46,7 @@ type Config struct {
 	HelpChainID   string
 	HelpRemote    string
 	WithAnalytics bool
-	ExpNoHTML     bool
+	WithHTML      bool
 }
 
 func NewDefaultConfig() Config {
@@ -58,7 +58,7 @@ func NewDefaultConfig() Config {
 		HelpChainID:   "dev",
 		HelpRemote:    "127.0.0.1:26657",
 		WithAnalytics: false,
-		ExpNoHTML:     true,
+		WithHTML:      false,
 	}
 }
 
@@ -117,8 +117,8 @@ var (
 	htmlTagPattern    = regexp.MustCompile(`<\/?\w+[^>]*?>`)
 )
 
-func checkHTMLInMarkdown(cfg *Config, content string) string {
-	if !cfg.ExpNoHTML {
+func sanitizeContent(cfg *Config, content string) string {
+	if cfg.WithHTML {
 		return content
 	}
 
@@ -129,15 +129,15 @@ func checkHTMLInMarkdown(cfg *Config, content string) string {
 		return placeholder
 	})
 
-	contentWithNoHTML := htmlTagPattern.ReplaceAllString(contentWithPlaceholders, "")
+	sanitazedContent := htmlTagPattern.ReplaceAllString(contentWithPlaceholders, "")
 
 	if len(placeholders) > 0 {
 		for placeholder, code := range placeholders {
-			contentWithNoHTML = strings.ReplaceAll(contentWithNoHTML, placeholder, code)
+			sanitazedContent = strings.ReplaceAll(sanitazedContent, placeholder, code)
 		}
 	}
 
-	return contentWithNoHTML
+	return sanitazedContent
 }
 
 // handlerRealmAlias is used to render official pages from realms.
@@ -182,7 +182,7 @@ func handlerRealmAlias(logger *slog.Logger, app gotuna.App, cfg *Config, rlmpath
 		tmpl.Set("RealmPath", rlmpath)
 		tmpl.Set("Query", querystr)
 		tmpl.Set("PathLinks", pathLinks)
-		tmpl.Set("Contents", checkHTMLInMarkdown(cfg, string(res.Data)))
+		tmpl.Set("Contents", sanitizeContent(cfg, string(res.Data)))
 		tmpl.Set("Config", cfg)
 		tmpl.Set("IsAlias", true)
 		tmpl.Render(w, r, "realm_render.html", "funcs.html")
@@ -370,7 +370,7 @@ func handleRealmRender(logger *slog.Logger, app gotuna.App, cfg *Config, w http.
 	tmpl.Set("RealmPath", rlmpath)
 	tmpl.Set("Query", querystr)
 	tmpl.Set("PathLinks", pathLinks)
-	tmpl.Set("Contents", checkHTMLInMarkdown(cfg, string(res.Data)))
+	tmpl.Set("Contents", sanitizeContent(cfg, string(res.Data)))
 	tmpl.Set("Config", cfg)
 	tmpl.Set("HasReadme", hasReadme)
 	tmpl.Render(w, r, "realm_render.html", "funcs.html")
