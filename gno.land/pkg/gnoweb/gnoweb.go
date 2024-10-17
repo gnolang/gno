@@ -476,7 +476,7 @@ func handleNotFound(logger *slog.Logger, app gotuna.App, cfg *Config, path strin
 	// decode path for non-ascii characters
 	decodedPath, err := url.PathUnescape(path)
 	if err != nil {
-		logger.Error("failed to decode path", err)
+		logger.Error("failed to decode path", "error", err)
 		decodedPath = path
 	}
 	w.WriteHeader(http.StatusNotFound)
@@ -491,7 +491,7 @@ func writeError(logger *slog.Logger, w http.ResponseWriter, err error) {
 	if details := errors.Unwrap(err); details != nil {
 		logger.Error("handler", "error", err, "details", details)
 	} else {
-		logger.Error("handler", "error:", err)
+		logger.Error("handler", "error", err)
 	}
 
 	// XXX: writeError should return an error page template.
