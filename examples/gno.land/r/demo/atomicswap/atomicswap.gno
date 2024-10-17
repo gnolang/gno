@@ -61,16 +61,15 @@ func NewCustomCoinSwap(recipient std.Address, hashlock string, timelock time.Tim
 func NewCustomGRC20Swap(recipient std.Address, hashlock string, timelock time.Time, token *grc20.Token) (int, *Swap) {
 	sender := std.PrevRealm().Addr()
 	curAddr := std.CurrentRealm().Addr()
-	// userTeller := token.CallerTeller()
-	userTeller := token.RealmTeller() // FIXME(bug): should be the other one?
+	rlmTeller := token.RealmTeller()
 
-	allowance := userTeller.Allowance(sender, curAddr)
+	allowance := rlmTeller.Allowance(sender, curAddr)
 	require(allowance > 0, "no allowance")
-	err := userTeller.TransferFrom(sender, curAddr, allowance)
+	err := rlmTeller.TransferFrom(sender, curAddr, allowance)
 	checkErr(err, "cannot retrieve tokens from allowance")
-	amountStr := ufmt.Sprintf("%d%s", allowance, userTeller.GetSymbol())
+	amountStr := ufmt.Sprintf("%d%s", allowance, rlmTeller.GetSymbol())
 	sendFn := func(to std.Address) {
-		err := userTeller.Transfer(to, allowance)
+		err := rlmTeller.Transfer(to, allowance)
 		checkErr(err, "cannot transfer tokens")
 	}
 	swap := newSwap(sender, recipient, hashlock, timelock, amountStr, sendFn)
