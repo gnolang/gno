@@ -4,7 +4,7 @@ import (
 	"std"
 )
 
-func PrevRealmBanker(b *Bank) *fnBanker {
+func PrevRealmBanker(b *Bank) GRC20 {
 	return &fnBanker{
 		accountFn: func() std.Address {
 			caller := std.PrevRealm().Addr()
@@ -14,14 +14,14 @@ func PrevRealmBanker(b *Bank) *fnBanker {
 	}
 }
 
-func ReadonlyBanker(b *Bank) *fnBanker {
+func ReadonlyBanker(b *Bank) GRC20 {
 	return &fnBanker{
 		accountFn: nil,
 		bank:      b,
 	}
 }
 
-func AccountBanker(b *Bank, slug string) *fnBanker {
+func AccountBanker(b *Bank, slug string) GRC20 {
 	caller := std.CurrentRealm().Addr()
 	account := AccountSlugAddr(caller, slug)
 	return &fnBanker{
