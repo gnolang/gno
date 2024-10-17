@@ -88,8 +88,6 @@ func (b *AdminBanker) Transfer(from, to std.Address, amount uint64) error {
 	toBalance := b.balanceOf(to)
 	fromBalance := b.balanceOf(from)
 
-	// debug.
-
 	if fromBalance < amount {
 		return ErrInsufficientBalance
 	}
@@ -106,6 +104,7 @@ func (b *AdminBanker) Transfer(from, to std.Address, amount uint64) error {
 		"to", to.String(),
 		"value", strconv.Itoa(int(amount)),
 	)
+
 	return nil
 }
 

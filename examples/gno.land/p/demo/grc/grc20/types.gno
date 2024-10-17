@@ -83,6 +83,8 @@ type adminBanker struct {
 }
 
 const (
+	MintEvent     = "Mint"
+	BurnEvent     = "Burn"
 	TransferEvent = "Transfer"
 	ApprovalEvent = "Approval"
 )
