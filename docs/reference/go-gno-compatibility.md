@@ -303,9 +303,9 @@ Legend:
 | go build          | gno transpile -gobuild    | same intention, limited compatibility                                 |
 | go clean          | gno clean                 | same intention, limited compatibility                                 |
 | go doc            | gno doc                   | limited compatibility; see https://github.com/gnolang/gno/issues/522  |
-| go env            |                           |                                                                       |
+| go env            | gno env                   |                                                                       |
 | go fix            |                           |                                                                       |
-| go fmt            |                           | gofmt (& similar tools, like gofumpt) works on gno code.              |
+| go fmt            | gno fmt                   | gofmt (& similar tools, like gofumpt) works on gno code.              |
 | go generate       |                           |                                                                       |
 | go get            |                           | see `gno mod download`.                                               |
 | go help           | gno $cmd --help           | ie. `gno doc --help`                                                  |
