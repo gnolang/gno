@@ -5,6 +5,10 @@ import (
 )
 
 func PrevRealmBanker(b *Bank) GRC20 {
+	if b == nil {
+		panic("Bank cannot be nil")
+	}
+
 	return &fnBanker{
 		accountFn: func() std.Address {
 			caller := std.PrevRealm().Addr()
@@ -14,16 +18,39 @@ func PrevRealmBanker(b *Bank) GRC20 {
 	}
 }
 
+func RealmBanker(b *Bank) GRC20 {
+	if b == nil {
+		panic("Bank cannot be nil")
+	}
+
+	return &fnBanker{
+		accountFn: func() std.Address {
+			caller := std.CurrentRealm().Addr()
+			return caller
+		},
+		Bank: b,
+	}
+}
+
 func ReadonlyBanker(b *Bank) GRC20 {
+	if b == nil {
+		panic("Bank cannot be nil")
+	}
+
 	return &fnBanker{
 		accountFn: nil,
 		Bank:      b,
 	}
 }
 
-func AccountBanker(b *Bank, slug string) GRC20 {
+func SubAccountBanker(b *Bank, slug string) GRC20 {
+	if b == nil {
+		panic("Bank cannot be nil")
+	}
+
 	caller := std.CurrentRealm().Addr()
-	account := AccountSlugAddr(caller, slug)
+	account := accountSlugAddr(caller, slug)
+
 	return &fnBanker{
 		accountFn: func() std.Address {
 			return account

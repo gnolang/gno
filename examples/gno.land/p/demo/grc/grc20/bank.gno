@@ -7,6 +7,9 @@ import (
 	"gno.land/p/demo/ufmt"
 )
 
+// NewBank creates a new Bank.
+// It returns a pointer to the Bank and a pointer to the AdminBanker.
+// Expected usage: Bank, admin := NewBank("Dummy", "DUMMY", 4)
 func NewBank(name, symbol string, decimals uint) (*Bank, *AdminBanker) {
 	if name == "" {
 		panic("name should not be empty")
@@ -26,16 +29,27 @@ func NewBank(name, symbol string, decimals uint) (*Bank, *AdminBanker) {
 	return bank, adm
 }
 
-func (b Bank) GetName() string     { return b.name }
-func (b Bank) GetSymbol() string   { return b.symbol }
-func (b Bank) GetDecimals() uint   { return b.decimals }
-func (b Bank) TotalSupply() uint64 { return b.adm.totalSupply }
-func (b Bank) KnownAccounts() int  { return b.adm.balances.Size() }
+// GetName returns the name of the token.
+func (b Bank) GetName() string { return b.name }
 
+// GetSymbol returns the symbol of the token.
+func (b Bank) GetSymbol() string { return b.symbol }
+
+// GetDecimals returns the number of decimals used to get the token's precision.
+func (b Bank) GetDecimals() uint { return b.decimals }
+
+// TotalSupply returns the total supply of the token.
+func (b Bank) TotalSupply() uint64 { return b.adm.totalSupply }
+
+// KnownAccounts returns the number of known accounts in the bank.
+func (b Bank) KnownAccounts() int { return b.adm.balances.Size() }
+
+// BalanceOf returns the balance of the specified address.
 func (b Bank) BalanceOf(address std.Address) uint64 {
 	return b.adm.balanceOf(address)
 }
 
+// Allowance returns the allowance of the specified owner and spender.
 func (b Bank) Allowance(owner, spender std.Address) uint64 {
 	return b.adm.allowance(owner, spender)
 }
@@ -49,6 +63,7 @@ func (b *Bank) RenderHome() string {
 	return str
 }
 
+// SpendAllowance decreases the allowance of the specified owner and spender.
 func (b *AdminBanker) SpendAllowance(owner, spender std.Address, amount uint64) error {
 	if !owner.IsValid() {
 		return ErrInvalidAddress
@@ -74,6 +89,7 @@ func (b *AdminBanker) SpendAllowance(owner, spender std.Address, amount uint64) 
 	return nil
 }
 
+// Transfer transfers tokens from the specified from address to the specified to address.
 func (b *AdminBanker) Transfer(from, to std.Address, amount uint64) error {
 	if !from.IsValid() {
 		return ErrInvalidAddress
@@ -108,6 +124,8 @@ func (b *AdminBanker) Transfer(from, to std.Address, amount uint64) error {
 	return nil
 }
 
+// TransferFrom transfers tokens from the specified owner to the specified to address.
+// It first checks if the owner has sufficient balance and then decreases the allowance.
 func (b *AdminBanker) TransferFrom(owner, spender, to std.Address, amount uint64) error {
 	if b.balanceOf(owner) < amount {
 		return ErrInsufficientBalance
@@ -119,6 +137,7 @@ func (b *AdminBanker) TransferFrom(owner, spender, to std.Address, amount uint64
 	return b.Transfer(owner, to, amount)
 }
 
+// Approve sets the allowance of the specified owner and spender.
 func (b *AdminBanker) Approve(owner, spender std.Address, amount uint64) error {
 	if !owner.IsValid() {
 		return ErrInvalidAddress
@@ -139,6 +158,7 @@ func (b *AdminBanker) Approve(owner, spender std.Address, amount uint64) error {
 	return nil
 }
 
+// Mint increases the total supply of the token and adds the specified amount to the specified address.
 func (a *AdminBanker) Mint(address std.Address, amount uint64) error {
 	if !address.IsValid() {
 		return ErrInvalidAddress
@@ -162,6 +182,7 @@ func (a *AdminBanker) Mint(address std.Address, amount uint64) error {
 	return nil
 }
 
+// Burn decreases the total supply of the token and subtracts the specified amount from the specified address.
 func (a *AdminBanker) Burn(address std.Address, amount uint64) error {
 	if !address.IsValid() {
 		return ErrInvalidAddress
@@ -188,6 +209,7 @@ func (a *AdminBanker) Burn(address std.Address, amount uint64) error {
 	return nil
 }
 
+// balanceOf returns the balance of the specified address.
 func (b AdminBanker) balanceOf(address std.Address) uint64 {
 	balance, found := b.balances.Get(address.String())
 	if !found {
@@ -196,6 +218,7 @@ func (b AdminBanker) balanceOf(address std.Address) uint64 {
 	return balance.(uint64)
 }
 
+// allowance returns the allowance of the specified owner and spender.
 func (b AdminBanker) allowance(owner, spender std.Address) uint64 {
 	allowance, found := b.allowances.Get(allowanceKey(owner, spender))
 	if !found {
@@ -204,14 +227,7 @@ func (b AdminBanker) allowance(owner, spender std.Address) uint64 {
 	return allowance.(uint64)
 }
 
+// allowanceKey returns the key for the allowance of the specified owner and spender.
 func allowanceKey(owner, spender std.Address) string {
 	return owner.String() + ":" + spender.String()
-}
-
-func AccountSlugAddr(addr std.Address, slug string) std.Address {
-	if slug == "" {
-		return addr
-	}
-	key := addr.String() + "/" + slug
-	return std.DerivePkgAddr(key) // temporarily using this helper
 }

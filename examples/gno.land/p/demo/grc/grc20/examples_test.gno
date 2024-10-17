@@ -1,14 +1,25 @@
 package grc20
 
+// XXX: write Examples
+
+func ExampleInit()                            {}
+func ExampleExposeBankForMaketxRunOrImports() {}
+func ExampleCustomGRC20Impl()                 {}
+func ExampleAllowance()                       {}
+func ExampleRealmBanker()                     {}
+func ExamplePrevRealmBanker()                 {}
+func ExampleAccountBanker()                   {}
+func ExampleTransfer()                        {}
+func ExampleApprove()                         {}
+func ExampleTransferFrom()                    {}
+func ExampleMint()                            {}
+func ExampleBurn()                            {}
+
 /*
  Users
  - token creator (root)
  - token holder / enduser / basic realm (GRC20)
  - dao/intermediary-realm (vault) contracts
- Some challenges I've in mind:
- - making a `GRC20` interface that is an interface. -> CHECK
- - making a `grc20.XXX` structure which provides the best suggested implementation.
- - encouraging realms to store an admin Banker while exposing other things (TBD).
  - user banker. (prevrealm)
  - realm banker.
  - compatible with govdao. (and async closures).

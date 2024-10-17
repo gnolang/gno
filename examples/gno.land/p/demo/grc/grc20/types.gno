@@ -17,6 +17,13 @@ var (
 	ErrRestrictedBankOwner   = errors.New("restricted to bank owner")
 )
 
+const (
+	MintEvent     = "Mint"
+	BurnEvent     = "Burn"
+	TransferEvent = "Transfer"
+	ApprovalEvent = "Approval"
+)
+
 // Bank represents a token's bank, including its name, symbol,
 // decimals, and administrative functions.
 type Bank struct {
@@ -75,8 +82,6 @@ type GRC20 interface {
 	TransferFrom(from, to std.Address, amount uint64) error
 }
 
-// fnBanker is a wrapper around Bank that provides a custom account address
-// through a function. This allows for dynamic account addressing in GRC20 operations.
 type fnBanker struct {
 	accountFn func() std.Address
 	*Bank
@@ -89,9 +94,12 @@ type adminBanker struct {
 	bank *Bank
 }
 
-const (
-	MintEvent     = "Mint"
-	BurnEvent     = "Burn"
-	TransferEvent = "Transfer"
-	ApprovalEvent = "Approval"
-)
+// accountSlugAddr returns the address derived from the specified address and slug.
+func accountSlugAddr(addr std.Address, slug string) std.Address {
+	// XXX: use a new `std.XXX` call for this.
+	if slug == "" {
+		return addr
+	}
+	key := addr.String() + "/" + slug
+	return std.DerivePkgAddr(key) // temporarily using this helper
+}
