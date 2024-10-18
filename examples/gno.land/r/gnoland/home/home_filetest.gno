@@ -78,9 +78,9 @@ func main() {
 // </div><!-- /column-->
 // <div class="column">
 //
-// ### Latest Contributions
+// ### [Hall of Fame](/r/demo/hof)
 //
-// [View latest contributions](https://github.com/gnolang/gno/pulls)
+//
 // </div><!-- /column-->
 // </div><!-- /columns-3 -->
 //
