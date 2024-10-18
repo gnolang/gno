@@ -1,10 +1,6 @@
 // PKGPATH: gno.land/r/test
 package test
 
-import (
-	"fmt"
-)
-
 type (
 	word uint
 	nat  []word
@@ -226,7 +222,7 @@ func main() {
 //                     "Location": {
 //                         "Column": "1",
 //                         "File": "main.gno",
-//                         "Line": "20",
+//                         "Line": "16",
 //                         "PkgPath": "gno.land/r/test"
 //                     }
 //                 },

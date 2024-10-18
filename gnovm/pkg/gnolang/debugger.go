@@ -257,8 +257,10 @@ func debugUpdateLocation(m *Machine) {
 	for i := nx - 1; i >= 0; i-- {
 		expr := m.Exprs[i]
 		if l := expr.GetLine(); l > 0 {
-			m.Debugger.loc.Line = l
-			m.Debugger.loc.Column = expr.GetColumn()
+			if col := expr.GetColumn(); col > 0 {
+				m.Debugger.loc.Line = l
+				m.Debugger.loc.Column = expr.GetColumn()
+			}
 			return
 		}
 	}
@@ -266,8 +268,10 @@ func debugUpdateLocation(m *Machine) {
 	if len(m.Stmts) > 0 {
 		if stmt := m.PeekStmt1(); stmt != nil {
 			if l := stmt.GetLine(); l > 0 {
-				m.Debugger.loc.Line = l
-				m.Debugger.loc.Column = stmt.GetColumn()
+				if col := stmt.GetColumn(); col > 0 {
+					m.Debugger.loc.Line = l
+					m.Debugger.loc.Column = stmt.GetColumn()
+				}
 				return
 			}
 		}
@@ -648,7 +652,7 @@ func debugEvalExpr(m *Machine, node ast.Node) (tv TypedValue, err error) {
 			return tv, fmt.Errorf("invalid selector: %s", n.Sel.Name)
 		}
 		for _, vp := range tr {
-			x = x.GetPointerTo(m.Alloc, m.Store, vp).Deref()
+			x = x.GetPointerToFromTV(m.Alloc, m.Store, vp).Deref()
 		}
 		return x, nil
 	case *ast.IndexExpr:
