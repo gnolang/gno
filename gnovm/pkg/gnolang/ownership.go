@@ -3,6 +3,7 @@ package gnolang
 import (
 	"encoding/hex"
 	"fmt"
+	"reflect"
 	"strconv"
 	"strings"
 
@@ -112,6 +113,8 @@ type Object interface {
 	SetIsDeleted(bool, uint64)
 	GetIsNewReal() bool
 	SetIsNewReal(bool)
+	GetIsCrossRealm() bool // XXX, does escape imply this?
+	SetIsCrossRealm(bool)
 	GetIsNewEscaped() bool
 	SetIsNewEscaped(bool)
 	GetIsNewDeleted() bool
@@ -140,31 +143,36 @@ type ObjectInfo struct {
 	RefCount  int       // for persistence. deleted/gc'd if 0.
 	IsEscaped bool      `json:",omitempty"` // hash in iavl.
 	// MemRefCount int // consider for optimizations.
-	isDirty      bool
-	isDeleted    bool
-	isNewReal    bool
-	isNewEscaped bool
-	isNewDeleted bool
+	isDirty                 bool
+	isDeleted               bool
+	isNewReal               bool
+	isCrossRealm            bool
+	isNewEscaped            bool
+	isNewDeleted            bool
+	lastNewRealEscapedRealm PkgID // realm attached and escaped
 
 	// XXX huh?
 	owner Object // mem reference to owner.
 }
 
-// Copy used for serialization of objects.
 // Note that "owner" is nil.
 func (oi *ObjectInfo) Copy() ObjectInfo {
 	return ObjectInfo{
-		ID:           oi.ID,
-		Hash:         oi.Hash.Copy(),
-		OwnerID:      oi.OwnerID,
-		ModTime:      oi.ModTime,
-		RefCount:     oi.RefCount,
-		IsEscaped:    oi.IsEscaped,
-		isDirty:      oi.isDirty,
-		isDeleted:    oi.isDeleted,
-		isNewReal:    oi.isNewReal,
-		isNewEscaped: oi.isNewEscaped,
-		isNewDeleted: oi.isNewDeleted,
+		ID:        oi.ID,
+		Hash:      oi.Hash.Copy(),
+		OwnerID:   oi.OwnerID,
+		ModTime:   oi.ModTime,
+		RefCount:  oi.RefCount,
+		IsEscaped: oi.IsEscaped,
+		/*
+			// XXX do the following need copying too?
+			isDirty:          oi.isDirty,
+			isDeleted:        oi.isDeleted,
+			isNewReal:        oi.isNewReal,
+			isNewEscaped:     oi.isNewEscaped,
+			isNewDeleted:     oi.isNewDeleted,
+			lastNewRealEscapedRealm: oi.lastNewRealEscapedRealm,
+		*/
 	}
 }
 
@@ -305,6 +313,14 @@ func (oi *ObjectInfo) SetIsNewReal(x bool) {
 	oi.isNewReal = x
 }
 
+func (oi *ObjectInfo) GetIsCrossRealm() bool {
+	return oi.isCrossRealm
+}
+
+func (oi *ObjectInfo) SetIsCrossRealm(x bool) {
+	oi.isCrossRealm = x
+}
+
 func (oi *ObjectInfo) GetIsNewEscaped() bool {
 	return oi.isNewEscaped
 }
@@ -325,15 +341,28 @@ func (oi *ObjectInfo) GetIsTransient() bool {
 	return false
 }
 
+// XXX, get first accessible object, maybe containing(parent) object, maybe itself.
 func (tv *TypedValue) GetFirstObject(store Store) Object {
+	fmt.Println("---GetFirstObject---, tv: ", tv, reflect.TypeOf(tv.V))
 	switch cv := tv.V.(type) {
 	case PointerValue:
+		println("---pointer value, get base")
+		if v, ok := cv.TV.V.(Object); ok {
+			fmt.Println("---v: ", v)
+			rc := v.GetRefCount()
+			fmt.Println("---rc: ", rc)
+			fmt.Println("---v Owner: ", v.GetOwnerID())
+			fmt.Println("---v.GetObjectID(): ", v.GetObjectID())
+			fmt.Println("---is Attached?", v.GetIsReal())
+		}
 		return cv.GetBase(store)
 	case *ArrayValue:
 		return cv
 	case *SliceValue:
 		return cv.GetBase(store)
 	case *StructValue:
+		println("---struct value")
+		fmt.Println("---cv.GetObjectID(): ", cv.GetObjectID())
 		return cv
 	case *FuncValue:
 		return cv.GetClosure(store)

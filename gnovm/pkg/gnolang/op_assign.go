@@ -1,5 +1,7 @@
 package gnolang
 
+import "fmt"
+
 func (m *Machine) doOpDefine() {
 	s := m.PopStmt().(*AssignStmt)
 	// Define each value evaluated for Lhs.
@@ -25,6 +27,7 @@ func (m *Machine) doOpDefine() {
 }
 
 func (m *Machine) doOpAssign() {
+	fmt.Println("---doOpAssign, m.Realm: ", m.Realm)
 	s := m.PopStmt().(*AssignStmt)
 	// Assign each value evaluated for Lhs.
 	// NOTE: PopValues() returns a slice in
