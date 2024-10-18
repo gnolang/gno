@@ -3,16 +3,11 @@ package main
 import (
 	"errors"
 	"flag"
-	"path/filepath"
 
-	"github.com/gnolang/gno/tm2/pkg/bft/config"
 	"github.com/gnolang/gno/tm2/pkg/commands"
 )
 
-var (
-	errInvalidDataDir    = errors.New("invalid data directory provided")
-	errInvalidSecretsKey = errors.New("invalid number of secret key arguments")
-)
+var errInvalidSecretsKey = errors.New("invalid number of secret key arguments")
 
 const (
 	defaultValidatorKeyName   = "priv_validator_key.json"
@@ -52,25 +47,11 @@ func newSecretsCmd(io commands.IO) *commands.Command {
 // configuration for secrets commands
 // that require a bundled secrets dir
 type commonAllCfg struct {
-	dataDir string
+	rootCfg
 }
 
 func (c *commonAllCfg) RegisterFlags(fs *flag.FlagSet) {
-	fs.StringVar(
-		&c.dataDir,
-		"data-dir",
-		constructSecretsPath(defaultNodeDir),
-		"the secrets output directory",
-	)
-}
-
-// constructSecretsPath constructs the default secrets path, using
-// the given node directory
-func constructSecretsPath(nodeDir string) string {
-	return filepath.Join(
-		nodeDir,
-		config.DefaultSecretsDir,
-	)
+	c.rootCfg.RegisterFlags(fs)
 }
 
 type (

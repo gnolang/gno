@@ -32,7 +32,7 @@ func newTxsExportCmd(txsCfg *txsCfg, io commands.IO) *commands.Command {
 
 func execTxsExport(cfg *txsCfg, io commands.IO, args []string) error {
 	// Load the genesis
-	genesis, loadErr := types.GenesisDocFromFile(cfg.genesisPath)
+	genesis, loadErr := types.GenesisDocFromFile(cfg.homeDir.GenesisFilePath())
 	if loadErr != nil {
 		return fmt.Errorf("unable to load genesis, %w", loadErr)
 	}

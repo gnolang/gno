@@ -29,7 +29,7 @@ func TestGenesis_Txs_Add_Packages(t *testing.T) {
 			"txs",
 			"add",
 			"packages",
-			"--genesis-path",
+			"--genesis",
 			"dummy-path",
 		}
 
@@ -54,7 +54,7 @@ func TestGenesis_Txs_Add_Packages(t *testing.T) {
 			"txs",
 			"add",
 			"packages",
-			"--genesis-path",
+			"--genesis",
 			tempGenesis.Name(),
 		}
 
@@ -105,7 +105,7 @@ func TestGenesis_Txs_Add_Packages(t *testing.T) {
 			"txs",
 			"add",
 			"packages",
-			"--genesis-path",
+			"--genesis",
 			tempGenesis.Name(),
 			dir,
 		}

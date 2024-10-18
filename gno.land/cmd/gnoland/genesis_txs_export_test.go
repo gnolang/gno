@@ -26,7 +26,7 @@ func TestGenesis_Txs_Export(t *testing.T) {
 			"genesis",
 			"txs",
 			"export",
-			"--genesis-path",
+			"--genesis",
 			"dummy-path",
 		}
 
@@ -51,7 +51,7 @@ func TestGenesis_Txs_Export(t *testing.T) {
 			"genesis",
 			"txs",
 			"export",
-			"--genesis-path",
+			"--genesis",
 			tempGenesis.Name(),
 		}
 
@@ -78,7 +78,7 @@ func TestGenesis_Txs_Export(t *testing.T) {
 			"genesis",
 			"txs",
 			"export",
-			"--genesis-path",
+			"--genesis",
 			tempGenesis.Name(),
 		}
 
@@ -112,7 +112,7 @@ func TestGenesis_Txs_Export(t *testing.T) {
 			"genesis",
 			"txs",
 			"export",
-			"--genesis-path",
+			"--genesis",
 			tempGenesis.Name(),
 			outputFile.Name(),
 		}

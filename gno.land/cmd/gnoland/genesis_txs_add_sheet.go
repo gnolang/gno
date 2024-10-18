@@ -39,7 +39,7 @@ func execTxsAddSheet(
 	args []string,
 ) error {
 	// Load the genesis
-	genesis, loadErr := types.GenesisDocFromFile(cfg.genesisPath)
+	genesis, loadErr := types.GenesisDocFromFile(cfg.homeDir.GenesisFilePath())
 	if loadErr != nil {
 		return fmt.Errorf("unable to load genesis, %w", loadErr)
 	}
@@ -74,7 +74,7 @@ func execTxsAddSheet(
 	}
 
 	// Save the updated genesis
-	if err := genesis.SaveAs(cfg.genesisPath); err != nil {
+	if err := genesis.SaveAs(cfg.homeDir.GenesisFilePath()); err != nil {
 		return fmt.Errorf("unable to save genesis.json, %w", err)
 	}
 
