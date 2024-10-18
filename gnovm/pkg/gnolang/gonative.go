@@ -866,7 +866,7 @@ func gno2GoType(t Type) reflect.Type {
 			return rt
 		} else {
 			// NOTE: can this be implemented in go1.15? i think not.
-			panic("not yet supported")
+			panic("gno2go conversion of type not yet supported: " + ct.String())
 		}
 	case *TypeType:
 		panic("should not happen")
