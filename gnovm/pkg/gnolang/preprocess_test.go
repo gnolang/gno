@@ -60,3 +60,62 @@ func main() {
 	initStaticBlocks(store, pn, n)
 	Preprocess(store, pn, n)
 }
+
+func TestEvalStaticTypeOf_MultipleValues(t *testing.T) {
+	pn := NewPackageNode("main", "main", nil)
+	pv := pn.NewPackage()
+	store := gonativeTestStore(pn, pv)
+	store.SetBlockNode(pn)
+
+	const src = `package main
+func multipleReturns() (int, string) {
+	return 1, "hello"
+}
+func main() {
+	x := multipleReturns()
+}`
+	n := MustParseFile("main.go", src)
+
+	initStaticBlocks(store, pn, n)
+
+	defer func() {
+		err := recover()
+		assert.NotNil(t, err, "Expected panic")
+		errMsg := fmt.Sprint(err)
+		assert.Contains(t, errMsg, "multipleReturns() (2 values) used as single value", "Unexpected error message")
+		assert.Contains(t, errMsg, "Hint: Ensure the function returns a single value, or use multiple assignment", "Missing hint in error message")
+	}()
+
+	Preprocess(store, pn, n)
+}
+
+func TestEvalStaticTypeOf_NoValue(t *testing.T) {
+	pn := NewPackageNode("main", "main", nil)
+	pv := pn.NewPackage()
+	store := gonativeTestStore(pn, pv)
+	store.SetBlockNode(pn)
+
+	const src = `package main
+
+func main() {
+	n := f()
+}
+
+func f() {
+	println("hello!")
+}
+`
+	n := MustParseFile("main.go", src)
+
+	initStaticBlocks(store, pn, n)
+
+	defer func() {
+		err := recover()
+		assert.NotNil(t, err, "Expected panic")
+		errMsg := fmt.Sprint(err)
+		assert.Contains(t, errMsg, "f() (no value) used as value", "Unexpected error message")
+		assert.Contains(t, errMsg, "Hint: Ensure the function returns a single value, or use multiple assignment", "Missing hint in error message")
+	}()
+
+	Preprocess(store, pn, n)
+}
