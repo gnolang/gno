@@ -21,6 +21,8 @@ import (
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
 	"github.com/gnolang/gno/gnovm/pkg/gnomod"
 	"github.com/gnolang/gno/gnovm/tests"
+	teststd "github.com/gnolang/gno/gnovm/tests/stdlibs/std"
+	"github.com/gnolang/gno/tm2/pkg/colors"
 	"github.com/gnolang/gno/tm2/pkg/commands"
 	"github.com/gnolang/gno/tm2/pkg/errors"
 	"github.com/gnolang/gno/tm2/pkg/random"
@@ -447,10 +449,25 @@ func runTestFiles(
 	n := gno.MustParseFile("main_test.gno", testmain)
 	m.RunFiles(n)
 
+	printedEvents := 0
+
 	for _, test := range testFuncs.Tests {
 		testFuncStr := fmt.Sprintf("%q", test.Name)
 
-		eval := m.Eval(gno.Call("runtest", testFuncStr))
+		res := gno.Call("runtest", testFuncStr)
+
+		eval := m.Eval(res) // NOTE: verbose prints get here
+		if verbose {
+			ctx := m.Context.(*teststd.TestExecContext)
+
+			events := ctx.EventLogger.Events()
+			for _, ev := range events[printedEvents:] {
+				printedEvents++
+				// XXX: print events with better formatting (e.g. JSON)
+				strEv := fmt.Sprint(ev)
+				io.ErrPrintfln("---       event: %s", colors.ColoredBytesOnlyAscii([]byte(strEv), colors.Magenta))
+			}
+		}
 
 		ret := eval[0].GetString()
 		if ret == "" {
