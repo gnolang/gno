@@ -1624,7 +1624,8 @@ func (sb *StaticBlock) GetBlockNames() (ns []Name) {
 }
 
 // Implements BlockNode.
-// NOTE: Extern names may also be local, if declared later.
+// NOTE: Extern names may also be local, if declared after usage as an extern
+// (thus shadowing the extern name).
 func (sb *StaticBlock) GetExternNames() (ns []Name) {
 	return sb.Externs // copy?
 }
