@@ -48,14 +48,14 @@ func (vh vmHandler) handleMsgAddPackage(ctx sdk.Context, msg MsgAddPackage) sdk.
 	return sdk.Result{}
 }
 
-// Handle MsgCall.
 func (vh vmHandler) handleMsgCall(ctx sdk.Context, msg MsgCall) (res sdk.Result) {
 	resstr, err := vh.vm.Call(ctx, msg)
 	if err != nil {
 		return abciResult(err)
 	}
+
 	res.Data = []byte(resstr)
-	return
+	return res
 }
 
 // Handle MsgRun.
@@ -64,8 +64,9 @@ func (vh vmHandler) handleMsgRun(ctx sdk.Context, msg MsgRun) (res sdk.Result) {
 	if err != nil {
 		return abciResult(err)
 	}
+
 	res.Data = []byte(resstr)
-	return
+	return res
 }
 
 // ----------------------------------------
