@@ -9,6 +9,7 @@ import (
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
 	"github.com/gnolang/gno/tm2/pkg/amino"
 	"github.com/gnolang/gno/tm2/pkg/commands"
+	"github.com/gnolang/gno/tm2/pkg/crypto"
 	"github.com/gnolang/gno/tm2/pkg/crypto/keys"
 	"github.com/gnolang/gno/tm2/pkg/crypto/keys/client"
 	"github.com/gnolang/gno/tm2/pkg/errors"
@@ -107,12 +108,35 @@ func execMakeAddPkg(cfg *MakeAddPkgCfg, args []string, io commands.IO) error {
 	if err != nil {
 		panic(err)
 	}
-	// construct msg & tx and marshal.
+
 	msg := vm.MsgAddPackage{
 		Creator: creator,
 		Package: memPkg,
 		Deposit: deposit,
 	}
+
+	// if a sponsor onchain address is specified
+	if cfg.RootCfg.Sponsor != "" {
+		sponsorAddress, err := crypto.AddressFromBech32(cfg.RootCfg.Sponsor)
+		if err != nil {
+			return errors.Wrap(err, "invalid sponsor address")
+		}
+
+		tx := std.Tx{
+			Msgs: []std.Msg{
+				vm.NewMsgNoop(sponsorAddress),
+				msg,
+			},
+			Fee:        std.NewFee(gaswanted, gasfee),
+			Signatures: nil,
+			Memo:       cfg.RootCfg.Memo,
+		}
+
+		io.Println(string(amino.MustMarshalJSON(tx)))
+
+		return nil
+	}
+
 	tx := std.Tx{
 		Msgs:       []std.Msg{msg},
 		Fee:        std.NewFee(gaswanted, gasfee),

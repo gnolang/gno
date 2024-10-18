@@ -247,9 +247,17 @@ func testingCallRealm(t *testing.T, node *Node, msgs ...vm.MsgCall) (*core_types
 		RPCClient: node.Client(),
 	}
 
+	signerInfo, err := signer.Info()
+	require.NoError(t, err)
+
+	acc, _, err := cli.QueryAccount(signerInfo.GetAddress())
+	require.NoError(t, err)
+
 	txcfg := gnoclient.BaseTxCfg{
-		GasFee:    ugnot.ValueString(1000000), // Gas fee
-		GasWanted: 2_000_000,                  // Gas wanted
+		GasFee:         ugnot.ValueString(1000000), // Gas fee
+		GasWanted:      2_000_000,                  // Gas wanted
+		AccountNumber:  acc.AccountNumber,
+		SequenceNumber: acc.Sequence,
 	}
 
 	// Set Caller in the msgs
