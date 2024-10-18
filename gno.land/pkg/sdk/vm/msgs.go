@@ -207,3 +207,44 @@ func (msg MsgRun) GetSigners() []crypto.Address {
 func (msg MsgRun) GetReceived() std.Coins {
 	return msg.Send
 }
+
+//----------------------------------------
+// MsgNoop
+
+// MsgNoop - executes nothing
+type MsgNoop struct {
+	Caller crypto.Address `json:"caller" yaml:"caller"`
+}
+
+var _ std.Msg = MsgNoop{}
+
+func NewMsgNoop(caller crypto.Address) MsgNoop {
+	return MsgNoop{
+		Caller: caller,
+	}
+}
+
+// Implements Msg.
+func (msg MsgNoop) Route() string { return RouterKey }
+
+// Implements Msg.
+func (msg MsgNoop) Type() string { return "no_op" }
+
+// Implements Msg.
+func (msg MsgNoop) ValidateBasic() error {
+	if msg.Caller.IsZero() {
+		return std.ErrInvalidAddress("missing caller address")
+	}
+
+	return nil
+}
+
+// Implements Msg.
+func (msg MsgNoop) GetSignBytes() []byte {
+	return std.MustSortJSON(amino.MustMarshalJSON(msg))
+}
+
+// Implements Msg.
+func (msg MsgNoop) GetSigners() []crypto.Address {
+	return []crypto.Address{msg.Caller}
+}
