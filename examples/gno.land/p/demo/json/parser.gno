@@ -9,12 +9,21 @@ import (
 )
 
 const (
-	absMinInt64 = 1 << 63
-	maxInt64    = absMinInt64 - 1
-	maxUint64   = 1<<64 - 1
+	unescapeStackBufSize = 64
+	absMinInt64          = 1 << 63
+	maxInt64             = absMinInt64 - 1
+	maxUint64            = 1<<64 - 1
 )
 
-const unescapeStackBufSize = 64
+var (
+	errInvalidStringInput    = errors.New("invalid string input")
+	errMalformedBooleanValue = errors.New("malformed boolean value")
+	errEmptyByteSlice        = errors.New("empty byte slice")
+	errInvalidExponentValue  = errors.New("invalid exponent value")
+	errNonDigitCharacters    = errors.New("non-digit characters found")
+	errNumericRangeExceeded  = errors.New("numeric value exceeds the range limit")
+	errMultipleDecimalPoints = errors.New("multiple decimal points found")
+)
 
 // PaseStringLiteral parses a string from the given byte slice.
 func ParseStringLiteral(data []byte) (string, error) {
@@ -22,7 +31,7 @@ func ParseStringLiteral(data []byte) (string, error) {
 
 	bf, err := Unescape(data, buf[:])
 	if err != nil {
-		return "", errors.New("invalid string input found while parsing string value")
+		return "", errInvalidStringInput
 	}
 
 	return string(bf), nil
@@ -36,7 +45,7 @@ func ParseBoolLiteral(data []byte) (bool, error) {
 	case bytes.Equal(data, falseLiteral):
 		return false, nil
 	default:
-		return false, errors.New("JSON Error: malformed boolean value found while parsing boolean value")
+		return false, errMalformedBooleanValue
 	}
 }
 
@@ -46,7 +55,7 @@ func ParseBoolLiteral(data []byte) (bool, error) {
 // by the IEEE 754 standard, providing a decimal precision of approximately 15 digits.
 func ParseFloatLiteral(bytes []byte) (float64, error) {
 	if len(bytes) == 0 {
-		return -1, errors.New("JSON Error: empty byte slice found while parsing float value")
+		return -1, errEmptyByteSlice
 	}
 
 	neg, bytes := trimNegativeSign(bytes)
@@ -68,7 +77,7 @@ func ParseFloatLiteral(bytes []byte) (float64, error) {
 	if len(exponentPart) > 0 {
 		exp, err := strconv.Atoi(string(exponentPart))
 		if err != nil {
-			return -1, errors.New("JSON Error: invalid exponent value found while parsing float value")
+			return -1, errInvalidExponentValue
 		}
 		exp10 += exp
 	}
@@ -84,7 +93,7 @@ func ParseFloatLiteral(bytes []byte) (float64, error) {
 
 func ParseIntLiteral(bytes []byte) (int64, error) {
 	if len(bytes) == 0 {
-		return 0, errors.New("JSON Error: empty byte slice found while parsing integer value")
+		return 0, errEmptyByteSlice
 	}
 
 	neg, bytes := trimNegativeSign(bytes)
@@ -92,18 +101,18 @@ func ParseIntLiteral(bytes []byte) (int64, error) {
 	var n uint64 = 0
 	for _, c := range bytes {
 		if notDigit(c) {
-			return 0, errors.New("JSON Error: non-digit characters found while parsing integer value")
+			return 0, errNonDigitCharacters
 		}
 
 		if n > maxUint64/10 {
-			return 0, errors.New("JSON Error: numeric value exceeds the range limit")
+			return 0, errNumericRangeExceeded
 		}
 
 		n *= 10
 
 		n1 := n + uint64(c-'0')
 		if n1 < n {
-			return 0, errors.New("JSON Error: numeric value exceeds the range limit")
+			return 0, errNumericRangeExceeded
 		}
 
 		n = n1
@@ -114,7 +123,7 @@ func ParseIntLiteral(bytes []byte) (int64, error) {
 			return -absMinInt64, nil
 		}
 
-		return 0, errors.New("JSON Error: numeric value exceeds the range limit")
+		return 0, errNumericRangeExceeded
 	}
 
 	if neg {
@@ -141,20 +150,20 @@ func extractMantissaAndExp10(bytes []byte) (uint64, int, error) {
 	for _, c := range bytes {
 		if c == dot {
 			if decimalFound {
-				return 0, 0, errors.New("JSON Error: multiple decimal points found while parsing float value")
+				return 0, 0, errMultipleDecimalPoints
 			}
 			decimalFound = true
 			continue
 		}
 
 		if notDigit(c) {
-			return 0, 0, errors.New("JSON Error: non-digit characters found while parsing integer value")
+			return 0, 0, errNonDigitCharacters
 		}
 
 		digit := uint64(c - '0')
 
 		if man > (maxUint64-digit)/10 {
-			return 0, 0, errors.New("JSON Error: numeric value exceeds the range limit")
+			return 0, 0, errNumericRangeExceeded
 		}
 
 		man = man*10 + digit
