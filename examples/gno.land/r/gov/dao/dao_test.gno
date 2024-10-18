@@ -22,7 +22,7 @@ func TestPackage(t *testing.T) {
 
 	out := Render("")
 
-	expected := "No proposals found :("
+	expected := "# GovDAO Proposals\n\nNo proposals."
 	urequire.Equal(t, expected, out)
 
 	var called bool
@@ -32,7 +32,7 @@ func TestPackage(t *testing.T) {
 	})
 
 	std.TestSetOrigCaller(u1)
-	pid := Propose("dummy proposal", ex)
+	pid := Propose("dummy proposal title", "dummy proposal description", ex)
 
 	// try to vote not being a member
 	std.TestSetOrigCaller(nu1)
@@ -51,17 +51,28 @@ func TestPackage(t *testing.T) {
 	})
 
 	out = Render("0")
-	expected = `# Prop #0
 
-dummy proposal
+	expected = `# Prop #0 - dummy proposal title
 
-Status: active
+## Description
 
-Voting status: YES: 1, NO: 0, percent: 33, members: 3
+dummy proposal description
 
-Author: g1w5c47h6lta047h6lta047h6lta047h6ly5kscr
+## Proposal information
 
-`
+#### Status: Active
+
+#### Votes: 
+
+- YAY: 1
+
+- NAY: 0
+
+- Percent: 33
+
+- Members: 3
+
+#### Author: g1w5c47h6lta047h6lta047h6lta047h6ly5kscr`
 
 	urequire.Equal(t, expected, out)
 
@@ -74,17 +85,28 @@ Author: g1w5c47h6lta047h6lta047h6lta047h6ly5kscr
 	})
 
 	out = Render("0")
-	expected = `# Prop #0
 
-dummy proposal
+	expected = `# Prop #0 - dummy proposal title
 
-Status: active
+## Description
 
-Voting status: YES: 1, NO: 1, percent: 33, members: 3
+dummy proposal description
 
-Author: g1w5c47h6lta047h6lta047h6lta047h6ly5kscr
+## Proposal information
 
-`
+#### Status: Active
+
+#### Votes: 
+
+- YAY: 1
+
+- NAY: 1
+
+- Percent: 33
+
+- Members: 3
+
+#### Author: g1w5c47h6lta047h6lta047h6lta047h6ly5kscr`
 
 	urequire.Equal(t, expected, out)
 
@@ -94,17 +116,27 @@ Author: g1w5c47h6lta047h6lta047h6lta047h6ly5kscr
 	})
 
 	out = Render("0")
-	expected = `# Prop #0
+	expected = `# Prop #0 - dummy proposal title
 
-dummy proposal
+## Description
 
-Status: accepted
+dummy proposal description
 
-Voting status: YES: 2, NO: 1, percent: 66, members: 3
+## Proposal information
 
-Author: g1w5c47h6lta047h6lta047h6lta047h6ly5kscr
+#### Status: Accepted
 
-`
+#### Votes: 
+
+- YAY: 2
+
+- NAY: 1
+
+- Percent: 66
+
+- Members: 3
+
+#### Author: g1w5c47h6lta047h6lta047h6lta047h6ly5kscr`
 
 	urequire.Equal(t, expected, out)
 
@@ -113,17 +145,27 @@ Author: g1w5c47h6lta047h6lta047h6lta047h6ly5kscr
 	members = append(members, u4)
 
 	out = Render("0")
-	expected = `# Prop #0
+	expected = `# Prop #0 - dummy proposal title
 
-dummy proposal
+## Description
 
-Status: active
+dummy proposal description
 
-Voting status: YES: 2, NO: 1, percent: 50, members: 4
+## Proposal information
 
-Author: g1w5c47h6lta047h6lta047h6lta047h6ly5kscr
+#### Status: Active
 
-`
+#### Votes: 
+
+- YAY: 2
+
+- NAY: 1
+
+- Percent: 50
+
+- Members: 4
+
+#### Author: g1w5c47h6lta047h6lta047h6lta047h6ly5kscr`
 
 	urequire.Equal(t, expected, out)
 
@@ -133,17 +175,27 @@ Author: g1w5c47h6lta047h6lta047h6lta047h6ly5kscr
 	})
 
 	out = Render("0")
-	expected = `# Prop #0
+	expected = `# Prop #0 - dummy proposal title
 
-dummy proposal
+## Description
 
-Status: accepted
+dummy proposal description
 
-Voting status: YES: 3, NO: 1, percent: 75, members: 4
+## Proposal information
 
-Author: g1w5c47h6lta047h6lta047h6lta047h6ly5kscr
+#### Status: Accepted
 
-`
+#### Votes: 
+
+- YAY: 3
+
+- NAY: 1
+
+- Percent: 75
+
+- Members: 4
+
+#### Author: g1w5c47h6lta047h6lta047h6lta047h6ly5kscr`
 
 	urequire.Equal(t, expected, out)
 
@@ -151,17 +203,28 @@ Author: g1w5c47h6lta047h6lta047h6lta047h6ly5kscr
 	urequire.True(t, called)
 
 	out = Render("0")
-	expected = `# Prop #0
 
-dummy proposal
+	expected = `# Prop #0 - dummy proposal title
 
-Status: succeeded
+## Description
 
-Voting status: YES: 3, NO: 1, percent: 75, members: 4
+dummy proposal description
 
-Author: g1w5c47h6lta047h6lta047h6lta047h6ly5kscr
+## Proposal information
 
-`
+#### Status: Succeeded
+
+#### Votes: 
+
+- YAY: 3
+
+- NAY: 1
+
+- Percent: 75
+
+- Members: 4
+
+#### Author: g1w5c47h6lta047h6lta047h6lta047h6ly5kscr`
 
 	urequire.Equal(t, expected, out)
 
@@ -175,18 +238,28 @@ Author: g1w5c47h6lta047h6lta047h6lta047h6ly5kscr
 
 	// even if we added a new member the executed proposal is showing correctly the members that voted on it
 	out = Render("0")
-	expected = `# Prop #0
 
-dummy proposal
+	expected = `# Prop #0 - dummy proposal title
 
-Status: succeeded
+## Description
 
-Voting status: YES: 3, NO: 1, percent: 75, members: 4
+dummy proposal description
 
-Author: g1w5c47h6lta047h6lta047h6lta047h6ly5kscr
+## Proposal information
 
-`
+#### Status: Succeeded
+
+#### Votes: 
+
+- YAY: 3
+
+- NAY: 1
+
+- Percent: 75
+
+- Members: 4
+
+#### Author: g1w5c47h6lta047h6lta047h6lta047h6ly5kscr`
 
 	urequire.Equal(t, expected, out)
-
 }
