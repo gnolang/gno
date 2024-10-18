@@ -1769,21 +1769,12 @@ func (sb *StaticBlock) GetStaticTypeOf(store Store, n Name) Type {
 // Implements BlockNode.
 func (sb *StaticBlock) GetStaticTypeOfAt(store Store, path ValuePath) Type {
 	if debug {
-		if path.Type != VPBlock {
-			panic("should not happen")
-		}
 		if path.Depth == 0 {
 			panic("should not happen")
 		}
 	}
-	for {
-		if path.Depth == 1 {
-			return sb.Types[path.Index]
-		} else {
-			sb = sb.GetParentNode(store).GetStaticBlock()
-			path.Depth -= 1
-		}
-	}
+	bn := sb.GetBlockNodeForPath(store, path)
+	return bn.GetStaticBlock().Types[path.Index]
 }
 
 // Implements BlockNode.
