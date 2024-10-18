@@ -6,10 +6,11 @@ import (
 	"std"
 
 	"gno.land/p/demo/avl"
+	"gno.land/p/demo/dao"
 	"gno.land/p/demo/ufmt"
 	pVals "gno.land/p/sys/validators"
-	govdao "gno.land/r/gov/dao"
-	"gno.land/r/sys/validators"
+	"gno.land/r/gov/dao/bridge"
+	validators "gno.land/r/sys/validators/v2"
 )
 
 const (
@@ -25,6 +26,7 @@ var valopers *avl.Tree // Address -> Valoper
 // Valoper represents a validator operator profile
 type Valoper struct {
 	Name        string // the display name of the valoper
+	Moniker     string // the moniker of the valoper
 	Description string // the description of the valoper
 
 	Address      std.Address // The bech32 gno address of the validator
@@ -101,7 +103,7 @@ func Render(_ string) string {
 
 // Render renders a single valoper with their information
 func (v Valoper) Render() string {
-	output := ufmt.Sprintf("## %s\n", v.Name)
+	output := ufmt.Sprintf("## %s (%s)\n", v.Name, v.Moniker)
 	output += ufmt.Sprintf("%s\n\n", v.Description)
 	output += ufmt.Sprintf("- Address: %s\n", v.Address.String())
 	output += ufmt.Sprintf("- PubKey: %s\n", v.PubKey)
@@ -168,14 +170,19 @@ func GovDAOProposal(address std.Address) {
 	// Create the executor
 	executor := validators.NewPropExecutor(changesFn)
 
-	// Craft the proposal comment
-	comment := ufmt.Sprintf(
-		"Proposal to add valoper %s (Address: %s; PubKey: %s) to the valset",
+	// Craft the proposal description
+	description := ufmt.Sprintf(
+		"Add valoper %s (Address: %s; PubKey: %s) to the valset",
 		valoper.Name,
 		valoper.Address.String(),
 		valoper.PubKey,
 	)
 
+	prop := dao.ProposalRequest{
+		Description: description,
+		Executor:    executor,
+	}
+
 	// Create the govdao proposal
-	govdao.Propose(comment, executor)
+	bridge.GovDAO().Propose(prop)
 }
