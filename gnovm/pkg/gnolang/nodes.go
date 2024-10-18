@@ -1667,8 +1667,9 @@ func (sb *StaticBlock) GetPathForName(store Store, n Name) ValuePath {
 	}
 	// Register as extern.
 	// NOTE: uverse names are externs too.
-	// NOTE: if a name is later declared in this block later, it is both an
-	// extern name with depth > 1, as well as local name with depth == 1.
+	// NOTE: externs may also be shadowed later in the block. Thus, usages
+	// before the declaration will have depth > 1; following it, depth == 1,
+	// matching the two different identifiers they refer to.
 	if !isFile(sb.GetSource(store)) {
 		sb.GetStaticBlock().addExternName(n)
 	}
