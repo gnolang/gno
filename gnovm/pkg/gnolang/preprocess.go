@@ -2924,10 +2924,10 @@ func findLoopUses2(ctx BlockNode, bn BlockNode) {
 				case NameExprTypeHeapDefine:
 					// Find the block where name is defined
 					dbn := last.GetBlockNodeForPath(nil, n.Path)
-					// if the name is loop defined,
+					// if the name is loop defined
 					lds, _ := dbn.GetAttribute(ATTR_LOOP_DEFINES).([]Name)
 					if slices.Contains(lds, n.Name) {
-						// if the name is actually loop used,
+						// if the name is actually loop used
 						lus, _ := dbn.GetAttribute(ATTR_LOOP_USES).([]Name)
 						if !slices.Contains(lus, n.Name) {
 							// demote type finally to Define.
@@ -4707,7 +4707,7 @@ func setNodeLines(n Node) {
 		}
 		line := n.GetLine()
 		if line == lastLine {
-		} else if line == 0 { // XXX, should not happen?
+		} else if line == 0 {
 			line = lastLine
 		} else {
 			lastLine = line
