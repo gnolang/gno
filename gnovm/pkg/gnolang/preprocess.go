@@ -203,19 +203,14 @@ func initStaticBlocks(store Store, ctx BlockNode, bn BlockNode) {
 					if nn == blankIdentifier {
 						continue
 					}
-					if !isLocallyDefined(last, nn) {
-						nx.Type = NameExprTypeDefine
-						last2.Predefine(n.Const, nn)
-					}
+					nx.Type = NameExprTypeDefine
+					last2.Predefine(n.Const, nn)
 				}
 			case *TypeDecl:
 				last2 := skipFile(last)
 				nx := &n.NameExpr
-				nn := nx.Name
-				if !isLocallyDefined(last2, nn) {
-					nx.Type = NameExprTypeDefine
-					last2.Predefine(false, n.Name)
-				}
+				nx.Type = NameExprTypeDefine
+				last2.Predefine(false, n.Name)
 			case *FuncDecl:
 				if n.IsMethod {
 					if n.Recv.Name == "" || n.Recv.Name == blankIdentifier {
