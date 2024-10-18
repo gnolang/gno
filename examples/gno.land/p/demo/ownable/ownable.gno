@@ -6,26 +6,48 @@ const OwnershipTransferEvent = "OwnershipTransfer"
 
 // Ownable is meant to be used as a top-level object to make your contract ownable OR
 // being embedded in a Gno object to manage per-object ownership.
-type Ownable struct {
+type Ownable interface {
+	Owner() std.Address
+	CallerIsOwner() error
+	AssertCallerIsOwner()
+}
+
+// Transferrable embeds Ownable, indicating that the owner can transfer ownership and drop ownership
+type Transferrable interface {
+	Ownable
+
+	TransferOwnership(newOwner std.Address) error
+	DropOwnership() error
+}
+
+// transferrable provides a basic implementation of ownership functionality
+// It can be used as a top-level object to make a contract ownable or embedded within
+// another object to manage per-object ownership.
+type transferrable struct {
 	owner std.Address
 }
 
-func New() *Ownable {
-	return &Ownable{
+// Ensure that transferrable implements the Ownable and Transferrable interfaces
+var (
+	_ Ownable       = (*transferrable)(nil)
+	_ Transferrable = (*transferrable)(nil)
+)
+
+func New() *transferrable {
+	return &transferrable{
 		owner: std.PrevRealm().Addr(),
 	}
 }
 
-func NewWithAddress(addr std.Address) *Ownable {
-	return &Ownable{
+func NewWithAddress(addr std.Address) *transferrable {
+	return &transferrable{
 		owner: addr,
 	}
 }
 
 // TransferOwnership transfers ownership of the Ownable struct to a new address
-func (o *Ownable) TransferOwnership(newOwner std.Address) error {
-	err := o.CallerIsOwner()
-	if err != nil {
+func (o *transferrable) TransferOwnership(newOwner std.Address) error {
+	if err := o.CallerIsOwner(); err != nil {
 		return err
 	}
 
@@ -47,9 +69,8 @@ func (o *Ownable) TransferOwnership(newOwner std.Address) error {
 // DropOwnership removes the owner, effectively disabling any owner-related actions
 // Top-level usage: disables all only-owner actions/functions,
 // Embedded usage: behaves like a burn functionality, removing the owner from the struct
-func (o *Ownable) DropOwnership() error {
-	err := o.CallerIsOwner()
-	if err != nil {
+func (o *transferrable) DropOwnership() error {
+	if err := o.CallerIsOwner(); err != nil {
 		return err
 	}
 
@@ -65,13 +86,13 @@ func (o *Ownable) DropOwnership() error {
 	return nil
 }
 
-// Owner returns the owner address from Ownable
-func (o Ownable) Owner() std.Address {
+// Owner returns the owner address from transferrable
+func (o transferrable) Owner() std.Address {
 	return o.owner
 }
 
 // CallerIsOwner checks if the caller of the function is the Realm's owner
-func (o Ownable) CallerIsOwner() error {
+func (o transferrable) CallerIsOwner() error {
 	if std.PrevRealm().Addr() == o.owner {
 		return nil
 	}
@@ -80,7 +101,7 @@ func (o Ownable) CallerIsOwner() error {
 }
 
 // AssertCallerIsOwner panics if the caller is not the owner
-func (o Ownable) AssertCallerIsOwner() {
+func (o transferrable) AssertCallerIsOwner() {
 	if std.PrevRealm().Addr() != o.owner {
 		panic(ErrUnauthorized)
 	}
