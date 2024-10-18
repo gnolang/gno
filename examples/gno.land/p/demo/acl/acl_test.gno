@@ -132,3 +132,13 @@ func shouldNotHasPerm(t *testing.T, dir *Directory, addr std.Address, verb strin
 	check := dir.HasPerm(addr, verb, resource)
 	uassert.Equal(t, false, check, ufmt.Sprintf("%s should not has perm for %s - %s", addr.String(), verb, resource))
 }
+
+func TestAddUserPerms(t *testing.T) {
+	usr := testutils.TestAddress("user")
+
+	dir := New()
+
+	dir.AddUserPerms(usr, "write", "r/demo/boards:gnolang/1")
+
+	shouldHasPerm(t, dir, usr, "write", "r/demo/boards:gnolang/2")
+}
