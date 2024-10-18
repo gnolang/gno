@@ -2118,7 +2118,6 @@ const (
 	ATTR_TYPEOF_VALUE GnoAttribute = "ATTR_TYPEOF_VALUE"
 	ATTR_IOTA         GnoAttribute = "ATTR_IOTA"
 	ATTR_LOCATIONED   GnoAttribute = "ATTR_LOCATIONED"
-	ATTR_INJECTED     GnoAttribute = "ATTR_INJECTED"
 	ATTR_SHIFT_RHS    GnoAttribute = "ATTR_SHIFT_RHS"
 )
 
