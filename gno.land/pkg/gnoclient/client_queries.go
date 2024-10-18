@@ -1,6 +1,7 @@
 package gnoclient
 
 import (
+	"encoding/base64"
 	"fmt"
 
 	"github.com/gnolang/gno/tm2/pkg/amino"
@@ -11,7 +12,11 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/std"
 )
 
-var ErrInvalidBlockHeight = errors.New("invalid block height provided")
+var (
+	ErrInvalidBlockHeight  = errors.New("invalid block height provided")
+	ErrEmptyTxHash         = errors.New("empty tx hash")
+	ErrInvalidTxHashFormat = errors.New("invalid tx hash format")
+)
 
 // QueryCfg contains configuration options for performing ABCI queries.
 type QueryCfg struct {
@@ -176,4 +181,53 @@ func (c *Client) LatestBlockHeight() (int64, error) {
 	}
 
 	return status.SyncInfo.LatestBlockHeight, nil
+}
+
+// GetTransaction retrieves the transaction details for a given transaction hash
+// The provided hash must be a valid base64 encoded string
+func (c *Client) Transaction(hash string) (*ctypes.ResultTx, error) {
+	if err := c.validateRPCClient(); err != nil {
+		return nil, ErrMissingRPCClient
+	}
+
+	if hash == "" {
+		return nil, ErrEmptyTxHash
+	}
+
+	data, err := base64.StdEncoding.DecodeString(hash)
+	if err != nil {
+		return nil, ErrInvalidTxHashFormat
+	}
+
+	tx, err := c.RPCClient.Tx(data)
+	if err != nil {
+		return nil, fmt.Errorf("transaction query failed: %w", err)
+	}
+
+	return tx, nil
+}
+
+// PendingTransaction retrieves unconfirmed transactions from the blockchain
+// The `limit` parameter specifies the maximum number of unconfirmed transactions to return
+// If `limit` is 0, it retrieves all unconfirmed transactions
+func (c *Client) PendingTransaction(limit int) (*ctypes.ResultUnconfirmedTxs, error) {
+	if err := c.validateRPCClient(); err != nil {
+		return nil, ErrMissingRPCClient
+	}
+
+	if limit <= 0 {
+		numUnconfirmed, err := c.RPCClient.NumUnconfirmedTxs()
+		if err != nil {
+			return nil, fmt.Errorf("failed to retrieve number of unconfirmed transactions: %w", err)
+		}
+
+		limit = numUnconfirmed.Total
+	}
+
+	unconfirmedTxs, err := c.RPCClient.UnconfirmedTxs(limit)
+	if err != nil {
+		return nil, fmt.Errorf("failed to retrieve unconfirmed transactions: %w", err)
+	}
+
+	return unconfirmedTxs, nil
 }
