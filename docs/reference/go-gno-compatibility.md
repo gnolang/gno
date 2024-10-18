@@ -184,7 +184,7 @@ Legend:
 | hash/crc64                                  | `todo`   |
 | hash/fnv                                    | `todo`   |
 | hash/maphash                                | `todo`   |
-| html                                        | `todo`   |
+| html                                        | `full`   |
 | html/template                               | `todo`   |
 | image                                       | `tbd`    |
 | image/color                                 | `tbd`    |
@@ -248,7 +248,7 @@ Legend:
 | runtime/trace                               | `gospec` |
 | slices                                      | `gnics`  |
 | sort                                        | `part`[^6] |
-| strconv                                     | `part`   |
+| strconv                                     | `full`[^10] |
 | strings                                     | `full`   |
 | sync                                        | `tbd`    |
 | sync/atomic                                 | `tbd`    |
@@ -292,6 +292,8 @@ Legend:
 [^8]: `crypto/ed25519` is currently only implemented for `Verify`, which should
   still cover a majority of use cases. A full implementation is welcome.
 [^9]: `math/rand` in Gno ports over Go's `math/rand/v2`.
+[^10]: `strconv` does not have the methods relating to types `complex64` and
+  `complex128`.
 
 ## Tooling (`gno` binary)
 

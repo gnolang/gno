@@ -14,6 +14,7 @@ import (
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
 	"github.com/gnolang/gno/gnovm/tests"
 	"github.com/gnolang/gno/tm2/pkg/commands"
+	"github.com/gnolang/gno/tm2/pkg/std"
 )
 
 type runCfg struct {
@@ -112,11 +113,15 @@ func execRun(cfg *runCfg, args []string, io commands.IO) error {
 		return errors.New("no files to run")
 	}
 
+	var send std.Coins
+	pkgPath := string(files[0].PkgName)
+	ctx := tests.TestContext(pkgPath, send)
 	m := gno.NewMachineWithOptions(gno.MachineOptions{
-		PkgPath: string(files[0].PkgName),
-		Input:   stdin,
+		PkgPath: pkgPath,
 		Output:  stdout,
+		Input:   stdin,
 		Store:   testStore,
+		Context: ctx,
 		Debug:   cfg.debug || cfg.debugAddr != "",
 	})
 

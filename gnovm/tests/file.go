@@ -13,6 +13,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/gnolang/gno/gno.land/pkg/gnoland/ugnot"
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
 	"github.com/gnolang/gno/gnovm/stdlibs"
 	teststd "github.com/gnolang/gno/gnovm/tests/stdlibs/std"
@@ -53,7 +54,7 @@ func TestContext(pkgPath string, send std.Coins) *teststd.TestExecContext {
 	pkgAddr := gno.DerivePkgAddr(pkgPath) // the addr of the pkgPath called.
 	caller := gno.DerivePkgAddr("user1.gno")
 
-	pkgCoins := std.MustParseCoins("200000000ugnot").Add(send) // >= send.
+	pkgCoins := std.MustParseCoins(ugnot.ValueString(200000000)).Add(send) // >= send.
 	banker := newTestBanker(pkgAddr.Bech32(), pkgCoins)
 	ctx := stdlibs.ExecContext{
 		ChainID:       "dev",
@@ -627,12 +628,12 @@ func (tb *testBanker) TotalCoin(denom string) int64 {
 
 func (tb *testBanker) IssueCoin(addr crypto.Bech32Address, denom string, amt int64) {
 	coins, _ := tb.coinTable[addr]
-	sum := coins.Add(std.Coins{{denom, amt}})
+	sum := coins.Add(std.Coins{{Denom: denom, Amount: amt}})
 	tb.coinTable[addr] = sum
 }
 
 func (tb *testBanker) RemoveCoin(addr crypto.Bech32Address, denom string, amt int64) {
 	coins, _ := tb.coinTable[addr]
-	rest := coins.Sub(std.Coins{{denom, amt}})
+	rest := coins.Sub(std.Coins{{Denom: denom, Amount: amt}})
 	tb.coinTable[addr] = rest
 }

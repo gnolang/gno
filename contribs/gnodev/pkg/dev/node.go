@@ -12,6 +12,7 @@ import (
 	"github.com/gnolang/gno/contribs/gnodev/pkg/emitter"
 	"github.com/gnolang/gno/contribs/gnodev/pkg/events"
 	"github.com/gnolang/gno/gno.land/pkg/gnoland"
+	"github.com/gnolang/gno/gno.land/pkg/gnoland/ugnot"
 	"github.com/gnolang/gno/gno.land/pkg/integration"
 	"github.com/gnolang/gno/gnovm/pkg/gnomod"
 	"github.com/gnolang/gno/tm2/pkg/amino"
@@ -52,7 +53,7 @@ func DefaultNodeConfig(rootdir string) *NodeConfig {
 	balances := []gnoland.Balance{
 		{
 			Address: defaultDeployer,
-			Amount:  std.Coins{std.NewCoin("ugnot", 10e12)},
+			Amount:  std.Coins{std.NewCoin(ugnot.Denom, 10e12)},
 		},
 	}
 
@@ -87,7 +88,7 @@ type Node struct {
 	currentStateIndex   int
 }
 
-var DefaultFee = std.NewFee(50000, std.MustParseCoin("1000000ugnot"))
+var DefaultFee = std.NewFee(50000, std.MustParseCoin(ugnot.ValueString(1000000)))
 
 func NewDevNode(ctx context.Context, cfg *NodeConfig) (*Node, error) {
 	mpkgs, err := NewPackagesMap(cfg.PackagesPathList)
@@ -468,7 +469,9 @@ func (n *Node) rebuildNode(ctx context.Context, genesis gnoland.GnoGenesisState)
 
 	// Setup node config
 	nodeConfig := newNodeConfig(n.config.TMConfig, n.config.ChainID, genesis)
-	nodeConfig.GenesisTxHandler = n.genesisTxHandler
+	nodeConfig.GenesisTxResultHandler = n.genesisTxResultHandler
+	// Speed up stdlib loading after first start (saves about 2-3 seconds on each reload).
+	nodeConfig.CacheStdlibLoad = true
 	nodeConfig.Genesis.ConsensusParams.Block.MaxGas = n.config.MaxGasPerBlock
 
 	// recoverFromError handles panics and converts them to errors.
@@ -511,7 +514,7 @@ func (n *Node) rebuildNode(ctx context.Context, genesis gnoland.GnoGenesisState)
 	return nil
 }
 
-func (n *Node) genesisTxHandler(ctx sdk.Context, tx std.Tx, res sdk.Result) {
+func (n *Node) genesisTxResultHandler(ctx sdk.Context, tx std.Tx, res sdk.Result) {
 	if !res.IsErr() {
 		return
 	}
