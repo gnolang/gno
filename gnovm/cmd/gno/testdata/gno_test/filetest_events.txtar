@@ -1,0 +1,33 @@
+# Test with a valid _filetest.gno file
+
+gno test -print-events .
+
+! stdout .+
+stderr 'ok      \. 	\d\.\d\ds'
+
+gno test -print-events -v .
+
+! stdout .+
+stderr '=== RUN   file/valid_filetest.gno'
+stderr '--- PASS: file/valid_filetest.gno \(\d\.\d\ds\)'
+stderr 'ok      \. 	\d\.\d\ds'
+
+-- valid.gno --
+package valid
+
+-- valid_filetest.gno --
+package main
+
+import "std"
+
+func main() {
+	println("test")
+	std.Emit("EventA")
+	std.Emit("EventB", "keyA",  "valA")
+}
+
+// Output:
+// test
+
+// Events:
+// [{"type":"EventA","attrs":[],"pkg_path":"","func":"main"},{"type":"EventB","attrs":[{"key":"keyA","value":"valA"}],"pkg_path":"","func":"main"}]
