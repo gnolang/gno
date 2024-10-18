@@ -17,6 +17,7 @@ type Events struct {
 	subscriptionsMux sync.RWMutex
 }
 
+// New creates a new event subscription manager
 func New() *Events {
 	return &Events{
 		subs: make(subscriptions),
@@ -42,7 +43,7 @@ func (es *Events) Subscribe(filterFn EventFilter) (<-chan Event, func()) {
 	return ch, unsubscribeFn
 }
 
-// Notify notifies all subscribers of an incoming event
+// Notify notifies all subscribers of an incoming event [BLOCKING]
 func (es *Events) Notify(event Event) {
 	es.subscriptionsMux.RLock()
 	defer es.subscriptionsMux.RUnlock()
@@ -98,9 +99,6 @@ func (s *subscriptions) notify(event Event) {
 			continue
 		}
 
-		select {
-		case sub.ch <- event:
-		default:
-		}
+		sub.ch <- event
 	}
 }

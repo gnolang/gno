@@ -11,7 +11,7 @@ const (
 	PeerDisconnected EventType = "PeerDisconnected" // emitted when a peer disconnects
 )
 
-// Event is a p2p event
+// Event is a generic p2p event
 type Event interface {
 	// Type returns the type information for the event
 	Type() EventType
@@ -22,7 +22,7 @@ type PeerConnectedEvent struct {
 	Address types.NetAddress // the dial address of the peer
 }
 
-func (p *PeerConnectedEvent) Type() EventType {
+func (p PeerConnectedEvent) Type() EventType {
 	return PeerConnected
 }
 
@@ -32,6 +32,6 @@ type PeerDisconnectedEvent struct {
 	Reason  error            // the disconnect reason, if any
 }
 
-func (p *PeerDisconnectedEvent) Type() EventType {
+func (p PeerDisconnectedEvent) Type() EventType {
 	return PeerDisconnected
 }
