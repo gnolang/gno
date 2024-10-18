@@ -21,6 +21,15 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/testutils"
 )
 
+// testP2PConfig returns a configuration for testing the peer-to-peer layer
+func testP2PConfig() *p2pcfg.P2PConfig {
+	cfg := p2pcfg.DefaultP2PConfig()
+	cfg.ListenAddress = "tcp://0.0.0.0:26656"
+	cfg.FlushThrottleTimeout = 10 * time.Millisecond
+
+	return cfg
+}
+
 type peerState struct {
 	height int64
 }
@@ -109,7 +118,7 @@ func TestReactorBroadcastTxMessage(t *testing.T) {
 	t.Parallel()
 
 	mconfig := memcfg.TestMempoolConfig()
-	pconfig := p2pcfg.TestP2PConfig()
+	pconfig := testP2PConfig()
 	const N = 4
 	reactors := makeAndConnectReactors(mconfig, pconfig, N)
 	defer func() {
@@ -133,7 +142,7 @@ func TestReactorNoBroadcastToSender(t *testing.T) {
 	t.Parallel()
 
 	mconfig := memcfg.TestMempoolConfig()
-	pconfig := p2pcfg.TestP2PConfig()
+	pconfig := testP2PConfig()
 	const N = 2
 	reactors := makeAndConnectReactors(mconfig, pconfig, N)
 	defer func() {
@@ -158,7 +167,7 @@ func TestFlappyBroadcastTxForPeerStopsWhenPeerStops(t *testing.T) {
 	}
 
 	mconfig := memcfg.TestMempoolConfig()
-	pconfig := p2pcfg.TestP2PConfig()
+	pconfig := testP2PConfig()
 	const N = 2
 	reactors := makeAndConnectReactors(mconfig, pconfig, N)
 	defer func() {
@@ -186,7 +195,7 @@ func TestFlappyBroadcastTxForPeerStopsWhenReactorStops(t *testing.T) {
 	}
 
 	mconfig := memcfg.TestMempoolConfig()
-	pconfig := p2pcfg.TestP2PConfig()
+	pconfig := testP2PConfig()
 	const N = 2
 	reactors := makeAndConnectReactors(mconfig, pconfig, N)
 

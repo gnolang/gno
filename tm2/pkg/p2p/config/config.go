@@ -1,9 +1,15 @@
 package config
 
 import (
+	"errors"
 	"time"
+)
 
-	"github.com/gnolang/gno/tm2/pkg/errors"
+var (
+	errInvalidFlushThrottleTimeout = errors.New("invalid flush throttle timeout")
+	errInvalidMaxPayloadSize       = errors.New("invalid message payload size")
+	errInvalidSendRate             = errors.New("invalid packet send rate")
+	errInvalidReceiveRate          = errors.New("invalid packet receive rate")
 )
 
 // P2PConfig defines the configuration options for the Tendermint peer-to-peer networking layer
@@ -51,7 +57,7 @@ type P2PConfig struct {
 func DefaultP2PConfig() *P2PConfig {
 	return &P2PConfig{
 		ListenAddress:           "tcp://0.0.0.0:26656",
-		ExternalAddress:         "",
+		ExternalAddress:         "", // nothing is advertised differently
 		MaxNumInboundPeers:      40,
 		MaxNumOutboundPeers:     10,
 		FlushThrottleTimeout:    100 * time.Millisecond,
@@ -62,35 +68,24 @@ func DefaultP2PConfig() *P2PConfig {
 	}
 }
 
-// TestP2PConfig returns a configuration for testing the peer-to-peer layer
-func TestP2PConfig() *P2PConfig {
-	cfg := DefaultP2PConfig()
-	cfg.ListenAddress = "tcp://0.0.0.0:26656"
-	cfg.FlushThrottleTimeout = 10 * time.Millisecond
-
-	return cfg
-}
-
 // ValidateBasic performs basic validation (checking param bounds, etc.) and
 // returns an error if any check fails.
 func (cfg *P2PConfig) ValidateBasic() error {
-	if cfg.MaxNumInboundPeers < 0 {
-		return errors.New("max_num_inbound_peers can't be negative")
-	}
-	if cfg.MaxNumOutboundPeers < 0 {
-		return errors.New("max_num_outbound_peers can't be negative")
-	}
 	if cfg.FlushThrottleTimeout < 0 {
-		return errors.New("flush_throttle_timeout can't be negative")
+		return errInvalidFlushThrottleTimeout
 	}
+
 	if cfg.MaxPacketMsgPayloadSize < 0 {
-		return errors.New("max_packet_msg_payload_size can't be negative")
+		return errInvalidMaxPayloadSize
 	}
+
 	if cfg.SendRate < 0 {
-		return errors.New("send_rate can't be negative")
+		return errInvalidSendRate
 	}
+
 	if cfg.RecvRate < 0 {
-		return errors.New("recv_rate can't be negative")
+		return errInvalidReceiveRate
 	}
+
 	return nil
 }
