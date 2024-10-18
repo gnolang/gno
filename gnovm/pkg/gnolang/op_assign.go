@@ -12,6 +12,24 @@ func (m *Machine) doOpDefine() {
 		nx := s.Lhs[i].(*NameExpr)
 		// Finally, define (or assign if loop block).
 		ptr := lb.GetPointerTo(m.Store, nx.Path)
+
+		// todo only if its redeclared inside the same block
+		if m.Alloc != nil {
+			ho := MakeHeapObj(Unwrap(rvs[i]))
+
+			if ptr.TV.V != nil {
+				u := Unwrap(*ptr.TV)
+				obj := m.Alloc.heap.FindObjectByTV(u)
+
+				if obj != nil {
+					m.Alloc.heap.RemoveRoot(obj.tv)
+					m.Alloc.DeallocatePointer()
+				}
+			} else if ho != nil {
+				lb.Roots = append(lb.Roots, RootPtr{ptr.TV})
+			}
+		}
+
 		// XXX HACK (until value persistence impl'd)
 		if m.ReadOnly {
 			if oo, ok := ptr.Base.(Object); ok {
