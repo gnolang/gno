@@ -16,6 +16,7 @@ import (
 
 const testRemote string = "gno.land:26657" // XXX(race condition): test with a local node so that this test is consistent with git and not with a deploy
 
+// XXX this test fails when the network is offline.
 func TestFetchDeps(t *testing.T) {
 	for _, tc := range []struct {
 		desc                 string
