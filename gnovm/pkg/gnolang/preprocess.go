@@ -2093,6 +2093,10 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 							// General case: a, b = x, y.
 							for i, lx := range n.Lhs {
 								lt := evalStaticTypeOf(store, last, lx)
+								if nt, ok := lt.(*NativeType); ok && nt.Kind() == FuncKind {
+									panic(fmt.Sprintf("cannot assign to %s (neither addressable nor a map index expression)", lx))
+								}
+
 								// if lt is interface, nothing will happen
 								checkOrConvertType(store, last, &n.Rhs[i], lt, true)
 							}
