@@ -319,7 +319,7 @@ Main:
 	case *CompositeLitExpr:
 		checkConstantExpr(store, last, vx.Type)
 	default:
-		ift := evalStaticTypeOf(store, last, vx)
+		ift := evalStaticType(store, last, vx)
 		panic(fmt.Sprintf("%s (variable of type %s) is not constant", vx.String(), ift))
 	}
 }
