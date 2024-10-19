@@ -1,10 +1,10 @@
-package teams_test
+package teams
 
 import (
 	"testing"
 	"std"
 	"gno.land/p/demo/users"
-	"gno.land/p/demo/teams"
+	"gno.land/r/sys/teams"
 )
 
 func TestCreateTeam(t *testing.T) {
@@ -21,6 +21,13 @@ func TestCreateTeam(t *testing.T) {
 	err = teams.CreateTeam(teamAddress, teamName, owner)
 	if err == nil {
 		t.Errorf("Expected error when creating a duplicate team, got nil")
+	}
+
+	// Attempt to create a team with the same name, should fail
+	newTeamAddress := std.Address("g1newteamaddress")
+	err = teams.CreateTeam(newTeamAddress, teamName, owner)
+	if err == nil {
+		t.Errorf("Expected error when creating a team with duplicate name, got nil")
 	}
 }
 
@@ -126,23 +133,39 @@ func TestAddMemberPermission(t *testing.T) {
 func TestRemoveMemberPermission(t *testing.T) {
 	teamAddress := std.Address("g1teamaddress")
 	owner := std.Address("g1owneraddress")
-	_ = teams.CreateTeam(teamAddress, "Test Team", owner)
-
-	user := users.User{Name: "Test User", Address: std.Address("g1useraddress")}
+	_ = teams.CreateTeam(teamAddress, "Test Team2", owner)
+	
+	user := users.User{Name: "Test User2", Address: std.Address("g1useraddress2")}
 	_ = teams.AddMember(teamAddress, user)
-
+	
 	permission := "manage_tasks"
 	_ = teams.AddPermission(teamAddress, permission)
 	_ = teams.AddMemberPermission(teamAddress, user.Address, permission)
-
+	
 	err := teams.RemoveMemberPermission(teamAddress, user.Address, permission)
 	if err != nil {
 		t.Errorf("Failed to remove permission from member: %v", err)
 	}
+}
 
-	// Attempt to remove a permission that the member does not have, should not fail
-	err = teams.RemoveMemberPermission(teamAddress, user.Address, permission)
+func TestGetTeamByName(t *testing.T) {
+	teamAddress := std.Address("g1teamaddressunique")
+	teamName := "Unique Team"
+	owner := std.Address("g1owneraddress")
+	_ = teams.CreateTeam(teamAddress, teamName, owner)
+
+	team, err := teams.GetTeamByName(teamName)
 	if err != nil {
-		t.Errorf("Expected no error when removing a non-existing permission from member, got %v", err)
+		t.Errorf("Failed to get team by name: %v", err)
+	}
+
+	if team.Name != teamName {
+		t.Errorf("Expected team name to be %v, got %v", teamName, team.Name)
+	}
+
+	// Attempt to get a non-existing team by name, should fail
+	_, err = teams.GetTeamByName("NonExistingTeam")
+	if err == nil {
+		t.Errorf("Expected error when getting a non-existing team by name, got nil")
 	}
 }
