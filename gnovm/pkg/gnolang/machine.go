@@ -8,14 +8,17 @@ import (
 	"io"
 	"os"
 	"reflect"
+	"slices"
+	"strconv"
 	"strings"
 	"sync"
 	"testing"
 
+	"github.com/gnolang/overflow"
+
 	"github.com/gnolang/gno/tm2/pkg/errors"
 	"github.com/gnolang/gno/tm2/pkg/std"
 	"github.com/gnolang/gno/tm2/pkg/store"
-	"github.com/gnolang/overflow"
 )
 
 // Exception represents a panic that originates from a gno program.
@@ -277,8 +280,10 @@ func (m *Machine) RunMemPackageWithOverrides(memPkg *std.MemPackage, save bool) 
 func (m *Machine) runMemPackage(memPkg *std.MemPackage, save, overrides bool) (*PackageNode, *PackageValue) {
 	// parse files.
 	files := ParseMemPackage(memPkg)
-	if !overrides && checkDuplicates(files) {
-		panic(fmt.Errorf("running package %q: duplicate declarations not allowed", memPkg.Path))
+	if !overrides {
+		if err := checkDuplicates(files); err != nil {
+			panic(fmt.Errorf("running package %q: %w", memPkg.Path, err))
+		}
 	}
 	// make and set package if doesn't exist.
 	pn := (*PackageNode)(nil)
@@ -321,9 +326,31 @@ func (m *Machine) runMemPackage(memPkg *std.MemPackage, save, overrides bool) (*
 	return pn, pv
 }
 
-// checkDuplicates returns true if there duplicate declarations in the fset.
-func checkDuplicates(fset *FileSet) bool {
+type redeclarationErrors []Name
+
+func (r redeclarationErrors) Error() string {
+	var b strings.Builder
+	b.WriteString("redeclarations for identifiers: ")
+	for idx, s := range r {
+		b.WriteString(strconv.Quote(string(s)))
+		if idx != len(r)-1 {
+			b.WriteString(", ")
+		}
+	}
+	return b.String()
+}
+
+func (r redeclarationErrors) add(newI Name) redeclarationErrors {
+	if slices.Contains(r, newI) {
+		return r
+	}
+	return append(r, newI)
+}
+
+// checkDuplicates returns an error if there are duplicate declarations in the fset.
+func checkDuplicates(fset *FileSet) error {
 	defined := make(map[Name]struct{}, 128)
+	var duplicated redeclarationErrors
 	for _, f := range fset.Files {
 		for _, d := range f.Decls {
 			var name Name
@@ -344,7 +371,7 @@ func checkDuplicates(fset *FileSet) bool {
 						continue
 					}
 					if _, ok := defined[nx.Name]; ok {
-						return true
+						duplicated = duplicated.add(nx.Name)
 					}
 					defined[nx.Name] = struct{}{}
 				}
@@ -356,12 +383,15 @@ func checkDuplicates(fset *FileSet) bool {
 				continue
 			}
 			if _, ok := defined[name]; ok {
-				return true
+				duplicated = duplicated.add(name)
 			}
 			defined[name] = struct{}{}
 		}
 	}
-	return false
+	if len(duplicated) > 0 {
+		return duplicated
+	}
+	return nil
 }
 
 func destar(x Expr) Expr {
@@ -2216,6 +2246,10 @@ func (m *Machine) String() string {
 
 	for i := len(m.Blocks) - 1; i > 0; i-- {
 		b := m.Blocks[i]
+		if b == nil {
+			continue
+		}
+
 		gen := builder.Len()/3 + 1
 		gens := "@" // strings.Repeat("@", gen)
 

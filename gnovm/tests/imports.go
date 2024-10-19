@@ -228,12 +228,32 @@ func TestStore(rootDir, filesPath string, stdin io.Reader, stdout, stderr io.Wri
 				pkg.DefineGoNativeValue("Hour", time.Hour)
 				pkg.DefineGoNativeValue("Date", time.Date)
 				pkg.DefineGoNativeValue("Now", func() time.Time { return time.Unix(0, 0).UTC() }) // deterministic
+				pkg.DefineGoNativeValue("January", time.January)
+				pkg.DefineGoNativeValue("February", time.February)
+				pkg.DefineGoNativeValue("March", time.March)
+				pkg.DefineGoNativeValue("April", time.April)
+				pkg.DefineGoNativeValue("May", time.May)
+				pkg.DefineGoNativeValue("June", time.June)
+				pkg.DefineGoNativeValue("July", time.July)
+				pkg.DefineGoNativeValue("August", time.August)
+				pkg.DefineGoNativeValue("September", time.September)
 				pkg.DefineGoNativeValue("November", time.November)
+				pkg.DefineGoNativeValue("December", time.December)
 				pkg.DefineGoNativeValue("UTC", time.UTC)
 				pkg.DefineGoNativeValue("Unix", time.Unix)
 				pkg.DefineGoNativeType(reflect.TypeOf(time.Time{}))
 				pkg.DefineGoNativeType(reflect.TypeOf(time.Duration(0)))
 				pkg.DefineGoNativeType(reflect.TypeOf(time.Month(0)))
+				pkg.DefineGoNativeValue("LoadLocation", time.LoadLocation)
+				return pkg, pkg.NewPackage()
+			case "strconv":
+				pkg := gno.NewPackageNode("strconv", pkgPath, nil)
+				pkg.DefineGoNativeValue("Itoa", strconv.Itoa)
+				pkg.DefineGoNativeValue("Atoi", strconv.Atoi)
+				pkg.DefineGoNativeValue("ParseInt", strconv.ParseInt)
+				pkg.DefineGoNativeValue("Quote", strconv.Quote)
+				pkg.DefineGoNativeValue("FormatUint", strconv.FormatUint)
+				pkg.DefineGoNativeType(reflect.TypeOf(strconv.NumError{}))
 				return pkg, pkg.NewPackage()
 			case "strings":
 				pkg := gno.NewPackageNode("strings", pkgPath, nil)
@@ -407,7 +427,6 @@ func TestStore(rootDir, filesPath string, stdin io.Reader, stdout, stderr io.Wri
 	resStore = gno.NewStore(nil, baseStore, iavlStore)
 	resStore.SetPackageGetter(getPackage)
 	resStore.SetNativeStore(teststdlibs.NativeStore)
-	resStore.SetPackageInjector(testPackageInjector)
 	resStore.SetStrictGo2GnoMapping(false)
 	return
 }
@@ -453,19 +472,6 @@ func loadStdlib(rootDir, pkgPath string, store gno.Store, stdout io.Writer) (*gn
 	save := pkgPath != "testing" // never save the "testing" package
 	return m2.RunMemPackageWithOverrides(memPkg, save)
 }
-
-func testPackageInjector(store gno.Store, pn *gno.PackageNode) {
-	// Test specific injections:
-	switch pn.PkgPath {
-	case "strconv":
-		// NOTE: Itoa and Atoi are already injected
-		// from stdlibs.InjectNatives.
-		pn.DefineGoNativeType(reflect.TypeOf(strconv.NumError{}))
-		pn.DefineGoNativeValue("ParseInt", strconv.ParseInt)
-	}
-}
-
-// ----------------------------------------
 
 type dummyReader struct{}
 
