@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"errors"
+	"flag"
 	"fmt"
 
 	"github.com/gnolang/gno/gno.land/pkg/gnoland"
@@ -15,13 +16,28 @@ import (
 
 var errInvalidPackageDir = errors.New("invalid package directory")
 
-var (
-	genesisDeployAddress = crypto.MustAddressFromString("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5") // test1
-	genesisDeployFee     = std.NewFee(50000, std.MustParseCoin(ugnot.ValueString(1000000)))
-)
+var genesisDeployFee = std.NewFee(50000, std.MustParseCoin(ugnot.ValueString(1000000)))
+
+type addPkgCfg struct {
+	txsCfg      *txsCfg
+	deployerAdd string
+}
+
+func (c *addPkgCfg) RegisterFlags(fs *flag.FlagSet) {
+	fs.StringVar(
+		&c.deployerAdd,
+		"deployer-address",
+		"g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5", // test1
+		"The address that will create package on the transaction genesis",
+	)
+}
 
 // newTxsAddPackagesCmd creates the genesis txs add packages subcommand
 func newTxsAddPackagesCmd(txsCfg *txsCfg, io commands.IO) *commands.Command {
+	cfg := &addPkgCfg{
+		txsCfg: txsCfg,
+	}
+
 	return commands.NewCommand(
 		commands.Metadata{
 			Name:       "packages",
@@ -29,23 +45,25 @@ func newTxsAddPackagesCmd(txsCfg *txsCfg, io commands.IO) *commands.Command {
 			ShortHelp:  "imports transactions from the given packages into the genesis.json",
 			LongHelp:   "Imports the transactions from a given package directory recursively to the genesis.json",
 		},
-		commands.NewEmptyConfig(),
+		cfg,
 		func(_ context.Context, args []string) error {
-			return execTxsAddPackages(txsCfg, io, args)
+			return execTxsAddPackages(cfg, io, args)
 		},
 	)
 }
 
 func execTxsAddPackages(
-	cfg *txsCfg,
+	cfg *addPkgCfg,
 	io commands.IO,
 	args []string,
 ) error {
 	// Load the genesis
-	genesis, loadErr := types.GenesisDocFromFile(cfg.genesisPath)
+	genesis, loadErr := types.GenesisDocFromFile(cfg.txsCfg.genesisPath)
 	if loadErr != nil {
 		return fmt.Errorf("unable to load genesis, %w", loadErr)
 	}
+
+	genesisDeployAddress := crypto.MustAddressFromString(cfg.deployerAdd)
 
 	// Make sure the package dir is set
 	if len(args) == 0 {
@@ -69,7 +87,7 @@ func execTxsAddPackages(
 	}
 
 	// Save the updated genesis
-	if err := genesis.SaveAs(cfg.genesisPath); err != nil {
+	if err := genesis.SaveAs(cfg.txsCfg.genesisPath); err != nil {
 		return fmt.Errorf("unable to save genesis.json, %w", err)
 	}
 
