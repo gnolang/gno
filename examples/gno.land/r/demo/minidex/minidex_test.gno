@@ -71,8 +71,6 @@ func TestPackage(t *testing.T) {
 	checkBalances("step2", 1000, 0, 0, 0, 0, 0)
 	checkAllowances("step3", 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0)
 
-	println("ALICE", alice)
-	println("DEXADDR", dexAddr)
 	test20.Token.RealmTeller().Approve(dexAddr, 100)
 	checkBalances("step4", 1000, 0, 0, 0, 0, 0)
 	checkAllowances("step5", 0, 100, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0)
