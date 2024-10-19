@@ -40,7 +40,7 @@ func (tok *Token) RealmTeller() GRC20 {
 		panic("Token cannot be nil")
 	}
 
-	caller := std.CurrentRealm().Addr()
+	caller := std.PrevRealm().Addr()
 
 	return &fnTeller{
 		accountFn: func() std.Address {
@@ -56,7 +56,7 @@ func (tok *Token) RealmSubTeller(slug string) GRC20 {
 		panic("Token cannot be nil")
 	}
 
-	caller := std.CurrentRealm().Addr()
+	caller := std.PrevRealm().Addr()
 	account := accountSlugAddr(caller, slug)
 
 	return &fnTeller{
