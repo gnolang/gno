@@ -14,3 +14,5 @@ func ExampleApprove()                         {}
 func ExampleTransferFrom()                    {}
 func ExampleMint()                            {}
 func ExampleBurn()                            {}
+
+// ...
