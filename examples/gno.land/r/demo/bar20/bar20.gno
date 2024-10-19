@@ -9,7 +9,6 @@ import (
 
 	"gno.land/p/demo/grc/grc20"
 	"gno.land/p/demo/ufmt"
-	"gno.land/r/demo/grc20reg"
 )
 
 var (
@@ -18,7 +17,7 @@ var (
 )
 
 func init() {
-	grc20reg.Register(Token, "")
+	// XXX: grc20reg.Register(Token, "")
 }
 
 func Faucet() string {
