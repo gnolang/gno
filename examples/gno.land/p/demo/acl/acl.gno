@@ -62,17 +62,17 @@ func (d *Directory) AddUserPerm(addr std.Address, verb, resource string) {
 		verbs:     []string{verb},
 		resources: []string{resource},
 	}
-	d.addPermToBucket(bucket, p)
+	d.addPermsToBucket(bucket, []perm{p})
 }
 
 func (d *Directory) AddUserPerms(addr std.Address, verbs []string, resource string) {
 	bucket := "u:" + addr.String()
-	for i, verb := range verbs {
+	for _, verb := range verbs {
 		p := perm{
 			verbs:     []string{verb},
 			resources: []string{resource},
 		}
-		d.addPermToBucket(bucket, p)
+		d.addPermsToBucket(bucket, []perm{p})
 	}
 }
 
@@ -82,28 +82,28 @@ func (d *Directory) AddGroupPerm(name string, verb, resource string) {
 		verbs:     []string{verb},
 		resources: []string{resource},
 	}
-	d.addPermToBucket(bucket, p)
+	d.addPermsToBucket(bucket, []perm{p})
 }
 
 func (d *Directory) AddGroupPerms(name string, verbs []string, resource string) {
 	bucket := "g:" + name
-	for i, verb := range verbs {
+	for _, verb := range verbs {
 		p := perm{
 			verbs:     []string{verb},
 			resources: []string{resource},
 		}
-		d.addPermToBucket(bucket, p)
+		d.addPermsToBucket(bucket, []perm{p})
 	}
 }
 
-func (d *Directory) addPermToBucket(bucket string, p perm) {
+func (d *Directory) addPermsToBucket(bucket string, p []perm) {
 	var ps perms
 
 	existing, ok := d.permBuckets.Get(bucket)
 	if ok {
 		ps = existing.(perms)
 	}
-	ps = append(ps, p)
+	ps = append(ps, p...)
 
 	d.permBuckets.Set(bucket, ps)
 }
@@ -130,10 +130,10 @@ func (d *Directory) AddUserToGroups(user std.Address, groups []string) {
 
 func (d *Directory) RemoveUserFromGroup(user std.Address, group string) {
 	existing, ok := d.userGroups.Get(user.String())
-	var groups []string
-	if ok {
-		groups = existing.([]string)
+	if !ok {
+		return
 	}
+	groups := existing.([]string)
 	for i, g := range groups {
 		if g == group {
 			groups = append(groups[:i], groups[i+1:]...)
@@ -145,10 +145,10 @@ func (d *Directory) RemoveUserFromGroup(user std.Address, group string) {
 
 func (d *Directory) RemoveUserFromGroups(user std.Address, groups []string) {
 	existing, ok := d.userGroups.Get(user.String())
-	var existingGroups []string
-	if ok {
-		existingGroups = existing.([]string)
+	if !ok {
+		return
 	}
+	existingGroups := existing.([]string)
 	for _, group := range groups {
 		for i, g := range existingGroups {
 			if g == group {
@@ -160,18 +160,22 @@ func (d *Directory) RemoveUserFromGroups(user std.Address, groups []string) {
 	d.userGroups.Set(user.String(), existingGroups)
 }
 
-func (d *Directory) removePermFromBucket(bucket string, p perm) {
+func (d *Directory) removePermsFromBucket(bucket string, p []perm) {
 	existing, ok := d.permBuckets.Get(bucket)
 	if !ok {
 		return
 	}
 	ps := existing.(perms)
-	for i, perm := range ps {
-		if &perm == &p {
-			ps = append(ps[:i], ps[i+1:]...)
-			break
+
+	for _, perm := range p {
+		for i, existingPerm := range ps {
+			if perm.Equal(existingPerm) {
+				ps = append(ps[:i], ps[i+1:]...)
+				break
+			}
 		}
 	}
+
 	d.permBuckets.Set(bucket, ps)
 }
 
@@ -181,17 +185,17 @@ func (d *Directory) RemoveUserPerm(addr std.Address, verb, resource string) {
 		verbs:     []string{verb},
 		resources: []string{resource},
 	}
-	d.removePermFromBucket(bucket, p)
+	d.removePermsFromBucket(bucket, []perm{p})
 }
 
 func (d *Directory) RemoveUserPerms(addr std.Address, verbs []string, resource string) {
 	bucket := "u:" + addr.String()
-	for i, verb := range verbs {
+	for _, verb := range verbs {
 		p := perm{
 			verbs:     []string{verb},
 			resources: []string{resource},
 		}
-		d.removePermFromBucket(bucket, p)
+		d.removePermsFromBucket(bucket, []perm{p})
 	}
 }
 
@@ -201,17 +205,17 @@ func (d *Directory) RemoveGroupPerm(name string, verb, resource string) {
 		verbs:     []string{verb},
 		resources: []string{resource},
 	}
-	d.removePermFromBucket(bucket, p)
+	d.removePermsFromBucket(bucket, []perm{p})
 }
 
 func (d *Directory) RemoveGroupPerms(name string, verbs []string, resource string) {
 	bucket := "g:" + name
-	for i, verb := range verbs {
+	for _, verb := range verbs {
 		p := perm{
 			verbs:     []string{verb},
 			resources: []string{resource},
 		}
-		d.removePermFromBucket(bucket, p)
+		d.removePermsFromBucket(bucket, []perm{p})
 	}
 }
 
