@@ -129,15 +129,15 @@ func sanitizeContent(cfg *Config, content string) string {
 		return placeholder
 	})
 
-	sanitazedContent := htmlTagPattern.ReplaceAllString(contentWithPlaceholders, "")
+	sanitizedContent := htmlTagPattern.ReplaceAllString(contentWithPlaceholders, "")
 
 	if len(placeholders) > 0 {
 		for placeholder, code := range placeholders {
-			sanitazedContent = strings.ReplaceAll(sanitazedContent, placeholder, code)
+			sanitizedContent = strings.ReplaceAll(sanitizedContent, placeholder, code)
 		}
 	}
 
-	return sanitazedContent
+	return sanitizedContent
 }
 
 // handlerRealmAlias is used to render official pages from realms.
