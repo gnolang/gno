@@ -254,6 +254,9 @@ func execStart(ctx context.Context, c *startCfg, io commands.IO) error {
 	if err != nil {
 		return fmt.Errorf("unable to create the Gnoland node, %w", err)
 	}
+	if err := gnoNode.ConsensusState().ReplayFile("./wal", false); err != nil {
+		return err
+	}
 
 	// Start the node (async)
 	if err := gnoNode.Start(); err != nil {
