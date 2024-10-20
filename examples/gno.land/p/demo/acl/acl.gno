@@ -219,18 +219,16 @@ func (d *Directory) RemoveGroupPerms(name string, verbs []string, resource strin
 	}
 }
 
-func (d *Directory) ResetGroup(group string) {
-	d.permBuckets.Remove("g:" + group)
+func (d *Directory) ResetGroupPerms(name string) {
+	bucket := "g:" + name
+	d.permBuckets.Set(bucket, perms{})
 }
 
-func (d *Directory) ResetGroupUsers(group string) {
-	d.userGroups.Remove(group)
+func (d *Directory) ResetUserPerms(addr std.Address) {
+	bucket := "u:" + addr.String()
+	d.permBuckets.Set(bucket, perms{})
 }
 
-func (d *Directory) ResetGroupPerms(group string) {
-	d.permBuckets.Remove("g:" + group)
-}
-
-func (d *Directory) ResetUser(addr std.Address) {
-	d.permBuckets.Remove("u:" + addr.String())
+func (d *Directory) ResetUserGroups(addr std.Address) {
+	d.userGroups.Set(addr.String(), []string{})
 }
