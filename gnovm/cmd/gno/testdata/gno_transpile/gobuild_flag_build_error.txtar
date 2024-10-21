@@ -1,6 +1,6 @@
 # Run gno transpile with -gobuild flag
 
-! gno transpile -gobuild .
+! gno transpile -gobuild ./...
 
 ! stdout .+
 stderr '^main.gno:4:6: x declared and not used$'
