@@ -5,7 +5,7 @@ gno test -v .
 stdout 'Machine\.RunMain\(\) panic: oups'
 stderr '=== RUN   file/x_filetest.gno'
 stderr '--- PASS: file/x_filetest.gno \(\d\.\d\ds\)'
-stderr 'ok      \. 	\d\.\d\ds'
+stderr 'ok      . 	total gas used: 0'
 
 -- x_filetest.gno --
 package main

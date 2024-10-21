@@ -1,16 +1,17 @@
 # Test with a valid _filetest.gno file
-
+# add the expectation of gasUsed information in stdout
 gno test .
 
 ! stdout .+
-stderr 'ok      \. 	\d\.\d\ds'
+stderr 'ok      . 	total gas used: 19'
 
 gno test -v .
 
 ! stdout .+
 stderr '=== RUN   file/valid_filetest.gno'
 stderr '--- PASS: file/valid_filetest.gno \(\d\.\d\ds\)'
-stderr 'ok      \. 	\d\.\d\ds'
+# expected gasUsed information
+stderr 'ok      . 	total gas used: 19'
 
 -- valid.gno --
 package valid
