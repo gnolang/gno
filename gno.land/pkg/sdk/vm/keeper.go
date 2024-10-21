@@ -230,10 +230,11 @@ func (vm *VMKeeper) getGnoTransactionStore(ctx sdk.Context) gno.TransactionStore
 var reNamespace = regexp.MustCompile(`^gno.land/(?:r|p)/([\.~_a-zA-Z0-9]+)`)
 
 const sysUsersPkgParamKey = "vm/gno.land/r/sys/params.string"
+const defaultSysUsersPkg = "gno.land/r/sys/users"
 
 // checkNamespacePermission check if the user as given has correct permssion to on the given pkg path
 func (vm *VMKeeper) checkNamespacePermission(ctx sdk.Context, creator crypto.Address, pkgPath string) error {
-	var sysUsersPkg = "gno.land/r/sys/users"
+	sysUsersPkg := defaultSysUsersPkg
 	vm.prmk.GetIfExists(ctx, sysUsersPkgParamKey, &sysUsersPkg)
 
 	store := vm.getGnoTransactionStore(ctx)
