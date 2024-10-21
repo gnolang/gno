@@ -35,7 +35,6 @@ type AppOptions struct {
 	DB                dbm.DB             // required
 	Logger            *slog.Logger       // required
 	EventSwitch       events.EventSwitch // required
-	MaxCycles         int64              // hard limit for cycles in GnoVM
 	InitChainerConfig                    // options related to InitChainer
 }
 
@@ -90,7 +89,7 @@ func NewAppWithOptions(cfg *AppOptions) (abci.Application, error) {
 	acctKpr := auth.NewAccountKeeper(mainKey, ProtoGnoAccount)
 	bankKpr := bank.NewBankKeeper(acctKpr)
 	paramsKpr := params.NewParamsKeeper(mainKey, "vm")
-	vmk := vm.NewVMKeeper(baseKey, mainKey, acctKpr, bankKpr, paramsKpr, cfg.MaxCycles)
+	vmk := vm.NewVMKeeper(baseKey, mainKey, acctKpr, bankKpr, paramsKpr)
 
 	// Set InitChainer
 	icc := cfg.InitChainerConfig

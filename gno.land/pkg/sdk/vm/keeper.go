@@ -64,8 +64,6 @@ type VMKeeper struct {
 
 	// cached, the DeliverTx persistent state.
 	gnoStore gno.Store
-
-	maxCycles int64 // max allowed cylces on VM executions
 }
 
 // NewVMKeeper returns a new VMKeeper.
@@ -75,15 +73,13 @@ func NewVMKeeper(
 	acck auth.AccountKeeper,
 	bank bank.BankKeeper,
 	prmk params.ParamsKeeper,
-	maxCycles int64,
 ) *VMKeeper {
 	vmk := &VMKeeper{
-		baseKey:   baseKey,
-		iavlKey:   iavlKey,
-		acck:      acck,
-		bank:      bank,
-		prmk:      prmk,
-		maxCycles: maxCycles,
+		baseKey: baseKey,
+		iavlKey: iavlKey,
+		acck:    acck,
+		bank:    bank,
+		prmk:    prmk,
 	}
 	return vmk
 }
@@ -275,13 +271,12 @@ func (vm *VMKeeper) checkNamespacePermission(ctx sdk.Context, creator crypto.Add
 
 	m := gno.NewMachineWithOptions(
 		gno.MachineOptions{
-			PkgPath:   "",
-			Output:    os.Stdout, // XXX
-			Store:     store,
-			Context:   msgCtx,
-			Alloc:     store.GetAllocator(),
-			MaxCycles: vm.maxCycles,
-			GasMeter:  ctx.GasMeter(),
+			PkgPath:  "",
+			Output:   os.Stdout, // XXX
+			Store:    store,
+			Context:  msgCtx,
+			Alloc:    store.GetAllocator(),
+			GasMeter: ctx.GasMeter(),
 		})
 	defer m.Release()
 
@@ -377,13 +372,12 @@ func (vm *VMKeeper) AddPackage(ctx sdk.Context, msg MsgAddPackage) (err error) {
 	// Parse and run the files, construct *PV.
 	m2 := gno.NewMachineWithOptions(
 		gno.MachineOptions{
-			PkgPath:   "",
-			Output:    os.Stdout, // XXX
-			Store:     gnostore,
-			Alloc:     gnostore.GetAllocator(),
-			Context:   msgCtx,
-			MaxCycles: vm.maxCycles,
-			GasMeter:  ctx.GasMeter(),
+			PkgPath:  "",
+			Output:   os.Stdout, // XXX
+			Store:    gnostore,
+			Alloc:    gnostore.GetAllocator(),
+			Context:  msgCtx,
+			GasMeter: ctx.GasMeter(),
 		})
 	defer m2.Release()
 	defer func() {
@@ -479,13 +473,12 @@ func (vm *VMKeeper) Call(ctx sdk.Context, msg MsgCall) (res string, err error) {
 	// Construct machine and evaluate.
 	m := gno.NewMachineWithOptions(
 		gno.MachineOptions{
-			PkgPath:   "",
-			Output:    os.Stdout, // XXX
-			Store:     gnostore,
-			Context:   msgCtx,
-			Alloc:     gnostore.GetAllocator(),
-			MaxCycles: vm.maxCycles,
-			GasMeter:  ctx.GasMeter(),
+			PkgPath:  "",
+			Output:   os.Stdout, // XXX
+			Store:    gnostore,
+			Context:  msgCtx,
+			Alloc:    gnostore.GetAllocator(),
+			GasMeter: ctx.GasMeter(),
 		})
 	defer m.Release()
 	m.SetActivePackage(mpv)
@@ -580,13 +573,12 @@ func (vm *VMKeeper) Run(ctx sdk.Context, msg MsgRun) (res string, err error) {
 	buf := new(bytes.Buffer)
 	m := gno.NewMachineWithOptions(
 		gno.MachineOptions{
-			PkgPath:   "",
-			Output:    buf,
-			Store:     gnostore,
-			Alloc:     gnostore.GetAllocator(),
-			Context:   msgCtx,
-			MaxCycles: vm.maxCycles,
-			GasMeter:  ctx.GasMeter(),
+			PkgPath:  "",
+			Output:   buf,
+			Store:    gnostore,
+			Alloc:    gnostore.GetAllocator(),
+			Context:  msgCtx,
+			GasMeter: ctx.GasMeter(),
 		})
 	// XXX MsgRun does not have pkgPath. How do we find it on chain?
 	defer m.Release()
@@ -607,13 +599,12 @@ func (vm *VMKeeper) Run(ctx sdk.Context, msg MsgRun) (res string, err error) {
 
 	m2 := gno.NewMachineWithOptions(
 		gno.MachineOptions{
-			PkgPath:   "",
-			Output:    buf,
-			Store:     gnostore,
-			Alloc:     gnostore.GetAllocator(),
-			Context:   msgCtx,
-			MaxCycles: vm.maxCycles,
-			GasMeter:  ctx.GasMeter(),
+			PkgPath:  "",
+			Output:   buf,
+			Store:    gnostore,
+			Alloc:    gnostore.GetAllocator(),
+			Context:  msgCtx,
+			GasMeter: ctx.GasMeter(),
 		})
 	defer m2.Release()
 	m2.SetActivePackage(pv)
@@ -740,13 +731,12 @@ func (vm *VMKeeper) QueryEval(ctx sdk.Context, pkgPath string, expr string) (res
 	}
 	m := gno.NewMachineWithOptions(
 		gno.MachineOptions{
-			PkgPath:   pkgPath,
-			Output:    os.Stdout, // XXX
-			Store:     gnostore,
-			Context:   msgCtx,
-			Alloc:     alloc,
-			MaxCycles: vm.maxCycles,
-			GasMeter:  ctx.GasMeter(),
+			PkgPath:  pkgPath,
+			Output:   os.Stdout, // XXX
+			Store:    gnostore,
+			Context:  msgCtx,
+			Alloc:    alloc,
+			GasMeter: ctx.GasMeter(),
 		})
 	defer m.Release()
 	defer func() {
@@ -808,13 +798,12 @@ func (vm *VMKeeper) QueryEvalString(ctx sdk.Context, pkgPath string, expr string
 	}
 	m := gno.NewMachineWithOptions(
 		gno.MachineOptions{
-			PkgPath:   pkgPath,
-			Output:    os.Stdout, // XXX
-			Store:     gnostore,
-			Context:   msgCtx,
-			Alloc:     alloc,
-			MaxCycles: vm.maxCycles,
-			GasMeter:  ctx.GasMeter(),
+			PkgPath:  pkgPath,
+			Output:   os.Stdout, // XXX
+			Store:    gnostore,
+			Context:  msgCtx,
+			Alloc:    alloc,
+			GasMeter: ctx.GasMeter(),
 		})
 	defer m.Release()
 	defer func() {

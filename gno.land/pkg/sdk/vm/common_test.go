@@ -49,8 +49,7 @@ func _setupTestEnv(cacheStdlibs bool) testEnv {
 	acck := authm.NewAccountKeeper(iavlCapKey, std.ProtoBaseAccount)
 	bank := bankm.NewBankKeeper(acck)
 	prmk := paramsm.NewParamsKeeper(iavlCapKey, "params")
-	maxCycles := int64(100_000_000) // XXX: use x/params for 100_000_000
-	vmk := NewVMKeeper(baseCapKey, iavlCapKey, acck, bank, prmk, maxCycles)
+	vmk := NewVMKeeper(baseCapKey, iavlCapKey, acck, bank, prmk)
 
 	mcw := ms.MultiCacheWrap()
 	vmk.Initialize(log.NewNoopLogger(), mcw)
