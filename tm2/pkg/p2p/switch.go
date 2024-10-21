@@ -47,6 +47,9 @@ func (r *reactorPeerBehavior) IsPersistentPeer(address *types.NetAddress) bool {
 type Switch struct {
 	service.BaseService
 
+	ctx      context.Context
+	cancelFn context.CancelFunc
+
 	maxInboundPeers  uint64
 	maxOutboundPeers uint64
 
@@ -90,6 +93,9 @@ func NewSwitch(
 
 	sw.BaseService = *service.NewBaseService(nil, "P2P Switch", sw)
 
+	// Set up the context
+	sw.ctx, sw.cancelFn = context.WithCancel(context.Background())
+
 	for _, option := range options {
 		option(sw)
 	}
@@ -115,23 +121,30 @@ func (sw *Switch) OnStart() error {
 		}
 	}
 
-	// Run the peer accept routine
-	// TODO propagate ctx down
-	go sw.runAcceptLoop(context.Background())
+	// Run the peer accept routine.
+	// The accept routine asynchronously accepts
+	// and processes incoming peer connections
+	go sw.runAcceptLoop(sw.ctx)
 
-	// Run the dial routine
-	// TODO propagate ctx down
-	go sw.runDialLoop(context.Background())
+	// Run the dial routine.
+	// The dial routine parses items in the dial queue
+	// and initiates outbound peer connections
+	go sw.runDialLoop(sw.ctx)
 
-	// Run the redial routine
-	// TODO propagate ctx down
-	go sw.runRedialLoop(context.Background())
+	// Run the redial routine.
+	// The redial routine monitors for important
+	// peer disconnects, and attempts to reconnect
+	// to them
+	go sw.runRedialLoop(sw.ctx)
 
 	return nil
 }
 
 // OnStop implements BaseService. It stops all peers and reactors.
 func (sw *Switch) OnStop() {
+	// Close all hanging threads
+	sw.cancelFn()
+
 	// Stop peers
 	for _, p := range sw.peers.List() {
 		sw.stopAndRemovePeer(p, nil)
@@ -329,10 +342,7 @@ func (sw *Switch) runRedialLoop(ctx context.Context) {
 
 			return
 		case ev := <-subCh:
-			disconnectEv, ok := ev.(*events.PeerDisconnectedEvent)
-			if !ok {
-				continue
-			}
+			disconnectEv := ev.(*events.PeerDisconnectedEvent)
 
 			// Dial the disconnected peer
 			// TODO add backoff mechanism
