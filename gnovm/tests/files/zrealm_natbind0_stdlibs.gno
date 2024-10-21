@@ -178,3 +178,28 @@ func main() {
 //         }
 //     ]
 // }
+// u[a7f5397443359ea76c50be82c77f1f893a060925:8]={
+//     "Blank": {},
+//     "ObjectInfo": {
+//         "ID": "a7f5397443359ea76c50be82c77f1f893a060925:8",
+//         "IsEscaped": true,
+//         "ModTime": "3",
+//         "RefCount": "18"
+//     },
+//     "Parent": {
+//         "@type": "/gno.RefValue",
+//         "Escaped": true,
+//         "ObjectID": "a7f5397443359ea76c50be82c77f1f893a060925:2"
+//     },
+//     "Source": {
+//         "@type": "/gno.RefNode",
+//         "BlockNode": null,
+//         "Location": {
+//             "Column": "1",
+//             "File": "native.gno",
+//             "Line": "1",
+//             "PkgPath": "std"
+//         }
+//     },
+//     "Values": []
+// }
