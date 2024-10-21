@@ -33,6 +33,7 @@ const (
 
 // CoverageData stores code coverage information
 type CoverageData struct {
+	Enabled        bool
 	Files          map[string]FileCoverage
 	PkgPath        string
 	RootDir        string
@@ -59,6 +60,9 @@ func NewCoverageData(rootDir string) *CoverageData {
 		pathCache:      make(map[string]string),
 	}
 }
+
+func (c *CoverageData) SetEnabled(state bool) { c.Enabled = state }
+func (c *CoverageData) IsEnabled() bool       { return c.Enabled }
 
 // SetExecutableLines sets the executable lines for a given file path in the coverage data.
 // It updates the ExecutableLines map for the given file path with the provided executable lines.

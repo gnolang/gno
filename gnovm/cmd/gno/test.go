@@ -291,6 +291,7 @@ func gnoTestPkg(
 	}
 
 	coverageData := gno.NewCoverageData(cfg.rootDir)
+	coverageData.SetEnabled(cfg.coverage)
 
 	// testing with *_test.gno
 	if len(unittestFiles) > 0 {
@@ -335,8 +336,10 @@ func gnoTestPkg(
 			}
 
 			m := tests.TestMachine(testStore, stdout, gnoPkgPath)
-			m.Coverage = coverageData
-			m.Coverage.CurrentPackage = memPkg.Path
+			if coverageData.IsEnabled() {
+				m.Coverage = coverageData
+				m.Coverage.CurrentPackage = memPkg.Path
+			}
 
 			if printRuntimeMetrics {
 				// from tm2/pkg/sdk/vm/keeper.go

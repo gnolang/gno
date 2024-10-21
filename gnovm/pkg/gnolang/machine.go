@@ -1276,6 +1276,7 @@ const (
 // main run loop.
 
 func (m *Machine) Run() {
+	var currentPath string
 	for {
 		if m.Debugger.enabled {
 			m.Debug()
@@ -1283,7 +1284,12 @@ func (m *Machine) Run() {
 		op := m.PopOp()
 
 		loc := m.getCurrentLocation()
-		m.Coverage.updateHit(loc.PkgPath+"/"+loc.File, loc.Line)
+		if m.Coverage.Enabled {
+			if currentPath != loc.PkgPath+"/"+loc.File {
+				currentPath = loc.PkgPath + "/" + loc.File
+			}
+			m.Coverage.updateHit(currentPath, loc.Line)
+		}
 
 		// TODO: this can be optimized manually, even into tiers.
 		switch op {
