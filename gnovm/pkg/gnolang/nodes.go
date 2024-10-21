@@ -146,11 +146,26 @@ func (loc Location) IsZero() bool {
 // even after preprocessing.  Temporary attributes (e.g. those
 // for preprocessing) are stored in .data.
 
+type GnoAttribute string
+
+const (
+	ATTR_PREPROCESSED  GnoAttribute = "ATTR_PREPROCESSED"
+	ATTR_PREDEFINED    GnoAttribute = "ATTR_PREDEFINED"
+	ATTR_TYPE_VALUE    GnoAttribute = "ATTR_TYPE_VALUE"
+	ATTR_TYPEOF_VALUE  GnoAttribute = "ATTR_TYPEOF_VALUE"
+	ATTR_IOTA          GnoAttribute = "ATTR_IOTA"
+	ATTR_LOCATIONED    GnoAttribute = "ATTR_LOCATIONE"     // XXX DELETE
+	ATTR_GOTOLOOP_STMT GnoAttribute = "ATTR_GOTOLOOP_STMT" // XXX delete?
+	ATTR_LOOP_DEFINES  GnoAttribute = "ATTR_LOOP_DEFINES"  // []Name defined within loops.
+	ATTR_LOOP_USES     GnoAttribute = "ATTR_LOOP_USES"     // []Name loop defines actually used.
+	ATTR_SHIFT_RHS     GnoAttribute = "ATTR_SHIFT_RHS"
+)
+
 type Attributes struct {
 	Line   int
 	Column int
 	Label  Name
-	data   map[interface{}]interface{} // not persisted
+	data   map[GnoAttribute]interface{} // not persisted
 }
 
 func (attr *Attributes) GetLine() int {
@@ -177,20 +192,29 @@ func (attr *Attributes) SetLabel(label Name) {
 	attr.Label = label
 }
 
-func (attr *Attributes) HasAttribute(key interface{}) bool {
+func (attr *Attributes) HasAttribute(key GnoAttribute) bool {
 	_, ok := attr.data[key]
 	return ok
 }
 
-func (attr *Attributes) GetAttribute(key interface{}) interface{} {
+// GnoAttribute must not be user provided / arbitrary,
+// otherwise will create potential exploits.
+func (attr *Attributes) GetAttribute(key GnoAttribute) interface{} {
 	return attr.data[key]
 }
 
-func (attr *Attributes) SetAttribute(key interface{}, value interface{}) {
+func (attr *Attributes) SetAttribute(key GnoAttribute, value interface{}) {
 	if attr.data == nil {
-		attr.data = make(map[interface{}]interface{})
+		attr.data = make(map[GnoAttribute]interface{})
 	}
 	attr.data[key] = value
+}
+
+func (attr *Attributes) DelAttribute(key GnoAttribute) {
+	if debug && attr.data == nil {
+		panic("should not happen, attribute is expected to be non-empty.")
+	}
+	delete(attr.data, key)
 }
 
 // ----------------------------------------
@@ -206,9 +230,10 @@ type Node interface {
 	SetColumn(int)
 	GetLabel() Name
 	SetLabel(Name)
-	HasAttribute(key interface{}) bool
-	GetAttribute(key interface{}) interface{}
-	SetAttribute(key interface{}, value interface{})
+	HasAttribute(key GnoAttribute) bool
+	GetAttribute(key GnoAttribute) interface{}
+	SetAttribute(key GnoAttribute, value interface{})
+	DelAttribute(key GnoAttribute)
 }
 
 // non-pointer receiver to help make immutable.
@@ -368,11 +393,22 @@ var (
 	_ Expr = &ConstExpr{}
 )
 
+type NameExprType int
+
+const (
+	NameExprTypeNormal      NameExprType = iota // default
+	NameExprTypeDefine                          // when defining normally
+	NameExprTypeHeapDefine                      // when defining escaped name in loop
+	NameExprTypeHeapUse                         // when above used in non-define lhs/rhs
+	NameExprTypeHeapClosure                     // when closure captures name
+)
+
 type NameExpr struct {
 	Attributes
 	// TODO rename .Path's to .ValuePaths.
 	Path ValuePath // set by preprocessor.
 	Name
+	Type NameExprType
 }
 
 type NameExprs []NameExpr
@@ -499,8 +535,9 @@ type KeyValueExprs []KeyValueExpr
 type FuncLitExpr struct {
 	Attributes
 	StaticBlock
-	Type FuncTypeExpr // function type
-	Body              // function body
+	Type         FuncTypeExpr // function type
+	Body                      // function body
+	HeapCaptures NameExprs    // filled in findLoopUses1
 }
 
 // The preprocessor replaces const expressions
@@ -581,11 +618,15 @@ func (ftxz FieldTypeExprs) IsNamed() bool {
 	named := false
 	for i, ftx := range ftxz {
 		if i == 0 {
-			named = ftx.Name != ""
+			if ftx.Name == "" || isHiddenResultVariable(string(ftx.Name)) {
+				named = false
+			} else {
+				named = true
+			}
 		} else {
 			if named && ftx.Name == "" {
 				panic("[]FieldTypeExpr has inconsistent namedness (starts named)")
-			} else if !named && ftx.Name != "" {
+			} else if !named && (ftx.Name != "" || !isHiddenResultVariable(string(ftx.Name))) {
 				panic("[]FieldTypeExpr has inconsistent namedness (starts unnamed)")
 			}
 		}
@@ -1489,6 +1530,7 @@ type BlockNode interface {
 	GetNumNames() uint16
 	GetParentNode(Store) BlockNode
 	GetPathForName(Store, Name) ValuePath
+	GetBlockNodeForPath(Store, ValuePath) BlockNode
 	GetIsConst(Store, Name) bool
 	GetLocalIndex(Name) (uint16, bool)
 	GetValueRef(Store, Name, bool) *TypedValue
@@ -1588,6 +1630,8 @@ func (sb *StaticBlock) GetBlockNames() (ns []Name) {
 }
 
 // Implements BlockNode.
+// NOTE: Extern names may also be local, if declared after usage as an extern
+// (thus shadowing the extern name).
 func (sb *StaticBlock) GetExternNames() (ns []Name) {
 	return sb.Externs // copy?
 }
@@ -1629,6 +1673,9 @@ func (sb *StaticBlock) GetPathForName(store Store, n Name) ValuePath {
 	}
 	// Register as extern.
 	// NOTE: uverse names are externs too.
+	// NOTE: externs may also be shadowed later in the block. Thus, usages
+	// before the declaration will have depth > 1; following it, depth == 1,
+	// matching the two different identifiers they refer to.
 	if !isFile(sb.GetSource(store)) {
 		sb.GetStaticBlock().addExternName(n)
 	}
@@ -1655,6 +1702,21 @@ func (sb *StaticBlock) GetPathForName(store Store, n Name) ValuePath {
 	}
 	// Name does not exist.
 	panic(fmt.Sprintf("name %s not declared", n))
+}
+
+// Get the containing block node for node with path relative to this containing block.
+func (sb *StaticBlock) GetBlockNodeForPath(store Store, path ValuePath) BlockNode {
+	if path.Type != VPBlock {
+		panic("expected block type value path but got " + path.Type.String())
+	}
+
+	// NOTE: path.Depth == 1 means it's in bn.
+	bn := sb.GetSource(store)
+	for i := 1; i < int(path.Depth); i++ {
+		bn = bn.GetParentNode(store)
+	}
+
+	return bn
 }
 
 // Returns whether a name defined here in in ancestry is a const.
@@ -1713,21 +1775,12 @@ func (sb *StaticBlock) GetStaticTypeOf(store Store, n Name) Type {
 // Implements BlockNode.
 func (sb *StaticBlock) GetStaticTypeOfAt(store Store, path ValuePath) Type {
 	if debug {
-		if path.Type != VPBlock {
-			panic("should not happen")
-		}
 		if path.Depth == 0 {
 			panic("should not happen")
 		}
 	}
-	for {
-		if path.Depth == 1 {
-			return sb.Types[path.Index]
-		} else {
-			sb = sb.GetParentNode(store).GetStaticBlock()
-			path.Depth -= 1
-		}
-	}
+	bn := sb.GetBlockNodeForPath(store, path)
+	return bn.GetStaticBlock().Types[path.Index]
 }
 
 // Implements BlockNode.
@@ -2115,18 +2168,6 @@ func (x *BasicLitExpr) GetInt() int {
 	return i
 }
 
-type GnoAttribute string
-
-const (
-	ATTR_PREPROCESSED GnoAttribute = "ATTR_PREPROCESSED"
-	ATTR_PREDEFINED   GnoAttribute = "ATTR_PREDEFINED"
-	ATTR_TYPE_VALUE   GnoAttribute = "ATTR_TYPE_VALUE"
-	ATTR_TYPEOF_VALUE GnoAttribute = "ATTR_TYPEOF_VALUE"
-	ATTR_IOTA         GnoAttribute = "ATTR_IOTA"
-	ATTR_LOCATIONED   GnoAttribute = "ATTR_LOCATIONED"
-	ATTR_SHIFT_RHS    GnoAttribute = "ATTR_SHIFT_RHS"
-)
-
 var rePkgName = regexp.MustCompile(`^[a-z][a-z0-9_]+$`)
 
 // TODO: consider length restrictions.
@@ -2135,4 +2176,13 @@ func validatePkgName(name string) {
 	if !rePkgName.MatchString(name) {
 		panic(fmt.Sprintf("cannot create package with invalid name %q", name))
 	}
+}
+
+const hiddenResultVariable = ".res_"
+
+func isHiddenResultVariable(name string) bool {
+	if strings.HasPrefix(name, hiddenResultVariable) {
+		return true
+	}
+	return false
 }
