@@ -489,7 +489,7 @@ func (m *Machine) AddFileToCodeCoverage(file string, totalLines int) {
 // Note: This function assumes that CurrentPackage and CurrentFile are correctly set in the Machine
 // before it's called. These fields provide the context necessary to accurately record the coverage information.
 func (m *Machine) recordCoverage(node Node) Location {
-	if node == nil {
+	if node == nil || !m.Coverage.IsEnabled() {
 		return Location{}
 	}
 
