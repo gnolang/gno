@@ -52,7 +52,6 @@ type startCfg struct {
 	chainID               string
 	dataDir               string
 	genesisMaxVMCycles    int64
-	config                string
 	lazyInit              bool
 
 	logLevel  string
@@ -142,13 +141,6 @@ func (c *startCfg) RegisterFlags(fs *flag.FlagSet) {
 		"genesis-max-vm-cycles",
 		100_000_000,
 		"set maximum allowed vm cycles per operation. Zero means no limit.",
-	)
-
-	fs.StringVar(
-		&c.config,
-		flagConfigFlag,
-		"",
-		"the flag config file (optional)",
 	)
 
 	fs.StringVar(
