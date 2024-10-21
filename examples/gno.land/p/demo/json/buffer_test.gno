@@ -1,6 +1,9 @@
 package json
 
-import "testing"
+import (
+	"io"
+	"testing"
+)
 
 func TestBufferCurrent(t *testing.T) {
 	tests := []struct {
