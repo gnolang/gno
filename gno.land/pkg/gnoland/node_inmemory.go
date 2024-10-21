@@ -106,7 +106,6 @@ func NewInMemoryNode(logger *slog.Logger, cfg *InMemoryNodeConfig) (*node.Node, 
 	// Initialize the application with the provided options
 	gnoApp, err := NewAppWithOptions(&AppOptions{
 		Logger:            logger,
-		MaxCycles:         cfg.GenesisMaxVMCycles,
 		DB:                cfg.DB,
 		EventSwitch:       evsw,
 		InitChainerConfig: cfg.InitChainerConfig,
