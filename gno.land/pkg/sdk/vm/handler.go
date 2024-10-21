@@ -1,8 +1,11 @@
 package vm
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
 	"fmt"
+	"strconv"
 	"strings"
 
 	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
@@ -79,6 +82,7 @@ const (
 	QueryFuncs   = "qfuncs"
 	QueryEval    = "qeval"
 	QueryFile    = "qfile"
+	QueryPaths   = "qpaths"
 )
 
 func (vh vmHandler) Query(ctx sdk.Context, req abci.RequestQuery) abci.ResponseQuery {
@@ -100,6 +104,8 @@ func (vh vmHandler) Query(ctx sdk.Context, req abci.RequestQuery) abci.ResponseQ
 		res = vh.queryEval(ctx, req)
 	case QueryFile:
 		res = vh.queryFile(ctx, req)
+	case QueryPaths:
+		res = vh.queryPaths(ctx, req)
 	default:
 		return sdk.ABCIResponseQueryFromError(
 			std.ErrUnknownRequest(fmt.Sprintf(
@@ -175,6 +181,51 @@ func (vh vmHandler) queryFuncs(ctx sdk.Context, req abci.RequestQuery) (res abci
 		return
 	}
 	res.Data = []byte(fsigs.JSON())
+	return
+}
+
+// queryPaths retrieves paginated package paths based on request data.
+// The request format is "offset:limit". If not provided, defaults are offset=0 and limit=50.
+func (vh vmHandler) queryPaths(ctx sdk.Context, req abci.RequestQuery) (res abci.ResponseQuery) {
+	var err error
+	var limit, offset int
+
+	data := bytes.TrimSpace(req.Data)
+	before, after, found := strings.Cut(string(data), ":")
+	if !found {
+		res = sdk.ABCIResponseQueryFromError(
+			fmt.Errorf("invalid data format, should be `offset:limit`"),
+		)
+		return
+	}
+
+	if offset, err = strconv.Atoi(before); err != nil {
+		res = sdk.ABCIResponseQueryFromError(
+			fmt.Errorf("unable to parse limit %q: %w", before, err),
+		)
+	} else if limit, err = strconv.Atoi(after); err != nil {
+		res = sdk.ABCIResponseQueryFromError(
+			fmt.Errorf("unable to parse offset %q: %w", after, err),
+		)
+	}
+
+	if res.Error != nil {
+		return
+	}
+
+	paths, err := vh.vm.QueryPackagesPath(ctx, offset, limit)
+	if err != nil {
+		res = sdk.ABCIResponseQueryFromError(err)
+		return
+	}
+
+	res.Data, err = json.Marshal(paths)
+	if err != nil {
+		res = sdk.ABCIResponseQueryFromError(
+			fmt.Errorf("unable to marshal result: %w", err),
+		)
+	}
+
 	return
 }
 

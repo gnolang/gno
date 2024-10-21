@@ -61,6 +61,7 @@ type Store interface {
 	AddMemPackage(memPkg *std.MemPackage)
 	GetMemPackage(path string) *std.MemPackage
 	GetMemFile(path string, name string) *std.MemFile
+	ListMemPackagePath(offset, limit uint64) []string
 	IterMemPackage() <-chan *std.MemPackage
 	ClearObjectCache()                                    // run before processing a message
 	SetNativeStore(NativeStore)                           // for "new" natives XXX
@@ -659,6 +660,36 @@ func (ds *defaultStore) GetMemFile(path string, name string) *std.MemFile {
 	}
 	memFile := memPkg.GetFile(name)
 	return memFile
+}
+
+// ListMemPackagePath retrieves a paginated list of package paths.
+func (ds *defaultStore) ListMemPackagePath(offset, limit uint64) []string {
+	ctrkey := []byte(backendPackageIndexCtrKey())
+	ctrbz := ds.baseStore.Get(ctrkey)
+	if ctrbz == nil {
+		return nil
+	}
+
+	ctr, err := strconv.Atoi(string(ctrbz))
+	if err != nil {
+		panic(fmt.Errorf("failed to convert counter to integer: %w", err))
+	}
+
+	paths := make([]string, 0, limit)
+	to := min(uint64(ctr), offset+limit)
+
+	// Fetching and filtering data
+	for from := offset + 1; from <= to; from++ {
+		idxkey := []byte(backendPackageIndexKey(from))
+		path := ds.baseStore.Get(idxkey)
+		if path == nil {
+			panic(fmt.Errorf("missing package index %d", from))
+		}
+
+		paths = append(paths, string(path))
+	}
+
+	return paths
 }
 
 func (ds *defaultStore) IterMemPackage() <-chan *std.MemPackage {
