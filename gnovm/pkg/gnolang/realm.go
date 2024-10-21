@@ -556,6 +556,7 @@ func (rlm *Realm) processNewEscapedMarks(store Store) {
 			if po == nil {
 				// e.g. !eo.GetIsNewReal(),
 				// should have no parent.
+				rlm.MarkDirty(eo)
 				continue
 			} else {
 				if po.GetRefCount() == 0 {
