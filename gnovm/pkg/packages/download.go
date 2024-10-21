@@ -8,13 +8,14 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/gnolang/gno/gnovm/pkg/gnofiles"
 	"github.com/gnolang/gno/tm2/pkg/bft/rpc/client"
 	"github.com/gnolang/gno/tm2/pkg/commands"
 	"github.com/gnolang/gno/tm2/pkg/errors"
 )
 
 func DownloadModule(io commands.IO, pkgPath string, dst string) error {
-	modFilePath := filepath.Join(dst, ModfileName)
+	modFilePath := filepath.Join(dst, gnofiles.ModfileName)
 	if _, err := os.Stat(modFilePath); os.IsNotExist(err) {
 		io.ErrPrintfln("gno: downloading %s", pkgPath)
 

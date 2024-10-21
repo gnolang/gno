@@ -133,17 +133,17 @@ func execTranspile(cfg *transpileCfg, args []string, io commands.IO) error {
 		cfg.rootDir = gnoenv.RootDir()
 	}
 
-	// transpile .gno packages and files.
+	// load packages
 	pkgs, err := packages.Load(io, args...)
 	if err != nil {
 		return fmt.Errorf("load pkgs: %w", err)
 	}
-
 	pkgsMap := map[string]*packages.Package{}
 	for _, pkg := range pkgs {
 		pkgsMap[pkg.ImportPath] = pkg
 	}
 
+	// transpile .gno packages and files.
 	opts := newTranspileOptions(cfg, io)
 	var errlist scanner.ErrorList
 	for _, pkg := range pkgs {

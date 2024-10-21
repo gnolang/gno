@@ -17,6 +17,7 @@ import (
 	"go.uber.org/multierr"
 
 	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
+	"github.com/gnolang/gno/gnovm/pkg/gnofiles"
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
 	"github.com/gnolang/gno/gnovm/pkg/packages"
 	"github.com/gnolang/gno/gnovm/tests"
@@ -556,7 +557,7 @@ func parseMemPackageTests(memPkg *std.MemPackage) (tset, itset *gno.FileSet) {
 	tset = &gno.FileSet{}
 	itset = &gno.FileSet{}
 	for _, mfile := range memPkg.Files {
-		if !packages.IsGnoFile(mfile.Name, "!*_filetest.gno") {
+		if !gnofiles.IsGnoFile(mfile.Name, "!*_filetest.gno") {
 			continue
 		}
 		n, err := gno.ParseFile(mfile.Name, mfile.Body)

@@ -8,6 +8,7 @@ import (
 	"io"
 
 	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
+	"github.com/gnolang/gno/gnovm/pkg/gnofiles"
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
 	"github.com/gnolang/gno/gnovm/pkg/packages"
 	"github.com/gnolang/gno/gnovm/tests"
@@ -141,7 +142,7 @@ func execRun(cfg *runCfg, args []string, io commands.IO) error {
 }
 
 func parseFiles(fnames []string, stderr io.WriteCloser) ([]*gno.FileNode, error) {
-	gnoFnames, err := packages.Match(fnames, packages.MatchFiles("!*_test.gno", "!*_filetest.gno"))
+	gnoFnames, err := gnofiles.Match(fnames, gnofiles.MatchFiles("!*_test.gno", "!*_filetest.gno"))
 	if err != nil {
 		return nil, err
 	}

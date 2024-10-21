@@ -11,6 +11,8 @@ import (
 	"strings"
 
 	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
+	"github.com/gnolang/gno/gnovm/pkg/gnofiles"
+	"github.com/gnolang/gno/gnovm/pkg/gnomod"
 	"github.com/gnolang/gno/tm2/pkg/commands"
 	"github.com/gnolang/gno/tm2/pkg/std"
 	"golang.org/x/mod/modfile"
@@ -77,16 +79,13 @@ func DiscoverPackages(paths ...string) ([]*PackageSummary, error) {
 			} else if err != nil {
 				return nil, fmt.Errorf("failed to find parent module: %w", err)
 			}
-			modFilePath := filepath.Join(modDir, ModfileName)
-			modFileBytes, err := os.ReadFile(modFilePath)
+			modFilePath := filepath.Join(modDir, gnofiles.ModfileName)
+			modFile, err := gnomod.ParseAt(modDir)
 			if err != nil {
-				return nil, fmt.Errorf("failed to read modfile: %w", err)
+				errs = append(errs, fmt.Errorf("failed to parse modfile for %q: %w", modDir, err))
+				continue
 			}
-			modFile, err := modfile.ParseLax(modFilePath, modFileBytes, nil)
-			if err != nil {
-				return nil, fmt.Errorf("failed to parse modfile: %w", err)
-			}
-			if modFile == nil || modFile.Module == nil {
+			if modFile == nil || modFile.Module == nil || modFile.Draft {
 				continue
 			}
 			globalPkgPath := modFile.Module.Mod.Path
@@ -131,7 +130,7 @@ func DiscoverPackages(paths ...string) ([]*PackageSummary, error) {
 				dirPath := filepath.Join(root, fileName) + recursiveSuffix
 				toVisit = append(toVisit, visitTarget{path: dirPath, match: tgt.match})
 			}
-			if !hasGnoFiles && IsGnoFile(fileName) {
+			if !hasGnoFiles && gnofiles.IsGnoFile(fileName) {
 				hasGnoFiles = true
 			}
 		}
@@ -204,6 +203,16 @@ func Load(io commands.IO, paths ...string) ([]*Package, error) {
 	return list, errors.Join(errs...)
 }
 
+func modIsDraft(modFile *modfile.File) bool {
+	comments := modFile.Syntax.Comment()
+	for _, comm := range comments.Before {
+		if strings.Contains(comm.Token, "Draft") {
+			return true
+		}
+	}
+	return false
+}
+
 func listDeps(target string, pkgs map[string]*Package) ([]string, error) {
 	deps := []string{}
 	err := listDepsRecursive(target, target, pkgs, &deps, make(map[string]struct{}))
@@ -268,24 +277,10 @@ func resolveRemote(io commands.IO, ometa *PackageSummary) (*Package, error) {
 	if err := DownloadModule(io, meta.PkgPath, meta.Root); err != nil {
 		return nil, fmt.Errorf("failed to download module %q: %w", meta.PkgPath, err)
 	}
-	modDir, err := findModDir(meta.Root)
-	if os.IsNotExist(err) {
-		return nil, errors.New("failed to clone mod")
-	} else if err != nil {
-		return nil, fmt.Errorf("failed to find parent module: %w", err)
-	}
-	modFilePath := filepath.Join(modDir, ModfileName)
-	modFileBytes, err := os.ReadFile(modFilePath)
-	if err != nil {
-		return nil, fmt.Errorf("failed to read modfile: %w", err)
-	}
-	modFile, err := modfile.ParseLax(modFilePath, modFileBytes, nil)
-	if err != nil {
-		return nil, fmt.Errorf("failed to parse modfile: %w", err)
-	}
+	modFilePath := filepath.Join(meta.Root, gnofiles.ModfileName)
 	meta.Module = &Module{
-		Path:   modFile.Module.Mod.Path,
-		Dir:    modDir,
+		Path:   meta.PkgPath,
+		Dir:    meta.Root,
 		GnoMod: modFilePath,
 	}
 
@@ -318,13 +313,13 @@ func fillPackage(meta *PackageSummary) (*Package, error) {
 		}
 
 		fileName := entry.Name()
-		if IsGnoTestFile(fileName) {
+		if gnofiles.IsGnoTestFile(fileName) {
 			fsTestFiles = append(fsTestFiles, filepath.Join(pkgDir, fileName))
 			testFiles = append(testFiles, fileName)
-		} else if IsGnoFiletestFile(fileName) {
+		} else if gnofiles.IsGnoFiletestFile(fileName) {
 			fsFiletestFiles = append(fsFiletestFiles, filepath.Join(pkgDir, fileName))
 			filetestFiles = append(filetestFiles, fileName)
-		} else if IsGnoFile(fileName) {
+		} else if gnofiles.IsGnoFile(fileName) {
 			fsFiles = append(fsFiles, filepath.Join(pkgDir, fileName))
 			files = append(files, fileName)
 		}
@@ -443,7 +438,7 @@ func convertRecursivePathToDir(p string) string {
 func findModDir(dir string) (string, error) {
 	dir = filepath.Clean(dir)
 
-	potentialMod := filepath.Join(dir, ModfileName)
+	potentialMod := filepath.Join(dir, gnofiles.ModfileName)
 
 	if _, err := os.Stat(potentialMod); os.IsNotExist(err) {
 		parent, file := filepath.Split(dir)

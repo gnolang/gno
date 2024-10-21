@@ -10,7 +10,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/gnolang/gno/gnovm/pkg/packages"
+	"github.com/gnolang/gno/gnovm/pkg/gnofiles"
 )
 
 func isFileExist(path string) bool {
@@ -28,7 +28,7 @@ func gnoFilesFromArgs(args []string) ([]string, error) {
 		}
 
 		if !info.IsDir() {
-			if packages.IsGnoFile(info.Name()) {
+			if gnofiles.IsGnoFile(info.Name()) {
 				paths = append(paths, ensurePathPrefix(argPath))
 			}
 			continue
@@ -39,7 +39,7 @@ func gnoFilesFromArgs(args []string) ([]string, error) {
 			return nil, err
 		}
 		for _, f := range files {
-			if packages.IsGnoFile(f.Name()) {
+			if gnofiles.IsGnoFile(f.Name()) {
 				path := filepath.Join(argPath, f.Name())
 				paths = append(paths, ensurePathPrefix(path))
 			}
@@ -101,7 +101,7 @@ func targetsFromPatterns(patterns []string) ([]string, error) {
 				return fmt.Errorf("%s: walk dir: %w", dirToSearch, err)
 			}
 			// Skip directories and non ".gno" files.
-			if f.IsDir() || !packages.IsGnoFile(f.Name()) {
+			if f.IsDir() || !gnofiles.IsGnoFile(f.Name()) {
 				return nil
 			}
 
