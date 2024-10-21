@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"path/filepath"
 	"reflect"
 	"slices"
 	"strconv"
@@ -82,6 +83,9 @@ type Machine struct {
 	// it is executed. It is reset to zero after the defer functions in the current
 	// scope have finished executing.
 	DeferPanicScope uint
+
+	// Test Coverage
+	Coverage *CoverageData
 }
 
 // NewMachine initializes a new gno virtual machine, acting as a shorthand
@@ -180,6 +184,7 @@ func NewMachineWithOptions(opts MachineOptions) *Machine {
 	mm.Debugger.enabled = opts.Debug
 	mm.Debugger.in = opts.Input
 	mm.Debugger.out = output
+	mm.Coverage = NewCoverageData("")
 
 	if pv != nil {
 		mm.SetActivePackage(pv)
@@ -266,7 +271,26 @@ func (m *Machine) PreprocessAllFilesAndSaveBlockNodes() {
 // and corresponding package node, package value, and types to store. Save
 // is set to false for tests where package values may be native.
 func (m *Machine) RunMemPackage(memPkg *std.MemPackage, save bool) (*PackageNode, *PackageValue) {
-	return m.runMemPackage(memPkg, save, false)
+	m.Coverage.CurrentPackage = memPkg.Path
+
+	for _, file := range memPkg.Files {
+		if strings.HasSuffix(file.Name, ".gno") && !isTestFile(file.Name) {
+			m.Coverage.CurrentFile = file.Name
+
+			totalLines := countCodeLines(file.Body)
+			path := filepath.Join(m.Coverage.CurrentPackage, m.Coverage.CurrentFile)
+
+			executableLines, err := detectExecutableLines(file.Body)
+			if err != nil {
+				continue
+			}
+
+			m.Coverage.SetExecutableLines(path, executableLines)
+			m.AddFileToCodeCoverage(path, totalLines)
+		}
+	}
+	node, val := m.runMemPackage(memPkg, save, false)
+	return node, val
 }
 
 // RunMemPackageWithOverrides works as [RunMemPackage], however after parsing,
@@ -1281,11 +1305,21 @@ const (
 // main run loop.
 
 func (m *Machine) Run() {
+	var currentPath string
 	for {
 		if m.Debugger.enabled {
 			m.Debug()
 		}
 		op := m.PopOp()
+
+		loc := m.getCurrentLocation()
+		if m.Coverage.Enabled {
+			if currentPath != loc.PkgPath+"/"+loc.File {
+				currentPath = loc.PkgPath + "/" + loc.File
+			}
+			m.Coverage.updateHit(currentPath, loc.Line)
+		}
+
 		// TODO: this can be optimized manually, even into tiers.
 		switch op {
 		/* Control operators */
@@ -1612,6 +1646,24 @@ func (m *Machine) Run() {
 	}
 }
 
+func (m *Machine) getCurrentLocation() Location {
+	if len(m.Frames) == 0 {
+		return Location{}
+	}
+
+	lastFrame := m.Frames[len(m.Frames)-1]
+	if lastFrame.Source == nil {
+		return Location{}
+	}
+
+	return Location{
+		PkgPath: m.Coverage.CurrentPackage,
+		File:    m.Coverage.CurrentFile,
+		Line:    lastFrame.Source.GetLine(),
+		Column:  lastFrame.Source.GetColumn(),
+	}
+}
+
 //----------------------------------------
 // push pop methods.
 
@@ -1673,6 +1725,7 @@ func (m *Machine) PeekStmt1() Stmt {
 }
 
 func (m *Machine) PushStmt(s Stmt) {
+	m.recordCoverage(s)
 	if debug {
 		m.Printf("+s %v\n", s)
 	}
@@ -1723,6 +1776,7 @@ func (m *Machine) PushExpr(x Expr) {
 	if debug {
 		m.Printf("+x %v\n", x)
 	}
+	m.recordCoverage(x)
 	m.Exprs = append(m.Exprs, x)
 }
 
@@ -1758,7 +1812,6 @@ func (m *Machine) PushValue(tv TypedValue) {
 	}
 	m.Values[m.NumValues] = tv
 	m.NumValues++
-	return
 }
 
 // Resulting reference is volatile.
@@ -1911,6 +1964,9 @@ func (m *Machine) PushFrameCall(cx *CallExpr, fv *FuncValue, recv TypedValue) {
 	if rlm != nil && m.Realm != rlm {
 		m.Realm = rlm // enter new realm
 	}
+
+	m.Coverage.CurrentPackage = fv.PkgPath
+	m.Coverage.CurrentFile = string(fv.FileName)
 }
 
 func (m *Machine) PushFrameGoNative(cx *CallExpr, fv *NativeValue) {

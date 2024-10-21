@@ -36,6 +36,13 @@ type testCfg struct {
 	updateGoldenTests   bool
 	printRuntimeMetrics bool
 	withNativeFallback  bool
+
+	// coverage flags
+	coverage   bool
+	viewFile   string
+	showHits   bool
+	output     string
+	htmlOutput string
 }
 
 func newTestCmd(io commands.IO) *commands.Command {
@@ -149,6 +156,43 @@ func (c *testCfg) RegisterFlags(fs *flag.FlagSet) {
 		false,
 		"print runtime metrics (gas, memory, cpu cycles)",
 	)
+
+	// test coverage flags
+
+	fs.BoolVar(
+		&c.coverage,
+		"cover",
+		false,
+		"enable coverage analysis",
+	)
+
+	fs.BoolVar(
+		&c.showHits,
+		"show-hits",
+		false,
+		"show number of times each line was executed",
+	)
+
+	fs.StringVar(
+		&c.viewFile,
+		"view",
+		"",
+		"view coverage for a specific file",
+	)
+
+	fs.StringVar(
+		&c.output,
+		"out",
+		"",
+		"save coverage data as JSON to specified file",
+	)
+
+	fs.StringVar(
+		&c.htmlOutput,
+		"html",
+		"",
+		"output coverage report in HTML format",
+	)
 }
 
 func execTest(cfg *testCfg, args []string, io commands.IO) error {
@@ -246,13 +290,18 @@ func gnoTestPkg(
 		stdout = commands.WriteNopCloser(mockOut)
 	}
 
+	coverageData := gno.NewCoverageData(cfg.rootDir)
+	coverageData.SetEnabled(cfg.coverage)
+
 	// testing with *_test.gno
 	if len(unittestFiles) > 0 {
 		// Determine gnoPkgPath by reading gno.mod
 		var gnoPkgPath string
 		modfile, err := gnomod.ParseAt(pkgPath)
 		if err == nil {
+			// TODO: use pkgPathFromRootDir?
 			gnoPkgPath = modfile.Module.Mod.Path
+			coverageData.PkgPath = gnoPkgPath
 		} else {
 			gnoPkgPath = pkgPathFromRootDir(pkgPath, rootDir)
 			if gnoPkgPath == "" {
@@ -260,10 +309,10 @@ func gnoTestPkg(
 				io.ErrPrintfln("--- WARNING: unable to read package path from gno.mod or gno root directory; try creating a gno.mod file")
 				gnoPkgPath = gno.RealmPathPrefix + random.RandStr(8)
 			}
+			coverageData.PkgPath = pkgPath
 		}
 		memPkg := gno.ReadMemPackage(pkgPath, gnoPkgPath)
 
-		// tfiles, ifiles := gno.ParseMemPackageTests(memPkg)
 		var tfiles, ifiles *gno.FileSet
 
 		hasError := catchRuntimeError(gnoPkgPath, stderr, func() {
@@ -287,6 +336,11 @@ func gnoTestPkg(
 			}
 
 			m := tests.TestMachine(testStore, stdout, gnoPkgPath)
+			if coverageData.IsEnabled() {
+				m.Coverage = coverageData
+				m.Coverage.CurrentPackage = memPkg.Path
+			}
+
 			if printRuntimeMetrics {
 				// from tm2/pkg/sdk/vm/keeper.go
 				// XXX: make maxAllocTx configurable.
@@ -295,7 +349,7 @@ func gnoTestPkg(
 				m.Alloc = gno.NewAllocator(maxAllocTx)
 			}
 			m.RunMemPackage(memPkg, true)
-			err := runTestFiles(m, tfiles, memPkg.Name, verbose, printRuntimeMetrics, runFlag, io)
+			err := runTestFiles(m, tfiles, memPkg.Name, verbose, printRuntimeMetrics, runFlag, io, coverageData)
 			if err != nil {
 				errs = multierr.Append(errs, err)
 			}
@@ -329,7 +383,7 @@ func gnoTestPkg(
 			memPkg.Path = memPkg.Path + "_test"
 			m.RunMemPackage(memPkg, true)
 
-			err := runTestFiles(m, ifiles, testPkgName, verbose, printRuntimeMetrics, runFlag, io)
+			err := runTestFiles(m, ifiles, testPkgName, verbose, printRuntimeMetrics, runFlag, io, coverageData)
 			if err != nil {
 				errs = multierr.Append(errs, err)
 			}
@@ -381,6 +435,36 @@ func gnoTestPkg(
 		}
 	}
 
+	if cfg.coverage {
+		// TODO: consider cache
+		if cfg.viewFile != "" {
+			err := coverageData.ViewFiles(cfg.viewFile, cfg.showHits, io)
+			if err != nil {
+				return fmt.Errorf("failed to view file coverage: %w", err)
+			}
+			return nil // prevent printing out coverage report
+		}
+
+		if cfg.output != "" {
+			err := coverageData.SaveJSON(cfg.output)
+			if err != nil {
+				return fmt.Errorf("failed to save coverage data: %w", err)
+			}
+			io.Println("coverage data saved to", cfg.output)
+			return nil
+		}
+
+		if cfg.htmlOutput != "" {
+			err := coverageData.SaveHTML(cfg.htmlOutput)
+			if err != nil {
+				return fmt.Errorf("failed to save coverage data: %w", err)
+			}
+			io.Println("coverage report saved to", cfg.htmlOutput)
+			return nil
+		}
+		coverageData.Report(io)
+	}
+
 	return errs
 }
 
@@ -421,6 +505,7 @@ func runTestFiles(
 	printRuntimeMetrics bool,
 	runFlag string,
 	io commands.IO,
+	coverageData *gno.CoverageData,
 ) (errs error) {
 	defer func() {
 		if r := recover(); r != nil {
@@ -472,6 +557,18 @@ func runTestFiles(
 		if rep.Failed {
 			err := errors.New("failed: %q", test.Name)
 			errs = multierr.Append(errs, err)
+		}
+
+		for file, fileCoverage := range m.Coverage.Files {
+			existingCoverage, exists := coverageData.Files[file]
+			if !exists {
+				coverageData.Files[file] = fileCoverage
+			} else {
+				for line, count := range fileCoverage.HitLines {
+					existingCoverage.HitLines[line] += count
+				}
+				coverageData.Files[file] = existingCoverage
+			}
 		}
 
 		if printRuntimeMetrics {
