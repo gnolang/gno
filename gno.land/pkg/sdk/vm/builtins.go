@@ -42,7 +42,7 @@ func (bnk *SDKBanker) TotalCoin(denom string) int64 {
 
 func (bnk *SDKBanker) IssueCoin(b32addr crypto.Bech32Address, denom string, amount int64) {
 	addr := crypto.MustAddressFromString(string(b32addr))
-	_, err := bnk.vmk.bank.AddCoins(bnk.ctx, addr, std.Coins{std.Coin{denom, amount}})
+	_, err := bnk.vmk.bank.AddCoins(bnk.ctx, addr, std.Coins{std.Coin{Denom: denom, Amount: amount}})
 	if err != nil {
 		panic(err)
 	}
@@ -50,7 +50,7 @@ func (bnk *SDKBanker) IssueCoin(b32addr crypto.Bech32Address, denom string, amou
 
 func (bnk *SDKBanker) RemoveCoin(b32addr crypto.Bech32Address, denom string, amount int64) {
 	addr := crypto.MustAddressFromString(string(b32addr))
-	_, err := bnk.vmk.bank.SubtractCoins(bnk.ctx, addr, std.Coins{std.Coin{denom, amount}})
+	_, err := bnk.vmk.bank.SubtractCoins(bnk.ctx, addr, std.Coins{std.Coin{Denom: denom, Amount: amount}})
 	if err != nil {
 		panic(err)
 	}

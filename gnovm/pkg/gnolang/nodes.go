@@ -14,6 +14,7 @@ import (
 
 	"github.com/gnolang/gno/tm2/pkg/errors"
 	"github.com/gnolang/gno/tm2/pkg/std"
+	"go.uber.org/multierr"
 )
 
 // ----------------------------------------
@@ -1189,6 +1190,7 @@ func ReadMemPackageFromList(list []string, pkgPath string) *std.MemPackage {
 // or [ParseFile] returns an error, ParseMemPackage panics.
 func ParseMemPackage(memPkg *std.MemPackage) (fset *FileSet) {
 	fset = &FileSet{}
+	var errs error
 	for _, mfile := range memPkg.Files {
 		if !strings.HasSuffix(mfile.Name, ".gno") ||
 			endsWith(mfile.Name, []string{"_test.gno", "_filetest.gno"}) {
@@ -1196,7 +1198,8 @@ func ParseMemPackage(memPkg *std.MemPackage) (fset *FileSet) {
 		}
 		n, err := ParseFile(mfile.Name, mfile.Body)
 		if err != nil {
-			panic(err)
+			errs = multierr.Append(errs, err)
+			continue
 		}
 		if memPkg.Name != string(n.PkgName) {
 			panic(fmt.Sprintf(
@@ -1205,6 +1208,9 @@ func ParseMemPackage(memPkg *std.MemPackage) (fset *FileSet) {
 		}
 		// add package file.
 		fset.AddFiles(n)
+	}
+	if errs != nil {
+		panic(errs)
 	}
 	return fset
 }
@@ -2118,7 +2124,7 @@ const (
 	ATTR_TYPEOF_VALUE GnoAttribute = "ATTR_TYPEOF_VALUE"
 	ATTR_IOTA         GnoAttribute = "ATTR_IOTA"
 	ATTR_LOCATIONED   GnoAttribute = "ATTR_LOCATIONED"
-	ATTR_INJECTED     GnoAttribute = "ATTR_INJECTED"
+	ATTR_SHIFT_RHS    GnoAttribute = "ATTR_SHIFT_RHS"
 )
 
 var rePkgName = regexp.MustCompile(`^[a-z][a-z0-9_]+$`)
