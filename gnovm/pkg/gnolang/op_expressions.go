@@ -766,7 +766,7 @@ func (m *Machine) doOpFuncLit() {
 	captures := []TypedValue(nil)
 	for _, nx := range x.HeapCaptures {
 		ptr := lb.GetPointerTo(m.Store, nx.Path)
-		// XXX check that ptr.TV is a heap item value.
+		// check that ptr.TV is a heap item value.
 		// it must be in the form of:
 		// {T:heapItemType{},V:HeapItemValue{...}}
 		if _, ok := ptr.TV.T.(heapItemType); !ok {

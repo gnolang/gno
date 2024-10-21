@@ -408,11 +408,11 @@ var preprocessing atomic.Int32
 //   - Assigns BlockValuePath to NameExprs.
 //   - TODO document what it does.
 func Preprocess(store Store, ctx BlockNode, n Node) Node {
-	// XXX If initStaticBlocks doesn't happen here,
-	// XXX it means Preprocess on blocks might fail.
-	// XXX it works for now because preprocess also does pushInitBlock,
-	// XXX but it's kinda weird.
-	// XXX maybe consider moving initStaticBlocks here and ensure idempotency of it.
+	// If initStaticBlocks doesn't happen here,
+	// it means Preprocess on blocks might fail.
+	// it works for now because preprocess also does pushInitBlock,
+	// but it's kinda weird.
+	// maybe consider moving initStaticBlocks here and ensure idempotency of it.
 	n = preprocess1(store, ctx, n)
 	// XXX check node lines and locations
 	checkNodeLinesLocations("XXXpkgPath", "XXXfileName", n)
@@ -4742,6 +4742,7 @@ func setNodeLocations(pkgPath string, fileName string, n Node) {
 
 // XXX check node lines, uniqueness of locations,
 // and also check location pkgpath and filename.
+// Even after this is implemented, locations should not be used for logic.
 func checkNodeLinesLocations(pkgPath string, fileName string, n Node) {
 	// TODO: XXX
 }
