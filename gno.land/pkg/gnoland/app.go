@@ -287,6 +287,10 @@ func (cfg InitChainerConfig) loadAppState(ctx sdk.Context, appState any) ([]abci
 		return nil, fmt.Errorf("invalid AppState of type %T", appState)
 	}
 
+	// Init ZeroAccount
+	zeroAcc := cfg.acctKpr.NewAccountWithAddress(ctx, vm.ZeroAddress())
+	cfg.acctKpr.SetAccount(ctx, zeroAcc)
+
 	// Parse and set genesis state balances
 	for _, bal := range state.Balances {
 		acc := cfg.acctKpr.NewAccountWithAddress(ctx, bal.Address)
