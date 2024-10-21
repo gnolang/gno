@@ -317,6 +317,15 @@ func (m *Machine) doOpEval() {
 		m.PushOp(OpEval)
 	case *ConstExpr:
 		m.PopExpr()
+		if m.Alloc != nil {
+			obj := MakeHeapObj(x.TypedValue)
+
+			if obj != nil {
+				m.Alloc.AllocateObj(obj.tv)
+				obj.marked = true
+				m.Alloc.heap.AddObject(obj)
+			}
+		}
 		// push preprocessed value
 		m.PushValue(x.TypedValue)
 	case *constTypeExpr:
