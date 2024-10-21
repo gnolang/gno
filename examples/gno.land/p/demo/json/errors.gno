@@ -22,3 +22,13 @@ var (
 	errUnmatchedParenthesis  = errors.New("mismatched bracket or parenthesis")
 	errUnmatchedQuotePath    = errors.New("unmatched quote in path")
 )
+
+var (
+	errInvalidStringInput    = errors.New("invalid string input")
+	errMalformedBooleanValue = errors.New("malformed boolean value")
+	errEmptyByteSlice        = errors.New("empty byte slice")
+	errInvalidExponentValue  = errors.New("invalid exponent value")
+	errNonDigitCharacters    = errors.New("non-digit characters found")
+	errNumericRangeExceeded  = errors.New("numeric value exceeds the range limit")
+	errMultipleDecimalPoints = errors.New("multiple decimal points found")
+)

@@ -174,7 +174,7 @@ func (n *Node) Value() (value interface{}, err error) {
 			return nil, nil
 
 		case Number:
-			value, err = ParseFloatLiteral(n.source())
+			value, err = strconv.ParseFloat(string(n.source()), 64)
 			if err != nil {
 				return nil, err
 			}
