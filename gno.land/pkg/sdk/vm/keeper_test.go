@@ -108,7 +108,7 @@ func Echo(msg string) string {
 	msg2 := NewMsgCall(addr, coins, pkgPath, "Echo", []string{"hello world"})
 	res, err := env.vmk.Call(ctx, msg2)
 	assert.NoError(t, err)
-	assert.Equal(t, `("echo:hello world" string)`+"\n\n", res)
+	assert.Equal(t, `["echo:hello world"]`, res)
 	// t.Log("result:", res)
 }
 
@@ -251,7 +251,7 @@ func Echo(msg string) string {
 	msg2 := NewMsgCall(addr, coins, pkgPath, "Echo", []string{"hello world"})
 	res, err := env.vmk.Call(ctx, msg2)
 	assert.NoError(t, err)
-	assert.Equal(t, `("echo:hello world" string)`+"\n\n", res)
+	assert.Equal(t, `["echo:hello world"]`, res)
 }
 
 // Sending too much realm package coins fails.
@@ -347,9 +347,102 @@ func GetAdmin() string {
 	coins := std.MustParseCoins("")
 	msg2 := NewMsgCall(addr, coins, pkgPath, "GetAdmin", []string{})
 	res, err := env.vmk.Call(ctx, msg2)
-	addrString := fmt.Sprintf("(\"%s\" string)\n\n", addr.String())
+	addrString := fmt.Sprintf("[\"%s\"]", addr.String())
 	assert.NoError(t, err)
 	assert.Equal(t, addrString, res)
+}
+
+func TestVMKeeperCallReturnPointerValues(t *testing.T) {
+	env := setupTestEnv()
+	ctx := env.vmk.MakeGnoTransactionStore(env.ctx)
+
+	// Give "addr1" some gnots.
+	addr := crypto.AddressFromPreimage([]byte("addr1"))
+	acc := env.acck.NewAccountWithAddress(ctx, addr)
+	env.acck.SetAccount(ctx, acc)
+	env.bank.SetCoins(ctx, addr, std.MustParseCoins(coinsString))
+	assert.True(t, env.bank.GetCoins(ctx, addr).IsEqual(std.MustParseCoins(coinsString)))
+
+	// Create test package.
+	files := []*std.MemFile{
+		{"init.gno", `
+package test
+
+type TStructA struct {  }
+
+func (a *TStructA) String() string { return "S:This Is A" }
+
+type TStructB struct {  }
+
+func (b *TStructB) Error() string { return "E:This Is B" }
+
+type TStructC struct {  }
+
+var A, B, C = &TStructA{}, &TStructB{}, &TStructC{}
+
+func StringerReturnPointer() (*TStructA, *TStructB, *TStructC) {
+	return A, B, C
+}
+`},
+	}
+	pkgPath := "gno.land/r/test"
+	msg1 := NewMsgAddPackage(addr, pkgPath, files)
+	err := env.vmk.AddPackage(ctx, msg1)
+	assert.NoError(t, err)
+
+	const expected = `["S:This Is A","E:This Is B","<oid:0000000000000000000000000000000000000000:0>"]`
+
+	// Run GetAdmin()
+	coins := std.MustParseCoins("")
+	msg2 := NewMsgCall(addr, coins, pkgPath, "StringerReturnPointer", []string{})
+	res, err := env.vmk.Call(ctx, msg2)
+	assert.NoError(t, err)
+	assert.Equal(t, expected, res)
+}
+
+func TestVMKeeperCallReturnValues(t *testing.T) {
+	env := setupTestEnv()
+	ctx := env.vmk.MakeGnoTransactionStore(env.ctx)
+
+	// Give "addr1" some gnots.
+	addr := crypto.AddressFromPreimage([]byte("addr1"))
+	acc := env.acck.NewAccountWithAddress(ctx, addr)
+	env.acck.SetAccount(ctx, acc)
+	env.bank.SetCoins(ctx, addr, std.MustParseCoins(coinsString))
+	assert.True(t, env.bank.GetCoins(ctx, addr).IsEqual(std.MustParseCoins(coinsString)))
+
+	// Create test package.
+	files := []*std.MemFile{
+		{"init.gno", `
+package test
+
+type TStructA struct {  }
+
+func (a *TStructA) String() string { return "S:This Is A" }
+
+type TStructB struct {  }
+
+func (b *TStructB) Error() string { return "E:This Is B" }
+
+type TStructC struct {  }
+
+func StringerReturn() (TStructA, TStructB, TStructC) {
+        return TStructA{}, TStructB{}, TStructC{}
+}
+`},
+	}
+	pkgPath := "gno.land/r/test"
+	msg1 := NewMsgAddPackage(addr, pkgPath, files)
+	err := env.vmk.AddPackage(ctx, msg1)
+	require.NoError(t, err)
+
+	const expected = `["<oid:0000000000000000000000000000000000000000:0>","<oid:0000000000000000000000000000000000000000:0>","<oid:0000000000000000000000000000000000000000:0>"]`
+
+	coins := std.MustParseCoins("")
+	msg3 := NewMsgCall(addr, coins, pkgPath, "StringerReturn", []string{})
+	res, err := env.vmk.Call(ctx, msg3)
+	assert.NoError(t, err)
+	assert.Equal(t, expected, res)
 }
 
 // Call Run without imports, without variables.
@@ -490,7 +583,7 @@ func Echo(msg string) string {
 	msg2 := NewMsgCall(addr, nil, pkgPath, "Echo", []string{"hello world"})
 	res, err := env.vmk.Call(ctx, msg2)
 	require.NoError(t, err)
-	assert.Equal(t, `("echo:hello world" string)`+"\n\n", res)
+	assert.Equal(t, `["echo:hello world"]`, res)
 
 	// Clear out gnovm and reinitialize.
 	env.vmk.gnoStore = nil
@@ -501,7 +594,7 @@ func Echo(msg string) string {
 	// Run echo again, and it should still work.
 	res, err = env.vmk.Call(ctx, msg2)
 	require.NoError(t, err)
-	assert.Equal(t, `("echo:hello world" string)`+"\n\n", res)
+	assert.Equal(t, `["echo:hello world"]`, res)
 }
 
 func Test_loadStdlibPackage(t *testing.T) {
