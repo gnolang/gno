@@ -198,9 +198,12 @@ func loadStdlibPackage(pkgPath, stdlibDir string, store gno.Store) {
 	m.RunMemPackage(memPkg, true)
 }
 
-type gnoStoreContextKeyType struct{}
+type keeperContextKey string
 
-var gnoStoreContextKey gnoStoreContextKeyType
+const (
+	keeperKeyGnoStore      keeperContextKey = "keeper:gno_store"
+	keeperKeyCustomContext keeperContextKey = "keeper:exec_context"
+)
 
 func (vm *VMKeeper) newGnoTransactionStore(ctx sdk.Context) gno.TransactionStore {
 	base := ctx.Store(vm.baseKey)
@@ -210,7 +213,7 @@ func (vm *VMKeeper) newGnoTransactionStore(ctx sdk.Context) gno.TransactionStore
 }
 
 func (vm *VMKeeper) MakeGnoTransactionStore(ctx sdk.Context) sdk.Context {
-	return ctx.WithValue(gnoStoreContextKey, vm.newGnoTransactionStore(ctx))
+	return ctx.WithValue(keeperKeyGnoStore, vm.newGnoTransactionStore(ctx))
 }
 
 func (vm *VMKeeper) CommitGnoTransactionStore(ctx sdk.Context) {
@@ -218,13 +221,56 @@ func (vm *VMKeeper) CommitGnoTransactionStore(ctx sdk.Context) {
 }
 
 func (vm *VMKeeper) getGnoTransactionStore(ctx sdk.Context) gno.TransactionStore {
-	txStore := ctx.Value(gnoStoreContextKey).(gno.TransactionStore)
+	txStore := ctx.Value(keeperKeyGnoStore).(gno.TransactionStore)
 	txStore.ClearObjectCache()
 	return txStore
 }
 
 // Namespace can be either a user or crypto address.
 var reNamespace = regexp.MustCompile(`^gno.land/(?:r|p)/([\.~_a-zA-Z0-9]+)`)
+
+// ExecContextCustom is a subset of [stdlibs.ExecContext] which can be used to
+// inject custom fields at genesis.
+type ExecContextCustom struct {
+	// Height is the BlockHeight: it is not recommended to set the same
+	// BlockHeight as the one used by the previous iteration of the chain, as
+	// from the realm's point of view it will eventually be as if a height
+	// occurred twice at different times: instead, use negative heights.
+	// (Last block should be -1, as 0 is the genesis block).
+	Height    int64 `json:"height"`
+	Timestamp int64 `json:"timestamp"`
+}
+
+// InjectExecContextCustom returns a new sdk.Context, which contains the given
+// [ExecContextCustom]. This can be used to modify Height and timestamp in
+// genesis transactions.
+func InjectExecContextCustom(ctx sdk.Context, e ExecContextCustom) sdk.Context {
+	return ctx.WithValue(keeperKeyCustomContext, e)
+}
+
+func (vm *VMKeeper) newExecContext(ctx sdk.Context, creator, pkgAddr crypto.Address) stdlibs.ExecContext {
+	execCtx := stdlibs.ExecContext{
+		ChainID:       ctx.ChainID(),
+		Height:        ctx.BlockHeight(),
+		Timestamp:     ctx.BlockTime().Unix(),
+		OrigCaller:    creator.Bech32(),
+		OrigSendSpent: new(std.Coins),
+		OrigPkgAddr:   pkgAddr.Bech32(),
+		Banker:        NewSDKBanker(vm, ctx),
+		EventLogger:   ctx.EventLogger(),
+	}
+
+	// if we're at genesis, ctx.Context() can change Height and Timestamp.
+	if ctx.BlockHeight() == 0 {
+		v, ok := ctx.Value(keeperKeyCustomContext).(ExecContextCustom)
+		if ok {
+			execCtx.Height = v.Height
+			execCtx.Timestamp = v.Timestamp
+		}
+	}
+
+	return execCtx
+}
 
 // checkNamespacePermission check if the user as given has correct permssion to on the given pkg path
 func (vm *VMKeeper) checkNamespacePermission(ctx sdk.Context, creator crypto.Address, pkgPath string) error {
@@ -253,17 +299,8 @@ func (vm *VMKeeper) checkNamespacePermission(ctx sdk.Context, creator crypto.Add
 
 	// Parse and run the files, construct *PV.
 	pkgAddr := gno.DerivePkgAddr(pkgPath)
-	msgCtx := stdlibs.ExecContext{
-		ChainID:       ctx.ChainID(),
-		Height:        ctx.BlockHeight(),
-		Timestamp:     ctx.BlockTime().Unix(),
-		OrigCaller:    creator.Bech32(),
-		OrigSendSpent: new(std.Coins),
-		OrigPkgAddr:   pkgAddr.Bech32(),
-		// XXX: should we remove the banker ?
-		Banker:      NewSDKBanker(vm, ctx),
-		EventLogger: ctx.EventLogger(),
-	}
+	msgCtx := vm.newExecContext(ctx, creator, pkgAddr)
+	// XXX: should we remove the banker from this ExecContext?
 
 	m := gno.NewMachineWithOptions(
 		gno.MachineOptions{
@@ -353,18 +390,8 @@ func (vm *VMKeeper) AddPackage(ctx sdk.Context, msg MsgAddPackage) (err error) {
 	}
 
 	// Parse and run the files, construct *PV.
-	msgCtx := stdlibs.ExecContext{
-		ChainID:       ctx.ChainID(),
-		Height:        ctx.BlockHeight(),
-		Timestamp:     ctx.BlockTime().Unix(),
-		Msg:           msg,
-		OrigCaller:    creator.Bech32(),
-		OrigSend:      deposit,
-		OrigSendSpent: new(std.Coins),
-		OrigPkgAddr:   pkgAddr.Bech32(),
-		Banker:        NewSDKBanker(vm, ctx),
-		EventLogger:   ctx.EventLogger(),
-	}
+	msgCtx := vm.newExecContext(ctx, creator, pkgAddr)
+	msgCtx.OrigSend = deposit
 	// Parse and run the files, construct *PV.
 	m2 := gno.NewMachineWithOptions(
 		gno.MachineOptions{
@@ -454,18 +481,8 @@ func (vm *VMKeeper) Call(ctx sdk.Context, msg MsgCall) (res string, err error) {
 	// Make context.
 	// NOTE: if this is too expensive,
 	// could it be safely partially memoized?
-	msgCtx := stdlibs.ExecContext{
-		ChainID:       ctx.ChainID(),
-		Height:        ctx.BlockHeight(),
-		Timestamp:     ctx.BlockTime().Unix(),
-		Msg:           msg,
-		OrigCaller:    caller.Bech32(),
-		OrigSend:      send,
-		OrigSendSpent: new(std.Coins),
-		OrigPkgAddr:   pkgAddr.Bech32(),
-		Banker:        NewSDKBanker(vm, ctx),
-		EventLogger:   ctx.EventLogger(),
-	}
+	msgCtx := vm.newExecContext(ctx, caller, pkgAddr)
+	msgCtx.OrigSend = send
 	// Construct machine and evaluate.
 	m := gno.NewMachineWithOptions(
 		gno.MachineOptions{
@@ -553,18 +570,8 @@ func (vm *VMKeeper) Run(ctx sdk.Context, msg MsgRun) (res string, err error) {
 	}
 
 	// Parse and run the files, construct *PV.
-	msgCtx := stdlibs.ExecContext{
-		ChainID:       ctx.ChainID(),
-		Height:        ctx.BlockHeight(),
-		Timestamp:     ctx.BlockTime().Unix(),
-		Msg:           msg,
-		OrigCaller:    caller.Bech32(),
-		OrigSend:      send,
-		OrigSendSpent: new(std.Coins),
-		OrigPkgAddr:   pkgAddr.Bech32(),
-		Banker:        NewSDKBanker(vm, ctx),
-		EventLogger:   ctx.EventLogger(),
-	}
+	msgCtx := vm.newExecContext(ctx, caller, pkgAddr)
+	msgCtx.OrigSend = send
 	// Parse and run the files, construct *PV.
 	buf := new(bytes.Buffer)
 	m := gno.NewMachineWithOptions(
@@ -714,18 +721,8 @@ func (vm *VMKeeper) QueryEval(ctx sdk.Context, pkgPath string, expr string) (res
 		return "", err
 	}
 	// Construct new machine.
-	msgCtx := stdlibs.ExecContext{
-		ChainID:   ctx.ChainID(),
-		Height:    ctx.BlockHeight(),
-		Timestamp: ctx.BlockTime().Unix(),
-		// Msg:           msg,
-		// OrigCaller:    caller,
-		// OrigSend:      send,
-		// OrigSendSpent: nil,
-		OrigPkgAddr: pkgAddr.Bech32(),
-		Banker:      NewSDKBanker(vm, ctx), // safe as long as ctx is a fork to be discarded.
-		EventLogger: ctx.EventLogger(),
-	}
+	// safe to pass ctx as long as it is a fork to be discarded.
+	msgCtx := vm.newExecContext(ctx, crypto.Address{}, pkgAddr)
 	m := gno.NewMachineWithOptions(
 		gno.MachineOptions{
 			PkgPath:   pkgPath,
@@ -781,18 +778,7 @@ func (vm *VMKeeper) QueryEvalString(ctx sdk.Context, pkgPath string, expr string
 		return "", err
 	}
 	// Construct new machine.
-	msgCtx := stdlibs.ExecContext{
-		ChainID:   ctx.ChainID(),
-		Height:    ctx.BlockHeight(),
-		Timestamp: ctx.BlockTime().Unix(),
-		// Msg:           msg,
-		// OrigCaller:    caller,
-		// OrigSend:      jsend,
-		// OrigSendSpent: nil,
-		OrigPkgAddr: pkgAddr.Bech32(),
-		Banker:      NewSDKBanker(vm, ctx), // safe as long as ctx is a fork to be discarded.
-		EventLogger: ctx.EventLogger(),
-	}
+	msgCtx := vm.newExecContext(ctx, crypto.Address{}, pkgAddr)
 	m := gno.NewMachineWithOptions(
 		gno.MachineOptions{
 			PkgPath:   pkgPath,
