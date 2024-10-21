@@ -1,0 +1,26 @@
+# Test with a valid _test.gno file
+
+gno test -print-events .
+
+! stdout .+ 
+stderr 'EVENTS: \[{\"type\":\"EventA\",\"attrs\":\[\],\"pkg_path\":\"gno.land/r/.*\",\"func\":\"TestA\"}\]'
+stderr 'EVENTS: \[{\"type\":\"EventB\",\"attrs\":\[{\"key\":\"keyA\",\"value\":\"valA\"}\],\"pkg_path\":\"gno.land/r/.*\",\"func\":\"TestB\"},{\"type\":\"EventC\",\"attrs\":\[{\"key\":\"keyD\",\"value\":\"valD\"}\],\"pkg_path\":\"gno.land/r/.*\",\"func\":\"TestB\"}\]'
+stderr 'ok      \. 	\d\.\d\ds'
+
+-- valid.gno --
+package valid
+
+-- valid_test.gno --
+package valid
+
+import "testing"
+import "std"
+
+func TestA(t *testing.T) {
+	std.Emit("EventA")
+}
+
+func TestB(t *testing.T) {
+	std.Emit("EventB", "keyA", "valA")
+	std.Emit("EventC", "keyD", "valD")
+}
