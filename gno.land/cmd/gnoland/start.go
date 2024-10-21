@@ -32,6 +32,12 @@ import (
 
 const defaultNodeDir = "gnoland-data"
 
+var (
+	gnoroot                    = gnoenv.RootDir()
+	defaultGenesisBalancesFile = filepath.Join(gnoroot, "gno.land", "genesis", "genesis_balances.txt")
+	defaultGenesisTxsFile      = filepath.Join(gnoroot, "gno.land", "genesis", "genesis_txs.jsonl")
+)
+
 var errMissingGenesis = errors.New("missing genesis.json")
 
 var startGraphic = strings.ReplaceAll(`
@@ -75,29 +81,25 @@ func newStartCmd(io commands.IO) *commands.Command {
 }
 
 func (c *startCfg) RegisterFlags(fs *flag.FlagSet) {
-	gnoroot := gnoenv.RootDir()
-	defaultGenesisBalancesFile := filepath.Join(gnoroot, "gno.land", "genesis", "genesis_balances.txt")
-	defaultGenesisTxsFile := filepath.Join(gnoroot, "gno.land", "genesis", "genesis_txs.jsonl")
-
 	fs.BoolVar(
 		&c.skipFailingGenesisTxs,
 		"skip-failing-genesis-txs",
 		false,
-		"don't panic when replaying invalid genesis txs",
+		"don't panic when replaying invalid genesis txs (with -lazy)",
 	)
 
 	fs.StringVar(
 		&c.genesisBalancesFile,
 		"genesis-balances-file",
 		defaultGenesisBalancesFile,
-		"initial distribution file",
+		"initial distribution file (with -lazy)",
 	)
 
 	fs.StringVar(
 		&c.genesisTxsFile,
 		"genesis-txs-file",
 		defaultGenesisTxsFile,
-		"initial txs to replay",
+		"initial txs to replay (with -lazy)",
 	)
 
 	fs.StringVar(
@@ -188,6 +190,16 @@ func execStart(ctx context.Context, c *startCfg, io commands.IO) error {
 		if err := lazyInitNodeDir(io, nodeDir); err != nil {
 			return fmt.Errorf("unable to lazy-init the node directory, %w", err)
 		}
+	} else if c.skipFailingGenesisTxs ||
+		c.genesisBalancesFile != defaultGenesisBalancesFile ||
+		c.genesisTxsFile != defaultGenesisTxsFile {
+		// These options only work with -lazy (#2391)
+		return fmt.Errorf(
+			`error: -skip-failing-genesis-txs, -genesis-balances-file, -genesis-txs-file only work with -lazy and will be removed soon. 
+
+Please see 'gnoland genesis balances -h'
+       and 'gnoland genesis txs -h' instead to manually prepare a genesis without -lazy`,
+		)
 	}
 
 	// Load the configuration
@@ -319,7 +331,7 @@ func lazyInitNodeDir(io commands.IO, nodeDir string) error {
 	return fmt.Errorf("unable to initialize secrets, %w", err)
 }
 
-// lazyInitGenesis a new genesis.json file, with a signle validator
+// lazyInitGenesis a new genesis.json file, with a single validator
 func lazyInitGenesis(
 	io commands.IO,
 	c *startCfg,
