@@ -722,7 +722,7 @@ var nativeFuncs = [...]NativeFunc{
 	},
 	{
 		"std",
-		"setConfigString",
+		"setParamString",
 		[]gno.FieldTypeExpr{
 			{Name: gno.N("p0"), Type: gno.X("string")},
 			{Name: gno.N("p1"), Type: gno.X("string")},
@@ -741,14 +741,14 @@ var nativeFuncs = [...]NativeFunc{
 			gno.Gno2GoValue(b.GetPointerTo(nil, gno.NewValuePathBlock(1, 0, "")).TV, rp0)
 			gno.Gno2GoValue(b.GetPointerTo(nil, gno.NewValuePathBlock(1, 1, "")).TV, rp1)
 
-			libs_std.X_setConfigString(
+			libs_std.X_setParamString(
 				m,
 				p0, p1)
 		},
 	},
 	{
 		"std",
-		"setConfigBool",
+		"setParamBool",
 		[]gno.FieldTypeExpr{
 			{Name: gno.N("p0"), Type: gno.X("string")},
 			{Name: gno.N("p1"), Type: gno.X("bool")},
@@ -767,14 +767,14 @@ var nativeFuncs = [...]NativeFunc{
 			gno.Gno2GoValue(b.GetPointerTo(nil, gno.NewValuePathBlock(1, 0, "")).TV, rp0)
 			gno.Gno2GoValue(b.GetPointerTo(nil, gno.NewValuePathBlock(1, 1, "")).TV, rp1)
 
-			libs_std.X_setConfigBool(
+			libs_std.X_setParamBool(
 				m,
 				p0, p1)
 		},
 	},
 	{
 		"std",
-		"setConfigInt64",
+		"setParamInt64",
 		[]gno.FieldTypeExpr{
 			{Name: gno.N("p0"), Type: gno.X("string")},
 			{Name: gno.N("p1"), Type: gno.X("int64")},
@@ -793,14 +793,14 @@ var nativeFuncs = [...]NativeFunc{
 			gno.Gno2GoValue(b.GetPointerTo(nil, gno.NewValuePathBlock(1, 0, "")).TV, rp0)
 			gno.Gno2GoValue(b.GetPointerTo(nil, gno.NewValuePathBlock(1, 1, "")).TV, rp1)
 
-			libs_std.X_setConfigInt64(
+			libs_std.X_setParamInt64(
 				m,
 				p0, p1)
 		},
 	},
 	{
 		"std",
-		"setConfigUint64",
+		"setParamUint64",
 		[]gno.FieldTypeExpr{
 			{Name: gno.N("p0"), Type: gno.X("string")},
 			{Name: gno.N("p1"), Type: gno.X("uint64")},
@@ -819,7 +819,33 @@ var nativeFuncs = [...]NativeFunc{
 			gno.Gno2GoValue(b.GetPointerTo(nil, gno.NewValuePathBlock(1, 0, "")).TV, rp0)
 			gno.Gno2GoValue(b.GetPointerTo(nil, gno.NewValuePathBlock(1, 1, "")).TV, rp1)
 
-			libs_std.X_setConfigUint64(
+			libs_std.X_setParamUint64(
+				m,
+				p0, p1)
+		},
+	},
+	{
+		"std",
+		"setParamBytes",
+		[]gno.FieldTypeExpr{
+			{Name: gno.N("p0"), Type: gno.X("string")},
+			{Name: gno.N("p1"), Type: gno.X("[]byte")},
+		},
+		[]gno.FieldTypeExpr{},
+		true,
+		func(m *gno.Machine) {
+			b := m.LastBlock()
+			var (
+				p0  string
+				rp0 = reflect.ValueOf(&p0).Elem()
+				p1  []byte
+				rp1 = reflect.ValueOf(&p1).Elem()
+			)
+
+			gno.Gno2GoValue(b.GetPointerTo(nil, gno.NewValuePathBlock(1, 0, "")).TV, rp0)
+			gno.Gno2GoValue(b.GetPointerTo(nil, gno.NewValuePathBlock(1, 1, "")).TV, rp1)
+
+			libs_std.X_setParamBytes(
 				m,
 				p0, p1)
 		},

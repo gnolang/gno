@@ -53,11 +53,6 @@ gnokey maketx call -pkgpath gno.land/r/sys/setter -func SetBaz -args 31337 -gas-
 gnokey query params/vm/gno.land/r/sys/setter.baz.int64
 stdout 'data: "31337"'
 
-
-
-
-# XXX: create a non-sys package that should fail?
-
 -- setter/setter.gno --
 package setter
 
@@ -65,6 +60,6 @@ import (
 	"std"
 )
 
-func SetFoo(newFoo string) { std.SetConfig("foo", newFoo) }
-func SetBar(newBar bool)   { std.SetConfig("bar", newBar) }
-func SetBaz(newBaz int64)  { std.SetConfig("baz", newBaz) }
+func SetFoo(newFoo string) { std.SetParam("foo", newFoo) }
+func SetBar(newBar bool)   { std.SetParam("bar", newBar) }
+func SetBaz(newBaz int64)  { std.SetParam("baz", newBaz) }

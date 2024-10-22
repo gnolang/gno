@@ -17,27 +17,32 @@ type ParamsInterface interface {
 	SetBool(key string, val bool)
 	SetInt64(key string, val int64)
 	SetUint64(key string, val uint64)
-	// XXX: GetString(key string) (string, error)?
+	SetBytes(key string, val []byte)
 }
 
-func X_setConfigString(m *gno.Machine, key, val string) {
+func X_setParamString(m *gno.Machine, key, val string) {
 	pk := pkey(m, key, "string")
 	GetContext(m).Params.SetString(pk, val)
 }
 
-func X_setConfigBool(m *gno.Machine, key string, val bool) {
+func X_setParamBool(m *gno.Machine, key string, val bool) {
 	pk := pkey(m, key, "bool")
 	GetContext(m).Params.SetBool(pk, val)
 }
 
-func X_setConfigInt64(m *gno.Machine, key string, val int64) {
+func X_setParamInt64(m *gno.Machine, key string, val int64) {
 	pk := pkey(m, key, "int64")
 	GetContext(m).Params.SetInt64(pk, val)
 }
 
-func X_setConfigUint64(m *gno.Machine, key string, val uint64) {
+func X_setParamUint64(m *gno.Machine, key string, val uint64) {
 	pk := pkey(m, key, "uint64")
 	GetContext(m).Params.SetUint64(pk, val)
+}
+
+func X_setParamBytes(m *gno.Machine, key string, val []byte) {
+	pk := pkey(m, key, "bytes")
+	GetContext(m).Params.SetBytes(pk, val)
 }
 
 func pkey(m *gno.Machine, key string, kind string) string {

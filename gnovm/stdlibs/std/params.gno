@@ -1,28 +1,30 @@
 package std
 
 // These are native bindings to the banker's functions.
-func setConfigString(key string, val string)
-func setConfigBool(key string, val bool)
-func setConfigInt64(key string, val int64)
-func setConfigUint64(key string, val uint64)
+func setParamString(key string, val string)
+func setParamBool(key string, val bool)
+func setParamInt64(key string, val int64)
+func setParamUint64(key string, val uint64)
+func setParamBytes(key string, val []byte)
 
 // XXX: add doc
-func SetConfig(key string, val interface{}) {
+func SetParam(key string, val interface{}) {
 	switch v := val.(type) {
 	case string:
-		setConfigString(key, v)
+		setParamString(key, v)
 	case bool:
-		setConfigBool(key, v)
+		setParamBool(key, v)
 	case int64:
-		setConfigInt64(key, v)
+		setParamInt64(key, v)
 	case uint64:
-		setConfigUint64(key, v)
+		setParamUint64(key, v)
+	case []byte:
+		setParamBytes(key, v)
 	default:
 		panic("unsupported type")
 	}
 }
 
-// XXX: add doc
 //func GetConfig(key string) string {
 //	return getConfig(key)
 //}
