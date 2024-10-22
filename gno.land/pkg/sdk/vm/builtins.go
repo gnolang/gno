@@ -3,7 +3,6 @@ package vm
 import (
 	"github.com/gnolang/gno/tm2/pkg/crypto"
 	"github.com/gnolang/gno/tm2/pkg/sdk"
-	"github.com/gnolang/gno/tm2/pkg/sdk/params"
 	"github.com/gnolang/gno/tm2/pkg/std"
 )
 
@@ -72,41 +71,10 @@ func NewSDKParams(vmk *VMKeeper, ctx sdk.Context) *SDKParams {
 	}
 }
 
-// SetXXX helpers:
-// - dynamically register a new key with the corresponding type in the paramset table (only once).
-// - set the value.
-
-func (prm *SDKParams) SetString(key, value string) {
-	// if !prm.vmk.prmk.Has(prm.ctx, key) {
-	// XXX: bad workaround, maybe we should have a dedicated "dynamic keeper" allowing to create keys on the go?
-	if !prm.vmk.prmk.HasTypeKey(key) {
-		prm.vmk.prmk.RegisterType(params.NewParamSetPair(key, "", validateNoOp))
-	}
-	prm.vmk.prmk.Set(prm.ctx, key, value)
-}
-
-func (prm *SDKParams) SetBool(key string, value bool) {
-	// if !prm.vmk.prmk.Has(prm.ctx, key) {
-	if !prm.vmk.prmk.HasTypeKey(key) {
-		prm.vmk.prmk.RegisterType(params.NewParamSetPair(key, true, validateNoOp))
-	}
-	prm.vmk.prmk.Set(prm.ctx, key, value)
-}
-
-func (prm *SDKParams) SetInt64(key string, value int64) {
-	// if !prm.vmk.prmk.Has(prm.ctx, key) {
-	if !prm.vmk.prmk.HasTypeKey(key) {
-		prm.vmk.prmk.RegisterType(params.NewParamSetPair(key, int64(0), validateNoOp))
-	}
-	prm.vmk.prmk.Set(prm.ctx, key, value)
-}
-
+func (prm *SDKParams) SetString(key, value string)      { prm.vmk.prmk.SetString(prm.ctx, key, value) }
+func (prm *SDKParams) SetBool(key string, value bool)   { prm.vmk.prmk.SetBool(prm.ctx, key, value) }
+func (prm *SDKParams) SetInt64(key string, value int64) { prm.vmk.prmk.SetInt64(prm.ctx, key, value) }
 func (prm *SDKParams) SetUint64(key string, value uint64) {
-	// if !prm.vmk.prmk.Has(prm.ctx, key) {
-	if !prm.vmk.prmk.HasTypeKey(key) {
-		prm.vmk.prmk.RegisterType(params.NewParamSetPair(key, uint64(0), validateNoOp))
-	}
-	prm.vmk.prmk.Set(prm.ctx, key, value)
+	prm.vmk.prmk.SetUint64(prm.ctx, key, value)
 }
-
-func validateNoOp(_ interface{}) error { return nil }
+func (prm *SDKParams) SetBytes(key string, value []byte) { prm.vmk.prmk.SetBytes(prm.ctx, key, value) }
