@@ -20,11 +20,10 @@ import (
 )
 
 type InMemoryNodeConfig struct {
-	PrivValidator      bft.PrivValidator // identity of the validator
-	Genesis            *bft.GenesisDoc
-	TMConfig           *tmcfg.Config
-	GenesisMaxVMCycles int64
-	DB                 *memdb.MemDB // will be initialized if nil
+	PrivValidator bft.PrivValidator // identity of the validator
+	Genesis       *bft.GenesisDoc
+	TMConfig      *tmcfg.Config
+	DB            *memdb.MemDB // will be initialized if nil
 
 	// If StdlibDir not set, then it's filepath.Join(TMConfig.RootDir, "gnovm", "stdlibs")
 	InitChainerConfig
