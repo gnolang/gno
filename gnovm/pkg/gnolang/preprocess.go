@@ -270,9 +270,11 @@ func initStaticBlocks(store Store, ctx BlockNode, bn BlockNode) {
 					if n.Key != nil {
 						nx := n.Key.(*NameExpr)
 						if nx.Name != blankIdentifier {
-							// XXX, this should be uncommented when fully supporting Go1.22 loopvar,
-							// to make it consistent with for i := 0; i < 10; i++ {...}.
+							// XXX, this should be uncommented when fully
+							// support Go1.22 loopvar, to make it consistent
+							// with for i := 0; i < 10; i++ {...}.
 							// nx.Type = NameExprTypeDefine
+
 							last.Predefine(false, nx.Name)
 						}
 					}
