@@ -98,6 +98,10 @@ func (m *Machine) doOpExec(op Op) {
 			if bs.Cond != nil {
 				cond := m.PopValue()
 				if !cond.GetBool() {
+					for _, value := range m.LastBlock().Roots {
+						m.Alloc.DeallocObj(*value.tv)
+					}
+
 					// done with loop.
 					m.PopFrameAndReset()
 					return
