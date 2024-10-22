@@ -118,7 +118,7 @@ func TestVMKeeperOrigSend1(t *testing.T) {
 
 	// Create test package.
 	files := []*std.MemFile{
-		{"init.gno", `
+		{Name: "init.gno", Body: `
 package test
 
 import "std"
@@ -163,7 +163,7 @@ func TestVMKeeperOrigSend2(t *testing.T) {
 
 	// Create test package.
 	files := []*std.MemFile{
-		{"init.gno", `
+		{Name: "init.gno", Body: `
 package test
 
 import "std"
@@ -217,7 +217,7 @@ func TestVMKeeperOrigSend3(t *testing.T) {
 
 	// Create test package.
 	files := []*std.MemFile{
-		{"init.gno", `
+		{Name: "init.gno", Body: `
 package test
 
 import "std"
@@ -261,7 +261,7 @@ func TestVMKeeperRealmSend1(t *testing.T) {
 
 	// Create test package.
 	files := []*std.MemFile{
-		{"init.gno", `
+		{Name: "init.gno", Body: `
 package test
 
 import "std"
@@ -305,7 +305,7 @@ func TestVMKeeperRealmSend2(t *testing.T) {
 
 	// Create test package.
 	files := []*std.MemFile{
-		{"init.gno", `
+		{Name: "init.gno", Body: `
 package test
 
 import "std"
@@ -349,7 +349,7 @@ func TestVMKeeperOrigCallerInit(t *testing.T) {
 
 	// Create test package.
 	files := []*std.MemFile{
-		{"init.gno", `
+		{Name: "init.gno", Body: `
 package test
 
 import "std"
@@ -400,7 +400,7 @@ func TestVMKeeperRunSimple(t *testing.T) {
 	env.acck.SetAccount(ctx, acc)
 
 	files := []*std.MemFile{
-		{"script.gno", `
+		{Name: "script.gno", Body: `
 package main
 
 func main() {
@@ -439,7 +439,7 @@ func testVMKeeperRunImportStdlibs(t *testing.T, env testEnv) {
 	env.acck.SetAccount(ctx, acc)
 
 	files := []*std.MemFile{
-		{"script.gno", `
+		{Name: "script.gno", Body: `
 package main
 
 import "std"
@@ -511,7 +511,7 @@ func TestVMKeeperReinitialize(t *testing.T) {
 
 	// Create test package.
 	files := []*std.MemFile{
-		{"init.gno", `
+		{Name: "init.gno", Body: `
 package test
 
 func Echo(msg string) string {

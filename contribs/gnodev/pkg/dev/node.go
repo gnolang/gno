@@ -567,10 +567,9 @@ func newNodeConfig(tmc *tmcfg.Config, chainid, chaindomain string, appstate gnol
 	}
 
 	cfg := &gnoland.InMemoryNodeConfig{
-		PrivValidator:      pv,
-		TMConfig:           tmc,
-		Genesis:            genesis,
-		GenesisMaxVMCycles: 100_000_000,
+		PrivValidator: pv,
+		TMConfig:      tmc,
+		Genesis:       genesis,
 	}
 	cfg.InitChainerConfig.ChainDomain = chaindomain
 	return cfg

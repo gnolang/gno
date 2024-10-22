@@ -52,7 +52,6 @@ type startCfg struct {
 	chainID               string
 	chainDomain           string
 	dataDir               string
-	config                string
 	lazyInit              bool
 
 	logLevel  string
@@ -142,13 +141,6 @@ func (c *startCfg) RegisterFlags(fs *flag.FlagSet) {
 		"genesis-remote",
 		"localhost:26657",
 		"replacement for '%%REMOTE%%' in genesis",
-	)
-
-	fs.StringVar(
-		&c.config,
-		flagConfigFlag,
-		"",
-		"the flag config file (optional)",
 	)
 
 	fs.StringVar(
