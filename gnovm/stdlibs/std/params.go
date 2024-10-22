@@ -48,15 +48,15 @@ func X_setParamBytes(m *gno.Machine, key string, val []byte) {
 func pkey(m *gno.Machine, key string, kind string) string {
 	// validate key.
 	if len(key) == 0 {
-		panic("empty param key")
+		m.Panic(typedString("empty param key"))
 	}
 	first := rune(key[0])
 	if !unicode.IsLetter(first) && first != '_' {
-		panic("invalid param key: " + key)
+		m.Panic(typedString("invalid param key: " + key))
 	}
 	for _, char := range key[1:] {
 		if !unicode.IsLetter(char) && !unicode.IsDigit(char) && char != '_' {
-			panic("invalid param key: " + key)
+			m.Panic(typedString("invalid param key: " + key))
 		}
 	}
 
