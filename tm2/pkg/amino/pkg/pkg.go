@@ -126,18 +126,16 @@ func (pkg *Package) WithDependencies(deps ...*Package) *Package {
 	return pkg
 }
 
-// WithType() specifies which types are encoded and decoded by the package.
-// You must provide a list of instanciated objects in the arguments.
+// WithType specifies which types are encoded and decoded by the package.
+// You must provide a list of instantiated objects in the arguments.
 // Each type declaration may be optionally followed by a string which is then
 // used as its name.
 //
-// E.g. .WithTypes(
-//
-//	StructA{},
-//	&StructB{}, // If pointer receivers are preferred when decoding to interfaces.
-//	NoInputsError{}, "NoInputsError", // Named
-//
-// )
+//	pkg.WithTypes(
+//		StructA{},
+//		&StructB{}, // If pointer receivers are preferred when decoding to interfaces.
+//		NoInputsError{}, "NoInputsError", // Named
+//	)
 func (pkg *Package) WithTypes(objs ...interface{}) *Package {
 	var lastType *Type = nil
 	for _, obj := range objs {
