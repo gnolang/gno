@@ -15,7 +15,6 @@ import (
 	"github.com/gnolang/gno/gnovm/pkg/gnomod"
 	"github.com/gnolang/gno/tm2/pkg/commands"
 	"github.com/gnolang/gno/tm2/pkg/std"
-	"golang.org/x/mod/modfile"
 )
 
 const recursiveSuffix = string(os.PathSeparator) + "..."
@@ -203,16 +202,6 @@ func Load(io commands.IO, paths ...string) ([]*Package, error) {
 	return list, errors.Join(errs...)
 }
 
-func modIsDraft(modFile *modfile.File) bool {
-	comments := modFile.Syntax.Comment()
-	for _, comm := range comments.Before {
-		if strings.Contains(comm.Token, "Draft") {
-			return true
-		}
-	}
-	return false
-}
-
 func listDeps(target string, pkgs map[string]*Package) ([]string, error) {
 	deps := []string{}
 	err := listDepsRecursive(target, target, pkgs, &deps, make(map[string]struct{}))
@@ -259,10 +248,7 @@ func resolvePackage(io commands.IO, meta *PackageSummary) (*Package, error) {
 
 func resolveStdlib(ometa *PackageSummary) (*Package, error) {
 	meta := *ometa
-	gnoRoot, err := gnoenv.GuessRootDir()
-	if err != nil {
-		return nil, fmt.Errorf("failed to guess gno root dir: %w", err)
-	}
+	gnoRoot := defaultConfig().RootDir
 	parts := strings.Split(meta.PkgPath, "/")
 	meta.Root = filepath.Join(append([]string{gnoRoot, "gnovm", "stdlibs"}, parts...)...)
 	return fillPackage(&meta)

@@ -55,6 +55,7 @@ func MatchPatterns(s string, patterns ...string) (bool, error) {
 		var err error
 		if len(pattern) > 1 && pattern[0] == '/' && pattern[len(pattern)-1] == '/' {
 			pattern = pattern[1 : len(pattern)-1]
+			//nolint:forbidigo
 			res, err = regexp.Match(pattern, bs)
 		} else {
 			res, err = path.Match(pattern, path.Base(s))
