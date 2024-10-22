@@ -33,7 +33,7 @@ const (
 
 // CoverageData stores code coverage information
 type CoverageData struct {
-	Enabled        bool
+	Enabled        bool // -cover flag activated
 	Files          map[string]FileCoverage
 	PkgPath        string
 	RootDir        string
@@ -61,7 +61,9 @@ func NewCoverageData(rootDir string) *CoverageData {
 	}
 }
 
-func (c *CoverageData) SetEnabled(state bool) { c.Enabled = state }
+// func (c *CoverageData) SetEnabled(state bool) { c.Enabled = state }
+func (c *CoverageData) Enable()         { c.Enabled = true }
+func (c *CoverageData) Disable()        { c.Enabled = false }
 func (c *CoverageData) IsEnabled() bool       { return c.Enabled }
 
 // SetExecutableLines sets the executable lines for a given file path in the coverage data.

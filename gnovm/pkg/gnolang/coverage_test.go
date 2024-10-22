@@ -263,6 +263,7 @@ func TestRecordCoverage(t *testing.T) {
 				column: 5,
 			},
 			initialCoverage: &CoverageData{
+				Enabled: true,
 				Files: map[string]FileCoverage{
 					"testpkg/testfile.gno": {
 						HitLines:        make(map[int]int),
@@ -286,6 +287,7 @@ func TestRecordCoverage(t *testing.T) {
 				column: 5,
 			},
 			initialCoverage: &CoverageData{
+				Enabled: true,
 				Files: map[string]FileCoverage{
 					"testpkg/testfile.gno": {
 						HitLines:        map[int]int{10: 1},
@@ -309,6 +311,7 @@ func TestRecordCoverage(t *testing.T) {
 				column: 5,
 			},
 			initialCoverage: &CoverageData{
+				Enabled: true,
 				Files: map[string]FileCoverage{
 					"testpkg/testfile.gno": {
 						HitLines:        map[int]int{},
@@ -388,7 +391,6 @@ func TestViewFilesE2E(t *testing.T) {
 	assert.Contains(t, output, "return a + b")
 	assert.Contains(t, output, string(colorGreen))
 	assert.Contains(t, output, string(colorWhite))
-	// colorYellow은 이 테스트 케이스에서는 나타나지 않을 수 있으므로 제거
 
 	buf.Reset()
 	err = coverage.ViewFiles("file1", true, io)
@@ -480,7 +482,14 @@ func TestFormatLineInfoE2E(t *testing.T) {
 		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
-			got := coverage.formatLineInfo(tt.lineNumber, tt.line, tt.hitCount, tt.covered, tt.executable, tt.showHits)
+			got := coverage.formatLineInfo(
+				tt.lineNumber,
+				tt.line,
+				tt.hitCount,
+				tt.covered,
+				tt.executable,
+				tt.showHits,
+			)
 			assert.Equal(t, tt.want, got)
 		})
 	}

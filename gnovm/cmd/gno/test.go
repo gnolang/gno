@@ -291,7 +291,11 @@ func gnoTestPkg(
 	}
 
 	coverageData := gno.NewCoverageData(cfg.rootDir)
-	coverageData.SetEnabled(cfg.coverage)
+	if cfg.coverage {
+		coverageData.Enable()
+	} else {
+		coverageData.Disable()
+	}
 
 	// testing with *_test.gno
 	if len(unittestFiles) > 0 {
