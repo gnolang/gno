@@ -1,19 +1,36 @@
 package params
 
 import (
-	"fmt"
 	"log/slog"
-	"maps"
-	"reflect"
+	"strings"
 
 	"github.com/gnolang/gno/tm2/pkg/amino"
 	"github.com/gnolang/gno/tm2/pkg/sdk"
 	"github.com/gnolang/gno/tm2/pkg/store"
 )
 
+const (
+	ModuleName = "params"
+	StoreKey   = ModuleName
+)
+
 type ParamsKeeperI interface {
-	Get(ctx sdk.Context, key string, ptr interface{})
-	Set(ctx sdk.Context, key string, value interface{})
+	GetString(ctx sdk.Context, key string, ptr *string)
+	GetInt64(ctx sdk.Context, key string, ptr *int64)
+	GetUint64(ctx sdk.Context, key string, ptr *uint64)
+	GetBool(ctx sdk.Context, key string, ptr *bool)
+	GetBytes(ctx sdk.Context, key string, ptr *[]byte)
+
+	SetString(ctx sdk.Context, key string, value string)
+	SetInt64(ctx sdk.Context, key string, value int64)
+	SetUint64(ctx sdk.Context, key string, value uint64)
+	SetBool(ctx sdk.Context, key string, value bool)
+	SetBytes(ctx sdk.Context, key string, value []byte)
+
+	Has(ctx sdk.Context, key string) bool
+	GetRaw(ctx sdk.Context, key string) []byte
+
+	// XXX: ListKeys?
 }
 
 var _ ParamsKeeperI = ParamsKeeper{}
@@ -21,7 +38,6 @@ var _ ParamsKeeperI = ParamsKeeper{}
 // global paramstore Keeper.
 type ParamsKeeper struct {
 	key    store.StoreKey
-	table  KeyTable
 	prefix string
 }
 
@@ -29,7 +45,6 @@ type ParamsKeeper struct {
 func NewParamsKeeper(key store.StoreKey, prefix string) ParamsKeeper {
 	return ParamsKeeper{
 		key:    key,
-		table:  NewKeyTable(),
 		prefix: prefix,
 	}
 }
@@ -45,36 +60,83 @@ func (pk ParamsKeeper) Has(ctx sdk.Context, key string) bool {
 	return stor.Has([]byte(key))
 }
 
-func (pk ParamsKeeper) Get(ctx sdk.Context, key string, ptr interface{}) {
-	pk.checkType(key, ptr)
-	stor := ctx.Store(pk.key)
-	bz := stor.Get([]byte(key))
-	err := amino.UnmarshalJSON(bz, ptr)
-	if err != nil {
-		panic(err)
-	}
-}
-
-func (pk ParamsKeeper) GetIfExists(ctx sdk.Context, key string, ptr interface{}) {
-	stor := ctx.Store(pk.key)
-	bz := stor.Get([]byte(key))
-	if bz == nil {
-		return
-	}
-	pk.checkType(key, ptr)
-	err := amino.UnmarshalJSON(bz, ptr)
-	if err != nil {
-		panic(err)
-	}
-}
-
 func (pk ParamsKeeper) GetRaw(ctx sdk.Context, key string) []byte {
 	stor := ctx.Store(pk.key)
 	return stor.Get([]byte(key))
 }
 
-func (pk ParamsKeeper) Set(ctx sdk.Context, key string, value interface{}) {
-	pk.checkType(key, value)
+func (pk ParamsKeeper) GetString(ctx sdk.Context, key string, ptr *string) {
+	checkSuffix(key, ".string")
+	pk.getIfExists(ctx, key, ptr)
+}
+
+func (pk ParamsKeeper) GetBool(ctx sdk.Context, key string, ptr *bool) {
+	checkSuffix(key, ".bool")
+	pk.getIfExists(ctx, key, ptr)
+}
+
+func (pk ParamsKeeper) GetInt64(ctx sdk.Context, key string, ptr *int64) {
+	checkSuffix(key, ".int64")
+	pk.getIfExists(ctx, key, ptr)
+}
+
+func (pk ParamsKeeper) GetUint64(ctx sdk.Context, key string, ptr *uint64) {
+	checkSuffix(key, ".uint64")
+	pk.getIfExists(ctx, key, ptr)
+}
+
+func (pk ParamsKeeper) GetBytes(ctx sdk.Context, key string, ptr *[]byte) {
+	checkSuffix(key, ".bytes")
+	pk.getIfExists(ctx, key, ptr)
+}
+
+func (pk ParamsKeeper) SetString(ctx sdk.Context, key, value string) {
+	checkSuffix(key, ".string")
+	pk.set(ctx, key, value)
+}
+
+func (pk ParamsKeeper) SetBool(ctx sdk.Context, key string, value bool) {
+	checkSuffix(key, ".bool")
+	pk.set(ctx, key, value)
+}
+
+func (pk ParamsKeeper) SetInt64(ctx sdk.Context, key string, value int64) {
+	checkSuffix(key, ".int64")
+	pk.set(ctx, key, value)
+}
+
+func (pk ParamsKeeper) SetUint64(ctx sdk.Context, key string, value uint64) {
+	checkSuffix(key, ".uint64")
+	pk.set(ctx, key, value)
+}
+
+func (pk ParamsKeeper) SetBytes(ctx sdk.Context, key string, value []byte) {
+	checkSuffix(key, ".bytes")
+	pk.set(ctx, key, value)
+}
+
+func (pk ParamsKeeper) getIfExists(ctx sdk.Context, key string, ptr interface{}) {
+	stor := ctx.Store(pk.key)
+	bz := stor.Get([]byte(key))
+	if bz == nil {
+		return
+	}
+	err := amino.UnmarshalJSON(bz, ptr)
+	if err != nil {
+		panic(err)
+	}
+}
+
+func (pk ParamsKeeper) get(ctx sdk.Context, key string, ptr interface{}) {
+	stor := ctx.Store(pk.key)
+	bz := stor.Get([]byte(key))
+	err := amino.UnmarshalJSON(bz, ptr)
+	if err != nil {
+		panic(err)
+	}
+}
+
+func (pk ParamsKeeper) set(ctx sdk.Context, key string, value interface{}) {
 	stor := ctx.Store(pk.key)
 	bz, err := amino.MarshalJSON(value)
 	if err != nil {
@@ -83,86 +145,13 @@ func (pk ParamsKeeper) Set(ctx sdk.Context, key string, value interface{}) {
 	stor.Set([]byte(key), bz)
 }
 
-func (pk ParamsKeeper) Update(ctx sdk.Context, key string, value []byte) error {
-	attr, ok := pk.table.m[key]
-	if !ok {
-		panic(fmt.Sprintf("parameter %s not registered", key))
-	}
-
-	ty := attr.ty
-	dest := reflect.New(ty).Interface()
-	pk.GetIfExists(ctx, key, dest)
-
-	if err := amino.UnmarshalJSON(value, dest); err != nil {
-		return err
-	}
-
-	destValue := reflect.Indirect(reflect.ValueOf(dest)).Interface()
-	if err := pk.Validate(ctx, key, destValue); err != nil {
-		return err
-	}
-
-	pk.Set(ctx, key, dest)
-	return nil
-}
-
-func (pk ParamsKeeper) Validate(ctx sdk.Context, key string, value interface{}) error {
-	attr, ok := pk.table.m[key]
-	if !ok {
-		return fmt.Errorf("parameter %s not registered", key)
-	}
-
-	if err := attr.vfn(value); err != nil {
-		return fmt.Errorf("invalid parameter value: %w", err)
-	}
-
-	return nil
-}
-
-func (pk ParamsKeeper) checkType(key string, value interface{}) {
-	attr, ok := pk.table.m[key]
-	if !ok {
-		panic(fmt.Sprintf("parameter %s is not registered", key))
-	}
-
-	ty := attr.ty
-	pty := reflect.TypeOf(value)
-	if pty.Kind() == reflect.Ptr {
-		pty = pty.Elem()
-	}
-
-	if pty != ty {
-		panic("type mismatch with registered table")
+func checkSuffix(key, expectedSuffix string) {
+	var (
+		noSuffix = !strings.HasSuffix(key, expectedSuffix)
+		noName   = len(key) == len(expectedSuffix)
+		// XXX: additional sanity checks?
+	)
+	if noSuffix || noName {
+		panic(`key should be like "<name>` + expectedSuffix + `"`)
 	}
 }
-
-func (pk ParamsKeeper) HasKeyTable() bool {
-	return len(pk.table.m) > 0
-}
-
-func (pk ParamsKeeper) WithKeyTable(table KeyTable) ParamsKeeper {
-	if table.m == nil {
-		panic("WithKeyTable() called with nil KeyTable")
-	}
-	if len(pk.table.m) != 0 {
-		panic("WithKeyTable() called on already initialized Keeper")
-	}
-
-	maps.Copy(pk.table.m, table.m)
-	return pk
-}
-
-// XXX: added, should we remove?
-func (pk ParamsKeeper) RegisterType(psp ParamSetPair) {
-	pk.table.RegisterType(psp)
-}
-
-// XXX: added, should we remove?
-func (pk ParamsKeeper) HasTypeKey(key string) bool {
-	return pk.table.HasKey(key)
-}
-
-// XXX: GetAllKeys
-// XXX: GetAllParams
-// XXX: ViewKeeper
-// XXX: ModuleKeeper
