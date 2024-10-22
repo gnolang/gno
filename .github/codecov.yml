@@ -41,6 +41,6 @@ flag_management:
         threshold: 10
 
 ignore:
-  - gnovm/stdlibs/generated.go	
-  - gnovm/tests/stdlibs/generated.go
-  - **/*.pb.go
+  - "gnovm/stdlibs/generated.go"
+  - "gnovm/tests/stdlibs/generated.go"
+  - "**/*.pb.go"
