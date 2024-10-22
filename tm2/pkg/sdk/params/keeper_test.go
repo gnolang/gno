@@ -137,9 +137,6 @@ func TestKeeper_internal(t *testing.T) {
 	}
 }
 
-type (
-	invalid struct{}
-	s       struct{ I int }
-)
+type s struct{ I int }
 
 func indirect(ptr interface{}) interface{} { return reflect.ValueOf(ptr).Elem().Interface() }
