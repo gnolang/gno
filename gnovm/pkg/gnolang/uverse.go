@@ -66,6 +66,7 @@ var (
 )
 
 func init() {
+	// Call Uverse() so we initialize the Uverse node ahead of any calls to the package.
 	Uverse()
 }
 
