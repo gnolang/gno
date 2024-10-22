@@ -2,6 +2,7 @@ package std
 
 import (
 	"fmt"
+	"strings"
 	"unicode"
 
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
@@ -47,6 +48,11 @@ func X_setParamBytes(m *gno.Machine, key string, val []byte) {
 
 func pkey(m *gno.Machine, key string, kind string) string {
 	// validate key.
+	untypedKey := strings.TrimSuffix(key, "."+kind)
+	if key == untypedKey {
+		m.Panic(typedString("invalid param key: " + key))
+	}
+
 	if len(key) == 0 {
 		m.Panic(typedString("empty param key"))
 	}
@@ -54,7 +60,7 @@ func pkey(m *gno.Machine, key string, kind string) string {
 	if !unicode.IsLetter(first) && first != '_' {
 		m.Panic(typedString("invalid param key: " + key))
 	}
-	for _, char := range key[1:] {
+	for _, char := range untypedKey[1:] {
 		if !unicode.IsLetter(char) && !unicode.IsDigit(char) && char != '_' {
 			m.Panic(typedString("invalid param key: " + key))
 		}
@@ -62,5 +68,5 @@ func pkey(m *gno.Machine, key string, kind string) string {
 
 	// decorate key with realm and type.
 	_, rlmPath := currentRealm(m)
-	return fmt.Sprintf("%s.%s.%s", rlmPath, key, kind)
+	return fmt.Sprintf("%s.%s", rlmPath, key)
 }
