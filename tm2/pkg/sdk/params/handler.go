@@ -64,7 +64,7 @@ func abciResult(err error) sdk.Result {
 
 // returns the second component of a path.
 func secondPart(path string) string {
-	parts := strings.Split(path, "/")
+	parts := strings.SplitN(path, "/", 3)
 	if len(parts) < 2 {
 		return ""
 	} else {
@@ -74,9 +74,6 @@ func secondPart(path string) string {
 
 // returns the third component of a path, including other slashes.
 func thirdPartWithSlashes(path string) string {
-	secondSlash := strings.Index(path[strings.Index(path, "/")+1:], "/")
-	if secondSlash == -1 {
-		return "" // Return original if less than two slashes
-	}
-	return path[strings.Index(path, "/")+secondSlash+2:]
+	split := strings.SplitN(path, "/", 3)
+	return split[2]
 }
