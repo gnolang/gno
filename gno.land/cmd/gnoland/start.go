@@ -50,6 +50,7 @@ type startCfg struct {
 	genesisRemote         string // TODO: remove as part of https://github.com/gnolang/gno/issues/1952
 	genesisFile           string
 	chainID               string
+	chainDomain           string
 	dataDir               string
 	lazyInit              bool
 
@@ -112,6 +113,13 @@ func (c *startCfg) RegisterFlags(fs *flag.FlagSet) {
 		"chainid",
 		"dev",
 		"the ID of the chain",
+	)
+
+	fs.StringVar(
+		&c.chainDomain,
+		"chaindomain",
+		"gno.land",
+		"the domain of the chain for packages",
 	)
 
 	fs.StringVar(

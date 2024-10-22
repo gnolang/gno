@@ -58,6 +58,7 @@ func TestContext(pkgPath string, send std.Coins) *teststd.TestExecContext {
 	banker := newTestBanker(pkgAddr.Bech32(), pkgCoins)
 	ctx := stdlibs.ExecContext{
 		ChainID:       "dev",
+		ChainDomain:   "tests.gno.land",
 		Height:        123,
 		Timestamp:     1234567890,
 		Msg:           nil,

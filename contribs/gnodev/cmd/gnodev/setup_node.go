@@ -51,7 +51,7 @@ func setupDevNodeConfig(
 	balances gnoland.Balances,
 	pkgspath []gnodev.PackagePath,
 ) *gnodev.NodeConfig {
-	config := gnodev.DefaultNodeConfig(cfg.root)
+	config := gnodev.DefaultNodeConfig(cfg.root, cfg.chainDomain)
 
 	config.Logger = logger
 	config.Emitter = emitter
