@@ -1,6 +1,7 @@
 package std
 
 import (
+	"github.com/gnolang/gno/gnovm/pkg/gnolang"
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
 	"github.com/gnolang/gno/tm2/pkg/bech32"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
@@ -160,7 +161,7 @@ func X_decodeBech32(addr string) (prefix string, bytes [20]byte, ok bool) {
 
 func X_assertCallerIsRealm(m *gno.Machine) {
 	frame := m.Frames[m.NumFrames()-2]
-	if frame.LastPackage.IsPkgPath() {
+	if path := frame.LastPackage.PkgPath; !gnolang.IsRealmPath(path) {
 		m.Panic(typedString("caller is not a realm"))
 	}
 }

@@ -39,4 +39,3 @@ func testSetOrigSend(
 func testIssueCoins(addr string, denom []string, amt []int64)
 func getRealm(height int) (address string, pkgPath string)
 func isRealm(pkgPath string) bool
-
