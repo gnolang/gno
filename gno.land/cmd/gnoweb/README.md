@@ -2,7 +2,7 @@
 
 The gno.land web interface.
 
-Live demo: https://test3.gno.land/
+Live demo: https://gno.land/
 
 ## Install `gnoweb`
 
