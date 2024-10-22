@@ -298,6 +298,60 @@ func Echo(msg string) string {
 	assert.Error(t, err)
 }
 
+// Using x/params from a realm.
+func TestVMKeeperParams(t *testing.T) {
+	env := setupTestEnv()
+	ctx := env.vmk.MakeGnoTransactionStore(env.ctx)
+
+	// Give "addr1" some gnots.
+	addr := crypto.AddressFromPreimage([]byte("addr1"))
+	acc := env.acck.NewAccountWithAddress(ctx, addr)
+	env.acck.SetAccount(ctx, acc)
+	env.bank.SetCoins(ctx, addr, std.MustParseCoins(coinsString))
+	// env.prmk.
+	assert.True(t, env.bank.GetCoins(ctx, addr).IsEqual(std.MustParseCoins(coinsString)))
+
+	// Create test package.
+	files := []*std.MemFile{
+		{"init.gno", `
+package test
+
+import "std"
+
+func init() {
+	std.SetParam("foo", "foo1")
+}
+
+func Do() string {
+	std.SetParam("bar", int64(1337))
+	std.SetParam("foo", "foo2") // override init
+
+	return "XXX" // return std.GetConfig("gno.land/r/test.foo"), if we want to expose std.GetConfig, maybe as a std.TestGetConfig
+}`},
+	}
+	pkgPath := "gno.land/r/test"
+	msg1 := NewMsgAddPackage(addr, pkgPath, files)
+	err := env.vmk.AddPackage(ctx, msg1)
+	assert.NoError(t, err)
+
+	// Run Echo function.
+	coins := std.MustParseCoins(ugnot.ValueString(9_000_000))
+	msg2 := NewMsgCall(addr, coins, pkgPath, "Do", []string{})
+
+	res, err := env.vmk.Call(ctx, msg2)
+	assert.NoError(t, err)
+	_ = res
+	expected := fmt.Sprintf("(\"%s\" string)\n\n", "XXX") // XXX: return something more useful
+	assert.Equal(t, expected, res)
+
+	var foo string
+	var bar int64
+	env.vmk.prmk.GetString(ctx, "gno.land/r/test.foo.string", &foo)
+	env.vmk.prmk.GetInt64(ctx, "gno.land/r/test.bar.int64", &bar)
+	assert.Equal(t, "foo2", foo)
+	assert.Equal(t, int64(1337), bar)
+}
+
 // Assign admin as OrigCaller on deploying the package.
 func TestVMKeeperOrigCallerInit(t *testing.T) {
 	env := setupTestEnv()
@@ -320,7 +374,7 @@ import "std"
 var admin std.Address
 
 func init() {
-     admin =	std.GetOrigCaller()
+     admin = std.GetOrigCaller()
 }
 
 func Echo(msg string) string {

@@ -1,0 +1,65 @@
+# test for https://github.com/gnolang/gno/pull/2920
+
+gnoland start
+
+# query before adding the package
+gnokey query params/vm/gno.land/r/sys/setter.foo.string
+stdout 'data: $'
+gnokey query params/vm/gno.land/r/sys/setter.bar.bool
+stdout 'data: $'
+gnokey query params/vm/gno.land/r/sys/setter.baz.int64
+stdout 'data: $'
+
+gnokey maketx addpkg -pkgdir $WORK/setter -pkgpath gno.land/r/sys/setter -gas-fee 1000000ugnot -gas-wanted 100000000 -broadcast -chainid=tendermint_test test1
+
+# query after adding the package, but before setting values
+gnokey query params/vm/gno.land/r/sys/setter.foo.string
+stdout 'data: $'
+gnokey query params/vm/gno.land/r/sys/setter.bar.bool
+stdout 'data: $'
+gnokey query params/vm/gno.land/r/sys/setter.baz.int64
+stdout 'data: $'
+
+
+# set foo (string)
+gnokey maketx call -pkgpath gno.land/r/sys/setter -func SetFoo -args foo1 -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test test1
+gnokey query params/vm/gno.land/r/sys/setter.foo.string
+stdout 'data: "foo1"'
+
+# override foo
+gnokey maketx call -pkgpath gno.land/r/sys/setter -func SetFoo -args foo2 -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test test1
+gnokey query params/vm/gno.land/r/sys/setter.foo.string
+stdout 'data: "foo2"'
+
+
+# set bar (bool)
+gnokey maketx call -pkgpath gno.land/r/sys/setter -func SetBar -args true -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test test1
+gnokey query params/vm/gno.land/r/sys/setter.bar.bool
+stdout 'data: true'
+
+# override bar 
+gnokey maketx call -pkgpath gno.land/r/sys/setter -func SetBar -args false -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test test1
+gnokey query params/vm/gno.land/r/sys/setter.bar.bool
+stdout 'data: false'
+
+
+# set baz (bool)
+gnokey maketx call -pkgpath gno.land/r/sys/setter -func SetBaz -args 1337 -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test test1
+gnokey query params/vm/gno.land/r/sys/setter.baz.int64
+stdout 'data: "1337"'
+
+# override baz
+gnokey maketx call -pkgpath gno.land/r/sys/setter -func SetBaz -args 31337 -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test test1
+gnokey query params/vm/gno.land/r/sys/setter.baz.int64
+stdout 'data: "31337"'
+
+-- setter/setter.gno --
+package setter
+
+import (
+	"std"
+)
+
+func SetFoo(newFoo string) { std.SetParam("foo.string", newFoo) }
+func SetBar(newBar bool)   { std.SetParam("bar.bool", newBar) }
+func SetBaz(newBaz int64)  { std.SetParam("baz.int64", newBaz) }
