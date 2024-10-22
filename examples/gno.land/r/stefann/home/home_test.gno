@@ -6,10 +6,12 @@ import (
 	"testing"
 
 	"gno.land/p/demo/avl"
+	"gno.land/p/demo/testutils"
 )
 
 func TestUpdatePFP(t *testing.T) {
-	std.TestSetOrigCaller(std.Address("g1sd5ezmxt4rwpy52u6wl3l3y085n8x0p6nllxm8"))
+	var owner = std.Address("g1sd5ezmxt4rwpy52u6wl3l3y085n8x0p6nllxm8")
+	std.TestSetOrigCaller(owner)
 
 	profile.pfp = ""
 
@@ -21,7 +23,8 @@ func TestUpdatePFP(t *testing.T) {
 }
 
 func TestUpdateAboutMe(t *testing.T) {
-	std.TestSetOrigCaller(std.Address("g1sd5ezmxt4rwpy52u6wl3l3y085n8x0p6nllxm8"))
+	var owner = std.Address("g1sd5ezmxt4rwpy52u6wl3l3y085n8x0p6nllxm8")
+	std.TestSetOrigCaller(owner)
 
 	profile.aboutMe = []string{}
 
@@ -41,7 +44,8 @@ func TestUpdateAboutMe(t *testing.T) {
 }
 
 func TestUpdateCities(t *testing.T) {
-	std.TestSetOrigCaller(std.Address("g1sd5ezmxt4rwpy52u6wl3l3y085n8x0p6nllxm8"))
+	var owner = std.Address("g1sd5ezmxt4rwpy52u6wl3l3y085n8x0p6nllxm8")
+	std.TestSetOrigCaller(owner)
 
 	travel.cities = []City{}
 
@@ -62,7 +66,8 @@ func TestUpdateCities(t *testing.T) {
 }
 
 func TestUpdateJarLink(t *testing.T) {
-	std.TestSetOrigCaller(std.Address("g1sd5ezmxt4rwpy52u6wl3l3y085n8x0p6nllxm8"))
+	var owner = std.Address("g1sd5ezmxt4rwpy52u6wl3l3y085n8x0p6nllxm8")
+	std.TestSetOrigCaller(owner)
 
 	travel.jarLink = ""
 
@@ -74,7 +79,8 @@ func TestUpdateJarLink(t *testing.T) {
 }
 
 func TestUpdateMaxSponsors(t *testing.T) {
-	std.TestSetOrigCaller(std.Address("g1sd5ezmxt4rwpy52u6wl3l3y085n8x0p6nllxm8"))
+	var owner = std.Address("g1sd5ezmxt4rwpy52u6wl3l3y085n8x0p6nllxm8")
+	std.TestSetOrigCaller(owner)
 
 	sponsorship.maxSponsors = 0
 
@@ -93,7 +99,8 @@ func TestUpdateMaxSponsors(t *testing.T) {
 }
 
 func TestAddCities(t *testing.T) {
-	std.TestSetOrigCaller(std.Address("g1sd5ezmxt4rwpy52u6wl3l3y085n8x0p6nllxm8"))
+	var owner = std.Address("g1sd5ezmxt4rwpy52u6wl3l3y085n8x0p6nllxm8")
+	std.TestSetOrigCaller(owner)
 
 	travel.cities = []City{}
 
@@ -120,7 +127,8 @@ func TestAddCities(t *testing.T) {
 }
 
 func TestAddAboutMeRows(t *testing.T) {
-	std.TestSetOrigCaller(std.Address("g1sd5ezmxt4rwpy52u6wl3l3y085n8x0p6nllxm8"))
+	var owner = std.Address("g1sd5ezmxt4rwpy52u6wl3l3y085n8x0p6nllxm8")
+	std.TestSetOrigCaller(owner)
 
 	profile.aboutMe = []string{}
 
@@ -144,7 +152,8 @@ func TestAddAboutMeRows(t *testing.T) {
 }
 
 func TestDonate(t *testing.T) {
-	std.TestSetOrigCaller(std.Address("g1sd5ezmxt4rwpy52u6wl3l3y085n8x0p6nllxm8"))
+	var user = testutils.TestAddress("user")
+	std.TestSetOrigCaller(user)
 
 	sponsorship.sponsors = avl.NewTree()
 	sponsorship.DonationsCount = 0
@@ -155,7 +164,7 @@ func TestDonate(t *testing.T) {
 	std.TestSetOrigSend(coinsSent, std.NewCoins())
 	Donate()
 
-	existingAmount, exists := sponsorship.sponsors.Get("g1sd5ezmxt4rwpy52u6wl3l3y085n8x0p6nllxm8")
+	existingAmount, exists := sponsorship.sponsors.Get(string(user))
 	if !exists {
 		t.Fatalf("expected sponsor to be added, but it was not found")
 	}
@@ -180,7 +189,7 @@ func TestDonate(t *testing.T) {
 	std.TestSetOrigSend(coinsSent, std.NewCoins())
 	Donate()
 
-	existingAmount, exists = sponsorship.sponsors.Get("g1sd5ezmxt4rwpy52u6wl3l3y085n8x0p6nllxm8")
+	existingAmount, exists = sponsorship.sponsors.Get(string(user))
 	if !exists {
 		t.Fatalf("expected sponsor to exist after second donation, but it was not found")
 	}
@@ -199,7 +208,8 @@ func TestDonate(t *testing.T) {
 }
 
 func TestGetTopSponsors(t *testing.T) {
-	std.TestSetOrigCaller(std.Address("g1sd5ezmxt4rwpy52u6wl3l3y085n8x0p6nllxm8"))
+	var user = testutils.TestAddress("user")
+	std.TestSetOrigCaller(user)
 
 	sponsorship.sponsors = avl.NewTree()
 	sponsorship.sponsorsCount = 0
@@ -229,7 +239,8 @@ func TestGetTopSponsors(t *testing.T) {
 }
 
 func TestGetTotalDonations(t *testing.T) {
-	std.TestSetOrigCaller(std.Address("g1sd5ezmxt4rwpy52u6wl3l3y085n8x0p6nllxm8"))
+	var user = testutils.TestAddress("user")
+	std.TestSetOrigCaller(user)
 
 	sponsorship.sponsors = avl.NewTree()
 	sponsorship.sponsorsCount = 0
