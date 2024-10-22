@@ -270,9 +270,8 @@ func initStaticBlocks(store Store, ctx BlockNode, bn BlockNode) {
 					if n.Key != nil {
 						nx := n.Key.(*NameExpr)
 						if nx.Name != blankIdentifier {
-							// XXX, temp method to NOT heapDefine loopvar for range,
-							// to make it consistent with `for i:=0;i<3;i++;`,
-							// this should be uncommented when supporting full Go1.22 loopvar.
+							// XXX, this should be uncommented when fully supporting Go1.22 loopvar,
+							// to make it consistent with for i := 0; i < 10; i++ {...}.
 							// nx.Type = NameExprTypeDefine
 							last.Predefine(false, nx.Name)
 						}
@@ -280,7 +279,7 @@ func initStaticBlocks(store Store, ctx BlockNode, bn BlockNode) {
 					if n.Value != nil {
 						nx := n.Value.(*NameExpr)
 						if nx.Name != blankIdentifier {
-							// nx.Type = NameExprTypeDefine // ditto
+							// nx.Type = NameExprTypeDefine // XXX,ditto
 							last.Predefine(false, nx.Name)
 						}
 					}
@@ -3007,7 +3006,6 @@ func pushInitBlock(bn BlockNode, last *BlockNode, stack *[]BlockNode) {
 // like pushInitBlock(), but when the last block is a faux block,
 // namely after SwitchStmt and IfStmt.
 // Not idempotent, as it calls bn.Define with reference to last's TV value slot.
-// XXX do we need this?
 func pushInitBlockAndCopy(bn BlockNode, last *BlockNode, stack *[]BlockNode) {
 	if _, ok := bn.(*IfCaseStmt); !ok {
 		if _, ok := bn.(*SwitchClauseStmt); !ok {
