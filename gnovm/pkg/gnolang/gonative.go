@@ -866,7 +866,7 @@ func gno2GoType(t Type) reflect.Type {
 			return rt
 		} else {
 			// NOTE: can this be implemented in go1.15? i think not.
-			panic("not yet supported")
+			panic("gno2go conversion of type not yet supported: " + ct.String())
 		}
 	case *TypeType:
 		panic("should not happen")
@@ -890,7 +890,7 @@ func gno2GoType(t Type) reflect.Type {
 
 // If gno2GoTypeMatches(t, rt) is true, a t value can
 // be converted to an rt native value using gno2GoValue(v, rv).
-// This is called when autoNative is true in checkType().
+// This is called when autoNative is true in assertAssignableTo().
 // This is used for all native function calls, and also
 // for testing whether a native value implements a gno interface.
 func gno2GoTypeMatches(t Type, rt reflect.Type) (result bool) {
@@ -1258,16 +1258,25 @@ func (x *PackageNode) DefineGoNativeType(rt reflect.Type) {
 	x.Define(Name(name), asValue(nt))
 }
 
-func (x *PackageNode) DefineGoNativeValue(n Name, nv interface{}) {
+func (x *PackageNode) DefineGoNativeValue(name Name, nv interface{}) {
+	x.defineGoNativeValue(false, name, nv)
+}
+
+func (x *PackageNode) DefineGoNativeConstValue(name Name, nv interface{}) {
+	x.defineGoNativeValue(true, name, nv)
+}
+
+func (x *PackageNode) defineGoNativeValue(isConst bool, n Name, nv interface{}) {
 	if debug {
-		debug.Printf("*PackageNode.DefineGoNativeValue(%s)\n", reflect.ValueOf(nv).String())
+		debug.Printf("*PackageNode.defineGoNativeValue(%s)\n", reflect.ValueOf(nv).String())
 	}
 	rv := reflect.ValueOf(nv)
 	// rv is not settable, so create something that is.
 	rt := rv.Type()
 	rv2 := reflect.New(rt).Elem()
 	rv2.Set(rv)
-	x.Define(n, go2GnoValue(nilAllocator, rv2))
+	tv := go2GnoValue(nilAllocator, rv2)
+	x.Define2(isConst, n, tv.T, tv)
 }
 
 // ----------------------------------------

@@ -1,8 +1,6 @@
 package avl
 
-import (
-	"testing"
-)
+import "testing"
 
 func TestNewTree(t *testing.T) {
 	tree := NewTree()

@@ -1,8 +1,6 @@
 package int256
 
-import (
-	"gno.land/p/demo/uint256"
-)
+import "gno.land/p/demo/uint256"
 
 // SetInt64 sets z to x and returns z.
 func (z *Int) SetInt64(x int64) *Int {
@@ -84,5 +82,6 @@ func (z *Int) ToString() string {
 	if z.neg {
 		return "-" + t
 	}
+
 	return t
 }
