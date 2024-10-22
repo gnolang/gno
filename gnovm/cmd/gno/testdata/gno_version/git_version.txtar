@@ -1,0 +1,15 @@
+# testing gno version with git installation
+
+env GOPATH=
+mkdir .git
+exec git init .
+exec git config --global user.email "test@example.com"
+exec git config --global user.name "Test User"
+exec git commit --allow-empty -m "Initial commit"
+exec git tag v0.2.0
+gno version
+cmp stdout stdout.golden
+cmp stderr stderr.golden
+-- stdout.golden --
+gno version: v0.2.0
+-- stderr.golden --
