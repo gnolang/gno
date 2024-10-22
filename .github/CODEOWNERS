@@ -54,7 +54,7 @@
 /gno.land/cmd/genesis/        @zivkovicmilos
 /gno.land/cmd/gnokey/         @jaekwon @moul @gfanton
 /gno.land/cmd/gnoland/        @zivkovicmilos @gnolang/devops
-/gno.land/cmd/gnoweb/         @gfanton @thehowl
+/gno.land/cmd/gnoweb/         @gfanton @thehowl @alexiscolin
 /gno.land/pkg/gnoclient/      @zivkovicmilos @leohhhn @gfanton
 /gno.land/pkg/gnoland/        @zivkovicmilos @gfanton
 /gno.land/pkg/keyscli/        @jaekwon @moul @gfanton
