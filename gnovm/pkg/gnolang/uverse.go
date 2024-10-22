@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"reflect"
 	"strings"
-	"sync/atomic"
 )
 
 // ----------------------------------------
@@ -62,7 +61,7 @@ var gStringerType = &DeclaredType{
 var (
 	uverseNode  *PackageNode
 	uverseValue *PackageValue
-	uverseInit  atomic.Uint32 // 0 = not init; 1 = initializing; 2 = init'd
+	uverseInit  int
 )
 
 func init() {
@@ -76,11 +75,12 @@ const uversePkgPath = ".uverse"
 // If called while initializing the UverseNode itself, it will return an empty
 // PackageValue.
 func Uverse() *PackageValue {
-	switch {
-	case uverseInit.CompareAndSwap(0, 1):
+	switch uverseInit {
+	case 0:
+		uverseInit = 1
 		makeUverseNode()
-		uverseInit.Store(2)
-	case uverseInit.Load() == 1:
+		uverseInit = 2
+	case 1:
 		return &PackageValue{}
 	}
 
@@ -91,11 +91,12 @@ func Uverse() *PackageValue {
 // If called while initializing the UverseNode itself, it will return an empty
 // PackageNode.
 func UverseNode() *PackageNode {
-	switch {
-	case uverseInit.CompareAndSwap(0, 1):
+	switch uverseInit {
+	case 0:
+		uverseInit = 1
 		makeUverseNode()
-		uverseInit.Store(2)
-	case uverseInit.Load() == 1:
+		uverseInit = 2
+	case 1:
 		return &PackageNode{}
 	}
 
