@@ -2,7 +2,6 @@ package gnofiles
 
 import (
 	"os"
-	"strings"
 )
 
 // This file contains "definitions"; it attempts to centralize some common
@@ -41,15 +40,9 @@ func IsGnoFile(name string, patterns ...string) bool {
 }
 
 func IsGnoTestFile(p string) bool {
-	if !IsGnoFile(p) {
-		return false
-	}
-	return strings.HasSuffix(p, "_test.gno")
+	return IsGnoFile(p, "*_test.gno")
 }
 
 func IsGnoFiletestFile(p string) bool {
-	if !IsGnoFile(p) {
-		return false
-	}
-	return strings.HasSuffix(p, "_filetest.gno")
+	return IsGnoFile(p, "*_filetest.gno")
 }
