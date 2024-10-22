@@ -258,36 +258,35 @@ func renderSponsors() string {
 
 	if sponsorship.sponsorsCount == 0 {
 		return out + `<p style="text-align: center;">No sponsors yet. Be the first to tip the jar!</p>` + "\n"
-	} else {
-		topSponsors := GetTopSponsors()
-		numSponsors := len(topSponsors)
-		if numSponsors > sponsorship.maxSponsors {
-			numSponsors = sponsorship.maxSponsors
+	}
+
+	topSponsors := GetTopSponsors()
+	numSponsors := len(topSponsors)
+	if numSponsors > sponsorship.maxSponsors {
+		numSponsors = sponsorship.maxSponsors
+	}
+
+	out += `<ul style="list-style-type: none; padding: 0; border: 1px solid #ddd; border-radius: 8px; width: 100%; max-width: 300px; margin: 0 auto;">` + "\n"
+
+	for i := 0; i < numSponsors; i++ {
+		sponsor := topSponsors[i]
+		isLastItem := (i == numSponsors-1)
+
+		padding := "10px 5px"
+		border := "border-bottom: 1px solid #ddd;"
+
+		if isLastItem {
+			padding = "8px 5px"
+			border = ""
 		}
 
-		out += `<ul style="list-style-type: none; padding: 0; border: 1px solid #ddd; border-radius: 8px; width: 100%; max-width: 300px; margin: 0 auto;">` + "\n"
-
-		for i := 0; i < numSponsors; i++ {
-			sponsor := topSponsors[i]
-			isLastItem := (i == numSponsors-1)
-
-			padding := "10px 5px"
-			border := "border-bottom: 1px solid #ddd;"
-
-			if isLastItem {
-				padding = "8px 5px"
-				border = ""
-			}
-
-			out += ufmt.Sprintf(
-				`<li style="padding: %s; %s text-align: left;">
-                    <strong style="padding-left: 5px;">%d. %s</strong> 
-                    <span style="float: right; padding-right: 5px;">%s</span>
-                </li>`,
-				padding, border, i+1, formatAddress(sponsor.Address.String()), sponsor.Amount.String(),
-			)
-		}
-
+		out += ufmt.Sprintf(
+			`<li style="padding: %s; %s text-align: left;">
+				<strong style="padding-left: 5px;">%d. %s</strong> 
+				<span style="float: right; padding-right: 5px;">%s</span>
+			</li>`,
+			padding, border, i+1, formatAddress(sponsor.Address.String()), sponsor.Amount.String(),
+		)
 	}
 
 	return out
