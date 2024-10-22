@@ -7,16 +7,16 @@ import (
 	"gno.land/p/demo/fqname"
 	"gno.land/p/demo/seqid"
 	"gno.land/p/demo/ufmt"
+	hl "gno.land/p/moul/helplink"
 )
 
 const (
-	likesBar = "#### [%d 👍](/r/demo/hof?help&__func=Upvote&pkgpath=%s) - [%d 👎](/r/demo/hof?help&__func=Downvote&pkgPath=%s)\n\n"
-	delBar   = "[Delete](/r/demo/hof?help&__func=Delete&pkgpath=%s)\n\n"
 	pageSize = 20
 )
 
 func Render(path string) string {
 	out := "# Hall of Fame\n\n"
+
 	out += exhibition.Render(path, path == "dashboard")
 
 	return out
@@ -56,19 +56,14 @@ func (i Item) Render(dashboard bool) string {
 	out += ufmt.Sprintf("by %s\n\n", strings.Split(i.pkgpath, "/")[2])
 	out += ufmt.Sprintf("[View realm](%s)\n\n", fqname.ShortPath(i.pkgpath))
 	out += ufmt.Sprintf("Published at Block #%d\n\n", i.blockNum)
-	out += ufmt.Sprintf(
-		likesBar,
-		i.upvote.Size(),
-		i.pkgpath,
-		i.downvote.Size(),
-		i.pkgpath,
+
+	out += ufmt.Sprintf("#### [%d👍](%s) - [%d👎](%s)\n\n",
+		i.upvote.Size(), hl.FuncURL("Upvote", "pkgpath", i.pkgpath),
+		i.downvote.Size(), hl.FuncURL("Downvote", "pkgpath", i.pkgpath),
 	)
 
 	if dashboard {
-		out += ufmt.Sprintf(
-			delBar,
-			i.pkgpath,
-		)
+		out += hl.Func("Delete", "Delete", "pkgpath", i.pkgpath)
 	}
 
 	return out
