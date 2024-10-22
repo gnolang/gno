@@ -23,23 +23,28 @@ import (
 // color scheme for coverage report
 const (
 	colorReset  = "\033[0m"
-	colorOrange = "\033[38;5;208m" // orange indicates a number of hits
-	colorRed    = "\033[31m"       // red indicates no hits
-	colorGreen  = "\033[32m"       // green indicates full coverage, or executed lines
-	colorYellow = "\033[33m"       // yellow indicates partial coverage, or executable but not executed lines
-	colorWhite  = "\033[37m"       // white indicates non-executable lines
-	boldText    = "\033[1m"        // bold text
+	colorOrange = "\033[38;5;208m" // number of hits
+	colorRed    = "\033[31m"       // no hits
+	colorGreen  = "\033[32m"       // covered lines
+	colorYellow = "\033[33m"       // partial coverage, or executable but not executed lines
+	colorWhite  = "\033[37m"       // non-executable lines
+	boldText    = "\033[1m"
+)
+
+type (
+	fileCoverageMap map[string]FileCoverage
+	pathCache       map[string]string
 )
 
 // CoverageData stores code coverage information
 type CoverageData struct {
 	Enabled        bool // -cover flag activated
-	Files          map[string]FileCoverage
 	PkgPath        string
 	RootDir        string
 	CurrentPackage string
 	CurrentFile    string
-	pathCache      map[string]string // relative path to absolute path
+	pathCache      pathCache
+	Files          fileCoverageMap
 	mu             sync.RWMutex
 }
 
@@ -52,19 +57,18 @@ type FileCoverage struct {
 
 func NewCoverageData(rootDir string) *CoverageData {
 	return &CoverageData{
-		Files:          make(map[string]FileCoverage),
-		PkgPath:        "",
 		RootDir:        rootDir,
+		PkgPath:        "",
 		CurrentPackage: "",
 		CurrentFile:    "",
-		pathCache:      make(map[string]string),
+		Files:          make(fileCoverageMap),
+		pathCache:      make(pathCache),
 	}
 }
 
-// func (c *CoverageData) SetEnabled(state bool) { c.Enabled = state }
 func (c *CoverageData) Enable()         { c.Enabled = true }
 func (c *CoverageData) Disable()        { c.Enabled = false }
-func (c *CoverageData) IsEnabled() bool       { return c.Enabled }
+func (c *CoverageData) IsEnabled() bool { return c.Enabled }
 
 // SetExecutableLines sets the executable lines for a given file path in the coverage data.
 // It updates the ExecutableLines map for the given file path with the provided executable lines.
@@ -156,7 +160,10 @@ func (c *CoverageData) Report(io commands.IO) {
 		pct := calculateCoverage(hitLines, totalLines)
 		color := getCoverageColor(pct)
 		if totalLines != 0 {
-			io.Printfln("%s%.1f%% [%4d/%d] %s%s", color, floor1(pct), hitLines, totalLines, file, colorReset)
+			io.Printfln(
+				"%s%.1f%% [%4d/%d] %s%s",
+				color, floor1(pct), hitLines, totalLines, file, colorReset,
+			)
 		}
 	}
 }
@@ -180,7 +187,11 @@ func (c *CoverageData) ViewFiles(pattern string, showHits bool, io commands.IO) 
 	return nil
 }
 
-func (c *CoverageData) viewSingleFileCoverage(filePath string, showHits bool, io commands.IO) error {
+func (c *CoverageData) viewSingleFileCoverage(
+	filePath string,
+	showHits bool,
+	io commands.IO,
+) error {
 	realPath, err := c.findAbsoluteFilePath(filePath)
 	if err != nil {
 		return err
@@ -202,7 +213,12 @@ func (c *CoverageData) viewSingleFileCoverage(filePath string, showHits bool, io
 	return c.printFileContent(file, coverage, showHits, io)
 }
 
-func (c *CoverageData) printFileContent(file *os.File, coverage FileCoverage, showHits bool, io commands.IO) error {
+func (c *CoverageData) printFileContent(
+	file *os.File,
+	coverage FileCoverage,
+	showHits bool,
+	io commands.IO,
+) error {
 	scanner := bufio.NewScanner(file)
 	lineNumber := 1
 
@@ -210,7 +226,14 @@ func (c *CoverageData) printFileContent(file *os.File, coverage FileCoverage, sh
 		line := scanner.Text()
 		hitCount, covered := coverage.HitLines[lineNumber]
 
-		lineInfo := c.formatLineInfo(lineNumber, line, hitCount, covered, coverage.ExecutableLines[lineNumber], showHits)
+		lineInfo := c.formatLineInfo(
+			lineNumber,
+			line,
+			hitCount,
+			covered,
+			coverage.ExecutableLines[lineNumber],
+			showHits,
+		)
 		io.Printfln(lineInfo)
 
 		lineNumber++
@@ -219,14 +242,18 @@ func (c *CoverageData) printFileContent(file *os.File, coverage FileCoverage, sh
 	return scanner.Err()
 }
 
-func (c *CoverageData) formatLineInfo(lineNumber int, line string, hitCount int, covered, executable, showHits bool) string {
+func (c *CoverageData) formatLineInfo(
+	lineNumber int,
+	line string,
+	hitCount int,
+	covered, executable, showHits bool,
+) string {
 	lineNumStr := fmt.Sprintf("%4d", lineNumber)
-
 	color := c.getLineColor(covered, executable)
-
 	hitInfo := c.getHitInfo(hitCount, covered, showHits)
 
 	format := "%s%s%s %s%s%s%s"
+
 	return fmt.Sprintf(format, color, lineNumStr, colorReset, hitInfo, color, line, colorReset)
 }
 
@@ -325,8 +352,10 @@ func isTestFile(pkgPath string) bool {
 		strings.HasSuffix(pkgPath, "_filetest.gno")
 }
 
+type jsonCoverageMap map[string]JSONFileCoverage
+
 type JSONCoverage struct {
-	Files map[string]JSONFileCoverage `json:"files"`
+	Files jsonCoverageMap `json:"files"`
 }
 
 type JSONFileCoverage struct {
@@ -336,7 +365,7 @@ type JSONFileCoverage struct {
 
 func (c *CoverageData) ToJSON() ([]byte, error) {
 	jsonCov := JSONCoverage{
-		Files: make(map[string]JSONFileCoverage),
+		Files: make(jsonCoverageMap),
 	}
 
 	for file, coverage := range c.Files {
@@ -363,6 +392,7 @@ func (c *CoverageData) SaveJSON(fileName string) error {
 	return os.WriteFile(fileName, data, 0o644)
 }
 
+// TODO: temporary HTML output. need to match with go coverage tool
 func (c *CoverageData) SaveHTML(outputFileName string) error {
 	tmpl := `
 <!DOCTYPE html>
