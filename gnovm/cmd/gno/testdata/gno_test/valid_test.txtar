@@ -3,12 +3,13 @@
 gno test .
 
 ! stdout .+ 
-stderr 'ok      \. 	\d\.\d\ds'
+# expected gasUsed information
+stderr 'ok      . 	total gas used: 353'
 
 gno test ./...
 
 ! stdout .+ 
-stderr 'ok      \. 	\d\.\d\ds'
+stderr 'ok      . 	total gas used: 353'
 
 -- valid.gno --
 package valid
