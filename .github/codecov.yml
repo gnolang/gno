@@ -39,3 +39,8 @@ flag_management:
       - type: patch
         target: auto # Let's decrease this later.
         threshold: 10
+
+ignore:
+  - gnovm/stdlibs/generated.go	
+  - gnovm/tests/stdlibs/generated.go
+  - **/*.pb.go
