@@ -198,6 +198,17 @@ func (pkg *Package) WithTypes(objs ...interface{}) *Package {
 		}
 		pkg.Types = append(pkg.Types, lastType)
 	}
+	seen := make(map[string]struct{})
+	for _, tp := range pkg.Types {
+		// tp.Name is "" for cases like nativePkg, containing go native types.
+		if tp.Name == "" {
+			continue
+		}
+		if _, ok := seen[tp.Name]; ok {
+			panic("duplicate type name " + tp.Name)
+		}
+		seen[tp.Name] = struct{}{}
+	}
 	return pkg
 }
 

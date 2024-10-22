@@ -295,16 +295,11 @@ func TestDupNamesMustPanic(t *testing.T) {
 		tests.PrimitivesStruct{}, "B",
 		tests.ShortArraysStruct{}, "C",
 	)
-	// BUG? currently following new test does NOT panic.
-	// Commenting out so it doesn't break.
-	//
-	// assert.Panics(t, func() {
-	// 	makepkg().WithTypes(
-	// 		tests.EmptyStruct{}, "A",
-	// 		tests.PrimitivesStruct{}, "B",
-	// 		tests.ShortArraysStruct{}, "A", // Same name!
-	// 	)
-	// })
+	assert.Panics(t, func() {
+		makepkg().WithTypes(
+			tests.EmptyStruct{}, "A",
+			tests.PrimitivesStruct{}, "B",
+			tests.ShortArraysStruct{}, "A", // Same name!
+		)
+	})
 }
-
-// XXX Test registering duplicate names or concrete types not in a package.
