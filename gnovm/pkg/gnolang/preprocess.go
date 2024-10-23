@@ -2425,29 +2425,23 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 						tvs[i] = anyValue(st)
 					}
 				}
+
 				// define.
+				node := last
 				if fn, ok := last.(*FileNode); ok {
-					pn := fn.GetParentNode(nil).(*PackageNode)
-					for i := 0; i < numNames; i++ {
-						nx := &n.NameExprs[i]
-						if nx.Name == blankIdentifier {
-							nx.Path = NewValuePathBlock(0, 0, blankIdentifier)
-						} else {
-							pn.Define2(n.Const, nx.Name, sts[i], tvs[i])
-							nx.Path = last.GetPathForName(nil, nx.Name)
-						}
-					}
-				} else {
-					for i := 0; i < numNames; i++ {
-						nx := &n.NameExprs[i]
-						if nx.Name == blankIdentifier {
-							nx.Path = NewValuePathBlock(0, 0, blankIdentifier)
-						} else {
-							last.Define2(n.Const, nx.Name, sts[i], tvs[i])
-							nx.Path = last.GetPathForName(nil, nx.Name)
-						}
+					node = fn.GetParentNode(nil).(*PackageNode)
+				}
+
+				for i := 0; i < numNames; i++ {
+					nx := &n.NameExprs[i]
+					if nx.Name == blankIdentifier {
+						nx.Path = NewValuePathBlock(0, 0, blankIdentifier)
+					} else {
+						node.Define2(n.Const, nx.Name, sts[i], tvs[i])
+						nx.Path = last.GetPathForName(nil, nx.Name)
 					}
 				}
+
 				// TODO make note of constance in static block for
 				// future use, or consider "const paths".  set as
 				// preprocessed.
