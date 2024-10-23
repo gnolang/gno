@@ -3703,6 +3703,11 @@ func tryPredefine(store Store, last BlockNode, d Decl) (un Name) {
 		})
 		d.Path = last.GetPathForName(store, d.Name)
 	case *ValueDecl:
+		if d.Type != nil {
+			if tx, ok := d.Type.(*NameExpr); ok && tx.Name == blankIdentifier {
+				panic("cannot use _ as value or type")
+			}
+		}
 		un = findUndefined(store, last, d.Type)
 		if un != "" {
 			return
