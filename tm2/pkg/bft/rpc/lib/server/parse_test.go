@@ -198,8 +198,6 @@ func TestParseURINonJSON(t *testing.T) {
 		return decoded
 	}
 
-	const bas
-
 	// Test cases for non-JSON encoded parameters
 	nonJSONCases := []struct {
 		raw    []string
