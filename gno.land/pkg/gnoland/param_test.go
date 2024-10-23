@@ -19,6 +19,7 @@ func TestParam_Parse(t *testing.T) {
 		{"valid bool", "foo.bool=true", Param{key: "foo.bool", boolVal: true}, false},
 		{"valid bytes", "foo.bytes=AAAA", Param{key: "foo.bytes", bytesVal: []byte{0xaa, 0xaa}}, false},
 		{"invalid key", "invalidkey=foo", Param{}, true},
+		{"invalid kind", "invalid.kind=foo", Param{}, true},
 		{"invalid int64", "invalid.int64=foobar", Param{}, true},
 		{"invalid uint64", "invalid.uint64=-42", Param{}, true},
 	}
