@@ -5,7 +5,6 @@ import (
 	"net"
 
 	"github.com/gnolang/gno/tm2/pkg/p2p/conn"
-	"github.com/gnolang/gno/tm2/pkg/p2p/events"
 	"github.com/gnolang/gno/tm2/pkg/p2p/types"
 	"github.com/gnolang/gno/tm2/pkg/service"
 )
@@ -76,9 +75,6 @@ type Transport interface {
 // Switch is the abstraction in the p2p module that handles
 // and manages peer connections thorough a Transport
 type Switch interface {
-	// Subscribe subscribes to peer events on the switch
-	Subscribe(filterFn events.EventFilter) (<-chan events.Event, func())
-
 	// Broadcast publishes data on the given channel, to all peers
 	Broadcast(chID byte, data []byte)
 

@@ -4,12 +4,10 @@ import (
 	"net"
 
 	"github.com/gnolang/gno/tm2/pkg/p2p"
-	"github.com/gnolang/gno/tm2/pkg/p2p/events"
 	"github.com/gnolang/gno/tm2/pkg/p2p/types"
 )
 
 type (
-	subscribeDelegate        func(events.EventFilter) (<-chan events.Event, func())
 	broadcastDelegate        func(byte, []byte)
 	peersDelegate            func() p2p.PeerSet
 	stopPeerForErrorDelegate func(p2p.Peer, error)
@@ -17,19 +15,10 @@ type (
 )
 
 type mockSwitch struct {
-	subscribeFn        subscribeDelegate
 	broadcastFn        broadcastDelegate
 	peersFn            peersDelegate
 	stopPeerForErrorFn stopPeerForErrorDelegate
 	dialPeersFn        dialPeersDelegate
-}
-
-func (m *mockSwitch) Subscribe(filterFn events.EventFilter) (<-chan events.Event, func()) {
-	if m.subscribeFn != nil {
-		return m.subscribeFn(filterFn)
-	}
-
-	return nil, nil
 }
 
 func (m *mockSwitch) Broadcast(chID byte, data []byte) {

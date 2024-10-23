@@ -66,3 +66,18 @@ func (q *Queue) Pop() *Item {
 
 	return q.items.PopFront()
 }
+
+// Has returns a flag indicating if the given
+// address is in the dial queue
+func (q *Queue) Has(addr *types.NetAddress) bool {
+	q.mux.RLock()
+	defer q.mux.RUnlock()
+
+	for _, i := range q.items {
+		if addr.Equals(*i.Address) {
+			return true
+		}
+	}
+
+	return false
+}

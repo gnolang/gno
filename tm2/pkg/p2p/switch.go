@@ -9,7 +9,6 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/p2p/config"
 	"github.com/gnolang/gno/tm2/pkg/p2p/conn"
 	"github.com/gnolang/gno/tm2/pkg/p2p/dial"
-	"github.com/gnolang/gno/tm2/pkg/p2p/events"
 	"github.com/gnolang/gno/tm2/pkg/p2p/types"
 	"github.com/gnolang/gno/tm2/pkg/service"
 	"github.com/gnolang/gno/tm2/pkg/telemetry"
@@ -61,7 +60,6 @@ type MultiplexSwitch struct {
 	transport       Transport
 
 	dialQueue *dial.Queue
-	events    *events.Events
 }
 
 // NewSwitch creates a new MultiplexSwitch with the given config.
@@ -76,7 +74,6 @@ func NewSwitch(
 		peers:            newSet(),
 		transport:        transport,
 		dialQueue:        dial.NewQueue(),
-		events:           events.New(),
 		maxInboundPeers:  defaultCfg.MaxNumInboundPeers,
 		maxOutboundPeers: defaultCfg.MaxNumOutboundPeers,
 	}
@@ -101,12 +98,6 @@ func NewSwitch(
 	}
 
 	return sw
-}
-
-// Subscribe registers to live events happening on the p2p MultiplexSwitch.
-// Returns the notification channel, along with an unsubscribe method
-func (sw *MultiplexSwitch) Subscribe(filterFn events.EventFilter) (<-chan events.Event, func()) {
-	return sw.events.Subscribe(filterFn)
 }
 
 // ---------------------------------------------------------------------
@@ -276,6 +267,16 @@ func (sw *MultiplexSwitch) runDialLoop(ctx context.Context) {
 
 			peerAddr := item.Address
 
+			// Check if the peer is already connected
+			if sw.Peers().Has(peerAddr.ID) || sw.Peers().HasIP(peerAddr.IP) {
+				sw.Logger.Warn(
+					"ignoring dial request for existing peer",
+					"id", peerAddr.ID,
+				)
+
+				continue
+			}
+
 			p, err := sw.transport.Dial(ctx, *peerAddr, sw.peerBehavior)
 			if err != nil {
 				sw.Logger.Error(
@@ -318,83 +319,41 @@ func (sw *MultiplexSwitch) runDialLoop(ctx context.Context) {
 
 // runRedialLoop starts the persistent peer redial loop
 func (sw *MultiplexSwitch) runRedialLoop(ctx context.Context) {
-	var wg sync.WaitGroup
+	ticker := time.NewTicker(time.Second * 10)
+	defer ticker.Stop()
 
-	wg.Add(2)
+	for {
+		select {
+		case <-ctx.Done():
+			sw.Logger.Debug("redial crawl context canceled")
 
-	go func() {
-		defer wg.Done()
+			return
+		case <-ticker.C:
+			peers := sw.Peers()
 
-		ticker := time.NewTicker(time.Second * 5)
-		defer ticker.Stop()
+			peersToDial := make([]*types.NetAddress, 0)
 
-		for {
-			select {
-			case <-ctx.Done():
-				sw.Logger.Debug("redial crawl context canceled")
+			sw.persistentPeers.Range(func(key, value any) bool {
+				var (
+					id   = key.(types.ID)
+					addr = value.(*types.NetAddress)
+				)
 
-				return
-			case <-ticker.C:
-				peers := sw.Peers()
-
-				peersToDial := make([]*types.NetAddress, 0)
-
-				sw.persistentPeers.Range(func(key, value any) bool {
-					var (
-						id   = key.(types.ID)
-						addr = value.(*types.NetAddress)
-					)
-
-					if !peers.Has(id) {
-						peersToDial = append(peersToDial, addr)
-					}
-
+				// Check if the peer is part of the peer set
+				// or is scheduled for dialing
+				if peers.Has(id) || sw.dialQueue.Has(addr) {
 					return true
-				})
-			}
-		}
-	}()
-
-	go func() {
-		defer wg.Done()
-
-		// Set up the event subscription for persistent peer disconnects
-		subCh, unsubFn := sw.Subscribe(func(event events.Event) bool {
-			// Make sure the peer event relates to a peer disconnect
-			if event.Type() != events.PeerDisconnected {
-				return false
-			}
-
-			disconnectEv, ok := event.(*events.PeerDisconnectedEvent)
-			if !ok {
-				return false
-			}
-
-			return sw.isPersistentPeer(disconnectEv.PeerID)
-		})
-		defer unsubFn()
-
-		for {
-			select {
-			case <-ctx.Done():
-				sw.Logger.Debug("redial event context canceled")
-
-				return
-			case ev := <-subCh:
-				disconnectEv := ev.(*events.PeerDisconnectedEvent)
-
-				// Dial the disconnected peer
-				item := dial.Item{
-					Time:    time.Now().Add(5 * time.Second),
-					Address: &disconnectEv.Address,
 				}
 
-				sw.dialQueue.Push(item)
-			}
-		}
-	}()
+				peersToDial = append(peersToDial, addr)
 
-	wg.Wait()
+				return true
+			})
+
+			// Add the peers to the dial queue
+			sw.DialPeers(peersToDial...)
+		}
+	}
 }
 
 // DialPeers adds the peers to the dial queue for async dialing.
