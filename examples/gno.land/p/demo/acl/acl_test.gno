@@ -356,6 +356,60 @@ func TestUserGroups(t *testing.T) {
 	shouldNotHasPerm(t, dir, cst, "read", "r/demo/boards:gnolang/3")
 }
 
+func TestPermDuplication(t *testing.T) {
+	user := testutils.TestAddress("user")
+
+	dir := New()
+	dir.AddUserPerm(user, "write", "r/demo/boards:gnolang/3")
+	dir.AddUserPerm(user, "write", "r/demo/boards:gnolang/3")
+
+	shouldHasPerm(t, dir, user, "write", "r/demo/boards:gnolang/3")
+
+	dir.RemoveUserPerm(user, "write", "r/demo/boards:gnolang/3")
+	shouldNotHasPerm(t, dir, user, "write", "r/demo/boards:gnolang/3")
+
+	dir.AddUserPerms(user, []string{"write", "write"}, "r/demo/boards:gnolang/3")
+	shouldHasPerm(t, dir, user, "write", "r/demo/boards:gnolang/3")
+
+	dir.RemoveUserPerm(user, "write", "r/demo/boards:gnolang/3")
+	shouldNotHasPerm(t, dir, user, "write", "r/demo/boards:gnolang/3")
+
+	dir.AddGroupPerm("mods", "write", "r/demo/boards:gnolang/3")
+	dir.AddGroupPerm("mods", "write", "r/demo/boards:gnolang/3")
+	dir.AddUserToGroup(user, "mods")
+
+	shouldHasPerm(t, dir, user, "write", "r/demo/boards:gnolang/3")
+
+	dir.RemoveGroupPerm("mods", "write", "r/demo/boards:gnolang/3")
+	shouldNotHasPerm(t, dir, user, "write", "r/demo/boards:gnolang/3")
+
+	dir.AddGroupPerms("mods", []string{"write", "write"}, "r/demo/boards:gnolang/3")
+	shouldHasPerm(t, dir, user, "write", "r/demo/boards:gnolang/3")
+
+	dir.RemoveGroupPerm("mods", "write", "r/demo/boards:gnolang/3")
+	shouldNotHasPerm(t, dir, user, "write", "r/demo/boards:gnolang/3")
+}
+
+func TestUserDuplication(t *testing.T) {
+	user := testutils.TestAddress("user")
+
+	dir := New()
+	dir.AddGroupPerm("mods", "write", "r/demo/boards:gnolang/4")
+	dir.AddUserToGroup(user, "mods")
+	dir.AddUserToGroup(user, "mods")
+
+	shouldHasPerm(t, dir, user, "write", "r/demo/boards:gnolang/4")
+
+	dir.RemoveUserFromGroup(user, "mods")
+	shouldNotHasPerm(t, dir, user, "write", "r/demo/boards:gnolang/4")
+
+	dir.AddUserToGroups(user, []string{"mods", "mods"})
+	shouldHasPerm(t, dir, user, "write", "r/demo/boards:gnolang/4")
+
+	dir.RemoveUserFromGroup(user, "mods")
+	shouldNotHasPerm(t, dir, user, "write", "r/demo/boards:gnolang/4")
+}
+
 func shouldHasRole(t *testing.T, dir *Directory, addr std.Address, role string) {
 	t.Helper()
 	check := dir.HasRole(addr, role)
