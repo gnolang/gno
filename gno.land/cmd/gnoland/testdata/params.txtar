@@ -60,6 +60,6 @@ import (
 	"std"
 )
 
-func SetFoo(newFoo string) { std.SetParam("foo.string", newFoo) }
-func SetBar(newBar bool)   { std.SetParam("bar.bool", newBar) }
-func SetBaz(newBaz int64)  { std.SetParam("baz.int64", newBaz) }
+func SetFoo(newFoo string) { std.SetParamString("foo.string", newFoo) }
+func SetBar(newBar bool)   { std.SetParamBool("bar.bool", newBar) }
+func SetBaz(newBaz int64)  { std.SetParamInt64("baz.int64", newBaz) }
