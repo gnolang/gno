@@ -626,6 +626,6 @@ func TestPeer_NewPeer(t *testing.T) {
 	)
 
 	assert.NotPanics(t, func() {
-		_ = NewPeer(connInfo, types.NodeInfo{}, mConfig)
+		_ = newPeer(connInfo, types.NodeInfo{}, mConfig)
 	})
 }

@@ -357,8 +357,6 @@ func (sw *Switch) DialPeers(peerAddrs ...*types.NetAddress) {
 	for _, peerAddr := range peerAddrs {
 		// Check if this is our address
 		if peerAddr.Same(sw.transport.NetAddress()) {
-			sw.Logger.Warn("ignoring request for self-dial")
-
 			continue
 		}
 

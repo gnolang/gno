@@ -14,7 +14,8 @@ import (
 
 	"github.com/gnolang/gno/tm2/pkg/bft/appconn"
 	"github.com/gnolang/gno/tm2/pkg/bft/state/eventstore/file"
-	types2 "github.com/gnolang/gno/tm2/pkg/p2p/types"
+	"github.com/gnolang/gno/tm2/pkg/p2p/conn"
+	p2pTypes "github.com/gnolang/gno/tm2/pkg/p2p/types"
 	"github.com/rs/cors"
 
 	"github.com/gnolang/gno/tm2/pkg/amino"
@@ -87,7 +88,7 @@ func DefaultNewNode(
 	logger *slog.Logger,
 ) (*Node, error) {
 	// Generate node PrivKey
-	nodeKey, err := types2.LoadOrGenNodeKey(config.NodeKeyFile())
+	nodeKey, err := p2pTypes.LoadOrGenNodeKey(config.NodeKeyFile())
 	if err != nil {
 		return nil, err
 	}
@@ -133,8 +134,8 @@ type Node struct {
 	// network
 	transport   *p2p.Transport
 	sw          *p2p.Switch // p2p connections
-	nodeInfo    types2.NodeInfo
-	nodeKey     *types2.NodeKey // our node privkey
+	nodeInfo    p2pTypes.NodeInfo
+	nodeKey     *p2pTypes.NodeKey // our node privkey
 	isListening bool
 
 	// services
@@ -317,7 +318,7 @@ func createConsensusReactor(config *cfg.Config,
 // NewNode returns a new, ready to go, Tendermint Node.
 func NewNode(config *cfg.Config,
 	privValidator types.PrivValidator,
-	nodeKey *types2.NodeKey,
+	nodeKey *p2pTypes.NodeKey,
 	clientCreator appconn.ClientCreator,
 	genesisDocProvider GenesisDocProvider,
 	dbProvider DBProvider,
@@ -442,7 +443,7 @@ func NewNode(config *cfg.Config,
 	)
 
 	// Setup Switch.
-	peerAddrs, errs := types2.NewNetAddressFromStrings(splitAndTrimEmpty(config.P2P.PersistentPeers, ",", " "))
+	peerAddrs, errs := p2pTypes.NewNetAddressFromStrings(splitAndTrimEmpty(config.P2P.PersistentPeers, ",", " "))
 	for _, err := range errs {
 		p2pLogger.Error("invalid persistent peer address", "err", err)
 	}
@@ -534,7 +535,7 @@ func (n *Node) OnStart() error {
 	}
 
 	// Start the transport.
-	addr, err := types2.NewNetAddressFromString(types2.NetAddressString(n.nodeKey.ID(), n.config.P2P.ListenAddress))
+	addr, err := p2pTypes.NewNetAddressFromString(p2pTypes.NetAddressString(n.nodeKey.ID(), n.config.P2P.ListenAddress))
 	if err != nil {
 		return err
 	}
@@ -562,7 +563,7 @@ func (n *Node) OnStart() error {
 	}
 
 	// Always connect to persistent peers
-	peerAddrs, errs := types2.NewNetAddressFromStrings(splitAndTrimEmpty(n.config.P2P.PersistentPeers, ",", " "))
+	peerAddrs, errs := p2pTypes.NewNetAddressFromStrings(splitAndTrimEmpty(n.config.P2P.PersistentPeers, ",", " "))
 	for _, err := range errs {
 		n.Logger.Error("invalid persistent peer address", "err", err)
 	}
@@ -790,17 +791,17 @@ func (n *Node) IsListening() bool {
 }
 
 // NodeInfo returns the Node's Info from the Switch.
-func (n *Node) NodeInfo() types2.NodeInfo {
+func (n *Node) NodeInfo() p2pTypes.NodeInfo {
 	return n.nodeInfo
 }
 
 func makeNodeInfo(
 	config *cfg.Config,
-	nodeKey *types2.NodeKey,
+	nodeKey *p2pTypes.NodeKey,
 	txEventStore eventstore.TxEventStore,
 	genDoc *types.GenesisDoc,
 	state sm.State,
-) (types2.NodeInfo, error) {
+) (p2pTypes.NodeInfo, error) {
 	txIndexerStatus := eventstore.StatusOff
 	if txEventStore.GetType() != null.EventStoreType {
 		txIndexerStatus = eventstore.StatusOn
@@ -813,7 +814,7 @@ func makeNodeInfo(
 		Version: state.AppVersion,
 	})
 
-	nodeInfo := types2.NodeInfo{
+	nodeInfo := p2pTypes.NodeInfo{
 		VersionSet: vset,
 		Network:    genDoc.ChainID,
 		Version:    version.Version,
@@ -823,7 +824,7 @@ func makeNodeInfo(
 			mempl.MempoolChannel,
 		},
 		Moniker: config.Moniker,
-		Other: types2.NodeInfoOther{
+		Other: p2pTypes.NodeInfoOther{
 			TxIndex:    txIndexerStatus,
 			RPCAddress: config.RPC.ListenAddress,
 		},
@@ -833,7 +834,7 @@ func makeNodeInfo(
 	if lAddr == "" {
 		lAddr = config.P2P.ListenAddress
 	}
-	addr, err := types2.NewNetAddressFromString(types2.NetAddressString(nodeKey.ID(), lAddr))
+	addr, err := p2pTypes.NewNetAddressFromString(p2pTypes.NetAddressString(nodeKey.ID(), lAddr))
 	if err != nil {
 		return nodeInfo, errors.Wrap(err, "invalid (local) node net address")
 	}

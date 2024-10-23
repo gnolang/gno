@@ -13,7 +13,7 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/bft/types"
 	"github.com/gnolang/gno/tm2/pkg/clist"
 	"github.com/gnolang/gno/tm2/pkg/p2p"
-	types2 "github.com/gnolang/gno/tm2/pkg/p2p/types"
+	p2pTypes "github.com/gnolang/gno/tm2/pkg/p2p/types"
 )
 
 const (
@@ -40,7 +40,7 @@ type Reactor struct {
 
 type mempoolIDs struct {
 	mtx       sync.RWMutex
-	peerMap   map[p2p.ID]uint16
+	peerMap   map[p2pTypes.ID]uint16
 	nextID    uint16              // assumes that a node will never have over 65536 active peers
 	activeIDs map[uint16]struct{} // used to check if a given peerID key is used, the value doesn't matter
 }
@@ -95,7 +95,7 @@ func (ids *mempoolIDs) GetForPeer(peer p2p.Peer) uint16 {
 
 func newMempoolIDs() *mempoolIDs {
 	return &mempoolIDs{
-		peerMap:   make(map[p2p.ID]uint16),
+		peerMap:   make(map[p2pTypes.ID]uint16),
 		activeIDs: map[uint16]struct{}{0: {}},
 		nextID:    1, // reserve unknownPeerID(0) for mempoolReactor.BroadcastTx
 	}
@@ -128,8 +128,8 @@ func (memR *Reactor) OnStart() error {
 
 // GetChannels implements Reactor.
 // It returns the list of channels for this reactor.
-func (memR *Reactor) GetChannels() []*types2.ChannelDescriptor {
-	return []*types2.ChannelDescriptor{
+func (memR *Reactor) GetChannels() []*p2p.ChannelDescriptor {
+	return []*p2p.ChannelDescriptor{
 		{
 			ID:       MempoolChannel,
 			Priority: 5,

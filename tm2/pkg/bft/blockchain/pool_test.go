@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	types2 "github.com/gnolang/gno/tm2/pkg/p2p"
+	p2pTypes "github.com/gnolang/gno/tm2/pkg/p2p/types"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -19,7 +19,7 @@ func init() {
 }
 
 type testPeer struct {
-	id        types2.ID
+	id        p2pTypes.ID
 	height    int64
 	inputChan chan inputData // make sure each peer's data is sequential
 }
@@ -47,7 +47,7 @@ func (p testPeer) simulateInput(input inputData) {
 	// input.t.Logf("Added block from peer %v (height: %v)", input.request.PeerID, input.request.Height)
 }
 
-type testPeers map[types2.ID]testPeer
+type testPeers map[p2pTypes.ID]testPeer
 
 func (ps testPeers) start() {
 	for _, v := range ps {
@@ -64,7 +64,7 @@ func (ps testPeers) stop() {
 func makePeers(numPeers int, minHeight, maxHeight int64) testPeers {
 	peers := make(testPeers, numPeers)
 	for i := 0; i < numPeers; i++ {
-		peerID := types2.ID(random.RandStr(12))
+		peerID := p2pTypes.ID(random.RandStr(12))
 		height := minHeight + random.RandInt63n(maxHeight-minHeight)
 		peers[peerID] = testPeer{peerID, height, make(chan inputData, 10)}
 	}
@@ -172,7 +172,7 @@ func TestBlockPoolTimeout(t *testing.T) {
 
 	// Pull from channels
 	counter := 0
-	timedOut := map[types2.ID]struct{}{}
+	timedOut := map[p2pTypes.ID]struct{}{}
 	for {
 		select {
 		case err := <-errorsCh:
@@ -195,7 +195,7 @@ func TestBlockPoolRemovePeer(t *testing.T) {
 
 	peers := make(testPeers, 10)
 	for i := 0; i < 10; i++ {
-		peerID := types2.ID(fmt.Sprintf("%d", i+1))
+		peerID := p2pTypes.ID(fmt.Sprintf("%d", i+1))
 		height := int64(i + 1)
 		peers[peerID] = testPeer{peerID, height, make(chan inputData)}
 	}
@@ -215,10 +215,10 @@ func TestBlockPoolRemovePeer(t *testing.T) {
 	assert.EqualValues(t, 10, pool.MaxPeerHeight())
 
 	// remove not-existing peer
-	assert.NotPanics(t, func() { pool.RemovePeer(types2.ID("Superman")) })
+	assert.NotPanics(t, func() { pool.RemovePeer(p2pTypes.ID("Superman")) })
 
 	// remove peer with biggest height
-	pool.RemovePeer(types2.ID("10"))
+	pool.RemovePeer(p2pTypes.ID("10"))
 	assert.EqualValues(t, 9, pool.MaxPeerHeight())
 
 	// remove all peers

@@ -234,6 +234,12 @@ func (mt *MultiplexTransport) processConn(c net.Conn, expectedID types.ID) (peer
 	// Verify the connection ID
 	id := secretConn.RemotePubKey().Address().ID()
 
+	if err = id.Validate(); err != nil {
+		mt.activeConns.Delete(dialAddr)
+
+		return peerInfo{}, fmt.Errorf("unable to validate connection ID, %w", err)
+	}
+
 	// The reason the dial ID needs to be verified is because
 	// for outbound peers (peers the node dials), there is an expected peer ID
 	// when initializing the outbound connection, that can differ from the exchanged one.
@@ -345,7 +351,7 @@ func (mt *MultiplexTransport) newMultiplexPeer(
 		OnPeerError:  behavior.HandlePeerError,
 	}
 
-	return NewPeer(peerConn, info.nodeInfo, mConfig), nil
+	return newPeer(peerConn, info.nodeInfo, mConfig), nil
 }
 
 // exchangeNodeInfo performs a data swap, where node

@@ -15,7 +15,7 @@ import (
 	dbm "github.com/gnolang/gno/tm2/pkg/db"
 	"github.com/gnolang/gno/tm2/pkg/events"
 	"github.com/gnolang/gno/tm2/pkg/p2p"
-	types2 "github.com/gnolang/gno/tm2/pkg/p2p/types"
+	p2pTypes "github.com/gnolang/gno/tm2/pkg/p2p/types"
 )
 
 const (
@@ -39,7 +39,7 @@ type Consensus interface {
 type transport interface {
 	Listeners() []string
 	IsListening() bool
-	NodeInfo() types2.NodeInfo
+	NodeInfo() p2pTypes.NodeInfo
 }
 
 type peers interface {

@@ -50,8 +50,8 @@ type peer struct {
 	data *cmap.CMap // Arbitrary data store associated with the peer
 }
 
-// NewPeer creates an uninitialized peer instance
-func NewPeer(
+// newPeer creates an uninitialized peer instance
+func newPeer(
 	connInfo *ConnInfo,
 	nodeInfo types.NodeInfo,
 	mConfig *ConnConfig,
