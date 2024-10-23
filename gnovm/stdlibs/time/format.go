@@ -509,7 +509,8 @@ func formatNano(b []byte, nanosec uint, std int) []byte {
 // representation, use t.MarshalText, t.MarshalBinary, or t.Format
 // with an explicit format string.
 func (t Time) String() string {
-	return t.Format("2006-01-02 15:04:05.999999999 UTC")
+	s := t.Format("2006-01-02 15:04:05.999999999 -0700 MST")
+	return s
 }
 
 // GoString implements fmt.GoStringer and formats t to be printed in Go source
@@ -538,6 +539,7 @@ func (t Time) GoString() string {
 	buf = append(buf, ", "...)
 	buf = appendInt(buf, t.Nanosecond(), 0)
 	buf = append(buf, ", "...)
+	buf = append(buf, "time.UTC"...)
 	buf = append(buf, ')')
 	return string(buf)
 }
@@ -566,15 +568,16 @@ func (t Time) Format(layout string) string {
 // representation to b and returns the extended buffer.
 func (t Time) AppendFormat(b []byte, layout string) []byte {
 	var (
-		year  int
+		it = t.internal()
+
+		year  int = -1
 		month Month
 		day   int
-		hour  int
+		yday  int
+		hour  int = -1
 		min   int
 		sec   int
-		yday  int
 	)
-
 	// Each iteration generates one std value.
 	for layout != "" {
 		prefix, std, suffix := nextStdChunk(layout)
@@ -587,35 +590,39 @@ func (t Time) AppendFormat(b []byte, layout string) []byte {
 		layout = suffix
 
 		// Compute year, month, day if needed.
-		if std&stdNeedDate != 0 && year == 0 {
-			year, month, day = t.Date()
-
-			// Calculate day of the year (yday) if needed.
-			yday = t.YearDay()
+		if year < 0 && std&stdNeedDate != 0 {
+			year, month, day, yday = internalDate(it, true)
+			yday++
 		}
 
 		// Compute hour, minute, second if needed.
-		if std&stdNeedClock != 0 && hour == 0 {
-			hour, min, sec = t.Clock()
+		if hour < 0 && std&stdNeedClock != 0 {
+			hour, min, sec = internalClock(it)
 		}
 
 		switch std & stdMask {
 		case stdYear:
-			b = appendInt(b, year%100, 2)
+			y := year
+			if y < 0 {
+				y = -y
+			}
+			b = appendInt(b, y%100, 2)
 		case stdLongYear:
 			b = appendInt(b, year, 4)
 		case stdMonth:
 			b = append(b, month.String()[:3]...)
 		case stdLongMonth:
-			b = append(b, month.String()...)
+			m := month.String()
+			b = append(b, m...)
 		case stdNumMonth:
 			b = appendInt(b, int(month), 0)
 		case stdZeroMonth:
 			b = appendInt(b, int(month), 2)
 		case stdWeekDay:
-			b = append(b, t.Weekday().String()[:3]...)
+			b = append(b, internalWeekday(it).String()[:3]...)
 		case stdLongWeekDay:
-			b = append(b, t.Weekday().String()...)
+			s := internalWeekday(it).String()
+			b = append(b, s...)
 		case stdDay:
 			b = appendInt(b, day, 0)
 		case stdUnderDay:
@@ -638,12 +645,14 @@ func (t Time) AppendFormat(b []byte, layout string) []byte {
 		case stdHour:
 			b = appendInt(b, hour, 2)
 		case stdHour12:
+			// Noon is 12PM, midnight is 12AM.
 			hr := hour % 12
 			if hr == 0 {
 				hr = 12
 			}
 			b = appendInt(b, hr, 0)
 		case stdZeroHour12:
+			// Noon is 12PM, midnight is 12AM.
 			hr := hour % 12
 			if hr == 0 {
 				hr = 12
@@ -669,6 +678,40 @@ func (t Time) AppendFormat(b []byte, layout string) []byte {
 			} else {
 				b = append(b, "am"...)
 			}
+		case stdISO8601TZ, stdISO8601ColonTZ, stdISO8601SecondsTZ, stdISO8601ShortTZ, stdISO8601ColonSecondsTZ, stdNumTZ, stdNumColonTZ, stdNumSecondsTz, stdNumShortTZ, stdNumColonSecondsTZ:
+			// Ugly special case. We cheat and take the "Z" variants
+			// to mean "the time zone as formatted for ISO 8601".
+			if std == stdISO8601TZ || std == stdISO8601ColonTZ || std == stdISO8601SecondsTZ || std == stdISO8601ShortTZ || std == stdISO8601ColonSecondsTZ {
+				b = append(b, 'Z')
+				break
+			}
+			b = append(b, '+')
+			b = appendInt(b, 0, 2)
+			if std == stdISO8601ColonTZ || std == stdNumColonTZ || std == stdISO8601ColonSecondsTZ || std == stdNumColonSecondsTZ {
+				b = append(b, ':')
+			}
+			if std != stdNumShortTZ && std != stdISO8601ShortTZ {
+				b = appendInt(b, 0, 2)
+			}
+
+			// append seconds if appropriate
+			if std == stdISO8601SecondsTZ || std == stdNumSecondsTz || std == stdNumColonSecondsTZ || std == stdISO8601ColonSecondsTZ {
+				if std == stdNumColonSecondsTZ || std == stdISO8601ColonSecondsTZ {
+					b = append(b, ':')
+				}
+				b = appendInt(b, 0, 2)
+			}
+
+		case stdTZ:
+			if name != "" {
+				b = append(b, name...)
+				break
+			}
+			// No time zone known for this time, but we must print one.
+			// Use the -0700 format.
+			b = append(b, '+')
+			b = appendInt(b, 0, 2)
+			b = appendInt(b, 0, 2)
 		case stdFracSecond0, stdFracSecond9:
 			b = formatNano(b, uint(t.Nanosecond()), std)
 		}
@@ -811,27 +854,80 @@ func skip(value, prefix string) (string, error) {
 	return value, nil
 }
 
-// Parse parses a formatted string and returns the time value it represents in UTC.
-// The second argument must be parseable using the format string (layout) provided as the first argument.
+// Parse parses a formatted string and returns the time value it represents.
+// See the documentation for the constant called Layout to see how to
+// represent the format. The second argument must be parseable using
+// the format string (layout) provided as the first argument.
+//
+// The example for Time.Format demonstrates the working of the layout string
+// in detail and is a good reference.
+//
+// When parsing (only), the input may contain a fractional second
+// field immediately after the seconds field, even if the layout does not
+// signify its presence. In that case either a comma or a decimal point
+// followed by a maximal series of digits is parsed as a fractional second.
+// Fractional seconds are truncated to nanosecond precision.
+//
+// Elements omitted from the layout are assumed to be zero or, when
+// zero is impossible, one, so parsing "3:04pm" returns the time
+// corresponding to Jan 1, year 0, 15:04:00 UTC (note that because the year is
+// 0, this time is before the zero Time).
+// Years must be in the range 0000..9999. The day of the week is checked
+// for syntax but it is otherwise ignored.
+//
+// For layouts specifying the two-digit year 06, a value NN >= 69 will be treated
+// as 19NN and a value NN < 69 will be treated as 20NN.
+//
+// The remainder of this comment describes the handling of time zones.
+//
+// In the absence of a time zone indicator, Parse returns a time in UTC.
+//
+// When parsing a time with a zone offset like -0700, if the offset corresponds
+// to a time zone used by the current location (Local), then Parse uses that
+// location and zone in the returned time. Otherwise it records the time as
+// being in a fabricated location with time fixed at the given zone offset.
+//
+// When parsing a time with a zone abbreviation like MST, if the zone abbreviation
+// has a defined offset in the current location, then that offset is used.
+// The zone abbreviation "UTC" is recognized as UTC regardless of location.
+// If the zone abbreviation is unknown, Parse records the time as being
+// in a fabricated location with the given zone abbreviation and a zero offset.
+// This choice means that such a time can be parsed and reformatted with the
+// same layout losslessly, but the exact instant used in the representation will
+// differ by the actual zone offset. To avoid such problems, prefer time layouts
+// that use a numeric zone offset, or use ParseInLocation.
 func Parse(layout, value string) (Time, error) {
-	return parse(layout, value)
+	return parse(layout, value, UTC, Local)
 }
 
-func parse(layout, value string) (Time, error) {
+// ParseInLocation is like Parse but differs in two important ways.
+// First, in the absence of time zone information, Parse interprets a time as UTC;
+// ParseInLocation interprets the time as in the given location.
+// Second, when given a zone offset or abbreviation, Parse tries to match it
+// against the Local location; ParseInLocation uses the given location.
+func ParseInLocation(layout, value string, loc *Location) (Time, error) {
+	return parse(layout, value, loc, loc)
+}
+
+func parse(layout, value string, defaultLocation, local *Location) (Time, error) {
 	alayout, avalue := layout, value
-	rangeErrString := ""
-	amSet := false // do we need to subtract 12 from the hour for midnight?
-	pmSet := false // do we need to add 12 to the hour?
+	rangeErrString := "" // set if a value is out of range
+	amSet := false       // do we need to subtract 12 from the hour for midnight?
+	pmSet := false       // do we need to add 12 to the hour?
 
 	// Time being constructed.
 	var (
-		year  int
-		month int = -1
-		day   int = -1
-		hour  int
-		min   int
-		sec   int
-		nsec  int
+		year       int
+		month      int = -1
+		day        int = -1
+		yday       int = -1
+		hour       int
+		min        int
+		sec        int
+		nsec       int
+		z          *Location
+		zoneOffset int = -1
+		zoneName   string
 	)
 
 	// Each iteration processes one std value.
@@ -841,11 +937,11 @@ func parse(layout, value string) (Time, error) {
 		stdstr := layout[len(prefix) : len(layout)-len(suffix)]
 		value, err = skip(value, prefix)
 		if err != nil {
-			return Time(0), &ParseError{alayout, avalue, prefix, value, ""}
+			return Time{}, &ParseError{alayout, avalue, prefix, value, ""}
 		}
 		if std == 0 {
 			if len(value) != 0 {
-				return Time(0), &ParseError{alayout, avalue, "", value, ": extra text: " + quote(value)}
+				return Time{}, &ParseError{alayout, avalue, "", value, ": extra text: " + quote(value)}
 			}
 			break
 		}
@@ -862,7 +958,7 @@ func parse(layout, value string) (Time, error) {
 			year, err = atoi(p)
 			if err != nil {
 				value = hold
-			} else if year >= 69 {
+			} else if year >= 69 { // Unix time starts Dec 31 1969 in some time zones
 				year += 1900
 			} else {
 				year += 2000
@@ -885,14 +981,27 @@ func parse(layout, value string) (Time, error) {
 			if err == nil && (month <= 0 || 12 < month) {
 				rangeErrString = "month"
 			}
-		case stdWeekDay, stdLongWeekDay:
+		case stdWeekDay:
 			// Ignore weekday except for error checking.
+			_, value, err = lookup(shortDayNames, value)
+		case stdLongWeekDay:
 			_, value, err = lookup(longDayNames, value)
 		case stdDay, stdUnderDay, stdZeroDay:
 			if std == stdUnderDay && len(value) > 0 && value[0] == ' ' {
 				value = value[1:]
 			}
 			day, value, err = getnum(value, std == stdZeroDay)
+			// Note that we allow any one- or two-digit day here.
+			// The month, day, year combination is validated after we've completed parsing.
+		case stdUnderYearDay, stdZeroYearDay:
+			for i := 0; i < 2; i++ {
+				if std == stdUnderYearDay && len(value) > 0 && value[0] == ' ' {
+					value = value[1:]
+				}
+			}
+			yday, value, err = getnum3(value, std == stdZeroYearDay)
+			// Note that we allow any one-, two-, or three-digit year-day here.
+			// The year-day, year combination is validated after we've completed parsing.
 		case stdHour:
 			hour, value, err = getnum(value, false)
 			if hour < 0 || 24 <= hour {
@@ -914,13 +1023,16 @@ func parse(layout, value string) (Time, error) {
 				rangeErrString = "second"
 				break
 			}
-			// Special case: Handle fractional seconds even if not in layout.
+			// Special case: do we have a fractional second but no
+			// fractional second in the format?
 			if len(value) >= 2 && commaOrPeriod(value[0]) && isDigit(value, 1) {
 				_, std, _ = nextStdChunk(layout)
 				std &= stdMask
 				if std == stdFracSecond0 || std == stdFracSecond9 {
+					// Fractional second in the layout; proceed normally
 					break
 				}
+				// No fractional second in the layout but we have one in the input.
 				n := 2
 				for ; n < len(value) && isDigit(value, n); n++ {
 				}
@@ -955,7 +1067,85 @@ func parse(layout, value string) (Time, error) {
 			default:
 				err = errBad
 			}
+		case stdISO8601TZ, stdISO8601ColonTZ, stdISO8601SecondsTZ, stdISO8601ShortTZ, stdISO8601ColonSecondsTZ, stdNumTZ, stdNumShortTZ, stdNumColonTZ, stdNumSecondsTz, stdNumColonSecondsTZ:
+			if (std == stdISO8601TZ || std == stdISO8601ShortTZ || std == stdISO8601ColonTZ) && len(value) >= 1 && value[0] == 'Z' {
+				value = value[1:]
+				z = UTC
+				break
+			}
+			var sign, hour, min, seconds string
+			if std == stdISO8601ColonTZ || std == stdNumColonTZ {
+				if len(value) < 6 {
+					err = errBad
+					break
+				}
+				if value[3] != ':' {
+					err = errBad
+					break
+				}
+				sign, hour, min, seconds, value = value[0:1], value[1:3], value[4:6], "00", value[6:]
+			} else if std == stdNumShortTZ || std == stdISO8601ShortTZ {
+				if len(value) < 3 {
+					err = errBad
+					break
+				}
+				sign, hour, min, seconds, value = value[0:1], value[1:3], "00", "00", value[3:]
+			} else if std == stdISO8601ColonSecondsTZ || std == stdNumColonSecondsTZ {
+				if len(value) < 9 {
+					err = errBad
+					break
+				}
+				if value[3] != ':' || value[6] != ':' {
+					err = errBad
+					break
+				}
+				sign, hour, min, seconds, value = value[0:1], value[1:3], value[4:6], value[7:9], value[9:]
+			} else if std == stdISO8601SecondsTZ || std == stdNumSecondsTz {
+				if len(value) < 7 {
+					err = errBad
+					break
+				}
+				sign, hour, min, seconds, value = value[0:1], value[1:3], value[3:5], value[5:7], value[7:]
+			} else {
+				if len(value) < 5 {
+					err = errBad
+					break
+				}
+				sign, hour, min, seconds, value = value[0:1], value[1:3], value[3:5], "00", value[5:]
+			}
+			var hr, mm, ss int
+			hr, err = atoi(hour)
+			if err == nil {
+				mm, err = atoi(min)
+			}
+			if err == nil {
+				ss, err = atoi(seconds)
+			}
+			zoneOffset = (hr*60+mm)*60 + ss // offset is in seconds
+			switch sign[0] {
+			case '+':
+			case '-':
+				zoneOffset = -zoneOffset
+			default:
+				err = errBad
+			}
+		case stdTZ:
+			// Does it look like a time zone?
+			if len(value) >= 3 && value[0:3] == "UTC" {
+				z = UTC
+				value = value[3:]
+				break
+			}
+			n, ok := parseTimeZone(value)
+			if !ok {
+				err = errBad
+				break
+			}
+			zoneName, value = value[:n], value[n:]
+
 		case stdFracSecond0:
+			// stdFracSecond0 requires the exact number of digits as specified in
+			// the layout.
 			ndigit := 1 + digitsLen(std)
 			if len(value) < ndigit {
 				err = errBad
@@ -963,10 +1153,14 @@ func parse(layout, value string) (Time, error) {
 			}
 			nsec, rangeErrString, err = parseNanoseconds(value, ndigit)
 			value = value[ndigit:]
+
 		case stdFracSecond9:
 			if len(value) < 2 || !commaOrPeriod(value[0]) || value[1] < '0' || '9' < value[1] {
+				// Fractional second omitted.
 				break
 			}
+			// Take any number of digits, even more than asked for,
+			// because it is what the stdSecond case would do.
 			i := 0
 			for i < 9 && i+1 < len(value) && '0' <= value[i+1] && value[i+1] <= '9' {
 				i++
@@ -975,26 +1169,107 @@ func parse(layout, value string) (Time, error) {
 			value = value[1+i:]
 		}
 		if rangeErrString != "" {
-			return Time(0), &ParseError{alayout, avalue, stdstr, value, ": " + rangeErrString + " out of range"}
+			return Time{}, &ParseError{alayout, avalue, stdstr, value, ": " + rangeErrString + " out of range"}
 		}
 		if err != nil {
-			return Time(0), &ParseError{alayout, avalue, stdstr, value, ""}
+			return Time{}, &ParseError{alayout, avalue, stdstr, value, ""}
 		}
 	}
-
 	if pmSet && hour < 12 {
 		hour += 12
 	} else if amSet && hour == 12 {
 		hour = 0
 	}
 
-	// Validate the day of the month.
-	if day < 1 || day > daysIn(Month(month), year) {
-		return Time(0), &ParseError{alayout, avalue, "", value, ": day out of range"}
+	// Convert yday to day, month.
+	if yday >= 0 {
+		var d int
+		var m int
+		if isLeap(year) {
+			if yday == 31+29 {
+				m = int(February)
+				d = 29
+			} else if yday > 31+29 {
+				yday--
+			}
+		}
+		if yday < 1 || yday > 365 {
+			return Time{}, &ParseError{alayout, avalue, "", value, ": day-of-year out of range"}
+		}
+		if m == 0 {
+			m = (yday-1)/31 + 1
+			if int(daysBefore[m]) < yday {
+				m++
+			}
+			d = yday - int(daysBefore[m-1])
+		}
+		// If month, day already seen, yday's m, d must match.
+		// Otherwise, set them from m, d.
+		if month >= 0 && month != m {
+			return Time{}, &ParseError{alayout, avalue, "", value, ": day-of-year does not match month"}
+		}
+		month = m
+		if day >= 0 && day != d {
+			return Time{}, &ParseError{alayout, avalue, "", value, ": day-of-year does not match day"}
+		}
+		day = d
+	} else {
+		if month < 0 {
+			month = int(January)
+		}
+		if day < 0 {
+			day = 1
+		}
 	}
 
-	// Return the parsed time in UTC.
-	return Date(year, Month(month), day, hour, min, sec, nsec), nil
+	// Validate the day of the month.
+	if day < 1 || day > daysIn(Month(month), year) {
+		return Time{}, &ParseError{alayout, avalue, "", value, ": day out of range"}
+	}
+
+	if z != nil {
+		return Date(year, Month(month), day, hour, min, sec, nsec, z), nil
+	}
+
+	if zoneOffset != -1 {
+		t := Date(year, Month(month), day, hour, min, sec, nsec, UTC)
+		t.addSec(-int64(zoneOffset))
+
+		// Look for local zone with the given offset.
+		// If that zone was in effect at the given time, use it.
+		name, offset, _, _, _ := local.lookup(t.unixSec())
+		if offset == zoneOffset && (zoneName == "" || name == zoneName) {
+			t.setLoc(local)
+			return t, nil
+		}
+
+		// Otherwise create fake zone to record offset.
+		t.setLoc(FixedZone(zoneName, zoneOffset))
+		return t, nil
+	}
+
+	if zoneName != "" {
+		t := Date(year, Month(month), day, hour, min, sec, nsec, UTC)
+		// Look for local zone with the given offset.
+		// If that zone was in effect at the given time, use it.
+		offset, ok := local.lookupName(zoneName, t.unixSec())
+		if ok {
+			t.addSec(-int64(offset))
+			t.setLoc(local)
+			return t, nil
+		}
+
+		// Otherwise, create fake zone with unknown offset.
+		if len(zoneName) > 3 && zoneName[:3] == "GMT" {
+			offset, _ = atoi(zoneName[3:]) // Guaranteed OK by parseGMT.
+			offset *= 3600
+		}
+		t.setLoc(FixedZone(zoneName, offset))
+		return t, nil
+	}
+
+	// Otherwise, fall back to default.
+	return Date(year, Month(month), day, hour, min, sec, nsec, defaultLocation), nil
 }
 
 // parseTimeZone parses a time zone string and returns its length. Time zones
