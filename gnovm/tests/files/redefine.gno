@@ -8,3 +8,8 @@ func main() {
 		println(s)
 	}
 }
+
+// Output:
+// 1
+// 2
+// 3

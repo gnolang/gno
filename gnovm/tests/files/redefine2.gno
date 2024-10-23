@@ -19,3 +19,7 @@ func main() {
 		println(testCase.name)
 	}
 }
+
+// Output:
+// one
+// two
