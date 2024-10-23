@@ -8,7 +8,7 @@ func NewUserRealm(user Address) Realm {
 // NewCodeRealm creates a new realm for a published code realm with the given
 // pkgPath.
 func NewCodeRealm(pkgPath string) Realm {
-	if !isRealm(pkgPath){
+	if !isRealm(pkgPath) {
 		panic("should only be called for Realms")
 	}
 	return Realm{pkgPath: pkgPath, addr: DerivePkgAddr(pkgPath)}
