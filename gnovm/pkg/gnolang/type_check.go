@@ -279,28 +279,27 @@ Main:
 		xt := evalStaticTypeOf(store, last, vx.X)
 		switch xt := xt.(type) {
 		case *PackageType:
-			// Todo: check if the package is const after the fix of https://github.com/gnolang/gno/issues/2836
-			// var pv *PackageValue
-			// if cx, ok := vx.X.(*ConstExpr); ok {
-			// 	// NOTE: *Machine.TestMemPackage() needs this
-			// 	// to pass in an imported package as *ConstEzpr.
-			// 	pv = cx.V.(*PackageValue)
-			// } else {
-			// 	// otherwise, packages can only be referred to by
-			// 	// *NameExprs, and cannot be copied.
-			// 	pvc := evalConst(store, last, vx.X)
-			// 	pv_, ok := pvc.V.(*PackageValue)
-			// 	if !ok {
-			// 		panic(fmt.Sprintf(
-			// 			"missing package in selector expr %s",
-			// 			vx.String()))
-			// 	}
-			// 	pv = pv_
-			// }
-			// if pv.GetBlock(store).Source.GetIsConst(store, vx.Sel) {
-			// 	break Main
-			// }
-			// panic(fmt.Sprintf("%s (variable of type %s) is not constant", vx.String(), xt))
+			var pv *PackageValue
+			if cx, ok := vx.X.(*ConstExpr); ok {
+				// NOTE: *Machine.TestMemPackage() needs this
+				// to pass in an imported package as *ConstEzpr.
+				pv = cx.V.(*PackageValue)
+			} else {
+				// otherwise, packages can only be referred to by
+				// *NameExprs, and cannot be copied.
+				pvc := evalConst(store, last, vx.X)
+				pv_, ok := pvc.V.(*PackageValue)
+				if !ok {
+					panic(fmt.Sprintf(
+						"missing package in selector expr %s",
+						vx.String()))
+				}
+				pv = pv_
+			}
+			if pv.GetBlock(store).Source.GetIsConst(store, vx.Sel) {
+				break Main
+			}
+			panic(fmt.Sprintf("%s (variable of type %s) is not constant", vx.String(), xt))
 		case *PointerType, *DeclaredType, *StructType, *InterfaceType:
 			ty := evalStaticTypeOf(store, last, vx.X)
 			panic(fmt.Sprintf("%s (variable of type %s) is not constant", vx.String(), ty))

@@ -28,6 +28,7 @@ func main() {
 	ars := [10]string{}
 	const v = len(ars)
 	const w = cap(ars)
+	const x = time.Second
 
 	fmt.Println(a)
 	fmt.Println(b)
@@ -50,6 +51,7 @@ func main() {
 	fmt.Println(u)
 	fmt.Println(v)
 	fmt.Println(w)
+	fmt.Println(x)
 }
 
 // Output:
@@ -74,3 +76,4 @@ func main() {
 // 5
 // 10
 // 10
+// 1s
