@@ -67,13 +67,15 @@ func (d *Directory) AddUserPerm(addr std.Address, verb, resource string) {
 
 func (d *Directory) AddUserPerms(addr std.Address, verbs []string, resource string) {
 	bucket := "u:" + addr.String()
+	var ps perms
 	for _, verb := range verbs {
 		p := perm{
 			verbs:     []string{verb},
 			resources: []string{resource},
 		}
-		d.addPermsToBucket(bucket, []perm{p})
+		ps = append(ps, p)
 	}
+	d.addPermsToBucket(bucket, ps)
 }
 
 func (d *Directory) AddGroupPerm(name string, verb, resource string) {
@@ -87,16 +89,18 @@ func (d *Directory) AddGroupPerm(name string, verb, resource string) {
 
 func (d *Directory) AddGroupPerms(name string, verbs []string, resource string) {
 	bucket := "g:" + name
+	var ps perms
 	for _, verb := range verbs {
 		p := perm{
 			verbs:     []string{verb},
 			resources: []string{resource},
 		}
-		d.addPermsToBucket(bucket, []perm{p})
+		ps = append(ps, p)
 	}
+	d.addPermsToBucket(bucket, ps)
 }
 
-func (d *Directory) addPermsToBucket(bucket string, p []perm) {
+func (d *Directory) addPermsToBucket(bucket string, p perms) {
 	var ps perms
 
 	existing, ok := d.permBuckets.Get(bucket)
@@ -104,6 +108,7 @@ func (d *Directory) addPermsToBucket(bucket string, p []perm) {
 		ps = existing.(perms)
 	}
 	ps = append(ps, p...)
+	ps = ps.Dedup()
 
 	d.permBuckets.Set(bucket, ps)
 }
