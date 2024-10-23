@@ -264,7 +264,9 @@ Main:
 				checkConstantExpr(store, last, arg)
 			}
 		case *NativeType:
-			panic("NativeType\n")
+			// Todo: should add a test after the fix of https://github.com/gnolang/gno/issues/3006
+			ty := evalStaticType(store, last, vx.Func)
+			panic(fmt.Sprintf("%s (variable of type %s) is not constant", vx.String(), ty))
 		default:
 			panic(fmt.Sprintf(
 				"unexpected func type %v (%v)",
