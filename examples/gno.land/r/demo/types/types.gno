@@ -1,4 +1,4 @@
-// package to test types behavior in various conditions (TXs, imports).
+// Package types is used to test types behavior in various conditions (TXs, imports).
 package types
 
 import (
