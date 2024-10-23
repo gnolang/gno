@@ -1,6 +1,7 @@
 package gnoclient
 
 import (
+	"fmt"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -8,11 +9,13 @@ import (
 
 	"github.com/gnolang/gno/gno.land/pkg/gnoland/ugnot"
 	"github.com/gnolang/gno/gno.land/pkg/sdk/vm"
+	"github.com/gnolang/gno/tm2/pkg/amino"
 	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
 	ctypes "github.com/gnolang/gno/tm2/pkg/bft/rpc/core/types"
 	"github.com/gnolang/gno/tm2/pkg/bft/types"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
 	"github.com/gnolang/gno/tm2/pkg/crypto/keys"
+	"github.com/gnolang/gno/tm2/pkg/errors"
 	"github.com/gnolang/gno/tm2/pkg/sdk/bank"
 	"github.com/gnolang/gno/tm2/pkg/std"
 )
@@ -1345,6 +1348,248 @@ func TestLatestBlockHeightErrors(t *testing.T) {
 			res, err := tc.client.LatestBlockHeight()
 			assert.Equal(t, int64(0), res)
 			assert.ErrorIs(t, err, tc.expectedError)
+		})
+	}
+}
+
+// Transaction tests
+func TestTransaction(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name      string
+		hash      string
+		txResult  *ctypes.ResultTx
+		mockError error
+		wantError error
+	}{
+		{
+			name:      "valid hash",
+			hash:      "dGhpcyBpcyBhIHRlc3QgaGFzaA==", // "this is a test hash" in base64
+			txResult:  &ctypes.ResultTx{Hash: []byte("dGhpcyBpcyBhIHRlc3QgaGFzaA==")},
+			mockError: nil,
+			wantError: nil,
+		},
+		{
+			name:      "empty hash",
+			hash:      "",
+			txResult:  nil,
+			mockError: nil,
+			wantError: ErrEmptyTxHash,
+		},
+		{
+			name:      "invalid base64 hash",
+			hash:      "invalid-base64",
+			txResult:  nil,
+			mockError: nil,
+			wantError: ErrInvalidTxHashFormat,
+		},
+		{
+			name:      "rpc client error",
+			hash:      "dGhpcyBpcyBhIHRlc3QgaGFzaA==",
+			txResult:  nil,
+			mockError: fmt.Errorf("RPC error"),
+			wantError: fmt.Errorf("transaction query failed: RPC error"),
+		},
+	}
+
+	for _, tt := range tests {
+		tt := tt
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			client := &Client{
+				Signer: &mockSigner{},
+				RPCClient: &mockRPCClient{
+					tx: func(hash []byte) (*ctypes.ResultTx, error) {
+						if tt.mockError != nil {
+							return nil, tt.mockError
+						}
+						return tt.txResult, nil
+					},
+				},
+			}
+
+			tx, err := client.Transaction(tt.hash)
+			if tt.wantError != nil {
+				require.Error(t, err)
+				assert.Equal(t, tt.wantError.Error(), err.Error(), "unexpected error: got %v, want %v", err, tt.wantError)
+			} else {
+				require.NoError(t, err)
+				assert.Equal(t, tt.txResult.Hash, tx.Hash, "unexpected hash: got %s, want %s", tx.Hash, tt.txResult.Hash)
+			}
+		})
+	}
+}
+
+func TestPendingTransaction(t *testing.T) {
+	t.Parallel()
+
+	unconfirmedTxs := &ctypes.ResultUnconfirmedTxs{
+		Txs: []types.Tx{ /*...*/ },
+	}
+
+	tests := []struct {
+		name                     string
+		limit                    int
+		expectedLimit            int
+		mockNumUnconfirmedTxsErr error
+		mockUnconfirmedTxsErr    error
+		expectedErr              error
+		expectedResult           *ctypes.ResultUnconfirmedTxs
+	}{
+		{
+			name:                  "Positive limit",
+			limit:                 10,
+			mockUnconfirmedTxsErr: nil,
+			expectedLimit:         10,
+			expectedErr:           nil,
+			expectedResult:        unconfirmedTxs,
+		},
+		{
+			name:                     "Zero limit",
+			limit:                    0,
+			mockNumUnconfirmedTxsErr: nil,
+			mockUnconfirmedTxsErr:    nil,
+			expectedLimit:            5, // Assume NumUnconfirmedTxs returns 5
+			expectedErr:              nil,
+			expectedResult:           unconfirmedTxs,
+		},
+		{
+			name:                     "Error in NumUnconfirmedTxs",
+			limit:                    0,
+			mockNumUnconfirmedTxsErr: errors.New("internal error"),
+			expectedErr:              errors.New("failed to retrieve number of unconfirmed transactions: internal error"),
+		},
+		{
+			name:                  "Error in UnconfirmedTxs",
+			limit:                 10,
+			mockUnconfirmedTxsErr: errors.New("internal error"),
+			expectedErr:           errors.New("failed to retrieve unconfirmed transactions: internal error"),
+		},
+	}
+
+	for _, tt := range tests {
+		tt := tt
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			client := &Client{
+				Signer: &mockSigner{},
+				RPCClient: &mockRPCClient{
+					numUnconfirmedTxs: func() (*ctypes.ResultUnconfirmedTxs, error) {
+						if tt.mockNumUnconfirmedTxsErr != nil {
+							return nil, tt.mockNumUnconfirmedTxsErr
+						}
+
+						return &ctypes.ResultUnconfirmedTxs{Total: tt.expectedLimit}, nil
+					},
+					unconfirmedTxs: func(limit int) (*ctypes.ResultUnconfirmedTxs, error) {
+						if tt.mockUnconfirmedTxsErr != nil {
+							return nil, tt.mockUnconfirmedTxsErr
+						}
+
+						return tt.expectedResult, nil
+					},
+				},
+			}
+
+			result, err := client.PendingTransaction(tt.limit)
+
+			if tt.expectedErr != nil {
+				assert.Error(t, err)
+				assert.Equal(t, err.Error(), tt.expectedErr.Error(), "unexpected error: got %v, want %v", err, tt.expectedErr)
+			} else {
+				require.NoError(t, err)
+				assert.Equal(t, tt.expectedResult.Total, result.Total, "unexpected total txs: got %d, want %d", result.Total, tt.expectedResult.Total)
+			}
+		})
+	}
+}
+
+func TestQueryAccount(t *testing.T) {
+	t.Parallel()
+
+	addr, err := crypto.AddressFromBech32("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5")
+	require.NoError(t, err)
+
+	validAccount := std.BaseAccount{Address: addr}
+	responseData, err := amino.MarshalJSON(struct{ BaseAccount std.BaseAccount }{BaseAccount: validAccount})
+	require.NoError(t, err)
+
+	tests := []struct {
+		name             string
+		mockResponseData []byte
+		mockABCIQueryErr error
+		expectedAccount  *std.BaseAccount
+		expectedErr      error
+	}{
+		{
+			name:             "Successful Query",
+			mockResponseData: responseData,
+			mockABCIQueryErr: nil,
+			expectedAccount:  &validAccount,
+			expectedErr:      nil,
+		},
+		{
+			name:             "Unknown Address",
+			mockResponseData: []byte("null"),
+			mockABCIQueryErr: nil,
+			expectedAccount:  nil,
+			expectedErr:      std.ErrUnknownAddress("unknown address: testaddress"),
+		},
+		{
+			name:             "Query Error",
+			mockResponseData: nil,
+			mockABCIQueryErr: errors.New("query error"),
+			expectedAccount:  nil,
+			expectedErr:      errors.Wrap(errors.New("query error"), "query account"),
+		},
+		{
+			name:             "Unmarshal Error",
+			mockResponseData: []byte("invalid json"),
+			mockABCIQueryErr: nil,
+			expectedAccount:  nil,
+			expectedErr:      errors.New("cannot unmarshal JSON into std.BaseAccount: invalid json"),
+		},
+	}
+
+	for _, tt := range tests {
+		tt := tt
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			client := &Client{
+				Signer: &mockSigner{},
+				RPCClient: &mockRPCClient{
+					abciQuery: func(path string, data []byte) (*ctypes.ResultABCIQuery, error) {
+						if tt.expectedErr != nil {
+							return nil, tt.expectedErr
+						}
+
+						return &ctypes.ResultABCIQuery{
+							Response: abci.ResponseQuery{
+								ResponseBase: abci.ResponseBase{
+									Data: tt.mockResponseData,
+								},
+							},
+						}, nil
+					},
+				},
+			}
+
+			account, qres, err := client.QueryAccount(addr)
+
+			if tt.expectedErr != nil {
+				require.Error(t, err)
+				assert.Equal(t, tt.expectedErr.Error(), err.Error(), "unexpected error: got %v, want %v", err, tt.expectedErr)
+				assert.Nil(t, account)
+			} else {
+				require.NoError(t, err)
+				assert.Equal(t, tt.expectedAccount.Address, account.Address, "unexpected account address: got %s want %s",
+					account.Address, account.Address)
+				assert.NotNil(t, qres)
+			}
 		})
 	}
 }
