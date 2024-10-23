@@ -107,14 +107,6 @@ func (s *set) Remove(key types.ID) bool {
 	return true
 }
 
-// Size returns the number of unique peers in the peer table
-func (s *set) Size() int {
-	s.mux.RLock()
-	defer s.mux.RUnlock()
-
-	return len(s.peers)
-}
-
 // NumInbound returns the number of inbound peers
 func (s *set) NumInbound() uint64 {
 	s.mux.RLock()

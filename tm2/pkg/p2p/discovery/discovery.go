@@ -175,7 +175,8 @@ func (r *Reactor) Receive(chID byte, peer p2p.Peer, msgBytes []byte) {
 func (r *Reactor) handleDiscoveryRequest(peer p2p.Peer) error {
 	// Check if there is anything to share,
 	// to avoid useless traffic
-	if r.Switch.Peers().Size() == 0 {
+	switchPeers := r.Switch.Peers()
+	if switchPeers.NumOutbound()+switchPeers.NumInbound() == 0 {
 		r.Logger.Warn("no peers to share in discovery request")
 
 		return nil

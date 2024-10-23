@@ -47,8 +47,7 @@ type PeerSet interface {
 	Has(key types.ID) bool
 	HasIP(ip net.IP) bool
 	Get(key types.ID) Peer
-	List() []Peer // TODO consider implementing an iterator
-	Size() int    // TODO remove
+	List() []Peer
 
 	NumInbound() uint64  // returns the number of connected inbound nodes
 	NumOutbound() uint64 // returns the number of connected outbound nodes

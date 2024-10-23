@@ -32,7 +32,6 @@ const (
 
 	// some of these defaults are written in the user config
 	// flushThrottle, sendRate, recvRate
-	// TODO: remove values present in config
 	defaultFlushThrottle = 100 * time.Millisecond
 
 	defaultSendQueueCapacity   = 1

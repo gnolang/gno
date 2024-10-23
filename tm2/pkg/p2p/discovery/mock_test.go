@@ -54,7 +54,6 @@ type (
 	hasIPDelegate       func(net.IP) bool
 	getPeerDelegate     func(types.ID) p2p.Peer
 	listDelegate        func() []p2p.Peer
-	sizeDelegate        func() int
 	numInboundDelegate  func() uint64
 	numOutboundDelegate func() uint64
 )
@@ -66,7 +65,6 @@ type mockPeerSet struct {
 	hasIPFn       hasIPDelegate
 	getFn         getPeerDelegate
 	listFn        listDelegate
-	sizeFn        sizeDelegate
 	numInboundFn  numInboundDelegate
 	numOutboundFn numOutboundDelegate
 }
@@ -115,14 +113,6 @@ func (m *mockPeerSet) List() []p2p.Peer {
 	}
 
 	return nil
-}
-
-func (m *mockPeerSet) Size() int {
-	if m.sizeFn != nil {
-		return m.sizeFn()
-	}
-
-	return 0
 }
 
 func (m *mockPeerSet) NumInbound() uint64 {
