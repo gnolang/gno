@@ -299,7 +299,9 @@ Main:
 			if pv.GetBlock(store).Source.GetIsConst(store, vx.Sel) {
 				break Main
 			}
-			panic(fmt.Sprintf("%s (variable of type %s) is not constant", vx.String(), xt))
+
+			tt := pv.GetBlock(store).Source.GetStaticTypeOf(store, vx.Sel)
+			panic(fmt.Sprintf("%s (variable of type %s) is not constant", vx.String(), tt))
 		case *PointerType, *DeclaredType, *StructType, *InterfaceType:
 			ty := evalStaticTypeOf(store, last, vx.X)
 			panic(fmt.Sprintf("%s (variable of type %s) is not constant", vx.String(), ty))
@@ -307,7 +309,8 @@ Main:
 			ty := evalStaticType(store, last, vx.X)
 			panic(fmt.Sprintf("%s (variable of type %s) is not constant", vx.String(), ty))
 		case *NativeType:
-			panic(fmt.Sprintf("%s (variable of type %s) is not constant", vx.String(), xt))
+			ty := evalStaticTypeOf(store, last, vx.X)
+			panic(fmt.Sprintf("%s (variable of type %s) is not constant", vx.String(), ty))
 		default:
 			panic(fmt.Sprintf(
 				"unexpected selector expression type %v",

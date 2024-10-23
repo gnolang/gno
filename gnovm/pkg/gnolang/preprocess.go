@@ -2404,7 +2404,7 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 							}
 
 							if _, ok := baseOf(vt).(PrimitiveType); !ok {
-								panic(fmt.Sprintf("invalid constant type  %s", vt.String()))
+								panic(fmt.Sprintf("%s (value of type %s) is not constant", vx.String(), vt.String()))
 							}
 							sts[i] = vt
 						}
