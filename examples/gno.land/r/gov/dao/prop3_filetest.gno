@@ -26,6 +26,12 @@ func init() {
 		comment := "setting prop1.string param"
 		id := govdao.Propose(comment, mExec)
 	}
+
+	{ // prop2
+		mExec := params.NewInt64PropExecutor("prop2.int64", 12345)
+		comment := "setting prop2.int64 param"
+		id := govdao.Propose(comment, mExec)
+	}
 }
 
 func main() {
@@ -44,11 +50,13 @@ func main() {
 }
 
 // Events:
+// [{"type":"set","attrs":[{"key":"k","value":"prop1.string"}],"pkg_path":"gno.land/r/sys/params","func":""}]
 
 // Output:
 // --
 // - [0](/r/gov/dao:0) - adding someone to vote (**succeeded**)(by g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm)
 // - [1](/r/gov/dao:1) - setting prop1.string param (**active**)(by g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm)
+// - [2](/r/gov/dao:2) - setting prop2.int64 param (**active**)(by g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm)
 //
 // --
 // # Prop #1
