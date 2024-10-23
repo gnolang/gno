@@ -3542,29 +3542,25 @@ func predefineNow2(store Store, last BlockNode, d Decl, stack *[]Name) (Decl, bo
 	// recursively predefine dependencies.
 	for {
 		un := tryPredefine(store, last, d)
-		if un == "" {
+		if un != "" {
+			// check circularity.
+			for _, n := range *stack {
+				if n == un {
+					panic(fmt.Sprintf("constant definition loop with %s", un))
+				}
+			}
+			// look up dependency declaration from fileset.
+			file, decl := pkg.FileSet.GetDeclFor(un)
+			// preprocess if not already preprocessed.
+			if !file.IsInitialized() {
+				panic("all types from files in file-set should have already been predefined")
+			}
+			// predefine dependency (recursive).
+			*decl, _ = predefineNow2(store, file, *decl, stack)
+		} else {
 			break
 		}
-		// prevent `var i _`
-		if un == blankIdentifier {
-			panic("cannot use _ as value or type")
-		}
-		// check circularity.
-		for _, n := range *stack {
-			if n == un {
-				panic(fmt.Sprintf("constant definition loop with %s", un))
-			}
-		}
-		// look up dependency declaration from fileset.
-		file, decl := pkg.FileSet.GetDeclFor(un)
-		// preprocess if not already preprocessed.
-		if !file.IsInitialized() {
-			panic("all types from files in file-set should have already been predefined")
-		}
-		// predefine dependency (recursive).
-		*decl, _ = predefineNow2(store, file, *decl, stack)
 	}
-
 	switch cd := d.(type) {
 	case *FuncDecl:
 		// *FuncValue/*FuncType is mostly empty still; here
