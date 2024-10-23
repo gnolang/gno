@@ -51,7 +51,7 @@ func main() {
 	fmt.Println(u)
 	fmt.Println(v)
 	fmt.Println(w)
-	fmt.Println(x)
+	println(x)
 }
 
 // Output:
