@@ -87,7 +87,6 @@ func (p Param) Register(ctx sdk.Context, prk params.ParamsKeeperI) {
 	kind := p.Kind()
 	switch kind {
 	case "string":
-		println("@@@@", p.key, p.string_val)
 		prk.SetString(ctx, p.key, p.string_val)
 	case "int64":
 		prk.SetInt64(ctx, p.key, p.int64_val)

@@ -92,15 +92,25 @@ func TestNewAppWithOptions(t *testing.T) {
 	})
 	require.True(t, dtxResp.IsOK(), "DeliverTx response: %v", dtxResp)
 
-	for _, path := range []string{
-		"params/vm/foo.string",
-		"params/foo.string",
-		"vm/foo.string",
-	} {
+	cres := bapp.Commit()
+	require.NotNil(t, cres)
+
+	tcs := []struct {
+		path        string
+		expectedVal string
+	}{
+		{"params/vm/foo.string", `"hello"`},
+		{"params/vm/bar.int64", `"-42"`},
+		{"params/vm/foo.uint64", `"1337"`},
+		{"params/vm/bar.bool", `true`},
+		{"params/vm/foo.bytes", `"SGkh"`}, // XXX: make this test more readable
+	}
+	for _, tc := range tcs {
 		qres := bapp.Query(abci.RequestQuery{
-			Path: path,
+			Path: tc.path,
 		})
-		println("path=", path, "ok=", qres.IsOK(), "res=", string(qres.Data), "error=", qres.Error.Error())
+		require.True(t, qres.IsOK())
+		require.Equal(t, qres.Data, []byte(tc.expectedVal))
 	}
 }
 
