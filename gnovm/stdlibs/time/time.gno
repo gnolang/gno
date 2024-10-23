@@ -7,8 +7,6 @@ type Time struct {
 	nsec int32
 }
 
-const minWall = wallToInternal // year 1885
-
 func (t *Time) unixSec() int64 { return t.sec + internalToUnix }
 
 func (t Time) After(u Time) bool {
@@ -179,10 +177,6 @@ func internalClock(it uint64) (hour, min, sec int) {
 // Hour returns the hour within the day specified by t, in the range [0, 23].
 func (t Time) Hour() int {
 	return int(t.internal()%secondsPerDay) / secondsPerHour
-}
-
-func (t Time) InternalDebug() uint64 {
-	return t.internal()
 }
 
 // Minute returns the minute offset within the hour specified by t, in the range [0, 59].
@@ -641,7 +635,7 @@ func now() (sec int64, nsec int32, mono int64) // injected by runtime
 
 func Now() Time {
 	sec, nsec, _ := now()
-	sec += unixToInternal - minWall
+	sec += unixToInternal
 	return Time{sec, nsec}
 }
 

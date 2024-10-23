@@ -5,10 +5,7 @@ import (
 )
 
 func main() {
-	year, month, day := time.Now().Date()
-	println("year", year, "month", month, "day", day)
-	it := time.Now().InternalDebug()
-	println("InternalDebug", it)
+	println(time.Now())
 }
 
 // Output:
