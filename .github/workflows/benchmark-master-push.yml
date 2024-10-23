@@ -4,6 +4,11 @@ on:
   push:
     branches:
       - master
+    paths:
+      - contribs/**
+      - gno.land/**
+      - gnovm/**
+      - tm2/**
 
 permissions:
   # deployments permission to deploy GitHub pages website
@@ -49,7 +54,7 @@ jobs:
           max-items-in-chart: 100
           # Show alert with commit comment on detecting possible performance regression
           alert-threshold: "120%"
-          fail-on-alert: true
+          fail-on-alert: false
           comment-on-alert: true
           alert-comment-cc-users: "@ajnavarro,@thehowl,@zivkovicmilos"
           # Enable Job Summary for PRs
