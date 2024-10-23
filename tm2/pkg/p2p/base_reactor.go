@@ -6,7 +6,7 @@ import (
 )
 
 // Reactor is responsible for handling incoming messages on one or more
-// Channel. Switch calls GetChannels when reactor is added to it. When a new
+// Channel. MultiplexSwitch calls GetChannels when reactor is added to it. When a new
 // peer joins our node, InitPeer and AddPeer are called. RemovePeer is called
 // when the peer is stopped. Receive is called when a message is received on a
 // channel associated with this reactor.
@@ -16,7 +16,7 @@ type Reactor interface {
 	service.Service // Start, Stop
 
 	// SetSwitch allows setting a switch.
-	SetSwitch(*Switch)
+	SetSwitch(Switch)
 
 	// GetChannels returns the list of MConnection.ChannelDescriptor. Make sure
 	// that each ID is unique across all the reactors added to the switch.
@@ -51,7 +51,7 @@ type Reactor interface {
 
 type BaseReactor struct {
 	service.BaseService // Provides Start, Stop, Quit
-	Switch              *Switch
+	Switch              Switch
 }
 
 func NewBaseReactor(name string, impl Reactor) *BaseReactor {
@@ -61,7 +61,7 @@ func NewBaseReactor(name string, impl Reactor) *BaseReactor {
 	}
 }
 
-func (br *BaseReactor) SetSwitch(sw *Switch) {
+func (br *BaseReactor) SetSwitch(sw Switch) {
 	br.Switch = sw
 }
 func (*BaseReactor) GetChannels() []*conn.ChannelDescriptor { return nil }

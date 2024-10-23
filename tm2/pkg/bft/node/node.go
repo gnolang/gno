@@ -133,7 +133,7 @@ type Node struct {
 
 	// network
 	transport   *p2p.Transport
-	sw          *p2p.Switch // p2p connections
+	sw          *p2p.MultiplexSwitch // p2p connections
 	nodeInfo    p2pTypes.NodeInfo
 	nodeKey     *p2pTypes.NodeKey // our node privkey
 	isListening bool
@@ -442,7 +442,7 @@ func NewNode(config *cfg.Config,
 		p2pLogger.With("transport", "multiplex"),
 	)
 
-	// Setup Switch.
+	// Setup MultiplexSwitch.
 	peerAddrs, errs := p2pTypes.NewNetAddressFromStrings(splitAndTrimEmpty(config.P2P.PersistentPeers, ",", " "))
 	for _, err := range errs {
 		p2pLogger.Error("invalid persistent peer address", "err", err)
@@ -723,7 +723,7 @@ func joinListenerAddresses(ll []net.Listener) string {
 }
 
 // Switch returns the Node's Switch.
-func (n *Node) Switch() *p2p.Switch {
+func (n *Node) Switch() *p2p.MultiplexSwitch {
 	return n.sw
 }
 

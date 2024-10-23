@@ -130,7 +130,7 @@ func TestNoBlockResponse(t *testing.T) {
 	reactorPairs[0] = newBlockchainReactor(log.NewTestingLogger(t), genDoc, privVals, maxBlockHeight)
 	reactorPairs[1] = newBlockchainReactor(log.NewTestingLogger(t), genDoc, privVals, 0)
 
-	p2p.MakeConnectedSwitches(config.P2P, 2, func(i int, s *p2p.Switch) *p2p.Switch {
+	p2p.MakeConnectedSwitches(config.P2P, 2, func(i int, s *p2p.MultiplexSwitch) *p2p.MultiplexSwitch {
 		s.AddReactor("BLOCKCHAIN", reactorPairs[i].reactor)
 		return s
 	}, p2p.Connect2Switches)
@@ -201,7 +201,7 @@ func TestFlappyBadBlockStopsPeer(t *testing.T) {
 	reactorPairs[2] = newBlockchainReactor(log.NewNoopLogger(), genDoc, privVals, 0)
 	reactorPairs[3] = newBlockchainReactor(log.NewNoopLogger(), genDoc, privVals, 0)
 
-	switches := p2p.MakeConnectedSwitches(config.P2P, 4, func(i int, s *p2p.Switch) *p2p.Switch {
+	switches := p2p.MakeConnectedSwitches(config.P2P, 4, func(i int, s *p2p.MultiplexSwitch) *p2p.MultiplexSwitch {
 		s.AddReactor("BLOCKCHAIN", reactorPairs[i].reactor)
 		return s
 	}, p2p.Connect2Switches)
@@ -230,7 +230,7 @@ func TestFlappyBadBlockStopsPeer(t *testing.T) {
 	lastReactorPair := newBlockchainReactor(log.NewNoopLogger(), genDoc, privVals, 0)
 	reactorPairs = append(reactorPairs, lastReactorPair)
 
-	switches = append(switches, p2p.MakeConnectedSwitches(config.P2P, 1, func(i int, s *p2p.Switch) *p2p.Switch {
+	switches = append(switches, p2p.MakeConnectedSwitches(config.P2P, 1, func(i int, s *p2p.MultiplexSwitch) *p2p.MultiplexSwitch {
 		s.AddReactor("BLOCKCHAIN", reactorPairs[len(reactorPairs)-1].reactor)
 		return s
 	}, p2p.Connect2Switches)...)

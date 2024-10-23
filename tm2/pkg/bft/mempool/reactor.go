@@ -214,7 +214,7 @@ func (memR *Reactor) broadcastTxRoutine(peer p2p.Peer) {
 		peerState, ok := peer.Get(types.PeerStateKey).(PeerState)
 		if !ok {
 			// Peer does not have a state yet. We set it in the consensus reactor, but
-			// when we add peer in Switch, the order we call reactors#AddPeer is
+			// when we add peer in MultiplexSwitch, the order we call reactors#AddPeer is
 			// different every time due to us using a map. Sometimes other reactors
 			// will be initialized before the consensus reactor. We should wait a few
 			// milliseconds and retry.

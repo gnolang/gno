@@ -6,12 +6,12 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/p2p/types"
 )
 
-// SwitchOption is a callback used for configuring the p2p Switch
-type SwitchOption func(*Switch)
+// SwitchOption is a callback used for configuring the p2p MultiplexSwitch
+type SwitchOption func(*MultiplexSwitch)
 
 // WithReactor sets the p2p switch reactors
 func WithReactor(name string, reactor Reactor) SwitchOption {
-	return func(sw *Switch) {
+	return func(sw *MultiplexSwitch) {
 		for _, chDesc := range reactor.GetChannels() {
 			chID := chDesc.ID
 
@@ -39,7 +39,7 @@ func WithReactor(name string, reactor Reactor) SwitchOption {
 
 // WithPersistentPeers sets the p2p switch's persistent peer set
 func WithPersistentPeers(peerAddrs []*types.NetAddress) SwitchOption {
-	return func(sw *Switch) {
+	return func(sw *MultiplexSwitch) {
 		for _, addr := range peerAddrs {
 			sw.persistentPeers.Store(addr.ID, addr)
 		}
@@ -48,14 +48,14 @@ func WithPersistentPeers(peerAddrs []*types.NetAddress) SwitchOption {
 
 // WithMaxInboundPeers sets the p2p switch's maximum inbound peer limit
 func WithMaxInboundPeers(maxInbound uint64) SwitchOption {
-	return func(sw *Switch) {
+	return func(sw *MultiplexSwitch) {
 		sw.maxInboundPeers = maxInbound
 	}
 }
 
 // WithMaxOutboundPeers sets the p2p switch's maximum outbound peer limit
 func WithMaxOutboundPeers(maxOutbound uint64) SwitchOption {
-	return func(sw *Switch) {
+	return func(sw *MultiplexSwitch) {
 		sw.maxOutboundPeers = maxOutbound
 	}
 }

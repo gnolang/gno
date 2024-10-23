@@ -35,7 +35,7 @@ const (
 
 // ConsensusReactor defines a reactor for the consensus service.
 type ConsensusReactor struct {
-	p2p.BaseReactor // BaseService + p2p.Switch
+	p2p.BaseReactor // BaseService + p2p.MultiplexSwitch
 
 	conS *ConsensusState
 
@@ -417,7 +417,7 @@ func (conR *ConsensusReactor) broadcastHasVoteMessage(vote *types.Vote) {
 	conR.Switch.Broadcast(StateChannel, amino.MustMarshalAny(msg))
 	/*
 		// TODO: Make this broadcast more selective.
-		for _, peer := range conR.Switch.Peers().List() {
+		for _, peer := range conR.MultiplexSwitch.Peers().List() {
 			ps, ok := peer.Get(PeerStateKey).(*PeerState)
 			if !ok {
 				panic(fmt.Sprintf("Peer %v has no state", peer))
@@ -826,12 +826,12 @@ func (conR *ConsensusReactor) peerStatsRoutine() {
 			case *VoteMessage:
 				if numVotes := ps.RecordVote(); numVotes%votesToContributeToBecomeGoodPeer == 0 {
 					// TODO: peer metrics.
-					// conR.Switch.MarkPeerAsGood(peer)
+					// conR.MultiplexSwitch.MarkPeerAsGood(peer)
 				}
 			case *BlockPartMessage:
 				if numParts := ps.RecordBlockPart(); numParts%blocksToContributeToBecomeGoodPeer == 0 {
 					// TODO: peer metrics.
-					// conR.Switch.MarkPeerAsGood(peer)
+					// conR.MultiplexSwitch.MarkPeerAsGood(peer)
 				}
 			}
 		case <-conR.conS.Quit():

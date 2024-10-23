@@ -5,6 +5,7 @@ import (
 	"net"
 
 	"github.com/gnolang/gno/tm2/pkg/p2p/conn"
+	"github.com/gnolang/gno/tm2/pkg/p2p/events"
 	"github.com/gnolang/gno/tm2/pkg/p2p/types"
 	"github.com/gnolang/gno/tm2/pkg/service"
 )
@@ -72,7 +73,26 @@ type Transport interface {
 	Remove(Peer)
 }
 
-// PeerBehavior wraps the Reactor and Switch information a Transport would need when
+// Switch is the abstraction in the p2p module that handles
+// and manages peer connections thorough the transport
+type Switch interface {
+	// Subscribe subscribes to peer events on the switch
+	Subscribe(filterFn events.EventFilter) (<-chan events.Event, func())
+
+	// Broadcast publishes data on the given channel, to all peers
+	Broadcast(chID byte, data []byte)
+
+	// Peers returns the latest peer set
+	Peers() PeerSet
+
+	// StopPeerForError stops the peer with the given reason
+	StopPeerForError(peer Peer, err error)
+
+	// DialPeers marks the given peers as ready for async dialing
+	DialPeers(peerAddrs ...*types.NetAddress)
+}
+
+// PeerBehavior wraps the Reactor and MultiplexSwitch information a Transport would need when
 // dialing or accepting new Peer connections.
 // It is worth noting that the only reason why this information is required in the first place,
 // is because Peers expose an API through which different TM modules can interact with them.

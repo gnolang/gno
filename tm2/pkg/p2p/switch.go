@@ -40,11 +40,11 @@ func (r *reactorPeerBehavior) IsPersistentPeer(address *types.NetAddress) bool {
 	return r.isPersistentPeerFn(address)
 }
 
-// Switch handles peer connections and exposes an API to receive incoming messages
+// MultiplexSwitch handles peer connections and exposes an API to receive incoming messages
 // on `Reactors`.  Each `Reactor` is responsible for handling incoming messages of one
 // or more `Channels`.  So while sending outgoing messages is typically performed on the peer,
 // incoming messages are received on the reactor.
-type Switch struct {
+type MultiplexSwitch struct {
 	service.BaseService
 
 	ctx      context.Context
@@ -64,14 +64,14 @@ type Switch struct {
 	events    *events.Events
 }
 
-// NewSwitch creates a new Switch with the given config.
+// NewSwitch creates a new MultiplexSwitch with the given config.
 func NewSwitch(
 	transport Transport,
 	options ...SwitchOption,
-) *Switch {
+) *MultiplexSwitch {
 	defaultCfg := config.DefaultP2PConfig()
 
-	sw := &Switch{
+	sw := &MultiplexSwitch{
 		reactors:         make(map[string]Reactor),
 		peers:            newSet(),
 		transport:        transport,
@@ -91,7 +91,7 @@ func NewSwitch(
 		},
 	}
 
-	sw.BaseService = *service.NewBaseService(nil, "P2P Switch", sw)
+	sw.BaseService = *service.NewBaseService(nil, "P2P MultiplexSwitch", sw)
 
 	// Set up the context
 	sw.ctx, sw.cancelFn = context.WithCancel(context.Background())
@@ -103,9 +103,9 @@ func NewSwitch(
 	return sw
 }
 
-// Subscribe registers to live events happening on the p2p Switch.
+// Subscribe registers to live events happening on the p2p MultiplexSwitch.
 // Returns the notification channel, along with an unsubscribe method
-func (sw *Switch) Subscribe(filterFn events.EventFilter) (<-chan events.Event, func()) {
+func (sw *MultiplexSwitch) Subscribe(filterFn events.EventFilter) (<-chan events.Event, func()) {
 	return sw.events.Subscribe(filterFn)
 }
 
@@ -113,7 +113,7 @@ func (sw *Switch) Subscribe(filterFn events.EventFilter) (<-chan events.Event, f
 // Service start/stop
 
 // OnStart implements BaseService. It starts all the reactors and peers.
-func (sw *Switch) OnStart() error {
+func (sw *MultiplexSwitch) OnStart() error {
 	// Start reactors
 	for _, reactor := range sw.reactors {
 		if err := reactor.Start(); err != nil {
@@ -141,7 +141,7 @@ func (sw *Switch) OnStart() error {
 }
 
 // OnStop implements BaseService. It stops all peers and reactors.
-func (sw *Switch) OnStop() {
+func (sw *MultiplexSwitch) OnStop() {
 	// Close all hanging threads
 	sw.cancelFn()
 
@@ -160,7 +160,7 @@ func (sw *Switch) OnStop() {
 
 // Broadcast broadcasts the given data to the given channel,
 // across the entire switch peer set, without blocking
-func (sw *Switch) Broadcast(chID byte, data []byte) {
+func (sw *MultiplexSwitch) Broadcast(chID byte, data []byte) {
 	for _, p := range sw.peers.List() {
 		go func() {
 			// This send context is managed internally
@@ -177,13 +177,13 @@ func (sw *Switch) Broadcast(chID byte, data []byte) {
 }
 
 // Peers returns the set of peers that are connected to the switch.
-func (sw *Switch) Peers() PeerSet {
+func (sw *MultiplexSwitch) Peers() PeerSet {
 	return sw.peers
 }
 
 // StopPeerForError disconnects from a peer due to external error.
 // If the peer is persistent, it will attempt to reconnect
-func (sw *Switch) StopPeerForError(peer Peer, err error) {
+func (sw *MultiplexSwitch) StopPeerForError(peer Peer, err error) {
 	sw.Logger.Error("Stopping peer for error", "peer", peer, "err", err)
 
 	sw.stopAndRemovePeer(peer, err)
@@ -206,7 +206,7 @@ func (sw *Switch) StopPeerForError(peer Peer, err error) {
 	sw.DialPeers(addr)
 }
 
-func (sw *Switch) stopAndRemovePeer(peer Peer, err error) {
+func (sw *MultiplexSwitch) stopAndRemovePeer(peer Peer, err error) {
 	// Remove the peer from the transport
 	sw.transport.Remove(peer)
 
@@ -243,7 +243,7 @@ func (sw *Switch) stopAndRemovePeer(peer Peer, err error) {
 // ---------------------------------------------------------------------
 // Dialing
 
-func (sw *Switch) runDialLoop(ctx context.Context) {
+func (sw *MultiplexSwitch) runDialLoop(ctx context.Context) {
 	for {
 		select {
 		case <-ctx.Done():
@@ -318,7 +318,7 @@ func (sw *Switch) runDialLoop(ctx context.Context) {
 }
 
 // runRedialLoop starts the persistent peer redial loop
-func (sw *Switch) runRedialLoop(ctx context.Context) {
+func (sw *MultiplexSwitch) runRedialLoop(ctx context.Context) {
 	// Set up the event subscription for persistent peer disconnects
 	subCh, unsubFn := sw.Subscribe(func(event events.Event) bool {
 		// Make sure the peer event relates to a peer disconnect
@@ -352,8 +352,8 @@ func (sw *Switch) runRedialLoop(ctx context.Context) {
 }
 
 // DialPeers adds the peers to the dial queue for async dialing.
-// To monitor dial progress, subscribe to adequate p2p Switch events
-func (sw *Switch) DialPeers(peerAddrs ...*types.NetAddress) {
+// To monitor dial progress, subscribe to adequate p2p MultiplexSwitch events
+func (sw *MultiplexSwitch) DialPeers(peerAddrs ...*types.NetAddress) {
 	for _, peerAddr := range peerAddrs {
 		// Check if this is our address
 		if peerAddr.Same(sw.transport.NetAddress()) {
@@ -382,7 +382,7 @@ func (sw *Switch) DialPeers(peerAddrs ...*types.NetAddress) {
 
 // isPersistentPeer returns a flag indicating if a peer
 // is present in the persistent peer set
-func (sw *Switch) isPersistentPeer(id types.ID) bool {
+func (sw *MultiplexSwitch) isPersistentPeer(id types.ID) bool {
 	_, persistent := sw.persistentPeers.Load(id)
 
 	return persistent
@@ -391,7 +391,7 @@ func (sw *Switch) isPersistentPeer(id types.ID) bool {
 // runAcceptLoop is the main powerhouse method
 // for accepting incoming peer connections, filtering them,
 // and persisting them
-func (sw *Switch) runAcceptLoop(ctx context.Context) {
+func (sw *MultiplexSwitch) runAcceptLoop(ctx context.Context) {
 	for {
 		select {
 		case <-ctx.Done():
@@ -441,9 +441,9 @@ func (sw *Switch) runAcceptLoop(ctx context.Context) {
 	}
 }
 
-// addPeer starts up the Peer and adds it to the Switch. Error is returned if
+// addPeer starts up the Peer and adds it to the MultiplexSwitch. Error is returned if
 // the peer is filtered out or failed to start or can't be added.
-func (sw *Switch) addPeer(p Peer) error {
+func (sw *MultiplexSwitch) addPeer(p Peer) error {
 	p.SetLogger(sw.Logger.With("peer", p.SocketAddr()))
 
 	// Handle the shut down case where the switch has stopped, but we're
@@ -484,7 +484,7 @@ func (sw *Switch) addPeer(p Peer) error {
 
 // logTelemetry logs the switch telemetry data
 // to global metrics funnels
-func (sw *Switch) logTelemetry() {
+func (sw *MultiplexSwitch) logTelemetry() {
 	// Update the telemetry data
 	if !telemetry.MetricsEnabled() {
 		return

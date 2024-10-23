@@ -52,7 +52,7 @@ func makeAndConnectReactors(mconfig *memcfg.MempoolConfig, pconfig *p2pcfg.P2PCo
 		reactors[i].SetLogger(logger.With("validator", i))
 	}
 
-	p2p.MakeConnectedSwitches(pconfig, n, func(i int, s *p2p.Switch) *p2p.Switch {
+	p2p.MakeConnectedSwitches(pconfig, n, func(i int, s *p2p.MultiplexSwitch) *p2p.MultiplexSwitch {
 		s.AddReactor("MEMPOOL", reactors[i])
 		return s
 	}, p2p.Connect2Switches)
