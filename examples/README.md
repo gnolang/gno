@@ -32,7 +32,6 @@ acceptance odds, offer useful and original examples.
 imported by others. These are meant to be easily referenced and utilized by the 
 community.
 - Packages under personal namespaces, such as in [r/leon](./gno.land/r/leon), 
-are welcome if they are easily maintainable with the 
-Continuous Integration (CI) system. If a personal realm becomes cumbersome to
-maintain or doesn't align with the CI's checks, it might be relocated to a less 
-prominent location or even removed. 
+are welcome if they are easily maintainable with the Continuous Integration (CI)
+system. If a personal realm becomes cumbersome to maintain or doesn't align with
+the CI's checks, it might be relocated to a less prominent location or even removed. 
