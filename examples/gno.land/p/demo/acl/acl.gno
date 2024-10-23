@@ -118,18 +118,18 @@ func (d *Directory) AddUserToGroup(user std.Address, group string) {
 	if ok {
 		groups = existing.([]string)
 	}
-	groups = append(groups, group)
+	groups = appendGroupsWithoutDuplicates(groups, []string{group})
 	d.userGroups.Set(user.String(), groups)
 }
 
-func (d *Directory) AddUserToGroups(user std.Address, groups []string) {
+func (d *Directory) AddUserToGroups(user std.Address, newGroups []string) {
 	existing, ok := d.userGroups.Get(user.String())
-	var existingGroups []string
+	var groups []string
 	if ok {
-		existingGroups = existing.([]string)
+		groups = existing.([]string)
 	}
-	existingGroups = append(existingGroups, groups...)
-	d.userGroups.Set(user.String(), existingGroups)
+	groups = appendGroupsWithoutDuplicates(groups, newGroups)
+	d.userGroups.Set(user.String(), groups)
 }
 
 func (d *Directory) RemoveUserFromGroup(user std.Address, group string) {
