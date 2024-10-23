@@ -276,6 +276,7 @@ func TestParseURI_JSON(t *testing.T) {
 	// Iterate over test cases for JSON encoded parameters
 	for _, tc := range jsonCases {
 		t.Run(tc.raw, func(t *testing.T) {
+			t.Parallel()
 			url := fmt.Sprintf("test.com/method?data=%v", url.PathEscape(tc.raw))
 			req, err := http.NewRequest("GET", url, nil)
 			assert.NoError(t, err)
