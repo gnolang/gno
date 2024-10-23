@@ -5,7 +5,7 @@ import (
 )
 
 func main() {
-	t := time.Date(2009, time.November, 10, 23, 4, 5, 0, time.UTC)
+	t := time.Date(2009, time.November, 10, 23, 4, 5, 0)
 	m := t.Minute()
 	println(t, m)
 }

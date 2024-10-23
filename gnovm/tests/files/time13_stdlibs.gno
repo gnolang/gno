@@ -6,10 +6,10 @@ import (
 
 var dummy = 1
 
-var t time.Time = time.Date(2007, time.November, 10, 23, 4, 5, 0, time.UTC)
+var t time.Time = time.Date(2007, time.November, 10, 23, 4, 5, 0)
 
 func main() {
-	t = time.Date(2009, time.November, 10, 23, 4, 5, 0, time.UTC)
+	t = time.Date(2009, time.November, 10, 23, 4, 5, 0)
 	println(t.Clock())
 }
 
