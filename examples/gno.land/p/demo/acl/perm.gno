@@ -72,18 +72,3 @@ func (p perm) Equal(p2 perm) bool {
 	return true
 }
 
-func (p perm) String() string {
-	// Sort the slices to ensure consistent ordering
-    sortedVerbs := make([]string, len(p.verbs))
-    copy(sortedVerbs, p.verbs)
-    sort.Strings(sortedVerbs)
-
-    sortedResources := make([]string, len(p.resources))
-    copy(sortedResources, p.resources)
-    sort.Strings(sortedResources)
-
-    // Join the slices into a string representation
-    return ufmt.Sprintf("verbs:[%s] resources:[%s]", 
-    strings.Join(sortedVerbs, ", "), 
-    strings.Join(sortedResources, ", "))
-}

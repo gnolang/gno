@@ -107,8 +107,7 @@ func (d *Directory) addPermsToBucket(bucket string, p perms) {
 	if ok {
 		ps = existing.(perms)
 	}
-	ps = append(ps, p...)
-	ps = ps.Dedup()
+	ps = ps.appendWithoutDuplicates(p)
 
 	d.permBuckets.Set(bucket, ps)
 }

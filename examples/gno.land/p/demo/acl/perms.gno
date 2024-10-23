@@ -1,8 +1,15 @@
 package acl
 
-import "fmt"
-
 type perms []perm
+
+func (p perms) Contains(p2 perm) bool {
+	for _, pd := range p {
+		if pd.Equal(p2) {
+			return true
+		}
+	}
+	return false
+}
 
 func (perms perms) hasPerm(verb, resource string) bool {
 	for _, perm := range perms {
@@ -13,18 +20,11 @@ func (perms perms) hasPerm(verb, resource string) bool {
 	return false
 }
 
-func (p perms) Dedup() perms {
-    seen := make(map[string]struct{})
-    uniquePerms := make([]perm, 0, len(p))
-
-    for _, perm := range p {
-        permStr := perm.String() // Get string representation
-        if _, ok := seen[permStr]; ok {
-            continue
-        }
-        seen[permStr] = struct{}{}
-        uniquePerms = append(uniquePerms, perm)
-    }
-
-    return uniquePerms
+func (p perms) appendWithoutDuplicates(newPerms perms) perms {
+	for _, pd := range newPerms {
+		if !p.Contains(pd) {
+			p = append(p, pd)
+		}
+	}
+	return p
 }
