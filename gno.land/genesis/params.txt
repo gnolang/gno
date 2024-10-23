@@ -1,5 +1,18 @@
-# VM
-#vm_chain_domain=gno.land
-#vm_enable_namespaces=...
+# gno.land
+gnoland_sys_users_rlm.string=gno.land/r/sys/users
+
+# gnovm
+vm_enable_namespaces.bool=true
+#vm_chain_domain.string=gno.land
 #vm_lock_token=...
 #vm_gas_xxx=...
+
+# tm2
+# ...
+
+# misc
+foo.string=bar
+foo.int64=-1337
+foo.uint64=42
+foo.bool=true
+
