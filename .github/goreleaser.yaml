@@ -703,7 +703,7 @@ nightly:
   tag_name: nightly
   publish_release: true
   keep_single_release: true
-  name_template: "{{ incpatch .Version }}-{{ .ShortCommit }}-{{ .Env.TAG_VERSION }}"
+  version_template: "{{ incpatch .Version }}-{{ .ShortCommit }}-{{ .Env.TAG_VERSION }}"
 
 git:
   ignore_tag_prefixes:
