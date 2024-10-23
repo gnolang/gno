@@ -24,6 +24,14 @@ func (p Param) Verify() error {
 	return nil
 }
 
+const (
+	ParamKindString = "string"
+	ParamKindInt64  = "int64"
+	ParamKindUint64 = "uint64"
+	ParamKindBool   = "bool"
+	ParamKindBytes  = "bytes"
+)
+
 func (p *Param) Parse(entry string) error {
 	parts := strings.SplitN(strings.TrimSpace(entry), "=", 2) // <key>.<kind>=<value>
 	if len(parts) != 2 {
@@ -34,15 +42,15 @@ func (p *Param) Parse(entry string) error {
 	kind := p.Kind()
 	raw := parts[1]
 	switch kind {
-	case "string":
+	case ParamKindString:
 		p.string_val = raw
-	case "bool":
+	case ParamKindBool:
 		panic("not implemented")
-	case "int64":
+	case ParamKindInt64:
 		panic("not implemented")
-	case "uint64":
+	case ParamKindUint64:
 		panic("not implemented")
-	case "bytes":
+	case ParamKindBytes:
 		panic("not implemented")
 	default:
 		return errors.New("unsupported param kind: " + kind)
@@ -58,18 +66,18 @@ func (p Param) Kind() string {
 func (p Param) String() string {
 	kind := p.Kind()
 	switch kind {
-	case "string":
+	case ParamKindString:
 		return fmt.Sprintf("%s=%s", p.key, p.string_val)
-	case "int64":
+	case ParamKindInt64:
 		return fmt.Sprintf("%s=%d", p.key, p.int64_val)
-	case "uint64":
+	case ParamKindUint64:
 		return fmt.Sprintf("%s=%d", p.key, p.uint64_val)
-	case "bool":
+	case ParamKindBool:
 		if p.bool_val {
 			return fmt.Sprintf("%s=true", p.key)
 		}
 		return fmt.Sprintf("%s=false", p.key)
-	case "bytes":
+	case ParamKindBytes:
 		return fmt.Sprintf("%s=%x", p.key, p.bytes_val)
 	}
 	panic("invalid param kind:" + kind)
@@ -86,15 +94,15 @@ func (p Param) MarshalAmino() (string, error) {
 func (p Param) Register(ctx sdk.Context, prk params.ParamsKeeperI) {
 	kind := p.Kind()
 	switch kind {
-	case "string":
+	case ParamKindString:
 		prk.SetString(ctx, p.key, p.string_val)
-	case "int64":
+	case ParamKindInt64:
 		prk.SetInt64(ctx, p.key, p.int64_val)
-	case "uint64":
+	case ParamKindUint64:
 		prk.SetUint64(ctx, p.key, p.uint64_val)
-	case "bool":
+	case ParamKindBool:
 		prk.SetBool(ctx, p.key, p.bool_val)
-	case "bytes":
+	case ParamKindBytes:
 		prk.SetBytes(ctx, p.key, p.bytes_val)
 	default:
 		panic("invalid param kind: " + kind)
