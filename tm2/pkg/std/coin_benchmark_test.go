@@ -13,10 +13,7 @@ func BenchmarkCoinsAdditionIntersect(b *testing.B) {
 			coinsA := Coins(make([]Coin, numCoinsA))
 			coinsB := Coins(make([]Coin, numCoinsB))
 
-			maxCoins := numCoinsA
-			if numCoinsB > numCoinsA {
-				maxCoins = numCoinsB
-			}
+			maxCoins := max(numCoinsA, numCoinsB)
 			denomLength := len(fmt.Sprint(maxCoins))
 
 			for i := 0; i < numCoinsA; i++ {
@@ -52,10 +49,7 @@ func BenchmarkCoinsAdditionNoIntersect(b *testing.B) {
 			coinsA := Coins(make([]Coin, numCoinsA))
 			coinsB := Coins(make([]Coin, numCoinsB))
 
-			maxCoins := numCoinsA
-			if numCoinsB > numCoinsA {
-				maxCoins = numCoinsB
-			}
+			maxCoins := max(numCoinsA, numCoinsB)
 			denomLength := len(fmt.Sprint(maxCoins))
 
 			for i := 0; i < numCoinsA; i++ {
