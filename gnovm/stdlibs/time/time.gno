@@ -2,40 +2,12 @@ package time
 
 import "errors"
 
-const (
-	minWall = wallToInternal // year 1885
-
-	// The unsigned zero year for internal calculations.
-	// Must be 1 mod 400, and times before it will not compute correctly,
-	// but otherwise can be changed at will.
-	absoluteZeroYear = -292277022399
-
-	// The year of the zero Time.
-	// Assumed by the unixToInternal computation below.
-	internalYear = 1
-
-	// Offsets to convert between internal and absolute or Unix times.
-	absoluteToInternal int64 = (absoluteZeroYear - internalYear) * 365.2425 * secondsPerDay
-	internalToAbsolute       = -absoluteToInternal
-
-	unixToInternal int64 = (1969*365 + 1969/4 - 1969/100 + 1969/400) * secondsPerDay
-	internalToUnix int64 = -unixToInternal
-
-	wallToInternal int64 = (1884*365 + 1884/4 - 1884/100 + 1884/400) * secondsPerDay
-
-	secondsPerMinute = 60
-	secondsPerHour   = 60 * secondsPerMinute
-	secondsPerDay    = 24 * secondsPerHour
-	secondsPerWeek   = 7 * secondsPerDay
-	daysPer400Years  = 365*400 + 97
-	daysPer100Years  = 365*100 + 24
-	daysPer4Years    = 365*4 + 1
-)
-
 type Time struct {
 	sec  int64
 	nsec int32
 }
+
+const minWall = wallToInternal // year 1885
 
 func (t *Time) unixSec() int64 { return t.sec + internalToUnix }
 
@@ -98,8 +70,35 @@ func (d Weekday) String() string {
 	return "%!Weekday(" + string(buf[n:]) + ")"
 }
 
+const (
+	// The unsigned zero year for internal calculations.
+	// Must be 1 mod 400, and times before it will not compute correctly,
+	// but otherwise can be changed at will.
+	absoluteZeroYear = -292277022399
+
+	// The year of the zero Time.
+	// Assumed by the unixToInternal computation below.
+	internalYear = 1
+
+	// Offsets to convert between internal and absolute or Unix times.
+	absoluteToInternal int64 = (absoluteZeroYear - internalYear) * 365.2425 * secondsPerDay
+	internalToAbsolute       = -absoluteToInternal
+
+	unixToInternal int64 = (1969*365 + 1969/4 - 1969/100 + 1969/400) * secondsPerDay
+	internalToUnix int64 = -unixToInternal
+
+	wallToInternal int64 = (1884*365 + 1884/4 - 1884/100 + 1884/400) * secondsPerDay
+)
+
 func (t Time) IsZero() bool {
 	return t.sec == 0 && t.nsec == 0
+}
+
+// rename of the "abs" method in the original time.go
+// since we removed the location & zoneinfo related code
+func (t Time) internal() uint64 {
+	sec := t.unixSec()
+	return uint64(sec + (unixToInternal + internalToAbsolute))
 }
 
 // Date returns the year, month, and day in which t occurs.
@@ -132,7 +131,7 @@ func (t Time) Weekday() Weekday {
 
 func internalWeekday(it uint64) Weekday {
 	sec := (it + uint64(Monday)*secondsPerDay) % secondsPerWeek
-	return Weekday(sec / secondsPerDay)
+	return Weekday(int(sec) / secondsPerDay)
 }
 
 // ISOWeek returns the ISO 8601 year and week number in which t occurs.
@@ -182,6 +181,10 @@ func (t Time) Hour() int {
 	return int(t.internal()%secondsPerDay) / secondsPerHour
 }
 
+func (t Time) InternalDebug() uint64 {
+	return t.internal()
+}
+
 // Minute returns the minute offset within the hour specified by t, in the range [0, 59].
 func (t Time) Minute() int {
 	return int(t.internal()%secondsPerHour) / secondsPerMinute
@@ -219,12 +222,15 @@ func (t Time) AddDate(years int, months int, days int) Time {
 	return Date(year+years, month+Month(months), day+days, hour, min, sec, int(t.nsec))
 }
 
-// rename of the "abs" method in the original time.go
-// since we removed the location & zoneinfo related code
-func (t Time) internal() uint64 {
-	sec := t.unixSec()
-	return uint64(sec + (unixToInternal + internalToAbsolute))
-}
+const (
+	secondsPerMinute = 60
+	secondsPerHour   = 60 * secondsPerMinute
+	secondsPerDay    = 24 * secondsPerHour
+	secondsPerWeek   = 7 * secondsPerDay
+	daysPer400Years  = 365*400 + 97
+	daysPer100Years  = 365*100 + 24
+	daysPer4Years    = 365*4 + 1
+)
 
 func (t Time) date(full bool) (year int, month Month, day int, yday int) {
 	return internalDate(t.internal(), full)
@@ -272,12 +278,13 @@ func internalDate(it uint64, full bool) (year int, month Month, day int, yday in
 
 	day = yday
 	if isLeap(year) {
+		// Leap year
 		switch {
 		case day > 31+29-1:
-			// After leap day; pretend it wasn't there
+			// After leap day; pretend it wasn't there.
 			day--
 		case day == 31+29-1:
-			// Leap day
+			// Leap day.
 			month = February
 			day = 29
 			return
