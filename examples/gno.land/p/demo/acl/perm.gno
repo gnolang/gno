@@ -2,10 +2,6 @@ package acl
 
 import (
 	"regexp"
-	"sort"
-    "strings"
-
-	"gno.land/p/demo/ufmt"
 )
 
 type perm struct {
@@ -71,4 +67,3 @@ func (p perm) Equal(p2 perm) bool {
 
 	return true
 }
-
