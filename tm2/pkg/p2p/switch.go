@@ -298,7 +298,6 @@ func (sw *MultiplexSwitch) runDialLoop(ctx context.Context) {
 				sw.transport.Remove(p)
 
 				if !p.IsRunning() {
-					// TODO check if this check is even required
 					continue
 				}
 
@@ -319,36 +318,83 @@ func (sw *MultiplexSwitch) runDialLoop(ctx context.Context) {
 
 // runRedialLoop starts the persistent peer redial loop
 func (sw *MultiplexSwitch) runRedialLoop(ctx context.Context) {
-	// Set up the event subscription for persistent peer disconnects
-	subCh, unsubFn := sw.Subscribe(func(event events.Event) bool {
-		// Make sure the peer event relates to a peer disconnect
-		if event.Type() != events.PeerDisconnected {
-			return false
+	var wg sync.WaitGroup
+
+	wg.Add(2)
+
+	go func() {
+		defer wg.Done()
+
+		ticker := time.NewTicker(time.Second * 5)
+		defer ticker.Stop()
+
+		for {
+			select {
+			case <-ctx.Done():
+				sw.Logger.Debug("redial crawl context canceled")
+
+				return
+			case <-ticker.C:
+				peers := sw.Peers()
+
+				peersToDial := make([]*types.NetAddress, 0)
+
+				sw.persistentPeers.Range(func(key, value any) bool {
+					var (
+						id   = key.(types.ID)
+						addr = value.(*types.NetAddress)
+					)
+
+					if !peers.Has(id) {
+						peersToDial = append(peersToDial, addr)
+					}
+
+					return true
+				})
+			}
 		}
+	}()
 
-		disconnectEv, ok := event.(*events.PeerDisconnectedEvent)
-		if !ok {
-			return false
+	go func() {
+		defer wg.Done()
+
+		// Set up the event subscription for persistent peer disconnects
+		subCh, unsubFn := sw.Subscribe(func(event events.Event) bool {
+			// Make sure the peer event relates to a peer disconnect
+			if event.Type() != events.PeerDisconnected {
+				return false
+			}
+
+			disconnectEv, ok := event.(*events.PeerDisconnectedEvent)
+			if !ok {
+				return false
+			}
+
+			return sw.isPersistentPeer(disconnectEv.PeerID)
+		})
+		defer unsubFn()
+
+		for {
+			select {
+			case <-ctx.Done():
+				sw.Logger.Debug("redial event context canceled")
+
+				return
+			case ev := <-subCh:
+				disconnectEv := ev.(*events.PeerDisconnectedEvent)
+
+				// Dial the disconnected peer
+				item := dial.Item{
+					Time:    time.Now().Add(5 * time.Second),
+					Address: &disconnectEv.Address,
+				}
+
+				sw.dialQueue.Push(item)
+			}
 		}
+	}()
 
-		return sw.isPersistentPeer(disconnectEv.PeerID)
-	})
-	defer unsubFn()
-
-	for {
-		select {
-		case <-ctx.Done():
-			sw.Logger.Debug("redial context canceled")
-
-			return
-		case ev := <-subCh:
-			disconnectEv := ev.(*events.PeerDisconnectedEvent)
-
-			// Dial the disconnected peer
-			// TODO add backoff mechanism
-			sw.DialPeers(&disconnectEv.Address)
-		}
-	}
+	wg.Wait()
 }
 
 // DialPeers adds the peers to the dial queue for async dialing.
