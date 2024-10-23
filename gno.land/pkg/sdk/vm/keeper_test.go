@@ -319,12 +319,12 @@ package test
 import "std"
 
 func init() {
-	std.SetParam("foo.string", "foo1")
+	std.SetParamString("foo.string", "foo1")
 }
 
 func Do() string {
-	std.SetParam("bar.int64", int64(1337))
-	std.SetParam("foo.string", "foo2") // override init
+	std.SetParamInt64("bar.int64", int64(1337))
+	std.SetParamString("foo.string", "foo2") // override init
 
 	return "XXX" // return std.GetConfig("gno.land/r/test.foo"), if we want to expose std.GetConfig, maybe as a std.TestGetConfig
 }`},
