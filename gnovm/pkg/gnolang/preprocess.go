@@ -165,12 +165,12 @@ func initStaticBlocks(store Store, ctx BlockNode, bn BlockNode) {
 							continue
 						}
 						if !isLocallyDefined2(last, ln) {
-							// if loop extern, will change to
+							// if loop extern, will promote to
 							// NameExprTypeHeapDefine later.
 							nx.Type = NameExprTypeDefine
 							last.Predefine(false, ln)
-							defined = true
 						}
+						defined = true
 					}
 					if !defined {
 						panic(fmt.Sprintf("nothing defined in assignment %s", n.String()))
