@@ -1,6 +1,9 @@
 name: Trigger nightly build
 
 on:
+  push:
+    branches:
+      - "dev/sw360cab/gorelease-ignore-tag"
   schedule:
     - cron:  '0 0 * * 2-6'
   workflow_dispatch:
