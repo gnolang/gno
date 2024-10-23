@@ -64,11 +64,11 @@ func TestNewAppWithOptions(t *testing.T) {
 				},
 			},
 			Params: []Param{
-				{key: "foo.string", string_val: "hello"},
-				{key: "bar.int64", int64_val: -42},
-				{key: "foo.uint64", uint64_val: 1337},
-				{key: "bar.bool", bool_val: true},
-				{key: "foo.bytes", bytes_val: []byte{0x48, 0x69, 0x21}},
+				{key: "foo.string", stringVal: "hello"},
+				{key: "bar.int64", int64Val: -42},
+				{key: "foo.uint64", uint64Val: 1337},
+				{key: "bar.bool", boolVal: true},
+				{key: "foo.bytes", bytesVal: []byte{0x48, 0x69, 0x21}},
 			},
 		},
 	})

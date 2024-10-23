@@ -1,8 +1,10 @@
 package gnoland
 
 import (
+	"encoding/hex"
 	"errors"
 	"fmt"
+	"strconv"
 	"strings"
 
 	"github.com/gnolang/gno/tm2/pkg/sdk"
@@ -12,11 +14,11 @@ import (
 type Param struct {
 	key string
 
-	string_val string
-	int64_val  int64
-	uint64_val uint64
-	bool_val   bool
-	bytes_val  []byte
+	stringVal string
+	int64Val  int64
+	uint64Val uint64
+	boolVal   bool
+	bytesVal  []byte
 }
 
 func (p Param) Verify() error {
@@ -43,15 +45,31 @@ func (p *Param) Parse(entry string) error {
 	raw := parts[1]
 	switch kind {
 	case ParamKindString:
-		p.string_val = raw
-	case ParamKindBool:
-		panic("not implemented")
+		p.stringVal = raw
 	case ParamKindInt64:
-		panic("not implemented")
+		v, err := strconv.ParseInt(raw, 10, 64)
+		if err != nil {
+			return err
+		}
+		p.int64Val = v
+	case ParamKindBool:
+		v, err := strconv.ParseBool(raw)
+		if err != nil {
+			return err
+		}
+		p.boolVal = v
 	case ParamKindUint64:
-		panic("not implemented")
+		v, err := strconv.ParseUint(raw, 10, 64)
+		if err != nil {
+			return err
+		}
+		p.uint64Val = v
 	case ParamKindBytes:
-		panic("not implemented")
+		v, err := hex.DecodeString(raw)
+		if err != nil {
+			return err
+		}
+		p.bytesVal = v
 	default:
 		return errors.New("unsupported param kind: " + kind)
 	}
@@ -67,18 +85,18 @@ func (p Param) String() string {
 	kind := p.Kind()
 	switch kind {
 	case ParamKindString:
-		return fmt.Sprintf("%s=%s", p.key, p.string_val)
+		return fmt.Sprintf("%s=%s", p.key, p.stringVal)
 	case ParamKindInt64:
-		return fmt.Sprintf("%s=%d", p.key, p.int64_val)
+		return fmt.Sprintf("%s=%d", p.key, p.int64Val)
 	case ParamKindUint64:
-		return fmt.Sprintf("%s=%d", p.key, p.uint64_val)
+		return fmt.Sprintf("%s=%d", p.key, p.uint64Val)
 	case ParamKindBool:
-		if p.bool_val {
+		if p.boolVal {
 			return fmt.Sprintf("%s=true", p.key)
 		}
 		return fmt.Sprintf("%s=false", p.key)
 	case ParamKindBytes:
-		return fmt.Sprintf("%s=%x", p.key, p.bytes_val)
+		return fmt.Sprintf("%s=%x", p.key, p.bytesVal)
 	}
 	panic("invalid param kind:" + kind)
 }
@@ -95,15 +113,15 @@ func (p Param) Register(ctx sdk.Context, prk params.ParamsKeeperI) {
 	kind := p.Kind()
 	switch kind {
 	case ParamKindString:
-		prk.SetString(ctx, p.key, p.string_val)
+		prk.SetString(ctx, p.key, p.stringVal)
 	case ParamKindInt64:
-		prk.SetInt64(ctx, p.key, p.int64_val)
+		prk.SetInt64(ctx, p.key, p.int64Val)
 	case ParamKindUint64:
-		prk.SetUint64(ctx, p.key, p.uint64_val)
+		prk.SetUint64(ctx, p.key, p.uint64Val)
 	case ParamKindBool:
-		prk.SetBool(ctx, p.key, p.bool_val)
+		prk.SetBool(ctx, p.key, p.boolVal)
 	case ParamKindBytes:
-		prk.SetBytes(ctx, p.key, p.bytes_val)
+		prk.SetBytes(ctx, p.key, p.bytesVal)
 	default:
 		panic("invalid param kind: " + kind)
 	}
