@@ -194,13 +194,15 @@ func (d *Directory) RemoveUserPerm(addr std.Address, verb, resource string) {
 
 func (d *Directory) RemoveUserPerms(addr std.Address, verbs []string, resource string) {
 	bucket := "u:" + addr.String()
+	var ps perms
 	for _, verb := range verbs {
 		p := perm{
 			verbs:     []string{verb},
 			resources: []string{resource},
 		}
-		d.removePermsFromBucket(bucket, []perm{p})
+		ps = append(ps, p)
 	}
+	d.removePermsFromBucket(bucket, ps)
 }
 
 func (d *Directory) RemoveGroupPerm(name string, verb, resource string) {
@@ -214,25 +216,27 @@ func (d *Directory) RemoveGroupPerm(name string, verb, resource string) {
 
 func (d *Directory) RemoveGroupPerms(name string, verbs []string, resource string) {
 	bucket := "g:" + name
+	var ps perms
 	for _, verb := range verbs {
 		p := perm{
 			verbs:     []string{verb},
 			resources: []string{resource},
 		}
-		d.removePermsFromBucket(bucket, []perm{p})
+		ps = append(ps, p)
 	}
+	d.removePermsFromBucket(bucket, ps)
 }
 
 func (d *Directory) ResetGroupPerms(name string) {
 	bucket := "g:" + name
-	d.permBuckets.Set(bucket, perms{})
+	d.permBuckets.Remove(bucket)
 }
 
 func (d *Directory) ResetUserPerms(addr std.Address) {
 	bucket := "u:" + addr.String()
-	d.permBuckets.Set(bucket, perms{})
+	d.permBuckets.Remove(bucket)
 }
 
 func (d *Directory) ResetUserGroups(addr std.Address) {
-	d.userGroups.Set(addr.String(), []string{})
+	d.userGroups.Remove(addr.String())
 }
