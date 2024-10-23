@@ -1,75 +1,54 @@
-// Package time provides functionality for measuring and displaying time.
-//
-// The calendrical calculations always assume a Gregorian calendar, with
-// no leap seconds.
-
 package time
 
-import (
-	"errors"
-)
-
-type Time int64
+import "errors"
 
 const (
-	hasMonotonic = 1 << 63
-	nsecMask     = 1<<30 - 1
-	nsecShift    = 30
+	minWall = wallToInternal // year 1885
+
+	// The year of the zero Time.
+	// Assumed by the unixToInternal computation below.
+	internalYear = 1
+
+	// Offsets to convert between internal and absolute or Unix times.
+	absoluteToInternal int64 = (absoluteZeroYear - internalYear) * 365.2425 * secondsPerDay
+	internalToAbsolute       = -absoluteToInternal
+	unixToInternal     int64 = (1969*365 + 1969/4 - 1969/100 + 1969/400) * secondsPerDay
+	internalToUnix     int64 = -unixToInternal
+	wallToInternal     int64 = (1884*365 + 1884/4 - 1884/100 + 1884/400) * secondsPerDay
+
+	// The unsigned zero year for internal calculations.
+	// Must be 1 mod 400, and times before it will not compute correctly,
+	// but otherwise can be changed at will.
+	absoluteZeroYear = -292277022399
+
+	secondsPerMinute = 60
+	secondsPerHour   = 60 * secondsPerMinute
+	secondsPerDay    = 24 * secondsPerHour
+	secondsPerWeek   = 7 * secondsPerDay
+	daysPer400Years  = 365*400 + 97
+	daysPer100Years  = 365*100 + 24
+	daysPer4Years    = 365*4 + 1
 )
 
-// These helpers for manipulating the wall and monotonic clock readings
-// take pointer receivers, even when they don't modify the time,
-// to make them cheaper to call.
-
-// nsec returns the nanoseconds component of the time.
-func (t Time) nsec() int32 {
-	return int32(t % 1e9)
+type Time struct {
+	sec  int64
+	nsec int32
 }
 
-// sec returns the time's seconds since the Unix epoch (Jan 1, 1970).
-func (t Time) sec() int64 {
-	return int64(t / 1e9)
-}
+func (t *Time) unixSec() int64 { return t.sec + internalToUnix }
 
-// unixSec returns the time's seconds since Jan 1 1970 (Unix time).
-func (t Time) unixSec() int64 { return t.sec() }
-
-// addSec adds d seconds to the time.
-func (t *Time) addSec(d int64) {
-	// Convert seconds to nanoseconds
-	delta := d * 1e9
-
-	// Check if the sum overflows or underflows
-	if (*t > 0 && delta > 0 && int64(*t) > int64(1<<63-1)-delta) ||
-		(*t < 0 && delta < 0 && int64(*t) < int64(-1<<63)-delta) {
-		// Handle overflow or underflow cases
-		if delta > 0 {
-			*t = Time(int64(1<<63 - 1)) // Max int64 value
-		} else {
-			*t = Time(int64(-1 << 63)) // Min int64 value
-		}
-	} else {
-		// Safe to add delta to t
-		*t += Time(delta)
-	}
-}
-
-// After reports whether the time instant t is after u.
 func (t Time) After(u Time) bool {
-	return t > u
+	return t.sec > u.sec || t.sec == u.sec && t.nsec > u.nsec
 }
 
-// Before reports whether the time instant t is before u.
 func (t Time) Before(u Time) bool {
-	return t < u
+	return t.sec < u.sec || t.sec == u.sec && t.nsec < u.nsec
 }
 
-// Equal reports whether the time instant t is equal to u.
 func (t Time) Equal(u Time) bool {
-	return t == u
+	return t.sec == u.sec && t.nsec == u.nsec
 }
 
-// A Month specifies a month of the year (January = 1, ...).
 type Month int
 
 const (
@@ -87,7 +66,6 @@ const (
 	December
 )
 
-// String returns the English name of the month ("January", "February", ...).
 func (m Month) String() string {
 	if January <= m && m <= December {
 		return longMonthNames[m-1]
@@ -97,7 +75,6 @@ func (m Month) String() string {
 	return "%!Month(" + string(buf[n:]) + ")"
 }
 
-// A Weekday specifies a day of the week (Sunday = 0, ...).
 type Weekday int
 
 const (
@@ -110,7 +87,6 @@ const (
 	Saturday
 )
 
-// String returns the English name of the day ("Sunday", "Monday", ...).
 func (d Weekday) String() string {
 	if Sunday <= d && d <= Saturday {
 		return longDayNames[d]
@@ -120,10 +96,8 @@ func (d Weekday) String() string {
 	return "%!Weekday(" + string(buf[n:]) + ")"
 }
 
-// IsZero reports whether t represents the zero time instant,
-// January 1, year 1, 00:00:00 UTC.
 func (t Time) IsZero() bool {
-	return t == 0
+	return t.sec == 0 && t.nsec == 0
 }
 
 // Date returns the year, month, and day in which t occurs.
@@ -140,7 +114,7 @@ func (t Time) Year() int {
 
 // Month returns the month of the year specified by t.
 func (t Time) Month() Month {
-	_, month, _, _ := t.date(true)
+	_, month, _, _ := t.date(false)
 	return month
 }
 
@@ -150,13 +124,15 @@ func (t Time) Day() int {
 	return day
 }
 
-// Weekday returns the day of the week specified by t.
 func (t Time) Weekday() Weekday {
-	daysSinceEpoch := t.sec() / secondsPerDay
-	return Weekday((daysSinceEpoch + int64(Thursday)) % 7) // January 1, 1970 was a Thursday
+	return internalWeekday(t.internal())
 }
 
-// TODO: TEST
+func internalWeekday(it uint64) Weekday {
+	sec := (it + uint64(Monday)*secondsPerDay) % secondsPerWeek
+	return Weekday(sec / secondsPerDay)
+}
+
 // ISOWeek returns the ISO 8601 year and week number in which t occurs.
 // Week ranges from 1 to 53. Jan 01 to Jan 03 of year n might belong to
 // week 52 or 53 of year n-1, and Dec 29 to Dec 31 might belong to week 1
@@ -172,25 +148,26 @@ func (t Time) ISOWeek() (year, week int) {
 	// 1      2       3         4        5      6        7
 	// +3     +2      +1        0        -1     -2       -3
 	// the offset to Thursday
-	// Get the current day of the week
-	d := Thursday - t.Weekday()
-
-	// Handle Sunday (ISOWeek counts Monday as the first day of the week)
+	it := t.internal()
+	d := Thursday - internalWeekday(it)
+	// handle Sunday
 	if d == 4 {
-		d = -3
+		d -= 3
 	}
-
-	t += Time(d * secondsPerDay * 1e9) // Convert days to nanoseconds and adjust
-
-	year, _, _, yday := t.date(false)
-	week = yday/7 + 1
-
-	return year, week
+	// find the Thursday of the calendar week
+	it += uint64(d) * secondsPerDay
+	year, _, _, yday := internalDate(it, false)
+	return year, yday/7 + 1
 }
 
 // Clock returns the hour, minute, and second within the day specified by t.
 func (t Time) Clock() (hour, min, sec int) {
-	sec = int(t % secondsPerDay)
+	return internalClock(t.internal())
+}
+
+// internalClock is like clock but operates on an internal time.
+func internalClock(it uint64) (hour, min, sec int) {
+	sec = int(it % secondsPerDay)
 	hour = sec / secondsPerHour
 	sec -= hour * secondsPerHour
 	min = sec / secondsPerMinute
@@ -200,23 +177,23 @@ func (t Time) Clock() (hour, min, sec int) {
 
 // Hour returns the hour within the day specified by t, in the range [0, 23].
 func (t Time) Hour() int {
-	return int(t%secondsPerDay) / secondsPerHour
+	return int(t.internal()%secondsPerDay) / secondsPerHour
 }
 
 // Minute returns the minute offset within the hour specified by t, in the range [0, 59].
 func (t Time) Minute() int {
-	return int(t%secondsPerHour) / secondsPerMinute
+	return int(t.internal()%secondsPerHour) / secondsPerMinute
 }
 
 // Second returns the second offset within the minute specified by t, in the range [0, 59].
 func (t Time) Second() int {
-	return int(t % secondsPerMinute)
+	return int(t.internal() % secondsPerMinute)
 }
 
 // Nanosecond returns the nanosecond offset within the second specified by t,
 // in the range [0, 999999999].
 func (t Time) Nanosecond() int {
-	return int(t.nsec())
+	return int(t.nsec)
 }
 
 // YearDay returns the day of the year specified by t, in the range [1,365] for non-leap years,
@@ -226,6 +203,158 @@ func (t Time) YearDay() int {
 	return yday + 1
 }
 
+// AddDate returns the time corresponding to adding the
+// given number of years, months, and days to t.
+// For example, AddDate(-1, 2, 3) applied to January 1, 2011
+// returns March 4, 2010.
+//
+// AddDate normalizes its result in the same way that Date does,
+// so, for example, adding one month to October 31 yields
+// December 1, the normalized form for November 31.
+func (t Time) AddDate(years int, months int, days int) Time {
+	year, month, day := t.Date()
+	hour, min, sec := t.Clock()
+	return Date(year+years, month+Month(months), day+days, hour, min, sec, int(t.nsec))
+}
+
+// rename of the "abs" method in the original time.go
+// since we removed the location & zoneinfo related code
+func (t Time) internal() uint64 {
+	sec := t.unixSec()
+	return uint64(sec + (unixToInternal + internalToAbsolute))
+}
+
+func (t Time) date(full bool) (year int, month Month, day int, yday int) {
+	return internalDate(t.internal(), full)
+}
+
+func internalDate(it uint64, full bool) (year int, month Month, day int, yday int) {
+	d := it / secondsPerDay
+
+	// Account for 400 year cycles.
+	n := d / daysPer400Years
+	y := 400 * n
+	d -= daysPer400Years * n
+
+	// Cut off 100-year cycles.
+	// The last cycle has one extra leap year, so on the last day
+	// of that year, day / daysPer100Years will be 4 instead of 3.
+	// Cut it back down to 3 by subtracting n>>2.
+	n = d / daysPer100Years
+	n -= n >> 2
+	y += 100 * n
+	d -= daysPer100Years * n
+
+	// Cut off 4-year cycles.
+	// The last cycle has a missing leap year, which does not
+	// affect the computation.
+	n = d / daysPer4Years
+	y += 4 * n
+	d -= daysPer4Years * n
+
+	// Cut off years within a 4-year cycle.
+	// The last year is a leap year, so on the last day of that year,
+	// day / 365 will be 4 instead of 3. Cut it back down to 3
+	// by subtracting n>>2.
+	n = d / 365
+	n -= n >> 2
+	y += n
+	d -= 365 * n
+
+	year = int(int64(y) + absoluteZeroYear)
+	yday = int(d)
+
+	if !full {
+		return
+	}
+
+	day = yday
+	if isLeap(year) {
+		switch {
+		case day > 31+29-1:
+			// After leap day; pretend it wasn't there
+			day--
+		case day == 31+29-1:
+			// Leap day
+			month = February
+			day = 29
+			return
+		}
+	}
+
+	// Estimate month on assumption that every month has 31 days.
+	// The estimate may be too low by at most one month, so adjust.
+	month = Month(day / 31)
+	end := int(daysBefore[month+1])
+	var begin int
+	if day >= end {
+		month++
+		begin = end
+	} else {
+		begin = int(daysBefore[month])
+	}
+
+	month++ // because January is 1
+	day = day - begin + 1
+	return
+}
+
+// daysBefore[m] counts the number of days in a non-leap year
+// before month m begins. There is an entry for m=12, counting
+// the number of days before January of next year (365).
+var daysBefore = [...]int32{
+	0,
+	31,
+	31 + 28,
+	31 + 28 + 31,
+	31 + 28 + 31 + 30,
+	31 + 28 + 31 + 30 + 31,
+	31 + 28 + 31 + 30 + 31 + 30,
+	31 + 28 + 31 + 30 + 31 + 30 + 31,
+	31 + 28 + 31 + 30 + 31 + 30 + 31 + 31,
+	31 + 28 + 31 + 30 + 31 + 30 + 31 + 31 + 30,
+	31 + 28 + 31 + 30 + 31 + 30 + 31 + 31 + 30 + 31,
+	31 + 28 + 31 + 30 + 31 + 30 + 31 + 31 + 30 + 31 + 30,
+	31 + 28 + 31 + 30 + 31 + 30 + 31 + 31 + 30 + 31 + 30 + 31,
+}
+
+// daysSinceEpoch takes a year and returns the number of days from
+// the absolute epoch to the start of that year.
+// This is basically (year - zeroYear) * 365, but accounting for leap days.
+func daysSinceEpoch(year int) uint64 {
+	y := uint64(int64(year) - absoluteZeroYear)
+
+	// Add in days from 400-year cycles.
+	n := y / 400
+	y -= 400 * n
+	d := daysPer400Years * n
+
+	// Add in 100-year cycles.
+	n = y / 100
+	y -= 100 * n
+	d += daysPer100Years * n
+
+	// Add in 4-year cycles.
+	n = y / 4
+	y -= 4 * n
+	d += daysPer4Years * n
+
+	// Add in non-leap years.
+	n = y
+	d += 365 * n
+
+	return d
+}
+
+const (
+	Nanosecond  Duration = 1
+	Microsecond          = 1000 * Nanosecond
+	Millisecond          = 1000 * Microsecond
+	Second               = 1000 * Millisecond
+	Minute               = 60 * Second
+	Hour                 = 60 * Minute
+)
+
 // A Duration represents the elapsed time between two instants
 // as an int64 nanosecond count. The representation limits the
 // largest representable duration to approximately 290 years.
@@ -234,27 +363,6 @@ type Duration int64
 const (
 	minDuration Duration = -1 << 63
 	maxDuration Duration = 1<<63 - 1
-)
-
-// Common durations. There is no definition for units of Day or larger
-// to avoid confusion across daylight savings time zone transitions.
-//
-// To count the number of units in a Duration, divide:
-//
-//	second := time.Second
-//	fmt.Print(int64(second/time.Millisecond)) // prints 1000
-//
-// To convert an integer number of units to a Duration, multiply:
-//
-//	seconds := 10
-//	fmt.Print(time.Duration(seconds)*time.Second) // prints 10s
-const (
-	Nanosecond  Duration = 1
-	Microsecond          = 1000 * Nanosecond
-	Millisecond          = 1000 * Microsecond
-	Second               = 1000 * Millisecond
-	Minute               = 60 * Second
-	Hour                 = 60 * Minute
 )
 
 // String returns a string representing the duration in the form "72h3m0.5s".
@@ -332,47 +440,6 @@ func (d Duration) String() string {
 	}
 
 	return string(buf[w:])
-}
-
-// fmtFrac formats the fraction of v/10**prec (e.g., ".12345") into the
-// tail of buf, omitting trailing zeros. It omits the decimal
-// point too when the fraction is 0. It returns the index where the
-// output bytes begin and the value v/10**prec.
-func fmtFrac(buf []byte, v uint64, prec int) (nw int, nv uint64) {
-	// Omit trailing zeros up to and including decimal point.
-	w := len(buf)
-	isprint := false
-	for i := 0; i < prec; i++ {
-		digit := v % 10
-		isprint = isprint || digit != 0
-		if isprint {
-			w--
-			buf[w] = byte(digit) + '0'
-		}
-		v /= 10
-	}
-	if isprint {
-		w--
-		buf[w] = '.'
-	}
-	return w, v
-}
-
-// fmtInt formats v into the tail of buf.
-// It returns the index where the output begins.
-func fmtInt(buf []byte, v uint64) int {
-	w := len(buf)
-	if v == 0 {
-		w--
-		buf[w] = '0'
-	} else {
-		for v > 0 {
-			w--
-			buf[w] = byte(v%10) + '0'
-			v /= 10
-		}
-	}
-	return w
 }
 
 // Nanoseconds returns the duration as an integer nanosecond count.
@@ -459,38 +526,18 @@ func (d Duration) Round(m Duration) Duration {
 	return maxDuration // overflow
 }
 
-// Abs returns the absolute value of d.
-// As a special case, math.MinInt64 is converted to math.MaxInt64.
-func (d Duration) Abs() Duration {
-	switch {
-	case d >= 0:
-		return d
-	case d == minDuration:
-		return maxDuration
-	default:
-		return -d
-	}
-}
-
-// Add returns the time t+d.
+// Add returns the time t+d
 func (t Time) Add(d Duration) Time {
 	dsec := int64(d / 1e9)
-	dnsec := int64(d % 1e9)
-	tsec := t.sec()
-	tnsec := t.nsec()
-
-	nsec := int64(tnsec) + dnsec
-	sec := tsec + dsec
-
+	nsec := t.nsec + int32(d%1e9)
 	if nsec >= 1e9 {
-		sec++
+		dsec++
 		nsec -= 1e9
 	} else if nsec < 0 {
-		sec--
+		dsec--
 		nsec += 1e9
 	}
-
-	return Time(sec*1e9 + nsec)
+	return Time{t.sec + dsec, nsec}
 }
 
 // Sub returns the duration t-u. If the result exceeds the maximum (or minimum)
@@ -498,16 +545,22 @@ func (t Time) Add(d Duration) Time {
 // will be returned.
 // To compute t-d for a duration d, use t.Add(-d).
 func (t Time) Sub(u Time) Duration {
-	diff := int64(t) - int64(u)
-
-	if diff > int64(maxDuration) {
+	sec := t.sec - u.sec
+	nsec := t.nsec - u.nsec
+	if sec > 0 && nsec < 0 {
+		sec--
+		nsec += 1e9
+	} else if sec < 0 && nsec > 0 {
+		sec++
+		nsec -= 1e9
+	}
+	if sec > int64(maxDuration) {
 		return maxDuration
 	}
-	if diff < int64(minDuration) {
+	if sec < int64(minDuration) {
 		return minDuration
 	}
-
-	return Duration(diff)
+	return Duration(sec*1e9 + int64(nsec))
 }
 
 // Since returns the time elapsed since t.
@@ -522,163 +575,65 @@ func Until(t Time) Duration {
 	return t.Sub(Now())
 }
 
-// AddDate returns the time corresponding to adding the
-// given number of years, months, and days to t.
-// For example, AddDate(-1, 2, 3) applied to January 1, 2011
-// returns March 4, 2010.
+// Date returns the Time corresponding to
 //
-// AddDate normalizes its result in the same way that Date does,
-// so, for example, adding one month to October 31 yields
-// December 1, the normalized form for November 31.
-func (t Time) AddDate(years int, months int, days int) Time {
-	year, month, day := t.Date()
-	hour, min, sec := t.Clock()
-	return Date(year+years, month+Month(months), day+days, hour, min, sec, int(t.nsec()))
-}
+//	yyyy-mm-dd hh:mm:ss + nsec nanoseconds
+//
+// The month, day, hour, min, sec, and nsec values may be outside
+// their usual ranges and will be normalized during the conversion.
+// For example, October 32 converts to November 1.
+func Date(year int, month Month, day, hour, min, sec, nsec int) Time {
+	// Normalize month, overflowing into year.
+	m := int(month) - 1
+	year, m = norm(year, m, 12)
+	month = Month(m) + 1
 
-const (
-	secondsPerMinute = 60
-	secondsPerHour   = 60 * secondsPerMinute
-	secondsPerDay    = 24 * secondsPerHour
-	secondsPerWeek   = 7 * secondsPerDay
-	daysPer400Years  = 365*400 + 97
-	daysPer100Years  = 365*100 + 24
-	daysPer4Years    = 365*4 + 1
-)
+	// Normalize nsec, sec, min, hour, overflowing into day.
+	sec, nsec = norm(sec, nsec, 1e9)
+	min, sec = norm(min, sec, 60)
+	hour, min = norm(hour, min, 60)
+	day, hour = norm(day, hour, 24)
 
-// date computes the year, day of year, and when full=true,
-// the month and day in which t occurs.
-func (t Time) date(full bool) (year int, month Month, day int, yday int) {
-	d := t / secondsPerDay
+	// Compute days since the absolute epoch.
+	d := daysSinceEpoch(year)
 
-	// Account for 400 year cycles.
-	n := d / daysPer400Years
-	y := 400 * n
-	d -= daysPer400Years * n
-
-	// Cut off 100-year cycles.
-	// The last cycle has one extra leap year, so on the last day
-	// of that year, day / daysPer100Years will be 4 instead of 3.
-	// Cut it back down to 3 by subtracting n>>2.
-	n = d / daysPer100Years
-	n -= n >> 2
-	y += 100 * n
-	d -= daysPer100Years * n
-
-	// Cut off 4-year cycles.
-	// The last cycle has a missing leap year, which does not
-	// affect the computation.
-	n = d / daysPer4Years
-	y += 4 * n
-	d -= daysPer4Years * n
-
-	// Cut off years within a 4-year cycle.
-	// The last year is a leap year, so on the last day of that year,
-	// day / 365 will be 4 instead of 3. Cut it back down to 3
-	// by subtracting n>>2.
-	n = d / 365
-	n -= n >> 2
-	y += n
-	d -= 365 * n
-
-	year = int(int64(y) + 1970)
-	yday = int(d)
-
-	if !full {
-		return
+	// Add in days before this month.
+	d += uint64(daysBefore[month-1])
+	if isLeap(year) && month >= March {
+		d++ // February 29
 	}
 
-	day = yday
-	if isLeap(year) {
-		// Leap year
-		switch {
-		case day > 31+29-1:
-			// After leap day; pretend it wasn't there.
-			day--
-		case day == 31+29-1:
-			// Leap day.
-			month = February
-			day = 29
-			return
-		}
+	// Add in days before today.
+	d += uint64(day - 1)
+
+	// Add in time elapsed today.
+	abs := d * secondsPerDay
+	abs += uint64(hour*secondsPerHour + min*secondsPerMinute + sec)
+
+	unix := int64(abs) + (absoluteToInternal + internalToUnix)
+	t := unixTime(unix, int32(nsec))
+	return t
+}
+
+// Abs returns the absolute value of d.
+// As a special case, math.MinInt64 is converted to math.MaxInt64.
+func (d Duration) Abs() Duration {
+	switch {
+	case d >= 0:
+		return d
+	case d == minDuration:
+		return maxDuration
+	default:
+		return -d
 	}
-
-	// Estimate month on assumption that every month has 31 days.
-	// The estimate may be too low by at most one month, so adjust.
-	month = Month(day / 31)
-	end := int(daysBefore[month+1])
-	var begin int
-	if day >= end {
-		month++
-		begin = end
-	} else {
-		begin = int(daysBefore[month])
-	}
-
-	month++ // because January is 1
-	day = day - begin + 1
-	return
 }
 
-// daysBefore[m] counts the number of days in a non-leap year
-// before month m begins. There is an entry for m=12, counting
-// the number of days before January of next year (365).
-var daysBefore = [...]int32{
-	0,
-	31,
-	31 + 28,
-	31 + 28 + 31,
-	31 + 28 + 31 + 30,
-	31 + 28 + 31 + 30 + 31,
-	31 + 28 + 31 + 30 + 31 + 30,
-	31 + 28 + 31 + 30 + 31 + 30 + 31,
-	31 + 28 + 31 + 30 + 31 + 30 + 31 + 31,
-	31 + 28 + 31 + 30 + 31 + 30 + 31 + 31 + 30,
-	31 + 28 + 31 + 30 + 31 + 30 + 31 + 31 + 30 + 31,
-	31 + 28 + 31 + 30 + 31 + 30 + 31 + 31 + 30 + 31 + 30,
-	31 + 28 + 31 + 30 + 31 + 30 + 31 + 31 + 30 + 31 + 30 + 31,
-}
+func now() (sec int64, nsec int32, mono int64) // injected by runtime
 
-func daysIn(m Month, year int) int {
-	if m == February && isLeap(year) {
-		return 29
-	}
-	return int(daysBefore[m] - daysBefore[m-1])
-}
-
-// daysSinceEpoch takes a year and returns the number of days from
-// the Unix epoch (January 1, 1970) to the start of that year,
-// accounting for leap years.
-func daysSinceEpoch(year int) int64 {
-	y := year - 1970 // Calculate how many years from 1970 (Unix epoch)
-
-	// Add days for 400-year cycles.
-	n := y / 400
-	y -= 400 * n
-	d := int64(daysPer400Years * n)
-
-	// Add days for 100-year cycles.
-	n = y / 100
-	y -= 100 * n
-	d += int64(daysPer100Years * n)
-
-	// Add days for 4-year cycles.
-	n = y / 4
-	y -= 4 * n
-	d += int64(daysPer4Years * n)
-
-	// Add days for the remaining years.
-	d += int64(365 * y)
-
-	return d
-}
-
-func now() (sec int64, nsec int32, mono int64) // injected
-
-// Now returns the current local time.
 func Now() Time {
 	sec, nsec, _ := now()
-	return Time(sec*1e9 + int64(nsec))
+	sec += unixToInternal - minWall
+	return Time{sec, nsec}
 }
 
 // Unix returns t as a Unix time, the number of seconds elapsed
@@ -697,7 +652,7 @@ func (t Time) Unix() int64 {
 // years before or after 1970). The result does not depend on the
 // location associated with t.
 func (t Time) UnixMilli() int64 {
-	return t.unixSec()*1e3 + int64(t.nsec())/1e6
+	return t.unixSec()*1e3 + int64(t.nsec)/1e6
 }
 
 // UnixMicro returns t as a Unix time, the number of microseconds elapsed since
@@ -706,7 +661,7 @@ func (t Time) UnixMilli() int64 {
 // after year 294246). The result does not depend on the location associated
 // with t.
 func (t Time) UnixMicro() int64 {
-	return t.unixSec()*1e6 + int64(t.nsec())/1e3
+	return t.unixSec()*1e6 + int64(t.nsec)/1e3
 }
 
 // UnixNano returns t as a Unix time, the number of nanoseconds elapsed
@@ -716,23 +671,16 @@ func (t Time) UnixMicro() int64 {
 // on the zero Time is undefined. The result does not depend on the
 // location associated with t.
 func (t Time) UnixNano() int64 {
-	return (t.unixSec())*1e9 + int64(t.nsec())
+	return (t.unixSec())*1e9 + int64(t.nsec)
 }
-
-const (
-	timeBinaryVersionV1 byte = iota + 1 // For general situation
-	timeBinaryVersionV2                 // For LMT only
-)
 
 // MarshalBinary implements the encoding.BinaryMarshaler interface.
 func (t Time) MarshalBinary() ([]byte, error) {
-	// Get seconds and nanoseconds
-	sec := t.sec()
-	nsec := t.nsec()
-
-	// Encode seconds and nanoseconds into a byte slice
+	sec := t.sec
+	nsec := t.nsec
 	enc := []byte{
-		byte(sec >> 56), // bytes 0-7: seconds
+		//encode seconds (int64) / bytes 0 to 7
+		byte(sec >> 56),
 		byte(sec >> 48),
 		byte(sec >> 40),
 		byte(sec >> 32),
@@ -740,46 +688,35 @@ func (t Time) MarshalBinary() ([]byte, error) {
 		byte(sec >> 16),
 		byte(sec >> 8),
 		byte(sec),
-		byte(nsec >> 24), // bytes 8-11: nanoseconds
+		//encode nanoseconds (int32) / bytes 8 to 11
+		byte(nsec >> 24),
 		byte(nsec >> 16),
 		byte(nsec >> 8),
 		byte(nsec),
 	}
-
 	return enc, nil
 }
 
 // UnmarshalBinary implements the encoding.BinaryUnmarshaler interface.
 func (t *Time) UnmarshalBinary(data []byte) error {
-	if len(data) != 12 {
+	buf := data
+	if len(buf) == 0 {
+		return errors.New("Time.UnmarshalBinary: no data")
+	}
+	if len(buf) != 12 { // 8 bytes for sec (int64) + 4 bytes for nsec (int32)
 		return errors.New("Time.UnmarshalBinary: invalid length")
 	}
+	sec := int64(buf[7]) | int64(buf[6])<<8 | int64(buf[5])<<16 | int64(buf[4])<<24 |
+		int64(buf[3])<<32 | int64(buf[2])<<40 | int64(buf[1])<<48 | int64(buf[0])<<56
 
-	// Decode seconds (int64) from the first 8 bytes
-	sec := int64(data[7]) | int64(data[6])<<8 | int64(data[5])<<16 | int64(data[4])<<24 |
-		int64(data[3])<<32 | int64(data[2])<<40 | int64(data[1])<<48 | int64(data[0])<<56
+	buf = buf[8:]
+	nsec := int32(buf[3]) | int32(buf[2])<<8 | int32(buf[1])<<16 | int32(buf[0])<<24
 
-	// Decode nanoseconds (int32) from the next 4 bytes
-	nsec := int32(data[11]) | int32(data[10])<<8 | int32(data[9])<<16 | int32(data[8])<<24
-
-	// Combine seconds and nanoseconds into Time (nanoseconds since Unix epoch)
-	*t = Time(sec*1e9 + int64(nsec))
+	*t = Time{}
+	t.sec = sec
+	t.nsec = nsec
 
 	return nil
-}
-
-// TODO(rsc): Remove GobEncoder, GobDecoder, MarshalJSON, UnmarshalJSON in Go 2.
-// The same semantics will be provided by the generic MarshalBinary, MarshalText,
-// UnmarshalBinary, UnmarshalText.
-
-// GobEncode implements the gob.GobEncoder interface.
-func (t Time) GobEncode() ([]byte, error) {
-	return t.MarshalBinary()
-}
-
-// GobDecode implements the gob.GobDecoder interface.
-func (t *Time) GobDecode(data []byte) error {
-	return t.UnmarshalBinary(data)
 }
 
 // MarshalJSON implements the json.Marshaler interface.
@@ -846,7 +783,7 @@ func Unix(sec int64, nsec int64) Time {
 			sec--
 		}
 	}
-	return Time(sec*1e9 + nsec)
+	return unixTime(sec, int32(nsec))
 }
 
 // UnixMilli returns the local Time corresponding to the given Unix time,
@@ -861,8 +798,52 @@ func UnixMicro(usec int64) Time {
 	return Unix(usec/1e6, (usec%1e6)*1e3)
 }
 
+func unixTime(sec int64, nsec int32) Time {
+	return Time{sec + unixToInternal, nsec}
+}
+
 func isLeap(year int) bool {
 	return year%4 == 0 && (year%100 != 0 || year%400 == 0)
+}
+
+// fmtFrac formats the fraction of v/10**prec (e.g., ".12345") into the
+// tail of buf, omitting trailing zeros. It omits the decimal
+// point too when the fraction is 0. It returns the index where the
+// output bytes begin and the value v/10**prec.
+func fmtFrac(buf []byte, v uint64, prec int) (nw int, nv uint64) {
+	// Omit trailing zeros up to and including decimal point.
+	w := len(buf)
+	isprint := false
+	for i := 0; i < prec; i++ {
+		digit := v % 10
+		isprint = isprint || digit != 0
+		if isprint {
+			w--
+			buf[w] = byte(digit) + '0'
+		}
+		v /= 10
+	}
+	if isprint {
+		w--
+		buf[w] = '.'
+	}
+	return w, v
+}
+
+// add v at the end of buf and return the index where the number starts in buf
+func fmtInt(buf []byte, v uint64) int {
+	w := len(buf)
+	if v == 0 {
+		w--
+		buf[w] = '0'
+	} else {
+		for v > 0 {
+			w--
+			buf[w] = byte(v%10) + '0'
+			v /= 10
+		}
+	}
+	return w
 }
 
 // norm returns nhi, nlo such that
@@ -883,152 +864,16 @@ func norm(hi, lo, base int) (nhi, nlo int) {
 	return hi, lo
 }
 
-// Date returns the Time corresponding to
-// yyyy-mm-dd hh:mm:ss + nsec nanoseconds in UTC.
-// The month, day, hour, min, sec, and nsec values may be outside
-// their usual ranges and will be normalized during the conversion.
-func Date(year int, month Month, day, hour, min, sec, nsec int) Time {
-	// Normalize month, overflowing into year.
-	m := int(month) - 1
-	year, m = norm(year, m, 12)
-	month = Month(m) + 1
-
-	// Normalize nsec, sec, min, hour, overflowing into day.
-	sec, nsec = norm(sec, nsec, 1e9)
-	min, sec = norm(min, sec, 60)
-	hour, min = norm(hour, min, 60)
-	day, hour = norm(day, hour, 24)
-
-	// Compute days since the Unix epoch (January 1, 1970).
-	d := int64(daysSinceEpoch(year))
-
-	// Add in days before this month.
-	d += int64(daysBefore[month-1])
-	if isLeap(year) && month > February {
-		d++ // Add leap day
-	}
-
-	// Add in days before today.
-	d += int64(day - 1)
-
-	// Calculate the total seconds for the date.
-	totalSeconds := d*secondsPerDay + int64(hour*secondsPerHour+min*secondsPerMinute+sec)
-
-	// Convert total seconds to nanoseconds.
-	totalNanoseconds := totalSeconds*1e9 + int64(nsec)
-
-	// Return the computed Time in nanoseconds since the Unix epoch.
-	return Time(totalNanoseconds)
-}
-
-// Truncate returns the result of rounding t down to a multiple of d.
-func (t Time) Truncate(d Duration) Time {
-	if d <= 0 {
-		return t
-	}
-	_, r := div(t, d)
-	return t.Add(-r)
-}
-
-// Round returns the result of rounding t to the nearest multiple of d.
-func (t Time) Round(d Duration) Time {
-	if d <= 0 {
-		return t
-	}
-	_, r := div(t, d)
-	if lessThanHalf(r, d) {
-		return t.Add(-r)
-	}
-	return t.Add(d - r)
-}
-
-// div divides t by d and returns the quotient parity and remainder.
-// We don't use the quotient parity anymore (round half up instead of round to even)
-// but it's still here in case we change our minds.
-func div(t Time, d Duration) (qmod2 int, r Duration) {
-	neg := false
-	nsec := t.nsec()
-	sec := t.sec()
-	if sec < 0 {
-		// Operate on absolute value.
-		neg = true
-		sec = -sec
-		nsec = -nsec
-		if nsec < 0 {
-			nsec += 1e9
-			sec-- // sec >= 1 before the -- so safe
+func daysIn(m Month, year int) int {
+	if m == February {
+		if isLeap(year) {
+			return 29
 		}
+		return 28
 	}
-
-	switch {
-	// Special case: 2d divides 1 second.
-	case d < Second && Second%(d+d) == 0:
-		qmod2 = int(nsec/int32(d)) & 1
-		r = Duration(nsec % int32(d))
-
-	// Special case: d is a multiple of 1 second.
-	case d%Second == 0:
-		d1 := int64(d / Second)
-		qmod2 = int(sec/d1) & 1
-		r = Duration(sec%d1)*Second + Duration(nsec)
-
-	// General case.
-	// This could be faster if more cleverness were applied,
-	// but it's really only here to avoid special case restrictions in the API.
-	// No one will care about these cases.
-	default:
-		// Compute nanoseconds as 128-bit number.
-		sec := uint64(sec)
-		tmp := (sec >> 32) * 1e9
-		u1 := tmp >> 32
-		u0 := tmp << 32
-		tmp = (sec & 0xFFFFFFFF) * 1e9
-		u0x, u0 := u0, u0+tmp
-		if u0 < u0x {
-			u1++
-		}
-		u0x, u0 = u0, u0+uint64(nsec)
-		if u0 < u0x {
-			u1++
-		}
-
-		// Compute remainder by subtracting r<<k for decreasing k.
-		// Quotient parity is whether we subtract on last round.
-		d1 := uint64(d)
-		for d1>>63 != 1 {
-			d1 <<= 1
-		}
-		d0 := uint64(0)
-		for {
-			qmod2 = 0
-			if u1 > d1 || u1 == d1 && u0 >= d0 {
-				// subtract
-				qmod2 = 1
-				u0x, u0 = u0, u0-d0
-				if u0 > u0x {
-					u1--
-				}
-				u1 -= d1
-			}
-			if d1 == 0 && d0 == uint64(d) {
-				break
-			}
-			d0 >>= 1
-			d0 |= (d1 & 1) << 63
-			d1 >>= 1
-		}
-		r = Duration(u0)
-	}
-
-	if neg && r != 0 {
-		// If input was negative and not an exact multiple of d, we computed q, r such that
-		//	q*d + r = -t
-		// But the right answers are given by -(q-1), d-r:
-		//	q*d + r = -t
-		//	-q*d - r = t
-		//	-(q-1)*d + (d - r) = t
-		qmod2 ^= 1
-		r = d - r
-	}
-	return
+	// With the special case of February eliminated, the pattern is
+	//	31 30 31 30 31 30 31 31 30 31 30 31
+	// Adding m&1 produces the basic alternation;
+	// adding (m>>3)&1 inverts the alternation starting in August.
+	return 30 + int((m+m>>3)&1)
 }
