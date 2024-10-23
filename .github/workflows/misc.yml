@@ -22,7 +22,6 @@ jobs:
             - genproto
             - genstd
             - goscan
-            - logos
             - loop
     name: Run Main
     uses: ./.github/workflows/main_template.yml

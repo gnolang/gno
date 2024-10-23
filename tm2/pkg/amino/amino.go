@@ -760,7 +760,7 @@ func (cdc *Codec) MarshalJSON(o interface{}) ([]byte, error) {
 	cdc.doAutoseal()
 
 	rv := reflect.ValueOf(o)
-	if rv.Kind() == reflect.Invalid {
+	if !rv.IsValid() {
 		return []byte("null"), nil
 	}
 	rt := rv.Type()
