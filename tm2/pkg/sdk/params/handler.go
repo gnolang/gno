@@ -28,6 +28,7 @@ func (bh paramsHandler) Process(ctx sdk.Context, msg std.Msg) sdk.Result {
 // Query
 
 func (bh paramsHandler) Query(ctx sdk.Context, req abci.RequestQuery) (res abci.ResponseQuery) {
+	println("AAAAAAAAAAAAAAAAAAAA", req.Path)
 	switch secondPart(req.Path) {
 	case bh.params.prefix:
 		return bh.queryParam(ctx, req)

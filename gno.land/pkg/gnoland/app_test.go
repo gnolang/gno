@@ -63,6 +63,13 @@ func TestNewAppWithOptions(t *testing.T) {
 					Signatures: []std.Signature{{}}, // one empty signature
 				},
 			},
+			Params: []Param{
+				{key: "foo.string", string_val: "hello"},
+				{key: "bar.int64", int64_val: -42},
+				{key: "foo.uint64", uint64_val: 1337},
+				{key: "bar.bool", bool_val: true},
+				{key: "foo.bytes", bytes_val: []byte{0x48, 0x69, 0x21}},
+			},
 		},
 	})
 	require.True(t, resp.IsOK(), "InitChain response: %v", resp)
@@ -84,6 +91,17 @@ func TestNewAppWithOptions(t *testing.T) {
 		Tx:          tx,
 	})
 	require.True(t, dtxResp.IsOK(), "DeliverTx response: %v", dtxResp)
+
+	for _, path := range []string{
+		"params/vm/foo.string",
+		"params/foo.string",
+		"vm/foo.string",
+	} {
+		qres := bapp.Query(abci.RequestQuery{
+			Path: path,
+		})
+		println("path=", path, "ok=", qres.IsOK(), "res=", string(qres.Data), "error=", qres.Error.Error())
+	}
 }
 
 func TestNewAppWithOptions_ErrNoDB(t *testing.T) {
