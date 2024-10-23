@@ -5,21 +5,22 @@ import (
 	"sort"
 	"testing"
 
+	"github.com/gnolang/gno/tm2/pkg/p2p/mock"
 	"github.com/gnolang/gno/tm2/pkg/p2p/types"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
 // generatePeers generates random node peers
-func generatePeers(t *testing.T, count int) []*mockPeer {
+func generatePeers(t *testing.T, count int) []*mock.Peer {
 	t.Helper()
 
-	peers := make([]*mockPeer, count)
+	peers := make([]*mock.Peer, count)
 
 	for i := 0; i < count; i++ {
 		id := types.GenerateNodeKey().ID()
-		peers[i] = &mockPeer{
-			idFn: func() types.ID {
+		peers[i] = &mock.Peer{
+			IDFn: func() types.ID {
 				return id
 			},
 		}
@@ -95,7 +96,7 @@ func TestSet_HasIP(t *testing.T) {
 		)
 
 		// Make sure at least one peer has the set IP
-		peers[len(peers)/2].remoteIPFn = func() net.IP {
+		peers[len(peers)/2].RemoteIPFn = func() net.IP {
 			return ip
 		}
 

@@ -1,0 +1,366 @@
+package discovery
+
+import (
+	"net"
+	"slices"
+	"testing"
+	"time"
+
+	"github.com/gnolang/gno/tm2/pkg/amino"
+	"github.com/gnolang/gno/tm2/pkg/p2p"
+	"github.com/gnolang/gno/tm2/pkg/p2p/mock"
+	"github.com/gnolang/gno/tm2/pkg/p2p/types"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+)
+
+// generatePeers generates random peers
+func generatePeers(t *testing.T, count int) []p2p.Peer {
+	peers := make([]p2p.Peer, count)
+
+	for i := range count {
+		var (
+			key     = types.GenerateNodeKey()
+			address = "127.0.0.1:8080"
+		)
+
+		tcpAddr, err := net.ResolveTCPAddr("tcp", address)
+		require.NoError(t, err)
+
+		addr, err := types.NewNetAddress(key.ID(), tcpAddr)
+		require.NoError(t, err)
+
+		peers[i] = &mock.Peer{
+			IDFn: func() types.ID {
+				return key.ID()
+			},
+			NodeInfoFn: func() types.NodeInfo {
+				return types.NodeInfo{
+					NetAddress: addr,
+				}
+			},
+		}
+	}
+
+	return peers
+}
+
+func TestReactor_DiscoveryRequest(t *testing.T) {
+	t.Parallel()
+
+	var (
+		notifCh = make(chan struct{}, 1)
+
+		capturedSend []byte
+
+		mockPeer = &mock.Peer{
+			SendFn: func(chID byte, data []byte) bool {
+				require.Equal(t, Channel, chID)
+
+				capturedSend = data
+
+				notifCh <- struct{}{}
+
+				return true
+			},
+		}
+
+		ps = &mockPeerSet{
+			listFn: func() []p2p.Peer {
+				return []p2p.Peer{mockPeer}
+			},
+		}
+
+		mockSwitch = &mockSwitch{
+			peersFn: func() p2p.PeerSet {
+				return ps
+			},
+		}
+	)
+
+	r := NewReactor(
+		WithDiscoveryInterval(10 * time.Millisecond),
+	)
+
+	// Set the mock switch
+	r.SetSwitch(mockSwitch)
+
+	// Start the discovery service
+	r.StartDiscovery()
+	defer r.StopDiscovery()
+
+	select {
+	case <-notifCh:
+	case <-time.After(5 * time.Second):
+	}
+
+	// Make sure the adequate message was captured
+	require.NotNil(t, capturedSend)
+
+	// Parse the message
+	var msg Message
+
+	require.NoError(t, amino.Unmarshal(capturedSend, &msg))
+
+	// Make sure the base message is valid
+	require.NoError(t, msg.ValidateBasic())
+
+	_, ok := msg.(*Request)
+
+	require.True(t, ok)
+}
+
+func TestReactor_DiscoveryResponse(t *testing.T) {
+	t.Parallel()
+
+	t.Run("discovery request received", func(t *testing.T) {
+		t.Parallel()
+
+		var (
+			peers   = generatePeers(t, 50)
+			notifCh = make(chan struct{}, 1)
+
+			capturedSend []byte
+
+			mockPeer = &mock.Peer{
+				SendFn: func(chID byte, data []byte) bool {
+					require.Equal(t, Channel, chID)
+
+					capturedSend = data
+
+					notifCh <- struct{}{}
+
+					return true
+				},
+			}
+
+			ps = &mockPeerSet{
+				listFn: func() []p2p.Peer {
+					return peers
+				},
+				sizeFn: func() int {
+					return len(peers)
+				},
+			}
+
+			mockSwitch = &mockSwitch{
+				peersFn: func() p2p.PeerSet {
+					return ps
+				},
+			}
+		)
+
+		r := NewReactor(
+			WithDiscoveryInterval(10 * time.Millisecond),
+		)
+
+		// Set the mock switch
+		r.SetSwitch(mockSwitch)
+
+		// Prepare the message
+		req := &Request{}
+
+		preparedReq, err := amino.MarshalAny(req)
+		require.NoError(t, err)
+
+		// Receive the message
+		r.Receive(Channel, mockPeer, preparedReq)
+
+		select {
+		case <-notifCh:
+		case <-time.After(5 * time.Second):
+		}
+
+		// Make sure the adequate message was captured
+		require.NotNil(t, capturedSend)
+
+		// Parse the message
+		var msg Message
+
+		require.NoError(t, amino.Unmarshal(capturedSend, &msg))
+
+		// Make sure the base message is valid
+		require.NoError(t, msg.ValidateBasic())
+
+		resp, ok := msg.(*Response)
+		require.True(t, ok)
+
+		// Make sure the peers are valid
+		require.Len(t, resp.Peers, maxPeersShared)
+
+		slices.ContainsFunc(resp.Peers, func(addr *types.NetAddress) bool {
+			for _, localP := range peers {
+				if localP.NodeInfo().NetAddress.Equals(*addr) {
+					return true
+				}
+			}
+
+			return false
+		})
+	})
+
+	t.Run("empty peers on discover", func(t *testing.T) {
+		t.Parallel()
+
+		var (
+			capturedSend []byte
+
+			mockPeer = &mock.Peer{
+				SendFn: func(chID byte, data []byte) bool {
+					require.Equal(t, Channel, chID)
+
+					capturedSend = data
+
+					return true
+				},
+			}
+
+			ps = &mockPeerSet{
+				listFn: func() []p2p.Peer {
+					return make([]p2p.Peer, 0)
+				},
+				sizeFn: func() int {
+					return 0
+				},
+			}
+
+			mockSwitch = &mockSwitch{
+				peersFn: func() p2p.PeerSet {
+					return ps
+				},
+			}
+		)
+
+		r := NewReactor(
+			WithDiscoveryInterval(10 * time.Millisecond),
+		)
+
+		// Set the mock switch
+		r.SetSwitch(mockSwitch)
+
+		// Prepare the message
+		req := &Request{}
+
+		preparedReq, err := amino.MarshalAny(req)
+		require.NoError(t, err)
+
+		// Receive the message
+		r.Receive(Channel, mockPeer, preparedReq)
+
+		// Make sure no message was captured
+		assert.Nil(t, capturedSend)
+	})
+
+	t.Run("peer response received", func(t *testing.T) {
+		t.Parallel()
+
+		var (
+			peers   = generatePeers(t, 50)
+			notifCh = make(chan struct{}, 1)
+
+			capturedDials []*types.NetAddress
+
+			ps = &mockPeerSet{
+				listFn: func() []p2p.Peer {
+					return peers
+				},
+				sizeFn: func() int {
+					return len(peers)
+				},
+			}
+
+			mockSwitch = &mockSwitch{
+				peersFn: func() p2p.PeerSet {
+					return ps
+				},
+				dialPeersFn: func(addresses ...*types.NetAddress) {
+					capturedDials = append(capturedDials, addresses...)
+
+					notifCh <- struct{}{}
+				},
+			}
+		)
+
+		r := NewReactor(
+			WithDiscoveryInterval(10 * time.Millisecond),
+		)
+
+		// Set the mock switch
+		r.SetSwitch(mockSwitch)
+
+		// Prepare the addresses
+		peerAddrs := make([]*types.NetAddress, 0, len(peers))
+
+		for _, p := range peers {
+			peerAddrs = append(peerAddrs, p.NodeInfo().NetAddress)
+		}
+
+		// Prepare the message
+		req := &Response{
+			Peers: peerAddrs,
+		}
+
+		preparedReq, err := amino.MarshalAny(req)
+		require.NoError(t, err)
+
+		// Receive the message
+		r.Receive(Channel, &mock.Peer{}, preparedReq)
+
+		select {
+		case <-notifCh:
+		case <-time.After(5 * time.Second):
+		}
+
+		// Make sure the correct peers were dialed
+		assert.Equal(t, capturedDials, peerAddrs)
+	})
+
+	t.Run("invalid peer response received", func(t *testing.T) {
+		t.Parallel()
+
+		var (
+			peers = generatePeers(t, 50)
+
+			capturedDials []*types.NetAddress
+
+			ps = &mockPeerSet{
+				listFn: func() []p2p.Peer {
+					return peers
+				},
+				sizeFn: func() int {
+					return len(peers)
+				},
+			}
+
+			mockSwitch = &mockSwitch{
+				peersFn: func() p2p.PeerSet {
+					return ps
+				},
+				dialPeersFn: func(addresses ...*types.NetAddress) {
+					capturedDials = append(capturedDials, addresses...)
+				},
+			}
+		)
+
+		r := NewReactor(
+			WithDiscoveryInterval(10 * time.Millisecond),
+		)
+
+		// Set the mock switch
+		r.SetSwitch(mockSwitch)
+
+		// Prepare the message
+		req := &Response{
+			Peers: make([]*types.NetAddress, 0), // empty
+		}
+
+		preparedReq, err := amino.MarshalAny(req)
+		require.NoError(t, err)
+
+		// Receive the message
+		r.Receive(Channel, &mock.Peer{}, preparedReq)
+
+		// Make sure no peers were dialed
+		assert.Empty(t, capturedDials)
+	})
+}

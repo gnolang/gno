@@ -74,7 +74,7 @@ type Transport interface {
 }
 
 // Switch is the abstraction in the p2p module that handles
-// and manages peer connections thorough the transport
+// and manages peer connections thorough a Transport
 type Switch interface {
 	// Subscribe subscribes to peer events on the switch
 	Subscribe(filterFn events.EventFilter) (<-chan events.Event, func())

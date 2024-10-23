@@ -45,22 +45,34 @@ type Reactor struct {
 
 	ctx      context.Context
 	cancelFn context.CancelFunc
+
+	discoveryInterval time.Duration
 }
 
 // NewReactor creates a new peer discovery reactor
-func NewReactor() *Reactor {
+func NewReactor(opts ...Option) *Reactor {
 	ctx, cancelFn := context.WithCancel(context.Background())
 
-	return &Reactor{
-		ctx:      ctx,
-		cancelFn: cancelFn,
+	r := &Reactor{
+		ctx:               ctx,
+		cancelFn:          cancelFn,
+		discoveryInterval: discoveryInterval,
 	}
+
+	r.BaseReactor = *p2p.NewBaseReactor("Reactor", r)
+
+	// Apply the options
+	for _, opt := range opts {
+		opt(r)
+	}
+
+	return r
 }
 
 // StartDiscovery runs the peer discovery protocol
 func (r *Reactor) StartDiscovery() {
 	go func() {
-		ticker := time.NewTicker(discoveryInterval)
+		ticker := time.NewTicker(r.discoveryInterval)
 		defer ticker.Stop()
 
 		for {
@@ -77,18 +89,10 @@ func (r *Reactor) StartDiscovery() {
 				peers := r.Switch.Peers().List()
 
 				// Generate a random peer index
-				randomPeer, err := rand.Int(
+				randomPeer, _ := rand.Int(
 					rand.Reader,
 					big.NewInt(int64(len(peers))),
 				)
-				if err != nil {
-					r.Logger.Error(
-						"unable to generate random peer index",
-						"err", err,
-					)
-
-					return
-				}
 
 				// Request peers, async
 				go r.requestPeers(peers[randomPeer.Int64()])
@@ -140,7 +144,7 @@ func (r *Reactor) Receive(chID byte, peer p2p.Peer, msgBytes []byte) {
 	// Unmarshal the message
 	var msg Message
 
-	if err := amino.Unmarshal(msgBytes, &msg); err != nil {
+	if err := amino.UnmarshalAny(msgBytes, &msg); err != nil {
 		r.Logger.Error("unable to unmarshal discovery message", "err", err)
 
 		return
