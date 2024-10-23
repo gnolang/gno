@@ -144,7 +144,12 @@ func (d *Directory) RemoveUserFromGroup(user std.Address, group string) {
 			break
 		}
 	}
-	d.userGroups.Set(user.String(), groups)
+
+	if len(groups) == 0 {
+		d.userGroups.Remove(user.String())
+	} else {
+		d.userGroups.Set(user.String(), groups)
+	}
 }
 
 func (d *Directory) RemoveUserFromGroups(user std.Address, groups []string) {
@@ -161,7 +166,12 @@ func (d *Directory) RemoveUserFromGroups(user std.Address, groups []string) {
 			}
 		}
 	}
-	d.userGroups.Set(user.String(), existingGroups)
+
+	if len(existingGroups) == 0 {
+		d.userGroups.Remove(user.String())
+	} else {
+		d.userGroups.Set(user.String(), existingGroups)
+	}
 }
 
 func (d *Directory) removePermsFromBucket(bucket string, p []perm) {
@@ -180,7 +190,11 @@ func (d *Directory) removePermsFromBucket(bucket string, p []perm) {
 		}
 	}
 
-	d.permBuckets.Set(bucket, ps)
+	if len(ps) == 0 {
+		d.permBuckets.Remove(bucket)
+	} else {
+		d.permBuckets.Set(bucket, ps)
+	}
 }
 
 func (d *Directory) RemoveUserPerm(addr std.Address, verb, resource string) {
