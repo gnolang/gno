@@ -237,16 +237,21 @@ func encodeReflectJSONWellKnown(w io.Writer, info *TypeInfo, rv reflect.Value, f
 		}
 		return true, nil
 	// Google "well known" types.
+	// The protobuf Timestamp and Duration values contain a Mutex, and therefore must not be copied.
+	// The corresponding reflect value may not be addressable, we can not safely get their pointer.
+	// So we just extract the `Seconds` and `Nanos` fields from the reflect value, without copying
+	// the whole struct, and encode them as their coresponding time.Time or time.Duration value.
 	case gTimestampType:
-		t := rv.Interface().(timestamppb.Timestamp)
-		err = EncodeJSONPBTimestamp(w, t)
+		t := time.Unix(rv.Interface().(timestamppb.Timestamp).Seconds, int64(rv.Interface().(timestamppb.Timestamp).Nanos))
+		err = EncodeJSONTime(w, t)
 		if err != nil {
 			return false, err
 		}
 		return true, nil
 	case gDurationType:
-		d := rv.Interface().(durationpb.Duration)
-		err = EncodeJSONPBDuration(w, d)
+		d := time.Duration(rv.Interface().(durationpb.Duration).Seconds) * time.Second
+		d += time.Duration(rv.Interface().(durationpb.Duration).Nanos)
+		err = EncodeJSONDuration(w, d)
 		if err != nil {
 			return false, err
 		}
@@ -300,7 +305,8 @@ func decodeReflectJSONWellKnown(bz []byte, info *TypeInfo, rv reflect.Value, fop
 		if err != nil {
 			return false, err
 		}
-		rv.Set(reflect.ValueOf(t))
+		rv.FieldByName("Seconds").Set(reflect.ValueOf(t.Seconds))
+		rv.FieldByName("Nanos").Set(reflect.ValueOf(t.Nanos))
 		return true, nil
 	case gDurationType:
 		var d durationpb.Duration
@@ -308,7 +314,8 @@ func decodeReflectJSONWellKnown(bz []byte, info *TypeInfo, rv reflect.Value, fop
 		if err != nil {
 			return false, err
 		}
-		rv.Set(reflect.ValueOf(d))
+		rv.FieldByName("Seconds").Set(reflect.ValueOf(d.Seconds))
+		rv.FieldByName("Nanos").Set(reflect.ValueOf(d.Nanos))
 		return true, nil
 	// TODO: port each below to above without proto dependency
 	// for unmarshaling code, to minimize dependencies.
@@ -426,7 +433,7 @@ func EncodeJSONTime(w io.Writer, t time.Time) (err error) {
 	return EncodeJSONTimeValue(w, t.Unix(), int32(t.Nanosecond()))
 }
 
-func EncodeJSONPBTimestamp(w io.Writer, t timestamppb.Timestamp) (err error) {
+func EncodeJSONPBTimestamp(w io.Writer, t *timestamppb.Timestamp) (err error) {
 	return EncodeJSONTimeValue(w, t.GetSeconds(), t.GetNanos())
 }
 
@@ -456,7 +463,7 @@ func EncodeJSONDuration(w io.Writer, d time.Duration) (err error) {
 	return EncodeJSONDurationValue(w, int64(d)/1e9, int32(int64(d)%1e9))
 }
 
-func EncodeJSONPBDuration(w io.Writer, d durationpb.Duration) (err error) {
+func EncodeJSONPBDuration(w io.Writer, d *durationpb.Duration) (err error) {
 	return EncodeJSONDurationValue(w, d.GetSeconds(), d.GetNanos())
 }
 
