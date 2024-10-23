@@ -15,4 +15,3 @@ foo.string=bar
 foo.int64=-1337
 foo.uint64=42
 foo.bool=true
-

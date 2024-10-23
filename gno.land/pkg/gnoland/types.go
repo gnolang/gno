@@ -22,4 +22,5 @@ func ProtoGnoAccount() std.Account {
 type GnoGenesisState struct {
 	Balances []Balance `json:"balances"`
 	Txs      []std.Tx  `json:"txs"`
+	Params   []Param   `json:"params"`
 }
