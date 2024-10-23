@@ -288,8 +288,8 @@ func testReadAtLeast(t *testing.T, rb ReadWriter) {
 		t.Errorf("expected to have read 2 bytes, got %v", n)
 	}
 	n, err = ReadAtLeast(rb, buf, 4)
-	if err != errShortBuffer {
-		t.Errorf("expected `errShortBuffer` got %v", err)
+	if err != ErrShortBuffer {
+		t.Errorf("expected `ErrShortBuffer` got %v", err)
 	}
 	if n != 0 {
 		t.Errorf("expected to have read 0 bytes, got %v", n)
