@@ -125,4 +125,3 @@ func Render(path string) string {
 
 	return sb.String()
 }
-
