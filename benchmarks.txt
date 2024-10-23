@@ -1,0 +1,80 @@
+goos: linux
+goarch: amd64
+pkg: github.com/gnolang/gno/gnovm/pkg/gnolang
+cpu: AMD Ryzen 7 7840U w/ Radeon  780M Graphics     
+BenchmarkBenchdata
+BenchmarkBenchdata/fib.gno_param:4
+BenchmarkBenchdata/fib.gno_param:4           	  137884	      7883 ns/op
+BenchmarkBenchdata/fib.gno_param:4-2         	  193592	      6196 ns/op
+BenchmarkBenchdata/fib.gno_param:8
+BenchmarkBenchdata/fib.gno_param:8           	   20653	     59110 ns/op
+BenchmarkBenchdata/fib.gno_param:8-2         	   26313	     45328 ns/op
+BenchmarkBenchdata/fib.gno_param:16
+BenchmarkBenchdata/fib.gno_param:16          	     430	   2741503 ns/op
+BenchmarkBenchdata/fib.gno_param:16-2        	     523	   2214644 ns/op
+BenchmarkBenchdata/loop.gno
+BenchmarkBenchdata/loop.gno                  	16723678	        73.40 ns/op
+BenchmarkBenchdata/loop.gno-2                	16494907	        71.80 ns/op
+BenchmarkBenchdata/matrix.gno_param:3
+    gno_test.go:416: it panics causing an error when parsing benchmark results
+--- SKIP: BenchmarkBenchdata/matrix.gno_param:3
+BenchmarkBenchdata/matrix.gno_param:4
+    gno_test.go:416: it panics causing an error when parsing benchmark results
+--- SKIP: BenchmarkBenchdata/matrix.gno_param:4
+BenchmarkBenchdata/matrix.gno_param:5
+    gno_test.go:416: it panics causing an error when parsing benchmark results
+--- SKIP: BenchmarkBenchdata/matrix.gno_param:5
+BenchmarkBenchdata/matrix.gno_param:6
+    gno_test.go:416: it panics causing an error when parsing benchmark results
+--- SKIP: BenchmarkBenchdata/matrix.gno_param:6
+PASS
+ok  	github.com/gnolang/gno/gnovm/pkg/gnolang	12.302s
+goos: linux
+goarch: amd64
+pkg: github.com/gnolang/gno/gnovm/pkg/gnolang/internal/txlog
+cpu: AMD Ryzen 7 7840U w/ Radeon  780M Graphics     
+Benchmark_txLogRead
+Benchmark_txLogRead/stack2
+Benchmark_txLogRead/stack2       	35276922	        34.34 ns/op
+Benchmark_txLogRead/stack2-2     	35328324	        34.79 ns/op
+Benchmark_txLogRead/stack1
+Benchmark_txLogRead/stack1       	60380682	        20.02 ns/op
+Benchmark_txLogRead/stack1-2     	58303264	        20.40 ns/op
+Benchmark_txLogRead/wrapped
+Benchmark_txLogRead/wrapped      	163356012	         7.271 ns/op
+Benchmark_txLogRead/wrapped-2    	162709960	         9.478 ns/op
+Benchmark_txLogRead/baseline
+Benchmark_txLogRead/baseline     	190944927	         6.280 ns/op
+Benchmark_txLogRead/baseline-2   	191707147	         6.391 ns/op
+Benchmark_txLogWrite
+Benchmark_txLogWrite/stack1
+Benchmark_txLogWrite/stack1      	16187626	        78.13 ns/op
+Benchmark_txLogWrite/stack1-2    	13847187	        81.91 ns/op
+Benchmark_txLogWrite/wrapped
+Benchmark_txLogWrite/wrapped     	18376626	        58.73 ns/op
+Benchmark_txLogWrite/wrapped-2   	16431393	        70.06 ns/op
+Benchmark_txLogWrite/baseline
+Benchmark_txLogWrite/baseline    	20442925	        59.37 ns/op
+Benchmark_txLogWrite/baseline-2  	16611474	        69.77 ns/op
+Benchmark_bufferedTxMapRead
+Benchmark_bufferedTxMapRead/stack1
+Benchmark_bufferedTxMapRead/stack1           	99782655	        10.44 ns/op
+Benchmark_bufferedTxMapRead/stack1-2         	111194131	        10.72 ns/op
+Benchmark_bufferedTxMapRead/wrapped
+Benchmark_bufferedTxMapRead/wrapped          	190246845	         6.227 ns/op
+Benchmark_bufferedTxMapRead/wrapped-2        	188337006	         6.260 ns/op
+Benchmark_bufferedTxMapRead/baseline
+Benchmark_bufferedTxMapRead/baseline         	192562302	         6.305 ns/op
+Benchmark_bufferedTxMapRead/baseline-2       	182818030	         6.670 ns/op
+Benchmark_bufferedTxMapWrite
+Benchmark_bufferedTxMapWrite/buffered
+Benchmark_bufferedTxMapWrite/buffered        	10545364	       114.7 ns/op
+Benchmark_bufferedTxMapWrite/buffered-2      	 9114859	       119.5 ns/op
+Benchmark_bufferedTxMapWrite/unbuffered
+Benchmark_bufferedTxMapWrite/unbuffered      	15528559	        75.00 ns/op
+Benchmark_bufferedTxMapWrite/unbuffered-2    	17143525	        71.02 ns/op
+Benchmark_bufferedTxMapWrite/baseline
+Benchmark_bufferedTxMapWrite/baseline        	20039631	        58.84 ns/op
+Benchmark_bufferedTxMapWrite/baseline-2      	17827527	        70.28 ns/op
+PASS
+ok  	github.com/gnolang/gno/gnovm/pkg/gnolang/internal/txlog	42.362s

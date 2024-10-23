@@ -38,7 +38,7 @@ jobs:
         # or modify the -bench regexp.
         run: |
           ( \
-            go test -bench='BenchmarkBenchdata' ./gnovm/pkg/gnolang -run='^$' -v -cpu=1,2 ; \
+            go test ./gnovm/pkg/gnolang -bench='BenchmarkBenchdata' -benchmem -run='^$' -v -cpu=1,2 ; \
           ) | tee benchmarks.txt
 
       - name: Download previous benchmark data
