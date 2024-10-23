@@ -143,7 +143,6 @@ func Paragraph(content string) string {
 }
 
 // MdTable is an interface for table types that can be converted to Markdown format
-// Implementing ToMarkdown() allows seamless integration with the Table function
 type MdTable interface {
 	ToMarkdown() string
 }
