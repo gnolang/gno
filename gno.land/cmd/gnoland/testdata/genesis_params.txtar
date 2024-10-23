@@ -3,10 +3,12 @@
 gnoland start
 
 gnokey query params/vm/gno.land/r/sys/params.foo.string
-stdout 'data: bar$'
+stdout 'data: "bar"$'
 gnokey query params/vm/gno.land/r/sys/params.foo.int64
-stdout 'data: -1337'
+stdout 'data: "-1337"'
 gnokey query params/vm/gno.land/r/sys/params.foo.uint64
-stdout 'data: 42'
+stdout 'data: "42"'
 gnokey query params/vm/gno.land/r/sys/params.foo.bool
 stdout 'data: true'
+# XXX: bytes
+
