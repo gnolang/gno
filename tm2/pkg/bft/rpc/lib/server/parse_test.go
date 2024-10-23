@@ -198,6 +198,8 @@ func TestParseURINonJSON(t *testing.T) {
 		return decoded
 	}
 
+	const bas
+
 	// Test cases for non-JSON encoded parameters
 	nonJSONCases := []struct {
 		raw    []string
@@ -206,14 +208,14 @@ func TestParseURINonJSON(t *testing.T) {
 		hash   []byte
 		fail   bool
 	}{
-		// can parse numbers unquoted and strings quoted
-		{[]string{"7", `"flew"`, "rnpVPFlGJlauMNiL43Dmcl1U9loOBlib4L9OQAQ29tI="}, 7, "flew", decodeBase64("rnpVPFlGJlauMNiL43Dmcl1U9loOBlib4L9OQAQ29tI="), false},
-		{[]string{"22", `"john"`, "E+oc1Imd8g5W62tYntw6DjEI/5Lygsx9wJEwc4/oNWI="}, 22, "john", decodeBase64("E+oc1Imd8g5W62tYntw6DjEI/5Lygsx9wJEwc4/oNWI="), false},
-		{[]string{"-10", `"bob"`, "VAmm+RUvpjL3SAGG5gHNzo9ZWo2w3E15iyQB7DN0uF8="}, -10, "bob", decodeBase64("VAmm+RUvpjL3SAGG5gHNzo9ZWo2w3E15iyQB7DN0uF8="), false},
+		// can parse numbers and strings, quoted and unquoted
+		{[]string{"7", `"flew"`, "MzMz"}, 7, "flew", decodeBase64("MzMz"), false},
+		{[]string{"22", `john`, "MzM="}, 22, "john", decodeBase64("MzM="), false},
+		{[]string{"-10", `"bob"`, "Z25v"}, -10, "bob", decodeBase64("Z25v"), false},
 		// can parse numbers quoted, too
 		{[]string{`"7"`, `"flew"`, "0x486173682076616c7565"}, 7, "flew", decodeHex("0x486173682076616c7565"), false}, // Testing hex encoded data
 		{[]string{`"-10"`, `"bob"`, "0x6578616d706c65"}, -10, "bob", decodeHex("0x6578616d706c65"), false},           // Testing hex encoded data
-		// can't parse strings unquoted
+		// []byte must be base64
 		{[]string{`"-10"`, `bob`, "invalid_encoded_data"}, -10, "bob", []byte("invalid_encoded_data"), true}, // Invalid encoded data format
 	}
 
@@ -245,7 +247,7 @@ func TestParseURINonJSON(t *testing.T) {
 	}
 }
 
-func TestParseURIJSON(t *testing.T) {
+func TestParseURI_JSON(t *testing.T) {
 	t.Parallel()
 
 	type Data struct {
@@ -274,24 +276,25 @@ func TestParseURIJSON(t *testing.T) {
 	}
 
 	// Iterate over test cases for JSON encoded parameters
-	for idx, tc := range jsonCases {
-		i := strconv.Itoa(idx)
-		url := fmt.Sprintf("test.com/method?data=%v", url.PathEscape(tc.raw))
-		req, err := http.NewRequest("GET", url, nil)
-		assert.NoError(t, err)
+	for _, tc := range jsonCases {
+		t.Run(tc.raw, func(t *testing.T) {
+			url := fmt.Sprintf("test.com/method?data=%v", url.PathEscape(tc.raw))
+			req, err := http.NewRequest("GET", url, nil)
+			assert.NoError(t, err)
 
-		// Invoke httpParamsToArgs to parse the request and convert to reflect.Values
-		vals, err := httpParamsToArgs(call, req)
+			// Invoke httpParamsToArgs to parse the request and convert to reflect.Values
+			vals, err := httpParamsToArgs(call, req)
 
-		// Check for expected errors or successful parsing
-		if tc.fail {
-			assert.NotNil(t, err, i)
-		} else {
-			assert.Nil(t, err, "%s: %+v", i, err)
-			// Assert the parsed values match the expected data
-			if assert.Equal(t, 1, len(vals), i) {
-				assert.Equal(t, tc.data, vals[0].Interface(), i)
+			// Check for expected errors or successful parsing
+			if tc.fail {
+				assert.NotNil(t, err)
+				return
 			}
-		}
+
+			assert.Nil(t, err, " %+v", err)
+			// Assert the parsed values match the expected data
+			_ = assert.Len(t, vals, 1) &&
+				assert.Equal(t, tc.data, vals[0].Interface())
+		})
 	}
 }

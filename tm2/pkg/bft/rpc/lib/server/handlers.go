@@ -363,7 +363,8 @@ func httpParamsToArgs(rpcFunc *RPCFunc, r *http.Request) ([]reflect.Value, error
 			continue
 		}
 
-		// Handle integer string by adding quotes to ensure it is treated as a JSON string
+		// Handle integer string by adding quotes to ensure it is treated as a JSON string.
+		// This is required by Amino JSON to unmarshal values into integers.
 		if reInt.Match([]byte(arg)) {
 			arg = fmt.Sprintf("%q", arg)
 		}
