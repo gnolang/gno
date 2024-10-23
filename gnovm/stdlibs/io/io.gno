@@ -32,8 +32,8 @@ var ErrShortWrite = errors.New("short write")
 // errInvalidWrite means that a write returned an impossible count.
 var errInvalidWrite = errors.New("invalid write result")
 
-// errShortBuffer means that a read required a longer buffer than was provided.
-var errShortBuffer = errors.New("short buffer")
+// ErrShortBuffer means that a read required a longer buffer than was provided.
+var ErrShortBuffer = errors.New("short buffer")
 
 // EOF is the error returned by Read when no more input is available.
 // (Read must return EOF itself, not an error wrapping EOF,
@@ -317,12 +317,12 @@ func WriteString(w Writer, s string) (n int, err error) {
 // The error is EOF only if no bytes were read.
 // If an EOF happens after reading fewer than min bytes,
 // ReadAtLeast returns ErrUnexpectedEOF.
-// If min is greater than the length of buf, ReadAtLeast returns errShortBuffer.
+// If min is greater than the length of buf, ReadAtLeast returns ErrShortBuffer.
 // On return, n >= min if and only if err == nil.
 // If r returns an error having read at least min bytes, the error is dropped.
 func ReadAtLeast(r Reader, buf []byte, min int) (n int, err error) {
 	if len(buf) < min {
-		return 0, errShortBuffer
+		return 0, ErrShortBuffer
 	}
 	for n < min && err == nil {
 		var nn int
