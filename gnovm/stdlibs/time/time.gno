@@ -7,16 +7,35 @@ type Time struct {
 	nsec int32
 }
 
+// unixSec returns the time's seconds since Jan 1 1970 (Unix time).
 func (t *Time) unixSec() int64 { return t.sec + internalToUnix }
 
+// addSec adds d seconds to the time.
+func (t *Time) addSec(d int64) {
+	// Check if the sum of t.sec and d overflows and handle it properly.
+	sum := t.sec + d
+	if (sum > t.sec) == (d > 0) {
+		t.sec = sum
+	} else if d > 0 {
+		t.sec = 1<<63 - 1
+	} else {
+		t.sec = -(1<<63 - 1)
+	}
+}
+
+// After reports whether the time instant t is after u.
 func (t Time) After(u Time) bool {
 	return t.sec > u.sec || t.sec == u.sec && t.nsec > u.nsec
 }
 
+// Before reports whether the time instant t is before u.
 func (t Time) Before(u Time) bool {
 	return t.sec < u.sec || t.sec == u.sec && t.nsec < u.nsec
 }
 
+// Equal reports whether t and u represent the same time instant.
+// See the documentation on the Time type for the pitfalls of using == with
+// Time values; most code should use Equal instead.
 func (t Time) Equal(u Time) bool {
 	return t.sec == u.sec && t.nsec == u.nsec
 }
@@ -38,6 +57,7 @@ const (
 	December
 )
 
+// String returns the English name of the month ("January", "February", ...).
 func (m Month) String() string {
 	if January <= m && m <= December {
 		return longMonthNames[m-1]
@@ -47,6 +67,7 @@ func (m Month) String() string {
 	return "%!Month(" + string(buf[n:]) + ")"
 }
 
+// A Weekday specifies a day of the week (Sunday = 0, ...).
 type Weekday int
 
 const (
@@ -59,6 +80,7 @@ const (
 	Saturday
 )
 
+// String returns the English name of the day ("Sunday", "Monday", ...).
 func (d Weekday) String() string {
 	if Sunday <= d && d <= Saturday {
 		return longDayNames[d]
@@ -67,6 +89,86 @@ func (d Weekday) String() string {
 	n := fmtInt(buf, uint64(d))
 	return "%!Weekday(" + string(buf[n:]) + ")"
 }
+
+// Computations on time.
+//
+// The zero value for a Time is defined to be
+//	January 1, year 1, 00:00:00.000000000 UTC
+// which (1) looks like a zero, or as close as you can get in a date
+// (1-1-1 00:00:00 UTC), (2) is unlikely enough to arise in practice to
+// be a suitable "not set" sentinel, unlike Jan 1 1970, and (3) has a
+// non-negative year even in time zones west of UTC, unlike 1-1-0
+// 00:00:00 UTC, which would be 12-31-(-1) 19:00:00 in New York.
+//
+// The zero Time value does not force a specific epoch for the time
+// representation. For example, to use the Unix epoch internally, we
+// could define that to distinguish a zero value from Jan 1 1970, that
+// time would be represented by sec=-1, nsec=1e9. However, it does
+// suggest a representation, namely using 1-1-1 00:00:00 UTC as the
+// epoch, and that's what we do.
+//
+// The Add and Sub computations are oblivious to the choice of epoch.
+//
+// The presentation computations - year, month, minute, and so on - all
+// rely heavily on division and modulus by positive constants. For
+// calendrical calculations we want these divisions to round down, even
+// for negative values, so that the remainder is always positive, but
+// Go's division (like most hardware division instructions) rounds to
+// zero. We can still do those computations and then adjust the result
+// for a negative numerator, but it's annoying to write the adjustment
+// over and over. Instead, we can change to a different epoch so long
+// ago that all the times we care about will be positive, and then round
+// to zero and round down coincide. These presentation routines already
+// have to add the zone offset, so adding the translation to the
+// alternate epoch is cheap. For example, having a non-negative time t
+// means that we can write
+//
+//	sec = t % 60
+//
+// instead of
+//
+//	sec = t % 60
+//	if sec < 0 {
+//		sec += 60
+//	}
+//
+// everywhere.
+//
+// The calendar runs on an exact 400 year cycle: a 400-year calendar
+// printed for 1970-2369 will apply as well to 2370-2769. Even the days
+// of the week match up. It simplifies the computations to choose the
+// cycle boundaries so that the exceptional years are always delayed as
+// long as possible. That means choosing a year equal to 1 mod 400, so
+// that the first leap year is the 4th year, the first missed leap year
+// is the 100th year, and the missed missed leap year is the 400th year.
+// So we'd prefer instead to print a calendar for 2001-2400 and reuse it
+// for 2401-2800.
+//
+// Finally, it's convenient if the delta between the Unix epoch and
+// long-ago epoch is representable by an int64 constant.
+//
+// These three considerations—choose an epoch as early as possible, that
+// uses a year equal to 1 mod 400, and that is no more than 2⁶³ seconds
+// earlier than 1970—bring us to the year -292277022399. We refer to
+// this year as the absolute zero year, and to times measured as a uint64
+// seconds since this year as absolute times.
+//
+// Times measured as an int64 seconds since the year 1—the representation
+// used for Time's sec field—are called internal times.
+//
+// Times measured as an int64 seconds since the year 1970 are called Unix
+// times.
+//
+// It is tempting to just use the year 1 as the absolute epoch, defining
+// that the routines are only valid for years >= 1. However, the
+// routines would then be invalid when displaying the epoch in time zones
+// west of UTC, since it is year 0. It doesn't seem tenable to say that
+// printing the zero time correctly isn't supported in half the time
+// zones. By comparison, it's reasonable to mishandle some times in
+// the year -292277022399.
+//
+// All this is opaque to clients of the API and can be changed if a
+// better implementation presents itself.
 
 const (
 	// The unsigned zero year for internal calculations.
@@ -88,6 +190,8 @@ const (
 	wallToInternal int64 = (1884*365 + 1884/4 - 1884/100 + 1884/400) * secondsPerDay
 )
 
+// IsZero reports whether t represents the zero time instant,
+// January 1, year 1, 00:00:00 UTC.
 func (t Time) IsZero() bool {
 	return t.sec == 0 && t.nsec == 0
 }
@@ -123,10 +227,12 @@ func (t Time) Day() int {
 	return day
 }
 
+// Weekday returns the day of the week specified by t.
 func (t Time) Weekday() Weekday {
 	return internalWeekday(t.internal())
 }
 
+// internalWeekday is like Weekday but operates on an internal time.
 func internalWeekday(it uint64) Weekday {
 	sec := (it + uint64(Monday)*secondsPerDay) % secondsPerWeek
 	return Weekday(int(sec) / secondsPerDay)
@@ -202,6 +308,300 @@ func (t Time) YearDay() int {
 	return yday + 1
 }
 
+// A Duration represents the elapsed time between two instants
+// as an int64 nanosecond count. The representation limits the
+// largest representable duration to approximately 290 years.
+type Duration int64
+
+const (
+	minDuration Duration = -1 << 63
+	maxDuration Duration = 1<<63 - 1
+)
+
+// Common durations. There is no definition for units of Day or larger
+// to avoid confusion across daylight savings time zone transitions.
+//
+// To count the number of units in a Duration, divide:
+//
+//	second := time.Second
+//	fmt.Print(int64(second/time.Millisecond)) // prints 1000
+//
+// To convert an integer number of units to a Duration, multiply:
+//
+//	seconds := 10
+//	fmt.Print(time.Duration(seconds)*time.Second) // prints 10s
+const (
+	Nanosecond  Duration = 1
+	Microsecond          = 1000 * Nanosecond
+	Millisecond          = 1000 * Microsecond
+	Second               = 1000 * Millisecond
+	Minute               = 60 * Second
+	Hour                 = 60 * Minute
+)
+
+// String returns a string representing the duration in the form "72h3m0.5s".
+// Leading zero units are omitted. As a special case, durations less than one
+// second format use a smaller unit (milli-, micro-, or nanoseconds) to ensure
+// that the leading digit is non-zero. The zero duration formats as 0s.
+func (d Duration) String() string {
+	// Largest time is 2540400h10m10.000000000s
+	var buf [32]byte
+	w := len(buf)
+
+	u := uint64(d)
+	neg := d < 0
+	if neg {
+		u = -u
+	}
+
+	if u < uint64(Second) {
+		// Special case: if duration is smaller than a second,
+		// use smaller units, like 1.2ms
+		var prec int
+		w--
+		buf[w] = 's'
+		w--
+		switch {
+		case u == 0:
+			return "0s"
+		case u < uint64(Microsecond):
+			// print nanoseconds
+			prec = 0
+			buf[w] = 'n'
+		case u < uint64(Millisecond):
+			// print microseconds
+			prec = 3
+			// U+00B5 'µ' micro sign == 0xC2 0xB5
+			w-- // Need room for two bytes.
+			copy(buf[w:], "µ")
+		default:
+			// print milliseconds
+			prec = 6
+			buf[w] = 'm'
+		}
+		w, u = fmtFrac(buf[:w], u, prec)
+		w = fmtInt(buf[:w], u)
+	} else {
+		w--
+		buf[w] = 's'
+
+		w, u = fmtFrac(buf[:w], u, 9)
+
+		// u is now integer seconds
+		w = fmtInt(buf[:w], u%60)
+		u /= 60
+
+		// u is now integer minutes
+		if u > 0 {
+			w--
+			buf[w] = 'm'
+			w = fmtInt(buf[:w], u%60)
+			u /= 60
+
+			// u is now integer hours
+			// Stop at hours because days can be different lengths.
+			if u > 0 {
+				w--
+				buf[w] = 'h'
+				w = fmtInt(buf[:w], u)
+			}
+		}
+	}
+
+	if neg {
+		w--
+		buf[w] = '-'
+	}
+
+	return string(buf[w:])
+}
+
+// fmtFrac formats the fraction of v/10**prec (e.g., ".12345") into the
+// tail of buf, omitting trailing zeros. It omits the decimal
+// point too when the fraction is 0. It returns the index where the
+// output bytes begin and the value v/10**prec.
+func fmtFrac(buf []byte, v uint64, prec int) (nw int, nv uint64) {
+	// Omit trailing zeros up to and including decimal point.
+	w := len(buf)
+	isprint := false
+	for i := 0; i < prec; i++ {
+		digit := v % 10
+		isprint = isprint || digit != 0
+		if isprint {
+			w--
+			buf[w] = byte(digit) + '0'
+		}
+		v /= 10
+	}
+	if isprint {
+		w--
+		buf[w] = '.'
+	}
+	return w, v
+}
+
+// add v at the end of buf and return the index where the number starts in buf
+func fmtInt(buf []byte, v uint64) int {
+	w := len(buf)
+	if v == 0 {
+		w--
+		buf[w] = '0'
+	} else {
+		for v > 0 {
+			w--
+			buf[w] = byte(v%10) + '0'
+			v /= 10
+		}
+	}
+	return w
+}
+
+// Nanoseconds returns the duration as an integer nanosecond count.
+func (d Duration) Nanoseconds() int64 { return int64(d) }
+
+// Microseconds returns the duration as an integer microsecond count.
+func (d Duration) Microseconds() int64 { return int64(d) / 1e3 }
+
+// Milliseconds returns the duration as an integer millisecond count.
+func (d Duration) Milliseconds() int64 { return int64(d) / 1e6 }
+
+// These methods return float64 because the dominant
+// use case is for printing a floating point number like 1.5s, and
+// a truncation to integer would make them not useful in those cases.
+// Splitting the integer and fraction ourselves guarantees that
+// converting the returned float64 to an integer rounds the same
+// way that a pure integer conversion would have, even in cases
+// where, say, float64(d.Nanoseconds())/1e9 would have rounded
+// differently.
+
+// Seconds returns the duration as a floating point number of seconds.
+func (d Duration) Seconds() float64 {
+	sec := d / Second
+	nsec := d % Second
+	return float64(sec) + float64(nsec)/1e9
+}
+
+// Minutes returns the duration as a floating point number of minutes.
+func (d Duration) Minutes() float64 {
+	min := d / Minute
+	nsec := d % Minute
+	return float64(min) + float64(nsec)/(60*1e9)
+}
+
+// Hours returns the duration as a floating point number of hours.
+func (d Duration) Hours() float64 {
+	hour := d / Hour
+	nsec := d % Hour
+	return float64(hour) + float64(nsec)/(60*60*1e9)
+}
+
+// Truncate returns the result of rounding d toward zero to a multiple of m.
+// If m <= 0, Truncate returns d unchanged.
+func (d Duration) Truncate(m Duration) Duration {
+	if m <= 0 {
+		return d
+	}
+	return d - d%m
+}
+
+// lessThanHalf reports whether x+x < y but avoids overflow,
+// assuming x and y are both positive (Duration is signed).
+func lessThanHalf(x, y Duration) bool {
+	return uint64(x)+uint64(x) < uint64(y)
+}
+
+// Round returns the result of rounding d to the nearest multiple of m.
+// The rounding behavior for halfway values is to round away from zero.
+// If the result exceeds the maximum (or minimum)
+// value that can be stored in a Duration,
+// Round returns the maximum (or minimum) duration.
+// If m <= 0, Round returns d unchanged.
+func (d Duration) Round(m Duration) Duration {
+	if m <= 0 {
+		return d
+	}
+	r := d % m
+	if d < 0 {
+		r = -r
+		if lessThanHalf(r, m) {
+			return d + r
+		}
+		if d1 := d - m + r; d1 < d {
+			return d1
+		}
+		return minDuration // overflow
+	}
+	if lessThanHalf(r, m) {
+		return d - r
+	}
+	if d1 := d + m - r; d1 > d {
+		return d1
+	}
+	return maxDuration // overflow
+}
+
+// Abs returns the absolute value of d.
+// As a special case, math.MinInt64 is converted to math.MaxInt64.
+func (d Duration) Abs() Duration {
+	switch {
+	case d >= 0:
+		return d
+	case d == minDuration:
+		return maxDuration
+	default:
+		return -d
+	}
+}
+
+// Add returns the time t+d
+func (t Time) Add(d Duration) Time {
+	dsec := int64(d / 1e9)
+	nsec := t.nsec + int32(d%1e9)
+	if nsec >= 1e9 {
+		dsec++
+		nsec -= 1e9
+	} else if nsec < 0 {
+		dsec--
+		nsec += 1e9
+	}
+	return Time{t.sec + dsec, nsec}
+}
+
+// Sub returns the duration t-u. If the result exceeds the maximum (or minimum)
+// value that can be stored in a Duration, the maximum (or minimum) duration
+// will be returned.
+// To compute t-d for a duration d, use t.Add(-d).
+func (t Time) Sub(u Time) Duration {
+	sec := t.sec - u.sec
+	nsec := t.nsec - u.nsec
+	if sec > 0 && nsec < 0 {
+		sec--
+		nsec += 1e9
+	} else if sec < 0 && nsec > 0 {
+		sec++
+		nsec -= 1e9
+	}
+	if sec > int64(maxDuration) {
+		return maxDuration
+	}
+	if sec < int64(minDuration) {
+		return minDuration
+	}
+	return Duration(sec*1e9 + int64(nsec))
+}
+
+// Since returns the time elapsed since t.
+// It is shorthand for time.Now().Sub(t).
+func Since(t Time) Duration {
+	return Now().Sub(t)
+}
+
+// Until returns the duration until t.
+// It is shorthand for t.Sub(time.Now()).
+func Until(t Time) Duration {
+	return t.Sub(Now())
+}
+
 // AddDate returns the time corresponding to adding the
 // given number of years, months, and days to t.
 // For example, AddDate(-1, 2, 3) applied to January 1, 2011
@@ -216,17 +616,6 @@ func (t Time) AddDate(years int, months int, days int) Time {
 	return Date(year+years, month+Month(months), day+days, hour, min, sec, int(t.nsec))
 }
 
-func (t *Time) addSec(d int64) {
-	sum := t.sec + d
-	if (sum > t.sec) == (d > 0) {
-		t.sec = sum
-	} else if d > 0 {
-		t.sec = 1<<63 - 1
-	} else {
-		t.sec = -(1<<63 - 1)
-	}
-}
-
 const (
 	secondsPerMinute = 60
 	secondsPerHour   = 60 * secondsPerMinute
@@ -237,10 +626,13 @@ const (
 	daysPer4Years    = 365*4 + 1
 )
 
+// date computes the year, day of year, and when full=true,
+// the month and day in which t occurs.
 func (t Time) date(full bool) (year int, month Month, day int, yday int) {
 	return internalDate(t.internal(), full)
 }
 
+// internalDate is like date but operates on an internal time.
 func internalDate(it uint64, full bool) (year int, month Month, day int, yday int) {
 	d := it / secondsPerDay
 
@@ -332,6 +724,13 @@ var daysBefore = [...]int32{
 	31 + 28 + 31 + 30 + 31 + 30 + 31 + 31 + 30 + 31 + 30 + 31,
 }
 
+func daysIn(m Month, year int) int {
+	if m == February && isLeap(year) {
+		return 29
+	}
+	return int(daysBefore[m] - daysBefore[m-1])
+}
+
 // daysSinceEpoch takes a year and returns the number of days from
 // the absolute epoch to the start of that year.
 // This is basically (year - zeroYear) * 365, but accounting for leap days.
@@ -360,305 +759,23 @@ func daysSinceEpoch(year int) uint64 {
 	return d
 }
 
-const (
-	Nanosecond  Duration = 1
-	Microsecond          = 1000 * Nanosecond
-	Millisecond          = 1000 * Microsecond
-	Second               = 1000 * Millisecond
-	Minute               = 60 * Second
-	Hour                 = 60 * Minute
-)
-
-// A Duration represents the elapsed time between two instants
-// as an int64 nanosecond count. The representation limits the
-// largest representable duration to approximately 290 years.
-type Duration int64
-
-const (
-	minDuration Duration = -1 << 63
-	maxDuration Duration = 1<<63 - 1
-)
-
-// String returns a string representing the duration in the form "72h3m0.5s".
-// Leading zero units are omitted. As a special case, durations less than one
-// second format use a smaller unit (milli-, micro-, or nanoseconds) to ensure
-// that the leading digit is non-zero. The zero duration formats as 0s.
-func (d Duration) String() string {
-	// Largest time is 2540400h10m10.000000000s
-	var buf [32]byte
-	w := len(buf)
-
-	u := uint64(d)
-	neg := d < 0
-	if neg {
-		u = -u
-	}
-
-	if u < uint64(Second) {
-		// Special case: if duration is smaller than a second,
-		// use smaller units, like 1.2ms
-		var prec int
-		w--
-		buf[w] = 's'
-		w--
-		switch {
-		case u == 0:
-			return "0s"
-		case u < uint64(Microsecond):
-			// print nanoseconds
-			prec = 0
-			buf[w] = 'n'
-		case u < uint64(Millisecond):
-			// print microseconds
-			prec = 3
-			// U+00B5 'µ' micro sign == 0xC2 0xB5
-			w-- // Need room for two bytes.
-			copy(buf[w:], "µ")
-		default:
-			// print milliseconds
-			prec = 6
-			buf[w] = 'm'
-		}
-		w, u = fmtFrac(buf[:w], u, prec)
-		w = fmtInt(buf[:w], u)
-	} else {
-		w--
-		buf[w] = 's'
-
-		w, u = fmtFrac(buf[:w], u, 9)
-
-		// u is now integer seconds
-		w = fmtInt(buf[:w], u%60)
-		u /= 60
-
-		// u is now integer minutes
-		if u > 0 {
-			w--
-			buf[w] = 'm'
-			w = fmtInt(buf[:w], u%60)
-			u /= 60
-
-			// u is now integer hours
-			// Stop at hours because days can be different lengths.
-			if u > 0 {
-				w--
-				buf[w] = 'h'
-				w = fmtInt(buf[:w], u)
-			}
-		}
-	}
-
-	if neg {
-		w--
-		buf[w] = '-'
-	}
-
-	return string(buf[w:])
-}
-
-// Nanoseconds returns the duration as an integer nanosecond count.
-func (d Duration) Nanoseconds() int64 { return int64(d) }
-
-// Microseconds returns the duration as an integer microsecond count.
-func (d Duration) Microseconds() int64 { return int64(d) / 1e3 }
-
-// Milliseconds returns the duration as an integer millisecond count.
-func (d Duration) Milliseconds() int64 { return int64(d) / 1e6 }
-
-// These methods return float64 because the dominant
-// use case is for printing a floating point number like 1.5s, and
-// a truncation to integer would make them not useful in those cases.
-// Splitting the integer and fraction ourselves guarantees that
-// converting the returned float64 to an integer rounds the same
-// way that a pure integer conversion would have, even in cases
-// where, say, float64(d.Nanoseconds())/1e9 would have rounded
-// differently.
-
-// Seconds returns the duration as a floating point number of seconds.
-func (d Duration) Seconds() float64 {
-	sec := d / Second
-	nsec := d % Second
-	return float64(sec) + float64(nsec)/1e9
-}
-
-// Minutes returns the duration as a floating point number of minutes.
-func (d Duration) Minutes() float64 {
-	min := d / Minute
-	nsec := d % Minute
-	return float64(min) + float64(nsec)/(60*1e9)
-}
-
-// Hours returns the duration as a floating point number of hours.
-func (d Duration) Hours() float64 {
-	hour := d / Hour
-	nsec := d % Hour
-	return float64(hour) + float64(nsec)/(60*60*1e9)
-}
-
-// Truncate returns the result of rounding d toward zero to a multiple of m.
-// If m <= 0, Truncate returns d unchanged.
-func (d Duration) Truncate(m Duration) Duration {
-	if m <= 0 {
-		return d
-	}
-	return d - d%m
-}
-
-// lessThanHalf reports whether x+x < y but avoids overflow,
-// assuming x and y are both positive (Duration is signed).
-func lessThanHalf(x, y Duration) bool {
-	return uint64(x)+uint64(x) < uint64(y)
-}
-
-// Round returns the result of rounding d to the nearest multiple of m.
-// The rounding behavior for halfway values is to round away from zero.
-// If the result exceeds the maximum (or minimum)
-// value that can be stored in a Duration,
-// Round returns the maximum (or minimum) duration.
-// If m <= 0, Round returns d unchanged.
-func (d Duration) Round(m Duration) Duration {
-	if m <= 0 {
-		return d
-	}
-	r := d % m
-	if d < 0 {
-		r = -r
-		if lessThanHalf(r, m) {
-			return d + r
-		}
-		if d1 := d - m + r; d1 < d {
-			return d1
-		}
-		return minDuration // overflow
-	}
-	if lessThanHalf(r, m) {
-		return d - r
-	}
-	if d1 := d + m - r; d1 > d {
-		return d1
-	}
-	return maxDuration // overflow
-}
-
-// Add returns the time t+d
-func (t Time) Add(d Duration) Time {
-	dsec := int64(d / 1e9)
-	nsec := t.nsec + int32(d%1e9)
-	if nsec >= 1e9 {
-		dsec++
-		nsec -= 1e9
-	} else if nsec < 0 {
-		dsec--
-		nsec += 1e9
-	}
-	return Time{t.sec + dsec, nsec}
-}
-
-// Sub returns the duration t-u. If the result exceeds the maximum (or minimum)
-// value that can be stored in a Duration, the maximum (or minimum) duration
-// will be returned.
-// To compute t-d for a duration d, use t.Add(-d).
-func (t Time) Sub(u Time) Duration {
-	sec := t.sec - u.sec
-	nsec := t.nsec - u.nsec
-	if sec > 0 && nsec < 0 {
-		sec--
-		nsec += 1e9
-	} else if sec < 0 && nsec > 0 {
-		sec++
-		nsec -= 1e9
-	}
-	if sec > int64(maxDuration) {
-		return maxDuration
-	}
-	if sec < int64(minDuration) {
-		return minDuration
-	}
-	return Duration(sec*1e9 + int64(nsec))
-}
-
-// Since returns the time elapsed since t.
-// It is shorthand for time.Now().Sub(t).
-func Since(t Time) Duration {
-	return Now().Sub(t)
-}
-
-// Until returns the duration until t.
-// It is shorthand for t.Sub(time.Now()).
-func Until(t Time) Duration {
-	return t.Sub(Now())
-}
-
-// Date returns the Time corresponding to
-//
-//	yyyy-mm-dd hh:mm:ss + nsec nanoseconds
-//
-// The month, day, hour, min, sec, and nsec values may be outside
-// their usual ranges and will be normalized during the conversion.
-// For example, October 32 converts to November 1.
-func Date(year int, month Month, day, hour, min, sec, nsec int) Time {
-	// Normalize month, overflowing into year.
-	m := int(month) - 1
-	year, m = norm(year, m, 12)
-	month = Month(m) + 1
-
-	// Normalize nsec, sec, min, hour, overflowing into day.
-	sec, nsec = norm(sec, nsec, 1e9)
-	min, sec = norm(min, sec, 60)
-	hour, min = norm(hour, min, 60)
-	day, hour = norm(day, hour, 24)
-
-	// Compute days since the absolute epoch.
-	d := daysSinceEpoch(year)
-
-	// Add in days before this month.
-	d += uint64(daysBefore[month-1])
-	if isLeap(year) && month >= March {
-		d++ // February 29
-	}
-
-	// Add in days before today.
-	d += uint64(day - 1)
-
-	// Add in time elapsed today.
-	abs := d * secondsPerDay
-	abs += uint64(hour*secondsPerHour + min*secondsPerMinute + sec)
-
-	unix := int64(abs) + (absoluteToInternal + internalToUnix)
-	t := unixTime(unix, int32(nsec))
-	return t
-}
-
-// Abs returns the absolute value of d.
-// As a special case, math.MinInt64 is converted to math.MaxInt64.
-func (d Duration) Abs() Duration {
-	switch {
-	case d >= 0:
-		return d
-	case d == minDuration:
-		return maxDuration
-	default:
-		return -d
-	}
-}
-
-func (t Time) Round(d Duration) Time {
-	if d <= 0 {
-		return t
-	}
-	_, r := div(t, d)
-	if lessThanHalf(r, d) {
-		return t.Add(-r)
-	}
-	return t.Add(d - r)
-}
-
 func now() (sec int64, nsec int32, mono int64) // injected by runtime
 
+// Now returns the current UTC time.
 func Now() Time {
 	sec, nsec, _ := now()
 	sec += unixToInternal
 	return Time{sec, nsec}
+}
+
+func unixTime(sec int64, nsec int32) Time {
+	return Time{sec + unixToInternal, nsec}
+}
+
+// This method is here to avoid breaking changes but always return UTC and offset 0
+func (t Time) Zone() (name string, offset int) {
+	name, offset = "UTC", 0
+	return
 }
 
 // Unix returns t as a Unix time, the number of seconds elapsed
@@ -793,12 +910,6 @@ func (t *Time) UnmarshalText(data []byte) error {
 	return err
 }
 
-// Zone is here to avoid breaking changes, but return UTC and offset 0.
-func (t Time) Zone() (name string, offset int) {
-	name, offset = "UTC", 0
-	return
-}
-
 // Unix returns the local Time corresponding to the given Unix time,
 // sec seconds and nsec nanoseconds since January 1, 1970 UTC.
 // It is valid to pass nsec outside the range [0, 999999999].
@@ -829,52 +940,8 @@ func UnixMicro(usec int64) Time {
 	return Unix(usec/1e6, (usec%1e6)*1e3)
 }
 
-func unixTime(sec int64, nsec int32) Time {
-	return Time{sec + unixToInternal, nsec}
-}
-
 func isLeap(year int) bool {
 	return year%4 == 0 && (year%100 != 0 || year%400 == 0)
-}
-
-// fmtFrac formats the fraction of v/10**prec (e.g., ".12345") into the
-// tail of buf, omitting trailing zeros. It omits the decimal
-// point too when the fraction is 0. It returns the index where the
-// output bytes begin and the value v/10**prec.
-func fmtFrac(buf []byte, v uint64, prec int) (nw int, nv uint64) {
-	// Omit trailing zeros up to and including decimal point.
-	w := len(buf)
-	isprint := false
-	for i := 0; i < prec; i++ {
-		digit := v % 10
-		isprint = isprint || digit != 0
-		if isprint {
-			w--
-			buf[w] = byte(digit) + '0'
-		}
-		v /= 10
-	}
-	if isprint {
-		w--
-		buf[w] = '.'
-	}
-	return w, v
-}
-
-// add v at the end of buf and return the index where the number starts in buf
-func fmtInt(buf []byte, v uint64) int {
-	w := len(buf)
-	if v == 0 {
-		w--
-		buf[w] = '0'
-	} else {
-		for v > 0 {
-			w--
-			buf[w] = byte(v%10) + '0'
-			v /= 10
-		}
-	}
-	return w
 }
 
 // norm returns nhi, nlo such that
@@ -895,18 +962,66 @@ func norm(hi, lo, base int) (nhi, nlo int) {
 	return hi, lo
 }
 
-func daysIn(m Month, year int) int {
-	if m == February {
-		if isLeap(year) {
-			return 29
-		}
-		return 28
+// Date returns the Time corresponding to
+//
+//	yyyy-mm-dd hh:mm:ss + nsec nanoseconds
+//
+// The month, day, hour, min, sec, and nsec values may be outside
+// their usual ranges and will be normalized during the conversion.
+// For example, October 32 converts to November 1.
+func Date(year int, month Month, day, hour, min, sec, nsec int) Time {
+	// Normalize month, overflowing into year.
+	m := int(month) - 1
+	year, m = norm(year, m, 12)
+	month = Month(m) + 1
+
+	// Normalize nsec, sec, min, hour, overflowing into day.
+	sec, nsec = norm(sec, nsec, 1e9)
+	min, sec = norm(min, sec, 60)
+	hour, min = norm(hour, min, 60)
+	day, hour = norm(day, hour, 24)
+
+	// Compute days since the absolute epoch.
+	d := daysSinceEpoch(year)
+
+	// Add in days before this month.
+	d += uint64(daysBefore[month-1])
+	if isLeap(year) && month >= March {
+		d++ // February 29
 	}
-	// With the special case of February eliminated, the pattern is
-	//	31 30 31 30 31 30 31 31 30 31 30 31
-	// Adding m&1 produces the basic alternation;
-	// adding (m>>3)&1 inverts the alternation starting in August.
-	return 30 + int((m+m>>3)&1)
+
+	// Add in days before today.
+	d += uint64(day - 1)
+
+	// Add in time elapsed today.
+	abs := d * secondsPerDay
+	abs += uint64(hour*secondsPerHour + min*secondsPerMinute + sec)
+
+	unix := int64(abs) + (absoluteToInternal + internalToUnix)
+	t := unixTime(unix, int32(nsec))
+	return t
+}
+
+// Truncate returns the result of rounding t down to a multiple of d (since the zero time).
+func (t Time) Truncate(d Duration) Time {
+	if d <= 0 {
+		return t
+	}
+	_, r := div(t, d)
+	return t.Add(-r)
+}
+
+// Round returns the result of rounding t to the nearest multiple of d (since the zero time).
+// The rounding behavior for halfway values is to round up.
+func (t Time) Round(d Duration) Time {
+	if d <= 0 {
+		return t
+	}
+	_, r := div(t, d)
+	if lessThanHalf(r, d) {
+		return t.Add(-r)
+	}
+	return t.Add(d - r)
 }
 
 // div divides t by d and returns the quotient parity and remainder.
