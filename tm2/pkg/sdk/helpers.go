@@ -35,7 +35,9 @@ func (app *BaseApp) Deliver(tx Tx, ctxFns ...ContextFn) (result Result) {
 	return app.runTx(ctx, tx)
 }
 
-// ContextFn is the custom execution context builder
+// ContextFn is the custom execution context builder.
+// It can be used to add custom metadata when replaying transactions
+// during InitChainer or in the context of a unit test.
 type ContextFn func(ctx Context) Context
 
 // Context with current {check, deliver}State of the app
