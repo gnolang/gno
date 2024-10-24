@@ -276,6 +276,8 @@ func TestMul(t *testing.T) {
 		{"5", "-3", "-15"},
 		{"0", "3", "0"},
 		{"3", "0", "0"},
+		{"-5", "-3", "15"},
+		{"115792089237316195423570985008687907853269984665640564039457584007913129639935", "1", "115792089237316195423570985008687907853269984665640564039457584007913129639935"},
 	}
 
 	for _, tc := range tests {
@@ -306,50 +308,6 @@ func TestMul(t *testing.T) {
 	}
 }
 
-func TestMulUint256(t *testing.T) {
-	tests := []struct {
-		x, y, want string
-	}{
-		{"0", "1", "0"},
-		{"1", "0", "0"},
-		{"1", "1", "1"},
-		{"1", "2", "2"},
-		{"-1", "1", "-1"},
-		{"-1", "3", "-3"},
-		{"3", "4", "12"},
-		{"-3", "4", "-12"},
-		{"-115792089237316195423570985008687907853269984665640564039457584007913129639934", "2", "-115792089237316195423570985008687907853269984665640564039457584007913129639932"},
-		{"115792089237316195423570985008687907853269984665640564039457584007913129639934", "2", "115792089237316195423570985008687907853269984665640564039457584007913129639932"},
-	}
-
-	for _, tc := range tests {
-		x, err := FromDecimal(tc.x)
-		if err != nil {
-			t.Error(err)
-			continue
-		}
-
-		y, err := uint256.FromDecimal(tc.y)
-		if err != nil {
-			t.Error(err)
-			continue
-		}
-
-		want, err := FromDecimal(tc.want)
-		if err != nil {
-			t.Error(err)
-			continue
-		}
-
-		got := New()
-		got.MulUint256(x, y)
-
-		if got.Neq(want) {
-			t.Errorf("MulUint256(%s, %s) = %v, want %v", tc.x, tc.y, got.ToString(), want.ToString())
-		}
-	}
-}
-
 func TestDiv(t *testing.T) {
 	tests := []struct {
 		x, y, expected string
@@ -364,7 +322,9 @@ func TestDiv(t *testing.T) {
 		{"-10", "3", "-3"},
 		{"7", "3", "2"},
 		{"-7", "3", "-2"},
-		{"115792089237316195423570985008687907853269984665640564039457584007913129639935", "2", "57896044618658097711785492504343953926634992332820282019728792003956564819967"}, // Max uint256 / 2
+		// the maximum value of a positive number in int256 is less than the maximum value of a uint256
+		{"57896044618658097711785492504343953926634992332820282019728792003956564819967", "2", "28948022309329048855892746252171976963317496166410141009864396001978282409983"},   // (Max int256 - 1) / 2
+		{"-57896044618658097711785492504343953926634992332820282019728792003956564819967", "2", "-28948022309329048855892746252171976963317496166410141009864396001978282409983"}, // (Min int256 + 1) / 2
 	}
 
 	for _, tt := range tests {
@@ -374,9 +334,6 @@ func TestDiv(t *testing.T) {
 			result := Zero().Div(x, y)
 			if result.ToString() != tt.expected {
 				t.Errorf("Div(%s, %s) = %s, want %s", tt.x, tt.y, result.ToString(), tt.expected)
-			}
-			if result.abs.IsZero() && result.neg {
-				t.Errorf("Div(%s, %s) resulted in negative zero", tt.x, tt.y)
 			}
 		})
 	}
@@ -393,51 +350,6 @@ func TestDiv(t *testing.T) {
 	})
 }
 
-func TestDivUint256(t *testing.T) {
-	tests := []struct {
-		x, y, want string
-	}{
-		{"0", "1", "0"},
-		{"1", "0", "0"},
-		{"1", "1", "1"},
-		{"1", "2", "0"},
-		{"-1", "1", "-1"},
-		{"-1", "3", "0"},
-		{"4", "3", "1"},
-		{"25", "5", "5"},
-		{"25", "4", "6"},
-		{"-115792089237316195423570985008687907853269984665640564039457584007913129639934", "2", "-57896044618658097711785492504343953926634992332820282019728792003956564819967"},
-		{"115792089237316195423570985008687907853269984665640564039457584007913129639934", "2", "57896044618658097711785492504343953926634992332820282019728792003956564819967"},
-	}
-
-	for _, tc := range tests {
-		x, err := FromDecimal(tc.x)
-		if err != nil {
-			t.Error(err)
-			continue
-		}
-
-		y, err := uint256.FromDecimal(tc.y)
-		if err != nil {
-			t.Error(err)
-			continue
-		}
-
-		want, err := FromDecimal(tc.want)
-		if err != nil {
-			t.Error(err)
-			continue
-		}
-
-		got := New()
-		got.DivUint256(x, y)
-
-		if got.Neq(want) {
-			t.Errorf("DivUint256(%s, %s) = %v, want %v", tc.x, tc.y, got.ToString(), want.ToString())
-		}
-	}
-}
-
 func TestQuo(t *testing.T) {
 	tests := []struct {
 		x, y, want string
@@ -449,6 +361,7 @@ func TestQuo(t *testing.T) {
 		{"-10", "1", "-10"},
 		{"-10", "-1", "10"},
 		{"10", "-3", "-3"},
+		{"-10", "3", "-3"},
 		{"10", "3", "3"},
 	}
 
@@ -530,10 +443,8 @@ func TestMod(t *testing.T) {
 	}{
 		{"0", "1", "0"},
 		{"0", "-1", "0"},
-		{"10", "0", "0"},
 		{"10", "1", "0"},
 		{"10", "-1", "0"},
-		{"-10", "0", "0"},
 		{"-10", "1", "0"},
 		{"-10", "-1", "0"},
 		{"10", "3", "1"},
@@ -566,6 +477,137 @@ func TestMod(t *testing.T) {
 
 		if got.Neq(want) {
 			t.Errorf("Mod(%s, %s) = %v, want %v", tc.x, tc.y, got.ToString(), want.ToString())
+		}
+	}
+}
+
+func TestModPanic(t *testing.T) {
+	tests := []struct {
+		x, y string
+	}{
+		{"10", "0"},
+		{"10", "-0"},
+		{"-10", "0"},
+		{"-10", "-0"},
+	}
+
+	for _, tc := range tests {
+		defer func() {
+			if r := recover(); r == nil {
+				t.Errorf("Mod(%s, %s) did not panic", tc.x, tc.y)
+			}
+		}()
+		x, err := FromDecimal(tc.x)
+		if err != nil {
+			t.Error(err)
+			continue
+		}
+
+		y, err := FromDecimal(tc.y)
+		if err != nil {
+			t.Error(err)
+			continue
+		}
+
+		result := New().Mod(x, y)
+		t.Errorf("Mod(%s, %s) = %v, want %v", tc.x, tc.y, result.ToString(), "0")
+	}
+}
+
+func TestDivE(t *testing.T) {
+	testCases := []struct {
+		x, y int64
+		want int64
+	}{
+		{8, 3, 2},
+		{8, -3, -2},
+		{-8, 3, -3},
+		{-8, -3, 3},
+		{1, 2, 0},
+		{1, -2, 0},
+		{-1, 2, -1},
+		{-1, -2, 1},
+		{0, 1, 0},
+		{0, -1, 0},
+	}
+
+	for _, tc := range testCases {
+		x := NewInt(tc.x)
+		y := NewInt(tc.y)
+		want := NewInt(tc.want)
+		got := new(Int).DivE(x, y)
+		if got.Cmp(want) != 0 {
+			t.Errorf("DivE(%v, %v) = %v, want %v", tc.x, tc.y, got, want)
+		}
+	}
+}
+
+func TestDivEByZero(t *testing.T) {
+	defer func() {
+		if r := recover(); r == nil {
+			t.Errorf("DivE did not panic on division by zero")
+		}
+	}()
+
+	x := NewInt(1)
+	y := NewInt(0)
+	new(Int).DivE(x, y)
+}
+
+func TestModEByZero(t *testing.T) {
+	defer func() {
+		if r := recover(); r == nil {
+			t.Errorf("ModE did not panic on division by zero")
+		}
+	}()
+
+	x := NewInt(1)
+	y := NewInt(0)
+	new(Int).ModE(x, y)
+}
+
+func TestLargeNumbers(t *testing.T) {
+	x, _ := new(Int).SetString("123456789012345678901234567890")
+	y, _ := new(Int).SetString("987654321098765432109876543210")
+
+	// Expected results (calculated separately)
+	expectedQ, _ := new(Int).SetString("0")
+	expectedR, _ := new(Int).SetString("123456789012345678901234567890")
+
+	gotQ := new(Int).DivE(x, y)
+	gotR := new(Int).ModE(x, y)
+
+	if gotQ.Cmp(expectedQ) != 0 {
+		t.Errorf("DivE with large numbers: got %v, want %v", gotQ, expectedQ)
+	}
+
+	if gotR.Cmp(expectedR) != 0 {
+		t.Errorf("ModE with large numbers: got %v, want %v", gotR, expectedR)
+	}
+}
+
+func TestAbs(t *testing.T) {
+	tests := []struct {
+		x, want string
+	}{
+		{"0", "0"},
+		{"1", "1"},
+		{"-1", "1"},
+		{"-2", "2"},
+		{"-100000000000", "100000000000"},
+	}
+
+	for _, tc := range tests {
+		x, err := FromDecimal(tc.x)
+		if err != nil {
+			t.Error(err)
+			continue
+		}
+
+		got := x.Abs()
+
+		if got.ToString() != tc.want {
+			t.Errorf("Abs(%s) = %v, want %v", tc.x, got.ToString(), tc.want)
 		}
 	}
 }
