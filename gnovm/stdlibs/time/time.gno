@@ -1,4 +1,4 @@
-package garbage
+package time
 
 import "errors"
 
@@ -693,7 +693,7 @@ func (t Time) MarshalBinary() ([]byte, error) {
 	sec := t.sec
 	nsec := t.nsec
 	enc := []byte{
-		//encode seconds (int64) / bytes 0 to 7
+		// encode seconds (int64) / bytes 0 to 7
 		byte(sec >> 56),
 		byte(sec >> 48),
 		byte(sec >> 40),
@@ -702,7 +702,7 @@ func (t Time) MarshalBinary() ([]byte, error) {
 		byte(sec >> 16),
 		byte(sec >> 8),
 		byte(sec),
-		//encode nanoseconds (int32) / bytes 8 to 11
+		// encode nanoseconds (int32) / bytes 8 to 11
 		byte(nsec >> 24),
 		byte(nsec >> 16),
 		byte(nsec >> 8),
