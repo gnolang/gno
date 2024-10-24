@@ -1970,6 +1970,68 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 						convertIfConst(store, last, rx)
 					}
 
+					numNames := len(n.Lhs)
+					sts := make([]Type, numNames) // static types
+					tvs := make([]TypedValue, numNames)
+					valueExprs := n.Rhs
+
+					// NOTE: ValDecl has n.Type, AssignStmt not
+					var nType Expr
+
+					// len(n.Lhs) > len(n.Rhs) and panic when len(n.Rhs) != 1
+					// so this is the same
+					if numNames > 1 && len(valueExprs) == 1 {
+						var tuple *tupleType
+						println(sts, tvs, tuple, "=============")
+
+						valueExpr := valueExprs[0]
+						valueType := evalStaticTypeOfRaw(store, last, valueExpr)
+
+						switch expr := valueExpr.(type) {
+						case *CallExpr:
+							// Call case: a, b := x(...)
+							tuple = valueType.(*tupleType)
+						case *TypeAssertExpr:
+							// Type assert case: v, ok := x.(int)
+							tuple = &tupleType{Elts: []Type{valueType, BoolType}}
+							expr.HasOK = true
+						case *IndexExpr:
+							// Map index case: v, ok := m[idx]
+							tuple = &tupleType{Elts: []Type{valueType, BoolType}}
+							expr.HasOK = true
+						default:
+							panic("should not happen")
+						}
+
+						if numValues := len(tuple.Elts); numValues != numNames {
+							panic(
+								fmt.Sprintf(
+									"assignment mismatch: %d variable(s) but %s returns %d value(s)",
+									numNames,
+									valueExpr.String(),
+									numValues,
+								),
+							)
+						}
+
+						var t Type = nil
+						if nType != nil {
+							// only a single type can be specified.
+							t = evalStaticType(store, last, nType)
+						}
+
+						// TODO check tt and nt compat.
+						for i := 0; i < numNames; i++ {
+							// set types as return types if needed.
+							sts[i] = t
+							if t == nil {
+								sts[i] = tuple.Elts[i]
+							}
+
+							tvs[i] = anyValue(t)
+						}
+					}
+
 					if len(n.Lhs) > len(n.Rhs) {
 						switch cx := n.Rhs[0].(type) {
 						case *CallExpr:
@@ -2292,6 +2354,12 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 
 			// TRANS_LEAVE -----------------------
 			case *ValueDecl:
+				fmt.Printf("[VavlueDecl] n: %+v\n", n)
+				fmt.Printf("[VavlueDecl] n.NameExprs: %v\n", n.NameExprs)
+				fmt.Printf("[VavlueDecl] n.Const: %v\n", n.Const)
+				fmt.Printf("[VavlueDecl] n.Values: %v\n", n.Values)
+				fmt.Printf("[VavlueDecl] n.Type: %v\n", n.Type)
+				// panic("----")
 				// evaluate value if const expr.
 				if n.Const {
 					// NOTE: may or may not be a *ConstExpr,
@@ -2426,6 +2494,9 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 					}
 				}
 
+				fmt.Printf("[VavlueDecl] sts: %v\n", sts)
+				fmt.Printf("[VavlueDecl] tvs: %v\n", tvs)
+
 				// define.
 				node := last
 				if fn, ok := last.(*FileNode); ok {
@@ -2439,6 +2510,7 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 					} else {
 						node.Define2(n.Const, nx.Name, sts[i], tvs[i])
 						nx.Path = last.GetPathForName(nil, nx.Name)
+						fmt.Printf("[VavlueDecl] nx.Path: %v\n", nx.Path)
 					}
 				}
 
