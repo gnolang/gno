@@ -28,11 +28,11 @@ import (
 // ----------------------------------------------
 // in-process testnets
 
-func startConsensusNet(css []*ConsensusState, n int) ([]*ConsensusReactor, []<-chan events.Event, []events.EventSwitch, []*p2p.Switch) {
+func startConsensusNet(css []*ConsensusState, n int) ([]*ConsensusReactor, []<-chan events.Event, []events.EventSwitch, []*p2p.MultiplexSwitch) {
 	reactors := make([]*ConsensusReactor, n)
 	blocksSubs := make([]<-chan events.Event, 0)
 	eventSwitches := make([]events.EventSwitch, n)
-	p2pSwitches := ([]*p2p.Switch)(nil)
+	p2pSwitches := ([]*p2p.MultiplexSwitch)(nil)
 	for i := 0; i < n; i++ {
 		/*logger, err := tmflags.ParseLogLevel("consensus:info,*:error", logger, "info")
 		if err != nil {	t.Fatal(err)}*/
@@ -51,7 +51,7 @@ func startConsensusNet(css []*ConsensusState, n int) ([]*ConsensusReactor, []<-c
 		}
 	}
 	// make connected switches and start all reactors
-	p2pSwitches = p2p.MakeConnectedSwitches(config.P2P, n, func(i int, s *p2p.Switch) *p2p.Switch {
+	p2pSwitches = p2p.MakeConnectedSwitches(config.P2P, n, func(i int, s *p2p.MultiplexSwitch) *p2p.MultiplexSwitch {
 		s.AddReactor("CONSENSUS", reactors[i])
 		s.SetLogger(reactors[i].conS.Logger.With("module", "p2p"))
 		return s
@@ -68,7 +68,7 @@ func startConsensusNet(css []*ConsensusState, n int) ([]*ConsensusReactor, []<-c
 	return reactors, blocksSubs, eventSwitches, p2pSwitches
 }
 
-func stopConsensusNet(logger *slog.Logger, reactors []*ConsensusReactor, eventSwitches []events.EventSwitch, p2pSwitches []*p2p.Switch) {
+func stopConsensusNet(logger *slog.Logger, reactors []*ConsensusReactor, eventSwitches []events.EventSwitch, p2pSwitches []*p2p.MultiplexSwitch) {
 	logger.Info("stopConsensusNet", "n", len(reactors))
 	for i, r := range reactors {
 		logger.Info("stopConsensusNet: Stopping ConsensusReactor", "i", i)

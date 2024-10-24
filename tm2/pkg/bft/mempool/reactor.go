@@ -13,6 +13,7 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/bft/types"
 	"github.com/gnolang/gno/tm2/pkg/clist"
 	"github.com/gnolang/gno/tm2/pkg/p2p"
+	p2pTypes "github.com/gnolang/gno/tm2/pkg/p2p/types"
 )
 
 const (
@@ -39,7 +40,7 @@ type Reactor struct {
 
 type mempoolIDs struct {
 	mtx       sync.RWMutex
-	peerMap   map[p2p.ID]uint16
+	peerMap   map[p2pTypes.ID]uint16
 	nextID    uint16              // assumes that a node will never have over 65536 active peers
 	activeIDs map[uint16]struct{} // used to check if a given peerID key is used, the value doesn't matter
 }
@@ -94,7 +95,7 @@ func (ids *mempoolIDs) GetForPeer(peer p2p.Peer) uint16 {
 
 func newMempoolIDs() *mempoolIDs {
 	return &mempoolIDs{
-		peerMap:   make(map[p2p.ID]uint16),
+		peerMap:   make(map[p2pTypes.ID]uint16),
 		activeIDs: map[uint16]struct{}{0: {}},
 		nextID:    1, // reserve unknownPeerID(0) for mempoolReactor.BroadcastTx
 	}
@@ -213,7 +214,7 @@ func (memR *Reactor) broadcastTxRoutine(peer p2p.Peer) {
 		peerState, ok := peer.Get(types.PeerStateKey).(PeerState)
 		if !ok {
 			// Peer does not have a state yet. We set it in the consensus reactor, but
-			// when we add peer in Switch, the order we call reactors#AddPeer is
+			// when we add peer in MultiplexSwitch, the order we call reactors#AddPeer is
 			// different every time due to us using a map. Sometimes other reactors
 			// will be initialized before the consensus reactor. We should wait a few
 			// milliseconds and retry.

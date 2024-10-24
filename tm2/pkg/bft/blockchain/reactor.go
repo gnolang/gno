@@ -12,6 +12,7 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/bft/store"
 	"github.com/gnolang/gno/tm2/pkg/bft/types"
 	"github.com/gnolang/gno/tm2/pkg/p2p"
+	p2pTypes "github.com/gnolang/gno/tm2/pkg/p2p/types"
 )
 
 const (
@@ -37,15 +38,11 @@ const (
 		bcBlockResponseMessageFieldKeySize
 )
 
-type consensusReactor interface {
-	// for when we switch from blockchain reactor and fast sync to
-	// the consensus machine
-	SwitchToConsensus(sm.State, int)
-}
+type SwitchToConsensusFn func(sm.State, int)
 
 type peerError struct {
 	err    error
-	peerID p2p.ID
+	peerID p2pTypes.ID
 }
 
 func (e peerError) Error() string {
@@ -66,11 +63,17 @@ type BlockchainReactor struct {
 
 	requestsCh <-chan BlockRequest
 	errorsCh   <-chan peerError
+
+	switchToConsensusFn SwitchToConsensusFn
 }
 
 // NewBlockchainReactor returns new reactor instance.
-func NewBlockchainReactor(state sm.State, blockExec *sm.BlockExecutor, store *store.BlockStore,
+func NewBlockchainReactor(
+	state sm.State,
+	blockExec *sm.BlockExecutor,
+	store *store.BlockStore,
 	fastSync bool,
+	switchToConsensusFn SwitchToConsensusFn,
 ) *BlockchainReactor {
 	if state.LastBlockHeight != store.Height() {
 		panic(fmt.Sprintf("state (%v) and store (%v) height mismatch", state.LastBlockHeight,
@@ -89,13 +92,14 @@ func NewBlockchainReactor(state sm.State, blockExec *sm.BlockExecutor, store *st
 	)
 
 	bcR := &BlockchainReactor{
-		initialState: state,
-		blockExec:    blockExec,
-		store:        store,
-		pool:         pool,
-		fastSync:     fastSync,
-		requestsCh:   requestsCh,
-		errorsCh:     errorsCh,
+		initialState:        state,
+		blockExec:           blockExec,
+		store:               store,
+		pool:                pool,
+		fastSync:            fastSync,
+		requestsCh:          requestsCh,
+		errorsCh:            errorsCh,
+		switchToConsensusFn: switchToConsensusFn,
 	}
 	bcR.BaseReactor = *p2p.NewBaseReactor("BlockchainReactor", bcR)
 	return bcR
@@ -257,16 +261,13 @@ FOR_LOOP:
 		select {
 		case <-switchToConsensusTicker.C:
 			height, numPending, lenRequesters := bcR.pool.GetStatus()
-			outbound, inbound, _ := bcR.Switch.NumPeers()
-			bcR.Logger.Debug("Consensus ticker", "numPending", numPending, "total", lenRequesters,
-				"outbound", outbound, "inbound", inbound)
+
+			bcR.Logger.Debug("Consensus ticker", "numPending", numPending, "total", lenRequesters)
 			if bcR.pool.IsCaughtUp() {
 				bcR.Logger.Info("Time to switch to consensus reactor!", "height", height)
 				bcR.pool.Stop()
-				conR, ok := bcR.Switch.Reactor("CONSENSUS").(consensusReactor)
-				if ok {
-					conR.SwitchToConsensus(state, blocksSynced)
-				}
+
+				bcR.switchToConsensusFn(state, blocksSynced)
 				// else {
 				// should only happen during testing
 				// }
