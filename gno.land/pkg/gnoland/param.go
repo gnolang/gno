@@ -37,58 +37,59 @@ func (p *Param) Parse(entry string) error {
 	}
 
 	keyWithKind := parts[0]
+	rawValue := parts[1]
 	p.kind = keyWithKind[strings.LastIndex(keyWithKind, ".")+1:]
 	p.key = strings.TrimSuffix(keyWithKind, "."+p.kind)
-	raw := parts[1]
 	switch p.kind {
 	case ParamKindString:
-		p.value = raw
+		p.value = rawValue
 	case ParamKindInt64:
-		v, err := strconv.ParseInt(raw, 10, 64)
+		v, err := strconv.ParseInt(rawValue, 10, 64)
 		if err != nil {
 			return err
 		}
 		p.value = v
 	case ParamKindBool:
-		v, err := strconv.ParseBool(raw)
+		v, err := strconv.ParseBool(rawValue)
 		if err != nil {
 			return err
 		}
 		p.value = v
 	case ParamKindUint64:
-		v, err := strconv.ParseUint(raw, 10, 64)
+		v, err := strconv.ParseUint(rawValue, 10, 64)
 		if err != nil {
 			return err
 		}
 		p.value = v
 	case ParamKindBytes:
-		v, err := hex.DecodeString(raw)
+		v, err := hex.DecodeString(rawValue)
 		if err != nil {
 			return err
 		}
 		p.value = v
 	default:
-		return errors.New("unsupported param kind: " + p.kind)
+		return errors.New("unsupported param kind: " + p.kind + " (" + entry + ")")
 	}
 
 	return p.Verify()
 }
 
 func (p Param) String() string {
+	typedKey := p.key + "." + p.kind
 	switch p.kind {
 	case ParamKindString:
-		return fmt.Sprintf("%s=%s", p.key, p.value)
+		return fmt.Sprintf("%s=%s", typedKey, p.value)
 	case ParamKindInt64:
-		return fmt.Sprintf("%s=%d", p.key, p.value)
+		return fmt.Sprintf("%s=%d", typedKey, p.value)
 	case ParamKindUint64:
-		return fmt.Sprintf("%s=%d", p.key, p.value)
+		return fmt.Sprintf("%s=%d", typedKey, p.value)
 	case ParamKindBool:
 		if p.value.(bool) {
-			return fmt.Sprintf("%s=true", p.key)
+			return fmt.Sprintf("%s=true", typedKey)
 		}
-		return fmt.Sprintf("%s=false", p.key)
+		return fmt.Sprintf("%s=false", typedKey)
 	case ParamKindBytes:
-		return fmt.Sprintf("%s=%x", p.key, p.value)
+		return fmt.Sprintf("%s=%x", typedKey, p.value)
 	}
 	panic("invalid param kind:" + p.kind)
 }
