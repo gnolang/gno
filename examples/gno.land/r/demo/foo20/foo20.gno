@@ -26,6 +26,10 @@ func init() {
 	token = banker.Token()
 }
 
+func Token() grc20.Token {
+	return token
+}
+
 func TotalSupply() uint64 { return token.TotalSupply() }
 
 func BalanceOf(owner pusers.AddressOrName) uint64 {
