@@ -1,0 +1,12 @@
+# testing gno version with GOPATH installation
+
+env GOPATH=$WORK/gopath
+mkdir -p $WORK/gopath/pkg/mod/github.com/gnolang/gno@v0.2.0
+gno version
+cmp stdout stdout.golden
+cmp stderr stderr.golden
+-- stdout.golden --
+gno version: v0.2.0
+-- stderr.golden --
+-- $WORK/gopath/pkg/mod/github.com/gnolang/gno@v0.1.0/go.mod --
+module github.com/gnolang/gno
