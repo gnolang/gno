@@ -586,6 +586,51 @@ func TestAnteHandlerSetPubKey(t *testing.T) {
 	require.Nil(t, acc2.GetPubKey())
 }
 
+func TestAnteHandlerSponsorTx(t *testing.T) {
+	t.Parallel()
+
+	// setup
+	env := setupTestEnv()
+	anteHandler := NewAnteHandler(env.acck, env.bank, DefaultSigVerificationGasConsumer, defaultAnteOptions())
+	ctx := env.ctx
+
+	// keys and addresses
+	priv1, _, addr1 := tu.KeyTestPubAddr()
+	priv2, _, addr2 := tu.KeyTestPubAddr()
+
+	// Only create and set up account acc1 (addr1)
+	acc1 := env.acck.NewAccountWithAddress(ctx, addr1)
+	acc1.SetCoins(tu.NewTestCoins())
+	require.NoError(t, acc1.SetAccountNumber(0))
+	env.acck.SetAccount(ctx, acc1)
+
+	var tx std.Tx
+
+	// test good tx and set public key
+	noopMsg := tu.NewNoopMsg(addr1)
+	msg := tu.NewTestMsg(addr2)
+
+	msgs := []std.Msg{noopMsg, msg}
+
+	privs, accnums, seqs := []crypto.PrivKey{priv1, priv2}, []uint64{0, 0}, []uint64{0, 0}
+	fee := tu.NewTestFee()
+	tx = tu.NewTestTx(t, ctx.ChainID(), msgs, privs, accnums, seqs, fee)
+	checkValidTx(t, anteHandler, ctx, tx, false)
+
+	acc1 = env.acck.GetAccount(ctx, addr1)
+	require.Equal(t, acc1.GetPubKey(), priv1.PubKey())
+	require.Equal(t, acc1.GetAccountNumber(), uint64(0))
+	require.Equal(t, acc1.GetSequence(), uint64(1))
+
+	// Account for addr2 (acc2) has not been created yet.
+	// According to the new logic, if the transaction is a SponsorTx, a new account
+	// will be created for addr2 and its public key will be set.
+	acc2 := env.acck.GetAccount(ctx, addr2)
+	require.Equal(t, acc2.GetPubKey(), priv2.PubKey())
+	require.Equal(t, acc2.GetAccountNumber(), uint64(2))
+	require.Equal(t, acc1.GetSequence(), uint64(1))
+}
+
 func TestProcessPubKey(t *testing.T) {
 	t.Parallel()
 
