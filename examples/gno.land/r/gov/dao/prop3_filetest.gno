@@ -3,7 +3,6 @@ package main
 import (
 	"std"
 
-	"gno.land/r/gnoland/blog"
 	govdao "gno.land/r/gov/dao"
 	"gno.land/r/sys/params"
 )
