@@ -26,8 +26,9 @@ func init() {
 
 	mExec := govdao.NewPropExecutor(membersFn)
 
-	comment := "adding someone to vote"
-	id := govdao.Propose(comment, mExec)
+	description := "adding someone to vote"
+	title := "adding someone to vote"
+	id := govdao.Propose(title, description, mExec)
 	govdao.ExecuteProposal(id)
 
 	changesFn := func() []pVals.Validator {
@@ -56,8 +57,8 @@ func init() {
 
 	// Create a proposal.
 	// XXX: payment
-	comment = "manual valset changes proposal example"
-	govdao.Propose(comment, executor)
+	description = "manual valset changes proposal example"
+	govdao.Propose(title, description, executor)
 }
 
 func main() {
@@ -81,49 +82,91 @@ func main() {
 
 // Output:
 // --
-// - [0](/r/gov/dao:0) - adding someone to vote (**succeeded**)(by g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm)
-// - [1](/r/gov/dao:1) - manual valset changes proposal example (**active**)(by g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm)
+// # GovDAO Proposals
+//
+// ## [Prop #0 - adding someone to vote](/r/gov/dao:0)
+//
+// #### Status: Succeeded
+//
+// ---
+//
+// ## [Prop #1 - adding someone to vote](/r/gov/dao:1)
+//
+// #### Status: Active
+//
+// ---
+//
 //
 // --
-// # Prop #1
+// # Prop #1 - adding someone to vote
+//
+// ## Description
 //
 // manual valset changes proposal example
 //
-// Status: active
+// ## Proposal information
 //
-// Voting status: YES: 0, NO: 0, percent: 0, members: 1
+// #### Status: Active
 //
-// Author: g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm
+// #### Votes:
 //
+// - YAY: 0
 //
+// - NAY: 0
+//
+// - Percent: 0
+//
+// - Members: 1
+//
+// #### Author: g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm
 // --
 // --
-// # Prop #1
+// # Prop #1 - adding someone to vote
+//
+// ## Description
 //
 // manual valset changes proposal example
 //
-// Status: accepted
+// ## Proposal information
 //
-// Voting status: YES: 1, NO: 0, percent: 100, members: 1
+// #### Status: Accepted
 //
-// Author: g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm
+// #### Votes:
 //
+// - YAY: 1
 //
+// - NAY: 0
+//
+// - Percent: 100
+//
+// - Members: 1
+//
+// #### Author: g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm
 // --
 // No valset changes to apply.
 // --
 // --
-// # Prop #1
+// # Prop #1 - adding someone to vote
+//
+// ## Description
 //
 // manual valset changes proposal example
 //
-// Status: succeeded
+// ## Proposal information
 //
-// Voting status: YES: 1, NO: 0, percent: 100, members: 1
+// #### Status: Succeeded
 //
-// Author: g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm
+// #### Votes:
 //
+// - YAY: 1
 //
+// - NAY: 0
+//
+// - Percent: 100
+//
+// - Members: 1
+//
+// #### Author: g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm
 // --
 // Valset changes:
 // - #123: g12345678 (10)
