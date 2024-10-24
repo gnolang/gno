@@ -6,75 +6,61 @@ import (
 	"gno.land/p/demo/mdui"
 )
 
-// RenderHomePage - Renders the Home page with a fresh introduction and updated sections
+// RenderHomePage - Renders the Home page using MarkdownBuilder
 func RenderHomePage() string {
-	// Navbar with links and href values using the new Markdown approach
+	builder := mdui.NewMarkdownBuilder()
+
+	// Navbar with links
 	navbarLinks := map[string]string{
-		"Home":       "/r/demo/mdui",
-		"Components": "/r/demo/mdui:components",
-		"Examples":   "/r/demo/mdui:examples",
+		"Home":          "/r/demo/mdui",
+		"Components":    "/r/demo/mdui:components",
+		"Examples":      "/r/demo/mdui:examples",
+		"Builder Guide": "/r/demo/mdui:builder-guide",
 	}
-	navbar := mdui.Navbar(navbarLinks)
+	builder.AddNavbar(navbarLinks)
 
-	// Heading for the new introduction
-	headingIntro := mdui.Heading(1, "Welcome to MDUI - Markdown-based UI Development")
-
-	// Updated introduction paragraph with new content
-	paragraphIntro := mdui.Paragraph(`
+	// Heading and Introduction
+	builder.AddHeading(1, "Welcome to MDUI - Markdown-based UI Development").
+		AddParagraph(`
 MDUI is a versatile UI framework built on the simplicity and power of Markdown.
 It enables developers to create user interfaces with ease by using Markdown syntax, making web development more accessible and streamlined.
 MDUI is ideal for anyone who wants to quickly build functional, beautiful web pages using familiar Markdown concepts.
 Explore our component library and see how MDUI can simplify your development workflow.
-`)
+`).
+		AddDivider()
 
-	// New section heading for getting started
-	headingGettingStarted := mdui.Heading(2, "Getting Started with MDUI")
-
-	// Content for the "Getting Started" section
-	paragraphGettingStarted := mdui.Paragraph(`
+	// Getting Started Section
+	builder.AddHeading(2, "Getting Started with MDUI").
+		AddParagraph(`
 Ready to start using MDUI? Follow these simple steps to get up and running:
 1. [Explore Components](/r/demo/mdui:components) - Discover a variety of components available in MDUI.
 2. [Check out Examples](/r/demo/mdui:examples) - Learn how to build real-world projects with MDUI.
 3. [Try It Out](/r/demo/mdui:examples) - See how easy it is to create your first page.
-`)
+`).
+		AddButton("Start Building Now", "/r/demo/mdui:components").
+		AddDivider()
 
-	// Call-to-action button for getting started
-	buttonGetStarted := mdui.Button("Start Building Now", "/r/demo/mdui:components")
+	// Benefits Section
+	builder.AddHeading(2, "Why Choose MDUI?").
+		AddList([]string{
+			"Simple and intuitive Markdown-based syntax.",
+			"Reusable components for rapid development.",
+			"Easy integration with existing Markdown projects.",
+			"Perfect for quickly creating functional prototypes.",
+		}, false).
+		AddDivider()
 
-	// Benefits section
-	benefitsHeading := mdui.Heading(2, "Why Choose MDUI?")
-	benefitsList := mdui.List([]string{
-		"Simple and intuitive Markdown-based syntax.",
-		"Reusable components for rapid development.",
-		"Easy integration with existing Markdown projects.",
-		"Perfect for quickly creating functional prototypes.",
-	}, false)
-
-	// Divider to separate sections
-	divider := mdui.Divider()
-
-	// Organize the new content using Markdown
-	content := navbar + "\n" +
-		headingIntro + "\n" +
-		paragraphIntro + "\n" +
-		divider + "\n" +
-		headingGettingStarted + "\n" +
-		paragraphGettingStarted + "\n" +
-		buttonGetStarted + "\n\n" +
-		divider + "\n" +
-		benefitsHeading + "\n" +
-		benefitsList + "\n"
-
-	return content
+	return builder.Render()
 }
 
 // RenderComponentsPage - Renders the Components page with a list of available components, examples, and sample code
 func RenderComponentsPage() string {
 	// Navbar with updated links
 	navbarLinks := map[string]string{
-		"Home":       "/r/demo/mdui",
-		"Components": "/r/demo/mdui:components",
-		"Examples":   "/r/demo/mdui:examples",
+		"Home":          "/r/demo/mdui",
+		"Components":    "/r/demo/mdui:components",
+		"Examples":      "/r/demo/mdui:examples",
+		"Builder Guide": "/r/demo/mdui:builder-guide",
 	}
 	navbar := mdui.Navbar(navbarLinks)
 
@@ -254,9 +240,10 @@ Below is a list of components available in the MDUI package, along with examples
 func RenderExamplesPage() string {
 	// Navbar with links
 	navbarLinks := map[string]string{
-		"Home":       "/r/demo/mdui",
-		"Components": "/r/demo/mdui:components",
-		"Examples":   "/r/demo/mdui:examples",
+		"Home":          "/r/demo/mdui",
+		"Components":    "/r/demo/mdui:components",
+		"Examples":      "/r/demo/mdui:examples",
+		"Builder Guide": "/r/demo/mdui:builder-guide",
 	}
 	navbar := mdui.Navbar(navbarLinks)
 
@@ -356,6 +343,116 @@ You can use collapsible sections to keep the layout clean and reveal information
 	return content
 }
 
+// RenderBuilderGuidePage - Renders a guide page explaining how to use the MarkdownBuilder
+func RenderBuilderGuidePage() string {
+	builder := mdui.NewMarkdownBuilder()
+
+	// Navbar
+	navbarLinks := map[string]string{
+		"Home":          "/r/demo/mdui",
+		"Components":    "/r/demo/mdui:components",
+		"Examples":      "/r/demo/mdui:examples",
+		"Builder Guide": "/r/demo/mdui:builder-guide",
+	}
+	builder.AddNavbar(navbarLinks)
+
+	// Title and introduction
+	builder.AddHeading(1, "How to Use the MarkdownBuilder").
+		AddParagraph(`
+The MarkdownBuilder in MDUI is a powerful tool that allows developers to construct dynamic web pages with a simple, intuitive, and chainable API.
+By leveraging the builder pattern, you can quickly and easily generate complex Markdown-based UIs without manually managing strings or formatting.
+This guide will show you how to use the MarkdownBuilder to create content step by step.
+`).
+		AddDivider()
+
+	// Section: Builder Overview
+	builder.AddHeading(2, "1. Builder Overview").
+		AddParagraph(`
+The MarkdownBuilder is an object that accumulates UI elements like headings, paragraphs, buttons, tables, and more.
+You can chain methods to add elements, and at the end, call the Render method to output the final Markdown.
+`).
+		AddCodeBlock(`
+builder := mdui.NewMarkdownBuilder()
+
+// Add components using chained methods
+builder.AddHeading(1, "Welcome to My Page").
+    AddParagraph("This is a sample paragraph.").
+    AddButton("Click Here", "/click")
+
+// Render the final Markdown
+result := builder.Render()
+`).
+		AddDivider()
+
+	// Section: Adding Components
+	builder.AddHeading(2, "2. Adding Components").
+		AddParagraph(`
+You can use the MarkdownBuilder to add various UI components like headings, paragraphs, lists, buttons, images, and more. Below are some examples:
+`).
+		AddCodeBlock(`
+// Adding a heading
+builder.AddHeading(2, "This is a Heading")
+
+// Adding a paragraph
+builder.AddParagraph("This is a paragraph of text.")
+
+// Adding a button
+builder.AddButton("Learn More", "/learn-more")
+
+// Adding a list
+builder.AddList([]string{"Item 1", "Item 2", "Item 3"}, false)
+`).
+		AddDivider()
+
+	// Section: Complete Example
+	builder.AddHeading(2, "3. Complete Example").
+		AddParagraph(`
+Below is a complete example that demonstrates how to use the MarkdownBuilder to create a simple webpage:
+`).
+		AddCodeBlock(`
+builder := mdui.NewMarkdownBuilder()
+
+// Build the content
+builder.AddHeading(1, "Welcome to MDUI").
+    AddParagraph("MDUI is a framework for building UIs with Markdown.").
+    AddDivider().
+    AddHeading(2, "Features").
+    AddList([]string{
+        "Simple to use",
+        "Supports various UI components",
+        "Easy to integrate with existing projects",
+    }, false).
+    AddButton("Get Started", "/start")
+
+// Render the final Markdown
+result := builder.Render()
+`).
+		AddDivider()
+
+	// Section: Rendering Content
+	builder.AddHeading(2, "4. Rendering Content").
+		AddParagraph(`
+Once you've added all your components, you can call the Render method to output the final Markdown string.
+This string can then be used as content in your application.
+`).
+		AddCodeBlock(`
+result := builder.Render()
+fmt.Println(result)
+`).
+		AddDivider()
+
+	// Section: Conclusion
+	builder.AddHeading(2, "Conclusion").
+		AddParagraph(`
+The MarkdownBuilder makes it easy to generate complex UIs with Markdown using a clean and intuitive API.
+With just a few method calls, you can add headings, paragraphs, buttons, tables, and more, and chain them together to build dynamic pages effortlessly.
+Try out the MarkdownBuilder in your next project and see how it simplifies your workflow!
+`).
+		AddButton("Start Using MarkdownBuilder", "/r/demo/mdui:examples")
+
+	return builder.Render()
+}
+
 // Render - The main entry point for displaying different pages
 func Render(path string) string {
 	// Routing logic for multiple pages
@@ -363,6 +460,8 @@ func Render(path string) string {
 		return RenderComponentsPage()
 	} else if strings.Contains(path, "examples") {
 		return RenderExamplesPage()
+	} else if strings.Contains(path, "builder-guide") {
+		return RenderBuilderGuidePage()
 	}
 	return RenderHomePage() // Default to the home page
 }
