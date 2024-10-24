@@ -1,6 +1,8 @@
 package grc20
 
 import (
+	"errors"
+	"math"
 	"std"
 	"strconv"
 
@@ -55,7 +57,11 @@ func (b *Banker) Mint(address std.Address, amount uint64) error {
 		return ErrInvalidAddress
 	}
 
-	// TODO: check for overflow
+	// check for overflow
+	if diff := math.MaxUint64 - b.totalSupply; diff < amount {
+		err := ufmt.Sprintf("you can't mint more than %d tokens", diff)
+		return errors.New(err)
+	}
 
 	b.totalSupply += amount
 	currentBalance := b.BalanceOf(address)
