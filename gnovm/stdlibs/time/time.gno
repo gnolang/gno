@@ -969,7 +969,8 @@ func norm(hi, lo, base int) (nhi, nlo int) {
 // The month, day, hour, min, sec, and nsec values may be outside
 // their usual ranges and will be normalized during the conversion.
 // For example, October 32 converts to November 1.
-func Date(year int, month Month, day, hour, min, sec, nsec int) Time {
+// Location is always UTC, regardless of the given time zone.
+func Date(year int, month Month, day, hour, min, sec, nsec int, loc *Location) Time {
 	// Normalize month, overflowing into year.
 	m := int(month) - 1
 	year, m = norm(year, m, 12)
