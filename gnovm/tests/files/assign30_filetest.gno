@@ -7,5 +7,5 @@ func t() (int, string) { return 1, "str" }
 func main() {
 	var v interface{} = 1
 
-	i := v.(int)
+	i, x := v.(int), 2
 }
