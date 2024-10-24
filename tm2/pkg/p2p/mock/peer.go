@@ -1,13 +1,17 @@
 package mock
 
 import (
+	"fmt"
+	"io"
 	"log/slog"
 	"net"
+	"testing"
 	"time"
 
 	"github.com/gnolang/gno/tm2/pkg/p2p/conn"
 	"github.com/gnolang/gno/tm2/pkg/p2p/types"
 	"github.com/gnolang/gno/tm2/pkg/service"
+	"github.com/stretchr/testify/require"
 )
 
 type (
@@ -25,7 +29,47 @@ type (
 	trySendDelegate      func(byte, []byte) bool
 	setDelegate          func(string, any)
 	getDelegate          func(string) any
+	stopDelegate         func() error
 )
+
+// GeneratePeers generates random peers
+func GeneratePeers(t *testing.T, count int) []*Peer {
+	peers := make([]*Peer, count)
+
+	for i := range count {
+		var (
+			key     = types.GenerateNodeKey()
+			address = "127.0.0.1:8080"
+		)
+
+		tcpAddr, err := net.ResolveTCPAddr("tcp", address)
+		require.NoError(t, err)
+
+		addr, err := types.NewNetAddress(key.ID(), tcpAddr)
+		require.NoError(t, err)
+
+		p := &Peer{
+			IDFn: func() types.ID {
+				return key.ID()
+			},
+			NodeInfoFn: func() types.NodeInfo {
+				return types.NodeInfo{
+					NetAddress: addr,
+				}
+			},
+		}
+
+		p.BaseService = *service.NewBaseService(
+			slog.New(slog.NewTextHandler(io.Discard, nil)),
+			fmt.Sprintf("peer-%d", i),
+			p,
+		)
+
+		peers[i] = p
+	}
+
+	return peers
+}
 
 type Peer struct {
 	service.BaseService
@@ -38,6 +82,7 @@ type Peer struct {
 	IsPersistentFn isPersistentDelegate
 	CloseConnFn    closeConnDelegate
 	NodeInfoFn     nodeInfoDelegate
+	StopFn         stopDelegate
 	StatusFn       statusDelegate
 	SocketAddrFn   socketAddrDelegate
 	SendFn         sendDelegate
@@ -71,6 +116,14 @@ func (m *Peer) RemoteIP() net.IP {
 func (m *Peer) RemoteAddr() net.Addr {
 	if m.RemoteAddrFn != nil {
 		return m.RemoteAddrFn()
+	}
+
+	return nil
+}
+
+func (m *Peer) Stop() error {
+	if m.StopFn != nil {
+		return m.StopFn()
 	}
 
 	return nil
@@ -239,11 +292,10 @@ func (m *MockConn) SetWriteDeadline(t time.Time) error {
 
 type (
 	startDelegate  func() error
-	stopDelegate   func() error
 	stringDelegate func() string
 )
 
-type MockMConn struct {
+type MConn struct {
 	FlushFn   flushStopDelegate
 	StartFn   startDelegate
 	StopFn    stopDelegate
@@ -253,13 +305,13 @@ type MockMConn struct {
 	StringFn  stringDelegate
 }
 
-func (m *MockMConn) FlushStop() {
+func (m *MConn) FlushStop() {
 	if m.FlushFn != nil {
 		m.FlushFn()
 	}
 }
 
-func (m *MockMConn) Start() error {
+func (m *MConn) Start() error {
 	if m.StartFn != nil {
 		return m.StartFn()
 	}
@@ -267,7 +319,7 @@ func (m *MockMConn) Start() error {
 	return nil
 }
 
-func (m *MockMConn) Stop() error {
+func (m *MConn) Stop() error {
 	if m.StopFn != nil {
 		return m.StopFn()
 	}
@@ -275,7 +327,7 @@ func (m *MockMConn) Stop() error {
 	return nil
 }
 
-func (m *MockMConn) Send(ch byte, data []byte) bool {
+func (m *MConn) Send(ch byte, data []byte) bool {
 	if m.SendFn != nil {
 		return m.SendFn(ch, data)
 	}
@@ -283,7 +335,7 @@ func (m *MockMConn) Send(ch byte, data []byte) bool {
 	return false
 }
 
-func (m *MockMConn) TrySend(ch byte, data []byte) bool {
+func (m *MConn) TrySend(ch byte, data []byte) bool {
 	if m.TrySendFn != nil {
 		return m.TrySendFn(ch, data)
 	}
@@ -291,9 +343,9 @@ func (m *MockMConn) TrySend(ch byte, data []byte) bool {
 	return false
 }
 
-func (m *MockMConn) SetLogger(_ *slog.Logger) {}
+func (m *MConn) SetLogger(_ *slog.Logger) {}
 
-func (m *MockMConn) Status() conn.ConnectionStatus {
+func (m *MConn) Status() conn.ConnectionStatus {
 	if m.StatusFn != nil {
 		return m.StatusFn()
 	}
@@ -301,7 +353,7 @@ func (m *MockMConn) Status() conn.ConnectionStatus {
 	return conn.ConnectionStatus{}
 }
 
-func (m *MockMConn) String() string {
+func (m *MConn) String() string {
 	if m.StringFn != nil {
 		return m.StringFn()
 	}

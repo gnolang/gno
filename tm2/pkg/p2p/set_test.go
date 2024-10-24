@@ -6,35 +6,16 @@ import (
 	"testing"
 
 	"github.com/gnolang/gno/tm2/pkg/p2p/mock"
-	"github.com/gnolang/gno/tm2/pkg/p2p/types"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
-
-// generatePeers generates random node peers
-func generatePeers(t *testing.T, count int) []*mock.Peer {
-	t.Helper()
-
-	peers := make([]*mock.Peer, count)
-
-	for i := 0; i < count; i++ {
-		id := types.GenerateNodeKey().ID()
-		peers[i] = &mock.Peer{
-			IDFn: func() types.ID {
-				return id
-			},
-		}
-	}
-
-	return peers
-}
 
 func TestSet_Add(t *testing.T) {
 	t.Parallel()
 
 	var (
 		numPeers = 100
-		peers    = generatePeers(t, numPeers)
+		peers    = mock.GeneratePeers(t, numPeers)
 
 		s = newSet()
 	)
@@ -47,7 +28,7 @@ func TestSet_Add(t *testing.T) {
 		assert.True(t, s.Has(peer.ID()))
 	}
 
-	assert.EqualValues(t, numPeers, s.Size())
+	assert.EqualValues(t, numPeers, s.NumInbound()+s.NumOutbound())
 }
 
 func TestSet_Remove(t *testing.T) {
@@ -55,7 +36,7 @@ func TestSet_Remove(t *testing.T) {
 
 	var (
 		numPeers = 100
-		peers    = generatePeers(t, numPeers)
+		peers    = mock.GeneratePeers(t, numPeers)
 
 		s = newSet()
 	)
@@ -69,7 +50,7 @@ func TestSet_Remove(t *testing.T) {
 		require.True(t, s.Has(peer.ID()))
 	}
 
-	require.EqualValues(t, numPeers, s.Size())
+	require.EqualValues(t, numPeers, s.NumInbound()+s.NumOutbound())
 
 	// Remove the peers
 	// Add the initial peers
@@ -89,7 +70,7 @@ func TestSet_HasIP(t *testing.T) {
 		t.Parallel()
 
 		var (
-			peers = generatePeers(t, 100)
+			peers = mock.GeneratePeers(t, 100)
 			ip    = net.ParseIP("0.0.0.0")
 
 			s = newSet()
@@ -113,7 +94,7 @@ func TestSet_HasIP(t *testing.T) {
 		t.Parallel()
 
 		var (
-			peers = generatePeers(t, 100)
+			peers = mock.GeneratePeers(t, 100)
 			ip    = net.ParseIP("0.0.0.0")
 
 			s = newSet()
@@ -136,7 +117,7 @@ func TestSet_Get(t *testing.T) {
 		t.Parallel()
 
 		var (
-			peers = generatePeers(t, 100)
+			peers = mock.GeneratePeers(t, 100)
 			s     = newSet()
 		)
 
@@ -152,7 +133,7 @@ func TestSet_Get(t *testing.T) {
 		t.Parallel()
 
 		var (
-			peers = generatePeers(t, 100)
+			peers = mock.GeneratePeers(t, 100)
 			s     = newSet()
 		)
 
@@ -182,7 +163,7 @@ func TestSet_List(t *testing.T) {
 		t.Parallel()
 
 		var (
-			peers = generatePeers(t, 100)
+			peers = mock.GeneratePeers(t, 100)
 			s     = newSet()
 		)
 

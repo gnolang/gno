@@ -1,7 +1,6 @@
 package discovery
 
 import (
-	"net"
 	"slices"
 	"testing"
 	"time"
@@ -13,37 +12,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
-
-// generatePeers generates random peers
-func generatePeers(t *testing.T, count int) []p2p.Peer {
-	peers := make([]p2p.Peer, count)
-
-	for i := range count {
-		var (
-			key     = types.GenerateNodeKey()
-			address = "127.0.0.1:8080"
-		)
-
-		tcpAddr, err := net.ResolveTCPAddr("tcp", address)
-		require.NoError(t, err)
-
-		addr, err := types.NewNetAddress(key.ID(), tcpAddr)
-		require.NoError(t, err)
-
-		peers[i] = &mock.Peer{
-			IDFn: func() types.ID {
-				return key.ID()
-			},
-			NodeInfoFn: func() types.NodeInfo {
-				return types.NodeInfo{
-					NetAddress: addr,
-				}
-			},
-		}
-	}
-
-	return peers
-}
 
 func TestReactor_DiscoveryRequest(t *testing.T) {
 	t.Parallel()
@@ -117,7 +85,7 @@ func TestReactor_DiscoveryResponse(t *testing.T) {
 		t.Parallel()
 
 		var (
-			peers   = generatePeers(t, 50)
+			peers   = mock.GeneratePeers(t, 50)
 			notifCh = make(chan struct{}, 1)
 
 			capturedSend []byte
@@ -136,10 +104,16 @@ func TestReactor_DiscoveryResponse(t *testing.T) {
 
 			ps = &mockPeerSet{
 				listFn: func() []p2p.Peer {
-					return peers
+					listed := make([]p2p.Peer, 0, len(peers))
+
+					for _, peer := range peers {
+						listed = append(listed, peer)
+					}
+
+					return listed
 				},
-				sizeFn: func() int {
-					return len(peers)
+				numInboundFn: func() uint64 {
+					return uint64(len(peers))
 				},
 			}
 
@@ -219,9 +193,6 @@ func TestReactor_DiscoveryResponse(t *testing.T) {
 				listFn: func() []p2p.Peer {
 					return make([]p2p.Peer, 0)
 				},
-				sizeFn: func() int {
-					return 0
-				},
 			}
 
 			mockSwitch = &mockSwitch{
@@ -255,17 +226,23 @@ func TestReactor_DiscoveryResponse(t *testing.T) {
 		t.Parallel()
 
 		var (
-			peers   = generatePeers(t, 50)
+			peers   = mock.GeneratePeers(t, 50)
 			notifCh = make(chan struct{}, 1)
 
 			capturedDials []*types.NetAddress
 
 			ps = &mockPeerSet{
 				listFn: func() []p2p.Peer {
-					return peers
+					listed := make([]p2p.Peer, 0, len(peers))
+
+					for _, peer := range peers {
+						listed = append(listed, peer)
+					}
+
+					return listed
 				},
-				sizeFn: func() int {
-					return len(peers)
+				numInboundFn: func() uint64 {
+					return uint64(len(peers))
 				},
 			}
 
@@ -319,16 +296,22 @@ func TestReactor_DiscoveryResponse(t *testing.T) {
 		t.Parallel()
 
 		var (
-			peers = generatePeers(t, 50)
+			peers = mock.GeneratePeers(t, 50)
 
 			capturedDials []*types.NetAddress
 
 			ps = &mockPeerSet{
 				listFn: func() []p2p.Peer {
-					return peers
+					listed := make([]p2p.Peer, 0, len(peers))
+
+					for _, peer := range peers {
+						listed = append(listed, peer)
+					}
+
+					return listed
 				},
-				sizeFn: func() int {
-					return len(peers)
+				numInboundFn: func() uint64 {
+					return uint64(len(peers))
 				},
 			}
 

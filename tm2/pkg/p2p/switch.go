@@ -65,7 +65,7 @@ type MultiplexSwitch struct {
 // NewSwitch creates a new MultiplexSwitch with the given config.
 func NewSwitch(
 	transport Transport,
-	options ...SwitchOption,
+	opts ...SwitchOption,
 ) *MultiplexSwitch {
 	defaultCfg := config.DefaultP2PConfig()
 
@@ -93,8 +93,9 @@ func NewSwitch(
 	// Set up the context
 	sw.ctx, sw.cancelFn = context.WithCancel(context.Background())
 
-	for _, option := range options {
-		option(sw)
+	// Apply the options
+	for _, opt := range opts {
+		opt(sw)
 	}
 
 	return sw
@@ -206,7 +207,7 @@ func (sw *MultiplexSwitch) stopAndRemovePeer(peer Peer, err error) {
 		sw.Logger.Error(
 			"unable to gracefully close peer connection",
 			"peer", peer,
-			"err", err,
+			"err", closeErr,
 		)
 	}
 
@@ -215,7 +216,7 @@ func (sw *MultiplexSwitch) stopAndRemovePeer(peer Peer, err error) {
 		sw.Logger.Error(
 			"unable to gracefully stop peer",
 			"peer", peer,
-			"err", err,
+			"err", stopErr,
 		)
 	}
 
@@ -450,14 +451,6 @@ func (sw *MultiplexSwitch) runAcceptLoop(ctx context.Context) {
 // the peer is filtered out or failed to start or can't be added.
 func (sw *MultiplexSwitch) addPeer(p Peer) error {
 	p.SetLogger(sw.Logger.With("peer", p.SocketAddr()))
-
-	// Handle the shut down case where the switch has stopped, but we're
-	// concurrently trying to add a peer.
-	if !sw.IsRunning() {
-		// XXX should this return an error or just log and terminate?
-		sw.Logger.Error("Won't start a peer - switch is not running", "peer", p)
-		return nil
-	}
 
 	// Add some data to the peer, which is required by reactors.
 	for _, reactor := range sw.reactors {

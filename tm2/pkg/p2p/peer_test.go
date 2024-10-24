@@ -93,7 +93,7 @@ func TestPeer_Properties(t *testing.T) {
 				l = slog.New(slog.NewTextHandler(io.Discard, nil))
 
 				p = &peer{
-					mConn: &mock.MockMConn{},
+					mConn: &mock.MConn{},
 				}
 			)
 
@@ -108,7 +108,7 @@ func TestPeer_Properties(t *testing.T) {
 			var (
 				expectedErr = errors.New("some error")
 
-				mConn = &mock.MockMConn{
+				mConn = &mock.MConn{
 					StartFn: func() error {
 						return expectedErr
 					},
@@ -129,7 +129,7 @@ func TestPeer_Properties(t *testing.T) {
 				stopCalled  = false
 				expectedErr = errors.New("some error")
 
-				mConn = &mock.MockMConn{
+				mConn = &mock.MConn{
 					StopFn: func() error {
 						stopCalled = true
 
@@ -155,7 +155,7 @@ func TestPeer_Properties(t *testing.T) {
 			var (
 				stopCalled = false
 
-				mConn = &mock.MockMConn{
+				mConn = &mock.MConn{
 					FlushFn: func() {
 						stopCalled = true
 					},
@@ -197,7 +197,7 @@ func TestPeer_Properties(t *testing.T) {
 					Duration: 5 * time.Second,
 				}
 
-				mConn = &mock.MockMConn{
+				mConn = &mock.MConn{
 					StatusFn: func() conn.ConnectionStatus {
 						return status
 					},
@@ -237,7 +237,7 @@ func TestPeer_Properties(t *testing.T) {
 						mConnStr = "description"
 
 						p = &peer{
-							mConn: &mock.MockMConn{
+							mConn: &mock.MConn{
 								StringFn: func() string {
 									return mConnStr
 								},
@@ -357,7 +357,7 @@ func TestPeer_Send(t *testing.T) {
 			capturedSendID   byte
 			capturedSendData []byte
 
-			mockConn = &mock.MockMConn{
+			mockConn = &mock.MConn{
 				SendFn: func(c byte, d []byte) bool {
 					capturedSendID = c
 					capturedSendData = d
@@ -395,7 +395,7 @@ func TestPeer_Send(t *testing.T) {
 			capturedSendID   byte
 			capturedSendData []byte
 
-			mockConn = &mock.MockMConn{
+			mockConn = &mock.MConn{
 				SendFn: func(c byte, d []byte) bool {
 					capturedSendID = c
 					capturedSendData = d
@@ -437,7 +437,7 @@ func TestPeer_Send(t *testing.T) {
 			capturedSendID   byte
 			capturedSendData []byte
 
-			mockConn = &mock.MockMConn{
+			mockConn = &mock.MConn{
 				SendFn: func(c byte, d []byte) bool {
 					capturedSendID = c
 					capturedSendData = d
@@ -485,7 +485,7 @@ func TestPeer_TrySend(t *testing.T) {
 			capturedSendID   byte
 			capturedSendData []byte
 
-			mockConn = &mock.MockMConn{
+			mockConn = &mock.MConn{
 				TrySendFn: func(c byte, d []byte) bool {
 					capturedSendID = c
 					capturedSendData = d
@@ -523,7 +523,7 @@ func TestPeer_TrySend(t *testing.T) {
 			capturedSendID   byte
 			capturedSendData []byte
 
-			mockConn = &mock.MockMConn{
+			mockConn = &mock.MConn{
 				TrySendFn: func(c byte, d []byte) bool {
 					capturedSendID = c
 					capturedSendData = d
@@ -565,7 +565,7 @@ func TestPeer_TrySend(t *testing.T) {
 			capturedSendID   byte
 			capturedSendData []byte
 
-			mockConn = &mock.MockMConn{
+			mockConn = &mock.MConn{
 				TrySendFn: func(c byte, d []byte) bool {
 					capturedSendID = c
 					capturedSendData = d
