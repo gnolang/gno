@@ -2379,6 +2379,10 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 						// only a single type can be specified.
 						nt := evalStaticType(store, last, n.Type)
 						if n.Const {
+							if len(n.Values) == 0 {
+								panic(fmt.Sprintf("missing init expr for %s", n.NameExprs[0].Name))
+							}
+
 							if xnt, ok := nt.(*NativeType); ok {
 								nt = go2GnoBaseType(xnt.Type)
 							}
