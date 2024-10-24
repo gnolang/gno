@@ -307,7 +307,7 @@ func tzset(s string, initEnd, sec int64) (name string, offset int, start, end in
 		return "", 0, 0, 0, false, false
 	}
 
-	year, _, _, yday := absDate(uint64(sec+unixToInternal+internalToAbsolute), false)
+	year, _, _, yday := internalDate(uint64(sec+unixToInternal+internalToAbsolute), false)
 
 	ysec := int64(yday*secondsPerDay) + sec%secondsPerDay
 
@@ -625,38 +625,6 @@ var zoneinfo *string
 func loadFromEmbeddedTZData(name string) ([]byte, bool) // injected
 
 // XXX var zoneinfoOnce sync.Once
-
-// LoadLocation returns the Location with the given name.
-//
-// If the name is "" or "UTC", LoadLocation returns UTC.
-// If the name is "Local", LoadLocation returns Local.
-//
-// Otherwise, the name is taken to be a location name corresponding to a file
-// in the IANA Time Zone database, such as "America/New_York".
-//
-// LoadLocation looks for the IANA Time Zone database in the following
-// locations in order:
-//
-// - the directory or uncompressed zip file named by the ZONEINFO environment variable
-// - on a Unix system, the system standard installation location
-// - $GOROOT/lib/time/zoneinfo.zip
-// - the time/tzdata package, if it was imported
-func LoadLocation(name string) (*Location, error) {
-	if name == "" || name == "UTC" {
-		return UTC, nil
-	}
-	if name == "Local" {
-		return Local, nil
-	}
-	if containsDotDot(name) || name[0] == '/' || name[0] == '\\' {
-		// No valid IANA Time Zone name contains a single dot,
-		// much less dot dot. Likewise, none begin with a slash.
-		return nil, errLocation
-	}
-
-	return loadLocation(name)
-}
-
 // containsDotDot reports whether s contains "..".
 func containsDotDot(s string) bool {
 	if len(s) < 2 {

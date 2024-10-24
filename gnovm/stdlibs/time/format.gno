@@ -4,7 +4,9 @@
 
 package time
 
-import "errors"
+import (
+	"errors"
+)
 
 // These are predefined layouts for use in Time.Format and time.Parse.
 // The reference time used in these layouts is the specific time stamp:
@@ -510,30 +512,6 @@ func formatNano(b []byte, nanosec uint, std int) []byte {
 // with an explicit format string.
 func (t Time) String() string {
 	s := t.Format("2006-01-02 15:04:05.999999999 -0700 MST")
-
-	// Format monotonic clock reading as m=±ddd.nnnnnnnnn.
-	if t.wall&hasMonotonic != 0 {
-		m2 := uint64(t.ext)
-		sign := byte('+')
-		if t.ext < 0 {
-			sign = '-'
-			m2 = -m2
-		}
-		m1, m2 := m2/1e9, m2%1e9
-		m0, m1 := m1/1e9, m1%1e9
-		buf := make([]byte, 0, 24)
-		buf = append(buf, " m="...)
-		buf = append(buf, sign)
-		wid := 0
-		if m0 != 0 {
-			buf = appendInt(buf, int(m0), 0)
-			wid = 9
-		}
-		buf = appendInt(buf, int(m1), wid)
-		buf = append(buf, '.')
-		buf = appendInt(buf, int(m2), 9)
-		s += string(buf)
-	}
 	return s
 }
 
@@ -563,31 +541,7 @@ func (t Time) GoString() string {
 	buf = append(buf, ", "...)
 	buf = appendInt(buf, t.Nanosecond(), 0)
 	buf = append(buf, ", "...)
-	switch loc := t.Location(); loc {
-	case UTC, nil:
-		buf = append(buf, "time.UTC"...)
-	case Local:
-		buf = append(buf, "time.Local"...)
-	default:
-		// there are several options for how we could display this, none of
-		// which are great:
-		//
-		// - use Location(loc.name), which is not technically valid syntax
-		// - use LoadLocation(loc.name), which will cause a syntax error when
-		// embedded and also would require us to escape the string without
-		// importing fmt or strconv
-		// - try to use FixedZone, which would also require escaping the name
-		// and would represent e.g. "America/Los_Angeles" daylight saving time
-		// shifts inaccurately
-		// - use the pointer format, which is no worse than you'd get with the
-		// old fmt.Sprintf("%#v", t) format.
-		//
-		// Of these, Location(loc.name) is the least disruptive. This is an edge
-		// case we hope not to hit too often.
-		buf = append(buf, `time.Location(`...)
-		buf = append(buf, []byte(quote(loc.name))...)
-		buf = append(buf, `)`...)
-	}
+	buf = append(buf, "time.UTC"...)
 	buf = append(buf, ')')
 	return string(buf)
 }
@@ -616,8 +570,7 @@ func (t Time) Format(layout string) string {
 // representation to b and returns the extended buffer.
 func (t Time) AppendFormat(b []byte, layout string) []byte {
 	var (
-		name, offset, abs = t.locabs()
-
+		it        = t.internal()
 		year  int = -1
 		month Month
 		day   int
@@ -639,13 +592,13 @@ func (t Time) AppendFormat(b []byte, layout string) []byte {
 
 		// Compute year, month, day if needed.
 		if year < 0 && std&stdNeedDate != 0 {
-			year, month, day, yday = absDate(abs, true)
+			year, month, day, yday = internalDate(it, true)
 			yday++
 		}
 
 		// Compute hour, minute, second if needed.
 		if hour < 0 && std&stdNeedClock != 0 {
-			hour, min, sec = absClock(abs)
+			hour, min, sec = internalClock(it)
 		}
 
 		switch std & stdMask {
@@ -667,9 +620,9 @@ func (t Time) AppendFormat(b []byte, layout string) []byte {
 		case stdZeroMonth:
 			b = appendInt(b, int(month), 2)
 		case stdWeekDay:
-			b = append(b, absWeekday(abs).String()[:3]...)
+			b = append(b, internalWeekday(it).String()[:3]...)
 		case stdLongWeekDay:
-			s := absWeekday(abs).String()
+			s := internalWeekday(it).String()
 			b = append(b, s...)
 		case stdDay:
 			b = appendInt(b, day, 0)
@@ -729,25 +682,17 @@ func (t Time) AppendFormat(b []byte, layout string) []byte {
 		case stdISO8601TZ, stdISO8601ColonTZ, stdISO8601SecondsTZ, stdISO8601ShortTZ, stdISO8601ColonSecondsTZ, stdNumTZ, stdNumColonTZ, stdNumSecondsTz, stdNumShortTZ, stdNumColonSecondsTZ:
 			// Ugly special case. We cheat and take the "Z" variants
 			// to mean "the time zone as formatted for ISO 8601".
-			if offset == 0 && (std == stdISO8601TZ || std == stdISO8601ColonTZ || std == stdISO8601SecondsTZ || std == stdISO8601ShortTZ || std == stdISO8601ColonSecondsTZ) {
+			if std == stdISO8601TZ || std == stdISO8601ColonTZ || std == stdISO8601SecondsTZ || std == stdISO8601ShortTZ || std == stdISO8601ColonSecondsTZ {
 				b = append(b, 'Z')
 				break
 			}
-			zone := offset / 60 // convert to minutes
-			absoffset := offset
-			if zone < 0 {
-				b = append(b, '-')
-				zone = -zone
-				absoffset = -absoffset
-			} else {
-				b = append(b, '+')
-			}
-			b = appendInt(b, zone/60, 2)
+			b = append(b, '+')
+			b = appendInt(b, 0, 2)
 			if std == stdISO8601ColonTZ || std == stdNumColonTZ || std == stdISO8601ColonSecondsTZ || std == stdNumColonSecondsTZ {
 				b = append(b, ':')
 			}
 			if std != stdNumShortTZ && std != stdISO8601ShortTZ {
-				b = appendInt(b, zone%60, 2)
+				b = appendInt(b, 0, 2)
 			}
 
 			// append seconds if appropriate
@@ -755,25 +700,11 @@ func (t Time) AppendFormat(b []byte, layout string) []byte {
 				if std == stdNumColonSecondsTZ || std == stdISO8601ColonSecondsTZ {
 					b = append(b, ':')
 				}
-				b = appendInt(b, absoffset%60, 2)
+				b = appendInt(b, 0, 2)
 			}
 
 		case stdTZ:
-			if name != "" {
-				b = append(b, name...)
-				break
-			}
-			// No time zone known for this time, but we must print one.
-			// Use the -0700 format.
-			zone := offset / 60 // convert to minutes
-			if zone < 0 {
-				b = append(b, '-')
-				zone = -zone
-			} else {
-				b = append(b, '+')
-			}
-			b = appendInt(b, zone/60, 2)
-			b = appendInt(b, zone%60, 2)
+			b = append(b, "UTC"...)
 		case stdFracSecond0, stdFracSecond9:
 			b = formatNano(b, uint(t.Nanosecond()), std)
 		}
@@ -987,7 +918,6 @@ func parse(layout, value string, defaultLocation, local *Location) (Time, error)
 		min        int
 		sec        int
 		nsec       int
-		z          *Location
 		zoneOffset int = -1
 		zoneName   string
 	)
@@ -1132,7 +1062,6 @@ func parse(layout, value string, defaultLocation, local *Location) (Time, error)
 		case stdISO8601TZ, stdISO8601ColonTZ, stdISO8601SecondsTZ, stdISO8601ShortTZ, stdISO8601ColonSecondsTZ, stdNumTZ, stdNumShortTZ, stdNumColonTZ, stdNumSecondsTz, stdNumColonSecondsTZ:
 			if (std == stdISO8601TZ || std == stdISO8601ShortTZ || std == stdISO8601ColonTZ) && len(value) >= 1 && value[0] == 'Z' {
 				value = value[1:]
-				z = UTC
 				break
 			}
 			var sign, hour, min, seconds string
@@ -1194,7 +1123,6 @@ func parse(layout, value string, defaultLocation, local *Location) (Time, error)
 		case stdTZ:
 			// Does it look like a time zone?
 			if len(value) >= 3 && value[0:3] == "UTC" {
-				z = UTC
 				value = value[3:]
 				break
 			}
@@ -1289,24 +1217,12 @@ func parse(layout, value string, defaultLocation, local *Location) (Time, error)
 		return Time{}, &ParseError{alayout, avalue, "", value, ": day out of range"}
 	}
 
-	if z != nil {
-		return Date(year, Month(month), day, hour, min, sec, nsec, z), nil
-	}
-
 	if zoneOffset != -1 {
 		t := Date(year, Month(month), day, hour, min, sec, nsec, UTC)
 		t.addSec(-int64(zoneOffset))
 
 		// Look for local zone with the given offset.
 		// If that zone was in effect at the given time, use it.
-		name, offset, _, _, _ := local.lookup(t.unixSec())
-		if offset == zoneOffset && (zoneName == "" || name == zoneName) {
-			t.setLoc(local)
-			return t, nil
-		}
-
-		// Otherwise create fake zone to record offset.
-		t.setLoc(FixedZone(zoneName, zoneOffset))
 		return t, nil
 	}
 
@@ -1317,21 +1233,14 @@ func parse(layout, value string, defaultLocation, local *Location) (Time, error)
 		offset, ok := local.lookupName(zoneName, t.unixSec())
 		if ok {
 			t.addSec(-int64(offset))
-			t.setLoc(local)
 			return t, nil
 		}
 
-		// Otherwise, create fake zone with unknown offset.
-		if len(zoneName) > 3 && zoneName[:3] == "GMT" {
-			offset, _ = atoi(zoneName[3:]) // Guaranteed OK by parseGMT.
-			offset *= 3600
-		}
-		t.setLoc(FixedZone(zoneName, offset))
 		return t, nil
 	}
 
 	// Otherwise, fall back to default.
-	return Date(year, Month(month), day, hour, min, sec, nsec, defaultLocation), nil
+	return Date(year, Month(month), day, hour, min, sec, nsec, UTC), nil
 }
 
 // parseTimeZone parses a time zone string and returns its length. Time zones
