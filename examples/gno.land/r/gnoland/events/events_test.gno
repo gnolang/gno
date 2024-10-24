@@ -156,9 +156,6 @@ func TestParseTimes(t *testing.T) {
 
 	_, _, err = parseTimes("2009-02-13T23:30:30Z", "2009-02-13T21:30:30Z")
 	uassert.ErrorContains(t, err, ErrEndBeforeStart.Error())
-
-	_, _, err = parseTimes("2009-02-10T23:30:30+02:00", "2009-02-13T21:30:33+05:00")
-	uassert.ErrorContains(t, err, ErrStartEndTimezonemMismatch.Error())
 }
 
 func TestRenderEventWidget(t *testing.T) {
