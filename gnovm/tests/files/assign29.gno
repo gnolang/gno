@@ -5,4 +5,4 @@ func main() {
 }
 
 // Error:
-// main/files/assign29.gno:4:2: struct {  } (type) is not an expression
+// main/files/assign29.gno:4:2: struct{} (type) is not an expression

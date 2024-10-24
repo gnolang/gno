@@ -279,27 +279,16 @@ func checkValDefineMismatch(n Node) {
 	panic(fmt.Sprintf("assignment mismatch: %d variable(s) but %d value(s)", numNames, numValues))
 }
 
-func checkExprIsAssignable(exp Expr) {
-	switch exp.(type) {
-	case *NameExpr,
-		*BasicLitExpr,
-		*BinaryExpr,
-		*CallExpr,
-		*IndexExpr,
-		*SelectorExpr,
-		*SliceExpr,
-		*StarExpr,
-		*RefExpr,
-		*TypeAssertExpr,
-		*UnaryExpr,
-		*CompositeLitExpr,
-		*KeyValueExpr,
-		*FuncLitExpr,
-		*ConstExpr:
-		return
+func checkExprIsNotTypeDecl(store Store, last BlockNode, exp Expr) {
+	switch n := exp.(type) {
+	case *CallExpr, *TypeAssertExpr, *IndexExpr:
+	default:
+		tt := evalStaticTypeOf(store, last, n)
+		if _, ok := tt.(*TypeType); ok {
+			tt = evalStaticType(store, last, n)
+			panic(fmt.Sprintf("%s (type) is not an expression", tt.String()))
+		}
 	}
-
-	panic(fmt.Sprintf("%s (type) is not an expression", exp.String()))
 }
 
 // Assert that xt can be assigned as dt (dest type).
