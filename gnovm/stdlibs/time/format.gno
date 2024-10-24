@@ -4,7 +4,9 @@
 
 package time
 
-import "errors"
+import (
+	"errors"
+)
 
 // These are predefined layouts for use in Time.Format and time.Parse.
 // The reference time used in these layouts is the specific time stamp:
@@ -1216,7 +1218,7 @@ func parse(layout, value string, defaultLocation, local *Location) (Time, error)
 	}
 
 	if zoneOffset != -1 {
-		t := Date(year, Month(month), day, hour, min, sec, nsec)
+		t := Date(year, Month(month), day, hour, min, sec, nsec, UTC)
 		t.addSec(-int64(zoneOffset))
 
 		// Look for local zone with the given offset.
@@ -1225,7 +1227,7 @@ func parse(layout, value string, defaultLocation, local *Location) (Time, error)
 	}
 
 	if zoneName != "" {
-		t := Date(year, Month(month), day, hour, min, sec, nsec)
+		t := Date(year, Month(month), day, hour, min, sec, nsec, UTC)
 		// Look for local zone with the given offset.
 		// If that zone was in effect at the given time, use it.
 		offset, ok := local.lookupName(zoneName, t.unixSec())
@@ -1238,7 +1240,7 @@ func parse(layout, value string, defaultLocation, local *Location) (Time, error)
 	}
 
 	// Otherwise, fall back to default.
-	return Date(year, Month(month), day, hour, min, sec, nsec), nil
+	return Date(year, Month(month), day, hour, min, sec, nsec, UTC), nil
 }
 
 // parseTimeZone parses a time zone string and returns its length. Time zones

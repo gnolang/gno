@@ -1,0 +1,83 @@
+=== RUN   TestFilesNative
+    file_test.go:26: skipping test l2_long.gno in short mode.
+    file_test.go:26: skipping test l3_long.gno in short mode.
+    file_test.go:26: skipping test l4_long.gno in short mode.
+    file_test.go:26: skipping test l5_long.gno in short mode.
+    file_test.go:26: skipping test xfactor_long.gno in short mode.
+    file_test.go:26: skipping test xfib_long.gno in short mode.
+    file_test.go:26: skipping test zsolitaire_long.gno in short mode.
+=== RUN   TestFilesNative/time0_native.gno
+=== RUN   TestFilesNative/time11_native.gno
+=== RUN   TestFilesNative/time12_native.gno
+=== RUN   TestFilesNative/time13_native.gno
+=== RUN   TestFilesNative/time14_native.gno
+=== RUN   TestFilesNative/time15.gno
+=== RUN   TestFilesNative/time16_native.gno
+OUTPUT:
+
+=== RUN   TestFilesNative/time17_native.gno
+Machine.RunMain() panic: time: missing Location in call to Time.In
+Machine State:Machine:
+    CheckTypes: false
+    Op: [OpHalt OpPopResults OpExec OpBody OpPopResults]
+    Values: (len: 1)
+          #0 (main func()())
+    Exprs:
+    Stmts:
+          #1 bodyStmt[0/0/2]=(end)
+          #0 return
+    Blocks:
+          @(76) Block(ID:0000000000000000000000000000000000000000:0,Addr:0xc0005b9680,Source:func main() { now<VPBlock(1,0)> ...,Parent:0xc0005b92c0)
+            now: (gonative{1970-01-01 00:00:00 +0000 UTC} gonative{time.Time})
+ (s vals) @(76) Block(ID:0000000000000000000000000000000000000000:0,Addr:0xc0002ab030,Source:func main() { now<VPBlock(1,0)> ...,Parent:0xc0005b4630)
+            now: (nil gonative{time.Time})
+ (s typs) @(76) [gonative{time.Time}]
+    Blocks (other):
+    Frames:
+          #1 [FRAME GOFUNC:0x4f8540 RECV:(undefined) (1 args) 5/1/0/2/2]
+          #0 [FRAME FUNC:main RECV:(undefined) (0 args) 2/0/0/0/1 LASTPKG:main LASTRLM:Realm(nil)]
+    Exceptions:
+
+Stacktrace: now<VPBlock(1,0)>.In(gonative{*time.Location})
+    gofunction:func(*time.Location) time.Time
+main<VPBlock(1,0)>()
+    main/files/time17_native.gno:10
+
+OUTPUT:
+
+=== RUN   TestFilesNative/time1_native.gno
+=== RUN   TestFilesNative/time2_native.gno
+=== RUN   TestFilesNative/time3_native.gno
+=== RUN   TestFilesNative/time4_native.gno
+=== RUN   TestFilesNative/time6_native.gno
+=== RUN   TestFilesNative/time7_native.gno
+=== RUN   TestFilesNative/time8.gno
+=== RUN   TestFilesNative/time9_native.gno
+--- PASS: TestFilesNative (0.01s)
+    --- PASS: TestFilesNative/time0_native.gno (0.00s)
+    --- PASS: TestFilesNative/time11_native.gno (0.00s)
+    --- PASS: TestFilesNative/time12_native.gno (0.00s)
+    --- PASS: TestFilesNative/time13_native.gno (0.00s)
+    --- PASS: TestFilesNative/time14_native.gno (0.00s)
+    --- PASS: TestFilesNative/time15.gno (0.00s)
+    --- PASS: TestFilesNative/time16_native.gno (0.00s)
+    --- PASS: TestFilesNative/time17_native.gno (0.00s)
+    --- PASS: TestFilesNative/time1_native.gno (0.00s)
+    --- PASS: TestFilesNative/time2_native.gno (0.00s)
+    --- PASS: TestFilesNative/time3_native.gno (0.00s)
+    --- PASS: TestFilesNative/time4_native.gno (0.00s)
+    --- PASS: TestFilesNative/time6_native.gno (0.00s)
+    --- PASS: TestFilesNative/time7_native.gno (0.00s)
+    --- PASS: TestFilesNative/time8.gno (0.00s)
+    --- PASS: TestFilesNative/time9_native.gno (0.00s)
+=== RUN   TestFiles
+    file_test.go:32: skipping test l2_long.gno in short mode.
+    file_test.go:32: skipping test l3_long.gno in short mode.
+    file_test.go:32: skipping test l4_long.gno in short mode.
+    file_test.go:32: skipping test l5_long.gno in short mode.
+    file_test.go:32: skipping test xfactor_long.gno in short mode.
+    file_test.go:32: skipping test xfib_long.gno in short mode.
+    file_test.go:32: skipping test zsolitaire_long.gno in short mode.
+=== RUN   TestFiles/time0_stdlibs.gno
+signal: interrupt
+FAIL	command-line-arguments	0.077s
