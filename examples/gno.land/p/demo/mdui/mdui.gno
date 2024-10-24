@@ -5,6 +5,205 @@ import (
 	"strings"
 )
 
+type MarkdownBuilder struct {
+	elements []string
+}
+
+// NewMarkdownBuilder creates and returns a new MarkdownBuilder instance
+func NewMarkdownBuilder() *MarkdownBuilder {
+	return &MarkdownBuilder{
+		elements: []string{},
+	}
+}
+
+// AddHeading adds a heading to the MarkdownBuilder
+func (b *MarkdownBuilder) AddHeading(level int, text string) *MarkdownBuilder {
+	heading := Heading(level, text)
+	b.elements = append(b.elements, heading)
+	return b
+}
+
+// AddParagraph adds a paragraph to the MarkdownBuilder
+func (b *MarkdownBuilder) AddParagraph(text string) *MarkdownBuilder {
+	paragraph := Paragraph(text)
+	b.elements = append(b.elements, paragraph)
+	return b
+}
+
+// AddButton adds a button (link) to the MarkdownBuilder
+func (b *MarkdownBuilder) AddButton(text, href string) *MarkdownBuilder {
+	button := Button(text, href)
+	b.elements = append(b.elements, button)
+	return b
+}
+
+// AddImage adds an image to the MarkdownBuilder
+func (b *MarkdownBuilder) AddImage(src, alt string) *MarkdownBuilder {
+	image := Image(src, alt)
+	b.elements = append(b.elements, image)
+	return b
+}
+
+// AddDivider adds a horizontal rule to the MarkdownBuilder
+func (b *MarkdownBuilder) AddDivider() *MarkdownBuilder {
+	divider := Divider()
+	b.elements = append(b.elements, divider)
+	return b
+}
+
+// AddList adds a list (ordered or unordered) to the MarkdownBuilder
+func (b *MarkdownBuilder) AddList(items []string, ordered bool) *MarkdownBuilder {
+	list := List(items, ordered)
+	b.elements = append(b.elements, list)
+	return b
+}
+
+// AddTable adds a table to the MarkdownBuilder
+func (b *MarkdownBuilder) AddTable(headers []string, rows [][]string) *MarkdownBuilder {
+	table := Table(headers, rows)
+	b.elements = append(b.elements, table)
+	return b
+}
+
+// AddNavbar adds a navigation bar to the MarkdownBuilder
+func (b *MarkdownBuilder) AddNavbar(links map[string]string) *MarkdownBuilder {
+	navbar := Navbar(links)
+	b.elements = append(b.elements, navbar)
+	return b
+}
+
+// AddQuote adds a blockquote to the MarkdownBuilder
+func (b *MarkdownBuilder) AddQuote(text string) *MarkdownBuilder {
+	quote := Quote(text)
+	b.elements = append(b.elements, quote)
+	return b
+}
+
+// AddBold adds bold text to the MarkdownBuilder
+func (b *MarkdownBuilder) AddBold(text string) *MarkdownBuilder {
+	bold := Bold(text)
+	b.elements = append(b.elements, bold)
+	return b
+}
+
+// AddItalic adds italic text to the MarkdownBuilder
+func (b *MarkdownBuilder) AddItalic(text string) *MarkdownBuilder {
+	italic := Italic(text)
+	b.elements = append(b.elements, italic)
+	return b
+}
+
+// AddStrikethrough adds strikethrough text to the MarkdownBuilder
+func (b *MarkdownBuilder) AddStrikethrough(text string) *MarkdownBuilder {
+	strikethrough := Strikethrough(text)
+	b.elements = append(b.elements, strikethrough)
+	return b
+}
+
+// AddCodeBlock adds a code block to the MarkdownBuilder
+func (b *MarkdownBuilder) AddCodeBlock(code string) *MarkdownBuilder {
+	codeBlock := CodeBlock(code)
+	b.elements = append(b.elements, codeBlock)
+	return b
+}
+
+// AddAlert adds an alert box with a specified type to the MarkdownBuilder
+func (b *MarkdownBuilder) AddAlert(content, alertType string) *MarkdownBuilder {
+	alert := Alert(content, alertType)
+	b.elements = append(b.elements, alert)
+	return b
+}
+
+// AddCollapsible adds a collapsible section to the MarkdownBuilder
+func (b *MarkdownBuilder) AddCollapsible(title, content string) *MarkdownBuilder {
+	collapsible := Collapsible(title, content)
+	b.elements = append(b.elements, collapsible)
+	return b
+}
+
+// AddFootnote adds a footnote to the MarkdownBuilder
+func (b *MarkdownBuilder) AddFootnote(label, text string) *MarkdownBuilder {
+	footnote := Footnote(label, text)
+	b.elements = append(b.elements, footnote)
+	return b
+}
+
+// AddBadge adds a badge to the MarkdownBuilder
+func (b *MarkdownBuilder) AddBadge(label, color string) *MarkdownBuilder {
+	badge := Badge(label, color)
+	b.elements = append(b.elements, badge)
+	return b
+}
+
+// AddBadgeWithIcon adds a badge with an icon to the MarkdownBuilder
+func (b *MarkdownBuilder) AddBadgeWithIcon(label, color, icon string) *MarkdownBuilder {
+	badgeWithIcon := BadgeWithIcon(label, color, icon)
+	b.elements = append(b.elements, badgeWithIcon)
+	return b
+}
+
+// AddKeyboardShortcut adds a keyboard shortcut to the MarkdownBuilder
+func (b *MarkdownBuilder) AddKeyboardShortcut(keys ...string) *MarkdownBuilder {
+	shortcut := KeyboardShortcut(keys...)
+	b.elements = append(b.elements, shortcut)
+	return b
+}
+
+// AddBlockquoteWithCitation adds a blockquote with an optional citation to the MarkdownBuilder
+func (b *MarkdownBuilder) AddBlockquoteWithCitation(quote, citation string) *MarkdownBuilder {
+	blockquoteWithCitation := BlockquoteWithCitation(quote, citation)
+	b.elements = append(b.elements, blockquoteWithCitation)
+	return b
+}
+
+// AddTableOfContents adds a table of contents to the MarkdownBuilder
+func (b *MarkdownBuilder) AddTableOfContents(headings []string) *MarkdownBuilder {
+	toc := TableOfContents(headings)
+	b.elements = append(b.elements, toc)
+	return b
+}
+
+// AddEmoji adds an emoji to the MarkdownBuilder
+func (b *MarkdownBuilder) AddEmoji(name string) *MarkdownBuilder {
+	emoji := Emoji(name)
+	b.elements = append(b.elements, emoji)
+	return b
+}
+
+// Render generates and returns the final Markdown content
+func (b *MarkdownBuilder) Render() string {
+	return strings.Join(b.elements, "\n")
+}
+
+// AddIfElseRender adds conditional content to the MarkdownBuilder based on a condition
+func (b *MarkdownBuilder) AddIfElseRender(condition bool, ifTrue string, ifFalse string) *MarkdownBuilder {
+	result := IfElseRender(condition, ifTrue, ifFalse)
+	b.elements = append(b.elements, result)
+	return b
+}
+
+func (b *MarkdownBuilder) AddBreakLine() *MarkdownBuilder {
+	lineBreak := BreakLine()
+	b.elements = append(b.elements, lineBreak)
+	return b
+}
+
+// BreakLine generates a Markdown line break (two spaces followed by a newline)
+func BreakLine() string {
+	return "  \n" // Two spaces followed by a newline
+}
+
+// IfElseRender generates different Markdown output based on a condition
+// If the condition is true, it will render the "ifTrue" content.
+// Otherwise, it renders the "ifFalse" content.
+func IfElseRender(condition bool, ifTrue string, ifFalse string) string {
+	if condition {
+		return ifTrue
+	} else {
+		return ifFalse
+	}
+}
+
 // Navbar generates a Markdown navigation menu from a map of links
 func Navbar(links map[string]string) string {
 	nav := ""
