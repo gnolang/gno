@@ -61,7 +61,13 @@ var gStringerType = &DeclaredType{
 var (
 	uverseNode  *PackageNode
 	uverseValue *PackageValue
-	uverseInit  int
+	uverseInit  = uverseUninitialized
+)
+
+const (
+	uverseUninitialized = iota
+	uverseInitializing
+	uverseInitialized
 )
 
 func init() {
@@ -76,11 +82,11 @@ const uversePkgPath = ".uverse"
 // PackageValue.
 func Uverse() *PackageValue {
 	switch uverseInit {
-	case 0:
-		uverseInit = 1
+	case uverseUninitialized:
+		uverseInit = uverseInitializing
 		makeUverseNode()
-		uverseInit = 2
-	case 1:
+		uverseInit = uverseInitialized
+	case uverseInitializing:
 		return &PackageValue{}
 	}
 
@@ -92,11 +98,11 @@ func Uverse() *PackageValue {
 // PackageNode.
 func UverseNode() *PackageNode {
 	switch uverseInit {
-	case 0:
-		uverseInit = 1
+	case uverseUninitialized:
+		uverseInit = uverseInitializing
 		makeUverseNode()
-		uverseInit = 2
-	case 1:
+		uverseInit = uverseInitialized
+	case uverseInitializing:
 		return &PackageNode{}
 	}
 
