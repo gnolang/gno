@@ -78,11 +78,11 @@ func TestKeeper(t *testing.T) {
 	require.Equal(t, param5, []byte("bye"))
 
 	// invalid sets
-	require.PanicsWithValue(t, `key should be like "<name>.string"`, func() { keeper.SetString(ctx, "invalid.int64", "hello") })
-	require.PanicsWithValue(t, `key should be like "<name>.int64"`, func() { keeper.SetInt64(ctx, "invalid.string", int64(42)) })
-	require.PanicsWithValue(t, `key should be like "<name>.uint64"`, func() { keeper.SetUint64(ctx, "invalid.int64", uint64(42)) })
-	require.PanicsWithValue(t, `key should be like "<name>.bool"`, func() { keeper.SetBool(ctx, "invalid.int64", true) })
-	require.PanicsWithValue(t, `key should be like "<name>.bytes"`, func() { keeper.SetBytes(ctx, "invalid.int64", []byte("hello")) })
+	require.PanicsWithValue(t, `key should be like "<name>.string" (invalid.int64)`, func() { keeper.SetString(ctx, "invalid.int64", "hello") })
+	require.PanicsWithValue(t, `key should be like "<name>.int64" (invalid.string)`, func() { keeper.SetInt64(ctx, "invalid.string", int64(42)) })
+	require.PanicsWithValue(t, `key should be like "<name>.uint64" (invalid.int64)`, func() { keeper.SetUint64(ctx, "invalid.int64", uint64(42)) })
+	require.PanicsWithValue(t, `key should be like "<name>.bool" (invalid.int64)`, func() { keeper.SetBool(ctx, "invalid.int64", true) })
+	require.PanicsWithValue(t, `key should be like "<name>.bytes" (invalid.int64)`, func() { keeper.SetBytes(ctx, "invalid.int64", []byte("hello")) })
 }
 
 // adapted from TestKeeperSubspace from Cosmos SDK, but adapted to a subspace-less Keeper.

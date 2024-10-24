@@ -290,7 +290,7 @@ func (cfg InitChainerConfig) loadAppState(ctx sdk.Context, appState any) ([]abci
 		return nil, fmt.Errorf("invalid AppState of type %T", appState)
 	}
 
-	// Parse and set genesis state balances
+	// Apply genesis balances.
 	for _, bal := range state.Balances {
 		acc := cfg.acctKpr.NewAccountWithAddress(ctx, bal.Address)
 		cfg.acctKpr.SetAccount(ctx, acc)
@@ -300,6 +300,12 @@ func (cfg InitChainerConfig) loadAppState(ctx sdk.Context, appState any) ([]abci
 		}
 	}
 
+	// Apply genesis params.
+	for _, param := range state.Params {
+		param.Register(ctx, cfg.paramsKpr)
+	}
+
+	// Replay genesis txs.
 	txResponses := make([]abci.ResponseDeliverTx, 0, len(state.Txs))
 	// Run genesis txs
 	for _, tx := range state.Txs {

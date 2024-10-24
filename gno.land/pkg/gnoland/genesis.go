@@ -13,6 +13,7 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/crypto"
 	osm "github.com/gnolang/gno/tm2/pkg/os"
 	"github.com/gnolang/gno/tm2/pkg/std"
+	"github.com/pelletier/go-toml"
 )
 
 // LoadGenesisBalancesFile loads genesis balances from the provided file path.
@@ -56,6 +57,42 @@ func LoadGenesisBalancesFile(path string) ([]Balance, error) {
 	}
 
 	return balances, nil
+}
+
+// LoadGenesisParamsFile loads genesis params from the provided file path.
+func LoadGenesisParamsFile(path string) ([]Param, error) {
+	// each param is in the form: key.kind=value
+	content := osm.MustReadFile(path)
+
+	m := map[string] /*category*/ map[string] /*key*/ map[string] /*kind*/ interface{} /*value*/ {}
+	err := toml.Unmarshal(content, &m)
+	if err != nil {
+		return nil, err
+	}
+
+	params := make([]Param, 0)
+	for category, keys := range m {
+		for key, kinds := range keys {
+			for kind, val := range kinds {
+				param := Param{
+					key:  category + "." + key,
+					kind: kind,
+				}
+				switch kind {
+				case "uint64": // toml
+					param.value = uint64(val.(int64))
+				default:
+					param.value = val
+				}
+				if err := param.Verify(); err != nil {
+					return nil, err
+				}
+				params = append(params, param)
+			}
+		}
+	}
+
+	return params, nil
 }
 
 // LoadGenesisTxsFile loads genesis transactions from the provided file path.

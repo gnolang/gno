@@ -18,11 +18,8 @@ func init() {
 	}
 
 	mExec := govdao.NewPropExecutor(membersFn)
-
 	comment := "adding someone to vote"
-
 	id := govdao.Propose(comment, mExec)
-
 	govdao.ExecuteProposal(id)
 
 	executor := proposal.NewCtxExecutor(func(ctx context.Context) error {

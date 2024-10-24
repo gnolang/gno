@@ -226,7 +226,7 @@ func (vm *VMKeeper) getGnoTransactionStore(ctx sdk.Context) gno.TransactionStore
 var reNamespace = regexp.MustCompile(`^gno.land/(?:r|p)/([\.~_a-zA-Z0-9]+)`)
 
 const (
-	sysUsersPkgParamKey = "vm/gno.land/r/sys/params.string"
+	sysUsersPkgParamKey = "vm/gno.land/r/sys/params.gnoland_sys_users_rlm.string"
 	sysUsersPkgDefault  = "gno.land/r/sys/users"
 )
 
