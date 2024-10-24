@@ -1,11 +1,17 @@
 ## gno.land
-gno.land/r/sys/params.gnoland_sys_users_rlm.string=gno.land/r/sys/users
+[[gno.land/r/sys/params.sys]]
+  token_lock=true
+  users_pkgpath.string=gno.land/r/sys/users
+  validators_pkgpath.string=gno.land/r/sys/validators
+  rewards_pkgpath.string=gno.land/r/sys/rewards
 
 ## gnovm
-gno.land/r/sys/params.vm_enable_namespaces.bool=true
-#gno.land/r/sys/params.vm_chain_domain.string=gno.land
-#gno.land/r/sys/params.vm_lock_token=...
-#gno.land/r/sys/params.vm_gas_xxx=...
+[[gno.land/r/sys/params.vm]]
+  namespaces.bool=true
+  max_gas.int64=10_000_000_000
+  chain_tz.string=UTC
+  default_storage_allowance.string=UTC
+  #chain_domain.string=gno.land
 
 ## tm2
 # ...
@@ -16,8 +22,9 @@ gno.land/r/sys/params.vm_enable_namespaces.bool=true
 ## testing
 # do not remove these lines are we are currently having a txtar integration test
 # relying on them.
-gno.land/r/sys/params.foo.string=bar
-gno.land/r/sys/params.foo.int64=-1337
-gno.land/r/sys/params.foo.uint64=42
-gno.land/r/sys/params.foo.bool=true
-#gno.land/r/sys/params.foo.bytes=todo
+[[gno.land/r/sys/params.test]]
+  foo.string=bar
+  foo.int64=-1337
+  foo.uint64=42
+  foo.bool=true
+  #foo.bytes=todo
