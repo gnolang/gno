@@ -914,6 +914,12 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 			switch n := n.(type) {
 			// TRANS_LEAVE -----------------------
 			case *NameExpr:
+				if n.Name == blankIdentifier {
+					// check if blank identifier is used as a value in a non-assignment context.
+					if ftype != TRANS_ASSIGN_LHS && ftype != TRANS_RANGE_KEY && ftype != TRANS_RANGE_VALUE {
+						panic("cannot use _ as value or type")
+					}
+				}
 				// Validity: check that name isn't reserved.
 				if isReservedName(n.Name) {
 					panic(fmt.Sprintf(
@@ -3547,9 +3553,18 @@ func doConvertType(store Store, last BlockNode, x *Expr, t Type) {
 //	convert to that even if right is a named type.
 //	case 2: isNamedConversion is called within evaluating make() or new()
 //	(uverse functions). It returns TypType (generic) which does have IsNamed appropriate
+//
+// This function also checks for the use of blank identifier "_" as a value or type,
+// which is not allowed. If both xt and t are nil, it panics with an appropriate error message.
 func isNamedConversion(xt, t Type) bool {
+	if xt == nil && t == nil {
+		panic("cannot use _ as value or type")
+	}
 	if t == nil {
 		t = xt
+	}
+	if xt == nil {
+		xt = t
 	}
 
 	// no conversion case 1: the LHS is an interface
@@ -3563,7 +3578,6 @@ func isNamedConversion(xt, t Type) bool {
 	_, oktt2 := xt.(*TypeType)
 	c2 := oktt || oktt2
 
-	//
 	if !c1 && !c2 { // carve out above two cases
 		// covert right to the type of left if one side is unnamed type and the other side is not
 
@@ -4161,6 +4175,11 @@ func tryPredefine(store Store, last BlockNode, d Decl) (un Name) {
 		})
 		d.Path = last.GetPathForName(store, d.Name)
 	case *ValueDecl:
+		if d.Type != nil {
+			if tx, ok := d.Type.(*NameExpr); ok && tx.Name == blankIdentifier {
+				panic("cannot use _ as value or type")
+			}
+		}
 		un = findUndefined(store, last, d.Type)
 		if un != "" {
 			return
