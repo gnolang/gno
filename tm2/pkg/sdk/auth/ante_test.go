@@ -99,12 +99,6 @@ func TestAnteHandlerSigErrors(t *testing.T) {
 	privs, accNums, seqs = []crypto.PrivKey{priv1, priv2, priv3}, []uint64{0, 1, 2}, []uint64{0, 0, 0}
 	tx = tu.NewTestTx(t, ctx.ChainID(), msgs, privs, accNums, seqs, fee)
 	checkInvalidTx(t, anteHandler, ctx, tx, false, std.UnknownAddressError{})
-
-	// save the first account, but second is still unrecognized
-	acc1 := env.acck.NewAccountWithAddress(ctx, addr1)
-	acc1.SetCoins(std.Coins{fee.GasFee})
-	env.acck.SetAccount(ctx, acc1)
-	checkInvalidTx(t, anteHandler, ctx, tx, false, std.UnknownAddressError{})
 }
 
 // Test logic around account number checking with one signer and many signers.
@@ -584,6 +578,132 @@ func TestAnteHandlerSetPubKey(t *testing.T) {
 
 	acc2 = env.acck.GetAccount(ctx, addr2)
 	require.Nil(t, acc2.GetPubKey())
+}
+
+func TestAnteHandlerSponsorTx(t *testing.T) {
+	t.Parallel()
+
+	// setup
+	env := setupTestEnv()
+	anteHandler := NewAnteHandler(env.acck, env.bank, DefaultSigVerificationGasConsumer, defaultAnteOptions())
+	ctx := env.ctx
+
+	// keys and addresses
+	priv1, _, addr1 := tu.KeyTestPubAddr()
+	priv2, _, addr2 := tu.KeyTestPubAddr()
+
+	// Only create and set up account acc1 (addr1)
+	acc1 := env.acck.NewAccountWithAddress(ctx, addr1)
+	acc1.SetCoins(tu.NewTestCoins())
+	require.NoError(t, acc1.SetAccountNumber(0))
+	env.acck.SetAccount(ctx, acc1)
+
+	t.Run("TestRegularTransaction", func(t *testing.T) {
+		// Create a regular transaction with addr2, which doesn't exist yet
+		msg1 := tu.NewTestMsg(addr2)
+		msg2 := tu.NewTestMsg(addr2)
+		msgs := []std.Msg{msg1, msg2}
+
+		privs, accnums, seqs := []crypto.PrivKey{priv2}, []uint64{0}, []uint64{0}
+		fee := tu.NewTestFee()
+		tx := tu.NewTestTx(t, ctx.ChainID(), msgs, privs, accnums, seqs, fee)
+
+		// Regular transactions will fail if addr2 has no account on-chain
+		checkInvalidTx(t, anteHandler, ctx, tx, false, std.UnknownAddressError{})
+
+		// Ensure addr2 account does not exist
+		acc2 := env.acck.GetAccount(ctx, addr2)
+		require.Nil(t, acc2)
+	})
+
+	t.Run("TestSponsorTransactionTwoSigners", func(t *testing.T) {
+		t.Parallel()
+		// Create a sponsor transaction with addr1 (sponsor) and addr2 (sponsoree)
+		msg1 := tu.NewTestMsg(addr1) // First message by addr1 (sponsor)
+		msg2 := tu.NewTestMsg(addr2) // Second message by addr2 (sponsoree)
+		msgs := []std.Msg{msg1, msg2}
+
+		privs := []crypto.PrivKey{priv1, priv2}
+		accnums := []uint64{acc1.GetAccountNumber(), 0}
+		seqs := []uint64{acc1.GetSequence(), 0}
+
+		fee := tu.NewTestFee()
+		tx := tu.NewTestTx(t, ctx.ChainID(), msgs, privs, accnums, seqs, fee)
+
+		// Sponsor transaction will work, creating addr2 if it doesn't exist
+		checkValidTx(t, anteHandler, ctx, tx, false)
+
+		// Check account states
+		acc1 = env.acck.GetAccount(ctx, addr1)
+		require.Equal(t, acc1.GetPubKey(), priv1.PubKey())
+		require.Equal(t, acc1.GetAccountNumber(), uint64(0))
+		require.Equal(t, acc1.GetSequence(), uint64(1))
+
+		acc2 := env.acck.GetAccount(ctx, addr2)
+		require.NotNil(t, acc2, "Expected addr2 account to be created by sponsor transaction")
+		require.Equal(t, acc2.GetPubKey(), priv2.PubKey())
+		require.Equal(t, acc2.GetAccountNumber(), uint64(2))
+		require.Equal(t, acc2.GetSequence(), uint64(1))
+	})
+}
+
+func TestAnteHandlerSponsorTxMultipleSigners(t *testing.T) {
+	t.Parallel()
+
+	// setup
+	env := setupTestEnv()
+	anteHandler := NewAnteHandler(env.acck, env.bank, DefaultSigVerificationGasConsumer, defaultAnteOptions())
+	ctx := env.ctx
+
+	// keys and addresses
+	priv1, _, addr1 := tu.KeyTestPubAddr()
+	priv2, _, addr2 := tu.KeyTestPubAddr()
+	priv3, _, addr3 := tu.KeyTestPubAddr()
+
+	// Only create and set up account acc1 (addr1)
+	acc1 := env.acck.NewAccountWithAddress(ctx, addr1)
+	acc1.SetCoins(tu.NewTestCoins())
+	require.NoError(t, acc1.SetAccountNumber(0))
+	env.acck.SetAccount(ctx, acc1)
+
+	t.Run("TestSponsorTransactionMultipleSigners", func(t *testing.T) {
+		t.Parallel()
+
+		// Create multiple messages for multiple signers
+		msg1 := tu.NewTestMsg(addr1) // First message by addr1 (sponsor)
+		msg2 := tu.NewTestMsg(addr2) // Second message by addr2
+		msg3 := tu.NewTestMsg(addr2) // Another message by addr2
+		msg4 := tu.NewTestMsg(addr3) // Message by addr3
+		msg5 := tu.NewTestMsg(addr3) // Another message by addr3
+		msgs := []std.Msg{msg1, msg2, msg3, msg4, msg5}
+
+		privs := []crypto.PrivKey{priv1, priv2, priv3}
+		accnums := []uint64{acc1.GetAccountNumber(), 0, 0}
+		seqs := []uint64{acc1.GetSequence(), 0, 0}
+		fee := tu.NewTestFee()
+		tx := tu.NewTestTx(t, ctx.ChainID(), msgs, privs, accnums, seqs, fee)
+
+		// Check sponsor transaction with multiple signers
+		checkValidTx(t, anteHandler, ctx, tx, false)
+
+		// Check the state of accounts
+		acc1 = env.acck.GetAccount(ctx, addr1)
+		require.Equal(t, acc1.GetPubKey(), priv1.PubKey())
+		require.Equal(t, acc1.GetAccountNumber(), uint64(0))
+		require.Equal(t, acc1.GetSequence(), uint64(1))
+
+		acc2 := env.acck.GetAccount(ctx, addr2)
+		require.NotNil(t, acc2, "Expected addr2 account to be created by sponsor transaction")
+		require.Equal(t, acc2.GetPubKey(), priv2.PubKey())
+		require.Equal(t, acc2.GetAccountNumber(), uint64(2))
+		require.Equal(t, acc2.GetSequence(), uint64(1))
+
+		acc3 := env.acck.GetAccount(ctx, addr3)
+		require.NotNil(t, acc3, "Expected addr3 account to be created by sponsor transaction")
+		require.Equal(t, acc3.GetPubKey(), priv3.PubKey())
+		require.Equal(t, acc3.GetAccountNumber(), uint64(3))
+		require.Equal(t, acc3.GetSequence(), uint64(1))
+	})
 }
 
 func TestProcessPubKey(t *testing.T) {

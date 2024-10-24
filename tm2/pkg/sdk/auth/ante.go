@@ -139,11 +139,19 @@ func NewAnteHandler(ak AccountKeeper, bank BankKeeperI, sigGasConsumer Signature
 		stdSigs := tx.GetSignatures()
 
 		for i := 0; i < len(stdSigs); i++ {
+			var isNewAccount bool
 			// skip the fee payer, account is cached and fees were deducted already
 			if i != 0 {
 				signerAccs[i], res = GetSignerAcc(newCtx, ak, signerAddrs[i])
+				// only create new account when tx is a sponsor transaction
 				if !res.IsOK() {
-					return newCtx, res, true
+					if tx.IsSponsorTx() {
+						isNewAccount = true
+						signerAccs[i] = ak.NewAccountWithAddress(newCtx, signerAddrs[i])
+						signerAccs[i].SetPubKey(stdSigs[i].PubKey)
+					} else {
+						return newCtx, res, true
+					}
 				}
 			}
 
@@ -152,8 +160,11 @@ func NewAnteHandler(ak AccountKeeper, bank BankKeeperI, sigGasConsumer Signature
 			if isGenesis && !opts.VerifyGenesisSignatures {
 				// No signatures are needed for genesis.
 			} else {
+				// Check if the account is being created for the first time on-chain
+				// e.g., during genesis or as a new account created indirectly through a sponsor transaction
+				newAccount := isGenesis || isNewAccount
 				// Check signature
-				signBytes, err := GetSignBytes(newCtx.ChainID(), tx, sacc, isGenesis)
+				signBytes, err := GetSignBytes(newCtx.ChainID(), tx, sacc, newAccount)
 				if err != nil {
 					return newCtx, res, true
 				}
@@ -433,9 +444,9 @@ func SetGasMeter(simulate bool, ctx sdk.Context, gasLimit int64) sdk.Context {
 
 // GetSignBytes returns a slice of bytes to sign over for a given transaction
 // and an account.
-func GetSignBytes(chainID string, tx std.Tx, acc std.Account, genesis bool) ([]byte, error) {
+func GetSignBytes(chainID string, tx std.Tx, acc std.Account, isNewAccount bool) ([]byte, error) {
 	var accNum uint64
-	if !genesis {
+	if !isNewAccount {
 		accNum = acc.GetAccountNumber()
 	}
 

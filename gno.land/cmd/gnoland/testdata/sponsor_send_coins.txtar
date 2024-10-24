@@ -1,0 +1,134 @@
+# Test for performing a sponsor send transaction without the sponsoree (sender) paying gas
+
+# Add new sponsor account
+adduser sponsor
+
+# Add new sponsoree account (sender)
+adduser sponsoree
+
+# Add new sponsoree account (receipent)
+adduser receipent
+
+# start a new node
+gnoland start
+
+# Query sponsor's account before the transaction to check initial state
+gnokey query auth/accounts/${USER_ADDR_sponsor}
+stdout 'height: 0'
+stdout 'data: {'
+stdout '  "BaseAccount": {'
+stdout '    "address": '
+stdout '    "coins": "10000000ugnot",'
+stdout '    "public_key": null,'
+stdout '    "account_number": "\d+",'
+stdout '    "sequence": "0"'
+stdout '  }'
+stdout '}'
+! stderr '.+' # Ensure no errors
+
+# Query sponsoree's account before the transaction
+gnokey query auth/accounts/${USER_ADDR_sponsoree}
+stdout 'height: 0'
+stdout 'data: {'
+stdout '  "BaseAccount": {'
+stdout '    "address": '
+stdout '    "coins": "10000000ugnot",'
+stdout '    "public_key": null,'
+stdout '    "account_number": "\d+",'
+stdout '    "sequence": "0"'
+stdout '  }'
+stdout '}'
+! stderr '.+' # Ensure no errors
+
+# Query receipent's account before the transaction
+gnokey query auth/accounts/${USER_ADDR_receipent}
+stdout 'height: 0'
+stdout 'data: {'
+stdout '  "BaseAccount": {'
+stdout '    "address": '
+stdout '    "coins": "10000000ugnot",'
+stdout '    "public_key": null,'
+stdout '    "account_number": "\d+",'
+stdout '    "sequence": "0"' 
+stdout '  }'
+stdout '}'
+! stderr '.+' # Ensure no errors
+
+
+# Sponsoree creates the send transaction (sending 1 ugnot to the recipient)
+# Sponsor address is provided for sponsorship
+gnokey maketx send -send "1ugnot" -to ${USER_ADDR_receipent} -gas-fee 1ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test -sponsor=${USER_ADDR_sponsor} sponsoree
+cp stdout sponsor.tx
+
+# Sponsoree signs the transaction
+gnokey sign -tx-path $WORK/sponsor.tx -chainid "tendermint_test" -fetch-account-info=true sponsoree
+cmpenv stdout sign.stdout.golden
+
+# Sponsor countersigns the transaction
+gnokey sign -tx-path $WORK/sponsor.tx -chainid "tendermint_test" -fetch-account-info=true sponsor
+cmpenv stdout sign.stdout.golden
+
+# Sponsor broadcasts the transaction
+gnokey broadcast $WORK/sponsor.tx
+
+# Compare output to ensure the transaction was successful
+stdout OK!
+stdout 'GAS WANTED: 10000000'
+stdout 'GAS USED:   \d+'
+stdout 'HEIGHT:     \d+'
+stdout 'EVENTS:     \[\]'
+stdout 'TX HASH:    '
+
+# Query sponsor's account after the transaction to see gas deduction
+gnokey query auth/accounts/${USER_ADDR_sponsor}
+stdout 'height: 0'
+stdout 'data: {'
+stdout '  "BaseAccount": {'
+stdout '    "address": '
+stdout '    "coins": "9999999ugnot",' # 1 ugnot gas deducted from sponsor's balance
+stdout '    "public_key": {'
+stdout '      "@type": "/tm.PubKeySecp256k1",'
+stdout '      "value": '
+stdout '    },'
+stdout '    "account_number": "\d+",'
+stdout '    "sequence": "1"' # Sequence incremented after transaction
+stdout '  }'
+stdout '}'
+! stderr '.+' # Ensure no errors
+
+# Query sponsoree's account after the transaction
+gnokey query auth/accounts/${USER_ADDR_sponsoree}
+stdout 'height: 0'
+stdout 'data: {'
+stdout '  "BaseAccount": {'
+stdout '    "address": '
+stdout '    "coins": "9999999ugnot",' # Sponsoree sent 1 ugnot, so balance reduced
+stdout '    "public_key": {'
+stdout '      "@type": "/tm.PubKeySecp256k1",'
+stdout '      "value": '
+stdout '    },'
+stdout '    "account_number": "\d+",'
+stdout '    "sequence": "1"' # Sequence incremented after transaction
+stdout '  }'
+stdout '}'
+! stderr '.+' # Ensure no errors
+
+# Query receipent's account after the transaction
+gnokey query auth/accounts/${USER_ADDR_receipent}
+stdout 'height: 0'
+stdout 'data: {'
+stdout '  "BaseAccount": {'
+stdout '    "address": '
+stdout '    "coins": "10000001ugnot",' # Recipient's balance increased by 1 ugnot
+stdout '    "public_key": null,'
+stdout '    "account_number": "\d+",'
+stdout '    "sequence": "0"' # Sequence remains unchanged
+
+stdout '  }'
+stdout '}'
+! stderr '.+' # Ensure no errors
+
+
+-- sign.stdout.golden --
+
+Tx successfully signed and saved to $WORK/sponsor.tx

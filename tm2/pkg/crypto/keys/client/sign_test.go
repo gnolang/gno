@@ -403,7 +403,7 @@ func TestSign_SignTx(t *testing.T) {
 		assert.True(t, savedTx.Signatures[0].PubKey.Equals(info.GetPubKey()))
 	})
 
-	t.Run("existing signature list", func(t *testing.T) {
+	t.Run("sign an already signed transaction", func(t *testing.T) {
 		t.Parallel()
 
 		var (
@@ -415,10 +415,10 @@ func TestSign_SignTx(t *testing.T) {
 			}
 
 			mnemonic        = generateTestMnemonic(t)
-			keyName         = "generated-key"
+			key1            = "generated-key"
 			encryptPassword = "encrypt"
 
-			anotherKey = "another-key"
+			key2 = "another-key"
 
 			tx = std.Tx{
 				Fee: std.Fee{
@@ -436,21 +436,25 @@ func TestSign_SignTx(t *testing.T) {
 		require.NoError(t, err)
 
 		// Create an initial account
-		info, err := kb.CreateAccount(keyName, mnemonic, "", encryptPassword, 0, 0)
+		info1, err := kb.CreateAccount(key1, mnemonic, "", encryptPassword, 0, 0)
 		require.NoError(t, err)
 
 		// Create a new account
-		anotherKeyInfo, err := kb.CreateAccount(anotherKey, mnemonic, "", encryptPassword, 0, 1)
+		info2, err := kb.CreateAccount(key2, mnemonic, "", encryptPassword, 0, 1)
 		require.NoError(t, err)
 
 		// Generate the signature
 		signBytes, err := tx.GetSignBytes("id", 1, 0)
 		require.NoError(t, err)
 
-		signature, pubKey, err := kb.Sign(anotherKey, encryptPassword, signBytes)
+		signature, pubKey, err := kb.Sign(key2, encryptPassword, signBytes)
 		require.NoError(t, err)
 
 		tx.Signatures = []std.Signature{
+			{
+				PubKey:    nil,
+				Signature: nil,
+			},
 			{
 				PubKey:    pubKey,
 				Signature: signature,
@@ -461,10 +465,10 @@ func TestSign_SignTx(t *testing.T) {
 		// for validation to complete
 		tx.Msgs = []std.Msg{
 			bank.MsgSend{
-				FromAddress: info.GetAddress(),
+				FromAddress: info1.GetAddress(),
 			},
 			bank.MsgSend{
-				FromAddress: anotherKeyInfo.GetAddress(),
+				FromAddress: info2.GetAddress(),
 			},
 		}
 
@@ -504,7 +508,8 @@ func TestSign_SignTx(t *testing.T) {
 			kbHome,
 			"--tx-path",
 			txFile.Name(),
-			keyName,
+			"--fetch-account-info",
+			key1,
 		}
 
 		// Run the command
@@ -518,9 +523,122 @@ func TestSign_SignTx(t *testing.T) {
 		require.NoError(t, amino.UnmarshalJSON(savedTxRaw, &savedTx))
 
 		require.Len(t, savedTx.Signatures, 2)
-		assert.True(t, savedTx.Signatures[0].PubKey.Equals(anotherKeyInfo.GetPubKey()))
-		assert.True(t, savedTx.Signatures[1].PubKey.Equals(info.GetPubKey()))
+		assert.True(t, savedTx.Signatures[0].PubKey.Equals(info1.GetPubKey()))
+		assert.True(t, savedTx.Signatures[1].PubKey.Equals(info2.GetPubKey()))
 		assert.NotEqual(t, savedTx.Signatures[0].Signature, savedTx.Signatures[1].Signature)
+	})
+
+	t.Run("Message signer and signature count mismatch", func(t *testing.T) {
+		t.Parallel()
+
+		var (
+			kbHome      = t.TempDir()
+			baseOptions = BaseOptions{
+				InsecurePasswordStdin: true,
+				Home:                  kbHome,
+				Quiet:                 true,
+			}
+
+			mnemonic        = generateTestMnemonic(t)
+			key1            = "generated-key"
+			encryptPassword = "encrypt"
+
+			key2 = "another-key"
+
+			tx = std.Tx{
+				Fee: std.Fee{
+					GasWanted: 10,
+					GasFee: std.Coin{
+						Amount: 10,
+						Denom:  "ugnot",
+					},
+				},
+			}
+		)
+
+		// Generate a key in the keybase
+		kb, err := keys.NewKeyBaseFromDir(kbHome)
+		require.NoError(t, err)
+
+		// Create an initial account
+		info1, err := kb.CreateAccount(key1, mnemonic, "", encryptPassword, 0, 0)
+		require.NoError(t, err)
+
+		// Create a new account
+		info2, err := kb.CreateAccount(key2, mnemonic, "", encryptPassword, 0, 1)
+		require.NoError(t, err)
+
+		// Generate the signature
+		signBytes, err := tx.GetSignBytes("id", 1, 0)
+		require.NoError(t, err)
+
+		signature, pubKey, err := kb.Sign(key2, encryptPassword, signBytes)
+		require.NoError(t, err)
+
+		// Add only one signature to the transaction (from key2), simulating a mismatch
+		tx.Signatures = []std.Signature{
+			{
+				PubKey:    pubKey,
+				Signature: signature,
+			},
+		}
+
+		// We need to prepare the message signers as well
+		// for validation to complete
+		tx.Msgs = []std.Msg{
+			bank.MsgSend{
+				FromAddress: info1.GetAddress(),
+			},
+			bank.MsgSend{
+				FromAddress: info2.GetAddress(),
+			},
+		}
+
+		// Create an empty tx file
+		txFile, err := os.CreateTemp("", "")
+		require.NoError(t, err)
+
+		// Marshal the tx and write it to the file
+		encodedTx, err := amino.MarshalJSON(tx)
+		require.NoError(t, err)
+
+		_, err = txFile.Write(encodedTx)
+		require.NoError(t, err)
+
+		ctx, cancelFn := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancelFn()
+
+		// Create the command IO
+		io := commands.NewTestIO()
+		io.SetIn(
+			strings.NewReader(
+				fmt.Sprintf(
+					"%s\n%s\n",
+					encryptPassword,
+					encryptPassword,
+				),
+			),
+		)
+
+		// Create the command
+		cmd := NewRootCmdWithBaseConfig(io, baseOptions)
+
+		args := []string{
+			"sign",
+			"--insecure-password-stdin",
+			"--home",
+			kbHome,
+			"--tx-path",
+			txFile.Name(),
+			"--fetch-account-info",
+			key1,
+		}
+
+		// Run the command
+		err = cmd.ParseAndRun(ctx, args)
+
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "unable to sign transaction, unable to validate transaction, unauthorized error")
 	})
 
 	t.Run("overwrite existing signature", func(t *testing.T) {
