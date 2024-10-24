@@ -12,6 +12,7 @@ stdout 'OK!'
 stdout 'GAS WANTED: 200000'
 stdout 'GAS USED: '
 stdout 'TX HASH: '
+stdout 'COMMIT DURATION:  \d+ ms'
 
 -- bar/bar.gno --
 package bar
