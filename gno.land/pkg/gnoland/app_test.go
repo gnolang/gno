@@ -100,9 +100,9 @@ func TestNewAppWithOptions(t *testing.T) {
 		expectedVal string
 	}{
 		{"params/vm/foo.string", `"hello"`},
-		{"params/vm/bar.int64", `"-42"`},
+		{"params/vm/foo.int64", `"-42"`},
 		{"params/vm/foo.uint64", `"1337"`},
-		{"params/vm/bar.bool", `true`},
+		{"params/vm/foo.bool", `true`},
 		{"params/vm/foo.bytes", `"SGkh"`}, // XXX: make this test more readable
 	}
 	for _, tc := range tcs {
@@ -110,7 +110,7 @@ func TestNewAppWithOptions(t *testing.T) {
 			Path: tc.path,
 		})
 		require.True(t, qres.IsOK())
-		require.Equal(t, qres.Data, []byte(tc.expectedVal))
+		assert.Equal(t, qres.Data, []byte(tc.expectedVal))
 	}
 }
 
