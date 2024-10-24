@@ -23,7 +23,7 @@ status=KO`
 	Incr()
 	{
 		expected := `counter=3
-last update=2009-02-13 23:31:30 +0000 UTC m=+1234567890.000000001
+last update=2009-02-13 23:31:30 +0000 UTC
 last caller=g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm
 status=OK`
 		got := Render("")
@@ -35,7 +35,7 @@ status=OK`
 		use std.TestSkipTime(time.Hour)
 		{
 			expected := `counter=3
-	last update=2009-02-13 22:31:30 +0000 UTC m=+1234564290.000000001
+	last update=2009-02-13 22:31:30 +0000 UTC
 	last caller=g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm
 	status=KO`
 			got := Render("")
@@ -46,7 +46,7 @@ status=OK`
 		Incr()
 		{
 			expected := `counter=4
-	last update=2009-02-13 23:31:30 +0000 UTC m=+1234567890.000000001
+	last update=2009-02-13 23:31:30 +0000 UTC
 	last caller=g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm
 	status=OK`
 			got := Render("")
