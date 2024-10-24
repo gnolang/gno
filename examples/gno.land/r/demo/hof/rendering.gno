@@ -1,0 +1,93 @@
+package hof
+
+import (
+	"strings"
+
+	"gno.land/p/demo/avl/pager"
+	"gno.land/p/demo/fqname"
+	"gno.land/p/demo/seqid"
+	"gno.land/p/demo/ufmt"
+	hl "gno.land/p/moul/helplink"
+)
+
+const (
+	pageSize = 20
+)
+
+func Render(path string) string {
+	out := "# Hall of Fame\n\n"
+
+	out += exhibition.Render(path, path == "dashboard")
+
+	return out
+}
+
+func (e Exhibition) Render(path string, dashboard bool) string {
+	out := ufmt.Sprintf("%s\n\n", e.description)
+
+	if e.items.Size() == 0 {
+		out += "No items in this exhibition currently.\n\n"
+		return out
+	}
+
+	out += "<div class='columns-2'>\n\n"
+
+	page := pager.NewPager(e.itemsSorted, pageSize).MustGetPageByPath(path)
+
+	for i := len(page.Items) - 1; i >= 0; i-- {
+		item := page.Items[i]
+
+		out += "<div>\n\n"
+		id, _ := seqid.FromString(item.Key)
+		out += ufmt.Sprintf("### Submission #%d\n\n", int(id))
+		out += item.Value.(*Item).Render(dashboard)
+		out += "</div>"
+	}
+
+	out += "</div><!-- /columns-2 -->\n\n"
+
+	out += page.Selector()
+
+	return out
+}
+
+func (i Item) Render(dashboard bool) string {
+	out := ufmt.Sprintf("\n```\n%s\n```\n\n", i.pkgpath)
+	out += ufmt.Sprintf("by %s\n\n", strings.Split(i.pkgpath, "/")[2])
+	out += ufmt.Sprintf("[View realm](%s)\n\n", fqname.ShortPath(i.pkgpath))
+	out += ufmt.Sprintf("Published at Block #%d\n\n", i.blockNum)
+
+	out += ufmt.Sprintf("#### [%d👍](%s) - [%d👎](%s)\n\n",
+		i.upvote.Size(), hl.FuncURL("Upvote", "pkgpath", i.pkgpath),
+		i.downvote.Size(), hl.FuncURL("Downvote", "pkgpath", i.pkgpath),
+	)
+
+	if dashboard {
+		out += hl.Func("Delete", "Delete", "pkgpath", i.pkgpath)
+	}
+
+	return out
+}
+
+func RenderExhibWidget(itemsToRender int) string {
+	if itemsToRender < 1 {
+		return ""
+	}
+
+	if exhibition.items.Size() == 0 {
+		return ""
+	}
+
+	out := ""
+	i := 0
+	exhibition.items.Iterate("", "", func(key string, value interface{}) bool {
+		item := value.(*Item)
+
+		out += ufmt.Sprintf("- %s\n", fqname.RenderLink(item.pkgpath, ""))
+
+		i++
+		return i >= itemsToRender
+	})
+
+	return out
+}
