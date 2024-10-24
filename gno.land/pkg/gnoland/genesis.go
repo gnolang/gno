@@ -13,6 +13,7 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/crypto"
 	osm "github.com/gnolang/gno/tm2/pkg/os"
 	"github.com/gnolang/gno/tm2/pkg/std"
+	"github.com/pelletier/go-toml"
 )
 
 // LoadGenesisBalancesFile loads genesis balances from the provided file path.
@@ -62,27 +63,33 @@ func LoadGenesisBalancesFile(path string) ([]Balance, error) {
 func LoadGenesisParamsFile(path string) ([]Param, error) {
 	// each param is in the form: key.kind=value
 	content := osm.MustReadFile(path)
-	lines := strings.Split(string(content), "\n")
 
-	params := make([]Param, 0, len(lines))
-	for _, line := range lines {
-		line = strings.TrimSpace(line)
+	m := map[string] /*category*/ map[string] /*key*/ map[string] /*kind*/ interface{} /*value*/ {}
+	err := toml.Unmarshal(content, &m)
+	if err != nil {
+		return nil, err
+	}
 
-		// remove comments.
-		line = strings.Split(line, "#")[0]
-		line = strings.TrimSpace(line)
-
-		// skip empty lines.
-		if line == "" {
-			continue
+	params := make([]Param, 0)
+	for category, keys := range m {
+		for key, kinds := range keys {
+			for kind, val := range kinds {
+				param := Param{
+					key:  category + "." + key,
+					kind: kind,
+				}
+				switch kind {
+				case "uint64": // toml
+					param.value = uint64(val.(int64))
+				default:
+					param.value = val
+				}
+				if err := param.Verify(); err != nil {
+					return nil, err
+				}
+				params = append(params, param)
+			}
 		}
-
-		var p Param
-		if err := p.Parse(line); err != nil {
-			return nil, errors.New("invalid genesis_param line: " + line)
-		}
-
-		params = append(params, p)
 	}
 
 	return params, nil

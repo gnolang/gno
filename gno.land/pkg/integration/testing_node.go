@@ -151,7 +151,7 @@ func LoadDefaultGenesisBalanceFile(t TestingTS, gnoroot string) []gnoland.Balanc
 
 // LoadDefaultGenesisParamFile loads the default genesis balance file for testing.
 func LoadDefaultGenesisParamFile(t TestingTS, gnoroot string) []gnoland.Param {
-	paramFile := filepath.Join(gnoroot, "gno.land", "genesis", "genesis_params.txt")
+	paramFile := filepath.Join(gnoroot, "gno.land", "genesis", "genesis_params.toml")
 
 	genesisParams, err := gnoland.LoadGenesisParamsFile(paramFile)
 	require.NoError(t, err)

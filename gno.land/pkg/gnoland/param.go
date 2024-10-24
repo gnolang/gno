@@ -12,13 +12,9 @@ import (
 )
 
 type Param struct {
-	key string
-
-	stringVal string
-	int64Val  int64
-	uint64Val uint64
-	boolVal   bool
-	bytesVal  []byte
+	key   string
+	kind  string
+	value interface{}
 }
 
 func (p Param) Verify() error {
@@ -40,65 +36,61 @@ func (p *Param) Parse(entry string) error {
 		return fmt.Errorf("malformed entry: %q", entry)
 	}
 
-	p.key = parts[0]
-	kind := p.Kind()
+	keyWithKind := parts[0]
+	p.kind = keyWithKind[strings.LastIndex(keyWithKind, ".")+1:]
+	p.key = strings.TrimSuffix(keyWithKind, "."+p.kind)
 	raw := parts[1]
-	switch kind {
+	switch p.kind {
 	case ParamKindString:
-		p.stringVal = raw
+		p.value = raw
 	case ParamKindInt64:
 		v, err := strconv.ParseInt(raw, 10, 64)
 		if err != nil {
 			return err
 		}
-		p.int64Val = v
+		p.value = v
 	case ParamKindBool:
 		v, err := strconv.ParseBool(raw)
 		if err != nil {
 			return err
 		}
-		p.boolVal = v
+		p.value = v
 	case ParamKindUint64:
 		v, err := strconv.ParseUint(raw, 10, 64)
 		if err != nil {
 			return err
 		}
-		p.uint64Val = v
+		p.value = v
 	case ParamKindBytes:
 		v, err := hex.DecodeString(raw)
 		if err != nil {
 			return err
 		}
-		p.bytesVal = v
+		p.value = v
 	default:
-		return errors.New("unsupported param kind: " + kind)
+		return errors.New("unsupported param kind: " + p.kind)
 	}
 
 	return p.Verify()
 }
 
-func (p Param) Kind() string {
-	return p.key[strings.LastIndex(p.key, ".")+1:]
-}
-
 func (p Param) String() string {
-	kind := p.Kind()
-	switch kind {
+	switch p.kind {
 	case ParamKindString:
-		return fmt.Sprintf("%s=%s", p.key, p.stringVal)
+		return fmt.Sprintf("%s=%s", p.key, p.value)
 	case ParamKindInt64:
-		return fmt.Sprintf("%s=%d", p.key, p.int64Val)
+		return fmt.Sprintf("%s=%d", p.key, p.value)
 	case ParamKindUint64:
-		return fmt.Sprintf("%s=%d", p.key, p.uint64Val)
+		return fmt.Sprintf("%s=%d", p.key, p.value)
 	case ParamKindBool:
-		if p.boolVal {
+		if p.value.(bool) {
 			return fmt.Sprintf("%s=true", p.key)
 		}
 		return fmt.Sprintf("%s=false", p.key)
 	case ParamKindBytes:
-		return fmt.Sprintf("%s=%x", p.key, p.bytesVal)
+		return fmt.Sprintf("%s=%x", p.key, p.value)
 	}
-	panic("invalid param kind:" + kind)
+	panic("invalid param kind:" + p.kind)
 }
 
 func (p *Param) UnmarshalAmino(rep string) error {
@@ -110,19 +102,19 @@ func (p Param) MarshalAmino() (string, error) {
 }
 
 func (p Param) Register(ctx sdk.Context, prk params.ParamsKeeperI) {
-	kind := p.Kind()
-	switch kind {
+	key := p.key + "." + p.kind
+	switch p.kind {
 	case ParamKindString:
-		prk.SetString(ctx, p.key, p.stringVal)
+		prk.SetString(ctx, key, p.value.(string))
 	case ParamKindInt64:
-		prk.SetInt64(ctx, p.key, p.int64Val)
+		prk.SetInt64(ctx, key, p.value.(int64))
 	case ParamKindUint64:
-		prk.SetUint64(ctx, p.key, p.uint64Val)
+		prk.SetUint64(ctx, key, p.value.(uint64))
 	case ParamKindBool:
-		prk.SetBool(ctx, p.key, p.boolVal)
+		prk.SetBool(ctx, key, p.value.(bool))
 	case ParamKindBytes:
-		prk.SetBytes(ctx, p.key, p.bytesVal)
+		prk.SetBytes(ctx, key, p.value.([]byte))
 	default:
-		panic("invalid param kind: " + kind)
+		panic("invalid param kind: " + p.kind)
 	}
 }

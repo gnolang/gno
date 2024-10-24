@@ -13,11 +13,11 @@ func TestParam_Parse(t *testing.T) {
 		expected  Param
 		expectErr bool
 	}{
-		{"valid string", "foo.string=hello", Param{key: "foo.string", stringVal: "hello"}, false},
-		{"valid int64", "foo.int64=-1337", Param{key: "foo.int64", int64Val: -1337}, false},
-		{"valid uint64", "foo.uint64=42", Param{key: "foo.uint64", uint64Val: 42}, false},
-		{"valid bool", "foo.bool=true", Param{key: "foo.bool", boolVal: true}, false},
-		{"valid bytes", "foo.bytes=AAAA", Param{key: "foo.bytes", bytesVal: []byte{0xaa, 0xaa}}, false},
+		{"valid string", "foo.string=hello", Param{key: "foo", kind: "string", value: "hello"}, false},
+		{"valid int64", "foo.int64=-1337", Param{key: "foo", kind: "int64", value: int64(-1337)}, false},
+		{"valid uint64", "foo.uint64=42", Param{key: "foo", kind: "uint64", value: uint64(42)}, false},
+		{"valid bool", "foo.bool=true", Param{key: "foo", kind: "bool", value: true}, false},
+		{"valid bytes", "foo.bytes=AAAA", Param{key: "foo", kind: "bytes", value: []byte{0xaa, 0xaa}}, false},
 		{"invalid key", "invalidkey=foo", Param{}, true},
 		{"invalid kind", "invalid.kind=foo", Param{}, true},
 		{"invalid int64", "invalid.int64=foobar", Param{}, true},
