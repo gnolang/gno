@@ -1,4 +1,4 @@
-package time
+package garbage
 
 import "errors"
 
@@ -214,6 +214,17 @@ func (t Time) AddDate(years int, months int, days int) Time {
 	year, month, day := t.Date()
 	hour, min, sec := t.Clock()
 	return Date(year+years, month+Month(months), day+days, hour, min, sec, int(t.nsec))
+}
+
+func (t *Time) addSec(d int64) {
+	sum := t.sec + d
+	if (sum > t.sec) == (d > 0) {
+		t.sec = sum
+	} else if d > 0 {
+		t.sec = 1<<63 - 1
+	} else {
+		t.sec = -(1<<63 - 1)
+	}
 }
 
 const (

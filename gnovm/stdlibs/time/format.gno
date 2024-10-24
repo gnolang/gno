@@ -568,8 +568,7 @@ func (t Time) Format(layout string) string {
 // representation to b and returns the extended buffer.
 func (t Time) AppendFormat(b []byte, layout string) []byte {
 	var (
-		it = t.internal()
-
+		it        = t.internal()
 		year  int = -1
 		month Month
 		day   int
@@ -889,10 +888,19 @@ func skip(value, prefix string) (string, error) {
 // differ by the actual zone offset. To avoid such problems, prefer time layouts
 // that use a numeric zone offset, or use ParseInLocation.
 func Parse(layout, value string) (Time, error) {
-	return parse(layout, value)
+	return parse(layout, value, UTC, Local)
 }
 
-func parse(layout, value string) (Time, error) {
+// ParseInLocation is like Parse but differs in two important ways.
+// First, in the absence of time zone information, Parse interprets a time as UTC;
+// ParseInLocation interprets the time as in the given location.
+// Second, when given a zone offset or abbreviation, Parse tries to match it
+// against the Local location; ParseInLocation uses the given location.
+func ParseInLocation(layout, value string, loc *Location) (Time, error) {
+	return parse(layout, value, loc, loc)
+}
+
+func parse(layout, value string, defaultLocation, local *Location) (Time, error) {
 	alayout, avalue := layout, value
 	rangeErrString := "" // set if a value is out of range
 	amSet := false       // do we need to subtract 12 from the hour for midnight?
@@ -900,14 +908,16 @@ func parse(layout, value string) (Time, error) {
 
 	// Time being constructed.
 	var (
-		year  int
-		month int = -1
-		day   int = -1
-		yday  int = -1
-		hour  int
-		min   int
-		sec   int
-		nsec  int
+		year       int
+		month      int = -1
+		day        int = -1
+		yday       int = -1
+		hour       int
+		min        int
+		sec        int
+		nsec       int
+		zoneOffset int = -1
+		zoneName   string
 	)
 
 	// Each iteration processes one std value.
@@ -1052,13 +1062,74 @@ func parse(layout, value string) (Time, error) {
 				value = value[1:]
 				break
 			}
+			var sign, hour, min, seconds string
+			if std == stdISO8601ColonTZ || std == stdNumColonTZ {
+				if len(value) < 6 {
+					err = errBad
+					break
+				}
+				if value[3] != ':' {
+					err = errBad
+					break
+				}
+				sign, hour, min, seconds, value = value[0:1], value[1:3], value[4:6], "00", value[6:]
+			} else if std == stdNumShortTZ || std == stdISO8601ShortTZ {
+				if len(value) < 3 {
+					err = errBad
+					break
+				}
+				sign, hour, min, seconds, value = value[0:1], value[1:3], "00", "00", value[3:]
+			} else if std == stdISO8601ColonSecondsTZ || std == stdNumColonSecondsTZ {
+				if len(value) < 9 {
+					err = errBad
+					break
+				}
+				if value[3] != ':' || value[6] != ':' {
+					err = errBad
+					break
+				}
+				sign, hour, min, seconds, value = value[0:1], value[1:3], value[4:6], value[7:9], value[9:]
+			} else if std == stdISO8601SecondsTZ || std == stdNumSecondsTz {
+				if len(value) < 7 {
+					err = errBad
+					break
+				}
+				sign, hour, min, seconds, value = value[0:1], value[1:3], value[3:5], value[5:7], value[7:]
+			} else {
+				if len(value) < 5 {
+					err = errBad
+					break
+				}
+				sign, hour, min, seconds, value = value[0:1], value[1:3], value[3:5], "00", value[5:]
+			}
+			var hr, mm, ss int
+			hr, err = atoi(hour)
+			if err == nil {
+				mm, err = atoi(min)
+			}
+			if err == nil {
+				ss, err = atoi(seconds)
+			}
+			zoneOffset = (hr*60+mm)*60 + ss // offset is in seconds
+			switch sign[0] {
+			case '+':
+			case '-':
+				zoneOffset = -zoneOffset
+			default:
+				err = errBad
+			}
 		case stdTZ:
 			// Does it look like a time zone?
 			if len(value) >= 3 && value[0:3] == "UTC" {
 				value = value[3:]
 				break
 			}
-			err = errBad
+			n, ok := parseTimeZone(value)
+			if !ok {
+				err = errBad
+				break
+			}
+			zoneName, value = value[:n], value[n:]
 
 		case stdFracSecond0:
 			// stdFracSecond0 requires the exact number of digits as specified in
@@ -1144,6 +1215,29 @@ func parse(layout, value string) (Time, error) {
 		return Time{}, &ParseError{alayout, avalue, "", value, ": day out of range"}
 	}
 
+	if zoneOffset != -1 {
+		t := Date(year, Month(month), day, hour, min, sec, nsec)
+		t.addSec(-int64(zoneOffset))
+
+		// Look for local zone with the given offset.
+		// If that zone was in effect at the given time, use it.
+		return t, nil
+	}
+
+	if zoneName != "" {
+		t := Date(year, Month(month), day, hour, min, sec, nsec)
+		// Look for local zone with the given offset.
+		// If that zone was in effect at the given time, use it.
+		offset, ok := local.lookupName(zoneName, t.unixSec())
+		if ok {
+			t.addSec(-int64(offset))
+			return t, nil
+		}
+
+		return t, nil
+	}
+
+	// Otherwise, fall back to default.
 	return Date(year, Month(month), day, hour, min, sec, nsec), nil
 }
 
