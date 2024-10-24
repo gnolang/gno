@@ -24,6 +24,10 @@ func (r *Request) GetVar(key string) string {
 		case strings.HasPrefix(handlerPart, "{") && strings.HasSuffix(handlerPart, "}"):
 			parameter := handlerPart[1 : len(handlerPart)-1]
 			if parameter == key {
+				// check if this request has query strings or not
+				if strings.Contains(reqParts[i], "?") {
+					return strings.Split(reqParts[i], "?")[0]
+				}
 				return reqParts[i]
 			}
 		default:
