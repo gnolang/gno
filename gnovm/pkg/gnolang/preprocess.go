@@ -2480,8 +2480,6 @@ func parseTypesAndValues(
 	valueExpr Expr,
 ) ([]Type, []TypedValue) {
 	var tuple *tupleType
-	valueType := evalStaticTypeOfRaw(store, bn, valueExpr)
-
 	numNames := len(nameExprs)
 
 	switch expr := valueExpr.(type) {
@@ -2489,18 +2487,26 @@ func parseTypesAndValues(
 		// Call case:
 		// var a, b, c T = f()
 		// a, b, c := f()
+		valueType := evalStaticTypeOfRaw(store, bn, valueExpr)
 		tuple = valueType.(*tupleType)
 	case *TypeAssertExpr:
 		// Type assert case:
 		// var a, b = n.(T)
 		// a, b := n.(T)
-		tuple = &tupleType{Elts: []Type{valueType, BoolType}}
+		tt := evalStaticType(store, bn, expr.Type)
+		tuple = &tupleType{Elts: []Type{tt, BoolType}}
 		expr.HasOK = true
 	case *IndexExpr:
 		// Map index case:
 		// var a, b = n[i], where n is a map
 		// a, b := n[i], where n is a map
-		tuple = &tupleType{Elts: []Type{valueType, BoolType}}
+		var mt *MapType
+		dt := evalStaticTypeOf(store, bn, expr.X)
+		mt, ok := baseOf(dt).(*MapType)
+		if !ok {
+			panic(fmt.Sprintf("invalid index expression on %T", dt))
+		}
+		tuple = &tupleType{Elts: []Type{mt.Value, BoolType}}
 		expr.HasOK = true
 	default:
 		panic(fmt.Sprintf("unexpected value expression type %T", expr))
@@ -2533,8 +2539,10 @@ func parseTypesAndValues(
 			sts[i] = tuple.Elts[i]
 		}
 
-		tvs[i] = anyValue(st)
+		tvs[i] = anyValue(sts[i])
 	}
+
+	// fmt.Printf("%v - %v", sts, tvs)
 
 	return sts, tvs
 }
