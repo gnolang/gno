@@ -190,7 +190,7 @@ func TestTypeCheckMemPackage(t *testing.T) {
 						Body: `
 							package hello
 							import "std"
-							func Hello() gnovm.Address { return "hello" }`,
+							func Hello() std.Address { return "hello" }`,
 					},
 				},
 			},
@@ -208,7 +208,7 @@ func TestTypeCheckMemPackage(t *testing.T) {
 						Body: `
 							package hello
 							import "std"
-							func Hello() gnovm.Address { return "hello" }`,
+							func Hello() std.Address { return "hello" }`,
 					},
 				},
 			},
@@ -239,7 +239,7 @@ func TestTypeCheckMemPackage(t *testing.T) {
 						Body: `
 							package hello
 							import "std"
-							func Hello() gnovm.Address { return "hello" }`,
+							func Hello() std.Address { return "hello" }`,
 					},
 				},
 			},
@@ -272,7 +272,7 @@ func TestTypeCheckMemPackage(t *testing.T) {
 						Body: `
 							package bye
 							import "std"
-							func Bye() gnovm.Address { return "bye" }`,
+							func Bye() std.Address { return "bye" }`,
 					},
 				},
 			},
@@ -307,7 +307,7 @@ func TestTypeCheckMemPackage(t *testing.T) {
 							"std"
 							"bye"
 						)
-						func Hello() gnovm.Address { return bye.Bye() }`,
+						func Hello() std.Address { return bye.Bye() }`,
 				},
 			},
 		},
