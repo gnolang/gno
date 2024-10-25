@@ -12,8 +12,8 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/gnolang/gno/gno.land/pkg/gnoland/ugnot"
+	"github.com/gnolang/gno/gnovm"
 	"github.com/gnolang/gno/gnovm/pkg/gnolang"
-	gnostd "github.com/gnolang/gno/gnovm/pkg/std"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
 	"github.com/gnolang/gno/tm2/pkg/db/memdb"
 	"github.com/gnolang/gno/tm2/pkg/log"
@@ -36,7 +36,7 @@ func TestVMKeeperAddPackage(t *testing.T) {
 	assert.True(t, env.bank.GetCoins(ctx, addr).IsEqual(std.MustParseCoins(coinsString)))
 
 	// Create test package.
-	files := []*gnostd.MemFile{
+	files := []*gnovm.MemFile{
 		{
 			Name: "test.gno",
 			Body: `package test
@@ -81,7 +81,7 @@ func TestVMKeeperOrigSend1(t *testing.T) {
 	assert.True(t, env.bank.GetCoins(ctx, addr).IsEqual(std.MustParseCoins(coinsString)))
 
 	// Create test package.
-	files := []*gnostd.MemFile{
+	files := []*gnovm.MemFile{
 		{Name: "init.gno", Body: `
 package test
 
@@ -126,7 +126,7 @@ func TestVMKeeperOrigSend2(t *testing.T) {
 	assert.True(t, env.bank.GetCoins(ctx, addr).IsEqual(std.MustParseCoins(coinsString)))
 
 	// Create test package.
-	files := []*gnostd.MemFile{
+	files := []*gnovm.MemFile{
 		{Name: "init.gno", Body: `
 package test
 
@@ -180,7 +180,7 @@ func TestVMKeeperOrigSend3(t *testing.T) {
 	assert.True(t, env.bank.GetCoins(ctx, addr).IsEqual(std.MustParseCoins(coinsString)))
 
 	// Create test package.
-	files := []*gnostd.MemFile{
+	files := []*gnovm.MemFile{
 		{Name: "init.gno", Body: `
 package test
 
@@ -224,7 +224,7 @@ func TestVMKeeperRealmSend1(t *testing.T) {
 	assert.True(t, env.bank.GetCoins(ctx, addr).IsEqual(std.MustParseCoins(coinsString)))
 
 	// Create test package.
-	files := []*gnostd.MemFile{
+	files := []*gnovm.MemFile{
 		{Name: "init.gno", Body: `
 package test
 
@@ -268,7 +268,7 @@ func TestVMKeeperRealmSend2(t *testing.T) {
 	assert.True(t, env.bank.GetCoins(ctx, addr).IsEqual(std.MustParseCoins(coinsString)))
 
 	// Create test package.
-	files := []*gnostd.MemFile{
+	files := []*gnovm.MemFile{
 		{Name: "init.gno", Body: `
 package test
 
@@ -313,7 +313,7 @@ func TestVMKeeperParams(t *testing.T) {
 	assert.True(t, env.bank.GetCoins(ctx, addr).IsEqual(std.MustParseCoins(coinsString)))
 
 	// Create test package.
-	files := []*std.MemFile{
+	files := []*gnovm.MemFile{
 		{"init.gno", `
 package test
 
@@ -366,7 +366,7 @@ func TestVMKeeperOrigCallerInit(t *testing.T) {
 	assert.True(t, env.bank.GetCoins(ctx, addr).IsEqual(std.MustParseCoins(coinsString)))
 
 	// Create test package.
-	files := []*gnostd.MemFile{
+	files := []*gnovm.MemFile{
 		{Name: "init.gno", Body: `
 package test
 
@@ -417,7 +417,7 @@ func TestVMKeeperRunSimple(t *testing.T) {
 	acc := env.acck.NewAccountWithAddress(ctx, addr)
 	env.acck.SetAccount(ctx, acc)
 
-	files := []*gnostd.MemFile{
+	files := []*gnovm.MemFile{
 		{Name: "script.gno", Body: `
 package main
 
@@ -456,7 +456,7 @@ func testVMKeeperRunImportStdlibs(t *testing.T, env testEnv) {
 	acc := env.acck.NewAccountWithAddress(ctx, addr)
 	env.acck.SetAccount(ctx, acc)
 
-	files := []*gnostd.MemFile{
+	files := []*gnovm.MemFile{
 		{Name: "script.gno", Body: `
 package main
 
@@ -489,7 +489,7 @@ func TestNumberOfArgsError(t *testing.T) {
 	assert.True(t, env.bank.GetCoins(ctx, addr).IsEqual(std.MustParseCoins(coinsString)))
 
 	// Create test package.
-	files := []*gnostd.MemFile{
+	files := []*gnovm.MemFile{
 		{
 			Name: "test.gno",
 			Body: `package test
@@ -528,7 +528,7 @@ func TestVMKeeperReinitialize(t *testing.T) {
 	assert.True(t, env.bank.GetCoins(ctx, addr).IsEqual(std.MustParseCoins(coinsString)))
 
 	// Create test package.
-	files := []*gnostd.MemFile{
+	files := []*gnovm.MemFile{
 		{Name: "init.gno", Body: `
 package test
 

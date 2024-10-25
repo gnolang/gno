@@ -9,7 +9,7 @@ import (
 	"time"
 
 	"github.com/gnolang/gno/gno.land/pkg/sdk/vm"
-	gnostd "github.com/gnolang/gno/gnovm/pkg/std"
+	"github.com/gnolang/gno/gnovm"
 	gnostdlibs "github.com/gnolang/gno/gnovm/stdlibs/std"
 	"github.com/gnolang/gno/tm2/pkg/amino"
 	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
@@ -54,7 +54,7 @@ func TestNewAppWithOptions(t *testing.T) {
 			},
 			Txs: []std.Tx{
 				{
-					Msgs: []std.Msg{vm.NewMsgAddPackage(addr, "gno.land/r/demo", []*gnostd.MemFile{
+					Msgs: []std.Msg{vm.NewMsgAddPackage(addr, "gno.land/r/demo", []*gnovm.MemFile{
 						{
 							Name: "demo.gno",
 							Body: "package demo; func Hello() string { return `hello`; }",

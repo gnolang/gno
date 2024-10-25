@@ -8,7 +8,7 @@ import (
 
 	"github.com/gnolang/gno/gno.land/pkg/gnoland/ugnot"
 	"github.com/gnolang/gno/gno.land/pkg/sdk/vm"
-	gnostd "github.com/gnolang/gno/gnovm/pkg/std"
+	"github.com/gnolang/gno/gnovm"
 	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
 	ctypes "github.com/gnolang/gno/tm2/pkg/bft/rpc/core/types"
 	"github.com/gnolang/gno/tm2/pkg/bft/types"
@@ -653,8 +653,8 @@ func main() {
 
 	msg := vm.MsgRun{
 		Caller: caller.GetAddress(),
-		Package: &gnostd.MemPackage{
-			Files: []*gnostd.MemFile{
+		Package: &gnovm.MemPackage{
+			Files: []*gnovm.MemFile{
 				{
 					Name: "main.gno",
 					Body: fileBody,
@@ -730,8 +730,8 @@ func main() {
 
 	msg1 := vm.MsgRun{
 		Caller: caller.GetAddress(),
-		Package: &gnostd.MemPackage{
-			Files: []*gnostd.MemFile{
+		Package: &gnovm.MemPackage{
+			Files: []*gnovm.MemFile{
 				{
 					Name: "main1.gno",
 					Body: fileBody,
@@ -743,8 +743,8 @@ func main() {
 
 	msg2 := vm.MsgRun{
 		Caller: caller.GetAddress(),
-		Package: &gnostd.MemPackage{
-			Files: []*gnostd.MemFile{
+		Package: &gnovm.MemPackage{
+			Files: []*gnovm.MemFile{
 				{
 					Name: "main2.gno",
 					Body: fileBody,
@@ -795,10 +795,10 @@ func TestRunErrors(t *testing.T) {
 			msgs: []vm.MsgRun{
 				{
 					Caller: mockAddress,
-					Package: &gnostd.MemPackage{
+					Package: &gnovm.MemPackage{
 						Name: "",
 						Path: "",
-						Files: []*gnostd.MemFile{
+						Files: []*gnovm.MemFile{
 							{
 								Name: "file1.gno",
 								Body: "",
@@ -842,10 +842,10 @@ func TestRunErrors(t *testing.T) {
 			msgs: []vm.MsgRun{
 				{
 					Caller: mockAddress,
-					Package: &gnostd.MemPackage{
+					Package: &gnovm.MemPackage{
 						Name: "",
 						Path: "",
-						Files: []*gnostd.MemFile{
+						Files: []*gnovm.MemFile{
 							{
 								Name: "file1.gno",
 								Body: "",
@@ -873,10 +873,10 @@ func TestRunErrors(t *testing.T) {
 			msgs: []vm.MsgRun{
 				{
 					Caller: mockAddress,
-					Package: &gnostd.MemPackage{
+					Package: &gnovm.MemPackage{
 						Name: "",
 						Path: "",
-						Files: []*gnostd.MemFile{
+						Files: []*gnovm.MemFile{
 							{
 								Name: "file1.gno",
 								Body: "",
@@ -904,10 +904,10 @@ func TestRunErrors(t *testing.T) {
 			msgs: []vm.MsgRun{
 				{
 					Caller: mockAddress,
-					Package: &gnostd.MemPackage{
+					Package: &gnovm.MemPackage{
 						Name: "",
 						Path: "",
-						Files: []*gnostd.MemFile{
+						Files: []*gnovm.MemFile{
 							{
 								Name: "file1.gno",
 								Body: "",
@@ -944,7 +944,7 @@ func TestRunErrors(t *testing.T) {
 			msgs: []vm.MsgRun{
 				{
 					Caller:  mockAddress,
-					Package: &gnostd.MemPackage{Name: "", Path: " "},
+					Package: &gnovm.MemPackage{Name: "", Path: " "},
 					Send:    nil,
 				},
 			},
@@ -994,10 +994,10 @@ func TestAddPackageErrors(t *testing.T) {
 			msgs: []vm.MsgAddPackage{
 				{
 					Creator: mockAddress,
-					Package: &gnostd.MemPackage{
+					Package: &gnovm.MemPackage{
 						Name: "",
 						Path: "",
-						Files: []*gnostd.MemFile{
+						Files: []*gnovm.MemFile{
 							{
 								Name: "file1.gno",
 								Body: "",
@@ -1041,10 +1041,10 @@ func TestAddPackageErrors(t *testing.T) {
 			msgs: []vm.MsgAddPackage{
 				{
 					Creator: mockAddress,
-					Package: &gnostd.MemPackage{
+					Package: &gnovm.MemPackage{
 						Name: "",
 						Path: "",
-						Files: []*gnostd.MemFile{
+						Files: []*gnovm.MemFile{
 							{
 								Name: "file1.gno",
 								Body: "",
@@ -1072,10 +1072,10 @@ func TestAddPackageErrors(t *testing.T) {
 			msgs: []vm.MsgAddPackage{
 				{
 					Creator: mockAddress,
-					Package: &gnostd.MemPackage{
+					Package: &gnovm.MemPackage{
 						Name: "",
 						Path: "",
-						Files: []*gnostd.MemFile{
+						Files: []*gnovm.MemFile{
 							{
 								Name: "file1.gno",
 								Body: "",
@@ -1103,10 +1103,10 @@ func TestAddPackageErrors(t *testing.T) {
 			msgs: []vm.MsgAddPackage{
 				{
 					Creator: mockAddress,
-					Package: &gnostd.MemPackage{
+					Package: &gnovm.MemPackage{
 						Name: "",
 						Path: "",
-						Files: []*gnostd.MemFile{
+						Files: []*gnovm.MemFile{
 							{
 								Name: "file1.gno",
 								Body: "",
@@ -1143,7 +1143,7 @@ func TestAddPackageErrors(t *testing.T) {
 			msgs: []vm.MsgAddPackage{
 				{
 					Creator: mockAddress,
-					Package: &gnostd.MemPackage{Name: "", Path: ""},
+					Package: &gnovm.MemPackage{Name: "", Path: ""},
 					Deposit: nil,
 				},
 			},

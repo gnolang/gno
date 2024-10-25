@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/gnolang/gno/gnovm/pkg/std"
+	"github.com/gnolang/gno/gnovm"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/multierr"
@@ -29,9 +29,9 @@ func main(){
 	fmt.Printf("AST.String():\n%s\n", n.String())
 }
 
-type mockPackageGetter []*std.MemPackage
+type mockPackageGetter []*gnovm.MemPackage
 
-func (mi mockPackageGetter) GetMemPackage(path string) *std.MemPackage {
+func (mi mockPackageGetter) GetMemPackage(path string) *gnovm.MemPackage {
 	for _, pkg := range mi {
 		if pkg.Path == path {
 			return pkg
@@ -45,7 +45,7 @@ type mockPackageGetterCounts struct {
 	counts map[string]int
 }
 
-func (mpg mockPackageGetterCounts) GetMemPackage(path string) *std.MemPackage {
+func (mpg mockPackageGetterCounts) GetMemPackage(path string) *gnovm.MemPackage {
 	mpg.counts[path]++
 	return mpg.mockPackageGetter.GetMemPackage(path)
 }
@@ -77,17 +77,17 @@ func TestTypeCheckMemPackage(t *testing.T) {
 
 	type testCase struct {
 		name   string
-		pkg    *std.MemPackage
+		pkg    *gnovm.MemPackage
 		getter MemPackageGetter
 		check  func(*testing.T, error)
 	}
 	tt := []testCase{
 		{
 			"Simple",
-			&std.MemPackage{
+			&gnovm.MemPackage{
 				Name: "hello",
 				Path: "gno.land/p/demo/hello",
-				Files: []*std.MemFile{
+				Files: []*gnovm.MemFile{
 					{
 						Name: "hello.gno",
 						Body: `
@@ -103,10 +103,10 @@ func TestTypeCheckMemPackage(t *testing.T) {
 		},
 		{
 			"WrongReturn",
-			&std.MemPackage{
+			&gnovm.MemPackage{
 				Name: "hello",
 				Path: "gno.land/p/demo/hello",
-				Files: []*std.MemFile{
+				Files: []*gnovm.MemFile{
 					{
 						Name: "hello.gno",
 						Body: `
@@ -122,10 +122,10 @@ func TestTypeCheckMemPackage(t *testing.T) {
 		},
 		{
 			"ParseError",
-			&std.MemPackage{
+			&gnovm.MemPackage{
 				Name: "hello",
 				Path: "gno.land/p/demo/hello",
-				Files: []*std.MemFile{
+				Files: []*gnovm.MemFile{
 					{
 						Name: "hello.gno",
 						Body: `
@@ -139,10 +139,10 @@ func TestTypeCheckMemPackage(t *testing.T) {
 		},
 		{
 			"MultiError",
-			&std.MemPackage{
+			&gnovm.MemPackage{
 				Name: "main",
 				Path: "gno.land/p/demo/main",
-				Files: []*std.MemFile{
+				Files: []*gnovm.MemFile{
 					{
 						Name: "hello.gno",
 						Body: `
@@ -159,10 +159,10 @@ func TestTypeCheckMemPackage(t *testing.T) {
 		},
 		{
 			"TestsIgnored",
-			&std.MemPackage{
+			&gnovm.MemPackage{
 				Name: "hello",
 				Path: "gno.land/p/demo/hello",
-				Files: []*std.MemFile{
+				Files: []*gnovm.MemFile{
 					{
 						Name: "hello.gno",
 						Body: `
@@ -181,16 +181,16 @@ func TestTypeCheckMemPackage(t *testing.T) {
 		},
 		{
 			"ImportFailed",
-			&std.MemPackage{
+			&gnovm.MemPackage{
 				Name: "hello",
 				Path: "gno.land/p/demo/hello",
-				Files: []*std.MemFile{
+				Files: []*gnovm.MemFile{
 					{
 						Name: "hello.gno",
 						Body: `
 							package hello
 							import "std"
-							func Hello() std.Address { return "hello" }`,
+							func Hello() gnovm.Address { return "hello" }`,
 					},
 				},
 			},
@@ -199,26 +199,26 @@ func TestTypeCheckMemPackage(t *testing.T) {
 		},
 		{
 			"ImportSucceeded",
-			&std.MemPackage{
+			&gnovm.MemPackage{
 				Name: "hello",
 				Path: "gno.land/p/demo/hello",
-				Files: []*std.MemFile{
+				Files: []*gnovm.MemFile{
 					{
 						Name: "hello.gno",
 						Body: `
 							package hello
 							import "std"
-							func Hello() std.Address { return "hello" }`,
+							func Hello() gnovm.Address { return "hello" }`,
 					},
 				},
 			},
 			mockPackageGetter{
-				&std.MemPackage{
+				&gnovm.MemPackage{
 					Name: "std",
 					Path: "std",
-					Files: []*std.MemFile{
+					Files: []*gnovm.MemFile{
 						{
-							Name: "std.gno",
+							Name: "gnovm.gno",
 							Body: `
 								package std
 								type Address string`,
@@ -230,26 +230,26 @@ func TestTypeCheckMemPackage(t *testing.T) {
 		},
 		{
 			"ImportBadIdent",
-			&std.MemPackage{
+			&gnovm.MemPackage{
 				Name: "hello",
 				Path: "gno.land/p/demo/hello",
-				Files: []*std.MemFile{
+				Files: []*gnovm.MemFile{
 					{
 						Name: "hello.gno",
 						Body: `
 							package hello
 							import "std"
-							func Hello() std.Address { return "hello" }`,
+							func Hello() gnovm.Address { return "hello" }`,
 					},
 				},
 			},
 			mockPackageGetter{
-				&std.MemPackage{
+				&gnovm.MemPackage{
 					Name: "a_completely_different_identifier",
 					Path: "std",
-					Files: []*std.MemFile{
+					Files: []*gnovm.MemFile{
 						{
-							Name: "std.gno",
+							Name: "gnovm.gno",
 							Body: `
 								package a_completely_different_identifier
 								type Address string`,
@@ -263,25 +263,25 @@ func TestTypeCheckMemPackage(t *testing.T) {
 
 	cacheMpg := mockPackageGetterCounts{
 		mockPackageGetter{
-			&std.MemPackage{
+			&gnovm.MemPackage{
 				Name: "bye",
 				Path: "bye",
-				Files: []*std.MemFile{
+				Files: []*gnovm.MemFile{
 					{
 						Name: "bye.gno",
 						Body: `
 							package bye
 							import "std"
-							func Bye() std.Address { return "bye" }`,
+							func Bye() gnovm.Address { return "bye" }`,
 					},
 				},
 			},
-			&std.MemPackage{
+			&gnovm.MemPackage{
 				Name: "std",
 				Path: "std",
-				Files: []*std.MemFile{
+				Files: []*gnovm.MemFile{
 					{
-						Name: "std.gno",
+						Name: "gnovm.gno",
 						Body: `
 							package std
 							type Address string`,
@@ -295,10 +295,10 @@ func TestTypeCheckMemPackage(t *testing.T) {
 	tt = append(tt, testCase{
 		"ImportWithCache",
 		// This test will make use of the importer's internal cache for package `std`.
-		&std.MemPackage{
+		&gnovm.MemPackage{
 			Name: "hello",
 			Path: "gno.land/p/demo/hello",
-			Files: []*std.MemFile{
+			Files: []*gnovm.MemFile{
 				{
 					Name: "hello.gno",
 					Body: `
@@ -307,7 +307,7 @@ func TestTypeCheckMemPackage(t *testing.T) {
 							"std"
 							"bye"
 						)
-						func Hello() std.Address { return bye.Bye() }`,
+						func Hello() gnovm.Address { return bye.Bye() }`,
 				},
 			},
 		},
@@ -347,10 +347,10 @@ func TestTypeCheckMemPackage_format(t *testing.T) {
 
 `
 
-	pkg := &std.MemPackage{
+	pkg := &gnovm.MemPackage{
 		Name: "hello",
 		Path: "gno.land/p/demo/hello",
-		Files: []*std.MemFile{
+		Files: []*gnovm.MemFile{
 			{
 				Name: "hello.gno",
 				Body: input,

@@ -4,7 +4,7 @@ import (
 	"testing"
 
 	"github.com/gnolang/gno/gno.land/pkg/gnoland/ugnot"
-	gnostd "github.com/gnolang/gno/gnovm/pkg/std"
+	"github.com/gnolang/gno/gnovm"
 	bft "github.com/gnolang/gno/tm2/pkg/bft/types"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
 	"github.com/gnolang/gno/tm2/pkg/sdk"
@@ -150,9 +150,9 @@ func setupAddPkg(success bool) (sdk.Context, sdk.Tx, vmHandler) {
 	env.acck.SetAccount(ctx, acc)
 	env.bank.SetCoins(ctx, addr, std.MustParseCoins(ugnot.ValueString(10000000)))
 	// success message
-	var files []*gnostd.MemFile
+	var files []*gnovm.MemFile
 	if success {
-		files = []*gnostd.MemFile{
+		files = []*gnovm.MemFile{
 			{
 				Name: "hello.gno",
 				Body: `package hello
@@ -164,7 +164,7 @@ func Echo() string {
 		}
 	} else {
 		// failed message
-		files = []*gnostd.MemFile{
+		files = []*gnovm.MemFile{
 			{
 				Name: "hello.gno",
 				Body: `package hello
