@@ -194,7 +194,7 @@ func (c *testCfg) RegisterFlags(fs *flag.FlagSet) {
 		"html",
 		"",
 		"output coverage report in HTML format",
-  )
+	)
 
 	fs.BoolVar(
 		&c.printEvents,
