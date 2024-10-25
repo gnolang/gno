@@ -577,6 +577,7 @@ func loadTestFuncs(pkgName string, t *testFuncs, tfiles *gno.FileSet) *testFuncs
 func parseMemPackageTests(memPkg *std.MemPackage) (tset, itset *gno.FileSet) {
 	tset = &gno.FileSet{}
 	itset = &gno.FileSet{}
+	var errs error
 	for _, mfile := range memPkg.Files {
 		if !strings.HasSuffix(mfile.Name, ".gno") {
 			continue // skip this file.
@@ -586,7 +587,8 @@ func parseMemPackageTests(memPkg *std.MemPackage) (tset, itset *gno.FileSet) {
 		}
 		n, err := gno.ParseFile(mfile.Name, mfile.Body)
 		if err != nil {
-			panic(err)
+			errs = multierr.Append(errs, err)
+			continue
 		}
 		if n == nil {
 			panic("should not happen")
@@ -605,6 +607,9 @@ func parseMemPackageTests(memPkg *std.MemPackage) (tset, itset *gno.FileSet) {
 				"expected package name [%s] or [%s_test] but got [%s] file [%s]",
 				memPkg.Name, memPkg.Name, n.PkgName, mfile))
 		}
+	}
+	if errs != nil {
+		panic(errs)
 	}
 	return tset, itset
 }

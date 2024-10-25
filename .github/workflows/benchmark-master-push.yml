@@ -4,6 +4,11 @@ on:
   push:
     branches:
       - master
+    paths:
+      - contribs/**
+      - gno.land/**
+      - gnovm/**
+      - tm2/**
 
 permissions:
   # deployments permission to deploy GitHub pages website

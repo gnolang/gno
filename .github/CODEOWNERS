@@ -51,7 +51,7 @@
 /gno.land/cmd/genesis/        @zivkovicmilos
 /gno.land/cmd/gnokey/         @jaekwon @moul @gfanton
 /gno.land/cmd/gnoland/        @zivkovicmilos @gnolang/devops
-/gno.land/cmd/gnoweb/         @gfanton @thehowl
+/gno.land/cmd/gnoweb/         @gfanton @thehowl @alexiscolin
 /gno.land/pkg/gnoclient/      @zivkovicmilos @leohhhn @gfanton
 /gno.land/pkg/gnoland/        @zivkovicmilos @gfanton
 /gno.land/pkg/keyscli/        @jaekwon @moul @gfanton
@@ -64,9 +64,9 @@
 # GnoVM/Gnolang.
 /gnovm/                       @jaekwon @moul @piux2 @thehowl
 /gnovm/stdlibs/               @thehowl
-/gnovm/tests/                 @jaekwon @deelawn @thehowl @mvertes
+/gnovm/tests/                 @jaekwon @thehowl @mvertes
 /gnovm/cmd/gno/               @moul @thehowl
-/gnovm/pkg/gnolang/           @jaekwon @moul @piux2 @deelawn
+/gnovm/pkg/gnolang/           @jaekwon @moul @piux2
 /gnovm/pkg/doc/               @thehowl
 /gnovm/pkg/repl/              @mvertes @ajnavarro
 /gnovm/pkg/gnomod/            @thehowl
