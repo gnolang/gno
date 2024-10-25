@@ -14,13 +14,16 @@
 // functionality for transaction links without the full feature set of helplink.
 package txlink
 
-import "strings"
+import (
+	"std"
+	"strings"
+)
 
 const chainDomain = "gno.land" // XXX: std.ChainDomain (#2911)
 
 // URL returns a URL for the specified function with optional key-value
 // arguments, for the current realm.
-func URL(title string, fn string, args ...string) string {
+func URL(fn string, args ...string) string {
 	return Realm("").URL(fn, args...)
 }
 
@@ -31,7 +34,8 @@ type Realm string
 func (r Realm) prefix() string {
 	// relative
 	if r == "" {
-		return ""
+		curPath := std.CurrentRealm().PkgPath()
+		return strings.TrimPrefix(curPath, chainDomain)
 	}
 
 	// local realm -> /realm
