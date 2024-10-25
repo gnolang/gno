@@ -279,20 +279,6 @@ func checkValDefineMismatch(n Node) {
 	panic(fmt.Sprintf("assignment mismatch: %d variable(s) but %d value(s)", numNames, numValues))
 }
 
-func assertValidAssignRhs(store Store, last BlockNode, exps Exprs) {
-	for _, exp := range exps {
-		switch n := exp.(type) {
-		case *CallExpr, *TypeAssertExpr, *IndexExpr:
-		default:
-			tt := evalStaticTypeOf(store, last, n)
-			if _, ok := tt.(*TypeType); ok {
-				tt = evalStaticType(store, last, n)
-				panic(fmt.Sprintf("%s (type) is not an expression", tt.String()))
-			}
-		}
-	}
-}
-
 // Assert that xt can be assigned as dt (dest type).
 // If autoNative is true, a broad range of xt can match against
 // a target native dt type, if and only if dt is a native type.
@@ -926,6 +912,20 @@ func assertValidAssignLhs(store Store, last BlockNode, lx Expr) {
 	}
 	if shouldPanic {
 		panic(fmt.Sprintf("cannot assign to %v", lx))
+	}
+}
+
+func assertValidAssignRhs(store Store, last BlockNode, exps Exprs) {
+	for _, exp := range exps {
+		switch n := exp.(type) {
+		case *CallExpr, *TypeAssertExpr, *IndexExpr:
+		default:
+			tt := evalStaticTypeOf(store, last, n)
+			if _, ok := tt.(*TypeType); ok {
+				tt = evalStaticType(store, last, n)
+				panic(fmt.Sprintf("%s (type) is not an expression", tt.String()))
+			}
+		}
 	}
 }
 
