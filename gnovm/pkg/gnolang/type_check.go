@@ -279,14 +279,16 @@ func checkValDefineMismatch(n Node) {
 	panic(fmt.Sprintf("assignment mismatch: %d variable(s) but %d value(s)", numNames, numValues))
 }
 
-func checkExprIsNotTypeDecl(store Store, last BlockNode, exp Expr) {
-	switch n := exp.(type) {
-	case *CallExpr, *TypeAssertExpr, *IndexExpr:
-	default:
-		tt := evalStaticTypeOf(store, last, n)
-		if _, ok := tt.(*TypeType); ok {
-			tt = evalStaticType(store, last, n)
-			panic(fmt.Sprintf("%s (type) is not an expression", tt.String()))
+func assertValidAssignRhs(store Store, last BlockNode, exps Exprs) {
+	for _, exp := range exps {
+		switch n := exp.(type) {
+		case *CallExpr, *TypeAssertExpr, *IndexExpr:
+		default:
+			tt := evalStaticTypeOf(store, last, n)
+			if _, ok := tt.(*TypeType); ok {
+				tt = evalStaticType(store, last, n)
+				panic(fmt.Sprintf("%s (type) is not an expression", tt.String()))
+			}
 		}
 	}
 }
@@ -786,6 +788,7 @@ func (x *RangeStmt) AssertCompatible(store Store, last BlockNode) {
 
 func (x *AssignStmt) AssertCompatible(store Store, last BlockNode) {
 	if x.Op == ASSIGN || x.Op == DEFINE {
+		assertValidAssignRhs(store, last, x.Rhs)
 		if len(x.Lhs) > len(x.Rhs) {
 			if len(x.Rhs) != 1 {
 				panic(fmt.Sprintf("assignment mismatch: %d variables but %d values", len(x.Lhs), len(x.Rhs)))
