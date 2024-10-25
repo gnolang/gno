@@ -359,7 +359,7 @@ func TestRunMultiple_Integration(t *testing.T) {
 	// Make Tx config
 	baseCfg := BaseTxCfg{
 		GasFee:         ugnot.ValueString(10000),
-		GasWanted:      8000000,
+		GasWanted:      13000000,
 		AccountNumber:  0,
 		SequenceNumber: 0,
 		Memo:           "",
@@ -556,7 +556,7 @@ func Echo(str string) string {
 	body2 := `package hello
 
 func Hello(str string) string {
-	return "Hello " + str + "!" 
+	return "Hello " + str + "!"
 }`
 
 	caller, err := client.Signer.Info()
