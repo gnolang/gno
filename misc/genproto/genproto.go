@@ -11,8 +11,8 @@ import (
 
 	// TODO: move these out.
 	"github.com/gnolang/gno/gno.land/pkg/sdk/vm"
+	"github.com/gnolang/gno/gnovm"
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
-	gnostd "github.com/gnolang/gno/gnovm/pkg/std"
 	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
 	"github.com/gnolang/gno/tm2/pkg/bft/blockchain"
 	"github.com/gnolang/gno/tm2/pkg/bft/consensus"
@@ -55,7 +55,7 @@ func execGen(_ context.Context, _ []string) error {
 		hd.Package,
 		multisig.Package,
 		std.Package,
-		gnostd.Package,
+		gnovm.Package,
 		sdk.Package,
 		bank.Package,
 		vm.Package,

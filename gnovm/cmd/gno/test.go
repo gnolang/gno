@@ -17,10 +17,10 @@ import (
 
 	"go.uber.org/multierr"
 
+	"github.com/gnolang/gno/gnovm"
 	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
 	"github.com/gnolang/gno/gnovm/pkg/gnomod"
-	"github.com/gnolang/gno/gnovm/pkg/std"
 	"github.com/gnolang/gno/gnovm/tests"
 	teststd "github.com/gnolang/gno/gnovm/tests/stdlibs/std"
 	"github.com/gnolang/gno/tm2/pkg/commands"
@@ -324,7 +324,7 @@ func gnoTestPkg(
 
 			m := tests.TestMachine(testStore, stdout, testPkgName)
 
-			memFiles := make([]*std.MemFile, 0, len(ifiles.FileNames())+1)
+			memFiles := make([]*gnovm.MemFile, 0, len(ifiles.FileNames())+1)
 			for _, f := range memPkg.Files {
 				for _, ifileName := range ifiles.FileNames() {
 					if f.Name == "gno.mod" || f.Name == ifileName {
@@ -599,7 +599,7 @@ func loadTestFuncs(pkgName string, t *testFuncs, tfiles *gno.FileSet) *testFuncs
 
 // parseMemPackageTests is copied from gno.ParseMemPackageTests
 // for except to _filetest.gno
-func parseMemPackageTests(memPkg *std.MemPackage) (tset, itset *gno.FileSet) {
+func parseMemPackageTests(memPkg *gnovm.MemPackage) (tset, itset *gno.FileSet) {
 	tset = &gno.FileSet{}
 	itset = &gno.FileSet{}
 	var errs error
