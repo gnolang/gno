@@ -1,4 +1,4 @@
-name: ensure go.mods are tidied
+name: Ensure go.mods are tidied
 
 on:
   push:
@@ -9,7 +9,7 @@ on:
 
 jobs:
   main:
-    name: Run go.mod tidy
+    name: Ensure go.mods are tidied
     runs-on: ubuntu-latest
     steps:
       - name: Install Go
@@ -20,7 +20,7 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Check generated files are up to date
+      - name: Check go.mod files are up to date
         working-directory: ${{ inputs.modulepath }}
         run: |
           make tidy VERIFY_GO_SUMS=true
