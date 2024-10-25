@@ -1,21 +1,26 @@
-/*
-Package helplink provides utilities for crafting help page links that work
-with Gnoweb, Gnobro, and other clients supporting the flavored markdown of
-Gno contracts.
-
-This package is designed to facilitate the creation of dynamic help links,
-making it easier for users to access relevant documentation within Gno's
-ecosystem.
-
-The top-level Func, FuncURL, and Home functions are for the "relative realm";
-specifying a custom Realm allows using a full realm path for the current one
-or another one.
-*/
+// Package helplink provides utilities for creating help page links compatible
+// with Gnoweb, Gnobro, and other clients that support the Gno contracts'
+// flavored Markdown format.
+//
+// This package simplifies the generation of dynamic, context-sensitive help
+// links, enabling users to navigate relevant documentation seamlessly within
+// the Gno ecosystem.
+//
+// For a more lightweight alternative, consider using p/moul/txlink.
+//
+// The primary functions — Func, FuncURL, and Home — are intended for use with
+// the "relative realm". When specifying a custom Realm, you can create links
+// that utilize either the current realm path or a fully qualified path to
+// another realm.
 package helplink
 
-import "strings"
+import (
+	"strings"
 
-const chainDomain = "gno.land" // XXX: std.ChainDomain
+	"gno.land/p/moul/txlink"
+)
+
+const chainDomain = "gno.land" // XXX: std.ChainDomain (#2911)
 
 // Func returns a markdown link for the specific function with optional
 // key-value arguments, for the current realm.
@@ -64,26 +69,8 @@ func (r Realm) Func(title string, fn string, args ...string) string {
 // FuncURL returns a URL for the specified function with optional key-value
 // arguments.
 func (r Realm) FuncURL(fn string, args ...string) string {
-	// Start with the base query
-	url := r.prefix() + "?help&__func=" + fn
-
-	// Check if args length is even
-	if len(args)%2 != 0 {
-		// If not even, we can choose to handle the error here.
-		// For example, we can just return the URL without appending
-		// more args.
-		return url
-	}
-
-	// Append key-value pairs to the URL
-	for i := 0; i < len(args); i += 2 {
-		key := args[i]
-		value := args[i+1]
-		// XXX: escape keys and args
-		url += "&" + key + "=" + value
-	}
-
-	return url
+	tlr := txlink.Realm(r)
+	return tlr.URL(fn, args...)
 }
 
 // Home returns the base help URL for the specified realm.
