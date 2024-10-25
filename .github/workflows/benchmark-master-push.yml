@@ -37,8 +37,8 @@ jobs:
         # add more benchmarks by adding additional lines for different packages;
         # or modify the -bench regexp.
         run: |
-          ( \
-            go test ./gnovm/pkg/gnolang -bench='BenchmarkBenchdata' -benchmem -run='^$' -v -cpu=1,2 ; \
+          set -xeuo pipefail && (
+            go test ./gnovm/pkg/gnolang -bench='BenchmarkBenchdata' -benchmem -run='^$' -v -cpu=1,2
           ) | tee benchmarks.txt
 
       - name: Download previous benchmark data
