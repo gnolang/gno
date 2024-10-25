@@ -217,7 +217,7 @@ func (t Time) Year() int {
 
 // Month returns the month of the year specified by t.
 func (t Time) Month() Month {
-	_, month, _, _ := t.date(false)
+	_, month, _, _ := t.date(true)
 	return month
 }
 
