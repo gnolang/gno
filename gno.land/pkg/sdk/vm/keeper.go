@@ -225,15 +225,19 @@ func (vm *VMKeeper) getGnoTransactionStore(ctx sdk.Context) gno.TransactionStore
 // Namespace can be either a user or crypto address.
 var reNamespace = regexp.MustCompile(`^gno.land/(?:r|p)/([\.~_a-zA-Z0-9]+)`)
 
-const (
-	sysUsersPkgParamKey = "vm/gno.land/r/sys/params.gnoland_sys_users_rlm.string"
-	sysUsersPkgDefault  = "gno.land/r/sys/users"
-)
-
 // checkNamespacePermission check if the user as given has correct permssion to on the given pkg path
 func (vm *VMKeeper) checkNamespacePermission(ctx sdk.Context, creator crypto.Address, pkgPath string) error {
-	sysUsersPkg := sysUsersPkgDefault
-	vm.prmk.GetString(ctx, sysUsersPkgParamKey, &sysUsersPkg)
+	var isEnabled bool
+	vm.prmk.GetBool(ctx, "vm/gno.land/r/sys/params.enable_namespaces.bool", &isEnabled)
+	if !isEnabled {
+		return nil
+	}
+
+	var sysUsersPkg string
+	vm.prmk.GetString(ctx, "vm/gno.land/r/sys/params.sys.users_pkgpath.string", &sysUsersPkg)
+	if sysUsersPkg == "" { // namespace support disabled
+		return nil
+	}
 
 	store := vm.getGnoTransactionStore(ctx)
 
