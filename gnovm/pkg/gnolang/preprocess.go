@@ -1975,12 +1975,19 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 					tvs := make([]TypedValue, numNames)
 
 					if numNames > len(n.Rhs) {
+						// Special cases:
 						// - `a, b, c T := f()`
 						// - `a, b := n.(T)`
 						// - `a, b := n[i], where n is a map`
-						parseTypesAndValues(sts, tvs, store, last, nameExprs, nil, n.Rhs[0])
+						specialParseTypeVals(sts, tvs, store, last, nameExprs, nil, n.Rhs[0])
 						defineOrDecl(sts, tvs, last, nameExprs, false)
 					} else {
+						// General case: a, b := x, y
+						var nType Expr = nil
+						var st Type
+						var valueExprs []*Expr
+						var isConst bool = true
+
 						// General case: a, b := x, y
 						for i, lx := range n.Lhs {
 							ln := lx.(*NameExpr).Name
@@ -2296,7 +2303,7 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 					// - `var a, b, c T = f()`
 					// - `var a, b = n.(T)`
 					// - `var a, b = n[i], where n is a map`
-					parseTypesAndValues(sts, tvs, store, last, nameExprs, n.Type, n.Values[0])
+					specialParseTypeVals(sts, tvs, store, last, nameExprs, n.Type, n.Values[0])
 				} else if len(n.Values) != 0 && numNames != len(n.Values) {
 					panic(fmt.Sprintf("assignment mismatch: %d variable(s) but %d value(s)", numNames, len(n.Values)))
 				} else { // general case
@@ -2308,57 +2315,8 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 							}
 						}
 					}
-					// evaluate types and convert consts.
-					if n.Type != nil {
-						// only a single type can be specified.
-						nt := evalStaticType(store, last, n.Type)
-						for i := 0; i < numNames; i++ {
-							sts[i] = nt
-						}
-						// convert if const to nt.
-						for i := range n.Values {
-							checkOrConvertType(store, last, &n.Values[i], nt, false)
-						}
-					} else if n.Const {
-						// derive static type from values.
-						for i, vx := range n.Values {
-							vt := evalStaticTypeOf(store, last, vx)
-							sts[i] = vt
-						}
-					} else { // T is nil, n not const
-						// convert n.Value to default type.
-						for i, vx := range n.Values {
-							if cx, ok := vx.(*ConstExpr); ok {
-								convertConst(store, last, cx, nil)
-								// convertIfConst(store, last, vx)
-							} else {
-								checkOrConvertType(store, last, &vx, nil, false)
-							}
-							vt := evalStaticTypeOf(store, last, vx)
-							sts[i] = vt
-						}
-					}
-					// evaluate typed value for static definition.
-					for i := range n.NameExprs {
-						// consider value if specified.
-						if len(n.Values) > 0 {
-							vx := n.Values[i]
-							if cx, ok := vx.(*ConstExpr); ok &&
-								!cx.TypedValue.IsUndefined() {
-								if n.Const {
-									// const _ = <const_expr>: static block should contain value
-									tvs[i] = cx.TypedValue
-								} else {
-									// var _ = <const_expr>: static block should NOT contain value
-									tvs[i] = anyValue(cx.TypedValue.T)
-								}
-								continue
-							}
-						}
-						// for var decls of non-const expr.
-						st := sts[i]
-						tvs[i] = anyValue(st)
-					}
+
+					generalParseTypeVals(sts, tvs, store, last, n.Const, n.NameExprs, n.Type, n.Values)
 				}
 
 				// define.
@@ -2459,6 +2417,72 @@ func defineOrDecl(
 	}
 }
 
+func generalParseTypeVals(
+	sts []Type,
+	tvs []TypedValue,
+	store Store,
+	bn BlockNode,
+	isConst bool,
+	nameExprs []NameExpr,
+	typeExpr Expr,
+	valueExprs []Expr,
+) {
+	numNames := len(nameExprs)
+
+	// evaluate types and convert consts.
+	if typeExpr != nil {
+		// only a single type can be specified.
+		nt := evalStaticType(store, bn, typeExpr)
+		for i := 0; i < numNames; i++ {
+			sts[i] = nt
+		}
+		// convert if const to nt.
+		for i := range valueExprs {
+			checkOrConvertType(store, bn, &valueExprs[i], nt, false)
+		}
+	} else if isConst {
+		// derive static type from values.
+		for i, vx := range valueExprs {
+			vt := evalStaticTypeOf(store, bn, vx)
+			sts[i] = vt
+		}
+	} else { // T is nil, n not const => same as AssignStmt DEFINE
+		// convert n.Value to default type.
+		for i, vx := range valueExprs {
+			if cx, ok := vx.(*ConstExpr); ok {
+				convertConst(store, bn, cx, nil)
+				// convertIfConst(store, last, vx)
+			} else {
+				checkOrConvertType(store, bn, &vx, nil, false)
+			}
+			vt := evalStaticTypeOf(store, bn, vx)
+			sts[i] = vt
+		}
+	}
+
+	// evaluate typed value for static definition.
+	for i := range nameExprs {
+		// consider value if specified.
+		if len(valueExprs) > 0 {
+			vx := valueExprs[i]
+			if cx, ok := vx.(*ConstExpr); ok &&
+				!cx.TypedValue.IsUndefined() {
+				if isConst {
+					// const _ = <const_expr>: static block should contain value
+					tvs[i] = cx.TypedValue
+				} else {
+					// var _ = <const_expr>: static block should NOT contain value
+					tvs[i] = anyValue(cx.TypedValue.T)
+				}
+				continue
+			}
+		}
+		// for var decls of non-const expr.
+		st := sts[i]
+		tvs[i] = anyValue(st)
+	}
+}
+
 // This func aims at syncing logic between op define (:=) and declare(var/const)
 // This will parse Type and TypedValue for these cases
 // Declare:
@@ -2470,7 +2494,7 @@ func defineOrDecl(
 // - `a, b, c T := f()`
 // - `a, b := n.(T)`
 // - `a, b := n[i], where n is a map`
-func parseTypesAndValues(
+func specialParseTypeVals(
 	sts []Type,
 	tvs []TypedValue,
 	store Store,
