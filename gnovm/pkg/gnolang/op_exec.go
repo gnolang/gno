@@ -171,8 +171,8 @@ func (m *Machine) doOpExec(op Op) {
 				case ASSIGN:
 					m.PopAsPointer(bs.Key).Assign2(m.Alloc, m.Store, m.Realm, iv, false)
 				case DEFINE:
-					knxp := bs.Key.(*NameExpr).Path
-					ptr := m.LastBlock().GetPointerTo(m.Store, knxp)
+					knx := bs.Key.(*NameExpr)
+					ptr := m.LastBlock().GetPointerToMaybeHeapDefine(m.Store, knx)
 					ptr.TV.Assign(m.Alloc, iv, false)
 				default:
 					panic("should not happen")
@@ -186,8 +186,8 @@ func (m *Machine) doOpExec(op Op) {
 				case ASSIGN:
 					m.PopAsPointer(bs.Value).Assign2(m.Alloc, m.Store, m.Realm, ev, false)
 				case DEFINE:
-					vnxp := bs.Value.(*NameExpr).Path
-					ptr := m.LastBlock().GetPointerTo(m.Store, vnxp)
+					vnx := bs.Value.(*NameExpr)
+					ptr := m.LastBlock().GetPointerToMaybeHeapDefine(m.Store, vnx)
 					ptr.TV.Assign(m.Alloc, ev, false)
 				default:
 					panic("should not happen")
@@ -267,8 +267,8 @@ func (m *Machine) doOpExec(op Op) {
 				case ASSIGN:
 					m.PopAsPointer(bs.Key).Assign2(m.Alloc, m.Store, m.Realm, iv, false)
 				case DEFINE:
-					knxp := bs.Key.(*NameExpr).Path
-					ptr := m.LastBlock().GetPointerTo(m.Store, knxp)
+					knx := bs.Key.(*NameExpr)
+					ptr := m.LastBlock().GetPointerToMaybeHeapDefine(m.Store, knx)
 					ptr.TV.Assign(m.Alloc, iv, false)
 				default:
 					panic("should not happen")
@@ -280,8 +280,8 @@ func (m *Machine) doOpExec(op Op) {
 				case ASSIGN:
 					m.PopAsPointer(bs.Value).Assign2(m.Alloc, m.Store, m.Realm, ev, false)
 				case DEFINE:
-					vnxp := bs.Value.(*NameExpr).Path
-					ptr := m.LastBlock().GetPointerTo(m.Store, vnxp)
+					vnx := bs.Value.(*NameExpr)
+					ptr := m.LastBlock().GetPointerToMaybeHeapDefine(m.Store, vnx)
 					ptr.TV.Assign(m.Alloc, ev, false)
 				default:
 					panic("should not happen")
@@ -360,8 +360,8 @@ func (m *Machine) doOpExec(op Op) {
 				case ASSIGN:
 					m.PopAsPointer(bs.Key).Assign2(m.Alloc, m.Store, m.Realm, kv, false)
 				case DEFINE:
-					knxp := bs.Key.(*NameExpr).Path
-					ptr := m.LastBlock().GetPointerTo(m.Store, knxp)
+					knx := bs.Key.(*NameExpr)
+					ptr := m.LastBlock().GetPointerToMaybeHeapDefine(m.Store, knx)
 					ptr.TV.Assign(m.Alloc, kv, false)
 				default:
 					panic("should not happen")
@@ -373,8 +373,8 @@ func (m *Machine) doOpExec(op Op) {
 				case ASSIGN:
 					m.PopAsPointer(bs.Value).Assign2(m.Alloc, m.Store, m.Realm, vv, false)
 				case DEFINE:
-					vnxp := bs.Value.(*NameExpr).Path
-					ptr := m.LastBlock().GetPointerTo(m.Store, vnxp)
+					vnx := bs.Value.(*NameExpr)
+					ptr := m.LastBlock().GetPointerToMaybeHeapDefine(m.Store, vnx)
 					ptr.TV.Assign(m.Alloc, vv, false)
 				default:
 					panic("should not happen")
@@ -884,6 +884,8 @@ func (m *Machine) doOpTypeSwitch() {
 					// NOTE: assumes the var is first in block.
 					vp := NewValuePath(
 						VPBlock, 1, 0, ss.VarName)
+					// NOTE: GetPointerToMaybeHeapDefine not needed,
+					// because this type is in new type switch clause block.
 					ptr := b.GetPointerTo(m.Store, vp)
 					ptr.TV.Assign(m.Alloc, *xv, false)
 				}
