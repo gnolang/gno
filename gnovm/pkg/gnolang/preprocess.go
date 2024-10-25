@@ -2535,7 +2535,6 @@ func specialParseTypeVals(
 		st = evalStaticType(store, bn, typeExpr)
 	}
 
-	// TODO check tt and nt compat.
 	for i := 0; i < numNames; i++ {
 		if st != nil {
 			// TODO check tt and nt compat.
@@ -2547,8 +2546,6 @@ func specialParseTypeVals(
 
 		tvs[i] = anyValue(sts[i])
 	}
-
-	// fmt.Printf("%v - %v", sts, tvs)
 
 	return sts, tvs
 }
