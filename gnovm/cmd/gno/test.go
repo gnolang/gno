@@ -7,6 +7,7 @@ import (
 	"flag"
 	"fmt"
 	"log"
+	"math"
 	"os"
 	"path/filepath"
 	"runtime/debug"
@@ -290,7 +291,7 @@ func gnoTestPkg(
 			if printRuntimeMetrics {
 				// from tm2/pkg/sdk/vm/keeper.go
 				// XXX: make maxAllocTx configurable.
-				maxAllocTx := int64(500 * 1000 * 1000)
+				maxAllocTx := int64(math.MaxInt64)
 
 				m.Alloc = gno.NewAllocator(maxAllocTx)
 			}
