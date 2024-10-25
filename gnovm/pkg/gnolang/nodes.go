@@ -14,7 +14,6 @@ import (
 
 	gnostd "github.com/gnolang/gno/gnovm/pkg/std"
 	"github.com/gnolang/gno/tm2/pkg/errors"
-	"github.com/gnolang/gno/tm2/pkg/std"
 	"go.uber.org/multierr"
 )
 
@@ -1230,7 +1229,7 @@ func ReadMemPackageFromList(list []string, pkgPath string) *gnostd.MemPackage {
 //
 // If one of the files has a different package name than memPkg.Name,
 // or [ParseFile] returns an error, ParseMemPackage panics.
-func ParseMemPackage(memPkg *std.MemPackage) (fset *FileSet) {
+func ParseMemPackage(memPkg *gnostd.MemPackage) (fset *FileSet) {
 	fset = &FileSet{}
 	var errs error
 	for _, mfile := range memPkg.Files {
@@ -1257,7 +1256,7 @@ func ParseMemPackage(memPkg *std.MemPackage) (fset *FileSet) {
 	return fset
 }
 
-func ParseMemPackageTests(memPkg *std.MemPackage) (tset, itset *FileSet) {
+func ParseMemPackageTests(memPkg *gnostd.MemPackage) (tset, itset *FileSet) {
 	tset = &FileSet{}
 	itset = &FileSet{}
 	for _, mfile := range memPkg.Files {
