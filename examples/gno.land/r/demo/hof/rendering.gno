@@ -17,7 +17,13 @@ const (
 func Render(path string) string {
 	out := "# Hall of Fame\n\n"
 
-	out += exhibition.Render(path, path == "dashboard")
+	dashboardEnabled := path == "dashboard"
+
+	if dashboardEnabled {
+		out += renderDashboard()
+	}
+
+	out += exhibition.Render(path, dashboardEnabled)
 
 	return out
 }
@@ -55,7 +61,7 @@ func (i Item) Render(dashboard bool) string {
 	out := ufmt.Sprintf("\n```\n%s\n```\n\n", i.pkgpath)
 	out += ufmt.Sprintf("by %s\n\n", strings.Split(i.pkgpath, "/")[2])
 	out += ufmt.Sprintf("[View realm](%s)\n\n", fqname.ShortPath(i.pkgpath))
-	out += ufmt.Sprintf("Published at Block #%d\n\n", i.blockNum)
+	out += ufmt.Sprintf("Submitted at Block #%d\n\n", i.blockNum)
 
 	out += ufmt.Sprintf("#### [%d👍](%s) - [%d👎](%s)\n\n",
 		i.upvote.Size(), txlink.URL("Upvote", "pkgpath", i.pkgpath),
@@ -63,8 +69,26 @@ func (i Item) Render(dashboard bool) string {
 	)
 
 	if dashboard {
-		out += ufmt.Sprintf("[Delete](%s)", txlink.URL("Delete", "pkgpath", i.pkgpath)
+		out += ufmt.Sprintf("[Delete](%s)", txlink.URL("Delete", "pkgpath", i.pkgpath))
 	}
+
+	return out
+}
+
+func renderDashboard() string {
+	out := "---\n\n"
+	out += "## Dashboard\n\n"
+	out += ufmt.Sprintf("Total submissions: %d\n\n", exhibition.items.Size())
+
+	out += ufmt.Sprintf("Exhibition admin: %s\n\n", owner.Owner().String())
+
+	if !exhibition.IsPaused() {
+		out += ufmt.Sprintf("[Pause exhibition](%s)\n\n", txlink.URL("Pause"))
+	} else {
+		out += ufmt.Sprintf("[Unpause exhibition](%s)\n\n", txlink.URL("Unpause"))
+	}
+
+	out += "---\n\n"
 
 	return out
 }

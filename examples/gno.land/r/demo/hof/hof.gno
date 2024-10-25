@@ -55,11 +55,12 @@ func Register() {
 	submission := std.PrevRealm()
 	pkgpath := submission.PkgPath()
 
-	// Must not yet exist and must be called from code
+	// Must be called from code
 	if submission.IsUser() {
 		return
 	}
 
+	// Must not yet exist
 	if exhibition.items.Has(pkgpath) {
 		return
 	}
