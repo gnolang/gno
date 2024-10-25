@@ -9,7 +9,7 @@ import (
 
 func TestReadOnlyPublicMethods(t *testing.T) {
 	admin := std.Address("g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj")
-	manfred := std.Address("g1u7y667z64x2h7vc6fmpcprgey4ck233jaww9zq")
+	manfred := std.Address("g1manfred47kzduec920z88wfr64ylksmdcedlf5")
 	unknown := std.Address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5") // valid but never used.
 	NewWithAdmin("Foo", "FOO", 4, 10_000*1_000_000, 0, admin)
 	NewWithAdmin("Bar", "BAR", 4, 10_000*1_000, 0, admin)

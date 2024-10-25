@@ -15,7 +15,7 @@ import (
 // State
 
 var (
-	admin std.Address = "g1u7y667z64x2h7vc6fmpcprgey4ck233jaww9zq" // @moul
+	admin std.Address = "g1manfred47kzduec920z88wfr64ylksmdcedlf5" // @moul
 
 	restricted avl.Tree                  // Name -> true - restricted name
 	name2User  avl.Tree                  // Name -> *users.User
