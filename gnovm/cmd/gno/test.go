@@ -21,6 +21,7 @@ import (
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
 	"github.com/gnolang/gno/gnovm/pkg/gnomod"
 	"github.com/gnolang/gno/gnovm/tests"
+	teststd "github.com/gnolang/gno/gnovm/tests/stdlibs/std"
 	"github.com/gnolang/gno/tm2/pkg/commands"
 	"github.com/gnolang/gno/tm2/pkg/errors"
 	"github.com/gnolang/gno/tm2/pkg/random"
@@ -35,6 +36,7 @@ type testCfg struct {
 	timeout             time.Duration
 	updateGoldenTests   bool
 	printRuntimeMetrics bool
+	printEvents         bool
 	withNativeFallback  bool
 }
 
@@ -149,6 +151,13 @@ func (c *testCfg) RegisterFlags(fs *flag.FlagSet) {
 		false,
 		"print runtime metrics (gas, memory, cpu cycles)",
 	)
+
+	fs.BoolVar(
+		&c.printEvents,
+		"print-events",
+		false,
+		"print emitted events",
+	)
 }
 
 func execTest(cfg *testCfg, args []string, io commands.IO) error {
@@ -228,6 +237,7 @@ func gnoTestPkg(
 		rootDir             = cfg.rootDir
 		runFlag             = cfg.run
 		printRuntimeMetrics = cfg.printRuntimeMetrics
+		printEvents         = cfg.printEvents
 
 		stdin  = io.In()
 		stdout = io.Out()
@@ -295,7 +305,7 @@ func gnoTestPkg(
 				m.Alloc = gno.NewAllocator(maxAllocTx)
 			}
 			m.RunMemPackage(memPkg, true)
-			err := runTestFiles(m, tfiles, memPkg.Name, verbose, printRuntimeMetrics, runFlag, io)
+			err := runTestFiles(m, tfiles, memPkg.Name, verbose, printRuntimeMetrics, printEvents, runFlag, io)
 			if err != nil {
 				errs = multierr.Append(errs, err)
 			}
@@ -329,7 +339,7 @@ func gnoTestPkg(
 			memPkg.Path = memPkg.Path + "_test"
 			m.RunMemPackage(memPkg, true)
 
-			err := runTestFiles(m, ifiles, testPkgName, verbose, printRuntimeMetrics, runFlag, io)
+			err := runTestFiles(m, ifiles, testPkgName, verbose, printRuntimeMetrics, printEvents, runFlag, io)
 			if err != nil {
 				errs = multierr.Append(errs, err)
 			}
@@ -419,6 +429,7 @@ func runTestFiles(
 	pkgName string,
 	verbose bool,
 	printRuntimeMetrics bool,
+	printEvents bool,
 	runFlag string,
 	io commands.IO,
 ) (errs error) {
@@ -448,9 +459,23 @@ func runTestFiles(
 	m.RunFiles(n)
 
 	for _, test := range testFuncs.Tests {
+		// cleanup machine between tests
+		tests.CleanupMachine(m)
+
 		testFuncStr := fmt.Sprintf("%q", test.Name)
 
 		eval := m.Eval(gno.Call("runtest", testFuncStr))
+
+		if printEvents {
+			events := m.Context.(*teststd.TestExecContext).EventLogger.Events()
+			if events != nil {
+				res, err := json.Marshal(events)
+				if err != nil {
+					panic(err)
+				}
+				io.ErrPrintfln("EVENTS: %s", string(res))
+			}
+		}
 
 		ret := eval[0].GetString()
 		if ret == "" {
@@ -577,6 +602,7 @@ func loadTestFuncs(pkgName string, t *testFuncs, tfiles *gno.FileSet) *testFuncs
 func parseMemPackageTests(memPkg *std.MemPackage) (tset, itset *gno.FileSet) {
 	tset = &gno.FileSet{}
 	itset = &gno.FileSet{}
+	var errs error
 	for _, mfile := range memPkg.Files {
 		if !strings.HasSuffix(mfile.Name, ".gno") {
 			continue // skip this file.
@@ -586,7 +612,8 @@ func parseMemPackageTests(memPkg *std.MemPackage) (tset, itset *gno.FileSet) {
 		}
 		n, err := gno.ParseFile(mfile.Name, mfile.Body)
 		if err != nil {
-			panic(err)
+			errs = multierr.Append(errs, err)
+			continue
 		}
 		if n == nil {
 			panic("should not happen")
@@ -605,6 +632,9 @@ func parseMemPackageTests(memPkg *std.MemPackage) (tset, itset *gno.FileSet) {
 				"expected package name [%s] or [%s_test] but got [%s] file [%s]",
 				memPkg.Name, memPkg.Name, n.PkgName, mfile))
 		}
+	}
+	if errs != nil {
+		panic(errs)
 	}
 	return tset, itset
 }

@@ -1,4 +1,9 @@
-package main
+// Empty line between the directives is important for them to be parsed
+// independently. :facepalm:
+
+// PKGPATH: gno.land/r/demo/bank1
+
+package bank1
 
 import (
 	"std"

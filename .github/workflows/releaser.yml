@@ -23,8 +23,8 @@ jobs:
           go-version: "1.22.x"
           cache: true
 
-      - uses: sigstore/cosign-installer@v3.6.0
-      - uses: anchore/sbom-action/download-syft@v0.17.2
+      - uses: sigstore/cosign-installer@v3.7.0
+      - uses: anchore/sbom-action/download-syft@v0.17.5
 
       - uses: docker/login-action@v3
         with:
@@ -34,7 +34,7 @@ jobs:
 
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3
-        
+
       - uses: goreleaser/goreleaser-action@v6
         with:
           distribution: goreleaser-pro
