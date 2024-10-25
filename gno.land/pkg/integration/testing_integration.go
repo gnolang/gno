@@ -197,6 +197,7 @@ func setupGnolandTestScript(t *testing.T, txtarDir string) testscript.Params {
 					cfg := TestingMinimalNodeConfig(t, gnoRootDir)
 					genesis := ts.Value(envKeyGenesis).(*gnoland.GnoGenesisState)
 					genesis.Txs = append(pkgsTxs, genesis.Txs...)
+					fmt.Printf("\n9999999999: %v\n", genesis.Params)
 
 					// setup genesis state
 					cfg.Genesis.AppState = *genesis

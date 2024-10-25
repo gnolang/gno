@@ -120,10 +120,11 @@ func DefaultTestingGenesisConfig(t TestingTS, gnoroot string, self crypto.PubKey
 			Balances: []gnoland.Balance{
 				{
 					Address: crypto.MustAddressFromString(DefaultAccount_Address),
-					Amount:  std.MustParseCoins(ugnot.ValueString(10000000000000)),
+					Amount:  std.MustParseCoins(ugnot.ValueString(10_000_000_000_000)),
 				},
 			},
-			Txs: []std.Tx{},
+			Txs:    []std.Tx{},
+			Params: []gnoland.Param{},
 		},
 	}
 }
