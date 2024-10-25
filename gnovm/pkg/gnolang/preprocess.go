@@ -1965,47 +1965,15 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 						convertIfConst(store, last, rx)
 					}
 
-					nameExprs := make([]*NameExpr, len(n.Lhs))
-					for i := range n.Lhs {
-						nameExprs[i] = n.Lhs[i].(*NameExpr)
-					}
+					numNames := len(n.Lhs)
+					sts, tvs, nameExprs := prepareTypeVals(n, numNames)
 
-					numNames := len(nameExprs)
-					sts := make([]Type, numNames) // static types
-					tvs := make([]TypedValue, numNames)
-
-					if numNames > len(n.Rhs) {
-						// Special cases:
-						// - `a, b, c T := f()`
-						// - `a, b := n.(T)`
-						// - `a, b := n[i], where n is a map`
+					if numNames > len(n.Rhs) { // Special cases
 						specialParseTypeVals(sts, tvs, store, last, nameExprs, nil, n.Rhs[0])
-						defineOrDecl(sts, tvs, last, nameExprs, false)
-					} else {
-						// General case: a, b := x, y
-						var nType Expr = nil
-						var st Type
-						var valueExprs []*Expr
-						var isConst bool = true
-
-						// General case: a, b := x, y
-						for i, lx := range n.Lhs {
-							ln := lx.(*NameExpr).Name
-							rx := n.Rhs[i]
-							rt := evalStaticTypeOf(store, last, rx)
-							// re-definition
-							if rt == nil {
-								// e.g. (interface{})(nil), becomes ConstExpr(undefined).
-								// last.Define(ln, undefined) complains, since redefinition.
-							} else {
-								last.Define(ln, anyValue(rt))
-							}
-							// if rhs is untyped
-							if isUntyped(rt) {
-								checkOrConvertType(store, last, &n.Rhs[i], nil, false)
-							}
-						}
+					} else { // General case
+						generalParseTypeVals(sts, tvs, store, last, false, nameExprs, nil, n.Rhs)
 					}
+					defineOrDecl(sts, tvs, last, nameExprs, false)
 				} else { // ASSIGN, or assignment operation (+=, -=, <<=, etc.)
 					// NOTE: Keep in sync with DEFINE above.
 					if len(n.Lhs) > len(n.Rhs) {
@@ -2290,19 +2258,10 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 					// runDeclaration(), as this uses OpStaticTypeOf.
 				}
 
-				nameExprs := make([]*NameExpr, len(n.NameExprs))
-				for i := range n.NameExprs {
-					nameExprs[i] = &n.NameExprs[i]
-				}
+				numNames := len(n.NameExprs)
+				sts, tvs, nameExprs := prepareTypeVals(n, numNames)
 
-				numNames := len(nameExprs)
-				sts := make([]Type, numNames) // static types
-				tvs := make([]TypedValue, numNames)
-
-				if numNames > 1 && len(n.Values) == 1 {
-					// - `var a, b, c T = f()`
-					// - `var a, b = n.(T)`
-					// - `var a, b = n[i], where n is a map`
+				if numNames > 1 && len(n.Values) == 1 { // special cases
 					specialParseTypeVals(sts, tvs, store, last, nameExprs, n.Type, n.Values[0])
 				} else if len(n.Values) != 0 && numNames != len(n.Values) {
 					panic(fmt.Sprintf("assignment mismatch: %d variable(s) but %d value(s)", numNames, len(n.Values)))
@@ -2319,7 +2278,6 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 					generalParseTypeVals(sts, tvs, store, last, n.Const, n.NameExprs, n.Type, n.Values)
 				}
 
-				// define.
 				defineOrDecl(sts, tvs, last, nameExprs, n.Const)
 
 				// TODO make note of constance in static block for
@@ -2398,7 +2356,7 @@ func defineOrDecl(
 	sts []Type,
 	tvs []TypedValue,
 	bn BlockNode,
-	nameExprs []*NameExpr,
+	nameExprs []NameExpr,
 	isConst bool,
 ) {
 	node := bn
@@ -2417,6 +2375,31 @@ func defineOrDecl(
 	}
 }
 
+// Generate the placeholders for types, typeValues, nameExprs for all vars
+func prepareTypeVals(n Node, numNames int) ([]Type, []TypedValue, NameExprs) {
+	if numNames == 0 {
+		panic("cannot assign to 0 name")
+	}
+
+	nameExprs := make(NameExprs, numNames)
+
+	switch n := n.(type) {
+	case *AssignStmt:
+		for i := range numNames {
+			nameExprs[i] = *n.Lhs[i].(*NameExpr)
+		}
+	case *ValueDecl:
+		nameExprs = n.NameExprs
+	}
+
+	sts := make([]Type, numNames) // static types
+	tvs := make([]TypedValue, numNames)
+
+	return sts, tvs, nameExprs
+}
+
+// This func aims at syncing logic between op define (:=) and declare(var/const)
+// for general cases (not handled by specialParseTypeVals)
 func generalParseTypeVals(
 	sts []Type,
 	tvs []TypedValue,
@@ -2484,12 +2467,11 @@ func generalParseTypeVals(
 }
 
 // This func aims at syncing logic between op define (:=) and declare(var/const)
-// This will parse Type and TypedValue for these cases
+// for special cases where rhs is single and lhs is single/multi
 // Declare:
 // - `var a, b, c T = f()`
 // - `var a, b = n.(T)`
 // - `var a, b = n[i], where n is a map`
-//
 // Assign
 // - `a, b, c T := f()`
 // - `a, b := n.(T)`
@@ -2499,7 +2481,7 @@ func specialParseTypeVals(
 	tvs []TypedValue,
 	store Store,
 	bn BlockNode,
-	nameExprs []*NameExpr,
+	nameExprs []NameExpr,
 	typeExpr Expr,
 	valueExpr Expr,
 ) ([]Type, []TypedValue) {
