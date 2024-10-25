@@ -229,18 +229,19 @@ type mockNode struct {
 	column int
 }
 
-func (m *mockNode) assertNode()                               {}
-func (m *mockNode) String() string                            { return "" }
-func (m *mockNode) Copy() Node                                { return &mockNode{} }
-func (m *mockNode) GetLabel() Name                            { return "mockNode" }
-func (m *mockNode) SetLabel(n Name)                           {}
-func (m *mockNode) HasAttribute(n interface{}) bool           { return false }
-func (m *mockNode) GetAttribute(n interface{}) interface{}    { return nil }
-func (m *mockNode) SetAttribute(n interface{}, v interface{}) {}
-func (m *mockNode) GetLine() int                              { return m.line }
-func (m *mockNode) SetLine(l int)                             {}
-func (m *mockNode) GetColumn() int                            { return m.column }
-func (m *mockNode) SetColumn(c int)                           {}
+func (m *mockNode) assertNode()                                      {}
+func (m *mockNode) String() string                                   { return "" }
+func (m *mockNode) Copy() Node                                       { return &mockNode{} }
+func (m *mockNode) GetLabel() Name                                   { return "mockNode" }
+func (m *mockNode) SetLabel(n Name)                                  {}
+func (m *mockNode) GetLine() int                                     { return m.line }
+func (m *mockNode) SetLine(l int)                                    {}
+func (m *mockNode) GetColumn() int                                   { return m.column }
+func (m *mockNode) SetColumn(c int)                                  {}
+func (m *mockNode) DelAttribute(key GnoAttribute)                    {}
+func (m *mockNode) GetAttribute(key GnoAttribute) interface{}        { return nil }
+func (m *mockNode) HasAttribute(key GnoAttribute) bool               { return false }
+func (m *mockNode) SetAttribute(key GnoAttribute, value interface{}) {}
 
 var _ Node = &mockNode{}
 
