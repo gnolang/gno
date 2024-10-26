@@ -9,7 +9,8 @@ import (
 	"time"
 
 	"github.com/gnolang/gno/gno.land/pkg/sdk/vm"
-	gnostd "github.com/gnolang/gno/gnovm/stdlibs/std"
+	"github.com/gnolang/gno/gnovm"
+	gnostdlibs "github.com/gnolang/gno/gnovm/stdlibs/std"
 	"github.com/gnolang/gno/tm2/pkg/amino"
 	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
 	bft "github.com/gnolang/gno/tm2/pkg/bft/types"
@@ -53,7 +54,7 @@ func TestNewAppWithOptions(t *testing.T) {
 			},
 			Txs: []std.Tx{
 				{
-					Msgs: []std.Msg{vm.NewMsgAddPackage(addr, "gno.land/r/demo", []*std.MemFile{
+					Msgs: []std.Msg{vm.NewMsgAddPackage(addr, "gno.land/r/demo", []*gnovm.MemFile{
 						{
 							Name: "demo.gno",
 							Body: "package demo; func Hello() string { return `hello`; }",
@@ -487,7 +488,7 @@ func TestEndBlocker(t *testing.T) {
 		c := newCollector[validatorUpdate](mockEventSwitch, noFilter)
 
 		// Fire a GnoVM event
-		mockEventSwitch.FireEvent(gnostd.GnoEvent{})
+		mockEventSwitch.FireEvent(gnostdlibs.GnoEvent{})
 
 		// Create the EndBlocker
 		eb := EndBlocker(c, mockVMKeeper, &mockEndBlockerApp{})
@@ -530,7 +531,7 @@ func TestEndBlocker(t *testing.T) {
 		c := newCollector[validatorUpdate](mockEventSwitch, noFilter)
 
 		// Fire a GnoVM event
-		mockEventSwitch.FireEvent(gnostd.GnoEvent{})
+		mockEventSwitch.FireEvent(gnostdlibs.GnoEvent{})
 
 		// Create the EndBlocker
 		eb := EndBlocker(c, mockVMKeeper, &mockEndBlockerApp{})
@@ -569,7 +570,7 @@ func TestEndBlocker(t *testing.T) {
 		// Construct the GnoVM events
 		vmEvents := make([]abci.Event, 0, len(changes))
 		for index := range changes {
-			event := gnostd.GnoEvent{
+			event := gnostdlibs.GnoEvent{
 				Type:    validatorAddedEvent,
 				PkgPath: valRealm,
 			}
@@ -578,7 +579,7 @@ func TestEndBlocker(t *testing.T) {
 			if index%2 == 0 {
 				changes[index].Power = 0
 
-				event = gnostd.GnoEvent{
+				event = gnostdlibs.GnoEvent{
 					Type:    validatorRemovedEvent,
 					PkgPath: valRealm,
 				}

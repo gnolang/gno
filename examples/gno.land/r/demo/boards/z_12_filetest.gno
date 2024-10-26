@@ -30,7 +30,7 @@ func main() {
 
 // Output:
 // 1
-// \[[post](/r/demo/boards?help&__func=CreateThread&bid=2&body.type=textarea)]
+// \[[post](/r/demo/boards?help&__func=CreateThread&bid=2)]
 //
 // ----------------------------------------
 // Repost: Check this out
