@@ -734,12 +734,8 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 			// TRANS_BLOCK -----------------------
 			case *FuncDecl:
 				// retrieve cached function type.
+				// the type and receiver are already set in predefineNow.
 				ft := getType(&n.Type).(*FuncType)
-				if n.IsMethod {
-					// recv/type set @ predefineNow().
-				} else {
-					// type set @ predefineNow().
-				}
 
 				// push func body block.
 				pushInitBlock(n, &last, &stack)
