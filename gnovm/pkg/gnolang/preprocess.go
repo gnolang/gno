@@ -2373,8 +2373,8 @@ func defineOrDecl(
 
 // Generate the placeholders for types, typeValues, nameExprs for all vars
 func prepareTypeVals(n Node, numNames int) ([]Type, []TypedValue, NameExprs) {
-	if numNames == 0 {
-		panic("cannot assign to 0 name")
+	if numNames < 1 {
+		panic("must have at least one name to assign")
 	}
 
 	nameExprs := make(NameExprs, numNames)
