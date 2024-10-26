@@ -330,10 +330,10 @@ func TestInitChainer_MetadataTxs(t *testing.T) {
 			// Prepare the deploy transaction
 			msg := vm.MsgAddPackage{
 				Creator: key.PubKey().Address(),
-				Package: &std.MemPackage{
+				Package: &gnovm.MemPackage{
 					Name: "metadatatx",
 					Path: path,
-					Files: []*std.MemFile{
+					Files: []*gnovm.MemFile{
 						{
 							Name: "file.gno",
 							Body: body,
