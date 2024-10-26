@@ -261,7 +261,7 @@ func TestInitChainer_MetadataTxs(t *testing.T) {
 		getMetadataState = func(tx std.Tx, balances []Balance) GnoGenesis {
 			return MetadataGenesisState{
 				// Set the package deployment as the genesis tx
-				Txs: []MetadataTx{
+				Txs: []TxWithMetadata{
 					{
 						GenesisTx: tx,
 						TxMetadata: GnoTxMetadata{

@@ -74,20 +74,20 @@ func (g gnoGenesisTx) Metadata() *GnoTxMetadata {
 }
 
 type MetadataGenesisState struct {
-	Balances []Balance    `json:"balances"`
-	Txs      []MetadataTx `json:"txs"`
+	Balances []Balance        `json:"balances"`
+	Txs      []TxWithMetadata `json:"txs"`
 }
 
-type MetadataTx struct {
+type TxWithMetadata struct {
 	GenesisTx  std.Tx        `json:"tx"`
 	TxMetadata GnoTxMetadata `json:"metadata"`
 }
 
-func (m MetadataTx) Tx() std.Tx {
+func (m TxWithMetadata) Tx() std.Tx {
 	return m.GenesisTx
 }
 
-func (m MetadataTx) Metadata() *GnoTxMetadata {
+func (m TxWithMetadata) Metadata() *GnoTxMetadata {
 	return &m.TxMetadata
 }
 
