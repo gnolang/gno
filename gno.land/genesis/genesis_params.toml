@@ -1,13 +1,13 @@
+
 ## gno.land
 ["gno.land/r/sys/params.sys"]
   users_pkgpath.string = "gno.land/r/sys/users" # if empty, no namespace support.
-  validators_pkgpath.string = "gno.land/r/sys/validators"
+  # TODO: validators_pkgpath.string = "gno.land/r/sys/validators"
   # TODO: rewards_pkgpath.string = "gno.land/r/sys/rewards"
   # TODO: token_lock.bool = true
 
 ## gnovm
 ["gno.land/r/sys/params.vm"]
-	max_alloc_tx.uint64 = 500_000_000
   # TODO: chain_domain.string = "gno.land"
   # TODO: max_gas.int64 = 100_000_000
   # TODO: chain_tz.string = "UTC"
