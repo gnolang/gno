@@ -17,7 +17,7 @@
 ["gno.land/r/sys/params.tm2"]
 
 ## misc
-["gno.land/r/sys/params.mix"]
+["gno.land/r/sys/params.misc"]
 
 ## testing
 # do not remove these lines. they are needed for a txtar integration test.
