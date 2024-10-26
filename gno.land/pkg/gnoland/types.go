@@ -37,7 +37,7 @@ type GenesisTx interface {
 
 	// Metadata returns the metadata tied
 	// to the tx, if any
-	Metadata() *GenesisTxMetadata
+	Metadata() *GnoTxMetadata
 }
 
 type GnoGenesisState struct {
@@ -69,7 +69,7 @@ func (g gnoGenesisTx) Tx() std.Tx {
 	return g.tx
 }
 
-func (g gnoGenesisTx) Metadata() *GenesisTxMetadata {
+func (g gnoGenesisTx) Metadata() *GnoTxMetadata {
 	return nil
 }
 
@@ -79,19 +79,19 @@ type MetadataGenesisState struct {
 }
 
 type MetadataTx struct {
-	GenesisTx  std.Tx            `json:"tx"`
-	TxMetadata GenesisTxMetadata `json:"metadata"`
+	GenesisTx  std.Tx        `json:"tx"`
+	TxMetadata GnoTxMetadata `json:"metadata"`
 }
 
 func (m MetadataTx) Tx() std.Tx {
 	return m.GenesisTx
 }
 
-func (m MetadataTx) Metadata() *GenesisTxMetadata {
+func (m MetadataTx) Metadata() *GnoTxMetadata {
 	return &m.TxMetadata
 }
 
-type GenesisTxMetadata struct {
+type GnoTxMetadata struct {
 	Timestamp int64 `json:"timestamp"`
 }
 

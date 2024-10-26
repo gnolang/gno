@@ -13,5 +13,5 @@ var Package = amino.RegisterPackage(amino.NewPackage(
 	GnoGenesisState{}, "GenesisState",
 	MetadataGenesisState{}, "MetadataGenesisState",
 	MetadataTx{}, "MetadataTx",
-	GenesisTxMetadata{}, "GenesisTxMetadata",
+	GnoTxMetadata{}, "GnoTxMetadata",
 ))

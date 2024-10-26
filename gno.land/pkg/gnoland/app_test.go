@@ -264,7 +264,7 @@ func TestInitChainer_MetadataTxs(t *testing.T) {
 				Txs: []MetadataTx{
 					{
 						GenesisTx: tx,
-						TxMetadata: GenesisTxMetadata{
+						TxMetadata: GnoTxMetadata{
 							Timestamp: laterTimestamp.Unix(),
 						},
 					},
