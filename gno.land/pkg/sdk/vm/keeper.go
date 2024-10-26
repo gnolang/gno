@@ -227,16 +227,9 @@ var reNamespace = regexp.MustCompile(`^gno.land/(?:r|p)/([\.~_a-zA-Z0-9]+)`)
 
 // checkNamespacePermission check if the user as given has correct permssion to on the given pkg path
 func (vm *VMKeeper) checkNamespacePermission(ctx sdk.Context, creator crypto.Address, pkgPath string) error {
-	var isEnabled bool
-
-	vm.prmk.GetBool(ctx, "gno.land/r/sys/params.sys.enable_namespaces.bool", &isEnabled)
-	if !isEnabled && false {
-		return nil
-	}
-
 	var sysUsersPkg string
 	vm.prmk.GetString(ctx, "gno.land/r/sys/params.sys.users_pkgpath.string", &sysUsersPkg)
-	if sysUsersPkg == "" { // namespace support disabled
+	if sysUsersPkg == "" {
 		return nil
 	}
 
