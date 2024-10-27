@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/gnolang/gno/gno.land/pkg/gnoland/ugnot"
+	"github.com/gnolang/gno/gnovm"
 	bft "github.com/gnolang/gno/tm2/pkg/bft/types"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
 	"github.com/gnolang/gno/tm2/pkg/sdk"
@@ -74,7 +75,7 @@ func TestAddPkgDeliverTx(t *testing.T) {
 	assert.True(t, res.IsOK())
 
 	// NOTE: let's try to keep this bellow 100_000 :)
-	assert.Equal(t, int64(113925), gasDeliver)
+	assert.Equal(t, int64(114925), gasDeliver)
 }
 
 // Enough gas for a failed transaction.
@@ -149,9 +150,9 @@ func setupAddPkg(success bool) (sdk.Context, sdk.Tx, vmHandler) {
 	env.acck.SetAccount(ctx, acc)
 	env.bank.SetCoins(ctx, addr, std.MustParseCoins(ugnot.ValueString(10000000)))
 	// success message
-	var files []*std.MemFile
+	var files []*gnovm.MemFile
 	if success {
-		files = []*std.MemFile{
+		files = []*gnovm.MemFile{
 			{
 				Name: "hello.gno",
 				Body: `package hello
@@ -163,7 +164,7 @@ func Echo() string {
 		}
 	} else {
 		// failed message
-		files = []*std.MemFile{
+		files = []*gnovm.MemFile{
 			{
 				Name: "hello.gno",
 				Body: `package hello
