@@ -16,12 +16,13 @@ const (
 	VoteAddedOptionKey = "option"
 )
 
+// VoteOption is the limited voting option for a DAO proposal
 type VoteOption string
 
 const (
-	YesVote     VoteOption = "YES"
-	NoVote      VoteOption = "NO"
-	AbstainVote VoteOption = "ABSTAIN"
+	YesVote     VoteOption = "YES"     // Proposal should be accepted
+	NoVote      VoteOption = "NO"      // Proposal should be rejected
+	AbstainVote VoteOption = "ABSTAIN" // Side is not chosen
 )
 
 func (v VoteOption) String() string {

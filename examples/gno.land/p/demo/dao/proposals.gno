@@ -2,10 +2,15 @@ package dao
 
 import "std"
 
+// ProposalStatus is the currently active proposal status,
+// changed based on DAO functionality.
+// Status transitions:
+//
+// ACTIVE -> ACCEPTED -> EXECUTION(SUCCEEDED/FAILED)
+//
+// ACTIVE -> NOT ACCEPTED
 type ProposalStatus string
 
-// ACTIVE -> ACCEPTED -> EXECUTION(SUCCEEDED/FAILED)
-// ACTIVE -> NOT ACCEPTED
 var (
 	Active              ProposalStatus = "active"               // proposal is still active
 	Accepted            ProposalStatus = "accepted"             // proposal gathered quorum
