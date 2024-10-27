@@ -24,7 +24,7 @@ func main() {
 }
 
 // Output:
-// \[[post](/r/demo/boards?help&__func=CreateThread&bid=1&body.type=textarea)]
+// \[[post](/r/demo/boards?help&__func=CreateThread&bid=1)]
 //
 // ----------------------------------------
 // ## [First Post (title)](/r/demo/boards:test_board/1)
