@@ -2,6 +2,7 @@ package p2p
 
 import (
 	"context"
+	"net"
 	"sync"
 	"testing"
 	"time"
@@ -343,5 +344,401 @@ func TestMultiplexSwitch_DialLoop(t *testing.T) {
 func TestMultiplexSwitch_AcceptLoop(t *testing.T) {
 	t.Parallel()
 
-	// TODO implement
+	t.Run("inbound limit reached", func(t *testing.T) {
+		t.Parallel()
+
+		ctx, cancelFn := context.WithTimeout(
+			context.Background(),
+			5*time.Second,
+		)
+		defer cancelFn()
+
+		var (
+			ch         = make(chan struct{}, 1)
+			maxInbound = uint64(10)
+
+			peerRemoved bool
+
+			p = mock.GeneratePeers(t, 1)[0]
+
+			mockTransport = &mockTransport{
+				acceptFn: func(_ context.Context, _ PeerBehavior) (Peer, error) {
+					return p, nil
+				},
+				removeFn: func(removedPeer Peer) {
+					require.Equal(t, p.ID(), removedPeer.ID())
+
+					peerRemoved = true
+
+					ch <- struct{}{}
+				},
+			}
+
+			ps = &mockSet{
+				numInboundFn: func() uint64 {
+					return maxInbound
+				},
+			}
+
+			sw = NewSwitch(
+				mockTransport,
+				WithMaxInboundPeers(maxInbound),
+			)
+		)
+
+		// Set the peer set
+		sw.peers = ps
+
+		// Run the accept loop
+		go sw.runAcceptLoop(ctx)
+
+		select {
+		case <-ch:
+		case <-time.After(5 * time.Second):
+		}
+
+		assert.True(t, peerRemoved)
+	})
+
+	t.Run("peer accepted", func(t *testing.T) {
+		t.Parallel()
+
+		ctx, cancelFn := context.WithTimeout(
+			context.Background(),
+			5*time.Second,
+		)
+		defer cancelFn()
+
+		var (
+			ch         = make(chan struct{}, 1)
+			maxInbound = uint64(10)
+
+			peerAdded bool
+
+			p = mock.GeneratePeers(t, 1)[0]
+
+			mockTransport = &mockTransport{
+				acceptFn: func(_ context.Context, _ PeerBehavior) (Peer, error) {
+					return p, nil
+				},
+			}
+
+			ps = &mockSet{
+				numInboundFn: func() uint64 {
+					return maxInbound - 1 // available slot
+				},
+				addFn: func(peer Peer) {
+					require.Equal(t, p.ID(), peer.ID())
+
+					peerAdded = true
+
+					ch <- struct{}{}
+				},
+			}
+
+			sw = NewSwitch(
+				mockTransport,
+				WithMaxInboundPeers(maxInbound),
+			)
+		)
+
+		// Set the peer set
+		sw.peers = ps
+
+		// Run the accept loop
+		go sw.runAcceptLoop(ctx)
+
+		select {
+		case <-ch:
+		case <-time.After(5 * time.Second):
+		}
+
+		assert.True(t, peerAdded)
+	})
+}
+
+func TestMultiplexSwitch_RedialLoop(t *testing.T) {
+	t.Parallel()
+
+	t.Run("no peers to dial", func(t *testing.T) {
+		t.Parallel()
+
+		var (
+			ch = make(chan struct{}, 1)
+
+			peersChecked = 0
+			peers        = mock.GeneratePeers(t, 10)
+
+			ps = &mockSet{
+				hasFn: func(id types.ID) bool {
+					exists := false
+					for _, p := range peers {
+						if p.ID() == id {
+							exists = true
+
+							break
+						}
+					}
+
+					require.True(t, exists)
+
+					peersChecked++
+
+					if peersChecked == len(peers) {
+						ch <- struct{}{}
+					}
+
+					return true
+				},
+			}
+		)
+
+		// Make sure the peers are the
+		// switch persistent peers
+		addrs := make([]*types.NetAddress, 0, len(peers))
+
+		for _, p := range peers {
+			addrs = append(addrs, p.NodeInfo().NetAddress)
+		}
+
+		// Create the switch
+		sw := NewSwitch(
+			nil,
+			WithPersistentPeers(addrs),
+		)
+
+		// Set the peer set
+		sw.peers = ps
+
+		// Run the redial loop
+		ctx, cancelFn := context.WithTimeout(
+			context.Background(),
+			5*time.Second,
+		)
+		defer cancelFn()
+
+		go sw.runRedialLoop(ctx)
+
+		select {
+		case <-ch:
+		case <-time.After(5 * time.Second):
+		}
+
+		assert.Equal(t, len(peers), peersChecked)
+	})
+
+	t.Run("missing peers dialed", func(t *testing.T) {
+		t.Parallel()
+
+		var (
+			peers       = mock.GeneratePeers(t, 10)
+			missingPeer = peers[0]
+			missingAddr = missingPeer.NodeInfo().NetAddress
+
+			peersDialed []types.NetAddress
+
+			mockTransport = &mockTransport{
+				dialFn: func(
+					_ context.Context,
+					address types.NetAddress,
+					_ PeerBehavior,
+				) (Peer, error) {
+					peersDialed = append(peersDialed, address)
+
+					if address.Equals(*missingPeer.NodeInfo().NetAddress) {
+						return missingPeer, nil
+					}
+
+					return nil, errors.New("invalid dial")
+				},
+			}
+			ps = &mockSet{
+				hasFn: func(id types.ID) bool {
+					return id != missingPeer.ID()
+				},
+			}
+		)
+
+		// Make sure the peers are the
+		// switch persistent peers
+		addrs := make([]*types.NetAddress, 0, len(peers))
+
+		for _, p := range peers {
+			addrs = append(addrs, p.NodeInfo().NetAddress)
+		}
+
+		// Create the switch
+		sw := NewSwitch(
+			mockTransport,
+			WithPersistentPeers(addrs),
+		)
+
+		// Set the peer set
+		sw.peers = ps
+
+		// Run the redial loop
+		ctx, cancelFn := context.WithTimeout(
+			context.Background(),
+			5*time.Second,
+		)
+		defer cancelFn()
+
+		var wg sync.WaitGroup
+
+		wg.Add(2)
+
+		go func() {
+			defer wg.Done()
+
+			sw.runRedialLoop(ctx)
+		}()
+
+		go func() {
+			defer wg.Done()
+
+			deadline := time.After(5 * time.Second)
+
+			for {
+				select {
+				case <-deadline:
+					return
+				default:
+					if !sw.dialQueue.Has(missingAddr) {
+						continue
+					}
+
+					cancelFn()
+
+					return
+				}
+			}
+		}()
+
+		wg.Wait()
+
+		require.True(t, sw.dialQueue.Has(missingAddr))
+		assert.Equal(t, missingAddr, sw.dialQueue.Peek().Address)
+	})
+}
+
+func TestMultiplexSwitch_DialPeers(t *testing.T) {
+	t.Parallel()
+
+	t.Run("self dial request", func(t *testing.T) {
+		t.Parallel()
+
+		var (
+			addr = types.NetAddress{
+				ID: "id",
+				IP: net.IP{},
+			}
+
+			p = mock.GeneratePeers(t, 1)[0]
+
+			mockTransport = &mockTransport{
+				netAddressFn: func() types.NetAddress {
+					return addr
+				},
+			}
+		)
+
+		// Make sure the "peer" has the same address
+		// as the transport (node)
+		p.NodeInfoFn = func() types.NodeInfo {
+			return types.NodeInfo{
+				NetAddress: &addr,
+			}
+		}
+
+		sw := NewSwitch(mockTransport)
+
+		// Dial the peers
+		sw.DialPeers(p.NodeInfo().NetAddress)
+
+		// Make sure the peer wasn't actually dialed
+		assert.False(t, sw.dialQueue.Has(p.NodeInfo().NetAddress))
+	})
+
+	t.Run("outbound peer limit reached", func(t *testing.T) {
+		t.Parallel()
+
+		var (
+			maxOutbound = uint64(10)
+			peers       = mock.GeneratePeers(t, 10)
+
+			mockTransport = &mockTransport{
+				netAddressFn: func() types.NetAddress {
+					return types.NetAddress{
+						ID: "id",
+						IP: net.IP{},
+					}
+				},
+			}
+
+			ps = &mockSet{
+				numOutboundFn: func() uint64 {
+					return maxOutbound
+				},
+			}
+		)
+
+		sw := NewSwitch(
+			mockTransport,
+			WithMaxOutboundPeers(maxOutbound),
+		)
+
+		// Set the peer set
+		sw.peers = ps
+
+		// Dial the peers
+		addrs := make([]*types.NetAddress, 0, len(peers))
+
+		for _, p := range peers {
+			addrs = append(addrs, p.NodeInfo().NetAddress)
+		}
+
+		sw.DialPeers(addrs...)
+
+		// Make sure no peers were dialed
+		for _, p := range peers {
+			assert.False(t, sw.dialQueue.Has(p.NodeInfo().NetAddress))
+		}
+	})
+
+	t.Run("peers dialed", func(t *testing.T) {
+		t.Parallel()
+
+		var (
+			maxOutbound = uint64(1000)
+			peers       = mock.GeneratePeers(t, int(maxOutbound/2))
+
+			mockTransport = &mockTransport{
+				netAddressFn: func() types.NetAddress {
+					return types.NetAddress{
+						ID: "id",
+						IP: net.IP{},
+					}
+				},
+			}
+		)
+
+		sw := NewSwitch(
+			mockTransport,
+			WithMaxOutboundPeers(10),
+		)
+
+		// Dial the peers
+		addrs := make([]*types.NetAddress, 0, len(peers))
+
+		for _, p := range peers {
+			addrs = append(addrs, p.NodeInfo().NetAddress)
+		}
+
+		sw.DialPeers(addrs...)
+
+		// Make sure peers were dialed
+		for _, p := range peers {
+			assert.True(t, sw.dialQueue.Has(p.NodeInfo().NetAddress))
+		}
+	})
 }

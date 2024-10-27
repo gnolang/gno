@@ -323,6 +323,45 @@ func (sw *MultiplexSwitch) runRedialLoop(ctx context.Context) {
 	ticker := time.NewTicker(time.Second * 10)
 	defer ticker.Stop()
 
+	// redialFn goes through the persistent peer list
+	// and dials missing peers
+	redialFn := func() {
+		var (
+			peers       = sw.Peers()
+			peersToDial = make([]*types.NetAddress, 0)
+		)
+
+		sw.persistentPeers.Range(func(key, value any) bool {
+			var (
+				id   = key.(types.ID)
+				addr = value.(*types.NetAddress)
+			)
+
+			// Check if the peer is part of the peer set
+			// or is scheduled for dialing
+			if peers.Has(id) || sw.dialQueue.Has(addr) {
+				return true
+			}
+
+			peersToDial = append(peersToDial, addr)
+
+			return true
+		})
+
+		if len(peersToDial) == 0 {
+			// No persistent peers are missing
+			return
+		}
+
+		// Add the peers to the dial queue
+		sw.DialPeers(peersToDial...)
+	}
+
+	// Run the initial redial loop on start,
+	// in case persistent peer connections are not
+	// active
+	redialFn()
+
 	for {
 		select {
 		case <-ctx.Done():
@@ -330,36 +369,14 @@ func (sw *MultiplexSwitch) runRedialLoop(ctx context.Context) {
 
 			return
 		case <-ticker.C:
-			peers := sw.Peers()
-
-			peersToDial := make([]*types.NetAddress, 0)
-
-			sw.persistentPeers.Range(func(key, value any) bool {
-				var (
-					id   = key.(types.ID)
-					addr = value.(*types.NetAddress)
-				)
-
-				// Check if the peer is part of the peer set
-				// or is scheduled for dialing
-				if peers.Has(id) || sw.dialQueue.Has(addr) {
-					return true
-				}
-
-				peersToDial = append(peersToDial, addr)
-
-				return true
-			})
-
-			// Add the peers to the dial queue
-			sw.DialPeers(peersToDial...)
+			redialFn()
 		}
 	}
 }
 
 // DialPeers adds the peers to the dial queue for async dialing.
 // To monitor dial progress, subscribe to adequate p2p MultiplexSwitch events
-func (sw *MultiplexSwitch) DialPeers(peerAddrs ...*types.NetAddress) {
+func (sw *MultiplexSwitch) DialPeers(peerAddrs ...*types.NetAddress) { // TODO remove pointer
 	for _, peerAddr := range peerAddrs {
 		// Check if this is our address
 		if peerAddr.Same(sw.transport.NetAddress()) {

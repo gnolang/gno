@@ -187,6 +187,8 @@ func (r *Reactor) handleDiscoveryRequest(peer p2p.Peer) error {
 		peers      = make([]*types.NetAddress, 0, len(localPeers))
 	)
 
+	// TODO exclude private peers
+
 	// Shuffle and limit the peers shared
 	shufflePeers(localPeers)
 
