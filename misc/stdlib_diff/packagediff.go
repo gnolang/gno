@@ -150,7 +150,7 @@ func (p *PackageDiffChecker) hasSameNumberOfFiles() bool {
 func listDirFiles(dirPath string) ([]string, error) {
 	fileNames := make([]string, 0)
 	dirEntries, err := os.ReadDir(dirPath)
-	if err != nil {
+	if err != nil && !os.IsNotExist(err) {
 		return nil, err
 	}
 
@@ -162,5 +162,5 @@ func listDirFiles(dirPath string) ([]string, error) {
 		fileNames = append(fileNames, dirEntry.Name())
 	}
 
-	return fileNames, err
+	return fileNames, nil
 }

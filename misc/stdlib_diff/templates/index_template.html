@@ -45,7 +45,11 @@
     <H1>List of packages processed</H1>
     <ul style="margin-bottom: 2rem;">
     {{- range .Reports}}
-    {{- if .WasFound}}
+        {{- if .MissingGno}}
+    <li style="display: flex;" ><p style="color: red;">{{.PackageName}}</p>: missing in gno</a>
+        {{- else if .MissingGo}}
+        <li style="display: flex;" ><p style="color: red;">{{.PackageName}}</p>: missing in go</a>
+        {{- else}}
         {{if .Subdirectories}}
             <details>
                 <summary>{{.PackageName}}</summary>
@@ -53,23 +57,24 @@
                     <li><a href="{{.PathToReport}}">{{.PackageName}}</a></li>
                 </ul>
                 {{- range .Subdirectories}}
-                    {{- if .WasFound}}
-                        <ul>
-                            <li><a href="{{.PathToReport}}">{{.PackageName}}</a></li>
-                        </ul>
+                    {{- if .MissingGno}}
+                    <ul>
+                        <li style="display: flex;" ><p style="color: red;">{{.PackageName}}</p>: missing in gno</a></li>
+                    </ul>
+                    {{- else if .MissingGo}}
+                    <ul>
+                        <li style="display: flex;" ><p style="color: red;">{{.PackageName}}</p>: missing in go</a></li>
+                    </ul>
                     {{- else}}
-                        <ul>
-                            <li style="display: flex;" ><p style="color: red;">{{.PackageName}}</p>: missing in go</a></li>
-                        </ul>
+                    <ul>
+                        <li><a href="{{.PathToReport}}">{{.PackageName}}</a></li>
+                    </ul>
                     {{- end}}
                 {{- end}}
             </details>
         {{- else}}
-        <a href="{{.PathToReport}}">{{.PackageName}}</a>
-
+        <a href="{{.PathToReport}}">{{.PackageName}}</a><br>
         {{- end}}
-    {{- else}}
-        <li style="display: flex;" ><p style="color: red;">{{.PackageName}}</p>: missing in gno</a>
     {{- end}}
     </li>
     {{- end}}

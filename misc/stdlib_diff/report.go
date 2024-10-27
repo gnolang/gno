@@ -8,6 +8,7 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 )
 
@@ -47,7 +48,8 @@ type IndexTemplate struct {
 type LinkToReport struct {
 	PathToReport   string
 	PackageName    string
-	WasFound       bool
+	MissingGo      bool
+	MissingGno     bool
 	Subdirectories []LinkToReport
 }
 
@@ -95,7 +97,7 @@ func NewReportBuilder(srcPath, dstPath, outDir string, srcIsGno bool) (*ReportBu
 // differences using PackageDiffChecker, and generates reports using the
 // packageTemplate.
 func (builder *ReportBuilder) Build() error {
-	directories, err := builder.listSrcDirectories()
+	directories, err := builder.listDirectories()
 	if err != nil {
 		return err
 	}
@@ -111,7 +113,8 @@ func (builder *ReportBuilder) Build() error {
 		report := LinkToReport{
 			PathToReport:   "./" + directory.Path + "/report.html",
 			PackageName:    directory.Path,
-			WasFound:       directory.FoundInDest,
+			MissingGno:     !directory.FoundInDest,
+			MissingGo:      !directory.FoundInSrc,
 			Subdirectories: make([]LinkToReport, 0),
 		}
 		for _, subDirectory := range directory.Children {
@@ -121,7 +124,8 @@ func (builder *ReportBuilder) Build() error {
 			report.Subdirectories = append(report.Subdirectories, LinkToReport{
 				PathToReport: "./" + subDirectory.Path + "/report.html",
 				PackageName:  subDirectory.Path,
-				WasFound:     subDirectory.FoundInDest,
+				MissingGno:   !subDirectory.FoundInDest,
+				MissingGo:    !subDirectory.FoundInSrc,
 			})
 
 		}
@@ -168,44 +172,34 @@ func (builder *ReportBuilder) ExecuteDiffTemplate(directory *Directory) error {
 type Directory struct {
 	Path        string
 	FoundInDest bool
+	FoundInSrc  bool
 	Children    []*Directory
 }
 
-// listSrcDirectories retrieves a list of directories in the source path.
-func (builder *ReportBuilder) listSrcDirectories() ([]*Directory, error) {
-	destDirectories, err := builder.getDstDirectories()
+// listDirectories retrieves a list of directories in the source path.
+func (builder *ReportBuilder) listDirectories() ([]*Directory, error) {
+	allSubdirectories, srcDirectories, destDirectories, err := builder.findDirectories()
+
 	if err != nil {
 		return nil, err
 	}
 
-	notfoundInDest := []string{}
+	notfound := []string{}
 	directories := make(map[string]*Directory)
 	res := make([]*Directory, 0)
-	err = filepath.WalkDir(builder.SrcPath, func(path string, dirEntry fs.DirEntry, err error) error {
-		if path == builder.SrcPath {
-			return nil
-		}
 
-		folderName := strings.TrimPrefix(path, builder.SrcPath+"/")
-
-		// skip directories that are not found in the destination
-		for _, prefix := range notfoundInDest {
-			if strings.HasPrefix(folderName, prefix) {
-				return nil
-			}
-		}
-
-		if err != nil {
-			return err
-		}
-
-		if !dirEntry.IsDir() {
-			return nil
+	for _, folderName := range allSubdirectories {
+		if slices.ContainsFunc(notfound, func(s string) bool {
+			return strings.HasPrefix(folderName, s)
+		}) {
+			// this directory is not found in either source or destination skipping subsdirectories
+			continue
 		}
 
 		newDir := &Directory{
 			Path:        folderName,
 			FoundInDest: destDirectories[folderName],
+			FoundInSrc:  srcDirectories[folderName],
 			Children:    make([]*Directory, 0),
 		}
 
@@ -218,11 +212,10 @@ func (builder *ReportBuilder) listSrcDirectories() ([]*Directory, error) {
 			directories[getRootFolder(folderName)] = directory
 		}
 
-		if !destDirectories[dirEntry.Name()] {
-			notfoundInDest = append(notfoundInDest, folderName)
+		if !newDir.FoundInDest && !newDir.FoundInSrc {
+			notfound = append(notfound, folderName)
 		}
-		return nil
-	})
+	}
 
 	return res, err
 }
@@ -232,12 +225,16 @@ func isRootFolder(path string) bool {
 func getRootFolder(path string) string {
 	return strings.Split(path, "/")[0]
 }
-func (builder *ReportBuilder) getDstDirectories() (map[string]bool, error) {
-	directories := make(map[string]bool)
-	err := filepath.WalkDir(builder.DstPath, func(path string, dirEntry fs.DirEntry, err error) error {
+func (builder *ReportBuilder) getAllSubdirectories(rootPath string) ([]string, error) {
+	directories := make([]string, 0)
+	err := filepath.WalkDir(rootPath, func(path string, dirEntry fs.DirEntry, err error) error {
+		if path == rootPath {
+			return nil
+		}
+
 		if dirEntry.IsDir() {
-			folderName := strings.TrimPrefix(path, builder.DstPath+"/")
-			directories[folderName] = true
+			folderName := strings.TrimPrefix(path, rootPath+"/")
+			directories = append(directories, folderName)
 		}
 		return nil
 	})
@@ -294,4 +291,35 @@ func getRealPath(path string) (string, error) {
 	}
 
 	return path, nil
+}
+
+func (builder *ReportBuilder) findDirectories() ([]string, map[string]bool, map[string]bool, error) {
+	destDirectories, err := builder.getAllSubdirectories(builder.DstPath)
+	if err != nil {
+		return nil, nil, nil, err
+	}
+
+	srcDirectories, err := builder.getAllSubdirectories(builder.SrcPath)
+	if err != nil {
+		return nil, nil, nil, err
+	}
+
+	res := make([]string, 0, len(srcDirectories)+len(destDirectories))
+	srcMap := make(map[string]bool)
+	dstMap := make(map[string]bool)
+	for _, path := range srcDirectories {
+		res = append(res, path)
+		srcMap[path] = true
+	}
+
+	for _, path := range destDirectories {
+		dstMap[path] = true
+		if !srcMap[path] {
+			res = append(res, path)
+		}
+	}
+
+	slices.Sort(res)
+
+	return res, srcMap, dstMap, nil
 }
