@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"testing"
 
+	"github.com/gnolang/gno/gnovm"
 	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
 	"github.com/gnolang/gno/tm2/pkg/std"
@@ -111,7 +112,7 @@ func TestVmHandlerQuery_Eval(t *testing.T) {
 			assert.True(t, env.bank.GetCoins(ctx, addr).IsEqual(std.MustParseCoins("10000000ugnot")))
 
 			// Create test package.
-			files := []*std.MemFile{
+			files := []*gnovm.MemFile{
 				{"hello.gno", `
 package hello
 
@@ -153,22 +154,24 @@ func pvEcho(msg string) string { return "pvecho:"+msg }
 					output := fmt.Sprintf("%v", r)
 					assert.Regexp(t, tc.expectedPanicMatch, output)
 				} else {
-					assert.Equal(t, "", tc.expectedPanicMatch, "should not panic")
+					assert.Equal(t, tc.expectedPanicMatch, "", "should not panic")
 				}
 			}()
 			res := vmHandler.Query(env.ctx, req)
-			if tc.expectedErrorMatch == "" {
-				assert.True(t, res.IsOK(), "should not have error")
-				if tc.expectedResult != "" {
-					assert.Equal(t, string(res.Data), tc.expectedResult)
+			if tc.expectedPanicMatch == "" {
+				if tc.expectedErrorMatch == "" {
+					assert.True(t, res.IsOK(), "should not have error")
+					if tc.expectedResult != "" {
+						assert.Equal(t, string(res.Data), tc.expectedResult)
+					}
+					if tc.expectedResultMatch != "" {
+						assert.Regexp(t, tc.expectedResultMatch, string(res.Data))
+					}
+				} else {
+					assert.False(t, res.IsOK(), "should have an error")
+					errmsg := res.Error.Error()
+					assert.Regexp(t, tc.expectedErrorMatch, errmsg)
 				}
-				if tc.expectedResultMatch != "" {
-					assert.Regexp(t, tc.expectedResultMatch, string(res.Data))
-				}
-			} else {
-				assert.False(t, res.IsOK(), "should have an error")
-				errmsg := res.Error.Error()
-				assert.Regexp(t, tc.expectedErrorMatch, errmsg)
 			}
 		})
 	}
@@ -202,7 +205,7 @@ func TestVmHandlerQuery_Funcs(t *testing.T) {
 			assert.True(t, env.bank.GetCoins(ctx, addr).IsEqual(std.MustParseCoins("10000000ugnot")))
 
 			// Create test package.
-			files := []*std.MemFile{
+			files := []*gnovm.MemFile{
 				{"hello.gno", `
 package hello
 
@@ -280,7 +283,7 @@ func TestVmHandlerQuery_File(t *testing.T) {
 			assert.True(t, env.bank.GetCoins(ctx, addr).IsEqual(std.MustParseCoins("10000000ugnot")))
 
 			// Create test package.
-			files := []*std.MemFile{
+			files := []*gnovm.MemFile{
 				{"README.md", "# Hello"},
 				{"hello.gno", "package hello\n\nfunc Hello() string { return \"hello\" }\n"},
 			}
