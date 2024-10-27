@@ -70,6 +70,9 @@ func NewMembStore(opts ...Option) *MembStore {
 	return m
 }
 
+// AddMember adds member to the member store `m`.
+// It fails if the caller is not GovDAO or
+// if the member is already present
 func (m *MembStore) AddMember(member Member) error {
 	if !m.isCallerDAORealm() {
 		return ErrNotGovDAO
@@ -89,6 +92,8 @@ func (m *MembStore) AddMember(member Member) error {
 	return nil
 }
 
+// UpdateMember updates the member with the given address.
+// Updating fails if the caller is not GovDAO.
 func (m *MembStore) UpdateMember(address std.Address, member Member) error {
 	if !m.isCallerDAORealm() {
 		return ErrNotGovDAO
@@ -133,12 +138,15 @@ func (m *MembStore) UpdateMember(address std.Address, member Member) error {
 	return nil
 }
 
+// IsMember returns a flag indicating if the given
+// address belongs to a member of the member store
 func (m *MembStore) IsMember(address std.Address) bool {
 	_, exists := m.members.Get(address.String())
 
 	return exists
 }
 
+// Member returns the member associated with the given address
 func (m *MembStore) Member(address std.Address) (Member, error) {
 	member, exists := m.members.Get(address.String())
 	if !exists {
@@ -148,6 +156,9 @@ func (m *MembStore) Member(address std.Address) (Member, error) {
 	return member.(Member), nil
 }
 
+// Members returns a paginated list of members from
+// the member store. If the store is empty, an empty slice
+// is returned instead
 func (m *MembStore) Members(offset, count uint64) []Member {
 	// Calculate the left and right bounds
 	if count < 1 || offset >= uint64(m.members.Size()) {
@@ -176,6 +187,7 @@ func (m *MembStore) Members(offset, count uint64) []Member {
 	return members
 }
 
+// Size returns the number of active members in the member store
 func (m *MembStore) Size() int {
 	return m.members.Size()
 }
