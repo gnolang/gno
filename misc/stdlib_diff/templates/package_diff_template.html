@@ -1,43 +1,47 @@
 {{define "file-viewer" }}
-<div class="file-viewer">
-    <div name="gno_file_container" class="file-container" style="margin-right: 1rem;">
-        {{- range .}}
-            {{- if eq .SrcOperation 2}}
-            <div style="display: flex; color: red;">
-                <span style="user-select: none; min-width: 50px;">{{.SrcNumber}} </span><p>{{.SrcLine}}</p> 
-            </div>
-        
-            {{- else if eq .SrcOperation 3}}
-            <div div style="display: flex;">
-                <span style="user-select: none; min-width: 50px;">{{.SrcNumber}}</span>
-                <p style="opacity: 0.75;">{{.SrcLine}}</p>
-            </div>
-            {{- else}}
-            <div div style="display: flex;">
-                <p style="user-select: none; width: 100%;"> </p>
-            </div>
+{{if ne .Status "missing in src"}}
+    <div class="file-viewer">
+        <div name="gno_file_container" class="file-container" style="margin-right: 1rem;">
+            {{- range .LineDiffferrences}}
+                {{- if eq .SrcOperation 2}}
+                <div style="display: flex; color: red;">
+                    <span style="user-select: none; min-width: 50px;">{{.SrcNumber}} </span><p>{{.SrcLine}}</p> 
+                </div>
+            
+                {{- else if eq .SrcOperation 3}}
+                <div div style="display: flex;">
+                    <span style="user-select: none; min-width: 50px;">{{.SrcNumber}}</span>
+                    <p style="opacity: 0.75;">{{.SrcLine}}</p>
+                </div>
+                {{- else}}
+                <div div style="display: flex;">
+                    <p style="user-select: none; width: 100%;"> </p>
+                </div>
+                {{- end}}
             {{- end}}
-        {{- end}}
+        </div>
     </div>
-</div>
-<div class="file-viewer">
-    <div name="go_file_container" class="file-container">
-        {{- range .}}
-            {{- if eq .DestOperation 1}}
-            <div style="display: flex; color: #07ca07;">
-            <span style="user-select: none; min-width: 50px;">{{.DestNumber}} </span><p>{{.DestLine}}</p> 
+{{end}}
+    {{if ne .Status "missing in dst"}}
+        <div class="file-viewer">
+            <div name="go_file_container" class="file-container">
+                {{- range .LineDiffferrences}}
+                    {{- if eq .DestOperation 1}}
+                    <div style="display: flex; color: #07ca07;">
+                    <span style="user-select: none; min-width: 50px;">{{.DestNumber}} </span><p>{{.DestLine}}</p> 
+                    </div>
+                    {{- else if eq .DestOperation 3}}
+                    <div div style="display: flex;">
+                        <span style="user-select: none; min-width: 50px;">{{.DestNumber}}</span>
+                        <p style="opacity: 0.75;">{{.DestLine}}</p>
+                    </div>
+                    {{- else}}
+                        <p style="user-select: none; width: 100%;"> </p>
+                    {{- end}}
+                {{- end}}
             </div>
-            {{- else if eq .DestOperation 3}}
-            <div div style="display: flex;">
-                <span style="user-select: none; min-width: 50px;">{{.DestNumber}}</span>
-                <p style="opacity: 0.75;">{{.DestLine}}</p>
-            </div>
-            {{- else}}
-                <p style="user-select: none; width: 100%;"> </p>
-            {{- end}}
-        {{- end}}
-    </div>
-</div>
+        </div>
+    {{end}}
 {{end}}
 
 <!DOCTYPE html>
@@ -119,7 +123,7 @@
             <summary style="opacity: 45%;">{{.SourceName}} ({{.Status}})</summary>
         {{- end}}
         <div style="display: flex; flex-direction: row; align-items: stretch; padding-bottom: 2rem;"> 
-            {{template "file-viewer" .LineDiffferrences}}
+            {{template "file-viewer" .}}
         </div>
     </details>
     {{- end}}
