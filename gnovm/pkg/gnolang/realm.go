@@ -513,7 +513,6 @@ func (rlm *Realm) decRefDeletedDescendants(store Store, oo Object) {
 			rlm.decRefDeletedDescendants(store, child)
 		} else if rc > 0 {
 			rlm.MarkDirty(child)
-			// do nothing
 		} else {
 			panic("deleted descendants should not have a reference count of less than zero")
 		}
