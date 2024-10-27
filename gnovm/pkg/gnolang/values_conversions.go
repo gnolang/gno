@@ -44,6 +44,7 @@ func ConvertTo(alloc *Allocator, store Store, tv *TypedValue, t Type) {
 			tv.T = t
 			return
 		} else {
+			// both NativeType, use reflect to assert.
 			// convert go-native to gno type (shallow).
 			*tv = go2GnoValue2(alloc, store, tv.V.(*NativeValue).Value, false)
 			ConvertTo(alloc, store, tv, t)
