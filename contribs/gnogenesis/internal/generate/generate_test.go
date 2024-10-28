@@ -1,4 +1,4 @@
-package main
+package generate
 
 import (
 	"context"
@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/gnolang/contribs/gnogenesis/internal/common"
 	"github.com/gnolang/gno/tm2/pkg/bft/types"
 	"github.com/gnolang/gno/tm2/pkg/commands"
 	"github.com/gnolang/gno/tm2/pkg/testutils"
@@ -25,9 +26,8 @@ func TestGenesis_Generate(t *testing.T) {
 		genesisPath := filepath.Join(tempDir, "genesis.json")
 
 		// Create the command
-		cmd := newGenesisCmd(commands.NewTestIO())
+		cmd := NewGenerateCmd(commands.NewTestIO())
 		args := []string{
-			"generate",
 			"--output-path",
 			genesisPath,
 		}
@@ -41,7 +41,7 @@ func TestGenesis_Generate(t *testing.T) {
 		require.NoError(t, readErr)
 
 		// Make sure the default configuration is set
-		defaultGenesis := GetDefaultGenesis()
+		defaultGenesis := common.GetDefaultGenesis()
 		defaultGenesis.GenesisTime = genesis.GenesisTime
 
 		assert.Equal(t, defaultGenesis, genesis)
@@ -58,9 +58,8 @@ func TestGenesis_Generate(t *testing.T) {
 		genesisPath := filepath.Join(tempDir, "genesis.json")
 
 		// Create the command
-		cmd := newGenesisCmd(commands.NewTestIO())
+		cmd := NewGenerateCmd(commands.NewTestIO())
 		args := []string{
-			"generate",
 			"--chain-id",
 			chainID,
 			"--output-path",
@@ -89,9 +88,8 @@ func TestGenesis_Generate(t *testing.T) {
 		genesisPath := filepath.Join(tempDir, "genesis.json")
 
 		// Create the command
-		cmd := newGenesisCmd(commands.NewTestIO())
+		cmd := NewGenerateCmd(commands.NewTestIO())
 		args := []string{
-			"generate",
 			"--block-max-tx-bytes",
 			fmt.Sprintf("%d", blockMaxTxBytes),
 			"--output-path",
@@ -124,9 +122,8 @@ func TestGenesis_Generate(t *testing.T) {
 		genesisPath := filepath.Join(tempDir, "genesis.json")
 
 		// Create the command
-		cmd := newGenesisCmd(commands.NewTestIO())
+		cmd := NewGenerateCmd(commands.NewTestIO())
 		args := []string{
-			"generate",
 			"--block-max-data-bytes",
 			fmt.Sprintf("%d", blockMaxDataBytes),
 			"--output-path",
@@ -159,9 +156,8 @@ func TestGenesis_Generate(t *testing.T) {
 		genesisPath := filepath.Join(tempDir, "genesis.json")
 
 		// Create the command
-		cmd := newGenesisCmd(commands.NewTestIO())
+		cmd := NewGenerateCmd(commands.NewTestIO())
 		args := []string{
-			"generate",
 			"--block-max-gas",
 			fmt.Sprintf("%d", blockMaxGas),
 			"--output-path",
@@ -194,9 +190,8 @@ func TestGenesis_Generate(t *testing.T) {
 		genesisPath := filepath.Join(tempDir, "genesis.json")
 
 		// Create the command
-		cmd := newGenesisCmd(commands.NewTestIO())
+		cmd := NewGenerateCmd(commands.NewTestIO())
 		args := []string{
-			"generate",
 			"--block-time-iota",
 			fmt.Sprintf("%d", blockTimeIota),
 			"--output-path",
@@ -229,9 +224,8 @@ func TestGenesis_Generate(t *testing.T) {
 		genesisPath := filepath.Join(tempDir, "genesis.json")
 
 		// Create the command
-		cmd := newGenesisCmd(commands.NewTestIO())
+		cmd := NewGenerateCmd(commands.NewTestIO())
 		args := []string{
-			"generate",
 			"--chain-id",
 			invalidChainID,
 			"--output-path",

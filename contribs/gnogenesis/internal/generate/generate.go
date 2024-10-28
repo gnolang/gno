@@ -1,4 +1,4 @@
-package main
+package generate
 
 import (
 	"context"
@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/gnolang/contribs/gnogenesis/internal/common"
 	"github.com/gnolang/gno/tm2/pkg/bft/types"
 	"github.com/gnolang/gno/tm2/pkg/commands"
 )
@@ -26,8 +27,7 @@ func NewGenerateCmd(io commands.IO) *commands.Command {
 
 	return commands.NewCommand(
 		commands.Metadata{
-			Name:       "generate",
-			ShortUsage: "generate [flags]",
+			ShortUsage: "[flags]",
 			ShortHelp:  "generates a fresh genesis.json",
 			LongHelp:   "Generates a node's genesis.json based on specified parameters",
 		},
@@ -56,7 +56,7 @@ func (c *generateCfg) RegisterFlags(fs *flag.FlagSet) {
 	fs.StringVar(
 		&c.chainID,
 		"chain-id",
-		defaultChainID,
+		common.DefaultChainID,
 		"the ID of the chain",
 	)
 
@@ -91,7 +91,7 @@ func (c *generateCfg) RegisterFlags(fs *flag.FlagSet) {
 
 func execGenerate(cfg *generateCfg, io commands.IO) error {
 	// Start with the default configuration
-	genesis := GetDefaultGenesis()
+	genesis := common.GetDefaultGenesis()
 
 	// Set the genesis time
 	if cfg.genesisTime > 0 {
