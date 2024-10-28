@@ -36,136 +36,6 @@
     },
     {
       "datasource": {
-        "type": "prometheus",
-        "uid": "prometheus"
-      },
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "palette-classic"
-          },
-          "mappings": [],
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": null
-              }
-            ]
-          }
-        },
-        "overrides": []
-      },
-      "gridPos": {
-        "h": 8,
-        "w": 12,
-        "x": 12,
-        "y": 1
-      },
-      "id": 28,
-      "options": {
-        "colorMode": "value",
-        "graphMode": "area",
-        "justifyMode": "auto",
-        "orientation": "auto",
-        "percentChangeColorMode": "standard",
-        "reduceOptions": {
-          "calcs": [
-            "lastNotNull"
-          ],
-          "fields": "",
-          "values": false
-        },
-        "showPercentChange": false,
-        "textMode": "auto",
-        "wideLayout": true
-      },
-      "pluginVersion": "11.2.0",
-      "targets": [
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "prometheus"
-          },
-          "editorMode": "code",
-          "expr": "vm_query_errors_counter_total{exported_instance=~\"${node}\", path=~\"${path}\"}",
-          "instant": false,
-          "legendFormat": "__auto",
-          "range": true,
-          "refId": "A"
-        }
-      ],
-      "title": "Total Number of VM Query Errors - Node: ${node}",
-      "type": "stat"
-    },
-    {
-      "datasource": {
-        "type": "prometheus",
-        "uid": "prometheus"
-      },
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "palette-classic"
-          },
-          "mappings": [],
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": null
-              }
-            ]
-          }
-        },
-        "overrides": []
-      },
-      "gridPos": {
-        "h": 8,
-        "w": 12,
-        "x": 0,
-        "y": 1
-      },
-      "id": 25,
-      "options": {
-        "colorMode": "value",
-        "graphMode": "area",
-        "justifyMode": "auto",
-        "orientation": "auto",
-        "percentChangeColorMode": "standard",
-        "reduceOptions": {
-          "calcs": [
-            "lastNotNull"
-          ],
-          "fields": "",
-          "values": false
-        },
-        "showPercentChange": false,
-        "textMode": "auto",
-        "wideLayout": true
-      },
-      "pluginVersion": "11.2.0",
-      "targets": [
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "prometheus"
-          },
-          "editorMode": "code",
-          "expr": "vm_query_calls_counter_total{exported_instance=~\"${node}\", path=~\"${path}\"}",
-          "instant": false,
-          "legendFormat": "__auto",
-          "range": true,
-          "refId": "A"
-        }
-      ],
-      "title": "Total Number of VM Query Calls - Node: ${node}",
-      "type": "stat"
-    },
-    {
-      "datasource": {
         "default": true,
         "type": "prometheus",
         "uid": "prometheus"
@@ -192,7 +62,7 @@
         "h": 8,
         "w": 12,
         "x": 0,
-        "y": 9
+        "y": 1
       },
       "id": 26,
       "options": {
@@ -257,7 +127,7 @@
         "h": 8,
         "w": 12,
         "x": 12,
-        "y": 9
+        "y": 1
       },
       "id": 27,
       "options": {
@@ -323,7 +193,7 @@
         "h": 8,
         "w": 12,
         "x": 6,
-        "y": 17
+        "y": 9
       },
       "id": 24,
       "options": {
@@ -366,7 +236,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 25
+        "y": 17
       },
       "id": 15,
       "title": "Mempool",
@@ -399,7 +269,7 @@
         "h": 8,
         "w": 12,
         "x": 0,
-        "y": 26
+        "y": 18
       },
       "id": 16,
       "options": {
@@ -464,7 +334,7 @@
         "h": 8,
         "w": 12,
         "x": 12,
-        "y": 26
+        "y": 18
       },
       "id": 17,
       "options": {
@@ -508,7 +378,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 34
+        "y": 26
       },
       "id": 11,
       "panels": [],
@@ -543,7 +413,7 @@
         "h": 8,
         "w": 12,
         "x": 0,
-        "y": 35
+        "y": 27
       },
       "id": 12,
       "options": {
@@ -610,7 +480,7 @@
         "h": 8,
         "w": 12,
         "x": 12,
-        "y": 35
+        "y": 27
       },
       "id": 13,
       "options": {
@@ -677,7 +547,7 @@
         "h": 8,
         "w": 12,
         "x": 6,
-        "y": 43
+        "y": 35
       },
       "id": 14,
       "options": {
@@ -720,7 +590,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 51
+        "y": 43
       },
       "id": 9,
       "title": "Consensus",
@@ -754,7 +624,7 @@
         "h": 8,
         "w": 12,
         "x": 0,
-        "y": 52
+        "y": 44
       },
       "id": 18,
       "options": {
@@ -820,7 +690,7 @@
         "h": 8,
         "w": 12,
         "x": 12,
-        "y": 52
+        "y": 44
       },
       "id": 19,
       "options": {
@@ -894,7 +764,7 @@
         "h": 8,
         "w": 12,
         "x": 0,
-        "y": 60
+        "y": 52
       },
       "id": 3,
       "options": {
@@ -967,7 +837,7 @@
         "h": 8,
         "w": 12,
         "x": 12,
-        "y": 60
+        "y": 52
       },
       "id": 4,
       "options": {
@@ -1033,7 +903,7 @@
         "h": 8,
         "w": 12,
         "x": 0,
-        "y": 68
+        "y": 60
       },
       "id": 20,
       "options": {
@@ -1120,7 +990,7 @@
         "h": 8,
         "w": 12,
         "x": 12,
-        "y": 68
+        "y": 60
       },
       "id": 21,
       "options": {
@@ -1168,7 +1038,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 76
+        "y": 68
       },
       "id": 8,
       "panels": [],
@@ -1208,7 +1078,7 @@
         "h": 8,
         "w": 12,
         "x": 0,
-        "y": 77
+        "y": 69
       },
       "id": 2,
       "options": {
@@ -1256,7 +1126,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 85
+        "y": 77
       },
       "id": 7,
       "panels": [],
@@ -1300,7 +1170,7 @@
         "h": 8,
         "w": 12,
         "x": 0,
-        "y": 86
+        "y": 78
       },
       "id": 5,
       "options": {
@@ -1380,7 +1250,7 @@
         "h": 8,
         "w": 12,
         "x": 12,
-        "y": 86
+        "y": 78
       },
       "id": 6,
       "options": {
@@ -1431,6 +1301,7 @@
     "list": [
       {
         "current": {
+          "isNone": true,
           "selected": false,
           "text": "None",
           "value": ""
@@ -1482,34 +1353,6 @@
         "skipUrlSync": false,
         "sort": 0,
         "type": "query"
-      },
-      {
-        "current": {
-          "selected": false,
-          "text": "None",
-          "value": ""
-        },
-        "datasource": {
-          "type": "prometheus",
-          "uid": "prometheus"
-        },
-        "definition": "label_values(path)",
-        "description": "Path of VM queries",
-        "hide": 0,
-        "includeAll": false,
-        "multi": false,
-        "name": "path",
-        "options": [],
-        "query": {
-          "qryType": 1,
-          "query": "label_values(path)",
-          "refId": "PrometheusVariableQueryEditor-VariableQuery"
-        },
-        "refresh": 1,
-        "regex": "",
-        "skipUrlSync": false,
-        "sort": 0,
-        "type": "query"
       }
     ]
   },
@@ -1519,7 +1362,7 @@
   },
   "timepicker": {},
   "timezone": "browser",
-  "title": "Gno Node Open Telemetry Metrics",
+  "title": "Gno Open Telemetry Metrics",
   "uid": "bdl7d5yogxjb4b",
   "version": 1,
   "weekStart": ""
