@@ -43,14 +43,13 @@ func (z *Int) Int64() int64 {
 			panic("overflow: int256 does not fit in int64 type")
 		}
 		return int64(z.value.Uint64())
-	} else {
-		var temp uint256.Uint
-		temp.Sub(uint256.NewUint(0), &z.value) // temp = -z.value
-		if temp.BitLen() > 64 {
-			panic("overflow: int256 does not fit in int64 type")
-		}
-		return -int64(temp.Uint64())
 	}
+	var temp uint256.Uint
+	temp.Sub(uint256.NewUint(0), &z.value) // temp = -z.value
+	if temp.BitLen() > 64 {
+		panic("overflow: int256 does not fit in int64 type")
+	}
+	return -int64(temp.Uint64())
 }
 
 // Neg sets z to -x and returns z.)
