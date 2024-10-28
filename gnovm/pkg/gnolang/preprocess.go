@@ -2251,7 +2251,7 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 					// runDeclaration(), as this uses OpStaticTypeOf.
 				}
 
-				if len(n.Values) != 0 && len(n.NameExprs) != len(n.Values) {
+				if len(n.Values) != 1 && len(n.Values) != 0 && len(n.NameExprs) != len(n.Values) {
 					panic(fmt.Sprintf("assignment mismatch: %d variable(s) but %d value(s)", len(n.NameExprs), len(n.Values)))
 				}
 

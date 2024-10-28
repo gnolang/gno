@@ -11,4 +11,4 @@ func main() {
 }
 
 // Error:
-// main/files/assign31.gno:8:6: multiple-value foo<VPBlock(3,0)> (value of type [int bool]) in single-value context
+// main/files/assign31.gno:8:2: multiple-value foo<VPBlock(3,0)> (value of type [int bool]) in single-value context
