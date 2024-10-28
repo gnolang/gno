@@ -38,17 +38,18 @@ func callOpsBench(bstore gno.Store, pv *gno.PackageValue) {
 
 const storagePkgPath = "gno.land/r/x/benchmark/storage"
 
-func benchmarkStorage(bstore gno.Store, dir string) {
+func benchmarkStorage(bstore BenchStore, dir string) {
+	gs := bstore.gnoStore
 	avlPkgDir := filepath.Join(dir, "avl")
-	addPackage(bstore, avlPkgDir, "gno.land/p/demo/avl")
+	addPackage(gs, avlPkgDir, "gno.land/p/demo/avl")
 
 	storagePkgDir := filepath.Join(dir, "storage")
-	pv := addPackage(bstore, storagePkgDir, storagePkgPath)
+	pv := addPackage(gs, storagePkgDir, storagePkgPath)
 	benchStoreSet(bstore, pv)
 	benchStoreGet(bstore, pv)
 }
 
-func benchStoreSet(bstore gno.Store, pv *gno.PackageValue) {
+func benchStoreSet(bstore BenchStore, pv *gno.PackageValue) {
 	title := "1KB content"
 	content := strings.Repeat("a", 1024)
 
@@ -57,27 +58,32 @@ func benchStoreSet(bstore gno.Store, pv *gno.PackageValue) {
 
 	for i := 0; i < rounds; i++ {
 		cx := gno.Call("AddPost", gno.Str(title), gno.Str(content))
-		callFunc(bstore, pv, cx)
+		callFunc(bstore.gnoStore, pv, cx)
+		bstore.Write()
+		bstore.gnoStore.ClearObjectCache()
 	}
 }
 
-func benchStoreGet(bstore gno.Store, pv *gno.PackageValue) {
+func benchStoreGet(bstore BenchStore, pv *gno.PackageValue) {
 	// in forum.gno: func GetPost(boardId, postId int) string  in forum.gno
 	// there are three different boards on the benchmarking forum contract
 	for i := 0; i < 3; i++ {
 		for j := 0; j < rounds; j++ {
 			cx := gno.Call("GetPost", gno.X(i), gno.X(j))
-			callFunc(bstore, pv, cx)
+			callFunc(bstore.gnoStore, pv, cx)
+			bstore.Write()
+			bstore.gnoStore.ClearObjectCache()
+
 		}
 	}
 }
 
-func callFunc(bstore gno.Store, pv *gno.PackageValue, cx gno.Expr) []gno.TypedValue {
+func callFunc(gstore gno.Store, pv *gno.PackageValue, cx gno.Expr) []gno.TypedValue {
 	m := gno.NewMachineWithOptions(
 		gno.MachineOptions{
 			PkgPath: pv.PkgPath,
 			Output:  os.Stdout, // XXX
-			Store:   bstore,
+			Store:   gstore,
 		})
 
 	defer m.Release()
@@ -88,13 +94,13 @@ func callFunc(bstore gno.Store, pv *gno.PackageValue, cx gno.Expr) []gno.TypedVa
 
 // addPacakge
 
-func addPackage(bstore gno.Store, dir string, pkgPath string) *gno.PackageValue {
+func addPackage(gstore gno.Store, dir string, pkgPath string) *gno.PackageValue {
 	// load benchmark contract
 	m := gno.NewMachineWithOptions(
 		gno.MachineOptions{
 			PkgPath: "",
 			Output:  os.Stdout,
-			Store:   bstore,
+			Store:   gstore,
 		})
 	defer m.Release()
 
@@ -107,7 +113,7 @@ func addPackage(bstore gno.Store, dir string, pkgPath string) *gno.PackageValue 
 }
 
 // load stdlibs
-func loadStdlibs(bstore gno.Store) {
+func loadStdlibs(bstore BenchStore) {
 	// copied from vm/builtin.go
 	getPackage := func(pkgPath string, newStore gno.Store) (pn *gno.PackageNode, pv *gno.PackageValue) {
 		stdlibDir := filepath.Join(gnoenv.RootDir(), "gnovm", "stdlibs")
@@ -133,6 +139,6 @@ func loadStdlibs(bstore gno.Store) {
 		return m2.RunMemPackage(memPkg, true)
 	}
 
-	bstore.SetPackageGetter(getPackage)
-	bstore.SetNativeStore(stdlibs.NativeStore)
+	bstore.gnoStore.SetPackageGetter(getPackage)
+	bstore.gnoStore.SetNativeStore(stdlibs.NativeStore)
 }

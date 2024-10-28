@@ -40,7 +40,7 @@ func main() {
 	loadStdlibs(bstore)
 
 	if bm.OpsEnabled {
-		benchmarkOpCodes(bstore, dir)
+		benchmarkOpCodes(bstore.gnoStore, dir)
 	}
 	if bm.StorageEnabled {
 		benchmarkStorage(bstore, dir)

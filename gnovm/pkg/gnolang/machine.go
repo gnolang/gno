@@ -832,7 +832,7 @@ func (m *Machine) Eval(x Expr) []TypedValue {
 		m.Printf("Machine.Eval(%v)\n", x)
 	}
 	if bm.OpsEnabled || bm.StorageEnabled {
-		// reset the benchmark stack
+		// reset the benchmark
 		bm.InitMeasure()
 	}
 	if bm.StorageEnabled {

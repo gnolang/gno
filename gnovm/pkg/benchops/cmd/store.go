@@ -16,7 +16,16 @@ import (
 
 const maxAllocTx = 500 * 1000 * 1000
 
-func benchmarkDiskStore() gno.Store {
+type BenchStore struct {
+	mulStore store.MultiStore
+	gnoStore gno.Store
+}
+
+func (bStore BenchStore) Write() {
+	bStore.mulStore.MultiWrite()
+}
+
+func benchmarkDiskStore() BenchStore {
 	storeDir, err := filepath.Abs("bench_store")
 	if err != nil {
 		log.Fatal("unable to get absolute path for storage directory.", err)
@@ -35,22 +44,21 @@ func benchmarkDiskStore() gno.Store {
 		log.Fatalf("error initializing database %q using path %q: %s\n", dbm.GoLevelDBBackend, storeDir, err)
 	}
 
-	return newStore(db)
-}
-
-func newStore(db dbm.DB) gno.Store {
 	baseKey := store.NewStoreKey("baseKey")
 	iavlKey := store.NewStoreKey("iavlKey")
-
 	ms := store.NewCommitMultiStore(db)
 	ms.MountStoreWithDB(baseKey, dbadapter.StoreConstructor, db)
 	ms.MountStoreWithDB(iavlKey, iavl.StoreConstructor, db)
 	ms.LoadLatestVersion()
+	msCache := ms.MultiCacheWrap()
 
 	alloc := gno.NewAllocator(maxAllocTx)
-	baseSDKStore := ms.GetStore(baseKey)
-	iavlSDKStore := ms.GetStore(iavlKey)
-	bstore := gno.NewStore(alloc, baseSDKStore, iavlSDKStore)
+	baseSDKStore := msCache.GetStore(baseKey)
+	iavlSDKStore := msCache.GetStore(iavlKey)
+	gStore := gno.NewStore(alloc, baseSDKStore, iavlSDKStore)
 
-	return bstore
+	return BenchStore{
+		mulStore: msCache,
+		gnoStore: gStore,
+	}
 }

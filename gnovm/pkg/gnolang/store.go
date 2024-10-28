@@ -578,14 +578,6 @@ func (ds *defaultStore) GetTypeSafe(tid TypeID) Type {
 		defer bm.ResumeOpCode()
 	}
 
-	var size int
-
-	if bm.StorageEnabled {
-		bm.StartStore(bm.StoreGetType)
-		defer func() {
-			bm.StopStore(size)
-		}()
-	}
 	// check cache.
 	if tt, exists := ds.cacheTypes.Get(tid); exists {
 		return tt
@@ -597,7 +589,6 @@ func (ds *defaultStore) GetTypeSafe(tid TypeID) Type {
 		if bz != nil {
 			var tt Type
 			amino.MustUnmarshal(bz, &tt)
-			size = len(bz)
 			if debug {
 				if tt.TypeID() != tid {
 					panic(fmt.Sprintf("unexpected type id: expected %v but got %v",

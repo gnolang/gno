@@ -8,14 +8,16 @@ build_opcode:
 build_storage:
 	go build -tags "benchmarkingstorage" -o build/gnobench ./cmd
 
+# Extract the latest commit hash
+COMMIT_HASH := $(shell git rev-parse --short=7 HEAD)
 
 # Run target
 opcode: build_opcode
-	./build/gnobench
+	./build/gnobench -out opcode_results_$(COMMIT_HASH).csv
 
 # Run target
 storage: build_storage
-	./build/gnobench
+	./build/gnobench -out store_results_$(COMMIT_HASH).csv
 
 # command to run dependency utilities, like goimports.
 rundep=go run -modfile ../misc/devdeps/go.mod

@@ -10,9 +10,9 @@ import (
 
 func TestLoadOpcodesPackage(t *testing.T) {
 	dir := "../gno/opcodes"
-	bstore := benchmarkDiskStore()
-	pv := addPackage(bstore, dir, opcodesPkgPath)
-	pb := pv.GetBlock(bstore)
+	gstore := benchmarkDiskStore().gnoStore
+	pv := addPackage(gstore, dir, opcodesPkgPath)
+	pb := pv.GetBlock(gstore)
 
 	assert := assert.New(t)
 	require := require.New(t)
