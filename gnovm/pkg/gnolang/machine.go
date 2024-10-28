@@ -271,23 +271,8 @@ func (m *Machine) PreprocessAllFilesAndSaveBlockNodes() {
 // and corresponding package node, package value, and types to store. Save
 // is set to false for tests where package values may be native.
 func (m *Machine) RunMemPackage(memPkg *gnovm.MemPackage, save bool) (*PackageNode, *PackageValue) {
-  m.Coverage.CurrentPackage = memPkg.Path
-
-	for _, file := range memPkg.Files {
-		if strings.HasSuffix(file.Name, ".gno") && !isTestFile(file.Name) {
-			m.Coverage.CurrentFile = file.Name
-
-			totalLines := countCodeLines(file.Body)
-			path := filepath.Join(m.Coverage.CurrentPackage, m.Coverage.CurrentFile)
-
-			executableLines, err := detectExecutableLines(file.Body)
-			if err != nil {
-				continue
-			}
-
-			m.Coverage.SetExecutableLines(path, executableLines)
-			m.AddFileToCodeCoverage(path, totalLines)
-		}
+	if m.Coverage.Enabled {
+		m.initCoverage(memPkg)
 	}
 	return m.runMemPackage(memPkg, save, false)
 }
@@ -347,6 +332,26 @@ func (m *Machine) runMemPackage(memPkg *gnovm.MemPackage, save, overrides bool) 
 	}
 
 	return pn, pv
+}
+
+func (m *Machine) initCoverage(memPkg *gnovm.MemPackage) {
+	m.Coverage.CurrentPackage = memPkg.Path
+	for _, file := range memPkg.Files {
+		if strings.HasSuffix(file.Name, ".gno") && !isTestFile(file.Name) {
+			m.Coverage.currentFile = file.Name
+
+			totalLines := countCodeLines(file.Body)
+			path := filepath.Join(m.Coverage.CurrentPackage, m.Coverage.currentFile)
+
+			executableLines, err := detectExecutableLines(file.Body)
+			if err != nil {
+				continue
+			}
+
+			m.Coverage.setExecutableLines(path, executableLines)
+			m.addFileToCodeCoverage(path, totalLines)
+		}
+	}
 }
 
 type redeclarationErrors []Name
@@ -1657,7 +1662,7 @@ func (m *Machine) getCurrentLocation() Location {
 
 	return Location{
 		PkgPath: m.Coverage.CurrentPackage,
-		File:    m.Coverage.CurrentFile,
+		File:    m.Coverage.currentFile,
 		Line:    lastFrame.Source.GetLine(),
 		Column:  lastFrame.Source.GetColumn(),
 	}
@@ -1965,7 +1970,7 @@ func (m *Machine) PushFrameCall(cx *CallExpr, fv *FuncValue, recv TypedValue) {
 	}
 
 	m.Coverage.CurrentPackage = fv.PkgPath
-	m.Coverage.CurrentFile = string(fv.FileName)
+	m.Coverage.currentFile = string(fv.FileName)
 }
 
 func (m *Machine) PushFrameGoNative(cx *CallExpr, fv *NativeValue) {

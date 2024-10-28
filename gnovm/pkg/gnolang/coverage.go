@@ -40,9 +40,9 @@ type (
 type CoverageData struct {
 	Enabled        bool // -cover flag activated
 	PkgPath        string
-	RootDir        string
+	rootDir        string
 	CurrentPackage string
-	CurrentFile    string
+	currentFile    string
 	pathCache      pathCache
 	Files          fileCoverageMap
 	mu             sync.RWMutex
@@ -57,10 +57,10 @@ type FileCoverage struct {
 
 func NewCoverageData(rootDir string) *CoverageData {
 	return &CoverageData{
-		RootDir:        rootDir,
+		rootDir:        rootDir,
 		PkgPath:        "",
 		CurrentPackage: "",
-		CurrentFile:    "",
+		currentFile:    "",
 		Files:          make(fileCoverageMap),
 		pathCache:      make(pathCache),
 	}
@@ -70,9 +70,9 @@ func (c *CoverageData) Enable()         { c.Enabled = true }
 func (c *CoverageData) Disable()        { c.Enabled = false }
 func (c *CoverageData) IsEnabled() bool { return c.Enabled }
 
-// SetExecutableLines sets the executable lines for a given file path in the coverage data.
+// setExecutableLines sets the executable lines for a given file path in the coverage data.
 // It updates the ExecutableLines map for the given file path with the provided executable lines.
-func (c *CoverageData) SetExecutableLines(filePath string, executableLines map[int]bool) {
+func (c *CoverageData) setExecutableLines(filePath string, executableLines map[int]bool) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
@@ -249,7 +249,7 @@ func (c *CoverageData) formatLineInfo(
 	covered, executable, showHits bool,
 ) string {
 	lineNumStr := fmt.Sprintf("%4d", lineNumber)
-	color := c.getLineColor(covered, executable)
+	color := c.color(covered, executable)
 	hitInfo := c.getHitInfo(hitCount, covered, showHits)
 
 	format := "%s%s%s %s%s%s%s"
@@ -257,7 +257,7 @@ func (c *CoverageData) formatLineInfo(
 	return fmt.Sprintf(format, color, lineNumStr, colorReset, hitInfo, color, line, colorReset)
 }
 
-func (c *CoverageData) getLineColor(covered, executable bool) string {
+func (c *CoverageData) color(covered, executable bool) string {
 	switch {
 	case covered:
 		return colorGreen
@@ -321,7 +321,7 @@ func (c *CoverageData) findAbsoluteFilePath(filePath string) (string, error) {
 	}
 
 	var result string
-	err := filepath.WalkDir(c.RootDir, func(path string, d fs.DirEntry, err error) error {
+	err := filepath.WalkDir(c.rootDir, func(path string, d fs.DirEntry, err error) error {
 		if err != nil {
 			return err
 		}
@@ -508,7 +508,7 @@ func (c *CoverageData) SaveHTML(outputFileName string) error {
 	return t.Execute(file, data)
 }
 
-func (m *Machine) AddFileToCodeCoverage(file string, totalLines int) {
+func (m *Machine) addFileToCodeCoverage(file string, totalLines int) {
 	if isTestFile(file) {
 		return
 	}
@@ -526,7 +526,7 @@ func (m *Machine) recordCoverage(node Node) Location {
 	}
 
 	pkgPath := m.Coverage.CurrentPackage
-	file := m.Coverage.CurrentFile
+	file := m.Coverage.currentFile
 	line := node.GetLine()
 
 	path := filepath.Join(pkgPath, file)

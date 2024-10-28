@@ -273,7 +273,7 @@ func TestRecordCoverage(t *testing.T) {
 				},
 				PkgPath:        "testpkg",
 				CurrentPackage: "testpkg",
-				CurrentFile:    "testfile.gno",
+				currentFile:    "testfile.gno",
 			},
 			expectedHits: map[string]map[int]int{
 				"testpkg/testfile.gno": {10: 1},
@@ -297,7 +297,7 @@ func TestRecordCoverage(t *testing.T) {
 				},
 				PkgPath:        "testpkg",
 				CurrentPackage: "testpkg",
-				CurrentFile:    "testfile.gno",
+				currentFile:    "testfile.gno",
 			},
 			expectedHits: map[string]map[int]int{
 				"testpkg/testfile.gno": {10: 2},
@@ -321,7 +321,7 @@ func TestRecordCoverage(t *testing.T) {
 				},
 				PkgPath:        "testpkg",
 				CurrentPackage: "testpkg",
-				CurrentFile:    "testfile.gno",
+				currentFile:    "testfile.gno",
 			},
 			expectedHits: map[string]map[int]int{
 				"testpkg/testfile.gno": {},
@@ -373,7 +373,7 @@ func TestViewFilesE2E(t *testing.T) {
 	for name, content := range files {
 		execLines, err := detectExecutableLines(content)
 		assert.NoError(t, err)
-		coverage.SetExecutableLines(name, execLines)
+		coverage.setExecutableLines(name, execLines)
 		coverage.addFile(name, len(strings.Split(content, "\n")))
 		coverage.updateHit(name, 4)
 	}
@@ -695,8 +695,8 @@ func Add(a, b int) int {
 	if err != nil {
 		t.Fatalf("Failed to get relative path for %s: %v", file2, err)
 	}
-	coverage.SetExecutableLines(relPath1, execLines1)
-	coverage.SetExecutableLines(relPath2, execLines2)
+	coverage.setExecutableLines(relPath1, execLines1)
+	coverage.setExecutableLines(relPath2, execLines2)
 
 	// Add files with total executable lines
 	totalExecLines1 := len(execLines1)
@@ -794,7 +794,7 @@ func C() {
 		if err != nil {
 			t.Fatalf("Failed to detect executable lines for %s: %v", name, err)
 		}
-		coverage.SetExecutableLines(relPath, execLines)
+		coverage.setExecutableLines(relPath, execLines)
 		totalExecLines := len(execLines)
 		coverage.addFile(relPath, totalExecLines)
 	}
@@ -824,7 +824,7 @@ func TestSaveHTML_FileNotFound(t *testing.T) {
 	tempDir := t.TempDir()
 
 	coverage := NewCoverageData(tempDir)
-	coverage.SetExecutableLines("nonexistent.gno", map[int]bool{1: true, 2: true})
+	coverage.setExecutableLines("nonexistent.gno", map[int]bool{1: true, 2: true})
 	coverage.addFile("nonexistent.gno", 2)
 	coverage.updateHit("nonexistent.gno", 1)
 
