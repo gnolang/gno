@@ -1961,15 +1961,12 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 						convertIfConst(store, last, rx)
 					}
 
-					numNames := len(n.Lhs)
-					sts, tvs, nameExprs := prepareTypeVals(n, numNames)
-
-					if numNames > len(n.Rhs) { // Special cases
-						specialParseTypeVals(sts, tvs, store, last, nameExprs, nil, n.Rhs[0])
-					} else { // General case
-						generalParseTypeVals(sts, tvs, store, last, false, nameExprs, nil, n.Rhs)
+					nameExprs := make(NameExprs, len(n.Lhs))
+					for i := range len(n.Lhs) {
+						nameExprs[i] = *n.Lhs[i].(*NameExpr)
 					}
-					defineOrDecl(sts, tvs, last, nameExprs, false)
+
+					defineOrDecl(store, last, false, nameExprs, nil, n.Rhs)
 				} else { // ASSIGN, or assignment operation (+=, -=, <<=, etc.)
 					// NOTE: Keep in sync with DEFINE above.
 					if len(n.Lhs) > len(n.Rhs) {
@@ -2254,27 +2251,11 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 					// runDeclaration(), as this uses OpStaticTypeOf.
 				}
 
-				numNames := len(n.NameExprs)
-				sts, tvs, nameExprs := prepareTypeVals(n, numNames)
-
-				if numNames > 1 && len(n.Values) == 1 { // special cases
-					specialParseTypeVals(sts, tvs, store, last, nameExprs, n.Type, n.Values[0])
-				} else if len(n.Values) != 0 && numNames != len(n.Values) {
-					panic(fmt.Sprintf("assignment mismatch: %d variable(s) but %d value(s)", numNames, len(n.Values)))
-				} else { // general case
-					for _, v := range n.Values {
-						if cx, ok := v.(*CallExpr); ok {
-							tt, ok := evalStaticTypeOfRaw(store, last, cx).(*tupleType)
-							if ok && len(tt.Elts) != 1 {
-								panic(fmt.Sprintf("multiple-value %s (value of type %s) in single-value context", cx.Func.String(), tt.Elts))
-							}
-						}
-					}
-
-					generalParseTypeVals(sts, tvs, store, last, n.Const, n.NameExprs, n.Type, n.Values)
+				if len(n.Values) != 0 && len(n.NameExprs) != len(n.Values) {
+					panic(fmt.Sprintf("assignment mismatch: %d variable(s) but %d value(s)", len(n.NameExprs), len(n.Values)))
 				}
 
-				defineOrDecl(sts, tvs, last, nameExprs, n.Const)
+				defineOrDecl(store, last, n.Const, n.NameExprs, n.Type, n.Values)
 
 				// TODO make note of constance in static block for
 				// future use, or consider "const paths".  set as
@@ -2349,12 +2330,28 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 // This func aims at syncing logic between op define (:=) and declare(var/const)
 // This will define or declare the variables
 func defineOrDecl(
-	sts []Type,
-	tvs []TypedValue,
+	store Store,
 	bn BlockNode,
-	nameExprs []NameExpr,
 	isConst bool,
+	nameExprs []NameExpr,
+	typeExpr Expr,
+	valueExprs []Expr,
 ) {
+	numNames := len(nameExprs)
+
+	if numNames < 1 {
+		panic("must have at least one name to assign")
+	}
+
+	sts := make([]Type, numNames) // static types
+	tvs := make([]TypedValue, numNames)
+
+	if numNames > 1 && len(valueExprs) == 1 { // special cases
+		specialParseTypeVals(sts, tvs, store, bn, nameExprs, typeExpr, valueExprs[0])
+	} else { // general case
+		generalParseTypeVals(sts, tvs, store, bn, isConst, nameExprs, typeExpr, valueExprs)
+	}
+
 	node := bn
 	if fn, ok := bn.(*FileNode); ok {
 		node = fn.GetParentNode(nil).(*PackageNode)
@@ -2371,29 +2368,6 @@ func defineOrDecl(
 	}
 }
 
-// Generate the placeholders for types, typeValues, nameExprs for all vars
-func prepareTypeVals(n Node, numNames int) ([]Type, []TypedValue, NameExprs) {
-	if numNames < 1 {
-		panic("must have at least one name to assign")
-	}
-
-	nameExprs := make(NameExprs, numNames)
-
-	switch n := n.(type) {
-	case *AssignStmt:
-		for i := range numNames {
-			nameExprs[i] = *n.Lhs[i].(*NameExpr)
-		}
-	case *ValueDecl:
-		nameExprs = n.NameExprs
-	}
-
-	sts := make([]Type, numNames) // static types
-	tvs := make([]TypedValue, numNames)
-
-	return sts, tvs, nameExprs
-}
-
 // This func aims at syncing logic between op define (:=) and declare(var/const)
 // for general cases (not handled by specialParseTypeVals)
 func generalParseTypeVals(
@@ -2407,6 +2381,16 @@ func generalParseTypeVals(
 	valueExprs []Expr,
 ) {
 	numNames := len(nameExprs)
+
+	// ensure that function only return 1 value
+	for _, v := range valueExprs {
+		if cx, ok := v.(*CallExpr); ok {
+			tt, ok := evalStaticTypeOfRaw(store, bn, cx).(*tupleType)
+			if ok && len(tt.Elts) != 1 {
+				panic(fmt.Sprintf("multiple-value %s (value of type %s) in single-value context", cx.Func.String(), tt.Elts))
+			}
+		}
+	}
 
 	// evaluate types and convert consts.
 	if typeExpr != nil {
