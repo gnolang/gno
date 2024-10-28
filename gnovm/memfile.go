@@ -2,6 +2,8 @@ package gnovm
 
 import (
 	"fmt"
+	"go/parser"
+	"go/token"
 	"regexp"
 	"sort"
 	"strings"
@@ -85,6 +87,26 @@ func (mempkg *MemPackage) Validate() error {
 			return fmt.Errorf("duplicate file name %q", file.Name)
 		}
 		prev = file.Name
+	}
+
+	if strings.HasPrefix(mempkg.Path, "gno.land/p/") {
+		for _, file := range mempkg.Files {
+			// only check .gno files, can contains files like LICENSE or README that will cause parse error
+			if !strings.HasSuffix(file.Name, ".gno") {
+				continue
+			}
+			fset := token.NewFileSet()
+			astFile, err := parser.ParseFile(fset, file.Name, file.Body, parser.ImportsOnly)
+			if err != nil {
+				return fmt.Errorf("unable to parse %q", file.Name)
+			}
+			for _, imp := range astFile.Imports {
+				importPath := strings.TrimPrefix(strings.TrimSuffix(imp.Path.Value, `"`), `"`)
+				if strings.HasPrefix(importPath, "gno.land/r/") {
+					return fmt.Errorf("package %q imports realm %q", mempkg.Path, importPath)
+				}
+			}
+		}
 	}
 
 	return nil
