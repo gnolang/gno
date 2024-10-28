@@ -9,11 +9,11 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/gnolang/gno/gnovm"
 	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
 	"github.com/gnolang/gno/gnovm/pkg/gnofiles"
 	"github.com/gnolang/gno/gnovm/pkg/gnolang"
 	"github.com/gnolang/gno/gnovm/pkg/transpiler"
-	"github.com/gnolang/gno/tm2/pkg/std"
 	"golang.org/x/mod/modfile"
 	"golang.org/x/mod/module"
 )
@@ -44,7 +44,7 @@ func writePackage(remote, basePath, pkgPath string) (requirements []string, err 
 		return nil, fmt.Errorf("querychain (%s): %w", pkgPath, err)
 	}
 
-	dirPath, fileName := std.SplitFilepath(pkgPath)
+	dirPath, fileName := gnovm.SplitFilepath(pkgPath)
 	if fileName == "" {
 		// Is Dir
 		// Create Dir if not exists

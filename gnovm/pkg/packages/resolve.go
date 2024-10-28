@@ -10,10 +10,10 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/gnolang/gno/gnovm"
 	"github.com/gnolang/gno/gnovm/pkg/gnofiles"
 	"github.com/gnolang/gno/gnovm/pkg/gnomod"
 	"github.com/gnolang/gno/tm2/pkg/commands"
-	"github.com/gnolang/gno/tm2/pkg/std"
 )
 
 type visitTarget struct {
@@ -385,21 +385,21 @@ func fillPackage(meta *PackageSummary) (*Package, error) {
 	}, nil
 }
 
-func (p *Package) MemPkg() (*std.MemPackage, error) {
+func (p *Package) MemPkg() (*gnovm.MemPackage, error) {
 	allFiles := append(p.GnoFiles, p.TestGnoFiles...)
 	allFiles = append(allFiles, p.FiletestGnoFiles...)
-	files := make([]*std.MemFile, len(allFiles))
+	files := make([]*gnovm.MemFile, len(allFiles))
 	for i, f := range allFiles {
 		body, err := os.ReadFile(filepath.Join(p.Dir, f))
 		if err != nil {
 			return nil, err
 		}
-		files[i] = &std.MemFile{
+		files[i] = &gnovm.MemFile{
 			Name: f,
 			Body: string(body),
 		}
 	}
-	return &std.MemPackage{
+	return &gnovm.MemPackage{
 		Name:  p.Name,
 		Path:  p.ImportPath,
 		Files: files,
