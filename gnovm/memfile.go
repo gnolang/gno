@@ -90,7 +90,7 @@ func (mempkg *MemPackage) Validate() error {
 	}
 
 	pIndex := strings.Index(mempkg.Path, "/p/")
-	if pIndex > 0 && strings.Count(mempkg.Path[:pIndex], "/") > 0 {
+	if pIndex > 0 && strings.Count(mempkg.Path[:pIndex], "/") == 0 {
 		for _, file := range mempkg.Files {
 			// only check .gno files, can contains files like LICENSE or README that will cause parse error
 			if !strings.HasSuffix(file.Name, ".gno") {
@@ -102,8 +102,8 @@ func (mempkg *MemPackage) Validate() error {
 				return fmt.Errorf("unable to parse %q", file.Name)
 			}
 			for _, imp := range astFile.Imports {
-				importPath := strings.TrimPrefix(strings.TrimSuffix(imp.Path.Value, `"`), `"`)
 				// ensure the pkg is a realm by checking if the path contains /r/ and no other / character before it (i.e protect from gno.land/p/demo/r/)
+				importPath := strings.TrimPrefix(strings.TrimSuffix(imp.Path.Value, `"`), `"`)
 				rIndex := strings.Index(importPath, "/r/")
 				if rIndex > 0 && strings.Count(importPath[:rIndex], "/") == 0 {
 					return fmt.Errorf("package %q imports realm %q", mempkg.Path, importPath)
