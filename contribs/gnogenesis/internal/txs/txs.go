@@ -23,6 +23,7 @@ func NewTxsCmd(io commands.IO) *commands.Command {
 
 	cmd := commands.NewCommand(
 		commands.Metadata{
+			Name:       "txs",
 			ShortUsage: "<subcommand> [flags]",
 			ShortHelp:  "manages the initial genesis transactions",
 			LongHelp:   "Manages genesis transactions through input files",

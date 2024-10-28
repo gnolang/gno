@@ -107,7 +107,7 @@ either a full node or a pruned node, it is important to retain enough blocks to 
 ### How do I generate `genesis.json`?
 
 `genesis.json` is the file that is used to create the initial state of the chain. To generate `genesis.json`, use
-the `gnoland genesis generate` command. Refer
+the `gnogenesis generate` command. Refer
 to [this section](../../gno-tooling/cli/gnoland.md#gnoland-genesis-generate-flags) for various flags that allow you to
 manipulate the file.
 
@@ -121,14 +121,14 @@ not start
 ### How do I add or remove validators from `genesis.json`?
 
 Validators inside `genesis.json` will be included in the validator set at genesis. To manipulate the genesis validator
-set, use the `gnoland genesis validator` command with the `add` or `remove` subcommands. Refer
+set, use the `gnogenesis validator` command with the `add` or `remove` subcommands. Refer
 to [this section](../../gno-tooling/cli/gnoland.md#gnoland-genesis-validator-flags) for flags that allow you to
 configure the name or the voting power of the validator.
 
 ### How do I add the balance information to the `genesis.json`?
 
 You may premine coins to various addresses. To modify the balances of addresses at genesis, use
-the `gnoland genesis balances` command with the `add` or `remove` subcommands. Refer
+the `gnogenesis balances` command with the `add` or `remove` subcommands. Refer
 to [this section](../../gno-tooling/cli/gnoland.md#gnoland-genesis-balances-add-flags) for various flags that allow you
 to update the entire balance sheet with a file or modify the balance of a single address.
 

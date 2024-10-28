@@ -17,6 +17,7 @@ func NewBalancesCmd(io commands.IO) *commands.Command {
 
 	cmd := commands.NewCommand(
 		commands.Metadata{
+			Name:       "balances",
 			ShortUsage: "<subcommand> [flags]",
 			ShortHelp:  "manages genesis.json account balances",
 			LongHelp:   "Manipulates the initial genesis.json account balances (pre-mines)",

@@ -21,6 +21,7 @@ func NewValidatorCmd(io commands.IO) *commands.Command {
 
 	cmd := commands.NewCommand(
 		commands.Metadata{
+			Name:       "validator",
 			ShortUsage: "<subcommand> [flags]",
 			ShortHelp:  "validator set management in genesis.json",
 			LongHelp:   "Manipulates the genesis.json validator set",

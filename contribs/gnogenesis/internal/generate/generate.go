@@ -27,6 +27,7 @@ func NewGenerateCmd(io commands.IO) *commands.Command {
 
 	return commands.NewCommand(
 		commands.Metadata{
+			Name:       "generate",
 			ShortUsage: "[flags]",
 			ShortHelp:  "generates a fresh genesis.json",
 			LongHelp:   "Generates a node's genesis.json based on specified parameters",

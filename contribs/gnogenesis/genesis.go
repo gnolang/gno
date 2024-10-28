@@ -4,6 +4,8 @@ import (
 	"github.com/gnolang/contribs/gnogenesis/internal/balances"
 	"github.com/gnolang/contribs/gnogenesis/internal/generate"
 	"github.com/gnolang/contribs/gnogenesis/internal/txs"
+	"github.com/gnolang/contribs/gnogenesis/internal/validator"
+	"github.com/gnolang/contribs/gnogenesis/internal/verify"
 	"github.com/gnolang/gno/tm2/pkg/commands"
 )
 
@@ -20,8 +22,8 @@ func newGenesisCmd(io commands.IO) *commands.Command {
 
 	cmd.AddSubCommands(
 		generate.NewGenerateCmd(io),
-		NewValidatorCmd(io),
-		NewVerifyCmd(io),
+		validator.NewValidatorCmd(io),
+		verify.NewVerifyCmd(io),
 		balances.NewBalancesCmd(io),
 		txs.NewTxsCmd(io),
 	)

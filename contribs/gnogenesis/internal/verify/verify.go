@@ -24,6 +24,7 @@ func NewVerifyCmd(io commands.IO) *commands.Command {
 
 	return commands.NewCommand(
 		commands.Metadata{
+			Name:       "verify",
 			ShortUsage: "[flags]",
 			ShortHelp:  "verifies a genesis.json",
 			LongHelp:   "Verifies a node's genesis.json",
