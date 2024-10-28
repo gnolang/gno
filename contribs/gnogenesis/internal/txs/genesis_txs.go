@@ -1,9 +1,10 @@
-package main
+package txs
 
 import (
 	"errors"
 	"flag"
 
+	"github.com/gnolang/contribs/gnogenesis/internal/common"
 	"github.com/gnolang/gno/gno.land/pkg/gnoland"
 	"github.com/gnolang/gno/tm2/pkg/bft/types"
 	"github.com/gnolang/gno/tm2/pkg/commands"
@@ -11,7 +12,7 @@ import (
 )
 
 type txsCfg struct {
-	CommonCfg
+	common.Cfg
 }
 
 var errInvalidGenesisStateType = errors.New("invalid genesis state type")
@@ -22,8 +23,7 @@ func NewTxsCmd(io commands.IO) *commands.Command {
 
 	cmd := commands.NewCommand(
 		commands.Metadata{
-			Name:       "txs",
-			ShortUsage: "txs <subcommand> [flags]",
+			ShortUsage: "<subcommand> [flags]",
 			ShortHelp:  "manages the initial genesis transactions",
 			LongHelp:   "Manages genesis transactions through input files",
 		},
@@ -42,7 +42,7 @@ func NewTxsCmd(io commands.IO) *commands.Command {
 }
 
 func (c *txsCfg) RegisterFlags(fs *flag.FlagSet) {
-	c.CommonCfg.RegisterFlags(fs)
+	c.Cfg.RegisterFlags(fs)
 }
 
 // appendGenesisTxs saves the given transactions to the genesis doc
@@ -59,18 +59,50 @@ func appendGenesisTxs(genesis *types.GenesisDoc, txs []std.Tx) error {
 	}
 
 	// Left merge the transactions
-	fileTxStore := TxStore(txs)
-	genesisTxStore := TxStore(state.Txs)
+	fileTxStore := txStore(txs)
+	genesisTxStore := txStore(state.Txs)
 
 	// The genesis transactions have preference with the order
 	// in the genesis.json
-	if err := genesisTxStore.LeftMerge(fileTxStore); err != nil {
+	if err := genesisTxStore.leftMerge(fileTxStore); err != nil {
 		return err
 	}
 
 	// Save the state
 	state.Txs = genesisTxStore
 	genesis.AppState = state
+
+	return nil
+}
+
+// txStore is a wrapper for TM2 transactions
+type txStore []std.Tx
+
+// leftMerge merges the two tx stores, with
+// preference to the left
+func (i *txStore) leftMerge(b txStore) error {
+	// Build out the tx hash map
+	txHashMap := make(map[string]struct{}, len(*i))
+
+	for _, tx := range *i {
+		txHash, err := getTxHash(tx)
+		if err != nil {
+			return err
+		}
+
+		txHashMap[txHash] = struct{}{}
+	}
+
+	for _, tx := range b {
+		txHash, err := getTxHash(tx)
+		if err != nil {
+			return err
+		}
+
+		if _, exists := txHashMap[txHash]; !exists {
+			*i = append(*i, tx)
+		}
+	}
 
 	return nil
 }

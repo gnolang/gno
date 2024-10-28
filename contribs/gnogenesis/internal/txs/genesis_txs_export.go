@@ -1,10 +1,11 @@
-package main
+package txs
 
 import (
 	"context"
 	"fmt"
 	"os"
 
+	"github.com/gnolang/contribs/gnogenesis/internal/common"
 	"github.com/gnolang/gno/gno.land/pkg/gnoland"
 	"github.com/gnolang/gno/tm2/pkg/amino"
 	"github.com/gnolang/gno/tm2/pkg/bft/types"
@@ -48,7 +49,7 @@ func execTxsExport(cfg *txsCfg, io commands.IO, args []string) error {
 
 	// Make sure the output file path is specified
 	if len(args) == 0 {
-		return errNoOutputFile
+		return common.ErrNoOutputFile
 	}
 
 	// Open output file

@@ -1,11 +1,11 @@
-package main
+package txs
 
 import (
 	"bufio"
 	"context"
 	"testing"
 
-	"github.com/gnolang/contribs/gnogenesis/internal/balances"
+	"github.com/gnolang/contribs/gnogenesis/internal/common"
 	"github.com/gnolang/gno/gno.land/pkg/gnoland"
 	"github.com/gnolang/gno/tm2/pkg/amino"
 	"github.com/gnolang/gno/tm2/pkg/commands"
@@ -22,9 +22,8 @@ func TestGenesis_Txs_Export(t *testing.T) {
 		t.Parallel()
 
 		// Create the command
-		cmd := newGenesisCmd(commands.NewTestIO())
+		cmd := NewTxsCmd(commands.NewTestIO())
 		args := []string{
-			"txs",
 			"export",
 			"--genesis-path",
 			"dummy-path",
@@ -32,7 +31,7 @@ func TestGenesis_Txs_Export(t *testing.T) {
 
 		// Run the command
 		cmdErr := cmd.ParseAndRun(context.Background(), args)
-		assert.ErrorContains(t, cmdErr, balances.errUnableToLoadGenesis.Error())
+		assert.ErrorContains(t, cmdErr, common.ErrUnableToLoadGenesis.Error())
 	})
 
 	t.Run("invalid genesis app state", func(t *testing.T) {
@@ -41,14 +40,13 @@ func TestGenesis_Txs_Export(t *testing.T) {
 		tempGenesis, cleanup := testutils.NewTestFile(t)
 		t.Cleanup(cleanup)
 
-		genesis := GetDefaultGenesis()
+		genesis := common.GetDefaultGenesis()
 		genesis.AppState = nil // no app state
 		require.NoError(t, genesis.SaveAs(tempGenesis.Name()))
 
 		// Create the command
-		cmd := newGenesisCmd(commands.NewTestIO())
+		cmd := NewTxsCmd(commands.NewTestIO())
 		args := []string{
-			"txs",
 			"export",
 			"--genesis-path",
 			tempGenesis.Name(),
@@ -65,16 +63,15 @@ func TestGenesis_Txs_Export(t *testing.T) {
 		tempGenesis, cleanup := testutils.NewTestFile(t)
 		t.Cleanup(cleanup)
 
-		genesis := GetDefaultGenesis()
+		genesis := common.GetDefaultGenesis()
 		genesis.AppState = gnoland.GnoGenesisState{
 			Txs: generateDummyTxs(t, 1),
 		}
 		require.NoError(t, genesis.SaveAs(tempGenesis.Name()))
 
 		// Create the command
-		cmd := newGenesisCmd(commands.NewTestIO())
+		cmd := NewTxsCmd(commands.NewTestIO())
 		args := []string{
-			"txs",
 			"export",
 			"--genesis-path",
 			tempGenesis.Name(),
@@ -82,7 +79,7 @@ func TestGenesis_Txs_Export(t *testing.T) {
 
 		// Run the command
 		cmdErr := cmd.ParseAndRun(context.Background(), args)
-		assert.ErrorContains(t, cmdErr, errNoOutputFile.Error())
+		assert.ErrorContains(t, cmdErr, common.ErrNoOutputFile.Error())
 	})
 
 	t.Run("valid txs export", func(t *testing.T) {
@@ -94,7 +91,7 @@ func TestGenesis_Txs_Export(t *testing.T) {
 		tempGenesis, cleanup := testutils.NewTestFile(t)
 		t.Cleanup(cleanup)
 
-		genesis := GetDefaultGenesis()
+		genesis := common.GetDefaultGenesis()
 		genesis.AppState = gnoland.GnoGenesisState{
 			Txs: txs,
 		}
@@ -105,9 +102,8 @@ func TestGenesis_Txs_Export(t *testing.T) {
 		t.Cleanup(outputCleanup)
 
 		// Create the command
-		cmd := newGenesisCmd(commands.NewTestIO())
+		cmd := NewTxsCmd(commands.NewTestIO())
 		args := []string{
-			"txs",
 			"export",
 			"--genesis-path",
 			tempGenesis.Name(),

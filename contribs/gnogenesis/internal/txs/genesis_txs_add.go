@@ -1,4 +1,4 @@
-package main
+package txs
 
 import (
 	"github.com/gnolang/gno/tm2/pkg/commands"

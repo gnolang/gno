@@ -1,4 +1,4 @@
-package main
+package txs
 
 import (
 	"context"
@@ -7,7 +7,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/gnolang/contribs/gnogenesis/internal/balances"
+	"github.com/gnolang/contribs/gnogenesis/internal/common"
 	"github.com/gnolang/gno/gno.land/pkg/gnoland"
 	vmm "github.com/gnolang/gno/gno.land/pkg/sdk/vm"
 	"github.com/gnolang/gno/tm2/pkg/bft/types"
@@ -24,9 +24,8 @@ func TestGenesis_Txs_Add_Packages(t *testing.T) {
 		t.Parallel()
 
 		// Create the command
-		cmd := newGenesisCmd(commands.NewTestIO())
+		cmd := NewTxsCmd(commands.NewTestIO())
 		args := []string{
-			"txs",
 			"add",
 			"packages",
 			"--genesis-path",
@@ -35,7 +34,7 @@ func TestGenesis_Txs_Add_Packages(t *testing.T) {
 
 		// Run the command
 		cmdErr := cmd.ParseAndRun(context.Background(), args)
-		assert.ErrorContains(t, cmdErr, balances.errUnableToLoadGenesis.Error())
+		assert.ErrorContains(t, cmdErr, common.ErrUnableToLoadGenesis.Error())
 	})
 
 	t.Run("invalid package dir", func(t *testing.T) {
@@ -44,13 +43,12 @@ func TestGenesis_Txs_Add_Packages(t *testing.T) {
 		tempGenesis, cleanup := testutils.NewTestFile(t)
 		t.Cleanup(cleanup)
 
-		genesis := GetDefaultGenesis()
+		genesis := common.GetDefaultGenesis()
 		require.NoError(t, genesis.SaveAs(tempGenesis.Name()))
 
 		// Create the command
-		cmd := newGenesisCmd(commands.NewTestIO())
+		cmd := NewTxsCmd(commands.NewTestIO())
 		args := []string{
-			"txs",
 			"add",
 			"packages",
 			"--genesis-path",
@@ -68,7 +66,7 @@ func TestGenesis_Txs_Add_Packages(t *testing.T) {
 		tempGenesis, cleanup := testutils.NewTestFile(t)
 		t.Cleanup(cleanup)
 
-		genesis := GetDefaultGenesis()
+		genesis := common.GetDefaultGenesis()
 		require.NoError(t, genesis.SaveAs(tempGenesis.Name()))
 
 		// Prepare the package
@@ -98,9 +96,8 @@ func TestGenesis_Txs_Add_Packages(t *testing.T) {
 		)
 
 		// Create the command
-		cmd := newGenesisCmd(commands.NewTestIO())
+		cmd := NewTxsCmd(commands.NewTestIO())
 		args := []string{
-			"txs",
 			"add",
 			"packages",
 			"--genesis-path",

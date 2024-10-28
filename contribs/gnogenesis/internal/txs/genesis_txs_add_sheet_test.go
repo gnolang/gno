@@ -1,4 +1,4 @@
-package main
+package txs
 
 import (
 	"context"
@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/gnolang/contribs/gnogenesis/internal/balances"
+	"github.com/gnolang/contribs/gnogenesis/internal/common"
 	"github.com/gnolang/gno/gno.land/pkg/gnoland"
 	"github.com/gnolang/gno/gno.land/pkg/gnoland/ugnot"
 	"github.com/gnolang/gno/tm2/pkg/amino"
@@ -71,9 +71,8 @@ func TestGenesis_Txs_Add_Sheets(t *testing.T) {
 		t.Parallel()
 
 		// Create the command
-		cmd := newGenesisCmd(commands.NewTestIO())
+		cmd := NewTxsCmd(commands.NewTestIO())
 		args := []string{
-			"txs",
 			"add",
 			"sheets",
 			"--genesis-path",
@@ -82,7 +81,7 @@ func TestGenesis_Txs_Add_Sheets(t *testing.T) {
 
 		// Run the command
 		cmdErr := cmd.ParseAndRun(context.Background(), args)
-		assert.ErrorContains(t, cmdErr, balances.errUnableToLoadGenesis.Error())
+		assert.ErrorContains(t, cmdErr, common.ErrUnableToLoadGenesis.Error())
 	})
 
 	t.Run("invalid txs file", func(t *testing.T) {
@@ -91,13 +90,12 @@ func TestGenesis_Txs_Add_Sheets(t *testing.T) {
 		tempGenesis, cleanup := testutils.NewTestFile(t)
 		t.Cleanup(cleanup)
 
-		genesis := GetDefaultGenesis()
+		genesis := common.GetDefaultGenesis()
 		require.NoError(t, genesis.SaveAs(tempGenesis.Name()))
 
 		// Create the command
-		cmd := newGenesisCmd(commands.NewTestIO())
+		cmd := NewTxsCmd(commands.NewTestIO())
 		args := []string{
-			"txs",
 			"add",
 			"sheets",
 			"--genesis-path",
@@ -116,13 +114,12 @@ func TestGenesis_Txs_Add_Sheets(t *testing.T) {
 		tempGenesis, cleanup := testutils.NewTestFile(t)
 		t.Cleanup(cleanup)
 
-		genesis := GetDefaultGenesis()
+		genesis := common.GetDefaultGenesis()
 		require.NoError(t, genesis.SaveAs(tempGenesis.Name()))
 
 		// Create the command
-		cmd := newGenesisCmd(commands.NewTestIO())
+		cmd := NewTxsCmd(commands.NewTestIO())
 		args := []string{
-			"txs",
 			"add",
 			"sheets",
 			"--genesis-path",
@@ -140,13 +137,12 @@ func TestGenesis_Txs_Add_Sheets(t *testing.T) {
 		tempGenesis, cleanup := testutils.NewTestFile(t)
 		t.Cleanup(cleanup)
 
-		genesis := GetDefaultGenesis()
+		genesis := common.GetDefaultGenesis()
 		require.NoError(t, genesis.SaveAs(tempGenesis.Name()))
 
 		// Create the command
-		cmd := newGenesisCmd(commands.NewTestIO())
+		cmd := NewTxsCmd(commands.NewTestIO())
 		args := []string{
-			"txs",
 			"add",
 			"sheets",
 			"--genesis-path",
@@ -168,7 +164,7 @@ func TestGenesis_Txs_Add_Sheets(t *testing.T) {
 		tempGenesis, cleanup := testutils.NewTestFile(t)
 		t.Cleanup(cleanup)
 
-		genesis := GetDefaultGenesis()
+		genesis := common.GetDefaultGenesis()
 		require.NoError(t, genesis.SaveAs(tempGenesis.Name()))
 
 		// Prepare the transactions file
@@ -184,9 +180,8 @@ func TestGenesis_Txs_Add_Sheets(t *testing.T) {
 		require.NoError(t, err)
 
 		// Create the command
-		cmd := newGenesisCmd(commands.NewTestIO())
+		cmd := NewTxsCmd(commands.NewTestIO())
 		args := []string{
-			"txs",
 			"add",
 			"sheets",
 			"--genesis-path",
@@ -222,7 +217,7 @@ func TestGenesis_Txs_Add_Sheets(t *testing.T) {
 		tempGenesis, cleanup := testutils.NewTestFile(t)
 		t.Cleanup(cleanup)
 
-		genesis := GetDefaultGenesis()
+		genesis := common.GetDefaultGenesis()
 		genesisState := gnoland.GnoGenesisState{
 			Txs: txs[0 : len(txs)/2],
 		}
@@ -243,9 +238,8 @@ func TestGenesis_Txs_Add_Sheets(t *testing.T) {
 		require.NoError(t, err)
 
 		// Create the command
-		cmd := newGenesisCmd(commands.NewTestIO())
+		cmd := NewTxsCmd(commands.NewTestIO())
 		args := []string{
-			"txs",
 			"add",
 			"sheets",
 			"--genesis-path",

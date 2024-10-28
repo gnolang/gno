@@ -1,10 +1,10 @@
-package main
+package txs
 
 import (
 	"context"
 	"testing"
 
-	"github.com/gnolang/contribs/gnogenesis/internal/balances"
+	"github.com/gnolang/contribs/gnogenesis/internal/common"
 	"github.com/gnolang/gno/gno.land/pkg/gnoland"
 	"github.com/gnolang/gno/tm2/pkg/bft/types"
 	"github.com/gnolang/gno/tm2/pkg/commands"
@@ -20,9 +20,8 @@ func TestGenesis_Txs_Remove(t *testing.T) {
 		t.Parallel()
 
 		// Create the command
-		cmd := newGenesisCmd(commands.NewTestIO())
+		cmd := NewTxsCmd(commands.NewTestIO())
 		args := []string{
-			"txs",
 			"remove",
 			"--genesis-path",
 			"dummy-path",
@@ -30,7 +29,7 @@ func TestGenesis_Txs_Remove(t *testing.T) {
 
 		// Run the command
 		cmdErr := cmd.ParseAndRun(context.Background(), args)
-		assert.ErrorContains(t, cmdErr, balances.errUnableToLoadGenesis.Error())
+		assert.ErrorContains(t, cmdErr, common.ErrUnableToLoadGenesis.Error())
 	})
 
 	t.Run("invalid genesis app state", func(t *testing.T) {
@@ -39,14 +38,13 @@ func TestGenesis_Txs_Remove(t *testing.T) {
 		tempGenesis, cleanup := testutils.NewTestFile(t)
 		t.Cleanup(cleanup)
 
-		genesis := GetDefaultGenesis()
+		genesis := common.GetDefaultGenesis()
 		genesis.AppState = nil // no app state
 		require.NoError(t, genesis.SaveAs(tempGenesis.Name()))
 
 		// Create the command
-		cmd := newGenesisCmd(commands.NewTestIO())
+		cmd := NewTxsCmd(commands.NewTestIO())
 		args := []string{
-			"txs",
 			"remove",
 			"--genesis-path",
 			tempGenesis.Name(),
@@ -65,16 +63,15 @@ func TestGenesis_Txs_Remove(t *testing.T) {
 		// Generate dummy txs
 		txs := generateDummyTxs(t, 10)
 
-		genesis := GetDefaultGenesis()
+		genesis := common.GetDefaultGenesis()
 		genesis.AppState = gnoland.GnoGenesisState{
 			Txs: txs,
 		}
 		require.NoError(t, genesis.SaveAs(tempGenesis.Name()))
 
 		// Create the command
-		cmd := newGenesisCmd(commands.NewTestIO())
+		cmd := NewTxsCmd(commands.NewTestIO())
 		args := []string{
-			"txs",
 			"remove",
 			"--genesis-path",
 			tempGenesis.Name(),
@@ -94,7 +91,7 @@ func TestGenesis_Txs_Remove(t *testing.T) {
 		// Generate dummy txs
 		txs := generateDummyTxs(t, 10)
 
-		genesis := GetDefaultGenesis()
+		genesis := common.GetDefaultGenesis()
 		genesis.AppState = gnoland.GnoGenesisState{
 			Txs: txs,
 		}
@@ -104,9 +101,8 @@ func TestGenesis_Txs_Remove(t *testing.T) {
 		require.NoError(t, err)
 
 		// Create the command
-		cmd := newGenesisCmd(commands.NewTestIO())
+		cmd := NewTxsCmd(commands.NewTestIO())
 		args := []string{
-			"txs",
 			"remove",
 			"--genesis-path",
 			tempGenesis.Name(),

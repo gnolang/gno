@@ -1,4 +1,4 @@
-package main
+package txs
 
 import (
 	"bytes"
@@ -6,7 +6,7 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/gnolang/contribs/gnogenesis/internal/balances"
+	"github.com/gnolang/contribs/gnogenesis/internal/common"
 	"github.com/gnolang/gno/gno.land/pkg/gnoland"
 	"github.com/gnolang/gno/tm2/pkg/amino"
 	"github.com/gnolang/gno/tm2/pkg/bft/types"
@@ -36,7 +36,7 @@ func newTxsListCmd(txsCfg *txsCfg, io commands.IO) *commands.Command {
 func execTxsListCmd(io commands.IO, cfg *txsCfg) error {
 	genesis, err := types.GenesisDocFromFile(cfg.GenesisPath)
 	if err != nil {
-		return fmt.Errorf("%w, %w", balances.errUnableToLoadGenesis, err)
+		return fmt.Errorf("%w, %w", common.ErrUnableToLoadGenesis, err)
 	}
 
 	gs, ok := genesis.AppState.(gnoland.GnoGenesisState)

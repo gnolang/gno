@@ -3,6 +3,7 @@ package main
 import (
 	"github.com/gnolang/contribs/gnogenesis/internal/balances"
 	"github.com/gnolang/contribs/gnogenesis/internal/generate"
+	"github.com/gnolang/contribs/gnogenesis/internal/txs"
 	"github.com/gnolang/gno/tm2/pkg/commands"
 )
 
@@ -22,7 +23,7 @@ func newGenesisCmd(io commands.IO) *commands.Command {
 		NewValidatorCmd(io),
 		NewVerifyCmd(io),
 		balances.NewBalancesCmd(io),
-		NewTxsCmd(io),
+		txs.NewTxsCmd(io),
 	)
 
 	return cmd

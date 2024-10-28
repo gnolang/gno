@@ -34,7 +34,7 @@ func TestGenesis_Balances_Add(t *testing.T) {
 
 		// Run the command
 		cmdErr := cmd.ParseAndRun(context.Background(), args)
-		require.ErrorContains(t, cmdErr, errUnableToLoadGenesis.Error())
+		require.ErrorContains(t, cmdErr, common.ErrUnableToLoadGenesis.Error())
 	})
 
 	t.Run("no sources selected", func(t *testing.T) {
@@ -72,7 +72,7 @@ func TestGenesis_Balances_Add(t *testing.T) {
 
 		// Run the command
 		cmdErr := cmd.ParseAndRun(context.Background(), args)
-		assert.ErrorContains(t, cmdErr, errUnableToLoadGenesis.Error())
+		assert.ErrorContains(t, cmdErr, common.ErrUnableToLoadGenesis.Error())
 	})
 
 	t.Run("balances from entries", func(t *testing.T) {

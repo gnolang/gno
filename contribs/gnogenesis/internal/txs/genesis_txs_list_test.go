@@ -1,11 +1,11 @@
-package main
+package txs
 
 import (
 	"bytes"
 	"context"
 	"testing"
 
-	"github.com/gnolang/contribs/gnogenesis/internal/balances"
+	"github.com/gnolang/contribs/gnogenesis/internal/common"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -21,9 +21,8 @@ func TestGenesis_List_All(t *testing.T) {
 		t.Parallel()
 
 		// Create the command
-		cmd := newGenesisCmd(commands.NewTestIO())
+		cmd := NewTxsCmd(commands.NewTestIO())
 		args := []string{
-			"txs",
 			"list",
 			"--genesis-path",
 			"",
@@ -31,7 +30,7 @@ func TestGenesis_List_All(t *testing.T) {
 
 		// Run the command
 		cmdErr := cmd.ParseAndRun(context.Background(), args)
-		assert.ErrorIs(t, cmdErr, balances.errUnableToLoadGenesis)
+		assert.ErrorIs(t, cmdErr, common.ErrUnableToLoadGenesis)
 	})
 
 	t.Run("list all txs", func(t *testing.T) {
@@ -43,7 +42,7 @@ func TestGenesis_List_All(t *testing.T) {
 		// Generate dummy txs
 		txs := generateDummyTxs(t, 10)
 
-		genesis := GetDefaultGenesis()
+		genesis := common.GetDefaultGenesis()
 		genesis.AppState = gnoland.GnoGenesisState{
 			Txs: txs,
 		}
@@ -53,9 +52,8 @@ func TestGenesis_List_All(t *testing.T) {
 		buf := bytes.NewBuffer(nil)
 		cio.SetOut(commands.WriteNopCloser(buf))
 
-		cmd := newGenesisCmd(cio)
+		cmd := NewTxsCmd(cio)
 		args := []string{
-			"txs",
 			"list",
 			"--genesis-path",
 			tempGenesis.Name(),

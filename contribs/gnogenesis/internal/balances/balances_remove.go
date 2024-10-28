@@ -13,10 +13,7 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/crypto"
 )
 
-var (
-	errUnableToLoadGenesis = errors.New("unable to load genesis")
-	errBalanceNotFound     = errors.New("genesis balances entry does not exist")
-)
+var errBalanceNotFound = errors.New("genesis balances entry does not exist")
 
 type balancesRemoveCfg struct {
 	rootCfg *balancesCfg
@@ -56,7 +53,7 @@ func execBalancesRemove(cfg *balancesRemoveCfg, io commands.IO) error {
 	// Load the genesis
 	genesis, loadErr := types.GenesisDocFromFile(cfg.rootCfg.GenesisPath)
 	if loadErr != nil {
-		return fmt.Errorf("%w, %w", errUnableToLoadGenesis, loadErr)
+		return fmt.Errorf("%w, %w", common.ErrUnableToLoadGenesis, loadErr)
 	}
 
 	// Validate the address

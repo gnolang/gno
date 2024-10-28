@@ -29,7 +29,7 @@ func TestGenesis_Balances_Remove(t *testing.T) {
 
 		// Run the command
 		cmdErr := cmd.ParseAndRun(context.Background(), args)
-		require.ErrorContains(t, cmdErr, errUnableToLoadGenesis.Error())
+		require.ErrorContains(t, cmdErr, common.ErrUnableToLoadGenesis.Error())
 	})
 
 	t.Run("genesis app state not set", func(t *testing.T) {
