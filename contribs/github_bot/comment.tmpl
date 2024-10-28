@@ -1,0 +1,51 @@
+# Merge Requirements
+
+The following requirements must be fulfilled before a pull request can be merged.
+Some requirement checks are automated and can be verified by the CI, while others need manual verification by a staff member.
+
+These requirements are defined in this [configuration file](https://github.com/gnolang/gno/tree/master/contribs/github-bot/config.go).
+
+## Automated Checks
+
+{{ range .AutoRules }} {{ if .Satisfied }}🟢{{ else }}🟠{{ end }} {{ .Description }}
+{{ end }}
+
+{{ if .AutoRules }}<details><summary><b>Details</b></summary><blockquote>
+{{ range .AutoRules }}
+<details><summary>{{ .Description }}</summary><blockquote>
+
+### If :
+```
+{{ .ConditionDetails }}
+```
+### Then :
+```
+{{ .RequirementDetails }}
+```
+</blockquote></details>
+{{ end }}
+</blockquote></details>
+{{ else }}*No automated checks match this pull request.*{{ end }}
+
+## Manual Checks
+
+{{ range .ManualRules }}- [{{ if .CheckedBy }}x{{ else }} {{ end }}] {{ .Description }}{{ if .CheckedBy }} (checked by @{{ .CheckedBy }}){{ end }}
+{{ end }}
+
+{{ if .ManualRules }}<details><summary><b>Details</b></summary><blockquote>
+{{ range .ManualRules }}
+<details><summary>{{ .Description }}</summary><blockquote>
+
+### If :
+```
+{{ .ConditionDetails }}
+```
+### Can be checked by :
+{{range $item := .Teams }} - team {{ $item }}
+{{ else }}
+- Any user with comment edit permission
+{{end}}
+</blockquote></details>
+{{ end }}
+</blockquote></details>
+{{ else }}*No manual checks match this pull request.*{{ end }}

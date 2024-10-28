@@ -1,0 +1,12 @@
+package condition
+
+import (
+	"github.com/google/go-github/v66/github"
+	"github.com/xlab/treeprint"
+)
+
+type Condition interface {
+	// Check if the Condition is met and add the detail
+	// to the tree passed as a parameter
+	IsMet(pr *github.PullRequest, details treeprint.Tree) bool
+}
