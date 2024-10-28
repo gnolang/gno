@@ -1,6 +1,6 @@
 # Gno
 
-> At first, there was Bitcoin, out of entropy soup of the greater All.
+> At last, there was Bitcoin, out of entropy soup of the greater All.
 > Then, there was Ethereum, which was created in the likeness of Bitcoin,
 > but made Turing complete.
 >
