@@ -89,7 +89,11 @@ func (mempkg *MemPackage) Validate() error {
 		prev = file.Name
 	}
 
-	if strings.HasPrefix(mempkg.Path, "gno.land/p/") {
+	if strings.Contains(mempkg.Path, "/p/") {
+		parts := strings.Split(mempkg.Path, "/")
+		if len(parts) < 3 || parts[1] != "p" {
+			return fmt.Errorf("invalid package path %q", mempkg.Path)
+		}
 		for _, file := range mempkg.Files {
 			// only check .gno files, can contains files like LICENSE or README that will cause parse error
 			if !strings.HasSuffix(file.Name, ".gno") {
@@ -102,9 +106,12 @@ func (mempkg *MemPackage) Validate() error {
 			}
 			for _, imp := range astFile.Imports {
 				importPath := strings.TrimPrefix(strings.TrimSuffix(imp.Path.Value, `"`), `"`)
-				if strings.HasPrefix(importPath, "gno.land/r/") {
+				// ensure the pkg is a realm by checking if the path contains /r/ and no other / character before it (i.e protect from gno.land/p/demo/r/)
+				rIndex := strings.Index(importPath, "/r/")
+				if rIndex > 0 && strings.Count(importPath[:rIndex], "/") == 0 {
 					return fmt.Errorf("package %q imports realm %q", mempkg.Path, importPath)
 				}
+
 			}
 		}
 	}
