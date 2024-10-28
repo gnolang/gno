@@ -10,24 +10,39 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
 	"github.com/gnolang/gno/gnovm/pkg/gnofiles"
 	"github.com/gnolang/gno/gnovm/pkg/gnomod"
 	"github.com/gnolang/gno/tm2/pkg/commands"
 	"github.com/gnolang/gno/tm2/pkg/std"
 )
 
-const recursiveSuffix = string(os.PathSeparator) + "..."
-
 type visitTarget struct {
 	path  string
 	match string
 }
 
-func DiscoverPackages(paths ...string) ([]*PackageSummary, error) {
+func DiscoverPackages(patterns ...string) ([]*PackageSummary, error) {
+	wd, err := os.Getwd()
+	if err != nil {
+		return nil, err
+	}
+	isWorkspace := true
+	workRoot, err := gnofiles.FindWorkspaceRoot(wd)
+	if os.IsNotExist(err) {
+		isWorkspace = false
+		workRoot, err = gnofiles.FindModuleRoot(wd)
+		if err != nil {
+			return nil, errors.New("can't find parent module or workspace")
+		}
+	} else if err != nil {
+		return nil, err
+	}
+
+	_ = isWorkspace
+
 	toVisit := []visitTarget{}
-	for _, p := range paths {
-		toVisit = append(toVisit, visitTarget{path: p, match: p})
+	for _, pattern := range patterns {
+		toVisit = append(toVisit, visitTarget{path: pattern, match: pattern})
 	}
 	visited := map[visitTarget]struct{}{}
 	cache := map[string]*PackageSummary{}
@@ -44,21 +59,41 @@ func DiscoverPackages(paths ...string) ([]*PackageSummary, error) {
 		visited[tgt] = struct{}{}
 
 		if tgt.path == "" {
+			// this should not happen, panic?
 			continue
 		}
 
-		if tgt.path[0] == '.' {
+		if PathIsLocalImport(tgt.path) {
 			absPath, err := filepath.Abs(tgt.path)
 			if err != nil {
 				errs = append(errs, fmt.Errorf("failed to get absolute path for %q: %w", tgt, err))
+				continue
 			}
+
+			// check that the path is in current work tree
+			rel, err := filepath.Rel(workRoot, absPath)
+			if err != nil {
+				errs = append(errs, fmt.Errorf("failed to get relative path for %q from %q: %w", tgt, workRoot, err))
+				continue
+			}
+			if rel == ".." || strings.HasPrefix(rel, "../") {
+				errs = append(errs, fmt.Errorf("path %q is outside work root %q", tgt.path, workRoot))
+				continue
+			}
+
+			// mark absolute path for visit
 			toVisit = append(toVisit, visitTarget{path: absPath, match: tgt.match})
 			continue
 		}
 
+		// at this point we should only have absolute or remote paths
+		if !(filepath.IsAbs(tgt.path) || PatternIsRemote(tgt.path)) {
+			panic(fmt.Errorf("%q should be an absolute or remote pattern", tgt.path))
+		}
+
 		root := convertRecursivePathToDir(tgt.path)
 
-		if !isRecursivePath(tgt.path) {
+		if PatternIsLiteral(tgt.path) {
 			if tgt.path[0] != '/' {
 				pkgPath := tgt.path
 				if pkg, ok := cache[pkgPath]; ok {
@@ -116,6 +151,11 @@ func DiscoverPackages(paths ...string) ([]*PackageSummary, error) {
 			continue
 		}
 
+		// at this point we should only have recursive patterns
+		if PatternIsLiteral(tgt.path) {
+			panic(fmt.Errorf("%q should be a recursive pattern", tgt.path))
+		}
+
 		dirEntry, err := os.ReadDir(root)
 		if err != nil {
 			errs = append(errs, err)
@@ -126,7 +166,7 @@ func DiscoverPackages(paths ...string) ([]*PackageSummary, error) {
 		for _, entry := range dirEntry {
 			fileName := entry.Name()
 			if entry.IsDir() {
-				dirPath := filepath.Join(root, fileName) + recursiveSuffix
+				dirPath := filepath.Join(root, fileName) + gnofiles.RecursiveSuffix
 				toVisit = append(toVisit, visitTarget{path: dirPath, match: tgt.match})
 			}
 			if !hasGnoFiles && gnofiles.IsGnoFile(fileName) {
@@ -153,7 +193,7 @@ type PackageSummary struct {
 func Load(io commands.IO, paths ...string) ([]*Package, error) {
 	pkgs, err := DiscoverPackages(paths...)
 	if err != nil {
-		return nil, fmt.Errorf("failed to list packages: %w", err)
+		return nil, err
 	}
 
 	visited := map[string]struct{}{}
@@ -258,7 +298,9 @@ func resolveStdlib(ometa *PackageSummary) (*Package, error) {
 func resolveRemote(io commands.IO, ometa *PackageSummary) (*Package, error) {
 	meta := *ometa
 
-	modCache := filepath.Join(gnoenv.HomeDir(), "pkg", "mod")
+	homeDir := defaultConfig().GnoHome
+
+	modCache := filepath.Join(homeDir, "pkg", "mod")
 	meta.Root = filepath.Join(modCache, meta.PkgPath)
 	if err := DownloadModule(io, meta.PkgPath, meta.Root); err != nil {
 		return nil, fmt.Errorf("failed to download module %q: %w", meta.PkgPath, err)
@@ -407,18 +449,11 @@ func resolveNameAndImports(gnoFiles []string) (string, []string, error) {
 	return bestName, importsSlice, nil
 }
 
-func isRecursivePath(p string) bool {
-	return strings.HasSuffix(p, recursiveSuffix) || p == "..."
-}
-
 func convertRecursivePathToDir(p string) string {
 	if p == "..." {
 		return "."
 	}
-	if !strings.HasSuffix(p, recursiveSuffix) {
-		return p
-	}
-	return p[:len(p)-4]
+	return strings.TrimSuffix(p, gnofiles.RecursiveSuffix)
 }
 
 func findModDir(dir string) (string, error) {

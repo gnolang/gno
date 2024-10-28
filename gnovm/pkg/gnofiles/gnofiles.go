@@ -2,6 +2,7 @@ package gnofiles
 
 import (
 	"os"
+	"path/filepath"
 )
 
 // This file contains "definitions"; it attempts to centralize some common
@@ -17,6 +18,9 @@ const (
 
 	// ModfileName is the name of the module file.
 	ModfileName = "gno.mod"
+
+	// WorkfileName is the name of the workspace file.
+	WorkfileName = "gno.work"
 
 	// RecursiveSuffix is the os-dependent suffix marking a recursive target
 	RecursiveSuffix = string(os.PathSeparator) + "..."
@@ -45,4 +49,30 @@ func IsGnoTestFile(p string) bool {
 
 func IsGnoFiletestFile(p string) bool {
 	return IsGnoFile(p, "*_filetest.gno")
+}
+
+func FindModuleRoot(dir string) (string, error) {
+	return findRoot(dir, ModfileName)
+}
+
+func FindWorkspaceRoot(dir string) (string, error) {
+	return findRoot(dir, WorkfileName)
+}
+
+func findRoot(dir string, filename string) (string, error) {
+	dir = filepath.Clean(dir)
+
+	potentialMod := filepath.Join(dir, filename)
+
+	if _, err := os.Stat(potentialMod); os.IsNotExist(err) {
+		parent, file := filepath.Split(dir)
+		if file == "" || (parent == "" && file == ".") {
+			return "", os.ErrNotExist
+		}
+		return findRoot(parent, filename)
+	} else if err != nil {
+		return "", err
+	}
+
+	return filepath.Clean(dir), nil
 }
