@@ -3,7 +3,6 @@ package json
 import (
 	"errors"
 	"io"
-	"unicode"
 
 	"gno.land/p/demo/ufmt"
 )
@@ -33,7 +32,7 @@ func (b *buffer) first() (byte, error) {
 	for ; b.index < b.length; b.index++ {
 		c := b.data[b.index]
 
-		if !unicode.IsSpace(rune(c)) {
+		if !(c == whiteSpace || c == carriageReturn || c == newLine || c == tab) {
 			return c, nil
 		}
 	}
