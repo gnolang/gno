@@ -89,11 +89,8 @@ func (mempkg *MemPackage) Validate() error {
 		prev = file.Name
 	}
 
-	if strings.Contains(mempkg.Path, "/p/") {
-		pIndex := strings.Index(mempkg.Path, "/p/")
-		if pIndex < 1 || strings.Count(mempkg.Path[:pIndex], "/") > 0 {
-			return fmt.Errorf("invalid pkg path %q", mempkg.Path)
-		}
+	pIndex := strings.Index(mempkg.Path, "/p/")
+	if pIndex > 0 && strings.Count(mempkg.Path[:pIndex], "/") > 0 {
 		for _, file := range mempkg.Files {
 			// only check .gno files, can contains files like LICENSE or README that will cause parse error
 			if !strings.HasSuffix(file.Name, ".gno") {
