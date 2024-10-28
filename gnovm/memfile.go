@@ -90,9 +90,9 @@ func (mempkg *MemPackage) Validate() error {
 	}
 
 	if strings.Contains(mempkg.Path, "/p/") {
-		parts := strings.Split(mempkg.Path, "/")
-		if len(parts) < 3 || parts[1] != "p" {
-			return fmt.Errorf("invalid package path %q", mempkg.Path)
+		pIndex := strings.Index(mempkg.Path, "/p/")
+		if pIndex < 1 || strings.Count(mempkg.Path[:pIndex], "/") > 0 {
+			return fmt.Errorf("invalid pkg path %q", mempkg.Path)
 		}
 		for _, file := range mempkg.Files {
 			// only check .gno files, can contains files like LICENSE or README that will cause parse error
