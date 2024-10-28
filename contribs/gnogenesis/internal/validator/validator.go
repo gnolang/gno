@@ -1,13 +1,14 @@
-package main
+package validator
 
 import (
 	"flag"
 
+	"github.com/gnolang/contribs/gnogenesis/internal/common"
 	"github.com/gnolang/gno/tm2/pkg/commands"
 )
 
 type validatorCfg struct {
-	CommonCfg
+	common.Cfg
 
 	address string
 }
@@ -15,13 +16,12 @@ type validatorCfg struct {
 // NewValidatorCmd creates the genesis validator subcommand
 func NewValidatorCmd(io commands.IO) *commands.Command {
 	cfg := &validatorCfg{
-		CommonCfg: CommonCfg{},
+		Cfg: common.Cfg{},
 	}
 
 	cmd := commands.NewCommand(
 		commands.Metadata{
-			Name:       "validator",
-			ShortUsage: "validator <subcommand> [flags]",
+			ShortUsage: "<subcommand> [flags]",
 			ShortHelp:  "validator set management in genesis.json",
 			LongHelp:   "Manipulates the genesis.json validator set",
 		},
@@ -38,7 +38,7 @@ func NewValidatorCmd(io commands.IO) *commands.Command {
 }
 
 func (c *validatorCfg) RegisterFlags(fs *flag.FlagSet) {
-	c.CommonCfg.RegisterFlags(fs)
+	c.Cfg.RegisterFlags(fs)
 
 	fs.StringVar(
 		&c.address,

@@ -1,4 +1,4 @@
-package main
+package verify
 
 import (
 	"context"
@@ -6,6 +6,7 @@ import (
 	"flag"
 	"fmt"
 
+	"github.com/gnolang/contribs/gnogenesis/internal/common"
 	"github.com/gnolang/gno/gno.land/pkg/gnoland"
 	"github.com/gnolang/gno/tm2/pkg/bft/types"
 	"github.com/gnolang/gno/tm2/pkg/commands"
@@ -14,7 +15,7 @@ import (
 var errInvalidGenesisState = errors.New("invalid genesis state type")
 
 type verifyCfg struct {
-	CommonCfg
+	common.Cfg
 }
 
 // NewVerifyCmd creates the genesis verify subcommand
@@ -23,8 +24,7 @@ func NewVerifyCmd(io commands.IO) *commands.Command {
 
 	return commands.NewCommand(
 		commands.Metadata{
-			Name:       "verify",
-			ShortUsage: "verify [flags]",
+			ShortUsage: "[flags]",
 			ShortHelp:  "verifies a genesis.json",
 			LongHelp:   "Verifies a node's genesis.json",
 		},
@@ -36,7 +36,7 @@ func NewVerifyCmd(io commands.IO) *commands.Command {
 }
 
 func (c *verifyCfg) RegisterFlags(fs *flag.FlagSet) {
-	c.CommonCfg.RegisterFlags(fs)
+	c.Cfg.RegisterFlags(fs)
 }
 
 func execVerify(cfg *verifyCfg, io commands.IO) error {

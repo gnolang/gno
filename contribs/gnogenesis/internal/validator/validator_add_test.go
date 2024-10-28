@@ -1,10 +1,10 @@
-package main
+package validator
 
 import (
 	"context"
 	"testing"
 
-	"github.com/gnolang/contribs/gnogenesis/internal/balances"
+	"github.com/gnolang/contribs/gnogenesis/internal/common"
 	"github.com/gnolang/gno/tm2/pkg/bft/types"
 	"github.com/gnolang/gno/tm2/pkg/commands"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
@@ -20,9 +20,8 @@ func TestGenesis_Validator_Add(t *testing.T) {
 		t.Parallel()
 
 		// Create the command
-		cmd := newGenesisCmd(commands.NewTestIO())
+		cmd := NewValidatorCmd(commands.NewTestIO())
 		args := []string{
-			"validator",
 			"add",
 			"--genesis-path",
 			"dummy-path",
@@ -30,7 +29,7 @@ func TestGenesis_Validator_Add(t *testing.T) {
 
 		// Run the command
 		cmdErr := cmd.ParseAndRun(context.Background(), args)
-		assert.ErrorContains(t, cmdErr, balances.errUnableToLoadGenesis.Error())
+		assert.ErrorContains(t, cmdErr, common.ErrUnableToLoadGenesis.Error())
 	})
 
 	t.Run("invalid validator address", func(t *testing.T) {
@@ -39,13 +38,12 @@ func TestGenesis_Validator_Add(t *testing.T) {
 		tempGenesis, cleanup := testutils.NewTestFile(t)
 		t.Cleanup(cleanup)
 
-		genesis := GetDefaultGenesis()
+		genesis := common.GetDefaultGenesis()
 		require.NoError(t, genesis.SaveAs(tempGenesis.Name()))
 
 		// Create the command
-		cmd := newGenesisCmd(commands.NewTestIO())
+		cmd := NewValidatorCmd(commands.NewTestIO())
 		args := []string{
-			"validator",
 			"add",
 			"--genesis-path",
 			tempGenesis.Name(),
@@ -64,15 +62,14 @@ func TestGenesis_Validator_Add(t *testing.T) {
 		tempGenesis, cleanup := testutils.NewTestFile(t)
 		t.Cleanup(cleanup)
 
-		genesis := GetDefaultGenesis()
+		genesis := common.GetDefaultGenesis()
 		require.NoError(t, genesis.SaveAs(tempGenesis.Name()))
 
-		key := GetDummyKey(t)
+		key := common.GetDummyKey(t)
 
 		// Create the command
-		cmd := newGenesisCmd(commands.NewTestIO())
+		cmd := NewValidatorCmd(commands.NewTestIO())
 		args := []string{
-			"validator",
 			"add",
 			"--genesis-path",
 			tempGenesis.Name(),
@@ -93,15 +90,14 @@ func TestGenesis_Validator_Add(t *testing.T) {
 		tempGenesis, cleanup := testutils.NewTestFile(t)
 		t.Cleanup(cleanup)
 
-		genesis := GetDefaultGenesis()
+		genesis := common.GetDefaultGenesis()
 		require.NoError(t, genesis.SaveAs(tempGenesis.Name()))
 
-		key := GetDummyKey(t)
+		key := common.GetDummyKey(t)
 
 		// Create the command
-		cmd := newGenesisCmd(commands.NewTestIO())
+		cmd := NewValidatorCmd(commands.NewTestIO())
 		args := []string{
-			"validator",
 			"add",
 			"--genesis-path",
 			tempGenesis.Name(),
@@ -122,15 +118,14 @@ func TestGenesis_Validator_Add(t *testing.T) {
 		tempGenesis, cleanup := testutils.NewTestFile(t)
 		t.Cleanup(cleanup)
 
-		genesis := GetDefaultGenesis()
+		genesis := common.GetDefaultGenesis()
 		require.NoError(t, genesis.SaveAs(tempGenesis.Name()))
 
-		key := GetDummyKey(t)
+		key := common.GetDummyKey(t)
 
 		// Create the command
-		cmd := newGenesisCmd(commands.NewTestIO())
+		cmd := NewValidatorCmd(commands.NewTestIO())
 		args := []string{
-			"validator",
 			"add",
 			"--genesis-path",
 			tempGenesis.Name(),
@@ -153,15 +148,14 @@ func TestGenesis_Validator_Add(t *testing.T) {
 		tempGenesis, cleanup := testutils.NewTestFile(t)
 		t.Cleanup(cleanup)
 
-		genesis := GetDefaultGenesis()
+		genesis := common.GetDefaultGenesis()
 		require.NoError(t, genesis.SaveAs(tempGenesis.Name()))
 
-		dummyKeys := GetDummyKeys(t, 2)
+		dummyKeys := common.GetDummyKeys(t, 2)
 
 		// Create the command
-		cmd := newGenesisCmd(commands.NewTestIO())
+		cmd := NewValidatorCmd(commands.NewTestIO())
 		args := []string{
-			"validator",
 			"add",
 			"--genesis-path",
 			tempGenesis.Name(),
@@ -184,8 +178,8 @@ func TestGenesis_Validator_Add(t *testing.T) {
 		tempGenesis, cleanup := testutils.NewTestFile(t)
 		t.Cleanup(cleanup)
 
-		dummyKeys := GetDummyKeys(t, 2)
-		genesis := GetDefaultGenesis()
+		dummyKeys := common.GetDummyKeys(t, 2)
+		genesis := common.GetDefaultGenesis()
 
 		// Set an existing validator
 		genesis.Validators = append(genesis.Validators, types.GenesisValidator{
@@ -198,9 +192,8 @@ func TestGenesis_Validator_Add(t *testing.T) {
 		require.NoError(t, genesis.SaveAs(tempGenesis.Name()))
 
 		// Create the command
-		cmd := newGenesisCmd(commands.NewTestIO())
+		cmd := NewValidatorCmd(commands.NewTestIO())
 		args := []string{
-			"validator",
 			"add",
 			"--genesis-path",
 			tempGenesis.Name(),
@@ -223,15 +216,14 @@ func TestGenesis_Validator_Add(t *testing.T) {
 		tempGenesis, cleanup := testutils.NewTestFile(t)
 		t.Cleanup(cleanup)
 
-		key := GetDummyKey(t)
-		genesis := GetDefaultGenesis()
+		key := common.GetDummyKey(t)
+		genesis := common.GetDefaultGenesis()
 
 		require.NoError(t, genesis.SaveAs(tempGenesis.Name()))
 
 		// Create the command
-		cmd := newGenesisCmd(commands.NewTestIO())
+		cmd := NewValidatorCmd(commands.NewTestIO())
 		args := []string{
-			"validator",
 			"add",
 			"--genesis-path",
 			tempGenesis.Name(),

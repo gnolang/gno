@@ -1,4 +1,4 @@
-package main
+package verify
 
 import (
 	"context"
@@ -53,9 +53,8 @@ func TestGenesis_Verify(t *testing.T) {
 		require.NoError(t, g.SaveAs(tempFile.Name()))
 
 		// Create the command
-		cmd := newGenesisCmd(commands.NewTestIO())
+		cmd := NewVerifyCmd(commands.NewTestIO())
 		args := []string{
-			"verify",
 			"--genesis-path",
 			tempFile.Name(),
 		}
@@ -83,9 +82,8 @@ func TestGenesis_Verify(t *testing.T) {
 		require.NoError(t, g.SaveAs(tempFile.Name()))
 
 		// Create the command
-		cmd := newGenesisCmd(commands.NewTestIO())
+		cmd := NewVerifyCmd(commands.NewTestIO())
 		args := []string{
-			"verify",
 			"--genesis-path",
 			tempFile.Name(),
 		}
@@ -110,9 +108,8 @@ func TestGenesis_Verify(t *testing.T) {
 		require.NoError(t, g.SaveAs(tempFile.Name()))
 
 		// Create the command
-		cmd := newGenesisCmd(commands.NewTestIO())
+		cmd := NewVerifyCmd(commands.NewTestIO())
 		args := []string{
-			"verify",
 			"--genesis-path",
 			tempFile.Name(),
 		}
@@ -132,9 +129,8 @@ func TestGenesis_Verify(t *testing.T) {
 		require.NoError(t, g.SaveAs(tempFile.Name()))
 
 		// Create the command
-		cmd := newGenesisCmd(commands.NewTestIO())
+		cmd := NewVerifyCmd(commands.NewTestIO())
 		args := []string{
-			"verify",
 			"--genesis-path",
 			tempFile.Name(),
 		}
@@ -155,9 +151,8 @@ func TestGenesis_Verify(t *testing.T) {
 		require.NoError(t, g.SaveAs(tempFile.Name()))
 
 		// Create the command
-		cmd := newGenesisCmd(commands.NewTestIO())
+		cmd := NewVerifyCmd(commands.NewTestIO())
 		args := []string{
-			"verify",
 			"--genesis-path",
 			tempFile.Name(),
 		}
