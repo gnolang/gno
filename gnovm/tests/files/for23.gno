@@ -14,4 +14,4 @@ func main() {
 }
 
 // Error:
-// break statement out of place
+// main/files/for23.gno:7:17: break statement out of place

@@ -14,4 +14,4 @@ func main() {
 }
 
 // Error:
-// fallthrough statement out of place
+// main/files/for22.gno:7:17: fallthrough statement out of place
