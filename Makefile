@@ -29,7 +29,7 @@ VERIFY_MOD_SUMS ?= false
 ########################################
 # Dev tools
 .PHONY: install
-install: install.gnokey install.gno install.gnodev
+install: install.gnokey install.gno install.gnodev install.gnogenesis
 
 # shortcuts to frequently used commands from sub-components.
 .PHONY: install.gnokey
@@ -45,6 +45,11 @@ install.gno:
 install.gnodev:
 	$(MAKE) --no-print-directory -C ./contribs/gnodev install
 	@printf "\033[0;32m[+] 'gnodev' has been installed. Read more in ./contribs/gnodev/\033[0m\n"
+.PHONY: install.gnogenesis
+install.gnogenesis:
+	$(MAKE) --no-print-directory -C ./contribs/gnogenesis install
+	@printf "\033[0;32m[+] 'gnogenesis' has been installed. Read more in ./contribs/gnogenesis/\033[0m\n"
+
 
 # old aliases
 .PHONY: install_gnokey
