@@ -8,7 +8,12 @@ import (
 	"gno.land/p/demo/grc/exts"
 )
 
-// GRC20 interface defines the methods that a GRC20 token must implement.
+// GRC20 interface defines the methods that a GRC20 token must implement. It
+// extends the TokenMetadata interface to include methods for managing token
+// transfers, allowances, and querying balances.
+//
+// The GRC20 interface is designed to ensure that any token adhering to this
+// standard provides a consistent API for interacting with fungible tokens.
 type GRC20 interface {
 	exts.TokenMetadata
 
@@ -50,6 +55,33 @@ type GRC20 interface {
 	TransferFrom(from, to std.Address, amount uint64) error
 }
 
+// Token represents a fungible token with a name, symbol, and a certain number
+// of decimal places. It maintains a ledger for tracking balances and allowances
+// of addresses.
+//
+// The Token struct provides methods for retrieving token metadata, such as the
+// name, symbol, and decimals, as well as methods for interacting with the
+// ledger, including checking balances and allowances.
+type Token struct {
+	name     string         // Name of the token (e.g., "Dummy Token").
+	symbol   string         // Symbol of the token (e.g., "DUMMY").
+	decimals uint           // Number of decimal places used for the token's precision.
+	ledger   *PrivateLedger // Pointer to the PrivateLedger that manages balances and allowances.
+}
+
+// PrivateLedger is a struct that holds the balances and allowances for the
+// token. It provides administrative functions for minting, burning,
+// transferring tokens, and managing allowances.
+//
+// The PrivateLedger is not safe to expose publicly, as it contains sensitive
+// information regarding token balances and allowances.
+type PrivateLedger struct {
+	totalSupply uint64   // Total supply of the token managed by this ledger.
+	balances    avl.Tree // std.Address -> uint64
+	allowances  avl.Tree // owner.(std.Address)+":"+spender.(std.Address)) -> uint64
+	token       *Token   // Pointer to the associated Token struct
+}
+
 var (
 	ErrInsufficientBalance   = errors.New("insufficient balance")
 	ErrInsufficientAllowance = errors.New("insufficient allowance")
@@ -65,23 +97,6 @@ const (
 	TransferEvent = "Transfer"
 	ApprovalEvent = "Approval"
 )
-
-type Token struct {
-	name     string
-	symbol   string
-	decimals uint
-	ledger   *PrivateLedger
-}
-
-// PrivateLedger is a struct that holds the balances and allowances and exposes
-// administrative functions.
-// It is unsafe to expose it publicly.
-type PrivateLedger struct {
-	totalSupply uint64
-	balances    avl.Tree // std.Address -> uint64
-	allowances  avl.Tree // owner.(std.Address)+":"+spender.(std.Address)) -> uint64
-	token       *Token
-}
 
 type fnTeller struct {
 	accountFn func() std.Address
