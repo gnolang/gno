@@ -8,13 +8,13 @@ import (
 	"gno.land/p/demo/grc/exts"
 )
 
-// GRC20 interface defines the methods that a GRC20 token must implement. It
+// Teller interface defines the methods that a GRC20 token must implement. It
 // extends the TokenMetadata interface to include methods for managing token
 // transfers, allowances, and querying balances.
 //
-// The GRC20 interface is designed to ensure that any token adhering to this
+// The Teller interface is designed to ensure that any token adhering to this
 // standard provides a consistent API for interacting with fungible tokens.
-type GRC20 interface {
+type Teller interface {
 	exts.TokenMetadata
 
 	// Returns the amount of tokens in existence.
@@ -103,4 +103,4 @@ type fnTeller struct {
 	*Token
 }
 
-var _ GRC20 = (*fnTeller)(nil)
+var _ Teller = (*fnTeller)(nil)

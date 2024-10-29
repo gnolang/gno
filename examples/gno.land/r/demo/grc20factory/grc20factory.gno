@@ -45,7 +45,7 @@ func NewWithAdmin(name, symbol string, decimals uint, initialMint, faucet uint64
 	// XXX: grc20reg.Register(token, symbol)
 }
 
-func (inst instance) CallerTeller() grc20.GRC20 {
+func (inst instance) CallerTeller() grc20.Token {
 	return inst.token.CallerTeller()
 }
 
@@ -72,21 +72,21 @@ func Allowance(symbol string, owner, spender std.Address) uint64 {
 func Transfer(symbol string, to std.Address, amount uint64) {
 	inst := mustGetInstance(symbol)
 	caller := std.PrevRealm().Addr()
-	teller := inst.ledger.MasqueradingTeller(caller)
+	teller := inst.ledger.ImpersonateTeller(caller)
 	checkErr(teller.Transfer(to, amount))
 }
 
 func Approve(symbol string, spender std.Address, amount uint64) {
 	inst := mustGetInstance(symbol)
 	caller := std.PrevRealm().Addr()
-	teller := inst.ledger.MasqueradingTeller(caller)
+	teller := inst.ledger.ImpersonateTeller(caller)
 	checkErr(teller.Approve(spender, amount))
 }
 
 func TransferFrom(symbol string, from, to std.Address, amount uint64) {
 	inst := mustGetInstance(symbol)
 	caller := std.PrevRealm().Addr()
-	teller := inst.ledger.MasqueradingTeller(caller)
+	teller := inst.ledger.ImpersonateTeller(caller)
 	checkErr(teller.TransferFrom(from, to, amount))
 }
 

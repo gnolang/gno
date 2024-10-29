@@ -71,7 +71,7 @@ func TestErrConditions(t *testing.T) {
 		fn   func()
 	}
 
-	adminLedger.Mint(std.Address(admin), 10000)
+	privateLedger.Mint(std.Address(admin), 10000)
 	{
 		tests := []test{
 			{"Transfer(admin, 1)", "cannot send transfer to self", func() {
@@ -79,7 +79,7 @@ func TestErrConditions(t *testing.T) {
 				// but there is currently a limitation in manipulating the frame stack and simulate
 				// calling this package from an outside point of view.
 				adminAddr := std.Address(admin)
-				if err := adminLedger.Transfer(adminAddr, adminAddr, 1); err != nil {
+				if err := privateLedger.Transfer(adminAddr, adminAddr, 1); err != nil {
 					panic(err)
 				}
 			}},

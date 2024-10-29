@@ -14,7 +14,7 @@ func TestCallerTellerImpl(t *testing.T) {
 	tok, _ := NewToken("Dummy", "DUMMY", 4)
 	teller := tok.CallerTeller()
 	urequire.False(t, tok == nil)
-	var _ GRC20 = teller
+	var _ Teller = teller
 }
 
 func TestTeller(t *testing.T) {

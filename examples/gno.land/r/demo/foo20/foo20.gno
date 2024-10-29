@@ -1,5 +1,5 @@
-// foo20 is a GRC20 token contract where all the GRC20 methods are proxified
-// with top-level functions. see also gno.land/r/demo/bar20.
+// foo20 is a GRC20 token contract where all the grc20.Teller methods are
+// proxified with top-level functions. see also gno.land/r/demo/bar20.
 package foo20
 
 import (
@@ -14,13 +14,13 @@ import (
 )
 
 var (
-	Token, adminLedger = grc20.NewToken("Foo", "FOO", 4)
-	UserTeller         = Token.CallerTeller()
-	owner              = ownable.NewWithAddress("g1u7y667z64x2h7vc6fmpcprgey4ck233jaww9zq") // @manfred
+	Token, privateLedger = grc20.NewToken("Foo", "FOO", 4)
+	UserTeller           = Token.CallerTeller()
+	owner                = ownable.NewWithAddress("g1u7y667z64x2h7vc6fmpcprgey4ck233jaww9zq") // @manfred
 )
 
 func init() {
-	adminLedger.Mint(owner.Owner(), 1_000_000*10_000) // @adminLedgeristrator (1M)
+	privateLedger.Mint(owner.Owner(), 1_000_000*10_000) // @privateLedgeristrator (1M)
 	// XXX: grc20reg.Register(Token, "")
 }
 
@@ -60,19 +60,19 @@ func TransferFrom(from, to pusers.AddressOrName, amount uint64) {
 func Faucet() {
 	caller := std.PrevRealm().Addr()
 	amount := uint64(1_000 * 10_000) // 1k
-	checkErr(adminLedger.Mint(caller, amount))
+	checkErr(privateLedger.Mint(caller, amount))
 }
 
 func Mint(to pusers.AddressOrName, amount uint64) {
 	owner.AssertCallerIsOwner()
 	toAddr := users.Resolve(to)
-	checkErr(adminLedger.Mint(toAddr, amount))
+	checkErr(privateLedger.Mint(toAddr, amount))
 }
 
 func Burn(from pusers.AddressOrName, amount uint64) {
 	owner.AssertCallerIsOwner()
 	fromAddr := users.Resolve(from)
-	checkErr(adminLedger.Burn(fromAddr, amount))
+	checkErr(privateLedger.Burn(fromAddr, amount))
 }
 
 func Render(path string) string {

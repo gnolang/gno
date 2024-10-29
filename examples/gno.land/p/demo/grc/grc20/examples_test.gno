@@ -4,7 +4,7 @@ package grc20
 
 func ExampleInit()                            {}
 func ExampleExposeBankForMaketxRunOrImports() {}
-func ExampleCustomGRC20Impl()                 {}
+func ExampleCustomTellerImpl()                {}
 func ExampleAllowance()                       {}
 func ExampleRealmBanker()                     {}
 func ExamplePrevRealmBanker()                 {}

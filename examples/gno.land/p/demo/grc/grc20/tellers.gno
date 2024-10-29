@@ -4,9 +4,10 @@ import (
 	"std"
 )
 
-// CallerTeller returns a GRC20 compatible teller that checks the PrevRealm caller for each call.
-// It's usually safe to expose it publicly to let users manipulate their tokens directly, or for reams to use their allowance.
-func (tok *Token) CallerTeller() GRC20 {
+// CallerTeller returns a GRC20 compatible teller that checks the PrevRealm
+// caller for each call. It's usually safe to expose it publicly to let users
+// manipulate their tokens directly, or for reams to use their allowance.
+func (tok *Token) CallerTeller() Teller {
 	if tok == nil {
 		panic("Token cannot be nil")
 	}
@@ -21,7 +22,7 @@ func (tok *Token) CallerTeller() GRC20 {
 }
 
 // ReadonlyTeller is a GRC20 compatible teller that panics for any write operation.
-func (tok *Token) ReadonlyTeller() GRC20 {
+func (tok *Token) ReadonlyTeller() Teller {
 	if tok == nil {
 		panic("Token cannot be nil")
 	}
@@ -32,10 +33,13 @@ func (tok *Token) ReadonlyTeller() GRC20 {
 	}
 }
 
-// RealmTeller returns a GRC20 compatible teller that will store the CurrentRealm caller and then reuse the stored caller for each call.
-// It allows a realm contract to interact with a GRC20 with its own account.
-// The initializer of this teller should usually never share a pointer to its RealmTeller except maybe for advanced delegation flows such as a DAO treasury management.
-func (tok *Token) RealmTeller() GRC20 {
+// RealmTeller returns a GRC20 compatible teller that will store the
+// CurrentRealm caller and then reuse the stored caller for each call. It allows
+// a realm contract to interact with a Teller with its own account. The
+// initializer of this teller should usually never share a pointer to its
+// RealmTeller except maybe for advanced delegation flows such as a DAO treasury
+// management.
+func (tok *Token) RealmTeller() Teller {
 	if tok == nil {
 		panic("Token cannot be nil")
 	}
@@ -50,8 +54,9 @@ func (tok *Token) RealmTeller() GRC20 {
 	}
 }
 
-// RealmSubTeller is like RealmTeller but uses the provided slug to derivate a subaccount.
-func (tok *Token) RealmSubTeller(slug string) GRC20 {
+// RealmSubTeller is like RealmTeller but uses the provided slug to derivate a
+// subaccount.
+func (tok *Token) RealmSubTeller(slug string) Teller {
 	if tok == nil {
 		panic("Token cannot be nil")
 	}
@@ -67,9 +72,22 @@ func (tok *Token) RealmSubTeller(slug string) GRC20 {
 	}
 }
 
-func (ledger *PrivateLedger) MasqueradingTeller(addr std.Address) GRC20 {
+// ImpersonateTeller returns a GRC20 compatible teller that impersonates as a
+// specified address. This allows operations to be performed as if they were
+// executed by the given address, enabling the caller to manipulate tokens on
+// behalf of that address.
+//
+// It is particularly useful in scenarios where a contract needs to perform
+// actions on behalf of a user or another account, without exposing the
+// underlying logic or requiring direct access to the user's account. The
+// returned teller will use the provided address for all operations, effectively
+// masking the original caller.
+//
+// This method should be used with caution, as it allows for potentially
+// sensitive operations to be performed under the guise of another address.
+func (ledger *PrivateLedger) ImpersonateTeller(addr std.Address) Teller {
 	if ledger == nil {
-		panic("Token cannot be nil")
+		panic("Ledger cannot be nil")
 	}
 
 	return &fnTeller{
