@@ -265,7 +265,7 @@ func TestMemPackage_Validate(t *testing.T) {
 					{Name: "a.gno", Body: `
 					package test
 
-					import "gno.land/r/demo/avl/avl.gno"
+					import "gno.land/r/demo/avl"
 					
 					func A() {
 						avl.A()
@@ -273,7 +273,7 @@ func TestMemPackage_Validate(t *testing.T) {
 					`},
 				},
 			},
-			"package \"gno.land/p/demo/test\" imports realm \"gnoland/r/demo/avl\"",
+			"package \"gno.land/p/demo/test\" imports realm \"gno.land/r/demo/avl\"",
 		},
 	}
 	for _, tc := range tt {
