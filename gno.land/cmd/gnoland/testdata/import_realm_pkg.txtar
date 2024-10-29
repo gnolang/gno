@@ -1,0 +1,29 @@
+# This test ensures a package cannot import a realm
+# the following situations:
+
+# Init
+## set up and start a new node
+loadpkg gno.land/r/myrlm $WORK/r/myrlm
+loadpkg gno.land/p/demo/bar $WORK/p/demo/bar
+
+gnoland start
+stderr 'invalid package: package "gno.land/p/demo/bar" imports realm "gno.land/r/myrlm"'
+
+
+-- r/myrlm/rlm.gno --
+package myrlm
+
+import "std"
+
+func A() {
+	println("hello world!)
+}
+
+-- p/demo/bar/bar.gno --
+package foo
+
+import "gno.land/r/myrlm"
+
+func A() {
+	myrlm.A()
+}
