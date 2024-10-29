@@ -20,8 +20,6 @@
 loadpkg gno.land/r/myrlm $WORK/r/myrlm
 ## deploy r/foo
 loadpkg gno.land/r/foo $WORK/r/foo
-## deploy p/demo/bar
-loadpkg gno.land/p/demo/bar $WORK/p/demo/bar
 
 ## start a new node
 gnoland start

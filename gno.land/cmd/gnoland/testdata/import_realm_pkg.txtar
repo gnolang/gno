@@ -6,7 +6,7 @@
 loadpkg gno.land/r/myrlm $WORK/r/myrlm
 loadpkg gno.land/p/demo/bar $WORK/p/demo/bar
 
-gnoland start
+!gnoland start
 stderr 'invalid package: package "gno.land/p/demo/bar" imports realm "gno.land/r/myrlm"'
 
 
