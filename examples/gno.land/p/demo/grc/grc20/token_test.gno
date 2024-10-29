@@ -77,3 +77,13 @@ func TestToken(t *testing.T) {
 	checkBalances(1000, 0, 100)
 	checkAllowances(200, 0, 0, 0, 0, 0)
 }
+
+func TestOverflow(t *testing.T) {
+	alice := testutils.TestAddress("alice")
+	bob := testutils.TestAddress("bob")
+	tok, adm := NewToken("Dummy", "DUMMY", 6)
+
+	urequire.NoError(t, adm.Mint(alice, 2<<62))
+	urequire.Equal(t, tok.BalanceOf(alice), uint64(2<<62))
+	urequire.Error(t, adm.Mint(bob, 2<<62))
+}

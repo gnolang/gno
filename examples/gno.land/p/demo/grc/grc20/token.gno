@@ -1,6 +1,7 @@
 package grc20
 
 import (
+	"math/overflow"
 	"std"
 	"strconv"
 
@@ -166,9 +167,14 @@ func (led *PrivateLedger) Mint(address std.Address, amount uint64) error {
 		return ErrInvalidAddress
 	}
 
-	// XXX check for overflow
+	// XXX: math/overflow is not supporting uint64.
+	// This checks prevents overflow but makes the totalSupply limited to a uint63.
+	sum, ok := overflow.Add64(int64(led.totalSupply), int64(amount))
+	if !ok {
+		return ErrOverflow
+	}
 
-	led.totalSupply += amount
+	led.totalSupply = uint64(sum)
 	currentBalance := led.balanceOf(address)
 	newBalance := currentBalance + amount
 
@@ -189,7 +195,6 @@ func (led *PrivateLedger) Burn(address std.Address, amount uint64) error {
 	if !address.IsValid() {
 		return ErrInvalidAddress
 	}
-	// XXX check for overflow
 
 	currentBalance := led.balanceOf(address)
 	if currentBalance < amount {

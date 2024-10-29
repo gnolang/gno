@@ -89,6 +89,7 @@ var (
 	ErrCannotTransferToSelf  = errors.New("cannot send transfer to self")
 	ErrReadonly              = errors.New("banker is readonly")
 	ErrRestrictedTokenOwner  = errors.New("restricted to bank owner")
+	ErrOverflow              = errors.New("Mint overflow")
 )
 
 const (
