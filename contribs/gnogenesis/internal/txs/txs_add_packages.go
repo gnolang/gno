@@ -58,7 +58,7 @@ func execTxsAddPackages(
 	args []string,
 ) error {
 	// Load the genesis
-	genesis, loadErr := types.GenesisDocFromFile(cfg.txsCfg.genesisPath)
+	genesis, loadErr := types.GenesisDocFromFile(cfg.txsCfg.GenesisPath)
 	if loadErr != nil {
 		return fmt.Errorf("unable to load genesis, %w", loadErr)
 	}
@@ -87,7 +87,7 @@ func execTxsAddPackages(
 	}
 
 	// Save the updated genesis
-	if err := genesis.SaveAs(cfg.txsCfg.genesisPath); err != nil {
+	if err := genesis.SaveAs(cfg.txsCfg.GenesisPath); err != nil {
 		return fmt.Errorf("unable to save genesis.json, %w", err)
 	}
 

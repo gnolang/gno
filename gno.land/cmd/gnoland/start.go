@@ -46,8 +46,7 @@ var startGraphic = strings.ReplaceAll(`
 
 var (
 	// Keep in sync with contribs/gnogenesis/internal/txs/txs_add_packages.go
-	genesisDeployAddress = crypto.MustAddressFromString("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5") // test1
-	genesisDeployFee     = std.NewFee(50000, std.MustParseCoin(ugnot.ValueString(1000000)))
+	genesisDeployFee = std.NewFee(50000, std.MustParseCoin(ugnot.ValueString(1000000)))
 )
 
 type startCfg struct {
