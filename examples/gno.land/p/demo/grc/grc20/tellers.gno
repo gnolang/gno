@@ -4,8 +4,8 @@ import (
 	"std"
 )
 
-// CallerTeller returns a GRC20 compatible teller that checks the PrevRealm caller for each calls.
-// It's usually safe to expose it publicly to let people manipulate their tokens directly or services to use their allowance.
+// CallerTeller returns a GRC20 compatible teller that checks the PrevRealm caller for each call.
+// It's usually safe to expose it publicly to let users manipulate their tokens directly, or for reams to use their allowance.
 func (tok *Token) CallerTeller() GRC20 {
 	if tok == nil {
 		panic("Token cannot be nil")
