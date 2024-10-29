@@ -45,6 +45,7 @@ jobs:
       - name: Build and push
         uses: docker/build-push-action@v6
         with:
+          context: ./misc/loop
           target: portalloopd
           push: ${{ github.event_name != 'pull_request' }}
           tags: ${{ steps.meta.outputs.tags }}
@@ -59,6 +60,8 @@ jobs:
 
       - name: "Setup the images"
         run: |
+          cd misc/loop
+
           docker compose build
           docker compose pull
           docker compose up -d
