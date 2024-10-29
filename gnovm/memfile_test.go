@@ -257,7 +257,7 @@ func TestMemPackage_Validate(t *testing.T) {
 			"invalid package/realm path",
 		},
 		{
-			"Pkg imports realm",
+			"Invalid package imports realm",
 			&MemPackage{
 				Name: "test",
 				Path: "gno.land/p/demo/test",
