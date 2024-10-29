@@ -12,8 +12,8 @@ To install gnogenesis, clone the repository and build the tool:
 
 ```shell
 git clone https://github.com/gnoland/gno.git
-cd gno
-make install.gnogenesis
+cd gno/contribs/gnogenesis
+make install
 ```
 
 This will compile and install `gnogenesis` to your system path, allowing you to run commands directly.
