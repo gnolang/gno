@@ -45,7 +45,11 @@ func NewWithAdmin(name, symbol string, decimals uint, initialMint, faucet uint64
 	// XXX: grc20reg.Register(token, symbol)
 }
 
-func (inst instance) CallerTeller() grc20.Token {
+func (inst instance) Token() *grc20.Token {
+	return inst.token
+}
+
+func (inst instance) CallerTeller() grc20.Teller {
 	return inst.token.CallerTeller()
 }
 
