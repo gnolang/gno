@@ -10,7 +10,7 @@ import (
 // NewToken creates a new Token.
 // It returns a pointer to the Token and a pointer to the Ledger.
 // Expected usage: Token, admin := NewToken("Dummy", "DUMMY", 4)
-func NewToken(name, symbol string, decimals uint) (*Token, *AdminLedger) {
+func NewToken(name, symbol string, decimals uint) (*Token, *PrivateLedger) {
 	if name == "" {
 		panic("name should not be empty")
 	}
@@ -19,7 +19,7 @@ func NewToken(name, symbol string, decimals uint) (*Token, *AdminLedger) {
 	}
 	// XXX additional checks (length, characters, limits, etc)
 
-	ledger := &AdminLedger{}
+	ledger := &PrivateLedger{}
 	token := &Token{
 		name:     name,
 		symbol:   symbol,
@@ -65,7 +65,7 @@ func (tok *Token) RenderHome() string {
 }
 
 // SpendAllowance decreases the allowance of the specified owner and spender.
-func (led *AdminLedger) SpendAllowance(owner, spender std.Address, amount uint64) error {
+func (led *PrivateLedger) SpendAllowance(owner, spender std.Address, amount uint64) error {
 	if !owner.IsValid() {
 		return ErrInvalidAddress
 	}
@@ -91,7 +91,7 @@ func (led *AdminLedger) SpendAllowance(owner, spender std.Address, amount uint64
 }
 
 // Transfer transfers tokens from the specified from address to the specified to address.
-func (led *AdminLedger) Transfer(from, to std.Address, amount uint64) error {
+func (led *PrivateLedger) Transfer(from, to std.Address, amount uint64) error {
 	if !from.IsValid() {
 		return ErrInvalidAddress
 	}
@@ -131,7 +131,7 @@ func (led *AdminLedger) Transfer(from, to std.Address, amount uint64) error {
 
 // TransferFrom transfers tokens from the specified owner to the specified to address.
 // It first checks if the owner has sufficient balance and then decreases the allowance.
-func (led *AdminLedger) TransferFrom(owner, spender, to std.Address, amount uint64) error {
+func (led *PrivateLedger) TransferFrom(owner, spender, to std.Address, amount uint64) error {
 	if led.balanceOf(owner) < amount {
 		return ErrInsufficientBalance
 	}
@@ -143,7 +143,7 @@ func (led *AdminLedger) TransferFrom(owner, spender, to std.Address, amount uint
 }
 
 // Approve sets the allowance of the specified owner and spender.
-func (led *AdminLedger) Approve(owner, spender std.Address, amount uint64) error {
+func (led *PrivateLedger) Approve(owner, spender std.Address, amount uint64) error {
 	if !owner.IsValid() || !spender.IsValid() {
 		return ErrInvalidAddress
 	}
@@ -161,7 +161,7 @@ func (led *AdminLedger) Approve(owner, spender std.Address, amount uint64) error
 }
 
 // Mint increases the total supply of the token and adds the specified amount to the specified address.
-func (led *AdminLedger) Mint(address std.Address, amount uint64) error {
+func (led *PrivateLedger) Mint(address std.Address, amount uint64) error {
 	if !address.IsValid() {
 		return ErrInvalidAddress
 	}
@@ -185,7 +185,7 @@ func (led *AdminLedger) Mint(address std.Address, amount uint64) error {
 }
 
 // Burn decreases the total supply of the token and subtracts the specified amount from the specified address.
-func (led *AdminLedger) Burn(address std.Address, amount uint64) error {
+func (led *PrivateLedger) Burn(address std.Address, amount uint64) error {
 	if !address.IsValid() {
 		return ErrInvalidAddress
 	}
@@ -212,7 +212,7 @@ func (led *AdminLedger) Burn(address std.Address, amount uint64) error {
 }
 
 // balanceOf returns the balance of the specified address.
-func (led AdminLedger) balanceOf(address std.Address) uint64 {
+func (led PrivateLedger) balanceOf(address std.Address) uint64 {
 	balance, found := led.balances.Get(address.String())
 	if !found {
 		return 0
@@ -221,7 +221,7 @@ func (led AdminLedger) balanceOf(address std.Address) uint64 {
 }
 
 // allowance returns the allowance of the specified owner and spender.
-func (led AdminLedger) allowance(owner, spender std.Address) uint64 {
+func (led PrivateLedger) allowance(owner, spender std.Address) uint64 {
 	allowance, found := led.allowances.Get(allowanceKey(owner, spender))
 	if !found {
 		return 0

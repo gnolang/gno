@@ -70,13 +70,13 @@ type Token struct {
 	name     string
 	symbol   string
 	decimals uint
-	ledger   *AdminLedger
+	ledger   *PrivateLedger
 }
 
-// AdminLedger is a struct that holds the balances and allowances and exposes
+// PrivateLedger is a struct that holds the balances and allowances and exposes
 // administrative functions.
 // It is unsafe to expose it publicly.
-type AdminLedger struct {
+type PrivateLedger struct {
 	totalSupply uint64
 	balances    avl.Tree // std.Address -> uint64
 	allowances  avl.Tree // owner.(std.Address)+":"+spender.(std.Address)) -> uint64

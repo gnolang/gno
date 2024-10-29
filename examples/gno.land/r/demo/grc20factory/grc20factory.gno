@@ -14,14 +14,14 @@ var instances avl.Tree // symbol -> instance
 
 type instance struct {
 	token  *grc20.Token
-	ledger *grc20.AdminLedger
+	ledger *grc20.PrivateLedger
 	admin  *ownable.Ownable
 	faucet uint64 // per-request amount. disabled if 0.
 }
 
 func New(name, symbol string, decimals uint, initialMint, faucet uint64) {
 	caller := std.PrevRealm().Addr()
-	NewWithAdmin(name, symbol, decimals, initialMint, faucet, caller)
+	NewWithPrivate(name, symbol, decimals, initialMint, faucet, caller)
 }
 
 func NewWithAdmin(name, symbol string, decimals uint, initialMint, faucet uint64, admin std.Address) {

@@ -67,7 +67,7 @@ func (tok *Token) RealmSubTeller(slug string) GRC20 {
 	}
 }
 
-func (ledger *AdminLedger) MasqueradingTeller(addr std.Address) GRC20 {
+func (ledger *PrivateLedger) MasqueradingTeller(addr std.Address) GRC20 {
 	if ledger == nil {
 		panic("Token cannot be nil")
 	}
