@@ -21,7 +21,7 @@ type instance struct {
 
 func New(name, symbol string, decimals uint, initialMint, faucet uint64) {
 	caller := std.PrevRealm().Addr()
-	NewWithPrivate(name, symbol, decimals, initialMint, faucet, caller)
+	NewWithAdmin(name, symbol, decimals, initialMint, faucet, caller)
 }
 
 func NewWithAdmin(name, symbol string, decimals uint, initialMint, faucet uint64, admin std.Address) {
