@@ -6,10 +6,7 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/commands"
 )
 
-var (
-	buildVersion string
-	commitHash   string
-)
+var buildVersion string
 
 // newVersionCmd creates a new version command
 func newVersionCmd(io commands.IO) *commands.Command {

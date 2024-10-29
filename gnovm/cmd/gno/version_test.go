@@ -6,10 +6,7 @@ import (
 	"testing"
 )
 
-var (
-	testBuildVersion string
-	testCommitHash   = "e872fa"
-)
+var testBuildVersion string
 
 func init() {
 	if isTestTaggedVersion() {
@@ -18,7 +15,6 @@ func init() {
 		testBuildVersion = "master.387+e872fa"
 	}
 	buildVersion = testBuildVersion
-	commitHash = testCommitHash
 }
 
 func isTestTaggedVersion() bool {
