@@ -104,41 +104,6 @@ either a full node or a pruned node, it is important to retain enough blocks to 
 
 ## Technical References
 
-### How do I generate `genesis.json`?
-
-`genesis.json` is the file that is used to create the initial state of the chain. To generate `genesis.json`, use
-the `gnoland genesis generate` command. Refer
-to [this section](../../gno-tooling/cli/gnoland.md#gnoland-genesis-generate-flags) for various flags that allow you to
-manipulate the file.
-
-:::warning
-
-Editing generated genesis.json manually is extremely dangerous. It may corrupt chain initial state which leads chain to
-not start
-
-:::
-
-### How do I add or remove validators from `genesis.json`?
-
-Validators inside `genesis.json` will be included in the validator set at genesis. To manipulate the genesis validator
-set, use the `gnoland genesis validator` command with the `add` or `remove` subcommands. Refer
-to [this section](../../gno-tooling/cli/gnoland.md#gnoland-genesis-validator-flags) for flags that allow you to
-configure the name or the voting power of the validator.
-
-### How do I add the balance information to the `genesis.json`?
-
-You may premine coins to various addresses. To modify the balances of addresses at genesis, use
-the `gnoland genesis balances` command with the `add` or `remove` subcommands. Refer
-to [this section](../../gno-tooling/cli/gnoland.md#gnoland-genesis-balances-add-flags) for various flags that allow you
-to update the entire balance sheet with a file or modify the balance of a single address.
-
-:::info
-
-Not only `ugnot`, but other coins are accepted. However, be aware that coins other than `ugnot` may not work(send, and
-etc.) properly.
-
-:::
-
 ### How do I initialize `gno secrets`?
 
 The `gno secrets init` command allows you to initialize the private information required to run the validator, including
