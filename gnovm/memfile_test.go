@@ -263,7 +263,7 @@ func TestMemPackage_Validate(t *testing.T) {
 				Path: "gno.land/p/demo/test",
 				Files: []*MemFile{
 					{Name: "a.gno", Body: `
-					package hey
+					package test
 
 					import "gno.land/r/demo/avl/avl.gno"
 					
