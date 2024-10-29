@@ -260,7 +260,7 @@ func TestMemPackage_Validate(t *testing.T) {
 			"Pkg imports realm",
 			&MemPackage{
 				Name: "hey",
-				Path: "gno.land/p/demo/hey",
+				Path: "gno.land/p/demo/test",
 				Files: []*MemFile{
 					{Name: "a.gno", Body: `
 					package hey
@@ -273,7 +273,7 @@ func TestMemPackage_Validate(t *testing.T) {
 					`},
 				},
 			},
-			"package \"gno.land/p/demo/hey\" imports realm \"gnoland/r/demo/avl\"",
+			"package \"gno.land/p/demo/test\" imports realm \"gnoland/r/demo/avl\"",
 		},
 	}
 	for _, tc := range tt {
