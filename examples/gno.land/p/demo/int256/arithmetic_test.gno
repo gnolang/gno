@@ -52,7 +52,7 @@ func TestAdd(t *testing.T) {
 		got.Add(x, y)
 
 		if got.Neq(want) {
-			t.Errorf("Add(%s, %s) = %v, want %v", tc.x, tc.y, got.ToString(), want.ToString())
+			t.Errorf("Add(%s, %s) = %v, want %v", tc.x, tc.y, got.String(), want.String())
 		}
 	}
 }
@@ -96,7 +96,7 @@ func TestAddUint256(t *testing.T) {
 		got.AddUint256(x, y)
 
 		if got.Neq(want) {
-			t.Errorf("AddUint256(%s, %s) = %v, want %v", tc.x, tc.y, got.ToString(), want.ToString())
+			t.Errorf("AddUint256(%s, %s) = %v, want %v", tc.x, tc.y, got.String(), want.String())
 		}
 	}
 }
@@ -143,7 +143,7 @@ func TestAddDelta(t *testing.T) {
 		AddDelta(z, x, y)
 
 		if z.Neq(want) {
-			t.Errorf("AddDelta(%s, %s, %s) = %v, want %v", tc.z, tc.x, tc.y, z.ToString(), want.ToString())
+			t.Errorf("AddDelta(%s, %s, %s) = %v, want %v", tc.z, tc.x, tc.y, z.String(), want.String())
 		}
 	}
 }
@@ -223,7 +223,7 @@ func TestSub(t *testing.T) {
 		got.Sub(x, y)
 
 		if got.Neq(want) {
-			t.Errorf("Sub(%s, %s) = %v, want %v", tc.x, tc.y, got.ToString(), want.ToString())
+			t.Errorf("Sub(%s, %s) = %v, want %v", tc.x, tc.y, got.String(), want.String())
 		}
 	}
 }
@@ -267,7 +267,7 @@ func TestSubUint256(t *testing.T) {
 		got.SubUint256(x, y)
 
 		if got.Neq(want) {
-			t.Errorf("SubUint256(%s, %s) = %v, want %v", tc.x, tc.y, got.ToString(), want.ToString())
+			t.Errorf("SubUint256(%s, %s) = %v, want %v", tc.x, tc.y, got.String(), want.String())
 		}
 	}
 }
@@ -312,7 +312,7 @@ func TestMul(t *testing.T) {
 		got.Mul(x, y)
 
 		if got.Neq(want) {
-			t.Errorf("Mul(%s, %s) = %v, want %v", tc.x, tc.y, got.ToString(), want.ToString())
+			t.Errorf("Mul(%s, %s) = %v, want %v", tc.x, tc.y, got.String(), want.String())
 		}
 	}
 }
@@ -342,8 +342,8 @@ func TestDiv(t *testing.T) {
 			x := MustFromDecimal(tt.x)
 			y := MustFromDecimal(tt.y)
 			result := Zero().Div(x, y)
-			if result.ToString() != tt.expected {
-				t.Errorf("Div(%s, %s) = %s, want %s", tt.x, tt.y, result.ToString(), tt.expected)
+			if result.String() != tt.expected {
+				t.Errorf("Div(%s, %s) = %s, want %s", tt.x, tt.y, result.String(), tt.expected)
 			}
 		})
 	}
@@ -398,7 +398,7 @@ func TestQuo(t *testing.T) {
 		got.Quo(x, y)
 
 		if got.Neq(want) {
-			t.Errorf("Quo(%s, %s) = %v, want %v", tc.x, tc.y, got.ToString(), want.ToString())
+			t.Errorf("Quo(%s, %s) = %v, want %v", tc.x, tc.y, got.String(), want.String())
 		}
 	}
 }
@@ -442,7 +442,7 @@ func TestRem(t *testing.T) {
 		got.Rem(x, y)
 
 		if got.Neq(want) {
-			t.Errorf("Rem(%s, %s) = %v, want %v", tc.x, tc.y, got.ToString(), want.ToString())
+			t.Errorf("Rem(%s, %s) = %v, want %v", tc.x, tc.y, got.String(), want.String())
 		}
 	}
 }
@@ -486,7 +486,7 @@ func TestMod(t *testing.T) {
 		got.Mod(x, y)
 
 		if got.Neq(want) {
-			t.Errorf("Mod(%s, %s) = %v, want %v", tc.x, tc.y, got.ToString(), want.ToString())
+			t.Errorf("Mod(%s, %s) = %v, want %v", tc.x, tc.y, got.String(), want.String())
 		}
 	}
 }
@@ -507,7 +507,7 @@ func TestModeOverflow(t *testing.T) {
 		want := MustFromDecimal(tt.want)
 		got := New().Mod(x, y)
 		if got.Neq(want) {
-			t.Errorf("Mod(%s, %s) = %v, want %v", tt.x, tt.y, got.ToString(), want.ToString())
+			t.Errorf("Mod(%s, %s) = %v, want %v", tt.x, tt.y, got.String(), want.String())
 		}
 	}
 }
@@ -541,7 +541,7 @@ func TestModPanic(t *testing.T) {
 		}
 
 		result := New().Mod(x, y)
-		t.Errorf("Mod(%s, %s) = %v, want %v", tc.x, tc.y, result.ToString(), "0")
+		t.Errorf("Mod(%s, %s) = %v, want %v", tc.x, tc.y, result.String(), "0")
 	}
 }
 
@@ -637,8 +637,8 @@ func TestAbs(t *testing.T) {
 
 		got := x.Abs()
 
-		if got.ToString() != tc.want {
-			t.Errorf("Abs(%s) = %v, want %v", tc.x, got.ToString(), tc.want)
+		if got.String() != tc.want {
+			t.Errorf("Abs(%s) = %v, want %v", tc.x, got.String(), tc.want)
 		}
 	}
 }

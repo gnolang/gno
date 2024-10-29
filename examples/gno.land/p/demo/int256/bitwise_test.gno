@@ -25,7 +25,7 @@ func TestBitwise_And(t *testing.T) {
 		got := new(Int).And(x, y)
 
 		if got.Neq(want) {
-			t.Errorf("And(%s, %s) = %s, want %s", x.ToString(), y.ToString(), got.ToString(), want.ToString())
+			t.Errorf("And(%s, %s) = %s, want %s", x.String(), y.String(), got.String(), want.String())
 		}
 	}
 }
@@ -51,7 +51,7 @@ func TestBitwise_Or(t *testing.T) {
 		got := new(Int).Or(x, y)
 
 		if got.Neq(want) {
-			t.Errorf("Or(%s, %s) = %s, want %s", x.ToString(), y.ToString(), got.ToString(), want.ToString())
+			t.Errorf("Or(%s, %s) = %s, want %s", x.String(), y.String(), got.String(), want.String())
 		}
 	}
 }
@@ -73,7 +73,7 @@ func TestBitwise_Not(t *testing.T) {
 		got := new(Int).Not(x)
 
 		if got.Neq(want) {
-			t.Errorf("Not(%s) = %s, want %s", x.ToString(), got.ToString(), want.ToString())
+			t.Errorf("Not(%s) = %s, want %s", x.String(), got.String(), want.String())
 		}
 	}
 }
@@ -98,7 +98,7 @@ func TestBitwise_Xor(t *testing.T) {
 		got := new(Int).Xor(x, y)
 
 		if got.Neq(want) {
-			t.Errorf("Xor(%s, %s) = %s, want %s", x.ToString(), y.ToString(), got.ToString(), want.ToString())
+			t.Errorf("Xor(%s, %s) = %s, want %s", x.String(), y.String(), got.String(), want.String())
 		}
 	}
 }
@@ -124,7 +124,7 @@ func TestBitwise_Rsh(t *testing.T) {
 		got := new(Int).Rsh(x, tt.n)
 
 		if got.Neq(want) {
-			t.Errorf("Rsh(%s, %d) = %s, want %s", x.ToString(), tt.n, got.ToString(), want.ToString())
+			t.Errorf("Rsh(%s, %d) = %s, want %s", x.String(), tt.n, got.String(), want.String())
 		}
 	}
 }
@@ -149,7 +149,7 @@ func TestBitwise_Lsh(t *testing.T) {
 		got := new(Int).Lsh(x, tt.n)
 
 		if got.Neq(want) {
-			t.Errorf("Lsh(%s, %d) = %s, want %s", x.ToString(), tt.n, got.ToString(), want.ToString())
+			t.Errorf("Lsh(%s, %d) = %s, want %s", x.String(), tt.n, got.String(), want.String())
 		}
 	}
 }

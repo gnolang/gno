@@ -24,8 +24,8 @@ func TestInitializers(t *testing.T) {
 			if z.Sign() != tt.wantSign {
 				t.Errorf("%s() = %d, want %d", tt.name, z.Sign(), tt.wantSign)
 			}
-			if z.ToString() != tt.wantStr {
-				t.Errorf("%s() = %s, want %s", tt.name, z.ToString(), tt.wantStr)
+			if z.String() != tt.wantStr {
+				t.Errorf("%s() = %s, want %s", tt.name, z.String(), tt.wantStr)
 			}
 		})
 	}
@@ -205,8 +205,8 @@ func TestSetAndToString(t *testing.T) {
 				t.Errorf("SetString(%s) unexpected error: %v", tt.input, err)
 			} else if z.Sign() != tt.expected {
 				t.Errorf("SetString(%s) sign is incorrect. Expected: %d, Actual: %d", tt.input, tt.expected, z.Sign())
-			} else if z.ToString() != tt.input {
-				t.Errorf("SetString(%s) string representation is incorrect. Expected: %s, Actual: %s", tt.input, tt.input, z.ToString())
+			} else if z.String() != tt.input {
+				t.Errorf("SetString(%s) string representation is incorrect. Expected: %s, Actual: %s", tt.input, tt.input, z.String())
 			}
 		}
 	}

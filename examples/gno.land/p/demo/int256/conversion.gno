@@ -76,7 +76,7 @@ func (z *Int) SetUint256(x *uint256.Uint) *Int {
 
 // ToString returns a string representation of z in base 10.
 // The string is prefixed with a minus sign if z is negative.
-func (z *Int) ToString() string {
+func (z *Int) String() string {
 	if z.value.IsZero() {
 		return "0"
 	}

@@ -127,7 +127,7 @@ func TestNeg(t *testing.T) {
 		z := MustFromDecimal(tt.x)
 		z.Neg(z)
 
-		got := z.ToString()
+		got := z.String()
 		if got != tt.want {
 			t.Errorf("Neg(%s) = %s, want %s", tt.x, got, tt.want)
 		}
@@ -150,7 +150,7 @@ func TestSet(t *testing.T) {
 		z := MustFromDecimal(tt.x)
 		z.Set(z)
 
-		got := z.ToString()
+		got := z.String()
 		if got != tt.want {
 			t.Errorf("Set(%s) = %s, want %s", tt.x, got, tt.want)
 		}
@@ -174,8 +174,8 @@ func TestSetUint256(t *testing.T) {
 		z := uint256.MustFromDecimal(tt.x)
 		got.SetUint256(z)
 
-		if got.ToString() != tt.want {
-			t.Errorf("SetUint256(%s) = %s, want %s", tt.x, got.ToString(), tt.want)
+		if got.String() != tt.want {
+			t.Errorf("SetUint256(%s) = %s, want %s", tt.x, got.String(), tt.want)
 		}
 	}
 }
@@ -205,7 +205,7 @@ func TestToString(t *testing.T) {
 			continue
 		}
 
-		output := x.ToString()
+		output := x.String()
 
 		if output != tt.expected {
 			t.Errorf("String(%s) = %s, want %s", tt.input, output, tt.expected)
