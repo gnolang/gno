@@ -2180,7 +2180,7 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 
 					if n.GetAttribute(ATTR_LAST_BLOCK_STMT) != true {
 						// no more clause after the one executed, this is not allowed
-						panic("cannot fallthrough final case in switch")
+						panic("fallthrough statement out of place")
 					}
 
 					// last is a switch clause, find its index in the switch and assign
@@ -2194,6 +2194,10 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 					}
 
 					for i := range swch.Clauses {
+						if i == len(swch.Clauses)-1 {
+							panic("cannot fallthrough final case in switch")
+						}
+
 						if &swch.Clauses[i] == swchC {
 							// switch clause found
 							n.BodyIndex = i
