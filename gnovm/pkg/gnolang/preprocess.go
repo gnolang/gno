@@ -298,6 +298,11 @@ func initStaticBlocks(store Store, ctx BlockNode, bn BlockNode) {
 					last.Predefine(false, n.VarName)
 				}
 			case *SwitchClauseStmt:
+				blen := len(n.Body)
+				if blen > 0 {
+					n.Body[blen-1].SetAttribute(ATTR_LAST_BLOCK_STMT, true)
+				}
+
 				// parent switch statement.
 				ss := ns[len(ns)-1].(*SwitchStmt)
 				// anything declared in ss are copied,
@@ -2125,8 +2130,19 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 
 			// TRANS_LEAVE -----------------------
 			case *BranchStmt:
+
+				notAllowedFunc := func(s string) {
+					_, isFunc := last.(*FuncLitExpr)
+
+					if isFunc {
+						panic(fmt.Sprintf("%s statement out of place", s))
+					}
+				}
+
 				switch n.Op {
 				case BREAK:
+					notAllowedFunc("break")
+
 					if n.Label == "" {
 						if !findBreakableNode(ns) {
 							panic("cannot break with no parent loop or switch")
@@ -2139,6 +2155,8 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 						}
 					}
 				case CONTINUE:
+					notAllowedFunc("continue")
+
 					if n.Label == "" {
 						if !findContinuableNode(ns) {
 							panic("cannot continue with no parent loop")
@@ -2154,17 +2172,32 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 					n.Depth = depth
 					n.BodyIndex = index
 				case FALLTHROUGH:
-					if swchC, ok := last.(*SwitchClauseStmt); ok {
-						// last is a switch clause, find its index in the switch and assign
-						// it to the fallthrough node BodyIndex. This will be used at
-						// runtime to determine the next switch clause to run.
-						swch := lastSwitch(ns)
-						for i := range swch.Clauses {
-							if &swch.Clauses[i] == swchC {
-								// switch clause found
-								n.BodyIndex = i
-								break
-							}
+					swchC, ok := last.(*SwitchClauseStmt)
+					if !ok {
+						// fallthrough is only allowed in a switch statement
+						panic("fallthrough statement out of place")
+					}
+
+					if n.GetAttribute(ATTR_LAST_BLOCK_STMT) != true {
+						// no more clause after the one executed, this is not allowed
+						panic("cannot fallthrough final case in switch")
+					}
+
+					// last is a switch clause, find its index in the switch and assign
+					// it to the fallthrough node BodyIndex. This will be used at
+					// runtime to determine the next switch clause to run.
+					swch := lastSwitch(ns)
+
+					if swch.IsTypeSwitch {
+						// fallthrough is not allowed in type switches
+						panic("cannot fallthrough in type switch")
+					}
+
+					for i := range swch.Clauses {
+						if &swch.Clauses[i] == swchC {
+							// switch clause found
+							n.BodyIndex = i
+							break
 						}
 					}
 				default:
