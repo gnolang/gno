@@ -17,7 +17,6 @@ var (
 	ErrProposalExecuted          = errors.New("proposal already executed")
 	ErrProposalInactive          = errors.New("proposal is inactive")
 	ErrProposalNotAccepted       = errors.New("proposal is not accepted")
-	ErrProposalExpired           = errors.New("proposal is expired")
 )
 
 var (
