@@ -58,7 +58,7 @@ lint:
 
 .PHONY: fmt
 fmt:
-	go run ./cmd/gno fmt $(GNOFMT_FLAGS) ./stdlibs/...
+	go run ./cmd/gno fmt $(GNOFMT_FLAGS) ./stdlibs/... ./tests/stdlibs/...
 	$(rundep) mvdan.cc/gofumpt $(GOFMT_FLAGS) .
 
 .PHONY: imports

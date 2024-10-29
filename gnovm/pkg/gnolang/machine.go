@@ -16,8 +16,8 @@ import (
 
 	"github.com/gnolang/overflow"
 
+	"github.com/gnolang/gno/gnovm"
 	"github.com/gnolang/gno/tm2/pkg/errors"
-	"github.com/gnolang/gno/tm2/pkg/std"
 	"github.com/gnolang/gno/tm2/pkg/store"
 )
 
@@ -265,7 +265,7 @@ func (m *Machine) PreprocessAllFilesAndSaveBlockNodes() {
 // Parses files, sets the package if doesn't exist, runs files, saves mempkg
 // and corresponding package node, package value, and types to store. Save
 // is set to false for tests where package values may be native.
-func (m *Machine) RunMemPackage(memPkg *std.MemPackage, save bool) (*PackageNode, *PackageValue) {
+func (m *Machine) RunMemPackage(memPkg *gnovm.MemPackage, save bool) (*PackageNode, *PackageValue) {
 	return m.runMemPackage(memPkg, save, false)
 }
 
@@ -273,11 +273,11 @@ func (m *Machine) RunMemPackage(memPkg *std.MemPackage, save bool) (*PackageNode
 // declarations are filtered removing duplicate declarations.
 // To control which declaration overrides which, use [ReadMemPackageFromList],
 // putting the overrides at the top of the list.
-func (m *Machine) RunMemPackageWithOverrides(memPkg *std.MemPackage, save bool) (*PackageNode, *PackageValue) {
+func (m *Machine) RunMemPackageWithOverrides(memPkg *gnovm.MemPackage, save bool) (*PackageNode, *PackageValue) {
 	return m.runMemPackage(memPkg, save, true)
 }
 
-func (m *Machine) runMemPackage(memPkg *std.MemPackage, save, overrides bool) (*PackageNode, *PackageValue) {
+func (m *Machine) runMemPackage(memPkg *gnovm.MemPackage, save, overrides bool) (*PackageNode, *PackageValue) {
 	// parse files.
 	files := ParseMemPackage(memPkg)
 	if !overrides {
@@ -406,7 +406,7 @@ func destar(x Expr) Expr {
 // The resulting package value and node become injected with TestMethods and
 // other declarations, so it is expected that non-test code will not be run
 // afterwards from the same store.
-func (m *Machine) TestMemPackage(t *testing.T, memPkg *std.MemPackage) {
+func (m *Machine) TestMemPackage(t *testing.T, memPkg *gnovm.MemPackage) {
 	defer m.injectLocOnPanic()
 	DisableDebug()
 	fmt.Println("DEBUG DISABLED (FOR TEST DEPENDENCIES INIT)")
@@ -699,7 +699,7 @@ func (m *Machine) runFileDecls(fns ...*FileNode) []TypedValue {
 				}
 			}
 			// if dep already in loopfindr, abort.
-			if hasName(dep, loopfindr) {
+			if slices.Contains(loopfindr, dep) {
 				if _, ok := (*depdecl).(*FuncDecl); ok {
 					// recursive function dependencies
 					// are OK with func decls.
@@ -2112,15 +2112,25 @@ func (m *Machine) PushForPointer(lx Expr) {
 func (m *Machine) PopAsPointer(lx Expr) PointerValue {
 	switch lx := lx.(type) {
 	case *NameExpr:
-		lb := m.LastBlock()
-		return lb.GetPointerTo(m.Store, lx.Path)
+		switch lx.Type {
+		case NameExprTypeNormal:
+			lb := m.LastBlock()
+			return lb.GetPointerTo(m.Store, lx.Path)
+		case NameExprTypeHeapUse:
+			lb := m.LastBlock()
+			return lb.GetPointerToHeapUse(m.Store, lx.Path)
+		case NameExprTypeHeapClosure:
+			panic("should not happen")
+		default:
+			panic("unexpected NameExpr in PopAsPointer")
+		}
 	case *IndexExpr:
 		iv := m.PopValue()
 		xv := m.PopValue()
 		return xv.GetPointerAtIndex(m.Alloc, m.Store, iv)
 	case *SelectorExpr:
 		xv := m.PopValue()
-		return xv.GetPointerTo(m.Alloc, m.Store, lx.Path)
+		return xv.GetPointerToFromTV(m.Alloc, m.Store, lx.Path)
 	case *StarExpr:
 		ptr := m.PopValue().V.(PointerValue)
 		return ptr
@@ -2347,16 +2357,4 @@ func (m *Machine) ExceptionsStacktrace() string {
 	}
 
 	return builder.String()
-}
-
-//----------------------------------------
-// utility
-
-func hasName(n Name, ns []Name) bool {
-	for _, n2 := range ns {
-		if n == n2 {
-			return true
-		}
-	}
-	return false
 }
