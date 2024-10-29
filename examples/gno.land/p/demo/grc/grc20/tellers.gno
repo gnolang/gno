@@ -20,7 +20,7 @@ func (tok *Token) CallerTeller() GRC20 {
 	}
 }
 
-// ReadonlyTeller is a GRC20 compatible teller that panics for each write operations.
+// ReadonlyTeller is a GRC20 compatible teller that panics for any write operation.
 func (tok *Token) ReadonlyTeller() GRC20 {
 	if tok == nil {
 		panic("Token cannot be nil")
