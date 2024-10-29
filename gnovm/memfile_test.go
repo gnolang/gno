@@ -256,6 +256,25 @@ func TestMemPackage_Validate(t *testing.T) {
 			},
 			"invalid package/realm path",
 		},
+		{
+			"Pkg imports realm",
+			&MemPackage{
+				Name: "hey",
+				Path: "gno.land/p/demo/hey",
+				Files: []*MemFile{
+					{Name: "a.gno", Body: `
+					package hey
+
+					import "gno.land/r/demo/avl/avl.gno"
+					
+					func A() {
+						avl.A()
+					}
+					`},
+				},
+			},
+			"invalid import realm from pkg",
+		},
 	}
 	for _, tc := range tt {
 		t.Run(tc.name, func(t *testing.T) {
