@@ -108,7 +108,6 @@ func (mempkg *MemPackage) Validate() error {
 				if rIndex > 0 && strings.Count(importPath[:rIndex], "/") == 0 {
 					return fmt.Errorf("package %q imports realm %q", mempkg.Path, importPath)
 				}
-
 			}
 		}
 	}
