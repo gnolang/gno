@@ -4,7 +4,7 @@ import (
 	"errors"
 	"std"
 
-	"gno.land/p/combinederr"
+	"gno.land/p/demo/combinederr"
 	"gno.land/p/demo/dao"
 	"gno.land/p/demo/membstore"
 	"gno.land/p/gov/executor"
