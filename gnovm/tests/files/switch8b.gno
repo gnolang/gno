@@ -12,4 +12,4 @@ func main() {
 }
 
 // Error:
-// main/files/switch8b.gno:9:8: cannot fallthrough final case in switch
+// main/files/switch8b.gno:10:3: cannot fallthrough final case in switch

@@ -12,4 +12,4 @@ func main() {
 }
 
 // Error:
-// main/files/switch8c.gno:6:8: fallthrough statement out of place
+// main/files/switch8c.gno:7:3: fallthrough statement out of place
