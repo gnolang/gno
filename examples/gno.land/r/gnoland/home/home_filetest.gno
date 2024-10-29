@@ -33,7 +33,7 @@ func main() {
 // - Tokenomics (soon)
 // - [Partners, Fund, Grants](/partners)
 // - [Explore the Ecosystem](/ecosystem)
-// - [Careers](https://jobs.lever.co/allinbits?department=Gno.land)
+// - [Careers](https://jobs.lever.co/allinbits?department=gno.land)
 //
 // </div><!-- end column-->
 //
