@@ -273,7 +273,7 @@ func TestMemPackage_Validate(t *testing.T) {
 					`},
 				},
 			},
-			"invalid import realm from pkg",
+			"package \"gno.land/p/demo/hey\" imports realm \"gnoland/r/demo/avl\"",
 		},
 	}
 	for _, tc := range tt {
