@@ -25,7 +25,6 @@ func CreateBoard(slug, title, description string, tags []string) (path string) {
 }
 
 func Lock(path string) {
-	// NOTE: Explore if it's better to use Post or Board/Thread types
 	post := getBoardOrThread(path)
 	if post == nil {
 		panic("path doesn't exist or locking this path not supported")
@@ -33,6 +32,7 @@ func Lock(path string) {
 
 	assertOrigCallerIsCreator(post)
 
+	// NOTE: Explore if it's better to use Post or Board/Thread types
 	if err := app.Lock(post); err != nil {
 		panic(err)
 	}
@@ -44,17 +44,21 @@ func Fork(path, newPath string) {
 		panic("path doesn't exist or forking this path not supported")
 	}
 
+	// TODO: Use this way
+	app.ForkBoard(board)
+	app.ForkThread(thread)
+
 	if err := app.Fork(post, newPath); err != nil {
 		panic(err)
 	}
 }
 
 func getBoardOrThread(path string) *post.Post {
-	post := app.GetBoard(path)
-	if post == nil {
-		post = app.GetThread(path)
+	p, found := app.GetPost(path)
+	if found && (p.Level == boards.LevelBoard || p.Level == boards.LevelThread) {
+		return p
 	}
-	return post
+	return nil
 }
 
 func assertOrigCallerIsCreator(p *post.Post) {

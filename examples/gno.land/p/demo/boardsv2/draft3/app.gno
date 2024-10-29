@@ -3,6 +3,8 @@ package boards
 import (
 	"gno.land/p/demo/boards/post"
 	"gno.land/p/demo/boards/post/plugin"
+	pluginfork "gno.land/p/demo/boards/post/plugin/fork"
+	pluginpoll "gno.land/p/demo/boards/post/plugin/poll"
 	pluginreputation "gno.land/p/demo/boards/post/plugin/reputation"
 	plugintitle "gno.land/p/demo/boards/post/plugin/title"
 )
@@ -38,12 +40,11 @@ func New(st post.Store, options ...Option) App {
 			pluginreputation.UsePolicy(app.reputationPolicy),
 			pluginreputation.AllowedPostLevels(post.LevelPost, post.LevelComment),
 		),
+		pluginfork.New(
+			pluginfork.AllowedPostLevels(post.LevelPost),
+		),
 	)
 	return app
-}
-
-func (a App) GetPost(path string) (_ *post.Post, found bool) {
-	return a.post.Get(path) // NOTE: Allowing this enables us to have generic functions like Lock
 }
 
 func (a App) GetBoard(path string) (_ Board, found bool) {
@@ -73,7 +74,16 @@ func (a App) GetComment(path string) (_ Comment, found bool) {
 func (a App) CreateBoard(slug, title, description string, tags []string) (Board, error) {}
 
 // Fork forks either a board or a thread by their path.
-func (a App) Fork(path, newPath string) error {}
+func (a App) ForkBoard(b Board, newPath string) error {
+	// NOTE: Instead of `app.ForkBoard()` we could use `b.Fork(newPath)` instead but that requires Board to have plugin access
+	// NOTE: This case gets the plugin from the plugin list to fork
+	p, _ := a.plugins.Get(pluginfork.Name)
+	return p.Fork(b.Post, newPath)
+}
+
+func (a App) ForkThread(t Thread, newPath string) error {
+	// TODO: Implement thread fork app support
+}
 
 // Lock locks either a board or a thread by their path.
 // Once a board is locked new threads to the board and comments to the existing

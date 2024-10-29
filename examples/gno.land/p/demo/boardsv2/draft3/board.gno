@@ -1,24 +1,31 @@
 package boards
 
 import (
+	"gno.land/p/demo/boards/post"
+	pluginfork "gno.land/p/demo/boards/post/plugin/fork"
 	pluginreputation "gno.land/p/demo/boards/post/plugin/reputation"
 	plugintitle "gno.land/p/demo/boards/post/plugin/title"
 )
 
-type Board struct {
-	*post.Post
+type (
+	BoardContent plugintitle.Content
+
+	Board struct {
+		*post.Post
+	}
+)
+
+func NewBoard(pst *post.Post) Board {
+	// TODO: Local plugins must be initialized here (same for other plugins)
+	return Board{pst}
 }
 
-func (b Board) Title() string {
-	return b.getContent().Title
+func (b Board) Info() BoardContent {
+	return BoardContent(b.getContent())
 }
 
-func (b Board) Description() string {
-	return b.getContent().Description
-}
-
-func (b Board) Tags() string {
-	return b.getContent().Tags
+func (b Board) Update(c BoardContent) {
+	b.PluginStore[plugintitle.Name] = plugintitle.Content(c)
 }
 
 func (b Board) Upvote() error {

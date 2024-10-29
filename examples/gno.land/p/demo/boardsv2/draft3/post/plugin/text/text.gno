@@ -1,11 +1,15 @@
 // plugintext is a content type for representing a tweet, blog post or a thread like Reddit.
 package plugintext
 
+import (
+	"gno.land/p/demo/boards/post" // NOTE: Plugins should be at the same level of post package
+)
+
 const Name = "post-text"
 
 type (
-	Plugin struct{}
-	Text   struct {
+	Plugin  struct{}
+	Content struct {
 		Title string
 		Body  string
 		Tags  []string
@@ -26,9 +30,9 @@ func (p Plugin) Render() string {
 }
 
 func (p Plugin) Content(pst *post.Post) Content {
-	return pst.Body[Name].(*Text)
+	return pst.Body[Name].(*Content)
 }
 
-func (p Plugin) SetContent(pst *post.Post, t Text) {
+func (p Plugin) SetContent(pst *post.Post, c Content) {
 	pst.Body[Name] = c
 }
