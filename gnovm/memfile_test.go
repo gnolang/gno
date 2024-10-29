@@ -259,7 +259,7 @@ func TestMemPackage_Validate(t *testing.T) {
 		{
 			"Pkg imports realm",
 			&MemPackage{
-				Name: "hey",
+				Name: "test",
 				Path: "gno.land/p/demo/test",
 				Files: []*MemFile{
 					{Name: "a.gno", Body: `
