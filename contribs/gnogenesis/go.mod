@@ -3,9 +3,11 @@ module github.com/gnolang/contribs/gnogenesis
 go 1.22
 
 require (
-	github.com/gnolang/gno v0.0.0-20241028125118-d03581ed748b
+	github.com/gnolang/gno v0.0.0-00010101000000-000000000000
 	github.com/stretchr/testify v1.9.0
 )
+
+replace github.com/gnolang/gno => ../..
 
 require (
 	dario.cat/mergo v1.0.1 // indirect
