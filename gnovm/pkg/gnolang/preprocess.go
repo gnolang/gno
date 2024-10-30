@@ -2386,8 +2386,12 @@ func generalParseTypeVals(
 	for _, v := range valueExprs {
 		if cx, ok := v.(*CallExpr); ok {
 			tt, ok := evalStaticTypeOfRaw(store, bn, cx).(*tupleType)
-			if ok && len(tt.Elts) != 1 {
-				panic(fmt.Sprintf("multiple-value %s (value of type %s) in single-value context", cx.Func.String(), tt.Elts))
+			if ok {
+				if len(tt.Elts) == 0 {
+					panic(fmt.Sprintf("%s() (no value) used as value", cx.Func.String()))
+				} else if len(tt.Elts) != 1 {
+					panic(fmt.Sprintf("multiple-value %s (value of type %s) in single-value context", cx.Func.String(), tt.Elts))
+				}
 			}
 		}
 	}
