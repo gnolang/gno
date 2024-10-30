@@ -275,6 +275,25 @@ func TestMemPackage_Validate(t *testing.T) {
 			},
 			"package \"gno.land/p/demo/test\" imports realm \"gno.land/r/demo/avl\"",
 		},
+		{
+			"Valid witr /r/ as a realm name",
+			&MemPackage{
+				Name: "test",
+				Path: "gno.land/p/demo/test",
+				Files: []*MemFile{
+					{Name: "a.gno", Body: `
+					package test
+
+					import "gno.land/p/r/r"
+					
+					func A() {
+						r.A()
+					}
+					`},
+				},
+			},
+			"",
+		},
 	}
 	for _, tc := range tt {
 		t.Run(tc.name, func(t *testing.T) {
