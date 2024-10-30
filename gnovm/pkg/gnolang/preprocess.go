@@ -1757,7 +1757,12 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 			case *KeyValueExpr:
 				// NOTE: For simplicity we just
 				// use the *CompositeLitExpr.
-
+			// TRANS_LEAVE -----------------------
+			case *StarExpr:
+				xt := evalStaticTypeOf(store, last, n.X)
+				if xt.Kind() != PointerKind && xt.Kind() != TypeKind {
+					panic(fmt.Sprintf("invalid operation: cannot indirect %s (variable of type %s)", n.X.String(), xt.String()))
+				}
 			// TRANS_LEAVE -----------------------
 			case *SelectorExpr:
 				xt := evalStaticTypeOf(store, last, n.X)
