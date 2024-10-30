@@ -1,6 +1,9 @@
 name: autocounterd
 
 on:
+  pull_request:
+    branches:
+      - master
   push:
     paths:
       - misc/autocounterd
@@ -41,7 +44,6 @@ jobs:
       - name: Build and push
         uses: docker/build-push-action@v6
         with:
-          context: ./misc/autocounterd
           push: ${{ github.event_name != 'pull_request' }}
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
