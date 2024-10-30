@@ -21,9 +21,9 @@ If you haven't already, take a moment to check out our [website](https://gno.lan
 
 > The website is a deployment of our [gnoweb](./gno.land/cmd/gnoweb) frontend; you
 > can use it to check out
-> [some](https://test3.gno.land/r/demo/boards)
-> [example](https://test3.gno.land/r/gnoland/blog)
-> [contracts](https://test3.gno.land/r/demo/users).
+> [some](https://gno.land/r/demo/boards)
+> [example](https://gno.land/r/gnoland/blog)
+> [contracts](https://gno.land/r/demo/users).
 >
 > Use the `[source]` button in the header to inspect the program's source; use
 > the `[help]` button to view how you can use [`gnokey`](./gno.land/cmd/gnokey)

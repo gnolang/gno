@@ -1,0 +1,27 @@
+# test panic 
+
+loadpkg gno.land/r/demo/panic $WORK
+
+# start a new node
+gnoland start
+
+
+! gnokey maketx call -pkgpath gno.land/r/demo/panic --func Trigger --gas-fee 1000000ugnot --gas-wanted 2000000 --broadcast -chainid=tendermint_test test1
+
+stderr 'p\<VPBlock\(3\,0\)\>\(\)'
+stderr 'gno.land/r/demo/panic/panic.gno:5'
+stderr 'pkg\<VPBlock\(1\,0\)\>\.Trigger\(\)'
+stderr 'gno.land/r/demo/panic/panic.gno:9'
+
+-- panic.gno --
+package main
+
+func p() {
+   i := "here"
+	panic(i)
+}
+
+func Trigger() {
+	p()
+}
+

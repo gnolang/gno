@@ -92,5 +92,4 @@ func myBlog() *blog.Blog {
 
 	return &blog.Blog{}
 }
-
 -- stderr.golden --

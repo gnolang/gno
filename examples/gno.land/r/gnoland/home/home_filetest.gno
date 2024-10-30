@@ -11,7 +11,7 @@ func main() {
 //
 // # Welcome to gno.land
 //
-// ### We’re building gno.land, the first open-source smart contract system, using Gno, an interpreted and fully deterministic variation of the Go programming language for succinct and composable smart contracts.
+// ### We’re building gno.land, set to become the leading open-source smart contract platform, using Gno, an interpreted and fully deterministic variation of the Go programming language for succinct and composable smart contracts.
 //
 //
 // With transparent and timeless code, gno.land is the next generation of smart contract platforms, serving as the “GitHub” of the ecosystem, with realms built using fully transparent, auditable code that anyone can inspect and reuse.
@@ -33,6 +33,7 @@ func main() {
 // - Tokenomics (soon)
 // - [Partners, Fund, Grants](/partners)
 // - [Explore the Ecosystem](/ecosystem)
+// - [Careers](https://jobs.lever.co/allinbits?department=Gno.land)
 //
 // </div><!-- end column-->
 //
@@ -55,9 +56,7 @@ func main() {
 // - [Discover demo packages](https://github.com/gnolang/gno/tree/master/examples)
 // - [Gnoscan](https://gnoscan.io)
 // - [Portal Loop](https://docs.gno.land/concepts/portal-loop)
-// - Testnet 4 (upcoming)
-// - [Testnet 3](https://test3.gno.land/) (archive)
-// - [Testnet 2](https://test2.gno.land/) (archive)
+// - [Testnet 4](https://test4.gno.land/)
 // - Testnet Faucet Hub (soon)
 //
 // </div><!-- end column-->
@@ -67,15 +66,15 @@ func main() {
 // <div class="columns-3">
 // <div class="column">
 //
-// ### Latest Blogposts
+// ### [Latest Blogposts](/r/gnoland/blog)
 //
 // No posts.
 // </div><!-- /column-->
 // <div class="column">
 //
-// ### Upcoming Events
+// ### [Latest Events](/r/gnoland/events)
 //
-// [View upcoming events](/events)
+// No events.
 // </div><!-- /column-->
 // <div class="column">
 //
@@ -118,7 +117,7 @@ func main() {
 //
 // - [r/sys/names](r/sys/names)
 // - [r/sys/rewards](r/sys/rewards)
-// - [r/sys/validators](r/sys/validators)
+// - [/r/sys/validators/v2](/r/sys/validators/v2)
 //
 // </div><!-- /column-->
 // <div class="column">

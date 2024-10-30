@@ -3,6 +3,8 @@ package foo20
 import (
 	"std"
 	"testing"
+
+	"gno.land/p/demo/uassert"
 )
 
 func TestReadOnlyPublicMethods(t *testing.T) {
@@ -29,9 +31,7 @@ func TestReadOnlyPublicMethods(t *testing.T) {
 			{"BalanceOf(unknown)", 0, func() uint64 { return BalanceOf("FOO", unknown) }},
 		}
 		for _, tc := range tests {
-			if tc.fn() != tc.balance {
-				t.Errorf("%s: have: %d want: %d", tc.name, tc.fn(), tc.balance)
-			}
+			uassert.Equal(t, tc.balance, tc.fn(), "balance does not match")
 		}
 	}
 	return
@@ -50,9 +50,7 @@ func TestReadOnlyPublicMethods(t *testing.T) {
 			{"BalanceOf(unknown)", 10_000_000, func() uint64 { return BalanceOf("FOO", unknown) }},
 		}
 		for _, tc := range tests {
-			if tc.fn() != tc.balance {
-				t.Errorf("%s: have: %d want: %d", tc.name, tc.fn(), tc.balance)
-			}
+			uassert.Equal(t, tc.balance, tc.fn(), "balance does not match")
 		}
 	}
 }

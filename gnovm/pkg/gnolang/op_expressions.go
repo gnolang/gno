@@ -78,7 +78,7 @@ func (m *Machine) doOpIndex2() {
 func (m *Machine) doOpSelector() {
 	sx := m.PopExpr().(*SelectorExpr)
 	xv := m.PeekValue(1)
-	res := xv.GetPointerTo(m.Alloc, m.Store, sx.Path).Deref()
+	res := xv.GetPointerToFromTV(m.Alloc, m.Store, sx.Path).Deref()
 	if debug {
 		m.Printf("-v[S] %v\n", xv)
 		m.Printf("+v[S] %v\n", res)
@@ -194,8 +194,13 @@ func (m *Machine) doOpRef() {
 			nv.Value = rv2
 		}
 	}
+	// when obtaining a pointer of the databyte type, use the ElemType of databyte
+	elt := xv.TV.T
+	if elt == DataByteType {
+		elt = xv.TV.V.(DataByteValue).ElemType
+	}
 	m.PushValue(TypedValue{
-		T: m.Alloc.NewType(&PointerType{Elt: xv.TV.T}),
+		T: m.Alloc.NewType(&PointerType{Elt: elt}),
 		V: xv,
 	})
 }
@@ -238,14 +243,14 @@ func (m *Machine) doOpTypeAssert1() {
 
 			// t is Gno interface.
 			// assert that x implements type.
-			var impl bool
-			impl = it.IsImplementedBy(xt)
-			if !impl {
+			err := it.VerifyImplementedBy(xt)
+			if err != nil {
 				// TODO: default panic type?
 				ex := fmt.Sprintf(
-					"%s doesn't implement %s",
+					"%s doesn't implement %s (%s)",
 					xt.String(),
-					it.String())
+					it.String(),
+					err.Error())
 				m.Panic(typedString(ex))
 				return
 			}
@@ -753,6 +758,25 @@ func (m *Machine) doOpFuncLit() {
 	ft := m.PopValue().V.(TypeValue).Type.(*FuncType)
 	lb := m.LastBlock()
 	m.Alloc.AllocateFunc()
+
+	// First copy closure captured heap values
+	// to *FuncValue. Later during doOpCall a block
+	// will be created that copies these values for
+	// every invocation of the function.
+	captures := []TypedValue(nil)
+	for _, nx := range x.HeapCaptures {
+		ptr := lb.GetPointerTo(m.Store, nx.Path)
+		// check that ptr.TV is a heap item value.
+		// it must be in the form of:
+		// {T:heapItemType{},V:HeapItemValue{...}}
+		if _, ok := ptr.TV.T.(heapItemType); !ok {
+			panic("should not happen, should be heapItemType")
+		}
+		if _, ok := ptr.TV.V.(*HeapItemValue); !ok {
+			panic("should not happen, should be heapItemValue")
+		}
+		captures = append(captures, *ptr.TV)
+	}
 	m.PushValue(TypedValue{
 		T: ft,
 		V: &FuncValue{
@@ -761,6 +785,7 @@ func (m *Machine) doOpFuncLit() {
 			Source:     x,
 			Name:       "",
 			Closure:    lb,
+			Captures:   captures,
 			PkgPath:    m.Package.PkgPath,
 			body:       x.Body,
 			nativeBody: nil,

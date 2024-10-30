@@ -1,7 +1,7 @@
 // PKGPATH: gno.land/r/demo/boards_test
 package boards_test
 
-// SEND: 2000000000ugnot
+// SEND: 200000000ugnot
 
 import (
 	"gno.land/r/demo/boards"
@@ -22,7 +22,7 @@ func main() {
 }
 
 // Output:
-// \[[post](/r/demo/boards?help&__func=CreateThread&bid=1&body.type=textarea)]
+// \[[post](/r/demo/boards?help&__func=CreateThread&bid=1)]
 //
 // ----------------------------------------
 // ## [First Post (title)](/r/demo/boards:test_board/1)
