@@ -101,7 +101,7 @@ func (mempkg *MemPackage) Validate() error {
 				// ensure the pkg is a realm by checking if the path contains /r/ and no other / character before it (i.e protect from gno.land/p/demo/r/)
 				importPath := strings.TrimPrefix(strings.TrimSuffix(imp.Path.Value, `"`), `"`)
 				rIndex := strings.Index(importPath, "/r/")
-				if rIndex > 0 && strings.Count(importPath[:rIndex], "/") == 0 {
+				if rIndex > 0 && !strings.ContainsRune(importPath[:rIndex], '/') {
 					return fmt.Errorf("package %q imports realm %q", mempkg.Path, importPath)
 				}
 			}
