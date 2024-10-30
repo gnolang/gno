@@ -90,7 +90,7 @@ func (mempkg *MemPackage) Validate() error {
 	}
 
 	pIndex := strings.Index(mempkg.Path, "/p/")
-	if pIndex > 0 && strings.Count(mempkg.Path[:pIndex], "/") == 0 {
+	if pIndex > 0 && !strings.ContainsRune(mempkg.Path[:pIndex], '/') {
 		for _, file := range mempkg.Files {
 			fset := token.NewFileSet()
 			astFile, err := parser.ParseFile(fset, file.Name, file.Body, parser.ImportsOnly)
