@@ -74,7 +74,8 @@ type Token struct {
 // transferring tokens, and managing allowances.
 //
 // The PrivateLedger is not safe to expose publicly, as it contains sensitive
-// information regarding token balances and allowances.
+// information regarding token balances and allowances, and allows direct,
+// unrestricted access to all administrative functions.
 type PrivateLedger struct {
 	totalSupply uint64   // Total supply of the token managed by this ledger.
 	balances    avl.Tree // std.Address -> uint64
