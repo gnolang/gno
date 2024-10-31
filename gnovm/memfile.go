@@ -98,7 +98,7 @@ func (mempkg *MemPackage) Validate() error {
 			fset := token.NewFileSet()
 			astFile, err := parser.ParseFile(fset, file.Name, file.Body, parser.ImportsOnly)
 			if err != nil {
-				continue // can be other files like LICENSE, README or empty gno files
+				return fmt.Errorf("failed to parse imports in file %q of package %q: %w", file.Name, mempkg.Path, err)
 			}
 			for _, imp := range astFile.Imports {
 				// ensure the pkg is a realm by checking if the path contains /r/ and no other / character before it (i.e protect from gno.land/p/demo/r/)
