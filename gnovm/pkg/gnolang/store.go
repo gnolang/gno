@@ -14,6 +14,7 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/store"
 	"github.com/gnolang/gno/tm2/pkg/store/utils"
 	stringz "github.com/gnolang/gno/tm2/pkg/strings"
+	"github.com/gnolang/overflow"
 )
 
 // PackageGetter specifies how the store may retrieve packages which are not
@@ -50,6 +51,7 @@ type Store interface {
 	GetBlockNode(Location) BlockNode // to get a PackageNode, use PackageNodeLocation().
 	GetBlockNodeSafe(Location) BlockNode
 	SetBlockNode(BlockNode)
+	SetGasMeter(store.GasMeter)
 	// UNSTABLE
 	Go2GnoType(rt reflect.Type) Type
 	GetAllocator() *Allocator
@@ -81,6 +83,47 @@ type TransactionStore interface {
 	Write()
 }
 
+// Gas consumption descriptors.
+const (
+	GasGetObjectDesc       = "GetObjectPerByte"
+	GasSetObjectDesc       = "SetObjectPerByte"
+	GasGetTypeDesc         = "GetTypePerByte"
+	GasSetTypeDesc         = "SetTypePerByte"
+	GasGetPackageRealmDesc = "GetPackageRealmPerByte"
+	GasSetPackageRealmDesc = "SetPackageRealmPerByte"
+	GasAddMemPackageDesc   = "AddMemPackagePerByte"
+	GasGetMemPackageDesc   = "GetMemPackagePerByte"
+	GasDeleteObjectDesc    = "DeleteObjectFlat"
+)
+
+// GasConfig defines gas cost for each operation on KVStores
+type GasConfig struct {
+	GasGetObject       int64
+	GasSetObject       int64
+	GasGetType         int64
+	GasSetType         int64
+	GasGetPackageRealm int64
+	GasSetPackageRealm int64
+	GasAddMemPackage   int64
+	GasGetMemPackage   int64
+	GasDeleteObject    int64
+}
+
+// DefaultGasConfig returns a default gas config for KVStores.
+func DefaultGasConfig() GasConfig {
+	return GasConfig{
+		GasGetObject:       16,   // per byte cost
+		GasSetObject:       16,   // per byte cost
+		GasGetType:         52,   // per byte cost
+		GasSetType:         52,   // per byte cost
+		GasGetPackageRealm: 524,  // per byte cost
+		GasSetPackageRealm: 524,  // per byte cost
+		GasAddMemPackage:   8,    // per byte cost
+		GasGetMemPackage:   8,    // per byte cost
+		GasDeleteObject:    3715, // flat cost
+	}
+}
+
 type defaultStore struct {
 	// underlying stores used to keep data
 	baseStore store.Store // for objects, types, nodes
@@ -100,6 +143,10 @@ type defaultStore struct {
 	// transient
 	opslog  []StoreOp // for debugging and testing.
 	current []string  // for detecting import cycles.
+
+	// gas
+	gasMeter  store.GasMeter
+	gasConfig GasConfig
 }
 
 func NewStore(alloc *Allocator, baseStore, iavlStore store.Store) *defaultStore {
@@ -117,6 +164,7 @@ func NewStore(alloc *Allocator, baseStore, iavlStore store.Store) *defaultStore 
 		pkgGetter:        nil,
 		cacheNativeTypes: make(map[reflect.Type]Type),
 		nativeResolver:   nil,
+		gasConfig:        DefaultGasConfig(),
 	}
 	InitStoreCaches(ds)
 	return ds
@@ -145,6 +193,10 @@ func (ds *defaultStore) BeginTransaction(baseStore, iavlStore store.Store) Trans
 		pkgGetter:        ds.pkgGetter,
 		cacheNativeTypes: ds.cacheNativeTypes,
 		nativeResolver:   ds.nativeResolver,
+
+		// gas meter
+		gasMeter:  ds.gasMeter,
+		gasConfig: ds.gasConfig,
 
 		// transient
 		current: nil,
@@ -295,6 +347,8 @@ func (ds *defaultStore) GetPackageRealm(pkgPath string) (rlm *Realm) {
 	if bz == nil {
 		return nil
 	}
+	gas := overflow.Mul64p(ds.gasConfig.GasGetPackageRealm, store.Gas(len(bz)))
+	ds.consumeGas(gas, GasGetPackageRealmDesc)
 	amino.MustUnmarshal(bz, &rlm)
 	if debug {
 		if rlm.ID != oid.PkgID {
@@ -310,6 +364,8 @@ func (ds *defaultStore) SetPackageRealm(rlm *Realm) {
 	oid := ObjectIDFromPkgPath(rlm.Path)
 	key := backendRealmKey(oid)
 	bz := amino.MustMarshal(rlm)
+	gas := overflow.Mul64p(ds.gasConfig.GasSetPackageRealm, store.Gas(len(bz)))
+	ds.consumeGas(gas, GasSetPackageRealmDesc)
 	ds.baseStore.Set([]byte(key), bz)
 }
 
@@ -355,6 +411,8 @@ func (ds *defaultStore) loadObjectSafe(oid ObjectID) Object {
 		bz := hashbz[HashSize:]
 		var oo Object
 		ds.alloc.AllocateAmino(int64(len(bz)))
+		gas := overflow.Mul64p(ds.gasConfig.GasGetObject, store.Gas(len(bz)))
+		ds.consumeGas(gas, GasGetObjectDesc)
 		amino.MustUnmarshal(bz, &oo)
 		if debug {
 			if oo.GetObjectID() != oid {
@@ -378,6 +436,8 @@ func (ds *defaultStore) SetObject(oo Object) {
 	o2 := copyValueWithRefs(oo)
 	// marshal to binary.
 	bz := amino.MustMarshalAny(o2)
+	gas := overflow.Mul64p(ds.gasConfig.GasSetObject, store.Gas(len(bz)))
+	ds.consumeGas(gas, GasSetObjectDesc)
 	// set hash.
 	hash := HashBytes(bz) // XXX objectHash(bz)???
 	if len(hash) != HashSize {
@@ -427,6 +487,7 @@ func (ds *defaultStore) SetObject(oo Object) {
 }
 
 func (ds *defaultStore) DelObject(oo Object) {
+	ds.consumeGas(ds.gasConfig.GasDeleteObject, GasDeleteObjectDesc)
 	oid := oo.GetObjectID()
 	// delete from cache.
 	delete(ds.cacheObjects, oid)
@@ -463,6 +524,8 @@ func (ds *defaultStore) GetTypeSafe(tid TypeID) Type {
 		key := backendTypeKey(tid)
 		bz := ds.baseStore.Get([]byte(key))
 		if bz != nil {
+			gas := overflow.Mul64p(ds.gasConfig.GasGetType, store.Gas(len(bz)))
+			ds.consumeGas(gas, GasGetTypeDesc)
 			var tt Type
 			amino.MustUnmarshal(bz, &tt)
 			if debug {
@@ -509,6 +572,8 @@ func (ds *defaultStore) SetType(tt Type) {
 		key := backendTypeKey(tid)
 		tcopy := copyTypeWithRefs(tt)
 		bz := amino.MustMarshalAny(tcopy)
+		gas := overflow.Mul64p(ds.gasConfig.GasSetType, store.Gas(len(bz)))
+		ds.consumeGas(gas, GasSetTypeDesc)
 		ds.baseStore.Set([]byte(key), bz)
 	}
 	// save type to cache.
@@ -602,6 +667,8 @@ func (ds *defaultStore) AddMemPackage(memPkg *gnovm.MemPackage) {
 	ctr := ds.incGetPackageIndexCounter()
 	idxkey := []byte(backendPackageIndexKey(ctr))
 	bz := amino.MustMarshal(memPkg)
+	gas := overflow.Mul64p(ds.gasConfig.GasAddMemPackage, store.Gas(len(bz)))
+	ds.consumeGas(gas, GasAddMemPackageDesc)
 	ds.baseStore.Set(idxkey, []byte(memPkg.Path))
 	pathkey := []byte(backendPackagePathKey(memPkg.Path))
 	ds.iavlStore.Set(pathkey, bz)
@@ -629,6 +696,8 @@ func (ds *defaultStore) getMemPackage(path string, isRetry bool) *gnovm.MemPacka
 		}
 		return nil
 	}
+	gas := overflow.Mul64p(ds.gasConfig.GasGetMemPackage, store.Gas(len(bz)))
+	ds.consumeGas(gas, GasGetMemPackageDesc)
 
 	var memPkg *gnovm.MemPackage
 	amino.MustUnmarshal(bz, &memPkg)
@@ -672,6 +741,17 @@ func (ds *defaultStore) IterMemPackage() <-chan *gnovm.MemPackage {
 			close(ch)
 		}()
 		return ch
+	}
+}
+
+func (ds *defaultStore) SetGasMeter(gm store.GasMeter) {
+	ds.gasMeter = gm
+}
+
+func (ds *defaultStore) consumeGas(gas int64, descriptor string) {
+	// In the tests, the defaultStore may not set the gas meter.
+	if ds.gasMeter != nil {
+		ds.gasMeter.ConsumeGas(gas, descriptor)
 	}
 }
 

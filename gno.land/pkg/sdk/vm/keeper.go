@@ -209,6 +209,7 @@ var gnoStoreContextKey gnoStoreContextKeyType
 func (vm *VMKeeper) newGnoTransactionStore(ctx sdk.Context) gno.TransactionStore {
 	base := ctx.Store(vm.baseKey)
 	iavl := ctx.Store(vm.iavlKey)
+	vm.gnoStore.SetGasMeter(ctx.GasMeter())
 
 	return vm.gnoStore.BeginTransaction(base, iavl)
 }
