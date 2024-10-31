@@ -126,3 +126,85 @@ func main() {
 // - #123: g12345678 (10)
 // - #123: g000000000 (10)
 // - #123: g000000000 (0)
+
+// Events:
+// [
+//   {
+//     "type": "ProposalAdded",
+//     "attrs": [
+//       {
+//         "key": "proposal-id",
+//         "value": "0"
+//       },
+//       {
+//         "key": "proposal-author",
+//         "value": "g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm"
+//       }
+//     ],
+//     "pkg_path": "gno.land/r/gov/dao/v2",
+//     "func": "EmitProposalAdded"
+//   },
+//   {
+//     "type": "VoteAdded",
+//     "attrs": [
+//       {
+//         "key": "proposal-id",
+//         "value": "0"
+//       },
+//       {
+//         "key": "author",
+//         "value": "g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm"
+//       },
+//       {
+//         "key": "option",
+//         "value": "YES"
+//       }
+//     ],
+//     "pkg_path": "gno.land/r/gov/dao/v2",
+//     "func": "EmitVoteAdded"
+//   },
+//   {
+//     "type": "ProposalAccepted",
+//     "attrs": [
+//       {
+//         "key": "proposal-id",
+//         "value": "0"
+//       }
+//     ],
+//     "pkg_path": "gno.land/r/gov/dao/v2",
+//     "func": "EmitProposalAccepted"
+//   },
+//   {
+//     "type": "ValidatorAdded",
+//     "attrs": [],
+//     "pkg_path": "gno.land/r/sys/validators/v2",
+//     "func": "addValidator"
+//   },
+//   {
+//     "type": "ValidatorAdded",
+//     "attrs": [],
+//     "pkg_path": "gno.land/r/sys/validators/v2",
+//     "func": "addValidator"
+//   },
+//   {
+//     "type": "ValidatorRemoved",
+//     "attrs": [],
+//     "pkg_path": "gno.land/r/sys/validators/v2",
+//     "func": "removeValidator"
+//   },
+//   {
+//     "type": "ProposalExecuted",
+//     "attrs": [
+//       {
+//         "key": "proposal-id",
+//         "value": "0"
+//       },
+//       {
+//         "key": "exec-status",
+//         "value": "accepted"
+//       }
+//     ],
+//     "pkg_path": "gno.land/r/gov/dao/v2",
+//     "func": "ExecuteProposal"
+//   }
+// ]

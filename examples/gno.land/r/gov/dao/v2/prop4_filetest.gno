@@ -58,6 +58,56 @@ func main() {
 	println(govdaov2.Render("1"))
 }
 
+// Output:
+// new prop 0
+// new prop 1
+// --
+// - [Proposal #0](/r/gov/dao/v2:0) - (**active**)(by g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm)
+// - [Proposal #1](/r/gov/dao/v2:1) - (**active**)(by g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm)
+//
+// --
+// # Prop #1
+//
+// Author: g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm
+//
+// setting prop2.int64 param
+//
+// Status: active
+//
+// Voting stats: YAY 0 (0%), NAY 0 (0%), ABSTAIN 0 (0%), HAVEN'T VOTED 10 (100%)
+//
+// Threshold met: false
+//
+//
+// --
+// --
+// # Prop #1
+//
+// Author: g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm
+//
+// setting prop2.int64 param
+//
+// Status: accepted
+//
+// Voting stats: YAY 10 (100%), NAY 0 (0%), ABSTAIN 0 (0%), HAVEN'T VOTED 0 (0%)
+//
+// Threshold met: true
+//
+//
+// --
+// --
+// # Prop #1
+//
+// Author: g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm
+//
+// setting prop2.int64 param
+//
+// Status: execution successful
+//
+// Voting stats: YAY 10 (100%), NAY 0 (0%), ABSTAIN 0 (0%), HAVEN'T VOTED 0 (0%)
+//
+// Threshold met: true
+
 // Events:
 // [
 //   {
@@ -147,53 +197,3 @@ func main() {
 //     "func": "ExecuteProposal"
 //   }
 // ]
-
-// Output:
-// new prop 0
-// new prop 1
-// --
-// - [Proposal #0](/r/gov/dao/v2:0) - (**active**)(by g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm)
-// - [Proposal #1](/r/gov/dao/v2:1) - (**active**)(by g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm)
-//
-// --
-// # Prop #1
-//
-// Author: g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm
-//
-// setting prop2.int64 param
-//
-// Status: active
-//
-// Voting stats: YAY 0 (0%), NAY 0 (0%), ABSTAIN 0 (0%), HAVEN'T VOTED 10 (100%)
-//
-// Threshold met: false
-//
-//
-// --
-// --
-// # Prop #1
-//
-// Author: g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm
-//
-// setting prop2.int64 param
-//
-// Status: accepted
-//
-// Voting stats: YAY 10 (100%), NAY 0 (0%), ABSTAIN 0 (0%), HAVEN'T VOTED 0 (0%)
-//
-// Threshold met: true
-//
-//
-// --
-// --
-// # Prop #1
-//
-// Author: g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm
-//
-// setting prop2.int64 param
-//
-// Status: execution successful
-//
-// Voting stats: YAY 10 (100%), NAY 0 (0%), ABSTAIN 0 (0%), HAVEN'T VOTED 0 (0%)
-//
-// Threshold met: true
