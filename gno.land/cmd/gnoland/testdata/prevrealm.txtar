@@ -12,10 +12,10 @@
 # | 6   |          |                     | myrlm.B()       | user address |
 # | 7   |          | through /r/foo      | myrlm.A()       | r/foo        |
 # | 8   |          |                     | myrlm.B()       | r/foo        |
-# | 11  |          | through /p/demo/bar | bar.A()         | user address |
-# | 12  |          |                     | bar.B()         | user address |
-# | 9   | MsgCall  | wallet direct       | std.PrevRealm() | user address |
-# | 10  | MsgRun   | wallet direct       | std.PrevRealm() | user address |
+# | 9   |          | through /p/demo/bar | bar.A()         | user address |
+# | 10  |          |                     | bar.B()         | user address |
+# | 11  | MsgCall  | wallet direct       | std.PrevRealm() | user address |
+# | 12  | MsgRun   | wallet direct       | std.PrevRealm() | user address |
 
 # Init
 ## deploy myrlm
