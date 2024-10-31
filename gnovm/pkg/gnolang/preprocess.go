@@ -2471,8 +2471,8 @@ func evalStaticTypeOf(store Store, last BlockNode, x Expr) Type {
 func getFunctionName(x Expr) string {
 	switch expr := x.(type) {
 	case *CallExpr:
-		if id, ok := expr.Func.(*NameExpr); ok {
-			return string(id.Name)
+		if funcName, ok := expr.Func.(*NameExpr); ok {
+			return string(funcName.Name)
 		}
 	}
 	return "<unknown function>"
