@@ -12,6 +12,8 @@
 # | 6   |          |                     | myrlm.B()       | user address |
 # | 7   |          | through /r/foo      | myrlm.A()       | r/foo        |
 # | 8   |          |                     | myrlm.B()       | r/foo        |
+# | 11  |          | through /p/demo/bar | bar.A()         | user address |
+# | 12  |          |                     | bar.B()         | user address |
 # | 9   | MsgCall  | wallet direct       | std.PrevRealm() | user address |
 # | 10  | MsgRun   | wallet direct       | std.PrevRealm() | user address |
 
@@ -20,6 +22,8 @@
 loadpkg gno.land/r/myrlm $WORK/r/myrlm
 ## deploy r/foo
 loadpkg gno.land/r/foo $WORK/r/foo
+## deploy p/demo/bar
+loadpkg gno.land/p/demo/bar $WORK/p/demo/bar
 
 ## start a new node
 gnoland start
@@ -59,6 +63,14 @@ stdout ${RFOO_ADDR}
 gnokey maketx run -gas-fee 100000ugnot -gas-wanted 4000000 -broadcast -chainid tendermint_test test1 $WORK/run/fooB.gno
 stdout ${RFOO_ADDR}
 
+## 9. MsgRun -> p/demo/bar.A -> myrlm.A: user address
+gnokey maketx run -gas-fee 100000ugnot -gas-wanted 4000000 -broadcast -chainid tendermint_test test1 $WORK/run/barA.gno
+stdout ${USER_ADDR_test1}
+
+## 10. MsgRun -> p/demo/bar.B -> myrlm.B -> r/foo.A: user address
+gnokey maketx run -gas-fee 100000ugnot -gas-wanted 4000000 -broadcast -chainid tendermint_test test1 $WORK/run/barB.gno
+stdout ${USER_ADDR_test1}
+
 ## 9. MsgCall -> std.PrevRealm(): user address
 ## gnokey maketx call -pkgpath std -func PrevRealm -gas-fee 100000ugnot -gas-wanted 4000000 -broadcast -chainid tendermint_test test1
 ## stdout ${USER_ADDR_test1}
@@ -91,6 +103,18 @@ func A() string {
 func B() string {
 	return myrlm.B()
 }
+-- p/demo/bar/bar.gno --
+package bar
+
+import "std"
+
+func A() string {
+	return std.PrevRealm().Addr().String()
+}
+
+func B() string {
+	return A()
+}
 -- run/myrlmA.gno --
 package main
 
@@ -122,6 +146,22 @@ import "gno.land/r/foo"
 
 func main() {
 	println(foo.B())
+}
+-- run/barA.gno --
+package main
+
+import "gno.land/p/demo/bar"
+
+func main() {
+	println(bar.A())
+}
+-- run/barB.gno --
+package main
+
+import "gno.land/p/demo/bar"
+
+func main() {
+	println(bar.B())
 }
 -- run/baz.gno --
 package main
