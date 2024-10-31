@@ -42,7 +42,7 @@ jobs:
             # confusing and meticulous. There will be some improvements in Go
             # 1.23 regarding coverage, so we can use this as a workaround until
             # then.
-            go test -covermode=atomic -timeout ${{ inputs.tests-timeout }} -v ./... -test.gocoverdir=$GOCOVERDIR
+            go test -covermode=atomic -timeout ${{ inputs.tests-timeout }} ./... -test.gocoverdir=$GOCOVERDIR
 
             # Print results
             (set +x; echo 'go coverage results:')

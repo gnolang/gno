@@ -12,8 +12,10 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"google.golang.org/protobuf/types/known/durationpb"
+	"google.golang.org/protobuf/types/known/timestamppb"
 
-	amino "github.com/gnolang/gno/tm2/pkg/amino"
+	"github.com/gnolang/gno/tm2/pkg/amino"
 	"github.com/gnolang/gno/tm2/pkg/amino/pkg"
 )
 
@@ -147,6 +149,31 @@ func TestMarshalJSONTime(t *testing.T) {
 		String: "hello",
 		Bytes:  []byte("goodbye"),
 		Time:   time.Now().Round(0).UTC(), // strip monotonic.
+	}
+
+	b, err := cdc.MarshalJSON(s)
+	assert.Nil(t, err)
+
+	var s2 SimpleStruct
+	err = cdc.UnmarshalJSON(b, &s2)
+	assert.Nil(t, err)
+	assert.Equal(t, s, s2)
+}
+
+func TestMarshalJSONPBTime(t *testing.T) {
+	t.Parallel()
+
+	cdc := amino.NewCodec()
+	registerTransports(cdc)
+
+	type SimpleStruct struct {
+		Timestamp *timestamppb.Timestamp
+		Duration  *durationpb.Duration
+	}
+
+	s := SimpleStruct{
+		Timestamp: &timestamppb.Timestamp{Seconds: 1296012345, Nanos: 940483},
+		Duration:  &durationpb.Duration{Seconds: 100},
 	}
 
 	b, err := cdc.MarshalJSON(s)
