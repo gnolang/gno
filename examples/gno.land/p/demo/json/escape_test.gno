@@ -103,24 +103,25 @@ func TestDecodeSingleUnicodeEscape(t *testing.T) {
 }
 
 func TestDecodeUnicodeEscape(t *testing.T) {
-	testCases := []struct {
-		input    string
+	tests := []struct {
+		input    []byte
 		expected rune
 		size     int
 	}{
-		{"\\u0041", 'A', 6},
-		{"\\u03B1", 'α', 6},
-		{"\\u1F600", 0x1F60, 6},
-		{"\\uD830\\uDE03", 0x1C203, 12},
-		{"\\uD800\\uDC00", 0x00010000, 12},
-
-		{"\\u004", utf8.RuneError, -1},
-		{"\\uXYZW", utf8.RuneError, -1},
-		{"\\uD83D\\u0041", utf8.RuneError, -1},
+		{[]byte(`\u0041`), 'A', 6},
+		{[]byte(`\uD83D\uDE00`), 0x1F600, 12}, // 😀
+		{[]byte(`\uD834\uDD1E`), 0x1D11E, 12}, // 𝄞
+		{[]byte(`\uFFFF`), '\uFFFF', 6},
+		{[]byte(`\uXYZW`), utf8.RuneError, -1},
+		{[]byte(`\uD800`), utf8.RuneError, -1},       // single high surrogate
+		{[]byte(`\uDC00`), utf8.RuneError, -1},       // single low surrogate
+		{[]byte(`\uD800\uDC00`), 0x10000, 12},        // First code point above U+FFFF
+		{[]byte(`\uDBFF\uDFFF`), 0x10FFFF, 12},       // Maximum code point
+		{[]byte(`\uD83D\u0041`), utf8.RuneError, -1}, // invalid surrogate pair
 	}
 
-	for _, tc := range testCases {
-		r, size := decodeUnicodeEscape([]byte(tc.input))
+	for _, tc := range tests {
+		r, size := decodeUnicodeEscape(tc.input)
 		if r != tc.expected || size != tc.size {
 			t.Errorf("decodeUnicodeEscape(%q) = (%U, %d); want (%U, %d)", tc.input, r, size, tc.expected, tc.size)
 		}
@@ -128,7 +129,7 @@ func TestDecodeUnicodeEscape(t *testing.T) {
 }
 
 func TestUnescapeToUTF8(t *testing.T) {
-	testCases := []struct {
+	tests := []struct {
 		input       []byte
 		expectedIn  int
 		expectedOut int
@@ -150,7 +151,7 @@ func TestUnescapeToUTF8(t *testing.T) {
 		{[]byte(`\uD83D\u0041`), -1, -1, true}, // invalid unicode escape sequence
 	}
 
-	for _, tc := range testCases {
+	for _, tc := range tests {
 		input := make([]byte, len(tc.input))
 		copy(input, tc.input)
 		output := make([]byte, utf8.UTFMax)
@@ -166,23 +167,32 @@ func TestUnescapeToUTF8(t *testing.T) {
 }
 
 func TestUnescape(t *testing.T) {
-	testCases := []struct {
+	tests := []struct {
 		name     string
 		input    []byte
 		expected []byte
+		isError  bool
 	}{
-		{"NoEscape", []byte("hello world"), []byte("hello world")},
-		{"SingleEscape", []byte("hello\\nworld"), []byte("hello\nworld")},
-		{"MultipleEscapes", []byte("line1\\nline2\\r\\nline3"), []byte("line1\nline2\r\nline3")},
-		{"UnicodeEscape", []byte("snowman:\\u2603"), []byte("snowman:\u2603")},
-		{"Complex", []byte("tc\\n\\u2603\\r\\nend"), []byte("tc\n\u2603\r\nend")},
+		{"NoEscape", []byte("hello world"), []byte("hello world"), false},
+		{"SingleEscape", []byte("hello\\nworld"), []byte("hello\nworld"), false},
+		{"MultipleEscapes", []byte("line1\\nline2\\r\\nline3"), []byte("line1\nline2\r\nline3"), false},
+		{"UnicodeEscape", []byte("snowman:\\u2603"), []byte("snowman:\u2603"), false},
+		{"SurrogatePair", []byte("emoji:\\uD83D\\uDE00"), []byte("emoji:😀"), false},
+		{"InvalidEscape", []byte("hello\\xworld"), nil, true},
+		{"IncompleteUnicode", []byte("incomplete:\\u123"), nil, true},
+		{"InvalidSurrogatePair", []byte("invalid:\\uD83D\\u0041"), nil, true},
 	}
 
-	for _, tc := range testCases {
+	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			output, _ := Unescape(tc.input, make([]byte, len(tc.input)+10))
-			if !bytes.Equal(output, tc.expected) {
-				t.Errorf("unescape(%q) = %q; want %q", tc.input, output, tc.expected)
+			output := make([]byte, len(tc.input)*2) // Allocate extra space for possible expansion
+			result, err := Unescape(tc.input, output)
+			if (err != nil) != tc.isError {
+				t.Errorf("Unescape(%q) error = %v; want error = %v", tc.input, err, tc.isError)
+			}
+
+			if !tc.isError && !bytes.Equal(result, tc.expected) {
+				t.Errorf("Unescape(%q) = %q; want %q", tc.input, result, tc.expected)
 			}
 		})
 	}
@@ -206,6 +216,7 @@ func TestUnquoteBytes(t *testing.T) {
 		{[]byte("\"\\u0041\""), '"', []byte("A"), true},
 		{[]byte(`"Hello, 世界"`), '"', []byte("Hello, 世界"), true},
 		{[]byte(`"Hello, \x80"`), '"', nil, false},
+		{[]byte(`"invalid surrogate: \uD83D\u0041"`), '"', nil, false},
 	}
 
 	for _, tc := range tests {
