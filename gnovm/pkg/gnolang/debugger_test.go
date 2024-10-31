@@ -40,7 +40,7 @@ func evalTest(debugAddr, in, file string) (out, err, stacktrace string) {
 		if r := recover(); r != nil {
 			err = fmt.Sprintf("%v", r)
 		}
-		out = strings.TrimSpace(out)
+		out = strings.TrimSuffix(out, "\n")
 		err = strings.TrimSpace(strings.ReplaceAll(err, "../../tests/files/", "files/"))
 	}()
 
@@ -131,7 +131,7 @@ func TestDebug(t *testing.T) {
 		{in: "p \"xxxx\"\n", out: `("xxxx" string)`},
 		{in: "si\n", out: "sample.gno:14"},
 		{in: "s\ns\n", out: `=>   14: var global = "test"`},
-		{in: "s\n\n", out: "=>   33: 	num := 5"},
+		{in: "s\n\n\n", out: "=>   33: 	num := 5"},
 		{in: "foo", out: "command not available: foo"},
 		{in: "\n\n", out: "dbg> "},
 		{in: "#\n", out: "dbg> "},
