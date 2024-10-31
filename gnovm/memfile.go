@@ -92,6 +92,9 @@ func (mempkg *MemPackage) Validate() error {
 	pIndex := strings.Index(mempkg.Path, "/p/")
 	if pIndex > 0 && !strings.ContainsRune(mempkg.Path[:pIndex], '/') {
 		for _, file := range mempkg.Files {
+			if !strings.HasSuffix(file.Name, ".gno") {
+				continue
+			}
 			fset := token.NewFileSet()
 			astFile, err := parser.ParseFile(fset, file.Name, file.Body, parser.ImportsOnly)
 			if err != nil {
