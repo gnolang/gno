@@ -44,10 +44,8 @@ var startGraphic = strings.ReplaceAll(`
 /___/
 `, "'", "`")
 
-var (
-	// Keep in sync with contribs/gnogenesis/internal/txs/txs_add_packages.go
-	genesisDeployFee = std.NewFee(50000, std.MustParseCoin(ugnot.ValueString(1000000)))
-)
+// Keep in sync with contribs/gnogenesis/internal/txs/txs_add_packages.go
+var genesisDeployFee = std.NewFee(50000, std.MustParseCoin(ugnot.ValueString(1000000)))
 
 type startCfg struct {
 	gnoRootDir            string // TODO: remove as part of https://github.com/gnolang/gno/issues/1952
