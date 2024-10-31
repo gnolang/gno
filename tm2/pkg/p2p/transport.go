@@ -3,6 +3,7 @@ package p2p
 import (
 	"context"
 	"fmt"
+	"io"
 	"log/slog"
 	"net"
 	"sync"
@@ -24,6 +25,14 @@ var (
 	errTransportInactive   = errors.New("transport is inactive")
 	errDuplicateConnection = errors.New("duplicate peer connection")
 )
+
+type connUpgradeFn func(io.ReadWriteCloser, crypto.PrivKey) (*conn.SecretConnection, error)
+
+type secretConn interface {
+	net.Conn
+
+	RemotePubKey() crypto.PubKey
+}
 
 // peerInfo is a wrapper for an unverified peer connection
 type peerInfo struct {
@@ -48,7 +57,7 @@ type MultiplexTransport struct {
 	peerCh      chan peerInfo // pipe for inbound peer connections
 	activeConns sync.Map      // active peer connections (remote address -> nothing)
 
-	handshakeTimeout time.Duration
+	connUpgradeFn connUpgradeFn // Upgrades the connection to a secret connection
 
 	// TODO(xla): This config is still needed as we parameterize peerConn and
 	// peer currently. All relevant configuration should be refactored into options
@@ -64,12 +73,12 @@ func NewMultiplexTransport(
 	logger *slog.Logger,
 ) *MultiplexTransport {
 	return &MultiplexTransport{
-		peerCh:           make(chan peerInfo, 1),
-		handshakeTimeout: defaultHandshakeTimeout,
-		mConfig:          mConfig,
-		nodeInfo:         nodeInfo,
-		nodeKey:          nodeKey,
-		logger:           logger,
+		peerCh:        make(chan peerInfo, 1),
+		mConfig:       mConfig,
+		nodeInfo:      nodeInfo,
+		nodeKey:       nodeKey,
+		logger:        logger,
+		connUpgradeFn: conn.MakeSecretConnection,
 	}
 }
 
@@ -125,11 +134,11 @@ func (mt *MultiplexTransport) Dial(
 
 // Close stops the multiplex transport
 func (mt *MultiplexTransport) Close() error {
-	mt.cancelFn()
-
 	if mt.listener == nil {
 		return nil
 	}
+
+	mt.cancelFn()
 
 	return mt.listener.Close()
 }
@@ -153,6 +162,9 @@ func (mt *MultiplexTransport) Listen(addr types.NetAddress) error {
 		addr.Port = uint16(tcpAddr.Port)
 	}
 
+	// Set up the context
+	mt.ctx, mt.cancelFn = context.WithCancel(context.Background())
+
 	mt.netAddr = addr
 	mt.listener = ln
 
@@ -164,9 +176,10 @@ func (mt *MultiplexTransport) Listen(addr types.NetAddress) error {
 }
 
 // runAcceptLoop runs the loop where incoming peers are:
-// - 1. accepted by the transport
-// - 2. filtered
-// - 3. upgraded (handshaked + verified)
+//
+// 1. accepted by the transport
+// 2. filtered
+// 3. upgraded (handshaked + verified)
 func (mt *MultiplexTransport) runAcceptLoop() {
 	defer close(mt.peerCh)
 
@@ -271,14 +284,14 @@ func (mt *MultiplexTransport) Remove(p Peer) {
 
 // upgradeAndVerifyConn upgrades the connections (performs the handshaking process)
 // and verifies that the connecting peer is valid
-func (mt *MultiplexTransport) upgradeAndVerifyConn(c net.Conn) (*conn.SecretConnection, types.NodeInfo, error) {
+func (mt *MultiplexTransport) upgradeAndVerifyConn(c net.Conn) (secretConn, types.NodeInfo, error) {
 	// Upgrade to a secret connection.
 	// A secret connection is a connection that has passed
 	// an initial handshaking process, as defined by the STS
 	// protocol, and is considered to be secure and authentic
-	secretConn, err := upgradeToSecretConn(
+	sc, err := mt.upgradeToSecretConn(
 		c,
-		mt.handshakeTimeout,
+		defaultHandshakeTimeout,
 		mt.nodeKey.PrivKey,
 	)
 	if err != nil {
@@ -286,13 +299,13 @@ func (mt *MultiplexTransport) upgradeAndVerifyConn(c net.Conn) (*conn.SecretConn
 	}
 
 	// Exchange node information
-	nodeInfo, err := exchangeNodeInfo(secretConn, mt.handshakeTimeout, mt.nodeInfo)
+	nodeInfo, err := exchangeNodeInfo(sc, defaultHandshakeTimeout, mt.nodeInfo)
 	if err != nil {
 		return nil, types.NodeInfo{}, fmt.Errorf("unable to exchange node information, %w", err)
 	}
 
 	// Ensure the connection ID matches the node's reported ID
-	connID := secretConn.RemotePubKey().Address().ID()
+	connID := sc.RemotePubKey().Address().ID()
 
 	if connID != nodeInfo.ID() {
 		return nil, types.NodeInfo{}, fmt.Errorf(
@@ -307,7 +320,7 @@ func (mt *MultiplexTransport) upgradeAndVerifyConn(c net.Conn) (*conn.SecretConn
 		return nil, types.NodeInfo{}, fmt.Errorf("incompatible node info, %w", err)
 	}
 
-	return secretConn, nodeInfo, nil
+	return sc, nodeInfo, nil
 }
 
 // newMultiplexPeer creates a new multiplex Peer, using
@@ -357,7 +370,7 @@ func (mt *MultiplexTransport) newMultiplexPeer(
 // exchangeNodeInfo performs a data swap, where node
 // info is exchanged between the current node and a peer async
 func exchangeNodeInfo(
-	c net.Conn,
+	c secretConn,
 	timeout time.Duration,
 	nodeInfo types.NodeInfo,
 ) (types.NodeInfo, error) {
@@ -403,17 +416,17 @@ func exchangeNodeInfo(
 // upgradeToSecretConn takes an active TCP connection,
 // and upgrades it to a verified, handshaked connection through
 // the STS protocol
-func upgradeToSecretConn(
+func (mt *MultiplexTransport) upgradeToSecretConn(
 	c net.Conn,
 	timeout time.Duration,
 	privKey crypto.PrivKey,
-) (*conn.SecretConnection, error) {
+) (secretConn, error) {
 	if err := c.SetDeadline(time.Now().Add(timeout)); err != nil {
 		return nil, err
 	}
 
 	// Handshake (STS)
-	sc, err := conn.MakeSecretConnection(c, privKey)
+	sc, err := mt.connUpgradeFn(c, privKey)
 	if err != nil {
 		return nil, err
 	}

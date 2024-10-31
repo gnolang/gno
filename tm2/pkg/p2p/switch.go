@@ -376,7 +376,7 @@ func (sw *MultiplexSwitch) runRedialLoop(ctx context.Context) {
 
 // DialPeers adds the peers to the dial queue for async dialing.
 // To monitor dial progress, subscribe to adequate p2p MultiplexSwitch events
-func (sw *MultiplexSwitch) DialPeers(peerAddrs ...*types.NetAddress) { // TODO remove pointer
+func (sw *MultiplexSwitch) DialPeers(peerAddrs ...*types.NetAddress) {
 	for _, peerAddr := range peerAddrs {
 		// Check if this is our address
 		if peerAddr.Same(sw.transport.NetAddress()) {
