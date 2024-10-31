@@ -71,11 +71,11 @@ stdout ${USER_ADDR_test1}
 gnokey maketx run -gas-fee 100000ugnot -gas-wanted 4000000 -broadcast -chainid tendermint_test test1 $WORK/run/barB.gno
 stdout ${USER_ADDR_test1}
 
-## 9. MsgCall -> std.PrevRealm(): user address
+## 11. MsgCall -> std.PrevRealm(): user address
 ## gnokey maketx call -pkgpath std -func PrevRealm -gas-fee 100000ugnot -gas-wanted 4000000 -broadcast -chainid tendermint_test test1
 ## stdout ${USER_ADDR_test1}
 
-## 10. MsgRun -> std.PrevRealm(): user address
+## 12. MsgRun -> std.PrevRealm(): user address
 gnokey maketx run -gas-fee 100000ugnot -gas-wanted 4000000 -broadcast -chainid tendermint_test test1 $WORK/run/baz.gno
 stdout ${USER_ADDR_test1}
 
