@@ -303,6 +303,42 @@ func TestMemPackage_Validate(t *testing.T) {
 			},
 			"",
 		},
+		{
+			"Valid package containing non gno file",
+			&MemPackage{
+				Name: "test",
+				Path: "gno.land/p/demo/test",
+				Files: []*MemFile{
+					{
+						Name: "README.md",
+						Body: `
+						# Test
+						`,
+					},
+					{Name: "a.gno", Body: `
+					package test
+
+					import "gno.land/p/r/r"
+					
+					func A() {
+						r.A()
+					}
+					`},
+				},
+			},
+			"",
+		},
+		{
+			"Invalid empty gno file",
+			&MemPackage{
+				Name: "test",
+				Path: "gno.land/p/demo/test",
+				Files: []*MemFile{
+					{Name: "a.gno"},
+				},
+			},
+			"failed to parse imports in file \"a.gno\" of package \"gno.land/p/demo/test\"",
+		},
 	}
 	for _, tc := range tt {
 		t.Run(tc.name, func(t *testing.T) {
