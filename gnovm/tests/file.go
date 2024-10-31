@@ -2,6 +2,7 @@ package tests
 
 import (
 	"bytes"
+	"encoding/json"
 	"fmt"
 	"go/ast"
 	"go/parser"
@@ -14,6 +15,7 @@ import (
 	"strings"
 
 	"github.com/gnolang/gno/gno.land/pkg/gnoland/ugnot"
+	"github.com/gnolang/gno/gnovm"
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
 	"github.com/gnolang/gno/gnovm/stdlibs"
 	teststd "github.com/gnolang/gno/gnovm/tests/stdlibs/std"
@@ -54,7 +56,7 @@ func TestContext(pkgPath string, send std.Coins) *teststd.TestExecContext {
 	pkgAddr := gno.DerivePkgAddr(pkgPath) // the addr of the pkgPath called.
 	caller := gno.DerivePkgAddr("user1.gno")
 
-	pkgCoins := std.MustParseCoins(ugnot.ValueString(200000000)).Add(send) // >= send.
+	pkgCoins := std.MustParseCoins(ugnot.ValueString(200_000_000)).Add(send) // >= send.
 	banker := newTestBanker(pkgAddr.Bech32(), pkgCoins)
 	ctx := stdlibs.ExecContext{
 		ChainID:       "dev",
@@ -72,6 +74,19 @@ func TestContext(pkgPath string, send std.Coins) *teststd.TestExecContext {
 		ExecContext: ctx,
 		RealmFrames: make(map[*gno.Frame]teststd.RealmOverride),
 	}
+}
+
+// CleanupMachine can be called during two tests while reusing the same Machine instance.
+func CleanupMachine(m *gno.Machine) {
+	prevCtx := m.Context.(*teststd.TestExecContext)
+	prevSend := prevCtx.OrigSend
+
+	newCtx := TestContext("", prevCtx.OrigSend)
+	pkgCoins := std.MustParseCoins(ugnot.ValueString(200_000_000)).Add(prevSend) // >= send.
+	banker := newTestBanker(prevCtx.OrigPkgAddr, pkgCoins)
+	newCtx.OrigPkgAddr = prevCtx.OrigPkgAddr
+	newCtx.Banker = banker
+	m.Context = newCtx
 }
 
 type runFileTestOptions struct {
@@ -110,7 +125,7 @@ func RunFileTest(rootDir string, path string, opts ...RunFileTestOption) error {
 		opt(&f)
 	}
 
-	directives, pkgPath, resWanted, errWanted, rops, stacktraceWanted, maxAlloc, send := wantedFromComment(path)
+	directives, pkgPath, resWanted, errWanted, rops, eventsWanted, stacktraceWanted, maxAlloc, send, preWanted := wantedFromComment(path)
 	if pkgPath == "" {
 		pkgPath = "main"
 	}
@@ -186,10 +201,10 @@ func RunFileTest(rootDir string, path string, opts ...RunFileTestOption) error {
 				store.SetStrictGo2GnoMapping(true) // in gno.land, natives must be registered.
 				gno.DisableDebug()                 // until main call.
 				// save package using realm crawl procedure.
-				memPkg := &std.MemPackage{
+				memPkg := &gnovm.MemPackage{
 					Name: string(pkgName),
 					Path: pkgPath,
-					Files: []*std.MemFile{
+					Files: []*gnovm.MemFile{
 						{
 							Name: "main.gno", // dontcare
 							Body: string(bz),
@@ -347,6 +362,45 @@ func RunFileTest(rootDir string, path string, opts ...RunFileTestOption) error {
 						}
 					}
 				}
+			case "Events":
+				// panic if got unexpected error
+
+				if pnc != nil {
+					if tv, ok := pnc.(*gno.TypedValue); ok {
+						panic(fmt.Sprintf("fail on %s: got unexpected error: %s", path, tv.Sprint(m)))
+					} else { // happens on 'unknown import path ...'
+						panic(fmt.Sprintf("fail on %s: got unexpected error: %v", path, pnc))
+					}
+				}
+				// check result
+				events := m.Context.(*teststd.TestExecContext).EventLogger.Events()
+				evtjson, err := json.MarshalIndent(events, "", "  ")
+				if err != nil {
+					panic(err)
+				}
+				evtstr := trimTrailingSpaces(string(evtjson))
+				if evtstr != eventsWanted {
+					if f.syncWanted {
+						// write output to file.
+						replaceWantedInPlace(path, "Events", evtstr)
+					} else {
+						// panic so tests immediately fail (for now).
+						if eventsWanted == "" {
+							panic(fmt.Sprintf("fail on %s: got unexpected events: %s", path, evtstr))
+						} else {
+							diff, _ := difflib.GetUnifiedDiffString(difflib.UnifiedDiff{
+								A:        difflib.SplitLines(eventsWanted),
+								B:        difflib.SplitLines(evtstr),
+								FromFile: "Expected",
+								FromDate: "",
+								ToFile:   "Actual",
+								ToDate:   "",
+								Context:  1,
+							})
+							panic(fmt.Sprintf("fail on %s: diff:\n%s\n", path, diff))
+						}
+					}
+				}
 			case "Realm":
 				// panic if got unexpected error
 				if pnc != nil {
@@ -377,6 +431,28 @@ func RunFileTest(rootDir string, path string, opts ...RunFileTestOption) error {
 						}
 					}
 				}
+			case "Preprocessed":
+				// check preprocessed AST.
+				pn := store.GetBlockNode(gno.PackageNodeLocation(pkgPath))
+				pre := pn.(*gno.PackageNode).FileSet.Files[0].String()
+				if pre != preWanted {
+					if f.syncWanted {
+						// write error to file
+						replaceWantedInPlace(path, "Preprocessed", pre)
+					} else {
+						// panic so tests immediately fail (for now).
+						diff, _ := difflib.GetUnifiedDiffString(difflib.UnifiedDiff{
+							A:        difflib.SplitLines(preWanted),
+							B:        difflib.SplitLines(pre),
+							FromFile: "Expected",
+							FromDate: "",
+							ToFile:   "Actual",
+							ToDate:   "",
+							Context:  1,
+						})
+						panic(fmt.Sprintf("fail on %s: diff:\n%s\n", path, diff))
+					}
+				}
 			case "Stacktrace":
 				if stacktraceWanted != "" {
 					var stacktrace string
@@ -388,22 +464,27 @@ func RunFileTest(rootDir string, path string, opts ...RunFileTestOption) error {
 						stacktrace = m.Stacktrace().String()
 					}
 
-					if !strings.Contains(stacktrace, stacktraceWanted) {
-						diff, _ := difflib.GetUnifiedDiffString(difflib.UnifiedDiff{
-							A:        difflib.SplitLines(stacktraceWanted),
-							B:        difflib.SplitLines(stacktrace),
-							FromFile: "Expected",
-							FromDate: "",
-							ToFile:   "Actual",
-							ToDate:   "",
-							Context:  1,
-						})
-						panic(fmt.Sprintf("fail on %s: diff:\n%s\n", path, diff))
+					if f.syncWanted {
+						// write stacktrace to file
+						replaceWantedInPlace(path, "Stacktrace", stacktrace)
+					} else {
+						if !strings.Contains(stacktrace, stacktraceWanted) {
+							diff, _ := difflib.GetUnifiedDiffString(difflib.UnifiedDiff{
+								A:        difflib.SplitLines(stacktraceWanted),
+								B:        difflib.SplitLines(stacktrace),
+								FromFile: "Expected",
+								FromDate: "",
+								ToFile:   "Actual",
+								ToDate:   "",
+								Context:  1,
+							})
+							panic(fmt.Sprintf("fail on %s: diff:\n%s\n", path, diff))
+						}
 					}
 				}
 				checkMachineIsEmpty = false
 			default:
-				checkMachineIsEmpty = false
+				return nil
 			}
 		}
 	}
@@ -421,7 +502,7 @@ func RunFileTest(rootDir string, path string, opts ...RunFileTestOption) error {
 	return nil
 }
 
-func wantedFromComment(p string) (directives []string, pkgPath, res, err, rops, stacktrace string, maxAlloc int64, send std.Coins) {
+func wantedFromComment(p string) (directives []string, pkgPath, res, err, rops, events, stacktrace string, maxAlloc int64, send std.Coins, pre string) {
 	fset := token.NewFileSet()
 	f, err2 := parser.ParseFile(fset, p, nil, parser.ParseComments)
 	if err2 != nil {
@@ -463,6 +544,14 @@ func wantedFromComment(p string) (directives []string, pkgPath, res, err, rops, 
 			rops = strings.TrimPrefix(text, "Realm:\n")
 			rops = strings.TrimSpace(rops)
 			directives = append(directives, "Realm")
+		} else if strings.HasPrefix(text, "Events:\n") {
+			events = strings.TrimPrefix(text, "Events:\n")
+			events = strings.TrimSpace(events)
+			directives = append(directives, "Events")
+		} else if strings.HasPrefix(text, "Preprocessed:\n") {
+			pre = strings.TrimPrefix(text, "Preprocessed:\n")
+			pre = strings.TrimSpace(pre)
+			directives = append(directives, "Preprocessed")
 		} else if strings.HasPrefix(text, "Stacktrace:\n") {
 			stacktrace = strings.TrimPrefix(text, "Stacktrace:\n")
 			stacktrace = strings.TrimSpace(stacktrace)
