@@ -374,7 +374,7 @@ func RunFileTest(rootDir string, path string, opts ...RunFileTestOption) error {
 				}
 				// check result
 				events := m.Context.(*teststd.TestExecContext).EventLogger.Events()
-				evtjson, err := json.Marshal(events)
+				evtjson, err := json.MarshalIndent(events, "", "  ")
 				if err != nil {
 					panic(err)
 				}
