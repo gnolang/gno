@@ -31,7 +31,9 @@ import (
 )
 
 const (
-	qFileStr = "vm/qfile"
+	qFileStr           = "vm/qfile"
+	privQuerySeparator = "$"
+	querySeparator     = "?"
 )
 
 //go:embed views/*
@@ -291,21 +293,32 @@ func handlerRealmRender(logger *slog.Logger, app gotuna.App, cfg *Config) http.H
 }
 
 func handleRealmRender(logger *slog.Logger, app gotuna.App, cfg *Config, w http.ResponseWriter, r *http.Request) {
+	args, err := parseQueryArgs(r.RequestURI)
+	if err != nil {
+		writeError(logger, w, err)
+		return
+	}
+
+	var publicQuery, privateQuery string
+	if len(args.Public) > 0 {
+		publicQuery = querySeparator + args.Public.Encode()
+	}
+	if len(args.Private) > 0 {
+		privateQuery = privQuerySeparator + args.Private.Encode()
+	}
+
 	vars := mux.Vars(r)
 	rlmname := vars["rlmname"]
 	rlmpath := "gno.land/r/" + rlmname
 	querystr := vars["querystr"]
 	if r.URL.Path == "/r/"+rlmname+":" {
 		// Redirect to /r/REALM if querypath is empty.
-		http.Redirect(w, r, "/r/"+rlmname, http.StatusFound)
+		http.Redirect(w, r, "/r/"+rlmname+publicQuery+privateQuery, http.StatusFound)
 		return
 	}
-	if len(r.URL.RawQuery) > 0 {
-		q := filterQueryValues(r.URL.Query())
-		querystr = querystr + "?" + q.Encode()
-	}
+
 	qpath := "vm/qrender"
-	data := []byte(fmt.Sprintf("%s:%s", rlmpath, querystr))
+	data := []byte(fmt.Sprintf("%s:%s", rlmpath, querystr+publicQuery))
 	res, err := makeRequest(logger, cfg, qpath, data)
 	if err != nil {
 		// XXX hack
@@ -330,20 +343,19 @@ func handleRealmRender(logger *slog.Logger, app gotuna.App, cfg *Config, w http.
 	queryParts := strings.Split(querystr, "/")
 	pathLinks := []pathLink{}
 	for i, part := range queryParts {
-		// Unescape query arguments when present in the last render path part
-		if i == len(queryParts)-1 {
-			part, err = unescapeQueryArgs(part)
-			if err != nil {
-				writeError(logger, w, err)
-				return
-			}
+		rlmpath := strings.Join(queryParts[:i+1], "/")
+
+		// Add URL query arguments to the last breadcrumb item's URL
+		if i+1 == len(queryParts) {
+			rlmpath = rlmpath + publicQuery + privateQuery
 		}
 
 		pathLinks = append(pathLinks, pathLink{
-			URL:  "/r/" + rlmname + ":" + strings.Join(queryParts[:i+1], "/"),
+			URL:  "/r/" + rlmname + ":" + rlmpath,
 			Text: part,
 		})
 	}
+
 	// Render template.
 	tmpl := app.NewTemplatingEngine()
 	// XXX: extract title from realm's output
@@ -356,19 +368,6 @@ func handleRealmRender(logger *slog.Logger, app gotuna.App, cfg *Config, w http.
 	tmpl.Set("Config", cfg)
 	tmpl.Set("HasReadme", hasReadme)
 	tmpl.Render(w, r, "realm_render.html", "funcs.html")
-}
-
-func unescapeQueryArgs(s string) (string, error) {
-	prefix, query, found := strings.Cut(s, "?")
-	if !found {
-		return s, nil
-	}
-
-	q, err := url.QueryUnescape(query)
-	if err != nil {
-		return "", err
-	}
-	return prefix + "?" + q, nil
 }
 
 func handlerRealmFile(logger *slog.Logger, app gotuna.App, cfg *Config) http.Handler {
@@ -534,15 +533,37 @@ func pathOf(diruri string) string {
 	panic(fmt.Sprintf("invalid dir-URI %q", diruri))
 }
 
-func filterQueryValues(values url.Values) url.Values {
-	filtered := url.Values{}
-	for k, v := range values {
-		// Filter out private gnoweb arguments
-		if strings.HasPrefix(k, "__") {
-			continue
-		}
+// queryArgs contains public and private gnoweb URL query arguments.
+type queryArgs struct {
+	// Public contains URL query arguments that are not specific to gnoweb.
+	// These are the standard arguments that comes after the "?" symbol and
+	// before the special "$" symbol. The "$" symbol can be used within
+	// public query arguments by using its encoded representation "%24".
+	Public url.Values
 
-		filtered[k] = v
+	// Private contains URL query arguments that are specific to gnoweb.
+	// These arguments are indicated by using the "$" symbol followed by
+	// a query string with the arguments.
+	Private url.Values
+}
+
+// parseQueryArgs parses a URL and extracts public and private gnoweb URL query arguments.
+func parseQueryArgs(rawURL string) (args queryArgs, err error) {
+	// First parse private gnoweb query arguments
+	rawURL, privateQuery, found := strings.Cut(rawURL, privQuerySeparator)
+	if found {
+		args.Private, err = url.ParseQuery(privateQuery)
+		if err != nil {
+			return queryArgs{}, err
+		}
 	}
-	return filtered
+
+	// Finally parse standard public query arguments
+	u, err := url.Parse(rawURL)
+	if err != nil {
+		return queryArgs{}, err
+	}
+
+	args.Public = u.Query()
+	return args, nil
 }
