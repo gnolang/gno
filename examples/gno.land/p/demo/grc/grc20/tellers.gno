@@ -36,8 +36,8 @@ func (tok *Token) ReadonlyTeller() Teller {
 // RealmTeller returns a GRC20 compatible teller that will store the
 // CurrentRealm caller and then reuse the stored caller for each call. It allows
 // a realm contract to interact with a Teller with its own account. The
-// initializer of this teller should usually never share a pointer to its
-// RealmTeller except maybe for advanced delegation flows such as a DAO treasury
+// initializer of this teller should usually never share the resulting Teller from
+// this method except maybe for advanced delegation flows such as a DAO treasury
 // management.
 func (tok *Token) RealmTeller() Teller {
 	if tok == nil {
