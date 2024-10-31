@@ -15,12 +15,16 @@
 # | 10  |          | through /r/foo      | myrealm.A()            | PANIC  |
 # | 11  |          |                     | myrealm.B()            | pass   |
 # | 12  |          |                     | myrealm.C()            | PANIC  |
-# | 13  | MsgRun   | wallet direct       | std.AssertOriginCall() | PANIC  |
+# | 13  |          | through /p/demo/bar | bar.A()                | PANIC  |
+# | 14  |          |                     | bar.B()                | pass   |
+# | 15  |          |                     | bar.C()                | PANIC  |
+# | 16  | MsgRun   | wallet direct       | std.AssertOriginCall() | PANIC  |
 
 # Init
 ## set up and start a new node
 loadpkg gno.land/r/myrlm $WORK/r/myrlm
 loadpkg gno.land/r/foo $WORK/r/foo
+loadpkg gno.land/p/demo/bar $WORK/p/demo/bar
 gnoland start
 
 # Test cases
@@ -72,7 +76,19 @@ stdout 'OK!'
 ! gnokey maketx run -gas-fee 100000ugnot -gas-wanted 4000000 -broadcast -chainid tendermint_test test1 $WORK/run/fooC.gno
 stderr 'invalid non-origin call'
 
-## 13. MsgRun -> std.AssertOriginCall: PANIC
+## 13. MsgRun -> run.main -> bar.A: PANIC
+! gnokey maketx run -gas-fee 100000ugnot -gas-wanted 4000000 -broadcast -chainid tendermint_test test1 $WORK/run/barA.gno
+stderr 'invalid non-origin call'
+
+## 14. MsgRun -> run.main -> bar.B: PASS
+gnokey maketx run -gas-fee 100000ugnot -gas-wanted 4000000 -broadcast -chainid tendermint_test test1 $WORK/run/barB.gno
+stdout 'OK!'
+
+## 15. MsgRun -> run.main -> bar.C: PANIC
+! gnokey maketx run -gas-fee 100000ugnot -gas-wanted 4000000 -broadcast -chainid tendermint_test test1 $WORK/run/barC.gno
+stderr 'invalid non-origin call'
+
+## 16. MsgRun -> std.AssertOriginCall: PANIC
 ! gnokey maketx run -gas-fee 100000ugnot -gas-wanted 4000000 -broadcast -chainid tendermint_test test1 $WORK/run/baz.gno
 stderr 'invalid non-origin call'
 
@@ -92,6 +108,23 @@ func B() {
 	}
 }
 
+func C() {
+	std.AssertOriginCall()
+}
+-- p/demo/bar/bar.gno --
+package bar
+
+import "std"
+
+func A() {
+	C()
+}
+
+func B() {
+	if false {
+		C()
+	}
+}
 func C() {
 	std.AssertOriginCall()
 }
@@ -158,6 +191,30 @@ import "gno.land/r/foo"
 
 func main() {
 	foo.C()
+}
+-- run/barA.gno --
+package main
+
+import "gno.land/p/demo/bar"
+
+func main() {
+	bar.A()
+}
+-- run/barB.gno --
+package main
+
+import "gno.land/p/demo/bar"
+
+func main() {
+	bar.B()
+}
+-- run/barC.gno --
+package main
+
+import "gno.land/p/demo/bar"
+
+func main() {
+	bar.C()
 }
 -- run/baz.gno --
 package main
