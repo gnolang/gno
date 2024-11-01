@@ -52,16 +52,18 @@ func TestNewAppWithOptions(t *testing.T) {
 					Amount:  []std.Coin{{Amount: 1e15, Denom: "ugnot"}},
 				},
 			},
-			Txs: []std.Tx{
+			Txs: []TxWithMetadata{
 				{
-					Msgs: []std.Msg{vm.NewMsgAddPackage(addr, "gno.land/r/demo", []*gnovm.MemFile{
-						{
-							Name: "demo.gno",
-							Body: "package demo; func Hello() string { return `hello`; }",
-						},
-					})},
-					Fee:        std.Fee{GasWanted: 1e6, GasFee: std.Coin{Amount: 1e6, Denom: "ugnot"}},
-					Signatures: []std.Signature{{}}, // one empty signature
+					Tx: std.Tx{
+						Msgs: []std.Msg{vm.NewMsgAddPackage(addr, "gno.land/r/demo", []*gnovm.MemFile{
+							{
+								Name: "demo.gno",
+								Body: "package demo; func Hello() string { return `hello`; }",
+							},
+						})},
+						Fee:        std.Fee{GasWanted: 1e6, GasFee: std.Coin{Amount: 1e6, Denom: "ugnot"}},
+						Signatures: []std.Signature{{}}, // one empty signature
+					},
 				},
 			},
 		},
@@ -258,13 +260,13 @@ func TestInitChainer_MetadataTxs(t *testing.T) {
 		currentTimestamp = time.Now()
 		laterTimestamp   = currentTimestamp.Add(10 * 24 * time.Hour) // 10 days
 
-		getMetadataState = func(tx std.Tx, balances []Balance) GnoGenesis {
-			return MetadataGenesisState{
+		getMetadataState = func(tx std.Tx, balances []Balance) GnoGenesisState {
+			return GnoGenesisState{
 				// Set the package deployment as the genesis tx
 				Txs: []TxWithMetadata{
 					{
-						GenesisTx: tx,
-						TxMetadata: GnoTxMetadata{
+						Tx: tx,
+						Metadata: &GnoTxMetadata{
 							Timestamp: laterTimestamp.Unix(),
 						},
 					},
@@ -274,9 +276,13 @@ func TestInitChainer_MetadataTxs(t *testing.T) {
 			}
 		}
 
-		getNonMetadataState = func(tx std.Tx, balances []Balance) GnoGenesis {
+		getNonMetadataState = func(tx std.Tx, balances []Balance) GnoGenesisState {
 			return GnoGenesisState{
-				Txs:      []std.Tx{tx},
+				Txs: []TxWithMetadata{
+					{
+						Tx: tx,
+					},
+				},
 				Balances: balances,
 			}
 		}
@@ -286,7 +292,7 @@ func TestInitChainer_MetadataTxs(t *testing.T) {
 		name         string
 		genesisTime  time.Time
 		expectedTime time.Time
-		stateFn      func(std.Tx, []Balance) GnoGenesis
+		stateFn      func(std.Tx, []Balance) GnoGenesisState
 	}{
 		{
 			"non-metadata transaction",

@@ -11,7 +11,6 @@ import (
 	"github.com/gnolang/gno/contribs/gnodev/pkg/emitter"
 	"github.com/gnolang/gno/gno.land/pkg/gnoland"
 	"github.com/gnolang/gno/tm2/pkg/bft/types"
-	"github.com/gnolang/gno/tm2/pkg/std"
 )
 
 // setupDevNode initializes and returns a new DevNode.
@@ -24,7 +23,7 @@ func setupDevNode(
 
 	if devCfg.txsFile != "" { // Load txs files
 		var err error
-		nodeConfig.InitialTxs, err = parseTxs(devCfg.txsFile)
+		nodeConfig.InitialTxs, err = parseTxs(ctx, devCfg.txsFile)
 		if err != nil {
 			return nil, fmt.Errorf("unable to load transactions: %w", err)
 		}
@@ -35,13 +34,13 @@ func setupDevNode(
 		}
 
 		// Override balances and txs
-		nodeConfig.BalancesList = state.GenesisBalances()
+		nodeConfig.BalancesList = state.Balances
 
-		stateTxs := state.GenesisTxs()
-		nodeConfig.InitialTxs = make([]std.Tx, len(stateTxs))
+		stateTxs := state.Txs
+		nodeConfig.InitialTxs = make([]gnoland.TxWithMetadata, len(stateTxs))
 
 		for index, nodeTx := range stateTxs {
-			nodeConfig.InitialTxs[index] = nodeTx.Tx()
+			nodeConfig.InitialTxs[index] = nodeTx
 		}
 
 		logger.Info("genesis file loaded", "path", devCfg.genesisFile, "txs", len(nodeConfig.InitialTxs))
@@ -76,18 +75,18 @@ func setupDevNodeConfig(
 	return config
 }
 
-func extractAppStateFromGenesisFile(path string) (gnoland.GnoGenesis, error) {
+func extractAppStateFromGenesisFile(path string) (*gnoland.GnoGenesisState, error) {
 	doc, err := types.GenesisDocFromFile(path)
 	if err != nil {
 		return nil, fmt.Errorf("unable to parse doc file: %w", err)
 	}
 
-	state, ok := doc.AppState.(gnoland.GnoGenesis)
+	state, ok := doc.AppState.(gnoland.GnoGenesisState)
 	if !ok {
 		return nil, fmt.Errorf("invalid `GnoGenesisState` app state")
 	}
 
-	return state, nil
+	return &state, nil
 }
 
 func resolveUnixOrTCPAddr(in string) (out string) {

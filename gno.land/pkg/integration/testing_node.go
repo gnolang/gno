@@ -64,9 +64,17 @@ func TestingNodeConfig(t TestingTS, gnoroot string, additionalTxs ...std.Tx) (*g
 	txs = append(txs, LoadDefaultPackages(t, creator, gnoroot)...)
 	txs = append(txs, additionalTxs...)
 
+	metadataTxs := make([]gnoland.TxWithMetadata, 0, len(txs))
+
+	for _, tx := range txs {
+		metadataTxs = append(metadataTxs, gnoland.TxWithMetadata{
+			Tx: tx,
+		})
+	}
+
 	cfg.Genesis.AppState = gnoland.GnoGenesisState{
 		Balances: balances,
-		Txs:      txs,
+		Txs:      metadataTxs,
 	}
 
 	return cfg, creator
@@ -121,7 +129,7 @@ func DefaultTestingGenesisConfig(t TestingTS, gnoroot string, self crypto.PubKey
 					Amount:  std.MustParseCoins(ugnot.ValueString(10000000000000)),
 				},
 			},
-			Txs: []std.Tx{},
+			Txs: []gnoland.TxWithMetadata{},
 		},
 	}
 }

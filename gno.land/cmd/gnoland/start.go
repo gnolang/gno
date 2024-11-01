@@ -409,10 +409,17 @@ func generateGenesisFile(genesisFile string, pk crypto.PubKey, c *startCfg) erro
 
 	genesisTxs = append(pkgsTxs, genesisTxs...)
 
+	metadataTxs := make([]gnoland.TxWithMetadata, 0, len(genesisTxs))
+	for _, tx := range genesisTxs {
+		metadataTxs = append(metadataTxs, gnoland.TxWithMetadata{
+			Tx: tx,
+		})
+	}
+
 	// Construct genesis AppState.
 	gen.AppState = gnoland.GnoGenesisState{
 		Balances: balances,
-		Txs:      genesisTxs,
+		Txs:      metadataTxs,
 	}
 
 	// Write genesis state

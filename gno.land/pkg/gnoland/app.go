@@ -286,13 +286,13 @@ func (cfg InitChainerConfig) loadStdlibs(ctx sdk.Context) {
 }
 
 func (cfg InitChainerConfig) loadAppState(ctx sdk.Context, appState any) ([]abci.ResponseDeliverTx, error) {
-	state, ok := appState.(GnoGenesis)
+	state, ok := appState.(GnoGenesisState)
 	if !ok {
 		return nil, fmt.Errorf("invalid AppState of type %T", appState)
 	}
 
 	// Parse and set genesis state balances
-	for _, bal := range state.GenesisBalances() {
+	for _, bal := range state.Balances {
 		acc := cfg.acctKpr.NewAccountWithAddress(ctx, bal.Address)
 		cfg.acctKpr.SetAccount(ctx, acc)
 		err := cfg.bankKpr.SetCoins(ctx, bal.Address, bal.Amount)
@@ -301,16 +301,13 @@ func (cfg InitChainerConfig) loadAppState(ctx sdk.Context, appState any) ([]abci
 		}
 	}
 
-	var (
-		stateTxs    = state.GenesisTxs()
-		txResponses = make([]abci.ResponseDeliverTx, 0, len(stateTxs))
-	)
+	txResponses := make([]abci.ResponseDeliverTx, 0, len(state.Txs))
 
 	// Run genesis txs
-	for _, tx := range state.GenesisTxs() {
+	for _, tx := range state.Txs {
 		var (
-			stdTx    = tx.Tx()
-			metadata = tx.Metadata()
+			stdTx    = tx.Tx
+			metadata = tx.Metadata
 
 			ctxFn sdk.ContextFn
 		)
