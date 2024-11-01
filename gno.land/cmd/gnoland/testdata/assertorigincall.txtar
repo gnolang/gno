@@ -9,16 +9,20 @@
 # | 4   |          | through /r/foo      | myrealm.A()            | PANIC  |
 # | 5   |          |                     | myrealm.B()            | pass   |
 # | 6   |          |                     | myrealm.C()            | PANIC  |
-# | 7   | MsgRun   | wallet direct       | myrealm.A()            | PANIC  |
-# | 8   |          |                     | myrealm.B()            | pass   |
-# | 9   |          |                     | myrealm.C()            | PANIC  |
-# | 10  |          | through /r/foo      | myrealm.A()            | PANIC  |
+# | 7   |          | through /p/demo/bar | bar.A()                | PANIC  |
+# | 8   |          |                     | bar.B()                | pass   |
+# | 9   |          |                     | bar.C()                | PANIC  |
+# | 10  | MsgRun   | wallet direct       | myrealm.A()            | PANIC  |
 # | 11  |          |                     | myrealm.B()            | pass   |
 # | 12  |          |                     | myrealm.C()            | PANIC  |
-# | 13  |          | through /p/demo/bar | bar.A()                | PANIC  |
-# | 14  |          |                     | bar.B()                | pass   |
-# | 15  |          |                     | bar.C()                | PANIC  |
-# | 16  | MsgRun   | wallet direct       | std.AssertOriginCall() | PANIC  |
+# | 13  |          | through /r/foo      | myrealm.A()            | PANIC  |
+# | 14  |          |                     | myrealm.B()            | pass   |
+# | 15  |          |                     | myrealm.C()            | PANIC  |
+# | 16  |          | through /p/demo/bar | bar.A()                | PANIC  |
+# | 17  |          |                     | bar.B()                | pass   |
+# | 18  |          |                     | bar.C()                | PANIC  |
+# | 19  | MsgCall  | wallet direct       | std.AssertOriginCall() | pass   |
+# | 20  | MsgRun   | wallet direct       | std.AssertOriginCall() | PANIC  |
 
 # Init
 ## set up and start a new node
@@ -52,43 +56,61 @@ stdout 'OK!'
 ! gnokey maketx call -pkgpath gno.land/r/foo -func C -gas-fee 100000ugnot -gas-wanted 4000000 -broadcast -chainid tendermint_test test1
 stderr 'invalid non-origin call'
 
-## 7. MsgRun -> run.main -> myrlm.A: PANIC
+## remove due to update to maketx call can only call realm (case 7,8,9)
+## 7. MsgCall -> p/demo/bar.A: PANIC
+## ! gnokey maketx call -pkgpath gno.land/p/demo/bar -func A -gas-fee 100000ugnot -gas-wanted 4000000 -broadcast -chainid tendermint_test test1
+## stderr 'invalid non-origin call'
+
+## 8. MsgCall -> p/demo/bar.B: PASS
+## gnokey maketx call -pkgpath gno.land/p/demo/bar -func B -gas-fee 100000ugnot -gas-wanted 4000000 -broadcast -chainid tendermint_test test1
+## stdout 'OK!'
+
+## 9. MsgCall -> p/demo/bar.C: PANIC
+## ! gnokey maketx call -pkgpath gno.land/p/demo/bar -func C -gas-fee 100000ugnot -gas-wanted 4000000 -broadcast -chainid tendermint_test test1
+## stderr 'invalid non-origin call'
+
+## 10. MsgRun -> run.main -> myrlm.A: PANIC
 ! gnokey maketx run -gas-fee 100000ugnot -gas-wanted 4000000 -broadcast -chainid tendermint_test test1 $WORK/run/myrlmA.gno
 stderr 'invalid non-origin call'
 
-## 8. MsgRun -> run.main -> myrlm.B: PASS
+## 11. MsgRun -> run.main -> myrlm.B: PASS
 gnokey maketx run -gas-fee 100000ugnot -gas-wanted 4000000 -broadcast -chainid tendermint_test test1 $WORK/run/myrlmB.gno
 stdout 'OK!'
 
-## 9. MsgRun -> run.main -> myrlm.C: PANIC
+## 12. MsgRun -> run.main -> myrlm.C: PANIC
 ! gnokey maketx run -gas-fee 100000ugnot -gas-wanted 4000000 -broadcast -chainid tendermint_test test1 $WORK/run/myrlmC.gno
 stderr 'invalid non-origin call'
 
-## 10. MsgRun -> run.main -> foo.A: PANIC
+## 13. MsgRun -> run.main -> foo.A: PANIC
 ! gnokey maketx run -gas-fee 100000ugnot -gas-wanted 4000000 -broadcast -chainid tendermint_test test1 $WORK/run/fooA.gno
 stderr 'invalid non-origin call'
 
-## 11. MsgRun -> run.main -> foo.B: PASS
+## 14. MsgRun -> run.main -> foo.B: PASS
 gnokey maketx run -gas-fee 100000ugnot -gas-wanted 4000000 -broadcast -chainid tendermint_test test1 $WORK/run/fooB.gno
 stdout 'OK!'
 
-## 12. MsgRun -> run.main -> foo.C: PANIC
+## 15. MsgRun -> run.main -> foo.C: PANIC
 ! gnokey maketx run -gas-fee 100000ugnot -gas-wanted 4000000 -broadcast -chainid tendermint_test test1 $WORK/run/fooC.gno
 stderr 'invalid non-origin call'
 
-## 13. MsgRun -> run.main -> bar.A: PANIC
+## 16. MsgRun -> run.main -> bar.A: PANIC
 ! gnokey maketx run -gas-fee 100000ugnot -gas-wanted 4000000 -broadcast -chainid tendermint_test test1 $WORK/run/barA.gno
 stderr 'invalid non-origin call'
 
-## 14. MsgRun -> run.main -> bar.B: PASS
+## 17. MsgRun -> run.main -> bar.B: PASS
 gnokey maketx run -gas-fee 100000ugnot -gas-wanted 4000000 -broadcast -chainid tendermint_test test1 $WORK/run/barB.gno
 stdout 'OK!'
 
-## 15. MsgRun -> run.main -> bar.C: PANIC
+## 18. MsgRun -> run.main -> bar.C: PANIC
 ! gnokey maketx run -gas-fee 100000ugnot -gas-wanted 4000000 -broadcast -chainid tendermint_test test1 $WORK/run/barC.gno
 stderr 'invalid non-origin call'
 
-## 16. MsgRun -> std.AssertOriginCall: PANIC
+## remove testcase 19 due to maketx call forced to call a realm
+## 19. MsgCall -> std.AssertOriginCall: pass
+## gnokey maketx call -pkgpath std -func AssertOriginCall -gas-fee 100000ugnot -gas-wanted 4000000 -broadcast -chainid tendermint_test test1
+## stdout 'OK!'
+
+## 20. MsgRun -> std.AssertOriginCall: PANIC
 ! gnokey maketx run -gas-fee 100000ugnot -gas-wanted 4000000 -broadcast -chainid tendermint_test test1 $WORK/run/baz.gno
 stderr 'invalid non-origin call'
 
