@@ -8,10 +8,11 @@ import (
 )
 
 const (
-	RoleName     = "roleName"
-	Sender       = "sender"
-	Account      = "account"
-	NewAdminRole = "newAdminRole"
+	RoleCreatedEvent   = "RoleCreated"
+	RoleGrantedEvent   = "RoleGranted"
+	RoleRevokedEvent   = "RoleRevoked"
+	RoleRenouncedEvent = "RoleRenounced"
+	RoleSetEvent       = "RoleSet"
 )
 
 // Role struct to store role information
@@ -72,9 +73,9 @@ func (rs *Roles) CreateRole(name string) (*Role, error) {
 	rs.AllRoles = append(rs.AllRoles, role)
 
 	std.Emit(
-		"RoleCreated",
-		RoleName, name,
-		Sender, rs.Ownable.Owner().String(),
+		RoleCreatedEvent,
+		"roleName", name,
+		"sender", rs.Ownable.Owner().String(),
 	)
 
 	return role, nil
@@ -111,10 +112,10 @@ func (rs *Roles) GrantRole(name string, account std.Address) error {
 	r.Holders.Set(account.String(), struct{}{})
 
 	std.Emit(
-		"RoleGranted",
-		RoleName, r.Name,
-		Account, account.String(),
-		Sender, std.PrevRealm().Addr().String(),
+		RoleGrantedEvent,
+		"roleName", r.Name,
+		"account", account.String(),
+		"sender", std.PrevRealm().Addr().String(),
 	)
 
 	return nil
@@ -135,10 +136,10 @@ func (rs *Roles) RevokeRole(name string, account std.Address) error {
 	r.Holders.Remove(account.String())
 
 	std.Emit(
-		"RoleRevoked",
-		RoleName, r.Name,
-		Account, account.String(),
-		Sender, std.PrevRealm().Addr().String(),
+		RoleRevokedEvent,
+		"roleName", r.Name,
+		"account", account.String(),
+		"sender", std.PrevRealm().Addr().String(),
 	)
 
 	return nil
@@ -160,10 +161,10 @@ func (rs *Roles) RenounceRole(name string) error {
 	r.Holders.Remove(caller.String())
 
 	std.Emit(
-		"RoleRenounced",
-		RoleName, r.Name,
-		Account, caller.String(),
-		Sender, caller.String(),
+		RoleRenouncedEvent,
+		"roleName", r.Name,
+		"account", caller.String(),
+		"sender", caller.String(),
 	)
 
 	return nil
@@ -176,9 +177,9 @@ func (r *Role) SetRoleAdmin(admin std.Address) error {
 	}
 
 	std.Emit(
-		"RoleSet",
-		RoleName, r.Name,
-		NewAdminRole, r.Ownable.Owner().String(),
+		RoleSetEvent,
+		"roleName", r.Name,
+		"newAdminRole", r.Ownable.Owner().String(),
 	)
 
 	return nil

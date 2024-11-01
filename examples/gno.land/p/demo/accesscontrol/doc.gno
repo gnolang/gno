@@ -27,4 +27,33 @@
 // Role ownership can be transferred using `SetRoleAdmin`.
 //
 // SetRoleAdmin(newAdminAddress)
+//
+// Key events
+// - `RoleCreatedEvent`: Triggered when a new role is created
+// Key includes:
+// `roleName` (name of the role)
+// `sender` (address of the sender)
+//
+// - `RoleGrantedEvent`: Triggered when a role is granted to an account
+// Key includes:
+// `roleName` (name of the role)
+// `account` (address of the account)
+// `sender` (address of the sender)
+//
+// - `RoleRevokedEvent`: Triggered when a role is revoked from an account
+// Key includes:
+// `roleName` (name of the role)
+// `account` (address of the account)
+// `sender` (address of the sender)
+//
+// - `RoleRenouncedEvent`: Triggered when a role is renounced by an account
+// Key includes:
+// `roleName` (name of the role)
+// `account` (address of the account)
+//
+// - `RoleSetEvent`: Triggered when a role's administrator is set or changed
+// Key includes:
+// `roleName` (name of the role)
+// `newAdmin` (address of the new administrator)
+// `sender` (address of the sender)
 package accesscontrol
