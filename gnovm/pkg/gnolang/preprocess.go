@@ -2184,7 +2184,7 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 
 			// TRANS_LEAVE -----------------------
 			case *ValueDecl:
-				assertValidAssignRhs(store, last, n.Values)
+				assertValidAssignRhs(store, last, n)
 
 				// evaluate value if const expr.
 				if n.Const {

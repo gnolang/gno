@@ -774,7 +774,7 @@ func (x *RangeStmt) AssertCompatible(store Store, last BlockNode) {
 
 func (x *AssignStmt) AssertCompatible(store Store, last BlockNode) {
 	if x.Op == ASSIGN || x.Op == DEFINE {
-		assertValidAssignRhs(store, last, x.Rhs)
+		assertValidAssignRhs(store, last, x)
 		if len(x.Lhs) > len(x.Rhs) {
 			if len(x.Rhs) != 1 {
 				panic(fmt.Sprintf("assignment mismatch: %d variables but %d values", len(x.Lhs), len(x.Rhs)))
@@ -915,16 +915,36 @@ func assertValidAssignLhs(store Store, last BlockNode, lx Expr) {
 	}
 }
 
-func assertValidAssignRhs(store Store, last BlockNode, exps Exprs) {
+func assertValidAssignRhs(store Store, last BlockNode, n Node) {
+	var exps []Expr
+	switch x := n.(type) {
+	case *ValueDecl:
+		exps = x.Values
+	case *AssignStmt:
+		exps = x.Rhs
+	default:
+		panic(fmt.Sprintf("unexpected node type %T", n))
+	}
+
 	for _, exp := range exps {
-		switch n := exp.(type) {
-		case *CallExpr, *TypeAssertExpr, *IndexExpr:
-		default:
-			tt := evalStaticTypeOf(store, last, n)
-			if _, ok := tt.(*TypeType); ok {
-				tt = evalStaticType(store, last, n)
-				panic(fmt.Sprintf("%s (type) is not an expression", tt.String()))
+		tt := evalStaticTypeOfRaw(store, last, exp)
+		if tt == nil {
+			switch x := n.(type) {
+			case *ValueDecl:
+				if x.Type != nil {
+					continue
+				}
+				panic("use of untyped nil in variable declaration")
+			case *AssignStmt:
+				if x.Op != DEFINE {
+					continue
+				}
+				panic("use of untyped nil in assignment")
 			}
+		}
+		if _, ok := tt.(*TypeType); ok {
+			tt = evalStaticType(store, last, exp)
+			panic(fmt.Sprintf("%s (type) is not an expression", tt.String()))
 		}
 	}
 }
