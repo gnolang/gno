@@ -81,6 +81,13 @@ func MakeApp(logger *slog.Logger, cfg Config) gotuna.App {
 		ViewFiles: viewFiles,
 		Router:    gotuna.NewMuxRouter(),
 		Static:    static.EmbeddedStatic,
+		ViewHelpers: []gotuna.ViewHelperFunc{
+			func(w http.ResponseWriter, r *http.Request) (string, interface{}) {
+				return "needsToShowAsTextarea", func(fieldName string) bool {
+					return strings.HasPrefix(fieldName, "body")
+				}
+			},
+		},
 	}
 
 	for from, to := range Aliases {
