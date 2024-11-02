@@ -227,7 +227,7 @@ func (i *Instance) GetFeedDefinitions(forAddress string) (string, error) {
 
 		first = false
 		buf.Write(taskBytes)
-		return true
+		return false
 	})
 
 	if err != nil {

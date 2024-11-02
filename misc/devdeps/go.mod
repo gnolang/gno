@@ -8,7 +8,7 @@ require (
 	github.com/golangci/golangci-lint v1.59.1 // sync with github action
 	golang.org/x/tools v0.22.1-0.20240628205440-9c895dd76b34
 	golang.org/x/tools/gopls v0.16.1
-	google.golang.org/protobuf v1.33.0
+	google.golang.org/protobuf v1.35.1
 	moul.io/testman v1.5.0
 	mvdan.cc/gofumpt v0.6.0
 )

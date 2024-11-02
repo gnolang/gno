@@ -106,7 +106,7 @@ func TestPrefixStoreNoNilSet(t *testing.T) {
 	t.Parallel()
 
 	meter := types.NewGasMeter(100000000)
-	mem := dbadapter.Store{memdb.NewMemDB()}
+	mem := dbadapter.Store{DB: memdb.NewMemDB()}
 	gasStore := gas.New(mem, meter, types.DefaultGasConfig())
 	require.Panics(t, func() { gasStore.Set([]byte("key"), nil) }, "setting a nil value should panic")
 }
@@ -115,7 +115,7 @@ func TestPrefixStoreIterate(t *testing.T) {
 	t.Parallel()
 
 	db := memdb.NewMemDB()
-	baseStore := dbadapter.Store{db}
+	baseStore := dbadapter.Store{DB: db}
 	prefix := []byte("test")
 	prefixStore := New(baseStore, prefix)
 
@@ -165,7 +165,7 @@ func TestPrefixStoreIteratorEdgeCase(t *testing.T) {
 	t.Parallel()
 
 	db := memdb.NewMemDB()
-	baseStore := dbadapter.Store{db}
+	baseStore := dbadapter.Store{DB: db}
 
 	// overflow in cpIncr
 	prefix := []byte{0xAA, 0xFF, 0xFF}
@@ -197,7 +197,7 @@ func TestPrefixStoreReverseIteratorEdgeCase(t *testing.T) {
 	t.Parallel()
 
 	db := memdb.NewMemDB()
-	baseStore := dbadapter.Store{db}
+	baseStore := dbadapter.Store{DB: db}
 
 	// overflow in cpIncr
 	prefix := []byte{0xAA, 0xFF, 0xFF}
@@ -225,7 +225,7 @@ func TestPrefixStoreReverseIteratorEdgeCase(t *testing.T) {
 	iter.Close()
 
 	db = memdb.NewMemDB()
-	baseStore = dbadapter.Store{db}
+	baseStore = dbadapter.Store{DB: db}
 
 	// underflow in cpDecr
 	prefix = []byte{0xAA, 0x00, 0x00}
@@ -256,7 +256,7 @@ func TestPrefixStoreReverseIteratorEdgeCase(t *testing.T) {
 
 func mockStoreWithStuff() types.Store {
 	db := memdb.NewMemDB()
-	store := dbadapter.Store{db}
+	store := dbadapter.Store{DB: db}
 	// Under "key" prefix
 	store.Set(bz("key"), bz("value"))
 	store.Set(bz("key1"), bz("value1"))
