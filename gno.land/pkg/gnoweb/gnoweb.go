@@ -31,9 +31,9 @@ import (
 )
 
 const (
-	qFileStr           = "vm/qfile"
-	privQuerySeparator = "$"
-	querySeparator     = "?"
+	qFileStr            = "vm/qfile"
+	gnowebArgsSeparator = "$"
+	urlQuerySeparator   = "?"
 )
 
 //go:embed views/*
@@ -310,12 +310,12 @@ func handleRealmRender(logger *slog.Logger, app gotuna.App, cfg *Config, w http.
 		return
 	}
 
-	var publicQuery, privateQuery string
+	var urlQuery, gnowebQuery string
 	if len(queryArgs) > 0 {
-		publicQuery = querySeparator + queryArgs.Encode()
+		urlQuery = urlQuerySeparator + queryArgs.Encode()
 	}
 	if len(gnowebArgs) > 0 {
-		privateQuery = privQuerySeparator + gnowebArgs.Encode()
+		gnowebQuery = gnowebArgsSeparator + gnowebArgs.Encode()
 	}
 
 	vars := mux.Vars(r)
@@ -324,12 +324,12 @@ func handleRealmRender(logger *slog.Logger, app gotuna.App, cfg *Config, w http.
 	querystr := vars["querystr"]
 	if r.URL.Path == "/r/"+rlmname+":" {
 		// Redirect to /r/REALM if querypath is empty.
-		http.Redirect(w, r, "/r/"+rlmname+publicQuery+privateQuery, http.StatusFound)
+		http.Redirect(w, r, "/r/"+rlmname+urlQuery+gnowebQuery, http.StatusFound)
 		return
 	}
 
 	qpath := "vm/qrender"
-	data := []byte(fmt.Sprintf("%s:%s", rlmpath, querystr+publicQuery))
+	data := []byte(fmt.Sprintf("%s:%s", rlmpath, querystr+urlQuery))
 	res, err := makeRequest(logger, cfg, qpath, data)
 	if err != nil {
 		// XXX hack
@@ -358,7 +358,7 @@ func handleRealmRender(logger *slog.Logger, app gotuna.App, cfg *Config, w http.
 
 		// Add URL query arguments to the last breadcrumb item's URL
 		if i+1 == len(queryParts) {
-			rlmpath = rlmpath + publicQuery + privateQuery
+			rlmpath = rlmpath + urlQuery + gnowebQuery
 		}
 
 		pathLinks = append(pathLinks, pathLink{
@@ -549,7 +549,7 @@ func pathOf(diruri string) string {
 // the special "$" symbol. The "$" symbol can be used within public query
 // arguments by using its encoded representation "%24".
 func parseQueryArgs(rawURL string) (url.Values, error) {
-	if i := strings.Index(rawURL, privQuerySeparator); i != -1 {
+	if i := strings.Index(rawURL, gnowebArgsSeparator); i != -1 {
 		rawURL = rawURL[:i]
 	}
 
@@ -564,7 +564,7 @@ func parseQueryArgs(rawURL string) (url.Values, error) {
 // These arguments are indicated by using the "$" symbol followed by a query
 // string with the arguments.
 func parseGnowebArgs(rawURL string) (url.Values, error) {
-	i := strings.Index(rawURL, privQuerySeparator)
+	i := strings.Index(rawURL, gnowebArgsSeparator)
 	if i == -1 {
 		return url.Values{}, nil
 	}
