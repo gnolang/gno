@@ -27,7 +27,7 @@ func TestRoutes(t *testing.T) {
 		{"/", ok, "Welcome"}, // assert / gives 200 (OK). assert / contains "Welcome".
 		{"/about", ok, "blockchain"},
 		{"/r/gnoland/blog", ok, ""}, // whatever content
-		{"/r/gnoland/blog?help", ok, "exposed"},
+		{"/r/gnoland/blog$help", ok, "exposed"},
 		{"/r/gnoland/blog/", ok, "admin.gno"},
 		{"/r/gnoland/blog/admin.gno", ok, "func "},
 		{"/r/demo/users:administrator", ok, "address"},
@@ -35,7 +35,7 @@ func TestRoutes(t *testing.T) {
 		{"/r/demo/users/users.gno", ok, "// State"},
 		{"/r/demo/deep/very/deep", ok, "it works!"},
 		{"/r/demo/deep/very/deep:bob", ok, "hi bob"},
-		{"/r/demo/deep/very/deep?help", ok, "exposed"},
+		{"/r/demo/deep/very/deep$help", ok, "exposed"},
 		{"/r/demo/deep/very/deep/", ok, "render.gno"},
 		{"/r/demo/deep/very/deep/render.gno", ok, "func Render("},
 		{"/contribute", ok, "Game of Realms"},
