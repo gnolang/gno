@@ -231,15 +231,20 @@ func handlerRedirect(logger *slog.Logger, app gotuna.App, cfg *Config, to string
 
 func handlerRealmMain(logger *slog.Logger, app gotuna.App, cfg *Config) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		args, err := parseGnowebArgs(r.RequestURI)
+		if err != nil {
+			writeError(logger, w, err)
+			return
+		}
+
 		vars := mux.Vars(r)
 		rlmname := vars["rlmname"]
 		rlmpath := "gno.land/r/" + rlmname
-		query := r.URL.Query()
 
 		logger.Info("handling", "name", rlmname, "path", rlmpath)
-		if query.Has("help") {
+		if args.Has("help") {
 			// Render function helper.
-			funcName := query.Get("__func")
+			funcName := args.Get("func")
 			qpath := "vm/qfuncs"
 			data := []byte(rlmpath)
 			res, err := makeRequest(logger, cfg, qpath, data)
@@ -254,7 +259,7 @@ func handlerRealmMain(logger *slog.Logger, app gotuna.App, cfg *Config) http.Han
 				fsig := &(fsigs[i])
 				for j := range fsig.Params {
 					param := &(fsig.Params[j])
-					value := query.Get(param.Name)
+					value := args.Get(param.Name)
 					param.Value = value
 				}
 			}
@@ -293,18 +298,24 @@ func handlerRealmRender(logger *slog.Logger, app gotuna.App, cfg *Config) http.H
 }
 
 func handleRealmRender(logger *slog.Logger, app gotuna.App, cfg *Config, w http.ResponseWriter, r *http.Request) {
-	args, err := parseQueryArgs(r.RequestURI)
+	gnowebArgs, err := parseGnowebArgs(r.RequestURI)
+	if err != nil {
+		writeError(logger, w, err)
+		return
+	}
+
+	queryArgs, err := parseQueryArgs(r.RequestURI)
 	if err != nil {
 		writeError(logger, w, err)
 		return
 	}
 
 	var publicQuery, privateQuery string
-	if len(args.Public) > 0 {
-		publicQuery = querySeparator + args.Public.Encode()
+	if len(queryArgs) > 0 {
+		publicQuery = querySeparator + queryArgs.Encode()
 	}
-	if len(args.Private) > 0 {
-		privateQuery = privQuerySeparator + args.Private.Encode()
+	if len(gnowebArgs) > 0 {
+		privateQuery = privQuerySeparator + gnowebArgs.Encode()
 	}
 
 	vars := mux.Vars(r)
@@ -533,37 +544,34 @@ func pathOf(diruri string) string {
 	panic(fmt.Sprintf("invalid dir-URI %q", diruri))
 }
 
-// queryArgs contains public and private gnoweb URL query arguments.
-type queryArgs struct {
-	// Public contains URL query arguments that are not specific to gnoweb.
-	// These are the standard arguments that comes after the "?" symbol and
-	// before the special "$" symbol. The "$" symbol can be used within
-	// public query arguments by using its encoded representation "%24".
-	Public url.Values
-
-	// Private contains URL query arguments that are specific to gnoweb.
-	// These arguments are indicated by using the "$" symbol followed by
-	// a query string with the arguments.
-	Private url.Values
-}
-
-// parseQueryArgs parses a URL and extracts public and private gnoweb URL query arguments.
-func parseQueryArgs(rawURL string) (args queryArgs, err error) {
-	// First parse private gnoweb query arguments
-	rawURL, privateQuery, found := strings.Cut(rawURL, privQuerySeparator)
-	if found {
-		args.Private, err = url.ParseQuery(privateQuery)
-		if err != nil {
-			return queryArgs{}, err
-		}
+// parseQueryArgs parses URL query arguments that are not specific to gnoweb.
+// These are the standard arguments that comes after the "?" symbol and before
+// the special "$" symbol. The "$" symbol can be used within public query
+// arguments by using its encoded representation "%24".
+func parseQueryArgs(rawURL string) (url.Values, error) {
+	if i := strings.Index(rawURL, privQuerySeparator); i != -1 {
+		rawURL = rawURL[:i]
 	}
 
-	// Finally parse standard public query arguments
 	u, err := url.Parse(rawURL)
 	if err != nil {
-		return queryArgs{}, err
+		return url.Values{}, fmt.Errorf("invalid query arguments: %w", err)
+	}
+	return u.Query(), nil
+}
+
+// parseGnowebArgs parses URL query arguments that are specific to gnoweb.
+// These arguments are indicated by using the "$" symbol followed by a query
+// string with the arguments.
+func parseGnowebArgs(rawURL string) (url.Values, error) {
+	i := strings.Index(rawURL, privQuerySeparator)
+	if i == -1 {
+		return url.Values{}, nil
 	}
 
-	args.Public = u.Query()
-	return args, nil
+	values, err := url.ParseQuery(rawURL[i+1:])
+	if err != nil {
+		return url.Values{}, fmt.Errorf("invalid gnoweb arguments: %w", err)
+	}
+	return values, nil
 }
