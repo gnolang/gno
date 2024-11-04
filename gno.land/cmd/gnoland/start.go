@@ -44,8 +44,11 @@ var startGraphic = strings.ReplaceAll(`
 /___/
 `, "'", "`")
 
-// Keep in sync with contribs/gnogenesis/internal/txs/txs_add_packages.go
-var genesisDeployFee = std.NewFee(50000, std.MustParseCoin(ugnot.ValueString(1000000)))
+var (
+	// Keep in sync with contribs/gnogenesis/internal/txs/txs_add_packages.go
+	genesisDeployAddress = crypto.MustAddressFromString("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5") // test1
+	genesisDeployFee     = std.NewFee(50000, std.MustParseCoin(ugnot.ValueString(1000000)))
+)
 
 type startCfg struct {
 	gnoRootDir            string // TODO: remove as part of https://github.com/gnolang/gno/issues/1952
@@ -391,19 +394,17 @@ func generateGenesisFile(genesisFile string, pk crypto.PubKey, c *startCfg) erro
 		return fmt.Errorf("unable to load genesis balances file %q: %w", c.genesisBalancesFile, err)
 	}
 
+	// Load examples folder
+	examplesDir := filepath.Join(c.gnoRootDir, "examples")
+	pkgsTxs, err := gnoland.LoadPackagesFromDir(examplesDir, genesisDeployAddress, genesisDeployFee)
+	if err != nil {
+		return fmt.Errorf("unable to load examples folder: %w", err)
+	}
+
 	// Load Genesis TXs
 	genesisTxs, err := gnoland.LoadGenesisTxsFile(c.genesisTxsFile, c.chainID, c.genesisRemote)
 	if err != nil {
 		return fmt.Errorf("unable to load genesis txs file: %w", err)
-	}
-
-	signer := genesisTxs[0].Msgs[0].GetSigners()[0]
-
-	// Load examples folder
-	examplesDir := filepath.Join(c.gnoRootDir, "examples")
-	pkgsTxs, err := gnoland.LoadPackagesFromDir(examplesDir, signer, genesisDeployFee)
-	if err != nil {
-		return fmt.Errorf("unable to load examples folder: %w", err)
 	}
 
 	genesisTxs = append(pkgsTxs, genesisTxs...)
