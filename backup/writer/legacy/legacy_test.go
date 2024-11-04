@@ -4,9 +4,9 @@ import (
 	"bytes"
 	"testing"
 
+	"github.com/gnolang/gno/gno.land/pkg/gnoland"
 	"github.com/gnolang/gno/tm2/pkg/amino"
 	"github.com/gnolang/gno/tm2/pkg/std"
-	"github.com/gnolang/tx-archive/types"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -17,11 +17,10 @@ func TestWriter_Legacy(t *testing.T) {
 	var (
 		b bytes.Buffer
 
-		txData = &types.TxData{
+		txData = &gnoland.TxWithMetadata{
 			Tx: std.Tx{
 				Memo: "example tx",
 			},
-			BlockNum: 10,
 		}
 	)
 

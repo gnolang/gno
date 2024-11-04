@@ -3,10 +3,11 @@ package standard
 import (
 	"bytes"
 	"testing"
+	"time"
 
+	"github.com/gnolang/gno/gno.land/pkg/gnoland"
 	"github.com/gnolang/gno/tm2/pkg/amino"
 	"github.com/gnolang/gno/tm2/pkg/std"
-	"github.com/gnolang/tx-archive/types"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -17,11 +18,13 @@ func TestWriter_Standard(t *testing.T) {
 	var (
 		b bytes.Buffer
 
-		txData = &types.TxData{
+		txData = &gnoland.TxWithMetadata{
 			Tx: std.Tx{
 				Memo: "example tx",
 			},
-			BlockNum: 10,
+			Metadata: &gnoland.GnoTxMetadata{
+				Timestamp: time.Now().Unix(),
+			},
 		}
 	)
 
@@ -31,7 +34,7 @@ func TestWriter_Standard(t *testing.T) {
 	// Write example tx data
 	require.NoError(t, w.WriteTxData(txData))
 
-	var readTx types.TxData
+	var readTx gnoland.TxWithMetadata
 
 	readErr := amino.UnmarshalJSON(b.Bytes(), &readTx)
 	require.NoError(t, readErr)

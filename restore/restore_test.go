@@ -7,6 +7,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/gnolang/gno/gno.land/pkg/gnoland"
 	_ "github.com/gnolang/gno/gno.land/pkg/sdk/vm" // this is needed to load amino types
 	"github.com/gnolang/gno/tm2/pkg/amino"
 	"github.com/gnolang/gno/tm2/pkg/std"
@@ -14,7 +15,6 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/gnolang/tx-archive/log/noop"
-	"github.com/gnolang/tx-archive/types"
 )
 
 func TestRestore_ExecuteRestore(t *testing.T) {
@@ -174,13 +174,12 @@ func TestRestore_BackwardCompatible(t *testing.T) {
 	"gas_fee":"1ugnot"},"signatures":[{"pub_key":{"@type":"/tm.PubKeySecp256k1",
 	"value":"Atgv/+TCwlR+jzjx94p4Ik0IuGET4J/q2q9ciaL4UOQh"}, 
 	"signature":"iVfxsF37nRtgqyq9tMRMhyFLxp5RVdpI1r0mSHLmdg5aly0w82/in0ECey2PSpRk2UQ/fCtMpyOzaqIXiVKC4Q=="}],
-	"memo":""},"blockNum":"1194460"}`
+	"memo":""}}`
 
-	var out types.TxData
+	var out gnoland.TxWithMetadata
 	err := amino.UnmarshalJSON([]byte(oldTx), &out)
 	require.NoError(t, err)
 
-	require.Zero(t, out.Timestamp)
-	require.Equal(t, uint64(0x1239dc), out.BlockNum)
+	require.Nil(t, out.Metadata)
 	require.Len(t, out.Tx.Msgs, 8)
 }

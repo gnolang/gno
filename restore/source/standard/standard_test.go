@@ -4,10 +4,11 @@ import (
 	"context"
 	"os"
 	"testing"
+	"time"
 
+	"github.com/gnolang/gno/gno.land/pkg/gnoland"
 	"github.com/gnolang/gno/tm2/pkg/amino"
 	"github.com/gnolang/gno/tm2/pkg/std"
-	"github.com/gnolang/tx-archive/types"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -74,11 +75,13 @@ func TestSource_Standard(t *testing.T) {
 		})
 
 		// Write a standard format to the temp file
-		txData := &types.TxData{
+		txData := &gnoland.TxWithMetadata{
 			Tx: std.Tx{
 				Memo: "example tx",
 			},
-			BlockNum: 10,
+			Metadata: &gnoland.GnoTxMetadata{
+				Timestamp: time.Now().Unix(),
+			},
 		}
 
 		txDataRaw, err := amino.MarshalJSON(txData)

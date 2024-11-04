@@ -5,10 +5,9 @@ import (
 	"fmt"
 	"io"
 
-	"github.com/gnolang/gno/tm2/pkg/amino"
-	"github.com/gnolang/tx-archive/types"
-
+	"github.com/gnolang/gno/gno.land/pkg/gnoland"
 	_ "github.com/gnolang/gno/gno.land/pkg/sdk/vm"
+	"github.com/gnolang/gno/tm2/pkg/amino"
 )
 
 type Writer struct {
@@ -22,7 +21,7 @@ func NewWriter(writer io.Writer) *Writer {
 	}
 }
 
-func (w *Writer) WriteTxData(data *types.TxData) error {
+func (w *Writer) WriteTxData(data *gnoland.TxWithMetadata) error {
 	// Marshal tx individual tx into JSON, instead of the entire tx data
 	jsonData, err := amino.MarshalJSON(data.Tx)
 	if err != nil {

@@ -8,6 +8,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/gnolang/gno/gno.land/pkg/gnoland"
 	"github.com/gnolang/gno/tm2/pkg/amino"
 	"github.com/gnolang/gno/tm2/pkg/std"
 	"github.com/stretchr/testify/assert"
@@ -16,7 +17,6 @@ import (
 	"github.com/gnolang/tx-archive/backup/client"
 	"github.com/gnolang/tx-archive/backup/writer/standard"
 	"github.com/gnolang/tx-archive/log/noop"
-	"github.com/gnolang/tx-archive/types"
 )
 
 func TestBackup_DetermineRightBound(t *testing.T) {
@@ -151,16 +151,15 @@ func TestBackup_ExecuteBackup_FixedRange(t *testing.T) {
 
 	// Iterate over each line in the file
 	for scanner.Scan() {
-		var txData types.TxData
+		var txData gnoland.TxWithMetadata
 
 		// Unmarshal the JSON data into the Person struct
 		if err := amino.UnmarshalJSON(scanner.Bytes(), &txData); err != nil {
 			t.Fatalf("unable to unmarshal JSON line, %v", err)
 		}
 
-		assert.Equal(t, expectedBlock, txData.BlockNum)
 		assert.Equal(t, exampleTx, txData.Tx)
-		assert.Equal(t, blockTime.Add(time.Duration(expectedBlock)*time.Minute).Local(), time.UnixMilli(txData.Timestamp))
+		assert.Equal(t, blockTime.Add(time.Duration(expectedBlock)*time.Minute).Local(), time.UnixMilli(txData.Metadata.Timestamp))
 
 		expectedBlock++
 	}
@@ -252,16 +251,15 @@ func TestBackup_ExecuteBackup_Watch(t *testing.T) {
 
 	// Iterate over each line in the file
 	for scanner.Scan() {
-		var txData types.TxData
+		var txData gnoland.TxWithMetadata
 
 		// Unmarshal the JSON data into the Person struct
 		if err := amino.UnmarshalJSON(scanner.Bytes(), &txData); err != nil {
 			t.Fatalf("unable to unmarshal JSON line, %v", err)
 		}
 
-		assert.Equal(t, expectedBlock, txData.BlockNum)
 		assert.Equal(t, exampleTx, txData.Tx)
-		assert.Equal(t, blockTime.Add(time.Duration(expectedBlock)*time.Minute).Local(), time.UnixMilli(txData.Timestamp))
+		assert.Equal(t, blockTime.Add(time.Duration(expectedBlock)*time.Minute).Local(), time.UnixMilli(txData.Metadata.Timestamp))
 
 		expectedBlock++
 	}

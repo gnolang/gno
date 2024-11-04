@@ -7,9 +7,9 @@ import (
 	"io"
 	"os"
 
+	"github.com/gnolang/gno/gno.land/pkg/gnoland"
 	"github.com/gnolang/gno/tm2/pkg/amino"
 	"github.com/gnolang/gno/tm2/pkg/std"
-	"github.com/gnolang/tx-archive/types"
 )
 
 type Source struct {
@@ -42,7 +42,7 @@ func (s *Source) Next(ctx context.Context) (*std.Tx, error) {
 			return nil, io.EOF
 		default:
 			// Parse the JSON
-			var tx types.TxData
+			var tx gnoland.TxWithMetadata
 
 			txt := s.scanner.Text()
 
