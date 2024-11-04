@@ -2,7 +2,10 @@ module github.com/gnolang/gnomigrate
 
 go 1.23
 
-require github.com/gnolang/gno v0.0.0-00010101000000-000000000000
+require (
+	github.com/gnolang/gno v0.0.0-00010101000000-000000000000
+	github.com/stretchr/testify v1.9.0
+)
 
 replace github.com/gnolang/gno => ../..
 
@@ -27,7 +30,6 @@ require (
 	github.com/pmezard/go-difflib v1.0.0 // indirect
 	github.com/rs/cors v1.11.1 // indirect
 	github.com/rs/xid v1.6.0 // indirect
-	github.com/stretchr/testify v1.9.0 // indirect
 	github.com/syndtr/goleveldb v1.0.1-0.20210819022825-2ae1ddf74ef7 // indirect
 	go.etcd.io/bbolt v1.3.11 // indirect
 	go.opentelemetry.io/otel v1.29.0 // indirect
