@@ -17,6 +17,6 @@ jobs:
       - name: Lint
         uses: golangci/golangci-lint-action@v6
         with:
-          version: v1.54 # do not forget to change the version also on the makefile
+          version: v1.61 # do not forget to change the version also on the makefile
           args:
             --config=./.github/golangci.yaml
