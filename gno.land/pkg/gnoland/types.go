@@ -1,8 +1,13 @@
 package gnoland
 
 import (
+	"bufio"
+	"context"
 	"errors"
+	"fmt"
+	"os"
 
+	"github.com/gnolang/gno/tm2/pkg/amino"
 	"github.com/gnolang/gno/tm2/pkg/std"
 )
 
@@ -31,4 +36,48 @@ type TxWithMetadata struct {
 
 type GnoTxMetadata struct {
 	Timestamp int64 `json:"timestamp"`
+}
+
+// ReadGenesisTxs reads the genesis txs from the given file path
+func ReadGenesisTxs(ctx context.Context, path string) ([]TxWithMetadata, error) {
+	// Open the txs file
+	file, loadErr := os.Open(path)
+	if loadErr != nil {
+		return nil, fmt.Errorf("unable to open tx file %s: %w", path, loadErr)
+	}
+	defer file.Close()
+
+	var (
+		txs []TxWithMetadata
+
+		scanner = bufio.NewScanner(file)
+	)
+
+	for scanner.Scan() {
+		select {
+		case <-ctx.Done():
+			return nil, ctx.Err()
+		default:
+			// Parse the amino JSON
+			var tx TxWithMetadata
+			if err := amino.UnmarshalJSON(scanner.Bytes(), &tx); err != nil {
+				return nil, fmt.Errorf(
+					"unable to unmarshal amino JSON, %w",
+					err,
+				)
+			}
+
+			txs = append(txs, tx)
+		}
+	}
+
+	// Check for scanning errors
+	if err := scanner.Err(); err != nil {
+		return nil, fmt.Errorf(
+			"error encountered while reading file, %w",
+			err,
+		)
+	}
+
+	return txs, nil
 }

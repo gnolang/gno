@@ -23,7 +23,7 @@ func setupDevNode(
 
 	if devCfg.txsFile != "" { // Load txs files
 		var err error
-		nodeConfig.InitialTxs, err = parseTxs(ctx, devCfg.txsFile)
+		nodeConfig.InitialTxs, err = gnoland.ReadGenesisTxs(ctx, devCfg.txsFile)
 		if err != nil {
 			return nil, fmt.Errorf("unable to load transactions: %w", err)
 		}
