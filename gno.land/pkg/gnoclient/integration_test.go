@@ -5,15 +5,17 @@ import (
 
 	"github.com/gnolang/gno/gnovm/pkg/gnolang"
 
-	"github.com/gnolang/gno/tm2/pkg/std"
-
 	"github.com/gnolang/gno/gno.land/pkg/gnoland/ugnot"
 	"github.com/gnolang/gno/gno.land/pkg/integration"
+	"github.com/gnolang/gno/gno.land/pkg/sdk/vm"
+	"github.com/gnolang/gno/gnovm"
 	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
 	rpcclient "github.com/gnolang/gno/tm2/pkg/bft/rpc/client"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
 	"github.com/gnolang/gno/tm2/pkg/crypto/keys"
 	"github.com/gnolang/gno/tm2/pkg/log"
+	"github.com/gnolang/gno/tm2/pkg/sdk/bank"
+	"github.com/gnolang/gno/tm2/pkg/std"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -44,12 +46,16 @@ func TestCallSingle_Integration(t *testing.T) {
 		Memo:           "",
 	}
 
+	caller, err := client.Signer.Info()
+	require.NoError(t, err)
+
 	// Make Msg config
-	msg := MsgCall{
-		PkgPath:  "gno.land/r/demo/deep/very/deep",
-		FuncName: "Render",
-		Args:     []string{"test argument"},
-		Send:     "",
+	msg := vm.MsgCall{
+		Caller:  caller.GetAddress(),
+		PkgPath: "gno.land/r/demo/deep/very/deep",
+		Func:    "Render",
+		Args:    []string{"test argument"},
+		Send:    nil,
 	}
 
 	// Execute call
@@ -59,6 +65,11 @@ func TestCallSingle_Integration(t *testing.T) {
 	expected := "(\"hi test argument\" string)\n\n"
 	got := string(res.DeliverTx.Data)
 
+	assert.Equal(t, expected, got)
+
+	res, err = callSigningSeparately(t, client, baseCfg, msg)
+	require.NoError(t, err)
+	got = string(res.DeliverTx.Data)
 	assert.Equal(t, expected, got)
 }
 
@@ -88,20 +99,25 @@ func TestCallMultiple_Integration(t *testing.T) {
 		Memo:           "",
 	}
 
+	caller, err := client.Signer.Info()
+	require.NoError(t, err)
+
 	// Make Msg configs
-	msg1 := MsgCall{
-		PkgPath:  "gno.land/r/demo/deep/very/deep",
-		FuncName: "Render",
-		Args:     []string{""},
-		Send:     "",
+	msg1 := vm.MsgCall{
+		Caller:  caller.GetAddress(),
+		PkgPath: "gno.land/r/demo/deep/very/deep",
+		Func:    "Render",
+		Args:    []string{""},
+		Send:    nil,
 	}
 
 	// Same call, different argument
-	msg2 := MsgCall{
-		PkgPath:  "gno.land/r/demo/deep/very/deep",
-		FuncName: "Render",
-		Args:     []string{"test argument"},
-		Send:     "",
+	msg2 := vm.MsgCall{
+		Caller:  caller.GetAddress(),
+		PkgPath: "gno.land/r/demo/deep/very/deep",
+		Func:    "Render",
+		Args:    []string{"test argument"},
+		Send:    nil,
 	}
 
 	expected := "(\"it works!\" string)\n\n(\"hi test argument\" string)\n\n"
@@ -111,6 +127,11 @@ func TestCallMultiple_Integration(t *testing.T) {
 	require.NoError(t, err)
 
 	got := string(res.DeliverTx.Data)
+	assert.Equal(t, expected, got)
+
+	res, err = callSigningSeparately(t, client, baseCfg, msg1, msg2)
+	require.NoError(t, err)
+	got = string(res.DeliverTx.Data)
 	assert.Equal(t, expected, got)
 }
 
@@ -140,12 +161,16 @@ func TestSendSingle_Integration(t *testing.T) {
 		Memo:           "",
 	}
 
+	caller, err := client.Signer.Info()
+	require.NoError(t, err)
+
 	// Make Send config for a new address on the blockchain
 	toAddress, _ := crypto.AddressFromBech32("g14a0y9a64dugh3l7hneshdxr4w0rfkkww9ls35p")
 	amount := 10
-	msg := MsgSend{
-		ToAddress: toAddress,
-		Send:      std.Coin{Denom: ugnot.Denom, Amount: int64(amount)}.String(),
+	msg := bank.MsgSend{
+		FromAddress: caller.GetAddress(),
+		ToAddress:   toAddress,
+		Amount:      std.Coins{{Denom: ugnot.Denom, Amount: int64(amount)}},
 	}
 
 	// Execute send
@@ -161,6 +186,17 @@ func TestSendSingle_Integration(t *testing.T) {
 	got := account.GetCoins()
 
 	assert.Equal(t, expected, got)
+
+	res, err = sendSigningSeparately(t, client, baseCfg, msg)
+	require.NoError(t, err)
+	assert.Equal(t, "", string(res.DeliverTx.Data))
+
+	// Get the new account balance
+	account, _, err = client.QueryAccount(toAddress)
+	require.NoError(t, err)
+	expected2 := std.Coins{{Denom: ugnot.Denom, Amount: int64(2 * amount)}}
+	got = account.GetCoins()
+	assert.Equal(t, expected2, got)
 }
 
 func TestSendMultiple_Integration(t *testing.T) {
@@ -189,19 +225,24 @@ func TestSendMultiple_Integration(t *testing.T) {
 		Memo:           "",
 	}
 
+	caller, err := client.Signer.Info()
+	require.NoError(t, err)
+
 	// Make Msg configs
 	toAddress, _ := crypto.AddressFromBech32("g14a0y9a64dugh3l7hneshdxr4w0rfkkww9ls35p")
 	amount1 := 10
-	msg1 := MsgSend{
-		ToAddress: toAddress,
-		Send:      std.Coin{Denom: ugnot.Denom, Amount: int64(amount1)}.String(),
+	msg1 := bank.MsgSend{
+		FromAddress: caller.GetAddress(),
+		ToAddress:   toAddress,
+		Amount:      std.Coins{{Denom: ugnot.Denom, Amount: int64(amount1)}},
 	}
 
 	// Same send, different argument
 	amount2 := 20
-	msg2 := MsgSend{
-		ToAddress: toAddress,
-		Send:      std.Coin{Denom: ugnot.Denom, Amount: int64(amount2)}.String(),
+	msg2 := bank.MsgSend{
+		FromAddress: caller.GetAddress(),
+		ToAddress:   toAddress,
+		Amount:      std.Coins{{Denom: ugnot.Denom, Amount: int64(amount2)}},
 	}
 
 	// Execute send
@@ -217,6 +258,17 @@ func TestSendMultiple_Integration(t *testing.T) {
 	got := account.GetCoins()
 
 	assert.Equal(t, expected, got)
+
+	res, err = sendSigningSeparately(t, client, baseCfg, msg1, msg2)
+	require.NoError(t, err)
+	assert.Equal(t, "", string(res.DeliverTx.Data))
+
+	// Get the new account balance
+	account, _, err = client.QueryAccount(toAddress)
+	require.NoError(t, err)
+	expected2 := std.Coins{{Denom: ugnot.Denom, Amount: int64(2 * (amount1 + amount2))}}
+	got = account.GetCoins()
+	assert.Equal(t, expected2, got)
 }
 
 // Run tests
@@ -258,23 +310,33 @@ func main() {
 	println(ufmt.Sprintf("- after: %d", tests.Counter()))
 }`
 
+	caller, err := client.Signer.Info()
+	require.NoError(t, err)
+
 	// Make Msg configs
-	msg := MsgRun{
-		Package: &std.MemPackage{
-			Files: []*std.MemFile{
+	msg := vm.MsgRun{
+		Caller: caller.GetAddress(),
+		Package: &gnovm.MemPackage{
+			Name: "main",
+			Files: []*gnovm.MemFile{
 				{
 					Name: "main.gno",
 					Body: fileBody,
 				},
 			},
 		},
-		Send: "",
+		Send: nil,
 	}
 
 	res, err := client.Run(baseCfg, msg)
 	assert.NoError(t, err)
 	require.NotNil(t, res)
 	assert.Equal(t, string(res.DeliverTx.Data), "- before: 0\n- after: 10\n")
+
+	res, err = runSigningSeparately(t, client, baseCfg, msg)
+	assert.NoError(t, err)
+	require.NotNil(t, res)
+	assert.Equal(t, string(res.DeliverTx.Data), "- before: 10\n- after: 20\n")
 }
 
 // Run tests
@@ -297,7 +359,7 @@ func TestRunMultiple_Integration(t *testing.T) {
 	// Make Tx config
 	baseCfg := BaseTxCfg{
 		GasFee:         ugnot.ValueString(10000),
-		GasWanted:      8000000,
+		GasWanted:      13000000,
 		AccountNumber:  0,
 		SequenceNumber: 0,
 		Memo:           "",
@@ -325,28 +387,35 @@ func main() {
 	println(ufmt.Sprintf("%s", deep.Render("gnoclient!")))
 }`
 
+	caller, err := client.Signer.Info()
+	require.NoError(t, err)
+
 	// Make Msg configs
-	msg1 := MsgRun{
-		Package: &std.MemPackage{
-			Files: []*std.MemFile{
+	msg1 := vm.MsgRun{
+		Caller: caller.GetAddress(),
+		Package: &gnovm.MemPackage{
+			Name: "main",
+			Files: []*gnovm.MemFile{
 				{
 					Name: "main.gno",
 					Body: fileBody1,
 				},
 			},
 		},
-		Send: "",
+		Send: nil,
 	}
-	msg2 := MsgRun{
-		Package: &std.MemPackage{
-			Files: []*std.MemFile{
+	msg2 := vm.MsgRun{
+		Caller: caller.GetAddress(),
+		Package: &gnovm.MemPackage{
+			Name: "main",
+			Files: []*gnovm.MemFile{
 				{
 					Name: "main.gno",
 					Body: fileBody2,
 				},
 			},
 		},
-		Send: "",
+		Send: nil,
 	}
 
 	expected := "- before: 0\n- after: 10\nhi gnoclient!\n"
@@ -355,6 +424,12 @@ func main() {
 	assert.NoError(t, err)
 	require.NotNil(t, res)
 	assert.Equal(t, expected, string(res.DeliverTx.Data))
+
+	res, err = runSigningSeparately(t, client, baseCfg, msg1, msg2)
+	require.NoError(t, err)
+	require.NotNil(t, res)
+	expected2 := "- before: 10\n- after: 20\nhi gnoclient!\n"
+	assert.Equal(t, expected2, string(res.DeliverTx.Data))
 }
 
 func TestAddPackageSingle_Integration(t *testing.T) {
@@ -391,14 +466,18 @@ func Echo(str string) string {
 
 	fileName := "echo.gno"
 	deploymentPath := "gno.land/p/demo/integration/test/echo"
-	deposit := ugnot.ValueString(100)
+	deposit := std.Coins{{Denom: ugnot.Denom, Amount: int64(100)}}
+
+	caller, err := client.Signer.Info()
+	require.NoError(t, err)
 
 	// Make Msg config
-	msg := MsgAddPackage{
-		Package: &std.MemPackage{
+	msg := vm.MsgAddPackage{
+		Creator: caller.GetAddress(),
+		Package: &gnovm.MemPackage{
 			Name: "echo",
 			Path: deploymentPath,
-			Files: []*std.MemFile{
+			Files: []*gnovm.MemFile{
 				{
 					Name: fileName,
 					Body: body,
@@ -423,7 +502,19 @@ func Echo(str string) string {
 	// Query balance to validate deposit
 	baseAcc, _, err := client.QueryAccount(gnolang.DerivePkgAddr(deploymentPath))
 	require.NoError(t, err)
-	assert.Equal(t, baseAcc.GetCoins().String(), deposit)
+	assert.Equal(t, baseAcc.GetCoins(), deposit)
+
+	// Test signing separately (using a different deployment path)
+	deploymentPathB := "gno.land/p/demo/integration/test/echo2"
+	msg.Package.Path = deploymentPathB
+	_, err = addPackageSigningSeparately(t, client, baseCfg, msg)
+	assert.NoError(t, err)
+	query, err = client.Query(QueryCfg{
+		Path: "vm/qfile",
+		Data: []byte(deploymentPathB),
+	})
+	require.NoError(t, err)
+	assert.Equal(t, string(query.Response.Data), fileName)
 }
 
 func TestAddPackageMultiple_Integration(t *testing.T) {
@@ -452,7 +543,7 @@ func TestAddPackageMultiple_Integration(t *testing.T) {
 		Memo:           "",
 	}
 
-	deposit := ugnot.ValueString(100)
+	deposit := std.Coins{{Denom: ugnot.Denom, Amount: int64(100)}}
 	deploymentPath1 := "gno.land/p/demo/integration/test/echo"
 
 	body1 := `package echo
@@ -465,28 +556,33 @@ func Echo(str string) string {
 	body2 := `package hello
 
 func Hello(str string) string {
-	return "Hello " + str + "!" 
+	return "Hello " + str + "!"
 }`
 
-	msg1 := MsgAddPackage{
-		Package: &std.MemPackage{
+	caller, err := client.Signer.Info()
+	require.NoError(t, err)
+
+	msg1 := vm.MsgAddPackage{
+		Creator: caller.GetAddress(),
+		Package: &gnovm.MemPackage{
 			Name: "echo",
 			Path: deploymentPath1,
-			Files: []*std.MemFile{
+			Files: []*gnovm.MemFile{
 				{
 					Name: "echo.gno",
 					Body: body1,
 				},
 			},
 		},
-		Deposit: "",
+		Deposit: nil,
 	}
 
-	msg2 := MsgAddPackage{
-		Package: &std.MemPackage{
+	msg2 := vm.MsgAddPackage{
+		Creator: caller.GetAddress(),
+		Package: &gnovm.MemPackage{
 			Name: "hello",
 			Path: deploymentPath2,
-			Files: []*std.MemFile{
+			Files: []*gnovm.MemFile{
 				{
 					Name: "gno.mod",
 					Body: "module gno.land/p/demo/integration/test/hello",
@@ -529,7 +625,28 @@ func Hello(str string) string {
 	// Query balance to validate deposit
 	baseAcc, _, err = client.QueryAccount(gnolang.DerivePkgAddr(deploymentPath2))
 	require.NoError(t, err)
-	assert.Equal(t, baseAcc.GetCoins().String(), deposit)
+	assert.Equal(t, baseAcc.GetCoins(), deposit)
+
+	// Test signing separately (using a different deployment path)
+	deploymentPath1B := "gno.land/p/demo/integration/test/echo2"
+	deploymentPath2B := "gno.land/p/demo/integration/test/hello2"
+	msg1.Package.Path = deploymentPath1B
+	msg2.Package.Path = deploymentPath2B
+	_, err = addPackageSigningSeparately(t, client, baseCfg, msg1, msg2)
+	assert.NoError(t, err)
+	query, err = client.Query(QueryCfg{
+		Path: "vm/qfile",
+		Data: []byte(deploymentPath1B),
+	})
+	require.NoError(t, err)
+	assert.Equal(t, string(query.Response.Data), "echo.gno")
+	query, err = client.Query(QueryCfg{
+		Path: "vm/qfile",
+		Data: []byte(deploymentPath2B),
+	})
+	require.NoError(t, err)
+	assert.Contains(t, string(query.Response.Data), "hello.gno")
+	assert.Contains(t, string(query.Response.Data), "gno.mod")
 }
 
 // todo add more integration tests:

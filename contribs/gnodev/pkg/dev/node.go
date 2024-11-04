@@ -469,7 +469,9 @@ func (n *Node) rebuildNode(ctx context.Context, genesis gnoland.GnoGenesisState)
 
 	// Setup node config
 	nodeConfig := newNodeConfig(n.config.TMConfig, n.config.ChainID, genesis)
-	nodeConfig.GenesisTxHandler = n.genesisTxHandler
+	nodeConfig.GenesisTxResultHandler = n.genesisTxResultHandler
+	// Speed up stdlib loading after first start (saves about 2-3 seconds on each reload).
+	nodeConfig.CacheStdlibLoad = true
 	nodeConfig.Genesis.ConsensusParams.Block.MaxGas = n.config.MaxGasPerBlock
 
 	// recoverFromError handles panics and converts them to errors.
@@ -512,7 +514,7 @@ func (n *Node) rebuildNode(ctx context.Context, genesis gnoland.GnoGenesisState)
 	return nil
 }
 
-func (n *Node) genesisTxHandler(ctx sdk.Context, tx std.Tx, res sdk.Result) {
+func (n *Node) genesisTxResultHandler(ctx sdk.Context, tx std.Tx, res sdk.Result) {
 	if !res.IsErr() {
 		return
 	}
@@ -563,9 +565,8 @@ func newNodeConfig(tmc *tmcfg.Config, chainid string, appstate gnoland.GnoGenesi
 	}
 
 	return &gnoland.InMemoryNodeConfig{
-		PrivValidator:      pv,
-		TMConfig:           tmc,
-		Genesis:            genesis,
-		GenesisMaxVMCycles: 100_000_000,
+		PrivValidator: pv,
+		TMConfig:      tmc,
+		Genesis:       genesis,
 	}
 }

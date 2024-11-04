@@ -6,7 +6,5 @@ func main() {
 	println("should not happen")
 }
 
-// XXX show what was redeclared.
-
 // Error:
-// running package "github.com/gnolang/gno/_test/redeclaration3": duplicate declarations not allowed
+// running package "github.com/gnolang/gno/_test/redeclaration3": redeclarations for identifiers: "a<VPUverse(0)>.method"

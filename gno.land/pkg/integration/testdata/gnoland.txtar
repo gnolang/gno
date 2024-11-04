@@ -28,7 +28,7 @@ cmp stderr gnoland-already-stop.stderr.golden
 
 -- gnoland-no-arguments.stdout.golden --
 -- gnoland-no-arguments.stderr.golden --
-"gnoland" error: syntax: gnoland [start|stop]
+"gnoland" error: syntax: gnoland [start|stop|restart]
 -- gnoland-start.stdout.golden --
 node started successfully
 -- gnoland-start.stderr.golden --

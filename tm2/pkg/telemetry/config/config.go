@@ -19,9 +19,9 @@ type Config struct {
 func DefaultTelemetryConfig() *Config {
 	return &Config{
 		MetricsEnabled:    false,
-		MeterName:         "gno.land",
-		ServiceName:       "gno.land",
-		ServiceInstanceID: "gno-node-1",
+		MeterName:         "tm2",
+		ServiceName:       "tm2",
+		ServiceInstanceID: "tm2-node-1",
 		ExporterEndpoint:  "",
 	}
 }

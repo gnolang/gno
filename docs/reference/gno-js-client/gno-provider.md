@@ -116,7 +116,7 @@ Returns **Promise<string\>**
 #### Usage
 
 ```ts
-await provider.getFileContent('gno.land/r/demo/foo20', 'TotalSupply()')
+await provider.getFileContent('gno.land/r/demo/foo20')
 /*
 foo20.gno
 foo20_test.gno
