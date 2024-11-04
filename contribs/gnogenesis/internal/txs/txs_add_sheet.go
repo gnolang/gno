@@ -4,11 +4,10 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"os"
 
+	"github.com/gnolang/gno/gno.land/pkg/gnoland"
 	"github.com/gnolang/gno/tm2/pkg/bft/types"
 	"github.com/gnolang/gno/tm2/pkg/commands"
-	"github.com/gnolang/gno/tm2/pkg/std"
 )
 
 var (
@@ -49,20 +48,11 @@ func execTxsAddSheet(
 		return errNoTxsFileSpecified
 	}
 
-	parsedTxs := make([]std.Tx, 0)
+	parsedTxs := make([]gnoland.TxWithMetadata, 0)
 	for _, file := range args {
-		file, loadErr := os.Open(file)
-		if loadErr != nil {
-			return fmt.Errorf("%w, %w", errInvalidTxsFile, loadErr)
-		}
-
-		txs, err := std.ParseTxs(ctx, file)
+		txs, err := gnoland.ReadGenesisTxs(ctx, file)
 		if err != nil {
 			return fmt.Errorf("unable to parse file, %w", err)
-		}
-
-		if err = file.Close(); err != nil {
-			return fmt.Errorf("unable to gracefully close file, %w", err)
 		}
 
 		parsedTxs = append(parsedTxs, txs...)

@@ -286,11 +286,11 @@ func getBalancesFromTransactions(
 
 // mapGenesisBalancesFromState extracts the initial account balances from the
 // genesis app state
-func mapGenesisBalancesFromState(state gnoland.GnoGenesis) (gnoland.Balances, error) {
+func mapGenesisBalancesFromState(state gnoland.GnoGenesisState) (gnoland.Balances, error) {
 	// Construct the initial genesis balance sheet
 	genesisBalances := gnoland.NewBalances()
 
-	for _, balance := range state.GenesisBalances() {
+	for _, balance := range state.Balances {
 		genesisBalances[balance.Address] = balance
 	}
 

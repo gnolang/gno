@@ -134,15 +134,7 @@ func LoadDefaultPackages(t TestingTS, creator bft.Address, gnoroot string) []gno
 	txs, err := gnoland.LoadPackagesFromDir(examplesDir, creator, defaultFee)
 	require.NoError(t, err)
 
-	metadataTxs := make([]gnoland.TxWithMetadata, 0, len(txs))
-
-	for _, tx := range txs {
-		metadataTxs = append(metadataTxs, gnoland.TxWithMetadata{
-			Tx: tx,
-		})
-	}
-
-	return metadataTxs
+	return txs
 }
 
 // LoadDefaultGenesisBalanceFile loads the default genesis balance file for testing.

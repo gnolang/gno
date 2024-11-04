@@ -401,20 +401,13 @@ func generateGenesisFile(genesisFile string, pk crypto.PubKey, c *startCfg) erro
 		return fmt.Errorf("unable to load examples folder: %w", err)
 	}
 
-	metadataTxs := make([]gnoland.TxWithMetadata, 0, len(pkgsTxs))
-	for _, tx := range pkgsTxs {
-		metadataTxs = append(metadataTxs, gnoland.TxWithMetadata{
-			Tx: tx,
-		})
-	}
-
 	// Load Genesis TXs
 	genesisTxs, err := gnoland.LoadGenesisTxsFile(c.genesisTxsFile, c.chainID, c.genesisRemote)
 	if err != nil {
 		return fmt.Errorf("unable to load genesis txs file: %w", err)
 	}
 
-	genesisTxs = append(metadataTxs, genesisTxs...)
+	genesisTxs = append(pkgsTxs, genesisTxs...)
 
 	// Construct genesis AppState.
 	gen.AppState = gnoland.GnoGenesisState{
