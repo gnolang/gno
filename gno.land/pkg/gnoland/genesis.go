@@ -60,8 +60,9 @@ func LoadGenesisBalancesFile(path string) ([]Balance, error) {
 
 // LoadGenesisTxsFile loads genesis transactions from the provided file path.
 // XXX: Improve the way we generate and load this file
-func LoadGenesisTxsFile(path string, chainID string, genesisRemote string) ([]std.Tx, error) {
-	txs := []std.Tx{}
+func LoadGenesisTxsFile(path string, chainID string, genesisRemote string) ([]TxWithMetadata, error) {
+	txs := make([]TxWithMetadata, 0)
+
 	txsBz := osm.MustReadFile(path)
 	txsLines := strings.Split(string(txsBz), "\n")
 	for _, txLine := range txsLines {
@@ -73,7 +74,7 @@ func LoadGenesisTxsFile(path string, chainID string, genesisRemote string) ([]st
 		txLine = strings.ReplaceAll(txLine, "%%CHAINID%%", chainID)
 		txLine = strings.ReplaceAll(txLine, "%%REMOTE%%", genesisRemote)
 
-		var tx std.Tx
+		var tx TxWithMetadata
 		if err := amino.UnmarshalJSON([]byte(txLine), &tx); err != nil {
 			return nil, fmt.Errorf("unable to Unmarshall txs file: %w", err)
 		}
