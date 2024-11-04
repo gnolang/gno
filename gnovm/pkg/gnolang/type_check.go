@@ -289,7 +289,7 @@ func checkAssignableTo(xt, dt Type, autoNative bool) error {
 	// case0
 	if xt == nil { // see test/files/types/eql_0f18
 		if !maybeNil(dt) {
-			panic(fmt.Sprintf("invalid operation, nil can not be compared to %v", dt))
+			panic(fmt.Sprintf("cannot use nil as %v value in variable declaration", dt))
 		}
 		return nil
 	} else if dt == nil { // _ = xxx, assign8.gno, 0f31. else cases?
