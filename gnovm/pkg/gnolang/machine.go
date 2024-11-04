@@ -830,6 +830,15 @@ func (m *Machine) RunFunc(fn Name) {
 func (m *Machine) RunMain() {
 	defer func() {
 		if r := recover(); r != nil {
+			// we panicked because there was an invalid operation
+			// if the user had a recover, do it
+			hasRecover := m.setupRecoverPanic()
+
+			if hasRecover {
+				m.Run()
+				return
+			}
+
 			switch r := r.(type) {
 			case UnhandledPanicError:
 				fmt.Printf("Machine.RunMain() panic: %s\nStacktrace: %s\n",
@@ -2176,6 +2185,30 @@ func (m *Machine) CheckEmpty() error {
 	} else {
 		return nil
 	}
+}
+
+func (m *Machine) setupRuntimePanic(ex TypedValue) bool {
+	frm := m.LastCallFrame(1)
+
+	if frm == nil {
+		return false
+	}
+
+	m.Exceptions = append(
+		m.Exceptions,
+		Exception{
+			Value:      ex,
+			Frame:      frm,
+			Stacktrace: m.Stacktrace(),
+		},
+	)
+
+	m.PanicScope++
+	m.PopUntilLastCallFrame()
+	m.PushOp(OpPanic2)
+	m.PushOp(OpReturnCallDefers)
+
+	return true
 }
 
 func (m *Machine) Panic(ex TypedValue) {
