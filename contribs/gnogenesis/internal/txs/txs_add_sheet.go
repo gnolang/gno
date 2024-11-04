@@ -10,10 +10,7 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/commands"
 )
 
-var (
-	errInvalidTxsFile     = errors.New("unable to open transactions file")
-	errNoTxsFileSpecified = errors.New("no txs file specified")
-)
+var errNoTxsFileSpecified = errors.New("no txs file specified")
 
 // newTxsAddSheetCmd creates the genesis txs add sheet subcommand
 func newTxsAddSheetCmd(txsCfg *txsCfg, io commands.IO) *commands.Command {
