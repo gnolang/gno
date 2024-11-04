@@ -8,7 +8,7 @@ require (
 	github.com/docker/docker v24.0.7+incompatible
 	github.com/docker/go-connections v0.4.0
 	github.com/gnolang/gno v0.1.0-nightly.20240627
-	github.com/gnolang/tx-archive v0.3.0
+	github.com/gnolang/tx-archive v0.4.0
 	github.com/prometheus/client_golang v1.17.0
 	github.com/sirupsen/logrus v1.9.3
 )
