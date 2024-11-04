@@ -13,14 +13,15 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"regexp"
 	"runtime"
 	"strings"
 	"time"
 
+	"github.com/gnolang/gno/gnovm"
 	"github.com/gnolang/gno/tm2/pkg/amino"
 	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
 	"github.com/gnolang/gno/tm2/pkg/bft/rpc/client"
-	"github.com/gnolang/gno/tm2/pkg/std"
 	"github.com/gorilla/mux"
 	"github.com/gotuna/gotuna"
 
@@ -47,6 +48,7 @@ type Config struct {
 	HelpChainID   string
 	HelpRemote    string
 	WithAnalytics bool
+	WithHTML      bool
 }
 
 func NewDefaultConfig() Config {
@@ -58,6 +60,7 @@ func NewDefaultConfig() Config {
 		HelpChainID:   "dev",
 		HelpRemote:    "127.0.0.1:26657",
 		WithAnalytics: false,
+		WithHTML:      false,
 	}
 }
 
@@ -111,6 +114,34 @@ func MakeApp(logger *slog.Logger, cfg Config) gotuna.App {
 	return app
 }
 
+var (
+	inlineCodePattern = regexp.MustCompile("`[^`]*`")
+	htmlTagPattern    = regexp.MustCompile(`<\/?\w+[^>]*?>`)
+)
+
+func sanitizeContent(cfg *Config, content string) string {
+	if cfg.WithHTML {
+		return content
+	}
+
+	placeholders := map[string]string{}
+	contentWithPlaceholders := inlineCodePattern.ReplaceAllStringFunc(content, func(match string) string {
+		placeholder := fmt.Sprintf("__GNOMDCODE_%d__", len(placeholders))
+		placeholders[placeholder] = match
+		return placeholder
+	})
+
+	sanitizedContent := htmlTagPattern.ReplaceAllString(contentWithPlaceholders, "")
+
+	if len(placeholders) > 0 {
+		for placeholder, code := range placeholders {
+			sanitizedContent = strings.ReplaceAll(sanitizedContent, placeholder, code)
+		}
+	}
+
+	return sanitizedContent
+}
+
 // handlerRealmAlias is used to render official pages from realms.
 // url is intended to be shorter.
 // UX is intended to be more minimalistic.
@@ -153,7 +184,7 @@ func handlerRealmAlias(logger *slog.Logger, app gotuna.App, cfg *Config, rlmpath
 		tmpl.Set("RealmPath", rlmpath)
 		tmpl.Set("Query", querystr)
 		tmpl.Set("PathLinks", pathLinks)
-		tmpl.Set("Contents", string(res.Data))
+		tmpl.Set("Contents", sanitizeContent(cfg, string(res.Data)))
 		tmpl.Set("Config", cfg)
 		tmpl.Set("IsAlias", true)
 		tmpl.Render(w, r, "realm_render.html", "funcs.html")
@@ -375,7 +406,7 @@ func handleRealmRender(logger *slog.Logger, app gotuna.App, cfg *Config, w http.
 	tmpl.Set("RealmPath", rlmpath)
 	tmpl.Set("Query", querystr)
 	tmpl.Set("PathLinks", pathLinks)
-	tmpl.Set("Contents", string(res.Data))
+	tmpl.Set("Contents", sanitizeContent(cfg, string(res.Data)))
 	tmpl.Set("Config", cfg)
 	tmpl.Set("HasReadme", hasReadme)
 	tmpl.Render(w, r, "realm_render.html", "funcs.html")
@@ -394,7 +425,7 @@ func handlerPackageFile(logger *slog.Logger, app gotuna.App, cfg *Config) http.H
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		vars := mux.Vars(r)
 		pkgpath := "gno.land/p/" + vars["filepath"]
-		diruri, filename := std.SplitFilepath(pkgpath)
+		diruri, filename := gnovm.SplitFilepath(pkgpath)
 		if filename == "" && diruri == pkgpath {
 			// redirect to diruri + "/"
 			http.Redirect(w, r, "/p/"+vars["filepath"]+"/", http.StatusFound)
@@ -512,7 +543,7 @@ func handleNotFound(logger *slog.Logger, app gotuna.App, cfg *Config, path strin
 	// decode path for non-ascii characters
 	decodedPath, err := url.PathUnescape(path)
 	if err != nil {
-		logger.Error("failed to decode path", err)
+		logger.Error("failed to decode path", "error", err)
 		decodedPath = path
 	}
 	w.WriteHeader(http.StatusNotFound)
@@ -527,7 +558,7 @@ func writeError(logger *slog.Logger, w http.ResponseWriter, err error) {
 	if details := errors.Unwrap(err); details != nil {
 		logger.Error("handler", "error", err, "details", details)
 	} else {
-		logger.Error("handler", "error:", err)
+		logger.Error("handler", "error", err)
 	}
 
 	// XXX: writeError should return an error page template.

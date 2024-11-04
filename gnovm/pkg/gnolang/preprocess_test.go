@@ -11,8 +11,8 @@ import (
 
 func TestPreprocess_BinaryExpressionOneNative(t *testing.T) {
 	pn := NewPackageNode("time", "time", nil)
-	pn.DefineGoNativeValue("Millisecond", time.Millisecond)
-	pn.DefineGoNativeValue("Second", time.Second)
+	pn.DefineGoNativeConstValue("Millisecond", time.Millisecond)
+	pn.DefineGoNativeConstValue("Second", time.Second)
 	pn.DefineGoNativeType(reflect.TypeOf(time.Duration(0)))
 	pv := pn.NewPackage()
 	store := gonativeTestStore(pn, pv)
@@ -37,8 +37,8 @@ func main() {
 
 func TestPreprocess_BinaryExpressionBothNative(t *testing.T) {
 	pn := NewPackageNode("time", "time", nil)
-	pn.DefineGoNativeValue("March", time.March)
-	pn.DefineGoNativeValue("Wednesday", time.Wednesday)
+	pn.DefineGoNativeConstValue("March", time.March)
+	pn.DefineGoNativeConstValue("Wednesday", time.Wednesday)
 	pn.DefineGoNativeType(reflect.TypeOf(time.Month(0)))
 	pn.DefineGoNativeType(reflect.TypeOf(time.Weekday(0)))
 	pv := pn.NewPackage()
