@@ -33,7 +33,7 @@ linters:
     - bidichk # Checks for dangerous unicode character sequences
     - durationcheck # Check for two durations multiplied together
     - errcheck # Forces to not skip error check
-    - exportloopref # Checks for pointers to enclosing loop variables
+    - copyloopvar # Checks for pointers to enclosing loop variables
     - gocritic # Bundles different linting checks
     - godot # Checks for periods at the end of comments
     - gomoddirectives # Allow or ban replace directives in go.mod

@@ -135,7 +135,7 @@ func (c *backupCfg) exec(ctx context.Context, _ []string) error {
 	cfg.Watch = c.watch
 
 	if c.toBlock >= 0 {
-		to64 := uint64(c.toBlock)
+		to64 := uint64(c.toBlock) //nolint:gosec // This insanity is a necessary evil
 		cfg.ToBlock = &to64
 	}
 

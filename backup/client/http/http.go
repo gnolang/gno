@@ -40,12 +40,12 @@ func (c *Client) GetLatestBlockNumber() (uint64, error) {
 		)
 	}
 
-	return uint64(status.SyncInfo.LatestBlockHeight), nil
+	return uint64(status.SyncInfo.LatestBlockHeight), nil //nolint:gosec // This insanity is a necessary evil
 }
 
 func (c *Client) GetBlock(blockNum uint64) (*client.Block, error) {
 	// Fetch the block
-	blockNumInt64 := int64(blockNum)
+	blockNumInt64 := int64(blockNum) //nolint:gosec // This insanity is a necessary evil
 
 	block, err := c.client.Block(&blockNumInt64)
 	if err != nil {
