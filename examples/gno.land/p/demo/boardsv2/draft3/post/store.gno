@@ -16,3 +16,16 @@ func (s Store) Get(path string) (_ *Post, found bool) {
 	}
 	return nil, false
 }
+
+func (s Store) GetByLevel(path string, level int) (_ *Post, found bool) {
+	v, found := s.slugs.Get(path)
+	if !found {
+		return nil, false
+	}
+
+	p := v.(*Post)
+	if p.Level != level {
+		return nil, false
+	}
+	return p, true
+}

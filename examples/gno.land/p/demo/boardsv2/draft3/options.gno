@@ -23,16 +23,9 @@ func TokenBasedReputationPolicy() Option {
 }
 
 // MaxCommentsDepth configures the max depth for nested comments.
-// Setting it to zero allows infinite comments (default).
+// Setting it to -1 allows an infinite number of nested comments (default).
 func MaxCommentsDepth(d int) Option {
 	return func(a *App) {
 		a.maxCommentsDepth = d
-	}
-}
-
-// DisableComments disables comment support.
-func DisableComments() Option {
-	return func(a *App) {
-		a.disableComments = true
 	}
 }

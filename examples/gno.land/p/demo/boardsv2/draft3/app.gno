@@ -20,13 +20,15 @@ type App struct {
 	posts            post.Store
 	plugins          *plugin.Registry
 	maxCommentsDepth int
-	disableComments  bool
 	reputationPolicy pluginreputation.Policy
 }
 
 // New creates a new boards application.
 func New(st post.Store, options ...Option) App {
-	app := App{posts: st}
+	app := App{
+		posts:            st,
+		maxCommentsDepth: -1, // Infinite number of comments
+	}
 	for _, apply := range options {
 		apply(&app)
 	}
@@ -48,24 +50,24 @@ func New(st post.Store, options ...Option) App {
 }
 
 func (a App) GetBoard(path string) (_ Board, found bool) {
-	p, found := a.posts.Get(path)
-	if !found || p.Level != LevelBoard {
+	p, found := a.posts.GetByLevel(path, LevelBoard)
+	if !found {
 		return Board{}, false
 	}
 	return Board{p}, true
 }
 
 func (a App) GetThread(path string) (_ Thread, found bool) {
-	p, found := a.posts.Get(path)
-	if !found || p.Level != LevelThread {
+	p, found := a.posts.GetByLevel(path, LevelThread)
+	if !found {
 		return Thread{}, false
 	}
 	return Thread{p}, true
 }
 
 func (a App) GetComment(path string) (_ Comment, found bool) {
-	p, found := a.posts.Get(path)
-	if !found || p.Level != LevelComment {
+	p, found := a.posts.GetByLevel(path, LevelComment)
+	if !found {
 		return Comment{}, false
 	}
 	return Comment{p}, true
