@@ -93,7 +93,7 @@ func TestAnalytics(t *testing.T) {
 		"/r/gnoland/blog",
 		"/r/gnoland/blog/admin.gno",
 		"/r/demo/users:administrator",
-		"/r/gnoland/blog?help",
+		"/r/gnoland/blog$help",
 
 		// special pages
 		"/404-not-found",
