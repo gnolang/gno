@@ -314,7 +314,7 @@ func TestVMKeeperParams(t *testing.T) {
 
 	// Create test package.
 	files := []*gnovm.MemFile{
-		{"init.gno", `
+		{Name: "init.gno", Body: `
 package test
 
 import "std"
