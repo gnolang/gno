@@ -6,11 +6,7 @@ import (
 	"golang.org/x/mod/semver"
 )
 
-func removeDups(syntax *modfile.FileSyntax, require *[]*modfile.Require, replace *[]*modfile.Replace) {
-	if require != nil {
-		purged := removeRequireDups(require)
-		cleanSyntaxTree(syntax, purged)
-	}
+func removeDups(syntax *modfile.FileSyntax, replace *[]*modfile.Replace) {
 	if replace != nil {
 		purged := removeReplaceDups(replace)
 		cleanSyntaxTree(syntax, purged)

@@ -89,28 +89,34 @@ func writePackage(remote, basePath, pkgPath string) (requirements []string, err 
 func GnoToGoMod(f File) (*File, error) {
 	// TODO(morgan): good candidate to move to pkg/transpiler.
 
-	gnoModPath := GetGnoModPath()
+	// gnoModPath := GetGnoModPath()
 
 	if !gnolang.IsStdlib(f.Module.Mod.Path) {
 		f.AddModuleStmt(transpiler.TranspileImportPath(f.Module.Mod.Path))
 	}
 
-	for i := range f.Require {
-		mod, replaced := isReplaced(f.Require[i].Mod, f.Replace)
-		if replaced {
-			if modfile.IsDirectoryPath(mod.Path) {
-				continue
+	/*
+
+		// FIXME: not sure how to port this
+
+		for i := range f.Require {
+			mod, replaced := isReplaced(f.Require[i].Mod, f.Replace)
+			if replaced {
+				if modfile.IsDirectoryPath(mod.Path) {
+					continue
+				}
 			}
+			path := f.Require[i].Mod.Path
+			if !gnolang.IsStdlib(path) {
+				// Add dependency with a modified import path
+				f.AddRequire(transpiler.TranspileImportPath(path), f.Require[i].Mod.Version)
+			}
+			f.AddReplace(path, f.Require[i].Mod.Version, filepath.Join(gnoModPath, path), "")
+			// Remove the old require since the new dependency was added above
+			f.DropRequire(path)
 		}
-		path := f.Require[i].Mod.Path
-		if !gnolang.IsStdlib(path) {
-			// Add dependency with a modified import path
-			f.AddRequire(transpiler.TranspileImportPath(path), f.Require[i].Mod.Version)
-		}
-		f.AddReplace(path, f.Require[i].Mod.Version, filepath.Join(gnoModPath, path), "")
-		// Remove the old require since the new dependency was added above
-		f.DropRequire(path)
-	}
+
+	*/
 
 	// Remove replacements that are not replaced by directories.
 	//

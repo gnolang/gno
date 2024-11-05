@@ -2,17 +2,20 @@ package gnomod
 
 import (
 	"fmt"
+	"go/parser"
+	gotoken "go/token"
 	"io/fs"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 )
 
 type Pkg struct {
-	Dir      string   // absolute path to package dir
-	Name     string   // package name
-	Requires []string // dependencies
-	Draft    bool     // whether the package is a draft
+	Dir     string // absolute path to package dir
+	Name    string // package name
+	Imports []string
+	Draft   bool // whether the package is a draft
 }
 
 type SubPkg struct {
@@ -60,10 +63,10 @@ func visitPackage(pkg Pkg, pkgs []Pkg, visited, onStack map[string]bool, sortedP
 	onStack[pkg.Name] = true
 
 	// Visit package's dependencies
-	for _, req := range pkg.Requires {
+	for _, imp := range pkg.Imports {
 		found := false
 		for _, p := range pkgs {
-			if p.Name != req {
+			if p.Name != imp {
 				continue
 			}
 			if err := visitPackage(p, pkgs, visited, onStack, sortedPkgs); err != nil {
@@ -73,7 +76,7 @@ func visitPackage(pkg Pkg, pkgs []Pkg, visited, onStack map[string]bool, sortedP
 			break
 		}
 		if !found {
-			return fmt.Errorf("missing dependency '%s' for package '%s'", req, pkg.Name)
+			return fmt.Errorf("missing dependency '%s' for package '%s'", imp, pkg.Name)
 		}
 	}
 
@@ -115,12 +118,35 @@ func ListPkgs(root string) (PkgList, error) {
 			Dir:   path,
 			Name:  gnoMod.Module.Mod.Path,
 			Draft: gnoMod.Draft,
-			Requires: func() []string {
-				var reqs []string
-				for _, req := range gnoMod.Require {
-					reqs = append(reqs, req.Mod.Path)
+			Imports: func() []string {
+				dir, err := os.ReadDir(path)
+				if err != nil {
+					return nil
 				}
-				return reqs
+				resMap := map[string]struct{}{}
+				for _, f := range dir {
+					filename := f.Name()
+					if f.IsDir() || !strings.HasSuffix(filename, ".gno") {
+						continue
+					}
+					fileSet := gotoken.NewFileSet()
+					gnoFile, err := parser.ParseFile(fileSet, filepath.Join(path, filename), nil, parser.ImportsOnly)
+					if err != nil {
+						continue
+					}
+					for _, importSpec := range gnoFile.Imports {
+						val := strings.TrimSuffix(strings.TrimPrefix(importSpec.Path.Value, `"`), `"`)
+						resMap[val] = struct{}{}
+					}
+				}
+				res := make([]string, len(resMap))
+				i := 0
+				for imp := range resMap {
+					res[i] = imp
+					i++
+				}
+				slices.Sort(res)
+				return res
 			}(),
 		})
 		return nil
@@ -144,7 +170,7 @@ func (sp SortedPkgList) GetNonDraftPkgs() SortedPkgList {
 			continue
 		}
 		dependsOnDraft := false
-		for _, req := range pkg.Requires {
+		for _, req := range pkg.Imports {
 			if draft[req] {
 				dependsOnDraft = true
 				draft[pkg.Name] = true

@@ -203,7 +203,7 @@ func TestParseGnoMod(t *testing.T) {
 			desc:             "error validating gno.mod",
 			modData:          `require bar v0.0.0`,
 			modPath:          filepath.Join(pkgDir, "gno.mod"),
-			errShouldContain: "error validating gno.mod file at",
+			errShouldContain: "require is not supported by gno",
 		},
 	} {
 		t.Run(tc.desc, func(t *testing.T) {

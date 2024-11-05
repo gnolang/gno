@@ -177,9 +177,7 @@ func execModDownload(cfg *modDownloadCfg, args []string, io commands.IO) error {
 	}
 
 	// fetch dependencies
-	if err := gnoMod.FetchDeps(gnomod.GetGnoModPath(), cfg.remote, cfg.verbose); err != nil {
-		return fmt.Errorf("fetch: %w", err)
-	}
+	panic("not implemented")
 
 	gomod, err := gnomod.GnoToGoMod(*gnoMod)
 	if err != nil {
@@ -274,26 +272,6 @@ func modTidyOnce(cfg *modTidyCfg, wd, pkgdir string, io commands.IO) error {
 	gm, err := gnomod.ParseGnoMod(fname)
 	if err != nil {
 		return err
-	}
-
-	// Drop all existing requires
-	for _, r := range gm.Require {
-		gm.DropRequire(r.Mod.Path)
-	}
-
-	imports, err := getGnoPackageImports(pkgdir)
-	if err != nil {
-		return err
-	}
-	for _, im := range imports {
-		// skip if importpath is modulepath
-		if im == gm.Module.Mod.Path {
-			continue
-		}
-		gm.AddRequire(im, "v0.0.0-latest")
-		if cfg.verbose {
-			io.ErrPrintfln("   %s", im)
-		}
 	}
 
 	gm.Write(fname)

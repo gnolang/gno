@@ -181,24 +181,8 @@ func (f *File) add(errs *modfile.ErrorList, block *modfile.LineBlock, line *modf
 		f.Module.Mod = module.Version{Path: s}
 
 	case "require":
-		if len(args) != 2 {
-			errorf("usage: %s module/path v1.2.3", verb)
-			return
-		}
-		s, err := parseString(&args[0])
-		if err != nil {
-			errorf("invalid quoted string: %v", err)
-			return
-		}
-		v, err := parseVersion(verb, s, &args[1])
-		if err != nil {
-			wrapError(err)
-			return
-		}
-		f.Require = append(f.Require, &modfile.Require{
-			Mod:    module.Version{Path: s, Version: v},
-			Syntax: line,
-		})
+		errorf("require is not supported by gno")
+		return
 
 	case "replace":
 		replace, wrappederr := parseReplace(f.Syntax.Name, line, verb, args)

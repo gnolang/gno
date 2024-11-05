@@ -60,35 +60,10 @@ func newDirs(dirs []string, modDirs []string) *bfsDirs {
 			dir:        mdir,
 			importPath: gm.Module.Mod.Path,
 		})
-		roots = append(roots, getGnoModDirs(gm)...)
 	}
 
 	go d.walk(roots)
 	return d
-}
-
-func getGnoModDirs(gm *gnomod.File) []bfsDir {
-	// cmd/go makes use of the go list command, we don't have that here.
-
-	dirs := make([]bfsDir, 0, len(gm.Require))
-	for _, r := range gm.Require {
-		mv := gm.Resolve(r)
-		path := gnomod.PackageDir("", mv)
-		if _, err := os.Stat(path); err != nil {
-			// only give directories which actually exist and don't give
-			// an error when accessing
-			if !os.IsNotExist(err) {
-				log.Println("open source directories from gno.mod:", err)
-			}
-			continue
-		}
-		dirs = append(dirs, bfsDir{
-			importPath: mv.Path,
-			dir:        path,
-		})
-	}
-
-	return dirs
 }
 
 // Reset puts the scan back at the beginning.
