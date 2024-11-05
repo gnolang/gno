@@ -135,7 +135,7 @@ func setupGnolandTestScript(t *testing.T, txtarDir string) testscript.Params {
 			genesis := &gnoland.GnoGenesisState{
 				Balances: LoadDefaultGenesisBalanceFile(t, gnoRootDir),
 				Params:   LoadDefaultGenesisParamFile(t, gnoRootDir),
-				Txs:      []std.Tx{},
+				Txs:      []gnoland.TxWithMetadata{},
 			}
 
 			// test1 must be created outside of the loop below because it is already included in genesis so
@@ -661,13 +661,13 @@ func (pl *pkgsLoader) SetPatch(replace, with string) {
 	pl.patchs[replace] = with
 }
 
-func (pl *pkgsLoader) LoadPackages(creator bft.Address, fee std.Fee, deposit std.Coins) ([]std.Tx, error) {
+func (pl *pkgsLoader) LoadPackages(creator bft.Address, fee std.Fee, deposit std.Coins) ([]gnoland.TxWithMetadata, error) {
 	pkgslist, err := pl.List().Sort() // sorts packages by their dependencies.
 	if err != nil {
 		return nil, fmt.Errorf("unable to sort packages: %w", err)
 	}
 
-	txs := make([]std.Tx, len(pkgslist))
+	txs := make([]gnoland.TxWithMetadata, len(pkgslist))
 	for i, pkg := range pkgslist {
 		tx, err := gnoland.LoadPackage(pkg, creator, fee, deposit)
 		if err != nil {
@@ -694,7 +694,9 @@ func (pl *pkgsLoader) LoadPackages(creator bft.Address, fee std.Fee, deposit std
 			}
 		}
 
-		txs[i] = tx
+		txs[i] = gnoland.TxWithMetadata{
+			Tx: tx,
+		}
 	}
 
 	return txs, nil

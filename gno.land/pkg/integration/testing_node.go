@@ -54,14 +54,14 @@ func TestingInMemoryNode(t TestingTS, logger *slog.Logger, config *gnoland.InMem
 // TestingNodeConfig constructs an in-memory node configuration
 // with default packages and genesis transactions already loaded.
 // It will return the default creator address of the loaded packages.
-func TestingNodeConfig(t TestingTS, gnoroot string, additionalTxs ...std.Tx) (*gnoland.InMemoryNodeConfig, bft.Address) {
+func TestingNodeConfig(t TestingTS, gnoroot string, additionalTxs ...gnoland.TxWithMetadata) (*gnoland.InMemoryNodeConfig, bft.Address) {
 	cfg := TestingMinimalNodeConfig(t, gnoroot)
 
 	creator := crypto.MustAddressFromString(DefaultAccount_Address) // test1
 
 	params := LoadDefaultGenesisParamFile(t, gnoroot)
 	balances := LoadDefaultGenesisBalanceFile(t, gnoroot)
-	txs := []std.Tx{}
+	txs := make([]gnoland.TxWithMetadata, 0)
 	txs = append(txs, LoadDefaultPackages(t, creator, gnoroot)...)
 	txs = append(txs, additionalTxs...)
 
@@ -123,14 +123,14 @@ func DefaultTestingGenesisConfig(t TestingTS, gnoroot string, self crypto.PubKey
 					Amount:  std.MustParseCoins(ugnot.ValueString(10_000_000_000_000)),
 				},
 			},
-			Txs:    []std.Tx{},
+			Txs:    []gnoland.TxWithMetadata{},
 			Params: []gnoland.Param{},
 		},
 	}
 }
 
 // LoadDefaultPackages loads the default packages for testing using a given creator address and gnoroot directory.
-func LoadDefaultPackages(t TestingTS, creator bft.Address, gnoroot string) []std.Tx {
+func LoadDefaultPackages(t TestingTS, creator bft.Address, gnoroot string) []gnoland.TxWithMetadata {
 	examplesDir := filepath.Join(gnoroot, "examples")
 
 	defaultFee := std.NewFee(50000, std.MustParseCoin(ugnot.ValueString(1000000)))
@@ -161,7 +161,7 @@ func LoadDefaultGenesisParamFile(t TestingTS, gnoroot string) []gnoland.Param {
 }
 
 // LoadDefaultGenesisTXsFile loads the default genesis transactions file for testing.
-func LoadDefaultGenesisTXsFile(t TestingTS, chainid string, gnoroot string) []std.Tx {
+func LoadDefaultGenesisTXsFile(t TestingTS, chainid string, gnoroot string) []gnoland.TxWithMetadata {
 	txsFile := filepath.Join(gnoroot, "gno.land", "genesis", "genesis_txs.jsonl")
 
 	// NOTE: We dont care about giving a correct address here, as it's only for display
