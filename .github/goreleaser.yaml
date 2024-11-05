@@ -24,8 +24,8 @@ builds:
       - arm64
       - arm
     goarm:
-      - 6
-      - 7
+      - "6"
+      - "7"
   - id: gnoland
     main: ./gno.land/cmd/gnoland
     binary: gnoland
@@ -39,8 +39,8 @@ builds:
       - arm64
       - arm
     goarm:
-      - 6
-      - 7
+      - "6"
+      - "7"
   - id: gnokey
     main: ./gno.land/cmd/gnokey
     binary: gnokey
@@ -54,8 +54,8 @@ builds:
       - arm64
       - arm
     goarm:
-      - 6
-      - 7
+      - "6"
+      - "7"
   - id: gnoweb
     main: ./gno.land/cmd/gnoweb
     binary: gnoweb
@@ -69,8 +69,8 @@ builds:
       - arm64
       - arm
     goarm:
-      - 6
-      - 7
+      - "6"
+      - "7"
   - id: gnofaucet
     dir: ./contribs/gnofaucet
     binary: gnofaucet
@@ -84,8 +84,8 @@ builds:
       - arm64
       - arm
     goarm:
-      - 6
-      - 7
+      - "6"
+      - "7"
   - id: gnobro
     dir: ./contribs/gnodev/cmd/gnobro
     binary: gnobro
@@ -99,8 +99,8 @@ builds:
       - arm64
       - arm
     goarm:
-      - 6
-      - 7
+      - "6"
+      - "7"
 
 gomod:
   proxy: true
@@ -616,7 +616,7 @@ docker_manifests:
       - ghcr.io/gnolang/{{ .ProjectName }}/gnokey:{{ .Env.TAG_VERSION }}-arm64v8
       - ghcr.io/gnolang/{{ .ProjectName }}/gnokey:{{ .Env.TAG_VERSION }}-armv6
       - ghcr.io/gnolang/{{ .ProjectName }}/gnokey:{{ .Env.TAG_VERSION }}-armv7
- 
+
   # gnoweb
   - name_template: ghcr.io/gnolang/{{ .ProjectName }}/gnoweb:{{ .Version }}
     image_templates:
@@ -703,4 +703,8 @@ nightly:
   tag_name: nightly
   publish_release: true
   keep_single_release: true
-  name_template: "{{ incpatch .Version }}-{{ .ShortCommit }}-{{ .Env.TAG_VERSION }}"
+  version_template: "{{ incpatch .Version }}-{{ .ShortCommit }}-{{ .Env.TAG_VERSION }}"
+
+git:
+  ignore_tag_prefixes:
+    - "chain/"
