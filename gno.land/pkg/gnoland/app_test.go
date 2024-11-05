@@ -9,7 +9,8 @@ import (
 	"time"
 
 	"github.com/gnolang/gno/gno.land/pkg/sdk/vm"
-	gnostd "github.com/gnolang/gno/gnovm/stdlibs/std"
+	"github.com/gnolang/gno/gnovm"
+	gnostdlibs "github.com/gnolang/gno/gnovm/stdlibs/std"
 	"github.com/gnolang/gno/tm2/pkg/amino"
 	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
 	bft "github.com/gnolang/gno/tm2/pkg/bft/types"
@@ -51,16 +52,18 @@ func TestNewAppWithOptions(t *testing.T) {
 					Amount:  []std.Coin{{Amount: 1e15, Denom: "ugnot"}},
 				},
 			},
-			Txs: []std.Tx{
+			Txs: []TxWithMetadata{
 				{
-					Msgs: []std.Msg{vm.NewMsgAddPackage(addr, "gno.land/r/demo", []*std.MemFile{
-						{
-							Name: "demo.gno",
-							Body: "package demo; func Hello() string { return `hello`; }",
-						},
-					})},
-					Fee:        std.Fee{GasWanted: 1e6, GasFee: std.Coin{Amount: 1e6, Denom: "ugnot"}},
-					Signatures: []std.Signature{{}}, // one empty signature
+					Tx: std.Tx{
+						Msgs: []std.Msg{vm.NewMsgAddPackage(addr, "gno.land/r/demo", []*gnovm.MemFile{
+							{
+								Name: "demo.gno",
+								Body: "package demo; func Hello() string { return `hello`; }",
+							},
+						})},
+						Fee:        std.Fee{GasWanted: 1e6, GasFee: std.Coin{Amount: 1e6, Denom: "ugnot"}},
+						Signatures: []std.Signature{{}}, // one empty signature
+					},
 				},
 			},
 		},
@@ -205,7 +208,7 @@ func generateValidatorUpdates(t *testing.T, count int) []abci.ValidatorUpdate {
 
 	for i := 0; i < count; i++ {
 		// Generate a random private key
-		key := getDummyKey(t)
+		key := getDummyKey(t).PubKey()
 
 		validator := abci.ValidatorUpdate{
 			Address: key.Address(),
@@ -217,6 +220,189 @@ func generateValidatorUpdates(t *testing.T, count int) []abci.ValidatorUpdate {
 	}
 
 	return validators
+}
+
+func createAndSignTx(
+	t *testing.T,
+	msgs []std.Msg,
+	chainID string,
+	key crypto.PrivKey,
+) std.Tx {
+	t.Helper()
+
+	tx := std.Tx{
+		Msgs: msgs,
+		Fee: std.Fee{
+			GasFee:    std.NewCoin("ugnot", 2000000),
+			GasWanted: 10000000,
+		},
+	}
+
+	signBytes, err := tx.GetSignBytes(chainID, 0, 0)
+	require.NoError(t, err)
+
+	// Sign the tx
+	signedTx, err := key.Sign(signBytes)
+	require.NoError(t, err)
+
+	tx.Signatures = []std.Signature{
+		{
+			PubKey:    key.PubKey(),
+			Signature: signedTx,
+		},
+	}
+
+	return tx
+}
+
+func TestInitChainer_MetadataTxs(t *testing.T) {
+	var (
+		currentTimestamp = time.Now()
+		laterTimestamp   = currentTimestamp.Add(10 * 24 * time.Hour) // 10 days
+
+		getMetadataState = func(tx std.Tx, balances []Balance) GnoGenesisState {
+			return GnoGenesisState{
+				// Set the package deployment as the genesis tx
+				Txs: []TxWithMetadata{
+					{
+						Tx: tx,
+						Metadata: &GnoTxMetadata{
+							Timestamp: laterTimestamp.Unix(),
+						},
+					},
+				},
+				// Make sure the deployer account has a balance
+				Balances: balances,
+			}
+		}
+
+		getNonMetadataState = func(tx std.Tx, balances []Balance) GnoGenesisState {
+			return GnoGenesisState{
+				Txs: []TxWithMetadata{
+					{
+						Tx: tx,
+					},
+				},
+				Balances: balances,
+			}
+		}
+	)
+
+	testTable := []struct {
+		name         string
+		genesisTime  time.Time
+		expectedTime time.Time
+		stateFn      func(std.Tx, []Balance) GnoGenesisState
+	}{
+		{
+			"non-metadata transaction",
+			currentTimestamp,
+			currentTimestamp,
+			getNonMetadataState,
+		},
+		{
+			"metadata transaction",
+			currentTimestamp,
+			laterTimestamp,
+			getMetadataState,
+		},
+	}
+
+	for _, testCase := range testTable {
+		t.Run(testCase.name, func(t *testing.T) {
+			var (
+				db = memdb.NewMemDB()
+
+				key     = getDummyKey(t) // user account, and genesis deployer
+				chainID = "test"
+
+				path = "gno.land/r/demo/metadatatx"
+				body = `package metadatatx
+
+	import "time"
+
+	// Time is initialized on deployment (genesis)
+	var t time.Time = time.Now()
+
+	// GetT returns the time that was saved from genesis
+	func GetT() int64 { return t.Unix() }
+`
+			)
+
+			// Create a fresh app instance
+			app, err := NewAppWithOptions(TestAppOptions(db))
+			require.NoError(t, err)
+
+			// Prepare the deploy transaction
+			msg := vm.MsgAddPackage{
+				Creator: key.PubKey().Address(),
+				Package: &gnovm.MemPackage{
+					Name: "metadatatx",
+					Path: path,
+					Files: []*gnovm.MemFile{
+						{
+							Name: "file.gno",
+							Body: body,
+						},
+					},
+				},
+				Deposit: nil,
+			}
+
+			// Create the initial genesis tx
+			tx := createAndSignTx(t, []std.Msg{msg}, chainID, key)
+
+			// Run the top-level init chain process
+			app.InitChain(abci.RequestInitChain{
+				ChainID: chainID,
+				Time:    testCase.genesisTime,
+				ConsensusParams: &abci.ConsensusParams{
+					Block: defaultBlockParams(),
+					Validator: &abci.ValidatorParams{
+						PubKeyTypeURLs: []string{},
+					},
+				},
+				// Set the package deployment as the genesis tx,
+				// and make sure the deployer account has a balance
+				AppState: testCase.stateFn(tx, []Balance{
+					{
+						// Make sure the deployer account has a balance
+						Address: key.PubKey().Address(),
+						Amount:  std.NewCoins(std.NewCoin("ugnot", 20_000_000)),
+					},
+				}),
+			})
+
+			// Prepare the call transaction
+			callMsg := vm.MsgCall{
+				Caller:  key.PubKey().Address(),
+				PkgPath: path,
+				Func:    "GetT",
+			}
+
+			tx = createAndSignTx(t, []std.Msg{callMsg}, chainID, key)
+
+			// Marshal the transaction to Amino binary
+			marshalledTx, err := amino.Marshal(tx)
+			require.NoError(t, err)
+
+			// Execute the call to the "GetT" method
+			// on the deployed Realm
+			resp := app.DeliverTx(abci.RequestDeliverTx{
+				Tx: marshalledTx,
+			})
+
+			require.True(t, resp.IsOK())
+
+			// Make sure the initialized Realm state is
+			// the injected context timestamp from the tx metadata
+			assert.Contains(
+				t,
+				string(resp.Data),
+				fmt.Sprintf("(%d int64)", testCase.expectedTime.Unix()),
+			)
+		})
+	}
 }
 
 func TestEndBlocker(t *testing.T) {
@@ -308,7 +494,7 @@ func TestEndBlocker(t *testing.T) {
 		c := newCollector[validatorUpdate](mockEventSwitch, noFilter)
 
 		// Fire a GnoVM event
-		mockEventSwitch.FireEvent(gnostd.GnoEvent{})
+		mockEventSwitch.FireEvent(gnostdlibs.GnoEvent{})
 
 		// Create the EndBlocker
 		eb := EndBlocker(c, mockVMKeeper, &mockEndBlockerApp{})
@@ -351,7 +537,7 @@ func TestEndBlocker(t *testing.T) {
 		c := newCollector[validatorUpdate](mockEventSwitch, noFilter)
 
 		// Fire a GnoVM event
-		mockEventSwitch.FireEvent(gnostd.GnoEvent{})
+		mockEventSwitch.FireEvent(gnostdlibs.GnoEvent{})
 
 		// Create the EndBlocker
 		eb := EndBlocker(c, mockVMKeeper, &mockEndBlockerApp{})
@@ -390,7 +576,7 @@ func TestEndBlocker(t *testing.T) {
 		// Construct the GnoVM events
 		vmEvents := make([]abci.Event, 0, len(changes))
 		for index := range changes {
-			event := gnostd.GnoEvent{
+			event := gnostdlibs.GnoEvent{
 				Type:    validatorAddedEvent,
 				PkgPath: valRealm,
 			}
@@ -399,7 +585,7 @@ func TestEndBlocker(t *testing.T) {
 			if index%2 == 0 {
 				changes[index].Power = 0
 
-				event = gnostd.GnoEvent{
+				event = gnostdlibs.GnoEvent{
 					Type:    validatorRemovedEvent,
 					PkgPath: valRealm,
 				}

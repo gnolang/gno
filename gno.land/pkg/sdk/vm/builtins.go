@@ -42,7 +42,7 @@ func (bnk *SDKBanker) TotalCoin(denom string) int64 {
 
 func (bnk *SDKBanker) IssueCoin(b32addr crypto.Bech32Address, denom string, amount int64) {
 	addr := crypto.MustAddressFromString(string(b32addr))
-	_, err := bnk.vmk.bank.AddCoins(bnk.ctx, addr, std.Coins{std.Coin{denom, amount}})
+	_, err := bnk.vmk.bank.AddCoins(bnk.ctx, addr, std.Coins{std.Coin{Denom: denom, Amount: amount}})
 	if err != nil {
 		panic(err)
 	}
@@ -50,8 +50,31 @@ func (bnk *SDKBanker) IssueCoin(b32addr crypto.Bech32Address, denom string, amou
 
 func (bnk *SDKBanker) RemoveCoin(b32addr crypto.Bech32Address, denom string, amount int64) {
 	addr := crypto.MustAddressFromString(string(b32addr))
-	_, err := bnk.vmk.bank.SubtractCoins(bnk.ctx, addr, std.Coins{std.Coin{denom, amount}})
+	_, err := bnk.vmk.bank.SubtractCoins(bnk.ctx, addr, std.Coins{std.Coin{Denom: denom, Amount: amount}})
 	if err != nil {
 		panic(err)
 	}
 }
+
+// ----------------------------------------
+// SDKParams
+
+type SDKParams struct {
+	vmk *VMKeeper
+	ctx sdk.Context
+}
+
+func NewSDKParams(vmk *VMKeeper, ctx sdk.Context) *SDKParams {
+	return &SDKParams{
+		vmk: vmk,
+		ctx: ctx,
+	}
+}
+
+func (prm *SDKParams) SetString(key, value string)      { prm.vmk.prmk.SetString(prm.ctx, key, value) }
+func (prm *SDKParams) SetBool(key string, value bool)   { prm.vmk.prmk.SetBool(prm.ctx, key, value) }
+func (prm *SDKParams) SetInt64(key string, value int64) { prm.vmk.prmk.SetInt64(prm.ctx, key, value) }
+func (prm *SDKParams) SetUint64(key string, value uint64) {
+	prm.vmk.prmk.SetUint64(prm.ctx, key, value)
+}
+func (prm *SDKParams) SetBytes(key string, value []byte) { prm.vmk.prmk.SetBytes(prm.ctx, key, value) }
