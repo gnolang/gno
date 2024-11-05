@@ -1,4 +1,4 @@
-package uuid
+package snowflake
 
 import (
 	"testing"
@@ -7,11 +7,11 @@ import (
 )
 
 func TestID(t *testing.T) {
-	u := NewUUID()
-	id1 := u.ID()
-	id2 := u.ID()
-	uuid1 := UUIDIntToUUIDString(id1)
-	uuid2 := UUIDIntToUUIDString(id2)
+	u := NewSnowflakeID()
+	id1 := u.GenerateID()
+	id2 := u.GenerateID()
+	uuid1 := SnowflakeIDToUUIDString(id1)
+	uuid2 := SnowflakeIDToUUIDString(id2)
 
 	uassert.NotEqual(t, uuid1, uuid2)
 
@@ -19,13 +19,13 @@ func TestID(t *testing.T) {
 	uuidMap := make(map[string]bool)
 
 	for i := 0; i < 101; i++ {
-		id := u.ID()
+		id := u.GenerateID()
 		if _, exists := idMap[id]; exists {
 			t.Errorf("Duplicate ID found: %d", id)
 		}
 		idMap[id] = true
 
-		uuidStr := UUIDIntToUUIDString(id)
+		uuidStr := SnowflakeIDToUUIDString(id)
 		if _, exists := uuidMap[uuidStr]; exists {
 			t.Errorf("Duplicate UUID found: %s", uuidStr)
 		}
@@ -35,11 +35,11 @@ func TestID(t *testing.T) {
 }
 
 func TestGetEntropy(t *testing.T) {
-	u := NewUUID()
+	u := NewSnowflakeID()
 	initialEntropyValue := u.entropy.Value()
 
 	for i := 0; i < 10; i++ {
-		u.ID()
+		u.GenerateID()
 	}
 
 	uassert.NotEqual(t, initialEntropyValue, u.entropy.Value())

@@ -1,4 +1,4 @@
-module gno.land/p/demo/uuid
+module gno.land/p/demo/snowflake
 
 require (
 	gno.land/p/demo/entropy v0.0.0-latest
