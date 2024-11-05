@@ -53,6 +53,8 @@ func ReadGenesisTxs(ctx context.Context, path string) ([]TxWithMetadata, error) 
 		scanner = bufio.NewScanner(file)
 	)
 
+	scanner.Buffer(make([]byte, 1_000_000), 2_000_000)
+
 	for scanner.Scan() {
 		select {
 		case <-ctx.Done():
