@@ -54,7 +54,7 @@ func (tok *Token) RealmTeller() Teller {
 	}
 }
 
-// RealmSubTeller is like RealmTeller but uses the provided slug to derivate a
+// RealmSubTeller is like RealmTeller but uses the provided slug to derive a
 // subaccount.
 func (tok *Token) RealmSubTeller(slug string) Teller {
 	if tok == nil {
