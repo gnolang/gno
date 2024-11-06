@@ -11,7 +11,10 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
 	"github.com/gnolang/gno/gnovm/pkg/gnomod"
+	"github.com/gnolang/gno/gnovm/pkg/gnomodfetch"
+	"github.com/gnolang/gno/gnovm/pkg/load"
 	"github.com/gnolang/gno/tm2/pkg/commands"
 	"github.com/gnolang/gno/tm2/pkg/errors"
 	"go.uber.org/multierr"
@@ -176,8 +179,27 @@ func execModDownload(cfg *modDownloadCfg, args []string, io commands.IO) error {
 		return fmt.Errorf("validate: %w", err)
 	}
 
-	// fetch dependencies
-	panic("not implemented")
+	gnoFiles, err := load.GnoFilesFromArgsRecursively([]string{path})
+	if err != nil {
+		return fmt.Errorf("get gno files: %w", err)
+	}
+
+	modsDest := filepath.Join(gnoenv.HomeDir(), "pkg", "mod")
+
+	for _, f := range gnoFiles {
+		fset := token.NewFileSet()
+		parsed, err := parser.ParseFile(fset, f, nil, parser.ImportsOnly)
+		if err != nil {
+			continue
+		}
+
+		for _, imp := range parsed.Imports {
+			pkgPath := strings.TrimPrefix(strings.TrimSuffix(imp.Path.Value, "\""), "\"")
+			if err := gnomodfetch.Fetch(pkgPath, filepath.Join(modsDest, pkgPath)); err != nil {
+				io.ErrPrintfln("fetch %q: %w", pkgPath, err)
+			}
+		}
+	}
 
 	return nil
 }
