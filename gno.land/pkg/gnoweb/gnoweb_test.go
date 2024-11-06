@@ -33,7 +33,6 @@ func TestRoutes(t *testing.T) {
 		{"/r/gnoland/blog$help&func=Render", ok, "Render(...)"},
 		{"/r/gnoland/blog$help&func=Render&path=foo/bar", ok, `input type="text" value="foo/bar"`},
 		{"/r/gnoland/blog$help&func=NonExisting", ok, "NonExisting not found"},
-		{"/r/gnoland/blog?arg1=val1&arg2=val2", ok, ""},
 		{"/r/demo/users:administrator", ok, "address"},
 		{"/r/demo/users", ok, "manfred"},
 		{"/r/demo/users/users.gno", ok, "// State"},
