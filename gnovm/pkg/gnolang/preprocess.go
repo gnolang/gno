@@ -2335,8 +2335,7 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 	return nn
 }
 
-// This func aims at syncing logic between op define (:=) and declare(var/const)
-// This will define or declare the variables
+// defineOrDecl merges the code logic from op define (:=) and declare (var/const).
 func defineOrDecl(
 	store Store,
 	bn BlockNode,
@@ -2355,9 +2354,9 @@ func defineOrDecl(
 	tvs := make([]TypedValue, numNames)
 
 	if numNames > 1 && len(valueExprs) == 1 { // special cases
-		specialParseTypeVals(sts, tvs, store, bn, nameExprs, typeExpr, valueExprs[0])
+		parseMultipleAssignFromOneExpr(sts, tvs, store, bn, nameExprs, typeExpr, valueExprs[0])
 	} else { // general case
-		generalParseTypeVals(sts, tvs, store, bn, isConst, nameExprs, typeExpr, valueExprs)
+		parseAssignFromExprList(sts, tvs, store, bn, isConst, nameExprs, typeExpr, valueExprs)
 	}
 
 	node := bn
@@ -2376,9 +2375,8 @@ func defineOrDecl(
 	}
 }
 
-// This func aims at syncing logic between op define (:=) and declare(var/const)
-// for general cases (not handled by specialParseTypeVals)
-func generalParseTypeVals(
+// parseAssignFromExprList parses assignment to multiple variables from a list of expressions.
+func parseAssignFromExprList(
 	sts []Type,
 	tvs []TypedValue,
 	store Store,
@@ -2390,7 +2388,7 @@ func generalParseTypeVals(
 ) {
 	numNames := len(nameExprs)
 
-	// ensure that function only return 1 value
+	// Ensure that function only return 1 value.
 	for _, v := range valueExprs {
 		if cx, ok := v.(*CallExpr); ok {
 			tt, ok := evalStaticTypeOfRaw(store, bn, cx).(*tupleType)
@@ -2400,25 +2398,25 @@ func generalParseTypeVals(
 		}
 	}
 
-	// evaluate types and convert consts.
+	// Evaluate types and convert consts.
 	if typeExpr != nil {
-		// only a single type can be specified.
+		// Only a single type can be specified.
 		nt := evalStaticType(store, bn, typeExpr)
 		for i := 0; i < numNames; i++ {
 			sts[i] = nt
 		}
-		// convert if const to nt.
+		// Convert if const to nt.
 		for i := range valueExprs {
 			checkOrConvertType(store, bn, &valueExprs[i], nt, false)
 		}
 	} else if isConst {
-		// derive static type from values.
+		// Derive static type from values.
 		for i, vx := range valueExprs {
 			vt := evalStaticTypeOf(store, bn, vx)
 			sts[i] = vt
 		}
 	} else { // T is nil, n not const => same as AssignStmt DEFINE
-		// convert n.Value to default type.
+		// Convert n.Value to default type.
 		for i, vx := range valueExprs {
 			if cx, ok := vx.(*ConstExpr); ok {
 				convertConst(store, bn, cx, nil)
@@ -2454,17 +2452,16 @@ func generalParseTypeVals(
 	}
 }
 
-// This func aims at syncing logic between op define (:=) and declare(var/const)
-// for special cases where rhs is single and lhs is single/multi
+// parseMultipleAssignFromOneExpr parses assignment to multiple variables from a single expression.
 // Declare:
-// - `var a, b, c T = f()`
-// - `var a, b = n.(T)`
-// - `var a, b = n[i], where n is a map`
-// Assign
-// - `a, b, c T := f()`
-// - `a, b := n.(T)`
-// - `a, b := n[i], where n is a map`
-func specialParseTypeVals(
+// - var a, b, c T = f()
+// - var a, b = n.(T)
+// - var a, b = n[i], where n is a map
+// Assign:
+// - a, b, c := f()
+// - a, b := n.(T)
+// - a, b := n[i], where n is a map
+func parseMultipleAssignFromOneExpr(
 	sts []Type,
 	tvs []TypedValue,
 	store Store,
@@ -2475,7 +2472,6 @@ func specialParseTypeVals(
 ) ([]Type, []TypedValue) {
 	var tuple *tupleType
 	numNames := len(nameExprs)
-
 	switch expr := valueExpr.(type) {
 	case *CallExpr:
 		// Call case:
@@ -2519,16 +2515,18 @@ func specialParseTypeVals(
 
 	var st Type = nil
 	if typeExpr != nil {
-		// only a single type can be specified.
+		// Only a single type can be specified.
 		st = evalStaticType(store, bn, typeExpr)
 	}
 
 	for i := 0; i < numNames; i++ {
 		if st != nil {
-			// TODO check tt and nt compat.
 			sts[i] = st
+
+			// Convert if const to nt.
+			checkOrConvertType(store, bn, &valueExpr, st, false)
 		} else {
-			// set types as return types
+			// Set types as return types.
 			sts[i] = tuple.Elts[i]
 		}
 
