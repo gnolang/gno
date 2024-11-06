@@ -6,6 +6,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"io"
 	"log/slog"
 	"path/filepath"
 	"regexp"
@@ -56,6 +57,9 @@ var _ VMKeeperI = &VMKeeper{}
 
 // VMKeeper holds all package code and store state.
 type VMKeeper struct {
+	// Needs to be explicitly set, like in the case of gnodev.
+	Output io.Writer
+
 	baseKey store.StoreKey
 	iavlKey store.StoreKey
 	acck    auth.AccountKeeper
@@ -107,6 +111,7 @@ func (vm *VMKeeper) Initialize(
 		m2 := gno.NewMachineWithOptions(
 			gno.MachineOptions{
 				PkgPath: "",
+				Output:  vm.Output,
 				Store:   vm.gnoStore,
 			})
 		defer m2.Release()
@@ -272,6 +277,7 @@ func (vm *VMKeeper) checkNamespacePermission(ctx sdk.Context, creator crypto.Add
 	m := gno.NewMachineWithOptions(
 		gno.MachineOptions{
 			PkgPath:  "",
+			Output:   vm.Output,
 			Store:    store,
 			Context:  msgCtx,
 			Alloc:    store.GetAllocator(),
@@ -372,6 +378,7 @@ func (vm *VMKeeper) AddPackage(ctx sdk.Context, msg MsgAddPackage) (err error) {
 	m2 := gno.NewMachineWithOptions(
 		gno.MachineOptions{
 			PkgPath:  "",
+			Output:   vm.Output,
 			Store:    gnostore,
 			Alloc:    gnostore.GetAllocator(),
 			Context:  msgCtx,
@@ -472,6 +479,7 @@ func (vm *VMKeeper) Call(ctx sdk.Context, msg MsgCall) (res string, err error) {
 	m := gno.NewMachineWithOptions(
 		gno.MachineOptions{
 			PkgPath:  "",
+			Output:   vm.Output,
 			Store:    gnostore,
 			Context:  msgCtx,
 			Alloc:    gnostore.GetAllocator(),
@@ -568,10 +576,14 @@ func (vm *VMKeeper) Run(ctx sdk.Context, msg MsgRun) (res string, err error) {
 	}
 	// Parse and run the files, construct *PV.
 	buf := new(bytes.Buffer)
+	output := io.Writer(buf)
+	if vm.Output != nil {
+		output = io.MultiWriter(buf, vm.Output)
+	}
 	m := gno.NewMachineWithOptions(
 		gno.MachineOptions{
 			PkgPath:  "",
-			Output:   buf,
+			Output:   output,
 			Store:    gnostore,
 			Alloc:    gnostore.GetAllocator(),
 			Context:  msgCtx,
@@ -597,7 +609,7 @@ func (vm *VMKeeper) Run(ctx sdk.Context, msg MsgRun) (res string, err error) {
 	m2 := gno.NewMachineWithOptions(
 		gno.MachineOptions{
 			PkgPath:  "",
-			Output:   buf,
+			Output:   output,
 			Store:    gnostore,
 			Alloc:    gnostore.GetAllocator(),
 			Context:  msgCtx,
@@ -729,6 +741,7 @@ func (vm *VMKeeper) QueryEval(ctx sdk.Context, pkgPath string, expr string) (res
 	m := gno.NewMachineWithOptions(
 		gno.MachineOptions{
 			PkgPath:  pkgPath,
+			Output:   vm.Output,
 			Store:    gnostore,
 			Context:  msgCtx,
 			Alloc:    alloc,
@@ -795,6 +808,7 @@ func (vm *VMKeeper) QueryEvalString(ctx sdk.Context, pkgPath string, expr string
 	m := gno.NewMachineWithOptions(
 		gno.MachineOptions{
 			PkgPath:  pkgPath,
+			Output:   vm.Output,
 			Store:    gnostore,
 			Context:  msgCtx,
 			Alloc:    alloc,
