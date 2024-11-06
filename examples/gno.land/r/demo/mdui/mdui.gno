@@ -8,7 +8,7 @@ import (
 
 // RenderHomePage - Renders the Home page using MarkdownBuilder
 func RenderHomePage() string {
-	builder := mdui.NewMarkdownBuilder()
+	builder := mdui.NewBuilder()
 
 	// Navbar with links
 	navbarLinks := map[string]string{
@@ -345,7 +345,7 @@ You can use collapsible sections to keep the layout clean and reveal information
 
 // RenderBuilderGuidePage - Renders a guide page explaining how to use the MarkdownBuilder
 func RenderBuilderGuidePage() string {
-	builder := mdui.NewMarkdownBuilder()
+	builder := mdui.NewBuilder()
 
 	// Navbar
 	navbarLinks := map[string]string{
@@ -372,7 +372,7 @@ The MarkdownBuilder is an object that accumulates UI elements like headings, par
 You can chain methods to add elements, and at the end, call the Render method to output the final Markdown.
 `).
 		AddCodeBlock(`
-builder := mdui.NewMarkdownBuilder()
+builder := mdui.NewBuilder()
 
 // Add components using chained methods
 builder.AddHeading(1, "Welcome to My Page").
@@ -410,7 +410,7 @@ builder.AddList([]string{"Item 1", "Item 2", "Item 3"}, false)
 Below is a complete example that demonstrates how to use the MarkdownBuilder to create a simple webpage:
 `).
 		AddCodeBlock(`
-builder := mdui.NewMarkdownBuilder()
+builder := mdui.NewBuilder()
 
 // Build the content
 builder.AddHeading(1, "Welcome to MDUI").
