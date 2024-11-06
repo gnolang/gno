@@ -39,8 +39,11 @@ func (t *tally) castVote(member membstore.Member, option dao.VoteOption) error {
 		return ErrAlreadyVoted
 	}
 
+	// convert option to upper-case, like the constants are.
+	option = dao.VoteOption(strings.ToUpper(string(option)))
+
 	// Update the tally
-	switch strings.ToUpper(option) {
+	switch option {
 	case dao.YesVote:
 		t.yays += member.VotingPower
 	case dao.AbstainVote:
