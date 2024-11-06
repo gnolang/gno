@@ -770,12 +770,6 @@ func parseReplace(filename string, line *modfile.Line, verb string, args []strin
 	}
 	nv := ""
 	if len(args) == arrow+2 {
-		if !modfile.IsDirectoryPath(ns) {
-			if strings.Contains(ns, "@") {
-				return nil, errorf("replacement module must match format 'path version', not 'path@version'")
-			}
-			return nil, errorf("replacement module without version must be directory path (rooted or starting with . or ..)")
-		}
 		if filepath.Separator == '/' && strings.Contains(ns, `\`) {
 			return nil, errorf("replacement directory appears to be Windows path (on a non-windows system)")
 		}

@@ -3,15 +3,22 @@ package main
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
 
-	"github.com/stretchr/testify/require"
-
+	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
+	"github.com/gnolang/gno/gnovm/pkg/gnomodfetch"
+	"github.com/gnolang/gno/tm2/pkg/amino"
+	"github.com/gnolang/gno/tm2/pkg/bft/rpc/client"
+	ctypes "github.com/gnolang/gno/tm2/pkg/bft/rpc/core/types"
+	types "github.com/gnolang/gno/tm2/pkg/bft/rpc/lib/types"
 	"github.com/gnolang/gno/tm2/pkg/commands"
+	"github.com/gnolang/gno/tm2/pkg/sdk"
+	"github.com/stretchr/testify/require"
 )
 
 func TestMain_Gno(t *testing.T) {
@@ -26,6 +33,7 @@ type testMainCase struct {
 	args                 []string
 	testDir              string
 	simulateExternalRepo bool
+	tmpGnoHome           bool
 
 	// for the following FooContain+FooBe expected couples, if both are empty,
 	// then the test suite will require that the "got" is not empty.
@@ -42,6 +50,68 @@ type testMainCase struct {
 func testMainCaseRun(t *testing.T, tc []testMainCase) {
 	t.Helper()
 
+	{
+		gnomodfetch.Client = client.NewRPCClient(&mockClient{
+			sendRequestFn: func(ctx context.Context, r types.RPCRequest) (*types.RPCResponse, error) {
+				params := struct {
+					Path string `json:"path"`
+					Data []byte `json:"data"`
+				}{}
+				if err := json.Unmarshal(r.Params, &params); err != nil {
+					return nil, fmt.Errorf("failed to unmarshal params: %w", err)
+				}
+				path := params.Path
+				if path != "vm/qfile" {
+					return nil, fmt.Errorf("unexpected call to %q", path)
+				}
+				data := string(params.Data)
+
+				examplesDir := filepath.Join(gnoenv.RootDir(), "examples")
+				target := filepath.Join(examplesDir, data)
+
+				res := ctypes.ResultABCIQuery{}
+
+				finfo, err := os.Stat(target)
+				if os.IsNotExist(err) {
+					res.Response = sdk.ABCIResponseQueryFromError(fmt.Errorf("package %q is not available", data))
+					return &types.RPCResponse{
+						Result: amino.MustMarshalJSON(res),
+					}, nil
+				} else if err != nil {
+					return nil, fmt.Errorf("failed to stat %q: %w", data, err)
+				}
+
+				if finfo.IsDir() {
+					entries, err := os.ReadDir(target)
+					if err != nil {
+						return nil, fmt.Errorf("failed to get package %q: %w", data, err)
+					}
+					files := []string{}
+					for _, entry := range entries {
+						if !entry.IsDir() {
+							files = append(files, entry.Name())
+						}
+					}
+					res.Response.Data = []byte(strings.Join(files, "\n"))
+				} else {
+					content, err := os.ReadFile(target)
+					if err != nil {
+						return nil, fmt.Errorf("failed to get file %q: %w", data, err)
+					}
+					res.Response.Data = content
+				}
+
+				return &types.RPCResponse{
+					Result: amino.MustMarshalJSON(res),
+				}, nil
+
+			},
+		})
+		t.Cleanup(func() {
+			gnomodfetch.Client = nil
+		})
+	}
+
 	workingDir, err := os.Getwd()
 	require.Nil(t, err)
 
@@ -57,6 +127,13 @@ func testMainCaseRun(t *testing.T, tc []testMainCase) {
 		t.Run(testName, func(t *testing.T) {
 			mockOut := bytes.NewBufferString("")
 			mockErr := bytes.NewBufferString("")
+
+			if test.tmpGnoHome {
+				gnohome, err := os.MkdirTemp(os.TempDir(), "gnotesthome")
+				require.NoError(t, err)
+				t.Cleanup(func() { os.RemoveAll(gnohome) })
+				t.Setenv("GNOHOME", gnohome)
+			}
 
 			checkOutputs := func(t *testing.T) {
 				t.Helper()
@@ -141,4 +218,40 @@ func testMainCaseRun(t *testing.T, tc []testMainCase) {
 			checkOutputs(t)
 		})
 	}
+}
+
+type (
+	sendRequestDelegate func(context.Context, types.RPCRequest) (*types.RPCResponse, error)
+	sendBatchDelegate   func(context.Context, types.RPCRequests) (types.RPCResponses, error)
+	closeDelegate       func() error
+)
+
+type mockClient struct {
+	sendRequestFn sendRequestDelegate
+	sendBatchFn   sendBatchDelegate
+	closeFn       closeDelegate
+}
+
+func (m *mockClient) SendRequest(ctx context.Context, request types.RPCRequest) (*types.RPCResponse, error) {
+	if m.sendRequestFn != nil {
+		return m.sendRequestFn(ctx, request)
+	}
+
+	return nil, nil
+}
+
+func (m *mockClient) SendBatch(ctx context.Context, requests types.RPCRequests) (types.RPCResponses, error) {
+	if m.sendBatchFn != nil {
+		return m.sendBatchFn(ctx, requests)
+	}
+
+	return nil, nil
+}
+
+func (m *mockClient) Close() error {
+	if m.closeFn != nil {
+		return m.closeFn()
+	}
+
+	return nil
 }

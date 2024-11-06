@@ -31,8 +31,46 @@ func GnoFilesFromArgsRecursively(args []string) ([]string, error) {
 			continue
 		}
 
+		err = walkDirForGnoDirs(argPath, func(path string) {
+			dir := ensurePathPrefix(path)
+			files, err := os.ReadDir(dir)
+			if err != nil {
+				return
+			}
+			for _, f := range files {
+				if IsGnoFile(f) {
+					path := filepath.Join(dir, f.Name())
+					paths = append(paths, ensurePathPrefix(path))
+				}
+			}
+		})
+		if err != nil {
+			return nil, fmt.Errorf("unable to walk dir: %w", err)
+		}
+	}
+
+	return paths, nil
+}
+
+func GnoDirsFromArgsRecursively(args []string) ([]string, error) {
+	var paths []string
+
+	for _, argPath := range args {
+		info, err := os.Stat(argPath)
+		if err != nil {
+			return nil, fmt.Errorf("invalid file or package path: %w", err)
+		}
+
+		if !info.IsDir() {
+			if IsGnoFile(fs.FileInfoToDirEntry(info)) {
+				paths = append(paths, ensurePathPrefix(argPath))
+			}
+
+			continue
+		}
+
 		// Gather package paths from the directory
-		err = walkDirForGnoFiles(argPath, func(path string) {
+		err = walkDirForGnoDirs(argPath, func(path string) {
 			paths = append(paths, ensurePathPrefix(path))
 		})
 		if err != nil {
@@ -85,7 +123,7 @@ func ensurePathPrefix(path string) string {
 	return "." + string(filepath.Separator) + path
 }
 
-func walkDirForGnoFiles(root string, addPath func(path string)) error {
+func walkDirForGnoDirs(root string, addPath func(path string)) error {
 	visited := make(map[string]struct{})
 
 	walkFn := func(currPath string, f fs.DirEntry, err error) error {
@@ -128,7 +166,7 @@ func GnoPackagesFromArgsRecursively(args []string) ([]string, error) {
 		}
 
 		// Gather package paths from the directory
-		err = walkDirForGnoFiles(argPath, func(path string) {
+		err = walkDirForGnoDirs(argPath, func(path string) {
 			paths = append(paths, ensurePathPrefix(path))
 		})
 		if err != nil {
