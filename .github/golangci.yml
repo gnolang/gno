@@ -28,6 +28,7 @@ linters:
     - misspell # Misspelled English words in comments
     - makezero # Finds slice declarations with non-zero initial length
     - importas # Enforces consistent import aliases
+    - govet # same as 'go vet'
     - gosec # Security problems
     - gofmt # Whether the code was gofmt-ed
     - goimports # Unused imports
