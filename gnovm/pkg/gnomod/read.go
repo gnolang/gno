@@ -862,48 +862,6 @@ func updateLine(line *modfile.Line, tokens ...string) {
 	line.Token = tokens
 }
 
-// setIndirect sets line to have (or not have) a "// indirect" comment.
-func setIndirect(r *modfile.Require, indirect bool) {
-	r.Indirect = indirect
-	line := r.Syntax
-	if isIndirect(line) == indirect {
-		return
-	}
-	if indirect {
-		// Adding comment.
-		if len(line.Suffix) == 0 {
-			// New comment.
-			line.Suffix = []modfile.Comment{{Token: "// indirect", Suffix: true}}
-			return
-		}
-
-		com := &line.Suffix[0]
-		text := strings.TrimSpace(strings.TrimPrefix(com.Token, string(slashSlash)))
-		if text == "" {
-			// Empty comment.
-			com.Token = "// indirect"
-			return
-		}
-
-		// Insert at beginning of existing comment.
-		com.Token = "// indirect; " + text
-		return
-	}
-
-	// Removing comment.
-	f := strings.TrimSpace(strings.TrimPrefix(line.Suffix[0].Token, string(slashSlash)))
-	if f == "indirect" {
-		// Remove whole comment.
-		line.Suffix = nil
-		return
-	}
-
-	// Remove comment prefix.
-	com := &line.Suffix[0]
-	i := strings.Index(com.Token, "indirect;")
-	com.Token = "//" + com.Token[i+len("indirect;"):]
-}
-
 // isIndirect reports whether line has a "// indirect" comment,
 // meaning it is in go.mod only for its effect on indirect dependencies,
 // so that it can be dropped entirely once the effective version of the

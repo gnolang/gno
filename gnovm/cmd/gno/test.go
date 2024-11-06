@@ -22,6 +22,7 @@ import (
 	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
 	"github.com/gnolang/gno/gnovm/pkg/gnomod"
+	"github.com/gnolang/gno/gnovm/pkg/load"
 	"github.com/gnolang/gno/gnovm/tests"
 	teststd "github.com/gnolang/gno/gnovm/tests/stdlibs/std"
 	"github.com/gnolang/gno/tm2/pkg/commands"
@@ -171,7 +172,7 @@ func execTest(cfg *testCfg, args []string, io commands.IO) error {
 		cfg.rootDir = gnoenv.RootDir()
 	}
 
-	paths, err := targetsFromPatterns(args)
+	paths, err := load.TargetsFromPatterns(args)
 	if err != nil {
 		return fmt.Errorf("list targets from patterns: %w", err)
 	}

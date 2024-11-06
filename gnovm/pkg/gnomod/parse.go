@@ -181,7 +181,7 @@ func (f *File) add(errs *modfile.ErrorList, block *modfile.LineBlock, line *modf
 		f.Module.Mod = module.Version{Path: s}
 
 	case "require":
-		errorf("require is not supported by gno")
+		// ignore requires as it's not supported by gno
 		return
 
 	case "replace":

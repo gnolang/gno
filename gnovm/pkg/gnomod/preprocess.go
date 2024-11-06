@@ -3,7 +3,6 @@ package gnomod
 import (
 	"golang.org/x/mod/modfile"
 	"golang.org/x/mod/module"
-	"golang.org/x/mod/semver"
 )
 
 func removeDups(syntax *modfile.FileSyntax, replace *[]*modfile.Replace) {
@@ -11,36 +10,6 @@ func removeDups(syntax *modfile.FileSyntax, replace *[]*modfile.Replace) {
 		purged := removeReplaceDups(replace)
 		cleanSyntaxTree(syntax, purged)
 	}
-}
-
-// removeRequireDups removes duplicate requirements.
-// Requirements with higher version takes priority.
-func removeRequireDups(require *[]*modfile.Require) map[*modfile.Line]bool {
-	purge := make(map[*modfile.Line]bool)
-
-	keepRequire := make(map[string]string)
-	for _, r := range *require {
-		if v, ok := keepRequire[r.Mod.Path]; ok {
-			if semver.Compare(r.Mod.Version, v) == 1 {
-				keepRequire[r.Mod.Path] = r.Mod.Version
-			}
-			continue
-		}
-		keepRequire[r.Mod.Path] = r.Mod.Version
-	}
-	var req []*modfile.Require
-	added := make(map[string]bool)
-	for _, r := range *require {
-		if v, ok := keepRequire[r.Mod.Path]; ok && !added[r.Mod.Path] && v == r.Mod.Version {
-			req = append(req, r)
-			added[r.Mod.Path] = true
-			continue
-		}
-		purge[r.Syntax] = true
-	}
-	*require = req
-
-	return purge
 }
 
 // removeReplaceDups removes duplicate replacements.

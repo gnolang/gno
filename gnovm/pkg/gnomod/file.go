@@ -82,14 +82,14 @@ func (f *File) Validate() error {
 	return nil
 }
 
-// Resolve takes a Require directive from File and returns any adequate replacement
+// Resolve takes a module version and returns any adequate replacement
 // following the Replace directives.
-func (f *File) Resolve(r *modfile.Require) module.Version {
-	mod, replaced := isReplaced(r.Mod, f.Replace)
+func (f *File) Resolve(m module.Version) module.Version {
+	mod, replaced := isReplaced(m, f.Replace)
 	if replaced {
 		return mod
 	}
-	return r.Mod
+	return m
 }
 
 // writes file to the given absolute file path

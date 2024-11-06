@@ -742,9 +742,6 @@ func (pl *pkgsLoader) LoadPackage(modroot string, path, name string) error {
 			// Override package info with mod infos
 			currentPkg.Name = gm.Module.Mod.Path
 			currentPkg.Draft = gm.Draft
-			for _, req := range gm.Require {
-				currentPkg.Requires = append(currentPkg.Requires, req.Mod.Path)
-			}
 		}
 
 		if currentPkg.Draft {
@@ -755,12 +752,6 @@ func (pl *pkgsLoader) LoadPackage(modroot string, path, name string) error {
 			continue
 		}
 		pl.add(currentPkg)
-
-		// Add requirements to the queue
-		for _, pkgPath := range currentPkg.Requires {
-			fullPath := filepath.Join(modroot, pkgPath)
-			queue = append(queue, gnomod.Pkg{Dir: fullPath})
-		}
 	}
 
 	return nil

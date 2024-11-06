@@ -179,17 +179,6 @@ func execModDownload(cfg *modDownloadCfg, args []string, io commands.IO) error {
 	// fetch dependencies
 	panic("not implemented")
 
-	gomod, err := gnomod.GnoToGoMod(*gnoMod)
-	if err != nil {
-		return fmt.Errorf("sanitize: %w", err)
-	}
-
-	// write go.mod file
-	err = gomod.Write(filepath.Join(path, "go.mod"))
-	if err != nil {
-		return fmt.Errorf("write go.mod file: %w", err)
-	}
-
 	return nil
 }
 
