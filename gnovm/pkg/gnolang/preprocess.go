@@ -2521,10 +2521,19 @@ func parseMultipleAssignFromOneExpr(
 
 	for i := 0; i < numNames; i++ {
 		if st != nil {
-			sts[i] = st
+			tt := tuple.Elts[i]
+			if tt.String() != st.String() {
+				panic(
+					fmt.Sprintf(
+						"cannot use %v (value of type %s) as %s value in assignment",
+						valueExpr.String(),
+						tt.String(),
+						st.String(),
+					),
+				)
+			}
 
-			// Convert if const to nt.
-			checkOrConvertType(store, bn, &valueExpr, st, false)
+			sts[i] = st
 		} else {
 			// Set types as return types.
 			sts[i] = tuple.Elts[i]
