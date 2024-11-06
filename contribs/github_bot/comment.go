@@ -214,7 +214,7 @@ func handleCommentUpdate(gh *client.GitHub) {
 	// Update comment with username
 	if edited != "" {
 		gh.SetBotComment(edited, int(num))
-		gh.Logger.Debugf("Comment manual checks updated successfuly")
+		gh.Logger.Debugf("Comment manual checks updated successfully")
 	}
 }
 
