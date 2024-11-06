@@ -47,7 +47,7 @@ func newTxCounter(txInt int64, msgInts ...int64) std.Tx {
 	msgs := make([]std.Msg, len(msgInts))
 
 	for i, msgInt := range msgInts {
-		msgs[i] = msgCounter{msgInt, false}
+		msgs[i] = msgCounter{Counter: msgInt, FailOnHandler: false}
 	}
 
 	tx := std.Tx{Msgs: msgs}
@@ -120,13 +120,13 @@ func TestLoadVersion(t *testing.T) {
 	header := &bft.Header{ChainID: "test-chain", Height: 1}
 	app.BeginBlock(abci.RequestBeginBlock{Header: header})
 	res := app.Commit()
-	commitID1 := store.CommitID{1, res.Data}
+	commitID1 := store.CommitID{Version: 1, Hash: res.Data}
 
 	// execute a block, collect commit ID
 	header = &bft.Header{ChainID: "test-chain", Height: 2}
 	app.BeginBlock(abci.RequestBeginBlock{Header: header})
 	res = app.Commit()
-	commitID2 := store.CommitID{2, res.Data}
+	commitID2 := store.CommitID{Version: 2, Hash: res.Data}
 
 	// reload with LoadLatestVersion
 	app = newBaseApp(name, db, pruningOpt)
@@ -184,7 +184,7 @@ func TestLoadVersionInvalid(t *testing.T) {
 	header := &bft.Header{ChainID: "test-chain", Height: 1}
 	app.BeginBlock(abci.RequestBeginBlock{Header: header})
 	res := app.Commit()
-	commitID1 := store.CommitID{1, res.Data}
+	commitID1 := store.CommitID{Version: 1, Hash: res.Data}
 
 	// create a new app with the stores mounted under the same cap key
 	app = newBaseApp(name, db, pruningOpt)
@@ -439,7 +439,7 @@ func setCounter(tx *Tx, counter int64) {
 
 func setFailOnHandler(tx *Tx, fail bool) {
 	for i, msg := range tx.Msgs {
-		tx.Msgs[i] = msgCounter{msg.(msgCounter).Counter, fail}
+		tx.Msgs[i] = msgCounter{Counter: msg.(msgCounter).Counter, FailOnHandler: fail}
 	}
 }
 
@@ -676,8 +676,8 @@ func TestMultiMsgDeliverTx(t *testing.T) {
 	// replace the second message with a msgCounter2
 
 	tx = newTxCounter(1, 3)
-	tx.Msgs = append(tx.Msgs, msgCounter2{0})
-	tx.Msgs = append(tx.Msgs, msgCounter2{1})
+	tx.Msgs = append(tx.Msgs, msgCounter2{Counter: 0})
+	tx.Msgs = append(tx.Msgs, msgCounter2{Counter: 1})
 	txBytes, err = amino.Marshal(tx)
 	require.NoError(t, err)
 	res = app.DeliverTx(abci.RequestDeliverTx{Tx: txBytes})

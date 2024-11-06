@@ -47,8 +47,8 @@ var (
 		MUL_ASSIGN:      isNumeric,
 		QUO_ASSIGN:      isNumeric,
 		REM_ASSIGN:      isIntNum,
-		SHL_ASSIGN:      isNumeric,
-		SHR_ASSIGN:      isNumeric,
+		SHL_ASSIGN:      isIntNum,
+		SHR_ASSIGN:      isIntNum,
 		BAND_ASSIGN:     isIntNum,
 		XOR_ASSIGN:      isIntNum,
 		BOR_ASSIGN:      isIntNum,
@@ -583,10 +583,73 @@ func checkAssignableTo(xt, dt Type, autoNative bool) error {
 }
 
 // ===========================================================
-func (x *BinaryExpr) checkShiftLhs(dt Type) {
+// this check happens while trans_leave binary expression.
+// it checks if type of RHS is valid.
+// Check part of the LHS to ensure it is of a numeric type.
+// More stringent checks will be performed in the subsequent stage in
+// assertShiftExprCompatible2.
+func (x *BinaryExpr) assertShiftExprCompatible1(store Store, last BlockNode, lt, rt Type) {
+	// check rhs type
+	if rt == nil {
+		panic(fmt.Sprintf("cannot convert %v to type uint", x.Right))
+	}
+
+	lcx, lic := x.Left.(*ConstExpr)
+	_, ric := x.Right.(*ConstExpr)
+	// step1, check RHS type
+	// special case when rhs is not integer
+	if !isNumeric(rt) {
+		panic(fmt.Sprintf("cannot convert %v to type uint", x.Right))
+	}
+	if !isIntNum(rt) {
+		var isIntValue bool
+		// special case for num like 1.0, it will be converted to uint later
+		if ric {
+			rv := evalConst(store, last, x.Right)
+			if bd, ok := rv.V.(BigdecValue); ok {
+				if isInteger(bd.V) {
+					isIntValue = true
+				}
+			}
+		}
+		if !isIntValue {
+			panic(fmt.Sprintf("invalid operation: invalid shift count: %v", x.Right))
+		}
+	} else if ric { // is integer, check negative
+		rv := evalConst(store, last, x.Right)
+		if rv.Sign() < 0 {
+			panic(fmt.Sprintf("invalid operation: negative shift count: %v", x.Right))
+		}
+	}
+
+	// step2, check lhs type
 	if checker, ok := binaryChecker[x.Op]; ok {
-		if !checker(dt) {
-			panic(fmt.Sprintf("operator %s not defined on: %v", x.Op.TokenString(), kindString(dt)))
+		if checker(lt) { // check pass
+			return
+		}
+		// special case for 1.0
+		if lt == UntypedBigdecType {
+			// 1.0 << 1
+			if lic && ric {
+				convertConst(store, last, lcx, UntypedBigintType)
+				return
+			}
+		}
+		// not const, e.g. 1.0 << x, see types/shift_d5.gno
+		if isNumeric(lt) {
+			return
+		}
+		panic(fmt.Sprintf("operator %s not defined on: %v", x.Op.TokenString(), kindString(lt)))
+	}
+	panic(fmt.Sprintf("checker for %s does not exist", x.Op))
+}
+
+// used in checkOrConvertType, only check lhs type
+func (x *BinaryExpr) assertShiftExprCompatible2(t Type) {
+	// check lhs type
+	if checker, ok := binaryChecker[x.Op]; ok {
+		if !checker(t) {
+			panic(fmt.Sprintf("operator %s not defined on: %v", x.Op.TokenString(), kindString(t)))
 		}
 	} else {
 		panic(fmt.Sprintf("checker for %s does not exist", x.Op))
@@ -654,7 +717,7 @@ func (x *BinaryExpr) AssertCompatible(lt, rt Type) {
 			// special case of zero divisor
 			if isQuoOrRem(x.Op) {
 				if rcx, ok := x.Right.(*ConstExpr); ok {
-					if rcx.TypedValue.isZero() {
+					if rcx.TypedValue.Sign() == 0 {
 						panic("invalid operation: division by zero")
 					}
 				}
@@ -792,8 +855,8 @@ func (x *AssignStmt) AssertCompatible(store Store, last BlockNode) {
 				if x.Op == ASSIGN {
 					// check assignable
 					for i, lx := range x.Lhs {
+						assertValidAssignLhs(store, last, lx)
 						if !isBlankIdentifier(lx) {
-							assertValidAssignLhs(store, last, lx)
 							lxt := evalStaticTypeOf(store, last, lx)
 							assertAssignableTo(cft.Results[i].Type, lxt, false)
 						}
@@ -805,15 +868,16 @@ func (x *AssignStmt) AssertCompatible(store Store, last BlockNode) {
 					panic("should not happen")
 				}
 				if x.Op == ASSIGN {
-					// check assignable to first value
+					// check first value
+					assertValidAssignLhs(store, last, x.Lhs[0])
 					if !isBlankIdentifier(x.Lhs[0]) { // see composite3.gno
-						assertValidAssignLhs(store, last, x.Lhs[0])
 						dt := evalStaticTypeOf(store, last, x.Lhs[0])
 						ift := evalStaticTypeOf(store, last, cx)
 						assertAssignableTo(ift, dt, false)
 					}
+					// check second value
+					assertValidAssignLhs(store, last, x.Lhs[1])
 					if !isBlankIdentifier(x.Lhs[1]) { // see composite3.gno
-						assertValidAssignLhs(store, last, x.Lhs[1])
 						dt := evalStaticTypeOf(store, last, x.Lhs[1])
 						if dt.Kind() != BoolKind { // typed, not bool
 							panic(fmt.Sprintf("want bool type got %v", dt))
@@ -826,8 +890,8 @@ func (x *AssignStmt) AssertCompatible(store Store, last BlockNode) {
 					panic("should not happen")
 				}
 				if x.Op == ASSIGN {
+					assertValidAssignLhs(store, last, x.Lhs[0])
 					if !isBlankIdentifier(x.Lhs[0]) {
-						assertValidAssignLhs(store, last, x.Lhs[0])
 						lt := evalStaticTypeOf(store, last, x.Lhs[0])
 						if _, ok := cx.X.(*NameExpr); ok {
 							rt := evalStaticTypeOf(store, last, cx.X)
@@ -843,8 +907,9 @@ func (x *AssignStmt) AssertCompatible(store Store, last BlockNode) {
 							}
 						}
 					}
+
+					assertValidAssignLhs(store, last, x.Lhs[1])
 					if !isBlankIdentifier(x.Lhs[1]) {
-						assertValidAssignLhs(store, last, x.Lhs[1])
 						dt := evalStaticTypeOf(store, last, x.Lhs[1])
 						if dt != nil && dt.Kind() != BoolKind { // typed, not bool
 							panic(fmt.Sprintf("want bool type got %v", dt))
@@ -870,30 +935,38 @@ func (x *AssignStmt) AssertCompatible(store Store, last BlockNode) {
 			panic("assignment operator " + x.Op.TokenString() +
 				" requires only one expression on lhs and rhs")
 		}
-		for i, lx := range x.Lhs {
-			lt := evalStaticTypeOf(store, last, lx)
-			rt := evalStaticTypeOf(store, last, x.Rhs[i])
+		lt := evalStaticTypeOf(store, last, x.Lhs[0])
+		rt := evalStaticTypeOf(store, last, x.Rhs[0])
 
-			if checker, ok := AssignStmtChecker[x.Op]; ok {
-				if !checker(lt) {
-					panic(fmt.Sprintf("operator %s not defined on: %v", x.Op.TokenString(), kindString(lt)))
-				}
-				switch x.Op {
-				case ADD_ASSIGN, SUB_ASSIGN, MUL_ASSIGN, QUO_ASSIGN, REM_ASSIGN, BAND_ASSIGN, BOR_ASSIGN, BAND_NOT_ASSIGN, XOR_ASSIGN:
-					// check when both typed
-					if !isUntyped(lt) && !isUntyped(rt) { // in this stage, lt or rt maybe untyped, not converted yet
-						if lt != nil && rt != nil {
-							if lt.TypeID() != rt.TypeID() {
-								panic(fmt.Sprintf("invalid operation: mismatched types %v and %v", lt, rt))
-							}
+		if checker, ok := AssignStmtChecker[x.Op]; ok {
+			if !checker(lt) {
+				panic(fmt.Sprintf("operator %s not defined on: %v", x.Op.TokenString(), kindString(lt)))
+			}
+			switch x.Op {
+			case ADD_ASSIGN, SUB_ASSIGN, MUL_ASSIGN, QUO_ASSIGN, REM_ASSIGN, BAND_ASSIGN, BOR_ASSIGN, BAND_NOT_ASSIGN, XOR_ASSIGN:
+				// check when both typed
+				if !isUntyped(lt) && !isUntyped(rt) { // in this stage, lt or rt maybe untyped, not converted yet
+					if lt != nil && rt != nil {
+						if lt.TypeID() != rt.TypeID() {
+							panic(fmt.Sprintf("invalid operation: mismatched types %v and %v", lt, rt))
 						}
 					}
-				default:
-					// do nothing
 				}
-			} else {
-				panic(fmt.Sprintf("checker for %s does not exist", x.Op))
+			case SHL_ASSIGN, SHR_ASSIGN:
+				if !isIntNum(rt) {
+					panic(fmt.Sprintf("invalid operation: invalid shift count: %v", x.Rhs[0]))
+				}
+				_, ric := x.Rhs[0].(*ConstExpr)
+				// check negative
+				if ric {
+					rv := evalConst(store, last, x.Rhs[0])
+					rv.AssertNonNegative("invalid operation: negative shift count")
+				}
+			default:
+				// do nothing
 			}
+		} else {
+			panic(fmt.Sprintf("checker for %s does not exist", x.Op))
 		}
 	}
 }
@@ -902,7 +975,17 @@ func (x *AssignStmt) AssertCompatible(store Store, last BlockNode) {
 func assertValidAssignLhs(store Store, last BlockNode, lx Expr) {
 	shouldPanic := true
 	switch clx := lx.(type) {
-	case *NameExpr, *StarExpr, *SelectorExpr:
+	case *NameExpr:
+		if clx.Name == blankIdentifier {
+			shouldPanic = false
+		} else if clx.Path.Type == VPUverse {
+			panic(fmt.Sprintf("cannot assign to uverse %v", clx.Name))
+		} else if last.GetIsConst(store, clx.Name) {
+			panic(fmt.Sprintf("cannot assign to const %v", clx.Name))
+		} else {
+			shouldPanic = false
+		}
+	case *StarExpr, *SelectorExpr:
 		shouldPanic = false
 	case *IndexExpr:
 		xt := evalStaticTypeOf(store, last, clx.X)
@@ -946,7 +1029,7 @@ func isComparison(op Word) bool {
 // it returns true, indicating a swap is needed.
 func shouldSwapOnSpecificity(t1, t2 Type) bool {
 	// check nil
-	if t1 == nil { // see test file 0f46
+	if t1 == nil {
 		return false // also with both nil
 	} else if t2 == nil {
 		return true
@@ -985,7 +1068,7 @@ func shouldSwapOnSpecificity(t1, t2 Type) bool {
 
 func isBlankIdentifier(x Expr) bool {
 	if nx, ok := x.(*NameExpr); ok {
-		return nx.Name == "_"
+		return nx.Name == blankIdentifier
 	}
 	return false
 }

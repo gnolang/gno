@@ -86,8 +86,8 @@ func Render(path string) string {
 
 	output := `# 👊  ✋  ✌️  Shifumi
 Actions:
-* [NewGame](shifumi?help&__func=NewGame) opponentAddress
-* [Play](shifumi?help&__func=Play) gameIndex move (1=rock, 2=paper, 3=scissors)
+* [NewGame](shifumi$help&func=NewGame) opponentAddress
+* [Play](shifumi$help&func=Play) gameIndex move (1=rock, 2=paper, 3=scissors)
 
  game  | player1 |     | player2 |       | win 
  --- | --- | --- | --- | --- | ---
