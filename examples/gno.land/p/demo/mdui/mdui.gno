@@ -52,8 +52,8 @@ func (b *Builder) AddDivider() *Builder {
 }
 
 // AddList adds a list (ordered or unordered) to the Builder
-func (b *Builder) AddList(items []string, ordered bool) *Builder {
-	list := List(items, ordered)
+func (b *Builder) AddList(items []string, hrefs []string, ordered bool) *Builder {
+	list := List(items, hrefs, ordered)
 	b.elements = append(b.elements, list)
 	return b
 }
@@ -255,14 +255,22 @@ func Quote(text string) string {
 	return "> " + text + "\n"
 }
 
-// List generates a Markdown list (ordered or unordered)
-func List(items []string, ordered bool) string {
+// List generates a Markdown list (ordered or unordered) with each item optionally as a link
+func List(items []string, hrefs []string, ordered bool) string {
 	list := ""
 	for i, item := range items {
-		if ordered {
-			list += strconv.Itoa(i+1) + ". " + item + "\n"
+		var listItem string
+		if i < len(hrefs) && hrefs[i] != "" {
+			// Create a link if an href is available
+			listItem = "[" + item + "](" + hrefs[i] + ")"
 		} else {
-			list += "- " + item + "\n"
+			// Use plain text if no corresponding href
+			listItem = item
+		}
+		if ordered {
+			list += strconv.Itoa(i+1) + ". " + listItem + "\n"
+		} else {
+			list += "- " + listItem + "\n"
 		}
 	}
 	return list
@@ -298,7 +306,7 @@ func Strikethrough(text string) string {
 	return "~~" + text + "~~"
 }
 
-// Alert creates a Markdown-styled alert block with a specified type (info, warning, danger)
+// Alert creates a Markdown-styled alert block with a specified type or custom prefix
 func Alert(content, alertType string) string {
 	var prefix string
 	switch alertType {
@@ -308,8 +316,10 @@ func Alert(content, alertType string) string {
 		prefix = "**⚠️ Warning:** " // Warning icon
 	case "danger":
 		prefix = "**❌ Danger:** " // Danger icon
+	case "success":
+		prefix = "**✅ Success:** " // Success icon
 	default:
-		prefix = "**ℹ️ Info:** " // Default to info icon
+		prefix = "**" + strings.Title(alertType) + ":** " // Custom prefix based on type
 	}
 	return "> " + prefix + content + "\n"
 }
@@ -349,12 +359,22 @@ func Emoji(name string) string {
 		"smile":     "😊",
 		"heart":     "❤️",
 		"thumbs_up": "👍",
-		// Add more emoji mappings as needed
+		"star":      "⭐",
+		"fire":      "🔥",
+		"check":     "✔️",
+		"cross":     "❌",
+		"warning":   "⚠️",
+		"info":      "ℹ️",
+		"sun":       "☀️",
+		"moon":      "🌙",
+		"rocket":    "🚀",
+		// Add additional emojis as needed
 	}
 	if emoji, exists := emojiMap[name]; exists {
 		return emoji
 	}
-	return name
+	// If emoji is not found, return the name itself as a fallback
+	return ":" + name + ":"
 }
 
 // BlockquoteWithCitation generates a Markdown blockquote with an optional citation
