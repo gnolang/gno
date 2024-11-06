@@ -2522,7 +2522,8 @@ func parseMultipleAssignFromOneExpr(
 	for i := 0; i < numNames; i++ {
 		if st != nil {
 			tt := tuple.Elts[i]
-			if tt.String() != st.String() {
+
+			if tt.Kind() != st.Kind() {
 				panic(
 					fmt.Sprintf(
 						"cannot use %v (value of type %s) as %s value in assignment",
