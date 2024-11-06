@@ -5,7 +5,7 @@ import (
 	crossrealm "gno.land/r/demo/tests/crossrealm"
 )
 
-var b0 crossrealm.Bar
+var b0 crossrealm.Bar // run declarations
 
 func init() {
 	b0 = crossrealm.Bar{A: 1}

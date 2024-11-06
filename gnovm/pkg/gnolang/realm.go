@@ -465,24 +465,25 @@ func (rlm *Realm) FinalizeRealmTransaction(readonly bool, store Store) {
 // and get assigned ids.
 func (rlm *Realm) processNewCreatedMarks(store Store) {
 	fmt.Println("---processNewCreatedMarks---")
+	fmt.Println("---len of newCreated objects:", len(rlm.newCreated))
 	// Create new objects and their new descendants.
 	//for _, oo := range rlm.newCreated {
 	for i := 0; i < len(rlm.newCreated); i++ {
 		oo := rlm.newCreated[i]
 		fmt.Printf("---oo[%d] is %v:\n", i, oo)
 		// TODO: here check embedded object cross
-		more := getChildObjects2(store, oo)
-		fmt.Println("---children of oo: ", more)
-		fmt.Println("---len of children: ", len(more))
-		for i, c := range more {
-			fmt.Printf("[%d] of children is: %v\n", i, c)
-			//fmt.Printf("---%p\n", c)
-			if c.GetIsCrossRealm() {
-				panic("---cross realm")
-			} else {
-				println("---not cross realm")
-			}
-		}
+		//more := getChildObjects2(store, oo)
+		//fmt.Println("---children of oo: ", more)
+		//fmt.Println("---len of children: ", len(more))
+		//for i, c := range more {
+		//	fmt.Printf("[%d] of children is: %v\n", i, c)
+		//	//fmt.Printf("---%p\n", c)
+		//	if c.GetIsCrossRealm() {
+		//		panic("---cross realm")
+		//	} else {
+		//		println("---not cross realm")
+		//	}
+		//}
 		fmt.Println("---processNewCreatedMarks, oo.GetRefCount(): ", oo.GetRefCount())
 		if oo.GetIsCrossRealm() {
 			fmt.Println("---should not attach value with type defined in other realm")
@@ -516,7 +517,7 @@ func (rlm *Realm) processNewCreatedMarks(store Store) {
 // oo must be marked new-real, and ref-count already incremented.
 func (rlm *Realm) incRefCreatedDescendants(store Store, oo Object) {
 	fmt.Println("---incRefCreatedDescendants from oo: ", oo)
-	fmt.Println("---incRefCreatedDescendants---, oo.GetObjectID: ", oo.GetObjectID())
+	fmt.Println("---incRefCreatedDescendants, oo.GetObjectID: ", oo.GetObjectID())
 	if debug {
 		if oo.GetIsDirty() {
 			panic("cannot increase reference of descendants of dirty objects")
@@ -539,7 +540,7 @@ func (rlm *Realm) incRefCreatedDescendants(store Store, oo Object) {
 
 	// recurse for children.
 	more := getChildObjects2(store, oo)
-	fmt.Println("---incRefCreatedDescendants, more: ", more)
+	//fmt.Println("---incRefCreatedDescendants, more: ", more)
 	fmt.Println("---len of  more: ", len(more))
 	for i, child := range more {
 		fmt.Printf("---[%d]child: %v, type of child: %v \n", i, child, reflect.TypeOf(child))
@@ -557,7 +558,6 @@ func (rlm *Realm) incRefCreatedDescendants(store Store, oo Object) {
 		rc := child.GetRefCount()
 		fmt.Println("---rc after inc: ", rc)
 		if rc == 1 {
-			fmt.Println("---rc == 1")
 			if child.GetIsReal() {
 				fmt.Println("---child is real, child: ", child)
 				// a deleted real became undeleted.
@@ -569,6 +569,8 @@ func (rlm *Realm) incRefCreatedDescendants(store Store, oo Object) {
 				// became real (again).
 				// NOTE: may already be marked for first gen
 				// newCreated or updated.
+				//fmt.Println("---Set owner to be: ", oo)
+				println("---set owner")
 				child.SetOwner(oo)
 				rlm.incRefCreatedDescendants(store, child)
 				child.SetIsNewReal(true)
@@ -964,7 +966,7 @@ func (rlm *Realm) clearMarks() {
 // Value is either Object or RefValue.
 // Shallow; doesn't recurse into objects.
 func getSelfOrChildObjects(val Value, more []Value) []Value {
-	fmt.Println("---getSelfOrChildObjects, val: ", val)
+	//fmt.Println("---getSelfOrChildObjects, val: ", val)
 	if _, ok := val.(RefValue); ok {
 		//println("---ref value")
 		return append(more, val)
@@ -979,7 +981,7 @@ func getSelfOrChildObjects(val Value, more []Value) []Value {
 // Gets child objects.
 // Shallow; doesn't recurse into objects.
 func getChildObjects(val Value, more []Value) []Value {
-	fmt.Println("---getChildObjects, val: ", val, reflect.TypeOf(val))
+	//fmt.Println("---getChildObjects, val: ", val, reflect.TypeOf(val))
 	switch cv := val.(type) {
 	case nil:
 		return more
@@ -1006,10 +1008,10 @@ func getChildObjects(val Value, more []Value) []Value {
 		more = getSelfOrChildObjects(cv.Base, more)
 		return more
 	case *StructValue:
-		println("---struct value")
+		//println("---struct value")
 		for _, ctv := range cv.Fields {
 			// TODO: we have type infos here, so check check cross realm logic
-			fmt.Println("---ctv: ", ctv)
+			//fmt.Println("---ctv: ", ctv)
 			more = getSelfOrChildObjects(ctv.V, more)
 		}
 		return more
@@ -1059,9 +1061,9 @@ func getChildObjects(val Value, more []Value) []Value {
 
 // like getChildObjects() but loads RefValues into objects.
 func getChildObjects2(store Store, val Value) []Object {
-	fmt.Println("---getChildObjects2, val: ", val)
+	//fmt.Println("---getChildObjects2, val: ", val)
 	chos := getChildObjects(val, nil)
-	fmt.Println("---chos: ", chos)
+	//fmt.Println("---chos: ", chos)
 	objs := make([]Object, 0, len(chos))
 	for _, child := range chos {
 		if ref, ok := child.(RefValue); ok {

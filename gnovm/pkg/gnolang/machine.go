@@ -287,6 +287,8 @@ func (m *Machine) RunMemPackageWithOverrides(memPkg *std.MemPackage, save bool) 
 
 func (m *Machine) runMemPackage(memPkg *std.MemPackage, save, overrides bool) (*PackageNode, *PackageValue) {
 	fmt.Println("---runMemPackage, save: ", save)
+	fmt.Println("---runMemPackage, memPkg: ", memPkg)
+	defer func() { fmt.Println("---done runMemPackage: ", memPkg) }()
 	// parse files.
 	files := ParseMemPackage(memPkg)
 	if !overrides && checkDuplicates(files) {
@@ -976,6 +978,7 @@ func (m *Machine) RunDeclaration(d Decl) {
 // package level, for which evaluations happen during
 // preprocessing).
 func (m *Machine) runDeclaration(d Decl) {
+	fmt.Println("---run declaration, d: ", d)
 	switch d := d.(type) {
 	case *FuncDecl:
 		// nothing to do.
