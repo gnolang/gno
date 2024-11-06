@@ -162,8 +162,8 @@ Welcome to Dice Roller! Challenge your friends to a simple yet exciting dice rol
 ---
 
 ## **How to Play**:
-1. **Create a game**: Challenge an opponent using [NewGame](./dice_roller?help&__func=NewGame)
-2. **Roll the dice**: Play your turn by rolling a dice using [Play](./dice_roller?help&__func=Play)
+1. **Create a game**: Challenge an opponent using [NewGame](./dice_roller$help&func=NewGame)
+2. **Roll the dice**: Play your turn by rolling a dice using [Play](./dice_roller$help&func=Play)
 
 ---
 
