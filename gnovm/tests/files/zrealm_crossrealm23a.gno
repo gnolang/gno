@@ -16,6 +16,4 @@ func main() {
 }
 
 // XXX, this works, attach reference with type defined in p
-
-// Output:
-//.
+// Attach pointer?
