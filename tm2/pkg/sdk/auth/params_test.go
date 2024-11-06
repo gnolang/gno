@@ -1,6 +1,7 @@
 package auth
 
 import (
+	"reflect"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -64,5 +65,43 @@ func TestValidate(t *testing.T) {
 				require.NoError(t, err)
 			}
 		})
+	}
+}
+
+func TestNewParams(t *testing.T) {
+	// Define expected values for each parameter
+	maxMemoBytes := int64(256)
+	txSigLimit := int64(10)
+	txSizeCostPerByte := int64(5)
+	sigVerifyCostED25519 := int64(100)
+	sigVerifyCostSecp256k1 := int64(200)
+	gasPricesChangeCompressor := int64(50)
+	targetGasRatio := int64(75)
+
+	// Call NewParams with the values
+	params := NewParams(
+		maxMemoBytes,
+		txSigLimit,
+		txSizeCostPerByte,
+		sigVerifyCostED25519,
+		sigVerifyCostSecp256k1,
+		gasPricesChangeCompressor,
+		targetGasRatio,
+	)
+
+	// Create an expected Params struct with the same values
+	expectedParams := Params{
+		MaxMemoBytes:              maxMemoBytes,
+		TxSigLimit:                txSigLimit,
+		TxSizeCostPerByte:         txSizeCostPerByte,
+		SigVerifyCostED25519:      sigVerifyCostED25519,
+		SigVerifyCostSecp256k1:    sigVerifyCostSecp256k1,
+		GasPricesChangeCompressor: gasPricesChangeCompressor,
+		TargetGasRatio:            targetGasRatio,
+	}
+
+	// Check if the returned params struct matches the expected struct
+	if !reflect.DeepEqual(params, expectedParams) {
+		t.Errorf("NewParams() = %+v, want %+v", params, expectedParams)
 	}
 }
