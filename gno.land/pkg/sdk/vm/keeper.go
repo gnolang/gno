@@ -7,7 +7,6 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
-	"os"
 	"path/filepath"
 	"regexp"
 	"strings"
@@ -108,7 +107,6 @@ func (vm *VMKeeper) Initialize(
 		m2 := gno.NewMachineWithOptions(
 			gno.MachineOptions{
 				PkgPath: "",
-				Output:  os.Stdout, // XXX
 				Store:   vm.gnoStore,
 			})
 		defer m2.Release()
@@ -191,8 +189,7 @@ func loadStdlibPackage(pkgPath, stdlibDir string, store gno.Store) {
 	m := gno.NewMachineWithOptions(gno.MachineOptions{
 		PkgPath: "gno.land/r/stdlibs/" + pkgPath,
 		// PkgPath: pkgPath, XXX why?
-		Output: os.Stdout,
-		Store:  store,
+		Store: store,
 	})
 	defer m.Release()
 	m.RunMemPackage(memPkg, true)
@@ -275,7 +272,6 @@ func (vm *VMKeeper) checkNamespacePermission(ctx sdk.Context, creator crypto.Add
 	m := gno.NewMachineWithOptions(
 		gno.MachineOptions{
 			PkgPath:  "",
-			Output:   os.Stdout, // XXX
 			Store:    store,
 			Context:  msgCtx,
 			Alloc:    store.GetAllocator(),
@@ -376,7 +372,6 @@ func (vm *VMKeeper) AddPackage(ctx sdk.Context, msg MsgAddPackage) (err error) {
 	m2 := gno.NewMachineWithOptions(
 		gno.MachineOptions{
 			PkgPath:  "",
-			Output:   os.Stdout, // XXX
 			Store:    gnostore,
 			Alloc:    gnostore.GetAllocator(),
 			Context:  msgCtx,
@@ -477,7 +472,6 @@ func (vm *VMKeeper) Call(ctx sdk.Context, msg MsgCall) (res string, err error) {
 	m := gno.NewMachineWithOptions(
 		gno.MachineOptions{
 			PkgPath:  "",
-			Output:   os.Stdout, // XXX
 			Store:    gnostore,
 			Context:  msgCtx,
 			Alloc:    gnostore.GetAllocator(),
@@ -735,7 +729,6 @@ func (vm *VMKeeper) QueryEval(ctx sdk.Context, pkgPath string, expr string) (res
 	m := gno.NewMachineWithOptions(
 		gno.MachineOptions{
 			PkgPath:  pkgPath,
-			Output:   os.Stdout, // XXX
 			Store:    gnostore,
 			Context:  msgCtx,
 			Alloc:    alloc,
@@ -802,7 +795,6 @@ func (vm *VMKeeper) QueryEvalString(ctx sdk.Context, pkgPath string, expr string
 	m := gno.NewMachineWithOptions(
 		gno.MachineOptions{
 			PkgPath:  pkgPath,
-			Output:   os.Stdout, // XXX
 			Store:    gnostore,
 			Context:  msgCtx,
 			Alloc:    alloc,
