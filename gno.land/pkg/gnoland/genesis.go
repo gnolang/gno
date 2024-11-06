@@ -60,8 +60,9 @@ func LoadGenesisBalancesFile(path string) ([]Balance, error) {
 
 // LoadGenesisTxsFile loads genesis transactions from the provided file path.
 // XXX: Improve the way we generate and load this file
-func LoadGenesisTxsFile(path string, chainID string, genesisRemote string) ([]std.Tx, error) {
-	txs := []std.Tx{}
+func LoadGenesisTxsFile(path string, chainID string, genesisRemote string) ([]TxWithMetadata, error) {
+	txs := make([]TxWithMetadata, 0)
+
 	txsBz := osm.MustReadFile(path)
 	txsLines := strings.Split(string(txsBz), "\n")
 	for _, txLine := range txsLines {
@@ -73,7 +74,7 @@ func LoadGenesisTxsFile(path string, chainID string, genesisRemote string) ([]st
 		txLine = strings.ReplaceAll(txLine, "%%CHAINID%%", chainID)
 		txLine = strings.ReplaceAll(txLine, "%%REMOTE%%", genesisRemote)
 
-		var tx std.Tx
+		var tx TxWithMetadata
 		if err := amino.UnmarshalJSON([]byte(txLine), &tx); err != nil {
 			return nil, fmt.Errorf("unable to Unmarshall txs file: %w", err)
 		}
@@ -86,7 +87,7 @@ func LoadGenesisTxsFile(path string, chainID string, genesisRemote string) ([]st
 
 // LoadPackagesFromDir loads gno packages from a directory.
 // It creates and returns a list of transactions based on these packages.
-func LoadPackagesFromDir(dir string, creator bft.Address, fee std.Fee) ([]std.Tx, error) {
+func LoadPackagesFromDir(dir string, creator bft.Address, fee std.Fee) ([]TxWithMetadata, error) {
 	// list all packages from target path
 	pkgs, err := gnomod.ListPkgs(dir)
 	if err != nil {
@@ -101,14 +102,16 @@ func LoadPackagesFromDir(dir string, creator bft.Address, fee std.Fee) ([]std.Tx
 
 	// Filter out draft packages.
 	nonDraftPkgs := sortedPkgs.GetNonDraftPkgs()
-	txs := []std.Tx{}
+	txs := make([]TxWithMetadata, 0, len(nonDraftPkgs))
 	for _, pkg := range nonDraftPkgs {
 		tx, err := LoadPackage(pkg, creator, fee, nil)
 		if err != nil {
 			return nil, fmt.Errorf("unable to load package %q: %w", pkg.Dir, err)
 		}
 
-		txs = append(txs, tx)
+		txs = append(txs, TxWithMetadata{
+			Tx: tx,
+		})
 	}
 
 	return txs, nil
