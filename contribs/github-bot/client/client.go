@@ -224,12 +224,11 @@ func New(params param.Params) *GitHub {
 		DryRun: params.DryRun,
 	}
 
-	// This method will detect if the current process was launched by
-	// a GitHub Action or not and will accordingly return a logger suitable for
-	// the terminal output or for the GitHub Actions web interface
+	// Detect if the current process was launched by a GitHub Action and return
+	// a logger suitable for terminal output or the GitHub Actions web interface
 	gh.Logger = logger.NewLogger(params.Verbose)
 
-	// Create context with timeout if specified in flags
+	// Create context with timeout if specified in the parameters
 	if params.Timeout > 0 {
 		gh.Ctx, _ = context.WithTimeout(context.Background(), time.Duration(params.Timeout)*time.Millisecond)
 	} else {

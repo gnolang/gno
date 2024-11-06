@@ -21,7 +21,7 @@ type manualCheck struct {
 func config(gh *client.GitHub) ([]automaticCheck, []manualCheck) {
 	auto := []automaticCheck{
 		{
-			Description: "Changes on 'tm2' folder should be reviewed/authored by at least one member of both EU and US teams",
+			Description: "Changes to 'tm2' folder should be reviewed/authored by at least one member of both EU and US teams",
 			If: c.And(
 				c.FileChanged(gh, "tm2"),
 				c.BaseBranch("main"),
@@ -38,12 +38,12 @@ func config(gh *client.GitHub) ([]automaticCheck, []manualCheck) {
 			),
 		},
 		{
-			Description: "Maintainer must be able to edit this pull request",
+			Description: "A maintainer must be able to edit this pull request",
 			If:          c.Always(),
 			Then:        r.MaintainerCanModify(),
 		},
 		{
-			Description: "Pull request head branch must be up to date with its base",
+			Description: "The pull request head branch must be up-to-date with its base",
 			If:          c.Always(), // Or only if c.BaseBranch("main") ?
 			Then:        r.UpToDateWith(gh, r.PR_BASE),
 		},
@@ -63,7 +63,7 @@ func config(gh *client.GitHub) ([]automaticCheck, []manualCheck) {
 			Teams: []string{"tech-staff"},
 		},
 		{
-			Description: "The code style is satisfactory",
+			Description: "Ensure the code style is satisfactory",
 			If: c.And(
 				c.BaseBranch("main"),
 				c.Or(
@@ -74,7 +74,7 @@ func config(gh *client.GitHub) ([]automaticCheck, []manualCheck) {
 			Teams: []string{"tech-staff"},
 		},
 		{
-			Description: "The documentation is accurate and relevant",
+			Description: "Ensure the documentation is accurate and relevant",
 			If:          c.FileChanged(gh, `.*\.md`),
 			Teams: []string{
 				"tech-staff",
@@ -88,7 +88,7 @@ func config(gh *client.GitHub) ([]automaticCheck, []manualCheck) {
 	unique := make(map[string]struct{})
 	for _, rule := range manual {
 		if _, exists := unique[rule.Description]; exists {
-			gh.Logger.Fatalf("Manual rule description must be unique (duplicate : %s)", rule.Description)
+			gh.Logger.Fatalf("Manual rule descriptions must be unique (duplicate : %s)", rule.Description)
 		}
 		unique[rule.Description] = struct{}{}
 	}

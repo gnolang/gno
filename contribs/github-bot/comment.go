@@ -13,6 +13,8 @@ import (
 	"github.com/sethvargo/go-githubactions"
 )
 
+// These structures contain the necessary information to generate
+// the bot's comment from the template file
 type AutoContent struct {
 	Description        string
 	Satisfied          bool
@@ -25,7 +27,6 @@ type ManualContent struct {
 	CheckedBy        string
 	Teams            []string
 }
-
 type CommentContent struct {
 	AutoRules   []AutoContent
 	ManualRules []ManualContent
@@ -214,14 +215,22 @@ func handleCommentUpdate(gh *client.GitHub) {
 	// Update comment with username
 	if edited != "" {
 		gh.SetBotComment(edited, int(num))
-		gh.Logger.Debugf("Comment manual checks updated successfully")
+		gh.Logger.Debugf("Comment manual checks updated successfuly")
 	}
 }
 
 func updateComment(gh *client.GitHub, pr *github.PullRequest, content CommentContent) {
-	// Create bot comment using template file
+	// Custom function to string markdown links
+	funcMap := template.FuncMap{
+		"stripLinks": func(input string) string {
+			reg := regexp.MustCompile(`\[(.*)\]\(.*\)`)
+			return reg.ReplaceAllString(input, "$1")
+		},
+	}
+
+	// Generate bot comment using template file
 	const tmplFile = "comment.tmpl"
-	tmpl, err := template.New(tmplFile).ParseFiles(tmplFile)
+	tmpl, err := template.New(tmplFile).Funcs(funcMap).ParseFiles(tmplFile)
 	if err != nil {
 		panic(err)
 	}
@@ -231,7 +240,7 @@ func updateComment(gh *client.GitHub, pr *github.PullRequest, content CommentCon
 		panic(err)
 	}
 
-	// Create commit status
+	// Prepare commit status content
 	var (
 		comment      = gh.SetBotComment(commentBytes.String(), pr.GetNumber())
 		context      = "Merge Requirements"
@@ -244,7 +253,6 @@ func updateComment(gh *client.GitHub, pr *github.PullRequest, content CommentCon
 	// Check if every requirements are satisfied
 	for _, auto := range content.AutoRules {
 		if !auto.Satisfied {
-			gh.Logger.Infof("AUTO NOT Satisfied", auto.Description)
 			allSatisfied = false
 			break
 		}
@@ -253,7 +261,6 @@ func updateComment(gh *client.GitHub, pr *github.PullRequest, content CommentCon
 	if allSatisfied {
 		for _, manual := range content.ManualRules {
 			if manual.CheckedBy == "" {
-				gh.Logger.Infof("AUTO NOT Satisfied", manual.Description)
 				allSatisfied = false
 				break
 			}
@@ -265,8 +272,7 @@ func updateComment(gh *client.GitHub, pr *github.PullRequest, content CommentCon
 		description = "All requirements are satisfied."
 	}
 
-	gh.Logger.Infof("STATUS", state, description)
-
+	// Update or create commit status
 	if _, _, err := gh.Client.Repositories.CreateStatus(
 		gh.Ctx,
 		gh.Owner,
