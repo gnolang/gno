@@ -16,15 +16,13 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/db/memdb"
 	"github.com/gnolang/gno/tm2/pkg/events"
 	"github.com/gnolang/gno/tm2/pkg/p2p"
-	"github.com/gnolang/gno/tm2/pkg/std"
 )
 
 type InMemoryNodeConfig struct {
-	PrivValidator      bft.PrivValidator // identity of the validator
-	Genesis            *bft.GenesisDoc
-	TMConfig           *tmcfg.Config
-	GenesisMaxVMCycles int64
-	DB                 *memdb.MemDB // will be initialized if nil
+	PrivValidator bft.PrivValidator // identity of the validator
+	Genesis       *bft.GenesisDoc
+	TMConfig      *tmcfg.Config
+	DB            *memdb.MemDB // will be initialized if nil
 
 	// If StdlibDir not set, then it's filepath.Join(TMConfig.RootDir, "gnovm", "stdlibs")
 	InitChainerConfig
@@ -45,7 +43,7 @@ func NewDefaultGenesisConfig(chainid string) *bft.GenesisDoc {
 		},
 		AppState: &GnoGenesisState{
 			Balances: []Balance{},
-			Txs:      []std.Tx{},
+			Txs:      []TxWithMetadata{},
 		},
 	}
 }
@@ -106,7 +104,6 @@ func NewInMemoryNode(logger *slog.Logger, cfg *InMemoryNodeConfig) (*node.Node, 
 	// Initialize the application with the provided options
 	gnoApp, err := NewAppWithOptions(&AppOptions{
 		Logger:            logger,
-		MaxCycles:         cfg.GenesisMaxVMCycles,
 		DB:                cfg.DB,
 		EventSwitch:       evsw,
 		InitChainerConfig: cfg.InitChainerConfig,

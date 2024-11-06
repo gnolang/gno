@@ -44,8 +44,8 @@ import (
 	"strings"
 
 	"github.com/davecgh/go-spew/spew"
+	"github.com/gnolang/gno/gnovm"
 	"github.com/gnolang/gno/tm2/pkg/errors"
-	"github.com/gnolang/gno/tm2/pkg/std"
 	"go.uber.org/multierr"
 )
 
@@ -486,7 +486,7 @@ func Go2Gno(fs *token.FileSet, gon ast.Node) (n Node) {
 // MemPackageGetter implements the GetMemPackage() method. It is a subset of
 // [Store], separated for ease of testing.
 type MemPackageGetter interface {
-	GetMemPackage(path string) *std.MemPackage
+	GetMemPackage(path string) *gnovm.MemPackage
 }
 
 // TypeCheckMemPackage performs type validation and checking on the given
@@ -496,7 +496,7 @@ type MemPackageGetter interface {
 //
 // If format is true, the code will be automatically updated with the
 // formatted source code.
-func TypeCheckMemPackage(mempkg *std.MemPackage, getter MemPackageGetter, format bool) error {
+func TypeCheckMemPackage(mempkg *gnovm.MemPackage, getter MemPackageGetter, format bool) error {
 	var errs error
 	imp := &gnoImporter{
 		getter: getter,
@@ -556,7 +556,7 @@ func (g *gnoImporter) ImportFrom(path, _ string, _ types.ImportMode) (*types.Pac
 	return result, err
 }
 
-func (g *gnoImporter) parseCheckMemPackage(mpkg *std.MemPackage, fmt bool) (*types.Package, error) {
+func (g *gnoImporter) parseCheckMemPackage(mpkg *gnovm.MemPackage, fmt bool) (*types.Package, error) {
 	fset := token.NewFileSet()
 	files := make([]*ast.File, 0, len(mpkg.Files))
 	var errs error
@@ -754,11 +754,13 @@ func toDecls(fs *token.FileSet, gd *ast.GenDecl) (ds Decls) {
 			name := toName(s.Name)
 			tipe := toExpr(fs, s.Type)
 			alias := s.Assign != 0
-			ds = append(ds, &TypeDecl{
+			td := &TypeDecl{
 				NameExpr: NameExpr{Name: name},
 				Type:     tipe,
 				IsAlias:  alias,
-			})
+			}
+			setLoc(fs, s.Pos(), td)
+			ds = append(ds, td)
 		case *ast.ValueSpec:
 			if gd.Tok == token.CONST {
 				var names []NameExpr

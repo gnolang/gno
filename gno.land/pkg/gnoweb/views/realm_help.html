@@ -10,14 +10,14 @@
       <div id="data" data-realm-path="{{ .Data.RealmPath }}" data-remote="{{ .Data.Config.HelpRemote }}" data-chainid="{{ .Data.Config.HelpChainID }}" />
       <div id="header">{{ template "logo" }} {{ template "header_buttons" }}</div>
       <div class="inline-list">
-        <span id="logo_path"> <a href="{{ .Data.DirPath }}">{{ .Data.DirPath }}</a>?help </span>
+        <span id="logo_path"> <a href="{{ .Data.DirPath }}">{{ .Data.DirPath }}</a>$help </span>
       </div>
 
       <div id="realm_help" class="container">
         <br />
         These are the realm's exposed functions ("public smart contracts").<br />
         <br />
-        My address: <input id="my_address" placeholder="ADDRESS" width="40" /> (see <a href="https://docs.gno.land/gno-tooling/cli/gno-tooling-gnokey/#list-all-known-keys" target="_blank">`gnokey list`</a>)<br />
+        My address: <input id="my_address" placeholder="ADDRESS" width="40" /> (see <a href="https://docs.gno.land/gno-tooling/cli/gnokey/working-with-key-pairs#listing-available-keys" target="_blank">`gnokey list`</a>)<br />
         <br />
         <br />
         {{ template "func_specs" . }}
