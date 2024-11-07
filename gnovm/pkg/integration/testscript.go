@@ -9,11 +9,11 @@ import (
 )
 
 // NewTestingParams setup and initialize base params for testing.
-func NewTestingParams(t *testing.T, datadir string) testscript.Params {
+func NewTestingParams(t *testing.T, testdir string) testscript.Params {
 	t.Helper()
 
 	var params testscript.Params
-	params.Dir = datadir
+	params.Dir = testdir
 
 	params.UpdateScripts, _ = strconv.ParseBool(os.Getenv("UPDATE_SCRIPTS"))
 	params.TestWork, _ = strconv.ParseBool(os.Getenv("TESTWORK"))
