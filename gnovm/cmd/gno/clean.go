@@ -64,7 +64,7 @@ func execClean(cfg *cleanCfg, args []string, io commands.IO) error {
 	}
 
 	if cfg.modCache {
-		modCacheDir := gnomod.GetGnoModPath()
+		modCacheDir := gnomod.ModCachePath()
 		if !cfg.dryRun {
 			if err := os.RemoveAll(modCacheDir); err != nil {
 				return err
