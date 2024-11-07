@@ -150,16 +150,13 @@ func SetupGnolandTestscript(t *testing.T, p *testscript.Params) error {
 
 func gnolandCmd(t *testing.T, nodes map[string]*testNode, gnolandBin, gnoRootDir, gnoHomeDir string) func(ts *testscript.TestScript, neg bool, args []string) {
 	return func(ts *testscript.TestScript, neg bool, args []string) {
-		if len(args) == 0 {
-			tsValidateError(ts, "gnoland", neg, fmt.Errorf("syntax: gnoland [start|stop|restart]"))
-			return
-		}
-
 		logger := ts.Value(envKeyLogger).(*slog.Logger)
 		sid := getNodeSID(ts)
 
-		var cmd string
-		cmd, args = args[0], args[1:]
+		cmd, cmdargs := "", []string{}
+		if len(args) > 0 {
+			cmd, cmdargs = args[0], args[1:]
+		}
 
 		var err error
 		switch cmd {
@@ -174,7 +171,7 @@ func gnolandCmd(t *testing.T, nodes map[string]*testNode, gnolandBin, gnoRootDir
 			// directly or use the config command for this.
 			fs := flag.NewFlagSet("start", flag.ContinueOnError)
 			nonVal := fs.Bool("non-validator", false, "set up node as a non-validator")
-			if err := fs.Parse(args); err != nil {
+			if err := fs.Parse(cmdargs); err != nil {
 				ts.Fatalf("unable to parse `gnoland start` flags: %s", err)
 			}
 
@@ -244,15 +241,13 @@ func gnolandCmd(t *testing.T, nodes map[string]*testNode, gnolandBin, gnoRootDir
 				ts.Setenv("RPC_ADDR", "")
 				fmt.Fprintln(ts.Stdout(), "node stopped successfully")
 			}
-		case "genesis", "secrets", "config":
+		default:
 			err := ts.Exec(gnolandBin, args...)
 			if err != nil {
 				ts.Logf("gno command error: %+v", err)
 			}
 
 			tsValidateError(ts, "gnoland "+cmd, neg, err)
-		default:
-			err = fmt.Errorf("not allowed or invalid  gnoland subcommand: %q", cmd)
 		}
 
 		tsValidateError(ts, "gnoland "+cmd, neg, err)
