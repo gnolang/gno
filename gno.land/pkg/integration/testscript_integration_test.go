@@ -4,6 +4,7 @@ import (
 	"strings"
 	"testing"
 
+	gno_integration "github.com/gnolang/gno/gnovm/pkg/integration"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -11,7 +12,20 @@ import (
 func TestTestdata(t *testing.T) {
 	t.Parallel()
 
-	RunGnolandTestscripts(t, "testdata")
+	p := gno_integration.NewTestingParams(t, "testdata")
+
+	if coverdir, ok := gno_integration.ResolveCoverageDir(); ok {
+		err := gno_integration.SetupTestscriptsCoverage(&p, coverdir)
+		require.NoError(t, err)
+	}
+
+	// Set up gnoland for testscript
+	err := SetupGnolandTestscript(t, &p)
+	require.NoError(t, err)
+
+	// Run testscript
+	// XXX: We have to use seqshim for now as tests don't run well in parallel
+	RunSeqShimTestscripts(t, p)
 }
 
 func TestUnquote(t *testing.T) {

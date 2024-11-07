@@ -3,7 +3,6 @@ package main
 import (
 	"os"
 	"path/filepath"
-	"strconv"
 	"testing"
 
 	"github.com/gnolang/gno/gnovm/pkg/integration"
@@ -26,12 +25,7 @@ func Test_Scripts(t *testing.T) {
 		name := dir.Name()
 		t.Logf("testing: %s", name)
 		t.Run(name, func(t *testing.T) {
-			updateScripts, _ := strconv.ParseBool(os.Getenv("UPDATE_SCRIPTS"))
-			p := testscript.Params{
-				UpdateScripts: updateScripts,
-				Dir:           filepath.Join(testdata, name),
-			}
-
+			p := integration.NewTestingParams(t)
 			if coverdir, ok := integration.ResolveCoverageDir(); ok {
 				err := integration.SetupTestscriptsCoverage(&p, coverdir)
 				require.NoError(t, err)
