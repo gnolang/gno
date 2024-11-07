@@ -18,7 +18,7 @@ type reviewByUser struct {
 var _ Requirement = &reviewByUser{}
 
 func (r *reviewByUser) IsSatisfied(pr *github.PullRequest, details treeprint.Tree) bool {
-	detail := fmt.Sprintf("This user approved pull request : %s", r.user)
+	detail := fmt.Sprintf("This user approved pull request: %s", r.user)
 
 	// If not a dry run, make the user a reviewer if he's not already
 	if !r.gh.DryRun {
@@ -45,7 +45,7 @@ func (r *reviewByUser) IsSatisfied(pr *github.PullRequest, details treeprint.Tre
 					Reviewers: []string{r.user},
 				},
 			); err != nil {
-				r.gh.Logger.Errorf("Unable to request review from user %s on PR %d : %v", r.user, pr.GetNumber(), err)
+				r.gh.Logger.Errorf("Unable to request review from user %s on PR %d: %v", r.user, pr.GetNumber(), err)
 			}
 		}
 	}
@@ -103,7 +103,7 @@ func (r *reviewByTeamMembers) IsSatisfied(pr *github.PullRequest, details treepr
 					TeamReviewers: []string{r.team},
 				},
 			); err != nil {
-				r.gh.Logger.Errorf("Unable to request review from team %s on PR %d : %v", r.team, pr.GetNumber(), err)
+				r.gh.Logger.Errorf("Unable to request review from team %s on PR %d: %v", r.team, pr.GetNumber(), err)
 			}
 		}
 	}

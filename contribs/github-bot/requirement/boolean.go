@@ -1,6 +1,7 @@
 package requirement
 
 import (
+	"bot/utils"
 	"fmt"
 
 	"github.com/google/go-github/v66/github"
@@ -25,9 +26,9 @@ func (a *and) IsSatisfied(pr *github.PullRequest, details treeprint.Tree) bool {
 	}
 
 	if satisfied {
-		branch.SetValue("🟢 And")
+		branch.SetValue(fmt.Sprintf("%s And", utils.StatusSuccess))
 	} else {
-		branch.SetValue("🔴 And")
+		branch.SetValue(fmt.Sprintf("%s And", utils.StatusFail))
 	}
 
 	return satisfied
@@ -59,9 +60,9 @@ func (o *or) IsSatisfied(pr *github.PullRequest, details treeprint.Tree) bool {
 	}
 
 	if satisfied {
-		branch.SetValue("🟢 Or")
+		branch.SetValue(fmt.Sprintf("%s Or", utils.StatusSuccess))
 	} else {
-		branch.SetValue("🔴 Or")
+		branch.SetValue(fmt.Sprintf("%s Or", utils.StatusFail))
 	}
 
 	return satisfied
@@ -87,9 +88,9 @@ func (n *not) IsSatisfied(pr *github.PullRequest, details treeprint.Tree) bool {
 	node := details.FindLastNode()
 
 	if satisfied {
-		node.SetValue(fmt.Sprintf("🔴 Not (%s)", node.(*treeprint.Node).Value.(string)))
+		node.SetValue(fmt.Sprintf("%s Not (%s)", utils.StatusFail, node.(*treeprint.Node).Value.(string)))
 	} else {
-		node.SetValue(fmt.Sprintf("🟢 Not (%s)", node.(*treeprint.Node).Value.(string)))
+		node.SetValue(fmt.Sprintf("%s Not (%s)", utils.StatusSuccess, node.(*treeprint.Node).Value.(string)))
 	}
 
 	return !satisfied

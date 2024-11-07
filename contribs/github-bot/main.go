@@ -2,7 +2,11 @@ package main
 
 import (
 	"bot/client"
+	"bot/logger"
 	"bot/param"
+	"bot/utils"
+	"fmt"
+	"strings"
 	"sync"
 
 	"github.com/google/go-github/v66/github"
@@ -25,7 +29,7 @@ func main() {
 		err error
 	)
 
-	// If requested, retrieve all opened pull requests
+	// If requested, retrieve all open pull requests
 	if params.PrAll {
 		opts := &github.PullRequestListOptions{
 			State:     "open",
@@ -35,7 +39,7 @@ func main() {
 
 		prs, _, err = gh.Client.PullRequests.List(gh.Ctx, gh.Owner, gh.Repo, opts)
 		if err != nil {
-			gh.Logger.Fatalf("Unable to retrieve all opened pull requests : %v", err)
+			gh.Logger.Fatalf("Unable to retrieve all open pull requests: %v", err)
 		}
 
 		// Otherwise, retrieve only specified pull request(s) (flag or GitHub Action context)
@@ -44,10 +48,19 @@ func main() {
 		for i, prNum := range params.PrNums {
 			pr, _, err := gh.Client.PullRequests.Get(gh.Ctx, gh.Owner, gh.Repo, prNum)
 			if err != nil {
-				gh.Logger.Fatalf("Unable to retrieve specified pull request (%d) : %v", prNum, err)
+				gh.Logger.Fatalf("Unable to retrieve specified pull request (%d): %v", prNum, err)
 			}
 			prs[i] = pr
 		}
+	}
+
+	if len(prs) > 1 {
+		prNums := make([]int, len(prs))
+		for i, pr := range prs {
+			prNums[i] = pr.GetNumber()
+		}
+
+		gh.Logger.Infof("%d pull requests to process: %v\n", len(prNums), prNums)
 	}
 
 	// Process all pull requests in parallel
@@ -55,24 +68,30 @@ func main() {
 	var wg sync.WaitGroup
 	wg.Add(len(prs))
 
+	// Used in dry-run mode to log cleanly from different goroutines
+	logMutex := sync.Mutex{}
+
 	for _, pr := range prs {
 		go func(pr *github.PullRequest) {
 			defer wg.Done()
 			commentContent := CommentContent{}
+			commentContent.allSatisfied = true
 
 			// Iterate over all automatic rules in config
 			for _, autoRule := range autoRules {
-				ifDetails := treeprint.NewWithRoot("🟢 Condition met")
+				ifDetails := treeprint.NewWithRoot(fmt.Sprintf("%s Condition met", utils.StatusSuccess))
 
 				// Check if conditions of this rule are met by this PR
 				if autoRule.If.IsMet(pr, ifDetails) {
 					c := AutoContent{Description: autoRule.Description, Satisfied: false}
-					thenDetails := treeprint.NewWithRoot("🔴 Requirement not satisfied")
+					thenDetails := treeprint.NewWithRoot(fmt.Sprintf("%s Requirement not satisfied", utils.StatusFail))
 
 					// Check if requirements of this rule are satisfied by this PR
 					if autoRule.Then.IsSatisfied(pr, thenDetails) {
-						thenDetails.SetValue("🟢 Requirement satisfied")
+						thenDetails.SetValue(fmt.Sprintf("%s Requirement satisfied", utils.StatusSuccess))
 						c.Satisfied = true
+					} else {
+						commentContent.allSatisfied = false
 					}
 
 					c.ConditionDetails = ifDetails.String()
@@ -83,7 +102,7 @@ func main() {
 
 			// Iterate over all manual rules in config
 			for _, manualRule := range manualRules {
-				ifDetails := treeprint.NewWithRoot("🟢 Condition met")
+				ifDetails := treeprint.NewWithRoot(fmt.Sprintf("%s Condition met", utils.StatusSuccess))
 
 				// Retrieve manual check states
 				checks := make(map[string][2]string)
@@ -102,16 +121,64 @@ func main() {
 							Teams:            manualRule.Teams,
 						},
 					)
+
+					if checks[manualRule.Description][1] == "" {
+						commentContent.allSatisfied = false
+					}
 				}
 			}
 
-			// Print results in PR comment or in logs
+			// Logs results or write them in bot PR comment
 			if gh.DryRun {
-				// TODO: Pretty print dry run
+				logMutex.Lock()
+				logResults(gh.Logger, pr.GetNumber(), commentContent)
+				logMutex.Unlock()
 			} else {
 				updateComment(gh, pr, commentContent)
 			}
 		}(pr)
 	}
 	wg.Wait()
+}
+
+func logResults(logger logger.Logger, prNum int, commentContent CommentContent) {
+	logger.Infof("Pull request #%d requirements", prNum)
+	if len(commentContent.AutoRules) > 0 {
+		logger.Infof("Automated Checks:")
+	}
+
+	for _, rule := range commentContent.AutoRules {
+		status := utils.StatusFail
+		if rule.Satisfied {
+			status = utils.StatusSuccess
+		}
+		logger.Infof("%s %s", status, rule.Description)
+		logger.Debugf("If:\n%s", rule.ConditionDetails)
+		logger.Debugf("Then:\n%s", rule.RequirementDetails)
+	}
+
+	if len(commentContent.ManualRules) > 0 {
+		logger.Infof("Manual Checks:")
+	}
+
+	for _, rule := range commentContent.ManualRules {
+		status := utils.StatusFail
+		checker := "any user with comment edit permission"
+		if rule.CheckedBy != "" {
+			status = utils.StatusSuccess
+		}
+		if len(rule.Teams) == 0 {
+			checker = fmt.Sprintf("a member of one of these teams: %s", strings.Join(rule.Teams, ", "))
+		}
+		logger.Infof("%s %s", status, rule.Description)
+		logger.Debugf("If:\n%s", rule.ConditionDetails)
+		logger.Debugf("Can be checked by %s", checker)
+	}
+
+	logger.Infof("Conclusion:")
+	if commentContent.allSatisfied {
+		logger.Infof("%s All requirements are satisfied\n", utils.StatusSuccess)
+	} else {
+		logger.Infof("%s Not all requirements are satisfied\n", utils.StatusFail)
+	}
 }

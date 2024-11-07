@@ -24,14 +24,14 @@ func Get() Params {
 
 	// Add cmd description to usage message
 	flag.Usage = func() {
-		fmt.Fprint(flag.CommandLine.Output(), "This tool checks if requirements for a PR to be merged are satisfied (defined in config.go) and display PR status checks accordingly.\n")
-		fmt.Fprint(flag.CommandLine.Output(), "A valid GitHub Token must be provided by setting the GITHUB_TOKEN env variable.\n\n")
+		fmt.Fprint(flag.CommandLine.Output(), "This tool checks if the requirements for a PR to be merged are satisfied (defined in config.go) and displays PR status checks accordingly.\n")
+		fmt.Fprint(flag.CommandLine.Output(), "A valid GitHub Token must be provided by setting the GITHUB_TOKEN environment variable.\n\n")
 		flag.PrintDefaults()
 	}
 
 	// Helper to display an error + usage message before exiting
 	errorUsage := func(err string) {
-		fmt.Fprintf(flag.CommandLine.Output(), "Error : %s\n\n", err)
+		fmt.Fprintf(flag.CommandLine.Output(), "Error: %s\n\n", err)
 		flag.Usage()
 		os.Exit(1)
 	}
@@ -42,16 +42,16 @@ func Get() Params {
 	flag.BoolVar(&p.PrAll, "pr-all", false, "process all opened pull requests")
 	flag.TextVar(&p.PrNums, "pr-numbers", PrList(nil), "pull request(s) to process, must be a comma separated list of PR numbers, e.g '42,1337,7890'. If empty, will be retrieved from GitHub Actions context")
 	flag.BoolVar(&p.Verbose, "verbose", false, "set logging level to debug")
-	flag.BoolVar(&p.DryRun, "dry-run", false, "print if pull request requirements are met without updating PR checks on GitHub web interface")
+	flag.BoolVar(&p.DryRun, "dry-run", false, "print if pull request requirements are satisfied without updating anything on GitHub")
 	flag.UintVar(&p.Timeout, "timeout", 0, "timeout in milliseconds")
 	flag.Parse()
 
 	// If any arg remain after flags processing
 	if len(flag.Args()) > 0 {
-		errorUsage(fmt.Sprintf("Unknown arg(s) provided : %v", flag.Args()))
+		errorUsage(fmt.Sprintf("Unknown arg(s) provided: %v", flag.Args()))
 	}
 
-	// Check if flags are coherents
+	// Check if flags are coherent
 	if p.PrAll && len(p.PrNums) != 0 {
 		errorUsage("You can specify only one of the '-pr-all' and '-pr-numbers' flags")
 	}
@@ -61,7 +61,7 @@ func Get() Params {
 	if p.Owner == "" || p.Repo == "" || (len(p.PrNums) == 0 && !p.PrAll) {
 		actionCtx, err := githubactions.Context()
 		if err != nil {
-			errorUsage(fmt.Sprintf("Unable to get GitHub Actions context : %v", err))
+			errorUsage(fmt.Sprintf("Unable to get GitHub Actions context: %v", err))
 		}
 
 		if p.Owner == "" {

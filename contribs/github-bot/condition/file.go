@@ -19,7 +19,7 @@ type fileChanged struct {
 var _ Condition = &fileChanged{}
 
 func (fc *fileChanged) IsMet(pr *github.PullRequest, details treeprint.Tree) bool {
-	detail := fmt.Sprintf("A changed file match this pattern : %s", fc.pattern.String())
+	detail := fmt.Sprintf("A changed file match this pattern: %s", fc.pattern.String())
 	opts := &github.ListOptions{
 		PerPage: client.PageSize,
 	}
@@ -33,13 +33,13 @@ func (fc *fileChanged) IsMet(pr *github.PullRequest, details treeprint.Tree) boo
 			opts,
 		)
 		if err != nil {
-			fc.gh.Logger.Errorf("Unable to list changed files for PR %d : %v", pr.GetNumber(), err)
+			fc.gh.Logger.Errorf("Unable to list changed files for PR %d: %v", pr.GetNumber(), err)
 			break
 		}
 
 		for _, file := range files {
 			if fc.pattern.MatchString(file.GetFilename()) {
-				return utils.AddStatusNode(true, fmt.Sprintf("%s (filename : %s)", detail, file.GetFilename()), details)
+				return utils.AddStatusNode(true, fmt.Sprintf("%s (filename: %s)", detail, file.GetFilename()), details)
 			}
 		}
 

@@ -35,7 +35,7 @@ func (p *PrList) UnmarshalText(text []byte) error {
 		}
 
 		if prNum <= 0 {
-			return fmt.Errorf("invalid pull request number (<= 0) : original(%s) parsed(%d)", prNumStr, prNum)
+			return fmt.Errorf("invalid pull request number (<= 0): original(%s) parsed(%d)", prNumStr, prNum)
 		}
 
 		*p = append(*p, prNum)

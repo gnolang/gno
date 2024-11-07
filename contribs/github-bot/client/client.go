@@ -46,7 +46,7 @@ func (gh *GitHub) GetBotComment(prNum int) *github.IssueComment {
 			opts,
 		)
 		if err != nil {
-			gh.Logger.Errorf("Unable to list comments for PR %d : %v", prNum, err)
+			gh.Logger.Errorf("Unable to list comments for PR %d: %v", prNum, err)
 			return nil
 		}
 
@@ -61,7 +61,7 @@ func (gh *GitHub) GetBotComment(prNum int) *github.IssueComment {
 	// Get current user (bot)
 	currentUser, _, err := gh.Client.Users.Get(gh.Ctx, "")
 	if err != nil {
-		gh.Logger.Errorf("Unable to get current user : %v", err)
+		gh.Logger.Errorf("Unable to get current user: %v", err)
 		return nil
 	}
 
@@ -86,7 +86,7 @@ func (gh *GitHub) SetBotComment(body string, prNum int) *github.IssueComment {
 			&github.IssueComment{Body: &body},
 		)
 		if err != nil {
-			gh.Logger.Errorf("Unable to create bot comment for PR %d : %v", prNum, err)
+			gh.Logger.Errorf("Unable to create bot comment for PR %d: %v", prNum, err)
 			return nil
 		}
 		return newComment
@@ -100,7 +100,7 @@ func (gh *GitHub) SetBotComment(body string, prNum int) *github.IssueComment {
 			comment,
 		)
 		if err != nil {
-			gh.Logger.Errorf("Unable to edit bot comment with ID %d : %v", comment.GetID(), err)
+			gh.Logger.Errorf("Unable to edit bot comment with ID %d: %v", comment.GetID(), err)
 			return nil
 		}
 		return editComment
@@ -125,7 +125,7 @@ func (gh *GitHub) ListTeamMembers(team string) []*github.User {
 			opts,
 		)
 		if err != nil {
-			gh.Logger.Errorf("Unable to list members for team %s : %v", team, err)
+			gh.Logger.Errorf("Unable to list members for team %s: %v", team, err)
 			return nil
 		}
 
@@ -169,7 +169,7 @@ func (gh *GitHub) ListPrReviewers(prNum int) *github.Reviewers {
 			opts,
 		)
 		if err != nil {
-			gh.Logger.Errorf("Unable to list reviewers for PR %d : %v", prNum, err)
+			gh.Logger.Errorf("Unable to list reviewers for PR %d: %v", prNum, err)
 			return nil
 		}
 
@@ -202,7 +202,7 @@ func (gh *GitHub) ListPrReviews(prNum int) []*github.PullRequestReview {
 			opts,
 		)
 		if err != nil {
-			gh.Logger.Errorf("Unable to list reviews for PR %d : %v", prNum, err)
+			gh.Logger.Errorf("Unable to list reviews for PR %d: %v", prNum, err)
 			return nil
 		}
 

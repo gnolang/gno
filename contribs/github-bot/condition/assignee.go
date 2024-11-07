@@ -17,7 +17,7 @@ type assignee struct {
 var _ Condition = &assignee{}
 
 func (a *assignee) IsMet(pr *github.PullRequest, details treeprint.Tree) bool {
-	detail := fmt.Sprintf("A pull request assignee is user : %s", a.user)
+	detail := fmt.Sprintf("A pull request assignee is user: %s", a.user)
 
 	for _, assignee := range pr.Assignees {
 		if a.user == assignee.GetLogin() {
@@ -41,12 +41,12 @@ type assigneeInTeam struct {
 var _ Condition = &assigneeInTeam{}
 
 func (a *assigneeInTeam) IsMet(pr *github.PullRequest, details treeprint.Tree) bool {
-	detail := fmt.Sprintf("A pull request assignee is a member of the team : %s", a.team)
+	detail := fmt.Sprintf("A pull request assignee is a member of the team: %s", a.team)
 
 	for _, member := range a.gh.ListTeamMembers(a.team) {
 		for _, assignee := range pr.Assignees {
 			if member.GetLogin() == assignee.GetLogin() {
-				return utils.AddStatusNode(true, fmt.Sprintf("%s (member : %s)", detail, member.GetLogin()), details)
+				return utils.AddStatusNode(true, fmt.Sprintf("%s (member: %s)", detail, member.GetLogin()), details)
 			}
 		}
 	}

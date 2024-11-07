@@ -17,11 +17,11 @@ type label struct {
 var _ Condition = &label{}
 
 func (l *label) IsMet(pr *github.PullRequest, details treeprint.Tree) bool {
-	detail := fmt.Sprintf("A label match this pattern : %s", l.pattern.String())
+	detail := fmt.Sprintf("A label match this pattern: %s", l.pattern.String())
 
 	for _, label := range pr.Labels {
 		if l.pattern.MatchString(label.GetName()) {
-			return utils.AddStatusNode(true, fmt.Sprintf("%s (label : %s)", detail, label.GetName()), details)
+			return utils.AddStatusNode(true, fmt.Sprintf("%s (label: %s)", detail, label.GetName()), details)
 		}
 	}
 

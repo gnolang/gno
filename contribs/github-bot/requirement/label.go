@@ -18,7 +18,7 @@ type label struct {
 var _ Requirement = &label{}
 
 func (l *label) IsSatisfied(pr *github.PullRequest, details treeprint.Tree) bool {
-	detail := fmt.Sprintf("This label is applied to pull request : %s", l.name)
+	detail := fmt.Sprintf("This label is applied to pull request: %s", l.name)
 
 	// Check if label was already applied to PR
 	for _, label := range pr.Labels {
@@ -40,7 +40,7 @@ func (l *label) IsSatisfied(pr *github.PullRequest, details treeprint.Tree) bool
 		pr.GetNumber(),
 		[]string{l.name},
 	); err != nil {
-		l.gh.Logger.Errorf("Unable to add label %s to PR %d : %v", l.name, pr.GetNumber(), err)
+		l.gh.Logger.Errorf("Unable to add label %s to PR %d: %v", l.name, pr.GetNumber(), err)
 		return utils.AddStatusNode(false, detail, details)
 	}
 

@@ -18,7 +18,7 @@ type assignee struct {
 var _ Requirement = &assignee{}
 
 func (a *assignee) IsSatisfied(pr *github.PullRequest, details treeprint.Tree) bool {
-	detail := fmt.Sprintf("This user is assigned to pull request : %s", a.user)
+	detail := fmt.Sprintf("This user is assigned to pull request: %s", a.user)
 
 	// Check if user was already assigned to PR
 	for _, assignee := range pr.Assignees {
@@ -40,7 +40,7 @@ func (a *assignee) IsSatisfied(pr *github.PullRequest, details treeprint.Tree) b
 		pr.GetNumber(),
 		[]string{a.user},
 	); err != nil {
-		a.gh.Logger.Errorf("Unable to assign user %s to PR %d : %v", a.user, pr.GetNumber(), err)
+		a.gh.Logger.Errorf("Unable to assign user %s to PR %d: %v", a.user, pr.GetNumber(), err)
 		return utils.AddStatusNode(false, detail, details)
 	}
 

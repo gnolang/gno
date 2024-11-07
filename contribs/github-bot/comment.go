@@ -28,11 +28,12 @@ type ManualContent struct {
 	Teams            []string
 }
 type CommentContent struct {
-	AutoRules   []AutoContent
-	ManualRules []ManualContent
+	AutoRules    []AutoContent
+	ManualRules  []ManualContent
+	allSatisfied bool
 }
 
-// getCommentManualChecks parses the bot comment to get both the checkbox status,
+// getCommentManualChecks parses the bot comment to get the checkbox status,
 // the check description and the username who checked it
 func getCommentManualChecks(commentBody string) map[string][2]string {
 	checks := make(map[string][2]string)
@@ -52,7 +53,7 @@ func getCommentManualChecks(commentBody string) map[string][2]string {
 	return checks
 }
 
-// handleCommentUpdate checks if :
+// handleCommentUpdate checks if:
 //   - the current run was triggered by GitHub Actions
 //   - the triggering event is an edit of the bot comment
 //   - the comment was not edited by the bot itself (prevent infinite loop)
@@ -62,17 +63,17 @@ func handleCommentUpdate(gh *client.GitHub) {
 	// Get GitHub Actions context to retrieve comment update
 	actionCtx, err := githubactions.Context()
 	if err != nil {
-		gh.Logger.Debugf("Unable to retrieve GitHub Actions context : %v", err)
+		gh.Logger.Debugf("Unable to retrieve GitHub Actions context: %v", err)
 		return
 	}
 
-	// Ignore if it's not an comment related event
+	// Ignore if it's not a comment related event
 	if actionCtx.EventName != "issue_comment" {
-		gh.Logger.Debugf("Event is not issue comment related : %s", actionCtx.EventName)
+		gh.Logger.Debugf("Event is not issue comment related (%s)", actionCtx.EventName)
 		return
 	}
 
-	// Ignore if action type is not deleted or edited
+	// Ignore if the action type is not deleted or edited
 	actionType, ok := actionCtx.Event["action"].(string)
 	if !ok {
 		gh.Logger.Errorf("Unable to get type on issue comment event")
@@ -86,7 +87,7 @@ func handleCommentUpdate(gh *client.GitHub) {
 	// Exit if comment was edited by bot (current authenticated user)
 	authUser, _, err := gh.Client.Users.Get(gh.Ctx, "")
 	if err != nil {
-		gh.Logger.Errorf("Unable to get authenticated user : %v", err)
+		gh.Logger.Errorf("Unable to get authenticated user: %v", err)
 		os.Exit(1)
 	}
 
@@ -162,7 +163,9 @@ func handleCommentUpdate(gh *client.GitHub) {
 	if checkboxes.ReplaceAllString(current, "") != checkboxes.ReplaceAllString(previous, "") {
 		// If not, restore previous comment body
 		gh.Logger.Errorf("Bot comment edited outside of checkboxes")
-		gh.SetBotComment(previous, int(num))
+		if !gh.DryRun {
+			gh.SetBotComment(previous, int(num))
+		}
 		os.Exit(1)
 	}
 
@@ -187,7 +190,7 @@ func handleCommentUpdate(gh *client.GitHub) {
 			// If rule were not found, return to reprocess the bot comment entirely
 			// (maybe bot config was updated since last run?)
 			if !found {
-				gh.Logger.Debugf("Updated rule not found in config : %s", key)
+				gh.Logger.Debugf("Updated rule not found in config: %s", key)
 				return
 			}
 
@@ -195,7 +198,9 @@ func handleCommentUpdate(gh *client.GitHub) {
 			if len(teams) > 0 {
 				if gh.IsUserInTeams(actionCtx.Actor, teams) {
 					gh.Logger.Errorf("Checkbox edited by a user not allowed to")
-					gh.SetBotComment(previous, int(num))
+					if !gh.DryRun {
+						gh.SetBotComment(previous, int(num))
+					}
 					os.Exit(1)
 				}
 			}
@@ -213,7 +218,7 @@ func handleCommentUpdate(gh *client.GitHub) {
 	}
 
 	// Update comment with username
-	if edited != "" {
+	if edited != "" && !gh.DryRun {
 		gh.SetBotComment(edited, int(num))
 		gh.Logger.Debugf("Comment manual checks updated successfully")
 	}
@@ -240,34 +245,24 @@ func updateComment(gh *client.GitHub, pr *github.PullRequest, content CommentCon
 		panic(err)
 	}
 
+	comment := gh.SetBotComment(commentBytes.String(), pr.GetNumber())
+	if comment != nil {
+		gh.Logger.Infof("Comment successfully updated on PR %d", pr.GetNumber())
+	}
+
 	// Prepare commit status content
 	var (
-		comment      = gh.SetBotComment(commentBytes.String(), pr.GetNumber())
-		context      = "Merge Requirements"
-		targetURL    = comment.GetHTMLURL()
-		state        = "pending"
-		description  = "Some requirements are not satisfied yet. See bot comment."
-		allSatisfied = true
+		context     = "Merge Requirements"
+		targetURL   = ""
+		state       = "pending"
+		description = "Some requirements are not satisfied yet. See bot comment."
 	)
 
-	// Check if every requirements are satisfied
-	for _, auto := range content.AutoRules {
-		if !auto.Satisfied {
-			allSatisfied = false
-			break
-		}
+	if comment != nil {
+		targetURL = comment.GetHTMLURL()
 	}
 
-	if allSatisfied {
-		for _, manual := range content.ManualRules {
-			if manual.CheckedBy == "" {
-				allSatisfied = false
-				break
-			}
-		}
-	}
-
-	if allSatisfied {
+	if content.allSatisfied {
 		state = "success"
 		description = "All requirements are satisfied."
 	}
@@ -284,6 +279,8 @@ func updateComment(gh *client.GitHub, pr *github.PullRequest, content CommentCon
 			TargetURL:   &targetURL,
 			Description: &description,
 		}); err != nil {
-		gh.Logger.Errorf("Unable to create status on PR %d : %v", pr.GetNumber(), err)
+		gh.Logger.Errorf("Unable to create status on PR %d: %v", pr.GetNumber(), err)
+	} else {
+		gh.Logger.Infof("Commit status successfully updated on PR %d", pr.GetNumber())
 	}
 }

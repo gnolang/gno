@@ -19,7 +19,7 @@ var _ Condition = &author{}
 func (a *author) IsMet(pr *github.PullRequest, details treeprint.Tree) bool {
 	return utils.AddStatusNode(
 		a.user == pr.GetUser().GetLogin(),
-		fmt.Sprintf("Pull request author is user : %v", a.user),
+		fmt.Sprintf("Pull request author is user: %v", a.user),
 		details,
 	)
 }
@@ -37,7 +37,7 @@ type authorInTeam struct {
 var _ Condition = &authorInTeam{}
 
 func (a *authorInTeam) IsMet(pr *github.PullRequest, details treeprint.Tree) bool {
-	detail := fmt.Sprintf("Pull request author is a member of the team : %s", a.team)
+	detail := fmt.Sprintf("Pull request author is a member of the team: %s", a.team)
 
 	for _, member := range a.gh.ListTeamMembers(a.team) {
 		if member.GetLogin() == pr.GetUser().GetLogin() {

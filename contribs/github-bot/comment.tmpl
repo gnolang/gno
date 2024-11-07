@@ -14,11 +14,11 @@ These requirements are defined in this [configuration file](https://github.com/G
 {{ range .AutoRules }}
 <details><summary>{{ .Description | stripLinks }}</summary><blockquote>
 
-### If :
+### If
 ```
 {{ .ConditionDetails | stripLinks }}
 ```
-### Then :
+### Then
 ```
 {{ .RequirementDetails | stripLinks }}
 ```
@@ -36,11 +36,11 @@ These requirements are defined in this [configuration file](https://github.com/G
 {{ range .ManualRules }}
 <details><summary>{{ .Description | stripLinks }}</summary><blockquote>
 
-### If :
+### If
 ```
 {{ .ConditionDetails }}
 ```
-### Can be checked by :
+### Can be checked by
 {{range $item := .Teams }} - team {{ $item | stripLinks }}
 {{ else }}
 - Any user with comment edit permission

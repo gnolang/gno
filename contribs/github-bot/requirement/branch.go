@@ -30,14 +30,14 @@ func (u *upToDateWith) IsSatisfied(pr *github.PullRequest, details treeprint.Tre
 
 	cmp, _, err := u.gh.Client.Repositories.CompareCommits(u.gh.Ctx, u.gh.Owner, u.gh.Repo, base, head, nil)
 	if err != nil {
-		u.gh.Logger.Errorf("Unable to compare head branch (%s) and base (%s) : %v", head, base, err)
+		u.gh.Logger.Errorf("Unable to compare head branch (%s) and base (%s): %v", head, base, err)
 		return false
 	}
 
 	return utils.AddStatusNode(
 		cmp.GetBehindBy() == 0,
 		fmt.Sprintf(
-			"Head branch (%s) is up to date with (%s) : behind by %d / ahead by %d",
+			"Head branch (%s) is up to date with (%s): behind by %d / ahead by %d",
 			head,
 			base,
 			cmp.GetBehindBy(),

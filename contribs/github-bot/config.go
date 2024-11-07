@@ -84,11 +84,11 @@ func config(gh *client.GitHub) ([]automaticCheck, []manualCheck) {
 	}
 
 	// Check for duplicates in manual rule descriptions
-	// (need to be unique for the bot operations)
+	// (needs to be unique for the bot operations)
 	unique := make(map[string]struct{})
 	for _, rule := range manual {
 		if _, exists := unique[rule.Description]; exists {
-			gh.Logger.Fatalf("Manual rule descriptions must be unique (duplicate : %s)", rule.Description)
+			gh.Logger.Fatalf("Manual rule descriptions must be unique (duplicate: %s)", rule.Description)
 		}
 		unique[rule.Description] = struct{}{}
 	}
