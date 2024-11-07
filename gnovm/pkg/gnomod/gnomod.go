@@ -3,13 +3,10 @@ package gnomod
 import (
 	"errors"
 	"fmt"
-	"go/parser"
-	gotoken "go/token"
 	"os"
 	"path/filepath"
 	"strings"
 
-	"github.com/gnolang/gno/gnovm"
 	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
 	"github.com/gnolang/gno/gnovm/pkg/gnolang"
 	"golang.org/x/mod/modfile"
@@ -34,53 +31,6 @@ func PackageDir(root string, v module.Version) string {
 		root = GetGnoModPath()
 	}
 	return filepath.Join(root, v.Path)
-}
-
-func writePackage(remote, basePath, pkgPath string) (requirements []string, err error) {
-	res, err := queryChain(remote, queryPathFile, []byte(pkgPath))
-	if err != nil {
-		return nil, fmt.Errorf("querychain (%s): %w", pkgPath, err)
-	}
-
-	dirPath, fileName := gnovm.SplitFilepath(pkgPath)
-	if fileName == "" {
-		// Is Dir
-		// Create Dir if not exists
-		dirPath := filepath.Join(basePath, dirPath)
-		if _, err = os.Stat(dirPath); os.IsNotExist(err) {
-			if err = os.MkdirAll(dirPath, 0o755); err != nil {
-				return nil, fmt.Errorf("mkdir %q: %w", dirPath, err)
-			}
-		}
-
-		files := strings.Split(string(res.Data), "\n")
-		for _, file := range files {
-			reqs, err := writePackage(remote, basePath, filepath.Join(pkgPath, file))
-			if err != nil {
-				return nil, fmt.Errorf("writepackage: %w", err)
-			}
-			requirements = append(requirements, reqs...)
-		}
-	} else {
-		// Is File
-		// Transpile and write generated go file
-		file, err := parser.ParseFile(gotoken.NewFileSet(), fileName, res.Data, parser.ImportsOnly)
-		if err != nil {
-			return nil, fmt.Errorf("parse gno file: %w", err)
-		}
-		for _, i := range file.Imports {
-			requirements = append(requirements, i.Path.Value)
-		}
-
-		// Write file
-		fileNameWithPath := filepath.Join(basePath, dirPath, fileName)
-		err = os.WriteFile(fileNameWithPath, res.Data, 0o644)
-		if err != nil {
-			return nil, fmt.Errorf("writefile %q: %w", fileNameWithPath, err)
-		}
-	}
-
-	return removeDuplicateStr(requirements), nil
 }
 
 func CreateGnoModFile(rootDir, modPath string) error {
