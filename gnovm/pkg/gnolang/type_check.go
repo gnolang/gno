@@ -238,7 +238,7 @@ Main:
 			if cx, ok := vx.Func.(*ConstExpr); ok {
 				if fv, ok := cx.V.(*FuncValue); ok {
 					if fv.PkgPath == uversePkgPath {
-						// TODO: should support min, max
+						// TODO: should support min, max, real, imag
 						switch {
 						case fv.Name == "len":
 							checkConstantExpr(store, last, vx.Args[0])
