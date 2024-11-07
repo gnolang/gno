@@ -48,6 +48,8 @@ type testNode struct {
 }
 
 func SetupGnolandTestscript(t *testing.T, p *testscript.Params) error {
+	t.Helper()
+
 	tmpdir := t.TempDir()
 
 	gnoRootDir := gnoenv.RootDir()
@@ -149,6 +151,8 @@ func SetupGnolandTestscript(t *testing.T, p *testscript.Params) error {
 }
 
 func gnolandCmd(t *testing.T, nodes map[string]*testNode, gnolandBin, gnoRootDir, gnoHomeDir string) func(ts *testscript.TestScript, neg bool, args []string) {
+	t.Helper()
+
 	return func(ts *testscript.TestScript, neg bool, args []string) {
 		logger := ts.Value(envKeyLogger).(*slog.Logger)
 		sid := getNodeSID(ts)
@@ -540,6 +544,8 @@ func getTestingLogger(env *testscript.Env, logname string) (*slog.Logger, error)
 }
 
 func buildGnoland(t *testing.T, gnoroot, output string) error {
+	t.Helper()
+
 	t.Log("building gnoland binary...")
 	if _, err := os.Stat(output); err != nil {
 		if !errors.Is(err, os.ErrNotExist) {

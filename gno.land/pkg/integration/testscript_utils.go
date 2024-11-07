@@ -28,5 +28,6 @@ func (t tSeqShim) Verbose() bool {
 //
 // Refer to package documentation in doc.go for more information on commands and example txtar scripts.
 func RunSeqShimTestscripts(t *testing.T, p testscript.Params) {
+	t.Helper()
 	testscript.RunT(tSeqShim{t}, p)
 }
