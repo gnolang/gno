@@ -8,7 +8,7 @@ id: validators-faq
 
 ### What is a gno.land validator?
 
-Gno.land is based on [Tendermint2](https://docs.gno.land/concepts/tendermint2) that relies on a set of validators
+gno.land is based on [Tendermint2](https://docs.gno.land/concepts/tendermint2) that relies on a set of validators
 selected based on [Proof of Contribution](https://docs.gno.land/concepts/proof-of-contribution) (PoC) to secure the
 network. Validators are tasked with participating in consensus by committing new blocks and broadcasting votes.
 Validators are compensated with a portion of transaction fees generated in the network. In gno.land, the voting power of
@@ -45,7 +45,7 @@ network.
 
 ### What stage is the gno.land project in?
 
-Gno.land is currently in Testnet 3, the single-node testnet stage. The next version, Testnet 4, is scheduled to go live
+gno.land is currently in Testnet 3, the single-node testnet stage. The next version, Testnet 4, is scheduled to go live
 in Q3 2024, which will include a validator set implementation for a multinode environment.
 
 ## Becoming a Validator
@@ -69,11 +69,11 @@ validators for their work. All validators fairly receive an equal amount of rewa
 
 The exact plans for mainnet are still TBD. Based on the latest discussions between contributors, the mainnet will likely
 have an inital validator set size of 20~50, which will gradually scale with the development and decentralization of the
-Gno.land project.
+gno.land project.
 
 ### How do I make my first contribution?
 
-Gno.land is in active development and external contributions are always welcome! If you’re looking for tasks to begin
+gno.land is in active development and external contributions are always welcome! If you’re looking for tasks to begin
 with, we suggest you visit
 the [Bounties &](https://github.com/orgs/gnolang/projects/35/views/3) [Worx](https://github.com/orgs/gnolang/projects/35/views/3)
 board and search for open tasks up for grabs. Start from small challenges and work your way up to the bigger ones. Every
