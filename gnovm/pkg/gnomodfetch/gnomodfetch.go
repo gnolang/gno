@@ -10,7 +10,6 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
 	"github.com/gnolang/gno/gnovm/pkg/gnomod"
 	"github.com/gnolang/gno/gnovm/pkg/load"
 	tm2client "github.com/gnolang/gno/tm2/pkg/bft/rpc/client"
@@ -81,7 +80,7 @@ func FetchPackage(io commands.IO, pkgPath string, dst string) error {
 }
 
 func FetchPackagesRecursively(io commands.IO, pkgPath string, gnoMod *gnomod.File) error {
-	dst := filepath.Join(gnoenv.HomeDir(), "pkg", "mod", pkgPath)
+	dst := gnomod.PackageDir("", module.Version{Path: pkgPath})
 
 	modFilePath := filepath.Join(dst, "gno.mod")
 
