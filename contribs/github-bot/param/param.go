@@ -30,8 +30,8 @@ func Get() Params {
 	}
 
 	// Helper to display an error + usage message before exiting
-	errorUsage := func(error string) {
-		fmt.Fprintf(flag.CommandLine.Output(), "Error : %s\n\n", error)
+	errorUsage := func(err string) {
+		fmt.Fprintf(flag.CommandLine.Output(), "Error : %s\n\n", err)
 		flag.Usage()
 		os.Exit(1)
 	}
@@ -40,7 +40,7 @@ func Get() Params {
 	flag.StringVar(&p.Owner, "owner", "", "owner of the repo to process, if empty, will be retrieved from GitHub Actions context")
 	flag.StringVar(&p.Repo, "repo", "", "repo to process, if empty, will be retrieved from GitHub Actions context")
 	flag.BoolVar(&p.PrAll, "pr-all", false, "process all opened pull requests")
-	flag.TextVar(&p.PrNums, "pr-numbers", PrList(nil), "pull request(s) to process, must be a comma seperated list of PR numbers, e.g '42,1337,7890'. If empty, will be retrived from GitHub Actions context")
+	flag.TextVar(&p.PrNums, "pr-numbers", PrList(nil), "pull request(s) to process, must be a comma separated list of PR numbers, e.g '42,1337,7890'. If empty, will be retrieved from GitHub Actions context")
 	flag.BoolVar(&p.Verbose, "verbose", false, "set logging level to debug")
 	flag.BoolVar(&p.DryRun, "dry-run", false, "print if pull request requirements are met without updating PR checks on GitHub web interface")
 	flag.UintVar(&p.Timeout, "timeout", 0, "timeout in milliseconds")

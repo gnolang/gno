@@ -50,7 +50,7 @@ func main() {
 		}
 	}
 
-	// Process all pull requests in parrallel
+	// Process all pull requests in parallel
 	autoRules, manualRules := config(gh)
 	var wg sync.WaitGroup
 	wg.Add(len(prs))
