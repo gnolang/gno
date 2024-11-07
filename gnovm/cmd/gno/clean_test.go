@@ -36,13 +36,11 @@ func TestCleanApp(t *testing.T) {
 			args:                 []string{"clean", "-modcache"},
 			testDir:              "../../tests/integ/empty_dir",
 			simulateExternalRepo: true,
-			tmpGnoHome:           true,
 		},
 		{
 			args:                 []string{"clean", "-modcache", "-n"},
 			testDir:              "../../tests/integ/empty_dir",
 			simulateExternalRepo: true,
-			tmpGnoHome:           true,
 			stdoutShouldContain:  "rm -rf ",
 		},
 	}
