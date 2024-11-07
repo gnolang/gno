@@ -246,15 +246,14 @@ func gnolandCmd(t *testing.T, nodes map[string]*testNode, gnolandBin, gnoRootDir
 				fmt.Fprintln(ts.Stdout(), "node stopped successfully")
 			}
 		default:
+			// Fallback on gnoland binary for other commands
 			err := ts.Exec(gnolandBin, args...)
 			if err != nil {
 				ts.Logf("gno command error: %+v", err)
 			}
 
-			tsValidateError(ts, "gnoland "+cmd, neg, err)
+			tsValidateError(ts, strings.TrimSpace("gnoland "+cmd), neg, err)
 		}
-
-		tsValidateError(ts, "gnoland "+cmd, neg, err)
 	}
 }
 
