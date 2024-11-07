@@ -2,8 +2,6 @@ package gnovm
 
 import (
 	"fmt"
-	"go/parser"
-	"go/token"
 	"regexp"
 	"sort"
 	"strings"
@@ -87,28 +85,6 @@ func (mempkg *MemPackage) Validate() error {
 			return fmt.Errorf("duplicate file name %q", file.Name)
 		}
 		prev = file.Name
-	}
-
-	pIndex := strings.Index(mempkg.Path, "/p/")
-	if pIndex > 0 && !strings.ContainsRune(mempkg.Path[:pIndex], '/') {
-		for _, file := range mempkg.Files {
-			if !strings.HasSuffix(file.Name, ".gno") {
-				continue
-			}
-			fset := token.NewFileSet()
-			astFile, err := parser.ParseFile(fset, file.Name, file.Body, parser.ImportsOnly)
-			if err != nil {
-				return fmt.Errorf("failed to parse imports in file %q of package %q: %w", file.Name, mempkg.Path, err)
-			}
-			for _, imp := range astFile.Imports {
-				// ensure the pkg is a realm by checking if the path contains /r/ and no other / character before it (i.e protect from gno.land/p/demo/r/)
-				importPath := strings.TrimPrefix(strings.TrimSuffix(imp.Path.Value, `"`), `"`)
-				rIndex := strings.Index(importPath, "/r/")
-				if rIndex > 0 && !strings.ContainsRune(importPath[:rIndex], '/') {
-					return fmt.Errorf("package %q imports realm %q", mempkg.Path, importPath)
-				}
-			}
-		}
 	}
 
 	return nil
