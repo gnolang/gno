@@ -64,72 +64,14 @@ func Render(path string) string {
 	return router.Render(path)
 }
 
-// renderHomepage renders the homepage with links to different sections
+// renderHomepage renders the homepage with links to auctions list
 func renderHomepage(res *mux.ResponseWriter, req *mux.Request) {
 	var b bytes.Buffer
-	b.WriteString("<h1><center>Auction Home</center></h1>\n\n")
-	b.WriteString("<h2><a href='/r/demo/auction:create/'>Create New Auction</a></h2>\n\n")
-	b.WriteString("<h2><a href='/r/demo/auction:upcoming/'>Upcoming Auctions</a></h2>\n\n")
-	b.WriteString("<h2><a href='/r/demo/auction:ongoing/'>Ongoing Auctions</a></h2>\n\n")
+	b.WriteString("# Homepage\n\n")
+	b.WriteString("## [AuctionList](/r/demo/auction:List)\n\n")
+
 	res.Write(b.String())
 }
-
-// renderCreateAuction renders the create auction page
-func renderCreateAuction(res *mux.ResponseWriter, req *mux.Request) {
-	var b bytes.Buffer
-	b.WriteString("<html><body>")
-
-	b.WriteString("#Create New Auction\n")
-	b.WriteString("<form action='/create' method='post'>\n")
-	b.WriteString("Title: <input type='text' name='title'><br>\n")
-	b.WriteString("Description: <input type='text' name='description'><br>\n")
-	b.WriteString("Begin: <input type='datetime-local' name='begin'><br>\n")
-	b.WriteString("End: <input type='datetime-local' name='end'><br>\n")
-	b.WriteString("Starting Price: <input type='number' name='price'><br>\n")
-	b.WriteString("<input type='submit' value='Create Auction'>\n")
-	b.WriteString("</form>\n")
-	b.WriteString("</body></html>")
-	res.Write(b.String())
-}
-
-// renderUpcomingAuctions renders the upcoming auctions page
-func renderUpcomingAuctions(res *mux.ResponseWriter, req *mux.Request) {
-	var b bytes.Buffer
-	b.WriteString("<h1>Upcoming Auctions</h1>\n")
-
-	for i, auc := range auctionList {
-		if auc.State == "upcoming" {
-			b.WriteString("\n\n")
-			b.WriteString("## " + auc.Title)
-			b.WriteString("\n\n")
-			b.WriteString("### Owner: " + auc.Owner.String() + "\n")
-			b.WriteString("### Description: " + auc.Description + "\n\n")
-			b.WriteString("This auction starts on: " + auc.Begin.String() + " and ends on: " + auc.End.String() + "\n\n")
-			b.WriteString("### Starting Price: " + strconv.FormatUint(auc.Price, 10) + "\n")
-			b.WriteString("[View Auction](/auction/" + strconv.Itoa(i) + ")\n")
-		}
-	}
-	res.Write(b.String())
-}
-
-// renderOngoingAuctions renders the ongoing auctions page
-func renderOngoingAuctions(res *mux.ResponseWriter, req *mux.Request) {
-	var b bytes.Buffer
-	b.WriteString("<h1>Ongoing Auctions</h1>\n")
-
-	for i, auc := range auctionList {
-		if auc.State == "ongoing" {
-			b.WriteString("##" + auc.Title + "\n")
-			b.WriteString("### Owner: " + auc.Owner.String() + "\n")
-			b.WriteString("### Description: " + auc.Description + "\n\n")
-			b.WriteString("This auction started on: " + auc.Begin.String() + " and ends on: " + auc.End.String() + "\n\n")
-			b.WriteString("### Current Price: " + strconv.FormatUint(auc.Price, 10) + "\n")
-			b.WriteString("[View Auction](/auction/" + strconv.Itoa(i) + ")\n")
-		}
-	}
-	res.Write(b.String())
-}
-
 // renderAuctionDetails renders the details of a specific auction
 func renderAuctionDetails(res *mux.ResponseWriter, req *mux.Request) {
 	idStr := req.GetVar("id")
@@ -139,22 +81,16 @@ func renderAuctionDetails(res *mux.ResponseWriter, req *mux.Request) {
 		return
 	}
 	auc := auctionList[id]
-
 	var b bytes.Buffer
-	b.WriteString("<h1>Auction Details</h1>\n")
+	b.WriteString("# Auction List\n\n")
+
+	b.WriteString("\n\n")
 	b.WriteString("## " + auc.Title + "\n")
-	b.WriteString("### Owner: " + auc.Owner.String() + "\n")
+	b.WriteString("### Owner: " + auc.Ownable.Owner().String() + "\n")
 	b.WriteString("### Description: " + auc.Description + "\n\n")
 	b.WriteString("This auction starts on: " + auc.Begin.String() + " and ends on: " + auc.End.String() + "\n\n")
-	b.WriteString("### Current Price: " + strconv.FormatUint(auc.Price, 10) + "\n")
-
-	if auc.State == "ongoing" {
-		b.WriteString("<form action='/bid' method='post'>\n")
-		b.WriteString("Amount: <input type='number' name='amount'><br>\n")
-		b.WriteString("<input type='hidden' name='id' value='" + strconv.Itoa(id) + "'>\n")
-		b.WriteString("<input type='submit' value='Place Bid'>\n")
-		b.WriteString("</form>\n")
-	}
+	b.WriteString(ufmt.Sprintf("### starting Price: %d\n", auc.Price))
+	b.WriteString("[View Auction](/auction/" + strconv.Itoa(id) + ")\n")
 
 	res.Write(b.String())
 }
