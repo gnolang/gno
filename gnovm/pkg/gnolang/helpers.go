@@ -12,8 +12,10 @@ import (
 
 // RealmPathPrefix is the prefix used to identify pkgpaths which are meant to
 // be realms and as such to have their state persisted. This is used by [IsRealmPath].
-const RealmPathPrefix = "gno.land/r/"
-const PackagePathPrefix = "gno.land/p/"
+const (
+	RealmPathPrefix   = "gno.land/r/"
+	PackagePathPrefix = "gno.land/p/"
+)
 
 // ReGnoRunPath is the path used for realms executed in maketx run.
 // These are not considered realms, as an exception to the RealmPathPrefix rule.
