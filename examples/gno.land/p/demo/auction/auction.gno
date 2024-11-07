@@ -9,7 +9,7 @@ import (
 	"gno.land/p/demo/ufmt"
 )
 
-// Auction struct
+// Auction represents an auction with a title, owner, description, start and end times, starting bid, and a list of bids.
 type Auction struct {
 	Owner       ownable.Ownable // Embeds Ownable to handle ownership
 	Title       string
@@ -20,7 +20,7 @@ type Auction struct {
 	Bids        []*Bid
 }
 
-// Bid struct
+// Bid represents a bid in the auction with a bidder's address and the bid amount.
 type Bid struct {
 	Bidder std.Address
 	Amount std.Coin
