@@ -29,11 +29,7 @@ func TestAuction(t *testing.T) {
 
 	// Check if auction is in the upcoming section
 	std.TestSkipHeights(1) // Skip 1 block to simulate time passage
-	updateAuctionStates()
-	upcomingPage := Render("upcoming")
-	if !strings.Contains(upcomingPage, "Test Auction") {
-		t.Errorf("Auction should be listed in upcoming auctions")
-	}
+	
 
 	// Simulate time passing to start the auction
 	std.TestSkipHeights(360) // Skip 360 blocks (1800 seconds or 30 minutes)

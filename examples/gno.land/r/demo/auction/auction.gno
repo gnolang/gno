@@ -13,16 +13,13 @@ import (
 var (
 	auctionList []*auctionp.Auction
 	currentTime time.Time
-	// router      *mux.Router
+	router      = mux.NewRouter()
 )
 
 var router = mux.NewRouter()
 
 func init() {
 	router.HandleFunc("", renderHomepage)
-	router.HandleFunc("create/", renderCreateAuction)
-	router.HandleFunc("upcoming/", renderUpcomingAuctions)
-	router.HandleFunc("ongoing/", renderOngoingAuctions)
 	router.HandleFunc("/auction/{id}", renderAuctionDetails)
 }
 

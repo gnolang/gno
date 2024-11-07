@@ -18,7 +18,6 @@ type Auction struct {
 	End         time.Time
 	StartingBid std.Coin
 	Bids        []*Bid
-	State       string // "upcoming", "ongoing", or "closed"
 }
 
 // Bid struct
@@ -49,7 +48,6 @@ func NewAuction(
 		End:         end,
 		StartingBid: startingBid,
 		Bids:        []*Bid{},
-		State:       "upcoming",
 	}
 }
 
@@ -79,16 +77,15 @@ func (a *Auction) EndAuction() error {
 	if time.Now().Before(a.End) {
 		return ufmt.Errorf("auction: EndAuction: auction cannot end before the end time")
 	}
-	if a.State == "closed" {
-		return ufmt.Errorf("auction: EndAuction: auction is already closed")
-	}
-	if len(a.Bids) == 0 {
+	
+	highestBid := a.Price
+
+	if len(a.Bids) > 0 {
+		winner := a.Bids[len(a.Bids)-1].Bidder
+		std.Emit("AuctionEnded", "winner", winner.String(), "amount", strconv.Itoa(int(highestBid)))
+	} else {
 		std.Emit("AuctionEndedNoBids", "auction", a.Title)
-		return ufmt.Errorf("auction: EndAuction: auction ended with no bids")
 	}
-	a.State = "closed"
-	highestBid := a.StartingBid
-	winner := a.Bids[len(a.Bids)-1].Bidder
-	std.Emit("AuctionEnded", "winner", winner.String(), "amount", highestBid.String())
+
 	return nil
 }
