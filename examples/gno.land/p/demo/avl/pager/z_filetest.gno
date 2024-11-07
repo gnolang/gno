@@ -14,6 +14,7 @@ func main() {
 	for i := 0; i < 42; i++ {
 		tree.Set(id.Next().String(), i)
 	}
+
 	// Create a new pager.
 	pager := pager.NewPager(tree, 7)
 

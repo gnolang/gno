@@ -256,7 +256,7 @@ func discoverLinks() ui.Element {
 - Tokenomics (soon)
 - [Partners, Fund, Grants](/partners)
 - [Explore the Ecosystem](/ecosystem)
-- [Careers](https://jobs.lever.co/allinbits?department=Gno.land)
+- [Careers](https://jobs.ashbyhq.com/allinbits)
 
 </div><!-- end column-->
 

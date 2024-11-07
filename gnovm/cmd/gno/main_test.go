@@ -128,7 +128,7 @@ func testMainCaseRun(t *testing.T, tc []testMainCase) {
 			if errShouldBeEmpty {
 				require.Nil(t, err, "err should be nil")
 			} else {
-				t.Log("err", err.Error())
+				t.Log("err", fmt.Sprintf("%v", err))
 				require.NotNil(t, err, "err shouldn't be nil")
 				if test.errShouldContain != "" {
 					require.Contains(t, err.Error(), test.errShouldContain, "err should contain")
