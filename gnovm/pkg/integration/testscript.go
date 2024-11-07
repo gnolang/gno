@@ -10,6 +10,8 @@ import (
 
 // NewTestingParams setup and initialize base params for testing.
 func NewTestingParams(t *testing.T, datadir string) testscript.Params {
+	t.Helper()
+
 	var params testscript.Params
 	params.Dir = datadir
 
