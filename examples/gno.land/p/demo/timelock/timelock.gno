@@ -42,20 +42,20 @@ type OperationStatus struct {
 	isDone      bool
 }
 
-// TimeLockUtil stores the necessary parameters for the timelock operations
-type TimeLockUtil struct {
+// TimeLock stores the necessary parameters for the timelock operations
+type TimeLock struct {
 	timestamps    *avl.Tree // id -> time.Time
 	accessControl *accesscontrol.Role
 	minDelay      uint64
 }
 
-// New instance of TimeLockUtil
-func NewTimeLockUtil(timestamps *avl.Tree, accessControl *accesscontrol.Role, minDelay uint64) (*TimeLockUtil, error) {
+// New instance of TimeLock
+func NewTimeLock(timestamps *avl.Tree, accessControl *accesscontrol.Role, minDelay uint64) (*TimeLock, error) {
 	if timestamps == nil || accessControl == nil {
 		return nil, ErrNilTimestampsOrAccessControl
 	}
 
-	return &TimeLockUtil{
+	return &TimeLock{
 		timestamps:    timestamps,
 		accessControl: accessControl,
 		minDelay:      minDelay,
@@ -63,7 +63,7 @@ func NewTimeLockUtil(timestamps *avl.Tree, accessControl *accesscontrol.Role, mi
 }
 
 // Schedules an operation to be carried out after a minimum delay
-func (tl *TimeLockUtil) Schedule(id seqid.ID, delay uint64) error {
+func (tl *TimeLock) Schedule(id seqid.ID, delay uint64) error {
 	if delay < tl.minDelay {
 		return ErrInsufficientDelay
 	}
@@ -86,7 +86,7 @@ func (tl *TimeLockUtil) Schedule(id seqid.ID, delay uint64) error {
 }
 
 // Remove operation
-func (tl *TimeLockUtil) Remove(id seqid.ID) {
+func (tl *TimeLock) Remove(id seqid.ID) {
 	tl.timestamps.Remove(id.Binary())
 
 	std.Emit(
@@ -96,7 +96,7 @@ func (tl *TimeLockUtil) Remove(id seqid.ID) {
 }
 
 // Cancels a planned operation
-func (tl *TimeLockUtil) Cancel(id seqid.ID) error {
+func (tl *TimeLock) Cancel(id seqid.ID) error {
 	if !tl.IsPending(id) {
 		return ErrOperationCancelNotPending
 	}
@@ -111,7 +111,7 @@ func (tl *TimeLockUtil) Cancel(id seqid.ID) error {
 }
 
 // Executes a pending operation
-func (tl *TimeLockUtil) Execute(id seqid.ID) error {
+func (tl *TimeLock) Execute(id seqid.ID) error {
 	if !tl.IsPending(id) {
 		return ErrOperationExecuteNotPending
 	}
@@ -132,7 +132,7 @@ func (tl *TimeLockUtil) Execute(id seqid.ID) error {
 }
 
 // Update the minimum lead time for future operations
-func (tl *TimeLockUtil) UpdateDelay(newDelay uint64) error {
+func (tl *TimeLock) UpdateDelay(newDelay uint64) error {
 	if std.PrevRealm().Addr() != tl.accessControl.Ownable.Owner() {
 		return ErrUpadateDelay
 	}
@@ -149,7 +149,7 @@ func (tl *TimeLockUtil) UpdateDelay(newDelay uint64) error {
 }
 
 // Checks if an operation is pending
-func (tl *TimeLockUtil) IsPending(id seqid.ID) bool {
+func (tl *TimeLock) IsPending(id seqid.ID) bool {
 	state, err := tl.GetOperationState(id)
 	if err != nil {
 		// Handle the error appropriately; for now, we assume the operation is not pending if there's an error
@@ -161,7 +161,7 @@ func (tl *TimeLockUtil) IsPending(id seqid.ID) bool {
 }
 
 // Checks if an operation is ready
-func (tl *TimeLockUtil) IsReady(id seqid.ID) bool {
+func (tl *TimeLock) IsReady(id seqid.ID) bool {
 	state, err := tl.GetOperationState(id)
 	if err != nil {
 		// Handle the error appropriately; for now, we assume the operation is not pending if there's an error
@@ -173,7 +173,7 @@ func (tl *TimeLockUtil) IsReady(id seqid.ID) bool {
 }
 
 // Returns the status of an operation
-func (tl *TimeLockUtil) GetOperationState(id seqid.ID) (OperationState, error) {
+func (tl *TimeLock) GetOperationState(id seqid.ID) (OperationState, error) {
 	status, err := tl.GetOperationStatus(id)
 	if err != nil {
 		return Unset, err
@@ -191,7 +191,7 @@ func (tl *TimeLockUtil) GetOperationState(id seqid.ID) (OperationState, error) {
 }
 
 // Returns the status of an operation
-func (tl *TimeLockUtil) GetOperationStatus(id seqid.ID) (OperationStatus, error) {
+func (tl *TimeLock) GetOperationStatus(id seqid.ID) (OperationStatus, error) {
 	value, ok := tl.timestamps.Get(id.Binary())
 
 	if !ok {
