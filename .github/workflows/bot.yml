@@ -47,11 +47,13 @@ jobs:
         run: |
           # Triggered by a workflow dispatch event
           if [ '${{ github.event_name }}' = 'workflow_dispatch' ]; then
+
             # If the input is 'all', create a matrix with every open PRs
             if [ '${{ inputs.pull-request-list }}' = 'all' ]; then
               pr_list=`gh pr list --state 'open' --repo '${{ github.repository }}' --json 'number' --template '{{$first := true}}{{range .}}{{if $first}}{{$first = false}}{{else}}, {{end}}{{"\""}}{{.number}}{{"\""}}{{end}}'`
               [ -z "$pr_list" ] && echo 'Error: no opened PR found' >&2 && exit 1
               echo "pr-numbers=[$pr_list]" >> "$GITHUB_OUTPUT"
+
             # If the input is not 'all', test for each number in the comma separated
             # list if the associated PR is opened, then add it to the matrix
             else
@@ -65,12 +67,16 @@ jobs:
               done
               echo "pr-numbers=[$pr_list]" >> "$GITHUB_OUTPUT"
             fi
+
           # Triggered by comment event, just add the associated PR number to the matrix
           elif [ '${{ github.event_name }}' = 'issue_comment' ]; then
             echo 'pr-numbers=["${{ github.event.issue.number }}"]' >> "$GITHUB_OUTPUT"
+
           # Triggered by pull request event, just add the associated PR number to the matrix
           elif [ '${{ github.event_name }}' = 'pull_request' ]; then
             echo 'pr-numbers=["${{ github.event.pull_request.number }}"]' >> "$GITHUB_OUTPUT"
+
+          # Should never happen
           else
             echo 'Error: unknown event ${{ github.event_name }}' >&2 && exit 1
           fi
