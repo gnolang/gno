@@ -25,7 +25,7 @@ func Test_Scripts(t *testing.T) {
 		name := dir.Name()
 		t.Logf("testing: %s", name)
 		t.Run(name, func(t *testing.T) {
-			p := integration.NewTestingParams(t)
+			p := integration.NewTestingParams(t, name)
 			if coverdir, ok := integration.ResolveCoverageDir(); ok {
 				err := integration.SetupTestscriptsCoverage(&p, coverdir)
 				require.NoError(t, err)
