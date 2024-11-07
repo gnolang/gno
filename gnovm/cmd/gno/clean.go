@@ -63,6 +63,19 @@ func execClean(cfg *cleanCfg, args []string, io commands.IO) error {
 		return flag.ErrHelp
 	}
 
+	if cfg.modCache {
+		modCacheDir := gnomod.GetGnoModPath()
+		if !cfg.dryRun {
+			if err := os.RemoveAll(modCacheDir); err != nil {
+				return err
+			}
+		}
+		if cfg.dryRun || cfg.verbose {
+			io.Println("rm -rf", modCacheDir)
+		}
+		return nil
+	}
+
 	path, err := os.Getwd()
 	if err != nil {
 		return err
@@ -80,17 +93,6 @@ func execClean(cfg *cleanCfg, args []string, io commands.IO) error {
 		return err
 	}
 
-	if cfg.modCache {
-		modCacheDir := gnomod.GetGnoModPath()
-		if !cfg.dryRun {
-			if err := os.RemoveAll(modCacheDir); err != nil {
-				return err
-			}
-		}
-		if cfg.dryRun || cfg.verbose {
-			io.Println("rm -rf", modCacheDir)
-		}
-	}
 	return nil
 }
 
