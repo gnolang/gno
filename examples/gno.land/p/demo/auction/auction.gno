@@ -25,12 +25,6 @@ type Bid struct {
 	Bidder std.Address
 	Amount std.Coin
 }
-
-var (
-	auctionList []*Auction
-	currentTime time.Time
-)
-
 // NewAuction creates a new auction
 func NewAuction(
 	title string,
