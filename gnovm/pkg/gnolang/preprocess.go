@@ -2429,9 +2429,9 @@ func parseAssignFromExprList(
 		}
 	}
 
-	// evaluate typed value for static definition.
+	// Evaluate typed value for static definition.
 	for i := range nameExprs {
-		// consider value if specified.
+		// Consider value if specified.
 		if len(valueExprs) > 0 {
 			vx := valueExprs[i]
 			if cx, ok := vx.(*ConstExpr); ok &&
@@ -2446,7 +2446,7 @@ func parseAssignFromExprList(
 				continue
 			}
 		}
-		// for var decls of non-const expr.
+		// For var decls of non-const expr.
 		st := sts[i]
 		tvs[i] = anyValue(st)
 	}
