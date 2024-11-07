@@ -133,6 +133,22 @@ func B() {
 func C() {
 	std.AssertOriginCall()
 }
+-- r/foo/foo.gno --
+package foo
+
+import "gno.land/r/myrlm"
+
+func A() {
+	myrlm.A()
+}
+
+func B() {
+	myrlm.B()
+}
+
+func C() {
+	myrlm.C()
+}
 -- p/demo/bar/bar.gno --
 package bar
 
@@ -149,22 +165,6 @@ func B() {
 }
 func C() {
 	std.AssertOriginCall()
-}
--- r/foo/foo.gno --
-package foo
-
-import "gno.land/r/myrlm"
-
-func A() {
-	myrlm.A()
-}
-
-func B() {
-	myrlm.B()
-}
-
-func C() {
-	myrlm.C()
 }
 -- run/myrlmA.gno --
 package main
