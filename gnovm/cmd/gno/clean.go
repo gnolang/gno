@@ -9,7 +9,6 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
 	"github.com/gnolang/gno/gnovm/pkg/gnomod"
 	"github.com/gnolang/gno/tm2/pkg/commands"
 )
@@ -82,7 +81,7 @@ func execClean(cfg *cleanCfg, args []string, io commands.IO) error {
 	}
 
 	if cfg.modCache {
-		modCacheDir := filepath.Join(gnoenv.HomeDir(), "pkg", "mod")
+		modCacheDir := gnomod.GetGnoModPath()
 		if !cfg.dryRun {
 			if err := os.RemoveAll(modCacheDir); err != nil {
 				return err
