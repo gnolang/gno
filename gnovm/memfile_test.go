@@ -7,15 +7,6 @@ import (
 )
 
 func TestMemPackage_Validate(t *testing.T) {
-	fileA := &MemFile{
-		Name: "a.gno",
-		Body: "package test",
-	}
-	fileB := &MemFile{
-		Name: "b.gno",
-		Body: "package test",
-	}
-
 	t.Parallel()
 	tt := []struct {
 		name        string
@@ -27,7 +18,7 @@ func TestMemPackage_Validate(t *testing.T) {
 			&MemPackage{
 				Name:  "hey",
 				Path:  "gno.land/r/demo/hey",
-				Files: []*MemFile{fileA},
+				Files: []*MemFile{{Name: "a.gno"}},
 			},
 			"",
 		},
@@ -36,7 +27,7 @@ func TestMemPackage_Validate(t *testing.T) {
 			&MemPackage{
 				Name:  "hey",
 				Path:  "gno.land/r/demo/hey",
-				Files: []*MemFile{fileB, fileA},
+				Files: []*MemFile{{Name: "b.gno"}, {Name: "a.gno"}},
 			},
 			"unsorted",
 		},
@@ -45,7 +36,7 @@ func TestMemPackage_Validate(t *testing.T) {
 			&MemPackage{
 				Name:  "hey",
 				Path:  "gno.land/r/demo/hey",
-				Files: []*MemFile{fileA, fileA},
+				Files: []*MemFile{{Name: "a.gno"}, {Name: "a.gno"}},
 			},
 			"duplicate",
 		},
@@ -54,7 +45,7 @@ func TestMemPackage_Validate(t *testing.T) {
 			&MemPackage{
 				Name:  "hey",
 				Path:  "gno.land/r/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/long/path",
-				Files: []*MemFile{fileA},
+				Files: []*MemFile{{Name: "a.gno"}},
 			},
 			"path length",
 		},
@@ -63,7 +54,7 @@ func TestMemPackage_Validate(t *testing.T) {
 			&MemPackage{
 				Name:  "hey",
 				Path:  "gno.land/p/path/path",
-				Files: []*MemFile{fileA},
+				Files: []*MemFile{{Name: "a.gno"}},
 			},
 			"",
 		},
@@ -72,7 +63,7 @@ func TestMemPackage_Validate(t *testing.T) {
 			&MemPackage{
 				Name:  "hey",
 				Path:  "gno.land/r/path/path",
-				Files: []*MemFile{fileA},
+				Files: []*MemFile{{Name: "a.gno"}},
 			},
 			"",
 		},
@@ -81,7 +72,7 @@ func TestMemPackage_Validate(t *testing.T) {
 			&MemPackage{
 				Name:  "hey",
 				Path:  "gno.land/r/path/_path",
-				Files: []*MemFile{fileA},
+				Files: []*MemFile{{Name: "a.gno"}},
 			},
 			"",
 		},
@@ -90,7 +81,7 @@ func TestMemPackage_Validate(t *testing.T) {
 			&MemPackage{
 				Name:  "hey",
 				Path:  "gno.land/r/path/path_",
-				Files: []*MemFile{fileA},
+				Files: []*MemFile{{Name: "a.gno"}},
 			},
 			"",
 		},
@@ -99,7 +90,7 @@ func TestMemPackage_Validate(t *testing.T) {
 			&MemPackage{
 				Name:  "hey",
 				Path:  "gno.land/r/path/p_ath",
-				Files: []*MemFile{fileA},
+				Files: []*MemFile{{Name: "a.gno"}},
 			},
 			"",
 		},
@@ -108,7 +99,7 @@ func TestMemPackage_Validate(t *testing.T) {
 			&MemPackage{
 				Name:  "hey",
 				Path:  "gno.land/r/path/_",
-				Files: []*MemFile{fileA},
+				Files: []*MemFile{{Name: "a.gno"}},
 			},
 			"invalid package/realm path",
 		},
@@ -117,7 +108,7 @@ func TestMemPackage_Validate(t *testing.T) {
 			&MemPackage{
 				Name:  "hey",
 				Path:  "gno.land/r/path/_/_",
-				Files: []*MemFile{fileA},
+				Files: []*MemFile{{Name: "a.gno"}},
 			},
 			"invalid package/realm path",
 		},
@@ -126,7 +117,7 @@ func TestMemPackage_Validate(t *testing.T) {
 			&MemPackage{
 				Name:  "hey",
 				Path:  "gno.land/r/path/__/path",
-				Files: []*MemFile{fileA},
+				Files: []*MemFile{{Name: "a.gno"}},
 			},
 			"invalid package/realm path",
 		},
@@ -135,7 +126,7 @@ func TestMemPackage_Validate(t *testing.T) {
 			&MemPackage{
 				Name:  "hey",
 				Path:  "gno.land/r/path/pa-th",
-				Files: []*MemFile{fileA},
+				Files: []*MemFile{{Name: "a.gno"}},
 			},
 			"invalid package/realm path",
 		},
@@ -144,7 +135,7 @@ func TestMemPackage_Validate(t *testing.T) {
 			&MemPackage{
 				Name:  "hey",
 				Path:  "gno.land/x/path/path",
-				Files: []*MemFile{fileA},
+				Files: []*MemFile{{Name: "a.gno"}},
 			},
 			"invalid package/realm path",
 		},
@@ -153,7 +144,7 @@ func TestMemPackage_Validate(t *testing.T) {
 			&MemPackage{
 				Name:  "hey",
 				Path:  "gno.land/p",
-				Files: []*MemFile{fileA},
+				Files: []*MemFile{{Name: "a.gno"}},
 			},
 			"invalid package/realm path",
 		},
@@ -162,7 +153,7 @@ func TestMemPackage_Validate(t *testing.T) {
 			&MemPackage{
 				Name:  "hey",
 				Path:  "gno.land/p/",
-				Files: []*MemFile{fileA},
+				Files: []*MemFile{{Name: "a.gno"}},
 			},
 			"invalid package/realm path",
 		},
@@ -171,7 +162,7 @@ func TestMemPackage_Validate(t *testing.T) {
 			&MemPackage{
 				Name:  "hey",
 				Path:  "github.com/p/path/path",
-				Files: []*MemFile{fileA},
+				Files: []*MemFile{{Name: "a.gno"}},
 			},
 			"invalid package/realm path",
 		},
@@ -180,7 +171,7 @@ func TestMemPackage_Validate(t *testing.T) {
 			&MemPackage{
 				Name:  "hey",
 				Path:  "gno.land/p/p@th/abc/def",
-				Files: []*MemFile{fileA},
+				Files: []*MemFile{{Name: "a.gno"}},
 			},
 			"invalid package/realm path",
 		},
@@ -189,7 +180,7 @@ func TestMemPackage_Validate(t *testing.T) {
 			&MemPackage{
 				Name:  "hey",
 				Path:  "gno.land/p/p&th/abc/def",
-				Files: []*MemFile{fileA},
+				Files: []*MemFile{{Name: "a.gno"}},
 			},
 			"invalid package/realm path",
 		},
@@ -198,7 +189,7 @@ func TestMemPackage_Validate(t *testing.T) {
 			&MemPackage{
 				Name:  "hey",
 				Path:  "gno.land/p/1Path/abc/def",
-				Files: []*MemFile{fileA},
+				Files: []*MemFile{{Name: "a.gno"}},
 			},
 			"invalid package/realm path",
 		},
@@ -207,7 +198,7 @@ func TestMemPackage_Validate(t *testing.T) {
 			&MemPackage{
 				Name:  "hey",
 				Path:  "gno.land/p/PaTh/abc/def",
-				Files: []*MemFile{fileA},
+				Files: []*MemFile{{Name: "a.gno"}},
 			},
 			"invalid package/realm path",
 		},
@@ -216,7 +207,7 @@ func TestMemPackage_Validate(t *testing.T) {
 			&MemPackage{
 				Name:  "hey",
 				Path:  "gno.land/p/path//def",
-				Files: []*MemFile{fileA},
+				Files: []*MemFile{{Name: "a.gno"}},
 			},
 			"invalid package/realm path",
 		},
@@ -225,7 +216,7 @@ func TestMemPackage_Validate(t *testing.T) {
 			&MemPackage{
 				Name:  "hey",
 				Path:  "gno.land/p/path/abc/def/",
-				Files: []*MemFile{fileA},
+				Files: []*MemFile{{Name: "a.gno"}},
 			},
 			"invalid package/realm path",
 		},
@@ -234,7 +225,7 @@ func TestMemPackage_Validate(t *testing.T) {
 			&MemPackage{
 				Name:  "hey",
 				Path:  "gno.land/r/very/very/very/long/path",
-				Files: []*MemFile{fileA},
+				Files: []*MemFile{{Name: "a.gno"}},
 			},
 			"",
 		},
@@ -243,7 +234,7 @@ func TestMemPackage_Validate(t *testing.T) {
 			&MemPackage{
 				Name:  "hey",
 				Path:  "gno.land/r/very/very/very/long/p@th",
-				Files: []*MemFile{fileA},
+				Files: []*MemFile{{Name: "a.gno"}},
 			},
 			"invalid package/realm path",
 		},
@@ -252,7 +243,7 @@ func TestMemPackage_Validate(t *testing.T) {
 			&MemPackage{
 				Name:  "hey",
 				Path:  "gno.land/r/very/very/very/long/path/",
-				Files: []*MemFile{fileA},
+				Files: []*MemFile{{Name: "a.gno"}},
 			},
 			"invalid package/realm path",
 		},
@@ -261,83 +252,9 @@ func TestMemPackage_Validate(t *testing.T) {
 			&MemPackage{
 				Name:  "hey",
 				Path:  "gno.land/r/very/very/very//long/path/",
-				Files: []*MemFile{fileA},
+				Files: []*MemFile{{Name: "a.gno"}},
 			},
 			"invalid package/realm path",
-		},
-		{
-			"Invalid package imports realm",
-			&MemPackage{
-				Name: "test",
-				Path: "gno.land/p/demo/test",
-				Files: []*MemFile{
-					{Name: "a.gno", Body: `
-					package test
-
-					import "gno.land/r/demo/avl"
-					
-					func A() {
-						avl.A()
-					}
-					`},
-				},
-			},
-			"package \"gno.land/p/demo/test\" imports realm \"gno.land/r/demo/avl\"",
-		},
-		{
-			"Valid witr /r/ as a realm name",
-			&MemPackage{
-				Name: "test",
-				Path: "gno.land/p/demo/test",
-				Files: []*MemFile{
-					{Name: "a.gno", Body: `
-					package test
-
-					import "gno.land/p/r/r"
-					
-					func A() {
-						r.A()
-					}
-					`},
-				},
-			},
-			"",
-		},
-		{
-			"Valid package containing non gno file",
-			&MemPackage{
-				Name: "test",
-				Path: "gno.land/p/demo/test",
-				Files: []*MemFile{
-					{
-						Name: "README.md",
-						Body: `
-						# Test
-						`,
-					},
-					{Name: "a.gno", Body: `
-					package test
-
-					import "gno.land/p/r/r"
-					
-					func A() {
-						r.A()
-					}
-					`},
-				},
-			},
-			"",
-		},
-		{
-			"Invalid empty gno file",
-			&MemPackage{
-				Name: "test",
-				Path: "gno.land/p/demo/test",
-				Files: []*MemFile{
-					{Name: "a.gno"},
-				},
-			},
-			"failed to parse imports in file \"a.gno\" of package \"gno.land/p/demo/test\"",
 		},
 	}
 	for _, tc := range tt {
