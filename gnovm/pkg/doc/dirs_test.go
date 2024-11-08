@@ -63,16 +63,23 @@ func TestNewDirs_invalidModDir(t *testing.T) {
 func tNewDirs(t *testing.T) (string, *bfsDirs) {
 	t.Helper()
 
-	// modify GNO_HOME to testdata/dirsdep -- this allows us to test
+	// modify GNOHOME to testdata/dirsdep -- this allows us to test
 	// dependency lookup by dirs.
-	old, ex := os.LookupEnv("GNO_HOME")
+	oldLegacy, exLegacy := os.LookupEnv("GNO_HOME")
+	old, ex := os.LookupEnv("GNOHOME")
 	os.Setenv("GNO_HOME", wdJoin(t, "testdata/dirsdep"))
+	os.Setenv("GNOHOME", wdJoin(t, "testdata/dirsdep"))
 
 	t.Cleanup(func() {
-		if ex {
-			os.Setenv("GNO_HOME", old)
+		if exLegacy {
+			os.Setenv("GNO_HOME", oldLegacy)
 		} else {
 			os.Unsetenv("GNO_HOME")
+		}
+		if ex {
+			os.Setenv("GNOHOME", old)
+		} else {
+			os.Unsetenv("GNOHOME")
 		}
 	})
 

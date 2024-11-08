@@ -5,6 +5,7 @@
 package doc
 
 import (
+	"fmt"
 	"log"
 	"os"
 	"path"
@@ -13,6 +14,8 @@ import (
 	"strings"
 
 	"github.com/gnolang/gno/gnovm/pkg/gnomod"
+	"github.com/gnolang/gno/gnovm/pkg/load"
+	"golang.org/x/mod/module"
 )
 
 // A bfsDir describes a directory holding code by specifying
@@ -60,10 +63,42 @@ func newDirs(dirs []string, modDirs []string) *bfsDirs {
 			dir:        mdir,
 			importPath: gm.Module.Mod.Path,
 		})
+		roots = append(roots, getGnoModDirs(gm, mdir)...)
 	}
 
 	go d.walk(roots)
 	return d
+}
+
+func getGnoModDirs(gm *gnomod.File, root string) []bfsDir {
+	// cmd/go makes use of the go list command, we don't have that here.
+
+	imports, err := load.GetGnoPackageImportsRecursive(root)
+	if err != nil {
+		log.Println("get imports at", root, ":", err)
+		return nil
+	}
+
+	dirs := make([]bfsDir, 0, len(imports))
+	for _, r := range imports {
+		mv := gm.Resolve(module.Version{Path: r})
+		path := gnomod.PackageDir("", mv)
+		if _, err := os.Stat(path); err != nil {
+			fmt.Printf("ignoring inexistent path %q for pkg %q\n", path, r)
+			// only give directories which actually exist and don't give
+			// an error when accessing
+			if !os.IsNotExist(err) {
+				log.Println("open source directories from import:", err)
+			}
+			continue
+		}
+		dirs = append(dirs, bfsDir{
+			importPath: mv.Path,
+			dir:        path,
+		})
+	}
+
+	return dirs
 }
 
 // Reset puts the scan back at the beginning.
