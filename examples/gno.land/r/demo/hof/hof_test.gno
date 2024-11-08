@@ -95,7 +95,7 @@ func TestDownvote(t *testing.T) {
 	uassert.Equal(t, item.downvote.Size(), 1)
 	uassert.Equal(t, itemSorted.downvote.Size(), 1)
 
-	// Check double upvote
+	// Check double downvote
 	uassert.PanicsWithMessage(t, ErrDoubleDownvote.Error(), func() {
 		Downvote(rlmPath)
 	})
