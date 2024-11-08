@@ -2262,10 +2262,6 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 					// runDeclaration(), as this uses OpStaticTypeOf.
 				}
 
-				if len(n.Values) > 1 && len(n.NameExprs) != len(n.Values) {
-					panic(fmt.Sprintf("assignment mismatch: %d variable(s) but %d value(s)", len(n.NameExprs), len(n.Values)))
-				}
-
 				defineOrDecl(store, last, n.Const, n.NameExprs, n.Type, n.Values)
 
 				// TODO make note of constance in static block for
@@ -2348,6 +2344,11 @@ func defineOrDecl(
 	valueExprs []Expr,
 ) {
 	numNames := len(nameExprs)
+	numVals := len(valueExprs)
+
+	if numVals > 1 && numNames != numVals {
+		panic(fmt.Sprintf("assignment mismatch: %d variable(s) but %d value(s)", numNames, numVals))
+	}
 
 	if numNames < 1 {
 		panic("must have at least one name to assign")
@@ -2526,15 +2527,8 @@ func parseMultipleAssignFromOneExpr(
 		if st != nil {
 			tt := tuple.Elts[i]
 
-			if tt.Kind() != st.Kind() {
-				panic(
-					fmt.Sprintf(
-						"cannot use %v (value of type %s) as %s value in assignment",
-						valueExpr.String(),
-						tt.String(),
-						st.String(),
-					),
-				)
+			if err := checkAssignableTo(tt, st, false); err != nil {
+				panic(fmt.Sprintf("%v", err))
 			}
 
 			sts[i] = st
