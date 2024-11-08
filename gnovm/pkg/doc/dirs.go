@@ -5,7 +5,6 @@
 package doc
 
 import (
-	"fmt"
 	"log"
 	"os"
 	"path"
@@ -84,7 +83,6 @@ func getGnoModDirs(gm *gnomod.File, root string) []bfsDir {
 		mv := gm.Resolve(module.Version{Path: r})
 		path := gnomod.PackageDir("", mv)
 		if _, err := os.Stat(path); err != nil {
-			fmt.Printf("ignoring inexistent path %q for pkg %q\n", path, r)
 			// only give directories which actually exist and don't give
 			// an error when accessing
 			if !os.IsNotExist(err) {
