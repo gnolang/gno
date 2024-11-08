@@ -432,13 +432,6 @@ func (m *Machine) doOpDefer() {
 	}
 }
 
-func (m *Machine) setupRecoverPanic() bool {
-	// Pop exception
-	ex := m.PopValue().Copy(m.Alloc)
-	// Panic
-	return m.setupRuntimePanic(ex)
-}
-
 func (m *Machine) doOpPanic1() {
 	// Pop exception
 	var ex TypedValue = m.PopValue().Copy(m.Alloc)

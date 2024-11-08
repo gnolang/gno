@@ -827,25 +827,65 @@ func (m *Machine) RunFunc(fn Name) {
 	m.RunStatement(S(Call(Nx(fn))))
 }
 
+func (m *Machine) resume() {
+	defer func() {
+		if r := recover(); r != nil {
+			switch r := r.(type) {
+			case UnhandledPanicError:
+				panic(fmt.Sprintf("Machine.RunMain() panic: %s\nStacktrace: %s\n",
+					r.Error(), m.ExceptionsStacktrace()))
+			default:
+				panicStmt := m.makePanicFromRec(r)
+
+				m.PushStmt(panicStmt)
+				m.PushOp(OpExec)
+
+				m.resume()
+				return
+			}
+		}
+	}()
+
+	m.Run()
+}
+
+func (m *Machine) makePanicFromRec(r any) *PanicStmt {
+	var s strings.Builder
+
+	s.WriteString(`"`)
+	s.WriteString(`Machine.RunMain() panic: `)
+	s.WriteString(fmt.Sprintf(`%v`, r))
+	s.WriteString("\\n")
+	s.WriteString(`Machine State:`)
+	s.WriteString(m.StringDoubleSlash())
+	s.WriteString("\\n")
+	s.WriteString(`Stacktrace: `)
+	s.WriteString(m.Stacktrace().StringDoubleSlash())
+	s.WriteString("\\n")
+	s.WriteString(`"`)
+
+	panicStmt := &PanicStmt{
+		Exception: &BasicLitExpr{Value: s.String(), Kind: STRING},
+	}
+
+	return panicStmt
+}
+
 func (m *Machine) RunMain() {
 	defer func() {
 		if r := recover(); r != nil {
-			// we panicked because there was an invalid operation
-			// if the user had a recover, do it
-			hasRecover := m.setupRecoverPanic()
-
-			if hasRecover {
-				m.Run()
-				return
-			}
-
 			switch r := r.(type) {
 			case UnhandledPanicError:
 				fmt.Printf("Machine.RunMain() panic: %s\nStacktrace: %s\n",
 					r.Error(), m.ExceptionsStacktrace())
 			default:
-				fmt.Printf("Machine.RunMain() panic: %v\nMachine State:%s\nStacktrace: %s\n",
-					r, m.String(), m.Stacktrace())
+				panicStmt := m.makePanicFromRec(r)
+
+				m.PushStmt(panicStmt)
+				m.PushOp(OpExec)
+
+				m.resume()
+				return
 			}
 			panic(r)
 		}
@@ -2187,30 +2227,6 @@ func (m *Machine) CheckEmpty() error {
 	}
 }
 
-func (m *Machine) setupRuntimePanic(ex TypedValue) bool {
-	frm := m.LastCallFrame(1)
-
-	if frm == nil {
-		return false
-	}
-
-	m.Exceptions = append(
-		m.Exceptions,
-		Exception{
-			Value:      ex,
-			Frame:      frm,
-			Stacktrace: m.Stacktrace(),
-		},
-	)
-
-	m.PanicScope++
-	m.PopUntilLastCallFrame()
-	m.PushOp(OpPanic2)
-	m.PushOp(OpReturnCallDefers)
-
-	return true
-}
-
 func (m *Machine) Panic(ex TypedValue) {
 	m.Exceptions = append(
 		m.Exceptions,
@@ -2386,6 +2402,125 @@ func (m *Machine) ExceptionsStacktrace() string {
 		ex = m.Exceptions[len(m.Exceptions)-1]
 		builder.WriteString("panic: " + ex.Sprint(m) + "\n")
 		builder.WriteString(ex.Stacktrace.String())
+	}
+
+	return builder.String()
+}
+
+func (m *Machine) StringDoubleSlash() string {
+	// Calculate some reasonable total length to avoid reallocation
+	// Assuming an average length of 32 characters per string
+	var (
+		vsLength         = m.NumValues * 32
+		ssLength         = len(m.Stmts) * 32
+		xsLength         = len(m.Exprs) * 32
+		bsLength         = 1024
+		obsLength        = len(m.Blocks) * 32
+		fsLength         = len(m.Frames) * 32
+		exceptionsLength = len(m.Exceptions)
+
+		totalLength = vsLength + ssLength + xsLength + bsLength + obsLength + fsLength + exceptionsLength
+	)
+
+	var builder strings.Builder
+	builder.Grow(totalLength)
+
+	builder.WriteString(fmt.Sprintf("Machine:\\n    CheckTypes: %v\\n    Op: %v\\n    Values: (len: %d)\\n", m.CheckTypes, m.Ops[:m.NumOps], m.NumValues))
+
+	for i := m.NumValues - 1; i >= 0; i-- {
+		builder.WriteString(fmt.Sprintf("          #%d %v\\n", i, m.Values[i]))
+	}
+
+	builder.WriteString("    Exprs:\\n")
+
+	for i := len(m.Exprs) - 1; i >= 0; i-- {
+		builder.WriteString(fmt.Sprintf("          #%d %v\\n", i, m.Exprs[i]))
+	}
+
+	builder.WriteString("    Stmts:\\n")
+
+	for i := len(m.Stmts) - 1; i >= 0; i-- {
+		builder.WriteString(fmt.Sprintf("          #%d %v\\n", i, m.Stmts[i]))
+	}
+
+	builder.WriteString("    Blocks:\\n")
+
+	for i := len(m.Blocks) - 1; i > 0; i-- {
+		b := m.Blocks[i]
+		if b == nil {
+			continue
+		}
+
+		gen := builder.Len()/3 + 1
+		gens := "@" // strings.Repeat("@", gen)
+
+		if pv, ok := b.Source.(*PackageNode); ok {
+			// package blocks have too much, so just
+			// print the pkgpath.
+			builder.WriteString(fmt.Sprintf("          %s(%d) %s\\n", gens, gen, pv.PkgPath))
+		} else {
+			bsi := b.StringIndentedSlash("            ")
+			builder.WriteString(fmt.Sprintf("          %s(%d) %s\\n", gens, gen, bsi))
+
+			if b.Source != nil {
+				sb := b.GetSource(m.Store).GetStaticBlock().GetBlock()
+				builder.WriteString(fmt.Sprintf(" (s vals) %s(%d) %s\\n", gens, gen, sb.StringIndentedSlash("            ")))
+
+				sts := b.GetSource(m.Store).GetStaticBlock().Types
+				builder.WriteString(fmt.Sprintf(" (s typs) %s(%d) %s\\n", gens, gen, sts))
+			}
+		}
+
+		// Update b
+		switch bp := b.Parent.(type) {
+		case nil:
+			b = nil
+		case *Block:
+			b = bp
+		case RefValue:
+			builder.WriteString(fmt.Sprintf("            (block ref %v)\\n", bp.ObjectID))
+			b = nil
+		default:
+			panic("should not happen")
+		}
+	}
+
+	builder.WriteString("    Blocks (other):\\n")
+
+	for i := len(m.Blocks) - 2; i >= 0; i-- {
+		b := m.Blocks[i]
+
+		if b == nil || b.Source == nil {
+			continue
+		}
+
+		if _, ok := b.Source.(*PackageNode); ok {
+			break // done, skip *PackageNode.
+		} else {
+			builder.WriteString(fmt.Sprintf("          #%d %s\\n", i,
+				b.StringIndentedSlash("            ")))
+			if b.Source != nil {
+				sb := b.GetSource(m.Store).GetStaticBlock().GetBlock()
+				builder.WriteString(fmt.Sprintf(" (static) #%d %s\\n", i,
+					sb.StringIndentedSlash("            ")))
+			}
+		}
+	}
+
+	builder.WriteString("    Frames:\\n")
+
+	for i := len(m.Frames) - 1; i >= 0; i-- {
+		builder.WriteString(fmt.Sprintf("          #%d %s\\n", i, m.Frames[i]))
+	}
+
+	if m.Realm != nil {
+		builder.WriteString(fmt.Sprintf("    Realm:\\n      %s\\n", m.Realm.Path))
+	}
+
+	builder.WriteString("    Exceptions:\\n")
+
+	for _, ex := range m.Exceptions {
+		builder.WriteString(fmt.Sprintf("      %s\\n", ex.Sprint(m)))
 	}
 
 	return builder.String()
