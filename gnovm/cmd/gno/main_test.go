@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -50,66 +51,11 @@ type testMainCase struct {
 func testMainCaseRun(t *testing.T, tc []testMainCase) {
 	t.Helper()
 
-	{
-		gnomodfetch.Client = client.NewRPCClient(&mockClient{
-			sendRequestFn: func(ctx context.Context, r types.RPCRequest) (*types.RPCResponse, error) {
-				params := struct {
-					Path string `json:"path"`
-					Data []byte `json:"data"`
-				}{}
-				if err := json.Unmarshal(r.Params, &params); err != nil {
-					return nil, fmt.Errorf("failed to unmarshal params: %w", err)
-				}
-				path := params.Path
-				if path != "vm/qfile" {
-					return nil, fmt.Errorf("unexpected call to %q", path)
-				}
-				data := string(params.Data)
-
-				examplesDir := filepath.Join(gnoenv.RootDir(), "examples")
-				target := filepath.Join(examplesDir, data)
-
-				res := ctypes.ResultABCIQuery{}
-
-				finfo, err := os.Stat(target)
-				if os.IsNotExist(err) {
-					res.Response = sdk.ABCIResponseQueryFromError(fmt.Errorf("package %q is not available", data))
-					return &types.RPCResponse{
-						Result: amino.MustMarshalJSON(res),
-					}, nil
-				} else if err != nil {
-					return nil, fmt.Errorf("failed to stat %q: %w", data, err)
-				}
-
-				if finfo.IsDir() {
-					entries, err := os.ReadDir(target)
-					if err != nil {
-						return nil, fmt.Errorf("failed to get package %q: %w", data, err)
-					}
-					files := []string{}
-					for _, entry := range entries {
-						if !entry.IsDir() {
-							files = append(files, entry.Name())
-						}
-					}
-					res.Response.Data = []byte(strings.Join(files, "\n"))
-				} else {
-					content, err := os.ReadFile(target)
-					if err != nil {
-						return nil, fmt.Errorf("failed to get file %q: %w", data, err)
-					}
-					res.Response.Data = content
-				}
-
-				return &types.RPCResponse{
-					Result: amino.MustMarshalJSON(res),
-				}, nil
-			},
-		})
-		t.Cleanup(func() {
-			gnomodfetch.Client = nil
-		})
-	}
+	oldClient := gnomodfetch.Client
+	gnomodfetch.Client = client.NewRPCClient(&examplesMockClient{})
+	t.Cleanup(func() {
+		gnomodfetch.Client = oldClient
+	})
 
 	workingDir, err := os.Getwd()
 	require.Nil(t, err)
@@ -219,38 +165,66 @@ func testMainCaseRun(t *testing.T, tc []testMainCase) {
 	}
 }
 
-type (
-	sendRequestDelegate func(context.Context, types.RPCRequest) (*types.RPCResponse, error)
-	sendBatchDelegate   func(context.Context, types.RPCRequests) (types.RPCResponses, error)
-	closeDelegate       func() error
-)
+type examplesMockClient struct{}
 
-type mockClient struct {
-	sendRequestFn sendRequestDelegate
-	sendBatchFn   sendBatchDelegate
-	closeFn       closeDelegate
-}
+func (m *examplesMockClient) SendRequest(ctx context.Context, request types.RPCRequest) (*types.RPCResponse, error) {
+	params := struct {
+		Path string `json:"path"`
+		Data []byte `json:"data"`
+	}{}
+	if err := json.Unmarshal(request.Params, &params); err != nil {
+		return nil, fmt.Errorf("failed to unmarshal params: %w", err)
+	}
+	path := params.Path
+	if path != "vm/qfile" {
+		return nil, fmt.Errorf("unexpected call to %q", path)
+	}
+	data := string(params.Data)
 
-func (m *mockClient) SendRequest(ctx context.Context, request types.RPCRequest) (*types.RPCResponse, error) {
-	if m.sendRequestFn != nil {
-		return m.sendRequestFn(ctx, request)
+	examplesDir := filepath.Join(gnoenv.RootDir(), "examples")
+	target := filepath.Join(examplesDir, data)
+
+	res := ctypes.ResultABCIQuery{}
+
+	finfo, err := os.Stat(target)
+	if os.IsNotExist(err) {
+		res.Response = sdk.ABCIResponseQueryFromError(fmt.Errorf("package %q is not available", data))
+		return &types.RPCResponse{
+			Result: amino.MustMarshalJSON(res),
+		}, nil
+	} else if err != nil {
+		return nil, fmt.Errorf("failed to stat %q: %w", data, err)
 	}
 
-	return nil, nil
-}
-
-func (m *mockClient) SendBatch(ctx context.Context, requests types.RPCRequests) (types.RPCResponses, error) {
-	if m.sendBatchFn != nil {
-		return m.sendBatchFn(ctx, requests)
+	if finfo.IsDir() {
+		entries, err := os.ReadDir(target)
+		if err != nil {
+			return nil, fmt.Errorf("failed to get package %q: %w", data, err)
+		}
+		files := []string{}
+		for _, entry := range entries {
+			if !entry.IsDir() {
+				files = append(files, entry.Name())
+			}
+		}
+		res.Response.Data = []byte(strings.Join(files, "\n"))
+	} else {
+		content, err := os.ReadFile(target)
+		if err != nil {
+			return nil, fmt.Errorf("failed to get file %q: %w", data, err)
+		}
+		res.Response.Data = content
 	}
 
-	return nil, nil
+	return &types.RPCResponse{
+		Result: amino.MustMarshalJSON(res),
+	}, nil
 }
 
-func (m *mockClient) Close() error {
-	if m.closeFn != nil {
-		return m.closeFn()
-	}
+func (m *examplesMockClient) SendBatch(ctx context.Context, requests types.RPCRequests) (types.RPCResponses, error) {
+	return nil, errors.New("not implemented")
+}
 
+func (m *examplesMockClient) Close() error {
 	return nil
 }
