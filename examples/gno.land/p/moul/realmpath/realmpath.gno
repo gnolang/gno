@@ -1,6 +1,4 @@
-// Package realmpath provides utilities for parsing request paths and query
-// parameters. It allows you to extract path segments and manipulate query
-// values similar to net/url.
+// Package realmpath is a Lightweight Render.path parsing and link generation library with an idiomatic API, closely resembling that of net/url.
 package realmpath
 
 import (
