@@ -8,9 +8,9 @@ import (
 	"time"
 
 	"gno.land/p/demo/avl"
-	gfm "gno.land/p/demo/gnofundme" // GnoFundMe package
 	"gno.land/p/demo/ufmt"
 	pusers "gno.land/p/demo/users"
+	gfm "gno.land/p/malek_/gnofundme" // GnoFundMe package
 	"gno.land/r/demo/users"
 )
 
