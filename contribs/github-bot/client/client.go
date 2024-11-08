@@ -1,12 +1,13 @@
 package client
 
 import (
-	"bot/logger"
-	"bot/param"
 	"context"
 	"log"
 	"os"
 	"time"
+
+	"github.com/gnolang/gno/contribs/github-bot/logger"
+	"github.com/gnolang/gno/contribs/github-bot/param"
 
 	"github.com/google/go-github/v66/github"
 )

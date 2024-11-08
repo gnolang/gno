@@ -1,9 +1,10 @@
 package requirement
 
 import (
-	"bot/client"
-	"bot/utils"
 	"fmt"
+
+	"github.com/gnolang/gno/contribs/github-bot/client"
+	"github.com/gnolang/gno/contribs/github-bot/utils"
 
 	"github.com/google/go-github/v66/github"
 	"github.com/xlab/treeprint"
@@ -37,7 +38,7 @@ func (u *upToDateWith) IsSatisfied(pr *github.PullRequest, details treeprint.Tre
 	return utils.AddStatusNode(
 		cmp.GetBehindBy() == 0,
 		fmt.Sprintf(
-			"Head branch (%s) is up to date with (%s): behind by %d / ahead by %d",
+			"Head branch (%s) is up to date with base (%s): behind by %d / ahead by %d",
 			head,
 			base,
 			cmp.GetBehindBy(),

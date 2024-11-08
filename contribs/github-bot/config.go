@@ -1,9 +1,9 @@
 package main
 
 import (
-	"bot/client"
-	c "bot/condition"
-	r "bot/requirement"
+	"github.com/gnolang/gno/contribs/github-bot/client"
+	c "github.com/gnolang/gno/contribs/github-bot/condition"
+	r "github.com/gnolang/gno/contribs/github-bot/requirement"
 )
 
 type automaticCheck struct {

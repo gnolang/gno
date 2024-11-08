@@ -1,9 +1,10 @@
 package requirement
 
 import (
-	"bot/client"
-	"bot/utils"
 	"fmt"
+
+	"github.com/gnolang/gno/contribs/github-bot/client"
+	"github.com/gnolang/gno/contribs/github-bot/utils"
 
 	"github.com/google/go-github/v66/github"
 	"github.com/xlab/treeprint"
