@@ -5,7 +5,6 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
@@ -105,6 +104,8 @@ func TestGetGnoImports(t *testing.T) {
 		"gno.land/p/demo/pkg1",
 		"gno.land/p/demo/pkg2",
 		"gno.land/p/demo/testpkg",
+		"std",
+		"testing",
 	}
 
 	// Create subpkg dir
@@ -120,10 +121,7 @@ func TestGetGnoImports(t *testing.T) {
 	imports, err := GetGnoPackageImports(tmpDir)
 	require.NoError(t, err)
 
-	require.Equal(t, len(expected), len(imports))
-	for i := range imports {
-		assert.Equal(t, expected[i], imports[i])
-	}
+	require.Equal(t, expected, imports)
 }
 
 func createTmpDir(t *testing.T) (string, func()) {
