@@ -19,7 +19,9 @@ import (
 	"github.com/gnolang/gno/gno.land/pkg/log"
 	"github.com/gnolang/gno/gno.land/pkg/sdk/vm"
 	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
+	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
 	"github.com/gnolang/gno/gnovm/pkg/gnomod"
+	"github.com/gnolang/gno/gnovm/pkg/load"
 	"github.com/gnolang/gno/tm2/pkg/bft/node"
 	bft "github.com/gnolang/gno/tm2/pkg/bft/types"
 	"github.com/gnolang/gno/tm2/pkg/commands"
@@ -742,6 +744,17 @@ func (pl *pkgsLoader) LoadPackage(modroot string, path, name string) error {
 			// Override package info with mod infos
 			currentPkg.Name = gm.Module.Mod.Path
 			currentPkg.Draft = gm.Draft
+
+			imports, err := load.GetGnoPackageImports(currentPkg.Dir)
+			if err != nil {
+				return fmt.Errorf("unable to load package imports in %q: %w", currentPkg.Dir, err)
+			}
+			for _, imp := range imports {
+				if gno.IsStdlib(imp) {
+					continue
+				}
+				currentPkg.Imports = append(currentPkg.Imports, imp)
+			}
 		}
 
 		if currentPkg.Draft {
@@ -752,6 +765,12 @@ func (pl *pkgsLoader) LoadPackage(modroot string, path, name string) error {
 			continue
 		}
 		pl.add(currentPkg)
+
+		// Add requirements to the queue
+		for _, pkgPath := range currentPkg.Imports {
+			fullPath := filepath.Join(modroot, pkgPath)
+			queue = append(queue, gnomod.Pkg{Dir: fullPath})
+		}
 	}
 
 	return nil
