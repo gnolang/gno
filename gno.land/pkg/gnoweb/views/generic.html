@@ -1,21 +1,24 @@
 {{- define "app" -}}
-<!DOCTYPE html>
+<!doctype html>
 <html>
-  <head>
-    <title>Gno.land - {{ .Data.Title }}</title>
-    {{ template "html_head" . }}
-  </head>
-  <body onload="main()">
-    <div id="root">
-      <div id="header">{{ template "logo" }} {{ template "header_buttons" }}</div>
-      <div id="home" class="container">
-        <pre id="source">
+    <head>
+        <title>gno.land - {{ .Data.Title }}</title>
+        {{ template "html_head" . }}
+    </head>
+    <body onload="main()">
+        <div id="root">
+            <div id="header">
+                {{ template "logo" }} {{ template "header_buttons" }}
+            </div>
+            <div id="home" class="container">
+                <pre id="source">
           {{- .Data.MainContent -}}
-        </pre>
-      </div>
-      {{ template "footer" }}
-    </div>
-    {{ template "js" .}}
-  </body>
+        </pre
+                >
+            </div>
+            {{ template "footer" }}
+        </div>
+        {{ template "js" .}}
+    </body>
 </html>
 {{- end -}}

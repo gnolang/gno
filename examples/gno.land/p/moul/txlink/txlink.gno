@@ -52,7 +52,7 @@ func (r Realm) prefix() string {
 // arguments.
 func (r Realm) URL(fn string, args ...string) string {
 	// Start with the base query
-	url := r.prefix() + "?help&__func=" + fn
+	url := r.prefix() + "$help&func=" + fn
 
 	// Check if args length is even
 	if len(args)%2 != 0 {
