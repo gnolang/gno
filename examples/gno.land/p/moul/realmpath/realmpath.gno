@@ -7,27 +7,22 @@
 //
 // Example usage:
 //
-//	import (
-//	    "fmt"
-//	    "gno.land/p/moul/realmpath"
-//	)
+//	import "gno.land/p/moul/realmpath"
 //
-//	func main() {
+//	func Render(path string) string {
 //	    // Parsing a sample path with query parameters
-//	    path := "hello/world?foo=bar&baz=foobar"
+//	    path = "hello/world?foo=bar&baz=foobar"
 //	    req := realmpath.Parse(path)
 //
 //	    // Accessing parsed path and query parameters
-//	    fmt.Println(req.Path) // Output: hello/world
-//	    fmt.Println(req.Query.Get("foo")) // Output: bar
-//	    fmt.Println(req.Query.Get("baz")) // Output: foobar
-//
-//	    // Accessing path parts
-//	    fmt.Println(req.PathPart(0)) // Output: hello
-//	    fmt.Println(req.PathPart(1)) // Output: world
+//	    println(req.Path)             // Output: hello/world
+//	    println(req.PathPart(0))      // Output: hello
+//	    println(req.PathPart(1))      // Output: world
+//	    println(req.Query.Get("foo")) // Output: bar
+//	    println(req.Query.Get("baz")) // Output: foobar
 //
 //	    // Rebuilding the URL
-//	    fmt.Println(req.String()) // Output: /r/current/realm:hello/world?baz=foobar&foo=bar
+//	    println(req.String())         // Output: /r/current/realm:hello/world?baz=foobar&foo=bar
 //	}
 package realmpath
 
@@ -82,12 +77,12 @@ func (r *Request) PathPart(index int) string {
 func (r *Request) String() string {
 	// Automatically set the Realm if it is not already defined
 	if r.Realm == "" {
-		curPath := std.CurrentRealm().PkgPath()            // Get the current realm path
-		r.Realm = strings.TrimPrefix(curPath, chainDomain) // Trim the chain domain prefix
+		r.Realm = std.CurrentRealm().PkgPath() // Get the current realm path
 	}
 
 	// Rebuild the path using the realm and path parts
-	reconstructedPath := r.Realm + ":" + strings.Join(r.PathParts(), "/")
+	relativePkgPath := strings.TrimPrefix(r.Realm, chainDomain) // Trim the chain domain prefix
+	reconstructedPath := relativePkgPath + ":" + strings.Join(r.PathParts(), "/")
 
 	// Rebuild the query string
 	queryString := r.Query.Encode() // Encode the query parameters
