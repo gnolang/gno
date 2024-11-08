@@ -29,8 +29,8 @@ func IsRealmPath(pkgPath string) bool {
 		!ReGnoRunPath.MatchString(pkgPath)
 }
 
-// IsPackagePath determines whether the given pkgpath is for a package.
-func IsPackagePath(pkgPath string) bool {
+// IsPurePackagePath determines whether the given pkgpath is for a gno package.
+func IsPurePackagePath(pkgPath string) bool {
 	return strings.HasPrefix(pkgPath, PackagePathPrefix)
 }
 

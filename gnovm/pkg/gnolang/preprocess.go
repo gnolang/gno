@@ -175,7 +175,7 @@ func initStaticBlocks(store Store, ctx BlockNode, bn BlockNode) {
 				nx := &n.NameExpr
 				nn := nx.Name
 				loc := last.GetLocation()
-				if IsPackagePath(loc.PkgPath) && IsRealmPath(n.PkgPath) {
+				if IsPurePackagePath(loc.PkgPath) && IsRealmPath(n.PkgPath) {
 					panic(fmt.Sprintf("package path %s imports realm path %s", loc.PkgPath, n.PkgPath))
 				}
 				if nn == "." {
