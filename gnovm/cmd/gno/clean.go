@@ -54,7 +54,7 @@ func (c *cleanCfg) RegisterFlags(fs *flag.FlagSet) {
 		&c.modCache,
 		"modcache",
 		false,
-		"remove the entire module download cache",
+		"remove the entire module download cache and exit",
 	)
 }
 
@@ -64,7 +64,7 @@ func execClean(cfg *cleanCfg, args []string, io commands.IO) error {
 	}
 
 	if cfg.modCache {
-		modCacheDir := gnomod.GetGnoModPath()
+		modCacheDir := gnomod.ModCachePath()
 		if !cfg.dryRun {
 			if err := os.RemoveAll(modCacheDir); err != nil {
 				return err
@@ -73,6 +73,7 @@ func execClean(cfg *cleanCfg, args []string, io commands.IO) error {
 		if cfg.dryRun || cfg.verbose {
 			io.Println("rm -rf", modCacheDir)
 		}
+		return nil
 	}
 
 	path, err := os.Getwd()
