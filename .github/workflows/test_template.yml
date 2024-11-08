@@ -11,7 +11,7 @@ on:
               required: true
               type: string
             tests-extra-args:
-              require: false
+              required: false
               type: string
         secrets:
            codecov-token:
