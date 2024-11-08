@@ -104,7 +104,6 @@ func testMainCaseRun(t *testing.T, tc []testMainCase) {
 				return &types.RPCResponse{
 					Result: amino.MustMarshalJSON(res),
 				}, nil
-
 			},
 		})
 		t.Cleanup(func() {
