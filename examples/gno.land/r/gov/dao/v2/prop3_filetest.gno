@@ -5,6 +5,7 @@ import (
 
 	"gno.land/p/demo/dao"
 	"gno.land/p/demo/membstore"
+	"gno.land/r/gov/dao/bridge"
 	govdao "gno.land/r/gov/dao/v2"
 )
 
@@ -34,7 +35,7 @@ func init() {
 		Executor:    govdao.NewMemberPropExecutor(memberFn),
 	}
 
-	govdao.Propose(prop)
+	bridge.GovDAO().Propose(prop)
 }
 
 func main() {

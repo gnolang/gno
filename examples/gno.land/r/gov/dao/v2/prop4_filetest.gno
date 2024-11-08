@@ -8,103 +8,76 @@ import (
 )
 
 func init() {
-	/*{ // prop0
-		membersFn := func() []std.Address {
-			return []std.Address{
-				std.Address("g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm"),
-			}
-		}
-		mExec := bridge.GovDAO().NewMemberPropExecutor(membersFn)
-		comment := "adding someone to vote"
-		id := bridge.GovDAO().Propose(comment, mExec)
-		bridge.GovDAO().ExecuteProposal(id)
-	}*/
-
-	{ // prop0
-		mExec := params.NewStringPropExecutor("prop1.string", "value1")
-		comment := "setting prop1.string param"
-		prop := dao.ProposalRequest{
-			Description: comment,
-			Executor:    mExec,
-		}
-		id := bridge.GovDAO().Propose(prop)
-		println("new prop", id)
+	mExec := params.NewStringPropExecutor("prop1.string", "value1")
+	comment := "setting prop1.string param"
+	prop := dao.ProposalRequest{
+		Description: comment,
+		Executor:    mExec,
 	}
-
-	{ // prop1
-		mExec := params.NewInt64PropExecutor("prop2.int64", 12345)
-		comment := "setting prop2.int64 param"
-		prop := dao.ProposalRequest{
-			Description: comment,
-			Executor:    mExec,
-		}
-		id := bridge.GovDAO().Propose(prop)
-		println("new prop", id)
-	}
+	id := bridge.GovDAO().Propose(prop)
+	println("new prop", id)
 }
 
 func main() {
 	println("--")
 	println(govdaov2.Render(""))
 	println("--")
-	println(govdaov2.Render("1"))
+	println(govdaov2.Render("0"))
 	println("--")
-	bridge.GovDAO().VoteOnProposal(1, "YES")
+	bridge.GovDAO().VoteOnProposal(0, "YES")
 	println("--")
-	println(govdaov2.Render("1"))
+	println(govdaov2.Render("0"))
 	println("--")
-	bridge.GovDAO().ExecuteProposal(1)
+	bridge.GovDAO().ExecuteProposal(0)
 	println("--")
-	println(govdaov2.Render("1"))
+	println(govdaov2.Render("0"))
 }
 
 // Output:
 // new prop 0
-// new prop 1
 // --
 // - [Proposal #0](/r/gov/dao/v2:0) - (**active**)(by g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm)
-// - [Proposal #1](/r/gov/dao/v2:1) - (**active**)(by g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm)
 //
 // --
-// # Prop #1
+// # Prop #0
 //
 // Author: g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm
 //
-// setting prop2.int64 param
+// setting prop1.string param
 //
 // Status: active
 //
-// Voting stats: YAY 0 (0%), NAY 0 (0%), ABSTAIN 0 (0%), HAVEN'T VOTED 10 (100%)
+// Voting stats: YES 0 (0%), NO 0 (0%), ABSTAIN 0 (0%), MISSING VOTE 10 (100%)
 //
 // Threshold met: false
 //
 //
 // --
 // --
-// # Prop #1
+// # Prop #0
 //
 // Author: g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm
 //
-// setting prop2.int64 param
+// setting prop1.string param
 //
 // Status: accepted
 //
-// Voting stats: YAY 10 (100%), NAY 0 (0%), ABSTAIN 0 (0%), HAVEN'T VOTED 0 (0%)
+// Voting stats: YES 10 (100%), NO 0 (0%), ABSTAIN 0 (0%), MISSING VOTE 0 (0%)
 //
 // Threshold met: true
 //
 //
 // --
 // --
-// # Prop #1
+// # Prop #0
 //
 // Author: g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm
 //
-// setting prop2.int64 param
+// setting prop1.string param
 //
 // Status: execution successful
 //
-// Voting stats: YAY 10 (100%), NAY 0 (0%), ABSTAIN 0 (0%), HAVEN'T VOTED 0 (0%)
+// Voting stats: YES 10 (100%), NO 0 (0%), ABSTAIN 0 (0%), MISSING VOTE 0 (0%)
 //
 // Threshold met: true
 
@@ -126,26 +99,11 @@ func main() {
 //     "func": "EmitProposalAdded"
 //   },
 //   {
-//     "type": "ProposalAdded",
-//     "attrs": [
-//       {
-//         "key": "proposal-id",
-//         "value": "1"
-//       },
-//       {
-//         "key": "proposal-author",
-//         "value": "g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm"
-//       }
-//     ],
-//     "pkg_path": "gno.land/r/gov/dao/v2",
-//     "func": "EmitProposalAdded"
-//   },
-//   {
 //     "type": "VoteAdded",
 //     "attrs": [
 //       {
 //         "key": "proposal-id",
-//         "value": "1"
+//         "value": "0"
 //       },
 //       {
 //         "key": "author",
@@ -164,7 +122,7 @@ func main() {
 //     "attrs": [
 //       {
 //         "key": "proposal-id",
-//         "value": "1"
+//         "value": "0"
 //       }
 //     ],
 //     "pkg_path": "gno.land/r/gov/dao/v2",
@@ -175,7 +133,7 @@ func main() {
 //     "attrs": [
 //       {
 //         "key": "k",
-//         "value": "prop2.int64"
+//         "value": "prop1.string"
 //       }
 //     ],
 //     "pkg_path": "gno.land/r/sys/params",
@@ -186,7 +144,7 @@ func main() {
 //     "attrs": [
 //       {
 //         "key": "proposal-id",
-//         "value": "1"
+//         "value": "0"
 //       },
 //       {
 //         "key": "exec-status",
