@@ -19,9 +19,8 @@ const maxRequestProposals = 10
 
 // proposal is the internal simpledao proposal implementation
 type proposal struct {
-	author std.Address // initiator of the proposal
-
-	description string // description of the proposal
+	author      std.Address // initiator of the proposal
+	description string      // description of the proposal
 
 	executor dao.Executor       // executor for the proposal
 	status   dao.ProposalStatus // status of the proposal
