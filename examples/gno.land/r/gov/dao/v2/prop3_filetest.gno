@@ -97,7 +97,7 @@ func main() {
 //
 // ## Actions
 //
-// [Vote YES](/r/gov/dao/v2$help&func=VoteOnProposal&id=0&option=YES) - [Vote NO](/r/gov/dao/v2$help&func=VoteOnProposal&id=0&option=NO)
+// [Vote YES](/r/gov/dao/v2$help&func=VoteOnProposal&id=0&option=YES) - [Vote NO](/r/gov/dao/v2$help&func=VoteOnProposal&id=0&option=NO) - [Vote ABSTAIN](/r/gov/dao/v2$help&func=VoteOnProposal&id=0&option=ABSTAIN)
 //
 //
 // --
