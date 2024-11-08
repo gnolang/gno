@@ -3,6 +3,7 @@ package govdao
 import (
 	"std"
 	"strconv"
+	"strings"
 
 	"gno.land/p/demo/dao"
 	"gno.land/p/demo/membstore"
@@ -70,13 +71,13 @@ func GetMembStore() membstore.MemberStore {
 
 func Render(path string) string {
 	if path == "" {
+		output := "# GovDAO Proposals\n\n"
 		numProposals := d.Size()
 
 		if numProposals == 0 {
-			return "No proposals found :(" // corner case
+			output += "No proposals found :(" // corner case
+			return output
 		}
-
-		output := ""
 
 		offset := uint64(0)
 		if numProposals >= 10 {
@@ -85,14 +86,13 @@ func Render(path string) string {
 
 		// Fetch the last 10 proposals
 		for idx, prop := range d.Proposals(offset, uint64(10)) {
-			output += ufmt.Sprintf(
-				"- [Proposal #%d](%s:%d) - (**%s**)(by %s)\n",
-				idx,
-				"/r/gov/dao/v2",
-				idx,
-				prop.Status().String(),
-				prop.Author().String(),
-			)
+			output += ufmt.Sprintf("## [Prop #%d](/r/gov/dao/v2:%d)\n\n", idx, idx)
+			output += ufmt.Sprintf("#### Status: %s\n\n", strings.ToUpper(prop.Status().String()))
+			output += ufmt.Sprintf("#### Author: %s\n\n", prop.Author().String())
+
+			if idx != len(d.Proposals(offset, uint64(10)))-1 {
+				output += "---\n\n"
+			}
 		}
 
 		return output
@@ -111,10 +111,7 @@ func Render(path string) string {
 	}
 
 	// Render the proposal
-	output := ""
-	output += ufmt.Sprintf("# Prop #%d", idx)
-	output += "\n\n"
-	output += prop.Render()
+	output := prop.Render(idx)
 	output += "\n\n"
 
 	return output

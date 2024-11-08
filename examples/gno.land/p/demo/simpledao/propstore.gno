@@ -3,10 +3,12 @@ package simpledao
 import (
 	"errors"
 	"std"
+	"strconv"
 
 	"gno.land/p/demo/dao"
 	"gno.land/p/demo/seqid"
 	"gno.land/p/demo/ufmt"
+	"gno.land/p/moul/txlink"
 )
 
 var ErrMissingProposal = errors.New("proposal is missing")
@@ -17,8 +19,10 @@ const maxRequestProposals = 10
 
 // proposal is the internal simpledao proposal implementation
 type proposal struct {
-	author      std.Address // initiator of the proposal
-	description string      // description of the proposal
+	author std.Address // initiator of the proposal
+
+	title       string // title of the proposal
+	description string // description of the proposal
 
 	executor dao.Executor       // executor for the proposal
 	status   dao.ProposalStatus // status of the proposal
@@ -29,6 +33,10 @@ type proposal struct {
 
 func (p *proposal) Author() std.Address {
 	return p.author
+}
+
+func (p *proposal) Title() string {
+	return p.title
 }
 
 func (p *proposal) Description() string {
@@ -59,19 +67,18 @@ func (p *proposal) IsExpired() bool {
 	return false // this proposal never expires
 }
 
-func (p *proposal) Render() string {
+func (p *proposal) Render(idx int) string {
 	// Fetch the voting stats
 	stats := p.Stats()
 
-	output := ""
-	output += ufmt.Sprintf("Author: %s", p.Author().String())
-	output += "\n\n"
-	output += p.Description()
-	output += "\n\n"
-	output += ufmt.Sprintf("Status: %s", p.Status().String())
-	output += "\n\n"
+	output := ufmt.Sprintf("# Proposal #%d\n\n", idx)
+	output += ufmt.Sprintf("## Description\n\n%s\n\n", p.description)
+
+	output += "## Proposal information\n\n"
+	output += ufmt.Sprintf("#### Status: %s\n\n", p.Status().String())
+
 	output += ufmt.Sprintf(
-		"Voting stats: YES %d (%d%%), NO %d (%d%%), ABSTAIN %d (%d%%), MISSING VOTE %d (%d%%)",
+		"#### Voting stats:\n- YES %d (%d%%)\n- NO %d (%d%%)\n- ABSTAIN %d (%d%%)\n- MISSING VOTE %d (%d%%)\n",
 		stats.YayVotes,
 		stats.YayPercent(),
 		stats.NayVotes,
@@ -82,7 +89,19 @@ func (p *proposal) Render() string {
 		stats.MissingVotesPercent(),
 	)
 	output += "\n\n"
-	output += ufmt.Sprintf("Threshold met: %t", stats.YayVotes > (2*stats.TotalVotingPower)/3)
+
+	output += ufmt.Sprintf("#### Threshold met: %t\n\n", stats.YayVotes > (2*stats.TotalVotingPower)/3)
+	output += ufmt.Sprintf("#### Author: %s\n\n", string(p.author))
+
+	output += "## Actions\n\n"
+	if p.status == dao.Active {
+		output += ufmt.Sprintf("[Vote YES](%s) - [Vote NO](%s)",
+			txlink.URL("VoteOnProposal", "id", strconv.Itoa(idx), "option", "YES"),
+			txlink.URL("VoteOnProposal", "id", strconv.Itoa(idx), "option", "NO"),
+		)
+	} else {
+		output += "The voting period for this proposal is over.\n\n"
+	}
 
 	return output
 }

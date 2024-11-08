@@ -73,52 +73,102 @@ func main() {
 
 // Output:
 // --
-// - [Proposal #0](/r/gov/dao/v2:0) - (**active**)(by g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm)
+// # GovDAO Proposals
+//
+// ## [Prop #0](/r/gov/dao/v2:0)
+//
+// #### Status: ACTIVE
+//
+// #### Author: g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm
+//
 //
 // --
-// # Prop #0
+// # Proposal #0
 //
-// Author: g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm
+// ## Description
 //
 // manual valset changes proposal example
 //
-// Status: active
+// ## Proposal information
 //
-// Voting stats: YES 0 (0%), NO 0 (0%), ABSTAIN 0 (0%), MISSING VOTE 10 (100%)
+// #### Status: active
 //
-// Threshold met: false
+// #### Voting stats:
+// - YES 0 (0%)
+// - NO 0 (0%)
+// - ABSTAIN 0 (0%)
+// - MISSING VOTE 10 (100%)
+//
+//
+// #### Threshold met: false
+//
+// #### Author: g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm
+//
+// ## Actions
+//
+// [Vote YES](/r/gov/dao/v2$help&func=VoteOnProposal&id=0&option=YES) - [Vote NO](/r/gov/dao/v2$help&func=VoteOnProposal&id=0&option=NO)
 //
 //
 // --
 // --
-// # Prop #0
+// # Proposal #0
 //
-// Author: g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm
+// ## Description
 //
 // manual valset changes proposal example
 //
-// Status: accepted
+// ## Proposal information
 //
-// Voting stats: YES 10 (100%), NO 0 (0%), ABSTAIN 0 (0%), MISSING VOTE 0 (0%)
+// #### Status: accepted
 //
-// Threshold met: true
+// #### Voting stats:
+// - YES 10 (100%)
+// - NO 0 (0%)
+// - ABSTAIN 0 (0%)
+// - MISSING VOTE 0 (0%)
+//
+//
+// #### Threshold met: true
+//
+// #### Author: g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm
+//
+// ## Actions
+//
+// The voting period for this proposal is over.
+//
+//
 //
 //
 // --
 // No valset changes to apply.
 // --
 // --
-// # Prop #0
+// # Proposal #0
 //
-// Author: g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm
+// ## Description
 //
 // manual valset changes proposal example
 //
-// Status: execution successful
+// ## Proposal information
 //
-// Voting stats: YES 10 (100%), NO 0 (0%), ABSTAIN 0 (0%), MISSING VOTE 0 (0%)
+// #### Status: execution successful
 //
-// Threshold met: true
+// #### Voting stats:
+// - YES 10 (100%)
+// - NO 0 (0%)
+// - ABSTAIN 0 (0%)
+// - MISSING VOTE 0 (0%)
+//
+//
+// #### Threshold met: true
+//
+// #### Author: g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm
+//
+// ## Actions
+//
+// The voting period for this proposal is over.
+//
+//
 //
 //
 // --

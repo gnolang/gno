@@ -16,7 +16,7 @@ var (
 	Accepted            ProposalStatus = "accepted"             // proposal gathered quorum
 	NotAccepted         ProposalStatus = "not accepted"         // proposal failed to gather quorum
 	ExecutionSuccessful ProposalStatus = "execution successful" // proposal is executed successfully
-	ExecutionFailed     ProposalStatus = "execution failed"     // proposal is failed during execution
+	ExecutionFailed     ProposalStatus = "execution failed"     // proposal has failed during execution
 )
 
 func (s ProposalStatus) String() string {
@@ -58,5 +58,5 @@ type Proposal interface {
 	IsExpired() bool
 
 	// Render renders the proposal in a readable format
-	Render() string
+	Render(idx int) string
 }
