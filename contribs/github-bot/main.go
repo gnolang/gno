@@ -1,10 +1,6 @@
 package main
 
 import (
-	"bot/client"
-	"bot/logger"
-	"bot/param"
-	"bot/utils"
 	"fmt"
 	"strings"
 	"sync"
@@ -146,6 +142,8 @@ func main() {
 	wg.Wait()
 }
 
+// logResults is called in dry-run mode and outputs the status of each check
+// and a conclusion
 func logResults(logger logger.Logger, prNum int, commentContent CommentContent) {
 	logger.Infof("Pull request #%d requirements", prNum)
 	if len(commentContent.AutoRules) > 0 {

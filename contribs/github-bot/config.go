@@ -6,18 +6,22 @@ import (
 	r "github.com/gnolang/gno/contribs/github-bot/requirement"
 )
 
+// Automatic check that will be performed by the bot
 type automaticCheck struct {
 	Description string
-	If          c.Condition
-	Then        r.Requirement
+	If          c.Condition   // If the condition is met, the rule is displayed and the requirement is executed
+	Then        r.Requirement // If the requirement is satisfied, the check passes
 }
 
+// Manual check that will be performed by users
 type manualCheck struct {
 	Description string
-	If          c.Condition
-	Teams       []string
+	If          c.Condition // If the condition is met, a checkbox will be displayed on bot comment
+	Teams       []string    // Members of these teams can check the checkbox to make the check pass
 }
 
+// This function returns the configuration of the bot consisting of automatic and manual checks
+// in which the GitHub client is injected
 func config(gh *client.GitHub) ([]automaticCheck, []manualCheck) {
 	auto := []automaticCheck{
 		{
@@ -83,8 +87,7 @@ func config(gh *client.GitHub) ([]automaticCheck, []manualCheck) {
 		},
 	}
 
-	// Check for duplicates in manual rule descriptions
-	// (needs to be unique for the bot operations)
+	// Check for duplicates in manual rule descriptions (needs to be unique for the bot operations)
 	unique := make(map[string]struct{})
 	for _, rule := range manual {
 		if _, exists := unique[rule.Description]; exists {
