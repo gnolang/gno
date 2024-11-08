@@ -105,7 +105,7 @@ func Parse(file string, data []byte) (*File, error) {
 					Err:      fmt.Errorf("unknown block type: %s", strings.Join(x.Token, " ")),
 				})
 				continue
-			case "module", "require", "replace":
+			case "module", "replace":
 				for _, l := range x.Line {
 					f.add(&errs, x, l, x.Token[0], l.Token)
 				}
@@ -179,10 +179,6 @@ func (f *File) add(errs *modfile.ErrorList, block *modfile.LineBlock, line *modf
 			return
 		}
 		f.Module.Mod = module.Version{Path: s}
-
-	case "require":
-		// ignore requires as it's not supported by gno
-		return
 
 	case "replace":
 		replace, wrappederr := parseReplace(f.Syntax.Name, line, verb, args)
