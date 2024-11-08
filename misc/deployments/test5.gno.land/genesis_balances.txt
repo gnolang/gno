@@ -52,6 +52,10 @@ g1dnllrdzwfhxv3evyk09y48mgn5phfjvtyrlzm7=9000000000000000000ugnot # Danny
 g197q5e9v00vuz256ly7fq7v3ekaun5cr7wmjgfh=9000000000000000000ugnot # Salvo
 g1mpkp5lm8lwpm0pym4388836d009zfe4maxlqsq=9000000000000000000ugnot # Alexis
 
+# AiB
+
+g1sw5xklxjjuv0yvuxy5f5s3l3mnj0nqq626a9wr=9000000000000000000ugnot # Albert
+
 # Onbloc
 
 # TODO @Dongwon please add these here
