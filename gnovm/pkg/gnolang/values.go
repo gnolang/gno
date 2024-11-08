@@ -436,12 +436,18 @@ func (sv *SliceValue) GetLength() int {
 func (sv *SliceValue) GetPointerAtIndexInt2(store Store, ii int, et Type) PointerValue {
 	// Necessary run-time slice bounds check
 	if ii < 0 {
-		panic(fmt.Sprintf(
-			"slice index out of bounds: %d", ii))
+		excpt := &Exception{
+			Value: typedString(fmt.Sprintf(
+				"slice index out of bounds: %d", ii)),
+		}
+		panic(excpt)
 	} else if sv.Length <= ii {
-		panic(fmt.Sprintf(
-			"slice index out of bounds: %d (len=%d)",
-			ii, sv.Length))
+		excpt := &Exception{
+			Value: typedString(fmt.Sprintf(
+				"slice index out of bounds: %d (len=%d)",
+				ii, sv.Length)),
+		}
+		panic(excpt)
 	}
 	return sv.GetBase(store).GetPointerAtIndexInt2(store, sv.Offset+ii, et)
 }
