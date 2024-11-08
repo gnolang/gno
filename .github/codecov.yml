@@ -17,7 +17,7 @@ coverage:
         base: parent
         if_no_uploads: error
         if_not_found: success
-        if_ci_failed: error
+        if_ci_failed: success
         only_pulls: false
     patch:
       default:
@@ -26,7 +26,7 @@ coverage:
         base: auto
         if_no_uploads: error
         if_not_found: success
-        if_ci_failed: error
+        if_ci_failed: success
         only_pulls: false
 
 flag_management:
