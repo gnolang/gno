@@ -985,6 +985,7 @@ func (m *Machine) runDeclaration(d Decl) {
 		// closure and package already set
 		// during PackageNode.NewPackage().
 	case *ValueDecl:
+		fmt.Println("---valueDecl, d.Type, type of d.Type: ", d.Type, reflect.TypeOf(d.Type))
 		m.PushOp(OpHalt)
 		m.PushStmt(d)
 		m.PushOp(OpExec)

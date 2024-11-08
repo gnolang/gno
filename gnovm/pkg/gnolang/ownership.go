@@ -113,8 +113,8 @@ type Object interface {
 	SetIsDeleted(bool, uint64)
 	GetIsNewReal() bool
 	SetIsNewReal(bool)
-	GetIsCrossRealm() bool // XXX, does escape imply this?
-	SetIsCrossRealm(bool)
+	GetLastNewEscapedRealm() PkgID // XXX, does escape imply this?
+	SetLastNewEscapedRealm(pkgID PkgID)
 	GetIsNewEscaped() bool
 	SetIsNewEscaped(bool)
 	GetIsNewDeleted() bool
@@ -207,6 +207,9 @@ func (oi *ObjectInfo) MustGetObjectID() ObjectID {
 
 func (oi *ObjectInfo) SetObjectID(oid ObjectID) {
 	oi.ID = oid
+}
+func (oi *ObjectInfo) SetLastEscapedRealm(pkgId PkgID) {
+	oi.lastNewRealEscapedRealm = pkgId
 }
 
 func (oi *ObjectInfo) GetHash() ValueHash {
@@ -313,12 +316,12 @@ func (oi *ObjectInfo) SetIsNewReal(x bool) {
 	oi.isNewReal = x
 }
 
-func (oi *ObjectInfo) GetIsCrossRealm() bool {
-	return oi.isCrossRealm
+func (oi *ObjectInfo) GetLastNewEscapedRealm() PkgID {
+	return oi.lastNewRealEscapedRealm
 }
 
-func (oi *ObjectInfo) SetIsCrossRealm(x bool) {
-	oi.isCrossRealm = x
+func (oi *ObjectInfo) SetLastNewEscapedRealm(pkgId PkgID) {
+	oi.lastNewRealEscapedRealm = pkgId
 }
 
 func (oi *ObjectInfo) GetIsNewEscaped() bool {
@@ -344,6 +347,14 @@ func (oi *ObjectInfo) GetIsTransient() bool {
 // XXX, get first accessible object, maybe containing(parent) object, maybe itself.
 func (tv *TypedValue) GetFirstObject(store Store) Object {
 	fmt.Println("---GetFirstObject---, tv: ", tv, reflect.TypeOf(tv.V))
+	fmt.Println("---tv.T, type of tv.T", tv.T, reflect.TypeOf(tv.T))
+	if dt, ok := tv.T.(*DeclaredType); ok {
+		fmt.Println("---dt: ", dt)
+		fmt.Println("---dt.Name: ", dt.Name)
+		fmt.Println("---dt.PkgPath: ", dt.PkgPath)
+		fmt.Println("---PkgID: ", PkgIDFromPkgPath(dt.PkgPath))
+		fmt.Println("---dt.Base: ", dt.Base)
+	}
 	switch cv := tv.V.(type) {
 	case PointerValue:
 		println("---pointer value, get base")
@@ -385,5 +396,71 @@ func (tv *TypedValue) GetFirstObject(store Store) Object {
 		panic("heap item value should only appear as a pointer's base")
 	default:
 		return nil
+	}
+}
+
+// XXX, get first accessible object, maybe containing(parent) object, maybe itself.
+func (tv *TypedValue) GetFirstObject2(store Store) (Object, PkgID) {
+	fmt.Println("---GetFirstObject2---, tv: ", tv, reflect.TypeOf(tv.V))
+	fmt.Println("---tv.T, type of tv.T", tv.T, reflect.TypeOf(tv.T))
+	var pkgId PkgID
+	if dt, ok := tv.T.(*DeclaredType); ok {
+		fmt.Println("---dt: ", dt)
+		fmt.Println("---dt.Name: ", dt.Name)
+		fmt.Println("---dt.PkgPath: ", dt.PkgPath)
+		fmt.Println("---PkgID: ", PkgIDFromPkgPath(dt.PkgPath))
+		fmt.Println("---dt.Base: ", dt.Base)
+		pkgId = PkgIDFromPkgPath(dt.PkgPath)
+	}
+	switch cv := tv.V.(type) {
+	case PointerValue:
+		println("---pointer value, get base")
+		if v, ok := cv.TV.V.(Object); ok {
+			fmt.Println("---v: ", v)
+			rc := v.GetRefCount()
+			fmt.Println("---rc: ", rc)
+			fmt.Println("---v Owner: ", v.GetOwnerID())
+			fmt.Println("---v.GetObjectID(): ", v.GetObjectID())
+			fmt.Println("---is Attached?", v.GetIsReal())
+
+			if dt, ok := cv.TV.T.(*DeclaredType); ok {
+				fmt.Println("---dt: ", dt)
+				fmt.Println("---dt.Name: ", dt.Name)
+				fmt.Println("---dt.PkgPath: ", dt.PkgPath)
+				fmt.Println("---PkgID: ", PkgIDFromPkgPath(dt.PkgPath))
+				fmt.Println("---dt.Base: ", dt.Base)
+				pkgId = PkgIDFromPkgPath(dt.PkgPath)
+			}
+		}
+		return cv.GetBase(store), pkgId
+	case *ArrayValue:
+		return cv, pkgId
+	case *SliceValue:
+		return cv.GetBase(store), pkgId
+	case *StructValue:
+		println("---struct value")
+		fmt.Println("---cv.GetObjectID(): ", cv.GetObjectID())
+		return cv, pkgId
+	case *FuncValue:
+		return cv.GetClosure(store), pkgId
+	case *MapValue:
+		return cv, pkgId
+	case *BoundMethodValue:
+		return cv, pkgId
+	case *NativeValue:
+		// XXX allow PointerValue.Assign2 to pass nil for oo1/oo2.
+		// panic("realm logic for native values not supported")
+		return nil, pkgId
+	case *Block:
+		return cv, pkgId
+	case RefValue:
+		oo := store.GetObject(cv.ObjectID)
+		tv.V = oo
+		return oo, pkgId
+	case *HeapItemValue:
+		// should only appear in PointerValue.Base
+		panic("heap item value should only appear as a pointer's base")
+	default:
+		return nil, pkgId
 	}
 }

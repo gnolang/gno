@@ -135,11 +135,17 @@ func (rlm *Realm) String() string {
 // associated object.
 // TODO: func (rlm *Realm) DidUpdate(po, xo, co Object, attached bool) {
 func (rlm *Realm) DidUpdate(po, xo, co Object) {
-	fmt.Println("---DidUpdate---")
+	fmt.Println("---DidUpdate, rlm.ID: ", rlm.ID)
 	fmt.Printf("---xo: %v, type of xo: %v\n", xo, reflect.TypeOf(xo))
 	fmt.Printf("---co: %v, type of co: %v\n", co, reflect.TypeOf(co))
 	fmt.Printf("---po: %v, type of po: %v\n", po, reflect.TypeOf(po))
-	fmt.Printf("---xo: %p\n", xo)
+	//fmt.Printf("---xo: %p\n", xo)
+	if co != nil {
+		fmt.Println("co.LastNewEscapedRealm: ", co.GetLastNewEscapedRealm())
+		if rlm.ID != co.GetLastNewEscapedRealm() {
+			panic("---cross realm!!!")
+		}
+	}
 
 	//if co != nil && co.GetIsCrossRealm() {
 	//	panic("!!!cross realm")
@@ -149,7 +155,7 @@ func (rlm *Realm) DidUpdate(po, xo, co Object) {
 		fmt.Println("---co isReal(attached): ", co.GetIsReal())
 		fmt.Println("---co objectID: ", co.GetObjectID())
 		fmt.Println("---co.GetObjectInfo:", co.GetObjectInfo())
-		fmt.Printf("---co: %p\n", co)
+		//fmt.Printf("---co: %p\n", co)
 	}
 
 	// XXX, association happens here
@@ -485,10 +491,10 @@ func (rlm *Realm) processNewCreatedMarks(store Store) {
 		//	}
 		//}
 		fmt.Println("---processNewCreatedMarks, oo.GetRefCount(): ", oo.GetRefCount())
-		if oo.GetIsCrossRealm() {
-			fmt.Println("---should not attach value with type defined in other realm")
-			//panic("---!!!")
-		}
+		//if oo.GetIsCrossRealm() {
+		//	fmt.Println("---should not attach value with type defined in other realm")
+		//	//panic("---!!!")
+		//}
 		if debug {
 			if oo.GetIsDirty() {
 				panic("new created mark cannot be dirty")
