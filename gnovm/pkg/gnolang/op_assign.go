@@ -131,7 +131,11 @@ func (m *Machine) doOpQuoAssign() {
 		}
 	}
 	// lv /= rv
-	quoAssign(lv.TV, rv)
+	err := quoAssign(m, lv.TV, rv)
+	if err != nil {
+		panic(err)
+	}
+
 	if lv.Base != nil {
 		m.Realm.DidUpdate(lv.Base.(Object), nil, nil)
 	}

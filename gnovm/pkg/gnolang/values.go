@@ -2379,35 +2379,6 @@ func (b *Block) StringIndented(indent string) string {
 	return strings.Join(lines, "\n")
 }
 
-func (b *Block) StringIndentedSlash(indent string) string {
-	source := toString(b.Source)
-	if len(source) > 32 {
-		source = source[:32] + "..."
-	}
-	lines := make([]string, 0, 3)
-	lines = append(lines,
-		fmt.Sprintf("Block(ID:%v,Addr:%p,Source:%s,Parent:%p)",
-			b.ObjectInfo.ID, b, source, b.Parent)) // XXX Parent may be RefValue{}.
-	if b.Source != nil {
-		if _, ok := b.Source.(RefNode); ok {
-			lines = append(lines,
-				fmt.Sprintf("%s(RefNode names not shown)", indent))
-		} else {
-			for i, n := range b.Source.GetBlockNames() {
-				if len(b.Values) <= i {
-					lines = append(lines,
-						fmt.Sprintf("%s%s: undefined", indent, n))
-				} else {
-					lines = append(lines,
-						fmt.Sprintf("%s%s: %s",
-							indent, n, b.Values[i].String()))
-				}
-			}
-		}
-	}
-	return strings.Join(lines, "\\n")
-}
-
 func (b *Block) GetSource(store Store) BlockNode {
 	if rn, ok := b.Source.(RefNode); ok {
 		source := store.GetBlockNode(rn.GetLocation())

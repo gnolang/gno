@@ -136,33 +136,6 @@ func (s Stacktrace) String() string {
 	return builder.String()
 }
 
-func (s Stacktrace) StringDoubleSlash() string {
-	var builder strings.Builder
-
-	for i := 0; i < len(s.Calls); i++ {
-		if s.NumFramesElided > 0 && i == maxStacktraceSize/2 {
-			fmt.Fprintf(&builder, "...%d frame(s) elided...\\n", s.NumFramesElided)
-		}
-
-		call := s.Calls[i]
-		cx := call.Frame.Source.(*CallExpr)
-		switch {
-		case call.Frame.Func != nil && call.Frame.Func.IsNative():
-			fmt.Fprintf(&builder, "%s\\n", toExprTrace(cx))
-			fmt.Fprintf(&builder, "    gonative:%s.%s\\n", call.Frame.Func.NativePkg, call.Frame.Func.NativeName)
-		case call.Frame.Func != nil:
-			fmt.Fprintf(&builder, "%s\\n", toExprTrace(cx))
-			fmt.Fprintf(&builder, "    %s/%s:%d\\n", call.Frame.Func.PkgPath, call.Frame.Func.FileName, call.Stmt.GetLine())
-		case call.Frame.GoFunc != nil:
-			fmt.Fprintf(&builder, "%s\\n", toExprTrace(cx))
-			fmt.Fprintf(&builder, "    gofunction:%s\\n", call.Frame.GoFunc.Value.Type())
-		default:
-			panic("StacktraceCall has a non-call Frame")
-		}
-	}
-	return builder.String()
-}
-
 func toExprTrace(ex Expr) string {
 	switch ex := ex.(type) {
 	case *CallExpr:
