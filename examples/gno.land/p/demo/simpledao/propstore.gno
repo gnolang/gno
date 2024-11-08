@@ -33,10 +33,6 @@ func (p *proposal) Author() std.Address {
 	return p.author
 }
 
-func (p *proposal) Title() string {
-	return p.title
-}
-
 func (p *proposal) Description() string {
 	return p.description
 }
