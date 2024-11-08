@@ -76,6 +76,8 @@ func Register() {
 
 	exhibition.items.Set(pkgpath, i)
 	exhibition.itemsSorted.Set(id.String(), i)
+
+	std.Emit("Registration")
 }
 
 func Upvote(pkgpath string) {

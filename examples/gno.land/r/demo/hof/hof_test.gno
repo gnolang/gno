@@ -81,7 +81,7 @@ func TestDownvote(t *testing.T) {
 	rawSorted, _ := exhibition.itemsSorted.Get(item.id.String())
 	itemSorted := rawSorted.(*Item)
 
-	// 0 upvotes by default
+	// 0 downvotes by default
 	urequire.Equal(t, item.downvote.Size(), 0)
 
 	userRealm := std.NewUserRealm(alice)

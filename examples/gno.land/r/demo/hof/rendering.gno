@@ -98,10 +98,6 @@ func RenderExhibWidget(itemsToRender int) string {
 		return ""
 	}
 
-	if exhibition.items.Size() == 0 {
-		return ""
-	}
-
 	out := ""
 	i := 0
 	exhibition.items.Iterate("", "", func(key string, value interface{}) bool {
