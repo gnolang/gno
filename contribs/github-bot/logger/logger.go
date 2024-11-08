@@ -25,10 +25,16 @@ type Logger interface {
 	Infof(msg string, args ...any)
 }
 
+// Returns a logger suitable for Github Actions or terminal output
 func NewLogger(verbose bool) Logger {
 	if _, isAction := os.LookupEnv("GITHUB_ACTION"); isAction {
 		return newActionLogger()
 	}
 
 	return newTermLogger(verbose)
+}
+
+// NewNoopLogger returns a logger that does not log anything
+func NewNoopLogger() Logger {
+	return newNoopLogger()
 }

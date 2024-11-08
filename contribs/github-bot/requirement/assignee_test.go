@@ -1,0 +1,73 @@
+package requirement
+
+import (
+	"context"
+	"net/http"
+	"testing"
+
+	"github.com/gnolang/gno/contribs/github-bot/client"
+	"github.com/gnolang/gno/contribs/github-bot/logger"
+	"github.com/gnolang/gno/contribs/github-bot/utils"
+	"github.com/migueleliasweb/go-github-mock/src/mock"
+
+	"github.com/google/go-github/v66/github"
+	"github.com/xlab/treeprint"
+)
+
+func TestAssignee(t *testing.T) {
+	t.Parallel()
+
+	assignees := []*github.User{
+		{Login: github.String("notTheRightOne")},
+		{Login: github.String("user")},
+		{Login: github.String("anotherOne")},
+	}
+
+	for _, testCase := range []struct {
+		name      string
+		user      string
+		assignees []*github.User
+		exists    bool
+	}{
+		{"empty assignee list", "user", []*github.User{}, false},
+		{"assignee list contains user", "user", assignees, true},
+		{"assignee list doesn't contain user", "user2", assignees, false},
+	} {
+		t.Run(testCase.name, func(t *testing.T) {
+			t.Parallel()
+
+			requested := false
+			mockedHTTPClient := mock.NewMockedHTTPClient(
+				mock.WithRequestMatchHandler(
+					mock.EndpointPattern{
+						Pattern: "/repos/issues/0/assignees",
+						Method:  "GET", // It looks like this mock package doesn't support mocking POST requests
+					},
+					http.HandlerFunc(func(_ http.ResponseWriter, _ *http.Request) {
+						requested = true
+					}),
+				),
+			)
+
+			gh := &client.GitHub{
+				Client: github.NewClient(mockedHTTPClient),
+				Ctx:    context.Background(),
+				Logger: logger.NewNoopLogger(),
+			}
+
+			pr := &github.PullRequest{Assignees: testCase.assignees}
+			details := treeprint.New()
+			requirement := Assignee(gh, testCase.user)
+
+			if !requirement.IsSatisfied(pr, details) {
+				t.Errorf("requirement should have a satisfied status: %t", true)
+			}
+			if !utils.TestLastNodeStatus(t, true, details) {
+				t.Errorf("requirement details should have a status: %t", true)
+			}
+			if !testCase.exists && !requested {
+				t.Errorf("requirement should have requested to create item")
+			}
+		})
+	}
+}

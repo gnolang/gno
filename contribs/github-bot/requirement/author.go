@@ -10,7 +10,7 @@ import (
 	"github.com/xlab/treeprint"
 )
 
-// AuthorInTeam Requirement
+// Author Requirement
 type author struct {
 	user string
 }
