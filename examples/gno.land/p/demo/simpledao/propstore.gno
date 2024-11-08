@@ -21,7 +21,6 @@ const maxRequestProposals = 10
 type proposal struct {
 	author std.Address // initiator of the proposal
 
-	title       string // title of the proposal
 	description string // description of the proposal
 
 	executor dao.Executor       // executor for the proposal
