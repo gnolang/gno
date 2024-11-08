@@ -10,4 +10,4 @@ func main() {
 }
 
 // Error:
-// main/files/assign33.gno:8:6: cannot use bool as int
+// main/files/assign33.gno:8:6: cannot use foo<VPBlock(3,0)>() (value of type bool) as int value in assignment

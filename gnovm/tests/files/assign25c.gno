@@ -7,7 +7,7 @@ func f() (a, b int) {
 }
 
 func main() {
-	x, y, z := 1, bar()
+	x, y, z := 1, f()
 	fmt.Println(x, y, z)
 }
 

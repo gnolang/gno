@@ -2363,10 +2363,7 @@ func defineOrDecl(
 		parseAssignFromExprList(sts, tvs, store, bn, isConst, nameExprs, typeExpr, valueExprs)
 	}
 
-	node := bn
-	if fn, ok := bn.(*FileNode); ok {
-		node = fn.GetParentNode(nil).(*PackageNode)
-	}
+	node := skipFile(bn)
 
 	for i := 0; i < len(sts); i++ {
 		nx := nameExprs[i]
@@ -2527,8 +2524,15 @@ func parseMultipleAssignFromOneExpr(
 		if st != nil {
 			tt := tuple.Elts[i]
 
-			if err := checkAssignableTo(tt, st, false); err != nil {
-				panic(fmt.Sprintf("%v", err))
+			if checkAssignableTo(tt, st, false) != nil {
+				panic(
+					fmt.Sprintf(
+						"cannot use %v (value of type %s) as %s value in assignment",
+						valueExpr.String(),
+						tt.String(),
+						st.String(),
+					),
+				)
 			}
 
 			sts[i] = st
