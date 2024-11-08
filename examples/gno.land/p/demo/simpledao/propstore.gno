@@ -89,9 +89,10 @@ func (p *proposal) Render(idx int) string {
 
 	output += "## Actions\n\n"
 	if p.status == dao.Active {
-		output += ufmt.Sprintf("[Vote YES](%s) - [Vote NO](%s)",
+		output += ufmt.Sprintf("[Vote YES](%s) - [Vote NO](%s) - [Vote ABSTAIN](%s)",
 			txlink.URL("VoteOnProposal", "id", strconv.Itoa(idx), "option", "YES"),
 			txlink.URL("VoteOnProposal", "id", strconv.Itoa(idx), "option", "NO"),
+			txlink.URL("VoteOnProposal", "id", strconv.Itoa(idx), "option", "ABSTAIN"),
 		)
 	} else {
 		output += "The voting period for this proposal is over.\n\n"
