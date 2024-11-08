@@ -54,7 +54,7 @@ func (c *cleanCfg) RegisterFlags(fs *flag.FlagSet) {
 		&c.modCache,
 		"modcache",
 		false,
-		"remove the entire module download cache",
+		"remove the entire module download cache and exit",
 	)
 }
 
