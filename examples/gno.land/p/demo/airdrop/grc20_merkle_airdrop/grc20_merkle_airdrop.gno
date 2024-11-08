@@ -43,6 +43,7 @@ func (ma *MerkleAirdrop) Claim(data airdrop.AirdropData, proofs []merkle.Node) e
 	if ma.claimed.Has(hash) {
 		return ErrAlreadyClaimed
 	}
+	println(proofs)
 
 	if !merkle.Verify(ma.root, data, proofs) {
 		return ErrInvalidProof

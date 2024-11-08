@@ -28,7 +28,7 @@ func NewData(addr std.Address, amount uint64) Data {
 }
 
 func (d Data) Bytes() []byte {
-	out := ufmt.Sprintf(`{"address":"%s","amount":"%s"}`, d.data.Address, d.data.Amount)
+	out := ufmt.Sprintf(`{"address":"%s","amount":"%d"}`, d.data.Address, d.data.Amount)
 	return []byte(out)
 }
 
