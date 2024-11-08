@@ -121,7 +121,7 @@ max_num_outbound_peers = 40 # Advised value is 40
 max_packet_msg_payload_size = 1024
 
 # Comma separated list of nodes to keep persistent connections to
-persistent_peers = "" # TODO update @Salvo, @Blake, @Sergio, @Norman, @Albert
+persistent_peers = "g12p9l546ah4qeenhum8v4m2dg92jxcsrfy67yww@163.172.33.181:26656" # TODO update @Salvo, @Blake, @Sergio, @Norman, @Albert
 
 # Set true to enable the peer-exchange reactor
 pex = false # Should be `false` if using a sentry node. Otherwise `true`!
