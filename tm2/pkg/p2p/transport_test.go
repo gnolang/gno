@@ -189,7 +189,7 @@ func TestMultiplexTransport_Accept(t *testing.T) {
 		)
 	})
 
-	t.Run("peer accepted", func(t *testing.T) {
+	t.Run("peer accepted, direct", func(t *testing.T) {
 		t.Parallel()
 
 		var (
@@ -248,15 +248,15 @@ func TestMultiplexTransport_Accept(t *testing.T) {
 
 		assert.Equal(t, pi.nodeInfo, p.NodeInfo())
 	})
+
+	t.Run("peer accepted, accept loop", func(t *testing.T) {
+		t.Parallel()
+
+		// TODO implement
+	})
 }
 
 func TestMultiplexTransport_Dial(t *testing.T) {
-	t.Parallel()
-
-	// TODO implement
-}
-
-func TestMultiplexTransport_Listen(t *testing.T) {
 	t.Parallel()
 
 	// TODO implement
