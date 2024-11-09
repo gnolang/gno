@@ -47,11 +47,11 @@ Some configuration params are required, while others are advised to be set.
 
 ## Gno Core DNS entries
 
-- CNAME   test5.gno.land  a78095e89431e41f2b506544efd9f79e-dd80971e7e1cf6bc.elb.eu-central-1.amazonaws.com
-- CNAME   rpc.test5.gno.land  test5.gno.land
-- CNAME   gno-core-sen-01.test5.gno.land  test5.gno.land
-- CNAME   gno-core-sen-02.test5.gno.land  test5.gno.land
-- CNAME   gno-core-sen-03.test5.gno.land  test5.gno.land
-- CNAME   indexer.test5.gno.land  test5.gno.land
-- CNAME   gnofaucet.test5.gno.land  test5.gno.land
-- CNAME   o11y.test5.gno.land  test5.gno.land (Grafana)
+- CNAME test5.gno.land a78095e89431e41f2b506544efd9f79e-dd80971e7e1cf6bc.elb.eu-central-1.amazonaws.com
+- CNAME rpc.test5.gno.land test5.gno.land
+- CNAME gno-core-sen-01.test5.gno.land test5.gno.land
+- CNAME gno-core-sen-02.test5.gno.land test5.gno.land
+- CNAME gno-core-sen-03.test5.gno.land test5.gno.land
+- CNAME indexer.test5.gno.land test5.gno.land
+- CNAME gnofaucet.test5.gno.land test5.gno.land
+- CNAME o11y.test5.gno.land test5.gno.land (Grafana)
