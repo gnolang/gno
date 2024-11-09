@@ -158,12 +158,13 @@ type ObjectInfo struct {
 // Note that "owner" is nil.
 func (oi *ObjectInfo) Copy() ObjectInfo {
 	return ObjectInfo{
-		ID:        oi.ID,
-		Hash:      oi.Hash.Copy(),
-		OwnerID:   oi.OwnerID,
-		ModTime:   oi.ModTime,
-		RefCount:  oi.RefCount,
-		IsEscaped: oi.IsEscaped,
+		ID:                      oi.ID,
+		Hash:                    oi.Hash.Copy(),
+		OwnerID:                 oi.OwnerID,
+		ModTime:                 oi.ModTime,
+		RefCount:                oi.RefCount,
+		IsEscaped:               oi.IsEscaped,
+		lastNewRealEscapedRealm: oi.lastNewRealEscapedRealm,
 		/*
 			// XXX do the following need copying too?
 			isDirty:          oi.isDirty,
@@ -321,6 +322,7 @@ func (oi *ObjectInfo) GetLastNewEscapedRealm() PkgID {
 }
 
 func (oi *ObjectInfo) SetLastNewEscapedRealm(pkgId PkgID) {
+	fmt.Println("---SetLastNewEscapedRealm")
 	oi.lastNewRealEscapedRealm = pkgId
 }
 
@@ -410,7 +412,9 @@ func (tv *TypedValue) GetFirstObject2(store Store) (Object, PkgID) {
 		fmt.Println("---dt.PkgPath: ", dt.PkgPath)
 		fmt.Println("---PkgID: ", PkgIDFromPkgPath(dt.PkgPath))
 		fmt.Println("---dt.Base: ", dt.Base)
-		pkgId = PkgIDFromPkgPath(dt.PkgPath)
+		if IsRealmPath(dt.PkgPath) {
+			pkgId = PkgIDFromPkgPath(dt.PkgPath)
+		}
 	}
 	switch cv := tv.V.(type) {
 	case PointerValue:
@@ -423,14 +427,16 @@ func (tv *TypedValue) GetFirstObject2(store Store) (Object, PkgID) {
 			fmt.Println("---v.GetObjectID(): ", v.GetObjectID())
 			fmt.Println("---is Attached?", v.GetIsReal())
 
-			if dt, ok := cv.TV.T.(*DeclaredType); ok {
-				fmt.Println("---dt: ", dt)
-				fmt.Println("---dt.Name: ", dt.Name)
-				fmt.Println("---dt.PkgPath: ", dt.PkgPath)
-				fmt.Println("---PkgID: ", PkgIDFromPkgPath(dt.PkgPath))
-				fmt.Println("---dt.Base: ", dt.Base)
-				pkgId = PkgIDFromPkgPath(dt.PkgPath)
-			}
+			//if dt, ok := cv.TV.T.(*DeclaredType); ok {
+			//	fmt.Println("---dt: ", dt)
+			//	fmt.Println("---dt.Name: ", dt.Name)
+			//	fmt.Println("---dt.PkgPath: ", dt.PkgPath)
+			//	fmt.Println("---PkgID: ", PkgIDFromPkgPath(dt.PkgPath))
+			//	fmt.Println("---dt.Base: ", dt.Base)
+			//	if IsRealmPath(dt.PkgPath) {
+			//		pkgId = PkgIDFromPkgPath(dt.PkgPath)
+			//	}
+			//}
 		}
 		return cv.GetBase(store), pkgId
 	case *ArrayValue:

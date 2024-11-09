@@ -18,3 +18,6 @@ func main() {
 // XXX, this should fail while trying to attach
 // value of type defined in another realm.
 // NOTE: the check can be in runtime or in preprocess(by simply checkin edge cases).
+
+// Error:
+// !!!cross realm while attach object

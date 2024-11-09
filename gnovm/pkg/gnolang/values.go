@@ -303,6 +303,7 @@ func (pv PointerValue) Assign2(alloc *Allocator, store Store, rlm *Realm, tv2 Ty
 		//	fmt.Println("---oo2.GetObjectID: ", oo2.GetObjectID())
 		//}
 		if oo2 != nil {
+			fmt.Printf("addr of oo2: %p \n", oo2)
 			oo2.SetLastNewEscapedRealm(pkgId)
 		}
 		// TODO: assert attached here?
@@ -539,7 +540,8 @@ func (sv *StructValue) Copy(alloc *Allocator) *StructValue {
 	}
 
 	nsv := alloc.NewStruct(fields)
-	//nsv.ObjectInfo = sv.ObjectInfo.Copy()
+	fmt.Println("---sv.ObjectInfo", sv.ObjectInfo)
+	nsv.ObjectInfo = sv.ObjectInfo.Copy()
 	return nsv
 	//return alloc.NewStruct(fields)
 }

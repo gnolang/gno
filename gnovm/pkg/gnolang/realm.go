@@ -138,15 +138,15 @@ func (rlm *Realm) DidUpdate(po, xo, co Object) {
 	fmt.Println("---DidUpdate, rlm.ID: ", rlm.ID)
 	fmt.Printf("---xo: %v, type of xo: %v\n", xo, reflect.TypeOf(xo))
 	fmt.Printf("---co: %v, type of co: %v\n", co, reflect.TypeOf(co))
-	fmt.Printf("---po: %v, type of po: %v\n", po, reflect.TypeOf(po))
 	//fmt.Printf("---xo: %p\n", xo)
 	if co != nil {
-		fmt.Println("co.LastNewEscapedRealm: ", co.GetLastNewEscapedRealm())
-		if rlm.ID != co.GetLastNewEscapedRealm() {
-			panic("---cross realm!!!")
-		}
+		fmt.Println("---co.LastNewEscapedRealm: ", co.GetLastNewEscapedRealm())
+		//if rlm.ID != co.GetLastNewEscapedRealm() {
+		//	panic("---cross realm!!!")
+		//}
 	}
 
+	fmt.Printf("---po: %v, type of po: %v\n", po, reflect.TypeOf(po))
 	//if co != nil && co.GetIsCrossRealm() {
 	//	panic("!!!cross realm")
 	//}
@@ -265,9 +265,9 @@ func (rlm *Realm) MarkNewEscapedCheckCrossRealm(oo Object) {
 	if oi.GetIsReal() {
 		lastRealmID := oi.GetObjectID().PkgID
 		fmt.Println("lastRealmID: ", lastRealmID)
-		if lastRealmID != rlm.ID {
-			panic("should not happen, cross realm!!!")
-		}
+		//if lastRealmID != rlm.ID {
+		//	panic("should not happen, cross realm!!!")
+		//}
 	}
 
 	if oi.lastNewRealEscapedRealm == rlm.ID {
@@ -520,9 +520,18 @@ func (rlm *Realm) processNewCreatedMarks(store Store) {
 	}
 }
 
+func isEmptyRealmID(pkgId PkgID) bool {
+	if pkgId.String() == "RID0000000000000000000000000000000000000000" {
+		return true
+	}
+	return false
+}
+
 // oo must be marked new-real, and ref-count already incremented.
 func (rlm *Realm) incRefCreatedDescendants(store Store, oo Object) {
-	fmt.Println("---incRefCreatedDescendants from oo: ", oo)
+	fmt.Println("---incRefCreatedDescendants from oo: \n", oo)
+	fmt.Printf("addr of oo %p: ", oo)
+	fmt.Println("---incRefCreatedDescendants oo.GetLastEscapedRealm: ", oo.GetLastNewEscapedRealm())
 	fmt.Println("---incRefCreatedDescendants, oo.GetObjectID: ", oo.GetObjectID())
 	if debug {
 		if oo.GetIsDirty() {
@@ -530,6 +539,19 @@ func (rlm *Realm) incRefCreatedDescendants(store Store, oo Object) {
 		}
 		if oo.GetRefCount() <= 0 {
 			panic("cannot increase reference of descendants of unreferenced object")
+		}
+	}
+
+	// make some pkgId logic while assign
+	_, ok1 := oo.(*PackageValue)
+	_, ok2 := oo.(*Block)
+	if !ok1 && !ok2 {
+		if !isEmptyRealmID(oo.GetLastNewEscapedRealm()) { // ! /p
+			if oo.GetLastNewEscapedRealm() != rlm.ID {
+				fmt.Println("---oo.GetLastNewEscapedRealm: ", oo.GetLastNewEscapedRealm())
+				fmt.Println("---rlm.ID: ", rlm.ID)
+				panic("!!!cross realm while attach object")
+			}
 		}
 	}
 
@@ -683,6 +705,14 @@ func (rlm *Realm) processNewEscapedMarks(store Store) {
 	// because ref-count isn't >= 2.
 	for i, eo := range rlm.newEscaped {
 		fmt.Printf("---processNewEscapedMarks, [%d]eo: %v\n", i, eo)
+		fmt.Println("---eo.GetLastEscapedRealm: ", eo.GetLastNewEscapedRealm())
+		fmt.Println("---rlm.ID: ", rlm.ID)
+		// only check object from another realm
+		if !isEmptyRealmID(eo.GetLastNewEscapedRealm()) {
+			if eo.GetLastNewEscapedRealm() != rlm.ID {
+				panic("!!!Cross realm update")
+			}
+		}
 		fmt.Println("---processNewEscapedMarks, eo.GetObjectID: ", eo.GetRefCount())
 		if debug {
 			if !eo.GetIsNewEscaped() {
@@ -1014,10 +1044,10 @@ func getChildObjects(val Value, more []Value) []Value {
 		more = getSelfOrChildObjects(cv.Base, more)
 		return more
 	case *StructValue:
-		//println("---struct value")
+		println("---struct value")
 		for _, ctv := range cv.Fields {
 			// TODO: we have type infos here, so check check cross realm logic
-			//fmt.Println("---ctv: ", ctv)
+			fmt.Println("---ctv: ", ctv)
 			more = getSelfOrChildObjects(ctv.V, more)
 		}
 		return more
@@ -1067,7 +1097,7 @@ func getChildObjects(val Value, more []Value) []Value {
 
 // like getChildObjects() but loads RefValues into objects.
 func getChildObjects2(store Store, val Value) []Object {
-	//fmt.Println("---getChildObjects2, val: ", val)
+	fmt.Println("---getChildObjects2, val: ", val)
 	chos := getChildObjects(val, nil)
 	//fmt.Println("---chos: ", chos)
 	objs := make([]Object, 0, len(chos))

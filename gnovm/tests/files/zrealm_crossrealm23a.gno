@@ -17,3 +17,6 @@ func main() {
 
 // XXX, this works, attach reference with type defined in p
 // Attach pointer?
+
+// Output:
+// .

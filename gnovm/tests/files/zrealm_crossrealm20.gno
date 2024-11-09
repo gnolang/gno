@@ -14,3 +14,6 @@ var b0 crossrealm.Bar // run declarations
 func main() {
 	print(".")
 }
+
+// Error:
+// !!!cross realm while attach object

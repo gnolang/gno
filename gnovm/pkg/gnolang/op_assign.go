@@ -3,11 +3,13 @@ package gnolang
 import "fmt"
 
 func (m *Machine) doOpDefine() {
+	fmt.Println("---doOpDefine---")
 	s := m.PopStmt().(*AssignStmt)
 	// Define each value evaluated for Lhs.
 	// NOTE: PopValues() returns a slice in
 	// forward order, not the usual reverse.
 	rvs := m.PopValues(len(s.Lhs))
+	fmt.Println("---rvs: ", rvs)
 	lb := m.LastBlock()
 	for i := 0; i < len(s.Lhs); i++ {
 		// Get name and value of i'th term.

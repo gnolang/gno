@@ -18,4 +18,4 @@ func main() {
 // XXX, this works attach value with type defined in p
 
 // Output:
-//.
+// .

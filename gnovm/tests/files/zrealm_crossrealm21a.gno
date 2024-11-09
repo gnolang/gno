@@ -21,3 +21,6 @@ func init() {
 func main() {
 	print(".")
 }
+
+// Error:
+// !!!cross realm while attach object
