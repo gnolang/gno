@@ -17,15 +17,13 @@ func generateNetAddr(t *testing.T, count int) []types.NetAddress {
 	addrs := make([]types.NetAddress, 0, count)
 
 	for i := 0; i < count; i++ {
-		var (
-			key     = types.GenerateNodeKey()
-			address = "127.0.0.1:4123" // specific port
-		)
+		key := types.GenerateNodeKey()
 
-		tcpAddr, err := net.ResolveTCPAddr("tcp", address)
+		// Grab a random port
+		ln, err := net.Listen("tcp", "127.0.0.1:0")
 		require.NoError(t, err)
 
-		addr, err := types.NewNetAddress(key.ID(), tcpAddr)
+		addr, err := types.NewNetAddress(key.ID(), ln.Addr())
 		require.NoError(t, err)
 
 		addrs = append(addrs, *addr)
@@ -64,6 +62,8 @@ func TestMultiplexTransport_NetAddress(t *testing.T) {
 			addr   = generateNetAddr(t, 1)[0]
 		)
 
+		addr.Port = 0 // random port
+
 		transport := NewMultiplexTransport(ni, nk, mCfg, logger)
 
 		require.NoError(t, transport.Listen(addr))
@@ -86,6 +86,8 @@ func TestMultiplexTransport_NetAddress(t *testing.T) {
 			logger = log.NewNoopLogger()
 			addr   = generateNetAddr(t, 1)[0]
 		)
+
+		addr.Port = 4123 // specific port
 
 		transport := NewMultiplexTransport(ni, nk, mCfg, logger)
 
@@ -136,6 +138,8 @@ func TestMultiplexTransport_Accept(t *testing.T) {
 			addr   = generateNetAddr(t, 1)[0]
 		)
 
+		addr.Port = 0
+
 		transport := NewMultiplexTransport(ni, nk, mCfg, logger)
 
 		// Start the transport
@@ -165,6 +169,8 @@ func TestMultiplexTransport_Accept(t *testing.T) {
 			addr   = generateNetAddr(t, 1)[0]
 		)
 
+		addr.Port = 0
+
 		transport := NewMultiplexTransport(ni, nk, mCfg, logger)
 
 		// Start the transport
@@ -187,34 +193,60 @@ func TestMultiplexTransport_Accept(t *testing.T) {
 		t.Parallel()
 
 		var (
-			ni     = types.NodeInfo{}
-			nk     = types.NodeKey{}
 			mCfg   = conn.DefaultMConnConfig()
 			logger = log.NewNoopLogger()
 			addr   = generateNetAddr(t, 1)[0]
 
-			mockConn     = &mockConn{}
+			mockConn = &mockConn{
+				remoteAddrFn: func() net.Addr {
+					return &net.TCPAddr{
+						IP:   addr.IP,
+						Port: int(addr.Port),
+					}
+				},
+			}
 			mockListener = &mockListener{
 				acceptFn: func() (net.Conn, error) {
 					return mockConn, nil
 				},
 			}
+
+			pi = peerInfo{
+				addr: &addr,
+				conn: mockConn,
+				nodeInfo: types.NodeInfo{
+					NetAddress: &addr,
+				},
+			}
+
+			peerBehavior = &reactorPeerBehavior{
+				chDescs:      make([]*conn.ChannelDescriptor, 0),
+				reactorsByCh: make(map[byte]Reactor),
+				handlePeerErrFn: func(_ Peer, err error) {
+					require.NoError(t, err)
+				},
+				isPersistentPeerFn: func(_ types.ID) bool {
+					return false
+				},
+				isPrivatePeerFn: func(_ types.ID) bool {
+					return false
+				},
+			}
 		)
 
-		transport := NewMultiplexTransport(ni, nk, mCfg, logger)
+		transport := NewMultiplexTransport(types.NodeInfo{}, types.NodeKey{}, mCfg, logger)
 
 		// Set the listener
 		transport.listener = mockListener
 
-		p, err := transport.Accept(context.Background(), nil)
+		// Prepare the peer info for accepting
+		transport.peerCh <- pi
 
-		assert.Nil(t, p)
-		assert.ErrorIs(
-			t,
-			err,
-			context.Canceled,
-		)
+		// Accept the peer
+		p, err := transport.Accept(context.Background(), peerBehavior)
+		require.NoError(t, err)
 
+		assert.Equal(t, pi.nodeInfo, p.NodeInfo())
 	})
 }
 
