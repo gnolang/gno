@@ -102,7 +102,7 @@ func (p Param) MarshalAmino() (string, error) {
 	return p.String(), nil
 }
 
-func (p Param) Register(ctx sdk.Context, prk params.ParamsKeeperI) {
+func (p Param) register(ctx sdk.Context, prk params.ParamsKeeperI) {
 	key := p.key + "." + p.kind
 	switch p.kind {
 	case ParamKindString:

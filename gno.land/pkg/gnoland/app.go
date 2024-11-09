@@ -306,7 +306,7 @@ func (cfg InitChainerConfig) loadAppState(ctx sdk.Context, appState any) ([]abci
 
 	// Apply genesis params.
 	for _, param := range state.Params {
-		param.Register(ctx, cfg.paramsKpr)
+		param.register(ctx, cfg.paramsKpr)
 	}
 
 	// Replay genesis txs.
