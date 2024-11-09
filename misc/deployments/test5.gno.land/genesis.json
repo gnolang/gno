@@ -96,6 +96,42 @@
       },
       "power": "1",
       "name": "onbloc-val-2"
+    },
+    {
+      "address": "g1mxguhd5zacar64txhfm0v7hhtph5wur5hx86vs",
+      "pub_key": {
+        "@type": "/tm.PubKeyEd25519",
+        "value": "C0l3PwIhnCmIG3YiAa9jf/uuvZj1ob7lolasnEhDgBE="
+      },
+      "power": "1",
+      "name": "devx-val-1"
+    },
+    {
+      "address": "g1t9ctfa468hn6czff8kazw08crazehcxaqa2uaa",
+      "pub_key": {
+        "@type": "/tm.PubKeyEd25519",
+        "value": "wBqj3F9RgIJ12UqGq5okzHfVbbd6H5AF5y4as8Ovx00="
+      },
+      "power": "1",
+      "name": "devx-val-2"
+    },
+    {
+      "address": "g1sll4rtvrepdyzcvg5ml0kjtl7fnwgcsxgg9s5q",
+      "pub_key": {
+        "@type": "/tm.PubKeyEd25519",
+        "value": "/HUSFQ2i/azLfjsEdvQZ25MijKlWtrVgM2EvGPYQfi8="
+      },
+      "power": "1",
+      "name": "devx-val-3"
+    },
+    {
+      "address": "g1aa5pp94eaextkump38766hpdra74xtfh805msv",
+      "pub_key": {
+        "@type": "/tm.PubKeyEd25519",
+        "value": "ZPTP49G2+f0YPhHQbJz2SUKRLgvAl8T5d7SHNfkj7NI="
+      },
+      "power": "1",
+      "name": "devx-val-4"
     }
   ],
   "app_hash": null,
