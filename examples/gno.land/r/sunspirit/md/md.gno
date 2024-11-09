@@ -3,12 +3,12 @@ package md
 import (
 	"strings"
 
-	"gno.land/p/demo/md"
-	"gno.land/p/demo/table"
+	"gno.land/p/sunspirit/md"
+	"gno.land/p/sunspirit/table"
 )
 
 func Render(path string) string {
-	title := "Exploring markdown functions in the gno.land/p/md library"
+	title := "A simple, flexible, and easy-to-use library for creating markdown documents in gno.land"
 
 	var sb strings.Builder
 	sb.WriteString(md.H1(md.Italic(md.Bold(title))) + md.LineBreak(1))

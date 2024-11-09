@@ -3,8 +3,8 @@ package md
 import (
 	"testing"
 
-	"gno.land/p/demo/table"
 	"gno.land/p/demo/uassert"
+	"gno.land/p/sunspirit/table"
 )
 
 func Test_Bold(t *testing.T) {
