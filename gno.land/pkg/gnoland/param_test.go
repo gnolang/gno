@@ -7,6 +7,7 @@ import (
 )
 
 func TestParam_Parse(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name      string
 		entry     string
@@ -26,6 +27,7 @@ func TestParam_Parse(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
 			param := Param{}
 			err := param.Parse(tc.entry)
 			if tc.expectErr {
