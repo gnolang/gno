@@ -113,7 +113,7 @@ func TestVmHandlerQuery_Eval(t *testing.T) {
 
 			// Create test package.
 			files := []*gnovm.MemFile{
-				{"hello.gno", `
+				{Name: "hello.gno", Body: `
 package hello
 
 import "std"
@@ -206,7 +206,7 @@ func TestVmHandlerQuery_Funcs(t *testing.T) {
 
 			// Create test package.
 			files := []*gnovm.MemFile{
-				{"hello.gno", `
+				{Name: "hello.gno", Body: `
 package hello
 
 var sl = []int{1,2,3,4,5}
@@ -284,8 +284,8 @@ func TestVmHandlerQuery_File(t *testing.T) {
 
 			// Create test package.
 			files := []*gnovm.MemFile{
-				{"README.md", "# Hello"},
-				{"hello.gno", "package hello\n\nfunc Hello() string { return \"hello\" }\n"},
+				{Name: "README.md", Body: "# Hello"},
+				{Name: "hello.gno", Body: "package hello\n\nfunc Hello() string { return \"hello\" }\n"},
 			}
 			pkgPath := "gno.land/r/hello"
 			msg1 := NewMsgAddPackage(addr, pkgPath, files)

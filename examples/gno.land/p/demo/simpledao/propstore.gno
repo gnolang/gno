@@ -71,7 +71,7 @@ func (p *proposal) Render() string {
 	output += ufmt.Sprintf("Status: %s", p.Status().String())
 	output += "\n\n"
 	output += ufmt.Sprintf(
-		"Voting stats: YAY %d (%d%%), NAY %d (%d%%), ABSTAIN %d (%d%%), HAVEN'T VOTED %d (%d%%)",
+		"Voting stats: YES %d (%d%%), NO %d (%d%%), ABSTAIN %d (%d%%), MISSING VOTE %d (%d%%)",
 		stats.YayVotes,
 		stats.YayPercent(),
 		stats.NayVotes,
