@@ -24,7 +24,7 @@ func init() {
 	executor := validators.NewPropExecutor(changesFn)
 
 	prop := dao.ProposalRequest{
-		Title:    "Add Leon to to valset but be careful that he is a cool guy!",
+		Title:    "Leon prop 3",
 		Executor: executor,
 	}
 

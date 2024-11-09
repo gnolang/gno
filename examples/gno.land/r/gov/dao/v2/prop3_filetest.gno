@@ -68,7 +68,7 @@ func main() {
 // --
 // # GovDAO Proposals
 //
-// ## [Prop #0](/r/gov/dao/v2:0)
+// ## [Prop #0 - new govdao member addition](/r/gov/dao/v2:0)
 //
 // #### Status: ACTIVE
 //
@@ -76,7 +76,7 @@ func main() {
 //
 //
 // --
-// # Proposal #0 -
+// # Proposal #0 - new govdao member addition
 //
 // ## Description
 //
@@ -84,7 +84,7 @@ func main() {
 //
 // ## Proposal information
 //
-// #### Status: active
+// #### Status: ACTIVE
 //
 // #### Voting stats:
 // - YES 0 (0%)
@@ -93,7 +93,7 @@ func main() {
 // - MISSING VOTE 10 (100%)
 //
 //
-// #### Threshold met: false
+// #### Threshold met: FALSE
 //
 // #### Author: g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm
 //
@@ -104,7 +104,7 @@ func main() {
 //
 // --
 // --
-// # Proposal #0 -
+// # Proposal #0 - new govdao member addition
 //
 // ## Description
 //
@@ -112,7 +112,7 @@ func main() {
 //
 // ## Proposal information
 //
-// #### Status: accepted
+// #### Status: ACCEPTED
 //
 // #### Voting stats:
 // - YES 10 (100%)
@@ -121,7 +121,7 @@ func main() {
 // - MISSING VOTE 0 (0%)
 //
 //
-// #### Threshold met: true
+// #### Threshold met: TRUE
 //
 // #### Author: g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm
 //
@@ -135,7 +135,7 @@ func main() {
 // --
 // # GovDAO Proposals
 //
-// ## [Prop #0](/r/gov/dao/v2:0)
+// ## [Prop #0 - new govdao member addition](/r/gov/dao/v2:0)
 //
 // #### Status: ACCEPTED
 //
@@ -144,7 +144,7 @@ func main() {
 //
 // --
 // --
-// # Proposal #0 -
+// # Proposal #0 - new govdao member addition
 //
 // ## Description
 //
@@ -152,7 +152,7 @@ func main() {
 //
 // ## Proposal information
 //
-// #### Status: execution successful
+// #### Status: EXECUTION SUCCESSFUL
 //
 // #### Voting stats:
 // - YES 10 (25%)
@@ -161,7 +161,7 @@ func main() {
 // - MISSING VOTE 30 (75%)
 //
 //
-// #### Threshold met: false
+// #### Threshold met: FALSE
 //
 // #### Author: g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm
 //
@@ -175,7 +175,7 @@ func main() {
 // --
 // # GovDAO Proposals
 //
-// ## [Prop #0](/r/gov/dao/v2:0)
+// ## [Prop #0 - new govdao member addition](/r/gov/dao/v2:0)
 //
 // #### Status: EXECUTION SUCCESSFUL
 //

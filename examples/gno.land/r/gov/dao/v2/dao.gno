@@ -87,13 +87,17 @@ func Render(path string) string {
 		}
 
 		// Fetch the last 10 proposals
-		for idx, prop := range d.Proposals(offset, uint64(10)) {
+		proposals := d.Proposals(offset, uint64(10))
+		for i := len(proposals) - 1; i >= 0; i-- {
+			prop := proposals[i]
+
 			title := prop.Title()
 			if len(title) > 40 {
 				title = title[:40] + "..."
 			}
 
-			output += ufmt.Sprintf("## [Prop #%d - %s](/r/gov/dao/v2:%d)\n\n", idx, title, idx)
+			propID := offset + uint64(i)
+			output += ufmt.Sprintf("## [Prop #%d - %s](/r/gov/dao/v2:%d)\n\n", propID, title, propID)
 			output += ufmt.Sprintf("#### Status: %s\n\n", strings.ToUpper(prop.Status().String()))
 
 			user := users.GetUserByAddress(prop.Author())
@@ -104,7 +108,7 @@ func Render(path string) string {
 
 			output += ufmt.Sprintf("#### Author: %s\n\n", authorUsername)
 
-			if idx != len(d.Proposals(offset, uint64(10)))-1 {
+			if i != 0 {
 				output += "---\n\n"
 			}
 		}
