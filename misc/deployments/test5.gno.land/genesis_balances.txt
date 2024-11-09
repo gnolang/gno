@@ -18,7 +18,8 @@ g1j40cmy9yefpwtesqzutc347d48uzk4428zu536=9000000000000000000ugnot # Faucet #9
 
 # Faucet Accounts (DevX)
 
-# TODO @Salvo please add these here
+g1q6jrp203fq0239pv38sdq3y3urvd6vt5azacpv=9000000000000000000ugnot # Faucet #10
+g13d7jc32adhc39erm5me38w5v7ej7lpvlnqjk73=9000000000000000000ugnot # Faucet #11
 
 # Core Team
 
