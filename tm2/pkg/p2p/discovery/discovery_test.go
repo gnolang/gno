@@ -222,6 +222,108 @@ func TestReactor_DiscoveryResponse(t *testing.T) {
 		assert.Nil(t, capturedSend)
 	})
 
+	t.Run("private peers not shared", func(t *testing.T) {
+		t.Parallel()
+
+		var (
+			publicPeers  = 1
+			privatePeers = 50
+
+			peers   = mock.GeneratePeers(t, publicPeers+privatePeers)
+			notifCh = make(chan struct{}, 1)
+
+			capturedSend []byte
+
+			mockPeer = &mock.Peer{
+				SendFn: func(chID byte, data []byte) bool {
+					require.Equal(t, Channel, chID)
+
+					capturedSend = data
+
+					notifCh <- struct{}{}
+
+					return true
+				},
+			}
+
+			ps = &mockPeerSet{
+				listFn: func() []p2p.Peer {
+					listed := make([]p2p.Peer, 0, len(peers))
+
+					for _, peer := range peers {
+						listed = append(listed, peer)
+					}
+
+					return listed
+				},
+				numInboundFn: func() uint64 {
+					return uint64(len(peers))
+				},
+			}
+
+			mockSwitch = &mockSwitch{
+				peersFn: func() p2p.PeerSet {
+					return ps
+				},
+			}
+		)
+
+		// Mark all except the last X peers as private
+		for _, peer := range peers[:privatePeers] {
+			peer.IsPrivateFn = func() bool {
+				return true
+			}
+		}
+
+		r := NewReactor(
+			WithDiscoveryInterval(10 * time.Millisecond),
+		)
+
+		// Set the mock switch
+		r.SetSwitch(mockSwitch)
+
+		// Prepare the message
+		req := &Request{}
+
+		preparedReq, err := amino.MarshalAny(req)
+		require.NoError(t, err)
+
+		// Receive the message
+		r.Receive(Channel, mockPeer, preparedReq)
+
+		select {
+		case <-notifCh:
+		case <-time.After(5 * time.Second):
+		}
+
+		// Make sure the adequate message was captured
+		require.NotNil(t, capturedSend)
+
+		// Parse the message
+		var msg Message
+
+		require.NoError(t, amino.Unmarshal(capturedSend, &msg))
+
+		// Make sure the base message is valid
+		require.NoError(t, msg.ValidateBasic())
+
+		resp, ok := msg.(*Response)
+		require.True(t, ok)
+
+		// Make sure the peers are valid
+		require.Len(t, resp.Peers, publicPeers)
+
+		slices.ContainsFunc(resp.Peers, func(addr *types.NetAddress) bool {
+			for _, localP := range peers {
+				if localP.NodeInfo().NetAddress.Equals(*addr) {
+					return true
+				}
+			}
+
+			return false
+		})
+	})
+
 	t.Run("peer response received", func(t *testing.T) {
 		t.Parallel()
 
