@@ -26,6 +26,7 @@ type testMainCase struct {
 	args                 []string
 	testDir              string
 	simulateExternalRepo bool
+	noTmpGnohome         bool
 
 	// for the following FooContain+FooBe expected couples, if both are empty,
 	// then the test suite will require that the "got" is not empty.
@@ -57,6 +58,13 @@ func testMainCaseRun(t *testing.T, tc []testMainCase) {
 		t.Run(testName, func(t *testing.T) {
 			mockOut := bytes.NewBufferString("")
 			mockErr := bytes.NewBufferString("")
+
+			if !test.noTmpGnohome {
+				tmpGnoHome, err := os.MkdirTemp(os.TempDir(), "gnotesthome_")
+				require.NoError(t, err)
+				t.Cleanup(func() { os.RemoveAll(tmpGnoHome) })
+				t.Setenv("GNOHOME", tmpGnoHome)
+			}
 
 			checkOutputs := func(t *testing.T) {
 				t.Helper()
