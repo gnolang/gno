@@ -2,13 +2,12 @@ package simpledao
 
 import (
 	"errors"
-	"std"
+	"github.com/gnolang/gno/examples/gno.land/p/demo/dao"
+	"github.com/gnolang/gno/examples/gno.land/p/demo/seqid"
+	"github.com/gnolang/gno/examples/gno.land/p/demo/ufmt"
+	"github.com/gnolang/gno/examples/gno.land/p/moul/txlink"
+	"github.com/gnolang/gno/gnovm/stdlibs/std"
 	"strconv"
-
-	"gno.land/p/demo/dao"
-	"gno.land/p/demo/seqid"
-	"gno.land/p/demo/ufmt"
-	"gno.land/p/moul/txlink"
 )
 
 var ErrMissingProposal = errors.New("proposal is missing")
@@ -20,6 +19,7 @@ const maxRequestProposals = 10
 // proposal is the internal simpledao proposal implementation
 type proposal struct {
 	author      std.Address // initiator of the proposal
+	title       string      // title of the proposal
 	description string      // description of the proposal
 
 	executor dao.Executor       // executor for the proposal
@@ -31,6 +31,10 @@ type proposal struct {
 
 func (p *proposal) Author() std.Address {
 	return p.author
+}
+
+func (p *proposal) Title() string {
+	return p.title
 }
 
 func (p *proposal) Description() string {
@@ -65,7 +69,7 @@ func (p *proposal) Render(idx int) string {
 	// Fetch the voting stats
 	stats := p.Stats()
 
-	output := ufmt.Sprintf("# Proposal #%d\n\n", idx)
+	output := ufmt.Sprintf("# Proposal #%d - %s\n\n", idx, p.title)
 	output += ufmt.Sprintf("## Description\n\n%s\n\n", p.description)
 
 	output += "## Proposal information\n\n"

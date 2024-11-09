@@ -42,6 +42,9 @@ type Proposal interface {
 	// Author returns the author of the proposal
 	Author() std.Address
 
+	// Title returns the title of the proposal
+	Title() string
+
 	// Description returns the description of the proposal
 	Description() string
 
