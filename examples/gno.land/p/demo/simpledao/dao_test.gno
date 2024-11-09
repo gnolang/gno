@@ -189,6 +189,7 @@ func TestSimpleDAO_Propose(t *testing.T) {
 
 		uassert.Equal(t, proposer.String(), prop.Author().String())
 		uassert.Equal(t, description, prop.Description())
+		uassert.Equal(t, title, prop.Title())
 		uassert.Equal(t, dao.Active.String(), prop.Status().String())
 
 		stats := prop.Stats()

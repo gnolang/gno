@@ -68,6 +68,7 @@ func (s *SimpleDAO) Propose(request dao.ProposalRequest) (uint64, error) {
 	// Create the wrapped proposal
 	prop := &proposal{
 		author:                caller,
+		title:                 request.Title,
 		description:           request.Description,
 		executor:              request.Executor,
 		status:                dao.Active,
