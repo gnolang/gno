@@ -58,7 +58,8 @@ g1sw5xklxjjuv0yvuxy5f5s3l3mnj0nqq626a9wr=9000000000000000000ugnot # Albert
 
 # Onbloc
 
-# TODO @Dongwon please add these here
+g1er355fkjksqpdtwmhf5penwa82p0rhqxkkyhk5=9000000000000000000ugnot
+g18l9us6trqaljw39j94wzf5ftxmd9qqkvrxghd2=9000000000000000000ugnot
 
 # Berty
 
