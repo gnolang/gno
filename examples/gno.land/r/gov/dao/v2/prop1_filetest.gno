@@ -42,9 +42,11 @@ func init() {
 	executor := validators.NewPropExecutor(changesFn)
 
 	// Create a proposal
+	title := "Valset change"
 	description := "manual valset changes proposal example"
 
 	prop := dao.ProposalRequest{
+		Title:       title,
 		Description: description,
 		Executor:    executor,
 	}
@@ -83,7 +85,7 @@ func main() {
 //
 //
 // --
-// # Proposal #0
+// # Proposal #0 -
 //
 // ## Description
 //
@@ -111,7 +113,7 @@ func main() {
 //
 // --
 // --
-// # Proposal #0
+// # Proposal #0 -
 //
 // ## Description
 //
@@ -143,7 +145,7 @@ func main() {
 // No valset changes to apply.
 // --
 // --
-// # Proposal #0
+// # Proposal #0 -
 //
 // ## Description
 //

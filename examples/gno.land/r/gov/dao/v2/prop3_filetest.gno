@@ -27,9 +27,11 @@ func init() {
 	}
 
 	// Create a proposal
+	title := "new govdao member addition"
 	description := "add new members to the govdao"
 
 	prop := dao.ProposalRequest{
+		Title:       title,
 		Description: description,
 		Executor:    govdao.NewMemberPropExecutor(memberFn),
 	}
@@ -74,7 +76,7 @@ func main() {
 //
 //
 // --
-// # Proposal #0
+// # Proposal #0 -
 //
 // ## Description
 //
@@ -102,7 +104,7 @@ func main() {
 //
 // --
 // --
-// # Proposal #0
+// # Proposal #0 -
 //
 // ## Description
 //
@@ -142,7 +144,7 @@ func main() {
 //
 // --
 // --
-// # Proposal #0
+// # Proposal #0 -
 //
 // ## Description
 //

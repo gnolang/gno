@@ -1,13 +1,14 @@
 package govdao
 
 import (
-	"github.com/gnolang/gno/examples/gno.land/p/demo/dao"
-	"github.com/gnolang/gno/examples/gno.land/p/demo/membstore"
-	"github.com/gnolang/gno/examples/gno.land/p/demo/simpledao"
-	"github.com/gnolang/gno/examples/gno.land/p/demo/ufmt"
-	"github.com/gnolang/gno/gnovm/stdlibs/std"
+	"std"
 	"strconv"
 	"strings"
+
+	"gno.land/p/demo/dao"
+	"gno.land/p/demo/membstore"
+	"gno.land/p/demo/simpledao"
+	"gno.land/p/demo/ufmt"
 )
 
 var (

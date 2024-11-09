@@ -74,13 +74,11 @@ func TestSimpleDAO_Propose(t *testing.T) {
 			s = New(ms)
 		)
 
-		// Set the sent coins to be lower
-		// than the proposal fee
 		std.TestSetOrigSend(sentCoins, std.Coins{})
 
 		_, err := s.Propose(dao.ProposalRequest{
 			Executor: ex,
-			Title:    "",
+			Title:    "", // Set invalid title
 		})
 		uassert.ErrorIs(
 			t,

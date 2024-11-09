@@ -19,9 +19,11 @@ func init() {
 	)
 
 	// Create a proposal
+	title := "govdao blog post title"
 	description := "post a new blogpost about govdao"
 
 	prop := dao.ProposalRequest{
+		Title:       title,
 		Description: description,
 		Executor:    ex,
 	}
@@ -60,7 +62,7 @@ func main() {
 //
 //
 // --
-// # Proposal #0
+// # Proposal #0 -
 //
 // ## Description
 //
@@ -88,7 +90,7 @@ func main() {
 //
 // --
 // --
-// # Proposal #0
+// # Proposal #0 -
 //
 // ## Description
 //
@@ -122,7 +124,7 @@ func main() {
 // No posts.
 // --
 // --
-// # Proposal #0
+// # Proposal #0 -
 //
 // ## Description
 //
