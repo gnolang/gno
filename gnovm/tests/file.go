@@ -642,7 +642,6 @@ func newTestParams() *testParams {
 	return &testParams{}
 }
 
-// XXX: not noop?
 func (tp *testParams) SetBool(key string, val bool)     { /* noop */ }
 func (tp *testParams) SetBytes(key string, val []byte)  { /* noop */ }
 func (tp *testParams) SetInt64(key string, val int64)   { /* noop */ }
