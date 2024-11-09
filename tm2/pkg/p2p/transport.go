@@ -351,6 +351,7 @@ func (mt *MultiplexTransport) newMultiplexPeer(
 	peerConn := &ConnInfo{
 		Outbound:   isOutbound,
 		Persistent: persistent,
+		Private:    behavior.IsPrivatePeer(info.nodeInfo.ID()),
 		Conn:       info.conn,
 		RemoteIP:   ips[0], // IPv4
 		SocketAddr: info.addr,

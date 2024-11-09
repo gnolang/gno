@@ -11,6 +11,7 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/p2p"
 	"github.com/gnolang/gno/tm2/pkg/p2p/conn"
 	"github.com/gnolang/gno/tm2/pkg/p2p/types"
+	"golang.org/x/exp/slices"
 )
 
 const (
@@ -82,7 +83,7 @@ func (r *Reactor) StartDiscovery() {
 
 				return
 			case <-ticker.C:
-				// Run the discovery protocol
+				// Run the discovery protocol //
 
 				// Grab a random peer, and engage
 				// them for peer discovery
@@ -187,7 +188,10 @@ func (r *Reactor) handleDiscoveryRequest(peer p2p.Peer) error {
 		peers      = make([]*types.NetAddress, 0, len(localPeers))
 	)
 
-	// TODO exclude private peers
+	// Exclude the private peers from being shared
+	localPeers = slices.DeleteFunc(localPeers, func(p p2p.Peer) bool {
+		return p.IsPrivate()
+	})
 
 	// Shuffle and limit the peers shared
 	shufflePeers(localPeers)

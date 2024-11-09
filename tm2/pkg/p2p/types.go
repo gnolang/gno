@@ -26,6 +26,7 @@ type Peer interface {
 
 	IsOutbound() bool   // did we dial the peer
 	IsPersistent() bool // do we redial this peer when we disconnect
+	IsPrivate() bool    // do we share the peer
 
 	CloseConn() error // close original connection
 
@@ -104,5 +105,8 @@ type PeerBehavior interface {
 	HandlePeerError(Peer, error)
 
 	// IsPersistentPeer returns a flag indicating if the given peer is persistent
-	IsPersistentPeer(*types.NetAddress) bool
+	IsPersistentPeer(*types.NetAddress) bool // TODO change this to also be IDs
+
+	// IsPrivatePeer returns a flag indicating if the given peer is private
+	IsPrivatePeer(types.ID) bool
 }

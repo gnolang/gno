@@ -13,6 +13,28 @@ import (
 // ID represents the cryptographically unique Peer ID
 type ID = crypto.ID
 
+// NewIDFromStrings returns an array of ID's build using
+// the provided strings
+func NewIDFromStrings(idStrs []string) ([]ID, []error) {
+	var (
+		ids  = make([]ID, 0, len(idStrs))
+		errs = make([]error, 0, len(idStrs))
+	)
+
+	for _, idStr := range idStrs {
+		id := ID(idStr)
+		if err := id.Validate(); err != nil {
+			errs = append(errs, err)
+
+			continue
+		}
+
+		ids = append(ids, id)
+	}
+
+	return ids, errs
+}
+
 // NodeKey is the persistent peer key.
 // It contains the nodes private key for authentication.
 // NOTE: keep in sync with gno.land/cmd/gnoland/secrets.go

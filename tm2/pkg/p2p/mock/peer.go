@@ -21,6 +21,7 @@ type (
 	remoteAddrDelegate   func() net.Addr
 	isOutboundDelegate   func() bool
 	isPersistentDelegate func() bool
+	isPrivateDelegate    func() bool
 	closeConnDelegate    func() error
 	nodeInfoDelegate     func() types.NodeInfo
 	statusDelegate       func() conn.ConnectionStatus
@@ -80,6 +81,7 @@ type Peer struct {
 	RemoteAddrFn   remoteAddrDelegate
 	IsOutboundFn   isOutboundDelegate
 	IsPersistentFn isPersistentDelegate
+	IsPrivateFn    isPrivateDelegate
 	CloseConnFn    closeConnDelegate
 	NodeInfoFn     nodeInfoDelegate
 	StopFn         stopDelegate
@@ -140,6 +142,14 @@ func (m *Peer) IsOutbound() bool {
 func (m *Peer) IsPersistent() bool {
 	if m.IsPersistentFn != nil {
 		return m.IsPersistentFn()
+	}
+
+	return false
+}
+
+func (m *Peer) IsPrivate() bool {
+	if m.IsPrivateFn != nil {
+		return m.IsPrivateFn()
 	}
 
 	return false

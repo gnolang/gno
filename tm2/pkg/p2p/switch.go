@@ -21,6 +21,7 @@ type reactorPeerBehavior struct {
 
 	handlePeerErrFn    func(Peer, error)
 	isPersistentPeerFn func(*types.NetAddress) bool
+	isPrivatePeerFn    func(types.ID) bool
 }
 
 func (r *reactorPeerBehavior) ReactorChDescriptors() []*conn.ChannelDescriptor {
@@ -37,6 +38,10 @@ func (r *reactorPeerBehavior) HandlePeerError(p Peer, err error) {
 
 func (r *reactorPeerBehavior) IsPersistentPeer(address *types.NetAddress) bool {
 	return r.isPersistentPeerFn(address)
+}
+
+func (r *reactorPeerBehavior) IsPrivatePeer(id types.ID) bool {
+	return r.isPrivatePeerFn(id)
 }
 
 // MultiplexSwitch handles peer connections and exposes an API to receive incoming messages
@@ -57,6 +62,7 @@ type MultiplexSwitch struct {
 
 	peers           PeerSet  // currently active peer set
 	persistentPeers sync.Map // ID -> *NetAddress; peers whose connections are constant
+	privatePeers    sync.Map // ID -> *NetAddress; peers who are not shared
 	transport       Transport
 
 	dialQueue *dial.Queue
@@ -85,6 +91,9 @@ func NewSwitch(
 		handlePeerErrFn: sw.StopPeerForError,
 		isPersistentPeerFn: func(peer *types.NetAddress) bool {
 			return sw.isPersistentPeer(peer.ID)
+		},
+		isPrivatePeerFn: func(id types.ID) bool {
+			return sw.isPrivatePeer(id)
 		},
 	}
 
@@ -407,6 +416,14 @@ func (sw *MultiplexSwitch) DialPeers(peerAddrs ...*types.NetAddress) {
 // is present in the persistent peer set
 func (sw *MultiplexSwitch) isPersistentPeer(id types.ID) bool {
 	_, persistent := sw.persistentPeers.Load(id)
+
+	return persistent
+}
+
+// isPrivatePeer returns a flag indicating if a peer
+// is present in the private peer set
+func (sw *MultiplexSwitch) isPrivatePeer(id types.ID) bool {
+	_, persistent := sw.privatePeers.Load(id)
 
 	return persistent
 }

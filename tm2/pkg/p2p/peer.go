@@ -22,6 +22,7 @@ type ConnConfig struct {
 type ConnInfo struct {
 	Outbound   bool     // flag indicating if the connection is dialed
 	Persistent bool     // flag indicating if the connection is persistent
+	Private    bool     // flag indicating if the peer is private (not shared)
 	Conn       net.Conn // the source connection
 	RemoteIP   net.IP   // the remote IP of the peer
 	SocketAddr *types.NetAddress
@@ -98,6 +99,11 @@ func (p *peer) IsOutbound() bool {
 // IsPersistent returns true if the peer is persistent, false otherwise.
 func (p *peer) IsPersistent() bool {
 	return p.connInfo.Persistent
+}
+
+// IsPrivate returns true if the peer is private, false otherwise.
+func (p *peer) IsPrivate() bool {
+	return p.connInfo.Private
 }
 
 // SocketAddr returns the address of the socket.

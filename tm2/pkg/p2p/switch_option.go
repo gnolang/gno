@@ -46,6 +46,15 @@ func WithPersistentPeers(peerAddrs []*types.NetAddress) SwitchOption {
 	}
 }
 
+// WithPrivatePeers sets the p2p switch's private peer set
+func WithPrivatePeers(peerIDs []types.ID) SwitchOption {
+	return func(sw *MultiplexSwitch) {
+		for _, addr := range peerIDs {
+			sw.privatePeers.Store(peerIDs, addr)
+		}
+	}
+}
+
 // WithMaxInboundPeers sets the p2p switch's maximum inbound peer limit
 func WithMaxInboundPeers(maxInbound uint64) SwitchOption {
 	return func(sw *MultiplexSwitch) {

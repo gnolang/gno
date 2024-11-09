@@ -443,9 +443,19 @@ func NewNode(config *cfg.Config,
 	)
 
 	// Setup MultiplexSwitch.
-	peerAddrs, errs := p2pTypes.NewNetAddressFromStrings(splitAndTrimEmpty(config.P2P.PersistentPeers, ",", " "))
-	for _, err := range errs {
+	peerAddrs, errs := p2pTypes.NewNetAddressFromStrings(
+		splitAndTrimEmpty(config.P2P.PersistentPeers, ",", " "),
+	)
+	for _, err = range errs {
 		p2pLogger.Error("invalid persistent peer address", "err", err)
+	}
+
+	// Parse the private peer IDs
+	privatePeerIDs, errs := p2pTypes.NewIDFromStrings(
+		splitAndTrimEmpty(config.P2P.PrivatePeerIDs, ",", " "),
+	)
+	for _, err = range errs {
+		p2pLogger.Error("invalid private peer ID", "err", err)
 	}
 
 	sw := p2p.NewSwitch(
@@ -454,6 +464,7 @@ func NewNode(config *cfg.Config,
 		p2p.WithReactor("BLOCKCHAIN", bcReactor),
 		p2p.WithReactor("CONSENSUS", consensusReactor),
 		p2p.WithPersistentPeers(peerAddrs),
+		p2p.WithPrivatePeers(privatePeerIDs),
 		p2p.WithMaxInboundPeers(config.P2P.MaxNumInboundPeers),
 		p2p.WithMaxOutboundPeers(config.P2P.MaxNumOutboundPeers),
 	)
