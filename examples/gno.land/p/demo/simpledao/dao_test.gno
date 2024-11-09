@@ -45,6 +45,52 @@ func TestSimpleDAO_Propose(t *testing.T) {
 		)
 	})
 
+	t.Run("invalid title", func(t *testing.T) {
+		t.Parallel()
+
+		var (
+			called = false
+			cb     = func() error {
+				called = true
+
+				return nil
+			}
+			ex = &mockExecutor{
+				executeFn: cb,
+			}
+
+			sentCoins = std.NewCoins(
+				std.NewCoin(
+					"ugnot",
+					minProposalFeeValue,
+				),
+			)
+
+			ms = &mockMemberStore{
+				isMemberFn: func(_ std.Address) bool {
+					return false
+				},
+			}
+			s = New(ms)
+		)
+
+		// Set the sent coins to be lower
+		// than the proposal fee
+		std.TestSetOrigSend(sentCoins, std.Coins{})
+
+		_, err := s.Propose(dao.ProposalRequest{
+			Executor: ex,
+			Title:    "",
+		})
+		uassert.ErrorIs(
+			t,
+			err,
+			ErrInvalidTitle,
+		)
+
+		uassert.False(t, called)
+	})
+
 	t.Run("caller cannot cover fee", func(t *testing.T) {
 		t.Parallel()
 
@@ -58,6 +104,7 @@ func TestSimpleDAO_Propose(t *testing.T) {
 			ex = &mockExecutor{
 				executeFn: cb,
 			}
+			title = "Proposal title"
 
 			sentCoins = std.NewCoins(
 				std.NewCoin(
@@ -80,6 +127,7 @@ func TestSimpleDAO_Propose(t *testing.T) {
 
 		_, err := s.Propose(dao.ProposalRequest{
 			Executor: ex,
+			Title:    title,
 		})
 		uassert.ErrorIs(
 			t,
@@ -105,6 +153,7 @@ func TestSimpleDAO_Propose(t *testing.T) {
 				executeFn: cb,
 			}
 			description = "Proposal description"
+			title       = "Proposal title"
 
 			proposer  = testutils.TestAddress("proposer")
 			sentCoins = std.NewCoins(
@@ -129,6 +178,7 @@ func TestSimpleDAO_Propose(t *testing.T) {
 
 		// Make sure the proposal was added
 		id, err := s.Propose(dao.ProposalRequest{
+			Title:       title,
 			Description: description,
 			Executor:    ex,
 		})

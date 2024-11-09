@@ -2,12 +2,13 @@ package simpledao
 
 import (
 	"errors"
-	"github.com/gnolang/gno/examples/gno.land/p/demo/dao"
-	"github.com/gnolang/gno/examples/gno.land/p/demo/seqid"
-	"github.com/gnolang/gno/examples/gno.land/p/demo/ufmt"
-	"github.com/gnolang/gno/examples/gno.land/p/moul/txlink"
-	"github.com/gnolang/gno/gnovm/stdlibs/std"
+	"std"
 	"strconv"
+
+	"gno.land/p/demo/dao"
+	"gno.land/p/demo/seqid"
+	"gno.land/p/demo/ufmt"
+	"gno.land/p/moul/txlink"
 )
 
 var ErrMissingProposal = errors.New("proposal is missing")

@@ -2,12 +2,13 @@ package simpledao
 
 import (
 	"errors"
-	"github.com/gnolang/gno/examples/gno.land/p/demo/avl"
-	"github.com/gnolang/gno/examples/gno.land/p/demo/dao"
-	"github.com/gnolang/gno/examples/gno.land/p/demo/membstore"
-	"github.com/gnolang/gno/examples/gno.land/p/demo/ufmt"
-	"github.com/gnolang/gno/gnovm/stdlibs/std"
+	"std"
 	"strings"
+
+	"gno.land/p/demo/avl"
+	"gno.land/p/demo/dao"
+	"gno.land/p/demo/membstore"
+	"gno.land/p/demo/ufmt"
 )
 
 var (
