@@ -7,7 +7,7 @@ import (
 	"gno.land/p/moul/mdtable"
 )
 
-// XXX: switch to `func Example() {}`
+// XXX: switch to `func Example() {}` when supported.
 func TestExample(t *testing.T) {
 	table := mdtable.Table{
 		Headers: []string{"ID", "Title", "Status"},
