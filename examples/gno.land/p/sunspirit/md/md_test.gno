@@ -20,27 +20,27 @@ func Test_Strikethrough(t *testing.T) {
 }
 
 func Test_H1(t *testing.T) {
-	uassert.Equal(t, H1("Header 1"), "# Header 1")
+	uassert.Equal(t, H1("Header 1"), "# Header 1\n")
 }
 
 func Test_H2(t *testing.T) {
-	uassert.Equal(t, H2("Header 2"), "## Header 2")
+	uassert.Equal(t, H2("Header 2"), "## Header 2\n")
 }
 
 func Test_H3(t *testing.T) {
-	uassert.Equal(t, H3("Header 3"), "### Header 3")
+	uassert.Equal(t, H3("Header 3"), "### Header 3\n")
 }
 
 func Test_H4(t *testing.T) {
-	uassert.Equal(t, H4("Header 4"), "#### Header 4")
+	uassert.Equal(t, H4("Header 4"), "#### Header 4\n")
 }
 
 func Test_H5(t *testing.T) {
-	uassert.Equal(t, H5("Header 5"), "##### Header 5")
+	uassert.Equal(t, H5("Header 5"), "##### Header 5\n")
 }
 
 func Test_H6(t *testing.T) {
-	uassert.Equal(t, H6("Header 6"), "###### Header 6")
+	uassert.Equal(t, H6("Header 6"), "###### Header 6\n")
 }
 
 func Test_BulletList(t *testing.T) {

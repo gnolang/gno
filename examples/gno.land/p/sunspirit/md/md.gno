@@ -6,6 +6,27 @@ import (
 	"gno.land/p/demo/ufmt"
 )
 
+// Builder helps to build a Markdown string from individual elements
+type Builder struct {
+	elements []string
+}
+
+// NewBuilder creates a new Builder instance
+func NewBuilder() *Builder {
+	return &Builder{}
+}
+
+// Add adds a Markdown element to the builder
+func (m *Builder) Add(md string) *Builder {
+	m.elements = append(m.elements, md)
+	return m
+}
+
+// Render returns the final Markdown string joined with the specified separator
+func (m *Builder) Render(separator string) string {
+	return strings.Join(m.elements, separator)
+}
+
 // Bold returns bold text for markdown
 func Bold(text string) string {
 	return ufmt.Sprintf("**%s**", text)
@@ -23,32 +44,32 @@ func Strikethrough(text string) string {
 
 // H1 returns a level 1 header for markdown
 func H1(text string) string {
-	return ufmt.Sprintf("# %s", text)
+	return ufmt.Sprintf("# %s\n", text)
 }
 
 // H2 returns a level 2 header for markdown
 func H2(text string) string {
-	return ufmt.Sprintf("## %s", text)
+	return ufmt.Sprintf("## %s\n", text)
 }
 
 // H3 returns a level 3 header for markdown
 func H3(text string) string {
-	return ufmt.Sprintf("### %s", text)
+	return ufmt.Sprintf("### %s\n", text)
 }
 
 // H4 returns a level 4 header for markdown
 func H4(text string) string {
-	return ufmt.Sprintf("#### %s", text)
+	return ufmt.Sprintf("#### %s\n", text)
 }
 
 // H5 returns a level 5 header for markdown
 func H5(text string) string {
-	return ufmt.Sprintf("##### %s", text)
+	return ufmt.Sprintf("##### %s\n", text)
 }
 
 // H6 returns a level 6 header for markdown
 func H6(text string) string {
-	return ufmt.Sprintf("###### %s", text)
+	return ufmt.Sprintf("###### %s\n", text)
 }
 
 // BulletList returns an bullet list for markdown
