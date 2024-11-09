@@ -20,7 +20,7 @@ type reactorPeerBehavior struct {
 	reactorsByCh map[byte]Reactor
 
 	handlePeerErrFn    func(Peer, error)
-	isPersistentPeerFn func(*types.NetAddress) bool
+	isPersistentPeerFn func(types.ID) bool
 	isPrivatePeerFn    func(types.ID) bool
 }
 
@@ -36,8 +36,8 @@ func (r *reactorPeerBehavior) HandlePeerError(p Peer, err error) {
 	r.handlePeerErrFn(p, err)
 }
 
-func (r *reactorPeerBehavior) IsPersistentPeer(address *types.NetAddress) bool {
-	return r.isPersistentPeerFn(address)
+func (r *reactorPeerBehavior) IsPersistentPeer(id types.ID) bool {
+	return r.isPersistentPeerFn(id)
 }
 
 func (r *reactorPeerBehavior) IsPrivatePeer(id types.ID) bool {
@@ -89,8 +89,8 @@ func NewSwitch(
 		chDescs:         make([]*conn.ChannelDescriptor, 0),
 		reactorsByCh:    make(map[byte]Reactor),
 		handlePeerErrFn: sw.StopPeerForError,
-		isPersistentPeerFn: func(peer *types.NetAddress) bool {
-			return sw.isPersistentPeer(peer.ID)
+		isPersistentPeerFn: func(id types.ID) bool {
+			return sw.isPersistentPeer(id)
 		},
 		isPrivatePeerFn: func(id types.ID) bool {
 			return sw.isPrivatePeer(id)

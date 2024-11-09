@@ -332,8 +332,8 @@ func (mt *MultiplexTransport) newMultiplexPeer(
 ) (Peer, error) {
 	// Check for peer persistence using the dial address,
 	// as well as the self-reported address
-	persistent := behavior.IsPersistentPeer(info.addr) ||
-		behavior.IsPersistentPeer(info.nodeInfo.NetAddress)
+	persistent := behavior.IsPersistentPeer(info.addr.ID) ||
+		behavior.IsPersistentPeer(info.nodeInfo.NetAddress.ID)
 
 	// Extract the host
 	host, _, err := net.SplitHostPort(info.conn.RemoteAddr().String())

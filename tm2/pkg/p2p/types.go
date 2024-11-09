@@ -105,7 +105,7 @@ type PeerBehavior interface {
 	HandlePeerError(Peer, error)
 
 	// IsPersistentPeer returns a flag indicating if the given peer is persistent
-	IsPersistentPeer(*types.NetAddress) bool // TODO change this to also be IDs
+	IsPersistentPeer(types.ID) bool
 
 	// IsPrivatePeer returns a flag indicating if the given peer is private
 	IsPrivatePeer(types.ID) bool
