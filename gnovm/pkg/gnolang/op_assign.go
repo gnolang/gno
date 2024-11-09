@@ -131,7 +131,7 @@ func (m *Machine) doOpQuoAssign() {
 		}
 	}
 	// lv /= rv
-	err := quoAssign(m, lv.TV, rv)
+	err := quoAssign(lv.TV, rv)
 	if err != nil {
 		panic(err)
 	}

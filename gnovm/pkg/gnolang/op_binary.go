@@ -252,7 +252,7 @@ func (m *Machine) doOpQuo() {
 	}
 
 	// lv / rv
-	err := quoAssign(m, lv, rv)
+	err := quoAssign(lv, rv)
 	if err != nil {
 		panic(err)
 	}
@@ -848,11 +848,9 @@ func mulAssign(lv, rv *TypedValue) {
 }
 
 // for doOpQuo and doOpQuoAssign.
-func quoAssign(m *Machine, lv, rv *TypedValue) *Exception {
+func quoAssign(lv, rv *TypedValue) *Exception {
 	expt := &Exception{
-		Value:      typedString("division by zero"),
-		Frame:      m.LastFrame(),
-		Stacktrace: m.Stacktrace(),
+		Value: typedString("division by zero"),
 	}
 
 	// set the result in lv.
