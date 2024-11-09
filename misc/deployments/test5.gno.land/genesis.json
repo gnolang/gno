@@ -17,6 +17,60 @@
   },
   "validators": [
     {
+      "address": "g1qn3jwvdpva622j3fyudqy65zstnqx2wnqhrs3s",
+      "pub_key": {
+        "@type": "/tm.PubKeyEd25519",
+        "value": "zaBcr0biE2vRjIopHCLtDgte/5tKuCEdlBLvmfgRuZI="
+      },
+      "power": "1",
+      "name": "gnocore-val-01"
+    },
+    {
+      "address": "g1gtu9czw9qavrtdnf936usvwjwyjz0x0jk243au",
+      "pub_key": {
+        "@type": "/tm.PubKeyEd25519",
+        "value": "VI8ITXN0TXGvOBjCbu5Rmus5zzqn79ws7AQeIqr6t2o="
+      },
+      "power": "1",
+      "name": "gnocore-val-02"
+    },
+    {
+      "address": "g19emxxnzzfa0pkffvthrss5drgccjnwj8mdme4f",
+      "pub_key": {
+        "@type": "/tm.PubKeyEd25519",
+        "value": "KOdOfBaohI3Vc4JXfn/IhNzu0xcHpQLLDUpdeONtV5k="
+      },
+      "power": "1",
+      "name": "gnocore-val-03"
+    },
+    {
+      "address": "g1hyxtsgjr5zt06jcx4z0xenn3u442ad2xgzu7lp",
+      "pub_key": {
+        "@type": "/tm.PubKeyEd25519",
+        "value": "kruC6RrR7xeto1qc9guTHFCtRylfZumW4ohSYdQLJvY="
+      },
+      "power": "1",
+      "name": "gnocore-val-04"
+    },
+    {
+      "address": "g1l072ma0vfhx7s4vpevfvuxd6wzkv5ztt7gh99w",
+      "pub_key": {
+        "@type": "/tm.PubKeyEd25519",
+        "value": "LYKKNTZyLdOaIvnek1yoSxqnIU4dEjh3Xd+wd4Ru2lc="
+      },
+      "power": "1",
+      "name": "gnocore-val-05"
+    },
+    {
+      "address": "g1uwqd3284kuzm56auwyc9d87jf3953tp9pnt506",
+      "pub_key": {
+        "@type": "/tm.PubKeyEd25519",
+        "value": "nNt5eD77biTXnPj4/qt0CA83qJfRbPJsYIGY8X0o+vA="
+      },
+      "power": "1",
+      "name": "gnocore-val-06"
+    },
+    {
       "address": "g1ut590acnamvhkrh4qz6dz9zt9e3hyu499u0gvl",
       "pub_key": {
         "@type": "/tm.PubKeyEd25519",
