@@ -38,7 +38,7 @@ func New(header []string, rows [][]string) (*Table, error) {
 }
 
 // Table returns a markdown string for the given Table
-func (t *Table) ToMarkdown() string {
+func (t *Table) String() string {
 	if err := t.Validate(); err != nil {
 		panic(err)
 	}

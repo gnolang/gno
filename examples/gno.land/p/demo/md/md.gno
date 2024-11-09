@@ -144,12 +144,12 @@ func Paragraph(content string) string {
 
 // MdTable is an interface for table types that can be converted to Markdown format
 type MdTable interface {
-	ToMarkdown() string
+	String() string
 }
 
 // Table takes any MdTable implementation and returns its markdown representation
 func Table(table MdTable) string {
-	return table.ToMarkdown()
+	return table.String()
 }
 
 // EscapeMarkdown escapes special markdown characters in a string
