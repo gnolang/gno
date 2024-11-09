@@ -19,7 +19,10 @@ import (
 // LoadGenesisBalancesFile loads genesis balances from the provided file path.
 func LoadGenesisBalancesFile(path string) ([]Balance, error) {
 	// each balance is in the form: g1xxxxxxxxxxxxxxxx=100000ugnot
-	content := osm.MustReadFile(path)
+	content, err := osm.ReadFile(path)
+	if err != nil {
+		return nil, err
+	}
 	lines := strings.Split(string(content), "\n")
 
 	balances := make([]Balance, 0, len(lines))
@@ -62,10 +65,13 @@ func LoadGenesisBalancesFile(path string) ([]Balance, error) {
 // LoadGenesisParamsFile loads genesis params from the provided file path.
 func LoadGenesisParamsFile(path string) ([]Param, error) {
 	// each param is in the form: key.kind=value
-	content := osm.MustReadFile(path)
+	content, err := osm.ReadFile(path)
+	if err != nil {
+		return nil, err
+	}
 
 	m := map[string] /*category*/ map[string] /*key*/ map[string] /*kind*/ interface{} /*value*/ {}
-	err := toml.Unmarshal(content, &m)
+	err = toml.Unmarshal(content, &m)
 	if err != nil {
 		return nil, err
 	}
@@ -100,7 +106,10 @@ func LoadGenesisParamsFile(path string) ([]Param, error) {
 func LoadGenesisTxsFile(path string, chainID string, genesisRemote string) ([]TxWithMetadata, error) {
 	txs := make([]TxWithMetadata, 0)
 
-	txsBz := osm.MustReadFile(path)
+	txsBz, err := osm.ReadFile(path)
+	if err != nil {
+		return nil, err
+	}
 	txsLines := strings.Split(string(txsBz), "\n")
 	for _, txLine := range txsLines {
 		if txLine == "" {
