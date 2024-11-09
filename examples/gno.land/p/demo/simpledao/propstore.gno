@@ -4,6 +4,7 @@ import (
 	"errors"
 	"std"
 	"strconv"
+	"strings"
 
 	"gno.land/p/demo/dao"
 	"gno.land/p/demo/seqid"
@@ -66,15 +67,21 @@ func (p *proposal) IsExpired() bool {
 	return false // this proposal never expires
 }
 
-func (p *proposal) Render(idx int) string {
+func (p *proposal) Render(idx int, authorUsername string) string {
 	// Fetch the voting stats
 	stats := p.Stats()
 
 	output := ufmt.Sprintf("# Proposal #%d - %s\n\n", idx, p.title)
-	output += ufmt.Sprintf("## Description\n\n%s\n\n", p.description)
+
+	output += "## Description\n\n"
+	if strings.TrimSpace(p.description) != "" {
+		output += ufmt.Sprintf("%s\n\n", p.description)
+	} else {
+		output += "No description provided.\n\n"
+	}
 
 	output += "## Proposal information\n\n"
-	output += ufmt.Sprintf("#### Status: %s\n\n", p.Status().String())
+	output += ufmt.Sprintf("#### Status: %s\n\n", strings.ToUpper(p.Status().String()))
 
 	output += ufmt.Sprintf(
 		"#### Voting stats:\n- YES %d (%d%%)\n- NO %d (%d%%)\n- ABSTAIN %d (%d%%)\n- MISSING VOTE %d (%d%%)\n",
@@ -88,9 +95,13 @@ func (p *proposal) Render(idx int) string {
 		stats.MissingVotesPercent(),
 	)
 	output += "\n\n"
+	output += ufmt.Sprintf("#### Threshold met: %s\n\n", strings.ToUpper(ufmt.Sprintf("%t", stats.YayVotes > (2*stats.TotalVotingPower)/3)))
 
-	output += ufmt.Sprintf("#### Threshold met: %t\n\n", stats.YayVotes > (2*stats.TotalVotingPower)/3)
-	output += ufmt.Sprintf("#### Author: %s\n\n", string(p.author))
+	if authorUsername != "" {
+		output += ufmt.Sprintf("#### Author: [%s](/r/demo/users:%s)\n\n", authorUsername, authorUsername)
+	} else {
+		output += ufmt.Sprintf("#### Author: %s\n\n", p.author.String())
+	}
 
 	output += "## Actions\n\n"
 	if p.status == dao.Active {

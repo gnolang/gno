@@ -9,6 +9,8 @@ import (
 	"gno.land/p/demo/membstore"
 	"gno.land/p/demo/simpledao"
 	"gno.land/p/demo/ufmt"
+
+	"gno.land/r/demo/users"
 )
 
 var (
@@ -86,9 +88,21 @@ func Render(path string) string {
 
 		// Fetch the last 10 proposals
 		for idx, prop := range d.Proposals(offset, uint64(10)) {
-			output += ufmt.Sprintf("## [Prop #%d](/r/gov/dao/v2:%d)\n\n", idx, idx)
+			title := prop.Title()
+			if len(title) > 40 {
+				title = title[:40] + "..."
+			}
+
+			output += ufmt.Sprintf("## [Prop #%d - %s](/r/gov/dao/v2:%d)\n\n", idx, title, idx)
 			output += ufmt.Sprintf("#### Status: %s\n\n", strings.ToUpper(prop.Status().String()))
-			output += ufmt.Sprintf("#### Author: %s\n\n", prop.Author().String())
+
+			user := users.GetUserByAddress(prop.Author())
+			authorUsername := prop.Author().String()
+			if user != nil {
+				authorUsername = ufmt.Sprintf("[%s](/r/demo/users:%s)", user.Name, user.Name)
+			}
+
+			output += ufmt.Sprintf("#### Author: %s\n\n", authorUsername)
 
 			if idx != len(d.Proposals(offset, uint64(10)))-1 {
 				output += "---\n\n"
@@ -110,8 +124,14 @@ func Render(path string) string {
 		return ufmt.Sprintf("unable to fetch proposal, %s", err.Error())
 	}
 
+	authorUsername := ""
+	user := users.GetUserByAddress(prop.Author())
+	if user != nil {
+		authorUsername = user.Name
+	}
+
 	// Render the proposal
-	output := prop.Render(idx)
+	output := prop.Render(idx, authorUsername)
 	output += "\n\n"
 
 	return output

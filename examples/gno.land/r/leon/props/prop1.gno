@@ -24,9 +24,8 @@ func init() {
 	executor := validators.NewPropExecutor(changesFn)
 
 	prop := dao.ProposalRequest{
-		Title:       "Add Leon to ValSet",
-		Description: "Proposing to add Leon to the valset!",
-		Executor:    executor,
+		Title:    "Add Leon to to valset but be careful that he is a cool guy!",
+		Executor: executor,
 	}
 
 	govdao.Propose(prop)
