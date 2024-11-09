@@ -11,7 +11,7 @@ The initial `genesis.json` validator set is consisted of 6 entities (17 validato
 - AiB - the AiB DevOps team (**3 validators**)
 - Onbloc - the [Onbloc](https://onbloc.xyz/) team (**2 validator**)
 - Teritori - the [Teritori](https://teritori.com/) team (**1 validator**)
-- Berty - the [Berty](https://berty.io/) team (**1 validator**)
+- Berty - the [Berty](https://berty.tech/) team (**1 validator**)
 
 Subsequent validators will be added through the governance mechanism in govdao, employing a preliminary simplified
 version Proof of Contribution.
@@ -35,7 +35,7 @@ Some configuration params are required, while others are advised to be set.
   reverse-proxy, and keep this value at `tcp://0.0.0.0:<port>`.
 - `p2p.max_num_outbound_peers` - the max number of outbound peer connections. **Advised to be `40`**.
 - `p2p.persistent_peers` - the persistent peers. ⚠️ **Required to be
-  `TODO`** ⚠️.
+  `g12p9l546ah4qeenhum8v4m2dg92jxcsrfy67yww@163.172.33.181:26656`** ⚠️.
 - `p2p.pex` - if using a sentry node architecture, should be `false`. **If not, please set to `true`**.
 - `p2p.external_address` - the advertised peer dial address. If empty, will use the same port as the `p2p.laddr`. This
   value should be **changed to `{{ your_ip_address }}:26656`**

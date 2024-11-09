@@ -121,11 +121,7 @@ max_num_outbound_peers = 40 # Advised value is 40
 max_packet_msg_payload_size = 1024
 
 # Comma separated list of nodes to keep persistent connections to
-persistent_peers = "
-g16384atcuf6ew3ufpwtvhymwfyl2aw390aq8jtt@gno-core-sen-01.test5.gno.land:26656,
-g1ty443uhf6qr2n0gv3dkemr4slt96e5hnmx90qh@gno-core-sen-02.test5.gno.land:26656,
-g19x2gsyn02fldtq44dpgtcq2dq28kszlf5jn2es@gno-core-sen-03.test5.gno.land:26656,
-" # TODO update @Salvo, @Blake, @Sergio, @Norman, @Albert
+persistent_peers = "g16384atcuf6ew3ufpwtvhymwfyl2aw390aq8jtt@gno-core-sen-01.test5.gno.land:26656,g1ty443uhf6qr2n0gv3dkemr4slt96e5hnmx90qh@gno-core-sen-02.test5.gno.land:26656,g19x2gsyn02fldtq44dpgtcq2dq28kszlf5jn2es@gno-core-sen-03.test5.gno.land:26656,g12p9l546ah4qeenhum8v4m2dg92jxcsrfy67yww@163.172.33.181:26656" # TODO update @Salvo, @Blake, @Sergio, @Norman, @Albert
 
 # Set true to enable the peer-exchange reactor
 pex = false # Should be `false` if using a sentry node. Otherwise `true`!

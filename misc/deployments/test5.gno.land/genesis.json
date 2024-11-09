@@ -69,6 +69,15 @@
       },
       "power": "1",
       "name": "gnocore-val-06"
+    },
+    {
+      "address": "g1ut590acnamvhkrh4qz6dz9zt9e3hyu499u0gvl",
+      "pub_key": {
+        "@type": "/tm.PubKeyEd25519",
+        "value": "KRPAQ2SLZvQUrc9P2l/DCEH6okMX13bds5Ma/wOQgBM="
+      },
+      "power": "1",
+      "name": "berty-val-1"
     }
   ],
   "app_hash": null,
@@ -108,7 +117,8 @@
       "g18amm3fc00t43dcxsys6udug0czyvqt9e7p23rd=9000000000000000000ugnot",
       "g127l4gkhk0emwsx5tmxe96sp86c05h8vg5tufzq=9000000000000000000ugnot",
       "g16tfrrul20g4jzt3z303raqw8vs8s2pqqh5clwu=9000000000000000000ugnot",
-      "g1a6jf5g6gkhn5rxcvwxq5zjxgwaznjr9r8gehey=9000000000000000000ugnot"
+      "g1a6jf5g6gkhn5rxcvwxq5zjxgwaznjr9r8gehey=9000000000000000000ugnot",
+      "g1qynsu9dwj9lq0m5fkje7jh6qy3md80ztqnshhm=9000000000000000000ugnot"
     ],
     "txs": null
   }
