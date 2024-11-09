@@ -78,6 +78,24 @@
       },
       "power": "1",
       "name": "berty-val-1"
+    },
+    {
+      "address": "g1arkzjfrte9l97v9q2qye07v0lw07039gaa3hfy",
+      "pub_key": {
+        "@type": "/tm.PubKeyEd25519",
+        "value": "2Y0npl9WoOk9pIs2Dwv9IjsNbiuCWw6srsPKRf4sUro="
+      },
+      "power": "1",
+      "name": "onbloc-val-1"
+    },
+    {
+      "address": "g1x0m33nyne064xdx7tvlfcjwd4xkajjar6h523z",
+      "pub_key": {
+        "@type": "/tm.PubKeyEd25519",
+        "value": "6h57Ku4O6NFK7SS53Zxm/2rJEq4zVeznKvphAei5Z5g"
+      },
+      "power": "1",
+      "name": "onbloc-val-2"
     }
   ],
   "app_hash": null,
@@ -119,6 +137,8 @@
       "g16tfrrul20g4jzt3z303raqw8vs8s2pqqh5clwu=9000000000000000000ugnot",
       "g1a6jf5g6gkhn5rxcvwxq5zjxgwaznjr9r8gehey=9000000000000000000ugnot",
       "g1qynsu9dwj9lq0m5fkje7jh6qy3md80ztqnshhm=9000000000000000000ugnot"
+      "g1er355fkjksqpdtwmhf5penwa82p0rhqxkkyhk5=9000000000000000000ugnot",
+      "g18l9us6trqaljw39j94wzf5ftxmd9qqkvrxghd2=9000000000000000000ugnot"
     ],
     "txs": null
   }
