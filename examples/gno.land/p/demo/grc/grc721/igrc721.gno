@@ -36,3 +36,11 @@ type ApprovalForAllEvent struct {
 	Operator std.Address
 	Approved bool
 }
+
+const (
+	MintEvent           = "Mint"
+	BurnEvent           = "Burn"
+	TransferEvent       = "Transfer"
+	ApprovalEvent       = "Approval"
+	ApprovalForAllEvent = "ApprovalForAll"
+)

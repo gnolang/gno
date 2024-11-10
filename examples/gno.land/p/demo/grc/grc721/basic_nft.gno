@@ -2,6 +2,7 @@ package grc721
 
 import (
 	"std"
+	"strconv"
 
 	"gno.land/p/demo/avl"
 	"gno.land/p/demo/ufmt"
@@ -120,8 +121,12 @@ func (s *basicNFT) Approve(to std.Address, tid TokenID) error {
 	}
 
 	s.tokenApprovals.Set(string(tid), to.String())
-	event := ApprovalEvent{owner, to, tid}
-	emit(&event)
+	std.Emit(
+		ApprovalEvent,
+		"owner", string(owner),
+		"to", string(to),
+		"tokenId", string(tid),
+	)
 
 	return nil
 }
@@ -219,8 +224,12 @@ func (s *basicNFT) Burn(tid TokenID) error {
 	s.balances.Set(owner.String(), balance)
 	s.owners.Remove(string(tid))
 
-	event := TransferEvent{owner, zeroAddress, tid}
-	emit(&event)
+	std.Emit(
+		BurnEvent,
+		"from", string(owner),
+		"to", "",
+		"tokenId", string(tid),
+	)
 
 	s.afterTokenTransfer(owner, zeroAddress, tid, 1)
 
@@ -238,8 +247,12 @@ func (s *basicNFT) setApprovalForAll(owner, operator std.Address, approved bool)
 	key := owner.String() + ":" + operator.String()
 	s.operatorApprovals.Set(key, approved)
 
-	event := ApprovalForAllEvent{owner, operator, approved}
-	emit(&event)
+	std.Emit(
+		ApprovalForAllEvent,
+		"owner", string(owner),
+		"to", string(to),
+		"approved", strconv.FormatBool(approved),
+	)
 
 	return nil
 }
@@ -291,8 +304,12 @@ func (s *basicNFT) transfer(from, to std.Address, tid TokenID) error {
 	s.balances.Set(to.String(), toBalance)
 	s.owners.Set(string(tid), to)
 
-	event := TransferEvent{from, to, tid}
-	emit(&event)
+	std.Emit(
+		TransferEvent,
+		"from", string(from),
+		"to", string(to),
+		"tokenId", string(tid),
+	)
 
 	s.afterTokenTransfer(from, to, tid, 1)
 
@@ -324,8 +341,12 @@ func (s *basicNFT) mint(to std.Address, tid TokenID) error {
 	s.balances.Set(to.String(), toBalance)
 	s.owners.Set(string(tid), to)
 
-	event := TransferEvent{zeroAddress, to, tid}
-	emit(&event)
+	std.Emit(
+		MintEvent,
+		"from", "",
+		"to", string(to),
+		"tokenId", string(tid),
+	)
 
 	s.afterTokenTransfer(zeroAddress, to, tid, 1)
 
