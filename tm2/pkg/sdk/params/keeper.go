@@ -1,17 +1,11 @@
 package params
 
 import (
-	"log/slog"
 	"strings"
 
 	"github.com/gnolang/gno/tm2/pkg/amino"
 	"github.com/gnolang/gno/tm2/pkg/sdk"
 	"github.com/gnolang/gno/tm2/pkg/store"
-)
-
-const (
-	ModuleName = "params"
-	StoreKey   = ModuleName
 )
 
 type ParamsKeeperI interface {
@@ -47,12 +41,6 @@ func NewParamsKeeper(key store.StoreKey, prefix string) ParamsKeeper {
 		key:    key,
 		prefix: prefix,
 	}
-}
-
-// Logger returns a module-specific logger.
-// XXX: why do we expose this?
-func (pk ParamsKeeper) Logger(ctx sdk.Context) *slog.Logger {
-	return ctx.Logger().With("module", ModuleName)
 }
 
 func (pk ParamsKeeper) Has(ctx sdk.Context, key string) bool {

@@ -9,7 +9,7 @@ import (
 )
 
 func TestKeeper(t *testing.T) {
-	env := setupTestEnv()
+	env := setupTestEnv(t, "params_test")
 	ctx, store, keeper := env.ctx, env.store, env.keeper
 	_ = store // XXX: add store tests?
 
@@ -87,7 +87,7 @@ func TestKeeper(t *testing.T) {
 
 // adapted from TestKeeperSubspace from Cosmos SDK, but adapted to a subspace-less Keeper.
 func TestKeeper_internal(t *testing.T) {
-	env := setupTestEnv()
+	env := setupTestEnv(t, "params_test")
 	ctx, store, keeper := env.ctx, env.store, env.keeper
 
 	kvs := []struct {
