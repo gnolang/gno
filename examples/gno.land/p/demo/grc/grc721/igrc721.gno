@@ -19,24 +19,6 @@ type (
 	TokenURI string
 )
 
-type TransferEvent struct {
-	From    std.Address
-	To      std.Address
-	TokenID TokenID
-}
-
-type ApprovalEvent struct {
-	Owner    std.Address
-	Approved std.Address
-	TokenID  TokenID
-}
-
-type ApprovalForAllEvent struct {
-	Owner    std.Address
-	Operator std.Address
-	Approved bool
-}
-
 const (
 	MintEvent           = "Mint"
 	BurnEvent           = "Burn"

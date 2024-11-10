@@ -250,7 +250,7 @@ func (s *basicNFT) setApprovalForAll(owner, operator std.Address, approved bool)
 	std.Emit(
 		ApprovalForAllEvent,
 		"owner", string(owner),
-		"to", string(to),
+		"to", string(operator),
 		"approved", strconv.FormatBool(approved),
 	)
 
