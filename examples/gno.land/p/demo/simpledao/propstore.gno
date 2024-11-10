@@ -1,6 +1,7 @@
 package simpledao
 
 import (
+	"bytes"
 	"errors"
 	"std"
 	"strconv"
@@ -71,19 +72,21 @@ func (p *proposal) Render(idx int, authorUsername string) string {
 	// Fetch the voting stats
 	stats := p.Stats()
 
-	output := ufmt.Sprintf("# Proposal #%d - %s\n\n", idx, p.title)
+	var out bytes.Buffer
 
-	output += "## Description\n\n"
+	out.WriteString(ufmt.Sprintf("# Proposal #%d - %s\n\n", idx, p.title))
+
+	out.WriteString("## Description\n\n")
 	if strings.TrimSpace(p.description) != "" {
-		output += ufmt.Sprintf("%s\n\n", p.description)
+		out.WriteString(ufmt.Sprintf("%s\n\n", p.description))
 	} else {
-		output += "No description provided.\n\n"
+		out.WriteString("No description provided.\n\n")
 	}
 
-	output += "## Proposal information\n\n"
-	output += ufmt.Sprintf("#### Status: %s\n\n", strings.ToUpper(p.Status().String()))
+	out.WriteString("## Proposal information\n\n")
+	out.WriteString(ufmt.Sprintf("#### Status: %s\n\n", strings.ToUpper(p.Status().String())))
 
-	output += ufmt.Sprintf(
+	out.WriteString(ufmt.Sprintf(
 		"#### Voting stats:\n- YES %d (%d%%)\n- NO %d (%d%%)\n- ABSTAIN %d (%d%%)\n- MISSING VOTE %d (%d%%)\n",
 		stats.YayVotes,
 		stats.YayPercent(),
@@ -93,28 +96,30 @@ func (p *proposal) Render(idx int, authorUsername string) string {
 		stats.AbstainPercent(),
 		stats.MissingVotes(),
 		stats.MissingVotesPercent(),
-	)
-	output += "\n\n"
-	output += ufmt.Sprintf("#### Threshold met: %s\n\n", strings.ToUpper(ufmt.Sprintf("%t", stats.YayVotes > (2*stats.TotalVotingPower)/3)))
+	))
+	out.WriteString("\n\n")
+	thresholdOut := strings.ToUpper(ufmt.Sprintf("%t", stats.YayVotes > (2*stats.TotalVotingPower)/3))
+
+	out.WriteString(ufmt.Sprintf("#### Threshold met: %s\n\n", thresholdOut))
 
 	if authorUsername != "" {
-		output += ufmt.Sprintf("#### Author: [%s](/r/demo/users:%s)\n\n", authorUsername, authorUsername)
+		out.WriteString(ufmt.Sprintf("#### Author: [%s](/r/demo/users:%s)\n\n", authorUsername, authorUsername))
 	} else {
-		output += ufmt.Sprintf("#### Author: %s\n\n", p.author.String())
+		out.WriteString(ufmt.Sprintf("#### Author: %s\n\n", p.author.String()))
 	}
 
-	output += "## Actions\n\n"
+	out.WriteString("## Actions\n\n")
 	if p.status == dao.Active {
-		output += ufmt.Sprintf("[Vote YES](%s) - [Vote NO](%s) - [Vote ABSTAIN](%s)",
+		out.WriteString(ufmt.Sprintf("[Vote YES](%s) - [Vote NO](%s) - [Vote ABSTAIN](%s)",
 			txlink.URL("VoteOnProposal", "id", strconv.Itoa(idx), "option", "YES"),
 			txlink.URL("VoteOnProposal", "id", strconv.Itoa(idx), "option", "NO"),
 			txlink.URL("VoteOnProposal", "id", strconv.Itoa(idx), "option", "ABSTAIN"),
-		)
+		))
 	} else {
-		output += "The voting period for this proposal is over.\n\n"
+		out.WriteString("The voting period for this proposal is over.\n\n")
 	}
 
-	return output
+	return out.String()
 }
 
 // addProposal adds a new simpledao proposal to the store
