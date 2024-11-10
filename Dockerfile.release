@@ -1,3 +1,6 @@
+# This file is similar to Dockerfile, but assumes that the binaries have
+# already been created, and as such doesn't `go build` them.
+
 FROM alpine AS base
 
 ENV     GNOROOT="/gnoroot/"
