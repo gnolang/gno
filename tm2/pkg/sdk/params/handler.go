@@ -3,8 +3,6 @@ package params
 import (
 	"errors"
 	"fmt"
-	"strings"
-
 	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
 	"github.com/gnolang/gno/tm2/pkg/sdk"
 	"github.com/gnolang/gno/tm2/pkg/std"
@@ -33,8 +31,8 @@ func (ph paramsHandler) Process(_ sdk.Context, msg std.Msg) sdk.Result {
 
 func (ph paramsHandler) Query(ctx sdk.Context, req abci.RequestQuery) abci.ResponseQuery {
 	// Locate the first and second slashes
-	firstSlash, secondSlash, found := findSlashPositions(req.Path)
-	if !found {
+	firstSlash, secondSlash := findFirstTwoSlashes(req.Path)
+	if firstSlash == -1 {
 		return sdk.ABCIResponseQueryFromError(
 			std.ErrUnknownRequest(errUnknownQueryEndpoint.Error()),
 		)
@@ -63,33 +61,17 @@ func (ph paramsHandler) Query(ctx sdk.Context, req abci.RequestQuery) abci.Respo
 
 // findSlashPositions finds the positions of the first and second slashes in a path.
 // Returns the positions of the slashes and a boolean indicating if both slashes were found
-func findSlashPositions(path string) (int, int, bool) {
-	// Sanity check if the path is empty
-	if len(path) == 0 {
-		return -1, -1, false
+func findFirstTwoSlashes(s string) (int, int) {
+	first := -1
+
+	for i := 0; i < len(s); i++ {
+		if s[i] == '/' {
+			if first == -1 {
+				first = i
+			} else {
+				return first, i
+			}
+		}
 	}
-
-	firstSlash := strings.Index(path, "/")
-
-	var (
-		found       = firstSlash > -1
-		outOfBounds = firstSlash+1 > len(path)
-	)
-
-	if !found || outOfBounds {
-		return -1, -1, false
-	}
-
-	secondSlash := strings.Index(path[firstSlash+1:], "/")
-
-	found = secondSlash > -1
-	outOfBounds = firstSlash+1+secondSlash+1 > len(path)
-
-	if !found || outOfBounds {
-		return -1, -1, false
-	}
-
-	secondSlash += firstSlash + 1
-
-	return firstSlash, secondSlash, true
+	return -1, -1
 }
