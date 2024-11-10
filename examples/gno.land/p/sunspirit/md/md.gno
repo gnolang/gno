@@ -17,8 +17,8 @@ func NewBuilder() *Builder {
 }
 
 // Add adds a Markdown element to the builder
-func (m *Builder) Add(md string) *Builder {
-	m.elements = append(m.elements, md)
+func (m *Builder) Add(md ...string) *Builder {
+	m.elements = append(m.elements, md...)
 	return m
 }
 

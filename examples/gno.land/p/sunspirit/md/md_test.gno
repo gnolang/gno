@@ -7,6 +7,39 @@ import (
 	"gno.land/p/sunspirit/table"
 )
 
+func TestNewBuilder(t *testing.T) {
+	mdBuilder := NewBuilder()
+
+	uassert.Equal(t, len(mdBuilder.elements), 0, "Expected 0 elements")
+}
+
+func TestAdd(t *testing.T) {
+	mdBuilder := NewBuilder()
+
+	header := H1("Hi")
+	body := Paragraph("This is a test")
+
+	mdBuilder.Add(header, body)
+
+	uassert.Equal(t, len(mdBuilder.elements), 2, "Expected 2 element")
+	uassert.Equal(t, mdBuilder.elements[0], header, "Expected element %s, got %s", header, mdBuilder.elements[0])
+	uassert.Equal(t, mdBuilder.elements[1], body, "Expected element %s, got %s", body, mdBuilder.elements[1])
+}
+
+func TestRender(t *testing.T) {
+	mdBuilder := NewBuilder()
+
+	header := H1("Hello")
+	body := Paragraph("This is a test")
+
+	seperator := "\n"
+	expected := header + seperator + body
+
+	output := mdBuilder.Add(header, body).Render(seperator)
+
+	uassert.Equal(t, output, expected, "Expected rendered string %s, got %s", expected, output)
+}
+
 func Test_Bold(t *testing.T) {
 	uassert.Equal(t, Bold("Hello"), "**Hello**")
 }
