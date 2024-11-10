@@ -227,7 +227,6 @@ func (s *basicNFT) Burn(tid TokenID) error {
 	std.Emit(
 		BurnEvent,
 		"from", string(owner),
-		"to", "",
 		"tokenId", string(tid),
 	)
 
@@ -343,7 +342,6 @@ func (s *basicNFT) mint(to std.Address, tid TokenID) error {
 
 	std.Emit(
 		MintEvent,
-		"from", "",
 		"to", string(to),
 		"tokenId", string(tid),
 	)
