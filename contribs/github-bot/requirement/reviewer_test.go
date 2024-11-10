@@ -2,6 +2,7 @@ package requirement
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 	"testing"
 
@@ -103,5 +104,123 @@ func TestReviewByUser(t *testing.T) {
 func TestReviewByTeamMembers(t *testing.T) {
 	t.Parallel()
 
-	// TODO
+	reviewers := github.Reviewers{
+		Teams: []*github.Team{
+			{Slug: github.String("team1")},
+			{Slug: github.String("team2")},
+			{Slug: github.String("team3")},
+		},
+	}
+
+	members := map[string][]*github.User{
+		"team1": {
+			{Login: github.String("user1")},
+			{Login: github.String("user2")},
+			{Login: github.String("user3")},
+		},
+		"team2": {
+			{Login: github.String("user3")},
+			{Login: github.String("user4")},
+			{Login: github.String("user5")},
+		},
+		"team3": {
+			{Login: github.String("user4")},
+			{Login: github.String("user5")},
+		},
+	}
+
+	reviews := []*github.PullRequestReview{
+		{
+			User:  &github.User{Login: github.String("user1")},
+			State: github.String("APPROVED"),
+		}, {
+			User:  &github.User{Login: github.String("user2")},
+			State: github.String("APPROVED"),
+		}, {
+			User:  &github.User{Login: github.String("user3")},
+			State: github.String("APPROVED"),
+		}, {
+			User:  &github.User{Login: github.String("user4")},
+			State: github.String("REQUEST_CHANGES"),
+		}, {
+			User:  &github.User{Login: github.String("user5")},
+			State: github.String("REQUEST_CHANGES"),
+		},
+	}
+
+	for _, testCase := range []struct {
+		name        string
+		team        string
+		count       uint
+		isSatisfied bool
+		testRequest bool
+	}{
+		{"3/3 team members approved;", "team1", 3, true, false},
+		{"1/1 team member approved", "team2", 1, true, false},
+		{"1/2 team member approved", "team2", 2, false, false},
+		{"0/1 team member approved", "team3", 1, false, false},
+		{"0/1 team member approved with request", "team3", 1, false, true},
+		{"team doesn't exist with request", "team4", 1, false, true},
+	} {
+		t.Run(testCase.name, func(t *testing.T) {
+			t.Parallel()
+
+			firstRequest := true
+			requested := false
+			mockedHTTPClient := mock.NewMockedHTTPClient(
+				mock.WithRequestMatchHandler(
+					mock.EndpointPattern{
+						Pattern: "/repos/pulls/0/requested_reviewers",
+						Method:  "GET",
+					},
+					http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+						if firstRequest {
+							if testCase.testRequest {
+								w.Write(mock.MustMarshal(github.Reviewers{}))
+							} else {
+								w.Write(mock.MustMarshal(reviewers))
+							}
+							firstRequest = false
+						} else {
+							requested = true
+						}
+					}),
+				),
+				mock.WithRequestMatchPages(
+					mock.EndpointPattern{
+						Pattern: fmt.Sprintf("/orgs/teams/%s/members", testCase.team),
+						Method:  "GET",
+					},
+					members[testCase.team],
+				),
+				mock.WithRequestMatchPages(
+					mock.EndpointPattern{
+						Pattern: "/repos/pulls/0/reviews",
+						Method:  "GET",
+					},
+					reviews,
+				),
+			)
+
+			gh := &client.GitHub{
+				Client: github.NewClient(mockedHTTPClient),
+				Ctx:    context.Background(),
+				Logger: logger.NewNoopLogger(),
+			}
+
+			pr := &github.PullRequest{}
+			details := treeprint.New()
+			requirement := ReviewByTeamMembers(gh, testCase.team, testCase.count)
+
+			if requirement.IsSatisfied(pr, details) != testCase.isSatisfied {
+				t.Errorf("requirement should have a satisfied status: %t", testCase.isSatisfied)
+			}
+			if !utils.TestLastNodeStatus(t, testCase.isSatisfied, details) {
+				t.Errorf("requirement details should have a status: %t", testCase.isSatisfied)
+			}
+			if testCase.testRequest != requested {
+				t.Errorf("requirement should have requested to create item: %t", testCase.testRequest)
+			}
+		})
+	}
 }

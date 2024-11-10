@@ -1,7 +1,7 @@
 name: GitHub Bot
 
 on:
-  # Watch for changes on PR state, assignees, labels and head branch
+  # Watch for changes on PR state, assignees, labels, head branch and draft/ready status
   pull_request:
     types:
       - assigned
@@ -11,6 +11,8 @@ on:
       - opened
       - reopened
       - synchronize # PR head updated
+      - converted_to_draft
+      - ready_for_review
 
   # Watch for changes on PR comment
   issue_comment:
@@ -105,6 +107,7 @@ jobs:
           go-version-file: go.mod
 
       - name: Run GitHub Bot
+        working-directory: contribs/github-bot
         env:
           GITHUB_TOKEN: ${{ secrets.GH_BOT_PAT }}
         run: go run . -pr-numbers '${{ matrix.pr-number }}' -verbose

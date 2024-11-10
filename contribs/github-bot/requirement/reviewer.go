@@ -111,9 +111,8 @@ func (r *reviewByTeamMembers) IsSatisfied(pr *github.PullRequest, details treepr
 
 	// Check how many members of this team already approved this PR
 	approved := uint(0)
-	members := r.gh.ListTeamMembers(r.team)
 	for _, review := range r.gh.ListPrReviews(pr.GetNumber()) {
-		for _, member := range members {
+		for _, member := range r.gh.ListTeamMembers(r.team) {
 			if review.GetUser().GetLogin() == member.GetLogin() {
 				if review.GetState() == "APPROVED" {
 					approved += 1

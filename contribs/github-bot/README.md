@@ -11,21 +11,18 @@ The GitHub Bot is designed to automate and streamline the process of managing pu
 The bot operates by defining a set of rules that are evaluated against each pull request passed as parameter. These rules are categorized into automatic and manual checks:
 
 - **Automatic Checks**: These are rules that the bot evaluates automatically. If a pull request meets the conditions specified in the rule, then the corresponding requirements are exectued. For example, ensuring that changes to specific directories are reviewed by specific team members.
-- **Manual Checks**: These require human intervention. If a pull request meets the conditions specified in the rule, then a checkbox that can be checked only by specified teams is displayed on the bot comment. For example, determining if infrastructure needs to be updated based on changes in specific files.
+- **Manual Checks**: These require human intervention. If a pull request meets the conditions specified in the rule, then a checkbox that can be checked only by specified teams is displayed on the bot comment. For example, determining if infrastructure needs to be updated based on changes to specific files.
 
 The bot configuration is defined in Go and is located in the file [config.go](./config.go).
 
-### Conditions
-
-// TODO
-
-### Requirements
-
-// TODO
-
 ### GitHub Token
 
-// TODO
+For the bot to make requests to the GitHub API, it needs a Personal Access Token. The fine-grained permissions to assign to the token for the bot to function are:
+
+- `pull_requests` scope to read is the bare minimum to run the bot in dry-run mode
+- `pull_requests` scope to write to be able to update bot comment, assign user, apply label and request review
+- `contents` scope to read to be able to check if the head branch is up to date with another one
+- `commit_statuses` scope to write to be able to update pull request bot status check
 
 ## Usage
 
