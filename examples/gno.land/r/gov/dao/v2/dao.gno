@@ -1,6 +1,7 @@
 package govdao
 
 import (
+	"bytes"
 	"std"
 	"strconv"
 	"strings"
@@ -72,13 +73,15 @@ func GetMembStore() membstore.MemberStore {
 }
 
 func Render(path string) string {
+	var out bytes.Buffer
+
 	if path == "" {
-		output := "# GovDAO Proposals\n\n"
+		out.WriteString("# GovDAO Proposals\n\n")
 		numProposals := d.Size()
 
 		if numProposals == 0 {
-			output += "No proposals found :(" // corner case
-			return output
+			out.WriteString("No proposals found :(") // corner case
+			return out.String()
 		}
 
 		offset := uint64(0)
@@ -97,8 +100,8 @@ func Render(path string) string {
 			}
 
 			propID := offset + uint64(i)
-			output += ufmt.Sprintf("## [Prop #%d - %s](/r/gov/dao/v2:%d)\n\n", propID, title, propID)
-			output += ufmt.Sprintf("#### Status: %s\n\n", strings.ToUpper(prop.Status().String()))
+			out.WriteString(ufmt.Sprintf("## [Prop #%d - %s](/r/gov/dao/v2:%d)\n\n", propID, title, propID))
+			out.WriteString(ufmt.Sprintf("#### Status: %s\n\n", strings.ToUpper(prop.Status().String())))
 
 			user := users.GetUserByAddress(prop.Author())
 			authorUsername := prop.Author().String()
@@ -106,14 +109,14 @@ func Render(path string) string {
 				authorUsername = ufmt.Sprintf("[%s](/r/demo/users:%s)", user.Name, user.Name)
 			}
 
-			output += ufmt.Sprintf("#### Author: %s\n\n", authorUsername)
+			out.WriteString(ufmt.Sprintf("#### Author: %s\n\n", authorUsername))
 
 			if i != 0 {
-				output += "---\n\n"
+				out.WriteString("---\n\n")
 			}
 		}
 
-		return output
+		return out.String()
 	}
 
 	// Display the detailed proposal
@@ -135,8 +138,8 @@ func Render(path string) string {
 	}
 
 	// Render the proposal
-	output := prop.Render(idx, authorUsername)
-	output += "\n\n"
+	out.WriteString(prop.Render(idx, authorUsername))
+	out.WriteString("\n\n")
 
-	return output
+	return out.String()
 }
