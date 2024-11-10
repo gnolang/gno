@@ -3,7 +3,7 @@ package gnopages
 func init() {
 	var (
 		path  = "gnolang"
-		title = "About the Gno, the Language for Gno.land"
+		title = "About the Gno, the Language for gno.land"
 		// TODO fix broken images
 		body = `
 

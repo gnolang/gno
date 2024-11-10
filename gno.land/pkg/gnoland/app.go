@@ -3,6 +3,7 @@ package gnoland
 
 import (
 	"fmt"
+	"io"
 	"log/slog"
 	"path/filepath"
 	"strconv"
@@ -12,6 +13,7 @@ import (
 	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
 	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
 	"github.com/gnolang/gno/tm2/pkg/bft/config"
+	bft "github.com/gnolang/gno/tm2/pkg/bft/types"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
 	dbm "github.com/gnolang/gno/tm2/pkg/db"
 	"github.com/gnolang/gno/tm2/pkg/events"
@@ -35,10 +37,11 @@ type AppOptions struct {
 	DB                dbm.DB             // required
 	Logger            *slog.Logger       // required
 	EventSwitch       events.EventSwitch // required
+	VMOutput          io.Writer          // optional
 	InitChainerConfig                    // options related to InitChainer
 }
 
-// DefaultAppOptions provides a "ready" default [AppOptions] for use with
+// TestAppOptions provides a "ready" default [AppOptions] for use with
 // [NewAppWithOptions], using the provided db.
 func TestAppOptions(db dbm.DB) *AppOptions {
 	return &AppOptions{
@@ -90,6 +93,7 @@ func NewAppWithOptions(cfg *AppOptions) (abci.Application, error) {
 	bankKpr := bank.NewBankKeeper(acctKpr)
 	paramsKpr := params.NewParamsKeeper(mainKey, "vm")
 	vmk := vm.NewVMKeeper(baseKey, mainKey, acctKpr, bankKpr, paramsKpr)
+	vmk.Output = cfg.VMOutput
 
 	// Set InitChainer
 	icc := cfg.InitChainerConfig
@@ -301,9 +305,31 @@ func (cfg InitChainerConfig) loadAppState(ctx sdk.Context, appState any) ([]abci
 	}
 
 	txResponses := make([]abci.ResponseDeliverTx, 0, len(state.Txs))
+
 	// Run genesis txs
 	for _, tx := range state.Txs {
-		res := cfg.baseApp.Deliver(tx)
+		var (
+			stdTx    = tx.Tx
+			metadata = tx.Metadata
+
+			ctxFn sdk.ContextFn
+		)
+
+		// Check if there is metadata associated with the tx
+		if metadata != nil {
+			// Create a custom context modifier
+			ctxFn = func(ctx sdk.Context) sdk.Context {
+				// Create a copy of the header, in
+				// which only the timestamp information is modified
+				header := ctx.BlockHeader().(*bft.Header).Copy()
+				header.Time = time.Unix(metadata.Timestamp, 0)
+
+				// Save the modified header
+				return ctx.WithBlockHeader(header)
+			}
+		}
+
+		res := cfg.baseApp.Deliver(stdTx, ctxFn)
 		if res.IsErr() {
 			ctx.Logger().Error(
 				"Unable to deliver genesis tx",
@@ -319,7 +345,7 @@ func (cfg InitChainerConfig) loadAppState(ctx sdk.Context, appState any) ([]abci
 			GasUsed:      res.GasUsed,
 		})
 
-		cfg.GenesisTxResultHandler(ctx, tx, res)
+		cfg.GenesisTxResultHandler(ctx, stdTx, res)
 	}
 	return txResponses, nil
 }

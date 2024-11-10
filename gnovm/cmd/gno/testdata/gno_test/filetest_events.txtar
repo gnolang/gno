@@ -30,4 +30,22 @@ func main() {
 // test
 
 // Events:
-// [{"type":"EventA","attrs":[],"pkg_path":"","func":"main"},{"type":"EventB","attrs":[{"key":"keyA","value":"valA"}],"pkg_path":"","func":"main"}]
+// [
+//   {
+//     "type": "EventA",
+//     "attrs": [],
+//     "pkg_path": "",
+//     "func": "main"
+//   },
+//   {
+//     "type": "EventB",
+//     "attrs": [
+//       {
+//         "key": "keyA",
+//         "value": "valA"
+//       }
+//     ],
+//     "pkg_path": "",
+//     "func": "main"
+//   }
+// ]

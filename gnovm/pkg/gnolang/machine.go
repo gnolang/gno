@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"os"
 	"reflect"
 	"slices"
 	"strconv"
@@ -144,7 +143,7 @@ func NewMachineWithOptions(opts MachineOptions) *Machine {
 
 	output := opts.Output
 	if output == nil {
-		output = os.Stdout
+		output = io.Discard
 	}
 	alloc := opts.Alloc
 	if alloc == nil {

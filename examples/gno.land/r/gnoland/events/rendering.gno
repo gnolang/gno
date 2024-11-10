@@ -122,8 +122,8 @@ func (e Event) Render(admin bool) string {
 	buf.WriteString(ufmt.Sprintf("**Ends:** %s UTC%s%d\n\n", e.endTime.Format("02 Jan 2006, 03:04 PM"), sign, hoursOffset))
 
 	if admin {
-		buf.WriteString(ufmt.Sprintf("[EDIT](/r/gnoland/events?help&__func=EditEvent&id=%s)\n\n", e.id))
-		buf.WriteString(ufmt.Sprintf("[DELETE](/r/gnoland/events?help&__func=DeleteEvent&id=%s)\n\n", e.id))
+		buf.WriteString(ufmt.Sprintf("[EDIT](/r/gnoland/events$help&func=EditEvent&id=%s)\n\n", e.id))
+		buf.WriteString(ufmt.Sprintf("[DELETE](/r/gnoland/events$help&func=DeleteEvent&id=%s)\n\n", e.id))
 	}
 
 	if e.link != "" {
