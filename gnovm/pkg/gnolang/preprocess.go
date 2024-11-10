@@ -2139,32 +2139,10 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 
 			// TRANS_LEAVE -----------------------
 			case *BranchStmt:
-
-				notAllowedFunc := func(s string) {
-					for last != nil {
-						switch last.(type) {
-						case *FuncLitExpr:
-							panic(fmt.Sprintf("%s statement out of place", s))
-						case *SwitchStmt:
-							return
-						case *SwitchClauseStmt:
-							return
-						case *ForStmt:
-							return
-						}
-
-						last = last.GetParentNode(store)
-					}
-				}
-
 				switch n.Op {
 				case BREAK:
-					notAllowedFunc("break")
-
 					if n.Label == "" {
-						if !findBreakableNode(ns) {
-							panic("cannot break with no parent loop or switch")
-						}
+						findBreakableNode(last, store)
 					} else {
 						// Make sure that the label exists, either for a switch or a
 						// BranchStmt.
@@ -2173,12 +2151,8 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 						}
 					}
 				case CONTINUE:
-					notAllowedFunc("continue")
-
 					if n.Label == "" {
-						if !findContinuableNode(ns) {
-							panic("cannot continue with no parent loop")
-						}
+						findContinuableNode(last, store)
 					} else {
 						if isSwitchLabel(ns, n.Label) {
 							panic(fmt.Sprintf("invalid continue label %q\n", n.Label))
@@ -3318,24 +3292,36 @@ func funcOf(last BlockNode) (BlockNode, *FuncTypeExpr) {
 	}
 }
 
-func findBreakableNode(ns []Node) bool {
-	for _, n := range ns {
-		switch n.(type) {
-		case *ForStmt, *RangeStmt, *SwitchClauseStmt:
-			return true
+func findBreakableNode(last BlockNode, store Store) {
+	for last != nil {
+		switch last.(type) {
+		case *FuncLitExpr:
+			panic("break statement out of place")
+		case *ForStmt:
+			return
+		case *RangeStmt:
+			return
+		case *SwitchClauseStmt:
+			return
 		}
+
+		last = last.GetParentNode(store)
 	}
-	return false
 }
 
-func findContinuableNode(ns []Node) bool {
-	for _, n := range ns {
-		switch n.(type) {
-		case *ForStmt, *RangeStmt:
-			return true
+func findContinuableNode(last BlockNode, store Store) {
+	for last != nil {
+		switch last.(type) {
+		case *FuncLitExpr:
+			panic("continue statement out of place")
+		case *ForStmt:
+			return
+		case *RangeStmt:
+			return
 		}
+
+		last = last.GetParentNode(store)
 	}
-	return false
 }
 
 func findBranchLabel(last BlockNode, label Name) (
