@@ -1,14 +1,13 @@
 package params
 
 import (
+	"errors"
 	"fmt"
 	"strings"
 
 	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
 	"github.com/gnolang/gno/tm2/pkg/sdk"
 	"github.com/gnolang/gno/tm2/pkg/std"
-
-	"errors"
 )
 
 var (
@@ -17,10 +16,10 @@ var (
 )
 
 type paramsHandler struct {
-	params ParamsKeeper
+	params Keeper
 }
 
-func NewHandler(params ParamsKeeper) paramsHandler {
+func NewHandler(params Keeper) paramsHandler {
 	return paramsHandler{
 		params: params,
 	}

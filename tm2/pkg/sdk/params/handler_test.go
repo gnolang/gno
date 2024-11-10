@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strings"
 	"testing"
+	"time"
 
 	bft "github.com/gnolang/gno/tm2/pkg/bft/types"
 	"github.com/gnolang/gno/tm2/pkg/db/memdb"
@@ -20,7 +21,7 @@ import (
 type testEnv struct {
 	ctx    sdk.Context
 	store  store.Store
-	keeper ParamsKeeper
+	keeper Keeper
 }
 
 type testable interface {
@@ -66,9 +67,7 @@ func setupTestEnv(t testable, prefix string) testEnv {
 }
 
 func TestParamsHandler_Process(t *testing.T) {
-	t.Parallel()
-
-	h := NewHandler(ParamsKeeper{})
+	h := NewHandler(Keeper{})
 	res := h.Process(sdk.Context{}, nil)
 
 	assert.False(t, res.IsOK())
@@ -76,11 +75,7 @@ func TestParamsHandler_Process(t *testing.T) {
 }
 
 func TestParamsHandler_Query(t *testing.T) {
-	t.Parallel()
-
 	t.Run("invalid path", func(t *testing.T) {
-		t.Parallel()
-
 		var (
 			prefix = "params_test"
 
@@ -88,6 +83,10 @@ func TestParamsHandler_Query(t *testing.T) {
 				name string
 				path string
 			}{
+				{
+					"empty path",
+					"",
+				},
 				{
 					"empty key",
 					fmt.Sprintf("params/%s/", prefix),
@@ -100,13 +99,15 @@ func TestParamsHandler_Query(t *testing.T) {
 					"malformed path, no prefix",
 					"params",
 				},
+				{
+					"malformed path, missing prefix",
+					fmt.Sprintf("params/%d", time.Now().Unix()),
+				},
 			}
 		)
 
 		for _, testCase := range testTable {
 			t.Run(testCase.name, func(t *testing.T) {
-				t.Parallel()
-
 				var (
 					env = setupTestEnv(t, prefix)
 					h   = NewHandler(env.keeper)
@@ -126,8 +127,6 @@ func TestParamsHandler_Query(t *testing.T) {
 	})
 
 	t.Run("valid path, value missing", func(t *testing.T) {
-		t.Parallel()
-
 		var (
 			prefix = "params_test"
 			key    = "foo/bar.string"
@@ -148,8 +147,6 @@ func TestParamsHandler_Query(t *testing.T) {
 	})
 
 	t.Run("valid path, value present", func(t *testing.T) {
-		t.Parallel()
-
 		var (
 			prefix = "params_test"
 			key    = "foo/bar.string"
@@ -163,7 +160,7 @@ func TestParamsHandler_Query(t *testing.T) {
 			Path: fmt.Sprintf("params/%s/%s", prefix, key),
 		}
 
-		env.keeper.SetString(env.ctx, key, value)
+		require.NoError(t, env.keeper.SetString(env.ctx, key, value))
 
 		res := h.Query(env.ctx, req)
 		require.Nil(t, res.Error)
@@ -171,17 +168,4 @@ func TestParamsHandler_Query(t *testing.T) {
 
 		assert.Equal(t, fmt.Sprintf("%q", value), string(res.Data))
 	})
-}
-
-func TestQuerierRouteNotFound(t *testing.T) {
-	t.Parallel()
-
-	env := setupTestEnv(t, "params_test")
-	h := NewHandler(env.keeper)
-	req := abci.RequestQuery{
-		Path: "params/notfound",
-		Data: []byte{},
-	}
-	res := h.Query(env.ctx, req)
-	require.Error(t, res.Error)
 }

@@ -1,145 +1,184 @@
 package params
 
 import (
+	"fmt"
 	"strings"
 
 	"github.com/gnolang/gno/tm2/pkg/amino"
+	"github.com/gnolang/gno/tm2/pkg/errors"
 	"github.com/gnolang/gno/tm2/pkg/sdk"
 	"github.com/gnolang/gno/tm2/pkg/store"
 )
 
-type ParamsKeeperI interface {
-	GetString(ctx sdk.Context, key string, ptr *string)
-	GetInt64(ctx sdk.Context, key string, ptr *int64)
-	GetUint64(ctx sdk.Context, key string, ptr *uint64)
-	GetBool(ctx sdk.Context, key string, ptr *bool)
-	GetBytes(ctx sdk.Context, key string, ptr *[]byte)
+var ErrMissingParamValue = errors.New("missing param value")
 
-	SetString(ctx sdk.Context, key string, value string)
-	SetInt64(ctx sdk.Context, key string, value int64)
-	SetUint64(ctx sdk.Context, key string, value uint64)
-	SetBool(ctx sdk.Context, key string, value bool)
-	SetBytes(ctx sdk.Context, key string, value []byte)
+const (
+	stringSuffix = ".string"
+	boolSuffix   = ".bool"
+	int64Suffix  = ".int64"
+	uint64Suffix = ".uint64"
+	bytesSuffix  = ".bytes"
+)
 
-	Has(ctx sdk.Context, key string) bool
-	GetRaw(ctx sdk.Context, key string) []byte
-
-	// XXX: ListKeys?
-}
-
-var _ ParamsKeeperI = ParamsKeeper{}
-
-// global paramstore Keeper.
-type ParamsKeeper struct {
+// Keeper is the global param store keeper
+// TODO: The keeper, and its functionality is not thread safe,
+// because the underlying store is not thread safe. Check if this is expected behavior.
+type Keeper struct {
 	key    store.StoreKey
 	prefix string
 }
 
 // NewParamsKeeper returns a new ParamsKeeper.
-func NewParamsKeeper(key store.StoreKey, prefix string) ParamsKeeper {
-	return ParamsKeeper{
+func NewParamsKeeper(key store.StoreKey, prefix string) Keeper {
+	return Keeper{
 		key:    key,
 		prefix: prefix,
 	}
 }
 
-func (pk ParamsKeeper) Has(ctx sdk.Context, key string) bool {
-	stor := ctx.Store(pk.key)
-	return stor.Has([]byte(key))
+func (pk Keeper) Has(ctx sdk.Context, key string) bool {
+	s := ctx.Store(pk.key)
+
+	return s.Has([]byte(key))
 }
 
-func (pk ParamsKeeper) GetRaw(ctx sdk.Context, key string) []byte {
-	stor := ctx.Store(pk.key)
-	return stor.Get([]byte(key))
+func (pk Keeper) GetRaw(ctx sdk.Context, key string) []byte {
+	s := ctx.Store(pk.key)
+
+	return s.Get([]byte(key))
 }
 
-func (pk ParamsKeeper) GetString(ctx sdk.Context, key string, ptr *string) {
-	checkSuffix(key, ".string")
-	pk.getIfExists(ctx, key, ptr)
+func (pk Keeper) GetString(ctx sdk.Context, key string) (string, error) {
+	if err := checkSuffix(key, stringSuffix); err != nil {
+		return "", fmt.Errorf("invalid suffix, %w", err)
+	}
+
+	return get[string](ctx.Store(pk.key), key)
 }
 
-func (pk ParamsKeeper) GetBool(ctx sdk.Context, key string, ptr *bool) {
-	checkSuffix(key, ".bool")
-	pk.getIfExists(ctx, key, ptr)
+func (pk Keeper) GetBool(ctx sdk.Context, key string) (bool, error) {
+	if err := checkSuffix(key, boolSuffix); err != nil {
+		return false, fmt.Errorf("invalid suffix, %w", err)
+	}
+
+	return get[bool](ctx.Store(pk.key), key)
 }
 
-func (pk ParamsKeeper) GetInt64(ctx sdk.Context, key string, ptr *int64) {
-	checkSuffix(key, ".int64")
-	pk.getIfExists(ctx, key, ptr)
+func (pk Keeper) GetInt64(ctx sdk.Context, key string) (int64, error) {
+	if err := checkSuffix(key, int64Suffix); err != nil {
+		return 0, fmt.Errorf("invalid suffix, %w", err)
+	}
+
+	return get[int64](ctx.Store(pk.key), key)
 }
 
-func (pk ParamsKeeper) GetUint64(ctx sdk.Context, key string, ptr *uint64) {
-	checkSuffix(key, ".uint64")
-	pk.getIfExists(ctx, key, ptr)
+func (pk Keeper) GetUint64(ctx sdk.Context, key string) (uint64, error) {
+	if err := checkSuffix(key, uint64Suffix); err != nil {
+		return 0, fmt.Errorf("invalid suffix, %w", err)
+	}
+
+	return get[uint64](ctx.Store(pk.key), key)
 }
 
-func (pk ParamsKeeper) GetBytes(ctx sdk.Context, key string, ptr *[]byte) {
-	checkSuffix(key, ".bytes")
-	pk.getIfExists(ctx, key, ptr)
+func (pk Keeper) GetBytes(ctx sdk.Context, key string) ([]byte, error) {
+	if err := checkSuffix(key, bytesSuffix); err != nil {
+		return nil, fmt.Errorf("invalid suffix, %w", err)
+	}
+
+	return get[[]byte](ctx.Store(pk.key), key)
 }
 
-func (pk ParamsKeeper) SetString(ctx sdk.Context, key, value string) {
-	checkSuffix(key, ".string")
-	pk.set(ctx, key, value)
+func (pk Keeper) SetString(ctx sdk.Context, key, value string) error {
+	if err := checkSuffix(key, stringSuffix); err != nil {
+		return fmt.Errorf("invalid suffix, %w", err)
+	}
+
+	return set(ctx.Store(pk.key), key, value)
 }
 
-func (pk ParamsKeeper) SetBool(ctx sdk.Context, key string, value bool) {
-	checkSuffix(key, ".bool")
-	pk.set(ctx, key, value)
+func (pk Keeper) SetBool(ctx sdk.Context, key string, value bool) error {
+	if err := checkSuffix(key, boolSuffix); err != nil {
+		return fmt.Errorf("invalid suffix, %w", err)
+	}
+
+	return set(ctx.Store(pk.key), key, value)
 }
 
-func (pk ParamsKeeper) SetInt64(ctx sdk.Context, key string, value int64) {
-	checkSuffix(key, ".int64")
-	pk.set(ctx, key, value)
+func (pk Keeper) SetInt64(ctx sdk.Context, key string, value int64) error {
+	if err := checkSuffix(key, int64Suffix); err != nil {
+		return fmt.Errorf("invalid suffix, %w", err)
+	}
+
+	return set(ctx.Store(pk.key), key, value)
 }
 
-func (pk ParamsKeeper) SetUint64(ctx sdk.Context, key string, value uint64) {
-	checkSuffix(key, ".uint64")
-	pk.set(ctx, key, value)
+func (pk Keeper) SetUint64(ctx sdk.Context, key string, value uint64) error {
+	if err := checkSuffix(key, uint64Suffix); err != nil {
+		return fmt.Errorf("invalid suffix, %w", err)
+	}
+
+	return set(ctx.Store(pk.key), key, value)
 }
 
-func (pk ParamsKeeper) SetBytes(ctx sdk.Context, key string, value []byte) {
-	checkSuffix(key, ".bytes")
-	pk.set(ctx, key, value)
+func (pk Keeper) SetBytes(ctx sdk.Context, key string, value []byte) error {
+	if err := checkSuffix(key, bytesSuffix); err != nil {
+		return fmt.Errorf("invalid suffix, %w", err)
+	}
+
+	return set(ctx.Store(pk.key), key, value)
 }
 
-func (pk ParamsKeeper) getIfExists(ctx sdk.Context, key string, ptr interface{}) {
-	stor := ctx.Store(pk.key)
-	bz := stor.Get([]byte(key))
+type keeperType interface {
+	[]byte | uint64 | int64 | bool | string
+}
+
+// get fetches the value associated with the given key, if any
+func get[T keeperType](
+	s store.Store,
+	key string,
+) (T, error) {
+	var ret T
+
+	bz := s.Get([]byte(key))
+
 	if bz == nil {
-		return
+		return ret, fmt.Errorf("%w: %s", ErrMissingParamValue, key)
 	}
-	err := amino.UnmarshalJSON(bz, ptr)
-	if err != nil {
-		panic(err)
+
+	if err := amino.UnmarshalJSON(bz, &ret); err != nil {
+		return ret, fmt.Errorf("unable to parse value, %w", err)
 	}
+
+	return ret, nil
 }
 
-func (pk ParamsKeeper) get(ctx sdk.Context, key string, ptr interface{}) {
-	stor := ctx.Store(pk.key)
-	bz := stor.Get([]byte(key))
-	err := amino.UnmarshalJSON(bz, ptr)
-	if err != nil {
-		panic(err)
-	}
-}
-
-func (pk ParamsKeeper) set(ctx sdk.Context, key string, value interface{}) {
-	stor := ctx.Store(pk.key)
+// set saves the given key value pair in the store
+func set[T keeperType](
+	s store.Store,
+	key string,
+	value T,
+) error {
 	bz, err := amino.MarshalJSON(value)
 	if err != nil {
-		panic(err)
+		return fmt.Errorf("unable to marshal value, %w", err)
 	}
-	stor.Set([]byte(key), bz)
+
+	s.Set([]byte(key), bz)
+
+	return nil
 }
 
-func checkSuffix(key, expectedSuffix string) {
+// checkSuffix checks if the full key has the given suffix,
+// and if the key is empty
+func checkSuffix(key, expectedSuffix string) error {
 	var (
 		noSuffix = !strings.HasSuffix(key, expectedSuffix)
 		noName   = len(key) == len(expectedSuffix)
-		// XXX: additional sanity checks?
 	)
+
 	if noSuffix || noName {
-		panic(`key should be like "<name>` + expectedSuffix + `"`)
+		return fmt.Errorf("key should be like \"<name>%s\"", expectedSuffix)
 	}
+
+	return nil
 }

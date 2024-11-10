@@ -5,6 +5,7 @@ package vm
 import (
 	"bytes"
 	"context"
+	goErrors "errors"
 	"fmt"
 	"io"
 	"log/slog"
@@ -64,7 +65,7 @@ type VMKeeper struct {
 	iavlKey store.StoreKey
 	acck    auth.AccountKeeper
 	bank    bank.BankKeeper
-	prmk    params.ParamsKeeper
+	prmk    params.Keeper
 
 	// cached, the DeliverTx persistent state.
 	gnoStore gno.Store
@@ -76,7 +77,7 @@ func NewVMKeeper(
 	iavlKey store.StoreKey,
 	acck auth.AccountKeeper,
 	bank bank.BankKeeper,
-	prmk params.ParamsKeeper,
+	prmk params.Keeper,
 ) *VMKeeper {
 	vmk := &VMKeeper{
 		baseKey: baseKey,
@@ -235,8 +236,19 @@ const (
 
 // checkNamespacePermission check if the user as given has correct permssion to on the given pkg path
 func (vm *VMKeeper) checkNamespacePermission(ctx sdk.Context, creator crypto.Address, pkgPath string) error {
-	sysUsersPkg := sysUsersPkgDefault
-	vm.prmk.GetString(ctx, sysUsersPkgParamKey, &sysUsersPkg)
+	var (
+		sysUsersPkg = sysUsersPkgDefault
+
+		err error
+	)
+
+	// Load the param value, if it's been altered.
+	// TODO Should we even be doing this error handling, if
+	// we expect the value to be set on the init of the VM keeper?
+	sysUsersPkg, err = vm.prmk.GetString(ctx, sysUsersPkgParamKey)
+	if !goErrors.Is(err, params.ErrMissingParamValue) {
+		return fmt.Errorf("unable to load param %s, %w", sysUsersPkgParamKey, err)
+	}
 
 	store := vm.getGnoTransactionStore(ctx)
 

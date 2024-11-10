@@ -235,7 +235,7 @@ type InitChainerConfig struct {
 	vmKpr     vm.VMKeeperI
 	acctKpr   auth.AccountKeeperI
 	bankKpr   bank.BankKeeperI
-	paramsKpr params.ParamsKeeperI
+	paramsKpr params.Keeper
 }
 
 // InitChainer is the function that can be used as a [sdk.InitChainer].
