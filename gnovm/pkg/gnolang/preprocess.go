@@ -2141,10 +2141,19 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 			case *BranchStmt:
 
 				notAllowedFunc := func(s string) {
-					_, isFunc := last.(*FuncLitExpr)
+					for last != nil {
+						switch last.(type) {
+						case *FuncLitExpr:
+							panic(fmt.Sprintf("%s statement out of place", s))
+						case *SwitchStmt:
+							return
+						case *SwitchClauseStmt:
+							return
+						case *ForStmt:
+							return
+						}
 
-					if isFunc {
-						panic(fmt.Sprintf("%s statement out of place", s))
+						last = last.GetParentNode(store)
 					}
 				}
 
