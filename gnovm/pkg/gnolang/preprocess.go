@@ -3295,7 +3295,7 @@ func funcOf(last BlockNode) (BlockNode, *FuncTypeExpr) {
 func findBreakableNode(last BlockNode, store Store) {
 	for last != nil {
 		switch last.(type) {
-		case *FuncLitExpr:
+		case *FuncLitExpr, *FuncDecl:
 			panic("break statement out of place")
 		case *ForStmt:
 			return
@@ -3312,7 +3312,7 @@ func findBreakableNode(last BlockNode, store Store) {
 func findContinuableNode(last BlockNode, store Store) {
 	for last != nil {
 		switch last.(type) {
-		case *FuncLitExpr:
+		case *FuncLitExpr, *FuncDecl:
 			panic("continue statement out of place")
 		case *ForStmt:
 			return
