@@ -35,7 +35,7 @@ Some configuration params are required, while others are advised to be set.
   reverse-proxy, and keep this value at `tcp://0.0.0.0:<port>`.
 - `p2p.max_num_outbound_peers` - the max number of outbound peer connections. **Advised to be `40`**.
 - `p2p.persistent_peers` - the persistent peers. ⚠️ **Required to be
-  `g12p9l546ah4qeenhum8v4m2dg92jxcsrfy67yww@163.172.33.181:26656`** ⚠️.
+  `g16384atcuf6ew3ufpwtvhymwfyl2aw390aq8jtt@gno-core-sen-01.test5.gno.land:26656,g1ty443uhf6qr2n0gv3dkemr4slt96e5hnmx90qh@gno-core-sen-02.test5.gno.land:26656,g19x2gsyn02fldtq44dpgtcq2dq28kszlf5jn2es@gno-core-sen-03.test5.gno.land:26656,g12p9l546ah4qeenhum8v4m2dg92jxcsrfy67yww@163.172.33.181:26656,g1s40khr8fruvsp2e9tveqyfwgzrqw4fs9kr4hwc@3.18.33.75:26656,g1gdt4c8rs3l4gpmp0f840nj93sv59cag6hn00cd@3.133.216.128:26656,g18vg9lgndagym626q8jsgv2peyjatscykde3xju@devx-sen-1.test5.gnodevx.network:26656,g1fnwswr6p5nqfvusglv7g2vy0tzwt5npwe7stvv@devx-sen-2.test5.gnodevx.network:26656,g1q887j0vrwpg7admfn4n203u8k30rj8k84zxvn9@195.154.203.189:26656`** ⚠️.
 - `p2p.pex` - if using a sentry node architecture, should be `false`. **If not, please set to `true`**.
 - `p2p.external_address` - the advertised peer dial address. If empty, will use the same port as the `p2p.laddr`. This
   value should be **changed to `{{ your_ip_address }}:26656`**
