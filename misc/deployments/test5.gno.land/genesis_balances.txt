@@ -68,7 +68,8 @@ g1qynsu9dwj9lq0m5fkje7jh6qy3md80ztqnshhm=9000000000000000000ugnot
 
 # Dragos
 
-# TODO @Dragos please add these here
+g16f5chytu99dmjqtekxf8qzg04vcv7dck6qny6d=9000000000000000000ugnot # Flippando faucet
+g17ernafy6ctpcz6uepfsq2js8x2vz0wladh5yc3=9000000000000000000ugnot # ZenTasktic faucet
 
 # Teritori
 
