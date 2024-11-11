@@ -97,20 +97,20 @@ func init() {
 		},
 		// aib-val-1
 		{
-			Address:     std.Address("g1gu6wrz7xcavjtk2dudsfl586qrz5g4ahhhz2j3"),
-			PubKey:      "gpub1pgfj7ard9eg82cjtv4u4xetrwqer2dntxyfzxz3pqgruqtkktk0xagtfk8v75c5weuvwf8y5fkdgh9j9cmeh8tfcy6vnxjycdcq",
+			Address:     std.Address("g1ecdu2gwz9d46srrhpu7k60pnrquvle5z2a5nn0"),
+			PubKey:      "gpub1pggj7ard9eg82cjtv4u52epjx56nzwgjyg9zqnrer4hlsq7q22egx9ur357hg8ftsntyh4z2g7x69u2s4ay25vdw4tredd",
 			VotingPower: 1,
 		},
 		// aib-val-2
 		{
-			Address:     std.Address("g1x7rewh0w7u7yrmsmadq6w6t3jwh7ec6ql02klh"),
-			PubKey:      "gpub1pgfj7ard9eg82cjtv4u4xetrwqer2dntxyfzxz3pqvgyt5sllr0gqwr0fhr4kacr7p7l239e8cm9p0cyaxtctpqgzdtfcq8us06",
+			Address:     std.Address("g169wsuqlrscnvxtsu6wrc0zuwn39tmctw7q9f0q"),
+			PubKey:      "gpub1pggj7ard9eg82cjtv4u52epjx56nzwgjyg9zpv6k4a2r6x6gt7eqp70l5vxluk9zkdmlqvkxztnc8zp2llq73e6ukxvsf6",
 			VotingPower: 1,
 		},
 		// aib-val-3
 		{
-			Address:     std.Address("g1l8j7ts0gmghag7zmnatq5ta5xg83ylyxnmaxlh"),
-			PubKey:      "gpub1pgfj7ard9eg82cjtv4u4xetrwqer2dntxyfzxz3pq0rwfjzenlzgj73m2ppy6tz427ajukmcj6vj2ttdet22p3pggrdrk0qhpkh",
+			Address:     std.Address("g1hfwh3ufph3zczs5wu4qvpgtv79fzh30rgzdux8"),
+			PubKey:      "gpub1pggj7ard9eg82cjtv4u52epjx56nzwgjyg9zqxx3qdzl9f6lee42vhtka5luujhxg22tesyww52af68f75zzp0snyhl8mw",
 			VotingPower: 1,
 		},
 	}
