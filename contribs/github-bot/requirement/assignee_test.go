@@ -27,11 +27,14 @@ func TestAssignee(t *testing.T) {
 		name      string
 		user      string
 		assignees []*github.User
+		dryRun    bool
 		exists    bool
 	}{
-		{"empty assignee list", "user", []*github.User{}, false},
-		{"assignee list contains user", "user", assignees, true},
-		{"assignee list doesn't contain user", "user2", assignees, false},
+		{"empty assignee list", "user", []*github.User{}, false, false},
+		{"empty assignee list with dry-run", "user", []*github.User{}, true, false},
+		{"assignee list contains user", "user", assignees, false, true},
+		{"assignee list doesn't contain user", "user2", assignees, false, false},
+		{"assignee list doesn't contain user with dry-run", "user2", assignees, true, false},
 	} {
 		testCase := testCase
 		t.Run(testCase.name, func(t *testing.T) {
@@ -54,19 +57,20 @@ func TestAssignee(t *testing.T) {
 				Client: github.NewClient(mockedHTTPClient),
 				Ctx:    context.Background(),
 				Logger: logger.NewNoopLogger(),
+				DryRun: testCase.dryRun,
 			}
 
 			pr := &github.PullRequest{Assignees: testCase.assignees}
 			details := treeprint.New()
 			requirement := Assignee(gh, testCase.user)
 
-			if !requirement.IsSatisfied(pr, details) {
+			if !requirement.IsSatisfied(pr, details) && !testCase.dryRun {
 				t.Errorf("requirement should have a satisfied status: %t", true)
 			}
-			if !utils.TestLastNodeStatus(t, true, details) {
+			if !utils.TestLastNodeStatus(t, true, details) && !testCase.dryRun {
 				t.Errorf("requirement details should have a status: %t", true)
 			}
-			if !testCase.exists && !requested {
+			if !testCase.exists && !requested && !testCase.dryRun {
 				t.Errorf("requirement should have requested to create item")
 			}
 		})

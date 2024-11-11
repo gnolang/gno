@@ -27,15 +27,21 @@ func TestLabel(t *testing.T) {
 		name    string
 		pattern string
 		labels  []*github.Label
+		dryRun  bool
 		exists  bool
 	}{
-		{"empty label list", "label", []*github.Label{}, false},
-		{"label list contains exact match", "label", labels, true},
-		{"label list contains prefix match", "^lab", labels, true},
-		{"label list contains prefix doesn't match", "lab$", labels, false},
-		{"label list contains suffix match", "bel$", labels, true},
-		{"label list contains suffix doesn't match", "^bel", labels, false},
-		{"label list doesn't contains match", "baleb", labels, false},
+		{"empty label list", "label", []*github.Label{}, false, false},
+		{"empty label list with dry-run", "label", []*github.Label{}, true, false},
+		{"label list contains exact match", "label", labels, false, true},
+		{"label list contains prefix match", "^lab", labels, false, true},
+		{"label list contains prefix doesn't match", "lab$", labels, false, false},
+		{"label list contains prefix doesn't match with dry-run", "lab$", labels, true, false},
+		{"label list contains suffix match", "bel$", labels, false, true},
+		{"label list contains suffix match with dry-run", "bel$", labels, true, true},
+		{"label list contains suffix doesn't match", "^bel", labels, false, false},
+		{"label list contains suffix doesn't match with dry-run", "^bel", labels, true, false},
+		{"label list doesn't contains match", "baleb", labels, false, false},
+		{"label list doesn't contains match with dry-run", "baleb", labels, true, false},
 	} {
 		testCase := testCase
 		t.Run(testCase.name, func(t *testing.T) {
@@ -58,19 +64,20 @@ func TestLabel(t *testing.T) {
 				Client: github.NewClient(mockedHTTPClient),
 				Ctx:    context.Background(),
 				Logger: logger.NewNoopLogger(),
+				DryRun: testCase.dryRun,
 			}
 
 			pr := &github.PullRequest{Labels: testCase.labels}
 			details := treeprint.New()
 			requirement := Label(gh, testCase.pattern)
 
-			if !requirement.IsSatisfied(pr, details) {
+			if !requirement.IsSatisfied(pr, details) && !testCase.dryRun {
 				t.Errorf("requirement should have a satisfied status: %t", true)
 			}
-			if !utils.TestLastNodeStatus(t, true, details) {
+			if !utils.TestLastNodeStatus(t, true, details) && !testCase.dryRun {
 				t.Errorf("requirement details should have a status: %t", true)
 			}
-			if !testCase.exists && !requested {
+			if !testCase.exists && !requested && !testCase.dryRun {
 				t.Errorf("requirement should have requested to create item")
 			}
 		})

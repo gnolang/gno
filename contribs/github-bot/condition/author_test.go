@@ -60,9 +60,9 @@ func TestAuthorInTeam(t *testing.T) {
 		members []*github.User
 		isMet   bool
 	}{
-		{"empty assignee list", "user", []*github.User{}, false},
-		{"assignee list contains user", "user", members, true},
-		{"assignee list doesn't contain user", "user2", members, false},
+		{"empty member list", "user", []*github.User{}, false},
+		{"member list contains user", "user", members, true},
+		{"member list doesn't contain user", "user2", members, false},
 	} {
 		testCase := testCase
 		t.Run(testCase.name, func(t *testing.T) {
