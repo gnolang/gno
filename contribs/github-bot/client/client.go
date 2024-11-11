@@ -231,6 +231,7 @@ func New(params param.Params) *GitHub {
 
 	// Create context with timeout if specified in the parameters
 	if params.Timeout > 0 {
+		//nolint:govet,lostcancel // Keeping this cancel function is useless in this context
 		gh.Ctx, _ = context.WithTimeout(context.Background(), time.Duration(params.Timeout)*time.Millisecond)
 	} else {
 		gh.Ctx = context.Background()
