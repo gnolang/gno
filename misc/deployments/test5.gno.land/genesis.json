@@ -141,6 +141,33 @@
       },
       "power": "1",
       "name": "tori-val-1"
+    },
+    {
+      "address": "g1gu6wrz7xcavjtk2dudsfl586qrz5g4ahhhz2j3",
+      "pub_key": {
+        "@type": "/tm.PubKeySecp256k1",
+        "value": "AgfALtZdnm6habHZ6mKOzxjknJRNmouWRcbzc604Jpkz"
+      },
+      "power": "1",
+      "name": "aib-val-01"
+    },
+    {
+      "address": "g1x7rewh0w7u7yrmsmadq6w6t3jwh7ec6ql02klh",
+      "pub_key": {
+        "@type": "/tm.PubKeySecp256k1",
+        "value": "AxBF0h/43oA4b03HW3cD8H31RLk+NlC/BOmXhYQIE1ac"
+      },
+      "power": "1",
+      "name": "aib-val-02"
+    },
+    {
+      "address": "g1l8j7ts0gmghag7zmnatq5ta5xg83ylyxnmaxlh",
+      "pub_key": {
+        "@type": "/tm.PubKeySecp256k1",
+        "value": "A8bkyFmfxIl6O1BCTSxVV7suW3iWmSUtbcrUoMQoQNo7"
+      },
+      "power": "1",
+      "name": "aib-val-03"
     }
   ],
   "app_hash": null,
