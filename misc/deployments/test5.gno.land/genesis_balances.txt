@@ -77,12 +77,8 @@ g17ernafy6ctpcz6uepfsq2js8x2vz0wladh5yc3=9000000000000000000ugnot # ZenTasktic f
 
 # Teritori
 
-<<<<<<< Updated upstream
 g1qrvwpcw0uxr22d8kgydfz3wp8rtl2h2l3lqmva=9000000000000000000ugnot # team address
 g14u5eaheavy0ux4dmpykg2gvxpvqvexm9cyg58a=9000000000000000000ugnot # norman
 g1g69npft5fav254rvuay7xlmlvt7ddfucgvx8xf=9000000000000000000ugnot # gh0st
 g16jv3rpz7mkt0gqulxas56se2js7v5vmc6n6e0r=9000000000000000000ugnot # Mikael
 g14vxq5e5pt5sev7rkz2ej438scmxtylnzv5vnkw=9000000000000000000ugnot # mikecito
-=======
-# TODO @Norman please add these here
->>>>>>> Stashed changes
