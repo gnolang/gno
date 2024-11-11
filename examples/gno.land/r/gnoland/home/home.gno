@@ -193,7 +193,7 @@ func packageStaffPicks() ui.Element {
 					ui.BulletList{
 						ui.Link{URL: "r/sys/names"},
 						ui.Link{URL: "r/sys/rewards"},
-						ui.Link{URL: "r/sys/validators"},
+						ui.Link{URL: "/r/sys/validators/v2"},
 					},
 				}, {
 					ui.H4("[r/demo](https://github.com/gnolang/gno/tree/master/examples/gno.land/r/demo)"),
@@ -246,7 +246,7 @@ func discoverLinks() ui.Element {
 - Tokenomics (soon)
 - [Partners, Fund, Grants](/partners)
 - [Explore the Ecosystem](/ecosystem)
-- [Careers](https://jobs.lever.co/allinbits?department=Gno.land)
+- [Careers](https://jobs.ashbyhq.com/allinbits)
 
 </div><!-- end column-->
 
@@ -269,9 +269,7 @@ func discoverLinks() ui.Element {
 - [Discover demo packages](https://github.com/gnolang/gno/tree/master/examples)
 - [Gnoscan](https://gnoscan.io)
 - [Portal Loop](https://docs.gno.land/concepts/portal-loop)
-- [Testnet 4](https://test4.gno.land/) (Launched July 2024!)
-- [Testnet 3](https://test3.gno.land/) (archive)
-- [Testnet 2](https://test2.gno.land/) (archive)
+- [Testnet 4](https://test4.gno.land/)
 - Testnet Faucet Hub (soon)
 
 </div><!-- end column-->
