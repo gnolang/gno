@@ -2,41 +2,58 @@ package auction
 
 import (
 	"bytes"
-	"std"
 	"strconv"
 	"time"
 
+	"std"
+
 	auctionp "gno.land/p/demo/auction"
 	"gno.land/p/demo/mux"
+	"gno.land/p/demo/ufmt"
 )
 
 var (
-	auctionList []*auctionp.Auction
-	currentTime time.Time
-	router      = mux.NewRouter()
+	auctionList    []*auctionp.Auction
+	currentTime    time.Time
+	router         = mux.NewRouter()
 	globalDeposits = make(map[std.Address]int64)
 )
 
 func init() {
 	router.HandleFunc("", renderHomepage)
 	router.HandleFunc("/auction/{id}", renderAuctionDetails)
+	//router.HandleFunc("auction:List/", renderAuctionList)
 }
 
 // CreateAuction handles the creation of a new auction
-func CreateAuction(title, description string, begin, end int64, price std.Coin) string {
+func CreateAuction(title, description string, begin, end int64, amount int64, denom string) string {
+	if title == "" || description == "" {
+		panic("Auction creation failed: title and description cannot be empty")
+	}
+	if begin >= end {
+		panic("Auction creation failed: begin time must be before end time")
+	}
+	if amount <= 0 {
+		panic("Auction creation failed: starting price must be positive")
+	}
+	startingPrice := std.NewCoin(denom, amount)
 	owner := std.GetOrigCaller()
 	beginTime := time.Unix(begin, 0)
 	endTime := time.Unix(end, 0)
-	auction := auctionp.NewAuction(title, owner, description, beginTime, endTime, price)
+	auction := auctionp.NewAuction(title, owner, description, beginTime, endTime, startingPrice)
 	auctionList = append(auctionList, auction)
-	return "Auction created successfully"
+	return "Auction created successfully."
 }
 
 // PlaceBid handles placing a bid on an auction
+// id: the ID of the auction
+// amount: the amount of the bid
+// denom: the denomination of the bid amount
 func PlaceBid(id int, amount int64, denom string) string {
 	if amount <= 0 {
-        panic("Amount must be positive")
-    }
+		panic("Amount must be positive")
+	}
+
 	caller := std.GetOrigCaller()
 	transaction := std.GetOrigSend()
 	// get the amount sent by the caller
@@ -45,14 +62,13 @@ func PlaceBid(id int, amount int64, denom string) string {
 	bidAmount := std.NewCoin(denom, amount)
 
 	// check if the ID is valid
-	if id >= len(auctionList) || id < 0 {
+	if id < 0 || id >= len(auctionList) {
 		panic("Invalid auction ID")
 	}
+	auction := auctionList[id]
 
 	banker := std.GetBanker(std.BankerTypeOrigSend)
 	existingDeposit, exists := globalDeposits[caller]
-
-	// conversion of the existing deposit to a std.Coin
 	existingDepositCoin := std.NewCoin(denom, existingDeposit)
 
 	if !exists || bidAmount.IsGTE(existingDepositCoin) {
@@ -60,44 +76,73 @@ func PlaceBid(id int, amount int64, denom string) string {
 		additionalAmount := bidAmount.Sub(existingDepositCoin)
 		if additionalAmount.IsPositive() {
 
-			if amountSent.IsGTE(additionalAmount) {
-				 			panic("Invalid bid amount sent")
+			if !amountSent.IsGTE(additionalAmount) {
+				panic("Insufficient funds to place the bid")
 			}
-			banker.SendCoins(caller, std.CurrentRealm().Add(), std.NewCoins(additionalAmount))
+			banker.SendCoins(caller, std.CurrentRealm().Addr(), std.NewCoins(additionalAmount))
 		}
-		globalDeposits[caller] = amount
+		globalDeposits[caller] = existingDeposit + additionalAmount.Amount
 	} else {
-		// If the existing deposit is greater than the bid amount, refund the difference
-			if !amountSent.IsGTE(existingDepositCoin) {
-            panic("Invalid bid amount")
-        }
-			banker.SendCoins(caller, std.CurrentRealm().Addr(), std.NewCoins(bidAmount))
-			globalDeposits[caller] = amount
-		}
-	
-		// Place the bid
-	auction := auctionList[id]
+
+		banker.SendCoins(caller, std.CurrentRealm().Addr(), std.NewCoins(bidAmount))
+		globalDeposits[caller] = existingDeposit + amount
+	}
+
+	// Place the bid
 	if err := auction.AddBid(caller, bidAmount); err != nil {
 		panic(err.Error())
 	}
 	return "Bid placed successfully"
 }
 
-// EndAuction handles ending an auction
+// EndAuction ends an auction identified by the given ID, determines the winner and highest bid,
+// handles fund transfers, and refunds losing bidders.
 func EndAuction(id int) string {
-	caller := std.GetOrigCaller()
-	if id >= len(auctionList) || id < 0 {
+	if id < 0 || id >= len(auctionList) {
 		panic("Invalid auction ID")
 	}
 	auction := auctionList[id]
-	if err := auction.EndAuction(caller); err != nil {
+
+	// Call EndAuction to close the auction and get the winner and highest bid
+	if err := auction.EndAuction(); err != nil {
 		panic(err.Error())
 	}
+
+	// Determine the winner and highest bid
+	var winner std.Address
+	var highestBid int64
+	var denom string
+
+	if len(auction.Bids) > 0 {
+		highestBid = auction.Bids[len(auction.Bids)-1].Amount.Amount
+		denom = auction.Bids[len(auction.Bids)-1].Amount.Denom
+		winner = auction.Bids[len(auction.Bids)-1].Bidder
+	} else {
+		highestBid = 0
+	}
+
+	// Handle fund transfers using the banker
+	banker := std.GetBanker(std.BankerTypeRealmSend)
+	pkgAddr := std.CurrentRealm().Addr()
+
+	// Refund all losing bidders
+	for bidder, deposit := range globalDeposits {
+		if bidder != winner {
+			banker.SendCoins(pkgAddr, bidder, std.Coins{{Amount: deposit, Denom: denom}})
+			// Reset the deposit for the bidder
+			delete(globalDeposits, bidder)
+		}
+	}
+
+	// Transfer the highest bid to the auction owner
+	if highestBid > 0 {
+		banker.SendCoins(pkgAddr, auction.Owner.Owner(), std.Coins{{Amount: highestBid, Denom: denom}})
+	}
+
 	return "Auction ended successfully"
 }
 
-// Render renders the requested page
-    func Render(path string) string {
+func Render(path string) string {
 	return router.Render(path)
 }
 
@@ -105,10 +150,29 @@ func EndAuction(id int) string {
 func renderHomepage(res *mux.ResponseWriter, req *mux.Request) {
 	var b bytes.Buffer
 	b.WriteString("# Homepage\n\n")
-	b.WriteString("## [AuctionList](/r/demo/auction:List)\n\n")
+
+	//b.WriteString("## [AuctionList](/r/demo/auction:List)\n\n")
 
 	res.Write(b.String())
 }
+
+// renderAuctionList renders the list of all auctions
+// func renderAuctionList(res *mux.ResponseWriter, req *mux.Request) {
+//     var b bytes.Buffer
+//     b.WriteString("# Auction List\n\n")
+
+//     for i, auc := range auctionList {
+//         b.WriteString("## " + auc.Title + "\n")
+//         b.WriteString("### Owner: " + auc.Owner.Owner().String() + "\n")
+//         b.WriteString("### Description: " + auc.Description + "\n\n")
+//         b.WriteString("This auction starts on: " + auc.Begin.String() + " and ends on: " + auc.End.String() + "\n\n")
+//         b.WriteString(ufmt.Sprintf("### starting Price: %d\n", auc.Price))
+//         b.WriteString("[View Auction](/r/demo/auction:List/" + strconv.Itoa(i) + ")\n\n")
+//     }
+
+//     res.Write(b.String())
+// }
+
 // renderAuctionDetails renders the details of a specific auction
 func renderAuctionDetails(res *mux.ResponseWriter, req *mux.Request) {
 	idStr := req.GetVar("id")
@@ -119,15 +183,15 @@ func renderAuctionDetails(res *mux.ResponseWriter, req *mux.Request) {
 	}
 	auc := auctionList[id]
 	var b bytes.Buffer
-	b.WriteString("# Auction List\n\n")
+	b.WriteString("# Auction Details\n\n")
 
 	b.WriteString("\n\n")
 	b.WriteString("## " + auc.Title + "\n")
-	b.WriteString("### Owner: " + auc.Ownable.Owner().String() + "\n")
+	b.WriteString("### Owner: " + auc.Owner.Owner().String() + "\n")
 	b.WriteString("### Description: " + auc.Description + "\n\n")
 	b.WriteString("This auction starts on: " + auc.Begin.String() + " and ends on: " + auc.End.String() + "\n\n")
 	b.WriteString(ufmt.Sprintf("### starting Price: %d\n", auc.Price))
-	b.WriteString("[View Auction](/auction/" + strconv.Itoa(id) + ")\n")
+	b.WriteString("[View Auction](r/demo/auction/" + strconv.Itoa(id) + ")\n")
 
 	res.Write(b.String())
 }
