@@ -132,6 +132,15 @@
       },
       "power": "1",
       "name": "devx-val-4"
+    },
+    {
+      "address": "g1r2lwzu0y0na4686a0lz4f2zqxlffqkfm7lqqqp",
+      "pub_key": {
+        "@type": "/tm.PubKeyEd25519",
+        "value": "KBwS/hUFKZQ5OMsgJmA+HGYpMaWmRZ9jebigROovjDw="
+      },
+      "power": "1",
+      "name": "tori-val-1"
     }
   ],
   "app_hash": null,
