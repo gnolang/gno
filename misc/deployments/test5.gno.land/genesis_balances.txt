@@ -1,7 +1,6 @@
 # Predeploy Accounts
 
-# TODO Change when genesis txs are finalized:
-# g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5=103000000ugnot # Test1 (just enough for predeployment)
+g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5=131000000ugnot # Test1 (just enough for predeployment)
 
 # Faucet Accounts (Core)
 
