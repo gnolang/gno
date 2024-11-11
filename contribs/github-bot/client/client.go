@@ -9,7 +9,7 @@ import (
 	"github.com/gnolang/gno/contribs/github-bot/logger"
 	"github.com/gnolang/gno/contribs/github-bot/param"
 
-	"github.com/google/go-github/v66/github"
+	"github.com/google/go-github/v64/github"
 )
 
 const PageSize = 100
