@@ -32,6 +32,7 @@ func TestLabel(t *testing.T) {
 		{"label list contains suffix doesn't match", "^bel", labels, false},
 		{"label list doesn't contains match", "baleb", labels, false},
 	} {
+		testCase := testCase
 		t.Run(testCase.name, func(t *testing.T) {
 			t.Parallel()
 

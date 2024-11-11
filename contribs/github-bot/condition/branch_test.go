@@ -25,6 +25,7 @@ func TestHeadBaseBranch(t *testing.T) {
 		{"suffix doesn't match", "^/test-bot", "dev/test-bot", false},
 		{"doesn't match", "base", "notatall", false},
 	} {
+		testCase := testCase
 		t.Run(testCase.name, func(t *testing.T) {
 			t.Parallel()
 

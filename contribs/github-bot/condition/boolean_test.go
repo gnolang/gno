@@ -20,6 +20,7 @@ func TestAnd(t *testing.T) {
 		{"and is true", []Condition{Always(), Always()}, true},
 		{"and is false", []Condition{Always(), Always(), Never()}, false},
 	} {
+		testCase := testCase
 		t.Run(testCase.name, func(t *testing.T) {
 			t.Parallel()
 
@@ -60,6 +61,7 @@ func TestOr(t *testing.T) {
 		{"or is true", []Condition{Never(), Always()}, true},
 		{"or is false", []Condition{Never(), Never(), Never()}, false},
 	} {
+		testCase := testCase
 		t.Run(testCase.name, func(t *testing.T) {
 			t.Parallel()
 
@@ -100,6 +102,7 @@ func TestNot(t *testing.T) {
 		{"not is true", Never(), true},
 		{"not is false", Always(), false},
 	} {
+		testCase := testCase
 		t.Run(testCase.name, func(t *testing.T) {
 			t.Parallel()
 

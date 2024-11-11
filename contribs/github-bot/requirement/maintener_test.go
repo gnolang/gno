@@ -18,6 +18,7 @@ func TestMaintenerCanModify(t *testing.T) {
 		{"modify is true", true},
 		{"modify is false", false},
 	} {
+		testCase := testCase
 		t.Run(testCase.name, func(t *testing.T) {
 			t.Parallel()
 

@@ -31,6 +31,7 @@ func (u *upToDateWith) IsSatisfied(pr *github.PullRequest, details treeprint.Tre
 
 	cmp, _, err := u.gh.Client.Repositories.CompareCommits(u.gh.Ctx, u.gh.Owner, u.gh.Repo, base, head, nil)
 	if err != nil {
+		fmt.Println(err)
 		u.gh.Logger.Errorf("Unable to compare head branch (%s) and base (%s): %v", head, base, err)
 		return false
 	}
