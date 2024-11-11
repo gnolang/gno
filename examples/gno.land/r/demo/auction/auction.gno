@@ -14,9 +14,8 @@ var (
 	auctionList []*auctionp.Auction
 	currentTime time.Time
 	router      = mux.NewRouter()
+	globalDeposits = make(map[std.Address]int64)
 )
-
-var router = mux.NewRouter()
 
 func init() {
 	router.HandleFunc("", renderHomepage)
@@ -34,13 +33,51 @@ func CreateAuction(title, description string, begin, end int64, price std.Coin) 
 }
 
 // PlaceBid handles placing a bid on an auction
-func PlaceBid(id int, amount std.Coin) string {
+func PlaceBid(id int, amount int64, denom string) string {
+	if amount <= 0 {
+        panic("Amount must be positive")
+    }
 	caller := std.GetOrigCaller()
+	transaction := std.GetOrigSend()
+	// get the amount sent by the caller
+	amountSent := std.NewCoin(denom, transaction.AmountOf(denom))
+	// the bid amount to be placed
+	bidAmount := std.NewCoin(denom, amount)
+
+	// check if the ID is valid
 	if id >= len(auctionList) || id < 0 {
 		panic("Invalid auction ID")
 	}
+
+	banker := std.GetBanker(std.BankerTypeOrigSend)
+	existingDeposit, exists := globalDeposits[caller]
+
+	// conversion of the existing deposit to a std.Coin
+	existingDepositCoin := std.NewCoin(denom, existingDeposit)
+
+	if !exists || bidAmount.IsGTE(existingDepositCoin) {
+		// Calculate the additional amount to deposit
+		additionalAmount := bidAmount.Sub(existingDepositCoin)
+		if additionalAmount.IsPositive() {
+
+			if amountSent.IsGTE(additionalAmount) {
+				 			panic("Invalid bid amount sent")
+			}
+			banker.SendCoins(caller, std.CurrentRealm().Add(), std.NewCoins(additionalAmount))
+		}
+		globalDeposits[caller] = amount
+	} else {
+		// If the existing deposit is greater than the bid amount, refund the difference
+			if !amountSent.IsGTE(existingDepositCoin) {
+            panic("Invalid bid amount")
+        }
+			banker.SendCoins(caller, std.CurrentRealm().Addr(), std.NewCoins(bidAmount))
+			globalDeposits[caller] = amount
+		}
+	
+		// Place the bid
 	auction := auctionList[id]
-	if err := auction.AddBid(caller, amount); err != nil {
+	if err := auction.AddBid(caller, bidAmount); err != nil {
 		panic(err.Error())
 	}
 	return "Bid placed successfully"
@@ -60,7 +97,7 @@ func EndAuction(id int) string {
 }
 
 // Render renders the requested page
-func Render(path string) string {
+    func Render(path string) string {
 	return router.Render(path)
 }
 
