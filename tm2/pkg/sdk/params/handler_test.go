@@ -92,6 +92,10 @@ func TestParamsHandler_Query(t *testing.T) {
 					fmt.Sprintf("params/%s/", prefix),
 				},
 				{
+					"empty prefix, empty key",
+					"params//",
+				},
+				{
 					"malformed path, no key",
 					fmt.Sprintf("params/%s", prefix),
 				},
