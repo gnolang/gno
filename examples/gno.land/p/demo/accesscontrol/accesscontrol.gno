@@ -32,7 +32,6 @@ func validRoleName(name string) error {
 	if len(name) > 30 || name == "" {
 		return ErrNameRole
 	}
-
 	return nil
 }
 
@@ -81,8 +80,8 @@ func (rs *Roles) CreateRole(name string) (*Role, error) {
 	return role, nil
 }
 
-// HasRole check if an account has a specific role
-func (r *Role) HasRole(account std.Address) bool {
+// HasAccount check if an account has a specific role
+func (r *Role) HasAccount(account std.Address) bool {
 	return r.Holders.Has(account.String())
 }
 
@@ -154,7 +153,7 @@ func (rs *Roles) RenounceRole(name string) error {
 
 	caller := std.PrevRealm().Addr()
 
-	if !r.HasRole(caller) {
+	if !r.HasAccount(caller) {
 		return ErrAccountNotRole
 	}
 
