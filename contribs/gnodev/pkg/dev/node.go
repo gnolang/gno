@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"os"
 	"path/filepath"
 	"strings"
 	"sync"
@@ -576,5 +577,6 @@ func newNodeConfig(tmc *tmcfg.Config, chainid string, appstate gnoland.GnoGenesi
 		PrivValidator: pv,
 		TMConfig:      tmc,
 		Genesis:       genesis,
+		VMOutput:      os.Stdout,
 	}
 }

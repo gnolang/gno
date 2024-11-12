@@ -3,6 +3,7 @@ package gnoland
 
 import (
 	"fmt"
+	"io"
 	"log/slog"
 	"path/filepath"
 	"strconv"
@@ -36,10 +37,11 @@ type AppOptions struct {
 	DB                dbm.DB             // required
 	Logger            *slog.Logger       // required
 	EventSwitch       events.EventSwitch // required
+	VMOutput          io.Writer          // optional
 	InitChainerConfig                    // options related to InitChainer
 }
 
-// DefaultAppOptions provides a "ready" default [AppOptions] for use with
+// TestAppOptions provides a "ready" default [AppOptions] for use with
 // [NewAppWithOptions], using the provided db.
 func TestAppOptions(db dbm.DB) *AppOptions {
 	return &AppOptions{
@@ -91,6 +93,7 @@ func NewAppWithOptions(cfg *AppOptions) (abci.Application, error) {
 	bankKpr := bank.NewBankKeeper(acctKpr)
 	paramsKpr := params.NewParamsKeeper(mainKey, "vm")
 	vmk := vm.NewVMKeeper(baseKey, mainKey, acctKpr, bankKpr, paramsKpr)
+	vmk.Output = cfg.VMOutput
 
 	// Set InitChainer
 	icc := cfg.InitChainerConfig
@@ -291,7 +294,7 @@ func (cfg InitChainerConfig) loadAppState(ctx sdk.Context, appState any) ([]abci
 		return nil, fmt.Errorf("invalid AppState of type %T", appState)
 	}
 
-	// Parse and set genesis state balances
+	// Apply genesis balances.
 	for _, bal := range state.Balances {
 		acc := cfg.acctKpr.NewAccountWithAddress(ctx, bal.Address)
 		cfg.acctKpr.SetAccount(ctx, acc)
@@ -301,6 +304,12 @@ func (cfg InitChainerConfig) loadAppState(ctx sdk.Context, appState any) ([]abci
 		}
 	}
 
+	// Apply genesis params.
+	for _, param := range state.Params {
+		param.register(ctx, cfg.paramsKpr)
+	}
+
+	// Replay genesis txs.
 	txResponses := make([]abci.ResponseDeliverTx, 0, len(state.Txs))
 
 	// Run genesis txs
