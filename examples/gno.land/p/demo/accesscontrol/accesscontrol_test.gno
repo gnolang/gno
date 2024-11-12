@@ -42,6 +42,8 @@ func TestCreateRole(t *testing.T) {
 func TestGrantRole(t *testing.T) {
 	roles := initSetup(admin)
 
+	std.TestSetOrigCaller(admin)
+
 	_, err := roles.CreateRole(roleName)
 	uassert.NoError(t, err)
 
@@ -50,12 +52,13 @@ func TestGrantRole(t *testing.T) {
 
 	role, err := roles.FindRole(roleName)
 	uassert.NoError(t, err)
-	uassert.True(t, role.HasRole(user1), "user1 should have the TestRole")
+	uassert.True(t, role.HasAccount(user1), "user1 should have the TestRole")
 }
 
 func TestGrantRoleByNonOwner(t *testing.T) {
 	roles := initSetup(admin)
 
+	std.TestSetOrigCaller(admin)
 	_, err := roles.CreateRole(roleName)
 	uassert.NoError(t, err)
 
@@ -82,7 +85,7 @@ func TestRevokeRole(t *testing.T) {
 
 	role, err := roles.FindRole(roleName)
 	uassert.NoError(t, err)
-	uassert.False(t, role.HasRole(user1), "user1 should no longer have the TestRole")
+	uassert.False(t, role.HasAccount(user1), "user1 should no longer have the TestRole")
 }
 
 func TestRenounceRole(t *testing.T) {
@@ -102,7 +105,7 @@ func TestRenounceRole(t *testing.T) {
 
 	role, err := roles.FindRole(roleName)
 	uassert.NoError(t, err)
-	uassert.False(t, role.HasRole(user1), "user1 should have renounced the TestRole")
+	uassert.False(t, role.HasAccount(user1), "user1 should have renounced the TestRole")
 }
 
 func TestSetRoleAdmin(t *testing.T) {
