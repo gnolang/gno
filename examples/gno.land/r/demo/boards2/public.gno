@@ -2,7 +2,8 @@ package boards
 
 import (
 	"std"
-	"strconv"
+
+	"gno.land/r/demo/users"
 )
 
 // TODO: Consider a simpler API initially by removing this type of functions
@@ -20,9 +21,7 @@ func CreateBoard(name string) BoardID {
 	}
 
 	caller := std.GetOrigCaller()
-	if usernameOf(caller) == "" {
-		panic("unauthorized")
-	}
+	assertIsNotAnonymousCaller(caller)
 
 	bid := incGetBoardID()
 	url := "/r/demo/boards:" + name
@@ -32,28 +31,13 @@ func CreateBoard(name string) BoardID {
 	return board.id
 }
 
-// TODO: This must be an assertion function
-// TODO: Should we display realm's amount? Transfer to a pool realm/DAO?
-func checkAnonFee() bool {
-	sent := std.GetOrigSend()
-	anonFeeCoin := std.NewCoin("ugnot", int64(gDefaultAnonFee))
-	if len(sent) == 1 && sent[0].IsGTE(anonFeeCoin) {
-		return true
-	}
-	return false
-}
-
 func CreateThread(bid BoardID, title string, body string) PostID {
 	if !(std.IsOriginCall() || std.PrevRealm().IsUser()) {
 		panic("invalid non-user call")
 	}
 
 	caller := std.GetOrigCaller()
-	if usernameOf(caller) == "" {
-		if !checkAnonFee() {
-			panic("please register, otherwise minimum fee " + strconv.Itoa(gDefaultAnonFee) + " is required if anonymous")
-		}
-	}
+	assertAnonymousCallerFeeReceived(caller)
 
 	board := getBoard(bid)
 	if board == nil {
@@ -72,11 +56,7 @@ func CreateReply(bid BoardID, threadid, postid PostID, body string) PostID {
 	}
 
 	caller := std.GetOrigCaller()
-	if usernameOf(caller) == "" {
-		if !checkAnonFee() {
-			panic("please register, otherwise minimum fee " + strconv.Itoa(gDefaultAnonFee) + " is required if anonymous")
-		}
-	}
+	assertAnonymousCallerFeeReceived(caller)
 
 	board := getBoard(bid) // TODO: Create a mustGetBoard() function
 	if board == nil {
@@ -106,12 +86,7 @@ func CreateRepost(bid BoardID, postid PostID, title string, body string, dstBoar
 	}
 
 	caller := std.GetOrigCaller()
-	if usernameOf(caller) == "" {
-		// TODO: allow with gDefaultAnonFee payment.
-		if !checkAnonFee() {
-			panic("please register, otherwise minimum fee " + strconv.Itoa(gDefaultAnonFee) + " is required if anonymous")
-		}
-	}
+	assertAnonymousCallerFeeReceived(caller)
 
 	board := getBoard(bid)
 	if board == nil {
@@ -205,5 +180,28 @@ func EditPost(bid BoardID, threadid, postid PostID, title, body string) {
 			panic("unauthorized")
 		}
 		post.Update(title, body)
+	}
+}
+
+func assertIsNotAnonymousCaller(caller std.Address) {
+	// Caller is anonymous if doesn't have a registered user name
+	if users.GetUserByAddress(caller) == nil {
+		panic("unauthorized")
+	}
+}
+
+func assertAnonymousFeeReceived() {
+	// TODO: Should we display realm's amount somewhere or transfer to a pool realm/DAO?
+	sent := std.GetOrigSend()
+	fee := std.NewCoin("ugnot", int64(defaultAnonymousFee))
+	if len(sent) == 0 || sent[0].IsLT(fee) {
+		panic("please register a user, otherwise a minimum fee of " + fee.String() + " is required")
+	}
+	return
+}
+
+func assertAnonymousCallerFeeReceived(caller std.Address) {
+	if users.GetUserByAddress(caller) == nil {
+		assertAnonymousFeeReceived()
 	}
 }

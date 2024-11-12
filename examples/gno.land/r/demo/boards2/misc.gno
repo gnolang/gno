@@ -8,7 +8,7 @@ import (
 	"gno.land/r/demo/users"
 )
 
-// TODO: Create a "strings.gno" file and move all string related functions there
+// TODO: Create a "formatting.gno" file and move all formatting related functions there
 // TODO: Move getBoard() and incGetBoardID() to "boards.gno"
 
 //----------------------------------------
@@ -76,12 +76,4 @@ func displayAddressMD(addr std.Address) string {
 		return "[" + addr.String() + "](/r/demo/users:" + addr.String() + ")"
 	}
 	return "[@" + user.Name + "](/r/demo/users:" + user.Name + ")"
-}
-
-func usernameOf(addr std.Address) string {
-	user := users.GetUserByAddress(addr)
-	if user == nil {
-		return ""
-	}
-	return user.Name
 }
