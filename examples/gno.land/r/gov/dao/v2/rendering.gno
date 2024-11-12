@@ -70,7 +70,15 @@ func Render(path string) string {
 		return ufmt.Sprintf("unable to fetch proposal, %s", err.Error())
 	}
 
-	// Render the proposal
+	// Render the proposal page
+	out.WriteString(renderPropPage(prop, idx))
+
+	return out.String()
+}
+
+func renderPropPage(prop d.Proposal, idx int) string {
+	var out bytes.Buffer
+
 	out.WriteString(ufmt.Sprintf("# Proposal #%d - %s\n\n", idx, prop.Title()))
 	out.WriteString(prop.Render())
 	out.WriteString(renderAuthor(prop))
