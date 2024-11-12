@@ -43,12 +43,12 @@ func Render(path string) string {
 			out.WriteString(ufmt.Sprintf("#### Status: %s\n\n", strings.ToUpper(prop.Status().String())))
 
 			user := users.GetUserByAddress(prop.Author())
-			authorUsername := prop.Author().String()
+			authorDisplayText := prop.Author().String()
 			if user != nil {
-				authorUsername = ufmt.Sprintf("[%s](/r/demo/users:%s)", user.Name, user.Name)
+				authorDisplayText = ufmt.Sprintf("[%s](/r/demo/users:%s)", user.Name, user.Name)
 			}
 
-			out.WriteString(ufmt.Sprintf("#### Author: %s\n\n", authorUsername))
+			out.WriteString(ufmt.Sprintf("#### Author: %s\n\n", authorDisplayText))
 
 			if i != 0 {
 				out.WriteString("---\n\n")
