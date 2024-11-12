@@ -76,7 +76,7 @@ func Render(path string) string {
 	return out.String()
 }
 
-func renderPropPage(prop d.Proposal, idx int) string {
+func renderPropPage(prop dao.Proposal, idx int) string {
 	var out bytes.Buffer
 
 	out.WriteString(ufmt.Sprintf("# Proposal #%d - %s\n\n", idx, prop.Title()))
