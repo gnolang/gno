@@ -87,7 +87,7 @@ func (p *proposal) Render(idx int, authorUsername string) string {
 	out.WriteString(ufmt.Sprintf("#### Status: %s\n\n", strings.ToUpper(p.Status().String())))
 
 	out.WriteString(ufmt.Sprintf(
-		"#### Voting stats:\n- YES %d (%d%%)\n- NO %d (%d%%)\n- ABSTAIN %d (%d%%)\n- MISSING VOTE %d (%d%%)\n",
+		"#### Voting stats:\n- YES %d (%d%%)\n- NO %d (%d%%)\n- ABSTAIN %d (%d%%)\n- MISSING VOTES %d (%d%%)\n",
 		stats.YayVotes,
 		stats.YayPercent(),
 		stats.NayVotes,
