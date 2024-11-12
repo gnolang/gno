@@ -559,15 +559,10 @@ func (rlm *Realm) incRefCreatedDescendants(store Store, oo Object) {
 	}
 
 	// make some pkgId logic while assign
-	_, ok1 := oo.(*PackageValue)
-	if !ok1 {
-		if !oo.GetLastNewEscapedRealm().IsZero() {
-			if oo.GetLastNewEscapedRealm() != rlm.ID {
-				fmt.Println("---oo.GetLastNewEscapedRealm: ", oo.GetLastNewEscapedRealm())
-				fmt.Println("---rlm.ID: ", rlm.ID)
-				panic("should not happen while attempting to attach new real object from external realm")
-			}
-		}
+	if !oo.GetLastNewEscapedRealm().IsZero() && oo.GetLastNewEscapedRealm() != rlm.ID {
+		fmt.Println("---oo.GetLastNewEscapedRealm: ", oo.GetLastNewEscapedRealm())
+		fmt.Println("---rlm.ID: ", rlm.ID)
+		panic("should not happen while attempting to attach new real object from external realm")
 	}
 
 	// RECURSE GUARD

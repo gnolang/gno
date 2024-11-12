@@ -16,5 +16,5 @@ func main() {
 	println(somevalue)
 }
 
-// Output:
-// (struct{("test" string)} gno.land/r/demo/tests.TestRealmObject)
+// Error:
+// should not happen while attempting to attach new real object from external realm

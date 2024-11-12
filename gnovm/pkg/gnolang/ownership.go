@@ -453,10 +453,6 @@ func (tv *TypedValue) GetFirstObject2(store Store) (Object, PkgID, bool) {
 		clo := cv.GetClosure(store)
 		fmt.Println("---clo: ", clo)
 		fmt.Println("clo...PkgPath", clo.Source.GetLocation().PkgPath)
-		//if clo.GetObjectID().PkgID.IsZero() {
-		//	p := clo.Source.GetParentNode(store)
-		//	fmt.Println("---p: ", p)
-		//}
 		return cv.GetClosure(store), PkgIDFromPkgPath(clo.Source.GetLocation().PkgPath), false
 	case *MapValue:
 		return cv, pkgId, false

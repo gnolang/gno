@@ -2,15 +2,17 @@
 package crossrealm_test
 
 import (
-	"gno.land/r/demo/tests"
+	"std"
+
+	crossrealm "gno.land/r/demo/tests/crossrealm"
 )
 
-// NOTE: it is *invalid* to persist external realm types.
-var somevalue tests.TestRealmObject
-
 func main() {
-	somevalue.Field = "test"
-	println(somevalue)
+	crossrealm.SetCallback(func() bool {
+		println("callback")
+		return true
+	})
+	crossrealm.ExecuteCallback()
 }
 
 // Error:

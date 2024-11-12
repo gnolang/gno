@@ -7,11 +7,6 @@ import (
 	crossrealm "gno.land/r/demo/tests/crossrealm"
 )
 
-//var f1 = func() bool {
-//	println("callback")
-//	return true
-//}
-
 func main() {
 	f := func() bool {
 		println("callback")
