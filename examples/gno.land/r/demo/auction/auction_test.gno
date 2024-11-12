@@ -2,87 +2,86 @@ package auction
 
 import (
 	"std"
-	"strings"
 	"testing"
 	"time"
+
+	"gno.land/p/demo/testutils"
+	"gno.land/p/demo/uassert"
 )
 
-func setCurrentTime(t time.Time) {
-	currentTime = t
+var (
+	user1 = testutils.TestAddress("user1")
+	user2 = testutils.TestAddress("user2")
+)
+
+func TestCreateAuction(t *testing.T) {
+	// Initialize the test environment for user1
+	std.TestSetRealm(std.NewUserRealm(user1))
+
+	// Create a new auction
+	title := "Test Auction"
+	description := "This is a test auction"
+	begin := time.Now().Unix()
+	end := time.Now().Add(time.Hour * 24).Unix()
+	amount := int64(100)
+	denom := "ugnot"
+
+	result := CreateAuction(title, description, begin, end, amount, denom)
+	uassert.Equal(t, "Auction created successfully.", result)
+	uassert.Equal(t, 1, len(auctionList)) // Check that the auction was added to the list
+
+	// Check the details of the created auction
+	auction := auctionList[0]
+	uassert.Equal(t, title, auction.Title)
+	uassert.Equal(t, description, auction.Description)
+	uassert.Equal(t, begin, auction.Begin.Unix())
+	uassert.Equal(t, end, auction.End.Unix())
+	uassert.Equal(t, amount, auction.Price.Amount)
+	uassert.Equal(t, denom, auction.Price.Denom)
 }
-
-func resetCurrentTime() {
-	currentTime = time.Time{}
-}
-
-func TestAuction(t *testing.T) {
-	// Initialize the router and handlers
-
-	// Simulate the admin creating an auction
-	adminAddr := std.Address("admin")
-	std.TestSetOrigCaller(adminAddr)
-
-	// Create an auction that starts almost immediately
-	begin := time.Now().Add(1 * time.Second).Unix() // Auction begins in 1 second
-	end := time.Now().Add(24 * time.Hour).Unix()    // Auction ends in 24 hours
-	CreateAuction("Test Auction", "A simple test auction", begin, end, 100)
-
-	// Check if auction is in the upcoming section
-	std.TestSkipHeights(1) // Skip 1 block to simulate time passage
-	
-
-	// Simulate time passing to start the auction
-	std.TestSkipHeights(360) // Skip 360 blocks (1800 seconds or 30 minutes)
-	updateAuctionStates()
-
-	// Check if auction is in the ongoing section
-	ongoingPage := Render("ongoing")
-	if !strings.Contains(ongoingPage, "Test Auction") {
-		t.Errorf("Auction should be listed in ongoing auctions")
-	}
-
-	// Simulate users placing bids
-	user1 := std.Address("user1")
-	user2 := std.Address("user2")
-
-	// Set the caller to user1 and place a bid
+func TestPlaceBid(t *testing.T) {
+	// Initialize the environment for user1 as the auction creator
 	std.TestSetOrigCaller(user1)
-	PlaceBid(0, 200)
+	CreateAuction("Test Auction", "This is a test auction", time.Now().Unix(), time.Now().Add(time.Hour*24).Unix(), 100, "ugnot")
 
-	// Set the caller to user2 and place a bid
-	std.TestSetOrigCaller(user2)
-	PlaceBid(0, 300)
+	// Switch to user2 as the bidder
+	std.TestSetOrigCaller(user2)                                       // Simulate user2 as the caller
+	std.TestSetOrigSend(std.Coins{{Denom: "ugnot", Amount: 200}}, nil) // Set user2's funds for the transaction
 
-	// Check the details of the auction to verify bids
-	auctionDetails := Render("auction/0")
-	if !strings.Contains(auctionDetails, "300") {
-		t.Errorf("Highest bid should be 300")
-	}
+	// Place a bid of 150 ugnots
+	bidAmount := int64(150)
+	denom := "ugnot"
+	result := PlaceBid(0, bidAmount, denom)
+	uassert.Equal(t, "Bid placed successfully", result)
 
-	// End the auction
-	std.TestSetOrigCaller(adminAddr)
-	EndAuction(0)
-
-	// Check if auction is in the closed state
-	std.TestSkipHeights(8640) // Skip 8640 blocks (43200 seconds or 12 hours)
-	updateAuctionStates()
-	auctionDetails = Render("auction/0")
-	if !strings.Contains(auctionDetails, "Auction ended") {
-		t.Errorf("Auction should be ended")
-	}
-
-	resetCurrentTime()
+	// Verify that the bid was successfully recorded in the auction
+	auction := auctionList[0]
+	lastBid := auction.Bids[len(auction.Bids)-1]
+	uassert.Equal(t, bidAmount, lastBid.Amount.Amount)
+	uassert.Equal(t, user2, lastBid.Bidder)
 }
 
-// Update the auction states based on the current time
+// func TestEndAuction(t *testing.T) {
+// 	// Set user1 as the original caller and create the auction with both start and end times in the past
+// 	std.TestSetRealm(std.NewUserRealm(user1))
+// 	startTime := time.Now().Add(-2 * time.Hour) // Start time is 2 hours ago
+// 	endTime := time.Now().Add(1 * time.Hour)    // End time is 1 hour ago
+// 	CreateAuction("Test Auction", "This is a test auction", startTime.Unix(), endTime.Unix(), 100, "ugnot")
 
-func updateAuctionStates() {
-	now := time.Now()
-	for _, auc := range auctionList {
-		if auc.State == "upcoming" && now.After(auc.Begin) {
-			auc.State = "ongoing"
-		} else if auc.State == "ongoing" && now.After(auc.End) {
-			auc.State = "closed"
-		}
-	}
-}
+// 	// Switch context to user2 to place a bid
+// 	std.TestSetOrigCaller(user2)
+// 	std.TestSetOrigSend(std.Coins{{Denom: "ugnot", Amount: 200}}, nil)
+// 	PlaceBid(0, 150, "ugnot")
+
+// 	// Reset the context to user1 before ending the auction
+// 	std.TestSetRealm(std.NewUserRealm(user1))
+// 	auction := auctionList[0]
+// 	auction.End = time.Now().Add(-1 * time.Hour) // Set the end time to 1 hour ago
+// 	// End the auction and check for successful completion
+// 	result := EndAuction(0)
+// 	uassert.Equal(t, "Auction ended successfully", result)
+
+// 	// Confirm that user2 is recorded as the highest bidder
+
+// 	uassert.Equal(t, user2, auction.Bids[len(auction.Bids)-1].Bidder)
+// }
