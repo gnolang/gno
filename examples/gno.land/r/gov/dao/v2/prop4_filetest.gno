@@ -1,69 +1,40 @@
 package main
 
 import (
-	"std"
-
 	"gno.land/p/demo/dao"
-	"gno.land/p/demo/membstore"
 	"gno.land/r/gov/dao/bridge"
-	govdao "gno.land/r/gov/dao/v2"
+	govdaov2 "gno.land/r/gov/dao/v2"
+	"gno.land/r/sys/params"
 )
 
 func init() {
-	memberFn := func() []membstore.Member {
-		return []membstore.Member{
-			{
-				Address:     std.Address("g123"),
-				VotingPower: 10,
-			},
-			{
-				Address:     std.Address("g456"),
-				VotingPower: 10,
-			},
-			{
-				Address:     std.Address("g789"),
-				VotingPower: 10,
-			},
-		}
-	}
-
-	// Create a proposal
-	description := "add new members to the govdao"
-
+	mExec := params.NewStringPropExecutor("prop1.string", "value1")
+	comment := "setting prop1.string param"
 	prop := dao.ProposalRequest{
-		Description: description,
-		Executor:    govdao.NewMemberPropExecutor(memberFn),
+		Description: comment,
+		Executor:    mExec,
 	}
-
-	bridge.GovDAO().Propose(prop)
+	id := bridge.GovDAO().Propose(prop)
+	println("new prop", id)
 }
 
 func main() {
 	println("--")
-	println(govdao.GetMembStore().Size())
+	println(govdaov2.Render(""))
 	println("--")
-	println(govdao.Render(""))
+	println(govdaov2.Render("0"))
 	println("--")
-	println(govdao.Render("0"))
+	bridge.GovDAO().VoteOnProposal(0, "YES")
 	println("--")
-	govdao.VoteOnProposal(0, "YES")
+	println(govdaov2.Render("0"))
 	println("--")
-	println(govdao.Render("0"))
+	bridge.GovDAO().ExecuteProposal(0)
 	println("--")
-	println(govdao.Render(""))
-	println("--")
-	govdao.ExecuteProposal(0)
-	println("--")
-	println(govdao.Render("0"))
-	println("--")
-	println(govdao.Render(""))
-	println("--")
-	println(govdao.GetMembStore().Size())
+	println(govdaov2.Render("0"))
 }
 
 // Output:
-// --
-// 1
+// new prop 0
 // --
 // - [Proposal #0](/r/gov/dao/v2:0) - (**active**)(by g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm)
 //
@@ -72,7 +43,7 @@ func main() {
 //
 // Author: g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm
 //
-// add new members to the govdao
+// setting prop1.string param
 //
 // Status: active
 //
@@ -87,7 +58,7 @@ func main() {
 //
 // Author: g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm
 //
-// add new members to the govdao
+// setting prop1.string param
 //
 // Status: accepted
 //
@@ -97,28 +68,18 @@ func main() {
 //
 //
 // --
-// - [Proposal #0](/r/gov/dao/v2:0) - (**accepted**)(by g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm)
-//
-// --
 // --
 // # Prop #0
 //
 // Author: g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm
 //
-// add new members to the govdao
+// setting prop1.string param
 //
 // Status: execution successful
 //
-// Voting stats: YES 10 (25%), NO 0 (0%), ABSTAIN 0 (0%), MISSING VOTE 30 (75%)
+// Voting stats: YES 10 (100%), NO 0 (0%), ABSTAIN 0 (0%), MISSING VOTE 0 (0%)
 //
-// Threshold met: false
-//
-//
-// --
-// - [Proposal #0](/r/gov/dao/v2:0) - (**execution successful**)(by g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm)
-//
-// --
-// 4
+// Threshold met: true
 
 // Events:
 // [
@@ -166,6 +127,17 @@ func main() {
 //     ],
 //     "pkg_path": "gno.land/r/gov/dao/v2",
 //     "func": "EmitProposalAccepted"
+//   },
+//   {
+//     "type": "set",
+//     "attrs": [
+//       {
+//         "key": "k",
+//         "value": "prop1.string"
+//       }
+//     ],
+//     "pkg_path": "gno.land/r/sys/params",
+//     "func": ""
 //   },
 //   {
 //     "type": "ProposalExecuted",
