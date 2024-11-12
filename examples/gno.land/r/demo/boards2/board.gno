@@ -109,7 +109,7 @@ func (board *Board) HasPermission(addr std.Address, perm Permission) bool {
 }
 
 func (board *Board) Render() string {
-	s := "\\[[post](" + board.GetPostFormURL() + ")]\n\n"
+	s := "\\[" + newLink("post", board.GetPostFormURL()) + "]\n\n"
 	if board.threads.Size() > 0 {
 		board.threads.Iterate("", "", func(_ string, v interface{}) bool {
 			s += "----------------------------------------\n"

@@ -50,10 +50,16 @@ func summaryOf(text string, length int) string {
 	return line
 }
 
-func displayAddressMD(addr std.Address) string {
+// newLink returns a Markdown link.
+func newLink(label, uri string) string {
+	return "[" + label + "](" + uri + ")"
+}
+
+// newUserLink returns a Markdown link for an account to the users realm.
+func newUserLink(addr std.Address) string {
 	user := users.GetUserByAddress(addr)
 	if user == nil {
-		return "[" + addr.String() + "](/r/demo/users:" + addr.String() + ")"
+		return newLink(addr.String(), "/r/demo/users:"+addr.String())
 	}
-	return "[@" + user.Name + "](/r/demo/users:" + user.Name + ")"
+	return newLink("@"+user.Name, "/r/demo/users:"+user.Name)
 }

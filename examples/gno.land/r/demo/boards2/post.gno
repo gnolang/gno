@@ -11,6 +11,8 @@ import (
 
 // TODO: Move post and board to a package to improve API and reduce realm size?
 
+const dateFormat = "2006-01-02 3:04pm MST"
+
 type PostID uint64
 
 func (id PostID) String() string {
@@ -193,15 +195,19 @@ func (post *Post) RenderSummary() string {
 		return "Repost: " + post.GetSummary() + "\n" + thread.RenderSummary()
 	}
 
-	var s string
-	if post.title != "" { // TODO: Add a newLink() function
-		s += "## [" + summaryOf(post.title, 80) + "](" + post.GetURL() + ")\n"
-		s += "\n"
+	var (
+		s       string
+		postURL = post.GetURL()
+	)
+
+	if post.title != "" {
+		s += "## " + newLink(summaryOf(post.title, 80), postURL) + "\n\n"
 	}
+
 	s += post.GetSummary() + "\n"
-	s += "\\- " + displayAddressMD(post.creator) + ","
-	s += " [" + post.createdAt.Format("2006-01-02 3:04pm MST") + "](" + post.GetURL() + ")"
-	s += " \\[[x](" + post.GetDeleteFormURL() + ")]"
+	s += "\\- " + newUserLink(post.creator) + ","
+	s += " " + newLink(post.createdAt.Format(dateFormat), postURL)
+	s += " \\[" + newLink("x", post.GetDeleteFormURL()) + "]"
 	s += " (" + strconv.Itoa(post.replies.Size()) + " replies)"
 	s += " (" + strconv.Itoa(post.reposts.Size()) + " reposts)" + "\n"
 	return s
@@ -212,60 +218,60 @@ func (post *Post) RenderPost(indent string, levels int) string {
 		return "nil post"
 	}
 
-	var s string
+	var (
+		s       string
+		postURL = post.GetURL()
+	)
+
 	if post.title != "" {
 		s += indent + "# " + post.title + "\n"
 		s += indent + "\n"
 	}
 
 	s += indentBody(indent, post.body) + "\n" // TODO: indent body lines.
-
-	s += indent + "\\- " + displayAddressMD(post.creator) + ", "
-	s += "[" + post.createdAt.Format("2006-01-02 3:04pm (MST)") + "](" + post.GetURL() + ")"
-	s += " \\[[reply](" + post.GetReplyFormURL() + ")]"
+	s += indent + "\\- " + newUserLink(post.creator) + ", "
+	s += newLink(post.createdAt.Format(dateFormat), postURL)
+	s += " \\[" + newLink("reply", post.GetReplyFormURL()) + "]"
 	if post.IsThread() {
-		s += " \\[[repost](" + post.GetRepostFormURL() + ")]"
+		s += " \\[" + newLink("repost", post.GetRepostFormURL()) + "]"
 	}
-	s += " \\[[x](" + post.GetDeleteFormURL() + ")]\n"
+	s += " \\[" + newLink("x", post.GetDeleteFormURL()) + "]\n"
 
 	if levels > 0 {
 		if post.replies.Size() > 0 {
-			post.replies.Iterate("", "", func(key string, value interface{}) bool {
+			post.replies.Iterate("", "", func(_ string, value interface{}) bool {
 				s += indent + "\n"
 				s += value.(*Post).RenderPost(indent+"> ", levels-1)
 				return false
 			})
 		}
-	} else {
-		if post.replies.Size() > 0 {
-			s += indent + "\n"
-			s += indent + "_[see all " + strconv.Itoa(post.replies.Size()) + " replies](" + post.GetURL() + ")_\n"
-		}
+	} else if post.replies.Size() > 0 {
+		s += indent + "\n"
+		s += indent + "_" + newLink("see all "+strconv.Itoa(post.replies.Size())+" replies", postURL) + "_\n"
 	}
 	return s
 }
 
-// render reply and link to context thread
 func (post *Post) RenderInner() string {
 	if post.IsThread() {
 		panic("unexpected thread")
 	}
 
-	threadID := post.threadID
-	// replyID := post.id
-	parentID := post.parentID
-	s := "_[see thread](" + post.board.GetURLFromThreadAndReplyID(threadID, 0) + ")_\n\n"
-	thread := post.board.GetThread(post.threadID)
+	var (
+		parent   *Post
+		parentID = post.parentID
+		threadID = post.threadID
+		thread   = post.board.GetThread(threadID)
+	)
 
-	var parent *Post
 	if thread.id == parentID {
 		parent = thread
 	} else {
 		parent = thread.GetReply(parentID)
 	}
 
-	s += parent.RenderPost("", 0)
-	s += "\n"
+	s := "_" + newLink("see thread", post.board.GetURLFromThreadAndReplyID(threadID, 0)) + "_\n\n"
+	s += parent.RenderPost("", 0) + "\n"
 	s += post.RenderPost("> ", 5)
 	return s
 }
