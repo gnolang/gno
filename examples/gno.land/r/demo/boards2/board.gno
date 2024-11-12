@@ -1,6 +1,7 @@
 package boards
 
 import (
+	"regexp"
 	"std"
 	"strconv"
 	"time"
@@ -9,8 +10,9 @@ import (
 	"gno.land/p/moul/txlink"
 )
 
-//----------------------------------------
-// Board
+var reBoardName = regexp.MustCompile(`^[a-z]{3}[_a-z0-9]{0,23}[0-9]{3}$`)
+
+// TODO: Move post and board to a package to improve API and reduce realm size?
 
 type BoardID uint64
 
@@ -30,9 +32,7 @@ type Board struct {
 }
 
 func newBoard(id BoardID, url string, name string, creator std.Address) *Board {
-	if !reName.MatchString(name) {
-		panic("invalid name: " + name)
-	}
+	assertIsBoardName(name)
 	exists := gBoardsByName.Has(name)
 	if exists {
 		panic("board already exists")
@@ -58,6 +58,7 @@ func NewPrivateBoard(url string, name string, creator std.Address) *Board {
 }
 */
 
+// TODO: Do we want to support private boards? If so move forward with implementation.
 func (board *Board) IsPrivate() bool {
 	return board.id == 0
 }
@@ -89,6 +90,7 @@ func (board *Board) DeleteThread(pid PostID) {
 	}
 }
 
+// TODO: Change HasPermission to use a new authorization interface's `CanDo()`
 func (board *Board) HasPermission(addr std.Address, perm Permission) bool {
 	if board.creator == addr {
 		switch perm {
@@ -136,4 +138,10 @@ func (board *Board) GetURLFromThreadAndReplyID(threadID, replyID PostID) string 
 
 func (board *Board) GetPostFormURL() string {
 	return txlink.URL("CreateThread", "bid", board.id.String())
+}
+
+func assertIsBoardName(name string) {
+	if !reBoardName.MatchString(name) {
+		panic("invalid board name: " + name)
+	}
 }
