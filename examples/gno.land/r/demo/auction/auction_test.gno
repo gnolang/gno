@@ -61,27 +61,27 @@ func TestPlaceBid(t *testing.T) {
 	uassert.Equal(t, user2, lastBid.Bidder)
 }
 
-// func TestEndAuction(t *testing.T) {
-// 	// Set user1 as the original caller and create the auction with both start and end times in the past
-// 	std.TestSetRealm(std.NewUserRealm(user1))
-// 	startTime := time.Now().Add(-2 * time.Hour) // Start time is 2 hours ago
-// 	endTime := time.Now().Add(1 * time.Hour)    // End time is 1 hour ago
-// 	CreateAuction("Test Auction", "This is a test auction", startTime.Unix(), endTime.Unix(), 100, "ugnot")
+func TestEndAuction(t *testing.T) {
+	// Set user1 as the original caller and create the auction with both start and end times in the past
+	std.TestSetRealm(std.NewUserRealm(user1))
+	startTime := time.Now().Add(-2 * time.Hour) // Start time is 2 hours ago
+	endTime := time.Now().Add(1 * time.Hour)    // End time is 1 hour ago
+	CreateAuction("Test Auction", "This is a test auction", startTime.Unix(), endTime.Unix(), 100, "ugnot")
 
-// 	// Switch context to user2 to place a bid
-// 	std.TestSetOrigCaller(user2)
-// 	std.TestSetOrigSend(std.Coins{{Denom: "ugnot", Amount: 200}}, nil)
-// 	PlaceBid(0, 150, "ugnot")
+	// Switch context to user2 to place a bid
+	std.TestSetOrigCaller(user2)
+	std.TestSetOrigSend(std.Coins{{Denom: "ugnot", Amount: 200}}, nil)
+	PlaceBid(0, 150, "ugnot")
 
-// 	// Reset the context to user1 before ending the auction
-// 	std.TestSetRealm(std.NewUserRealm(user1))
-// 	auction := auctionList[0]
-// 	auction.End = time.Now().Add(-1 * time.Hour) // Set the end time to 1 hour ago
-// 	// End the auction and check for successful completion
-// 	result := EndAuction(0)
-// 	uassert.Equal(t, "Auction ended successfully", result)
+	// Reset the context to user1 before ending the auction
+	std.TestSetRealm(std.NewUserRealm(user1))
+	auction := auctionList[0]
+	auction.End = time.Now().Add(-1 * time.Hour) // Set the end time to 1 hour ago
+	// End the auction and check for successful completion
+	result := EndAuction(0)
+	uassert.Equal(t, "Auction ended successfully", result)
 
-// 	// Confirm that user2 is recorded as the highest bidder
+	// Confirm that user2 is recorded as the highest bidder
 
-// 	uassert.Equal(t, user2, auction.Bids[len(auction.Bids)-1].Bidder)
-// }
+	uassert.Equal(t, user2, auction.Bids[len(auction.Bids)-1].Bidder)
+}

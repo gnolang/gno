@@ -41,7 +41,7 @@ func CreateAuction(title, description string, begin, end int64, amount int64, de
 		panic("Auction creation failed: starting price must be positive")
 	}
 	startingPrice := std.NewCoin(denom, amount)
-	owner := std.GetOrigCaller()
+	owner := std.PrevRealm().Addr()
 	beginTime := time.Unix(begin, 0)
 	endTime := time.Unix(end, 0)
 	auction := auctionp.NewAuction(title, owner, description, beginTime, endTime, startingPrice)
