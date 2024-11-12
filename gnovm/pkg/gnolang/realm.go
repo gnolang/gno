@@ -210,7 +210,7 @@ func (rlm *Realm) DidUpdate(po, xo, co Object) {
 	}
 }
 
-func (rlm *Realm) DidUpdate2(po, xo, co Object, reference bool) {
+func (rlm *Realm) DidUpdate2(po, xo, co Object, isRef bool) {
 	fmt.Println("---DidUpdate, rlm.ID: ", rlm.ID)
 	fmt.Printf("---xo: %v, type of xo: %v\n", xo, reflect.TypeOf(xo))
 	fmt.Printf("---co: %v, type of co: %v\n", co, reflect.TypeOf(co))
@@ -265,7 +265,7 @@ func (rlm *Realm) DidUpdate2(po, xo, co Object, reference bool) {
 				println("---already escaped, should check cross realm?")
 				// already escaped
 			} else {
-				rlm.MarkNewEscapedCheckCrossRealm(co, reference)
+				rlm.MarkNewEscapedCheckCrossRealm(co, isRef)
 			}
 		} else if co.GetIsReal() {
 			rlm.MarkDirty(co)
@@ -289,7 +289,7 @@ func (rlm *Realm) DidUpdate2(po, xo, co Object, reference bool) {
 //----------------------------------------
 // mark*
 
-func (rlm *Realm) MarkNewEscapedCheckCrossRealm(oo Object, reference bool) {
+func (rlm *Realm) MarkNewEscapedCheckCrossRealm(oo Object, isRef bool) {
 	fmt.Println("---MarkNewEscapedCheckCrossRealm---, oo: ", oo)
 	fmt.Println("---rlm.ID: ", rlm.ID)
 
@@ -302,7 +302,7 @@ func (rlm *Realm) MarkNewEscapedCheckCrossRealm(oo Object, reference bool) {
 	}
 
 	if oo.GetLastNewEscapedRealm() != rlm.ID { // crossing realm
-		if reference {
+		if isRef {
 			if !oo.GetIsReal() { // oo is not attached in the origin realm
 				panic("should not happen while attempting to attach unattached object by reference from external realm")
 			}

@@ -291,18 +291,14 @@ func (pv PointerValue) Assign2(alloc *Allocator, store Store, rlm *Realm, tv2 Ty
 	if rlm != nil && pv.Base != nil {
 		oo1 := pv.TV.GetFirstObject(store)
 		fmt.Println("---oo1: ", oo1)
-		if oo1 != nil {
-			fmt.Println("---oo1.GetObjectID: ", oo1.GetObjectID())
-		}
 		pv.TV.Assign(alloc, tv2, cu)
-		oo2, pkgId, reference := pv.TV.GetFirstObject2(store)
+		oo2, pkgId, isRef := pv.TV.GetFirstObject2(store)
 		fmt.Println("---oo2: ", oo2)
 		fmt.Println("---oo2 pkgId: ", pkgId)
 		if oo2 != nil {
-			oo2.SetLastNewEscapedRealm(pkgId)
+			oo2.SetLastNewEscapedRealm(pkgId) // attach origin package info
 		}
-		// TODO: assert attached here?
-		rlm.DidUpdate2(pv.Base.(Object), oo1, oo2, reference)
+		rlm.DidUpdate2(pv.Base.(Object), oo1, oo2, isRef)
 	} else {
 		pv.TV.Assign(alloc, tv2, cu)
 	}
@@ -1046,6 +1042,7 @@ func (tv *TypedValue) ClearNum() {
 }
 
 func (tv TypedValue) Copy(alloc *Allocator) (cp TypedValue) {
+	fmt.Println("---Copy, type of tv.V: ", reflect.TypeOf(tv.V))
 	switch cv := tv.V.(type) {
 	case BigintValue:
 		cp.T = tv.T
@@ -1060,6 +1057,7 @@ func (tv TypedValue) Copy(alloc *Allocator) (cp TypedValue) {
 		cp.T = tv.T
 		cp.V = cv.Copy(alloc)
 	default:
+		println("---default")
 		cp = tv
 	}
 	return
@@ -1698,6 +1696,8 @@ func (tv *TypedValue) ComputeMapKey(store Store, omitType bool) MapKey {
 // cu: convert untyped after assignment. pass false
 // for const definitions, but true for all else.
 func (tv *TypedValue) Assign(alloc *Allocator, tv2 TypedValue, cu bool) {
+	fmt.Println("---Assign, tv: ", tv)
+	fmt.Println("---Assign, tv2: ", tv2, reflect.TypeOf(tv2))
 	if debug {
 		if tv.T == DataByteType {
 			// assignment to data byte types should only
@@ -1710,7 +1710,7 @@ func (tv *TypedValue) Assign(alloc *Allocator, tv2 TypedValue, cu bool) {
 			panic("should not happen")
 		}
 	}
-	*tv = tv2.Copy(alloc) // TODO: why copy?
+	*tv = tv2.Copy(alloc)
 	if cu && isUntyped(tv.T) {
 		ConvertUntypedTo(tv, defaultTypeOf(tv.T))
 	}
