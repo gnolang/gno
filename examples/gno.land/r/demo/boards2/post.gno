@@ -183,8 +183,8 @@ func (post *Post) GetDeleteFormURL() string {
 
 func (post *Post) RenderSummary() string {
 	if post.repostBoard != 0 {
-		dstBoard := getBoard(post.repostBoard)
-		if dstBoard == nil {
+		dstBoard, found := getBoard(post.repostBoard)
+		if !found {
 			panic("repostBoard does not exist")
 		}
 

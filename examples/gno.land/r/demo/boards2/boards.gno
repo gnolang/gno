@@ -12,12 +12,22 @@ var (
 	gBoardsByName avl.Tree // name -> *Board
 )
 
-func getBoard(bid BoardID) *Board {
-	v, exists := gBoards.Get(bid.Key())
+// getBoard returns a boards for a specific ID.
+func getBoard(id BoardID) (_ *Board, found bool) {
+	v, exists := gBoards.Get(id.Key())
 	if !exists {
-		return nil
+		return nil, false
 	}
-	return v.(*Board)
+	return v.(*Board), true
+}
+
+// mustGetBoard returns a board or panics when it's not found.
+func mustGetBoard(id BoardID) *Board {
+	board, found := getBoard(id)
+	if !found {
+		panic("board does not exist with ID: " + id.String())
+	}
+	return board
 }
 
 func incGetBoardID() BoardID {

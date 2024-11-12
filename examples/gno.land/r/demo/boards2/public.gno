@@ -35,11 +35,7 @@ func CreateThread(bid BoardID, title string, body string) PostID {
 	caller := std.GetOrigCaller()
 	assertAnonymousCallerFeeReceived(caller)
 
-	board := getBoard(bid)
-	if board == nil {
-		panic("board not exist")
-	}
-
+	board := mustGetBoard(bid)
 	thread := board.AddThread(caller, title, body)
 	return thread.id
 }
@@ -52,11 +48,7 @@ func CreateReply(bid BoardID, threadid, postid PostID, body string) PostID {
 	caller := std.GetOrigCaller()
 	assertAnonymousCallerFeeReceived(caller)
 
-	board := getBoard(bid) // TODO: Create a mustGetBoard() function
-	if board == nil {
-		panic("board not exist")
-	}
-
+	board := mustGetBoard(bid)
 	thread := board.GetThread(threadid) // TODO: Use found flag to encorage returned value validity checks
 	if thread == nil {
 		panic("thread not exist")
@@ -80,20 +72,12 @@ func CreateRepost(bid BoardID, postid PostID, title string, body string, dstBoar
 	caller := std.GetOrigCaller()
 	assertAnonymousCallerFeeReceived(caller)
 
-	board := getBoard(bid)
-	if board == nil {
-		panic("src board not exist")
-	}
-
+	board := mustGetBoard(bid)
 	if board.IsPrivate() {
 		panic("cannot repost from a private board")
 	}
 
-	dst := getBoard(dstBoardID)
-	if dst == nil {
-		panic("dst board not exist")
-	}
-
+	dst := mustGetBoard(dstBoardID)
 	thread := board.GetThread(postid)
 	if thread == nil {
 		panic("thread not exist")
@@ -108,11 +92,7 @@ func DeletePost(bid BoardID, threadid, postid PostID, reason string) {
 	assertIsUserCall()
 
 	caller := std.GetOrigCaller()
-	board := getBoard(bid)
-	if board == nil {
-		panic("board not exist")
-	}
-
+	board := mustGetBoard(bid)
 	thread := board.GetThread(threadid)
 	if thread == nil {
 		panic("thread not exist")
@@ -142,11 +122,7 @@ func EditPost(bid BoardID, threadid, postid PostID, title, body string) {
 	assertIsUserCall()
 
 	caller := std.GetOrigCaller()
-	board := getBoard(bid)
-	if board == nil {
-		panic("board not exist")
-	}
-
+	board := mustGetBoard(bid)
 	thread := board.GetThread(threadid)
 	if thread == nil {
 		panic("thread not exist")
