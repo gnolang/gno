@@ -16,9 +16,7 @@ func GetBoardIDFromName(name string) (BoardID, bool) {
 }
 
 func CreateBoard(name string) BoardID {
-	if !(std.IsOriginCall() || std.PrevRealm().IsUser()) {
-		panic("invalid non-user call")
-	}
+	assertIsUserCall()
 
 	caller := std.GetOrigCaller()
 	assertIsNotAnonymousCaller(caller)
@@ -32,9 +30,7 @@ func CreateBoard(name string) BoardID {
 }
 
 func CreateThread(bid BoardID, title string, body string) PostID {
-	if !(std.IsOriginCall() || std.PrevRealm().IsUser()) {
-		panic("invalid non-user call")
-	}
+	assertIsUserCall()
 
 	caller := std.GetOrigCaller()
 	assertAnonymousCallerFeeReceived(caller)
@@ -51,9 +47,7 @@ func CreateThread(bid BoardID, title string, body string) PostID {
 // TODO: Rename "postid" to "commentID", "threadid" to "threadID"
 // TODO: Split into CreateComment(threadID) & CreateReply(commentID), check link generation functions first (ex. Post.GetReplyFromURL())
 func CreateReply(bid BoardID, threadid, postid PostID, body string) PostID {
-	if !(std.IsOriginCall() || std.PrevRealm().IsUser()) { // TODO: Create assertIsUser() function
-		panic("invalid non-user call")
-	}
+	assertIsUserCall()
 
 	caller := std.GetOrigCaller()
 	assertAnonymousCallerFeeReceived(caller)
@@ -81,9 +75,7 @@ func CreateReply(bid BoardID, threadid, postid PostID, body string) PostID {
 // If dstBoard is private, does not ping back.
 // If board specified by bid is private, panics.
 func CreateRepost(bid BoardID, postid PostID, title string, body string, dstBoardID BoardID) PostID {
-	if !(std.IsOriginCall() || std.PrevRealm().IsUser()) {
-		panic("invalid non-user call")
-	}
+	assertIsUserCall()
 
 	caller := std.GetOrigCaller()
 	assertAnonymousCallerFeeReceived(caller)
@@ -113,9 +105,7 @@ func CreateRepost(bid BoardID, postid PostID, title string, body string, dstBoar
 
 // TODO: Split into DeleteThread() & DeleteComment()
 func DeletePost(bid BoardID, threadid, postid PostID, reason string) {
-	if !(std.IsOriginCall() || std.PrevRealm().IsUser()) {
-		panic("invalid non-user call")
-	}
+	assertIsUserCall()
 
 	caller := std.GetOrigCaller()
 	board := getBoard(bid)
@@ -149,9 +139,7 @@ func DeletePost(bid BoardID, threadid, postid PostID, reason string) {
 
 // TODO: Split into EditThread() & EditComment()
 func EditPost(bid BoardID, threadid, postid PostID, title, body string) {
-	if !(std.IsOriginCall() || std.PrevRealm().IsUser()) {
-		panic("invalid non-user call")
-	}
+	assertIsUserCall()
 
 	caller := std.GetOrigCaller()
 	board := getBoard(bid)
@@ -180,6 +168,12 @@ func EditPost(bid BoardID, threadid, postid PostID, title, body string) {
 			panic("unauthorized")
 		}
 		post.Update(title, body)
+	}
+}
+
+func assertIsUserCall() {
+	if !(std.IsOriginCall() || std.PrevRealm().IsUser()) {
+		panic("invalid non-user call")
 	}
 }
 
