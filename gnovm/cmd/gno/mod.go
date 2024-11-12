@@ -177,7 +177,7 @@ func execModDownload(cfg *modDownloadCfg, args []string, io commands.IO) error {
 	}
 
 	// fetch dependencies
-	if err := gnoMod.FetchDeps(gnomod.GetGnoModPath(), cfg.remote, cfg.verbose); err != nil {
+	if err := gnoMod.FetchDeps(gnomod.ModCachePath(), cfg.remote, cfg.verbose); err != nil {
 		return fmt.Errorf("fetch: %w", err)
 	}
 

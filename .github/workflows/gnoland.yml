@@ -13,5 +13,6 @@ jobs:
     uses: ./.github/workflows/main_template.yml
     with:
       modulepath: "gno.land"
+      tests-extra-args: "-coverpkg=github.com/gnolang/gno/gno.land/..."
     secrets:
       codecov-token: ${{ secrets.CODECOV_TOKEN }}
