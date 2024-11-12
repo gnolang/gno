@@ -61,5 +61,5 @@ type Proposal interface {
 	IsExpired() bool
 
 	// Render renders the proposal in a readable format
-	Render(idx int, authorUsername string) string
+	Render() string
 }

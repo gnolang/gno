@@ -4,13 +4,11 @@ import (
 	"bytes"
 	"errors"
 	"std"
-	"strconv"
 	"strings"
 
 	"gno.land/p/demo/dao"
 	"gno.land/p/demo/seqid"
 	"gno.land/p/demo/ufmt"
-	"gno.land/p/moul/txlink"
 )
 
 var ErrMissingProposal = errors.New("proposal is missing")
@@ -68,13 +66,11 @@ func (p *proposal) IsExpired() bool {
 	return false // this proposal never expires
 }
 
-func (p *proposal) Render(idx int, authorUsername string) string {
+func (p *proposal) Render() string {
 	// Fetch the voting stats
 	stats := p.Stats()
 
 	var out bytes.Buffer
-
-	out.WriteString(ufmt.Sprintf("# Proposal #%d - %s\n\n", idx, p.title))
 
 	out.WriteString("## Description\n\n")
 	if strings.TrimSpace(p.description) != "" {
@@ -101,23 +97,6 @@ func (p *proposal) Render(idx int, authorUsername string) string {
 	thresholdOut := strings.ToUpper(ufmt.Sprintf("%t", stats.YayVotes > (2*stats.TotalVotingPower)/3))
 
 	out.WriteString(ufmt.Sprintf("#### Threshold met: %s\n\n", thresholdOut))
-
-	if authorUsername != "" {
-		out.WriteString(ufmt.Sprintf("#### Author: [%s](/r/demo/users:%s)\n\n", authorUsername, authorUsername))
-	} else {
-		out.WriteString(ufmt.Sprintf("#### Author: %s\n\n", p.author.String()))
-	}
-
-	out.WriteString("## Actions\n\n")
-	if p.status == dao.Active {
-		out.WriteString(ufmt.Sprintf("[Vote YES](%s) - [Vote NO](%s) - [Vote ABSTAIN](%s)",
-			txlink.URL("VoteOnProposal", "id", strconv.Itoa(idx), "option", "YES"),
-			txlink.URL("VoteOnProposal", "id", strconv.Itoa(idx), "option", "NO"),
-			txlink.URL("VoteOnProposal", "id", strconv.Itoa(idx), "option", "ABSTAIN"),
-		))
-	} else {
-		out.WriteString("The voting period for this proposal is over.\n\n")
-	}
 
 	return out.String()
 }
