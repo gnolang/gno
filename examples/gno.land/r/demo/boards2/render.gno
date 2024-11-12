@@ -60,7 +60,7 @@ func renderThread(res *mux.ResponseWriter, req *mux.Request) {
 	if thread == nil {
 		res.Write("Thread does not exist with ID: " + req.GetVar("thread"))
 	} else {
-		res.Write(thread.RenderPost("", 5))
+		res.Write(thread.Render("", 5))
 	}
 }
 

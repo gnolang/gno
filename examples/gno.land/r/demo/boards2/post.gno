@@ -213,7 +213,7 @@ func (post *Post) RenderSummary() string {
 	return s
 }
 
-func (post *Post) RenderPost(indent string, levels int) string {
+func (post *Post) Render(indent string, levels int) string {
 	if post == nil {
 		return "nil post"
 	}
@@ -241,7 +241,7 @@ func (post *Post) RenderPost(indent string, levels int) string {
 		if post.replies.Size() > 0 {
 			post.replies.Iterate("", "", func(_ string, value interface{}) bool {
 				s += indent + "\n"
-				s += value.(*Post).RenderPost(indent+"> ", levels-1)
+				s += value.(*Post).Render(indent+"> ", levels-1)
 				return false
 			})
 		}
@@ -271,7 +271,7 @@ func (post *Post) RenderInner() string {
 	}
 
 	s := "_" + newLink("see thread", post.board.GetURLFromThreadAndReplyID(threadID, 0)) + "_\n\n"
-	s += parent.RenderPost("", 0) + "\n"
-	s += post.RenderPost("> ", 5)
+	s += parent.Render("", 0) + "\n"
+	s += post.Render("> ", 5)
 	return s
 }
