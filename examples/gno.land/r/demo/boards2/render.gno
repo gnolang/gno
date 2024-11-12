@@ -56,8 +56,8 @@ func renderThread(res *mux.ResponseWriter, req *mux.Request) {
 	}
 
 	board := v.(*Board)
-	thread := board.GetThread(PostID(tID))
-	if thread == nil {
+	thread, found := board.GetThread(PostID(tID))
+	if !found {
 		res.Write("Thread does not exist with ID: " + req.GetVar("thread"))
 	} else {
 		res.Write(thread.Render("", 5))
@@ -87,8 +87,8 @@ func renderReply(res *mux.ResponseWriter, req *mux.Request) {
 	}
 
 	board := v.(*Board)
-	thread := board.GetThread(PostID(tID))
-	if thread == nil {
+	thread, found := board.GetThread(PostID(tID))
+	if !found {
 		res.Write("Thread does not exist with ID: " + req.GetVar("thread"))
 		return
 	}

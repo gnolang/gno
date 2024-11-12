@@ -69,12 +69,12 @@ func (board *Board) IsPrivate() bool {
 	return board.id == 0
 }
 
-func (board *Board) GetThread(pid PostID) *Post {
-	v, found := board.threads.Get(pid.Key())
+func (board *Board) GetThread(threadID PostID) (_ *Post, found bool) {
+	v, found := board.threads.Get(threadID.Key())
 	if !found {
-		return nil
+		return nil, false
 	}
-	return v.(*Post)
+	return v.(*Post), true
 }
 
 func (board *Board) AddThread(creator std.Address, title string, body string) *Post {

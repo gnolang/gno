@@ -40,33 +40,29 @@ func CreateThread(bid BoardID, title string, body string) PostID {
 	return thread.id
 }
 
-// TODO: Rename "postid" to "commentID", "threadid" to "threadID"
-// TODO: Split into CreateComment(threadID) & CreateReply(commentID), check link generation functions first (ex. Post.GetReplyFromURL())
-func CreateReply(bid BoardID, threadid, postid PostID, body string) PostID {
+func CreateReply(bid BoardID, threadID, replyID PostID, body string) PostID {
 	assertIsUserCall()
 
 	caller := std.GetOrigCaller()
 	assertAnonymousCallerFeeReceived(caller)
 
 	board := mustGetBoard(bid)
-	thread := board.GetThread(threadid) // TODO: Use found flag to encorage returned value validity checks
-	if thread == nil {
+	thread, found := board.GetThread(threadID) // TODO: Use found flag to encorage returned value validity checks
+	if !found {
 		panic("thread not exist")
 	}
 
-	if postid == threadid {
+	if replyID == threadID {
 		reply := thread.AddReply(caller, body)
 		return reply.id
-	} else {
-		post := thread.GetReply(postid)
-		reply := post.AddReply(caller, body)
-		return reply.id
 	}
+
+	post := thread.GetReply(replyID)
+	reply := post.AddReply(caller, body)
+	return reply.id
 }
 
-// If dstBoard is private, does not ping back.
-// If board specified by bid is private, panics.
-func CreateRepost(bid BoardID, postid PostID, title string, body string, dstBoardID BoardID) PostID {
+func CreateRepost(bid BoardID, threadID PostID, title string, body string, dstBoardID BoardID) PostID {
 	assertIsUserCall()
 
 	caller := std.GetOrigCaller()
@@ -78,8 +74,8 @@ func CreateRepost(bid BoardID, postid PostID, title string, body string, dstBoar
 	}
 
 	dst := mustGetBoard(dstBoardID)
-	thread := board.GetThread(postid)
-	if thread == nil {
+	thread, found := board.GetThread(threadID)
+	if !found {
 		panic("thread not exist")
 	}
 
@@ -87,23 +83,23 @@ func CreateRepost(bid BoardID, postid PostID, title string, body string, dstBoar
 	return repost.id
 }
 
-// TODO: Split into DeleteThread() & DeleteComment()
-func DeletePost(bid BoardID, threadid, postid PostID, reason string) {
+// TODO: Split into DeleteThread() & DeleteReply()
+func DeletePost(bid BoardID, threadID, postid PostID, reason string) {
 	assertIsUserCall()
 
 	caller := std.GetOrigCaller()
 	board := mustGetBoard(bid)
-	thread := board.GetThread(threadid)
-	if thread == nil {
+	thread, found := board.GetThread(threadID)
+	if !found {
 		panic("thread not exist")
 	}
 
-	if postid == threadid {
+	if postid == threadID {
 		// delete thread
 		if !thread.HasPermission(caller, PermissionDelete) {
 			panic("unauthorized")
 		}
-		board.DeleteThread(threadid)
+		board.DeleteThread(threadID)
 	} else {
 		// delete thread's post
 		post := thread.GetReply(postid)
@@ -117,18 +113,18 @@ func DeletePost(bid BoardID, threadid, postid PostID, reason string) {
 	}
 }
 
-// TODO: Split into EditThread() & EditComment()
-func EditPost(bid BoardID, threadid, postid PostID, title, body string) {
+// TODO: Split into EditThread() & EditReply()
+func EditPost(bid BoardID, threadID, postid PostID, title, body string) {
 	assertIsUserCall()
 
 	caller := std.GetOrigCaller()
 	board := mustGetBoard(bid)
-	thread := board.GetThread(threadid)
-	if thread == nil {
+	thread, found := board.GetThread(threadID)
+	if !found {
 		panic("thread not exist")
 	}
 
-	if postid == threadid {
+	if postid == threadID {
 		// edit thread
 		if !thread.HasPermission(caller, PermissionEdit) {
 			panic("unauthorized")

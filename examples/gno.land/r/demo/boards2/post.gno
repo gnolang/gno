@@ -77,7 +77,7 @@ func (post *Post) AddReply(creator std.Address, body string) *Post {
 	if post.threadID == post.id {
 		post.repliesAll.Set(pKey, reply)
 	} else {
-		thread := board.GetThread(post.threadID)
+		thread, _ := board.GetThread(post.threadID)
 		thread.repliesAll.Set(pKey, reply)
 	}
 	return reply
@@ -188,8 +188,8 @@ func (post *Post) RenderSummary() string {
 			panic("repostBoard does not exist")
 		}
 
-		thread := dstBoard.GetThread(PostID(post.parentID))
-		if thread == nil {
+		thread, found := dstBoard.GetThread(PostID(post.parentID))
+		if !found {
 			return "reposted post does not exist"
 		}
 		return "Repost: " + post.GetSummary() + "\n" + thread.RenderSummary()
@@ -258,10 +258,10 @@ func (post *Post) RenderInner() string {
 	}
 
 	var (
-		parent   *Post
-		parentID = post.parentID
-		threadID = post.threadID
-		thread   = post.board.GetThread(threadID)
+		parent    *Post
+		parentID  = post.parentID
+		threadID  = post.threadID
+		thread, _ = post.board.GetThread(threadID) // TODO: This seems redundant (post == thread)
 	)
 
 	if thread.id == parentID {
