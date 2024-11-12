@@ -20,8 +20,7 @@ func getBoard(bid BoardID) *Board {
 	if !exists {
 		return nil
 	}
-	board := v.(*Board)
-	return board
+	return v.(*Board)
 }
 
 func incGetBoardID() BoardID {
@@ -29,26 +28,26 @@ func incGetBoardID() BoardID {
 	return BoardID(gBoardsCtr)
 }
 
-func padLeft(str string, length int) string {
-	if len(str) >= length {
-		return str
-	} else {
-		return strings.Repeat(" ", length-len(str)) + str
+func padLeft(s string, length int) string {
+	if len(s) >= length {
+		return s
 	}
+	return strings.Repeat(" ", length-len(s)) + s
 }
 
 func padZero(u64 uint64, length int) string {
-	str := strconv.Itoa(int(u64))
-	if len(str) >= length {
-		return str
-	} else {
-		return strings.Repeat("0", length-len(str)) + str
+	s := strconv.Itoa(int(u64))
+	if len(s) >= length {
+		return s
 	}
+	return strings.Repeat("0", length-len(s)) + s
 }
 
 func indentBody(indent string, body string) string {
-	lines := strings.Split(body, "\n")
-	res := ""
+	var (
+		res   string
+		lines = strings.Split(body, "\n")
+	)
 	for i, line := range lines {
 		if i > 0 {
 			res += "\n"
@@ -59,8 +58,8 @@ func indentBody(indent string, body string) string {
 }
 
 // NOTE: length must be greater than 3.
-func summaryOf(str string, length int) string {
-	lines := strings.SplitN(str, "\n", 2)
+func summaryOf(text string, length int) string {
+	lines := strings.SplitN(text, "\n", 2)
 	line := lines[0]
 	if len(line) > length {
 		line = line[:(length-3)] + "..."
@@ -75,9 +74,8 @@ func displayAddressMD(addr std.Address) string {
 	user := users.GetUserByAddress(addr)
 	if user == nil {
 		return "[" + addr.String() + "](/r/demo/users:" + addr.String() + ")"
-	} else {
-		return "[@" + user.Name + "](/r/demo/users:" + user.Name + ")"
 	}
+	return "[@" + user.Name + "](/r/demo/users:" + user.Name + ")"
 }
 
 func usernameOf(addr std.Address) string {

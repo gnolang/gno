@@ -37,10 +37,12 @@ type Board struct {
 
 func newBoard(id BoardID, url string, name string, creator std.Address) *Board {
 	assertIsBoardName(name)
+
 	exists := gBoardsByName.Has(name)
 	if exists {
 		panic("board already exists")
 	}
+
 	return &Board{
 		id:        id,
 		url:       url,
@@ -110,18 +112,15 @@ func (board *Board) HasPermission(addr std.Address, perm Permission) bool {
 // console.  This is suitable for demonstration or tests,
 // but not for prod.
 func (board *Board) RenderBoard() string {
-	str := ""
-	str += "\\[[post](" + board.GetPostFormURL() + ")]\n\n"
+	s := "\\[[post](" + board.GetPostFormURL() + ")]\n\n"
 	if board.threads.Size() > 0 {
-		board.threads.Iterate("", "", func(key string, value interface{}) bool {
-			if str != "" {
-				str += "----------------------------------------\n"
-			}
-			str += value.(*Post).RenderSummary() + "\n"
+		board.threads.Iterate("", "", func(_ string, v interface{}) bool {
+			s += "----------------------------------------\n"
+			s += v.(*Post).RenderSummary() + "\n"
 			return false
 		})
 	}
-	return str
+	return s
 }
 
 func (board *Board) incGetPostID() PostID {

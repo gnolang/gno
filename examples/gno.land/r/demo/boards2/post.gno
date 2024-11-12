@@ -100,6 +100,7 @@ func (post *Post) AddRepostTo(creator std.Address, title, body string, dst *Boar
 	if !post.IsThread() {
 		panic("cannot repost non-thread post")
 	}
+
 	pid := dst.incGetPostID()
 	repost := newPost(dst, pid, creator, title, body, pid, post.id, post.board.id)
 	dst.threads.Set(pid.Key(), repost)
@@ -113,11 +114,13 @@ func (thread *Post) DeletePost(pid PostID) {
 	if thread.id == pid {
 		panic("should not happen")
 	}
+
 	pKey := pid.Key()
 	v, removed := thread.repliesAll.Remove(pKey)
 	if !removed {
 		panic("post not found in thread")
 	}
+
 	post := v.(*Post)
 	if post.parentID != thread.id {
 		parent := thread.GetReply(post.parentID)
@@ -183,58 +186,64 @@ func (post *Post) RenderSummary() string {
 		if dstBoard == nil {
 			panic("repostBoard does not exist")
 		}
+
 		thread := dstBoard.GetThread(PostID(post.parentID))
 		if thread == nil {
 			return "reposted post does not exist"
 		}
 		return "Repost: " + post.GetSummary() + "\n" + thread.RenderSummary()
 	}
-	str := ""
+
+	var s string
 	if post.title != "" { // TODO: Add a newLink() function
-		str += "## [" + summaryOf(post.title, 80) + "](" + post.GetURL() + ")\n"
-		str += "\n"
+		s += "## [" + summaryOf(post.title, 80) + "](" + post.GetURL() + ")\n"
+		s += "\n"
 	}
-	str += post.GetSummary() + "\n"
-	str += "\\- " + displayAddressMD(post.creator) + ","
-	str += " [" + post.createdAt.Format("2006-01-02 3:04pm MST") + "](" + post.GetURL() + ")"
-	str += " \\[[x](" + post.GetDeleteFormURL() + ")]"
-	str += " (" + strconv.Itoa(post.replies.Size()) + " replies)"
-	str += " (" + strconv.Itoa(post.reposts.Size()) + " reposts)" + "\n"
-	return str
+	s += post.GetSummary() + "\n"
+	s += "\\- " + displayAddressMD(post.creator) + ","
+	s += " [" + post.createdAt.Format("2006-01-02 3:04pm MST") + "](" + post.GetURL() + ")"
+	s += " \\[[x](" + post.GetDeleteFormURL() + ")]"
+	s += " (" + strconv.Itoa(post.replies.Size()) + " replies)"
+	s += " (" + strconv.Itoa(post.reposts.Size()) + " reposts)" + "\n"
+	return s
 }
 
 func (post *Post) RenderPost(indent string, levels int) string {
 	if post == nil {
 		return "nil post"
 	}
-	str := ""
+
+	var s string
 	if post.title != "" {
-		str += indent + "# " + post.title + "\n"
-		str += indent + "\n"
+		s += indent + "# " + post.title + "\n"
+		s += indent + "\n"
 	}
-	str += indentBody(indent, post.body) + "\n" // TODO: indent body lines.
-	str += indent + "\\- " + displayAddressMD(post.creator) + ", "
-	str += "[" + post.createdAt.Format("2006-01-02 3:04pm (MST)") + "](" + post.GetURL() + ")"
-	str += " \\[[reply](" + post.GetReplyFormURL() + ")]"
+
+	s += indentBody(indent, post.body) + "\n" // TODO: indent body lines.
+
+	s += indent + "\\- " + displayAddressMD(post.creator) + ", "
+	s += "[" + post.createdAt.Format("2006-01-02 3:04pm (MST)") + "](" + post.GetURL() + ")"
+	s += " \\[[reply](" + post.GetReplyFormURL() + ")]"
 	if post.IsThread() {
-		str += " \\[[repost](" + post.GetRepostFormURL() + ")]"
+		s += " \\[[repost](" + post.GetRepostFormURL() + ")]"
 	}
-	str += " \\[[x](" + post.GetDeleteFormURL() + ")]\n"
+	s += " \\[[x](" + post.GetDeleteFormURL() + ")]\n"
+
 	if levels > 0 {
 		if post.replies.Size() > 0 {
 			post.replies.Iterate("", "", func(key string, value interface{}) bool {
-				str += indent + "\n"
-				str += value.(*Post).RenderPost(indent+"> ", levels-1)
+				s += indent + "\n"
+				s += value.(*Post).RenderPost(indent+"> ", levels-1)
 				return false
 			})
 		}
 	} else {
 		if post.replies.Size() > 0 {
-			str += indent + "\n"
-			str += indent + "_[see all " + strconv.Itoa(post.replies.Size()) + " replies](" + post.GetURL() + ")_\n"
+			s += indent + "\n"
+			s += indent + "_[see all " + strconv.Itoa(post.replies.Size()) + " replies](" + post.GetURL() + ")_\n"
 		}
 	}
-	return str
+	return s
 }
 
 // render reply and link to context thread
@@ -242,21 +251,22 @@ func (post *Post) RenderInner() string {
 	if post.IsThread() {
 		panic("unexpected thread")
 	}
+
 	threadID := post.threadID
 	// replyID := post.id
 	parentID := post.parentID
-	str := ""
-	str += "_[see thread](" + post.board.GetURLFromThreadAndReplyID(
-		threadID, 0) + ")_\n\n"
+	s := "_[see thread](" + post.board.GetURLFromThreadAndReplyID(threadID, 0) + ")_\n\n"
 	thread := post.board.GetThread(post.threadID)
+
 	var parent *Post
 	if thread.id == parentID {
 		parent = thread
 	} else {
 		parent = thread.GetReply(parentID)
 	}
-	str += parent.RenderPost("", 0)
-	str += "\n"
-	str += post.RenderPost("> ", 5)
-	return str
+
+	s += parent.RenderPost("", 0)
+	s += "\n"
+	s += post.RenderPost("> ", 5)
+	return s
 }
