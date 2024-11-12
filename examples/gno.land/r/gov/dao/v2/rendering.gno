@@ -71,6 +71,7 @@ func Render(path string) string {
 	}
 
 	// Render the proposal
+	out.WriteString(ufmt.Sprintf("# Proposal #%d - %s\n\n", idx, prop.Title()))
 	out.WriteString(prop.Render())
 	out.WriteString(renderAuthor(prop))
 	out.WriteString(renderActionBar(prop, idx))
