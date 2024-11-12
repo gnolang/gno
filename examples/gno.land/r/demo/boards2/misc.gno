@@ -8,17 +8,19 @@ import (
 	"gno.land/r/demo/users"
 )
 
+// TODO: Create a "strings.gno" file and move all string related functions there
+// TODO: Move getBoard() and incGetBoardID() to "boards.gno"
+
 //----------------------------------------
 // private utility methods
 // XXX ensure these cannot be called from public.
 
 func getBoard(bid BoardID) *Board {
-	bidkey := boardIDKey(bid)
-	board_, exists := gBoards.Get(bidkey)
+	v, exists := gBoards.Get(bid.Key())
 	if !exists {
 		return nil
 	}
-	board := board_.(*Board)
+	board := v.(*Board)
 	return board
 }
 
@@ -42,14 +44,6 @@ func padZero(u64 uint64, length int) string {
 	} else {
 		return strings.Repeat("0", length-len(str)) + str
 	}
-}
-
-func boardIDKey(bid BoardID) string {
-	return padZero(uint64(bid), 10)
-}
-
-func postIDKey(pid PostID) string {
-	return padZero(uint64(pid), 10)
 }
 
 func indentBody(indent string, body string) string {

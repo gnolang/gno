@@ -9,18 +9,21 @@ import (
 	"gno.land/p/moul/txlink"
 )
 
-//----------------------------------------
-// Post
+// TODO: Move post and board to a package to improve API and reduce realm size?
 
-// NOTE: a PostID is relative to the board.
 type PostID uint64
 
-func (pid PostID) String() string {
-	return strconv.Itoa(int(pid))
+func (id PostID) String() string {
+	return strconv.Itoa(int(id))
+}
+
+func (id PostID) Key() string {
+	return padZero(uint64(id), 10)
 }
 
 // A Post is a "thread" or a "reply" depending on context.
 // A thread is a Post of a Board that holds other replies.
+// TODO: Figure out "repliesAll", "threadID"
 type Post struct {
 	board       *Board
 	id          PostID
@@ -62,17 +65,19 @@ func (post *Post) GetPostID() PostID {
 	return post.id
 }
 
+// TODO: Rename to Reply()
 func (post *Post) AddReply(creator std.Address, body string) *Post {
 	board := post.board
 	pid := board.incGetPostID()
-	pidkey := postIDKey(pid)
+	pKey := pid.Key()
 	reply := newPost(board, pid, creator, "", body, post.threadID, post.id, 0)
-	post.replies.Set(pidkey, reply)
+	// TODO: Figure out how to remove this redundancy of data "replies==repliesAll" in threads
+	post.replies.Set(pKey, reply)
 	if post.threadID == post.id {
-		post.repliesAll.Set(pidkey, reply)
+		post.repliesAll.Set(pKey, reply)
 	} else {
 		thread := board.GetThread(post.threadID)
-		thread.repliesAll.Set(pidkey, reply)
+		thread.repliesAll.Set(pKey, reply)
 	}
 	return reply
 }
@@ -84,13 +89,11 @@ func (post *Post) Update(title string, body string) {
 }
 
 func (thread *Post) GetReply(pid PostID) *Post {
-	pidkey := postIDKey(pid)
-	replyI, ok := thread.repliesAll.Get(pidkey)
-	if !ok {
+	v, found := thread.repliesAll.Get(pid.Key())
+	if !found {
 		return nil
-	} else {
-		return replyI.(*Post)
 	}
+	return v.(*Post)
 }
 
 func (post *Post) AddRepostTo(creator std.Address, title, body string, dst *Board) *Post {
@@ -98,12 +101,10 @@ func (post *Post) AddRepostTo(creator std.Address, title, body string, dst *Boar
 		panic("cannot repost non-thread post")
 	}
 	pid := dst.incGetPostID()
-	pidkey := postIDKey(pid)
 	repost := newPost(dst, pid, creator, title, body, pid, post.id, post.board.id)
-	dst.threads.Set(pidkey, repost)
+	dst.threads.Set(pid.Key(), repost)
 	if !dst.IsPrivate() {
-		bidkey := boardIDKey(dst.id)
-		post.reposts.Set(bidkey, pid)
+		post.reposts.Set(dst.id.Key(), pid)
 	}
 	return repost
 }
@@ -112,20 +113,21 @@ func (thread *Post) DeletePost(pid PostID) {
 	if thread.id == pid {
 		panic("should not happen")
 	}
-	pidkey := postIDKey(pid)
-	postI, removed := thread.repliesAll.Remove(pidkey)
+	pKey := pid.Key()
+	v, removed := thread.repliesAll.Remove(pKey)
 	if !removed {
 		panic("post not found in thread")
 	}
-	post := postI.(*Post)
+	post := v.(*Post)
 	if post.parentID != thread.id {
 		parent := thread.GetReply(post.parentID)
-		parent.replies.Remove(pidkey)
+		parent.replies.Remove(pKey)
 	} else {
-		thread.replies.Remove(pidkey)
+		thread.replies.Remove(pKey)
 	}
 }
 
+// TODO: Change HasPermission to use a new authorization interface's `CanDo()`
 func (post *Post) HasPermission(addr std.Address, perm Permission) bool {
 	if post.creator == addr {
 		switch perm {
@@ -147,12 +149,9 @@ func (post *Post) GetSummary() string {
 
 func (post *Post) GetURL() string {
 	if post.IsThread() {
-		return post.board.GetURLFromThreadAndReplyID(
-			post.id, 0)
-	} else {
-		return post.board.GetURLFromThreadAndReplyID(
-			post.threadID, post.id)
+		return post.board.GetURLFromThreadAndReplyID(post.id, 0)
 	}
+	return post.board.GetURLFromThreadAndReplyID(post.threadID, post.id)
 }
 
 func (post *Post) GetReplyFormURL() string {
@@ -191,7 +190,7 @@ func (post *Post) RenderSummary() string {
 		return "Repost: " + post.GetSummary() + "\n" + thread.RenderSummary()
 	}
 	str := ""
-	if post.title != "" {
+	if post.title != "" { // TODO: Add a newLink() function
 		str += "## [" + summaryOf(post.title, 80) + "](" + post.GetURL() + ")\n"
 		str += "\n"
 	}

@@ -16,8 +16,12 @@ var reBoardName = regexp.MustCompile(`^[a-z]{3}[_a-z0-9]{0,23}[0-9]{3}$`)
 
 type BoardID uint64
 
-func (bid BoardID) String() string {
-	return strconv.Itoa(int(bid))
+func (id BoardID) String() string {
+	return strconv.Itoa(int(id))
+}
+
+func (id BoardID) Key() string {
+	return padZero(uint64(id), 10)
 }
 
 type Board struct {
@@ -64,27 +68,24 @@ func (board *Board) IsPrivate() bool {
 }
 
 func (board *Board) GetThread(pid PostID) *Post {
-	pidkey := postIDKey(pid)
-	postI, exists := board.threads.Get(pidkey)
-	if !exists {
+	v, found := board.threads.Get(pid.Key())
+	if !found {
 		return nil
 	}
-	return postI.(*Post)
+	return v.(*Post)
 }
 
 func (board *Board) AddThread(creator std.Address, title string, body string) *Post {
 	pid := board.incGetPostID()
-	pidkey := postIDKey(pid)
 	thread := newPost(board, pid, creator, title, body, pid, 0, 0)
-	board.threads.Set(pidkey, thread)
+	board.threads.Set(pid.Key(), thread)
 	return thread
 }
 
 // NOTE: this can be potentially very expensive for threads with many replies.
 // TODO: implement optional fast-delete where thread is simply moved.
 func (board *Board) DeleteThread(pid PostID) {
-	pidkey := postIDKey(pid)
-	_, removed := board.threads.Remove(pidkey)
+	_, removed := board.threads.Remove(pid.Key())
 	if !removed {
 		panic("thread does not exist with id " + pid.String())
 	}
@@ -131,9 +132,8 @@ func (board *Board) incGetPostID() PostID {
 func (board *Board) GetURLFromThreadAndReplyID(threadID, replyID PostID) string {
 	if replyID == 0 {
 		return board.url + "/" + threadID.String()
-	} else {
-		return board.url + "/" + threadID.String() + "/" + replyID.String()
 	}
+	return board.url + "/" + threadID.String() + "/" + replyID.String()
 }
 
 func (board *Board) GetPostFormURL() string {

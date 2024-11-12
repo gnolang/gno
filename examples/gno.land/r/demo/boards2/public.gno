@@ -8,6 +8,7 @@ import (
 //----------------------------------------
 // Public facing functions
 
+// TODO: Consider a simpler API initially by removing this type of functions
 func GetBoardIDFromName(name string) (BoardID, bool) {
 	boardI, exists := gBoardsByName.Get(name)
 	if !exists {
@@ -27,12 +28,13 @@ func CreateBoard(name string) BoardID {
 	}
 	url := "/r/demo/boards:" + name
 	board := newBoard(bid, url, name, caller)
-	bidkey := boardIDKey(bid)
-	gBoards.Set(bidkey, board)
+	gBoards.Set(bid.Key(), board)
 	gBoardsByName.Set(name, board)
 	return board.id
 }
 
+// TODO: This must be an assertion function
+// TODO: Should we display realm's amount? Transfer to a pool realm/DAO?
 func checkAnonFee() bool {
 	sent := std.GetOrigSend()
 	anonFeeCoin := std.NewCoin("ugnot", int64(gDefaultAnonFee))
@@ -60,8 +62,10 @@ func CreateThread(bid BoardID, title string, body string) PostID {
 	return thread.id
 }
 
+// TODO: Rename "postid" to "commentID", "threadid" to "threadID"
+// TODO: Split into CreateComment(threadID) & CreateReply(commentID), check link generation functions first (ex. Post.GetReplyFromURL())
 func CreateReply(bid BoardID, threadid, postid PostID, body string) PostID {
-	if !(std.IsOriginCall() || std.PrevRealm().IsUser()) {
+	if !(std.IsOriginCall() || std.PrevRealm().IsUser()) { // TODO: Create assertIsUser() function
 		panic("invalid non-user call")
 	}
 	caller := std.GetOrigCaller()
@@ -70,11 +74,11 @@ func CreateReply(bid BoardID, threadid, postid PostID, body string) PostID {
 			panic("please register, otherwise minimum fee " + strconv.Itoa(gDefaultAnonFee) + " is required if anonymous")
 		}
 	}
-	board := getBoard(bid)
+	board := getBoard(bid) // TODO: Create a mustGetBoard() function
 	if board == nil {
 		panic("board not exist")
 	}
-	thread := board.GetThread(threadid)
+	thread := board.GetThread(threadid) // TODO: Use found flag to encorage returned value validity checks
 	if thread == nil {
 		panic("thread not exist")
 	}
@@ -120,6 +124,7 @@ func CreateRepost(bid BoardID, postid PostID, title string, body string, dstBoar
 	return repost.id
 }
 
+// TODO: Split into DeleteThread() & DeleteComment()
 func DeletePost(bid BoardID, threadid, postid PostID, reason string) {
 	if !(std.IsOriginCall() || std.PrevRealm().IsUser()) {
 		panic("invalid non-user call")
@@ -152,6 +157,7 @@ func DeletePost(bid BoardID, threadid, postid PostID, reason string) {
 	}
 }
 
+// TODO: Split into EditThread() & EditComment()
 func EditPost(bid BoardID, threadid, postid PostID, title, body string) {
 	if !(std.IsOriginCall() || std.PrevRealm().IsUser()) {
 		panic("invalid non-user call")
