@@ -2,6 +2,7 @@ package simpledao
 
 import (
 	"errors"
+	"strings"
 
 	"gno.land/p/demo/avl"
 	"gno.land/p/demo/dao"
@@ -38,14 +39,19 @@ func (t *tally) castVote(member membstore.Member, option dao.VoteOption) error {
 		return ErrAlreadyVoted
 	}
 
+	// convert option to upper-case, like the constants are.
+	option = dao.VoteOption(strings.ToUpper(string(option)))
+
 	// Update the tally
 	switch option {
 	case dao.YesVote:
 		t.yays += member.VotingPower
 	case dao.AbstainVote:
 		t.abstains += member.VotingPower
-	default:
+	case dao.NoVote:
 		t.nays += member.VotingPower
+	default:
+		panic("invalid voting option: " + option)
 	}
 
 	// Save the voting status

@@ -9,7 +9,6 @@ import (
 	"github.com/gnolang/gno/gno.land/pkg/gnoland"
 	"github.com/gnolang/gno/tm2/pkg/amino"
 	"github.com/gnolang/gno/tm2/pkg/commands"
-	"github.com/gnolang/gno/tm2/pkg/std"
 	"github.com/gnolang/gno/tm2/pkg/testutils"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -117,9 +116,9 @@ func TestGenesis_Txs_Export(t *testing.T) {
 		// Validate the transactions were written down
 		scanner := bufio.NewScanner(outputFile)
 
-		outputTxs := make([]std.Tx, 0)
+		outputTxs := make([]gnoland.TxWithMetadata, 0)
 		for scanner.Scan() {
-			var tx std.Tx
+			var tx gnoland.TxWithMetadata
 
 			require.NoError(t, amino.UnmarshalJSON(scanner.Bytes(), &tx))
 

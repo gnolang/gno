@@ -118,9 +118,9 @@ func TestGenesis_Txs_Add_Packages(t *testing.T) {
 		state := updatedGenesis.AppState.(gnoland.GnoGenesisState)
 
 		require.Equal(t, 1, len(state.Txs))
-		require.Equal(t, 1, len(state.Txs[0].Msgs))
+		require.Equal(t, 1, len(state.Txs[0].Tx.Msgs))
 
-		msgAddPkg, ok := state.Txs[0].Msgs[0].(vmm.MsgAddPackage)
+		msgAddPkg, ok := state.Txs[0].Tx.Msgs[0].(vmm.MsgAddPackage)
 		require.True(t, ok)
 
 		assert.Equal(t, packagePath, msgAddPkg.Package.Path)
