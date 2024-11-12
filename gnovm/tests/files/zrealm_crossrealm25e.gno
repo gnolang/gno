@@ -19,16 +19,14 @@ type localContainer struct {
 }
 
 var lc localContainer
-
-func init() {
-	// container attached, embedded object attached
-	lc = localContainer{name: "local_container", f: fooer{name: "local_fooer"}} // attach
-}
+var ff fooer
 
 func main() {
-	crossrealm.SetContainer(&lc.f)
+	ff = fooer{name: "local_fooer"} // ref 1, unreal
+	lc = localContainer{name: "local_container", f: ff}
+	crossrealm.SetContainer(lc.f)
 	print(".")
 }
 
-// Output:
-// .
+// Error:
+// should not happen while attempting to attach objects by value from external realm

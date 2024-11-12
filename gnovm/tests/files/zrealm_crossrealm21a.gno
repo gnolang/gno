@@ -23,4 +23,4 @@ func main() {
 }
 
 // Error:
-// !!!cross realm while attach object
+// should not happen while attempting to attach new real object from external realm

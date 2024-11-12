@@ -15,7 +15,5 @@ func main() {
 	print(".")
 }
 
-// XXX this works. attach value with type defined in same realm
-
 // Output:
 // .

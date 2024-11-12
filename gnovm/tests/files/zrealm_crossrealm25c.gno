@@ -1,8 +1,6 @@
 // PKGPATH: gno.land/r/crossrealm_test
 package crossrealm_test
 
-// pass pointer to an embedded object to external realm?
-
 import (
 	"std"
 
@@ -27,7 +25,9 @@ func init() {
 }
 
 func main() {
-	crossrealm.AttachContainer()
-	crossrealm.SetContainer(lc.f) // should work
+	crossrealm.SetContainer(lc.f)
 	print(".")
 }
+
+// Error:
+// should not happen while attempting to attach objects by value from external realm

@@ -5,10 +5,6 @@ import (
 	crossrealm "gno.land/r/demo/tests/crossrealm"
 )
 
-type local struct{}
-
-var a local
-
 var b0 crossrealm.Bar // run declarations
 
 func main() {
@@ -16,4 +12,4 @@ func main() {
 }
 
 // Error:
-// !!!cross realm while attach object
+// should not happen while attempting to attach new real object from external realm

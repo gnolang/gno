@@ -295,19 +295,14 @@ func (pv PointerValue) Assign2(alloc *Allocator, store Store, rlm *Realm, tv2 Ty
 			fmt.Println("---oo1.GetObjectID: ", oo1.GetObjectID())
 		}
 		pv.TV.Assign(alloc, tv2, cu)
-		oo2, pkgId := pv.TV.GetFirstObject2(store)
+		oo2, pkgId, reference := pv.TV.GetFirstObject2(store)
 		fmt.Println("---oo2: ", oo2)
-		//fmt.Println("---oo2 objectInfo: ", oo2.GetObjectInfo())
 		fmt.Println("---oo2 pkgId: ", pkgId)
-		//if oo2 != nil {
-		//	fmt.Println("---oo2.GetObjectID: ", oo2.GetObjectID())
-		//}
 		if oo2 != nil {
-			fmt.Printf("addr of oo2: %p \n", oo2)
 			oo2.SetLastNewEscapedRealm(pkgId)
 		}
 		// TODO: assert attached here?
-		rlm.DidUpdate(pv.Base.(Object), oo1, oo2)
+		rlm.DidUpdate2(pv.Base.(Object), oo1, oo2, reference)
 	} else {
 		pv.TV.Assign(alloc, tv2, cu)
 	}

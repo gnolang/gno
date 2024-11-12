@@ -18,11 +18,9 @@ func init() {
 }
 
 func main() {
-
 	crossrealm.SetContainer(&f)
 	print(".")
 }
 
-// this should work.
-// XXX, this associate a pointer to a floating object(not attached)
-// to external realm, no attachment happens to the external realm.
+// Output:
+// .

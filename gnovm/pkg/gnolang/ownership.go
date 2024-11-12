@@ -149,7 +149,7 @@ type ObjectInfo struct {
 	isCrossRealm            bool
 	isNewEscaped            bool
 	isNewDeleted            bool
-	lastNewRealEscapedRealm PkgID // realm attached and escaped
+	lastNewRealEscapedRealm PkgID
 
 	// XXX huh?
 	owner Object // mem reference to owner.
@@ -402,7 +402,7 @@ func (tv *TypedValue) GetFirstObject(store Store) Object {
 }
 
 // XXX, get first accessible object, maybe containing(parent) object, maybe itself.
-func (tv *TypedValue) GetFirstObject2(store Store) (Object, PkgID) {
+func (tv *TypedValue) GetFirstObject2(store Store) (Object, PkgID, bool) {
 	fmt.Println("---GetFirstObject2---, tv: ", tv, reflect.TypeOf(tv.V))
 	fmt.Println("---tv.T, type of tv.T", tv.T, reflect.TypeOf(tv.T))
 	var pkgId PkgID
@@ -427,46 +427,47 @@ func (tv *TypedValue) GetFirstObject2(store Store) (Object, PkgID) {
 			fmt.Println("---v.GetObjectID(): ", v.GetObjectID())
 			fmt.Println("---is Attached?", v.GetIsReal())
 
-			//if dt, ok := cv.TV.T.(*DeclaredType); ok {
-			//	fmt.Println("---dt: ", dt)
-			//	fmt.Println("---dt.Name: ", dt.Name)
-			//	fmt.Println("---dt.PkgPath: ", dt.PkgPath)
-			//	fmt.Println("---PkgID: ", PkgIDFromPkgPath(dt.PkgPath))
-			//	fmt.Println("---dt.Base: ", dt.Base)
-			//	if IsRealmPath(dt.PkgPath) {
-			//		pkgId = PkgIDFromPkgPath(dt.PkgPath)
-			//	}
-			//}
+			if dt, ok := cv.TV.T.(*DeclaredType); ok {
+				// b0 = &crossrealm.Bar{A: 1} this is valid
+				// no need to check cross
+				// XXX, is it right?
+				if _, ok := cv.GetBase(store).(*HeapItemValue); !ok {
+					if IsRealmPath(dt.PkgPath) {
+						pkgId = PkgIDFromPkgPath(dt.PkgPath)
+					}
+				}
+			}
 		}
-		return cv.GetBase(store), pkgId
+		return cv.GetBase(store), pkgId, true
 	case *ArrayValue:
-		return cv, pkgId
+		return cv, pkgId, false
 	case *SliceValue:
-		return cv.GetBase(store), pkgId
+		// TODO: XXX
+		return cv.GetBase(store), pkgId, false
 	case *StructValue:
 		println("---struct value")
 		fmt.Println("---cv.GetObjectID(): ", cv.GetObjectID())
-		return cv, pkgId
+		return cv, pkgId, false
 	case *FuncValue:
-		return cv.GetClosure(store), pkgId
+		return cv.GetClosure(store), pkgId, false
 	case *MapValue:
-		return cv, pkgId
+		return cv, pkgId, false
 	case *BoundMethodValue:
-		return cv, pkgId
+		return cv, pkgId, false
 	case *NativeValue:
 		// XXX allow PointerValue.Assign2 to pass nil for oo1/oo2.
 		// panic("realm logic for native values not supported")
-		return nil, pkgId
+		return nil, pkgId, false
 	case *Block:
-		return cv, pkgId
+		return cv, pkgId, false
 	case RefValue:
 		oo := store.GetObject(cv.ObjectID)
 		tv.V = oo
-		return oo, pkgId
+		return oo, pkgId, false
 	case *HeapItemValue:
 		// should only appear in PointerValue.Base
 		panic("heap item value should only appear as a pointer's base")
 	default:
-		return nil, pkgId
+		return nil, pkgId, false
 	}
 }
