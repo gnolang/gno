@@ -57,7 +57,7 @@ func main() {
 // - [Gnoscan](https://gnoscan.io)
 // - [Portal Loop](https://docs.gno.land/concepts/portal-loop)
 // - [Testnet 4](https://test4.gno.land/)
-// - Testnet Faucet Hub (soon)
+// - [Faucet Hub](https://faucet.gno.land)
 //
 // </div><!-- end column-->
 // </div><!-- end columns-3-->
