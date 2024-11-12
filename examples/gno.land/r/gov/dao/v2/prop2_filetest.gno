@@ -62,6 +62,8 @@ func main() {
 //
 //
 // --
+// # Proposal #0 - govdao blog post title
+//
 // ## Description
 //
 // post a new blogpost about govdao
@@ -88,6 +90,8 @@ func main() {
 //
 // --
 // --
+// # Proposal #0 - govdao blog post title
+//
 // ## Description
 //
 // post a new blogpost about govdao
@@ -120,6 +124,8 @@ func main() {
 // No posts.
 // --
 // --
+// # Proposal #0 - govdao blog post title
+//
 // ## Description
 //
 // post a new blogpost about govdao

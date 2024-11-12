@@ -76,6 +76,8 @@ func main() {
 //
 //
 // --
+// # Proposal #0 - new govdao member addition
+//
 // ## Description
 //
 // add new members to the govdao
@@ -102,6 +104,8 @@ func main() {
 //
 // --
 // --
+// # Proposal #0 - new govdao member addition
+//
 // ## Description
 //
 // add new members to the govdao
@@ -140,6 +144,8 @@ func main() {
 //
 // --
 // --
+// # Proposal #0 - new govdao member addition
+//
 // ## Description
 //
 // add new members to the govdao
