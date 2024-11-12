@@ -108,10 +108,7 @@ func (board *Board) HasPermission(addr std.Address, perm Permission) bool {
 	return false
 }
 
-// Renders the board for display suitable as plaintext in
-// console.  This is suitable for demonstration or tests,
-// but not for prod.
-func (board *Board) RenderBoard() string {
+func (board *Board) Render() string {
 	s := "\\[[post](" + board.GetPostFormURL() + ")]\n\n"
 	if board.threads.Size() > 0 {
 		board.threads.Iterate("", "", func(_ string, v interface{}) bool {

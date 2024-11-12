@@ -36,7 +36,7 @@ func renderBoard(res *mux.ResponseWriter, req *mux.Request) {
 		res.Write("Board does not exist: " + name)
 	} else {
 		board := v.(*Board)
-		res.Write(board.RenderBoard())
+		res.Write(board.Render())
 	}
 }
 
