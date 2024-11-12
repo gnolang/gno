@@ -2,6 +2,7 @@ package gnoland
 
 import (
 	"fmt"
+	"io"
 	"log/slog"
 	"path/filepath"
 	"time"
@@ -16,7 +17,6 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/db/memdb"
 	"github.com/gnolang/gno/tm2/pkg/events"
 	"github.com/gnolang/gno/tm2/pkg/p2p"
-	"github.com/gnolang/gno/tm2/pkg/std"
 )
 
 type InMemoryNodeConfig struct {
@@ -24,6 +24,7 @@ type InMemoryNodeConfig struct {
 	Genesis       *bft.GenesisDoc
 	TMConfig      *tmcfg.Config
 	DB            *memdb.MemDB // will be initialized if nil
+	VMOutput      io.Writer    // optional
 
 	// If StdlibDir not set, then it's filepath.Join(TMConfig.RootDir, "gnovm", "stdlibs")
 	InitChainerConfig
@@ -44,7 +45,7 @@ func NewDefaultGenesisConfig(chainid string) *bft.GenesisDoc {
 		},
 		AppState: &GnoGenesisState{
 			Balances: []Balance{},
-			Txs:      []std.Tx{},
+			Txs:      []TxWithMetadata{},
 		},
 	}
 }
@@ -108,6 +109,7 @@ func NewInMemoryNode(logger *slog.Logger, cfg *InMemoryNodeConfig) (*node.Node, 
 		DB:                cfg.DB,
 		EventSwitch:       evsw,
 		InitChainerConfig: cfg.InitChainerConfig,
+		VMOutput:          cfg.VMOutput,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("error initializing new app: %w", err)
