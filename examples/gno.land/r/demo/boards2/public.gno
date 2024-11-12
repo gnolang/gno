@@ -120,7 +120,7 @@ func DeletePost(bid BoardID, threadid, postid PostID, reason string) {
 
 	if postid == threadid {
 		// delete thread
-		if !thread.HasPermission(caller, DeletePermission) {
+		if !thread.HasPermission(caller, PermissionDelete) {
 			panic("unauthorized")
 		}
 		board.DeleteThread(threadid)
@@ -130,7 +130,7 @@ func DeletePost(bid BoardID, threadid, postid PostID, reason string) {
 		if post == nil {
 			panic("post not exist")
 		}
-		if !post.HasPermission(caller, DeletePermission) {
+		if !post.HasPermission(caller, PermissionDelete) {
 			panic("unauthorized")
 		}
 		thread.DeletePost(postid)
@@ -154,7 +154,7 @@ func EditPost(bid BoardID, threadid, postid PostID, title, body string) {
 
 	if postid == threadid {
 		// edit thread
-		if !thread.HasPermission(caller, EditPermission) {
+		if !thread.HasPermission(caller, PermissionEdit) {
 			panic("unauthorized")
 		}
 		thread.Update(title, body)
@@ -164,7 +164,7 @@ func EditPost(bid BoardID, threadid, postid PostID, title, body string) {
 		if post == nil {
 			panic("post not exist")
 		}
-		if !post.HasPermission(caller, EditPermission) {
+		if !post.HasPermission(caller, PermissionEdit) {
 			panic("unauthorized")
 		}
 		post.Update(title, body)

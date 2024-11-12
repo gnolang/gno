@@ -1,8 +1,10 @@
 package boards
 
+// TODO: Rename file to "auth.gno" and define a new interface
+
 type Permission string
 
 const (
-	DeletePermission Permission = "role:delete"
-	EditPermission   Permission = "role:edit"
+	PermissionEdit   Permission = "edit"
+	PermissionDelete Permission = "delete"
 )

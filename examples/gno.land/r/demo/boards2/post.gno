@@ -23,7 +23,6 @@ func (id PostID) Key() string {
 
 // A Post is a "thread" or a "reply" depending on context.
 // A thread is a Post of a Board that holds other replies.
-// TODO: Figure out "repliesAll", "threadID"
 type Post struct {
 	board       *Board
 	id          PostID
@@ -134,9 +133,9 @@ func (thread *Post) DeletePost(pid PostID) {
 func (post *Post) HasPermission(addr std.Address, perm Permission) bool {
 	if post.creator == addr {
 		switch perm {
-		case EditPermission:
+		case PermissionEdit:
 			return true
-		case DeletePermission:
+		case PermissionDelete:
 			return true
 		default:
 			return false

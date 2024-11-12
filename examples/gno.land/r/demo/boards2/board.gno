@@ -97,9 +97,9 @@ func (board *Board) DeleteThread(pid PostID) {
 func (board *Board) HasPermission(addr std.Address, perm Permission) bool {
 	if board.creator == addr {
 		switch perm {
-		case EditPermission:
+		case PermissionEdit:
 			return true
-		case DeletePermission:
+		case PermissionDelete:
 			return true
 		default:
 			return false
