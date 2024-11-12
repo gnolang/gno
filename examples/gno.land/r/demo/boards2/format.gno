@@ -8,26 +8,6 @@ import (
 	"gno.land/r/demo/users"
 )
 
-// TODO: Create a "formatting.gno" file and move all formatting related functions there
-// TODO: Move getBoard() and incGetBoardID() to "boards.gno"
-
-//----------------------------------------
-// private utility methods
-// XXX ensure these cannot be called from public.
-
-func getBoard(bid BoardID) *Board {
-	v, exists := gBoards.Get(bid.Key())
-	if !exists {
-		return nil
-	}
-	return v.(*Board)
-}
-
-func incGetBoardID() BoardID {
-	gBoardsCtr++
-	return BoardID(gBoardsCtr)
-}
-
 func padLeft(s string, length int) string {
 	if len(s) >= length {
 		return s

@@ -11,3 +11,16 @@ var (
 	gBoardsCtr    int      // increments Board.id
 	gBoardsByName avl.Tree // name -> *Board
 )
+
+func getBoard(bid BoardID) *Board {
+	v, exists := gBoards.Get(bid.Key())
+	if !exists {
+		return nil
+	}
+	return v.(*Board)
+}
+
+func incGetBoardID() BoardID {
+	gBoardsCtr++
+	return BoardID(gBoardsCtr)
+}
