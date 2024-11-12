@@ -2,7 +2,7 @@
 package groups
 
 import (
-	"gno.land/p/demo/groups"
+	"gno.land/p/archives/demo/groups"
 	"gno.land/p/demo/testutils"
 )
 
