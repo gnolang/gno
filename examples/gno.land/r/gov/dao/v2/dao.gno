@@ -1,17 +1,10 @@
 package govdao
 
 import (
-	"bytes"
-	"std"
-	"strconv"
-	"strings"
-
 	"gno.land/p/demo/dao"
 	"gno.land/p/demo/membstore"
 	"gno.land/p/demo/simpledao"
-	"gno.land/p/demo/ufmt"
-
-	"gno.land/r/demo/users"
+	"std"
 )
 
 var (
@@ -70,76 +63,4 @@ func GetPropStore() dao.PropStore {
 // GetMembStore returns the active member store
 func GetMembStore() membstore.MemberStore {
 	return members
-}
-
-func Render(path string) string {
-	var out bytes.Buffer
-
-	if path == "" {
-		out.WriteString("# GovDAO Proposals\n\n")
-		numProposals := d.Size()
-
-		if numProposals == 0 {
-			out.WriteString("No proposals found :(") // corner case
-			return out.String()
-		}
-
-		offset := uint64(0)
-		if numProposals >= 10 {
-			offset = uint64(numProposals) - 10
-		}
-
-		// Fetch the last 10 proposals
-		proposals := d.Proposals(offset, uint64(10))
-		for i := len(proposals) - 1; i >= 0; i-- {
-			prop := proposals[i]
-
-			title := prop.Title()
-			if len(title) > 40 {
-				title = title[:40] + "..."
-			}
-
-			propID := offset + uint64(i)
-			out.WriteString(ufmt.Sprintf("## [Prop #%d - %s](/r/gov/dao/v2:%d)\n\n", propID, title, propID))
-			out.WriteString(ufmt.Sprintf("#### Status: %s\n\n", strings.ToUpper(prop.Status().String())))
-
-			user := users.GetUserByAddress(prop.Author())
-			authorUsername := prop.Author().String()
-			if user != nil {
-				authorUsername = ufmt.Sprintf("[%s](/r/demo/users:%s)", user.Name, user.Name)
-			}
-
-			out.WriteString(ufmt.Sprintf("#### Author: %s\n\n", authorUsername))
-
-			if i != 0 {
-				out.WriteString("---\n\n")
-			}
-		}
-
-		return out.String()
-	}
-
-	// Display the detailed proposal
-	idx, err := strconv.Atoi(path)
-	if err != nil {
-		return "404: Invalid proposal ID"
-	}
-
-	// Fetch the proposal
-	prop, err := d.ProposalByID(uint64(idx))
-	if err != nil {
-		return ufmt.Sprintf("unable to fetch proposal, %s", err.Error())
-	}
-
-	authorUsername := ""
-	user := users.GetUserByAddress(prop.Author())
-	if user != nil {
-		authorUsername = user.Name
-	}
-
-	// Render the proposal
-	out.WriteString(prop.Render(idx, authorUsername))
-	out.WriteString("\n\n")
-
-	return out.String()
 }

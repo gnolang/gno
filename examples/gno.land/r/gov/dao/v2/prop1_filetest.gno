@@ -85,8 +85,6 @@ func main() {
 //
 //
 // --
-// # Proposal #0 - Valset change
-//
 // ## Description
 //
 // manual valset changes proposal example
@@ -99,7 +97,7 @@ func main() {
 // - YES 0 (0%)
 // - NO 0 (0%)
 // - ABSTAIN 0 (0%)
-// - MISSING VOTE 10 (100%)
+// - MISSING VOTES 10 (100%)
 //
 //
 // #### Threshold met: FALSE
@@ -113,8 +111,6 @@ func main() {
 //
 // --
 // --
-// # Proposal #0 - Valset change
-//
 // ## Description
 //
 // manual valset changes proposal example
@@ -127,7 +123,7 @@ func main() {
 // - YES 10 (100%)
 // - NO 0 (0%)
 // - ABSTAIN 0 (0%)
-// - MISSING VOTE 0 (0%)
+// - MISSING VOTES 0 (0%)
 //
 //
 // #### Threshold met: TRUE
@@ -145,8 +141,6 @@ func main() {
 // No valset changes to apply.
 // --
 // --
-// # Proposal #0 - Valset change
-//
 // ## Description
 //
 // manual valset changes proposal example
@@ -159,7 +153,7 @@ func main() {
 // - YES 10 (100%)
 // - NO 0 (0%)
 // - ABSTAIN 0 (0%)
-// - MISSING VOTE 0 (0%)
+// - MISSING VOTES 0 (0%)
 //
 //
 // #### Threshold met: TRUE

@@ -76,8 +76,6 @@ func main() {
 //
 //
 // --
-// # Proposal #0 - new govdao member addition
-//
 // ## Description
 //
 // add new members to the govdao
@@ -90,7 +88,7 @@ func main() {
 // - YES 0 (0%)
 // - NO 0 (0%)
 // - ABSTAIN 0 (0%)
-// - MISSING VOTE 10 (100%)
+// - MISSING VOTES 10 (100%)
 //
 //
 // #### Threshold met: FALSE
@@ -104,8 +102,6 @@ func main() {
 //
 // --
 // --
-// # Proposal #0 - new govdao member addition
-//
 // ## Description
 //
 // add new members to the govdao
@@ -118,7 +114,7 @@ func main() {
 // - YES 10 (100%)
 // - NO 0 (0%)
 // - ABSTAIN 0 (0%)
-// - MISSING VOTE 0 (0%)
+// - MISSING VOTES 0 (0%)
 //
 //
 // #### Threshold met: TRUE
@@ -144,8 +140,6 @@ func main() {
 //
 // --
 // --
-// # Proposal #0 - new govdao member addition
-//
 // ## Description
 //
 // add new members to the govdao
@@ -158,7 +152,7 @@ func main() {
 // - YES 10 (25%)
 // - NO 0 (0%)
 // - ABSTAIN 0 (0%)
-// - MISSING VOTE 30 (75%)
+// - MISSING VOTES 30 (75%)
 //
 //
 // #### Threshold met: FALSE
