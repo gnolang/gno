@@ -128,7 +128,7 @@ func (msg MsgEval) ValidateBasic() error {
 	if !gno.IsRealmPath(msg.PkgPath) {
 		return ErrInvalidPkgPath("pkgpath must be of a realm")
 	}
-	if msg.Expr == "" { // XXX
+	if msg.Expr == "" {
 		return ErrInvalidExpr("missing expr to eval")
 	}
 

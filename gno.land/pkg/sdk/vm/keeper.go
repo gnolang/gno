@@ -513,7 +513,7 @@ func (vm *VMKeeper) Call(ctx sdk.Context, msg MsgCall) (res string, err error) {
 	}()
 
 	rtvs := m.Eval(xn)
-	stringifyResultValues(m, msg.Format, rtvs)
+	res = stringifyResultValues(m, msg.Format, rtvs)
 
 	// Log the telemetry
 	logTelemetry(
