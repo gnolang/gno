@@ -3,6 +3,7 @@ package test
 
 import (
 	"fmt"
+	"io"
 
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
 	"github.com/gnolang/gno/gnovm/stdlibs"
@@ -19,6 +20,10 @@ const (
 )
 
 // TestContext returns a TestExecContext. Usable for test purpose only.
+// The returned context has a mock banker, params and event logger. It will give
+// the pkgAddr the coins in `send` by default, and only that.
+// The Height and Timestamp parameters are set to the [DefaultHeight] and
+// [DefaultTimestamp].
 func TestContext(pkgPath string, send std.Coins) *teststd.TestExecContext {
 	// FIXME: create a better package to manage this, with custom constructors
 	pkgAddr := gno.DerivePkgAddr(pkgPath) // the addr of the pkgPath called.
@@ -45,6 +50,14 @@ func TestContext(pkgPath string, send std.Coins) *teststd.TestExecContext {
 		ExecContext: ctx,
 		RealmFrames: make(map[*gno.Frame]teststd.RealmOverride),
 	}
+}
+
+func TestMachine(testStore gno.Store, output io.Writer, pkgPath string) *gno.Machine {
+	return gno.NewMachineWithOptions(gno.MachineOptions{
+		Store:   testStore,
+		Output:  output,
+		Context: TestContext(pkgPath, nil),
+	})
 }
 
 // ----------------------------------------

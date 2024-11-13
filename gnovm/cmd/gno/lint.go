@@ -14,7 +14,7 @@ import (
 
 	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
-	"github.com/gnolang/gno/gnovm/tests"
+	"github.com/gnolang/gno/gnovm/pkg/test"
 	"github.com/gnolang/gno/tm2/pkg/commands"
 	osm "github.com/gnolang/gno/tm2/pkg/os"
 	"go.uber.org/multierr"
@@ -91,10 +91,9 @@ func execLint(cfg *lintCfg, args []string, io commands.IO) error {
 		// Handle runtime errors
 		hasError = catchRuntimeError(pkgPath, io.Err(), func() {
 			stdout, stdin, stderr := io.Out(), io.In(), io.Err()
-			testStore := tests.TestStore(
-				rootDir, "",
+			_, testStore := test.TestStore(
+				rootDir, false,
 				stdin, stdout, stderr,
-				tests.ImportModeStdlibsOnly,
 			)
 
 			targetPath := pkgPath
@@ -104,7 +103,12 @@ func execLint(cfg *lintCfg, args []string, io commands.IO) error {
 			}
 
 			memPkg := gno.ReadMemPackage(targetPath, targetPath)
-			tm := tests.TestMachine(testStore, stdout, memPkg.Name)
+			tm := gno.NewMachineWithOptions(gno.MachineOptions{
+				Context: test.TestContext(memPkg.Path, nil),
+				Store:   testStore,
+				Output:  stdout,
+			})
+			defer tm.Release()
 
 			// Check package
 			tm.RunMemPackage(memPkg, true)

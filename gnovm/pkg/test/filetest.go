@@ -69,7 +69,6 @@ func (opts *FileTestOptions) run(filename string, source []byte, sync bool) (str
 	// Create machine for execution and run test
 	cw := opts.BaseStore.CacheWrap()
 	m := gno.NewMachineWithOptions(gno.MachineOptions{
-		PkgPath:       "", // set later.
 		Output:        &opts.Stdout,
 		Store:         opts.Store.BeginTransaction(cw, cw),
 		Context:       ctx,
@@ -108,7 +107,7 @@ func (opts *FileTestOptions) run(filename string, source []byte, sync bool) (str
 	} else {
 		err = m.CheckEmpty()
 		if err != nil {
-			return "", fmt.Errorf("machine not empty after main: %v", err)
+			return "", fmt.Errorf("machine not empty after main: %w", err)
 		}
 		if gno.HasDebugErrors() {
 			return "", fmt.Errorf("got unexpected debug error(s): %v", gno.GetDebugErrors())
@@ -374,11 +373,9 @@ type Directive struct {
 	Content string
 }
 
-var (
-	// Allows either a `ALLCAPS: content` on a single line, or a `PascalCase:`,
-	// with content on the following lines.
-	reDirectiveLine = regexp.MustCompile("^(?:([A-Z][a-z]*):|([A-Z]+): ?(.*))$")
-)
+// Allows either a `ALLCAPS: content` on a single line, or a `PascalCase:`,
+// with content on the following lines.
+var reDirectiveLine = regexp.MustCompile("^(?:([A-Z][a-z]*):|([A-Z]+): ?(.*))$")
 
 // ParseDirectives parses all the directives in the filetest given at source.
 func ParseDirectives(source io.Reader) (Directives, error) {

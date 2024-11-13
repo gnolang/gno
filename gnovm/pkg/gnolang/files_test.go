@@ -34,7 +34,6 @@ func TestFiles(t *testing.T) {
 	opts.BaseStore, opts.Store = test.TestStore(rootDir, true, &stdin, &opts.Stdout, &stderr)
 	// XXX: Using opts like this is a bit funky, replacing the state each time; maybe we can re-create each time
 	// if we don't require usage of opts.Stdout.
-	// XXX: Maybe testStore imports should use baseStore directly, so we directly load into store all package loads.
 
 	dir := "../../tests/"
 	fsys := os.DirFS(dir)

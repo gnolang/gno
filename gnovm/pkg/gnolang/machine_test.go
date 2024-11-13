@@ -1,10 +1,14 @@
-package gnolang
+package gnolang_test
 
 import (
 	"fmt"
+	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/gnolang/gno/gnovm"
+	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
+	"github.com/gnolang/gno/gnovm/pkg/test"
 	"github.com/gnolang/gno/tm2/pkg/db/memdb"
 	"github.com/gnolang/gno/tm2/pkg/store/dbadapter"
 	"github.com/gnolang/gno/tm2/pkg/store/iavl"
@@ -14,7 +18,7 @@ import (
 
 func BenchmarkCreateNewMachine(b *testing.B) {
 	for i := 0; i < b.N; i++ {
-		m := NewMachineWithOptions(MachineOptions{})
+		m := gno.NewMachineWithOptions(gno.MachineOptions{})
 		m.Release()
 	}
 }
@@ -25,8 +29,8 @@ func TestRunMemPackageWithOverrides_revertToOld(t *testing.T) {
 	db := memdb.NewMemDB()
 	baseStore := dbadapter.StoreConstructor(db, stypes.StoreOptions{})
 	iavlStore := iavl.StoreConstructor(db, stypes.StoreOptions{})
-	store := NewStore(nil, baseStore, iavlStore)
-	m := NewMachine("std", store)
+	store := gno.NewStore(nil, baseStore, iavlStore)
+	m := gno.NewMachine("std", store)
 	m.RunMemPackageWithOverrides(&gnovm.MemPackage{
 		Name: "std",
 		Path: "std",
@@ -48,11 +52,65 @@ func TestRunMemPackageWithOverrides_revertToOld(t *testing.T) {
 		return
 	}()
 	t.Log("panic trying to redeclare invalid func", result)
-	m.RunStatement(S(Call(X("Redecl"), 11)))
+	m.RunStatement(gno.S(gno.Call(gno.X("Redecl"), 11)))
 
 	// Check last value, assuming it is the result of Redecl.
 	v := m.Values[0]
 	assert.NotNil(t, v)
-	assert.Equal(t, StringKind, v.T.Kind())
-	assert.Equal(t, StringValue("1"), v.V)
+	assert.Equal(t, gno.StringKind, v.T.Kind())
+	assert.Equal(t, gno.StringValue("1"), v.V)
+}
+
+func TestMachineTestMemPackage(t *testing.T) {
+	matchFunc := func(pat, str string) (bool, error) { return true, nil }
+
+	tests := []struct {
+		name          string
+		path          string
+		shouldSucceed bool
+	}{
+		{
+			name:          "TestSuccess",
+			path:          "testdata/TestMemPackage/success",
+			shouldSucceed: true,
+		},
+		{
+			name:          "TestFail",
+			path:          "testdata/TestMemPackage/fail",
+			shouldSucceed: false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// NOTE: Because the purpose of this test is to ensure testing.T.Failed()
+			// returns true if a gno test is failing, and because we don't want this
+			// to affect the current testing.T, we are creating an other one thanks
+			// to testing.RunTests() function.
+			testing.RunTests(matchFunc, []testing.InternalTest{
+				{
+					Name: tt.name,
+					F: func(t2 *testing.T) { //nolint:thelper
+						rootDir := filepath.Join("..", "..", "..")
+						_, store := test.TestStore(rootDir, false, os.Stdin, os.Stdout, os.Stderr)
+						store.SetLogStoreOps(true)
+						m := gno.NewMachineWithOptions(gno.MachineOptions{
+							PkgPath: "test",
+							Output:  os.Stdout,
+							Store:   store,
+							Context: nil,
+						})
+						memPkg := gno.ReadMemPackage(tt.path, "test")
+
+						m.TestMemPackage(t2, memPkg)
+
+						if tt.shouldSucceed {
+							assert.False(t, t2.Failed(), "test %q should have succeed", tt.name)
+						} else {
+							assert.True(t, t2.Failed(), "test %q should have failed", tt.name)
+						}
+					},
+				},
+			})
+		})
+	}
 }

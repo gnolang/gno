@@ -22,12 +22,11 @@ import (
 	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
 	"github.com/gnolang/gno/gnovm/pkg/gnomod"
-	"github.com/gnolang/gno/gnovm/tests"
+	"github.com/gnolang/gno/gnovm/pkg/test"
 	teststd "github.com/gnolang/gno/gnovm/tests/stdlibs/std"
 	"github.com/gnolang/gno/tm2/pkg/commands"
 	"github.com/gnolang/gno/tm2/pkg/errors"
 	"github.com/gnolang/gno/tm2/pkg/random"
-	"github.com/gnolang/gno/tm2/pkg/testutils"
 )
 
 type testCfg struct {
@@ -38,7 +37,6 @@ type testCfg struct {
 	updateGoldenTests   bool
 	printRuntimeMetrics bool
 	printEvents         bool
-	withNativeFallback  bool
 }
 
 func newTestCmd(io commands.IO) *commands.Command {
@@ -66,34 +64,34 @@ module name found in 'gno.mod', or else it is randomly generated like
 
 - "*_filetest.gno" files on the other hand are kind of unique. They exist to
 provide a way to interact and assert a gno contract, thanks to a set of
-specific instructions that can be added using code comments.
+specific directives that can be added using code comments.
 
 "*_filetest.gno" must be declared in the 'main' package and so must have a
 'main' function, that will be executed to test the target contract.
 
-List of available instructions that can be used in "*_filetest.gno" files:
-	- "PKGPATH:" is a single line instruction that can be used to define the
+These single-line directives can set "input parameters" for the machine used
+to perform the test:
+	- "PKGPATH:" is a single line directive that can be used to define the
 	package used to interact with the tested package. If not specified, "main" is
 	used.
-	- "MAXALLOC:" is a signle line instruction that can be used to define a limit
+	- "MAXALLOC:" is a single line directive that can be used to define a limit
 	to the VM allocator. If this limit is exceeded, the VM will panic. Default to
 	0, no limit.
-	- "SEND:" is a single line instruction that can be used to send an amount of
+	- "SEND:" is a single line directive that can be used to send an amount of
 	token along with the transaction. The format is for example "1000000ugnot".
 	Default is empty.
-	- "Output:\n" (*) is a multiple lines instruction that can be used to assert
-	the output of the "*_filetest.gno" file. Any prints executed inside the
-	'main' function must match the lines that follows the "Output:\n"
-	instruction, or else the test fails.
-	- "Error:\n" works similarly to "Output:\n", except that it asserts the
-	stderr of the program, which in that case, comes from the VM because of a
-	panic, rather than the 'main' function.
-	- "Realm:\n" (*) is a multiple lines instruction that can be used to assert
-	what has been recorded in the store following the execution of the 'main'
-	function.
 
-(*) The 'update-golden-tests' flag can be set to fill out the content of the
-instruction with the actual content of the test instead of failing.
+These directives, instead, match the comment that follows with the result
+of the GnoVM, acting as a "golden test":
+	- "Output:" tests the following comment with the standard output of the
+	filetest.
+	- "Error:" tests the following comment with any panic, or other kind of
+	error that the filetest generates (like a parsing or preprocessing error).
+	- "Realm:" tests the following comment against the store log, which can show
+	what realm information is stored.
+	- "Stacktrace:" can be used to verify the following lines against the
+	stacktrace of the error.
+	- "Events:" can be used to verify the emitted events against a JSON.
 `,
 		},
 		cfg,
@@ -115,7 +113,7 @@ func (c *testCfg) RegisterFlags(fs *flag.FlagSet) {
 		&c.updateGoldenTests,
 		"update-golden-tests",
 		false,
-		`writes actual as wanted for "Output:" and "Realm:" instructions`,
+		`writes actual as wanted for "golden" directives in filetests`,
 	)
 
 	fs.StringVar(
@@ -137,13 +135,6 @@ func (c *testCfg) RegisterFlags(fs *flag.FlagSet) {
 		"timeout",
 		0,
 		"max execution time",
-	)
-
-	fs.BoolVar(
-		&c.withNativeFallback,
-		"with-native-fallback",
-		false,
-		"use stdlibs/* if present, otherwise use supported native Go packages",
 	)
 
 	fs.BoolVar(
@@ -246,11 +237,6 @@ func gnoTestPkg(
 		errs   error
 	)
 
-	mode := tests.ImportModeStdlibsOnly
-	if cfg.withNativeFallback {
-		// XXX: display a warn?
-		mode = tests.ImportModeStdlibsPreferred
-	}
 	if !verbose {
 		// TODO: speedup by ignoring if filter is file/*?
 		mockOut := bytes.NewBufferString("")
@@ -288,16 +274,15 @@ func gnoTestPkg(
 
 		// run test files in pkg
 		if len(tfiles.Files) > 0 {
-			testStore := tests.TestStore(
-				rootDir, "",
+			_, testStore := test.TestStore(
+				rootDir, false,
 				stdin, stdout, stderr,
-				mode,
 			)
 			if verbose {
 				testStore.SetLogStoreOps(true)
 			}
 
-			m := tests.TestMachine(testStore, stdout, gnoPkgPath)
+			m := test.TestMachine(testStore, stdout, gnoPkgPath)
 			if printRuntimeMetrics {
 				// from tm2/pkg/sdk/vm/keeper.go
 				// XXX: make maxAllocTx configurable.
@@ -306,7 +291,7 @@ func gnoTestPkg(
 				m.Alloc = gno.NewAllocator(maxAllocTx)
 			}
 			m.RunMemPackage(memPkg, true)
-			err := runTestFiles(m, tfiles, memPkg.Name, verbose, printRuntimeMetrics, printEvents, runFlag, io)
+			err := runTestFiles(m, tfiles, memPkg.Name, memPkg.Path, verbose, printRuntimeMetrics, printEvents, runFlag, io)
 			if err != nil {
 				errs = multierr.Append(errs, err)
 			}
@@ -314,16 +299,15 @@ func gnoTestPkg(
 
 		// test xxx_test pkg
 		if len(ifiles.Files) > 0 {
-			testStore := tests.TestStore(
-				rootDir, "",
+			_, testStore := test.TestStore(
+				rootDir, false,
 				stdin, stdout, stderr,
-				mode,
 			)
 			if verbose {
 				testStore.SetLogStoreOps(true)
 			}
 
-			m := tests.TestMachine(testStore, stdout, testPkgName)
+			m := test.TestMachine(testStore, stdout, testPkgName)
 
 			memFiles := make([]*gnovm.MemFile, 0, len(ifiles.FileNames())+1)
 			for _, f := range memPkg.Files {
@@ -340,7 +324,7 @@ func gnoTestPkg(
 			memPkg.Path = memPkg.Path + "_test"
 			m.RunMemPackage(memPkg, true)
 
-			err := runTestFiles(m, ifiles, testPkgName, verbose, printRuntimeMetrics, printEvents, runFlag, io)
+			err := runTestFiles(m, ifiles, testPkgName, memPkg.Path, verbose, printRuntimeMetrics, printEvents, runFlag, io)
 			if err != nil {
 				errs = multierr.Append(errs, err)
 			}
@@ -349,9 +333,13 @@ func gnoTestPkg(
 
 	// testing with *_filetest.gno
 	{
+		var opts test.FileTestOptions
+		opts.BaseStore, opts.Store = test.TestStore(rootDir, false, os.Stdin, &opts.Stdout, &opts.Stdout)
+
 		filter := splitRegexp(runFlag)
 		for _, testFile := range filetestFiles {
 			testFileName := filepath.Base(testFile)
+			testFilePath := filepath.Join(pkgPath, testFileName)
 			testName := "file/" + testFileName
 			if !shouldRun(filter, testName) {
 				continue
@@ -362,30 +350,32 @@ func gnoTestPkg(
 				io.ErrPrintfln("=== RUN   %s", testName)
 			}
 
-			var closer func() (string, error)
-			if !verbose {
-				closer = testutils.CaptureStdoutAndStderr()
+			content, err := os.ReadFile(testFilePath)
+			if err != nil {
+				return err
 			}
 
-			testFilePath := filepath.Join(pkgPath, testFileName)
-			err := tests.RunFileTest(rootDir, testFilePath, tests.WithSyncWanted(cfg.updateGoldenTests))
+			if cfg.updateGoldenTests {
+				var changed string
+				changed, err = opts.RunSync(testFileName, content)
+				if changed != "" {
+					err = os.WriteFile(testFilePath, []byte(changed), 0o644)
+					if err != nil {
+						panic(fmt.Errorf("could not fix golden file: %w", err))
+					}
+				}
+			} else {
+				err = opts.Run(testFileName, content)
+			}
 			duration := time.Since(startedAt)
 			dstr := fmtDuration(duration)
-
-			if err != nil {
-				errs = multierr.Append(errs, err)
-				io.ErrPrintfln("--- FAIL: %s (%s)", testName, dstr)
-				if verbose {
-					stdouterr, err := closer()
-					if err != nil {
-						panic(err)
-					}
-					fmt.Fprintln(os.Stderr, stdouterr)
-				}
-				continue
-			}
-
 			if verbose {
+				io.Out().Write(opts.Stdout.Bytes())
+			}
+			if err != nil {
+				io.ErrPrintln(err.Error())
+				io.ErrPrintfln("--- FAIL: %s (%s)", testName, dstr)
+			} else if verbose {
 				io.ErrPrintfln("--- PASS: %s (%s)", testName, dstr)
 			}
 			// XXX: add per-test metrics
@@ -427,7 +417,7 @@ func pkgPathFromRootDir(pkgPath, rootDir string) string {
 func runTestFiles(
 	m *gno.Machine,
 	files *gno.FileSet,
-	pkgName string,
+	pkgName, pkgPath string,
 	verbose bool,
 	printRuntimeMetrics bool,
 	printEvents bool,
@@ -459,9 +449,11 @@ func runTestFiles(
 	n := gno.MustParseFile("main_test.gno", testmain)
 	m.RunFiles(n)
 
+	testContext := test.TestContext
+
 	for _, test := range testFuncs.Tests {
 		// cleanup machine between tests
-		tests.CleanupMachine(m)
+		m.Context = testContext(pkgName, nil)
 
 		testFuncStr := fmt.Sprintf("%q", test.Name)
 

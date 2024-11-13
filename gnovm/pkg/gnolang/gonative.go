@@ -1180,34 +1180,6 @@ func gno2GoValue(tv *TypedValue, rv reflect.Value) (ret reflect.Value) {
 // ----------------------------------------
 // PackageNode methods
 
-func (x *PackageNode) DefineGoNativeType(rt reflect.Type) {
-	if debug {
-		debug.Printf("*PackageNode.DefineGoNativeType(%s)\n", rt.String())
-	}
-	pkgp := rt.PkgPath()
-	if pkgp == "" {
-		// DefineGoNativeType can only work with defined exported types.
-		// Unexported types should be composed, and primitive types
-		// should just use Gno types.
-		panic(fmt.Sprintf(
-			"reflect.Type %s has no package path",
-			rt.String()))
-	}
-	name := rt.Name()
-	if name == "" {
-		panic(fmt.Sprintf(
-			"reflect.Type %s is not named",
-			rt.String()))
-	}
-	if rt.PkgPath() == "" {
-		panic(fmt.Sprintf(
-			"reflect.Type %s is not defined/exported",
-			rt.String()))
-	}
-	nt := &NativeType{Type: rt}
-	x.Define(Name(name), asValue(nt))
-}
-
 func (x *PackageNode) DefineGoNativeValue(name Name, nv interface{}) {
 	x.defineGoNativeValue(false, name, nv)
 }

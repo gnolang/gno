@@ -13,8 +13,9 @@ import (
 	"os"
 	"text/template"
 
+	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
-	"github.com/gnolang/gno/gnovm/tests"
+	"github.com/gnolang/gno/gnovm/pkg/test"
 )
 
 const (
@@ -124,7 +125,8 @@ func NewRepl(opts ...ReplOption) *Repl {
 	r.stderr = &b
 
 	r.storeFunc = func() gno.Store {
-		return tests.TestStore("teststore", "", r.stdin, r.stdout, r.stderr, tests.ImportModeStdlibsOnly)
+		_, st := test.TestStore(gnoenv.RootDir(), false, r.stdin, r.stdout, r.stderr)
+		return st
 	}
 
 	for _, o := range opts {
