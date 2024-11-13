@@ -45,19 +45,18 @@ func CreateReply(bid BoardID, threadID, replyID PostID, body string) PostID {
 	caller := std.GetOrigCaller()
 	assertAnonymousCallerFeeReceived(caller)
 
-	board := mustGetBoard(bid)
-	thread, found := board.GetThread(threadID)
-	if !found {
-		panic("thread not exist")
-	}
+	var (
+		reply  *Post
+		board  = mustGetBoard(bid)
+		thread = mustGetThread(board, threadID)
+	)
 
 	if replyID == threadID {
-		reply := thread.AddReply(caller, body)
-		return reply.id
+		reply = thread.AddReply(caller, body)
+	} else {
+		post := mustGetReply(thread, replyID)
+		reply = post.AddReply(caller, body)
 	}
-
-	post := thread.GetReply(replyID)
-	reply := post.AddReply(caller, body)
 	return reply.id
 }
 
@@ -73,11 +72,7 @@ func CreateRepost(bid BoardID, threadID PostID, title string, body string, dstBo
 	}
 
 	dst := mustGetBoard(dstBoardID)
-	thread, found := board.GetThread(threadID)
-	if !found {
-		panic("thread not exist")
-	}
-
+	thread := mustGetThread(board, threadID)
 	repost := thread.AddRepostTo(caller, title, body, dst)
 	return repost.id
 }
@@ -87,14 +82,12 @@ func DeleteThread(bid BoardID, threadID PostID, reason string) {
 
 	caller := std.GetOrigCaller()
 	board := mustGetBoard(bid)
-	thread, found := board.GetThread(threadID)
-	if !found {
-		panic("thread not found")
-	}
+	thread := mustGetThread(board, threadID)
 
 	if !thread.HasPermission(caller, PermissionDelete) {
 		panic("unauthorized")
 	}
+
 	board.DeleteThread(threadID)
 }
 
@@ -103,18 +96,13 @@ func DeleteReply(bid BoardID, threadID, replyID PostID, reason string) {
 
 	caller := std.GetOrigCaller()
 	board := mustGetBoard(bid)
-	thread, found := board.GetThread(threadID) // TODO: Add mustGetThread(board, threadID)
-	if !found {
-		panic("thread not found")
-	}
+	thread := mustGetThread(board, threadID)
+	reply := mustGetReply(thread, replyID)
 
-	reply := thread.GetReply(replyID) // TODO: Add mustGetReply(thread, replyID)
-	if reply == nil {
-		panic("reply not found")
-	}
 	if !reply.HasPermission(caller, PermissionDelete) { // TODO: Add AssertHasPermission()
 		panic("unauthorized")
 	}
+
 	thread.DeleteReply(replyID)
 }
 
@@ -123,14 +111,12 @@ func EditThread(bid BoardID, threadID PostID, title, body string) {
 
 	caller := std.GetOrigCaller()
 	board := mustGetBoard(bid)
-	thread, found := board.GetThread(threadID)
-	if !found {
-		panic("thread not found")
-	}
+	thread := mustGetThread(board, threadID)
 
 	if !thread.HasPermission(caller, PermissionEdit) {
 		panic("unauthorized")
 	}
+
 	thread.Update(title, body)
 }
 
@@ -139,18 +125,13 @@ func EditReply(bid BoardID, threadID, replyID PostID, title, body string) {
 
 	caller := std.GetOrigCaller()
 	board := mustGetBoard(bid)
-	thread, found := board.GetThread(threadID)
-	if !found {
-		panic("thread not exist")
-	}
+	thread := mustGetThread(board, threadID)
+	post := mustGetReply(thread, replyID)
 
-	post := thread.GetReply(replyID)
-	if post == nil {
-		panic("post not found")
-	}
 	if !post.HasPermission(caller, PermissionEdit) {
 		panic("unauthorized")
 	}
+
 	post.Update(title, body)
 }
 

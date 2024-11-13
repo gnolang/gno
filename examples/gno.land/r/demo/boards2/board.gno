@@ -62,7 +62,6 @@ func NewPrivateBoard(url string, name string, creator std.Address) *Board {
 }
 */
 
-// TODO: Do we want to support private boards? If so move forward with implementation.
 func (board *Board) IsPrivate() bool {
 	return board.id == 0
 }

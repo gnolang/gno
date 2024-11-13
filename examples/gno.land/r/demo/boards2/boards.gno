@@ -30,6 +30,24 @@ func mustGetBoard(id BoardID) *Board {
 	return board
 }
 
+// mustGetThread returns a thread or panics when it's not found.
+func mustGetThread(board *Board, threadID PostID) *Post {
+	thread, found := board.GetThread(threadID)
+	if !found {
+		panic("thread does not exist with ID: " + threadID.String())
+	}
+	return thread
+}
+
+// mustGetReply returns a reply or panics when it's not found.
+func mustGetReply(thread *Post, replyID PostID) *Post {
+	reply := thread.GetReply(replyID)
+	if reply == nil {
+		panic("reply does not exist with ID: " + replyID.String())
+	}
+	return reply
+}
+
 func incGetBoardID() BoardID {
 	gBoardsCtr++
 	return BoardID(gBoardsCtr)
