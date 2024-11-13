@@ -16,6 +16,7 @@ import (
 	teststd "github.com/gnolang/gno/gnovm/tests/stdlibs/std"
 	"github.com/gnolang/gno/tm2/pkg/std"
 	"github.com/pmezard/go-difflib/difflib"
+	"go.uber.org/multierr"
 )
 
 type FileTestOptions struct {
@@ -25,18 +26,30 @@ type FileTestOptions struct {
 	Stdout bytes.Buffer
 }
 
+// RunSync executes the program in source as a filetest.
+// RunSync returns additionally a string, which is the updated filetest should its "golden"
+// outputs, error or other directives change.
+func (opts *FileTestOptions) RunSync(filename string, source []byte) (string, error) {
+	return opts.run(filename, source, true)
+}
+
 // Run executes the program in source as a filetest.
 func (opts *FileTestOptions) Run(filename string, source []byte) error {
+	_, err := opts.run(filename, source, false)
+	return err
+}
+
+func (opts *FileTestOptions) run(filename string, source []byte, sync bool) (string, error) {
 	dirs, err := ParseDirectives(bytes.NewReader(source))
 	if err != nil {
-		return fmt.Errorf("error parsing directives: %w", err)
+		return "", fmt.Errorf("error parsing directives: %w", err)
 	}
 
 	// Initialize Machine.Context and Machine.Alloc according to the input directives.
 	pkgPath := dirs.FirstDefault(DirectivePkgPath, "main")
 	coins, err := std.ParseCoins(dirs.FirstDefault(DirectiveSend, ""))
 	if err != nil {
-		return err
+		return "", err
 	}
 	ctx := TestContext(
 		pkgPath,
@@ -45,7 +58,7 @@ func (opts *FileTestOptions) Run(filename string, source []byte) error {
 	maxAllocRaw := dirs.FirstDefault(DirectiveMaxAlloc, "0")
 	maxAlloc, err := strconv.ParseInt(maxAllocRaw, 10, 64)
 	if err != nil {
-		return fmt.Errorf("could not parse MAXALLOC directive: %w", err)
+		return "", fmt.Errorf("could not parse MAXALLOC directive: %w", err)
 	}
 	m := gno.NewMachineWithOptions(gno.MachineOptions{
 		PkgPath:       "", // set later.
@@ -56,46 +69,53 @@ func (opts *FileTestOptions) Run(filename string, source []byte) error {
 	})
 
 	opts.Stdout.Reset()
-	result := opts.run(m, pkgPath, filename, source)
+	result := opts.runTest(m, pkgPath, filename, source)
+
+	// These are used to generate the output.
+	updated := false
+	var returnErr error
+	match := func(dir *Directive, actual string) {
+		if dir.Content != actual {
+			if sync {
+				dir.Content = actual
+				updated = true
+			} else {
+				returnErr = multierr.Append(returnErr,
+					fmt.Errorf("%s diff:\n%s", dir.Name, unifiedDiff(dir.Content, actual)))
+			}
+		}
+	}
 
 	// First, check if we have an error, whether we're supposed to get it.
-	// TODO: -update-golden-tests
 	if result.Error != "" {
 		// ensure this error was supposed to happen.
 		errDirective := dirs.First(DirectiveError)
 		if errDirective == nil {
-			return fmt.Errorf("unexpected panic: %s\noutput:\n%s\nstack:\n%v",
+			return "", fmt.Errorf("unexpected panic: %s\noutput:\n%s\nstack:\n%v",
 				result.Error, result.Output, string(result.GoPanicStack))
 		}
 
 		// The Error directive will have one trailing newline, which is not in
-		// the output
-		exp := strings.TrimSuffix(errDirective.Content, "\n")
-		if exp != result.Error {
-			return fmt.Errorf("got %q, want: %q", result.Error, exp)
-		}
+		// the output - so add it there.
+		match(errDirective, result.Error+"\n")
 	} else {
 		err = m.CheckEmpty()
 		if err != nil {
-			return fmt.Errorf("machine not empty after main: %v", err)
+			return "", fmt.Errorf("machine not empty after main: %v", err)
 		}
 		if gno.HasDebugErrors() {
-			return fmt.Errorf("got unexpected debug error(s): %v", gno.GetDebugErrors())
+			return "", fmt.Errorf("got unexpected debug error(s): %v", gno.GetDebugErrors())
 		}
 	}
 
-	for _, dir := range dirs {
-		// TODO: support detecting differences in multiple of these
+	for idx := range dirs {
+		dir := &dirs[idx]
 		switch dir.Name {
 		case DirectiveOutput:
-			if dir.Content != result.Output {
-				return fmt.Errorf("output diff:\n%s", unifiedDiff(dir.Content, result.Output))
-			}
+			match(dir, result.Output)
 		case DirectiveRealm:
-			sops := m.Store.SprintStoreOps()
-			if dir.Content != sops {
-				return fmt.Errorf("realm diff:\n%s", unifiedDiff(dir.Content, sops))
-			}
+			sops := m.Store.SprintStoreOps() + "\n"
+			match(dir, sops)
 		case DirectiveEvents:
 			events := m.Context.(*teststd.TestExecContext).EventLogger.Events()
 			evtjson, err := json.MarshalIndent(events, "", "  ")
@@ -103,23 +123,21 @@ func (opts *FileTestOptions) Run(filename string, source []byte) error {
 				panic(err)
 			}
 			evtstr := string(evtjson)
-			if dir.Content != evtstr {
-				return fmt.Errorf("events diff:\n%s", unifiedDiff(dir.Content, evtstr))
-			}
+			match(dir, evtstr)
 		case DirectivePreprocessed:
 			pn := m.Store.GetBlockNode(gno.PackageNodeLocation(pkgPath))
 			pre := pn.(*gno.PackageNode).FileSet.Files[0].String()
-			if dir.Content != pre {
-				return fmt.Errorf("preprocessed diff:\n%s", unifiedDiff(dir.Content, pre))
-			}
+			match(dir, pre)
 		case DirectiveStacktrace:
-			if dir.Content != result.GnoStacktrace {
-				return fmt.Errorf("stacktrace diff:\n%s", unifiedDiff(dir.Content, result.GnoStacktrace))
-			}
+			match(dir, result.GnoStacktrace)
 		}
 	}
 
-	return nil
+	if updated {
+		return dirs.FileTest(), returnErr
+	}
+
+	return "", returnErr
 }
 
 func unifiedDiff(wanted, actual string) string {
@@ -147,7 +165,7 @@ type runResult struct {
 	GoPanicStack []byte
 }
 
-func (opts *FileTestOptions) run(m *gno.Machine, pkgPath, filename string, content []byte) (rr runResult) {
+func (opts *FileTestOptions) runTest(m *gno.Machine, pkgPath, filename string, content []byte) (rr runResult) {
 	defer func() {
 		if r := recover(); r != nil {
 			rr.Output = opts.Stdout.String()
@@ -268,6 +286,27 @@ func (d Directives) FirstDefault(name, defaultValue string) string {
 		return defaultValue
 	}
 	return v.Content
+}
+
+// FileTest re-generates the filetest from the given directives; the inverse of ParseDirectives.
+func (d Directives) FileTest() string {
+	var bld strings.Builder
+	for _, dir := range d {
+		switch {
+		case dir.Name == "":
+			bld.WriteString(dir.Content)
+		case strings.ToUpper(dir.Name) == dir.Content:
+			bld.WriteString("// " + dir.Name + ": " + dir.Content)
+		default:
+			bld.WriteString("// " + dir.Name + ":\n")
+			cnt := strings.TrimSuffix(dir.Content, "\n")
+			cnt = strings.ReplaceAll(cnt, "\n", "\n// ")
+			bld.WriteString("// ")
+			bld.WriteString(cnt)
+			bld.WriteByte('\n')
+		}
+	}
+	return bld.String()
 }
 
 // Directive represents a directive in a filetest.

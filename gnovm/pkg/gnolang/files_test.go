@@ -2,6 +2,8 @@ package gnolang_test
 
 import (
 	"bytes"
+	"flag"
+	"fmt"
 	"io/fs"
 	"os"
 	"path/filepath"
@@ -11,6 +13,8 @@ import (
 	"github.com/gnolang/gno/gnovm/pkg/test"
 	"github.com/stretchr/testify/require"
 )
+
+var withSync = flag.Bool("update-golden-tests", false, "rewrite tests updating Realm: and Output: with new values where changed")
 
 // TestFiles tests all the files in "gnovm/tests/files".
 //
@@ -54,16 +58,30 @@ func TestFiles(t *testing.T) {
 			return err
 		}
 
+		var criticalError error
 		t.Run(path[len("files/"):], func(t *testing.T) {
 			wrapped := baseStore.CacheWrap()
 			opts.Store = gnoStore.BeginTransaction(wrapped, wrapped)
+
+			if *withSync {
+				changed, err := opts.RunSync(path, content)
+				if err != nil {
+					t.Fatal(err.Error())
+				}
+				err = os.WriteFile(filepath.Join(dir, path), []byte(changed), de.Type())
+				if err != nil {
+					criticalError = fmt.Errorf("could not fix golden file: %w", err)
+				}
+				return
+			}
+
 			err := opts.Run(path, content)
 			if err != nil {
 				t.Error(err.Error())
 			}
 		})
 
-		return nil
+		return criticalError
 	})
 	if err != nil {
 		t.Fatal(err)
