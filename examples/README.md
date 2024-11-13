@@ -1,11 +1,11 @@
 # Examples
 
 This folder showcases example Gno realms (smart contracts) and pure packages (libraries).
-These examples provide a glimpse into the potential of gno.land & Gno capabilities,
+These examples provide a glimpse into the potential of gno.land and the capabilities of Gno,
 while also serving as a testing set for the GnoVM.
 
 Pure packages and realms in this folder are pre-deployed to gno.land testnets,
-making them readily available for use on-chain. However, **there is no guarantee
+making them readily available for on-chain use. However, **there is no guarantee
 that code in this folder is bug-free, and should be used in accordance to this fact.**
 
 ## Structure
@@ -20,11 +20,11 @@ pure packages and realms, respectively.
 essential to prioritize shared content that benefits the broader community.
 These examples serve as a foundation and reference for all users.
 
-**Personal Realms & Pure Packages:** We're open to personal realms, but they must
-exemplify best practices and inspire others. To maintain our repository's
-organization, we may decline some realms. If so, consider uploading
+**Personal Realms & Pure Packages:** We welcome personal realms that
+exemplify best practices and inspire others. To maintain the organization
+of the monorepo, some submissions may be declined. If so, consider uploading
 [permissionlessly](../docs/gno-tooling/cli/gnokey/state-changing-calls.md#addpackage)
-and storing the source code on a separate repo. For higher
+and storing the source code in a separate repo. For higher
 acceptance odds, offer useful and original examples.
 
 **Recommended Approach:**
