@@ -2,12 +2,17 @@ package gnolang_test
 
 import (
 	"bufio"
+	"bytes"
 	"fmt"
 	"io"
 	"net"
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
+	"github.com/gnolang/gno/gnovm/pkg/gnolang"
+	"github.com/gnolang/gno/gnovm/pkg/test"
 )
 
 type dtest struct{ in, out string }
@@ -19,68 +24,48 @@ type writeNopCloser struct{ io.Writer }
 func (writeNopCloser) Close() error { return nil }
 
 // TODO (Marc): move evalTest to gnovm/tests package and remove code duplicates
-func evalTest(debugAddr, in, file string) (out, err, stacktrace string) {
-	panic("not implemented")
-	/*
-		bout := bytes.NewBufferString("")
-		berr := bytes.NewBufferString("")
-		stdin := bytes.NewBufferString(in)
-		stdout := writeNopCloser{bout}
-		stderr := writeNopCloser{berr}
-		debug := in != "" || debugAddr != ""
-		mode := tests.ImportModeStdlibsPreferred
-		if strings.HasSuffix(file, "_native.gno") {
-			mode = tests.ImportModeNativePreferred
+func evalTest(debugAddr, in, file string) (out, err string) {
+	bout := bytes.NewBufferString("")
+	berr := bytes.NewBufferString("")
+	stdin := bytes.NewBufferString(in)
+	stdout := writeNopCloser{bout}
+	stderr := writeNopCloser{berr}
+
+	defer func() {
+		if r := recover(); r != nil {
+			err = fmt.Sprintf("%v", r)
 		}
+		out = strings.TrimSuffix(out, "\n")
+		err = strings.TrimSpace(strings.ReplaceAll(err, "../../tests/files/", "files/"))
+	}()
 
-		defer func() {
-			if r := recover(); r != nil {
-				err = fmt.Sprintf("%v", r)
-			}
-			out = strings.TrimSuffix(out, "\n")
-			err = strings.TrimSpace(strings.ReplaceAll(err, "../../tests/files/", "files/"))
-		}()
+	_, testStore := test.TestStore(gnoenv.RootDir(), false, stdin, stdout, stderr)
 
-		testStore := tests.TestStore(gnoenv.RootDir(), "../../tests/files", stdin, stdout, stderr, mode)
+	f := gnolang.MustReadFile(file)
 
-		f := gnolang.MustReadFile(file)
+	m := gnolang.NewMachineWithOptions(gnolang.MachineOptions{
+		PkgPath: string(f.PkgName),
+		Input:   stdin,
+		Output:  stdout,
+		Store:   testStore,
+		Context: test.TestContext(string(f.PkgName), nil),
+		Debug:   true,
+	})
 
-		m := gnolang.NewMachineWithOptions(gnolang.MachineOptions{
-			PkgPath: string(f.PkgName),
-			Input:   stdin,
-			Output:  stdout,
-			Store:   testStore,
-			Context: tests.TestContext(string(f.PkgName), nil),
-			Debug:   debug,
-		})
+	defer m.Release()
 
-		defer m.Release()
-		defer func() {
-			if r := recover(); r != nil {
-				switch r.(type) {
-				case gnolang.UnhandledPanicError:
-					stacktrace = m.ExceptionsStacktrace()
-				default:
-					stacktrace = m.Stacktrace().String()
-				}
-				stacktrace = strings.TrimSpace(strings.ReplaceAll(stacktrace, "../../tests/files/", "files/"))
-				panic(r)
-			}
-		}()
-
-		if debugAddr != "" {
-			if e := m.Debugger.Serve(debugAddr); e != nil {
-				err = e.Error()
-				return
-			}
+	if debugAddr != "" {
+		if e := m.Debugger.Serve(debugAddr); e != nil {
+			err = e.Error()
+			return
 		}
+	}
 
-		m.RunFiles(f)
-		ex, _ := gnolang.ParseExpr("main()")
-		m.Eval(ex)
-		out, err, stacktrace = bout.String(), berr.String(), m.ExceptionsStacktrace()
-		return
-	*/
+	m.RunFiles(f)
+	ex, _ := gnolang.ParseExpr("main()")
+	m.Eval(ex)
+	out, err = bout.String(), berr.String()
+	return
 }
 
 func runDebugTest(t *testing.T, targetPath string, tests []dtest) {
@@ -88,7 +73,7 @@ func runDebugTest(t *testing.T, targetPath string, tests []dtest) {
 
 	for _, test := range tests {
 		t.Run("", func(t *testing.T) {
-			out, err, _ := evalTest("", test.in, targetPath)
+			out, err := evalTest("", test.in, targetPath)
 			t.Log("in:", test.in, "out:", out, "err:", err)
 			if !strings.Contains(out, test.out) {
 				t.Errorf("unexpected output\nwant\"%s\"\n  got \"%s\"", test.out, out)
@@ -204,7 +189,7 @@ func TestRemoteDebug(t *testing.T) {
 }
 
 func TestRemoteError(t *testing.T) {
-	_, err, _ := evalTest(":xxx", "", debugTarget)
+	_, err := evalTest(":xxx", "", debugTarget)
 	t.Log("err:", err)
 	if !strings.Contains(err, "tcp/xxx: unknown port") &&
 		!strings.Contains(err, "tcp/xxx: nodename nor servname provided, or not known") {

@@ -75,6 +75,7 @@ func (opts *FileTestOptions) run(filename string, source []byte, sync bool) (str
 		Context:       ctx,
 		MaxAllocBytes: maxAlloc,
 	})
+	defer m.Release()
 	result := opts.runTest(m, pkgPath, filename, source)
 
 	// These are used to generate the output.
