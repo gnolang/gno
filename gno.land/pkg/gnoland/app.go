@@ -3,6 +3,7 @@ package gnoland
 
 import (
 	"fmt"
+	"io"
 	"log/slog"
 	"path/filepath"
 	"strconv"
@@ -12,6 +13,7 @@ import (
 	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
 	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
 	"github.com/gnolang/gno/tm2/pkg/bft/config"
+	bft "github.com/gnolang/gno/tm2/pkg/bft/types"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
 	dbm "github.com/gnolang/gno/tm2/pkg/db"
 	"github.com/gnolang/gno/tm2/pkg/events"
@@ -19,6 +21,7 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/sdk"
 	"github.com/gnolang/gno/tm2/pkg/sdk/auth"
 	"github.com/gnolang/gno/tm2/pkg/sdk/bank"
+	"github.com/gnolang/gno/tm2/pkg/sdk/params"
 	"github.com/gnolang/gno/tm2/pkg/std"
 	"github.com/gnolang/gno/tm2/pkg/store"
 	"github.com/gnolang/gno/tm2/pkg/store/dbadapter"
@@ -34,10 +37,11 @@ type AppOptions struct {
 	DB                dbm.DB             // required
 	Logger            *slog.Logger       // required
 	EventSwitch       events.EventSwitch // required
+	VMOutput          io.Writer          // optional
 	InitChainerConfig                    // options related to InitChainer
 }
 
-// DefaultAppOptions provides a "ready" default [AppOptions] for use with
+// TestAppOptions provides a "ready" default [AppOptions] for use with
 // [NewAppWithOptions], using the provided db.
 func TestAppOptions(db dbm.DB) *AppOptions {
 	return &AppOptions{
@@ -48,7 +52,6 @@ func TestAppOptions(db dbm.DB) *AppOptions {
 			GenesisTxResultHandler: PanicOnFailingTxResultHandler,
 			StdlibDir:              filepath.Join(gnoenv.RootDir(), "gnovm", "stdlibs"),
 			CacheStdlibLoad:        true,
-			ChainDomain:            "gno.land",
 		},
 	}
 }
@@ -88,12 +91,14 @@ func NewAppWithOptions(cfg *AppOptions) (abci.Application, error) {
 	// Construct keepers.
 	acctKpr := auth.NewAccountKeeper(mainKey, ProtoGnoAccount)
 	bankKpr := bank.NewBankKeeper(acctKpr)
-	vmk := vm.NewVMKeeper(baseKey, mainKey, acctKpr, bankKpr, cfg.ChainDomain)
+	paramsKpr := params.NewParamsKeeper(mainKey, "vm")
+	vmk := vm.NewVMKeeper(baseKey, mainKey, acctKpr, bankKpr, paramsKpr)
+	vmk.Output = cfg.VMOutput
 
 	// Set InitChainer
 	icc := cfg.InitChainerConfig
 	icc.baseApp = baseApp
-	icc.acctKpr, icc.bankKpr, icc.vmKpr = acctKpr, bankKpr, vmk
+	icc.acctKpr, icc.bankKpr, icc.vmKpr, icc.paramsKpr = acctKpr, bankKpr, vmk, paramsKpr
 	baseApp.SetInitChainer(icc.InitChainer)
 
 	// Set AnteHandler
@@ -148,6 +153,7 @@ func NewAppWithOptions(cfg *AppOptions) (abci.Application, error) {
 	// Set a handler Route.
 	baseApp.Router().AddRoute("auth", auth.NewHandler(acctKpr))
 	baseApp.Router().AddRoute("bank", bank.NewHandler(bankKpr))
+	baseApp.Router().AddRoute("params", params.NewHandler(paramsKpr))
 	baseApp.Router().AddRoute("vm", vm.NewHandler(vmk))
 
 	// Load latest version.
@@ -223,15 +229,13 @@ type InitChainerConfig struct {
 	// called several times.
 	CacheStdlibLoad bool
 
-	// ChainDomain is the primary domain name for the chain and its packages.
-	ChainDomain string
-
 	// These fields are passed directly by NewAppWithOptions, and should not be
 	// configurable by end-users.
-	baseApp *sdk.BaseApp
-	vmKpr   vm.VMKeeperI
-	acctKpr auth.AccountKeeperI
-	bankKpr bank.BankKeeperI
+	baseApp   *sdk.BaseApp
+	vmKpr     vm.VMKeeperI
+	acctKpr   auth.AccountKeeperI
+	bankKpr   bank.BankKeeperI
+	paramsKpr params.ParamsKeeperI
 }
 
 // InitChainer is the function that can be used as a [sdk.InitChainer].
@@ -290,7 +294,7 @@ func (cfg InitChainerConfig) loadAppState(ctx sdk.Context, appState any) ([]abci
 		return nil, fmt.Errorf("invalid AppState of type %T", appState)
 	}
 
-	// Parse and set genesis state balances
+	// Apply genesis balances.
 	for _, bal := range state.Balances {
 		acc := cfg.acctKpr.NewAccountWithAddress(ctx, bal.Address)
 		cfg.acctKpr.SetAccount(ctx, acc)
@@ -300,10 +304,38 @@ func (cfg InitChainerConfig) loadAppState(ctx sdk.Context, appState any) ([]abci
 		}
 	}
 
+	// Apply genesis params.
+	for _, param := range state.Params {
+		param.register(ctx, cfg.paramsKpr)
+	}
+
+	// Replay genesis txs.
 	txResponses := make([]abci.ResponseDeliverTx, 0, len(state.Txs))
+
 	// Run genesis txs
 	for _, tx := range state.Txs {
-		res := cfg.baseApp.Deliver(tx)
+		var (
+			stdTx    = tx.Tx
+			metadata = tx.Metadata
+
+			ctxFn sdk.ContextFn
+		)
+
+		// Check if there is metadata associated with the tx
+		if metadata != nil {
+			// Create a custom context modifier
+			ctxFn = func(ctx sdk.Context) sdk.Context {
+				// Create a copy of the header, in
+				// which only the timestamp information is modified
+				header := ctx.BlockHeader().(*bft.Header).Copy()
+				header.Time = time.Unix(metadata.Timestamp, 0)
+
+				// Save the modified header
+				return ctx.WithBlockHeader(header)
+			}
+		}
+
+		res := cfg.baseApp.Deliver(stdTx, ctxFn)
 		if res.IsErr() {
 			ctx.Logger().Error(
 				"Unable to deliver genesis tx",
@@ -319,7 +351,7 @@ func (cfg InitChainerConfig) loadAppState(ctx sdk.Context, appState any) ([]abci
 			GasUsed:      res.GasUsed,
 		})
 
-		cfg.GenesisTxResultHandler(ctx, tx, res)
+		cfg.GenesisTxResultHandler(ctx, stdTx, res)
 	}
 	return txResponses, nil
 }

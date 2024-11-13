@@ -23,7 +23,7 @@ func setupDevNode(
 
 	if devCfg.txsFile != "" { // Load txs files
 		var err error
-		nodeConfig.InitialTxs, err = parseTxs(devCfg.txsFile)
+		nodeConfig.InitialTxs, err = gnoland.ReadGenesisTxs(ctx, devCfg.txsFile)
 		if err != nil {
 			return nil, fmt.Errorf("unable to load transactions: %w", err)
 		}
@@ -35,7 +35,13 @@ func setupDevNode(
 
 		// Override balances and txs
 		nodeConfig.BalancesList = state.Balances
-		nodeConfig.InitialTxs = state.Txs
+
+		stateTxs := state.Txs
+		nodeConfig.InitialTxs = make([]gnoland.TxWithMetadata, len(stateTxs))
+
+		for index, nodeTx := range stateTxs {
+			nodeConfig.InitialTxs[index] = nodeTx
+		}
 
 		logger.Info("genesis file loaded", "path", devCfg.genesisFile, "txs", len(nodeConfig.InitialTxs))
 	}

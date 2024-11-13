@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/gnolang/gno/gno.land/pkg/gnoland/ugnot"
+	"github.com/gnolang/gno/gnovm"
 	bft "github.com/gnolang/gno/tm2/pkg/bft/types"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
 	"github.com/gnolang/gno/tm2/pkg/sdk"
@@ -142,16 +143,15 @@ func setupAddPkg(success bool) (sdk.Context, sdk.Tx, vmHandler) {
 	ctx := env.ctx
 	// conduct base gas meter tests from a non-genesis block since genesis block use infinite gas meter instead.
 	ctx = ctx.WithBlockHeader(&bft.Header{Height: int64(1)})
-	vmHandler := NewHandler(env.vmk)
 	// Create an account  with 10M ugnot (10gnot)
 	addr := crypto.AddressFromPreimage([]byte("test1"))
 	acc := env.acck.NewAccountWithAddress(ctx, addr)
 	env.acck.SetAccount(ctx, acc)
 	env.bank.SetCoins(ctx, addr, std.MustParseCoins(ugnot.ValueString(10000000)))
 	// success message
-	var files []*std.MemFile
+	var files []*gnovm.MemFile
 	if success {
-		files = []*std.MemFile{
+		files = []*gnovm.MemFile{
 			{
 				Name: "hello.gno",
 				Body: `package hello
@@ -163,7 +163,7 @@ func Echo() string {
 		}
 	} else {
 		// failed message
-		files = []*std.MemFile{
+		files = []*gnovm.MemFile{
 			{
 				Name: "hello.gno",
 				Body: `package hello
@@ -182,5 +182,5 @@ func Echo() UnknowType {
 	fee := std.NewFee(500000, std.MustParseCoin(ugnot.ValueString(1)))
 	tx := std.NewTx(msgs, fee, []std.Signature{}, "")
 
-	return ctx, tx, vmHandler
+	return ctx, tx, env.vmh
 }

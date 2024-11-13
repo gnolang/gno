@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/gnolang/gno/gno.land/pkg/gnoland"
+	"github.com/gnolang/gno/gno.land/pkg/gnoland/ugnot"
 	"github.com/gnolang/gno/gno.land/pkg/log"
 	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
 	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
@@ -25,6 +26,7 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/crypto"
 	"github.com/gnolang/gno/tm2/pkg/events"
 	osm "github.com/gnolang/gno/tm2/pkg/os"
+	"github.com/gnolang/gno/tm2/pkg/std"
 	"github.com/gnolang/gno/tm2/pkg/telemetry"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
@@ -41,6 +43,12 @@ var startGraphic = strings.ReplaceAll(`
  \_, /_//_/\___(_)_/\_,_/_//_/\_,_/
 /___/
 `, "'", "`")
+
+var (
+	// Keep in sync with contribs/gnogenesis/internal/txs/txs_add_packages.go
+	genesisDeployAddress = crypto.MustAddressFromString("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5") // test1
+	genesisDeployFee     = std.NewFee(50000, std.MustParseCoin(ugnot.ValueString(1000000)))
+)
 
 type startCfg struct {
 	gnoRootDir            string // TODO: remove as part of https://github.com/gnolang/gno/issues/1952

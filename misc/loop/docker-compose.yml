@@ -68,7 +68,7 @@ services:
 
   portalloopd:
     build:
-      context: .
+      context: ../..
       target: portalloopd
     restart: unless-stopped
     volumes:

@@ -6,14 +6,15 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"io"
 	"log/slog"
-	"os"
 	"path/filepath"
 	"regexp"
 	"strings"
 	"sync"
 	"time"
 
+	"github.com/gnolang/gno/gnovm"
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
 	"github.com/gnolang/gno/gnovm/stdlibs"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
@@ -23,6 +24,7 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/sdk"
 	"github.com/gnolang/gno/tm2/pkg/sdk/auth"
 	"github.com/gnolang/gno/tm2/pkg/sdk/bank"
+	"github.com/gnolang/gno/tm2/pkg/sdk/params"
 	"github.com/gnolang/gno/tm2/pkg/std"
 	"github.com/gnolang/gno/tm2/pkg/store"
 	"github.com/gnolang/gno/tm2/pkg/store/dbadapter"
@@ -55,10 +57,14 @@ var _ VMKeeperI = &VMKeeper{}
 
 // VMKeeper holds all package code and store state.
 type VMKeeper struct {
+	// Needs to be explicitly set, like in the case of gnodev.
+	Output io.Writer
+
 	baseKey store.StoreKey
 	iavlKey store.StoreKey
 	acck    auth.AccountKeeper
 	bank    bank.BankKeeper
+	prmk    params.ParamsKeeper
 
 	// cached, the DeliverTx persistent state.
 	gnoStore gno.Store
@@ -75,15 +81,14 @@ func NewVMKeeper(
 	iavlKey store.StoreKey,
 	acck auth.AccountKeeper,
 	bank bank.BankKeeper,
-	chainDomain string,
+	prmk params.ParamsKeeper,
 ) *VMKeeper {
-	// TODO: create an Options struct to avoid too many constructor parameters
 	vmk := &VMKeeper{
 		baseKey: baseKey,
 		iavlKey: iavlKey,
 		acck:    acck,
 		bank:    bank,
-		domain:  chainDomain,
+		prmk:    prmk,
 	}
 
 	// Namespace can be either a user or crypto address.
@@ -114,7 +119,7 @@ func (vm *VMKeeper) Initialize(
 		m2 := gno.NewMachineWithOptions(
 			gno.MachineOptions{
 				PkgPath: "",
-				Output:  os.Stdout, // XXX
+				Output:  vm.Output,
 				Store:   vm.gnoStore,
 			})
 		defer m2.Release()
@@ -198,8 +203,7 @@ func loadStdlibPackage(pkgPath, stdlibDir string, store gno.Store) {
 		// XXX: gno.land, vm.domain, other?
 		PkgPath: "gno.land/r/stdlibs/" + pkgPath,
 		// PkgPath: pkgPath, XXX why?
-		Output: os.Stdout,
-		Store:  store,
+		Store: store,
 	})
 	defer m.Release()
 	m.RunMemPackage(memPkg, true)
@@ -230,9 +234,22 @@ func (vm *VMKeeper) getGnoTransactionStore(ctx sdk.Context) gno.TransactionStore
 	return txStore
 }
 
+// Namespace can be either a user or crypto address.
+var reNamespace = regexp.MustCompile(`^gno.land/(?:r|p)/([\.~_a-zA-Z0-9]+)`)
+
+const (
+	sysUsersPkgParamPath = "gno.land/r/sys/params.sys.users_pkgpath.string"
+	chainDomainParamPath = "gno.land/r/sys/params.chain.domain.string"
+)
+
 // checkNamespacePermission check if the user as given has correct permssion to on the given pkg path
 func (vm *VMKeeper) checkNamespacePermission(ctx sdk.Context, creator crypto.Address, pkgPath string) error {
 	sysUsersPkg := vm.domain + "/r/sys/users" // configurable through sys/params
+	var sysUsersPkg string
+	vm.prmk.GetString(ctx, sysUsersPkgParamPath, &sysUsersPkg)
+	if sysUsersPkg == "" {
+		return nil
+	}
 
 	store := vm.getGnoTransactionStore(ctx)
 
@@ -267,13 +284,14 @@ func (vm *VMKeeper) checkNamespacePermission(ctx sdk.Context, creator crypto.Add
 		OrigPkgAddr:   pkgAddr.Bech32(),
 		// XXX: should we remove the banker ?
 		Banker:      NewSDKBanker(vm, ctx),
+		Params:      NewSDKParams(vm, ctx),
 		EventLogger: ctx.EventLogger(),
 	}
 
 	m := gno.NewMachineWithOptions(
 		gno.MachineOptions{
 			PkgPath:  "",
-			Output:   os.Stdout, // XXX
+			Output:   vm.Output,
 			Store:    store,
 			Context:  msgCtx,
 			Alloc:    store.GetAllocator(),
@@ -370,13 +388,14 @@ func (vm *VMKeeper) AddPackage(ctx sdk.Context, msg MsgAddPackage) (err error) {
 		OrigSendSpent: new(std.Coins),
 		OrigPkgAddr:   pkgAddr.Bech32(),
 		Banker:        NewSDKBanker(vm, ctx),
+		Params:        NewSDKParams(vm, ctx),
 		EventLogger:   ctx.EventLogger(),
 	}
 	// Parse and run the files, construct *PV.
 	m2 := gno.NewMachineWithOptions(
 		gno.MachineOptions{
 			PkgPath:  "",
-			Output:   os.Stdout, // XXX
+			Output:   vm.Output,
 			Store:    gnostore,
 			Alloc:    gnostore.GetAllocator(),
 			Context:  msgCtx,
@@ -470,13 +489,14 @@ func (vm *VMKeeper) Call(ctx sdk.Context, msg MsgCall) (res string, err error) {
 		OrigSendSpent: new(std.Coins),
 		OrigPkgAddr:   pkgAddr.Bech32(),
 		Banker:        NewSDKBanker(vm, ctx),
+		Params:        NewSDKParams(vm, ctx),
 		EventLogger:   ctx.EventLogger(),
 	}
 	// Construct machine and evaluate.
 	m := gno.NewMachineWithOptions(
 		gno.MachineOptions{
 			PkgPath:  "",
-			Output:   os.Stdout, // XXX
+			Output:   vm.Output,
 			Store:    gnostore,
 			Context:  msgCtx,
 			Alloc:    gnostore.GetAllocator(),
@@ -569,14 +589,19 @@ func (vm *VMKeeper) Run(ctx sdk.Context, msg MsgRun) (res string, err error) {
 		OrigSendSpent: new(std.Coins),
 		OrigPkgAddr:   pkgAddr.Bech32(),
 		Banker:        NewSDKBanker(vm, ctx),
+		Params:        NewSDKParams(vm, ctx),
 		EventLogger:   ctx.EventLogger(),
 	}
 	// Parse and run the files, construct *PV.
 	buf := new(bytes.Buffer)
+	output := io.Writer(buf)
+	if vm.Output != nil {
+		output = io.MultiWriter(buf, vm.Output)
+	}
 	m := gno.NewMachineWithOptions(
 		gno.MachineOptions{
 			PkgPath:  "",
-			Output:   buf,
+			Output:   output,
 			Store:    gnostore,
 			Alloc:    gnostore.GetAllocator(),
 			Context:  msgCtx,
@@ -602,7 +627,7 @@ func (vm *VMKeeper) Run(ctx sdk.Context, msg MsgRun) (res string, err error) {
 	m2 := gno.NewMachineWithOptions(
 		gno.MachineOptions{
 			PkgPath:  "",
-			Output:   buf,
+			Output:   output,
 			Store:    gnostore,
 			Alloc:    gnostore.GetAllocator(),
 			Context:  msgCtx,
@@ -728,12 +753,13 @@ func (vm *VMKeeper) QueryEval(ctx sdk.Context, pkgPath string, expr string) (res
 		// OrigSendSpent: nil,
 		OrigPkgAddr: pkgAddr.Bech32(),
 		Banker:      NewSDKBanker(vm, ctx), // safe as long as ctx is a fork to be discarded.
+		Params:      NewSDKParams(vm, ctx),
 		EventLogger: ctx.EventLogger(),
 	}
 	m := gno.NewMachineWithOptions(
 		gno.MachineOptions{
 			PkgPath:  pkgPath,
-			Output:   os.Stdout, // XXX
+			Output:   vm.Output,
 			Store:    gnostore,
 			Context:  msgCtx,
 			Alloc:    alloc,
@@ -794,12 +820,13 @@ func (vm *VMKeeper) QueryEvalString(ctx sdk.Context, pkgPath string, expr string
 		// OrigSendSpent: nil,
 		OrigPkgAddr: pkgAddr.Bech32(),
 		Banker:      NewSDKBanker(vm, ctx), // safe as long as ctx is a fork to be discarded.
+		Params:      NewSDKParams(vm, ctx),
 		EventLogger: ctx.EventLogger(),
 	}
 	m := gno.NewMachineWithOptions(
 		gno.MachineOptions{
 			PkgPath:  pkgPath,
-			Output:   os.Stdout, // XXX
+			Output:   vm.Output,
 			Store:    gnostore,
 			Context:  msgCtx,
 			Alloc:    alloc,
@@ -830,7 +857,7 @@ func (vm *VMKeeper) QueryEvalString(ctx sdk.Context, pkgPath string, expr string
 
 func (vm *VMKeeper) QueryFile(ctx sdk.Context, filepath string) (res string, err error) {
 	store := vm.newGnoTransactionStore(ctx) // throwaway (never committed)
-	dirpath, filename := std.SplitFilepath(filepath)
+	dirpath, filename := gnovm.SplitFilepath(filepath)
 	if filename != "" {
 		memFile := store.GetMemFile(dirpath, filename)
 		if memFile == nil {
