@@ -797,7 +797,7 @@ GNO_CASE:
 			tv.T = t
 			tv.SetInt64(x)
 		case UintKind:
-			validate(Uint64Kind, UintKind, func() bool { return uint64(tv.GetUint64()) <= math.MaxUint })
+			validate(Uint64Kind, UintKind, func() bool { return tv.GetUint64() <= math.MaxUint })
 
 			x := uint(tv.GetUint64())
 			tv.T = t
