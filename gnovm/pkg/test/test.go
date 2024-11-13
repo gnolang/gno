@@ -38,6 +38,7 @@ func TestContext(pkgPath string, send std.Coins) *teststd.TestExecContext {
 		OrigSend:      send,
 		OrigSendSpent: new(std.Coins),
 		Banker:        banker,
+		Params:        newTestParams(),
 		EventLogger:   sdk.NewEventLogger(),
 	}
 	return &teststd.TestExecContext{
@@ -94,3 +95,17 @@ func (tb *testBanker) RemoveCoin(addr crypto.Bech32Address, denom string, amt in
 	rest := coins.Sub(std.Coins{{Denom: denom, Amount: amt}})
 	tb.coinTable[addr] = rest
 }
+
+// ----------------------------------------
+// testParams
+type testParams struct{}
+
+func newTestParams() *testParams {
+	return &testParams{}
+}
+
+func (tp *testParams) SetBool(key string, val bool)     { /* noop */ }
+func (tp *testParams) SetBytes(key string, val []byte)  { /* noop */ }
+func (tp *testParams) SetInt64(key string, val int64)   { /* noop */ }
+func (tp *testParams) SetUint64(key string, val uint64) { /* noop */ }
+func (tp *testParams) SetString(key string, val string) { /* noop */ }
