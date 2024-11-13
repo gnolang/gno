@@ -8,66 +8,7 @@ import (
 	"github.com/gnolang/gno/contribs/gnodev/pkg/events"
 	"github.com/gnolang/gno/gno.land/pkg/gnoland"
 	bft "github.com/gnolang/gno/tm2/pkg/bft/types"
-	"github.com/gnolang/gno/tm2/pkg/std"
 )
-
-type NodeGenesisState struct {
-	Balances []gnoland.Balance
-	Txs      []gnoland.GenesisTx
-}
-
-func (s *NodeGenesisState) Len() int { return len(s.Txs) }
-
-func (s *NodeGenesisState) GenesisTxs() []gnoland.GenesisTx { return s.Txs }
-
-func (s *NodeGenesisState) GenesisBalances() []gnoland.Balance {
-	return s.Balances
-}
-
-func (s *NodeGenesisState) MetadataGenesisState() *gnoland.MetadataGenesisState {
-	metaState := gnoland.MetadataGenesisState{
-		Balances: s.GenesisBalances(),
-	}
-
-	// Export metadata as well
-	txs := s.GenesisTxs()
-	metaState.Txs = make([]gnoland.MetadataTx, len(txs))
-	for i, tx := range txs {
-		metaState.Txs[i] = gnoland.MetadataTx{
-			GenesisTx: tx.Tx(),
-		}
-
-		if meta := tx.Metadata(); meta != nil {
-			metaState.Txs[i].TxMetadata = *meta
-		}
-	}
-
-	return &metaState
-}
-
-func (s *NodeGenesisState) AppendTxs(txs ...std.Tx) {
-	genesisTxs := make([]gnoland.GenesisTx, len(txs))
-	for i, tx := range txs {
-		genesisTxs[i] = &GnoGenesisTx{tx}
-	}
-	s.Txs = append(s.Txs, genesisTxs...)
-}
-
-func (s *NodeGenesisState) AppendMetadataTxs(txs ...gnoland.MetadataTx) {
-	genesisTxs := make([]gnoland.GenesisTx, len(txs))
-	for i, tx := range txs {
-		genesisTxs[i] = tx
-	}
-
-	s.Txs = append(s.Txs, genesisTxs...)
-}
-
-type GnoGenesisTx struct {
-	StdTx std.Tx
-}
-
-func (g GnoGenesisTx) Tx() std.Tx                           { return g.StdTx }
-func (g GnoGenesisTx) Metadata() *gnoland.GenesisTxMetadata { return nil }
 
 var ErrEmptyState = errors.New("empty state")
 
@@ -151,13 +92,13 @@ func (n *Node) MoveBy(ctx context.Context, x int) error {
 	newState := n.state[:newIndex]
 
 	// Create genesis with loaded pkgs + previous state
-	genesis := NodeGenesisState{
+	genesis := gnoland.GnoGenesisState{
 		Balances: n.config.BalancesList,
 		Txs:      append(pkgsTxs, newState...),
 	}
 
 	// Reset the node with the new genesis state.
-	if err = n.rebuildNode(ctx, &genesis); err != nil {
+	if err = n.rebuildNode(ctx, genesis); err != nil {
 		return fmt.Errorf("uanble to rebuild node: %w", err)
 	}
 
@@ -191,23 +132,10 @@ func (n *Node) ExportStateAsGenesis(ctx context.Context) (*bft.GenesisDoc, error
 
 	// Get current blockstore state
 	doc := *n.Node.GenesisDoc() // copy doc
-
-	metaState := gnoland.MetadataGenesisState{
+	doc.AppState = gnoland.GnoGenesisState{
 		Balances: n.config.BalancesList,
+		Txs:      state,
 	}
 
-	// Export metadata as well
-	metaState.Txs = make([]gnoland.MetadataTx, len(state))
-	for i, tx := range state {
-		metaState.Txs[i] = gnoland.MetadataTx{
-			GenesisTx: tx.Tx(),
-		}
-
-		if meta := tx.Metadata(); meta != nil {
-			metaState.Txs[i].TxMetadata = *meta
-		}
-	}
-
-	doc.AppState = metaState
 	return &doc, nil
 }

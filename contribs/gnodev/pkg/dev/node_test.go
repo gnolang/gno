@@ -2,9 +2,11 @@ package dev
 
 import (
 	"context"
+	"encoding/json"
 	"os"
 	"path/filepath"
 	"testing"
+	"time"
 
 	mock "github.com/gnolang/gno/contribs/gnodev/internal/mock"
 
@@ -219,6 +221,118 @@ func Render(_ string) string { return str }
 	require.Equal(t, render, "foo")
 
 	assert.Equal(t, mock.EvtNull, emitter.NextEvent().Type())
+}
+
+func TestTxTimestampRecover(t *testing.T) {
+	const (
+		// foo package
+		foobarGnoMod = "module gno.land/r/dev/foo\n"
+		fooFile      = `package foo
+import (
+	"strconv"
+	"strings"
+	"time"
+)
+
+// First time element should be init at genesis
+var times = []time.Time{time.Now()}
+
+func SpanTime() {
+	times = append(times, time.Now())
+}
+
+func Render(_ string) string {
+	var strs strings.Builder
+
+	strs.WriteRune('[')
+	for i, t := range times {
+		if i > 0 {
+			strs.WriteRune(',')
+		}
+		strs.WriteString(strconv.Itoa(int(t.UnixNano())))
+	}
+	strs.WriteRune(']')
+
+	return strs.String()
+}
+`
+	)
+
+	parseJSONTimesList := func(t *testing.T, render string) []time.Time {
+		t.Helper()
+
+		var times []time.Time
+		var nanos []int64
+
+		err := json.Unmarshal([]byte(render), &nanos)
+		require.NoError(t, err)
+
+		for _, nano := range nanos {
+			sec, nsec := nano/int64(time.Second), nano%int64(time.Second)
+			times = append(times, time.Unix(sec, nsec))
+		}
+
+		return times
+	}
+
+	// Generate package foo
+	foopkg := generateTestingPackage(t, "gno.mod", foobarGnoMod, "foo.gno", fooFile)
+
+	// Call NewDevNode with no package should work
+	node, emitter := newTestingDevNode(t, foopkg)
+	assert.Len(t, node.ListPkgs(), 1)
+
+	// Span multiple time
+	for i := 0; i < 2; i++ {
+		// Wait a little for time shift
+		time.Sleep(time.Second)
+
+		msg := vm.MsgCall{
+			PkgPath: "gno.land/r/dev/foo",
+			Func:    "SpanTime",
+		}
+		res, err := testingCallRealm(t, node, msg)
+		require.NoError(t, err)
+		require.NoError(t, res.CheckTx.Error)
+		require.NoError(t, res.DeliverTx.Error)
+		assert.Equal(t, emitter.NextEvent().Type(), events.EvtTxResult)
+	}
+
+	// Render JSON times list
+	render, err := testingRenderRealm(t, node, "gno.land/r/dev/foo")
+	require.NoError(t, err)
+
+	// Parse times list
+	times1 := parseJSONTimesList(t, render)
+
+	// Ensure times are correctly expending
+	for i, t2 := range times {
+		if i == 0 {
+			continue
+		}
+
+		t1 := times1[i-1]
+		require.Greater(t, t2.UnixNano(), t1.UnixNano())
+	}
+
+	// Reload the node
+	err = node.Reload(context.Background())
+	require.NoError(t, err)
+	assert.Equal(t, emitter.NextEvent().Type(), events.EvtReload)
+
+	// Fetch time list again from render
+	render, err = testingRenderRealm(t, node, "gno.land/r/dev/foo")
+	require.NoError(t, err)
+
+	times2 := parseJSONTimesList(t, render)
+
+	// Times list should be identical
+	require.Len(t, times2, len(times1))
+	for i := 0; i < len(times1); i++ {
+		t1nsec, t2nsec := times1[i].UnixNano(), times2[i].UnixNano()
+		assert.Equal(t, t1nsec, t2nsec,
+			"comparing times1[%d](%d) == times2[%d](%d)", i, t1nsec, i, t2nsec)
+	}
 }
 
 func testingRenderRealm(t *testing.T, node *Node, rlmpath string) (string, error) {

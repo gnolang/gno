@@ -122,12 +122,12 @@ func NewDevNode(ctx context.Context, cfg *NodeConfig) (*Node, error) {
 	}
 
 	// generate genesis state
-	genesis := NodeGenesisState{
+	genesis := gnoland.GnoGenesisState{
 		Balances: cfg.BalancesList,
 		Txs:      append(pkgsTxs, cfg.InitialTxs...),
 	}
 
-	if err := devnode.rebuildNode(ctx, &genesis); err != nil {
+	if err := devnode.rebuildNode(ctx, genesis); err != nil {
 		return nil, fmt.Errorf("unable to initialize the node: %w", err)
 	}
 
@@ -284,13 +284,13 @@ func (n *Node) Reset(ctx context.Context) error {
 
 	// Append initialTxs
 	txs := append(pkgsTxs, n.initialState...)
-	genesis := NodeGenesisState{
+	genesis := gnoland.GnoGenesisState{
 		Balances: n.config.BalancesList,
 		Txs:      txs,
 	}
 
 	// Reset the node with the new genesis state.
-	err = n.rebuildNode(ctx, &genesis)
+	err = n.rebuildNode(ctx, genesis)
 	if err != nil {
 		return fmt.Errorf("unable to initialize a new node: %w", err)
 	}
@@ -410,7 +410,7 @@ func (n *Node) rebuildNodeFromState(ctx context.Context) error {
 			return fmt.Errorf("unable to load pkgs: %w", err)
 		}
 
-		return n.rebuildNode(ctx, &NodeGenesisState{
+		return n.rebuildNode(ctx, gnoland.GnoGenesisState{
 			Balances: n.config.BalancesList, Txs: txs,
 		})
 	}
@@ -426,14 +426,15 @@ func (n *Node) rebuildNodeFromState(ctx context.Context) error {
 		return fmt.Errorf("unable to load pkgs: %w", err)
 	}
 
+	time.Now().UnixNano()
 	// Create genesis with loaded pkgs + previous state
-	genesis := NodeGenesisState{
+	genesis := gnoland.GnoGenesisState{
 		Balances: n.config.BalancesList,
 		Txs:      append(pkgsTxs, state...),
 	}
 
 	// Reset the node with the new genesis state.
-	err = n.rebuildNode(ctx, &genesis)
+	err = n.rebuildNode(ctx, genesis)
 	n.logger.Info("reload done", "pkgs", len(pkgsTxs), "state applied", len(state))
 
 	// Update node infos
