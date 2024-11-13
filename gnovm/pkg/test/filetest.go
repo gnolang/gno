@@ -272,14 +272,14 @@ func (opts *FileTestOptions) runTest(m *gno.Machine, pkgPath, filename string, c
 				},
 			},
 		}
-		orig := m.Store
-		m.Store = orig.BeginTransaction(nil, nil)
+		orig, tx := m.Store, m.Store.BeginTransaction(nil, nil)
+		m.Store = tx
 		// run decls and init functions.
 		m.RunMemPackage(memPkg, true)
 		// clear store cache and reconstruct machine from committed info
 		// (mimicking on-chain behaviour).
+		tx.Write()
 		m.Store = orig
-		m.PreprocessAllFilesAndSaveBlockNodes()
 
 		pv2 := m.Store.GetPackage(pkgPath, false)
 		m.SetActivePackage(pv2)
