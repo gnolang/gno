@@ -2,82 +2,102 @@ package boards
 
 import (
 	"strconv"
-	"strings"
+
+	"gno.land/p/demo/mux"
 )
 
-//----------------------------------------
-// Render functions
+func Render(path string) string {
+	router := mux.NewRouter()
+	router.HandleFunc("", renderBoardsList)
+	router.HandleFunc("{board}", renderBoard)
+	router.HandleFunc("{board}/{thread}", renderThread)
+	router.HandleFunc("{board}/{thread}/{reply}", renderReply)
 
-func RenderBoard(bid BoardID) string {
-	board := getBoard(bid)
-	if board == nil {
-		return "missing board"
+	router.NotFoundHandler = func(res *mux.ResponseWriter, _ *mux.Request) {
+		res.Write("Path not found")
 	}
-	return board.RenderBoard()
+
+	return router.Render(path)
 }
 
-func Render(path string) string {
-	if path == "" {
-		str := "These are all the boards of this realm:\n\n"
-		gBoards.Iterate("", "", func(key string, value interface{}) bool {
-			board := value.(*Board)
-			str += " * [" + board.url + "](" + board.url + ")\n"
-			return false
-		})
-		return str
-	}
-	parts := strings.Split(path, "/")
-	if len(parts) == 1 {
-		// /r/demo/boards:BOARD_NAME
-		name := parts[0]
-		boardI, exists := gBoardsByName.Get(name)
-		if !exists {
-			return "board does not exist: " + name
-		}
-		return boardI.(*Board).RenderBoard()
-	} else if len(parts) == 2 {
-		// /r/demo/boards:BOARD_NAME/THREAD_ID
-		name := parts[0]
-		boardI, exists := gBoardsByName.Get(name)
-		if !exists {
-			return "board does not exist: " + name
-		}
-		pid, err := strconv.Atoi(parts[1])
-		if err != nil {
-			return "invalid thread id: " + parts[1]
-		}
-		board := boardI.(*Board)
-		thread := board.GetThread(PostID(pid))
-		if thread == nil {
-			return "thread does not exist with id: " + parts[1]
-		}
-		return thread.RenderPost("", 5)
-	} else if len(parts) == 3 {
-		// /r/demo/boards:BOARD_NAME/THREAD_ID/REPLY_ID
-		name := parts[0]
-		boardI, exists := gBoardsByName.Get(name)
-		if !exists {
-			return "board does not exist: " + name
-		}
-		pid, err := strconv.Atoi(parts[1])
-		if err != nil {
-			return "invalid thread id: " + parts[1]
-		}
-		board := boardI.(*Board)
-		thread := board.GetThread(PostID(pid))
-		if thread == nil {
-			return "thread does not exist with id: " + parts[1]
-		}
-		rid, err := strconv.Atoi(parts[2])
-		if err != nil {
-			return "invalid reply id: " + parts[2]
-		}
-		reply := thread.GetReply(PostID(rid))
-		if reply == nil {
-			return "reply does not exist with id: " + parts[2]
-		}
-		return reply.RenderInner()
+func renderBoardsList(res *mux.ResponseWriter, _ *mux.Request) {
+	res.Write("These are all the boards of this realm:\n\n")
+	gBoardsByID.Iterate("", "", func(_ string, value interface{}) bool {
+		board := value.(*Board)
+		url := board.GetURL()
+		res.Write(" * " + newLink(url, url) + "\n")
+		return false
+	})
+}
+
+func renderBoard(res *mux.ResponseWriter, req *mux.Request) {
+	name := req.GetVar("board")
+	v, found := gBoardsByName.Get(name)
+	if !found {
+		res.Write("Board does not exist: " + name)
 	} else {
-		return "unrecognized path " + path
+		board := v.(*Board)
+		res.Write(board.Render())
+	}
+}
+
+func renderThread(res *mux.ResponseWriter, req *mux.Request) {
+	name := req.GetVar("board")
+	v, found := gBoardsByName.Get(name)
+	if !found {
+		res.Write("Board does not exist: " + name)
+		return
+	}
+
+	rawID := req.GetVar("thread")
+	tID, err := strconv.Atoi(rawID)
+	if err != nil {
+		res.Write("Invalid thread ID: " + rawID)
+		return
+	}
+
+	board := v.(*Board)
+	thread, found := board.GetThread(PostID(tID))
+	if !found {
+		res.Write("Thread does not exist with ID: " + req.GetVar("thread"))
+	} else {
+		res.Write(thread.Render("", 5))
+	}
+}
+
+func renderReply(res *mux.ResponseWriter, req *mux.Request) {
+	name := req.GetVar("board")
+	v, found := gBoardsByName.Get(name)
+	if !found {
+		res.Write("Board does not exist: " + name)
+		return
+	}
+
+	rawID := req.GetVar("thread")
+	tID, err := strconv.Atoi(rawID)
+	if err != nil {
+		res.Write("Invalid thread ID: " + rawID)
+		return
+	}
+
+	rawID = req.GetVar("reply")
+	rID, err := strconv.Atoi(rawID)
+	if err != nil {
+		res.Write("Invalid reply ID: " + rawID)
+		return
+	}
+
+	board := v.(*Board)
+	thread, found := board.GetThread(PostID(tID))
+	if !found {
+		res.Write("Thread does not exist with ID: " + req.GetVar("thread"))
+		return
+	}
+
+	reply, found := thread.GetReply(PostID(rID))
+	if !found {
+		res.Write("Reply does not exist with ID: " + req.GetVar("reply"))
+	} else {
+		res.Write(reply.RenderInner())
 	}
 }
