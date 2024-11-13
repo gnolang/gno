@@ -2,17 +2,12 @@ package gnolang_test
 
 import (
 	"bufio"
-	"bytes"
 	"fmt"
 	"io"
 	"net"
 	"strings"
 	"testing"
 	"time"
-
-	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
-	"github.com/gnolang/gno/gnovm/pkg/gnolang"
-	"github.com/gnolang/gno/gnovm/tests"
 )
 
 type dtest struct{ in, out string }
@@ -25,64 +20,67 @@ func (writeNopCloser) Close() error { return nil }
 
 // TODO (Marc): move evalTest to gnovm/tests package and remove code duplicates
 func evalTest(debugAddr, in, file string) (out, err, stacktrace string) {
-	bout := bytes.NewBufferString("")
-	berr := bytes.NewBufferString("")
-	stdin := bytes.NewBufferString(in)
-	stdout := writeNopCloser{bout}
-	stderr := writeNopCloser{berr}
-	debug := in != "" || debugAddr != ""
-	mode := tests.ImportModeStdlibsPreferred
-	if strings.HasSuffix(file, "_native.gno") {
-		mode = tests.ImportModeNativePreferred
-	}
-
-	defer func() {
-		if r := recover(); r != nil {
-			err = fmt.Sprintf("%v", r)
+	panic("not implemented")
+	/*
+		bout := bytes.NewBufferString("")
+		berr := bytes.NewBufferString("")
+		stdin := bytes.NewBufferString(in)
+		stdout := writeNopCloser{bout}
+		stderr := writeNopCloser{berr}
+		debug := in != "" || debugAddr != ""
+		mode := tests.ImportModeStdlibsPreferred
+		if strings.HasSuffix(file, "_native.gno") {
+			mode = tests.ImportModeNativePreferred
 		}
-		out = strings.TrimSuffix(out, "\n")
-		err = strings.TrimSpace(strings.ReplaceAll(err, "../../tests/files/", "files/"))
-	}()
 
-	testStore := tests.TestStore(gnoenv.RootDir(), "../../tests/files", stdin, stdout, stderr, mode)
-
-	f := gnolang.MustReadFile(file)
-
-	m := gnolang.NewMachineWithOptions(gnolang.MachineOptions{
-		PkgPath: string(f.PkgName),
-		Input:   stdin,
-		Output:  stdout,
-		Store:   testStore,
-		Context: tests.TestContext(string(f.PkgName), nil),
-		Debug:   debug,
-	})
-
-	defer m.Release()
-	defer func() {
-		if r := recover(); r != nil {
-			switch r.(type) {
-			case gnolang.UnhandledPanicError:
-				stacktrace = m.ExceptionsStacktrace()
-			default:
-				stacktrace = m.Stacktrace().String()
+		defer func() {
+			if r := recover(); r != nil {
+				err = fmt.Sprintf("%v", r)
 			}
-			stacktrace = strings.TrimSpace(strings.ReplaceAll(stacktrace, "../../tests/files/", "files/"))
-			panic(r)
-		}
-	}()
+			out = strings.TrimSuffix(out, "\n")
+			err = strings.TrimSpace(strings.ReplaceAll(err, "../../tests/files/", "files/"))
+		}()
 
-	if debugAddr != "" {
-		if e := m.Debugger.Serve(debugAddr); e != nil {
-			err = e.Error()
-			return
-		}
-	}
+		testStore := tests.TestStore(gnoenv.RootDir(), "../../tests/files", stdin, stdout, stderr, mode)
 
-	m.RunFiles(f)
-	ex, _ := gnolang.ParseExpr("main()")
-	m.Eval(ex)
-	out, err, stacktrace = bout.String(), berr.String(), m.ExceptionsStacktrace()
-	return
+		f := gnolang.MustReadFile(file)
+
+		m := gnolang.NewMachineWithOptions(gnolang.MachineOptions{
+			PkgPath: string(f.PkgName),
+			Input:   stdin,
+			Output:  stdout,
+			Store:   testStore,
+			Context: tests.TestContext(string(f.PkgName), nil),
+			Debug:   debug,
+		})
+
+		defer m.Release()
+		defer func() {
+			if r := recover(); r != nil {
+				switch r.(type) {
+				case gnolang.UnhandledPanicError:
+					stacktrace = m.ExceptionsStacktrace()
+				default:
+					stacktrace = m.Stacktrace().String()
+				}
+				stacktrace = strings.TrimSpace(strings.ReplaceAll(stacktrace, "../../tests/files/", "files/"))
+				panic(r)
+			}
+		}()
+
+		if debugAddr != "" {
+			if e := m.Debugger.Serve(debugAddr); e != nil {
+				err = e.Error()
+				return
+			}
+		}
+
+		m.RunFiles(f)
+		ex, _ := gnolang.ParseExpr("main()")
+		m.Eval(ex)
+		out, err, stacktrace = bout.String(), berr.String(), m.ExceptionsStacktrace()
+		return
+	*/
 }
 
 func runDebugTest(t *testing.T, targetPath string, tests []dtest) {
