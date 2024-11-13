@@ -97,8 +97,7 @@ GNO_CASE:
 		msg := fmt.Sprintf("cannot convert constant of type %s to %s\n", from, to)
 		if cmp != nil && !cmp() {
 			panic(msg)
-		}
-		if isConst {
+		} else if isConst {
 			panic(msg)
 		}
 	}
