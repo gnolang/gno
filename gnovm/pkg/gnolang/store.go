@@ -51,7 +51,6 @@ type Store interface {
 	GetBlockNodeSafe(Location) BlockNode
 	SetBlockNode(BlockNode)
 	// UNSTABLE
-	SetStrictGo2GnoMapping(bool)
 	Go2GnoType(rt reflect.Type) Type
 	GetAllocator() *Allocator
 	NumMemPackages() int64
@@ -180,10 +179,6 @@ func (transactionStore) SetPackageGetter(pg PackageGetter) {
 
 func (transactionStore) SetNativeStore(ns NativeStore) {
 	panic("SetNativeStore may not be called in a transaction store")
-}
-
-func (transactionStore) SetStrictGo2GnoMapping(strict bool) {
-	panic("SetStrictGo2GnoMapping may not be called in a transaction store")
 }
 
 // CopyCachesFromStore allows to copy a store's internal object, type and
