@@ -6,7 +6,7 @@ while also serving as a test suite for the GnoVM.
 
 Pure packages and realms in this folder are pre-deployed to gno.land testnets,
 making them readily available for on-chain use. However, **there is no guarantee
-that code in this folder is bug-free, and should be used in accordance to this fact.**
+that the code is bug-free, so it should be used with caution and an understanding of potential risks.**
 
 ## Structure
 
