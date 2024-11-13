@@ -24,8 +24,9 @@ type Role struct {
 
 // Roles struct to store all Roles information
 type Roles struct {
-	AllRoles []*Role
-	Ownable  *ownable.Ownable
+	Roles       []*Role
+	UserToRoles avl.Tree // std.Address -> []*Role
+	Ownable     *ownable.Ownable
 }
 
 func validRoleName(name string) error {
@@ -58,7 +59,7 @@ func (rs *Roles) CreateRole(name string) (*Role, error) {
 		return nil, err
 	}
 
-	for _, role := range rs.AllRoles {
+	for _, role := range rs.Roles {
 		if role.Name == name {
 			return nil, ErrRoleSameName
 		}
@@ -69,7 +70,7 @@ func (rs *Roles) CreateRole(name string) (*Role, error) {
 		return nil, err
 	}
 
-	rs.AllRoles = append(rs.AllRoles, role)
+	rs.Roles = append(rs.Roles, role)
 
 	std.Emit(
 		RoleCreatedEvent,
@@ -87,7 +88,7 @@ func (r *Role) HasAccount(account std.Address) bool {
 
 // FindRole searches for a role by its name
 func (rs *Roles) FindRole(name string) (*Role, error) {
-	for _, role := range rs.AllRoles {
+	for _, role := range rs.Roles {
 		if role.Name == name {
 			return role, nil
 		}
@@ -109,6 +110,14 @@ func (rs *Roles) GrantRole(name string, account std.Address) error {
 	}
 
 	r.Holders.Set(account.String(), struct{}{})
+
+	// Add in UserToRoles
+	roles, found := rs.UserToRoles.Get(account.String())
+	if !found {
+		roles = []*Role{}
+	}
+	roles = append(roles.([]*Role), r)
+	rs.UserToRoles.Set(account.String(), roles)
 
 	std.Emit(
 		RoleGrantedEvent,
@@ -133,6 +142,18 @@ func (rs *Roles) RevokeRole(name string, account std.Address) error {
 	}
 
 	r.Holders.Remove(account.String())
+
+	// Remove in UserToRoles
+	roles, found := rs.UserToRoles.Get(account.String())
+	if found {
+		updatedRoles := []*Role{}
+		for _, role := range roles.([]*Role) {
+			if role != r {
+				updatedRoles = append(updatedRoles, role)
+			}
+		}
+		rs.UserToRoles.Set(account.String(), updatedRoles)
+	}
 
 	std.Emit(
 		RoleRevokedEvent,
