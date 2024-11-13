@@ -16,15 +16,13 @@ var (
 )
 
 func init() {
-	var (
-		// Example initial member set (just test addresses)
-		set = []membstore.Member{
-			{
-				Address:     std.Address("g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm"),
-				VotingPower: 10,
-			},
-		}
-	)
+	// Example initial member set (just test addresses)
+	set := []membstore.Member{
+		{
+			Address:     std.Address("g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm"),
+			VotingPower: 10,
+		},
+	}
 
 	// Set the member store
 	members = membstore.NewMembStore(membstore.WithInitialMembers(set))
