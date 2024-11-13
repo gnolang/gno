@@ -18,7 +18,7 @@ func main() {
 // std<VPBlock(2,0)>.GetCallerAt(2)
 //     std/native.gno:44
 // main<VPBlock(1,0)>()
-//     main/files/std5_stdlibs.gno:10
+//     main/files/std5.gno:10
 
 // Error:
 // frame not found

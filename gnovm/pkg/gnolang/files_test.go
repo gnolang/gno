@@ -24,13 +24,15 @@ var withSync = flag.Bool("update-golden-tests", false, "rewrite tests updating R
 //		go test -run TestFiles -failfast
 //	run a specific test:
 //		go test -run TestFiles/addr0b
+//	fix a specific test:
+//		go test -run TestFiles/'^bin1.gno' -short -v -update-golden-tests .
 func TestFiles(t *testing.T) {
 	rootDir, err := filepath.Abs("../../../")
 	require.NoError(t, err)
 	var opts test.FileTestOptions
 	var stdin, stderr bytes.Buffer
-	baseStore, gnoStore := test.TestStore(rootDir, true, &stdin, &opts.Stdout, &stderr)
-	gnoStore.SetStrictGo2GnoMapping(true) // in gno.land, natives must be registered.
+	opts.BaseStore, opts.Store = test.TestStore(rootDir, true, &stdin, &opts.Stdout, &stderr)
+	opts.Store.SetStrictGo2GnoMapping(true) // in gno.land, natives must be registered.
 	// XXX: Using opts like this is a bit funky, replacing the state each time; maybe we can re-create each time
 	// if we don't require usage of opts.Stdout.
 	// XXX: Maybe testStore imports should use baseStore directly, so we directly load into store all package loads.
@@ -41,7 +43,7 @@ func TestFiles(t *testing.T) {
 		switch {
 		case err != nil:
 			return err
-		case path == "extern":
+		case path == "files/extern":
 			return fs.SkipDir
 		case de.IsDir():
 			return nil
@@ -60,9 +62,6 @@ func TestFiles(t *testing.T) {
 
 		var criticalError error
 		t.Run(path[len("files/"):], func(t *testing.T) {
-			wrapped := baseStore.CacheWrap()
-			opts.Store = gnoStore.BeginTransaction(wrapped, wrapped)
-
 			if *withSync {
 				changed, err := opts.RunSync(path, content)
 				if err != nil {

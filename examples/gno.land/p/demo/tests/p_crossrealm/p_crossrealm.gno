@@ -15,10 +15,10 @@ func (c *Container) Touch() *Container {
 }
 
 func (c *Container) Print() {
-	println("A:", c.A)
+	println("- A:", c.A)
 	if c.B == nil {
-		println("B: undefined")
+		println("- B: undefined")
 	} else {
-		println("B:", c.B.String())
+		println("- B:", c.B.String())
 	}
 }

@@ -14,12 +14,15 @@ func init() {
 func main() {
 	tests_foo.AddFooStringer("three")
 	println(tests.Render(""))
+	println("end")
 }
 
 // Output:
 // 0: &FooStringer{one}
 // 1: &FooStringer{two}
 // 2: &FooStringer{three}
+//
+// end
 
 // Realm:
 // switchrealm["gno.land/r/demo/tests"]

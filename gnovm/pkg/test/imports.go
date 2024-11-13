@@ -1,6 +1,7 @@
 package test
 
 import (
+	"context"
 	"encoding/json"
 	"encoding/xml"
 	"fmt"
@@ -8,7 +9,6 @@ import (
 	"math/big"
 	"os"
 	"path/filepath"
-	"reflect"
 	"strings"
 	"time"
 
@@ -51,18 +51,8 @@ func TestStore(
 					Store:   store,
 					Context: ctx,
 				})
-				// pkg := gno.NewPackageNode(gno.Name(memPkg.Name), memPkg.Path, nil)
-				// pv := pkg.NewPackage()
-				// m2.SetActivePackage(pv)
-				// XXX remove second arg 'false' and remove all gonative stuff.
-				return m2.RunMemPackage(memPkg, false)
+				return m2.RunMemPackage(memPkg, true)
 			}
-		}
-
-		// if stdlibs package is preferred , try to load it first.
-		pn, pv = loadStdlib(rootDir, pkgPath, store, stdout)
-		if pn != nil {
-			return
 		}
 
 		// gonative exceptions.
@@ -75,8 +65,6 @@ func TestStore(
 			return pkg, pkg.NewPackage()
 		case "fmt":
 			pkg := gno.NewPackageNode("fmt", pkgPath, nil)
-			pkg.DefineGoNativeType(reflect.TypeOf((*fmt.Stringer)(nil)).Elem())
-			pkg.DefineGoNativeType(reflect.TypeOf((*fmt.Formatter)(nil)).Elem())
 			pkg.DefineGoNativeValue("Println", func(a ...interface{}) (n int, err error) {
 				// NOTE: uncomment to debug long running tests
 				// fmt.Println(a...)
@@ -138,6 +126,17 @@ func TestStore(
 			pkg := gno.NewPackageNode("big", pkgPath, nil)
 			pkg.DefineGoNativeValue("NewInt", big.NewInt)
 			return pkg, pkg.NewPackage()
+		case "context":
+			pkg := gno.NewPackageNode("context", pkgPath, nil)
+			pkg.DefineGoNativeValue("WithValue", context.WithValue)
+			pkg.DefineGoNativeValue("Background", context.Background)
+			return pkg, pkg.NewPackage()
+		}
+
+		// load normal stdlib.
+		pn, pv = loadStdlib(rootDir, pkgPath, store, stdout)
+		if pn != nil {
+			return
 		}
 
 		// if examples package...

@@ -5,6 +5,8 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"go/parser"
+	"go/token"
 	"io"
 	"regexp"
 	"runtime/debug"
@@ -15,12 +17,15 @@ import (
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
 	teststd "github.com/gnolang/gno/gnovm/tests/stdlibs/std"
 	"github.com/gnolang/gno/tm2/pkg/std"
+	storetypes "github.com/gnolang/gno/tm2/pkg/store/types"
 	"github.com/pmezard/go-difflib/difflib"
 	"go.uber.org/multierr"
 )
 
 type FileTestOptions struct {
-	Store gno.Store
+	Store     gno.Store
+	BaseStore storetypes.CommitStore
+
 	// The Store should reference this, for instance in gonative definitions of
 	// os.Stdout or fmt.Println. It is Reset on each run.
 	Stdout bytes.Buffer
@@ -60,15 +65,16 @@ func (opts *FileTestOptions) run(filename string, source []byte, sync bool) (str
 	if err != nil {
 		return "", fmt.Errorf("could not parse MAXALLOC directive: %w", err)
 	}
+
+	// Create machine for execution and run test
+	cw := opts.BaseStore.CacheWrap()
 	m := gno.NewMachineWithOptions(gno.MachineOptions{
 		PkgPath:       "", // set later.
 		Output:        &opts.Stdout,
-		Store:         opts.Store,
+		Store:         opts.Store.BeginTransaction(cw, cw),
 		Context:       ctx,
 		MaxAllocBytes: maxAlloc,
 	})
-
-	opts.Stdout.Reset()
 	result := opts.runTest(m, pkgPath, filename, source)
 
 	// These are used to generate the output.
@@ -126,7 +132,7 @@ func (opts *FileTestOptions) run(filename string, source []byte, sync bool) (str
 			match(dir, evtstr)
 		case DirectivePreprocessed:
 			pn := m.Store.GetBlockNode(gno.PackageNodeLocation(pkgPath))
-			pre := pn.(*gno.PackageNode).FileSet.Files[0].String()
+			pre := pn.(*gno.PackageNode).FileSet.Files[0].String() + "\n"
 			match(dir, pre)
 		case DirectiveStacktrace:
 			match(dir, result.GnoStacktrace)
@@ -165,7 +171,56 @@ type runResult struct {
 	GoPanicStack []byte
 }
 
+func (opts *FileTestOptions) loadImports(filename string, content []byte) (rr runResult) {
+	defer func() {
+		// This is slightly different from the handling below; we do not have a
+		// machine to work with, as this comes from an import; so we need
+		// "machine-less" alternatives. (like v.String instead of v.Sprint)
+		if r := recover(); r != nil {
+			rr.GoPanicStack = debug.Stack()
+			switch v := r.(type) {
+			case *gno.TypedValue:
+				rr.Error = v.String()
+			case *gno.PreprocessError:
+				rr.Error = v.Unwrap().Error()
+			case gno.UnhandledPanicError:
+				rr.Error = v.Error()
+			default:
+				rr.Error = fmt.Sprint(v)
+			}
+		}
+	}()
+
+	fl, err := parser.ParseFile(token.NewFileSet(), filename, content, parser.ImportsOnly)
+	if err != nil {
+		return runResult{Error: fmt.Sprintf("parse failure: %v", err)}
+	}
+	for _, imp := range fl.Imports {
+		impPath, err := strconv.Unquote(imp.Path.Value)
+		if err != nil {
+			return runResult{Error: fmt.Sprintf("unexpected invalid import path: %v", impPath)}
+		}
+		pkg := opts.Store.GetPackage(impPath, true)
+		if pkg == nil {
+			return runResult{Error: fmt.Sprintf("package not found: %v", impPath)}
+		}
+	}
+	return runResult{}
+}
+
 func (opts *FileTestOptions) runTest(m *gno.Machine, pkgPath, filename string, content []byte) (rr runResult) {
+	// Eagerly load imports.
+	// This is executed using opts.Store, rather than the transaction store;
+	// it allows us to only have to load the imports once (and re-use the cached
+	// versions). Running the tests in separate "transactions" means that they
+	// don't get the parent store dirty.
+	if importRes := opts.loadImports(filename, content); importRes.Error != "" {
+		return importRes
+	}
+
+	// imports loaded - reset stdout.
+	opts.Stdout.Reset()
+
 	defer func() {
 		if r := recover(); r != nil {
 			rr.Output = opts.Stdout.String()
@@ -295,8 +350,8 @@ func (d Directives) FileTest() string {
 		switch {
 		case dir.Name == "":
 			bld.WriteString(dir.Content)
-		case strings.ToUpper(dir.Name) == dir.Content:
-			bld.WriteString("// " + dir.Name + ": " + dir.Content)
+		case strings.ToUpper(dir.Name) == dir.Name: // is it all uppercase?
+			bld.WriteString("// " + dir.Name + ": " + dir.Content + "\n")
 		default:
 			bld.WriteString("// " + dir.Name + ":\n")
 			cnt := strings.TrimSuffix(dir.Content, "\n")

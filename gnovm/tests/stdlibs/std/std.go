@@ -1,9 +1,7 @@
 package std
 
 import (
-	"fmt"
 	"strings"
-	"testing"
 
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
 	"github.com/gnolang/gno/gnovm/stdlibs/std"
@@ -59,23 +57,6 @@ func TestSkipHeights(m *gno.Machine, count int64) {
 	ctx.Height += count
 	ctx.Timestamp += (count * 5)
 	m.Context = ctx
-}
-
-func ClearStoreCache(m *gno.Machine) {
-	if gno.IsDebug() && testing.Verbose() {
-		m.Store.Print()
-		fmt.Println("========================================")
-		fmt.Println("CLEAR CACHE (RUNTIME)")
-		fmt.Println("========================================")
-	}
-	m.Store.ClearCache()
-	m.PreprocessAllFilesAndSaveBlockNodes()
-	if gno.IsDebug() && testing.Verbose() {
-		m.Store.Print()
-		fmt.Println("========================================")
-		fmt.Println("CLEAR CACHE DONE")
-		fmt.Println("========================================")
-	}
 }
 
 func X_callerAt(m *gno.Machine, n int) string {

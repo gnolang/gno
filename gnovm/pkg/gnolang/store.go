@@ -68,7 +68,6 @@ type Store interface {
 	SetLogStoreOps(enabled bool)
 	SprintStoreOps() string
 	LogSwitchRealm(rlmpath string) // to mark change of realm boundaries
-	ClearCache()
 	Print()
 }
 
@@ -169,10 +168,6 @@ func (t transactionStore) Write() {
 
 func (transactionStore) SetPackageGetter(pg PackageGetter) {
 	panic("SetPackageGetter may not be called in a transaction store")
-}
-
-func (transactionStore) ClearCache() {
-	panic("ClearCache may not be called in a transaction store")
 }
 
 // XXX: we should block Go2GnoType, because it uses a global cache map;
@@ -776,15 +771,6 @@ func (ds *defaultStore) SprintStoreOps() string {
 func (ds *defaultStore) LogSwitchRealm(rlmpath string) {
 	ds.opslog = append(ds.opslog,
 		StoreOp{Type: StoreOpSwitchRealm, RlmPath: rlmpath})
-}
-
-func (ds *defaultStore) ClearCache() {
-	ds.cacheObjects = make(map[ObjectID]Object)
-	ds.cacheTypes = txlog.GoMap[TypeID, Type](map[TypeID]Type{})
-	ds.cacheNodes = txlog.GoMap[Location, BlockNode](map[Location]BlockNode{})
-	ds.cacheNativeTypes = make(map[reflect.Type]Type)
-	// restore builtin types to cache.
-	InitStoreCaches(ds)
 }
 
 // for debugging
