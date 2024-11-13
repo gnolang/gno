@@ -134,6 +134,10 @@ func TestConvertTo(t *testing.T) {
 
 	testFunc := func(source, msg string) {
 		defer func() {
+			if len(msg) == 0 {
+				return
+			}
+
 			r := recover()
 
 			if r == nil {
@@ -238,6 +242,15 @@ func main() {
     println(int64(1.5))
 }`,
 			`test/main.go:4:13: cannot convert (const (1.5 <untyped> bigdec)) to integer type`,
+		},
+		{
+			`package test
+		
+		func main() {
+			const f = float64(1.0)
+		   println(int64(f))
+		}`,
+			``,
 		},
 	}
 
