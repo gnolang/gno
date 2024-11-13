@@ -13,16 +13,14 @@ type foo struct {
 
 func (foo) Foo() { println("hello " + std.CurrentRealm().PkgPath()) }
 
-var fs []crossrealm.Fooer // panic
-
-func init() {
-	fs = append(fs, foo{name: "1"}) // attached
-	fs = append(fs, foo{name: "2"})
-}
+var arr []crossrealm.Fooer
 
 func main() {
-	println("ok")
-	crossrealm.SetSlice(fs)
+	arr = append(arr, foo{name: "1"})
+	arr = append(arr, foo{name: "2"})
+	arr = append(arr, foo{name: "3"})
+
+	println(".")
 }
 
 // Error:

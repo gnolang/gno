@@ -402,10 +402,9 @@ func (tv *TypedValue) GetFirstObject(store Store) Object {
 }
 
 // XXX, get first accessible object, maybe containing(parent) object, maybe itself.
-func (tv *TypedValue) GetFirstObject2(store Store) (Object, PkgID, bool) {
+func (tv *TypedValue) GetFirstObject2(store Store) (obj Object, pkgId PkgID, isRef bool, length int, offset int) {
 	fmt.Println("---GetFirstObject2---, tv: ", tv, reflect.TypeOf(tv.V))
 	fmt.Println("---tv.T, type of tv.T", tv.T, reflect.TypeOf(tv.T))
-	var pkgId PkgID
 	if dt, ok := tv.T.(*DeclaredType); ok {
 		fmt.Println("---dt: ", dt)
 		fmt.Println("---dt.Name: ", dt.Name)
@@ -438,40 +437,59 @@ func (tv *TypedValue) GetFirstObject2(store Store) (Object, PkgID, bool) {
 				}
 			}
 		}
-		return cv.GetBase(store), pkgId, true
+		obj, isRef = cv.GetBase(store), true
+		return
 	case *ArrayValue:
-		return cv, pkgId, false
+		fmt.Println("---array value, T: ", tv.T)
+		fmt.Println("---Elem PkgPath: ", tv.T.Elem().GetPkgPath())
+
+		obj, pkgId, isRef = cv, PkgIDFromPkgPath(tv.T.Elem().GetPkgPath()), false
+		return
 	case *SliceValue:
-		// TODO: XXX
-		return cv.GetBase(store), pkgId, false
+		base := cv.GetBase(store)
+		fmt.Println("---SliceValue, base: ", base)
+		fmt.Printf("---SliceValue len: %d, cap:%d, offsetL:%d \n", cv.Length, cv.Maxcap, cv.Offset)
+		fmt.Println("---tv.T...PkgPath: ", tv.T.Elem().GetPkgPath())
+		fmt.Println("---type of  base: ", reflect.TypeOf(base))
+
+		obj, pkgId, isRef, length, offset = cv.GetBase(store), PkgIDFromPkgPath(tv.T.Elem().GetPkgPath()), true, cv.GetLength(), cv.Offset
+		return
 	case *StructValue:
 		println("---struct value")
 		fmt.Println("---cv.GetObjectID(): ", cv.GetObjectID())
-		return cv, pkgId, false
+		obj, isRef = cv, false
+		return
 	case *FuncValue:
 		fmt.Println("---FuncValue")
 		clo := cv.GetClosure(store)
 		fmt.Println("---clo: ", clo)
 		fmt.Println("clo...PkgPath", clo.Source.GetLocation().PkgPath)
-		return cv.GetClosure(store), PkgIDFromPkgPath(clo.Source.GetLocation().PkgPath), false
+		obj, pkgId, isRef = cv.GetClosure(store), PkgIDFromPkgPath(clo.Source.GetLocation().PkgPath), false
+		return
 	case *MapValue:
-		return cv, pkgId, false
+		obj, isRef = cv, false
+		return
 	case *BoundMethodValue:
-		return cv, pkgId, false
+		obj, isRef = cv, false
+		return
 	case *NativeValue:
 		// XXX allow PointerValue.Assign2 to pass nil for oo1/oo2.
 		// panic("realm logic for native values not supported")
-		return nil, pkgId, false
+		obj, isRef = nil, false
+		return
 	case *Block:
-		return cv, pkgId, false
+		obj, isRef = cv, false
+		return
 	case RefValue:
 		oo := store.GetObject(cv.ObjectID)
 		tv.V = oo
-		return oo, pkgId, false
+		obj, isRef = oo, false
+		return
 	case *HeapItemValue:
 		// should only appear in PointerValue.Base
 		panic("heap item value should only appear as a pointer's base")
 	default:
-		return nil, pkgId, false
+		obj, isRef = nil, false
+		return
 	}
 }

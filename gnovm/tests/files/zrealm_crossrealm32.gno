@@ -9,14 +9,10 @@ import (
 
 var SS []crossrealm.XYZ
 
-var f = func(s []crossrealm.XYZ) {
-	SS = s
-}
-
 func main() {
-	crossrealm.GetSlice4(f)
+	SS = crossrealm.GetSlice3()
 	println(".")
 }
 
-// Error:
-// should not happen while reference unreal element from external realm
+// Output:
+// .

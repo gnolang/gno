@@ -31,6 +31,7 @@ func (m *Machine) doOpDefine() {
 func (m *Machine) doOpAssign() {
 	fmt.Println("---doOpAssign, m.Realm: ", m.Realm)
 	s := m.PopStmt().(*AssignStmt)
+	fmt.Println("---s: ", s)
 	// Assign each value evaluated for Lhs.
 	// NOTE: PopValues() returns a slice in
 	// forward order, not the usual reverse.

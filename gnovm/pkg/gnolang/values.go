@@ -292,13 +292,13 @@ func (pv PointerValue) Assign2(alloc *Allocator, store Store, rlm *Realm, tv2 Ty
 		oo1 := pv.TV.GetFirstObject(store)
 		fmt.Println("---oo1: ", oo1)
 		pv.TV.Assign(alloc, tv2, cu)
-		oo2, pkgId, isRef := pv.TV.GetFirstObject2(store)
+		oo2, pkgId, isRef, length, offset := pv.TV.GetFirstObject2(store)
 		fmt.Println("---oo2: ", oo2)
 		fmt.Println("---oo2 pkgId: ", pkgId)
 		if oo2 != nil {
 			oo2.SetLastNewEscapedRealm(pkgId) // attach origin package info
 		}
-		rlm.DidUpdate2(pv.Base.(Object), oo1, oo2, isRef)
+		rlm.DidUpdate2(store, pv.Base.(Object), oo1, oo2, isRef, length, offset)
 	} else {
 		pv.TV.Assign(alloc, tv2, cu)
 	}

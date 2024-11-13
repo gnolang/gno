@@ -9,14 +9,10 @@ import (
 
 var SS []crossrealm.XYZ
 
-var f = func(s []crossrealm.XYZ) {
-	SS = s
-}
-
 func main() {
-	crossrealm.GetSlice4(f)
+	SS = crossrealm.GetSlice2() // this is valid if elem are all attached in origin realm
 	println(".")
 }
 
 // Error:
-// should not happen while reference unreal element from external realm
+// should not happen while attempting to attach new real object from external realm

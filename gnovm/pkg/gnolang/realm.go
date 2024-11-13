@@ -189,7 +189,7 @@ func (rlm *Realm) DidUpdate(po, xo, co Object) {
 				println("---already escaped, should check cross realm?")
 				// already escaped
 			} else {
-				rlm.MarkNewEscapedCheckCrossRealm(co, false)
+				rlm.MarkNewEscapedCheckCrossRealm(nil, co, false, 0, 0)
 			}
 		} else if co.GetIsReal() {
 			rlm.MarkDirty(co)
@@ -210,7 +210,7 @@ func (rlm *Realm) DidUpdate(po, xo, co Object) {
 	}
 }
 
-func (rlm *Realm) DidUpdate2(po, xo, co Object, isRef bool) {
+func (rlm *Realm) DidUpdate2(store Store, po, xo, co Object, isRef bool, length, offset int) {
 	fmt.Println("---DidUpdate, rlm.ID: ", rlm.ID)
 	fmt.Printf("---xo: %v, type of xo: %v\n", xo, reflect.TypeOf(xo))
 	fmt.Printf("---co: %v, type of co: %v\n", co, reflect.TypeOf(co))
@@ -265,7 +265,7 @@ func (rlm *Realm) DidUpdate2(po, xo, co Object, isRef bool) {
 				println("---already escaped, should check cross realm?")
 				// already escaped
 			} else {
-				rlm.MarkNewEscapedCheckCrossRealm(co, isRef)
+				rlm.MarkNewEscapedCheckCrossRealm(store, co, isRef, length, offset)
 			}
 		} else if co.GetIsReal() {
 			rlm.MarkDirty(co)
@@ -289,7 +289,7 @@ func (rlm *Realm) DidUpdate2(po, xo, co Object, isRef bool) {
 //----------------------------------------
 // mark*
 
-func (rlm *Realm) MarkNewEscapedCheckCrossRealm(oo Object, isRef bool) {
+func (rlm *Realm) MarkNewEscapedCheckCrossRealm(store Store, oo Object, isRef bool, length, offset int) {
 	fmt.Println("---MarkNewEscapedCheckCrossRealm---, oo: ", oo)
 	fmt.Println("---rlm.ID: ", rlm.ID)
 
@@ -303,8 +303,41 @@ func (rlm *Realm) MarkNewEscapedCheckCrossRealm(oo Object, isRef bool) {
 
 	if oo.GetLastNewEscapedRealm() != rlm.ID { // crossing realm
 		if isRef {
-			if !oo.GetIsReal() { // oo is not attached in the origin realm
-				panic("should not happen while attempting to attach unattached object by reference from external realm")
+			fmt.Println("---length: ", length)
+			if length != 0 { // TODO: explicit array check
+				fmt.Println("---offset: ", offset)
+				fmt.Println("---escaped array, check if elements are real")
+				for i := offset; i < length; i++ {
+					e := oo.(*ArrayValue).List[i]
+					fmt.Println("---e: ", e, reflect.TypeOf(e.V))
+					if _, ok := e.V.(RefValue); ok { // TODO: does this already enough
+						fmt.Println("---escaped: ", e.V.(RefValue).Escaped)
+						fmt.Println("---string: ", e.V.(RefValue).String())
+						fmt.Println("---pkgpath: ", e.V.(RefValue).PkgPath)
+						fmt.Println("---objectID: ", e.V.(RefValue).ObjectID)
+						if store != nil {
+							oo := store.GetObject(e.V.(RefValue).ObjectID)
+							fmt.Println("---oo: ", oo)
+							fmt.Println("---oo.GetIsReal: ", oo.GetIsReal())
+							if !oo.GetIsReal() {
+								panic("should not happen while reference unreal element from array of external realm")
+							}
+						}
+					} else {
+						fmt.Println("---e.V: ", e.V)
+						fmt.Println("---e.V: ", reflect.TypeOf(e.V))
+						isreal := e.V.(Object).GetIsReal()
+						fmt.Println("---isreal: ", isreal)
+						fmt.Println("---objectID: ", e.V.(Object).GetObjectID())
+						if !isreal {
+							panic("should not happen while reference unreal element from external realm")
+						}
+					}
+				}
+			} else { // other than array
+				if !oo.GetIsReal() { // oo is not attached in the origin realm
+					panic("should not happen while attempting to attach unattached object by reference from external realm")
+				}
 			}
 		} else {
 			panic("should not happen while attempting to attach objects by value from external realm")
