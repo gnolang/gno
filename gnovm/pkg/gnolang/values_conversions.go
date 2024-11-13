@@ -426,7 +426,7 @@ GNO_CASE:
 			tv.T = t
 			tv.SetInt64(x)
 		case UintKind:
-			validate(Int64Kind, UintKind, func() bool { return tv.GetInt64() >= 0 && tv.GetInt64() <= math.MaxUint })
+			validate(Int64Kind, UintKind, func() bool { return tv.GetInt64() >= 0 && uint(tv.GetInt64()) <= math.MaxUint })
 
 			x := uint(tv.GetInt64())
 			tv.T = t
@@ -554,8 +554,6 @@ GNO_CASE:
 	case Uint8Kind:
 		switch k {
 		case IntKind:
-			validate(Uint8Kind, IntKind, func() bool { return tv.GetUint8() <= math.MaxInt })
-
 			x := int(tv.GetUint8())
 			tv.T = t
 			tv.SetInt(x)
@@ -584,8 +582,6 @@ GNO_CASE:
 			tv.T = t
 			tv.SetInt64(x)
 		case UintKind:
-			validate(Uint8Kind, UintKind, func() bool { return int(tv.GetUint8()) <= math.MaxUint })
-
 			x := uint(tv.GetUint8())
 			tv.T = t
 			tv.SetUint(x)
@@ -801,7 +797,7 @@ GNO_CASE:
 			tv.T = t
 			tv.SetInt64(x)
 		case UintKind:
-			validate(Uint64Kind, UintKind, func() bool { return int(tv.GetUint64()) <= math.MaxUint })
+			validate(Uint64Kind, UintKind, func() bool { return uint64(tv.GetUint64()) <= math.MaxUint })
 
 			x := uint(tv.GetUint64())
 			tv.T = t
