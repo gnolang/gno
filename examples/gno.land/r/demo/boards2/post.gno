@@ -150,9 +150,9 @@ func (post *Post) GetSummary() string {
 
 func (post *Post) GetURL() string {
 	if post.IsThread() {
-		return post.board.GetURLFromThreadAndReplyID(post.id, 0)
+		return post.board.GetURLFromThreadID(post.id)
 	}
-	return post.board.GetURLFromThreadAndReplyID(post.threadID, post.id)
+	return post.board.GetURLFromReplyID(post.threadID, post.id)
 }
 
 func (post *Post) GetReplyFormURL() string {
@@ -273,7 +273,7 @@ func (post *Post) RenderInner() string {
 		parent, _ = thread.GetReply(parentID)
 	}
 
-	s := "_" + newLink("see thread", post.board.GetURLFromThreadAndReplyID(threadID, 0)) + "_\n\n"
+	s := "_" + newLink("see thread", post.board.GetURLFromThreadID(threadID)) + "_\n\n"
 	s += parent.Render("", 0) + "\n"
 	s += post.Render("> ", 5)
 	return s

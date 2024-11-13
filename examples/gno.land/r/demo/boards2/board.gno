@@ -122,10 +122,11 @@ func (board *Board) incGetPostID() PostID {
 	return PostID(board.postsCtr)
 }
 
-func (board *Board) GetURLFromThreadAndReplyID(threadID, replyID PostID) string {
-	if replyID == 0 {
-		return board.url + "/" + threadID.String()
-	}
+func (board *Board) GetURLFromThreadID(threadID PostID) string {
+	return board.url + "/" + threadID.String()
+}
+
+func (board *Board) GetURLFromReplyID(threadID, replyID PostID) string {
 	return board.url + "/" + threadID.String() + "/" + replyID.String()
 }
 
