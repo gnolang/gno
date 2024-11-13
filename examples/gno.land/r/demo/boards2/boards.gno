@@ -41,8 +41,8 @@ func mustGetThread(board *Board, threadID PostID) *Post {
 
 // mustGetReply returns a reply or panics when it's not found.
 func mustGetReply(thread *Post, replyID PostID) *Post {
-	reply := thread.GetReply(replyID)
-	if reply == nil {
+	reply, found := thread.GetReply(replyID)
+	if !found {
 		panic("reply does not exist with ID: " + replyID.String())
 	}
 	return reply

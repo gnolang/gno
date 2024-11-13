@@ -86,12 +86,12 @@ func (post *Post) Update(title string, body string) {
 	post.updatedAt = time.Now()
 }
 
-func (thread *Post) GetReply(pid PostID) *Post { // TODO: Add found to result to encourage checks
+func (thread *Post) GetReply(pid PostID) (_ *Post, found bool) {
 	v, found := thread.repliesAll.Get(pid.Key())
 	if !found {
-		return nil
+		return nil, false
 	}
-	return v.(*Post)
+	return v.(*Post), true
 }
 
 func (post *Post) AddRepostTo(creator std.Address, title, body string, dst *Board) *Post {
@@ -108,23 +108,23 @@ func (post *Post) AddRepostTo(creator std.Address, title, body string, dst *Boar
 	return repost
 }
 
-func (thread *Post) DeleteReply(pid PostID) {
-	if thread.id == pid {
+func (thread *Post) DeleteReply(replyID PostID) {
+	if thread.id == replyID {
 		panic("should not happen")
 	}
 
-	pKey := pid.Key()
-	v, removed := thread.repliesAll.Remove(pKey)
+	key := replyID.Key()
+	v, removed := thread.repliesAll.Remove(key)
 	if !removed {
-		panic("post not found in thread")
+		panic("reply not found in thread")
 	}
 
 	post := v.(*Post)
 	if post.parentID != thread.id {
-		parent := thread.GetReply(post.parentID)
-		parent.replies.Remove(pKey)
+		parent, _ := thread.GetReply(post.parentID)
+		parent.replies.Remove(key)
 	} else {
-		thread.replies.Remove(pKey)
+		thread.replies.Remove(key)
 	}
 }
 
@@ -270,7 +270,7 @@ func (post *Post) RenderInner() string {
 	if thread.id == parentID {
 		parent = thread
 	} else {
-		parent = thread.GetReply(parentID)
+		parent, _ = thread.GetReply(parentID)
 	}
 
 	s := "_" + newLink("see thread", post.board.GetURLFromThreadAndReplyID(threadID, 0)) + "_\n\n"

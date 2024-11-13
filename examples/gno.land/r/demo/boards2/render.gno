@@ -93,8 +93,8 @@ func renderReply(res *mux.ResponseWriter, req *mux.Request) {
 		return
 	}
 
-	reply := thread.GetReply(PostID(rID))
-	if reply == nil {
+	reply, found := thread.GetReply(PostID(rID))
+	if !found {
 		res.Write("Reply does not exist with ID: " + req.GetVar("reply"))
 	} else {
 		res.Write(reply.RenderInner())
