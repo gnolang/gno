@@ -2,7 +2,7 @@
 
 This folder showcases example Gno realms (smart contracts) and pure packages (libraries).
 These examples provide a glimpse into the potential of gno.land and the capabilities of Gno,
-while also serving as a testing set for the GnoVM.
+while also serving as a test suite for the GnoVM.
 
 Pure packages and realms in this folder are pre-deployed to gno.land testnets,
 making them readily available for on-chain use. However, **there is no guarantee
