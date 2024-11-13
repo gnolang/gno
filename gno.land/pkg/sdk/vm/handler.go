@@ -33,6 +33,8 @@ func (vh vmHandler) Process(ctx sdk.Context, msg std.Msg) sdk.Result {
 		return vh.handleMsgCall(ctx, msg)
 	case MsgRun:
 		return vh.handleMsgRun(ctx, msg)
+	case MsgEval:
+		return vh.handleMsgEval(ctx, msg)
 	default:
 		errMsg := fmt.Sprintf("unrecognized vm message type: %T", msg)
 		return abciResult(std.ErrUnknownRequest(errMsg))
@@ -50,6 +52,17 @@ func (vh vmHandler) handleMsgAddPackage(ctx sdk.Context, msg MsgAddPackage) sdk.
 
 func (vh vmHandler) handleMsgCall(ctx sdk.Context, msg MsgCall) (res sdk.Result) {
 	resstr, err := vh.vm.Call(ctx, msg)
+	if err != nil {
+		return abciResult(err)
+	}
+
+	res.Data = []byte(resstr)
+	return res
+}
+
+// Handle MsgEval.
+func (vh vmHandler) handleMsgEval(ctx sdk.Context, msg MsgEval) (res sdk.Result) {
+	resstr, err := vh.vm.Eval(ctx, msg)
 	if err != nil {
 		return abciResult(err)
 	}

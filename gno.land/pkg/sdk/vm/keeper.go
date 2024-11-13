@@ -712,10 +712,68 @@ func (vm *VMKeeper) QueryFuncs(ctx sdk.Context, pkgPath string) (fsigs FunctionS
 	return fsigs, nil
 }
 
-// QueryEval evaluates a gno expression (readonly, for ABCI queries).
-// TODO: modify query protocol to allow MsgEval.
-// TODO: then, rename to "Eval".
-func (vm *VMKeeper) QueryEval(ctx sdk.Context, pkgPath string, expr string) (res string, err error) {
+func (vm *VMKeeper) Eval(ctx sdk.Context, msg MsgEval) (res string, err error) {
+	alloc := gno.NewAllocator(maxAllocQuery)
+	gnostore := vm.newGnoTransactionStore(ctx) // throwaway (never committed)
+	pkgAddr := gno.DerivePkgAddr(msg.PkgPath)
+
+	// Get Package.
+	pv := gnostore.GetPackage(msg.PkgPath, false)
+	if pv == nil {
+		err = ErrInvalidPkgPath(fmt.Sprintf(
+			"package not found: %s", msg.PkgPath))
+		return "", err
+	}
+
+	// Parse expression.
+	xx, err := gno.ParseExpr(msg.Expr)
+	if err != nil {
+		return "", err
+	}
+
+	// Construct new machine.
+	msgCtx := stdlibs.ExecContext{
+		ChainID:   ctx.ChainID(),
+		Height:    ctx.BlockHeight(),
+		Timestamp: ctx.BlockTime().Unix(),
+		// Msg:           msg,
+		// OrigCaller:    caller,
+		// OrigSend:      send,
+		// OrigSendSpent: nil,
+		OrigPkgAddr: pkgAddr.Bech32(),
+		Banker:      NewSDKBanker(vm, ctx), // safe as long as ctx is a fork to be discarded.
+		Params:      NewSDKParams(vm, ctx),
+		EventLogger: ctx.EventLogger(),
+	}
+	m := gno.NewMachineWithOptions(
+		gno.MachineOptions{
+			PkgPath:  msg.PkgPath,
+			Output:   vm.Output,
+			Store:    gnostore,
+			Context:  msgCtx,
+			Alloc:    alloc,
+			GasMeter: ctx.GasMeter(),
+		})
+	defer m.Release()
+	defer func() {
+		if r := recover(); r != nil {
+			switch r.(type) {
+			case store.OutOfGasException: // panic in consumeGas()
+				panic(r)
+			default:
+				err = errors.Wrap(fmt.Errorf("%v", r), "VM query eval panic: %v\n%s\n",
+					r, m.String())
+				return
+			}
+		}
+	}()
+
+	rtvs := m.Eval(xx)
+	res = stringifyResultValues(m, msg.Format, rtvs)
+	return res, nil
+}
+
+func (vm *VMKeeper) QueryEval(ctx sdk.Context, pkgPath string, expr string, format Format) (res string, err error) {
 	alloc := gno.NewAllocator(maxAllocQuery)
 	gnostore := vm.newGnoTransactionStore(ctx) // throwaway (never committed)
 	pkgAddr := gno.DerivePkgAddr(pkgPath)

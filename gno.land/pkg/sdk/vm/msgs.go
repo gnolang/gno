@@ -16,7 +16,7 @@ type Format string
 
 const (
 	FormatMachine = "machine" // Default machine representation
-	FormatJSON    = "json"
+	FormatJSON    = "json"    // XXX: EXPERIMENTAL, only supports primitive types for now
 
 	FormatDefault = FormatMachine
 )
@@ -86,6 +86,63 @@ func (msg MsgAddPackage) GetSigners() []crypto.Address {
 // Implements ReceiveMsg.
 func (msg MsgAddPackage) GetReceived() std.Coins {
 	return msg.Deposit
+}
+
+//----------------------------------------
+// MsgEval
+
+// MsgEval - eval a Gno Expr.
+type MsgEval struct {
+	Caller  crypto.Address `json:"caller" yaml:"caller"`
+	PkgPath string         `json:"pkg_path" yaml:"pkg_path"`
+	Expr    string         `json:"expr" yaml:"expr"`
+
+	// XXX: This field is experimental, use with care as output is likely to change
+	Format Format `json:"format" yaml:"format"`
+}
+
+var _ std.Msg = MsgEval{}
+
+func NewMsgEval(caller crypto.Address, format Format, pkgPath, expr string) MsgEval {
+	return MsgEval{
+		Caller:  caller,
+		PkgPath: pkgPath,
+		Format:  FormatDefault,
+	}
+}
+
+// Implements Msg.
+func (msg MsgEval) Route() string { return RouterKey }
+
+// Implements Msg.
+func (msg MsgEval) Type() string { return "eval" }
+
+// Implements Msg.
+func (msg MsgEval) ValidateBasic() error {
+	if msg.Caller.IsZero() {
+		return std.ErrInvalidAddress("missing caller address")
+	}
+	if msg.PkgPath == "" {
+		return ErrInvalidPkgPath("missing package path")
+	}
+	if !gno.IsRealmPath(msg.PkgPath) {
+		return ErrInvalidPkgPath("pkgpath must be of a realm")
+	}
+	if msg.Expr == "" { // XXX
+		return ErrInvalidExpr("missing expr to eval")
+	}
+
+	return nil
+}
+
+// Implements Msg.
+func (msg MsgEval) GetSignBytes() []byte {
+	return std.MustSortJSON(amino.MustMarshalJSON(msg))
+}
+
+// Implements Msg.
+func (msg MsgEval) GetSigners() []crypto.Address {
+	return []crypto.Address{msg.Caller}
 }
 
 //----------------------------------------
