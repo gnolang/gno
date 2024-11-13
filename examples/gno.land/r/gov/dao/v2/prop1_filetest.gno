@@ -84,7 +84,7 @@ func main() {
 //
 // Status: active
 //
-// Voting stats: YAY 0 (0%), NAY 0 (0%), ABSTAIN 0 (0%), HAVEN'T VOTED 10 (100%)
+// Voting stats: YES 0 (0%), NO 0 (0%), ABSTAIN 0 (0%), MISSING VOTE 10 (100%)
 //
 // Threshold met: false
 //
@@ -99,7 +99,7 @@ func main() {
 //
 // Status: accepted
 //
-// Voting stats: YAY 10 (100%), NAY 0 (0%), ABSTAIN 0 (0%), HAVEN'T VOTED 0 (0%)
+// Voting stats: YES 10 (100%), NO 0 (0%), ABSTAIN 0 (0%), MISSING VOTE 0 (0%)
 //
 // Threshold met: true
 //
@@ -116,7 +116,7 @@ func main() {
 //
 // Status: execution successful
 //
-// Voting stats: YAY 10 (100%), NAY 0 (0%), ABSTAIN 0 (0%), HAVEN'T VOTED 0 (0%)
+// Voting stats: YES 10 (100%), NO 0 (0%), ABSTAIN 0 (0%), MISSING VOTE 0 (0%)
 //
 // Threshold met: true
 //
@@ -126,3 +126,85 @@ func main() {
 // - #123: g12345678 (10)
 // - #123: g000000000 (10)
 // - #123: g000000000 (0)
+
+// Events:
+// [
+//   {
+//     "type": "ProposalAdded",
+//     "attrs": [
+//       {
+//         "key": "proposal-id",
+//         "value": "0"
+//       },
+//       {
+//         "key": "proposal-author",
+//         "value": "g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm"
+//       }
+//     ],
+//     "pkg_path": "gno.land/r/gov/dao/v2",
+//     "func": "EmitProposalAdded"
+//   },
+//   {
+//     "type": "VoteAdded",
+//     "attrs": [
+//       {
+//         "key": "proposal-id",
+//         "value": "0"
+//       },
+//       {
+//         "key": "author",
+//         "value": "g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm"
+//       },
+//       {
+//         "key": "option",
+//         "value": "YES"
+//       }
+//     ],
+//     "pkg_path": "gno.land/r/gov/dao/v2",
+//     "func": "EmitVoteAdded"
+//   },
+//   {
+//     "type": "ProposalAccepted",
+//     "attrs": [
+//       {
+//         "key": "proposal-id",
+//         "value": "0"
+//       }
+//     ],
+//     "pkg_path": "gno.land/r/gov/dao/v2",
+//     "func": "EmitProposalAccepted"
+//   },
+//   {
+//     "type": "ValidatorAdded",
+//     "attrs": [],
+//     "pkg_path": "gno.land/r/sys/validators/v2",
+//     "func": "addValidator"
+//   },
+//   {
+//     "type": "ValidatorAdded",
+//     "attrs": [],
+//     "pkg_path": "gno.land/r/sys/validators/v2",
+//     "func": "addValidator"
+//   },
+//   {
+//     "type": "ValidatorRemoved",
+//     "attrs": [],
+//     "pkg_path": "gno.land/r/sys/validators/v2",
+//     "func": "removeValidator"
+//   },
+//   {
+//     "type": "ProposalExecuted",
+//     "attrs": [
+//       {
+//         "key": "proposal-id",
+//         "value": "0"
+//       },
+//       {
+//         "key": "exec-status",
+//         "value": "accepted"
+//       }
+//     ],
+//     "pkg_path": "gno.land/r/gov/dao/v2",
+//     "func": "ExecuteProposal"
+//   }
+// ]
