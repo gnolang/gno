@@ -80,13 +80,11 @@ func CreateRepost(bid BoardID, threadID PostID, title string, body string, dstBo
 func DeleteThread(bid BoardID, threadID PostID, reason string) {
 	assertIsUserCall()
 
-	caller := std.GetOrigCaller()
 	board := mustGetBoard(bid)
 	thread := mustGetThread(board, threadID)
 
-	if !thread.HasPermission(caller, PermissionDelete) {
-		panic("unauthorized")
-	}
+	caller := std.GetOrigCaller()
+	assertUserHasPermission(thread, caller, PermissionDelete)
 
 	board.DeleteThread(threadID)
 }
@@ -94,14 +92,12 @@ func DeleteThread(bid BoardID, threadID PostID, reason string) {
 func DeleteReply(bid BoardID, threadID, replyID PostID, reason string) {
 	assertIsUserCall()
 
-	caller := std.GetOrigCaller()
 	board := mustGetBoard(bid)
 	thread := mustGetThread(board, threadID)
 	reply := mustGetReply(thread, replyID)
 
-	if !reply.HasPermission(caller, PermissionDelete) { // TODO: Add AssertHasPermission()
-		panic("unauthorized")
-	}
+	caller := std.GetOrigCaller()
+	assertUserHasPermission(reply, caller, PermissionDelete)
 
 	thread.DeleteReply(replyID)
 }
@@ -109,13 +105,11 @@ func DeleteReply(bid BoardID, threadID, replyID PostID, reason string) {
 func EditThread(bid BoardID, threadID PostID, title, body string) {
 	assertIsUserCall()
 
-	caller := std.GetOrigCaller()
 	board := mustGetBoard(bid)
 	thread := mustGetThread(board, threadID)
 
-	if !thread.HasPermission(caller, PermissionEdit) {
-		panic("unauthorized")
-	}
+	caller := std.GetOrigCaller()
+	assertUserHasPermission(thread, caller, PermissionEdit)
 
 	thread.Update(title, body)
 }
@@ -123,14 +117,12 @@ func EditThread(bid BoardID, threadID PostID, title, body string) {
 func EditReply(bid BoardID, threadID, replyID PostID, title, body string) {
 	assertIsUserCall()
 
-	caller := std.GetOrigCaller()
 	board := mustGetBoard(bid)
 	thread := mustGetThread(board, threadID)
 	post := mustGetReply(thread, replyID)
 
-	if !post.HasPermission(caller, PermissionEdit) {
-		panic("unauthorized")
-	}
+	caller := std.GetOrigCaller()
+	assertUserHasPermission(post, caller, PermissionEdit)
 
 	post.Update(title, body)
 }
@@ -149,7 +141,6 @@ func assertIsNotAnonymousCaller(caller std.Address) {
 }
 
 func assertAnonymousFeeReceived() {
-	// TODO: Should we display realm's amount somewhere or transfer to a pool realm/DAO?
 	sent := std.GetOrigSend()
 	fee := std.NewCoin("ugnot", int64(defaultAnonymousFee))
 	if len(sent) == 0 || sent[0].IsLT(fee) {
@@ -161,5 +152,11 @@ func assertAnonymousFeeReceived() {
 func assertAnonymousCallerFeeReceived(caller std.Address) {
 	if users.GetUserByAddress(caller) == nil {
 		assertAnonymousFeeReceived()
+	}
+}
+
+func assertUserHasPermission(post *Post, user std.Address, p Permission) {
+	if !post.HasPermission(user, p) {
+		panic("unauthorized")
 	}
 }
