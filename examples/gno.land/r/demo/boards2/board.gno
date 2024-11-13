@@ -4,6 +4,7 @@ import (
 	"regexp"
 	"std"
 	"strconv"
+	"strings"
 	"time"
 
 	"gno.land/p/demo/avl"
@@ -24,7 +25,6 @@ func (id BoardID) Key() string {
 
 type Board struct {
 	id        BoardID // only set for public boards.
-	url       string
 	name      string
 	creator   std.Address
 	threads   avl.Tree // Post.id -> *Post
@@ -33,7 +33,7 @@ type Board struct {
 	deleted   avl.Tree // TODO reserved for fast-delete.
 }
 
-func newBoard(id BoardID, url string, name string, creator std.Address) *Board {
+func newBoard(id BoardID, name string, creator std.Address) *Board {
 	assertIsBoardName(name)
 
 	if gBoardsByName.Has(name) {
@@ -42,7 +42,6 @@ func newBoard(id BoardID, url string, name string, creator std.Address) *Board {
 
 	return &Board{
 		id:        id,
-		url:       url,
 		name:      name,
 		creator:   creator,
 		threads:   avl.Tree{},
@@ -63,6 +62,11 @@ func NewPrivateBoard(url string, name string, creator std.Address) *Board {
 
 func (board *Board) IsPrivate() bool {
 	return board.id == 0
+}
+
+// GetURL returns the relative URL of the board.
+func (board *Board) GetURL() string {
+	return strings.TrimPrefix(std.CurrentRealm().PkgPath(), "gno.land") + ":" + board.name
 }
 
 func (board *Board) GetThread(threadID PostID) (_ *Post, found bool) {
@@ -122,11 +126,11 @@ func (board *Board) incGetPostID() PostID {
 }
 
 func (board *Board) GetURLFromThreadID(threadID PostID) string {
-	return board.url + "/" + threadID.String()
+	return board.GetURL() + "/" + threadID.String()
 }
 
 func (board *Board) GetURLFromReplyID(threadID, replyID PostID) string {
-	return board.url + "/" + threadID.String() + "/" + replyID.String()
+	return board.GetURL() + "/" + threadID.String() + "/" + replyID.String()
 }
 
 func (board *Board) GetPostFormURL() string {

@@ -24,7 +24,8 @@ func renderBoardsList(res *mux.ResponseWriter, _ *mux.Request) {
 	res.Write("These are all the boards of this realm:\n\n")
 	gBoardsByID.Iterate("", "", func(_ string, value interface{}) bool {
 		board := value.(*Board)
-		res.Write(" * " + newLink(board.url, board.url) + "\n")
+		url := board.GetURL()
+		res.Write(" * " + newLink(url, url) + "\n")
 		return false
 	})
 }

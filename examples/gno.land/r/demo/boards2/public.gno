@@ -21,8 +21,7 @@ func CreateBoard(name string) BoardID {
 	assertIsNotAnonymousCaller(caller)
 
 	id := incGetBoardID()
-	url := "/r/demo/boards:" + name // TODO: Generate URL from current realm
-	board := newBoard(id, url, name, caller)
+	board := newBoard(id, name, caller)
 	gBoardsByID.Set(id.Key(), board)
 	gBoardsByName.Set(name, board)
 	return board.id
