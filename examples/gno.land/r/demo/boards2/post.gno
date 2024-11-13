@@ -9,8 +9,6 @@ import (
 	"gno.land/p/moul/txlink"
 )
 
-// TODO: Move post and board to a package to improve API and reduce realm size?
-
 const dateFormat = "2006-01-02 3:04pm MST"
 
 type PostID uint64
@@ -66,7 +64,6 @@ func (post *Post) GetPostID() PostID {
 	return post.id
 }
 
-// TODO: Rename to Reply()
 func (post *Post) AddReply(creator std.Address, body string) *Post {
 	board := post.board
 	pid := board.incGetPostID()
@@ -89,7 +86,7 @@ func (post *Post) Update(title string, body string) {
 	post.updatedAt = time.Now()
 }
 
-func (thread *Post) GetReply(pid PostID) *Post {
+func (thread *Post) GetReply(pid PostID) *Post { // TODO: Add found to result to encourage checks
 	v, found := thread.repliesAll.Get(pid.Key())
 	if !found {
 		return nil
@@ -111,7 +108,7 @@ func (post *Post) AddRepostTo(creator std.Address, title, body string, dst *Boar
 	return repost
 }
 
-func (thread *Post) DeletePost(pid PostID) {
+func (thread *Post) DeleteReply(pid PostID) {
 	if thread.id == pid {
 		panic("should not happen")
 	}
@@ -174,10 +171,16 @@ func (post *Post) GetRepostFormURL() string {
 }
 
 func (post *Post) GetDeleteFormURL() string {
-	return txlink.URL("DeletePost",
+	if post.IsThread() {
+		return txlink.URL("DeleteThread",
+			"bid", post.board.id.String(),
+			"threadID", post.threadID.String(),
+		)
+	}
+	return txlink.URL("DeleteReply",
 		"bid", post.board.id.String(),
-		"threadid", post.threadID.String(),
-		"postid", post.id.String(),
+		"threadID", post.threadID.String(),
+		"replyID", post.id.String(),
 	)
 }
 

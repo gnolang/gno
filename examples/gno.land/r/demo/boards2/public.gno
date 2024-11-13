@@ -6,7 +6,6 @@ import (
 	"gno.land/r/demo/users"
 )
 
-// TODO: Consider a simpler API initially by removing this type of functions
 func GetBoardIDFromName(name string) (BoardID, bool) {
 	v, found := gBoardsByName.Get(name)
 	if !found {
@@ -47,7 +46,7 @@ func CreateReply(bid BoardID, threadID, replyID PostID, body string) PostID {
 	assertAnonymousCallerFeeReceived(caller)
 
 	board := mustGetBoard(bid)
-	thread, found := board.GetThread(threadID) // TODO: Use found flag to encorage returned value validity checks
+	thread, found := board.GetThread(threadID)
 	if !found {
 		panic("thread not exist")
 	}
@@ -83,34 +82,40 @@ func CreateRepost(bid BoardID, threadID PostID, title string, body string, dstBo
 	return repost.id
 }
 
-// TODO: Split into DeleteThread() & DeleteReply()
-func DeletePost(bid BoardID, threadID, postid PostID, reason string) {
+func DeleteThread(bid BoardID, threadID PostID, reason string) {
 	assertIsUserCall()
 
 	caller := std.GetOrigCaller()
 	board := mustGetBoard(bid)
 	thread, found := board.GetThread(threadID)
 	if !found {
-		panic("thread not exist")
+		panic("thread not found")
 	}
 
-	if postid == threadID {
-		// delete thread
-		if !thread.HasPermission(caller, PermissionDelete) {
-			panic("unauthorized")
-		}
-		board.DeleteThread(threadID)
-	} else {
-		// delete thread's post
-		post := thread.GetReply(postid)
-		if post == nil {
-			panic("post not exist")
-		}
-		if !post.HasPermission(caller, PermissionDelete) {
-			panic("unauthorized")
-		}
-		thread.DeletePost(postid)
+	if !thread.HasPermission(caller, PermissionDelete) {
+		panic("unauthorized")
 	}
+	board.DeleteThread(threadID)
+}
+
+func DeleteReply(bid BoardID, threadID, replyID PostID, reason string) {
+	assertIsUserCall()
+
+	caller := std.GetOrigCaller()
+	board := mustGetBoard(bid)
+	thread, found := board.GetThread(threadID) // TODO: Add mustGetThread(board, threadID)
+	if !found {
+		panic("thread not found")
+	}
+
+	reply := thread.GetReply(replyID) // TODO: Add mustGetReply(thread, replyID)
+	if reply == nil {
+		panic("reply not found")
+	}
+	if !reply.HasPermission(caller, PermissionDelete) { // TODO: Add AssertHasPermission()
+		panic("unauthorized")
+	}
+	thread.DeleteReply(replyID)
 }
 
 // TODO: Split into EditThread() & EditReply()

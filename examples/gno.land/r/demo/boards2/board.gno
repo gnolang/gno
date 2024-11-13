@@ -12,8 +12,6 @@ import (
 
 var reBoardName = regexp.MustCompile(`^[a-z]{3}[_a-z0-9]{0,23}[0-9]{3}$`)
 
-// TODO: Move post and board to a package to improve API and reduce realm size?
-
 type BoardID uint64
 
 func (id BoardID) String() string {
