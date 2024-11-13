@@ -5,6 +5,7 @@ type XYZ struct{ name string }
 var s1 []XYZ
 var s3 []XYZ
 var s4 []XYZ
+var s5 []*XYZ
 
 func init() {
 	s1 = append(s1, XYZ{"1"})
@@ -12,6 +13,7 @@ func init() {
 
 	s3 = append(s3, XYZ{"3"})
 	s4 = append(s4, XYZ{"4"})
+	s5 = append(s5, &XYZ{"5"})
 }
 
 func GetSlice() []XYZ {
@@ -38,4 +40,8 @@ func GetSlice3() []XYZ {
 func GetSlice4(f func(s []XYZ)) {
 	s4 = append(s4, XYZ{"0"}) // this is real after this function
 	f(s4)                     // floating
+}
+
+func GetSlice5() []*XYZ { // TODO, unwrap
+	return s5
 }

@@ -751,15 +751,6 @@ func (rlm *Realm) processNewEscapedMarks(store Store) {
 		fmt.Println("---eo.GetLastEscapedRealm: ", eo.GetLastNewEscapedRealm())
 		fmt.Println("---eo.GetRefCount(): ", eo.GetRefCount())
 		fmt.Println("---rlm.ID: ", rlm.ID)
-		//// only check object from another realm
-		//if !eo.GetLastNewEscapedRealm().IsZero() {
-		//	if eo.GetLastNewEscapedRealm() != rlm.ID {
-		//		//if !eo.GetIsReal() {
-		//		panic("!!!Cross realm update")
-		//		//}
-		//	}
-		//}
-		fmt.Println("---processNewEscapedMarks, eo.GetObjectID: ", eo.GetRefCount())
 		if debug {
 			if !eo.GetIsNewEscaped() {
 				panic("new escaped mark not marked as new escaped")
@@ -793,12 +784,14 @@ func (rlm *Realm) processNewEscapedMarks(store Store) {
 					// will be saved regardless.
 				} else {
 					// exists, mark dirty.
+					fmt.Println("---exists, mark dirty, po: ", po)
 					rlm.MarkDirty(po)
 				}
 				if eo.GetObjectID().IsZero() {
 					panic("new escaped mark has no object ID")
 				}
 				// escaped has no owner.
+				println("---escaped has no owner")
 				eo.SetOwner(nil)
 			}
 		}
