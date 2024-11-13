@@ -275,8 +275,10 @@ func (n *Node) Reset(ctx context.Context) error {
 		return fmt.Errorf("unable to stop the node: %w", err)
 	}
 
-	// Generate a new genesis state based on the current packages
+	// Reset starting time
 	startTime := time.Now()
+
+	// Generate a new genesis state based on the current packages
 	pkgsTxs, err := n.pkgs.Load(DefaultFee, startTime)
 	if err != nil {
 		return fmt.Errorf("unable to load pkgs: %w", err)
@@ -426,7 +428,6 @@ func (n *Node) rebuildNodeFromState(ctx context.Context) error {
 		return fmt.Errorf("unable to load pkgs: %w", err)
 	}
 
-	time.Now().UnixNano()
 	// Create genesis with loaded pkgs + previous state
 	genesis := gnoland.GnoGenesisState{
 		Balances: n.config.BalancesList,
