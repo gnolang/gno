@@ -68,11 +68,6 @@ type VMKeeper struct {
 
 	// cached, the DeliverTx persistent state.
 	gnoStore gno.Store
-
-	domain string // chain domain
-
-	// internal
-	reNamespace *regexp.Regexp
 }
 
 // NewVMKeeper returns a new VMKeeper.
@@ -91,8 +86,6 @@ func NewVMKeeper(
 		prmk:    prmk,
 	}
 
-	// Namespace can be either a user or crypto address.
-	vmk.reNamespace = regexp.MustCompile(`^` + regexp.QuoteMeta(chainDomain) + `/(?:r|p)/([\.~_a-zA-Z0-9]+)`)
 	return vmk
 }
 
@@ -235,34 +228,29 @@ func (vm *VMKeeper) getGnoTransactionStore(ctx sdk.Context) gno.TransactionStore
 }
 
 // Namespace can be either a user or crypto address.
-var reNamespace = regexp.MustCompile(`^gno.land/(?:r|p)/([\.~_a-zA-Z0-9]+)`)
-
-const (
-	sysUsersPkgParamPath = "gno.land/r/sys/params.sys.users_pkgpath.string"
-	chainDomainParamPath = "gno.land/r/sys/params.chain.domain.string"
-)
+var reNamespace = regexp.MustCompile(`^[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/(?:r|p)/([\.~_a-zA-Z0-9]+)`)
 
 // checkNamespacePermission check if the user as given has correct permssion to on the given pkg path
 func (vm *VMKeeper) checkNamespacePermission(ctx sdk.Context, creator crypto.Address, pkgPath string) error {
-	sysUsersPkg := vm.domain + "/r/sys/users" // configurable through sys/params
-	var sysUsersPkg string
-	vm.prmk.GetString(ctx, sysUsersPkgParamPath, &sysUsersPkg)
+	sysUsersPkg := vm.getSysUsersPkgParam(ctx)
 	if sysUsersPkg == "" {
 		return nil
 	}
+	chainDomain := vm.getChainDomainParam(ctx)
 
 	store := vm.getGnoTransactionStore(ctx)
 
-	match := vm.reNamespace.FindStringSubmatch(pkgPath)
+	if !strings.HasPrefix(pkgPath, chainDomain+"/") {
+		return ErrInvalidPkgPath(pkgPath) // no match
+	}
+
+	match := reNamespace.FindStringSubmatch(pkgPath)
 	switch len(match) {
 	case 0:
 		return ErrInvalidPkgPath(pkgPath) // no match
 	case 2: // ok
 	default:
 		panic("invalid pattern while matching pkgpath")
-	}
-	if len(match) != 2 {
-		return ErrInvalidPkgPath(pkgPath)
 	}
 	username := match[1]
 
@@ -276,7 +264,7 @@ func (vm *VMKeeper) checkNamespacePermission(ctx sdk.Context, creator crypto.Add
 	pkgAddr := gno.DerivePkgAddr(pkgPath)
 	msgCtx := stdlibs.ExecContext{
 		ChainID:       ctx.ChainID(),
-		ChainDomain:   vm.domain,
+		ChainDomain:   chainDomain,
 		Height:        ctx.BlockHeight(),
 		Timestamp:     ctx.BlockTime().Unix(),
 		OrigCaller:    creator.Bech32(),
@@ -334,6 +322,7 @@ func (vm *VMKeeper) AddPackage(ctx sdk.Context, msg MsgAddPackage) (err error) {
 	memPkg := msg.Package
 	deposit := msg.Deposit
 	gnostore := vm.getGnoTransactionStore(ctx)
+	chainDomain := vm.getChainDomainParam(ctx)
 
 	// Validate arguments.
 	if creator.IsZero() {
@@ -346,7 +335,7 @@ func (vm *VMKeeper) AddPackage(ctx sdk.Context, msg MsgAddPackage) (err error) {
 	if err := msg.Package.Validate(); err != nil {
 		return ErrInvalidPkgPath(err.Error())
 	}
-	if !strings.HasPrefix(pkgPath, vm.domain+"/") {
+	if !strings.HasPrefix(pkgPath, chainDomain+"/") {
 		return ErrInvalidPkgPath("invalid domain: " + pkgPath)
 	}
 	if pv := gnostore.GetPackage(pkgPath, false); pv != nil {
@@ -550,11 +539,12 @@ func (vm *VMKeeper) Run(ctx sdk.Context, msg MsgRun) (res string, err error) {
 	gnostore := vm.getGnoTransactionStore(ctx)
 	send := msg.Send
 	memPkg := msg.Package
+	chainDomain := vm.getChainDomainParam(ctx)
 
 	// coerce path to right one.
 	// the path in the message must be "" or the following path.
 	// this is already checked in MsgRun.ValidateBasic
-	memPkg.Path = vm.domain + "/r/" + msg.Caller.String() + "/run"
+	memPkg.Path = chainDomain + "/r/" + msg.Caller.String() + "/run"
 
 	// Validate arguments.
 	callerAcc := vm.acck.GetAccount(ctx, caller)
@@ -580,7 +570,7 @@ func (vm *VMKeeper) Run(ctx sdk.Context, msg MsgRun) (res string, err error) {
 	// Parse and run the files, construct *PV.
 	msgCtx := stdlibs.ExecContext{
 		ChainID:       ctx.ChainID(),
-		ChainDomain:   vm.domain,
+		ChainDomain:   chainDomain,
 		Height:        ctx.BlockHeight(),
 		Timestamp:     ctx.BlockTime().Unix(),
 		Msg:           msg,

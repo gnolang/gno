@@ -80,7 +80,7 @@ func TestVMKeeperAddPackage_InvalidDomain(t *testing.T) {
 	assert.True(t, env.bank.GetCoins(ctx, addr).IsEqual(std.MustParseCoins(coinsString)))
 
 	// Create test package.
-	files := []*std.MemFile{
+	files := []*gnovm.MemFile{
 		{
 			Name: "test.gno",
 			Body: `package test
