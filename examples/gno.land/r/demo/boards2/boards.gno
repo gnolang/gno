@@ -5,16 +5,21 @@ import "gno.land/p/demo/avl"
 // Default minimum fee in ugnot required for anonymous users
 const defaultAnonymousFee = 100_000_000
 
-// TODO: Create a Boards or App struct to handle counter and tree indexes
 var (
-	gBoards       avl.Tree // id -> *Board
-	gBoardsCtr    int      // increments Board.id
-	gBoardsByName avl.Tree // name -> *Board
+	gLastBoardID  BoardID
+	gBoardsByID   avl.Tree // string(id) -> *Board
+	gBoardsByName avl.Tree // string(name) -> *Board
 )
 
-// getBoard returns a boards for a specific ID.
+// incGetBoardID returns a new board ID.
+func incGetBoardID() BoardID {
+	gLastBoardID++
+	return gLastBoardID
+}
+
+// getBoard returns a board for a specific ID.
 func getBoard(id BoardID) (_ *Board, found bool) {
-	v, exists := gBoards.Get(id.Key())
+	v, exists := gBoardsByID.Get(id.Key())
 	if !exists {
 		return nil, false
 	}
@@ -46,9 +51,4 @@ func mustGetReply(thread *Post, replyID PostID) *Post {
 		panic("reply does not exist with ID: " + replyID.String())
 	}
 	return reply
-}
-
-func incGetBoardID() BoardID {
-	gBoardsCtr++
-	return BoardID(gBoardsCtr)
 }

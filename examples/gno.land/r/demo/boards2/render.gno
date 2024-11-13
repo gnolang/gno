@@ -22,7 +22,7 @@ func Render(path string) string {
 
 func renderBoardsList(res *mux.ResponseWriter, _ *mux.Request) {
 	res.Write("These are all the boards of this realm:\n\n")
-	gBoards.Iterate("", "", func(_ string, value interface{}) bool {
+	gBoardsByID.Iterate("", "", func(_ string, value interface{}) bool {
 		board := value.(*Board)
 		res.Write(" * " + newLink(board.url, board.url) + "\n")
 		return false
