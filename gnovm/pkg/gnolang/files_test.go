@@ -68,9 +68,11 @@ func TestFiles(t *testing.T) {
 				if err != nil {
 					t.Fatal(err.Error())
 				}
-				err = os.WriteFile(filepath.Join(dir, path), []byte(changed), de.Type())
-				if err != nil {
-					criticalError = fmt.Errorf("could not fix golden file: %w", err)
+				if changed != "" {
+					err = os.WriteFile(filepath.Join(dir, path), []byte(changed), de.Type())
+					if err != nil {
+						criticalError = fmt.Errorf("could not fix golden file: %w", err)
+					}
 				}
 				return
 			}
