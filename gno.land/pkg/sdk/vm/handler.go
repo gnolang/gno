@@ -74,12 +74,13 @@ func (vh vmHandler) handleMsgRun(ctx sdk.Context, msg MsgRun) (res sdk.Result) {
 
 // query paths
 const (
-	QueryPackage = "package"
-	QueryStore   = "store"
-	QueryRender  = "qrender"
-	QueryFuncs   = "qfuncs"
-	QueryEval    = "qeval"
-	QueryFile    = "qfile"
+	QueryPackage  = "package"
+	QueryStore    = "store"
+	QueryRender   = "qrender"
+	QueryFuncs    = "qfuncs"
+	QueryEval     = "qeval"
+	QueryEvalJSON = "qeval/json" // EXPERIMENTAL
+	QueryFile     = "qfile"
 )
 
 func (vh vmHandler) Query(ctx sdk.Context, req abci.RequestQuery) abci.ResponseQuery {
@@ -98,7 +99,9 @@ func (vh vmHandler) Query(ctx sdk.Context, req abci.RequestQuery) abci.ResponseQ
 	case QueryFuncs:
 		res = vh.queryFuncs(ctx, req)
 	case QueryEval:
-		res = vh.queryEval(ctx, req)
+		res = vh.queryEvalMachine(ctx, req)
+	case QueryEvalJSON:
+		res = vh.queryEvalJSON(ctx, req)
 	case QueryFile:
 		res = vh.queryFile(ctx, req)
 	default:
@@ -179,16 +182,26 @@ func (vh vmHandler) queryFuncs(ctx sdk.Context, req abci.RequestQuery) (res abci
 	return
 }
 
-// queryEval evaluates any expression in readonly mode and returns the results.
-func (vh vmHandler) queryEval(ctx sdk.Context, req abci.RequestQuery) (res abci.ResponseQuery) {
+// queryEval evaluates any expression in readonly mode and returns the results based on the given format.
+func (vh vmHandler) queryEval(ctx sdk.Context, format Format, req abci.RequestQuery) (res abci.ResponseQuery) {
 	pkgPath, expr := parseQueryEvalData(string(req.Data))
-	result, err := vh.vm.QueryEval(ctx, pkgPath, expr)
+	result, err := vh.vm.QueryEval(ctx, pkgPath, expr, FormatMachine)
 	if err != nil {
 		res = sdk.ABCIResponseQueryFromError(err)
 		return
 	}
 	res.Data = []byte(result)
 	return
+}
+
+// queryEvalMachine evaluates any expression in readonly mode and returns the results in vm machine format.
+func (vh vmHandler) queryEvalMachine(ctx sdk.Context, req abci.RequestQuery) (res abci.ResponseQuery) {
+	return vh.queryEval(ctx, FormatMachine, req)
+}
+
+// queryEvalJSON evaluates any expression in readonly mode and returns the results in JSON format.
+func (vh vmHandler) queryEvalJSON(ctx sdk.Context, req abci.RequestQuery) (res abci.ResponseQuery) {
+	return vh.queryEval(ctx, FormatJSON, req)
 }
 
 // parseQueryEval parses the input string of vm/qeval. It takes the first dot

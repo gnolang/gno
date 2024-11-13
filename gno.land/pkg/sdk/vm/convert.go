@@ -253,20 +253,14 @@ func JSONPrimitiveValue(m *gno.Machine, tv gno.TypedValue) string {
 			panic("invalid primitive type - should not happen")
 		}
 	case *gno.PointerType:
-		// Check if Pointer we type implement Stringer / Error
-
+		// Check if Pointer we type implement Error
 		// If implements .Error(), return it.
 		if tv.IsError() {
 			res := m.Eval(gno.Call(gno.Sel(&gno.ConstExpr{TypedValue: tv}, "Error")))
 			return strconv.Quote(res[0].GetString())
 		}
-		// If implements .String(), return it.
-		if tv.IsStringer() {
-			res := m.Eval(gno.Call(gno.Sel(&gno.ConstExpr{TypedValue: tv}, "String")))
-			return strconv.Quote(res[0].GetString())
-		}
 	default:
-		// Check if pointer wraped value can implement Stringer / Error
+		// Check if pointer wraped value can implement Error
 		ptv := gno.TypedValue{
 			T: &gno.PointerType{Elt: tv.T},
 			V: gno.PointerValue{TV: &tv, Base: tv.V},
@@ -275,11 +269,6 @@ func JSONPrimitiveValue(m *gno.Machine, tv gno.TypedValue) string {
 		// If implements .Error(), return it.
 		if ptv.IsError() {
 			res := m.Eval(gno.Call(gno.Sel(&gno.ConstExpr{TypedValue: ptv}, "Error")))
-			return strconv.Quote(res[0].GetString())
-		}
-		// If implements .String(), return it.
-		if ptv.IsStringer() {
-			res := m.Eval(gno.Call(gno.Sel(&gno.ConstExpr{TypedValue: ptv}, "String")))
 			return strconv.Quote(res[0].GetString())
 		}
 	}

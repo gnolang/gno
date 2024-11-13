@@ -46,7 +46,7 @@ const (
 type VMKeeperI interface {
 	AddPackage(ctx sdk.Context, msg MsgAddPackage) error
 	Call(ctx sdk.Context, msg MsgCall) (res string, err error)
-	QueryEval(ctx sdk.Context, pkgPath string, expr string) (res string, err error)
+	QueryEval(ctx sdk.Context, pkgPath string, expr string, format Format) (res string, err error)
 	Run(ctx sdk.Context, msg MsgRun) (res string, err error)
 	LoadStdlib(ctx sdk.Context, stdlibDir string)
 	LoadStdlibCached(ctx sdk.Context, stdlibDir string)
@@ -514,6 +514,7 @@ func (vm *VMKeeper) Call(ctx sdk.Context, msg MsgCall) (res string, err error) {
 
 	rtvs := m.Eval(xn)
 	stringifyResultValues(m, msg.Format, rtvs)
+
 	// Log the telemetry
 	logTelemetry(
 		m.GasMeter.GasConsumed(),
@@ -725,11 +726,13 @@ func (vm *VMKeeper) QueryEval(ctx sdk.Context, pkgPath string, expr string) (res
 			"package not found: %s", pkgPath))
 		return "", err
 	}
+
 	// Parse expression.
 	xx, err := gno.ParseExpr(expr)
 	if err != nil {
 		return "", err
 	}
+
 	// Construct new machine.
 	msgCtx := stdlibs.ExecContext{
 		ChainID:   ctx.ChainID(),
@@ -768,7 +771,7 @@ func (vm *VMKeeper) QueryEval(ctx sdk.Context, pkgPath string, expr string) (res
 	}()
 	rtvs := m.Eval(xx)
 
-	res = stringifyResultValues(m, msg.Format, rtvs)
+	res = stringifyResultValues(m, format, rtvs)
 	return res, nil
 }
 

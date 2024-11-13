@@ -106,7 +106,27 @@ type E struct { S string }
 func (e *E) Error() string { return e.S }
 `
 
-	t.Run("with pointer", func(t *testing.T) {
+	t.Run("null pointer", func(t *testing.T) {
+		m := gnolang.NewMachine("testdata", nil)
+		defer m.Release()
+
+		const expected = "Hello World"
+		nn := gnolang.MustParseFile("struct.gno", StructsFile)
+		m.RunFiles(nn)
+		nn = gnolang.MustParseFile("testdata.gno",
+			fmt.Sprintf(`package testdata; var Value *E = nil`, expected))
+		m.RunFiles(nn)
+		m.RunDeclaration(gnolang.ImportD("testdata", "testdata"))
+
+		tps := m.Eval(gnolang.Sel(gnolang.Nx("testdata"), "Value"))
+		require.Len(t, tps, 1)
+
+		tv := tps[0]
+		rep := JSONPrimitiveValue(m, tv)
+		require.Equal(t, strconv.Quote(expected), rep)
+	})
+
+	t.Run("without pointer", func(t *testing.T) {
 		m := gnolang.NewMachine("testdata", nil)
 		defer m.Release()
 
@@ -126,7 +146,7 @@ func (e *E) Error() string { return e.S }
 		require.Equal(t, strconv.Quote(expected), rep)
 	})
 
-	t.Run("without pointer", func(t *testing.T) {
+	t.Run("with pointer", func(t *testing.T) {
 		m := gnolang.NewMachine("testdata", nil)
 		defer m.Release()
 
