@@ -289,13 +289,15 @@ func checkAssignableTo(n Node, xt, dt Type, autoNative bool) error {
 	// case0
 	if xt == nil { // see test/files/types/eql_0f18
 		if !maybeNil(dt) {
-			switch n.(type) {
+			switch n := n.(type) {
 			case *ValueDecl:
 				panic(fmt.Sprintf("cannot use nil as %v value in variable declaration", dt))
 			case *AssignStmt:
 				panic(fmt.Sprintf("cannot use nil as %v value in assignment", dt))
 			case *CompositeLitExpr:
 				panic(fmt.Sprintf("cannot use nil as %v value in array, slice literal or map literal", dt))
+			case *CallExpr:
+				panic(fmt.Sprintf("cannot use nil as %v value in argument to %v", dt, n.Func))
 			default:
 				panic(fmt.Sprintf("cannot use nil as %v value", dt))
 			}
