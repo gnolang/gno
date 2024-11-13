@@ -9,30 +9,30 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/gnolang/gno/gnovm"
 	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
 	"github.com/gnolang/gno/gnovm/pkg/gnolang"
 	"github.com/gnolang/gno/gnovm/pkg/transpiler"
-	"github.com/gnolang/gno/tm2/pkg/std"
 	"golang.org/x/mod/modfile"
 	"golang.org/x/mod/module"
 )
 
 const queryPathFile = "vm/qfile"
 
-// GetGnoModPath returns the path for gno modules
-func GetGnoModPath() string {
+// ModCachePath returns the path for gno modules
+func ModCachePath() string {
 	return filepath.Join(gnoenv.HomeDir(), "pkg", "mod")
 }
 
 // PackageDir resolves a given module.Version to the path on the filesystem.
-// If root is dir, it is defaulted to the value of [GetGnoModPath].
+// If root is dir, it is defaulted to the value of [ModCachePath].
 func PackageDir(root string, v module.Version) string {
 	// This is also used internally exactly like filepath.Join; but we'll keep
 	// the calls centralized to make sure we can change the path centrally should
 	// we start including the module version in the path.
 
 	if root == "" {
-		root = GetGnoModPath()
+		root = ModCachePath()
 	}
 	return filepath.Join(root, v.Path)
 }
@@ -43,7 +43,7 @@ func writePackage(remote, basePath, pkgPath string) (requirements []string, err 
 		return nil, fmt.Errorf("querychain (%s): %w", pkgPath, err)
 	}
 
-	dirPath, fileName := std.SplitFilepath(pkgPath)
+	dirPath, fileName := gnovm.SplitFilepath(pkgPath)
 	if fileName == "" {
 		// Is Dir
 		// Create Dir if not exists
@@ -89,7 +89,7 @@ func writePackage(remote, basePath, pkgPath string) (requirements []string, err 
 func GnoToGoMod(f File) (*File, error) {
 	// TODO(morgan): good candidate to move to pkg/transpiler.
 
-	gnoModPath := GetGnoModPath()
+	gnoModPath := ModCachePath()
 
 	if !gnolang.IsStdlib(f.Module.Mod.Path) {
 		f.AddModuleStmt(transpiler.TranspileImportPath(f.Module.Mod.Path))

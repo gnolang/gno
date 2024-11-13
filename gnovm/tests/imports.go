@@ -222,18 +222,38 @@ func TestStore(rootDir, filesPath string, stdin io.Reader, stdout, stderr io.Wri
 				return pkg, pkg.NewPackage()
 			case "time":
 				pkg := gno.NewPackageNode("time", pkgPath, nil)
-				pkg.DefineGoNativeValue("Millisecond", time.Millisecond)
-				pkg.DefineGoNativeValue("Second", time.Second)
-				pkg.DefineGoNativeValue("Minute", time.Minute)
-				pkg.DefineGoNativeValue("Hour", time.Hour)
-				pkg.DefineGoNativeValue("Date", time.Date)
-				pkg.DefineGoNativeValue("Now", func() time.Time { return time.Unix(0, 0).UTC() }) // deterministic
-				pkg.DefineGoNativeValue("November", time.November)
+				pkg.DefineGoNativeConstValue("Millisecond", time.Millisecond)
+				pkg.DefineGoNativeConstValue("Second", time.Second)
+				pkg.DefineGoNativeConstValue("Minute", time.Minute)
+				pkg.DefineGoNativeConstValue("Hour", time.Hour)
+				pkg.DefineGoNativeConstValue("Date", time.Date)
+				pkg.DefineGoNativeConstValue("Now", func() time.Time { return time.Unix(0, 0).UTC() }) // deterministic
+				pkg.DefineGoNativeConstValue("January", time.January)
+				pkg.DefineGoNativeConstValue("February", time.February)
+				pkg.DefineGoNativeConstValue("March", time.March)
+				pkg.DefineGoNativeConstValue("April", time.April)
+				pkg.DefineGoNativeConstValue("May", time.May)
+				pkg.DefineGoNativeConstValue("June", time.June)
+				pkg.DefineGoNativeConstValue("July", time.July)
+				pkg.DefineGoNativeConstValue("August", time.August)
+				pkg.DefineGoNativeConstValue("September", time.September)
+				pkg.DefineGoNativeConstValue("November", time.November)
+				pkg.DefineGoNativeConstValue("December", time.December)
 				pkg.DefineGoNativeValue("UTC", time.UTC)
 				pkg.DefineGoNativeValue("Unix", time.Unix)
 				pkg.DefineGoNativeType(reflect.TypeOf(time.Time{}))
 				pkg.DefineGoNativeType(reflect.TypeOf(time.Duration(0)))
 				pkg.DefineGoNativeType(reflect.TypeOf(time.Month(0)))
+				pkg.DefineGoNativeValue("LoadLocation", time.LoadLocation)
+				return pkg, pkg.NewPackage()
+			case "strconv":
+				pkg := gno.NewPackageNode("strconv", pkgPath, nil)
+				pkg.DefineGoNativeValue("Itoa", strconv.Itoa)
+				pkg.DefineGoNativeValue("Atoi", strconv.Atoi)
+				pkg.DefineGoNativeValue("ParseInt", strconv.ParseInt)
+				pkg.DefineGoNativeValue("Quote", strconv.Quote)
+				pkg.DefineGoNativeValue("FormatUint", strconv.FormatUint)
+				pkg.DefineGoNativeType(reflect.TypeOf(strconv.NumError{}))
 				return pkg, pkg.NewPackage()
 			case "strings":
 				pkg := gno.NewPackageNode("strings", pkgPath, nil)
@@ -252,21 +272,20 @@ func TestStore(rootDir, filesPath string, stdin io.Reader, stdout, stderr io.Wri
 				pkg := gno.NewPackageNode("math", pkgPath, nil)
 				pkg.DefineGoNativeValue("Abs", math.Abs)
 				pkg.DefineGoNativeValue("Cos", math.Cos)
-				pkg.DefineGoNativeValue("Pi", math.Pi)
+				pkg.DefineGoNativeConstValue("Pi", math.Pi)
 				pkg.DefineGoNativeValue("Float64bits", math.Float64bits)
-				pkg.DefineGoNativeValue("Pi", math.Pi)
-				pkg.DefineGoNativeValue("MaxFloat32", math.MaxFloat32)
-				pkg.DefineGoNativeValue("MaxFloat64", math.MaxFloat64)
-				pkg.DefineGoNativeValue("MaxUint32", uint32(math.MaxUint32))
-				pkg.DefineGoNativeValue("MaxUint64", uint64(math.MaxUint64))
-				pkg.DefineGoNativeValue("MinInt8", math.MinInt8)
-				pkg.DefineGoNativeValue("MinInt16", math.MinInt16)
-				pkg.DefineGoNativeValue("MinInt32", math.MinInt32)
-				pkg.DefineGoNativeValue("MinInt64", int64(math.MinInt64))
-				pkg.DefineGoNativeValue("MaxInt8", math.MaxInt8)
-				pkg.DefineGoNativeValue("MaxInt16", math.MaxInt16)
-				pkg.DefineGoNativeValue("MaxInt32", math.MaxInt32)
-				pkg.DefineGoNativeValue("MaxInt64", int64(math.MaxInt64))
+				pkg.DefineGoNativeConstValue("MaxFloat32", math.MaxFloat32)
+				pkg.DefineGoNativeConstValue("MaxFloat64", math.MaxFloat64)
+				pkg.DefineGoNativeConstValue("MaxUint32", uint32(math.MaxUint32))
+				pkg.DefineGoNativeConstValue("MaxUint64", uint64(math.MaxUint64))
+				pkg.DefineGoNativeConstValue("MinInt8", math.MinInt8)
+				pkg.DefineGoNativeConstValue("MinInt16", math.MinInt16)
+				pkg.DefineGoNativeConstValue("MinInt32", math.MinInt32)
+				pkg.DefineGoNativeConstValue("MinInt64", int64(math.MinInt64))
+				pkg.DefineGoNativeConstValue("MaxInt8", math.MaxInt8)
+				pkg.DefineGoNativeConstValue("MaxInt16", math.MaxInt16)
+				pkg.DefineGoNativeConstValue("MaxInt32", math.MaxInt32)
+				pkg.DefineGoNativeConstValue("MaxInt64", int64(math.MaxInt64))
 				return pkg, pkg.NewPackage()
 			case "math/rand":
 				// XXX only expose for tests.
@@ -301,13 +320,13 @@ func TestStore(rootDir, filesPath string, stdin io.Reader, stdout, stderr io.Wri
 				return pkg, pkg.NewPackage()
 			case "compress/flate":
 				pkg := gno.NewPackageNode("flate", pkgPath, nil)
-				pkg.DefineGoNativeValue("BestSpeed", flate.BestSpeed)
+				pkg.DefineGoNativeConstValue("BestSpeed", flate.BestSpeed)
 				return pkg, pkg.NewPackage()
 			case "compress/gzip":
 				pkg := gno.NewPackageNode("gzip", pkgPath, nil)
 				pkg.DefineGoNativeType(reflect.TypeOf(gzip.Writer{}))
-				pkg.DefineGoNativeValue("BestCompression", gzip.BestCompression)
-				pkg.DefineGoNativeValue("BestSpeed", gzip.BestSpeed)
+				pkg.DefineGoNativeConstValue("BestCompression", gzip.BestCompression)
+				pkg.DefineGoNativeConstValue("BestSpeed", gzip.BestSpeed)
 				return pkg, pkg.NewPackage()
 			case "context":
 				pkg := gno.NewPackageNode("context", pkgPath, nil)
@@ -407,7 +426,6 @@ func TestStore(rootDir, filesPath string, stdin io.Reader, stdout, stderr io.Wri
 	resStore = gno.NewStore(nil, baseStore, iavlStore)
 	resStore.SetPackageGetter(getPackage)
 	resStore.SetNativeStore(teststdlibs.NativeStore)
-	resStore.SetPackageInjector(testPackageInjector)
 	resStore.SetStrictGo2GnoMapping(false)
 	return
 }
@@ -453,19 +471,6 @@ func loadStdlib(rootDir, pkgPath string, store gno.Store, stdout io.Writer) (*gn
 	save := pkgPath != "testing" // never save the "testing" package
 	return m2.RunMemPackageWithOverrides(memPkg, save)
 }
-
-func testPackageInjector(store gno.Store, pn *gno.PackageNode) {
-	// Test specific injections:
-	switch pn.PkgPath {
-	case "strconv":
-		// NOTE: Itoa and Atoi are already injected
-		// from stdlibs.InjectNatives.
-		pn.DefineGoNativeType(reflect.TypeOf(strconv.NumError{}))
-		pn.DefineGoNativeValue("ParseInt", strconv.ParseInt)
-	}
-}
-
-// ----------------------------------------
 
 type dummyReader struct{}
 

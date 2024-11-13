@@ -46,6 +46,7 @@ install.gnodev:
 	$(MAKE) --no-print-directory -C ./contribs/gnodev install
 	@printf "\033[0;32m[+] 'gnodev' has been installed. Read more in ./contribs/gnodev/\033[0m\n"
 
+
 # old aliases
 .PHONY: install_gnokey
 install_gnokey: install.gnokey

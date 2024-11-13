@@ -336,6 +336,7 @@ func (app *BaseApp) InitChain(req abci.RequestInitChain) (res abci.ResponseInitC
 	app.deliverState.ctx = app.deliverState.ctx.
 		WithBlockGasMeter(store.NewInfiniteGasMeter())
 
+	// Run the set chain initializer
 	res = app.initChainer(app.deliverState.ctx, req)
 
 	// sanity check
@@ -392,10 +393,6 @@ func (app *BaseApp) Query(req abci.RequestQuery) (res abci.ResponseQuery) {
 	default:
 		return handleQueryCustom(app, path, req)
 	}
-
-	msg := "unknown query path " + req.Path
-	res.Error = ABCIError(std.ErrUnknownRequest(msg))
-	return
 }
 
 func handleQueryApp(app *BaseApp, path []string, req abci.RequestQuery) (res abci.ResponseQuery) {
@@ -561,7 +558,9 @@ func (app *BaseApp) CheckTx(req abci.RequestCheckTx) (res abci.ResponseCheckTx) 
 		res.Error = ABCIError(std.ErrTxDecode(err.Error()))
 		return
 	} else {
-		result := app.runTx(RunTxModeCheck, req.Tx, tx)
+		ctx := app.getContextForTx(RunTxModeCheck, req.Tx)
+
+		result := app.runTx(ctx, tx)
 		res.ResponseBase = result.ResponseBase
 		res.GasWanted = result.GasWanted
 		res.GasUsed = result.GasUsed
@@ -577,7 +576,9 @@ func (app *BaseApp) DeliverTx(req abci.RequestDeliverTx) (res abci.ResponseDeliv
 		res.Error = ABCIError(std.ErrTxDecode(err.Error()))
 		return
 	} else {
-		result := app.runTx(RunTxModeDeliver, req.Tx, tx)
+		ctx := app.getContextForTx(RunTxModeDeliver, req.Tx)
+
+		result := app.runTx(ctx, tx)
 		res.ResponseBase = result.ResponseBase
 		res.GasWanted = result.GasWanted
 		res.GasUsed = result.GasUsed
@@ -625,11 +626,12 @@ func (app *BaseApp) runMsgs(ctx Context, msgs []Msg, mode RunTxMode) (result Res
 	ctx = ctx.WithEventLogger(NewEventLogger())
 
 	msgLogs := make([]string, 0, len(msgs))
-
 	data := make([]byte, 0, len(msgs))
-	err := error(nil)
 
-	events := []Event{}
+	var (
+		err    error
+		events = []Event{}
+	)
 
 	// NOTE: GasWanted is determined by ante handler and GasUsed by the GasMeter.
 	for i, msg := range msgs {
@@ -663,6 +665,7 @@ func (app *BaseApp) runMsgs(ctx Context, msgs []Msg, mode RunTxMode) (result Res
 				fmt.Sprintf("msg:%d,success:%v,log:%s,events:%v",
 					i, false, msgResult.Log, events))
 			err = msgResult.Error
+			events = nil
 			break
 		}
 
@@ -670,7 +673,10 @@ func (app *BaseApp) runMsgs(ctx Context, msgs []Msg, mode RunTxMode) (result Res
 			fmt.Sprintf("msg:%d,success:%v,log:%s,events:%v",
 				i, true, msgResult.Log, events))
 	}
-	events = append(events, ctx.EventLogger().Events()...)
+
+	if err == nil {
+		events = append(events, ctx.EventLogger().Events()...)
+	}
 
 	result.Error = ABCIError(err)
 	result.Data = data
@@ -703,14 +709,17 @@ func (app *BaseApp) cacheTxContext(ctx Context) (Context, store.MultiStore) {
 // anteHandler. The provided txBytes may be nil in some cases, eg. in tests. For
 // further details on transaction execution, reference the BaseApp SDK
 // documentation.
-func (app *BaseApp) runTx(mode RunTxMode, txBytes []byte, tx Tx) (result Result) {
-	// NOTE: GasWanted should be returned by the AnteHandler. GasUsed is
-	// determined by the GasMeter. We need access to the context to get the gas
-	// meter so we initialize upfront.
-	var gasWanted int64
+func (app *BaseApp) runTx(ctx Context, tx Tx) (result Result) {
+	var (
+		// NOTE: GasWanted should be returned by the AnteHandler. GasUsed is
+		// determined by the GasMeter. We need access to the context to get the gas
+		// meter so we initialize upfront.
+		gasWanted int64
 
-	ctx := app.getContextForTx(mode, txBytes)
-	ms := ctx.MultiStore()
+		ms   = ctx.MultiStore()
+		mode = ctx.Mode()
+	)
+
 	if mode == RunTxModeDeliver {
 		gasleft := ctx.BlockGasMeter().Remaining()
 		ctx = ctx.WithGasMeter(store.NewPassthroughGasMeter(
