@@ -32,7 +32,6 @@ func TestFiles(t *testing.T) {
 	var opts test.FileTestOptions
 	var stdin, stderr bytes.Buffer
 	opts.BaseStore, opts.Store = test.TestStore(rootDir, true, &stdin, &opts.Stdout, &stderr)
-	opts.Store.SetStrictGo2GnoMapping(true) // in gno.land, natives must be registered.
 	// XXX: Using opts like this is a bit funky, replacing the state each time; maybe we can re-create each time
 	// if we don't require usage of opts.Stdout.
 	// XXX: Maybe testStore imports should use baseStore directly, so we directly load into store all package loads.

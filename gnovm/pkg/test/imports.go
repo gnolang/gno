@@ -166,7 +166,6 @@ func TestStore(
 	resStore = gno.NewStore(nil, baseStore, baseStore)
 	resStore.SetPackageGetter(getPackage)
 	resStore.SetNativeStore(teststdlibs.NativeStore)
-	resStore.SetStrictGo2GnoMapping(false)
 	return
 }
 
