@@ -94,10 +94,11 @@ GNO_CASE:
 	}
 
 	validate := func(from Kind, to Kind, cmp func() bool) {
-		msg := fmt.Sprintf("cannot convert constant of type %s to %s\n", from, to)
-		if cmp != nil && !cmp() {
-			panic(msg)
-		} else if isConst {
+		if isConst {
+			msg := fmt.Sprintf("cannot convert constant of type %s to %s\n", from, to)
+			if cmp != nil && cmp() {
+				return
+			}
 			panic(msg)
 		}
 	}
