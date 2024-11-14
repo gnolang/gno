@@ -64,7 +64,7 @@ func execLint(cfg *lintCfg, args []string, io commands.IO) error {
 		rootDir = gnoenv.RootDir()
 	}
 
-	pkgPaths, err := gnofiles.GnoPackagesFromArgsRecursively(args)
+	pkgPaths, err := gnofiles.GnoDirsFromArgsRecursively(args)
 	if err != nil {
 		return fmt.Errorf("list packages from args: %w", err)
 	}

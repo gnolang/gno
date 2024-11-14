@@ -21,6 +21,7 @@ import (
 // It is exposed for testing purposes.
 var Client tm2client.Client
 
+// FetchPackage downloads a remote gno package by pkg path and store it at dst
 func FetchPackage(io commands.IO, pkgPath string, dst string) error {
 	modFilePath := filepath.Join(dst, "gno.mod")
 
@@ -85,6 +86,7 @@ func FetchPackage(io commands.IO, pkgPath string, dst string) error {
 	return nil
 }
 
+// FetchPackageImportsRecursively recursively fetches the imports of a local package while following a given gno.mod replace directives
 func FetchPackageImportsRecursively(io commands.IO, pkgDir string, gnoMod *gnomod.File) error {
 	imports, err := gnoimports.PackageImports(pkgDir)
 	if err != nil {

@@ -8,11 +8,13 @@ import (
 	"strings"
 )
 
+// DirEntryIsGnoFile determines if a given DirEnry is a gno file
 func DirEntryIsGnoFile(f fs.DirEntry) bool {
 	name := f.Name()
 	return !strings.HasPrefix(name, ".") && strings.HasSuffix(name, ".gno") && !f.IsDir()
 }
 
+// GnoFilesFromArgsRecursively returns all gno files present under the given filepaths
 func GnoFilesFromArgsRecursively(args []string) ([]string, error) {
 	var paths []string
 
@@ -51,7 +53,8 @@ func GnoFilesFromArgsRecursively(args []string) ([]string, error) {
 	return paths, nil
 }
 
-func GnoDirsFromArgsRecursively(args []string) ([]string, error) {
+// GnoTargetsFromArgs returns all gno files and directories containing gno files present in the given filepaths
+func GnoTargetsFromArgs(args []string) ([]string, error) {
 	var paths []string
 
 	for _, argPath := range args {
@@ -80,6 +83,7 @@ func GnoDirsFromArgsRecursively(args []string) ([]string, error) {
 	return paths, nil
 }
 
+// GnoFilesFromArg returns all gno files that are in the given filepaths
 func GnoFilesFromArgs(args []string) ([]string, error) {
 	var paths []string
 
@@ -105,6 +109,34 @@ func GnoFilesFromArgs(args []string) ([]string, error) {
 				path := filepath.Join(argPath, f.Name())
 				paths = append(paths, ensurePathPrefix(path))
 			}
+		}
+	}
+
+	return paths, nil
+}
+
+// GnoDirsFromArgsRecursively returns all directories containing gno files under the given filepaths
+func GnoDirsFromArgsRecursively(args []string) ([]string, error) {
+	var paths []string
+
+	for _, argPath := range args {
+		info, err := os.Stat(argPath)
+		if err != nil {
+			return nil, fmt.Errorf("invalid file or package path: %w", err)
+		}
+
+		if !info.IsDir() {
+			paths = append(paths, ensurePathPrefix(argPath))
+
+			continue
+		}
+
+		// Gather package paths from the directory
+		err = walkDirForGnoDirs(argPath, func(path string) {
+			paths = append(paths, ensurePathPrefix(path))
+		})
+		if err != nil {
+			return nil, fmt.Errorf("unable to walk dir: %w", err)
 		}
 	}
 
@@ -147,31 +179,4 @@ func walkDirForGnoDirs(root string, addPath func(path string)) error {
 	}
 
 	return filepath.WalkDir(root, walkFn)
-}
-
-func GnoPackagesFromArgsRecursively(args []string) ([]string, error) {
-	var paths []string
-
-	for _, argPath := range args {
-		info, err := os.Stat(argPath)
-		if err != nil {
-			return nil, fmt.Errorf("invalid file or package path: %w", err)
-		}
-
-		if !info.IsDir() {
-			paths = append(paths, ensurePathPrefix(argPath))
-
-			continue
-		}
-
-		// Gather package paths from the directory
-		err = walkDirForGnoDirs(argPath, func(path string) {
-			paths = append(paths, ensurePathPrefix(path))
-		})
-		if err != nil {
-			return nil, fmt.Errorf("unable to walk dir: %w", err)
-		}
-	}
-
-	return paths, nil
 }
