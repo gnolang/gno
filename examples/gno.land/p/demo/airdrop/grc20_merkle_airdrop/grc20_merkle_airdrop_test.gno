@@ -30,10 +30,10 @@ func TestRegisterMerkle(t *testing.T) {
 	root := tree.Root()
 	contractAddr := std.DerivePkgAddr("gno.land/r/demo/tok20-airdrop")
 
-	token := grc20.NewBanker("TOKEN", "TOK", 6)
-	token.Mint(contractAddr, 50000) // Airdrop contract
+	token, admin := grc20.NewToken("TOKEN", "TOK", 6)
+	admin.Mint(contractAddr, 50000) // Airdrop contract
 
-	tok20airdrop := NewMerkleAirdrop(root, token.Token())
+	tok20airdrop := NewMerkleAirdrop(root, token.RealmTeller())
 	_ = tok20airdrop
 }
 
@@ -46,10 +46,10 @@ func TestClaimAirdrop(t *testing.T) {
 	root := tree.Root()
 
 	// instantiate foo20 airdrop contract
-	token := grc20.NewBanker("TOKEN", "TOK", 6)
-	token.Mint(contractAddr, 50000) // Airdrop contract
+	token, admin := grc20.NewToken("TOKEN", "TOK", 6)
+	admin.Mint(contractAddr, 50000) // Airdrop contract
 
-	tok20airdrop := NewMerkleAirdrop(root, token.Token())
+	tok20airdrop := NewMerkleAirdrop(root, token.RealmTeller())
 
 	sumClaimed := uint64(0)
 	for _, leaf := range leaves {
@@ -79,10 +79,10 @@ func TestDoubleClaim(t *testing.T) {
 	std.TestSetOrigCaller(contractAddr)
 
 	tree := merkle.NewTree(leaves)
-	token := grc20.NewBanker("TOKEN", "TOK", 6)
-	token.Mint(contractAddr, 50000)
+	token, admin := grc20.NewToken("TOKEN", "TOK", 6)
+	admin.Mint(contractAddr, 50000)
 
-	tok20airdrop := NewMerkleAirdrop(tree.Root(), token.Token())
+	tok20airdrop := NewMerkleAirdrop(tree.Root(), token.RealmTeller())
 
 	leaf := leaves[0]
 	proofs, err := tree.Proof(leaf)
