@@ -5,7 +5,6 @@ import (
 	"testing"
 
 	"gno.land/p/demo/airdrop"
-	"gno.land/p/demo/json"
 	"gno.land/p/demo/merkle"
 	"gno.land/p/demo/ufmt"
 	"gno.land/p/demo/urequire"
