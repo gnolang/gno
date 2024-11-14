@@ -79,7 +79,8 @@ func (gh *GitHub) GetBotComment(prNum int) *github.IssueComment {
 
 func (gh *GitHub) SetBotComment(body string, prNum int) *github.IssueComment {
 	// Create bot comment if it not already exists
-	if comment := gh.GetBotComment(prNum); comment == nil {
+	comment := gh.GetBotComment(prNum)
+	if comment == nil {
 		newComment, _, err := gh.Client.Issues.CreateComment(
 			gh.Ctx,
 			gh.Owner,
@@ -92,21 +93,21 @@ func (gh *GitHub) SetBotComment(body string, prNum int) *github.IssueComment {
 			return nil
 		}
 		return newComment
-	} else {
-		comment.Body = &body
-		editComment, _, err := gh.Client.Issues.EditComment(
-			gh.Ctx,
-			gh.Owner,
-			gh.Repo,
-			comment.GetID(),
-			comment,
-		)
-		if err != nil {
-			gh.Logger.Errorf("Unable to edit bot comment with ID %d: %v", comment.GetID(), err)
-			return nil
-		}
-		return editComment
 	}
+
+	comment.Body = &body
+	editComment, _, err := gh.Client.Issues.EditComment(
+		gh.Ctx,
+		gh.Owner,
+		gh.Repo,
+		comment.GetID(),
+		comment,
+	)
+	if err != nil {
+		gh.Logger.Errorf("Unable to edit bot comment with ID %d: %v", comment.GetID(), err)
+		return nil
+	}
+	return editComment
 }
 
 func (gh *GitHub) ListTeamMembers(team string) []*github.User {
