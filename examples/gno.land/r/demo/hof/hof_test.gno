@@ -18,7 +18,6 @@ var (
 )
 
 func TestRegister(t *testing.T) {
-
 	// Test user realm register
 	aliceRealm := std.NewUserRealm(alice)
 	std.TestSetRealm(aliceRealm)
