@@ -13,7 +13,8 @@ jobs:
     uses: ./.github/workflows/main_template.yml
     with:
       modulepath: "gnovm"
-      tests-extra-args: "-short"
+      # in pull requests, append -short so that the CI runs quickly.
+      tests-extra-args: ${{ github.event_name == "pull_request" && "-short" || "" }}
     secrets:
       codecov-token: ${{ secrets.CODECOV_TOKEN }}
   fmt:
