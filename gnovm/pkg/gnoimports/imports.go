@@ -26,7 +26,7 @@ func PackageImports(path string) ([]string, error) {
 	seen := make(map[string]struct{})
 	for _, e := range entries {
 		filename := e.Name()
-		if strings.HasSuffix(filename, ".gno") {
+		if !strings.HasSuffix(filename, ".gno") {
 			continue
 		}
 		if strings.HasSuffix(filename, "_filetest.gno") {
