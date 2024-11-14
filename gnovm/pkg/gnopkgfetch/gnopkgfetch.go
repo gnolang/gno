@@ -1,4 +1,4 @@
-package gnomodfetch
+package gnopkgfetch
 
 import (
 	"fmt"
@@ -8,8 +8,8 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/gnolang/gno/gnovm/pkg/gnoimports"
 	"github.com/gnolang/gno/gnovm/pkg/gnolang"
-	"github.com/gnolang/gno/gnovm/pkg/gnoload"
 	"github.com/gnolang/gno/gnovm/pkg/gnomod"
 	tm2client "github.com/gnolang/gno/tm2/pkg/bft/rpc/client"
 	"github.com/gnolang/gno/tm2/pkg/commands"
@@ -17,33 +17,9 @@ import (
 	"golang.org/x/mod/module"
 )
 
-func FetchPackageImportsRecursively(io commands.IO, pkgDir string, gnoMod *gnomod.File) error {
-	imports, err := gnoload.GetGnoPackageImports(pkgDir)
-	if err != nil {
-		return fmt.Errorf("read imports at %q: %w", pkgDir, err)
-	}
-
-	for _, pkgPath := range imports {
-		resolved := gnoMod.Resolve(module.Version{Path: pkgPath})
-		resolvedPkgPath := resolved.Path
-
-		if !gnolang.IsRemotePkgPath(resolvedPkgPath) {
-			continue
-		}
-
-		depDir := gnomod.PackageDir("", module.Version{Path: resolvedPkgPath})
-
-		if err := FetchPackage(io, resolvedPkgPath, depDir); err != nil {
-			return fmt.Errorf("fetch import %q of %q: %w", resolvedPkgPath, pkgDir, err)
-		}
-
-		if err := FetchPackageImportsRecursively(io, depDir, gnoMod); err != nil {
-			return err
-		}
-	}
-
-	return nil
-}
+// Client allows to override the tendermint client used to fetch packages.
+// It is exposed for testing purposes.
+var Client tm2client.Client
 
 func FetchPackage(io commands.IO, pkgPath string, dst string) error {
 	modFilePath := filepath.Join(dst, "gno.mod")
@@ -109,7 +85,33 @@ func FetchPackage(io commands.IO, pkgPath string, dst string) error {
 	return nil
 }
 
-var Client tm2client.Client
+func FetchPackageImportsRecursively(io commands.IO, pkgDir string, gnoMod *gnomod.File) error {
+	imports, err := gnoimports.PackageImports(pkgDir)
+	if err != nil {
+		return fmt.Errorf("read imports at %q: %w", pkgDir, err)
+	}
+
+	for _, pkgPath := range imports {
+		resolved := gnoMod.Resolve(module.Version{Path: pkgPath})
+		resolvedPkgPath := resolved.Path
+
+		if !gnolang.IsRemotePkgPath(resolvedPkgPath) {
+			continue
+		}
+
+		depDir := gnomod.PackageDir("", module.Version{Path: resolvedPkgPath})
+
+		if err := FetchPackage(io, resolvedPkgPath, depDir); err != nil {
+			return fmt.Errorf("fetch import %q of %q: %w", resolvedPkgPath, pkgDir, err)
+		}
+
+		if err := FetchPackageImportsRecursively(io, depDir, gnoMod); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
 
 // not using gno client due to cyclic dep
 func qfile(tmClient tm2client.Client, pkgPath string) ([]byte, error) {

@@ -11,8 +11,8 @@ import (
 	"strings"
 
 	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
+	"github.com/gnolang/gno/gnovm/pkg/gnofiles"
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
-	"github.com/gnolang/gno/gnovm/pkg/gnoload"
 	"github.com/gnolang/gno/gnovm/tests"
 	"github.com/gnolang/gno/tm2/pkg/commands"
 	"github.com/gnolang/gno/tm2/pkg/std"
@@ -182,7 +182,7 @@ func listNonTestFiles(dir string) ([]string, error) {
 	fn := make([]string, 0, len(fs))
 	for _, f := range fs {
 		n := f.Name()
-		if gnoload.DirEntryIsGnoFile(f) &&
+		if gnofiles.DirEntryIsGnoFile(f) &&
 			!strings.HasSuffix(n, "_test.gno") &&
 			!strings.HasSuffix(n, "_filetest.gno") {
 			fn = append(fn, filepath.Join(dir, n))

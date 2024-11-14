@@ -1,4 +1,4 @@
-package gnoload
+package gnoimports
 
 import (
 	"fmt"
@@ -6,18 +6,17 @@ import (
 	"go/token"
 	"os"
 	"path/filepath"
-	"slices"
 	"sort"
 	"strings"
 )
 
-// GetGnoPackageImports returns the list of gno imports from a given path.
+// PackageImports returns the list of gno imports from a given path.
 // Note: It ignores subdirs. Since right now we are still deciding on
 // how to handle subdirs.
 // See:
 // - https://github.com/gnolang/gno/issues/1024
 // - https://github.com/gnolang/gno/issues/852
-func GetGnoPackageImports(path string) ([]string, error) {
+func PackageImports(path string) ([]string, error) {
 	entries, err := os.ReadDir(path)
 	if err != nil {
 		return nil, err
@@ -33,7 +32,7 @@ func GetGnoPackageImports(path string) ([]string, error) {
 		if strings.HasSuffix(filename, "_filetest.gno") {
 			continue
 		}
-		imports, err := GetGnoFileImports(filepath.Join(path, filename))
+		imports, err := FileImports(filepath.Join(path, filename))
 		if err != nil {
 			return nil, err
 		}
@@ -50,41 +49,8 @@ func GetGnoPackageImports(path string) ([]string, error) {
 	return allImports, nil
 }
 
-// GetGnoPackageImportsRecursive returns the list of gno imports from a given path.
-func GetGnoPackageImportsRecursive(root string) ([]string, error) {
-	res, err := GetGnoPackageImports(root)
-	if err != nil {
-		return nil, fmt.Errorf("get imports at %q: %w", root, err)
-	}
-
-	entries, err := os.ReadDir(root)
-	if err != nil {
-		return nil, fmt.Errorf("read dir at %q: %w", root, err)
-	}
-
-	for _, entry := range entries {
-		if !entry.IsDir() {
-			continue
-		}
-
-		sub, err := GetGnoPackageImportsRecursive(filepath.Join(root, entry.Name()))
-		if err != nil {
-			return nil, err
-		}
-
-		for _, imp := range sub {
-			if !slices.Contains(res, imp) {
-				res = append(res, imp)
-			}
-		}
-	}
-
-	sort.Strings(res)
-
-	return res, nil
-}
-
-func GetGnoFileImports(fname string) ([]string, error) {
+// FileImports returns the list of gno imports in a given file.
+func FileImports(fname string) ([]string, error) {
 	if !strings.HasSuffix(fname, ".gno") {
 		return nil, fmt.Errorf("not a gno file: %q", fname)
 	}

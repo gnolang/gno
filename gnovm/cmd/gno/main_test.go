@@ -12,7 +12,7 @@ import (
 	"testing"
 
 	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
-	"github.com/gnolang/gno/gnovm/pkg/gnomodfetch"
+	"github.com/gnolang/gno/gnovm/pkg/gnopkgfetch"
 	"github.com/gnolang/gno/tm2/pkg/amino"
 	"github.com/gnolang/gno/tm2/pkg/bft/rpc/client"
 	ctypes "github.com/gnolang/gno/tm2/pkg/bft/rpc/core/types"
@@ -51,10 +51,10 @@ type testMainCase struct {
 func testMainCaseRun(t *testing.T, tc []testMainCase) {
 	t.Helper()
 
-	oldClient := gnomodfetch.Client
-	gnomodfetch.Client = client.NewRPCClient(&examplesMockClient{})
+	oldClient := gnopkgfetch.Client
+	gnopkgfetch.Client = client.NewRPCClient(&examplesMockClient{})
 	t.Cleanup(func() {
-		gnomodfetch.Client = oldClient
+		gnopkgfetch.Client = oldClient
 	})
 
 	workingDir, err := os.Getwd()

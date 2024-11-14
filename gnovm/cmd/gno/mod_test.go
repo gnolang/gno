@@ -46,7 +46,7 @@ func TestModApp(t *testing.T) {
 			testDir:              "../../tests/integ/require_invalid_module",
 			simulateExternalRepo: true,
 			stderrShouldContain:  "gno: downloading gno.land/p/demo/notexists",
-			errShouldContain:     "fetch: failed to query files list for pkg \"gno.land/p/demo/notexists\": package \"gno.land/p/demo/notexists\" is not available",
+			errShouldContain:     "failed to query files list for pkg \"gno.land/p/demo/notexists\": package \"gno.land/p/demo/notexists\" is not available",
 		},
 		{
 			args:                 []string{"mod", "download"},
@@ -69,7 +69,7 @@ func TestModApp(t *testing.T) {
 			testDir:              "../../tests/integ/replace_with_invalid_module",
 			simulateExternalRepo: true,
 			stderrShouldContain:  "gno: downloading gno.land/p/demo/notexists",
-			errShouldContain:     "fetch: failed to query files list for pkg \"gno.land/p/demo/notexists\": package \"gno.land/p/demo/notexists\" is not available",
+			errShouldContain:     "failed to query files list for pkg \"gno.land/p/demo/notexists\": package \"gno.land/p/demo/notexists\" is not available",
 		},
 
 		// test `gno mod init` with no module name

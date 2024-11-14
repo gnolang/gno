@@ -17,7 +17,7 @@ import (
 	"strings"
 
 	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
-	"github.com/gnolang/gno/gnovm/pkg/gnoload"
+	"github.com/gnolang/gno/gnovm/pkg/gnofiles"
 	"github.com/gnolang/gno/gnovm/pkg/gnomod"
 	"github.com/gnolang/gno/gnovm/pkg/transpiler"
 	"github.com/gnolang/gno/tm2/pkg/commands"
@@ -135,7 +135,7 @@ func execTranspile(cfg *transpileCfg, args []string, io commands.IO) error {
 	}
 
 	// transpile .gno packages and files.
-	paths, err := gnoload.GnoDirsFromArgsRecursively(args)
+	paths, err := gnofiles.GnoDirsFromArgsRecursively(args)
 	if err != nil {
 		return fmt.Errorf("list paths: %w", err)
 	}

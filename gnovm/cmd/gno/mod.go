@@ -8,9 +8,9 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/gnolang/gno/gnovm/pkg/gnoload"
+	"github.com/gnolang/gno/gnovm/pkg/gnoimports"
 	"github.com/gnolang/gno/gnovm/pkg/gnomod"
-	"github.com/gnolang/gno/gnovm/pkg/gnomodfetch"
+	"github.com/gnolang/gno/gnovm/pkg/gnopkgfetch"
 	"github.com/gnolang/gno/tm2/pkg/commands"
 	"github.com/gnolang/gno/tm2/pkg/errors"
 	"go.uber.org/multierr"
@@ -175,7 +175,7 @@ func execModDownload(cfg *modDownloadCfg, args []string, io commands.IO) error {
 		return fmt.Errorf("validate: %w", err)
 	}
 
-	if err := gnomodfetch.FetchPackageImportsRecursively(io, path, gnoMod); err != nil {
+	if err := gnopkgfetch.FetchPackageImportsRecursively(io, path, gnoMod); err != nil {
 		return err
 	}
 
@@ -333,7 +333,7 @@ func getImportToFilesMap(pkgPath string) (map[string][]string, error) {
 		if strings.HasSuffix(filename, "_filetest.gno") {
 			continue
 		}
-		imports, err := gnoload.GetGnoFileImports(filepath.Join(pkgPath, filename))
+		imports, err := gnoimports.FileImports(filepath.Join(pkgPath, filename))
 		if err != nil {
 			return nil, err
 		}

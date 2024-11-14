@@ -1,4 +1,4 @@
-package gnoload
+package gnoimports
 
 import (
 	"os"
@@ -118,7 +118,7 @@ func TestGetGnoImports(t *testing.T) {
 		require.NoError(t, err)
 	}
 
-	imports, err := GetGnoPackageImports(tmpDir)
+	imports, err := PackageImports(tmpDir)
 	require.NoError(t, err)
 
 	require.Equal(t, expected, imports)

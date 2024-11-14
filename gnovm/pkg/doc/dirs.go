@@ -9,10 +9,11 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"slices"
 	"sort"
 	"strings"
 
-	"github.com/gnolang/gno/gnovm/pkg/gnoload"
+	"github.com/gnolang/gno/gnovm/pkg/gnoimports"
 	"github.com/gnolang/gno/gnovm/pkg/gnomod"
 	"golang.org/x/mod/module"
 )
@@ -72,11 +73,7 @@ func newDirs(dirs []string, modDirs []string) *bfsDirs {
 func getGnoModDirs(gm *gnomod.File, root string) []bfsDir {
 	// cmd/go makes use of the go list command, we don't have that here.
 
-	imports, err := gnoload.GetGnoPackageImportsRecursive(root)
-	if err != nil {
-		log.Println("get imports at", root, ":", err)
-		return nil
-	}
+	imports := packageImportsRecursive(root)
 
 	dirs := make([]bfsDir, 0, len(imports))
 	for _, r := range imports {
@@ -97,6 +94,32 @@ func getGnoModDirs(gm *gnomod.File, root string) []bfsDir {
 	}
 
 	return dirs
+}
+
+func packageImportsRecursive(root string) []string {
+	res, err := gnoimports.PackageImports(root)
+	_ = err
+
+	entries, err := os.ReadDir(root)
+	_ = err
+
+	for _, entry := range entries {
+		if !entry.IsDir() {
+			continue
+		}
+
+		sub := packageImportsRecursive(filepath.Join(root, entry.Name()))
+
+		for _, imp := range sub {
+			if !slices.Contains(res, imp) {
+				res = append(res, imp)
+			}
+		}
+	}
+
+	sort.Strings(res)
+
+	return res
 }
 
 // Reset puts the scan back at the beginning.

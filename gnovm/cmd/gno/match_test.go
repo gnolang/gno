@@ -1,4 +1,4 @@
-package gnoload
+package main
 
 import (
 	"os"
@@ -197,7 +197,7 @@ func TestTargetsFromPatterns(t *testing.T) {
 		},
 	} {
 		t.Run(tc.desc, func(t *testing.T) {
-			targets, err := TargetsFromPatterns(tc.in)
+			targets, err := targetsFromPatterns(tc.in)
 			if tc.errorShouldContain != "" {
 				assert.ErrorContains(t, err, tc.errorShouldContain)
 				return
