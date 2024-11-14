@@ -58,9 +58,9 @@ func (c *MakeAddPkgCfg) RegisterFlags(fs *flag.FlagSet) {
 
 	fs.StringVar(
 		&c.Deposit,
-		"deposit",
+		"send",
 		"",
-		"deposit coins",
+		"deposit coins to the realm being deployed",
 	)
 }
 
