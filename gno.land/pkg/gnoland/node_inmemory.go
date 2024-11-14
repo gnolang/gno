@@ -46,6 +46,7 @@ func NewDefaultGenesisConfig(chainid string) *bft.GenesisDoc {
 		AppState: &GnoGenesisState{
 			Balances: []Balance{},
 			Txs:      []TxWithMetadata{},
+			Params:   []Param{},
 		},
 	}
 }

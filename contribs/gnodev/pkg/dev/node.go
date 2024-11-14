@@ -562,6 +562,12 @@ func newNodeConfig(tmc *tmcfg.Config, chainid, chaindomain string, appstate gnol
 	// Create Mocked Identity
 	pv := gnoland.NewMockedPrivValidator()
 	genesis := gnoland.NewDefaultGenesisConfig(chainid)
+
+	// custom chain domain
+	var domainParam gnoland.Param
+	_ = domainParam.Parse("gno.land/r/sys/params.vm.chain_domain.string=" + chaindomain)
+	appstate.Params = append(appstate.Params, domainParam)
+
 	genesis.AppState = appstate
 
 	// Add self as validator
@@ -581,6 +587,5 @@ func newNodeConfig(tmc *tmcfg.Config, chainid, chaindomain string, appstate gnol
 		Genesis:       genesis,
 		VMOutput:      os.Stdout,
 	}
-	cfg.InitChainerConfig.ChainDomain = chaindomain
 	return cfg
 }
