@@ -20,8 +20,8 @@ import (
 	"github.com/gnolang/gno/gno.land/pkg/sdk/vm"
 	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
+	"github.com/gnolang/gno/gnovm/pkg/gnoload"
 	"github.com/gnolang/gno/gnovm/pkg/gnomod"
-	"github.com/gnolang/gno/gnovm/pkg/load"
 	"github.com/gnolang/gno/tm2/pkg/bft/node"
 	bft "github.com/gnolang/gno/tm2/pkg/bft/types"
 	"github.com/gnolang/gno/tm2/pkg/commands"
@@ -745,7 +745,7 @@ func (pl *pkgsLoader) LoadPackage(modroot string, path, name string) error {
 			currentPkg.Name = gm.Module.Mod.Path
 			currentPkg.Draft = gm.Draft
 
-			imports, err := load.GetGnoPackageImports(currentPkg.Dir)
+			imports, err := gnoload.GetGnoPackageImports(currentPkg.Dir)
 			if err != nil {
 				return fmt.Errorf("unable to load package imports in %q: %w", currentPkg.Dir, err)
 			}

@@ -85,6 +85,9 @@ func (f *File) Validate() error {
 // Resolve takes a module version and returns any adequate replacement
 // following the Replace directives.
 func (f *File) Resolve(m module.Version) module.Version {
+	if f == nil {
+		return m
+	}
 	mod, replaced := isReplaced(m, f.Replace)
 	if replaced {
 		return mod

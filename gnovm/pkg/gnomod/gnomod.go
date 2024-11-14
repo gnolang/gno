@@ -23,14 +23,10 @@ func ModCachePath() string {
 // PackageDir resolves a given module.Version to the path on the filesystem.
 // If root is dir, it is defaulted to the value of [ModCachePath].
 func PackageDir(root string, v module.Version) string {
-	// This is also used internally exactly like filepath.Join; but we'll keep
-	// the calls centralized to make sure we can change the path centrally should
-	// we start including the module version in the path.
-
 	if root == "" {
 		root = ModCachePath()
 	}
-	return filepath.Join(root, v.Path)
+	return filepath.Join(root, filepath.FromSlash(v.Path))
 }
 
 func CreateGnoModFile(rootDir, modPath string) error {

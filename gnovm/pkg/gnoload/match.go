@@ -1,4 +1,4 @@
-package load
+package gnoload
 
 import (
 	"fmt"
@@ -9,7 +9,7 @@ import (
 	"strings"
 )
 
-func IsGnoFile(f fs.DirEntry) bool {
+func DirEntryIsGnoFile(f fs.DirEntry) bool {
 	name := f.Name()
 	return !strings.HasPrefix(name, ".") && strings.HasSuffix(name, ".gno") && !f.IsDir()
 }
@@ -24,7 +24,7 @@ func GnoFilesFromArgsRecursively(args []string) ([]string, error) {
 		}
 
 		if !info.IsDir() {
-			if IsGnoFile(fs.FileInfoToDirEntry(info)) {
+			if DirEntryIsGnoFile(fs.FileInfoToDirEntry(info)) {
 				paths = append(paths, ensurePathPrefix(argPath))
 			}
 
@@ -38,7 +38,7 @@ func GnoFilesFromArgsRecursively(args []string) ([]string, error) {
 				return
 			}
 			for _, f := range files {
-				if IsGnoFile(f) {
+				if DirEntryIsGnoFile(f) {
 					path := filepath.Join(dir, f.Name())
 					paths = append(paths, ensurePathPrefix(path))
 				}
@@ -62,7 +62,7 @@ func GnoDirsFromArgsRecursively(args []string) ([]string, error) {
 		}
 
 		if !info.IsDir() {
-			if IsGnoFile(fs.FileInfoToDirEntry(info)) {
+			if DirEntryIsGnoFile(fs.FileInfoToDirEntry(info)) {
 				paths = append(paths, ensurePathPrefix(argPath))
 			}
 
@@ -91,7 +91,7 @@ func GnoFilesFromArgs(args []string) ([]string, error) {
 		}
 
 		if !info.IsDir() {
-			if IsGnoFile(fs.FileInfoToDirEntry(info)) {
+			if DirEntryIsGnoFile(fs.FileInfoToDirEntry(info)) {
 				paths = append(paths, ensurePathPrefix(argPath))
 			}
 			continue
@@ -102,7 +102,7 @@ func GnoFilesFromArgs(args []string) ([]string, error) {
 			return nil, err
 		}
 		for _, f := range files {
-			if IsGnoFile(f) {
+			if DirEntryIsGnoFile(f) {
 				path := filepath.Join(argPath, f.Name())
 				paths = append(paths, ensurePathPrefix(path))
 			}
@@ -131,7 +131,7 @@ func walkDirForGnoDirs(root string, addPath func(path string)) error {
 			return fmt.Errorf("%s: walk dir: %w", root, err)
 		}
 
-		if f.IsDir() || !IsGnoFile(f) {
+		if f.IsDir() || !DirEntryIsGnoFile(f) {
 			return nil
 		}
 
@@ -218,7 +218,7 @@ func TargetsFromPatterns(patterns []string) ([]string, error) {
 				return fmt.Errorf("%s: walk dir: %w", dirToSearch, err)
 			}
 			// Skip directories and non ".gno" files.
-			if f.IsDir() || !IsGnoFile(f) {
+			if f.IsDir() || !DirEntryIsGnoFile(f) {
 				return nil
 			}
 

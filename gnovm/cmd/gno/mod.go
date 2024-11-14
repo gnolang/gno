@@ -4,19 +4,16 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	"go/parser"
-	"go/token"
 	"os"
 	"path/filepath"
 	"strings"
 
+	"github.com/gnolang/gno/gnovm/pkg/gnoload"
 	"github.com/gnolang/gno/gnovm/pkg/gnomod"
 	"github.com/gnolang/gno/gnovm/pkg/gnomodfetch"
-	"github.com/gnolang/gno/gnovm/pkg/load"
 	"github.com/gnolang/gno/tm2/pkg/commands"
 	"github.com/gnolang/gno/tm2/pkg/errors"
 	"go.uber.org/multierr"
-	"golang.org/x/mod/module"
 )
 
 func newModCmd(io commands.IO) *commands.Command {
@@ -178,35 +175,8 @@ func execModDownload(cfg *modDownloadCfg, args []string, io commands.IO) error {
 		return fmt.Errorf("validate: %w", err)
 	}
 
-	gnoFiles, err := load.GnoFilesFromArgsRecursively([]string{path})
-	if err != nil {
-		return fmt.Errorf("get gno files: %w", err)
-	}
-
-	for _, f := range gnoFiles {
-		fset := token.NewFileSet()
-		parsed, err := parser.ParseFile(fset, f, nil, parser.ImportsOnly)
-		if err != nil {
-			continue
-		}
-
-		for _, imp := range parsed.Imports {
-			importPkgPath := strings.TrimPrefix(strings.TrimSuffix(imp.Path.Value, "\""), "\"")
-
-			if !strings.ContainsRune(importPkgPath, '.') {
-				// std lib, ignore
-				continue
-			}
-
-			resolved := gnoMod.Resolve(module.Version{Path: importPkgPath})
-			resolvedPkgPath := resolved.Path
-
-			// TODO: don't fetch local
-
-			if err := gnomodfetch.FetchPackagesRecursively(io, resolvedPkgPath, gnoMod); err != nil {
-				return fmt.Errorf("fetch: %w", err)
-			}
-		}
+	if err := gnomodfetch.FetchPackageImportsRecursively(io, path, gnoMod); err != nil {
+		return err
 	}
 
 	return nil
@@ -363,7 +333,7 @@ func getImportToFilesMap(pkgPath string) (map[string][]string, error) {
 		if strings.HasSuffix(filename, "_filetest.gno") {
 			continue
 		}
-		imports, err := load.GetGnoFileImports(filepath.Join(pkgPath, filename))
+		imports, err := gnoload.GetGnoFileImports(filepath.Join(pkgPath, filename))
 		if err != nil {
 			return nil, err
 		}

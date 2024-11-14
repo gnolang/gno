@@ -1,4 +1,4 @@
-package load
+package gnoload
 
 import (
 	"os"

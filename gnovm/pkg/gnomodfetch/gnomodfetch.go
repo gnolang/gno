@@ -2,21 +2,48 @@ package gnomodfetch
 
 import (
 	"fmt"
-	"go/parser"
-	"go/token"
 	"net/url"
 	"os"
 	"path"
 	"path/filepath"
 	"strings"
 
+	"github.com/gnolang/gno/gnovm/pkg/gnolang"
+	"github.com/gnolang/gno/gnovm/pkg/gnoload"
 	"github.com/gnolang/gno/gnovm/pkg/gnomod"
-	"github.com/gnolang/gno/gnovm/pkg/load"
 	tm2client "github.com/gnolang/gno/tm2/pkg/bft/rpc/client"
 	"github.com/gnolang/gno/tm2/pkg/commands"
 	"github.com/gnolang/gno/tm2/pkg/errors"
 	"golang.org/x/mod/module"
 )
+
+func FetchPackageImportsRecursively(io commands.IO, pkgDir string, gnoMod *gnomod.File) error {
+	imports, err := gnoload.GetGnoPackageImports(pkgDir)
+	if err != nil {
+		return fmt.Errorf("read imports at %q: %w", pkgDir, err)
+	}
+
+	for _, pkgPath := range imports {
+		resolved := gnoMod.Resolve(module.Version{Path: pkgPath})
+		resolvedPkgPath := resolved.Path
+
+		if !gnolang.IsRemotePkgPath(resolvedPkgPath) {
+			continue
+		}
+
+		depDir := gnomod.PackageDir("", module.Version{Path: resolvedPkgPath})
+
+		if err := FetchPackage(io, resolvedPkgPath, depDir); err != nil {
+			return fmt.Errorf("fetch import %q of %q: %w", resolvedPkgPath, pkgDir, err)
+		}
+
+		if err := FetchPackageImportsRecursively(io, depDir, gnoMod); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
 
 func FetchPackage(io commands.IO, pkgPath string, dst string) error {
 	modFilePath := filepath.Join(dst, "gno.mod")
@@ -71,59 +98,12 @@ func FetchPackage(io commands.IO, pkgPath string, dst string) error {
 		}
 	}
 
-	// write gno.mod
+	// We need to write a marker file for each downloaded package.
+	// For example: if you first download gno.land/r/foo/bar then download gno.land/r/foo,
+	// we need to know that gno.land/r/foo is not downloaded.
+	// We do this by checking for the presence of gno.land/r/foo/gno.mod
 	if err := os.WriteFile(modFilePath, []byte("module "+pkgPath+"\n"), 0o644); err != nil {
 		return fmt.Errorf("failed to write modfile at %q: %w", modFilePath, err)
-	}
-
-	return nil
-}
-
-func FetchPackagesRecursively(io commands.IO, pkgPath string, gnoMod *gnomod.File) error {
-	dst := gnomod.PackageDir("", module.Version{Path: pkgPath})
-
-	modFilePath := filepath.Join(dst, "gno.mod")
-
-	if _, err := os.Stat(modFilePath); err == nil {
-		// modfile exists in modcache, do nothing
-		return nil
-	} else if !os.IsNotExist(err) {
-		return fmt.Errorf("failed to stat downloaded module %q at %q: %w", pkgPath, dst, err)
-	}
-
-	if err := FetchPackage(io, pkgPath, dst); err != nil {
-		return err
-	}
-
-	gnoFiles, err := load.GnoFilesFromArgs([]string{dst})
-	if err != nil {
-		return err
-	}
-
-	for _, f := range gnoFiles {
-		fset := token.NewFileSet()
-		parsed, err := parser.ParseFile(fset, f, nil, parser.ImportsOnly)
-		if err != nil {
-			continue
-		}
-
-		for _, imp := range parsed.Imports {
-			importPkgPath := strings.TrimPrefix(strings.TrimSuffix(imp.Path.Value, "\""), "\"")
-
-			if !strings.ContainsRune(importPkgPath, '.') {
-				// std lib, ignore
-				continue
-			}
-
-			resolved := gnoMod.Resolve(module.Version{Path: importPkgPath})
-			resolvedPkgPath := resolved.Path
-
-			// TODO: don't fetch local
-
-			if err := FetchPackagesRecursively(io, resolvedPkgPath, gnoMod); err != nil {
-				return fmt.Errorf("fetch: %w", err)
-			}
-		}
 	}
 
 	return nil

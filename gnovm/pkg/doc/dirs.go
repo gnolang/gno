@@ -12,8 +12,8 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/gnolang/gno/gnovm/pkg/gnoload"
 	"github.com/gnolang/gno/gnovm/pkg/gnomod"
-	"github.com/gnolang/gno/gnovm/pkg/load"
 	"golang.org/x/mod/module"
 )
 
@@ -72,7 +72,7 @@ func newDirs(dirs []string, modDirs []string) *bfsDirs {
 func getGnoModDirs(gm *gnomod.File, root string) []bfsDir {
 	// cmd/go makes use of the go list command, we don't have that here.
 
-	imports, err := load.GetGnoPackageImportsRecursive(root)
+	imports, err := gnoload.GetGnoPackageImportsRecursive(root)
 	if err != nil {
 		log.Println("get imports at", root, ":", err)
 		return nil
