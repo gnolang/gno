@@ -17,43 +17,20 @@ function derive_pkg_addr(str) {
   return bech32.encode("g", words);
 }
 
-// Start script
+const addresses = Array.from({ length: 10 }, (_, i) =>
+  derive_pkg_addr(`gno.land/r/test/${i}`),
+);
 
-for (size of [1, 3, 10, 1000]) {
-  console.log(`[INFO] Start with size ${size}`);
+const leaves = addresses.map((addr) =>
+  SHA256(JSON.stringify({ address: addr, amount: "10000" })),
+);
 
-  const addresses = Array.from({ length: size }, (_, i) =>
-    derive_pkg_addr(`gno.land/r/test/${i}`),
-  );
+const tree = new MerkleTree(leaves, SHA256);
+const root = tree.getRoot().toString("hex");
 
-  const leaves = addresses.map((addr) =>
-    SHA256(JSON.stringify({ address: addr, amount: "10000" })),
-  );
+const proof = tree.getProof(leaves[5]).map((p) => ({
+  data: p.data.toString("hex"),
+  position: p.position === "left" ? 1 : 0,
+}));
 
-  const tree = new MerkleTree(leaves, SHA256);
-  const root = tree.getRoot().toString("hex");
-
-  console.log(root);
-  // const proof = tree.getProof(leaves[5]).map((p) => ({
-  //   data: p.data.toString("hex"),
-  //   position: p.position === "left" ? 1 : 0,
-  // }));
-}
-
-// const tree = new MerkleTree(leaves, SHA256);
-// const root = tree.getRoot().toString("hex");
-
-// const proof = tree.getProof(leaves[5]).map((p) => ({
-//   data: p.data.toString("hex"),
-//   position: p.position === "left" ? 1 : 0,
-// }));
-
-// const req = {
-//   address: derive_pkg_addr("gno.land/r/test/5"),
-//   amount: "10000",
-//   proof: proof,
-// };
-
-// console.log("req", JSON.stringify(req));
-
-// console.log("root", root);
+console.log("proof", proof);
