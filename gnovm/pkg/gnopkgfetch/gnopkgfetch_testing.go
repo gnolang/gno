@@ -19,23 +19,25 @@ import (
 )
 
 func InjectExamplesClient(t *testing.T) {
+	t.Helper()
+
 	_, filename, _, ok := runtime.Caller(0)
 	if !ok {
 		t.Fatalf("failed to get source path")
 	}
 	examplesDir := filepath.Join(filepath.Dir(filename), "..", "..", "..", "examples")
 	oldClient := fetchClient
-	fetchClient = tm2client.NewRPCClient(&ExamplesMockClient{examplesRoot: examplesDir})
+	fetchClient = tm2client.NewRPCClient(&examplesMockClient{examplesRoot: examplesDir})
 	t.Cleanup(func() {
 		fetchClient = oldClient
 	})
 }
 
-type ExamplesMockClient struct {
+type examplesMockClient struct {
 	examplesRoot string
 }
 
-func (m *ExamplesMockClient) SendRequest(ctx context.Context, request types.RPCRequest) (*types.RPCResponse, error) {
+func (m *examplesMockClient) SendRequest(ctx context.Context, request types.RPCRequest) (*types.RPCResponse, error) {
 	params := struct {
 		Path string `json:"path"`
 		Data []byte `json:"data"`
@@ -88,10 +90,10 @@ func (m *ExamplesMockClient) SendRequest(ctx context.Context, request types.RPCR
 	}, nil
 }
 
-func (m *ExamplesMockClient) SendBatch(ctx context.Context, requests types.RPCRequests) (types.RPCResponses, error) {
+func (m *examplesMockClient) SendBatch(ctx context.Context, requests types.RPCRequests) (types.RPCResponses, error) {
 	return nil, errors.New("not implemented")
 }
 
-func (m *ExamplesMockClient) Close() error {
+func (m *examplesMockClient) Close() error {
 	return nil
 }
