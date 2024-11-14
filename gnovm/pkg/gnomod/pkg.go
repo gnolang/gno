@@ -115,7 +115,7 @@ func ListPkgs(root string) (PkgList, error) {
 		}
 
 		imports, err := gnoimports.PackageImports(path)
-		_ = err // get all valid imports while ignoring bad/partial files
+		_ = err // get valid imports while ignoring bad/partial files
 		imports = removeStdLibs(imports)
 
 		pkgs = append(pkgs, Pkg{
