@@ -2,6 +2,11 @@
 
 gnoland start
 
+# official params (right now they makes sense to be tested in a txtar to validate that a default "gnoland" initialization will have default values)
+gnokey query params/vm/gno.land/r/sys/params.vm.chain_domain.string
+stdout 'data: "gno.land"$'
+
+# test params
 gnokey query params/vm/gno.land/r/sys/params.test.foo.string
 stdout 'data: "bar"$'
 gnokey query params/vm/gno.land/r/sys/params.test.foo.int64
@@ -10,5 +15,5 @@ gnokey query params/vm/gno.land/r/sys/params.test.foo.uint64
 stdout 'data: "42"'
 gnokey query params/vm/gno.land/r/sys/params.test.foo.bool
 stdout 'data: true'
-# XXX: bytes
+# XXX: consider adding a test with bytes
 
