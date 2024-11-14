@@ -23,7 +23,7 @@ import (
 )
 
 // NOTE: this isn't safe, should only be used for testing.
-func TestStore(
+func Store(
 	rootDir string,
 	withExtern bool,
 	stdin io.Reader,
@@ -44,7 +44,7 @@ func TestStore(
 				baseDir := filepath.Join(rootDir, "gnovm", "tests", "files", "extern", pkgPath[len(testPath):])
 				memPkg := gno.ReadMemPackage(baseDir, pkgPath)
 				send := std.Coins{}
-				ctx := TestContext(pkgPath, send)
+				ctx := Context(pkgPath, send)
 				m2 := gno.NewMachineWithOptions(gno.MachineOptions{
 					PkgPath: "test",
 					Output:  stdout,
@@ -148,7 +148,7 @@ func TestStore(
 			}
 
 			send := std.Coins{}
-			ctx := TestContext(pkgPath, send)
+			ctx := Context(pkgPath, send)
 			m2 := gno.NewMachineWithOptions(gno.MachineOptions{
 				PkgPath: "test",
 				Output:  stdout,

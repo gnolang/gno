@@ -91,7 +91,7 @@ func execLint(cfg *lintCfg, args []string, io commands.IO) error {
 		// Handle runtime errors
 		hasError = catchRuntimeError(pkgPath, io.Err(), func() {
 			stdout, stdin, stderr := io.Out(), io.In(), io.Err()
-			_, testStore := test.TestStore(
+			_, testStore := test.Store(
 				rootDir, false,
 				stdin, stdout, stderr,
 			)
@@ -104,7 +104,7 @@ func execLint(cfg *lintCfg, args []string, io commands.IO) error {
 
 			memPkg := gno.ReadMemPackage(targetPath, targetPath)
 			tm := gno.NewMachineWithOptions(gno.MachineOptions{
-				Context: test.TestContext(memPkg.Path, nil),
+				Context: test.Context(memPkg.Path, nil),
 				Store:   testStore,
 				Output:  stdout,
 			})

@@ -1,11 +1,13 @@
 package std
 
 import (
+	"fmt"
 	"strings"
 
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
 	"github.com/gnolang/gno/gnovm/stdlibs/std"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
+	tm2std "github.com/gnolang/gno/tm2/pkg/std"
 )
 
 // TestExecContext is the testing extension of the exec context.
@@ -167,6 +169,60 @@ func X_testSetOrigSend(m *gno.Machine,
 	spent := std.CompactCoins(spentDenom, spentAmt)
 	ctx.OrigSendSpent = &spent
 	m.Context = ctx
+}
+
+// TestBanker is a banker that can be used as a mock banker in test contexts.
+type TestBanker struct {
+	CoinTable map[crypto.Bech32Address]tm2std.Coins
+}
+
+var _ std.BankerInterface = &TestBanker{}
+
+// GetCoins implements the Banker interface.
+func (tb *TestBanker) GetCoins(addr crypto.Bech32Address) (dst tm2std.Coins) {
+	return tb.CoinTable[addr]
+}
+
+// SendCoins implements the Banker interface.
+func (tb *TestBanker) SendCoins(from, to crypto.Bech32Address, amt tm2std.Coins) {
+	fcoins, fexists := tb.CoinTable[from]
+	if !fexists {
+		panic(fmt.Sprintf(
+			"source address %s does not exist",
+			from.String()))
+	}
+	if !fcoins.IsAllGTE(amt) {
+		panic(fmt.Sprintf(
+			"source address %s has %s; cannot send %s",
+			from.String(), fcoins, amt))
+	}
+	// First, subtract from 'from'.
+	frest := fcoins.Sub(amt)
+	tb.CoinTable[from] = frest
+	// Second, add to 'to'.
+	// NOTE: even works when from==to, due to 2-step isolation.
+	tcoins, _ := tb.CoinTable[to]
+	tsum := tcoins.Add(amt)
+	tb.CoinTable[to] = tsum
+}
+
+// TotalCoin implements the Banker interface.
+func (tb *TestBanker) TotalCoin(denom string) int64 {
+	panic("not yet implemented")
+}
+
+// IssueCoin implements the Banker interface.
+func (tb *TestBanker) IssueCoin(addr crypto.Bech32Address, denom string, amt int64) {
+	coins, _ := tb.CoinTable[addr]
+	sum := coins.Add(tm2std.Coins{{Denom: denom, Amount: amt}})
+	tb.CoinTable[addr] = sum
+}
+
+// RemoveCoin implements the Banker interface.
+func (tb *TestBanker) RemoveCoin(addr crypto.Bech32Address, denom string, amt int64) {
+	coins, _ := tb.CoinTable[addr]
+	rest := coins.Sub(tm2std.Coins{{Denom: denom, Amount: amt}})
+	tb.CoinTable[addr] = rest
 }
 
 func X_testIssueCoins(m *gno.Machine, addr string, denom []string, amt []int64) {

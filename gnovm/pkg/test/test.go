@@ -2,7 +2,6 @@
 package test
 
 import (
-	"fmt"
 	"io"
 
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
@@ -14,23 +13,26 @@ import (
 )
 
 const (
+	// DefaultHeight is the default height used in the [Context].
 	DefaultHeight = 123
+	// DefaultTimestamp is the Timestamp value used by default in [Context]. It is
 	// Friday, 29 January 2021 17:00:00 UTC - approximation of gnolang/gno's initial commit
 	DefaultTimestamp = 1611939600
+	// DefaultCaller is the result of gno.DerivePkgAddr("user1.gno")
+	DefaultCaller crypto.Bech32Address = "g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm"
 )
 
-// TestContext returns a TestExecContext. Usable for test purpose only.
+// Context returns a TestExecContext. Usable for test purpose only.
 // The returned context has a mock banker, params and event logger. It will give
 // the pkgAddr the coins in `send` by default, and only that.
 // The Height and Timestamp parameters are set to the [DefaultHeight] and
 // [DefaultTimestamp].
-func TestContext(pkgPath string, send std.Coins) *teststd.TestExecContext {
+func Context(pkgPath string, send std.Coins) *teststd.TestExecContext {
 	// FIXME: create a better package to manage this, with custom constructors
 	pkgAddr := gno.DerivePkgAddr(pkgPath) // the addr of the pkgPath called.
-	caller := gno.DerivePkgAddr("user1.gno")
 
-	banker := &testBanker{
-		coinTable: map[crypto.Bech32Address]std.Coins{
+	banker := &teststd.TestBanker{
+		CoinTable: map[crypto.Bech32Address]std.Coins{
 			pkgAddr.Bech32(): send,
 		},
 	}
@@ -38,7 +40,7 @@ func TestContext(pkgPath string, send std.Coins) *teststd.TestExecContext {
 		ChainID:       "dev",
 		Height:        DefaultHeight,
 		Timestamp:     DefaultTimestamp,
-		OrigCaller:    caller.Bech32(),
+		OrigCaller:    DefaultCaller,
 		OrigPkgAddr:   pkgAddr.Bech32(),
 		OrigSend:      send,
 		OrigSendSpent: new(std.Coins),
@@ -52,65 +54,18 @@ func TestContext(pkgPath string, send std.Coins) *teststd.TestExecContext {
 	}
 }
 
-func TestMachine(testStore gno.Store, output io.Writer, pkgPath string) *gno.Machine {
+// Machine is a minimal machine, set up with just the Store, Output and Context.
+func Machine(testStore gno.Store, output io.Writer, pkgPath string) *gno.Machine {
 	return gno.NewMachineWithOptions(gno.MachineOptions{
 		Store:   testStore,
 		Output:  output,
-		Context: TestContext(pkgPath, nil),
+		Context: Context(pkgPath, nil),
 	})
 }
 
 // ----------------------------------------
-// testBanker
-
-type testBanker struct {
-	coinTable map[crypto.Bech32Address]std.Coins
-}
-
-func (tb *testBanker) GetCoins(addr crypto.Bech32Address) (dst std.Coins) {
-	return tb.coinTable[addr]
-}
-
-func (tb *testBanker) SendCoins(from, to crypto.Bech32Address, amt std.Coins) {
-	fcoins, fexists := tb.coinTable[from]
-	if !fexists {
-		panic(fmt.Sprintf(
-			"source address %s does not exist",
-			from.String()))
-	}
-	if !fcoins.IsAllGTE(amt) {
-		panic(fmt.Sprintf(
-			"source address %s has %s; cannot send %s",
-			from.String(), fcoins, amt))
-	}
-	// First, subtract from 'from'.
-	frest := fcoins.Sub(amt)
-	tb.coinTable[from] = frest
-	// Second, add to 'to'.
-	// NOTE: even works when from==to, due to 2-step isolation.
-	tcoins, _ := tb.coinTable[to]
-	tsum := tcoins.Add(amt)
-	tb.coinTable[to] = tsum
-}
-
-func (tb *testBanker) TotalCoin(denom string) int64 {
-	panic("not yet implemented")
-}
-
-func (tb *testBanker) IssueCoin(addr crypto.Bech32Address, denom string, amt int64) {
-	coins, _ := tb.coinTable[addr]
-	sum := coins.Add(std.Coins{{Denom: denom, Amount: amt}})
-	tb.coinTable[addr] = sum
-}
-
-func (tb *testBanker) RemoveCoin(addr crypto.Bech32Address, denom string, amt int64) {
-	coins, _ := tb.coinTable[addr]
-	rest := coins.Sub(std.Coins{{Denom: denom, Amount: amt}})
-	tb.coinTable[addr] = rest
-}
-
-// ----------------------------------------
 // testParams
+
 type testParams struct{}
 
 func newTestParams() *testParams {

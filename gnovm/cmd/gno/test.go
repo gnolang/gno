@@ -275,7 +275,7 @@ func gnoTestPkg(
 
 		// run test files in pkg
 		if len(tfiles.Files) > 0 {
-			_, testStore := test.TestStore(
+			_, testStore := test.Store(
 				rootDir, false,
 				stdin, stdout, stderr,
 			)
@@ -283,7 +283,7 @@ func gnoTestPkg(
 				testStore.SetLogStoreOps(true)
 			}
 
-			m := test.TestMachine(testStore, stdout, gnoPkgPath)
+			m := test.Machine(testStore, stdout, gnoPkgPath)
 			if printRuntimeMetrics {
 				// from tm2/pkg/sdk/vm/keeper.go
 				// XXX: make maxAllocTx configurable.
@@ -300,7 +300,7 @@ func gnoTestPkg(
 
 		// test xxx_test pkg
 		if len(ifiles.Files) > 0 {
-			_, testStore := test.TestStore(
+			_, testStore := test.Store(
 				rootDir, false,
 				stdin, stdout, stderr,
 			)
@@ -308,7 +308,7 @@ func gnoTestPkg(
 				testStore.SetLogStoreOps(true)
 			}
 
-			m := test.TestMachine(testStore, stdout, testPkgName)
+			m := test.Machine(testStore, stdout, testPkgName)
 
 			memFiles := make([]*gnovm.MemFile, 0, len(ifiles.FileNames())+1)
 			for _, f := range memPkg.Files {
@@ -341,7 +341,7 @@ func gnoTestPkg(
 			gnoErr = stderr
 			opts.Output = gnoOut
 		}
-		opts.BaseStore, opts.Store = test.TestStore(rootDir, false, os.Stdin, gnoOut, gnoErr)
+		opts.BaseStore, opts.Store = test.Store(rootDir, false, os.Stdin, gnoOut, gnoErr)
 
 		filter := splitRegexp(runFlag)
 		for _, testFile := range filetestFiles {
@@ -458,11 +458,11 @@ func runTestFiles(
 	n := gno.MustParseFile("main_test.gno", testmain)
 	m.RunFiles(n)
 
-	testContext := test.TestContext
+	testContext := test.Context
 
 	for _, test := range testFuncs.Tests {
 		// cleanup machine between tests
-		m.Context = testContext(pkgName, nil)
+		m.Context = testContext(pkgPath, nil)
 
 		testFuncStr := fmt.Sprintf("%q", test.Name)
 

@@ -69,7 +69,7 @@ func (opts *FileTestOptions) run(filename string, source []byte, sync bool) (str
 	if err != nil {
 		return "", err
 	}
-	ctx := TestContext(
+	ctx := Context(
 		pkgPath,
 		coins,
 	)

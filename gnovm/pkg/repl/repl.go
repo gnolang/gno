@@ -125,7 +125,7 @@ func NewRepl(opts ...ReplOption) *Repl {
 	r.stderr = &b
 
 	r.storeFunc = func() gno.Store {
-		_, st := test.TestStore(gnoenv.RootDir(), false, r.stdin, r.stdout, r.stderr)
+		_, st := test.Store(gnoenv.RootDir(), false, r.stdin, r.stdout, r.stderr)
 		return st
 	}
 

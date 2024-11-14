@@ -92,7 +92,7 @@ func execRun(cfg *runCfg, args []string, io commands.IO) error {
 	stderr := io.Err()
 
 	// init store and machine
-	_, testStore := test.TestStore(
+	_, testStore := test.Store(
 		cfg.rootDir, false,
 		stdin, stdout, stderr)
 	if cfg.verbose {
@@ -115,7 +115,7 @@ func execRun(cfg *runCfg, args []string, io commands.IO) error {
 
 	var send std.Coins
 	pkgPath := string(files[0].PkgName)
-	ctx := test.TestContext(pkgPath, send)
+	ctx := test.Context(pkgPath, send)
 	m := gno.NewMachineWithOptions(gno.MachineOptions{
 		PkgPath: pkgPath,
 		Output:  stdout,
