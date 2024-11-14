@@ -23,7 +23,7 @@ status=KO`
 	Incr()
 	{
 		expected := `counter=3
-last update=2009-02-13 23:31:30 +0000 UTC m=+1234567890.000000001
+last update=2021-01-29 17:00:00 +0000 UTC m=+1611939600.000000001
 last caller=g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm
 status=OK`
 		got := Render("")

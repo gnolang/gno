@@ -426,6 +426,12 @@ func ParseDirectives(source io.Reader) (Directives, error) {
 		comment := txt[2 : len(txt)-1]             // leading double slash, trailing \n
 		comment = strings.TrimPrefix(comment, " ") // leading space (if any)
 
+		// If we're already in a directive, simply append there.
+		if len(parsed) > 0 && parsed[len(parsed)-1].Name != "" {
+			parsed[len(parsed)-1].Content += comment + "\n"
+			continue
+		}
+
 		// Find if there is a colon (indicating a possible directive)
 		subm := reDirectiveLine.FindStringSubmatch(comment)
 		switch {

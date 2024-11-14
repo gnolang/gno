@@ -15,9 +15,8 @@ import (
 const (
 	// DefaultHeight is the default height used in the [Context].
 	DefaultHeight = 123
-	// DefaultTimestamp is the Timestamp value used by default in [Context]. It is
-	// Friday, 29 January 2021 17:00:00 UTC - approximation of gnolang/gno's initial commit
-	DefaultTimestamp = 1611939600
+	// DefaultTimestamp is the Timestamp value used by default in [Context].
+	DefaultTimestamp = 1234567890
 	// DefaultCaller is the result of gno.DerivePkgAddr("user1.gno")
 	DefaultCaller crypto.Bech32Address = "g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm"
 )
