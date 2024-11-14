@@ -84,6 +84,20 @@ func TestFetchDeps(t *testing.T) {
 			ioErrContains: []string{
 				"gno: downloading gno.land/p/demo/avl",
 			},
+		}, {
+			desc:    "fetch_replace_local",
+			pkgPath: "gno.land/p/demo/foo",
+			modFile: gnomod.File{
+				Module: &modfile.Module{
+					Mod: module.Version{
+						Path: "testFetchDeps",
+					},
+				},
+				Replace: []*modfile.Replace{{
+					Old: module.Version{Path: "gno.land/p/demo/foo"},
+					New: module.Version{Path: "../local_foo"},
+				}},
+			},
 		},
 	} {
 		t.Run(tc.desc, func(t *testing.T) {
@@ -115,7 +129,9 @@ func TestFetchDeps(t *testing.T) {
 
 				// Read dir
 				entries, err := os.ReadDir(filepath.Join(tmpGnoHome, "pkg", "mod", "gno.land", "p", "demo"))
-				require.Nil(t, err)
+				if !os.IsNotExist(err) {
+					require.Nil(t, err)
+				}
 
 				// Check dir entries
 				assert.Equal(t, len(tc.requirements), len(entries))
