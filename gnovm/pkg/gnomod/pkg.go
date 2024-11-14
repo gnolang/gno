@@ -2,13 +2,12 @@ package gnomod
 
 import (
 	"fmt"
-	"go/parser"
-	gotoken "go/token"
 	"io/fs"
 	"os"
 	"path/filepath"
-	"slices"
 	"strings"
+
+	"github.com/gnolang/gno/gnovm/pkg/gnoimports"
 )
 
 type Pkg struct {
@@ -114,40 +113,14 @@ func ListPkgs(root string) (PkgList, error) {
 			return fmt.Errorf("validate: %w", err)
 		}
 
+		imports, err := gnoimports.PackageImports(path)
+		_ = err // get all valid imports while ignoring bad/partial files
+
 		pkgs = append(pkgs, Pkg{
-			Dir:   path,
-			Name:  gnoMod.Module.Mod.Path,
-			Draft: gnoMod.Draft,
-			Imports: func() []string {
-				dir, err := os.ReadDir(path)
-				if err != nil {
-					return nil
-				}
-				resMap := map[string]struct{}{}
-				for _, f := range dir {
-					filename := f.Name()
-					if f.IsDir() || !strings.HasSuffix(filename, ".gno") {
-						continue
-					}
-					fileSet := gotoken.NewFileSet()
-					gnoFile, err := parser.ParseFile(fileSet, filepath.Join(path, filename), nil, parser.ImportsOnly)
-					if err != nil {
-						continue
-					}
-					for _, importSpec := range gnoFile.Imports {
-						val := strings.TrimSuffix(strings.TrimPrefix(importSpec.Path.Value, `"`), `"`)
-						resMap[val] = struct{}{}
-					}
-				}
-				res := make([]string, len(resMap))
-				i := 0
-				for imp := range resMap {
-					res[i] = imp
-					i++
-				}
-				slices.Sort(res)
-				return res
-			}(),
+			Dir:     path,
+			Name:    gnoMod.Module.Mod.Path,
+			Draft:   gnoMod.Draft,
+			Imports: imports,
 		})
 		return nil
 	})
