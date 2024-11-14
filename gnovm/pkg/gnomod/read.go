@@ -856,18 +856,6 @@ func updateLine(line *modfile.Line, tokens ...string) {
 	line.Token = tokens
 }
 
-// isIndirect reports whether line has a "// indirect" comment,
-// meaning it is in go.mod only for its effect on indirect dependencies,
-// so that it can be dropped entirely once the effective version of the
-// indirect dependency reaches the given minimum version.
-func isIndirect(line *modfile.Line) bool {
-	if len(line.Suffix) == 0 {
-		return false
-	}
-	f := strings.Fields(strings.TrimPrefix(line.Suffix[0].Token, string(slashSlash)))
-	return (len(f) == 1 && f[0] == "indirect" || len(f) > 1 && f[0] == "indirect;")
-}
-
 // addLine adds a line containing the given tokens to the file.
 //
 // If the first token of the hint matches the first token of the

@@ -13,8 +13,6 @@ import (
 	"golang.org/x/mod/module"
 )
 
-const queryPathFile = "vm/qfile"
-
 // ModCachePath returns the path for gno modules
 func ModCachePath() string {
 	return filepath.Join(gnoenv.HomeDir(), "pkg", "mod")
@@ -95,15 +93,4 @@ func isReplaced(mod module.Version, repl []*modfile.Replace) (module.Version, bo
 		}
 	}
 	return module.Version{}, false
-}
-
-func removeDuplicateStr(str []string) (res []string) {
-	m := make(map[string]struct{}, len(str))
-	for _, s := range str {
-		if _, ok := m[s]; !ok {
-			m[s] = struct{}{}
-			res = append(res, s)
-		}
-	}
-	return
 }
