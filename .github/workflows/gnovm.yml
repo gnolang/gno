@@ -13,6 +13,7 @@ jobs:
     uses: ./.github/workflows/main_template.yml
     with:
       modulepath: "gnovm"
+      tests-extra-args: "-short"
     secrets:
       codecov-token: ${{ secrets.CODECOV_TOKEN }}
   fmt:
