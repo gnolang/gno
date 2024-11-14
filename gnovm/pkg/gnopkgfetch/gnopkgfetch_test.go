@@ -112,7 +112,7 @@ func TestFetchDeps(t *testing.T) {
 			assert.NotNil(t, dirPath)
 			defer cleanUpFn()
 
-			err := os.WriteFile(filepath.Join(dirPath, "main.gno"), []byte(fmt.Sprintf("package main\n\n import %q\n", tc.pkgPath)), 0644)
+			err := os.WriteFile(filepath.Join(dirPath, "main.gno"), []byte(fmt.Sprintf("package main\n\n import %q\n", tc.pkgPath)), 0o644)
 			require.NoError(t, err)
 
 			tmpGnoHome, err := os.MkdirTemp(os.TempDir(), "gnotesthome_")

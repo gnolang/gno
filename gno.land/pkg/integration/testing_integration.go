@@ -136,6 +136,7 @@ func setupGnolandTestScript(t *testing.T, txtarDir string) testscript.Params {
 			// This genesis will be use when node is started.
 			genesis := &gnoland.GnoGenesisState{
 				Balances: LoadDefaultGenesisBalanceFile(t, gnoRootDir),
+				Params:   LoadDefaultGenesisParamFile(t, gnoRootDir),
 				Txs:      []gnoland.TxWithMetadata{},
 			}
 
