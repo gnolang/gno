@@ -17,10 +17,6 @@ import (
 	"golang.org/x/mod/module"
 )
 
-// Client allows to override the tendermint client used to fetch packages.
-// It is exposed for testing purposes.
-var Client tm2client.Client
-
 // FetchPackageImportsRecursively recursively fetches the imports of a local package while following a given gno.mod replace directives
 func FetchPackageImportsRecursively(io commands.IO, pkgDir string, gnoMod *gnomod.File) error {
 	imports, err := gnoimports.PackageImports(pkgDir)
@@ -63,7 +59,7 @@ func fetchPackage(io commands.IO, pkgPath string, dst string) error {
 
 	io.ErrPrintfln("gno: downloading %s", pkgPath)
 
-	client := Client
+	client := fetchClient
 	if client == nil {
 		// create client from pkgpath
 		parts := strings.Split(pkgPath, "/")
@@ -130,3 +126,5 @@ func qfile(tmClient tm2client.Client, pkgPath string) ([]byte, error) {
 
 	return qres.Response.Data, nil
 }
+
+var fetchClient tm2client.Client
