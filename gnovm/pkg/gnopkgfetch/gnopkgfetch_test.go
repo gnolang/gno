@@ -66,6 +66,24 @@ func TestFetchDeps(t *testing.T) {
 				"gno: downloading gno.land/p/demo/avl",
 				"gno: downloading gno.land/p/demo/ufmt",
 			},
+		}, {
+			desc:    "fetch_replace_gno.land/p/demo/avl",
+			pkgPath: "gno.land/p/demo/replaced_avl",
+			modFile: gnomod.File{
+				Module: &modfile.Module{
+					Mod: module.Version{
+						Path: "testFetchDeps",
+					},
+				},
+				Replace: []*modfile.Replace{{
+					Old: module.Version{Path: "gno.land/p/demo/replaced_avl"},
+					New: module.Version{Path: "gno.land/p/demo/avl"},
+				}},
+			},
+			requirements: []string{"avl"},
+			ioErrContains: []string{
+				"gno: downloading gno.land/p/demo/avl",
+			},
 		},
 	} {
 		t.Run(tc.desc, func(t *testing.T) {
@@ -112,7 +130,7 @@ func TestFetchDeps(t *testing.T) {
 
 				mockErr.Reset()
 
-				// Try gno: downloading again. Should be cached
+				// Try fetching again. Should be cached
 				FetchPackageImportsRecursively(io, dirPath, &tc.modFile)
 				for _, c := range tc.ioErrContains {
 					assert.NotContains(t, mockErr.String(), c)
