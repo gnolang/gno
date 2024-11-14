@@ -75,16 +75,3 @@ func RenderLink(pkgPath, slug string) string {
 
 	return pkgPath
 }
-
-// ShortPath returns the part of the pkgpath after the base domain.
-// sp := fqname.ShortPath("gno.land/r/gnoland/home")
-// fmt.Println(sp)
-// // Output: /r/gnoland/home
-func ShortPath(pkgPath string) string {
-	idx := strings.Index(pkgPath, "/")
-	if idx == -1 {
-		return ""
-	}
-
-	return pkgPath[idx:]
-}
