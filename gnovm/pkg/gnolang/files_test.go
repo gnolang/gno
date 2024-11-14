@@ -1,9 +1,9 @@
 package gnolang_test
 
 import (
-	"bytes"
 	"flag"
 	"fmt"
+	"io"
 	"io/fs"
 	"os"
 	"path/filepath"
@@ -15,6 +15,10 @@ import (
 )
 
 var withSync = flag.Bool("update-golden-tests", false, "rewrite tests updating Realm: and Output: with new values where changed")
+
+type nopReader struct{}
+
+func (nopReader) Read(p []byte) (int, error) { return 0, io.EOF }
 
 // TestFiles tests all the files in "gnovm/tests/files".
 //
@@ -30,8 +34,7 @@ func TestFiles(t *testing.T) {
 	rootDir, err := filepath.Abs("../../../")
 	require.NoError(t, err)
 	var opts test.FileTestOptions
-	var stdin, stderr bytes.Buffer
-	opts.BaseStore, opts.Store = test.TestStore(rootDir, true, &stdin, &opts.Stdout, &stderr)
+	opts.BaseStore, opts.Store = test.TestStore(rootDir, true, nopReader{}, opts.Stdout(), io.Discard)
 	// XXX: Using opts like this is a bit funky, replacing the state each time; maybe we can re-create each time
 	// if we don't require usage of opts.Stdout.
 

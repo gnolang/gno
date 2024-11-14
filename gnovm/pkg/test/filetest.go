@@ -23,12 +23,25 @@ import (
 )
 
 type FileTestOptions struct {
+	// Store and BaseStore are required stores, generally coming from [TestStore].
 	Store     gno.Store
 	BaseStore storetypes.CommitStore
+	// Output is an optional field, defaulting to [FileTestOptions.Stdout] -
+	// it is the writer to which the GnoVM will write its output. This should
+	// always be a MultiWriter on [FileTestOptions.Stdout].
+	Output io.Writer
 
-	// The Store should reference this, for instance in gonative definitions of
-	// os.Stdout or fmt.Println. It is Reset on each run.
-	Stdout bytes.Buffer
+	// Internal stdout buffer, used to record the result.
+	// Always reset before execution
+	stdout bytes.Buffer
+}
+
+// Stdout returns the internal stdout buffer, which is used to check the results
+// of the filetest. The resulting Writer (or a MultiWriter which also writes to
+// it) should be passed into any TestStore initialization, so that the results
+// of os.Stdout writes and fmt.Println count as test output.
+func (opts *FileTestOptions) Stdout() io.Writer {
+	return &opts.stdout
 }
 
 // RunSync executes the program in source as a filetest.
@@ -68,8 +81,12 @@ func (opts *FileTestOptions) run(filename string, source []byte, sync bool) (str
 
 	// Create machine for execution and run test
 	cw := opts.BaseStore.CacheWrap()
+	out := io.Writer(&opts.stdout)
+	if opts.Output != nil {
+		out = opts.Output
+	}
 	m := gno.NewMachineWithOptions(gno.MachineOptions{
-		Output:        &opts.Stdout,
+		Output:        out,
 		Store:         opts.Store.BeginTransaction(cw, cw),
 		Context:       ctx,
 		MaxAllocBytes: maxAlloc,
@@ -77,9 +94,14 @@ func (opts *FileTestOptions) run(filename string, source []byte, sync bool) (str
 	defer m.Release()
 	result := opts.runTest(m, pkgPath, filename, source)
 
-	// These are used to generate the output.
+	// updated tells whether the directives have been updated, and as such
+	// a new generated filetest should be returned.
+	// returnErr is used as the return value, and may be a MultiError if
+	// multiple mismatches occurred.
 	updated := false
 	var returnErr error
+	// verifies the content against dir.Content; if different, either updates
+	// dir.Content or appends a new returnErr.
 	match := func(dir *Directive, actual string) {
 		if dir.Content != actual {
 			if sync {
@@ -101,8 +123,8 @@ func (opts *FileTestOptions) run(filename string, source []byte, sync bool) (str
 				result.Error, result.Output, string(result.GoPanicStack))
 		}
 
-		// The Error directive will have one trailing newline, which is not in
-		// the output - so add it there.
+		// The Error directive (and many others) will have one trailing newline,
+		// which is not in the output - so add it there.
 		match(errDirective, result.Error+"\n")
 	} else {
 		err = m.CheckEmpty()
@@ -114,6 +136,7 @@ func (opts *FileTestOptions) run(filename string, source []byte, sync bool) (str
 		}
 	}
 
+	// Check through each directive and verify it against the values from the test.
 	for idx := range dirs {
 		dir := &dirs[idx]
 		switch dir.Name {
@@ -128,7 +151,7 @@ func (opts *FileTestOptions) run(filename string, source []byte, sync bool) (str
 			if err != nil {
 				panic(err)
 			}
-			evtstr := string(evtjson)
+			evtstr := string(evtjson) + "\n"
 			match(dir, evtstr)
 		case DirectivePreprocessed:
 			pn := m.Store.GetBlockNode(gno.PackageNodeLocation(pkgPath))
@@ -139,7 +162,7 @@ func (opts *FileTestOptions) run(filename string, source []byte, sync bool) (str
 		}
 	}
 
-	if updated {
+	if updated { // only true if sync == true
 		return dirs.FileTest(), returnErr
 	}
 
@@ -219,11 +242,11 @@ func (opts *FileTestOptions) runTest(m *gno.Machine, pkgPath, filename string, c
 	}
 
 	// imports loaded - reset stdout.
-	opts.Stdout.Reset()
+	opts.stdout.Reset()
 
 	defer func() {
 		if r := recover(); r != nil {
-			rr.Output = opts.Stdout.String()
+			rr.Output = opts.stdout.String()
 			rr.GoPanicStack = debug.Stack()
 			switch v := r.(type) {
 			case *gno.TypedValue:
@@ -290,7 +313,7 @@ func (opts *FileTestOptions) runTest(m *gno.Machine, pkgPath, filename string, c
 	}
 
 	return runResult{
-		Output:        opts.Stdout.String(),
+		Output:        opts.stdout.String(),
 		GnoStacktrace: m.Stacktrace().String(),
 	}
 }

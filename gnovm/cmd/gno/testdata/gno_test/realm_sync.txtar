@@ -21,7 +21,6 @@ func main() {
 
 // Realm:
 // xxx
-
 -- x_filetest.gno.golden --
 // PKGPATH: gno.land/r/x
 package x
@@ -74,7 +73,7 @@ func main() {
 //                     "Escaped": true,
 //                     "ObjectID": "58cde29876a8d185e30c727361981efb068f4726:3"
 //                 },
-//                 "FileName": "main.gno",
+//                 "FileName": "x.gno",
 //                 "IsMethod": false,
 //                 "Name": "main",
 //                 "NativeName": "",
@@ -85,7 +84,7 @@ func main() {
 //                     "BlockNode": null,
 //                     "Location": {
 //                         "Column": "1",
-//                         "File": "main.gno",
+//                         "File": "x.gno",
 //                         "Line": "6",
 //                         "PkgPath": "gno.land/r/x"
 //                     }
@@ -99,4 +98,3 @@ func main() {
 //         }
 //     ]
 // }
-

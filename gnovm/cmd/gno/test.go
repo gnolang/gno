@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
+	goio "io"
 	"log"
 	"math"
 	"os"
@@ -334,7 +335,13 @@ func gnoTestPkg(
 	// testing with *_filetest.gno
 	{
 		var opts test.FileTestOptions
-		opts.BaseStore, opts.Store = test.TestStore(rootDir, false, os.Stdin, &opts.Stdout, &opts.Stdout)
+		gnoOut, gnoErr := opts.Stdout(), goio.Discard
+		if verbose {
+			gnoOut = goio.MultiWriter(gnoOut, stdout)
+			gnoErr = stderr
+			opts.Output = gnoOut
+		}
+		opts.BaseStore, opts.Store = test.TestStore(rootDir, false, os.Stdin, gnoOut, gnoErr)
 
 		filter := splitRegexp(runFlag)
 		for _, testFile := range filetestFiles {
@@ -369,15 +376,14 @@ func gnoTestPkg(
 			}
 			duration := time.Since(startedAt)
 			dstr := fmtDuration(duration)
-			if verbose {
-				io.Out().Write(opts.Stdout.Bytes())
-			}
 			if err != nil {
-				io.ErrPrintln(err.Error())
 				io.ErrPrintfln("--- FAIL: %s (%s)", testName, dstr)
+				io.ErrPrintln(err.Error())
+				errs = multierr.Append(errs, fmt.Errorf("%s failed", testName))
 			} else if verbose {
 				io.ErrPrintfln("--- PASS: %s (%s)", testName, dstr)
 			}
+
 			// XXX: add per-test metrics
 		}
 	}
