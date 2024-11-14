@@ -21,6 +21,7 @@ type GitHub struct {
 	Logger logger.Logger
 	Owner  string
 	Repo   string
+	cancel context.CancelFunc
 }
 
 func (gh *GitHub) GetBotComment(prNum int) *github.IssueComment {
@@ -218,6 +219,12 @@ func (gh *GitHub) ListPrReviews(prNum int) []*github.PullRequestReview {
 	return allReviews
 }
 
+func (gh *GitHub) Close() {
+	if gh.cancel != nil {
+		gh.cancel()
+	}
+}
+
 func New(params param.Params) *GitHub {
 	gh := &GitHub{
 		Owner:  params.Owner,
@@ -231,8 +238,7 @@ func New(params param.Params) *GitHub {
 
 	// Create context with timeout if specified in the parameters
 	if params.Timeout > 0 {
-		//nolint:govet,lostcancel // Keeping this cancel function is useless in this context
-		gh.Ctx, _ = context.WithTimeout(context.Background(), time.Duration(params.Timeout)*time.Millisecond)
+		gh.Ctx, gh.cancel = context.WithTimeout(context.Background(), time.Duration(params.Timeout)*time.Millisecond)
 	} else {
 		gh.Ctx = context.Background()
 	}

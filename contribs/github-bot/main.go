@@ -20,6 +20,7 @@ func main() {
 
 	// Init GitHub API client
 	gh := client.New(params)
+	defer gh.Close()
 
 	// Handle comment update, if any
 	handleCommentUpdate(gh)
