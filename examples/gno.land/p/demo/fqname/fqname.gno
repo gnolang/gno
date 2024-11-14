@@ -43,9 +43,9 @@ func Parse(fqname string) (pkgpath, name string) {
 
 // Construct a qualified identifier.
 //
-//	fqName := fqname.Construct("gno.land/r/demo/foo20", "GRC20")
+//	fqName := fqname.Construct("gno.land/r/demo/foo20", "Token")
 //	fmt.Println("Fully Qualified Name:", fqName)
-//	// Output: gno.land/r/demo/foo20.GRC20
+//	// Output: gno.land/r/demo/foo20.Token
 func Construct(pkgpath, name string) string {
 	// TODO: ensure pkgpath is valid - and as such last part does not contain a dot.
 	if name == "" {
