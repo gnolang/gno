@@ -432,6 +432,9 @@ func runTestFiles(
 ) (errs error) {
 	defer func() {
 		if r := recover(); r != nil {
+			if st := m.ExceptionsStacktrace(); st != "" {
+				errs = multierr.Append(errors.New(st), errs)
+			}
 			errs = multierr.Append(fmt.Errorf("panic: %v\nstack:\n%v\ngno machine: %v", r, string(debug.Stack()), m.String()), errs)
 		}
 	}()

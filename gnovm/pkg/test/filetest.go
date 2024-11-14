@@ -378,10 +378,16 @@ func (d Directives) FileTest() string {
 		default:
 			bld.WriteString("// " + dir.Name + ":\n")
 			cnt := strings.TrimSuffix(dir.Content, "\n")
-			cnt = strings.ReplaceAll(cnt, "\n", "\n// ")
-			bld.WriteString("// ")
-			bld.WriteString(cnt)
-			bld.WriteByte('\n')
+			lines := strings.Split(cnt, "\n")
+			for _, line := range lines {
+				if line == "" {
+					bld.WriteString("//\n")
+					continue
+				}
+				bld.WriteString("// ")
+				bld.WriteString(line)
+				bld.WriteByte('\n')
+			}
 		}
 	}
 	return bld.String()
