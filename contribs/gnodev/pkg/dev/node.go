@@ -561,13 +561,7 @@ func (n *Node) genesisTxResultHandler(ctx sdk.Context, tx std.Tx, res sdk.Result
 func newNodeConfig(tmc *tmcfg.Config, chainid, chaindomain string, appstate gnoland.GnoGenesisState) *gnoland.InMemoryNodeConfig {
 	// Create Mocked Identity
 	pv := gnoland.NewMockedPrivValidator()
-	genesis := gnoland.NewDefaultGenesisConfig(chainid)
-
-	// custom chain domain
-	var domainParam gnoland.Param
-	_ = domainParam.Parse("gno.land/r/sys/params.vm.chain_domain.string=" + chaindomain)
-	appstate.Params = append(appstate.Params, domainParam)
-
+	genesis := gnoland.NewDefaultGenesisConfig(chainid, chaindomain)
 	genesis.AppState = appstate
 
 	// Add self as validator
