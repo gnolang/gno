@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/gnolang/gno/gnovm/pkg/gnoimports"
+	"github.com/gnolang/gno/gnovm/pkg/gnolang"
 )
 
 type Pkg struct {
@@ -115,6 +116,7 @@ func ListPkgs(root string) (PkgList, error) {
 
 		imports, err := gnoimports.PackageImports(path)
 		_ = err // get all valid imports while ignoring bad/partial files
+		imports = removeStdLibs(imports)
 
 		pkgs = append(pkgs, Pkg{
 			Dir:     path,
@@ -129,6 +131,17 @@ func ListPkgs(root string) (PkgList, error) {
 	}
 
 	return pkgs, nil
+}
+
+func removeStdLibs(imports []string) []string {
+	res := []string{}
+	for _, imp := range imports {
+		if gnolang.IsStdlib(imp) {
+			continue
+		}
+		res = append(res, imp)
+	}
+	return res
 }
 
 // GetNonDraftPkgs returns packages that are not draft
