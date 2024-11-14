@@ -6,6 +6,7 @@ import (
 	"gno.land/p/demo/ownable"
 	"gno.land/p/demo/ufmt"
 	"gno.land/p/demo/ui"
+	"gno.land/r/demo/hof"
 	blog "gno.land/r/gnoland/blog"
 	events "gno.land/r/gnoland/events"
 )
@@ -37,7 +38,7 @@ func Render(_ string) string {
 		ui.Columns{3, []ui.Element{
 			lastBlogposts(4),
 			upcomingEvents(),
-			lastContributions(4),
+			latestHOFItems(5),
 		}},
 	)
 
@@ -87,6 +88,15 @@ func upcomingEvents() ui.Element {
 	return ui.Element{
 		ui.H3("[Latest Events](/r/gnoland/events)"),
 		ui.Text(out),
+	}
+}
+
+func latestHOFItems(num int) ui.Element {
+	submissions := hof.RenderExhibWidget(num)
+
+	return ui.Element{
+		ui.H3("[Hall of Fame](/r/demo/hof)"),
+		ui.Text(submissions),
 	}
 }
 
@@ -193,7 +203,7 @@ func packageStaffPicks() ui.Element {
 					ui.BulletList{
 						ui.Link{URL: "r/sys/names"},
 						ui.Link{URL: "r/sys/rewards"},
-						ui.Link{URL: "r/sys/validators"},
+						ui.Link{URL: "/r/sys/validators/v2"},
 					},
 				}, {
 					ui.H4("[r/demo](https://github.com/gnolang/gno/tree/master/examples/gno.land/r/demo)"),
@@ -246,7 +256,7 @@ func discoverLinks() ui.Element {
 - Tokenomics (soon)
 - [Partners, Fund, Grants](/partners)
 - [Explore the Ecosystem](/ecosystem)
-- [Careers](https://jobs.lever.co/allinbits?department=Gno.land)
+- [Careers](https://jobs.ashbyhq.com/allinbits)
 
 </div><!-- end column-->
 
@@ -270,7 +280,7 @@ func discoverLinks() ui.Element {
 - [Gnoscan](https://gnoscan.io)
 - [Portal Loop](https://docs.gno.land/concepts/portal-loop)
 - [Testnet 4](https://test4.gno.land/)
-- Testnet Faucet Hub (soon)
+- [Faucet Hub](https://faucet.gno.land)
 
 </div><!-- end column-->
 </div><!-- end columns-3-->`),

@@ -120,7 +120,7 @@ func TestBalances_GetBalancesFromEntries(t *testing.T) {
 		for index, key := range dummyKeys {
 			entries[index] = fmt.Sprintf(
 				"%s=%s",
-				key.Address().String(),
+				key.PubKey().Address().String(),
 				ugnot.ValueString(amount.AmountOf(ugnot.Denom)),
 			)
 		}
@@ -131,7 +131,7 @@ func TestBalances_GetBalancesFromEntries(t *testing.T) {
 		// Validate the balance map
 		assert.Len(t, balanceMap, len(dummyKeys))
 		for _, key := range dummyKeys {
-			assert.Equal(t, amount, balanceMap[key.Address()].Amount)
+			assert.Equal(t, amount, balanceMap[key.PubKey().Address()].Amount)
 		}
 	})
 
@@ -162,7 +162,7 @@ func TestBalances_GetBalancesFromEntries(t *testing.T) {
 	t.Run("malformed balance, invalid amount", func(t *testing.T) {
 		t.Parallel()
 
-		dummyKey := getDummyKey(t)
+		dummyKey := getDummyKey(t).PubKey()
 
 		balances := []string{
 			fmt.Sprintf(
@@ -194,7 +194,7 @@ func TestBalances_GetBalancesFromSheet(t *testing.T) {
 		for index, key := range dummyKeys {
 			balances[index] = fmt.Sprintf(
 				"%s=%s",
-				key.Address().String(),
+				key.PubKey().Address().String(),
 				ugnot.ValueString(amount.AmountOf(ugnot.Denom)),
 			)
 		}
@@ -206,14 +206,14 @@ func TestBalances_GetBalancesFromSheet(t *testing.T) {
 		// Validate the balance map
 		assert.Len(t, balanceMap, len(dummyKeys))
 		for _, key := range dummyKeys {
-			assert.Equal(t, amount, balanceMap[key.Address()].Amount)
+			assert.Equal(t, amount, balanceMap[key.PubKey().Address()].Amount)
 		}
 	})
 
 	t.Run("malformed balance, invalid amount", func(t *testing.T) {
 		t.Parallel()
 
-		dummyKey := getDummyKey(t)
+		dummyKey := getDummyKey(t).PubKey()
 
 		balances := []string{
 			fmt.Sprintf(
@@ -236,9 +236,8 @@ func TestBalances_GetBalancesFromSheet(t *testing.T) {
 // XXX: this function should probably be exposed somewhere as it's duplicate of
 // cmd/genesis/...
 
-// getDummyKey generates a random public key,
-// and returns the key info
-func getDummyKey(t *testing.T) crypto.PubKey {
+// getDummyKey generates a random private key
+func getDummyKey(t *testing.T) crypto.PrivKey {
 	t.Helper()
 
 	mnemonic, err := client.GenerateMnemonic(256)
@@ -246,14 +245,14 @@ func getDummyKey(t *testing.T) crypto.PubKey {
 
 	seed := bip39.NewSeed(mnemonic, "")
 
-	return generateKeyFromSeed(seed, 0).PubKey()
+	return generateKeyFromSeed(seed, 0)
 }
 
 // getDummyKeys generates random keys for testing
-func getDummyKeys(t *testing.T, count int) []crypto.PubKey {
+func getDummyKeys(t *testing.T, count int) []crypto.PrivKey {
 	t.Helper()
 
-	dummyKeys := make([]crypto.PubKey, count)
+	dummyKeys := make([]crypto.PrivKey, count)
 
 	for i := 0; i < count; i++ {
 		dummyKeys[i] = getDummyKey(t)

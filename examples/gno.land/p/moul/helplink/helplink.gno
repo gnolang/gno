@@ -75,5 +75,5 @@ func (r Realm) FuncURL(fn string, args ...string) string {
 
 // Home returns the base help URL for the specified realm.
 func (r Realm) Home() string {
-	return r.prefix() + "?help"
+	return r.prefix() + "$help"
 }

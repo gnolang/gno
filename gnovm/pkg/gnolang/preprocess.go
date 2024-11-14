@@ -1757,7 +1757,15 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 			case *KeyValueExpr:
 				// NOTE: For simplicity we just
 				// use the *CompositeLitExpr.
-
+			// TRANS_LEAVE -----------------------
+			case *StarExpr:
+				xt := evalStaticTypeOf(store, last, n.X)
+				if xt == nil {
+					panic(fmt.Sprintf("invalid operation: cannot indirect nil"))
+				}
+				if xt.Kind() != PointerKind && xt.Kind() != TypeKind {
+					panic(fmt.Sprintf("invalid operation: cannot indirect %s (variable of type %s)", n.X.String(), xt.String()))
+				}
 			// TRANS_LEAVE -----------------------
 			case *SelectorExpr:
 				xt := evalStaticTypeOf(store, last, n.X)
@@ -1953,6 +1961,7 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 			// TRANS_LEAVE -----------------------
 			case *AssignStmt:
 				n.AssertCompatible(store, last)
+
 				// NOTE: keep DEFINE and ASSIGN in sync.
 				if n.Op == DEFINE {
 					// Rhs consts become default *ConstExprs.
@@ -2283,6 +2292,8 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 
 			// TRANS_LEAVE -----------------------
 			case *ValueDecl:
+				assertValidAssignRhs(store, last, n)
+
 				// evaluate value if const expr.
 				if n.Const {
 					// NOTE: may or may not be a *ConstExpr,
