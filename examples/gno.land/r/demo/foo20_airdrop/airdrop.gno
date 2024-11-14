@@ -1,6 +1,7 @@
 package foo20_airdrop
 
 import (
+	"encoding/hex"
 	"std"
 	"strconv"
 
@@ -14,13 +15,13 @@ import (
 )
 
 var (
-	token grc20.Token
+	token grc20.Teller
 
 	foo20airdrop *grc20_merkle_airdrop.MerkleAirdrop
 )
 
 func RegisterMerkleRoot(root string) {
-	token = foo20.Token()
+	token = foo20.Token.RealmTeller()
 
 	if foo20airdrop != nil {
 		panic("foo20 airdrop merkle root is already registered")
@@ -68,14 +69,15 @@ func ClaimJSON(in string) {
 
 	for i, e := range arr {
 		pos := e.MustKey("position").MustNumeric()
-		data := e.MustKey("data").MustString()
+		data, err := hex.DecodeString(e.MustKey("data").MustString())
+		if err != nil {
+			panic(err.Error())
+		}
 
 		proof[i] = merkle.NewNode([]byte(data), uint8(pos))
 	}
 
 	data := airdrop.NewData(std.Address(req.Address), req.MustGetAmount())
-	// println(data)
-	// println(req, proof)
 
 	Claim(data, proof)
 }

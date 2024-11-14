@@ -19,11 +19,11 @@ var (
 type MerkleAirdrop struct {
 	root string
 
-	token   grc20.Token
+	token   grc20.Teller
 	claimed *avl.Tree
 }
 
-func NewMerkleAirdrop(merkleroot string, token grc20.Token) *MerkleAirdrop {
+func NewMerkleAirdrop(merkleroot string, token grc20.Teller) *MerkleAirdrop {
 	return &MerkleAirdrop{
 		root: merkleroot,
 
@@ -43,17 +43,10 @@ func (ma *MerkleAirdrop) Claim(data airdrop.AirdropData, proofs []merkle.Node) e
 	if ma.claimed.Has(hash) {
 		return ErrAlreadyClaimed
 	}
-	println(proofs)
 
 	if !merkle.Verify(ma.root, data, proofs) {
 		return ErrInvalidProof
 	}
-
-	// THIS WORKS
-	// foo20.Transfer(users.AddressOrName(data.Address), data.Amount)
-
-	// THIS DOES NOT WORK
-	// foo20.GRC20().Transfer(data.Address, data.Amount)
 
 	err := ma.token.Transfer(data.Address(), data.Amount())
 	if err != nil {
