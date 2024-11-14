@@ -2,7 +2,7 @@ name: GitHub Bot
 
 on:
   # Watch for changes on PR state, assignees, labels, head branch and draft/ready status
-  pull_request:
+  pull_request_target:
     types:
       - assigned
       - unassigned
@@ -74,8 +74,8 @@ jobs:
           elif [ '${{ github.event_name }}' = 'issue_comment' ]; then
             echo 'pr-numbers=["${{ github.event.issue.number }}"]' >> "$GITHUB_OUTPUT"
 
-          # Triggered by pull request event, just add the associated PR number to the matrix
-          elif [ '${{ github.event_name }}' = 'pull_request' ]; then
+          # Triggered by pull request target event, just add the associated PR number to the matrix
+          elif [ '${{ github.event_name }}' = 'pull_request_target' ]; then
             echo 'pr-numbers=["${{ github.event.pull_request.number }}"]' >> "$GITHUB_OUTPUT"
 
           # Should never happen
