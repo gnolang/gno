@@ -11,35 +11,6 @@ import (
 	"strings"
 )
 
-func GetGnoPackageImportsRecursive(root string) ([]string, error) {
-	res, err := GetGnoPackageImports(root)
-	_ = err
-
-	entries, err := os.ReadDir(root)
-	_ = err
-
-	for _, entry := range entries {
-		if !entry.IsDir() {
-			continue
-		}
-
-		sub, err := GetGnoPackageImportsRecursive(filepath.Join(root, entry.Name()))
-		if err != nil {
-			continue
-		}
-
-		for _, imp := range sub {
-			if !slices.Contains(res, imp) {
-				res = append(res, imp)
-			}
-		}
-	}
-
-	sort.Strings(res)
-
-	return res, nil
-}
-
 // GetGnoPackageImports returns the list of gno imports from a given path.
 // Note: It ignores subdirs. Since right now we are still deciding on
 // how to handle subdirs.
@@ -77,6 +48,40 @@ func GetGnoPackageImports(path string) ([]string, error) {
 	sort.Strings(allImports)
 
 	return allImports, nil
+}
+
+// GetGnoPackageImportsRecursive returns the list of gno imports from a given path.
+func GetGnoPackageImportsRecursive(root string) ([]string, error) {
+	res, err := GetGnoPackageImports(root)
+	if err != nil {
+		return nil, fmt.Errorf("get imports at %q: %w", root, err)
+	}
+
+	entries, err := os.ReadDir(root)
+	if err != nil {
+		return nil, fmt.Errorf("read dir at %q: %w", root, err)
+	}
+
+	for _, entry := range entries {
+		if !entry.IsDir() {
+			continue
+		}
+
+		sub, err := GetGnoPackageImportsRecursive(filepath.Join(root, entry.Name()))
+		if err != nil {
+			return nil, err
+		}
+
+		for _, imp := range sub {
+			if !slices.Contains(res, imp) {
+				res = append(res, imp)
+			}
+		}
+	}
+
+	sort.Strings(res)
+
+	return res, nil
 }
 
 func GetGnoFileImports(fname string) ([]string, error) {
