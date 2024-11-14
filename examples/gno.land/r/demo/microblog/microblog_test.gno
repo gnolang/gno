@@ -52,13 +52,13 @@ joined 2009-13-02, last updated 2009-13-02
 
 > goodbyte, web2
 >
-> *Fri, 13 Feb 2009 23:31:30 UTC*`
+> *Fri, 29 Jan 2021 17:00:00 UTC*`
 
 	urequire.Equal(t, expected, strings.TrimSpace(Render(author1.String())), "incorrect rendering")
 
 	expected = `## [g1v96hg6r0wge97h6lta047h6lta047h6lyz7c00](/r/demo/microblog:g1v96hg6r0wge97h6lta047h6lta047h6lyz7c00)
 
-joined 2009-13-02, last updated 2009-13-02
+joined 2021-01-29, last updated 2021-01-29
 
 ## feed
 
@@ -66,15 +66,15 @@ joined 2009-13-02, last updated 2009-13-02
 >
 > web4?
 >
-> *Fri, 13 Feb 2009 23:31:30 UTC*
+> *Fri, 29 Jan 2021 17:00:00 UTC*
 
 > hello again, web3
 >
-> *Fri, 13 Feb 2009 23:31:30 UTC*
+> *Fri, 29 Jan 2021 17:00:00 UTC*
 
 > hello, web3
 >
-> *Fri, 13 Feb 2009 23:31:30 UTC*`
+> *Fri, 29 Jan 2021 17:00:00 UTC*`
 
 	urequire.Equal(t, expected, strings.TrimSpace(Render(author2.String())), "incorrect rendering")
 }

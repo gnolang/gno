@@ -35,15 +35,16 @@ func main() {
 // # Second Post (title)
 //
 // Body of the second post. (body)
-// \- [@gnouser](/r/demo/users:gnouser), [2009-02-13 11:31pm (UTC)](/r/demo/boards:test_board/2) \[[reply](/r/demo/boards$help&func=CreateReply&bid=1&threadid=2&postid=2)] \[[repost](/r/demo/boards$help&func=CreateRepost&bid=1&postid=2)] \[[x](/r/demo/boards$help&func=DeletePost&bid=1&threadid=2&postid=2)]
+// \- [@gnouser](/r/demo/users:gnouser), [2021-01-29 5:00pm (UTC)](/r/demo/boards:test_board/2) \[[reply](/r/demo/boards$help&func=CreateReply&bid=1&threadid=2&postid=2)] \[[repost](/r/demo/boards$help&func=CreateRepost&bid=1&postid=2)] \[[x](/r/demo/boards$help&func=DeletePost&bid=1&threadid=2&postid=2)]
 //
 // > Reply of the second post
-// > \- [@gnouser](/r/demo/users:gnouser), [2009-02-13 11:31pm (UTC)](/r/demo/boards:test_board/2/3) \[[reply](/r/demo/boards$help&func=CreateReply&bid=1&threadid=2&postid=3)] \[[x](/r/demo/boards$help&func=DeletePost&bid=1&threadid=2&postid=3)]
-// >
+// > \- [@gnouser](/r/demo/users:gnouser), [2021-01-29 5:00pm (UTC)](/r/demo/boards:test_board/2/3) \[[reply](/r/demo/boards$help&func=CreateReply&bid=1&threadid=2&postid=3)] \[[x](/r/demo/boards$help&func=DeletePost&bid=1&threadid=2&postid=3)]
+// > 
 // > > First reply of the first reply
-// > >
-// > > \- [@gnouser](/r/demo/users:gnouser), [2009-02-13 11:31pm (UTC)](/r/demo/boards:test_board/2/5) \[[reply](/r/demo/boards$help&func=CreateReply&bid=1&threadid=2&postid=5)] \[[x](/r/demo/boards$help&func=DeletePost&bid=1&threadid=2&postid=5)]
+// > > 
+// > > \- [@gnouser](/r/demo/users:gnouser), [2021-01-29 5:00pm (UTC)](/r/demo/boards:test_board/2/5) \[[reply](/r/demo/boards$help&func=CreateReply&bid=1&threadid=2&postid=5)] \[[x](/r/demo/boards$help&func=DeletePost&bid=1&threadid=2&postid=5)]
 //
 // > Second reply of the second post
-// >
-// > \- [@gnouser](/r/demo/users:gnouser), [2009-02-13 11:31pm (UTC)](/r/demo/boards:test_board/2/4) \[[reply](/r/demo/boards$help&func=CreateReply&bid=1&threadid=2&postid=4)] \[[x](/r/demo/boards$help&func=DeletePost&bid=1&threadid=2&postid=4)]
+// > 
+// > \- [@gnouser](/r/demo/users:gnouser), [2021-01-29 5:00pm (UTC)](/r/demo/boards:test_board/2/4) \[[reply](/r/demo/boards$help&func=CreateReply&bid=1&threadid=2&postid=4)] \[[x](/r/demo/boards$help&func=DeletePost&bid=1&threadid=2&postid=4)]
+//

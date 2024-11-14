@@ -69,10 +69,12 @@ func main() {
 //
 // Group Creator: gnouser0
 //
-// Group createdAt: 2009-02-13 23:31:30 +0000 UTC m=+1234567890.000000001
+// Group createdAt: 2021-01-29 17:00:00 +0000 UTC m=+1611939600.000000001
 //
 // Group Last MemberID: 0000000001
 //
-// Group Members:
+// Group Members: 
 //
-// 			[0000000000, g1vahx7atnv4erxh6lta047h6lta047h6ll85gpy, 32, i am from UAE, 2009-02-13 23:31:30 +0000 UTC m=+1234567890.000000001],
+// 			[0000000000, g1vahx7atnv4erxh6lta047h6lta047h6ll85gpy, 32, i am from UAE, 2021-01-29 17:00:00 +0000 UTC m=+1611939600.000000001],
+//
+//

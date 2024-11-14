@@ -28,4 +28,6 @@ func main() {
 // ## [First Post (title)](/r/demo/boards:test_board/1)
 //
 // Body of the first post. (body)
-// \- [@gnouser](/r/demo/users:gnouser), [2009-02-13 11:31pm UTC](/r/demo/boards:test_board/1) \[[x](/r/demo/boards$help&func=DeletePost&bid=1&threadid=1&postid=1)] (0 replies) (0 reposts)
+// \- [@gnouser](/r/demo/users:gnouser), [2021-01-29 5:00pm UTC](/r/demo/boards:test_board/1) \[[x](/r/demo/boards$help&func=DeletePost&bid=1&threadid=1&postid=1)] (0 replies) (0 reposts)
+//
+//

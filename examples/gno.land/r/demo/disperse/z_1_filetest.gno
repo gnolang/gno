@@ -1,5 +1,4 @@
 // PKGPATH: gno.land/r/demo/main
-
 // SEND: 300ugnot
 
 package main
@@ -30,5 +29,5 @@ func main() {
 }
 
 // Output:
-// main before: 200000300ugnot
-// main after: 200000100ugnot
+// main before: 300ugnot
+// main after: 100ugnot
