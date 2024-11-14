@@ -21,8 +21,37 @@ import (
 // It is exposed for testing purposes.
 var Client tm2client.Client
 
-// FetchPackage downloads a remote gno package by pkg path and store it at dst
-func FetchPackage(io commands.IO, pkgPath string, dst string) error {
+// FetchPackageImportsRecursively recursively fetches the imports of a local package while following a given gno.mod replace directives
+func FetchPackageImportsRecursively(io commands.IO, pkgDir string, gnoMod *gnomod.File) error {
+	imports, err := gnoimports.PackageImports(pkgDir)
+	if err != nil {
+		return fmt.Errorf("read imports at %q: %w", pkgDir, err)
+	}
+
+	for _, pkgPath := range imports {
+		resolved := gnoMod.Resolve(module.Version{Path: pkgPath})
+		resolvedPkgPath := resolved.Path
+
+		if !gnolang.IsRemotePkgPath(resolvedPkgPath) {
+			continue
+		}
+
+		depDir := gnomod.PackageDir("", module.Version{Path: resolvedPkgPath})
+
+		if err := fetchPackage(io, resolvedPkgPath, depDir); err != nil {
+			return fmt.Errorf("fetch import %q of %q: %w", resolvedPkgPath, pkgDir, err)
+		}
+
+		if err := FetchPackageImportsRecursively(io, depDir, gnoMod); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+// fetchPackage downloads a remote gno package by pkg path and store it at dst
+func fetchPackage(io commands.IO, pkgPath string, dst string) error {
 	modFilePath := filepath.Join(dst, "gno.mod")
 
 	if _, err := os.Stat(modFilePath); err == nil {
@@ -81,35 +110,6 @@ func FetchPackage(io commands.IO, pkgPath string, dst string) error {
 	// We do this by checking for the presence of gno.land/r/foo/gno.mod
 	if err := os.WriteFile(modFilePath, []byte("module "+pkgPath+"\n"), 0o644); err != nil {
 		return fmt.Errorf("failed to write modfile at %q: %w", modFilePath, err)
-	}
-
-	return nil
-}
-
-// FetchPackageImportsRecursively recursively fetches the imports of a local package while following a given gno.mod replace directives
-func FetchPackageImportsRecursively(io commands.IO, pkgDir string, gnoMod *gnomod.File) error {
-	imports, err := gnoimports.PackageImports(pkgDir)
-	if err != nil {
-		return fmt.Errorf("read imports at %q: %w", pkgDir, err)
-	}
-
-	for _, pkgPath := range imports {
-		resolved := gnoMod.Resolve(module.Version{Path: pkgPath})
-		resolvedPkgPath := resolved.Path
-
-		if !gnolang.IsRemotePkgPath(resolvedPkgPath) {
-			continue
-		}
-
-		depDir := gnomod.PackageDir("", module.Version{Path: resolvedPkgPath})
-
-		if err := FetchPackage(io, resolvedPkgPath, depDir); err != nil {
-			return fmt.Errorf("fetch import %q of %q: %w", resolvedPkgPath, pkgDir, err)
-		}
-
-		if err := FetchPackageImportsRecursively(io, depDir, gnoMod); err != nil {
-			return err
-		}
 	}
 
 	return nil

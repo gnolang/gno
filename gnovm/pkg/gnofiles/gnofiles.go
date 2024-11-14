@@ -14,45 +14,6 @@ func DirEntryIsGnoFile(f fs.DirEntry) bool {
 	return !strings.HasPrefix(name, ".") && strings.HasSuffix(name, ".gno") && !f.IsDir()
 }
 
-// GnoFilesFromArgsRecursively returns all gno files present under the given filepaths
-func GnoFilesFromArgsRecursively(args []string) ([]string, error) {
-	var paths []string
-
-	for _, argPath := range args {
-		info, err := os.Stat(argPath)
-		if err != nil {
-			return nil, fmt.Errorf("invalid file or package path: %w", err)
-		}
-
-		if !info.IsDir() {
-			if DirEntryIsGnoFile(fs.FileInfoToDirEntry(info)) {
-				paths = append(paths, ensurePathPrefix(argPath))
-			}
-
-			continue
-		}
-
-		err = walkDirForGnoDirs(argPath, func(path string) {
-			dir := ensurePathPrefix(path)
-			files, err := os.ReadDir(dir)
-			if err != nil {
-				return
-			}
-			for _, f := range files {
-				if DirEntryIsGnoFile(f) {
-					path := filepath.Join(dir, f.Name())
-					paths = append(paths, ensurePathPrefix(path))
-				}
-			}
-		})
-		if err != nil {
-			return nil, fmt.Errorf("unable to walk dir: %w", err)
-		}
-	}
-
-	return paths, nil
-}
-
 // GnoTargetsFromArgs returns all gno files and directories containing gno files present in the given filepaths
 func GnoTargetsFromArgs(args []string) ([]string, error) {
 	var paths []string
