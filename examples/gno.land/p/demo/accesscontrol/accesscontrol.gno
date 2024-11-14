@@ -24,9 +24,9 @@ type Role struct {
 
 // Roles struct to store all Roles information
 type Roles struct {
-	Roles       []*Role
-	UserToRoles avl.Tree // std.Address -> []*Role
-	Ownable     *ownable.Ownable
+	Roles []*Role
+	// UserToRoles avl.Tree // std.Address -> []*Role
+	Ownable *ownable.Ownable
 }
 
 func validRoleName(name string) error {
@@ -112,12 +112,12 @@ func (rs *Roles) GrantRole(name string, account std.Address) error {
 	r.Holders.Set(account.String(), struct{}{})
 
 	// Add in UserToRoles
-	roles, found := rs.UserToRoles.Get(account.String())
-	if !found {
-		roles = []*Role{}
-	}
-	roles = append(roles.([]*Role), r)
-	rs.UserToRoles.Set(account.String(), roles)
+	// roles, found := rs.UserToRoles.Get(account.String())
+	// if !found {
+	// 	roles = []*Role{}
+	// }
+	// roles = append(roles.([]*Role), r)
+	// rs.UserToRoles.Set(account.String(), roles)
 
 	std.Emit(
 		RoleGrantedEvent,
@@ -144,16 +144,16 @@ func (rs *Roles) RevokeRole(name string, account std.Address) error {
 	r.Holders.Remove(account.String())
 
 	// Remove in UserToRoles
-	roles, found := rs.UserToRoles.Get(account.String())
-	if found {
-		updatedRoles := []*Role{}
-		for _, role := range roles.([]*Role) {
-			if role != r {
-				updatedRoles = append(updatedRoles, role)
-			}
-		}
-		rs.UserToRoles.Set(account.String(), updatedRoles)
-	}
+	// roles, found := rs.UserToRoles.Get(account.String())
+	// if found {
+	// 	updatedRoles := []*Role{}
+	// 	for _, role := range roles.([]*Role) {
+	// 		if role != r {
+	// 			updatedRoles = append(updatedRoles, role)
+	// 		}
+	// 	}
+	// 	rs.UserToRoles.Set(account.String(), updatedRoles)
+	// }
 
 	std.Emit(
 		RoleRevokedEvent,
