@@ -8,8 +8,6 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
-
-	"github.com/gnolang/gno/gnovm/pkg/gnofiles"
 )
 
 // PackageImports returns the list of gno imports from a given path.
@@ -28,7 +26,7 @@ func PackageImports(path string) ([]string, error) {
 	seen := make(map[string]struct{})
 	for _, e := range entries {
 		filename := e.Name()
-		if !gnofiles.DirEntryIsGnoFile(e) {
+		if strings.HasSuffix(filename, ".gno") {
 			continue
 		}
 		if strings.HasSuffix(filename, "_filetest.gno") {

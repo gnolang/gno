@@ -15,7 +15,6 @@ import (
 	"strings"
 
 	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
-	"github.com/gnolang/gno/gnovm/pkg/gnofiles"
 	"github.com/gnolang/gno/gnovm/pkg/gnofmt"
 	"github.com/gnolang/gno/tm2/pkg/commands"
 	"github.com/rogpeppe/go-internal/diff"
@@ -100,7 +99,7 @@ func execFmt(cfg *fmtCfg, args []string, io commands.IO) error {
 		return fmt.Errorf("unable to get targets paths from patterns: %w", err)
 	}
 
-	files, err := gnofiles.GnoFilesFromArgs(paths)
+	files, err := gnoFilesFromArgs(paths)
 	if err != nil {
 		return fmt.Errorf("unable to gather gno files: %w", err)
 	}
