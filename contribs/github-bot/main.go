@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"os"
 	"strings"
 	"sync"
 
@@ -23,7 +24,10 @@ func main() {
 	defer gh.Close()
 
 	// Handle comment update, if any
-	handleCommentUpdate(gh)
+	if err := handleCommentUpdate(gh); err != nil {
+		gh.Logger.Errorf("Comment update handling failed: %v", err)
+		os.Exit(1)
+	}
 
 	// Retrieve a slice of pull requests to process
 	var (

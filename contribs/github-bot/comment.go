@@ -60,36 +60,34 @@ func getCommentManualChecks(commentBody string) map[string][2]string {
 //   - the comment was not edited by the bot itself (prevent infinite loop)
 //   - the comment change is only a checkbox being checked or unckecked (or restore it)
 //   - the actor / comment editor has permission to modify this checkbox (or restore it)
-func handleCommentUpdate(gh *client.GitHub) {
+func handleCommentUpdate(gh *client.GitHub) error {
 	// Get GitHub Actions context to retrieve comment update
 	actionCtx, err := githubactions.Context()
 	if err != nil {
 		gh.Logger.Debugf("Unable to retrieve GitHub Actions context: %v", err)
-		return
+		return nil
 	}
 
 	// Ignore if it's not a comment related event
 	if actionCtx.EventName != "issue_comment" {
 		gh.Logger.Debugf("Event is not issue comment related (%s)", actionCtx.EventName)
-		return
+		return nil
 	}
 
 	// Ignore if the action type is not deleted or edited
 	actionType, ok := actionCtx.Event["action"].(string)
 	if !ok {
-		gh.Logger.Errorf("Unable to get type on issue comment event")
-		os.Exit(1)
+		return fmt.Errorf("unable to get type on issue comment event")
 	}
 
 	if actionType != "deleted" && actionType != "edited" {
-		return
+		return nil
 	}
 
-	// Exit if comment was edited by bot (current authenticated user)
+	// Return if comment was edited by bot (current authenticated user)
 	authUser, _, err := gh.Client.Users.Get(gh.Ctx, "")
 	if err != nil {
-		gh.Logger.Errorf("Unable to get authenticated user: %v", err)
-		os.Exit(1)
+		return fmt.Errorf("unable to get authenticated user: %w", err)
 	}
 
 	if actionCtx.Actor == authUser.GetLogin() {
@@ -100,74 +98,64 @@ func handleCommentUpdate(gh *client.GitHub) {
 	// Ignore if edited comment author is not the bot
 	comment, ok := actionCtx.Event["comment"].(map[string]any)
 	if !ok {
-		gh.Logger.Errorf("Unable to get comment on issue comment event")
-		os.Exit(1)
+		return fmt.Errorf("unable to get comment on issue comment event")
 	}
 
 	author, ok := comment["user"].(map[string]any)
 	if !ok {
-		gh.Logger.Errorf("Unable to get comment user on issue comment event")
-		os.Exit(1)
+		return fmt.Errorf("unable to get comment user on issue comment event")
 	}
 
 	login, ok := author["login"].(string)
 	if !ok {
-		gh.Logger.Errorf("Unable to get comment user login on issue comment event")
-		os.Exit(1)
+		return fmt.Errorf("unable to get comment user login on issue comment event")
 	}
 
 	if login != authUser.GetLogin() {
-		return
+		return nil
 	}
 
 	// Get comment current body
 	current, ok := comment["body"].(string)
 	if !ok {
-		gh.Logger.Errorf("Unable to get comment body on issue comment event")
-		os.Exit(1)
+		return fmt.Errorf("unable to get comment body on issue comment event")
 	}
 
 	// Get comment updated body
 	changes, ok := actionCtx.Event["changes"].(map[string]any)
 	if !ok {
-		gh.Logger.Errorf("Unable to get changes on issue comment event")
-		os.Exit(1)
+		return fmt.Errorf("unable to get changes on issue comment event")
 	}
 
 	changesBody, ok := changes["body"].(map[string]any)
 	if !ok {
-		gh.Logger.Errorf("Unable to get changes body on issue comment event")
-		os.Exit(1)
+		return fmt.Errorf("unable to get changes body on issue comment event")
 	}
 
 	previous, ok := changesBody["from"].(string)
 	if !ok {
-		gh.Logger.Errorf("Unable to get changes body content on issue comment event")
-		os.Exit(1)
+		return fmt.Errorf("unable to get changes body content on issue comment event")
 	}
 
 	// Get PR number from GitHub Actions context
 	issue, ok := actionCtx.Event["issue"].(map[string]any)
 	if !ok {
-		gh.Logger.Errorf("Unable to get issue on issue comment event")
-		os.Exit(1)
+		return fmt.Errorf("unable to get issue on issue comment event")
 	}
 
 	num, ok := issue["number"].(float64)
 	if !ok || num <= 0 {
-		gh.Logger.Errorf("Unable to get issue number on issue comment event")
-		os.Exit(1)
+		return fmt.Errorf("unable to get issue number on issue comment event")
 	}
 
 	// Check if change is only a checkbox being checked or unckecked
 	checkboxes := regexp.MustCompile(`(?m:^- \[[ x]\])`)
 	if checkboxes.ReplaceAllString(current, "") != checkboxes.ReplaceAllString(previous, "") {
 		// If not, restore previous comment body
-		gh.Logger.Errorf("Bot comment edited outside of checkboxes")
 		if !gh.DryRun {
 			gh.SetBotComment(previous, int(num))
 		}
-		os.Exit(1)
+		return fmt.Errorf("bot comment edited outside of checkboxes")
 	}
 
 	// Check if actor / comment editor has permission to modify changed boxes
@@ -192,17 +180,16 @@ func handleCommentUpdate(gh *client.GitHub) {
 			// (maybe bot config was updated since last run?)
 			if !found {
 				gh.Logger.Debugf("Updated rule not found in config: %s", key)
-				return
+				return nil
 			}
 
 			// If teams specified in rule, check if actor is a member of one of them
 			if len(teams) > 0 {
 				if gh.IsUserInTeams(actionCtx.Actor, teams) {
-					gh.Logger.Errorf("Checkbox edited by a user not allowed to")
 					if !gh.DryRun {
 						gh.SetBotComment(previous, int(num))
 					}
-					os.Exit(1)
+					return fmt.Errorf("checkbox edited by a user not allowed to")
 				}
 			}
 
@@ -223,6 +210,8 @@ func handleCommentUpdate(gh *client.GitHub) {
 		gh.SetBotComment(edited, int(num))
 		gh.Logger.Debugf("Comment manual checks updated successfully")
 	}
+
+	return nil
 }
 
 func updateComment(gh *client.GitHub, pr *github.PullRequest, content CommentContent) {
