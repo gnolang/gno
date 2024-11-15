@@ -57,6 +57,12 @@ func (opts *FileTestOptions) Run(filename string, source []byte) error {
 	return err
 }
 
+var reEndOfLineSpaces = func() *regexp.Regexp {
+	re := regexp.MustCompile(" +\n")
+	re.Longest()
+	return re
+}()
+
 func (opts *FileTestOptions) run(filename string, source []byte, sync bool) (string, error) {
 	dirs, err := ParseDirectives(bytes.NewReader(source))
 	if err != nil {
@@ -103,13 +109,17 @@ func (opts *FileTestOptions) run(filename string, source []byte, sync bool) (str
 	// verifies the content against dir.Content; if different, either updates
 	// dir.Content or appends a new returnErr.
 	match := func(dir *Directive, actual string) {
+		// remove end-of-line spaces, as these are removed from `fmt` in the filetests anyway.
+		actual = reEndOfLineSpaces.ReplaceAllString(actual, "\n")
 		if dir.Content != actual {
 			if sync {
 				dir.Content = actual
 				updated = true
 			} else {
-				returnErr = multierr.Append(returnErr,
-					fmt.Errorf("%s diff:\n%s", dir.Name, unifiedDiff(dir.Content, actual)))
+				returnErr = multierr.Append(
+					returnErr,
+					fmt.Errorf("%s diff:\n%s", dir.Name, unifiedDiff(dir.Content, actual)),
+				)
 			}
 		}
 	}
@@ -141,6 +151,9 @@ func (opts *FileTestOptions) run(filename string, source []byte, sync bool) (str
 		dir := &dirs[idx]
 		switch dir.Name {
 		case DirectiveOutput:
+			if !strings.HasSuffix(result.Output, "\n") {
+				result.Output += "\n"
+			}
 			match(dir, result.Output)
 		case DirectiveRealm:
 			sops := m.Store.SprintStoreOps() + "\n"
@@ -385,7 +398,7 @@ func (d Directives) FileTest() string {
 					continue
 				}
 				bld.WriteString("// ")
-				bld.WriteString(line)
+				bld.WriteString(strings.TrimRight(line, " "))
 				bld.WriteByte('\n')
 			}
 		}
