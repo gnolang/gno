@@ -1,6 +1,7 @@
 package boards
 
 import (
+	"errors"
 	"std"
 	"strconv"
 	"time"
@@ -132,24 +133,30 @@ func (post *Post) AddRepostTo(creator std.Address, title, body string, dst *Boar
 	return repost
 }
 
-func (thread *Post) DeleteReply(replyID PostID) {
-	if thread.id == replyID {
-		panic("should not happen")
+func (post *Post) DeleteReply(replyID PostID) error {
+	if !post.IsThread() {
+		// TODO: Allow removing replies from parent replies too
+		panic("cannot delete reply from a non-thread post")
+	}
+
+	if post.id == replyID {
+		return errors.New("expected an ID of an inner reply")
 	}
 
 	key := replyID.Key()
-	v, removed := thread.repliesAll.Remove(key)
+	v, removed := post.repliesAll.Remove(key)
 	if !removed {
-		panic("reply not found in thread")
+		return errors.New("reply not found in thread")
 	}
 
-	post := v.(*Post)
-	if post.parentID != thread.id {
-		parent, _ := thread.GetReply(post.parentID)
+	reply := v.(*Post)
+	if reply.parentID != post.id {
+		parent, _ := post.GetReply(reply.parentID)
 		parent.replies.Remove(key)
 	} else {
-		thread.replies.Remove(key)
+		post.replies.Remove(key)
 	}
+	return nil
 }
 
 // TODO: Change HasPermission to use a new authorization interface's `CanDo()`

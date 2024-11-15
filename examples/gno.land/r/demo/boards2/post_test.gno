@@ -125,6 +125,57 @@ func TestThreadGetReply(t *testing.T) {
 	}
 }
 
+func TestThreadDeleteReply(t *testing.T) {
+	thread := createTestThread(t)
+	cases := []struct {
+		name  string
+		setup func() PostID
+		err   string
+	}{
+		{
+			name: "ok",
+			setup: func() PostID {
+				reply := thread.AddReply(testutils.TestAddress("replier"), "")
+				return reply.GetPostID()
+			},
+		},
+		{
+			name: "ok nested",
+			setup: func() PostID {
+				reply := thread.AddReply(testutils.TestAddress("replier"), "")
+				return reply.AddReply(testutils.TestAddress("replier2"), "").GetPostID()
+			},
+		},
+		{
+			name:  "invalid",
+			setup: func() PostID { return thread.GetPostID() },
+			err:   "expected an ID of an inner reply",
+		},
+		{
+			name:  "not found",
+			setup: func() PostID { return 42 },
+			err:   "reply not found in thread",
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			replyID := tc.setup()
+
+			err := thread.DeleteReply(replyID)
+
+			if tc.err != "" {
+				uassert.ErrorContains(t, err, tc.err)
+				return
+			}
+
+			uassert.NoError(t, err)
+			_, found := thread.GetReply(replyID)
+			uassert.False(t, found)
+		})
+	}
+}
+
 func TestThreadRenderSummary(t *testing.T) {
 	t.Skip("TODO: implement")
 }
@@ -237,6 +288,17 @@ func TestReplyGetReply(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestReplyDeleteReply(t *testing.T) {
+	thread := createTestThread(t)
+	parentReply := thread.AddReply(testutils.TestAddress("replier"), "")
+	reply := parentReply.AddReply(testutils.TestAddress("replier2"), "")
+
+	// NOTE: Deleting a reply from a parent reply should eventually be suported
+	uassert.PanicsWithMessage(t, "cannot delete reply from a non-thread post", func() {
+		parentReply.DeleteReply(reply.GetPostID())
+	})
 }
 
 func TestReplyRender(t *testing.T) {
