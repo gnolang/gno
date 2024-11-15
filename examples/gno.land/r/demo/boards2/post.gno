@@ -72,8 +72,20 @@ func (post *Post) GetCreator() std.Address {
 	return post.creator
 }
 
+func (post *Post) GetTitle() string {
+	return post.title
+}
+
 func (post *Post) GetBody() string {
 	return post.body
+}
+
+func (post *Post) GetCreatedAt() time.Time {
+	return post.createdAt
+}
+
+func (post *Post) GetUpdatedAt() time.Time {
+	return post.updatedAt
 }
 
 func (post *Post) AddReply(creator std.Address, body string) *Post {

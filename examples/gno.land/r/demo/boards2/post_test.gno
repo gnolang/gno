@@ -9,6 +9,20 @@ import (
 	"gno.land/p/demo/ufmt"
 )
 
+func TestPostUpdate(t *testing.T) {
+	board := newBoard(1, "test123", testutils.TestAddress("creator"))
+	creator := testutils.TestAddress("creator")
+	post := newPost(board, 1, creator, "Title", "Body", 1, 0, 0)
+	title := "New Title"
+	body := "New body"
+
+	post.Update(title, body)
+
+	uassert.Equal(t, title, post.GetTitle())
+	uassert.Equal(t, body, post.GetBody())
+	uassert.False(t, post.GetUpdatedAt().IsZero())
+}
+
 func TestNewThread(t *testing.T) {
 	creator := testutils.TestAddress("creator")
 	member := testutils.TestAddress("member")
@@ -43,6 +57,8 @@ func TestNewThread(t *testing.T) {
 
 	uassert.True(t, thread.IsThread())
 	uassert.Equal(t, uint(threadID), uint(thread.GetPostID()))
+	uassert.False(t, thread.GetCreatedAt().IsZero())
+	uassert.True(t, thread.GetUpdatedAt().IsZero())
 	uassert.Equal(t, body[:77]+"...", thread.GetSummary())
 	uassert.Equal(t, url, thread.GetURL())
 	uassert.Equal(t, replyURL, thread.GetReplyFormURL())
@@ -117,6 +133,8 @@ func TestNewReply(t *testing.T) {
 
 	uassert.False(t, reply.IsThread())
 	uassert.Equal(t, uint(replyID), uint(reply.GetPostID()))
+	uassert.False(t, reply.GetCreatedAt().IsZero())
+	uassert.True(t, reply.GetUpdatedAt().IsZero())
 	uassert.Equal(t, body[:77]+"...", reply.GetSummary())
 	uassert.Equal(t, url, reply.GetURL())
 	uassert.Equal(t, replyURL, reply.GetReplyFormURL())
