@@ -64,6 +64,18 @@ func (post *Post) GetPostID() PostID {
 	return post.id
 }
 
+func (post *Post) GetParentID() PostID {
+	return post.parentID
+}
+
+func (post *Post) GetCreator() std.Address {
+	return post.creator
+}
+
+func (post *Post) GetBody() string {
+	return post.body
+}
+
 func (post *Post) AddReply(creator std.Address, body string) *Post {
 	board := post.board
 	pid := board.incGetPostID()

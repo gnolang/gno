@@ -56,6 +56,22 @@ func TestNewThread(t *testing.T) {
 	uassert.False(t, thread.HasPermission(member, Permission("unknown")))
 }
 
+func TestThreadAddReply(t *testing.T) {
+	replier := testutils.TestAddress("replier")
+	thread := createTestThread(t)
+	threadID := uint(thread.GetPostID())
+	body := "A reply"
+
+	reply := thread.AddReply(replier, body)
+
+	r, found := thread.GetReply(reply.GetPostID())
+	uassert.True(t, found)
+	uassert.True(t, reply == r)
+	uassert.Equal(t, threadID+1, uint(reply.GetPostID()))
+	uassert.Equal(t, reply.GetCreator(), replier)
+	uassert.Equal(t, reply.GetBody(), body)
+}
+
 func TestThreadRenderSummary(t *testing.T) {
 	t.Skip("TODO: implement")
 }
@@ -113,6 +129,41 @@ func TestNewReply(t *testing.T) {
 	uassert.False(t, reply.HasPermission(member, Permission("unknown")))
 }
 
+func TestReplyAddReply(t *testing.T) {
+	replier := testutils.TestAddress("replier")
+	thread := createTestThread(t)
+	parentReply := thread.AddReply(testutils.TestAddress("parentReplier"), "")
+	threadID := uint(thread.GetPostID())
+	parentReplyID := uint(parentReply.GetPostID())
+	body := "A child reply"
+
+	reply := parentReply.AddReply(replier, body)
+
+	r, found := thread.GetReply(reply.GetPostID())
+	uassert.True(t, found)
+	uassert.True(t, reply == r)
+	uassert.Equal(t, parentReplyID, uint(reply.GetParentID()))
+	uassert.Equal(t, parentReplyID+1, uint(reply.GetPostID()))
+	uassert.Equal(t, reply.GetCreator(), replier)
+	uassert.Equal(t, reply.GetBody(), body)
+}
+
 func TestReplyRender(t *testing.T) {
 	t.Skip("TODO: implement")
+}
+
+func createTestThread(t *testing.T) *Post {
+	t.Helper()
+
+	creator := testutils.TestAddress("creator")
+	board := newBoard(1, "test_board_123", creator)
+	return board.AddThread(creator, "Title", "Body")
+}
+
+func createTestReply(t *testing.T) *Post {
+	t.Helper()
+
+	creator := testutils.TestAddress("replier")
+	thread := createTestThread(t)
+	return thread.AddReply(creator, "Test message")
 }
