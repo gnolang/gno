@@ -26,6 +26,7 @@ func TestPostUpdate(t *testing.T) {
 func TestNewThread(t *testing.T) {
 	creator := testutils.TestAddress("creator")
 	member := testutils.TestAddress("member")
+	title := "Test Title"
 	body := strings.Repeat("A", 82)
 	boardID := BoardID(1)
 	threadID := PostID(42)
@@ -53,12 +54,13 @@ func TestNewThread(t *testing.T) {
 		uint(threadID),
 	)
 
-	thread := newPost(board, threadID, creator, "Test", body, threadID, 0, 0)
+	thread := newPost(board, threadID, creator, title, body, threadID, 0, 0)
 
 	uassert.True(t, thread.IsThread())
 	uassert.Equal(t, uint(threadID), uint(thread.GetPostID()))
 	uassert.False(t, thread.GetCreatedAt().IsZero())
 	uassert.True(t, thread.GetUpdatedAt().IsZero())
+	uassert.Equal(t, title, thread.GetTitle())
 	uassert.Equal(t, body[:77]+"...", thread.GetSummary())
 	uassert.Equal(t, url, thread.GetURL())
 	uassert.Equal(t, replyURL, thread.GetReplyFormURL())
@@ -86,6 +88,41 @@ func TestThreadAddReply(t *testing.T) {
 	uassert.Equal(t, threadID+1, uint(reply.GetPostID()))
 	uassert.Equal(t, reply.GetCreator(), replier)
 	uassert.Equal(t, reply.GetBody(), body)
+}
+
+func TestThreadGetReply(t *testing.T) {
+	thread := createTestThread(t)
+	cases := []struct {
+		name  string
+		setup func() PostID
+		found bool
+	}{
+		{
+			name: "found",
+			setup: func() PostID {
+				reply := thread.AddReply(testutils.TestAddress("replier"), "")
+				return reply.GetPostID()
+			},
+			found: true,
+		},
+		{
+			name:  "not found",
+			setup: func() PostID { return 42 },
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			replyID := tc.setup()
+
+			reply, found := thread.GetReply(replyID)
+
+			uassert.Equal(t, tc.found, found)
+			if reply != nil {
+				uassert.Equal(t, uint(replyID), uint(reply.GetPostID()))
+			}
+		})
+	}
 }
 
 func TestThreadRenderSummary(t *testing.T) {
@@ -164,6 +201,42 @@ func TestReplyAddReply(t *testing.T) {
 	uassert.Equal(t, parentReplyID+1, uint(reply.GetPostID()))
 	uassert.Equal(t, reply.GetCreator(), replier)
 	uassert.Equal(t, reply.GetBody(), body)
+}
+
+func TestReplyGetReply(t *testing.T) {
+	thread := createTestThread(t)
+	parentReply := thread.AddReply(testutils.TestAddress("parentReplier"), "")
+	cases := []struct {
+		name  string
+		setup func() PostID
+		found bool
+	}{
+		{
+			name: "found",
+			setup: func() PostID {
+				reply := parentReply.AddReply(testutils.TestAddress("replier"), "")
+				return reply.GetPostID()
+			},
+			found: true,
+		},
+		{
+			name:  "not found",
+			setup: func() PostID { return 42 },
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			replyID := tc.setup()
+
+			reply, found := thread.GetReply(replyID)
+
+			uassert.Equal(t, tc.found, found)
+			if reply != nil {
+				uassert.Equal(t, uint(replyID), uint(reply.GetPostID()))
+			}
+		})
+	}
 }
 
 func TestReplyRender(t *testing.T) {
