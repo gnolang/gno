@@ -751,7 +751,7 @@ func (pl *pkgsLoader) LoadPackage(modroot string, path, name string) error {
 				return fmt.Errorf("unable to load package imports in %q: %w", currentPkg.Dir, err)
 			}
 			for _, imp := range imports {
-				if gno.IsStdlib(imp) {
+				if imp == currentPkg.Name || gno.IsStdlib(imp) {
 					continue
 				}
 				currentPkg.Imports = append(currentPkg.Imports, imp)

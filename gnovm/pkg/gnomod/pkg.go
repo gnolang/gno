@@ -116,7 +116,7 @@ func ListPkgs(root string) (PkgList, error) {
 
 		imports, err := gnoimports.PackageImports(path)
 		_ = err // get valid imports while ignoring bad/partial files
-		imports = removeStdLibs(imports)
+		imports = filterImports(gnoMod.Module.Mod.Path, imports)
 
 		pkgs = append(pkgs, Pkg{
 			Dir:     path,
@@ -133,10 +133,11 @@ func ListPkgs(root string) (PkgList, error) {
 	return pkgs, nil
 }
 
-func removeStdLibs(imports []string) []string {
+// filterImports removes self and standard libraries from an import list
+func filterImports(pkgPath string, imports []string) []string {
 	res := []string{}
 	for _, imp := range imports {
-		if gnolang.IsStdlib(imp) {
+		if imp == pkgPath || gnolang.IsStdlib(imp) {
 			continue
 		}
 		res = append(res, imp)
