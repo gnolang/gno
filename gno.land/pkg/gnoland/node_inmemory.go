@@ -105,12 +105,12 @@ func NewInMemoryNode(logger *slog.Logger, cfg *InMemoryNodeConfig) (*node.Node, 
 
 	// Initialize the application with the provided options
 	gnoApp, err := NewAppWithOptions(&AppOptions{
-		Logger:            logger,
-		DB:                cfg.DB,
-		EventSwitch:       evsw,
-		InitChainerConfig: cfg.InitChainerConfig,
-		VMOutput:          cfg.VMOutput,
-		ParamsMaxCacheSize: 100,,
+		Logger:             logger,
+		DB:                 cfg.DB,
+		EventSwitch:        evsw,
+		InitChainerConfig:  cfg.InitChainerConfig,
+		VMOutput:           cfg.VMOutput,
+		ParamsMaxCacheSize: 100,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("error initializing new app: %w", err)
