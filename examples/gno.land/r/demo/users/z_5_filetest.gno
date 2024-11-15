@@ -38,7 +38,7 @@ func main() {
 }
 
 // Output:
-//  * [archives](/r/demo/users:archives)
+// * [archives](/r/demo/users:archives)
 //  * [demo](/r/demo/users:demo)
 //  * [gno](/r/demo/users:gno)
 //  * [gnoland](/r/demo/users:gnoland)

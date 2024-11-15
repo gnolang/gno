@@ -26,4 +26,3 @@ func main() {
 //
 //  * [/r/demo/boards:test_board_1](/r/demo/boards:test_board_1)
 //  * [/r/demo/boards:test_board_2](/r/demo/boards:test_board_2)
-//

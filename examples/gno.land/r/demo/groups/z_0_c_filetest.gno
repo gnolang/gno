@@ -22,4 +22,3 @@ func main() {
 // List of all Groups:
 //
 //  * [test_group](/r/demo/groups:test_group)
-//

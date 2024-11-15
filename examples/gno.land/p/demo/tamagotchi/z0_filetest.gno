@@ -11,7 +11,7 @@ import (
 func main() {
 	t := tamagotchi.New("Gnome")
 
-	println("-- INITIAL\n")
+	println("\n-- INITIAL\n")
 	println(t.Markdown())
 
 	println("\n-- WAIT 20 minutes\n")

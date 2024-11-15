@@ -267,7 +267,7 @@ func main() {
 //                     "Escaped": true,
 //                     "ObjectID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:3"
 //                 },
-//                 "FileName": "z_0.gno",
+//                 "FileName": "main.gno",
 //                 "IsMethod": false,
 //                 "Name": "init.1",
 //                 "NativeName": "",
@@ -278,7 +278,7 @@ func main() {
 //                     "BlockNode": null,
 //                     "Location": {
 //                         "Column": "1",
-//                         "File": "z_0.gno",
+//                         "File": "main.gno",
 //                         "Line": "10",
 //                         "PkgPath": "gno.land/r/test"
 //                     }
@@ -303,7 +303,7 @@ func main() {
 //                     "Escaped": true,
 //                     "ObjectID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:3"
 //                 },
-//                 "FileName": "z_0.gno",
+//                 "FileName": "main.gno",
 //                 "IsMethod": false,
 //                 "Name": "main",
 //                 "NativeName": "",
@@ -314,7 +314,7 @@ func main() {
 //                     "BlockNode": null,
 //                     "Location": {
 //                         "Column": "1",
-//                         "File": "z_0.gno",
+//                         "File": "main.gno",
 //                         "Line": "15",
 //                         "PkgPath": "gno.land/r/test"
 //                     }

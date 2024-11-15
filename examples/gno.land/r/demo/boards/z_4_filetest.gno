@@ -37,14 +37,13 @@ func main() {
 // # Second Post (title)
 //
 // Body of the second post. (body)
-// \- [@gnouser](/r/demo/users:gnouser), [2021-01-29 5:00pm (UTC)](/r/demo/boards:test_board/2) \[[reply](/r/demo/boards$help&func=CreateReply&bid=1&threadid=2&postid=2)] \[[repost](/r/demo/boards$help&func=CreateRepost&bid=1&postid=2)] \[[x](/r/demo/boards$help&func=DeletePost&bid=1&threadid=2&postid=2)]
+// \- [@gnouser](/r/demo/users:gnouser), [2009-02-13 11:31pm (UTC)](/r/demo/boards:test_board/2) \[[reply](/r/demo/boards$help&func=CreateReply&bid=1&threadid=2&postid=2)] \[[repost](/r/demo/boards$help&func=CreateRepost&bid=1&postid=2)] \[[x](/r/demo/boards$help&func=DeletePost&bid=1&threadid=2&postid=2)]
 //
 // > Reply of the second post
-// > \- [@gnouser](/r/demo/users:gnouser), [2021-01-29 5:00pm (UTC)](/r/demo/boards:test_board/2/3) \[[reply](/r/demo/boards$help&func=CreateReply&bid=1&threadid=2&postid=3)] \[[x](/r/demo/boards$help&func=DeletePost&bid=1&threadid=2&postid=3)]
+// > \- [@gnouser](/r/demo/users:gnouser), [2009-02-13 11:31pm (UTC)](/r/demo/boards:test_board/2/3) \[[reply](/r/demo/boards$help&func=CreateReply&bid=1&threadid=2&postid=3)] \[[x](/r/demo/boards$help&func=DeletePost&bid=1&threadid=2&postid=3)]
 //
 // > Second reply of the second post
-// > \- [@gnouser](/r/demo/users:gnouser), [2021-01-29 5:00pm (UTC)](/r/demo/boards:test_board/2/4) \[[reply](/r/demo/boards$help&func=CreateReply&bid=1&threadid=2&postid=4)] \[[x](/r/demo/boards$help&func=DeletePost&bid=1&threadid=2&postid=4)]
-//
+// > \- [@gnouser](/r/demo/users:gnouser), [2009-02-13 11:31pm (UTC)](/r/demo/boards:test_board/2/4) \[[reply](/r/demo/boards$help&func=CreateReply&bid=1&threadid=2&postid=4)] \[[x](/r/demo/boards$help&func=DeletePost&bid=1&threadid=2&postid=4)]
 
 // Realm:
 // switchrealm["gno.land/r/demo/users"]
@@ -309,14 +308,14 @@ func main() {
 // c[f6dbf411da22e67d74cd7ddba6a76cd7e14a4822:131]={
 //     "Fields": [
 //         {
-//             "N": "AAAAAKQt/b8=",
+//             "N": "AAAAgJSeXbo=",
 //             "T": {
 //                 "@type": "/gno.PrimitiveType",
 //                 "value": "65536"
 //             }
 //         },
 //         {
-//             "N": "AaBimYbCXhY=",
+//             "N": "AbSNdvQQIhE=",
 //             "T": {
 //                 "@type": "/gno.PrimitiveType",
 //                 "value": "1024"
@@ -498,7 +497,7 @@ func main() {
 //             },
 //             "V": {
 //                 "@type": "/gno.RefValue",
-//                 "Hash": "54131600c16c4e7a1881768e4544a3b0e0ad67bd",
+//                 "Hash": "0fd3352422af0a56a77ef2c9e88f479054e3d51f",
 //                 "ObjectID": "f6dbf411da22e67d74cd7ddba6a76cd7e14a4822:131"
 //             }
 //         },
@@ -535,7 +534,7 @@ func main() {
 //         },
 //         "V": {
 //             "@type": "/gno.RefValue",
-//             "Hash": "477f7ff1d9598a740533ec083d8486f9df13119b",
+//             "Hash": "c45bbd47a46681a63af973db0ec2180922e4a8ae",
 //             "ObjectID": "f6dbf411da22e67d74cd7ddba6a76cd7e14a4822:127"
 //         }
 //     }
@@ -786,7 +785,7 @@ func main() {
 //             },
 //             "V": {
 //                 "@type": "/gno.RefValue",
-//                 "Hash": "314612dad92dc54f5f10969e3327cb740ff9e86f",
+//                 "Hash": "a416a751c3a45a1e5cba11e737c51340b081e372",
 //                 "ObjectID": "f6dbf411da22e67d74cd7ddba6a76cd7e14a4822:86"
 //             }
 //         },
@@ -804,7 +803,7 @@ func main() {
 //             },
 //             "V": {
 //                 "@type": "/gno.RefValue",
-//                 "Hash": "e611f532c03833be5e42656980c5c2e2ffce8df2",
+//                 "Hash": "36299fccbc13f2a84c4629fad4cb940f0bd4b1c6",
 //                 "ObjectID": "f6dbf411da22e67d74cd7ddba6a76cd7e14a4822:87"
 //             }
 //         },

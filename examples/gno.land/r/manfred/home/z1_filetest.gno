@@ -17,5 +17,3 @@ func main() {
 //
 // ## Personal ToDo List
 // - [ ] fill this todo list...
-//
-//

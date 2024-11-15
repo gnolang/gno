@@ -33,5 +33,3 @@ func main() {
 // - [ ] bbb
 // - [ ] ddd
 // - [ ] eee
-//
-//

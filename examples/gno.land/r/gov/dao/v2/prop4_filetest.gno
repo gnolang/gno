@@ -80,8 +80,6 @@ func main() {
 // Voting stats: YES 10 (100%), NO 0 (0%), ABSTAIN 0 (0%), MISSING VOTE 0 (0%)
 //
 // Threshold met: true
-//
-//
 
 // Events:
 // [
