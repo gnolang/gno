@@ -23,6 +23,57 @@ func TestPostUpdate(t *testing.T) {
 	uassert.False(t, post.GetUpdatedAt().IsZero())
 }
 
+func TestPostAddRepostTo(t *testing.T) {
+	cases := []struct {
+		name, title, body string
+		dstBoard          *Board
+		thread            *Post
+		setup             func() *Post
+		err               string
+	}{
+		{
+			name:     "repost thread",
+			title:    "Repost Title",
+			body:     "Repost body",
+			dstBoard: newBoard(42, "dst123", testutils.TestAddress("creatorDstBoard")),
+			setup:    func() *Post { return createTestThread(t) },
+		},
+		{
+			name:  "invalid repost from reply",
+			setup: func() *Post { return createTestReply(t) },
+			err:   "cannot repost non-thread post",
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			var (
+				repost  *Post
+				creator = testutils.TestAddress("repostCreator")
+				thread  = tc.setup()
+			)
+
+			createRepost := func() {
+				repost = thread.AddRepostTo(creator, tc.title, tc.body, tc.dstBoard)
+			}
+
+			if tc.err != "" {
+				uassert.PanicsWithMessage(t, tc.err, createRepost)
+				return
+			} else {
+				uassert.NotPanics(t, createRepost)
+			}
+
+			r, found := tc.dstBoard.GetThread(repost.GetPostID())
+			uassert.True(t, found)
+			uassert.True(t, repost == r)
+			uassert.Equal(t, tc.title, repost.GetTitle())
+			uassert.Equal(t, tc.body, repost.GetBody())
+			uassert.Equal(t, uint(thread.GetBoard().GetID()), uint(repost.GetRepostBoardID()))
+		})
+	}
+}
+
 func TestNewThread(t *testing.T) {
 	creator := testutils.TestAddress("creator")
 	member := testutils.TestAddress("member")

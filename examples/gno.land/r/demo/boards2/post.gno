@@ -25,40 +25,44 @@ func (id PostID) Key() string {
 // A Post is a "thread" or a "reply" depending on context.
 // A thread is a Post of a Board that holds other replies.
 type Post struct {
-	board       *Board
-	id          PostID
-	creator     std.Address
-	title       string // optional
-	body        string
-	replies     avl.Tree // Post.id -> *Post
-	repliesAll  avl.Tree // Post.id -> *Post (all replies, for top-level posts)
-	reposts     avl.Tree // Board.id -> Post.id
-	threadID    PostID   // original Post.id
-	parentID    PostID   // parent Post.id (if reply or repost)
-	repostBoard BoardID  // original Board.id (if repost)
-	createdAt   time.Time
-	updatedAt   time.Time
+	board         *Board
+	id            PostID
+	creator       std.Address
+	title         string // optional
+	body          string
+	replies       avl.Tree // Post.id -> *Post
+	repliesAll    avl.Tree // Post.id -> *Post (all replies, for top-level posts)
+	reposts       avl.Tree // Board.id -> Post.id
+	threadID      PostID   // original Post.id
+	parentID      PostID   // parent Post.id (if reply or repost)
+	repostBoardID BoardID  // original Board.id (if repost)
+	createdAt     time.Time
+	updatedAt     time.Time
 }
 
-func newPost(board *Board, id PostID, creator std.Address, title, body string, threadID, parentID PostID, repostBoard BoardID) *Post {
+func newPost(board *Board, id PostID, creator std.Address, title, body string, threadID, parentID PostID, repostBoardID BoardID) *Post {
 	return &Post{
-		board:       board,
-		id:          id,
-		creator:     creator,
-		title:       title,
-		body:        body,
-		replies:     avl.Tree{},
-		repliesAll:  avl.Tree{},
-		reposts:     avl.Tree{},
-		threadID:    threadID,
-		parentID:    parentID,
-		repostBoard: repostBoard,
-		createdAt:   time.Now(),
+		board:         board,
+		id:            id,
+		creator:       creator,
+		title:         title,
+		body:          body,
+		replies:       avl.Tree{},
+		repliesAll:    avl.Tree{},
+		reposts:       avl.Tree{},
+		threadID:      threadID,
+		parentID:      parentID,
+		repostBoardID: repostBoardID,
+		createdAt:     time.Now(),
 	}
 }
 
 func (post *Post) IsThread() bool {
 	return post.parentID == 0
+}
+
+func (post *Post) GetBoard() *Board {
+	return post.board
 }
 
 func (post *Post) GetPostID() PostID {
@@ -67,6 +71,10 @@ func (post *Post) GetPostID() PostID {
 
 func (post *Post) GetParentID() PostID {
 	return post.parentID
+}
+
+func (post *Post) GetRepostBoardID() BoardID {
+	return post.repostBoardID
 }
 
 func (post *Post) GetCreator() std.Address {
@@ -216,10 +224,10 @@ func (post *Post) GetDeleteFormURL() string {
 }
 
 func (post *Post) RenderSummary() string {
-	if post.repostBoard != 0 {
-		dstBoard, found := getBoard(post.repostBoard)
+	if post.repostBoardID != 0 {
+		dstBoard, found := getBoard(post.repostBoardID)
 		if !found {
-			panic("repostBoard does not exist")
+			panic("repost board does not exist")
 		}
 
 		thread, found := dstBoard.GetThread(PostID(post.parentID))
