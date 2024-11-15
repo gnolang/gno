@@ -61,7 +61,7 @@ func (ph paramsHandler) Query(ctx sdk.Context, req abci.RequestQuery) abci.Respo
 }
 
 // findSlashPositions finds the positions of the first and second slashes in a path.
-// Returns the positions of the slashes and a boolean indicating if both slashes were found
+// Returns the positions of the slashes or (-1, -1) if less than two slashes are found.
 func findFirstTwoSlashes(s string) (int, int) {
 	first := -1
 
