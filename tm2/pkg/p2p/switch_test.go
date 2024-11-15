@@ -15,6 +15,78 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+func TestMultiplexSwitch_Options(t *testing.T) {
+	t.Parallel()
+
+	t.Run("custom reactors", func(t *testing.T) {
+		t.Parallel()
+
+		var (
+			name        = "custom reactor"
+			mockReactor = &mockReactor{
+				setSwitchFn: func(s Switch) {
+					require.NotNil(t, s)
+				},
+			}
+		)
+
+		sw := NewSwitch(nil, WithReactor(name, mockReactor))
+
+		assert.Equal(t, mockReactor, sw.reactors[name])
+	})
+
+	t.Run("persistent peers", func(t *testing.T) {
+		t.Parallel()
+
+		peers := generateNetAddr(t, 10)
+
+		sw := NewSwitch(nil, WithPersistentPeers(peers))
+
+		for _, p := range peers {
+			assert.True(t, sw.isPersistentPeer(p.ID))
+		}
+	})
+
+	t.Run("private peers", func(t *testing.T) {
+		t.Parallel()
+
+		var (
+			peers = generateNetAddr(t, 10)
+			ids   = make([]types.ID, 0, len(peers))
+		)
+
+		for _, p := range peers {
+			ids = append(ids, p.ID)
+		}
+
+		sw := NewSwitch(nil, WithPrivatePeers(ids))
+
+		for _, p := range peers {
+			assert.True(t, sw.isPrivatePeer(p.ID))
+		}
+	})
+
+	t.Run("max inbound peers", func(t *testing.T) {
+		t.Parallel()
+
+		maxInbound := uint64(500)
+
+		sw := NewSwitch(nil, WithMaxInboundPeers(maxInbound))
+
+		assert.Equal(t, maxInbound, sw.maxInboundPeers)
+	})
+
+	t.Run("max outbound peers", func(t *testing.T) {
+		t.Parallel()
+
+		maxOutbound := uint64(500)
+
+		sw := NewSwitch(nil, WithMaxOutboundPeers(maxOutbound))
+
+		assert.Equal(t, maxOutbound, sw.maxOutboundPeers)
+	})
+}
+
 func TestMultiplexSwitch_Broadcast(t *testing.T) {
 	t.Parallel()
 
@@ -24,9 +96,18 @@ func TestMultiplexSwitch_Broadcast(t *testing.T) {
 		expectedChID = byte(10)
 		expectedData = []byte("broadcast data")
 
+		mockTransport = &mockTransport{
+			acceptFn: func(_ context.Context, _ PeerBehavior) (Peer, error) {
+				return nil, errors.New("constant error")
+			},
+		}
+
 		peers = mock.GeneratePeers(t, 10)
-		sw    = NewSwitch(nil)
+		sw    = NewSwitch(mockTransport)
 	)
+
+	require.NoError(t, sw.OnStart())
+	t.Cleanup(sw.OnStop)
 
 	// Create a new peer set
 	sw.peers = newSet()

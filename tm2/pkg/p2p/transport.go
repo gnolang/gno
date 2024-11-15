@@ -21,9 +21,12 @@ import (
 const defaultHandshakeTimeout = 3 * time.Second
 
 var (
-	errTransportClosed     = errors.New("transport is closed")
-	errTransportInactive   = errors.New("transport is inactive")
-	errDuplicateConnection = errors.New("duplicate peer connection")
+	errTransportClosed        = errors.New("transport is closed")
+	errTransportInactive      = errors.New("transport is inactive")
+	errDuplicateConnection    = errors.New("duplicate peer connection")
+	errPeerIDNodeInfoMismatch = errors.New("connection ID does not match node info ID")
+	errPeerIDDialMismatch     = errors.New("connection ID does not match dialed ID")
+	errIncompatibleNodeInfo   = errors.New("incompatible node info")
 )
 
 type connUpgradeFn func(io.ReadWriteCloser, crypto.PrivKey) (*conn.SecretConnection, error)
@@ -244,14 +247,11 @@ func (mt *MultiplexTransport) processConn(c net.Conn, expectedID types.ID) (peer
 		return peerInfo{}, fmt.Errorf("unable to upgrade connection, %w", err)
 	}
 
-	// Verify the connection ID
+	// Grab the connection ID.
+	// At this point, the connection and information shared
+	// with the peer is considered valid, since full handshaking
+	// and verification took place
 	id := secretConn.RemotePubKey().Address().ID()
-
-	if err = id.Validate(); err != nil {
-		mt.activeConns.Delete(dialAddr)
-
-		return peerInfo{}, fmt.Errorf("unable to validate connection ID, %w", err)
-	}
 
 	// The reason the dial ID needs to be verified is because
 	// for outbound peers (peers the node dials), there is an expected peer ID
@@ -262,7 +262,8 @@ func (mt *MultiplexTransport) processConn(c net.Conn, expectedID types.ID) (peer
 		mt.activeConns.Delete(dialAddr)
 
 		return peerInfo{}, fmt.Errorf(
-			"connection ID does not match dialed ID (expected %q got %q)",
+			"%w (expected %q got %q)",
+			errPeerIDDialMismatch,
 			expectedID,
 			id,
 		)
@@ -309,7 +310,8 @@ func (mt *MultiplexTransport) upgradeAndVerifyConn(c net.Conn) (secretConn, type
 
 	if connID != nodeInfo.ID() {
 		return nil, types.NodeInfo{}, fmt.Errorf(
-			"connection ID does not match node info ID (expected %q got %q)",
+			"%w (expected %q got %q)",
+			errPeerIDNodeInfoMismatch,
 			connID.String(),
 			nodeInfo.ID().String(),
 		)
@@ -317,7 +319,7 @@ func (mt *MultiplexTransport) upgradeAndVerifyConn(c net.Conn) (secretConn, type
 
 	// Check compatibility with the node
 	if err = mt.nodeInfo.CompatibleWith(nodeInfo); err != nil {
-		return nil, types.NodeInfo{}, fmt.Errorf("incompatible node info, %w", err)
+		return nil, types.NodeInfo{}, fmt.Errorf("%w, %w", errIncompatibleNodeInfo, err)
 	}
 
 	return sc, nodeInfo, nil

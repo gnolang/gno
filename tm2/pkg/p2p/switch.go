@@ -62,7 +62,7 @@ type MultiplexSwitch struct {
 
 	peers           PeerSet  // currently active peer set
 	persistentPeers sync.Map // ID -> *NetAddress; peers whose connections are constant
-	privatePeers    sync.Map // ID -> *NetAddress; peers who are not shared
+	privatePeers    sync.Map // ID -> nothing; peers who are not shared
 	transport       Transport
 
 	dialQueue *dial.Queue

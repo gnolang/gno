@@ -1,8 +1,6 @@
 package p2p
 
 import (
-	"fmt"
-
 	"github.com/gnolang/gno/tm2/pkg/p2p/types"
 )
 
@@ -17,14 +15,7 @@ func WithReactor(name string, reactor Reactor) SwitchOption {
 
 			// No two reactors can share the same channel
 			if sw.peerBehavior.reactorsByCh[chID] != nil {
-				panic(
-					fmt.Sprintf(
-						"Channel %X has multiple reactors %v & %v",
-						chID,
-						sw.peerBehavior.reactorsByCh[chID],
-						reactor,
-					),
-				)
+				continue
 			}
 
 			sw.peerBehavior.chDescs = append(sw.peerBehavior.chDescs, chDesc)
@@ -49,8 +40,8 @@ func WithPersistentPeers(peerAddrs []*types.NetAddress) SwitchOption {
 // WithPrivatePeers sets the p2p switch's private peer set
 func WithPrivatePeers(peerIDs []types.ID) SwitchOption {
 	return func(sw *MultiplexSwitch) {
-		for _, addr := range peerIDs {
-			sw.privatePeers.Store(peerIDs, addr)
+		for _, id := range peerIDs {
+			sw.privatePeers.Store(id, struct{}{})
 		}
 	}
 }

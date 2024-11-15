@@ -2,9 +2,11 @@ package p2p
 
 import (
 	"context"
+	"log/slog"
 	"net"
 	"time"
 
+	"github.com/gnolang/gno/tm2/pkg/p2p/conn"
 	"github.com/gnolang/gno/tm2/pkg/p2p/types"
 )
 
@@ -253,4 +255,158 @@ func (m *mockConn) SetWriteDeadline(t time.Time) error {
 	}
 
 	return nil
+}
+
+type (
+	startDelegate            func() error
+	onStartDelegate          func() error
+	stopDelegate             func() error
+	onStopDelegate           func()
+	resetDelegate            func() error
+	onResetDelegate          func() error
+	isRunningDelegate        func() bool
+	quitDelegate             func() <-chan struct{}
+	stringDelegate           func() string
+	setLoggerDelegate        func(*slog.Logger)
+	setSwitchDelegate        func(Switch)
+	getChannelsDelegate      func() []*conn.ChannelDescriptor
+	initPeerDelegate         func(Peer)
+	addPeerDelegate          func(Peer)
+	removeSwitchPeerDelegate func(Peer, any)
+	receiveDelegate          func(byte, Peer, []byte)
+)
+
+type mockReactor struct {
+	startFn       startDelegate
+	onStartFn     onStartDelegate
+	stopFn        stopDelegate
+	onStopFn      onStopDelegate
+	resetFn       resetDelegate
+	onResetFn     onResetDelegate
+	isRunningFn   isRunningDelegate
+	quitFn        quitDelegate
+	stringFn      stringDelegate
+	setLoggerFn   setLoggerDelegate
+	setSwitchFn   setSwitchDelegate
+	getChannelsFn getChannelsDelegate
+	initPeerFn    initPeerDelegate
+	addPeerFn     addPeerDelegate
+	removePeerFn  removeSwitchPeerDelegate
+	receiveFn     receiveDelegate
+}
+
+func (m *mockReactor) Start() error {
+	if m.startFn != nil {
+		return m.startFn()
+	}
+
+	return nil
+}
+
+func (m *mockReactor) OnStart() error {
+	if m.onStartFn != nil {
+		return m.onStartFn()
+	}
+
+	return nil
+}
+
+func (m *mockReactor) Stop() error {
+	if m.stopFn != nil {
+		return m.stopFn()
+	}
+
+	return nil
+}
+
+func (m *mockReactor) OnStop() {
+	if m.onStopFn != nil {
+		m.onStopFn()
+	}
+}
+
+func (m *mockReactor) Reset() error {
+	if m.resetFn != nil {
+		return m.resetFn()
+	}
+
+	return nil
+}
+
+func (m *mockReactor) OnReset() error {
+	if m.onResetFn != nil {
+		return m.onResetFn()
+	}
+
+	return nil
+}
+
+func (m *mockReactor) IsRunning() bool {
+	if m.isRunningFn != nil {
+		return m.isRunningFn()
+	}
+
+	return false
+}
+
+func (m *mockReactor) Quit() <-chan struct{} {
+	if m.quitFn != nil {
+		return m.quitFn()
+	}
+
+	return nil
+}
+
+func (m *mockReactor) String() string {
+	if m.stringFn != nil {
+		return m.stringFn()
+	}
+
+	return ""
+}
+
+func (m *mockReactor) SetLogger(logger *slog.Logger) {
+	if m.setLoggerFn != nil {
+		m.setLoggerFn(logger)
+	}
+}
+
+func (m *mockReactor) SetSwitch(s Switch) {
+	if m.setSwitchFn != nil {
+		m.setSwitchFn(s)
+	}
+}
+
+func (m *mockReactor) GetChannels() []*conn.ChannelDescriptor {
+	if m.getChannelsFn != nil {
+		return m.getChannelsFn()
+	}
+
+	return nil
+}
+
+func (m *mockReactor) InitPeer(peer Peer) Peer {
+	if m.initPeerFn != nil {
+		m.initPeerFn(peer)
+	}
+
+	return nil
+}
+
+func (m *mockReactor) AddPeer(peer Peer) {
+	if m.addPeerFn != nil {
+		m.addPeerFn(peer)
+	}
+}
+
+func (m *mockReactor) RemovePeer(peer Peer, reason any) {
+	if m.removePeerFn != nil {
+		m.removePeerFn(peer, reason)
+	}
+}
+
+func (m *mockReactor) Receive(chID byte, peer Peer, msgBytes []byte) {
+	if m.receiveFn != nil {
+		m.receiveFn(chID, peer, msgBytes)
+	}
 }
