@@ -11,11 +11,11 @@ outlined [here](../tm2-js-client/Provider/provider.md). Both JSON-RPC and WS pro
 
 ### new GnoWSProvider
 
-Creates a new instance of the Gno WebSocket Provider, based on [`tm2-js-client` `WSProvider`](../tm2-js-client/Provider/ws-provider.md)
+Creates a new instance of the Gno WebSocket Provider, based on [`tm2-js-client` `WSProvider`](../tm2-js-client/Provider/ws-provider.md).
 
 #### Parameters
 
-Same as [`tm2-js-client` `WSProvider`](../tm2-js-client/Provider/ws-provider.md)
+Same as [`tm2-js-client` `WSProvider`](../tm2-js-client/Provider/ws-provider.md).
 
 #### Usage
 
@@ -26,11 +26,11 @@ new GnoWSProvider('ws://staging.gno.land:26657/ws');
 
 ### new GnoJSONRPCProvider
 
-Creates a new instance of the Gno JSON-RPC Provider, based on [`tm2-js-client` `JSONRPCProvider`](../tm2-js-client/Provider/json-rpc-provider.md)
+Creates a new instance of the Gno JSON-RPC Provider, based on [`tm2-js-client` `JSONRPCProvider`](../tm2-js-client/Provider/json-rpc-provider.md).
 
 #### Parameters
 
-Same as [`tm2-js-client` `JSONRPCProvider`](../tm2-js-client/Provider/json-rpc-provider.md)
+Same as [`tm2-js-client` `JSONRPCProvider`](../tm2-js-client/Provider/json-rpc-provider.md).
 
 #### Usage
 
