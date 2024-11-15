@@ -7,7 +7,7 @@ import (
 	"time"
 
 	"github.com/gnolang/gno/contribs/github-bot/logger"
-	"github.com/gnolang/gno/contribs/github-bot/param"
+	p "github.com/gnolang/gno/contribs/github-bot/params"
 
 	"github.com/google/go-github/v64/github"
 )
@@ -226,7 +226,7 @@ func (gh *GitHub) Close() {
 	}
 }
 
-func New(params param.Params) *GitHub {
+func New(params p.Params) *GitHub {
 	gh := &GitHub{
 		Owner:  params.Owner,
 		Repo:   params.Repo,

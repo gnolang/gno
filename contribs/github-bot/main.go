@@ -8,7 +8,7 @@ import (
 
 	"github.com/gnolang/gno/contribs/github-bot/client"
 	"github.com/gnolang/gno/contribs/github-bot/logger"
-	"github.com/gnolang/gno/contribs/github-bot/param"
+	"github.com/gnolang/gno/contribs/github-bot/params"
 	"github.com/gnolang/gno/contribs/github-bot/utils"
 
 	"github.com/google/go-github/v64/github"
@@ -17,7 +17,7 @@ import (
 
 func main() {
 	// Retrieve params by parsing CLI flags and/or GitHub Actions context
-	params := param.Get()
+	params := params.Get()
 
 	// Init GitHub API client
 	gh := client.New(params)
