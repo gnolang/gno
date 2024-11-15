@@ -110,6 +110,7 @@ func NewInMemoryNode(logger *slog.Logger, cfg *InMemoryNodeConfig) (*node.Node, 
 		EventSwitch:       evsw,
 		InitChainerConfig: cfg.InitChainerConfig,
 		VMOutput:          cfg.VMOutput,
+		ParamsMaxCacheSize: 100,,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("error initializing new app: %w", err)

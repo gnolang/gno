@@ -187,6 +187,7 @@ func NewApp(
 			GenesisTxResultHandler: PanicOnFailingTxResultHandler,
 			StdlibDir:              filepath.Join(gnoenv.RootDir(), "gnovm", "stdlibs"),
 		},
+		ParamsMaxCacheSize: 100,
 	}
 	if skipFailingGenesisTxs {
 		cfg.GenesisTxResultHandler = NoopGenesisTxResultHandler
