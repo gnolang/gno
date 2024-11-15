@@ -27,14 +27,7 @@ func IsRealmPath(pkgPath string) bool {
 
 // IsStdlib determines whether s is a pkgpath for a standard library.
 func IsStdlib(s string) bool {
-	parts := strings.Split(s, "/")
-	if len(parts) > 0 {
-		// Check if the first part contains a dot
-		if strings.Contains(parts[0], ".") {
-			return false // It's a domain, so it's not part of the standard library
-		}
-	}
-	return true
+	return strings.IndexByte(s[:strings.IndexByte(s, '/')+1], '.') < 0
 }
 
 // ----------------------------------------
