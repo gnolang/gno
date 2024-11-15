@@ -177,7 +177,7 @@ func checkSuffix(key, expectedSuffix string) error {
 	)
 
 	if noSuffix || noName {
-		return fmt.Errorf("key should be like \"<name>%s\"", expectedSuffix)
+		return fmt.Errorf("key should be like \"<name>%s\" (%s)", expectedSuffix, key)
 	}
 
 	return nil

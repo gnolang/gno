@@ -150,26 +150,53 @@ func TestParamsHandler_Query(t *testing.T) {
 		assert.Nil(t, res.Data)
 	})
 
-	t.Run("valid path, value present", func(t *testing.T) {
+	t.Run("valid paths, values present", func(t *testing.T) {
 		var (
+			module = "params"
 			prefix = "params_test"
-			key    = "foo/bar.string"
-			value  = "baz"
 
 			env = setupTestEnv(t, prefix)
 			h   = NewHandler(env.keeper)
 		)
 
-		req := abci.RequestQuery{
-			Path: fmt.Sprintf("params/%s/%s", prefix, key),
+		tcs := []struct {
+			path     string
+			expected string
+		}{
+			{path: fmt.Sprintf("%s/%s/foo/bar.string", module, prefix), expected: `"baz"`},
+			{path: fmt.Sprintf("%s/%s/foo/bar.int64", module, prefix), expected: `"-12345"`},
+			{path: fmt.Sprintf("%s/%s/foo/bar.uint64", module, prefix), expected: `"4242"`},
+			{path: fmt.Sprintf("%s/%s/foo/bar.bool", module, prefix), expected: "true"},
+			{path: fmt.Sprintf("%s/%s/foo/bar.bytes", module, prefix), expected: `"YmF6"`},
 		}
 
-		require.NoError(t, env.keeper.SetString(env.ctx, key, value))
+		for _, tc := range tcs {
+			req := abci.RequestQuery{
+				Path: tc.path,
+			}
 
-		res := h.Query(env.ctx, req)
-		require.Nil(t, res.Error)
-		require.NotNil(t, res)
+			res := h.Query(env.ctx, req)
 
-		assert.Equal(t, fmt.Sprintf("%q", value), string(res.Data))
+			require.Nil(t, res.Error)
+			require.NotNil(t, res)
+			require.Nil(t, res.Data)
+		}
+
+		require.NoError(t, env.keeper.SetString(env.ctx, "foo/bar.string", "baz"))
+		require.NoError(t, env.keeper.SetInt64(env.ctx, "foo/bar.int64", -12345))
+		require.NoError(t, env.keeper.SetUint64(env.ctx, "foo/bar.uint64", 4242))
+		require.NoError(t, env.keeper.SetBool(env.ctx, "foo/bar.bool", true))
+		require.NoError(t, env.keeper.SetBytes(env.ctx, "foo/bar.bytes", []byte("baz")))
+
+		for _, tc := range tcs {
+			req := abci.RequestQuery{
+				Path: tc.path,
+			}
+
+			res := h.Query(env.ctx, req)
+			require.Nil(t, res.Error)
+			require.NotNil(t, res)
+			assert.Equal(t, string(res.Data), tc.expected)
+		}
 	})
 }

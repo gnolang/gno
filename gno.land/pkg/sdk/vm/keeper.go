@@ -229,27 +229,18 @@ func (vm *VMKeeper) getGnoTransactionStore(ctx sdk.Context) gno.TransactionStore
 // Namespace can be either a user or crypto address.
 var reNamespace = regexp.MustCompile(`^gno.land/(?:r|p)/([\.~_a-zA-Z0-9]+)`)
 
-const (
-	sysUsersPkgParamKey = "vm/gno.land/r/sys/params.string"
-	sysUsersPkgDefault  = "gno.land/r/sys/users"
-)
+const sysUsersPkgParamPath = "gno.land/r/sys/params.sys.users_pkgpath.string"
 
 // checkNamespacePermission check if the user as given has correct permssion to on the given pkg path
 func (vm *VMKeeper) checkNamespacePermission(ctx sdk.Context, creator crypto.Address, pkgPath string) error {
-	// Use the standard sys/users pkg path by default
-	sysUsersPkg := sysUsersPkgDefault
+	sysUsersPkg, err := vm.prmk.GetString(ctx, sysUsersPkgParamPath)
+	if goErrors.Is(err, params.ErrMissingParamValue) || sysUsersPkg == "" {
+		// No namespace support enabled
+		return nil
+	}
 
-	// Load the param value, if it's been altered.
-	// TODO Should we even be doing this error handling, if
-	// we expect the value to be set on the init of the VM keeper?
-	if loadedUsersPkg, err := vm.prmk.GetString(ctx, sysUsersPkgParamKey); err == nil {
-		// There is a value in the params keeper that's more
-		// relevant, use it
-		sysUsersPkg = loadedUsersPkg
-	} else if !goErrors.Is(err, params.ErrMissingParamValue) {
-		// Value is not missing, but some other error occurred
-		// with the params keeper
-		return fmt.Errorf("unable to load param %s, %w", sysUsersPkgParamKey, err)
+	if err != nil {
+		return fmt.Errorf("unable to load param %s, %w", sysUsersPkgParamPath, err)
 	}
 
 	store := vm.getGnoTransactionStore(ctx)
