@@ -142,31 +142,33 @@ func TestThreadAddReply(t *testing.T) {
 }
 
 func TestThreadGetReply(t *testing.T) {
-	thread := createTestThread(t)
 	cases := []struct {
-		name  string
-		setup func() PostID
-		found bool
+		name   string
+		thread *Post
+		setup  func(thread *Post) (replyID PostID)
+		found  bool
 	}{
 		{
-			name: "found",
-			setup: func() PostID {
+			name:   "found",
+			thread: createTestThread(t),
+			setup: func(thread *Post) PostID {
 				reply := thread.AddReply(testutils.TestAddress("replier"), "")
 				return reply.GetPostID()
 			},
 			found: true,
 		},
 		{
-			name:  "not found",
-			setup: func() PostID { return 42 },
+			name:   "not found",
+			thread: createTestThread(t),
+			setup:  func(*Post) PostID { return 42 },
 		},
 	}
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			replyID := tc.setup()
+			replyID := tc.setup(tc.thread)
 
-			reply, found := thread.GetReply(replyID)
+			reply, found := tc.thread.GetReply(replyID)
 
 			uassert.Equal(t, tc.found, found)
 			if reply != nil {
