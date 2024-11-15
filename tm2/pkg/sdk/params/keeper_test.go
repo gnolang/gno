@@ -1,6 +1,7 @@
 package params
 
 import (
+	"fmt"
 	"reflect"
 	"testing"
 
@@ -139,16 +140,61 @@ func TestKeeper_internal(t *testing.T) {
 
 func TestKeeper_cache(t *testing.T) {
 	env := setupTestEnv() // maxCacheSize=10 by default
-	_ = env
-	// XXX: fill db with 20 items
+	ctx, keeper := env.ctx, env.keeper
+
+	// fill store with 20 items
+	for i := 0; i < 20; i++ {
+		key := fmt.Sprintf("k%d", i)
+		param := fmt.Sprintf("v%d", i)
+		require.NotPanics(t, func() { keeper.set(ctx, key, param) }, "keeper.Set panics, tc #%d", i)
+	}
+
 	// test cache miss
+	_, ok := keeper.cache.Get("k0")
+	require.False(t, ok)
+
 	// get + test value is valid
+	var target string
+	require.NotPanics(t, func() { keeper.getIfExists(ctx, "k0", &target) })
+	require.Equal(t, target, "v0")
+
 	// test cache hit + value is valid
-	// get 9 items
+	ret, ok := keeper.cache.Get("k0")
+	require.True(t, ok)
+	require.Equal(t, ret.([]byte), []byte(`"v0"`))
+
+	// get again (from cache) + test value is valid
+	require.NotPanics(t, func() { keeper.getIfExists(ctx, "k0", &target) })
+	require.Equal(t, target, "v0")
+
+	// get 9 items to fill the lru cache
+	for i := 1; i < 10; i++ {
+		key := fmt.Sprintf("k%d", i)
+		val := fmt.Sprintf("v%d", i)
+		require.NotPanics(t, func() { keeper.getIfExists(ctx, key, &target) })
+		require.Equal(t, target, val)
+	}
+
 	// test cache hit for first item
+	ret, ok = keeper.cache.Get("k0")
+	require.True(t, ok)
+	require.Equal(t, ret.([]byte), []byte(`"v0"`))
+
 	// get 1 item
-	// test cache miss for first item
-	// get first item + test value is valid
+	require.NotPanics(t, func() { keeper.getIfExists(ctx, "k10", &target) })
+	require.Equal(t, target, "v10")
+
+	// test cache hit for first item (because accessed recently)
+	_, ok = keeper.cache.Get("k0")
+	require.True(t, ok)
+
+	// test cache miss for second item (because oldest and never accessed)
+	_, ok = keeper.cache.Get("k1")
+	require.False(t, ok)
+
+	// get second item + test value is valid
+	require.NotPanics(t, func() { keeper.getIfExists(ctx, "k1", &target) })
+	require.Equal(t, target, "v1")
 }
 
 type s struct{ I int }
