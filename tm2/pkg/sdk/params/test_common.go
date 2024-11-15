@@ -24,7 +24,7 @@ func setupTestEnv() testEnv {
 	ms.LoadLatestVersion()
 
 	prefix := "params_test"
-	maxCacheSize := 20
+	maxCacheSize := 10
 	keeper := NewParamsKeeper(paramsCapKey, prefix, maxCacheSize)
 
 	ctx := sdk.NewContext(sdk.RunTxModeDeliver, ms, &bft.Header{Height: 1, ChainID: "test-chain-id"}, log.NewNoopLogger())

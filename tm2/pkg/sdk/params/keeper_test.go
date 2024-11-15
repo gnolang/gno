@@ -137,6 +137,20 @@ func TestKeeper_internal(t *testing.T) {
 	}
 }
 
+func TestKeeper_cache(t *testing.T) {
+	env := setupTestEnv() // maxCacheSize=10 by default
+	_ = env
+	// XXX: fill db with 20 items
+	// test cache miss
+	// get + test value is valid
+	// test cache hit + value is valid
+	// get 9 items
+	// test cache hit for first item
+	// get 1 item
+	// test cache miss for first item
+	// get first item + test value is valid
+}
+
 type s struct{ I int }
 
 func indirect(ptr interface{}) interface{} { return reflect.ValueOf(ptr).Elem().Interface() }
