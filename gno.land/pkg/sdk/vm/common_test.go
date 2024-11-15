@@ -49,7 +49,8 @@ func _setupTestEnv(cacheStdlibs bool) testEnv {
 	ctx := sdk.NewContext(sdk.RunTxModeDeliver, ms, &bft.Header{ChainID: "test-chain-id"}, log.NewNoopLogger())
 	acck := authm.NewAccountKeeper(iavlCapKey, std.ProtoBaseAccount)
 	bank := bankm.NewBankKeeper(acck)
-	prmk := paramsm.NewParamsKeeper(iavlCapKey, "params")
+	maxCacheSize := 100
+	prmk := paramsm.NewParamsKeeper(iavlCapKey, "params", maxCacheSize)
 	vmk := NewVMKeeper(baseCapKey, iavlCapKey, acck, bank, prmk)
 
 	mcw := ms.MultiCacheWrap()
