@@ -1,4 +1,4 @@
-// Package hello demonstrates the usage of the Render() function.
+// Package hello_world demonstrates the usage of the Render() function.
 // Render() can be called via the vm/qrender ABCI query off-chain to retrieve
 // realm state or any other custom data defined by the realm developer.
 // The vm/qrender query allows for additional data to be passed in with the call
@@ -7,7 +7,7 @@
 // depending on the data which is passed in, such as pagination, admin dashboards, and more.
 // Check out other example realms and packages for more advanced use-cases, such as
 // r/gnoland/blog, r/gnoland/events, r/demo/hof, etc.
-package hello
+package hello_world
 
 func Render(path string) string {
 	if path == "" {
