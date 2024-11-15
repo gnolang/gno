@@ -1,7 +1,5 @@
 package main
 
-import "gno.land/r/demo/event"
-
 func main() {
 	event.Emit("foo")
 	event.Emit("bar")
