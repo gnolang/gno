@@ -1,9 +1,7 @@
 package test
 
 import (
-	"context"
 	"encoding/json"
-	"encoding/xml"
 	"fmt"
 	"io"
 	"math/big"
@@ -56,6 +54,7 @@ func Store(
 		}
 
 		// gonative exceptions.
+		// these are values available using gonative; eventually they should all be removed.
 		switch pkgPath {
 		case "os":
 			pkg := gno.NewPackageNode("os", pkgPath, nil)
@@ -93,10 +92,6 @@ func Store(
 			pkg.DefineGoNativeValue("Unmarshal", json.Unmarshal)
 			pkg.DefineGoNativeValue("Marshal", json.Marshal)
 			return pkg, pkg.NewPackage()
-		case "encoding/xml":
-			pkg := gno.NewPackageNode("xml", pkgPath, nil)
-			pkg.DefineGoNativeValue("Unmarshal", xml.Unmarshal)
-			return pkg, pkg.NewPackage()
 		case "internal/os_test":
 			pkg := gno.NewPackageNode("os_test", pkgPath, nil)
 			pkg.DefineNative("Sleep",
@@ -125,11 +120,6 @@ func Store(
 		case "math/big":
 			pkg := gno.NewPackageNode("big", pkgPath, nil)
 			pkg.DefineGoNativeValue("NewInt", big.NewInt)
-			return pkg, pkg.NewPackage()
-		case "context":
-			pkg := gno.NewPackageNode("context", pkgPath, nil)
-			pkg.DefineGoNativeValue("WithValue", context.WithValue)
-			pkg.DefineGoNativeValue("Background", context.Background)
 			return pkg, pkg.NewPackage()
 		}
 

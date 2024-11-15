@@ -13,5 +13,5 @@ func main() {
 }
 
 // Output:
-// - A: 2
-// - B: LocalStruct{123}
+// A: 2
+// B: LocalStruct{123}

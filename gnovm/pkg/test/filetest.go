@@ -236,6 +236,11 @@ func (opts *FileTestOptions) loadImports(filename string, content []byte) (rr ru
 		if err != nil {
 			return runResult{Error: fmt.Sprintf("unexpected invalid import path: %v", impPath)}
 		}
+		if gno.IsRealmPath(impPath) {
+			// Don't eagerly load realms.
+			// Realms persist state and can change the state of other realms in initialization.
+			continue
+		}
 		pkg := opts.Store.GetPackage(impPath, true)
 		if pkg == nil {
 			return runResult{Error: fmt.Sprintf("package not found: %v", impPath)}
