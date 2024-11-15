@@ -197,15 +197,15 @@ func (post *Post) GetURL() string {
 func (post *Post) GetReplyFormURL() string {
 	return txlink.URL("CreateReply",
 		"bid", post.board.id.String(),
-		"threadid", post.threadID.String(),
-		"postid", post.id.String(),
+		"threadID", post.threadID.String(),
+		"postID", post.id.String(),
 	)
 }
 
 func (post *Post) GetRepostFormURL() string {
 	return txlink.URL("CreateRepost",
 		"bid", post.board.id.String(),
-		"postid", post.id.String(),
+		"postID", post.id.String(),
 	)
 }
 
