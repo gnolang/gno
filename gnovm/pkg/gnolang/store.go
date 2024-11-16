@@ -96,7 +96,6 @@ type defaultStore struct {
 	pkgGetter        PackageGetter         // non-realm packages
 	cacheNativeTypes map[reflect.Type]Type // reflect doc: reflect.Type are comparable
 	nativeStore      NativeStore           // for injecting natives
-	go2gnoStrict     bool                  // if true, native->gno type conversion must be registered.
 
 	// transient
 	opslog  []StoreOp // for debugging and testing.
@@ -118,7 +117,6 @@ func NewStore(alloc *Allocator, baseStore, iavlStore store.Store) *defaultStore 
 		pkgGetter:        nil,
 		cacheNativeTypes: make(map[reflect.Type]Type),
 		nativeStore:      nil,
-		go2gnoStrict:     true,
 	}
 	InitStoreCaches(ds)
 	return ds
@@ -147,7 +145,6 @@ func (ds *defaultStore) BeginTransaction(baseStore, iavlStore store.Store) Trans
 		pkgGetter:        ds.pkgGetter,
 		cacheNativeTypes: ds.cacheNativeTypes,
 		nativeStore:      ds.nativeStore,
-		go2gnoStrict:     ds.go2gnoStrict,
 
 		// transient
 		current: nil,
@@ -488,8 +485,7 @@ func (ds *defaultStore) SetCacheType(tt Type) {
 	tid := tt.TypeID()
 	if tt2, exists := ds.cacheTypes.Get(tid); exists {
 		if tt != tt2 {
-			// NOTE: not sure why this would happen.
-			panic("should not happen")
+			panic(fmt.Sprintf("cannot re-register %q with different type", tid))
 		} else {
 			// already set.
 		}

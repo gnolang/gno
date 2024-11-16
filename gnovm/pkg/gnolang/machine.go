@@ -3,7 +3,6 @@ package gnolang
 // XXX rename file to machine.go.
 
 import (
-	"encoding/json"
 	"fmt"
 	"io"
 	"reflect"
@@ -11,7 +10,6 @@ import (
 	"strconv"
 	"strings"
 	"sync"
-	"testing"
 
 	"github.com/gnolang/overflow"
 
@@ -299,7 +297,7 @@ func (m *Machine) runMemPackage(memPkg *gnovm.MemPackage, save, overrides bool) 
 	}
 	m.SetActivePackage(pv)
 	// run files.
-	updates := m.RunFileDecls(files.Files...)
+	updates := m.runFileDecls(files.Files...)
 	// save package value and mempackage.
 	// XXX save condition will be removed once gonative is removed.
 	var throwaway *Realm
@@ -398,103 +396,6 @@ func destar(x Expr) Expr {
 		return x.X
 	}
 	return x
-}
-
-// Tests all test files in a mempackage.
-// Assumes that the importing of packages is handled elsewhere.
-// The resulting package value and node become injected with TestMethods and
-// other declarations, so it is expected that non-test code will not be run
-// afterwards from the same store.
-func (m *Machine) TestMemPackage(t *testing.T, memPkg *gnovm.MemPackage) {
-	defer m.injectLocOnPanic()
-	DisableDebug()
-	fmt.Println("DEBUG DISABLED (FOR TEST DEPENDENCIES INIT)")
-	// parse test files.
-	tfiles, itfiles := ParseMemPackageTests(memPkg)
-	{ // first, tfiles which run in the same package.
-		pv := m.Store.GetPackage(memPkg.Path, false)
-		pvBlock := pv.GetBlock(m.Store)
-		pvSize := len(pvBlock.Values)
-		m.SetActivePackage(pv)
-		// run test files.
-		m.RunFiles(tfiles.Files...)
-		// run all tests in test files.
-		for i := pvSize; i < len(pvBlock.Values); i++ {
-			tv := pvBlock.Values[i]
-			m.TestFunc(t, tv)
-		}
-	}
-	{ // run all (import) tests in test files.
-		pn := NewPackageNode(Name(memPkg.Name+"_test"), memPkg.Path+"_test", itfiles)
-		pv := pn.NewPackage()
-		m.Store.SetBlockNode(pn)
-		m.Store.SetCachePackage(pv)
-		pvBlock := pv.GetBlock(m.Store)
-		m.SetActivePackage(pv)
-		m.RunFiles(itfiles.Files...)
-		pn.PrepareNewValues(pv)
-		EnableDebug()
-		fmt.Println("DEBUG ENABLED")
-		for i := 0; i < len(pvBlock.Values); i++ {
-			tv := pvBlock.Values[i]
-			m.TestFunc(t, tv)
-		}
-	}
-}
-
-// TestFunc calls tv with testing.RunTest, if tv is a function with a name that
-// starts with `Test`.
-func (m *Machine) TestFunc(t *testing.T, tv TypedValue) {
-	if !(tv.T.Kind() == FuncKind &&
-		strings.HasPrefix(string(tv.V.(*FuncValue).Name), "Test")) {
-		return // not a test function.
-	}
-	// XXX ensure correct func type.
-	name := string(tv.V.(*FuncValue).Name)
-	// prefetch the testing package.
-	testingpv := m.Store.GetPackage("testing", false)
-	testingtv := TypedValue{T: gPackageType, V: testingpv}
-	testingcx := &ConstExpr{TypedValue: testingtv}
-
-	t.Run(name, func(t *testing.T) {
-		defer m.injectLocOnPanic()
-		x := Call(
-			Sel(testingcx, "RunTest"), // Call testing.RunTest
-			Str(name),                 // First param, the name of the test
-			X("true"),                 // Second Param, verbose bool
-			&CompositeLitExpr{ // Third param, the testing.InternalTest
-				Type: Sel(testingcx, "InternalTest"),
-				Elts: KeyValueExprs{
-					{Key: X("Name"), Value: Str(name)},
-					{Key: X("F"), Value: X(name)},
-				},
-			},
-		)
-		res := m.Eval(x)
-		ret := res[0].GetString()
-		if ret == "" {
-			t.Errorf("failed to execute unit test: %q", name)
-			return
-		}
-
-		// mirror of stdlibs/testing.Report
-		var report struct {
-			Skipped bool
-			Failed  bool
-		}
-		err := json.Unmarshal([]byte(ret), &report)
-		if err != nil {
-			t.Errorf("failed to parse test output %q", name)
-			return
-		}
-
-		switch {
-		case report.Skipped:
-			t.SkipNow()
-		case report.Failed:
-			t.Fail()
-		}
-	})
 }
 
 // Stacktrace returns the stack trace of the machine.
@@ -602,10 +503,6 @@ func (m *Machine) RunFiles(fns ...*FileNode) {
 // Add files to the package's *FileSet and run decls in them.
 // This will also run each init function encountered.
 // Returns the updated typed values of package.
-func (m *Machine) RunFileDecls(fns ...*FileNode) []TypedValue {
-	return m.runFileDecls(fns...)
-}
-
 func (m *Machine) runFileDecls(fns ...*FileNode) []TypedValue {
 	// Files' package names must match the machine's active one.
 	// if there is one.

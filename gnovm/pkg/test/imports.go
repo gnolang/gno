@@ -2,11 +2,16 @@ package test
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
+	"go/parser"
+	"go/token"
 	"io"
 	"math/big"
 	"os"
 	"path/filepath"
+	"runtime/debug"
+	"strconv"
 	"strings"
 	"time"
 
@@ -197,6 +202,63 @@ func loadStdlib(rootDir, pkgPath string, store gno.Store, stdout io.Writer) (*gn
 		Output:  stdout,
 		Store:   store,
 	})
-	save := pkgPath != "testing" // never save the "testing" package
-	return m2.RunMemPackageWithOverrides(memPkg, save)
+	return m2.RunMemPackageWithOverrides(memPkg, true)
+}
+
+type errorWithStack struct {
+	err   error
+	stack []byte
+}
+
+func (e *errorWithStack) Error() string { return e.err.Error() }
+func (e *errorWithStack) Unwrap() error { return e.err }
+func (e *errorWithStack) String() string {
+	return fmt.Sprintf("%v\nstack:\n%v", e.err, string(e.stack))
+}
+
+// LoadImports parses the given file and attempts to retrieve all pure packages
+// from the store. This is mostly useful for "eager import loading", whereby all
+// imports are pre-loaded in a permanent store, so that the tests can use
+// ephemeral transaction stores.
+func LoadImports(store gno.Store, filename string, content []byte) (err error) {
+	defer func() {
+		// This is slightly different from the handling below; we do not have a
+		// machine to work with, as this comes from an import; so we need
+		// "machine-less" alternatives. (like v.String instead of v.Sprint)
+		if r := recover(); r != nil {
+			switch v := r.(type) {
+			case *gno.TypedValue:
+				err = errors.New(v.String())
+			case *gno.PreprocessError:
+				err = v.Unwrap()
+			case gno.UnhandledPanicError:
+				err = v
+			case error:
+				err = &errorWithStack{v, debug.Stack()}
+			default:
+				err = &errorWithStack{fmt.Errorf("%v", v), debug.Stack()}
+			}
+		}
+	}()
+
+	fl, err := parser.ParseFile(token.NewFileSet(), filename, content, parser.ImportsOnly)
+	if err != nil {
+		return fmt.Errorf("parse failure: %w", err)
+	}
+	for _, imp := range fl.Imports {
+		impPath, err := strconv.Unquote(imp.Path.Value)
+		if err != nil {
+			return fmt.Errorf("unexpected invalid import path: %v", impPath)
+		}
+		if gno.IsRealmPath(impPath) {
+			// Don't eagerly load realms.
+			// Realms persist state and can change the state of other realms in initialization.
+			continue
+		}
+		pkg := store.GetPackage(impPath, true)
+		if pkg == nil {
+			return fmt.Errorf("package not found: %v", impPath)
+		}
+	}
+	return nil
 }

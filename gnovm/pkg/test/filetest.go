@@ -5,8 +5,6 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"go/parser"
-	"go/token"
 	"io"
 	"regexp"
 	"runtime/debug"
@@ -207,56 +205,14 @@ type runResult struct {
 	GoPanicStack []byte
 }
 
-func (opts *FileTestOptions) loadImports(filename string, content []byte) (rr runResult) {
-	defer func() {
-		// This is slightly different from the handling below; we do not have a
-		// machine to work with, as this comes from an import; so we need
-		// "machine-less" alternatives. (like v.String instead of v.Sprint)
-		if r := recover(); r != nil {
-			rr.GoPanicStack = debug.Stack()
-			switch v := r.(type) {
-			case *gno.TypedValue:
-				rr.Error = v.String()
-			case *gno.PreprocessError:
-				rr.Error = v.Unwrap().Error()
-			case gno.UnhandledPanicError:
-				rr.Error = v.Error()
-			default:
-				rr.Error = fmt.Sprint(v)
-			}
-		}
-	}()
-
-	fl, err := parser.ParseFile(token.NewFileSet(), filename, content, parser.ImportsOnly)
-	if err != nil {
-		return runResult{Error: fmt.Sprintf("parse failure: %v", err)}
-	}
-	for _, imp := range fl.Imports {
-		impPath, err := strconv.Unquote(imp.Path.Value)
-		if err != nil {
-			return runResult{Error: fmt.Sprintf("unexpected invalid import path: %v", impPath)}
-		}
-		if gno.IsRealmPath(impPath) {
-			// Don't eagerly load realms.
-			// Realms persist state and can change the state of other realms in initialization.
-			continue
-		}
-		pkg := opts.Store.GetPackage(impPath, true)
-		if pkg == nil {
-			return runResult{Error: fmt.Sprintf("package not found: %v", impPath)}
-		}
-	}
-	return runResult{}
-}
-
 func (opts *FileTestOptions) runTest(m *gno.Machine, pkgPath, filename string, content []byte) (rr runResult) {
 	// Eagerly load imports.
 	// This is executed using opts.Store, rather than the transaction store;
 	// it allows us to only have to load the imports once (and re-use the cached
 	// versions). Running the tests in separate "transactions" means that they
 	// don't get the parent store dirty.
-	if importRes := opts.loadImports(filename, content); importRes.Error != "" {
-		return importRes
+	if err := LoadImports(opts.Store, filename, content); err != nil {
+		return runResult{Error: err.Error()}
 	}
 
 	// imports loaded - reset stdout.
