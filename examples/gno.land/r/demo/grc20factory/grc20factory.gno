@@ -43,7 +43,8 @@ func NewWithAdmin(name, symbol string, decimals uint, initialMint, faucet uint64
 		faucet: faucet,
 	}
 	instances.Set(symbol, &inst)
-	grc20reg.Register(token, symbol)
+	getter := func() *grc20.Token { return token }
+	grc20reg.Register(getter, symbol)
 }
 
 func (inst instance) Token() *grc20.Token {

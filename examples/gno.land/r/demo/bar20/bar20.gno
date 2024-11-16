@@ -18,7 +18,8 @@ var (
 )
 
 func init() {
-	grc20reg.Register(Token, "")
+	getter := func() *grc20.Token { return Token }
+	grc20reg.Register(getter, "")
 }
 
 func Faucet() string {
