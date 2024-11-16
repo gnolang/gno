@@ -25,7 +25,6 @@ func TestRegistry(t *testing.T) {
 `
 	got := Render("")
 	urequire.Equal(t, expected, got)
-
 	// 404
 	invalidToken := Get("0xdeadbeef")
 	urequire.True(t, invalidToken == nil)
