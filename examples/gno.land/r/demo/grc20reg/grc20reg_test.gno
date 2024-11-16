@@ -11,11 +11,13 @@ import (
 func TestRegistry(t *testing.T) {
 	std.TestSetRealm(std.NewCodeRealm("gno.land/r/demo/foo"))
 	realmAddr := std.CurrentRealm().PkgPath()
-	tokenImpl := &dummyImpl{}
-
+	token, ledger := grc20.NewToken("TestToken", "TST", 4)
+	ledger.Mint(std.CurrentRealm().Addr(), 1234567)
+	tokenGetter := func() *grc20.Token { return token }
 	// register
-	Register(tokenImpl, "")
-	regToken := Get(realmAddr)
+	Register(tokenGetter, "")
+	regTokenGetter := Get(realmAddr)
+	regToken := regTokenGetter()
 	urequire.True(t, regToken != nil, "expected to find a token") // fixme: use urequire.NotNil
 	urequire.Equal(t, regToken.GetSymbol(), "TST")
 
@@ -29,14 +31,16 @@ func TestRegistry(t *testing.T) {
 	urequire.True(t, invalidToken == nil)
 
 	// register with a slug
-	Register(tokenImpl, "mySlug")
-	regToken = Get(realmAddr + ".mySlug")
+	Register(tokenGetter, "mySlug")
+	regTokenGetter = Get(realmAddr + ".mySlug")
+	regToken = regTokenGetter()
 	urequire.True(t, regToken != nil, "expected to find a token") // fixme: use urequire.NotNil
 	urequire.Equal(t, regToken.GetSymbol(), "TST")
 
 	// override
-	Register(tokenImpl, "")
-	regToken = Get(realmAddr + "")
+	Register(tokenGetter, "")
+	regTokenGetter = Get(realmAddr + "")
+	regToken = regTokenGetter()
 	urequire.True(t, regToken != nil, "expected to find a token") // fixme: use urequire.NotNil
 	urequire.Equal(t, regToken.GetSymbol(), "TST")
 
@@ -49,26 +53,9 @@ func TestRegistry(t *testing.T) {
 	expected = `# TestToken
 - symbol: **TST**
 - realm: [gno.land/r/demo/foo](/r/demo/foo).mySlug
-- decimals: 1337
+- decimals: 4
 - total supply: 1234567
 `
 	got = Render("gno.land/r/demo/foo.mySlug")
 	urequire.Equal(t, expected, got)
-}
-
-type dummyImpl struct{}
-
-// FIXME: this should fail.
-var _ grc20.Token = (*dummyImpl)(nil)
-
-func (impl *dummyImpl) GetName() string                                  { return "TestToken" }
-func (impl *dummyImpl) GetSymbol() string                                { return "TST" }
-func (impl *dummyImpl) GetDecimals() uint                                { return 1337 }
-func (impl *dummyImpl) TotalSupply() uint64                              { return 1234567 }
-func (impl *dummyImpl) BalanceOf(account std.Address) uint64             { panic("not implemented") }
-func (impl *dummyImpl) Transfer(to std.Address, amount uint64) error     { panic("not implemented") }
-func (impl *dummyImpl) Allowance(owner, spender std.Address) uint64      { panic("not implemented") }
-func (impl *dummyImpl) Approve(spender std.Address, amount uint64) error { panic("not implemented") }
-func (impl *dummyImpl) TransferFrom(from, to std.Address, amount uint64) error {
-	panic("not implemented")
 }

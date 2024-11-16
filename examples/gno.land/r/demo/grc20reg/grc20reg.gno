@@ -11,10 +11,10 @@ import (
 
 var registry = avl.NewTree() // rlmPath[.slug] -> TokenGetter
 
-func Register(token grc20.Token, slug string) {
+func Register(tokenGetter grc20.TokenGetter, slug string) {
 	rlmPath := std.PrevRealm().PkgPath()
 	key := fqname.Construct(rlmPath, slug)
-	registry.Set(key, token)
+	registry.Set(key, tokenGetter)
 	std.Emit(
 		registerEvent,
 		"pkgpath", rlmPath,
@@ -22,20 +22,20 @@ func Register(token grc20.Token, slug string) {
 	)
 }
 
-func Get(key string) grc20.Token {
-	token, ok := registry.Get(key)
+func Get(key string) grc20.TokenGetter {
+	tokenGetter, ok := registry.Get(key)
 	if !ok {
 		return nil
 	}
-	return token.(grc20.Token)
+	return tokenGetter.(grc20.TokenGetter)
 }
 
-func MustGet(key string) grc20.Token {
-	token := Get(key)
-	if token == nil {
+func MustGet(key string) grc20.TokenGetter {
+	tokenGetter := Get(key)
+	if tokenGetter == nil {
 		panic("unknown token: " + key)
 	}
-	return token
+	return tokenGetter
 }
 
 func Render(path string) string {
@@ -46,7 +46,8 @@ func Render(path string) string {
 		count := 0
 		registry.Iterate("", "", func(key string, tokenI interface{}) bool {
 			count++
-			token := tokenI.(grc20.Token)
+			tokenGetter := tokenI.(grc20.TokenGetter)
+			token := tokenGetter()
 			rlmPath, slug := fqname.Parse(key)
 			rlmLink := fqname.RenderLink(rlmPath, slug)
 			infoLink := "/r/demo/grc20reg:" + key
@@ -59,7 +60,8 @@ func Render(path string) string {
 		return s
 	default: // specific token
 		key := path
-		token := MustGet(key)
+		tokenGetter := MustGet(key)
+		token := tokenGetter()
 		rlmPath, slug := fqname.Parse(key)
 		rlmLink := fqname.RenderLink(rlmPath, slug)
 		s := ufmt.Sprintf("# %s\n", token.GetName())
