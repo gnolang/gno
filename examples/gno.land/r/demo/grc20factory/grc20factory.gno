@@ -8,6 +8,7 @@ import (
 	"gno.land/p/demo/grc/grc20"
 	"gno.land/p/demo/ownable"
 	"gno.land/p/demo/ufmt"
+	"gno.land/r/demo/grc20reg"
 )
 
 var instances avl.Tree // symbol -> instance
@@ -42,7 +43,7 @@ func NewWithAdmin(name, symbol string, decimals uint, initialMint, faucet uint64
 		faucet: faucet,
 	}
 	instances.Set(symbol, &inst)
-	// XXX: grc20reg.Register(token, symbol)
+	grc20reg.Register(token, symbol)
 }
 
 func (inst instance) Token() *grc20.Token {
