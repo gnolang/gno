@@ -37,3 +37,13 @@ func SetFooer(f Fooer) Fooer {
 	return fooer
 }
 func CallFoo() { fooer.Foo() }
+
+func FooerGetter() Fooer {
+	return fooer
+}
+
+func FooerGetterBuilder() func() Fooer {
+	return func() Fooer {
+		return fooer
+	}
+}
