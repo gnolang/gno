@@ -15,3 +15,5 @@ func main() {
 }
 
 // Error:
+// interface conversion: gnolang.PointerValue is not gnolang.Object: missing method DecRefCount
+// *** CHECK THE ERR MESSAGES ABOVE, MAKE SURE IT'S WHAT YOU EXPECTED, DELETE THIS LINE AND RUN TEST AGAIN ***

@@ -10,7 +10,7 @@ import (
 var SS []crossrealm.XYZ
 
 func main() {
-	SS = crossrealm.GetSlice2() // this is valid if elem are all attached in origin realm
+	SS = crossrealm.GetSlice2()
 	println(".")
 }
 

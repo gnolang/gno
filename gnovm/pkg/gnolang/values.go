@@ -298,6 +298,7 @@ func (pv PointerValue) Assign2(alloc *Allocator, store Store, rlm *Realm, tv2 Ty
 		if oo2 != nil {
 			oo2.SetLastNewEscapedRealm(pkgId) // attach origin package info
 		}
+		// TODO: make check happens in here?
 		rlm.DidUpdate2(store, pv.Base.(Object), oo1, oo2, isRef, length, offset)
 	} else {
 		pv.TV.Assign(alloc, tv2, cu)
@@ -422,14 +423,17 @@ type SliceValue struct {
 }
 
 func (sv *SliceValue) GetBase(store Store) *ArrayValue {
+	fmt.Println("---GetBase")
 	switch cv := sv.Base.(type) {
 	case nil:
 		return nil
 	case RefValue:
+		fmt.Println("---RefValue, cv.ObjectID: ", cv.ObjectID)
 		array := store.GetObject(cv.ObjectID).(*ArrayValue)
 		sv.Base = array
 		return array
 	case *ArrayValue:
+		println("---ArrayValue")
 		return cv
 	default:
 		panic("should not happen")

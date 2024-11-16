@@ -13,6 +13,7 @@ func init() {
 
 	s3 = append(s3, XYZ{"3"})
 	s4 = append(s4, XYZ{"4"})
+
 	s5 = append(s5, &XYZ{"5"})
 }
 
@@ -39,7 +40,7 @@ func GetSlice3() []XYZ {
 
 func GetSlice4(f func(s []XYZ)) {
 	s4 = append(s4, XYZ{"0"}) // this is real after this function
-	f(s4)                     // floating
+	f(s4)                     // XYZ{"0"} is floating
 }
 
 func GetSlice5() []*XYZ { // TODO, unwrap

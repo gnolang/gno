@@ -216,6 +216,15 @@ func (rlm *Realm) DidUpdate2(store Store, po, xo, co Object, isRef bool, length,
 	fmt.Printf("---co: %v, type of co: %v\n", co, reflect.TypeOf(co))
 
 	if co != nil {
+		if av, ok := co.(*ArrayValue); ok {
+			fmt.Println("---array value")
+			fmt.Println("---av: ", av)
+			fmt.Println("---av.Data: ", av.Data)
+			fmt.Println("---av.List: ", av.List, len(av.List))
+			fmt.Println("---av.List[0]: ", av.List[0])
+		} else {
+			println("not arrayvalue")
+		}
 		fmt.Println("---co.LastNewEscapedRealm: ", co.GetLastNewEscapedRealm())
 		fmt.Println("---co.GetRefCount: ", co.GetRefCount())
 		fmt.Println("---co isReal(attached): ", co.GetIsReal())
@@ -289,6 +298,7 @@ func (rlm *Realm) DidUpdate2(store Store, po, xo, co Object, isRef bool, length,
 //----------------------------------------
 // mark*
 
+// TODO: move these crossrealm check logic before 'DidUpdate'
 func (rlm *Realm) MarkNewEscapedCheckCrossRealm(store Store, oo Object, isRef bool, length, offset int) {
 	fmt.Println("---MarkNewEscapedCheckCrossRealm---, oo: ", oo)
 	fmt.Println("---rlm.ID: ", rlm.ID)
@@ -310,7 +320,7 @@ func (rlm *Realm) MarkNewEscapedCheckCrossRealm(store Store, oo Object, isRef bo
 				for i := offset; i < length; i++ {
 					e := oo.(*ArrayValue).List[i]
 					fmt.Println("---e: ", e, reflect.TypeOf(e.V))
-					if _, ok := e.V.(RefValue); ok { // TODO: does this already enough
+					if _, ok := e.V.(RefValue); ok { // TODO: XXX, does this already enough
 						fmt.Println("---escaped: ", e.V.(RefValue).Escaped)
 						fmt.Println("---string: ", e.V.(RefValue).String())
 						fmt.Println("---pkgpath: ", e.V.(RefValue).PkgPath)
@@ -326,6 +336,9 @@ func (rlm *Realm) MarkNewEscapedCheckCrossRealm(store Store, oo Object, isRef bo
 					} else {
 						fmt.Println("---e.V: ", e.V)
 						fmt.Println("---e.V: ", reflect.TypeOf(e.V))
+						if p, ok := e.V.(PointerValue); ok {
+							fmt.Println("---is nil? ", p.TV == nil)
+						}
 						isreal := e.V.(Object).GetIsReal()
 						fmt.Println("---isreal: ", isreal)
 						fmt.Println("---objectID: ", e.V.(Object).GetObjectID())
@@ -591,7 +604,7 @@ func (rlm *Realm) incRefCreatedDescendants(store Store, oo Object) {
 		}
 	}
 
-	// make some pkgId logic while assign
+	// XXX, oo must be new real here, it's not escaped
 	if !oo.GetLastNewEscapedRealm().IsZero() && oo.GetLastNewEscapedRealm() != rlm.ID {
 		fmt.Println("---oo.GetLastNewEscapedRealm: ", oo.GetLastNewEscapedRealm())
 		fmt.Println("---rlm.ID: ", rlm.ID)
