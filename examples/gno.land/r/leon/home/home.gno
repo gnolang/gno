@@ -8,6 +8,7 @@ import (
 
 	"gno.land/r/demo/art/gnoface"
 	"gno.land/r/demo/art/millipede"
+	"gno.land/r/demo/hof"
 	"gno.land/r/leon/config"
 )
 
@@ -31,16 +32,24 @@ My contributions to gno.land can mainly be found
 TODO import r/gh
 `,
 	}
+
+	hof.Register()
 }
 
 func UpdatePFP(url, caption string) {
-	config.AssertAuthorized()
+	if !isAuthorized(std.PrevRealm().Addr()) {
+		panic(config.ErrUnauthorized)
+	}
+
 	pfp = url
 	pfpCaption = caption
 }
 
 func UpdateAboutMe(col1, col2 string) {
-	config.AssertAuthorized()
+	if !isAuthorized(std.PrevRealm().Addr()) {
+		panic(config.ErrUnauthorized)
+	}
+
 	abtMe[0] = col1
 	abtMe[1] = col2
 }
@@ -118,4 +127,8 @@ func renderMillipede() string {
 	out += "</div>\n\n"
 
 	return out
+}
+
+func isAuthorized(addr std.Address) bool {
+	return addr == config.Address() || addr == config.Backup()
 }
