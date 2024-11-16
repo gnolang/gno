@@ -9,7 +9,7 @@ import (
 	"gno.land/p/demo/ufmt"
 )
 
-var registry = avl.NewTree() // rlmPath[.slug] -> Token
+var registry = avl.NewTree() // rlmPath[.slug] -> TokenGetter
 
 func Register(token grc20.Token, slug string) {
 	rlmPath := std.PrevRealm().PkgPath()
