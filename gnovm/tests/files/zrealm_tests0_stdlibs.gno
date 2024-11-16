@@ -1150,7 +1150,7 @@ func main() {
 //                                     "Location": {
 //                                         "Column": "1",
 //                                         "File": "tests.gno",
-//                                         "Line": "57",
+//                                         "Line": "59",
 //                                         "PkgPath": "gno.land/r/demo/tests"
 //                                     }
 //                                 },
@@ -1229,7 +1229,7 @@ func main() {
 //                     "Location": {
 //                         "Column": "1",
 //                         "File": "tests.gno",
-//                         "Line": "53",
+//                         "Line": "55",
 //                         "PkgPath": "gno.land/r/demo/tests"
 //                     }
 //                 },
@@ -1346,7 +1346,7 @@ func main() {
 //                     "Location": {
 //                         "Column": "1",
 //                         "File": "tests.gno",
-//                         "Line": "75",
+//                         "Line": "77",
 //                         "PkgPath": "gno.land/r/demo/tests"
 //                     }
 //                 },
@@ -1382,7 +1382,7 @@ func main() {
 //                     "Location": {
 //                         "Column": "1",
 //                         "File": "tests.gno",
-//                         "Line": "80",
+//                         "Line": "82",
 //                         "PkgPath": "gno.land/r/demo/tests"
 //                     }
 //                 },
@@ -1418,7 +1418,7 @@ func main() {
 //                     "Location": {
 //                         "Column": "1",
 //                         "File": "tests.gno",
-//                         "Line": "88",
+//                         "Line": "90",
 //                         "PkgPath": "gno.land/r/demo/tests"
 //                     }
 //                 },
@@ -1464,7 +1464,7 @@ func main() {
 //                     "Location": {
 //                         "Column": "1",
 //                         "File": "tests.gno",
-//                         "Line": "92",
+//                         "Line": "94",
 //                         "PkgPath": "gno.land/r/demo/tests"
 //                     }
 //                 },
@@ -1520,7 +1520,7 @@ func main() {
 //                     "Location": {
 //                         "Column": "1",
 //                         "File": "tests.gno",
-//                         "Line": "96",
+//                         "Line": "98",
 //                         "PkgPath": "gno.land/r/demo/tests"
 //                     }
 //                 },
@@ -1577,7 +1577,7 @@ func main() {
 //                     "Location": {
 //                         "Column": "1",
 //                         "File": "tests.gno",
-//                         "Line": "100",
+//                         "Line": "102",
 //                         "PkgPath": "gno.land/r/demo/tests"
 //                     }
 //                 },
@@ -1634,7 +1634,7 @@ func main() {
 //                     "Location": {
 //                         "Column": "1",
 //                         "File": "tests.gno",
-//                         "Line": "104",
+//                         "Line": "106",
 //                         "PkgPath": "gno.land/r/demo/tests"
 //                     }
 //                 },
@@ -1690,7 +1690,7 @@ func main() {
 //                     "Location": {
 //                         "Column": "1",
 //                         "File": "tests.gno",
-//                         "Line": "108",
+//                         "Line": "110",
 //                         "PkgPath": "gno.land/r/demo/tests"
 //                     }
 //                 },
@@ -1746,7 +1746,7 @@ func main() {
 //                     "Location": {
 //                         "Column": "1",
 //                         "File": "tests.gno",
-//                         "Line": "112",
+//                         "Line": "114",
 //                         "PkgPath": "gno.land/r/demo/tests"
 //                     }
 //                 },
@@ -1770,6 +1770,9 @@ func main() {
 //     ]
 // }
 // d[0ffe7732b4d549b4cf9ec18bd68641cd2c75ad0a:14]
+// switchrealm["gno.land/r/demo/tests_foo"]
+// switchrealm["gno.land/r/demo/tests_foo"]
+// switchrealm["gno.land/r/demo/tests_foo"]
 // switchrealm["gno.land/r/demo/tests_foo"]
 // switchrealm["gno.land/r/demo/tests"]
 // switchrealm["gno.land/r/demo/tests_test"]

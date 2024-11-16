@@ -18,3 +18,4 @@ func main() {
 //     gno.land/r/test/main.gno:7
 // main<VPBlock(1,1)>()
 //     gno.land/r/test/main.gno:12
+//
