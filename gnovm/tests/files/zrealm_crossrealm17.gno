@@ -24,4 +24,4 @@ func main() {
 }
 
 // Error:
-// new escaped mark has no object ID
+// gno.land/r/crossrealm_test/main.gno:22:2: name CallFoo not declared

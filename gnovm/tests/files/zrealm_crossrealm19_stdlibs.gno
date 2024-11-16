@@ -21,7 +21,7 @@ var f *fooer
 func init() {
 	f = &fooer{s: "A"}
 	crossrealm.SetFooer(f)
-	crossrealm.CallFoo()
+	crossrealm.CallFooerFoo()
 }
 
 func main() {
