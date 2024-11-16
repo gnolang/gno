@@ -8,11 +8,14 @@
 //	 educational purposes.
 package test20
 
-import "gno.land/p/demo/grc/grc20"
-
-var (
-	Banker = grc20.NewBanker("Test20", "TST", 4)
-	Token  = Banker.Token()
+import (
+	"gno.land/p/demo/grc/grc20"
+	"gno.land/r/demo/grc20reg"
 )
 
-// XXX func init() { grc20reg.Register(Pub, "") } // Depends on #2516
+var Token, PrivateLedger = grc20.NewToken("Test20", "TST", 4)
+
+func init() {
+	getter := func() *grc20.Token { return Token }
+	grc20reg.Register(getter, "")
+}

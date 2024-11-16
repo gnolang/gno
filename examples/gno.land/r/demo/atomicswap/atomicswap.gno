@@ -8,6 +8,7 @@ import (
 	"gno.land/p/demo/avl"
 	"gno.land/p/demo/grc/grc20"
 	"gno.land/p/demo/ufmt"
+	"gno.land/r/demo/grc20reg"
 )
 
 const defaultTimelockDuration = 7 * 24 * time.Hour // 1w
@@ -29,9 +30,8 @@ func NewCoinSwap(recipient std.Address, hashlock string) (int, *Swap) {
 func NewGRC20Swap(recipient std.Address, hashlock string, tokenRegistryKey string) (int, *Swap) {
 	timelock := time.Now().Add(defaultTimelockDuration)
 	panic("not implemented (depends on #2516)")
-	var token grc20.Token
-	// token := grc20reg.Get(tokenRegistryKey)
-	panic("not implemented")
+	tokenGetter := grc20reg.MustGet(tokenRegistryKey)
+	token := tokenGetter()
 	return NewCustomGRC20Swap(recipient, hashlock, timelock, token)
 }
 
@@ -56,17 +56,18 @@ func NewCustomCoinSwap(recipient std.Address, hashlock string, timelock time.Tim
 
 // NewCustomGRC20Swap creates a new atomic swap contract for grc20 tokens.
 // It is not callable with `gnokey maketx call`, but can be imported by another contract or `gnokey maketx run`.
-func NewCustomGRC20Swap(recipient std.Address, hashlock string, timelock time.Time, token grc20.Token) (int, *Swap) {
+func NewCustomGRC20Swap(recipient std.Address, hashlock string, timelock time.Time, token *grc20.Token) (int, *Swap) {
 	sender := std.PrevRealm().Addr()
 	curAddr := std.CurrentRealm().Addr()
 
 	allowance := token.Allowance(sender, curAddr)
 	require(allowance > 0, "no allowance")
-	err := token.TransferFrom(sender, curAddr, allowance)
+	userTeller := token.CallerTeller()
+	err := userTeller.TransferFrom(sender, curAddr, allowance)
 	require(err == nil, "cannot retrieve tokens from allowance")
 	amountStr := ufmt.Sprintf("%d%s", allowance, token.GetSymbol())
 	sendFn := func(to std.Address) {
-		err := token.Transfer(to, allowance)
+		err := userTeller.Transfer(to, allowance)
 		require(err == nil, "cannot transfer tokens")
 	}
 	swap := newSwap(sender, recipient, hashlock, timelock, amountStr, sendFn)
