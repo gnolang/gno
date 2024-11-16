@@ -1,12 +1,6 @@
 // PKGPATH: gno.land/r/crossrealm_test
 package crossrealm_test
 
-// TODO: this test panics with the current implementation of the VM.
-// we should either enable it again if we change the VM behavior (#2743).
-// or consider adding a `// Panic:` filetest handler.`
-func main() { /* noop */ }
-
-/*
 import (
 	"std"
 
@@ -33,12 +27,6 @@ func init() {
 func main() {
 	print(".")
 }
-*/
-
-// EXPECTED Output:
-// hello B gno.land/r/demo/tests/crossrealm
-// .
 
 // Error:
-
-// Realm:
+// new escaped mark has no object ID

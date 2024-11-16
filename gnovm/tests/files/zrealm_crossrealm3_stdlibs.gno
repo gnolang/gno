@@ -13,7 +13,7 @@ func init() {
 }
 
 func main() {
-	// NOTE: but it is invalid to modify it using an external realm function
+	// NOTE: but it is invalid to modify it using an external realm function.
 	somevalue.Modify()
 	println(somevalue)
 }
