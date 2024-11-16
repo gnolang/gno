@@ -13,15 +13,10 @@ func init() {
 }
 
 func main() {
-	// NOTE: it is valid to modify it using an external realm function,
-	// because the receiver makes the function run under this realm.
+	// NOTE: but it is invalid to modify it using an external realm function
 	somevalue.Modify()
-	println(somevalue)
-	// we can even modify it directly.
-	somevalue.Field = "test_modified_directly"
 	println(somevalue)
 }
 
-// Output:
-// (struct{("test_modified" string)} gno.land/r/demo/tests.TestRealmObject)
-// (struct{("test_modified_directly" string)} gno.land/r/demo/tests.TestRealmObject)
+// Error:
+// cannot modify external-realm or non-realm object
