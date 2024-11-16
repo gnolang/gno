@@ -4,6 +4,7 @@ import (
 	"net"
 
 	"github.com/gnolang/gno/tm2/pkg/p2p"
+	"github.com/gnolang/gno/tm2/pkg/p2p/events"
 	"github.com/gnolang/gno/tm2/pkg/p2p/types"
 )
 
@@ -12,6 +13,7 @@ type (
 	peersDelegate            func() p2p.PeerSet
 	stopPeerForErrorDelegate func(p2p.Peer, error)
 	dialPeersDelegate        func(...*types.NetAddress)
+	subscribeDelegate        func(events.EventFilter) (<-chan events.Event, func())
 )
 
 type mockSwitch struct {
@@ -19,6 +21,7 @@ type mockSwitch struct {
 	peersFn            peersDelegate
 	stopPeerForErrorFn stopPeerForErrorDelegate
 	dialPeersFn        dialPeersDelegate
+	subscribeFn        subscribeDelegate
 }
 
 func (m *mockSwitch) Broadcast(chID byte, data []byte) {
@@ -45,6 +48,14 @@ func (m *mockSwitch) DialPeers(peerAddrs ...*types.NetAddress) {
 	if m.dialPeersFn != nil {
 		m.dialPeersFn(peerAddrs...)
 	}
+}
+
+func (m *mockSwitch) Subscribe(filter events.EventFilter) (<-chan events.Event, func()) {
+	if m.subscribeFn != nil {
+		m.subscribeFn(filter)
+	}
+
+	return nil, func() {}
 }
 
 type (
@@ -86,14 +97,6 @@ func (m *mockPeerSet) Remove(key types.ID) bool {
 func (m *mockPeerSet) Has(key types.ID) bool {
 	if m.hasFn != nil {
 		return m.hasFn(key)
-	}
-
-	return false
-}
-
-func (m *mockPeerSet) HasIP(ip net.IP) bool {
-	if m.hasIPFn != nil {
-		return m.hasIPFn(ip)
 	}
 
 	return false

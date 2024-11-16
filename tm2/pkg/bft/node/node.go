@@ -132,7 +132,7 @@ type Node struct {
 	privValidator types.PrivValidator // local node's validator key
 
 	// network
-	transport   *p2p.Transport
+	transport   *p2p.MultiplexTransport
 	sw          *p2p.MultiplexSwitch // p2p connections
 	nodeInfo    p2pTypes.NodeInfo
 	nodeKey     *p2pTypes.NodeKey // our node privkey
@@ -458,7 +458,7 @@ func NewNode(config *cfg.Config,
 		p2pLogger.Error("invalid private peer ID", "err", err)
 	}
 
-	sw := p2p.NewSwitch(
+	sw := p2p.NewMultiplexSwitch(
 		transport,
 		p2p.WithReactor("MEMPOOL", mempoolReactor),
 		p2p.WithReactor("BLOCKCHAIN", bcReactor),
@@ -601,7 +601,9 @@ func (n *Node) OnStop() {
 	}
 
 	// now stop the reactors
-	n.sw.Stop()
+	if err := n.sw.Stop(); err != nil {
+		n.Logger.Error("unable to gracefully close switch", "err", err)
+	}
 
 	// stop mempool WAL
 	if n.config.Mempool.WalEnabled() {

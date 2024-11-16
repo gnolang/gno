@@ -98,14 +98,6 @@ func (m *mockSet) Has(key types.ID) bool {
 	return false
 }
 
-func (m *mockSet) HasIP(ip net.IP) bool {
-	if m.hasIPFn != nil {
-		return m.hasIPFn(ip)
-	}
-
-	return false
-}
-
 func (m *mockSet) Get(key types.ID) Peer {
 	if m.getFn != nil {
 		return m.getFn(key)

@@ -1,7 +1,6 @@
 package p2p
 
 import (
-	"net"
 	"sort"
 	"testing"
 
@@ -61,53 +60,6 @@ func TestSet_Remove(t *testing.T) {
 		// Make sure the peer is present
 		assert.False(t, s.Has(peer.ID()))
 	}
-}
-
-func TestSet_HasIP(t *testing.T) {
-	t.Parallel()
-
-	t.Run("present peer with IP", func(t *testing.T) {
-		t.Parallel()
-
-		var (
-			peers = mock.GeneratePeers(t, 100)
-			ip    = net.ParseIP("0.0.0.0")
-
-			s = newSet()
-		)
-
-		// Make sure at least one peer has the set IP
-		peers[len(peers)/2].RemoteIPFn = func() net.IP {
-			return ip
-		}
-
-		// Add the peers
-		for _, peer := range peers {
-			s.Add(peer)
-		}
-
-		// Make sure the peer is present
-		assert.True(t, s.HasIP(ip))
-	})
-
-	t.Run("missing peer with IP", func(t *testing.T) {
-		t.Parallel()
-
-		var (
-			peers = mock.GeneratePeers(t, 100)
-			ip    = net.ParseIP("0.0.0.0")
-
-			s = newSet()
-		)
-
-		// Add the peers
-		for _, peer := range peers {
-			s.Add(peer)
-		}
-
-		// Make sure the peer is not present
-		assert.False(t, s.HasIP(ip))
-	})
 }
 
 func TestSet_Get(t *testing.T) {

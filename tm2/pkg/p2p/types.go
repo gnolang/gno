@@ -5,6 +5,7 @@ import (
 	"net"
 
 	"github.com/gnolang/gno/tm2/pkg/p2p/conn"
+	"github.com/gnolang/gno/tm2/pkg/p2p/events"
 	"github.com/gnolang/gno/tm2/pkg/p2p/types"
 	"github.com/gnolang/gno/tm2/pkg/service"
 )
@@ -46,7 +47,6 @@ type PeerSet interface {
 	Add(peer Peer)
 	Remove(key types.ID) bool
 	Has(key types.ID) bool
-	HasIP(ip net.IP) bool
 	Get(key types.ID) Peer
 	List() []Peer
 
@@ -80,6 +80,9 @@ type Switch interface {
 
 	// Peers returns the latest peer set
 	Peers() PeerSet
+
+	// Subscribe subscribes to active switch events
+	Subscribe(filterFn events.EventFilter) (<-chan events.Event, func())
 
 	// StopPeerForError stops the peer with the given reason
 	StopPeerForError(peer Peer, err error)

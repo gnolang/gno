@@ -47,12 +47,12 @@ type mempoolIDs struct {
 
 // Reserve searches for the next unused ID and assigns it to the
 // peer.
-func (ids *mempoolIDs) ReserveForPeer(peer p2p.Peer) {
+func (ids *mempoolIDs) ReserveForPeer(id p2pTypes.ID) {
 	ids.mtx.Lock()
 	defer ids.mtx.Unlock()
 
 	curID := ids.nextPeerID()
-	ids.peerMap[peer.ID()] = curID
+	ids.peerMap[id] = curID
 	ids.activeIDs[curID] = struct{}{}
 }
 
@@ -74,23 +74,23 @@ func (ids *mempoolIDs) nextPeerID() uint16 {
 }
 
 // Reclaim returns the ID reserved for the peer back to unused pool.
-func (ids *mempoolIDs) Reclaim(peer p2p.Peer) {
+func (ids *mempoolIDs) Reclaim(id p2pTypes.ID) {
 	ids.mtx.Lock()
 	defer ids.mtx.Unlock()
 
-	removedID, ok := ids.peerMap[peer.ID()]
+	removedID, ok := ids.peerMap[id]
 	if ok {
 		delete(ids.activeIDs, removedID)
-		delete(ids.peerMap, peer.ID())
+		delete(ids.peerMap, id)
 	}
 }
 
 // GetForPeer returns an ID reserved for the peer.
-func (ids *mempoolIDs) GetForPeer(peer p2p.Peer) uint16 {
+func (ids *mempoolIDs) GetForPeer(id p2pTypes.ID) uint16 {
 	ids.mtx.RLock()
 	defer ids.mtx.RUnlock()
 
-	return ids.peerMap[peer.ID()]
+	return ids.peerMap[id]
 }
 
 func newMempoolIDs() *mempoolIDs {
@@ -140,13 +140,13 @@ func (memR *Reactor) GetChannels() []*p2p.ChannelDescriptor {
 // AddPeer implements Reactor.
 // It starts a broadcast routine ensuring all txs are forwarded to the given peer.
 func (memR *Reactor) AddPeer(peer p2p.Peer) {
-	memR.ids.ReserveForPeer(peer)
+	memR.ids.ReserveForPeer(peer.ID())
 	go memR.broadcastTxRoutine(peer)
 }
 
 // RemovePeer implements Reactor.
 func (memR *Reactor) RemovePeer(peer p2p.Peer, reason interface{}) {
-	memR.ids.Reclaim(peer)
+	memR.ids.Reclaim(peer.ID())
 	// broadcast routine checks if peer is gone and returns
 }
 
@@ -163,7 +163,7 @@ func (memR *Reactor) Receive(chID byte, src p2p.Peer, msgBytes []byte) {
 
 	switch msg := msg.(type) {
 	case *TxMessage:
-		peerID := memR.ids.GetForPeer(src)
+		peerID := memR.ids.GetForPeer(src.ID())
 		err := memR.mempool.CheckTxWithInfo(msg.Tx, nil, TxInfo{SenderID: peerID})
 		if err != nil {
 			memR.Logger.Info("Could not check tx", "tx", txID(msg.Tx), "err", err)
@@ -185,7 +185,7 @@ func (memR *Reactor) broadcastTxRoutine(peer p2p.Peer) {
 		return
 	}
 
-	peerID := memR.ids.GetForPeer(peer)
+	peerID := memR.ids.GetForPeer(peer.ID())
 	var next *clist.CElement
 	for {
 		// In case of both next.NextWaitChan() and peer.Quit() are variable at the same time

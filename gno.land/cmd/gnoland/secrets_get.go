@@ -12,7 +12,6 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/bft/privval"
 	"github.com/gnolang/gno/tm2/pkg/commands"
 	osm "github.com/gnolang/gno/tm2/pkg/os"
-	"github.com/gnolang/gno/tm2/pkg/p2p"
 	"github.com/gnolang/gno/tm2/pkg/p2p/types"
 )
 
@@ -200,7 +199,7 @@ func readNodeID(path string) (*nodeIDInfo, error) {
 
 // constructP2PAddress constructs the P2P address other nodes can use
 // to connect directly
-func constructP2PAddress(nodeID p2p.ID, listenAddress string) string {
+func constructP2PAddress(nodeID types.ID, listenAddress string) string {
 	var (
 		address string
 		parts   = strings.SplitN(listenAddress, "://", 2)

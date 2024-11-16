@@ -1,7 +1,6 @@
 package p2p
 
 import (
-	"net"
 	"sync"
 
 	"github.com/gnolang/gno/tm2/pkg/p2p/types"
@@ -51,22 +50,7 @@ func (s *set) Has(peerKey types.ID) bool {
 	return exists
 }
 
-// HasIP returns true if the set contains the peer referred to by this IP
-// address, otherwise false.
-func (s *set) HasIP(peerIP net.IP) bool {
-	s.mux.RLock()
-	defer s.mux.RUnlock()
-
-	for _, p := range s.peers {
-		if p.(Peer).RemoteIP().Equal(peerIP) {
-			return true
-		}
-	}
-
-	return false
-}
-
-// Get looks up a peer by the provtypes.IDed peerKey. Returns nil if peer is not
+// Get looks up a peer by the peer ID. Returns nil if peer is not
 // found.
 func (s *set) Get(key types.ID) Peer {
 	s.mux.RLock()

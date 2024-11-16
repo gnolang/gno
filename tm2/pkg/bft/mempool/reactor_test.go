@@ -1,13 +1,23 @@
 package mempool
 
 import (
+	"context"
+	"fmt"
+	"log/slog"
 	"net"
+	"os"
 	"sync"
 	"testing"
 	"time"
 
 	"github.com/fortytw2/leaktest"
+	"github.com/gnolang/gno/tm2/pkg/p2p/conn"
+	"github.com/gnolang/gno/tm2/pkg/p2p/events"
+	p2pTypes "github.com/gnolang/gno/tm2/pkg/p2p/types"
+	"github.com/gnolang/gno/tm2/pkg/versionset"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+	"golang.org/x/sync/errgroup"
 
 	"github.com/gnolang/gno/tm2/pkg/bft/abci/example/kvstore"
 	memcfg "github.com/gnolang/gno/tm2/pkg/bft/mempool/config"
@@ -17,7 +27,6 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/log"
 	"github.com/gnolang/gno/tm2/pkg/p2p"
 	p2pcfg "github.com/gnolang/gno/tm2/pkg/p2p/config"
-	"github.com/gnolang/gno/tm2/pkg/p2p/mock"
 	"github.com/gnolang/gno/tm2/pkg/testutils"
 )
 
@@ -39,24 +48,176 @@ func (ps peerState) GetHeight() int64 {
 }
 
 // connect N mempool reactors through N switches
-func makeAndConnectReactors(mconfig *memcfg.MempoolConfig, pconfig *p2pcfg.P2PConfig, n int) []*Reactor {
-	reactors := make([]*Reactor, n)
-	logger := log.NewNoopLogger()
+func makeAndConnectReactors(t *testing.T, mconfig *memcfg.MempoolConfig, pconfig *p2pcfg.P2PConfig, n int) []*Reactor {
+	t.Helper()
+
+	var (
+		reactors = make([]*Reactor, n)
+		logger   = log.NewNoopLogger()
+		options  = make(map[int][]p2p.SwitchOption)
+	)
+
 	for i := 0; i < n; i++ {
 		app := kvstore.NewKVStoreApplication()
 		cc := proxy.NewLocalClientCreator(app)
 		mempool, cleanup := newMempoolWithApp(cc)
 		defer cleanup()
 
-		reactors[i] = NewReactor(mconfig, mempool) // so we dont start the consensus states
-		reactors[i].SetLogger(logger.With("validator", i))
+		reactor := NewReactor(mconfig, mempool) // so we dont start the consensus states
+		reactor.SetLogger(logger.With("validator", i))
+
+		options[i] = []p2p.SwitchOption{
+			p2p.WithReactor("MEMPOOL", reactor),
+		}
+
+		reactors[i] = reactor
 	}
 
-	p2p.MakeConnectedSwitches(pconfig, n, func(i int, s *p2p.MultiplexSwitch) *p2p.MultiplexSwitch {
-		s.AddReactor("MEMPOOL", reactors[i])
-		return s
-	}, p2p.Connect2Switches)
+	// "Simulate" the networking layer
+	MakeConnectedSwitches(t, pconfig, n, options)
+
 	return reactors
+}
+
+func MakeConnectedSwitches(
+	t *testing.T,
+	cfg *p2pcfg.P2PConfig,
+	n int,
+	opts map[int][]p2p.SwitchOption,
+) []*p2p.MultiplexSwitch {
+	t.Helper()
+
+	var (
+		sws   = make([]*p2p.MultiplexSwitch, 0, n)
+		ts    = make([]*p2p.MultiplexTransport, 0, n)
+		addrs = make([]*p2pTypes.NetAddress, 0, n)
+
+		// TODO remove
+		lgs = make([]*slog.Logger, 0, n)
+	)
+
+	// Generate the switches
+	for i := range n {
+		var (
+			key     = p2pTypes.GenerateNodeKey()
+			tcpAddr = &net.TCPAddr{
+				IP:   net.ParseIP("127.0.0.1"),
+				Port: 0, // random port
+			}
+		)
+
+		addr, err := p2pTypes.NewNetAddress(key.ID(), tcpAddr)
+		require.NoError(t, err)
+
+		info := p2pTypes.NodeInfo{
+			VersionSet: versionset.VersionSet{
+				versionset.VersionInfo{
+					Name:    "p2p",
+					Version: "v0.0.0",
+				},
+			},
+			NetAddress: addr,
+			Network:    "testing",
+			Software:   "p2ptest",
+			Version:    "v1.2.3-rc.0-deadbeef",
+			Channels:   []byte{0x01},
+			Moniker:    fmt.Sprintf("node-%d", i),
+			Other: p2pTypes.NodeInfoOther{
+				TxIndex:    "off",
+				RPCAddress: fmt.Sprintf("127.0.0.1:%d", 0),
+			},
+		}
+
+		// TODO remove
+		lg := slog.New(slog.NewTextHandler(os.Stdout, nil))
+
+		// Create the multiplex transport
+		multiplexTransport := p2p.NewMultiplexTransport(
+			info,
+			*key,
+			conn.MConfigFromP2P(cfg),
+			lg,
+		)
+
+		// Start the transport
+		require.NoError(t, multiplexTransport.Listen(*info.NetAddress))
+
+		t.Cleanup(func() {
+			assert.NoError(t, multiplexTransport.Close())
+		})
+
+		dialAddr := multiplexTransport.NetAddress()
+		addrs = append(addrs, &dialAddr)
+
+		ts = append(ts, multiplexTransport)
+
+		// TODO remove
+		lgs = append(lgs, lg)
+	}
+
+	ctx, cancelFn := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancelFn()
+
+	g, _ := errgroup.WithContext(ctx)
+
+	for i := range n {
+		// Make sure the switches connect to each other.
+		// Set up event listeners to make sure
+		// the setup method blocks until switches are connected
+		// Create the multiplex switch
+		newOpts := []p2p.SwitchOption{
+			p2p.WithPersistentPeers(addrs),
+		}
+
+		newOpts = append(newOpts, opts[i]...)
+
+		multiplexSwitch := p2p.NewMultiplexSwitch(ts[i], newOpts...)
+
+		multiplexSwitch.SetLogger(lgs[i].With("sw", i)) // TODO remove
+
+		ch, unsubFn := multiplexSwitch.Subscribe(func(event events.Event) bool {
+			return event.Type() == events.PeerConnected
+		})
+
+		// Start the switch
+		require.NoError(t, multiplexSwitch.Start())
+
+		sws = append(sws, multiplexSwitch)
+
+		g.Go(func() error {
+			defer func() {
+				unsubFn()
+			}()
+
+			timer := time.NewTimer(5 * time.Second)
+			defer timer.Stop()
+
+			connectedPeers := make(map[p2pTypes.ID]struct{})
+
+			for {
+				select {
+				case evRaw := <-ch:
+					ev := evRaw.(events.PeerConnectedEvent)
+
+					connectedPeers[ev.PeerID] = struct{}{}
+
+					if len(connectedPeers) == n-1 {
+						return nil
+					}
+				case <-timer.C:
+					return errors.New("timed out waiting for peers to connect")
+				}
+			}
+		})
+
+		sws[i].DialPeers(addrs...)
+	}
+
+	require.NoError(t, g.Wait())
+
+	fmt.Printf("\n\nDONE\n\n")
+
+	return sws
 }
 
 func waitForTxsOnReactors(t *testing.T, txs types.Txs, reactors []*Reactor) {
@@ -120,14 +281,16 @@ func TestReactorBroadcastTxMessage(t *testing.T) {
 	mconfig := memcfg.TestMempoolConfig()
 	pconfig := testP2PConfig()
 	const N = 4
-	reactors := makeAndConnectReactors(mconfig, pconfig, N)
-	defer func() {
+	reactors := makeAndConnectReactors(t, mconfig, pconfig, N)
+	t.Cleanup(func() {
 		for _, r := range reactors {
-			r.Stop()
+			assert.NoError(t, r.Stop())
 		}
-	}()
+	})
+
 	for _, r := range reactors {
 		for _, peer := range r.Switch.Peers().List() {
+			fmt.Printf("Setting peer %s\n", peer.ID())
 			peer.Set(types.PeerStateKey, peerState{1})
 		}
 	}
@@ -144,7 +307,7 @@ func TestReactorNoBroadcastToSender(t *testing.T) {
 	mconfig := memcfg.TestMempoolConfig()
 	pconfig := testP2PConfig()
 	const N = 2
-	reactors := makeAndConnectReactors(mconfig, pconfig, N)
+	reactors := makeAndConnectReactors(t, mconfig, pconfig, N)
 	defer func() {
 		for _, r := range reactors {
 			r.Stop()
@@ -169,7 +332,7 @@ func TestFlappyBroadcastTxForPeerStopsWhenPeerStops(t *testing.T) {
 	mconfig := memcfg.TestMempoolConfig()
 	pconfig := testP2PConfig()
 	const N = 2
-	reactors := makeAndConnectReactors(mconfig, pconfig, N)
+	reactors := makeAndConnectReactors(t, mconfig, pconfig, N)
 	defer func() {
 		for _, r := range reactors {
 			r.Stop()
@@ -197,7 +360,7 @@ func TestFlappyBroadcastTxForPeerStopsWhenReactorStops(t *testing.T) {
 	mconfig := memcfg.TestMempoolConfig()
 	pconfig := testP2PConfig()
 	const N = 2
-	reactors := makeAndConnectReactors(mconfig, pconfig, N)
+	reactors := makeAndConnectReactors(t, mconfig, pconfig, N)
 
 	// stop reactors
 	for _, r := range reactors {
@@ -214,15 +377,15 @@ func TestMempoolIDsBasic(t *testing.T) {
 
 	ids := newMempoolIDs()
 
-	peer := mock.NewPeer(net.IP{127, 0, 0, 1})
+	id := p2pTypes.GenerateNodeKey().ID()
 
-	ids.ReserveForPeer(peer)
-	assert.EqualValues(t, 1, ids.GetForPeer(peer))
-	ids.Reclaim(peer)
+	ids.ReserveForPeer(id)
+	assert.EqualValues(t, 1, ids.GetForPeer(id))
+	ids.Reclaim(id)
 
-	ids.ReserveForPeer(peer)
-	assert.EqualValues(t, 2, ids.GetForPeer(peer))
-	ids.Reclaim(peer)
+	ids.ReserveForPeer(id)
+	assert.EqualValues(t, 2, ids.GetForPeer(id))
+	ids.Reclaim(id)
 }
 
 func TestMempoolIDsPanicsIfNodeRequestsOvermaxActiveIDs(t *testing.T) {
@@ -236,12 +399,13 @@ func TestMempoolIDsPanicsIfNodeRequestsOvermaxActiveIDs(t *testing.T) {
 	ids := newMempoolIDs()
 
 	for i := 0; i < maxActiveIDs-1; i++ {
-		peer := mock.NewPeer(net.IP{127, 0, 0, 1})
-		ids.ReserveForPeer(peer)
+		id := p2pTypes.GenerateNodeKey().ID()
+		ids.ReserveForPeer(id)
 	}
 
 	assert.Panics(t, func() {
-		peer := mock.NewPeer(net.IP{127, 0, 0, 1})
-		ids.ReserveForPeer(peer)
+		id := p2pTypes.GenerateNodeKey().ID()
+
+		ids.ReserveForPeer(id)
 	})
 }

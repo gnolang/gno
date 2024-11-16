@@ -30,7 +30,7 @@ func TestMultiplexSwitch_Options(t *testing.T) {
 			}
 		)
 
-		sw := NewSwitch(nil, WithReactor(name, mockReactor))
+		sw := NewMultiplexSwitch(nil, WithReactor(name, mockReactor))
 
 		assert.Equal(t, mockReactor, sw.reactors[name])
 	})
@@ -40,7 +40,7 @@ func TestMultiplexSwitch_Options(t *testing.T) {
 
 		peers := generateNetAddr(t, 10)
 
-		sw := NewSwitch(nil, WithPersistentPeers(peers))
+		sw := NewMultiplexSwitch(nil, WithPersistentPeers(peers))
 
 		for _, p := range peers {
 			assert.True(t, sw.isPersistentPeer(p.ID))
@@ -59,7 +59,7 @@ func TestMultiplexSwitch_Options(t *testing.T) {
 			ids = append(ids, p.ID)
 		}
 
-		sw := NewSwitch(nil, WithPrivatePeers(ids))
+		sw := NewMultiplexSwitch(nil, WithPrivatePeers(ids))
 
 		for _, p := range peers {
 			assert.True(t, sw.isPrivatePeer(p.ID))
@@ -71,7 +71,7 @@ func TestMultiplexSwitch_Options(t *testing.T) {
 
 		maxInbound := uint64(500)
 
-		sw := NewSwitch(nil, WithMaxInboundPeers(maxInbound))
+		sw := NewMultiplexSwitch(nil, WithMaxInboundPeers(maxInbound))
 
 		assert.Equal(t, maxInbound, sw.maxInboundPeers)
 	})
@@ -81,7 +81,7 @@ func TestMultiplexSwitch_Options(t *testing.T) {
 
 		maxOutbound := uint64(500)
 
-		sw := NewSwitch(nil, WithMaxOutboundPeers(maxOutbound))
+		sw := NewMultiplexSwitch(nil, WithMaxOutboundPeers(maxOutbound))
 
 		assert.Equal(t, maxOutbound, sw.maxOutboundPeers)
 	})
@@ -103,7 +103,7 @@ func TestMultiplexSwitch_Broadcast(t *testing.T) {
 		}
 
 		peers = mock.GeneratePeers(t, 10)
-		sw    = NewSwitch(mockTransport)
+		sw    = NewMultiplexSwitch(mockTransport)
 	)
 
 	require.NoError(t, sw.OnStart())
@@ -139,7 +139,7 @@ func TestMultiplexSwitch_Peers(t *testing.T) {
 
 	var (
 		peers = mock.GeneratePeers(t, 10)
-		sw    = NewSwitch(nil)
+		sw    = NewMultiplexSwitch(nil)
 	)
 
 	// Create a new peer set
@@ -178,7 +178,7 @@ func TestMultiplexSwitch_StopPeer(t *testing.T) {
 				},
 			}
 
-			sw = NewSwitch(mockTransport)
+			sw = NewMultiplexSwitch(mockTransport)
 		)
 
 		// Create a new peer set
@@ -208,7 +208,7 @@ func TestMultiplexSwitch_StopPeer(t *testing.T) {
 				},
 			}
 
-			sw = NewSwitch(mockTransport)
+			sw = NewMultiplexSwitch(mockTransport)
 		)
 
 		// Make sure the peer is persistent
@@ -281,7 +281,7 @@ func TestMultiplexSwitch_DialLoop(t *testing.T) {
 				},
 			}
 
-			sw = NewSwitch(mockTransport)
+			sw = NewMultiplexSwitch(mockTransport)
 		)
 
 		sw.peers = mockSet
@@ -344,7 +344,7 @@ func TestMultiplexSwitch_DialLoop(t *testing.T) {
 				},
 			}
 
-			sw = NewSwitch(mockTransport)
+			sw = NewMultiplexSwitch(mockTransport)
 		)
 
 		sw.peers = mockSet
@@ -399,7 +399,7 @@ func TestMultiplexSwitch_DialLoop(t *testing.T) {
 				},
 			}
 
-			sw = NewSwitch(mockTransport)
+			sw = NewMultiplexSwitch(mockTransport)
 		)
 
 		// Prepare the dial queue
@@ -461,7 +461,7 @@ func TestMultiplexSwitch_AcceptLoop(t *testing.T) {
 				},
 			}
 
-			sw = NewSwitch(
+			sw = NewMultiplexSwitch(
 				mockTransport,
 				WithMaxInboundPeers(maxInbound),
 			)
@@ -517,7 +517,7 @@ func TestMultiplexSwitch_AcceptLoop(t *testing.T) {
 				},
 			}
 
-			sw = NewSwitch(
+			sw = NewMultiplexSwitch(
 				mockTransport,
 				WithMaxInboundPeers(maxInbound),
 			)
@@ -583,7 +583,7 @@ func TestMultiplexSwitch_RedialLoop(t *testing.T) {
 		}
 
 		// Create the switch
-		sw := NewSwitch(
+		sw := NewMultiplexSwitch(
 			nil,
 			WithPersistentPeers(addrs),
 		)
@@ -649,7 +649,7 @@ func TestMultiplexSwitch_RedialLoop(t *testing.T) {
 		}
 
 		// Create the switch
-		sw := NewSwitch(
+		sw := NewMultiplexSwitch(
 			mockTransport,
 			WithPersistentPeers(addrs),
 		)
@@ -731,7 +731,7 @@ func TestMultiplexSwitch_DialPeers(t *testing.T) {
 			}
 		}
 
-		sw := NewSwitch(mockTransport)
+		sw := NewMultiplexSwitch(mockTransport)
 
 		// Dial the peers
 		sw.DialPeers(p.NodeInfo().NetAddress)
@@ -763,7 +763,7 @@ func TestMultiplexSwitch_DialPeers(t *testing.T) {
 			}
 		)
 
-		sw := NewSwitch(
+		sw := NewMultiplexSwitch(
 			mockTransport,
 			WithMaxOutboundPeers(maxOutbound),
 		)
@@ -803,7 +803,7 @@ func TestMultiplexSwitch_DialPeers(t *testing.T) {
 			}
 		)
 
-		sw := NewSwitch(
+		sw := NewMultiplexSwitch(
 			mockTransport,
 			WithMaxOutboundPeers(10),
 		)

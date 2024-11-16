@@ -9,6 +9,7 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/p2p/config"
 	"github.com/gnolang/gno/tm2/pkg/p2p/conn"
 	"github.com/gnolang/gno/tm2/pkg/p2p/dial"
+	"github.com/gnolang/gno/tm2/pkg/p2p/events"
 	"github.com/gnolang/gno/tm2/pkg/p2p/types"
 	"github.com/gnolang/gno/tm2/pkg/service"
 	"github.com/gnolang/gno/tm2/pkg/telemetry"
@@ -66,10 +67,11 @@ type MultiplexSwitch struct {
 	transport       Transport
 
 	dialQueue *dial.Queue
+	events    *events.Events
 }
 
-// NewSwitch creates a new MultiplexSwitch with the given config.
-func NewSwitch(
+// NewMultiplexSwitch creates a new MultiplexSwitch with the given config.
+func NewMultiplexSwitch(
 	transport Transport,
 	opts ...SwitchOption,
 ) *MultiplexSwitch {
@@ -80,6 +82,7 @@ func NewSwitch(
 		peers:            newSet(),
 		transport:        transport,
 		dialQueue:        dial.NewQueue(),
+		events:           events.New(),
 		maxInboundPeers:  defaultCfg.MaxNumInboundPeers,
 		maxOutboundPeers: defaultCfg.MaxNumOutboundPeers,
 	}
@@ -108,6 +111,12 @@ func NewSwitch(
 	}
 
 	return sw
+}
+
+// Subscribe registers to live events happening on the p2p Switch.
+// Returns the notification channel, along with an unsubscribe method
+func (sw *MultiplexSwitch) Subscribe(filterFn events.EventFilter) (<-chan events.Event, func()) {
+	return sw.events.Subscribe(filterFn)
 }
 
 // ---------------------------------------------------------------------
@@ -239,6 +248,12 @@ func (sw *MultiplexSwitch) stopAndRemovePeer(peer Peer, err error) {
 	// RemovePeer is finished.
 	// https://github.com/tendermint/classic/issues/3338
 	sw.peers.Remove(peer.ID())
+
+	sw.events.Notify(events.PeerDisconnectedEvent{
+		Address: peer.RemoteAddr(),
+		PeerID:  peer.ID(),
+		Reason:  err,
+	})
 }
 
 // ---------------------------------------------------------------------
@@ -278,7 +293,8 @@ func (sw *MultiplexSwitch) runDialLoop(ctx context.Context) {
 			peerAddr := item.Address
 
 			// Check if the peer is already connected
-			if sw.Peers().Has(peerAddr.ID) || sw.Peers().HasIP(peerAddr.IP) {
+			ps := sw.Peers()
+			if ps.Has(peerAddr.ID) {
 				sw.Logger.Warn(
 					"ignoring dial request for existing peer",
 					"id", peerAddr.ID,
@@ -329,7 +345,7 @@ func (sw *MultiplexSwitch) runDialLoop(ctx context.Context) {
 
 // runRedialLoop starts the persistent peer redial loop
 func (sw *MultiplexSwitch) runRedialLoop(ctx context.Context) {
-	ticker := time.NewTicker(time.Second * 10)
+	ticker := time.NewTicker(time.Second * 1) // TODO make option
 	defer ticker.Stop()
 
 	// redialFn goes through the persistent peer list
@@ -510,6 +526,11 @@ func (sw *MultiplexSwitch) addPeer(p Peer) error {
 	}
 
 	sw.Logger.Info("Added peer", "peer", p)
+
+	sw.events.Notify(events.PeerConnectedEvent{
+		Address: p.RemoteAddr(),
+		PeerID:  p.ID(),
+	})
 
 	return nil
 }
