@@ -217,14 +217,13 @@ func execTest(cfg *testCfg, args []string, io commands.IO) error {
 		testCfg: cfg,
 		io:      io,
 	}
-	outWriter, errWriter := &proxyWriter{goio.Discard}, goio.Discard
+	outWriter := &proxyWriter{goio.Discard}
 	if cfg.verbose {
 		outWriter.Writer = io.Out()
-		errWriter = io.Err()
 	}
 	pkgCfg.baseStore, pkgCfg.testStore = test.Store(
 		cfg.rootDir, false,
-		io.In(), outWriter, errWriter,
+		io.In(), outWriter, io.Err(),
 	)
 	pkgCfg.outWriter = outWriter
 	if cfg.verbose {
@@ -316,7 +315,7 @@ func (cfg testPkgCfg) gnoTestPkg(
 
 		// run test files in pkg
 		if len(tfiles.Files) > 0 {
-			err := cfg.runTestFiles(memPkg, tfiles, memPkg.Name, memPkg.Path, runFlag)
+			err := cfg.runTestFiles(memPkg, tfiles, memPkg.Name, gnoPkgPath, runFlag)
 			if err != nil {
 				errs = multierr.Append(errs, err)
 			}
@@ -337,7 +336,7 @@ func (cfg testPkgCfg) gnoTestPkg(
 			memPkg.Name = testPkgName
 			memPkg.Path = memPkg.Path + "_test"
 
-			err := cfg.runTestFiles(memPkg, ifiles, testPkgName, memPkg.Path, runFlag)
+			err := cfg.runTestFiles(memPkg, ifiles, testPkgName, gnoPkgPath, runFlag)
 			if err != nil {
 				errs = multierr.Append(errs, err)
 			}
@@ -470,11 +469,19 @@ func (cfg *testPkgCfg) runTestFiles(
 	}
 	// Check if we already have the package - it may have been eagerly
 	// loaded.
-	m = test.Machine(gs, cfg.outWriter, pkgPath)
+	m = test.Machine(gs, cfg.outWriter, memPkg.Path)
 	m.Alloc = alloc
 	if cfg.testStore.GetMemPackage(pkgPath) == nil {
 		m.RunMemPackage(memPkg, true)
 	}
+
+	// TODO(monday): a few problems so far:
+	// 1. One thing I forgot is that I should test to make sure non-monorepo
+	// workflows still work correctly.
+	// 2. The standard libraries test don't work properly. I think this is
+	// 3. We still need to add a workflow to test standard libraries.
+	// This could probably just be another test in pkg/gnolang/file_test.go,
+	// improving our coverage.
 
 	m.RunFiles(files.Files...)
 	n := gno.MustParseFile("main_test.gno", testmain)
@@ -489,7 +496,7 @@ func (cfg *testPkgCfg) runTestFiles(
 		// - Run the test files before this for loop (but persist it to store;
 		//   RunFiles doesn't do that currently)
 		// - Wrap here.
-		m = test.Machine(gs, cfg.outWriter, pkgPath)
+		m = test.Machine(gs, cfg.outWriter, memPkg.Path)
 		m.Alloc = alloc
 
 		testFuncStr := fmt.Sprintf("%q", tf.Name)

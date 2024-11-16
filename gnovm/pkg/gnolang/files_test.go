@@ -49,8 +49,9 @@ func TestFiles(t *testing.T) {
 		case de.IsDir():
 			return nil
 		}
+		subTestName := path[len("files/"):]
 		if strings.HasSuffix(path, "_long.gno") && testing.Short() {
-			t.Run(path, func(t *testing.T) {
+			t.Run(subTestName, func(t *testing.T) {
 				t.Log("skipping in -short")
 			})
 			return nil
@@ -62,7 +63,7 @@ func TestFiles(t *testing.T) {
 		}
 
 		var criticalError error
-		t.Run(path[len("files/"):], func(t *testing.T) {
+		t.Run(subTestName, func(t *testing.T) {
 			if *withSync {
 				changed, err := opts.RunSync(path, content)
 				if err != nil {

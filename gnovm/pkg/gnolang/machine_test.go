@@ -102,7 +102,9 @@ func TestMachineTestMemPackage(t *testing.T) {
 						memPkg := gno.ReadMemPackage(tt.path, "test")
 
 						_, _ = memPkg, m
-						// XXX TODOm.TestMemPackage(t2, memPkg)
+						panic("RE-IMPLEMENT")
+						// XXX TODO
+						// m.TestMemPackage(t2, memPkg)
 
 						if tt.shouldSucceed {
 							assert.False(t, t2.Failed(), "test %q should have succeed", tt.name)
