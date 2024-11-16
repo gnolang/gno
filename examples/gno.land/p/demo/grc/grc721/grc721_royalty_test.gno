@@ -5,13 +5,12 @@ import (
 	"testing"
 
 	"gno.land/p/demo/testutils"
+	"gno.land/p/demo/uassert"
 )
 
 func TestSetTokenRoyalty(t *testing.T) {
 	dummy := NewNFTWithRoyalty(dummyNFTName, dummyNFTSymbol)
-	if dummy == nil {
-		t.Errorf("should not be nil")
-	}
+	uassert.True(t, dummy != nil, "should not be nil")
 
 	addr1 := testutils.TestAddress("alice")
 	addr2 := testutils.TestAddress("bob")
@@ -30,19 +29,14 @@ func TestSetTokenRoyalty(t *testing.T) {
 		PaymentAddress: paymentAddress,
 		Percentage:     percentage,
 	})
-
-	if derr != nil {
-		t.Errorf("Should not result in error : %s", derr.Error())
-	}
+	uassert.NoError(t, derr, "Should not result in error")
 
 	// Test case: Invalid token ID
 	err := dummy.SetTokenRoyalty(TokenID("3"), RoyaltyInfo{
 		PaymentAddress: paymentAddress,
 		Percentage:     percentage,
 	})
-	if err != ErrInvalidTokenId {
-		t.Errorf("Expected error %s, got %s", ErrInvalidTokenId, err)
-	}
+	uassert.ErrorIs(t, derr, ErrInvalidTokenId)
 
 	std.TestSetOrigCaller(addr2) // addr2
 
@@ -50,42 +44,27 @@ func TestSetTokenRoyalty(t *testing.T) {
 		PaymentAddress: paymentAddress,
 		Percentage:     percentage,
 	})
-	if cerr != ErrCallerIsNotOwner {
-		t.Errorf("Expected error %s, got %s", ErrCallerIsNotOwner, cerr)
-	}
+	uassert.ErrorIs(t, cerr, ErrCallerIsNotOwner)
 
 	// Test case: Invalid payment address
 	aerr := dummy.SetTokenRoyalty(TokenID("4"), RoyaltyInfo{
 		PaymentAddress: std.Address("###"), // invalid address
 		Percentage:     percentage,
 	})
-	if aerr != ErrInvalidRoyaltyPaymentAddress {
-		t.Errorf("Expected error %s, got %s", ErrInvalidRoyaltyPaymentAddress, aerr)
-	}
+	uassert.ErrorIs(t, aerr, ErrInvalidRoyaltyPaymentAddress)
 
 	// Test case: Invalid percentage
 	perr := dummy.SetTokenRoyalty(TokenID("5"), RoyaltyInfo{
 		PaymentAddress: paymentAddress,
 		Percentage:     uint64(200), // over maxRoyaltyPercentage
 	})
-
-	if perr != ErrInvalidRoyaltyPercentage {
-		t.Errorf("Expected error %s, got %s", ErrInvalidRoyaltyPercentage, perr)
-	}
+	uassert.ErrorIs(t, perr, ErrInvalidRoyaltyPercentage)
 
 	// Test case: Retrieving Royalty Info
 	std.TestSetOrigCaller(addr1) // addr1
 
 	dummyPaymentAddress, dummyRoyaltyAmount, rerr := dummy.RoyaltyInfo(TokenID("1"), salePrice)
-	if rerr != nil {
-		t.Errorf("RoyaltyInfo error: %s", rerr.Error())
-	}
-
-	if dummyPaymentAddress != paymentAddress {
-		t.Errorf("Expected RoyaltyPaymentAddress %s, got %s", paymentAddress, dummyPaymentAddress)
-	}
-
-	if dummyRoyaltyAmount != expectRoyaltyAmount {
-		t.Errorf("Expected RoyaltyAmount %d, got %d", expectRoyaltyAmount, dummyRoyaltyAmount)
-	}
+	uassert.NoError(t, rerr, "RoyaltyInfo error")
+	uassert.Equal(t, paymentAddress, dummyPaymentAddress)
+	uassert.Equal(t, expectRoyaltyAmount, dummyRoyaltyAmount)
 }

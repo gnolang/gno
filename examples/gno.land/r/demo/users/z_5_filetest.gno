@@ -1,6 +1,6 @@
 package main
 
-// SEND: 2000000000ugnot
+// SEND: 200000000ugnot
 
 import (
 	"std"
@@ -9,7 +9,7 @@ import (
 	"gno.land/r/demo/users"
 )
 
-const admin = std.Address("g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj")
+const admin = std.Address("g1u7y667z64x2h7vc6fmpcprgey4ck233jaww9zq")
 
 func main() {
 	caller := std.GetOrigCaller() // main
@@ -28,6 +28,8 @@ func main() {
 	users.Register(caller, "satoshi", "my other profile")
 	println(users.Render(""))
 	println("========================================")
+	println(users.Render("?page=2"))
+	println("========================================")
 	println(users.Render("gnouser"))
 	println("========================================")
 	println(users.Render("satoshi"))
@@ -36,8 +38,22 @@ func main() {
 }
 
 // Output:
-// * [gnouser](/r/demo/users:gnouser)
+// * [archives](/r/demo/users:archives)
+//  * [demo](/r/demo/users:demo)
+//  * [gno](/r/demo/users:gno)
+//  * [gnoland](/r/demo/users:gnoland)
+//  * [gnolang](/r/demo/users:gnolang)
+//  * [gnouser](/r/demo/users:gnouser)
+//  * [gov](/r/demo/users:gov)
+//  * [nt](/r/demo/users:nt)
 //  * [satoshi](/r/demo/users:satoshi)
+//  * [sys](/r/demo/users:sys)
+//  * [test1](/r/demo/users:test1)
+//  * [x](/r/demo/users:x)
+//
+//
+// ========================================
+//
 //
 // ========================================
 // ## user gnouser

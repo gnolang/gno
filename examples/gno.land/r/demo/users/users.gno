@@ -7,6 +7,8 @@ import (
 	"strings"
 
 	"gno.land/p/demo/avl"
+	"gno.land/p/demo/avl/pager"
+	"gno.land/p/demo/avlhelpers"
 	"gno.land/p/demo/users"
 )
 
@@ -14,13 +16,15 @@ import (
 // State
 
 var (
-	admin      std.Address = "g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj"
-	name2User  avl.Tree                    // Name -> *users.User
-	addr2User  avl.Tree                    // std.Address -> *users.User
-	invites    avl.Tree                    // string(inviter+":"+invited) -> true
-	counter    int                         // user id counter
-	minFee     int64       = 200 * 1000000 // minimum gnot must be paid to register.
-	maxFeeMult int64       = 10            // maximum multiples of minFee accepted.
+	admin std.Address = "g1u7y667z64x2h7vc6fmpcprgey4ck233jaww9zq" // @moul
+
+	restricted avl.Tree                  // Name -> true - restricted name
+	name2User  avl.Tree                  // Name -> *users.User
+	addr2User  avl.Tree                  // std.Address -> *users.User
+	invites    avl.Tree                  // string(inviter+":"+invited) -> true
+	counter    int                       // user id counter
+	minFee     int64    = 20 * 1_000_000 // minimum gnot must be paid to register.
+	maxFeeMult int64    = 10             // maximum multiples of minFee accepted.
 )
 
 //----------------------------------------
@@ -34,8 +38,10 @@ func Register(inviter std.Address, name string, profile string) {
 	if caller != std.GetOrigCaller() {
 		panic("should not happen") // because std.AssertOrigCall().
 	}
+
 	sentCoins := std.GetOrigSend()
 	minCoin := std.NewCoin("ugnot", minFee)
+
 	if inviter == "" {
 		// banker := std.GetBanker(std.BankerTypeOrigSend)
 		if len(sentCoins) == 1 && sentCoins[0].IsGTE(minCoin) {
@@ -55,19 +61,35 @@ func Register(inviter std.Address, name string, profile string) {
 		}
 		invites.Remove(invitekey)
 	}
+
 	// assert not already registered.
 	_, ok := name2User.Get(name)
 	if ok {
-		panic("name already registered")
+		panic("name already registered: " + name)
 	}
 	_, ok = addr2User.Get(caller.String())
 	if ok {
-		panic("address already registered")
+		panic("address already registered: " + caller.String())
 	}
+
+	isInviterAdmin := inviter == admin
+
+	// check for restricted name
+	if _, isRestricted := restricted.Get(name); isRestricted {
+		// only address invite by the admin can register restricted name
+		if !isInviterAdmin {
+			panic("restricted name: " + name)
+		}
+
+		restricted.Remove(name)
+	}
+
 	// assert name is valid.
-	if !reName.MatchString(name) {
+	// admin inviter can bypass name restriction
+	if !isInviterAdmin && !reName.MatchString(name) {
 		panic("invalid name: " + name + " (must be at least 6 characters, lowercase alphanumeric with underscore)")
 	}
+
 	// remainder of fees go toward invites.
 	invites := int(0)
 	if len(sentCoins) == 1 {
@@ -235,13 +257,40 @@ func GetUserByAddressOrName(input users.AddressOrName) *users.User {
 	return GetUserByAddress(std.Address(input))
 }
 
+// Get a list of user names starting from the given prefix. Limit the
+// number of results to maxResults. (This can be used for a name search tool.)
+func ListUsersByPrefix(prefix string, maxResults int) []string {
+	return avlhelpers.ListByteStringKeysByPrefix(name2User, prefix, maxResults)
+}
+
 func Resolve(input users.AddressOrName) std.Address {
 	name, isName := input.GetName()
 	if !isName {
 		return std.Address(input) // TODO check validity
 	}
+
 	user := GetUserByName(name)
 	return user.Address
+}
+
+// Add restricted name to the list
+func AdminAddRestrictedName(name string) {
+	// assert CallTx call.
+	std.AssertOriginCall()
+	// get caller
+	caller := std.GetOrigCaller()
+	// assert admin
+	if caller != admin {
+		panic("unauthorized")
+	}
+
+	if user := GetUserByName(name); user != nil {
+		panic("already registered name")
+	}
+
+	// register restricted name
+
+	restricted.Set(name, true)
 }
 
 //----------------------------------------
@@ -253,9 +302,10 @@ var reName = regexp.MustCompile(`^[a-z]+[_a-z0-9]{5,16}$`)
 //----------------------------------------
 // Render main page
 
-func Render(path string) string {
+func Render(fullPath string) string {
+	path, _ := splitPathAndQuery(fullPath)
 	if path == "" {
-		return renderHome()
+		return renderHome(fullPath)
 	} else if len(path) >= 38 { // 39? 40?
 		if path[:2] != "g1" {
 			return "invalid address " + path
@@ -275,12 +325,26 @@ func Render(path string) string {
 	}
 }
 
-func renderHome() string {
+func renderHome(path string) string {
 	doc := ""
-	name2User.Iterate("", "", func(key string, value interface{}) bool {
-		user := value.(*users.User)
+
+	page := pager.NewPager(&name2User, 50).MustGetPageByPath(path)
+
+	for _, item := range page.Items {
+		user := item.Value.(*users.User)
 		doc += " * [" + user.Name + "](/r/demo/users:" + user.Name + ")\n"
-		return false
-	})
+	}
+	doc += "\n"
+	doc += page.Selector()
 	return doc
+}
+
+func splitPathAndQuery(fullPath string) (string, string) {
+	parts := strings.SplitN(fullPath, "?", 2)
+	path := parts[0]
+	queryString := ""
+	if len(parts) > 1 {
+		queryString = "?" + parts[1]
+	}
+	return path, queryString
 }

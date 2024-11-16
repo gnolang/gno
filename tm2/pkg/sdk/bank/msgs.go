@@ -39,7 +39,7 @@ func (msg MsgSend) ValidateBasic() error {
 		return std.ErrInvalidAddress("missing recipient address")
 	}
 	if !msg.Amount.IsValid() {
-		return std.ErrInvalidCoins("send amount is invalid: " + msg.Amount.String())
+		return std.ErrInvalidCoins(msg.Amount.String())
 	}
 	if !msg.Amount.IsAllPositive() {
 		return std.ErrInsufficientCoins("send amount must be positive")

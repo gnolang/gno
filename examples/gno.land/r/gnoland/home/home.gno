@@ -3,16 +3,28 @@ package home
 import (
 	"std"
 
+	"gno.land/p/demo/ownable"
 	"gno.land/p/demo/ufmt"
 	"gno.land/p/demo/ui"
+	"gno.land/r/demo/hof"
 	blog "gno.land/r/gnoland/blog"
+	events "gno.land/r/gnoland/events"
 )
 
 // XXX: p/demo/ui API is crappy, we need to make it more idiomatic
 // XXX: use an updatable block system to update content from a DAO
 // XXX: var blocks avl.Tree
 
+var (
+	override string
+	admin    = ownable.NewWithAddress("g1u7y667z64x2h7vc6fmpcprgey4ck233jaww9zq") // @manfred by default
+)
+
 func Render(_ string) string {
+	if override != "" {
+		return override
+	}
+
 	dom := ui.DOM{Prefix: "r/gnoland/home:"}
 	dom.Title = "Welcome to gno.land"
 	dom.Classes = []string{"gno-tmpl-section"}
@@ -25,8 +37,8 @@ func Render(_ string) string {
 	dom.Body.Append(
 		ui.Columns{3, []ui.Element{
 			lastBlogposts(4),
-			upcomingEvents(4),
-			lastContributions(4),
+			upcomingEvents(),
+			latestHOFItems(5),
 		}},
 	)
 
@@ -58,7 +70,7 @@ func Render(_ string) string {
 func lastBlogposts(limit int) ui.Element {
 	posts := blog.RenderLastPostsWidget(limit)
 	return ui.Element{
-		ui.H3("Latest Blogposts"),
+		ui.H3("[Latest Blogposts](/r/gnoland/blog)"),
 		ui.Text(posts),
 	}
 }
@@ -71,17 +83,26 @@ func lastContributions(limit int) ui.Element {
 	}
 }
 
-func upcomingEvents(limit int) ui.Element {
+func upcomingEvents() ui.Element {
+	out, _ := events.RenderEventWidget(events.MaxWidgetSize)
 	return ui.Element{
-		ui.H3("Upcoming Events"),
-		// TODO: replace with r/gnoland/events
-		ui.Text("[View upcoming events](/events)"),
+		ui.H3("[Latest Events](/r/gnoland/events)"),
+		ui.Text(out),
+	}
+}
+
+func latestHOFItems(num int) ui.Element {
+	submissions := hof.RenderExhibWidget(num)
+
+	return ui.Element{
+		ui.H3("[Hall of Fame](/r/demo/hof)"),
+		ui.Text(submissions),
 	}
 }
 
 func introSection() ui.Element {
 	return ui.Element{
-		ui.H3("We’re building gno.land, the first open-source smart contract system, using Gno, an interpreted and fully deterministic variation of the Go programming language for succinct and composable smart contracts."),
+		ui.H3("We’re building gno.land, set to become the leading open-source smart contract platform, using Gno, an interpreted and fully deterministic variation of the Go programming language for succinct and composable smart contracts."),
 		ui.Paragraph("With transparent and timeless code, gno.land is the next generation of smart contract platforms, serving as the “GitHub” of the ecosystem, with realms built using fully transparent, auditable code that anyone can inspect and reuse."),
 		ui.Paragraph("Intuitive and easy to use, gno.land lowers the barrier to web3 and makes censorship-resistant platforms accessible to everyone. If you want to help lay the foundations of a fairer and freer world, join us today."),
 	}
@@ -182,7 +203,7 @@ func packageStaffPicks() ui.Element {
 					ui.BulletList{
 						ui.Link{URL: "r/sys/names"},
 						ui.Link{URL: "r/sys/rewards"},
-						ui.Link{URL: "r/sys/validators"},
+						ui.Link{URL: "/r/sys/validators/v2"},
 					},
 				}, {
 					ui.H4("[r/demo](https://github.com/gnolang/gno/tree/master/examples/gno.land/r/demo)"),
@@ -235,6 +256,7 @@ func discoverLinks() ui.Element {
 - Tokenomics (soon)
 - [Partners, Fund, Grants](/partners)
 - [Explore the Ecosystem](/ecosystem)
+- [Careers](https://jobs.ashbyhq.com/allinbits)
 
 </div><!-- end column-->
 
@@ -257,12 +279,20 @@ func discoverLinks() ui.Element {
 - [Discover demo packages](https://github.com/gnolang/gno/tree/master/examples)
 - [Gnoscan](https://gnoscan.io)
 - [Portal Loop](https://docs.gno.land/concepts/portal-loop)
-- Testnet 4 (upcoming)
-- [Testnet 3](https://test3.gno.land/) (archive)
-- [Testnet 2](https://test2.gno.land/) (archive)
-- Testnet Faucet Hub (soon)
+- [Testnet 4](https://test4.gno.land/)
+- [Faucet Hub](https://faucet.gno.land)
 
 </div><!-- end column-->
 </div><!-- end columns-3-->`),
 	}
+}
+
+func AdminSetOverride(content string) {
+	admin.AssertCallerIsOwner()
+	override = content
+}
+
+func AdminTransferOwnership(newAdmin std.Address) {
+	admin.AssertCallerIsOwner()
+	admin.TransferOwnership(newAdmin)
 }
