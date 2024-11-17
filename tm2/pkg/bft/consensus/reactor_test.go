@@ -97,7 +97,7 @@ func stopConsensusNet(
 	p2pSwitches []*p2p.MultiplexSwitch,
 ) {
 	logger.Info("stopConsensusNet", "n", len(reactors))
-	for i, _ := range reactors {
+	for i := range reactors {
 		logger.Info("stopConsensusNet: Stopping ConsensusReactor", "i", i)
 	}
 	for i, b := range eventSwitches {
