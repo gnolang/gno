@@ -21,12 +21,12 @@ const (
 )
 
 var (
-	errInvalidTCPAddress = errors.New("invalid TCP address")
-	errUnsetIPAddress    = errors.New("unset IP address")
-	errInvalidIP         = errors.New("invalid IP address")
-	errUnspecifiedIP     = errors.New("unspecified IP address")
-	errInvalidNetAddress = errors.New("invalid net address")
-	errEmptyHost         = errors.New("empty host address")
+	ErrInvalidTCPAddress = errors.New("invalid TCP address")
+	ErrUnsetIPAddress    = errors.New("unset IP address")
+	ErrInvalidIP         = errors.New("invalid IP address")
+	ErrUnspecifiedIP     = errors.New("unspecified IP address")
+	ErrInvalidNetAddress = errors.New("invalid net address")
+	ErrEmptyHost         = errors.New("empty host address")
 )
 
 // NetAddress defines information about a peer on the network
@@ -53,7 +53,7 @@ func NewNetAddress(id ID, addr net.Addr) (*NetAddress, error) {
 	// Make sure the address is valid
 	tcpAddr, ok := addr.(*net.TCPAddr)
 	if !ok {
-		return nil, errInvalidTCPAddress
+		return nil, ErrInvalidTCPAddress
 	}
 
 	// Validate the ID
@@ -82,7 +82,7 @@ func NewNetAddressFromString(idaddr string) (*NetAddress, error) {
 	)
 
 	if len(spl) != 2 {
-		return nil, errInvalidNetAddress
+		return nil, ErrInvalidNetAddress
 	}
 
 	var (
@@ -102,7 +102,7 @@ func NewNetAddressFromString(idaddr string) (*NetAddress, error) {
 	}
 
 	if host == "" {
-		return nil, errEmptyHost
+		return nil, ErrEmptyHost
 	}
 
 	ip := net.ParseIP(host)
@@ -258,17 +258,22 @@ func (na *NetAddress) Validate() error {
 
 	// Make sure the IP is set
 	if na.IP == nil {
-		return errUnsetIPAddress
+		return ErrUnsetIPAddress
 	}
 
 	// Make sure the IP is valid
 	if len(na.IP) != 4 && len(na.IP) != 16 {
-		return errInvalidIP
+		return ErrInvalidIP
 	}
 
 	// Check if the IP is unspecified
-	if na.IP.IsUnspecified() || na.RFC3849() || na.IP.Equal(net.IPv4bcast) {
-		return errUnspecifiedIP
+	if na.IP.IsUnspecified() {
+		return ErrUnspecifiedIP
+	}
+
+	// Check if the IP conforms to standards, or is a broadcast
+	if na.RFC3849() || na.IP.Equal(net.IPv4bcast) {
+		return ErrInvalidIP
 	}
 
 	return nil

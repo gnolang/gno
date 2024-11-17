@@ -3,29 +3,23 @@ package mempool
 import (
 	"context"
 	"fmt"
-	"net"
 	"sync"
 	"testing"
 	"time"
 
 	"github.com/fortytw2/leaktest"
-	"github.com/gnolang/gno/tm2/pkg/log"
-	"github.com/gnolang/gno/tm2/pkg/p2p/conn"
-	"github.com/gnolang/gno/tm2/pkg/p2p/events"
-	p2pTypes "github.com/gnolang/gno/tm2/pkg/p2p/types"
-	"github.com/gnolang/gno/tm2/pkg/versionset"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
-	"golang.org/x/sync/errgroup"
-
 	"github.com/gnolang/gno/tm2/pkg/bft/abci/example/kvstore"
 	memcfg "github.com/gnolang/gno/tm2/pkg/bft/mempool/config"
 	"github.com/gnolang/gno/tm2/pkg/bft/proxy"
 	"github.com/gnolang/gno/tm2/pkg/bft/types"
 	"github.com/gnolang/gno/tm2/pkg/errors"
+	p2pTesting "github.com/gnolang/gno/tm2/pkg/internal/p2p"
+	"github.com/gnolang/gno/tm2/pkg/log"
 	"github.com/gnolang/gno/tm2/pkg/p2p"
 	p2pcfg "github.com/gnolang/gno/tm2/pkg/p2p/config"
+	p2pTypes "github.com/gnolang/gno/tm2/pkg/p2p/types"
 	"github.com/gnolang/gno/tm2/pkg/testutils"
+	"github.com/stretchr/testify/assert"
 )
 
 // testP2PConfig returns a configuration for testing the peer-to-peer layer
@@ -72,134 +66,19 @@ func makeAndConnectReactors(t *testing.T, mconfig *memcfg.MempoolConfig, pconfig
 	}
 
 	// "Simulate" the networking layer
-	makeConnectedSwitches(t, pconfig, n, options)
-
-	return reactors
-}
-
-// makeConnectedSwitches creates a cluster of peers, with the given options.
-// Used to simulate the networking layer for the specific module
-func makeConnectedSwitches(
-	t *testing.T,
-	cfg *p2pcfg.P2PConfig,
-	n int,
-	opts map[int][]p2p.SwitchOption,
-) []*p2p.MultiplexSwitch {
-	t.Helper()
-
-	var (
-		sws   = make([]*p2p.MultiplexSwitch, 0, n)
-		ts    = make([]*p2p.MultiplexTransport, 0, n)
-		addrs = make([]*p2pTypes.NetAddress, 0, n)
-	)
-
-	// Generate the switches
-	for i := range n {
-		var (
-			key     = p2pTypes.GenerateNodeKey()
-			tcpAddr = &net.TCPAddr{
-				IP:   net.ParseIP("127.0.0.1"),
-				Port: 0, // random port
-			}
-		)
-
-		addr, err := p2pTypes.NewNetAddress(key.ID(), tcpAddr)
-		require.NoError(t, err)
-
-		info := p2pTypes.NodeInfo{
-			VersionSet: versionset.VersionSet{
-				versionset.VersionInfo{
-					Name:    "p2p",
-					Version: "v0.0.0",
-				},
-			},
-			NetAddress: addr,
-			Network:    "testing",
-			Software:   "p2ptest",
-			Version:    "v1.2.3-rc.0-deadbeef",
-			Channels:   []byte{MempoolChannel},
-			Moniker:    fmt.Sprintf("node-%d", i),
-			Other: p2pTypes.NodeInfoOther{
-				TxIndex:    "off",
-				RPCAddress: fmt.Sprintf("127.0.0.1:%d", 0),
-			},
-		}
-
-		// Create the multiplex transport
-		multiplexTransport := p2p.NewMultiplexTransport(
-			info,
-			*key,
-			conn.MConfigFromP2P(cfg),
-			log.NewNoopLogger(),
-		)
-
-		// Start the transport
-		require.NoError(t, multiplexTransport.Listen(*info.NetAddress))
-
-		t.Cleanup(func() {
-			assert.NoError(t, multiplexTransport.Close())
-		})
-
-		dialAddr := multiplexTransport.NetAddress()
-
-		addrs = append(addrs, &dialAddr)
-		ts = append(ts, multiplexTransport)
-	}
-
 	ctx, cancelFn := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancelFn()
 
-	g, _ := errgroup.WithContext(ctx)
-
-	for i := range n {
-		// Make sure the switches connect to each other.
-		// Set up event listeners to make sure
-		// the setup method blocks until switches are connected
-		opts[i] = append(opts[i], p2p.WithPersistentPeers(addrs))
-
-		multiplexSwitch := p2p.NewMultiplexSwitch(ts[i], opts[i]...)
-
-		ch, unsubFn := multiplexSwitch.Subscribe(func(event events.Event) bool {
-			return event.Type() == events.PeerConnected
-		})
-
-		// Start the switch
-		require.NoError(t, multiplexSwitch.Start())
-
-		sws = append(sws, multiplexSwitch)
-
-		g.Go(func() error {
-			defer func() {
-				unsubFn()
-			}()
-
-			timer := time.NewTimer(5 * time.Second)
-			defer timer.Stop()
-
-			connectedPeers := make(map[p2pTypes.ID]struct{})
-
-			for {
-				select {
-				case evRaw := <-ch:
-					ev := evRaw.(events.PeerConnectedEvent)
-
-					connectedPeers[ev.PeerID] = struct{}{}
-
-					if len(connectedPeers) == n-1 {
-						return nil
-					}
-				case <-timer.C:
-					return errors.New("timed out waiting for peers to connect")
-				}
-			}
-		})
-
-		sws[i].DialPeers(addrs...)
+	cfg := p2pTesting.TestingConfig{
+		Count:         n,
+		P2PCfg:        pconfig,
+		SwitchOptions: options,
+		Channels:      []byte{MempoolChannel},
 	}
 
-	require.NoError(t, g.Wait())
+	p2pTesting.MakeConnectedPeers(t, ctx, cfg)
 
-	return sws
+	return reactors
 }
 
 func waitForTxsOnReactors(

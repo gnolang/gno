@@ -14,14 +14,14 @@ const (
 )
 
 var (
-	errInvalidNetworkAddress = errors.New("invalid node network address")
-	errInvalidVersion        = errors.New("invalid node version")
-	errInvalidMoniker        = errors.New("invalid node moniker")
-	errInvalidRPCAddress     = errors.New("invalid node RPC address")
-	errExcessiveChannels     = errors.New("excessive node channels")
-	errDuplicateChannels     = errors.New("duplicate node channels")
-	errIncompatibleNetworks  = errors.New("incompatible networks")
-	errNoCommonChannels      = errors.New("no common channels")
+	ErrInvalidNetworkAddress = errors.New("invalid node network address")
+	ErrInvalidVersion        = errors.New("invalid node version")
+	ErrInvalidMoniker        = errors.New("invalid node moniker")
+	ErrInvalidRPCAddress     = errors.New("invalid node RPC address")
+	ErrExcessiveChannels     = errors.New("excessive node channels")
+	ErrDuplicateChannels     = errors.New("duplicate node channels")
+	ErrIncompatibleNetworks  = errors.New("incompatible networks")
+	ErrNoCommonChannels      = errors.New("no common channels")
 )
 
 // NodeInfo is the basic node information exchanged
@@ -59,7 +59,7 @@ type NodeInfoOther struct {
 func (info NodeInfo) Validate() error {
 	// Validate the network address
 	if info.NetAddress == nil {
-		return errInvalidNetworkAddress
+		return ErrInvalidNetworkAddress
 	}
 
 	if err := info.NetAddress.Validate(); err != nil {
@@ -70,18 +70,18 @@ func (info NodeInfo) Validate() error {
 	if len(info.Version) > 0 &&
 		(!strings.IsASCIIText(info.Version) ||
 			strings.ASCIITrim(info.Version) == "") {
-		return errInvalidVersion
+		return ErrInvalidVersion
 	}
 
 	// Validate Channels - ensure max and check for duplicates.
 	if len(info.Channels) > maxNumChannels {
-		return errExcessiveChannels
+		return ErrExcessiveChannels
 	}
 
 	channelMap := make(map[byte]struct{}, len(info.Channels))
 	for _, ch := range info.Channels {
 		if _, ok := channelMap[ch]; ok {
-			return errDuplicateChannels
+			return ErrDuplicateChannels
 		}
 
 		// Mark the channel as present
@@ -90,13 +90,13 @@ func (info NodeInfo) Validate() error {
 
 	// Validate Moniker.
 	if !strings.IsASCIIText(info.Moniker) || strings.ASCIITrim(info.Moniker) == "" {
-		return errInvalidMoniker
+		return ErrInvalidMoniker
 	}
 
 	// XXX: Should we be more strict about address formats?
 	rpcAddr := info.Other.RPCAddress
 	if len(rpcAddr) > 0 && (!strings.IsASCIIText(rpcAddr) || strings.ASCIITrim(rpcAddr) == "") {
-		return errInvalidRPCAddress
+		return ErrInvalidRPCAddress
 	}
 
 	return nil
@@ -118,7 +118,7 @@ func (info NodeInfo) CompatibleWith(other NodeInfo) error {
 
 	// Make sure nodes are on the same network
 	if info.Network != other.Network {
-		return errIncompatibleNetworks
+		return ErrIncompatibleNetworks
 	}
 
 	// Make sure there is at least 1 channel in common
@@ -138,7 +138,7 @@ func (info NodeInfo) CompatibleWith(other NodeInfo) error {
 	}
 
 	if !commonFound {
-		return errNoCommonChannels
+		return ErrNoCommonChannels
 	}
 
 	return nil

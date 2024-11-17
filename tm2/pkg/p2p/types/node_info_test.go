@@ -35,7 +35,7 @@ func TestNodeInfo_Validate(t *testing.T) {
 			{
 				"unset net address",
 				nil,
-				errInvalidNetworkAddress,
+				ErrInvalidNetworkAddress,
 			},
 			{
 				"zero net address ID",
@@ -50,7 +50,7 @@ func TestNodeInfo_Validate(t *testing.T) {
 					ID: GenerateNodeKey().ID(),
 					IP: net.IP([]byte{0x00}),
 				},
-				errInvalidIP,
+				ErrInvalidIP,
 			},
 		}
 
@@ -97,7 +97,7 @@ func TestNodeInfo_Validate(t *testing.T) {
 					Version:    testCase.version,
 				}
 
-				assert.ErrorIs(t, info.Validate(), errInvalidVersion)
+				assert.ErrorIs(t, info.Validate(), ErrInvalidVersion)
 			})
 		}
 	})
@@ -136,7 +136,7 @@ func TestNodeInfo_Validate(t *testing.T) {
 					Moniker:    testCase.moniker,
 				}
 
-				assert.ErrorIs(t, info.Validate(), errInvalidMoniker)
+				assert.ErrorIs(t, info.Validate(), ErrInvalidMoniker)
 			})
 		}
 	})
@@ -174,7 +174,7 @@ func TestNodeInfo_Validate(t *testing.T) {
 					},
 				}
 
-				assert.ErrorIs(t, info.Validate(), errInvalidRPCAddress)
+				assert.ErrorIs(t, info.Validate(), ErrInvalidRPCAddress)
 			})
 		}
 	})
@@ -190,7 +190,7 @@ func TestNodeInfo_Validate(t *testing.T) {
 			{
 				"too many channels",
 				make([]byte, maxNumChannels+1),
-				errExcessiveChannels,
+				ErrExcessiveChannels,
 			},
 			{
 				"duplicate channels",
@@ -199,7 +199,7 @@ func TestNodeInfo_Validate(t *testing.T) {
 					byte(20),
 					byte(10),
 				},
-				errDuplicateChannels,
+				ErrDuplicateChannels,
 			},
 		}
 
@@ -293,7 +293,7 @@ func TestNodeInfo_CompatibleWith(t *testing.T) {
 			}
 		)
 
-		assert.ErrorIs(t, infoTwo.CompatibleWith(*infoOne), errIncompatibleNetworks)
+		assert.ErrorIs(t, infoTwo.CompatibleWith(*infoOne), ErrIncompatibleNetworks)
 	})
 
 	t.Run("no common channels", func(t *testing.T) {
@@ -327,7 +327,7 @@ func TestNodeInfo_CompatibleWith(t *testing.T) {
 			}
 		)
 
-		assert.ErrorIs(t, infoTwo.CompatibleWith(*infoOne), errNoCommonChannels)
+		assert.ErrorIs(t, infoTwo.CompatibleWith(*infoOne), ErrNoCommonChannels)
 	})
 
 	t.Run("fully compatible node infos", func(t *testing.T) {

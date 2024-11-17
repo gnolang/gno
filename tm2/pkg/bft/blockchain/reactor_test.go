@@ -1,13 +1,12 @@
 package blockchain
 
 import (
+	"context"
 	"log/slog"
 	"os"
 	"sort"
 	"testing"
 	"time"
-
-	"github.com/stretchr/testify/assert"
 
 	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
 	"github.com/gnolang/gno/tm2/pkg/bft/appconn"
@@ -20,9 +19,12 @@ import (
 	tmtime "github.com/gnolang/gno/tm2/pkg/bft/types/time"
 	"github.com/gnolang/gno/tm2/pkg/db/memdb"
 	"github.com/gnolang/gno/tm2/pkg/errors"
+	p2pTesting "github.com/gnolang/gno/tm2/pkg/internal/p2p"
 	"github.com/gnolang/gno/tm2/pkg/log"
 	"github.com/gnolang/gno/tm2/pkg/p2p"
+	p2pTypes "github.com/gnolang/gno/tm2/pkg/p2p/types"
 	"github.com/gnolang/gno/tm2/pkg/testutils"
+	"github.com/stretchr/testify/assert"
 )
 
 var config *cfg.Config
@@ -125,15 +127,35 @@ func TestNoBlockResponse(t *testing.T) {
 
 	maxBlockHeight := int64(65)
 
-	reactorPairs := make([]BlockchainReactorPair, 2)
+	var (
+		reactorPairs = make([]BlockchainReactorPair, 2)
+		options      = make(map[int][]p2p.SwitchOption)
+	)
 
-	reactorPairs[0] = newBlockchainReactor(log.NewTestingLogger(t), genDoc, privVals, maxBlockHeight)
-	reactorPairs[1] = newBlockchainReactor(log.NewTestingLogger(t), genDoc, privVals, 0)
+	for i := range reactorPairs {
+		height := int64(0)
+		if i == 0 {
+			height = maxBlockHeight
+		}
 
-	p2p.MakeConnectedSwitches(config.P2P, 2, func(i int, s *p2p.MultiplexSwitch) *p2p.MultiplexSwitch {
-		s.AddReactor("BLOCKCHAIN", reactorPairs[i].reactor)
-		return s
-	}, p2p.Connect2Switches)
+		reactorPairs[i] = newBlockchainReactor(log.NewTestingLogger(t), genDoc, privVals, height)
+
+		options[i] = []p2p.SwitchOption{
+			p2p.WithReactor("BLOCKCHAIN", reactorPairs[i].reactor),
+		}
+	}
+
+	ctx, cancelFn := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancelFn()
+
+	testingCfg := p2pTesting.TestingConfig{
+		Count:         2,
+		P2PCfg:        config.P2P,
+		SwitchOptions: options,
+		Channels:      []byte{BlockchainChannel},
+	}
+
+	p2pTesting.MakeConnectedPeers(t, ctx, testingCfg)
 
 	defer func() {
 		for _, r := range reactorPairs {
@@ -194,17 +216,35 @@ func TestFlappyBadBlockStopsPeer(t *testing.T) {
 		otherChain.app.Stop()
 	}()
 
-	reactorPairs := make([]BlockchainReactorPair, 4)
+	var (
+		reactorPairs = make([]BlockchainReactorPair, 4)
+		options      = make(map[int][]p2p.SwitchOption)
+	)
 
-	reactorPairs[0] = newBlockchainReactor(log.NewNoopLogger(), genDoc, privVals, maxBlockHeight)
-	reactorPairs[1] = newBlockchainReactor(log.NewNoopLogger(), genDoc, privVals, 0)
-	reactorPairs[2] = newBlockchainReactor(log.NewNoopLogger(), genDoc, privVals, 0)
-	reactorPairs[3] = newBlockchainReactor(log.NewNoopLogger(), genDoc, privVals, 0)
+	for i := range reactorPairs {
+		height := int64(0)
+		if i == 0 {
+			height = maxBlockHeight
+		}
 
-	switches := p2p.MakeConnectedSwitches(config.P2P, 4, func(i int, s *p2p.MultiplexSwitch) *p2p.MultiplexSwitch {
-		s.AddReactor("BLOCKCHAIN", reactorPairs[i].reactor)
-		return s
-	}, p2p.Connect2Switches)
+		reactorPairs[i] = newBlockchainReactor(log.NewNoopLogger(), genDoc, privVals, height)
+
+		options[i] = []p2p.SwitchOption{
+			p2p.WithReactor("BLOCKCHAIN", reactorPairs[i].reactor),
+		}
+	}
+
+	ctx, cancelFn := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancelFn()
+
+	testingCfg := p2pTesting.TestingConfig{
+		Count:         4,
+		P2PCfg:        config.P2P,
+		SwitchOptions: options,
+		Channels:      []byte{BlockchainChannel},
+	}
+
+	switches, transports := p2pTesting.MakeConnectedPeers(t, ctx, testingCfg)
 
 	defer func() {
 		for _, r := range reactorPairs {
@@ -222,7 +262,7 @@ func TestFlappyBadBlockStopsPeer(t *testing.T) {
 	}
 
 	// at this time, reactors[0-3] is the newest
-	assert.Equal(t, 3, reactorPairs[1].reactor.Switch.Peers().Size())
+	assert.Equal(t, 3, len(reactorPairs[1].reactor.Switch.Peers().List()))
 
 	// mark reactorPairs[3] is an invalid peer
 	reactorPairs[3].reactor.store = otherChain.reactor.store
@@ -230,24 +270,41 @@ func TestFlappyBadBlockStopsPeer(t *testing.T) {
 	lastReactorPair := newBlockchainReactor(log.NewNoopLogger(), genDoc, privVals, 0)
 	reactorPairs = append(reactorPairs, lastReactorPair)
 
-	switches = append(switches, p2p.MakeConnectedSwitches(config.P2P, 1, func(i int, s *p2p.MultiplexSwitch) *p2p.MultiplexSwitch {
-		s.AddReactor("BLOCKCHAIN", reactorPairs[len(reactorPairs)-1].reactor)
-		return s
-	}, p2p.Connect2Switches)...)
+	persistentPeers := make([]*p2pTypes.NetAddress, 0, len(transports))
 
-	for i := 0; i < len(reactorPairs)-1; i++ {
-		p2p.Connect2Switches(switches, i, len(reactorPairs)-1)
+	for _, tr := range transports {
+		addr := tr.NetAddress()
+		persistentPeers = append(persistentPeers, &addr)
 	}
 
+	for i, opt := range options {
+		opt = append(opt, p2p.WithPersistentPeers(persistentPeers))
+
+		options[i] = opt
+	}
+
+	ctx, cancelFn = context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancelFn()
+
+	testingCfg = p2pTesting.TestingConfig{
+		Count:         1,
+		P2PCfg:        config.P2P,
+		SwitchOptions: options,
+		Channels:      []byte{BlockchainChannel},
+	}
+
+	sw, _ := p2pTesting.MakeConnectedPeers(t, ctx, testingCfg)
+	switches = append(switches, sw...)
+
 	for {
-		if lastReactorPair.reactor.pool.IsCaughtUp() || lastReactorPair.reactor.Switch.Peers().Size() == 0 {
+		if lastReactorPair.reactor.pool.IsCaughtUp() || len(lastReactorPair.reactor.Switch.Peers().List()) == 0 {
 			break
 		}
 
 		time.Sleep(1 * time.Second)
 	}
 
-	assert.True(t, lastReactorPair.reactor.Switch.Peers().Size() < len(reactorPairs)-1)
+	assert.True(t, len(lastReactorPair.reactor.Switch.Peers().List()) < len(reactorPairs)-1)
 }
 
 func TestBcBlockRequestMessageValidateBasic(t *testing.T) {

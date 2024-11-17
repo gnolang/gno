@@ -12,6 +12,8 @@ import (
 	"sync"
 	"time"
 
+	goErrors "errors"
+
 	"github.com/gnolang/gno/tm2/pkg/bft/appconn"
 	"github.com/gnolang/gno/tm2/pkg/bft/state/eventstore/file"
 	"github.com/gnolang/gno/tm2/pkg/p2p/conn"
@@ -853,8 +855,13 @@ func makeNodeInfo(
 	}
 	nodeInfo.NetAddress = addr
 
+	// Validate the node info
 	err = nodeInfo.Validate()
-	return nodeInfo, err
+	if !goErrors.Is(err, p2pTypes.ErrUnspecifiedIP) {
+		return p2pTypes.NodeInfo{}, fmt.Errorf("unable to validate node info, %w", err)
+	}
+
+	return nodeInfo, nil
 }
 
 // ------------------------------------------------------------------------------
