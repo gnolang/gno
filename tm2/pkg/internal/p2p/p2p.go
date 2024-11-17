@@ -164,6 +164,8 @@ func MakeConnectedPeers(
 
 // createRoutableAddr generates a valid, routable NetAddress for the given node ID using a secure random IP
 func createRoutableAddr(t *testing.T, id p2pTypes.ID) *p2pTypes.NetAddress {
+	t.Helper()
+
 	generateIP := func() string {
 		ip := make([]byte, 4)
 
@@ -210,7 +212,7 @@ func NewPeer(t *testing.T) *Peer {
 		ip:   netAddr.IP,
 		id:   nodeKey.ID(),
 		addr: netAddr,
-		kv:   make(map[string]interface{}),
+		kv:   make(map[string]any),
 	}
 
 	mp.BaseService = service.NewBaseService(nil, "MockPeer", mp)

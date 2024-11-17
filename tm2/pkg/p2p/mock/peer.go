@@ -35,6 +35,8 @@ type (
 
 // GeneratePeers generates random peers
 func GeneratePeers(t *testing.T, count int) []*Peer {
+	t.Helper()
+
 	peers := make([]*Peer, count)
 
 	for i := range count {

@@ -17,6 +17,8 @@ import (
 
 // generateNetAddr generates dummy net addresses
 func generateNetAddr(t *testing.T, count int) []*types.NetAddress {
+	t.Helper()
+
 	addrs := make([]*types.NetAddress, 0, count)
 
 	for i := 0; i < count; i++ {
