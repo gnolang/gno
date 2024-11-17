@@ -32,9 +32,9 @@ var (
 // NetAddress defines information about a peer on the network
 // including its ID, IP address, and port
 type NetAddress struct {
-	ID   ID     `json:"id"`   // authenticated identifier
-	IP   net.IP `json:"ip"`   // part of "addr"
-	Port uint16 `json:"port"` // part of "addr"
+	ID   ID     `json:"id"`   // unique peer identifier (public key address)
+	IP   net.IP `json:"ip"`   // the IP part of the dial address
+	Port uint16 `json:"port"` // the port part of the dial address
 }
 
 // NetAddressString returns id@addr. It strips the leading
