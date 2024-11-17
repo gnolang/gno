@@ -29,7 +29,6 @@ func NewCoinSwap(recipient std.Address, hashlock string) (int, *Swap) {
 // It uses gno.land/r/demo/grc20reg to lookup for a registered token.
 func NewGRC20Swap(recipient std.Address, hashlock string, tokenRegistryKey string) (int, *Swap) {
 	timelock := time.Now().Add(defaultTimelockDuration)
-	panic("not implemented (depends on #2516)")
 	tokenGetter := grc20reg.MustGet(tokenRegistryKey)
 	token := tokenGetter()
 	return NewCustomGRC20Swap(recipient, hashlock, timelock, token)
