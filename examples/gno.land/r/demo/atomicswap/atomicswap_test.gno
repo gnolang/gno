@@ -19,8 +19,8 @@ func TestNewCustomCoinSwap_Claim(t *testing.T) {
 	defer resetTestState()
 
 	// Setup
-	sender := testutils.TestAddress("sender")
-	recipient := testutils.TestAddress("recipient")
+	sender := testutils.TestAddress("sender1")
+	recipient := testutils.TestAddress("recipient1")
 	amount := std.Coins{{Denom: "ugnot", Amount: 1}}
 	hashlock := sha256.Sum256([]byte("secret"))
 	hashlockHex := hex.EncodeToString(hashlock[:])
@@ -33,8 +33,8 @@ func TestNewCustomCoinSwap_Claim(t *testing.T) {
 	uassert.Equal(t, 1, id)
 
 	expected := `- status: active
-- sender: g1wdjkuer9wf047h6lta047h6lta047h6ldyx5ax
-- recipient: g1wfjkx6tsd9jkuazlta047h6lta047h6lu0zqma
+- sender: g1wdjkuer9wgc47h6lta047h6lta047h6l56jtjc
+- recipient: g1wfjkx6tsd9jkuap3ta047h6lta047h6lkk20gv
 - amount: 1ugnot
 - hashlock: 2bb80d537b1da3e38bd30361aa855686bde0eacd7162fef6a25fe97bf527a25b
 - timelock: 2009-02-14T00:31:30Z
@@ -62,8 +62,8 @@ func TestNewCustomCoinSwap_Claim(t *testing.T) {
 	uassert.PanicsWithMessage(t, "already claimed", func() { swap.Claim("secret") })
 
 	expected = `- status: claimed
-- sender: g1wdjkuer9wf047h6lta047h6lta047h6ldyx5ax
-- recipient: g1wfjkx6tsd9jkuazlta047h6lta047h6lu0zqma
+- sender: g1wdjkuer9wgc47h6lta047h6lta047h6l56jtjc
+- recipient: g1wfjkx6tsd9jkuap3ta047h6lta047h6lkk20gv
 - amount: 1ugnot
 - hashlock: 2bb80d537b1da3e38bd30361aa855686bde0eacd7162fef6a25fe97bf527a25b
 - timelock: 2009-02-14T00:31:30Z
@@ -76,8 +76,8 @@ func TestNewCustomCoinSwap_Refund(t *testing.T) {
 	defer resetTestState()
 
 	// Setup
-	sender := testutils.TestAddress("sender")
-	recipient := testutils.TestAddress("recipient")
+	sender := testutils.TestAddress("sender2")
+	recipient := testutils.TestAddress("recipient2")
 	amount := std.Coins{{Denom: "ugnot", Amount: 1}}
 	hashlock := sha256.Sum256([]byte("secret"))
 	hashlockHex := hex.EncodeToString(hashlock[:])
@@ -90,8 +90,8 @@ func TestNewCustomCoinSwap_Refund(t *testing.T) {
 	uassert.Equal(t, 1, id)
 
 	expected := `- status: active
-- sender: g1wdjkuer9wf047h6lta047h6lta047h6ldyx5ax
-- recipient: g1wfjkx6tsd9jkuazlta047h6lta047h6lu0zqma
+- sender: g1wdjkuer9wge97h6lta047h6lta047h6ltfacad
+- recipient: g1wfjkx6tsd9jkuapjta047h6lta047h6lducc3v
 - amount: 1ugnot
 - hashlock: 2bb80d537b1da3e38bd30361aa855686bde0eacd7162fef6a25fe97bf527a25b
 - timelock: 2009-02-14T00:31:30Z
@@ -108,8 +108,8 @@ func TestNewCustomCoinSwap_Refund(t *testing.T) {
 	swap.Refund()
 	uassert.True(t, swap.refunded, "expected refunded to be true")
 	expected = `- status: refunded
-- sender: g1wdjkuer9wf047h6lta047h6lta047h6ldyx5ax
-- recipient: g1wfjkx6tsd9jkuazlta047h6lta047h6lu0zqma
+- sender: g1wdjkuer9wge97h6lta047h6lta047h6ltfacad
+- recipient: g1wfjkx6tsd9jkuapjta047h6lta047h6lducc3v
 - amount: 1ugnot
 - hashlock: 2bb80d537b1da3e38bd30361aa855686bde0eacd7162fef6a25fe97bf527a25b
 - timelock: 2009-02-13T22:31:30Z
@@ -118,12 +118,12 @@ func TestNewCustomCoinSwap_Refund(t *testing.T) {
 	uassert.Equal(t, expected, Render("1"))
 }
 
-func TestNewGRC20_Claim(t *testing.T) {
+func TestNewCustomGRC20Swap_Claim(t *testing.T) {
 	defer resetTestState()
 
 	// Setup
-	sender := testutils.TestAddress("sender")
-	recipient := testutils.TestAddress("recipient")
+	sender := testutils.TestAddress("sender3")
+	recipient := testutils.TestAddress("recipient3")
 	rlm := std.DerivePkgAddr("gno.land/r/demo/atomicswap")
 	hashlock := sha256.Sum256([]byte("secret"))
 	hashlockHex := hex.EncodeToString(hashlock[:])
@@ -138,8 +138,8 @@ func TestNewGRC20_Claim(t *testing.T) {
 	uassert.Equal(t, 1, id)
 
 	expected := `- status: active
-- sender: g1wdjkuer9wf047h6lta047h6lta047h6ldyx5ax
-- recipient: g1wfjkx6tsd9jkuazlta047h6lta047h6lu0zqma
+- sender: g1wdjkuer9wge47h6lta047h6lta047h6l5rk38l
+- recipient: g1wfjkx6tsd9jkuapnta047h6lta047h6ly6k4pv
 - amount: 70000TST
 - hashlock: 2bb80d537b1da3e38bd30361aa855686bde0eacd7162fef6a25fe97bf527a25b
 - timelock: 2009-02-14T00:31:30Z
@@ -181,8 +181,8 @@ func TestNewGRC20_Claim(t *testing.T) {
 	uassert.PanicsWithMessage(t, "already claimed", func() { swap.Claim("secret") })
 
 	expected = `- status: claimed
-- sender: g1wdjkuer9wf047h6lta047h6lta047h6ldyx5ax
-- recipient: g1wfjkx6tsd9jkuazlta047h6lta047h6lu0zqma
+- sender: g1wdjkuer9wge47h6lta047h6lta047h6l5rk38l
+- recipient: g1wfjkx6tsd9jkuapnta047h6lta047h6ly6k4pv
 - amount: 70000TST
 - hashlock: 2bb80d537b1da3e38bd30361aa855686bde0eacd7162fef6a25fe97bf527a25b
 - timelock: 2009-02-14T00:31:30Z
@@ -191,12 +191,12 @@ func TestNewGRC20_Claim(t *testing.T) {
 	uassert.Equal(t, expected, Render("1"))
 }
 
-func TestNewGRC20_Refund(t *testing.T) {
+func TestNewCustomGRC20Swap_Refund(t *testing.T) {
 	defer resetTestState()
 
 	// Setup
-	sender := testutils.TestAddress("sender2")
-	recipient := testutils.TestAddress("recipient2")
+	sender := testutils.TestAddress("sender5")
+	recipient := testutils.TestAddress("recipient5")
 	rlm := std.DerivePkgAddr("gno.land/r/demo/atomicswap")
 	hashlock := sha256.Sum256([]byte("secret"))
 	hashlockHex := hex.EncodeToString(hashlock[:])
@@ -211,8 +211,8 @@ func TestNewGRC20_Refund(t *testing.T) {
 	uassert.Equal(t, 1, id)
 
 	expected := `- status: active
-- sender: g1wdjkuer9wge97h6lta047h6lta047h6ltfacad
-- recipient: g1wfjkx6tsd9jkuapjta047h6lta047h6lducc3v
+- sender: g1wdjkuer9wg647h6lta047h6lta047h6l5p6k3k
+- recipient: g1wfjkx6tsd9jkuap4ta047h6lta047h6lmwmj6v
 - amount: 70000TST
 - hashlock: 2bb80d537b1da3e38bd30361aa855686bde0eacd7162fef6a25fe97bf527a25b
 - timelock: 2009-02-14T00:31:30Z
@@ -247,8 +247,8 @@ func TestNewGRC20_Refund(t *testing.T) {
 	uassert.Equal(t, bal, uint64(0))
 
 	expected = `- status: refunded
-- sender: g1wdjkuer9wge97h6lta047h6lta047h6ltfacad
-- recipient: g1wfjkx6tsd9jkuapjta047h6lta047h6lducc3v
+- sender: g1wdjkuer9wg647h6lta047h6lta047h6l5p6k3k
+- recipient: g1wfjkx6tsd9jkuap4ta047h6lta047h6lmwmj6v
 - amount: 70000TST
 - hashlock: 2bb80d537b1da3e38bd30361aa855686bde0eacd7162fef6a25fe97bf527a25b
 - timelock: 2009-02-13T22:31:30Z
