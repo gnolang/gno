@@ -298,6 +298,8 @@ func checkAssignableTo(n Node, xt, dt Type, autoNative bool) error {
 				panic(fmt.Sprintf("cannot use nil as %v value in array, slice literal or map literal", dt))
 			case *CallExpr:
 				panic(fmt.Sprintf("cannot use nil as %v value in argument to %v", dt, n.Func))
+			case *BinaryExpr:
+				panic(fmt.Sprintf("invalid operation: %v (mismatched types %v and untyped nil)", n, dt))
 			default:
 				panic(fmt.Sprintf("cannot use nil as %v value", dt))
 			}
