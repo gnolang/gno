@@ -1,28 +1,36 @@
 loadpkg gno.land/r/demo/atomicswap
+# XXX: would be nice to specify an artibrary initial balance as an "adduser" argument. cc @gfanton
 adduser test2
+adduser test3
 
 gnoland start
 
-gnokey query auth/accounts/$USER_ADDR_test1
-stdout 'coins.*:.*9999991000000ugnot'
+gnokey maketx send -send 1000000000ugnot -to $USER_ADDR_test2 -gas-fee 1000000ugnot -gas-wanted 2000000 -broadcast -chainid tendermint_test test1
+gnokey maketx send -send 1000000000ugnot -to $USER_ADDR_test3 -gas-fee 1000000ugnot -gas-wanted 2000000 -broadcast -chainid tendermint_test test1
 
-gnokey maketx call -pkgpath gno.land/r/demo/atomicswap -func NewCoinSwap -gas-fee 1000000ugnot -send 12345ugnot -gas-wanted 2000000 -args $USER_ADDR_test2 -args '2bb80d537b1da3e38bd30361aa855686bde0eacd7162fef6a25fe97bf527a25b' -broadcast -chainid=tendermint_test test1
+gnokey query auth/accounts/$USER_ADDR_test2
+stdout 'coins.*:.*1010000000ugnot'
+
+gnokey query auth/accounts/$USER_ADDR_test3
+stdout 'coins.*:.*1010000000ugnot'
+
+gnokey maketx call -pkgpath gno.land/r/demo/atomicswap -func NewCoinSwap -gas-fee 1000000ugnot -send 12345ugnot -gas-wanted 2000000 -args $USER_ADDR_test3 -args '2bb80d537b1da3e38bd30361aa855686bde0eacd7162fef6a25fe97bf527a25b' -broadcast -chainid=tendermint_test test2
 stdout '(1 int)'
-stdout ".*$USER_ADDR_test1.*$USER_ADDR_test2.*12345ugnot.*"
+stdout ".*$USER_ADDR_test2.*$USER_ADDR_test3.*12345ugnot.*"
 stdout 'OK!'
 
-gnokey maketx call -pkgpath gno.land/r/demo/atomicswap -func Render -gas-fee 1000000ugnot -gas-wanted 2000000 -args '' -broadcast -chainid=tendermint_test test1
+gnokey maketx call -pkgpath gno.land/r/demo/atomicswap -func Render -gas-fee 1000000ugnot -gas-wanted 2000000 -args '' -broadcast -chainid=tendermint_test test2
 stdout 'OK!'
 
-gnokey query auth/accounts/$USER_ADDR_test1
-stdout 'coins.*:.*9999988987655ugnot'
 gnokey query auth/accounts/$USER_ADDR_test2
-stdout 'coins.*:.*10000000ugnot'
+stdout 'coins.*:.*1007987655ugnot'
+gnokey query auth/accounts/$USER_ADDR_test3
+stdout 'coins.*:.*1010000000ugnot'
 
-gnokey maketx call -pkgpath gno.land/r/demo/atomicswap -func Claim -gas-fee 1ugnot -gas-wanted 2000000 -args '1' -args 'secret' -broadcast -chainid=tendermint_test test2
+gnokey maketx call -pkgpath gno.land/r/demo/atomicswap -func Claim -gas-fee 1ugnot -gas-wanted 2000000 -args '1' -args 'secret' -broadcast -chainid=tendermint_test test3
 stdout 'OK!'
 
-gnokey query auth/accounts/$USER_ADDR_test1
-stdout 'coins.*:.*9999988987655ugnot'
 gnokey query auth/accounts/$USER_ADDR_test2
-stdout 'coins.*:.*10012344ugnot'
+stdout 'coins.*:.*1007987655ugnot'
+gnokey query auth/accounts/$USER_ADDR_test3
+stdout 'coins.*:.*1010012344ugnot'
