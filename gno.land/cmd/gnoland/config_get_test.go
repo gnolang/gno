@@ -612,7 +612,7 @@ func TestConfig_Get_P2P(t *testing.T) {
 			"max inbound peers",
 			"p2p.max_num_inbound_peers",
 			func(loadedCfg *config.Config, value []byte) {
-				assert.Equal(t, loadedCfg.P2P.MaxNumInboundPeers, unmarshalJSONCommon[int](t, value))
+				assert.Equal(t, loadedCfg.P2P.MaxNumInboundPeers, unmarshalJSONCommon[uint64](t, value))
 			},
 			false,
 		},
@@ -620,7 +620,7 @@ func TestConfig_Get_P2P(t *testing.T) {
 			"max outbound peers",
 			"p2p.max_num_outbound_peers",
 			func(loadedCfg *config.Config, value []byte) {
-				assert.Equal(t, loadedCfg.P2P.MaxNumOutboundPeers, unmarshalJSONCommon[int](t, value))
+				assert.Equal(t, loadedCfg.P2P.MaxNumOutboundPeers, unmarshalJSONCommon[uint64](t, value))
 			},
 			false,
 		},
