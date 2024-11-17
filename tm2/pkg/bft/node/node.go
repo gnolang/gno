@@ -857,7 +857,7 @@ func makeNodeInfo(
 
 	// Validate the node info
 	err = nodeInfo.Validate()
-	if !goErrors.Is(err, p2pTypes.ErrUnspecifiedIP) {
+	if err != nil && !goErrors.Is(err, p2pTypes.ErrUnspecifiedIP) {
 		return p2pTypes.NodeInfo{}, fmt.Errorf("unable to validate node info, %w", err)
 	}
 
