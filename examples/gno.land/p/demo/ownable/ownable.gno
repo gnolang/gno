@@ -37,8 +37,8 @@ func (o *Ownable) TransferOwnership(newOwner std.Address) error {
 	o.owner = newOwner
 	std.Emit(
 		OwnershipTransferEvent,
-		"from", string(prevOwner),
-		"to", string(newOwner),
+		"from", prevOwner.String(),
+		"to", newOwner.String(),
 	)
 
 	return nil
@@ -58,7 +58,7 @@ func (o *Ownable) DropOwnership() error {
 
 	std.Emit(
 		OwnershipTransferEvent,
-		"from", string(prevOwner),
+		"from", prevOwner.String(),
 		"to", "",
 	)
 
