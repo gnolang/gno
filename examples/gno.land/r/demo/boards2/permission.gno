@@ -23,8 +23,8 @@ type (
 	// Args is a list of generic arguments.
 	Args []interface{}
 
-	// Auth define an interface to for permissioned execution.
-	Auth interface {
+	// Permissioner define an interface to for permissioned execution.
+	Permissioner interface {
 		// WithPermission calls a callback when a user has a specific permission.
 		WithPermission(std.Address, Permission, Args, func(Args)) error
 
