@@ -1,34 +1,34 @@
 package main
 
-import "gno.land/r/demo/event"
+import "gno.land/r/demo/emit"
 
 func main() {
-	event.Emit("foo")
-	event.Emit("bar")
+	emit.Emit("foo")
+	emit.Emit("bar")
 }
 
 // Events:
 // [
 //   {
-//     "type": "TAG",
+//     "type": "EventName",
 //     "attrs": [
 //       {
 //         "key": "key",
 //         "value": "foo"
 //       }
 //     ],
-//     "pkg_path": "gno.land/r/demo/event",
+//     "pkg_path": "gno.land/r/demo/emit",
 //     "func": "Emit"
 //   },
 //   {
-//     "type": "TAG",
+//     "type": "EventName",
 //     "attrs": [
 //       {
 //         "key": "key",
 //         "value": "bar"
 //       }
 //     ],
-//     "pkg_path": "gno.land/r/demo/event",
+//     "pkg_path": "gno.land/r/demo/emit",
 //     "func": "Emit"
 //   }
 // ]
