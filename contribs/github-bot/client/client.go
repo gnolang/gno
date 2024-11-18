@@ -226,7 +226,7 @@ func (gh *GitHub) Close() {
 	}
 }
 
-func New(params p.Params) *GitHub {
+func New(params *p.Params) *GitHub {
 	gh := &GitHub{
 		Owner:  params.Owner,
 		Repo:   params.Repo,

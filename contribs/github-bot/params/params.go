@@ -16,39 +16,68 @@ type Params struct {
 	Verbose bool
 	DryRun  bool
 	Timeout uint
+	flagSet *flag.FlagSet
 }
 
-// Get Params from both cli flags and/or GitHub Actions context
-func Get() Params {
-	p := Params{}
+func (p *Params) RegisterFlags(fs *flag.FlagSet) {
+	fs.StringVar(
+		&p.Owner,
+		"owner",
+		"",
+		"owner of the repo to process, if empty, will be retrieved from GitHub Actions context",
+	)
 
-	// Add cmd description to usage message
-	flag.Usage = func() {
-		fmt.Fprint(flag.CommandLine.Output(), "This tool checks if the requirements for a PR to be merged are satisfied (defined in config.go) and displays PR status checks accordingly.\n")
-		fmt.Fprint(flag.CommandLine.Output(), "A valid GitHub Token must be provided by setting the GITHUB_TOKEN environment variable.\n\n")
-		flag.PrintDefaults()
-	}
+	fs.StringVar(
+		&p.Repo,
+		"repo",
+		"",
+		"repo to process, if empty, will be retrieved from GitHub Actions context",
+	)
 
+	fs.BoolVar(
+		&p.PrAll,
+		"pr-all",
+		false,
+		"process all opened pull requests",
+	)
+
+	fs.TextVar(
+		&p.PrNums,
+		"pr-numbers",
+		PrList(nil),
+		"pull request(s) to process, must be a comma separated list of PR numbers, e.g '42,1337,7890'. If empty, will be retrieved from GitHub Actions context",
+	)
+
+	fs.BoolVar(
+		&p.Verbose,
+		"verbose",
+		false,
+		"set logging level to debug",
+	)
+
+	fs.BoolVar(
+		&p.DryRun,
+		"dry-run",
+		false,
+		"print if pull request requirements are satisfied without updating anything on GitHub",
+	)
+
+	fs.UintVar(
+		&p.Timeout,
+		"timeout",
+		0,
+		"timeout in milliseconds",
+	)
+
+	p.flagSet = fs
+}
+
+func (p *Params) ValidateFlags() {
 	// Helper to display an error + usage message before exiting
 	errorUsage := func(err string) {
-		fmt.Fprintf(flag.CommandLine.Output(), "Error: %s\n\n", err)
-		flag.Usage()
+		fmt.Fprintf(p.flagSet.Output(), "Error: %s\n\n", err)
+		p.flagSet.Usage()
 		os.Exit(1)
-	}
-
-	// Flags definition
-	flag.StringVar(&p.Owner, "owner", "", "owner of the repo to process, if empty, will be retrieved from GitHub Actions context")
-	flag.StringVar(&p.Repo, "repo", "", "repo to process, if empty, will be retrieved from GitHub Actions context")
-	flag.BoolVar(&p.PrAll, "pr-all", false, "process all opened pull requests")
-	flag.TextVar(&p.PrNums, "pr-numbers", PrList(nil), "pull request(s) to process, must be a comma separated list of PR numbers, e.g '42,1337,7890'. If empty, will be retrieved from GitHub Actions context")
-	flag.BoolVar(&p.Verbose, "verbose", false, "set logging level to debug")
-	flag.BoolVar(&p.DryRun, "dry-run", false, "print if pull request requirements are satisfied without updating anything on GitHub")
-	flag.UintVar(&p.Timeout, "timeout", 0, "timeout in milliseconds")
-	flag.Parse()
-
-	// If any arg remain after flags processing
-	if len(flag.Args()) > 0 {
-		errorUsage(fmt.Sprintf("Unknown arg(s) provided: %v", flag.Args()))
 	}
 
 	// Check if flags are coherent
@@ -104,6 +133,4 @@ func Get() Params {
 			p.PrNums = PrList([]int{int(num)})
 		}
 	}
-
-	return p
 }
