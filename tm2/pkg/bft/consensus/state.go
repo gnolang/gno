@@ -1051,7 +1051,7 @@ func (cs *ConsensusState) defaultDoPrevote(height int64, round int) {
 	}
 
 	// Validate proposal block
-	err := cs.blockExec.ValidateBlock(cs.state, cs.ProposalBlock)
+	err := cs.state.ValidateBlock(cs.ProposalBlock)
 	if err != nil {
 		// ProposalBlock is invalid, prevote nil.
 		logger.Error("enterPrevote: ProposalBlock is invalid", "err", err)
@@ -1164,7 +1164,7 @@ func (cs *ConsensusState) enterPrecommit(height int64, round int) {
 	if cs.ProposalBlock.HashesTo(blockID.Hash) {
 		logger.Info("enterPrecommit: +2/3 prevoted proposal block. Locking", "hash", blockID.Hash)
 		// Validate the block.
-		if err := cs.blockExec.ValidateBlock(cs.state, cs.ProposalBlock); err != nil {
+		if err := cs.state.ValidateBlock(cs.ProposalBlock); err != nil {
 			panic(fmt.Sprintf("enterPrecommit: +2/3 prevoted for an invalid block: %v", err))
 		}
 		cs.LockedRound = round
@@ -1313,7 +1313,7 @@ func (cs *ConsensusState) finalizeCommit(height int64) {
 	if !block.HashesTo(blockID.Hash) {
 		panic("Cannot finalizeCommit, ProposalBlock does not hash to commit hash")
 	}
-	if err := cs.blockExec.ValidateBlock(cs.state, block); err != nil {
+	if err := cs.state.ValidateBlock(block); err != nil {
 		panic(fmt.Sprintf("+2/3 committed an invalid block: %v", err))
 	}
 

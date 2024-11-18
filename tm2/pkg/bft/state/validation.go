@@ -7,13 +7,12 @@ import (
 
 	"github.com/gnolang/gno/tm2/pkg/bft/types"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
-	dbm "github.com/gnolang/gno/tm2/pkg/db"
 )
 
 // -----------------------------------------------------
 // Validate block
 
-func validateBlock(stateDB dbm.DB, state State, block *types.Block) error {
+func (state State) ValidateBlock(block *types.Block) error {
 	// Validate internal consistency.
 	if err := block.ValidateBasic(); err != nil {
 		return err
