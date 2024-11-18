@@ -17,6 +17,7 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/bft/appconn"
 	"github.com/gnolang/gno/tm2/pkg/bft/state/eventstore/file"
 	"github.com/gnolang/gno/tm2/pkg/p2p/conn"
+	"github.com/gnolang/gno/tm2/pkg/p2p/discovery"
 	p2pTypes "github.com/gnolang/gno/tm2/pkg/p2p/types"
 	"github.com/rs/cors"
 
@@ -134,11 +135,12 @@ type Node struct {
 	privValidator types.PrivValidator // local node's validator key
 
 	// network
-	transport   *p2p.MultiplexTransport
-	sw          *p2p.MultiplexSwitch // p2p connections
-	nodeInfo    p2pTypes.NodeInfo
-	nodeKey     *p2pTypes.NodeKey // our node privkey
-	isListening bool
+	transport        *p2p.MultiplexTransport
+	sw               *p2p.MultiplexSwitch // p2p connections
+	discoveryReactor *discovery.Reactor   // discovery reactor
+	nodeInfo         p2pTypes.NodeInfo
+	nodeKey          *p2pTypes.NodeKey // our node privkey
+	isListening      bool
 
 	// services
 	evsw              events.EventSwitch
@@ -317,6 +319,11 @@ func createConsensusReactor(config *cfg.Config,
 	return consensusReactor, consensusState
 }
 
+type nodeReactor struct {
+	name    string
+	reactor p2p.Reactor
+}
+
 // NewNode returns a new, ready to go, Tendermint Node.
 func NewNode(config *cfg.Config,
 	privValidator types.PrivValidator,
@@ -428,6 +435,18 @@ func NewNode(config *cfg.Config,
 		return nil, errors.Wrap(err, "could not create blockchain reactor")
 	}
 
+	reactors := []nodeReactor{
+		{
+			"MEMPOOL", mempoolReactor,
+		},
+		{
+			"BLOCKCHAIN", bcReactor,
+		},
+		{
+			"CONSENSUS", consensusReactor,
+		},
+	}
+
 	nodeInfo, err := makeNodeInfo(config, nodeKey, txEventStore, genDoc, state)
 	if err != nil {
 		return nil, errors.Wrap(err, "error making NodeInfo")
@@ -436,13 +455,25 @@ func NewNode(config *cfg.Config,
 	p2pLogger := logger.With("module", "p2p")
 
 	// Setup the multiplex transport, used by the P2P switch
-	// TODO cleanup
 	transport := p2p.NewMultiplexTransport(
 		nodeInfo,
 		*nodeKey,
 		conn.MConfigFromP2P(config.P2P),
 		p2pLogger.With("transport", "multiplex"),
 	)
+
+	var discoveryReactor *discovery.Reactor
+
+	if config.P2P.PeerExchange {
+		discoveryReactor = discovery.NewReactor()
+
+		discoveryReactor.SetLogger(logger.With("module", "discovery"))
+
+		reactors = append(reactors, nodeReactor{
+			name:    "DISCOVERY",
+			reactor: discoveryReactor,
+		})
+	}
 
 	// Setup MultiplexSwitch.
 	peerAddrs, errs := p2pTypes.NewNetAddressFromStrings(
@@ -460,15 +491,22 @@ func NewNode(config *cfg.Config,
 		p2pLogger.Error("invalid private peer ID", "err", err)
 	}
 
-	sw := p2p.NewMultiplexSwitch(
-		transport,
-		p2p.WithReactor("MEMPOOL", mempoolReactor),
-		p2p.WithReactor("BLOCKCHAIN", bcReactor),
-		p2p.WithReactor("CONSENSUS", consensusReactor),
+	// Prepare the misc switch options
+	opts := []p2p.SwitchOption{
 		p2p.WithPersistentPeers(peerAddrs),
 		p2p.WithPrivatePeers(privatePeerIDs),
 		p2p.WithMaxInboundPeers(config.P2P.MaxNumInboundPeers),
 		p2p.WithMaxOutboundPeers(config.P2P.MaxNumOutboundPeers),
+	}
+
+	// Prepare the reactor switch options
+	for _, r := range reactors {
+		opts = append(opts, p2p.WithReactor(r.name, r.reactor))
+	}
+
+	sw := p2p.NewMultiplexSwitch(
+		transport,
+		opts...,
 	)
 
 	sw.SetLogger(p2pLogger)
@@ -491,10 +529,11 @@ func NewNode(config *cfg.Config,
 		genesisDoc:    genDoc,
 		privValidator: privValidator,
 
-		transport: transport,
-		sw:        sw,
-		nodeInfo:  nodeInfo,
-		nodeKey:   nodeKey,
+		transport:        transport,
+		sw:               sw,
+		discoveryReactor: discoveryReactor,
+		nodeInfo:         nodeInfo,
+		nodeKey:          nodeKey,
 
 		evsw:              evsw,
 		stateDB:           stateDB,
@@ -548,10 +587,16 @@ func (n *Node) OnStart() error {
 	}
 
 	// Start the transport.
-	addr, err := p2pTypes.NewNetAddressFromString(p2pTypes.NetAddressString(n.nodeKey.ID(), n.config.P2P.ListenAddress))
-	if err != nil {
-		return err
+	lAddr := n.config.P2P.ExternalAddress
+	if lAddr == "" {
+		lAddr = n.config.P2P.ListenAddress
 	}
+
+	addr, err := p2pTypes.NewNetAddressFromString(p2pTypes.NetAddressString(n.nodeKey.ID(), lAddr))
+	if err != nil {
+		return fmt.Errorf("unable to parse network address, %w", err)
+	}
+
 	if err := n.transport.Listen(*addr); err != nil {
 		return err
 	}
@@ -831,6 +876,7 @@ func makeNodeInfo(
 
 	nodeInfo := p2pTypes.NodeInfo{
 		VersionSet: vset,
+		PeerID:     nodeKey.ID(),
 		Network:    genDoc.ChainID,
 		Version:    version.Version,
 		Channels: []byte{
@@ -845,18 +891,12 @@ func makeNodeInfo(
 		},
 	}
 
-	lAddr := config.P2P.ExternalAddress
-	if lAddr == "" {
-		lAddr = config.P2P.ListenAddress
+	if config.P2P.PeerExchange {
+		nodeInfo.Channels = append(nodeInfo.Channels, discovery.Channel)
 	}
-	addr, err := p2pTypes.NewNetAddressFromString(p2pTypes.NetAddressString(nodeKey.ID(), lAddr))
-	if err != nil {
-		return nodeInfo, errors.Wrap(err, "invalid (local) node net address")
-	}
-	nodeInfo.NetAddress = addr
 
 	// Validate the node info
-	err = nodeInfo.Validate()
+	err := nodeInfo.Validate()
 	if err != nil && !goErrors.Is(err, p2pTypes.ErrUnspecifiedIP) {
 		return p2pTypes.NodeInfo{}, fmt.Errorf("unable to validate node info, %w", err)
 	}

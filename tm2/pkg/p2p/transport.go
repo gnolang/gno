@@ -332,11 +332,6 @@ func (mt *MultiplexTransport) newMultiplexPeer(
 	behavior PeerBehavior,
 	isOutbound bool,
 ) (Peer, error) {
-	// Check for peer persistence using the dial address,
-	// as well as the self-reported address
-	persistent := behavior.IsPersistentPeer(info.addr.ID) ||
-		behavior.IsPersistentPeer(info.nodeInfo.NetAddress.ID)
-
 	// Extract the host
 	host, _, err := net.SplitHostPort(info.conn.RemoteAddr().String())
 	if err != nil {
@@ -352,7 +347,7 @@ func (mt *MultiplexTransport) newMultiplexPeer(
 	// Wrap the info related to the connection
 	peerConn := &ConnInfo{
 		Outbound:   isOutbound,
-		Persistent: persistent,
+		Persistent: behavior.IsPersistentPeer(info.addr.ID),
 		Private:    behavior.IsPrivatePeer(info.nodeInfo.ID()),
 		Conn:       info.conn,
 		RemoteIP:   ips[0], // IPv4

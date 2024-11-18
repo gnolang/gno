@@ -2,69 +2,23 @@ package types
 
 import (
 	"fmt"
-	"net"
 	"testing"
 
-	"github.com/gnolang/gno/tm2/pkg/crypto"
 	"github.com/gnolang/gno/tm2/pkg/versionset"
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 )
 
 func TestNodeInfo_Validate(t *testing.T) {
 	t.Parallel()
 
-	generateNetAddress := func() *NetAddress {
-		tcpAddr, err := net.ResolveTCPAddr("tcp", "127.0.0.1:8080")
-		require.NoError(t, err)
-
-		address, err := NewNetAddress(GenerateNodeKey().ID(), tcpAddr)
-		require.NoError(t, err)
-
-		return address
-	}
-
-	t.Run("invalid net address", func(t *testing.T) {
+	t.Run("invalid peer ID", func(t *testing.T) {
 		t.Parallel()
 
-		testTable := []struct {
-			name        string
-			address     *NetAddress
-			expectedErr error
-		}{
-			{
-				"unset net address",
-				nil,
-				ErrInvalidNetworkAddress,
-			},
-			{
-				"zero net address ID",
-				&NetAddress{
-					ID: "", // zero
-				},
-				crypto.ErrZeroID,
-			},
-			{
-				"invalid net address IP",
-				&NetAddress{
-					ID: GenerateNodeKey().ID(),
-					IP: net.IP([]byte{0x00}),
-				},
-				ErrInvalidIP,
-			},
+		info := &NodeInfo{
+			PeerID: "", // zero
 		}
 
-		for _, testCase := range testTable {
-			t.Run(testCase.name, func(t *testing.T) {
-				t.Parallel()
-
-				info := &NodeInfo{
-					NetAddress: testCase.address,
-				}
-
-				assert.ErrorIs(t, info.Validate(), testCase.expectedErr)
-			})
-		}
+		assert.ErrorIs(t, info.Validate(), ErrInvalidPeerID)
 	})
 
 	t.Run("invalid version", func(t *testing.T) {
@@ -93,8 +47,8 @@ func TestNodeInfo_Validate(t *testing.T) {
 				t.Parallel()
 
 				info := &NodeInfo{
-					NetAddress: generateNetAddress(),
-					Version:    testCase.version,
+					PeerID:  GenerateNodeKey().ID(),
+					Version: testCase.version,
 				}
 
 				assert.ErrorIs(t, info.Validate(), ErrInvalidVersion)
@@ -132,8 +86,8 @@ func TestNodeInfo_Validate(t *testing.T) {
 				t.Parallel()
 
 				info := &NodeInfo{
-					NetAddress: generateNetAddress(),
-					Moniker:    testCase.moniker,
+					PeerID:  GenerateNodeKey().ID(),
+					Moniker: testCase.moniker,
 				}
 
 				assert.ErrorIs(t, info.Validate(), ErrInvalidMoniker)
@@ -167,8 +121,8 @@ func TestNodeInfo_Validate(t *testing.T) {
 				t.Parallel()
 
 				info := &NodeInfo{
-					NetAddress: generateNetAddress(),
-					Moniker:    "valid moniker",
+					PeerID:  GenerateNodeKey().ID(),
+					Moniker: "valid moniker",
 					Other: NodeInfoOther{
 						RPCAddress: testCase.rpcAddress,
 					},
@@ -208,9 +162,9 @@ func TestNodeInfo_Validate(t *testing.T) {
 				t.Parallel()
 
 				info := &NodeInfo{
-					NetAddress: generateNetAddress(),
-					Moniker:    "valid moniker",
-					Channels:   testCase.channels,
+					PeerID:   GenerateNodeKey().ID(),
+					Moniker:  "valid moniker",
+					Channels: testCase.channels,
 				}
 
 				assert.ErrorIs(t, info.Validate(), testCase.expectedErr)
@@ -222,9 +176,9 @@ func TestNodeInfo_Validate(t *testing.T) {
 		t.Parallel()
 
 		info := &NodeInfo{
-			NetAddress: generateNetAddress(),
-			Moniker:    "valid moniker",
-			Channels:   []byte{10, 20, 30},
+			PeerID:   GenerateNodeKey().ID(),
+			Moniker:  "valid moniker",
+			Channels: []byte{10, 20, 30},
 			Other: NodeInfoOther{
 				RPCAddress: "0.0.0.0:26657",
 			},

@@ -14,14 +14,14 @@ const (
 )
 
 var (
-	ErrInvalidNetworkAddress = errors.New("invalid node network address")
-	ErrInvalidVersion        = errors.New("invalid node version")
-	ErrInvalidMoniker        = errors.New("invalid node moniker")
-	ErrInvalidRPCAddress     = errors.New("invalid node RPC address")
-	ErrExcessiveChannels     = errors.New("excessive node channels")
-	ErrDuplicateChannels     = errors.New("duplicate node channels")
-	ErrIncompatibleNetworks  = errors.New("incompatible networks")
-	ErrNoCommonChannels      = errors.New("no common channels")
+	ErrInvalidPeerID        = errors.New("invalid peer ID")
+	ErrInvalidVersion       = errors.New("invalid node version")
+	ErrInvalidMoniker       = errors.New("invalid node moniker")
+	ErrInvalidRPCAddress    = errors.New("invalid node RPC address")
+	ErrExcessiveChannels    = errors.New("excessive node channels")
+	ErrDuplicateChannels    = errors.New("duplicate node channels")
+	ErrIncompatibleNetworks = errors.New("incompatible networks")
+	ErrNoCommonChannels     = errors.New("no common channels")
 )
 
 // NodeInfo is the basic node information exchanged
@@ -30,8 +30,8 @@ type NodeInfo struct {
 	// Set of protocol versions
 	VersionSet versionset.VersionSet `json:"version_set"`
 
-	// Authenticate
-	NetAddress *NetAddress `json:"net_address"`
+	// Unique peer identifier
+	PeerID ID `json:"id"`
 
 	// Check compatibility.
 	// Channels are HexBytes so easier to read as JSON
@@ -57,13 +57,9 @@ type NodeInfoOther struct {
 // if the ListenAddr is malformed, or if the ListenAddr is a host name
 // that can not be resolved to some IP
 func (info NodeInfo) Validate() error {
-	// Validate the network address
-	if info.NetAddress == nil {
-		return ErrInvalidNetworkAddress
-	}
-
-	if err := info.NetAddress.Validate(); err != nil {
-		return fmt.Errorf("unable to validate net address, %w", err)
+	// Validate the ID
+	if err := info.PeerID.Validate(); err != nil {
+		return fmt.Errorf("%w, %w", ErrInvalidPeerID, err)
 	}
 
 	// Validate Version
@@ -104,7 +100,7 @@ func (info NodeInfo) Validate() error {
 
 // ID returns the local node ID
 func (info NodeInfo) ID() ID {
-	return info.NetAddress.ID
+	return info.PeerID
 }
 
 // CompatibleWith checks if two NodeInfo are compatible with each other.

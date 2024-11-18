@@ -70,8 +70,8 @@ func NewReactor(opts ...Option) *Reactor {
 	return r
 }
 
-// StartDiscovery runs the peer discovery protocol
-func (r *Reactor) StartDiscovery() {
+// OnStart runs the peer discovery protocol
+func (r *Reactor) OnStart() error {
 	go func() {
 		ticker := time.NewTicker(r.discoveryInterval)
 		defer ticker.Stop()
@@ -89,6 +89,11 @@ func (r *Reactor) StartDiscovery() {
 				// them for peer discovery
 				peers := r.Switch.Peers().List()
 
+				if len(peers) == 0 {
+					// No discovery to run
+					continue
+				}
+
 				// Generate a random peer index
 				randomPeer, _ := rand.Int(
 					rand.Reader,
@@ -100,6 +105,13 @@ func (r *Reactor) StartDiscovery() {
 			}
 		}
 	}()
+
+	return nil
+}
+
+// OnStop stops the peer discovery protocol
+func (r *Reactor) OnStop() {
+	r.cancelFn()
 }
 
 // requestPeers requests the peer set from the given peer
@@ -122,11 +134,6 @@ func (r *Reactor) requestPeers(peer p2p.Peer) {
 	if !peer.Send(Channel, reqBytes) {
 		r.Logger.Warn("unable to send discovery request", "peer", peer.ID())
 	}
-}
-
-// StopDiscovery stops the peer discovery protocol
-func (r *Reactor) StopDiscovery() {
-	r.cancelFn()
 }
 
 // GetChannels returns the channels associated with peer discovery
@@ -201,7 +208,7 @@ func (r *Reactor) handleDiscoveryRequest(peer p2p.Peer) error {
 	}
 
 	for _, p := range localPeers {
-		peers = append(peers, p.NodeInfo().NetAddress)
+		peers = append(peers, p.SocketAddr())
 	}
 
 	// Create the response, and marshal

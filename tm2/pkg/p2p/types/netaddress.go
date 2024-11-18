@@ -262,7 +262,8 @@ func (na *NetAddress) Validate() error {
 	}
 
 	// Make sure the IP is valid
-	if len(na.IP) != 4 && len(na.IP) != 16 {
+	ipLen := len(na.IP)
+	if ipLen != 4 && ipLen != 16 {
 		return ErrInvalidIP
 	}
 

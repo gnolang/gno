@@ -61,9 +61,9 @@ type MultiplexSwitch struct {
 	reactors     map[string]Reactor
 	peerBehavior *reactorPeerBehavior
 
-	peers           PeerSet  // currently active peer set
+	peers           PeerSet  // currently active peer set (live connections)
 	persistentPeers sync.Map // ID -> *NetAddress; peers whose connections are constant
-	privatePeers    sync.Map // ID -> nothing; peers who are not shared
+	privatePeers    sync.Map // ID -> nothing; lookup table of peers who are not shared
 	transport       Transport
 
 	dialQueue *dial.Queue
@@ -204,16 +204,8 @@ func (sw *MultiplexSwitch) StopPeerForError(peer Peer, err error) {
 		return
 	}
 
-	// socket address for outbound peers
-	addr := peer.SocketAddr()
-
-	if !peer.IsOutbound() {
-		// self-reported address for inbound peers
-		addr = peer.NodeInfo().NetAddress
-	}
-
 	// Add the peer to the dial queue
-	sw.DialPeers(addr)
+	sw.DialPeers(peer.SocketAddr())
 }
 
 func (sw *MultiplexSwitch) stopAndRemovePeer(peer Peer, err error) {
@@ -345,7 +337,7 @@ func (sw *MultiplexSwitch) runDialLoop(ctx context.Context) {
 
 // runRedialLoop starts the persistent peer redial loop
 func (sw *MultiplexSwitch) runRedialLoop(ctx context.Context) {
-	ticker := time.NewTicker(time.Second * 1) // TODO make option
+	ticker := time.NewTicker(time.Second * 5)
 	defer ticker.Stop()
 
 	// redialFn goes through the persistent peer list

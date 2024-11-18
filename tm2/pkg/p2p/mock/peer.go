@@ -57,8 +57,11 @@ func GeneratePeers(t *testing.T, count int) []*Peer {
 			},
 			NodeInfoFn: func() types.NodeInfo {
 				return types.NodeInfo{
-					NetAddress: addr,
+					PeerID: key.ID(),
 				}
+			},
+			SocketAddrFn: func() *types.NetAddress {
+				return addr
 			},
 		}
 

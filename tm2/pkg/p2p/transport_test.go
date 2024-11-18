@@ -243,7 +243,7 @@ func TestMultiplexTransport_Accept(t *testing.T) {
 
 			ni := types.NodeInfo{
 				Network:    network, // common network
-				NetAddress: na,
+				PeerID:     id,
 				Version:    "v1.0.0-rc.0",
 				Moniker:    fmt.Sprintf("node-%d", index),
 				VersionSet: make(versionset.VersionSet, 0), // compatible version set
@@ -323,7 +323,7 @@ func TestMultiplexTransport_Accept(t *testing.T) {
 
 			ni := types.NodeInfo{
 				Network:    chainID,
-				NetAddress: na,
+				PeerID:     id,
 				Version:    "v1.0.0-rc.0",
 				Moniker:    fmt.Sprintf("node-%d", index),
 				VersionSet: make(versionset.VersionSet, 0), // compatible version set
@@ -395,7 +395,7 @@ func TestMultiplexTransport_Accept(t *testing.T) {
 
 			ni := types.NodeInfo{
 				Network:    network, // common network
-				NetAddress: na,
+				PeerID:     key.ID(),
 				Version:    "v1.0.0-rc.0",
 				Moniker:    fmt.Sprintf("node-%d", index),
 				VersionSet: make(versionset.VersionSet, 0), // compatible version set
@@ -473,7 +473,7 @@ func TestMultiplexTransport_Accept(t *testing.T) {
 
 			ni := types.NodeInfo{
 				Network:    network, // common network
-				NetAddress: na,
+				PeerID:     key.ID(),
 				Version:    "v1.0.0-rc.0",
 				Moniker:    fmt.Sprintf("node-%d", index),
 				VersionSet: make(versionset.VersionSet, 0), // compatible version set

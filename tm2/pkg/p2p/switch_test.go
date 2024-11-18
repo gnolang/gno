@@ -233,7 +233,7 @@ func TestMultiplexSwitch_StopPeer(t *testing.T) {
 		assert.False(t, sw.peers.Has(p.ID()))
 
 		// Make sure the peer is in the dial queue
-		sw.dialQueue.Has(p.NodeInfo().NetAddress)
+		sw.dialQueue.Has(p.SocketAddr())
 	})
 }
 
@@ -289,7 +289,7 @@ func TestMultiplexSwitch_DialLoop(t *testing.T) {
 		// Prepare the dial queue
 		sw.dialQueue.Push(dial.Item{
 			Time:    dialTime,
-			Address: p.NodeInfo().NetAddress,
+			Address: p.SocketAddr(),
 		})
 
 		// Run the dial loop
@@ -352,7 +352,7 @@ func TestMultiplexSwitch_DialLoop(t *testing.T) {
 		// Prepare the dial queue
 		sw.dialQueue.Push(dial.Item{
 			Time:    dialTime,
-			Address: p.NodeInfo().NetAddress,
+			Address: p.SocketAddr(),
 		})
 
 		// Run the dial loop
@@ -405,7 +405,7 @@ func TestMultiplexSwitch_DialLoop(t *testing.T) {
 		// Prepare the dial queue
 		sw.dialQueue.Push(dial.Item{
 			Time:    dialTime,
-			Address: p.NodeInfo().NetAddress,
+			Address: p.SocketAddr(),
 		})
 
 		// Run the dial loop
@@ -579,7 +579,7 @@ func TestMultiplexSwitch_RedialLoop(t *testing.T) {
 		addrs := make([]*types.NetAddress, 0, len(peers))
 
 		for _, p := range peers {
-			addrs = append(addrs, p.NodeInfo().NetAddress)
+			addrs = append(addrs, p.SocketAddr())
 		}
 
 		// Create the switch
@@ -614,7 +614,7 @@ func TestMultiplexSwitch_RedialLoop(t *testing.T) {
 		var (
 			peers       = mock.GeneratePeers(t, 10)
 			missingPeer = peers[0]
-			missingAddr = missingPeer.NodeInfo().NetAddress
+			missingAddr = missingPeer.SocketAddr()
 
 			peersDialed []types.NetAddress
 
@@ -626,7 +626,7 @@ func TestMultiplexSwitch_RedialLoop(t *testing.T) {
 				) (Peer, error) {
 					peersDialed = append(peersDialed, address)
 
-					if address.Equals(*missingPeer.NodeInfo().NetAddress) {
+					if address.Equals(*missingPeer.SocketAddr()) {
 						return missingPeer, nil
 					}
 
@@ -645,7 +645,7 @@ func TestMultiplexSwitch_RedialLoop(t *testing.T) {
 		addrs := make([]*types.NetAddress, 0, len(peers))
 
 		for _, p := range peers {
-			addrs = append(addrs, p.NodeInfo().NetAddress)
+			addrs = append(addrs, p.SocketAddr())
 		}
 
 		// Create the switch
@@ -709,12 +709,12 @@ func TestMultiplexSwitch_DialPeers(t *testing.T) {
 		t.Parallel()
 
 		var (
+			p    = mock.GeneratePeers(t, 1)[0]
 			addr = types.NetAddress{
-				ID: "id",
-				IP: net.IP{},
+				ID:   "id",
+				IP:   p.SocketAddr().IP,
+				Port: p.SocketAddr().Port,
 			}
-
-			p = mock.GeneratePeers(t, 1)[0]
 
 			mockTransport = &mockTransport{
 				netAddressFn: func() types.NetAddress {
@@ -727,17 +727,17 @@ func TestMultiplexSwitch_DialPeers(t *testing.T) {
 		// as the transport (node)
 		p.NodeInfoFn = func() types.NodeInfo {
 			return types.NodeInfo{
-				NetAddress: &addr,
+				PeerID: addr.ID,
 			}
 		}
 
 		sw := NewMultiplexSwitch(mockTransport)
 
 		// Dial the peers
-		sw.DialPeers(p.NodeInfo().NetAddress)
+		sw.DialPeers(p.SocketAddr())
 
 		// Make sure the peer wasn't actually dialed
-		assert.False(t, sw.dialQueue.Has(p.NodeInfo().NetAddress))
+		assert.False(t, sw.dialQueue.Has(p.SocketAddr()))
 	})
 
 	t.Run("outbound peer limit reached", func(t *testing.T) {
@@ -775,14 +775,14 @@ func TestMultiplexSwitch_DialPeers(t *testing.T) {
 		addrs := make([]*types.NetAddress, 0, len(peers))
 
 		for _, p := range peers {
-			addrs = append(addrs, p.NodeInfo().NetAddress)
+			addrs = append(addrs, p.SocketAddr())
 		}
 
 		sw.DialPeers(addrs...)
 
 		// Make sure no peers were dialed
 		for _, p := range peers {
-			assert.False(t, sw.dialQueue.Has(p.NodeInfo().NetAddress))
+			assert.False(t, sw.dialQueue.Has(p.SocketAddr()))
 		}
 	})
 
@@ -812,14 +812,14 @@ func TestMultiplexSwitch_DialPeers(t *testing.T) {
 		addrs := make([]*types.NetAddress, 0, len(peers))
 
 		for _, p := range peers {
-			addrs = append(addrs, p.NodeInfo().NetAddress)
+			addrs = append(addrs, p.SocketAddr())
 		}
 
 		sw.DialPeers(addrs...)
 
 		// Make sure peers were dialed
 		for _, p := range peers {
-			assert.True(t, sw.dialQueue.Has(p.NodeInfo().NetAddress))
+			assert.True(t, sw.dialQueue.Has(p.SocketAddr()))
 		}
 	})
 }

@@ -54,8 +54,10 @@ func TestReactor_DiscoveryRequest(t *testing.T) {
 	r.SetSwitch(mockSwitch)
 
 	// Start the discovery service
-	r.StartDiscovery()
-	defer r.StopDiscovery()
+	require.NoError(t, r.Start())
+	t.Cleanup(func() {
+		require.NoError(t, r.Stop())
+	})
 
 	select {
 	case <-notifCh:
@@ -164,7 +166,7 @@ func TestReactor_DiscoveryResponse(t *testing.T) {
 
 		slices.ContainsFunc(resp.Peers, func(addr *types.NetAddress) bool {
 			for _, localP := range peers {
-				if localP.NodeInfo().NetAddress.Equals(*addr) {
+				if localP.SocketAddr().Equals(*addr) {
 					return true
 				}
 			}
@@ -315,7 +317,7 @@ func TestReactor_DiscoveryResponse(t *testing.T) {
 
 		slices.ContainsFunc(resp.Peers, func(addr *types.NetAddress) bool {
 			for _, localP := range peers {
-				if localP.NodeInfo().NetAddress.Equals(*addr) {
+				if localP.SocketAddr().Equals(*addr) {
 					return true
 				}
 			}
@@ -371,7 +373,7 @@ func TestReactor_DiscoveryResponse(t *testing.T) {
 		peerAddrs := make([]*types.NetAddress, 0, len(peers))
 
 		for _, p := range peers {
-			peerAddrs = append(peerAddrs, p.NodeInfo().NetAddress)
+			peerAddrs = append(peerAddrs, p.SocketAddr())
 		}
 
 		// Prepare the message
