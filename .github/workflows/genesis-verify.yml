@@ -44,3 +44,14 @@ jobs:
             echo "Verifying $file"
             gnogenesis verify -genesis-path $file
           done
+
+      - name: Build gnoland
+        run: make -C gno.land install.gnoland
+
+      - name: Running latest gnoland with each genesis file
+        run: |
+          for file in ${{ steps.changed-files.outputs.all_changed_files }}; do
+            echo "Running gnoland with $file"
+            gnoland start -lazy=true --genesis $file
+            # TODO: how to determine if the genesis is valid and chain did start?
+          done
