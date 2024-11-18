@@ -5,9 +5,7 @@
 // passed in with the call, which can be utilized as the path argument
 // to the Render() function. This allows developers to create different
 // "renders" of their realms depending on the data which is passed in,
-// such as pagination, admin dashboards, and more. Check out other
-// example realms and packages for more advanced use-cases, such as
-// r/gnoland/blog, r/gnoland/events, r/demo/hof, etc.
+// such as pagination, admin dashboards, and more.
 package hello_world
 
 func Render(path string) string {
