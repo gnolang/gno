@@ -1,11 +1,11 @@
 name: genesis-verify
 
 on:
-  push:
+  pull_request:
     branches:
       - master
     paths:
-      - "misc/deployments/**"
+      - "misc/deployments/**/genesis.json"
 
 jobs:
   verify:
