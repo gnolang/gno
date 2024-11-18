@@ -76,41 +76,63 @@ func CreateRepost(bid BoardID, threadID PostID, title string, body string, dstBo
 	return repost.id
 }
 
-func DeleteThread(bid BoardID, threadID PostID, reason string) {
+func DeleteThread(bid BoardID, threadID PostID) {
 	assertIsUserCall()
 
 	board := mustGetBoard(bid)
-	thread := mustGetThread(board, threadID)
+	assertThreadExists(board, threadID)
 
 	caller := std.GetOrigCaller()
-	assertUserHasPermission(thread, caller, PermissionDelete)
+	args := Args{bid, threadID}
+	gAuth.WithPermission(caller, PermissionThreadDelete, args, func(a Args) {
+		bid := a[0].(BoardID)
+		board := mustGetBoard(bid)
 
-	board.DeleteThread(threadID)
+		threadID := a[1].(PostID)
+		board.DeleteThread(threadID)
+	})
 }
 
-func DeleteReply(bid BoardID, threadID, replyID PostID, reason string) {
+func DeleteReply(bid BoardID, threadID, replyID PostID) {
 	assertIsUserCall()
 
 	board := mustGetBoard(bid)
 	thread := mustGetThread(board, threadID)
-	reply := mustGetReply(thread, replyID)
+	assertReplyExists(thread, replyID)
 
 	caller := std.GetOrigCaller()
-	assertUserHasPermission(reply, caller, PermissionDelete)
+	args := Args{bid, threadID, replyID}
+	gAuth.WithPermission(caller, PermissionReplyDelete, args, func(a Args) {
+		bid := a[0].(BoardID)
+		board := mustGetBoard(bid)
 
-	thread.DeleteReply(replyID)
+		threadID := a[1].(PostID)
+		thread := mustGetThread(board, threadID)
+
+		replyID := a[2].(PostID)
+		thread.DeleteReply(replyID)
+	})
 }
 
 func EditThread(bid BoardID, threadID PostID, title, body string) {
 	assertIsUserCall()
 
 	board := mustGetBoard(bid)
-	thread := mustGetThread(board, threadID)
+	assertThreadExists(board, threadID)
 
 	caller := std.GetOrigCaller()
-	assertUserHasPermission(thread, caller, PermissionEdit)
+	args := Args{bid, threadID, title, body}
+	gAuth.WithPermission(caller, PermissionThreadEdit, args, func(a Args) {
+		bid := a[0].(BoardID)
+		board := mustGetBoard(bid)
 
-	thread.Update(title, body)
+		threadID := a[1].(PostID)
+		thread := mustGetThread(board, threadID)
+
+		title := a[2].(string)
+		body := a[3].(string)
+		thread.Update(title, body)
+	})
 }
 
 func EditReply(bid BoardID, threadID, replyID PostID, title, body string) {
@@ -118,12 +140,24 @@ func EditReply(bid BoardID, threadID, replyID PostID, title, body string) {
 
 	board := mustGetBoard(bid)
 	thread := mustGetThread(board, threadID)
-	post := mustGetReply(thread, replyID)
+	assertReplyExists(thread, replyID)
 
 	caller := std.GetOrigCaller()
-	assertUserHasPermission(post, caller, PermissionEdit)
+	args := Args{bid, threadID, replyID, title, body}
+	gAuth.WithPermission(caller, PermissionReplyEdit, args, func(a Args) {
+		bid := a[0].(BoardID)
+		board := mustGetBoard(bid)
 
-	post.Update(title, body)
+		threadID := a[1].(PostID)
+		thread := mustGetThread(board, threadID)
+
+		replyID := a[2].(PostID)
+		reply := mustGetReply(thread, replyID)
+
+		title := a[3].(string)
+		body := a[4].(string)
+		reply.Update(title, body)
+	})
 }
 
 func assertIsUserCall() {
@@ -154,8 +188,20 @@ func assertAnonymousCallerFeeReceived(caller std.Address) {
 	}
 }
 
-func assertUserHasPermission(post *Post, user std.Address, p Permission) {
-	if !post.HasPermission(user, p) {
-		panic("unauthorized")
+func assertBoardExists(id BoardID) {
+	if _, found := getBoard(id); !found {
+		panic("board not found: " + id.String())
+	}
+}
+
+func assertThreadExists(b *Board, threadID PostID) {
+	if _, found := b.GetThread(threadID); !found {
+		panic("thread not found: " + threadID.String())
+	}
+}
+
+func assertReplyExists(thread *Post, replyID PostID) {
+	if _, found := thread.GetReply(replyID); !found {
+		panic("reply not found: " + replyID.String())
 	}
 }

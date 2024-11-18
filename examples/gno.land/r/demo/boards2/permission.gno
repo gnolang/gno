@@ -6,8 +6,10 @@ import (
 )
 
 const (
-	PermissionEdit   Permission = "edit"
-	PermissionDelete Permission = "delete"
+	PermissionThreadEdit   Permission = "thread:edit"
+	PermissionThreadDelete            = "thread:delete"
+	PermissionReplyEdit               = "reply:edit"
+	PermissionReplyDelete             = "reply:delete"
 )
 
 // ErrUnauzorized indicates that user doesn't have a required permission.
@@ -26,7 +28,8 @@ type (
 	// Permissioner define an interface to for permissioned execution.
 	Permissioner interface {
 		// WithPermission calls a callback when a user has a specific permission.
-		WithPermission(std.Address, Permission, Args, func(Args)) error
+		// It panics on error.
+		WithPermission(std.Address, Permission, Args, func(Args))
 
 		// GetRoles returns the list of roles.
 		GetRoles() []Role
@@ -35,3 +38,10 @@ type (
 		GetUsers(Role) []std.Address
 	}
 )
+
+// TODO: Replace by a default permissioner (use sane and secure defaults)
+type allowAnyPermissioner struct{}
+
+func (allowAnyPermissioner) WithPermission(_ std.Address, _ Permission, a Args, cb func(Args)) { cb(a) }
+func (allowAnyPermissioner) GetRoles() []Role                                                  { return []Role{} }
+func (allowAnyPermissioner) GetUsers(Role) []std.Address                                       { return []std.Address{} }

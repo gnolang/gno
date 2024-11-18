@@ -93,21 +93,6 @@ func (board *Board) DeleteThread(pid PostID) {
 	}
 }
 
-// TODO: Change HasPermission to use a new authorization interface's `CanDo()`
-func (board *Board) HasPermission(addr std.Address, perm Permission) bool {
-	if board.creator == addr {
-		switch perm {
-		case PermissionEdit:
-			return true
-		case PermissionDelete:
-			return true
-		default:
-			return false
-		}
-	}
-	return false
-}
-
 func (board *Board) Render() string {
 	s := "\\[" + newLink("post", board.GetPostFormURL()) + "]\n\n"
 	if board.threads.Size() > 0 {

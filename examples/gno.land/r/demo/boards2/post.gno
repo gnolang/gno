@@ -119,6 +119,7 @@ func (thread *Post) DeleteReply(replyID PostID) {
 		panic("reply not found in thread")
 	}
 
+	// TODO: Remove child replies too!
 	post := v.(*Post)
 	if post.parentID != thread.id {
 		parent, _ := thread.GetReply(post.parentID)
@@ -126,22 +127,6 @@ func (thread *Post) DeleteReply(replyID PostID) {
 	} else {
 		thread.replies.Remove(key)
 	}
-}
-
-// TODO: Change HasPermission to use a new authorization interface's `CanDo()`
-func (post *Post) HasPermission(addr std.Address, perm Permission) bool {
-	if post.creator == addr {
-		switch perm {
-		case PermissionEdit:
-			return true
-		case PermissionDelete:
-			return true
-		default:
-			return false
-		}
-	}
-	// post notes inherit permissions of the board.
-	return post.board.HasPermission(addr, perm)
 }
 
 func (post *Post) GetSummary() string {

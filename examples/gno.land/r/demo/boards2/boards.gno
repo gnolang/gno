@@ -6,10 +6,16 @@ import "gno.land/p/demo/avl"
 const defaultAnonymousFee = 100_000_000
 
 var (
+	gAuth         Permissioner
 	gLastBoardID  BoardID
 	gBoardsByID   avl.Tree // string(id) -> *Board
 	gBoardsByName avl.Tree // string(name) -> *Board
 )
+
+func init() {
+	// TODO: Implement a default permissioner and support for assigning one to realm
+	gAuth = allowAnyPermissioner{}
+}
 
 // incGetBoardID returns a new board ID.
 func incGetBoardID() BoardID {
