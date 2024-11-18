@@ -435,58 +435,6 @@ func (m *Machine) Stacktrace() (stacktrace Stacktrace) {
 	return
 }
 
-// in case of panic, inject location information to exception.
-func (m *Machine) injectLocOnPanic() {
-	if r := recover(); r != nil {
-		// Show last location information.
-		// First, determine the line number of expression or statement if any.
-		lastLine := 0
-		lastColumn := 0
-		if len(m.Exprs) > 0 {
-			for i := len(m.Exprs) - 1; i >= 0; i-- {
-				expr := m.Exprs[i]
-				if expr.GetLine() > 0 {
-					lastLine = expr.GetLine()
-					lastColumn = expr.GetColumn()
-					break
-				}
-			}
-		}
-		if lastLine == 0 && len(m.Stmts) > 0 {
-			for i := len(m.Stmts) - 1; i >= 0; i-- {
-				stmt := m.Stmts[i]
-				if stmt.GetLine() > 0 {
-					lastLine = stmt.GetLine()
-					lastColumn = stmt.GetColumn()
-					break
-				}
-			}
-		}
-		// Append line number to block location.
-		lastLoc := Location{}
-		for i := len(m.Blocks) - 1; i >= 0; i-- {
-			block := m.Blocks[i]
-			src := block.GetSource(m.Store)
-			loc := src.GetLocation()
-			if !loc.IsZero() {
-				lastLoc = loc
-				if lastLine > 0 {
-					lastLoc.Line = lastLine
-					lastLoc.Column = lastColumn
-				}
-				break
-			}
-		}
-		// wrap panic with location information.
-		if !lastLoc.IsZero() {
-			fmt.Printf("%s: %v\n", lastLoc.String(), r)
-			panic(errors.Wrap(r, fmt.Sprintf("location: %s", lastLoc.String())))
-		} else {
-			panic(r)
-		}
-	}
-}
-
 // Convenience for tests.
 // Production must not use this, because realm package init
 // must happen after persistence and realm finalization,

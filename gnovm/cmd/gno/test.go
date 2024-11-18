@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
-	"io"
 	goio "io"
 	"log"
 	"math"
@@ -167,12 +166,12 @@ type proxyWriter struct {
 
 // tee temporarily appends the writer w to an underlying MultiWriter, which
 // should then be reverted using revert().
-func (p *proxyWriter) tee(w io.Writer) (revert func()) {
+func (p *proxyWriter) tee(w goio.Writer) (revert func()) {
 	save := p.Writer
-	if save == io.Discard {
+	if save == goio.Discard {
 		p.Writer = w
 	} else {
-		p.Writer = io.MultiWriter(save, w)
+		p.Writer = goio.MultiWriter(save, w)
 	}
 	return func() {
 		p.Writer = save

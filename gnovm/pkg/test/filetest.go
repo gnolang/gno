@@ -280,8 +280,7 @@ func (opts *FileTestOptions) runTest(m *gno.Machine, pkgPath, filename string, c
 		pv2 := m.Store.GetPackage(pkgPath, false)
 		m.SetActivePackage(pv2)
 		gno.EnableDebug()
-		// clear store.opslog from init function(s),
-		// and PreprocessAllFilesAndSaveBlockNodes().
+		// clear store.opslog from init function(s).
 		m.Store.SetLogStoreOps(true) // resets.
 		m.RunStatement(gno.S(gno.Call(gno.X("main"))))
 	}

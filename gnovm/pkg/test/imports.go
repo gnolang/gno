@@ -205,14 +205,14 @@ func loadStdlib(rootDir, pkgPath string, store gno.Store, stdout io.Writer) (*gn
 	return m2.RunMemPackageWithOverrides(memPkg, true)
 }
 
-type errorWithStack struct {
+type stackWrappedError struct {
 	err   error
 	stack []byte
 }
 
-func (e *errorWithStack) Error() string { return e.err.Error() }
-func (e *errorWithStack) Unwrap() error { return e.err }
-func (e *errorWithStack) String() string {
+func (e *stackWrappedError) Error() string { return e.err.Error() }
+func (e *stackWrappedError) Unwrap() error { return e.err }
+func (e *stackWrappedError) String() string {
 	return fmt.Sprintf("%v\nstack:\n%v", e.err, string(e.stack))
 }
 
@@ -234,9 +234,9 @@ func LoadImports(store gno.Store, filename string, content []byte) (err error) {
 			case gno.UnhandledPanicError:
 				err = v
 			case error:
-				err = &errorWithStack{v, debug.Stack()}
+				err = &stackWrappedError{v, debug.Stack()}
 			default:
-				err = &errorWithStack{fmt.Errorf("%v", v), debug.Stack()}
+				err = &stackWrappedError{fmt.Errorf("%v", v), debug.Stack()}
 			}
 		}
 	}()
@@ -257,7 +257,7 @@ func LoadImports(store gno.Store, filename string, content []byte) (err error) {
 		}
 		pkg := store.GetPackage(impPath, true)
 		if pkg == nil {
-			return fmt.Errorf("package not found: %v", impPath)
+			return fmt.Errorf("unknown import path %v", impPath)
 		}
 	}
 	return nil
