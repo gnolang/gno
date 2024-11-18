@@ -200,5 +200,3 @@ func TestKeeper_cache(t *testing.T) {
 type s struct{ I int }
 
 func indirect(ptr interface{}) interface{} { return reflect.ValueOf(ptr).Elem().Interface() }
-
-// XXX: unit test the caching feature
