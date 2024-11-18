@@ -1,0 +1,30 @@
+name: genesis-verify
+
+on:
+  push:
+    branches:
+      - master
+    paths:
+      - "misc/deployments/**"
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: "1.22"
+
+      - name: Install dependencies
+        run: go mod download
+
+      - name: Build gnogenesis
+        run: make -C contribs/gnogenesis
+
+      - name: Verify genesis
+        run: ./contrib/gnogenesis/gnogenesis verify-genesis
