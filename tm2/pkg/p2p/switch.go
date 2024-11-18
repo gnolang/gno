@@ -2,7 +2,10 @@ package p2p
 
 import (
 	"context"
+	"crypto/rand"
 	"fmt"
+	"math"
+	"math/big"
 	"sync"
 	"time"
 
@@ -340,6 +343,49 @@ func (sw *MultiplexSwitch) runRedialLoop(ctx context.Context) {
 	ticker := time.NewTicker(time.Second * 5)
 	defer ticker.Stop()
 
+	type backoffItem struct {
+		lastDialTime time.Time
+		attempts     int
+	}
+
+	var (
+		backoffMap = make(map[types.ID]*backoffItem)
+
+		mux sync.RWMutex
+	)
+
+	setBackoffItem := func(id types.ID, item *backoffItem) {
+		mux.Lock()
+		defer mux.Unlock()
+
+		backoffMap[id] = item
+	}
+
+	getBackoffItem := func(id types.ID) *backoffItem {
+		mux.RLock()
+		defer mux.RUnlock()
+
+		return backoffMap[id]
+	}
+
+	clearBackoffItem := func(id types.ID) {
+		mux.Lock()
+		defer mux.Unlock()
+
+		delete(backoffMap, id)
+	}
+
+	subCh, unsubFn := sw.Subscribe(func(event events.Event) bool {
+		if event.Type() != events.PeerConnected {
+			return false
+		}
+
+		ev := event.(*events.PeerConnectedEvent)
+
+		return sw.isPersistentPeer(ev.PeerID)
+	})
+	defer unsubFn()
+
 	// redialFn goes through the persistent peer list
 	// and dials missing peers
 	redialFn := func() {
@@ -370,8 +416,36 @@ func (sw *MultiplexSwitch) runRedialLoop(ctx context.Context) {
 			return
 		}
 
+		// Calculate the dial items
+		dialItems := make([]dial.Item, 0, len(peersToDial))
+		for _, p := range peersToDial {
+			item := getBackoffItem(p.ID)
+			if item == nil {
+				dialItem := dial.Item{
+					Time:    time.Now(),
+					Address: p,
+				}
+
+				dialItems = append(dialItems, dialItem)
+				setBackoffItem(p.ID, &backoffItem{dialItem.Time, 0})
+
+				continue
+			}
+
+			setBackoffItem(p.ID, &backoffItem{
+				lastDialTime: time.Now().Add(
+					calculateBackoff(
+						item.attempts,
+						time.Second,
+						10*time.Minute,
+					),
+				),
+				attempts: item.attempts + 1,
+			})
+		}
+
 		// Add the peers to the dial queue
-		sw.DialPeers(peersToDial...)
+		sw.dialItems(dialItems...)
 	}
 
 	// Run the initial redial loop on start,
@@ -387,8 +461,75 @@ func (sw *MultiplexSwitch) runRedialLoop(ctx context.Context) {
 			return
 		case <-ticker.C:
 			redialFn()
+		case event := <-subCh:
+			// A persistent peer reconnected,
+			// clear their redial queue
+			ev := event.(events.PeerConnectedEvent)
+
+			clearBackoffItem(ev.PeerID)
 		}
 	}
+}
+
+// calculateBackoff calculates a backoff time,
+// based on the number of attempts and range limits
+func calculateBackoff(
+	attempts int,
+	minTimeout time.Duration,
+	maxTimeout time.Duration,
+) time.Duration {
+	var (
+		minTime    = time.Second * 1
+		maxTime    = time.Second * 60
+		multiplier = float64(2) // exponential
+	)
+
+	// Check the min limit
+	if minTimeout > 0 {
+		minTime = minTimeout
+	}
+
+	// Check the max limit
+	if maxTimeout > 0 {
+		maxTime = maxTimeout
+	}
+
+	// Sanity check the range
+	if minTime >= maxTime {
+		return maxTime
+	}
+
+	// Calculate the backoff duration
+	var (
+		base       = float64(minTime)
+		calculated = base * math.Pow(multiplier, float64(attempts))
+	)
+
+	// Attempt to calculate the jitter factor
+	n, err := rand.Int(rand.Reader, big.NewInt(math.MaxInt64))
+	if err == nil {
+		jitterFactor := float64(n.Int64()) / float64(math.MaxInt64) // range [0, 1]
+
+		calculated = jitterFactor*(calculated-base) + base
+	}
+
+	// Prevent overflow for int64 (duration) cast
+	if calculated > float64(math.MaxInt64) {
+		return maxTime
+	}
+
+	duration := time.Duration(calculated)
+
+	// Clamp the duration within bounds
+	if duration < minTime {
+		return minTime
+	}
+
+	if duration > maxTime {
+		return maxTime
+	}
+
+	return duration
 }
 
 // DialPeers adds the peers to the dial queue for async dialing.
@@ -417,6 +558,29 @@ func (sw *MultiplexSwitch) DialPeers(peerAddrs ...*types.NetAddress) {
 		}
 
 		sw.dialQueue.Push(item)
+	}
+}
+
+// dialItems adds custom dial items for the multiplex switch
+func (sw *MultiplexSwitch) dialItems(dialItems ...dial.Item) {
+	for _, dialItem := range dialItems {
+		// Check if this is our address
+		if dialItem.Address.Same(sw.transport.NetAddress()) {
+			continue
+		}
+
+		// Ignore dial if the limit is reached
+		if out := sw.Peers().NumOutbound(); out >= sw.maxOutboundPeers {
+			sw.Logger.Warn(
+				"ignoring dial request: already have max outbound peers",
+				"have", out,
+				"max", sw.maxOutboundPeers,
+			)
+
+			continue
+		}
+
+		sw.dialQueue.Push(dialItem)
 	}
 }
 
