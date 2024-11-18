@@ -303,7 +303,9 @@ func gnoTestPkg(
 				// XXX: make maxAllocTx configurable.
 				maxAllocTx := int64(math.MaxInt64)
 
-				m.Alloc = gno.NewAllocator(maxAllocTx)
+				alloc := gno.NewAllocator(maxAllocTx)
+				alloc.M = m
+				m.Alloc = alloc
 			}
 			m.RunMemPackage(memPkg, true)
 			err := runTestFiles(m, tfiles, memPkg.Name, verbose, printRuntimeMetrics, printEvents, runFlag, io)

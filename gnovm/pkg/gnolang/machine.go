@@ -169,6 +169,11 @@ func NewMachineWithOptions(opts MachineOptions) *Machine {
 	mm := machinePool.Get().(*Machine)
 	mm.Package = pv
 	mm.Alloc = alloc
+
+	if mm.Alloc != nil {
+		mm.Alloc.M = mm
+	}
+
 	mm.CheckTypes = checkTypes
 	mm.ReadOnly = readOnly
 	mm.MaxCycles = maxCycles

@@ -1,14 +1,18 @@
 package gnolang
 
-import "reflect"
+import (
+	"reflect"
+)
 
 // Keeps track of in-memory allocations.
 // In the future, allocations within realm boundaries will be
 // (optionally?) condensed (objects to be GC'd will be discarded),
 // but for now, allocations strictly increment across the whole tx.
 type Allocator struct {
-	maxBytes int64
-	bytes    int64
+	maxBytes  int64
+	bytes     int64
+	M         *Machine
+	collected bool
 }
 
 // for gonative, which doesn't consider the allocator.
@@ -103,8 +107,54 @@ func (alloc *Allocator) Allocate(size int64) {
 	}
 
 	alloc.bytes += size
-	if alloc.bytes > alloc.maxBytes {
-		panic("allocation limit exceeded")
+	if alloc.bytes > alloc.maxBytes && alloc.M != nil {
+		if alloc.collected {
+			panic("allocation limit exceeded")
+		}
+
+		newAlloc := NewAllocator(alloc.maxBytes)
+		for _, block := range alloc.M.Blocks {
+			newAlloc.NewBlock(block.Source, nil)
+			for _, value := range block.Values {
+				newAlloc.AllocateObj(value)
+			}
+		}
+
+		alloc.bytes = newAlloc.bytes
+		alloc.collected = true
+		alloc.Allocate(size)
+		return
+	}
+
+	alloc.collected = false
+}
+
+func (alloc *Allocator) AllocateObj(tv TypedValue) {
+	switch v := tv.V.(type) {
+	case PointerValue:
+		alloc.AllocateType()
+
+		if v.TV != nil {
+			alloc.AllocateObj(*v.TV)
+		}
+	case *StructValue:
+		alloc.AllocateStruct()
+		alloc.AllocateStructFields(int64(len(v.Fields)))
+		alloc.AllocateType()
+		alloc.AllocateHeapItem()
+
+		for _, field := range v.Fields {
+			alloc.AllocateObj(field)
+		}
+	case *SliceValue:
+		alloc.AllocateSlice()
+	case *ArrayValue:
+		alloc.AllocateDataArray(int64(len(v.Data)))
+	case *FuncValue:
+		alloc.AllocateFunc()
+	case TypeValue:
+		alloc.NewType(v.Type)
+	default:
 	}
 }
 
