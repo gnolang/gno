@@ -6,8 +6,12 @@ import (
 )
 
 const (
-	PermissionThreadEdit   Permission = "thread:edit"
+	PermissionBoardCreate  Permission = "board:create"
+	PermissionThreadCreate            = "thread:create"
+	PermissionThreadEdit              = "thread:edit"
 	PermissionThreadDelete            = "thread:delete"
+	PermissionThreadRepost            = "thread:repost"
+	PermissionReplyCreate             = "reply:create"
 	PermissionReplyEdit               = "reply:edit"
 	PermissionReplyDelete             = "reply:delete"
 )

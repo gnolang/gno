@@ -20,11 +20,18 @@ func CreateBoard(name string) BoardID {
 	caller := std.GetOrigCaller()
 	assertIsNotAnonymousCaller(caller)
 
-	id := incGetBoardID()
-	board := newBoard(id, name, caller)
-	gBoardsByID.Set(id.Key(), board)
-	gBoardsByName.Set(name, board)
-	return board.id
+	// TODO: This and other cases must not be async (though proposals for example)
+	// TODO: Extend the permissioner to support cases like this one (`IsAllowed()` method?)
+	// NOTE: Args are "tight" to the permission, maybe we can join them into a permission struct/interface
+	var id BoardID
+	gAuth.WithPermission(caller, PermissionBoardCreate, nil, func(a Args) {
+		id := incGetBoardID()
+		board := newBoard(id, name, caller)
+		gBoardsByID.Set(id.Key(), board)
+		gBoardsByName.Set(name, board)
+		id = board.id
+	})
+	return id
 }
 
 func CreateThread(bid BoardID, title string, body string) PostID {
@@ -33,9 +40,16 @@ func CreateThread(bid BoardID, title string, body string) PostID {
 	caller := std.GetOrigCaller()
 	assertAnonymousCallerFeeReceived(caller)
 
-	board := mustGetBoard(bid)
-	thread := board.AddThread(caller, title, body)
-	return thread.id
+	var (
+		id    PostID
+		board = mustGetBoard(bid)
+	)
+
+	gAuth.WithPermission(caller, PermissionThreadCreate, nil, func(a Args) {
+		thread := board.AddThread(caller, title, body)
+		id = thread.id
+	})
+	return id
 }
 
 func CreateReply(bid BoardID, threadID, replyID PostID, body string) PostID {
@@ -50,12 +64,16 @@ func CreateReply(bid BoardID, threadID, replyID PostID, body string) PostID {
 		thread = mustGetThread(board, threadID)
 	)
 
-	if replyID == threadID {
-		reply = thread.AddReply(caller, body)
-	} else {
-		post := mustGetReply(thread, replyID)
-		reply = post.AddReply(caller, body)
-	}
+	gAuth.WithPermission(caller, PermissionReplyCreate, nil, func(a Args) {
+		if replyID == threadID {
+			// When the parent reply is the thread just add reply to thread
+			reply = thread.AddReply(caller, body)
+		} else {
+			// Try to get parent reply and add a new child reply
+			post := mustGetReply(thread, replyID)
+			reply = post.AddReply(caller, body)
+		}
+	})
 	return reply.id
 }
 
@@ -70,10 +88,17 @@ func CreateRepost(bid BoardID, threadID PostID, title string, body string, dstBo
 		panic("cannot repost from a private board")
 	}
 
-	dst := mustGetBoard(dstBoardID)
-	thread := mustGetThread(board, threadID)
-	repost := thread.AddRepostTo(caller, title, body, dst)
-	return repost.id
+	var (
+		id     PostID
+		dst    = mustGetBoard(dstBoardID)
+		thread = mustGetThread(board, threadID)
+	)
+
+	gAuth.WithPermission(caller, PermissionThreadRepost, nil, func(a Args) {
+		repost := thread.AddRepostTo(caller, title, body, dst)
+		id = repost.id
+	})
+	return id
 }
 
 func DeleteThread(bid BoardID, threadID PostID) {
