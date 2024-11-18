@@ -9,8 +9,10 @@ import (
 
 func init() {
 	mExec := params.NewStringPropExecutor("prop1.string", "value1")
+	title := "Setting prop1.string param"
 	comment := "setting prop1.string param"
 	prop := dao.ProposalRequest{
+		Title:       title,
 		Description: comment,
 		Executor:    mExec,
 	}
