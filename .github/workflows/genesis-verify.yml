@@ -37,3 +37,10 @@ jobs:
 
       - name: Build gnogenesis
         run: make -C contribs/gnogenesis
+
+      - name: Verify each genesis file
+        run: |
+          for file in ${{ steps.changed-files.outputs.all_changed_files }}; do
+            echo "Verifying $file"
+            gnogenesis verify -genesis-path $file
+          done
