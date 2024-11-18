@@ -15,6 +15,18 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      - name: Get changed files
+        id: changed-files
+        uses: tj-actions/changed-files@v41
+        with:
+          files: "misc/deployments/**/genesis.json"
+
+      - name: List changed genesis files
+        run: |
+          for file in ${{ steps.changed-files.outputs.all_changed_files }}; do
+            echo "Changed file: $file"
+          done
+
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
