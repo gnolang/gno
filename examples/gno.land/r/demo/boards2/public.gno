@@ -2,6 +2,7 @@ package boards
 
 import (
 	"std"
+	"strings"
 
 	"gno.land/r/demo/users"
 )
@@ -16,6 +17,11 @@ func GetBoardIDFromName(name string) (BoardID, bool) {
 
 func CreateBoard(name string) BoardID {
 	assertIsUserCall()
+
+	name = strings.TrimSpace(name)
+	if name == "" {
+		panic("board name is empty")
+	}
 
 	caller := std.GetOrigCaller()
 	assertIsNotAnonymousCaller(caller)

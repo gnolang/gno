@@ -1,7 +1,6 @@
 package boards
 
 import (
-	"regexp"
 	"std"
 	"strconv"
 	"strings"
@@ -10,8 +9,6 @@ import (
 	"gno.land/p/demo/avl"
 	"gno.land/p/moul/txlink"
 )
-
-var reBoardName = regexp.MustCompile(`^[a-z]{3}[_a-z0-9]{0,23}[0-9]{3}$`)
 
 type BoardID uint64
 
@@ -34,8 +31,6 @@ type Board struct {
 }
 
 func newBoard(id BoardID, name string, creator std.Address) *Board {
-	assertIsBoardName(name)
-
 	if gBoardsByName.Has(name) {
 		panic("board already exists")
 	}
@@ -120,10 +115,4 @@ func (board *Board) GetURLFromReplyID(threadID, replyID PostID) string {
 
 func (board *Board) GetPostFormURL() string {
 	return txlink.URL("CreateThread", "bid", board.id.String())
-}
-
-func assertIsBoardName(name string) {
-	if !reBoardName.MatchString(name) {
-		panic("invalid board name: " + name)
-	}
 }
