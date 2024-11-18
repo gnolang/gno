@@ -1,7 +1,5 @@
 package boards
 
-// TODO: Rename file to "auth.gno" and define a new interface
-
 type Permission string
 
 const (
