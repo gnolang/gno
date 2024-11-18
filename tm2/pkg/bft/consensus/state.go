@@ -203,7 +203,7 @@ func (cs *ConsensusState) SetEventSwitch(evsw events.EventSwitch) {
 // String returns a string.
 func (cs *ConsensusState) String() string {
 	// better not to access shared variables
-	return fmt.Sprintf("ConsensusState") // (H:%v R:%v S:%v", cs.Height, cs.Round, cs.Step)
+	return "ConsensusState" // (H:%v R:%v S:%v", cs.Height, cs.Round, cs.Step)
 }
 
 // GetConfig returns a copy of the chain state.
@@ -1305,13 +1305,13 @@ func (cs *ConsensusState) finalizeCommit(height int64) {
 	block, blockParts := cs.ProposalBlock, cs.ProposalBlockParts
 
 	if !ok {
-		panic(fmt.Sprintf("Cannot finalizeCommit, commit does not have two thirds majority"))
+		panic("Cannot finalizeCommit, commit does not have two thirds majority")
 	}
 	if !blockParts.HasHeader(blockID.PartsHeader) {
-		panic(fmt.Sprintf("Expected ProposalBlockParts header to be commit header"))
+		panic("Expected ProposalBlockParts header to be commit header")
 	}
 	if !block.HashesTo(blockID.Hash) {
-		panic(fmt.Sprintf("Cannot finalizeCommit, ProposalBlock does not hash to commit hash"))
+		panic("Cannot finalizeCommit, ProposalBlock does not hash to commit hash")
 	}
 	if err := cs.blockExec.ValidateBlock(cs.state, block); err != nil {
 		panic(fmt.Sprintf("+2/3 committed an invalid block: %v", err))
