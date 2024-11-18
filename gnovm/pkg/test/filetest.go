@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"path"
 	"regexp"
 	"runtime/debug"
 	"strconv"
@@ -211,7 +212,7 @@ func (opts *FileTestOptions) runTest(m *gno.Machine, pkgPath, filename string, c
 	// it allows us to only have to load the imports once (and re-use the cached
 	// versions). Running the tests in separate "transactions" means that they
 	// don't get the parent store dirty.
-	if err := LoadImports(opts.Store, filename, content); err != nil {
+	if err := LoadImports(opts.Store, path.Join(pkgPath, filename), content); err != nil {
 		return runResult{Error: err.Error()}
 	}
 

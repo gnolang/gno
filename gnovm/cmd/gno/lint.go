@@ -165,7 +165,7 @@ func guessSourcePath(pkg, source string) string {
 // reParseRecover is a regex designed to parse error details from a string.
 // It extracts the file location, line number, and error message from a formatted error string.
 // XXX: Ideally, error handling should encapsulate location details within a dedicated error type.
-var reParseRecover = regexp.MustCompile(`^([^:]+):(\d+)(?::\d+)?:? *(.*)$`)
+var reParseRecover = regexp.MustCompile(`^([^:]+)((?::(?:\d+)){1,2}):? *(.*)$`)
 
 func catchRuntimeError(pkgPath string, stderr io.WriteCloser, action func()) (hasError bool) {
 	defer func() {
@@ -234,9 +234,9 @@ func issueFromError(pkgPath string, err error) lintIssue {
 	parsedError = strings.TrimPrefix(parsedError, pkgPath+"/")
 
 	matches := reParseRecover.FindStringSubmatch(parsedError)
-	if len(matches) == 4 {
+	if len(matches) > 0 {
 		sourcepath := guessSourcePath(pkgPath, matches[1])
-		issue.Location = fmt.Sprintf("%s:%s", sourcepath, matches[2])
+		issue.Location = sourcepath + matches[2]
 		issue.Msg = strings.TrimSpace(matches[3])
 	} else {
 		issue.Location = fmt.Sprintf("%s:0", filepath.Clean(pkgPath))

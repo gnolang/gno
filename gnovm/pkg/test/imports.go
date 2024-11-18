@@ -241,14 +241,15 @@ func LoadImports(store gno.Store, filename string, content []byte) (err error) {
 		}
 	}()
 
-	fl, err := parser.ParseFile(token.NewFileSet(), filename, content, parser.ImportsOnly)
+	fset := token.NewFileSet()
+	fl, err := parser.ParseFile(fset, filename, content, parser.ImportsOnly)
 	if err != nil {
 		return fmt.Errorf("parse failure: %w", err)
 	}
 	for _, imp := range fl.Imports {
 		impPath, err := strconv.Unquote(imp.Path.Value)
 		if err != nil {
-			return fmt.Errorf("unexpected invalid import path: %v", impPath)
+			return fmt.Errorf("%v: unexpected invalid import path: %v", fset.Position(imp.Pos()).String(), imp.Path.Value)
 		}
 		if gno.IsRealmPath(impPath) {
 			// Don't eagerly load realms.
@@ -257,7 +258,7 @@ func LoadImports(store gno.Store, filename string, content []byte) (err error) {
 		}
 		pkg := store.GetPackage(impPath, true)
 		if pkg == nil {
-			return fmt.Errorf("unknown import path %v", impPath)
+			return fmt.Errorf("%v: unknown import path %v", fset.Position(imp.Pos()).String(), impPath)
 		}
 	}
 	return nil

@@ -59,7 +59,6 @@ func Machine(testStore gno.Store, output io.Writer, pkgPath string) *gno.Machine
 		Store:   testStore,
 		Output:  output,
 		Context: Context(pkgPath, nil),
-		PkgPath: pkgPath,
 	})
 }
 

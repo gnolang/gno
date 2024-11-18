@@ -1,10 +1,9 @@
-# Test unknow lib
+# Test for loading an unknown package
 
 ! gno test -v .
 
 ! stdout .+
-stderr 'panic: unknown import path foobarbaz \[recovered\]'
-stderr '	panic: gno.land/r/\w{8}/contract.gno:3:8: unknown import path foobarbaz'
+stderr 'contract.gno:3:8: unknown import path foobarbaz'
 
 -- contract.gno --
 package contract

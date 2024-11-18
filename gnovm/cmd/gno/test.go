@@ -10,8 +10,8 @@ import (
 	"log"
 	"math"
 	"os"
+	"path"
 	"path/filepath"
-	"runtime/debug"
 	"sort"
 	"strings"
 	"text/template"
@@ -314,7 +314,7 @@ func (cfg testPkgCfg) gnoTestPkg(
 
 		// run test files in pkg
 		if len(tfiles.Files) > 0 {
-			err := cfg.runTestFiles(memPkg, tfiles, memPkg.Name, gnoPkgPath, runFlag)
+			err := cfg.runTestFiles(memPkg, tfiles, memPkg.Name, memPkg.Path, runFlag)
 			if err != nil {
 				errs = multierr.Append(errs, err)
 			}
@@ -335,7 +335,7 @@ func (cfg testPkgCfg) gnoTestPkg(
 			memPkg.Name = testPkgName
 			memPkg.Path = memPkg.Path + "_test"
 
-			err := cfg.runTestFiles(memPkg, ifiles, testPkgName, gnoPkgPath, runFlag)
+			err := cfg.runTestFiles(memPkg, ifiles, testPkgName, memPkg.Path, runFlag)
 			if err != nil {
 				errs = multierr.Append(errs, err)
 			}
@@ -441,7 +441,7 @@ func (cfg *testPkgCfg) runTestFiles(
 			if st := m.ExceptionsStacktrace(); st != "" {
 				errs = multierr.Append(errors.New(st), errs)
 			}
-			errs = multierr.Append(fmt.Errorf("panic: %v\nstack:\n%v\ngno machine: %v", r, string(debug.Stack()), m.String()), errs)
+			errs = multierr.Append(fmt.Errorf("panic: %v\nstack:\n%v\ngno machine: %v", r, m.Stacktrace(), m.String()), errs)
 		}
 	}()
 
@@ -468,11 +468,15 @@ func (cfg *testPkgCfg) runTestFiles(
 	}
 	// Check if we already have the package - it may have been eagerly
 	// loaded.
-	m = test.Machine(gs, cfg.outWriter, memPkg.Path)
+	m = test.Machine(gs, cfg.outWriter, pkgPath)
 	m.Alloc = alloc
 	if cfg.testStore.GetMemPackage(pkgPath) == nil {
 		m.RunMemPackage(memPkg, true)
+	} else {
+		// ensure to set the active
+		m.SetActivePackage(gs.GetPackage(pkgPath, false))
 	}
+	pv := m.Package
 
 	// TODO(monday): a few problems so far:
 	// 1. One thing I forgot is that I should test to make sure non-monorepo
@@ -497,6 +501,7 @@ func (cfg *testPkgCfg) runTestFiles(
 		// - Wrap here.
 		m = test.Machine(gs, cfg.outWriter, memPkg.Path)
 		m.Alloc = alloc
+		m.SetActivePackage(pv)
 
 		testFuncStr := fmt.Sprintf("%q", tf.Name)
 
@@ -644,7 +649,7 @@ func parseMemPackageTests(store gno.Store, memPkg *gnovm.MemPackage) (tset, itse
 			continue
 		}
 
-		if err := test.LoadImports(store, mfile.Name, []byte(mfile.Body)); err != nil {
+		if err := test.LoadImports(store, path.Join(memPkg.Path, mfile.Name), []byte(mfile.Body)); err != nil {
 			errs = multierr.Append(errs, err)
 		}
 
