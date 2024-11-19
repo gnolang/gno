@@ -28,3 +28,5 @@ func Render(path string) string {
 
 	return "Mirror, mirror on the wall, which realm's the fairest of them all?"
 }
+
+// Credits to @jeronimoalbi
