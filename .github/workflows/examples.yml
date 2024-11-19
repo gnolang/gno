@@ -63,7 +63,7 @@ jobs:
           go-version: ${{ matrix.goversion }}
       # TODO: move this to be a normal test within pkg/gnolang, after moving cmd/go's
       # testing system to pkg/test.
-      - run: go run ./gnovm/cmd/gno test -v -print-runtime-metrics -print-events ./stdlibs/...
+      - run: go run ./gnovm/cmd/gno test -v -print-runtime-metrics -print-events ./gnovm/stdlibs/...
   lint:
     strategy:
       fail-fast: false
