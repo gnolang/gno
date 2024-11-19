@@ -152,6 +152,6 @@ func checkSuffix(key, expectedSuffix string) {
 		// XXX: additional sanity checks?
 	)
 	if noSuffix || noName {
-		panic(`key should be like "<name>` + expectedSuffix + `"`)
+		panic(`key should be like "<name>` + expectedSuffix + `" (` + key + `)`)
 	}
 }
