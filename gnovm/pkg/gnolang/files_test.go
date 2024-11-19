@@ -35,8 +35,6 @@ func TestFiles(t *testing.T) {
 	require.NoError(t, err)
 	var opts test.FileTestOptions
 	opts.BaseStore, opts.Store = test.Store(rootDir, true, nopReader{}, opts.Stdout(), io.Discard)
-	// XXX: Using opts like this is a bit funky, replacing the state each time; maybe we can re-create each time
-	// if we don't require usage of opts.Stdout.
 
 	dir := "../../tests/"
 	fsys := os.DirFS(dir)

@@ -103,11 +103,7 @@ func execLint(cfg *lintCfg, args []string, io commands.IO) error {
 			}
 
 			memPkg := gno.ReadMemPackage(targetPath, targetPath)
-			tm := gno.NewMachineWithOptions(gno.MachineOptions{
-				Context: test.Context(memPkg.Path, nil),
-				Store:   testStore,
-				Output:  stdout,
-			})
+			tm := test.Machine(testStore, stdout, memPkg.Path)
 			defer tm.Release()
 
 			// Check package

@@ -45,14 +45,13 @@ func IsOriginCall(m *gno.Machine) bool {
 		// 1. $RealmFuncName
 		// 2. std.IsOriginCall
 		return len(m.Frames) == 3
-	case "gnointernal_runtest": // test is a _test
-		// 0. gnointernal_runtest
-		// 1. testing.RunTest
-		// 2. tRunner
-		// 3. $TestFuncName
-		// 4. $RealmFuncName
-		// 5. std.IsOriginCall
-		return len(m.Frames) == 6
+	case "RunTest": // test is a _test
+		// 0. testing.RunTest
+		// 1. tRunner
+		// 2. $TestFuncName
+		// 3. $RealmFuncName
+		// 4. std.IsOriginCall
+		return len(m.Frames) == 5
 	}
 	// support init() in _filetest
 	// XXX do we need to distinguish from 'runtest'/_test?

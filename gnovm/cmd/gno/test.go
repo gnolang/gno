@@ -475,17 +475,6 @@ func (cfg *testPkgCfg) runTestFiles(
 	pv := m.Package
 
 	m.RunFiles(files.Files...)
-	n := gno.MustParseFile("main_test.gno", `package `+memPkg.Name+`
-
-import (
-	"testing"
-)
-
-func gnointernal_runtest(runFlag string, verbose bool, testName string, testFunc func(t *testing.T)) string {
-	return testing.RunTest(runFlag, verbose, testing.InternalTest{testName, testFunc})
-}
-`)
-	m.RunFiles(n)
 
 	for _, tf := range tests {
 		// TODO(morgan): we could theoretically use wrapping on the baseStore
@@ -500,12 +489,21 @@ func gnointernal_runtest(runFlag string, verbose bool, testName string, testFunc
 		m.Alloc = alloc
 		m.SetActivePackage(pv)
 
+		testingpv := m.Store.GetPackage("testing", false)
+		testingtv := gno.TypedValue{T: &gno.PackageType{}, V: testingpv}
+		testingcx := &gno.ConstExpr{TypedValue: testingtv}
+
 		eval := m.Eval(gno.Call(
-			"gnointernal_runtest",
-			gno.Str(runFlag),
-			gno.Nx(strconv.FormatBool(cfg.verbose)),
-			gno.Str(tf.Name),
-			gno.Nx(tf.Name),
+			gno.Sel(testingcx, "RunTest"),           // Call testing.RunTest
+			gno.Str(runFlag),                        // run flag
+			gno.Nx(strconv.FormatBool(cfg.verbose)), // is verbose?
+			&gno.CompositeLitExpr{ // Third param, the testing.InternalTest
+				Type: gno.Sel(testingcx, "InternalTest"),
+				Elts: gno.KeyValueExprs{
+					{Key: gno.X("Name"), Value: gno.Str(tf.Name)},
+					{Key: gno.X("F"), Value: gno.Nx(tf.Name)},
+				},
+			},
 		))
 
 		if cfg.printEvents {

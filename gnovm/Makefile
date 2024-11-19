@@ -64,7 +64,7 @@ imports:
 ########################################
 # Test suite
 .PHONY: test
-test: _test.cmd _test.pkg
+test: _test.cmd _test.pkg _test.stdlibs
 
 .PHONY: _test.cmd
 _test.cmd:
@@ -91,6 +91,10 @@ test.cmd.coverage_view: test.cmd.coverage
 .PHONY: _test.pkg
 _test.pkg:
 	go test ./pkg/... $(GOTEST_FLAGS)
+
+.PHONY: _test.stdlibs
+_test.stdlibs:
+	go run ./cmd/gno test -v ./stdlibs/...
 
 
 ########################################
