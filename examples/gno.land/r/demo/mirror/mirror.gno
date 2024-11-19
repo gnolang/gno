@@ -1,0 +1,30 @@
+package mirror
+
+import (
+	"gno.land/p/demo/avl"
+)
+
+var store avl.Tree
+
+func Register(pkgpath string, rndr func(string) string) {
+	if store.Has(pkgpath) {
+		panic("has")
+	}
+	if rndr == nil {
+		panic("rndr is nil")
+	}
+
+	store.Set(pkgpath, rndr)
+}
+
+func Render(path string) string {
+	if raw, ok := store.Get(path); ok {
+		return raw.(func(string) string)("")
+	}
+
+	if store.Size() == 0 {
+		return "None are fair."
+	}
+
+	return "Mirror, mirror on the wall, which realm's the fairest of them all?"
+}
