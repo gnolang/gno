@@ -561,13 +561,7 @@ func (m *Machine) runFileDecls(fns ...*FileNode) []TypedValue {
 		// run declaration
 		fb := pv.GetFileBlock(m.Store, fn.Name)
 		m.PushBlock(fb)
-		if slices.Contains(decl.GetDeclNames(), "parseTests") {
-			logEval = true
-		}
 		m.runDeclaration(decl)
-		if slices.Contains(decl.GetDeclNames(), "parseTests") {
-			logEval = false
-		}
 		m.PopBlock()
 		for _, n := range decl.GetDeclNames() {
 			fdeclared[n] = struct{}{}
