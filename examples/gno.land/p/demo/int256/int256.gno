@@ -46,7 +46,7 @@ func One() *Int {
 //
 // It returns -1 for negative numbers, 0 for zero, and +1 for positive numbers.
 func (z *Int) Sign() int {
-	if z.IsZero() {
+	if z == nil || z.IsZero() {
 		return 0
 	}
 	// Right shift the value by 255 bits to check the sign bit.
