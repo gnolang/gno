@@ -23,7 +23,8 @@ These tests are largely derived from Yaegi, licensed under Apache 2.0.
 
 ## `stdlibs`: testing standard libraries
 
-These contain standard libraries which are only available in testing.
+These contain standard libraries which are only available in testing, and
+extensions of them, like `std.TestSkipHeights`.
 
 ## other directories
 
