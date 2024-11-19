@@ -1,11 +1,10 @@
-package gnolang_test
+package gnolang
 
 import (
 	"fmt"
 	"testing"
 
 	"github.com/gnolang/gno/gnovm"
-	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
 	"github.com/gnolang/gno/tm2/pkg/db/memdb"
 	"github.com/gnolang/gno/tm2/pkg/store/dbadapter"
 	"github.com/gnolang/gno/tm2/pkg/store/iavl"
@@ -15,7 +14,7 @@ import (
 
 func BenchmarkCreateNewMachine(b *testing.B) {
 	for i := 0; i < b.N; i++ {
-		m := gno.NewMachineWithOptions(gno.MachineOptions{})
+		m := NewMachineWithOptions(MachineOptions{})
 		m.Release()
 	}
 }
@@ -26,8 +25,8 @@ func TestRunMemPackageWithOverrides_revertToOld(t *testing.T) {
 	db := memdb.NewMemDB()
 	baseStore := dbadapter.StoreConstructor(db, stypes.StoreOptions{})
 	iavlStore := iavl.StoreConstructor(db, stypes.StoreOptions{})
-	store := gno.NewStore(nil, baseStore, iavlStore)
-	m := gno.NewMachine("std", store)
+	store := NewStore(nil, baseStore, iavlStore)
+	m := NewMachine("std", store)
 	m.RunMemPackageWithOverrides(&gnovm.MemPackage{
 		Name: "std",
 		Path: "std",
@@ -49,11 +48,11 @@ func TestRunMemPackageWithOverrides_revertToOld(t *testing.T) {
 		return
 	}()
 	t.Log("panic trying to redeclare invalid func", result)
-	m.RunStatement(gno.S(gno.Call(gno.X("Redecl"), 11)))
+	m.RunStatement(S(Call(X("Redecl"), 11)))
 
 	// Check last value, assuming it is the result of Redecl.
 	v := m.Values[0]
 	assert.NotNil(t, v)
-	assert.Equal(t, gno.StringKind, v.T.Kind())
-	assert.Equal(t, gno.StringValue("1"), v.V)
+	assert.Equal(t, StringKind, v.T.Kind())
+	assert.Equal(t, StringValue("1"), v.V)
 }
