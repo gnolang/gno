@@ -4,13 +4,13 @@ func Render(_ string) string {
 	return `# Gno Examples Documentation
 
 Welcome to the Gno examples documentation index.
-Explore various examples to learn more about Gno.
-
+Explore various examples to learn more about Gno functionality and usage.
 
 ## Examples
 
-- [Hello World](/r/docs/hello_world) - A simple introductory example.</li>
-<!-- Add more links to other examples here -->
+- [Hello World](/r/docs/hello) - A simple introductory example.
+- [AVL Pager](/r/docs/avl_pager) - Paginate through AVL tree items.
+- ...
 
 ## Other resources
 
