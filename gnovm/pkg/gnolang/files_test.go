@@ -1,6 +1,7 @@
 package gnolang_test
 
 import (
+	"bytes"
 	"flag"
 	"fmt"
 	"io"
@@ -10,6 +11,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/gnolang/gno/gnovm/pkg/gnolang"
 	"github.com/gnolang/gno/gnovm/pkg/test"
 	"github.com/stretchr/testify/require"
 )
@@ -84,6 +86,54 @@ func TestFiles(t *testing.T) {
 		})
 
 		return criticalError
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
+// TestStdlibs tests all the standard library packages.
+func TestStdlibs(t *testing.T) {
+	rootDir, err := filepath.Abs("../../../")
+	require.NoError(t, err)
+
+	var capture bytes.Buffer
+	out := io.Writer(&capture)
+	if testing.Verbose() {
+		out = os.Stdout
+	}
+	opts := test.NewTestOptions(rootDir, nopReader{}, out, out)
+	opts.Verbose = true
+
+	dir := "../../stdlibs/"
+	fsys := os.DirFS(dir)
+	err = fs.WalkDir(fsys, ".", func(path string, de fs.DirEntry, err error) error {
+		switch {
+		case err != nil:
+			return err
+		case !de.IsDir() || path == ".":
+			return nil
+		}
+
+		fp := filepath.Join(dir, path)
+		memPkg := gnolang.ReadMemPackage(fp, path)
+		t.Run(strings.ReplaceAll(memPkg.Path, "/", "-"), func(t *testing.T) {
+			if testing.Short() {
+				switch memPkg.Path {
+				case "bytes", "strconv", "regexp/syntax":
+					t.Skip("Skipped because of -short, and this stdlib is very long currently.")
+				}
+			}
+			err := test.Test(memPkg, "", opts)
+			if !testing.Verbose() {
+				t.Log(capture.String())
+			}
+			if err != nil {
+				t.Error(err)
+			}
+		})
+
+		return nil
 	})
 	if err != nil {
 		t.Fatal(err)

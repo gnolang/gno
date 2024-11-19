@@ -15,6 +15,7 @@ import (
 var (
 	reFloat    = regexp.MustCompile(`^[0-9\.]+([eE][\-\+]?[0-9]+)?$`)
 	reHexFloat = regexp.MustCompile(`^0[xX][0-9a-fA-F\.]+([pP][\-\+]?[0-9a-fA-F]+)?$`)
+	logEval    = false
 )
 
 func (m *Machine) doOpEval() {
@@ -22,6 +23,9 @@ func (m *Machine) doOpEval() {
 	if debug {
 		debug.Printf("EVAL: (%T) %v\n", x, x)
 		// fmt.Println(m.String())
+	}
+	if logEval {
+		fmt.Printf("EVAL: (%T) %v\n", x, x)
 	}
 	// This case moved out of switch for performance.
 	// TODO: understand this better.
