@@ -61,7 +61,7 @@ jobs:
           with:
             disable_search: true
             fail_ci_if_error: true
-            file: ${{ inputs.modulepath }}/gocoverage.out
+            files: ${{ inputs.modulepath }}/gocoverage.out
             flags: ${{ inputs.modulepath }}
             token: ${{ secrets.codecov-token }}
             verbose: true # keep this enable as it help debugging when coverage fail randomly on the CI
