@@ -12,6 +12,7 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"runtime/debug"
 	"sort"
 	"strings"
 	"text/template"
@@ -28,6 +29,7 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/commands"
 	"github.com/gnolang/gno/tm2/pkg/errors"
 	"github.com/gnolang/gno/tm2/pkg/random"
+	"github.com/gnolang/gno/tm2/pkg/store/types"
 	storetypes "github.com/gnolang/gno/tm2/pkg/store/types"
 )
 
@@ -312,9 +314,15 @@ func (cfg testPkgCfg) gnoTestPkg(
 		}
 		testPkgName := getPkgNameFromFileset(ifiles)
 
+		// create a common cw/gs for both the `pkg` tests as well as the `pkg_test`
+		// tests. this allows us to "export" symbols from the pkg tests and
+		// import them from the `pkg_test` tests.
+		cw := cfg.baseStore.CacheWrap()
+		gs := cfg.testStore.BeginTransaction(cw, cw)
+
 		// run test files in pkg
 		if len(tfiles.Files) > 0 {
-			err := cfg.runTestFiles(memPkg, tfiles, memPkg.Name, memPkg.Path, runFlag)
+			err := cfg.runTestFiles(memPkg, tfiles, cw, gs, runFlag)
 			if err != nil {
 				errs = multierr.Append(errs, err)
 			}
@@ -335,7 +343,7 @@ func (cfg testPkgCfg) gnoTestPkg(
 			memPkg.Name = testPkgName
 			memPkg.Path = memPkg.Path + "_test"
 
-			err := cfg.runTestFiles(memPkg, ifiles, testPkgName, memPkg.Path, runFlag)
+			err := cfg.runTestFiles(memPkg, ifiles, cw, gs, runFlag)
 			if err != nil {
 				errs = multierr.Append(errs, err)
 			}
@@ -432,7 +440,7 @@ func pkgPathFromRootDir(pkgPath, rootDir string) string {
 func (cfg *testPkgCfg) runTestFiles(
 	memPkg *gnovm.MemPackage,
 	files *gno.FileSet,
-	pkgName, pkgPath string,
+	cw types.Store, gs gno.TransactionStore,
 	runFlag string,
 ) (errs error) {
 	var m *gno.Machine
@@ -441,25 +449,26 @@ func (cfg *testPkgCfg) runTestFiles(
 			if st := m.ExceptionsStacktrace(); st != "" {
 				errs = multierr.Append(errors.New(st), errs)
 			}
-			errs = multierr.Append(fmt.Errorf("panic: %v\nstack:\n%v\ngno machine: %v", r, m.Stacktrace(), m.String()), errs)
+			errs = multierr.Append(
+				fmt.Errorf("panic: %v\ngo stacktrace:\n%v\ngno machine: %v\ngno stacktrace:\n%v",
+					r, string(debug.Stack()), m.String(), m.Stacktrace()),
+				errs,
+			)
 		}
 	}()
 
 	testFuncs := &testFuncs{
-		PackageName: pkgName,
+		PackageName: memPkg.Name,
 		Verbose:     cfg.verbose,
 		RunFlag:     runFlag,
 	}
-	loadTestFuncs(pkgName, testFuncs, files)
+	loadTestFuncs(memPkg.Name, testFuncs, files)
 
 	testmain, err := formatTestmain(testFuncs)
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	// Create a cache/tx wrap so we don't persist what happens in the test.
-	cw := cfg.baseStore.CacheWrap()
-	gs := cfg.testStore.BeginTransaction(cw, cw)
 	var alloc *gno.Allocator
 
 	// run package and write to upper cw / gs
@@ -468,23 +477,15 @@ func (cfg *testPkgCfg) runTestFiles(
 	}
 	// Check if we already have the package - it may have been eagerly
 	// loaded.
-	m = test.Machine(gs, cfg.outWriter, pkgPath)
+	m = test.Machine(gs, cfg.outWriter, memPkg.Path)
 	m.Alloc = alloc
-	if cfg.testStore.GetMemPackage(pkgPath) == nil {
+	if cfg.testStore.GetMemPackage(memPkg.Path) == nil {
 		m.RunMemPackage(memPkg, true)
 	} else {
-		// ensure to set the active
-		m.SetActivePackage(gs.GetPackage(pkgPath, false))
+		// ensure to set the active package.
+		m.SetActivePackage(gs.GetPackage(memPkg.Path, false))
 	}
 	pv := m.Package
-
-	// TODO(monday): a few problems so far:
-	// 1. One thing I forgot is that I should test to make sure non-monorepo
-	// workflows still work correctly.
-	// 2. The standard libraries test don't work properly. I think this is
-	// 3. We still need to add a workflow to test standard libraries.
-	// This could probably just be another test in pkg/gnolang/file_test.go,
-	// improving our coverage.
 
 	m.RunFiles(files.Files...)
 	n := gno.MustParseFile("main_test.gno", testmain)

@@ -3,7 +3,7 @@ name: examples
 on:
   pull_request:
   push:
-    branches: [ "master" ]
+    branches: ["master"]
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.head_ref || github.run_id }}
@@ -48,6 +48,9 @@ jobs:
           echo "LOG_PATH_DIR=$LOG_PATH_DIR" >> $GITHUB_ENV
       - run: go install -v ./gnovm/cmd/gno
       - run: go run ./gnovm/cmd/gno test -v -print-runtime-metrics -print-events ./examples/...
+      # TODO: move this to be a normal test within pkg/gnolang, after moving cmd/go's
+      # testing system to pkg/test.
+      - run: go run ./gnovm/cmd/gno test -v -print-runtime-metrics -print-events ./stdlibs/...
   lint:
     strategy:
       fail-fast: false
@@ -70,7 +73,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        goversion: [ "1.22.x" ]
+        goversion: ["1.22.x"]
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -86,7 +89,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        go-version: [ "1.22.x" ]
+        go-version: ["1.22.x"]
         # unittests: TODO: matrix with contracts
     runs-on: ubuntu-latest
     timeout-minutes: 10
