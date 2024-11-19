@@ -184,7 +184,13 @@ func (mt *MultiplexTransport) Listen(addr types.NetAddress) error {
 // 2. filtered
 // 3. upgraded (handshaked + verified)
 func (mt *MultiplexTransport) runAcceptLoop() {
-	defer close(mt.peerCh)
+	var wg sync.WaitGroup
+
+	defer func() {
+		wg.Wait() // Wait for all process routines
+
+		close(mt.peerCh)
+	}()
 
 	for {
 		select {
@@ -205,7 +211,11 @@ func (mt *MultiplexTransport) runAcceptLoop() {
 			}
 
 			// Process the new connection asynchronously
+			wg.Add(1)
+
 			go func(c net.Conn) {
+				defer wg.Done()
+
 				info, err := mt.processConn(c, "")
 				if err != nil {
 					mt.logger.Error(

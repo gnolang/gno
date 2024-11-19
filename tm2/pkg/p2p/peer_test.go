@@ -49,7 +49,7 @@ func TestPeer_Properties(t *testing.T) {
 
 			var (
 				info = &ConnInfo{
-					Conn: &mock.MockConn{
+					Conn: &mock.Conn{
 						RemoteAddrFn: func() net.Addr {
 							return tcpAddr
 						},
@@ -304,7 +304,7 @@ func TestPeer_Properties(t *testing.T) {
 			var (
 				closeErr = errors.New("close error")
 
-				mockConn = &mock.MockConn{
+				mockConn = &mock.Conn{
 					CloseFn: func() error {
 						return closeErr
 					},
@@ -611,7 +611,7 @@ func TestPeer_NewPeer(t *testing.T) {
 		connInfo = &ConnInfo{
 			Outbound:   false,
 			Persistent: true,
-			Conn:       &mock.MockConn{},
+			Conn:       &mock.Conn{},
 			RemoteIP:   tcpAddr.IP,
 			SocketAddr: netAddr,
 		}

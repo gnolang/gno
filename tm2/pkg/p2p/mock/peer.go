@@ -230,7 +230,7 @@ type (
 	setDeadlineDelegate func(time.Time) error
 )
 
-type MockConn struct {
+type Conn struct {
 	ReadFn             readDelegate
 	WriteFn            writeDelegate
 	CloseFn            closeDelegate
@@ -241,7 +241,7 @@ type MockConn struct {
 	SetWriteDeadlineFn setDeadlineDelegate
 }
 
-func (m *MockConn) Read(b []byte) (int, error) {
+func (m *Conn) Read(b []byte) (int, error) {
 	if m.ReadFn != nil {
 		return m.ReadFn(b)
 	}
@@ -249,7 +249,7 @@ func (m *MockConn) Read(b []byte) (int, error) {
 	return 0, nil
 }
 
-func (m *MockConn) Write(b []byte) (int, error) {
+func (m *Conn) Write(b []byte) (int, error) {
 	if m.WriteFn != nil {
 		return m.WriteFn(b)
 	}
@@ -257,7 +257,7 @@ func (m *MockConn) Write(b []byte) (int, error) {
 	return 0, nil
 }
 
-func (m *MockConn) Close() error {
+func (m *Conn) Close() error {
 	if m.CloseFn != nil {
 		return m.CloseFn()
 	}
@@ -265,7 +265,7 @@ func (m *MockConn) Close() error {
 	return nil
 }
 
-func (m *MockConn) LocalAddr() net.Addr {
+func (m *Conn) LocalAddr() net.Addr {
 	if m.LocalAddrFn != nil {
 		return m.LocalAddrFn()
 	}
@@ -273,7 +273,7 @@ func (m *MockConn) LocalAddr() net.Addr {
 	return nil
 }
 
-func (m *MockConn) RemoteAddr() net.Addr {
+func (m *Conn) RemoteAddr() net.Addr {
 	if m.RemoteAddrFn != nil {
 		return m.RemoteAddrFn()
 	}
@@ -281,7 +281,7 @@ func (m *MockConn) RemoteAddr() net.Addr {
 	return nil
 }
 
-func (m *MockConn) SetDeadline(t time.Time) error {
+func (m *Conn) SetDeadline(t time.Time) error {
 	if m.SetDeadlineFn != nil {
 		return m.SetDeadlineFn(t)
 	}
@@ -289,7 +289,7 @@ func (m *MockConn) SetDeadline(t time.Time) error {
 	return nil
 }
 
-func (m *MockConn) SetReadDeadline(t time.Time) error {
+func (m *Conn) SetReadDeadline(t time.Time) error {
 	if m.SetReadDeadlineFn != nil {
 		return m.SetReadDeadlineFn(t)
 	}
@@ -297,7 +297,7 @@ func (m *MockConn) SetReadDeadline(t time.Time) error {
 	return nil
 }
 
-func (m *MockConn) SetWriteDeadline(t time.Time) error {
+func (m *Conn) SetWriteDeadline(t time.Time) error {
 	if m.SetWriteDeadlineFn != nil {
 		return m.SetWriteDeadlineFn(t)
 	}
