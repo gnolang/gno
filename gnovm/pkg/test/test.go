@@ -217,7 +217,7 @@ func Test(
 		filter := splitRegexp(opts.RunFlag)
 		for _, testFile := range ftfiles {
 			testFileName := testFile.Name
-			testFilePath := filepath.Join(memPkg.Path, testFileName)
+			testFilePath := filepath.Join(fsDir, testFileName)
 			testName := "file/" + testFileName
 			if !shouldRun(filter, testName) {
 				continue
@@ -228,12 +228,7 @@ func Test(
 				fmt.Fprintf(opts.Error, "=== RUN   %s\n", testName)
 			}
 
-			content, err := os.ReadFile(testFilePath)
-			if err != nil {
-				return err
-			}
-
-			changed, err := opts.runFiletest(testFileName, content)
+			changed, err := opts.runFiletest(testFileName, []byte(testFile.Body))
 			if changed != "" {
 				// Note: changed always == "" if opts.Sync == false.
 				err = os.WriteFile(testFilePath, []byte(changed), 0o644)
