@@ -18,8 +18,6 @@ import (
 	"text/template"
 	"time"
 
-	"go.uber.org/multierr"
-
 	"github.com/gnolang/gno/gnovm"
 	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
@@ -30,6 +28,7 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/errors"
 	"github.com/gnolang/gno/tm2/pkg/random"
 	storetypes "github.com/gnolang/gno/tm2/pkg/store/types"
+	"go.uber.org/multierr"
 )
 
 type testCfg struct {
@@ -297,7 +296,7 @@ func (cfg testPkgCfg) gnoTestPkg(
 			if gnoPkgPath == "" {
 				// unable to read pkgPath from gno.mod, generate a random realm path
 				cfg.io.ErrPrintfln("--- WARNING: unable to read package path from gno.mod or gno root directory; try creating a gno.mod file")
-				gnoPkgPath = gno.RealmPathPrefix + random.RandStr(8)
+				gnoPkgPath = gno.RealmPathPrefix + strings.ToLower(random.RandStr(8))
 			}
 		}
 		memPkg := gno.ReadMemPackage(pkgPath, gnoPkgPath)

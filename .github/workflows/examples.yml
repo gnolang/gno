@@ -57,6 +57,10 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: ${{ matrix.goversion }}
       # TODO: move this to be a normal test within pkg/gnolang, after moving cmd/go's
       # testing system to pkg/test.
       - run: go run ./gnovm/cmd/gno test -v -print-runtime-metrics -print-events ./stdlibs/...
