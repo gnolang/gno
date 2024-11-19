@@ -29,7 +29,6 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/commands"
 	"github.com/gnolang/gno/tm2/pkg/errors"
 	"github.com/gnolang/gno/tm2/pkg/random"
-	"github.com/gnolang/gno/tm2/pkg/store/types"
 	storetypes "github.com/gnolang/gno/tm2/pkg/store/types"
 )
 
@@ -440,7 +439,7 @@ func pkgPathFromRootDir(pkgPath, rootDir string) string {
 func (cfg *testPkgCfg) runTestFiles(
 	memPkg *gnovm.MemPackage,
 	files *gno.FileSet,
-	cw types.Store, gs gno.TransactionStore,
+	cw storetypes.Store, gs gno.TransactionStore,
 	runFlag string,
 ) (errs error) {
 	var m *gno.Machine
