@@ -8,10 +8,11 @@ var store avl.Tree
 
 func Register(pkgpath string, rndr func(string) string) {
 	if store.Has(pkgpath) {
-		panic("has")
+		return
 	}
+
 	if rndr == nil {
-		panic("rndr is nil")
+		return
 	}
 
 	store.Set(pkgpath, rndr)
