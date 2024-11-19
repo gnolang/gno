@@ -2,14 +2,29 @@
 package test
 
 import (
+	"bytes"
+	"encoding/json"
+	"errors"
+	"fmt"
 	"io"
+	"math"
+	"os"
+	"path"
+	"path/filepath"
+	"runtime/debug"
+	"strconv"
+	"strings"
+	"time"
 
+	"github.com/gnolang/gno/gnovm"
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
 	"github.com/gnolang/gno/gnovm/stdlibs"
 	teststd "github.com/gnolang/gno/gnovm/tests/stdlibs/std"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
 	"github.com/gnolang/gno/tm2/pkg/sdk"
 	"github.com/gnolang/gno/tm2/pkg/std"
+	storetypes "github.com/gnolang/gno/tm2/pkg/store/types"
+	"go.uber.org/multierr"
 )
 
 const (
@@ -76,3 +91,392 @@ func (tp *testParams) SetBytes(key string, val []byte)  { /* noop */ }
 func (tp *testParams) SetInt64(key string, val int64)   { /* noop */ }
 func (tp *testParams) SetUint64(key string, val uint64) { /* noop */ }
 func (tp *testParams) SetString(key string, val string) { /* noop */ }
+
+// ----------------------------------------
+// main test function
+
+// TestOptions is a list of options that must be passed to [Test].
+type TestOptions struct {
+	// BaseStore / TestStore to use for the tests.
+	BaseStore storetypes.CommitStore
+	TestStore gno.Store
+	// Gno root dir.
+	RootDir string
+	// Used for printing program output, during verbose logging.
+	Output io.Writer
+	// Used for os.Stderr, and for printing errors.
+	Error io.Writer
+
+	// Not set by NewTestOptions:
+
+	// Flag to filter tests to run.
+	RunFlag string
+	// Whether to update filetest directives.
+	Sync bool
+	// Uses Error to print when starting a test, and prints test output directly,
+	// unbuffered.
+	Verbose bool
+	// Uses Error to print runtime metrics for tests.
+	Metrics bool
+	// Uses Error to print the events emitted.
+	Events bool
+
+	filetestBuffer bytes.Buffer
+	outWriter      proxyWriter
+}
+
+// WriterForStore is the writer that should be passed to [Store], so that
+// [Test] is then able to swap it when needed.
+func (to *TestOptions) WriterForStore() io.Writer {
+	return &to.outWriter
+}
+
+// NewTestOptions sets up TestOptions, filling out all "required" parameters.
+func NewTestOptions(rootDir string, stdin io.Reader, stdout, stderr io.Writer) *TestOptions {
+	opts := &TestOptions{
+		RootDir: rootDir,
+		Output:  stdout,
+		Error:   stderr,
+	}
+	opts.BaseStore, opts.TestStore = Store(
+		rootDir, false,
+		stdin, opts.WriterForStore(), stderr,
+	)
+	return opts
+}
+
+// proxyWriter is a simple wrapper around a io.Writer, it exists so that the
+// underlying writer can be swapped with another when necessary.
+type proxyWriter struct {
+	w io.Writer
+}
+
+func (p *proxyWriter) Write(b []byte) (int, error) {
+	return p.w.Write(b)
+}
+
+// tee temporarily appends the writer w to an underlying MultiWriter, which
+// should then be reverted using revert().
+func (p *proxyWriter) tee(w io.Writer) (revert func()) {
+	save := p.w
+	if save == io.Discard {
+		p.w = w
+	} else {
+		p.w = io.MultiWriter(save, w)
+	}
+	return func() {
+		p.w = save
+	}
+}
+
+func Test(
+	memPkg *gnovm.MemPackage,
+	fsDir string, // directory on filesystem of package; used for Sync
+	cfg *TestOptions,
+) error {
+	cfg.outWriter.w = cfg.Output
+
+	var errs error
+
+	// Stands for "test", "integration test", and "filetest".
+	tset, itset, itfiles, ftfiles := parseMemPackageTests(cfg.TestStore, memPkg)
+
+	// testing with *_test.gno
+	if len(tset.Files)+len(itset.Files) > 0 {
+		// create a common cw/gs for both the `pkg` tests as well as the `pkg_test`
+		// tests. this allows us to "export" symbols from the pkg tests and
+		// import them from the `pkg_test` tests.
+		cw := cfg.BaseStore.CacheWrap()
+		gs := cfg.TestStore.BeginTransaction(cw, cw)
+
+		// run test files in pkg
+		if len(tset.Files) > 0 {
+			err := cfg.runTestFiles(memPkg, tset, cw, gs)
+			if err != nil {
+				errs = multierr.Append(errs, err)
+			}
+		}
+
+		// test xxx_test pkg
+		if len(itset.Files) > 0 {
+			itPkg := &gnovm.MemPackage{
+				Name:  memPkg.Name + "_test",
+				Path:  memPkg.Path + "_test",
+				Files: itfiles,
+			}
+
+			err := cfg.runTestFiles(itPkg, itset, cw, gs)
+			if err != nil {
+				errs = multierr.Append(errs, err)
+			}
+		}
+	}
+
+	// testing with *_filetest.gno
+	if len(ftfiles) > 0 {
+		revert := cfg.outWriter.tee(&cfg.filetestBuffer)
+		defer revert()
+
+		filter := splitRegexp(cfg.RunFlag)
+		for _, testFile := range ftfiles {
+			testFileName := testFile.Name
+			testFilePath := filepath.Join(memPkg.Path, testFileName)
+			testName := "file/" + testFileName
+			if !shouldRun(filter, testName) {
+				continue
+			}
+
+			startedAt := time.Now()
+			if cfg.Verbose {
+				fmt.Fprintf(cfg.Error, "=== RUN   %s\n", testName)
+			}
+
+			content, err := os.ReadFile(testFilePath)
+			if err != nil {
+				return err
+			}
+
+			changed, err := cfg.runFiletest(testFileName, content)
+			if changed != "" {
+				// Note: changed always == "" if opts.Sync == false.
+				err = os.WriteFile(testFilePath, []byte(changed), 0o644)
+				if err != nil {
+					panic(fmt.Errorf("could not fix golden file: %w", err))
+				}
+			}
+
+			duration := time.Since(startedAt)
+			dstr := fmt.Sprintf("%.2s", duration)
+			if err != nil {
+				fmt.Fprintf(cfg.Error, "--- FAIL: %s (%s)\n", testName, dstr)
+				fmt.Fprintln(cfg.Error, err.Error())
+				errs = multierr.Append(errs, fmt.Errorf("%s failed", testName))
+			} else if cfg.Verbose {
+				fmt.Fprintf(cfg.Error, "--- PASS: %s (%s)\n", testName, dstr)
+			}
+
+			// XXX: add per-test metrics
+		}
+	}
+
+	return errs
+}
+
+func (cfg *TestOptions) runTestFiles(
+	memPkg *gnovm.MemPackage,
+	files *gno.FileSet,
+	cw storetypes.Store, gs gno.TransactionStore,
+) (errs error) {
+	var m *gno.Machine
+	defer func() {
+		if r := recover(); r != nil {
+			if st := m.ExceptionsStacktrace(); st != "" {
+				errs = multierr.Append(errors.New(st), errs)
+			}
+			errs = multierr.Append(
+				fmt.Errorf("panic: %v\ngo stacktrace:\n%v\ngno machine: %v\ngno stacktrace:\n%v",
+					r, string(debug.Stack()), m.String(), m.Stacktrace()),
+				errs,
+			)
+		}
+	}()
+
+	tests := loadTestFuncs(memPkg.Name, files)
+
+	var alloc *gno.Allocator
+	if cfg.Metrics {
+		alloc = gno.NewAllocator(math.MaxInt64)
+	}
+
+	// Check if we already have the package - it may have been eagerly
+	// loaded.
+	m = Machine(gs, cfg.WriterForStore(), memPkg.Path)
+	m.Alloc = alloc
+	if cfg.TestStore.GetMemPackage(memPkg.Path) == nil {
+		m.RunMemPackage(memPkg, true)
+	} else {
+		m.SetActivePackage(gs.GetPackage(memPkg.Path, false))
+	}
+	pv := m.Package
+
+	m.RunFiles(files.Files...)
+
+	for _, tf := range tests {
+		// TODO(morgan): we could theoretically use wrapping on the baseStore
+		// and gno store to achieve per-test isolation. However, that requires
+		// some deeper changes, as ideally we'd:
+		// - Run the MemPackage independently (so it can also be run as a
+		//   consequence of an import)
+		// - Run the test files before this for loop (but persist it to store;
+		//   RunFiles doesn't do that currently)
+		// - Wrap here.
+		m = Machine(gs, cfg.Output, memPkg.Path)
+		m.Alloc = alloc
+		m.SetActivePackage(pv)
+
+		testingpv := m.Store.GetPackage("testing", false)
+		testingtv := gno.TypedValue{T: &gno.PackageType{}, V: testingpv}
+		testingcx := &gno.ConstExpr{TypedValue: testingtv}
+
+		eval := m.Eval(gno.Call(
+			gno.Sel(testingcx, "RunTest"),           // Call testing.RunTest
+			gno.Str(cfg.RunFlag),                    // run flag
+			gno.Nx(strconv.FormatBool(cfg.Verbose)), // is verbose?
+			&gno.CompositeLitExpr{ // Third param, the testing.InternalTest
+				Type: gno.Sel(testingcx, "InternalTest"),
+				Elts: gno.KeyValueExprs{
+					{Key: gno.X("Name"), Value: gno.Str(tf.Name)},
+					{Key: gno.X("F"), Value: gno.Nx(tf.Name)},
+				},
+			},
+		))
+
+		if cfg.Events {
+			events := m.Context.(*teststd.TestExecContext).EventLogger.Events()
+			if events != nil {
+				res, err := json.Marshal(events)
+				if err != nil {
+					panic(err)
+				}
+				fmt.Fprintf(cfg.Error, "EVENTS: %s\n", string(res))
+			}
+		}
+
+		ret := eval[0].GetString()
+		if ret == "" {
+			err := fmt.Errorf("failed to execute unit test: %q", tf.Name)
+			errs = multierr.Append(errs, err)
+			fmt.Fprintf(cfg.Error, "--- FAIL: %s [internal gno testing error]", tf.Name)
+			continue
+		}
+
+		// TODO: replace with amino or send native type?
+		var rep report
+		err := json.Unmarshal([]byte(ret), &rep)
+		if err != nil {
+			errs = multierr.Append(errs, err)
+			fmt.Fprintf(cfg.Error, "--- FAIL: %s [internal gno testing error]", tf.Name)
+			continue
+		}
+
+		if rep.Failed {
+			err := fmt.Errorf("failed: %q", tf.Name)
+			errs = multierr.Append(errs, err)
+		}
+
+		if cfg.Metrics {
+			// XXX: store changes
+			// XXX: max mem consumption
+			allocsVal := "n/a"
+			if m.Alloc != nil {
+				maxAllocs, allocs := m.Alloc.Status()
+				allocsVal = fmt.Sprintf("%s(%.2f%%)",
+					prettySize(allocs),
+					float64(allocs)/float64(maxAllocs)*100,
+				)
+			}
+			fmt.Fprintf(cfg.Error, "---       runtime: cycle=%s allocs=%s\n",
+				prettySize(m.Cycles),
+				allocsVal,
+			)
+		}
+	}
+
+	return errs
+}
+
+// mirror of stdlibs/testing.Report
+type report struct {
+	Failed  bool
+	Skipped bool
+}
+
+type testFunc struct {
+	Package string
+	Name    string
+}
+
+func loadTestFuncs(pkgName string, tfiles *gno.FileSet) (rt []testFunc) {
+	for _, tf := range tfiles.Files {
+		for _, d := range tf.Decls {
+			if fd, ok := d.(*gno.FuncDecl); ok {
+				fname := string(fd.Name)
+				if strings.HasPrefix(fname, "Test") {
+					tf := testFunc{
+						Package: pkgName,
+						Name:    fname,
+					}
+					rt = append(rt, tf)
+				}
+			}
+		}
+	}
+	return
+}
+
+// parses test files (skipping filetests) in the memPkg.
+func parseMemPackageTests(store gno.Store, memPkg *gnovm.MemPackage) (tset, itset *gno.FileSet, itfiles, ftfiles []*gnovm.MemFile) {
+	tset = &gno.FileSet{}
+	itset = &gno.FileSet{}
+	var errs error
+	for _, mfile := range memPkg.Files {
+		if !strings.HasSuffix(mfile.Name, ".gno") {
+			continue // skip this file.
+		}
+
+		if err := LoadImports(store, path.Join(memPkg.Path, mfile.Name), []byte(mfile.Body)); err != nil {
+			errs = multierr.Append(errs, err)
+		}
+
+		n, err := gno.ParseFile(mfile.Name, mfile.Body)
+		if err != nil {
+			errs = multierr.Append(errs, err)
+			continue
+		}
+		if n == nil {
+			panic("should not happen")
+		}
+		switch {
+		case strings.HasSuffix(mfile.Name, "_filetest.gno"):
+			ftfiles = append(ftfiles, mfile)
+		case strings.HasSuffix(mfile.Name, "_test.gno") && memPkg.Name == string(n.PkgName):
+			tset.AddFiles(n)
+		case strings.HasSuffix(mfile.Name, "_test.gno") && memPkg.Name+"_test" == string(n.PkgName):
+			itset.AddFiles(n)
+			itfiles = append(itfiles, mfile)
+		case memPkg.Name == string(n.PkgName):
+			// normal package file
+		default:
+			panic(fmt.Sprintf(
+				"expected package name [%s] or [%s_test] but got [%s] file [%s]",
+				memPkg.Name, memPkg.Name, n.PkgName, mfile))
+		}
+	}
+	if errs != nil {
+		panic(errs)
+	}
+	return
+}
+
+func shouldRun(filter filterMatch, path string) bool {
+	if filter == nil {
+		return true
+	}
+	elem := strings.Split(path, "/")
+	ok, _ := filter.matches(elem, matchString)
+	return ok
+}
+
+// Adapted from https://yourbasic.org/golang/formatting-byte-size-to-human-readable-format/
+func prettySize(nb int64) string {
+	const unit = 1000
+	if nb < unit {
+		return fmt.Sprintf("%d", nb)
+	}
+	div, exp := int64(unit), 0
+	for n := nb / unit; n >= unit; n /= unit {
+		div *= unit
+		exp++
+	}
+	return fmt.Sprintf("%.1f%c", float64(nb)/float64(div), "kMGTPE"[exp])
+}

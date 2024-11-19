@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"path"
 	"regexp"
 	"runtime/debug"
 	"strconv"
@@ -16,44 +15,26 @@ import (
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
 	teststd "github.com/gnolang/gno/gnovm/tests/stdlibs/std"
 	"github.com/gnolang/gno/tm2/pkg/std"
-	storetypes "github.com/gnolang/gno/tm2/pkg/store/types"
 	"github.com/pmezard/go-difflib/difflib"
 	"go.uber.org/multierr"
 )
 
-type FileTestOptions struct {
-	// Store and BaseStore are required stores, generally coming from [TestStore].
-	Store     gno.Store
-	BaseStore storetypes.CommitStore
-	// Output is an optional field, defaulting to [FileTestOptions.Stdout] -
-	// it is the writer to which the GnoVM will write its output. This should
-	// always be a MultiWriter on [FileTestOptions.Stdout].
-	Output io.Writer
+// RunFiletest executes the program in source as a filetest.
+// If opts.Sync is enabled, and the filetest's golden output has changed,
+// the first string is set to the new generated content of the file.
+func (opts *TestOptions) RunFiletest(filename string, source []byte) (string, error) {
+	opts.outWriter.w = opts.Output
 
-	// Internal stdout buffer, used to record the result.
-	// Always reset before execution
-	stdout bytes.Buffer
-}
+	// Eagerly load imports.
+	// This is executed using opts.Store, rather than the transaction store;
+	// it allows us to only have to load the imports once (and re-use the cached
+	// versions). Running the tests in separate "transactions" means that they
+	// don't get the parent store dirty.
+	if err := LoadImports(opts.TestStore, filename, source); err != nil {
+		return "", err
+	}
 
-// Stdout returns the internal stdout buffer, which is used to check the results
-// of the filetest. The resulting Writer (or a MultiWriter which also writes to
-// it) should be passed into any TestStore initialization, so that the results
-// of os.Stdout writes and fmt.Println count as test output.
-func (opts *FileTestOptions) Stdout() io.Writer {
-	return &opts.stdout
-}
-
-// RunSync executes the program in source as a filetest.
-// RunSync returns additionally a string, which is the updated filetest should its "golden"
-// outputs, error or other directives change.
-func (opts *FileTestOptions) RunSync(filename string, source []byte) (string, error) {
-	return opts.run(filename, source, true)
-}
-
-// Run executes the program in source as a filetest.
-func (opts *FileTestOptions) Run(filename string, source []byte) error {
-	_, err := opts.run(filename, source, false)
-	return err
+	return opts.runFiletest(filename, source)
 }
 
 var reEndOfLineSpaces = func() *regexp.Regexp {
@@ -62,7 +43,7 @@ var reEndOfLineSpaces = func() *regexp.Regexp {
 	return re
 }()
 
-func (opts *FileTestOptions) run(filename string, source []byte, sync bool) (string, error) {
+func (opts *TestOptions) runFiletest(filename string, source []byte) (string, error) {
 	dirs, err := ParseDirectives(bytes.NewReader(source))
 	if err != nil {
 		return "", fmt.Errorf("error parsing directives: %w", err)
@@ -86,13 +67,9 @@ func (opts *FileTestOptions) run(filename string, source []byte, sync bool) (str
 
 	// Create machine for execution and run test
 	cw := opts.BaseStore.CacheWrap()
-	out := io.Writer(&opts.stdout)
-	if opts.Output != nil {
-		out = opts.Output
-	}
 	m := gno.NewMachineWithOptions(gno.MachineOptions{
-		Output:        out,
-		Store:         opts.Store.BeginTransaction(cw, cw),
+		Output:        &opts.outWriter,
+		Store:         opts.TestStore.BeginTransaction(cw, cw),
 		Context:       ctx,
 		MaxAllocBytes: maxAlloc,
 	})
@@ -111,7 +88,7 @@ func (opts *FileTestOptions) run(filename string, source []byte, sync bool) (str
 		// remove end-of-line spaces, as these are removed from `fmt` in the filetests anyway.
 		actual = reEndOfLineSpaces.ReplaceAllString(actual, "\n")
 		if dir.Content != actual {
-			if sync {
+			if opts.Sync {
 				dir.Content = actual
 				updated = true
 			} else {
@@ -206,22 +183,13 @@ type runResult struct {
 	GoPanicStack []byte
 }
 
-func (opts *FileTestOptions) runTest(m *gno.Machine, pkgPath, filename string, content []byte) (rr runResult) {
-	// Eagerly load imports.
-	// This is executed using opts.Store, rather than the transaction store;
-	// it allows us to only have to load the imports once (and re-use the cached
-	// versions). Running the tests in separate "transactions" means that they
-	// don't get the parent store dirty.
-	if err := LoadImports(opts.Store, path.Join(pkgPath, filename), content); err != nil {
-		return runResult{Error: err.Error()}
-	}
-
+func (opts *TestOptions) runTest(m *gno.Machine, pkgPath, filename string, content []byte) (rr runResult) {
 	// imports loaded - reset stdout.
-	opts.stdout.Reset()
+	opts.filetestBuffer.Reset()
 
 	defer func() {
 		if r := recover(); r != nil {
-			rr.Output = opts.stdout.String()
+			rr.Output = opts.filetestBuffer.String()
 			rr.GoPanicStack = debug.Stack()
 			switch v := r.(type) {
 			case *gno.TypedValue:
@@ -287,7 +255,7 @@ func (opts *FileTestOptions) runTest(m *gno.Machine, pkgPath, filename string, c
 	}
 
 	return runResult{
-		Output:        opts.stdout.String(),
+		Output:        opts.filetestBuffer.String(),
 		GnoStacktrace: m.Stacktrace().String(),
 	}
 }
