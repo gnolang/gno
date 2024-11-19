@@ -34,12 +34,6 @@ type (
 		// WithPermission calls a callback when a user has a specific permission.
 		// It panics on error.
 		WithPermission(std.Address, Permission, Args, func(Args))
-
-		// GetRoles returns the list of roles.
-		GetRoles() []Role
-
-		// GetUsers returns the list of users that have a specific role.
-		GetUsers(Role) []std.Address
 	}
 )
 
@@ -47,5 +41,3 @@ type (
 type allowAnyPermissioner struct{}
 
 func (allowAnyPermissioner) WithPermission(_ std.Address, _ Permission, a Args, cb func(Args)) { cb(a) }
-func (allowAnyPermissioner) GetRoles() []Role                                                  { return []Role{} }
-func (allowAnyPermissioner) GetUsers(Role) []std.Address                                       { return []std.Address{} }
