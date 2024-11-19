@@ -306,7 +306,7 @@ func Render(_ string) string {
 	times1 := parseJSONTimesList(t, render)
 
 	// Ensure times are correctly expending
-	for i, t2 := range times {
+	for i, t2 := range times1 {
 		if i == 0 {
 			continue
 		}
