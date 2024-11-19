@@ -6,7 +6,6 @@ import (
 	"fmt"
 
 	"github.com/gnolang/gno/tm2/pkg/bft/types"
-	"github.com/gnolang/gno/tm2/pkg/crypto"
 )
 
 // -----------------------------------------------------
@@ -136,9 +135,8 @@ func (state State) ValidateBlock(block *types.Block) error {
 
 	// NOTE: We can't actually verify it's the right proposer because we dont
 	// know what round the block was first proposed. So just check that it's
-	// a legit address and a known validator.
-	if len(block.ProposerAddress) != crypto.AddressSize ||
-		!state.Validators.HasAddress(block.ProposerAddress) {
+	// a legit address from a known validator.
+	if !state.Validators.HasAddress(block.ProposerAddress) {
 		return fmt.Errorf("Block.Header.ProposerAddress, %X, is not a validator",
 			block.ProposerAddress,
 		)

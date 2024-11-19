@@ -10,7 +10,6 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/amino"
 	typesver "github.com/gnolang/gno/tm2/pkg/bft/types/version"
 	"github.com/gnolang/gno/tm2/pkg/bitarray"
-	"github.com/gnolang/gno/tm2/pkg/crypto"
 	"github.com/gnolang/gno/tm2/pkg/crypto/merkle"
 	"github.com/gnolang/gno/tm2/pkg/crypto/tmhash"
 	"github.com/gnolang/gno/tm2/pkg/errors"
@@ -113,11 +112,6 @@ func (b *Block) ValidateBasic() error {
 	// NOTE: AppHash is arbitrary length
 	if err := ValidateHash(b.LastResultsHash); err != nil {
 		return fmt.Errorf("wrong Header.LastResultsHash: %w", err)
-	}
-
-	if len(b.ProposerAddress) != crypto.AddressSize {
-		return fmt.Errorf("expected len(Header.ProposerAddress) to be %d, got %d",
-			crypto.AddressSize, len(b.ProposerAddress))
 	}
 
 	return nil
