@@ -454,12 +454,7 @@ func (cfg *testPkgCfg) runTestFiles(
 		}
 	}()
 
-	testFuncs := &testFuncs{
-		PackageName: memPkg.Name,
-		Verbose:     cfg.verbose,
-		RunFlag:     runFlag,
-	}
-	loadTestFuncs(memPkg.Name, testFuncs, files)
+	tests := loadTestFuncs(memPkg.Name, files)
 
 	var alloc *gno.Allocator
 
@@ -492,7 +487,7 @@ func gnointernal_runtest(runFlag string, verbose bool, testName string, testFunc
 `)
 	m.RunFiles(n)
 
-	for _, tf := range testFuncs.Tests {
+	for _, tf := range tests {
 		// TODO(morgan): we could theoretically use wrapping on the baseStore
 		// and gno store to achieve per-test isolation. However, that requires
 		// some deeper changes, as ideally we'd:
@@ -573,13 +568,6 @@ type report struct {
 	Skipped bool
 }
 
-type testFuncs struct {
-	Tests       []testFunc
-	PackageName string
-	Verbose     bool
-	RunFlag     string
-}
-
 type testFunc struct {
 	Package string
 	Name    string
@@ -592,7 +580,7 @@ func getPkgNameFromFileset(files *gno.FileSet) string {
 	return string(files.Files[0].PkgName)
 }
 
-func loadTestFuncs(pkgName string, t *testFuncs, tfiles *gno.FileSet) *testFuncs {
+func loadTestFuncs(pkgName string, tfiles *gno.FileSet) (rt []testFunc) {
 	for _, tf := range tfiles.Files {
 		for _, d := range tf.Decls {
 			if fd, ok := d.(*gno.FuncDecl); ok {
@@ -602,12 +590,12 @@ func loadTestFuncs(pkgName string, t *testFuncs, tfiles *gno.FileSet) *testFuncs
 						Package: pkgName,
 						Name:    fname,
 					}
-					t.Tests = append(t.Tests, tf)
+					rt = append(rt, tf)
 				}
 			}
 		}
 	}
-	return t
+	return
 }
 
 // parses test files (skipping filetests) in the memPkg.
