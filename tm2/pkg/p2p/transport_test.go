@@ -194,12 +194,6 @@ func TestMultiplexTransport_Accept(t *testing.T) {
 		)
 	})
 
-	t.Run("duplicate peer connection", func(t *testing.T) {
-		t.Parallel()
-
-		// TODO implement
-	})
-
 	t.Run("peer ID mismatch", func(t *testing.T) {
 		t.Parallel()
 
