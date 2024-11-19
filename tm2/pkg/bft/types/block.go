@@ -53,10 +53,9 @@ func (b *Block) ValidateBasic() error {
 		)
 	}
 
-	// TODO: fix tests so we can do this
-	/*if b.TotalTxs < b.NumTxs {
+	if b.TotalTxs < b.NumTxs {
 		return fmt.Errorf("Header.TotalTxs (%d) is less than Header.NumTxs (%d)", b.TotalTxs, b.NumTxs)
-	}*/
+	}
 	if b.TotalTxs < 0 {
 		return errors.New("Negative Header.TotalTxs")
 	}
@@ -259,8 +258,9 @@ func (h *Header) GetTime() time.Time { return h.Time }
 func MakeBlock(height int64, txs []Tx, lastCommit *Commit) *Block {
 	block := &Block{
 		Header: Header{
-			Height: height,
-			NumTxs: int64(len(txs)),
+			Height:   height,
+			NumTxs:   int64(len(txs)),
+			TotalTxs: int64(len(txs)),
 		},
 		Data: Data{
 			Txs: txs,
