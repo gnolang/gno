@@ -1,7 +1,6 @@
 package main
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
 	"flag"
@@ -14,8 +13,8 @@ import (
 	"path/filepath"
 	"runtime/debug"
 	"sort"
+	"strconv"
 	"strings"
-	"text/template"
 	"time"
 
 	"github.com/gnolang/gno/gnovm"
@@ -462,11 +461,6 @@ func (cfg *testPkgCfg) runTestFiles(
 	}
 	loadTestFuncs(memPkg.Name, testFuncs, files)
 
-	testmain, err := formatTestmain(testFuncs)
-	if err != nil {
-		log.Fatal(err)
-	}
-
 	var alloc *gno.Allocator
 
 	// run package and write to upper cw / gs
@@ -486,7 +480,16 @@ func (cfg *testPkgCfg) runTestFiles(
 	pv := m.Package
 
 	m.RunFiles(files.Files...)
-	n := gno.MustParseFile("main_test.gno", testmain)
+	n := gno.MustParseFile("main_test.gno", `package `+memPkg.Name+`
+
+import (
+	"testing"
+)
+
+func gnointernal_runtest(runFlag string, verbose bool, testName string, testFunc func(t *testing.T)) string {
+	return testing.RunTest(runFlag, verbose, testing.InternalTest{testName, testFunc})
+}
+`)
 	m.RunFiles(n)
 
 	for _, tf := range testFuncs.Tests {
@@ -502,9 +505,13 @@ func (cfg *testPkgCfg) runTestFiles(
 		m.Alloc = alloc
 		m.SetActivePackage(pv)
 
-		testFuncStr := fmt.Sprintf("%q", tf.Name)
-
-		eval := m.Eval(gno.Call("runtest", testFuncStr))
+		eval := m.Eval(gno.Call(
+			"gnointernal_runtest",
+			gno.Str(runFlag),
+			gno.Nx(strconv.FormatBool(cfg.verbose)),
+			gno.Str(tf.Name),
+			gno.Nx(tf.Name),
+		))
 
 		if cfg.printEvents {
 			events := m.Context.(*teststd.TestExecContext).EventLogger.Events()
@@ -527,7 +534,7 @@ func (cfg *testPkgCfg) runTestFiles(
 
 		// TODO: replace with amino or send native type?
 		var rep report
-		err = json.Unmarshal([]byte(ret), &rep)
+		err := json.Unmarshal([]byte(ret), &rep)
 		if err != nil {
 			errs = multierr.Append(errs, err)
 			cfg.io.ErrPrintfln("--- FAIL: %s [internal gno testing error]", tf.Name)
@@ -566,30 +573,6 @@ type report struct {
 	Skipped bool
 }
 
-var testmainTmpl = template.Must(template.New("testmain").Parse(`
-package {{ .PackageName }}
-
-import (
-	"testing"
-)
-
-var tests = []testing.InternalTest{
-{{range .Tests}}
-    {"{{.Name}}", {{.Name}}},
-{{end}}
-}
-
-func runtest(name string) (report string) {
-	for _, test := range tests {
-		if test.Name == name {
-			return testing.RunTest({{printf "%q" .RunFlag}}, {{.Verbose}}, test)
-		}
-	}
-	panic("no such test: " + name)
-	return ""
-}
-`))
-
 type testFuncs struct {
 	Tests       []testFunc
 	PackageName string
@@ -607,14 +590,6 @@ func getPkgNameFromFileset(files *gno.FileSet) string {
 		return ""
 	}
 	return string(files.Files[0].PkgName)
-}
-
-func formatTestmain(t *testFuncs) (string, error) {
-	var buf bytes.Buffer
-	if err := testmainTmpl.Execute(&buf, t); err != nil {
-		return "", err
-	}
-	return buf.String(), nil
 }
 
 func loadTestFuncs(pkgName string, t *testFuncs, tfiles *gno.FileSet) *testFuncs {
