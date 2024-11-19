@@ -413,6 +413,7 @@ func newTestingDevNode(t *testing.T, pkgslist ...PackagePath) (*Node, *mock.Serv
 
 	// We have to put this to true to force tx to be in separate block
 	cfg.TMConfig.Consensus.SkipTimeoutCommit = true
+	cfg.TMConfig.Consensus.TimeoutPropose = time.Millisecond * 100
 
 	cfg.PackagesPathList = pkgslist
 	cfg.Emitter = emitter
