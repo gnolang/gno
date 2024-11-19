@@ -9,6 +9,7 @@ import (
 	"gno.land/r/demo/art/gnoface"
 	"gno.land/r/demo/art/millipede"
 	"gno.land/r/demo/hof"
+	"gno.land/r/demo/mirror"
 	"gno.land/r/leon/config"
 )
 
@@ -34,6 +35,7 @@ TODO import r/gh
 	}
 
 	hof.Register()
+	mirror.Register(std.CurrentRealm().PkgPath(), Render)
 }
 
 func UpdatePFP(url, caption string) {
