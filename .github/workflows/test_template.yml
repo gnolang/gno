@@ -57,7 +57,7 @@ jobs:
             go tool covdata textfmt -v 1 $filter -i=$GOCOVERDIR,$TXTARCOVERDIR -o gocoverage.out
 
         - name: Upload go coverage to Codecov
-          uses: codecov/codecov-action@v4
+          uses: codecov/codecov-action@v5
           with:
             disable_search: true
             fail_ci_if_error: true
