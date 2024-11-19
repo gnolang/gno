@@ -211,9 +211,10 @@ func execTest(cfg *testCfg, args []string, io commands.IO) error {
 			}
 		}
 
+		memPkg := gno.ReadMemPackage(pkg.Dir, gnoPkgPath)
+
 		startedAt := time.Now()
 		hasError := catchRuntimeError(gnoPkgPath, io.Err(), func() {
-			memPkg := gno.ReadMemPackage(pkg.Dir, gnoPkgPath)
 			err = test.Test(memPkg, pkg.Dir, opts)
 		})
 

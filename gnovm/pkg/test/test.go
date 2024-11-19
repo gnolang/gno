@@ -238,7 +238,7 @@ func Test(
 			}
 
 			duration := time.Since(startedAt)
-			dstr := fmt.Sprintf("%.2s", duration)
+			dstr := fmtDuration(duration)
 			if err != nil {
 				fmt.Fprintf(opts.Error, "--- FAIL: %s (%s)\n", testName, dstr)
 				fmt.Fprintln(opts.Error, err.Error())
@@ -471,4 +471,8 @@ func prettySize(nb int64) string {
 		exp++
 	}
 	return fmt.Sprintf("%.1f%c", float64(nb)/float64(div), "kMGTPE"[exp])
+}
+
+func fmtDuration(d time.Duration) string {
+	return fmt.Sprintf("%.2fs", d.Seconds())
 }
