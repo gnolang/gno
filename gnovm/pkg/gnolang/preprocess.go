@@ -298,6 +298,11 @@ func initStaticBlocks(store Store, ctx BlockNode, bn BlockNode) {
 					last.Predefine(false, n.VarName)
 				}
 			case *SwitchClauseStmt:
+				blen := len(n.Body)
+				if blen > 0 {
+					n.Body[blen-1].SetAttribute(ATTR_LAST_BLOCK_STMT, true)
+				}
+
 				// parent switch statement.
 				ss := ns[len(ns)-1].(*SwitchStmt)
 				// anything declared in ss are copied,
@@ -2142,9 +2147,7 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 				switch n.Op {
 				case BREAK:
 					if n.Label == "" {
-						if !findBreakableNode(ns) {
-							panic("cannot break with no parent loop or switch")
-						}
+						findBreakableNode(last, store)
 					} else {
 						// Make sure that the label exists, either for a switch or a
 						// BranchStmt.
@@ -2154,9 +2157,7 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 					}
 				case CONTINUE:
 					if n.Label == "" {
-						if !findContinuableNode(ns) {
-							panic("cannot continue with no parent loop")
-						}
+						findContinuableNode(last, store)
 					} else {
 						if isSwitchLabel(ns, n.Label) {
 							panic(fmt.Sprintf("invalid continue label %q\n", n.Label))
@@ -2168,17 +2169,36 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 					n.Depth = depth
 					n.BodyIndex = index
 				case FALLTHROUGH:
-					if swchC, ok := last.(*SwitchClauseStmt); ok {
-						// last is a switch clause, find its index in the switch and assign
-						// it to the fallthrough node BodyIndex. This will be used at
-						// runtime to determine the next switch clause to run.
-						swch := lastSwitch(ns)
-						for i := range swch.Clauses {
-							if &swch.Clauses[i] == swchC {
-								// switch clause found
-								n.BodyIndex = i
-								break
-							}
+					swchC, ok := last.(*SwitchClauseStmt)
+					if !ok {
+						// fallthrough is only allowed in a switch statement
+						panic("fallthrough statement out of place")
+					}
+
+					if n.GetAttribute(ATTR_LAST_BLOCK_STMT) != true {
+						// no more clause after the one executed, this is not allowed
+						panic("fallthrough statement out of place")
+					}
+
+					// last is a switch clause, find its index in the switch and assign
+					// it to the fallthrough node BodyIndex. This will be used at
+					// runtime to determine the next switch clause to run.
+					swch := lastSwitch(ns)
+
+					if swch.IsTypeSwitch {
+						// fallthrough is not allowed in type switches
+						panic("cannot fallthrough in type switch")
+					}
+
+					for i := range swch.Clauses {
+						if i == len(swch.Clauses)-1 {
+							panic("cannot fallthrough final case in switch")
+						}
+
+						if &swch.Clauses[i] == swchC {
+							// switch clause found
+							n.BodyIndex = i
+							break
 						}
 					}
 				default:
@@ -3277,24 +3297,36 @@ func funcOf(last BlockNode) (BlockNode, *FuncTypeExpr) {
 	}
 }
 
-func findBreakableNode(ns []Node) bool {
-	for _, n := range ns {
-		switch n.(type) {
-		case *ForStmt, *RangeStmt, *SwitchClauseStmt:
-			return true
+func findBreakableNode(last BlockNode, store Store) {
+	for last != nil {
+		switch last.(type) {
+		case *FuncLitExpr, *FuncDecl:
+			panic("break statement out of place")
+		case *ForStmt:
+			return
+		case *RangeStmt:
+			return
+		case *SwitchClauseStmt:
+			return
 		}
+
+		last = last.GetParentNode(store)
 	}
-	return false
 }
 
-func findContinuableNode(ns []Node) bool {
-	for _, n := range ns {
-		switch n.(type) {
-		case *ForStmt, *RangeStmt:
-			return true
+func findContinuableNode(last BlockNode, store Store) {
+	for last != nil {
+		switch last.(type) {
+		case *FuncLitExpr, *FuncDecl:
+			panic("continue statement out of place")
+		case *ForStmt:
+			return
+		case *RangeStmt:
+			return
 		}
+
+		last = last.GetParentNode(store)
 	}
-	return false
 }
 
 func findBranchLabel(last BlockNode, label Name) (
