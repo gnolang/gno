@@ -4,7 +4,7 @@ import (
 	"gno.land/p/demo/uint256"
 )
 
-var divisionByZeroError = "division by zero"
+const divisionByZeroError = "division by zero"
 
 // Add adds two int256 values and saves the result in z.
 func (z *Int) Add(x, y *Int) *Int {
