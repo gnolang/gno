@@ -285,7 +285,7 @@ func Render(_ string) string {
 	// Span multiple time
 	for i := 0; i < 2; i++ {
 		// Wait a little for time shift
-		time.Sleep(time.Second)
+		time.Sleep(time.Second + (time.Millisecond * 100))
 
 		msg := vm.MsgCall{
 			PkgPath: "gno.land/r/dev/foo",
