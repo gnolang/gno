@@ -380,7 +380,7 @@ func (sw *MultiplexSwitch) runRedialLoop(ctx context.Context) {
 			return false
 		}
 
-		ev := event.(*events.PeerConnectedEvent)
+		ev := event.(events.PeerConnectedEvent)
 
 		return sw.isPersistentPeer(ev.PeerID)
 	})
