@@ -25,15 +25,6 @@ import (
 func (opts *TestOptions) RunFiletest(filename string, source []byte) (string, error) {
 	opts.outWriter.w = opts.Output
 
-	// Eagerly load imports.
-	// This is executed using opts.Store, rather than the transaction store;
-	// it allows us to only have to load the imports once (and re-use the cached
-	// versions). Running the tests in separate "transactions" means that they
-	// don't get the parent store dirty.
-	if err := LoadImports(opts.TestStore, filename, source); err != nil {
-		return "", err
-	}
-
 	return opts.runFiletest(filename, source)
 }
 
@@ -184,8 +175,20 @@ type runResult struct {
 }
 
 func (opts *TestOptions) runTest(m *gno.Machine, pkgPath, filename string, content []byte) (rr runResult) {
-	// imports loaded - reset stdout.
+	// Eagerly load imports.
+	// This is executed using opts.Store, rather than the transaction store;
+	// it allows us to only have to load the imports once (and re-use the cached
+	// versions). Running the tests in separate "transactions" means that they
+	// don't get the parent store dirty.
+	if err := LoadImports(opts.TestStore, filename, content); err != nil {
+		// NOTE: we perform this here, so we can capture the runResult.
+		return runResult{Error: err.Error()}
+	}
+
+	// reset and start capturing stdout.
 	opts.filetestBuffer.Reset()
+	revert := opts.outWriter.tee(&opts.filetestBuffer)
+	defer revert()
 
 	defer func() {
 		if r := recover(); r != nil {

@@ -127,8 +127,8 @@ type TestOptions struct {
 
 // WriterForStore is the writer that should be passed to [Store], so that
 // [Test] is then able to swap it when needed.
-func (to *TestOptions) WriterForStore() io.Writer {
-	return &to.outWriter
+func (opts *TestOptions) WriterForStore() io.Writer {
+	return &opts.outWriter
 }
 
 // NewTestOptions sets up TestOptions, filling out all "required" parameters.
@@ -172,26 +172,26 @@ func (p *proxyWriter) tee(w io.Writer) (revert func()) {
 func Test(
 	memPkg *gnovm.MemPackage,
 	fsDir string, // directory on filesystem of package; used for Sync
-	cfg *TestOptions,
+	opts *TestOptions,
 ) error {
-	cfg.outWriter.w = cfg.Output
+	opts.outWriter.w = opts.Output
 
 	var errs error
 
 	// Stands for "test", "integration test", and "filetest".
-	tset, itset, itfiles, ftfiles := parseMemPackageTests(cfg.TestStore, memPkg)
+	tset, itset, itfiles, ftfiles := parseMemPackageTests(opts.TestStore, memPkg)
 
 	// testing with *_test.gno
 	if len(tset.Files)+len(itset.Files) > 0 {
 		// create a common cw/gs for both the `pkg` tests as well as the `pkg_test`
 		// tests. this allows us to "export" symbols from the pkg tests and
 		// import them from the `pkg_test` tests.
-		cw := cfg.BaseStore.CacheWrap()
-		gs := cfg.TestStore.BeginTransaction(cw, cw)
+		cw := opts.BaseStore.CacheWrap()
+		gs := opts.TestStore.BeginTransaction(cw, cw)
 
 		// run test files in pkg
 		if len(tset.Files) > 0 {
-			err := cfg.runTestFiles(memPkg, tset, cw, gs)
+			err := opts.runTestFiles(memPkg, tset, cw, gs)
 			if err != nil {
 				errs = multierr.Append(errs, err)
 			}
@@ -205,7 +205,7 @@ func Test(
 				Files: itfiles,
 			}
 
-			err := cfg.runTestFiles(itPkg, itset, cw, gs)
+			err := opts.runTestFiles(itPkg, itset, cw, gs)
 			if err != nil {
 				errs = multierr.Append(errs, err)
 			}
@@ -214,10 +214,7 @@ func Test(
 
 	// testing with *_filetest.gno
 	if len(ftfiles) > 0 {
-		revert := cfg.outWriter.tee(&cfg.filetestBuffer)
-		defer revert()
-
-		filter := splitRegexp(cfg.RunFlag)
+		filter := splitRegexp(opts.RunFlag)
 		for _, testFile := range ftfiles {
 			testFileName := testFile.Name
 			testFilePath := filepath.Join(memPkg.Path, testFileName)
@@ -227,8 +224,8 @@ func Test(
 			}
 
 			startedAt := time.Now()
-			if cfg.Verbose {
-				fmt.Fprintf(cfg.Error, "=== RUN   %s\n", testName)
+			if opts.Verbose {
+				fmt.Fprintf(opts.Error, "=== RUN   %s\n", testName)
 			}
 
 			content, err := os.ReadFile(testFilePath)
@@ -236,7 +233,7 @@ func Test(
 				return err
 			}
 
-			changed, err := cfg.runFiletest(testFileName, content)
+			changed, err := opts.runFiletest(testFileName, content)
 			if changed != "" {
 				// Note: changed always == "" if opts.Sync == false.
 				err = os.WriteFile(testFilePath, []byte(changed), 0o644)
@@ -248,11 +245,11 @@ func Test(
 			duration := time.Since(startedAt)
 			dstr := fmt.Sprintf("%.2s", duration)
 			if err != nil {
-				fmt.Fprintf(cfg.Error, "--- FAIL: %s (%s)\n", testName, dstr)
-				fmt.Fprintln(cfg.Error, err.Error())
+				fmt.Fprintf(opts.Error, "--- FAIL: %s (%s)\n", testName, dstr)
+				fmt.Fprintln(opts.Error, err.Error())
 				errs = multierr.Append(errs, fmt.Errorf("%s failed", testName))
-			} else if cfg.Verbose {
-				fmt.Fprintf(cfg.Error, "--- PASS: %s (%s)\n", testName, dstr)
+			} else if opts.Verbose {
+				fmt.Fprintf(opts.Error, "--- PASS: %s (%s)\n", testName, dstr)
 			}
 
 			// XXX: add per-test metrics
@@ -262,7 +259,7 @@ func Test(
 	return errs
 }
 
-func (cfg *TestOptions) runTestFiles(
+func (opts *TestOptions) runTestFiles(
 	memPkg *gnovm.MemPackage,
 	files *gno.FileSet,
 	cw storetypes.Store, gs gno.TransactionStore,
@@ -284,15 +281,15 @@ func (cfg *TestOptions) runTestFiles(
 	tests := loadTestFuncs(memPkg.Name, files)
 
 	var alloc *gno.Allocator
-	if cfg.Metrics {
+	if opts.Metrics {
 		alloc = gno.NewAllocator(math.MaxInt64)
 	}
 
 	// Check if we already have the package - it may have been eagerly
 	// loaded.
-	m = Machine(gs, cfg.WriterForStore(), memPkg.Path)
+	m = Machine(gs, opts.WriterForStore(), memPkg.Path)
 	m.Alloc = alloc
-	if cfg.TestStore.GetMemPackage(memPkg.Path) == nil {
+	if opts.TestStore.GetMemPackage(memPkg.Path) == nil {
 		m.RunMemPackage(memPkg, true)
 	} else {
 		m.SetActivePackage(gs.GetPackage(memPkg.Path, false))
@@ -310,7 +307,7 @@ func (cfg *TestOptions) runTestFiles(
 		// - Run the test files before this for loop (but persist it to store;
 		//   RunFiles doesn't do that currently)
 		// - Wrap here.
-		m = Machine(gs, cfg.Output, memPkg.Path)
+		m = Machine(gs, opts.Output, memPkg.Path)
 		m.Alloc = alloc
 		m.SetActivePackage(pv)
 
@@ -319,9 +316,9 @@ func (cfg *TestOptions) runTestFiles(
 		testingcx := &gno.ConstExpr{TypedValue: testingtv}
 
 		eval := m.Eval(gno.Call(
-			gno.Sel(testingcx, "RunTest"),           // Call testing.RunTest
-			gno.Str(cfg.RunFlag),                    // run flag
-			gno.Nx(strconv.FormatBool(cfg.Verbose)), // is verbose?
+			gno.Sel(testingcx, "RunTest"),            // Call testing.RunTest
+			gno.Str(opts.RunFlag),                    // run flag
+			gno.Nx(strconv.FormatBool(opts.Verbose)), // is verbose?
 			&gno.CompositeLitExpr{ // Third param, the testing.InternalTest
 				Type: gno.Sel(testingcx, "InternalTest"),
 				Elts: gno.KeyValueExprs{
@@ -331,14 +328,14 @@ func (cfg *TestOptions) runTestFiles(
 			},
 		))
 
-		if cfg.Events {
+		if opts.Events {
 			events := m.Context.(*teststd.TestExecContext).EventLogger.Events()
 			if events != nil {
 				res, err := json.Marshal(events)
 				if err != nil {
 					panic(err)
 				}
-				fmt.Fprintf(cfg.Error, "EVENTS: %s\n", string(res))
+				fmt.Fprintf(opts.Error, "EVENTS: %s\n", string(res))
 			}
 		}
 
@@ -346,7 +343,7 @@ func (cfg *TestOptions) runTestFiles(
 		if ret == "" {
 			err := fmt.Errorf("failed to execute unit test: %q", tf.Name)
 			errs = multierr.Append(errs, err)
-			fmt.Fprintf(cfg.Error, "--- FAIL: %s [internal gno testing error]", tf.Name)
+			fmt.Fprintf(opts.Error, "--- FAIL: %s [internal gno testing error]", tf.Name)
 			continue
 		}
 
@@ -355,7 +352,7 @@ func (cfg *TestOptions) runTestFiles(
 		err := json.Unmarshal([]byte(ret), &rep)
 		if err != nil {
 			errs = multierr.Append(errs, err)
-			fmt.Fprintf(cfg.Error, "--- FAIL: %s [internal gno testing error]", tf.Name)
+			fmt.Fprintf(opts.Error, "--- FAIL: %s [internal gno testing error]", tf.Name)
 			continue
 		}
 
@@ -364,7 +361,7 @@ func (cfg *TestOptions) runTestFiles(
 			errs = multierr.Append(errs, err)
 		}
 
-		if cfg.Metrics {
+		if opts.Metrics {
 			// XXX: store changes
 			// XXX: max mem consumption
 			allocsVal := "n/a"
@@ -375,7 +372,7 @@ func (cfg *TestOptions) runTestFiles(
 					float64(allocs)/float64(maxAllocs)*100,
 				)
 			}
-			fmt.Fprintf(cfg.Error, "---       runtime: cycle=%s allocs=%s\n",
+			fmt.Fprintf(opts.Error, "---       runtime: cycle=%s allocs=%s\n",
 				prettySize(m.Cycles),
 				allocsVal,
 			)

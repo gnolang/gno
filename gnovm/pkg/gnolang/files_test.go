@@ -33,8 +33,17 @@ func (nopReader) Read(p []byte) (int, error) { return 0, io.EOF }
 func TestFiles(t *testing.T) {
 	rootDir, err := filepath.Abs("../../../")
 	require.NoError(t, err)
-	var opts test.FileTestOptions
-	opts.BaseStore, opts.Store = test.Store(rootDir, true, nopReader{}, opts.Stdout(), io.Discard)
+
+	opts := &test.TestOptions{
+		RootDir: rootDir,
+		Output:  io.Discard,
+		Error:   io.Discard,
+		Sync:    *withSync,
+	}
+	opts.BaseStore, opts.TestStore = test.Store(
+		rootDir, true,
+		nopReader{}, opts.WriterForStore(), io.Discard,
+	)
 
 	dir := "../../tests/"
 	fsys := os.DirFS(dir)
@@ -62,23 +71,15 @@ func TestFiles(t *testing.T) {
 
 		var criticalError error
 		t.Run(subTestName, func(t *testing.T) {
-			if *withSync {
-				changed, err := opts.RunSync(path, content)
-				if err != nil {
-					t.Fatal(err.Error())
-				}
-				if changed != "" {
-					err = os.WriteFile(filepath.Join(dir, path), []byte(changed), de.Type())
-					if err != nil {
-						criticalError = fmt.Errorf("could not fix golden file: %w", err)
-					}
-				}
-				return
-			}
-
-			err := opts.Run(path, content)
+			changed, err := opts.RunFiletest(path, content)
 			if err != nil {
-				t.Error(err.Error())
+				t.Fatal(err.Error())
+			}
+			if changed != "" {
+				err = os.WriteFile(filepath.Join(dir, path), []byte(changed), de.Type())
+				if err != nil {
+					criticalError = fmt.Errorf("could not fix golden file: %w", err)
+				}
 			}
 		})
 
