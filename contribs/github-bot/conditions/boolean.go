@@ -23,6 +23,8 @@ func (a *and) IsMet(pr *github.PullRequest, details treeprint.Tree) bool {
 	for _, condition := range a.conditions {
 		if !condition.IsMet(pr, branch) {
 			met = false
+			// We don't break here because we need to call IsMet on all conditions
+			// to populate the details tree
 		}
 	}
 
@@ -57,6 +59,8 @@ func (o *or) IsMet(pr *github.PullRequest, details treeprint.Tree) bool {
 	for _, condition := range o.conditions {
 		if condition.IsMet(pr, branch) {
 			met = true
+			// We don't break here because we need to call IsMet on all conditions
+			// to populate the details tree
 		}
 	}
 

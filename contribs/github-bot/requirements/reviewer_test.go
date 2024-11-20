@@ -46,8 +46,8 @@ func TestReviewByUser(t *testing.T) {
 		isSatisfied bool
 		create      bool
 	}{
-		{"reviewer match", "user", true, false},
-		{"reviewer match without approval", "anotherOne", false, false},
+		{"reviewer matches", "user", true, false},
+		{"reviewer matches without approval", "anotherOne", false, false},
 		{"reviewer doesn't match", "user2", false, true},
 	} {
 		t.Run(testCase.name, func(t *testing.T) {

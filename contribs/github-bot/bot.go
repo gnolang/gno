@@ -66,12 +66,12 @@ func execBot(params *p.Params) error {
 	// Process all pull requests in parallel
 	autoRules, manualRules := config(gh)
 	var wg sync.WaitGroup
-	wg.Add(len(prs))
 
 	// Used in dry-run mode to log cleanly from different goroutines
 	logMutex := sync.Mutex{}
 
 	for _, pr := range prs {
+		wg.Add(1)
 		go func(pr *github.PullRequest) {
 			defer wg.Done()
 			commentContent := CommentContent{}
@@ -82,22 +82,24 @@ func execBot(params *p.Params) error {
 				ifDetails := treeprint.NewWithRoot(fmt.Sprintf("%s Condition met", utils.StatusSuccess))
 
 				// Check if conditions of this rule are met by this PR
-				if autoRule.If.IsMet(pr, ifDetails) {
-					c := AutoContent{Description: autoRule.Description, Satisfied: false}
-					thenDetails := treeprint.NewWithRoot(fmt.Sprintf("%s Requirement not satisfied", utils.StatusFail))
-
-					// Check if requirements of this rule are satisfied by this PR
-					if autoRule.Then.IsSatisfied(pr, thenDetails) {
-						thenDetails.SetValue(fmt.Sprintf("%s Requirement satisfied", utils.StatusSuccess))
-						c.Satisfied = true
-					} else {
-						commentContent.allSatisfied = false
-					}
-
-					c.ConditionDetails = ifDetails.String()
-					c.RequirementDetails = thenDetails.String()
-					commentContent.AutoRules = append(commentContent.AutoRules, c)
+				if !autoRule.If.IsMet(pr, ifDetails) {
+					continue
 				}
+
+				c := AutoContent{Description: autoRule.Description, Satisfied: false}
+				thenDetails := treeprint.NewWithRoot(fmt.Sprintf("%s Requirement not satisfied", utils.StatusFail))
+
+				// Check if requirements of this rule are satisfied by this PR
+				if autoRule.Then.IsSatisfied(pr, thenDetails) {
+					thenDetails.SetValue(fmt.Sprintf("%s Requirement satisfied", utils.StatusSuccess))
+					c.Satisfied = true
+				} else {
+					commentContent.allSatisfied = false
+				}
+
+				c.ConditionDetails = ifDetails.String()
+				c.RequirementDetails = thenDetails.String()
+				commentContent.AutoRules = append(commentContent.AutoRules, c)
 			}
 
 			// Iterate over all manual rules in config
@@ -111,20 +113,22 @@ func execBot(params *p.Params) error {
 				}
 
 				// Check if conditions of this rule are met by this PR
-				if manualRule.If.IsMet(pr, ifDetails) {
-					commentContent.ManualRules = append(
-						commentContent.ManualRules,
-						ManualContent{
-							Description:      manualRule.Description,
-							ConditionDetails: ifDetails.String(),
-							CheckedBy:        checks[manualRule.Description][1],
-							Teams:            manualRule.Teams,
-						},
-					)
+				if !manualRule.If.IsMet(pr, ifDetails) {
+					continue
+				}
 
-					if checks[manualRule.Description][1] == "" {
-						commentContent.allSatisfied = false
-					}
+				commentContent.ManualRules = append(
+					commentContent.ManualRules,
+					ManualContent{
+						Description:      manualRule.Description,
+						ConditionDetails: ifDetails.String(),
+						CheckedBy:        checks[manualRule.Description][1],
+						Teams:            manualRule.Teams,
+					},
+				)
+
+				if checks[manualRule.Description][1] == "" {
+					commentContent.allSatisfied = false
 				}
 			}
 

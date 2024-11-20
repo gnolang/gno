@@ -78,7 +78,7 @@ func (gh *GitHub) GetBotComment(prNum int) *github.IssueComment {
 }
 
 func (gh *GitHub) SetBotComment(body string, prNum int) *github.IssueComment {
-	// Create bot comment if it not already exists
+	// Create bot comment if it does not already exist
 	comment := gh.GetBotComment(prNum)
 	if comment == nil {
 		newComment, _, err := gh.Client.Issues.CreateComment(
@@ -155,7 +155,7 @@ func (gh *GitHub) IsUserInTeams(user string, teams []string) bool {
 	return false
 }
 
-func (gh *GitHub) ListPrReviewers(prNum int) *github.Reviewers {
+func (gh *GitHub) ListPRReviewers(prNum int) *github.Reviewers {
 	var (
 		allReviewers = &github.Reviewers{}
 		opts         = &github.ListOptions{
@@ -188,7 +188,7 @@ func (gh *GitHub) ListPrReviewers(prNum int) *github.Reviewers {
 	return allReviewers
 }
 
-func (gh *GitHub) ListPrReviews(prNum int) []*github.PullRequestReview {
+func (gh *GitHub) ListPRReviews(prNum int) []*github.PullRequestReview {
 	var (
 		allReviews []*github.PullRequestReview
 		opts       = &github.ListOptions{

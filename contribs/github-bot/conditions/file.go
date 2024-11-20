@@ -20,7 +20,7 @@ type fileChanged struct {
 var _ Condition = &fileChanged{}
 
 func (fc *fileChanged) IsMet(pr *github.PullRequest, details treeprint.Tree) bool {
-	detail := fmt.Sprintf("A changed file match this pattern: %s", fc.pattern.String())
+	detail := fmt.Sprintf("A changed file matches this pattern: %s", fc.pattern.String())
 	opts := &github.ListOptions{
 		PerPage: client.PageSize,
 	}

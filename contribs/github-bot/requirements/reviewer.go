@@ -24,7 +24,7 @@ func (r *reviewByUser) IsSatisfied(pr *github.PullRequest, details treeprint.Tre
 	// If not a dry run, make the user a reviewer if he's not already
 	if !r.gh.DryRun {
 		requested := false
-		if reviewers := r.gh.ListPrReviewers(pr.GetNumber()); reviewers != nil {
+		if reviewers := r.gh.ListPRReviewers(pr.GetNumber()); reviewers != nil {
 			for _, user := range reviewers.Users {
 				if user.GetLogin() == r.user {
 					requested = true
@@ -52,7 +52,7 @@ func (r *reviewByUser) IsSatisfied(pr *github.PullRequest, details treeprint.Tre
 	}
 
 	// Check if user already approved this PR
-	for _, review := range r.gh.ListPrReviews(pr.GetNumber()) {
+	for _, review := range r.gh.ListPRReviews(pr.GetNumber()) {
 		if review.GetUser().GetLogin() == r.user {
 			r.gh.Logger.Debugf("User %s already reviewed PR %d with state %s", r.user, pr.GetNumber(), review.GetState())
 			return utils.AddStatusNode(review.GetState() == "APPROVED", detail, details)
@@ -82,7 +82,7 @@ func (r *reviewByTeamMembers) IsSatisfied(pr *github.PullRequest, details treepr
 	// If not a dry run, make the user a reviewer if he's not already
 	if !r.gh.DryRun {
 		requested := false
-		if reviewers := r.gh.ListPrReviewers(pr.GetNumber()); reviewers != nil {
+		if reviewers := r.gh.ListPRReviewers(pr.GetNumber()); reviewers != nil {
 			for _, team := range reviewers.Teams {
 				if team.GetSlug() == r.team {
 					requested = true
@@ -111,7 +111,7 @@ func (r *reviewByTeamMembers) IsSatisfied(pr *github.PullRequest, details treepr
 
 	// Check how many members of this team already approved this PR
 	approved := uint(0)
-	for _, review := range r.gh.ListPrReviews(pr.GetNumber()) {
+	for _, review := range r.gh.ListPRReviews(pr.GetNumber()) {
 		for _, member := range r.gh.ListTeamMembers(r.team) {
 			if review.GetUser().GetLogin() == member.GetLogin() {
 				if review.GetState() == "APPROVED" {

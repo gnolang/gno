@@ -23,6 +23,8 @@ func (a *and) IsSatisfied(pr *github.PullRequest, details treeprint.Tree) bool {
 	for _, requirement := range a.requirements {
 		if !requirement.IsSatisfied(pr, branch) {
 			satisfied = false
+			// We don't break here because we need to call IsSatisfied on all
+			// requirements to populate the details tree
 		}
 	}
 
@@ -57,6 +59,8 @@ func (o *or) IsSatisfied(pr *github.PullRequest, details treeprint.Tree) bool {
 	for _, requirement := range o.requirements {
 		if requirement.IsSatisfied(pr, branch) {
 			satisfied = true
+			// We don't break here because we need to call IsSatisfied on all
+			// requirements to populate the details tree
 		}
 	}
 

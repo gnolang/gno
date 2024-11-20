@@ -11,9 +11,11 @@ func TestLastNodeStatus(t *testing.T, success bool, details treeprint.Tree) bool
 	t.Helper()
 
 	detail := details.FindLastNode().(*treeprint.Node).Value.(string)
+	status := StatusFail
 
 	if success {
-		return strings.HasPrefix(detail, StatusSuccess)
+		status = StatusSuccess
 	}
-	return strings.HasPrefix(detail, StatusFail)
+
+	return strings.HasPrefix(detail, status)
 }

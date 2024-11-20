@@ -28,7 +28,7 @@ func config(gh *client.GitHub) ([]automaticCheck, []manualCheck) {
 			Description: "Changes to 'tm2' folder should be reviewed/authored by at least one member of both EU and US teams",
 			If: c.And(
 				c.FileChanged(gh, "tm2"),
-				c.BaseBranch("main"),
+				c.BaseBranch("master"),
 			),
 			Then: r.And(
 				r.Or(
@@ -57,7 +57,7 @@ func config(gh *client.GitHub) ([]automaticCheck, []manualCheck) {
 		{
 			Description: "Determine if infra needs to be updated",
 			If: c.And(
-				c.BaseBranch("main"),
+				c.BaseBranch("master"),
 				c.Or(
 					c.FileChanged(gh, "misc/deployments"),
 					c.FileChanged(gh, `misc/docker-\.*`),
@@ -69,7 +69,7 @@ func config(gh *client.GitHub) ([]automaticCheck, []manualCheck) {
 		{
 			Description: "Ensure the code style is satisfactory",
 			If: c.And(
-				c.BaseBranch("main"),
+				c.BaseBranch("master"),
 				c.Or(
 					c.FileChanged(gh, `.*\.go`),
 					c.FileChanged(gh, `.*\.js`),

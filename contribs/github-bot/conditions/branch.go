@@ -20,7 +20,7 @@ var _ Condition = &baseBranch{}
 func (b *baseBranch) IsMet(pr *github.PullRequest, details treeprint.Tree) bool {
 	return utils.AddStatusNode(
 		b.pattern.MatchString(pr.GetBase().GetRef()),
-		fmt.Sprintf("The base branch match this pattern: %s", b.pattern.String()),
+		fmt.Sprintf("The base branch matches this pattern: %s", b.pattern.String()),
 		details,
 	)
 }
@@ -39,7 +39,7 @@ var _ Condition = &headBranch{}
 func (h *headBranch) IsMet(pr *github.PullRequest, details treeprint.Tree) bool {
 	return utils.AddStatusNode(
 		h.pattern.MatchString(pr.GetHead().GetRef()),
-		fmt.Sprintf("The head branch match this pattern: %s", h.pattern.String()),
+		fmt.Sprintf("The head branch matches this pattern: %s", h.pattern.String()),
 		details,
 	)
 }
