@@ -12,6 +12,7 @@ import (
 	"github.com/google/go-github/v64/github"
 )
 
+// PageSize is the number of items to load for each iteration when fetching a list
 const PageSize = 100
 
 type GitHub struct {
@@ -26,18 +27,26 @@ type GitHub struct {
 
 func (gh *GitHub) GetBotComment(prNum int) *github.IssueComment {
 	// List existing comments
-	var (
-		allComments []*github.IssueComment
-		sort        = "created"
-		direction   = "desc"
-		opts        = &github.IssueListCommentsOptions{
-			Sort:      &sort,
-			Direction: &direction,
-			ListOptions: github.ListOptions{
-				PerPage: PageSize,
-			},
-		}
+	const (
+		sort      = "created"
+		direction = "desc"
 	)
+
+	// Get current user (bot)
+	currentUser, _, err := gh.Client.Users.Get(gh.Ctx, "")
+	if err != nil {
+		gh.Logger.Errorf("Unable to get current user: %v", err)
+		return nil
+	}
+
+	// Pagination option
+	opts := &github.IssueListCommentsOptions{
+		Sort:      github.String(sort),
+		Direction: github.String(direction),
+		ListOptions: github.ListOptions{
+			PerPage: PageSize,
+		},
+	}
 
 	for {
 		comments, response, err := gh.Client.Issues.ListComments(
@@ -52,26 +61,17 @@ func (gh *GitHub) GetBotComment(prNum int) *github.IssueComment {
 			return nil
 		}
 
-		allComments = append(allComments, comments...)
+		// Get the comment created by current user
+		for _, comment := range comments {
+			if comment.GetUser().GetLogin() == currentUser.GetLogin() {
+				return comment
+			}
+		}
 
 		if response.NextPage == 0 {
 			break
 		}
 		opts.Page = response.NextPage
-	}
-
-	// Get current user (bot)
-	currentUser, _, err := gh.Client.Users.Get(gh.Ctx, "")
-	if err != nil {
-		gh.Logger.Errorf("Unable to get current user: %v", err)
-		return nil
-	}
-
-	// Get the comment created by current user
-	for _, comment := range allComments {
-		if comment.GetUser().GetLogin() == currentUser.GetLogin() {
-			return comment
-		}
 	}
 
 	return nil
