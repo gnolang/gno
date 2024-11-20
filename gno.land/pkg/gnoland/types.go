@@ -25,9 +25,10 @@ func ProtoGnoAccount() std.Account {
 }
 
 type GnoGenesisState struct {
-	Balances []Balance        `json:"balances"`
-	Txs      []TxWithMetadata `json:"txs"`
-	Params   []Param          `json:"params"`
+	Balances        []Balance        `json:"balances"`
+	Txs             []TxWithMetadata `json:"txs"`
+	Params          []Param          `json:"params"`
+	EmbeddedStdlibs bool             `json:"embedStdlibs"`
 }
 
 type TxWithMetadata struct {

@@ -243,12 +243,6 @@ func (cfg InitChainerConfig) InitChainer(ctx sdk.Context, req abci.RequestInitCh
 	start := time.Now()
 	ctx.Logger().Debug("InitChainer: started")
 
-	// load standard libraries; immediately committed to store so that they are
-	// available for use when processing the genesis transactions below.
-	cfg.loadStdlibs(ctx)
-	ctx.Logger().Debug("InitChainer: standard libraries loaded",
-		"elapsed", time.Since(start))
-
 	// load app state. AppState may be nil mostly in some minimal testing setups;
 	// so log a warning when that happens.
 	txResponses, err := cfg.loadAppState(ctx, req.AppState)
@@ -307,6 +301,16 @@ func (cfg InitChainerConfig) loadAppState(ctx sdk.Context, appState any) ([]abci
 	// Apply genesis params.
 	for _, param := range state.Params {
 		param.register(ctx, cfg.paramsKpr)
+	}
+
+	// Injec stdlibs embedded in binary if required
+	if state.EmbeddedStdlibs {
+		// load standard libraries; immediately committed to store so that they are
+		// available for use when processing the genesis transactions below.
+		start := time.Now()
+		cfg.loadStdlibs(ctx)
+		ctx.Logger().Debug("InitChainer: standard libraries loaded",
+			"elapsed", time.Since(start))
 	}
 
 	// Replay genesis txs.

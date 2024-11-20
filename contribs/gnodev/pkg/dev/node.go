@@ -117,8 +117,9 @@ func NewDevNode(ctx context.Context, cfg *NodeConfig) (*Node, error) {
 
 	// generate genesis state
 	genesis := gnoland.GnoGenesisState{
-		Balances: cfg.BalancesList,
-		Txs:      append(pkgsTxs, cfg.InitialTxs...),
+		Balances:        cfg.BalancesList,
+		Txs:             append(pkgsTxs, cfg.InitialTxs...),
+		EmbeddedStdlibs: true,
 	}
 
 	if err := devnode.rebuildNode(ctx, genesis); err != nil {
