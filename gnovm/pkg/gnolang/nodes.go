@@ -12,8 +12,8 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/gnolang/gno/gnovm"
 	"github.com/gnolang/gno/tm2/pkg/errors"
-	"github.com/gnolang/gno/tm2/pkg/std"
 	"go.uber.org/multierr"
 )
 
@@ -149,16 +149,17 @@ func (loc Location) IsZero() bool {
 type GnoAttribute string
 
 const (
-	ATTR_PREPROCESSED  GnoAttribute = "ATTR_PREPROCESSED"
-	ATTR_PREDEFINED    GnoAttribute = "ATTR_PREDEFINED"
-	ATTR_TYPE_VALUE    GnoAttribute = "ATTR_TYPE_VALUE"
-	ATTR_TYPEOF_VALUE  GnoAttribute = "ATTR_TYPEOF_VALUE"
-	ATTR_IOTA          GnoAttribute = "ATTR_IOTA"
-	ATTR_LOCATIONED    GnoAttribute = "ATTR_LOCATIONE"     // XXX DELETE
-	ATTR_GOTOLOOP_STMT GnoAttribute = "ATTR_GOTOLOOP_STMT" // XXX delete?
-	ATTR_LOOP_DEFINES  GnoAttribute = "ATTR_LOOP_DEFINES"  // []Name defined within loops.
-	ATTR_LOOP_USES     GnoAttribute = "ATTR_LOOP_USES"     // []Name loop defines actually used.
-	ATTR_SHIFT_RHS     GnoAttribute = "ATTR_SHIFT_RHS"
+	ATTR_PREPROCESSED    GnoAttribute = "ATTR_PREPROCESSED"
+	ATTR_PREDEFINED      GnoAttribute = "ATTR_PREDEFINED"
+	ATTR_TYPE_VALUE      GnoAttribute = "ATTR_TYPE_VALUE"
+	ATTR_TYPEOF_VALUE    GnoAttribute = "ATTR_TYPEOF_VALUE"
+	ATTR_IOTA            GnoAttribute = "ATTR_IOTA"
+	ATTR_LOCATIONED      GnoAttribute = "ATTR_LOCATIONE"     // XXX DELETE
+	ATTR_GOTOLOOP_STMT   GnoAttribute = "ATTR_GOTOLOOP_STMT" // XXX delete?
+	ATTR_LOOP_DEFINES    GnoAttribute = "ATTR_LOOP_DEFINES"  // []Name defined within loops.
+	ATTR_LOOP_USES       GnoAttribute = "ATTR_LOOP_USES"     // []Name loop defines actually used.
+	ATTR_SHIFT_RHS       GnoAttribute = "ATTR_SHIFT_RHS"
+	ATTR_LAST_BLOCK_STMT GnoAttribute = "ATTR_LAST_BLOCK_STMT"
 )
 
 type Attributes struct {
@@ -1152,7 +1153,7 @@ func PackageNameFromFileBody(name, body string) Name {
 //
 // NOTE: panics if package name is invalid (characters must be alphanumeric or _,
 // lowercase, and must start with a letter).
-func ReadMemPackage(dir string, pkgPath string) *std.MemPackage {
+func ReadMemPackage(dir string, pkgPath string) *gnovm.MemPackage {
 	files, err := os.ReadDir(dir)
 	if err != nil {
 		panic(err)
@@ -1186,14 +1187,14 @@ func ReadMemPackage(dir string, pkgPath string) *std.MemPackage {
 	return ReadMemPackageFromList(list, pkgPath)
 }
 
-// ReadMemPackageFromList creates a new [std.MemPackage] with the specified pkgPath,
+// ReadMemPackageFromList creates a new [gnovm.MemPackage] with the specified pkgPath,
 // containing the contents of all the files provided in the list slice.
 // No parsing or validation is done on the filenames.
 //
 // NOTE: panics if package name is invalid (characters must be alphanumeric or _,
 // lowercase, and must start with a letter).
-func ReadMemPackageFromList(list []string, pkgPath string) *std.MemPackage {
-	memPkg := &std.MemPackage{Path: pkgPath}
+func ReadMemPackageFromList(list []string, pkgPath string) *gnovm.MemPackage {
+	memPkg := &gnovm.MemPackage{Path: pkgPath}
 	var pkgName Name
 	for _, fpath := range list {
 		fname := filepath.Base(fpath)
@@ -1209,7 +1210,7 @@ func ReadMemPackageFromList(list []string, pkgPath string) *std.MemPackage {
 			}
 		}
 		memPkg.Files = append(memPkg.Files,
-			&std.MemFile{
+			&gnovm.MemFile{
 				Name: fname,
 				Body: string(bz),
 			})
@@ -1229,7 +1230,7 @@ func ReadMemPackageFromList(list []string, pkgPath string) *std.MemPackage {
 //
 // If one of the files has a different package name than memPkg.Name,
 // or [ParseFile] returns an error, ParseMemPackage panics.
-func ParseMemPackage(memPkg *std.MemPackage) (fset *FileSet) {
+func ParseMemPackage(memPkg *gnovm.MemPackage) (fset *FileSet) {
 	fset = &FileSet{}
 	var errs error
 	for _, mfile := range memPkg.Files {
@@ -1256,7 +1257,7 @@ func ParseMemPackage(memPkg *std.MemPackage) (fset *FileSet) {
 	return fset
 }
 
-func ParseMemPackageTests(memPkg *std.MemPackage) (tset, itset *FileSet) {
+func ParseMemPackageTests(memPkg *gnovm.MemPackage) (tset, itset *FileSet) {
 	tset = &FileSet{}
 	itset = &FileSet{}
 	for _, mfile := range memPkg.Files {

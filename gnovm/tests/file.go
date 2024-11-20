@@ -15,6 +15,7 @@ import (
 	"strings"
 
 	"github.com/gnolang/gno/gno.land/pkg/gnoland/ugnot"
+	"github.com/gnolang/gno/gnovm"
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
 	"github.com/gnolang/gno/gnovm/stdlibs"
 	teststd "github.com/gnolang/gno/gnovm/tests/stdlibs/std"
@@ -57,6 +58,7 @@ func TestContext(pkgPath string, send std.Coins) *teststd.TestExecContext {
 
 	pkgCoins := std.MustParseCoins(ugnot.ValueString(200_000_000)).Add(send) // >= send.
 	banker := newTestBanker(pkgAddr.Bech32(), pkgCoins)
+	params := newTestParams()
 	ctx := stdlibs.ExecContext{
 		ChainID:       "dev",
 		Height:        123,
@@ -67,6 +69,7 @@ func TestContext(pkgPath string, send std.Coins) *teststd.TestExecContext {
 		OrigSend:      send,
 		OrigSendSpent: new(std.Coins),
 		Banker:        banker,
+		Params:        params,
 		EventLogger:   sdk.NewEventLogger(),
 	}
 	return &teststd.TestExecContext{
@@ -200,10 +203,10 @@ func RunFileTest(rootDir string, path string, opts ...RunFileTestOption) error {
 				store.SetStrictGo2GnoMapping(true) // in gno.land, natives must be registered.
 				gno.DisableDebug()                 // until main call.
 				// save package using realm crawl procedure.
-				memPkg := &std.MemPackage{
+				memPkg := &gnovm.MemPackage{
 					Name: string(pkgName),
 					Path: pkgPath,
-					Files: []*std.MemFile{
+					Files: []*gnovm.MemFile{
 						{
 							Name: "main.gno", // dontcare
 							Body: string(bz),
@@ -373,7 +376,7 @@ func RunFileTest(rootDir string, path string, opts ...RunFileTestOption) error {
 				}
 				// check result
 				events := m.Context.(*teststd.TestExecContext).EventLogger.Events()
-				evtjson, err := json.Marshal(events)
+				evtjson, err := json.MarshalIndent(events, "", "  ")
 				if err != nil {
 					panic(err)
 				}
@@ -630,6 +633,20 @@ func trimTrailingSpaces(result string) string {
 	}
 	return strings.Join(lines, "\n")
 }
+
+// ----------------------------------------
+// testParams
+type testParams struct{}
+
+func newTestParams() *testParams {
+	return &testParams{}
+}
+
+func (tp *testParams) SetBool(key string, val bool)     { /* noop */ }
+func (tp *testParams) SetBytes(key string, val []byte)  { /* noop */ }
+func (tp *testParams) SetInt64(key string, val int64)   { /* noop */ }
+func (tp *testParams) SetUint64(key string, val uint64) { /* noop */ }
+func (tp *testParams) SetString(key string, val string) { /* noop */ }
 
 // ----------------------------------------
 // testBanker

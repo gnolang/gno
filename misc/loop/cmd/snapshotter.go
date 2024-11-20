@@ -19,7 +19,7 @@ import (
 	"github.com/docker/go-connections/nat"
 	"github.com/gnolang/tx-archive/backup"
 	"github.com/gnolang/tx-archive/backup/client/http"
-	"github.com/gnolang/tx-archive/backup/writer/legacy"
+	"github.com/gnolang/tx-archive/backup/writer/standard"
 )
 
 const (
@@ -204,7 +204,7 @@ func (s snapshotter) backupTXs(ctx context.Context, rpcURL string) error {
 	}
 	defer instanceBackupFile.Close()
 
-	w := legacy.NewWriter(instanceBackupFile)
+	w := standard.NewWriter(instanceBackupFile)
 
 	// Create the tx-archive backup service
 	c, err := http.NewClient(rpcURL)
