@@ -2,7 +2,9 @@ package users
 
 import (
 	"std"
-	"strconv"
+	"strings"
+
+	"gno.land/p/demo/ufmt"
 )
 
 //----------------------------------------
@@ -13,19 +15,29 @@ type User struct {
 	Name    string
 	Profile string
 	Number  int
+	Block   int
 	Invites int
 	Inviter std.Address
 }
 
 func (u *User) Render() string {
-	str := "## user " + u.Name + "\n" +
-		"\n" +
-		" * address = " + string(u.Address) + "\n" +
-		" * " + strconv.Itoa(u.Invites) + " invites\n"
-	if u.Inviter != "" {
-		str = str + " * invited by " + string(u.Inviter) + "\n"
+	out := ufmt.Sprintf("# User - %s\n\n", u.Name)
+
+	out += "## Bio\n\n"
+	if strings.TrimSpace(u.Profile) != "" {
+		out += ufmt.Sprintf("%s\n\n", u.Profile)
+	} else {
+		out += "No bio provided.\n\n"
 	}
-	str = str + "\n" +
-		u.Profile + "\n"
-	return str
+
+	out += "## Stats\n\n"
+	out += ufmt.Sprintf("- ID #%d\n\n", u.Number)
+	out += ufmt.Sprintf("- Address: %s\n\n", u.Address.String())
+	out += ufmt.Sprintf("- Registered at block #%d\n\n", u.Block)
+	out += ufmt.Sprintf("- Leftover invites: %d\n\n", u.Invites)
+	if u.Inviter != "" {
+		out += ufmt.Sprintf("- Inviter: %s\n\n", u.Inviter.String())
+	}
+
+	return out
 }
