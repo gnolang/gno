@@ -50,8 +50,6 @@ type mockVMKeeper struct {
 	callFn                      func(sdk.Context, vm.MsgCall) (string, error)
 	queryFn                     func(sdk.Context, string, string) (string, error)
 	runFn                       func(sdk.Context, vm.MsgRun) (string, error)
-	loadStdlibFn                func(sdk.Context, string)
-	loadStdlibCachedFn          func(sdk.Context, string)
 	makeGnoTransactionStoreFn   func(ctx sdk.Context) sdk.Context
 	commitGnoTransactionStoreFn func(ctx sdk.Context)
 }
@@ -86,18 +84,6 @@ func (m *mockVMKeeper) Run(ctx sdk.Context, msg vm.MsgRun) (res string, err erro
 	}
 
 	return "", nil
-}
-
-func (m *mockVMKeeper) LoadStdlib(ctx sdk.Context, stdlibDir string) {
-	if m.loadStdlibFn != nil {
-		m.loadStdlibFn(ctx, stdlibDir)
-	}
-}
-
-func (m *mockVMKeeper) LoadStdlibCached(ctx sdk.Context, stdlibDir string) {
-	if m.loadStdlibCachedFn != nil {
-		m.loadStdlibCachedFn(ctx, stdlibDir)
-	}
 }
 
 func (m *mockVMKeeper) MakeGnoTransactionStore(ctx sdk.Context) sdk.Context {

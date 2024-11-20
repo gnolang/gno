@@ -47,9 +47,6 @@ type VMKeeperI interface {
 	Call(ctx sdk.Context, msg MsgCall) (res string, err error)
 	QueryEval(ctx sdk.Context, pkgPath string, expr string) (res string, err error)
 	Run(ctx sdk.Context, msg MsgRun) (res string, err error)
-	// TODO: remove stdlibs loaders
-	LoadStdlib(ctx sdk.Context, stdlibDir string)
-	LoadStdlibCached(ctx sdk.Context, stdlibDir string)
 	MakeGnoTransactionStore(ctx sdk.Context) sdk.Context
 	CommitGnoTransactionStore(ctx sdk.Context)
 }
@@ -330,8 +327,10 @@ func (vm *VMKeeper) AddPackage(ctx sdk.Context, msg MsgAddPackage) (err error) {
 	if creatorAcc == nil {
 		return std.ErrUnknownAddress(fmt.Sprintf("account %s does not exist", creator))
 	}
-	if err := msg.Package.Validate(); err != nil {
-		return ErrInvalidPkgPath(err.Error())
+	if ctx.BlockHeight() != 0 { // disable path check in genesis, FIXME: we should only add stdlibs support during genesis
+		if err := msg.Package.Validate(); err != nil {
+			return ErrInvalidPkgPath(err.Error())
+		}
 	}
 	if pv := gnostore.GetPackage(pkgPath, false); pv != nil {
 		return ErrPkgAlreadyExists("package already exists: " + pkgPath)

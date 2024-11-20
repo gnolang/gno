@@ -327,6 +327,10 @@ func (cfg InitChainerConfig) loadAppState(ctx sdk.Context, appState any) ([]abci
 			GasUsed:      res.GasUsed,
 		})
 
+		if res.IsErr() {
+			fmt.Println("failed to exec genesis tx", stdTx, res)
+		}
+
 		cfg.GenesisTxResultHandler(ctx, stdTx, res)
 	}
 	return txResponses, nil

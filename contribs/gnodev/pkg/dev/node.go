@@ -15,9 +15,8 @@ import (
 	"github.com/gnolang/gno/gno.land/pkg/gnoland"
 	"github.com/gnolang/gno/gno.land/pkg/gnoland/ugnot"
 	"github.com/gnolang/gno/gno.land/pkg/integration"
-	vmm "github.com/gnolang/gno/gno.land/pkg/sdk/vm"
+	"github.com/gnolang/gno/gno.land/pkg/stdgenesis"
 	"github.com/gnolang/gno/gnovm/pkg/gnomod"
-	"github.com/gnolang/gno/gnovm/stdlibs"
 	"github.com/gnolang/gno/tm2/pkg/amino"
 	tmcfg "github.com/gnolang/gno/tm2/pkg/bft/config"
 	"github.com/gnolang/gno/tm2/pkg/bft/node"
@@ -94,29 +93,15 @@ type Node struct {
 var DefaultFee = std.NewFee(50000, std.MustParseCoin(ugnot.ValueString(1000000)))
 
 func NewDevNode(ctx context.Context, cfg *NodeConfig) (*Node, error) {
+	stdlibsDeployer := crypto.MustAddressFromString("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5") // test1, FIXME: replace
+	stdlibsTxs, err := stdgenesis.EmbeddedStdlibsGenesisTxs(DefaultFee, stdlibsDeployer)
+	if err != nil {
+		return nil, fmt.Errorf("generate stdlibs txs: %w", err)
+	}
+
 	mpkgs, err := NewPackagesMap(cfg.PackagesPathList)
 	if err != nil {
 		return nil, fmt.Errorf("unable map pkgs list: %w", err)
-	}
-
-	stdlibs, err := stdlibs.EmbeddedMemPackages()
-	if err != nil {
-		return nil, fmt.Errorf("unable to load embedded stdlibs: %w", err)
-	}
-
-	stdlibsTxs := make([]gnoland.TxWithMetadata, len(stdlibs))
-	deployer := crypto.MustAddressFromString("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5") // test1, FIXME: replace
-	for i, memPkg := range stdlibs {
-		stdlibsTxs[i].Tx = std.Tx{
-			Fee: DefaultFee,
-			Msgs: []std.Msg{
-				vmm.MsgAddPackage{
-					Creator: deployer,
-					Package: memPkg,
-				},
-			},
-			Signatures: make([]std.Signature, 1),
-		}
 	}
 
 	pkgsTxs, err := mpkgs.Load(DefaultFee)
