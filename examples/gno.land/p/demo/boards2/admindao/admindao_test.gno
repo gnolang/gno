@@ -68,13 +68,13 @@ func TestAdminDAOIsMember(t *testing.T) {
 	}{
 		{
 			name:   "member",
-			member: std.Address("g1w4ek2u33ta047h6lta047h6lta047h6ldvdwpn"),
+			member: "g1w4ek2u33ta047h6lta047h6lta047h6ldvdwpn",
 			dao:    New(WithMember("g1w4ek2u33ta047h6lta047h6lta047h6ldvdwpn")),
 			want:   true,
 		},
 		{
 			name:   "not a dao member",
-			member: std.Address("g1w4ek2u33ta047h6lta047h6lta047h6ldvdwpn"),
+			member: "g1w4ek2u33ta047h6lta047h6lta047h6ldvdwpn",
 			dao:    New(WithMember("g1w4ek2u3jta047h6lta047h6lta047h6l9huexc")),
 		},
 	}
