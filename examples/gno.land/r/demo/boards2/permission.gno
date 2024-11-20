@@ -23,9 +23,6 @@ type (
 	// Permission defines the type for permissions.
 	Permission string
 
-	// Role defines the type for user roles.
-	Role string
-
 	// Args is a list of generic arguments.
 	Args []interface{}
 
@@ -36,8 +33,3 @@ type (
 		WithPermission(std.Address, Permission, Args, func(Args))
 	}
 )
-
-// TODO: Replace by a default permissioner (use sane and secure defaults)
-type allowAnyPermissioner struct{}
-
-func (allowAnyPermissioner) WithPermission(_ std.Address, _ Permission, a Args, cb func(Args)) { cb(a) }
