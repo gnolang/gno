@@ -237,7 +237,7 @@ func (h *Handshaker) Handshake(proxyApp appconn.AppConns) error {
 	// Handshake is done via ABCI Info on the query conn.
 	res, err := proxyApp.Query().InfoSync(abci.RequestInfo{})
 	if err != nil {
-		return fmt.Errorf("Error calling Info: %w", err)
+		return fmt.Errorf("error calling Info: %w", err)
 	}
 
 	blockHeight := res.LastBlockHeight
