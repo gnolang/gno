@@ -16,8 +16,6 @@ type User struct {
 	Profile string
 	Number  int
 	Block   int
-	Invites int
-	Inviter std.Address
 }
 
 func (u *User) Render() string {
@@ -34,10 +32,6 @@ func (u *User) Render() string {
 	out += ufmt.Sprintf("- ID #%d\n\n", u.Number)
 	out += ufmt.Sprintf("- Address: %s\n\n", u.Address.String())
 	out += ufmt.Sprintf("- Registered at block #%d\n\n", u.Block)
-	out += ufmt.Sprintf("- Leftover invites: %d\n\n", u.Invites)
-	if u.Inviter != "" {
-		out += ufmt.Sprintf("- Inviter: %s\n\n", u.Inviter.String())
-	}
 
 	return out
 }
