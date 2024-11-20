@@ -7,9 +7,10 @@ func Render(_ string) string {
 gno.land makes it easy to view the source code of any pure
 package or realm, by using ABCI queries.
 
-Specifically for gno.land's universal frontend, ` + "`gnoweb`, " + ` makes this easy by
+gno.land's web frontend, ` + "`gnoweb`, " + ` makes this easy by
 providing a intuitive UI that fetches the source of the
-realm and providing a "Source" tab.
+realm, that you can inspect anywhere by simply clicking
+on the [source] button.
 
 Check it out in the top right corner!
 `
