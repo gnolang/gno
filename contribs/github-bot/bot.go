@@ -30,7 +30,9 @@ func execBot(params *p.Params) error {
 	}
 
 	// Handle comment update, if any
-	if err := handleCommentUpdate(gh); err != nil {
+	if err := handleCommentUpdate(gh); err == errTriggeredByBot {
+		return nil // Ignore if this run was triggered by a previous run
+	} else if err != nil {
 		return fmt.Errorf("comment update handling failed: %w", err)
 	}
 

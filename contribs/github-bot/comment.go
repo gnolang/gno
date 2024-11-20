@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"os"
 	"regexp"
@@ -13,6 +14,8 @@ import (
 	"github.com/google/go-github/v64/github"
 	"github.com/sethvargo/go-githubactions"
 )
+
+var errTriggeredByBot = errors.New("event triggered by bot")
 
 // These structures contain the necessary information to generate
 // the bot's comment from the template file
@@ -92,10 +95,10 @@ func handleCommentUpdate(gh *client.GitHub) error {
 
 	if actionCtx.Actor == authUser.GetLogin() {
 		gh.Logger.Debugf("Prevent infinite loop if the bot comment was edited by the bot itself")
-		os.Exit(0)
+		return errTriggeredByBot
 	}
 
-	// Ignore if edited comment author is not the bot
+	// Ignore if comment edition author is not the bot
 	comment, ok := actionCtx.Event["comment"].(map[string]any)
 	if !ok {
 		return fmt.Errorf("unable to get comment on issue comment event")
