@@ -10,7 +10,7 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/std"
 )
 
-func EmbeddedStdlibsGenesisTxs(fee std.Fee, deployer crypto.Address) ([]gnoland.TxWithMetadata, error) {
+func EmbeddedStdlibsGenesisTxs(deployer crypto.Address, fee std.Fee) ([]gnoland.TxWithMetadata, error) {
 	stdlibs, err := stdlibs.EmbeddedMemPackages()
 	if err != nil {
 		return nil, fmt.Errorf("unable to load embedded stdlibs: %w", err)

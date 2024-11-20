@@ -94,7 +94,7 @@ var DefaultFee = std.NewFee(50000, std.MustParseCoin(ugnot.ValueString(1000000))
 
 func NewDevNode(ctx context.Context, cfg *NodeConfig) (*Node, error) {
 	stdlibsDeployer := crypto.MustAddressFromString("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5") // test1, FIXME: replace
-	stdlibsTxs, err := stdgenesis.EmbeddedStdlibsGenesisTxs(DefaultFee, stdlibsDeployer)
+	stdlibsTxs, err := stdgenesis.EmbeddedStdlibsGenesisTxs(stdlibsDeployer, DefaultFee)
 	if err != nil {
 		return nil, fmt.Errorf("generate stdlibs txs: %w", err)
 	}
