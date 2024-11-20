@@ -1,8 +1,13 @@
 package home
 
-import "gno.land/r/manfred/config"
+import (
+	"gno.land/p/moul/udao"
+	"gno.land/r/manfred/config"
+	mouldao "gno.land/r/moul/dao"
+)
 
 var (
+	dao        udao.DAO = mouldao.DAO
 	todos      []string
 	status     string
 	memeImgURL string
@@ -32,6 +37,9 @@ func Render(path string) string {
 	// TODO: Implement a feature to list replies on r/boards on my posts
 	// TODO: Maybe integrate a calendar feature for upcoming events?
 
+	content += "## moul DAO\n"
+	content += dao.Render()
+
 	return content
 }
 
@@ -53,4 +61,10 @@ func DeleteTodo(todoIndex int) {
 func UpdateStatus(newStatus string) {
 	config.AssertIsAdmin()
 	status = newStatus
+}
+
+func SetNewDAO(newDAO udao.DAO) {
+	// assert is dao
+	dao = newDAO
+	panic("not implemented")
 }

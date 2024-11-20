@@ -11,16 +11,16 @@ package udao
 // from an external point of view, hiding the internal details of members and voting.
 type DAO interface {
 	// Propose submits a new proposal to the DAO
-	Propose(proposal Proposal) (uint64, error)
+	Propose(prop Proposal) (id uint64, err error)
 
 	// GetProposalStatus retrieves the current status and metrics of a specific proposal
-	GetProposalStatus(proposalID uint64) (ProposalStatus, error)
+	GetProposalStatus(id uint64) (ProposalStatus, error)
 
 	// Execute attempts to execute a proposal if it has passed
-	Execute(proposalID uint64) error
+	Execute(id uint64) error
 
 	// GetProposal retrieves the details of a specific proposal
-	GetProposal(proposalID uint64) (Proposal, error)
+	GetProposal(id uint64) (Proposal, error)
 
 	// XXX: find a smart way to list proposals
 	// // ListProposalss retrieves a list of Proposals with pagination and optional filters
