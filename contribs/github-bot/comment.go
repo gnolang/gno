@@ -80,7 +80,7 @@ func handleCommentUpdate(gh *client.GitHub) error {
 	// Ignore if the action type is not deleted or edited
 	actionType, ok := actionCtx.Event["action"].(string)
 	if !ok {
-		return fmt.Errorf("unable to get type on issue comment event")
+		return errors.New("unable to get type on issue comment event")
 	}
 
 	if actionType != "deleted" && actionType != "edited" {
@@ -101,17 +101,17 @@ func handleCommentUpdate(gh *client.GitHub) error {
 	// Ignore if comment edition author is not the bot
 	comment, ok := actionCtx.Event["comment"].(map[string]any)
 	if !ok {
-		return fmt.Errorf("unable to get comment on issue comment event")
+		return errors.New("unable to get comment on issue comment event")
 	}
 
 	author, ok := comment["user"].(map[string]any)
 	if !ok {
-		return fmt.Errorf("unable to get comment user on issue comment event")
+		return errors.New("unable to get comment user on issue comment event")
 	}
 
 	login, ok := author["login"].(string)
 	if !ok {
-		return fmt.Errorf("unable to get comment user login on issue comment event")
+		return errors.New("unable to get comment user login on issue comment event")
 	}
 
 	if login != authUser.GetLogin() {
@@ -121,34 +121,34 @@ func handleCommentUpdate(gh *client.GitHub) error {
 	// Get comment current body
 	current, ok := comment["body"].(string)
 	if !ok {
-		return fmt.Errorf("unable to get comment body on issue comment event")
+		return errors.New("unable to get comment body on issue comment event")
 	}
 
 	// Get comment updated body
 	changes, ok := actionCtx.Event["changes"].(map[string]any)
 	if !ok {
-		return fmt.Errorf("unable to get changes on issue comment event")
+		return errors.New("unable to get changes on issue comment event")
 	}
 
 	changesBody, ok := changes["body"].(map[string]any)
 	if !ok {
-		return fmt.Errorf("unable to get changes body on issue comment event")
+		return errors.New("unable to get changes body on issue comment event")
 	}
 
 	previous, ok := changesBody["from"].(string)
 	if !ok {
-		return fmt.Errorf("unable to get changes body content on issue comment event")
+		return errors.New("unable to get changes body content on issue comment event")
 	}
 
 	// Get PR number from GitHub Actions context
 	issue, ok := actionCtx.Event["issue"].(map[string]any)
 	if !ok {
-		return fmt.Errorf("unable to get issue on issue comment event")
+		return errors.New("unable to get issue on issue comment event")
 	}
 
 	num, ok := issue["number"].(float64)
 	if !ok || num <= 0 {
-		return fmt.Errorf("unable to get issue number on issue comment event")
+		return errors.New("unable to get issue number on issue comment event")
 	}
 
 	// Check if change is only a checkbox being checked or unckecked
@@ -158,7 +158,7 @@ func handleCommentUpdate(gh *client.GitHub) error {
 		if !gh.DryRun {
 			gh.SetBotComment(previous, int(num))
 		}
-		return fmt.Errorf("bot comment edited outside of checkboxes")
+		return errors.New("bot comment edited outside of checkboxes")
 	}
 
 	// Check if actor / comment editor has permission to modify changed boxes
@@ -192,7 +192,7 @@ func handleCommentUpdate(gh *client.GitHub) error {
 					if !gh.DryRun {
 						gh.SetBotComment(previous, int(num))
 					}
-					return fmt.Errorf("checkbox edited by a user not allowed to")
+					return errors.New("checkbox edited by a user not allowed to")
 				}
 			}
 
