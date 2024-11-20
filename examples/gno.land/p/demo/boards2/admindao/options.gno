@@ -13,23 +13,8 @@ func WithParent(p *AdminDAO) Option {
 }
 
 // WithMember assigns a member to the DAO.
-func WithMember(addr std.Address, roles ...Role) Option {
+func WithMember(addr std.Address) Option {
 	return func(dao *AdminDAO) {
-		dao.members.Set(addr.String(), append([]Role(nil), roles...))
-
-		for _, r := range roles {
-			var (
-				members []std.Address
-				key     = string(r)
-			)
-
-			v, found := dao.roles.Get(key)
-			if found {
-				members = v.([]std.Address)
-			}
-
-			members = append(members, addr)
-			dao.roles.Set(key, members)
-		}
+		dao.members.Set(addr.String(), struct{}{})
 	}
 }
