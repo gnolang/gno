@@ -40,7 +40,7 @@ type ProposalStatus struct {
 	State ProposalState
 
 	// metrics
-	YayPercentage      float64
+	YeaPercentage      float64
 	NayPercentage      float64
 	NonVoterPercentage float64
 	// XXX: other metrics?
