@@ -1,3 +1,3 @@
-module gno.land/r/demo/mdui
+module gno.land/r/varmeta/mdui
 
-require gno.land/p/demo/mdui v0.0.0-latest
+require gno.land/p/varmeta/mdui v0.0.0-latest

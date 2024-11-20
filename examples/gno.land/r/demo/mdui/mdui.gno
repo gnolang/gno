@@ -3,23 +3,23 @@ package mdui
 import (
 	"strings"
 
-	"gno.land/p/demo/mdui"
+	"gno.land/p/varmeta/mdui"
 )
 
 // Constants for common paths
 const (
-	BasePath         = "/r/demo/mdui"
-	ComponentsPath   = "/r/demo/mdui:components"
-	ExamplesPath     = "/r/demo/mdui:examples"
-	BuilderGuidePath = "/r/demo/mdui:builder-guide"
+	BasePath         = "/r/varmeta/mdui"
+	ComponentsPath   = "/r/varmeta/mdui:components"
+	ExamplesPath     = "/r/varmeta/mdui:examples"
+	BuilderGuidePath = "/r/varmeta/mdui:builder-guide"
 )
 
 // Common Navbar Links
-var NavbarLinks = map[string]string{
-	"Home":          BasePath,
-	"Components":    ComponentsPath,
-	"Examples":      ExamplesPath,
-	"Builder Guide": BuilderGuidePath,
+var NavbarLinks = []mdui.NavLink{
+	{"Home", BasePath},
+	{"Components", ComponentsPath},
+	{"Examples", ExamplesPath},
+	{"Builder Guide", BuilderGuidePath},
 }
 
 // RenderHomePage renders the Home page using MarkdownBuilder
@@ -37,9 +37,9 @@ Explore our component library and see how MDUI can simplify your development wor
 		AddHeading(2, "Getting Started with MDUI").
 		AddParagraph(`
 Ready to start using MDUI? Follow these simple steps to get up and running:
-1. [Explore Components](/r/demo/mdui:components) - Discover a variety of components available in MDUI.
-2. [Check out Examples](/r/demo/mdui:examples) - Learn how to build real-world projects with MDUI.
-3. [Try It Out](/r/demo/mdui:examples) - See how easy it is to create your first page.
+1. [Explore Components](/r/varmeta/mdui:components) - Discover a variety of components available in MDUI.
+2. [Check out Examples](/r/varmeta/mdui:examples) - Learn how to build real-world projects with MDUI.
+3. [Try It Out](/r/varmeta/mdui:examples) - See how easy it is to create your first page.
 `).
 		AddButton("Start Building Now", ComponentsPath).
 		AddDivider().
@@ -76,7 +76,7 @@ Below is a list of components available in the MDUI package, along with examples
 		{
 			Title:       "Navbar",
 			Description: "A navigation menu that can be used to create a list of links for site navigation.",
-			Example:     mdui.Navbar(map[string]string{"Home": "/home", "About": "/about", "Contact": "/contact"}),
+			Example:     mdui.Navbar(NavbarLinks),
 			SampleCode:  `mdui.Navbar(map[string]string{"Home": "/home", "About": "/about", "Contact": "/contact"})`,
 		},
 		{
@@ -200,12 +200,6 @@ Below is a list of components available in the MDUI package, along with examples
 			SampleCode:  `mdui.KeyboardShortcut("Ctrl", "Alt", "Del")`,
 		},
 		{
-			Title:       "Emoji",
-			Description: "Adds an emoji to the content using a shortcode.",
-			Example:     mdui.Emoji("smile"),
-			SampleCode:  `mdui.Emoji("smile")`,
-		},
-		{
 			Title:       "Blockquote with Citation",
 			Description: "Generates a Markdown blockquote with an optional citation.",
 			Example:     mdui.BlockquoteWithCitation("To be or not to be, that is the question.", "William Shakespeare"),
@@ -239,7 +233,7 @@ Below is a list of components available in the MDUI package, along with examples
 	return builder.Render()
 }
 
-// RenderExamplesPage renders the Example page with sample components demonstrating the full range of MDUI functionalities
+// RenderExamplesPage renders the Example page with sample components varmetanstrating the full range of MDUI functionalities
 func RenderExamplesPage() string {
 	builder := mdui.NewBuilder()
 	builder.AddNavbar(NavbarLinks)
@@ -247,7 +241,7 @@ func RenderExamplesPage() string {
 	// Introduction Section
 	builder.AddHeading(1, "MDUI Example Page - Showcase All Components").
 		AddParagraph(`
-Welcome to the MDUI example page! This page demonstrates all the components available in MDUI, showcasing the power of Markdown for building user interfaces.
+Welcome to the MDUI example page! This page varmetanstrates all the components available in MDUI, showcasing the power of Markdown for building user interfaces.
 Explore the various elements below to see how you can create beautiful and functional web pages using MDUI.
 `).
 		AddDivider()
@@ -311,17 +305,9 @@ You can use collapsible sections to keep the layout clean and reveal information
 		AddKeyboardShortcut("Ctrl", "R").
 		AddDivider()
 
-	// Emoji Example
-	builder.AddHeading(2, "Add Some Fun with Emojis").
-		AddParagraph("MDUI supports popular emojis to enhance your content:").
-		AddEmoji("smile").
-		AddEmoji("rocket").
-		AddEmoji("thumbs_up").
-		AddDivider()
-
 	// Table of Contents
 	builder.AddHeading(2, "Table of Contents").
-		AddTableOfContents([]string{"Introduction", "Key Features", "Alert Messages", "Code Example", "Feature Comparison Table", "More Details", "Inspirational Quote", "Keyboard Shortcut", "Emojis"}).
+		AddTableOfContents([]string{"Introduction", "Key Features", "Alert Messages", "Code Example", "Feature Comparison Table", "More Details", "Inspirational Quote", "Keyboard Shortcut"}).
 		AddDivider()
 
 	// Conditional Rendering Example

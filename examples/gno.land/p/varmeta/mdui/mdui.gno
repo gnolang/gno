@@ -9,6 +9,11 @@ type Builder struct {
 	elements []string
 }
 
+type NavLink struct {
+	Text string
+	Href string
+}
+
 // NewBuilder creates and returns a new Builder instance
 func NewBuilder() *Builder {
 	return &Builder{
@@ -66,7 +71,7 @@ func (b *Builder) AddTable(headers []string, rows [][]string) *Builder {
 }
 
 // AddNavbar adds a navigation bar to the Builder
-func (b *Builder) AddNavbar(links map[string]string) *Builder {
+func (b *Builder) AddNavbar(links []NavLink) *Builder {
 	navbar := Navbar(links)
 	b.elements = append(b.elements, navbar)
 	return b
@@ -163,13 +168,6 @@ func (b *Builder) AddTableOfContents(headings []string) *Builder {
 	return b
 }
 
-// AddEmoji adds an emoji to the Builder
-func (b *Builder) AddEmoji(name string) *Builder {
-	emoji := Emoji(name)
-	b.elements = append(b.elements, emoji)
-	return b
-}
-
 // Render generates and returns the final Markdown content
 func (b *Builder) Render() string {
 	return strings.Join(b.elements, "\n")
@@ -204,14 +202,13 @@ func IfElseRender(condition bool, ifTrue string, ifFalse string) string {
 	}
 }
 
-// Navbar generates a Markdown navigation menu from a map of links
-func Navbar(links map[string]string) string {
+func Navbar(links []NavLink) string {
 	nav := ""
-	for text, href := range links {
-		if nav != "" {
-			nav += " | " // Add a pipe separator between links
+	for i, link := range links {
+		if i > 0 {
+			nav += " | "
 		}
-		nav += "[" + text + "](" + href + ")"
+		nav += "[" + link.Text + "](" + link.Href + ")"
 	}
 	return nav + "\n"
 }
@@ -237,7 +234,7 @@ func Image(src, alt string) string {
 
 // CodeBlock wraps code in Markdown code block syntax
 func CodeBlock(code string) string {
-	return "```go\n" + code + "\n```\n"
+	return "```\n" + code + "\n```\n"
 }
 
 // Divider renders a Markdown horizontal rule
@@ -351,30 +348,6 @@ func TableOfContents(headings []string) string {
 // KeyboardShortcut formats a keyboard shortcut in Markdown using code block style
 func KeyboardShortcut(keys ...string) string {
 	return "`" + strings.Join(keys, " + ") + "`"
-}
-
-// Emoji adds an emoji to the content using a shortcode
-func Emoji(name string) string {
-	emojiMap := map[string]string{
-		"smile":     "😊",
-		"heart":     "❤️",
-		"thumbs_up": "👍",
-		"star":      "⭐",
-		"fire":      "🔥",
-		"check":     "✔️",
-		"cross":     "❌",
-		"warning":   "⚠️",
-		"info":      "ℹ️",
-		"sun":       "☀️",
-		"moon":      "🌙",
-		"rocket":    "🚀",
-		// Add additional emojis as needed
-	}
-	if emoji, exists := emojiMap[name]; exists {
-		return emoji
-	}
-	// If emoji is not found, return the name itself as a fallback
-	return ":" + name + ":"
 }
 
 // BlockquoteWithCitation generates a Markdown blockquote with an optional citation
