@@ -13,9 +13,8 @@ func main() {
 
 	cmd := commands.NewCommand(
 		commands.Metadata{
-			Name:       "github-bot",
-			ShortUsage: "github-bot [flags]",
-			ShortHelp:  "checks requirements for a PR to be merged.",
+			ShortUsage: "[flags]",
+			ShortHelp:  "checks requirements for a PR to be merged",
 			LongHelp:   "This tool checks if the requirements for a PR to be merged are satisfied (defined in config.go) and displays PR status checks accordingly.\nA valid GitHub Token must be provided by setting the GITHUB_TOKEN environment variable.",
 		},
 		params,

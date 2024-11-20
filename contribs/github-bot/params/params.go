@@ -4,6 +4,7 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"time"
 
 	"github.com/sethvargo/go-githubactions"
 )
@@ -15,7 +16,7 @@ type Params struct {
 	PrNums  PrList
 	Verbose bool
 	DryRun  bool
-	Timeout uint
+	Timeout time.Duration
 	flagSet *flag.FlagSet
 }
 
@@ -62,11 +63,11 @@ func (p *Params) RegisterFlags(fs *flag.FlagSet) {
 		"print if pull request requirements are satisfied without updating anything on GitHub",
 	)
 
-	fs.UintVar(
+	fs.DurationVar(
 		&p.Timeout,
 		"timeout",
 		0,
-		"timeout in milliseconds",
+		"timeout after which the bot execution is interrupted",
 	)
 
 	p.flagSet = fs

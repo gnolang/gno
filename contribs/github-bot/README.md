@@ -10,7 +10,7 @@ The GitHub Bot is designed to automate and streamline the process of managing pu
 
 The bot operates by defining a set of rules that are evaluated against each pull request passed as parameter. These rules are categorized into automatic and manual checks:
 
-- **Automatic Checks**: These are rules that the bot evaluates automatically. If a pull request meets the conditions specified in the rule, then the corresponding requirements are exectued. For example, ensuring that changes to specific directories are reviewed by specific team members.
+- **Automatic Checks**: These are rules that the bot evaluates automatically. If a pull request meets the conditions specified in the rule, then the corresponding requirements are executed. For example, ensuring that changes to specific directories are reviewed by specific team members.
 - **Manual Checks**: These require human intervention. If a pull request meets the conditions specified in the rule, then a checkbox that can be checked only by specified teams is displayed on the bot comment. For example, determining if infrastructure needs to be updated based on changes to specific files.
 
 The bot configuration is defined in Go and is located in the file [config.go](./config.go).
@@ -31,21 +31,18 @@ For the bot to make requests to the GitHub API, it needs a Personal Access Token
 // (go: downloading ...)
 
 > github-bot --help
+USAGE
+  [flags]
+
 This tool checks if the requirements for a PR to be merged are satisfied (defined in config.go) and displays PR status checks accordingly.
 A valid GitHub Token must be provided by setting the GITHUB_TOKEN environment variable.
 
-  -dry-run
-    	print if pull request requirements are satisfied without updating anything on GitHub
-  -owner string
-    	owner of the repo to process, if empty, will be retrieved from GitHub Actions context
-  -pr-all
-    	process all opened pull requests
-  -pr-numbers value
-    	pull request(s) to process, must be a comma separated list of PR numbers, e.g '42,1337,7890'. If empty, will be retrieved from GitHub Actions context
-  -repo string
-    	repo to process, if empty, will be retrieved from GitHub Actions context
-  -timeout uint
-    	timeout in milliseconds
-  -verbose
-    	set logging level to debug
+FLAGS
+  -dry-run=false   print if pull request requirements are satisfied without updating anything on GitHub
+  -owner ...       owner of the repo to process, if empty, will be retrieved from GitHub Actions context
+  -pr-all=false    process all opened pull requests
+  -pr-numbers ...  pull request(s) to process, must be a comma separated list of PR numbers, e.g '42,1337,7890'. If empty, will be retrieved from GitHub Actions context
+  -repo ...        repo to process, if empty, will be retrieved from GitHub Actions context
+  -timeout 0s      timeout after which the bot execution is interrupted
+  -verbose=false   set logging level to debug
 ```
