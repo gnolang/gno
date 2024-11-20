@@ -1,9 +1,11 @@
 package conditions
 
 import (
+	"fmt"
 	"testing"
 
 	"github.com/gnolang/gno/contribs/github-bot/utils"
+	"github.com/stretchr/testify/assert"
 
 	"github.com/google/go-github/v64/github"
 	"github.com/xlab/treeprint"
@@ -27,12 +29,8 @@ func TestAnd(t *testing.T) {
 			details := treeprint.New()
 			condition := And(testCase.conditions...)
 
-			if condition.IsMet(pr, details) != testCase.isMet {
-				t.Errorf("condition should have a met status: %t", testCase.isMet)
-			}
-			if !utils.TestLastNodeStatus(t, testCase.isMet, details) {
-				t.Errorf("condition details should have a status: %t", testCase.isMet)
-			}
+			assert.Equal(t, condition.IsMet(pr, details), testCase.isMet, fmt.Sprintf("condition should have a met status: %t", testCase.isMet))
+			assert.True(t, utils.TestLastNodeStatus(t, testCase.isMet, details), fmt.Sprintf("condition details should have a status: %t", testCase.isMet))
 		})
 	}
 }
@@ -40,13 +38,7 @@ func TestAnd(t *testing.T) {
 func TestAndPanic(t *testing.T) {
 	t.Parallel()
 
-	defer func() {
-		if r := recover(); r == nil {
-			t.Errorf("and constructor should panic if less than 2 conditions are provided")
-		}
-	}()
-
-	And(Always()) // Only 1 condition provided
+	assert.Panics(t, func() { And(Always()) }, "and constructor should panic if less than 2 conditions are provided")
 }
 
 func TestOr(t *testing.T) {
@@ -67,12 +59,8 @@ func TestOr(t *testing.T) {
 			details := treeprint.New()
 			condition := Or(testCase.conditions...)
 
-			if condition.IsMet(pr, details) != testCase.isMet {
-				t.Errorf("condition should have a met status: %t", testCase.isMet)
-			}
-			if !utils.TestLastNodeStatus(t, testCase.isMet, details) {
-				t.Errorf("condition details should have a status: %t", testCase.isMet)
-			}
+			assert.Equal(t, condition.IsMet(pr, details), testCase.isMet, fmt.Sprintf("condition should have a met status: %t", testCase.isMet))
+			assert.True(t, utils.TestLastNodeStatus(t, testCase.isMet, details), fmt.Sprintf("condition details should have a status: %t", testCase.isMet))
 		})
 	}
 }
@@ -80,13 +68,7 @@ func TestOr(t *testing.T) {
 func TestOrPanic(t *testing.T) {
 	t.Parallel()
 
-	defer func() {
-		if r := recover(); r == nil {
-			t.Errorf("and constructor should panic if less than 2 conditions are provided")
-		}
-	}()
-
-	Or(Always()) // Only 1 condition provided
+	assert.Panics(t, func() { Or(Always()) }, "or constructor should panic if less than 2 conditions are provided")
 }
 
 func TestNot(t *testing.T) {
@@ -107,12 +89,8 @@ func TestNot(t *testing.T) {
 			details := treeprint.New()
 			condition := Not(testCase.condition)
 
-			if condition.IsMet(pr, details) != testCase.isMet {
-				t.Errorf("condition should have a met status: %t", testCase.isMet)
-			}
-			if !utils.TestLastNodeStatus(t, testCase.isMet, details) {
-				t.Errorf("condition details should have a status: %t", testCase.isMet)
-			}
+			assert.Equal(t, condition.IsMet(pr, details), testCase.isMet, fmt.Sprintf("condition should have a met status: %t", testCase.isMet))
+			assert.True(t, utils.TestLastNodeStatus(t, testCase.isMet, details), fmt.Sprintf("condition details should have a status: %t", testCase.isMet))
 		})
 	}
 }

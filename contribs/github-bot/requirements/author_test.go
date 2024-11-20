@@ -2,11 +2,13 @@ package requirements
 
 import (
 	"context"
+	"fmt"
 	"testing"
 
 	"github.com/gnolang/gno/contribs/github-bot/client"
 	"github.com/gnolang/gno/contribs/github-bot/logger"
 	"github.com/gnolang/gno/contribs/github-bot/utils"
+	"github.com/stretchr/testify/assert"
 
 	"github.com/google/go-github/v64/github"
 	"github.com/migueleliasweb/go-github-mock/src/mock"
@@ -34,12 +36,8 @@ func TestAuthor(t *testing.T) {
 			details := treeprint.New()
 			requirement := Author(testCase.user)
 
-			if requirement.IsSatisfied(pr, details) != testCase.isSatisfied {
-				t.Errorf("requirement should have a satisfied status: %t", testCase.isSatisfied)
-			}
-			if !utils.TestLastNodeStatus(t, testCase.isSatisfied, details) {
-				t.Errorf("requirement details should have a status: %t", testCase.isSatisfied)
-			}
+			assert.Equal(t, requirement.IsSatisfied(pr, details), testCase.isSatisfied, fmt.Sprintf("requirement should have a satisfied status: %t", testCase.isSatisfied))
+			assert.True(t, utils.TestLastNodeStatus(t, testCase.isSatisfied, details), fmt.Sprintf("requirement details should have a status: %t", testCase.isSatisfied))
 		})
 	}
 }
@@ -88,12 +86,8 @@ func TestAuthorInTeam(t *testing.T) {
 			details := treeprint.New()
 			requirement := AuthorInTeam(gh, "team")
 
-			if requirement.IsSatisfied(pr, details) != testCase.isSatisfied {
-				t.Errorf("requirement should have a satisfied status: %t", testCase.isSatisfied)
-			}
-			if !utils.TestLastNodeStatus(t, testCase.isSatisfied, details) {
-				t.Errorf("requirement details should have a status: %t", testCase.isSatisfied)
-			}
+			assert.Equal(t, requirement.IsSatisfied(pr, details), testCase.isSatisfied, fmt.Sprintf("requirement should have a satisfied status: %t", testCase.isSatisfied))
+			assert.True(t, utils.TestLastNodeStatus(t, testCase.isSatisfied, details), fmt.Sprintf("requirement details should have a status: %t", testCase.isSatisfied))
 		})
 	}
 }

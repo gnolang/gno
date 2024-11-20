@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/gnolang/gno/contribs/github-bot/utils"
+	"github.com/stretchr/testify/assert"
 	"github.com/xlab/treeprint"
 )
 
@@ -11,22 +12,14 @@ func TestAlways(t *testing.T) {
 	t.Parallel()
 
 	details := treeprint.New()
-	if !Always().IsMet(nil, details) {
-		t.Errorf("condition should have a met status: %t", true)
-	}
-	if !utils.TestLastNodeStatus(t, true, details) {
-		t.Errorf("condition details should have a status: %t", true)
-	}
+	assert.True(t, Always().IsMet(nil, details), "condition should have a met status: true")
+	assert.True(t, utils.TestLastNodeStatus(t, true, details), "condition details should have a status: true")
 }
 
 func TestNever(t *testing.T) {
 	t.Parallel()
 
 	details := treeprint.New()
-	if Never().IsMet(nil, details) {
-		t.Errorf("condition should have a met status: %t", false)
-	}
-	if !utils.TestLastNodeStatus(t, false, details) {
-		t.Errorf("condition details should have a status: %t", false)
-	}
+	assert.False(t, Never().IsMet(nil, details), "condition should have a met status: false")
+	assert.True(t, utils.TestLastNodeStatus(t, false, details), "condition details should have a status: false")
 }

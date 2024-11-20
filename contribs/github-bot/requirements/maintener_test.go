@@ -1,10 +1,12 @@
 package requirements
 
 import (
+	"fmt"
 	"testing"
 
 	"github.com/gnolang/gno/contribs/github-bot/utils"
 	"github.com/google/go-github/v64/github"
+	"github.com/stretchr/testify/assert"
 	"github.com/xlab/treeprint"
 )
 
@@ -25,12 +27,8 @@ func TestMaintenerCanModify(t *testing.T) {
 			details := treeprint.New()
 			requirement := MaintainerCanModify()
 
-			if requirement.IsSatisfied(pr, details) != testCase.isSatisfied {
-				t.Errorf("requirement should have a satisfied status: %t", testCase.isSatisfied)
-			}
-			if !utils.TestLastNodeStatus(t, testCase.isSatisfied, details) {
-				t.Errorf("requirement details should have a status: %t", testCase.isSatisfied)
-			}
+			assert.Equal(t, requirement.IsSatisfied(pr, details), testCase.isSatisfied, fmt.Sprintf("requirement should have a satisfied status: %t", testCase.isSatisfied))
+			assert.True(t, utils.TestLastNodeStatus(t, testCase.isSatisfied, details), fmt.Sprintf("requirement details should have a status: %t", testCase.isSatisfied))
 		})
 	}
 }

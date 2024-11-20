@@ -9,6 +9,7 @@ import (
 	"github.com/gnolang/gno/contribs/github-bot/logger"
 	"github.com/gnolang/gno/contribs/github-bot/utils"
 	"github.com/migueleliasweb/go-github-mock/src/mock"
+	"github.com/stretchr/testify/assert"
 
 	"github.com/google/go-github/v64/github"
 	"github.com/xlab/treeprint"
@@ -63,15 +64,9 @@ func TestAssignee(t *testing.T) {
 			details := treeprint.New()
 			requirement := Assignee(gh, testCase.user)
 
-			if !requirement.IsSatisfied(pr, details) && !testCase.dryRun {
-				t.Errorf("requirement should have a satisfied status: %t", true)
-			}
-			if !utils.TestLastNodeStatus(t, true, details) && !testCase.dryRun {
-				t.Errorf("requirement details should have a status: %t", true)
-			}
-			if !testCase.exists && !requested && !testCase.dryRun {
-				t.Errorf("requirement should have requested to create item")
-			}
+			assert.False(t, !requirement.IsSatisfied(pr, details) && !testCase.dryRun, "requirement should have a satisfied status: true")
+			assert.False(t, !utils.TestLastNodeStatus(t, true, details) && !testCase.dryRun, "requirement details should have a status: true")
+			assert.False(t, !testCase.exists && !requested && !testCase.dryRun, "requirement should have requested to create item")
 		})
 	}
 }

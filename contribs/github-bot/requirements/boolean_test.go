@@ -1,9 +1,11 @@
 package requirements
 
 import (
+	"fmt"
 	"testing"
 
 	"github.com/gnolang/gno/contribs/github-bot/utils"
+	"github.com/stretchr/testify/assert"
 
 	"github.com/google/go-github/v64/github"
 	"github.com/xlab/treeprint"
@@ -27,12 +29,8 @@ func TestAnd(t *testing.T) {
 			details := treeprint.New()
 			requirement := And(testCase.requirements...)
 
-			if requirement.IsSatisfied(pr, details) != testCase.isSatisfied {
-				t.Errorf("requirement should have a satisfied status: %t", testCase.isSatisfied)
-			}
-			if !utils.TestLastNodeStatus(t, testCase.isSatisfied, details) {
-				t.Errorf("requirement details should have a status: %t", testCase.isSatisfied)
-			}
+			assert.Equal(t, requirement.IsSatisfied(pr, details), testCase.isSatisfied, fmt.Sprintf("requirement should have a satisfied status: %t", testCase.isSatisfied))
+			assert.True(t, utils.TestLastNodeStatus(t, testCase.isSatisfied, details), fmt.Sprintf("requirement details should have a status: %t", testCase.isSatisfied))
 		})
 	}
 }
@@ -40,13 +38,7 @@ func TestAnd(t *testing.T) {
 func TestAndPanic(t *testing.T) {
 	t.Parallel()
 
-	defer func() {
-		if r := recover(); r == nil {
-			t.Errorf("and constructor should panic if less than 2 requirements are provided")
-		}
-	}()
-
-	And(Always()) // Only 1 requirement provided
+	assert.Panics(t, func() { And(Always()) }, "and constructor should panic if less than 2 conditions are provided")
 }
 
 func TestOr(t *testing.T) {
@@ -67,12 +59,8 @@ func TestOr(t *testing.T) {
 			details := treeprint.New()
 			requirement := Or(testCase.requirements...)
 
-			if requirement.IsSatisfied(pr, details) != testCase.isSatisfied {
-				t.Errorf("requirement should have a satisfied status: %t", testCase.isSatisfied)
-			}
-			if !utils.TestLastNodeStatus(t, testCase.isSatisfied, details) {
-				t.Errorf("requirement details should have a status: %t", testCase.isSatisfied)
-			}
+			assert.Equal(t, requirement.IsSatisfied(pr, details), testCase.isSatisfied, fmt.Sprintf("requirement should have a satisfied status: %t", testCase.isSatisfied))
+			assert.True(t, utils.TestLastNodeStatus(t, testCase.isSatisfied, details), fmt.Sprintf("requirement details should have a status: %t", testCase.isSatisfied))
 		})
 	}
 }
@@ -80,13 +68,7 @@ func TestOr(t *testing.T) {
 func TestOrPanic(t *testing.T) {
 	t.Parallel()
 
-	defer func() {
-		if r := recover(); r == nil {
-			t.Errorf("and constructor should panic if less than 2 requirements are provided")
-		}
-	}()
-
-	Or(Always()) // Only 1 requirement provided
+	assert.Panics(t, func() { Or(Always()) }, "or constructor should panic if less than 2 conditions are provided")
 }
 
 func TestNot(t *testing.T) {
@@ -107,12 +89,8 @@ func TestNot(t *testing.T) {
 			details := treeprint.New()
 			requirement := Not(testCase.requirement)
 
-			if requirement.IsSatisfied(pr, details) != testCase.isSatisfied {
-				t.Errorf("requirement should have a satisfied status: %t", testCase.isSatisfied)
-			}
-			if !utils.TestLastNodeStatus(t, testCase.isSatisfied, details) {
-				t.Errorf("requirement details should have a status: %t", testCase.isSatisfied)
-			}
+			assert.Equal(t, requirement.IsSatisfied(pr, details), testCase.isSatisfied, fmt.Sprintf("requirement should have a satisfied status: %t", testCase.isSatisfied))
+			assert.True(t, utils.TestLastNodeStatus(t, testCase.isSatisfied, details), fmt.Sprintf("requirement details should have a status: %t", testCase.isSatisfied))
 		})
 	}
 }

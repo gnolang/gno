@@ -9,6 +9,7 @@ import (
 	"github.com/gnolang/gno/contribs/github-bot/client"
 	"github.com/gnolang/gno/contribs/github-bot/logger"
 	"github.com/gnolang/gno/contribs/github-bot/utils"
+	"github.com/stretchr/testify/assert"
 
 	"github.com/google/go-github/v64/github"
 	"github.com/migueleliasweb/go-github-mock/src/mock"
@@ -88,15 +89,9 @@ func TestReviewByUser(t *testing.T) {
 			details := treeprint.New()
 			requirement := ReviewByUser(gh, testCase.user)
 
-			if requirement.IsSatisfied(pr, details) != testCase.isSatisfied {
-				t.Errorf("requirement should have a satisfied status: %t", testCase.isSatisfied)
-			}
-			if !utils.TestLastNodeStatus(t, testCase.isSatisfied, details) {
-				t.Errorf("requirement details should have a status: %t", testCase.isSatisfied)
-			}
-			if testCase.create != requested {
-				t.Errorf("requirement should have requested to create item: %t", testCase.create)
-			}
+			assert.Equal(t, requirement.IsSatisfied(pr, details), testCase.isSatisfied, fmt.Sprintf("requirement should have a satisfied status: %t", testCase.isSatisfied))
+			assert.True(t, utils.TestLastNodeStatus(t, testCase.isSatisfied, details), fmt.Sprintf("requirement details should have a status: %t", testCase.isSatisfied))
+			assert.Equal(t, testCase.create, requested, fmt.Sprintf("requirement should have requested to create item: %t", testCase.create))
 		})
 	}
 }
@@ -212,15 +207,9 @@ func TestReviewByTeamMembers(t *testing.T) {
 			details := treeprint.New()
 			requirement := ReviewByTeamMembers(gh, testCase.team, testCase.count)
 
-			if requirement.IsSatisfied(pr, details) != testCase.isSatisfied {
-				t.Errorf("requirement should have a satisfied status: %t", testCase.isSatisfied)
-			}
-			if !utils.TestLastNodeStatus(t, testCase.isSatisfied, details) {
-				t.Errorf("requirement details should have a status: %t", testCase.isSatisfied)
-			}
-			if testCase.testRequest != requested {
-				t.Errorf("requirement should have requested to create item: %t", testCase.testRequest)
-			}
+			assert.Equal(t, requirement.IsSatisfied(pr, details), testCase.isSatisfied, fmt.Sprintf("requirement should have a satisfied status: %t", testCase.isSatisfied))
+			assert.True(t, utils.TestLastNodeStatus(t, testCase.isSatisfied, details), fmt.Sprintf("requirement details should have a status: %t", testCase.isSatisfied))
+			assert.Equal(t, testCase.testRequest, requested, fmt.Sprintf("requirement should have requested to create item: %t", testCase.testRequest))
 		})
 	}
 }

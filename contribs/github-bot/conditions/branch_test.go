@@ -1,9 +1,11 @@
 package conditions
 
 import (
+	"fmt"
 	"testing"
 
 	"github.com/gnolang/gno/contribs/github-bot/utils"
+	"github.com/stretchr/testify/assert"
 
 	"github.com/google/go-github/v64/github"
 	"github.com/xlab/treeprint"
@@ -39,12 +41,8 @@ func TestHeadBaseBranch(t *testing.T) {
 
 			for _, condition := range conditions {
 				details := treeprint.New()
-				if condition.IsMet(pr, details) != testCase.isMet {
-					t.Errorf("condition should have a met status: %t", testCase.isMet)
-				}
-				if !utils.TestLastNodeStatus(t, testCase.isMet, details) {
-					t.Errorf("condition details should have a status: %t", testCase.isMet)
-				}
+				assert.Equal(t, condition.IsMet(pr, details), testCase.isMet, fmt.Sprintf("condition should have a met status: %t", testCase.isMet))
+				assert.True(t, utils.TestLastNodeStatus(t, testCase.isMet, details), fmt.Sprintf("condition details should have a status: %t", testCase.isMet))
 			}
 		})
 	}
