@@ -16,6 +16,7 @@ import (
 	"github.com/gnolang/gno/gno.land/pkg/gnoland"
 	"github.com/gnolang/gno/gno.land/pkg/gnoland/ugnot"
 	"github.com/gnolang/gno/gno.land/pkg/log"
+	"github.com/gnolang/gno/gno.land/pkg/stdgenesis"
 	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
 	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
 	"github.com/gnolang/gno/tm2/pkg/bft/config"
@@ -394,13 +395,11 @@ func generateGenesisFile(genesisFile string, pk crypto.PubKey, c *startCfg) erro
 		return fmt.Errorf("unable to load genesis balances file %q: %w", c.genesisBalancesFile, err)
 	}
 
-	/*
-		// Load embedded stdlibs
-		stdlibsTxs, err := stdgenesis.EmbeddedStdlibsGenesisTxs(genesisDeployAddress, genesisDeployFee)
-		if err != nil {
-			return fmt.Errorf("unable to load embedded stdlibs: %w", err)
-		}
-	*/
+	// Load embedded stdlibs
+	stdlibsTxs, err := stdgenesis.EmbeddedStdlibsGenesisTxs(genesisDeployAddress, genesisDeployFee)
+	if err != nil {
+		return fmt.Errorf("unable to load embedded stdlibs: %w", err)
+	}
 
 	// Load examples folder
 	examplesDir := filepath.Join(c.gnoRootDir, "examples")
@@ -415,8 +414,7 @@ func generateGenesisFile(genesisFile string, pk crypto.PubKey, c *startCfg) erro
 		return fmt.Errorf("unable to load genesis txs file: %w", err)
 	}
 
-	genesisTxs = append(pkgsTxs, genesisTxs...)
-	// genesisTxs = append(stdlibsTxs, append(pkgsTxs, genesisTxs...)...)
+	genesisTxs = append(stdlibsTxs, append(pkgsTxs, genesisTxs...)...)
 
 	// Construct genesis AppState.
 	gen.AppState = gnoland.GnoGenesisState{
