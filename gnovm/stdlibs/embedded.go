@@ -2,13 +2,13 @@ package stdlibs
 
 import "embed"
 
-// embedded embeds the stdlibs.
+// embeddedSources embeds the stdlibs.
 // Be careful to remove transpile artifacts before building release binaries or they will be included
 //
 //go:embed */*
-var embedded embed.FS
+var embeddedSources embed.FS
 
-// Embedded returns embedded stdlibs sources
-func Embedded() embed.FS {
-	return embedded
+// EmbeddedSources returns embedded stdlibs sources
+func EmbeddedSources() embed.FS {
+	return embeddedSources
 }

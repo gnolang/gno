@@ -11,8 +11,8 @@ import (
 )
 
 func TestEmbedTree(t *testing.T) {
-	actualEmbeds := dumpEmbedFS(t, embedded, 0, ".")
-	require.Equal(t, expectedEmbed, "\n"+actualEmbeds)
+	actualEmbedTree := dumpEmbedFS(t, embeddedSources, 0, ".")
+	require.Equal(t, expectedEmbedTree, "\n"+actualEmbedTree)
 }
 
 func dumpEmbedFS(t *testing.T, efs embed.FS, level int, p string) string {
@@ -33,7 +33,7 @@ func dumpEmbedFS(t *testing.T, efs embed.FS, level int, p string) string {
 	return s
 }
 
-const expectedEmbed = `
+const expectedEmbedTree = `
 bufio
   bufio.gno
   example_test.gno
