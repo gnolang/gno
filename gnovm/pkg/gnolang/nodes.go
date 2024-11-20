@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"go/parser"
 	"go/token"
+	"io/fs"
 	"math"
 	"os"
 	"path/filepath"
@@ -1143,18 +1144,23 @@ func PackageNameFromFileBody(name, body string) Name {
 	return Name(astFile.Name.Name)
 }
 
-// ReadMemPackage initializes a new MemPackage by reading the OS directory
+// ReadMemPackage is a wrapper around [ReadMemPackageFromFS] using an OS filesystem rooted at dir
+func ReadMemPackage(dir string, pkgPath string) *gnovm.MemPackage {
+	return ReadMemPackageFromFS(os.DirFS(dir), ".", pkgPath)
+}
+
+// ReadMemPackageFromFS initializes a new MemPackage by reading the [fs.FS] directory
 // at dir, and saving it with the given pkgPath (import path).
 // The resulting MemPackage will contain the names and content of all *.gno files,
 // and additionally README.md, LICENSE.
 //
-// ReadMemPackage does not perform validation aside from the package's name;
+// ReadMemPackageFromFS does not perform validation aside from the package's name;
 // the files are not parsed but their contents are merely stored inside a MemFile.
 //
 // NOTE: panics if package name is invalid (characters must be alphanumeric or _,
 // lowercase, and must start with a letter).
-func ReadMemPackage(dir string, pkgPath string) *gnovm.MemPackage {
-	files, err := os.ReadDir(dir)
+func ReadMemPackageFromFS(fsys fs.FS, dir string, pkgPath string) *gnovm.MemPackage {
+	files, err := fs.ReadDir(fsys, dir)
 	if err != nil {
 		panic(err)
 	}
@@ -1184,7 +1190,7 @@ func ReadMemPackage(dir string, pkgPath string) *gnovm.MemPackage {
 		}
 		list = append(list, filepath.Join(dir, file.Name()))
 	}
-	return ReadMemPackageFromList(list, pkgPath)
+	return ReadMemPackageFromList(fsys, list, pkgPath)
 }
 
 // ReadMemPackageFromList creates a new [gnovm.MemPackage] with the specified pkgPath,
@@ -1193,12 +1199,12 @@ func ReadMemPackage(dir string, pkgPath string) *gnovm.MemPackage {
 //
 // NOTE: panics if package name is invalid (characters must be alphanumeric or _,
 // lowercase, and must start with a letter).
-func ReadMemPackageFromList(list []string, pkgPath string) *gnovm.MemPackage {
+func ReadMemPackageFromList(fsys fs.FS, list []string, pkgPath string) *gnovm.MemPackage {
 	memPkg := &gnovm.MemPackage{Path: pkgPath}
 	var pkgName Name
 	for _, fpath := range list {
 		fname := filepath.Base(fpath)
-		bz, err := os.ReadFile(fpath)
+		bz, err := fs.ReadFile(fsys, fpath)
 		if err != nil {
 			panic(err)
 		}

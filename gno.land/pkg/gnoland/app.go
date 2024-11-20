@@ -264,24 +264,6 @@ func (cfg InitChainerConfig) InitChainer(ctx sdk.Context, req abci.RequestInitCh
 	}
 }
 
-func (cfg InitChainerConfig) loadStdlibs(ctx sdk.Context) {
-	// cache-wrapping is necessary for non-validator nodes; in the tm2 BaseApp,
-	// this is done using BaseApp.cacheTxContext; so we replicate it here.
-	ms := ctx.MultiStore()
-	msCache := ms.MultiCacheWrap()
-
-	stdlibCtx := cfg.vmKpr.MakeGnoTransactionStore(ctx)
-	stdlibCtx = stdlibCtx.WithMultiStore(msCache)
-	if cfg.CacheStdlibLoad {
-		cfg.vmKpr.LoadStdlibCached(stdlibCtx, cfg.StdlibDir)
-	} else {
-		cfg.vmKpr.LoadStdlib(stdlibCtx, cfg.StdlibDir)
-	}
-	cfg.vmKpr.CommitGnoTransactionStore(stdlibCtx)
-
-	msCache.MultiWrite()
-}
-
 func (cfg InitChainerConfig) loadAppState(ctx sdk.Context, appState any) ([]abci.ResponseDeliverTx, error) {
 	state, ok := appState.(GnoGenesisState)
 	if !ok {
@@ -301,16 +283,6 @@ func (cfg InitChainerConfig) loadAppState(ctx sdk.Context, appState any) ([]abci
 	// Apply genesis params.
 	for _, param := range state.Params {
 		param.register(ctx, cfg.paramsKpr)
-	}
-
-	// Injec stdlibs embedded in binary if required
-	if state.EmbeddedStdlibs {
-		// load standard libraries; immediately committed to store so that they are
-		// available for use when processing the genesis transactions below.
-		start := time.Now()
-		cfg.loadStdlibs(ctx)
-		ctx.Logger().Debug("InitChainer: standard libraries loaded",
-			"elapsed", time.Since(start))
 	}
 
 	// Replay genesis txs.
