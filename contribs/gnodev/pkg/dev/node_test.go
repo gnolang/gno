@@ -282,9 +282,11 @@ func Render(_ string) string {
 	node, emitter := newTestingDevNode(t, foopkg)
 	assert.Len(t, node.ListPkgs(), 1)
 
-	// Span multiple time
+	// Span multiple times
 	for i := 0; i < 2; i++ {
 		// Wait a little for time shift
+		// XXX: Change this with `Block` event listening, But we will
+		// probably need to update block timestamp to nanoseconds first
 		time.Sleep(time.Second)
 
 		msg := vm.MsgCall{
@@ -411,7 +413,7 @@ func newTestingDevNode(t *testing.T, pkgslist ...PackagePath) (*Node, *mock.Serv
 	// Call NewDevNode with no package should work
 	cfg := DefaultNodeConfig(gnoenv.RootDir())
 
-	// We have to put this to true to force tx to be in separate block
+	// Minimize time between block to avoid tx being set in the same block
 	cfg.TMConfig.Consensus.SkipTimeoutCommit = true
 	cfg.TMConfig.Consensus.TimeoutPropose = time.Millisecond * 100
 
