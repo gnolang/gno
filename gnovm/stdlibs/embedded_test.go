@@ -1,0 +1,316 @@
+package stdlibs
+
+import (
+	"embed"
+	"fmt"
+	"path"
+	"strings"
+	"testing"
+
+	"github.com/stretchr/testify/require"
+)
+
+func TestEmbedTree(t *testing.T) {
+	actualEmbeds := dumpEmbedFS(t, embedded, 0, ".")
+	require.Equal(t, expectedEmbed, "\n"+actualEmbeds)
+}
+
+func dumpEmbedFS(t *testing.T, efs embed.FS, level int, p string) string {
+	t.Helper()
+
+	s := ""
+
+	dir, err := efs.ReadDir(p)
+	require.NoError(t, err)
+
+	for _, entry := range dir {
+		s += fmt.Sprintf("%s%s\n", strings.Repeat("  ", level), entry.Name())
+		if entry.IsDir() {
+			s += dumpEmbedFS(t, efs, level+1, path.Join(p, entry.Name()))
+		}
+	}
+
+	return s
+}
+
+const expectedEmbed = `
+bufio
+  bufio.gno
+  example_test.gno
+  export_test.gno
+  scan.gno
+  scan_test.gno
+bytes
+  boundary_test.gno
+  buffer.gno
+  buffer_test.gno
+  bytes.gno
+  bytes_test.gno
+  compare_test.gno
+  example_test.gno
+  export_test.gno
+  reader.gno
+  reader_test.gno
+crypto
+  chacha20
+    chacha
+      README.md
+      chacha.gno
+      chacha_generic.gno
+      chacha_ref.gno
+      chacha_test.gno
+    chacha20.gno
+    chacha20_test.gno
+    rand
+      rand.gno
+  cipher
+    README.md
+    cipher.gno
+  ed25519
+    ed25519.gno
+    ed25519.go
+    ed25519_test.gno
+  sha256
+    sha256.gno
+    sha256.go
+    sha256_test.gno
+encoding
+  base64
+    base64.gno
+    base64_test.gno
+  binary
+    binary.gno
+    binary_test.gno
+  encoding.gno
+  hex
+    hex.gno
+    hex_test.gno
+errors
+  README.md
+  errors.gno
+  errors_test.gno
+  example_test.gno
+hash
+  adler32
+    adler32.gno
+  hash.gno
+  marshal_test.gno
+html
+  entity.gno
+  entity_test.gno
+  escape.gno
+  escape_test.gno
+internal
+  bytealg
+    bytealg.gno
+    compare_generic.gno
+    count_generic.gno
+    equal_generic.gno
+    index_generic.gno
+    indexbyte_generic.gno
+io
+  example_test.gno
+  io.gno
+  io_test.gno
+  multi.gno
+  multi_test.gno
+math
+  abs.gno
+  acosh.gno
+  all_test.gno
+  asin.gno
+  asinh.gno
+  atan.gno
+  atan2.gno
+  atanh.gno
+  bits
+    bits.gno
+    bits_errors.gno
+    bits_tables.gno
+    bits_test.gno
+    export_test.gno
+  bits.gno
+  cbrt.gno
+  const.gno
+  const_test.gno
+  copysign.gno
+  dim.gno
+  erf.gno
+  erfinv.gno
+  exp.gno
+  expm1.gno
+  export_test.gno
+  floor.gno
+  fma.gno
+  frexp.gno
+  gamma.gno
+  hypot.gno
+  j0.gno
+  j1.gno
+  jn.gno
+  ldexp.gno
+  lgamma.gno
+  log.gno
+  log10.gno
+  log1p.gno
+  logb.gno
+  mod.gno
+  modf.gno
+  native.gno
+  native.go
+  nextafter.gno
+  overflow
+    overflow.gno
+    overflow_test.gno
+  pow.gno
+  pow10.gno
+  rand
+    auto_test.gno
+    example_test.gno
+    exp.gno
+    normal.gno
+    pcg.gno
+    pcg_test.gno
+    rand.gno
+    rand_test.gno
+    regress_test.gno
+    zipf.gno
+  remainder.gno
+  signbit.gno
+  sin.gno
+  sincos.gno
+  sinh.gno
+  sqrt.gno
+  tan.gno
+  tanh.gno
+  trig_reduce.gno
+net
+  url
+    url.gno
+    url_test.gno
+path
+  match.gno
+  match_test.gno
+  path.gno
+  path_test.gno
+regexp
+  all_test.gno
+  backtrack.gno
+  example_test.gno
+  exec.gno
+  exec_test.gno
+  find_test.gno
+  onepass.gno
+  onepass_test.gno
+  regexp.gno
+  syntax
+    compile.gno
+    doc.gno
+    make_perl_groups.pl
+    op_string.gno
+    parse.gno
+    parse_test.gno
+    perl_groups.gno
+    prog.gno
+    prog_test.gno
+    regexp.gno
+    simplify.gno
+    simplify_test.gno
+sort
+  search.gno
+  search_test.gno
+  sort.gno
+  sort_test.gno
+std
+  addr_set.gno
+  banker.gno
+  banker.go
+  coins.gno
+  context.go
+  crypto.gno
+  crypto_test.gno
+  emit_event.gno
+  emit_event.go
+  emit_event_test.go
+  frame.gno
+  native.gno
+  native.go
+  native_test.go
+  package.go
+  params.gno
+  params.go
+strconv
+  atob.gno
+  atob_test.gno
+  atof.gno
+  atof_test.gno
+  atoi.gno
+  atoi_test.gno
+  bytealg.gno
+  decimal.gno
+  decimal_test.gno
+  doc.gno
+  eisel_lemire.gno
+  example_test.gno
+  export_test.gno
+  fp_test.gno
+  ftoa.gno
+  ftoa_test.gno
+  ftoaryu.gno
+  ftoaryu_test.gno
+  internal_test.gno
+  isprint.gno
+  itoa.gno
+  itoa_test.gno
+  quote.gno
+  quote_test.gno
+  strconv_test.gno
+strings
+  builder.gno
+  builder_test.gno
+  compare.gno
+  example_test.gno
+  export_test.gno
+  printtrie_test.gno
+  reader.gno
+  reader_test.gno
+  replace.gno
+  replace_test.gno
+  search.gno
+  strings.gno
+testing
+  fuzz.gno
+  fuzz_test.gno
+  match.gno
+  random.gno
+  random_test.gno
+  testing.gno
+  testing.go
+time
+  format.gno
+  time.gno
+  time.go
+  timezoneinfo.gno
+  tzdata.go
+  zoneinfo_read.gno
+  zzipdata.go
+unicode
+  README.md
+  casetables.gno
+  digit.gno
+  digit_test.gno
+  example_test.gno
+  graphic.gno
+  graphic_test.gno
+  letter.gno
+  letter_test.gno
+  script_test.gno
+  tables.gno
+  utf16
+    utf16.gno
+    utf16_test.gno
+  utf8
+    example_test.gno
+    utf8.gno
+    utf8_test.gno
+`
