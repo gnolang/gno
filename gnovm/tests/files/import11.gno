@@ -10,4 +10,4 @@ func main() {
 }
 
 // Error:
-// gno.land/p/demo/bar/files/import11.gno:5:2: should not happen p/ cannot import r/: package path gno.land/p/demo/bar imports realm path gno.land/r/demo/tests
+// gno.land/p/demo/bar/files/import11.gno:5:2: pure package path "gno.land/p/demo/bar" cannot import realm path "gno.land/r/demo/tests"

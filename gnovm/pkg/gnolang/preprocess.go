@@ -176,7 +176,7 @@ func initStaticBlocks(store Store, ctx BlockNode, bn BlockNode) {
 				nn := nx.Name
 				loc := last.GetLocation()
 				if IsPurePackagePath(loc.PkgPath) && IsRealmPath(n.PkgPath) {
-					panic(fmt.Sprintf("should not happen p/ cannot import r/: package path %s imports realm path %s", loc.PkgPath, n.PkgPath))
+					panic(fmt.Sprintf("pure package path %q cannot import realm path %q", loc.PkgPath, n.PkgPath))
 				}
 				if nn == "." {
 					panic("dot imports not allowed in gno")
