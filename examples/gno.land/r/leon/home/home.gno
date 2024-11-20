@@ -8,9 +8,9 @@ import (
 
 	"gno.land/r/demo/art/gnoface"
 	"gno.land/r/demo/art/millipede"
-	"gno.land/r/demo/hof"
 	"gno.land/r/demo/mirror"
 	"gno.land/r/leon/config"
+	"gno.land/r/leon/hof"
 )
 
 var (
