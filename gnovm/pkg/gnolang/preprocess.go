@@ -2350,10 +2350,6 @@ func defineOrDecl(
 		panic(fmt.Sprintf("assignment mismatch: %d variable(s) but %d value(s)", numNames, numVals))
 	}
 
-	if numNames < 1 {
-		panic("must have at least one name to assign")
-	}
-
 	sts := make([]Type, numNames) // static types
 	tvs := make([]TypedValue, numNames)
 
@@ -2377,6 +2373,7 @@ func defineOrDecl(
 }
 
 // parseAssignFromExprList parses assignment to multiple variables from a list of expressions.
+// This function will alter the value of sts, tvs.
 func parseAssignFromExprList(
 	sts []Type,
 	tvs []TypedValue,
@@ -2454,6 +2451,7 @@ func parseAssignFromExprList(
 }
 
 // parseMultipleAssignFromOneExpr parses assignment to multiple variables from a single expression.
+// This function will alter the value of sts, tvs.
 // Declare:
 // - var a, b, c T = f()
 // - var a, b = n.(T)
@@ -2470,7 +2468,7 @@ func parseMultipleAssignFromOneExpr(
 	nameExprs []NameExpr,
 	typeExpr Expr,
 	valueExpr Expr,
-) ([]Type, []TypedValue) {
+) {
 	var tuple *tupleType
 	numNames := len(nameExprs)
 	switch expr := valueExpr.(type) {
@@ -2543,8 +2541,6 @@ func parseMultipleAssignFromOneExpr(
 
 		tvs[i] = anyValue(sts[i])
 	}
-
-	return sts, tvs
 }
 
 // Identifies NameExprTypeHeapDefines.
