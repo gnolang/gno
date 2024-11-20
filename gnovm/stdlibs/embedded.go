@@ -8,6 +8,7 @@ import "embed"
 //go:embed */*
 var embedded embed.FS
 
+// Embedded returns embedded stdlibs sources
 func Embedded() embed.FS {
 	return embedded
 }
