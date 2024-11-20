@@ -36,7 +36,6 @@ func TestFileChanged(t *testing.T) {
 		{"file list contains suffix doesn't match", "^oo", filenames, false},
 		{"file list doesn't contains match", "foobar", filenames, false},
 	} {
-		testCase := testCase
 		t.Run(testCase.name, func(t *testing.T) {
 			t.Parallel()
 

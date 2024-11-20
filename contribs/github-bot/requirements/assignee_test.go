@@ -36,7 +36,6 @@ func TestAssignee(t *testing.T) {
 		{"assignee list doesn't contain user", "user2", assignees, false, false},
 		{"assignee list doesn't contain user with dry-run", "user2", assignees, true, false},
 	} {
-		testCase := testCase
 		t.Run(testCase.name, func(t *testing.T) {
 			t.Parallel()
 

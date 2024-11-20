@@ -49,7 +49,6 @@ func TestReviewByUser(t *testing.T) {
 		{"reviewer match without approval", "anotherOne", false, false},
 		{"reviewer doesn't match", "user2", false, true},
 	} {
-		testCase := testCase
 		t.Run(testCase.name, func(t *testing.T) {
 			t.Parallel()
 
@@ -163,7 +162,6 @@ func TestReviewByTeamMembers(t *testing.T) {
 		{"0/1 team member approved with request", "team3", 1, false, true},
 		{"team doesn't exist with request", "team4", 1, false, true},
 	} {
-		testCase := testCase
 		t.Run(testCase.name, func(t *testing.T) {
 			t.Parallel()
 

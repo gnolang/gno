@@ -32,7 +32,6 @@ func TestAssignee(t *testing.T) {
 		{"assignee list contains user", "user", assignees, true},
 		{"assignee list doesn't contain user", "user2", assignees, false},
 	} {
-		testCase := testCase
 		t.Run(testCase.name, func(t *testing.T) {
 			t.Parallel()
 
@@ -69,7 +68,6 @@ func TestAssigneeInTeam(t *testing.T) {
 		{"assignee list contains user", "user", members, true},
 		{"assignee list doesn't contain user", "user2", members, false},
 	} {
-		testCase := testCase
 		t.Run(testCase.name, func(t *testing.T) {
 			t.Parallel()
 

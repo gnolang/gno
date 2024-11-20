@@ -43,7 +43,6 @@ func TestLabel(t *testing.T) {
 		{"label list doesn't contains match", "baleb", labels, false, false},
 		{"label list doesn't contains match with dry-run", "baleb", labels, true, false},
 	} {
-		testCase := testCase
 		t.Run(testCase.name, func(t *testing.T) {
 			t.Parallel()
 

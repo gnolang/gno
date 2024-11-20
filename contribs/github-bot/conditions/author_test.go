@@ -25,7 +25,6 @@ func TestAuthor(t *testing.T) {
 		{"author match", "user", "user", true},
 		{"author doesn't match", "user", "author", false},
 	} {
-		testCase := testCase
 		t.Run(testCase.name, func(t *testing.T) {
 			t.Parallel()
 
@@ -64,7 +63,6 @@ func TestAuthorInTeam(t *testing.T) {
 		{"member list contains user", "user", members, true},
 		{"member list doesn't contain user", "user2", members, false},
 	} {
-		testCase := testCase
 		t.Run(testCase.name, func(t *testing.T) {
 			t.Parallel()
 

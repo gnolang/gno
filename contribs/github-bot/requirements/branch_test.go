@@ -27,7 +27,6 @@ func TestUpToDateWith(t *testing.T) {
 		{"not up-to-date with commits behind", 3, 0, false},
 		{"not up-to-date with commits behind and ahead", 3, 3, false},
 	} {
-		testCase := testCase
 		t.Run(testCase.name, func(t *testing.T) {
 			t.Parallel()
 
