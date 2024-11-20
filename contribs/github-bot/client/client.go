@@ -2,9 +2,8 @@ package client
 
 import (
 	"context"
-	"log"
+	"errors"
 	"os"
-	"time"
 
 	"github.com/gnolang/gno/contribs/github-bot/logger"
 	p "github.com/gnolang/gno/contribs/github-bot/params"
@@ -22,7 +21,6 @@ type GitHub struct {
 	Logger logger.Logger
 	Owner  string
 	Repo   string
-	cancel context.CancelFunc
 }
 
 func (gh *GitHub) GetBotComment(prNum int) *github.IssueComment {
@@ -220,14 +218,9 @@ func (gh *GitHub) ListPRReviews(prNum int) []*github.PullRequestReview {
 	return allReviews
 }
 
-func (gh *GitHub) Close() {
-	if gh.cancel != nil {
-		gh.cancel()
-	}
-}
-
-func New(params *p.Params) *GitHub {
+func New(ctx context.Context, params *p.Params) (*GitHub, error) {
 	gh := &GitHub{
+		Ctx:    ctx,
 		Owner:  params.Owner,
 		Repo:   params.Repo,
 		DryRun: params.DryRun,
@@ -237,19 +230,14 @@ func New(params *p.Params) *GitHub {
 	// a logger suitable for terminal output or the GitHub Actions web interface
 	gh.Logger = logger.NewLogger(params.Verbose)
 
-	// Create context with timeout if specified in the parameters
-	if params.Timeout > 0 {
-		gh.Ctx, gh.cancel = context.WithTimeout(context.Background(), time.Duration(params.Timeout)*time.Millisecond)
-	} else {
-		gh.Ctx = context.Background()
-	}
-
-	// Init GitHub API Client using token from env
+	// Retrieve GitHub API token from env
 	token, set := os.LookupEnv("GITHUB_TOKEN")
 	if !set {
-		log.Fatalf("GITHUB_TOKEN is not set in env")
+		return nil, errors.New("GITHUB_TOKEN is not set in env")
 	}
+
+	// Init GitHub API client using token
 	gh.Client = github.NewClient(nil).WithAuthToken(token)
 
-	return gh
+	return gh, nil
 }

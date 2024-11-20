@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"strings"
 	"sync"
@@ -14,9 +15,19 @@ import (
 )
 
 func execBot(params *p.Params) error {
+	// Create context with timeout if specified in the parameters
+	ctx := context.Background()
+	if params.Timeout > 0 {
+		var cancel context.CancelFunc
+		ctx, cancel = context.WithTimeout(context.Background(), params.Timeout)
+		defer cancel()
+	}
+
 	// Init GitHub API client
-	gh := client.New(params)
-	defer gh.Close()
+	gh, err := client.New(ctx, params)
+	if err != nil {
+		return fmt.Errorf("comment update handling failed: %w", err)
+	}
 
 	// Handle comment update, if any
 	if err := handleCommentUpdate(gh); err != nil {
@@ -24,10 +35,7 @@ func execBot(params *p.Params) error {
 	}
 
 	// Retrieve a slice of pull requests to process
-	var (
-		prs []*github.PullRequest
-		err error
-	)
+	var prs []*github.PullRequest
 
 	// If requested, retrieve all open pull requests
 	if params.PrAll {
@@ -42,7 +50,8 @@ func execBot(params *p.Params) error {
 			return fmt.Errorf("unable to retrieve all open pull requests: %w", err)
 		}
 
-		// Otherwise, retrieve only specified pull request(s) (flag or GitHub Action context)
+		// Otherwise, retrieve only specified pull request(s)
+		// (flag or GitHub Action context)
 	} else {
 		prs = make([]*github.PullRequest, len(params.PrNums))
 		for i, prNum := range params.PrNums {
