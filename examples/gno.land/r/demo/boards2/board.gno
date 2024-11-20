@@ -59,6 +59,10 @@ func (board *Board) IsPrivate() bool {
 	return board.id == 0
 }
 
+func (board *Board) GetID() BoardID {
+	return board.id
+}
+
 // GetURL returns the relative URL of the board.
 func (board *Board) GetURL() string {
 	return strings.TrimPrefix(std.CurrentRealm().PkgPath(), "gno.land") + ":" + board.name

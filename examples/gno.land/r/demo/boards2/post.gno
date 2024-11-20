@@ -1,6 +1,7 @@
 package boards
 
 import (
+	"errors"
 	"std"
 	"strconv"
 	"time"
@@ -24,35 +25,35 @@ func (id PostID) Key() string {
 // A Post is a "thread" or a "reply" depending on context.
 // A thread is a Post of a Board that holds other replies.
 type Post struct {
-	board       *Board
-	id          PostID
-	creator     std.Address
-	title       string // optional
-	body        string
-	replies     avl.Tree // Post.id -> *Post
-	repliesAll  avl.Tree // Post.id -> *Post (all replies, for top-level posts)
-	reposts     avl.Tree // Board.id -> Post.id
-	threadID    PostID   // original Post.id
-	parentID    PostID   // parent Post.id (if reply or repost)
-	repostBoard BoardID  // original Board.id (if repost)
-	createdAt   time.Time
-	updatedAt   time.Time
+	board         *Board
+	id            PostID
+	creator       std.Address
+	title         string // optional
+	body          string
+	replies       avl.Tree // Post.id -> *Post
+	repliesAll    avl.Tree // Post.id -> *Post (all replies, for top-level posts)
+	reposts       avl.Tree // Board.id -> Post.id
+	threadID      PostID   // original Post.id
+	parentID      PostID   // parent Post.id (if reply or repost)
+	repostBoardID BoardID  // original Board.id (if repost)
+	createdAt     time.Time
+	updatedAt     time.Time
 }
 
-func newPost(board *Board, id PostID, creator std.Address, title, body string, threadID, parentID PostID, repostBoard BoardID) *Post {
+func newPost(board *Board, id PostID, creator std.Address, title, body string, threadID, parentID PostID, repostBoardID BoardID) *Post {
 	return &Post{
-		board:       board,
-		id:          id,
-		creator:     creator,
-		title:       title,
-		body:        body,
-		replies:     avl.Tree{},
-		repliesAll:  avl.Tree{},
-		reposts:     avl.Tree{},
-		threadID:    threadID,
-		parentID:    parentID,
-		repostBoard: repostBoard,
-		createdAt:   time.Now(),
+		board:         board,
+		id:            id,
+		creator:       creator,
+		title:         title,
+		body:          body,
+		replies:       avl.Tree{},
+		repliesAll:    avl.Tree{},
+		reposts:       avl.Tree{},
+		threadID:      threadID,
+		parentID:      parentID,
+		repostBoardID: repostBoardID,
+		createdAt:     time.Now(),
 	}
 }
 
@@ -60,8 +61,40 @@ func (post *Post) IsThread() bool {
 	return post.parentID == 0
 }
 
+func (post *Post) GetBoard() *Board {
+	return post.board
+}
+
 func (post *Post) GetPostID() PostID {
 	return post.id
+}
+
+func (post *Post) GetParentID() PostID {
+	return post.parentID
+}
+
+func (post *Post) GetRepostBoardID() BoardID {
+	return post.repostBoardID
+}
+
+func (post *Post) GetCreator() std.Address {
+	return post.creator
+}
+
+func (post *Post) GetTitle() string {
+	return post.title
+}
+
+func (post *Post) GetBody() string {
+	return post.body
+}
+
+func (post *Post) GetCreatedAt() time.Time {
+	return post.createdAt
+}
+
+func (post *Post) GetUpdatedAt() time.Time {
+	return post.updatedAt
 }
 
 func (post *Post) AddReply(creator std.Address, body string) *Post {
@@ -108,25 +141,31 @@ func (post *Post) AddRepostTo(creator std.Address, title, body string, dst *Boar
 	return repost
 }
 
-func (thread *Post) DeleteReply(replyID PostID) {
-	if thread.id == replyID {
-		panic("should not happen")
+func (post *Post) DeleteReply(replyID PostID) error {
+	if !post.IsThread() {
+		// TODO: Allow removing replies from parent replies too
+		panic("cannot delete reply from a non-thread post")
+	}
+
+	if post.id == replyID {
+		return errors.New("expected an ID of an inner reply")
 	}
 
 	key := replyID.Key()
-	v, removed := thread.repliesAll.Remove(key)
+	v, removed := post.repliesAll.Remove(key)
 	if !removed {
-		panic("reply not found in thread")
+		return errors.New("reply not found in thread")
 	}
 
 	// TODO: Remove child replies too!
-	post := v.(*Post)
-	if post.parentID != thread.id {
-		parent, _ := thread.GetReply(post.parentID)
+	reply := v.(*Post)
+	if reply.parentID != post.id {
+		parent, _ := post.GetReply(reply.parentID)
 		parent.replies.Remove(key)
 	} else {
-		thread.replies.Remove(key)
+		post.replies.Remove(key)
 	}
+	return nil
 }
 
 func (post *Post) GetSummary() string {
@@ -143,15 +182,15 @@ func (post *Post) GetURL() string {
 func (post *Post) GetReplyFormURL() string {
 	return txlink.URL("CreateReply",
 		"bid", post.board.id.String(),
-		"threadid", post.threadID.String(),
-		"postid", post.id.String(),
+		"threadID", post.threadID.String(),
+		"postID", post.id.String(),
 	)
 }
 
 func (post *Post) GetRepostFormURL() string {
 	return txlink.URL("CreateRepost",
 		"bid", post.board.id.String(),
-		"postid", post.id.String(),
+		"postID", post.id.String(),
 	)
 }
 
@@ -170,10 +209,10 @@ func (post *Post) GetDeleteFormURL() string {
 }
 
 func (post *Post) RenderSummary() string {
-	if post.repostBoard != 0 {
-		dstBoard, found := getBoard(post.repostBoard)
+	if post.repostBoardID != 0 {
+		dstBoard, found := getBoard(post.repostBoardID)
 		if !found {
-			panic("repostBoard does not exist")
+			panic("repost board does not exist")
 		}
 
 		thread, found := dstBoard.GetThread(PostID(post.parentID))
