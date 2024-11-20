@@ -23,4 +23,4 @@ jobs:
       - name: Check go.mod files are up to date
         working-directory: ${{ inputs.modulepath }}
         run: |
-          make tidy VERIFY_GO_SUMS=true
+          make tidy VERIFY_MOD_SUMS=true

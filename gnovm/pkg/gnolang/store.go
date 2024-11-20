@@ -29,7 +29,7 @@ type PackageGetter func(pkgPath string, store Store) (*PackageNode, *PackageValu
 type NativeStore func(pkgName string, name Name) func(m *Machine)
 
 // Store is the central interface that specifies the communications between the
-// GnoVM and the underlying data store; currently, generally the Gno.land
+// GnoVM and the underlying data store; currently, generally the gno.land
 // blockchain, or the file system.
 type Store interface {
 	// STABLE
