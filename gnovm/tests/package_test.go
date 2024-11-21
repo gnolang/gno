@@ -18,7 +18,7 @@ import (
 )
 
 func TestStdlibs(t *testing.T) {
-	// t.Parallel()
+	t.Parallel()
 
 	// NOTE: this test only works using _test.gno files;
 	// filetests are not meant to be used for testing standard libraries.
@@ -55,8 +55,7 @@ func TestStdlibs(t *testing.T) {
 	// For each package with testfiles (in testPaths), call Machine.TestMemPackage.
 	for _, pkgPath := range pkgPaths {
 		t.Run(pkgPath, func(t *testing.T) {
-			fmt.Println("testing", pkgPath)
-			// t.Parallel()
+			t.Parallel()
 			runPackageTest(t, pkgPath)
 		})
 	}

@@ -1200,6 +1200,9 @@ func ReadMemPackageFromFS(fsys fs.FS, dir string, pkgPath string) *gnovm.MemPack
 // NOTE: panics if package name is invalid (characters must be alphanumeric or _,
 // lowercase, and must start with a letter).
 func ReadMemPackageFromList(fss []fs.FS, list []string, pkgPath string) *gnovm.MemPackage {
+	if len(fss) == 0 {
+		panic("no filesystems provided")
+	}
 	memPkg := &gnovm.MemPackage{Path: pkgPath}
 	var pkgName Name
 	for _, fpath := range list {
@@ -1210,12 +1213,13 @@ func ReadMemPackageFromList(fss []fs.FS, list []string, pkgPath string) *gnovm.M
 		)
 		for i, fsys := range fss {
 			bz, err = fs.ReadFile(fsys, fpath)
-			if i != 0 && os.IsNotExist(err) {
+			if i != len(fss)-1 && os.IsNotExist(err) {
 				continue
 			}
 			if err != nil {
-				panic(err)
+				panic(fmt.Errorf("read %q in fsys #%d: %w", fpath, i, err))
 			}
+			break
 		}
 		// XXX: should check that all pkg names are the same (else package is invalid)
 		if pkgName == "" && strings.HasSuffix(fname, ".gno") {

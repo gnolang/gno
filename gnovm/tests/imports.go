@@ -434,32 +434,23 @@ func TestStore(rootDir, filesPath string, stdin io.Reader, stdout, stderr io.Wri
 }
 
 func loadStdlib(pkgPath string, store gno.Store, stdout io.Writer) (*gno.PackageNode, *gno.PackageValue) {
-	fmt.Println("loading stdlib in test store", pkgPath)
-
 	filesystems := []fs.FS{teststdlibs.EmbeddedSources(), stdlibs.EmbeddedSources()}
 	filesystemsNames := []string{"test", "normal"}
 	files := make([]string, 0, 32) // pre-alloc 32 as a likely high number of files
 	for i, fsys := range filesystems {
-		dirs, err := fs.ReadDir(fsys, pkgPath)
-		if (i != 0 || !os.IsNotExist(err)) && err != nil {
+		entries, err := fs.ReadDir(fsys, pkgPath)
+		if err != nil {
+			if os.IsNotExist(err) {
+				continue
+			}
 			panic(fmt.Errorf("failed to read embedded stdlib %q in %q fsys: %w", pkgPath, filesystemsNames[i], err))
 		}
-		for _, dir := range dirs {
-			dl, err := fs.ReadDir(fsys, dir.Name())
-			if err != nil {
-				if os.IsNotExist(err) {
-					continue
-				}
-				panic(fmt.Errorf("could not access dir %q: %w", dir, err))
-			}
-
-			for _, f := range dl {
-				// NOTE: RunMemPackage has other rules; those should be mostly useful
-				// for on-chain packages (ie. include README and gno.mod).
-				fp := filepath.Join(dir.Name(), f.Name())
-				if !f.IsDir() && strings.HasSuffix(f.Name(), ".gno") && !slices.Contains(files, fp) {
-					files = append(files, fp)
-				}
+		for _, f := range entries {
+			// NOTE: RunMemPackage has other rules; those should be mostly useful
+			// for on-chain packages (ie. include README and gno.mod).
+			fp := filepath.Join(pkgPath, f.Name())
+			if !f.IsDir() && strings.HasSuffix(f.Name(), ".gno") && !slices.Contains(files, fp) {
+				files = append(files, fp)
 			}
 		}
 	}
