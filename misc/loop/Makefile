@@ -1,6 +1,9 @@
-all: docker.start
+all: docker.start.prod
 
-docker.start: # Start the portal loop
+docker.start.prod: # Start the production portal loop
+	docker compose -f ./docker-compose.production.yml up -d
+
+docker.start.local: # Start the portal loop
 	docker compose up -d
 
 docker.stop: # Stop the portal loop
