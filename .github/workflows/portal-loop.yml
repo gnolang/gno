@@ -61,9 +61,7 @@ jobs:
         run: |
           cd misc/loop
 
-          docker compose build
-          docker compose pull
-          docker compose up -d
+          make docker.start.local
 
       - name: "Test1 - Portal loop start gnoland"
         run: |

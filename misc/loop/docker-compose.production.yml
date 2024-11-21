@@ -28,7 +28,6 @@ services:
       - "--entrypoints.traefik.address=:8080"
 
       - "--entrypoints.websecure.address=:443"
-      # - "--certificatesresolvers.le.acme.caserver=https://acme-staging-v02.api.letsencrypt.org/directory"
       - "--certificatesresolvers.le.acme.tlschallenge=true"
       - "--certificatesresolvers.le.acme.email=dev@gno.land"
       - "--certificatesresolvers.le.acme.storage=/letsencrypt/acme.json"
@@ -80,9 +79,6 @@ services:
       - "--remote=http://traefik:26657"
       - "--captcha-secret=${CAPTCHA_SECRET_KEY}"
     env_file: ".env"
-    # environment:
-    # from .env
-    # - RECAPTCHA_SECRET_KEY
     labels:
       com.centurylinklabs.watchtower.enable: "true"
       traefik.enable: "true"
