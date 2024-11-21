@@ -5,7 +5,7 @@ docker.start.prod: # Start the production portal loop
 
 docker.start: # Start the portal loop
 # docker compose up -d 
-	docker compose up -d -f docker-compose-all.yml up -d portalloopd traefik
+	docker compose -f docker-compose-all.yml up -d portalloopd traefik
 
 docker.stop: # Stop the portal loop
 	docker compose down
