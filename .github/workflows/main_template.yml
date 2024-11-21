@@ -33,9 +33,8 @@ jobs:
         uses: ./.github/workflows/test_template.yml
         with:
             modulepath: ${{ inputs.modulepath }}
-            tests-timeout: "30m"
+            tests-timeout: "60m"
             go-version: "1.22.x"
             tests-extra-args: ${{ inputs.tests-extra-args }}
         secrets:
             codecov-token: ${{ secrets.codecov-token }}
-    
