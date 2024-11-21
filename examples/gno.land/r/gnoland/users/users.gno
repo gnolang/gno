@@ -10,7 +10,7 @@ import (
 )
 
 const (
-	reValidUsername = "^[a-zA-Z]{3}[a-zA-Z0-9]*[0-9]{3}$\n"
+	reValidUsername = "^[a-zA-Z]{3}[a-zA-Z0-9]{0,14}[0-9]{3}$"
 	RegisterEvent   = "Register"
 	adminAddr       = "g1u7y667z64x2h7vc6fmpcprgey4ck233jaww9zq" // @moul
 )
@@ -21,6 +21,9 @@ var (
 	reUsername = regexp.MustCompile(reValidUsername)
 )
 
+// Register registers a new username
+// A valid username must start with a minimum of 3 letters,
+// end with a minimum of 3 numbers, and be less than 20 chars long.
 func Register(username, bio string) error {
 	if pausable.IsPaused() {
 		return p.ErrPaused
