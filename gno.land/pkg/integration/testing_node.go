@@ -8,7 +8,6 @@ import (
 
 	"github.com/gnolang/gno/gno.land/pkg/gnoland"
 	"github.com/gnolang/gno/gno.land/pkg/gnoland/ugnot"
-	"github.com/gnolang/gno/gno.land/pkg/stdgenesis"
 	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
 	tmcfg "github.com/gnolang/gno/tm2/pkg/bft/config"
 	"github.com/gnolang/gno/tm2/pkg/bft/node"
@@ -135,7 +134,7 @@ func LoadDefaultPackages(t TestingTS, creator bft.Address, gnoroot string) []gno
 
 	defaultFee := std.NewFee(50000, std.MustParseCoin(ugnot.ValueString(1000000)))
 
-	stdlibsTxs, err := stdgenesis.EmbeddedStdlibsGenesisTxs(creator, defaultFee)
+	stdlibsTxs, err := gnoland.LoadEmbeddedStdlibs(creator, defaultFee)
 	require.NoError(t, err)
 
 	examplesTxs, err := gnoland.LoadPackagesFromDir(examplesDir, creator, defaultFee)

@@ -202,30 +202,33 @@ func TestInitChainer_MetadataTxs(t *testing.T) {
 	var (
 		currentTimestamp = time.Now()
 		laterTimestamp   = currentTimestamp.Add(10 * 24 * time.Hour) // 10 days
+		stdlibsDeployFee = std.NewFee(50000, std.NewCoin("ugnot", 1000000))
 
 		getMetadataState = func(tx std.Tx, balances []Balance) GnoGenesisState {
+			stdlibs, err := LoadEmbeddedStdlibs(balances[0].Address, stdlibsDeployFee)
+			require.NoError(t, err)
+
 			return GnoGenesisState{
 				// Set the package deployment as the genesis tx
-				Txs: []TxWithMetadata{
-					{
-						Tx: tx,
-						Metadata: &GnoTxMetadata{
-							Timestamp: laterTimestamp.Unix(),
-						},
+				Txs: append(stdlibs, TxWithMetadata{
+					Tx: tx,
+					Metadata: &GnoTxMetadata{
+						Timestamp: laterTimestamp.Unix(),
 					},
-				},
+				}),
 				// Make sure the deployer account has a balance
 				Balances: balances,
 			}
 		}
 
 		getNonMetadataState = func(tx std.Tx, balances []Balance) GnoGenesisState {
+			stdlibs, err := LoadEmbeddedStdlibs(balances[0].Address, stdlibsDeployFee)
+			require.NoError(t, err)
+
 			return GnoGenesisState{
-				Txs: []TxWithMetadata{
-					{
-						Tx: tx,
-					},
-				},
+				Txs: append(stdlibs, TxWithMetadata{
+					Tx: tx,
+				}),
 				Balances: balances,
 			}
 		}
@@ -311,7 +314,7 @@ func TestInitChainer_MetadataTxs(t *testing.T) {
 					{
 						// Make sure the deployer account has a balance
 						Address: key.PubKey().Address(),
-						Amount:  std.NewCoins(std.NewCoin("ugnot", 20_000_000)),
+						Amount:  std.NewCoins(std.NewCoin("ugnot", 20_000_000_000)),
 					},
 				}),
 			})

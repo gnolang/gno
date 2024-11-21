@@ -8,6 +8,7 @@ import (
 	vmm "github.com/gnolang/gno/gno.land/pkg/sdk/vm"
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
 	"github.com/gnolang/gno/gnovm/pkg/gnomod"
+	"github.com/gnolang/gno/gnovm/stdlibs"
 	"github.com/gnolang/gno/tm2/pkg/amino"
 	bft "github.com/gnolang/gno/tm2/pkg/bft/types"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
@@ -186,4 +187,33 @@ func LoadPackage(pkg gnomod.Pkg, creator bft.Address, fee std.Fee, deposit std.C
 	tx.Signatures = make([]std.Signature, len(tx.GetSigners()))
 
 	return tx, nil
+}
+
+func LoadEmbeddedStdlibs(deployer crypto.Address, fee std.Fee) ([]TxWithMetadata, error) {
+	stdlibs, err := stdlibs.EmbeddedMemPackages()
+	if err != nil {
+		return nil, fmt.Errorf("unable to load embedded stdlibs: %w", err)
+	}
+
+	stdlibsTxs := []TxWithMetadata{}
+	for _, memPkg := range stdlibs {
+		if memPkg.Path == "testing" {
+			continue
+		}
+
+		tx := TxWithMetadata{Tx: std.Tx{
+			Fee: fee,
+			Msgs: []std.Msg{
+				vmm.MsgAddPackage{
+					Creator: deployer,
+					Package: memPkg,
+				},
+			},
+		}}
+
+		tx.Tx.Signatures = make([]std.Signature, len(tx.Tx.GetSigners()))
+		stdlibsTxs = append(stdlibsTxs, tx)
+	}
+
+	return stdlibsTxs, nil
 }

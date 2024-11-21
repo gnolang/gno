@@ -18,7 +18,6 @@ import (
 	"github.com/gnolang/gno/gno.land/pkg/keyscli"
 	"github.com/gnolang/gno/gno.land/pkg/log"
 	"github.com/gnolang/gno/gno.land/pkg/sdk/vm"
-	"github.com/gnolang/gno/gno.land/pkg/stdgenesis"
 	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
 	"github.com/gnolang/gno/gnovm/pkg/gnomod"
 	"github.com/gnolang/gno/tm2/pkg/bft/node"
@@ -142,6 +141,8 @@ func setupGnolandTestScript(t *testing.T, txtarDir string) testscript.Params {
 			// test1 must be created outside of the loop below because it is already included in genesis so
 			// attempting to recreate results in it getting overwritten and breaking existing tests that
 			// rely on its address being static.
+			// NOTE: recreating test1 will break tests because it's used to deploy stdlibs and needs a greater balance than the default
+			// maybe we should deploy stdlibs with a dedicated account
 			kb.CreateAccount(DefaultAccount_Name, DefaultAccount_Seed, "", "", 0, 0)
 			env.Setenv("USER_SEED_"+DefaultAccount_Name, DefaultAccount_Seed)
 			env.Setenv("USER_ADDR_"+DefaultAccount_Name, DefaultAccount_Address)
@@ -186,7 +187,7 @@ func setupGnolandTestScript(t *testing.T, txtarDir string) testscript.Params {
 					defaultFee := std.NewFee(50000, std.MustParseCoin(ugnot.ValueString(1000000)))
 
 					// get stdlibs
-					stdlibsTxs, err := stdgenesis.EmbeddedStdlibsGenesisTxs(creator, defaultFee)
+					stdlibsTxs, err := gnoland.LoadEmbeddedStdlibs(creator, defaultFee)
 					if err != nil {
 						ts.Fatalf("unable to load stdlibs txs: %s", err)
 					}

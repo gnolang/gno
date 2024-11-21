@@ -16,7 +16,6 @@ import (
 	"github.com/gnolang/gno/gno.land/pkg/gnoland"
 	"github.com/gnolang/gno/gno.land/pkg/gnoland/ugnot"
 	"github.com/gnolang/gno/gno.land/pkg/log"
-	"github.com/gnolang/gno/gno.land/pkg/stdgenesis"
 	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
 	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
 	"github.com/gnolang/gno/tm2/pkg/bft/config"
@@ -396,7 +395,7 @@ func generateGenesisFile(genesisFile string, pk crypto.PubKey, c *startCfg) erro
 	}
 
 	// Load embedded stdlibs
-	stdlibsTxs, err := stdgenesis.EmbeddedStdlibsGenesisTxs(genesisDeployAddress, genesisDeployFee)
+	stdlibsTxs, err := gnoland.LoadEmbeddedStdlibs(genesisDeployAddress, genesisDeployFee)
 	if err != nil {
 		return fmt.Errorf("unable to load embedded stdlibs: %w", err)
 	}

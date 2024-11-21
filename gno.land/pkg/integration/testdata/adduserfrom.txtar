@@ -1,14 +1,14 @@
 # adduserfrom just mnemonic
-adduserfrom user1 'source bonus chronic canvas draft south burst lottery vacant surface solve popular case indicate oppose farm nothing bullet exhibit title speed wink action roast'
-stdout 'g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5'
+adduserfrom user1 'potato office wash simple fence distance wrist october idea rain resist grit soup margin kangaroo relief warrior wild flash source agree panic pumpkin chapter'
+stdout 'g1tklzzh98af35u3czdl5tdvhtf8mxak09x920ka'
 
 # adduserfrom mnemonic and account
-adduserfrom user2 'source bonus chronic canvas draft south burst lottery vacant surface solve popular case indicate oppose farm nothing bullet exhibit title speed wink action roast' 1
-stdout 'g18e22n23g462drp4pyszyl6e6mwxkaylthgeeq4'
+adduserfrom user2 'potato office wash simple fence distance wrist october idea rain resist grit soup margin kangaroo relief warrior wild flash source agree panic pumpkin chapter' 1
+stdout 'g16svw053j5fqlq7tpjug6x87ezyn5qy2nzmdlal'
 
 # adduserfrom mnemonic, account and index
-adduserfrom user3 'source bonus chronic canvas draft south burst lottery vacant surface solve popular case indicate oppose farm nothing bullet exhibit title speed wink action roast' 1 1
-stdout 'g1mtmrdmqfu0aryqfl4aw65n35haw2wdjkh5p4cp'
+adduserfrom user3 'potato office wash simple fence distance wrist october idea rain resist grit soup margin kangaroo relief warrior wild flash source agree panic pumpkin chapter' 1 1
+stdout 'g1myq5smwnzr0qcsa6kecqcy4pjjwt776yp6hmqv'
 
 ## start a new node
 gnoland start
@@ -17,14 +17,14 @@ gnoland start
 gnokey query bank/balances/${USER_ADDR_user1}
 stdout '10000000ugnot'
 
-gnokey query bank/balances/g18e22n23g462drp4pyszyl6e6mwxkaylthgeeq4
+gnokey query bank/balances/g16svw053j5fqlq7tpjug6x87ezyn5qy2nzmdlal
 stdout '10000000ugnot'
 
 gnokey query auth/accounts/${USER_ADDR_user3}
 stdout 'height: 0'
 stdout 'data: {'
 stdout '  "BaseAccount": {'
-stdout '    "address": "g1mtmrdmqfu0aryqfl4aw65n35haw2wdjkh5p4cp",'
+stdout '    "address": "g1myq5smwnzr0qcsa6kecqcy4pjjwt776yp6hmqv",'
 stdout '    "coins": "10000000ugnot",'
 stdout '    "public_key": null,'
 stdout '    "account_number": "58",'

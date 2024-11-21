@@ -5,7 +5,7 @@
 #
 
 # Test accounts.
-g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5=20000000000000ugnot # test1
+g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5=10000000000000ugnot # test1
 g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj=10000000000000ugnot # test2
 
 # Faucet accounts.
