@@ -36,7 +36,7 @@ func (gh *GitHub) GetBotComment(prNum int) (*github.IssueComment, error) {
 	// Get current user (bot)
 	currentUser, _, err := gh.Client.Users.Get(gh.Ctx, "")
 	if err != nil {
-		return nil, fmt.Errorf("unable to get current user: %v", err)
+		return nil, fmt.Errorf("unable to get current user: %w", err)
 	}
 
 	// Pagination option
@@ -57,7 +57,7 @@ func (gh *GitHub) GetBotComment(prNum int) (*github.IssueComment, error) {
 			opts,
 		)
 		if err != nil {
-			return nil, fmt.Errorf("unable to list comments for PR %d: %v", prNum, err)
+			return nil, fmt.Errorf("unable to list comments for PR %d: %w", prNum, err)
 		}
 
 		// Get the comment created by current user
@@ -79,7 +79,7 @@ func (gh *GitHub) GetBotComment(prNum int) (*github.IssueComment, error) {
 func (gh *GitHub) SetBotComment(body string, prNum int) (*github.IssueComment, error) {
 	// Create bot comment if it does not already exist
 	comment, err := gh.GetBotComment(prNum)
-	if err == ErrBotCommentNotFound {
+	if errors.Is(err, ErrBotCommentNotFound) {
 		newComment, _, err := gh.Client.Issues.CreateComment(
 			gh.Ctx,
 			gh.Owner,
@@ -88,11 +88,11 @@ func (gh *GitHub) SetBotComment(body string, prNum int) (*github.IssueComment, e
 			&github.IssueComment{Body: &body},
 		)
 		if err != nil {
-			return nil, fmt.Errorf("unable to create bot comment for PR %d: %v", prNum, err)
+			return nil, fmt.Errorf("unable to create bot comment for PR %d: %w", prNum, err)
 		}
 		return newComment, nil
 	} else if err != nil {
-		return nil, fmt.Errorf("unable to get bot comment: %v", err)
+		return nil, fmt.Errorf("unable to get bot comment: %w", err)
 	}
 
 	comment.Body = &body
@@ -104,7 +104,7 @@ func (gh *GitHub) SetBotComment(body string, prNum int) (*github.IssueComment, e
 		comment,
 	)
 	if err != nil {
-		return nil, fmt.Errorf("unable to edit bot comment with ID %d: %v", comment.GetID(), err)
+		return nil, fmt.Errorf("unable to edit bot comment with ID %d: %w", comment.GetID(), err)
 	}
 
 	return editComment, nil
@@ -128,7 +128,7 @@ func (gh *GitHub) ListTeamMembers(team string) ([]*github.User, error) {
 			opts,
 		)
 		if err != nil {
-			return nil, fmt.Errorf("unable to list members for team %s: %v", team, err)
+			return nil, fmt.Errorf("unable to list members for team %s: %w", team, err)
 		}
 
 		allMembers = append(allMembers, members...)
@@ -177,7 +177,7 @@ func (gh *GitHub) ListPRReviewers(prNum int) (*github.Reviewers, error) {
 			opts,
 		)
 		if err != nil {
-			return nil, fmt.Errorf("unable to list reviewers for PR %d: %v", prNum, err)
+			return nil, fmt.Errorf("unable to list reviewers for PR %d: %w", prNum, err)
 		}
 
 		allReviewers.Teams = append(allReviewers.Teams, reviewers.Teams...)
@@ -209,7 +209,7 @@ func (gh *GitHub) ListPRReviews(prNum int) ([]*github.PullRequestReview, error) 
 			opts,
 		)
 		if err != nil {
-			return nil, fmt.Errorf("unable to list reviews for PR %d: %v", prNum, err)
+			return nil, fmt.Errorf("unable to list reviews for PR %d: %w", prNum, err)
 		}
 
 		allReviews = append(allReviews, reviews...)

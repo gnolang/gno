@@ -56,7 +56,7 @@ func getCommentManualChecks(commentBody string) map[string][2]string {
 	// For each line that matches the "Manual check" regex
 	for _, match := range manualCheckLine.FindAllStringSubmatch(commentBody, -1) {
 		status := match[1]
-		// Try to capture an occurence of : (checked by @user)
+		// Try to capture an occurrence of '(checked by @user)'
 		if details := manualCheckDetails.FindAllStringSubmatch(match[2], -1); len(details) > 0 {
 			// If found, set both the status and the user that checked the box
 			description := details[0][1]
@@ -252,13 +252,13 @@ func generateComment(content CommentContent) (string, error) {
 	const tmplFile = "comment.tmpl"
 	tmpl, err := template.New(tmplFile).Funcs(funcMap).ParseFiles(tmplFile)
 	if err != nil {
-		return "", fmt.Errorf("unable to init template: %v", err)
+		return "", fmt.Errorf("unable to init template: %w", err)
 	}
 
 	// Generate bot comment using template file
 	var commentBytes bytes.Buffer
 	if err := tmpl.Execute(&commentBytes, content); err != nil {
-		return "", fmt.Errorf("unable to execute template: %v", err)
+		return "", fmt.Errorf("unable to execute template: %w", err)
 	}
 
 	return commentBytes.String(), nil
@@ -269,13 +269,13 @@ func updatePullRequest(gh *client.GitHub, pr *github.PullRequest, content Commen
 	// Generate comment text content
 	commentText, err := generateComment(content)
 	if err != nil {
-		return fmt.Errorf("unable to generate comment on PR %d: %v", pr.GetNumber(), err)
+		return fmt.Errorf("unable to generate comment on PR %d: %w", pr.GetNumber(), err)
 	}
 
 	// Update comment on pull request
 	comment, err := gh.SetBotComment(commentText, pr.GetNumber())
 	if err != nil {
-		return fmt.Errorf("unable to update comment on PR %d: %v", pr.GetNumber(), err)
+		return fmt.Errorf("unable to update comment on PR %d: %w", pr.GetNumber(), err)
 	} else {
 		gh.Logger.Infof("Comment successfully updated on PR %d", pr.GetNumber())
 	}
@@ -305,7 +305,7 @@ func updatePullRequest(gh *client.GitHub, pr *github.PullRequest, content Commen
 			TargetURL:   &targetURL,
 			Description: &description,
 		}); err != nil {
-		return fmt.Errorf("unable to create status on PR %d: %v", pr.GetNumber(), err)
+		return fmt.Errorf("unable to create status on PR %d: %w", pr.GetNumber(), err)
 	} else {
 		gh.Logger.Infof("Commit status successfully updated on PR %d", pr.GetNumber())
 	}

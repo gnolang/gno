@@ -32,7 +32,7 @@ func execBot(params *p.Params) error {
 	}
 
 	// Handle comment update, if any
-	if err := handleCommentUpdate(gh); err == errTriggeredByBot {
+	if err := handleCommentUpdate(gh); errors.Is(err, errTriggeredByBot) {
 		return nil // Ignore if this run was triggered by a previous run
 	} else if err != nil {
 		return fmt.Errorf("comment update handling failed: %w", err)
@@ -171,7 +171,7 @@ func execBot(params *p.Params) error {
 	wg.Wait()
 
 	if failed.Load() {
-		return errors.New("error occured while processing pull requests")
+		return errors.New("error occurred while processing pull requests")
 	}
 
 	return nil
