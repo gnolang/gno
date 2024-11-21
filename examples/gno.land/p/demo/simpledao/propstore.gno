@@ -69,18 +69,18 @@ func (p *proposal) Render() string {
 	// Fetch the voting stats
 	stats := p.Stats()
 
-	var out strings.Builder
+	var out string
 
 	if strings.TrimSpace(p.description) != "" {
-		out.WriteString(ufmt.Sprintf("%s\n\n", p.description))
+		out += ufmt.Sprintf("%s\n\n", p.description)
 	} else {
-		out.WriteString("No description provided.\n\n")
+		out += "No description provided.\n\n"
 	}
 
-	out.WriteString("## Proposal information\n\n")
-	out.WriteString(ufmt.Sprintf("#### Status: %s\n\n", strings.ToUpper(p.Status().String())))
+	out += "## Proposal information\n\n"
+	out += ufmt.Sprintf("#### Status: %s\n\n", strings.ToUpper(p.Status().String()))
 
-	out.WriteString(ufmt.Sprintf(
+	out += ufmt.Sprintf(
 		"#### Voting stats:\n- YES %d (%d%%)\n- NO %d (%d%%)\n- ABSTAIN %d (%d%%)\n- MISSING VOTES %d (%d%%)\n",
 		stats.YayVotes,
 		stats.YayPercent(),
@@ -90,13 +90,14 @@ func (p *proposal) Render() string {
 		stats.AbstainPercent(),
 		stats.MissingVotes(),
 		stats.MissingVotesPercent(),
-	))
-	out.WriteString("\n\n")
+	)
+
+	out += "\n\n"
 	thresholdOut := strings.ToUpper(ufmt.Sprintf("%t", stats.YayVotes > (2*stats.TotalVotingPower)/3))
 
-	out.WriteString(ufmt.Sprintf("#### Threshold met: %s\n\n", thresholdOut))
+	out += ufmt.Sprintf("#### Threshold met: %s\n\n", thresholdOut)
 
-	return out.String()
+	return out
 }
 
 // addProposal adds a new simpledao proposal to the store

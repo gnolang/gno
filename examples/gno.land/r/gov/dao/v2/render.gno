@@ -1,7 +1,6 @@
 package govdao
 
 import (
-	"bytes"
 	"strconv"
 	"strings"
 
@@ -12,15 +11,15 @@ import (
 )
 
 func Render(path string) string {
-	var out strings.Builder
+	var out string
 
 	if path == "" {
-		out.WriteString("# GovDAO Proposals\n\n")
+		out += "# GovDAO Proposals\n\n"
 		numProposals := d.Size()
 
 		if numProposals == 0 {
-			out.WriteString("No proposals found :(") // corner case
-			return out.String()
+			out += "No proposals found :(" // corner case
+			return out
 		}
 
 		offset := uint64(0)
@@ -39,8 +38,8 @@ func Render(path string) string {
 			}
 
 			propID := offset + uint64(i)
-			out.WriteString(ufmt.Sprintf("## [Prop #%d - %s](/r/gov/dao/v2:%d)\n\n", propID, title, propID))
-			out.WriteString(ufmt.Sprintf("#### Status: %s\n\n", strings.ToUpper(prop.Status().String())))
+			out += ufmt.Sprintf("## [Prop #%d - %s](/r/gov/dao/v2:%d)\n\n", propID, title, propID)
+			out += ufmt.Sprintf("#### Status: %s\n\n", strings.ToUpper(prop.Status().String()))
 
 			user := users.GetUserByAddress(prop.Author())
 			authorDisplayText := prop.Author().String()
@@ -48,14 +47,14 @@ func Render(path string) string {
 				authorDisplayText = ufmt.Sprintf("[%s](/r/demo/users:%s)", user.Name, user.Name)
 			}
 
-			out.WriteString(ufmt.Sprintf("#### Author: %s\n\n", authorDisplayText))
+			out += ufmt.Sprintf("#### Author: %s\n\n", authorDisplayText)
 
 			if i != 0 {
-				out.WriteString("---\n\n")
+				out += "---\n\n"
 			}
 		}
 
-		return out.String()
+		return out
 	}
 
 	// Display the detailed proposal
@@ -71,25 +70,24 @@ func Render(path string) string {
 	}
 
 	// Render the proposal page
-	out.WriteString(renderPropPage(prop, idx))
+	out += renderPropPage(prop, idx)
 
 	return out.String()
 }
 
 func renderPropPage(prop dao.Proposal, idx int) string {
-	var out strings.Builder
+	var out string
 
-	out.WriteString(ufmt.Sprintf("# Proposal #%d - %s\n\n", idx, prop.Title()))
-	out.WriteString(prop.Render())
-	out.WriteString(renderAuthor(prop))
-	out.WriteString(renderActionBar(prop, idx))
-	out.WriteString("\n\n")
+	out += ufmt.Sprintf("# Proposal #%d - %s\n\n", idx, prop.Title())
+	out += prop.Render()
+	out += renderAuthor(prop)
+	out += renderActionBar(prop, idx)
+	out += "\n\n"
 
-	return out.String()
+	return out
 }
 
 func renderAuthor(p dao.Proposal) string {
-	var out strings.Builder
 
 	authorUsername := ""
 	user := users.GetUserByAddress(p.Author())
@@ -98,27 +96,27 @@ func renderAuthor(p dao.Proposal) string {
 	}
 
 	if authorUsername != "" {
-		out.WriteString(ufmt.Sprintf("#### Author: [%s](/r/demo/users:%s)\n\n", authorUsername, authorUsername))
+		out += ufmt.Sprintf("#### Author: [%s](/r/demo/users:%s)\n\n", authorUsername, authorUsername)
 	} else {
-		out.WriteString(ufmt.Sprintf("#### Author: %s\n\n", p.Author().String()))
+		out += ufmt.Sprintf("#### Author: %s\n\n", p.Author().String())
 	}
 
-	return out.String()
+	return out
 }
 
 func renderActionBar(p dao.Proposal, idx int) string {
-	var out bytes.Buffer
+	var out string
 
-	out.WriteString("## Actions\n\n")
+	out += "## Actions\n\n"
 	if p.Status() == dao.Active {
-		out.WriteString(ufmt.Sprintf("[Vote YES](%s) - [Vote NO](%s) - [Vote ABSTAIN](%s)",
+		out += ufmt.Sprintf("[Vote YES](%s) - [Vote NO](%s) - [Vote ABSTAIN](%s)",
 			txlink.URL("VoteOnProposal", "id", strconv.Itoa(idx), "option", "YES"),
 			txlink.URL("VoteOnProposal", "id", strconv.Itoa(idx), "option", "NO"),
 			txlink.URL("VoteOnProposal", "id", strconv.Itoa(idx), "option", "ABSTAIN"),
-		))
+		)
 	} else {
-		out.WriteString("The voting period for this proposal is over.\n\n")
+		out += "The voting period for this proposal is over.\n\n"
 	}
 
-	return out.String()
+	return out
 }
