@@ -16,6 +16,7 @@ import (
 	"github.com/gnolang/gno/gno.land/pkg/gnoland/ugnot"
 	"github.com/gnolang/gno/gno.land/pkg/integration"
 	"github.com/gnolang/gno/gnovm/pkg/gnomod"
+	"github.com/gnolang/gno/gnovm/stdlibs"
 	"github.com/gnolang/gno/tm2/pkg/amino"
 	tmcfg "github.com/gnolang/gno/tm2/pkg/bft/config"
 	"github.com/gnolang/gno/tm2/pkg/bft/node"
@@ -274,6 +275,13 @@ func (n *Node) Reset(ctx context.Context) error {
 		return fmt.Errorf("unable to stop the node: %w", err)
 	}
 
+	// Load stdlibs
+	stdlibsDeployer := crypto.MustAddressFromString("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5") // test1, FIXME: replace
+	stdlibsTxs, err := gnoland.LoadEmbeddedStdlibs(stdlibsDeployer, DefaultFee)
+	if err != nil {
+		return fmt.Errorf("unable to load stdlibs: %w", err)
+	}
+
 	// Generate a new genesis state based on the current packages
 	pkgsTxs, err := n.pkgs.Load(DefaultFee)
 	if err != nil {
@@ -281,7 +289,7 @@ func (n *Node) Reset(ctx context.Context) error {
 	}
 
 	// Append initialTxs
-	txs := append(pkgsTxs, n.initialState...)
+	txs := append(stdlibsTxs, append(pkgsTxs, n.initialState...)...)
 	genesis := gnoland.GnoGenesisState{
 		Balances: n.config.BalancesList,
 		Txs:      txs,
@@ -363,7 +371,8 @@ func (n *Node) getBlockStoreState(ctx context.Context) ([]gnoland.TxWithMetadata
 	// get current genesis state
 	genesis := n.GenesisDoc().AppState.(gnoland.GnoGenesisState)
 
-	initialTxs := genesis.Txs[n.loadedPackages:] // ignore previously loaded packages
+	numStdLibs := len(stdlibs.InitOrder()) - 1              // stdlibs count minus testing lib
+	initialTxs := genesis.Txs[n.loadedPackages+numStdLibs:] // ignore previously loaded packages
 
 	state := append([]gnoland.TxWithMetadata{}, initialTxs...)
 

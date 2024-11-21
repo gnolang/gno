@@ -8,6 +8,7 @@ import (
 	"github.com/gnolang/gno/contribs/gnodev/pkg/events"
 	"github.com/gnolang/gno/gno.land/pkg/gnoland"
 	bft "github.com/gnolang/gno/tm2/pkg/bft/types"
+	"github.com/gnolang/gno/tm2/pkg/crypto"
 )
 
 var ErrEmptyState = errors.New("empty state")
@@ -83,6 +84,13 @@ func (n *Node) MoveBy(ctx context.Context, x int) error {
 		return nil
 	}
 
+	// Load stdlibs
+	stdlibsDeployer := crypto.MustAddressFromString("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5") // test1, FIXME: replace
+	stdlibsTxs, err := gnoland.LoadEmbeddedStdlibs(stdlibsDeployer, DefaultFee)
+	if err != nil {
+		return fmt.Errorf("unable to load stdlibs: %w", err)
+	}
+
 	// Load genesis packages
 	pkgsTxs, err := n.pkgs.Load(DefaultFee)
 	if err != nil {
@@ -94,7 +102,7 @@ func (n *Node) MoveBy(ctx context.Context, x int) error {
 	// Create genesis with loaded pkgs + previous state
 	genesis := gnoland.GnoGenesisState{
 		Balances: n.config.BalancesList,
-		Txs:      append(pkgsTxs, newState...),
+		Txs:      append(stdlibsTxs, append(pkgsTxs, newState...)...),
 	}
 
 	// Reset the node with the new genesis state.
