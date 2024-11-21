@@ -3,6 +3,7 @@ package client
 import (
 	"context"
 	"errors"
+	"fmt"
 	"os"
 
 	"github.com/gnolang/gno/contribs/github-bot/logger"
@@ -14,6 +15,8 @@ import (
 // PageSize is the number of items to load for each iteration when fetching a list
 const PageSize = 100
 
+var ErrBotCommentNotFound = errors.New("bot comment not found")
+
 type GitHub struct {
 	Client *github.Client
 	Ctx    context.Context
@@ -23,7 +26,7 @@ type GitHub struct {
 	Repo   string
 }
 
-func (gh *GitHub) GetBotComment(prNum int) *github.IssueComment {
+func (gh *GitHub) GetBotComment(prNum int) (*github.IssueComment, error) {
 	// List existing comments
 	const (
 		sort      = "created"
@@ -33,8 +36,7 @@ func (gh *GitHub) GetBotComment(prNum int) *github.IssueComment {
 	// Get current user (bot)
 	currentUser, _, err := gh.Client.Users.Get(gh.Ctx, "")
 	if err != nil {
-		gh.Logger.Errorf("Unable to get current user: %v", err)
-		return nil
+		return nil, fmt.Errorf("unable to get current user: %v", err)
 	}
 
 	// Pagination option
@@ -55,14 +57,13 @@ func (gh *GitHub) GetBotComment(prNum int) *github.IssueComment {
 			opts,
 		)
 		if err != nil {
-			gh.Logger.Errorf("Unable to list comments for PR %d: %v", prNum, err)
-			return nil
+			return nil, fmt.Errorf("unable to list comments for PR %d: %v", prNum, err)
 		}
 
 		// Get the comment created by current user
 		for _, comment := range comments {
 			if comment.GetUser().GetLogin() == currentUser.GetLogin() {
-				return comment
+				return comment, nil
 			}
 		}
 
@@ -72,13 +73,13 @@ func (gh *GitHub) GetBotComment(prNum int) *github.IssueComment {
 		opts.Page = response.NextPage
 	}
 
-	return nil
+	return nil, errors.New("bot comment not found")
 }
 
-func (gh *GitHub) SetBotComment(body string, prNum int) *github.IssueComment {
+func (gh *GitHub) SetBotComment(body string, prNum int) (*github.IssueComment, error) {
 	// Create bot comment if it does not already exist
-	comment := gh.GetBotComment(prNum)
-	if comment == nil {
+	comment, err := gh.GetBotComment(prNum)
+	if err == ErrBotCommentNotFound {
 		newComment, _, err := gh.Client.Issues.CreateComment(
 			gh.Ctx,
 			gh.Owner,
@@ -87,10 +88,11 @@ func (gh *GitHub) SetBotComment(body string, prNum int) *github.IssueComment {
 			&github.IssueComment{Body: &body},
 		)
 		if err != nil {
-			gh.Logger.Errorf("Unable to create bot comment for PR %d: %v", prNum, err)
-			return nil
+			return nil, fmt.Errorf("unable to create bot comment for PR %d: %v", prNum, err)
 		}
-		return newComment
+		return newComment, nil
+	} else if err != nil {
+		return nil, fmt.Errorf("unable to get bot comment: %v", err)
 	}
 
 	comment.Body = &body
@@ -102,13 +104,13 @@ func (gh *GitHub) SetBotComment(body string, prNum int) *github.IssueComment {
 		comment,
 	)
 	if err != nil {
-		gh.Logger.Errorf("Unable to edit bot comment with ID %d: %v", comment.GetID(), err)
-		return nil
+		return nil, fmt.Errorf("unable to edit bot comment with ID %d: %v", comment.GetID(), err)
 	}
-	return editComment
+
+	return editComment, nil
 }
 
-func (gh *GitHub) ListTeamMembers(team string) []*github.User {
+func (gh *GitHub) ListTeamMembers(team string) ([]*github.User, error) {
 	var (
 		allMembers []*github.User
 		opts       = &github.TeamListTeamMembersOptions{
@@ -126,8 +128,7 @@ func (gh *GitHub) ListTeamMembers(team string) []*github.User {
 			opts,
 		)
 		if err != nil {
-			gh.Logger.Errorf("Unable to list members for team %s: %v", team, err)
-			return nil
+			return nil, fmt.Errorf("unable to list members for team %s: %v", team, err)
 		}
 
 		allMembers = append(allMembers, members...)
@@ -138,12 +139,18 @@ func (gh *GitHub) ListTeamMembers(team string) []*github.User {
 		opts.Page = response.NextPage
 	}
 
-	return allMembers
+	return allMembers, nil
 }
 
 func (gh *GitHub) IsUserInTeams(user string, teams []string) bool {
 	for _, team := range teams {
-		for _, member := range gh.ListTeamMembers(team) {
+		teamMembers, err := gh.ListTeamMembers(team)
+		if err != nil {
+			gh.Logger.Errorf("unable to check if user %s in team %s", user, team)
+			continue
+		}
+
+		for _, member := range teamMembers {
 			if member.GetLogin() == user {
 				return true
 			}
@@ -153,7 +160,7 @@ func (gh *GitHub) IsUserInTeams(user string, teams []string) bool {
 	return false
 }
 
-func (gh *GitHub) ListPRReviewers(prNum int) *github.Reviewers {
+func (gh *GitHub) ListPRReviewers(prNum int) (*github.Reviewers, error) {
 	var (
 		allReviewers = &github.Reviewers{}
 		opts         = &github.ListOptions{
@@ -170,8 +177,7 @@ func (gh *GitHub) ListPRReviewers(prNum int) *github.Reviewers {
 			opts,
 		)
 		if err != nil {
-			gh.Logger.Errorf("Unable to list reviewers for PR %d: %v", prNum, err)
-			return nil
+			return nil, fmt.Errorf("unable to list reviewers for PR %d: %v", prNum, err)
 		}
 
 		allReviewers.Teams = append(allReviewers.Teams, reviewers.Teams...)
@@ -183,10 +189,10 @@ func (gh *GitHub) ListPRReviewers(prNum int) *github.Reviewers {
 		opts.Page = response.NextPage
 	}
 
-	return allReviewers
+	return allReviewers, nil
 }
 
-func (gh *GitHub) ListPRReviews(prNum int) []*github.PullRequestReview {
+func (gh *GitHub) ListPRReviews(prNum int) ([]*github.PullRequestReview, error) {
 	var (
 		allReviews []*github.PullRequestReview
 		opts       = &github.ListOptions{
@@ -203,8 +209,7 @@ func (gh *GitHub) ListPRReviews(prNum int) []*github.PullRequestReview {
 			opts,
 		)
 		if err != nil {
-			gh.Logger.Errorf("Unable to list reviews for PR %d: %v", prNum, err)
-			return nil
+			return nil, fmt.Errorf("unable to list reviews for PR %d: %v", prNum, err)
 		}
 
 		allReviews = append(allReviews, reviews...)
@@ -215,7 +220,7 @@ func (gh *GitHub) ListPRReviews(prNum int) []*github.PullRequestReview {
 		opts.Page = response.NextPage
 	}
 
-	return allReviews
+	return allReviews, nil
 }
 
 func New(ctx context.Context, params *p.Params) (*GitHub, error) {

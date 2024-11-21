@@ -273,8 +273,10 @@ func updatePullRequest(gh *client.GitHub, pr *github.PullRequest, content Commen
 	}
 
 	// Update comment on pull request
-	comment := gh.SetBotComment(commentText, pr.GetNumber())
-	if comment != nil {
+	comment, err := gh.SetBotComment(commentText, pr.GetNumber())
+	if err != nil {
+		return fmt.Errorf("unable to update comment on PR %d: %v", pr.GetNumber(), err)
+	} else {
 		gh.Logger.Infof("Comment successfully updated on PR %d", pr.GetNumber())
 	}
 

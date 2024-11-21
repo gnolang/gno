@@ -44,7 +44,13 @@ var _ Condition = &assigneeInTeam{}
 func (a *assigneeInTeam) IsMet(pr *github.PullRequest, details treeprint.Tree) bool {
 	detail := fmt.Sprintf("A pull request assignee is a member of the team: %s", a.team)
 
-	for _, member := range a.gh.ListTeamMembers(a.team) {
+	teamMembers, err := a.gh.ListTeamMembers(a.team)
+	if err != nil {
+		a.gh.Logger.Errorf("unable to check if assignee is in team %s: %v", a.team, err)
+		return utils.AddStatusNode(false, detail, details)
+	}
+
+	for _, member := range teamMembers {
 		for _, assignee := range pr.Assignees {
 			if member.GetLogin() == assignee.GetLogin() {
 				return utils.AddStatusNode(true, fmt.Sprintf("%s (member: %s)", detail, member.GetLogin()), details)

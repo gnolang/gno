@@ -118,19 +118,26 @@ func execBot(params *p.Params) error {
 				commentContent.AutoRules = append(commentContent.AutoRules, c)
 			}
 
+			// Retrieve manual check states
+			checks := make(map[string][2]string)
+			if comment, err := gh.GetBotComment(pr.GetNumber()); err == nil {
+				checks = getCommentManualChecks(comment.GetBody())
+			}
+
 			// Iterate over all manual rules in config
 			for _, manualRule := range manualRules {
 				ifDetails := treeprint.NewWithRoot(fmt.Sprintf("%s Condition met", utils.StatusSuccess))
 
-				// Retrieve manual check states
-				checks := make(map[string][2]string)
-				if comment := gh.GetBotComment(pr.GetNumber()); comment != nil {
-					checks = getCommentManualChecks(comment.GetBody())
-				}
-
 				// Check if conditions of this rule are met by this PR
 				if !manualRule.ifC.IsMet(pr, ifDetails) {
 					continue
+				}
+
+				// Get check status from current comment, if any
+				checkedBy := ""
+				check, ok := checks[manualRule.description]
+				if ok {
+					checkedBy = check[1]
 				}
 
 				commentContent.ManualRules = append(
@@ -138,12 +145,12 @@ func execBot(params *p.Params) error {
 					ManualContent{
 						Description:      manualRule.description,
 						ConditionDetails: ifDetails.String(),
-						CheckedBy:        checks[manualRule.description][1],
+						CheckedBy:        checkedBy,
 						Teams:            manualRule.teams,
 					},
 				)
 
-				if checks[manualRule.description][1] == "" {
+				if checkedBy == "" {
 					commentContent.allSatisfied = false
 				}
 			}

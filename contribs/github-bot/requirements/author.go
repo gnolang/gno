@@ -40,7 +40,13 @@ var _ Requirement = &authorInTeam{}
 func (a *authorInTeam) IsSatisfied(pr *github.PullRequest, details treeprint.Tree) bool {
 	detail := fmt.Sprintf("Pull request author is a member of the team: %s", a.team)
 
-	for _, member := range a.gh.ListTeamMembers(a.team) {
+	teamMembers, err := a.gh.ListTeamMembers(a.team)
+	if err != nil {
+		a.gh.Logger.Errorf("unable to check if author is in team %s: %v", a.team, err)
+		return utils.AddStatusNode(false, detail, details)
+	}
+
+	for _, member := range teamMembers {
 		if member.GetLogin() == pr.GetUser().GetLogin() {
 			return utils.AddStatusNode(true, detail, details)
 		}

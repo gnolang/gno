@@ -32,20 +32,23 @@ func TestGeneratedComment(t *testing.T) {
 		{Description: "Test manual 5", CheckedBy: "user_5"},
 	}
 
-	commentText := generateComment(content)
+	commentText, err := generateComment(content)
+	assert.Nil(t, err, fmt.Sprintf("error is not nil: %v", err))
 	assert.True(t, strings.Contains(commentText, "*No automated checks match this pull request.*"), "should contains automated check placeholder")
 	assert.True(t, strings.Contains(commentText, "*No manual checks match this pull request.*"), "should contains manual check placeholder")
 
 	content.AutoRules = autoRules
-	commentText = generateComment(content)
+	commentText, err = generateComment(content)
 	fmt.Println(commentText)
+	assert.Nil(t, err, fmt.Sprintf("error is not nil: %v", err))
 	assert.False(t, strings.Contains(commentText, "*No automated checks match this pull request.*"), "should not contains automated check placeholder")
 	assert.True(t, strings.Contains(commentText, "*No manual checks match this pull request.*"), "should contains manual check placeholder")
 	assert.Equal(t, 2, len(autoCheckSuccessLine.FindAllStringSubmatch(commentText, -1)), "wrong number of succeeded automatic check")
 	assert.Equal(t, 3, len(autoCheckFailLine.FindAllStringSubmatch(commentText, -1)), "wrong number of failed automatic check")
 
 	content.ManualRules = manualRules
-	commentText = generateComment(content)
+	commentText, err = generateComment(content)
+	assert.Nil(t, err, fmt.Sprintf("error is not nil: %v", err))
 	assert.False(t, strings.Contains(commentText, "*No automated checks match this pull request.*"), "should not contains automated check placeholder")
 	assert.False(t, strings.Contains(commentText, "*No manual checks match this pull request.*"), "should not contains manual check placeholder")
 
