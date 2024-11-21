@@ -1,4 +1,4 @@
-package add
+package adder
 
 import (
 	"testing"
@@ -13,7 +13,7 @@ Current Number: 0
 
 Last Updated: Never
 
-[Increase Number](/r/docs/add$help&func=Add&n=42)
+[Increase Number](/r/docs/adder$help&func=Add&n=42)
 `
 	if output != expected {
 		t.Errorf("Initial Render failed, got:\n%s", output)
@@ -36,9 +36,9 @@ Current Number: 5
 
 Last Updated: 2009-02-13 23:31:30
 
-[Increase Number](/r/docs/add$help&func=Add&n=42)
+[Increase Number](/r/docs/adder$help&func=Add&n=42)
 `
 	if output != expected {
-		t.Errorf("Final Render failed, got:\n%s", output)
+		t.Errorf("Final Render failed, got:\n%s\nexpected:\n%s", output, finalOutput)
 	}
 }
