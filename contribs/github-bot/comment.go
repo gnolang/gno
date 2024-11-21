@@ -130,6 +130,7 @@ func handleCommentUpdate(gh *client.GitHub) error {
 		return errors.New("unable to get comment user login on issue comment event")
 	}
 
+	// If comment edition author is not the bot, return
 	if login != authUser.GetLogin() {
 		return nil
 	}
@@ -192,9 +193,9 @@ func handleCommentUpdate(gh *client.GitHub) error {
 		_, manualRules := config(gh)
 
 		for _, manualRule := range manualRules {
-			if manualRule.Description == key {
+			if manualRule.description == key {
 				found = true
-				teams = manualRule.Teams
+				teams = manualRule.teams
 			}
 		}
 

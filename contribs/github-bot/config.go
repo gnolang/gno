@@ -8,16 +8,16 @@ import (
 
 // Automatic check that will be performed by the bot
 type automaticCheck struct {
-	Description string
-	If          c.Condition   // If the condition is met, the rule is displayed and the requirement is executed
-	Then        r.Requirement // If the requirement is satisfied, the check passes
+	description string
+	ifC         c.Condition   // If the condition is met, the rule is displayed and the requirement is executed
+	thenR       r.Requirement // If the requirement is satisfied, the check passes
 }
 
 // Manual check that will be performed by users
 type manualCheck struct {
-	Description string
-	If          c.Condition // If the condition is met, a checkbox will be displayed on bot comment
-	Teams       []string    // Members of these teams can check the checkbox to make the check pass
+	description string
+	ifC         c.Condition // If the condition is met, a checkbox will be displayed on bot comment
+	teams       []string    // Members of these teams can check the checkbox to make the check pass
 }
 
 // This function returns the configuration of the bot consisting of automatic and manual checks
@@ -25,12 +25,12 @@ type manualCheck struct {
 func config(gh *client.GitHub) ([]automaticCheck, []manualCheck) {
 	auto := []automaticCheck{
 		{
-			Description: "Changes to 'tm2' folder should be reviewed/authored by at least one member of both EU and US teams",
-			If: c.And(
+			description: "Changes to 'tm2' folder should be reviewed/authored by at least one member of both EU and US teams",
+			ifC: c.And(
 				c.FileChanged(gh, "tm2"),
 				c.BaseBranch("master"),
 			),
-			Then: r.And(
+			thenR: r.And(
 				r.Or(
 					r.ReviewByTeamMembers(gh, "eu", 1),
 					r.AuthorInTeam(gh, "eu"),
@@ -42,21 +42,21 @@ func config(gh *client.GitHub) ([]automaticCheck, []manualCheck) {
 			),
 		},
 		{
-			Description: "A maintainer must be able to edit this pull request",
-			If:          c.Always(),
-			Then:        r.MaintainerCanModify(),
+			description: "A maintainer must be able to edit this pull request",
+			ifC:         c.Always(),
+			thenR:       r.MaintainerCanModify(),
 		},
 		{
-			Description: "The pull request head branch must be up-to-date with its base",
-			If:          c.Always(), // Or only if c.BaseBranch("main") ?
-			Then:        r.UpToDateWith(gh, r.PR_BASE),
+			description: "The pull request head branch must be up-to-date with its base",
+			ifC:         c.Always(), // Or only if c.BaseBranch("main") ?
+			thenR:       r.UpToDateWith(gh, r.PR_BASE),
 		},
 	}
 
 	manual := []manualCheck{
 		{
-			Description: "Determine if infra needs to be updated",
-			If: c.And(
+			description: "Determine if infra needs to be updated",
+			ifC: c.And(
 				c.BaseBranch("master"),
 				c.Or(
 					c.FileChanged(gh, "misc/deployments"),
@@ -64,23 +64,23 @@ func config(gh *client.GitHub) ([]automaticCheck, []manualCheck) {
 					c.FileChanged(gh, "tm2/pkg/p2p"),
 				),
 			),
-			Teams: []string{"tech-staff"},
+			teams: []string{"tech-staff"},
 		},
 		{
-			Description: "Ensure the code style is satisfactory",
-			If: c.And(
+			description: "Ensure the code style is satisfactory",
+			ifC: c.And(
 				c.BaseBranch("master"),
 				c.Or(
 					c.FileChanged(gh, `.*\.go`),
 					c.FileChanged(gh, `.*\.js`),
 				),
 			),
-			Teams: []string{"tech-staff"},
+			teams: []string{"tech-staff"},
 		},
 		{
-			Description: "Ensure the documentation is accurate and relevant",
-			If:          c.FileChanged(gh, `.*\.md`),
-			Teams: []string{
+			description: "Ensure the documentation is accurate and relevant",
+			ifC:         c.FileChanged(gh, `.*\.md`),
+			teams: []string{
 				"tech-staff",
 				"devrels",
 			},
@@ -90,10 +90,10 @@ func config(gh *client.GitHub) ([]automaticCheck, []manualCheck) {
 	// Check for duplicates in manual rule descriptions (needs to be unique for the bot operations)
 	unique := make(map[string]struct{})
 	for _, rule := range manual {
-		if _, exists := unique[rule.Description]; exists {
-			gh.Logger.Fatalf("Manual rule descriptions must be unique (duplicate: %s)", rule.Description)
+		if _, exists := unique[rule.description]; exists {
+			gh.Logger.Fatalf("Manual rule descriptions must be unique (duplicate: %s)", rule.description)
 		}
-		unique[rule.Description] = struct{}{}
+		unique[rule.description] = struct{}{}
 	}
 
 	return auto, manual

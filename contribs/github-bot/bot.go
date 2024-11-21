@@ -93,15 +93,15 @@ func execBot(params *p.Params) error {
 				ifDetails := treeprint.NewWithRoot(fmt.Sprintf("%s Condition met", utils.StatusSuccess))
 
 				// Check if conditions of this rule are met by this PR
-				if !autoRule.If.IsMet(pr, ifDetails) {
+				if !autoRule.ifC.IsMet(pr, ifDetails) {
 					continue
 				}
 
-				c := AutoContent{Description: autoRule.Description, Satisfied: false}
+				c := AutoContent{Description: autoRule.description, Satisfied: false}
 				thenDetails := treeprint.NewWithRoot(fmt.Sprintf("%s Requirement not satisfied", utils.StatusFail))
 
 				// Check if requirements of this rule are satisfied by this PR
-				if autoRule.Then.IsSatisfied(pr, thenDetails) {
+				if autoRule.thenR.IsSatisfied(pr, thenDetails) {
 					thenDetails.SetValue(fmt.Sprintf("%s Requirement satisfied", utils.StatusSuccess))
 					c.Satisfied = true
 				} else {
@@ -124,21 +124,21 @@ func execBot(params *p.Params) error {
 				}
 
 				// Check if conditions of this rule are met by this PR
-				if !manualRule.If.IsMet(pr, ifDetails) {
+				if !manualRule.ifC.IsMet(pr, ifDetails) {
 					continue
 				}
 
 				commentContent.ManualRules = append(
 					commentContent.ManualRules,
 					ManualContent{
-						Description:      manualRule.Description,
+						Description:      manualRule.description,
 						ConditionDetails: ifDetails.String(),
-						CheckedBy:        checks[manualRule.Description][1],
-						Teams:            manualRule.Teams,
+						CheckedBy:        checks[manualRule.description][1],
+						Teams:            manualRule.teams,
 					},
 				)
 
-				if checks[manualRule.Description][1] == "" {
+				if checks[manualRule.description][1] == "" {
 					commentContent.allSatisfied = false
 				}
 			}
