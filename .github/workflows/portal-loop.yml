@@ -62,7 +62,7 @@ jobs:
           cd misc/loop
           echo "Making docker compose happy"
           touch .env
-          make docker.start
+          make docker.ci
 
       - name: "Test1 - Portal loop start gnoland"
         run: |
