@@ -3122,7 +3122,7 @@ func evalStaticTypeOf(store Store, last BlockNode, x Expr) Type {
 				msg = fmt.Sprintf("%s: %s() (%d values) used as single value", loc, funcName, valueCount)
 			}
 
-			panic(fmt.Errorf("%s\nHint: Ensure the function returns a single value, or use multiple assignment", msg))
+			panic(msg)
 		}
 		return tt.Elts[0]
 	}
