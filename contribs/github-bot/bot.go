@@ -2,9 +2,11 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strings"
 	"sync"
+	"sync/atomic"
 
 	"github.com/gnolang/gno/contribs/github-bot/client"
 	"github.com/gnolang/gno/contribs/github-bot/logger"
@@ -81,6 +83,9 @@ func execBot(params *p.Params) error {
 	// Used in dry-run mode to log cleanly from different goroutines
 	logMutex := sync.Mutex{}
 
+	// Used in regular-run mode to return an error if one PR processing failed
+	var failed atomic.Bool
+
 	for _, pr := range prs {
 		wg.Add(1)
 		go func(pr *github.PullRequest) {
@@ -149,11 +154,18 @@ func execBot(params *p.Params) error {
 				logResults(gh.Logger, pr.GetNumber(), commentContent)
 				logMutex.Unlock()
 			} else {
-				updatePullRequest(gh, pr, commentContent)
+				if err := updatePullRequest(gh, pr, commentContent); err != nil {
+					gh.Logger.Errorf("unable to update pull request: %v", err)
+					failed.Store(true)
+				}
 			}
 		}(pr)
 	}
 	wg.Wait()
+
+	if failed.Load() {
+		return errors.New("error occured while processing pull requests")
+	}
 
 	return nil
 }

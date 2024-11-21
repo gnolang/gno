@@ -240,7 +240,7 @@ func handleCommentUpdate(gh *client.GitHub) error {
 
 // generateComment generates a comment using the template file and the
 // content passed as parameter
-func generateComment(content CommentContent) string {
+func generateComment(content CommentContent) (string, error) {
 	// Custom function to strip markdown links
 	funcMap := template.FuncMap{
 		"stripLinks": func(input string) string {
@@ -252,22 +252,25 @@ func generateComment(content CommentContent) string {
 	const tmplFile = "comment.tmpl"
 	tmpl, err := template.New(tmplFile).Funcs(funcMap).ParseFiles(tmplFile)
 	if err != nil {
-		panic(err) // Should never happen
+		return "", fmt.Errorf("unable to init template: %v", err)
 	}
 
 	// Generate bot comment using template file
 	var commentBytes bytes.Buffer
 	if err := tmpl.Execute(&commentBytes, content); err != nil {
-		panic(err) // Should never happen
+		return "", fmt.Errorf("unable to execute template: %v", err)
 	}
 
-	return commentBytes.String()
+	return commentBytes.String(), nil
 }
 
 // updatePullRequest updates or creates both the bot comment and the commit status
-func updatePullRequest(gh *client.GitHub, pr *github.PullRequest, content CommentContent) {
+func updatePullRequest(gh *client.GitHub, pr *github.PullRequest, content CommentContent) error {
 	// Generate comment text content
-	commentText := generateComment(content)
+	commentText, err := generateComment(content)
+	if err != nil {
+		return fmt.Errorf("unable to generate comment on PR %d: %v", pr.GetNumber(), err)
+	}
 
 	// Update comment on pull request
 	comment := gh.SetBotComment(commentText, pr.GetNumber())
@@ -304,8 +307,10 @@ func updatePullRequest(gh *client.GitHub, pr *github.PullRequest, content Commen
 			TargetURL:   &targetURL,
 			Description: &description,
 		}); err != nil {
-		gh.Logger.Errorf("Unable to create status on PR %d: %v", pr.GetNumber(), err)
+		return fmt.Errorf("unable to create status on PR %d: %v", pr.GetNumber(), err)
 	} else {
 		gh.Logger.Infof("Commit status successfully updated on PR %d", pr.GetNumber())
 	}
+
+	return nil
 }
