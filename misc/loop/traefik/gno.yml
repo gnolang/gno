@@ -11,7 +11,7 @@ http:
     gno-portal-loop-local:
       service: gno-portal-loop
       rule: "PathPrefix(`/`)"
-      entrypoints: [ "private" ]
+      entrypoints: [ "private" ] # <------- should be rpc, as on the machine. But something is broken with the CI.
       middlewares: [ ]
 
     gno-portal-loop:
@@ -26,4 +26,4 @@ http:
     gno-portal-loop:
       loadBalancer:
         servers:
-          - url: "http://172.42.0.2:26657"
+          - url: "http://172.177.0.8:26657"
