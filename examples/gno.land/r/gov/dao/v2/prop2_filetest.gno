@@ -82,7 +82,7 @@ func main() {
 //
 //
 // --
-// # Gnoland's Blog
+// # The Gno Blog
 //
 // No posts.
 // --
@@ -101,7 +101,7 @@ func main() {
 //
 //
 // --
-// # Gnoland's Blog
+// # The Gno Blog
 //
 // <div class='columns-3'><div>
 //
