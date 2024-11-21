@@ -316,7 +316,7 @@ func (cfg InitChainerConfig) loadAppState(ctx sdk.Context, appState any) ([]abci
 		})
 
 		if res.IsErr() {
-			fmt.Println("failed to exec genesis tx", stdTx, res)
+			fmt.Println("failed to exec genesis tx, height", ctx.BlockHeight(), "tx", stdTx, "res", res)
 		}
 
 		cfg.GenesisTxResultHandler(ctx, stdTx, res)
