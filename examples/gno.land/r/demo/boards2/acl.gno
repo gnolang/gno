@@ -88,7 +88,7 @@ func (acl ACL) HasPermission(user std.Address, perm Permission) bool {
 // WithPermission calls a callback when a user has a specific permission.
 // It panics on error.
 func (acl ACL) WithPermission(user std.Address, perm Permission, a Args, cb func(Args)) {
-	if !acl.HasPermission(user, perm) {
+	if !acl.HasPermission(user, perm) || !acl.dao.IsMember(user) {
 		panic("unauthorized")
 	}
 

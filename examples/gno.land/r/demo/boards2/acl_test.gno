@@ -36,7 +36,7 @@ func TestACLWithPermission(t *testing.T) {
 			user:       "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5",
 			permission: "bar",
 			acl: NewACL(
-				admindao.New(),
+				admindao.New(admindao.WithMember("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5")),
 				WithUser("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5", "foo"),
 				WithRole("foo", "bar"),
 			),
@@ -48,7 +48,7 @@ func TestACLWithPermission(t *testing.T) {
 			permission: "bar",
 			args:       Args{"a", "b"},
 			acl: NewACL(
-				admindao.New(),
+				admindao.New(admindao.WithMember("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5")),
 				WithUser("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5", "foo"),
 				WithRole("foo", "bar"),
 			),
@@ -59,8 +59,19 @@ func TestACLWithPermission(t *testing.T) {
 			user:       "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5",
 			permission: "bar",
 			acl: NewACL(
-				admindao.New(),
+				admindao.New(admindao.WithMember("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5")),
 				WithUser("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"),
+				WithRole("foo", "bar"),
+			),
+			err: "unauthorized",
+		},
+		{
+			name:       "is not a DAO member",
+			user:       "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5",
+			permission: "bar",
+			acl: NewACL(
+				admindao.New(),
+				WithUser("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5", "foo"),
 				WithRole("foo", "bar"),
 			),
 			err: "unauthorized",
