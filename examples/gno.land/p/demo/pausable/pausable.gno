@@ -12,7 +12,7 @@ type Pausable struct {
 	paused bool
 }
 
-var ErrPaused = errors.New("realm is currently paused")
+var ErrPaused = errors.New("pausable: realm is currently paused")
 
 // New returns a new Pausable struct with non-paused state as default
 func New() *Pausable {
