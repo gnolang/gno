@@ -13,9 +13,13 @@ import (
 
 	"github.com/gnolang/gno/gno.land/pkg/gnoland/ugnot"
 	"github.com/gnolang/gno/gnovm"
+	"github.com/gnolang/gno/gnovm/pkg/gnolang"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
+	"github.com/gnolang/gno/tm2/pkg/db/memdb"
 	"github.com/gnolang/gno/tm2/pkg/log"
 	"github.com/gnolang/gno/tm2/pkg/std"
+	"github.com/gnolang/gno/tm2/pkg/store/dbadapter"
+	"github.com/gnolang/gno/tm2/pkg/store/types"
 )
 
 var coinsString = ugnot.ValueString(10000000)
@@ -553,4 +557,17 @@ func Echo(msg string) string {
 	res, err = env.vmk.Call(ctx, msg2)
 	require.NoError(t, err)
 	assert.Equal(t, `("echo:hello world" string)`+"\n\n", res)
+}
+
+func Test_loadStdlibPackage(t *testing.T) {
+	mdb := memdb.NewMemDB()
+	cs := dbadapter.StoreConstructor(mdb, types.StoreOptions{})
+
+	gs := gnolang.NewStore(nil, cs, cs)
+	assert.PanicsWithValue(t, `failed loading stdlib "notfound": does not exist`, func() {
+		loadStdlibPackage("notfound", "./testdata", gs)
+	})
+	assert.PanicsWithValue(t, `failed loading stdlib "emptystdlib": not a valid MemPackage`, func() {
+		loadStdlibPackage("emptystdlib", "./testdata", gs)
+	})
 }
