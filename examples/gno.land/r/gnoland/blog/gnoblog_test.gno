@@ -15,7 +15,7 @@ func TestPackage(t *testing.T) {
 	{
 		got := Render("")
 		expected := `
-# The Gno Blog
+# gno.land's blog
 
 No posts.
 `
@@ -28,7 +28,7 @@ No posts.
 		ModAddPost("slug2", "title2", "body2", "2022-05-20T13:17:23Z", "moul", "tag1,tag3")
 		got := Render("")
 		expected := `
-	# The Gno Blog
+	# gno.land's blog
 
 <div class='columns-3'><div>
 
@@ -59,7 +59,7 @@ Tags: [#tag1](/r/gnoland/blog:t/tag1) [#tag3](/r/gnoland/blog:t/tag3)
 
 Written by moul on 20 May 2022
 
-Published by g1u7y667z64x2h7vc6fmpcprgey4ck233jaww9zq to The Gno Blog
+Published by g1u7y667z64x2h7vc6fmpcprgey4ck233jaww9zq to gno.land's blog
 
 ---
 <details><summary>Comment section</summary>
@@ -74,12 +74,12 @@ Published by g1u7y667z64x2h7vc6fmpcprgey4ck233jaww9zq to The Gno Blog
 	// list by tags.
 	{
 		got := Render("t/invalid")
-		expected := "# [The Gno Blog](/r/gnoland/blog:) / t / invalid\n\nNo posts."
+		expected := "# [gno.land's blog](/r/gnoland/blog:) / t / invalid\n\nNo posts."
 		assertMDEquals(t, got, expected)
 
 		got = Render("t/tag2")
 		expected = `
-# [The Gno Blog](/r/gnoland/blog:) / t / tag2
+# [gno.land's blog](/r/gnoland/blog:) / t / tag2
 
 <div>
 
@@ -110,7 +110,7 @@ Tags: [#tag1](/r/gnoland/blog:t/tag1) [#tag3](/r/gnoland/blog:t/tag3)
 
 Written by moul on 20 May 2022
 
-Published by g1u7y667z64x2h7vc6fmpcprgey4ck233jaww9zq to The Gno Blog
+Published by g1u7y667z64x2h7vc6fmpcprgey4ck233jaww9zq to gno.land's blog
 
 ---
 <details><summary>Comment section</summary>
@@ -152,7 +152,7 @@ Tags: [#tag1](/r/gnoland/blog:t/tag1) [#tag4](/r/gnoland/blog:t/tag4)
 
 Written by manfred on 20 May 2022
 
-Published by g1u7y667z64x2h7vc6fmpcprgey4ck233jaww9zq to The Gno Blog
+Published by g1u7y667z64x2h7vc6fmpcprgey4ck233jaww9zq to gno.land's blog
 
 ---
 <details><summary>Comment section</summary>
