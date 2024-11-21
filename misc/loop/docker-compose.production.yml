@@ -67,7 +67,7 @@ services:
       traefik.http.routers.gnoweb.tls.certresolver: "le"
 
   gnofaucet:
-    image: ghcr.io/gnolang/gno/gnofaucet-slim
+    image: ghcr.io/gnolang/gno/gnofaucet:master
     networks:
       - portal-loop
     command:
@@ -93,8 +93,27 @@ services:
       traefik.http.middlewares.gnofaucet-ratelimit.ratelimit.average: "6"
       traefik.http.middlewares.gnofaucet-ratelimit.ratelimit.period: "1m"
 
+  tx-indexer:
+    image: ghcr.io/gnolang/tx-indexer:latest
+    networks:
+      - portal-loop
+    entrypoint:
+      - /tx-indexer
+      - start
+      - "-http-rate-limit=500"
+      - "-listen-address=0.0.0.0:8546"
+      - "-max-slots=2000"
+      - "-remote=http://traefik:26657"
+    labels:
+      traefik.enable: "true"
+      traefik.http.routers.tx-indexer.entrypoints: "websecure"
+      traefik.http.routers.tx-indexer.rule: "Host(`indexer.portal.gnoteam.com`)"
+      traefik.http.routers.tx-indexer.tls: "true"
+      traefik.http.routers.tx-indexer.tls.certresolver: "le"
+      traefik.http.services.tx-indexer.loadbalancer.server.port: 8546
+
   portalloopd:
-    image: ghcr.io/gnolang/gno/portalloopd
+    image: ghcr.io/gnolang/gno/portalloopd:latest
     restart: unless-stopped
     volumes:
       - ./scripts:/scripts
@@ -117,7 +136,7 @@ services:
       - "com.centurylinklabs.watchtower.enable=true"
 
   autocounterd:
-    image: ghcr.io/gnolang/gno/autocounterd
+    image: ghcr.io/gnolang/gno/autocounterd:latest
     restart: unless-stopped
     env_file: ".env"
     command:
@@ -136,6 +155,7 @@ services:
     command: --interval 30 --http-api-metrics --label-enable
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
+      - /home/devops/.docker/config.json:/config.json
     environment:
       WATCHTOWER_HTTP_API_TOKEN: "mytoken"
     ports:
