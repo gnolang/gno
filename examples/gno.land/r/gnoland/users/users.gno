@@ -10,7 +10,7 @@ import (
 )
 
 const (
-	reValidUsername = "^[a-zA-Z]{3}[a-zA-Z0-9]{0,14}[0-9]{3}$"
+	reValidUsername = "^[a-z]{3}[_a-z0-9]{0,14}[0-9]{3}$"
 	RegisterEvent   = "Register"
 	adminAddr       = "g1u7y667z64x2h7vc6fmpcprgey4ck233jaww9zq" // @moul
 )
@@ -21,9 +21,10 @@ var (
 	reUsername = regexp.MustCompile(reValidUsername)
 )
 
-// Register registers a new username
+// Register registers a new username for the caller
 // A valid username must start with a minimum of 3 letters,
 // end with a minimum of 3 numbers, and be less than 20 chars long.
+// All letters must be lowercase, and the only valid special char is `_`
 func Register(username, bio string) error {
 	if pausable.IsPaused() {
 		return p.ErrPaused
@@ -33,6 +34,7 @@ func Register(username, bio string) error {
 		return ErrInvalidUsername
 	}
 
+	// XXX: should only EOA be able to register?
 	registrant := std.PrevRealm().Addr()
 	u := &pusers.User{
 		Address: registrant,
