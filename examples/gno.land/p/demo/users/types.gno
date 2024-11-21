@@ -10,5 +10,6 @@ func (aon AddressOrName) GetName() (string, bool) {
 	if len(aon) >= 2 && aon[0] == '@' {
 		return string(aon[1:]), true
 	}
+	
 	return "", false
 }

@@ -41,3 +41,8 @@ func ResolveAddressOrName(input pusers.AddressOrName) *pusers.User {
 
 	return ResolveAddress(std.Address(input))
 }
+
+// TODO fetch function list
+// get paginated list of users
+// get users by prefix
+// ..?

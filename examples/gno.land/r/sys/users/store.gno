@@ -8,11 +8,16 @@ import (
 )
 
 var (
-	uStore          = avl.NewTree() // username > *pusers.User
-	aStore          = avl.NewTree() // address > *pusers.User
-	callerWhitelist = avl.NewTree() // addr > struct{}{}
+	uStore             = avl.NewTree() // username > *pusers.User
+	aStore             = avl.NewTree() // address > *pusers.User
+	callerWhitelist    = avl.NewTree() // addr > struct{}{}
+	preRestrictedNames = []string{
+		"bitcoin", "cosmos", "newtendermint", "ethereum",
+	}
 )
 
+// WriteUser writes to the sys/users stores
+// Only whitelisted callers, such as r/gnoland/users, can call this function
 func WriteUser(user *pusers.User) error {
 	if pausable.IsPaused() {
 		return p.ErrPaused
@@ -35,6 +40,7 @@ func WriteUser(user *pusers.User) error {
 	return nil
 }
 
+// UserCount returns the number of registered users
 func UserCount() int {
 	return uStore.Size()
 }

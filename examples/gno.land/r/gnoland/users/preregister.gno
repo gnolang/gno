@@ -6,11 +6,6 @@ import (
 	"std"
 )
 
-// pre-restricted names
-var preRestrictedNames = []string{
-	"bitcoin", "cosmos", "newtendermint", "ethereum",
-}
-
 // pre-registered users
 var preRegisteredUsers = []struct {
 	Name    string
@@ -34,17 +29,6 @@ var preRegisteredUsers = []struct {
 func init() {
 	// add pre-registered users
 	for _, res := range preRegisteredUsers {
-		// assert not already registered.
-		_, ok := name2User.Get(res.Name)
-		if ok {
-			panic("name already registered")
-		}
-
-		_, ok = addr2User.Get(res.Address.String())
-		if ok {
-			panic("address already registered")
-		}
-
 		user := &pusers.User{
 			Address: res.Address,
 			Name:    res.Name,
@@ -56,14 +40,5 @@ func init() {
 		if err := sys.WriteUser(user); err != nil {
 			panic(err)
 		}
-	}
-
-	// add pre-restricted names
-	for _, name := range preRestrictedNames {
-		if _, ok := name2User.Get(name); ok {
-			panic("name already registered")
-		}
-
-		restricted.Set(name, true)
 	}
 }

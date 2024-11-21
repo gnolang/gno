@@ -22,7 +22,7 @@ func init() {
 	callerWhitelist.Set(std.DerivePkgAddr("gno.land/r/gnoland/users"), struct{}{})
 }
 
-func AddWhitelistedCaller(addr std.Address) error {
+func AddToWhitelist(addr std.Address) error {
 	if err := admin.CallerIsOwner(); err != nil {
 		return err
 	}
@@ -41,7 +41,7 @@ func AddWhitelistedCaller(addr std.Address) error {
 	return nil
 }
 
-func DelWhitelistedCaller(addr std.Address) error {
+func DelFromWhitelist(addr std.Address) error {
 	if err := admin.CallerIsOwner(); err != nil {
 		return err
 	}
