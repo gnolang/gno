@@ -42,58 +42,62 @@ func main() {
 //
 // ## [Prop #0 - Setting prop1.string param](/r/gov/dao/v2:0)
 //
-// #### Status: ACTIVE
+// **Status: ACTIVE**
 //
-// #### Author: g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm
+// **Author: g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm**
 //
 //
 // --
 // # Proposal #0 - Setting prop1.string param
 //
+// ## Description
+//
 // setting prop1.string param
 //
 // ## Proposal information
 //
-// #### Status: ACTIVE
+// **Status: ACTIVE**
 //
-// #### Voting stats:
+// **Voting stats:**
 // - YES 0 (0%)
 // - NO 0 (0%)
 // - ABSTAIN 0 (0%)
 // - MISSING VOTES 10 (100%)
 //
 //
-// #### Threshold met: FALSE
+// **Threshold met: FALSE**
 //
-// #### Author: g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm
+// **Author: g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm**
 //
-// ## Actions
+// ### Actions
 //
-// [Vote YES](/r/gov/dao/v2$help&func=VoteOnProposal&id=0&option=YES) - [Vote NO](/r/gov/dao/v2$help&func=VoteOnProposal&id=0&option=NO) - [Vote ABSTAIN](/r/gov/dao/v2$help&func=VoteOnProposal&id=0&option=ABSTAIN)
+// #### [[Vote YES](/r/gov/dao/v2$help&func=VoteOnProposal&id=0&option=YES)] - [[Vote NO](/r/gov/dao/v2$help&func=VoteOnProposal&id=0&option=NO)] - [[Vote ABSTAIN](/r/gov/dao/v2$help&func=VoteOnProposal&id=0&option=ABSTAIN)]
 //
 //
 // --
 // --
 // # Proposal #0 - Setting prop1.string param
 //
+// ## Description
+//
 // setting prop1.string param
 //
 // ## Proposal information
 //
-// #### Status: ACCEPTED
+// **Status: ACCEPTED**
 //
-// #### Voting stats:
+// **Voting stats:**
 // - YES 10 (100%)
 // - NO 0 (0%)
 // - ABSTAIN 0 (0%)
 // - MISSING VOTES 0 (0%)
 //
 //
-// #### Threshold met: TRUE
+// **Threshold met: TRUE**
 //
-// #### Author: g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm
+// **Author: g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm**
 //
-// ## Actions
+// ### Actions
 //
 // The voting period for this proposal is over.
 //
@@ -104,24 +108,26 @@ func main() {
 // --
 // # Proposal #0 - Setting prop1.string param
 //
+// ## Description
+//
 // setting prop1.string param
 //
 // ## Proposal information
 //
-// #### Status: EXECUTION SUCCESSFUL
+// **Status: EXECUTION SUCCESSFUL**
 //
-// #### Voting stats:
+// **Voting stats:**
 // - YES 10 (100%)
 // - NO 0 (0%)
 // - ABSTAIN 0 (0%)
 // - MISSING VOTES 0 (0%)
 //
 //
-// #### Threshold met: TRUE
+// **Threshold met: TRUE**
 //
-// #### Author: g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm
+// **Author: g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm**
 //
-// ## Actions
+// ### Actions
 //
 // The voting period for this proposal is over.
 

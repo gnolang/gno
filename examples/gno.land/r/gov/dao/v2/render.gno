@@ -108,9 +108,9 @@ func renderAuthor(p dao.Proposal) string {
 func renderActionBar(p dao.Proposal, idx int) string {
 	var out string
 
-	out += "## Actions\n\n"
+	out += "### Actions\n\n"
 	if p.Status() == dao.Active {
-		out += ufmt.Sprintf("[Vote YES](%s) - [Vote NO](%s) - [Vote ABSTAIN](%s)",
+		out += ufmt.Sprintf("#### [[Vote YES](%s)] - [[Vote NO](%s)] - [[Vote ABSTAIN](%s)]",
 			txlink.URL("VoteOnProposal", "id", strconv.Itoa(idx), "option", "YES"),
 			txlink.URL("VoteOnProposal", "id", strconv.Itoa(idx), "option", "NO"),
 			txlink.URL("VoteOnProposal", "id", strconv.Itoa(idx), "option", "ABSTAIN"),

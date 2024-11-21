@@ -17,7 +17,7 @@ func init() {
 	// Example initial member set (just test addresses)
 	set := []membstore.Member{
 		{
-			Address:     std.Address("g125em6arxsnj49vx35f0n0z34putv5ty3376fg5"),
+			Address:     std.Address("g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm"),
 			VotingPower: 10,
 		},
 	}

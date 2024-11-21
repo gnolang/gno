@@ -71,6 +71,7 @@ func (p *proposal) Render() string {
 
 	var out string
 
+	out += "## Description\n\n"
 	if strings.TrimSpace(p.description) != "" {
 		out += ufmt.Sprintf("%s\n\n", p.description)
 	} else {
