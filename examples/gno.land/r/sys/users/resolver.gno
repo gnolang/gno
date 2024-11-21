@@ -30,3 +30,14 @@ func ResolveAddress(addr std.Address) *pusers.User {
 
 	return raw.(*pusers.User)
 }
+
+// ResolveAddressOrName
+// Note: unlike ResolveUsername, input must be "@" prefixed for names.
+func ResolveAddressOrName(input pusers.AddressOrName) *pusers.User {
+	name, isName := input.GetName()
+	if isName {
+		return ResolveUsername(name)
+	}
+
+	return ResolveAddress(std.Address(input))
+}
