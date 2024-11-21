@@ -1,3 +1,5 @@
+PULL_GH_SCRIPT := ./scripts/pull-gh.sh
+
 all: docker.start.prod
 
 docker.start.prod: # Start the production portal loop
@@ -20,3 +22,6 @@ switch: portalloopd.switch
 
 portalloopd.switch: # Force switch the portal loop with latest image
 	docker compose exec portalloopd switch
+
+pull-exports:
+	chmod +x $(PULL_GH_SCRIPT) && ./$(PULL_GH_SCRIPT)
