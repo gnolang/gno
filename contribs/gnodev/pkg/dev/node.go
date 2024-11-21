@@ -486,8 +486,6 @@ func (n *Node) rebuildNode(ctx context.Context, genesis gnoland.GnoGenesisState)
 	// Setup node config
 	nodeConfig := newNodeConfig(n.config.TMConfig, n.config.ChainID, genesis)
 	nodeConfig.GenesisTxResultHandler = n.genesisTxResultHandler
-	// Speed up stdlib loading after first start (saves about 2-3 seconds on each reload).
-	nodeConfig.CacheStdlibLoad = true
 	nodeConfig.Genesis.ConsensusParams.Block.MaxGas = n.config.MaxGasPerBlock
 
 	// recoverFromError handles panics and converts them to errors.
