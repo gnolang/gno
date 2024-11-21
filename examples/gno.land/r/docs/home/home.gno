@@ -9,8 +9,9 @@ Explore various examples to learn more about Gno functionality and usage.
 ## Examples
 
 - [Hello World](/r/docs/hello) - A simple introductory example.
-- [Add](/r/docs/add) - An interactive example to update a number with transactions.
-- [AVL Pager](/r/docs/avl_pager) - Paginate through AVL tree items.
+- [Adder](/r/docs/adder) - An interactive example to update a number with transactions.
+- [Source](/r/docs/source) - View realm source code.
+- [AVL Pager](/r/docs/avl_pager) - Paginate through AVL tree items.  
 - ...
 
 ## Other resources
