@@ -78,10 +78,10 @@ func (p *proposal) Render() string {
 	}
 
 	out += "## Proposal information\n\n"
-	out += ufmt.Sprintf("#### Status: %s\n\n", strings.ToUpper(p.Status().String()))
+	out += ufmt.Sprintf("**Status: %s**\n\n", strings.ToUpper(p.Status().String()))
 
 	out += ufmt.Sprintf(
-		"#### Voting stats:\n- YES %d (%d%%)\n- NO %d (%d%%)\n- ABSTAIN %d (%d%%)\n- MISSING VOTES %d (%d%%)\n",
+		"**Voting stats:**\n- YES %d (%d%%)\n- NO %d (%d%%)\n- ABSTAIN %d (%d%%)\n- MISSING VOTES %d (%d%%)\n",
 		stats.YayVotes,
 		stats.YayPercent(),
 		stats.NayVotes,
@@ -95,7 +95,7 @@ func (p *proposal) Render() string {
 	out += "\n\n"
 	thresholdOut := strings.ToUpper(ufmt.Sprintf("%t", stats.YayVotes > (2*stats.TotalVotingPower)/3))
 
-	out += ufmt.Sprintf("#### Threshold met: %s\n\n", thresholdOut)
+	out += ufmt.Sprintf("**Threshold met: %s**\n\n", thresholdOut)
 
 	return out
 }

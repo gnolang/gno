@@ -39,7 +39,7 @@ func Render(path string) string {
 
 			propID := offset + uint64(i)
 			out += ufmt.Sprintf("## [Prop #%d - %s](/r/gov/dao/v2:%d)\n\n", propID, title, propID)
-			out += ufmt.Sprintf("#### Status: %s\n\n", strings.ToUpper(prop.Status().String()))
+			out += ufmt.Sprintf("**Status: %s**\n\n", strings.ToUpper(prop.Status().String()))
 
 			user := users.GetUserByAddress(prop.Author())
 			authorDisplayText := prop.Author().String()
@@ -47,7 +47,7 @@ func Render(path string) string {
 				authorDisplayText = ufmt.Sprintf("[%s](/r/demo/users:%s)", user.Name, user.Name)
 			}
 
-			out += ufmt.Sprintf("#### Author: %s\n\n", authorDisplayText)
+			out += ufmt.Sprintf("**Author: %s**\n\n", authorDisplayText)
 
 			if i != 0 {
 				out += "---\n\n"
@@ -72,7 +72,7 @@ func Render(path string) string {
 	// Render the proposal page
 	out += renderPropPage(prop, idx)
 
-	return out.String()
+	return out
 }
 
 func renderPropPage(prop dao.Proposal, idx int) string {
@@ -88,6 +88,7 @@ func renderPropPage(prop dao.Proposal, idx int) string {
 }
 
 func renderAuthor(p dao.Proposal) string {
+	var out string
 
 	authorUsername := ""
 	user := users.GetUserByAddress(p.Author())
@@ -96,9 +97,9 @@ func renderAuthor(p dao.Proposal) string {
 	}
 
 	if authorUsername != "" {
-		out += ufmt.Sprintf("#### Author: [%s](/r/demo/users:%s)\n\n", authorUsername, authorUsername)
+		out += ufmt.Sprintf("**Author: [%s](/r/demo/users:%s)**\n\n", authorUsername, authorUsername)
 	} else {
-		out += ufmt.Sprintf("#### Author: %s\n\n", p.Author().String())
+		out += ufmt.Sprintf("**Author: %s**\n\n", p.Author().String())
 	}
 
 	return out
