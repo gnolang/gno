@@ -10,7 +10,7 @@ import (
 var (
 	uStore          = avl.NewTree() // username > *pusers.User
 	aStore          = avl.NewTree() // address > *pusers.User
-	callerWhitelist = avl.NewTree() //  addr > struct{}{}
+	callerWhitelist = avl.NewTree() // addr > struct{}{}
 )
 
 func WriteUser(user *pusers.User) error {
@@ -26,10 +26,6 @@ func WriteUser(user *pusers.User) error {
 	addr := user.Address
 
 	if uStore.Has(username) {
-		return ErrAlreadyExists
-	}
-
-	if aStore.Has(addr.String()) { // redundant check if we do not implement username deletion
 		return ErrAlreadyExists
 	}
 
