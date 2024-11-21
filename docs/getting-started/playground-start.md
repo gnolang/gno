@@ -6,17 +6,17 @@ id: playground-start
 
 ## Overview
 
-The Gno Playground is an innovative web-based editor and sandbox that enables developers to 
+The Gno Playground is an innovative web-based editor and sandbox that enables developers to
 interactively work with the Gno language. It makes coding, testing,
 and deploying simple with its diverse set of tools and features. Users can
-share code, run tests, and deploy projects to gno.land networks, 
+share code, run tests, and deploy projects to gno.land networks,
 making it the perfect tool to get started with Gno development.
 
 ## Prerequisites
 
 - **A gno.land compatible wallet**
   - Currently, [Adena](https://www.adena.app/) is the preferred wallet for
-Gno.land, with more wallets being introduced in the future.
+gno.land, with more wallets being introduced in the future.
 
 ## Playground Features
 
@@ -44,25 +44,25 @@ ensuring the shared code remains accessible over an extended period.
 
 ### Deploy
 
-The **Deploy** feature allows users to seamlessly deploy their Gno code to the 
-chain. After connecting a gno.land wallet, users can select their desired 
+The **Deploy** feature allows users to seamlessly deploy their Gno code to the
+chain. After connecting a gno.land wallet, users can select their desired
 package path and network for deployment.
 
 ![default_deploy](../assets/getting-started/playground/default_deploy.png)
 
-After inputting your desired package path, you can select the network you would 
+After inputting your desired package path, you can select the network you would
 like to deploy to, such as [Portal Loop](../concepts/portal-loop.md) or local,
 and click deploy.
 
 :::info
-The Playground will automatically provide enough test tokens to cover the gas 
+The Playground will automatically provide enough test tokens to cover the gas
 cost at the time of deployment, removing the need for using a faucet.
 :::
 
 ### Format
 
 The **Format** feature utilizes the Monaco editor and
-[`gofmt`](https://pkg.go.dev/cmd/gofmt) to automatically refine and standardize 
+[`gofmt`](https://pkg.go.dev/cmd/gofmt) to automatically refine and standardize
 your Gno code's syntax.
 
 ### Run
@@ -82,7 +82,7 @@ View the code [here](https://play.gno.land/p/nBq2W8drjMy).
 
 ### Test
 
-The **Test** feature will look for `_test.gno` files in your playground and run 
+The **Test** feature will look for `_test.gno` files in your playground and run
 the`gno test -v` command on them. Testing your code will open a terminal that
 will show you the output of the test. Read more about how Gno tests work
 [here](../concepts/gno-test.md).
@@ -95,10 +95,10 @@ It provides a command-line interface for hands-on learning, iterative testing, a
 ## Learning about gno.land & writing Gno code
 
 If you're new here, don't worry—content is regularly produced to breakdown
-Gno.land to explain its features. Dive into the essentials of gno.land by 
+gno.land to explain its features. Dive into the essentials of gno.land by
 exploring the [Concepts](../concepts/concepts.md) section.
 
 To get started writing Gno code, check out the
 [How-to](../how-to-guides/how-to-guides.md) section, the `examples/` folder on
-the [Gno monorepo](https://github.com/gnolang/gno), or one of many community projects and tutorials found in the 
+the [Gno monorepo](https://github.com/gnolang/gno), or one of many community projects and tutorials found in the
 [awesome-gno](https://github.com/gnolang/awesome-gno/blob/main/README.md) repo on GitHub.

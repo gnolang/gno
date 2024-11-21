@@ -298,6 +298,11 @@ func initStaticBlocks(store Store, ctx BlockNode, bn BlockNode) {
 					last.Predefine(false, n.VarName)
 				}
 			case *SwitchClauseStmt:
+				blen := len(n.Body)
+				if blen > 0 {
+					n.Body[blen-1].SetAttribute(ATTR_LAST_BLOCK_STMT, true)
+				}
+
 				// parent switch statement.
 				ss := ns[len(ns)-1].(*SwitchStmt)
 				// anything declared in ss are copied,
@@ -1757,7 +1762,15 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 			case *KeyValueExpr:
 				// NOTE: For simplicity we just
 				// use the *CompositeLitExpr.
-
+			// TRANS_LEAVE -----------------------
+			case *StarExpr:
+				xt := evalStaticTypeOf(store, last, n.X)
+				if xt == nil {
+					panic(fmt.Sprintf("invalid operation: cannot indirect nil"))
+				}
+				if xt.Kind() != PointerKind && xt.Kind() != TypeKind {
+					panic(fmt.Sprintf("invalid operation: cannot indirect %s (variable of type %s)", n.X.String(), xt.String()))
+				}
 			// TRANS_LEAVE -----------------------
 			case *SelectorExpr:
 				xt := evalStaticTypeOf(store, last, n.X)
@@ -1953,6 +1966,7 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 			// TRANS_LEAVE -----------------------
 			case *AssignStmt:
 				n.AssertCompatible(store, last)
+
 				// NOTE: keep DEFINE and ASSIGN in sync.
 				if n.Op == DEFINE {
 					// Rhs consts become default *ConstExprs.
@@ -2080,9 +2094,7 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 				switch n.Op {
 				case BREAK:
 					if n.Label == "" {
-						if !findBreakableNode(ns) {
-							panic("cannot break with no parent loop or switch")
-						}
+						findBreakableNode(last, store)
 					} else {
 						// Make sure that the label exists, either for a switch or a
 						// BranchStmt.
@@ -2092,9 +2104,7 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 					}
 				case CONTINUE:
 					if n.Label == "" {
-						if !findContinuableNode(ns) {
-							panic("cannot continue with no parent loop")
-						}
+						findContinuableNode(last, store)
 					} else {
 						if isSwitchLabel(ns, n.Label) {
 							panic(fmt.Sprintf("invalid continue label %q\n", n.Label))
@@ -2106,17 +2116,36 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 					n.Depth = depth
 					n.BodyIndex = index
 				case FALLTHROUGH:
-					if swchC, ok := last.(*SwitchClauseStmt); ok {
-						// last is a switch clause, find its index in the switch and assign
-						// it to the fallthrough node BodyIndex. This will be used at
-						// runtime to determine the next switch clause to run.
-						swch := lastSwitch(ns)
-						for i := range swch.Clauses {
-							if &swch.Clauses[i] == swchC {
-								// switch clause found
-								n.BodyIndex = i
-								break
-							}
+					swchC, ok := last.(*SwitchClauseStmt)
+					if !ok {
+						// fallthrough is only allowed in a switch statement
+						panic("fallthrough statement out of place")
+					}
+
+					if n.GetAttribute(ATTR_LAST_BLOCK_STMT) != true {
+						// no more clause after the one executed, this is not allowed
+						panic("fallthrough statement out of place")
+					}
+
+					// last is a switch clause, find its index in the switch and assign
+					// it to the fallthrough node BodyIndex. This will be used at
+					// runtime to determine the next switch clause to run.
+					swch := lastSwitch(ns)
+
+					if swch.IsTypeSwitch {
+						// fallthrough is not allowed in type switches
+						panic("cannot fallthrough in type switch")
+					}
+
+					for i := range swch.Clauses {
+						if i == len(swch.Clauses)-1 {
+							panic("cannot fallthrough final case in switch")
+						}
+
+						if &swch.Clauses[i] == swchC {
+							// switch clause found
+							n.BodyIndex = i
+							break
 						}
 					}
 				default:
@@ -2235,6 +2264,8 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 
 			// TRANS_LEAVE -----------------------
 			case *ValueDecl:
+				assertValidAssignRhs(store, last, n)
+
 				// evaluate value if const expr.
 				if n.Const {
 					// NOTE: may or may not be a *ConstExpr,
@@ -2249,10 +2280,6 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 					// point evaluating it further.  this makes
 					// the implementation differ from
 					// runDeclaration(), as this uses OpStaticTypeOf.
-				}
-
-				if len(n.Values) > 1 && len(n.NameExprs) != len(n.Values) {
-					panic(fmt.Sprintf("assignment mismatch: %d variable(s) but %d value(s)", len(n.NameExprs), len(n.Values)))
 				}
 
 				defineOrDecl(store, last, n.Const, n.NameExprs, n.Type, n.Values)
@@ -2327,8 +2354,7 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 	return nn
 }
 
-// This func aims at syncing logic between op define (:=) and declare(var/const)
-// This will define or declare the variables
+// defineOrDecl merges the code logic from op define (:=) and declare (var/const).
 func defineOrDecl(
 	store Store,
 	bn BlockNode,
@@ -2338,24 +2364,22 @@ func defineOrDecl(
 	valueExprs []Expr,
 ) {
 	numNames := len(nameExprs)
+	numVals := len(valueExprs)
 
-	if numNames < 1 {
-		panic("must have at least one name to assign")
+	if numVals > 1 && numNames != numVals {
+		panic(fmt.Sprintf("assignment mismatch: %d variable(s) but %d value(s)", numNames, numVals))
 	}
 
 	sts := make([]Type, numNames) // static types
 	tvs := make([]TypedValue, numNames)
 
-	if numNames > 1 && len(valueExprs) == 1 { // special cases
-		specialParseTypeVals(sts, tvs, store, bn, nameExprs, typeExpr, valueExprs[0])
-	} else { // general case
-		generalParseTypeVals(sts, tvs, store, bn, isConst, nameExprs, typeExpr, valueExprs)
+	if numNames > 1 && len(valueExprs) == 1 {
+		parseMultipleAssignFromOneExpr(sts, tvs, store, bn, nameExprs, typeExpr, valueExprs[0])
+	} else {
+		parseAssignFromExprList(sts, tvs, store, bn, isConst, nameExprs, typeExpr, valueExprs)
 	}
 
-	node := bn
-	if fn, ok := bn.(*FileNode); ok {
-		node = fn.GetParentNode(nil).(*PackageNode)
-	}
+	node := skipFile(bn)
 
 	for i := 0; i < len(sts); i++ {
 		nx := nameExprs[i]
@@ -2368,9 +2392,9 @@ func defineOrDecl(
 	}
 }
 
-// This func aims at syncing logic between op define (:=) and declare(var/const)
-// for general cases (not handled by specialParseTypeVals)
-func generalParseTypeVals(
+// parseAssignFromExprList parses assignment to multiple variables from a list of expressions.
+// This function will alter the value of sts, tvs.
+func parseAssignFromExprList(
 	sts []Type,
 	tvs []TypedValue,
 	store Store,
@@ -2382,39 +2406,35 @@ func generalParseTypeVals(
 ) {
 	numNames := len(nameExprs)
 
-	// ensure that function only return 1 value
+	// Ensure that function only return 1 value.
 	for _, v := range valueExprs {
 		if cx, ok := v.(*CallExpr); ok {
 			tt, ok := evalStaticTypeOfRaw(store, bn, cx).(*tupleType)
-			if ok {
-				if len(tt.Elts) == 0 {
-					panic(fmt.Sprintf("%s() (no value) used as value", cx.Func.String()))
-				} else if len(tt.Elts) != 1 {
-					panic(fmt.Sprintf("multiple-value %s (value of type %s) in single-value context", cx.Func.String(), tt.Elts))
-				}
+			if ok && len(tt.Elts) != 1 {
+				panic(fmt.Sprintf("multiple-value %s (value of type %s) in single-value context", cx.Func.String(), tt.Elts))
 			}
 		}
 	}
 
-	// evaluate types and convert consts.
+	// Evaluate types and convert consts.
 	if typeExpr != nil {
-		// only a single type can be specified.
+		// Only a single type can be specified.
 		nt := evalStaticType(store, bn, typeExpr)
 		for i := 0; i < numNames; i++ {
 			sts[i] = nt
 		}
-		// convert if const to nt.
+		// Convert if const to nt.
 		for i := range valueExprs {
 			checkOrConvertType(store, bn, &valueExprs[i], nt, false)
 		}
 	} else if isConst {
-		// derive static type from values.
+		// Derive static type from values.
 		for i, vx := range valueExprs {
 			vt := evalStaticTypeOf(store, bn, vx)
 			sts[i] = vt
 		}
 	} else { // T is nil, n not const => same as AssignStmt DEFINE
-		// convert n.Value to default type.
+		// Convert n.Value to default type.
 		for i, vx := range valueExprs {
 			if cx, ok := vx.(*ConstExpr); ok {
 				convertConst(store, bn, cx, nil)
@@ -2427,9 +2447,9 @@ func generalParseTypeVals(
 		}
 	}
 
-	// evaluate typed value for static definition.
+	// Evaluate typed value for static definition.
 	for i := range nameExprs {
-		// consider value if specified.
+		// Consider value if specified.
 		if len(valueExprs) > 0 {
 			vx := valueExprs[i]
 			if cx, ok := vx.(*ConstExpr); ok &&
@@ -2444,23 +2464,23 @@ func generalParseTypeVals(
 				continue
 			}
 		}
-		// for var decls of non-const expr.
+		// For var decls of non-const expr.
 		st := sts[i]
 		tvs[i] = anyValue(st)
 	}
 }
 
-// This func aims at syncing logic between op define (:=) and declare(var/const)
-// for special cases where rhs is single and lhs is single/multi
+// parseMultipleAssignFromOneExpr parses assignment to multiple variables from a single expression.
+// This function will alter the value of sts, tvs.
 // Declare:
-// - `var a, b, c T = f()`
-// - `var a, b = n.(T)`
-// - `var a, b = n[i], where n is a map`
-// Assign
-// - `a, b, c T := f()`
-// - `a, b := n.(T)`
-// - `a, b := n[i], where n is a map`
-func specialParseTypeVals(
+// - var a, b, c T = f()
+// - var a, b = n.(T)
+// - var a, b = n[i], where n is a map
+// Assign:
+// - a, b, c := f()
+// - a, b := n.(T)
+// - a, b := n[i], where n is a map
+func parseMultipleAssignFromOneExpr(
 	sts []Type,
 	tvs []TypedValue,
 	store Store,
@@ -2468,10 +2488,9 @@ func specialParseTypeVals(
 	nameExprs []NameExpr,
 	typeExpr Expr,
 	valueExpr Expr,
-) ([]Type, []TypedValue) {
+) {
 	var tuple *tupleType
 	numNames := len(nameExprs)
-
 	switch expr := valueExpr.(type) {
 	case *CallExpr:
 		// Call case:
@@ -2515,23 +2534,33 @@ func specialParseTypeVals(
 
 	var st Type = nil
 	if typeExpr != nil {
-		// only a single type can be specified.
+		// Only a single type can be specified.
 		st = evalStaticType(store, bn, typeExpr)
 	}
 
 	for i := 0; i < numNames; i++ {
 		if st != nil {
-			// TODO check tt and nt compat.
+			tt := tuple.Elts[i]
+
+			if checkAssignableTo(tt, st, false) != nil {
+				panic(
+					fmt.Sprintf(
+						"cannot use %v (value of type %s) as %s value in assignment",
+						valueExpr.String(),
+						tt.String(),
+						st.String(),
+					),
+				)
+			}
+
 			sts[i] = st
 		} else {
-			// set types as return types
+			// Set types as return types.
 			sts[i] = tuple.Elts[i]
 		}
 
 		tvs[i] = anyValue(sts[i])
 	}
-
-	return sts, tvs
 }
 
 // Identifies NameExprTypeHeapDefines.
@@ -3286,24 +3315,36 @@ func funcOf(last BlockNode) (BlockNode, *FuncTypeExpr) {
 	}
 }
 
-func findBreakableNode(ns []Node) bool {
-	for _, n := range ns {
-		switch n.(type) {
-		case *ForStmt, *RangeStmt, *SwitchClauseStmt:
-			return true
+func findBreakableNode(last BlockNode, store Store) {
+	for last != nil {
+		switch last.(type) {
+		case *FuncLitExpr, *FuncDecl:
+			panic("break statement out of place")
+		case *ForStmt:
+			return
+		case *RangeStmt:
+			return
+		case *SwitchClauseStmt:
+			return
 		}
+
+		last = last.GetParentNode(store)
 	}
-	return false
 }
 
-func findContinuableNode(ns []Node) bool {
-	for _, n := range ns {
-		switch n.(type) {
-		case *ForStmt, *RangeStmt:
-			return true
+func findContinuableNode(last BlockNode, store Store) {
+	for last != nil {
+		switch last.(type) {
+		case *FuncLitExpr, *FuncDecl:
+			panic("continue statement out of place")
+		case *ForStmt:
+			return
+		case *RangeStmt:
+			return
 		}
+
+		last = last.GetParentNode(store)
 	}
-	return false
 }
 
 func findBranchLabel(last BlockNode, label Name) (

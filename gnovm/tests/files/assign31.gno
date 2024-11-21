@@ -1,14 +1,9 @@
 package main
 
-func foo() (int, bool) {
-	return 1, true
-}
-
 func main() {
-	a, b := 2, foo()
-
-	println(a, b)
+	a := nil
+	println(a)
 }
 
 // Error:
-// main/files/assign31.gno:8:2: multiple-value foo<VPBlock(3,0)> (value of type [int bool]) in single-value context
+// main/files/assign31.gno:4:2: use of untyped nil in assignment

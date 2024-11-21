@@ -61,7 +61,7 @@ func execVerify(cfg *verifyCfg, io commands.IO) error {
 
 		// Validate the initial transactions
 		for _, tx := range state.Txs {
-			if validateErr := tx.ValidateBasic(); validateErr != nil {
+			if validateErr := tx.Tx.ValidateBasic(); validateErr != nil {
 				return fmt.Errorf("invalid transacton, %w", validateErr)
 			}
 		}

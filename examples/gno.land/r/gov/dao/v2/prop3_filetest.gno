@@ -5,6 +5,7 @@ import (
 
 	"gno.land/p/demo/dao"
 	"gno.land/p/demo/membstore"
+	"gno.land/r/gov/dao/bridge"
 	govdao "gno.land/r/gov/dao/v2"
 )
 
@@ -34,7 +35,7 @@ func init() {
 		Executor:    govdao.NewMemberPropExecutor(memberFn),
 	}
 
-	govdao.Propose(prop)
+	bridge.GovDAO().Propose(prop)
 }
 
 func main() {
@@ -75,7 +76,7 @@ func main() {
 //
 // Status: active
 //
-// Voting stats: YAY 0 (0%), NAY 0 (0%), ABSTAIN 0 (0%), HAVEN'T VOTED 10 (100%)
+// Voting stats: YES 0 (0%), NO 0 (0%), ABSTAIN 0 (0%), MISSING VOTE 10 (100%)
 //
 // Threshold met: false
 //
@@ -90,7 +91,7 @@ func main() {
 //
 // Status: accepted
 //
-// Voting stats: YAY 10 (100%), NAY 0 (0%), ABSTAIN 0 (0%), HAVEN'T VOTED 0 (0%)
+// Voting stats: YES 10 (100%), NO 0 (0%), ABSTAIN 0 (0%), MISSING VOTE 0 (0%)
 //
 // Threshold met: true
 //
@@ -108,7 +109,7 @@ func main() {
 //
 // Status: execution successful
 //
-// Voting stats: YAY 10 (25%), NAY 0 (0%), ABSTAIN 0 (0%), HAVEN'T VOTED 30 (75%)
+// Voting stats: YES 10 (25%), NO 0 (0%), ABSTAIN 0 (0%), MISSING VOTE 30 (75%)
 //
 // Threshold met: false
 //
@@ -118,3 +119,67 @@ func main() {
 //
 // --
 // 4
+
+// Events:
+// [
+//   {
+//     "type": "ProposalAdded",
+//     "attrs": [
+//       {
+//         "key": "proposal-id",
+//         "value": "0"
+//       },
+//       {
+//         "key": "proposal-author",
+//         "value": "g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm"
+//       }
+//     ],
+//     "pkg_path": "gno.land/r/gov/dao/v2",
+//     "func": "EmitProposalAdded"
+//   },
+//   {
+//     "type": "VoteAdded",
+//     "attrs": [
+//       {
+//         "key": "proposal-id",
+//         "value": "0"
+//       },
+//       {
+//         "key": "author",
+//         "value": "g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm"
+//       },
+//       {
+//         "key": "option",
+//         "value": "YES"
+//       }
+//     ],
+//     "pkg_path": "gno.land/r/gov/dao/v2",
+//     "func": "EmitVoteAdded"
+//   },
+//   {
+//     "type": "ProposalAccepted",
+//     "attrs": [
+//       {
+//         "key": "proposal-id",
+//         "value": "0"
+//       }
+//     ],
+//     "pkg_path": "gno.land/r/gov/dao/v2",
+//     "func": "EmitProposalAccepted"
+//   },
+//   {
+//     "type": "ProposalExecuted",
+//     "attrs": [
+//       {
+//         "key": "proposal-id",
+//         "value": "0"
+//       },
+//       {
+//         "key": "exec-status",
+//         "value": "accepted"
+//       }
+//     ],
+//     "pkg_path": "gno.land/r/gov/dao/v2",
+//     "func": "ExecuteProposal"
+//   }
+// ]
