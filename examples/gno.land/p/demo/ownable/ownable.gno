@@ -6,6 +6,8 @@ const OwnershipTransferEvent = "OwnershipTransfer"
 
 // Ownable is meant to be used as a top-level object to make your contract ownable OR
 // being embedded in a Gno object to manage per-object ownership.
+// Do not export this object, as its methods do not validate the caller.
+// For this, check out SafeOwnable.
 type Ownable struct {
 	owner std.Address
 }
@@ -24,11 +26,6 @@ func NewWithAddress(addr std.Address) *Ownable {
 
 // TransferOwnership transfers ownership of the Ownable struct to a new address
 func (o *Ownable) TransferOwnership(newOwner std.Address) error {
-	err := o.CallerIsOwner()
-	if err != nil {
-		return err
-	}
-
 	if !newOwner.IsValid() {
 		return ErrInvalidAddress
 	}
@@ -47,12 +44,7 @@ func (o *Ownable) TransferOwnership(newOwner std.Address) error {
 // DropOwnership removes the owner, effectively disabling any owner-related actions
 // Top-level usage: disables all only-owner actions/functions,
 // Embedded usage: behaves like a burn functionality, removing the owner from the struct
-func (o *Ownable) DropOwnership() error {
-	err := o.CallerIsOwner()
-	if err != nil {
-		return err
-	}
-
+func (o *Ownable) DropOwnership() {
 	prevOwner := o.owner
 	o.owner = ""
 
@@ -61,8 +53,6 @@ func (o *Ownable) DropOwnership() error {
 		"from", prevOwner.String(),
 		"to", "",
 	)
-
-	return nil
 }
 
 // Owner returns the owner address from Ownable
@@ -71,12 +61,8 @@ func (o Ownable) Owner() std.Address {
 }
 
 // CallerIsOwner checks if the caller of the function is the Realm's owner
-func (o Ownable) CallerIsOwner() error {
-	if std.PrevRealm().Addr() == o.owner {
-		return nil
-	}
-
-	return ErrUnauthorized
+func (o Ownable) CallerIsOwner() bool {
+	return std.PrevRealm().Addr() == o.owner
 }
 
 // AssertCallerIsOwner panics if the caller is not the owner
@@ -84,4 +70,41 @@ func (o Ownable) AssertCallerIsOwner() {
 	if std.PrevRealm().Addr() != o.owner {
 		panic(ErrUnauthorized)
 	}
+}
+
+// Safe-object
+
+// SafeOwnable is an exportable struct that wraps Ownable
+// By exposing a SafeOwnable object, a realm will expose all SafeOwnable exported methods
+// to the public automatically. These methods, as per the implementation,
+// are only callable by the Ownable's admin.
+type SafeOwnable struct {
+	ownable *Ownable
+}
+
+func (o *Ownable) NewSafeOwnable() *SafeOwnable {
+	return &SafeOwnable{
+		ownable: o,
+	}
+}
+
+func (so *SafeOwnable) TransferOwnership(newOwner std.Address) error {
+	if !so.ownable.CallerIsOwner() {
+		return ErrUnauthorized
+	}
+
+	if err := so.ownable.TransferOwnership(newOwner); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (so *SafeOwnable) DropOwnership() error {
+	if !so.ownable.CallerIsOwner() {
+		return ErrUnauthorized
+	}
+
+	so.ownable.DropOwnership()
+	return nil
 }
