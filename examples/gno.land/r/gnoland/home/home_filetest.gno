@@ -33,7 +33,7 @@ func main() {
 // - Tokenomics (soon)
 // - [Partners, Fund, Grants](/partners)
 // - [Explore the Ecosystem](/ecosystem)
-// - [Careers](https://jobs.lever.co/allinbits?department=Gno.land)
+// - [Careers](https://jobs.ashbyhq.com/allinbits)
 //
 // </div><!-- end column-->
 //
@@ -57,7 +57,7 @@ func main() {
 // - [Gnoscan](https://gnoscan.io)
 // - [Portal Loop](https://docs.gno.land/concepts/portal-loop)
 // - [Testnet 4](https://test4.gno.land/)
-// - Testnet Faucet Hub (soon)
+// - [Faucet Hub](https://faucet.gno.land)
 //
 // </div><!-- end column-->
 // </div><!-- end columns-3-->
@@ -78,9 +78,9 @@ func main() {
 // </div><!-- /column-->
 // <div class="column">
 //
-// ### Latest Contributions
+// ### [Hall of Fame](/r/demo/hof)
 //
-// [View latest contributions](https://github.com/gnolang/gno/pulls)
+//
 // </div><!-- /column-->
 // </div><!-- /columns-3 -->
 //
@@ -117,7 +117,7 @@ func main() {
 //
 // - [r/sys/names](r/sys/names)
 // - [r/sys/rewards](r/sys/rewards)
-// - [r/sys/validators](r/sys/validators)
+// - [/r/sys/validators/v2](/r/sys/validators/v2)
 //
 // </div><!-- /column-->
 // <div class="column">
