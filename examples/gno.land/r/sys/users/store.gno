@@ -2,6 +2,7 @@ package users
 
 import (
 	"github.com/gnolang/gno/examples/gno.land/p/demo/avl"
+	p "github.com/gnolang/gno/examples/gno.land/p/demo/pausable"
 	pusers "github.com/gnolang/gno/examples/gno.land/p/demo/users"
 	"github.com/gnolang/gno/gnovm/stdlibs/std"
 )
@@ -13,6 +14,10 @@ var (
 )
 
 func WriteUser(user *pusers.User) error {
+	if pausable.IsPaused() {
+		return p.ErrPaused
+	}
+
 	if !callerWhitelist.Has(std.PrevRealm().Addr().String()) {
 		return ErrUnauthorized
 	}
