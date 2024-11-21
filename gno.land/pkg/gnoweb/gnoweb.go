@@ -19,7 +19,6 @@ import (
 	"time"
 
 	"github.com/gnolang/gno/gnovm"
-	"github.com/gnolang/gno/gnovm/pkg/gnolang"
 	"github.com/gnolang/gno/tm2/pkg/amino"
 	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
 	"github.com/gnolang/gno/tm2/pkg/bft/rpc/client"
@@ -99,9 +98,6 @@ func MakeApp(logger *slog.Logger, cfg Config) gotuna.App {
 	app.Router.Handle("/r/{rlmname:[a-z][a-z0-9_]*(?:/[a-z][a-z0-9_]*)+}{args:(?:\\$.*)?}", handlerRealmMain(logger, app, &cfg))
 	app.Router.Handle("/r/{rlmname:[a-z][a-z0-9_]*(?:/[a-z][a-z0-9_]*)+}:{querystr:[^$]*}{args:(?:\\$.*)?}", handlerRealmRender(logger, app, &cfg))
 	app.Router.Handle("/p/{filepath:.*}", handlerPackageFile(logger, app, &cfg))
-
-	// stdlibs
-	app.Router.Handle("/stdlib/{path:.*}", handlerStdlib(logger, app, &cfg))
 
 	// other
 	app.Router.Handle("/faucet", handlerFaucet(logger, app, &cfg))
@@ -439,20 +435,6 @@ func handlerPackageFile(logger *slog.Logger, app gotuna.App, cfg *Config) http.H
 	})
 }
 
-func handlerStdlib(logger *slog.Logger, app gotuna.App, cfg *Config) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		vars := mux.Vars(r)
-		pkgpath := vars["path"]
-		diruri, filename := gnovm.SplitFilepath(pkgpath)
-		if filename == "" && diruri == pkgpath {
-			// redirect to diruri + "/"
-			http.Redirect(w, r, "/stdlib/"+vars["path"]+"/", http.StatusFound)
-			return
-		}
-		renderPackageFile(logger, app, cfg, w, r, diruri, filename)
-	})
-}
-
 func renderPackageFile(logger *slog.Logger, app gotuna.App, cfg *Config, w http.ResponseWriter, r *http.Request, diruri string, filename string) {
 	if filename == "" {
 		// Request is for a folder.
@@ -588,10 +570,6 @@ func pathOf(diruri string) string {
 	parts := strings.Split(diruri, "/")
 	if parts[0] == "gno.land" {
 		return "/" + strings.Join(parts[1:], "/")
-	}
-
-	if gnolang.IsStdlib(diruri) {
-		return "/stdlib/" + diruri
 	}
 
 	panic(fmt.Sprintf("invalid dir-URI %q", diruri))
