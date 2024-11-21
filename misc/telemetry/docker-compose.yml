@@ -46,12 +46,17 @@ services:
     entrypoint:
       - sh
       - -c
+      # Recreate gno genesis from git :(
       - |
         gnoland secrets init
-        gnoland genesis generate
-        gnoland genesis validator add -name val000 -address $(gnoland secrets get validator_key.address -raw) -pub-key $(gnoland secrets get validator_key.pub_key -raw)
-        gnoland genesis balances add -balance-sheet /gnoroot/gno.land/genesis/genesis_balances.txt
-        gnoland genesis txs add packages /gnoroot/examples/gno.land
+        rm -f /gnoroot/shared-data/node_p2p.id
+        apk add git make go linux-headers
+        git clone https://github.com/gnolang/gno.git --single-branch gnoland-src
+        GOPATH='/usr/' make -C gnoland-src/contribs/gnogenesis/
+        gnogenesis generate
+        gnogenesis validator add -name val000 -address $(gnoland secrets get validator_key.address -raw) -pub-key $(gnoland secrets get validator_key.pub_key -raw)
+        gnogenesis balances add -balance-sheet /gnoroot/gno.land/genesis/genesis_balances.txt
+        gnogenesis txs add packages /gnoroot/examples/gno.land
         gnoland config init
         gnoland config set consensus.timeout_commit 1s
         gnoland config set moniker val000
@@ -64,9 +69,9 @@ services:
     healthcheck:
       test: ["CMD-SHELL", "test -f /gnoroot/shared-data/node_p2p.id || exit 1"]
       interval: 10s
-      retries: 3
-      start_period: 5s
       timeout: 5s
+      retries: 5
+      start_period: 60s
 
   gnoland-rpc:
     image: ghcr.io/gnolang/gno/gnoland:master
