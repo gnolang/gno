@@ -2373,7 +2373,7 @@ func defineOrDecl(
 	sts := make([]Type, numNames) // static types
 	tvs := make([]TypedValue, numNames)
 
-	if numNames > 1 && len(valueExprs) == 1 {
+	if numVals == 1 && numNames > 1 {
 		parseMultipleAssignFromOneExpr(sts, tvs, store, bn, nameExprs, typeExpr, valueExprs[0])
 	} else {
 		parseAssignFromExprList(sts, tvs, store, bn, isConst, nameExprs, typeExpr, valueExprs)
