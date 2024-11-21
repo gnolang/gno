@@ -3,18 +3,19 @@ all: docker.start.prod
 docker.start.prod: # Start the production portal loop
 	docker compose -f ./docker-compose.production.yml up -d
 
-docker.start.local: # Start the portal loop
-	docker compose up -d
+docker.start: # Start the portal loop
+# docker compose up -d 
+	docker compose up -d -f docker-compose-all.yml up -d portalloopd traefik
 
 docker.stop: # Stop the portal loop
 	docker compose down
 	docker rm -f $(docker ps -aq --filter "label=the-portal-loop")
 
-docker.build: # (re)Build snapshotter image
-	docker compose build
+# docker.build: # (re)Build snapshotter image
+# 	docker compose build
 
-docker.pull: # Pull new images to update versions
-	docker compose pull
+# docker.pull: # Pull new images to update versions
+# 	docker compose pull
 
 portalloopd.bash: # Get a bash command inside of the portalloopd container
 	docker compose exec portalloopd bash
