@@ -52,7 +52,7 @@ func TestStdlibs(t *testing.T) {
 			return nil
 		})
 	}
-	// For each package with testfiles (in testPaths), call Machine.TestMemPackage.
+	// For each package with testfiles, call Machine.TestMemPackage.
 	for _, pkgPath := range pkgPaths {
 		t.Run(pkgPath, func(t *testing.T) {
 			t.Parallel()
