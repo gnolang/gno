@@ -95,7 +95,7 @@ func latestHOFItems(num int) ui.Element {
 	submissions := hof.RenderExhibWidget(num)
 
 	return ui.Element{
-		ui.H3("[Hall of Fame](/r/demo/hof)"),
+		ui.H3("[Hall of Fame](/r/leon/hof)"),
 		ui.Text(submissions),
 	}
 }
