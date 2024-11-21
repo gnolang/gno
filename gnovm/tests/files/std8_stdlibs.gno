@@ -33,7 +33,6 @@ func main() {
 //     gno.land/p/demo/testutils/misc.gno:5
 // main<VPBlock(1,1)>()
 //     main/files/std8_stdlibs.gno:21
-//
 
 // Error:
 // frame not found
