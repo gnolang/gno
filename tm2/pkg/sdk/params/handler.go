@@ -35,7 +35,6 @@ func (bh paramsHandler) Query(ctx sdk.Context, req abci.RequestQuery) (res abci.
 	res = sdk.ABCIResponseQueryFromError(
 		std.ErrUnknownRequest("unknown params query endpoint"))
 	return
-
 }
 
 // queryParam returns param for a key.

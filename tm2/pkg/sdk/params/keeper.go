@@ -164,7 +164,6 @@ func (pk ParamsKeeper) valueStoreKey(prefix string, key string) ([]byte, error) 
 
 func (pk ParamsKeeper) PrefixExist(prefix string) bool {
 	_, err := pk.prefixKeyMapper.Map(prefix)
-
 	if err != nil {
 		return false
 	}

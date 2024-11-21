@@ -122,12 +122,12 @@ func (m *mockVMKeeper) InitGenesis(ctx sdk.Context, gs vm.GenesisState) {
 	// TODO:
 }
 
-type mockBankKeeper struct {
-}
+type mockBankKeeper struct{}
 
 func (m *mockBankKeeper) InputOutputCoins(ctx sdk.Context, inputs []bank.Input, outputs []bank.Output) error {
 	return nil
 }
+
 func (m *mockBankKeeper) SendCoins(ctx sdk.Context, fromAddr crypto.Address, toAddr crypto.Address, amt std.Coins) error {
 	return nil
 }
@@ -135,9 +135,11 @@ func (m *mockBankKeeper) SendCoins(ctx sdk.Context, fromAddr crypto.Address, toA
 func (m *mockBankKeeper) SubtractCoins(ctx sdk.Context, addr crypto.Address, amt std.Coins) (std.Coins, error) {
 	return nil, nil
 }
+
 func (m *mockBankKeeper) AddCoins(ctx sdk.Context, addr crypto.Address, amt std.Coins) (std.Coins, error) {
 	return nil, nil
 }
+
 func (m *mockBankKeeper) SetCoins(ctx sdk.Context, addr crypto.Address, amt std.Coins) error {
 	return nil
 }
@@ -149,8 +151,7 @@ func (m *mockBankKeeper) HasCoins(ctx sdk.Context, addr crypto.Address, amt std.
 	return true
 }
 
-type mockAuthKeeper struct {
-}
+type mockAuthKeeper struct{}
 
 func (m *mockAuthKeeper) NewAccountWithAddress(ctx sdk.Context, addr crypto.Address) std.Account {
 	return nil
@@ -161,8 +162,7 @@ func (m *mockAuthKeeper) SetAccount(ctx sdk.Context, acc std.Account)           
 func (m *mockAuthKeeper) IterateAccounts(ctx sdk.Context, process func(std.Account) bool) {}
 func (m *mockAuthKeeper) InitGenesis(ctx sdk.Context, data auth.GenesisState)             {}
 
-type mockParamsKeeper struct {
-}
+type mockParamsKeeper struct{}
 
 func (m *mockParamsKeeper) GetString(ctx sdk.Context, key string, ptr *string) {}
 func (m *mockParamsKeeper) GetInt64(ctx sdk.Context, key string, ptr *int64)   {}
@@ -182,6 +182,7 @@ func (m *mockParamsKeeper) GetRaw(ctx sdk.Context, key string) []byte { return n
 func (m *mockParamsKeeper) GetParams(ctx sdk.Context, prefixKey string, key string, target interface{}) (bool, error) {
 	return true, nil
 }
+
 func (m *mockParamsKeeper) SetParams(ctx sdk.Context, prefixKey string, key string, params interface{}) error {
 	return nil
 }

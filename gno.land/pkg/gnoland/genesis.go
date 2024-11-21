@@ -190,6 +190,7 @@ func LoadPackage(pkg gnomod.Pkg, creator bft.Address, fee std.Fee, deposit std.C
 
 	return tx, nil
 }
+
 func DefaultGenState() GnoGenesisState {
 	gs := GnoGenesisState{
 		Balances: []Balance{},

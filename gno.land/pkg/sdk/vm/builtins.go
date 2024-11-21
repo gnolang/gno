@@ -76,6 +76,7 @@ func NewSDKParams(vmk *VMKeeper, ctx sdk.Context) *SDKParams {
 		ctx: ctx,
 	}
 }
+
 func (prm *SDKParams) SetString(key, value string) {
 	prm.assertRealmAccess()
 	prm.vmk.prmk.SetString(prm.ctx, key, value)

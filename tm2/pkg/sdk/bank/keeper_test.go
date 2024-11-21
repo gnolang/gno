@@ -136,6 +136,7 @@ func TestBankKeeper(t *testing.T) {
 	err = bank.SendCoins(ctx, addr, addr2, sdk.Coins{sdk.Coin{Denom: "FOOCOIN", Amount: -5}})
 	require.Error(t, err)
 }
+
 func TestBankKeeperWithRestrictions(t *testing.T) {
 	env := setupTestEnv()
 	ctx := env.ctx
@@ -181,7 +182,6 @@ func TestBankKeeperWithRestrictions(t *testing.T) {
 	require.NoError(t, err)
 	require.True(t, bankKeeper.GetCoins(ctx, addr).IsEqual(std.NewCoins(std.NewCoin("barcoin", 20), std.NewCoin("foocoin", 10))))
 	require.True(t, bankKeeper.GetCoins(ctx, addr2).IsEqual(std.NewCoins(std.NewCoin("barcoin", 10), std.NewCoin("foocoin", 5))))
-
 }
 
 func TestViewKeeper(t *testing.T) {
