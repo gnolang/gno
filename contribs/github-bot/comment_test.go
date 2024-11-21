@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/gnolang/gno/contribs/github-bot/utils"
+	"github.com/gnolang/gno/contribs/github-bot/internal/utils"
 	"github.com/stretchr/testify/assert"
 )
 

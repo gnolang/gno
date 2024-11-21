@@ -1,9 +1,9 @@
 package main
 
 import (
-	"github.com/gnolang/gno/contribs/github-bot/client"
-	c "github.com/gnolang/gno/contribs/github-bot/conditions"
-	r "github.com/gnolang/gno/contribs/github-bot/requirements"
+	"github.com/gnolang/gno/contribs/github-bot/internal/client"
+	c "github.com/gnolang/gno/contribs/github-bot/internal/conditions"
+	r "github.com/gnolang/gno/contribs/github-bot/internal/requirements"
 )
 
 // Automatic check that will be performed by the bot

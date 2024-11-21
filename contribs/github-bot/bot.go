@@ -8,10 +8,10 @@ import (
 	"sync"
 	"sync/atomic"
 
-	"github.com/gnolang/gno/contribs/github-bot/client"
-	"github.com/gnolang/gno/contribs/github-bot/logger"
-	p "github.com/gnolang/gno/contribs/github-bot/params"
-	"github.com/gnolang/gno/contribs/github-bot/utils"
+	"github.com/gnolang/gno/contribs/github-bot/internal/client"
+	"github.com/gnolang/gno/contribs/github-bot/internal/logger"
+	p "github.com/gnolang/gno/contribs/github-bot/internal/params"
+	"github.com/gnolang/gno/contribs/github-bot/internal/utils"
 	"github.com/google/go-github/v64/github"
 	"github.com/xlab/treeprint"
 )

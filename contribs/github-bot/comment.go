@@ -8,7 +8,7 @@ import (
 	"strings"
 	"text/template"
 
-	"github.com/gnolang/gno/contribs/github-bot/client"
+	"github.com/gnolang/gno/contribs/github-bot/internal/client"
 
 	"github.com/google/go-github/v64/github"
 	"github.com/sethvargo/go-githubactions"

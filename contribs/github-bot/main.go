@@ -4,7 +4,7 @@ import (
 	"context"
 	"os"
 
-	p "github.com/gnolang/gno/contribs/github-bot/params"
+	p "github.com/gnolang/gno/contribs/github-bot/internal/params"
 	"github.com/gnolang/gno/tm2/pkg/commands"
 )
 
