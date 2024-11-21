@@ -94,10 +94,7 @@ var DefaultFee = std.NewFee(50000, std.MustParseCoin(ugnot.ValueString(1000000))
 
 func NewDevNode(ctx context.Context, cfg *NodeConfig) (*Node, error) {
 	stdlibsDeployer := crypto.MustAddressFromString("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5") // test1, FIXME: replace
-	stdlibsTxs, err := gnoland.LoadEmbeddedStdlibs(stdlibsDeployer, DefaultFee)
-	if err != nil {
-		return nil, fmt.Errorf("generate stdlibs txs: %w", err)
-	}
+	stdlibsTxs := gnoland.LoadEmbeddedStdlibs(stdlibsDeployer, DefaultFee)
 
 	mpkgs, err := NewPackagesMap(cfg.PackagesPathList)
 	if err != nil {
@@ -277,10 +274,7 @@ func (n *Node) Reset(ctx context.Context) error {
 
 	// Load stdlibs
 	stdlibsDeployer := crypto.MustAddressFromString("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5") // test1, FIXME: replace
-	stdlibsTxs, err := gnoland.LoadEmbeddedStdlibs(stdlibsDeployer, DefaultFee)
-	if err != nil {
-		return fmt.Errorf("unable to load stdlibs: %w", err)
-	}
+	stdlibsTxs := gnoland.LoadEmbeddedStdlibs(stdlibsDeployer, DefaultFee)
 
 	// Generate a new genesis state based on the current packages
 	pkgsTxs, err := n.pkgs.Load(DefaultFee)

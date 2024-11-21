@@ -89,6 +89,7 @@ func Transpile(source, tags, filename string) (*Result, error) {
 	ctx := &transpileCtx{
 		rootDir: gnoenv.RootDir(),
 	}
+	// NOTE: this should be the only place where we get stdlibs from the filesystem
 	stdlibPrefix := filepath.Join(ctx.rootDir, "gnovm", "stdlibs")
 	if isTestFile {
 		// XXX(morgan): this disables checking that a package exists (in examples or stdlibs)

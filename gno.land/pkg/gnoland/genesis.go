@@ -189,13 +189,10 @@ func LoadPackage(pkg gnomod.Pkg, creator bft.Address, fee std.Fee, deposit std.C
 	return tx, nil
 }
 
-func LoadEmbeddedStdlibs(deployer crypto.Address, fee std.Fee) ([]TxWithMetadata, error) {
-	stdlibs, err := stdlibs.EmbeddedMemPackages()
-	if err != nil {
-		return nil, fmt.Errorf("unable to load embedded stdlibs: %w", err)
-	}
-
+func LoadEmbeddedStdlibs(deployer crypto.Address, fee std.Fee) []TxWithMetadata {
+	stdlibs := stdlibs.EmbeddedMemPackages()
 	stdlibsTxs := []TxWithMetadata{}
+
 	for _, memPkg := range stdlibs {
 		if memPkg.Path == "testing" {
 			continue
@@ -215,5 +212,5 @@ func LoadEmbeddedStdlibs(deployer crypto.Address, fee std.Fee) ([]TxWithMetadata
 		stdlibsTxs = append(stdlibsTxs, tx)
 	}
 
-	return stdlibsTxs, nil
+	return stdlibsTxs
 }

@@ -86,10 +86,7 @@ func (n *Node) MoveBy(ctx context.Context, x int) error {
 
 	// Load stdlibs
 	stdlibsDeployer := crypto.MustAddressFromString("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5") // test1, FIXME: replace
-	stdlibsTxs, err := gnoland.LoadEmbeddedStdlibs(stdlibsDeployer, DefaultFee)
-	if err != nil {
-		return fmt.Errorf("unable to load stdlibs: %w", err)
-	}
+	stdlibsTxs := gnoland.LoadEmbeddedStdlibs(stdlibsDeployer, DefaultFee)
 
 	// Load genesis packages
 	pkgsTxs, err := n.pkgs.Load(DefaultFee)

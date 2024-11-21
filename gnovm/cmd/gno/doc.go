@@ -104,7 +104,7 @@ func execDoc(cfg *docCfg, args []string, io commands.IO) error {
 	}
 
 	// select dirs from which to gather directories
-	// TODO: use embedded fs
+	// TODO: use embedded stdlibs
 	dirs := []string{filepath.Join(cfg.rootDir, "gnovm/stdlibs")}
 	res, err := doc.ResolveDocumentable(dirs, modDirs, args, cfg.unexported)
 	if res == nil {

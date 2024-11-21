@@ -221,7 +221,7 @@ func fmtFormatFileImports(cfg *fmtCfg, io commands.IO) (fmtProcessFileFunc, erro
 	}
 
 	// Load stdlibs
-	// TODO: use embedded fs
+	// TODO: use embedded stdlibs
 	stdlibs := filepath.Join(gnoroot, "gnovm", "stdlibs")
 	if err := r.LoadPackages(stdlibs, pkgHandler); err != nil {
 		return nil, fmt.Errorf("unable to load %q: %w", stdlibs, err)

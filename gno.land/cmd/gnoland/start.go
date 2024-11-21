@@ -395,10 +395,7 @@ func generateGenesisFile(genesisFile string, pk crypto.PubKey, c *startCfg) erro
 	}
 
 	// Load embedded stdlibs
-	stdlibsTxs, err := gnoland.LoadEmbeddedStdlibs(genesisDeployAddress, genesisDeployFee)
-	if err != nil {
-		return fmt.Errorf("unable to load embedded stdlibs: %w", err)
-	}
+	stdlibsTxs := gnoland.LoadEmbeddedStdlibs(genesisDeployAddress, genesisDeployFee)
 
 	// Load examples folder
 	examplesDir := filepath.Join(c.gnoRootDir, "examples")

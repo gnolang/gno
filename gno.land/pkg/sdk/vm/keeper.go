@@ -8,27 +8,21 @@ import (
 	"fmt"
 	"io"
 	"log/slog"
-	"path/filepath"
 	"regexp"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/gnolang/gno/gnovm"
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
 	"github.com/gnolang/gno/gnovm/stdlibs"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
-	"github.com/gnolang/gno/tm2/pkg/db/memdb"
 	"github.com/gnolang/gno/tm2/pkg/errors"
-	osm "github.com/gnolang/gno/tm2/pkg/os"
 	"github.com/gnolang/gno/tm2/pkg/sdk"
 	"github.com/gnolang/gno/tm2/pkg/sdk/auth"
 	"github.com/gnolang/gno/tm2/pkg/sdk/bank"
 	"github.com/gnolang/gno/tm2/pkg/sdk/params"
 	"github.com/gnolang/gno/tm2/pkg/std"
 	"github.com/gnolang/gno/tm2/pkg/store"
-	"github.com/gnolang/gno/tm2/pkg/store/dbadapter"
-	"github.com/gnolang/gno/tm2/pkg/store/types"
 	"github.com/gnolang/gno/tm2/pkg/telemetry"
 	"github.com/gnolang/gno/tm2/pkg/telemetry/metrics"
 	"go.opentelemetry.io/otel/attribute"
@@ -120,82 +114,6 @@ func (vm *VMKeeper) Initialize(
 		logger.Debug("GnoVM packages preprocessed",
 			"elapsed", time.Since(start))
 	}
-}
-
-type stdlibCache struct {
-	dir  string
-	base store.Store
-	iavl store.Store
-	gno  gno.Store
-}
-
-var (
-	cachedStdlibOnce sync.Once
-	cachedStdlib     stdlibCache
-)
-
-// LoadStdlib loads the Gno standard library into the given store.
-func (vm *VMKeeper) LoadStdlibCached(ctx sdk.Context, stdlibDir string) {
-	cachedStdlibOnce.Do(func() {
-		cachedStdlib = stdlibCache{
-			dir:  stdlibDir,
-			base: dbadapter.StoreConstructor(memdb.NewMemDB(), types.StoreOptions{}),
-			iavl: dbadapter.StoreConstructor(memdb.NewMemDB(), types.StoreOptions{}),
-		}
-
-		gs := gno.NewStore(nil, cachedStdlib.base, cachedStdlib.iavl)
-		gs.SetNativeStore(stdlibs.NativeStore)
-		loadStdlib(gs, stdlibDir)
-		cachedStdlib.gno = gs
-	})
-
-	if stdlibDir != cachedStdlib.dir {
-		panic(fmt.Sprintf(
-			"cannot load cached stdlib: cached stdlib is in dir %q; wanted to load stdlib in dir %q",
-			cachedStdlib.dir, stdlibDir))
-	}
-
-	gs := vm.getGnoTransactionStore(ctx)
-	gno.CopyFromCachedStore(gs, cachedStdlib.gno, cachedStdlib.base, cachedStdlib.iavl)
-}
-
-// LoadStdlib loads the Gno standard library into the given store.
-func (vm *VMKeeper) LoadStdlib(ctx sdk.Context, stdlibDir string) {
-	gs := vm.getGnoTransactionStore(ctx)
-	loadStdlib(gs, stdlibDir)
-}
-
-func loadStdlib(store gno.Store, stdlibDir string) {
-	stdlibInitList := stdlibs.InitOrder()
-	for _, lib := range stdlibInitList {
-		if lib == "testing" {
-			// XXX: testing is skipped for now while it uses testing-only packages
-			// like fmt and encoding/json
-			continue
-		}
-		loadStdlibPackage(lib, stdlibDir, store)
-	}
-}
-
-func loadStdlibPackage(pkgPath, stdlibDir string, store gno.Store) {
-	stdlibPath := filepath.Join(stdlibDir, pkgPath)
-	if !osm.DirExists(stdlibPath) {
-		// does not exist.
-		panic(fmt.Sprintf("failed loading stdlib %q: does not exist", pkgPath))
-	}
-	memPkg := gno.ReadMemPackage(stdlibPath, pkgPath)
-	if memPkg.IsEmpty() {
-		// no gno files are present
-		panic(fmt.Sprintf("failed loading stdlib %q: not a valid MemPackage", pkgPath))
-	}
-
-	m := gno.NewMachineWithOptions(gno.MachineOptions{
-		PkgPath: "gno.land/r/stdlibs/" + pkgPath,
-		// PkgPath: pkgPath, XXX why?
-		Store: store,
-	})
-	defer m.Release()
-	m.RunMemPackage(memPkg, true)
 }
 
 type gnoStoreContextKeyType struct{}

@@ -134,8 +134,7 @@ func LoadDefaultPackages(t TestingTS, creator bft.Address, gnoroot string) []gno
 
 	defaultFee := std.NewFee(50000, std.MustParseCoin(ugnot.ValueString(1000000)))
 
-	stdlibsTxs, err := gnoland.LoadEmbeddedStdlibs(creator, defaultFee)
-	require.NoError(t, err)
+	stdlibsTxs := gnoland.LoadEmbeddedStdlibs(creator, defaultFee)
 
 	examplesTxs, err := gnoland.LoadPackagesFromDir(examplesDir, creator, defaultFee)
 	require.NoError(t, err)

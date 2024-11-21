@@ -120,7 +120,7 @@ func WithSyncWanted(v bool) RunFileTestOption {
 }
 
 // RunFileTest executes the filetest at the given path, using rootDir as
-// the directory where to find the "stdlibs" directory.
+// the directory where to find the examples
 func RunFileTest(rootDir string, path string, opts ...RunFileTestOption) error {
 	var f runFileTestOptions
 	for _, opt := range opts {

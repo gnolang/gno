@@ -19,11 +19,16 @@ func EmbeddedSources() embed.FS {
 }
 
 // EmbeddedMemPackages returns a slice of [gnovm.MemPackage] generated from embedded stdlibs sources
-func EmbeddedMemPackages() ([]*gnovm.MemPackage, error) {
+func EmbeddedMemPackages() []*gnovm.MemPackage {
 	pkgPaths := initOrder
 	pkgs := make([]*gnovm.MemPackage, len(pkgPaths))
 	for i, pkgPath := range pkgPaths {
 		pkgs[i] = gnolang.ReadMemPackageFromFS(embeddedSources, pkgPath, pkgPath)
 	}
-	return pkgs, nil
+	return pkgs
+}
+
+// EmbeddedMemPackage returns a slice of [gnovm.MemPackage] generated from embedded stdlibs sources
+func EmbeddedMemPackage(pkgPath string) *gnovm.MemPackage {
+	return gnolang.ReadMemPackageFromFS(embeddedSources, pkgPath, pkgPath)
 }

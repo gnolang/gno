@@ -205,8 +205,7 @@ func TestInitChainer_MetadataTxs(t *testing.T) {
 		stdlibsDeployFee = std.NewFee(50000, std.NewCoin("ugnot", 1000000))
 
 		getMetadataState = func(tx std.Tx, balances []Balance) GnoGenesisState {
-			stdlibs, err := LoadEmbeddedStdlibs(balances[0].Address, stdlibsDeployFee)
-			require.NoError(t, err)
+			stdlibs := LoadEmbeddedStdlibs(balances[0].Address, stdlibsDeployFee)
 
 			return GnoGenesisState{
 				// Set the package deployment as the genesis tx
@@ -222,8 +221,7 @@ func TestInitChainer_MetadataTxs(t *testing.T) {
 		}
 
 		getNonMetadataState = func(tx std.Tx, balances []Balance) GnoGenesisState {
-			stdlibs, err := LoadEmbeddedStdlibs(balances[0].Address, stdlibsDeployFee)
-			require.NoError(t, err)
+			stdlibs := LoadEmbeddedStdlibs(balances[0].Address, stdlibsDeployFee)
 
 			return GnoGenesisState{
 				Txs: append(stdlibs, TxWithMetadata{

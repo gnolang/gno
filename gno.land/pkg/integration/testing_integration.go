@@ -187,10 +187,7 @@ func setupGnolandTestScript(t *testing.T, txtarDir string) testscript.Params {
 					defaultFee := std.NewFee(50000, std.MustParseCoin(ugnot.ValueString(1000000)))
 
 					// get stdlibs
-					stdlibsTxs, err := gnoland.LoadEmbeddedStdlibs(creator, defaultFee)
-					if err != nil {
-						ts.Fatalf("unable to load stdlibs txs: %s", err)
-					}
+					stdlibsTxs := gnoland.LoadEmbeddedStdlibs(creator, defaultFee)
 
 					// get packages
 					pkgs := ts.Value(envKeyPkgsLoader).(*pkgsLoader) // grab logger
