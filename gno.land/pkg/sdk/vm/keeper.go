@@ -15,6 +15,7 @@ import (
 	"time"
 
 	"github.com/gnolang/gno/gnovm"
+	"github.com/gnolang/gno/gnovm/pkg/gnolang"
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
 	"github.com/gnolang/gno/gnovm/stdlibs"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
@@ -230,6 +231,11 @@ const sysUsersPkgParamPath = "gno.land/r/sys/params.sys.users_pkgpath.string"
 
 // checkNamespacePermission check if the user as given has correct permssion to on the given pkg path
 func (vm *VMKeeper) checkNamespacePermission(ctx sdk.Context, creator crypto.Address, pkgPath string) error {
+	// disable check during genesis for stdlibs. TODO: MsgAddStdlib?
+	if ctx.BlockHeight() == 0 && gnolang.IsStdlib(pkgPath) {
+		return nil
+	}
+
 	var sysUsersPkg string
 	vm.prmk.GetString(ctx, sysUsersPkgParamPath, &sysUsersPkg)
 	if sysUsersPkg == "" {
