@@ -182,18 +182,17 @@ func setupGnolandTestScript(t *testing.T, txtarDir string) testscript.Params {
 						ts.Fatalf("unable to parse `gnoland start` flags: %s", err)
 					}
 
+					creator := crypto.MustAddressFromString(DefaultAccount_Address) // test1
+					defaultFee := std.NewFee(50000, std.MustParseCoin(ugnot.ValueString(1000000)))
+
 					// get stdlibs
-					stdlibsDeployer := crypto.MustAddressFromString(DefaultAccount_Address)
-					stdlibsFee := std.NewFee(50000, std.MustParseCoin(ugnot.ValueString(1000000)))
-					stdlibsTxs, err := stdgenesis.EmbeddedStdlibsGenesisTxs(stdlibsDeployer, stdlibsFee)
+					stdlibsTxs, err := stdgenesis.EmbeddedStdlibsGenesisTxs(creator, defaultFee)
 					if err != nil {
 						ts.Fatalf("unable to load stdlibs txs: %s", err)
 					}
 
 					// get packages
-					pkgs := ts.Value(envKeyPkgsLoader).(*pkgsLoader)                // grab logger
-					creator := crypto.MustAddressFromString(DefaultAccount_Address) // test1
-					defaultFee := std.NewFee(50000, std.MustParseCoin(ugnot.ValueString(1000000)))
+					pkgs := ts.Value(envKeyPkgsLoader).(*pkgsLoader) // grab logger
 					pkgsTxs, err := pkgs.LoadPackages(creator, defaultFee, nil)
 					if err != nil {
 						ts.Fatalf("unable to load packages txs: %s", err)
