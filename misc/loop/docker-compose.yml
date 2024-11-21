@@ -82,7 +82,8 @@ services:
       - 9090:9090
     environment:
       HOST_PWD: $PWD
-      BACKUP_DIR: "/backups"
+      SNAPSHOTS_DIR: "/backups/snapshots"
+      MASTER_BACKUP_FILE: "/backups/backup.jsonl"
       RPC_URL: "http://traefik:26657"
       PROM_ADDR: "0.0.0.0:9090"
       TRAEFIK_GNO_FILE: "/etc/traefik/configs/gno.yml"

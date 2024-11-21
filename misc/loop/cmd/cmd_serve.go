@@ -16,8 +16,10 @@ import (
 type serveCfg struct {
 	rpcAddr        string
 	traefikGnoFile string
-	backupDir      string
 	hostPWD        string
+
+	masterBackupFile string
+	snapshotsDir     string
 }
 
 func (c *serveCfg) RegisterFlags(fs *flag.FlagSet) {
@@ -25,8 +27,8 @@ func (c *serveCfg) RegisterFlags(fs *flag.FlagSet) {
 		os.Setenv("HOST_PWD", os.Getenv("PWD"))
 	}
 
-	if os.Getenv("BACKUP_DIR") == "" {
-		os.Setenv("BACKUP_DIR", "./backups")
+	if os.Getenv("SNAPSHOTS_DIR") == "" {
+		os.Setenv("SNAPSHOTS_DIR", "./backups/snapshots")
 	}
 
 	if os.Getenv("RPC_URL") == "" {
@@ -41,13 +43,18 @@ func (c *serveCfg) RegisterFlags(fs *flag.FlagSet) {
 		os.Setenv("TRAEFIK_GNO_FILE", "./traefik/gno.yml")
 	}
 
+	if os.Getenv("MASTER_BACKUP_FILE") == "" {
+		os.Setenv("MASTER_BACKUP_FILE", "./backups/backup.jsonl")
+	}
+
 	fs.StringVar(&c.rpcAddr, "rpc", os.Getenv("RPC_URL"), "tendermint rpc url")
 	fs.StringVar(&c.traefikGnoFile, "traefik-gno-file", os.Getenv("TRAEFIK_GNO_FILE"), "traefik gno file")
-	fs.StringVar(&c.backupDir, "backup-dir", os.Getenv("BACKUP_DIR"), "backup directory")
+	fs.StringVar(&c.snapshotsDir, "snapshots-dir", os.Getenv("SNAPSHOTS_DIR"), "snapshots directory")
 	fs.StringVar(&c.hostPWD, "pwd", os.Getenv("HOST_PWD"), "host pwd (for docker usage)")
+	fs.StringVar(&c.masterBackupFile, "master-backup-file", os.Getenv("MASTER_BACKUP_FILE"), "master txs backup file path")
 }
 
-func newServeCmd(io commands.IO) *commands.Command {
+func newServeCmd(_ commands.IO) *commands.Command {
 	cfg := &serveCfg{}
 
 	return commands.NewCommand(
@@ -89,10 +96,11 @@ func execServe(ctx context.Context, cfg *serveCfg, args []string) error {
 	// the loop
 	for {
 		portalLoop, err = NewSnapshotter(dockerClient, config{
-			backupDir:      cfg.backupDir,
-			rpcAddr:        cfg.rpcAddr,
-			hostPWD:        cfg.hostPWD,
-			traefikGnoFile: cfg.traefikGnoFile,
+			snapshotsDir:     cfg.snapshotsDir,
+			masterBackupFile: cfg.masterBackupFile,
+			rpcAddr:          cfg.rpcAddr,
+			hostPWD:          cfg.hostPWD,
+			traefikGnoFile:   cfg.traefikGnoFile,
 		})
 		if err != nil {
 			return err
