@@ -1,7 +1,7 @@
 package home
 
 import (
-	"gno.land/r/demo/hof"
+	"gno.land/r/leon/hof"
 	"gno.land/r/manfred/config"
 )
 
