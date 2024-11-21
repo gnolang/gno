@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
-	"os"
 	"regexp"
 	"strings"
 	"text/template"
@@ -17,6 +16,18 @@ import (
 
 var errTriggeredByBot = errors.New("event triggered by bot")
 
+// Compile regex only once
+var (
+	// Regex for capturing the entire line of a manual check
+	manualCheckLine = regexp.MustCompile(`(?m:^- \[([ x])\] (.+)?$)`)
+	// Regex for capturing only the user who checked it
+	manualCheckDetails = regexp.MustCompile(`(?m:(.+) \(checked by @(\w+)\)$)`)
+	// Regex for capturing only the checkboxes
+	checkboxes = regexp.MustCompile(`(?m:^- \[[ x]\])`)
+	// Regex used to capture markdown links
+	markdownLink = regexp.MustCompile(`\[(.*)\]\(.*\)`)
+)
+
 // These structures contain the necessary information to generate
 // the bot's comment from the template file
 type AutoContent struct {
@@ -27,8 +38,8 @@ type AutoContent struct {
 }
 type ManualContent struct {
 	Description      string
-	ConditionDetails string
 	CheckedBy        string
+	ConditionDetails string
 	Teams            []string
 }
 type CommentContent struct {
@@ -42,16 +53,21 @@ type CommentContent struct {
 func getCommentManualChecks(commentBody string) map[string][2]string {
 	checks := make(map[string][2]string)
 
-	reg := regexp.MustCompile(`(?m:^- \[([ x])\] (.+)?$)`)
-	subReg := regexp.MustCompile(`(?m:(.+) \(checked by @(\w+)\)$)`)
-	matches := reg.FindAllStringSubmatch(commentBody, -1)
-
-	for _, match := range matches {
-		if subMatches := subReg.FindAllStringSubmatch(match[2], -1); len(subMatches) > 0 {
-			checks[subMatches[0][1]] = [2]string{match[1], subMatches[0][2]}
-		} else {
-			checks[match[2]] = [2]string{match[1]}
+	// For each line that matches the "Manual check" regex
+	for _, match := range manualCheckLine.FindAllStringSubmatch(commentBody, -1) {
+		status := match[1]
+		// Try to capture an occurence of : (checked by @user)
+		if details := manualCheckDetails.FindAllStringSubmatch(match[2], -1); len(details) > 0 {
+			// If found, set both the status and the user that checked the box
+			description := details[0][1]
+			checkedBy := details[0][2]
+			checks[description] = [2]string{status, checkedBy}
+			continue
 		}
+
+		// If not found, set only the status of the box
+		description := match[2]
+		checks[description] = [2]string{status}
 	}
 
 	return checks
@@ -152,7 +168,6 @@ func handleCommentUpdate(gh *client.GitHub) error {
 	}
 
 	// Check if change is only a checkbox being checked or unckecked
-	checkboxes := regexp.MustCompile(`(?m:^- \[[ x]\])`)
 	if checkboxes.ReplaceAllString(current, "") != checkboxes.ReplaceAllString(previous, "") {
 		// If not, restore previous comment body
 		if !gh.DryRun {
@@ -166,45 +181,50 @@ func handleCommentUpdate(gh *client.GitHub) error {
 	previousChecks := getCommentManualChecks(previous)
 	edited := ""
 	for key := range currentChecks {
-		if currentChecks[key][0] != previousChecks[key][0] {
-			// Get teams allowed to edit this box from config
-			var teams []string
-			found := false
-			_, manualRules := config(gh)
+		// If there is no diff for this check, ignore it
+		if currentChecks[key][0] == previousChecks[key][0] {
+			continue
+		}
 
-			for _, manualRule := range manualRules {
-				if manualRule.Description == key {
-					found = true
-					teams = manualRule.Teams
+		// Get teams allowed to edit this box from config
+		var teams []string
+		found := false
+		_, manualRules := config(gh)
+
+		for _, manualRule := range manualRules {
+			if manualRule.Description == key {
+				found = true
+				teams = manualRule.Teams
+			}
+		}
+
+		// If rule were not found, return to reprocess the bot comment entirely
+		// (maybe bot config was updated since last run?)
+		if !found {
+			gh.Logger.Debugf("Updated rule not found in config: %s", key)
+			return nil
+		}
+
+		// If teams specified in rule, check if actor is a member of one of them
+		if len(teams) > 0 {
+			if gh.IsUserInTeams(actionCtx.Actor, teams) {
+				if !gh.DryRun {
+					gh.SetBotComment(previous, int(num))
 				}
+				return errors.New("checkbox edited by a user not allowed to")
 			}
+		}
 
-			// If rule were not found, return to reprocess the bot comment entirely
-			// (maybe bot config was updated since last run?)
-			if !found {
-				gh.Logger.Debugf("Updated rule not found in config: %s", key)
-				return nil
-			}
+		// This regex capture only the line of the current check
+		specificManualCheck := regexp.MustCompile(fmt.Sprintf(`(?m:^- \[%s\] %s.*$)`, currentChecks[key][0], key))
 
-			// If teams specified in rule, check if actor is a member of one of them
-			if len(teams) > 0 {
-				if gh.IsUserInTeams(actionCtx.Actor, teams) {
-					if !gh.DryRun {
-						gh.SetBotComment(previous, int(num))
-					}
-					return errors.New("checkbox edited by a user not allowed to")
-				}
-			}
-
-			// If box was checked
-			reg := regexp.MustCompile(fmt.Sprintf(`(?m:^- \[%s\] %s.*$)`, currentChecks[key][0], key))
-			if strings.TrimSpace(currentChecks[key][0]) == "x" {
-				replacement := fmt.Sprintf("- [%s] %s (checked by @%s)", currentChecks[key][0], key, actionCtx.Actor)
-				edited = reg.ReplaceAllString(current, replacement)
-			} else {
-				replacement := fmt.Sprintf("- [%s] %s", currentChecks[key][0], key)
-				edited = reg.ReplaceAllString(current, replacement)
-			}
+		// If the box is checked, append the username of the user who checked it
+		if strings.TrimSpace(currentChecks[key][0]) == "x" {
+			replacement := fmt.Sprintf("- [%s] %s (checked by @%s)", currentChecks[key][0], key, actionCtx.Actor)
+			edited = specificManualCheck.ReplaceAllString(current, replacement)
+		} else { // Else, remove the username of the user
+			replacement := fmt.Sprintf("- [%s] %s", currentChecks[key][0], key)
+			edited = specificManualCheck.ReplaceAllString(current, replacement)
 		}
 	}
 
@@ -217,28 +237,39 @@ func handleCommentUpdate(gh *client.GitHub) error {
 	return nil
 }
 
-func updateComment(gh *client.GitHub, pr *github.PullRequest, content CommentContent) {
-	// Custom function to string markdown links
+// generateComment generates a comment using the template file and the
+// content passed as parameter
+func generateComment(content CommentContent) string {
+	// Custom function to strip markdown links
 	funcMap := template.FuncMap{
 		"stripLinks": func(input string) string {
-			reg := regexp.MustCompile(`\[(.*)\]\(.*\)`)
-			return reg.ReplaceAllString(input, "$1")
+			return markdownLink.ReplaceAllString(input, "$1")
 		},
 	}
 
-	// Generate bot comment using template file
+	// Bind markdown stripping function to template generator
 	const tmplFile = "comment.tmpl"
 	tmpl, err := template.New(tmplFile).Funcs(funcMap).ParseFiles(tmplFile)
 	if err != nil {
-		panic(err)
+		panic(err) // Should never happen
 	}
 
+	// Generate bot comment using template file
 	var commentBytes bytes.Buffer
 	if err := tmpl.Execute(&commentBytes, content); err != nil {
-		panic(err)
+		panic(err) // Should never happen
 	}
 
-	comment := gh.SetBotComment(commentBytes.String(), pr.GetNumber())
+	return commentBytes.String()
+}
+
+// updatePullRequest updates or creates both the bot comment and the commit status
+func updatePullRequest(gh *client.GitHub, pr *github.PullRequest, content CommentContent) {
+	// Generate comment text content
+	commentText := generateComment(content)
+
+	// Update comment on pull request
+	comment := gh.SetBotComment(commentText, pr.GetNumber())
 	if comment != nil {
 		gh.Logger.Infof("Comment successfully updated on PR %d", pr.GetNumber())
 	}

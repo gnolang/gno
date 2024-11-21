@@ -7,7 +7,7 @@ These requirements are defined in this [configuration file](https://github.com/G
 
 ## Automated Checks
 
-{{ range .AutoRules }} {{ if .Satisfied }}🟢{{ else }}🟠{{ end }} {{ .Description }}
+{{ range .AutoRules }} {{ if .Satisfied }}🟢{{ else }}🔴{{ end }} {{ .Description }}
 {{ end }}
 
 {{ if .AutoRules }}<details><summary><b>Details</b></summary><blockquote>

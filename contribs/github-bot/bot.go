@@ -149,7 +149,7 @@ func execBot(params *p.Params) error {
 				logResults(gh.Logger, pr.GetNumber(), commentContent)
 				logMutex.Unlock()
 			} else {
-				updateComment(gh, pr, commentContent)
+				updatePullRequest(gh, pr, commentContent)
 			}
 		}(pr)
 	}
