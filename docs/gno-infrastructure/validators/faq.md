@@ -8,7 +8,7 @@ id: validators-faq
 
 ### What is a gno.land validator?
 
-Gno.land is based on [Tendermint2](https://docs.gno.land/concepts/tendermint2) that relies on a set of validators
+gno.land is based on [Tendermint2](https://docs.gno.land/concepts/tendermint2) that relies on a set of validators
 selected based on [Proof of Contribution](https://docs.gno.land/concepts/proof-of-contribution) (PoC) to secure the
 network. Validators are tasked with participating in consensus by committing new blocks and broadcasting votes.
 Validators are compensated with a portion of transaction fees generated in the network. In gno.land, the voting power of
@@ -45,7 +45,7 @@ network.
 
 ### What stage is the gno.land project in?
 
-Gno.land is currently in Testnet 3, the single-node testnet stage. The next version, Testnet 4, is scheduled to go live
+gno.land is currently in Testnet 3, the single-node testnet stage. The next version, Testnet 4, is scheduled to go live
 in Q3 2024, which will include a validator set implementation for a multinode environment.
 
 ## Becoming a Validator
@@ -69,11 +69,11 @@ validators for their work. All validators fairly receive an equal amount of rewa
 
 The exact plans for mainnet are still TBD. Based on the latest discussions between contributors, the mainnet will likely
 have an inital validator set size of 20~50, which will gradually scale with the development and decentralization of the
-Gno.land project.
+gno.land project.
 
 ### How do I make my first contribution?
 
-Gno.land is in active development and external contributions are always welcome! If you’re looking for tasks to begin
+gno.land is in active development and external contributions are always welcome! If you’re looking for tasks to begin
 with, we suggest you visit
 the [Bounties &](https://github.com/orgs/gnolang/projects/35/views/3) [Worx](https://github.com/orgs/gnolang/projects/35/views/3)
 board and search for open tasks up for grabs. Start from small challenges and work your way up to the bigger ones. Every
@@ -103,41 +103,6 @@ post-verification. Pruned nodes are less resource intensive in terms of storage 
 either a full node or a pruned node, it is important to retain enough blocks to be able to validate new blocks.
 
 ## Technical References
-
-### How do I generate `genesis.json`?
-
-`genesis.json` is the file that is used to create the initial state of the chain. To generate `genesis.json`, use
-the `gnoland genesis generate` command. Refer
-to [this section](../../gno-tooling/cli/gnoland.md#gnoland-genesis-generate-flags) for various flags that allow you to
-manipulate the file.
-
-:::warning
-
-Editing generated genesis.json manually is extremely dangerous. It may corrupt chain initial state which leads chain to
-not start
-
-:::
-
-### How do I add or remove validators from `genesis.json`?
-
-Validators inside `genesis.json` will be included in the validator set at genesis. To manipulate the genesis validator
-set, use the `gnoland genesis validator` command with the `add` or `remove` subcommands. Refer
-to [this section](../../gno-tooling/cli/gnoland.md#gnoland-genesis-validator-flags) for flags that allow you to
-configure the name or the voting power of the validator.
-
-### How do I add the balance information to the `genesis.json`?
-
-You may premine coins to various addresses. To modify the balances of addresses at genesis, use
-the `gnoland genesis balances` command with the `add` or `remove` subcommands. Refer
-to [this section](../../gno-tooling/cli/gnoland.md#gnoland-genesis-balances-add-flags) for various flags that allow you
-to update the entire balance sheet with a file or modify the balance of a single address.
-
-:::info
-
-Not only `ugnot`, but other coins are accepted. However, be aware that coins other than `ugnot` may not work(send, and
-etc.) properly.
-
-:::
 
 ### How do I initialize `gno secrets`?
 
