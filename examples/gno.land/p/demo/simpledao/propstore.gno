@@ -1,7 +1,6 @@
 package simpledao
 
 import (
-	"bytes"
 	"errors"
 	"std"
 	"strings"
@@ -70,9 +69,8 @@ func (p *proposal) Render() string {
 	// Fetch the voting stats
 	stats := p.Stats()
 
-	var out bytes.Buffer
+	var out strings.Builder
 
-	out.WriteString("## Description\n\n")
 	if strings.TrimSpace(p.description) != "" {
 		out.WriteString(ufmt.Sprintf("%s\n\n", p.description))
 	} else {

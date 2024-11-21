@@ -50,8 +50,6 @@ func main() {
 // --
 // # Proposal #0 - Setting prop1.string param
 //
-// ## Description
-//
 // setting prop1.string param
 //
 // ## Proposal information
@@ -77,8 +75,6 @@ func main() {
 // --
 // --
 // # Proposal #0 - Setting prop1.string param
-//
-// ## Description
 //
 // setting prop1.string param
 //
@@ -107,8 +103,6 @@ func main() {
 // --
 // --
 // # Proposal #0 - Setting prop1.string param
-//
-// ## Description
 //
 // setting prop1.string param
 //

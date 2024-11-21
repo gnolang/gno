@@ -12,7 +12,7 @@ import (
 )
 
 func Render(path string) string {
-	var out bytes.Buffer
+	var out strings.Builder
 
 	if path == "" {
 		out.WriteString("# GovDAO Proposals\n\n")
@@ -77,7 +77,7 @@ func Render(path string) string {
 }
 
 func renderPropPage(prop dao.Proposal, idx int) string {
-	var out bytes.Buffer
+	var out strings.Builder
 
 	out.WriteString(ufmt.Sprintf("# Proposal #%d - %s\n\n", idx, prop.Title()))
 	out.WriteString(prop.Render())
@@ -89,7 +89,7 @@ func renderPropPage(prop dao.Proposal, idx int) string {
 }
 
 func renderAuthor(p dao.Proposal) string {
-	var out bytes.Buffer
+	var out strings.Builder
 
 	authorUsername := ""
 	user := users.GetUserByAddress(p.Author())

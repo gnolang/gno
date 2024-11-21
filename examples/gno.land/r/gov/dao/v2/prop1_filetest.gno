@@ -87,8 +87,6 @@ func main() {
 // --
 // # Proposal #0 - Valset change
 //
-// ## Description
-//
 // manual valset changes proposal example
 //
 // ## Proposal information
@@ -114,8 +112,6 @@ func main() {
 // --
 // --
 // # Proposal #0 - Valset change
-//
-// ## Description
 //
 // manual valset changes proposal example
 //
@@ -146,8 +142,6 @@ func main() {
 // --
 // --
 // # Proposal #0 - Valset change
-//
-// ## Description
 //
 // manual valset changes proposal example
 //
