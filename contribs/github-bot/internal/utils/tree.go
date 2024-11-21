@@ -6,16 +6,18 @@ import (
 	"github.com/xlab/treeprint"
 )
 
+type Status string
+
 const (
-	StatusSuccess = "🟢"
-	StatusFail    = "🔴"
+	Success Status = "🟢"
+	Fail    Status = "🔴"
 )
 
 func AddStatusNode(b bool, desc string, details treeprint.Tree) bool {
 	if b {
-		details.AddNode(fmt.Sprintf("%s %s", StatusSuccess, desc))
+		details.AddNode(fmt.Sprintf("%s %s", Success, desc))
 	} else {
-		details.AddNode(fmt.Sprintf("%s %s", StatusFail, desc))
+		details.AddNode(fmt.Sprintf("%s %s", Fail, desc))
 	}
 
 	return b

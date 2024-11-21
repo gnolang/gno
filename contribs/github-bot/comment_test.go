@@ -13,8 +13,8 @@ import (
 func TestGeneratedComment(t *testing.T) {
 	t.Parallel()
 
-	autoCheckSuccessLine := regexp.MustCompile(fmt.Sprintf(`(?m:^ %s .+$)`, utils.StatusSuccess))
-	autoCheckFailLine := regexp.MustCompile(fmt.Sprintf(`(?m:^ %s .+$)`, utils.StatusFail))
+	autoCheckSuccessLine := regexp.MustCompile(fmt.Sprintf(`(?m:^ %s .+$)`, utils.Success))
+	autoCheckFailLine := regexp.MustCompile(fmt.Sprintf(`(?m:^ %s .+$)`, utils.Fail))
 
 	content := CommentContent{}
 	autoRules := []AutoContent{

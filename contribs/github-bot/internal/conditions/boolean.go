@@ -17,24 +17,20 @@ type and struct {
 var _ Condition = &and{}
 
 func (a *and) IsMet(pr *github.PullRequest, details treeprint.Tree) bool {
-	met := true
+	met := utils.Success
 	branch := details.AddBranch("")
 
 	for _, condition := range a.conditions {
 		if !condition.IsMet(pr, branch) {
-			met = false
+			met = utils.Fail
 			// We don't break here because we need to call IsMet on all conditions
 			// to populate the details tree
 		}
 	}
 
-	if met {
-		branch.SetValue(fmt.Sprintf("%s And", utils.StatusSuccess))
-	} else {
-		branch.SetValue(fmt.Sprintf("%s And", utils.StatusFail))
-	}
+	branch.SetValue(fmt.Sprintf("%s And", met))
 
-	return met
+	return (met == utils.Success)
 }
 
 func And(conditions ...Condition) Condition {
@@ -53,24 +49,20 @@ type or struct {
 var _ Condition = &or{}
 
 func (o *or) IsMet(pr *github.PullRequest, details treeprint.Tree) bool {
-	met := false
+	met := utils.Fail
 	branch := details.AddBranch("")
 
 	for _, condition := range o.conditions {
 		if condition.IsMet(pr, branch) {
-			met = true
+			met = utils.Success
 			// We don't break here because we need to call IsMet on all conditions
 			// to populate the details tree
 		}
 	}
 
-	if met {
-		branch.SetValue(fmt.Sprintf("%s Or", utils.StatusSuccess))
-	} else {
-		branch.SetValue(fmt.Sprintf("%s Or", utils.StatusFail))
-	}
+	branch.SetValue(fmt.Sprintf("%s Or", met))
 
-	return met
+	return (met == utils.Success)
 }
 
 func Or(conditions ...Condition) Condition {
@@ -93,9 +85,9 @@ func (n *not) IsMet(pr *github.PullRequest, details treeprint.Tree) bool {
 	node := details.FindLastNode()
 
 	if met {
-		node.SetValue(fmt.Sprintf("%s Not (%s)", utils.StatusFail, node.(*treeprint.Node).Value.(string)))
+		node.SetValue(fmt.Sprintf("%s Not (%s)", utils.Fail, node.(*treeprint.Node).Value.(string)))
 	} else {
-		node.SetValue(fmt.Sprintf("%s Not (%s)", utils.StatusSuccess, node.(*treeprint.Node).Value.(string)))
+		node.SetValue(fmt.Sprintf("%s Not (%s)", utils.Success, node.(*treeprint.Node).Value.(string)))
 	}
 
 	return !met

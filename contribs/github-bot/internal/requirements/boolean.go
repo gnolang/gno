@@ -17,24 +17,20 @@ type and struct {
 var _ Requirement = &and{}
 
 func (a *and) IsSatisfied(pr *github.PullRequest, details treeprint.Tree) bool {
-	satisfied := true
+	satisfied := utils.Success
 	branch := details.AddBranch("")
 
 	for _, requirement := range a.requirements {
 		if !requirement.IsSatisfied(pr, branch) {
-			satisfied = false
+			satisfied = utils.Fail
 			// We don't break here because we need to call IsSatisfied on all
 			// requirements to populate the details tree
 		}
 	}
 
-	if satisfied {
-		branch.SetValue(fmt.Sprintf("%s And", utils.StatusSuccess))
-	} else {
-		branch.SetValue(fmt.Sprintf("%s And", utils.StatusFail))
-	}
+	branch.SetValue(fmt.Sprintf("%s And", satisfied))
 
-	return satisfied
+	return (satisfied == utils.Success)
 }
 
 func And(requirements ...Requirement) Requirement {
@@ -53,24 +49,20 @@ type or struct {
 var _ Requirement = &or{}
 
 func (o *or) IsSatisfied(pr *github.PullRequest, details treeprint.Tree) bool {
-	satisfied := false
+	satisfied := utils.Fail
 	branch := details.AddBranch("")
 
 	for _, requirement := range o.requirements {
 		if requirement.IsSatisfied(pr, branch) {
-			satisfied = true
+			satisfied = utils.Success
 			// We don't break here because we need to call IsSatisfied on all
 			// requirements to populate the details tree
 		}
 	}
 
-	if satisfied {
-		branch.SetValue(fmt.Sprintf("%s Or", utils.StatusSuccess))
-	} else {
-		branch.SetValue(fmt.Sprintf("%s Or", utils.StatusFail))
-	}
+	branch.SetValue(fmt.Sprintf("%s Or", satisfied))
 
-	return satisfied
+	return (satisfied == utils.Success)
 }
 
 func Or(requirements ...Requirement) Requirement {
@@ -93,9 +85,9 @@ func (n *not) IsSatisfied(pr *github.PullRequest, details treeprint.Tree) bool {
 	node := details.FindLastNode()
 
 	if satisfied {
-		node.SetValue(fmt.Sprintf("%s Not (%s)", utils.StatusFail, node.(*treeprint.Node).Value.(string)))
+		node.SetValue(fmt.Sprintf("%s Not (%s)", utils.Fail, node.(*treeprint.Node).Value.(string)))
 	} else {
-		node.SetValue(fmt.Sprintf("%s Not (%s)", utils.StatusSuccess, node.(*treeprint.Node).Value.(string)))
+		node.SetValue(fmt.Sprintf("%s Not (%s)", utils.Success, node.(*treeprint.Node).Value.(string)))
 	}
 
 	return !satisfied

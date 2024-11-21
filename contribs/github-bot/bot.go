@@ -95,7 +95,7 @@ func execBot(params *p.Params) error {
 
 			// Iterate over all automatic rules in config
 			for _, autoRule := range autoRules {
-				ifDetails := treeprint.NewWithRoot(fmt.Sprintf("%s Condition met", utils.StatusSuccess))
+				ifDetails := treeprint.NewWithRoot(fmt.Sprintf("%s Condition met", utils.Success))
 
 				// Check if conditions of this rule are met by this PR
 				if !autoRule.ifC.IsMet(pr, ifDetails) {
@@ -103,11 +103,11 @@ func execBot(params *p.Params) error {
 				}
 
 				c := AutoContent{Description: autoRule.description, Satisfied: false}
-				thenDetails := treeprint.NewWithRoot(fmt.Sprintf("%s Requirement not satisfied", utils.StatusFail))
+				thenDetails := treeprint.NewWithRoot(fmt.Sprintf("%s Requirement not satisfied", utils.Fail))
 
 				// Check if requirements of this rule are satisfied by this PR
 				if autoRule.thenR.IsSatisfied(pr, thenDetails) {
-					thenDetails.SetValue(fmt.Sprintf("%s Requirement satisfied", utils.StatusSuccess))
+					thenDetails.SetValue(fmt.Sprintf("%s Requirement satisfied", utils.Success))
 					c.Satisfied = true
 				} else {
 					commentContent.allSatisfied = false
@@ -126,7 +126,7 @@ func execBot(params *p.Params) error {
 
 			// Iterate over all manual rules in config
 			for _, manualRule := range manualRules {
-				ifDetails := treeprint.NewWithRoot(fmt.Sprintf("%s Condition met", utils.StatusSuccess))
+				ifDetails := treeprint.NewWithRoot(fmt.Sprintf("%s Condition met", utils.Success))
 
 				// Check if conditions of this rule are met by this PR
 				if !manualRule.ifC.IsMet(pr, ifDetails) {
@@ -186,9 +186,9 @@ func logResults(logger logger.Logger, prNum int, commentContent CommentContent) 
 	}
 
 	for _, rule := range commentContent.AutoRules {
-		status := utils.StatusFail
+		status := utils.Fail
 		if rule.Satisfied {
-			status = utils.StatusSuccess
+			status = utils.Success
 		}
 		logger.Infof("%s %s", status, rule.Description)
 		logger.Debugf("If:\n%s", rule.ConditionDetails)
@@ -200,10 +200,10 @@ func logResults(logger logger.Logger, prNum int, commentContent CommentContent) 
 	}
 
 	for _, rule := range commentContent.ManualRules {
-		status := utils.StatusFail
+		status := utils.Fail
 		checker := "any user with comment edit permission"
 		if rule.CheckedBy != "" {
-			status = utils.StatusSuccess
+			status = utils.Success
 		}
 		if len(rule.Teams) == 0 {
 			checker = fmt.Sprintf("a member of one of these teams: %s", strings.Join(rule.Teams, ", "))
@@ -215,8 +215,8 @@ func logResults(logger logger.Logger, prNum int, commentContent CommentContent) 
 
 	logger.Infof("Conclusion:")
 	if commentContent.allSatisfied {
-		logger.Infof("%s All requirements are satisfied\n", utils.StatusSuccess)
+		logger.Infof("%s All requirements are satisfied\n", utils.Success)
 	} else {
-		logger.Infof("%s Not all requirements are satisfied\n", utils.StatusFail)
+		logger.Infof("%s Not all requirements are satisfied\n", utils.Fail)
 	}
 }
