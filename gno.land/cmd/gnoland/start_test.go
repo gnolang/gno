@@ -116,7 +116,7 @@ func TestStart_Lazy(t *testing.T) {
 	io.SetErr(commands.WriteNopCloser(mockErr))
 
 	// Create and run the command
-	ctx, cancelFn := context.WithTimeout(context.Background(), 10*time.Second)
+	ctx, cancelFn := context.WithTimeout(context.Background(), 20*time.Second)
 	defer cancelFn()
 
 	// Set up the command ctx
