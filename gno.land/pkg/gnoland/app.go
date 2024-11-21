@@ -89,9 +89,14 @@ func NewAppWithOptions(cfg *AppOptions) (abci.Application, error) {
 	baseApp.MountStoreWithDB(baseKey, dbadapter.StoreConstructor, cfg.DB)
 
 	// Construct keepers.
+
+	km := params.NewPrefixKeyMapper()
+	km.RegisterPrefix(auth.ParamsPrefixKey)
+	km.RegisterPrefix(bank.ParamsPrefixKey)
+	km.RegisterPrefix(vm.ParamsPrefixKey)
+	paramsKpr := params.NewParamsKeeper(mainKey, km)
 	acctKpr := auth.NewAccountKeeper(mainKey, ProtoGnoAccount)
-	bankKpr := bank.NewBankKeeper(acctKpr)
-	paramsKpr := params.NewParamsKeeper(mainKey, "vm")
+	bankKpr := bank.NewBankKeeper(acctKpr, paramsKpr)
 	vmk := vm.NewVMKeeper(baseKey, mainKey, acctKpr, bankKpr, paramsKpr)
 	vmk.Output = cfg.VMOutput
 
@@ -293,7 +298,7 @@ func (cfg InitChainerConfig) loadAppState(ctx sdk.Context, appState any) ([]abci
 	if !ok {
 		return nil, fmt.Errorf("invalid AppState of type %T", appState)
 	}
-
+	cfg.bankKpr.InitGenesis(ctx, state.Bank)
 	// Apply genesis balances.
 	for _, bal := range state.Balances {
 		acc := cfg.acctKpr.NewAccountWithAddress(ctx, bal.Address)
@@ -303,11 +308,10 @@ func (cfg InitChainerConfig) loadAppState(ctx sdk.Context, appState any) ([]abci
 			panic(err)
 		}
 	}
-
-	// Apply genesis params.
-	for _, param := range state.Params {
-		param.register(ctx, cfg.paramsKpr)
-	}
+	// The account keeper's initial genesis state must be set after genesis areccounts are created.
+	// We need to set genesis account status in account keeper.
+	cfg.acctKpr.InitGenesis(ctx, state.Auth)
+	cfg.vmKpr.InitGenesis(ctx, state.VM)
 
 	// Replay genesis txs.
 	txResponses := make([]abci.ResponseDeliverTx, 0, len(state.Txs))

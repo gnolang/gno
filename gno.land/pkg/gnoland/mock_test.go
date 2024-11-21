@@ -4,10 +4,15 @@ import (
 	"log/slog"
 
 	"github.com/gnolang/gno/gno.land/pkg/sdk/vm"
+	"github.com/gnolang/gno/tm2/pkg/crypto"
 	"github.com/gnolang/gno/tm2/pkg/events"
 	"github.com/gnolang/gno/tm2/pkg/log"
 	"github.com/gnolang/gno/tm2/pkg/sdk"
+	"github.com/gnolang/gno/tm2/pkg/sdk/auth"
+	"github.com/gnolang/gno/tm2/pkg/sdk/bank"
+
 	"github.com/gnolang/gno/tm2/pkg/service"
+	"github.com/gnolang/gno/tm2/pkg/std"
 )
 
 type (
@@ -111,6 +116,74 @@ func (m *mockVMKeeper) CommitGnoTransactionStore(ctx sdk.Context) {
 	if m.commitGnoTransactionStoreFn != nil {
 		m.commitGnoTransactionStoreFn(ctx)
 	}
+}
+
+func (m *mockVMKeeper) InitGenesis(ctx sdk.Context, gs vm.GenesisState) {
+	// TODO:
+}
+
+type mockBankKeeper struct {
+}
+
+func (m *mockBankKeeper) InputOutputCoins(ctx sdk.Context, inputs []bank.Input, outputs []bank.Output) error {
+	return nil
+}
+func (m *mockBankKeeper) SendCoins(ctx sdk.Context, fromAddr crypto.Address, toAddr crypto.Address, amt std.Coins) error {
+	return nil
+}
+
+func (m *mockBankKeeper) SubtractCoins(ctx sdk.Context, addr crypto.Address, amt std.Coins) (std.Coins, error) {
+	return nil, nil
+}
+func (m *mockBankKeeper) AddCoins(ctx sdk.Context, addr crypto.Address, amt std.Coins) (std.Coins, error) {
+	return nil, nil
+}
+func (m *mockBankKeeper) SetCoins(ctx sdk.Context, addr crypto.Address, amt std.Coins) error {
+	return nil
+}
+
+func (m *mockBankKeeper) InitGenesis(ctx sdk.Context, data bank.GenesisState)     {}
+func (m *mockBankKeeper) GetParams(ctx sdk.Context) bank.Params                   { return bank.Params{} }
+func (m *mockBankKeeper) GetCoins(ctx sdk.Context, addr crypto.Address) std.Coins { return nil }
+func (m *mockBankKeeper) HasCoins(ctx sdk.Context, addr crypto.Address, amt std.Coins) bool {
+	return true
+}
+
+type mockAuthKeeper struct {
+}
+
+func (m *mockAuthKeeper) NewAccountWithAddress(ctx sdk.Context, addr crypto.Address) std.Account {
+	return nil
+}
+func (m *mockAuthKeeper) GetAccount(ctx sdk.Context, addr crypto.Address) std.Account     { return nil }
+func (m *mockAuthKeeper) GetAllAccounts(ctx sdk.Context) []std.Account                    { return nil }
+func (m *mockAuthKeeper) SetAccount(ctx sdk.Context, acc std.Account)                     {}
+func (m *mockAuthKeeper) IterateAccounts(ctx sdk.Context, process func(std.Account) bool) {}
+func (m *mockAuthKeeper) InitGenesis(ctx sdk.Context, data auth.GenesisState)             {}
+
+type mockParamsKeeper struct {
+}
+
+func (m *mockParamsKeeper) GetString(ctx sdk.Context, key string, ptr *string) {}
+func (m *mockParamsKeeper) GetInt64(ctx sdk.Context, key string, ptr *int64)   {}
+func (m *mockParamsKeeper) GetUint64(ctx sdk.Context, key string, ptr *uint64) {}
+func (m *mockParamsKeeper) GetBool(ctx sdk.Context, key string, ptr *bool)     {}
+func (m *mockParamsKeeper) GetBytes(ctx sdk.Context, key string, ptr *[]byte)  {}
+
+func (m *mockParamsKeeper) SetString(ctx sdk.Context, key string, value string) {}
+func (m *mockParamsKeeper) SetInt64(ctx sdk.Context, key string, value int64)   {}
+func (m *mockParamsKeeper) SetUint64(ctx sdk.Context, key string, value uint64) {}
+func (m *mockParamsKeeper) SetBool(ctx sdk.Context, key string, value bool)     {}
+func (m *mockParamsKeeper) SetBytes(ctx sdk.Context, key string, value []byte)  {}
+
+func (m *mockParamsKeeper) Has(ctx sdk.Context, key string) bool      { return false }
+func (m *mockParamsKeeper) GetRaw(ctx sdk.Context, key string) []byte { return nil }
+
+func (m *mockParamsKeeper) GetParams(ctx sdk.Context, prefixKey string, key string, target interface{}) (bool, error) {
+	return true, nil
+}
+func (m *mockParamsKeeper) SetParams(ctx sdk.Context, prefixKey string, key string, params interface{}) error {
+	return nil
 }
 
 type (

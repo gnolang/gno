@@ -95,7 +95,7 @@ func TestBankKeeper(t *testing.T) {
 	env := setupTestEnv()
 	ctx := env.ctx
 
-	bank := NewBankKeeper(env.acck)
+	bank := env.bank
 
 	addr := crypto.AddressFromPreimage([]byte("addr1"))
 	addr2 := crypto.AddressFromPreimage([]byte("addr2"))
@@ -135,6 +135,53 @@ func TestBankKeeper(t *testing.T) {
 	// negative values.
 	err = bank.SendCoins(ctx, addr, addr2, sdk.Coins{sdk.Coin{Denom: "FOOCOIN", Amount: -5}})
 	require.Error(t, err)
+}
+func TestBankKeeperWithRestrictions(t *testing.T) {
+	env := setupTestEnv()
+	ctx := env.ctx
+
+	bankKeeper := env.bank
+	bankKeeper.AddRestrictedDenoms(ctx, "foocoin")
+	addr := crypto.AddressFromPreimage([]byte("addr1"))
+	addr2 := crypto.AddressFromPreimage([]byte("addr2"))
+	acc := env.acck.NewAccountWithAddress(ctx, addr)
+
+	// Test GetCoins/SetCoins
+	env.acck.SetAccount(ctx, acc)
+	require.True(t, bankKeeper.GetCoins(ctx, addr).IsEqual(std.NewCoins()))
+
+	env.bank.SetCoins(ctx, addr, std.NewCoins(std.NewCoin("foocoin", 10)))
+	require.True(t, bankKeeper.GetCoins(ctx, addr).IsEqual(std.NewCoins(std.NewCoin("foocoin", 10))))
+
+	// Test HasCoins
+	require.True(t, bankKeeper.HasCoins(ctx, addr, std.NewCoins(std.NewCoin("foocoin", 10))))
+	require.True(t, bankKeeper.HasCoins(ctx, addr, std.NewCoins(std.NewCoin("foocoin", 5))))
+	require.False(t, bankKeeper.HasCoins(ctx, addr, std.NewCoins(std.NewCoin("foocoin", 15))))
+	require.False(t, bankKeeper.HasCoins(ctx, addr, std.NewCoins(std.NewCoin("barcoin", 5))))
+
+	env.bank.SetCoins(ctx, addr, std.NewCoins(std.NewCoin("foocoin", 15)))
+
+	// Test sending coins restricted to locked accounts.
+	err := bankKeeper.SendCoins(ctx, addr, addr2, std.NewCoins(std.NewCoin("foocoin", 5)))
+	require.ErrorIs(t, err, std.RestrictedTransferError{}, "expected restricted transfer error, got %v", err)
+	require.True(t, bankKeeper.GetCoins(ctx, addr).IsEqual(std.NewCoins(std.NewCoin("foocoin", 15))))
+	require.True(t, bankKeeper.GetCoins(ctx, addr2).IsEqual(std.NewCoins(std.NewCoin("foocoin", 0))))
+
+	// Test sending coins unrestricted to locked accounts.
+	env.bank.AddCoins(ctx, addr, std.NewCoins(std.NewCoin("barcoin", 30)))
+	err = bankKeeper.SendCoins(ctx, addr, addr2, std.NewCoins(std.NewCoin("barcoin", 10)))
+	require.NoError(t, err)
+	require.True(t, bankKeeper.GetCoins(ctx, addr).IsEqual(std.NewCoins(std.NewCoin("barcoin", 20), std.NewCoin("foocoin", 15))))
+	require.True(t, bankKeeper.GetCoins(ctx, addr2).IsEqual(std.NewCoins(std.NewCoin("barcoin", 10))))
+
+	// Remove the restrictions
+	bankKeeper.DelAllRestrictedDenoms(ctx)
+	// Test sending coins restricted to locked accounts.
+	err = bankKeeper.SendCoins(ctx, addr, addr2, std.NewCoins(std.NewCoin("foocoin", 5)))
+	require.NoError(t, err)
+	require.True(t, bankKeeper.GetCoins(ctx, addr).IsEqual(std.NewCoins(std.NewCoin("barcoin", 20), std.NewCoin("foocoin", 10))))
+	require.True(t, bankKeeper.GetCoins(ctx, addr2).IsEqual(std.NewCoins(std.NewCoin("barcoin", 10), std.NewCoin("foocoin", 5))))
+
 }
 
 func TestViewKeeper(t *testing.T) {

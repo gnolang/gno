@@ -7,7 +7,10 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/gnolang/gno/gno.land/pkg/sdk/vm"
 	"github.com/gnolang/gno/tm2/pkg/amino"
+	"github.com/gnolang/gno/tm2/pkg/sdk/auth"
+	"github.com/gnolang/gno/tm2/pkg/sdk/bank"
 	"github.com/gnolang/gno/tm2/pkg/std"
 )
 
@@ -25,9 +28,11 @@ func ProtoGnoAccount() std.Account {
 }
 
 type GnoGenesisState struct {
-	Balances []Balance        `json:"balances"`
-	Txs      []TxWithMetadata `json:"txs"`
-	Params   []Param          `json:"params"`
+	Balances []Balance         `json:"balances"`
+	Txs      []TxWithMetadata  `json:"txs"`
+	Auth     auth.GenesisState `json:"auth"`
+	Bank     bank.GenesisState `json:"bank"`
+	VM       vm.GenesisState   `json:"vm"`
 }
 
 type TxWithMetadata struct {

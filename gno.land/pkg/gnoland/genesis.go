@@ -12,6 +12,9 @@ import (
 	bft "github.com/gnolang/gno/tm2/pkg/bft/types"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
 	osm "github.com/gnolang/gno/tm2/pkg/os"
+	"github.com/gnolang/gno/tm2/pkg/sdk/auth"
+	"github.com/gnolang/gno/tm2/pkg/sdk/bank"
+
 	"github.com/gnolang/gno/tm2/pkg/std"
 	"github.com/pelletier/go-toml"
 )
@@ -186,4 +189,14 @@ func LoadPackage(pkg gnomod.Pkg, creator bft.Address, fee std.Fee, deposit std.C
 	tx.Signatures = make([]std.Signature, len(tx.GetSigners()))
 
 	return tx, nil
+}
+func DefaultGenState() GnoGenesisState {
+	gs := GnoGenesisState{
+		Balances: []Balance{},
+		Txs:      []TxWithMetadata{},
+		Auth:     auth.DefaultGenesisState(),
+		Bank:     bank.DefaultGenesisState(),
+		VM:       vmm.DefaultGenesisState(),
+	}
+	return gs
 }

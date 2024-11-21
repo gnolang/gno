@@ -5,6 +5,8 @@ import (
 	"strings"
 
 	"github.com/gnolang/gno/tm2/pkg/amino"
+	"github.com/gnolang/gno/tm2/pkg/crypto"
+	"github.com/gnolang/gno/tm2/pkg/sdk"
 )
 
 type AuthParamsContextKey struct{}
@@ -20,11 +22,12 @@ const (
 
 // Params defines the parameters for the auth module.
 type Params struct {
-	MaxMemoBytes           int64 `json:"max_memo_bytes" yaml:"max_memo_bytes"`
-	TxSigLimit             int64 `json:"tx_sig_limit" yaml:"tx_sig_limit"`
-	TxSizeCostPerByte      int64 `json:"tx_size_cost_per_byte" yaml:"tx_size_cost_per_byte"`
-	SigVerifyCostED25519   int64 `json:"sig_verify_cost_ed25519" yaml:"sig_verify_cost_ed25519"`
-	SigVerifyCostSecp256k1 int64 `json:"sig_verify_cost_secp256k1" yaml:"sig_verify_cost_secp256k1"`
+	MaxMemoBytes           int64            `json:"max_memo_bytes" yaml:"max_memo_bytes"`
+	TxSigLimit             int64            `json:"tx_sig_limit" yaml:"tx_sig_limit"`
+	TxSizeCostPerByte      int64            `json:"tx_size_cost_per_byte" yaml:"tx_size_cost_per_byte"`
+	SigVerifyCostED25519   int64            `json:"sig_verify_cost_ed25519" yaml:"sig_verify_cost_ed25519"`
+	SigVerifyCostSecp256k1 int64            `json:"sig_verify_cost_secp256k1" yaml:"sig_verify_cost_secp256k1"`
+	UnrestrictedAddrs      []crypto.Address `json:"unrestricted_addrs" yaml:"unrestricted_addrs"`
 }
 
 // NewParams creates a new Params object
@@ -66,4 +69,42 @@ func (p Params) String() string {
 	sb.WriteString(fmt.Sprintf("SigVerifyCostED25519: %d\n", p.SigVerifyCostED25519))
 	sb.WriteString(fmt.Sprintf("SigVerifyCostSecp256k1: %d\n", p.SigVerifyCostSecp256k1))
 	return sb.String()
+}
+
+func (p Params) Validate() error {
+	if p.TxSigLimit == 0 {
+		return fmt.Errorf("invalid tx signature limit: %d", p.TxSigLimit)
+	}
+	if p.SigVerifyCostED25519 == 0 {
+		return fmt.Errorf("invalid ED25519 signature verification cost: %d", p.SigVerifyCostED25519)
+	}
+	if p.SigVerifyCostSecp256k1 == 0 {
+		return fmt.Errorf("invalid SECK256k1 signature verification cost: %d", p.SigVerifyCostSecp256k1)
+	}
+	if p.TxSizeCostPerByte == 0 {
+		return fmt.Errorf("invalid tx size cost per byte: %d", p.TxSizeCostPerByte)
+	}
+	return nil
+}
+
+func (ak AccountKeeper) SetParams(ctx sdk.Context, params Params) error {
+	if err := params.Validate(); err != nil {
+		return err
+	}
+	ak.paramk.SetParams(ctx, ModuleName, "p", params)
+	return nil
+}
+
+func (ak AccountKeeper) GetParams(ctx sdk.Context) Params {
+	params := &Params{}
+
+	ok, err := ak.paramk.GetParams(ctx, ModuleName, "p", params)
+
+	if !ok {
+		panic("params key " + ModuleName + " does not exist")
+	}
+	if err != nil {
+		panic(err.Error())
+	}
+	return *params
 }

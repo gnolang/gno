@@ -28,14 +28,14 @@ func (bh paramsHandler) Process(ctx sdk.Context, msg std.Msg) sdk.Result {
 // Query
 
 func (bh paramsHandler) Query(ctx sdk.Context, req abci.RequestQuery) (res abci.ResponseQuery) {
-	switch secondPart(req.Path) {
-	case bh.params.prefix:
+	prefix := secondPart(req.Path)
+	if bh.params.PrefixExist(prefix) {
 		return bh.queryParam(ctx, req)
-	default:
-		res = sdk.ABCIResponseQueryFromError(
-			std.ErrUnknownRequest("unknown params query endpoint"))
-		return
 	}
+	res = sdk.ABCIResponseQueryFromError(
+		std.ErrUnknownRequest("unknown params query endpoint"))
+	return
+
 }
 
 // queryParam returns param for a key.

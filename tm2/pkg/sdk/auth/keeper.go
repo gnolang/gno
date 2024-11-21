@@ -7,6 +7,7 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/amino"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
 	"github.com/gnolang/gno/tm2/pkg/sdk"
+	"github.com/gnolang/gno/tm2/pkg/sdk/params"
 	"github.com/gnolang/gno/tm2/pkg/std"
 	"github.com/gnolang/gno/tm2/pkg/store"
 )
@@ -18,6 +19,9 @@ type AccountKeeper struct {
 
 	// The prototypical Account constructor.
 	proto func() std.Account
+
+	// store module parameters
+	paramk params.ParamsKeeper
 }
 
 // NewAccountKeeper returns a new AccountKeeper that uses go-amino to

@@ -30,6 +30,9 @@ type ParamsKeeperI interface {
 	Has(ctx sdk.Context, key string) bool
 	GetRaw(ctx sdk.Context, key string) []byte
 
+	GetParams(ctx sdk.Context, prefixKey string, key string, target interface{}) (bool, error)
+	SetParams(ctx sdk.Context, prefixKey string, key string, params interface{}) error
+
 	// XXX: ListKeys?
 }
 
@@ -37,15 +40,16 @@ var _ ParamsKeeperI = ParamsKeeper{}
 
 // global paramstore Keeper.
 type ParamsKeeper struct {
-	key    store.StoreKey
-	prefix string
+	key             store.StoreKey
+	prefix          string
+	prefixKeyMapper PrefixKeyMapper
 }
 
 // NewParamsKeeper returns a new ParamsKeeper.
-func NewParamsKeeper(key store.StoreKey, prefix string) ParamsKeeper {
+func NewParamsKeeper(key store.StoreKey, pkm PrefixKeyMapper) ParamsKeeper {
 	return ParamsKeeper{
-		key:    key,
-		prefix: prefix,
+		key:             key,
+		prefixKeyMapper: pkm,
 	}
 }
 
@@ -113,6 +117,58 @@ func (pk ParamsKeeper) SetUint64(ctx sdk.Context, key string, value uint64) {
 func (pk ParamsKeeper) SetBytes(ctx sdk.Context, key string, value []byte) {
 	checkSuffix(key, ".bytes")
 	pk.set(ctx, key, value)
+}
+
+// GetParam gets a param value from the global param store.
+func (pk ParamsKeeper) GetParams(ctx sdk.Context, prefixKey string, key string, target interface{}) (bool, error) {
+	vk, err := pk.valueStoreKey(prefixKey, key)
+	if err != nil {
+		return false, err
+	}
+
+	stor := ctx.Store(pk.key)
+
+	bz := stor.Get(vk)
+	if bz == nil {
+		return false, nil
+	}
+
+	return true, amino.Unmarshal(bz, target)
+}
+
+// SetParam sets a param value to the global param store.
+func (pk ParamsKeeper) SetParams(ctx sdk.Context, prefixKey string, key string, param interface{}) error {
+	vk, err := pk.valueStoreKey(prefixKey, key)
+	if err != nil {
+		return err
+	}
+
+	bz, err := amino.Marshal(param)
+	if err != nil {
+		return err
+	}
+
+	stor := ctx.Store(pk.key)
+
+	stor.Set(vk, bz)
+	return nil
+}
+
+func (pk ParamsKeeper) valueStoreKey(prefix string, key string) ([]byte, error) {
+	prefix, err := pk.prefixKeyMapper.Map(prefix)
+	if err != nil {
+		return nil, err
+	}
+	return append([]byte(prefix), []byte(key)...), nil
+}
+
+func (pk ParamsKeeper) PrefixExist(prefix string) bool {
+	_, err := pk.prefixKeyMapper.Map(prefix)
+
+	if err != nil {
+		return false
+	}
+	return true
 }
 
 func (pk ParamsKeeper) getIfExists(ctx sdk.Context, key string, ptr interface{}) {
