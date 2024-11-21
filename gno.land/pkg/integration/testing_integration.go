@@ -32,7 +32,6 @@ import (
 	tm2Log "github.com/gnolang/gno/tm2/pkg/log"
 	"github.com/gnolang/gno/tm2/pkg/std"
 	"github.com/rogpeppe/go-internal/testscript"
-	"github.com/stretchr/testify/require"
 	"go.uber.org/zap/zapcore"
 )
 
@@ -131,19 +130,13 @@ func setupGnolandTestScript(t *testing.T, txtarDir string) testscript.Params {
 				env.Values[envKeyLogger] = logger
 			}
 
-			// TODO: check if those value are ok here
-			stdlibsDeployer := crypto.MustAddressFromString("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5")
-			stdlibsFee := std.NewFee(50000, std.MustParseCoin(ugnot.ValueString(1000000)))
-			stdlibsTxs, err := stdgenesis.EmbeddedStdlibsGenesisTxs(stdlibsDeployer, stdlibsFee)
-			require.NoError(t, err)
-
 			// Track new user balances added via the `adduser`
 			// command and packages added with the `loadpkg` command.
 			// This genesis will be use when node is started.
 			genesis := &gnoland.GnoGenesisState{
 				Balances: LoadDefaultGenesisBalanceFile(t, gnoRootDir),
 				Params:   LoadDefaultGenesisParamFile(t, gnoRootDir),
-				Txs:      stdlibsTxs,
+				Txs:      []gnoland.TxWithMetadata{},
 			}
 
 			// test1 must be created outside of the loop below because it is already included in genesis so
@@ -189,6 +182,14 @@ func setupGnolandTestScript(t *testing.T, txtarDir string) testscript.Params {
 						ts.Fatalf("unable to parse `gnoland start` flags: %s", err)
 					}
 
+					// get stdlibs
+					stdlibsDeployer := crypto.MustAddressFromString(DefaultAccount_Address)
+					stdlibsFee := std.NewFee(50000, std.MustParseCoin(ugnot.ValueString(1000000)))
+					stdlibsTxs, err := stdgenesis.EmbeddedStdlibsGenesisTxs(stdlibsDeployer, stdlibsFee)
+					if err != nil {
+						ts.Fatalf("unable to load stdlibs txs: %s", err)
+					}
+
 					// get packages
 					pkgs := ts.Value(envKeyPkgsLoader).(*pkgsLoader)                // grab logger
 					creator := crypto.MustAddressFromString(DefaultAccount_Address) // test1
@@ -204,7 +205,7 @@ func setupGnolandTestScript(t *testing.T, txtarDir string) testscript.Params {
 					// Generate config and node
 					cfg := TestingMinimalNodeConfig(t, gnoRootDir)
 					genesis := ts.Value(envKeyGenesis).(*gnoland.GnoGenesisState)
-					genesis.Txs = append(pkgsTxs, genesis.Txs...)
+					genesis.Txs = append(stdlibsTxs, append(pkgsTxs, genesis.Txs...)...)
 
 					// setup genesis state
 					cfg.Genesis.AppState = *genesis
