@@ -10,7 +10,6 @@ import (
 	"time"
 
 	"github.com/gnolang/gno/gno.land/pkg/sdk/vm"
-	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
 	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
 	"github.com/gnolang/gno/tm2/pkg/bft/config"
 	bft "github.com/gnolang/gno/tm2/pkg/bft/types"
@@ -50,8 +49,6 @@ func TestAppOptions(db dbm.DB) *AppOptions {
 		EventSwitch: events.NewEventSwitch(),
 		InitChainerConfig: InitChainerConfig{
 			GenesisTxResultHandler: PanicOnFailingTxResultHandler,
-			StdlibDir:              filepath.Join(gnoenv.RootDir(), "gnovm", "stdlibs"),
-			CacheStdlibLoad:        true,
 		},
 	}
 }
@@ -183,7 +180,6 @@ func NewApp(
 		EventSwitch: evsw,
 		InitChainerConfig: InitChainerConfig{
 			GenesisTxResultHandler: PanicOnFailingTxResultHandler,
-			StdlibDir:              filepath.Join(gnoenv.RootDir(), "gnovm", "stdlibs"),
 		},
 	}
 	if skipFailingGenesisTxs {
@@ -220,14 +216,6 @@ func PanicOnFailingTxResultHandler(_ sdk.Context, _ std.Tx, res sdk.Result) {
 type InitChainerConfig struct {
 	// Handles the results of each genesis transaction.
 	GenesisTxResultHandler
-
-	// Standard library directory.
-	StdlibDir string
-	// Whether to keep a record of the DB operations to load standard libraries,
-	// so they can be quickly replicated on additional genesis executions.
-	// This should be used for integration testing, where InitChainer will be
-	// called several times.
-	CacheStdlibLoad bool
 
 	// These fields are passed directly by NewAppWithOptions, and should not be
 	// configurable by end-users.

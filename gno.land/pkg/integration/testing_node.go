@@ -91,7 +91,6 @@ func TestingMinimalNodeConfig(t TestingTS, gnoroot string) *gnoland.InMemoryNode
 		DB:            memdb.NewMemDB(),
 		InitChainerConfig: gnoland.InitChainerConfig{
 			GenesisTxResultHandler: gnoland.PanicOnFailingTxResultHandler,
-			CacheStdlibLoad:        true,
 		},
 	}
 }

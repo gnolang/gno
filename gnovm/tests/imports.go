@@ -20,6 +20,7 @@ import (
 	"image"
 	"image/color"
 	"io"
+	"io/fs"
 	"log"
 	"math"
 	"math/big"
@@ -29,6 +30,7 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"slices"
 	"strconv"
 	"strings"
 	"sync"
@@ -38,6 +40,7 @@ import (
 	"unicode/utf8"
 
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
+	"github.com/gnolang/gno/gnovm/stdlibs"
 	teststdlibs "github.com/gnolang/gno/gnovm/tests/stdlibs"
 	teststd "github.com/gnolang/gno/gnovm/tests/stdlibs/std"
 	"github.com/gnolang/gno/tm2/pkg/db/memdb"
@@ -97,7 +100,7 @@ func TestStore(rootDir, filesPath string, stdin io.Reader, stdout, stderr io.Wri
 		// if stdlibs package is preferred , try to load it first.
 		if mode == ImportModeStdlibsOnly ||
 			mode == ImportModeStdlibsPreferred {
-			pn, pv = loadStdlib(rootDir, pkgPath, store, stdout)
+			pn, pv = loadStdlib(pkgPath, store, stdout)
 			if pn != nil {
 				return
 			}
@@ -392,7 +395,7 @@ func TestStore(rootDir, filesPath string, stdin io.Reader, stdout, stderr io.Wri
 
 		// if native package is preferred, try to load stdlibs/* as backup.
 		if mode == ImportModeNativePreferred {
-			pn, pv = loadStdlib(rootDir, pkgPath, store, stdout)
+			pn, pv = loadStdlib(pkgPath, store, stdout)
 			if pn != nil {
 				return
 			}
@@ -430,28 +433,33 @@ func TestStore(rootDir, filesPath string, stdin io.Reader, stdout, stderr io.Wri
 	return
 }
 
-func loadStdlib(rootDir, pkgPath string, store gno.Store, stdout io.Writer) (*gno.PackageNode, *gno.PackageValue) {
-	dirs := [...]string{
-		// normal stdlib path.
-		filepath.Join(rootDir, "gnovm", "stdlibs", pkgPath),
-		// override path. definitions here override the previous if duplicate.
-		filepath.Join(rootDir, "gnovm", "tests", "stdlibs", pkgPath),
-	}
-	files := make([]string, 0, 32) // pre-alloc 32 as a likely high number of files
-	for _, path := range dirs {
-		dl, err := os.ReadDir(path)
-		if err != nil {
-			if os.IsNotExist(err) {
-				continue
-			}
-			panic(fmt.Errorf("could not access dir %q: %w", path, err))
-		}
+func loadStdlib(pkgPath string, store gno.Store, stdout io.Writer) (*gno.PackageNode, *gno.PackageValue) {
+	fmt.Println("loading stdlib in test store", pkgPath)
 
-		for _, f := range dl {
-			// NOTE: RunMemPackage has other rules; those should be mostly useful
-			// for on-chain packages (ie. include README and gno.mod).
-			if !f.IsDir() && strings.HasSuffix(f.Name(), ".gno") {
-				files = append(files, filepath.Join(path, f.Name()))
+	filesystems := []fs.FS{teststdlibs.EmbeddedSources(), stdlibs.EmbeddedSources()}
+	filesystemsNames := []string{"test", "normal"}
+	files := make([]string, 0, 32) // pre-alloc 32 as a likely high number of files
+	for i, fsys := range filesystems {
+		dirs, err := fs.ReadDir(fsys, pkgPath)
+		if (i != 0 || !os.IsNotExist(err)) && err != nil {
+			panic(fmt.Errorf("failed to read embedded stdlib %q in %q fsys: %w", pkgPath, filesystemsNames[i], err))
+		}
+		for _, dir := range dirs {
+			dl, err := fs.ReadDir(fsys, dir.Name())
+			if err != nil {
+				if os.IsNotExist(err) {
+					continue
+				}
+				panic(fmt.Errorf("could not access dir %q: %w", dir, err))
+			}
+
+			for _, f := range dl {
+				// NOTE: RunMemPackage has other rules; those should be mostly useful
+				// for on-chain packages (ie. include README and gno.mod).
+				fp := filepath.Join(dir.Name(), f.Name())
+				if !f.IsDir() && strings.HasSuffix(f.Name(), ".gno") && !slices.Contains(files, fp) {
+					files = append(files, fp)
+				}
 			}
 		}
 	}
@@ -459,7 +467,7 @@ func loadStdlib(rootDir, pkgPath string, store gno.Store, stdout io.Writer) (*gn
 		return nil, nil
 	}
 
-	memPkg := gno.ReadMemPackageFromList(os.DirFS("."), files, pkgPath)
+	memPkg := gno.ReadMemPackageFromList(filesystems, files, pkgPath)
 	m2 := gno.NewMachineWithOptions(gno.MachineOptions{
 		// NOTE: see also pkgs/sdk/vm/builtins.go
 		// Needs PkgPath != its name because TestStore.getPackage is the package

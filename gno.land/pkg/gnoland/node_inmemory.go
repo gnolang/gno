@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"io"
 	"log/slog"
-	"path/filepath"
 	"time"
 
 	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
@@ -26,7 +25,6 @@ type InMemoryNodeConfig struct {
 	DB            *memdb.MemDB // will be initialized if nil
 	VMOutput      io.Writer    // optional
 
-	// If StdlibDir not set, then it's filepath.Join(TMConfig.RootDir, "gnovm", "stdlibs")
 	InitChainerConfig
 }
 
@@ -95,9 +93,6 @@ func NewInMemoryNode(logger *slog.Logger, cfg *InMemoryNodeConfig) (*node.Node, 
 
 	evsw := events.NewEventSwitch()
 
-	if cfg.StdlibDir == "" {
-		cfg.StdlibDir = filepath.Join(cfg.TMConfig.RootDir, "gnovm", "stdlibs")
-	}
 	// initialize db if nil
 	if cfg.DB == nil {
 		cfg.DB = memdb.NewMemDB()

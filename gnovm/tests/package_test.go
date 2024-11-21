@@ -7,29 +7,31 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/require"
 
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
+	"github.com/gnolang/gno/gnovm/stdlibs"
 )
 
 func TestStdlibs(t *testing.T) {
-	t.Parallel()
+	// t.Parallel()
 
 	// NOTE: this test only works using _test.gno files;
 	// filetests are not meant to be used for testing standard libraries.
 	// The examples directory is tested directly using `gno test`u
 
 	// find all packages with *_test.gno files.
-	rootDirs := []string{
-		filepath.Join("..", "stdlibs"),
-	}
-	testDirs := map[string]string{} // aggregate here, pkgPath -> dir
+	srcs := stdlibs.EmbeddedSources()
+	rootDirs, err := fs.ReadDir(srcs, ".")
+	require.NoError(t, err)
 	pkgPaths := []string{}
 	for _, rootDir := range rootDirs {
-		fileSystem := os.DirFS(rootDir)
+		fileSystem, err := fs.Sub(srcs, rootDir.Name())
+		require.NoError(t, err)
 		fs.WalkDir(fileSystem, ".", func(path string, d fs.DirEntry, err error) error {
 			if err != nil {
 				log.Fatal(err)
@@ -37,33 +39,34 @@ func TestStdlibs(t *testing.T) {
 			if d.IsDir() {
 				return nil
 			}
+
+			path = filepath.Join(rootDir.Name(), path)
 			if strings.HasSuffix(path, "_test.gno") {
 				dirPath := filepath.Dir(path)
-				if _, exists := testDirs[dirPath]; exists {
+				if slices.Contains(pkgPaths, dirPath) {
 					// already exists.
 				} else {
-					testDirs[dirPath] = filepath.Join(rootDir, dirPath)
 					pkgPaths = append(pkgPaths, dirPath)
 				}
 			}
 			return nil
 		})
 	}
-	// For each package with testfiles (in testDirs), call Machine.TestMemPackage.
+	// For each package with testfiles (in testPaths), call Machine.TestMemPackage.
 	for _, pkgPath := range pkgPaths {
-		testDir := testDirs[pkgPath]
 		t.Run(pkgPath, func(t *testing.T) {
-			pkgPath := pkgPath
-			t.Parallel()
-			runPackageTest(t, testDir, pkgPath)
+			fmt.Println("testing", pkgPath)
+			// t.Parallel()
+			runPackageTest(t, pkgPath)
 		})
 	}
 }
 
-func runPackageTest(t *testing.T, dir string, path string) {
+func runPackageTest(t *testing.T, pkgPath string) {
 	t.Helper()
 
-	memPkg := gno.ReadMemPackage(dir, path)
+	srcs := stdlibs.EmbeddedSources()
+	memPkg := gno.ReadMemPackageFromFS(srcs, pkgPath, pkgPath)
 	require.False(t, memPkg.IsEmpty())
 
 	stdin := new(bytes.Buffer)
@@ -71,7 +74,7 @@ func runPackageTest(t *testing.T, dir string, path string) {
 	stdout := os.Stdout
 	stderr := new(bytes.Buffer)
 	rootDir := filepath.Join("..", "..")
-	store := TestStore(rootDir, path, stdin, stdout, stderr, ImportModeStdlibsOnly)
+	store := TestStore(rootDir, pkgPath, stdin, stdout, stderr, ImportModeStdlibsOnly)
 	store.SetLogStoreOps(true)
 	m := gno.NewMachineWithOptions(gno.MachineOptions{
 		PkgPath: "test",

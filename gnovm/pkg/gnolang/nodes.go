@@ -1190,7 +1190,7 @@ func ReadMemPackageFromFS(fsys fs.FS, dir string, pkgPath string) *gnovm.MemPack
 		}
 		list = append(list, filepath.Join(dir, file.Name()))
 	}
-	return ReadMemPackageFromList(fsys, list, pkgPath)
+	return ReadMemPackageFromList([]fs.FS{fsys}, list, pkgPath)
 }
 
 // ReadMemPackageFromList creates a new [gnovm.MemPackage] with the specified pkgPath,
@@ -1199,14 +1199,23 @@ func ReadMemPackageFromFS(fsys fs.FS, dir string, pkgPath string) *gnovm.MemPack
 //
 // NOTE: panics if package name is invalid (characters must be alphanumeric or _,
 // lowercase, and must start with a letter).
-func ReadMemPackageFromList(fsys fs.FS, list []string, pkgPath string) *gnovm.MemPackage {
+func ReadMemPackageFromList(fss []fs.FS, list []string, pkgPath string) *gnovm.MemPackage {
 	memPkg := &gnovm.MemPackage{Path: pkgPath}
 	var pkgName Name
 	for _, fpath := range list {
 		fname := filepath.Base(fpath)
-		bz, err := fs.ReadFile(fsys, fpath)
-		if err != nil {
-			panic(err)
+		var (
+			bz  []byte
+			err error
+		)
+		for i, fsys := range fss {
+			bz, err = fs.ReadFile(fsys, fpath)
+			if i != 0 && os.IsNotExist(err) {
+				continue
+			}
+			if err != nil {
+				panic(err)
+			}
 		}
 		// XXX: should check that all pkg names are the same (else package is invalid)
 		if pkgName == "" && strings.HasSuffix(fname, ".gno") {
