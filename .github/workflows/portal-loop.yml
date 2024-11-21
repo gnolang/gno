@@ -57,11 +57,12 @@ jobs:
       - name: "Checkout"
         uses: actions/checkout@v4
 
-      - name: "Setup the images"
+      - name: "Setup The portal loop docker compose"
         run: |
           cd misc/loop
-
-          make docker.start.local
+          echo "Making docker compose happy"
+          touch .env
+          make docker.ci
 
       - name: "Test1 - Portal loop start gnoland"
         run: |
