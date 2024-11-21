@@ -18,6 +18,7 @@ import (
 	"github.com/gnolang/gno/gno.land/pkg/keyscli"
 	"github.com/gnolang/gno/gno.land/pkg/log"
 	"github.com/gnolang/gno/gno.land/pkg/sdk/vm"
+	"github.com/gnolang/gno/gno.land/pkg/stdgenesis"
 	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
 	"github.com/gnolang/gno/gnovm/pkg/gnomod"
 	"github.com/gnolang/gno/tm2/pkg/bft/node"
@@ -31,6 +32,7 @@ import (
 	tm2Log "github.com/gnolang/gno/tm2/pkg/log"
 	"github.com/gnolang/gno/tm2/pkg/std"
 	"github.com/rogpeppe/go-internal/testscript"
+	"github.com/stretchr/testify/require"
 	"go.uber.org/zap/zapcore"
 )
 
@@ -129,13 +131,19 @@ func setupGnolandTestScript(t *testing.T, txtarDir string) testscript.Params {
 				env.Values[envKeyLogger] = logger
 			}
 
+			// TODO: check if those value are ok here
+			stdlibsDeployer := crypto.MustAddressFromString("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5")
+			stdlibsFee := std.NewFee(50000, std.MustParseCoin(ugnot.ValueString(1000000)))
+			stdlibsTxs, err := stdgenesis.EmbeddedStdlibsGenesisTxs(stdlibsDeployer, stdlibsFee)
+			require.NoError(t, err)
+
 			// Track new user balances added via the `adduser`
 			// command and packages added with the `loadpkg` command.
 			// This genesis will be use when node is started.
 			genesis := &gnoland.GnoGenesisState{
 				Balances: LoadDefaultGenesisBalanceFile(t, gnoRootDir),
 				Params:   LoadDefaultGenesisParamFile(t, gnoRootDir),
-				Txs:      []gnoland.TxWithMetadata{},
+				Txs:      stdlibsTxs,
 			}
 
 			// test1 must be created outside of the loop below because it is already included in genesis so
