@@ -283,14 +283,10 @@ func updatePullRequest(gh *client.GitHub, pr *github.PullRequest, content Commen
 	// Prepare commit status content
 	var (
 		context     = "Merge Requirements"
-		targetURL   = ""
-		state       = "pending"
+		targetURL   = comment.GetHTMLURL()
+		state       = "failure"
 		description = "Some requirements are not satisfied yet. See bot comment."
 	)
-
-	if comment != nil {
-		targetURL = comment.GetHTMLURL()
-	}
 
 	if content.allSatisfied {
 		state = "success"
