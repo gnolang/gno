@@ -28,6 +28,8 @@ func main() {
 	users.Register(caller, "satoshi", "my other profile")
 	println(users.Render(""))
 	println("========================================")
+	println(users.Render("?page=2"))
+	println("========================================")
 	println(users.Render("gnouser"))
 	println("========================================")
 	println(users.Render("satoshi"))
@@ -46,7 +48,12 @@ func main() {
 //  * [nt](/r/demo/users:nt)
 //  * [satoshi](/r/demo/users:satoshi)
 //  * [sys](/r/demo/users:sys)
+//  * [test1](/r/demo/users:test1)
 //  * [x](/r/demo/users:x)
+//
+//
+// ========================================
+//
 //
 // ========================================
 // ## user gnouser

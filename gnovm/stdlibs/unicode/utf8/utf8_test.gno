@@ -127,6 +127,17 @@ func TestEncodeRune(t *testing.T) {
 	}
 }
 
+func TestAppendRune(t *testing.T) {
+	for _, m := range utf8map {
+		if buf := utf8.AppendRune(nil, m.r); string(buf) != m.str {
+			t.Errorf("AppendRune(nil, %#04x) = %s, want %s", m.r, buf, m.str)
+		}
+		if buf := utf8.AppendRune([]byte("init"), m.r); string(buf) != "init"+m.str {
+			t.Errorf("AppendRune(init, %#04x) = %s, want %s", m.r, buf, "init"+m.str)
+		}
+	}
+}
+
 func TestDecodeRune(t *testing.T) {
 	for _, m := range utf8map {
 		b := []byte(m.str)

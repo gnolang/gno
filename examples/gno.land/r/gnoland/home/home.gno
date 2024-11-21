@@ -7,6 +7,8 @@ import (
 	"gno.land/p/demo/ufmt"
 	"gno.land/p/demo/ui"
 	blog "gno.land/r/gnoland/blog"
+	events "gno.land/r/gnoland/events"
+	"gno.land/r/leon/hof"
 )
 
 // XXX: p/demo/ui API is crappy, we need to make it more idiomatic
@@ -35,8 +37,8 @@ func Render(_ string) string {
 	dom.Body.Append(
 		ui.Columns{3, []ui.Element{
 			lastBlogposts(4),
-			upcomingEvents(4),
-			lastContributions(4),
+			upcomingEvents(),
+			latestHOFItems(5),
 		}},
 	)
 
@@ -68,7 +70,7 @@ func Render(_ string) string {
 func lastBlogposts(limit int) ui.Element {
 	posts := blog.RenderLastPostsWidget(limit)
 	return ui.Element{
-		ui.H3("Latest Blogposts"),
+		ui.H3("[Latest Blogposts](/r/gnoland/blog)"),
 		ui.Text(posts),
 	}
 }
@@ -81,11 +83,20 @@ func lastContributions(limit int) ui.Element {
 	}
 }
 
-func upcomingEvents(limit int) ui.Element {
+func upcomingEvents() ui.Element {
+	out, _ := events.RenderEventWidget(events.MaxWidgetSize)
 	return ui.Element{
-		ui.H3("Upcoming Events"),
-		// TODO: replace with r/gnoland/events
-		ui.Text("[View upcoming events](/events)"),
+		ui.H3("[Latest Events](/r/gnoland/events)"),
+		ui.Text(out),
+	}
+}
+
+func latestHOFItems(num int) ui.Element {
+	submissions := hof.RenderExhibWidget(num)
+
+	return ui.Element{
+		ui.H3("[Hall of Fame](/r/demo/hof)"),
+		ui.Text(submissions),
 	}
 }
 
@@ -192,7 +203,7 @@ func packageStaffPicks() ui.Element {
 					ui.BulletList{
 						ui.Link{URL: "r/sys/names"},
 						ui.Link{URL: "r/sys/rewards"},
-						ui.Link{URL: "r/sys/validators"},
+						ui.Link{URL: "/r/sys/validators/v2"},
 					},
 				}, {
 					ui.H4("[r/demo](https://github.com/gnolang/gno/tree/master/examples/gno.land/r/demo)"),
@@ -245,7 +256,7 @@ func discoverLinks() ui.Element {
 - Tokenomics (soon)
 - [Partners, Fund, Grants](/partners)
 - [Explore the Ecosystem](/ecosystem)
-- [Careers](https://jobs.lever.co/allinbits?department=Gno.land)
+- [Careers](https://jobs.ashbyhq.com/allinbits)
 
 </div><!-- end column-->
 
@@ -268,10 +279,8 @@ func discoverLinks() ui.Element {
 - [Discover demo packages](https://github.com/gnolang/gno/tree/master/examples)
 - [Gnoscan](https://gnoscan.io)
 - [Portal Loop](https://docs.gno.land/concepts/portal-loop)
-- Testnet 4 (upcoming)
-- [Testnet 3](https://test3.gno.land/) (archive)
-- [Testnet 2](https://test2.gno.land/) (archive)
-- Testnet Faucet Hub (soon)
+- [Testnet 4](https://test4.gno.land/)
+- [Faucet Hub](https://faucet.gno.land)
 
 </div><!-- end column-->
 </div><!-- end columns-3-->`),

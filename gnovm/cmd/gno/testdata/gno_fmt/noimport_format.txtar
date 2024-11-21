@@ -35,5 +35,4 @@ import (
 )
 
 var yes = rand.Val
-
 -- stderr.golden --
