@@ -63,10 +63,10 @@ func FileImports(fname string) ([]string, error) {
 	if err != nil {
 		return nil, err
 	}
-	res := make([]string, 0)
-	for _, im := range f.Imports {
+	res := make([]string, len(f.Imports))
+	for i, im := range f.Imports {
 		importPath := strings.TrimPrefix(strings.TrimSuffix(im.Path.Value, `"`), `"`)
-		res = append(res, importPath)
+		res[i] = importPath
 	}
 	return res, nil
 }
