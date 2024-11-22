@@ -1,4 +1,4 @@
-package home
+package docs
 
 func Render(_ string) string {
 	return `# Gno Examples Documentation
