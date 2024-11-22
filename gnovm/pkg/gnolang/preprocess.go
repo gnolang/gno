@@ -3132,21 +3132,12 @@ func gnoTypeOf(store Store, t Type) Type {
 // but rather computes the type OF x.
 func evalStaticTypeOf(store Store, last BlockNode, x Expr) Type {
 	t := evalStaticTypeOfRaw(store, last, x)
-	if tt, ok := t.(*tupleType); ok {
-		switch len(tt.Elts) {
-		case 1:
-			return tt.Elts[0]
-		case 0:
-			panic(fmt.Sprintf("%s (no value) used as value", x.(*CallExpr).Func.String()))
-		default:
-			panic(fmt.Sprintf(
-				"evalStaticTypeOf() only supports *CallExpr with 1 result, got %s",
-				tt.String(),
-			))
-		}
-	} else {
-		return t
+
+	if tt, ok := t.(*tupleType); ok && len(tt.Elts) == 1 {
+		return tt.Elts[0]
 	}
+
+	return t
 }
 
 // like evalStaticTypeOf() but returns the raw *tupleType for *CallExpr.
