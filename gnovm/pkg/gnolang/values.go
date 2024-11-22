@@ -1706,6 +1706,9 @@ func (tv *TypedValue) GetPointerToFromTV(alloc *Allocator, store Store, path Val
 			path.Type = VPField
 			path.Depth = 0
 		case 2:
+			if tv.V == nil {
+				panic(&Exception{Value: typedString("nil pointer dereference")})
+			}
 			dtv = tv.V.(PointerValue).TV
 			isPtr = true
 			path.Type = VPField
