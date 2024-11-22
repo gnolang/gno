@@ -25,7 +25,7 @@ func InjectExamplesClient(t *testing.T) {
 	if !ok {
 		t.Fatalf("failed to get source path")
 	}
-	examplesDir := filepath.Join(filepath.Dir(filename), "..", "..", "..", "examples")
+	examplesDir := filepath.Join(filepath.Dir(filename), "..", "..", "..", "..", "..", "examples")
 	oldClient := fetchClient
 	fetchClient = tm2client.NewRPCClient(&examplesMockClient{examplesRoot: examplesDir})
 	t.Cleanup(func() {
