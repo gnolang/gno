@@ -1,4 +1,4 @@
-package boards
+package boards2
 
 import (
 	"std"
