@@ -66,5 +66,5 @@ func Users(offset, count uint64) []pusers.User {
 func UsersByPrefix(prefix string, maxResults int) []string {
 	// most likely moved to r/gnoland/users to keep this package minimal.
 	// in that case, should we get a value copy of the uStore available to whitelisted callers?
-	return avlhelpers.ListByteStringKeysByPrefix(uStore, prefix, maxResults)
+	return avlhelpers.ListByteStringKeysByPrefix(*uStore, prefix, maxResults)
 }

@@ -3,7 +3,7 @@ package users
 import "errors"
 
 var (
-	ErrUnauthorized       = errors.New("r/sys/users: not authorized")
+	ErrUnauthorizedWrite  = errors.New("r/sys/users: not authorized to write to store")
 	ErrAlreadyExists      = errors.New("r/sys/users: username already exists")
 	ErrAlreadyWhitelisted = errors.New("r/sys/users: already whitelisted")
 	ErrDoesNotExist       = errors.New("r/sys/users: does not exist in whitelist")

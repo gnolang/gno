@@ -20,7 +20,7 @@ var (
 )
 
 func init() {
-	callerWhitelist.Set(std.DerivePkgAddr("gno.land/r/gnoland/users"), struct{}{})
+	callerWhitelist.Set(std.DerivePkgAddr("gno.land/r/gnoland/users").String(), struct{}{})
 }
 
 func AddToWhitelist(addr std.Address) error {
