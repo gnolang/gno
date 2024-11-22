@@ -5,6 +5,7 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 
 	"github.com/gnolang/gno/gnovm/pkg/gnoimports"
@@ -115,8 +116,12 @@ func ListPkgs(root string) (PkgList, error) {
 		}
 
 		imports, err := gnoimports.PackageImports(path)
-		_ = err // get valid imports while ignoring bad/partial files
-		imports = filterImports(gnoMod.Module.Mod.Path, imports)
+		_ = err // ignore error to get valid imports while ignoring bad/partial files
+
+		// remove self and standard libraries from imports
+		_ = slices.DeleteFunc(imports, func(imp string) bool {
+			return imp == gnoMod.Module.Mod.Path || gnolang.IsStdlib(imp)
+		})
 
 		pkgs = append(pkgs, Pkg{
 			Dir:     path,
@@ -131,18 +136,6 @@ func ListPkgs(root string) (PkgList, error) {
 	}
 
 	return pkgs, nil
-}
-
-// filterImports removes self and standard libraries from an import list
-func filterImports(pkgPath string, imports []string) []string {
-	res := []string{}
-	for _, imp := range imports {
-		if imp == pkgPath || gnolang.IsStdlib(imp) {
-			continue
-		}
-		res = append(res, imp)
-	}
-	return res
 }
 
 // GetNonDraftPkgs returns packages that are not draft
