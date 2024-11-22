@@ -1022,7 +1022,7 @@ func remAssign(lv, rv *TypedValue) *Exception {
 		}
 		lv.SetUint64(lv.GetUint64() % rv.GetUint64())
 	case BigintType, UntypedBigintType:
-		if rv.GetBigDec().Cmp(apd.New(0, 0)) == 0 {
+		if rv.GetBigInt().Sign() == 0 {
 			return expt
 		}
 
