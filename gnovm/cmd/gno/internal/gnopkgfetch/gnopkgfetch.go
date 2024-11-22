@@ -8,6 +8,7 @@ import (
 	"strings"
 	"unicode"
 
+	"github.com/gnolang/gno/gno.land/pkg/sdk/vm"
 	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
 	"github.com/gnolang/gno/gnovm/pkg/gnoimports"
 	"github.com/gnolang/gno/gnovm/pkg/gnolang"
@@ -142,9 +143,8 @@ func overrideURLFromEnv(pkgDomain string) (string, bool) {
 	return pkgDomain, false
 }
 
-// not using gno client due to cyclic dep
 func qfile(tmClient tm2client.Client, pkgPath string) ([]byte, error) {
-	path := "vm/qfile"
+	path := "vm/" + vm.QueryFile
 	data := []byte(pkgPath)
 
 	qres, err := tmClient.ABCIQuery(path, data)
