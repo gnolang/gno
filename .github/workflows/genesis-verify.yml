@@ -24,12 +24,6 @@ jobs:
         with:
           files: "misc/deployments/${{ matrix.testnet }}/genesis.json"
 
-      - name: List changed genesis files
-        run: |
-          for file in ${{ steps.changed-files.outputs.all_changed_files }}; do
-            echo "Changed file: $file"
-          done
-
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
