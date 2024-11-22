@@ -300,7 +300,7 @@ func TestCreateProposalBlock(t *testing.T) {
 		proposerAddr,
 	)
 
-	err = blockExec.ValidateBlock(state, block)
+	err = state.ValidateBlock(block)
 	assert.NoError(t, err)
 }
 
