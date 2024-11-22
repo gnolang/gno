@@ -7,10 +7,10 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/gnolang/gno/gnovm"
 	"github.com/gnolang/gno/gnovm/pkg/gnolang/internal/txlog"
 	"github.com/gnolang/gno/tm2/pkg/amino"
 	"github.com/gnolang/gno/tm2/pkg/colors"
-	"github.com/gnolang/gno/tm2/pkg/std"
 	"github.com/gnolang/gno/tm2/pkg/store"
 	"github.com/gnolang/gno/tm2/pkg/store/utils"
 	stringz "github.com/gnolang/gno/tm2/pkg/strings"
@@ -25,14 +25,11 @@ import (
 // cause writes to happen to the store, such as MemPackages to iavlstore.
 type PackageGetter func(pkgPath string, store Store) (*PackageNode, *PackageValue)
 
-// inject natives into a new or loaded package (value and node)
-type PackageInjector func(store Store, pn *PackageNode)
-
 // NativeStore is a function which can retrieve native bodies of native functions.
 type NativeStore func(pkgName string, name Name) func(m *Machine)
 
 // Store is the central interface that specifies the communications between the
-// GnoVM and the underlying data store; currently, generally the Gno.land
+// GnoVM and the underlying data store; currently, generally the gno.land
 // blockchain, or the file system.
 type Store interface {
 	// STABLE
@@ -50,7 +47,7 @@ type Store interface {
 	GetTypeSafe(tid TypeID) Type
 	SetCacheType(Type)
 	SetType(Type)
-	GetBlockNode(Location) BlockNode
+	GetBlockNode(Location) BlockNode // to get a PackageNode, use PackageNodeLocation().
 	GetBlockNodeSafe(Location) BlockNode
 	SetBlockNode(BlockNode)
 	// UNSTABLE
@@ -61,12 +58,11 @@ type Store interface {
 	// Upon restart, all packages will be re-preprocessed; This
 	// loads BlockNodes and Types onto the store for persistence
 	// version 1.
-	AddMemPackage(memPkg *std.MemPackage)
-	GetMemPackage(path string) *std.MemPackage
-	GetMemFile(path string, name string) *std.MemFile
-	IterMemPackage() <-chan *std.MemPackage
+	AddMemPackage(memPkg *gnovm.MemPackage)
+	GetMemPackage(path string) *gnovm.MemPackage
+	GetMemFile(path string, name string) *gnovm.MemFile
+	IterMemPackage() <-chan *gnovm.MemPackage
 	ClearObjectCache()                                    // run before processing a message
-	SetPackageInjector(PackageInjector)                   // for natives
 	SetNativeStore(NativeStore)                           // for "new" natives XXX
 	GetNative(pkgPath string, name Name) func(m *Machine) // for "new" natives XXX
 	SetLogStoreOps(enabled bool)
@@ -101,7 +97,6 @@ type defaultStore struct {
 	// store configuration; cannot be modified in a transaction
 	pkgGetter        PackageGetter         // non-realm packages
 	cacheNativeTypes map[reflect.Type]Type // reflect doc: reflect.Type are comparable
-	pkgInjector      PackageInjector       // for injecting natives
 	nativeStore      NativeStore           // for injecting natives
 	go2gnoStrict     bool                  // if true, native->gno type conversion must be registered.
 
@@ -124,7 +119,6 @@ func NewStore(alloc *Allocator, baseStore, iavlStore store.Store) *defaultStore 
 		// store configuration
 		pkgGetter:        nil,
 		cacheNativeTypes: make(map[reflect.Type]Type),
-		pkgInjector:      nil,
 		nativeStore:      nil,
 		go2gnoStrict:     true,
 	}
@@ -154,7 +148,6 @@ func (ds *defaultStore) BeginTransaction(baseStore, iavlStore store.Store) Trans
 		// store configuration
 		pkgGetter:        ds.pkgGetter,
 		cacheNativeTypes: ds.cacheNativeTypes,
-		pkgInjector:      ds.pkgInjector,
 		nativeStore:      ds.nativeStore,
 		go2gnoStrict:     ds.go2gnoStrict,
 
@@ -189,10 +182,6 @@ func (transactionStore) ClearCache() {
 // func (transactionStore) Go2GnoType(reflect.Type) Type {
 // 	panic("Go2GnoType may not be called in a transaction store")
 // }
-
-func (transactionStore) SetPackageInjector(inj PackageInjector) {
-	panic("SetPackageInjector may not be called in a transaction store")
-}
 
 func (transactionStore) SetNativeStore(ns NativeStore) {
 	panic("SetNativeStore may not be called in a transaction store")
@@ -263,26 +252,6 @@ func (ds *defaultStore) GetPackage(pkgPath string, isImport bool) *PackageValue 
 				rlm := ds.GetPackageRealm(pkgPath)
 				pv.Realm = rlm
 			}
-			// get package node.
-			pl := PackageNodeLocation(pkgPath)
-			pn, ok := ds.GetBlockNodeSafe(pl).(*PackageNode)
-			if !ok {
-				// Do not inject packages from packageGetter
-				// that don't have corresponding *PackageNodes.
-			} else {
-				// Inject natives after load.
-				if ds.pkgInjector != nil {
-					if pn.HasAttribute(ATTR_INJECTED) {
-						// e.g. in checktx or simulate or query.
-						pn.PrepareNewValues(pv)
-					} else {
-						// pv.GetBlock(ds) // preload pv.Block
-						ds.pkgInjector(ds, pn)
-						pn.SetAttribute(ATTR_INJECTED, true)
-						pn.PrepareNewValues(pv)
-					}
-				}
-			}
 			// Rederive pv.fBlocksMap.
 			pv.deriveFBlocksMap(ds)
 			return pv
@@ -303,18 +272,6 @@ func (ds *defaultStore) GetPackage(pkgPath string, isImport bool) *PackageValue 
 			// will get written elsewhere
 			// later.
 			ds.cacheObjects[oid] = pv
-			// inject natives after init.
-			if ds.pkgInjector != nil {
-				if pn.HasAttribute(ATTR_INJECTED) {
-					// not sure why this would happen.
-					panic("should not happen")
-					// pn.PrepareNewValues(pv)
-				} else {
-					ds.pkgInjector(ds, pn)
-					pn.SetAttribute(ATTR_INJECTED, true)
-					pn.PrepareNewValues(pv)
-				}
-			}
 			// cache all types. usually preprocess() sets types,
 			// but packages gotten from the pkgGetter may skip this step,
 			// so fill in store.CacheTypes here.
@@ -654,7 +611,7 @@ func (ds *defaultStore) incGetPackageIndexCounter() uint64 {
 	}
 }
 
-func (ds *defaultStore) AddMemPackage(memPkg *std.MemPackage) {
+func (ds *defaultStore) AddMemPackage(memPkg *gnovm.MemPackage) {
 	memPkg.Validate() // NOTE: duplicate validation.
 	ctr := ds.incGetPackageIndexCounter()
 	idxkey := []byte(backendPackageIndexKey(ctr))
@@ -666,11 +623,11 @@ func (ds *defaultStore) AddMemPackage(memPkg *std.MemPackage) {
 
 // GetMemPackage retrieves the MemPackage at the given path.
 // It returns nil if the package could not be found.
-func (ds *defaultStore) GetMemPackage(path string) *std.MemPackage {
+func (ds *defaultStore) GetMemPackage(path string) *gnovm.MemPackage {
 	return ds.getMemPackage(path, false)
 }
 
-func (ds *defaultStore) getMemPackage(path string, isRetry bool) *std.MemPackage {
+func (ds *defaultStore) getMemPackage(path string, isRetry bool) *gnovm.MemPackage {
 	pathkey := []byte(backendPackagePathKey(path))
 	bz := ds.iavlStore.Get(pathkey)
 	if bz == nil {
@@ -687,7 +644,7 @@ func (ds *defaultStore) getMemPackage(path string, isRetry bool) *std.MemPackage
 		return nil
 	}
 
-	var memPkg *std.MemPackage
+	var memPkg *gnovm.MemPackage
 	amino.MustUnmarshal(bz, &memPkg)
 	return memPkg
 }
@@ -695,7 +652,7 @@ func (ds *defaultStore) getMemPackage(path string, isRetry bool) *std.MemPackage
 // GetMemFile retrieves the MemFile with the given name, contained in the
 // MemPackage at the given path. It returns nil if the file or the package
 // do not exist.
-func (ds *defaultStore) GetMemFile(path string, name string) *std.MemFile {
+func (ds *defaultStore) GetMemFile(path string, name string) *gnovm.MemFile {
 	memPkg := ds.GetMemPackage(path)
 	if memPkg == nil {
 		return nil
@@ -704,7 +661,7 @@ func (ds *defaultStore) GetMemFile(path string, name string) *std.MemFile {
 	return memFile
 }
 
-func (ds *defaultStore) IterMemPackage() <-chan *std.MemPackage {
+func (ds *defaultStore) IterMemPackage() <-chan *gnovm.MemPackage {
 	ctrkey := []byte(backendPackageIndexCtrKey())
 	ctrbz := ds.baseStore.Get(ctrkey)
 	if ctrbz == nil {
@@ -714,7 +671,7 @@ func (ds *defaultStore) IterMemPackage() <-chan *std.MemPackage {
 		if err != nil {
 			panic(err)
 		}
-		ch := make(chan *std.MemPackage, 0)
+		ch := make(chan *gnovm.MemPackage, 0)
 		go func() {
 			for i := uint64(1); i <= uint64(ctr); i++ {
 				idxkey := []byte(backendPackageIndexKey(i))
@@ -740,10 +697,6 @@ func (ds *defaultStore) ClearObjectCache() {
 	ds.cacheObjects = make(map[ObjectID]Object) // new cache.
 	ds.opslog = nil                             // new ops log.
 	ds.SetCachePackage(Uverse())
-}
-
-func (ds *defaultStore) SetPackageInjector(inj PackageInjector) {
-	ds.pkgInjector = inj
 }
 
 func (ds *defaultStore) SetNativeStore(ns NativeStore) {

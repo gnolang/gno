@@ -1,15 +1,23 @@
 # test for add package
 
-# load hello.gno package located in $WORK directory as gno.land/r/hello
-loadpkg gno.land/r/hello $WORK
-
 ## start a new node
 gnoland start
 
-## execute SayHello
-gnokey maketx call -pkgpath gno.land/r/hello -func SayHello -gas-fee 1000000ugnot -gas-wanted 2000000 -broadcast -chainid=tendermint_test test1
+## deploy realm
+gnokey maketx addpkg -pkgdir $WORK -pkgpath gno.land/r/$USER_ADDR_test1/hello -gas-fee 1000000ugnot -gas-wanted 100000000 -broadcast -chainid=tendermint_test test1
 
-## compare SayHello
+## check output
+stdout OK!
+stdout 'GAS WANTED: 100000000'
+stdout 'GAS USED:   \d+'
+stdout 'HEIGHT:     \d+'
+stdout 'EVENTS:     \[\]'
+stdout 'TX HASH:    '
+
+## call added realm
+gnokey maketx call -pkgpath gno.land/r/$USER_ADDR_test1/hello -chainid=tendermint_test -func SayHello -gas-fee 1000000ugnot -gas-wanted 2000000 -broadcast test1
+
+## check output
 stdout '\("hello world!" string\)'
 stdout OK!
 stdout 'GAS WANTED: 2000000'
