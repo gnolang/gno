@@ -64,6 +64,7 @@ func fetchPackage(io commands.IO, pkgPath string, dst string) error {
 	if err != nil {
 		return fmt.Errorf("get client for pkg path %q: %w", pkgPath, err)
 	}
+	defer client.Close()
 
 	// fetch files
 	data, err := qfile(client, pkgPath)
@@ -97,7 +98,7 @@ func fetchPackage(io commands.IO, pkgPath string, dst string) error {
 	return nil
 }
 
-func clientFromPkgPath(pkgPath string) (tm2client.Client, error) {
+func clientFromPkgPath(pkgPath string) (*tm2client.RPCClient, error) {
 	parts := strings.Split(pkgPath, "/")
 	if len(parts) < 1 {
 		return nil, fmt.Errorf("bad pkg path %q", pkgPath)
