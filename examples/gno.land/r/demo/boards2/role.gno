@@ -1,4 +1,4 @@
-package boards
+package boards2
 
 // TODO: Rename file to "auth.gno" and define a new interface
 
