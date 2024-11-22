@@ -8,9 +8,9 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/gnolang/gno/gnovm/cmd/gno/internal/gnopkgfetch"
 	"github.com/gnolang/gno/gnovm/pkg/gnoimports"
 	"github.com/gnolang/gno/gnovm/pkg/gnomod"
-	"github.com/gnolang/gno/gnovm/pkg/gnopkgfetch"
 	"github.com/gnolang/gno/tm2/pkg/commands"
 	"github.com/gnolang/gno/tm2/pkg/errors"
 	"go.uber.org/multierr"

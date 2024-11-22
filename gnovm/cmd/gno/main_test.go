@@ -9,7 +9,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/gnolang/gno/gnovm/pkg/gnopkgfetch"
+	"github.com/gnolang/gno/gnovm/cmd/gno/internal/gnopkgfetch"
 	"github.com/gnolang/gno/tm2/pkg/commands"
 	"github.com/stretchr/testify/require"
 )
