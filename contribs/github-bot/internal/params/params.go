@@ -12,8 +12,8 @@ import (
 type Params struct {
 	Owner   string
 	Repo    string
-	PrAll   bool
-	PrNums  PrList
+	PRAll   bool
+	PRNums  PRList
 	Verbose bool
 	DryRun  bool
 	Timeout time.Duration
@@ -36,16 +36,16 @@ func (p *Params) RegisterFlags(fs *flag.FlagSet) {
 	)
 
 	fs.BoolVar(
-		&p.PrAll,
+		&p.PRAll,
 		"pr-all",
 		false,
 		"process all opened pull requests",
 	)
 
 	fs.TextVar(
-		&p.PrNums,
+		&p.PRNums,
 		"pr-numbers",
-		PrList(nil),
+		PRList(nil),
 		"pull request(s) to process, must be a comma separated list of PR numbers, e.g '42,1337,7890'. If empty, will be retrieved from GitHub Actions context",
 	)
 
@@ -82,13 +82,13 @@ func (p *Params) ValidateFlags() {
 	}
 
 	// Check if flags are coherent
-	if p.PrAll && len(p.PrNums) != 0 {
+	if p.PRAll && len(p.PRNums) != 0 {
 		errorUsage("You can specify only one of the '-pr-all' and '-pr-numbers' flags")
 	}
 
 	// If one of these values is empty, it must be retrieved
 	// from GitHub Actions context
-	if p.Owner == "" || p.Repo == "" || (len(p.PrNums) == 0 && !p.PrAll) {
+	if p.Owner == "" || p.Repo == "" || (len(p.PRNums) == 0 && !p.PRAll) {
 		actionCtx, err := githubactions.Context()
 		if err != nil {
 			errorUsage(fmt.Sprintf("Unable to get GitHub Actions context: %v", err))
@@ -104,7 +104,7 @@ func (p *Params) ValidateFlags() {
 				errorUsage("Unable to retrieve repo from GitHub Actions context, you may want to set it using -repo flag")
 			}
 		}
-		if len(p.PrNums) == 0 && !p.PrAll {
+		if len(p.PRNums) == 0 && !p.PRAll {
 			const errMsg = "Unable to retrieve pull request number from GitHub Actions context, you may want to set it using -pr-numbers flag"
 			var num float64
 
@@ -131,7 +131,7 @@ func (p *Params) ValidateFlags() {
 				errorUsage(errMsg)
 			}
 
-			p.PrNums = PrList([]int{int(num)})
+			p.PRNums = PRList([]int{int(num)})
 		}
 	}
 }

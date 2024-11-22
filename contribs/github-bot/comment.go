@@ -21,7 +21,7 @@ var (
 	// Regex for capturing the entire line of a manual check
 	manualCheckLine = regexp.MustCompile(`(?m:^- \[([ x])\] (.+)?$)`)
 	// Regex for capturing only the user who checked it
-	manualCheckDetails = regexp.MustCompile(`(?m:(.+) \(checked by @(\w+)\)$)`)
+	manualCheckStatus = regexp.MustCompile(`(?m:(.+) \(checked by @(\w+)\)$)`)
 	// Regex for capturing only the checkboxes
 	checkboxes = regexp.MustCompile(`(?m:^- \[[ x]\])`)
 	// Regex used to capture markdown links
@@ -48,29 +48,51 @@ type CommentContent struct {
 	allSatisfied bool
 }
 
+type manualCheckDetails struct {
+	status    string
+	checkedBy string
+}
+
 // getCommentManualChecks parses the bot comment to get the checkbox status,
 // the check description and the username who checked it
-func getCommentManualChecks(commentBody string) map[string][2]string {
-	checks := make(map[string][2]string)
+func getCommentManualChecks(commentBody string) map[string]manualCheckDetails {
+	checks := make(map[string]manualCheckDetails)
 
 	// For each line that matches the "Manual check" regex
 	for _, match := range manualCheckLine.FindAllStringSubmatch(commentBody, -1) {
 		status := match[1]
 		// Try to capture an occurrence of '(checked by @user)'
-		if details := manualCheckDetails.FindAllStringSubmatch(match[2], -1); len(details) > 0 {
+		if details := manualCheckStatus.FindAllStringSubmatch(match[2], -1); len(details) > 0 {
 			// If found, set both the status and the user that checked the box
 			description := details[0][1]
 			checkedBy := details[0][2]
-			checks[description] = [2]string{status, checkedBy}
+			checks[description] = manualCheckDetails{status, checkedBy}
 			continue
 		}
 
 		// If not found, set only the status of the box
 		description := match[2]
-		checks[description] = [2]string{status}
+		checks[description] = manualCheckDetails{status: status}
 	}
 
 	return checks
+}
+
+// Recursively search for nested values using the keys provided
+func indexMap(m map[string]any, keys ...string) any {
+	if len(keys) == 0 {
+		return m
+	}
+
+	if val, ok := m[keys[0]]; ok {
+		if keys = keys[1:]; len(keys) == 0 {
+			return val
+		}
+		subMap, _ := val.(map[string]any)
+		return indexMap(subMap, keys...)
+	}
+
+	return nil
 }
 
 // handleCommentUpdate checks if:
@@ -79,14 +101,7 @@ func getCommentManualChecks(commentBody string) map[string][2]string {
 //   - the comment was not edited by the bot itself (prevent infinite loop)
 //   - the comment change is only a checkbox being checked or unckecked (or restore it)
 //   - the actor / comment editor has permission to modify this checkbox (or restore it)
-func handleCommentUpdate(gh *client.GitHub) error {
-	// Get GitHub Actions context to retrieve comment update
-	actionCtx, err := githubactions.Context()
-	if err != nil {
-		gh.Logger.Debugf("Unable to retrieve GitHub Actions context: %v", err)
-		return nil
-	}
-
+func handleCommentUpdate(gh *client.GitHub, actionCtx *githubactions.GitHubContext) error {
 	// Ignore if it's not a comment related event
 	if actionCtx.EventName != "issue_comment" {
 		gh.Logger.Debugf("Event is not issue comment related (%s)", actionCtx.EventName)
@@ -114,57 +129,32 @@ func handleCommentUpdate(gh *client.GitHub) error {
 		return errTriggeredByBot
 	}
 
-	// Ignore if comment edition author is not the bot
-	comment, ok := actionCtx.Event["comment"].(map[string]any)
-	if !ok {
-		return errors.New("unable to get comment on issue comment event")
-	}
-
-	author, ok := comment["user"].(map[string]any)
-	if !ok {
-		return errors.New("unable to get comment user on issue comment event")
-	}
-
-	login, ok := author["login"].(string)
+	// Get login of the author of the edited comment
+	login, ok := indexMap(actionCtx.Event, "comment", "user", "login").(string)
 	if !ok {
 		return errors.New("unable to get comment user login on issue comment event")
 	}
 
-	// If comment edition author is not the bot, return
+	// If the author is not the bot, return
 	if login != authUser.GetLogin() {
 		return nil
 	}
 
-	// Get comment current body
-	current, ok := comment["body"].(string)
+	// Get comment updated body
+	current, ok := indexMap(actionCtx.Event, "comment", "body").(string)
 	if !ok {
 		return errors.New("unable to get comment body on issue comment event")
 	}
 
-	// Get comment updated body
-	changes, ok := actionCtx.Event["changes"].(map[string]any)
-	if !ok {
-		return errors.New("unable to get changes on issue comment event")
-	}
-
-	changesBody, ok := changes["body"].(map[string]any)
-	if !ok {
-		return errors.New("unable to get changes body on issue comment event")
-	}
-
-	previous, ok := changesBody["from"].(string)
+	// Get comment previous body
+	previous, ok := indexMap(actionCtx.Event, "changes", "body", "from").(string)
 	if !ok {
 		return errors.New("unable to get changes body content on issue comment event")
 	}
 
 	// Get PR number from GitHub Actions context
-	issue, ok := actionCtx.Event["issue"].(map[string]any)
-	if !ok {
-		return errors.New("unable to get issue on issue comment event")
-	}
-
-	num, ok := issue["number"].(float64)
-	if !ok || num <= 0 {
+	prNum, ok := indexMap(actionCtx.Event, "issue", "number").(float64)
+	if !ok || prNum <= 0 {
 		return errors.New("unable to get issue number on issue comment event")
 	}
 
@@ -172,7 +162,7 @@ func handleCommentUpdate(gh *client.GitHub) error {
 	if checkboxes.ReplaceAllString(current, "") != checkboxes.ReplaceAllString(previous, "") {
 		// If not, restore previous comment body
 		if !gh.DryRun {
-			gh.SetBotComment(previous, int(num))
+			gh.SetBotComment(previous, int(prNum))
 		}
 		return errors.New("bot comment edited outside of checkboxes")
 	}
@@ -183,7 +173,7 @@ func handleCommentUpdate(gh *client.GitHub) error {
 	edited := ""
 	for key := range currentChecks {
 		// If there is no diff for this check, ignore it
-		if currentChecks[key][0] == previousChecks[key][0] {
+		if currentChecks[key].status == previousChecks[key].status {
 			continue
 		}
 
@@ -210,28 +200,29 @@ func handleCommentUpdate(gh *client.GitHub) error {
 		if len(teams) > 0 {
 			if gh.IsUserInTeams(actionCtx.Actor, teams) {
 				if !gh.DryRun {
-					gh.SetBotComment(previous, int(num))
+					gh.SetBotComment(previous, int(prNum))
 				}
 				return errors.New("checkbox edited by a user not allowed to")
 			}
 		}
 
 		// This regex capture only the line of the current check
-		specificManualCheck := regexp.MustCompile(fmt.Sprintf(`(?m:^- \[%s\] %s.*$)`, currentChecks[key][0], key))
+		specificManualCheck := regexp.MustCompile(fmt.Sprintf(`(?m:^- \[%s\] %s.*$)`, currentChecks[key].status, key))
 
 		// If the box is checked, append the username of the user who checked it
-		if strings.TrimSpace(currentChecks[key][0]) == "x" {
-			replacement := fmt.Sprintf("- [%s] %s (checked by @%s)", currentChecks[key][0], key, actionCtx.Actor)
+		if strings.TrimSpace(currentChecks[key].status) == "x" {
+			replacement := fmt.Sprintf("- [%s] %s (checked by @%s)", currentChecks[key].status, key, actionCtx.Actor)
 			edited = specificManualCheck.ReplaceAllString(current, replacement)
-		} else { // Else, remove the username of the user
-			replacement := fmt.Sprintf("- [%s] %s", currentChecks[key][0], key)
+		} else {
+			// Else, remove the username of the user
+			replacement := fmt.Sprintf("- [%s] %s", currentChecks[key].status, key)
 			edited = specificManualCheck.ReplaceAllString(current, replacement)
 		}
 	}
 
 	// Update comment with username
 	if edited != "" && !gh.DryRun {
-		gh.SetBotComment(edited, int(num))
+		gh.SetBotComment(edited, int(prNum))
 		gh.Logger.Debugf("Comment manual checks updated successfully")
 	}
 

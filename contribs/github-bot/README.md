@@ -32,7 +32,7 @@ For the bot to make requests to the GitHub API, it needs a Personal Access Token
 
 > github-bot --help
 USAGE
-  [flags]
+  github-bot [flags]
 
 This tool checks if the requirements for a PR to be merged are satisfied (defined in config.go) and displays PR status checks accordingly.
 A valid GitHub Token must be provided by setting the GITHUB_TOKEN environment variable.

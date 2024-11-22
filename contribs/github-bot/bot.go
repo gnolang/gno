@@ -13,6 +13,7 @@ import (
 	p "github.com/gnolang/gno/contribs/github-bot/internal/params"
 	"github.com/gnolang/gno/contribs/github-bot/internal/utils"
 	"github.com/google/go-github/v64/github"
+	"github.com/sethvargo/go-githubactions"
 	"github.com/xlab/treeprint"
 )
 
@@ -31,8 +32,15 @@ func execBot(params *p.Params) error {
 		return fmt.Errorf("comment update handling failed: %w", err)
 	}
 
+	// Get GitHub Actions context to retrieve comment update
+	actionCtx, err := githubactions.Context()
+	if err != nil {
+		gh.Logger.Debugf("Unable to retrieve GitHub Actions context: %v", err)
+		return nil
+	}
+
 	// Handle comment update, if any
-	if err := handleCommentUpdate(gh); errors.Is(err, errTriggeredByBot) {
+	if err := handleCommentUpdate(gh, actionCtx); errors.Is(err, errTriggeredByBot) {
 		return nil // Ignore if this run was triggered by a previous run
 	} else if err != nil {
 		return fmt.Errorf("comment update handling failed: %w", err)
@@ -42,23 +50,34 @@ func execBot(params *p.Params) error {
 	var prs []*github.PullRequest
 
 	// If requested, retrieve all open pull requests
-	if params.PrAll {
+	if params.PRAll {
 		opts := &github.PullRequestListOptions{
 			State:     "open",
 			Sort:      "updated",
 			Direction: "desc",
+			ListOptions: github.ListOptions{
+				PerPage: client.PageSize,
+			},
 		}
 
-		prs, _, err = gh.Client.PullRequests.List(gh.Ctx, gh.Owner, gh.Repo, opts)
-		if err != nil {
-			return fmt.Errorf("unable to retrieve all open pull requests: %w", err)
-		}
+		for {
+			prsPage, response, err := gh.Client.PullRequests.List(gh.Ctx, gh.Owner, gh.Repo, opts)
+			if err != nil {
+				return fmt.Errorf("unable to retrieve all open pull requests: %w", err)
+			}
 
+			prs = append(prs, prsPage...)
+
+			if response.NextPage == 0 {
+				break
+			}
+			opts.Page = response.NextPage
+		}
+	} else {
 		// Otherwise, retrieve only specified pull request(s)
 		// (flag or GitHub Action context)
-	} else {
-		prs = make([]*github.PullRequest, len(params.PrNums))
-		for i, prNum := range params.PrNums {
+		prs = make([]*github.PullRequest, len(params.PRNums))
+		for i, prNum := range params.PRNums {
 			pr, _, err := gh.Client.PullRequests.Get(gh.Ctx, gh.Owner, gh.Repo, prNum)
 			if err != nil {
 				return fmt.Errorf("unable to retrieve specified pull request (%d): %w", prNum, err)
@@ -119,7 +138,7 @@ func execBot(params *p.Params) error {
 			}
 
 			// Retrieve manual check states
-			checks := make(map[string][2]string)
+			checks := make(map[string]manualCheckDetails)
 			if comment, err := gh.GetBotComment(pr.GetNumber()); err == nil {
 				checks = getCommentManualChecks(comment.GetBody())
 			}
@@ -137,7 +156,7 @@ func execBot(params *p.Params) error {
 				checkedBy := ""
 				check, ok := checks[manualRule.description]
 				if ok {
-					checkedBy = check[1]
+					checkedBy = check.checkedBy
 				}
 
 				commentContent.ManualRules = append(

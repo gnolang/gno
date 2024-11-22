@@ -7,16 +7,16 @@ import (
 	"strings"
 )
 
-type PrList []int
+type PRList []int
 
-// PrList is both a TextMarshaler and a TextUnmarshaler
+// PRList is both a TextMarshaler and a TextUnmarshaler
 var (
-	_ encoding.TextMarshaler   = PrList{}
-	_ encoding.TextUnmarshaler = &PrList{}
+	_ encoding.TextMarshaler   = PRList{}
+	_ encoding.TextUnmarshaler = &PRList{}
 )
 
 // MarshalText implements encoding.TextMarshaler.
-func (p PrList) MarshalText() (text []byte, err error) {
+func (p PRList) MarshalText() (text []byte, err error) {
 	prNumsStr := make([]string, len(p))
 
 	for i, prNum := range p {
@@ -27,7 +27,7 @@ func (p PrList) MarshalText() (text []byte, err error) {
 }
 
 // UnmarshalText implements encoding.TextUnmarshaler.
-func (p *PrList) UnmarshalText(text []byte) error {
+func (p *PRList) UnmarshalText(text []byte) error {
 	for _, prNumStr := range strings.Split(string(text), ",") {
 		prNum, err := strconv.Atoi(strings.TrimSpace(prNumStr))
 		if err != nil {
