@@ -1029,14 +1029,6 @@ func assertValidAssignRhs(store Store, last BlockNode, n Node) {
 			tt = evalStaticType(store, last, exp)
 			panic(fmt.Sprintf("%s (type) is not an expression", tt.String()))
 		}
-
-		// Ensures that function used in ValueDecl or AssignStmt must return at least 1 value.
-		if cx, ok := exp.(*CallExpr); ok {
-			tType, ok := tt.(*tupleType)
-			if ok && len(tType.Elts) == 0 {
-				panic(fmt.Sprintf("%s (no value) used as value", cx.Func.String()))
-			}
-		}
 	}
 }
 

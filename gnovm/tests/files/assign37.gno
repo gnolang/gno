@@ -1,7 +1,5 @@
 package main
 
-import "fmt"
-
 func f() { }
 
 func main() {
@@ -9,4 +7,4 @@ func main() {
 }
 
 // Error:
-// main/files/assign37.gno:8:2: f<VPBlock(3,0)> (no value) used as value
+// main/files/assign37.gno:6:2: f<VPBlock(3,0)> (no value) used as value
