@@ -12,7 +12,7 @@ SEEDS=${SEEDS:-""}
 PERSISTENT_PEERS=${PERSISTENT_PEERS:-""}
 
 echo "" >> /gnoroot/gno.land/genesis/genesis_txs.jsonl
-cat ${GENESIS_BACKUP_FILE} >> /gnoroot/gno.land/genesis/genesis_txs.jsonl
+cat "${GENESIS_BACKUP_FILE}" >> /gnoroot/gno.land/genesis/genesis_txs.jsonl
 
 # Initialize the secrets
 gnoland secrets init
