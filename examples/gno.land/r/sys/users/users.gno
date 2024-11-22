@@ -1,6 +1,7 @@
 package users
 
 import (
+	"github.com/gnolang/gno/examples/gno.land/p/demo/avlhelpers"
 	pusers "github.com/gnolang/gno/examples/gno.land/p/demo/users"
 	"github.com/gnolang/gno/gnovm/stdlibs/std"
 )
@@ -53,9 +54,16 @@ func Users(offset, count uint64) []pusers.User {
 	uStore.IterateByOffset(int(offset), int(count), func(key string, value interface{}) bool {
 		user := value.(pusers.User)
 		res = append(res, user)
-
 		return false
 	})
 
 	return res
+}
+
+// UsersByPrefix gets a slice of usernames starting from the given prefix. Limits the
+// number of results to maxResults. (This can be used for a name search tool.)
+func UsersByPrefix(prefix string, maxResults int) []string {
+	// most likely moved to r/gnoland/users to keep this package minimal.
+	// in that case, should we get a value copy of the uStore available to whitelisted callers?
+	return avlhelpers.ListByteStringKeysByPrefix(uStore, prefix, maxResults)
 }

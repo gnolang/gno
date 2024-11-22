@@ -42,5 +42,5 @@ func WriteUser(user *pusers.User) error {
 
 // UserCount returns the number of registered users
 func UserCount() int {
-	return uStore.Size()
+	return aStore.Size()
 }
