@@ -269,7 +269,11 @@ func (m *Machine) doOpRem() {
 	}
 
 	// lv % rv
-	remAssign(lv, rv)
+	err := remAssign(lv, rv)
+
+	if err != nil {
+		panic(err)
+	}
 }
 
 func (m *Machine) doOpShl() {
@@ -955,33 +959,74 @@ func quoAssign(lv, rv *TypedValue) *Exception {
 }
 
 // for doOpRem and doOpRemAssign.
-func remAssign(lv, rv *TypedValue) {
+func remAssign(lv, rv *TypedValue) *Exception {
+	expt := &Exception{
+		Value: typedString("division by zero"),
+	}
+
 	// set the result in lv.
 	// NOTE this block is replicated in op_assign.go
 	switch baseOf(lv.T) {
 	case IntType:
+		if rv.GetInt() == 0 {
+			return expt
+		}
 		lv.SetInt(lv.GetInt() % rv.GetInt())
 	case Int8Type:
+		if rv.GetInt8() == 0 {
+			return expt
+		}
 		lv.SetInt8(lv.GetInt8() % rv.GetInt8())
 	case Int16Type:
+		if rv.GetInt16() == 0 {
+			return expt
+		}
 		lv.SetInt16(lv.GetInt16() % rv.GetInt16())
 	case Int32Type, UntypedRuneType:
+		if rv.GetInt32() == 0 {
+			return expt
+		}
 		lv.SetInt32(lv.GetInt32() % rv.GetInt32())
 	case Int64Type:
+		if rv.GetInt64() == 0 {
+			return expt
+		}
 		lv.SetInt64(lv.GetInt64() % rv.GetInt64())
 	case UintType:
+		if rv.GetUint() == 0 {
+			return expt
+		}
 		lv.SetUint(lv.GetUint() % rv.GetUint())
 	case Uint8Type:
+		if rv.GetUint8() == 0 {
+			return expt
+		}
 		lv.SetUint8(lv.GetUint8() % rv.GetUint8())
 	case DataByteType:
+		if rv.GetUint8() == 0 {
+			return expt
+		}
 		lv.SetDataByte(lv.GetDataByte() % rv.GetUint8())
 	case Uint16Type:
+		if rv.GetUint16() == 0 {
+			return expt
+		}
 		lv.SetUint16(lv.GetUint16() % rv.GetUint16())
 	case Uint32Type:
+		if rv.GetUint32() == 0 {
+			return expt
+		}
 		lv.SetUint32(lv.GetUint32() % rv.GetUint32())
 	case Uint64Type:
+		if rv.GetUint64() == 0 {
+			return expt
+		}
 		lv.SetUint64(lv.GetUint64() % rv.GetUint64())
 	case BigintType, UntypedBigintType:
+		if rv.GetBigDec().Cmp(apd.New(0, 0)) == 0 {
+			return expt
+		}
+
 		lb := lv.GetBigInt()
 		lb = big.NewInt(0).Rem(lb, rv.GetBigInt())
 		lv.V = BigintValue{V: lb}
@@ -991,6 +1036,8 @@ func remAssign(lv, rv *TypedValue) {
 			lv.T,
 		))
 	}
+
+	return nil
 }
 
 // for doOpBand and doOpBandAssign.
