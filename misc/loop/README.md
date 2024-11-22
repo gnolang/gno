@@ -39,12 +39,23 @@ You can find a [Makefile](./Makefile) to help you interact with the portal loop
 make portalloopd.switch
 ```
 
-## Running in production
+### Running in production
 
 - Create an `.env` file adding all the entries from `.env.example`
 - Setup the DNS names present in the `docker-compose.yml` file
-- run using
+- run using `make all`
 
-```sh
-make
+### Pulling in Portal Loop state `from tx-exports`
+
+To pull Portal Loop state from tx-exports, run the following make directive:
+
+```bash
+make pull-exports
 ```
+
+This will run the following steps:
+
+- stop any running portal loop containers -> Portal Loop will be down
+- clone the `gnolang/tx-exports` repository and prepare the backup txs sheets located there as the genesis transactions
+  for Portal Loop
+- start the portal loop containers -> Portal Loop will start back up again
