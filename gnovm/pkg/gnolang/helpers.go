@@ -2,7 +2,6 @@ package gnolang
 
 import (
 	"fmt"
-	"path/filepath"
 	"regexp"
 	"strconv"
 	"strings"
@@ -34,11 +33,6 @@ func IsStdlib(s string) bool {
 	// (eventually) follow the same rule as Go, which is: does the first
 	// element of the import path contain a dot?
 	return !strings.HasPrefix(s, "gno.land/")
-}
-
-// IsRemotePkgPath determines whether s is a remote pkg path, i.e.: not a filepath nor a standard library
-func IsRemotePkgPath(s string) bool {
-	return !strings.HasPrefix(s, ".") && !filepath.IsAbs(s) && !IsStdlib(s)
 }
 
 // ----------------------------------------

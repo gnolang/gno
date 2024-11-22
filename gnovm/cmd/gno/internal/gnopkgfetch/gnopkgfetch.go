@@ -28,7 +28,7 @@ func FetchPackageImportsRecursively(io commands.IO, pkgDir string, gnoMod *gnomo
 		resolved := gnoMod.Resolve(module.Version{Path: pkgPath})
 		resolvedPkgPath := resolved.Path
 
-		if !gnolang.IsRemotePkgPath(resolvedPkgPath) {
+		if !isRemotePkgPath(resolvedPkgPath) {
 			continue
 		}
 
@@ -128,3 +128,8 @@ func qfile(tmClient tm2client.Client, pkgPath string) ([]byte, error) {
 }
 
 var fetchClient tm2client.Client
+
+// isRemotePkgPath determines whether s is a remote pkg path, i.e.: not a filepath nor a standard library
+func isRemotePkgPath(s string) bool {
+	return !strings.HasPrefix(s, ".") && !filepath.IsAbs(s) && !gnolang.IsStdlib(s)
+}
