@@ -159,7 +159,6 @@ func (m *Machine) doOpRemAssign() {
 	}
 	// lv %= rv
 	err := remAssign(lv.TV, rv)
-
 	if err != nil {
 		panic(err)
 	}

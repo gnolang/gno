@@ -270,7 +270,6 @@ func (m *Machine) doOpRem() {
 
 	// lv % rv
 	err := remAssign(lv, rv)
-
 	if err != nil {
 		panic(err)
 	}
