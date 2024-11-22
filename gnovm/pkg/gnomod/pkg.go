@@ -119,7 +119,7 @@ func ListPkgs(root string) (PkgList, error) {
 		_ = err // ignore error to get valid imports while ignoring bad/partial files
 
 		// remove self and standard libraries from imports
-		_ = slices.DeleteFunc(imports, func(imp string) bool {
+		imports = slices.DeleteFunc(imports, func(imp string) bool {
 			return imp == gnoMod.Module.Mod.Path || gnolang.IsStdlib(imp)
 		})
 
