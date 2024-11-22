@@ -1288,13 +1288,7 @@ func (m *Machine) Run() {
 		if r != nil {
 			switch r := r.(type) {
 			case *Exception:
-				panicStmt := &PanicStmt{
-					Exception: &BasicLitExpr{Value: `"` + r.Sprint(m) + `"`, Kind: STRING},
-				}
-
-				m.PushStmt(panicStmt)
-				m.PushOp(OpExec)
-
+				m.Panic(r.Value)
 				m.Run()
 			default:
 				panic(r)
