@@ -829,7 +829,9 @@ func (m *Machine) RunFunc(fn Name) {
 
 func (m *Machine) RunMain() {
 	defer func() {
-		if r := recover(); r != nil {
+		r := recover()
+
+		if r != nil {
 			switch r := r.(type) {
 			case UnhandledPanicError:
 				fmt.Printf("Machine.RunMain() panic: %s\nStacktrace: %s\n",
@@ -1280,6 +1282,20 @@ const (
 // main run loop.
 
 func (m *Machine) Run() {
+	defer func() {
+		r := recover()
+
+		if r != nil {
+			switch r := r.(type) {
+			case *Exception:
+				m.Panic(r.Value)
+				m.Run()
+			default:
+				panic(r)
+			}
+		}
+	}()
+
 	for {
 		if m.Debugger.enabled {
 			m.Debug()
