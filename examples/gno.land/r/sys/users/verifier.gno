@@ -1,7 +1,7 @@
 package users
 
 import (
-	"github.com/gnolang/gno/gnovm/stdlibs/std"
+	"std"
 )
 
 type VerifyNameFunc func(enabled bool, address std.Address, name string) bool

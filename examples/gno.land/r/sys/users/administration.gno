@@ -1,9 +1,10 @@
 package users
 
 import (
-	"github.com/gnolang/gno/examples/gno.land/p/demo/ownable"
-	p "github.com/gnolang/gno/examples/gno.land/p/demo/pausable"
-	"github.com/gnolang/gno/gnovm/stdlibs/std"
+	"std"
+
+	"gno.land/p/demo/ownable"
+	p "gno.land/p/demo/pausable"
 )
 
 const (

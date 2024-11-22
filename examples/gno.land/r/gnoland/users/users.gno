@@ -1,12 +1,14 @@
 package users
 
 import (
-	"github.com/gnolang/gno/examples/gno.land/p/demo/ownable"
-	p "github.com/gnolang/gno/examples/gno.land/p/demo/pausable"
-	pusers "github.com/gnolang/gno/examples/gno.land/p/demo/users"
-	sys "github.com/gnolang/gno/examples/gno.land/r/sys/users"
-	"github.com/gnolang/gno/gnovm/stdlibs/std"
 	"regexp"
+	"std"
+
+	"gno.land/p/demo/ownable"
+	p "gno.land/p/demo/pausable"
+	pusers "gno.land/p/demo/users"
+
+	sys "gno.land/r/sys/users"
 )
 
 const (

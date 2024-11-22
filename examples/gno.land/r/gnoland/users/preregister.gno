@@ -1,9 +1,10 @@
 package users
 
 import (
-	pusers "github.com/gnolang/gno/examples/gno.land/p/demo/users"
-	sys "github.com/gnolang/gno/examples/gno.land/r/sys/users"
 	"std"
+
+	pusers "gno.land/p/demo/users"
+	sys "gno.land/r/sys/users"
 )
 
 // pre-registered users

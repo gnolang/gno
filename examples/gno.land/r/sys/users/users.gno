@@ -1,9 +1,10 @@
 package users
 
 import (
-	"github.com/gnolang/gno/examples/gno.land/p/demo/avlhelpers"
-	pusers "github.com/gnolang/gno/examples/gno.land/p/demo/users"
-	"github.com/gnolang/gno/gnovm/stdlibs/std"
+	"std"
+
+	"gno.land/p/demo/avlhelpers"
+	pusers "gno.land/p/demo/users"
 )
 
 func ResolveUsername(username string) *pusers.User {

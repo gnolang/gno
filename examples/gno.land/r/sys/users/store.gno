@@ -1,10 +1,11 @@
 package users
 
 import (
-	"github.com/gnolang/gno/examples/gno.land/p/demo/avl"
-	p "github.com/gnolang/gno/examples/gno.land/p/demo/pausable"
-	pusers "github.com/gnolang/gno/examples/gno.land/p/demo/users"
-	"github.com/gnolang/gno/gnovm/stdlibs/std"
+	"std"
+
+	"gno.land/p/demo/avl"
+	p "gno.land/p/demo/pausable"
+	pusers "gno.land/p/demo/users"
 )
 
 var (
