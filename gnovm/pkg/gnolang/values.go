@@ -372,6 +372,7 @@ func (av *ArrayValue) GetLength() int {
 
 // et is only required for .List byte-arrays.
 func (av *ArrayValue) GetPointerAtIndexInt2(store Store, ii int, et Type) PointerValue {
+	fmt.Println("----av, GetPointerAtIndexInt2: ", av)
 	if av.Data == nil {
 		ev := fillValueTV(store, &av.List[ii]) // by reference
 		return PointerValue{
@@ -450,6 +451,7 @@ func (sv *SliceValue) GetLength() int {
 
 // et is only required for .List byte-slices.
 func (sv *SliceValue) GetPointerAtIndexInt2(store Store, ii int, et Type) PointerValue {
+	fmt.Println("---sv, GetPointerAtIndexInt2: ", sv)
 	// Necessary run-time slice bounds check
 	if ii < 0 {
 		panic(fmt.Sprintf(
@@ -472,6 +474,7 @@ type StructValue struct {
 
 // TODO handle unexported fields in debug, and also ensure in the preprocessor.
 func (sv *StructValue) GetPointerTo(store Store, path ValuePath) PointerValue {
+	fmt.Println("---sv GetPointerTo: ", sv)
 	if debug {
 		if path.Depth != 0 {
 			panic(fmt.Sprintf(
@@ -483,6 +486,8 @@ func (sv *StructValue) GetPointerTo(store Store, path ValuePath) PointerValue {
 }
 
 func (sv *StructValue) GetPointerToInt(store Store, index int) PointerValue {
+	fmt.Println("---sv, GetPointerToInt: ", sv)
+	fmt.Println("---index: ", index)
 	fv := fillValueTV(store, &sv.Fields[index])
 	return PointerValue{
 		TV:    fv,
@@ -1726,7 +1731,10 @@ func (tv *TypedValue) Assign(alloc *Allocator, tv2 TypedValue, cu bool) {
 // allocated, *Allocator.AllocatePointer() is called separately,
 // as in OpRef.
 func (tv *TypedValue) GetPointerTo(alloc *Allocator, store Store, path ValuePath) PointerValue {
-	fmt.Println("---GetPointerTo, tv, rt of tv: ", tv, reflect.TypeOf(tv))
+	fmt.Println("---GetPointerTo, tv: ", tv)
+	fmt.Println("---rt of tv: ", reflect.TypeOf(tv))
+	fmt.Println("---path: ", path)
+	fmt.Println("---path.Type: ", path.Type)
 	if debug {
 		if tv.IsUndefined() {
 			panic("GetPointerTo() on undefined value")
@@ -1824,6 +1832,7 @@ func (tv *TypedValue) GetPointerTo(alloc *Allocator, store Store, path ValuePath
 		fillValueTV(store, dtv)
 	}
 
+	fmt.Println("---2, path.Type: ", path.Type)
 	switch path.Type {
 	case VPBlock:
 		switch dtv.T.(type) {
@@ -1836,8 +1845,12 @@ func (tv *TypedValue) GetPointerTo(alloc *Allocator, store Store, path ValuePath
 	case VPField:
 		switch baseOf(dtv.T).(type) {
 		case *StructType:
+			println("---StructType")
+			fmt.Println("---dtv: ", dtv)
+			fmt.Println("---return pointer of dtv: ", dtv.V.(*StructValue).GetPointerTo(store, path))
 			return dtv.V.(*StructValue).GetPointerTo(store, path)
 		case *TypeType:
+			println("---TypeType")
 			switch t := dtv.V.(TypeValue).Type.(type) {
 			case *PointerType:
 				dt := t.Elt.(*DeclaredType)
@@ -2054,6 +2067,7 @@ func (tv *TypedValue) GetPointerAtIndexInt(store Store, ii int) PointerValue {
 }
 
 func (tv *TypedValue) GetPointerAtIndex(alloc *Allocator, store Store, iv *TypedValue) PointerValue {
+	fmt.Println("---tv, GetPointerAtIndex: ", tv)
 	switch bt := baseOf(tv.T).(type) {
 	case PrimitiveType:
 		if bt == StringType || bt == UntypedStringType {
@@ -2658,19 +2672,20 @@ func typedString(s string) TypedValue {
 }
 
 func fillValueTV(store Store, tv *TypedValue) *TypedValue {
-	//fmt.Println("---fillValueTV, tv: ", tv)
+	fmt.Println("---fillValueTV, tv: ", tv)
 	switch cv := tv.V.(type) {
 	case RefValue:
-		//println("---tv.V RefValue")
-		//fmt.Println("---cv: ", cv)
+		println("---tv.V RefValue")
+		fmt.Println("---cv: ", cv)
 		if cv.PkgPath != "" { // load package
 			tv.V = store.GetPackage(cv.PkgPath, false)
 		} else { // load object
 			// XXX XXX allocate object.
 			tv.V = store.GetObject(cv.ObjectID)
-			//fmt.Println("---tv.V: ", tv.V)
+			fmt.Println("---tv.V: ", tv.V)
 		}
 	case PointerValue:
+		fmt.Println("---PointerValue")
 		// As a special case, cv.Base is filled
 		// and cv.TV set appropriately.
 		// Alternatively, could implement
@@ -2678,11 +2693,14 @@ func fillValueTV(store Store, tv *TypedValue) *TypedValue {
 		// but for execution speed traded off for
 		// loading speed, we do the following for now:
 		if ref, ok := cv.Base.(RefValue); ok {
+			fmt.Println("---cv.Base: ", ref)
 			base := store.GetObject(ref.ObjectID).(Value)
+			fmt.Println("---base: ", base)
 			cv.Base = base
 			switch cb := base.(type) {
 			case *ArrayValue:
 				et := baseOf(tv.T).(*PointerType).Elt
+				fmt.Println("---et: ", et)
 				epv := cb.GetPointerAtIndexInt2(store, cv.Index, et)
 				cv.TV = epv.TV // TODO optimize? (epv.* ignored)
 			case *StructValue:
@@ -2696,6 +2714,7 @@ func fillValueTV(store Store, tv *TypedValue) *TypedValue {
 				vpv := cb.GetPointerToInt(store, cv.Index)
 				cv.TV = vpv.TV // TODO optimize?
 			case *HeapItemValue:
+				fmt.Println("---HeapItemValue: ", cb.Value)
 				cv.TV = &cb.Value
 			default:
 				panic("should not happen")

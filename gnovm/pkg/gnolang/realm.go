@@ -313,6 +313,30 @@ func (rlm *Realm) MarkNewEscapedCheckCrossRealm(store Store, oo Object, isRef bo
 
 	if oo.GetLastNewEscapedRealm() != rlm.ID { // crossing realm
 		if isRef {
+
+			if hiv, ok := oo.(*HeapItemValue); ok {
+				fmt.Println("---hiv: ", hiv)
+				r := fillValueTV(store, &hiv.Value)
+				fmt.Println("---r: ", r)
+				if sv, ok := hiv.Value.V.(*StructValue); ok {
+					fmt.Println("---sv: ", sv)
+					if !sv.GetIsReal() {
+						panic("---sv is not real!!!")
+					}
+					for _, fv := range sv.Fields {
+						rfv := fillValueTV(store, &fv)
+						fmt.Println("---rfv: ", rfv)
+						if oo, ok := rfv.V.(Object); ok {
+							if !oo.GetIsReal() {
+								panic(fmt.Sprintf("---should not happen, %v: is not real \n", oo))
+							}
+						}
+					}
+				}
+			}
+
+			// =====================================================
+
 			fmt.Println("---length: ", length)
 			if length != 0 { // TODO: explicit array check
 				fmt.Println("---offset: ", offset)
@@ -336,15 +360,47 @@ func (rlm *Realm) MarkNewEscapedCheckCrossRealm(store Store, oo Object, isRef bo
 					} else {
 						fmt.Println("---e.V: ", e.V)
 						fmt.Println("---e.V: ", reflect.TypeOf(e.V))
-						if p, ok := e.V.(PointerValue); ok {
-							fmt.Println("---is nil? ", p.TV == nil)
+
+						res := oo.(*ArrayValue).GetPointerAtIndexInt2(store, i, nil).Deref()
+						fmt.Println("---res: ", res)
+						fmt.Println("---type of res: ", reflect.TypeOf(res.V))
+						if p, ok := res.V.(PointerValue); ok {
+							fmt.Println("---p.TV: ", p.TV)
+							fmt.Println("---p.Base: ", p.Base)
+
+							rr := fillValueTV(store, p.TV)
+							fmt.Println("---rr: ", rr)
+
+							if sv, ok := p.TV.V.(*StructValue); ok {
+								fmt.Println("---sv: ", sv)
+								fmt.Println("---sv.GetIsReal", sv.GetIsReal())
+								if !sv.GetIsReal() {
+									panic(fmt.Sprintf("---should not happen, %v: is not real \n", sv))
+								}
+								fmt.Println("---sv.ObjectID", sv.GetObjectID())
+							}
 						}
-						isreal := e.V.(Object).GetIsReal()
-						fmt.Println("---isreal: ", isreal)
-						fmt.Println("---objectID: ", e.V.(Object).GetObjectID())
-						if !isreal {
-							panic("should not happen while reference unreal element from external realm")
-						}
+
+						//if p, ok := e.V.(PointerValue); ok {
+						//	fmt.Println("---is nil? ", p.TV == nil)
+						//	r := fillValueTV(store, &e)
+						//	fmt.Println("---r: ", r)
+						//	if ref, ok := r.V.(RefValue); ok {
+						//		base := store.GetObject(ref.ObjectID).(Value)
+						//		fmt.Println("---base: ", base)
+						//	}
+						//	fmt.Println("---type of r: ", reflect.TypeOf(r.V))
+						//	if p, ok := r.V.(PointerValue); ok {
+						//		fmt.Println("---p.TV: ", p.TV)
+						//		fmt.Println("---p.Base: ", p.Base)
+						//	}
+						//}
+						//isreal := e.V.(Object).GetIsReal()
+						//fmt.Println("---isreal: ", isreal)
+						//fmt.Println("---objectID: ", e.V.(Object).GetObjectID())
+						//if !isreal {
+						//	panic("should not happen while reference unreal element from external realm")
+						//}
 					}
 				}
 			} else { // other than array

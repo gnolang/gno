@@ -10,7 +10,8 @@ func init() {
 }
 
 func main() {
-	println(S[0].name)
+	a := S[0].name
+	println(a)
 }
 
 // Output:

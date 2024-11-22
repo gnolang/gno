@@ -6,6 +6,9 @@ var s1 []XYZ
 var s3 []XYZ
 var s4 []XYZ
 var s5 []*XYZ
+var s6 = make([]*XYZ, 2)
+
+var s7 [2]XYZ
 
 func init() {
 	s1 = append(s1, XYZ{"1"})
@@ -15,6 +18,11 @@ func init() {
 	s4 = append(s4, XYZ{"4"})
 
 	s5 = append(s5, &XYZ{"5"})
+
+	s6[0] = &XYZ{"6"}
+
+	s7[0] = XYZ{"7"}
+	s7[1] = XYZ{"7.1"} // should be real after this
 }
 
 func GetSlice() []XYZ {
@@ -45,4 +53,14 @@ func GetSlice4(f func(s []XYZ)) {
 
 func GetSlice5() []*XYZ { // TODO, unwrap
 	return s5
+}
+
+func GetSlice6(f func(s []*XYZ)) {
+	s6[1] = &XYZ{"6.1"} // the initial value is deleted, so this is not real after append
+	f(s6)
+}
+
+func GetSlice7(f func(s [2]XYZ)) {
+	//s7[1] = XYZ{"7.1"}
+	f(s7)
 }
