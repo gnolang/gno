@@ -7,4 +7,4 @@ func main() {
 }
 
 // Error:
-// main/files/var34b.gno:7:2: f<VPBlock(3,0)> (no value) used as value
+// main/files/var34c.gno:6:6: f<VPBlock(3,0)> (no value) used as value
