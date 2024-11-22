@@ -170,7 +170,7 @@ func LoadPackage(pkg gnomod.Pkg, creator bft.Address, fee std.Fee, deposit std.C
 
 	// Open files in directory as MemPackage.
 	memPkg := gno.ReadMemPackage(pkg.Dir, pkg.Name)
-	err := memPkg.Validate()
+	err := memPkg.Validate(false)
 	if err != nil {
 		return tx, fmt.Errorf("invalid package: %w", err)
 	}

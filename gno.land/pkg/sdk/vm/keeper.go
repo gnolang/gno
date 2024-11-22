@@ -250,10 +250,9 @@ func (vm *VMKeeper) AddPackage(ctx sdk.Context, msg MsgAddPackage) (err error) {
 	if creatorAcc == nil {
 		return std.ErrUnknownAddress(fmt.Sprintf("account %s does not exist", creator))
 	}
-	if ctx.BlockHeight() != 0 { // disable path check in genesis, FIXME: we should only add stdlibs support during genesis
-		if err := msg.Package.Validate(); err != nil {
-			return ErrInvalidPkgPath(err.Error())
-		}
+	allowStdlib := ctx.BlockHeight() == 0
+	if err := msg.Package.Validate(allowStdlib); err != nil {
+		return ErrInvalidPkgPath(err.Error())
 	}
 	if pv := gnostore.GetPackage(pkgPath, false); pv != nil {
 		return ErrPkgAlreadyExists("package already exists: " + pkgPath)
@@ -467,7 +466,7 @@ func (vm *VMKeeper) Run(ctx sdk.Context, msg MsgRun) (res string, err error) {
 	if callerAcc == nil {
 		return "", std.ErrUnknownAddress(fmt.Sprintf("account %s does not exist", caller))
 	}
-	if err := msg.Package.Validate(); err != nil {
+	if err := msg.Package.Validate(false); err != nil {
 		return "", ErrInvalidPkgPath(err.Error())
 	}
 

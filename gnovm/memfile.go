@@ -48,7 +48,7 @@ var (
 // path must not contain any dots after the first domain component.
 // file names must contain dots.
 // NOTE: this is to prevent conflicts with nested paths.
-func (mempkg *MemPackage) Validate() error {
+func (mempkg *MemPackage) Validate(allowStdlib bool) error {
 	// add assertion that MemPkg contains at least 1 file
 	if len(mempkg.Files) <= 0 {
 		return fmt.Errorf("no files found within package %q", mempkg.Name)
@@ -62,9 +62,10 @@ func (mempkg *MemPackage) Validate() error {
 		return fmt.Errorf("invalid package name %q, failed to match %q", mempkg.Name, rePkgName)
 	}
 
-	if !rePkgOrRlmPath.MatchString(mempkg.Path) {
+	if !allowStdlib && !rePkgOrRlmPath.MatchString(mempkg.Path) {
 		return fmt.Errorf("invalid package/realm path %q, failed to match %q", mempkg.Path, rePkgOrRlmPath)
 	}
+
 	// enforce sorting files based on Go conventions for predictability
 	sorted := sort.SliceIsSorted(
 		mempkg.Files,
