@@ -42,7 +42,20 @@ func ResolveAddressOrName(input pusers.AddressOrName) *pusers.User {
 	return ResolveAddress(std.Address(input))
 }
 
-// TODO fetch function list
-// get paginated list of users
-// get users by prefix
-// ..?
+// Users returns a paginated list of users
+func Users(offset, count uint64) []pusers.User {
+	if count < 1 {
+		return []pusers.User{}
+	}
+
+	res := make([]pusers.User, 0, count)
+
+	uStore.IterateByOffset(int(offset), int(count), func(key string, value interface{}) bool {
+		user := value.(pusers.User)
+		res = append(res, user)
+
+		return false
+	})
+
+	return res
+}
