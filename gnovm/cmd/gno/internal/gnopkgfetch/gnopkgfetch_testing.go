@@ -7,31 +7,13 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"runtime"
 	"strings"
-	"testing"
 
 	"github.com/gnolang/gno/tm2/pkg/amino"
-	tm2client "github.com/gnolang/gno/tm2/pkg/bft/rpc/client"
 	ctypes "github.com/gnolang/gno/tm2/pkg/bft/rpc/core/types"
 	types "github.com/gnolang/gno/tm2/pkg/bft/rpc/lib/types"
 	"github.com/gnolang/gno/tm2/pkg/sdk"
 )
-
-func InjectExamplesClient(t *testing.T) {
-	t.Helper()
-
-	_, filename, _, ok := runtime.Caller(0)
-	if !ok {
-		t.Fatalf("failed to get source path")
-	}
-	examplesDir := filepath.Join(filepath.Dir(filename), "..", "..", "..", "..", "..", "examples")
-	oldClient := fetchClient
-	fetchClient = tm2client.NewRPCClient(&examplesMockClient{examplesRoot: examplesDir})
-	t.Cleanup(func() {
-		fetchClient = oldClient
-	})
-}
 
 type examplesMockClient struct {
 	examplesRoot string

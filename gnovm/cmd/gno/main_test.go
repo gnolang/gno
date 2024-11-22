@@ -9,7 +9,6 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/gnolang/gno/gnovm/cmd/gno/internal/gnopkgfetch"
 	"github.com/gnolang/gno/tm2/pkg/commands"
 	"github.com/stretchr/testify/require"
 )
@@ -43,8 +42,6 @@ type testMainCase struct {
 func testMainCaseRun(t *testing.T, tc []testMainCase) {
 	t.Helper()
 
-	gnopkgfetch.InjectExamplesClient(t)
-
 	workingDir, err := os.Getwd()
 	require.Nil(t, err)
 
@@ -67,6 +64,8 @@ func testMainCaseRun(t *testing.T, tc []testMainCase) {
 				t.Cleanup(func() { os.RemoveAll(tmpGnoHome) })
 				t.Setenv("GNOHOME", tmpGnoHome)
 			}
+
+			t.Setenv("GNO_PKG_HOSTS", "gno.land=gno-examples")
 
 			checkOutputs := func(t *testing.T) {
 				t.Helper()

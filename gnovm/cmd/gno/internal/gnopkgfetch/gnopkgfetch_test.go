@@ -35,7 +35,7 @@ func TestFetchDeps(t *testing.T) {
 					},
 				},
 			},
-			errorShouldContain: "failed to query files list for pkg \"gno.land/p/demo/does_not_exists\": package \"gno.land/p/demo/does_not_exists\" is not available",
+			errorShouldContain: "query files list for pkg \"gno.land/p/demo/does_not_exists\": package \"gno.land/p/demo/does_not_exists\" is not available",
 		}, {
 			desc:    "fetch_gno.land/p/demo/avl",
 			pkgPath: "gno.land/p/demo/avl",
@@ -105,7 +105,7 @@ func TestFetchDeps(t *testing.T) {
 			io := commands.NewTestIO()
 			io.SetErr(commands.WriteNopCloser(mockErr))
 
-			InjectExamplesClient(t)
+			t.Setenv("GNO_PKG_HOSTS", "gno.land=gno-examples")
 
 			// Create test dir
 			dirPath, cleanUpFn := testutils.NewTestCaseDir(t)

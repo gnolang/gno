@@ -2,12 +2,13 @@ package gnopkgfetch
 
 import (
 	"fmt"
-	"net/url"
 	"os"
 	"path"
 	"path/filepath"
 	"strings"
+	"unicode"
 
+	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
 	"github.com/gnolang/gno/gnovm/pkg/gnoimports"
 	"github.com/gnolang/gno/gnovm/pkg/gnolang"
 	"github.com/gnolang/gno/gnovm/pkg/gnomod"
@@ -54,49 +55,34 @@ func fetchPackage(io commands.IO, pkgPath string, dst string) error {
 		// modfile exists in modcache, do nothing
 		return nil
 	} else if !os.IsNotExist(err) {
-		return fmt.Errorf("failed to stat downloaded module %q at %q: %w", pkgPath, dst, err)
+		return fmt.Errorf("stat downloaded module %q at %q: %w", pkgPath, dst, err)
 	}
 
 	io.ErrPrintfln("gno: downloading %s", pkgPath)
 
-	client := fetchClient
-	if client == nil {
-		// create client from pkgpath
-		parts := strings.Split(pkgPath, "/")
-		if len(parts) < 1 {
-			return fmt.Errorf("bad pkg path %q", pkgPath)
-		}
-		// XXX: retrieve host/port from r/sys/zones.
-		rpcURL := (&url.URL{
-			Scheme: "https",
-			Host:   "rpc." + parts[0] + ":443",
-		}).String()
-		tmClient, err := tm2client.NewHTTPClient(rpcURL)
-		if err != nil {
-			return fmt.Errorf("failed to instantiate tm2 client with remote %q: %w", rpcURL, err)
-		}
-		defer tmClient.Close()
-		client = tmClient
+	client, err := clientFromPkgPath(pkgPath)
+	if err != nil {
+		return fmt.Errorf("get client for pkg path %q: %w", pkgPath, err)
 	}
 
 	// fetch files
 	data, err := qfile(client, pkgPath)
 	if err != nil {
-		return fmt.Errorf("failed to query files list for pkg %q: %w", pkgPath, err)
+		return fmt.Errorf("query files list for pkg %q: %w", pkgPath, err)
 	}
 	if err := os.MkdirAll(dst, 0o744); err != nil {
-		return fmt.Errorf("failed to create cache dir for %q at %q: %w", pkgPath, dst, err)
+		return fmt.Errorf("create cache dir for %q at %q: %w", pkgPath, dst, err)
 	}
 	files := strings.Split(string(data), "\n")
 	for _, file := range files {
 		filePath := path.Join(pkgPath, file)
 		data, err := qfile(client, filePath)
 		if err != nil {
-			return fmt.Errorf("failed to query package file %q: %w", filePath, err)
+			return fmt.Errorf("query package file %q: %w", filePath, err)
 		}
 		dst := filepath.Join(dst, file)
 		if err := os.WriteFile(dst, data, 0o644); err != nil {
-			return fmt.Errorf("failed to write file at %q: %w", dst, err)
+			return fmt.Errorf("write file at %q: %w", dst, err)
 		}
 	}
 
@@ -105,10 +91,54 @@ func fetchPackage(io commands.IO, pkgPath string, dst string) error {
 	// we need to know that gno.land/r/foo is not downloaded.
 	// We do this by checking for the presence of gno.land/r/foo/gno.mod
 	if err := os.WriteFile(modFilePath, []byte("module "+pkgPath+"\n"), 0o644); err != nil {
-		return fmt.Errorf("failed to write modfile at %q: %w", modFilePath, err)
+		return fmt.Errorf("write modfile at %q: %w", modFilePath, err)
 	}
 
 	return nil
+}
+
+func clientFromPkgPath(pkgPath string) (tm2client.Client, error) {
+	parts := strings.Split(pkgPath, "/")
+	if len(parts) < 1 {
+		return nil, fmt.Errorf("bad pkg path %q", pkgPath)
+	}
+	domain := parts[0]
+
+	rpcURL, ok := overrideURLFromEnv(domain)
+	if !ok {
+		// XXX: retrieve host/port from r/sys/zones.
+		rpcURL = fmt.Sprintf("https://rpc.%s:443", domain)
+	}
+
+	if rpcURL == "gno-examples" {
+		examplesDir := filepath.Join(gnoenv.RootDir(), "examples")
+		return tm2client.NewRPCClient(&examplesMockClient{examplesRoot: examplesDir}), nil
+	}
+
+	client, err := tm2client.NewHTTPClient(rpcURL)
+	if err != nil {
+		return nil, fmt.Errorf("failed to instantiate tm2 client with remote %q: %w", rpcURL, err)
+	}
+	return client, nil
+}
+
+// overrideURLFromEnv looks for `domain=url` comma-separated pairs in the GNO_PKG_HOSTS env variable
+// and return the `url` matching `domain` if found
+func overrideURLFromEnv(pkgDomain string) (string, bool) {
+	hostsOverrides := os.Getenv("GNO_PKG_HOSTS")
+	overrides := strings.Split(hostsOverrides, ",")
+	for _, override := range overrides {
+		parts := strings.Split(override, "=")
+		if len(parts) != 2 {
+			continue
+		}
+		domain := strings.TrimFunc(parts[0], unicode.IsSpace)
+		if domain != pkgDomain {
+			continue
+		}
+		return strings.TrimFunc(parts[1], unicode.IsSpace), true
+	}
+	return pkgDomain, false
 }
 
 // not using gno client due to cyclic dep
@@ -126,8 +156,6 @@ func qfile(tmClient tm2client.Client, pkgPath string) ([]byte, error) {
 
 	return qres.Response.Data, nil
 }
-
-var fetchClient tm2client.Client
 
 // isRemotePkgPath determines whether s is a remote pkg path, i.e.: not a filepath nor a standard library
 func isRemotePkgPath(s string) bool {
