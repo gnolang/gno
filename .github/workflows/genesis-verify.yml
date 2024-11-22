@@ -9,8 +9,11 @@ on:
 
 jobs:
   verify:
+    strategy:
+      fail-fast: false
+      matrix:
+        testnet: ["test4.gno.land", "test5.gno.land"]
     runs-on: ubuntu-latest
-    timeout-minutes: 10
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -19,7 +22,7 @@ jobs:
         id: changed-files
         uses: tj-actions/changed-files@v41
         with:
-          files: "misc/deployments/**/genesis.json"
+          files: "misc/deployments/${{ matrix.testnet }}/genesis.json"
 
       - name: List changed genesis files
         run: |
@@ -52,6 +55,11 @@ jobs:
         run: |
           for file in ${{ steps.changed-files.outputs.all_changed_files }}; do
             echo "Running gnoland with $file"
-            gnoland start -lazy=true --genesis $file
-            # TODO: how to determine if the genesis is valid and chain did start?
+            timeout 60s gnoland start -lazy --genesis $file || exit_code=$?
+            if [ $exit_code -eq 124 ]; then
+              echo "Gnoland run successfully for 60 seconds"
+            else
+              echo "Gnoland failed to start with $file"
+              exit 1
+            fi
           done
