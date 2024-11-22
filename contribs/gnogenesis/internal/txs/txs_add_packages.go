@@ -70,7 +70,7 @@ func execTxsAddPackages(
 		return errInvalidPackageDir
 	}
 
-	parsedTxs := make([]std.Tx, 0)
+	parsedTxs := make([]gnoland.TxWithMetadata, 0)
 	for _, path := range args {
 		// Generate transactions from the packages (recursively)
 		txs, err := gnoland.LoadPackagesFromDir(path, genesisDeployAddress, genesisDeployFee)
