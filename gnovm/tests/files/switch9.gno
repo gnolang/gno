@@ -13,4 +13,4 @@ func main() {
 }
 
 // Error:
-// cannot fallthrough in type switch
+// main/files/switch9.gno:9:3: cannot fallthrough in type switch

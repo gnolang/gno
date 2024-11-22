@@ -5,11 +5,14 @@ on:
               required: true
               type: string
             tests-timeout:
-                required: true
-                type: string
+              required: true
+              type: string
             go-version:
-                required: true
-                type: string
+              required: true
+              type: string
+            tests-extra-args:
+              required: false
+              type: string
         secrets:
            codecov-token:
              required: true
@@ -23,7 +26,7 @@ jobs:
         - name: Install Go
           uses: actions/setup-go@v5
           with:
-              go-version: ${{ inputs.go-version }}
+            go-version: ${{ inputs.go-version }}
         - name: Go test
           working-directory:  ${{ inputs.modulepath }}
           env:
@@ -42,7 +45,7 @@ jobs:
             # confusing and meticulous. There will be some improvements in Go
             # 1.23 regarding coverage, so we can use this as a workaround until
             # then.
-            go test -covermode=atomic -timeout ${{ inputs.tests-timeout }} ./... -test.gocoverdir=$GOCOVERDIR
+            go test -covermode=atomic -timeout ${{ inputs.tests-timeout }} ${{ inputs.tests-extra-args }} ./... -test.gocoverdir=$GOCOVERDIR
 
             # Print results
             (set +x; echo 'go coverage results:')
@@ -54,11 +57,11 @@ jobs:
             go tool covdata textfmt -v 1 $filter -i=$GOCOVERDIR,$TXTARCOVERDIR -o gocoverage.out
 
         - name: Upload go coverage to Codecov
-          uses: codecov/codecov-action@v4
+          uses: codecov/codecov-action@v5
           with:
             disable_search: true
             fail_ci_if_error: true
-            file: ${{ inputs.modulepath }}/gocoverage.out
+            files: ${{ inputs.modulepath }}/gocoverage.out
             flags: ${{ inputs.modulepath }}
             token: ${{ secrets.codecov-token }}
             verbose: true # keep this enable as it help debugging when coverage fail randomly on the CI
@@ -70,7 +73,7 @@ jobs:
     #     - name: Install Go
     #       uses: actions/setup-go@v5
     #       with:
-    #           go-version: ${{ inputs.go-version }}
+    #         go-version: ${{ inputs.go-version }}
     #     - name: Checkout code
     #       uses: actions/checkout@v4
     #     - name: Go race test
