@@ -131,7 +131,11 @@ func (m *Machine) doOpQuoAssign() {
 		}
 	}
 	// lv /= rv
-	quoAssign(lv.TV, rv)
+	err := quoAssign(lv.TV, rv)
+	if err != nil {
+		panic(err)
+	}
+
 	if lv.Base != nil {
 		m.Realm.DidUpdate(lv.Base.(Object), nil, nil)
 	}
@@ -154,7 +158,11 @@ func (m *Machine) doOpRemAssign() {
 		}
 	}
 	// lv %= rv
-	remAssign(lv.TV, rv)
+	err := remAssign(lv.TV, rv)
+	if err != nil {
+		panic(err)
+	}
+
 	if lv.Base != nil {
 		m.Realm.DidUpdate(lv.Base.(Object), nil, nil)
 	}
