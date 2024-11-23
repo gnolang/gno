@@ -35,3 +35,4 @@ func main() {
 //
 // Body of the first post. (body)
 // \- [@gnouser](/r/demo/users:gnouser), [2009-02-13 11:31pm (UTC)](/r/demo/boards:second_board/1/1) \[[reply](/r/demo/boards$help&func=CreateReply&bid=2&threadid=1&postid=1)] \[[x](/r/demo/boards$help&func=DeletePost&bid=2&threadid=1&postid=1)]
+//

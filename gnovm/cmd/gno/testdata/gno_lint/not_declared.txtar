@@ -17,4 +17,4 @@ func main() {
 
 -- stdout.golden --
 -- stderr.golden --
-bad_file.gno:6: name hello not declared (code=2).
+bad_file.gno:6:3: name hello not declared (code=2).
