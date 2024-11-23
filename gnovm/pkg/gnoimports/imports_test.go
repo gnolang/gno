@@ -8,7 +8,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestGetGnoImports(t *testing.T) {
+func TestPackageImports(t *testing.T) {
 	workingDir, err := os.Getwd()
 	require.NoError(t, err)
 
