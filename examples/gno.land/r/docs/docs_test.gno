@@ -1,4 +1,4 @@
-package home
+package docs
 
 import (
 	"strings"
