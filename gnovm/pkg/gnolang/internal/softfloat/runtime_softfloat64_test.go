@@ -18,11 +18,11 @@ import (
 )
 
 // turn uint64 op into float64 op
-func fop(f func(x, y uint64) uint64) func(x, y float64) float64 {
+func fop(f func(x, y Float64) Float64) func(x, y float64) float64 {
 	return func(x, y float64) float64 {
 		bx := math.Float64bits(x)
 		by := math.Float64bits(y)
-		return math.Float64frombits(f(bx, by))
+		return math.Float64frombits(uint64(f(Float64(bx), Float64(by))))
 	}
 }
 
@@ -97,12 +97,12 @@ func trunc32(f float64) float64 {
 
 // 64 -sw->32 -hw-> 64
 func to32sw(f float64) float64 {
-	return float64(math.Float32frombits(F64to32(math.Float64bits(f))))
+	return float64(math.Float32frombits(uint32(F64to32(Float64(math.Float64bits(f))))))
 }
 
 // 64 -hw->32 -sw-> 64
 func to64sw(f float64) float64 {
-	return math.Float64frombits(F32to64(math.Float32bits(float32(f))))
+	return math.Float64frombits(uint64(F32to64(Float32(math.Float32bits(float32(f))))))
 }
 
 // float64 -hw-> int64 -hw-> float64
@@ -117,7 +117,7 @@ func hwint32(f float64) float64 {
 
 // float64 -sw-> int64 -hw-> float64
 func toint64sw(f float64) float64 {
-	i, ok := F64toint(math.Float64bits(f))
+	i, ok := F64toint(Float64(math.Float64bits(f)))
 	if !ok {
 		// There's no right answer for out of range.
 		// Match the hardware to pass the test.
@@ -128,7 +128,7 @@ func toint64sw(f float64) float64 {
 
 // float64 -hw-> int64 -sw-> float64
 func fromint64sw(f float64) float64 {
-	return math.Float64frombits(Fintto64(int64(f)))
+	return math.Float64frombits(uint64(Fintto64(int64(f))))
 }
 
 var nerr int
@@ -187,7 +187,7 @@ func hwcmp(f, g float64) (cmp int, isnan bool) {
 
 func testcmp(t *testing.T, f, g float64) {
 	hcmp, hisnan := hwcmp(f, g)
-	scmp, sisnan := Fcmp64(math.Float64bits(f), math.Float64bits(g))
+	scmp, sisnan := Fcmp64(Float64(math.Float64bits(f)), Float64(math.Float64bits(g)))
 	if int32(hcmp) != scmp || hisnan != sisnan {
 		err(t, "cmp(%g, %g) = sw %v, %v, hw %v, %v\n", f, g, scmp, sisnan, hcmp, hisnan)
 	}
