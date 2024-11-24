@@ -396,7 +396,7 @@ func generateGenesisFile(genesisFile string, pk crypto.PubKey, c *startCfg) erro
 
 	// Load examples folder
 	examplesDir := filepath.Join(c.gnoRootDir, "examples")
-	pkgsTxs, err := gnoland.LoadPackagesFromDir(examplesDir, deployerMnemonic, genesisDeployFee)
+	pkgsTxs, err := gnoland.LoadPackagesFromDir(examplesDir, deployerMnemonic, c.chainID, genesisDeployFee)
 	if err != nil {
 		return fmt.Errorf("unable to load examples folder: %w", err)
 	}

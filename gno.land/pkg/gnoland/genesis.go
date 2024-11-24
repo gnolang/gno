@@ -134,7 +134,7 @@ func LoadGenesisTxsFile(path string, chainID string, genesisRemote string) ([]Tx
 
 // LoadPackagesFromDir loads gno packages from a directory.
 // It creates and returns a list of transactions based on these packages.
-func LoadPackagesFromDir(dir string, creatorMnemonic string, fee std.Fee) ([]TxWithMetadata, error) {
+func LoadPackagesFromDir(dir string, creatorMnemonic string, chainID string, fee std.Fee) ([]TxWithMetadata, error) {
 	// list all packages from target path
 	pkgs, err := gnomod.ListPkgs(dir)
 	if err != nil {
@@ -174,7 +174,7 @@ func LoadPackagesFromDir(dir string, creatorMnemonic string, fee std.Fee) ([]TxW
 			return nil, fmt.Errorf("unable to load package %q: %w", pkg.Dir, err)
 		}
 
-		txData, err := tx.GetSignBytes("dev", 0, accountSequence)
+		txData, err := tx.GetSignBytes(chainID, 0, accountSequence)
 		if err != nil {
 			return nil, fmt.Errorf("unable to generate mnemonic, %w", err)
 		}
