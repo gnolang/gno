@@ -40,9 +40,10 @@ func (mempkg *MemPackage) IsEmpty() bool {
 const pathLengthLimit = 256
 
 var (
-	rePkgName      = regexp.MustCompile(`^[a-z][a-z0-9_]*$`)
-	rePkgOrRlmPath = regexp.MustCompile(`^gno\.land\/(?:p|r)(?:\/_?[a-z]+[a-z0-9_]*)+$`)
-	reFileName     = regexp.MustCompile(`^([a-zA-Z0-9_]*\.[a-z0-9_\.]*|LICENSE|README)$`)
+	rePkgName              = regexp.MustCompile(`^[a-z][a-z0-9_]*$`)
+	rePkgOrRlmPath         = regexp.MustCompile(`^gno\.land\/(?:p|r)(?:\/_?[a-z]+[a-z0-9_]*)+$`)
+	rePkgOrRlmOrStdlibPath = regexp.MustCompile(`^gno\.land\/(?:p|r)(?:\/_?[a-z]+[a-z0-9_]*)+|(?:[a-z]+[a-z0-9_]*)(?:\/_?[a-z]+[a-z0-9_]*)*$`)
+	reFileName             = regexp.MustCompile(`^([a-zA-Z0-9_]*\.[a-z0-9_\.]*|LICENSE|README)$`)
 )
 
 // path must not contain any dots after the first domain component.
@@ -62,8 +63,14 @@ func (mempkg *MemPackage) Validate(allowStdlib bool) error {
 		return fmt.Errorf("invalid package name %q, failed to match %q", mempkg.Name, rePkgName)
 	}
 
-	if !allowStdlib && !rePkgOrRlmPath.MatchString(mempkg.Path) {
-		return fmt.Errorf("invalid package/realm path %q, failed to match %q", mempkg.Path, rePkgOrRlmPath)
+	if allowStdlib {
+		if !rePkgOrRlmOrStdlibPath.MatchString(mempkg.Path) {
+			return fmt.Errorf("invalid package/realm/stdlib path %q, failed to match %q", mempkg.Path, rePkgOrRlmOrStdlibPath)
+		}
+	} else {
+		if !rePkgOrRlmPath.MatchString(mempkg.Path) {
+			return fmt.Errorf("invalid package/realm path %q, failed to match %q", mempkg.Path, rePkgOrRlmPath)
+		}
 	}
 
 	// enforce sorting files based on Go conventions for predictability
