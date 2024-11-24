@@ -7,10 +7,10 @@ import (
 	"gno.land/p/demo/testutils"
 	"gno.land/p/demo/urequire"
 
-	"gno.land/r/demo/upgradable/admin"
-	"gno.land/r/demo/upgradable/logic/v1"
-	"gno.land/r/demo/upgradable/logic/v2"
-	"gno.land/r/demo/upgradable/store"
+	"gno.land/r/x/manfred_upgrade_patterns/upgrade_g/admin"
+	"gno.land/r/x/manfred_upgrade_patterns/upgrade_g/logic/v1"
+	"gno.land/r/x/manfred_upgrade_patterns/upgrade_g/logic/v2"
+	"gno.land/r/x/manfred_upgrade_patterns/upgrade_g/store"
 
 )
 

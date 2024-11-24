@@ -1,9 +1,9 @@
-package v2
+package v1
 
 import (
 	"std"
 
-	"gno.land/r/demo/upgradable/admin"
+	"gno.land/r/x/manfred_upgrade_patterns/upgrade_g/admin"
 )
 
 var store admin.Store = nil
@@ -21,7 +21,7 @@ func (l *logic) ReadCounter() uint64 {
 }
 
 func (l *logic) UpdateCounter() {
-	store.SetCounter(store.GetCounter() + 2)
+	store.SetCounter(store.GetCounter() + 1)
 }
 
 func (l *logic) DebugPrevRealm() string {

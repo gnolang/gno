@@ -4,7 +4,7 @@ import (
 	"std"
 	"fmt"
 
-	"gno.land/r/demo/upgradable/admin"
+	"gno.land/r/x/manfred_upgrade_patterns/upgrade_g/admin"
 )
 
 var counterValue uint64
