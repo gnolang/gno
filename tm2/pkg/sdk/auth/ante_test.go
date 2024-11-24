@@ -188,7 +188,7 @@ func TestAnteHandlerAccountNumbersAtBlockHeightZero(t *testing.T) {
 	env.acck.SetAccount(ctx, acc1)
 	acc2 := env.acck.NewAccountWithAddress(ctx, addr2)
 	acc2.SetCoins(tu.NewTestCoins())
-	require.NoError(t, acc2.SetAccountNumber(1))
+	require.NoError(t, acc2.SetAccountNumber(0))
 	env.acck.SetAccount(ctx, acc2)
 
 	// msg and signatures
@@ -204,12 +204,12 @@ func TestAnteHandlerAccountNumbersAtBlockHeightZero(t *testing.T) {
 	checkValidTx(t, anteHandler, ctx, tx, false)
 
 	// new tx from wrong account number
-	seqs = []uint64{1}
+	seqs = []uint64{0}
 	tx = tu.NewTestTx(t, ctx.ChainID(), msgs, privs, []uint64{1}, seqs, fee)
 	checkInvalidTx(t, anteHandler, ctx, tx, false, std.UnauthorizedError{})
 
 	// from correct account number
-	seqs = []uint64{1}
+	seqs = []uint64{0}
 	tx = tu.NewTestTx(t, ctx.ChainID(), msgs, privs, []uint64{0}, seqs, fee)
 	checkValidTx(t, anteHandler, ctx, tx, false)
 
@@ -217,12 +217,12 @@ func TestAnteHandlerAccountNumbersAtBlockHeightZero(t *testing.T) {
 	msg1 := tu.NewTestMsg(addr1, addr2)
 	msg2 := tu.NewTestMsg(addr2, addr1)
 	msgs = []std.Msg{msg1, msg2}
-	privs, accnums, seqs = []crypto.PrivKey{priv1, priv2}, []uint64{1, 0}, []uint64{2, 0}
+	privs, accnums, seqs = []crypto.PrivKey{priv1, priv2}, []uint64{1, 0}, []uint64{0, 0}
 	tx = tu.NewTestTx(t, ctx.ChainID(), msgs, privs, accnums, seqs, fee)
 	checkInvalidTx(t, anteHandler, ctx, tx, false, std.UnauthorizedError{})
 
 	// correct account numbers
-	privs, accnums, seqs = []crypto.PrivKey{priv1, priv2}, []uint64{0, 0}, []uint64{2, 0}
+	privs, accnums, seqs = []crypto.PrivKey{priv1, priv2}, []uint64{0, 0}, []uint64{0, 0}
 	tx = tu.NewTestTx(t, ctx.ChainID(), msgs, privs, accnums, seqs, fee)
 	checkValidTx(t, anteHandler, ctx, tx, false)
 }
