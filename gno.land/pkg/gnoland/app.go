@@ -103,7 +103,7 @@ func NewAppWithOptions(cfg *AppOptions) (abci.Application, error) {
 
 	// Set AnteHandler
 	authOptions := auth.AnteOptions{
-		VerifyGenesisSignatures: false, // for development
+		VerifyGenesisSignatures: true, // for development
 	}
 	authAnteHandler := auth.NewAnteHandler(
 		acctKpr, bankKpr, auth.DefaultSigVerificationGasConsumer, authOptions)

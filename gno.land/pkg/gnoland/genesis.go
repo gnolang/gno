@@ -9,8 +9,8 @@ import (
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
 	"github.com/gnolang/gno/gnovm/pkg/gnomod"
 	"github.com/gnolang/gno/tm2/pkg/amino"
-	bft "github.com/gnolang/gno/tm2/pkg/bft/types"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
+	"github.com/gnolang/gno/tm2/pkg/crypto/keys"
 	osm "github.com/gnolang/gno/tm2/pkg/os"
 	"github.com/gnolang/gno/tm2/pkg/std"
 	"github.com/pelletier/go-toml"
@@ -133,7 +133,7 @@ func LoadGenesisTxsFile(path string, chainID string, genesisRemote string) ([]Tx
 
 // LoadPackagesFromDir loads gno packages from a directory.
 // It creates and returns a list of transactions based on these packages.
-func LoadPackagesFromDir(dir string, creator bft.Address, fee std.Fee) ([]TxWithMetadata, error) {
+func LoadPackagesFromDir(dir string, creatorMnemonic string, fee std.Fee) ([]TxWithMetadata, error) {
 	// list all packages from target path
 	pkgs, err := gnomod.ListPkgs(dir)
 	if err != nil {
@@ -146,25 +146,56 @@ func LoadPackagesFromDir(dir string, creator bft.Address, fee std.Fee) ([]TxWith
 		return nil, fmt.Errorf("sorting packages: %w", err)
 	}
 
+	kb := keys.NewInMemory()
+	// Save the account
+	info, err := kb.CreateAccount(
+		"deployer",
+		creatorMnemonic,
+		"",
+		"",
+		0,
+		0,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("unable to create account, %w", err)
+	}
+
 	// Filter out draft packages.
 	nonDraftPkgs := sortedPkgs.GetNonDraftPkgs()
 	txs := make([]TxWithMetadata, 0, len(nonDraftPkgs))
+
+	baseAccount := std.NewBaseAccountWithAddress(info.GetAddress())
+
 	for _, pkg := range nonDraftPkgs {
-		tx, err := LoadPackage(pkg, creator, fee, nil)
+		accountSequence := baseAccount.GetSequence()
+		tx, err := LoadPackage(pkg, info.GetAddress(), fee, nil)
 		if err != nil {
 			return nil, fmt.Errorf("unable to load package %q: %w", pkg.Dir, err)
 		}
 
+		txData, err := tx.GetSignBytes("dev", 0, accountSequence)
+		if err != nil {
+			return nil, fmt.Errorf("unable to generate mnemonic, %w", err)
+		}
+		sig, pub, err := kb.Sign("deployer", "", txData)
+		if err != nil {
+			return nil, err
+		}
+		tx.Signatures = []std.Signature{{
+			PubKey:    pub,
+			Signature: sig,
+		}}
 		txs = append(txs, TxWithMetadata{
 			Tx: tx,
 		})
+		baseAccount.SetSequence(accountSequence + 1)
 	}
 
 	return txs, nil
 }
 
 // LoadPackage loads a single package into a `std.Tx`
-func LoadPackage(pkg gnomod.Pkg, creator bft.Address, fee std.Fee, deposit std.Coins) (std.Tx, error) {
+func LoadPackage(pkg gnomod.Pkg, creator crypto.Address, fee std.Fee, deposit std.Coins) (std.Tx, error) {
 	var tx std.Tx
 
 	// Open files in directory as MemPackage.

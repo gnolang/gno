@@ -62,7 +62,7 @@ func TestingNodeConfig(t TestingTS, gnoroot string, additionalTxs ...gnoland.TxW
 	params := LoadDefaultGenesisParamFile(t, gnoroot)
 	balances := LoadDefaultGenesisBalanceFile(t, gnoroot)
 	txs := make([]gnoland.TxWithMetadata, 0)
-	txs = append(txs, LoadDefaultPackages(t, creator, gnoroot)...)
+	txs = append(txs, LoadDefaultPackages(t, DefaultAccount_Seed, gnoroot)...)
 	txs = append(txs, additionalTxs...)
 
 	cfg.Genesis.AppState = gnoland.GnoGenesisState{
@@ -130,11 +130,11 @@ func DefaultTestingGenesisConfig(t TestingTS, gnoroot string, self crypto.PubKey
 }
 
 // LoadDefaultPackages loads the default packages for testing using a given creator address and gnoroot directory.
-func LoadDefaultPackages(t TestingTS, creator bft.Address, gnoroot string) []gnoland.TxWithMetadata {
+func LoadDefaultPackages(t TestingTS, creatorMnemonic string, gnoroot string) []gnoland.TxWithMetadata {
 	examplesDir := filepath.Join(gnoroot, "examples")
 
 	defaultFee := std.NewFee(50000, std.MustParseCoin(ugnot.ValueString(1000000)))
-	txs, err := gnoland.LoadPackagesFromDir(examplesDir, creator, defaultFee)
+	txs, err := gnoland.LoadPackagesFromDir(examplesDir, creatorMnemonic, defaultFee)
 	require.NoError(t, err)
 
 	return txs
