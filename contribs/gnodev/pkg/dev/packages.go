@@ -138,7 +138,7 @@ func (pm PackagesMap) Load(fee std.Fee) ([]gnoland.TxWithMetadata, error) {
 
 		// Open files in directory as MemPackage.
 		memPkg := gno.ReadMemPackage(modPkg.Dir, modPkg.Name)
-		if err := memPkg.Validate(); err != nil {
+		if err := memPkg.Validate(true); err != nil {
 			return nil, fmt.Errorf("invalid package: %w", err)
 		}
 
