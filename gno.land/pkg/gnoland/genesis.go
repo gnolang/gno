@@ -165,16 +165,14 @@ func LoadPackagesFromDir(dir string, creatorMnemonic string, chainID string, fee
 	nonDraftPkgs := sortedPkgs.GetNonDraftPkgs()
 	txs := make([]TxWithMetadata, 0, len(nonDraftPkgs))
 
-	baseAccount := std.NewBaseAccountWithAddress(info.GetAddress())
-
 	for _, pkg := range nonDraftPkgs {
-		accountSequence := baseAccount.GetSequence()
 		tx, err := LoadPackage(pkg, info.GetAddress(), fee, nil)
 		if err != nil {
 			return nil, fmt.Errorf("unable to load package %q: %w", pkg.Dir, err)
 		}
 
-		txData, err := tx.GetSignBytes(chainID, 0, accountSequence)
+		// Both account number and account sequence are 0 on genesis transactions
+		txData, err := tx.GetSignBytes(chainID, 0, 0)
 		if err != nil {
 			return nil, fmt.Errorf("unable to generate mnemonic, %w", err)
 		}
@@ -189,7 +187,6 @@ func LoadPackagesFromDir(dir string, creatorMnemonic string, chainID string, fee
 		txs = append(txs, TxWithMetadata{
 			Tx: tx,
 		})
-		baseAccount.SetSequence(accountSequence + 1)
 	}
 
 	return txs, nil
