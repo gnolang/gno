@@ -298,9 +298,27 @@ func (rlm *Realm) DidUpdate2(store Store, po, xo, co Object, isRef bool, length,
 //----------------------------------------
 // mark*
 
+// oo can can be base of the originType, like array for a slice type.
+// originType may contain infos like len, cap for slice type, etc.
+// XXX, oo coming here must be referenced type, since they already escaped.
+// XXX, so oo has been persisted, thus fillValueTv..
+func checkCrossRealm(store Store, oo Object, originType Type) {
+	fmt.Println("---checkCrossReal, oo: ", oo)
+	fmt.Println("---originType: ", originType)
+	switch v := oo.(type) {
+	case *HeapItemValue:
+		fmt.Println("---heapItemValue: ", v)
+	case *ArrayValue:
+		fmt.Println("---ArrayValue: ", v)
+	default:
+		fmt.Println("---v :", v)
+	}
+}
+
 // TODO: move these crossrealm check logic before 'DidUpdate'
 func (rlm *Realm) MarkNewEscapedCheckCrossRealm(store Store, oo Object, isRef bool, length, offset int) {
 	fmt.Println("---MarkNewEscapedCheckCrossRealm---, oo: ", oo)
+	checkCrossRealm(store, oo, nil)
 	fmt.Println("---rlm.ID: ", rlm.ID)
 
 	fmt.Println("---oo.GetRefCount(): ", oo.GetRefCount())
@@ -403,7 +421,7 @@ func (rlm *Realm) MarkNewEscapedCheckCrossRealm(store Store, oo Object, isRef bo
 						//}
 					}
 				}
-			} else { // other than array
+			} else {               // other than array
 				if !oo.GetIsReal() { // oo is not attached in the origin realm
 					panic("should not happen while attempting to attach unattached object by reference from external realm")
 				}
@@ -531,13 +549,13 @@ func (rlm *Realm) FinalizeRealmTransaction(readonly bool, store Store) {
 	}()
 	if readonly {
 		if true ||
-			len(rlm.newCreated) > 0 ||
-			len(rlm.newEscaped) > 0 ||
-			len(rlm.newDeleted) > 0 ||
-			len(rlm.created) > 0 ||
-			len(rlm.updated) > 0 ||
-			len(rlm.deleted) > 0 ||
-			len(rlm.escaped) > 0 {
+				len(rlm.newCreated) > 0 ||
+				len(rlm.newEscaped) > 0 ||
+				len(rlm.newDeleted) > 0 ||
+				len(rlm.created) > 0 ||
+				len(rlm.updated) > 0 ||
+				len(rlm.deleted) > 0 ||
+				len(rlm.escaped) > 0 {
 			panic("realm updates in readonly transaction")
 		}
 		return
@@ -552,9 +570,9 @@ func (rlm *Realm) FinalizeRealmTransaction(readonly bool, store Store) {
 		ensureUniq(rlm.newDeleted)
 		ensureUniq(rlm.updated)
 		if false ||
-			rlm.created != nil ||
-			rlm.deleted != nil ||
-			rlm.escaped != nil {
+				rlm.created != nil ||
+				rlm.deleted != nil ||
+				rlm.escaped != nil {
 			panic("realm should not have created, deleted, or escaped marks before beginning finalization")
 		}
 	}
@@ -988,9 +1006,9 @@ func (rlm *Realm) saveUnsavedObjectRecursively(store Store, oo Object) {
 		}
 		// deleted objects should not have gotten here.
 		if false ||
-			oo.GetRefCount() <= 0 ||
-			oo.GetIsNewDeleted() ||
-			oo.GetIsDeleted() {
+				oo.GetRefCount() <= 0 ||
+				oo.GetIsNewDeleted() ||
+				oo.GetIsDeleted() {
 			panic("cannot save deleted objects")
 		}
 	}
