@@ -12,7 +12,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        testnet: ["test4.gno.land", "test5.gno.land"]
+        testnet: ["test5.gno.land"]
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
@@ -28,9 +28,6 @@ jobs:
         uses: actions/setup-go@v5
         with:
           go-version: "1.22"
-
-      - name: Install dependencies
-        run: go mod download
 
       - name: Build gnogenesis
         run: make -C contribs/gnogenesis
@@ -49,9 +46,9 @@ jobs:
         run: |
           for file in ${{ steps.changed-files.outputs.all_changed_files }}; do
             echo "Running gnoland with $file"
-            timeout 60s gnoland start -lazy=true --genesis $file || exit_code=$?
+            timeout 60s gnoland start -lazy --genesis $file || exit_code=$?
             if [ $exit_code -eq 124 ]; then
-              echo "Gnoland run successfully for 60 seconds"
+              echo "Gnoland genesis state generated successfully"
             else
               echo "Gnoland failed to start with $file"
               exit 1
