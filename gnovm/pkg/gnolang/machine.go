@@ -136,7 +136,7 @@ var machinePool = sync.Pool{
 // Machines initialized through this constructor must be finalized with
 // [Machine.Release].
 func NewMachineWithOptions(opts MachineOptions) *Machine {
-	checkTypes := opts.PreprocessorMode
+	preprocessorMode := opts.PreprocessorMode
 	readOnly := opts.ReadOnly
 	maxCycles := opts.MaxCycles
 	vmGasMeter := opts.GasMeter
@@ -169,7 +169,7 @@ func NewMachineWithOptions(opts MachineOptions) *Machine {
 	mm := machinePool.Get().(*Machine)
 	mm.Package = pv
 	mm.Alloc = alloc
-	mm.PreprocessorMode = checkTypes
+	mm.PreprocessorMode = preprocessorMode
 	mm.ReadOnly = readOnly
 	mm.MaxCycles = maxCycles
 	mm.Output = output
