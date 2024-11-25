@@ -19,7 +19,7 @@ Additionally, you will see the different options you can use to make your Gno in
 
 ## Installation
 
-To install the `gnoland` binary, clone the Gno monorepo:
+To install the `gnoland` and `gnogenesis` binaries, clone the Gno monorepo:
 
 ```bash
 git clone https://github.com/gnolang/gno.git
@@ -30,7 +30,7 @@ Makefile to install the `gnoland` binary:
 
 ```bash
 cd gno.land
-make install.gnoland
+make install.gnoland && make -C contribs/gnogenesis install
 ```
 
 To verify that you've installed the binary properly and that you are able to use
@@ -93,7 +93,8 @@ Let's break down the most important default settings:
 :::info Resetting the chain
 
 As mentioned, the working directory for the node is located in `data-dir`. To reset the chain, you need
-to delete this directory and start the node up again. If you are using the default node configuration, you can run
+to delete this directory and `genesis.json`, then start the node up again. If you are using the default node
+configuration, you can run
 `make fclean` from the `gno.land` sub-folder to delete the `gnoland-data` working directory.
 
 :::
@@ -173,7 +174,7 @@ gnoland config set moniker node01
 
 :::warning Modify existing secrets
 
-We can modify existing secrets, or utilize our own (if we have them backed up, for example) for the Gno.land node.
+We can modify existing secrets, or utilize our own (if we have them backed up, for example) for the gno.land node.
 Each secret needs to be placed in the appropriate path within `<data-dir>/secrets`, and it can be replaced or
 regenerated with `gnoland secrets init <key-name> --force`
 
@@ -201,7 +202,7 @@ executed.
 Generating an empty `genesis.json` is relatively straightforward:
 
 ```shell
-gnoland genesis generate
+gnogenesis generate
 ```
 
 The resulting `genesis.json` is empty:
@@ -232,7 +233,7 @@ This will generate a `genesis.json` in the calling directory, by default. To che
 generating the `genesis.json`, you can run the command using the `--help` flag:
 
 ```shell
-gnoland genesis generate --help
+gnogenesis generate --help
 
 USAGE
   generate [flags]
@@ -251,13 +252,13 @@ FLAGS
 
 ## 3. Add the `examples` packages into the `genesis.json` (optional)
 
-This step is not necessarily required, however, using a Gno.land chain without the `examples` packages predeployed can
+This step is not necessarily required, however, using a gno.land chain without the `examples` packages predeployed can
 present challenges with users who expect them to be present.
 
 The `examples` directory is located in the `$GNOROOT` location, or the local gno repository clone.
 
 ```bash
-gnoland genesis txs add packages ./examples
+gnogenesis txs add packages ./examples
 ```
 
 ### 4. Add the initial validator set
@@ -288,7 +289,7 @@ Updating the `genesis.json` is relatively simple, running the following command 
 validator set:
 
 ```shell
-gnoland genesis validator add \
+gnogenesis validator add \
 --address g14j4dlsh3jzgmhezzp9v8xp7wxs4mvyskuw5ljl \
 --pub-key gpub1pggj7ard9eg82cjtv4u52epjx56nzwgjyg9zqaqle3fdduqul4slg6zllypq9r8gj4wlfucy6qfnzmjcgqv675kxjz8jvk \
 --name Cuttlas

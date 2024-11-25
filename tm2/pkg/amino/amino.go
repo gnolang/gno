@@ -11,11 +11,12 @@ import (
 	"runtime"
 	"time"
 
-	"github.com/gnolang/gno/tm2/pkg/amino/pkg"
-	"github.com/gnolang/gno/tm2/pkg/errors"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/durationpb"
 	"google.golang.org/protobuf/types/known/timestamppb"
+
+	"github.com/gnolang/gno/tm2/pkg/amino/pkg"
+	"github.com/gnolang/gno/tm2/pkg/errors"
 )
 
 // Package "pkg" exists So dependencies can create Packages.
@@ -129,7 +130,7 @@ func UnmarshalAnySized(bz []byte, ptr interface{}) error {
 }
 
 func MarshalJSON(o interface{}) ([]byte, error) {
-	return gcdc.MarshalJSON(o)
+	return gcdc.JSONMarshal(o)
 }
 
 func MarshalJSONAny(o interface{}) ([]byte, error) {
@@ -145,7 +146,7 @@ func MustMarshalJSONAny(o interface{}) []byte {
 }
 
 func UnmarshalJSON(bz []byte, ptr interface{}) error {
-	return gcdc.UnmarshalJSON(bz, ptr)
+	return gcdc.JSONUnmarshal(bz, ptr)
 }
 
 func MustUnmarshalJSON(bz []byte, ptr interface{}) {
@@ -755,11 +756,11 @@ func (cdc *Codec) MustUnmarshalAny(bz []byte, ptr interface{}) {
 	return
 }
 
-func (cdc *Codec) MarshalJSON(o interface{}) ([]byte, error) {
+func (cdc *Codec) JSONMarshal(o interface{}) ([]byte, error) {
 	cdc.doAutoseal()
 
 	rv := reflect.ValueOf(o)
-	if rv.Kind() == reflect.Invalid {
+	if !rv.IsValid() {
 		return []byte("null"), nil
 	}
 	rt := rv.Type()
@@ -813,7 +814,7 @@ func (cdc *Codec) MarshalJSONAny(o interface{}) ([]byte, error) {
 
 // MustMarshalJSON panics if an error occurs. Besides tha behaves exactly like MarshalJSON.
 func (cdc *Codec) MustMarshalJSON(o interface{}) []byte {
-	bz, err := cdc.MarshalJSON(o)
+	bz, err := cdc.JSONMarshal(o)
 	if err != nil {
 		panic(err)
 	}
@@ -829,7 +830,7 @@ func (cdc *Codec) MustMarshalJSONAny(o interface{}) []byte {
 	return bz
 }
 
-func (cdc *Codec) UnmarshalJSON(bz []byte, ptr interface{}) error {
+func (cdc *Codec) JSONUnmarshal(bz []byte, ptr interface{}) error {
 	cdc.doAutoseal()
 	if len(bz) == 0 {
 		return errors.New("cannot decode empty bytes")
@@ -850,7 +851,7 @@ func (cdc *Codec) UnmarshalJSON(bz []byte, ptr interface{}) error {
 
 // MustUnmarshalJSON panics if an error occurs. Besides tha behaves exactly like UnmarshalJSON.
 func (cdc *Codec) MustUnmarshalJSON(bz []byte, ptr interface{}) {
-	if err := cdc.UnmarshalJSON(bz, ptr); err != nil {
+	if err := cdc.JSONUnmarshal(bz, ptr); err != nil {
 		panic(err)
 	}
 }
@@ -858,7 +859,7 @@ func (cdc *Codec) MustUnmarshalJSON(bz []byte, ptr interface{}) {
 // MarshalJSONIndent calls json.Indent on the output of cdc.MarshalJSON
 // using the given prefix and indent string.
 func (cdc *Codec) MarshalJSONIndent(o interface{}, prefix, indent string) ([]byte, error) {
-	bz, err := cdc.MarshalJSON(o)
+	bz, err := cdc.JSONMarshal(o)
 	if err != nil {
 		return nil, err
 	}

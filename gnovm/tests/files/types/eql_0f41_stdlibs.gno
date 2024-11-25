@@ -32,4 +32,4 @@ func main() {
 }
 
 // Error:
-// main/files/types/eql_0f41_stdlibs.gno:27:5: main.animal does not implement .uverse.error
+// main/files/types/eql_0f41_stdlibs.gno:27:5: main.animal does not implement .uverse.error (missing method Error)

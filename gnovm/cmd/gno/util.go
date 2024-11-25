@@ -21,7 +21,7 @@ func isFileExist(path string) bool {
 	return err == nil
 }
 
-func gnoPackagesFromArgs(args []string) ([]string, error) {
+func gnoFilesFromArgsRecursively(args []string) ([]string, error) {
 	var paths []string
 
 	for _, argPath := range args {
@@ -31,7 +31,9 @@ func gnoPackagesFromArgs(args []string) ([]string, error) {
 		}
 
 		if !info.IsDir() {
-			paths = append(paths, ensurePathPrefix(argPath))
+			if isGnoFile(fs.FileInfoToDirEntry(info)) {
+				paths = append(paths, ensurePathPrefix(argPath))
+			}
 
 			continue
 		}
@@ -42,6 +44,37 @@ func gnoPackagesFromArgs(args []string) ([]string, error) {
 		})
 		if err != nil {
 			return nil, fmt.Errorf("unable to walk dir: %w", err)
+		}
+	}
+
+	return paths, nil
+}
+
+func gnoFilesFromArgs(args []string) ([]string, error) {
+	var paths []string
+
+	for _, argPath := range args {
+		info, err := os.Stat(argPath)
+		if err != nil {
+			return nil, fmt.Errorf("invalid file or package path: %w", err)
+		}
+
+		if !info.IsDir() {
+			if isGnoFile(fs.FileInfoToDirEntry(info)) {
+				paths = append(paths, ensurePathPrefix(argPath))
+			}
+			continue
+		}
+
+		files, err := os.ReadDir(argPath)
+		if err != nil {
+			return nil, err
+		}
+		for _, f := range files {
+			if isGnoFile(f) {
+				path := filepath.Join(argPath, f.Name())
+				paths = append(paths, ensurePathPrefix(path))
+			}
 		}
 	}
 
@@ -84,6 +117,33 @@ func walkDirForGnoFiles(root string, addPath func(path string)) error {
 	}
 
 	return filepath.WalkDir(root, walkFn)
+}
+
+func gnoPackagesFromArgsRecursively(args []string) ([]string, error) {
+	var paths []string
+
+	for _, argPath := range args {
+		info, err := os.Stat(argPath)
+		if err != nil {
+			return nil, fmt.Errorf("invalid file or package path: %w", err)
+		}
+
+		if !info.IsDir() {
+			paths = append(paths, ensurePathPrefix(argPath))
+
+			continue
+		}
+
+		// Gather package paths from the directory
+		err = walkDirForGnoFiles(argPath, func(path string) {
+			paths = append(paths, ensurePathPrefix(path))
+		})
+		if err != nil {
+			return nil, fmt.Errorf("unable to walk dir: %w", err)
+		}
+	}
+
+	return paths, nil
 }
 
 // targetsFromPatterns returns a list of target paths that match the patterns.

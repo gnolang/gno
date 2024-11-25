@@ -6,7 +6,7 @@ id: tendermint2
 
 **Disclaimer: Tendermint2 is currently part of the Gno monorepo for streamlined development.**
 
-**Once Gno.land is on the mainnet, Tendermint2 will operate independently, including for governance,
+**Once gno.land is on the mainnet, Tendermint2 will operate independently, including for governance,
 on https://github.com/tendermint/tendermint2.**
 
 ## Problems

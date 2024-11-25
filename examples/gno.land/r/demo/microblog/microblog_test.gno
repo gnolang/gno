@@ -1,14 +1,12 @@
 package microblog
 
 import (
-	"log"
 	"std"
 	"strings"
 	"testing"
 
-	"gno.land/p/demo/avl"
-	"gno.land/p/demo/microblog"
 	"gno.land/p/demo/testutils"
+	"gno.land/p/demo/urequire"
 )
 
 func TestMicroblog(t *testing.T) {
@@ -19,46 +17,34 @@ func TestMicroblog(t *testing.T) {
 
 	std.TestSetOrigCaller(author1)
 
-	if Render("/wrongpath") != "404" {
-		t.Fatalf("rendering not giving 404")
-	}
-	if Render("") == "404" {
-		t.Fatalf("rendering / should not give 404")
-	}
-	if err := m.NewPost("goodbyte, web2"); err != nil {
-		t.Fatalf("could not create post")
-	}
-	if _, err := m.GetPage(author1.String()); err != nil {
-		t.Fatalf("silo should exist")
-	}
-	if _, err := m.GetPage("no such author"); err == nil {
-		t.Fatalf("silo should not exist")
-	}
+	urequire.Equal(t, "404", Render("/wrongpath"), "rendering not giving 404")
+	urequire.NotEqual(t, "404", Render(""), "rendering / should not give 404")
+	urequire.NoError(t, m.NewPost("goodbyte, web2"), "could not create post")
+
+	_, err := m.GetPage(author1.String())
+	urequire.NoError(t, err, "silo should exist")
+
+	_, err = m.GetPage("no such author")
+	urequire.Error(t, err, "silo should not exist")
 
 	std.TestSetOrigCaller(author2)
 
-	if err := m.NewPost("hello, web3"); err != nil {
-		t.Fatalf("could not create post")
-	}
-	if err := m.NewPost("hello again, web3"); err != nil {
-		t.Fatalf("could not create post")
-	}
-	if err := m.NewPost("hi again,\n web4?"); err != nil {
-		t.Fatalf("could not create post")
-	}
+	urequire.NoError(t, m.NewPost("hello, web3"), "could not create post")
+	urequire.NoError(t, m.NewPost("hello again, web3"), "could not create post")
+	urequire.NoError(t, m.NewPost("hi again,\n web4?"), "could not create post")
 
 	println("--- MICROBLOG ---\n\n")
-	if rendering := Render(""); rendering != `# gno-based microblog
+
+	expected := `# gno-based microblog
 
 # pages
 
 - [g1v96hg6r0wgc47h6lta047h6lta047h6lm33tq6](/r/demo/microblog:g1v96hg6r0wgc47h6lta047h6lta047h6lm33tq6)
 - [g1v96hg6r0wge97h6lta047h6lta047h6lyz7c00](/r/demo/microblog:g1v96hg6r0wge97h6lta047h6lta047h6lyz7c00)
-` {
-		t.Fatalf("incorrect rendering /: '%s'", rendering)
-	}
+`
+	urequire.Equal(t, expected, Render(""), "incorrect rendering")
 
-	if rendering := strings.TrimSpace(Render(author1.String())); rendering != `## [g1v96hg6r0wgc47h6lta047h6lta047h6lm33tq6](/r/demo/microblog:g1v96hg6r0wgc47h6lta047h6lta047h6lm33tq6)
+	expected = `## [g1v96hg6r0wgc47h6lta047h6lta047h6lm33tq6](/r/demo/microblog:g1v96hg6r0wgc47h6lta047h6lta047h6lm33tq6)
 
 joined 2009-13-02, last updated 2009-13-02
 
@@ -66,11 +52,11 @@ joined 2009-13-02, last updated 2009-13-02
 
 > goodbyte, web2
 >
-> *Fri, 13 Feb 2009 23:31:30 UTC*` {
-		t.Fatalf("incorrect rendering /: '%s'", rendering)
-	}
+> *Fri, 13 Feb 2009 23:31:30 UTC*`
 
-	if rendering := strings.TrimSpace(Render(author2.String())); rendering != `## [g1v96hg6r0wge97h6lta047h6lta047h6lyz7c00](/r/demo/microblog:g1v96hg6r0wge97h6lta047h6lta047h6lyz7c00)
+	urequire.Equal(t, expected, strings.TrimSpace(Render(author1.String())), "incorrect rendering")
+
+	expected = `## [g1v96hg6r0wge97h6lta047h6lta047h6lyz7c00](/r/demo/microblog:g1v96hg6r0wge97h6lta047h6lta047h6lyz7c00)
 
 joined 2009-13-02, last updated 2009-13-02
 
@@ -88,7 +74,7 @@ joined 2009-13-02, last updated 2009-13-02
 
 > hello, web3
 >
-> *Fri, 13 Feb 2009 23:31:30 UTC*` {
-		t.Fatalf("incorrect rendering /: '%s'", rendering)
-	}
+> *Fri, 13 Feb 2009 23:31:30 UTC*`
+
+	urequire.Equal(t, expected, strings.TrimSpace(Render(author2.String())), "incorrect rendering")
 }

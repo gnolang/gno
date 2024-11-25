@@ -1,201 +1,158 @@
 package int256
 
 import (
-	"gno.land/p/demo/uint256"
-)
-
-import (
 	"testing"
 )
 
-func TestOr(t *testing.T) {
+func TestBitwise_And(t *testing.T) {
 	tests := []struct {
-		name       string
-		x, y, want Int
+		x, y, want string
 	}{
-		{
-			name: "all zeroes",
-			x:    Int{abs: &uint256.Uint{arr: [4]uint64{0, 0, 0, 0}}, neg: false},
-			y:    Int{abs: &uint256.Uint{arr: [4]uint64{0, 0, 0, 0}}, neg: false},
-			want: Int{abs: &uint256.Uint{arr: [4]uint64{0, 0, 0, 0}}, neg: false},
-		},
-		{
-			name: "all ones",
-			x:    Int{abs: &uint256.Uint{arr: [4]uint64{^uint64(0), ^uint64(0), ^uint64(0), ^uint64(0)}}, neg: false},
-			y:    Int{abs: &uint256.Uint{arr: [4]uint64{^uint64(0), ^uint64(0), ^uint64(0), ^uint64(0)}}, neg: false},
-			want: Int{abs: &uint256.Uint{arr: [4]uint64{^uint64(0), ^uint64(0), ^uint64(0), ^uint64(0)}}, neg: false},
-		},
-		{
-			name: "mixed",
-			x:    Int{abs: &uint256.Uint{arr: [4]uint64{^uint64(0), ^uint64(0), 0, 0}}, neg: false},
-			y:    Int{abs: &uint256.Uint{arr: [4]uint64{0, 0, ^uint64(0), ^uint64(0)}}, neg: false},
-			want: Int{abs: &uint256.Uint{arr: [4]uint64{^uint64(0), ^uint64(0), ^uint64(0), ^uint64(0)}}, neg: false},
-		},
-		{
-			name: "one operand all ones",
-			x:    Int{abs: &uint256.Uint{arr: [4]uint64{^uint64(0), ^uint64(0), ^uint64(0), ^uint64(0)}}, neg: false},
-			y:    Int{abs: &uint256.Uint{arr: [4]uint64{0x5555555555555555, 0xAAAAAAAAAAAAAAAA, 0xFFFFFFFFFFFFFFFF, 0x0000000000000000}}, neg: false},
-			want: Int{abs: &uint256.Uint{arr: [4]uint64{^uint64(0), ^uint64(0), ^uint64(0), ^uint64(0)}}, neg: false},
-		},
+		{"5", "1", "1"},  // 0101 & 0001 = 0001
+		{"-1", "1", "1"}, // 1111 & 0001 = 0001
+		{"-5", "3", "3"}, // 1111...1011 & 0000...0011 = 0000...0011
+		{MAX_UINT256, MAX_UINT256, MAX_UINT256},
+		{TWO_POW_128, TWO_POW_128_MINUS_1, "0"}, // 2^128 & (2^128 - 1) = 0
+		{TWO_POW_128, MAX_UINT256, TWO_POW_128}, // 2^128 & MAX_INT256
+		{MAX_UINT256, TWO_POW_128, TWO_POW_128}, // MAX_INT256 & 2^128
 	}
 
 	for _, tc := range tests {
-		t.Run(tc.name, func(t *testing.T) {
-			got := New()
-			got.Or(&tc.x, &tc.y)
+		x, _ := FromDecimal(tc.x)
+		y, _ := FromDecimal(tc.y)
+		want, _ := FromDecimal(tc.want)
 
-			if got.Neq(&tc.want) {
-				t.Errorf("Or(%v, %v) = %v, want %v", tc.x, tc.y, got, tc.want)
-			}
-		})
+		got := new(Int).And(x, y)
+
+		if got.Neq(want) {
+			t.Errorf("And(%s, %s) = %s, want %s", x.String(), y.String(), got.String(), want.String())
+		}
 	}
 }
 
-func TestAnd(t *testing.T) {
+func TestBitwise_Or(t *testing.T) {
 	tests := []struct {
-		name       string
-		x, y, want Int
+		x, y, want string
 	}{
-		{
-			name: "all zeroes",
-			x:    Int{abs: &uint256.Uint{arr: [4]uint64{0, 0, 0, 0}}, neg: false},
-			y:    Int{abs: &uint256.Uint{arr: [4]uint64{0, 0, 0, 0}}, neg: false},
-			want: Int{abs: &uint256.Uint{arr: [4]uint64{0, 0, 0, 0}}, neg: false},
-		},
-		{
-			name: "all ones",
-			x:    Int{abs: &uint256.Uint{arr: [4]uint64{^uint64(0), ^uint64(0), ^uint64(0), ^uint64(0)}}, neg: false},
-			y:    Int{abs: &uint256.Uint{arr: [4]uint64{^uint64(0), ^uint64(0), ^uint64(0), ^uint64(0)}}, neg: false},
-			want: Int{abs: &uint256.Uint{arr: [4]uint64{^uint64(0), ^uint64(0), ^uint64(0), ^uint64(0)}}, neg: false},
-		},
-		{
-			name: "mixed",
-			x:    Int{abs: &uint256.Uint{arr: [4]uint64{0, 0, 0, 0}}, neg: false},
-			y:    Int{abs: &uint256.Uint{arr: [4]uint64{^uint64(0), ^uint64(0), ^uint64(0), ^uint64(0)}}, neg: false},
-			want: Int{abs: &uint256.Uint{arr: [4]uint64{0, 0, 0, 0}}, neg: false},
-		},
-		{
-			name: "mixed 2",
-			x:    Int{abs: &uint256.Uint{arr: [4]uint64{^uint64(0), ^uint64(0), ^uint64(0), ^uint64(0)}}, neg: false},
-			y:    Int{abs: &uint256.Uint{arr: [4]uint64{0, 0, 0, 0}}, neg: false},
-			want: Int{abs: &uint256.Uint{arr: [4]uint64{0, 0, 0, 0}}, neg: false},
-		},
-		{
-			name: "mixed 3",
-			x:    Int{abs: &uint256.Uint{arr: [4]uint64{^uint64(0), ^uint64(0), 0, 0}}, neg: false},
-			y:    Int{abs: &uint256.Uint{arr: [4]uint64{0, 0, ^uint64(0), ^uint64(0)}}, neg: false},
-			want: Int{abs: &uint256.Uint{arr: [4]uint64{0, 0, 0, 0}}, neg: false},
-		},
-		{
-			name: "one operand zero",
-			x:    Int{abs: &uint256.Uint{arr: [4]uint64{0, 0, 0, 0}}, neg: false},
-			y:    Int{abs: &uint256.Uint{arr: [4]uint64{^uint64(0), ^uint64(0), ^uint64(0), ^uint64(0)}}, neg: false},
-			want: Int{abs: &uint256.Uint{arr: [4]uint64{0, 0, 0, 0}}, neg: false},
-		},
-		{
-			name: "one operand all ones",
-			x:    Int{abs: &uint256.Uint{arr: [4]uint64{^uint64(0), ^uint64(0), ^uint64(0), ^uint64(0)}}, neg: false},
-			y:    Int{abs: &uint256.Uint{arr: [4]uint64{0x5555555555555555, 0xAAAAAAAAAAAAAAAA, 0xFFFFFFFFFFFFFFFF, 0x0000000000000000}}, neg: false},
-			want: Int{abs: &uint256.Uint{arr: [4]uint64{0x5555555555555555, 0xAAAAAAAAAAAAAAAA, 0xFFFFFFFFFFFFFFFF, 0x0000000000000000}}, neg: false},
-		},
+		{"5", "1", "5"},   // 0101 | 0001 = 0101
+		{"-1", "1", "-1"}, // 1111 | 0001 = 1111
+		{"-5", "3", "-5"}, // 1111...1011 | 0000...0011 = 1111...1011
+		{TWO_POW_128, TWO_POW_128_MINUS_1, TWO_POW_129_MINUS_1},
+		{TWO_POW_128, MAX_UINT256, MAX_UINT256},
+		{"0", TWO_POW_128, TWO_POW_128},         // 0 | 2^128 = 2^128
+		{MAX_UINT256, TWO_POW_128, MAX_UINT256}, // MAX_INT256 | 2^128 = MAX_INT256
 	}
 
 	for _, tc := range tests {
-		t.Run(tc.name, func(t *testing.T) {
-			got := New()
-			got.And(&tc.x, &tc.y)
+		x, _ := FromDecimal(tc.x)
+		y, _ := FromDecimal(tc.y)
+		want, _ := FromDecimal(tc.want)
 
-			if got.Neq(&tc.want) {
-				t.Errorf("And(%v, %v) = %v, want %v", tc.x, tc.y, got, tc.want)
-			}
-		})
+		got := new(Int).Or(x, y)
+
+		if got.Neq(want) {
+			t.Errorf(
+				"Or(%s, %s) = %s, want %s",
+				x.String(), y.String(), got.String(), want.String(),
+			)
+		}
 	}
 }
 
-func TestRsh(t *testing.T) {
+func TestBitwise_Not(t *testing.T) {
+	tests := []struct {
+		x, want string
+	}{
+		{"5", "-6"},                              // 0101 -> 1111...1010
+		{"-1", "0"},                              // 1111...1111 -> 0000...0000
+		{TWO_POW_128, MINUS_TWO_POW_128_MINUS_1}, // NOT 2^128
+		{TWO_POW_255, MIN_INT256_MINUS_1},        // NOT 2^255
+	}
+
+	for _, tc := range tests {
+		x, _ := FromDecimal(tc.x)
+		want, _ := FromDecimal(tc.want)
+
+		got := new(Int).Not(x)
+
+		if got.Neq(want) {
+			t.Errorf("Not(%s) = %s, want %s", x.String(), got.String(), want.String())
+		}
+	}
+}
+
+func TestBitwise_Xor(t *testing.T) {
+	tests := []struct {
+		x, y, want string
+	}{
+		{"5", "1", "4"},                 // 0101 ^ 0001 = 0100
+		{"-1", "1", "-2"},               // 1111...1111 ^ 0000...0001 = 1111...1110
+		{"-5", "3", "-8"},               // 1111...1011 ^ 0000...0011 = 1111...1000
+		{TWO_POW_128, TWO_POW_128, "0"}, // 2^128 ^ 2^128 = 0
+		{MAX_UINT256, TWO_POW_128, MINUS_TWO_POW_128_MINUS_1}, // MAX_INT256 ^ 2^128
+		{TWO_POW_255, MAX_UINT256, MIN_INT256_MINUS_1},        // 2^255 ^ MAX_INT256
+	}
+
+	for _, tt := range tests {
+		x, _ := FromDecimal(tt.x)
+		y, _ := FromDecimal(tt.y)
+		want, _ := FromDecimal(tt.want)
+
+		got := new(Int).Xor(x, y)
+
+		if got.Neq(want) {
+			t.Errorf("Xor(%s, %s) = %s, want %s", x.String(), y.String(), got.String(), want.String())
+		}
+	}
+}
+
+func TestBitwise_Rsh(t *testing.T) {
 	tests := []struct {
 		x    string
 		n    uint
 		want string
 	}{
-		{"1024", 0, "1024"},
-		{"1024", 1, "512"},
-		{"1024", 2, "256"},
-		{"1024", 10, "1"},
-		{"1024", 11, "0"},
-		{"18446744073709551615", 0, "18446744073709551615"},
-		{"18446744073709551615", 1, "9223372036854775807"},
-		{"18446744073709551615", 62, "3"},
-		{"18446744073709551615", 63, "1"},
-		{"18446744073709551615", 64, "0"},
-		{"115792089237316195423570985008687907853269984665640564039457584007913129639935", 0, "115792089237316195423570985008687907853269984665640564039457584007913129639935"},
-		{"115792089237316195423570985008687907853269984665640564039457584007913129639935", 1, "57896044618658097711785492504343953926634992332820282019728792003956564819967"},
-		{"115792089237316195423570985008687907853269984665640564039457584007913129639935", 128, "340282366920938463463374607431768211455"},
-		{"115792089237316195423570985008687907853269984665640564039457584007913129639935", 255, "1"},
-		{"115792089237316195423570985008687907853269984665640564039457584007913129639935", 256, "0"},
-		{"-1024", 0, "-1024"},
-		{"-1024", 1, "-512"},
-		{"-1024", 2, "-256"},
-		{"-1024", 10, "-1"},
-		{"-1024", 10, "-1"},
-		{"-9223372036854775808", 0, "-9223372036854775808"},
-		{"-9223372036854775808", 1, "-4611686018427387904"},
-		{"-9223372036854775808", 62, "-2"},
-		{"-9223372036854775808", 63, "-1"},
-		{"-9223372036854775808", 64, "-1"},
-		{"-57896044618658097711785492504343953926634992332820282019728792003956564819968", 0, "-57896044618658097711785492504343953926634992332820282019728792003956564819968"},
-		{"-57896044618658097711785492504343953926634992332820282019728792003956564819968", 1, "-28948022309329048855892746252171976963317496166410141009864396001978282409984"},
-		{"-57896044618658097711785492504343953926634992332820282019728792003956564819968", 253, "-4"},
-		{"-57896044618658097711785492504343953926634992332820282019728792003956564819968", 254, "-2"},
-		{"-57896044618658097711785492504343953926634992332820282019728792003956564819968", 255, "-1"},
-		{"-57896044618658097711785492504343953926634992332820282019728792003956564819968", 256, "-1"},
+		{"5", 1, "2"},  // 0101 >> 1 = 0010
+		{"42", 3, "5"}, // 00101010 >> 3 = 00000101
+		{TWO_POW_128, 128, "1"},
+		{MAX_UINT256, 255, "1"},
+		{TWO_POW_255, 254, "2"},
+		{MINUS_TWO_POW_128, 128, TWO_POW_128_MINUS_1},
 	}
 
-	for _, tc := range tests {
-		x, err := FromDecimal(tc.x)
-		if err != nil {
-			t.Error(err)
-			continue
-		}
+	for _, tt := range tests {
+		x, _ := FromDecimal(tt.x)
+		want, _ := FromDecimal(tt.want)
 
-		got := New()
-		got.Rsh(x, tc.n)
+		got := new(Int).Rsh(x, tt.n)
 
-		if got.ToString() != tc.want {
-			t.Errorf("Rsh(%s, %d) = %v, want %v", tc.x, tc.n, got.ToString(), tc.want)
+		if got.Neq(want) {
+			t.Errorf("Rsh(%s, %d) = %s, want %s", x.String(), tt.n, got.String(), want.String())
 		}
 	}
 }
 
-func TestLsh(t *testing.T) {
+func TestBitwise_Lsh(t *testing.T) {
 	tests := []struct {
 		x    string
 		n    uint
 		want string
 	}{
-		{"1", 0, "1"},
-		{"1", 1, "2"},
-		{"1", 2, "4"},
-		{"2", 0, "2"},
-		{"2", 1, "4"},
-		{"2", 2, "8"},
-		{"-2", 0, "-2"},
-		{"-4", 0, "-4"},
-		{"-8", 0, "-8"},
+		{"5", 2, "20"},          // 0101 << 2 = 10100
+		{"42", 5, "1344"},       // 00101010 << 5 = 10101000000
+		{"1", 128, TWO_POW_128}, // 1 << 128 = 2^128
+		{"2", 254, TWO_POW_255},
+		{"1", 255, MIN_INT256}, // 1 << 255 = MIN_INT256 (overflow)
 	}
 
-	for _, tc := range tests {
-		x, err := FromDecimal(tc.x)
-		if err != nil {
-			t.Error(err)
-			continue
-		}
+	for _, tt := range tests {
+		x, _ := FromDecimal(tt.x)
+		want, _ := FromDecimal(tt.want)
 
-		got := New()
-		got.Lsh(x, tc.n)
+		got := new(Int).Lsh(x, tt.n)
 
-		if got.ToString() != tc.want {
-			t.Errorf("Lsh(%s, %d) = %v, want %v", tc.x, tc.n, got.ToString(), tc.want)
+		if got.Neq(want) {
+			t.Errorf("Lsh(%s, %d) = %s, want %s", x.String(), tt.n, got.String(), want.String())
 		}
 	}
 }

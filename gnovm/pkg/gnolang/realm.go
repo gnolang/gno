@@ -73,9 +73,16 @@ func PkgIDFromPkgPath(path string) PkgID {
 	return PkgID{HashBytes([]byte(path))}
 }
 
+// Returns the ObjectID of the PackageValue associated with path.
 func ObjectIDFromPkgPath(path string) ObjectID {
+	pkgID := PkgIDFromPkgPath(path)
+	return ObjectIDFromPkgID(pkgID)
+}
+
+// Returns the ObjectID of the PackageValue associated with pkgID.
+func ObjectIDFromPkgID(pkgID PkgID) ObjectID {
 	return ObjectID{
-		PkgID:   PkgIDFromPkgPath(path),
+		PkgID:   pkgID,
 		NewTime: 1, // by realm logic.
 	}
 }
@@ -838,6 +845,9 @@ func getChildObjects(val Value, more []Value) []Value {
 		if bv, ok := cv.Closure.(*Block); ok {
 			more = getSelfOrChildObjects(bv, more)
 		}
+		for _, c := range cv.Captures {
+			more = getSelfOrChildObjects(c.V, more)
+		}
 		return more
 	case *BoundMethodValue:
 		more = getChildObjects(cv.Func, more) // *FuncValue not object
@@ -1135,6 +1145,7 @@ func copyValueWithRefs(val Value) Value {
 			Source:     source,
 			Name:       cv.Name,
 			Closure:    closure,
+			Captures:   cv.Captures,
 			FileName:   cv.FileName,
 			PkgPath:    cv.PkgPath,
 			NativePkg:  cv.NativePkg,

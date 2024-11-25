@@ -6,17 +6,17 @@ id: validators-faq
 
 ## General Concepts
 
-### What is a Gno.land validator?
+### What is a gno.land validator?
 
-Gno.land is based on [Tendermint2](https://docs.gno.land/concepts/tendermint2) that relies on a set of validators
+gno.land is based on [Tendermint2](https://docs.gno.land/concepts/tendermint2) that relies on a set of validators
 selected based on [Proof of Contribution](https://docs.gno.land/concepts/proof-of-contribution) (PoC) to secure the
 network. Validators are tasked with participating in consensus by committing new blocks and broadcasting votes.
-Validators are compensated with a portion of transaction fees generated in the network. In Gno.land, the voting power of
+Validators are compensated with a portion of transaction fees generated in the network. In gno.land, the voting power of
 all validators are equally weighted to achieve a high nakamoto coefficient and fairness.
 
 ### What is Tendermint2?
 
-[Tendermint2](https://docs.gno.land/concepts/tendermint2) (TM2) is the consensus protocol that powers Gno.land. TM2 is a
+[Tendermint2](https://docs.gno.land/concepts/tendermint2) (TM2) is the consensus protocol that powers gno.land. TM2 is a
 successor of [Tendermint Core](https://github.com/tendermint/tendermint2), a de facto consensus framework for building
 Proof of Stake blockchains. The design philosophy of TM2 is to create “complete software” without any vulnerabilities
 with development focused on minimalism, dependency removal, and modularity.
@@ -24,36 +24,36 @@ with development focused on minimalism, dependency removal, and modularity.
 ### What is Proof of Contribution?
 
 [Proof of Contribution](https://docs.gno.land/concepts/proof-of-contribution) (PoC) is a novel consensus mechanism that
-secures Gno.land. PoC weighs expertise and alignment with the project to evaluate the contribution of individuals or
+secures gno.land. PoC weighs expertise and alignment with the project to evaluate the contribution of individuals or
 teams who govern and operate the chain. Unlike Proof of Stake (PoS), validators are selected via governance of
 Contributors based on their reputation and technical proficiency. The voting power of the network is equally distributed
 across all validators for higher decentralization. A portion of all transaction fees paid to the network are evenly
 shared between all validators to provide a fair incentive structure.
 
-### How does Gno.land differ from the Cosmos Hub?
+### How does gno.land differ from the Cosmos Hub?
 
 In Cosmos Hub, validators are selected based on the amount of staked `ATOM` tokens delegated. This means that anyone
 with enough capital can join as a validator only to seek economic incentives without any alignment or technical
 expertise. This system leads to an undesirable incentive structure in which validators are rewarded purely based on the
 capital delegated, regardless of the quality of their infrastructure or service.
 
-On the contrary, validators in Gno.land must be reviewed and verified to have made significant contributions in order to
+On the contrary, validators in gno.land must be reviewed and verified to have made significant contributions in order to
 join the validator set. This property resembles the validator selection mechanism
 in [Proof of Authority](https://openethereum.github.io/Proof-of-Authority-Chains). Furthermore, all validators are
 evenly rewarded to ensure that the entire validator set is fairly incentivized to ensure the sustainability of the
 network.
 
-### What stage is the Gno.land project in?
+### What stage is the gno.land project in?
 
-Gno.land is currently in Testnet 3, the single-node testnet stage. The next version, Testnet 4, is scheduled to go live
-in Q2 2024, which will include a validator set implementation for a multinode environment.
+gno.land is currently in Testnet 3, the single-node testnet stage. The next version, Testnet 4, is scheduled to go live
+in Q3 2024, which will include a validator set implementation for a multinode environment.
 
 ## Becoming a Validator
 
 ### How do I join the testnet as a validator?
 
 Out of many official Gno testnets, Testnet4 (`test4`) is the purpose-built network for testing the multi-node validator
-environment prior to mainnet launch. Testnet4 is scheduled to go live in Q2 2024 with genesis validators consisting of
+environment prior to mainnet launch. Testnet4 is scheduled to go live in Q3 2024 with genesis validators consisting of
 the Gno Core Team, partners, and external contributors.
 
 For more information about joining testnet4,
@@ -62,18 +62,18 @@ testnets, visit [Gno Testnets](https://docs.gno.land/concepts/testnets).
 
 ### What are the incentives for running a validator?
 
-Network transaction fees paid on the Gno.land in `GNOT` are collected, from which a portion is directed to reward
+Network transaction fees paid on the gno.land in `GNOT` are collected, from which a portion is directed to reward
 validators for their work. All validators fairly receive an equal amount of rewards.
 
 ### How many validators will there be in mainnet?
 
 The exact plans for mainnet are still TBD. Based on the latest discussions between contributors, the mainnet will likely
 have an inital validator set size of 20~50, which will gradually scale with the development and decentralization of the
-Gno.land project.
+gno.land project.
 
 ### How do I make my first contribution?
 
-Gno.land is in active development and external contributions are always welcome! If you’re looking for tasks to begin
+gno.land is in active development and external contributions are always welcome! If you’re looking for tasks to begin
 with, we suggest you visit
 the [Bounties &](https://github.com/orgs/gnolang/projects/35/views/3) [Worx](https://github.com/orgs/gnolang/projects/35/views/3)
 board and search for open tasks up for grabs. Start from small challenges and work your way up to the bigger ones. Every
@@ -103,41 +103,6 @@ post-verification. Pruned nodes are less resource intensive in terms of storage 
 either a full node or a pruned node, it is important to retain enough blocks to be able to validate new blocks.
 
 ## Technical References
-
-### How do I generate `genesis.json`?
-
-`genesis.json` is the file that is used to create the initial state of the chain. To generate `genesis.json`, use
-the `gnoland genesis generate` command. Refer
-to [this section](../../gno-tooling/cli/gnoland.md#gnoland-genesis-generate-flags) for various flags that allow you to
-manipulate the file.
-
-:::warning
-
-Editing generated genesis.json manually is extremely dangerous. It may corrupt chain initial state which leads chain to
-not start
-
-:::
-
-### How do I add or remove validators from `genesis.json`?
-
-Validators inside `genesis.json` will be included in the validator set at genesis. To manipulate the genesis validator
-set, use the `gnoland genesis validator` command with the `add` or `remove` subcommands. Refer
-to [this section](../../gno-tooling/cli/gnoland.md#gnoland-genesis-validator-flags) for flags that allow you to
-configure the name or the voting power of the validator.
-
-### How do I add the balance information to the `genesis.json`?
-
-You may premine coins to various addresses. To modify the balances of addresses at genesis, use
-the `gnoland genesis balances` command with the `add` or `remove` subcommands. Refer
-to [this section](../../gno-tooling/cli/gnoland.md#gnoland-genesis-balances-add-flags) for various flags that allow you
-to update the entire balance sheet with a file or modify the balance of a single address.
-
-:::info
-
-Not only `ugnot`, but other coins are accepted. However, be aware that coins other than `ugnot` may not work(send, and
-etc.) properly.
-
-:::
 
 ### How do I initialize `gno secrets`?
 

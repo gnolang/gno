@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"go/parser"
 	"go/token"
+	"math"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -11,8 +12,9 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/gnolang/gno/gnovm"
 	"github.com/gnolang/gno/tm2/pkg/errors"
-	"github.com/gnolang/gno/tm2/pkg/std"
+	"go.uber.org/multierr"
 )
 
 // ----------------------------------------
@@ -144,11 +146,27 @@ func (loc Location) IsZero() bool {
 // even after preprocessing.  Temporary attributes (e.g. those
 // for preprocessing) are stored in .data.
 
+type GnoAttribute string
+
+const (
+	ATTR_PREPROCESSED    GnoAttribute = "ATTR_PREPROCESSED"
+	ATTR_PREDEFINED      GnoAttribute = "ATTR_PREDEFINED"
+	ATTR_TYPE_VALUE      GnoAttribute = "ATTR_TYPE_VALUE"
+	ATTR_TYPEOF_VALUE    GnoAttribute = "ATTR_TYPEOF_VALUE"
+	ATTR_IOTA            GnoAttribute = "ATTR_IOTA"
+	ATTR_LOCATIONED      GnoAttribute = "ATTR_LOCATIONE"     // XXX DELETE
+	ATTR_GOTOLOOP_STMT   GnoAttribute = "ATTR_GOTOLOOP_STMT" // XXX delete?
+	ATTR_LOOP_DEFINES    GnoAttribute = "ATTR_LOOP_DEFINES"  // []Name defined within loops.
+	ATTR_LOOP_USES       GnoAttribute = "ATTR_LOOP_USES"     // []Name loop defines actually used.
+	ATTR_SHIFT_RHS       GnoAttribute = "ATTR_SHIFT_RHS"
+	ATTR_LAST_BLOCK_STMT GnoAttribute = "ATTR_LAST_BLOCK_STMT"
+)
+
 type Attributes struct {
 	Line   int
 	Column int
 	Label  Name
-	data   map[interface{}]interface{} // not persisted
+	data   map[GnoAttribute]interface{} // not persisted
 }
 
 func (attr *Attributes) GetLine() int {
@@ -175,20 +193,29 @@ func (attr *Attributes) SetLabel(label Name) {
 	attr.Label = label
 }
 
-func (attr *Attributes) HasAttribute(key interface{}) bool {
+func (attr *Attributes) HasAttribute(key GnoAttribute) bool {
 	_, ok := attr.data[key]
 	return ok
 }
 
-func (attr *Attributes) GetAttribute(key interface{}) interface{} {
+// GnoAttribute must not be user provided / arbitrary,
+// otherwise will create potential exploits.
+func (attr *Attributes) GetAttribute(key GnoAttribute) interface{} {
 	return attr.data[key]
 }
 
-func (attr *Attributes) SetAttribute(key interface{}, value interface{}) {
+func (attr *Attributes) SetAttribute(key GnoAttribute, value interface{}) {
 	if attr.data == nil {
-		attr.data = make(map[interface{}]interface{})
+		attr.data = make(map[GnoAttribute]interface{})
 	}
 	attr.data[key] = value
+}
+
+func (attr *Attributes) DelAttribute(key GnoAttribute) {
+	if debug && attr.data == nil {
+		panic("should not happen, attribute is expected to be non-empty.")
+	}
+	delete(attr.data, key)
 }
 
 // ----------------------------------------
@@ -204,9 +231,10 @@ type Node interface {
 	SetColumn(int)
 	GetLabel() Name
 	SetLabel(Name)
-	HasAttribute(key interface{}) bool
-	GetAttribute(key interface{}) interface{}
-	SetAttribute(key interface{}, value interface{})
+	HasAttribute(key GnoAttribute) bool
+	GetAttribute(key GnoAttribute) interface{}
+	SetAttribute(key GnoAttribute, value interface{})
+	DelAttribute(key GnoAttribute)
 }
 
 // non-pointer receiver to help make immutable.
@@ -366,11 +394,22 @@ var (
 	_ Expr = &ConstExpr{}
 )
 
+type NameExprType int
+
+const (
+	NameExprTypeNormal      NameExprType = iota // default
+	NameExprTypeDefine                          // when defining normally
+	NameExprTypeHeapDefine                      // when defining escaped name in loop
+	NameExprTypeHeapUse                         // when above used in non-define lhs/rhs
+	NameExprTypeHeapClosure                     // when closure captures name
+)
+
 type NameExpr struct {
 	Attributes
 	// TODO rename .Path's to .ValuePaths.
 	Path ValuePath // set by preprocessor.
 	Name
+	Type NameExprType
 }
 
 type NameExprs []NameExpr
@@ -497,8 +536,9 @@ type KeyValueExprs []KeyValueExpr
 type FuncLitExpr struct {
 	Attributes
 	StaticBlock
-	Type FuncTypeExpr // function type
-	Body              // function body
+	Type         FuncTypeExpr // function type
+	Body                      // function body
+	HeapCaptures NameExprs    // filled in findLoopUses1
 }
 
 // The preprocessor replaces const expressions
@@ -579,11 +619,15 @@ func (ftxz FieldTypeExprs) IsNamed() bool {
 	named := false
 	for i, ftx := range ftxz {
 		if i == 0 {
-			named = ftx.Name != ""
+			if ftx.Name == "" || isHiddenResultVariable(string(ftx.Name)) {
+				named = false
+			} else {
+				named = true
+			}
 		} else {
 			if named && ftx.Name == "" {
 				panic("[]FieldTypeExpr has inconsistent namedness (starts named)")
-			} else if !named && ftx.Name != "" {
+			} else if !named && (ftx.Name != "" || !isHiddenResultVariable(string(ftx.Name))) {
 				panic("[]FieldTypeExpr has inconsistent namedness (starts unnamed)")
 			}
 		}
@@ -670,6 +714,10 @@ type Body []Stmt
 
 func (ss Body) GetBody() Body {
 	return ss
+}
+
+func (ss *Body) SetBody(nb Body) {
+	*ss = nb
 }
 
 func (ss Body) GetLabeledStmt(label Name) (stmt Stmt, idx int) {
@@ -1098,20 +1146,19 @@ func PackageNameFromFileBody(name, body string) Name {
 // ReadMemPackage initializes a new MemPackage by reading the OS directory
 // at dir, and saving it with the given pkgPath (import path).
 // The resulting MemPackage will contain the names and content of all *.gno files,
-// and additionally README.md, LICENSE, and gno.mod.
+// and additionally README.md, LICENSE.
 //
 // ReadMemPackage does not perform validation aside from the package's name;
 // the files are not parsed but their contents are merely stored inside a MemFile.
 //
 // NOTE: panics if package name is invalid (characters must be alphanumeric or _,
 // lowercase, and must start with a letter).
-func ReadMemPackage(dir string, pkgPath string) *std.MemPackage {
+func ReadMemPackage(dir string, pkgPath string) *gnovm.MemPackage {
 	files, err := os.ReadDir(dir)
 	if err != nil {
 		panic(err)
 	}
 	allowedFiles := []string{ // make case insensitive?
-		"gno.mod",
 		"LICENSE",
 		"README.md",
 	}
@@ -1140,14 +1187,14 @@ func ReadMemPackage(dir string, pkgPath string) *std.MemPackage {
 	return ReadMemPackageFromList(list, pkgPath)
 }
 
-// ReadMemPackageFromList creates a new [std.MemPackage] with the specified pkgPath,
+// ReadMemPackageFromList creates a new [gnovm.MemPackage] with the specified pkgPath,
 // containing the contents of all the files provided in the list slice.
 // No parsing or validation is done on the filenames.
 //
 // NOTE: panics if package name is invalid (characters must be alphanumeric or _,
 // lowercase, and must start with a letter).
-func ReadMemPackageFromList(list []string, pkgPath string) *std.MemPackage {
-	memPkg := &std.MemPackage{Path: pkgPath}
+func ReadMemPackageFromList(list []string, pkgPath string) *gnovm.MemPackage {
+	memPkg := &gnovm.MemPackage{Path: pkgPath}
 	var pkgName Name
 	for _, fpath := range list {
 		fname := filepath.Base(fpath)
@@ -1163,7 +1210,7 @@ func ReadMemPackageFromList(list []string, pkgPath string) *std.MemPackage {
 			}
 		}
 		memPkg.Files = append(memPkg.Files,
-			&std.MemFile{
+			&gnovm.MemFile{
 				Name: fname,
 				Body: string(bz),
 			})
@@ -1183,8 +1230,9 @@ func ReadMemPackageFromList(list []string, pkgPath string) *std.MemPackage {
 //
 // If one of the files has a different package name than memPkg.Name,
 // or [ParseFile] returns an error, ParseMemPackage panics.
-func ParseMemPackage(memPkg *std.MemPackage) (fset *FileSet) {
+func ParseMemPackage(memPkg *gnovm.MemPackage) (fset *FileSet) {
 	fset = &FileSet{}
+	var errs error
 	for _, mfile := range memPkg.Files {
 		if !strings.HasSuffix(mfile.Name, ".gno") ||
 			endsWith(mfile.Name, []string{"_test.gno", "_filetest.gno"}) {
@@ -1192,7 +1240,8 @@ func ParseMemPackage(memPkg *std.MemPackage) (fset *FileSet) {
 		}
 		n, err := ParseFile(mfile.Name, mfile.Body)
 		if err != nil {
-			panic(err)
+			errs = multierr.Append(errs, err)
+			continue
 		}
 		if memPkg.Name != string(n.PkgName) {
 			panic(fmt.Sprintf(
@@ -1202,10 +1251,13 @@ func ParseMemPackage(memPkg *std.MemPackage) (fset *FileSet) {
 		// add package file.
 		fset.AddFiles(n)
 	}
+	if errs != nil {
+		panic(errs)
+	}
 	return fset
 }
 
-func ParseMemPackageTests(memPkg *std.MemPackage) (tset, itset *FileSet) {
+func ParseMemPackageTests(memPkg *gnovm.MemPackage) (tset, itset *FileSet) {
 	tset = &FileSet{}
 	itset = &FileSet{}
 	for _, mfile := range memPkg.Files {
@@ -1376,6 +1428,13 @@ func (x *PackageNode) PrepareNewValues(pv *PackageValue) []TypedValue {
 			panic("PackageNode.PrepareNewValues() package mismatch")
 		}
 	}
+	// The FuncValue Body may have been altered during the preprocessing.
+	// We need to update body field from the source in the FuncValue accordingly.
+	for _, tv := range x.Values {
+		if fv, ok := tv.V.(*FuncValue); ok {
+			fv.UpdateBodyFromSource()
+		}
+	}
 	pvl := len(block.Values)
 	pnl := len(x.Values)
 	// copy new top-level defined values/types.
@@ -1423,7 +1482,7 @@ func (x *PackageNode) DefineNative(n Name, ps, rs FieldTypeExprs, native func(*M
 			panic("should not happen")
 		}
 	}
-	fv := x.GetValueRef(nil, n).V.(*FuncValue)
+	fv := x.GetValueRef(nil, n, true).V.(*FuncValue)
 	fv.nativeBody = native
 }
 
@@ -1437,7 +1496,7 @@ func (x *PackageNode) DefineNativeOverride(n Name, native func(*Machine)) {
 	if native == nil {
 		panic("DefineNative expects a function, but got nil")
 	}
-	fv := x.GetValueRef(nil, n).V.(*FuncValue)
+	fv := x.GetValueRef(nil, n, true).V.(*FuncValue)
 	fv.nativeBody = native
 }
 
@@ -1472,15 +1531,17 @@ type BlockNode interface {
 	GetNumNames() uint16
 	GetParentNode(Store) BlockNode
 	GetPathForName(Store, Name) ValuePath
+	GetBlockNodeForPath(Store, ValuePath) BlockNode
 	GetIsConst(Store, Name) bool
 	GetLocalIndex(Name) (uint16, bool)
-	GetValueRef(Store, Name) *TypedValue
+	GetValueRef(Store, Name, bool) *TypedValue
 	GetStaticTypeOf(Store, Name) Type
 	GetStaticTypeOfAt(Store, ValuePath) Type
 	Predefine(bool, Name)
 	Define(Name, TypedValue)
 	Define2(bool, Name, Type, TypedValue)
 	GetBody() Body
+	SetBody(Body)
 }
 
 // ----------------------------------------
@@ -1570,6 +1631,8 @@ func (sb *StaticBlock) GetBlockNames() (ns []Name) {
 }
 
 // Implements BlockNode.
+// NOTE: Extern names may also be local, if declared after usage as an extern
+// (thus shadowing the extern name).
 func (sb *StaticBlock) GetExternNames() (ns []Name) {
 	return sb.Externs // copy?
 }
@@ -1611,6 +1674,9 @@ func (sb *StaticBlock) GetPathForName(store Store, n Name) ValuePath {
 	}
 	// Register as extern.
 	// NOTE: uverse names are externs too.
+	// NOTE: externs may also be shadowed later in the block. Thus, usages
+	// before the declaration will have depth > 1; following it, depth == 1,
+	// matching the two different identifiers they refer to.
 	if !isFile(sb.GetSource(store)) {
 		sb.GetStaticBlock().addExternName(n)
 	}
@@ -1637,6 +1703,21 @@ func (sb *StaticBlock) GetPathForName(store Store, n Name) ValuePath {
 	}
 	// Name does not exist.
 	panic(fmt.Sprintf("name %s not declared", n))
+}
+
+// Get the containing block node for node with path relative to this containing block.
+func (sb *StaticBlock) GetBlockNodeForPath(store Store, path ValuePath) BlockNode {
+	if path.Type != VPBlock {
+		panic("expected block type value path but got " + path.Type.String())
+	}
+
+	// NOTE: path.Depth == 1 means it's in bn.
+	bn := sb.GetSource(store)
+	for i := 1; i < int(path.Depth); i++ {
+		bn = bn.GetParentNode(store)
+	}
+
+	return bn
 }
 
 // Returns whether a name defined here in in ancestry is a const.
@@ -1695,21 +1776,12 @@ func (sb *StaticBlock) GetStaticTypeOf(store Store, n Name) Type {
 // Implements BlockNode.
 func (sb *StaticBlock) GetStaticTypeOfAt(store Store, path ValuePath) Type {
 	if debug {
-		if path.Type != VPBlock {
-			panic("should not happen")
-		}
 		if path.Depth == 0 {
 			panic("should not happen")
 		}
 	}
-	for {
-		if path.Depth == 1 {
-			return sb.Types[path.Index]
-		} else {
-			sb = sb.GetParentNode(store).GetStaticBlock()
-			path.Depth -= 1
-		}
-	}
+	bn := sb.GetBlockNodeForPath(store, path)
+	return bn.GetStaticBlock().Types[path.Index]
 }
 
 // Implements BlockNode.
@@ -1735,17 +1807,19 @@ func (sb *StaticBlock) GetLocalIndex(n Name) (uint16, bool) {
 // Implemented BlockNode.
 // This method is too slow for runtime, but it is used
 // during preprocessing to compute types.
+// If skipPredefined, skips over names that are only predefined.
 // Returns nil if not defined.
-func (sb *StaticBlock) GetValueRef(store Store, n Name) *TypedValue {
+func (sb *StaticBlock) GetValueRef(store Store, n Name, skipPredefined bool) *TypedValue {
 	idx, ok := sb.GetLocalIndex(n)
 	bb := &sb.Block
 	bp := sb.GetParentNode(store)
 	for {
-		if ok {
+		if ok && (!skipPredefined || sb.Types[idx] != nil) {
 			return bb.GetPointerToInt(store, int(idx)).TV
 		} else if bp != nil {
 			idx, ok = bp.GetLocalIndex(n)
-			bb = bp.GetStaticBlock().GetBlock()
+			sb = bp.GetStaticBlock()
+			bb = sb.GetBlock()
 			bp = bp.GetParentNode(store)
 		} else {
 			return nil
@@ -1755,8 +1829,8 @@ func (sb *StaticBlock) GetValueRef(store Store, n Name) *TypedValue {
 
 // Implements BlockNode
 // Statically declares a name definition.
-// At runtime, use *Block.GetValueRef() etc which take path
-// values, which are pre-computeed in the preprocessor.
+// At runtime, use *Block.GetPointerTo() which takes a path
+// value, which is pre-computeed in the preprocessor.
 // Once a typed value is defined, it cannot be changed.
 //
 // NOTE: Currently tv.V is only set when the value represents a Type(Value) or
@@ -1768,12 +1842,14 @@ func (sb *StaticBlock) Define(n Name, tv TypedValue) {
 	sb.Define2(false, n, tv.T, tv)
 }
 
+// Set type to nil, only reserving the name.
 func (sb *StaticBlock) Predefine(isConst bool, n Name) {
 	sb.Define2(isConst, n, nil, anyValue(nil))
 }
 
 // The declared type st may not be the same as the static tv;
 // e.g. var x MyInterface = MyStruct{}.
+// Setting st and tv to nil/zero reserves (predefines) name for definition later.
 func (sb *StaticBlock) Define2(isConst bool, n Name, st Type, tv TypedValue) {
 	if debug {
 		debug.Printf(
@@ -1787,7 +1863,7 @@ func (sb *StaticBlock) Define2(isConst bool, n Name, st Type, tv TypedValue) {
 	if int(sb.NumNames) != len(sb.Names) {
 		panic("StaticBlock.NumNames and len(.Names) mismatch")
 	}
-	if (1<<16 - 1) < sb.NumNames {
+	if sb.NumNames == math.MaxUint16 {
 		panic("too many variables in block")
 	}
 	if tv.T == nil && tv.V != nil {
@@ -1870,7 +1946,15 @@ func (x *IfStmt) GetBody() Body {
 	panic("IfStmt has no body (but .Then and .Else do)")
 }
 
+func (x *IfStmt) SetBody(b Body) {
+	panic("IfStmt has no body (but .Then and .Else do)")
+}
+
 func (x *SwitchStmt) GetBody() Body {
+	panic("SwitchStmt has no body (but its cases do)")
+}
+
+func (x *SwitchStmt) SetBody(b Body) {
 	panic("SwitchStmt has no body (but its cases do)")
 }
 
@@ -1878,7 +1962,15 @@ func (x *FileNode) GetBody() Body {
 	panic("FileNode has no body (but it does have .Decls)")
 }
 
+func (x *FileNode) SetBody(b Body) {
+	panic("FileNode has no body (but it does have .Decls)")
+}
+
 func (x *PackageNode) GetBody() Body {
+	panic("PackageNode has no body")
+}
+
+func (x *PackageNode) SetBody(b Body) {
 	panic("PackageNode has no body")
 }
 
@@ -2077,18 +2169,6 @@ func (x *BasicLitExpr) GetInt() int {
 	return i
 }
 
-type GnoAttribute string
-
-const (
-	ATTR_PREPROCESSED GnoAttribute = "ATTR_PREPROCESSED"
-	ATTR_PREDEFINED   GnoAttribute = "ATTR_PREDEFINED"
-	ATTR_TYPE_VALUE   GnoAttribute = "ATTR_TYPE_VALUE"
-	ATTR_TYPEOF_VALUE GnoAttribute = "ATTR_TYPEOF_VALUE"
-	ATTR_IOTA         GnoAttribute = "ATTR_IOTA"
-	ATTR_LOCATIONED   GnoAttribute = "ATTR_LOCATIONED"
-	ATTR_INJECTED     GnoAttribute = "ATTR_INJECTED"
-)
-
 var rePkgName = regexp.MustCompile(`^[a-z][a-z0-9_]+$`)
 
 // TODO: consider length restrictions.
@@ -2097,4 +2177,13 @@ func validatePkgName(name string) {
 	if !rePkgName.MatchString(name) {
 		panic(fmt.Sprintf("cannot create package with invalid name %q", name))
 	}
+}
+
+const hiddenResultVariable = ".res_"
+
+func isHiddenResultVariable(name string) bool {
+	if strings.HasPrefix(name, hiddenResultVariable) {
+		return true
+	}
+	return false
 }

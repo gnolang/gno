@@ -69,6 +69,7 @@ func (*PackageType) assertType()    {}
 func (*ChanType) assertType()       {}
 func (*NativeType) assertType()     {}
 func (blockType) assertType()       {}
+func (heapItemType) assertType()    {}
 func (*tupleType) assertType()      {}
 func (RefType) assertType()         {}
 func (MaybeNativeType) assertType() {}
@@ -1009,13 +1010,13 @@ func (it *InterfaceType) FindEmbeddedFieldType(callerPath string, n Name, m map[
 
 // For run-time type assertion.
 // TODO: optimize somehow.
-func (it *InterfaceType) IsImplementedBy(ot Type) (result bool) {
+func (it *InterfaceType) VerifyImplementedBy(ot Type) error {
 	for _, im := range it.Methods {
 		if im.Type.Kind() == InterfaceKind {
 			// field is embedded interface...
 			im2 := baseOf(im.Type).(*InterfaceType)
-			if !im2.IsImplementedBy(ot) {
-				return false
+			if err := im2.VerifyImplementedBy(ot); err != nil {
+				return err
 			} else {
 				continue
 			}
@@ -1023,7 +1024,7 @@ func (it *InterfaceType) IsImplementedBy(ot Type) (result bool) {
 		// find method in field.
 		tr, hp, rt, ft, _ := findEmbeddedFieldType(it.PkgPath, ot, im.Name, nil)
 		if tr == nil { // not found.
-			return false
+			return fmt.Errorf("missing method %s", im.Name)
 		}
 		if nft, ok := ft.(*NativeType); ok {
 			// Treat native function types as autoNative calls.
@@ -1033,22 +1034,26 @@ func (it *InterfaceType) IsImplementedBy(ot Type) (result bool) {
 			// ie, if each of ft's arg types can match
 			// against the desired arg types in im.Types.
 			if !gno2GoTypeMatches(im.Type, nft.Type) {
-				return false
+				return fmt.Errorf("wrong type for method %s", im.Name)
 			}
 		} else if mt, ok := ft.(*FuncType); ok {
 			// if method is pointer receiver, check addressability:
 			if _, ptrRcvr := rt.(*PointerType); ptrRcvr && !hp {
-				return false // not addressable.
+				return fmt.Errorf("method %s has pointer receiver", im.Name) // not addressable.
 			}
 			// check for func type equality.
 			dmtid := mt.TypeID()
 			imtid := im.Type.TypeID()
 			if dmtid != imtid {
-				return false
+				return fmt.Errorf("wrong type for method %s", im.Name)
 			}
 		}
 	}
-	return true
+	return nil
+}
+
+func (it *InterfaceType) IsImplementedBy(ot Type) bool {
+	return it.VerifyImplementedBy(ot) == nil
 }
 
 func (it *InterfaceType) GetPathForName(n Name) ValuePath {
@@ -1961,6 +1966,35 @@ func (bt blockType) IsNamed() bool {
 }
 
 // ----------------------------------------
+// heapItemType
+
+type heapItemType struct{} // no data
+
+func (bt heapItemType) Kind() Kind {
+	return HeapItemKind
+}
+
+func (bt heapItemType) TypeID() TypeID {
+	return typeid("heapitem")
+}
+
+func (bt heapItemType) String() string {
+	return "heapitem"
+}
+
+func (bt heapItemType) Elem() Type {
+	panic("heapItemType has no elem type")
+}
+
+func (bt heapItemType) GetPkgPath() string {
+	panic("heapItemType has no package path")
+}
+
+func (bt heapItemType) IsNamed() bool {
+	panic("heapItemType has no property called named")
+}
+
+// ----------------------------------------
 // tupleType
 
 type tupleType struct {
@@ -2114,9 +2148,10 @@ const (
 	MapKind
 	TypeKind // not in go.
 	// UnsafePointerKind
-	BlockKind   // not in go.
-	TupleKind   // not in go.
-	RefTypeKind // not in go.
+	BlockKind    // not in go.
+	HeapItemKind // not in go.
+	TupleKind    // not in go.
+	RefTypeKind  // not in go.
 )
 
 // This is generally slower than switching on baseOf(t).
@@ -2189,6 +2224,8 @@ func KindOf(t Type) Kind {
 		return t.Kind()
 	case blockType:
 		return BlockKind
+	case heapItemType:
+		return HeapItemKind
 	case *tupleType:
 		return TupleKind
 	case RefType:

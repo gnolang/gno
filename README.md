@@ -10,7 +10,7 @@
 
 Gno is an interpreted and fully-deterministic implementation of the Go
 programming language, designed to build succinct and composable smart contracts.
-The first blockchain to use it is Gno.land, a
+The first blockchain to use it is gno.land, a
 [Proof of Contribution](./docs/concepts/proof-of-contribution.md)-based chain, backed by
 a variation of the [Tendermint](https://docs.tendermint.com/v0.34/introduction/what-is-tendermint.html)
 consensus engine.
@@ -21,9 +21,9 @@ If you haven't already, take a moment to check out our [website](https://gno.lan
 
 > The website is a deployment of our [gnoweb](./gno.land/cmd/gnoweb) frontend; you
 > can use it to check out
-> [some](https://test3.gno.land/r/demo/boards)
-> [example](https://test3.gno.land/r/gnoland/blog)
-> [contracts](https://test3.gno.land/r/demo/users).
+> [some](https://gno.land/r/demo/boards)
+> [example](https://gno.land/r/gnoland/blog)
+> [contracts](https://gno.land/r/demo/users).
 >
 > Use the `[source]` button in the header to inspect the program's source; use
 > the `[help]` button to view how you can use [`gnokey`](./gno.land/cmd/gnokey)
@@ -47,13 +47,13 @@ repository offers more resources to dig into. We are eager to see your first PR!
 </a>
 </br></br>
 
-[Gno Playground](https://play.gno.land), available at [play.gno.land](https://play.gno.land), is a web app that allows users to write, share, and deploy Gno code. Developers can seamlessly test, debug, and deploy realms and packages on Gno.land, while being able to collaborate with peers to work on projects together and seek assistance. A key feature of Gno Playground is the ability to get started without the need to install any tools or manage any services, offering immediate access and convenience for users.
+[Gno Playground](https://play.gno.land), available at [play.gno.land](https://play.gno.land), is a web app that allows users to write, share, and deploy Gno code. Developers can seamlessly test, debug, and deploy realms and packages on gno.land, while being able to collaborate with peers to work on projects together and seek assistance. A key feature of Gno Playground is the ability to get started without the need to install any tools or manage any services, offering immediate access and convenience for users.
 
 ## Repository structure
 
 * [examples](./examples) - Smart-contract examples and guides for new Gno developers.
 * [gnovm](./gnovm) - GnoVM and Gnolang.
-* [gno.land](./gno.land) - Gno.land blockchain and tools.
+* [gno.land](./gno.land) - gno.land blockchain and tools.
 * [tm2](./tm2) - Tendermint2.
 * [docs](./docs) - Official documentation, deployed under [docs.gno.land](https://docs.gno.land).
 * [contribs](./contribs) - Collection of enhanced tools for Gno.

@@ -1,6 +1,6 @@
-// Package bar20 is similar to foo20 but exposes a safe-object that can be used
-// by `maketx run`, another contract importing foo20, and in the future when
-// we'll support `maketx call Token.XXX`.
+// Package bar20 is similar to gno.land/r/demo/foo20 but exposes a safe-object
+// that can be used by `maketx run`, another contract importing foo20, and in
+// the future when we'll support `maketx call Token.XXX`.
 package bar20
 
 import (
@@ -12,18 +12,17 @@ import (
 )
 
 var (
-	banker *grc20.AdminToken // private banker.
-	Token  grc20.IGRC20      // public safe-object.
+	Token, adm = grc20.NewToken("Bar", "BAR", 4)
+	UserTeller = Token.CallerTeller()
 )
 
 func init() {
-	banker = grc20.NewAdminToken("Bar", "BAR", 4)
-	Token = banker.GRC20()
+	// XXX: grc20reg.Register(Token, "")
 }
 
 func Faucet() string {
 	caller := std.PrevRealm().Addr()
-	if err := banker.Mint(caller, 1_000_000); err != nil {
+	if err := adm.Mint(caller, 1_000_000); err != nil {
 		return "error: " + err.Error()
 	}
 	return "OK"
@@ -35,10 +34,10 @@ func Render(path string) string {
 
 	switch {
 	case path == "":
-		return banker.RenderHome() // XXX: should be Token.RenderHome()
+		return Token.RenderHome()
 	case c == 2 && parts[0] == "balance":
 		owner := std.Address(parts[1])
-		balance, _ := Token.BalanceOf(owner)
+		balance := Token.BalanceOf(owner)
 		return ufmt.Sprintf("%d\n", balance)
 	default:
 		return "404\n"

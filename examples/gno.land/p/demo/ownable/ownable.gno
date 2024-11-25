@@ -1,8 +1,6 @@
 package ownable
 
-import (
-	"std"
-)
+import "std"
 
 const OwnershipTransferEvent = "OwnershipTransfer"
 
@@ -19,7 +17,9 @@ func New() *Ownable {
 }
 
 func NewWithAddress(addr std.Address) *Ownable {
-	return &Ownable{owner: addr}
+	return &Ownable{
+		owner: addr,
+	}
 }
 
 // TransferOwnership transfers ownership of the Ownable struct to a new address
@@ -37,9 +37,10 @@ func (o *Ownable) TransferOwnership(newOwner std.Address) error {
 	o.owner = newOwner
 	std.Emit(
 		OwnershipTransferEvent,
-		"from", string(prevOwner),
-		"to", string(newOwner),
+		"from", prevOwner.String(),
+		"to", newOwner.String(),
 	)
+
 	return nil
 }
 
@@ -57,13 +58,14 @@ func (o *Ownable) DropOwnership() error {
 
 	std.Emit(
 		OwnershipTransferEvent,
-		"from", string(prevOwner),
+		"from", prevOwner.String(),
 		"to", "",
 	)
 
 	return nil
 }
 
+// Owner returns the owner address from Ownable
 func (o Ownable) Owner() std.Address {
 	return o.owner
 }
@@ -73,9 +75,11 @@ func (o Ownable) CallerIsOwner() error {
 	if std.PrevRealm().Addr() == o.owner {
 		return nil
 	}
+
 	return ErrUnauthorized
 }
 
+// AssertCallerIsOwner panics if the caller is not the owner
 func (o Ownable) AssertCallerIsOwner() {
 	if std.PrevRealm().Addr() != o.owner {
 		panic(ErrUnauthorized)

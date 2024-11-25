@@ -6,16 +6,18 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"os"
 	"reflect"
+	"slices"
+	"strconv"
 	"strings"
 	"sync"
 	"testing"
 
-	"github.com/gnolang/gno/tm2/pkg/errors"
-	"github.com/gnolang/gno/tm2/pkg/std"
-	"github.com/gnolang/gno/tm2/pkg/store"
 	"github.com/gnolang/overflow"
+
+	"github.com/gnolang/gno/gnovm"
+	"github.com/gnolang/gno/tm2/pkg/errors"
+	"github.com/gnolang/gno/tm2/pkg/store"
 )
 
 // Exception represents a panic that originates from a gno program.
@@ -25,10 +27,21 @@ type Exception struct {
 	// Frame is used to reference the frame a panic occurred in so that recover() knows if the
 	// currently executing deferred function is able to recover from the panic.
 	Frame *Frame
+
+	Stacktrace Stacktrace
 }
 
 func (e Exception) Sprint(m *Machine) string {
 	return e.Value.Sprint(m)
+}
+
+// UnhandledPanicError represents an error thrown when a panic is not handled in the realm.
+type UnhandledPanicError struct {
+	Descriptor string // Description of the unhandled panic.
+}
+
+func (e UnhandledPanicError) Error() string {
+	return e.Descriptor
 }
 
 //----------------------------------------
@@ -130,7 +143,7 @@ func NewMachineWithOptions(opts MachineOptions) *Machine {
 
 	output := opts.Output
 	if output == nil {
-		output = os.Stdout
+		output = io.Discard
 	}
 	alloc := opts.Alloc
 	if alloc == nil {
@@ -251,7 +264,7 @@ func (m *Machine) PreprocessAllFilesAndSaveBlockNodes() {
 // Parses files, sets the package if doesn't exist, runs files, saves mempkg
 // and corresponding package node, package value, and types to store. Save
 // is set to false for tests where package values may be native.
-func (m *Machine) RunMemPackage(memPkg *std.MemPackage, save bool) (*PackageNode, *PackageValue) {
+func (m *Machine) RunMemPackage(memPkg *gnovm.MemPackage, save bool) (*PackageNode, *PackageValue) {
 	return m.runMemPackage(memPkg, save, false)
 }
 
@@ -259,15 +272,17 @@ func (m *Machine) RunMemPackage(memPkg *std.MemPackage, save bool) (*PackageNode
 // declarations are filtered removing duplicate declarations.
 // To control which declaration overrides which, use [ReadMemPackageFromList],
 // putting the overrides at the top of the list.
-func (m *Machine) RunMemPackageWithOverrides(memPkg *std.MemPackage, save bool) (*PackageNode, *PackageValue) {
+func (m *Machine) RunMemPackageWithOverrides(memPkg *gnovm.MemPackage, save bool) (*PackageNode, *PackageValue) {
 	return m.runMemPackage(memPkg, save, true)
 }
 
-func (m *Machine) runMemPackage(memPkg *std.MemPackage, save, overrides bool) (*PackageNode, *PackageValue) {
+func (m *Machine) runMemPackage(memPkg *gnovm.MemPackage, save, overrides bool) (*PackageNode, *PackageValue) {
 	// parse files.
 	files := ParseMemPackage(memPkg)
-	if !overrides && checkDuplicates(files) {
-		panic(fmt.Errorf("running package %q: duplicate declarations not allowed", memPkg.Path))
+	if !overrides {
+		if err := checkDuplicates(files); err != nil {
+			panic(fmt.Errorf("running package %q: %w", memPkg.Path, err))
+		}
 	}
 	// make and set package if doesn't exist.
 	pn := (*PackageNode)(nil)
@@ -284,20 +299,57 @@ func (m *Machine) runMemPackage(memPkg *std.MemPackage, save, overrides bool) (*
 	}
 	m.SetActivePackage(pv)
 	// run files.
-	m.RunFiles(files.Files...)
-	// maybe save package value and mempackage.
+	updates := m.RunFileDecls(files.Files...)
+	// save package value and mempackage.
+	// XXX save condition will be removed once gonative is removed.
+	var throwaway *Realm
 	if save {
-		// store package values and types
-		m.savePackageValuesAndTypes()
+		// store new package values and types
+		throwaway = m.saveNewPackageValuesAndTypes()
+		if throwaway != nil {
+			m.Realm = throwaway
+		}
+	}
+	// run init functions
+	m.runInitFromUpdates(pv, updates)
+	// save again after init.
+	if save {
+		m.resavePackageValues(throwaway)
 		// store mempackage
 		m.Store.AddMemPackage(memPkg)
+		if throwaway != nil {
+			m.Realm = nil
+		}
 	}
+
 	return pn, pv
 }
 
-// checkDuplicates returns true if there duplicate declarations in the fset.
-func checkDuplicates(fset *FileSet) bool {
+type redeclarationErrors []Name
+
+func (r redeclarationErrors) Error() string {
+	var b strings.Builder
+	b.WriteString("redeclarations for identifiers: ")
+	for idx, s := range r {
+		b.WriteString(strconv.Quote(string(s)))
+		if idx != len(r)-1 {
+			b.WriteString(", ")
+		}
+	}
+	return b.String()
+}
+
+func (r redeclarationErrors) add(newI Name) redeclarationErrors {
+	if slices.Contains(r, newI) {
+		return r
+	}
+	return append(r, newI)
+}
+
+// checkDuplicates returns an error if there are duplicate declarations in the fset.
+func checkDuplicates(fset *FileSet) error {
 	defined := make(map[Name]struct{}, 128)
+	var duplicated redeclarationErrors
 	for _, f := range fset.Files {
 		for _, d := range f.Decls {
 			var name Name
@@ -318,7 +370,7 @@ func checkDuplicates(fset *FileSet) bool {
 						continue
 					}
 					if _, ok := defined[nx.Name]; ok {
-						return true
+						duplicated = duplicated.add(nx.Name)
 					}
 					defined[nx.Name] = struct{}{}
 				}
@@ -330,12 +382,15 @@ func checkDuplicates(fset *FileSet) bool {
 				continue
 			}
 			if _, ok := defined[name]; ok {
-				return true
+				duplicated = duplicated.add(name)
 			}
 			defined[name] = struct{}{}
 		}
 	}
-	return false
+	if len(duplicated) > 0 {
+		return duplicated
+	}
+	return nil
 }
 
 func destar(x Expr) Expr {
@@ -350,7 +405,7 @@ func destar(x Expr) Expr {
 // The resulting package value and node become injected with TestMethods and
 // other declarations, so it is expected that non-test code will not be run
 // afterwards from the same store.
-func (m *Machine) TestMemPackage(t *testing.T, memPkg *std.MemPackage) {
+func (m *Machine) TestMemPackage(t *testing.T, memPkg *gnovm.MemPackage) {
 	defer m.injectLocOnPanic()
 	DisableDebug()
 	fmt.Println("DEBUG DISABLED (FOR TEST DEPENDENCIES INIT)")
@@ -442,6 +497,43 @@ func (m *Machine) TestFunc(t *testing.T, tv TypedValue) {
 	})
 }
 
+// Stacktrace returns the stack trace of the machine.
+// It collects the executions and frames from the machine's frames and statements.
+func (m *Machine) Stacktrace() (stacktrace Stacktrace) {
+	if len(m.Frames) == 0 {
+		return
+	}
+
+	calls := make([]StacktraceCall, 0, len(m.Stmts))
+	nextStmtIndex := len(m.Stmts) - 1
+	for i := len(m.Frames) - 1; i >= 0; i-- {
+		if m.Frames[i].IsCall() {
+			stm := m.Stmts[nextStmtIndex]
+			bs := stm.(*bodyStmt)
+			stm = bs.Body[bs.NextBodyIndex-1]
+			calls = append(calls, StacktraceCall{
+				Stmt:  stm,
+				Frame: m.Frames[i],
+			})
+		}
+		// if the frame is a call, the next statement is the last statement of the frame.
+		nextStmtIndex = m.Frames[i].NumStmts - 1
+	}
+
+	// if the stacktrace is too long, we trim it down to maxStacktraceSize
+	if len(calls) > maxStacktraceSize {
+		const halfMax = maxStacktraceSize / 2
+
+		stacktrace.NumFramesElided = len(calls) - maxStacktraceSize
+		calls = append(calls[:halfMax], calls[len(calls)-halfMax:]...)
+		calls = calls[:len(calls):len(calls)] // makes remaining part of "calls" GC'able
+	}
+
+	stacktrace.Calls = calls
+
+	return
+}
+
 // in case of panic, inject location information to exception.
 func (m *Machine) injectLocOnPanic() {
 	if r := recover(); r != nil {
@@ -494,13 +586,27 @@ func (m *Machine) injectLocOnPanic() {
 	}
 }
 
-// Add files to the package's *FileSet and run them.
-// This will also run each init function encountered.
+// Convenience for tests.
+// Production must not use this, because realm package init
+// must happen after persistence and realm finalization,
+// then changes from init persisted again.
 func (m *Machine) RunFiles(fns ...*FileNode) {
-	m.runFiles(fns...)
+	pv := m.Package
+	if pv == nil {
+		panic("RunFiles requires Machine.Package")
+	}
+	updates := m.runFileDecls(fns...)
+	m.runInitFromUpdates(pv, updates)
 }
 
-func (m *Machine) runFiles(fns ...*FileNode) {
+// Add files to the package's *FileSet and run decls in them.
+// This will also run each init function encountered.
+// Returns the updated typed values of package.
+func (m *Machine) RunFileDecls(fns ...*FileNode) []TypedValue {
+	return m.runFileDecls(fns...)
+}
+
+func (m *Machine) runFileDecls(fns ...*FileNode) []TypedValue {
 	// Files' package names must match the machine's active one.
 	// if there is one.
 	for _, fn := range fns {
@@ -592,7 +698,7 @@ func (m *Machine) runFiles(fns ...*FileNode) {
 				}
 			}
 			// if dep already in loopfindr, abort.
-			if hasName(dep, loopfindr) {
+			if slices.Contains(loopfindr, dep) {
 				if _, ok := (*depdecl).(*FuncDecl); ok {
 					// recursive function dependencies
 					// are OK with func decls.
@@ -628,11 +734,15 @@ func (m *Machine) runFiles(fns ...*FileNode) {
 		}
 	}
 
-	// Run new init functions.
-	// Go spec: "To ensure reproducible initialization
-	// behavior, build systems are encouraged to present
-	// multiple files belonging to the same package in
-	// lexical file name order to a compiler."
+	return updates
+}
+
+// Run new init functions.
+// Go spec: "To ensure reproducible initialization
+// behavior, build systems are encouraged to present
+// multiple files belonging to the same package in
+// lexical file name order to a compiler."
+func (m *Machine) runInitFromUpdates(pv *PackageValue, updates []TypedValue) {
 	for _, tv := range updates {
 		if tv.IsDefined() && tv.T.Kind() == FuncKind && tv.V != nil {
 			fv, ok := tv.V.(*FuncValue)
@@ -651,7 +761,10 @@ func (m *Machine) runFiles(fns ...*FileNode) {
 
 // Save the machine's package using realm finalization deep crawl.
 // Also saves declared types.
-func (m *Machine) savePackageValuesAndTypes() {
+// This happens before any init calls.
+// Returns a throwaway realm package is not a realm,
+// such as stdlibs or /p/ packages.
+func (m *Machine) saveNewPackageValuesAndTypes() (throwaway *Realm) {
 	// save package value and dependencies.
 	pv := m.Package
 	if pv.IsRealm() {
@@ -664,6 +777,7 @@ func (m *Machine) savePackageValuesAndTypes() {
 		rlm := NewRealm(pv.PkgPath)
 		rlm.MarkNewReal(pv)
 		rlm.FinalizeRealmTransaction(m.ReadOnly, m.Store)
+		throwaway = rlm
 	}
 	// save declared types.
 	if bv, ok := pv.Block.(*Block); ok {
@@ -675,13 +789,38 @@ func (m *Machine) savePackageValuesAndTypes() {
 			}
 		}
 	}
+	return
+}
+
+// Resave any changes to realm after init calls.
+// Pass in the realm from m.saveNewPackageValuesAndTypes()
+// in case a throwaway was created.
+func (m *Machine) resavePackageValues(rlm *Realm) {
+	// save package value and dependencies.
+	pv := m.Package
+	if pv.IsRealm() {
+		rlm = pv.Realm
+		rlm.FinalizeRealmTransaction(m.ReadOnly, m.Store)
+		// re-save package realm info.
+		m.Store.SetPackageRealm(rlm)
+	} else { // use the throwaway realm.
+		rlm.FinalizeRealmTransaction(m.ReadOnly, m.Store)
+	}
+	// types were already saved, and should not change
+	// even after running the init function.
 }
 
 func (m *Machine) RunFunc(fn Name) {
 	defer func() {
 		if r := recover(); r != nil {
-			fmt.Printf("Machine.RunFunc(%q) panic: %v\n%s\n",
-				fn, r, m.String())
+			switch r := r.(type) {
+			case UnhandledPanicError:
+				fmt.Printf("Machine.RunFunc(%q) panic: %s\nStacktrace: %s\n",
+					fn, r.Error(), m.ExceptionsStacktrace())
+			default:
+				fmt.Printf("Machine.RunFunc(%q) panic: %v\nMachine State:%s\nStacktrace: %s\n",
+					fn, r, m.String(), m.Stacktrace().String())
+			}
 			panic(r)
 		}
 	}()
@@ -690,9 +829,17 @@ func (m *Machine) RunFunc(fn Name) {
 
 func (m *Machine) RunMain() {
 	defer func() {
-		if r := recover(); r != nil {
-			fmt.Printf("Machine.RunMain() panic: %v\n%s\n",
-				r, m.String())
+		r := recover()
+
+		if r != nil {
+			switch r := r.(type) {
+			case UnhandledPanicError:
+				fmt.Printf("Machine.RunMain() panic: %s\nStacktrace: %s\n",
+					r.Error(), m.ExceptionsStacktrace())
+			default:
+				fmt.Printf("Machine.RunMain() panic: %v\nMachine State:%s\nStacktrace: %s\n",
+					r, m.String(), m.Stacktrace())
+			}
 			panic(r)
 		}
 	}()
@@ -815,6 +962,13 @@ func (m *Machine) RunStatement(s Stmt) {
 // NOTE: to support realm persistence of types, must
 // first require the validation of blocknode locations.
 func (m *Machine) RunDeclaration(d Decl) {
+	if fd, ok := d.(*FuncDecl); ok && fd.Name == "init" {
+		// XXX or, consider running it, but why would this be needed?
+		// from a repl there is no need for init() functions.
+		// Also, there are complications with realms, where
+		// the realm must be persisted before init(), and persisted again.
+		panic("Machine.RunDeclaration cannot be used for init functions")
+	}
 	// Preprocess input using package block.  There should only
 	// be one block right now, and it's a *PackageNode.
 	pn := m.LastBlock().GetSource(m.Store).(*PackageNode)
@@ -1128,6 +1282,20 @@ const (
 // main run loop.
 
 func (m *Machine) Run() {
+	defer func() {
+		r := recover()
+
+		if r != nil {
+			switch r := r.(type) {
+			case *Exception:
+				m.Panic(r.Value)
+				m.Run()
+			default:
+				panic(r)
+			}
+		}
+	}()
+
 	for {
 		if m.Debugger.enabled {
 			m.Debug()
@@ -1543,11 +1711,11 @@ func (m *Machine) PopStmt() Stmt {
 	}
 	if bs, ok := s.(*bodyStmt); ok {
 		return bs.PopActiveStmt()
-	} else {
-		// general case.
-		m.Stmts = m.Stmts[:numStmts-1]
-		return s
 	}
+
+	m.Stmts = m.Stmts[:numStmts-1]
+
+	return s
 }
 
 func (m *Machine) ForcePopStmt() (s Stmt) {
@@ -1738,8 +1906,23 @@ func (m *Machine) PushFrameCall(cx *CallExpr, fv *FuncValue, recv TypedValue) {
 	if pv == nil {
 		panic(fmt.Sprintf("package value missing in store: %s", fv.PkgPath))
 	}
-	m.Package = pv
 	rlm := pv.GetRealm()
+	if rlm == nil && recv.IsDefined() {
+		obj := recv.GetFirstObject(m.Store)
+		if obj == nil {
+			// could be a nil receiver.
+			// just ignore.
+		} else {
+			recvOID := obj.GetObjectInfo().ID
+			if !recvOID.IsZero() {
+				// override the pv and rlm with receiver's.
+				recvPkgOID := ObjectIDFromPkgID(recvOID.PkgID)
+				pv = m.Store.GetObject(recvPkgOID).(*PackageValue)
+				rlm = pv.GetRealm() // done
+			}
+		}
+	}
+	m.Package = pv
 	if rlm != nil && m.Realm != rlm {
 		m.Realm = rlm // enter new realm
 	}
@@ -1777,6 +1960,7 @@ func (m *Machine) PopFrame() Frame {
 		m.Printf("-F %#v\n", f)
 	}
 	m.Frames = m.Frames[:numFrames-1]
+
 	return *f
 }
 
@@ -1796,8 +1980,7 @@ func (m *Machine) PopFrameAndReturn() {
 	fr := m.PopFrame()
 	fr.Popped = true
 	if debug {
-		// TODO: optimize with fr.IsCall
-		if fr.Func == nil && fr.GoFunc == nil {
+		if !fr.IsCall() {
 			panic("unexpected non-call (loop) frame")
 		}
 	}
@@ -1873,8 +2056,7 @@ func (m *Machine) lastCallFrame(n int, mustBeFound bool) *Frame {
 	}
 	for i := len(m.Frames) - 1; i >= 0; i-- {
 		fr := m.Frames[i]
-		if fr.Func != nil || fr.GoFunc != nil {
-			// TODO: optimize with fr.IsCall
+		if fr.IsCall() {
 			if n == 1 {
 				return fr
 			} else {
@@ -1895,8 +2077,7 @@ func (m *Machine) lastCallFrame(n int, mustBeFound bool) *Frame {
 func (m *Machine) PopUntilLastCallFrame() *Frame {
 	for i := len(m.Frames) - 1; i >= 0; i-- {
 		fr := m.Frames[i]
-		if fr.Func != nil || fr.GoFunc != nil {
-			// TODO: optimize with fr.IsCall
+		if fr.IsCall() {
 			m.Frames = m.Frames[:i+1]
 			return fr
 		}
@@ -1946,15 +2127,25 @@ func (m *Machine) PushForPointer(lx Expr) {
 func (m *Machine) PopAsPointer(lx Expr) PointerValue {
 	switch lx := lx.(type) {
 	case *NameExpr:
-		lb := m.LastBlock()
-		return lb.GetPointerTo(m.Store, lx.Path)
+		switch lx.Type {
+		case NameExprTypeNormal:
+			lb := m.LastBlock()
+			return lb.GetPointerTo(m.Store, lx.Path)
+		case NameExprTypeHeapUse:
+			lb := m.LastBlock()
+			return lb.GetPointerToHeapUse(m.Store, lx.Path)
+		case NameExprTypeHeapClosure:
+			panic("should not happen")
+		default:
+			panic("unexpected NameExpr in PopAsPointer")
+		}
 	case *IndexExpr:
 		iv := m.PopValue()
 		xv := m.PopValue()
 		return xv.GetPointerAtIndex(m.Alloc, m.Store, iv)
 	case *SelectorExpr:
 		xv := m.PopValue()
-		return xv.GetPointerTo(m.Alloc, m.Store, lx.Path)
+		return xv.GetPointerToFromTV(m.Alloc, m.Store, lx.Path)
 	case *StarExpr:
 		ptr := m.PopValue().V.(PointerValue)
 		return ptr
@@ -2007,8 +2198,9 @@ func (m *Machine) Panic(ex TypedValue) {
 	m.Exceptions = append(
 		m.Exceptions,
 		Exception{
-			Value: ex,
-			Frame: m.MustLastCallFrame(1),
+			Value:      ex,
+			Frame:      m.MustLastCallFrame(1),
+			Stacktrace: m.Stacktrace(),
 		},
 	)
 
@@ -2077,7 +2269,12 @@ func (m *Machine) String() string {
 
 	builder.WriteString("    Blocks:\n")
 
-	for b := m.LastBlock(); b != nil; {
+	for i := len(m.Blocks) - 1; i > 0; i-- {
+		b := m.Blocks[i]
+		if b == nil {
+			continue
+		}
+
 		gen := builder.Len()/3 + 1
 		gens := "@" // strings.Repeat("@", gen)
 
@@ -2153,14 +2350,26 @@ func (m *Machine) String() string {
 	return builder.String()
 }
 
-//----------------------------------------
-// utility
-
-func hasName(n Name, ns []Name) bool {
-	for _, n2 := range ns {
-		if n == n2 {
-			return true
-		}
+func (m *Machine) ExceptionsStacktrace() string {
+	if len(m.Exceptions) == 0 {
+		return ""
 	}
-	return false
+
+	var builder strings.Builder
+
+	ex := m.Exceptions[0]
+	builder.WriteString("panic: " + ex.Sprint(m) + "\n")
+	builder.WriteString(ex.Stacktrace.String())
+
+	switch {
+	case len(m.Exceptions) > 2:
+		fmt.Fprintf(&builder, "... %d panic(s) elided ...\n", len(m.Exceptions)-2)
+		fallthrough // to print last exception
+	case len(m.Exceptions) == 2:
+		ex = m.Exceptions[len(m.Exceptions)-1]
+		builder.WriteString("panic: " + ex.Sprint(m) + "\n")
+		builder.WriteString(ex.Stacktrace.String())
+	}
+
+	return builder.String()
 }
