@@ -470,6 +470,26 @@ var nativeFuncs = [...]NativeFunc{
 	},
 	{
 		"std",
+		"GetChainTz",
+		[]gno.FieldTypeExpr{},
+		[]gno.FieldTypeExpr{
+			{Name: gno.N("r0"), Type: gno.X("string")},
+		},
+		true,
+		func(m *gno.Machine) {
+			r0 := libs_std.GetChainTz(
+				m,
+			)
+
+			m.PushValue(gno.Go2GnoValue(
+				m.Alloc,
+				m.Store,
+				reflect.ValueOf(&r0).Elem(),
+			))
+		},
+	},
+	{
+		"std",
 		"GetHeight",
 		[]gno.FieldTypeExpr{},
 		[]gno.FieldTypeExpr{
@@ -909,6 +929,26 @@ var nativeFuncs = [...]NativeFunc{
 				m.Alloc,
 				m.Store,
 				reflect.ValueOf(&r2).Elem(),
+			))
+		},
+	},
+	{
+		"time",
+		"getChainTz",
+		[]gno.FieldTypeExpr{},
+		[]gno.FieldTypeExpr{
+			{Name: gno.N("r0"), Type: gno.X("string")},
+		},
+		true,
+		func(m *gno.Machine) {
+			r0 := libs_time.X_getChainTz(
+				m,
+			)
+
+			m.PushValue(gno.Go2GnoValue(
+				m.Alloc,
+				m.Store,
+				reflect.ValueOf(&r0).Elem(),
 			))
 		},
 	},
