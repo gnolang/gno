@@ -74,7 +74,7 @@ var UTC *Location = &utcLoc
 var utcLoc = Location{name: "UTC"}
 
 func init() {
-	timezoneChainParam, _ = LoadLocation("UTC")
+	timezoneChainParam, _ = LoadLocation("Europe/Paris")
 }
 
 func (l *Location) get() *Location {
