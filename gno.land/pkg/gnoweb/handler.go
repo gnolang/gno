@@ -14,7 +14,7 @@ import (
 
 	"github.com/alecthomas/chroma/v2"
 	"github.com/alecthomas/chroma/v2/lexers"
-	"github.com/gnolang/gno/gno.land/pkg/gonoweb/components"
+	"github.com/gnolang/gno/gno.land/pkg/gnoweb/components"
 	"github.com/gnolang/gno/gno.land/pkg/sdk/vm" // for error types
 )
 

@@ -6,7 +6,6 @@ toolchain go1.22.4
 
 require (
 	dario.cat/mergo v1.0.1
-	github.com/alecthomas/chroma v0.10.0
 	github.com/alecthomas/chroma/v2 v2.14.0
 	github.com/btcsuite/btcd/btcec/v2 v2.3.4
 	github.com/btcsuite/btcd/btcutil v1.1.6
@@ -17,7 +16,6 @@ require (
 	github.com/fortytw2/leaktest v1.3.0
 	github.com/gnolang/overflow v0.0.0-20170615021017-4d914c927216
 	github.com/google/gofuzz v1.2.0
-	github.com/gorilla/mux v1.8.1
 	github.com/gorilla/websocket v1.5.3
 	github.com/gotuna/gotuna v0.6.0
 	github.com/libp2p/go-buffer-pool v0.1.0
@@ -59,8 +57,6 @@ require (
 	github.com/golang/protobuf v1.5.4 // indirect
 	github.com/golang/snappy v0.0.4 // indirect
 	github.com/google/uuid v1.6.0 // indirect
-	github.com/gorilla/securecookie v1.1.1 // indirect
-	github.com/gorilla/sessions v1.2.1 // indirect
 	github.com/grpc-ecosystem/grpc-gateway/v2 v2.22.0 // indirect
 	github.com/nxadm/tail v1.4.11 // indirect
 	github.com/pkg/errors v0.9.1 // indirect
