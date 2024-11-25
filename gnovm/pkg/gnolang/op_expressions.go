@@ -145,6 +145,10 @@ func (m *Machine) doOpStar() {
 	xv := m.PopValue()
 	switch bt := baseOf(xv.T).(type) {
 	case *PointerType:
+		if xv.V == nil {
+			panic(&Exception{Value: typedString("nil pointer dereference")})
+		}
+
 		pv := xv.V.(PointerValue)
 		if pv.TV.T == DataByteType {
 			tv := TypedValue{T: bt.Elt}
@@ -796,6 +800,6 @@ func (m *Machine) doOpFuncLit() {
 func (m *Machine) doOpConvert() {
 	xv := m.PopValue()
 	t := m.PopValue().GetType()
-	ConvertTo(m.Alloc, m.Store, xv, t)
+	ConvertTo(m.Alloc, m.Store, xv, t, false)
 	m.PushValue(*xv)
 }

@@ -7,7 +7,7 @@ import (
 )
 
 func TestPackage(t *testing.T) {
-	std.TestSetOrigCaller(std.Address("g1u7y667z64x2h7vc6fmpcprgey4ck233jaww9zq"))
+	std.TestSetOrigCaller(std.Address("g1manfred47kzduec920z88wfr64ylksmdcedlf5"))
 
 	author := std.GetOrigCaller()
 
@@ -117,13 +117,13 @@ Published by g1u7y667z64x2h7vc6fmpcprgey4ck233jaww9zq to gno.land's blog
 
 <h5>comment4
 
-</h5><h6>by g1u7y667z64x2h7vc6fmpcprgey4ck233jaww9zq on 13 Feb 09 23:31 UTC</h6>
+</h5><h6>by g1manfred47kzduec920z88wfr64ylksmdcedlf5 on 13 Feb 09 23:31 UTC</h6>
 
 ---
 
 <h5>comment2
 
-</h5><h6>by g1u7y667z64x2h7vc6fmpcprgey4ck233jaww9zq on 13 Feb 09 23:31 UTC</h6>
+</h5><h6>by g1manfred47kzduec920z88wfr64ylksmdcedlf5 on 13 Feb 09 23:31 UTC</h6>
 
 ---
 
@@ -159,13 +159,13 @@ Published by g1u7y667z64x2h7vc6fmpcprgey4ck233jaww9zq to gno.land's blog
 
 <h5>comment4
 
-</h5><h6>by g1u7y667z64x2h7vc6fmpcprgey4ck233jaww9zq on 13 Feb 09 23:31 UTC</h6>
+</h5><h6>by g1manfred47kzduec920z88wfr64ylksmdcedlf5 on 13 Feb 09 23:31 UTC</h6>
 
 ---
 
 <h5>comment2
 
-</h5><h6>by g1u7y667z64x2h7vc6fmpcprgey4ck233jaww9zq on 13 Feb 09 23:31 UTC</h6>
+</h5><h6>by g1manfred47kzduec920z88wfr64ylksmdcedlf5 on 13 Feb 09 23:31 UTC</h6>
 
 ---
 
