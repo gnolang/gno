@@ -71,13 +71,6 @@ func TestIsNamedConversion(t *testing.T) {
 		panic    bool
 	}{
 		{
-			name:     "both nil types",
-			xt:       nil,
-			t:        nil,
-			expected: false,
-			panic:    true,
-		},
-		{
 			name:     "both named",
 			xt:       &DeclaredType{Name: "MyInt1", Base: IntType},
 			t:        &DeclaredType{Name: "MyInt2", Base: IntType},
@@ -141,18 +134,6 @@ func TestIsNamedConversion(t *testing.T) {
 			xt:       &FuncType{},
 			t:        &DeclaredType{Name: "_", Base: &FuncType{}},
 			expected: true,
-		},
-		{
-			name:     "xt is nil, t is not nil",
-			xt:       nil,
-			t:        IntType,
-			expected: false,
-		},
-		{
-			name:     "xt is nil, t is named type",
-			xt:       nil,
-			t:        &DeclaredType{Name: "MyInt", Base: IntType},
-			expected: false,
 		},
 	}
 

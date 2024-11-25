@@ -3085,16 +3085,6 @@ func doConvertType(store Store, last BlockNode, x *Expr, t Type) {
 // This function also checks for the use of blank identifier "_" as a value or type,
 // which is not allowed. If both xt and t are nil, it panics with an appropriate error message.
 func isNamedConversion(xt, t Type) bool {
-	if xt == nil && t == nil {
-		panic("cannot use _ as value or type")
-	}
-	if t == nil {
-		t = xt
-	}
-	if xt == nil {
-		xt = t
-	}
-
 	// no conversion case 1: the LHS is an interface
 
 	_, c1 := t.(*InterfaceType)
