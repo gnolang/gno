@@ -16,15 +16,17 @@ import (
 )
 
 type webCfg struct {
-	chainid string
-	remote  string
-	bind    string
+	chainid    string
+	remote     string
+	remoteHelp string
+	bind       string
 }
 
 var defaultWebOptions = &webCfg{
-	chainid: "dev",
-	remote:  "127.0.0.1:26657",
-	bind:    ":8888",
+	chainid:    "dev",
+	remote:     "127.0.0.1:26657",
+	bind:       ":8888",
+	remoteHelp: "",
 }
 
 func main() {
@@ -56,6 +58,13 @@ func (c *webCfg) RegisterFlags(fs *flag.FlagSet) {
 
 	fs.StringVar(
 		&c.chainid,
+		"help-remote",
+		defaultWebOptions.remoteHelp,
+		"help page's remote address",
+	)
+
+	fs.StringVar(
+		&c.chainid,
 		"chain-id",
 		defaultWebOptions.chainid,
 		"target chain id",
@@ -67,81 +76,22 @@ func (c *webCfg) RegisterFlags(fs *flag.FlagSet) {
 		defaultWebOptions.bind,
 		"gnoweb listener",
 	)
-
 }
 
 func execWeb(cfg *webCfg, args []string, io commands.IO) (err error) {
-	zapLogger := log.NewZapConsoleLogger(os.Stdout, zapcore.DebugLevel)
+	zapLogger := log.NewZapConsoleLogger(io.Out(), zapcore.DebugLevel)
 	defer zapLogger.Sync()
 
 	// Setup logger
 	logger := log.ZapLoggerToSlog(zapLogger)
 
-	// md := goldmark.New()
-
-	// staticMeta := gnoweb.StaticMetadata{
-	// 	AssetsPath: "/public/",
-	// 	RemoteHelp: cfg.remote,
-	// }
-
-	// mux := http.NewServeMux()
-
-	// // Setup asset handler
-	// // if cfg.dev {
-	// // 	mux.Handle(staticMeta.AssetsPath, AssetDevHandler())
-	// // } else {
-	// mux.Handle(staticMeta.AssetsPath, gnoweb.AssetHandler())
-	// // }
-
-	// client, err := client.NewHTTPClient(cfg.remote)
-	// if err != nil {
-	// 	return fmt.Errorf("unable to create http client: %W", err)
-	// }
-
-	// mnemo := "index brass unknown lecture autumn provide royal shrimp elegant wink now zebra discover swarm act ill you bullet entire outdoor tilt usage gap multiply"
-	// bip39Passphrase := ""
-	// account, index := uint32(0), uint32(0)
-	// chainID := cfg.chainid
-	// signer, err := gnoclient.SignerFromBip39(mnemo, chainID, bip39Passphrase, account, index)
-	// if err != nil {
-	// 	return fmt.Errorf("unable to create signer: %w", err)
-	// }
-
-	// // Setup webservice
-	// cl := gnoclient.Client{
-	// 	Signer:    signer,
-	// 	RPCClient: client,
-	// }
-	// webcli := service.NewWebRender(logger, &cl, md)
-
-	// if len(args) > 0 {
-	// 	var qargs string
-	// 	if len(args) > 1 {
-	// 		qargs = strings.Join(args[1:], ",")
-	// 	}
-
-	// 	_, err = webcli.Render(io.Out(), args[0], qargs)
-	// 	return
-	// }
-
-	// webcfg := gnoweb.WebHandlerConfig{
-	// 	RenderClient: webcli,
-	// 	Meta:         staticMeta,
-	// }
-
-	// // Setup main handler
-	// webhandler := gnoweb.NewWebHandler(
-	// 	logger,
-	// 	webcfg,
-	// )
-
-	// // Setup Alias Middleware
-	// mux.Handle("/", gnoweb.AliasAndRedirectMiddleware(webhandler))
-
 	appcfg := gnoweb.NewDefaultAppConfig()
-	appcfg.Remote = cfg.remote
 	appcfg.ChainID = cfg.chainid
-	appcfg.RemoteHelp = cfg.remote
+	appcfg.Remote = cfg.remote
+	appcfg.RemoteHelp = cfg.remoteHelp
+	if appcfg.RemoteHelp == "" {
+		appcfg.RemoteHelp = appcfg.Remote
+	}
 
 	app, err := gnoweb.MakeRouterApp(logger, appcfg)
 	if err != nil {
@@ -150,7 +100,7 @@ func execWeb(cfg *webCfg, args []string, io commands.IO) (err error) {
 
 	bindaddr, err := net.ResolveTCPAddr("tcp", cfg.bind)
 	if err != nil {
-		return fmt.Errorf("unable to resolve listener: %q", cfg.bind)
+		return fmt.Errorf("unable to resolve listener %q: %w", cfg.bind, err)
 	}
 
 	logger.Info("Running", "listener", bindaddr.String())

@@ -53,7 +53,7 @@ func NewWebHandler(logger *slog.Logger, cfg WebHandlerConfig) *WebHandler {
 	return &WebHandler{
 		formatter: cfg.Formatter,
 		rendercli: cfg.RenderClient,
-		logger:    logger.WithGroup("web"),
+		logger:    logger,
 		static:    cfg.Meta,
 		// Initialize the pool with bytes.Buffer factory
 		bufferPool: sync.Pool{
