@@ -13,7 +13,6 @@ import (
 	"sync"
 
 	"github.com/alecthomas/chroma/v2"
-	"github.com/alecthomas/chroma/v2/formatters/html"
 	"github.com/alecthomas/chroma/v2/lexers"
 	"github.com/gnolang/gno/gno.land/pkg/gnoweb2/components"
 	"github.com/gnolang/gno/gno.land/pkg/sdk/vm" // for error types
@@ -99,6 +98,7 @@ func generateBreadcrumbPaths(path string) []components.BreadcrumbPart {
 func (h *WebHandler) Get(w http.ResponseWriter, r *http.Request) {
 	gnourl, err := ParseGnoURL(r.URL)
 	if err != nil {
+		h.logger.Error("invalid url", "err", err)
 		http.Error(w, "invalid url", http.StatusBadRequest)
 		return
 	}
@@ -294,13 +294,6 @@ func (h *WebHandler) highlightSource(style *chroma.Style, fileName string, src [
 	}
 
 	var buff bytes.Buffer
-	if style.Name != chromaStyle.Name {
-		if err := html.New().Format(&buff, style, iterator); err != nil {
-			return nil, fmt.Errorf("unable to format theme: %w", err)
-		}
-		return buff.Bytes(), nil
-	}
-
 	if err := h.formatter.Format(&buff, iterator); err != nil {
 		return nil, fmt.Errorf("unable to format source file %q: %w", fileName, err)
 	}
