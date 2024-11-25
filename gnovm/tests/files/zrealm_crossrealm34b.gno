@@ -20,4 +20,3 @@ func main() {
 
 // Error:
 // should not happen while attempting to attach new real object from external realm
-// *** CHECK THE ERR MESSAGES ABOVE, MAKE SURE IT'S WHAT YOU EXPECTED, DELETE THIS LINE AND RUN TEST AGAIN ***

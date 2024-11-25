@@ -301,15 +301,83 @@ func (rlm *Realm) DidUpdate2(store Store, po, xo, co Object, isRef bool, length,
 // oo can can be base of the originType, like array for a slice type.
 // originType may contain infos like len, cap for slice type, etc.
 // XXX, oo coming here must be referenced type, since they already escaped.
-// XXX, so oo has been persisted, thus fillValueTv..
-func checkCrossRealm(store Store, oo Object, originType Type) {
+// XXX, so oo has been persisted, thus fillValueTV
+func checkCrossRealm(store Store, oo Object, offset, length int) {
 	fmt.Println("---checkCrossReal, oo: ", oo)
-	fmt.Println("---originType: ", originType)
 	switch v := oo.(type) {
+	case *StructValue:
+		fmt.Println("---StructValue...")
+		fmt.Println("---sv: ", v)
+		if !v.GetIsReal() {
+			panic("---sv is not real!!!")
+		}
+		for _, fv := range v.Fields {
+			fmt.Println("---fv: ", fv)
+			fmt.Println("---type of fv: ", reflect.TypeOf(fv.V))
+			// XXX, consider this
+			//if _, ok := fv.V.(RefValue); !ok {
+			//	panic("---sv is not ref value!!!")
+			//}
+			rfv := fillValueTV(store, &fv)
+			fmt.Println("---rfv: ", rfv)
+			if oo, ok := rfv.V.(Object); ok {
+				if !oo.GetIsReal() {
+					panic(fmt.Sprintf("---should not happen, %v: is not real \n", oo))
+				}
+			}
+		}
+
 	case *HeapItemValue:
 		fmt.Println("---heapItemValue: ", v)
+		//r := fillValueTV(store, &v.Value)
+		//fmt.Println("---r: ", r)
+
+		checkCrossRealm(store, v.Value.V.(Object), 0, 0)
 	case *ArrayValue:
 		fmt.Println("---ArrayValue: ", v)
+		fmt.Println("---offset: ", offset)
+		fmt.Println("---escaped array, check if elements are real")
+		for i := offset; i < length; i++ {
+			e := oo.(*ArrayValue).List[i]
+			fmt.Println("---e: ", e, reflect.TypeOf(e.V))
+			if _, ok := e.V.(RefValue); ok { // TODO: XXX, does this already enough
+				fmt.Println("---escaped: ", e.V.(RefValue).Escaped)
+				fmt.Println("---string: ", e.V.(RefValue).String())
+				fmt.Println("---pkgpath: ", e.V.(RefValue).PkgPath)
+				fmt.Println("---objectID: ", e.V.(RefValue).ObjectID)
+				if store != nil {
+					oo := store.GetObject(e.V.(RefValue).ObjectID)
+					fmt.Println("---oo: ", oo)
+					fmt.Println("---oo.GetIsReal: ", oo.GetIsReal())
+					if !oo.GetIsReal() {
+						panic("should not happen while reference unreal element from array of external realm")
+					}
+				}
+			} else {
+				fmt.Println("---e.V: ", e.V)
+				fmt.Println("---e.V: ", reflect.TypeOf(e.V))
+
+				res := oo.(*ArrayValue).GetPointerAtIndexInt2(store, i, nil).Deref()
+				fmt.Println("---res: ", res)
+				fmt.Println("---type of res: ", reflect.TypeOf(res.V))
+				if p, ok := res.V.(PointerValue); ok {
+					fmt.Println("---p.TV: ", p.TV)
+					fmt.Println("---p.Base: ", p.Base)
+
+					rr := fillValueTV(store, p.TV)
+					fmt.Println("---rr: ", rr)
+
+					if sv, ok := p.TV.V.(*StructValue); ok {
+						fmt.Println("---sv: ", sv)
+						fmt.Println("---sv.GetIsReal", sv.GetIsReal())
+						if !sv.GetIsReal() {
+							panic(fmt.Sprintf("---should not happen, %v: is not real \n", sv))
+						}
+						fmt.Println("---sv.ObjectID", sv.GetObjectID())
+					}
+				}
+			}
+		}
 	default:
 		fmt.Println("---v :", v)
 	}
@@ -318,7 +386,7 @@ func checkCrossRealm(store Store, oo Object, originType Type) {
 // TODO: move these crossrealm check logic before 'DidUpdate'
 func (rlm *Realm) MarkNewEscapedCheckCrossRealm(store Store, oo Object, isRef bool, length, offset int) {
 	fmt.Println("---MarkNewEscapedCheckCrossRealm---, oo: ", oo)
-	checkCrossRealm(store, oo, nil)
+	checkCrossRealm(store, oo, offset, length)
 	fmt.Println("---rlm.ID: ", rlm.ID)
 
 	fmt.Println("---oo.GetRefCount(): ", oo.GetRefCount())
@@ -334,93 +402,29 @@ func (rlm *Realm) MarkNewEscapedCheckCrossRealm(store Store, oo Object, isRef bo
 
 			if hiv, ok := oo.(*HeapItemValue); ok {
 				fmt.Println("---hiv: ", hiv)
-				r := fillValueTV(store, &hiv.Value)
-				fmt.Println("---r: ", r)
-				if sv, ok := hiv.Value.V.(*StructValue); ok {
-					fmt.Println("---sv: ", sv)
-					if !sv.GetIsReal() {
-						panic("---sv is not real!!!")
-					}
-					for _, fv := range sv.Fields {
-						rfv := fillValueTV(store, &fv)
-						fmt.Println("---rfv: ", rfv)
-						if oo, ok := rfv.V.(Object); ok {
-							if !oo.GetIsReal() {
-								panic(fmt.Sprintf("---should not happen, %v: is not real \n", oo))
-							}
-						}
-					}
-				}
+				//r := fillValueTV(store, &hiv.Value)
+				//fmt.Println("---r: ", r)
+				//if sv, ok := hiv.Value.V.(*StructValue); ok {
+				//	fmt.Println("---sv: ", sv)
+				//	if !sv.GetIsReal() {
+				//		panic("---sv is not real!!!")
+				//	}
+				//	for _, fv := range sv.Fields {
+				//		rfv := fillValueTV(store, &fv)
+				//		fmt.Println("---rfv: ", rfv)
+				//		if oo, ok := rfv.V.(Object); ok {
+				//			if !oo.GetIsReal() {
+				//				panic(fmt.Sprintf("---should not happen, %v: is not real \n", oo))
+				//			}
+				//		}
+				//	}
+				//}
 			}
 
 			// =====================================================
 
 			fmt.Println("---length: ", length)
 			if length != 0 { // TODO: explicit array check
-				fmt.Println("---offset: ", offset)
-				fmt.Println("---escaped array, check if elements are real")
-				for i := offset; i < length; i++ {
-					e := oo.(*ArrayValue).List[i]
-					fmt.Println("---e: ", e, reflect.TypeOf(e.V))
-					if _, ok := e.V.(RefValue); ok { // TODO: XXX, does this already enough
-						fmt.Println("---escaped: ", e.V.(RefValue).Escaped)
-						fmt.Println("---string: ", e.V.(RefValue).String())
-						fmt.Println("---pkgpath: ", e.V.(RefValue).PkgPath)
-						fmt.Println("---objectID: ", e.V.(RefValue).ObjectID)
-						if store != nil {
-							oo := store.GetObject(e.V.(RefValue).ObjectID)
-							fmt.Println("---oo: ", oo)
-							fmt.Println("---oo.GetIsReal: ", oo.GetIsReal())
-							if !oo.GetIsReal() {
-								panic("should not happen while reference unreal element from array of external realm")
-							}
-						}
-					} else {
-						fmt.Println("---e.V: ", e.V)
-						fmt.Println("---e.V: ", reflect.TypeOf(e.V))
-
-						res := oo.(*ArrayValue).GetPointerAtIndexInt2(store, i, nil).Deref()
-						fmt.Println("---res: ", res)
-						fmt.Println("---type of res: ", reflect.TypeOf(res.V))
-						if p, ok := res.V.(PointerValue); ok {
-							fmt.Println("---p.TV: ", p.TV)
-							fmt.Println("---p.Base: ", p.Base)
-
-							rr := fillValueTV(store, p.TV)
-							fmt.Println("---rr: ", rr)
-
-							if sv, ok := p.TV.V.(*StructValue); ok {
-								fmt.Println("---sv: ", sv)
-								fmt.Println("---sv.GetIsReal", sv.GetIsReal())
-								if !sv.GetIsReal() {
-									panic(fmt.Sprintf("---should not happen, %v: is not real \n", sv))
-								}
-								fmt.Println("---sv.ObjectID", sv.GetObjectID())
-							}
-						}
-
-						//if p, ok := e.V.(PointerValue); ok {
-						//	fmt.Println("---is nil? ", p.TV == nil)
-						//	r := fillValueTV(store, &e)
-						//	fmt.Println("---r: ", r)
-						//	if ref, ok := r.V.(RefValue); ok {
-						//		base := store.GetObject(ref.ObjectID).(Value)
-						//		fmt.Println("---base: ", base)
-						//	}
-						//	fmt.Println("---type of r: ", reflect.TypeOf(r.V))
-						//	if p, ok := r.V.(PointerValue); ok {
-						//		fmt.Println("---p.TV: ", p.TV)
-						//		fmt.Println("---p.Base: ", p.Base)
-						//	}
-						//}
-						//isreal := e.V.(Object).GetIsReal()
-						//fmt.Println("---isreal: ", isreal)
-						//fmt.Println("---objectID: ", e.V.(Object).GetObjectID())
-						//if !isreal {
-						//	panic("should not happen while reference unreal element from external realm")
-						//}
-					}
-				}
 			} else {               // other than array
 				if !oo.GetIsReal() { // oo is not attached in the origin realm
 					panic("should not happen while attempting to attach unattached object by reference from external realm")
