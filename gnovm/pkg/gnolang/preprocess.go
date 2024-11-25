@@ -3618,9 +3618,6 @@ func doConvertType(store Store, last BlockNode, x *Expr, t Type) {
 //	convert to that even if right is a named type.
 //	case 2: isNamedConversion is called within evaluating make() or new()
 //	(uverse functions). It returns TypType (generic) which does have IsNamed appropriate
-//
-// This function also checks for the use of blank identifier "_" as a value or type,
-// which is not allowed. If both xt and t are nil, it panics with an appropriate error message.
 func isNamedConversion(xt, t Type) bool {
 	// no conversion case 1: the LHS is an interface
 
