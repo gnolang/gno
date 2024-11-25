@@ -7,7 +7,7 @@ import (
 )
 
 func TestPackage(t *testing.T) {
-	std.TestSetOrigCaller(std.Address("g1u7y667z64x2h7vc6fmpcprgey4ck233jaww9zq"))
+	std.TestSetOrigCaller(std.Address("g1manfred47kzduec920z88wfr64ylksmdcedlf5"))
 
 	author := std.GetOrigCaller()
 
@@ -59,7 +59,7 @@ Tags: [#tag1](/r/gnoland/blog:t/tag1) [#tag3](/r/gnoland/blog:t/tag3)
 
 Written by moul on 20 May 2022
 
-Published by g1u7y667z64x2h7vc6fmpcprgey4ck233jaww9zq to Gnoland's Blog
+Published by g1manfred47kzduec920z88wfr64ylksmdcedlf5 to Gnoland's Blog
 
 ---
 <details><summary>Comment section</summary>
@@ -110,20 +110,20 @@ Tags: [#tag1](/r/gnoland/blog:t/tag1) [#tag3](/r/gnoland/blog:t/tag3)
 
 Written by moul on 20 May 2022
 
-Published by g1u7y667z64x2h7vc6fmpcprgey4ck233jaww9zq to Gnoland's Blog
+Published by g1manfred47kzduec920z88wfr64ylksmdcedlf5 to Gnoland's Blog
 
 ---
 <details><summary>Comment section</summary>
 
 <h5>comment4
 
-</h5><h6>by g1u7y667z64x2h7vc6fmpcprgey4ck233jaww9zq on 13 Feb 09 23:31 UTC</h6>
+</h5><h6>by g1manfred47kzduec920z88wfr64ylksmdcedlf5 on 13 Feb 09 23:31 UTC</h6>
 
 ---
 
 <h5>comment2
 
-</h5><h6>by g1u7y667z64x2h7vc6fmpcprgey4ck233jaww9zq on 13 Feb 09 23:31 UTC</h6>
+</h5><h6>by g1manfred47kzduec920z88wfr64ylksmdcedlf5 on 13 Feb 09 23:31 UTC</h6>
 
 ---
 
@@ -152,20 +152,20 @@ Tags: [#tag1](/r/gnoland/blog:t/tag1) [#tag4](/r/gnoland/blog:t/tag4)
 
 Written by manfred on 20 May 2022
 
-Published by g1u7y667z64x2h7vc6fmpcprgey4ck233jaww9zq to Gnoland's Blog
+Published by g1manfred47kzduec920z88wfr64ylksmdcedlf5 to Gnoland's Blog
 
 ---
 <details><summary>Comment section</summary>
 
 <h5>comment4
 
-</h5><h6>by g1u7y667z64x2h7vc6fmpcprgey4ck233jaww9zq on 13 Feb 09 23:31 UTC</h6>
+</h5><h6>by g1manfred47kzduec920z88wfr64ylksmdcedlf5 on 13 Feb 09 23:31 UTC</h6>
 
 ---
 
 <h5>comment2
 
-</h5><h6>by g1u7y667z64x2h7vc6fmpcprgey4ck233jaww9zq on 13 Feb 09 23:31 UTC</h6>
+</h5><h6>by g1manfred47kzduec920z88wfr64ylksmdcedlf5 on 13 Feb 09 23:31 UTC</h6>
 
 ---
 
