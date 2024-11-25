@@ -8,7 +8,7 @@ import (
 
 var b = &blog.Blog{
 	Title:        "Manfred's Presentations",
-	Prefix:       "/r/manfred/present:",
+	Prefix:       "/r/moul/present:",
 	NoBreadcrumb: true,
 }
 
