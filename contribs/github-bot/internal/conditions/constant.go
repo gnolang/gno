@@ -7,7 +7,7 @@ import (
 	"github.com/xlab/treeprint"
 )
 
-// Always Condition
+// Always Condition.
 type always struct{}
 
 var _ Condition = &always{}
@@ -20,7 +20,7 @@ func Always() Condition {
 	return &always{}
 }
 
-// Never Condition
+// Never Condition.
 type never struct{}
 
 var _ Condition = &never{}

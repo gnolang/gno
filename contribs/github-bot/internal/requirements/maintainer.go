@@ -7,7 +7,7 @@ import (
 	"github.com/xlab/treeprint"
 )
 
-// MaintainerCanModify Requirement
+// MaintainerCanModify Requirement.
 type maintainerCanModify struct{}
 
 var _ Requirement = &maintainerCanModify{}

@@ -9,7 +9,7 @@ import (
 
 type PRList []int
 
-// PRList is both a TextMarshaler and a TextUnmarshaler
+// PRList is both a TextMarshaler and a TextUnmarshaler.
 var (
 	_ encoding.TextMarshaler   = PRList{}
 	_ encoding.TextUnmarshaler = &PRList{}

@@ -10,7 +10,7 @@ import (
 	"github.com/xlab/treeprint"
 )
 
-// Reviewer Requirement
+// Reviewer Requirement.
 type reviewByUser struct {
 	gh   *client.GitHub
 	user string
@@ -21,7 +21,7 @@ var _ Requirement = &reviewByUser{}
 func (r *reviewByUser) IsSatisfied(pr *github.PullRequest, details treeprint.Tree) bool {
 	detail := fmt.Sprintf("This user approved pull request: %s", r.user)
 
-	// If not a dry run, make the user a reviewer if he's not already
+	// If not a dry run, make the user a reviewer if he's not already.
 	if !r.gh.DryRun {
 		requested := false
 		reviewers, err := r.gh.ListPRReviewers(pr.GetNumber())
@@ -55,7 +55,7 @@ func (r *reviewByUser) IsSatisfied(pr *github.PullRequest, details treeprint.Tre
 		}
 	}
 
-	// Check if user already approved this PR
+	// Check if user already approved this PR.
 	reviews, err := r.gh.ListPRReviews(pr.GetNumber())
 	if err != nil {
 		r.gh.Logger.Errorf("unable to check if user %s already approved this PR: %v", r.user, err)
@@ -77,7 +77,7 @@ func ReviewByUser(gh *client.GitHub, user string) Requirement {
 	return &reviewByUser{gh, user}
 }
 
-// Reviewer Requirement
+// Reviewer Requirement.
 type reviewByTeamMembers struct {
 	gh    *client.GitHub
 	team  string
@@ -89,7 +89,7 @@ var _ Requirement = &reviewByTeamMembers{}
 func (r *reviewByTeamMembers) IsSatisfied(pr *github.PullRequest, details treeprint.Tree) bool {
 	detail := fmt.Sprintf("At least %d user(s) of the team %s approved pull request", r.count, r.team)
 
-	// If not a dry run, make the user a reviewer if he's not already
+	// If not a dry run, make the user a reviewer if he's not already.
 	if !r.gh.DryRun {
 		requested := false
 		reviewers, err := r.gh.ListPRReviewers(pr.GetNumber())
@@ -123,7 +123,7 @@ func (r *reviewByTeamMembers) IsSatisfied(pr *github.PullRequest, details treepr
 		}
 	}
 
-	// Check how many members of this team already approved this PR
+	// Check how many members of this team already approved this PR.
 	approved := uint(0)
 	reviews, err := r.gh.ListPRReviews(pr.GetNumber())
 	if err != nil {

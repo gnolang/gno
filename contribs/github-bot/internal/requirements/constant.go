@@ -7,7 +7,7 @@ import (
 	"github.com/xlab/treeprint"
 )
 
-// Always Requirement
+// Always Requirement.
 type always struct{}
 
 var _ Requirement = &always{}
@@ -20,7 +20,7 @@ func Always() Requirement {
 	return &always{}
 }
 
-// Never Requirement
+// Never Requirement.
 type never struct{}
 
 var _ Requirement = &never{}

@@ -10,7 +10,7 @@ import (
 	"github.com/xlab/treeprint"
 )
 
-// Label Condition
+// Label Condition.
 type label struct {
 	pattern *regexp.Regexp
 }

@@ -16,18 +16,18 @@ import (
 
 var errTriggeredByBot = errors.New("event triggered by bot")
 
-// Compile regex only once
+// Compile regex only once.
 var (
-	// Regex for capturing the entire line of a manual check
+	// Regex for capturing the entire line of a manual check.
 	manualCheckLine = regexp.MustCompile(`(?m:^-\s\[([ xX])\]\s+(.+?)\s*(\(checked by @(\w+)\))?$)`)
-	// Regex for capturing only the checkboxes
+	// Regex for capturing only the checkboxes.
 	checkboxes = regexp.MustCompile(`(?m:^- \[[ x]\])`)
-	// Regex used to capture markdown links
+	// Regex used to capture markdown links.
 	markdownLink = regexp.MustCompile(`\[(.*)\]\(.*\)`)
 )
 
 // These structures contain the necessary information to generate
-// the bot's comment from the template file
+// the bot's comment from the template file.
 type AutoContent struct {
 	Description        string
 	Satisfied          bool
@@ -52,17 +52,17 @@ type manualCheckDetails struct {
 }
 
 // getCommentManualChecks parses the bot comment to get the checkbox status,
-// the check description and the username who checked it
+// the check description and the username who checked it.
 func getCommentManualChecks(commentBody string) map[string]manualCheckDetails {
 	checks := make(map[string]manualCheckDetails)
 
-	// For each line that matches the "Manual check" regex
+	// For each line that matches the "Manual check" regex.
 	for _, match := range manualCheckLine.FindAllStringSubmatch(commentBody, -1) {
 		description := match[2]
 		status := match[1]
 		checkedBy := ""
 		if len(match) > 4 {
-			checkedBy = strings.ToLower(match[4]) // if X captured, convert it to x
+			checkedBy = strings.ToLower(match[4]) // if X captured, convert it to x.
 		}
 
 		checks[description] = manualCheckDetails{status: status, checkedBy: checkedBy}
@@ -71,7 +71,7 @@ func getCommentManualChecks(commentBody string) map[string]manualCheckDetails {
 	return checks
 }
 
-// Recursively search for nested values using the keys provided
+// Recursively search for nested values using the keys provided.
 func indexMap(m map[string]any, keys ...string) any {
 	if len(keys) == 0 {
 		return m
@@ -95,13 +95,13 @@ func indexMap(m map[string]any, keys ...string) any {
 //   - the comment change is only a checkbox being checked or unckecked (or restore it)
 //   - the actor / comment editor has permission to modify this checkbox (or restore it)
 func handleCommentUpdate(gh *client.GitHub, actionCtx *githubactions.GitHubContext) error {
-	// Ignore if it's not a comment related event
+	// Ignore if it's not a comment related event.
 	if actionCtx.EventName != "issue_comment" {
 		gh.Logger.Debugf("Event is not issue comment related (%s)", actionCtx.EventName)
 		return nil
 	}
 
-	// Ignore if the action type is not deleted or edited
+	// Ignore if the action type is not deleted or edited.
 	actionType, ok := actionCtx.Event["action"].(string)
 	if !ok {
 		return errors.New("unable to get type on issue comment event")
@@ -111,7 +111,7 @@ func handleCommentUpdate(gh *client.GitHub, actionCtx *githubactions.GitHubConte
 		return nil
 	}
 
-	// Return if comment was edited by bot (current authenticated user)
+	// Return if comment was edited by bot (current authenticated user).
 	authUser, _, err := gh.Client.Users.Get(gh.Ctx, "")
 	if err != nil {
 		return fmt.Errorf("unable to get authenticated user: %w", err)
@@ -122,55 +122,55 @@ func handleCommentUpdate(gh *client.GitHub, actionCtx *githubactions.GitHubConte
 		return errTriggeredByBot
 	}
 
-	// Get login of the author of the edited comment
+	// Get login of the author of the edited comment.
 	login, ok := indexMap(actionCtx.Event, "comment", "user", "login").(string)
 	if !ok {
 		return errors.New("unable to get comment user login on issue comment event")
 	}
 
-	// If the author is not the bot, return
+	// If the author is not the bot, return.
 	if login != authUser.GetLogin() {
 		return nil
 	}
 
-	// Get comment updated body
+	// Get comment updated body.
 	current, ok := indexMap(actionCtx.Event, "comment", "body").(string)
 	if !ok {
 		return errors.New("unable to get comment body on issue comment event")
 	}
 
-	// Get comment previous body
+	// Get comment previous body.
 	previous, ok := indexMap(actionCtx.Event, "changes", "body", "from").(string)
 	if !ok {
 		return errors.New("unable to get changes body content on issue comment event")
 	}
 
-	// Get PR number from GitHub Actions context
+	// Get PR number from GitHub Actions context.
 	prNum, ok := indexMap(actionCtx.Event, "issue", "number").(float64)
 	if !ok || prNum <= 0 {
 		return errors.New("unable to get issue number on issue comment event")
 	}
 
-	// Check if change is only a checkbox being checked or unckecked
+	// Check if change is only a checkbox being checked or unckecked.
 	if checkboxes.ReplaceAllString(current, "") != checkboxes.ReplaceAllString(previous, "") {
-		// If not, restore previous comment body
+		// If not, restore previous comment body.
 		if !gh.DryRun {
 			gh.SetBotComment(previous, int(prNum))
 		}
 		return errors.New("bot comment edited outside of checkboxes")
 	}
 
-	// Check if actor / comment editor has permission to modify changed boxes
+	// Check if actor / comment editor has permission to modify changed boxes.
 	currentChecks := getCommentManualChecks(current)
 	previousChecks := getCommentManualChecks(previous)
 	edited := ""
 	for key := range currentChecks {
-		// If there is no diff for this check, ignore it
+		// If there is no diff for this check, ignore it.
 		if currentChecks[key].status == previousChecks[key].status {
 			continue
 		}
 
-		// Get teams allowed to edit this box from config
+		// Get teams allowed to edit this box from config.
 		var teams []string
 		found := false
 		_, manualRules := config(gh)
@@ -183,13 +183,13 @@ func handleCommentUpdate(gh *client.GitHub, actionCtx *githubactions.GitHubConte
 		}
 
 		// If rule were not found, return to reprocess the bot comment entirely
-		// (maybe bot config was updated since last run?)
+		// (maybe bot config was updated since last run?).
 		if !found {
 			gh.Logger.Debugf("Updated rule not found in config: %s", key)
 			return nil
 		}
 
-		// If teams specified in rule, check if actor is a member of one of them
+		// If teams specified in rule, check if actor is a member of one of them.
 		if len(teams) > 0 {
 			if gh.IsUserInTeams(actionCtx.Actor, teams) {
 				if !gh.DryRun {
@@ -199,21 +199,21 @@ func handleCommentUpdate(gh *client.GitHub, actionCtx *githubactions.GitHubConte
 			}
 		}
 
-		// This regex capture only the line of the current check
+		// This regex capture only the line of the current check.
 		specificManualCheck := regexp.MustCompile(fmt.Sprintf(`(?m:^- \[%s\] %s.*$)`, currentChecks[key].status, key))
 
-		// If the box is checked, append the username of the user who checked it
+		// If the box is checked, append the username of the user who checked it.
 		if strings.TrimSpace(currentChecks[key].status) == "x" {
 			replacement := fmt.Sprintf("- [%s] %s (checked by @%s)", currentChecks[key].status, key, actionCtx.Actor)
 			edited = specificManualCheck.ReplaceAllString(current, replacement)
 		} else {
-			// Else, remove the username of the user
+			// Else, remove the username of the user.
 			replacement := fmt.Sprintf("- [%s] %s", currentChecks[key].status, key)
 			edited = specificManualCheck.ReplaceAllString(current, replacement)
 		}
 	}
 
-	// Update comment with username
+	// Update comment with username.
 	if edited != "" && !gh.DryRun {
 		gh.SetBotComment(edited, int(prNum))
 		gh.Logger.Debugf("Comment manual checks updated successfully")
@@ -223,23 +223,23 @@ func handleCommentUpdate(gh *client.GitHub, actionCtx *githubactions.GitHubConte
 }
 
 // generateComment generates a comment using the template file and the
-// content passed as parameter
+// content passed as parameter.
 func generateComment(content CommentContent) (string, error) {
-	// Custom function to strip markdown links
+	// Custom function to strip markdown links.
 	funcMap := template.FuncMap{
 		"stripLinks": func(input string) string {
 			return markdownLink.ReplaceAllString(input, "$1")
 		},
 	}
 
-	// Bind markdown stripping function to template generator
+	// Bind markdown stripping function to template generator.
 	const tmplFile = "comment.tmpl"
 	tmpl, err := template.New(tmplFile).Funcs(funcMap).ParseFiles(tmplFile)
 	if err != nil {
 		return "", fmt.Errorf("unable to init template: %w", err)
 	}
 
-	// Generate bot comment using template file
+	// Generate bot comment using template file.
 	var commentBytes bytes.Buffer
 	if err := tmpl.Execute(&commentBytes, content); err != nil {
 		return "", fmt.Errorf("unable to execute template: %w", err)
@@ -248,15 +248,15 @@ func generateComment(content CommentContent) (string, error) {
 	return commentBytes.String(), nil
 }
 
-// updatePullRequest updates or creates both the bot comment and the commit status
+// updatePullRequest updates or creates both the bot comment and the commit status.
 func updatePullRequest(gh *client.GitHub, pr *github.PullRequest, content CommentContent) error {
-	// Generate comment text content
+	// Generate comment text content.
 	commentText, err := generateComment(content)
 	if err != nil {
 		return fmt.Errorf("unable to generate comment on PR %d: %w", pr.GetNumber(), err)
 	}
 
-	// Update comment on pull request
+	// Update comment on pull request.
 	comment, err := gh.SetBotComment(commentText, pr.GetNumber())
 	if err != nil {
 		return fmt.Errorf("unable to update comment on PR %d: %w", pr.GetNumber(), err)
@@ -264,7 +264,7 @@ func updatePullRequest(gh *client.GitHub, pr *github.PullRequest, content Commen
 		gh.Logger.Infof("Comment successfully updated on PR %d", pr.GetNumber())
 	}
 
-	// Prepare commit status content
+	// Prepare commit status content.
 	var (
 		context     = "Merge Requirements"
 		targetURL   = comment.GetHTMLURL()
@@ -277,7 +277,7 @@ func updatePullRequest(gh *client.GitHub, pr *github.PullRequest, content Commen
 		description = "All requirements are satisfied."
 	}
 
-	// Update or create commit status
+	// Update or create commit status.
 	if _, _, err := gh.Client.Repositories.CreateStatus(
 		gh.Ctx,
 		gh.Owner,

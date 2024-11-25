@@ -9,7 +9,7 @@ import (
 	"github.com/xlab/treeprint"
 )
 
-// And Condition
+// And Condition.
 type and struct {
 	conditions []Condition
 }
@@ -24,7 +24,7 @@ func (a *and) IsMet(pr *github.PullRequest, details treeprint.Tree) bool {
 		if !condition.IsMet(pr, branch) {
 			met = utils.Fail
 			// We don't break here because we need to call IsMet on all conditions
-			// to populate the details tree
+			// to populate the details tree.
 		}
 	}
 
@@ -41,7 +41,7 @@ func And(conditions ...Condition) Condition {
 	return &and{conditions}
 }
 
-// Or Condition
+// Or Condition.
 type or struct {
 	conditions []Condition
 }
@@ -56,7 +56,7 @@ func (o *or) IsMet(pr *github.PullRequest, details treeprint.Tree) bool {
 		if condition.IsMet(pr, branch) {
 			met = utils.Success
 			// We don't break here because we need to call IsMet on all conditions
-			// to populate the details tree
+			// to populate the details tree.
 		}
 	}
 
@@ -73,7 +73,7 @@ func Or(conditions ...Condition) Condition {
 	return &or{conditions}
 }
 
-// Not Condition
+// Not Condition.
 type not struct {
 	cond Condition
 }

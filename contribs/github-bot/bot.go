@@ -18,7 +18,7 @@ import (
 )
 
 func execBot(params *p.Params) error {
-	// Create context with timeout if specified in the parameters
+	// Create context with timeout if specified in the parameters.
 	ctx := context.Background()
 	if params.Timeout > 0 {
 		var cancel context.CancelFunc
@@ -26,30 +26,30 @@ func execBot(params *p.Params) error {
 		defer cancel()
 	}
 
-	// Init GitHub API client
+	// Init GitHub API client.
 	gh, err := client.New(ctx, params)
 	if err != nil {
 		return fmt.Errorf("comment update handling failed: %w", err)
 	}
 
-	// Get GitHub Actions context to retrieve comment update
+	// Get GitHub Actions context to retrieve comment update.
 	actionCtx, err := githubactions.Context()
 	if err != nil {
 		gh.Logger.Debugf("Unable to retrieve GitHub Actions context: %v", err)
 		return nil
 	}
 
-	// Handle comment update, if any
+	// Handle comment update, if any.
 	if err := handleCommentUpdate(gh, actionCtx); errors.Is(err, errTriggeredByBot) {
-		return nil // Ignore if this run was triggered by a previous run
+		return nil // Ignore if this run was triggered by a previous run.
 	} else if err != nil {
 		return fmt.Errorf("comment update handling failed: %w", err)
 	}
 
-	// Retrieve a slice of pull requests to process
+	// Retrieve a slice of pull requests to process.
 	var prs []*github.PullRequest
 
-	// If requested, retrieve all open pull requests
+	// If requested, retrieve all open pull requests.
 	if params.PRAll {
 		opts := &github.PullRequestListOptions{
 			State:     "open",
@@ -75,7 +75,7 @@ func execBot(params *p.Params) error {
 		}
 	} else {
 		// Otherwise, retrieve only specified pull request(s)
-		// (flag or GitHub Action context)
+		// (flag or GitHub Action context).
 		prs = make([]*github.PullRequest, len(params.PRNums))
 		for i, prNum := range params.PRNums {
 			pr, _, err := gh.Client.PullRequests.Get(gh.Ctx, gh.Owner, gh.Repo, prNum)
@@ -95,14 +95,14 @@ func execBot(params *p.Params) error {
 		gh.Logger.Infof("%d pull requests to process: %v\n", len(prNums), prNums)
 	}
 
-	// Process all pull requests in parallel
+	// Process all pull requests in parallel.
 	autoRules, manualRules := config(gh)
 	var wg sync.WaitGroup
 
-	// Used in dry-run mode to log cleanly from different goroutines
+	// Used in dry-run mode to log cleanly from different goroutines.
 	logMutex := sync.Mutex{}
 
-	// Used in regular-run mode to return an error if one PR processing failed
+	// Used in regular-run mode to return an error if one PR processing failed.
 	var failed atomic.Bool
 
 	for _, pr := range prs {
@@ -112,11 +112,11 @@ func execBot(params *p.Params) error {
 			commentContent := CommentContent{}
 			commentContent.allSatisfied = true
 
-			// Iterate over all automatic rules in config
+			// Iterate over all automatic rules in config.
 			for _, autoRule := range autoRules {
 				ifDetails := treeprint.NewWithRoot(fmt.Sprintf("%s Condition met", utils.Success))
 
-				// Check if conditions of this rule are met by this PR
+				// Check if conditions of this rule are met by this PR.
 				if !autoRule.ifC.IsMet(pr, ifDetails) {
 					continue
 				}
@@ -124,7 +124,7 @@ func execBot(params *p.Params) error {
 				c := AutoContent{Description: autoRule.description, Satisfied: false}
 				thenDetails := treeprint.NewWithRoot(fmt.Sprintf("%s Requirement not satisfied", utils.Fail))
 
-				// Check if requirements of this rule are satisfied by this PR
+				// Check if requirements of this rule are satisfied by this PR.
 				if autoRule.thenR.IsSatisfied(pr, thenDetails) {
 					thenDetails.SetValue(fmt.Sprintf("%s Requirement satisfied", utils.Success))
 					c.Satisfied = true
@@ -137,22 +137,22 @@ func execBot(params *p.Params) error {
 				commentContent.AutoRules = append(commentContent.AutoRules, c)
 			}
 
-			// Retrieve manual check states
+			// Retrieve manual check states.
 			checks := make(map[string]manualCheckDetails)
 			if comment, err := gh.GetBotComment(pr.GetNumber()); err == nil {
 				checks = getCommentManualChecks(comment.GetBody())
 			}
 
-			// Iterate over all manual rules in config
+			// Iterate over all manual rules in config.
 			for _, manualRule := range manualRules {
 				ifDetails := treeprint.NewWithRoot(fmt.Sprintf("%s Condition met", utils.Success))
 
-				// Check if conditions of this rule are met by this PR
+				// Check if conditions of this rule are met by this PR.
 				if !manualRule.ifC.IsMet(pr, ifDetails) {
 					continue
 				}
 
-				// Get check status from current comment, if any
+				// Get check status from current comment, if any.
 				checkedBy := ""
 				check, ok := checks[manualRule.description]
 				if ok {
@@ -174,7 +174,7 @@ func execBot(params *p.Params) error {
 				}
 			}
 
-			// Logs results or write them in bot PR comment
+			// Logs results or write them in bot PR comment.
 			if gh.DryRun {
 				logMutex.Lock()
 				logResults(gh.Logger, pr.GetNumber(), commentContent)
@@ -197,7 +197,7 @@ func execBot(params *p.Params) error {
 }
 
 // logResults is called in dry-run mode and outputs the status of each check
-// and a conclusion
+// and a conclusion.
 func logResults(logger logger.Logger, prNum int, commentContent CommentContent) {
 	logger.Infof("Pull request #%d requirements", prNum)
 	if len(commentContent.AutoRules) > 0 {

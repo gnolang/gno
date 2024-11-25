@@ -11,10 +11,10 @@ import (
 )
 
 // Pass this to UpToDateWith constructor to check the PR head branch
-// against its base branch
+// against its base branch.
 const PR_BASE = "PR_BASE"
 
-// UpToDateWith Requirement
+// UpToDateWith Requirement.
 type upToDateWith struct {
 	gh   *client.GitHub
 	base string

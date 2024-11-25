@@ -8,9 +8,9 @@ import (
 	"github.com/xlab/treeprint"
 )
 
-// Author Requirement
+// Author Requirement.
 type author struct {
-	c conditions.Condition // Alias Author requirement to identical condition
+	c conditions.Condition // Alias Author requirement to identical condition.
 }
 
 var _ Requirement = &author{}
@@ -23,9 +23,9 @@ func Author(user string) Requirement {
 	return &author{conditions.Author(user)}
 }
 
-// AuthorInTeam Requirement
+// AuthorInTeam Requirement.
 type authorInTeam struct {
-	c conditions.Condition // Alias AuthorInTeam requirement to identical condition
+	c conditions.Condition // Alias AuthorInTeam requirement to identical condition.
 }
 
 var _ Requirement = &authorInTeam{}

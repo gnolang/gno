@@ -10,7 +10,7 @@ import (
 	"github.com/xlab/treeprint"
 )
 
-// BaseBranch Condition
+// BaseBranch Condition.
 type baseBranch struct {
 	pattern *regexp.Regexp
 }
@@ -29,7 +29,7 @@ func BaseBranch(pattern string) Condition {
 	return &baseBranch{pattern: regexp.MustCompile(pattern)}
 }
 
-// HeadBranch Condition
+// HeadBranch Condition.
 type headBranch struct {
 	pattern *regexp.Regexp
 }

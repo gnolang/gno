@@ -10,7 +10,7 @@ import (
 	"github.com/xlab/treeprint"
 )
 
-// Assignee Requirement
+// Assignee Requirement.
 type assignee struct {
 	gh   *client.GitHub
 	user string
@@ -21,19 +21,19 @@ var _ Requirement = &assignee{}
 func (a *assignee) IsSatisfied(pr *github.PullRequest, details treeprint.Tree) bool {
 	detail := fmt.Sprintf("This user is assigned to pull request: %s", a.user)
 
-	// Check if user was already assigned to PR
+	// Check if user was already assigned to PR.
 	for _, assignee := range pr.Assignees {
 		if a.user == assignee.GetLogin() {
 			return utils.AddStatusNode(true, detail, details)
 		}
 	}
 
-	// If in a dry run, skip assigning the user
+	// If in a dry run, skip assigning the user.
 	if a.gh.DryRun {
 		return utils.AddStatusNode(false, detail, details)
 	}
 
-	// If user not already assigned, assign it
+	// If user not already assigned, assign it.
 	if _, _, err := a.gh.Client.Issues.AddAssignees(
 		a.gh.Ctx,
 		a.gh.Owner,

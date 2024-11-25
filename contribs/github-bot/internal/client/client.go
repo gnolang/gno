@@ -12,11 +12,17 @@ import (
 	"github.com/google/go-github/v64/github"
 )
 
-// PageSize is the number of items to load for each iteration when fetching a list
+// PageSize is the number of items to load for each iteration when fetching a list.
 const PageSize = 100
 
 var ErrBotCommentNotFound = errors.New("bot comment not found")
 
+// GitHub contains everything necessary to interact with the GitHub API,
+// including the client, a context (which must be passed with each request),
+// a logger, etc. This object will be passed to each condition or requirement
+// that requires fetching additional information or modifying things on GitHub.
+// The object also provides methods for performing more complex operations than
+// a simple API call.
 type GitHub struct {
 	Client *github.Client
 	Ctx    context.Context
@@ -26,6 +32,7 @@ type GitHub struct {
 	Repo   string
 }
 
+// GetBotComment retrieves the bot's (current user) comment on provided PR number.
 func (gh *GitHub) GetBotComment(prNum int) (*github.IssueComment, error) {
 	// List existing comments
 	const (
@@ -76,6 +83,8 @@ func (gh *GitHub) GetBotComment(prNum int) (*github.IssueComment, error) {
 	return nil, errors.New("bot comment not found")
 }
 
+// SetBotComment creates a bot's comment on the provided PR number
+// or updates it if it already exists.
 func (gh *GitHub) SetBotComment(body string, prNum int) (*github.IssueComment, error) {
 	// Create bot comment if it does not already exist
 	comment, err := gh.GetBotComment(prNum)
@@ -110,6 +119,7 @@ func (gh *GitHub) SetBotComment(body string, prNum int) (*github.IssueComment, e
 	return editComment, nil
 }
 
+// ListTeamMembers lists the members of the specified team.
 func (gh *GitHub) ListTeamMembers(team string) ([]*github.User, error) {
 	var (
 		allMembers []*github.User
@@ -142,6 +152,8 @@ func (gh *GitHub) ListTeamMembers(team string) ([]*github.User, error) {
 	return allMembers, nil
 }
 
+// IsUserInTeams checks if the specified user is a member of any of the
+// provided teams.
 func (gh *GitHub) IsUserInTeams(user string, teams []string) bool {
 	for _, team := range teams {
 		teamMembers, err := gh.ListTeamMembers(team)
@@ -160,6 +172,7 @@ func (gh *GitHub) IsUserInTeams(user string, teams []string) bool {
 	return false
 }
 
+// ListPRReviewers returns the list of reviewers for the specified PR number.
 func (gh *GitHub) ListPRReviewers(prNum int) (*github.Reviewers, error) {
 	var (
 		allReviewers = &github.Reviewers{}
@@ -192,6 +205,7 @@ func (gh *GitHub) ListPRReviewers(prNum int) (*github.Reviewers, error) {
 	return allReviewers, nil
 }
 
+// ListPRReviewers returns the list of reviews for the specified PR number.
 func (gh *GitHub) ListPRReviews(prNum int) ([]*github.PullRequestReview, error) {
 	var (
 		allReviews []*github.PullRequestReview
@@ -223,6 +237,7 @@ func (gh *GitHub) ListPRReviews(prNum int) ([]*github.PullRequestReview, error) 
 	return allReviews, nil
 }
 
+// New initializes the API client, the logger, and creates an instance of GitHub.
 func New(ctx context.Context, params *p.Params) (*GitHub, error) {
 	gh := &GitHub{
 		Ctx:    ctx,

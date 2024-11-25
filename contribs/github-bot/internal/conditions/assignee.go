@@ -10,7 +10,7 @@ import (
 	"github.com/xlab/treeprint"
 )
 
-// Assignee Condition
+// Assignee Condition.
 type assignee struct {
 	user string
 }
@@ -33,7 +33,7 @@ func Assignee(user string) Condition {
 	return &assignee{user: user}
 }
 
-// AssigneeInTeam Condition
+// AssigneeInTeam Condition.
 type assigneeInTeam struct {
 	gh   *client.GitHub
 	team string

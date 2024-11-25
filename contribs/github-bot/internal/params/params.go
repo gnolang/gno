@@ -74,20 +74,20 @@ func (p *Params) RegisterFlags(fs *flag.FlagSet) {
 }
 
 func (p *Params) ValidateFlags() {
-	// Helper to display an error + usage message before exiting
+	// Helper to display an error + usage message before exiting.
 	errorUsage := func(err string) {
 		fmt.Fprintf(p.flagSet.Output(), "Error: %s\n\n", err)
 		p.flagSet.Usage()
 		os.Exit(1)
 	}
 
-	// Check if flags are coherent
+	// Check if flags are coherent.
 	if p.PRAll && len(p.PRNums) != 0 {
 		errorUsage("You can specify only one of the '-pr-all' and '-pr-numbers' flags")
 	}
 
 	// If one of these values is empty, it must be retrieved
-	// from GitHub Actions context
+	// from GitHub Actions context.
 	if p.Owner == "" || p.Repo == "" || (len(p.PRNums) == 0 && !p.PRAll) {
 		actionCtx, err := githubactions.Context()
 		if err != nil {

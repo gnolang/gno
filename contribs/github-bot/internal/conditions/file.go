@@ -11,7 +11,7 @@ import (
 	"github.com/xlab/treeprint"
 )
 
-// FileChanged Condition
+// FileChanged Condition.
 type fileChanged struct {
 	gh      *client.GitHub
 	pattern *regexp.Regexp

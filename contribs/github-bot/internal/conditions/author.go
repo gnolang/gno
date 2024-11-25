@@ -10,7 +10,7 @@ import (
 	"github.com/xlab/treeprint"
 )
 
-// Author Condition
+// Author Condition.
 type author struct {
 	user string
 }
@@ -29,7 +29,7 @@ func Author(user string) Condition {
 	return &author{user: user}
 }
 
-// AuthorInTeam Condition
+// AuthorInTeam Condition.
 type authorInTeam struct {
 	gh   *client.GitHub
 	team string

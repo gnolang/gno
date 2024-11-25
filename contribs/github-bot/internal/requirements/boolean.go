@@ -9,7 +9,7 @@ import (
 	"github.com/xlab/treeprint"
 )
 
-// And Requirement
+// And Requirement.
 type and struct {
 	requirements []Requirement
 }
@@ -24,7 +24,7 @@ func (a *and) IsSatisfied(pr *github.PullRequest, details treeprint.Tree) bool {
 		if !requirement.IsSatisfied(pr, branch) {
 			satisfied = utils.Fail
 			// We don't break here because we need to call IsSatisfied on all
-			// requirements to populate the details tree
+			// requirements to populate the details tree.
 		}
 	}
 
@@ -41,7 +41,7 @@ func And(requirements ...Requirement) Requirement {
 	return &and{requirements}
 }
 
-// Or Requirement
+// Or Requirement.
 type or struct {
 	requirements []Requirement
 }
@@ -56,7 +56,7 @@ func (o *or) IsSatisfied(pr *github.PullRequest, details treeprint.Tree) bool {
 		if requirement.IsSatisfied(pr, branch) {
 			satisfied = utils.Success
 			// We don't break here because we need to call IsSatisfied on all
-			// requirements to populate the details tree
+			// requirements to populate the details tree.
 		}
 	}
 
@@ -73,7 +73,7 @@ func Or(requirements ...Requirement) Requirement {
 	return &or{requirements}
 }
 
-// Not Requirement
+// Not Requirement.
 type not struct {
 	req Requirement
 }
