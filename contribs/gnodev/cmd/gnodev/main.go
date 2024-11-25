@@ -67,12 +67,14 @@ type devCfg struct {
 	noReplay   bool
 	maxGas     int64
 	chainId    string
+	chainTz    string
 	serverMode bool
 	unsafeAPI  bool
 }
 
 var defaultDevOptions = &devCfg{
 	chainId:             "dev",
+	chainTz:             "UTC",
 	maxGas:              10_000_000_000,
 	webListenerAddr:     "127.0.0.1:8888",
 	nodeRPCListenerAddr: "127.0.0.1:26657",
@@ -201,6 +203,13 @@ func (c *devCfg) RegisterFlags(fs *flag.FlagSet) {
 		"chain-id",
 		defaultDevOptions.chainId,
 		"set node ChainID",
+	)
+
+	fs.StringVar(
+		&c.chainTz,
+		"chain-tz",
+		defaultDevOptions.chainTz,
+		"set node Chain Timezone",
 	)
 
 	fs.BoolVar(

@@ -42,9 +42,10 @@ type NodeConfig struct {
 	NoReplay              bool
 	MaxGasPerBlock        int64
 	ChainID               string
+	ChainTz               string
 }
 
-func DefaultNodeConfig(rootdir string) *NodeConfig {
+func DefaultNodeConfig(rootdir string, timezone string) *NodeConfig {
 	tmc := gnoland.NewDefaultTMConfig(rootdir)
 	tmc.Consensus.SkipTimeoutCommit = false // avoid time drifting, see issue #1507
 	tmc.Consensus.WALDisabled = true
@@ -64,6 +65,7 @@ func DefaultNodeConfig(rootdir string) *NodeConfig {
 		DefaultDeployer:       defaultDeployer,
 		BalancesList:          balances,
 		ChainID:               tmc.ChainID(),
+		ChainTz:               timezone,
 		TMConfig:              tmc,
 		SkipFailingGenesisTxs: true,
 		MaxGasPerBlock:        10_000_000_000,
@@ -477,7 +479,7 @@ func (n *Node) rebuildNode(ctx context.Context, genesis gnoland.GnoGenesisState)
 	}
 
 	// Setup node config
-	nodeConfig := newNodeConfig(n.config.TMConfig, n.config.ChainID, genesis)
+	nodeConfig := newNodeConfig(n.config.TMConfig, n.config.ChainID, n.config.ChainTz, genesis)
 	nodeConfig.GenesisTxResultHandler = n.genesisTxResultHandler
 	// Speed up stdlib loading after first start (saves about 2-3 seconds on each reload).
 	nodeConfig.CacheStdlibLoad = true
@@ -556,10 +558,10 @@ func (n *Node) genesisTxResultHandler(ctx sdk.Context, tx std.Tx, res sdk.Result
 	return
 }
 
-func newNodeConfig(tmc *tmcfg.Config, chainid string, appstate gnoland.GnoGenesisState) *gnoland.InMemoryNodeConfig {
+func newNodeConfig(tmc *tmcfg.Config, chainid string, chaintz string, appstate gnoland.GnoGenesisState) *gnoland.InMemoryNodeConfig {
 	// Create Mocked Identity
 	pv := gnoland.NewMockedPrivValidator()
-	genesis := gnoland.NewDefaultGenesisConfig(chainid)
+	genesis := gnoland.NewDefaultGenesisConfig(chainid, chaintz)
 	genesis.AppState = appstate
 
 	// Add self as validator

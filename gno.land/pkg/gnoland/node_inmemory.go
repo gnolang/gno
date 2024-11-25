@@ -36,7 +36,9 @@ func NewMockedPrivValidator() bft.PrivValidator {
 }
 
 // NewDefaultGenesisConfig creates a default configuration for an in-memory node.
-func NewDefaultGenesisConfig(chainid string) *bft.GenesisDoc {
+func NewDefaultGenesisConfig(chainid string, chaintz string) *bft.GenesisDoc {
+	var tzParam Param
+	_ = tzParam.Parse("gno.land/r/sys/params.vm.chain_tz.string=" + chaintz)
 	return &bft.GenesisDoc{
 		GenesisTime: time.Now(),
 		ChainID:     chainid,
@@ -46,6 +48,9 @@ func NewDefaultGenesisConfig(chainid string) *bft.GenesisDoc {
 		AppState: &GnoGenesisState{
 			Balances: []Balance{},
 			Txs:      []TxWithMetadata{},
+			Params: []Param{
+				tzParam,
+			},
 		},
 	}
 }

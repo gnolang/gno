@@ -34,7 +34,7 @@ func TestNewNode_NoPackages(t *testing.T) {
 	logger := log.NewTestingLogger(t)
 
 	// Call NewDevNode with no package should work
-	cfg := DefaultNodeConfig(gnoenv.RootDir())
+	cfg := DefaultNodeConfig(gnoenv.RootDir(), "UTC")
 	cfg.Logger = logger
 	node, err := NewDevNode(ctx, cfg)
 	require.NoError(t, err)
@@ -62,7 +62,7 @@ func Render(_ string) string { return "foo" }
 	logger := log.NewTestingLogger(t)
 
 	// Call NewDevNode with no package should work
-	cfg := DefaultNodeConfig(gnoenv.RootDir())
+	cfg := DefaultNodeConfig(gnoenv.RootDir(), "UTC")
 	cfg.PackagesPathList = []PackagePath{pkgpath}
 	cfg.Logger = logger
 	node, err := NewDevNode(ctx, cfg)
@@ -295,7 +295,7 @@ func newTestingDevNode(t *testing.T, pkgslist ...PackagePath) (*Node, *mock.Serv
 	emitter := &mock.ServerEmitter{}
 
 	// Call NewDevNode with no package should work
-	cfg := DefaultNodeConfig(gnoenv.RootDir())
+	cfg := DefaultNodeConfig(gnoenv.RootDir(), "UTC")
 	cfg.PackagesPathList = pkgslist
 	cfg.Emitter = emitter
 	cfg.Logger = logger
