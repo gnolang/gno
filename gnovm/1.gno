@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"gno.land/p/demo/entropy"
 	"math/rand"
-	"time"
 )
 
 // Individual represents a single solution in the population
@@ -28,7 +27,7 @@ var Charset = []rune("ABCDEFGHIJKLMNOPQRSTUVWXYZ, !")
 func main() {
 	//rand.Seed(time.Now().UnixNano())
 	//seed := uint64(entropy.New().Value())
-	rand.Seed(int64(entropy.New().Value()))
+	//rand.Seed(int64(entropy.New().Value()))
 
 	// Step 1: Initialize Population
 	population := initializePopulation(PopulationSize)
@@ -70,7 +69,8 @@ func initializePopulation(size int) []Individual {
 func randomGenome(length int) string {
 	genome := make([]rune, length)
 	for i := 0; i < length; i++ {
-		genome[i] = Charset[rand.Intn(len(Charset))]
+		//genome[i] = Charset[rand.Intn(len(Charset))]
+		genome[i] = Charset[entropy.New().Value()]
 	}
 	return string(genome)
 }
