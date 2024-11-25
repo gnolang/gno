@@ -6,9 +6,9 @@ import (
 	"gno.land/p/demo/ownable"
 	"gno.land/p/demo/ufmt"
 	"gno.land/p/demo/ui"
-	"gno.land/r/demo/hof"
 	blog "gno.land/r/gnoland/blog"
 	events "gno.land/r/gnoland/events"
+	"gno.land/r/leon/hof"
 )
 
 // XXX: p/demo/ui API is crappy, we need to make it more idiomatic
@@ -17,7 +17,7 @@ import (
 
 var (
 	override string
-	admin    = ownable.NewWithAddress("g1u7y667z64x2h7vc6fmpcprgey4ck233jaww9zq") // @manfred by default
+	admin    = ownable.NewWithAddress("g1manfred47kzduec920z88wfr64ylksmdcedlf5") // @moul
 )
 
 func Render(_ string) string {
