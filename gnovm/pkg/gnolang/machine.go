@@ -67,7 +67,7 @@ type Machine struct {
 	Debugger Debugger
 
 	// Configuration
-	CheckTypes bool // not yet used
+	CheckTypes bool // this is used as a flag when const values are evaluated during preprocessing
 	ReadOnly   bool
 	MaxCycles  int64
 	Output     io.Writer
