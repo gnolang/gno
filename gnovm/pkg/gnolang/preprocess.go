@@ -2373,7 +2373,7 @@ func defineOrDecl(
 	sts := make([]Type, numNames) // static types
 	tvs := make([]TypedValue, numNames)
 
-	if numNames > 1 && len(valueExprs) == 1 {
+	if numVals == 1 && numNames > 1 {
 		parseMultipleAssignFromOneExpr(sts, tvs, store, bn, nameExprs, typeExpr, valueExprs[0])
 	} else {
 		parseAssignFromExprList(sts, tvs, store, bn, isConst, nameExprs, typeExpr, valueExprs)
@@ -2410,7 +2410,7 @@ func parseAssignFromExprList(
 	for _, v := range valueExprs {
 		if cx, ok := v.(*CallExpr); ok {
 			tt, ok := evalStaticTypeOfRaw(store, bn, cx).(*tupleType)
-			if ok && len(tt.Elts) != 1 {
+			if ok && len(tt.Elts) > 1 {
 				panic(fmt.Sprintf("multiple-value %s (value of type %s) in single-value context", cx.Func.String(), tt.Elts))
 			}
 		}
@@ -3132,18 +3132,12 @@ func gnoTypeOf(store Store, t Type) Type {
 // but rather computes the type OF x.
 func evalStaticTypeOf(store Store, last BlockNode, x Expr) Type {
 	t := evalStaticTypeOfRaw(store, last, x)
-	if tt, ok := t.(*tupleType); ok {
-		if len(tt.Elts) != 1 {
-			panic(fmt.Sprintf(
-				"evalStaticTypeOf() only supports *CallExpr with 1 result, got %s",
-				tt.String(),
-			))
-		} else {
-			return tt.Elts[0]
-		}
-	} else {
-		return t
+
+	if tt, ok := t.(*tupleType); ok && len(tt.Elts) == 1 {
+		return tt.Elts[0]
 	}
+
+	return t
 }
 
 // like evalStaticTypeOf() but returns the raw *tupleType for *CallExpr.
