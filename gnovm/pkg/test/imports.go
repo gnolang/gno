@@ -59,7 +59,7 @@ func Store(
 		}
 
 		// gonative exceptions.
-		// these are values available using gonative; eventually they should all be removed.
+		// These are values available using gonative; eventually they should all be removed.
 		switch pkgPath {
 		case "os":
 			pkg := gno.NewPackageNode("os", pkgPath, nil)
@@ -128,7 +128,7 @@ func Store(
 			return pkg, pkg.NewPackage()
 		}
 
-		// load normal stdlib.
+		// Load normal stdlib.
 		pn, pv = loadStdlib(rootDir, pkgPath, store, stdout)
 		if pn != nil {
 			return
@@ -157,7 +157,7 @@ func Store(
 	}
 	db := memdb.NewMemDB()
 	baseStore = dbadapter.StoreConstructor(db, storetypes.StoreOptions{})
-	// make a new store
+	// Make a new store.
 	resStore = gno.NewStore(nil, baseStore, baseStore)
 	resStore.SetPackageGetter(getPackage)
 	resStore.SetNativeStore(teststdlibs.NativeStore)
@@ -166,9 +166,9 @@ func Store(
 
 func loadStdlib(rootDir, pkgPath string, store gno.Store, stdout io.Writer) (*gno.PackageNode, *gno.PackageValue) {
 	dirs := [...]string{
-		// normal stdlib path.
+		// Normal stdlib path.
 		filepath.Join(rootDir, "gnovm", "stdlibs", pkgPath),
-		// override path. definitions here override the previous if duplicate.
+		// Override path. Definitions here override the previous if duplicate.
 		filepath.Join(rootDir, "gnovm", "tests", "stdlibs", pkgPath),
 	}
 	files := make([]string, 0, 32) // pre-alloc 32 as a likely high number of files

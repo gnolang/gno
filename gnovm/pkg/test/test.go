@@ -32,7 +32,8 @@ const (
 	DefaultHeight = 123
 	// DefaultTimestamp is the Timestamp value used by default in [Context].
 	DefaultTimestamp = 1234567890
-	// DefaultCaller is the result of gno.DerivePkgAddr("user1.gno")
+	// DefaultCaller is the result of gno.DerivePkgAddr("user1.gno"),
+	// used as the default caller in [Context].
 	DefaultCaller crypto.Bech32Address = "g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm"
 )
 
@@ -179,17 +180,19 @@ func Test(
 	var errs error
 
 	// Stands for "test", "integration test", and "filetest".
+	// "integration test" are the test files with `package xxx_test` (they are
+	// not necessarily integration tests, it's just for our internal reference.)
 	tset, itset, itfiles, ftfiles := parseMemPackageTests(opts.TestStore, memPkg)
 
-	// testing with *_test.gno
+	// Testing with *_test.gno
 	if len(tset.Files)+len(itset.Files) > 0 {
-		// create a common cw/gs for both the `pkg` tests as well as the `pkg_test`
-		// tests. this allows us to "export" symbols from the pkg tests and
+		// Create a common cw/gs for both the `pkg` tests as well as the `pkg_test`
+		// tests. This allows us to "export" symbols from the pkg tests and
 		// import them from the `pkg_test` tests.
 		cw := opts.BaseStore.CacheWrap()
 		gs := opts.TestStore.BeginTransaction(cw, cw)
 
-		// run test files in pkg
+		// Run test files in pkg.
 		if len(tset.Files) > 0 {
 			err := opts.runTestFiles(memPkg, tset, cw, gs)
 			if err != nil {
@@ -197,7 +200,7 @@ func Test(
 			}
 		}
 
-		// test xxx_test pkg
+		// Test xxx_test pkg.
 		if len(itset.Files) > 0 {
 			itPkg := &gnovm.MemPackage{
 				Name:  memPkg.Name + "_test",
@@ -212,7 +215,7 @@ func Test(
 		}
 	}
 
-	// testing with *_filetest.gno
+	// Testing with *_filetest.gno.
 	if len(ftfiles) > 0 {
 		filter := splitRegexp(opts.RunFlag)
 		for _, testFile := range ftfiles {
@@ -377,7 +380,7 @@ func (opts *TestOptions) runTestFiles(
 	return errs
 }
 
-// mirror of stdlibs/testing.Report
+// report is a mirror of Gno's stdlibs/testing.Report.
 type report struct {
 	Failed  bool
 	Skipped bool
@@ -406,7 +409,7 @@ func loadTestFuncs(pkgName string, tfiles *gno.FileSet) (rt []testFunc) {
 	return
 }
 
-// parses test files (skipping filetests) in the memPkg.
+// parseMemPackageTests parses test files (skipping filetests) in the memPkg.
 func parseMemPackageTests(store gno.Store, memPkg *gnovm.MemPackage) (tset, itset *gno.FileSet, itfiles, ftfiles []*gnovm.MemFile) {
 	tset = &gno.FileSet{}
 	itset = &gno.FileSet{}

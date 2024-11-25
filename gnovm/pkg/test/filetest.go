@@ -73,10 +73,10 @@ func (opts *TestOptions) runFiletest(filename string, source []byte) (string, er
 	// multiple mismatches occurred.
 	updated := false
 	var returnErr error
-	// verifies the content against dir.Content; if different, either updates
-	// dir.Content or appends a new returnErr.
+	// match verifies the content against dir.Content; if different,
+	// either updates dir.Content (for opts.Sync) or appends a new returnErr.
 	match := func(dir *Directive, actual string) {
-		// remove end-of-line spaces, as these are removed from `fmt` in the filetests anyway.
+		// Remove end-of-line spaces, as these are removed from `fmt` in the filetests anyway.
 		actual = reEndOfLineSpaces.ReplaceAllString(actual, "\n")
 		if dir.Content != actual {
 			if opts.Sync {
@@ -93,7 +93,7 @@ func (opts *TestOptions) runFiletest(filename string, source []byte) (string, er
 
 	// First, check if we have an error, whether we're supposed to get it.
 	if result.Error != "" {
-		// ensure this error was supposed to happen.
+		// Ensure this error was supposed to happen.
 		errDirective := dirs.First(DirectiveError)
 		if errDirective == nil {
 			return "", fmt.Errorf("unexpected panic: %s\noutput:\n%s\nstack:\n%v",
@@ -185,7 +185,7 @@ func (opts *TestOptions) runTest(m *gno.Machine, pkgPath, filename string, conte
 		return runResult{Error: err.Error()}
 	}
 
-	// reset and start capturing stdout.
+	// Reset and start capturing stdout.
 	opts.filetestBuffer.Reset()
 	revert := opts.outWriter.tee(&opts.filetestBuffer)
 	defer revert()
@@ -209,10 +209,10 @@ func (opts *TestOptions) runTest(m *gno.Machine, pkgPath, filename string, conte
 		}
 	}()
 
-	// use last element after / (works also if slash is missing)
+	// Use last element after / (works also if slash is missing).
 	pkgName := gno.Name(pkgPath[strings.LastIndexByte(pkgPath, '/')+1:])
 	if !gno.IsRealmPath(pkgPath) {
-		// simple case - pure package.
+		// Simple case - pure package.
 		pn := gno.NewPackageNode(pkgName, pkgPath, &gno.FileSet{})
 		pv := pn.NewPackage()
 		m.Store.SetBlockNode(pn)
@@ -222,10 +222,10 @@ func (opts *TestOptions) runTest(m *gno.Machine, pkgPath, filename string, conte
 		m.RunFiles(n)
 		m.RunStatement(gno.S(gno.Call(gno.X("main"))))
 	} else {
-		// realm case.
+		// Realm case.
 		gno.DisableDebug() // until main call.
 
-		// remove filetest from name, as that can lead to the package not being
+		// Remove filetest from name, as that can lead to the package not being
 		// parsed correctly when using RunMemPackage.
 		filename = strings.ReplaceAll(filename, "_filetest", "")
 
@@ -242,9 +242,9 @@ func (opts *TestOptions) runTest(m *gno.Machine, pkgPath, filename string, conte
 		}
 		orig, tx := m.Store, m.Store.BeginTransaction(nil, nil)
 		m.Store = tx
-		// run decls and init functions.
+		// Run decls and init functions.
 		m.RunMemPackage(memPkg, true)
-		// clear store cache and reconstruct machine from committed info
+		// Clear store cache and reconstruct machine from committed info
 		// (mimicking on-chain behaviour).
 		tx.Write()
 		m.Store = orig
@@ -377,7 +377,7 @@ func ParseDirectives(source io.Reader) (Directives, error) {
 			continue
 		}
 
-		// Find if there is a colon (indicating a possible directive)
+		// Find if there is a colon (indicating a possible directive).
 		subm := reDirectiveLine.FindStringSubmatch(comment)
 		switch {
 		case subm == nil:
@@ -390,10 +390,9 @@ func ParseDirectives(source io.Reader) (Directives, error) {
 			last := &parsed[len(parsed)-1]
 			if last.Name == "" {
 				last.Content += txt
-				continue
+			} else {
+				last.Content += comment + "\n"
 			}
-			// append to last line's content.
-			last.Content += comment + "\n"
 		case subm[1] != "": // output directive, with content on newlines
 			parsed = append(parsed, Directive{Name: subm[1]})
 		default: // subm[2] != "", all caps

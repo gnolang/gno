@@ -61,7 +61,7 @@ func TestFiles(t *testing.T) {
 		subTestName := path[len("files/"):]
 		if strings.HasSuffix(path, "_long.gno") && testing.Short() {
 			t.Run(subTestName, func(t *testing.T) {
-				t.Log("skipping in -short")
+				t.Skip("skipping in -short")
 			})
 			return nil
 		}
