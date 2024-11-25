@@ -1,61 +1,120 @@
 package main
 
 import (
+	"context"
 	"flag"
 	"fmt"
+	"net"
 	"net/http"
 	"os"
 	"time"
 
-	// for static files
 	"github.com/gnolang/gno/gno.land/pkg/gnoweb"
 	"github.com/gnolang/gno/gno.land/pkg/log"
+	"github.com/gnolang/gno/tm2/pkg/commands"
 	"go.uber.org/zap/zapcore"
-	// for error types
-	// "github.com/gnolang/gno/tm2/pkg/sdk"               // for baseapp (info, status)
 )
 
-func main() {
-	err := runMain(os.Args[1:])
-	if err != nil {
-		_, _ = fmt.Fprintf(os.Stderr, "%+v\n", err)
-		os.Exit(1)
-	}
+type webCfg struct {
+	chainid    string
+	remote     string
+	remoteHelp string
+	bind       string
 }
 
-func runMain(args []string) error {
-	var (
-		fs          = flag.NewFlagSet("gnoweb", flag.ContinueOnError)
-		cfg         = gnoweb.NewDefaultConfig()
-		bindAddress string
+var defaultWebOptions = &webCfg{
+	chainid:    "dev",
+	remote:     "127.0.0.1:26657",
+	bind:       ":8888",
+	remoteHelp: "",
+}
+
+func main() {
+	cfg := &webCfg{}
+
+	stdio := commands.NewDefaultIO()
+	cmd := commands.NewCommand(
+		commands.Metadata{
+			Name:       "gnoweb",
+			ShortUsage: "gnoweb [flags] [path ...]",
+			ShortHelp:  "runs gno.land web interface",
+			LongHelp:   `gnoweb web interface`,
+		},
+		cfg,
+		func(_ context.Context, args []string) error {
+			return execWeb(cfg, args, stdio)
+		})
+
+	cmd.Execute(context.Background(), os.Args[1:])
+}
+
+func (c *webCfg) RegisterFlags(fs *flag.FlagSet) {
+	fs.StringVar(
+		&c.remote,
+		"remote",
+		defaultWebOptions.remote,
+		"target remote",
 	)
-	fs.StringVar(&cfg.RemoteAddr, "remote", cfg.RemoteAddr, "remote gnoland node address")
-	fs.StringVar(&cfg.CaptchaSite, "captcha-site", cfg.CaptchaSite, "recaptcha site key (if empty, captcha are disabled)")
-	fs.StringVar(&cfg.FaucetURL, "faucet-url", cfg.FaucetURL, "faucet server URL")
-	fs.StringVar(&cfg.ViewsDir, "views-dir", cfg.ViewsDir, "views directory location") // XXX: replace with goembed
-	fs.StringVar(&cfg.HelpChainID, "help-chainid", cfg.HelpChainID, "help page's chainid")
-	fs.StringVar(&cfg.HelpRemote, "help-remote", cfg.HelpRemote, "help page's remote addr")
-	fs.BoolVar(&cfg.WithAnalytics, "with-analytics", cfg.WithAnalytics, "enable privacy-first analytics")
-	fs.StringVar(&bindAddress, "bind", "127.0.0.1:8888", "server listening address")
-	fs.BoolVar(&cfg.WithHTML, "with-html", cfg.WithHTML, "Enable HTML parsing in markdown rendering")
 
-	if err := fs.Parse(args); err != nil {
-		return err
-	}
+	fs.StringVar(
+		&c.chainid,
+		"help-remote",
+		defaultWebOptions.remoteHelp,
+		"help page's remote address",
+	)
 
-	zapLogger := log.NewZapConsoleLogger(os.Stdout, zapcore.DebugLevel)
+	fs.StringVar(
+		&c.chainid,
+		"chain-id",
+		defaultWebOptions.chainid,
+		"target chain id",
+	)
+
+	fs.StringVar(
+		&c.bind,
+		"bind",
+		defaultWebOptions.bind,
+		"gnoweb listener",
+	)
+}
+
+func execWeb(cfg *webCfg, args []string, io commands.IO) (err error) {
+	zapLogger := log.NewZapConsoleLogger(io.Out(), zapcore.DebugLevel)
+	defer zapLogger.Sync()
+
+	// Setup logger
 	logger := log.ZapLoggerToSlog(zapLogger)
 
-	logger.Info("Running", "listener", "http://"+bindAddress)
+	appcfg := gnoweb.NewDefaultAppConfig()
+	appcfg.ChainID = cfg.chainid
+	appcfg.Remote = cfg.remote
+	appcfg.RemoteHelp = cfg.remoteHelp
+	if appcfg.RemoteHelp == "" {
+		appcfg.RemoteHelp = appcfg.Remote
+	}
+
+	app, err := gnoweb.MakeRouterApp(logger, appcfg)
+	if err != nil {
+		return fmt.Errorf("unable to start gnoweb app: %w", err)
+	}
+
+	bindaddr, err := net.ResolveTCPAddr("tcp", cfg.bind)
+	if err != nil {
+		return fmt.Errorf("unable to resolve listener %q: %w", cfg.bind, err)
+	}
+
+	logger.Info("Running", "listener", bindaddr.String())
+
 	server := &http.Server{
-		Addr:              bindAddress,
+		Handler:           app,
+		Addr:              bindaddr.String(),
 		ReadHeaderTimeout: 60 * time.Second,
-		Handler:           gnoweb.MakeApp(logger, cfg).Router,
 	}
 
 	if err := server.ListenAndServe(); err != nil {
 		logger.Error("HTTP server stopped", " error:", err)
+		os.Exit(1)
 	}
 
-	return zapLogger.Sync()
+	return nil
 }
