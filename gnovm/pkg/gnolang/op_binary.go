@@ -1324,7 +1324,7 @@ func shlAssign(m *Machine, lv, rv *TypedValue) {
 func shrAssign(m *Machine, lv, rv *TypedValue) {
 	rv.AssertNonNegative("runtime error: negative shift amount")
 
-	validateSize := func(v func() bool) {
+	checkOverflow := func(v func() bool) {
 		if m.CheckTypes && !v() {
 			panic(`constant overflows`)
 		}
