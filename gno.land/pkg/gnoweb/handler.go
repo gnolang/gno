@@ -271,7 +271,7 @@ func (h *WebHandler) renderRealm(w io.Writer, gnourl *GnoURL) (status int, err e
 	return http.StatusOK, nil
 }
 
-func (h *WebHandler) highlightSource(style *chroma.Style, fileName string, src []byte) ([]byte, error) {
+func (h *WebHandler) highlightSource(fileName string, src []byte) ([]byte, error) {
 	var lexer chroma.Lexer
 	switch strings.ToLower(filepath.Ext(fileName)) {
 	case ".gno":

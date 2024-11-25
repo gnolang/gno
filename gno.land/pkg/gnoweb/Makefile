@@ -1,3 +1,6 @@
+# XXX: refine and cleanup this Makefile. Most of these were designed to be used
+# in a single monorepo
+
 # configurable arguments
 DEV_REMOTE ?= 127.0.0.1:26657
 CHAINID ?= test3
@@ -85,6 +88,7 @@ dev.css: | public
 	npx tailwindcss@$(tw_version) -c $(tw_config_path) --verbose -i $(input_css) -o $(output_css) --watch \
 		2>&1 | $(run_logname) tailwind
 
+# XXX: add versioning on esbuild
 # TS in development mode
 dev.ts: | public
 	npx -y esbuild $(input_js) \
@@ -94,13 +98,11 @@ dev.ts: | public
 		--watch \
 		--minify
 
+# XXX: we should probably keep static files inside public folder instead of
+# moving theme around
 dev.fonts:
 	mkdir -p $(output_statics)
 	cp -r $(static_folder)/* $(output_statics)
-
-# Install deps for development purpose
-deps:
-	$(tools_install) github.com/a-h/templ/cmd/templ
 
 # Cleanup
 clean:
