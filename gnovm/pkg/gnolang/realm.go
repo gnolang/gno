@@ -135,18 +135,18 @@ func (rlm *Realm) String() string {
 // associated object.
 // TODO: func (rlm *Realm) DidUpdate(po, xo, co Object, attached bool) {
 func (rlm *Realm) DidUpdate(po, xo, co Object) {
-	fmt.Println("---DidUpdate, rlm.ID: ", rlm.ID)
-	fmt.Printf("---xo: %v, type of xo: %v\n", xo, reflect.TypeOf(xo))
-	fmt.Printf("---co: %v, type of co: %v\n", co, reflect.TypeOf(co))
+	//fmt.Println("---DidUpdate, rlm.ID: ", rlm.ID)
+	//fmt.Printf("---xo: %v, type of xo: %v\n", xo, reflect.TypeOf(xo))
+	//fmt.Printf("---co: %v, type of co: %v\n", co, reflect.TypeOf(co))
+	//
+	//if co != nil {
+	//	fmt.Println("---co.LastNewEscapedRealm: ", co.GetLastNewEscapedRealm())
+	//	fmt.Println("---co.GetRefCount: ", co.GetRefCount())
+	//	fmt.Println("---co isReal(attached): ", co.GetIsReal())
+	//	fmt.Println("---co objectID: ", co.GetObjectID())
+	//}
 
-	if co != nil {
-		fmt.Println("---co.LastNewEscapedRealm: ", co.GetLastNewEscapedRealm())
-		fmt.Println("---co.GetRefCount: ", co.GetRefCount())
-		fmt.Println("---co isReal(attached): ", co.GetIsReal())
-		fmt.Println("---co objectID: ", co.GetObjectID())
-	}
-
-	fmt.Printf("---po: %v, type of po: %v\n", po, reflect.TypeOf(po))
+	//fmt.Printf("---po: %v, type of po: %v\n", po, reflect.TypeOf(po))
 
 	if rlm == nil {
 		return
@@ -179,14 +179,14 @@ func (rlm *Realm) DidUpdate(po, xo, co Object) {
 	rlm.MarkDirty(po)
 
 	if co != nil {
-		fmt.Println("---co.GetRefCount: ", co.GetRefCount())
+		//fmt.Println("---co.GetRefCount: ", co.GetRefCount())
 		// XXX, inc ref count everytime assignment happens
 		co.IncRefCount()
-		fmt.Println("---after inc, co.GetRefCount: ", co.GetRefCount())
+		//fmt.Println("---after inc, co.GetRefCount: ", co.GetRefCount())
 		if co.GetRefCount() > 1 {
 			if co.GetIsEscaped() {
 				// XXX, why packageBlock is automatically escaped?
-				println("---already escaped, should check cross realm?")
+				//println("---already escaped, should check cross realm?")
 				// already escaped
 			} else {
 				rlm.MarkNewEscapedCheckCrossRealm(nil, co, false, 0, 0)
@@ -201,7 +201,7 @@ func (rlm *Realm) DidUpdate(po, xo, co Object) {
 
 	if xo != nil {
 		xo.DecRefCount()
-		fmt.Printf("---xo: %v refCount after dec: %v\n", xo, xo.GetRefCount())
+		//fmt.Printf("---xo: %v refCount after dec: %v\n", xo, xo.GetRefCount())
 		if xo.GetRefCount() == 0 {
 			if xo.GetIsReal() {
 				rlm.MarkNewDeleted(xo)
@@ -212,25 +212,8 @@ func (rlm *Realm) DidUpdate(po, xo, co Object) {
 
 func (rlm *Realm) DidUpdate2(store Store, po, xo, co Object, isRef bool, length, offset int) {
 	fmt.Println("---DidUpdate, rlm.ID: ", rlm.ID)
-	fmt.Printf("---xo: %v, type of xo: %v\n", xo, reflect.TypeOf(xo))
+	//fmt.Printf("---xo: %v, type of xo: %v\n", xo, reflect.TypeOf(xo))
 	fmt.Printf("---co: %v, type of co: %v\n", co, reflect.TypeOf(co))
-
-	if co != nil {
-		if av, ok := co.(*ArrayValue); ok {
-			fmt.Println("---array value")
-			fmt.Println("---av: ", av)
-			fmt.Println("---av.Data: ", av.Data)
-			fmt.Println("---av.List: ", av.List, len(av.List))
-			fmt.Println("---av.List[0]: ", av.List[0])
-		} else {
-			println("not arrayvalue")
-		}
-		fmt.Println("---co.LastNewEscapedRealm: ", co.GetLastNewEscapedRealm())
-		fmt.Println("---co.GetRefCount: ", co.GetRefCount())
-		fmt.Println("---co isReal(attached): ", co.GetIsReal())
-		fmt.Println("---co objectID: ", co.GetObjectID())
-	}
-
 	fmt.Printf("---po: %v, type of po: %v\n", po, reflect.TypeOf(po))
 
 	if rlm == nil {
@@ -264,12 +247,12 @@ func (rlm *Realm) DidUpdate2(store Store, po, xo, co Object, isRef bool, length,
 	rlm.MarkDirty(po)
 
 	if co != nil {
-		fmt.Println("---co.GetRefCount: ", co.GetRefCount())
+		//fmt.Println("---co.GetRefCount: ", co.GetRefCount())
 		// XXX, inc ref count everytime assignment happens
 		co.IncRefCount()
 		fmt.Println("---after inc, co.GetRefCount: ", co.GetRefCount())
 		if co.GetRefCount() > 1 {
-			if co.GetIsEscaped() {
+			if co.GetIsEscaped() { // XXX, this implies attached?
 				// XXX, why packageBlock is automatically escaped?
 				println("---already escaped, should check cross realm?")
 				// already escaped
@@ -326,7 +309,8 @@ func checkCrossRealm(store Store, oo Object, offset, length int) {
 				}
 			}
 		}
-
+	case *MapValue:
+		println("---mapValue...")
 	case *HeapItemValue:
 		fmt.Println("---heapItemValue: ", v)
 		//r := fillValueTV(store, &v.Value)
@@ -338,7 +322,11 @@ func checkCrossRealm(store Store, oo Object, offset, length int) {
 		fmt.Println("---offset: ", offset)
 		fmt.Println("---escaped array, check if elements are real")
 		for i := offset; i < length; i++ {
-			e := oo.(*ArrayValue).List[i]
+			// XXX, difference between them?
+			//e := oo.(*ArrayValue).List[i]
+			//res := oo.(*ArrayValue).GetPointerAtIndexInt2(store, i, nil).Deref()
+			e := oo.(*ArrayValue).GetPointerAtIndexInt2(store, i, nil).Deref()
+
 			fmt.Println("---e: ", e, reflect.TypeOf(e.V))
 			if _, ok := e.V.(RefValue); ok { // TODO: XXX, does this already enough
 				fmt.Println("---escaped: ", e.V.(RefValue).Escaped)
@@ -357,12 +345,12 @@ func checkCrossRealm(store Store, oo Object, offset, length int) {
 				fmt.Println("---e.V: ", e.V)
 				fmt.Println("---e.V: ", reflect.TypeOf(e.V))
 
-				res := oo.(*ArrayValue).GetPointerAtIndexInt2(store, i, nil).Deref()
-				fmt.Println("---res: ", res)
-				fmt.Println("---type of res: ", reflect.TypeOf(res.V))
-				if p, ok := res.V.(PointerValue); ok {
+				if p, ok := e.V.(PointerValue); ok {
 					fmt.Println("---p.TV: ", p.TV)
+					fmt.Println("---p.Index: ", p.Index)
 					fmt.Println("---p.Base: ", p.Base)
+
+					//r1 := fillValueTV(store, &p.Base)
 
 					rr := fillValueTV(store, p.TV)
 					fmt.Println("---rr: ", rr)
@@ -375,23 +363,27 @@ func checkCrossRealm(store Store, oo Object, offset, length int) {
 						}
 						fmt.Println("---sv.ObjectID", sv.GetObjectID())
 					}
+				} else {
+					println("---e.V is not pointer")
+					if !e.V.(Object).GetIsReal() {
+						panic("should not happen while reference unreal element from external realm")
+					}
 				}
 			}
 		}
 	default:
-		fmt.Println("---v :", v)
+		//fmt.Println("---v :", v)
 	}
 }
 
-// TODO: move these crossrealm check logic before 'DidUpdate'
+// escaped realm should be reference object
 func (rlm *Realm) MarkNewEscapedCheckCrossRealm(store Store, oo Object, isRef bool, length, offset int) {
-	fmt.Println("---MarkNewEscapedCheckCrossRealm---, oo: ", oo)
-	checkCrossRealm(store, oo, offset, length)
-	fmt.Println("---rlm.ID: ", rlm.ID)
-
-	fmt.Println("---oo.GetRefCount(): ", oo.GetRefCount())
-	fmt.Println("---oo.lastNewRealEscapedRealm: ", oo.GetLastNewEscapedRealm())
-	fmt.Println("---oo.GetIsReal: ", oo.GetIsReal())
+	fmt.Println("---MarkNewEscapedCheckCrossRealm")
+	//fmt.Println("---isRef: ", isRef)
+	//fmt.Println("---rlm.ID: ", rlm.ID)
+	//fmt.Println("---oo.GetRefCount(): ", oo.GetRefCount())
+	//fmt.Println("---oo.lastNewRealEscapedRealm: ", oo.GetLastNewEscapedRealm())
+	//fmt.Println("---oo.GetIsReal: ", oo.GetIsReal())
 
 	if oo.GetLastNewEscapedRealm() == rlm.ID {
 		return
@@ -399,37 +391,7 @@ func (rlm *Realm) MarkNewEscapedCheckCrossRealm(store Store, oo Object, isRef bo
 
 	if oo.GetLastNewEscapedRealm() != rlm.ID { // crossing realm
 		if isRef {
-
-			if hiv, ok := oo.(*HeapItemValue); ok {
-				fmt.Println("---hiv: ", hiv)
-				//r := fillValueTV(store, &hiv.Value)
-				//fmt.Println("---r: ", r)
-				//if sv, ok := hiv.Value.V.(*StructValue); ok {
-				//	fmt.Println("---sv: ", sv)
-				//	if !sv.GetIsReal() {
-				//		panic("---sv is not real!!!")
-				//	}
-				//	for _, fv := range sv.Fields {
-				//		rfv := fillValueTV(store, &fv)
-				//		fmt.Println("---rfv: ", rfv)
-				//		if oo, ok := rfv.V.(Object); ok {
-				//			if !oo.GetIsReal() {
-				//				panic(fmt.Sprintf("---should not happen, %v: is not real \n", oo))
-				//			}
-				//		}
-				//	}
-				//}
-			}
-
-			// =====================================================
-
-			fmt.Println("---length: ", length)
-			if length != 0 { // TODO: explicit array check
-			} else { // other than array
-				if !oo.GetIsReal() { // oo is not attached in the origin realm
-					panic("should not happen while attempting to attach unattached object by reference from external realm")
-				}
-			}
+			checkCrossRealm(store, oo, offset, length)
 		} else {
 			panic("should not happen while attempting to attach objects by value from external realm")
 		}
@@ -439,7 +401,7 @@ func (rlm *Realm) MarkNewEscapedCheckCrossRealm(store Store, oo Object, isRef bo
 }
 
 func (rlm *Realm) MarkNewReal(oo Object) {
-	fmt.Println("---markNewReal---, oo: ", oo)
+	//fmt.Println("---markNewReal---, oo: ", oo)
 	if debug {
 		if pv, ok := oo.(*PackageValue); ok {
 			// packages should have no owner.
@@ -468,15 +430,15 @@ func (rlm *Realm) MarkNewReal(oo Object) {
 	if rlm.newCreated == nil {
 		rlm.newCreated = make([]Object, 0, 256)
 	}
-	fmt.Println("---append oo to newCreated object: ", oo)
+	//fmt.Println("---append oo to newCreated object: ", oo)
 	rlm.newCreated = append(rlm.newCreated, oo)
-	fmt.Println("---len of new created: ", len(rlm.newCreated))
+	//fmt.Println("---len of new created: ", len(rlm.newCreated))
 }
 
 // mark dirty == updated
 func (rlm *Realm) MarkDirty(oo Object) {
-	fmt.Printf("---current rlm: %v: \n", rlm)
-	fmt.Printf("---Mark Dirty %v: \n", oo)
+	//fmt.Printf("---current rlm: %v: \n", rlm)
+	//fmt.Printf("---Mark Dirty %v: \n", oo)
 	if debug {
 		if !oo.GetIsReal() && !oo.GetIsNewReal() {
 			panic("cannot mark unreal object as dirty")
@@ -517,7 +479,7 @@ func (rlm *Realm) MarkNewDeleted(oo Object) {
 }
 
 func (rlm *Realm) MarkNewEscaped(oo Object) {
-	fmt.Println("---MarkNewEscaped---, oo: ", oo)
+	//fmt.Println("---MarkNewEscaped---, oo: ", oo)
 	if debug {
 		if !oo.GetIsNewReal() && !oo.GetIsReal() {
 			panic("cannot mark unreal object as new escaped")
@@ -616,30 +578,15 @@ func (rlm *Realm) FinalizeRealmTransaction(readonly bool, store Store) {
 // All newly created objects become appended to .created,
 // and get assigned ids.
 func (rlm *Realm) processNewCreatedMarks(store Store) {
-	fmt.Println("---processNewCreatedMarks---")
-	fmt.Println("---len of newCreated objects:", len(rlm.newCreated))
+	//fmt.Println("---processNewCreatedMarks---")
+	//fmt.Println("---len of newCreated objects:", len(rlm.newCreated))
 	// Create new objects and their new descendants.
 	//for _, oo := range rlm.newCreated {
 	for i := 0; i < len(rlm.newCreated); i++ {
 		oo := rlm.newCreated[i]
-		fmt.Printf("---oo[%d] is %v:\n", i, oo)
-		// TODO: here check embedded object cross
-		//more := getChildObjects2(store, oo)
-		//fmt.Println("---children of oo: ", more)
-		//fmt.Println("---len of children: ", len(more))
-		//for i, c := range more {
-		//	fmt.Printf("[%d] of children is: %v\n", i, c)
-		//	//fmt.Printf("---%p\n", c)
-		//	if c.GetIsCrossRealm() {
-		//		panic("---cross realm")
-		//	} else {
-		//		println("---not cross realm")
-		//	}
-		//}
-		fmt.Println("---processNewCreatedMarks, oo.GetRefCount(): ", oo.GetRefCount())
-		//if oo.GetIsCrossRealm() {
-		//	fmt.Println("---should not attach value with type defined in other realm")
-		//	//panic("---!!!")
+		//fmt.Printf("---oo[%d] is %v:\n", i, oo)
+		//if _, ok := oo.(*BoundMethodValue); ok {
+		//	panic("should not happen persist bound method")
 		//}
 		if debug {
 			if oo.GetIsDirty() {
@@ -668,11 +615,11 @@ func (rlm *Realm) processNewCreatedMarks(store Store) {
 
 // oo must be marked new-real, and ref-count already incremented.
 func (rlm *Realm) incRefCreatedDescendants(store Store, oo Object) {
-	fmt.Println("---incRefCreatedDescendants, rlm.ID: ", rlm.ID)
-	fmt.Println("---incRefCreatedDescendants oo.GetLastEscapedRealm: ", oo.GetLastNewEscapedRealm())
+	//fmt.Println("---incRefCreatedDescendants, rlm.ID: ", rlm.ID)
+	//fmt.Println("---incRefCreatedDescendants oo.GetLastEscapedRealm: ", oo.GetLastNewEscapedRealm())
+	//fmt.Println("---incRefCreatedDescendants from oo: ", oo)
+	//fmt.Println("---incRefCreatedDescendants, oo.GetObjectID: ", oo.GetObjectID())
 
-	fmt.Println("---incRefCreatedDescendants from oo: ", oo)
-	fmt.Println("---incRefCreatedDescendants, oo.GetObjectID: ", oo.GetObjectID())
 	if debug {
 		if oo.GetIsDirty() {
 			panic("cannot increase reference of descendants of dirty objects")
@@ -684,8 +631,8 @@ func (rlm *Realm) incRefCreatedDescendants(store Store, oo Object) {
 
 	// XXX, oo must be new real here, it's not escaped
 	if !oo.GetLastNewEscapedRealm().IsZero() && oo.GetLastNewEscapedRealm() != rlm.ID {
-		fmt.Println("---oo.GetLastNewEscapedRealm: ", oo.GetLastNewEscapedRealm())
-		fmt.Println("---rlm.ID: ", rlm.ID)
+		//fmt.Println("---oo.GetLastNewEscapedRealm: ", oo.GetLastNewEscapedRealm())
+		//fmt.Println("---rlm.ID: ", rlm.ID)
 		panic("should not happen while attempting to attach new real object from external realm")
 	}
 
@@ -703,9 +650,9 @@ func (rlm *Realm) incRefCreatedDescendants(store Store, oo Object) {
 	// recurse for children.
 	more := getChildObjects2(store, oo)
 	//fmt.Println("---incRefCreatedDescendants, more: ", more)
-	fmt.Println("---len of more: ", len(more))
-	for i, child := range more {
-		fmt.Printf("---[%d]child: %v, type of child: %v \n", i, child, reflect.TypeOf(child))
+	//fmt.Println("---len of more: ", len(more))
+	for _, child := range more {
+		//fmt.Printf("---[%d]child: %v, type of child: %v \n", i, child, reflect.TypeOf(child))
 		//fmt.Printf("---child addr: %p\n", child)
 		if _, ok := child.(*PackageValue); ok {
 			if debug {
@@ -718,35 +665,35 @@ func (rlm *Realm) incRefCreatedDescendants(store Store, oo Object) {
 		}
 		child.IncRefCount()
 		rc := child.GetRefCount()
-		fmt.Println("---rc after inc: ", rc)
+		//fmt.Println("---rc after inc: ", rc)
 		if rc == 1 {
 			if child.GetIsReal() {
-				fmt.Println("---child is real, child: ", child)
+				//fmt.Println("---child is real, child: ", child)
 				// a deleted real became undeleted.
 				child.SetOwner(oo)
 				rlm.MarkDirty(child)
 			} else {
-				fmt.Println("---child NOT real, child: ", child)
+				//fmt.Println("---child NOT real, child: ", child)
 				// a (possibly pre-existing) new object
 				// became real (again).
 				// NOTE: may already be marked for first gen
 				// newCreated or updated.
 				//fmt.Println("---Set owner to be: ", oo)
-				println("---set owner")
+				//println("---set owner")
 				child.SetOwner(oo)
 				rlm.incRefCreatedDescendants(store, child)
 				child.SetIsNewReal(true)
 			}
 		} else if rc > 1 {
 			if child.GetIsEscaped() {
-				fmt.Println("---child is escaped, child: ", child)
+				//fmt.Println("---child is escaped, child: ", child)
 				// already escaped, do nothing.
 			} else {
 				// NOTE: do not unset owner here,
 				// may become unescaped later
 				// in processNewEscapedMarks().
 				// NOTE: may already be escaped.
-				fmt.Println("---in recursive, mark new escaped, child: ", child)
+				//fmt.Println("---in recursive, mark new escaped, child: ", child)
 				rlm.MarkNewEscaped(child)
 			}
 		} else {
@@ -764,9 +711,9 @@ func (rlm *Realm) incRefCreatedDescendants(store Store, oo Object) {
 // to rlm.deleted.
 // Must run *after* processNewCreatedMarks().
 func (rlm *Realm) processNewDeletedMarks(store Store) {
-	fmt.Println("---processNewDeletedMarks---")
+	//fmt.Println("---processNewDeletedMarks---")
 	for _, oo := range rlm.newDeleted {
-		fmt.Println("---oo: ", oo, oo.GetRefCount())
+		//fmt.Println("---oo: ", oo, oo.GetRefCount())
 		if debug {
 			if oo.GetObjectID().IsZero() {
 				panic("new deleted mark should have an object ID")
@@ -829,7 +776,7 @@ func (rlm *Realm) decRefDeletedDescendants(store Store, oo Object) {
 // objects get their original owners marked dirty (to be further
 // marked via markDirtyAncestors).
 func (rlm *Realm) processNewEscapedMarks(store Store) {
-	fmt.Println("---processNewEscapedMarks---")
+	//fmt.Println("---processNewEscapedMarks---")
 	escaped := make([]Object, 0, len(rlm.newEscaped))
 	// These are those marked by MarkNewEscaped(),
 	// regardless of whether new-real or was real,
@@ -837,11 +784,11 @@ func (rlm *Realm) processNewEscapedMarks(store Store) {
 	// (and never can be unescaped,)
 	// except for new-reals that get demoted
 	// because ref-count isn't >= 2.
-	for i, eo := range rlm.newEscaped {
-		fmt.Printf("---processNewEscapedMarks, [%d]eo: %v\n", i, eo)
-		fmt.Println("---eo.GetLastEscapedRealm: ", eo.GetLastNewEscapedRealm())
-		fmt.Println("---eo.GetRefCount(): ", eo.GetRefCount())
-		fmt.Println("---rlm.ID: ", rlm.ID)
+	for _, eo := range rlm.newEscaped {
+		//fmt.Printf("---processNewEscapedMarks, [%d]eo: %v\n", i, eo)
+		//fmt.Println("---eo.GetLastEscapedRealm: ", eo.GetLastNewEscapedRealm())
+		//fmt.Println("---eo.GetRefCount(): ", eo.GetRefCount())
+		//fmt.Println("---rlm.ID: ", rlm.ID)
 		if debug {
 			if !eo.GetIsNewEscaped() {
 				panic("new escaped mark not marked as new escaped")
@@ -875,14 +822,14 @@ func (rlm *Realm) processNewEscapedMarks(store Store) {
 					// will be saved regardless.
 				} else {
 					// exists, mark dirty.
-					fmt.Println("---exists, mark dirty, po: ", po)
+					//fmt.Println("---exists, mark dirty, po: ", po)
 					rlm.MarkDirty(po)
 				}
 				if eo.GetObjectID().IsZero() {
 					panic("new escaped mark has no object ID")
 				}
 				// escaped has no owner.
-				println("---escaped has no owner")
+				//println("---escaped has no owner")
 				eo.SetOwner(nil)
 			}
 		}
@@ -897,7 +844,7 @@ func (rlm *Realm) processNewEscapedMarks(store Store) {
 // (ancestors) must be marked as dirty to update the
 // hash tree.
 func (rlm *Realm) markDirtyAncestors(store Store) {
-	fmt.Println("---markDirtyAncestors---")
+	//fmt.Println("---markDirtyAncestors---")
 	markAncestorsOne := func(oo Object) {
 		for {
 			if pv, ok := oo.(*PackageValue); ok {
@@ -966,26 +913,26 @@ func (rlm *Realm) markDirtyAncestors(store Store) {
 
 // Saves .created and .updated objects.
 func (rlm *Realm) saveUnsavedObjects(store Store) {
-	fmt.Println("---saveUnsavedObjects, new created, new updated---")
-	fmt.Println("---len of new created: ", len(rlm.created))
-	fmt.Println("---len of new updated: ", len(rlm.updated))
+	//fmt.Println("---saveUnsavedObjects, new created, new updated---")
+	//fmt.Println("---len of new created: ", len(rlm.created))
+	//fmt.Println("---len of new updated: ", len(rlm.updated))
 	for _, co := range rlm.created {
-		fmt.Println("------saveUnsavedObject, co: ", co)
+		//fmt.Println("------saveUnsavedObject, co: ", co)
 		// for i := len(rlm.created) - 1; i >= 0; i-- {
 		// co := rlm.created[i]
 		if !co.GetIsNewReal() {
-			println("---not new real")
+			//println("---not new real")
 			// might have happened already as child
 			// of something else created.
 			continue
 		} else {
-			println("---new real")
+			//println("---new real")
 			rlm.saveUnsavedObjectRecursively(store, co)
 		}
 	}
 	for _, uo := range rlm.updated {
-		fmt.Println("---uo: ", uo)
-		// for i := len(rlm.updated) - 1; i >= 0; i-- {
+		//fmt.Println("---uo: ", uo)
+
 		// uo := rlm.updated[i]
 		if !uo.GetIsDirty() {
 			// might have happened already as child
@@ -999,7 +946,7 @@ func (rlm *Realm) saveUnsavedObjects(store Store) {
 
 // store unsaved children first.
 func (rlm *Realm) saveUnsavedObjectRecursively(store Store, oo Object) {
-	fmt.Println("---saveUnsavedObjectRecursively, oo: ", oo)
+	//fmt.Println("---saveUnsavedObjectRecursively, oo: ", oo)
 	if debug {
 		if !oo.GetIsNewReal() && !oo.GetIsDirty() {
 			panic("cannot save new real or non-dirty objects")
@@ -1018,14 +965,14 @@ func (rlm *Realm) saveUnsavedObjectRecursively(store Store, oo Object) {
 	}
 	// first, save unsaved children.
 	unsaved := getUnsavedChildObjects(oo)
-	fmt.Println("---unsaved: ", unsaved)
+	//fmt.Println("---unsaved: ", unsaved)
 	for _, uch := range unsaved {
-		fmt.Println("---uch: ", uch)
-		fmt.Println("---uch.GetOwnerID(): ", uch.GetOwnerID())
-		fmt.Println("---uch.GetRefCount(): ", uch.GetRefCount())
-		fmt.Println("---type of uch: ", reflect.TypeOf(uch))
+		//fmt.Println("---uch: ", uch)
+		//fmt.Println("---uch.GetOwnerID(): ", uch.GetOwnerID())
+		//fmt.Println("---uch.GetRefCount(): ", uch.GetRefCount())
+		//fmt.Println("---type of uch: ", reflect.TypeOf(uch))
 		if uch.GetIsEscaped() || uch.GetIsNewEscaped() {
-			fmt.Println("---uch is escaped or new escaped")
+			//fmt.Println("---uch is escaped or new escaped")
 			// no need to save preemptively.
 		} else {
 			rlm.saveUnsavedObjectRecursively(store, uch)
@@ -1033,7 +980,7 @@ func (rlm *Realm) saveUnsavedObjectRecursively(store Store, oo Object) {
 	}
 	// then, save self.
 	if oo.GetIsNewReal() {
-		fmt.Println("---oo is new real: ", oo)
+		//fmt.Println("---oo is new real: ", oo)
 		// save created object.
 		if debug {
 			if oo.GetIsDirty() {
@@ -1043,7 +990,7 @@ func (rlm *Realm) saveUnsavedObjectRecursively(store Store, oo Object) {
 		rlm.saveObject(store, oo)
 		oo.SetIsNewReal(false)
 	} else {
-		fmt.Println("---oo is not new real, update it: ", oo)
+		//fmt.Println("---oo is not new real, update it: ", oo)
 		// update existing object.
 		if debug {
 			if !oo.GetIsDirty() {
@@ -1062,9 +1009,9 @@ func (rlm *Realm) saveUnsavedObjectRecursively(store Store, oo Object) {
 }
 
 func (rlm *Realm) saveObject(store Store, oo Object) {
-	fmt.Println("---saveObject: ", oo)
+	//fmt.Println("---saveObject: ", oo)
 	oid := oo.GetObjectID()
-	fmt.Println("---saveObject: ", oid)
+	//fmt.Println("---saveObject: ", oid)
 	if oid.IsZero() {
 		panic("unexpected zero object id")
 	}
@@ -1087,7 +1034,7 @@ func (rlm *Realm) saveObject(store Store, oo Object) {
 // removeDeletedObjects
 
 func (rlm *Realm) removeDeletedObjects(store Store) {
-	fmt.Println("---removeDeletedObjects---")
+	//fmt.Println("---removeDeletedObjects---")
 	for _, do := range rlm.deleted {
 		store.DelObject(do)
 	}
@@ -1174,10 +1121,10 @@ func getChildObjects(val Value, more []Value) []Value {
 		more = getSelfOrChildObjects(cv.Base, more)
 		return more
 	case *StructValue:
-		println("---struct value")
+		//println("---struct value")
 		for _, ctv := range cv.Fields {
 			// TODO: we have type infos here, so check check cross realm logic
-			fmt.Println("---ctv: ", ctv)
+			//fmt.Println("---ctv: ", ctv)
 			more = getSelfOrChildObjects(ctv.V, more)
 		}
 		return more
@@ -1227,7 +1174,7 @@ func getChildObjects(val Value, more []Value) []Value {
 
 // like getChildObjects() but loads RefValues into objects.
 func getChildObjects2(store Store, val Value) []Object {
-	fmt.Println("---getChildObjects2, val: ", val)
+	//fmt.Println("---getChildObjects2, val: ", val)
 	chos := getChildObjects(val, nil)
 	//fmt.Println("---chos: ", chos)
 	objs := make([]Object, 0, len(chos))
@@ -1405,7 +1352,7 @@ func copyTypeWithRefs(typ Type) Type {
 // Also checks for integrity of immediate children -- they must already be
 // persistent (real), and not dirty, or else this function panics.
 func copyValueWithRefs(val Value) Value {
-	fmt.Println("---copyValueWithRefs, val: ", val)
+	//fmt.Println("---copyValueWithRefs, val: ", val)
 	switch cv := val.(type) {
 	case nil:
 		return nil
@@ -1768,14 +1715,14 @@ func (rlm *Realm) nextObjectID() ObjectID {
 // Object gets its id set (panics if already set), and becomes
 // marked as new and real.
 func (rlm *Realm) assignNewObjectID(oo Object) ObjectID {
-	fmt.Printf("---assignNewObjectID, rlm: %v, oo: %v, oo: %p\n", rlm, oo, oo)
+	//fmt.Printf("---assignNewObjectID, rlm: %v, oo: %v, oo: %p\n", rlm, oo, oo)
 	oid := oo.GetObjectID()
-	fmt.Println("---oid: ", oid)
+	//fmt.Println("---oid: ", oid)
 	if !oid.IsZero() {
 		panic("unexpected non-zero object id")
 	}
 	noid := rlm.nextObjectID()
-	fmt.Println("---noid: ", noid)
+	//fmt.Println("---noid: ", noid)
 	oo.SetObjectID(noid)
 	return noid
 }
@@ -1791,7 +1738,7 @@ func toRefNode(bn BlockNode) RefNode {
 }
 
 func toRefValue(val Value) RefValue {
-	fmt.Println("---toRefValue", val)
+	//fmt.Println("---toRefValue", val)
 	// TODO use type switch stmt.
 	if ref, ok := val.(RefValue); ok {
 		return ref
@@ -1865,7 +1812,7 @@ func ensureUniq(oozz ...[]Object) {
 }
 
 func refOrCopyValue(tv TypedValue) TypedValue {
-	fmt.Println("---refOrCopyValue:", tv)
+	//fmt.Println("---refOrCopyValue:", tv)
 	if tv.T != nil {
 		tv.T = refOrCopyType(tv.T)
 	}

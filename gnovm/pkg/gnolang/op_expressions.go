@@ -16,8 +16,8 @@ func (m *Machine) doOpIndex1() {
 	}
 	iv := m.PopValue()   // index
 	xv := m.PeekValue(1) // x
-	fmt.Println("---doOpIndex1, iv: ", iv)
-	fmt.Println("---doOpIndex1, xv: ", xv)
+	//fmt.Println("---doOpIndex1, iv: ", iv)
+	//fmt.Println("---doOpIndex1, xv: ", xv)
 	switch ct := baseOf(xv.T).(type) {
 	case *MapType:
 		mv := xv.V.(*MapValue)
@@ -33,7 +33,7 @@ func (m *Machine) doOpIndex1() {
 		}
 	default:
 		res := xv.GetPointerAtIndex(m.Alloc, m.Store, iv)
-		fmt.Println("---doOpIndex1, res: ", res.Deref())
+		//fmt.Println("---doOpIndex1, res: ", res.Deref())
 		*xv = res.Deref() // reuse as result
 	}
 }
@@ -47,7 +47,7 @@ func (m *Machine) doOpIndex2() {
 	}
 	iv := m.PeekValue(1) // index
 	xv := m.PeekValue(2) // x
-	fmt.Println("---doOpIndex2: ", iv)
+	//fmt.Println("---doOpIndex2: ", iv)
 	switch ct := baseOf(xv.T).(type) {
 	case *MapType:
 		vt := ct.Value
@@ -80,12 +80,12 @@ func (m *Machine) doOpIndex2() {
 }
 
 func (m *Machine) doOpSelector() {
-	fmt.Println("---doOpSelector---")
+	//fmt.Println("---doOpSelector---")
 	sx := m.PopExpr().(*SelectorExpr)
 	xv := m.PeekValue(1)
-	fmt.Println("---xv: ", xv)
+	//fmt.Println("---xv: ", xv)
 	res := xv.GetPointerTo(m.Alloc, m.Store, sx.Path).Deref()
-	fmt.Println("---doOpSelector, res after Deref: ", res)
+	//fmt.Println("---doOpSelector, res after Deref: ", res)
 	if debug {
 		m.Printf("-v[S] %v\n", xv)
 		m.Printf("+v[S] %v\n", res)

@@ -1,7 +1,6 @@
 package gnolang
 
 import (
-	"fmt"
 	"reflect"
 )
 
@@ -124,7 +123,6 @@ func (alloc *Allocator) AllocateDataArray(size int64) {
 }
 
 func (alloc *Allocator) AllocateListArray(items int64) {
-	fmt.Println("---AllocateListArray---")
 	alloc.Allocate(allocArray + allocArrayItem*items)
 }
 
@@ -229,7 +227,6 @@ func (alloc *Allocator) NewSlice(base Value, offset, length, maxcap int) *SliceV
 
 // NOTE: also allocates the underlying array from list.
 func (alloc *Allocator) NewSliceFromList(list []TypedValue) *SliceValue {
-	fmt.Println("---NewSliceFromList")
 	alloc.AllocateSlice()
 	alloc.AllocateListArray(int64(cap(list)))
 	fullList := list[:cap(list)]

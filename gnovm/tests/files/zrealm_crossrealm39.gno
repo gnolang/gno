@@ -1,16 +1,13 @@
 // PKGPATH: gno.land/r/crossrealm_test
 package crossrealm_test
 
-import (
-	"gno.land/r/demo/tests"
-)
+import crossrealm "gno.land/r/demo/tests/crossrealm"
 
-// NOTE: it is *invalid* to persist external realm types.
-var somevalue tests.TestRealmObject
+var f func() string
 
 func main() {
-	somevalue.Field = "test"
-	println(somevalue)
+	f = crossrealm.GetFunc2()
+	println(f)
 }
 
 // Error:

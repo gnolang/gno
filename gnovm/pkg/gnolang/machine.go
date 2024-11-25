@@ -286,9 +286,9 @@ func (m *Machine) RunMemPackageWithOverrides(memPkg *std.MemPackage, save bool) 
 }
 
 func (m *Machine) runMemPackage(memPkg *std.MemPackage, save, overrides bool) (*PackageNode, *PackageValue) {
-	fmt.Println("---runMemPackage, save: ", save)
-	fmt.Println("---runMemPackage, memPkg: ", memPkg)
-	defer func() { fmt.Println("---done runMemPackage: ", memPkg) }()
+	//fmt.Println("---runMemPackage, save: ", save)
+	//fmt.Println("---runMemPackage, memPkg: ", memPkg)
+	//defer func() { fmt.Println("---done runMemPackage: ", memPkg) }()
 	// parse files.
 	files := ParseMemPackage(memPkg)
 	if !overrides && checkDuplicates(files) {
@@ -310,7 +310,7 @@ func (m *Machine) runMemPackage(memPkg *std.MemPackage, save, overrides bool) (*
 	m.SetActivePackage(pv)
 	// run files.
 	updates := m.RunFileDecls(files.Files...)
-	fmt.Println("---updates: ", updates)
+	//fmt.Println("---updates: ", updates)
 	// save package value and mempackage.
 	// XXX save condition will be removed once gonative is removed.
 	var throwaway *Realm
@@ -320,7 +320,7 @@ func (m *Machine) runMemPackage(memPkg *std.MemPackage, save, overrides bool) (*
 		if throwaway != nil {
 			m.Realm = throwaway
 		}
-		fmt.Println("---save, throwaway: ", throwaway)
+		//fmt.Println("---save, throwaway: ", throwaway)
 	}
 	// run init functions
 	m.runInitFromUpdates(pv, updates)
@@ -733,16 +733,15 @@ func (m *Machine) runFileDecls(fns ...*FileNode) []TypedValue {
 // multiple files belonging to the same package in
 // lexical file name order to a compiler."
 func (m *Machine) runInitFromUpdates(pv *PackageValue, updates []TypedValue) {
-	fmt.Println("---runInitFromUpdates")
 	for _, tv := range updates {
-		fmt.Println("---runInitFromUpdates, tv: ", tv)
+		//fmt.Println("---runInitFromUpdates, tv: ", tv)
 		if tv.IsDefined() && tv.T.Kind() == FuncKind && tv.V != nil {
 			fv, ok := tv.V.(*FuncValue)
 			if !ok {
 				continue // skip native functions.
 			}
 			if strings.HasPrefix(string(fv.Name), "init.") {
-				fmt.Println("---fv.Name: ", fv.Name)
+				//fmt.Println("---fv.Name: ", fv.Name)
 				fb := pv.GetFileBlock(m.Store, fv.FileName)
 				m.PushBlock(fb)
 				m.RunFunc(fv.Name)
@@ -758,7 +757,7 @@ func (m *Machine) runInitFromUpdates(pv *PackageValue, updates []TypedValue) {
 // Returns a throwaway realm package is not a realm,
 // such as stdlibs or /p/ packages.
 func (m *Machine) saveNewPackageValuesAndTypes() (throwaway *Realm) {
-	fmt.Println("---saveNewPackageValuesAndTypes")
+	//fmt.Println("---saveNewPackageValuesAndTypes")
 	// save package value and dependencies.
 	pv := m.Package
 	if pv.IsRealm() {
@@ -790,12 +789,12 @@ func (m *Machine) saveNewPackageValuesAndTypes() (throwaway *Realm) {
 // Pass in the realm from m.saveNewPackageValuesAndTypes()
 // in case a throwaway was created.
 func (m *Machine) resavePackageValues(rlm *Realm) {
-	fmt.Println("---resavePackageValues, realm: ", rlm)
+	//fmt.Println("---resavePackageValues, realm: ", rlm)
 	// save package value and dependencies.
 	pv := m.Package
 	if pv.IsRealm() {
 		rlm = pv.Realm
-		fmt.Println("---rlm: ", rlm)
+		//fmt.Println("---rlm: ", rlm)
 		rlm.FinalizeRealmTransaction(m.ReadOnly, m.Store)
 		// re-save package realm info.
 		m.Store.SetPackageRealm(rlm)
@@ -981,14 +980,14 @@ func (m *Machine) RunDeclaration(d Decl) {
 // package level, for which evaluations happen during
 // preprocessing).
 func (m *Machine) runDeclaration(d Decl) {
-	fmt.Println("---run declaration, d: ", d)
+	//fmt.Println("---run declaration, d: ", d)
 	switch d := d.(type) {
 	case *FuncDecl:
 		// nothing to do.
 		// closure and package already set
 		// during PackageNode.NewPackage().
 	case *ValueDecl:
-		fmt.Println("---valueDecl, d.Type, type of d.Type: ", d.Type, reflect.TypeOf(d.Type))
+		//fmt.Println("---valueDecl, d.Type, type of d.Type: ", d.Type, reflect.TypeOf(d.Type))
 		m.PushOp(OpHalt)
 		m.PushStmt(d)
 		m.PushOp(OpExec)
@@ -1859,7 +1858,7 @@ func (m *Machine) PushFrameBasic(s Stmt) {
 // ensure the counts are consistent, otherwise we mask
 // bugs with frame pops.
 func (m *Machine) PushFrameCall(cx *CallExpr, fv *FuncValue, recv TypedValue) {
-	fmt.Printf("---PushFrameCall---, cx: %v, fv: %v, recv: %v\n", cx, fv, recv)
+	//fmt.Printf("---PushFrameCall---, cx: %v, fv: %v, recv: %v\n", cx, fv, recv)
 	fr := &Frame{
 		Source:      cx,
 		NumOps:      m.NumOps,
@@ -1885,13 +1884,13 @@ func (m *Machine) PushFrameCall(cx *CallExpr, fv *FuncValue, recv TypedValue) {
 		m.Printf("+F %#v\n", fr)
 	}
 	m.Frames = append(m.Frames, fr)
-	fmt.Println("---recv: ", recv)
+	//fmt.Println("---recv: ", recv)
 	if recv.IsDefined() {
 		// If the receiver is defined, we enter the receiver's realm.
 		obj := recv.GetFirstObject(m.Store)
-		fmt.Println("---obj, rt of obj: ", obj, reflect.TypeOf(obj))
-		fmt.Println("---obj.GetObjectID: ", obj.GetObjectID())
-		fmt.Printf("---obj addr: %p\n", obj)
+		//fmt.Println("---obj, rt of obj: ", obj, reflect.TypeOf(obj))
+		//fmt.Println("---obj.GetObjectID: ", obj.GetObjectID())
+		//fmt.Printf("---obj addr: %p\n", obj)
 		if obj == nil {
 			// could be a nil receiver.
 			// set package and realm of function.

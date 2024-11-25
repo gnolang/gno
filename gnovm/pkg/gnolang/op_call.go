@@ -7,7 +7,7 @@ import (
 )
 
 func (m *Machine) doOpPrecall() {
-	fmt.Println("---doOpPrecall---")
+	//fmt.Println("---doOpPrecall---")
 	cx := m.PopExpr().(*CallExpr)
 	v := m.PeekValue(1 + cx.NumArgs).V
 	if debug {
@@ -20,13 +20,13 @@ func (m *Machine) doOpPrecall() {
 	}
 	switch fv := v.(type) {
 	case *FuncValue:
-		fmt.Println("---FuncValue, fv: ", fv)
+		//fmt.Println("---FuncValue, fv: ", fv)
 		m.PushFrameCall(cx, fv, TypedValue{})
 		m.PushOp(OpCall)
 	case *BoundMethodValue:
-		fmt.Println("---BoundMethodValue, fv: ", fv)
-		fmt.Println("---BoundMethodValue, fv.Func: ", fv.Func)
-		fmt.Println("---BoundMethodValue, fv.Receiver: ", fv.Receiver)
+		//fmt.Println("---BoundMethodValue, fv: ", fv)
+		//fmt.Println("---BoundMethodValue, fv.Func: ", fv.Func)
+		//fmt.Println("---BoundMethodValue, fv.Receiver: ", fv.Receiver)
 		m.PushFrameCall(cx, fv.Func, fv.Receiver)
 		m.PushOp(OpCall)
 	case TypeValue:
@@ -51,7 +51,7 @@ func (m *Machine) doOpPrecall() {
 var gReturnStmt = &ReturnStmt{}
 
 func (m *Machine) doOpCall() {
-	fmt.Println("---doOpCall---")
+	//fmt.Println("---doOpCall---")
 	// NOTE: Frame won't be popped until the statement is complete, to
 	// discard the correct number of results for func calls in ExprStmts.
 	fr := m.LastFrame()
@@ -205,7 +205,6 @@ func (m *Machine) doOpReturn() {
 			finalize = true
 		}
 		if finalize {
-			fmt.Println("---going to finalizeRealmTransaction at return after call")
 			// Finalize realm updates!
 			// NOTE: This is a resource intensive undertaking.
 			crlm.FinalizeRealmTransaction(m.ReadOnly, m.Store)
@@ -241,7 +240,6 @@ func (m *Machine) doOpReturnFromBlock() {
 			finalize = true
 		}
 		if finalize {
-			fmt.Println("---going to finalize")
 			// Finalize realm updates!
 			// NOTE: This is a resource intensive undertaking.
 			crlm.FinalizeRealmTransaction(m.ReadOnly, m.Store)

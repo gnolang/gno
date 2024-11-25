@@ -348,34 +348,14 @@ func (oi *ObjectInfo) GetIsTransient() bool {
 
 // XXX, get first accessible object, maybe containing(parent) object, maybe itself.
 func (tv *TypedValue) GetFirstObject(store Store) Object {
-	fmt.Println("---GetFirstObject---, tv: ", tv, reflect.TypeOf(tv.V))
-	fmt.Println("---tv.T, type of tv.T", tv.T, reflect.TypeOf(tv.T))
-	if dt, ok := tv.T.(*DeclaredType); ok {
-		fmt.Println("---dt: ", dt)
-		fmt.Println("---dt.Name: ", dt.Name)
-		fmt.Println("---dt.PkgPath: ", dt.PkgPath)
-		fmt.Println("---PkgID: ", PkgIDFromPkgPath(dt.PkgPath))
-		fmt.Println("---dt.Base: ", dt.Base)
-	}
 	switch cv := tv.V.(type) {
 	case PointerValue:
-		println("---pointer value, get base")
-		if v, ok := cv.TV.V.(Object); ok {
-			fmt.Println("---v: ", v)
-			rc := v.GetRefCount()
-			fmt.Println("---rc: ", rc)
-			fmt.Println("---v Owner: ", v.GetOwnerID())
-			fmt.Println("---v.GetObjectID(): ", v.GetObjectID())
-			fmt.Println("---is Attached?", v.GetIsReal())
-		}
 		return cv.GetBase(store)
 	case *ArrayValue:
 		return cv
 	case *SliceValue:
 		return cv.GetBase(store)
 	case *StructValue:
-		println("---struct value")
-		fmt.Println("---cv.GetObjectID(): ", cv.GetObjectID())
 		return cv
 	case *FuncValue:
 		return cv.GetClosure(store)
@@ -404,13 +384,13 @@ func (tv *TypedValue) GetFirstObject(store Store) Object {
 // XXX, get first accessible object, maybe containing(parent) object, maybe itself.
 func (tv *TypedValue) GetFirstObject2(store Store) (obj Object, pkgId PkgID, isRef bool, length int, offset int) {
 	fmt.Println("---GetFirstObject2---, tv: ", tv, reflect.TypeOf(tv.V))
-	fmt.Println("---tv.T, type of tv.T", tv.T, reflect.TypeOf(tv.T))
+	//fmt.Println("---tv.T, type of tv.T", tv.T, reflect.TypeOf(tv.T))
 	if dt, ok := tv.T.(*DeclaredType); ok {
-		fmt.Println("---dt: ", dt)
-		fmt.Println("---dt.Name: ", dt.Name)
-		fmt.Println("---dt.PkgPath: ", dt.PkgPath)
-		fmt.Println("---PkgID: ", PkgIDFromPkgPath(dt.PkgPath))
-		fmt.Println("---dt.Base: ", dt.Base)
+		//fmt.Println("---dt: ", dt)
+		//fmt.Println("---dt.Name: ", dt.Name)
+		//fmt.Println("---dt.PkgPath: ", dt.PkgPath)
+		//fmt.Println("---PkgID: ", PkgIDFromPkgPath(dt.PkgPath))
+		//fmt.Println("---dt.Base: ", dt.Base)
 		if IsRealmPath(dt.PkgPath) {
 			pkgId = PkgIDFromPkgPath(dt.PkgPath)
 		}
@@ -420,11 +400,11 @@ func (tv *TypedValue) GetFirstObject2(store Store) (obj Object, pkgId PkgID, isR
 		println("---pointer value, get base")
 		if v, ok := cv.TV.V.(Object); ok {
 			fmt.Println("---v: ", v)
-			rc := v.GetRefCount()
-			fmt.Println("---rc: ", rc)
-			fmt.Println("---v Owner: ", v.GetOwnerID())
-			fmt.Println("---v.GetObjectID(): ", v.GetObjectID())
-			fmt.Println("---is Attached?", v.GetIsReal())
+			//rc := v.GetRefCount()
+			//fmt.Println("---rc: ", rc)
+			//fmt.Println("---v Owner: ", v.GetOwnerID())
+			//fmt.Println("---v.GetObjectID(): ", v.GetObjectID())
+			//fmt.Println("---is Attached?", v.GetIsReal())
 
 			if dt, ok := cv.TV.T.(*DeclaredType); ok {
 				// b0 = &crossrealm.Bar{A: 1} this is valid
@@ -441,22 +421,22 @@ func (tv *TypedValue) GetFirstObject2(store Store) (obj Object, pkgId PkgID, isR
 		return
 	case *ArrayValue:
 		fmt.Println("---array value, T: ", tv.T)
-		fmt.Println("---Elem PkgPath: ", tv.T.Elem().GetPkgPath())
+		//fmt.Println("---Elem PkgPath: ", tv.T.Elem().GetPkgPath())
 
 		obj, pkgId, isRef = cv, PkgIDFromPkgPath(tv.T.Elem().GetPkgPath()), false
 		return
 	case *SliceValue:
-		base := cv.GetBase(store)
-		fmt.Println("---SliceValue, base: ", base)
-		fmt.Printf("---SliceValue len: %d, cap:%d, offsetL:%d \n", cv.Length, cv.Maxcap, cv.Offset)
-		fmt.Println("---tv.T...PkgPath: ", tv.T.Elem().GetPkgPath())
-		fmt.Println("---type of  base: ", reflect.TypeOf(base))
+		//base := cv.GetBase(store)
+		//fmt.Println("---SliceValue, base: ", base)
+		//fmt.Printf("---SliceValue len: %d, cap:%d, offsetL:%d \n", cv.Length, cv.Maxcap, cv.Offset)
+		//fmt.Println("---tv.T...PkgPath: ", tv.T.Elem().GetPkgPath())
+		//fmt.Println("---type of  base: ", reflect.TypeOf(base))
 
 		obj, pkgId, isRef, length, offset = cv.GetBase(store), PkgIDFromPkgPath(tv.T.Elem().GetPkgPath()), true, cv.GetLength(), cv.Offset
 		return
 	case *StructValue:
 		println("---struct value")
-		fmt.Println("---cv.GetObjectID(): ", cv.GetObjectID())
+		//fmt.Println("---cv.GetObjectID(): ", cv.GetObjectID())
 		obj, isRef = cv, false
 		return
 	case *FuncValue:

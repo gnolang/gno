@@ -243,7 +243,7 @@ func (m *Machine) doOpEval() {
 			m.PushOp(OpEval)
 		}
 	case *CallExpr:
-		fmt.Println("---Eval, CallExpr, x: ", x)
+		//fmt.Println("---Eval, CallExpr, x: ", x)
 		m.PushOp(OpPrecall)
 		// Eval args.
 		args := x.Args
@@ -267,7 +267,7 @@ func (m *Machine) doOpEval() {
 		m.PushExpr(x.X)
 		m.PushOp(OpEval)
 	case *SelectorExpr:
-		fmt.Println("---Eval, SelectorExpr, x: ", x)
+		//fmt.Println("---Eval, SelectorExpr, x: ", x)
 		m.PushOp(OpSelector)
 		// evaluate x
 		m.PushExpr(x.X)
