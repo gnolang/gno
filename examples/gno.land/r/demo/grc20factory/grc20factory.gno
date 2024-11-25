@@ -2,121 +2,121 @@ package foo20
 
 import (
 	"std"
-	"strconv"
 	"strings"
 
 	"gno.land/p/demo/avl"
 	"gno.land/p/demo/grc/grc20"
+	"gno.land/p/demo/ownable"
+	"gno.land/p/demo/ufmt"
 )
 
-// XXX: the p/grc20 library needs a refactor to change names (i.e., adminToken)
+var instances avl.Tree // symbol -> instance
 
-type token struct {
-	adminToken *grc20.AdminToken
-	admin      std.Address
+type instance struct {
+	token  *grc20.Token
+	ledger *grc20.PrivateLedger
+	admin  *ownable.Ownable
+	faucet uint64 // per-request amount. disabled if 0.
 }
 
-var tokens avl.Tree // symbol -> token
-
-func NewToken(name, symbol string, decimals uint, initialMint uint64) {
-	admin := std.PrevRealm().Addr()
-	NewTokenWithAdmin(name, symbol, decimals, initialMint, admin)
+func New(name, symbol string, decimals uint, initialMint, faucet uint64) {
+	caller := std.PrevRealm().Addr()
+	NewWithAdmin(name, symbol, decimals, initialMint, faucet, caller)
 }
 
-func NewTokenWithAdmin(name, symbol string, decimals uint, initialMint uint64, admin std.Address) {
-	exists := tokens.Has(symbol)
+func NewWithAdmin(name, symbol string, decimals uint, initialMint, faucet uint64, admin std.Address) {
+	exists := instances.Has(symbol)
 	if exists {
 		panic("token already exists")
 	}
 
-	newToken := grc20.NewAdminToken(name, symbol, decimals)
-	newToken.Mint(admin, initialMint)
-	t := token{
-		adminToken: newToken,
-		admin:      admin,
+	token, ledger := grc20.NewToken(name, symbol, decimals)
+	if initialMint > 0 {
+		ledger.Mint(admin, initialMint)
 	}
-	tokens.Set(symbol, &t)
+
+	inst := instance{
+		token:  token,
+		ledger: ledger,
+		admin:  ownable.NewWithAddress(admin),
+		faucet: faucet,
+	}
+	instances.Set(symbol, &inst)
+	// XXX: grc20reg.Register(token, symbol)
 }
 
-// method proxies as public functions.
-//
+func (inst instance) Token() *grc20.Token {
+	return inst.token
+}
 
-// getters.
+func (inst instance) CallerTeller() grc20.Teller {
+	return inst.token.CallerTeller()
+}
+
+func Bank(symbol string) *grc20.Token {
+	inst := mustGetInstance(symbol)
+	return inst.token
+}
 
 func TotalSupply(symbol string) uint64 {
-	token := mustTokenBySymbol(symbol)
-	return token.adminToken.TotalSupply()
+	inst := mustGetInstance(symbol)
+	return inst.token.ReadonlyTeller().TotalSupply()
 }
 
 func BalanceOf(symbol string, owner std.Address) uint64 {
-	token := mustTokenBySymbol(symbol)
-	balance, err := token.adminToken.BalanceOf(owner)
-	checkErr(err)
-	return balance
+	inst := mustGetInstance(symbol)
+	return inst.token.ReadonlyTeller().BalanceOf(owner)
 }
 
 func Allowance(symbol string, owner, spender std.Address) uint64 {
-	token := mustTokenBySymbol(symbol)
-	allowance, err := token.adminToken.Allowance(owner, spender)
-	checkErr(err)
-	return allowance
+	inst := mustGetInstance(symbol)
+	return inst.token.ReadonlyTeller().Allowance(owner, spender)
 }
 
-// setters.
-
 func Transfer(symbol string, to std.Address, amount uint64) {
-	token := mustTokenBySymbol(symbol)
+	inst := mustGetInstance(symbol)
 	caller := std.PrevRealm().Addr()
-	err := token.adminToken.Transfer(caller, to, amount)
-	checkErr(err)
+	teller := inst.ledger.ImpersonateTeller(caller)
+	checkErr(teller.Transfer(to, amount))
 }
 
 func Approve(symbol string, spender std.Address, amount uint64) {
-	token := mustTokenBySymbol(symbol)
+	inst := mustGetInstance(symbol)
 	caller := std.PrevRealm().Addr()
-	err := token.adminToken.Approve(caller, spender, amount)
-	checkErr(err)
+	teller := inst.ledger.ImpersonateTeller(caller)
+	checkErr(teller.Approve(spender, amount))
 }
 
 func TransferFrom(symbol string, from, to std.Address, amount uint64) {
-	token := mustTokenBySymbol(symbol)
+	inst := mustGetInstance(symbol)
 	caller := std.PrevRealm().Addr()
-	err := token.adminToken.TransferFrom(caller, from, to, amount)
-	if err != nil {
-		panic(err)
-	}
+	teller := inst.ledger.ImpersonateTeller(caller)
+	checkErr(teller.TransferFrom(from, to, amount))
 }
 
 // faucet.
 func Faucet(symbol string) {
-	token := mustTokenBySymbol(symbol)
+	inst := mustGetInstance(symbol)
+	if inst.faucet == 0 {
+		panic("faucet disabled for this token")
+	}
 	// FIXME: add limits?
 	// FIXME: add payment in gnot?
 	caller := std.PrevRealm().Addr()
-	err := token.adminToken.Mint(caller, 1000*10000) // 1k
-	checkErr(err)
+	checkErr(inst.ledger.Mint(caller, inst.faucet))
 }
 
-// administration.
-
-func Mint(symbol string, address std.Address, amount uint64) {
-	token := mustTokenBySymbol(symbol)
-	caller := std.PrevRealm().Addr()
-	assertIsAdmin(caller, token.admin)
-	err := token.adminToken.Mint(address, amount)
-	checkErr(err)
+func Mint(symbol string, to std.Address, amount uint64) {
+	inst := mustGetInstance(symbol)
+	inst.admin.AssertCallerIsOwner()
+	checkErr(inst.ledger.Mint(to, amount))
 }
 
-func Burn(symbol string, address std.Address, amount uint64) {
-	token := mustTokenBySymbol(symbol)
-	caller := std.PrevRealm().Addr()
-	assertIsAdmin(caller, token.admin)
-	err := token.adminToken.Burn(address, amount)
-	checkErr(err)
+func Burn(symbol string, from std.Address, amount uint64) {
+	inst := mustGetInstance(symbol)
+	inst.admin.AssertCallerIsOwner()
+	checkErr(inst.ledger.Burn(from, amount))
 }
-
-// render.
-//
 
 func Render(path string) string {
 	parts := strings.Split(path, "/")
@@ -127,38 +127,29 @@ func Render(path string) string {
 		return "TODO: list existing tokens and admins"
 	case c == 1:
 		symbol := parts[0]
-		token := mustTokenBySymbol(symbol)
-		return token.adminToken.RenderHome()
+		inst := mustGetInstance(symbol)
+		return inst.token.RenderHome()
 	case c == 3 && parts[1] == "balance":
 		symbol := parts[0]
-		token := mustTokenBySymbol(symbol)
+		inst := mustGetInstance(symbol)
 		owner := std.Address(parts[2])
-		balance, _ := token.adminToken.BalanceOf(owner)
-		return strconv.FormatUint(balance, 10)
+		balance := inst.token.CallerTeller().BalanceOf(owner)
+		return ufmt.Sprintf("%d", balance)
 	default:
 		return "404\n"
 	}
 }
 
-// helpers.
-//
-
-func assertIsAdmin(caller, admin std.Address) {
-	if caller != admin {
-		panic("restricted access")
-	}
-}
-
-func mustTokenBySymbol(symbol string) *token {
-	t, exists := tokens.Get(symbol)
+func mustGetInstance(symbol string) *instance {
+	t, exists := instances.Get(symbol)
 	if !exists {
-		panic("token does not exist")
+		panic("token instance does not exist")
 	}
-	return t.(*token)
+	return t.(*instance)
 }
 
 func checkErr(err error) {
 	if err != nil {
-		panic(err)
+		panic(err.Error())
 	}
 }

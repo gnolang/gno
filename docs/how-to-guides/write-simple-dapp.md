@@ -2,7 +2,7 @@
 id: write-simple-dapp
 ---
 
-# How to write a simple dApp on Gno.land
+# How to write a simple dApp on gno.land
 
 ## Overview
 
@@ -135,7 +135,6 @@ The realm will contain the following functionality:
 package poll
 
 import (
-	"bytes"
 	"std"
 
 	"gno.land/p/demo/avl"

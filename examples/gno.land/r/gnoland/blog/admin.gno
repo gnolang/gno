@@ -5,6 +5,8 @@ import (
 	"strings"
 
 	"gno.land/p/demo/avl"
+	"gno.land/p/demo/dao"
+	"gno.land/r/gov/dao/bridge"
 )
 
 var (
@@ -16,7 +18,7 @@ var (
 
 func init() {
 	// adminAddr = std.GetOrigCaller() // FIXME: find a way to use this from the main's genesis.
-	adminAddr = "g1u7y667z64x2h7vc6fmpcprgey4ck233jaww9zq"
+	adminAddr = "g1manfred47kzduec920z88wfr64ylksmdcedlf5" // @moul
 }
 
 func AdminSetAdminAddr(addr std.Address) {
@@ -39,11 +41,23 @@ func AdminRemoveModerator(addr std.Address) {
 	moderatorList.Set(addr.String(), false) // FIXME: delete instead?
 }
 
+func NewPostExecutor(slug, title, body, publicationDate, authors, tags string) dao.Executor {
+	callback := func() error {
+		addPost(std.PrevRealm().Addr(), slug, title, body, publicationDate, authors, tags)
+
+		return nil
+	}
+
+	return bridge.GovDAO().NewGovDAOExecutor(callback)
+}
+
 func ModAddPost(slug, title, body, publicationDate, authors, tags string) {
 	assertIsModerator()
-
 	caller := std.GetOrigCaller()
+	addPost(caller, slug, title, body, publicationDate, authors, tags)
+}
 
+func addPost(caller std.Address, slug, title, body, publicationDate, authors, tags string) {
 	var tagList []string
 	if tags != "" {
 		tagList = strings.Split(tags, ",")

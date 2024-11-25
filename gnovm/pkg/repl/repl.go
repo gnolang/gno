@@ -10,6 +10,7 @@ import (
 	"go/printer"
 	"go/token"
 	"io"
+	"os"
 	"text/template"
 
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
@@ -106,6 +107,7 @@ type Repl struct {
 	stdout    io.Writer
 	stderr    io.Writer
 	stdin     io.Reader
+	debug     bool
 }
 
 // NewRepl creates a Repl struct. It is able to process input source code and eventually run it.
@@ -150,6 +152,14 @@ func (r *Repl) Process(input string) (out string, err error) {
 		}
 	}()
 	r.state.id++
+
+	if r.debug {
+		r.state.machine.Debugger.Enable(os.Stdin, os.Stdout, func(file string) string {
+			return r.state.files[file]
+		})
+		r.debug = false
+		defer r.state.machine.Debugger.Disable()
+	}
 
 	decl, declErr := r.parseDeclaration(input)
 	if declErr == nil {
@@ -316,4 +326,9 @@ func (r *Repl) Src() string {
 	}
 
 	return b.String()
+}
+
+// Debug activates the GnoVM debugger for the next evaluation.
+func (r *Repl) Debug() {
+	r.debug = true
 }

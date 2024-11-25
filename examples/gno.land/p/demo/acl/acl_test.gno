@@ -5,6 +5,8 @@ import (
 	"testing"
 
 	"gno.land/p/demo/testutils"
+	"gno.land/p/demo/uassert"
+	"gno.land/p/demo/ufmt"
 )
 
 func Test(t *testing.T) {
@@ -110,31 +112,23 @@ func Test(t *testing.T) {
 func shouldHasRole(t *testing.T, dir *Directory, addr std.Address, role string) {
 	t.Helper()
 	check := dir.HasRole(addr, role)
-	if !check {
-		t.Errorf("%q should has role %q", addr.String(), role)
-	}
+	uassert.Equal(t, true, check, ufmt.Sprintf("%s should has role %s", addr.String(), role))
 }
 
 func shouldNotHasRole(t *testing.T, dir *Directory, addr std.Address, role string) {
 	t.Helper()
 	check := dir.HasRole(addr, role)
-	if check {
-		t.Errorf("%q should not has role %q", addr.String(), role)
-	}
+	uassert.Equal(t, false, check, ufmt.Sprintf("%s should not has role %s", addr.String(), role))
 }
 
 func shouldHasPerm(t *testing.T, dir *Directory, addr std.Address, verb string, resource string) {
 	t.Helper()
 	check := dir.HasPerm(addr, verb, resource)
-	if !check {
-		t.Errorf("%q should has perm for %q - %q", addr.String(), verb, resource)
-	}
+	uassert.Equal(t, true, check, ufmt.Sprintf("%s should has perm for %s - %s", addr.String(), verb, resource))
 }
 
 func shouldNotHasPerm(t *testing.T, dir *Directory, addr std.Address, verb string, resource string) {
 	t.Helper()
 	check := dir.HasPerm(addr, verb, resource)
-	if check {
-		t.Errorf("%q should not has perm for %q - %q", addr.String(), verb, resource)
-	}
+	uassert.Equal(t, false, check, ufmt.Sprintf("%s should not has perm for %s - %s", addr.String(), verb, resource))
 }

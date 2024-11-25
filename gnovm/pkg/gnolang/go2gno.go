@@ -31,8 +31,10 @@ package gnolang
 */
 
 import (
+	"bytes"
 	"fmt"
 	"go/ast"
+	"go/format"
 	"go/parser"
 	"go/token"
 	"go/types"
@@ -42,8 +44,8 @@ import (
 	"strings"
 
 	"github.com/davecgh/go-spew/spew"
+	"github.com/gnolang/gno/gnovm"
 	"github.com/gnolang/gno/tm2/pkg/errors"
-	"github.com/gnolang/gno/tm2/pkg/std"
 	"go.uber.org/multierr"
 )
 
@@ -484,14 +486,17 @@ func Go2Gno(fs *token.FileSet, gon ast.Node) (n Node) {
 // MemPackageGetter implements the GetMemPackage() method. It is a subset of
 // [Store], separated for ease of testing.
 type MemPackageGetter interface {
-	GetMemPackage(path string) *std.MemPackage
+	GetMemPackage(path string) *gnovm.MemPackage
 }
 
 // TypeCheckMemPackage performs type validation and checking on the given
 // mempkg. To retrieve dependencies, it uses getter.
 //
 // The syntax checking is performed entirely using Go's go/types package.
-func TypeCheckMemPackage(mempkg *std.MemPackage, getter MemPackageGetter) error {
+//
+// If format is true, the code will be automatically updated with the
+// formatted source code.
+func TypeCheckMemPackage(mempkg *gnovm.MemPackage, getter MemPackageGetter, format bool) error {
 	var errs error
 	imp := &gnoImporter{
 		getter: getter,
@@ -504,7 +509,7 @@ func TypeCheckMemPackage(mempkg *std.MemPackage, getter MemPackageGetter) error 
 	}
 	imp.cfg.Importer = imp
 
-	_, err := imp.parseCheckMemPackage(mempkg)
+	_, err := imp.parseCheckMemPackage(mempkg, format)
 	// prefer to return errs instead of err:
 	// err will generally contain only the first error encountered.
 	if errs != nil {
@@ -545,12 +550,13 @@ func (g *gnoImporter) ImportFrom(path, _ string, _ types.ImportMode) (*types.Pac
 		g.cache[path] = gnoImporterResult{err: err}
 		return nil, err
 	}
-	result, err := g.parseCheckMemPackage(mpkg)
+	fmt := false
+	result, err := g.parseCheckMemPackage(mpkg, fmt)
 	g.cache[path] = gnoImporterResult{pkg: result, err: err}
 	return result, err
 }
 
-func (g *gnoImporter) parseCheckMemPackage(mpkg *std.MemPackage) (*types.Package, error) {
+func (g *gnoImporter) parseCheckMemPackage(mpkg *gnovm.MemPackage, fmt bool) (*types.Package, error) {
 	fset := token.NewFileSet()
 	files := make([]*ast.File, 0, len(mpkg.Files))
 	var errs error
@@ -565,6 +571,17 @@ func (g *gnoImporter) parseCheckMemPackage(mpkg *std.MemPackage) (*types.Package
 		if err != nil {
 			errs = multierr.Append(errs, err)
 			continue
+		}
+
+		// enforce formatting
+		if fmt {
+			var buf bytes.Buffer
+			err = format.Node(&buf, fset, f)
+			if err != nil {
+				errs = multierr.Append(errs, err)
+				continue
+			}
+			file.Body = buf.String()
 		}
 
 		files = append(files, f)
@@ -737,11 +754,13 @@ func toDecls(fs *token.FileSet, gd *ast.GenDecl) (ds Decls) {
 			name := toName(s.Name)
 			tipe := toExpr(fs, s.Type)
 			alias := s.Assign != 0
-			ds = append(ds, &TypeDecl{
+			td := &TypeDecl{
 				NameExpr: NameExpr{Name: name},
 				Type:     tipe,
 				IsAlias:  alias,
-			})
+			}
+			setLoc(fs, s.Pos(), td)
+			ds = append(ds, td)
 		case *ast.ValueSpec:
 			if gd.Tok == token.CONST {
 				var names []NameExpr

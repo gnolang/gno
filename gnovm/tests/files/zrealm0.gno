@@ -41,6 +41,13 @@ func main() {
 //     },
 //     "Values": [
 //         {
+//             "N": "AQAAAAAAAAA=",
+//             "T": {
+//                 "@type": "/gno.PrimitiveType",
+//                 "value": "32"
+//             }
+//         },
+//         {
 //             "T": {
 //                 "@type": "/gno.FuncType",
 //                 "Params": [],
@@ -74,13 +81,6 @@ func main() {
 //                     "Params": [],
 //                     "Results": []
 //                 }
-//             }
-//         },
-//         {
-//             "N": "AQAAAAAAAAA=",
-//             "T": {
-//                 "@type": "/gno.PrimitiveType",
-//                 "value": "32"
 //             }
 //         }
 //     ]

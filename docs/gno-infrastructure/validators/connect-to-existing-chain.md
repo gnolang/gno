@@ -18,7 +18,7 @@ In this tutorial, you will learn how to start a local Gno node and connect to an
 
 ## 1. Initialize the node directory
 
-To initialize a new Gno.land node working directory (configuration and secrets), make sure to
+To initialize a new gno.land node working directory (configuration and secrets), make sure to
 follow [Step 1](./setting-up-a-new-chain.md#1-generate-the-node-directory-secrets--config) from the
 chain setup tutorial.
 
@@ -97,7 +97,7 @@ gnoland config set p2p.seeds "g19d8x6tcr2eyup9e2zwp9ydprm98l76gp66tmd6@1.2.3.4:2
 
 ## 6. Start the node
 
-Now that we've set up the local node configuration, and added peering info, we can start the Gno.land node:
+Now that we've set up the local node configuration, and added peering info, we can start the gno.land node:
 
 ```shell
 gnoland start \

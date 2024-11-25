@@ -597,7 +597,7 @@ In this example, `GetPost` is a function that retrieves a post from the
 loading any other posts.
 
 In the future, we plan to add built-in "map" support that will match the
-efficienty of an `avl.Tree` while offering a more intuitive API. Until then, if
+efficiency of an `avl.Tree` while offering a more intuitive API. Until then, if
 you're dealing with a compact dataset, it's probably best to use slices.
 For larger datasets where you need to quickly retrieve elements by keys,
 `avl.Tree` is the way to go.
@@ -701,12 +701,11 @@ best of both worlds, you can wrap a Coins into a GRC20 compatible token.
 ```go
 import "gno.land/p/demo/grc/grc20"
 
-var fooToken grc20.AdminToken = grc20.NewAdminToken("Foo Token", "FOO", 4)
+var fooToken = grc20.NewBanker("Foo Token", "FOO", 4)
 
 func MyBalance() uint64 {
 	caller := std.PrevRealm().Addr()
-	balance, _ := fooToken.BalanceOf(caller)
-	return balance
+	return fooToken.BalanceOf(caller)
 }
 ```
 

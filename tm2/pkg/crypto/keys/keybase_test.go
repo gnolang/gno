@@ -111,6 +111,19 @@ func TestKeyManagement(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, 1, len(keyS))
 
+	// Lookup by original i2 address
+	infoByAddress, err := cstore.GetByAddress(i2.GetAddress())
+	require.NoError(t, err)
+	// GetByAddress should return Info with the corresponding public key
+	require.Equal(t, infoByAddress.GetPubKey(), i2.GetPubKey())
+	// Replace n2 with a new address
+	mn2New := `fancy assault crane note start invite ladder ordinary gold amateur check cousin text mercy speak chuckle wine raw chief isolate swallow cushion wrist piece`
+	_, err = cstore.CreateAccount(n2, mn2New, bip39Passphrase, p2, 0, 0)
+	require.NoError(t, err)
+	// Check that CreateAccount removes the entry for the original address (public key)
+	_, err = cstore.GetByAddress(i2.GetAddress())
+	require.NotNil(t, err)
+
 	// addr cache gets nuked - and test skip flag
 	err = cstore.Delete(n2, "", true)
 	require.NoError(t, err)
@@ -233,9 +246,9 @@ func assertPassword(t *testing.T, cstore Keybase, name, pass, badpass string) {
 	t.Helper()
 
 	getNewpass := func() (string, error) { return pass, nil }
-	err := cstore.Update(name, badpass, getNewpass)
+	err := cstore.Rotate(name, badpass, getNewpass)
 	require.NotNil(t, err)
-	err = cstore.Update(name, pass, getNewpass)
+	err = cstore.Rotate(name, pass, getNewpass)
 	require.Nil(t, err, "%+v", err)
 }
 
@@ -314,7 +327,7 @@ func TestExportImportPubKey(t *testing.T) {
 	require.NotNil(t, err)
 }
 
-// TestAdvancedKeyManagement verifies update, import, export functionality
+// TestAdvancedKeyManagement verifies rotate, import, export functionality
 func TestAdvancedKeyManagement(t *testing.T) {
 	t.Parallel()
 
@@ -331,14 +344,14 @@ func TestAdvancedKeyManagement(t *testing.T) {
 	require.Nil(t, err, "%+v", err)
 	assertPassword(t, cstore, n1, p1, p2)
 
-	// update password requires the existing password
+	// rotate password requires the existing password
 	getNewpass := func() (string, error) { return p2, nil }
-	err = cstore.Update(n1, "jkkgkg", getNewpass)
+	err = cstore.Rotate(n1, "jkkgkg", getNewpass)
 	require.NotNil(t, err)
 	assertPassword(t, cstore, n1, p1, p2)
 
 	// then it changes the password when correct
-	err = cstore.Update(n1, p1, getNewpass)
+	err = cstore.Rotate(n1, p1, getNewpass)
 	require.NoError(t, err)
 	// p2 is now the proper one!
 	assertPassword(t, cstore, n1, p2, p1)
