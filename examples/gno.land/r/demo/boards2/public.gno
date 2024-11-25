@@ -26,34 +26,39 @@ func CreateBoard(name string) BoardID {
 	caller := std.GetOrigCaller()
 	assertIsNotAnonymousCaller(caller)
 
-	// TODO: This and other cases must not be async (though proposals for example)
-	// TODO: Extend the permissioner to support cases like this one (`IsAllowed()` method?)
-	// NOTE: Args are "tight" to the permission, maybe we can join them into a permission struct/interface
-	var id BoardID
-	gAuth.WithPermission(caller, PermissionBoardCreate, nil, func(a Args) {
-		id := incGetBoardID()
+	id := incGetBoardID()
+	args := Args{name, id}
+	// TODO: Do the callback really need the args or we could have the same result directly referencing?
+	gAuth.WithPermission(caller, PermissionBoardCreate, args, func(a Args) { // TODO: Caller could be an extra func arg
+		name := a[0].(string)
+		id := a[1].(BoardID)
 		board := newBoard(id, name, caller)
 		gBoardsByID.Set(id.Key(), board)
 		gBoardsByName.Set(name, board)
-		id = board.id
 	})
 	return id
 }
 
-func CreateThread(bid BoardID, title string, body string) PostID {
+func CreateThread(bid BoardID, title, body string) PostID {
 	assertIsUserCall()
 
 	caller := std.GetOrigCaller()
 	assertAnonymousCallerFeeReceived(caller)
+	assertBoardExists(bid)
 
 	var (
-		id    PostID
-		board = mustGetBoard(bid)
+		id   PostID // TODO: Decide how to deal with thread ID generation
+		args = Args{bid, title, body}
 	)
 
-	gAuth.WithPermission(caller, PermissionThreadCreate, nil, func(a Args) {
+	gAuth.WithPermission(caller, PermissionThreadCreate, args, func(a Args) {
+		bid := a[0].(BoardID)
+		board := mustGetBoard(bid)
+
+		title := a[1].(string)
+		body := a[2].(string)
 		thread := board.AddThread(caller, title, body)
-		id = thread.id
+		id = thread.id // TODO: ID should be pre generated to allow async thread creation
 	})
 	return id
 }
@@ -64,13 +69,27 @@ func CreateReply(bid BoardID, threadID, replyID PostID, body string) PostID {
 	caller := std.GetOrigCaller()
 	assertAnonymousCallerFeeReceived(caller)
 
+	board := mustGetBoard(bid)
+	assertThreadExists(board, threadID)
+
 	var (
-		reply  *Post
-		board  = mustGetBoard(bid)
-		thread = mustGetThread(board, threadID)
+		id   PostID // TODO: Decide how to deal with reply ID generation
+		args = Args{bid, threadID, replyID, body}
 	)
 
-	gAuth.WithPermission(caller, PermissionReplyCreate, nil, func(a Args) {
+	gAuth.WithPermission(caller, PermissionReplyCreate, args, func(a Args) {
+		bid := a[0].(BoardID)
+		board := mustGetBoard(bid)
+
+		threadID := a[1].(PostID)
+		thread := mustGetThread(board, threadID)
+
+		var (
+			reply   *Post
+			replyID = a[2].(PostID)
+			body    = a[3].(string)
+		)
+
 		if replyID == threadID {
 			// When the parent reply is the thread just add reply to thread
 			reply = thread.AddReply(caller, body)
@@ -79,30 +98,44 @@ func CreateReply(bid BoardID, threadID, replyID PostID, body string) PostID {
 			post := mustGetReply(thread, replyID)
 			reply = post.AddReply(caller, body)
 		}
+
+		id = reply.id // TODO: ID should be pre generated to allow async thread creation
 	})
-	return reply.id
+	return id
 }
 
-func CreateRepost(bid BoardID, threadID PostID, title string, body string, dstBoardID BoardID) PostID {
+func CreateRepost(bid BoardID, threadID PostID, title, body string, dstBoardID BoardID) PostID {
 	assertIsUserCall()
 
 	caller := std.GetOrigCaller()
 	assertAnonymousCallerFeeReceived(caller)
+	assertBoardExists(dstBoardID)
 
 	board := mustGetBoard(bid)
 	if board.IsPrivate() {
 		panic("cannot repost from a private board")
 	}
 
+	assertThreadExists(board, threadID)
+
 	var (
-		id     PostID
-		dst    = mustGetBoard(dstBoardID)
-		thread = mustGetThread(board, threadID)
+		id   PostID // TODO: Decide how to deal with repost/thread ID generation
+		args = Args{bid, dstBoardID, threadID, title, body}
 	)
 
-	gAuth.WithPermission(caller, PermissionThreadRepost, nil, func(a Args) {
+	gAuth.WithPermission(caller, PermissionThreadRepost, args, func(a Args) {
+		bid := a[0].(BoardID)
+		board := mustGetBoard(bid)
+		dstID := a[1].(BoardID)
+		dst := mustGetBoard(dstID)
+
+		threadID := a[2].(PostID)
+		thread := mustGetThread(board, threadID)
+
+		title := a[3].(string)
+		body := a[4].(string)
 		repost := thread.AddRepostTo(caller, title, body, dst)
-		id = repost.id
+		id = repost.id // TODO: ID should be pre generated to allow async thread creation
 	})
 	return id
 }
