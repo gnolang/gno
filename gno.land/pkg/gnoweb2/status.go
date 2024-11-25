@@ -10,7 +10,7 @@ import (
 	"github.com/gnolang/gno/gno.land/pkg/gnoclient"
 )
 
-// XXX: use otel
+// XXX: rework this part, this is the original method from previous gnoweb
 func handlerStatusJSON(logger *slog.Logger, cli *gnoclient.Client) http.Handler {
 	startedAt := time.Now()
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -45,15 +45,14 @@ func handlerStatusJSON(logger *slog.Logger, cli *gnoclient.Client) http.Handler 
 		ret.Website.GoVersion = runtime.Version()
 
 		ret.Gnoland.Connected = true
-		res, _, err := cli.QueryAppVersion()
+		version, res, err := cli.QueryAppVersion()
 		if err != nil {
 			ret.Gnoland.Connected = false
 			errmsg := err.Error()
 			ret.Gnoland.Error = &errmsg
 		} else {
-			version := res
 			ret.Gnoland.Version = &version
-			// ret.Gnoland.Height = &res.Height
+			ret.Gnoland.Height = &res.Response.Height
 		}
 
 		out, _ := json.MarshalIndent(ret, "", "  ")
