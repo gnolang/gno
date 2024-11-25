@@ -6,4 +6,4 @@ func main() {
 }
 
 // Error:
-// main/files/typeassert12.gno:4:6: cannot use _ as value or type
+// cannot use _ as value or type
