@@ -11,8 +11,6 @@ const (
 	PermissionThreadEdit              = "thread:edit"
 	PermissionThreadDelete            = "thread:delete"
 	PermissionThreadRepost            = "thread:repost"
-	PermissionReplyCreate             = "reply:create"
-	PermissionReplyEdit               = "reply:edit"
 	PermissionReplyDelete             = "reply:delete"
 )
 
@@ -28,6 +26,9 @@ type (
 
 	// Permissioner define an interface to for permissioned execution.
 	Permissioner interface {
+		// HasPermission checks if a user has a specific permission.
+		HasPermission(std.Address, Permission) bool
+
 		// WithPermission calls a callback when a user has a specific permission.
 		// It panics on error.
 		WithPermission(std.Address, Permission, Args, func(Args))

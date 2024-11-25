@@ -28,8 +28,8 @@ func CreateBoard(name string) BoardID {
 
 	id := incGetBoardID()
 	args := Args{name, id}
-	// TODO: Do the callback really need the args or we could have the same result directly referencing?
-	gAuth.WithPermission(caller, PermissionBoardCreate, args, func(a Args) { // TODO: Caller could be an extra func arg
+	gAuth.WithPermission(caller, PermissionBoardCreate, args, func(a Args) {
+		// TODO: Do the callback really need the args or we could have the same result directly referencing?
 		name := a[0].(string)
 		id := a[1].(BoardID)
 		board := newBoard(id, name, caller)
@@ -43,65 +43,39 @@ func CreateThread(bid BoardID, title, body string) PostID {
 	assertIsUserCall()
 
 	caller := std.GetOrigCaller()
-	assertAnonymousCallerFeeReceived(caller)
+	assertHasPermission(caller, PermissionThreadCreate) // TODO: Who can create threads?
+	assertAnonymousCallerFeeReceived(caller)            // TODO: Do we require a fee to anonymous users?
 	assertBoardExists(bid)
 
-	var (
-		id   PostID // TODO: Decide how to deal with thread ID generation
-		args = Args{bid, title, body}
-	)
+	// TODO: Assert that caller is a board member (when board type is invite only)
 
-	gAuth.WithPermission(caller, PermissionThreadCreate, args, func(a Args) {
-		bid := a[0].(BoardID)
-		board := mustGetBoard(bid)
-
-		title := a[1].(string)
-		body := a[2].(string)
-		thread := board.AddThread(caller, title, body)
-		id = thread.id // TODO: ID should be pre generated to allow async thread creation
-	})
-	return id
+	board := mustGetBoard(bid)
+	thread := board.AddThread(caller, title, body)
+	return thread.id
 }
 
 func CreateReply(bid BoardID, threadID, replyID PostID, body string) PostID {
 	assertIsUserCall()
 
 	caller := std.GetOrigCaller()
-	assertAnonymousCallerFeeReceived(caller)
+	assertAnonymousCallerFeeReceived(caller) // TODO: Do we require a fee to anonymous users?
 
 	board := mustGetBoard(bid)
-	assertThreadExists(board, threadID)
+	thread := mustGetThread(board, threadID)
 
-	var (
-		id   PostID // TODO: Decide how to deal with reply ID generation
-		args = Args{bid, threadID, replyID, body}
-	)
+	// TODO: Assert thread is not locked
+	// TODO: Assert that caller is a board member (when board type is invite only)
 
-	gAuth.WithPermission(caller, PermissionReplyCreate, args, func(a Args) {
-		bid := a[0].(BoardID)
-		board := mustGetBoard(bid)
-
-		threadID := a[1].(PostID)
-		thread := mustGetThread(board, threadID)
-
-		var (
-			reply   *Post
-			replyID = a[2].(PostID)
-			body    = a[3].(string)
-		)
-
-		if replyID == threadID {
-			// When the parent reply is the thread just add reply to thread
-			reply = thread.AddReply(caller, body)
-		} else {
-			// Try to get parent reply and add a new child reply
-			post := mustGetReply(thread, replyID)
-			reply = post.AddReply(caller, body)
-		}
-
-		id = reply.id // TODO: ID should be pre generated to allow async thread creation
-	})
-	return id
+	var reply *Post
+	if replyID == threadID {
+		// When the parent reply is the thread just add reply to thread
+		reply = thread.AddReply(caller, body)
+	} else {
+		// Try to get parent reply and add a new child reply
+		post := mustGetReply(thread, replyID)
+		reply = post.AddReply(caller, body)
+	}
+	return reply.id
 }
 
 func CreateRepost(bid BoardID, threadID PostID, title, body string, dstBoardID BoardID) PostID {
@@ -116,28 +90,15 @@ func CreateRepost(bid BoardID, threadID PostID, title, body string, dstBoardID B
 		panic("cannot repost from a private board")
 	}
 
+	// TODO: Assert that board allows reposts?
+	// TODO: Assert that caller is member of both boards (when board types are invite only)
+
 	assertThreadExists(board, threadID)
 
-	var (
-		id   PostID // TODO: Decide how to deal with repost/thread ID generation
-		args = Args{bid, dstBoardID, threadID, title, body}
-	)
-
-	gAuth.WithPermission(caller, PermissionThreadRepost, args, func(a Args) {
-		bid := a[0].(BoardID)
-		board := mustGetBoard(bid)
-		dstID := a[1].(BoardID)
-		dst := mustGetBoard(dstID)
-
-		threadID := a[2].(PostID)
-		thread := mustGetThread(board, threadID)
-
-		title := a[3].(string)
-		body := a[4].(string)
-		repost := thread.AddRepostTo(caller, title, body, dst)
-		id = repost.id // TODO: ID should be pre generated to allow async thread creation
-	})
-	return id
+	dst := mustGetBoard(dstBoardID)
+	thread := mustGetThread(board, threadID)
+	repost := thread.AddRepostTo(caller, title, body, dst)
+	return repost.id
 }
 
 func DeleteThread(bid BoardID, threadID PostID) {
@@ -163,6 +124,9 @@ func DeleteReply(bid BoardID, threadID, replyID PostID) {
 	board := mustGetBoard(bid)
 	thread := mustGetThread(board, threadID)
 	assertReplyExists(thread, replyID)
+
+	// TODO: Hide reply when the caller is the owner of the reply (remove WithPermission call for now)
+	// TODO: Support removing reply and children though proposals? (WithPermission)
 
 	caller := std.GetOrigCaller()
 	args := Args{bid, threadID, replyID}
@@ -204,24 +168,14 @@ func EditReply(bid BoardID, threadID, replyID PostID, title, body string) {
 
 	board := mustGetBoard(bid)
 	thread := mustGetThread(board, threadID)
-	assertReplyExists(thread, replyID)
-
+	reply := mustGetReply(thread, replyID)
 	caller := std.GetOrigCaller()
-	args := Args{bid, threadID, replyID, title, body}
-	gAuth.WithPermission(caller, PermissionReplyEdit, args, func(a Args) {
-		bid := a[0].(BoardID)
-		board := mustGetBoard(bid)
+	if caller != reply.GetCreator() {
+		panic("only the reply creator is allowed to edit it")
+	}
 
-		threadID := a[1].(PostID)
-		thread := mustGetThread(board, threadID)
-
-		replyID := a[2].(PostID)
-		reply := mustGetReply(thread, replyID)
-
-		title := a[3].(string)
-		body := a[4].(string)
-		reply.Update(title, body)
-	})
+	// TODO: Should we have a history of previous reply contents?
+	reply.Update(title, body)
 }
 
 func assertIsUserCall() {
@@ -249,6 +203,12 @@ func assertAnonymousFeeReceived() {
 func assertAnonymousCallerFeeReceived(caller std.Address) {
 	if users.GetUserByAddress(caller) == nil {
 		assertAnonymousFeeReceived()
+	}
+}
+
+func assertHasPermission(user std.Address, p Permission) {
+	if !gAuth.HasPermission(user, p) {
+		panic("unauthorized")
 	}
 }
 

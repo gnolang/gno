@@ -7,6 +7,8 @@ import (
 	"gno.land/p/demo/boards2/admindao"
 )
 
+// TODO: Support to deal with permissions for anonymous users?
+
 const (
 	RoleOwner     Role = "owner"
 	RoleAdmin          = "admin"
@@ -70,6 +72,7 @@ func (acl ACL) HasRole(user std.Address, r Role) bool {
 
 // HasPermission checks if a user has a specific permission.
 func (acl ACL) HasPermission(user std.Address, perm Permission) bool {
+	// TODO: Should we check that the user belongs to the DAO?
 	for _, r := range acl.GetUserRoles(user) {
 		v, found := acl.roles.Get(string(r))
 		if !found {
@@ -93,6 +96,5 @@ func (acl ACL) WithPermission(user std.Address, perm Permission, a Args, cb func
 	}
 
 	// TODO: Support DAO proposals that run the callback on proposal execution
-
 	cb(a)
 }
