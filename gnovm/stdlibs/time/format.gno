@@ -4,7 +4,9 @@
 
 package time
 
-import "errors"
+import (
+	"errors"
+)
 
 // These are predefined layouts for use in Time.Format and time.Parse.
 // The reference time used in these layouts is the specific time stamp:
@@ -510,30 +512,6 @@ func formatNano(b []byte, nanosec uint, std int) []byte {
 // with an explicit format string.
 func (t Time) String() string {
 	s := t.Format("2006-01-02 15:04:05.999999999 -0700 MST")
-
-	// Format monotonic clock reading as m=±ddd.nnnnnnnnn.
-	if t.wall&hasMonotonic != 0 {
-		m2 := uint64(t.ext)
-		sign := byte('+')
-		if t.ext < 0 {
-			sign = '-'
-			m2 = -m2
-		}
-		m1, m2 := m2/1e9, m2%1e9
-		m0, m1 := m1/1e9, m1%1e9
-		buf := make([]byte, 0, 24)
-		buf = append(buf, " m="...)
-		buf = append(buf, sign)
-		wid := 0
-		if m0 != 0 {
-			buf = appendInt(buf, int(m0), 0)
-			wid = 9
-		}
-		buf = appendInt(buf, int(m1), wid)
-		buf = append(buf, '.')
-		buf = appendInt(buf, int(m2), 9)
-		s += string(buf)
-	}
 	return s
 }
 
@@ -563,11 +541,9 @@ func (t Time) GoString() string {
 	buf = append(buf, ", "...)
 	buf = appendInt(buf, t.Nanosecond(), 0)
 	buf = append(buf, ", "...)
-	switch loc := t.Location(); loc {
+	switch loc := timezoneChainParam; loc {
 	case UTC, nil:
 		buf = append(buf, "time.UTC"...)
-	case Local:
-		buf = append(buf, "time.Local"...)
 	default:
 		// there are several options for how we could display this, none of
 		// which are great:
@@ -639,13 +615,13 @@ func (t Time) AppendFormat(b []byte, layout string) []byte {
 
 		// Compute year, month, day if needed.
 		if year < 0 && std&stdNeedDate != 0 {
-			year, month, day, yday = absDate(abs, true)
+			year, month, day, yday = internalDate(abs, true)
 			yday++
 		}
 
 		// Compute hour, minute, second if needed.
 		if hour < 0 && std&stdNeedClock != 0 {
-			hour, min, sec = absClock(abs)
+			hour, min, sec = internalClock(abs)
 		}
 
 		switch std & stdMask {
@@ -667,9 +643,9 @@ func (t Time) AppendFormat(b []byte, layout string) []byte {
 		case stdZeroMonth:
 			b = appendInt(b, int(month), 2)
 		case stdWeekDay:
-			b = append(b, absWeekday(abs).String()[:3]...)
+			b = append(b, internalWeekday(abs).String()[:3]...)
 		case stdLongWeekDay:
-			s := absWeekday(abs).String()
+			s := internalWeekday(abs).String()
 			b = append(b, s...)
 		case stdDay:
 			b = appendInt(b, day, 0)
@@ -959,7 +935,7 @@ func skip(value, prefix string) (string, error) {
 // differ by the actual zone offset. To avoid such problems, prefer time layouts
 // that use a numeric zone offset, or use ParseInLocation.
 func Parse(layout, value string) (Time, error) {
-	return parse(layout, value, UTC, Local)
+	return parse(layout, value, UTC, timezoneChainParam)
 }
 
 // ParseInLocation is like Parse but differs in two important ways.
@@ -1301,12 +1277,10 @@ func parse(layout, value string, defaultLocation, local *Location) (Time, error)
 		// If that zone was in effect at the given time, use it.
 		name, offset, _, _, _ := local.lookup(t.unixSec())
 		if offset == zoneOffset && (zoneName == "" || name == zoneName) {
-			t.setLoc(local)
 			return t, nil
 		}
 
 		// Otherwise create fake zone to record offset.
-		t.setLoc(FixedZone(zoneName, zoneOffset))
 		return t, nil
 	}
 
@@ -1317,7 +1291,6 @@ func parse(layout, value string, defaultLocation, local *Location) (Time, error)
 		offset, ok := local.lookupName(zoneName, t.unixSec())
 		if ok {
 			t.addSec(-int64(offset))
-			t.setLoc(local)
 			return t, nil
 		}
 
@@ -1326,7 +1299,6 @@ func parse(layout, value string, defaultLocation, local *Location) (Time, error)
 			offset, _ = atoi(zoneName[3:]) // Guaranteed OK by parseGMT.
 			offset *= 3600
 		}
-		t.setLoc(FixedZone(zoneName, offset))
 		return t, nil
 	}
 

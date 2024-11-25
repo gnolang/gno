@@ -63,6 +63,8 @@ const (
 	omega = 1<<63 - 1 // math.MaxInt64
 )
 
+var timezoneChainParam *Location
+
 // UTC represents Universal Coordinated Time (UTC).
 var UTC *Location = &utcLoc
 
@@ -71,26 +73,13 @@ var UTC *Location = &utcLoc
 // even if a badly behaved client has changed UTC.
 var utcLoc = Location{name: "UTC"}
 
-// Local represents the system's local time zone.
-// On Unix systems, Local consults the TZ environment
-// variable to find the time zone to use. No TZ means
-// use the system default /etc/localtime.
-// TZ="" means use UTC.
-// TZ="foo" means use file foo in the system timezone directory.
-var Local *Location = &localLoc
-
-// localLoc is separate so that initLocal can initialize
-// it even if a client has changed Local.
-var localLoc Location
-
-// XXX var localOnce sync.Once
+func init() {
+	timezoneChainParam, _ = LoadLocation("UTC")
+}
 
 func (l *Location) get() *Location {
 	if l == nil {
 		return &utcLoc
-	}
-	if l == &localLoc {
-		// XXX localOnce.Do(initLocal)
 	}
 	return l
 }
@@ -307,7 +296,7 @@ func tzset(s string, initEnd, sec int64) (name string, offset int, start, end in
 		return "", 0, 0, 0, false, false
 	}
 
-	year, _, _, yday := absDate(uint64(sec+unixToInternal+internalToAbsolute), false)
+	year, _, _, yday := internalDate(uint64(sec+unixToInternal+internalToAbsolute), false)
 
 	ysec := int64(yday*secondsPerDay) + sec%secondsPerDay
 
@@ -644,9 +633,6 @@ func loadFromEmbeddedTZData(name string) ([]byte, bool) // injected
 func LoadLocation(name string) (*Location, error) {
 	if name == "" || name == "UTC" {
 		return UTC, nil
-	}
-	if name == "Local" {
-		return Local, nil
 	}
 	if containsDotDot(name) || name[0] == '/' || name[0] == '\\' {
 		// No valid IANA Time Zone name contains a single dot,
