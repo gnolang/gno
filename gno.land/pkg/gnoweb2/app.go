@@ -10,7 +10,6 @@ import (
 	"github.com/alecthomas/chroma/v2/formatters/html"
 	"github.com/alecthomas/chroma/v2/styles"
 	"github.com/gnolang/gno/gno.land/pkg/gnoclient"
-	"github.com/gnolang/gno/gno.land/pkg/service"
 	"github.com/gnolang/gno/tm2/pkg/bft/rpc/client"
 	"github.com/yuin/goldmark"
 )
@@ -54,11 +53,11 @@ func MakeRouterApp(logger *slog.Logger, cfg *AppConfig) (http.Handler, error) {
 	}
 
 	// Setup webservice
-	cl := gnoclient.Client{
+	gnocli := gnoclient.Client{
 		Signer:    signer,
 		RPCClient: client,
 	}
-	webcli := service.NewWebRender(logger, &cl, md)
+	webcli := NewWebClient(logger, &gnocli, md)
 
 	formatter := html.New(
 		html.WithLineNumbers(true),
@@ -100,7 +99,9 @@ func MakeRouterApp(logger *slog.Logger, cfg *AppConfig) (http.Handler, error) {
 	assetsBase := "/" + strings.Trim(cfg.AssetsPath, "/") + "/"
 
 	// Handle assets path
-	mux.Handle(assetsBase, AssetHandler(cfg.AssetsPath, true))
+	mux.Handle(assetsBase, AssetHandler(true))
+
+	mux.Handle("/status.json", handlerStatusJSON(logger, &gnocli))
 
 	return mux, nil
 }

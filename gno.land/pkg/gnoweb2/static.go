@@ -6,6 +6,8 @@ import (
 	"net/http"
 )
 
+const publicAssetsDir = "public"
+
 //go:embed public/*
 var assets embed.FS
 
@@ -16,12 +18,12 @@ func disableCache(next http.Handler) http.Handler {
 	})
 }
 
-func AssetHandler(basePath string, cache bool) http.Handler {
+func AssetHandler(cache bool) http.Handler {
 	if cache {
 		return http.FileServer(http.FS(assets))
 	}
 
-	handler := http.StripPrefix(basePath, http.FileServer(http.Dir(basePath)))
+	handler := http.StripPrefix(publicAssetsDir, http.FileServer(http.Dir(publicAssetsDir)))
 	return disableCache(handler)
 
 }

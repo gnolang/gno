@@ -57,6 +57,7 @@ type devCfg struct {
 	txsFile      string
 
 	// Web Configuration
+	noWeb               bool
 	webListenerAddr     string
 	webRemoteHelperAddr string
 
@@ -118,6 +119,13 @@ func (c *devCfg) RegisterFlags(fs *flag.FlagSet) {
 		"root",
 		defaultDevOptions.root,
 		"gno root directory",
+	)
+
+	fs.BoolVar(
+		&c.noWeb,
+		"no-web",
+		defaultDevOptions.noWeb,
+		"disable gnoweb",
 	)
 
 	fs.StringVar(
@@ -337,14 +345,18 @@ func execDev(cfg *devCfg, args []string, io commands.IO) (err error) {
 		mux.Handle("/", webhandler)
 	}
 
-	go func() {
-		err := server.ListenAndServe()
-		cancel(err)
-	}()
+	// Serve gnoweb
+	// XXX: we should skip all the previous web setup if gnoweb is disable
+	if !cfg.noWeb {
+		go func() {
+			err := server.ListenAndServe()
+			cancel(err)
+		}()
 
-	logger.WithGroup(WebLogName).
-		Info("gnoweb started",
-			"lisn", fmt.Sprintf("http://%s", server.Addr))
+		logger.WithGroup(WebLogName).
+			Info("gnoweb started",
+				"lisn", fmt.Sprintf("http://%s", server.Addr))
+	}
 
 	watcher, err := watcher.NewPackageWatcher(loggerEvents, emitterServer)
 	if err != nil {

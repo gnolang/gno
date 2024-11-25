@@ -1,4 +1,4 @@
-package service
+package gnoweb
 
 import (
 	"errors"
@@ -17,22 +17,22 @@ import (
 	"github.com/yuin/goldmark/text"
 )
 
-type WebRenderClient struct {
+type WebClient struct {
 	logger *slog.Logger
 	client *gnoclient.Client
 	md     goldmark.Markdown
 }
 
-func NewWebRender(log *slog.Logger, cl *gnoclient.Client, m goldmark.Markdown) *WebRenderClient {
+func NewWebClient(log *slog.Logger, cl *gnoclient.Client, m goldmark.Markdown) *WebClient {
 	m.Parser().AddOptions(parser.WithAutoHeadingID())
-	return &WebRenderClient{
+	return &WebClient{
 		logger: log,
 		client: cl,
 		md:     m,
 	}
 }
 
-func (s *WebRenderClient) Functions(pkgPath string) ([]vm.FunctionSignature, error) {
+func (s *WebClient) Functions(pkgPath string) ([]vm.FunctionSignature, error) {
 	const qpath = "vm/qfuncs"
 
 	args := fmt.Sprintf("gno.land/%s", strings.Trim(pkgPath, "/"))
@@ -50,7 +50,7 @@ func (s *WebRenderClient) Functions(pkgPath string) ([]vm.FunctionSignature, err
 	return fsigs, nil
 }
 
-func (s *WebRenderClient) SourceFile(path, fileName string) ([]byte, error) {
+func (s *WebClient) SourceFile(path, fileName string) ([]byte, error) {
 	const qpath = "vm/qfile"
 
 	fileName = strings.TrimSpace(fileName) // sanitize filename
@@ -69,7 +69,7 @@ func (s *WebRenderClient) SourceFile(path, fileName string) ([]byte, error) {
 	return res, nil
 }
 
-func (s *WebRenderClient) Sources(path string) ([]string, error) {
+func (s *WebClient) Sources(path string) ([]string, error) {
 	const qpath = "vm/qfile"
 
 	// XXX: move this into gnoclient
@@ -87,7 +87,7 @@ type Metadata struct {
 	*md.Toc
 }
 
-func (s *WebRenderClient) Render(w io.Writer, pkgPath string, args string) (*Metadata, error) {
+func (s *WebClient) Render(w io.Writer, pkgPath string, args string) (*Metadata, error) {
 	const qpath = "vm/qrender"
 
 	data := []byte(gnoPath(pkgPath, args))
@@ -110,7 +110,7 @@ func (s *WebRenderClient) Render(w io.Writer, pkgPath string, args string) (*Met
 	return &meta, nil
 }
 
-func (s *WebRenderClient) query(qpath string, data []byte) ([]byte, error) {
+func (s *WebClient) query(qpath string, data []byte) ([]byte, error) {
 	s.logger.Info("query", "qpath", qpath, "data", string(data))
 	// XXX: move this into gnoclient
 	qres, err := s.client.Query(gnoclient.QueryCfg{

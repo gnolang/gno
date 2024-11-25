@@ -17,7 +17,6 @@ import (
 	"github.com/alecthomas/chroma/v2/lexers"
 	"github.com/gnolang/gno/gno.land/pkg/gnoweb2/components"
 	"github.com/gnolang/gno/gno.land/pkg/sdk/vm" // for error types
-	"github.com/gnolang/gno/gno.land/pkg/service"
 )
 
 type StaticMetadata struct {
@@ -29,19 +28,20 @@ type StaticMetadata struct {
 
 type WebHandlerConfig struct {
 	Meta         StaticMetadata
-	RenderClient *service.WebRenderClient
+	RenderClient *WebClient
 	Formatter    Formatter
 }
 
 type WebHandler struct {
 	formatter Formatter
 
-	logger    *slog.Logger
-	static    StaticMetadata
-	rendercli *service.WebRenderClient
+	logger *slog.Logger
+	static StaticMetadata
+	webcli *WebClient
 
 	// bufferPool is used to reuse Buffer instances
 	// to reduce memory allocations and improve performance.
+	// XXX: maybe this is a too early optimization
 	bufferPool sync.Pool
 }
 
@@ -52,7 +52,7 @@ func NewWebHandler(logger *slog.Logger, cfg WebHandlerConfig) *WebHandler {
 
 	return &WebHandler{
 		formatter: cfg.Formatter,
-		rendercli: cfg.RenderClient,
+		webcli:    cfg.RenderClient,
 		logger:    logger,
 		static:    cfg.Meta,
 		// Initialize the pool with bytes.Buffer factory
@@ -66,8 +66,10 @@ func NewWebHandler(logger *slog.Logger, cfg WebHandlerConfig) *WebHandler {
 
 func (h *WebHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	h.logger.Debug("receiving request", "method", r.Method, "path", r.URL.Path)
+
 	if r.Method != http.MethodGet {
 		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		return
 	}
 
 	h.Get(w, r)
@@ -97,7 +99,6 @@ func generateBreadcrumbPaths(path string) []components.BreadcrumbPart {
 func (h *WebHandler) Get(w http.ResponseWriter, r *http.Request) {
 	gnourl, err := ParseGnoURL(r.URL)
 	if err != nil {
-		h.logger.Error("unable to render body", "url", r.URL.String(), "err", err)
 		http.Error(w, "invalid url", http.StatusBadRequest)
 		return
 	}
@@ -148,14 +149,15 @@ func (h *WebHandler) Get(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *WebHandler) renderRealmHelp(w io.Writer, gnourl *GnoURL) (status int, err error) {
-	fsigs, err := h.rendercli.Functions(gnourl.Path)
+	fsigs, err := h.webcli.Functions(gnourl.Path)
 	if err != nil {
 		h.logger.Error("unable to fetch path functions", "err", err)
 		return http.StatusInternalServerError, components.RenderStatusComponent(w, "internal error")
 	}
 
 	// Catch last name of the path
-	realmName := "unknown>"
+	// XXX: we should probably add a condition within the template
+	realmName := "unknown"
 	if i := strings.LastIndexByte(gnourl.Path, '/'); i > 0 {
 		realmName = gnourl.Path[i+1:]
 	}
@@ -178,7 +180,7 @@ func (h *WebHandler) renderRealmHelp(w io.Writer, gnourl *GnoURL) (status int, e
 func (h *WebHandler) renderRealmSource(w io.Writer, gnourl *GnoURL) (status int, err error) {
 	pkgPath := gnourl.Path
 
-	files, err := h.rendercli.Sources(pkgPath)
+	files, err := h.webcli.Sources(pkgPath)
 	if err != nil {
 		h.logger.Error("unable to list sources file", "path", gnourl.Path, "err", err)
 		return http.StatusInternalServerError, components.RenderStatusComponent(w, "internal error")
@@ -200,29 +202,11 @@ func (h *WebHandler) renderRealmSource(w io.Writer, gnourl *GnoURL) (status int,
 		return http.StatusInternalServerError, components.RenderStatusComponent(w, "internal error")
 	}
 
-	source, err := h.rendercli.SourceFile(pkgPath, fileName)
+	source, err := h.webcli.SourceFile(pkgPath, fileName)
 	if err != nil {
 		h.logger.Error("unable to get source file", "file", fileName, "err", err)
 		return http.StatusInternalServerError, components.RenderStatusComponent(w, "internal error")
 	}
-
-	// if theme := gnourl.WebQuery.Get("theme"); theme != "" {
-	// 	n, err := strconv.ParseInt(theme, 10, 32)
-	// 	if err != nil {
-	// 		cstyle = styles.Get(theme)
-	// 	} else {
-	// 		listName := make([]string, len(styles.Registry))
-	// 		for name := range styles.Registry {
-	// 			listName = append(listName, name)
-	// 		}
-
-	// 		sort.Slice(listName, func(i, j int) bool {
-	// 			return strings.Compare(listName[i], listName[j]) > 0
-	// 		})
-
-	// 		cstyle = styles.Get(listName[n])
-	// 	}
-	// }
 
 	hsource, err := h.highlightSource(chromaStyle, fileName, source)
 	if err != nil {
@@ -244,15 +228,6 @@ func (h *WebHandler) renderRealmSource(w io.Writer, gnourl *GnoURL) (status int,
 	return http.StatusOK, nil
 }
 
-func contains(files []string, file string) bool {
-	for _, f := range files {
-		if f == file {
-			return true
-		}
-	}
-	return false
-}
-
 func (h *WebHandler) renderRealm(w io.Writer, gnourl *GnoURL) (status int, err error) {
 	h.logger.Info("component render", "path", gnourl.Path, "args", gnourl.PathArgs)
 
@@ -270,7 +245,7 @@ func (h *WebHandler) renderRealm(w io.Writer, gnourl *GnoURL) (status int, err e
 	content := h.getBuffer()
 	defer h.putBuffer(content)
 
-	meta, err := h.rendercli.Render(content, gnourl.Path, gnourl.EncodeArgs())
+	meta, err := h.webcli.Render(content, gnourl.Path, gnourl.EncodeArgs())
 	if err != nil {
 		if errors.Is(err, vm.InvalidPkgPathError{}) {
 			return http.StatusNotFound, components.RenderStatusComponent(w, "not found")
@@ -342,4 +317,13 @@ func (h *WebHandler) getBuffer() *bytes.Buffer {
 func (h *WebHandler) putBuffer(buf *bytes.Buffer) {
 	buf.Reset()
 	h.bufferPool.Put(buf)
+}
+
+func contains(files []string, file string) bool {
+	for _, f := range files {
+		if f == file {
+			return true
+		}
+	}
+	return false
 }
