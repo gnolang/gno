@@ -210,14 +210,14 @@ func (pkg *pkgData) docPackage(opts *WriteDocumentationOptions) (*ast.Package, *
 
 	// Compute package documentation.
 	// Assign to blank to ignore errors that can happen due to unresolved identifiers.
-	astpkg, _ := ast.NewPackage(pkg.fset, fileMap, simpleImporter, nil)
+	astpkg, _ := ast.NewPackage(pkg.fset, fileMap, simplepackages, nil)
 	p := doc.New(astpkg, pkg.dir.importPath, mode)
 	// TODO: classifyExamples(p, Examples(testGoFiles...))
 
 	return astpkg, p, nil
 }
 
-func simpleImporter(imports map[string]*ast.Object, path string) (*ast.Object, error) {
+func simplepackages(imports map[string]*ast.Object, path string) (*ast.Object, error) {
 	pkg := imports[path]
 	if pkg == nil {
 		// note that strings.LastIndex returns -1 if there is no "/"

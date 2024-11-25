@@ -11,7 +11,6 @@ import (
 	"os"
 	"path/filepath"
 	"runtime/debug"
-	"sort"
 	"strings"
 	"text/template"
 	"time"
@@ -20,13 +19,12 @@ import (
 
 	"github.com/gnolang/gno/gnovm"
 	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
+	"github.com/gnolang/gno/gnovm/pkg/gnofiles"
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
-	"github.com/gnolang/gno/gnovm/pkg/gnomod"
+	"github.com/gnolang/gno/gnovm/pkg/packages"
 	"github.com/gnolang/gno/gnovm/tests"
 	teststd "github.com/gnolang/gno/gnovm/tests/stdlibs/std"
 	"github.com/gnolang/gno/tm2/pkg/commands"
-	"github.com/gnolang/gno/tm2/pkg/errors"
-	"github.com/gnolang/gno/tm2/pkg/random"
 	"github.com/gnolang/gno/tm2/pkg/testutils"
 )
 
@@ -171,11 +169,12 @@ func execTest(cfg *testCfg, args []string, io commands.IO) error {
 		cfg.rootDir = gnoenv.RootDir()
 	}
 
-	paths, err := targetsFromPatterns(args)
+	// Find targets for test.
+	pkgs, err := packages.Load(io, args...)
 	if err != nil {
 		return fmt.Errorf("list targets from patterns: %w", err)
 	}
-	if len(paths) == 0 {
+	if len(pkgs) == 0 {
 		io.ErrPrintln("no packages to test")
 		return nil
 	}
@@ -187,35 +186,33 @@ func execTest(cfg *testCfg, args []string, io commands.IO) error {
 		}()
 	}
 
-	subPkgs, err := gnomod.SubPkgsFromPaths(paths)
-	if err != nil {
-		return fmt.Errorf("list sub packages: %w", err)
-	}
-
 	buildErrCount := 0
 	testErrCount := 0
-	for _, pkg := range subPkgs {
-		if len(pkg.TestGnoFiles) == 0 && len(pkg.FiletestGnoFiles) == 0 {
-			io.ErrPrintfln("?       %s \t[no test files]", pkg.Dir)
+	for _, pkg := range pkgs {
+		// ignore deps
+		if len(pkg.Match) == 0 {
 			continue
 		}
 
-		sort.Strings(pkg.TestGnoFiles)
-		sort.Strings(pkg.FiletestGnoFiles)
+		if len(pkg.TestGnoFiles) == 0 && len(pkg.FiletestGnoFiles) == 0 {
+			io.ErrPrintfln("?       %s \t[no test files]", pkg.ImportPath)
+			continue
+		}
 
 		startedAt := time.Now()
-		err = gnoTestPkg(pkg.Dir, pkg.TestGnoFiles, pkg.FiletestGnoFiles, cfg, io)
+		err = gnoTestPkg(pkg, pkgs, cfg, io)
 		duration := time.Since(startedAt)
 		dstr := fmtDuration(duration)
 
+		err := multierr.Combine(append(pkg.Errors, err)...)
 		if err != nil {
-			io.ErrPrintfln("%s: test pkg: %v", pkg.Dir, err)
+			io.ErrPrintfln("%s: test pkg: %w", pkg.ImportPath, err)
 			io.ErrPrintfln("FAIL")
-			io.ErrPrintfln("FAIL    %s \t%s", pkg.Dir, dstr)
+			io.ErrPrintfln("FAIL    %s \t%s", pkg.ImportPath, dstr)
 			io.ErrPrintfln("FAIL")
 			testErrCount++
 		} else {
-			io.ErrPrintfln("ok      %s \t%s", pkg.Dir, dstr)
+			io.ErrPrintfln("ok      %s \t%s", pkg.ImportPath, dstr)
 		}
 	}
 	if testErrCount > 0 || buildErrCount > 0 {
@@ -227,9 +224,8 @@ func execTest(cfg *testCfg, args []string, io commands.IO) error {
 }
 
 func gnoTestPkg(
-	pkgPath string,
-	unittestFiles,
-	filetestFiles []string,
+	pkg *packages.Package,
+	loadedPkgs []*packages.Package,
 	cfg *testCfg,
 	io commands.IO,
 ) error {
@@ -257,27 +253,23 @@ func gnoTestPkg(
 		stdout = commands.WriteNopCloser(mockOut)
 	}
 
+	pkgsMap := map[string]*packages.Package{}
+	for _, pkg := range loadedPkgs {
+		pkgsMap[pkg.ImportPath] = pkg
+	}
+
 	// testing with *_test.gno
-	if len(unittestFiles) > 0 {
+	if len(pkg.TestGnoFiles) > 0 {
 		// Determine gnoPkgPath by reading gno.mod
-		var gnoPkgPath string
-		modfile, err := gnomod.ParseAt(pkgPath)
-		if err == nil {
-			gnoPkgPath = modfile.Module.Mod.Path
-		} else {
-			gnoPkgPath = pkgPathFromRootDir(pkgPath, rootDir)
-			if gnoPkgPath == "" {
-				// unable to read pkgPath from gno.mod, generate a random realm path
-				io.ErrPrintfln("--- WARNING: unable to read package path from gno.mod or gno root directory; try creating a gno.mod file")
-				gnoPkgPath = gno.RealmPathPrefix + random.RandStr(8)
-			}
+		memPkg, err := pkg.MemPkg()
+		if err != nil {
+			errs = multierr.Append(errs, fmt.Errorf("failed to convert pkg %q to mem pkg: %w", pkg.Dir, err))
 		}
-		memPkg := gno.ReadMemPackage(pkgPath, gnoPkgPath)
 
 		// tfiles, ifiles := gno.ParseMemPackageTests(memPkg)
 		var tfiles, ifiles *gno.FileSet
 
-		hasError := catchRuntimeError(gnoPkgPath, stderr, func() {
+		hasError := catchRuntimeError(pkg.ImportPath, stderr, func() {
 			tfiles, ifiles = parseMemPackageTests(memPkg)
 		})
 
@@ -289,15 +281,23 @@ func gnoTestPkg(
 		// run test files in pkg
 		if len(tfiles.Files) > 0 {
 			testStore := tests.TestStore(
-				rootDir, "",
+				rootDir, "", pkgsMap,
 				stdin, stdout, stderr,
 				mode,
 			)
+			for _, pkg := range loadedPkgs {
+				memPkg, err := pkg.MemPkg()
+				if err != nil {
+					errs = multierr.Append(errs, fmt.Errorf("failed to convert pkg %q to mem pkg: %w", pkg.Dir, err))
+					continue
+				}
+				testStore.AddMemPackage(memPkg)
+			}
 			if verbose {
 				testStore.SetLogStoreOps(true)
 			}
 
-			m := tests.TestMachine(testStore, stdout, gnoPkgPath)
+			m := tests.TestMachine(testStore, stdout, pkg.ImportPath)
 			if printRuntimeMetrics {
 				// from tm2/pkg/sdk/vm/keeper.go
 				// XXX: make maxAllocTx configurable.
@@ -315,10 +315,18 @@ func gnoTestPkg(
 		// test xxx_test pkg
 		if len(ifiles.Files) > 0 {
 			testStore := tests.TestStore(
-				rootDir, "",
+				rootDir, "", pkgsMap,
 				stdin, stdout, stderr,
 				mode,
 			)
+			for _, pkg := range loadedPkgs {
+				memPkg, err := pkg.MemPkg()
+				if err != nil {
+					errs = multierr.Append(errs, fmt.Errorf("failed to convert pkg %q to mem pkg: %w", pkg.Dir, err))
+					continue
+				}
+				testStore.AddMemPackage(memPkg)
+			}
 			if verbose {
 				testStore.SetLogStoreOps(true)
 			}
@@ -350,7 +358,7 @@ func gnoTestPkg(
 	// testing with *_filetest.gno
 	{
 		filter := splitRegexp(runFlag)
-		for _, testFile := range filetestFiles {
+		for _, testFile := range pkg.FiletestGnoFiles {
 			testFileName := filepath.Base(testFile)
 			testName := "file/" + testFileName
 			if !shouldRun(filter, testName) {
@@ -367,7 +375,7 @@ func gnoTestPkg(
 				closer = testutils.CaptureStdoutAndStderr()
 			}
 
-			testFilePath := filepath.Join(pkgPath, testFileName)
+			testFilePath := filepath.Join(pkg.Dir, testFileName)
 			err := tests.RunFileTest(rootDir, testFilePath, tests.WithSyncWanted(cfg.updateGoldenTests))
 			duration := time.Since(startedAt)
 			dstr := fmtDuration(duration)
@@ -393,35 +401,6 @@ func gnoTestPkg(
 	}
 
 	return errs
-}
-
-// attempts to determine the full gno pkg path by analyzing the directory.
-func pkgPathFromRootDir(pkgPath, rootDir string) string {
-	abPkgPath, err := filepath.Abs(pkgPath)
-	if err != nil {
-		log.Printf("could not determine abs path: %v", err)
-		return ""
-	}
-	abRootDir, err := filepath.Abs(rootDir)
-	if err != nil {
-		log.Printf("could not determine abs path: %v", err)
-		return ""
-	}
-	abRootDir += string(filepath.Separator)
-	if !strings.HasPrefix(abPkgPath, abRootDir) {
-		return ""
-	}
-	impPath := strings.ReplaceAll(abPkgPath[len(abRootDir):], string(filepath.Separator), "/")
-	for _, prefix := range [...]string{
-		"examples/",
-		"gnovm/stdlibs/",
-		"gnovm/tests/stdlibs/",
-	} {
-		if strings.HasPrefix(impPath, prefix) {
-			return impPath[len(prefix):]
-		}
-	}
-	return ""
 }
 
 func runTestFiles(
@@ -480,7 +459,7 @@ func runTestFiles(
 
 		ret := eval[0].GetString()
 		if ret == "" {
-			err := errors.New("failed to execute unit test: %q", test.Name)
+			err := fmt.Errorf("failed to execute unit test: %q", test.Name)
 			errs = multierr.Append(errs, err)
 			io.ErrPrintfln("--- FAIL: %s [internal gno testing error]", test.Name)
 			continue
@@ -496,7 +475,7 @@ func runTestFiles(
 		}
 
 		if rep.Failed {
-			err := errors.New("failed: %q", test.Name)
+			err := fmt.Errorf("failed: %q", test.Name)
 			errs = multierr.Append(errs, err)
 		}
 
@@ -605,10 +584,7 @@ func parseMemPackageTests(memPkg *gnovm.MemPackage) (tset, itset *gno.FileSet) {
 	itset = &gno.FileSet{}
 	var errs error
 	for _, mfile := range memPkg.Files {
-		if !strings.HasSuffix(mfile.Name, ".gno") {
-			continue // skip this file.
-		}
-		if strings.HasSuffix(mfile.Name, "_filetest.gno") {
+		if !gnofiles.IsGnoFile(mfile.Name, "!*_filetest.gno") {
 			continue
 		}
 		n, err := gno.ParseFile(mfile.Name, mfile.Body)

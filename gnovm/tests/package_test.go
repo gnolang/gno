@@ -13,6 +13,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
+	"github.com/gnolang/gno/gnovm/pkg/packages"
 )
 
 func TestStdlibs(t *testing.T) {
@@ -71,7 +72,8 @@ func runPackageTest(t *testing.T, dir string, path string) {
 	stdout := os.Stdout
 	stderr := new(bytes.Buffer)
 	rootDir := filepath.Join("..", "..")
-	store := TestStore(rootDir, path, stdin, stdout, stderr, ImportModeStdlibsOnly)
+	pkgsMap := map[string]*packages.Package{}
+	store := TestStore(rootDir, path, pkgsMap, stdin, stdout, stderr, ImportModeStdlibsOnly)
 	store.SetLogStoreOps(true)
 	m := gno.NewMachineWithOptions(gno.MachineOptions{
 		PkgPath: "test",
