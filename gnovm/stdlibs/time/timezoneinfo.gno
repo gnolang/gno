@@ -71,7 +71,7 @@ var utcLoc = Location{name: "UTC"}
 
 func init() {
 	chainTz := GetChainTz()
-	timezoneChainParam, _ = LoadLocation("UTC")
+	timezoneChainParam, _ = LoadLocation(chainTz)
 }
 
 func GetChainTz() string // injected
