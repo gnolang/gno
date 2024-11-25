@@ -16,10 +16,12 @@ func disableCache(next http.Handler) http.Handler {
 	})
 }
 
-func AssetDevHandler() http.Handler {
-	return disableCache(http.StripPrefix("/public", http.FileServer(http.Dir("public"))))
-}
+func AssetHandler(basePath string, cache bool) http.Handler {
+	if cache {
+		return http.FileServer(http.FS(assets))
+	}
 
-func AssetHandler() http.Handler {
-	return http.FileServer(http.FS(assets))
+	handler := http.StripPrefix(basePath, http.FileServer(http.Dir(basePath)))
+	return disableCache(handler)
+
 }

@@ -306,7 +306,10 @@ func execDev(cfg *devCfg, args []string, io commands.IO) (err error) {
 	defer server.Close()
 
 	// Setup gnoweb
-	webhandler := setupGnoWebServer(logger.WithGroup(WebLogName), cfg, devNode)
+	webhandler, err := setupGnoWebServer(logger.WithGroup(WebLogName), cfg, devNode)
+	if err != nil {
+		return fmt.Errorf("unable to setup gnoweb server: %w", err)
+	}
 
 	// Setup unsafe APIs if enabled
 	if cfg.unsafeAPI {
@@ -360,7 +363,7 @@ func execDev(cfg *devCfg, args []string, io commands.IO) (err error) {
 	return runEventLoop(ctx, logger, book, rt, devNode, watcher)
 }
 
-var helper string = `For more in-depth documentation, visit the GNO Tooling CLI documentation: 
+var helper string = `For more in-depth documentation, visit the GNO Tooling CLI documentation:
 https://docs.gno.land/gno-tooling/cli/gno-tooling-gnodev
 
 P           Previous TX  - Go to the previous tx

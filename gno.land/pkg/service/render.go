@@ -8,7 +8,6 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/alecthomas/chroma/formatters/html"
 	"github.com/gnolang/gno/gno.land/pkg/gnoclient"
 	md "github.com/gnolang/gno/gno.land/pkg/markdown"
 	"github.com/gnolang/gno/gno.land/pkg/sdk/vm" // for error types
@@ -19,20 +18,17 @@ import (
 )
 
 type WebRenderClient struct {
-	htmlFromater *html.Formatter
-	log          *slog.Logger
-	client       *gnoclient.Client
-	md           goldmark.Markdown
+	logger *slog.Logger
+	client *gnoclient.Client
+	md     goldmark.Markdown
 }
 
 func NewWebRender(log *slog.Logger, cl *gnoclient.Client, m goldmark.Markdown) *WebRenderClient {
-	formatter := html.New(html.WithClasses(true))
 	m.Parser().AddOptions(parser.WithAutoHeadingID())
 	return &WebRenderClient{
-		htmlFromater: formatter,
-		log:          log,
-		client:       cl,
-		md:           m,
+		logger: log,
+		client: cl,
+		md:     m,
 	}
 }
 
@@ -47,7 +43,7 @@ func (s *WebRenderClient) Functions(pkgPath string) ([]vm.FunctionSignature, err
 
 	var fsigs vm.FunctionSignatures
 	if err := amino.UnmarshalJSON(res, &fsigs); err != nil {
-		s.log.Warn("unable to unmarshal fsigs, client is probably outdated ?")
+		s.logger.Warn("unable to unmarshal fsigs, client is probably outdated ?")
 		return nil, fmt.Errorf("unable to unamarshal fsigs: %w", err)
 	}
 
@@ -95,7 +91,6 @@ func (s *WebRenderClient) Render(w io.Writer, pkgPath string, args string) (*Met
 	const qpath = "vm/qrender"
 
 	data := []byte(gnoPath(pkgPath, args))
-	fmt.Println("data", string(data))
 	rawres, err := s.query(qpath, data)
 	if err != nil {
 		return nil, err
@@ -109,14 +104,14 @@ func (s *WebRenderClient) Render(w io.Writer, pkgPath string, args string) (*Met
 	var meta Metadata
 	meta.Toc, err = md.TocInspect(doc, rawres, md.TocOptions{MaxDepth: 6})
 	if err != nil {
-		s.log.Warn("unable to inspect for toc elements", "err", err)
+		s.logger.Warn("unable to inspect for toc elements", "err", err)
 	}
 
 	return &meta, nil
 }
 
 func (s *WebRenderClient) query(qpath string, data []byte) ([]byte, error) {
-	s.log.Info("query", "qpath", qpath, "data", string(data))
+	s.logger.Info("query", "qpath", qpath, "data", string(data))
 	// XXX: move this into gnoclient
 	qres, err := s.client.Query(gnoclient.QueryCfg{
 		Path: qpath,
@@ -124,11 +119,11 @@ func (s *WebRenderClient) query(qpath string, data []byte) ([]byte, error) {
 	})
 
 	if err != nil {
-		s.log.Error("request error", "path", qpath, "data", string(data), "error", err)
+		s.logger.Error("request error", "path", qpath, "data", string(data), "error", err)
 		return nil, fmt.Errorf("unable to query path %q: %w", qpath, err)
 	}
 	if qres.Response.Error != nil {
-		s.log.Error("response error", "path", qpath, "log", qres.Response.Log)
+		s.logger.Error("response error", "path", qpath, "log", qres.Response.Log)
 		return nil, qres.Response.Error
 	}
 

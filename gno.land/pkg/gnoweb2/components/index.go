@@ -8,15 +8,13 @@ import (
 )
 
 type HeadData struct {
-	Title           string
-	Description     string
-	Canonical       string
-	Image           string
-	URL             string
-	AdditionalLinks []struct {
-		Rel  string
-		Href string
-	}
+	Title       string
+	Description string
+	Canonical   string
+	Image       string
+	URL         string
+	ChromaPath  string
+	AssetsPath  string
 }
 
 type HeaderData struct {

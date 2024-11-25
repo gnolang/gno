@@ -4,12 +4,24 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
+	"path"
+	"strings"
 
+	"github.com/alecthomas/chroma/v2/formatters/html"
+	"github.com/alecthomas/chroma/v2/styles"
 	"github.com/gnolang/gno/gno.land/pkg/gnoclient"
 	"github.com/gnolang/gno/gno.land/pkg/service"
 	"github.com/gnolang/gno/tm2/pkg/bft/rpc/client"
 	"github.com/yuin/goldmark"
 )
+
+var chromaStyle = styles.Get("friendly")
+
+func init() {
+	if chromaStyle == nil {
+		panic("unable to get chroma style")
+	}
+}
 
 type AppConfig struct {
 	Remote     string
@@ -24,20 +36,11 @@ func NewDefaultAppConfig() *AppConfig {
 	return &AppConfig{
 		Remote: defaultRemote, RemoteHelp: defaultRemote, // same as `Remote` by default
 		ChainID:    "dev",
-		AssetsPath: "public",
+		AssetsPath: "/public/",
 	}
 }
 
-type App struct {
-	mux     *http.ServeMux
-	handler WebHandler
-}
-
-func (a *App) Router(w http.ResponseWriter, r *http.Request) {
-	a.mux.ServeHTTP(w, r)
-}
-
-func MakeApp(logger *slog.Logger, cfg *AppConfig) (http.Handler, error) {
+func MakeRouterApp(logger *slog.Logger, cfg *AppConfig) (http.Handler, error) {
 	md := goldmark.New()
 
 	client, err := client.NewHTTPClient(cfg.Remote)
@@ -57,12 +60,21 @@ func MakeApp(logger *slog.Logger, cfg *AppConfig) (http.Handler, error) {
 	}
 	webcli := service.NewWebRender(logger, &cl, md)
 
+	formatter := html.New(
+		html.WithLineNumbers(true),
+		html.WithClasses(true),
+		html.ClassPrefix("chroma-"),
+	)
+	chromaStylePath := path.Join(cfg.AssetsPath, "_chroma", "style.css")
+
 	var webConfig WebHandlerConfig
 
 	webConfig.RenderClient = webcli
+	webConfig.Formatter = newFormaterWithStyle(formatter, chromaStyle)
 
 	// static meta
 	webConfig.Meta.AssetsPath = cfg.AssetsPath
+	webConfig.Meta.ChromaPath = chromaStylePath
 	webConfig.Meta.RemoteHelp = cfg.RemoteHelp
 	webConfig.Meta.ChaindID = cfg.ChainID
 
@@ -71,11 +83,24 @@ func MakeApp(logger *slog.Logger, cfg *AppConfig) (http.Handler, error) {
 
 	mux := http.NewServeMux()
 
-	// Setup Alias Middleware
+	// Setup Webahndler along Alias Middleware
 	mux.Handle("/", AliasAndRedirectMiddleware(webhandler))
 
-	// Setup asset path
-	mux.Handle(cfg.AssetsPath, AssetHandler())
+	// setup assets
+	mux.Handle(chromaStylePath, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// Setup Formatter
+		w.Header().Set("Content-Type", "text/css")
+		if err := formatter.WriteCSS(w, chromaStyle); err != nil {
+			logger.Error("unable to write css", "err", err)
+			http.NotFound(w, r)
+		}
+	}))
+
+	// Normalize assets path
+	assetsBase := "/" + strings.Trim(cfg.AssetsPath, "/") + "/"
+
+	// Handle assets path
+	mux.Handle(assetsBase, AssetHandler(cfg.AssetsPath, true))
 
 	return mux, nil
 }

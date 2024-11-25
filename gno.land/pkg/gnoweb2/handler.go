@@ -15,38 +15,26 @@ import (
 	"github.com/alecthomas/chroma/v2"
 	"github.com/alecthomas/chroma/v2/formatters/html"
 	"github.com/alecthomas/chroma/v2/lexers"
-	"github.com/alecthomas/chroma/v2/styles"
 	"github.com/gnolang/gno/gno.land/pkg/gnoweb2/components"
 	"github.com/gnolang/gno/gno.land/pkg/sdk/vm" // for error types
 	"github.com/gnolang/gno/gno.land/pkg/service"
 )
 
-const chromaPath = "/_chroma/style.css"
-
-var chromaStyle = styles.Get("friendly")
-
-func init() {
-	if chromaStyle == nil {
-		panic("unable to get chroma style")
-	}
-}
-
 type StaticMetadata struct {
 	AssetsPath string
+	ChromaPath string
 	RemoteHelp string
 	ChaindID   string
-}
-
-type Formater interface {
 }
 
 type WebHandlerConfig struct {
 	Meta         StaticMetadata
 	RenderClient *service.WebRenderClient
+	Formatter    Formatter
 }
 
 type WebHandler struct {
-	formatter *html.Formatter
+	formatter Formatter
 
 	logger    *slog.Logger
 	static    StaticMetadata
@@ -62,15 +50,8 @@ func NewWebHandler(logger *slog.Logger, cfg WebHandlerConfig) *WebHandler {
 		logger.Error("no renderer has been defined")
 	}
 
-	// Setup Formatter
-	formatter := html.New(
-		html.WithClasses(true),
-		html.ClassPrefix("chroma-"),
-		html.WithLineNumbers(true),
-	)
-
 	return &WebHandler{
-		formatter: formatter,
+		formatter: cfg.Formatter,
 		rendercli: cfg.RenderClient,
 		logger:    logger.WithGroup("web"),
 		static:    cfg.Meta,
@@ -84,23 +65,12 @@ func NewWebHandler(logger *slog.Logger, cfg WebHandlerConfig) *WebHandler {
 }
 
 func (h *WebHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	h.logger.Info("receiving request", "method", r.Method, "path", r.URL.Path)
-	if r.Method == http.MethodGet {
-		if r.URL.Path == chromaPath {
-			w.Header().Set("Content-Type", "text/css")
-			// XXX: Move this elsewhere, it should fail with the prefix
-			if err := h.formatter.WriteCSS(w, chromaStyle); err != nil {
-				h.logger.Error("unable to write css", "err", err)
-				http.NotFound(w, r)
-			}
-			return
-		}
-
-		h.Get(w, r)
-		return
+	h.logger.Debug("receiving request", "method", r.Method, "path", r.URL.Path)
+	if r.Method != http.MethodGet {
+		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 	}
 
-	http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+	h.Get(w, r)
 }
 
 type PathKind string
@@ -125,13 +95,6 @@ func generateBreadcrumbPaths(path string) []components.BreadcrumbPart {
 }
 
 func (h *WebHandler) Get(w http.ResponseWriter, r *http.Request) {
-	var headData components.HeadData // Placeholder for later metadata
-
-	body := h.getBuffer()
-	defer h.putBuffer(body)
-
-	var status int
-
 	gnourl, err := ParseGnoURL(r.URL)
 	if err != nil {
 		h.logger.Error("unable to render body", "url", r.URL.String(), "err", err)
@@ -139,7 +102,11 @@ func (h *WebHandler) Get(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	body := h.getBuffer()
+	defer h.putBuffer(body)
+
 	// Render the page body into the buffer
+	var status int
 	switch gnourl.Kind {
 	case KindRealm:
 		status, err = h.renderRealm(body, gnourl)
@@ -160,7 +127,11 @@ func (h *WebHandler) Get(w http.ResponseWriter, r *http.Request) {
 
 	var indexData components.IndexData
 
-	indexData.HeadData = headData
+	// Head
+	indexData.HeadData.AssetsPath = h.static.AssetsPath
+	indexData.HeadData.ChromaPath = h.static.ChromaPath
+
+	// Header
 	indexData.HeaderData.RealmPath = gnourl.Path
 	indexData.HeaderData.Breadcrumb.Parts = generateBreadcrumbPaths(gnourl.Path)
 	indexData.HeaderData.WebQuery = gnourl.WebQuery
@@ -183,7 +154,8 @@ func (h *WebHandler) renderRealmHelp(w io.Writer, gnourl *GnoURL) (status int, e
 		return http.StatusInternalServerError, components.RenderStatusComponent(w, "internal error")
 	}
 
-	realmName := "<unknown>"
+	// Catch last name of the path
+	realmName := "unknown>"
 	if i := strings.LastIndexByte(gnourl.Path, '/'); i > 0 {
 		realmName = gnourl.Path[i+1:]
 	}
@@ -354,7 +326,7 @@ func (h *WebHandler) highlightSource(style *chroma.Style, fileName string, src [
 		return buff.Bytes(), nil
 	}
 
-	if err := h.formatter.Format(&buff, style, iterator); err != nil {
+	if err := h.formatter.Format(&buff, iterator); err != nil {
 		return nil, fmt.Errorf("unable to format source file %q: %w", fileName, err)
 	}
 

@@ -1,4 +1,4 @@
-package gnoweb
+package main
 
 import (
 	"fmt"

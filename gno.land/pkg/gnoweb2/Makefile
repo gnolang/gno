@@ -70,8 +70,8 @@ dev:
 dev.gnoweb: | .cache
 	@killall gnowebserve || true # make sure that previous instances as been kill
 	$(run_air) \
-		--build.cmd "go build -o .cache/gnowebserve ." \
-		--build.bin ".cache/gnowebserve -dev -chain-id=${CHAIN_ID} -remote=${DEV_REMOTE}" \
+		--build.cmd "go build -o .cache/gnowebserve ../../cmd/gnoweb2" \
+		--build.bin ".cache/gnowebserve -chain-id=${CHAIN_ID} -remote=${DEV_REMOTE}" \
 		--build.exclude_unchanged "true" \
 		--build.exclude_dir "gotools,node_modules" \
 		--build.exclude_regex '^\.#' \
