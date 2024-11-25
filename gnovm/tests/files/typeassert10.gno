@@ -1,8 +1,17 @@
 package main
 
+type (
+	nat  []word
+	word int
+)
+
 func main() {
-	_ = _
+	var a nat
+	b := []word{0}
+	a = b
+
+	println(a)
 }
 
-// Error:
-// main/files/typeassert10.gno:4:6: cannot use _ as value or type
+// Output:
+// (slice[(0 main.word)] main.nat)
