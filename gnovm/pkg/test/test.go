@@ -170,11 +170,13 @@ func (p *proxyWriter) tee(w io.Writer) (revert func()) {
 	}
 }
 
-func Test(
-	memPkg *gnovm.MemPackage,
-	fsDir string, // directory on filesystem of package; used for Sync
-	opts *TestOptions,
-) error {
+// Test runs tests on the specified memPkg.
+// fsDir is the directory on filesystem of package; it's used in case opts.Sync
+// is enabled, and points to the directory where the files are contained if they
+// are to be updated.
+// opts is a required set of options, which is often shared among different
+// tests; you can use [NewTestOptions] for a common base configuration.
+func Test(memPkg *gnovm.MemPackage, fsDir string, opts *TestOptions) error {
 	opts.outWriter.w = opts.Output
 
 	var errs error
