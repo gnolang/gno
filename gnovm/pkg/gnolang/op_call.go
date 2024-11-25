@@ -7,7 +7,6 @@ import (
 )
 
 func (m *Machine) doOpPrecall() {
-	//fmt.Println("---doOpPrecall---")
 	cx := m.PopExpr().(*CallExpr)
 	v := m.PeekValue(1 + cx.NumArgs).V
 	if debug {
@@ -20,7 +19,6 @@ func (m *Machine) doOpPrecall() {
 	}
 	switch fv := v.(type) {
 	case *FuncValue:
-		//fmt.Println("---FuncValue, fv: ", fv)
 		m.PushFrameCall(cx, fv, TypedValue{})
 		m.PushOp(OpCall)
 	case *BoundMethodValue:
@@ -51,7 +49,6 @@ func (m *Machine) doOpPrecall() {
 var gReturnStmt = &ReturnStmt{}
 
 func (m *Machine) doOpCall() {
-	//fmt.Println("---doOpCall---")
 	// NOTE: Frame won't be popped until the statement is complete, to
 	// discard the correct number of results for func calls in ExprStmts.
 	fr := m.LastFrame()

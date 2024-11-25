@@ -7,7 +7,8 @@ var f func() string
 
 func main() {
 	f = crossrealm.GetFunc()
-	println(f)
+	println(f())
 }
 
 // Output:
+// a

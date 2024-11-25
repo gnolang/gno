@@ -133,21 +133,7 @@ func (rlm *Realm) String() string {
 // if rlm or po is nil, do nothing.
 // xo or co is nil if the element value is undefined or has no
 // associated object.
-// TODO: func (rlm *Realm) DidUpdate(po, xo, co Object, attached bool) {
 func (rlm *Realm) DidUpdate(po, xo, co Object) {
-	//fmt.Println("---DidUpdate, rlm.ID: ", rlm.ID)
-	//fmt.Printf("---xo: %v, type of xo: %v\n", xo, reflect.TypeOf(xo))
-	//fmt.Printf("---co: %v, type of co: %v\n", co, reflect.TypeOf(co))
-	//
-	//if co != nil {
-	//	fmt.Println("---co.LastNewEscapedRealm: ", co.GetLastNewEscapedRealm())
-	//	fmt.Println("---co.GetRefCount: ", co.GetRefCount())
-	//	fmt.Println("---co isReal(attached): ", co.GetIsReal())
-	//	fmt.Println("---co objectID: ", co.GetObjectID())
-	//}
-
-	//fmt.Printf("---po: %v, type of po: %v\n", po, reflect.TypeOf(po))
-
 	if rlm == nil {
 		return
 	}
@@ -164,7 +150,6 @@ func (rlm *Realm) DidUpdate(po, xo, co Object) {
 	}
 
 	if po == nil || !po.GetIsReal() { // XXX, make sure po is attached
-		fmt.Println("---po(Base) not real, do nothing!!!")
 		return // do nothing.
 	}
 
@@ -179,16 +164,14 @@ func (rlm *Realm) DidUpdate(po, xo, co Object) {
 	rlm.MarkDirty(po)
 
 	if co != nil {
-		//fmt.Println("---co.GetRefCount: ", co.GetRefCount())
 		// XXX, inc ref count everytime assignment happens
 		co.IncRefCount()
-		//fmt.Println("---after inc, co.GetRefCount: ", co.GetRefCount())
 		if co.GetRefCount() > 1 {
 			if co.GetIsEscaped() {
 				// XXX, why packageBlock is automatically escaped?
-				//println("---already escaped, should check cross realm?")
 				// already escaped
 			} else {
+				// XXX, just mark
 				rlm.MarkNewEscapedCheckCrossRealm(nil, co, false, 0, 0)
 			}
 		} else if co.GetIsReal() {
@@ -201,7 +184,6 @@ func (rlm *Realm) DidUpdate(po, xo, co Object) {
 
 	if xo != nil {
 		xo.DecRefCount()
-		//fmt.Printf("---xo: %v refCount after dec: %v\n", xo, xo.GetRefCount())
 		if xo.GetRefCount() == 0 {
 			if xo.GetIsReal() {
 				rlm.MarkNewDeleted(xo)
@@ -327,6 +309,7 @@ func checkCrossRealm(store Store, oo Object, offset, length int) {
 			//res := oo.(*ArrayValue).GetPointerAtIndexInt2(store, i, nil).Deref()
 			e := oo.(*ArrayValue).GetPointerAtIndexInt2(store, i, nil).Deref()
 
+			// TODO: replace these logic
 			fmt.Println("---e: ", e, reflect.TypeOf(e.V))
 			if _, ok := e.V.(RefValue); ok { // TODO: XXX, does this already enough
 				fmt.Println("---escaped: ", e.V.(RefValue).Escaped)
@@ -401,7 +384,6 @@ func (rlm *Realm) MarkNewEscapedCheckCrossRealm(store Store, oo Object, isRef bo
 }
 
 func (rlm *Realm) MarkNewReal(oo Object) {
-	//fmt.Println("---markNewReal---, oo: ", oo)
 	if debug {
 		if pv, ok := oo.(*PackageValue); ok {
 			// packages should have no owner.
@@ -515,13 +497,13 @@ func (rlm *Realm) FinalizeRealmTransaction(readonly bool, store Store) {
 	}()
 	if readonly {
 		if true ||
-			len(rlm.newCreated) > 0 ||
-			len(rlm.newEscaped) > 0 ||
-			len(rlm.newDeleted) > 0 ||
-			len(rlm.created) > 0 ||
-			len(rlm.updated) > 0 ||
-			len(rlm.deleted) > 0 ||
-			len(rlm.escaped) > 0 {
+				len(rlm.newCreated) > 0 ||
+				len(rlm.newEscaped) > 0 ||
+				len(rlm.newDeleted) > 0 ||
+				len(rlm.created) > 0 ||
+				len(rlm.updated) > 0 ||
+				len(rlm.deleted) > 0 ||
+				len(rlm.escaped) > 0 {
 			panic("realm updates in readonly transaction")
 		}
 		return
@@ -536,9 +518,9 @@ func (rlm *Realm) FinalizeRealmTransaction(readonly bool, store Store) {
 		ensureUniq(rlm.newDeleted)
 		ensureUniq(rlm.updated)
 		if false ||
-			rlm.created != nil ||
-			rlm.deleted != nil ||
-			rlm.escaped != nil {
+				rlm.created != nil ||
+				rlm.deleted != nil ||
+				rlm.escaped != nil {
 			panic("realm should not have created, deleted, or escaped marks before beginning finalization")
 		}
 	}
@@ -957,9 +939,9 @@ func (rlm *Realm) saveUnsavedObjectRecursively(store Store, oo Object) {
 		}
 		// deleted objects should not have gotten here.
 		if false ||
-			oo.GetRefCount() <= 0 ||
-			oo.GetIsNewDeleted() ||
-			oo.GetIsDeleted() {
+				oo.GetRefCount() <= 0 ||
+				oo.GetIsNewDeleted() ||
+				oo.GetIsDeleted() {
 			panic("cannot save deleted objects")
 		}
 	}

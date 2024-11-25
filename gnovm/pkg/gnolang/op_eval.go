@@ -21,7 +21,6 @@ func (m *Machine) doOpEval() {
 	x := m.PeekExpr(1)
 	if debug {
 		debug.Printf("EVAL: (%T) %v\n", x, x)
-		// fmt.Println(m.String())
 	}
 	// This case moved out of switch for performance.
 	// TODO: understand this better.
@@ -37,7 +36,6 @@ func (m *Machine) doOpEval() {
 			lb := m.LastBlock()
 			// Push value, done.
 			ptr := lb.GetPointerTo(m.Store, nx.Path)
-			//fmt.Println("---ptr: ", ptr)
 			m.PushValue(ptr.Deref())
 			return
 		}
@@ -243,7 +241,6 @@ func (m *Machine) doOpEval() {
 			m.PushOp(OpEval)
 		}
 	case *CallExpr:
-		//fmt.Println("---Eval, CallExpr, x: ", x)
 		m.PushOp(OpPrecall)
 		// Eval args.
 		args := x.Args
@@ -267,7 +264,6 @@ func (m *Machine) doOpEval() {
 		m.PushExpr(x.X)
 		m.PushOp(OpEval)
 	case *SelectorExpr:
-		//fmt.Println("---Eval, SelectorExpr, x: ", x)
 		m.PushOp(OpSelector)
 		// evaluate x
 		m.PushExpr(x.X)

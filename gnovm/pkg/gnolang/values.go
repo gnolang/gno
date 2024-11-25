@@ -1732,9 +1732,6 @@ func (tv *TypedValue) Assign(alloc *Allocator, tv2 TypedValue, cu bool) {
 // as in OpRef.
 func (tv *TypedValue) GetPointerTo(alloc *Allocator, store Store, path ValuePath) PointerValue {
 	//fmt.Println("---GetPointerTo, tv: ", tv)
-	//fmt.Println("---rt of tv: ", reflect.TypeOf(tv))
-	//fmt.Println("---path: ", path)
-	//fmt.Println("---path.Type: ", path.Type)
 	if debug {
 		if tv.IsUndefined() {
 			panic("GetPointerTo() on undefined value")
