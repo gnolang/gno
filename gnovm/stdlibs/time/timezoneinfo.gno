@@ -4,11 +4,7 @@
 
 package time
 
-import (
-	"errors"
-	// "sync" XXX
-	// "syscall" XXX
-)
+import "errors"
 
 //go:generate env ZONEINFO=$GOROOT/lib/time/zoneinfo.zip go run genzabbrs.go -output zoneinfo_abbrs_windows.go
 

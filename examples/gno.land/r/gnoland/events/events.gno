@@ -186,11 +186,5 @@ func parseTimes(startTime, endTime string) (time.Time, time.Time, error) {
 		return time.Time{}, time.Time{}, ErrEndBeforeStart
 	}
 
-	_, stOffset := st.Zone()
-	_, etOffset := et.Zone()
-	if stOffset != etOffset {
-		return time.Time{}, time.Time{}, ErrStartEndTimezonemMismatch
-	}
-
 	return st, et, nil
 }

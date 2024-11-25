@@ -9,9 +9,7 @@
 
 package time
 
-import (
-	"errors"
-)
+import "errors"
 
 // Simple I/O interface to binary blob of data.
 type dataIO struct {

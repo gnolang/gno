@@ -4,9 +4,7 @@
 
 package time
 
-import (
-	"errors"
-)
+import "errors"
 
 // These are predefined layouts for use in Time.Format and time.Parse.
 // The reference time used in these layouts is the specific time stamp:
