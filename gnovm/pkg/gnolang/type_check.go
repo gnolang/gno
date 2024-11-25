@@ -840,6 +840,7 @@ func (x *RangeStmt) AssertCompatible(store Store, last BlockNode) {
 
 func (x *AssignStmt) AssertCompatible(store Store, last BlockNode) {
 	if x.Op == ASSIGN || x.Op == DEFINE {
+		assertValidAssignRhs(store, last, x)
 		if len(x.Lhs) > len(x.Rhs) {
 			if len(x.Rhs) != 1 {
 				panic(fmt.Sprintf("assignment mismatch: %d variables but %d values", len(x.Lhs), len(x.Rhs)))
@@ -858,8 +859,8 @@ func (x *AssignStmt) AssertCompatible(store Store, last BlockNode) {
 				if x.Op == ASSIGN {
 					// check assignable
 					for i, lx := range x.Lhs {
+						assertValidAssignLhs(store, last, lx)
 						if !isBlankIdentifier(lx) {
-							assertValidAssignLhs(store, last, lx)
 							lxt := evalStaticTypeOf(store, last, lx)
 							assertAssignableTo(cft.Results[i].Type, lxt, false)
 						}
@@ -871,15 +872,16 @@ func (x *AssignStmt) AssertCompatible(store Store, last BlockNode) {
 					panic("should not happen")
 				}
 				if x.Op == ASSIGN {
-					// check assignable to first value
+					// check first value
+					assertValidAssignLhs(store, last, x.Lhs[0])
 					if !isBlankIdentifier(x.Lhs[0]) { // see composite3.gno
-						assertValidAssignLhs(store, last, x.Lhs[0])
 						dt := evalStaticTypeOf(store, last, x.Lhs[0])
 						ift := evalStaticTypeOf(store, last, cx)
 						assertAssignableTo(ift, dt, false)
 					}
+					// check second value
+					assertValidAssignLhs(store, last, x.Lhs[1])
 					if !isBlankIdentifier(x.Lhs[1]) { // see composite3.gno
-						assertValidAssignLhs(store, last, x.Lhs[1])
 						dt := evalStaticTypeOf(store, last, x.Lhs[1])
 						if dt.Kind() != BoolKind { // typed, not bool
 							panic(fmt.Sprintf("want bool type got %v", dt))
@@ -892,8 +894,8 @@ func (x *AssignStmt) AssertCompatible(store Store, last BlockNode) {
 					panic("should not happen")
 				}
 				if x.Op == ASSIGN {
+					assertValidAssignLhs(store, last, x.Lhs[0])
 					if !isBlankIdentifier(x.Lhs[0]) {
-						assertValidAssignLhs(store, last, x.Lhs[0])
 						lt := evalStaticTypeOf(store, last, x.Lhs[0])
 						if _, ok := cx.X.(*NameExpr); ok {
 							rt := evalStaticTypeOf(store, last, cx.X)
@@ -909,8 +911,9 @@ func (x *AssignStmt) AssertCompatible(store Store, last BlockNode) {
 							}
 						}
 					}
+
+					assertValidAssignLhs(store, last, x.Lhs[1])
 					if !isBlankIdentifier(x.Lhs[1]) {
-						assertValidAssignLhs(store, last, x.Lhs[1])
 						dt := evalStaticTypeOf(store, last, x.Lhs[1])
 						if dt != nil && dt.Kind() != BoolKind { // typed, not bool
 							panic(fmt.Sprintf("want bool type got %v", dt))
@@ -976,7 +979,17 @@ func (x *AssignStmt) AssertCompatible(store Store, last BlockNode) {
 func assertValidAssignLhs(store Store, last BlockNode, lx Expr) {
 	shouldPanic := true
 	switch clx := lx.(type) {
-	case *NameExpr, *StarExpr, *SelectorExpr:
+	case *NameExpr:
+		if clx.Name == blankIdentifier {
+			shouldPanic = false
+		} else if clx.Path.Type == VPUverse {
+			panic(fmt.Sprintf("cannot assign to uverse %v", clx.Name))
+		} else if last.GetIsConst(store, clx.Name) {
+			panic(fmt.Sprintf("cannot assign to const %v", clx.Name))
+		} else {
+			shouldPanic = false
+		}
+	case *StarExpr, *SelectorExpr:
 		shouldPanic = false
 	case *IndexExpr:
 		xt := evalStaticTypeOf(store, last, clx.X)
@@ -985,6 +998,40 @@ func assertValidAssignLhs(store Store, last BlockNode, lx Expr) {
 	}
 	if shouldPanic {
 		panic(fmt.Sprintf("cannot assign to %v", lx))
+	}
+}
+
+func assertValidAssignRhs(store Store, last BlockNode, n Node) {
+	var exps []Expr
+	switch x := n.(type) {
+	case *ValueDecl:
+		exps = x.Values
+	case *AssignStmt:
+		exps = x.Rhs
+	default:
+		panic(fmt.Sprintf("unexpected node type %T", n))
+	}
+
+	for _, exp := range exps {
+		tt := evalStaticTypeOfRaw(store, last, exp)
+		if tt == nil {
+			switch x := n.(type) {
+			case *ValueDecl:
+				if x.Type != nil {
+					continue
+				}
+				panic("use of untyped nil in variable declaration")
+			case *AssignStmt:
+				if x.Op != DEFINE {
+					continue
+				}
+				panic("use of untyped nil in assignment")
+			}
+		}
+		if _, ok := tt.(*TypeType); ok {
+			tt = evalStaticType(store, last, exp)
+			panic(fmt.Sprintf("%s (type) is not an expression", tt.String()))
+		}
 	}
 }
 
@@ -1020,7 +1067,7 @@ func isComparison(op Word) bool {
 // it returns true, indicating a swap is needed.
 func shouldSwapOnSpecificity(t1, t2 Type) bool {
 	// check nil
-	if t1 == nil { // see test file 0f46
+	if t1 == nil {
 		return false // also with both nil
 	} else if t2 == nil {
 		return true
@@ -1059,7 +1106,7 @@ func shouldSwapOnSpecificity(t1, t2 Type) bool {
 
 func isBlankIdentifier(x Expr) bool {
 	if nx, ok := x.(*NameExpr); ok {
-		return nx.Name == "_"
+		return nx.Name == blankIdentifier
 	}
 	return false
 }

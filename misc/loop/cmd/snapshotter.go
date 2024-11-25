@@ -19,7 +19,7 @@ import (
 	"github.com/docker/go-connections/nat"
 	"github.com/gnolang/tx-archive/backup"
 	"github.com/gnolang/tx-archive/backup/client/http"
-	"github.com/gnolang/tx-archive/backup/writer/legacy"
+	"github.com/gnolang/tx-archive/backup/writer/standard"
 )
 
 const (
@@ -42,19 +42,22 @@ type snapshotter struct {
 type config struct {
 	rpcAddr        string
 	traefikGnoFile string
-	backupDir      string
-	hostPWD        string
+
+	snapshotsDir     string
+	masterBackupFile string
+
+	hostPWD string
 }
 
 func NewSnapshotter(dockerClient *client.Client, cfg config) (*snapshotter, error) {
 	timenow := time.Now()
 	now := fmt.Sprintf("%s_%v", timenow.Format("2006-01-02_"), timenow.UnixNano())
 
-	backupFile, err := filepath.Abs(cfg.backupDir + "/backup.jsonl")
+	backupFile, err := filepath.Abs(cfg.masterBackupFile)
 	if err != nil {
 		return nil, err
 	}
-	instanceBackupFile, err := filepath.Abs(fmt.Sprintf("%s/backup_%s.jsonl", cfg.backupDir, now))
+	instanceBackupFile, err := filepath.Abs(fmt.Sprintf("%s/backup_%s.jsonl", cfg.snapshotsDir, now))
 	if err != nil {
 		return nil, err
 	}
@@ -204,7 +207,7 @@ func (s snapshotter) backupTXs(ctx context.Context, rpcURL string) error {
 	}
 	defer instanceBackupFile.Close()
 
-	w := legacy.NewWriter(instanceBackupFile)
+	w := standard.NewWriter(instanceBackupFile)
 
 	// Create the tx-archive backup service
 	c, err := http.NewClient(rpcURL)

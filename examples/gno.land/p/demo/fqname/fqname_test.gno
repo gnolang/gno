@@ -36,7 +36,7 @@ func TestConstruct(t *testing.T) {
 		name     string
 		expected string
 	}{
-		{"gno.land/r/demo/foo20", "GRC20", "gno.land/r/demo/foo20.GRC20"},
+		{"gno.land/r/demo/foo20", "Token", "gno.land/r/demo/foo20.Token"},
 		{"gno.land/r/demo/foo20", "", "gno.land/r/demo/foo20"},
 		{"path", "", "path"},
 		{"path", "Split", "path.Split"},
@@ -62,7 +62,7 @@ func TestRenderLink(t *testing.T) {
 		{"gno.land/p/demo/avl", "", "[gno.land/p/demo/avl](/p/demo/avl)"},
 		{"github.com/a/b", "C", "github.com/a/b.C"},
 		{"example.com/pkg", "Func", "example.com/pkg.Func"},
-		{"gno.land/r/demo/foo20", "GRC20", "[gno.land/r/demo/foo20](/r/demo/foo20).GRC20"},
+		{"gno.land/r/demo/foo20", "Token", "[gno.land/r/demo/foo20](/r/demo/foo20).Token"},
 		{"gno.land/r/demo/foo20", "", "[gno.land/r/demo/foo20](/r/demo/foo20)"},
 		{"", "", ""},
 	}

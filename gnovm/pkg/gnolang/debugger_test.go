@@ -131,7 +131,7 @@ func TestDebug(t *testing.T) {
 		{in: "p \"xxxx\"\n", out: `("xxxx" string)`},
 		{in: "si\n", out: "sample.gno:14"},
 		{in: "s\ns\n", out: `=>   14: var global = "test"`},
-		{in: "s\n\n", out: "=>   33: 	num := 5"},
+		{in: "s\n\n\n", out: "=>   33: 	num := 5"},
 		{in: "foo", out: "command not available: foo"},
 		{in: "\n\n", out: "dbg> "},
 		{in: "#\n", out: "dbg> "},
@@ -158,7 +158,7 @@ func TestDebug(t *testing.T) {
 		{in: "up xxx", out: `"xxx": invalid syntax`},
 		{in: "b 37\nc\np b\n", out: "(3 int)"},
 		{in: "b 27\nc\np b\n", out: `("!zero" string)`},
-		{in: "b 22\nc\np t.A[3]\n", out: "Command failed: slice index out of bounds: 3 (len=3)"},
+		{in: "b 22\nc\np t.A[3]\n", out: "Command failed: &{(\"slice index out of bounds: 3 (len=3)\" string) <nil> }"},
 		{in: "b 43\nc\nc\nc\np i\ndetach\n", out: "(1 int)"},
 	})
 

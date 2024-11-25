@@ -9,7 +9,7 @@ import (
 	"gno.land/r/demo/users"
 )
 
-const admin = std.Address("g1u7y667z64x2h7vc6fmpcprgey4ck233jaww9zq")
+const admin = std.Address("g1manfred47kzduec920z88wfr64ylksmdcedlf5")
 
 func main() {
 	caller := std.GetOrigCaller() // main
@@ -27,6 +27,8 @@ func main() {
 	std.TestSetOrigSend(std.Coins{{"dontcare", 1}}, nil)
 	users.Register(caller, "satoshi", "my other profile")
 	println(users.Render(""))
+	println("========================================")
+	println(users.Render("?page=2"))
 	println("========================================")
 	println(users.Render("gnouser"))
 	println("========================================")
@@ -48,6 +50,10 @@ func main() {
 //  * [sys](/r/demo/users:sys)
 //  * [test1](/r/demo/users:test1)
 //  * [x](/r/demo/users:x)
+//
+//
+// ========================================
+//
 //
 // ========================================
 // ## user gnouser

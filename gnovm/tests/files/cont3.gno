@@ -5,4 +5,4 @@ func main() {
 }
 
 // Error:
-// main/files/cont3.gno:4:2: cannot continue with no parent loop
+// main/files/cont3.gno:4:2: continue statement out of place

@@ -11,7 +11,7 @@ func (m *Machine) doOpDefine() {
 		// Get name and value of i'th term.
 		nx := s.Lhs[i].(*NameExpr)
 		// Finally, define (or assign if loop block).
-		ptr := lb.GetPointerTo(m.Store, nx.Path)
+		ptr := lb.GetPointerToMaybeHeapDefine(m.Store, nx)
 		// XXX HACK (until value persistence impl'd)
 		if m.ReadOnly {
 			if oo, ok := ptr.Base.(Object); ok {
@@ -131,7 +131,11 @@ func (m *Machine) doOpQuoAssign() {
 		}
 	}
 	// lv /= rv
-	quoAssign(lv.TV, rv)
+	err := quoAssign(lv.TV, rv)
+	if err != nil {
+		panic(err)
+	}
+
 	if lv.Base != nil {
 		m.Realm.DidUpdate(lv.Base.(Object), nil, nil)
 	}
@@ -154,7 +158,11 @@ func (m *Machine) doOpRemAssign() {
 		}
 	}
 	// lv %= rv
-	remAssign(lv.TV, rv)
+	err := remAssign(lv.TV, rv)
+	if err != nil {
+		panic(err)
+	}
+
 	if lv.Base != nil {
 		m.Realm.DidUpdate(lv.Base.(Object), nil, nil)
 	}
