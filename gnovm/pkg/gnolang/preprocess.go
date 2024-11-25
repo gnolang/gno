@@ -3258,7 +3258,10 @@ func evalConst(store Store, last BlockNode, x Expr) *ConstExpr {
 	// TODO: some check or verification for ensuring x
 	// is constant?  From the machine?
 	m := NewMachine(".dontcare", store)
+	m.PreprocessorMode = true
+
 	cv := m.EvalStatic(last, x)
+	m.PreprocessorMode = false
 	m.Release()
 	cx := &ConstExpr{
 		Source:     x,
