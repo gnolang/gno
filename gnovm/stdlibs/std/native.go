@@ -27,6 +27,10 @@ func GetChainID(m *gno.Machine) string {
 	return GetContext(m).ChainID
 }
 
+func GetChainTz(m *gno.Machine) string {
+	return GetContext(m).ChainTz
+}
+
 func GetHeight(m *gno.Machine) int64 {
 	return GetContext(m).Height
 }

@@ -5,7 +5,7 @@ import (
 	"github.com/gnolang/gno/gnovm/stdlibs/std"
 )
 
-func GetChainTz(m *gno.Machine) string {
+func X_getChainTz(m *gno.Machine) string {
 	if m == nil || m.Context == nil {
 		return "UTC"
 	}
