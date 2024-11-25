@@ -196,9 +196,7 @@ func (t Time) IsZero() bool {
 	return t.sec == 0 && t.nsec == 0
 }
 
-// rename of the "abs" method in the original time.go
-// since we removed the location & zoneinfo related code
-func (t Time) internal() uint64 {
+func (t Time) abs() uint64 {
 	sec := t.unixSec()
 	if timezoneChainParam != &utcLoc {
 		if timezoneChainParam.cacheZone != nil && timezoneChainParam.cacheStart <= sec && sec < timezoneChainParam.cacheEnd {
@@ -258,11 +256,11 @@ func (t Time) Day() int {
 
 // Weekday returns the day of the week specified by t.
 func (t Time) Weekday() Weekday {
-	return internalWeekday(t.internal())
+	return absWeekday(t.abs())
 }
 
-// internalWeekday is like Weekday but operates on an internal time.
-func internalWeekday(it uint64) Weekday {
+// absWeekday is like Weekday but operates on an absolute time.
+func absWeekday(it uint64) Weekday {
 	sec := (it + uint64(Monday)*secondsPerDay) % secondsPerWeek
 	return Weekday(int(sec) / secondsPerDay)
 }
@@ -282,25 +280,25 @@ func (t Time) ISOWeek() (year, week int) {
 	// 1      2       3         4        5      6        7
 	// +3     +2      +1        0        -1     -2       -3
 	// the offset to Thursday
-	it := t.internal()
-	d := Thursday - internalWeekday(it)
+	it := t.abs()
+	d := Thursday - absWeekday(it)
 	// handle Sunday
 	if d == 4 {
 		d -= 3
 	}
 	// find the Thursday of the calendar week
 	it += uint64(d) * secondsPerDay
-	year, _, _, yday := internalDate(it, false)
+	year, _, _, yday := absDate(it, false)
 	return year, yday/7 + 1
 }
 
 // Clock returns the hour, minute, and second within the day specified by t.
 func (t Time) Clock() (hour, min, sec int) {
-	return internalClock(t.internal())
+	return absClock(t.abs())
 }
 
-// internalClock is like clock but operates on an internal time.
-func internalClock(it uint64) (hour, min, sec int) {
+// absClock is like clock but operates on an absolute time.
+func absClock(it uint64) (hour, min, sec int) {
 	sec = int(it % secondsPerDay)
 	hour = sec / secondsPerHour
 	sec -= hour * secondsPerHour
@@ -311,17 +309,17 @@ func internalClock(it uint64) (hour, min, sec int) {
 
 // Hour returns the hour within the day specified by t, in the range [0, 23].
 func (t Time) Hour() int {
-	return int(t.internal()%secondsPerDay) / secondsPerHour
+	return int(t.abs()%secondsPerDay) / secondsPerHour
 }
 
 // Minute returns the minute offset within the hour specified by t, in the range [0, 59].
 func (t Time) Minute() int {
-	return int(t.internal()%secondsPerHour) / secondsPerMinute
+	return int(t.abs()%secondsPerHour) / secondsPerMinute
 }
 
 // Second returns the second offset within the minute specified by t, in the range [0, 59].
 func (t Time) Second() int {
-	return int(t.internal() % secondsPerMinute)
+	return int(t.abs() % secondsPerMinute)
 }
 
 // Nanosecond returns the nanosecond offset within the second specified by t,
@@ -658,11 +656,11 @@ const (
 // date computes the year, day of year, and when full=true,
 // the month and day in which t occurs.
 func (t Time) date(full bool) (year int, month Month, day int, yday int) {
-	return internalDate(t.internal(), full)
+	return absDate(t.abs(), full)
 }
 
-// internalDate is like date but operates on an internal time.
-func internalDate(it uint64, full bool) (year int, month Month, day int, yday int) {
+// absDate is like date but operates on an absolute time.
+func absDate(it uint64, full bool) (year int, month Month, day int, yday int) {
 	d := it / secondsPerDay
 
 	// Account for 400 year cycles.

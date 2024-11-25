@@ -615,13 +615,13 @@ func (t Time) AppendFormat(b []byte, layout string) []byte {
 
 		// Compute year, month, day if needed.
 		if year < 0 && std&stdNeedDate != 0 {
-			year, month, day, yday = internalDate(abs, true)
+			year, month, day, yday = absDate(abs, true)
 			yday++
 		}
 
 		// Compute hour, minute, second if needed.
 		if hour < 0 && std&stdNeedClock != 0 {
-			hour, min, sec = internalClock(abs)
+			hour, min, sec = absClock(abs)
 		}
 
 		switch std & stdMask {
@@ -643,9 +643,9 @@ func (t Time) AppendFormat(b []byte, layout string) []byte {
 		case stdZeroMonth:
 			b = appendInt(b, int(month), 2)
 		case stdWeekDay:
-			b = append(b, internalWeekday(abs).String()[:3]...)
+			b = append(b, absWeekday(abs).String()[:3]...)
 		case stdLongWeekDay:
-			s := internalWeekday(abs).String()
+			s := absWeekday(abs).String()
 			b = append(b, s...)
 		case stdDay:
 			b = appendInt(b, day, 0)

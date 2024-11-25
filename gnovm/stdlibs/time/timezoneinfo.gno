@@ -74,7 +74,7 @@ var UTC *Location = &utcLoc
 var utcLoc = Location{name: "UTC"}
 
 func init() {
-	timezoneChainParam, _ = LoadLocation("Europe/Paris")
+	timezoneChainParam, _ = LoadLocation("UTC")
 }
 
 func (l *Location) get() *Location {
@@ -296,7 +296,7 @@ func tzset(s string, initEnd, sec int64) (name string, offset int, start, end in
 		return "", 0, 0, 0, false, false
 	}
 
-	year, _, _, yday := internalDate(uint64(sec+unixToInternal+internalToAbsolute), false)
+	year, _, _, yday := absDate(uint64(sec+unixToInternal+internalToAbsolute), false)
 
 	ysec := int64(yday*secondsPerDay) + sec%secondsPerDay
 
