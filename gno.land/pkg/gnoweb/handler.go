@@ -208,7 +208,7 @@ func (h *WebHandler) renderRealmSource(w io.Writer, gnourl *GnoURL) (status int,
 		return http.StatusInternalServerError, components.RenderStatusComponent(w, "internal error")
 	}
 
-	hsource, err := h.highlightSource(chromaStyle, fileName, source)
+	hsource, err := h.highlightSource(fileName, source)
 	if err != nil {
 		h.logger.Error("unable to highlight source file", "file", fileName, "err", err)
 		return http.StatusInternalServerError, components.RenderStatusComponent(w, "internal error")
