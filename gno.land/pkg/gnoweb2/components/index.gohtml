@@ -1,0 +1,148 @@
+{{ define "index" }}
+<html lang="en">
+    {{ template "head" .HeadData }}
+    <body>
+        {{ template "spritesvg" }}
+
+        <!-- header -->
+        {{ template "header" .HeaderData }}
+
+        <!-- main -->
+        {{ template "main" .Body }}
+
+        <!-- footer -->
+        {{ template "footer" }}
+    </body>
+</html>
+{{ end }}
+
+{{ define "head" }}
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>{{ .Title }}</title>
+
+    <!-- Meta description -->
+    <meta name="description" content="{{ .Description }}" />
+
+    <!-- Canonical URL -->
+    {{ if .Canonical }}
+        <link rel="canonical" href="{{ .Canonical }}" />
+    {{ end }}
+
+    <!-- Open Graph metadata -->
+    <meta property="og:title" content="{{ .Title }}" />
+    <meta property="og:description" content="{{ .Description }}" />
+    <meta property="og:image" content="{{ .Image }}" />
+    <meta property="og:url" content="{{ .URL }}" />
+    <meta property="og:type" content="website" />
+
+    <!-- Twitter Card metadata -->
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="{{ .Title }}" />
+    <meta name="twitter:description" content="{{ .Description }}" />
+    <meta name="twitter:image" content="{{ .Image }}" />
+
+    <!-- Favicon -->
+    <link rel="icon" href="/favicon.ico" type="image/x-icon" />
+
+    <!-- Robots meta tag -->
+    <meta name="robots" content="index, follow" />
+
+    <!-- link tag -->
+    <link rel="stylesheet" href="/_chroma/style.css" />
+    <link rel="stylesheet" href="/public/styles.css" />
+    <link rel="preload" href="/public/fonts/intervar/Inter.var.woff2" as="font" type="font/woff2" crossorigin />
+    <link rel="preload" href="/public/fonts/roboto/roboto-mono-normal.woff2" as="font" type="font/woff2" crossorigin />
+</head>
+{{ end }}
+
+{{ define "header" }}
+<header class="main-header sticky top-0 bg-white-50 border-b border-gray-400 text-100 z-max">
+    <nav aria-label="Realm navigation" class="max-w-screen-max mx-auto px-10 grid grid-cols-10 grid-flow-dense gap-8 xxl:gap-20 items-center">
+        <div class="main-navigation flex items-center gap-1 col-span-7 max-w-screen-max h-full py-3">
+            <!--<a href="/" class="flex rounded p-2 border border-gray-100 cursor-pointer aspect-square mr-4 h-10 w-10 shrink-0">
+                <svg class="w-6 h-6 text-gray-400">
+                    <use href="#ico-apps"></use>
+                </svg>
+            </a>-->
+            <a href="/" class="rounded border border-gray-100 cursor-pointer h-10 w-10 shrink-0">
+                <img src="/public/imgs/gnoland.svg" alt="Gno username profile pic" width="40px" height="40px" />
+            </a>
+
+            <form id="header-searchbar" class="relative flex items-center bg-gray-100 border h-full border-gray-100 p-1.5 rounded w-full">
+                <input data-role="header-input-search" type="text" value="{{ .RealmPath }}" class="peer absolute w-full top-0 left-0 h-full bg-transparent p-1.5 text-200 focus-within:outline-gray-300 focus-within:outline-2" />
+
+                {{ template "breadcrumb" .Breadcrumb }}
+            </form>
+        </div>
+
+        <form class="sidemenu col-span-3 flex justify-start gap-4 h-full text-gray-300">
+            <a href="{{ .RealmPath }}">
+                <div class="gap-1 hover:text-gray-600 relative flex items-center h-full after:block after:absolute after:rounded-t after:h-1 after:bg-green-600 after:bottom-0 {{ if (and (not (queryHas .WebQuery "source")) (not (queryHas .WebQuery "help"))) }}after:w-full text-stroke text-gray-600{{ end }}">
+                    <input type="radio" value="summary" name="sidemenu" id="sidemenu-meta" class="peer hidden" />
+                    <svg class="w-5 h-5 xxl:w-4 xxl:h-4 shrink-0 inline-block xl:hidden xxl:inline-block">
+                        <use href="#ico-info"></use>
+                    </svg>
+                    <span class="hidden xl:inline">Content</span>
+                </div>
+            </a>
+
+            <a href="{{ .RealmPath }}$source">
+                <div class="gap-1 hover:text-gray-600 relative flex items-center h-full after:block after:absolute after:rounded-t after:h-1 after:bg-green-600 after:bottom-0 {{ if queryHas .WebQuery "source" }}after:w-full text-stroke text-gray-600{{ end }}">
+                    <input type="radio" value="summary" name="sidemenu" id="sidemenu-source" class="peer hidden" />
+                    <svg class="w-5 h-5 xxl:w-4 xxl:h-4 shrink-0 inline-block xl:hidden xxl:inline-block">
+                        <use href="#ico-code"></use>
+                    </svg>
+                    <span class="hidden xl:inline">Source</span>
+                </div>
+            </a>
+
+            <a href="{{ .RealmPath }}$help">
+                <div class="gap-1 hover:text-gray-600 relative flex items-center h-full inline-flex gap-1 items-center cursor-pointer after:block after:absolute after:rounded-t after:h-1 after:bg-green-600 after:bottom-0 {{ if queryHas .WebQuery "help" }}after:w-full text-stroke text-gray-600{{ end }}">
+                    <input type="radio" value="summary" name="sidemenu" id="sidemenu-docs" class="peer hidden" />
+                    <svg class="w-5 h-5 xxl:w-4 xxl:h-4 shrink-0 inline-block xl:hidden xxl:inline-block">
+                        <use href="#ico-docs"></use>
+                    </svg>
+                    <span class="hidden xl:inline">Docs</span>
+                </div>
+            </a>
+        </form>
+    </nav>
+</header>
+{{ end }}
+
+{{ define "main" }}
+    {{ . }}
+{{ end }}
+
+{{ define "footer" }}
+<footer class="w-full text-100 py-1.5 border-t border-gray-300">
+    <nav class="max-w-screen-max mx-auto px-10 grid grid-cols-4 justify-between items-start xl:items-center gap-2 xl:gap-20 pt-2 xl:pt-0">
+        <!-- Footer Navigation -->
+        <div class="col-span-1">
+            <a class="block h-4" href="">{{ template "logosvg" }}</a>
+        </div>
+        <div class="flex justify-between col-span-3">
+            <ul aria-label="Footer navigation" class="flex flex-col xl:flex-row gap-4 xl:gap-6">
+                <li><a href="">About</a></li>
+                <li><a href="">Docs</a></li>
+                <li><a href="">Faucet</a></li>
+                <li><a href="">Blog</a></li>
+                <li><a href="">Status</a></li>
+            </ul>
+            <ul aria-label="Social media" class="flex flex-col xl:flex-row gap-4 xl:gap-6">
+                <li><a href="">Github</a></li>
+                <li><a href="">X</a></li>
+                <li><a href="">Discord</a></li>
+                <li><a href="">YouTube</a></li>
+            </ul>
+            <ul aria-label="Legal" class="flex flex-col xl:flex-row gap-4 xl:gap-6">
+                <li><a href="">Terms</a></li>
+                <li><a href="">Privacy</a></li>
+            </ul>
+        </div>
+    </nav>
+</footer>
+<script src="/public/js/searchbar.js"></script>
+{{ end }}

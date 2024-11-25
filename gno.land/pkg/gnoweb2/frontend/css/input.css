@@ -1,0 +1,335 @@
+@font-face {
+  font-family: "Roboto";
+  font-style: normal;
+  font-weight: 900;
+  font-display: swap;
+  src: url("./assets/fonts/roboto/roboto-mono-normal.woff2") format("woff2"), url("../fonts/roboto/roboto-mono-normal.woff") format("woff");
+}
+
+@font-face {
+  font-family: "Inter var";
+  font-weight: 100 900;
+  font-display: swap;
+  font-style: oblique 0deg 10deg;
+  src: url("./assets/fonts/intervar/Inter.var.woff2") format("woff2");
+}
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+.quotes {
+  font-style: italic;
+  color: #555;
+  border-left: 4px solid #ccc;
+  padding-left: 1rem;
+  margin: 1.5rem 0;
+  quotes: "“" "”" "‘" "’";
+}
+
+.quotes::before {
+  content: open-quote;
+  font-size: 2rem;
+  color: #999;
+  margin-right: 0.25rem;
+  vertical-align: -0.4rem;
+}
+
+.quotes::after {
+  content: close-quote;
+  font-size: 2rem;
+  color: #999;
+  margin-left: 0.25rem;
+  vertical-align: -0.4rem;
+}
+
+@layer base {
+  html {
+    @apply font-interNormal text-gray-600 bg-white-50 text-200;
+    font-feature-settings: "kern" on, "liga" on, "calt" on, "zero" on;
+    -webkit-font-feature-settings: "kern" on, "liga" on, "calt" on, "zero" on;
+    text-size-adjust: 100%;
+    -moz-osx-font-smoothing: grayscale;
+    font-smoothing: antialiased;
+    font-variant-ligatures: contextual common-ligatures;
+    font-kerning: normal;
+    text-rendering: optimizeLegibility;
+    overflow-x: hidden;
+  }
+
+  @supports (font-variation-settings: normal) {
+    html {
+      @apply font-interVar;
+    }
+  }
+
+  a:hover {
+    @apply underline text-green-600;
+  }
+
+  svg {
+    @apply max-w-full max-h-full;
+  }
+
+  form {
+    @apply my-0;
+  }
+
+  .realm-content {
+    @apply text-200;
+  }
+
+  .realm-content a {
+    @apply text-green-600 font-medium hover:underline;
+  }
+
+  .realm-content h1,
+  .realm-content h2,
+  .realm-content h3,
+  .realm-content h4 {
+    @apply text-gray-900 mt-8 leading-tight;
+  }
+
+  .realm-content h2,
+  .realm-content h2 * {
+    @apply font-bold;
+  }
+
+  .realm-content h3,
+  .realm-content h3 *,
+  .realm-content h4,
+  .realm-content h4 * {
+    @apply font-semibold;
+  }
+
+  .realm-content h1 + h2,
+  .realm-content h2 + h3,
+  .realm-content h3 + h4 {
+    @apply mt-1.5;
+  }
+
+  .realm-content h1 {
+    @apply text-800 font-bold;
+  }
+
+  .realm-content h2 {
+    @apply text-600;
+  }
+
+  .realm-content h3 {
+    @apply text-400 text-gray-600 mt-6;
+  }
+
+  .realm-content h4 {
+    @apply text-300 text-gray-600 font-medium my-4;
+  }
+
+  .realm-content p {
+    @apply my-4;
+  }
+
+  .realm-content strong {
+    @apply font-bold text-gray-900;
+  }
+
+  .realm-content strong * {
+    @apply font-bold;
+  }
+
+  .realm-content blockquote {
+    @apply border-l-4 border-gray-300 pl-4 text-gray-600 italic my-4;
+  }
+
+  .realm-content ul,
+  .realm-content ol {
+    @apply pl-4 my-4;
+  }
+
+  .realm-content ul li,
+  .realm-content ol li {
+    @apply mb-1;
+  }
+
+  .realm-content img {
+    @apply max-w-full my-6;
+  }
+
+  .realm-content figure {
+    @apply my-6 text-center;
+  }
+
+  .realm-content figcaption {
+    @apply text-100 text-gray-600;
+  }
+
+  .realm-content code {
+    @apply bg-gray-100 px-2 py-1 rounded text-100 font-mono;
+  }
+
+  .realm-content pre {
+    @apply bg-gray-100 p-4 rounded overflow-x-auto font-mono;
+  }
+
+  .realm-content hr {
+    @apply border-t border-gray-100 my-8;
+  }
+
+  .realm-content table {
+    @apply w-full border-collapse my-6;
+  }
+
+  .realm-content th,
+  .realm-content td {
+    @apply border border-gray-300 px-4 py-2;
+  }
+
+  .realm-content th {
+    @apply bg-gray-100 font-bold;
+  }
+
+  .realm-content caption {
+    @apply mt-2 text-100 text-gray-600 text-left;
+  }
+
+  .realm-content q {
+    @apply quotes;
+  }
+
+  .realm-content q::before {
+    content: open-quote;
+  }
+
+  .realm-content q::after {
+    content: close-quote;
+  }
+
+  .realm-content ul ul,
+  .realm-content ul ol,
+  .realm-content ol ul,
+  .realm-content ol ol {
+    @apply mt-2 mb-2 pl-4;
+  }
+
+  .realm-content ul {
+    @apply list-disc;
+  }
+
+  .realm-content table th:first-child,
+  .realm-content td:first-child {
+    @apply pl-0;
+  }
+
+  .realm-content table th:last-child,
+  .realm-content td:last-child {
+    @apply pr-0;
+  }
+
+  .realm-content abbr[title] {
+    @apply border-b border-dotted cursor-help;
+  }
+
+  .realm-content details {
+    @apply my-4;
+  }
+
+  .realm-content summary {
+    @apply font-bold cursor-pointer;
+  }
+
+  .realm-content a code {
+    @apply text-inherit;
+  }
+
+  .realm-content video {
+    @apply max-w-full my-6;
+  }
+
+  .realm-content math {
+    @apply font-mono;
+  }
+
+  .realm-content small {
+    @apply text-100;
+  }
+
+  .realm-content del {
+    @apply line-through;
+  }
+
+  .realm-content sub {
+    @apply text-50 align-sub;
+  }
+
+  .realm-content sup {
+    @apply text-50 align-super;
+  }
+
+  .realm-content input,
+  .realm-content button {
+    @apply px-4 py-2 border border-gray-300;
+  }
+
+  main :is(h1, h2, h3, h4) {
+    scroll-margin-top: 5.5rem;
+  }
+
+  /* chroma */
+  main .source-code > pre {
+    @apply !bg-white-50 overflow-scroll rounded py-8 px-3 font-mono;
+  }
+}
+
+@layer components {
+  /* header */
+  .sidemenu .peer:checked + label > svg {
+    @apply text-green-600;
+  }
+
+  /* table of content */
+  #sidebar {
+    @apply col-span-3 order-2;
+  }
+  #sidebar + .realm-content,
+  #sidebar + .code-content {
+    @apply col-span-7;
+  }
+  .realm-content,
+  .code-content {
+    @apply col-span-4;
+  }
+
+  /* sidebar */
+  .main-header:has(#sidemenu-summary:checked) + main #sidebar #sidebar-summary,
+  .main-header:has(#sidemenu-source:checked) + main #sidebar #sidebar-source,
+  .main-header:has(#sidemenu-docs:checked) + main #sidebar #sidebar-docs,
+  .main-header:has(#sidemenu-meta:checked) + main #sidebar #sidebar-meta {
+    @apply block;
+  }
+
+  :is(.main-header:has(#sidemenu-source:checked), .main-header:has(#sidemenu-docs:checked), .main-header:has(#sidemenu-meta:checked)) + main .realm-content,
+  :is(.main-header:has(#sidemenu-source:checked), .main-header:has(#sidemenu-docs:checked), .main-header:has(#sidemenu-meta:checked)) .main-navigation {
+    @apply col-span-6;
+  }
+  :is(.main-header:has(#sidemenu-source:checked), .main-header:has(#sidemenu-docs:checked), .main-header:has(#sidemenu-meta:checked)) + main #sidebar,
+  :is(.main-header:has(#sidemenu-source:checked), .main-header:has(#sidemenu-docs:checked), .main-header:has(#sidemenu-meta:checked)) .sidemenu {
+    @apply col-span-4;
+  }
+  :is(.main-header:has(#sidemenu-source:checked), .main-header:has(#sidemenu-docs:checked), .main-header:has(#sidemenu-meta:checked)) + main #sidebar::before {
+    @apply absolute block content-[''] top-0 w-[50vw] h-full -left-7 bg-gray-100 z-min;
+  }
+}
+
+@layer utilities {
+  .text-stroke {
+    -webkit-text-stroke: currentColor;
+    -webkit-text-stroke-width: 0.6px;
+  }
+
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+  .no-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+}

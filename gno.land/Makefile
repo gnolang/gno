@@ -28,23 +28,23 @@ GOTEST_FLAGS ?= -v -p 1 -timeout=30m
 start.gnoland:; go run ./cmd/gnoland start -lazy
 
 .PHONY: start.gnoweb
-start.gnoweb:; go run ./cmd/gnoweb
+start.gnoweb:; go run ./cmd/gnoweb2
 
 .PHONY: build
 build: build.gnoland build.gnokey build.gnoweb
 
 build.gnoland:;    go build -o build/gnoland   ./cmd/gnoland
-build.gnoweb:;     go build -o build/gnoweb    ./cmd/gnoweb
+build.gnoweb:;     go build -o build/gnoweb2    ./cmd/gnoweb
 build.gnokey:;     go build -o build/gnokey    ./cmd/gnokey
 
 run.gnoland:;      go run ./cmd/gnoland start
-run.gnoweb:;       go run ./cmd/gnoweb
+run.gnoweb:;       go run ./cmd/gnoweb2
 
 .PHONY: install
 install: install.gnoland install.gnoweb install.gnokey
 
 install.gnoland:;    go install ./cmd/gnoland
-install.gnoweb:;     go install ./cmd/gnoweb
+install.gnoweb:;     go install ./cmd/gnoweb2
 install.gnokey:;     go install ./cmd/gnokey
 
 .PHONY: fclean

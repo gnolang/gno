@@ -1,0 +1,47 @@
+{{ define "renderRealmToc" }}
+<ul class="list-disc pl-4 space-y-2 pt-2">
+    {{ range .Items }}
+        <li>
+            <a class="line-clamp-2 hover:text-green-600" href="{{ .Anchor }}">
+                {{ .Title | noescape_bytes }}
+            </a>
+            {{ if .Items }}
+                {{ template "renderRealmToc" . }}
+            {{ end }}
+        </li>
+    {{ end }}
+</ul>
+{{ end }}
+
+{{ define "renderRealm" }}
+<main class="w-full grow-[2] min-h-full bg-white-50">
+    <section class="max-w-screen-max mx-auto px-10 grid grid-cols-10 grid-flow-dense gap-8 xxl:gap-20 items-start">
+        <aside id="sidebar" class="relative h-full" aria-label="Table of Contents">
+            <div class="sticky top-16">
+                <div id="sidebar-summary" class="toc h-screen overflow-scroll no-scrollbar">
+                    <span class="block text-gray-300 font-semibold mt-16">Content</span>
+                    <nav class="text-100 pb-28">
+                        {{ template "renderRealmToc" .TocItems }}
+                    </nav>
+                </div>
+                <div id="sidebar-source" class="hidden">
+                    <h2>Source section</h2>
+                    <p>Source content for this section</p>
+                </div>
+                <div id="sidebar-docs" class="hidden">
+                    <h2>Docs section</h2>
+                    <p>Complete Docs + actions for this section</p>
+                </div>
+                <div id="sidebar-meta" class="hidden">
+                    <h2>Metadata section</h2>
+                    <p>Here the list of metadata for this section</p>
+                </div>
+            </div>
+        </aside>
+        <article class="realm-content mt-4 pb-24">
+            <!-- Realm Content -->
+            {{ .Content }}
+        </article>
+    </section>
+</main>
+{{ end }}

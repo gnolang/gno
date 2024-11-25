@@ -1,0 +1,113 @@
+{{ define "renderHelp" }}
+<main class="w-full grow-[2] min-h-full bg-gray-50">
+  <section class="max-w-screen-max mx-auto px-10 grid grid-cols-10 grid-flow-dense gap-8 xxl:gap-20 items-start min-h-full">
+    <aside id="sidebar" class="relative h-full" aria-label="Index">
+      <div class="sticky top-16">
+        <div id="sidebar-summary" class="toc h-screen overflow-scroll no-scrollbar">
+          <span class="block text-gray-300 font-semibold mt-16">Functions Index</span>
+
+          <!-- Functions ToC -->
+          <nav class="text-100 font-mono pb-28">
+            <ul class="list-none space-y-1.5 pt-2">
+              {{ range .Functions }}
+              <li>
+                <a class="flex items-start gap-2 line-clamp-2 hover:text-green-600" href="#func-{{ .FuncName }}">
+                  <svg class="w-4 h-4 shrink-0 mt-1">
+                    <use href="#ico-code"></use>
+                  </svg>
+                  {{ helpFuncSignature . }}
+                </a>
+              </li>
+              {{ end }}
+            </ul>
+          </nav>
+        </div>
+        <!-- Functions ToC end -->
+
+        <div id="sidebar-source" class="hidden">
+          <h2>Source section</h2>
+          <p>Source content for this section</p>
+        </div>
+        <div id="sidebar-docs" class="hidden">
+          <h2>Docs section</h2>
+          <p>Complete Docs + actions for this section</p>
+        </div>
+        <div id="sidebar-meta" class="hidden">
+          <h2>Metadata section</h2>
+          <p>Here the list of metadata for this section</p>
+        </div>
+      </div>
+    </aside>
+
+    <section id="data" class="code-content mt-10 pb-24 text-gray-900">
+      <div class="flex justify-between mb-3">
+        <div class="flex items-center gap-8">
+          <h1 class="text-600 font-bold">{{ .RealmName }}</h1>
+        </div>
+        <div class="flex gap-3 text-gray-300">
+
+		  <form class="min-w-48 mx-auto">
+            <select
+              id="cmdmode"
+              data-role="help-select-mode"
+              class="bg-gray-100 text-gray-700 text-sm border-r-transparent border-r-8 rounded-sm focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5"
+            >
+              <option value="fast" selected="selected">Mode: Fast</option>
+              <option value="secure">Mode: Full Security</option>
+
+            </select>
+          </form>
+
+          <div class="relative flex w-full text-100">
+            <label for="help-input-addr" class="flex gap-3 items-center bg-gray-100 rounded-l-sm px-4 font-bold text-gray-600">Key&nbsp;/&nbsp;Address</label>
+            <input type="text" data-role="help-input-addr" id="help-input-addr" class="flex h-full bottom-1 w-full rounded-r-sm p-2 focus:border-gray-600 outline-none font-mono" placeholder="ADDRESS" />
+          </div>
+        </div>
+      </div>
+
+      <!-- Function Content -->
+      {{ range .Functions }}
+
+      <article class="bg-gray-100 rounded p-4 mb-3" data-func="{{ .FuncName }}">
+        <h2 id="func-{{ .FuncName }}" class="text-gray-600 font-bold text-300 mb-3 leading-tight">{{ .FuncName }}</h2>
+        <div class="mb-1">
+          <div class="flex flex-col gap-3 items-stretch text-gray-400">
+            <h3 class="mr-10 text-50">Params</h3>
+
+            <form class="w-full text-100">
+              {{ $funcName := .FuncName }}
+              {{ range .Params }}
+              <div class="flex flex-col gap-3 items-stretch text-gray-400 mb-2">
+                <div class="relative flex w-full">
+                  <label for="func-{{ $funcName }}-param-{{ .Name }}" class="flex gap-3 items-center bg-gray-50 rounded-l-sm px-4 font-bold text-gray-600">{{ .Name }}</label>
+                  <input type="text" id="func-{{ $funcName }}-param-{{ .Name }}" data-role="help-param-input" data-param="{{ .Name }}" class="flex h-full bottom-1 w-full rounded-r-sm p-2 focus:border-gray-600 outline-none font-mono" />
+                </div>
+              </div>
+              {{ end }}
+            </form>
+          </div>
+        </div>
+
+        <div>
+          <h3 class="text-gray-400 text-50">Command</h3>
+          <div class="relative rounded-sm text-100 bg-white-50">
+            <button class="w-5 h-5 absolute top-2 right-2 text-gray-400" aria-label="Copy Command">
+              <svg class="w-5 h-5 top-0">
+                <use href="#ico-copy"></use>
+              </svg>
+            </button>
+            <pre class="font-mono p-4 pr-10 whitespace-pre-wrap"><code><span data-code-mode="fast" class="inline">gnokey maketx call -pkgpath "{{ $.PkgPath }}" -func "{{ .FuncName }}" -gas-fee 1000000ugnot -gas-wanted 2000000 -send "" -broadcast -chainid "{{ $.ChainId }}"{{ range .Params }} -args "<span data-role="help-code-args" data-arg="{{ .Name }}"></span>"{{ end }} -remote "{{ $.Remote }}" <span data-role="help-code-address">ADDRESS</span></span><span data-code-mode="secure" class="hidden">gnokey query -remote "{{ $.Remote }}" auth/accounts/<span data-role="help-code-address">ADDRESS</span>
+gnokey maketx call -pkgpath "{{ $.PkgPath }}" -func "{{ .FuncName }}" -gas-fee 1000000ugnot -gas-wanted 2000000 -send "" {{ range .Params }} -args "<span data-role="help-code-args" data-arg="{{ .Name }}"></span>"{{ end }} <span data-role="help-code-address">ADDRESS</span> > call.tx
+gnokey sign -tx-path call.tx -chainid "{{ $.ChainId }}" -account-number ACCOUNTNUMBER -account-sequence SEQUENCENUMBER <span data-role="help-code-address">ADDRESS</span>
+gnokey broadcast -remote "{{ $.Remote }}" call.tx</span></code></pre>
+          </div>
+        </div>
+      </article>
+      {{ end }}
+			<!-- Function Content end-->
+
+    </section>
+  </section>
+</main>
+<script src="/public/js/realmhelp.js"></script>
+{{ end }}

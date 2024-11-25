@@ -1,0 +1,68 @@
+{{ define "renderSource" }}
+<main class="w-full grow-[2] min-h-full bg-gray-50">
+    <section class="max-w-screen-max mx-auto px-10 grid grid-cols-10 grid-flow-dense gap-8 xxl:gap-20 items-start min-h-full">
+    <aside id="sidebar" class="relative h-full" aria-label="Table of Contents">
+      <div class="sticky top-16">
+        <div id="sidebar-summary" class="toc h-screen overflow-scroll no-scrollbar">
+            <span class="block text-gray-300 font-semibold mt-16">Sources Files list</span>
+            <nav class="text-100 font-mono pb-28">
+            <ul class="list-none space-y-1.5 pt-2">
+                        {{ $pkgpath := .PkgPath }}
+                {{ range .Files }}
+                <li>
+                <a class="flex items-center gap-2 line-clamp-2 hover:text-green-600" href="{{ $pkgpath }}$source&file={{ . }}">
+                    <svg class="w-4 h-4 shrink-0">
+                    <use href="#ico-file"></use>
+                    </svg>
+                    {{ . }}
+                </a>
+                </li>
+                {{ end }}
+            </ul>
+            </nav>
+        </div>
+        <div id="sidebar-source" class="hidden">
+            <h2>Source section</h2>
+            <p>Source content for this section</p>
+        </div>
+        <div id="sidebar-docs" class="hidden">
+            <h2>Docs section</h2>
+            <p>Complete Docs + actions for this section</p>
+        </div>
+        <div id="sidebar-meta" class="hidden">
+            <h2>Metadata section</h2>
+            <p>Here the list of metadata for this section</p>
+        </div>
+        </div>
+    </aside>
+
+    <article class="code-content mt-10 pb-24 text-gray-900">
+        <div class="flex justify-between mb-3">
+        <div class="flex items-center gap-8">
+            <h1 class="text-600 font-bold">{{ .FileName }}</h1>
+            <!-- <span class="text-gray-300">1.56 Kb · 56 lines</span> -->
+        </div>
+        <!-- <div class="flex gap-4 text-gray-300">
+            <button class="flex items-center gap-1 hover:text-gray-600">
+            <svg class="w-5 h-5 xxl:w-4 xxl:h-4 shrink-0 inline-block xl:hidden xxl:inline-block text-gray-200">
+                <use href="#ico-copy"></use>
+            </svg>
+            <span class="hidden xl:inline">Copy</span>
+            </button>
+            <button class="flex items-center gap-1">
+            <svg class="w-5 h-5 xxl:w-4 xxl:h-4 shrink-0 inline-block xl:hidden xxl:inline-block text-gray-200">
+                <use href="#ico-ddl"></use>
+            </svg>
+            <span class="hidden xl:inline">Download</span>
+            </button>
+        </div> -->
+        </div>
+
+        <!-- Code Content -->
+        <div class="source-code font-mono">
+            {{ .FileSource }}
+        </div>
+    </article>
+    </section>
+</section>
+{{ end }}
