@@ -87,6 +87,7 @@ builds:
       - "6"
       - "7"
   # Gno Contribs
+  # NOTE: Contribs binary will be added in a single docker image below: gnocontribs
   - id: gnobro
     dir: ./contribs/gnodev/cmd/gnobro
     binary: gnobro
@@ -537,7 +538,8 @@ dockers:
       - "--label=org.opencontainers.image.revision={{.FullCommit}}"
       - "--label=org.opencontainers.image.version={{.Version}}"
     ids:
-      - gnocontribs
+      - gnobro
+      - gnogenesis
   - use: buildx
     dockerfile: Dockerfile.release
     goos: linux
@@ -553,7 +555,8 @@ dockers:
       - "--label=org.opencontainers.image.revision={{.FullCommit}}"
       - "--label=org.opencontainers.image.version={{.Version}}"
     ids:
-      - gnocontribs
+      - gnobro
+      - gnogenesis
   - use: buildx
     dockerfile: Dockerfile.release
     goos: linux
@@ -570,7 +573,8 @@ dockers:
       - "--label=org.opencontainers.image.revision={{.FullCommit}}"
       - "--label=org.opencontainers.image.version={{.Version}}"
     ids:
-      - gnocontribs
+      - gnobro
+      - gnogenesis
   - use: buildx
     dockerfile: Dockerfile.release
     goos: linux
@@ -587,7 +591,8 @@ dockers:
       - "--label=org.opencontainers.image.revision={{.FullCommit}}"
       - "--label=org.opencontainers.image.version={{.Version}}"
     ids:
-      - gnocontribs
+      - gnobro
+      - gnogenesis
 
 docker_manifests:
   # https://goreleaser.com/customization/docker_manifest/
