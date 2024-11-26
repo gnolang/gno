@@ -19,4 +19,4 @@ func main() {
 }
 
 // Error:
-// ---should not happen, struct{("6.1" string)}: is not real
+// should not happen, struct{("6.1" string)} is not real

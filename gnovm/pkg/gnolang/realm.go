@@ -275,8 +275,10 @@ func checkCrossRealm(store Store, oo Object, refValue Value) {
 		fmt.Println("---StructValue...")
 		fmt.Println("---sv: ", v)
 		if !v.GetIsReal() {
-			panic("---sv is not real!!!")
+			panic(fmt.Sprintf("should not happen, %v is not real\n", v))
 		}
+		fmt.Println("---sv is real, check fields")
+		// check fields
 		for _, fv := range v.Fields {
 			fmt.Println("---fv: ", fv)
 			fmt.Println("---type of fv: ", reflect.TypeOf(fv.V))
@@ -286,18 +288,31 @@ func checkCrossRealm(store Store, oo Object, refValue Value) {
 			//}
 			rfv := fillValueTV(store, &fv)
 			fmt.Println("---rfv: ", rfv)
-			if oo, ok := rfv.V.(Object); ok {
-				if !oo.GetIsReal() {
-					panic(fmt.Sprintf("---should not happen, %v: is not real \n", oo))
+			fmt.Println("---type of rfv.V: ", reflect.TypeOf(rfv.V))
+
+			if fo, ok := rfv.V.(Object); ok {
+				checkCrossRealm(store, fo, nil)
+			} else { // reference to object
+				var reo Object
+				switch rv := rfv.V.(type) {
+				case *SliceValue, PointerValue: // if reference object from external realm
+					refValue = rv
+					// TODO: consider pkgId here, A -> B - > A?...
+					// yes, check PkgId per object
+					reo, _ = rfv.GetFirstObject2(store)
+					fmt.Println("---reo: ", reo)
+					// XXX, if elem of array is slice?, GetFirstObject2?...
+					checkCrossRealm(store, reo, refValue)
 				}
 			}
 		}
 	case *MapValue:
 		println("---mapValue...")
+		// TODO: check elem? NO.
 	case *HeapItemValue:
 		fmt.Println("---heapItemValue: ", v)
-		//r := fillValueTV(store, &v.Value)
-		//fmt.Println("---r: ", r)
+		r := fillValueTV(store, &v.Value)
+		fmt.Println("---r: ", r)
 
 		checkCrossRealm(store, v.Value.V.(Object), refValue)
 	case *ArrayValue:
@@ -307,55 +322,30 @@ func checkCrossRealm(store Store, oo Object, refValue Value) {
 			offset := sv.Offset
 			length := sv.Length
 			fmt.Println("---ArrayValue: ", v)
-			fmt.Println("---offset: ", offset)
+			fmt.Printf("---offset: %d, length: %d \n", offset, length)
 			fmt.Println("---escaped array, check if elements are real")
+
 			for i := offset; i < length; i++ {
 				// XXX, difference between them?
-				//e := oo.(*ArrayValue).List[i]
-				e := oo.(*ArrayValue).GetPointerAtIndexInt2(store, i, nil).Deref()
+				ee := oo.(*ArrayValue).List[i]
+				e := fillValueTV(store, &ee)
 
-				// TODO: replace these logic
-				fmt.Println("---e: ", e, reflect.TypeOf(e.V))
-				if _, ok := e.V.(RefValue); ok { // TODO: XXX, does this already enough
-					fmt.Println("---escaped: ", e.V.(RefValue).Escaped)
-					fmt.Println("---string: ", e.V.(RefValue).String())
-					fmt.Println("---pkgpath: ", e.V.(RefValue).PkgPath)
-					fmt.Println("---objectID: ", e.V.(RefValue).ObjectID)
-					if store != nil {
-						oo := store.GetObject(e.V.(RefValue).ObjectID)
-						fmt.Println("---oo: ", oo)
-						fmt.Println("---oo.GetIsReal: ", oo.GetIsReal())
-						if !oo.GetIsReal() {
-							panic("should not happen while reference unreal element from array of external realm")
-						}
-					}
-				} else {
-					fmt.Println("---e.V: ", e.V)
-					fmt.Println("---e.V: ", reflect.TypeOf(e.V))
-
-					if p, ok := e.V.(PointerValue); ok {
-						fmt.Println("---p.TV: ", p.TV)
-						fmt.Println("---p.Index: ", p.Index)
-						fmt.Println("---p.Base: ", p.Base)
-
-						//r1 := fillValueTV(store, &p.Base)
-
-						rr := fillValueTV(store, p.TV)
-						fmt.Println("---rr: ", rr)
-
-						if sv, ok := p.TV.V.(*StructValue); ok {
-							fmt.Println("---sv: ", sv)
-							fmt.Println("---sv.GetIsReal", sv.GetIsReal())
-							if !sv.GetIsReal() {
-								panic(fmt.Sprintf("---should not happen, %v: is not real \n", sv))
-							}
-							fmt.Println("---sv.ObjectID", sv.GetObjectID())
-						}
-					} else {
-						println("---e.V is not pointer")
-						if !e.V.(Object).GetIsReal() {
-							panic("should not happen while reference unreal element from external realm")
-						}
+				//e := oo.(*ArrayValue).GetPointerAtIndexInt2(store, i, nil).Deref()
+				fmt.Printf("---e[%d]: %v\n", i, e)
+				fmt.Printf("---type of e[%d].V: %v\n", i, reflect.TypeOf(e.V))
+				if eo, ok := e.V.(Object); ok {
+					checkCrossRealm(store, eo, nil)
+				} else { // reference to object
+					var reo Object
+					switch rv := e.V.(type) {
+					case *SliceValue, PointerValue: // if reference object from external realm
+						refValue = rv
+						// TODO: consider pkgId here, A -> B - > A?...
+						// yes, check PkgId per object
+						reo, _ = e.GetFirstObject2(store)
+						fmt.Println("---reo: ", reo)
+						// XXX, if elem of array is slice?, GetFirstObject2?...
+						checkCrossRealm(store, reo, refValue)
 					}
 				}
 			}

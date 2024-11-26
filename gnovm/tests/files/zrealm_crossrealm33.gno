@@ -19,4 +19,4 @@ func main() {
 }
 
 // Error:
-// should not happen while reference unreal element from external realm
+// should not happen, struct{("0" string)} is not real

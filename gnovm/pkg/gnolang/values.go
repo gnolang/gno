@@ -257,7 +257,7 @@ func (pv PointerValue) Assign2(alloc *Allocator, store Store, rlm *Realm, tv2 Ty
 								panic("should not happen")
 							}
 							if nv, ok := tv2.V.(*NativeValue); !ok ||
-									nv.Value.Kind() != reflect.Func {
+								nv.Value.Kind() != reflect.Func {
 								panic("should not happen")
 							}
 						}
@@ -294,6 +294,7 @@ func (pv PointerValue) Assign2(alloc *Allocator, store Store, rlm *Realm, tv2 Ty
 		pv.TV.Assign(alloc, tv2, cu)
 		oo2, pkgId := pv.TV.GetFirstObject2(store)
 
+		// TODO: move to GetFirstObject2
 		var refValue Value
 		switch rv := pv.TV.V.(type) {
 		case *SliceValue, PointerValue:

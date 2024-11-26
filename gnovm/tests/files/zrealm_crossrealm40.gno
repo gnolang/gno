@@ -10,4 +10,5 @@ func main() {
 	println(f)
 }
 
+// XXX, fix this.
 // Error:
