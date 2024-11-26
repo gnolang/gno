@@ -45,14 +45,6 @@ EXPOSE     5050
 ENTRYPOINT [ "/usr/bin/gnofaucet" ]
 
 #
-## ghcr.io/gnolang/gno/gnobro
-FROM base as gnobro
-
-COPY       ./gnobro /usr/bin/gnobro
-EXPOSE     22
-ENTRYPOINT [ "/usr/bin/gnobro" ]
-
-#
 ## ghcr.io/gnolang/gno
 FROM base as gno
 
@@ -62,3 +54,14 @@ COPY     ./gnovm/stdlibs       /gnoroot/gnovm/stdlibs/
 COPY     ./gnovm/tests/stdlibs /gnoroot/gnovm/tests/stdlibs/
 
 ENTRYPOINT [ "/usr/bin/gno" ]
+
+#
+## ghcr.io/gnolang/gnocontribs
+FROM base as gnocontribs
+
+COPY     ./gno                 /usr/bin/gno
+COPY     ./examples            /gnoroot/examples/
+COPY     ./gnobro              /usr/bin/gnobro
+COPY     ./gnogenesis          /usr/bin/gnogenesis
+
+ENTRYPOINT [ "/bin/sh", "-c" ]
