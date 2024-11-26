@@ -42,3 +42,4 @@ func main() {
 // > First reply of the first reply
 // >
 // > \- [@gnouser](/r/demo/users:gnouser), [2009-02-13 11:31pm (UTC)](/r/demo/boards:test_board/2/5) \[[reply](/r/demo/boards$help&func=CreateReply&bid=1&threadid=2&postid=5)] \[[x](/r/demo/boards$help&func=DeletePost&bid=1&threadid=2&postid=5)]
+//
