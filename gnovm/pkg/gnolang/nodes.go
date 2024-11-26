@@ -442,7 +442,7 @@ type IndexExpr struct { // X[Index]
 	Attributes
 	X     Expr // expression
 	Index Expr // index expression
-	HasOK bool // if true, is form: `value, ok := <X>[<Key>]
+	HasOK bool // if true, is form: `value, ok := <X>[<Key>]`
 }
 
 type SelectorExpr struct { // X.Sel
@@ -1218,7 +1218,8 @@ func ReadMemPackageFromList(list []string, pkgPath string) *gnovm.MemPackage {
 
 	// If no .gno files are present, package simply does not exist.
 	if !memPkg.IsEmpty() {
-		validatePkgName(string(pkgName))
+		// validatePkgName(string(pkgName))
+		validatePkgPath(pkgPath, string(pkgName))
 		memPkg.Name = string(pkgName)
 	}
 
@@ -2167,6 +2168,29 @@ func (x *BasicLitExpr) GetInt() int {
 		panic(err)
 	}
 	return i
+}
+
+var invalidPkgNames = map[string]struct{}{
+	"internal": {},
+	"crypto":   {},
+}
+
+func validatePkgPath(pkgPath, pkgName string) {
+	parts := strings.Split(pkgPath, "/")
+	lastPart := parts[len(parts)-1]
+	if _, ok := invalidPkgNames[lastPart]; ok {
+		panic(fmt.Sprintf("cannot create package with invalid name %q", pkgName))
+	}
+
+	validatePkgName(lastPart)
+
+	if len(parts) > 1 {
+		return
+	}
+
+	if !IsStdlib(pkgPath) {
+		panic(fmt.Sprintf("cannot create package with invalid path %q", pkgPath))
+	}
 }
 
 var rePkgName = regexp.MustCompile(`^[a-z][a-z0-9_]+$`)
