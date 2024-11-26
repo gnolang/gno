@@ -3,11 +3,14 @@ package boards2
 import (
 	"strconv"
 
+	"gno.land/p/demo/avl/pager"
 	"gno.land/p/demo/mux"
 )
 
+const defaultPageSize = 50
+
 func Render(path string) string {
-	router := mux.NewRouter()
+	router := newWrappedRouter()
 	router.HandleFunc("", renderBoardsList)
 	router.HandleFunc("{board}", renderBoard)
 	router.HandleFunc("{board}/{thread}", renderThread)
@@ -20,17 +23,26 @@ func Render(path string) string {
 	return router.Render(path)
 }
 
-func renderBoardsList(res *mux.ResponseWriter, _ *mux.Request) {
+func renderBoardsList(res *mux.ResponseWriter, r request) {
 	res.Write("These are all the boards of this realm:\n\n")
-	gBoardsByID.Iterate("", "", func(_ string, value interface{}) bool {
-		board := value.(*Board)
+
+	pager := pager.NewPager(&gBoardsByID, defaultPageSize)
+	pageNum, pageSize, err := pager.ParseQuery(r.requestUri)
+	if err != nil {
+		panic(err)
+	}
+
+	page := pager.GetPageWithSize(pageNum, pageSize)
+	for _, item := range page.Items {
+		board := item.Value.(*Board)
 		url := board.GetURL()
 		res.Write(" * " + newLink(url, url) + "\n")
-		return false
-	})
+	}
+
+	res.Write(page.Selector())
 }
 
-func renderBoard(res *mux.ResponseWriter, req *mux.Request) {
+func renderBoard(res *mux.ResponseWriter, req request) {
 	name := req.GetVar("board")
 	v, found := gBoardsByName.Get(name)
 	if !found {
@@ -41,7 +53,7 @@ func renderBoard(res *mux.ResponseWriter, req *mux.Request) {
 	}
 }
 
-func renderThread(res *mux.ResponseWriter, req *mux.Request) {
+func renderThread(res *mux.ResponseWriter, req request) {
 	name := req.GetVar("board")
 	v, found := gBoardsByName.Get(name)
 	if !found {
@@ -65,7 +77,7 @@ func renderThread(res *mux.ResponseWriter, req *mux.Request) {
 	}
 }
 
-func renderReply(res *mux.ResponseWriter, req *mux.Request) {
+func renderReply(res *mux.ResponseWriter, req request) {
 	name := req.GetVar("board")
 	v, found := gBoardsByName.Get(name)
 	if !found {

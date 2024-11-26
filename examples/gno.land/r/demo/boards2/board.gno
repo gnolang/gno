@@ -7,8 +7,11 @@ import (
 	"time"
 
 	"gno.land/p/demo/avl"
+	"gno.land/p/demo/avl/pager"
 	"gno.land/p/moul/txlink"
 )
+
+const boardsPageSize = 50
 
 type BoardID uint64
 
@@ -90,13 +93,17 @@ func (board *Board) DeleteThread(pid PostID) {
 
 func (board *Board) Render() string {
 	s := "\\[" + newLink("post", board.GetPostFormURL()) + "]\n\n"
-	if board.threads.Size() > 0 {
-		board.threads.Iterate("", "", func(_ string, v interface{}) bool {
-			s += "----------------------------------------\n"
-			s += v.(*Post).RenderSummary() + "\n"
-			return false
-		})
+	if board.threads.Size() == 0 {
+		s += "*No posts*"
+		return s
 	}
+
+	_ = pager.NewPager(&board.threads, boardsPageSize)
+	board.threads.Iterate("", "", func(_ string, v interface{}) bool {
+		s += "----------------------------------------\n"
+		s += v.(*Post).RenderSummary() + "\n"
+		return false
+	})
 	return s
 }
 
