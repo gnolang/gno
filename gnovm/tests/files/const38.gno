@@ -1,11 +1,11 @@
 package main
 
-import "net"
+import "std"
 
 func main() {
-	v := net.TCPAddr{}
-	const c = v.IP
+	v := std.Coin{}
+	const c = v.Denom
 }
 
 // Error:
-// main/files/const38.gno:7:8: v<VPBlock(1,0)>.IP (variable of type gonative{net.TCPAddr}) is not constant
+// main/files/const38.gno:7:8: v<VPBlock(1,0)>.Denom (variable of type std.Coin) is not constant

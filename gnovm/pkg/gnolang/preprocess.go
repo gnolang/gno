@@ -2436,6 +2436,15 @@ func parseAssignFromExprList(
 		for i := 0; i < numNames; i++ {
 			sts[i] = nt
 		}
+		if isConst {
+			if xnt, ok := nt.(*NativeType); ok {
+				nt = go2GnoBaseType(xnt.Type)
+			}
+
+			if _, ok := baseOf(nt).(PrimitiveType); !ok {
+				panic(fmt.Sprintf("invalid constant type %s", nt.String()))
+			}
+		}
 		// Convert if const to nt.
 		for i := range valueExprs {
 			checkOrConvertType(store, bn, &valueExprs[i], nt, false)
