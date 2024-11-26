@@ -530,14 +530,14 @@ dockers:
       - "ghcr.io/gnolang/{{ .ProjectName }}/gnocontribs:{{ .Version }}-amd64"
       - "ghcr.io/gnolang/{{ .ProjectName }}/gnocontribs:{{ .Env.TAG_VERSION }}-amd64"
     build_flag_templates:
-      - "--target=gnobro"
+      - "--target=gnocontribs"
       - "--platform=linux/amd64"
       - "--label=org.opencontainers.image.created={{.Date}}"
       - "--label=org.opencontainers.image.title={{.ProjectName}}/gnocontribs"
       - "--label=org.opencontainers.image.revision={{.FullCommit}}"
       - "--label=org.opencontainers.image.version={{.Version}}"
     ids:
-      - gnobro
+      - gnocontribs
   - use: buildx
     dockerfile: Dockerfile.release
     goos: linux
@@ -560,34 +560,34 @@ dockers:
     goarch: arm
     goarm: 6
     image_templates:
-      - "ghcr.io/gnolang/{{ .ProjectName }}/gnobro:{{ .Version }}-armv6"
-      - "ghcr.io/gnolang/{{ .ProjectName }}/gnobro:{{ .Env.TAG_VERSION }}-armv6"
+      - "ghcr.io/gnolang/{{ .ProjectName }}/gnocontribs:{{ .Version }}-armv6"
+      - "ghcr.io/gnolang/{{ .ProjectName }}/gnocontribs:{{ .Env.TAG_VERSION }}-armv6"
     build_flag_templates:
-      - "--target=gnobro"
+      - "--target=gnocontribs"
       - "--platform=linux/arm/v6"
       - "--label=org.opencontainers.image.created={{.Date}}"
-      - "--label=org.opencontainers.image.title={{.ProjectName}}/gnobro"
+      - "--label=org.opencontainers.image.title={{.ProjectName}}/gnocontribs"
       - "--label=org.opencontainers.image.revision={{.FullCommit}}"
       - "--label=org.opencontainers.image.version={{.Version}}"
     ids:
-      - gnobro
+      - gnocontribs
   - use: buildx
     dockerfile: Dockerfile.release
     goos: linux
     goarch: arm
     goarm: 7
     image_templates:
-      - "ghcr.io/gnolang/{{ .ProjectName }}/gnobro:{{ .Version }}-armv7"
-      - "ghcr.io/gnolang/{{ .ProjectName }}/gnobro:{{ .Env.TAG_VERSION }}-armv7"
+      - "ghcr.io/gnolang/{{ .ProjectName }}/gnocontribs:{{ .Version }}-armv7"
+      - "ghcr.io/gnolang/{{ .ProjectName }}/gnocontribs:{{ .Env.TAG_VERSION }}-armv7"
     build_flag_templates:
-      - "--target=gnobro"
+      - "--target=gnocontribs"
       - "--platform=linux/arm/v7"
       - "--label=org.opencontainers.image.created={{.Date}}"
-      - "--label=org.opencontainers.image.title={{.ProjectName}}/gnobro"
+      - "--label=org.opencontainers.image.title={{.ProjectName}}/gnocontribs"
       - "--label=org.opencontainers.image.revision={{.FullCommit}}"
       - "--label=org.opencontainers.image.version={{.Version}}"
     ids:
-      - gnobro
+      - gnocontribs
 
 docker_manifests:
   # https://goreleaser.com/customization/docker_manifest/
