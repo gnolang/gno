@@ -211,6 +211,7 @@ func (pv *PointerValue) GetBase(store Store) Object {
 // TODO: document as something that enables into-native assignment.
 // TODO: maybe consider this as entrypoint for DataByteValue too?
 func (pv PointerValue) Assign2(alloc *Allocator, store Store, rlm *Realm, tv2 TypedValue, cu bool) {
+	fmt.Println("---Assign2, tv2: ", tv2)
 	// Special cases.
 	if pv.Index == PointerIndexNative {
 		// Special case if extended object && native.
@@ -284,7 +285,7 @@ func (pv PointerValue) Assign2(alloc *Allocator, store Store, rlm *Realm, tv2 Ty
 	// General case
 	if rlm != nil && pv.Base != nil {
 		oo1 := pv.TV.GetFirstObject(store)
-		//fmt.Println("---oo1: ", oo1)
+		fmt.Println("---oo1: ", oo1)
 		pv.TV.Assign(alloc, tv2, cu)
 		oo2, pkgId := pv.TV.GetFirstObject2(store)
 
@@ -294,9 +295,9 @@ func (pv PointerValue) Assign2(alloc *Allocator, store Store, rlm *Realm, tv2 Ty
 		case *SliceValue, PointerValue:
 			refValue = rv
 		}
-		//fmt.Println("---oo2: ", oo2)
-		//fmt.Println("---oo2 pkgId: ", pkgId)
-		if oo2 != nil {
+		fmt.Println("---oo2: ", oo2)
+		fmt.Println("---oo2 pkgId: ", pkgId)
+		if oo2 != nil { // cross realm
 			oo2.SetLastNewEscapedRealm(pkgId) // attach origin package info
 		}
 		// TODO: make check happens in here?

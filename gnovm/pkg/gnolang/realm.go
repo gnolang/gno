@@ -153,6 +153,9 @@ func (rlm *Realm) DidUpdate(po, xo, co Object) {
 		return // do nothing.
 	}
 
+	if po.GetObjectID().PkgID != rlm.ID {
+		panic("cannot modify external-realm or non-realm object")
+	}
 	// XXX check if this boosts performance
 	// XXX with broad integration benchmarking.
 	// XXX if co == xo {
@@ -373,6 +376,8 @@ func (rlm *Realm) MarkNewEscapedCheckCrossRealm(store Store, oo Object, refValue
 		return
 	}
 
+	fmt.Println("---oo.GetLastNewEscapedRealm(): ", oo.GetLastNewEscapedRealm())
+	fmt.Println("---rlm.ID: ", rlm.ID)
 	if oo.GetLastNewEscapedRealm() != rlm.ID { // crossing realm
 		if refValue != nil { // is reference object from external realm
 			checkCrossRealm(store, oo, refValue)

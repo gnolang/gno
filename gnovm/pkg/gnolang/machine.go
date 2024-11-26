@@ -1848,6 +1848,9 @@ func (m *Machine) PushFrameBasic(s Stmt) {
 // ensure the counts are consistent, otherwise we mask
 // bugs with frame pops.
 func (m *Machine) PushFrameCall(cx *CallExpr, fv *FuncValue, recv TypedValue) {
+	//fmt.Println("---PushFrameCall, cx: ", cx)
+	//fmt.Println("---fv: ", fv)
+	//fmt.Println("---m.Realm: ", m.Realm)
 	fr := &Frame{
 		Source:      cx,
 		NumOps:      m.NumOps,
@@ -1903,11 +1906,21 @@ func (m *Machine) PushFrameCall(cx *CallExpr, fv *FuncValue, recv TypedValue) {
 			}
 		}
 	} else {
+		//fmt.Println("---receiver not defined")
 		pv := fv.GetPackage(m.Store)
 		if pv == nil {
 			panic(fmt.Sprintf("package value missing in store: %s", fv.PkgPath))
 		}
+		//fmt.Println("---pv: ", pv)
+		//fmt.Println("---pv: ", pv.Realm)
+		//fmt.Println("---PkgPath: ", pv.PkgPath)
+
+		//fmt.Println("---1, m.Realm : ", m.Realm)
+		//if IsRealmPath(pv.PkgPath) {
+		//	println("---isRealmPath")
+		//}
 		m.setCurrentPackage(pv) // maybe new realm
+		//fmt.Println("---2, m.Realm : ", m.Realm)
 	}
 }
 

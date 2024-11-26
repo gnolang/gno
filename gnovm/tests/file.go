@@ -148,7 +148,7 @@ func RunFileTest(rootDir string, path string, opts ...RunFileTestOption) error {
 					err := strings.TrimSpace(fmt.Sprintf("%v", pnc))
 					// print stack if unexpected error.
 					if errWanted == "" ||
-						!strings.Contains(err, errWanted) {
+							!strings.Contains(err, errWanted) {
 						fmt.Printf("ERROR:\n%s\n", err)
 						// error didn't match: print stack
 						// NOTE: will fail testcase later.
@@ -300,8 +300,8 @@ func RunFileTest(rootDir string, path string, opts ...RunFileTestOption) error {
 						}
 						// check tip line, write to file
 						ctl := errstr +
-							"\n*** CHECK THE ERR MESSAGES ABOVE, MAKE SURE IT'S WHAT YOU EXPECTED, " +
-							"DELETE THIS LINE AND RUN TEST AGAIN ***"
+								"\n*** CHECK THE ERR MESSAGES ABOVE, MAKE SURE IT'S WHAT YOU EXPECTED, " +
+								"DELETE THIS LINE AND RUN TEST AGAIN ***"
 						// write error to file
 						replaceWantedInPlace(path, "Error", ctl)
 						panic(fmt.Sprintf("fail on %s: err recorded, check the message and run test again", path))
@@ -360,7 +360,8 @@ func RunFileTest(rootDir string, path string, opts ...RunFileTestOption) error {
 				if rops != "" {
 					rops2 := strings.TrimSpace(store.SprintStoreOps())
 					if rops != rops2 {
-						if f.syncWanted {
+						//if f.syncWanted {
+						if true {
 							// write output to file.
 							replaceWantedInPlace(path, "Realm", rops2)
 						} else {

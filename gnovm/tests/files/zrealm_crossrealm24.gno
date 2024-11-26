@@ -5,14 +5,6 @@ import (
 	crossrealm "gno.land/r/demo/tests/crossrealm"
 )
 
-// XXX, this equals to:
-//
-//	type LocalBar *crossrealm.Bar
-//	var b0 LocalBar
-//
-// both should be valid
-// TODO: expand this
-
 var b0 *crossrealm.Bar
 
 func init() {
@@ -22,9 +14,6 @@ func init() {
 func main() {
 	print(".")
 }
-
-// XXX, should work to attach by reference to
-// type defined in another realm???
 
 // Output:
 // .

@@ -401,11 +401,15 @@ func (tv *TypedValue) GetFirstObject2(store Store) (obj Object, pkgId PkgID) {
 			fmt.Println("---v: ", v)
 			// TODO: check this
 			if dt, ok := cv.TV.T.(*DeclaredType); ok {
-				if _, ok := cv.GetBase(store).(*HeapItemValue); !ok {
-					if IsRealmPath(dt.PkgPath) {
-						pkgId = PkgIDFromPkgPath(dt.PkgPath)
-					}
+				//fmt.Println("---dt: ", dt)
+				//fmt.Println("---cv.Base: ", cv.GetBase(store), reflect.TypeOf(cv.GetBase(store)))
+				//if _, ok := cv.GetBase(store).(*HeapItemValue); !ok {
+				//println("---base is heap item")
+				if IsRealmPath(dt.PkgPath) {
+					//println("---IsRealmPath")
+					pkgId = PkgIDFromPkgPath(dt.PkgPath)
 				}
+				//}
 			}
 		}
 		return
