@@ -13,17 +13,20 @@ type foo struct {
 
 func (foo) Foo() { println("hello " + std.CurrentRealm().PkgPath()) }
 
-var fs []crossrealm.Fooer // panic
+// XXX, consider this
+var fs []crossrealm.Fooer
 
 func init() {
-	fs = append(fs, foo{name: "1"}) // attached
+	fs = append(fs, foo{name: "1"})
 	fs = append(fs, foo{name: "2"})
 }
 
 func main() {
-	println("ok")
 	crossrealm.SetSlice(fs)
+	println("ok")
 }
 
-// Error:
-// should not happen while attempting to attach new real object from external realm
+// Output:
+// (struct{("1" string)} gno.land/r/crossrealm_test.foo)
+// (struct{("2" string)} gno.land/r/crossrealm_test.foo)
+// ok

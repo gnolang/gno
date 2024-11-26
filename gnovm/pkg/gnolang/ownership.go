@@ -115,6 +115,8 @@ type Object interface {
 	SetIsNewReal(bool)
 	GetLastNewEscapedRealm() PkgID
 	SetLastNewEscapedRealm(pkgID PkgID)
+	GetIsRef() bool
+	SetIsRef(bool)
 	GetIsNewEscaped() bool
 	SetIsNewEscaped(bool)
 	GetIsNewDeleted() bool
@@ -146,7 +148,7 @@ type ObjectInfo struct {
 	isDirty                 bool
 	isDeleted               bool
 	isNewReal               bool
-	isCrossRealm            bool
+	isRef                   bool
 	isNewEscaped            bool
 	isNewDeleted            bool
 	lastNewRealEscapedRealm PkgID
@@ -323,6 +325,14 @@ func (oi *ObjectInfo) SetLastNewEscapedRealm(pkgId PkgID) {
 	oi.lastNewRealEscapedRealm = pkgId
 }
 
+func (oi *ObjectInfo) GetIsRef() bool {
+	return oi.isRef
+}
+
+func (oi *ObjectInfo) SetIsRef(isRef bool) {
+	oi.isRef = isRef
+}
+
 func (oi *ObjectInfo) GetIsNewEscaped() bool {
 	return oi.isNewEscaped
 }
@@ -419,6 +429,9 @@ func (tv *TypedValue) GetFirstObject2(store Store) (obj Object, pkgId PkgID) {
 		return
 	case *SliceValue:
 		pkgId = PkgIDFromPkgPath(tv.T.Elem().GetPkgPath())
+		base := cv.GetBase(store)
+		fmt.Println("---base: ", base)
+		fmt.Println("---base.ID: ", base.ID)
 		return
 	case *FuncValue:
 		fmt.Println("---FuncValue")

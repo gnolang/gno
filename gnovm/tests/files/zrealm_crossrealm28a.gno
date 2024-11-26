@@ -23,5 +23,5 @@ func main() {
 	println(".")
 }
 
-// Error:
-// should not happen while attempting to attach new real object from external realm
+// Output:
+// .

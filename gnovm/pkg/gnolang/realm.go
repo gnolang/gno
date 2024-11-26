@@ -217,6 +217,11 @@ func (rlm *Realm) DidUpdate2(store Store, po, xo, co Object, refValue Value) {
 		}
 	}
 
+	if refValue != nil {
+		fmt.Printf("---SetIsRef, co: %v\n", co)
+		co.SetIsRef(true)
+	}
+
 	if po == nil || !po.GetIsReal() { // XXX, make sure po is attached
 		fmt.Println("---po(Base) not real, do nothing!!!")
 		return // do nothing.
@@ -566,13 +571,13 @@ func (rlm *Realm) FinalizeRealmTransaction(readonly bool, store Store) {
 // All newly created objects become appended to .created,
 // and get assigned ids.
 func (rlm *Realm) processNewCreatedMarks(store Store) {
-	//fmt.Println("---processNewCreatedMarks---")
+	fmt.Println("---processNewCreatedMarks---")
 	//fmt.Println("---len of newCreated objects:", len(rlm.newCreated))
 	// Create new objects and their new descendants.
 	//for _, oo := range rlm.newCreated {
 	for i := 0; i < len(rlm.newCreated); i++ {
 		oo := rlm.newCreated[i]
-		//fmt.Printf("---oo[%d] is %v:\n", i, oo)
+		fmt.Printf("---oo[%d] is %v:\n", i, oo)
 		//if _, ok := oo.(*BoundMethodValue); ok {
 		//	panic("should not happen persist bound method")
 		//}
@@ -605,7 +610,8 @@ func (rlm *Realm) processNewCreatedMarks(store Store) {
 func (rlm *Realm) incRefCreatedDescendants(store Store, oo Object) {
 	//fmt.Println("---incRefCreatedDescendants, rlm.ID: ", rlm.ID)
 	//fmt.Println("---incRefCreatedDescendants oo.GetLastEscapedRealm: ", oo.GetLastNewEscapedRealm())
-	//fmt.Println("---incRefCreatedDescendants from oo: ", oo)
+	fmt.Println("---incRefCreatedDescendants from oo: ", oo)
+	//fmt.Println("---oo.GetRefCount: ", oo.GetRefCount())
 	//fmt.Println("---incRefCreatedDescendants, oo.GetObjectID: ", oo.GetObjectID())
 
 	if debug {
@@ -618,7 +624,9 @@ func (rlm *Realm) incRefCreatedDescendants(store Store, oo Object) {
 	}
 
 	// XXX, oo must be new real here, it's not escaped
-	if !oo.GetLastNewEscapedRealm().IsZero() && oo.GetLastNewEscapedRealm() != rlm.ID {
+	// if it's reference, all right
+	fmt.Println("---oo.GetIsRef: ", oo.GetIsRef())
+	if !oo.GetLastNewEscapedRealm().IsZero() && oo.GetLastNewEscapedRealm() != rlm.ID && !oo.GetIsRef() {
 		//fmt.Println("---oo.GetLastNewEscapedRealm: ", oo.GetLastNewEscapedRealm())
 		//fmt.Println("---rlm.ID: ", rlm.ID)
 		panic("should not happen while attempting to attach new real object from external realm")
@@ -980,9 +988,9 @@ func (rlm *Realm) saveUnsavedObjectRecursively(store Store, oo Object) {
 }
 
 func (rlm *Realm) saveObject(store Store, oo Object) {
-	//fmt.Println("---saveObject: ", oo)
+	fmt.Println("---saveObject: ", oo)
 	oid := oo.GetObjectID()
-	//fmt.Println("---saveObject: ", oid)
+	fmt.Println("---saveObject: ", oid)
 	if oid.IsZero() {
 		panic("unexpected zero object id")
 	}

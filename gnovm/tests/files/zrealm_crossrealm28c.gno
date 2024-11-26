@@ -14,17 +14,17 @@ type foo struct {
 func (foo) Foo() { println("hello " + std.CurrentRealm().PkgPath()) }
 
 func main() {
-	var arr []crossrealm.Fooer // not attached here
+	var arr []crossrealm.Fooer // XXX, the array object should be in current realm
 	arr = append(arr, foo{name: "1"})
 	arr = append(arr, foo{name: "2"})
 	arr = append(arr, foo{name: "3"})
 
 	fs := arr[1:]
-	println("ok")
 	crossrealm.SetSlice(fs)
+	println("ok")
 }
 
 // Output:
-// ok
 // (struct{("2" string)} gno.land/r/crossrealm_test.foo)
 // (struct{("3" string)} gno.land/r/crossrealm_test.foo)
+// ok
