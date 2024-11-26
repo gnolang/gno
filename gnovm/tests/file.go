@@ -61,6 +61,7 @@ func TestContext(pkgPath string, send std.Coins) *teststd.TestExecContext {
 	params := newTestParams()
 	ctx := stdlibs.ExecContext{
 		ChainID:       "dev",
+		ChainTz:       "Etc/UTC",
 		Height:        123,
 		Timestamp:     1234567890,
 		Msg:           nil,
