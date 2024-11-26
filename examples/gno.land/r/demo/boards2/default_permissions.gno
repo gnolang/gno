@@ -7,8 +7,6 @@ import (
 	"gno.land/p/demo/boards2/admindao"
 )
 
-// TODO: Support to deal with permissions for anonymous users?
-
 const (
 	RoleOwner     Role = "owner"
 	RoleAdmin          = "admin"
@@ -16,6 +14,11 @@ const (
 )
 
 type (
+	// PermissionsHandlerFunc defines a function to handle permission callbacks.
+	// Handlers are called by the `WithPermission()` method to execute callbacks
+	// when users have the permission assigned.
+	PermissionsHandlerFunc func(Args, *admindao.AdminDAO, func(Args)) error
+
 	// Role defines the type for user roles.
 	Role string
 
@@ -23,6 +26,7 @@ type (
 	DefaultPermissions struct {
 		superRole Role
 		dao       *admindao.AdminDAO
+		handlers  *avl.Tree // string(permission) -> PermissionsHandlerFunc
 		users     *avl.Tree // string(std.Address) -> []Role
 		roles     *avl.Tree // string(role) -> []Permission
 	}
@@ -32,9 +36,10 @@ type (
 // This type is a default implementation to handle users, roles and permissions.
 func NewDefaultPermissions(dao *admindao.AdminDAO, options ...DefaultPermissionsOption) *DefaultPermissions {
 	dp := &DefaultPermissions{
-		dao:   dao,
-		roles: avl.NewTree(),
-		users: avl.NewTree(),
+		dao:      dao,
+		handlers: avl.NewTree(),
+		roles:    avl.NewTree(),
+		users:    avl.NewTree(),
 	}
 	for _, apply := range options {
 		apply(dp)
@@ -89,13 +94,42 @@ func (dp DefaultPermissions) HasPermission(user std.Address, perm Permission) bo
 	return false
 }
 
+// HandleFunc registers a handler function for a permission.
+func (dp *DefaultPermissions) HandleFunc(p Permission, fn PermissionsHandlerFunc) {
+	dp.handlers.Set(string(p), fn)
+}
+
 // WithPermission calls a callback when a user has a specific permission.
-// It panics on error.
-func (dp DefaultPermissions) WithPermission(user std.Address, perm Permission, a Args, cb func(Args)) {
+// It panics on error or when a handler fails.
+// Callbacks are by default called when there is no handle registered for the permission.
+func (dp DefaultPermissions) WithPermission(user std.Address, perm Permission, args Args, cb func(Args)) {
 	if !dp.HasPermission(user, perm) || !dp.dao.IsMember(user) {
 		panic("unauthorized")
 	}
 
-	// TODO: Support DAO proposals that run the callback on proposal execution
-	cb(a)
+	h, found := dp.handlers.Get(string(perm))
+	if !found {
+		cb(args) // TODO: Should we fail instead?
+		return
+	}
+
+	fn := h.(PermissionsHandlerFunc)
+	if err := fn(args, dp.dao, cb); err != nil {
+		panic(err)
+	}
+}
+
+func createDefaultPermissions() *DefaultPermissions {
+	// TODO: Define and change the default realm owner (or owners)
+	admin := std.Address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5") // @test1
+	dao := admindao.New(admindao.WithMember(admin))
+	perms := NewDefaultPermissions(
+		dao,
+		WithSuperRole(RoleOwner),
+		// TODO: Assign roles and permissions
+		// WithRole(RoleAdmin, permissions...),
+		// WithRole(RoleModerator, permissions...),
+		WithUser(admin, RoleOwner),
+	)
+	return perms
 }

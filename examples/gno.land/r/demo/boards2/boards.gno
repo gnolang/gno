@@ -11,25 +11,15 @@ import (
 const defaultAnonymousFee = 20 * 1_000_000
 
 var (
-	gPerm         Permissioner
+	gPerm         Permissioner // TODO: Support changing the permissioner
 	gLastBoardID  BoardID
 	gBoardsByID   avl.Tree // string(id) -> *Board
 	gBoardsByName avl.Tree // string(name) -> *Board
 )
 
 func init() {
-	// TODO: Decide how to initialize realm owner (DAO owner member)
-	admin := std.Address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5") // @test1
-	// TODO: Implement support for assigning a new realm DAO
-	dao := admindao.New(admindao.WithMember(admin))
-	gPerm = NewDefaultPermissions(
-		dao,
-		WithSuperRole(RoleOwner),
-		// TODO: Assign roles and permissions
-		// WithRole(RoleAdmin, permissions...),
-		// WithRole(RoleModerator, permissions...),
-		WithUser(admin, RoleOwner),
-	)
+	// Initialize the default realm permissions
+	gPerm = createDefaultPermissions()
 }
 
 // incGetBoardID returns a new board ID.
