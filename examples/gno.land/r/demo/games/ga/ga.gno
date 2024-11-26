@@ -15,8 +15,6 @@ type Individual struct {
 // Target is the string we want to evolve
 const Target = "HEY"
 
-//const Target = "HIH"
-
 // MutationRate controls how often mutations occur
 const MutationRate = 0.01
 
@@ -26,11 +24,7 @@ const PopulationSize = 100
 // Charset defines the possible characters in the genome
 var Charset = []rune("ABCDEFGHIJKLMNOPQRSTUVWXYZ, !")
 
-//var Charset = []rune("ABCDEFGHIJK")
-
 func Start(ei *entropy.Instance) (int, string) {
-	//println("---start")
-
 	var generation = 0
 	// Step 1: Initialize Population
 	population := initializePopulation(PopulationSize, ei)
