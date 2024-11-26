@@ -219,7 +219,7 @@ func (sw *Switch) OnStop() {
 	if t, ok := sw.transport.(TransportLifecycle); ok {
 		err := t.Close()
 		if err != nil {
-			sw.Logger.Error("Error stopping transport on stop: ", err)
+			sw.Logger.Error("Error stopping transport on stop: ", "error", err)
 		}
 	}
 

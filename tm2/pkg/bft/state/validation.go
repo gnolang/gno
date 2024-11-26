@@ -6,14 +6,12 @@ import (
 	"fmt"
 
 	"github.com/gnolang/gno/tm2/pkg/bft/types"
-	"github.com/gnolang/gno/tm2/pkg/crypto"
-	dbm "github.com/gnolang/gno/tm2/pkg/db"
 )
 
 // -----------------------------------------------------
 // Validate block
 
-func validateBlock(stateDB dbm.DB, state State, block *types.Block) error {
+func (state State) ValidateBlock(block *types.Block) error {
 	// Validate internal consistency.
 	if err := block.ValidateBasic(); err != nil {
 		return err
@@ -63,31 +61,31 @@ func validateBlock(stateDB dbm.DB, state State, block *types.Block) error {
 
 	// Validate app info
 	if !bytes.Equal(block.AppHash, state.AppHash) {
-		return fmt.Errorf("wrong Block.Header.AppHash.  Expected %X, got %v",
+		return fmt.Errorf("wrong Block.Header.AppHash.  Expected %X, got %X",
 			state.AppHash,
 			block.AppHash,
 		)
 	}
 	if !bytes.Equal(block.ConsensusHash, state.ConsensusParams.Hash()) {
-		return fmt.Errorf("wrong Block.Header.ConsensusHash.  Expected %X, got %v",
+		return fmt.Errorf("wrong Block.Header.ConsensusHash.  Expected %X, got %X",
 			state.ConsensusParams.Hash(),
 			block.ConsensusHash,
 		)
 	}
 	if !bytes.Equal(block.LastResultsHash, state.LastResultsHash) {
-		return fmt.Errorf("wrong Block.Header.LastResultsHash.  Expected %X, got %v",
+		return fmt.Errorf("wrong Block.Header.LastResultsHash.  Expected %X, got %X",
 			state.LastResultsHash,
 			block.LastResultsHash,
 		)
 	}
 	if !bytes.Equal(block.ValidatorsHash, state.Validators.Hash()) {
-		return fmt.Errorf("wrong Block.Header.ValidatorsHash.  Expected %X, got %v",
+		return fmt.Errorf("wrong Block.Header.ValidatorsHash.  Expected %X, got %X",
 			state.Validators.Hash(),
 			block.ValidatorsHash,
 		)
 	}
 	if !bytes.Equal(block.NextValidatorsHash, state.NextValidators.Hash()) {
-		return fmt.Errorf("wrong Block.Header.NextValidatorsHash.  Expected %X, got %v",
+		return fmt.Errorf("wrong Block.Header.NextValidatorsHash.  Expected %X, got %X",
 			state.NextValidators.Hash(),
 			block.NextValidatorsHash,
 		)
@@ -137,9 +135,8 @@ func validateBlock(stateDB dbm.DB, state State, block *types.Block) error {
 
 	// NOTE: We can't actually verify it's the right proposer because we dont
 	// know what round the block was first proposed. So just check that it's
-	// a legit address and a known validator.
-	if len(block.ProposerAddress) != crypto.AddressSize ||
-		!state.Validators.HasAddress(block.ProposerAddress) {
+	// a legit address from a known validator.
+	if !state.Validators.HasAddress(block.ProposerAddress) {
 		return fmt.Errorf("Block.Header.ProposerAddress, %X, is not a validator",
 			block.ProposerAddress,
 		)

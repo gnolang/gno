@@ -331,7 +331,7 @@ type foldPair struct {
 //	SimpleFold('a') = 'A'
 //
 //	SimpleFold('K') = 'k'
-//	SimpleFold('k') = '\u212A' (Kelvin symbol, K)
+//	SimpleFold('k') = '\u212A' (Kelvin symbol, K)
 //	SimpleFold('\u212A') = 'K'
 //
 //	SimpleFold('1') = '1'
