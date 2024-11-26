@@ -62,7 +62,7 @@ func Store(
 		}
 
 		// gonative exceptions.
-		// these are values available using gonative; eventually they should all be removed.
+		// These are values available using gonative; eventually they should all be removed.
 		switch pkgPath {
 		case "os":
 			pkg := gno.NewPackageNode("os", pkgPath, nil)
@@ -160,7 +160,7 @@ func Store(
 	}
 	db := memdb.NewMemDB()
 	baseStore = dbadapter.StoreConstructor(db, storetypes.StoreOptions{})
-	// make a new store
+	// Make a new store.
 	resStore = gno.NewStore(nil, baseStore, baseStore)
 	resStore.SetPackageGetter(getPackage)
 	resStore.SetNativeStore(teststdlibs.NativeStore)

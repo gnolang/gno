@@ -176,9 +176,7 @@ func execTest(cfg *testCfg, args []string, io commands.IO) error {
 		return fmt.Errorf("list sub packages: %w", err)
 	}
 
-	// Set-up testStore.
-	// Use a proxyWriter for stdout so that filetests can plug in a writer when
-	// necessary.
+	// Set up options to run tests.
 	stdout := goio.Discard
 	if cfg.verbose {
 		stdout = io.Out()
