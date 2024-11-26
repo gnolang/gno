@@ -7,6 +7,7 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/crypto"
 	"github.com/gnolang/gno/tm2/pkg/sdk"
 	"github.com/gnolang/gno/tm2/pkg/sdk/auth"
+	"github.com/gnolang/gno/tm2/pkg/sdk/params"
 	"github.com/gnolang/gno/tm2/pkg/std"
 )
 
@@ -21,9 +22,12 @@ type BankKeeperI interface {
 	SubtractCoins(ctx sdk.Context, addr crypto.Address, amt std.Coins) (std.Coins, error)
 	AddCoins(ctx sdk.Context, addr crypto.Address, amt std.Coins) (std.Coins, error)
 	SetCoins(ctx sdk.Context, addr crypto.Address, amt std.Coins) error
+
+	InitGenesis(ctx sdk.Context, data GenesisState)
+	GetParams(ctx sdk.Context) Params
 }
 
-var _ BankKeeperI = BankKeeper{}
+var _ BankKeeperI = &BankKeeper{}
 
 // BankKeeper only allows transfers between accounts without the possibility of
 // creating coins. It implements the BankKeeperI interface.
@@ -31,14 +35,71 @@ type BankKeeper struct {
 	ViewKeeper
 
 	acck auth.AccountKeeper
+	// The keeper used to store parameters
+	paramk           params.ParamsKeeper
+	params           Params
+	restrictedDenoms map[string]struct{}
 }
 
 // NewBankKeeper returns a new BankKeeper.
-func NewBankKeeper(acck auth.AccountKeeper) BankKeeper {
-	return BankKeeper{
+func NewBankKeeper(acck auth.AccountKeeper, pk params.ParamsKeeper) *BankKeeper {
+	rdm := map[string]struct{}{}
+
+	params := DefaultParams()
+	for _, denom := range params.RestrictedDenoms {
+		rdm[denom] = struct{}{}
+	}
+	return &BankKeeper{
 		ViewKeeper: NewViewKeeper(acck),
 		acck:       acck,
+		paramk:     pk,
+		params:     params,
+		// Store restricted denoms in a map's keys for fast
+		// comparison when filtering out restricted denoms from a send message.
+		restrictedDenoms: rdm,
 	}
+}
+
+func (bank *BankKeeper) AddRestrictedDenoms(ctx sdk.Context, restrictedDenoms ...string) {
+	if len(restrictedDenoms) == 0 {
+		return
+	}
+	for _, denom := range restrictedDenoms {
+		bank.restrictedDenoms[denom] = struct{}{}
+	}
+	if len(bank.params.RestrictedDenoms) == 0 {
+		bank.params.RestrictedDenoms = restrictedDenoms
+		bank.SetParams(ctx, bank.params)
+	}
+	bank.updateParams(ctx)
+}
+
+func (bank *BankKeeper) DelRestrictedDenoms(ctx sdk.Context, restrictedDenoms ...string) {
+	for denom := range bank.restrictedDenoms {
+		delete(bank.restrictedDenoms, denom)
+	}
+	bank.updateParams(ctx)
+}
+
+func (bank *BankKeeper) DelAllRestrictedDenoms(ctx sdk.Context) {
+	bank.restrictedDenoms = map[string]struct{}{}
+	bank.updateParams(ctx)
+}
+
+func (bank *BankKeeper) RestrictedDenoms(ctx sdk.Context) []string {
+	// covert restricted denoms map into a slice
+	denoms := make([]string, 0, len(bank.restrictedDenoms))
+	for d := range bank.restrictedDenoms {
+		denoms = append(denoms, d)
+	}
+	return denoms
+}
+
+func (bank *BankKeeper) updateParams(ctx sdk.Context) {
+	params := bank.GetParams(ctx)
+	params.RestrictedDenoms = bank.RestrictedDenoms(ctx)
+	bank.params = params
+	bank.SetParams(ctx, params)
 }
 
 // InputOutputCoins handles a list of inputs and outputs
@@ -50,6 +111,9 @@ func (bank BankKeeper) InputOutputCoins(ctx sdk.Context, inputs []Input, outputs
 	}
 
 	for _, in := range inputs {
+		if !bank.canSendCoins(ctx, in.Address, in.Coins) {
+			return std.RestrictedTransferError{}
+		}
 		_, err := bank.SubtractCoins(ctx, in.Address, in.Coins)
 		if err != nil {
 			return err
@@ -84,8 +148,42 @@ func (bank BankKeeper) InputOutputCoins(ctx sdk.Context, inputs []Input, outputs
 	return nil
 }
 
-// SendCoins moves coins from one account to another
+// canSendCoins returns true if the coins can be sent without violating any restriction.
+func (bank BankKeeper) canSendCoins(ctx sdk.Context, addr crypto.Address, amt std.Coins) bool {
+	if len(bank.restrictedDenoms) == 0 {
+		// No restrictions.
+		return true
+	}
+	if amt.ContainOneOfDenom(bank.restrictedDenoms) {
+		if acc := bank.acck.GetAccount(ctx, addr); acc != nil && acc.IsRestricted() {
+			return false
+		}
+	}
+	return true
+}
+
+// SendCoins moves coins from one account to another, restrction could be applied
 func (bank BankKeeper) SendCoins(ctx sdk.Context, fromAddr crypto.Address, toAddr crypto.Address, amt std.Coins) error {
+	return bank.sendCoins(ctx, fromAddr, toAddr, amt, true)
+}
+
+func (bank BankKeeper) SendCoinsUnrestricted(ctx sdk.Context, fromAddr crypto.Address, toAddr crypto.Address, amt std.Coins) error {
+	return bank.sendCoins(ctx, fromAddr, toAddr, amt, false)
+}
+
+func (bank BankKeeper) sendCoins(
+	ctx sdk.Context,
+	fromAddr crypto.Address,
+	toAddr crypto.Address,
+	amt std.Coins,
+	wRestriction bool, // with restriction
+) error {
+	// read restricted boolean value from param.IsRestrictedTransfer()
+	// canSendCoins is true until they have agreed to the waiver
+
+	if wRestriction && !bank.canSendCoins(ctx, fromAddr, amt) {
+		return std.RestrictedTransferError{}
+	}
 	_, err := bank.SubtractCoins(ctx, fromAddr, amt)
 	if err != nil {
 		return err

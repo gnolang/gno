@@ -12,11 +12,11 @@ import (
 )
 
 type bankHandler struct {
-	bank BankKeeper
+	bank *BankKeeper
 }
 
 // NewHandler returns a handler for "bank" type messages.
-func NewHandler(bank BankKeeper) bankHandler {
+func NewHandler(bank *BankKeeper) bankHandler {
 	return bankHandler{
 		bank: bank,
 	}

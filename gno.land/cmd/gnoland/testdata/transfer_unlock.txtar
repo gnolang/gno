@@ -1,0 +1,42 @@
+## It tests unlocking token transfers through GovDAO voting
+loadpkg gno.land/r/sys/params
+loadpkg gno.land/r/gov/dao/v2
+
+patchpkg "g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm" "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"
+
+adduser regular1
+
+## start a new node
+gnoland start -lock-transfer
+
+## User test1 is an unrestricted account specified in the genesis state
+gnokey maketx send -send "9999999ugnot" -to $USER_ADDR_regular1 -gas-fee 1ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test test1
+
+stdout 'OK!'
+
+## Restricted simple token transfer for a regular account
+! gnokey maketx send -send "100ugnot" -to g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5 -gas-fee 1ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test regular1
+
+stderr 'restricted token transfer error'
+
+## Submit a proposal to unlock the transfer. When token transfer is locked, only the predefined unrestricted account test1 in the genesis state can
+## pay the fee and submit a proposal to unlock the transfer.
+gnokey maketx call -pkgpath gno.land/r/sys/params -func ProposeUnlockSend -send 250000000ugnot -gas-fee 1ugnot -gas-wanted 2000000 -broadcast -chainid=tendermint_test test1
+
+stdout '(0 uint64)'
+
+
+## vote unlock proposal with unrestricted account test1
+gnokey maketx call -pkgpath gno.land/r/gov/dao/v2 -func VoteOnProposal -args 0 -args "YES"  -send 250000000ugnot -gas-fee 1ugnot -gas-wanted 2000000 -broadcast -chainid=tendermint_test test1
+
+stdout 'OK!'
+
+## vote unlock proposal with unrestricted account test1
+gnokey maketx call -pkgpath gno.land/r/gov/dao/v2 -func ExecuteProposal -args 0 -send 250000000ugnot -gas-fee 1ugnot -gas-wanted 2000000 -broadcast -chainid=tendermint_test test1
+
+stdout 'OK!'
+
+## Restricted transfer is unlocked, allowing simple token transfers for regular accounts.
+gnokey maketx send -send "100ugnot" -to g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5 -gas-fee 1ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test regular1
+
+stdout 'OK!'

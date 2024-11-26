@@ -9,15 +9,17 @@ import (
 
 	"github.com/gnolang/gno/tm2/pkg/sdk"
 	"github.com/gnolang/gno/tm2/pkg/sdk/auth"
+	"github.com/gnolang/gno/tm2/pkg/sdk/params"
 	"github.com/gnolang/gno/tm2/pkg/std"
 	"github.com/gnolang/gno/tm2/pkg/store"
 	"github.com/gnolang/gno/tm2/pkg/store/iavl"
 )
 
 type testEnv struct {
-	ctx  sdk.Context
-	bank BankKeeper
-	acck auth.AccountKeeper
+	ctx    sdk.Context
+	bank   *BankKeeper
+	acck   auth.AccountKeeper
+	paramk params.ParamsKeeper
 }
 
 func setupTestEnv() testEnv {
@@ -33,8 +35,10 @@ func setupTestEnv() testEnv {
 	acck := auth.NewAccountKeeper(
 		authCapKey, std.ProtoBaseAccount,
 	)
+	km := params.NewPrefixKeyMapper()
+	km.RegisterPrefix(ParamsPrefixKey)
+	paramk := params.NewParamsKeeper(authCapKey, km)
+	bank := NewBankKeeper(acck, paramk)
 
-	bank := NewBankKeeper(acck)
-
-	return testEnv{ctx: ctx, bank: bank, acck: acck}
+	return testEnv{ctx: ctx, bank: bank, acck: acck, paramk: paramk}
 }

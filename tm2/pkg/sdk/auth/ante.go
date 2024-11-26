@@ -363,7 +363,8 @@ func DeductFees(bank BankKeeperI, ctx sdk.Context, acc std.Account, fees std.Coi
 		))
 	}
 
-	err := bank.SendCoins(ctx, acc.GetAddress(), FeeCollectorAddress(), fees)
+	// Sending coins is unrestricted to pay for gas fees
+	err := bank.SendCoinsUnrestricted(ctx, acc.GetAddress(), FeeCollectorAddress(), fees)
 	if err != nil {
 		return abciResult(err)
 	}

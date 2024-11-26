@@ -60,6 +60,10 @@ func NewDummyBankKeeper(acck AccountKeeper) DummyBankKeeper {
 	return DummyBankKeeper{acck}
 }
 
+func (bank DummyBankKeeper) SendCoinsUnrestricted(ctx sdk.Context, fromAddr crypto.Address, toAddr crypto.Address, amt std.Coins) error {
+	return bank.SendCoins(ctx, fromAddr, toAddr, amt)
+}
+
 // SendCoins for the dummy supply keeper
 func (bank DummyBankKeeper) SendCoins(ctx sdk.Context, fromAddr crypto.Address, toAddr crypto.Address, amt std.Coins) error {
 	fromAcc := bank.acck.GetAccount(ctx, fromAddr)

@@ -51,6 +51,7 @@ type VMKeeperI interface {
 	LoadStdlibCached(ctx sdk.Context, stdlibDir string)
 	MakeGnoTransactionStore(ctx sdk.Context) sdk.Context
 	CommitGnoTransactionStore(ctx sdk.Context)
+	InitGenesis(ctx sdk.Context, data GenesisState)
 }
 
 var _ VMKeeperI = &VMKeeper{}
@@ -63,8 +64,9 @@ type VMKeeper struct {
 	baseKey store.StoreKey
 	iavlKey store.StoreKey
 	acck    auth.AccountKeeper
-	bank    bank.BankKeeper
+	bank    *bank.BankKeeper
 	prmk    params.ParamsKeeper
+	params  Params
 
 	// cached, the DeliverTx persistent state.
 	gnoStore gno.Store
@@ -75,7 +77,7 @@ func NewVMKeeper(
 	baseKey store.StoreKey,
 	iavlKey store.StoreKey,
 	acck auth.AccountKeeper,
-	bank bank.BankKeeper,
+	bank *bank.BankKeeper,
 	prmk params.ParamsKeeper,
 ) *VMKeeper {
 	vmk := &VMKeeper{
@@ -232,8 +234,7 @@ const sysUsersPkgParamPath = "gno.land/r/sys/params.sys.users_pkgpath.string"
 
 // checkNamespacePermission check if the user as given has correct permssion to on the given pkg path
 func (vm *VMKeeper) checkNamespacePermission(ctx sdk.Context, creator crypto.Address, pkgPath string) error {
-	var sysUsersPkg string
-	vm.prmk.GetString(ctx, sysUsersPkgParamPath, &sysUsersPkg)
+	sysUsersPkg := vm.params.SysUsersPkg
 	if sysUsersPkg == "" {
 		return nil
 	}

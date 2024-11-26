@@ -34,6 +34,9 @@ type Account interface {
 	GetCoins() Coins
 	SetCoins(Coins) error
 
+	IsRestricted() bool
+	SetUnrestricted(bool)
+
 	// Ensure that account implements stringer
 	String() string
 }
@@ -49,6 +52,7 @@ type BaseAccount struct {
 	PubKey        crypto.PubKey  `json:"public_key" yaml:"public_key"`
 	AccountNumber uint64         `json:"account_number" yaml:"account_number"`
 	Sequence      uint64         `json:"sequence" yaml:"sequence"`
+	Unrestricted  bool           `json:"unrestricted" yaml:"unrestricted"`
 }
 
 // NewBaseAccount creates a new BaseAccount object
@@ -150,4 +154,13 @@ func (acc *BaseAccount) GetSequence() uint64 {
 func (acc *BaseAccount) SetSequence(seq uint64) error {
 	acc.Sequence = seq
 	return nil
+}
+
+func (acc *BaseAccount) IsRestricted() bool {
+	return !acc.Unrestricted
+}
+
+// IsLocked returns true if the account is locked.
+func (acc *BaseAccount) SetUnrestricted(unrestricted bool) {
+	acc.Unrestricted = unrestricted
 }
