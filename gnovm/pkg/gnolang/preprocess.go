@@ -1409,7 +1409,7 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 					fv := cx.GetFunc()
 					if fv.PkgPath == uversePkgPath && fv.Name == "append" {
 						// append returns a slice and slices are always addressable.
-						n.Addressability = AddressabilitySatisfied
+						n.Addressability = addressabilityStatusSatisfied
 						if n.Varg && len(n.Args) == 2 {
 							// If the second argument is a string,
 							// convert to byteslice.
@@ -1459,12 +1459,12 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 					} else if fv.PkgPath == uversePkgPath && fv.Name == "new" {
 						// The pointer value returned is not addressable, but maybe some selector
 						// will make it addressable. For now mark it as not addressable.
-						n.Addressability = AddressabilityUnsatisfied
+						n.Addressability = addressabilityStatusUnsatisfied
 					}
 				}
 
-				if n.Addressability != AddressabilitySatisfied && len(ft.Results) == 1 {
-					n.Addressability = AddressabilityUnsatisfied
+				if n.Addressability != addressabilityStatusSatisfied && len(ft.Results) == 1 {
+					n.Addressability = addressabilityStatusUnsatisfied
 				}
 
 				// Continue with general case.
@@ -1606,7 +1606,7 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 					dt = dt.Elem()
 					n.X = &StarExpr{X: n.X}
 					n.X.SetAttribute(ATTR_PREPROCESSED, true)
-					n.Addressability = AddressabilitySatisfied
+					n.Addressability = addressabilityStatusSatisfied
 				}
 				switch dt.Kind() {
 				case StringKind, ArrayKind, SliceKind:
@@ -1615,15 +1615,15 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 					checkOrConvertIntegerKind(store, last, n.Index)
 					if dt.Kind() == SliceKind {
 						// A string index is not addressable.
-						n.Addressability = AddressabilitySatisfied
+						n.Addressability = addressabilityStatusSatisfied
 					} else if dt.Kind() == StringKind {
 						// Special case; string indexes are never addressable.
-						n.Addressability = AddressabilityUnsatisfied
+						n.Addressability = addressabilityStatusUnsatisfied
 					}
 				case MapKind:
 					mt := baseOf(gnoTypeOf(store, dt)).(*MapType)
 					checkOrConvertType(store, last, &n.Index, mt.Key, false)
-					n.Addressability = AddressabilityUnsatisfied
+					n.Addressability = addressabilityStatusUnsatisfied
 				default:
 					panic(fmt.Sprintf(
 						"unexpected index base kind for type %s",
@@ -1640,7 +1640,7 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 
 				t := evalStaticTypeOf(store, last, n.X)
 				if t.Kind() == ArrayKind {
-					if n.X.addressability() == AddressabilityUnsatisfied {
+					if n.X.addressability() == addressabilityStatusUnsatisfied {
 						panic(fmt.Sprintf("cannot take address of %s", n.X.String()))
 					}
 				}
@@ -2381,7 +2381,7 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 				n.Type = constType(n.Type, dst)
 
 			case *RefExpr:
-				if n.X.addressability() == AddressabilityUnsatisfied {
+				if n.X.addressability() == addressabilityStatusUnsatisfied {
 					panic(fmt.Sprintf("cannot take address of %s", n.X.String()))
 				}
 			}
