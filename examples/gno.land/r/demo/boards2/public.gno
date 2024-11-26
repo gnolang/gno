@@ -23,9 +23,11 @@ func CreateBoard(name string) BoardID {
 		panic("board name is empty")
 	}
 
-	caller := std.GetOrigCaller()
-	assertIsNotAnonymousCaller(caller)
+	// TODO: Now that registered user requirement is removed must define a way to avoid
+	// increasing the IDs. Require a fee?
+	// Or we have to change the way boards are created, which could be async.
 
+	caller := std.GetOrigCaller()
 	id := incGetBoardID()
 	args := Args{name, id}
 	gAuth.WithPermission(caller, PermissionBoardCreate, args, func(a Args) {
@@ -181,13 +183,6 @@ func EditReply(bid BoardID, threadID, replyID PostID, title, body string) {
 func assertIsUserCall() {
 	if !(std.IsOriginCall() || std.PrevRealm().IsUser()) {
 		panic("invalid non-user call")
-	}
-}
-
-func assertIsNotAnonymousCaller(caller std.Address) {
-	// Caller is anonymous if doesn't have a registered user name
-	if users.GetUserByAddress(caller) == nil {
-		panic("unauthorized")
 	}
 }
 
