@@ -274,7 +274,7 @@ func (m *Machine) doOpShlAssign() {
 		}
 	}
 	// lv <<= rv
-	shlAssign(lv.TV, rv)
+	shlAssign(m, lv.TV, rv)
 	if lv.Base != nil {
 		m.Realm.DidUpdate(lv.Base.(Object), nil, nil)
 	}
@@ -294,7 +294,7 @@ func (m *Machine) doOpShrAssign() {
 		}
 	}
 	// lv >>= rv
-	shrAssign(lv.TV, rv)
+	shrAssign(m, lv.TV, rv)
 	if lv.Base != nil {
 		m.Realm.DidUpdate(lv.Base.(Object), nil, nil)
 	}
