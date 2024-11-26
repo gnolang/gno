@@ -182,7 +182,7 @@ func (n *Node) getBlockTransactions(blockNum uint64) ([]gnoland.TxWithMetadata, 
 		// fallback on std tx
 		var tx std.Tx
 		if unmarshalErr := amino.Unmarshal(encodedTx, &tx); unmarshalErr != nil {
-			return nil, fmt.Errorf("unable to unmarshal tx: %w", err)
+			return nil, fmt.Errorf("unable to unmarshal tx: %w", unmarshalErr)
 		}
 
 		txs[i] = gnoland.TxWithMetadata{
