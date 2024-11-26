@@ -1,7 +1,6 @@
 package boards2
 
 import (
-	"errors"
 	"std"
 
 	"gno.land/p/demo/boards2/admindao"

@@ -1,9 +1,6 @@
 package boards2
 
-import (
-	"errors"
-	"std"
-)
+import "std"
 
 const (
 	PermissionBoardCreate  Permission = "board:create"
@@ -13,9 +10,6 @@ const (
 	PermissionThreadRepost            = "thread:repost"
 	PermissionReplyDelete             = "reply:delete"
 )
-
-// ErrUnauzorized indicates that user doesn't have a required permission.
-var ErrUnauzorized = errors.New("unauthorized")
 
 type (
 	// Permission defines the type for permissions.
