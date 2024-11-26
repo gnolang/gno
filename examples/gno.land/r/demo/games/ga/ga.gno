@@ -73,10 +73,8 @@ func randomGenome(length int, ei *entropy.Instance) string {
 	genome := make([]rune, length)
 	for i := 0; i < length; i++ {
 		index := ei.Value() % uint32(len(Charset))
-		//fmt.Println("---index: ", index)
 		genome[i] = Charset[index]
 	}
-	//fmt.Println("---genome: ", string(genome))
 	return string(genome)
 }
 
@@ -110,17 +108,13 @@ func generateNextGeneration(population []Individual, ei *entropy.Instance) []Ind
 	for i := 0; i < len(population); i++ {
 		// Selection: Pick two parents
 		parent1 := selectIndividual(population, ei)
-		//fmt.Println("---parent1: ", parent1)
 		parent2 := selectIndividual(population, ei)
-		//fmt.Println("---parent2: ", parent1)
 
 		// Crossover: Create a child
 		childGenome := crossover(parent1.Genome, parent2.Genome, ei)
-		//fmt.Println("---1, childGenome: ", childGenome)
 
 		// Mutation: Introduce random changes
 		childGenome = mutate(childGenome, ei)
-		//fmt.Println("---2, childGenome: ", childGenome)
 
 		// Add child to the next generation
 		nextGeneration[i] = Individual{
@@ -133,24 +127,16 @@ func generateNextGeneration(population []Individual, ei *entropy.Instance) []Ind
 
 // selectIndividual selects an individual from the population based on fitness (roulette wheel selection)
 func selectIndividual(population []Individual, ei *entropy.Instance) Individual {
-	//fmt.Println("---selectIndividual")
 	totalFitness := 0.0
 	for _, individual := range population {
 		totalFitness += individual.Fitness
 	}
-	//rv := ei.Value()
-	//fmt.Println("---rv: ", rv)
-	//r := float64(rv) * totalFitness
-	//r := (float64(rv) * totalFitness) / (float64(math.MaxUint32) * totalFitness)
-
 	r := (float64(ei.Value()) / float64(math.MaxUint32)) * totalFitness
-	//fmt.Println("---r: ", r)
 
 	cumulative := 0.0
 	for _, individual := range population {
 		cumulative += individual.Fitness
 		if cumulative >= r {
-			//fmt.Println("---individual: ", individual)
 			return individual
 		}
 	}
@@ -163,7 +149,6 @@ func crossover(parent1, parent2 string, ei *entropy.Instance) string {
 	child := make([]rune, len(parent1))
 
 	cutPoint := int(ei.Value()) % len(parent1)
-	//fmt.Println("---cutPoint:", cutPoint)
 
 	for i := 0; i < len(parent1); i++ {
 		if i < cutPoint {
