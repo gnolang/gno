@@ -59,9 +59,8 @@ ENTRYPOINT [ "/usr/bin/gno" ]
 ## ghcr.io/gnolang/gnocontribs
 FROM base as gnocontribs
 
-COPY     ./gno                 /usr/bin/gno
-COPY     ./examples            /gnoroot/examples/
 COPY     ./gnobro              /usr/bin/gnobro
 COPY     ./gnogenesis          /usr/bin/gnogenesis
+COPY     ./examples            /gnoroot/examples/
 
 ENTRYPOINT [ "/bin/sh", "-c" ]
