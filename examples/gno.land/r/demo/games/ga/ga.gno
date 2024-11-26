@@ -1,10 +1,9 @@
-package main
+package ga
 
 import (
 	"fmt"
 	"gno.land/p/demo/entropy"
-	"math/rand"
-	"time"
+	"math"
 )
 
 // Individual represents a single solution in the population
@@ -14,7 +13,9 @@ type Individual struct {
 }
 
 // Target is the string we want to evolve
-const Target = "HELLO, WORLD!"
+const Target = "HEY"
+
+//const Target = "HIH"
 
 // MutationRate controls how often mutations occur
 const MutationRate = 0.01
@@ -25,16 +26,16 @@ const PopulationSize = 100
 // Charset defines the possible characters in the genome
 var Charset = []rune("ABCDEFGHIJKLMNOPQRSTUVWXYZ, !")
 
-func main() {
-	//rand.Seed(time.Now().UnixNano())
-	//seed := uint64(entropy.New().Value())
-	rand.Seed(int64(entropy.New().Value()))
+//var Charset = []rune("ABCDEFGHIJK")
 
+func Start(ei *entropy.Instance) (int, string) {
+	//println("---start")
+
+	var generation = 0
 	// Step 1: Initialize Population
-	population := initializePopulation(PopulationSize)
+	population := initializePopulation(PopulationSize, ei)
 
-	generation := 0
-	for {
+	for generation < 200 {
 		// Step 2: Calculate Fitness
 		for i := range population {
 			population[i].Fitness = calculateFitness(population[i].Genome)
@@ -42,36 +43,40 @@ func main() {
 
 		// Step 3: Check for Solution
 		best := findBestIndividual(population)
-		fmt.Printf("Generation %d: %s (Fitness: %f)\n", generation, best.Genome, best.Fitness)
+		//fmt.Printf("Generation %d: %s (Fitness: %f)\n", generation, best.Genome, best.Fitness)
 		if best.Genome == Target {
-			fmt.Println("Target reached!")
-			break
+			println("Target reached!")
+			return generation, string(best.Genome)
 		}
 
 		// Step 4: Generate Next Generation
-		population = generateNextGeneration(population)
+		population = generateNextGeneration(population, ei)
 
 		generation++
 	}
+	return generation, ""
 }
 
 // initializePopulation creates a random population of individuals
-func initializePopulation(size int) []Individual {
+func initializePopulation(size int, ei *entropy.Instance) []Individual {
 	population := make([]Individual, size)
 	for i := 0; i < size; i++ {
 		population[i] = Individual{
-			Genome: randomGenome(len(Target)),
+			Genome: randomGenome(len(Target), ei), // new random each loop
 		}
 	}
 	return population
 }
 
 // randomGenome generates a random string of the same length as the target
-func randomGenome(length int) string {
+func randomGenome(length int, ei *entropy.Instance) string {
 	genome := make([]rune, length)
 	for i := 0; i < length; i++ {
-		genome[i] = Charset[rand.Intn(len(Charset))]
+		index := ei.Value() % uint32(len(Charset))
+		//fmt.Println("---index: ", index)
+		genome[i] = Charset[index]
 	}
+	//fmt.Println("---genome: ", string(genome))
 	return string(genome)
 }
 
@@ -98,19 +103,24 @@ func findBestIndividual(population []Individual) Individual {
 }
 
 // generateNextGeneration produces the next generation using selection, crossover, and mutation
-func generateNextGeneration(population []Individual) []Individual {
+func generateNextGeneration(population []Individual, ei *entropy.Instance) []Individual {
+	//println("---generate next generation")
 	nextGeneration := make([]Individual, len(population))
 
 	for i := 0; i < len(population); i++ {
 		// Selection: Pick two parents
-		parent1 := selectIndividual(population)
-		parent2 := selectIndividual(population)
+		parent1 := selectIndividual(population, ei)
+		//fmt.Println("---parent1: ", parent1)
+		parent2 := selectIndividual(population, ei)
+		//fmt.Println("---parent2: ", parent1)
 
 		// Crossover: Create a child
-		childGenome := crossover(parent1.Genome, parent2.Genome)
+		childGenome := crossover(parent1.Genome, parent2.Genome, ei)
+		//fmt.Println("---1, childGenome: ", childGenome)
 
 		// Mutation: Introduce random changes
-		childGenome = mutate(childGenome)
+		childGenome = mutate(childGenome, ei)
+		//fmt.Println("---2, childGenome: ", childGenome)
 
 		// Add child to the next generation
 		nextGeneration[i] = Individual{
@@ -122,17 +132,25 @@ func generateNextGeneration(population []Individual) []Individual {
 }
 
 // selectIndividual selects an individual from the population based on fitness (roulette wheel selection)
-func selectIndividual(population []Individual) Individual {
+func selectIndividual(population []Individual, ei *entropy.Instance) Individual {
+	//fmt.Println("---selectIndividual")
 	totalFitness := 0.0
 	for _, individual := range population {
 		totalFitness += individual.Fitness
 	}
+	//rv := ei.Value()
+	//fmt.Println("---rv: ", rv)
+	//r := float64(rv) * totalFitness
+	//r := (float64(rv) * totalFitness) / (float64(math.MaxUint32) * totalFitness)
 
-	r := rand.Float64() * totalFitness
+	r := (float64(ei.Value()) / float64(math.MaxUint32)) * totalFitness
+	//fmt.Println("---r: ", r)
+
 	cumulative := 0.0
 	for _, individual := range population {
 		cumulative += individual.Fitness
 		if cumulative >= r {
+			//fmt.Println("---individual: ", individual)
 			return individual
 		}
 	}
@@ -141,9 +159,12 @@ func selectIndividual(population []Individual) Individual {
 }
 
 // crossover combines two parent genomes to produce a child genome
-func crossover(parent1, parent2 string) string {
+func crossover(parent1, parent2 string, ei *entropy.Instance) string {
 	child := make([]rune, len(parent1))
-	cutPoint := rand.Intn(len(parent1))
+
+	cutPoint := int(ei.Value()) % len(parent1)
+	//fmt.Println("---cutPoint:", cutPoint)
+
 	for i := 0; i < len(parent1); i++ {
 		if i < cutPoint {
 			child[i] = rune(parent1[i])
@@ -155,11 +176,13 @@ func crossover(parent1, parent2 string) string {
 }
 
 // mutate introduces random changes to a genome based on the mutation rate
-func mutate(genome string) string {
+func mutate(genome string, ei *entropy.Instance) string {
 	mutated := []rune(genome)
 	for i := 0; i < len(mutated); i++ {
-		if rand.Float64() < MutationRate {
-			mutated[i] = Charset[rand.Intn(len(Charset))]
+		rv := ei.Value()
+		if float64(rv) < MutationRate {
+			index := rv % uint32(len(Charset))
+			mutated[i] = Charset[index]
 		}
 	}
 	return string(mutated)
