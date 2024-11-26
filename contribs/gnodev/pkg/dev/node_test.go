@@ -286,7 +286,7 @@ func Render(_ string) string {
 	foopkg := generateTestingPackage(t, "gno.mod", foobarGnoMod, "foo.gno", fooFile)
 
 	// Call NewDevNode with no package should work
-	cfg := createDefaultNodeConfig(foopkg)
+	cfg := createDefaultTestingNodeConfig(foopkg)
 
 	// XXX(gfanton): Setting this to `false` somehow makes the time block
 	// drift from the time spanned by the VM.
@@ -474,10 +474,17 @@ func generateTestingPackage(t *testing.T, nameFile ...string) PackagePath {
 	}
 }
 
-func createDefaultNodeConfig(pkgslist ...PackagePath) *NodeConfig {
+func createDefaultTestingNodeConfig(pkgslist ...PackagePath) *NodeConfig {
 	cfg := DefaultNodeConfig(gnoenv.RootDir())
 	cfg.PackagesPathList = pkgslist
 	return cfg
+}
+
+func newTestingDevNode(t *testing.T, pkgslist ...PackagePath) (*Node, *mock.ServerEmitter) {
+	t.Helper()
+
+	cfg := createDefaultTestingNodeConfig(pkgslist...)
+	return newTestingDevNodeWithConfig(t, cfg)
 }
 
 func newTestingDevNodeWithConfig(t *testing.T, cfg *NodeConfig) (*Node, *mock.ServerEmitter) {
@@ -500,11 +507,6 @@ func newTestingDevNodeWithConfig(t *testing.T, cfg *NodeConfig) (*Node, *mock.Se
 	})
 
 	return node, emitter
-}
-
-func newTestingDevNode(t *testing.T, pkgslist ...PackagePath) (*Node, *mock.ServerEmitter) {
-	cfg := createDefaultNodeConfig(pkgslist...)
-	return newTestingDevNodeWithConfig(t, cfg)
 }
 
 func newInMemorySigner(t *testing.T, chainid string) *gnoclient.SignerFromKeybase {
