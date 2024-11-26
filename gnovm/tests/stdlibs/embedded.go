@@ -23,19 +23,14 @@ var embeddedSources embed.FS
 
 // EmbeddedMemPackage returns a slice of [gnovm.MemPackage] generated from embedded stdlibs sources
 func EmbeddedMemPackage(pkgPath string) *gnovm.MemPackage {
-	for _, pkg := range embeddedMemPackages() {
-		if pkg.Path == pkgPath {
-			return pkg
-		}
-	}
-	return &gnovm.MemPackage{}
+	return embeddedMemPackages()[pkgPath]
 }
 
-var embeddedMemPackages = sync.OnceValue(func() []*gnovm.MemPackage {
+var embeddedMemPackages = sync.OnceValue(func() map[string]*gnovm.MemPackage {
 	initOrder := stdlibs.InitOrder()
-	memPkgs := make([]*gnovm.MemPackage, len(initOrder))
+	memPkgs := make(map[string]*gnovm.MemPackage, len(initOrder))
 
-	for i, pkgPath := range initOrder {
+	for _, pkgPath := range initOrder {
 		filesystems := []fs.FS{embeddedSources, stdlibs.EmbeddedSources()}
 		filesystemsNames := []string{"test", "normal"}
 		files := make([]string, 0, 32) // pre-alloc 32 as a likely high number of files
@@ -60,7 +55,7 @@ var embeddedMemPackages = sync.OnceValue(func() []*gnovm.MemPackage {
 			return nil
 		}
 
-		memPkgs[i] = gnolang.ReadMemPackageFromList(filesystems, files, pkgPath)
+		memPkgs[pkgPath] = gnolang.ReadMemPackageFromList(filesystems, files, pkgPath)
 	}
 
 	return memPkgs

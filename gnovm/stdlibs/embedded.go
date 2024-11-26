@@ -26,19 +26,23 @@ func EmbeddedMemPackages() []*gnovm.MemPackage {
 
 // EmbeddedMemPackage returns a slice of [gnovm.MemPackage] generated from embedded stdlibs sources
 func EmbeddedMemPackage(pkgPath string) *gnovm.MemPackage {
-	for _, pkg := range embeddedMemPackages() {
-		if pkg.Path == pkgPath {
-			return pkg
-		}
-	}
-	return &gnovm.MemPackage{}
+	return embeddedMemPackagesMap()[pkgPath]
 }
 
 var embeddedMemPackages = sync.OnceValue(func() []*gnovm.MemPackage {
+	pkgsMap := embeddedMemPackagesMap()
+	pkgs := make([]*gnovm.MemPackage, len(pkgsMap))
+	for i, pkgPath := range initOrder {
+		pkgs[i] = pkgsMap[pkgPath]
+	}
+	return pkgs
+})
+
+var embeddedMemPackagesMap = sync.OnceValue(func() map[string]*gnovm.MemPackage {
 	pkgPaths := initOrder
-	pkgs := make([]*gnovm.MemPackage, len(pkgPaths))
-	for i, pkgPath := range pkgPaths {
-		pkgs[i] = gnolang.ReadMemPackageFromFS(embeddedSources, pkgPath, pkgPath)
+	pkgs := make(map[string]*gnovm.MemPackage, len(pkgPaths))
+	for _, pkgPath := range pkgPaths {
+		pkgs[pkgPath] = gnolang.ReadMemPackageFromFS(embeddedSources, pkgPath, pkgPath)
 	}
 	return pkgs
 })

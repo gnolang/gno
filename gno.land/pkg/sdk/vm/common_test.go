@@ -71,7 +71,7 @@ func loadStdlibs(store gno.Store) {
 
 func loadStdlibPackage(pkgPath string, store gno.Store) {
 	memPkg := stdlibs.EmbeddedMemPackage(pkgPath)
-	if memPkg.IsEmpty() {
+	if memPkg == nil || memPkg.IsEmpty() {
 		// no gno files are present
 		panic(fmt.Sprintf("failed loading stdlib %q: not a valid MemPackage", pkgPath))
 	}
