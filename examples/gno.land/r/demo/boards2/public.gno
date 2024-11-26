@@ -192,7 +192,6 @@ func assertAnonymousFeeReceived() {
 	if len(sent) == 0 || sent[0].IsLT(fee) {
 		panic("please register a user, otherwise a minimum fee of " + fee.String() + " is required")
 	}
-	return
 }
 
 func assertAnonymousCallerFeeReceived(caller std.Address) {
