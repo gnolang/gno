@@ -2,6 +2,7 @@ package stdlibs
 
 import (
 	"embed"
+	"sync"
 
 	"github.com/gnolang/gno/gnovm"
 	"github.com/gnolang/gno/gnovm/pkg/gnolang"
@@ -20,15 +21,24 @@ func EmbeddedSources() embed.FS {
 
 // EmbeddedMemPackages returns a slice of [gnovm.MemPackage] generated from embedded stdlibs sources
 func EmbeddedMemPackages() []*gnovm.MemPackage {
+	return embeddedMemPackages()
+}
+
+// EmbeddedMemPackage returns a slice of [gnovm.MemPackage] generated from embedded stdlibs sources
+func EmbeddedMemPackage(pkgPath string) *gnovm.MemPackage {
+	for _, pkg := range embeddedMemPackages() {
+		if pkg.Path == pkgPath {
+			return pkg
+		}
+	}
+	return &gnovm.MemPackage{}
+}
+
+var embeddedMemPackages = sync.OnceValue(func() []*gnovm.MemPackage {
 	pkgPaths := initOrder
 	pkgs := make([]*gnovm.MemPackage, len(pkgPaths))
 	for i, pkgPath := range pkgPaths {
 		pkgs[i] = gnolang.ReadMemPackageFromFS(embeddedSources, pkgPath, pkgPath)
 	}
 	return pkgs
-}
-
-// EmbeddedMemPackage returns a slice of [gnovm.MemPackage] generated from embedded stdlibs sources
-func EmbeddedMemPackage(pkgPath string) *gnovm.MemPackage {
-	return gnolang.ReadMemPackageFromFS(embeddedSources, pkgPath, pkgPath)
-}
+})

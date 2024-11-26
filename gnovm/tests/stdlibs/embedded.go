@@ -2,9 +2,17 @@ package stdlibs
 
 import (
 	"embed"
+	"fmt"
+	"io/fs"
+	"os"
+	"path/filepath"
+	"slices"
+	"strings"
+	"sync"
 
 	"github.com/gnolang/gno/gnovm"
 	"github.com/gnolang/gno/gnovm/pkg/gnolang"
+	"github.com/gnolang/gno/gnovm/stdlibs"
 )
 
 // embeddedSources embeds the testing stdlibs.
@@ -13,17 +21,47 @@ import (
 //go:embed */*
 var embeddedSources embed.FS
 
-// EmbeddedSources returns embedded testing stdlibs sources
-func EmbeddedSources() embed.FS {
-	return embeddedSources
+// EmbeddedMemPackage returns a slice of [gnovm.MemPackage] generated from embedded stdlibs sources
+func EmbeddedMemPackage(pkgPath string) *gnovm.MemPackage {
+	for _, pkg := range embeddedMemPackages() {
+		if pkg.Path == pkgPath {
+			return pkg
+		}
+	}
+	return &gnovm.MemPackage{}
 }
 
-// EmbeddedMemPackages returns a slice of [gnovm.MemPackage] generated from embedded testing stdlibs sources
-func EmbeddedMemPackages() ([]*gnovm.MemPackage, error) {
-	pkgPaths := initOrder
-	pkgs := make([]*gnovm.MemPackage, len(pkgPaths))
-	for i, pkgPath := range pkgPaths {
-		pkgs[i] = gnolang.ReadMemPackageFromFS(embeddedSources, pkgPath, pkgPath)
+var embeddedMemPackages = sync.OnceValue(func() []*gnovm.MemPackage {
+	initOrder := stdlibs.InitOrder()
+	memPkgs := make([]*gnovm.MemPackage, len(initOrder))
+
+	for i, pkgPath := range initOrder {
+		filesystems := []fs.FS{embeddedSources, stdlibs.EmbeddedSources()}
+		filesystemsNames := []string{"test", "normal"}
+		files := make([]string, 0, 32) // pre-alloc 32 as a likely high number of files
+		for i, fsys := range filesystems {
+			entries, err := fs.ReadDir(fsys, pkgPath)
+			if err != nil {
+				if os.IsNotExist(err) {
+					continue
+				}
+				panic(fmt.Errorf("failed to read embedded stdlib %q in %q fsys: %w", pkgPath, filesystemsNames[i], err))
+			}
+			for _, f := range entries {
+				// NOTE: RunMemPackage has other rules; those should be mostly useful
+				// for on-chain packages (ie. include README and gno.mod).
+				fp := filepath.Join(pkgPath, f.Name())
+				if !f.IsDir() && strings.HasSuffix(f.Name(), ".gno") && !slices.Contains(files, fp) {
+					files = append(files, fp)
+				}
+			}
+		}
+		if len(files) == 0 {
+			return nil
+		}
+
+		memPkgs[i] = gnolang.ReadMemPackageFromList(filesystems, files, pkgPath)
 	}
-	return pkgs, nil
-}
+
+	return memPkgs
+})

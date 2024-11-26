@@ -7,18 +7,14 @@ import (
 	"go/parser"
 	"go/token"
 	"io"
-	"io/fs"
 	"math/big"
-	"os"
 	"path/filepath"
 	"runtime/debug"
-	"slices"
 	"strconv"
 	"strings"
 	"time"
 
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
-	"github.com/gnolang/gno/gnovm/stdlibs"
 	teststdlibs "github.com/gnolang/gno/gnovm/tests/stdlibs"
 	teststd "github.com/gnolang/gno/gnovm/tests/stdlibs/std"
 	"github.com/gnolang/gno/tm2/pkg/db/memdb"
@@ -168,31 +164,11 @@ func Store(
 }
 
 func loadStdlib(pkgPath string, store gno.Store, stdout io.Writer) (*gno.PackageNode, *gno.PackageValue) {
-	filesystems := []fs.FS{teststdlibs.EmbeddedSources(), stdlibs.EmbeddedSources()}
-	filesystemsNames := []string{"test", "normal"}
-	files := make([]string, 0, 32) // pre-alloc 32 as a likely high number of files
-	for i, fsys := range filesystems {
-		entries, err := fs.ReadDir(fsys, pkgPath)
-		if err != nil {
-			if os.IsNotExist(err) {
-				continue
-			}
-			panic(fmt.Errorf("failed to read embedded stdlib %q in %q fsys: %w", pkgPath, filesystemsNames[i], err))
-		}
-		for _, f := range entries {
-			// NOTE: RunMemPackage has other rules; those should be mostly useful
-			// for on-chain packages (ie. include README and gno.mod).
-			fp := filepath.Join(pkgPath, f.Name())
-			if !f.IsDir() && strings.HasSuffix(f.Name(), ".gno") && !slices.Contains(files, fp) {
-				files = append(files, fp)
-			}
-		}
-	}
-	if len(files) == 0 {
+	memPkg := teststdlibs.EmbeddedMemPackage(pkgPath)
+	if memPkg == nil || memPkg.IsEmpty() {
 		return nil, nil
 	}
 
-	memPkg := gno.ReadMemPackageFromList(filesystems, files, pkgPath)
 	m2 := gno.NewMachineWithOptions(gno.MachineOptions{
 		// NOTE: see also pkgs/sdk/vm/builtins.go
 		// Needs PkgPath != its name because TestStore.getPackage is the package
