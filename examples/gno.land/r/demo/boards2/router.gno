@@ -3,6 +3,7 @@ package boards2
 import (
 	"strings"
 
+	"gno.land/p/demo/avl/pager"
 	"gno.land/p/demo/mux"
 )
 
@@ -12,6 +13,20 @@ type request struct {
 	*mux.Request
 
 	requestUri string
+}
+
+func (r request) pagination(defaultPageSize int) Pagination {
+	// reuse query parameter extract logic from pager.
+	pg := pager.NewPager(nil, defaultPageSize)
+	pageNum, limit, err := pg.ParseQuery(r.requestUri)
+	if err != nil {
+		panic(err)
+	}
+
+	return Pagination{
+		PageNumber: pageNum,
+		PageSize:   limit,
+	}
 }
 
 type wrappedRouter struct {

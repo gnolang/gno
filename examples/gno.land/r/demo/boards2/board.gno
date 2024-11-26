@@ -13,6 +13,11 @@ import (
 
 const boardsPageSize = 50
 
+type Pagination struct {
+	PageNumber int
+	PageSize   int
+}
+
 type BoardID uint64
 
 func (id BoardID) String() string {
@@ -91,19 +96,21 @@ func (board *Board) DeleteThread(pid PostID) {
 	}
 }
 
-func (board *Board) Render() string {
+func (board *Board) Render(p Pagination) string {
 	s := "\\[" + newLink("post", board.GetPostFormURL()) + "]\n\n"
 	if board.threads.Size() == 0 {
 		s += "*No posts*"
 		return s
 	}
 
-	_ = pager.NewPager(&board.threads, boardsPageSize)
-	board.threads.Iterate("", "", func(_ string, v interface{}) bool {
+	pg := pager.NewPager(&board.threads, p.PageSize)
+	page := pg.GetPage(p.PageNumber)
+	for _, v := range page.Items {
+		post := v.Value.(*Post)
 		s += "----------------------------------------\n"
-		s += v.(*Post).RenderSummary() + "\n"
-		return false
-	})
+		s += post.RenderSummary() + "\n"
+	}
+
 	return s
 }
 
