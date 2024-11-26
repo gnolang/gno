@@ -19,8 +19,8 @@ type (
 	// Role defines the type for user roles.
 	Role string
 
-	// ACL or access control list manages user roles and permissions.
-	ACL struct {
+	// DefaultPermissions manages users, roles and permissions.
+	DefaultPermissions struct {
 		superRole Role
 		dao       *admindao.AdminDAO
 		users     *avl.Tree // string(std.Address) -> []Role
@@ -28,23 +28,24 @@ type (
 	}
 )
 
-// NewACL create a new access control list.
-func NewACL(dao *admindao.AdminDAO, options ...ACLOption) *ACL {
-	acl := &ACL{
+// NewDefaultPermissions creates a new permissions type.
+// This type is a default implementation to handle users, roles and permissions.
+func NewDefaultPermissions(dao *admindao.AdminDAO, options ...DefaultPermissionsOption) *DefaultPermissions {
+	dp := &DefaultPermissions{
 		dao:   dao,
 		roles: avl.NewTree(),
 		users: avl.NewTree(),
 	}
 	for _, apply := range options {
-		apply(acl)
+		apply(dp)
 	}
-	return acl
+	return dp
 }
 
 // Roles returns the list of roles.
-func (acl ACL) Roles() []Role {
+func (dp DefaultPermissions) Roles() []Role {
 	var roles []Role
-	acl.roles.Iterate("", "", func(name string, _ interface{}) bool {
+	dp.roles.Iterate("", "", func(name string, _ interface{}) bool {
 		roles = append(roles, Role(name))
 		return false
 	})
@@ -52,8 +53,8 @@ func (acl ACL) Roles() []Role {
 }
 
 // GetUserRoles returns the list of roles assigned to a user.
-func (acl ACL) GetUserRoles(user std.Address) []Role {
-	v, found := acl.users.Get(user.String())
+func (dp DefaultPermissions) GetUserRoles(user std.Address) []Role {
+	v, found := dp.users.Get(user.String())
 	if !found {
 		return nil
 	}
@@ -61,8 +62,8 @@ func (acl ACL) GetUserRoles(user std.Address) []Role {
 }
 
 // HasRole checks if a user has a specific role assigned.
-func (acl ACL) HasRole(user std.Address, r Role) bool {
-	for _, role := range acl.GetUserRoles(user) {
+func (dp DefaultPermissions) HasRole(user std.Address, r Role) bool {
+	for _, role := range dp.GetUserRoles(user) {
 		if role == r {
 			return true
 		}
@@ -71,10 +72,10 @@ func (acl ACL) HasRole(user std.Address, r Role) bool {
 }
 
 // HasPermission checks if a user has a specific permission.
-func (acl ACL) HasPermission(user std.Address, perm Permission) bool {
+func (dp DefaultPermissions) HasPermission(user std.Address, perm Permission) bool {
 	// TODO: Should we check that the user belongs to the DAO?
-	for _, r := range acl.GetUserRoles(user) {
-		v, found := acl.roles.Get(string(r))
+	for _, r := range dp.GetUserRoles(user) {
+		v, found := dp.roles.Get(string(r))
 		if !found {
 			continue
 		}
@@ -90,8 +91,8 @@ func (acl ACL) HasPermission(user std.Address, perm Permission) bool {
 
 // WithPermission calls a callback when a user has a specific permission.
 // It panics on error.
-func (acl ACL) WithPermission(user std.Address, perm Permission, a Args, cb func(Args)) {
-	if !acl.HasPermission(user, perm) || !acl.dao.IsMember(user) {
+func (dp DefaultPermissions) WithPermission(user std.Address, perm Permission, a Args, cb func(Args)) {
+	if !dp.HasPermission(user, perm) || !dp.dao.IsMember(user) {
 		panic("unauthorized")
 	}
 

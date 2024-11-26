@@ -9,25 +9,27 @@ import (
 	"gno.land/p/demo/urequire"
 )
 
-func TestNewACL(t *testing.T) {
+var _ Permissioner = (*DefaultPermissions)(nil)
+
+func TestNewDefaultPermissions(t *testing.T) {
 	roles := []string{"a", "b"}
 	dao := admindao.New()
 
-	acl := NewACL(dao, WithRole("a", "permission1"), WithRole("b", "permission2"))
+	perms := NewDefaultPermissions(dao, WithRole("a", "permission1"), WithRole("b", "permission2"))
 
-	urequire.Equal(t, len(roles), len(acl.Roles()), "roles")
-	for i, r := range acl.Roles() {
+	urequire.Equal(t, len(roles), len(perms.Roles()), "roles")
+	for i, r := range perms.Roles() {
 		uassert.Equal(t, roles[i], string(r))
 	}
 }
 
-func TestACLWithPermission(t *testing.T) {
+func TestDefaultPermissionsWithPermission(t *testing.T) {
 	cases := []struct {
 		name       string
 		user       std.Address
 		permission Permission
 		args       Args
-		acl        *ACL
+		perms      *DefaultPermissions
 		err        string
 		called     bool
 	}{
@@ -35,7 +37,7 @@ func TestACLWithPermission(t *testing.T) {
 			name:       "ok",
 			user:       "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5",
 			permission: "bar",
-			acl: NewACL(
+			perms: NewDefaultPermissions(
 				admindao.New(admindao.WithMember("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5")),
 				WithUser("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5", "foo"),
 				WithRole("foo", "bar"),
@@ -47,7 +49,7 @@ func TestACLWithPermission(t *testing.T) {
 			user:       "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5",
 			permission: "bar",
 			args:       Args{"a", "b"},
-			acl: NewACL(
+			perms: NewDefaultPermissions(
 				admindao.New(admindao.WithMember("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5")),
 				WithUser("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5", "foo"),
 				WithRole("foo", "bar"),
@@ -58,7 +60,7 @@ func TestACLWithPermission(t *testing.T) {
 			name:       "no permission",
 			user:       "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5",
 			permission: "bar",
-			acl: NewACL(
+			perms: NewDefaultPermissions(
 				admindao.New(admindao.WithMember("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5")),
 				WithUser("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"),
 				WithRole("foo", "bar"),
@@ -69,7 +71,7 @@ func TestACLWithPermission(t *testing.T) {
 			name:       "is not a DAO member",
 			user:       "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5",
 			permission: "bar",
-			acl: NewACL(
+			perms: NewDefaultPermissions(
 				admindao.New(),
 				WithUser("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5", "foo"),
 				WithRole("foo", "bar"),
@@ -91,7 +93,7 @@ func TestACLWithPermission(t *testing.T) {
 			}
 
 			testCaseFn := func() {
-				tc.acl.WithPermission(tc.user, tc.permission, tc.args, callback)
+				tc.perms.WithPermission(tc.user, tc.permission, tc.args, callback)
 			}
 
 			if tc.err != "" {
@@ -110,40 +112,40 @@ func TestACLWithPermission(t *testing.T) {
 	}
 }
 
-func TestACLGetUserRoles(t *testing.T) {
+func TestDefaultPermissionsGetUserRoles(t *testing.T) {
 	cases := []struct {
 		name  string
 		user  std.Address
 		roles []string
-		acl   *ACL
+		perms *DefaultPermissions
 	}{
 		{
 			name:  "single role",
 			user:  "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5",
 			roles: []string{"admin"},
-			acl:   NewACL(admindao.New(), WithUser("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5", "admin")),
+			perms: NewDefaultPermissions(admindao.New(), WithUser("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5", "admin")),
 		},
 		{
 			name:  "multiple roles",
 			user:  "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5",
 			roles: []string{"admin", "foo", "bar"},
-			acl:   NewACL(admindao.New(), WithUser("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5", "admin", "foo", "bar")),
+			perms: NewDefaultPermissions(admindao.New(), WithUser("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5", "admin", "foo", "bar")),
 		},
 		{
-			name: "without roles",
-			user: "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5",
-			acl:  NewACL(admindao.New(), WithUser("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5")),
+			name:  "without roles",
+			user:  "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5",
+			perms: NewDefaultPermissions(admindao.New(), WithUser("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5")),
 		},
 		{
-			name: "not a user",
-			user: "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5",
-			acl:  NewACL(admindao.New()),
+			name:  "not a user",
+			user:  "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5",
+			perms: NewDefaultPermissions(admindao.New()),
 		},
 		{
 			name:  "multiple users",
 			user:  "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5",
 			roles: []string{"admin"},
-			acl: NewACL(
+			perms: NewDefaultPermissions(
 				admindao.New(),
 				WithUser("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5", "admin"),
 				WithUser("g1w4ek2u33ta047h6lta047h6lta047h6ldvdwpn", "admin"),
@@ -154,7 +156,7 @@ func TestACLGetUserRoles(t *testing.T) {
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			roles := tc.acl.GetUserRoles(tc.user)
+			roles := tc.perms.GetUserRoles(tc.user)
 
 			urequire.Equal(t, len(tc.roles), len(roles), "user role count")
 			for i, r := range roles {
@@ -164,62 +166,62 @@ func TestACLGetUserRoles(t *testing.T) {
 	}
 }
 
-func TestACLHasRole(t *testing.T) {
+func TestDefaultPermissionsHasRole(t *testing.T) {
 	cases := []struct {
-		name string
-		user std.Address
-		role Role
-		acl  *ACL
-		want bool
+		name  string
+		user  std.Address
+		role  Role
+		perms *DefaultPermissions
+		want  bool
 	}{
 		{
-			name: "ok",
-			user: "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5",
-			role: "admin",
-			acl:  NewACL(admindao.New(), WithUser("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5", "admin")),
-			want: true,
+			name:  "ok",
+			user:  "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5",
+			role:  "admin",
+			perms: NewDefaultPermissions(admindao.New(), WithUser("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5", "admin")),
+			want:  true,
 		},
 		{
-			name: "ok with multiple roles",
-			user: "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5",
-			role: "foo",
-			acl:  NewACL(admindao.New(), WithUser("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5", "admin", "foo")),
-			want: true,
+			name:  "ok with multiple roles",
+			user:  "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5",
+			role:  "foo",
+			perms: NewDefaultPermissions(admindao.New(), WithUser("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5", "admin", "foo")),
+			want:  true,
 		},
 		{
-			name: "user without roles",
-			user: "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5",
-			acl:  NewACL(admindao.New(), WithUser("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5")),
+			name:  "user without roles",
+			user:  "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5",
+			perms: NewDefaultPermissions(admindao.New(), WithUser("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5")),
 		},
 		{
-			name: "has no role",
-			user: "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5",
-			role: "bar",
-			acl:  NewACL(admindao.New(), WithUser("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5", "foo")),
+			name:  "has no role",
+			user:  "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5",
+			role:  "bar",
+			perms: NewDefaultPermissions(admindao.New(), WithUser("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5", "foo")),
 		},
 	}
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			got := tc.acl.HasRole(tc.user, tc.role)
+			got := tc.perms.HasRole(tc.user, tc.role)
 			uassert.Equal(t, got, tc.want)
 		})
 	}
 }
 
-func TestACLHasPermission(t *testing.T) {
+func TestDefaultPermissionsHasPermission(t *testing.T) {
 	cases := []struct {
 		name       string
 		user       std.Address
 		permission Permission
-		acl        *ACL
+		perms      *DefaultPermissions
 		want       bool
 	}{
 		{
 			name:       "ok",
 			user:       "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5",
 			permission: "bar",
-			acl: NewACL(
+			perms: NewDefaultPermissions(
 				admindao.New(),
 				WithUser("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5", "foo"),
 				WithRole("foo", "bar"),
@@ -230,7 +232,7 @@ func TestACLHasPermission(t *testing.T) {
 			name:       "ok with multiple users",
 			user:       "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5",
 			permission: "bar",
-			acl: NewACL(
+			perms: NewDefaultPermissions(
 				admindao.New(),
 				WithUser("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5", "foo"),
 				WithUser("g1w4ek2u33ta047h6lta047h6lta047h6ldvdwpn", "foo"),
@@ -242,7 +244,7 @@ func TestACLHasPermission(t *testing.T) {
 			name:       "ok with multiple roles",
 			user:       "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5",
 			permission: "other",
-			acl: NewACL(
+			perms: NewDefaultPermissions(
 				admindao.New(),
 				WithUser("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5", "foo", "baz"),
 				WithRole("foo", "bar"),
@@ -254,7 +256,7 @@ func TestACLHasPermission(t *testing.T) {
 			name:       "no permission",
 			user:       "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5",
 			permission: "other",
-			acl: NewACL(
+			perms: NewDefaultPermissions(
 				admindao.New(),
 				WithUser("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5", "foo"),
 				WithRole("foo", "bar"),
@@ -264,7 +266,7 @@ func TestACLHasPermission(t *testing.T) {
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			got := tc.acl.HasPermission(tc.user, tc.permission)
+			got := tc.perms.HasPermission(tc.user, tc.permission)
 			uassert.Equal(t, got, tc.want)
 		})
 	}

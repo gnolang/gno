@@ -22,7 +22,7 @@ func init() {
 	admin := std.Address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5") // @test1
 	// TODO: Implement support for assigning a new realm DAO
 	dao := admindao.New(admindao.WithMember(admin))
-	gPerm = NewACL(
+	gPerm = NewDefaultPermissions(
 		dao,
 		WithSuperRole(RoleOwner),
 		// TODO: Assign roles and permissions
