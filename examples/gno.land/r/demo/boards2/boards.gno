@@ -7,9 +7,6 @@ import (
 	"gno.land/p/demo/boards2/admindao"
 )
 
-// Default board creation fee in ugnot required for anonymous users
-const defaultAnonymousFee = 20 * 1_000_000
-
 var (
 	gPerm         Permissioner // TODO: Support changing the permissioner
 	gLastBoardID  BoardID

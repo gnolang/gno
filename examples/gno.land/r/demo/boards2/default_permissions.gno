@@ -17,7 +17,7 @@ type (
 	// PermissionsHandlerFunc defines a function to handle permission callbacks.
 	// Handlers are called by the `WithPermission()` method to execute callbacks
 	// when users have the permission assigned.
-	PermissionsHandlerFunc func(Args, *admindao.AdminDAO, func(Args)) error
+	PermissionsHandlerFunc func(Args, *admindao.AdminDAO, func(Args))
 
 	// Role defines the type for user roles.
 	Role string
@@ -100,7 +100,7 @@ func (dp *DefaultPermissions) HandleFunc(p Permission, fn PermissionsHandlerFunc
 }
 
 // WithPermission calls a callback when a user has a specific permission.
-// It panics on error or when a handler fails.
+// It panics on error or when a handler panics.
 // Callbacks are by default called when there is no handle registered for the permission.
 func (dp DefaultPermissions) WithPermission(user std.Address, perm Permission, args Args, cb func(Args)) {
 	if !dp.HasPermission(user, perm) || !dp.dao.IsMember(user) {
@@ -114,22 +114,25 @@ func (dp DefaultPermissions) WithPermission(user std.Address, perm Permission, a
 	}
 
 	fn := h.(PermissionsHandlerFunc)
-	if err := fn(args, dp.dao, cb); err != nil {
-		panic(err)
-	}
+	fn(args, dp.dao, cb)
 }
 
 func createDefaultPermissions() *DefaultPermissions {
 	// TODO: Define and change the default realm owner (or owners)
 	admin := std.Address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5") // @test1
+	// TODO: DAO should be a different realm or proposal and voting functions should be part of boards realm?
+	//       Permissions and DAO mechanics should be discussed and improved. Add `GetDAO()` to `Permissioner`??
 	dao := admindao.New(admindao.WithMember(admin))
 	perms := NewDefaultPermissions(
 		dao,
 		WithSuperRole(RoleOwner),
-		// TODO: Assign roles and permissions
-		// WithRole(RoleAdmin, permissions...),
+		WithRole(RoleAdmin, PermissionBoardCreate),
+		// TODO: Finish assigning all roles and permissions
 		// WithRole(RoleModerator, permissions...),
 		WithUser(admin, RoleOwner),
 	)
+
+	perms.HandleFunc(PermissionBoardCreate, handleBoardCreate)
+
 	return perms
 }

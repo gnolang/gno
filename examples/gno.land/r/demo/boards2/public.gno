@@ -3,8 +3,6 @@ package boards2
 import (
 	"std"
 	"strings"
-
-	"gno.land/r/demo/users"
 )
 
 func GetBoardIDFromName(name string) (BoardID, bool) {
@@ -24,17 +22,15 @@ func CreateBoard(name string) BoardID {
 	}
 
 	caller := std.GetOrigCaller()
-	assertAnonymousCallerFeeReceived(caller)
-
 	id := incGetBoardID()
 	args := Args{name, id}
 	gPerm.WithPermission(caller, PermissionBoardCreate, args, func(a Args) {
+		// TODO: Do the callback really need the args or we could have the same result directly referencing?
 		name := a[0].(string)
 		if gBoardsByName.Has(name) {
 			panic("board already exists")
 		}
 
-		// TODO: Do the callback really need the args or we could have the same result directly referencing?
 		id := a[1].(BoardID)
 		board := newBoard(id, name, caller)
 		gBoardsByID.Set(id.Key(), board)
@@ -182,16 +178,6 @@ func EditReply(bid BoardID, threadID, replyID PostID, title, body string) {
 func assertIsUserCall() {
 	if !(std.IsOriginCall() || std.PrevRealm().IsUser()) {
 		panic("invalid non-user call")
-	}
-}
-
-func assertAnonymousCallerFeeReceived(caller std.Address) {
-	if users.GetUserByAddress(caller) == nil {
-		sent := std.GetOrigSend()
-		fee := std.NewCoin("ugnot", int64(defaultAnonymousFee))
-		if len(sent) == 0 || sent[0].IsLT(fee) {
-			panic("please register a user, otherwise a minimum fee of " + fee.String() + " is required")
-		}
 	}
 }
 
