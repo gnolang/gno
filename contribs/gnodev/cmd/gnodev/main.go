@@ -303,7 +303,7 @@ func execDev(cfg *devCfg, args []string, io commands.IO) (err error) {
 	}
 	defer devNode.Close()
 
-	nodeLogger.Info("node started", "lisn", devNode.GetRemoteAddress(), "chainID", cfg.chainId, "chainTz", cfg.chainTz)
+	nodeLogger.Info("node started", "lisn", devNode.GetRemoteAddress(), "chainID", cfg.chainId)
 
 	// Create server
 	mux := http.NewServeMux()

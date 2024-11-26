@@ -7,7 +7,7 @@ import (
 
 func Render(path string) string {
 	time2 := time.Now()
-	tz := std.GetChainID()
+	tz := std.GetChainTz()
 
 	return time2.String() + " | " + tz
 }

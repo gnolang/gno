@@ -39,6 +39,7 @@ func NewMockedPrivValidator() bft.PrivValidator {
 func NewDefaultGenesisConfig(chainid string, chaintz string) *bft.GenesisDoc {
 	var tzParam Param
 	_ = tzParam.Parse("gno.land/r/sys/params.vm.chain_tz.string=" + chaintz)
+	fmt.Println("tzParam", tzParam)
 	return &bft.GenesisDoc{
 		GenesisTime: time.Now(),
 		ChainID:     chainid,

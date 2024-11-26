@@ -45,7 +45,7 @@ type NodeConfig struct {
 	ChainTz               string
 }
 
-func DefaultNodeConfig(rootdir string, timezone string) *NodeConfig {
+func DefaultNodeConfig(rootdir string, tz string) *NodeConfig {
 	tmc := gnoland.NewDefaultTMConfig(rootdir)
 	tmc.Consensus.SkipTimeoutCommit = false // avoid time drifting, see issue #1507
 	tmc.Consensus.WALDisabled = true
@@ -65,7 +65,7 @@ func DefaultNodeConfig(rootdir string, timezone string) *NodeConfig {
 		DefaultDeployer:       defaultDeployer,
 		BalancesList:          balances,
 		ChainID:               tmc.ChainID(),
-		ChainTz:               timezone,
+		ChainTz:               tz,
 		TMConfig:              tmc,
 		SkipFailingGenesisTxs: true,
 		MaxGasPerBlock:        10_000_000_000,

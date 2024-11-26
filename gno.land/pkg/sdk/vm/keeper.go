@@ -322,6 +322,7 @@ func (vm *VMKeeper) AddPackage(ctx sdk.Context, msg MsgAddPackage) (err error) {
 	memPkg := msg.Package
 	deposit := msg.Deposit
 	gnostore := vm.getGnoTransactionStore(ctx)
+	chainTz := vm.getChainTzParam(ctx)
 
 	// Validate arguments.
 	if creator.IsZero() {
@@ -365,6 +366,7 @@ func (vm *VMKeeper) AddPackage(ctx sdk.Context, msg MsgAddPackage) (err error) {
 	// Parse and run the files, construct *PV.
 	msgCtx := stdlibs.ExecContext{
 		ChainID:       ctx.ChainID(),
+		ChainTz:       chainTz,
 		Height:        ctx.BlockHeight(),
 		Timestamp:     ctx.BlockTime().Unix(),
 		Msg:           msg,
@@ -428,6 +430,8 @@ func (vm *VMKeeper) Call(ctx sdk.Context, msg MsgCall) (res string, err error) {
 	mpn := gno.NewPackageNode("main", "main", nil)
 	mpn.Define("pkg", gno.TypedValue{T: &gno.PackageType{}, V: pv})
 	mpv := mpn.NewPackage()
+	chainTz := vm.getChainTzParam(ctx)
+
 	// Parse expression.
 	argslist := ""
 	for i := range msg.Args {
@@ -466,6 +470,7 @@ func (vm *VMKeeper) Call(ctx sdk.Context, msg MsgCall) (res string, err error) {
 	// could it be safely partially memoized?
 	msgCtx := stdlibs.ExecContext{
 		ChainID:       ctx.ChainID(),
+		ChainTz:       chainTz,
 		Height:        ctx.BlockHeight(),
 		Timestamp:     ctx.BlockTime().Unix(),
 		Msg:           msg,
@@ -716,6 +721,7 @@ func (vm *VMKeeper) QueryEval(ctx sdk.Context, pkgPath string, expr string) (res
 	alloc := gno.NewAllocator(maxAllocQuery)
 	gnostore := vm.newGnoTransactionStore(ctx) // throwaway (never committed)
 	pkgAddr := gno.DerivePkgAddr(pkgPath)
+	chainTz := vm.getChainTzParam(ctx)
 	// Get Package.
 	pv := gnostore.GetPackage(pkgPath, false)
 	if pv == nil {
@@ -731,6 +737,7 @@ func (vm *VMKeeper) QueryEval(ctx sdk.Context, pkgPath string, expr string) (res
 	// Construct new machine.
 	msgCtx := stdlibs.ExecContext{
 		ChainID:   ctx.ChainID(),
+		ChainTz:   chainTz,
 		Height:    ctx.BlockHeight(),
 		Timestamp: ctx.BlockTime().Unix(),
 		// Msg:           msg,
@@ -783,6 +790,7 @@ func (vm *VMKeeper) QueryEvalString(ctx sdk.Context, pkgPath string, expr string
 	alloc := gno.NewAllocator(maxAllocQuery)
 	gnostore := vm.newGnoTransactionStore(ctx) // throwaway (never committed)
 	pkgAddr := gno.DerivePkgAddr(pkgPath)
+	chainTz := vm.getChainTzParam(ctx)
 	// Get Package.
 	pv := gnostore.GetPackage(pkgPath, false)
 	if pv == nil {
@@ -798,6 +806,7 @@ func (vm *VMKeeper) QueryEvalString(ctx sdk.Context, pkgPath string, expr string
 	// Construct new machine.
 	msgCtx := stdlibs.ExecContext{
 		ChainID:   ctx.ChainID(),
+		ChainTz:   chainTz,
 		Height:    ctx.BlockHeight(),
 		Timestamp: ctx.BlockTime().Unix(),
 		// Msg:           msg,
