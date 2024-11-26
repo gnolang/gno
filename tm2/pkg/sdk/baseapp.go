@@ -45,6 +45,8 @@ type BaseApp struct {
 	beginTxHook BeginTxHook // BaseApp-specific hook run before running transaction messages.
 	endTxHook   EndTxHook   // BaseApp-specific hook run after running transaction messages.
 
+	gasFeeCollector GasFeeCollector // gas fee collector
+
 	// --------------------
 	// Volatile state
 	// checkState is set on initialization and reset on Commit.
@@ -582,6 +584,14 @@ func (app *BaseApp) DeliverTx(req abci.RequestDeliverTx) (res abci.ResponseDeliv
 		res.ResponseBase = result.ResponseBase
 		res.GasWanted = result.GasWanted
 		res.GasUsed = result.GasUsed
+
+		// NOTE: After runTx, gas fee is deducted from the first signer.
+		// This is done in the BaseApp to ensure that the gas fee is deducted
+		// res.GasUsed is the finalized amount of gas used to run tx.
+		// Therefore, gas fee is deducted here.
+		if app.gasFeeCollector != nil {
+			app.gasFeeCollector(ctx, tx, res.GasUsed)
+		}
 		return
 	}
 }

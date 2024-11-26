@@ -120,6 +120,14 @@ func NewAppWithOptions(cfg *AppOptions) (abci.Application, error) {
 			return
 		},
 	)
+	// Set GasFeeCollector
+	gasFeeCollector := auth.NewGasFeeCollector(acctKpr, bankKpr)
+	baseApp.SetGasFeeCollector(func(ctx sdk.Context, tx std.Tx, gasUsed int64) (
+		res sdk.Result,
+	) {
+		res = gasFeeCollector(ctx, tx, gasUsed)
+		return
+	})
 
 	// Set begin and end transaction hooks.
 	// These are used to create gno transaction stores and commit them when finishing

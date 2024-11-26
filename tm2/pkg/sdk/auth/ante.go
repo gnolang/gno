@@ -123,17 +123,6 @@ func NewAnteHandler(ak AccountKeeper, bank BankKeeperI, sigGasConsumer Signature
 			return newCtx, res, true
 		}
 
-		// deduct the fees
-		if !tx.Fee.GasFee.IsZero() {
-			res = DeductFees(bank, newCtx, signerAccs[0], std.Coins{tx.Fee.GasFee})
-			if !res.IsOK() {
-				return newCtx, res, true
-			}
-
-			// reload the account as fees have been deducted
-			signerAccs[0] = ak.GetAccount(newCtx, signerAccs[0].GetAddress())
-		}
-
 		// stdSigs contains the sequence number, account number, and signatures.
 		// When simulating, this would just be a 0-length slice.
 		stdSigs := tx.GetSignatures()
@@ -341,6 +330,35 @@ func consumeMultisignatureVerificationGas(meter store.GasMeter,
 			DefaultSigVerificationGasConsumer(meter, sig.Sigs[sigIndex], pubkey.PubKeys[i], params)
 			sigIndex++
 		}
+	}
+}
+
+// NewGasFeeCollector returns a new GasFeeCollector that will be used to
+// deduct fees from the first signer.
+func NewGasFeeCollector(ak AccountKeeper, bank BankKeeperI) sdk.GasFeeCollector {
+	return func(
+		ctx sdk.Context,
+		tx std.Tx,
+		gasUsed int64,
+	) (res sdk.Result) {
+		signerAddrs := tx.GetSigners()
+		signerAccs := make([]std.Account, len(signerAddrs))
+		signerAccs[0], res = GetSignerAcc(ctx, ak, signerAddrs[0])
+		if !res.IsOK() {
+			return res
+		}
+
+		if !tx.Fee.GasFee.IsZero() {
+			collectGasFee := std.NewCoin(
+				tx.Fee.GasFee.Denom,
+				tx.Fee.GasFee.Amount*gasUsed,
+			)
+			res = DeductFees(bank, ctx, signerAccs[0], std.Coins{collectGasFee})
+			if !res.IsOK() {
+				return res
+			}
+		}
+		return sdk.Result{GasWanted: tx.Fee.GasWanted}
 	}
 }
 

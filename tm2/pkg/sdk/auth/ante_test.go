@@ -306,49 +306,6 @@ func TestAnteHandlerSequences(t *testing.T) {
 	checkValidTx(t, anteHandler, ctx, tx, false)
 }
 
-// Test logic around fee deduction.
-func TestAnteHandlerFees(t *testing.T) {
-	t.Parallel()
-
-	// setup
-	env := setupTestEnv()
-	ctx := env.ctx
-	anteHandler := NewAnteHandler(env.acck, env.bank, DefaultSigVerificationGasConsumer, defaultAnteOptions())
-
-	// keys and addresses
-	priv1, _, addr1 := tu.KeyTestPubAddr()
-
-	// set the accounts
-	acc1 := env.acck.NewAccountWithAddress(ctx, addr1)
-	env.acck.SetAccount(ctx, acc1)
-
-	// msg and signatures
-	var tx std.Tx
-	msg := tu.NewTestMsg(addr1)
-	privs, accnums, seqs := []crypto.PrivKey{priv1}, []uint64{0}, []uint64{0}
-	fee := tu.NewTestFee()
-	msgs := []std.Msg{msg}
-
-	// signer does not have enough funds to pay the fee
-	tx = tu.NewTestTx(t, ctx.ChainID(), msgs, privs, accnums, seqs, fee)
-	checkInvalidTx(t, anteHandler, ctx, tx, false, std.InsufficientFundsError{})
-
-	acc1.SetCoins(std.NewCoins(std.NewCoin("atom", 149)))
-	env.acck.SetAccount(ctx, acc1)
-	checkInvalidTx(t, anteHandler, ctx, tx, false, std.InsufficientFundsError{})
-
-	collector := env.bank.(DummyBankKeeper).acck.GetAccount(ctx, FeeCollectorAddress())
-	require.Nil(t, collector)
-	require.Equal(t, env.acck.GetAccount(ctx, addr1).GetCoins().AmountOf("atom"), int64(149))
-
-	acc1.SetCoins(std.NewCoins(std.NewCoin("atom", 150)))
-	env.acck.SetAccount(ctx, acc1)
-	checkValidTx(t, anteHandler, ctx, tx, false)
-
-	require.Equal(t, env.bank.(DummyBankKeeper).acck.GetAccount(ctx, FeeCollectorAddress()).GetCoins().AmountOf("atom"), int64(150))
-	require.Equal(t, env.acck.GetAccount(ctx, addr1).GetCoins().AmountOf("atom"), int64(0))
-}
-
 // Test logic around memo gas consumption.
 func TestAnteHandlerMemoGas(t *testing.T) {
 	t.Parallel()
