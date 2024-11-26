@@ -13,13 +13,13 @@ import (
 type User struct {
 	Address std.Address
 	Name    string
-	Profile string
-	Number  int
-	Block   int
+	Profile string // todo rename to bio
+	Number  int    // todo rename to ID, switch to uint or seqid? XXX: do we really need this?
+	Block   int64  // XXX: should we save this?
 }
 
 func (u *User) Render() string {
-	out := ufmt.Sprintf("# User - %s\n\n", u.Name)
+	out := ufmt.Sprintf("# User #%d - %s\n\n", u.Number, u.Name)
 
 	out += "## Bio\n\n"
 	if strings.TrimSpace(u.Profile) != "" {

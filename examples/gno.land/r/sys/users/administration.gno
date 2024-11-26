@@ -12,6 +12,8 @@ const (
 	WhitelistAddEvent      = "WhitelistAdd"
 	WhitelistDeleteEvent   = "WhitelistDelete"
 	VerifyFuncUpdatedEvent = "VerifyFuncUpdated"
+
+	gnolandUsers = "gno.land/r/gnoland/users" // preregistered with store write perms
 )
 
 var (
@@ -20,9 +22,11 @@ var (
 )
 
 func init() {
-	callerWhitelist.Set(std.DerivePkgAddr("gno.land/r/gnoland/users").String(), struct{}{})
+	// Set initial whitelisted caller
+	callerWhitelist.Set(std.DerivePkgAddr(gnolandUsers).String(), struct{}{})
 }
 
+// AddToWhitelist adds a new address to the caller whitelist
 func AddToWhitelist(addr std.Address) error {
 	if err := admin.CallerIsOwner(); err != nil {
 		return err
@@ -42,16 +46,21 @@ func AddToWhitelist(addr std.Address) error {
 	return nil
 }
 
+// DelFromWhitelist removes a caller from the whitelist
 func DelFromWhitelist(addr std.Address) error {
 	if err := admin.CallerIsOwner(); err != nil {
 		return err
 	}
 
 	if !callerWhitelist.Has(addr.String()) {
-		return ErrDoesNotExist
+		return ErrNotWhitelisted
 	}
 
-	callerWhitelist.Remove(addr.String())
+	_, removed := callerWhitelist.Remove(addr.String())
+	if !removed {
+		// do what?
+	}
+
 	std.Emit(WhitelistDeleteEvent, "address", addr.String())
 
 	return nil
@@ -68,6 +77,8 @@ func AdminUpdateVerifyCall(check VerifyNameFunc) error {
 
 	return nil
 }
+
+// Exposing Ownable & Pausable APIs
 
 func Pause() error {
 	return pausable.Pause()

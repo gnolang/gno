@@ -55,6 +55,7 @@ func Users(offset, count uint64) []pusers.User {
 	uStore.IterateByOffset(int(offset), int(count), func(key string, value interface{}) bool {
 		user := value.(pusers.User)
 		res = append(res, user)
+
 		return false
 	})
 
@@ -67,4 +68,18 @@ func UsersByPrefix(prefix string, maxResults int) []string {
 	// most likely moved to r/gnoland/users to keep this package minimal.
 	// in that case, should we get a value copy of the uStore available to whitelisted callers?
 	return avlhelpers.ListByteStringKeysByPrefix(*uStore, prefix, maxResults)
+}
+
+// UpdateBio allows the caller to change their bio
+func UpdateBio(bio string) error {
+	caller := std.GetOrigCaller()
+	u := ResolveAddress(caller)
+	if u == nil {
+		return ErrNotRegistered
+	}
+
+	u.Profile = bio
+	uStore.Set(u.Name, u)
+
+	return nil
 }

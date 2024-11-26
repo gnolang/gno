@@ -33,7 +33,7 @@ func init() {
 		user := &pusers.User{
 			Address: res.Address,
 			Name:    res.Name,
-			Profile: "",
+			Profile: "Preregistered user.",
 			Number:  sys.UserCount(),
 			Block:   std.GetHeight(),
 		}

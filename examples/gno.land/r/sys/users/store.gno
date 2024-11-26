@@ -2,6 +2,7 @@ package users
 
 import (
 	"std"
+	"strings"
 
 	"gno.land/p/demo/avl"
 	p "gno.land/p/demo/pausable"
@@ -17,8 +18,8 @@ var (
 	}
 )
 
-// WriteUser writes to the sys/users stores
-// Only whitelisted callers, such as r/gnoland/users, can call this function
+// WriteUser writes to the sys/users store
+// Only whitelisted callers can call this function
 // Writing to the store can be paused by the admin
 func WriteUser(user *pusers.User) error {
 	if pausable.IsPaused() {
@@ -29,15 +30,16 @@ func WriteUser(user *pusers.User) error {
 		return ErrUnauthorizedWrite
 	}
 
-	username := user.Name
-	addr := user.Address
+	if err := verifyUser(user); err != nil {
+		return err
+	}
 
-	if uStore.Has(username) {
+	if uStore.Has(user.Name) {
 		return ErrAlreadyExists
 	}
 
-	uStore.Set(username, user)
-	aStore.Set(addr.String(), user)
+	uStore.Set(user.Name, user)
+	aStore.Set(user.Address.String(), user)
 
 	return nil
 }
@@ -51,4 +53,26 @@ func IsOnWhitelist(addr std.Address) bool {
 // UserCount returns the number of registered users
 func UserCount() int {
 	return aStore.Size()
+}
+
+func GetUserStore() *avl.Tree {
+	return uStore
+}
+
+func verifyUser(user *pusers.User) error {
+	if user == nil {
+		return ErrUserIsNil
+	}
+
+	if strings.TrimSpace(user.Name) == "" {
+		return ErrEmptyUsername
+	}
+
+	if !user.Address.IsValid() {
+		return ErrInvalidAddress
+	}
+
+	// todo check for ID
+
+	return nil
 }

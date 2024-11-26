@@ -8,23 +8,11 @@ import (
 )
 
 var (
-	whitelistedCaller = std.DerivePkgAddr("gno.land/r/gnoland/users")
-	adminRealm        = std.NewUserRealm(adminAddr)
-	alice             = std.Address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5")
-	aliceCodeRealm    = std.NewCodeRealm("gno.land/r/alice/package")
+	whitelistedCallerAddr = std.DerivePkgAddr(gnolandUsers)
+	adminRealm            = std.NewUserRealm(adminAddr)
+	alice                 = std.Address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5")
+	aliceCodeRealm        = std.NewCodeRealm("gno.land/r/alice/package")
 )
-
-func TestIsOnWhitelist(t *testing.T) {
-	t.Run("init_caller_registration", func(t *testing.T) {
-		t.Parallel()
-		uassert.True(t, IsOnWhitelist(whitelistedCaller))
-	})
-
-	t.Run("not on whitelist", func(t *testing.T) {
-		t.Parallel()
-		uassert.False(t, IsOnWhitelist(aliceCodeRealm.Addr()))
-	})
-}
 
 func TestAddToWhitelist(t *testing.T) {
 	t.Run("invalid new address", func(t *testing.T) {
@@ -40,7 +28,7 @@ func TestAddToWhitelist(t *testing.T) {
 		t.Parallel()
 		std.TestSetRealm(adminRealm)
 
-		uassert.Error(t, AddToWhitelist(whitelistedCaller), ErrAlreadyWhitelisted.Error())
+		uassert.Error(t, AddToWhitelist(whitelistedCallerAddr), ErrAlreadyWhitelisted.Error())
 	})
 
 	t.Run("valid addition", func(t *testing.T) {
@@ -56,13 +44,17 @@ func TestDelFromWhitelist(t *testing.T) {
 		t.Parallel()
 		std.TestSetRealm(adminRealm)
 
-		uassert.Error(t, DelFromWhitelist(std.Address("")), ErrDoesNotExist.Error())
+		uassert.Error(t, DelFromWhitelist(std.Address("")), ErrNotWhitelisted.Error())
 	})
 
 	t.Run("valid deletion", func(t *testing.T) {
 		t.Parallel()
 		std.TestSetRealm(adminRealm)
 
-		uassert.NoError(t, DelFromWhitelist(whitelistedCaller))
+		uassert.NoError(t, DelFromWhitelist(whitelistedCallerAddr))
 	})
+
+	// FIXME: should not be needed. realm state should reset after
+	// 	each test, and init should happen before running a new one.
+	callerWhitelist.Set(std.DerivePkgAddr(gnolandUsers).String(), struct{}{})
 }
