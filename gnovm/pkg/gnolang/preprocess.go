@@ -175,6 +175,9 @@ func initStaticBlocks(store Store, ctx BlockNode, bn BlockNode) {
 				nx := &n.NameExpr
 				nn := nx.Name
 				loc := last.GetLocation()
+				// NOTE: imports from "pure packages" are actually sometimes
+				// allowed, most notably in MsgRun and filetests; IsPurePackagePath
+				// returns false in these cases.
 				if IsPurePackagePath(loc.PkgPath) && IsRealmPath(n.PkgPath) {
 					panic(fmt.Sprintf("pure package path %q cannot import realm path %q", loc.PkgPath, n.PkgPath))
 				}
