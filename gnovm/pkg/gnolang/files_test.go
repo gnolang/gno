@@ -113,13 +113,19 @@ func TestStdlibs(t *testing.T) {
 	rootDir, err := filepath.Abs("../../../")
 	require.NoError(t, err)
 
-	var capture bytes.Buffer
-	out := io.Writer(&capture)
-	if testing.Verbose() {
-		out = os.Stdout
+	newOpts := func() (capture *bytes.Buffer, opts *test.TestOptions) {
+		var out io.Writer
+		if testing.Verbose() {
+			out = os.Stdout
+		} else {
+			capture = new(bytes.Buffer)
+			out = capture
+		}
+		opts = test.NewTestOptions(rootDir, nopReader{}, out, out)
+		opts.Verbose = true
+		return
 	}
-	sharedOpts := test.NewTestOptions(rootDir, nopReader{}, out, out)
-	sharedOpts.Verbose = true
+	sharedCapture, sharedOpts := newOpts()
 
 	dir := "../../stdlibs/"
 	fsys := os.DirFS(dir)
@@ -134,18 +140,20 @@ func TestStdlibs(t *testing.T) {
 		fp := filepath.Join(dir, path)
 		memPkg := gnolang.ReadMemPackage(fp, path)
 		t.Run(strings.ReplaceAll(memPkg.Path, "/", "-"), func(t *testing.T) {
-			opts := sharedOpts
+			capture, opts := sharedCapture, sharedOpts
 			switch memPkg.Path {
-			case "bytes", "strconv", "regexp/syntax":
+			case "bufio", "bytes", "strconv", "regexp/syntax":
 				if testing.Short() {
 					t.Skip("Skipped because of -short, and this stdlib is very long currently.")
 				} else {
-					t.Parallel()
-
 					// Long test; run in parallel at the end with own store.
-					opts = test.NewTestOptions(rootDir, nopReader{}, out, out)
-					opts.Verbose = true
+					t.Parallel()
+					capture, opts = newOpts()
 				}
+			}
+
+			if capture != nil {
+				capture.Reset()
 			}
 
 			err := test.Test(memPkg, "", opts)
