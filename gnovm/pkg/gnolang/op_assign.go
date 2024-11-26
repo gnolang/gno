@@ -85,7 +85,7 @@ func (m *Machine) doOpSubAssign() {
 		}
 	}
 	// sub rv from lv.
-	subAssign(lv.TV, rv)
+	subAssign(m, lv.TV, rv)
 	if lv.Base != nil {
 		m.Realm.DidUpdate(lv.Base.(Object), nil, nil)
 	}

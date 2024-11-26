@@ -157,3 +157,125 @@ func main() {
 		testFunc(tc.source, tc.msg)
 	}
 }
+
+func TestSubUnderflow(t *testing.T) {
+	t.Parallel()
+
+	testFunc := func(source, msg string) {
+		defer func() {
+			if len(msg) == 0 {
+				return
+			}
+
+			r := recover()
+
+			if r == nil {
+				t.Fail()
+			}
+
+			err := r.(*PreprocessError)
+			c := strings.Contains(err.Error(), msg)
+			if !c {
+				t.Fatalf(`expected "%s", got "%s"`, msg, r)
+			}
+		}()
+
+		m := NewMachine("test", nil)
+
+		n := MustParseFile("main.go", source)
+		m.RunFiles(n)
+		m.RunMain()
+	}
+
+	type cases struct {
+		source string
+		msg    string
+	}
+
+	tests := []cases{
+		{
+			`package test
+		
+		func main() {
+			const u1 = uint8(0) - 1
+		}`,
+			`test/main.go:4:15: constant underflow`,
+		},
+		{
+			`package test
+		
+		func main() {
+			const u1 = uint16(0) - 1
+		}`,
+			`test/main.go:4:15: constant underflow`,
+		},
+		{
+			`package test
+		
+		func main() {
+			const u1 = uint32(0) - 1
+		}`,
+			`test/main.go:4:15: constant underflow`,
+		},
+		{
+			`package test
+		
+		func main() {
+			const u1 = uint64(0) - 1
+		}`,
+			`test/main.go:4:15: constant underflow`,
+		},
+		{
+			`package test
+		
+		func main() {
+			const u1 = uint(0) - 1
+		}`,
+			`test/main.go:4:15: constant underflow`,
+		},
+		{
+			`package test
+		
+		func main() {
+			const u1 = int8(-128) - 1
+		}`,
+			`test/main.go:4:15: constant underflow`,
+		},
+		{
+			`package test
+		
+		func main() {
+		   const u1 = int16(-32768) - 1
+		}`,
+			`test/main.go:4:17: constant underflow`,
+		},
+		{
+			`package test
+		
+		func main() {
+			const u1 = int32(-2147483648) - 1
+		}`,
+			`test/main.go:4:15: constant underflow`,
+		},
+		{
+			`package test
+		
+		func main() {
+		   const u1 = int64(-9223372036854775808) - 1
+		}`,
+			`test/main.go:4:17: constant underflow`,
+		},
+		{
+			`package test
+		
+		func main() {
+			const u1 = int(-9223372036854775808) - 1
+		}`,
+			`test/main.go:4:15: constant underflow`,
+		},
+	}
+
+	for _, tc := range tests {
+		testFunc(tc.source, tc.msg)
+	}
+}

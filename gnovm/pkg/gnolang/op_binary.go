@@ -197,7 +197,7 @@ func (m *Machine) doOpSub() {
 	}
 
 	// sub rv from lv.
-	subAssign(lv, rv)
+	subAssign(m, lv, rv)
 }
 
 func (m *Machine) doOpBor() {
@@ -742,36 +742,134 @@ func addAssign(alloc *Allocator, lv, rv *TypedValue) {
 }
 
 // for doOpSub and doOpSubAssign.
-func subAssign(lv, rv *TypedValue) {
+func subAssign(m *Machine, lv, rv *TypedValue) {
+	// this validation is only executed at preprocessor "compile" time
+	underflowCheck := func(v func() bool) {
+		if m.PreprocessorMode && !v() {
+			panic("constant underflow")
+		}
+	}
+
 	// set the result in lv.
 	// NOTE this block is replicated in op_assign.go
 	switch baseOf(lv.T) {
 	case IntType:
+		underflowCheck(func() bool {
+			l := big.NewInt(int64(lv.GetInt()))
+			r := big.NewInt(int64(rv.GetInt()))
+
+			return big.NewInt(0).Sub(l, r).Cmp(big.NewInt(math.MinInt)) != -1
+		})
+
 		lv.SetInt(lv.GetInt() - rv.GetInt())
 	case Int8Type:
+		underflowCheck(func() bool {
+			l := int16(lv.GetInt8())
+			r := int16(rv.GetInt8())
+
+			return l-r >= math.MinInt8
+		})
+
 		lv.SetInt8(lv.GetInt8() - rv.GetInt8())
 	case Int16Type:
+		underflowCheck(func() bool {
+			l := int32(lv.GetInt16())
+			r := int32(rv.GetInt16())
+
+			return l-r >= math.MinInt16
+		})
+
 		lv.SetInt16(lv.GetInt16() - rv.GetInt16())
 	case Int32Type, UntypedRuneType:
+		underflowCheck(func() bool {
+			l := int64(lv.GetInt32())
+			r := int64(rv.GetInt32())
+
+			return l-r >= math.MinInt32
+		})
+
 		lv.SetInt32(lv.GetInt32() - rv.GetInt32())
 	case Int64Type:
+		underflowCheck(func() bool {
+			l := big.NewInt(lv.GetInt64())
+			r := big.NewInt(rv.GetInt64())
+
+			return big.NewInt(0).Sub(l, r).Cmp(big.NewInt(math.MinInt64)) != -1
+		})
+
 		lv.SetInt64(lv.GetInt64() - rv.GetInt64())
 	case UintType:
+		underflowCheck(func() bool {
+			l := big.NewInt(0).SetUint64(uint64(lv.GetUint()))
+			r := big.NewInt(0).SetUint64(uint64(rv.GetUint()))
+
+			return big.NewInt(0).Sub(l, r).Sign() == 1
+		})
+
 		lv.SetUint(lv.GetUint() - rv.GetUint())
 	case Uint8Type:
+		underflowCheck(func() bool {
+			l := int16(lv.GetUint8())
+			r := int16(rv.GetUint8())
+
+			return l-r >= 0
+		})
+
 		lv.SetUint8(lv.GetUint8() - rv.GetUint8())
 	case DataByteType:
+		underflowCheck(func() bool {
+			l := int16(lv.GetDataByte())
+			r := int16(rv.GetDataByte())
+
+			return l-r >= 0
+		})
+
 		lv.SetDataByte(lv.GetDataByte() - rv.GetUint8())
 	case Uint16Type:
+		underflowCheck(func() bool {
+			l := int32(lv.GetUint16())
+			r := int32(rv.GetUint16())
+
+			return l-r >= 0
+		})
+
 		lv.SetUint16(lv.GetUint16() - rv.GetUint16())
 	case Uint32Type:
+		underflowCheck(func() bool {
+			l := int64(lv.GetUint32())
+			r := int64(rv.GetUint32())
+
+			return l-r >= 0
+		})
+
 		lv.SetUint32(lv.GetUint32() - rv.GetUint32())
 	case Uint64Type:
+		underflowCheck(func() bool {
+			l := big.NewInt(0).SetUint64(lv.GetUint64())
+			r := big.NewInt(0).SetUint64(rv.GetUint64())
+
+			return big.NewInt(0).Sub(l, r).Sign() == 1
+		})
+
 		lv.SetUint64(lv.GetUint64() - rv.GetUint64())
 	case Float32Type:
+		underflowCheck(func() bool {
+			l := float64(lv.GetFloat32())
+			r := float64(rv.GetFloat32())
+
+			return l-r >= 0
+		})
+
 		// NOTE: gno doesn't fuse *+.
 		lv.SetFloat32(lv.GetFloat32() - rv.GetFloat32()) // XXX determinism?
 	case Float64Type:
+		underflowCheck(func() bool {
+			l := big.NewFloat(lv.GetFloat64())
+			r := big.NewFloat(lv.GetFloat64())
+
+			return big.NewFloat(0).Sub(l, r).Sign() == 1
+		})
+
 		// NOTE: gno doesn't fuse *+.
 		lv.SetFloat64(lv.GetFloat64() - rv.GetFloat64()) // XXX determinism?
 	case BigintType, UntypedBigintType:
