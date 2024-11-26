@@ -1,11 +1,6 @@
 package boards2
 
-import (
-	"std"
-
-	"gno.land/p/demo/avl"
-	"gno.land/p/demo/boards2/admindao"
-)
+import "gno.land/p/demo/avl"
 
 var (
 	gPerm         Permissioner // TODO: Support changing the permissioner
