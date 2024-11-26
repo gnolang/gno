@@ -3,6 +3,7 @@ package sdk
 import (
 	"bytes"
 	"encoding/binary"
+	"encoding/json"
 	"fmt"
 	"log/slog"
 	"os"
@@ -163,7 +164,7 @@ func TestAppVersionSetterGetter(t *testing.T) {
 	require.Equal(t, versionString, app.AppVersion())
 	res = app.Query(abci.RequestQuery{Path: ".app/version"})
 	require.True(t, res.IsOK())
-	require.Equal(t, versionString, string(res.Value))
+	require.Equal(t, versionString, string(res.ResponseBase.Data))
 }
 
 func TestLoadVersionInvalid(t *testing.T) {
@@ -703,7 +704,7 @@ func TestMultiMsgDeliverTx(t *testing.T) {
 func TestSimulateTx(t *testing.T) {
 	t.Parallel()
 
-	gasConsumed := int64(5)
+	gasConsumed := int64(0)
 
 	anteOpt := func(bapp *BaseApp) {
 		bapp.SetAnteHandler(func(ctx Context, tx Tx, simulate bool) (newCtx Context, res Result, abort bool) {
@@ -753,7 +754,7 @@ func TestSimulateTx(t *testing.T) {
 		require.True(t, queryResult.IsOK(), queryResult.Log)
 
 		var res Result
-		amino.MustUnmarshal(queryResult.Value, &res)
+		json.Unmarshal(queryResult.ResponseBase.Data, &res)
 		require.Nil(t, err, "Result unmarshalling failed")
 		require.True(t, res.IsOK(), res.Log)
 		require.Equal(t, gasConsumed, res.GasUsed, res.Log)

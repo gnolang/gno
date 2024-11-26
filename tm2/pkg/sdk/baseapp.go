@@ -1,6 +1,7 @@
 package sdk
 
 import (
+	"encoding/json"
 	"fmt"
 	"log/slog"
 	"os"
@@ -409,12 +410,20 @@ func handleQueryApp(app *BaseApp, path []string, req abci.RequestQuery) (res abc
 			} else {
 				result = app.Simulate(txBytes, tx)
 			}
+
 			res.Height = req.Height
-			res.Value = amino.MustMarshal(result)
+
+			bytes, err := json.Marshal(result)
+			if err != nil {
+				res.Error = ABCIError(std.ErrInternal(fmt.Sprintf("cannot encode to JSON: %s", err)))
+			} else {
+				res.ResponseBase.Data = bytes
+			}
+
 			return res
 		case "version":
 			res.Height = req.Height
-			res.Value = []byte(app.appVersion)
+			res.ResponseBase.Data = []byte(app.appVersion)
 			return res
 		default:
 			res.Error = ABCIError(std.ErrUnknownRequest(fmt.Sprintf("Unknown query: %s", path)))
