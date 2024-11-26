@@ -7,4 +7,4 @@ func main() {
 }
 
 // Error:
-// cannot use _ as value or type
+// main/gnovm/tests/files/blankidentifier3.gno:3:6: cannot use _ as value or type
