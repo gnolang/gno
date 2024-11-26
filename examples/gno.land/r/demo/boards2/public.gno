@@ -29,8 +29,12 @@ func CreateBoard(name string) BoardID {
 	id := incGetBoardID()
 	args := Args{name, id}
 	gPerm.WithPermission(caller, PermissionBoardCreate, args, func(a Args) {
-		// TODO: Do the callback really need the args or we could have the same result directly referencing?
 		name := a[0].(string)
+		if gBoardsByName.Has(name) {
+			panic("board already exists")
+		}
+
+		// TODO: Do the callback really need the args or we could have the same result directly referencing?
 		id := a[1].(BoardID)
 		board := newBoard(id, name, caller)
 		gBoardsByID.Set(id.Key(), board)
