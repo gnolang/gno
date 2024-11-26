@@ -35,6 +35,9 @@ type wrappedRouter struct {
 	requestUri string
 }
 
+// newWrappedRouter returns a wrapped mux router that supports query strings.
+//
+// TODO: remove this when query strings PR will be merged: https://github.com/gnolang/gno/pull/2594
 func newWrappedRouter() *wrappedRouter {
 	return &wrappedRouter{
 		Router: mux.NewRouter(),

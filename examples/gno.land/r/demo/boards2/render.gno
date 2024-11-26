@@ -13,6 +13,7 @@ const (
 )
 
 func Render(path string) string {
+	// TODO: remove this when query strings PR will be merged: https://github.com/gnolang/gno/pull/2594
 	router := newWrappedRouter()
 	router.HandleFunc("", renderBoardsList)
 	router.HandleFunc("{board}", renderBoard)
