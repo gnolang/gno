@@ -1,7 +1,6 @@
 package boards2
 
 import (
-	"regexp"
 	"std"
 	"strconv"
 	"strings"
@@ -10,8 +9,6 @@ import (
 	"gno.land/p/demo/avl"
 	"gno.land/p/moul/txlink"
 )
-
-var reBoardName = regexp.MustCompile(`^[a-z]{3}[_a-z0-9]{0,23}[0-9]{3}$`)
 
 type BoardID uint64
 
@@ -34,8 +31,6 @@ type Board struct {
 }
 
 func newBoard(id BoardID, name string, creator std.Address) *Board {
-	assertIsBoardName(name)
-
 	if gBoardsByName.Has(name) {
 		panic("board already exists")
 	}
@@ -97,21 +92,6 @@ func (board *Board) DeleteThread(pid PostID) {
 	}
 }
 
-// TODO: Change HasPermission to use a new authorization interface's `CanDo()`
-func (board *Board) HasPermission(addr std.Address, perm Permission) bool {
-	if board.creator == addr {
-		switch perm {
-		case PermissionEdit:
-			return true
-		case PermissionDelete:
-			return true
-		default:
-			return false
-		}
-	}
-	return false
-}
-
 func (board *Board) Render() string {
 	s := "\\[" + newLink("post", board.GetPostFormURL()) + "]\n\n"
 	if board.threads.Size() > 0 {
@@ -139,10 +119,4 @@ func (board *Board) GetURLFromReplyID(threadID, replyID PostID) string {
 
 func (board *Board) GetPostFormURL() string {
 	return txlink.URL("CreateThread", "bid", board.id.String())
-}
-
-func assertIsBoardName(name string) {
-	if !reBoardName.MatchString(name) {
-		panic("invalid board name: " + name)
-	}
 }
