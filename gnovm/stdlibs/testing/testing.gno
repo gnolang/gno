@@ -280,7 +280,7 @@ func (t *T) shouldRun(name string) bool {
 	}
 
 	elem := strings.Split(name, "/")
-	ok, partial := t.runFilter.matches(elem, matchString)
+	ok, partial := t.runFilter.matches(elem)
 	_ = partial // we don't care right now
 	return ok
 }

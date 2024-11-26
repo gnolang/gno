@@ -7,10 +7,10 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/gnolang/gno/gnovm"
 	"github.com/gnolang/gno/gnovm/pkg/gnolang/internal/txlog"
 	"github.com/gnolang/gno/tm2/pkg/amino"
 	"github.com/gnolang/gno/tm2/pkg/colors"
-	"github.com/gnolang/gno/tm2/pkg/std"
 	"github.com/gnolang/gno/tm2/pkg/store"
 	"github.com/gnolang/gno/tm2/pkg/store/utils"
 	stringz "github.com/gnolang/gno/tm2/pkg/strings"
@@ -29,7 +29,7 @@ type PackageGetter func(pkgPath string, store Store) (*PackageNode, *PackageValu
 type NativeStore func(pkgName string, name Name) func(m *Machine)
 
 // Store is the central interface that specifies the communications between the
-// GnoVM and the underlying data store; currently, generally the Gno.land
+// GnoVM and the underlying data store; currently, generally the gno.land
 // blockchain, or the file system.
 type Store interface {
 	// STABLE
@@ -51,24 +51,22 @@ type Store interface {
 	GetBlockNodeSafe(Location) BlockNode
 	SetBlockNode(BlockNode)
 	// UNSTABLE
-	SetStrictGo2GnoMapping(bool)
 	Go2GnoType(rt reflect.Type) Type
 	GetAllocator() *Allocator
 	NumMemPackages() int64
 	// Upon restart, all packages will be re-preprocessed; This
 	// loads BlockNodes and Types onto the store for persistence
 	// version 1.
-	AddMemPackage(memPkg *std.MemPackage)
-	GetMemPackage(path string) *std.MemPackage
-	GetMemFile(path string, name string) *std.MemFile
-	IterMemPackage() <-chan *std.MemPackage
+	AddMemPackage(memPkg *gnovm.MemPackage)
+	GetMemPackage(path string) *gnovm.MemPackage
+	GetMemFile(path string, name string) *gnovm.MemFile
+	IterMemPackage() <-chan *gnovm.MemPackage
 	ClearObjectCache()                                    // run before processing a message
 	SetNativeStore(NativeStore)                           // for "new" natives XXX
 	GetNative(pkgPath string, name Name) func(m *Machine) // for "new" natives XXX
 	SetLogStoreOps(enabled bool)
 	SprintStoreOps() string
 	LogSwitchRealm(rlmpath string) // to mark change of realm boundaries
-	ClearCache()
 	Print()
 }
 
@@ -98,7 +96,6 @@ type defaultStore struct {
 	pkgGetter        PackageGetter         // non-realm packages
 	cacheNativeTypes map[reflect.Type]Type // reflect doc: reflect.Type are comparable
 	nativeStore      NativeStore           // for injecting natives
-	go2gnoStrict     bool                  // if true, native->gno type conversion must be registered.
 
 	// transient
 	opslog  []StoreOp // for debugging and testing.
@@ -120,7 +117,6 @@ func NewStore(alloc *Allocator, baseStore, iavlStore store.Store) *defaultStore 
 		pkgGetter:        nil,
 		cacheNativeTypes: make(map[reflect.Type]Type),
 		nativeStore:      nil,
-		go2gnoStrict:     true,
 	}
 	InitStoreCaches(ds)
 	return ds
@@ -149,7 +145,6 @@ func (ds *defaultStore) BeginTransaction(baseStore, iavlStore store.Store) Trans
 		pkgGetter:        ds.pkgGetter,
 		cacheNativeTypes: ds.cacheNativeTypes,
 		nativeStore:      ds.nativeStore,
-		go2gnoStrict:     ds.go2gnoStrict,
 
 		// transient
 		current: nil,
@@ -171,10 +166,6 @@ func (transactionStore) SetPackageGetter(pg PackageGetter) {
 	panic("SetPackageGetter may not be called in a transaction store")
 }
 
-func (transactionStore) ClearCache() {
-	panic("ClearCache may not be called in a transaction store")
-}
-
 // XXX: we should block Go2GnoType, because it uses a global cache map;
 // but it's called during preprocess and thus breaks some testing code.
 // let's wait until we remove Go2Gno entirely.
@@ -185,10 +176,6 @@ func (transactionStore) ClearCache() {
 
 func (transactionStore) SetNativeStore(ns NativeStore) {
 	panic("SetNativeStore may not be called in a transaction store")
-}
-
-func (transactionStore) SetStrictGo2GnoMapping(strict bool) {
-	panic("SetStrictGo2GnoMapping may not be called in a transaction store")
 }
 
 // CopyCachesFromStore allows to copy a store's internal object, type and
@@ -498,8 +485,7 @@ func (ds *defaultStore) SetCacheType(tt Type) {
 	tid := tt.TypeID()
 	if tt2, exists := ds.cacheTypes.Get(tid); exists {
 		if tt != tt2 {
-			// NOTE: not sure why this would happen.
-			panic("should not happen")
+			panic(fmt.Sprintf("cannot re-register %q with different type", tid))
 		} else {
 			// already set.
 		}
@@ -611,7 +597,7 @@ func (ds *defaultStore) incGetPackageIndexCounter() uint64 {
 	}
 }
 
-func (ds *defaultStore) AddMemPackage(memPkg *std.MemPackage) {
+func (ds *defaultStore) AddMemPackage(memPkg *gnovm.MemPackage) {
 	memPkg.Validate() // NOTE: duplicate validation.
 	ctr := ds.incGetPackageIndexCounter()
 	idxkey := []byte(backendPackageIndexKey(ctr))
@@ -623,11 +609,11 @@ func (ds *defaultStore) AddMemPackage(memPkg *std.MemPackage) {
 
 // GetMemPackage retrieves the MemPackage at the given path.
 // It returns nil if the package could not be found.
-func (ds *defaultStore) GetMemPackage(path string) *std.MemPackage {
+func (ds *defaultStore) GetMemPackage(path string) *gnovm.MemPackage {
 	return ds.getMemPackage(path, false)
 }
 
-func (ds *defaultStore) getMemPackage(path string, isRetry bool) *std.MemPackage {
+func (ds *defaultStore) getMemPackage(path string, isRetry bool) *gnovm.MemPackage {
 	pathkey := []byte(backendPackagePathKey(path))
 	bz := ds.iavlStore.Get(pathkey)
 	if bz == nil {
@@ -644,7 +630,7 @@ func (ds *defaultStore) getMemPackage(path string, isRetry bool) *std.MemPackage
 		return nil
 	}
 
-	var memPkg *std.MemPackage
+	var memPkg *gnovm.MemPackage
 	amino.MustUnmarshal(bz, &memPkg)
 	return memPkg
 }
@@ -652,7 +638,7 @@ func (ds *defaultStore) getMemPackage(path string, isRetry bool) *std.MemPackage
 // GetMemFile retrieves the MemFile with the given name, contained in the
 // MemPackage at the given path. It returns nil if the file or the package
 // do not exist.
-func (ds *defaultStore) GetMemFile(path string, name string) *std.MemFile {
+func (ds *defaultStore) GetMemFile(path string, name string) *gnovm.MemFile {
 	memPkg := ds.GetMemPackage(path)
 	if memPkg == nil {
 		return nil
@@ -661,7 +647,7 @@ func (ds *defaultStore) GetMemFile(path string, name string) *std.MemFile {
 	return memFile
 }
 
-func (ds *defaultStore) IterMemPackage() <-chan *std.MemPackage {
+func (ds *defaultStore) IterMemPackage() <-chan *gnovm.MemPackage {
 	ctrkey := []byte(backendPackageIndexCtrKey())
 	ctrbz := ds.baseStore.Get(ctrkey)
 	if ctrbz == nil {
@@ -671,7 +657,7 @@ func (ds *defaultStore) IterMemPackage() <-chan *std.MemPackage {
 		if err != nil {
 			panic(err)
 		}
-		ch := make(chan *std.MemPackage, 0)
+		ch := make(chan *gnovm.MemPackage, 0)
 		go func() {
 			for i := uint64(1); i <= uint64(ctr); i++ {
 				idxkey := []byte(backendPackageIndexKey(i))
@@ -776,15 +762,6 @@ func (ds *defaultStore) SprintStoreOps() string {
 func (ds *defaultStore) LogSwitchRealm(rlmpath string) {
 	ds.opslog = append(ds.opslog,
 		StoreOp{Type: StoreOpSwitchRealm, RlmPath: rlmpath})
-}
-
-func (ds *defaultStore) ClearCache() {
-	ds.cacheObjects = make(map[ObjectID]Object)
-	ds.cacheTypes = txlog.GoMap[TypeID, Type](map[TypeID]Type{})
-	ds.cacheNodes = txlog.GoMap[Location, BlockNode](map[Location]BlockNode{})
-	ds.cacheNativeTypes = make(map[reflect.Type]Type)
-	// restore builtin types to cache.
-	InitStoreCaches(ds)
 }
 
 // for debugging

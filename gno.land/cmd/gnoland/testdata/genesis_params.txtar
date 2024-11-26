@@ -1,0 +1,14 @@
+# test for https://github.com/gnolang/gno/pull/3003
+
+gnoland start
+
+gnokey query params/vm/gno.land/r/sys/params.test.foo.string
+stdout 'data: "bar"$'
+gnokey query params/vm/gno.land/r/sys/params.test.foo.int64
+stdout 'data: "-1337"'
+gnokey query params/vm/gno.land/r/sys/params.test.foo.uint64
+stdout 'data: "42"'
+gnokey query params/vm/gno.land/r/sys/params.test.foo.bool
+stdout 'data: true'
+# XXX: bytes
+
