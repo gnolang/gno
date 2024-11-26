@@ -61,6 +61,7 @@ FROM base as gnocontribs
 
 COPY     ./gnobro              /usr/bin/gnobro
 COPY     ./gnogenesis          /usr/bin/gnogenesis
-COPY     ./examples            /gnoroot/examples/
+# COPY     ./examples            /gnoroot/examples/
+# Extrafiles...
 
 ENTRYPOINT [ "/bin/sh", "-c" ]
