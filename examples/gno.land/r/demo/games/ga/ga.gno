@@ -1,8 +1,9 @@
 package ga
 
 import (
-	"gno.land/p/demo/entropy"
 	"math"
+
+	"gno.land/p/demo/entropy"
 )
 
 // Individual represents a single solution in the population
