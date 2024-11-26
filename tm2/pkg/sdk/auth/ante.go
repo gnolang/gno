@@ -18,7 +18,6 @@ import (
 var (
 	// simulation signature values used to estimate gas consumption
 	simSecp256k1Pubkey secp256k1.PubKeySecp256k1
-	simSecp256k1Sig    [64]byte
 )
 
 func init() {
