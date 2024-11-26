@@ -65,13 +65,13 @@ type Machine struct {
 	Debugger Debugger
 
 	// Configuration
-	CheckTypes bool // not yet used
-	ReadOnly   bool
-	MaxCycles  int64
-	Output     io.Writer
-	Store      Store
-	Context    interface{}
-	GasMeter   store.GasMeter
+	PreprocessorMode bool // this is used as a flag when const values are evaluated during preprocessing
+	ReadOnly         bool
+	MaxCycles        int64
+	Output           io.Writer
+	Store            Store
+	Context          interface{}
+	GasMeter         store.GasMeter
 	// PanicScope is incremented each time a panic occurs and is reset to
 	// zero when it is recovered.
 	PanicScope uint
@@ -101,18 +101,18 @@ func NewMachine(pkgPath string, store Store) *Machine {
 // MachineOptions is used to pass options to [NewMachineWithOptions].
 type MachineOptions struct {
 	// Active package of the given machine; must be set before execution.
-	PkgPath       string
-	CheckTypes    bool // not yet used
-	ReadOnly      bool
-	Debug         bool
-	Input         io.Reader // used for default debugger input only
-	Output        io.Writer // default os.Stdout
-	Store         Store     // default NewStore(Alloc, nil, nil)
-	Context       interface{}
-	Alloc         *Allocator // or see MaxAllocBytes.
-	MaxAllocBytes int64      // or 0 for no limit.
-	MaxCycles     int64      // or 0 for no limit.
-	GasMeter      store.GasMeter
+	PkgPath          string
+	PreprocessorMode bool
+	ReadOnly         bool
+	Debug            bool
+	Input            io.Reader // used for default debugger input only
+	Output           io.Writer // default os.Stdout
+	Store            Store     // default NewStore(Alloc, nil, nil)
+	Context          interface{}
+	Alloc            *Allocator // or see MaxAllocBytes.
+	MaxAllocBytes    int64      // or 0 for no limit.
+	MaxCycles        int64      // or 0 for no limit.
+	GasMeter         store.GasMeter
 }
 
 // the machine constructor gets spammed
@@ -134,7 +134,7 @@ var machinePool = sync.Pool{
 // Machines initialized through this constructor must be finalized with
 // [Machine.Release].
 func NewMachineWithOptions(opts MachineOptions) *Machine {
-	checkTypes := opts.CheckTypes
+	preprocessorMode := opts.PreprocessorMode
 	readOnly := opts.ReadOnly
 	maxCycles := opts.MaxCycles
 	vmGasMeter := opts.GasMeter
@@ -167,7 +167,7 @@ func NewMachineWithOptions(opts MachineOptions) *Machine {
 	mm := machinePool.Get().(*Machine)
 	mm.Package = pv
 	mm.Alloc = alloc
-	mm.CheckTypes = checkTypes
+	mm.PreprocessorMode = preprocessorMode
 	mm.ReadOnly = readOnly
 	mm.MaxCycles = maxCycles
 	mm.Output = output
@@ -2094,7 +2094,7 @@ func (m *Machine) String() string {
 	var builder strings.Builder
 	builder.Grow(totalLength)
 
-	builder.WriteString(fmt.Sprintf("Machine:\n    CheckTypes: %v\n    Op: %v\n    Values: (len: %d)\n", m.CheckTypes, m.Ops[:m.NumOps], m.NumValues))
+	builder.WriteString(fmt.Sprintf("Machine:\n    PreprocessorMode: %v\n    Op: %v\n    Values: (len: %d)\n", m.PreprocessorMode, m.Ops[:m.NumOps], m.NumValues))
 
 	for i := m.NumValues - 1; i >= 0; i-- {
 		builder.WriteString(fmt.Sprintf("          #%d %v\n", i, m.Values[i]))
