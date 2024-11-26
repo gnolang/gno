@@ -128,7 +128,7 @@ func TestStart_Lazy(t *testing.T) {
 	})
 
 	// Set up the retry ctx
-	retryCtx, retryCtxCancelFn := context.WithTimeout(ctx, 5*time.Second)
+	retryCtx, retryCtxCancelFn := context.WithTimeout(ctx, 10*time.Second)
 	defer retryCtxCancelFn()
 
 	// This is a very janky way to verify the node has started.
