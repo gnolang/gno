@@ -7,11 +7,11 @@ import (
 	"gno.land/p/demo/boards2/admindao"
 )
 
-// Default minimum fee in ugnot required for anonymous users
-const defaultAnonymousFee = 100_000_000
+// Default board creation fee in ugnot required for anonymous users
+const defaultAnonymousFee = 20 * 1_000_000
 
 var (
-	gAuth         Permissioner
+	gPerm         Permissioner
 	gLastBoardID  BoardID
 	gBoardsByID   avl.Tree // string(id) -> *Board
 	gBoardsByName avl.Tree // string(name) -> *Board
@@ -22,7 +22,7 @@ func init() {
 	admin := std.Address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5") // @test1
 	// TODO: Implement support for assigning a new realm DAO
 	dao := admindao.New(admindao.WithMember(admin))
-	gAuth = NewACL(
+	gPerm = NewACL(
 		dao,
 		WithSuperRole(RoleOwner),
 		// TODO: Assign roles and permissions

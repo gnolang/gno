@@ -23,14 +23,12 @@ func CreateBoard(name string) BoardID {
 		panic("board name is empty")
 	}
 
-	// TODO: Now that registered user requirement is removed must define a way to avoid
-	// increasing the IDs. Require a fee?
-	// Or we have to change the way boards are created, which could be async.
-
 	caller := std.GetOrigCaller()
+	assertAnonymousCallerFeeReceived(caller)
+
 	id := incGetBoardID()
 	args := Args{name, id}
-	gAuth.WithPermission(caller, PermissionBoardCreate, args, func(a Args) {
+	gPerm.WithPermission(caller, PermissionBoardCreate, args, func(a Args) {
 		// TODO: Do the callback really need the args or we could have the same result directly referencing?
 		name := a[0].(string)
 		id := a[1].(BoardID)
@@ -44,12 +42,10 @@ func CreateBoard(name string) BoardID {
 func CreateThread(bid BoardID, title, body string) PostID {
 	assertIsUserCall()
 
+	// TODO: Assert that caller is a board member (when board type is invite only)
 	caller := std.GetOrigCaller()
 	assertHasPermission(caller, PermissionThreadCreate) // TODO: Who can create threads?
-	assertAnonymousCallerFeeReceived(caller)            // TODO: Do we require a fee to anonymous users?
 	assertBoardExists(bid)
-
-	// TODO: Assert that caller is a board member (when board type is invite only)
 
 	board := mustGetBoard(bid)
 	thread := board.AddThread(caller, title, body)
@@ -59,9 +55,8 @@ func CreateThread(bid BoardID, title, body string) PostID {
 func CreateReply(bid BoardID, threadID, replyID PostID, body string) PostID {
 	assertIsUserCall()
 
+	// TODO: Assert that caller is a board member (when board type is invite only)
 	caller := std.GetOrigCaller()
-	assertAnonymousCallerFeeReceived(caller) // TODO: Do we require a fee to anonymous users?
-
 	board := mustGetBoard(bid)
 	thread := mustGetThread(board, threadID)
 
@@ -83,8 +78,8 @@ func CreateReply(bid BoardID, threadID, replyID PostID, body string) PostID {
 func CreateRepost(bid BoardID, threadID PostID, title, body string, dstBoardID BoardID) PostID {
 	assertIsUserCall()
 
+	// TODO: Assert that caller is a board member (when board type is invite only)
 	caller := std.GetOrigCaller()
-	assertAnonymousCallerFeeReceived(caller)
 	assertBoardExists(dstBoardID)
 
 	board := mustGetBoard(bid)
@@ -111,7 +106,7 @@ func DeleteThread(bid BoardID, threadID PostID) {
 
 	caller := std.GetOrigCaller()
 	args := Args{bid, threadID}
-	gAuth.WithPermission(caller, PermissionThreadDelete, args, func(a Args) {
+	gPerm.WithPermission(caller, PermissionThreadDelete, args, func(a Args) {
 		bid := a[0].(BoardID)
 		board := mustGetBoard(bid)
 
@@ -132,7 +127,7 @@ func DeleteReply(bid BoardID, threadID, replyID PostID) {
 
 	caller := std.GetOrigCaller()
 	args := Args{bid, threadID, replyID}
-	gAuth.WithPermission(caller, PermissionReplyDelete, args, func(a Args) {
+	gPerm.WithPermission(caller, PermissionReplyDelete, args, func(a Args) {
 		bid := a[0].(BoardID)
 		board := mustGetBoard(bid)
 
@@ -152,7 +147,7 @@ func EditThread(bid BoardID, threadID PostID, title, body string) {
 
 	caller := std.GetOrigCaller()
 	args := Args{bid, threadID, title, body}
-	gAuth.WithPermission(caller, PermissionThreadEdit, args, func(a Args) {
+	gPerm.WithPermission(caller, PermissionThreadEdit, args, func(a Args) {
 		bid := a[0].(BoardID)
 		board := mustGetBoard(bid)
 
@@ -186,22 +181,18 @@ func assertIsUserCall() {
 	}
 }
 
-func assertAnonymousFeeReceived() {
-	sent := std.GetOrigSend()
-	fee := std.NewCoin("ugnot", int64(defaultAnonymousFee))
-	if len(sent) == 0 || sent[0].IsLT(fee) {
-		panic("please register a user, otherwise a minimum fee of " + fee.String() + " is required")
-	}
-}
-
 func assertAnonymousCallerFeeReceived(caller std.Address) {
 	if users.GetUserByAddress(caller) == nil {
-		assertAnonymousFeeReceived()
+		sent := std.GetOrigSend()
+		fee := std.NewCoin("ugnot", int64(defaultAnonymousFee))
+		if len(sent) == 0 || sent[0].IsLT(fee) {
+			panic("please register a user, otherwise a minimum fee of " + fee.String() + " is required")
+		}
 	}
 }
 
 func assertHasPermission(user std.Address, p Permission) {
-	if !gAuth.HasPermission(user, p) {
+	if !gPerm.HasPermission(user, p) {
 		panic("unauthorized")
 	}
 }
