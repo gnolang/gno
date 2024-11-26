@@ -724,4 +724,4 @@ nightly:
 
 git:
   ignore_tag_prefixes:
-    - "chain/
+    - "chain/"
