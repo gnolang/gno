@@ -80,6 +80,10 @@ func (dp DefaultPermissions) HasRole(user std.Address, r Role) bool {
 func (dp DefaultPermissions) HasPermission(user std.Address, perm Permission) bool {
 	// TODO: Should we check that the user belongs to the DAO?
 	for _, r := range dp.GetUserRoles(user) {
+		if dp.superRole == r {
+			return true
+		}
+
 		v, found := dp.roles.Get(string(r))
 		if !found {
 			continue
@@ -119,17 +123,17 @@ func (dp DefaultPermissions) WithPermission(user std.Address, perm Permission, a
 
 func createDefaultPermissions() *DefaultPermissions {
 	// TODO: Define and change the default realm owner (or owners)
-	admin := std.Address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5") // @test1
+	owner := std.Address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5") // @test1
 	// TODO: DAO should be a different realm or proposal and voting functions should be part of boards realm?
 	//       Permissions and DAO mechanics should be discussed and improved. Add `GetDAO()` to `Permissioner`??
-	dao := admindao.New(admindao.WithMember(admin))
+	dao := admindao.New(admindao.WithMember(owner))
 	perms := NewDefaultPermissions(
 		dao,
 		WithSuperRole(RoleOwner),
 		WithRole(RoleAdmin, PermissionBoardCreate),
 		// TODO: Finish assigning all roles and permissions
 		// WithRole(RoleModerator, permissions...),
-		WithUser(admin, RoleOwner),
+		WithUser(owner, RoleOwner),
 	)
 
 	perms.HandleFunc(PermissionBoardCreate, handleBoardCreate)
