@@ -66,8 +66,8 @@ func DelFromWhitelist(addr std.Address) error {
 	return nil
 }
 
-// AdminUpdateVerifyCall updates the method that verifies the namespace.
-func AdminUpdateVerifyCall(check VerifyNameFunc) error {
+// UpdateVerifyCall updates the method that verifies the namespace.
+func UpdateVerifyCall(check VerifyNameFunc) error {
 	if err := admin.CallerIsOwner(); err != nil {
 		return err
 	}

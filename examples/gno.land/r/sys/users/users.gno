@@ -35,13 +35,13 @@ func ResolveAddress(addr std.Address) *pusers.User {
 
 // ResolveAddressOrName
 // Note: unlike ResolveUsername, input must be "@" prefixed for names.
-func ResolveAddressOrName(input pusers.AddressOrName) *pusers.User {
-	name, isName := input.GetName()
+func ResolveAddressOrName(aon pusers.AddressOrName) *pusers.User {
+	name, isName := aon.Name()
 	if isName {
 		return ResolveUsername(name)
 	}
 
-	return ResolveAddress(std.Address(input))
+	return ResolveAddress(std.Address(aon))
 }
 
 // Users returns a paginated list of users
@@ -78,7 +78,7 @@ func UpdateBio(bio string) error {
 		return ErrNotRegistered
 	}
 
-	u.Profile = bio
+	u.Bio = bio
 	uStore.Set(u.Name, u)
 
 	return nil
