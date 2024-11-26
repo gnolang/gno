@@ -113,7 +113,7 @@ type Object interface {
 	SetIsDeleted(bool, uint64)
 	GetIsNewReal() bool
 	SetIsNewReal(bool)
-	GetLastNewEscapedRealm() PkgID // XXX, does escape imply this?
+	GetLastNewEscapedRealm() PkgID
 	SetLastNewEscapedRealm(pkgID PkgID)
 	GetIsNewEscaped() bool
 	SetIsNewEscaped(bool)
@@ -208,9 +208,6 @@ func (oi *ObjectInfo) MustGetObjectID() ObjectID {
 
 func (oi *ObjectInfo) SetObjectID(oid ObjectID) {
 	oi.ID = oid
-}
-func (oi *ObjectInfo) SetLastEscapedRealm(pkgId PkgID) {
-	oi.lastNewRealEscapedRealm = pkgId
 }
 
 func (oi *ObjectInfo) GetHash() ValueHash {
@@ -381,15 +378,12 @@ func (tv *TypedValue) GetFirstObject(store Store) Object {
 	}
 }
 
-// XXX, get first accessible object, maybe containing(parent) object, maybe itself.
+// also get pkgId of the object, so it's clear where the object is from
 func (tv *TypedValue) GetFirstObject2(store Store) (obj Object, pkgId PkgID) {
 	fmt.Println("---GetFirstObject2---, tv: ", tv, reflect.TypeOf(tv.V))
 	// general case
 	if dt, ok := tv.T.(*DeclaredType); ok {
-		//fmt.Println("---dt: ", dt)
-		//fmt.Println("---dt.Name: ", dt.Name)
-		//fmt.Println("---dt.PkgPath: ", dt.PkgPath)
-		//fmt.Println("---PkgID: ", PkgIDFromPkgPath(dt.PkgPath))
+		fmt.Printf("---dt: %v\n", dt)
 		if IsRealmPath(dt.PkgPath) {
 			pkgId = PkgIDFromPkgPath(dt.PkgPath)
 		}
@@ -397,8 +391,9 @@ func (tv *TypedValue) GetFirstObject2(store Store) (obj Object, pkgId PkgID) {
 
 	// get first object
 	obj = tv.GetFirstObject(store)
-
 	fmt.Println("---obj: ", obj)
+
+	// get actual pkgId
 	switch cv := tv.V.(type) {
 	case PointerValue:
 		println("---pointer value")

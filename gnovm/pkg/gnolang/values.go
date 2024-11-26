@@ -193,17 +193,14 @@ const (
 )
 
 func (pv *PointerValue) GetBase(store Store) Object {
-	fmt.Printf("GetBase, pv.Base: %v\n", pv.Base)
 	switch cbase := pv.Base.(type) {
 	case nil:
 		return nil
 	case RefValue:
-		println("---RefValue")
 		base := store.GetObject(cbase.ObjectID).(Object)
 		pv.Base = base
 		return base
 	case Object:
-		fmt.Println("---Object, cbase: ", cbase)
 		return cbase
 	default:
 		panic(fmt.Sprintf("unexpected pointer base type %T", cbase))
@@ -214,9 +211,6 @@ func (pv *PointerValue) GetBase(store Store) Object {
 // TODO: document as something that enables into-native assignment.
 // TODO: maybe consider this as entrypoint for DataByteValue too?
 func (pv PointerValue) Assign2(alloc *Allocator, store Store, rlm *Realm, tv2 TypedValue, cu bool) {
-	//fmt.Println("---Assign2, pv: ", pv)
-	//fmt.Println("---Assign2, tv2: ", tv2)
-	//fmt.Println("---Assign2, realm: ", rlm)
 	// Special cases.
 	if pv.Index == PointerIndexNative {
 		// Special case if extended object && native.
@@ -379,7 +373,6 @@ func (av *ArrayValue) GetLength() int {
 
 // et is only required for .List byte-arrays.
 func (av *ArrayValue) GetPointerAtIndexInt2(store Store, ii int, et Type) PointerValue {
-	fmt.Println("----av, GetPointerAtIndexInt2: ", av)
 	if av.Data == nil {
 		ev := fillValueTV(store, &av.List[ii]) // by reference
 		return PointerValue{
@@ -431,17 +424,14 @@ type SliceValue struct {
 }
 
 func (sv *SliceValue) GetBase(store Store) *ArrayValue {
-	fmt.Println("---GetBase")
 	switch cv := sv.Base.(type) {
 	case nil:
 		return nil
 	case RefValue:
-		fmt.Println("---RefValue, cv.ObjectID: ", cv.ObjectID)
 		array := store.GetObject(cv.ObjectID).(*ArrayValue)
 		sv.Base = array
 		return array
 	case *ArrayValue:
-		println("---ArrayValue")
 		return cv
 	default:
 		panic("should not happen")
@@ -458,7 +448,6 @@ func (sv *SliceValue) GetLength() int {
 
 // et is only required for .List byte-slices.
 func (sv *SliceValue) GetPointerAtIndexInt2(store Store, ii int, et Type) PointerValue {
-	fmt.Println("---sv, GetPointerAtIndexInt2: ", sv)
 	// Necessary run-time slice bounds check
 	if ii < 0 {
 		panic(fmt.Sprintf(
@@ -481,7 +470,6 @@ type StructValue struct {
 
 // TODO handle unexported fields in debug, and also ensure in the preprocessor.
 func (sv *StructValue) GetPointerTo(store Store, path ValuePath) PointerValue {
-	fmt.Println("---sv GetPointerTo: ", sv)
 	if debug {
 		if path.Depth != 0 {
 			panic(fmt.Sprintf(
@@ -493,8 +481,6 @@ func (sv *StructValue) GetPointerTo(store Store, path ValuePath) PointerValue {
 }
 
 func (sv *StructValue) GetPointerToInt(store Store, index int) PointerValue {
-	fmt.Println("---sv, GetPointerToInt: ", sv)
-	fmt.Println("---index: ", index)
 	fv := fillValueTV(store, &sv.Fields[index])
 	return PointerValue{
 		TV:    fv,
@@ -1073,7 +1059,6 @@ func (tv TypedValue) Copy(alloc *Allocator) (cp TypedValue) {
 		cp.T = tv.T
 		cp.V = cv.Copy(alloc)
 	default:
-		//println("---default")
 		cp = tv
 	}
 	return
@@ -1712,8 +1697,6 @@ func (tv *TypedValue) ComputeMapKey(store Store, omitType bool) MapKey {
 // cu: convert untyped after assignment. pass false
 // for const definitions, but true for all else.
 func (tv *TypedValue) Assign(alloc *Allocator, tv2 TypedValue, cu bool) {
-	//fmt.Println("---Assign, tv: ", tv)
-	//fmt.Println("---Assign, tv2: ", tv2, reflect.TypeOf(tv2))
 	if debug {
 		if tv.T == DataByteType {
 			// assignment to data byte types should only
@@ -1738,7 +1721,6 @@ func (tv *TypedValue) Assign(alloc *Allocator, tv2 TypedValue, cu bool) {
 // allocated, *Allocator.AllocatePointer() is called separately,
 // as in OpRef.
 func (tv *TypedValue) GetPointerTo(alloc *Allocator, store Store, path ValuePath) PointerValue {
-	//fmt.Println("---GetPointerTo, tv: ", tv)
 	if debug {
 		if tv.IsUndefined() {
 			panic("GetPointerTo() on undefined value")
@@ -1836,7 +1818,6 @@ func (tv *TypedValue) GetPointerTo(alloc *Allocator, store Store, path ValuePath
 		fillValueTV(store, dtv)
 	}
 
-	//fmt.Println("---2, path.Type: ", path.Type)
 	switch path.Type {
 	case VPBlock:
 		switch dtv.T.(type) {
@@ -1849,12 +1830,8 @@ func (tv *TypedValue) GetPointerTo(alloc *Allocator, store Store, path ValuePath
 	case VPField:
 		switch baseOf(dtv.T).(type) {
 		case *StructType:
-			//println("---StructType")
-			//fmt.Println("---dtv: ", dtv)
-			//fmt.Println("---return pointer of dtv: ", dtv.V.(*StructValue).GetPointerTo(store, path))
 			return dtv.V.(*StructValue).GetPointerTo(store, path)
 		case *TypeType:
-			//println("---TypeType")
 			switch t := dtv.V.(TypeValue).Type.(type) {
 			case *PointerType:
 				dt := t.Elt.(*DeclaredType)
@@ -1910,13 +1887,7 @@ func (tv *TypedValue) GetPointerTo(alloc *Allocator, store Store, path ValuePath
 				panic("should not happen")
 			}
 		}
-		//fmt.Println("---dtv: ", dtv)
-		//fmt.Printf("---dtv addr: %p\n", dtv)
 		dtv2 := dtv.Copy(alloc)
-
-		//fmt.Println("---dtv2: ", dtv2)
-		//fmt.Printf("---dtv2 addr: %p\n", dtv2)
-
 		alloc.AllocateBoundMethod()
 		bmv := &BoundMethodValue{
 			Func:     mv,
@@ -2071,7 +2042,6 @@ func (tv *TypedValue) GetPointerAtIndexInt(store Store, ii int) PointerValue {
 }
 
 func (tv *TypedValue) GetPointerAtIndex(alloc *Allocator, store Store, iv *TypedValue) PointerValue {
-	//fmt.Println("---tv, GetPointerAtIndex: ", tv)
 	switch bt := baseOf(tv.T).(type) {
 	case PrimitiveType:
 		if bt == StringType || bt == UntypedStringType {
@@ -2493,9 +2463,7 @@ func (b *Block) GetPointerToInt(store Store, index int) PointerValue {
 }
 
 func (b *Block) GetPointerTo(store Store, path ValuePath) PointerValue {
-	//fmt.Println("---GetPointerTo, path: ", path)
 	if path.IsBlockBlankPath() {
-		//println("---isBlockBlankPath")
 		if debug {
 			if path.Name != blankIdentifier {
 				panic(fmt.Sprintf(

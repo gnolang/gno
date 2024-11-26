@@ -219,6 +219,11 @@ func (rlm *Realm) DidUpdate2(store Store, po, xo, co Object, refValue Value) {
 		return // do nothing.
 	}
 
+	fmt.Println("---po.GetObjectID().PkgID: ", po.GetObjectID().PkgID)
+	if po.GetObjectID().PkgID != rlm.ID {
+		panic("cannot modify external-realm or non-realm object")
+	}
+
 	// XXX check if this boosts performance
 	// XXX with broad integration benchmarking.
 	// XXX if co == xo {
@@ -891,26 +896,18 @@ func (rlm *Realm) markDirtyAncestors(store Store) {
 
 // Saves .created and .updated objects.
 func (rlm *Realm) saveUnsavedObjects(store Store) {
-	//fmt.Println("---saveUnsavedObjects, new created, new updated---")
-	//fmt.Println("---len of new created: ", len(rlm.created))
-	//fmt.Println("---len of new updated: ", len(rlm.updated))
 	for _, co := range rlm.created {
-		//fmt.Println("------saveUnsavedObject, co: ", co)
 		// for i := len(rlm.created) - 1; i >= 0; i-- {
 		// co := rlm.created[i]
 		if !co.GetIsNewReal() {
-			//println("---not new real")
 			// might have happened already as child
 			// of something else created.
 			continue
 		} else {
-			//println("---new real")
 			rlm.saveUnsavedObjectRecursively(store, co)
 		}
 	}
 	for _, uo := range rlm.updated {
-		//fmt.Println("---uo: ", uo)
-
 		// uo := rlm.updated[i]
 		if !uo.GetIsDirty() {
 			// might have happened already as child
@@ -924,7 +921,6 @@ func (rlm *Realm) saveUnsavedObjects(store Store) {
 
 // store unsaved children first.
 func (rlm *Realm) saveUnsavedObjectRecursively(store Store, oo Object) {
-	//fmt.Println("---saveUnsavedObjectRecursively, oo: ", oo)
 	if debug {
 		if !oo.GetIsNewReal() && !oo.GetIsDirty() {
 			panic("cannot save new real or non-dirty objects")
@@ -943,14 +939,8 @@ func (rlm *Realm) saveUnsavedObjectRecursively(store Store, oo Object) {
 	}
 	// first, save unsaved children.
 	unsaved := getUnsavedChildObjects(oo)
-	//fmt.Println("---unsaved: ", unsaved)
 	for _, uch := range unsaved {
-		//fmt.Println("---uch: ", uch)
-		//fmt.Println("---uch.GetOwnerID(): ", uch.GetOwnerID())
-		//fmt.Println("---uch.GetRefCount(): ", uch.GetRefCount())
-		//fmt.Println("---type of uch: ", reflect.TypeOf(uch))
 		if uch.GetIsEscaped() || uch.GetIsNewEscaped() {
-			//fmt.Println("---uch is escaped or new escaped")
 			// no need to save preemptively.
 		} else {
 			rlm.saveUnsavedObjectRecursively(store, uch)
@@ -958,7 +948,6 @@ func (rlm *Realm) saveUnsavedObjectRecursively(store Store, oo Object) {
 	}
 	// then, save self.
 	if oo.GetIsNewReal() {
-		//fmt.Println("---oo is new real: ", oo)
 		// save created object.
 		if debug {
 			if oo.GetIsDirty() {
@@ -968,7 +957,6 @@ func (rlm *Realm) saveUnsavedObjectRecursively(store Store, oo Object) {
 		rlm.saveObject(store, oo)
 		oo.SetIsNewReal(false)
 	} else {
-		//fmt.Println("---oo is not new real, update it: ", oo)
 		// update existing object.
 		if debug {
 			if !oo.GetIsDirty() {
@@ -1012,7 +1000,6 @@ func (rlm *Realm) saveObject(store Store, oo Object) {
 // removeDeletedObjects
 
 func (rlm *Realm) removeDeletedObjects(store Store) {
-	//fmt.Println("---removeDeletedObjects---")
 	for _, do := range rlm.deleted {
 		store.DelObject(do)
 	}
@@ -1057,12 +1044,9 @@ func (rlm *Realm) clearMarks() {
 // Value is either Object or RefValue.
 // Shallow; doesn't recurse into objects.
 func getSelfOrChildObjects(val Value, more []Value) []Value {
-	//fmt.Println("---getSelfOrChildObjects, val: ", val)
 	if _, ok := val.(RefValue); ok {
-		//println("---ref value")
 		return append(more, val)
 	} else if _, ok := val.(Object); ok {
-		//println("---not ref value")
 		return append(more, val)
 	} else {
 		return getChildObjects(val, more)
@@ -1072,7 +1056,6 @@ func getSelfOrChildObjects(val Value, more []Value) []Value {
 // Gets child objects.
 // Shallow; doesn't recurse into objects.
 func getChildObjects(val Value, more []Value) []Value {
-	//fmt.Println("---getChildObjects, val: ", val, reflect.TypeOf(val))
 	switch cv := val.(type) {
 	case nil:
 		return more
@@ -1099,10 +1082,8 @@ func getChildObjects(val Value, more []Value) []Value {
 		more = getSelfOrChildObjects(cv.Base, more)
 		return more
 	case *StructValue:
-		//println("---struct value")
 		for _, ctv := range cv.Fields {
 			// TODO: we have type infos here, so check check cross realm logic
-			//fmt.Println("---ctv: ", ctv)
 			more = getSelfOrChildObjects(ctv.V, more)
 		}
 		return more
@@ -1152,17 +1133,13 @@ func getChildObjects(val Value, more []Value) []Value {
 
 // like getChildObjects() but loads RefValues into objects.
 func getChildObjects2(store Store, val Value) []Object {
-	//fmt.Println("---getChildObjects2, val: ", val)
 	chos := getChildObjects(val, nil)
-	//fmt.Println("---chos: ", chos)
 	objs := make([]Object, 0, len(chos))
 	for _, child := range chos {
 		if ref, ok := child.(RefValue); ok {
-			//println("---ref value")
 			oo := store.GetObject(ref.ObjectID)
 			objs = append(objs, oo)
 		} else if oo, ok := child.(Object); ok {
-			//println("---not ref value")
 			objs = append(objs, oo)
 		}
 	}

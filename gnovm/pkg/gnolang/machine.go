@@ -212,7 +212,6 @@ func (m *Machine) Release() {
 
 // Convenience for initial setup of the machine.
 func (m *Machine) SetActivePackage(pv *PackageValue) {
-	//fmt.Println("---SetActivePackage, pv: ", pv)
 	if err := m.CheckEmpty(); err != nil {
 		panic(errors.Wrap(err, "set package when machine not empty"))
 	}
@@ -286,9 +285,6 @@ func (m *Machine) RunMemPackageWithOverrides(memPkg *std.MemPackage, save bool) 
 }
 
 func (m *Machine) runMemPackage(memPkg *std.MemPackage, save, overrides bool) (*PackageNode, *PackageValue) {
-	//fmt.Println("---runMemPackage, save: ", save)
-	//fmt.Println("---runMemPackage, memPkg: ", memPkg)
-	//defer func() { fmt.Println("---done runMemPackage: ", memPkg) }()
 	// parse files.
 	files := ParseMemPackage(memPkg)
 	if !overrides && checkDuplicates(files) {
@@ -310,7 +306,6 @@ func (m *Machine) runMemPackage(memPkg *std.MemPackage, save, overrides bool) (*
 	m.SetActivePackage(pv)
 	// run files.
 	updates := m.RunFileDecls(files.Files...)
-	//fmt.Println("---updates: ", updates)
 	// save package value and mempackage.
 	// XXX save condition will be removed once gonative is removed.
 	var throwaway *Realm
@@ -734,14 +729,12 @@ func (m *Machine) runFileDecls(fns ...*FileNode) []TypedValue {
 // lexical file name order to a compiler."
 func (m *Machine) runInitFromUpdates(pv *PackageValue, updates []TypedValue) {
 	for _, tv := range updates {
-		//fmt.Println("---runInitFromUpdates, tv: ", tv)
 		if tv.IsDefined() && tv.T.Kind() == FuncKind && tv.V != nil {
 			fv, ok := tv.V.(*FuncValue)
 			if !ok {
 				continue // skip native functions.
 			}
 			if strings.HasPrefix(string(fv.Name), "init.") {
-				//fmt.Println("---fv.Name: ", fv.Name)
 				fb := pv.GetFileBlock(m.Store, fv.FileName)
 				m.PushBlock(fb)
 				m.RunFunc(fv.Name)
@@ -789,7 +782,6 @@ func (m *Machine) saveNewPackageValuesAndTypes() (throwaway *Realm) {
 // Pass in the realm from m.saveNewPackageValuesAndTypes()
 // in case a throwaway was created.
 func (m *Machine) resavePackageValues(rlm *Realm) {
-	//fmt.Println("---resavePackageValues, realm: ", rlm)
 	// save package value and dependencies.
 	pv := m.Package
 	if pv.IsRealm() {
@@ -980,14 +972,12 @@ func (m *Machine) RunDeclaration(d Decl) {
 // package level, for which evaluations happen during
 // preprocessing).
 func (m *Machine) runDeclaration(d Decl) {
-	//fmt.Println("---run declaration, d: ", d)
 	switch d := d.(type) {
 	case *FuncDecl:
 		// nothing to do.
 		// closure and package already set
 		// during PackageNode.NewPackage().
 	case *ValueDecl:
-		//fmt.Println("---valueDecl, d.Type, type of d.Type: ", d.Type, reflect.TypeOf(d.Type))
 		m.PushOp(OpHalt)
 		m.PushStmt(d)
 		m.PushOp(OpExec)
@@ -1858,7 +1848,6 @@ func (m *Machine) PushFrameBasic(s Stmt) {
 // ensure the counts are consistent, otherwise we mask
 // bugs with frame pops.
 func (m *Machine) PushFrameCall(cx *CallExpr, fv *FuncValue, recv TypedValue) {
-	//fmt.Printf("---PushFrameCall---, cx: %v, fv: %v, recv: %v\n", cx, fv, recv)
 	fr := &Frame{
 		Source:      cx,
 		NumOps:      m.NumOps,
@@ -1884,13 +1873,9 @@ func (m *Machine) PushFrameCall(cx *CallExpr, fv *FuncValue, recv TypedValue) {
 		m.Printf("+F %#v\n", fr)
 	}
 	m.Frames = append(m.Frames, fr)
-	//fmt.Println("---recv: ", recv)
 	if recv.IsDefined() {
 		// If the receiver is defined, we enter the receiver's realm.
 		obj := recv.GetFirstObject(m.Store)
-		//fmt.Println("---obj, rt of obj: ", obj, reflect.TypeOf(obj))
-		//fmt.Println("---obj.GetObjectID: ", obj.GetObjectID())
-		//fmt.Printf("---obj addr: %p\n", obj)
 		if obj == nil {
 			// could be a nil receiver.
 			// set package and realm of function.
@@ -1903,16 +1888,7 @@ func (m *Machine) PushFrameCall(cx *CallExpr, fv *FuncValue, recv TypedValue) {
 			recvOID := obj.GetObjectInfo().ID
 			fmt.Println("---recvOID is: ", recvOID)
 			if recvOID.IsZero() {
-				//panic("!!!should not happen!!!")
 				fmt.Println("!!! recvOID is ZERO!!!")
-				// TODO: object reference by external realm must first be attached,
-				// check here...
-				// NOTE: the reference has two types:
-				// 1. if associated with global or child of global, panic;
-				// 2. if associated with un-attached object directly/indirectly, ok,
-				//    when the un-attached object is attached, check if the target
-				// object has been attached(become real), if not, panic.
-
 				fmt.Println("---recv is ZERO, it's not owned, recv: ", recv)
 				fmt.Println("---recv is ZERO, m.realm: ", m.Realm)
 

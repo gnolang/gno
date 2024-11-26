@@ -22,9 +22,6 @@ func (m *Machine) doOpPrecall() {
 		m.PushFrameCall(cx, fv, TypedValue{})
 		m.PushOp(OpCall)
 	case *BoundMethodValue:
-		//fmt.Println("---BoundMethodValue, fv: ", fv)
-		//fmt.Println("---BoundMethodValue, fv.Func: ", fv.Func)
-		//fmt.Println("---BoundMethodValue, fv.Receiver: ", fv.Receiver)
 		m.PushFrameCall(cx, fv.Func, fv.Receiver)
 		m.PushOp(OpCall)
 	case TypeValue:
