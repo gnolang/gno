@@ -70,7 +70,7 @@ func UsersByPrefix(prefix string, maxResults int) []string {
 	return avlhelpers.ListByteStringKeysByPrefix(*uStore, prefix, maxResults)
 }
 
-// UpdateBio allows the caller to change their bio
+// UpdateBio allows the caller to change their bio, if they are registered
 func UpdateBio(bio string) error {
 	caller := std.GetOrigCaller()
 	u := ResolveAddress(caller)
