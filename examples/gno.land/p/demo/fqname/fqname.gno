@@ -4,7 +4,9 @@
 // package-level declaration.
 package fqname
 
-import "strings"
+import (
+	"strings"
+)
 
 // Parse splits a fully qualified identifier into its package path and name
 // components. It handles cases with and without slashes in the package path.
@@ -63,10 +65,13 @@ func RenderLink(pkgPath, slug string) string {
 		if slug != "" {
 			return "[" + pkgPath + "](" + pkgLink + ")." + slug
 		}
+
 		return "[" + pkgPath + "](" + pkgLink + ")"
 	}
+
 	if slug != "" {
 		return pkgPath + "." + slug
 	}
+
 	return pkgPath
 }
