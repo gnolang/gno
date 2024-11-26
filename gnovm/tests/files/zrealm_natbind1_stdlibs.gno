@@ -11,6 +11,3 @@ func main() {
 
 // Output:
 // Etc/UTC
-
-// Realm:
-// switchrealm["gno.land/r/test"]
