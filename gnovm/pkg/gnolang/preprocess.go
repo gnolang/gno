@@ -917,7 +917,7 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 			case *NameExpr:
 				if isBlankIdentifier(n) {
 					switch ftype {
-					case TRANS_ASSIGN_LHS, TRANS_RANGE_KEY, TRANS_RANGE_VALUE, TRANS_VAR_NAME:
+					case TRANS_ASSIGN_LHS, TRANS_RANGE_KEY, TRANS_RANGE_VALUE, TRANS_VAR_NAME, TRANS_FIELDTYPE_TYPE:
 						// can use _ as value or type in these contexts
 					default:
 						panic("cannot use _ as value or type")
@@ -3616,6 +3616,14 @@ func doConvertType(store Store, last BlockNode, x *Expr, t Type) {
 //	case 2: isNamedConversion is called within evaluating make() or new()
 //	(uverse functions). It returns TypType (generic) which does have IsNamed appropriate
 func isNamedConversion(xt, t Type) bool {
+	// nil check to prevent panic from nil pointer dereference
+    // This happens when processing blank identifiers (_) in function parameters
+    // or when types are not fully resolved during preprocessing.
+	//
+	// relative test: gnovm/tests/files/blankidentifier7.gno
+	if xt == nil || t == nil {
+		return false
+	}
 	// no conversion case 1: the LHS is an interface
 
 	_, c1 := t.(*InterfaceType)
