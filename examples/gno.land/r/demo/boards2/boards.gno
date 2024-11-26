@@ -1,15 +1,36 @@
 package boards2
 
-import "gno.land/p/demo/avl"
+import (
+	"std"
+
+	"gno.land/p/demo/avl"
+	"gno.land/p/demo/boards2/admindao"
+)
 
 // Default minimum fee in ugnot required for anonymous users
 const defaultAnonymousFee = 100_000_000
 
 var (
+	gAuth         Permissioner
 	gLastBoardID  BoardID
 	gBoardsByID   avl.Tree // string(id) -> *Board
 	gBoardsByName avl.Tree // string(name) -> *Board
 )
+
+func init() {
+	// TODO: Decide how to initialize realm owner (DAO owner member)
+	admin := std.Address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5") // @test1
+	// TODO: Implement support for assigning a new realm DAO
+	dao := admindao.New(admindao.WithMember(admin))
+	gAuth = NewACL(
+		dao,
+		WithSuperRole(RoleOwner),
+		// TODO: Assign roles and permissions
+		// WithRole(RoleAdmin, permissions...),
+		// WithRole(RoleModerator, permissions...),
+		WithUser(admin, RoleOwner),
+	)
+}
 
 // incGetBoardID returns a new board ID.
 func incGetBoardID() BoardID {

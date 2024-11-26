@@ -77,58 +77,6 @@ func TestBoard_DeleteThread(t *testing.T) {
 	uassert.False(t, ok)
 }
 
-func TestBoard_HasPermission(t *testing.T) {
-	var (
-		alice std.Address = "012345"
-		bob   std.Address = "cafebabe"
-	)
-
-	cases := []struct {
-		label   string
-		creator std.Address
-		actor   std.Address
-		perm    Permission
-		expect  bool
-	}{
-		{
-			label:   "creator should be able to edit board",
-			expect:  true,
-			creator: alice,
-			actor:   alice,
-			perm:    PermissionEdit,
-		},
-		{
-			label:   "creator should be able to delete board",
-			expect:  true,
-			creator: alice,
-			actor:   alice,
-			perm:    PermissionDelete,
-		},
-		{
-			label:   "guest shouldn't be able to edit boards",
-			expect:  false,
-			creator: alice,
-			actor:   bob,
-			perm:    PermissionEdit,
-		},
-		{
-			label:   "guest shouldn't be able to delete boards",
-			expect:  false,
-			creator: alice,
-			actor:   bob,
-			perm:    PermissionDelete,
-		},
-	}
-
-	for i, c := range cases {
-		t.Run(c.label, func(t *testing.T) {
-			b := newBoard(BoardID(i), "test12345", c.creator)
-			got := b.HasPermission(c.actor, c.perm)
-			uassert.Equal(t, c.expect, got)
-		})
-	}
-}
-
 var boardUrlPrefix = strings.TrimPrefix(std.CurrentRealm().PkgPath(), "gno.land")
 
 func TestBoard_GetURLFromThreadID(t *testing.T) {

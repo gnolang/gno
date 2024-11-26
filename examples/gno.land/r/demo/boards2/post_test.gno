@@ -117,12 +117,6 @@ func TestNewThread(t *testing.T) {
 	uassert.Equal(t, replyURL, thread.GetReplyFormURL())
 	uassert.Equal(t, repostURL, thread.GetRepostFormURL())
 	uassert.Equal(t, deleteURL, thread.GetDeleteFormURL())
-	uassert.True(t, thread.HasPermission(creator, PermissionEdit))
-	uassert.True(t, thread.HasPermission(creator, PermissionDelete))
-	uassert.False(t, thread.HasPermission(creator, Permission("unknown")))
-	uassert.False(t, thread.HasPermission(member, PermissionEdit))
-	uassert.False(t, thread.HasPermission(member, PermissionDelete))
-	uassert.False(t, thread.HasPermission(member, Permission("unknown")))
 }
 
 func TestThreadAddReply(t *testing.T) {
@@ -280,12 +274,6 @@ func TestNewReply(t *testing.T) {
 	uassert.Equal(t, url, reply.GetURL())
 	uassert.Equal(t, replyURL, reply.GetReplyFormURL())
 	uassert.Equal(t, deleteURL, reply.GetDeleteFormURL())
-	uassert.True(t, reply.HasPermission(creator, PermissionEdit))
-	uassert.True(t, reply.HasPermission(creator, PermissionDelete))
-	uassert.False(t, reply.HasPermission(creator, Permission("unknown")))
-	uassert.False(t, reply.HasPermission(member, PermissionEdit))
-	uassert.False(t, reply.HasPermission(member, PermissionDelete))
-	uassert.False(t, reply.HasPermission(member, Permission("unknown")))
 }
 
 func TestReplyAddReply(t *testing.T) {

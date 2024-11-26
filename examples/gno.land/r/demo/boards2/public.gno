@@ -2,6 +2,7 @@ package boards2
 
 import (
 	"std"
+	"strings"
 
 	"gno.land/r/demo/users"
 )
@@ -17,21 +18,38 @@ func GetBoardIDFromName(name string) (BoardID, bool) {
 func CreateBoard(name string) BoardID {
 	assertIsUserCall()
 
-	caller := std.GetOrigCaller()
-	assertIsNotAnonymousCaller(caller)
+	name = strings.TrimSpace(name)
+	if name == "" {
+		panic("board name is empty")
+	}
 
+	// TODO: Now that registered user requirement is removed must define a way to avoid
+	// increasing the IDs. Require a fee?
+	// Or we have to change the way boards are created, which could be async.
+
+	caller := std.GetOrigCaller()
 	id := incGetBoardID()
-	board := newBoard(id, name, caller)
-	gBoardsByID.Set(id.Key(), board)
-	gBoardsByName.Set(name, board)
-	return board.id
+	args := Args{name, id}
+	gAuth.WithPermission(caller, PermissionBoardCreate, args, func(a Args) {
+		// TODO: Do the callback really need the args or we could have the same result directly referencing?
+		name := a[0].(string)
+		id := a[1].(BoardID)
+		board := newBoard(id, name, caller)
+		gBoardsByID.Set(id.Key(), board)
+		gBoardsByName.Set(name, board)
+	})
+	return id
 }
 
-func CreateThread(bid BoardID, title string, body string) PostID {
+func CreateThread(bid BoardID, title, body string) PostID {
 	assertIsUserCall()
 
 	caller := std.GetOrigCaller()
-	assertAnonymousCallerFeeReceived(caller)
+	assertHasPermission(caller, PermissionThreadCreate) // TODO: Who can create threads?
+	assertAnonymousCallerFeeReceived(caller)            // TODO: Do we require a fee to anonymous users?
+	assertBoardExists(bid)
+
+	// TODO: Assert that caller is a board member (when board type is invite only)
 
 	board := mustGetBoard(bid)
 	thread := board.AddThread(caller, title, body)
@@ -42,33 +60,42 @@ func CreateReply(bid BoardID, threadID, replyID PostID, body string) PostID {
 	assertIsUserCall()
 
 	caller := std.GetOrigCaller()
-	assertAnonymousCallerFeeReceived(caller)
+	assertAnonymousCallerFeeReceived(caller) // TODO: Do we require a fee to anonymous users?
 
-	var (
-		reply  *Post
-		board  = mustGetBoard(bid)
-		thread = mustGetThread(board, threadID)
-	)
+	board := mustGetBoard(bid)
+	thread := mustGetThread(board, threadID)
 
+	// TODO: Assert thread is not locked
+	// TODO: Assert that caller is a board member (when board type is invite only)
+
+	var reply *Post
 	if replyID == threadID {
+		// When the parent reply is the thread just add reply to thread
 		reply = thread.AddReply(caller, body)
 	} else {
+		// Try to get parent reply and add a new child reply
 		post := mustGetReply(thread, replyID)
 		reply = post.AddReply(caller, body)
 	}
 	return reply.id
 }
 
-func CreateRepost(bid BoardID, threadID PostID, title string, body string, dstBoardID BoardID) PostID {
+func CreateRepost(bid BoardID, threadID PostID, title, body string, dstBoardID BoardID) PostID {
 	assertIsUserCall()
 
 	caller := std.GetOrigCaller()
 	assertAnonymousCallerFeeReceived(caller)
+	assertBoardExists(dstBoardID)
 
 	board := mustGetBoard(bid)
 	if board.IsPrivate() {
 		panic("cannot repost from a private board")
 	}
+
+	// TODO: Assert that board allows reposts?
+	// TODO: Assert that caller is member of both boards (when board types are invite only)
+
+	assertThreadExists(board, threadID)
 
 	dst := mustGetBoard(dstBoardID)
 	thread := mustGetThread(board, threadID)
@@ -76,41 +103,66 @@ func CreateRepost(bid BoardID, threadID PostID, title string, body string, dstBo
 	return repost.id
 }
 
-func DeleteThread(bid BoardID, threadID PostID, reason string) {
+func DeleteThread(bid BoardID, threadID PostID) {
 	assertIsUserCall()
 
 	board := mustGetBoard(bid)
-	thread := mustGetThread(board, threadID)
+	assertThreadExists(board, threadID)
 
 	caller := std.GetOrigCaller()
-	assertUserHasPermission(thread, caller, PermissionDelete)
+	args := Args{bid, threadID}
+	gAuth.WithPermission(caller, PermissionThreadDelete, args, func(a Args) {
+		bid := a[0].(BoardID)
+		board := mustGetBoard(bid)
 
-	board.DeleteThread(threadID)
+		threadID := a[1].(PostID)
+		board.DeleteThread(threadID)
+	})
 }
 
-func DeleteReply(bid BoardID, threadID, replyID PostID, reason string) {
+func DeleteReply(bid BoardID, threadID, replyID PostID) {
 	assertIsUserCall()
 
 	board := mustGetBoard(bid)
 	thread := mustGetThread(board, threadID)
-	reply := mustGetReply(thread, replyID)
+	assertReplyExists(thread, replyID)
+
+	// TODO: Hide reply when the caller is the owner of the reply (remove WithPermission call for now)
+	// TODO: Support removing reply and children though proposals? (WithPermission)
 
 	caller := std.GetOrigCaller()
-	assertUserHasPermission(reply, caller, PermissionDelete)
+	args := Args{bid, threadID, replyID}
+	gAuth.WithPermission(caller, PermissionReplyDelete, args, func(a Args) {
+		bid := a[0].(BoardID)
+		board := mustGetBoard(bid)
 
-	thread.DeleteReply(replyID)
+		threadID := a[1].(PostID)
+		thread := mustGetThread(board, threadID)
+
+		replyID := a[2].(PostID)
+		thread.DeleteReply(replyID)
+	})
 }
 
 func EditThread(bid BoardID, threadID PostID, title, body string) {
 	assertIsUserCall()
 
 	board := mustGetBoard(bid)
-	thread := mustGetThread(board, threadID)
+	assertThreadExists(board, threadID)
 
 	caller := std.GetOrigCaller()
-	assertUserHasPermission(thread, caller, PermissionEdit)
+	args := Args{bid, threadID, title, body}
+	gAuth.WithPermission(caller, PermissionThreadEdit, args, func(a Args) {
+		bid := a[0].(BoardID)
+		board := mustGetBoard(bid)
 
-	thread.Update(title, body)
+		threadID := a[1].(PostID)
+		thread := mustGetThread(board, threadID)
+
+		title := a[2].(string)
+		body := a[3].(string)
+		thread.Update(title, body)
+	})
 }
 
 func EditReply(bid BoardID, threadID, replyID PostID, title, body string) {
@@ -118,24 +170,19 @@ func EditReply(bid BoardID, threadID, replyID PostID, title, body string) {
 
 	board := mustGetBoard(bid)
 	thread := mustGetThread(board, threadID)
-	post := mustGetReply(thread, replyID)
-
+	reply := mustGetReply(thread, replyID)
 	caller := std.GetOrigCaller()
-	assertUserHasPermission(post, caller, PermissionEdit)
+	if caller != reply.GetCreator() {
+		panic("only the reply creator is allowed to edit it")
+	}
 
-	post.Update(title, body)
+	// TODO: Should we have a history of previous reply contents?
+	reply.Update(title, body)
 }
 
 func assertIsUserCall() {
 	if !(std.IsOriginCall() || std.PrevRealm().IsUser()) {
 		panic("invalid non-user call")
-	}
-}
-
-func assertIsNotAnonymousCaller(caller std.Address) {
-	// Caller is anonymous if doesn't have a registered user name
-	if users.GetUserByAddress(caller) == nil {
-		panic("unauthorized")
 	}
 }
 
@@ -145,7 +192,6 @@ func assertAnonymousFeeReceived() {
 	if len(sent) == 0 || sent[0].IsLT(fee) {
 		panic("please register a user, otherwise a minimum fee of " + fee.String() + " is required")
 	}
-	return
 }
 
 func assertAnonymousCallerFeeReceived(caller std.Address) {
@@ -154,8 +200,26 @@ func assertAnonymousCallerFeeReceived(caller std.Address) {
 	}
 }
 
-func assertUserHasPermission(post *Post, user std.Address, p Permission) {
-	if !post.HasPermission(user, p) {
+func assertHasPermission(user std.Address, p Permission) {
+	if !gAuth.HasPermission(user, p) {
 		panic("unauthorized")
+	}
+}
+
+func assertBoardExists(id BoardID) {
+	if _, found := getBoard(id); !found {
+		panic("board not found: " + id.String())
+	}
+}
+
+func assertThreadExists(b *Board, threadID PostID) {
+	if _, found := b.GetThread(threadID); !found {
+		panic("thread not found: " + threadID.String())
+	}
+}
+
+func assertReplyExists(thread *Post, replyID PostID) {
+	if _, found := thread.GetReply(replyID); !found {
+		panic("reply not found: " + replyID.String())
 	}
 }
