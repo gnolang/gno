@@ -15,10 +15,8 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/store"
 )
 
-var (
-	// simulation signature values used to estimate gas consumption
-	simSecp256k1Pubkey secp256k1.PubKeySecp256k1
-)
+// simulation signature values used to estimate gas consumption
+var simSecp256k1Pubkey secp256k1.PubKeySecp256k1
 
 func init() {
 	// This decodes a valid hex string into a sepc256k1Pubkey for use in transaction simulation
