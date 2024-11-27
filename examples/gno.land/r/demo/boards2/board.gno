@@ -97,7 +97,8 @@ func (board *Board) DeleteThread(pid PostID) {
 }
 
 func (board *Board) Render(p Pagination) string {
-	sb := new(strings.Builder)
+	var sb strings.Builder
+
 	sb.WriteString("\\[")
 	sb.WriteString(newLink("post", board.GetPostFormURL()))
 	sb.WriteString("]\n\n")
