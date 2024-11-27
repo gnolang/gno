@@ -736,7 +736,7 @@ func TestMultiMsgDeliverTx(t *testing.T) {
 func TestSimulateTx(t *testing.T) {
 	t.Parallel()
 
-	gasConsumed := int64(0)
+	gasConsumed := int64(5)
 
 	anteOpt := func(bapp *BaseApp) {
 		bapp.SetAnteHandler(func(ctx Context, tx Tx, simulate bool) (newCtx Context, res Result, abort bool) {
