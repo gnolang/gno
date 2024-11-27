@@ -12,14 +12,18 @@ import (
 var _ Permissioner = (*DefaultPermissions)(nil)
 
 func TestNewDefaultPermissions(t *testing.T) {
-	roles := []string{"a", "b"}
+	roles := []Role{"a", "b"}
 	dao := admindao.New()
 
 	perms := NewDefaultPermissions(dao, WithRole("a", "permission1"), WithRole("b", "permission2"))
 
 	urequire.Equal(t, len(roles), len(perms.Roles()), "roles")
 	for i, r := range perms.Roles() {
-		uassert.Equal(t, roles[i], string(r))
+		uassert.Equal(t, string(roles[i]), string(r))
+	}
+
+	for _, r := range roles {
+		uassert.True(t, perms.RoleExists(r))
 	}
 }
 
@@ -268,6 +272,94 @@ func TestDefaultPermissionsHasPermission(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			got := tc.perms.HasPermission(tc.user, tc.permission)
 			uassert.Equal(t, got, tc.want)
+		})
+	}
+}
+
+func TestDefaultPermissionsAddUser(t *testing.T) {
+	cases := []struct {
+		name  string
+		user  std.Address
+		roles []Role
+		setup func() *DefaultPermissions
+		err   string
+	}{
+		{
+			name:  "single user",
+			user:  std.Address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"),
+			roles: []Role{"a", "b"},
+			setup: func() *DefaultPermissions {
+				return NewDefaultPermissions(
+					admindao.New(),
+					WithRole("a", "permission1"),
+					WithRole("b", "permission2"),
+				)
+			},
+		},
+		{
+			name:  "multiple users",
+			user:  std.Address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"),
+			roles: []Role{"a"},
+			setup: func() *DefaultPermissions {
+				return NewDefaultPermissions(
+					admindao.New(),
+					WithRole("a", "permission1"),
+					WithUser("g1w4ek2u33ta047h6lta047h6lta047h6ldvdwpn", "a"),
+					WithUser("g1w4ek2u3jta047h6lta047h6lta047h6l9huexc"),
+				)
+			},
+		},
+		{
+			name: "duplicated user",
+			user: std.Address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"),
+			setup: func() *DefaultPermissions {
+				return NewDefaultPermissions(
+					admindao.New(admindao.WithMember("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5")),
+					WithUser("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"),
+				)
+			},
+			err: "user already exists",
+		},
+		{
+			name:  "duplicated user",
+			user:  std.Address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"),
+			roles: []Role{"a", "foo"},
+			setup: func() *DefaultPermissions {
+				return NewDefaultPermissions(admindao.New(), WithRole("a", "permission1"))
+			},
+			err: "invalid role: foo",
+		},
+		{
+			name: "already a DAO member",
+			user: std.Address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"),
+			setup: func() *DefaultPermissions {
+				return NewDefaultPermissions(
+					admindao.New(admindao.WithMember("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5")),
+				)
+			},
+			err: "member already exist",
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			perm := tc.setup()
+
+			err := perm.AddUser(tc.user, tc.roles...)
+
+			if tc.err != "" {
+				urequire.True(t, err != nil, "expected an error")
+				uassert.Equal(t, tc.err, err.Error())
+				return
+			} else {
+				urequire.NoError(t, err)
+			}
+
+			roles := perm.GetUserRoles(tc.user)
+			uassert.Equal(t, len(tc.roles), len(roles))
+			for i, r := range roles {
+				urequire.Equal(t, string(tc.roles[i]), string(r))
+			}
 		})
 	}
 }

@@ -175,6 +175,20 @@ func EditReply(bid BoardID, threadID, replyID PostID, title, body string) {
 	reply.Update(title, body)
 }
 
+func InviteMember(user std.Address, role Role) { // TODO: Implement suport for removing members
+	assertIsUserCall()
+
+	caller := std.GetOrigCaller()
+	args := Args{user, role}
+	gPerm.WithPermission(caller, PermissionMemberInvite, args, func(a Args) {
+		user := a[0].(std.Address)
+		role := a[1].(Role)
+		if err := gPerm.AddUser(user, role); err != nil {
+			panic(err)
+		}
+	})
+}
+
 func assertIsUserCall() {
 	if !(std.IsOriginCall() || std.PrevRealm().IsUser()) {
 		panic("invalid non-user call")

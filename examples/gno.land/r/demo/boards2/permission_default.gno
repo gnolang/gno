@@ -1,16 +1,11 @@
 package boards2
 
 import (
+	"errors"
 	"std"
 
 	"gno.land/p/demo/avl"
 	"gno.land/p/demo/boards2/admindao"
-)
-
-const (
-	RoleOwner     Role = "owner"
-	RoleAdmin          = "admin"
-	RoleModerator      = "moderator"
 )
 
 type (
@@ -18,9 +13,6 @@ type (
 	// Handlers are called by the `WithPermission()` method to execute callbacks
 	// when users have the permission assigned.
 	PermissionsHandlerFunc func(Args, *admindao.AdminDAO, func(Args))
-
-	// Role defines the type for user roles.
-	Role string
 
 	// DefaultPermissions manages users, roles and permissions.
 	DefaultPermissions struct {
@@ -55,6 +47,13 @@ func (dp DefaultPermissions) Roles() []Role {
 		return false
 	})
 	return roles
+}
+
+// RoleExists checks if a role exists.
+func (dp DefaultPermissions) RoleExists(r Role) bool {
+	return dp.roles.Iterate("", "", func(name string, _ interface{}) bool {
+		return Role(name) == r
+	})
 }
 
 // GetUserRoles returns the list of roles assigned to a user.
@@ -96,6 +95,26 @@ func (dp DefaultPermissions) HasPermission(user std.Address, perm Permission) bo
 		}
 	}
 	return false
+}
+
+// AddUser adds a new user to the permissioner.
+func (dp *DefaultPermissions) AddUser(user std.Address, roles ...Role) error {
+	if dp.users.Has(user.String()) {
+		return errors.New("user already exists")
+	}
+
+	for _, r := range roles {
+		if !dp.RoleExists(r) {
+			return errors.New("invalid role: " + string(r))
+		}
+	}
+
+	if err := dp.dao.AddMember(user); err != nil {
+		return err
+	}
+
+	dp.users.Set(user.String(), append([]Role(nil), roles...))
+	return nil
 }
 
 // HandleFunc registers a handler function for a permission.
