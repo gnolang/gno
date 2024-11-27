@@ -183,7 +183,7 @@ func TestReadMemPackage(t *testing.T) {
 			name: "empty package without gno files",
 			files: map[string]string{
 				"README.md": "# Empty Package",
-				"LICENSE": "MIT License",
+				"LICENSE":   "MIT License",
 			},
 			pkgPath:     "gno.land/r/foo",
 			shouldPanic: true,
@@ -256,83 +256,83 @@ func TestReadMemPackage(t *testing.T) {
 }
 
 func TestInjectNativeMethod(t *testing.T) {
-    t.Parallel()
-    
-    tests := []struct {
-        name        string
-        files       map[string]string
-        pkgPath     string
-        shouldPanic bool
-    }{
-        {
-            name: "inject to valid package",
-            files: map[string]string{
-                "foo.gno": `package foo
+	t.Parallel()
+
+	tests := []struct {
+		name        string
+		files       map[string]string
+		pkgPath     string
+		shouldPanic bool
+	}{
+		{
+			name: "inject to valid package",
+			files: map[string]string{
+				"foo.gno": `package foo
                     func RegularFunc() string { return "hello" }`,
-            },
-            pkgPath:     "gno.land/r/test/foo",
-            shouldPanic: false,
-        },
-        {
-            name: "inject to empty package",
-            files: map[string]string{
-                "README.md": "# Empty Package",
-            },
-            pkgPath:     "gno.land/r/test/empty",
-            shouldPanic: true,
-        },
-        {
-            name: "inject to foo in foo/bar structure",
-            files: map[string]string{
-                "bar/bar.gno": `package bar
+			},
+			pkgPath:     "gno.land/r/test/foo",
+			shouldPanic: false,
+		},
+		{
+			name: "inject to empty package",
+			files: map[string]string{
+				"README.md": "# Empty Package",
+			},
+			pkgPath:     "gno.land/r/test/empty",
+			shouldPanic: true,
+		},
+		{
+			name: "inject to foo in foo/bar structure",
+			files: map[string]string{
+				"bar/bar.gno": `package bar
                     func BarFunc() string { return "bar" }`,
-            },
-            pkgPath:     "gno.land/r/test/foo",
-            shouldPanic: true,
-        },
-    }
+			},
+			pkgPath:     "gno.land/r/test/foo",
+			shouldPanic: true,
+		},
+	}
 
-    for _, tt := range tests {
-        tt := tt
-        t.Run(tt.name, func(t *testing.T) {
-            t.Parallel()
-            
-            tmpDir, err := os.MkdirTemp("", "test-*")
-            if err != nil {
-                t.Fatal(err)
-            }
-            defer os.RemoveAll(tmpDir)
+	for _, tt := range tests {
+		tt := tt
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 
-            for fname, content := range tt.files {
-                fpath := filepath.Join(tmpDir, fname)
-                dir := filepath.Dir(fpath)
-                if err := os.MkdirAll(dir, 0o755); err != nil {
-                    t.Fatal(err)
-                }
-                if err := os.WriteFile(fpath, []byte(content), 0o644); err != nil {
-                    t.Fatal(err)
-                }
-            }
+			tmpDir, err := os.MkdirTemp("", "test-*")
+			if err != nil {
+				t.Fatal(err)
+			}
+			defer os.RemoveAll(tmpDir)
 
-            defer func() {
-                if r := recover(); r != nil {
-                    if !tt.shouldPanic {
-                        t.Errorf("unexpected panic: %v", r)
-                    }
-                } else if tt.shouldPanic {
-                    t.Error("expected panic, but got none")
-                }
-            }()
+			for fname, content := range tt.files {
+				fpath := filepath.Join(tmpDir, fname)
+				dir := filepath.Dir(fpath)
+				if err := os.MkdirAll(dir, 0o755); err != nil {
+					t.Fatal(err)
+				}
+				if err := os.WriteFile(fpath, []byte(content), 0o644); err != nil {
+					t.Fatal(err)
+				}
+			}
 
-            memPkg := gnolang.ReadMemPackage(tmpDir, tt.pkgPath)
-            fset := gnolang.ParseMemPackage(memPkg)
-            pkgNode := gnolang.NewPackageNode(gnolang.Name(memPkg.Name), tt.pkgPath, fset)
+			defer func() {
+				if r := recover(); r != nil {
+					if !tt.shouldPanic {
+						t.Errorf("unexpected panic: %v", r)
+					}
+				} else if tt.shouldPanic {
+					t.Error("expected panic, but got none")
+				}
+			}()
 
-            pkgNode.DefineNative("NativeMethod",
-                gnolang.FieldTypeExprs{},
-                gnolang.FieldTypeExprs{},
-                func(m *gnolang.Machine) {},
-            )
-        })
-    }
+			memPkg := gnolang.ReadMemPackage(tmpDir, tt.pkgPath)
+			fset := gnolang.ParseMemPackage(memPkg)
+			pkgNode := gnolang.NewPackageNode(gnolang.Name(memPkg.Name), tt.pkgPath, fset)
+
+			pkgNode.DefineNative("NativeMethod",
+				gnolang.FieldTypeExprs{},
+				gnolang.FieldTypeExprs{},
+				func(m *gnolang.Machine) {},
+			)
+		})
+	}
 }
