@@ -7,12 +7,12 @@ import (
 )
 
 const (
-	admin     = std.Address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5") // @test1
+	owner     = std.Address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5") // @test1
 	boardName = "test1"
 )
 
 func init() {
-	std.TestSetOrigCaller(admin)
+	std.TestSetOrigCaller(owner)
 	boards2.CreateBoard(boardName)
 }
 

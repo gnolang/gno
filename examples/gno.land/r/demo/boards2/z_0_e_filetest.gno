@@ -6,10 +6,10 @@ import (
 	"gno.land/r/demo/boards2"
 )
 
-const admin = std.Address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5") // @test1
+const owner = std.Address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5") // @test1
 
 func init() {
-	std.TestSetOrigCaller(admin)
+	std.TestSetOrigCaller(owner)
 }
 
 func main() {
