@@ -5,14 +5,12 @@ go 1.22
 toolchain go1.22.4
 
 require (
-	github.com/gnolang/faucet v0.3.2
-	github.com/gnolang/gno v0.1.0-nightly.20240627
-	github.com/stretchr/testify v1.9.0
+	github.com/gnolang/faucet v0.4.0
+	github.com/gnolang/gno v0.0.0-20241127025539-d8589b06b14c
+	github.com/stretchr/testify v1.10.0
 	go.uber.org/zap v1.27.0
 	golang.org/x/time v0.5.0
 )
-
-replace github.com/gnolang/gno => ../..
 
 require (
 	github.com/btcsuite/btcd/btcec/v2 v2.3.4 // indirect
@@ -46,7 +44,7 @@ require (
 	golang.org/x/exp v0.0.0-20240613232115-7f521ea00fb8 // indirect
 	golang.org/x/mod v0.20.0 // indirect
 	golang.org/x/net v0.28.0 // indirect
-	golang.org/x/sync v0.8.0 // indirect
+	golang.org/x/sync v0.9.0 // indirect
 	golang.org/x/sys v0.24.0 // indirect
 	golang.org/x/term v0.23.0 // indirect
 	golang.org/x/text v0.17.0 // indirect
