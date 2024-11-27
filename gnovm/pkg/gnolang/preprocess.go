@@ -226,6 +226,7 @@ func initStaticBlocks(store Store, ctx BlockNode, bn BlockNode) {
 					nx := &n.NameExpr
 					nx.Type = NameExprTypeDefine
 					pkg.Predefine(false, n.Name)
+					pkg.UnassignableNames = append(pkg.UnassignableNames, n.Name)
 				}
 			case *FuncTypeExpr:
 				for i := range n.Params {
@@ -2021,6 +2022,15 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 			// TRANS_LEAVE -----------------------
 			case *AssignStmt:
 				n.AssertCompatible(store, last)
+				if n.Op == ASSIGN {
+					for _, lh := range n.Lhs {
+						if ne, ok := lh.(*NameExpr); ok {
+							if !last.GetStaticBlock().IsAssignable(store, ne.Name) {
+								panic("not assignable")
+							}
+						}
+					}
+				}
 
 				// NOTE: keep DEFINE and ASSIGN in sync.
 				if n.Op == DEFINE {

@@ -1647,12 +1647,13 @@ type BlockNode interface {
 // Embed in node to make it a BlockNode.
 type StaticBlock struct {
 	Block
-	Types    []Type
-	NumNames uint16
-	Names    []Name
-	Consts   []Name // TODO consider merging with Names.
-	Externs  []Name
-	Loc      Location
+	Types             []Type
+	NumNames          uint16
+	Names             []Name
+	UnassignableNames []Name
+	Consts            []Name // TODO consider merging with Names.
+	Externs           []Name
+	Loc               Location
 
 	// temporary storage for rolling back redefinitions.
 	oldValues []oldValue
@@ -1869,6 +1870,32 @@ func (sb *StaticBlock) getLocalIsConst(n Name) bool {
 		}
 	}
 	return false
+}
+
+func (sb *StaticBlock) IsAssignable(store Store, n Name) bool {
+	_, ok := sb.GetLocalIndex(n)
+	bp := sb.GetParentNode(store)
+	un := sb.UnassignableNames
+
+	for {
+		if ok {
+			for _, uname := range un {
+				if n == uname {
+					return false
+				}
+			}
+
+			return true
+		} else if bp != nil {
+			_, ok = bp.GetLocalIndex(n)
+			un = bp.GetStaticBlock().UnassignableNames
+			bp = bp.GetParentNode(store)
+		} else if _, ok := UverseNode().GetLocalIndex(n); ok {
+			return false
+		} else {
+			panic(fmt.Sprintf("name %s not declared", n))
+		}
+	}
 }
 
 // Implements BlockNode.
