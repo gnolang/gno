@@ -71,42 +71,6 @@ func TestGeneratedComment(t *testing.T) {
 	}
 }
 
-func TestIndexMap(t *testing.T) {
-	t.Parallel()
-
-	m := map[string]any{
-		"Key1": map[string]any{
-			"Key2": map[string]any{
-				"Key3": 1,
-			},
-		},
-	}
-
-	test := indexMap(m)
-	assert.NotNil(t, test, "should return m")
-	_, ok := test.(map[string]any)
-	assert.True(t, ok, "returned m should be a map")
-
-	test = indexMap(m, "Key1")
-	assert.NotNil(t, test, "should return Key1 value")
-	_, ok = test.(map[string]any)
-	assert.True(t, ok, "Key1 value type should be a map")
-
-	test = indexMap(m, "Key1", "Key2")
-	assert.NotNil(t, test, "should return Key2 value")
-	_, ok = test.(map[string]any)
-	assert.True(t, ok, "Key2 value type should be a map")
-
-	test = indexMap(m, "Key1", "Key2", "Key3")
-	assert.NotNil(t, test, "should return Key3 value")
-	val, ok := test.(int)
-	assert.True(t, ok, "Key3 value type should be an int")
-	assert.Equal(t, 1, val, "Key3 value should be a 1")
-
-	test = indexMap(m, "Key1", "Key2", "Key3", "Key4")
-	assert.Nil(t, test, "Key4 value should not exist")
-}
-
 func setValue(t *testing.T, m map[string]any, value any, keys ...string) map[string]any {
 	t.Helper()
 
@@ -146,7 +110,7 @@ func TestCommentUpdateHandler(t *testing.T) {
 
 	// Exit without error because EventName is empty
 	assert.NoError(t, handleCommentUpdate(gh, actionCtx))
-	actionCtx.EventName = "issue_comment"
+	actionCtx.EventName = utils.EventIssueComment
 
 	// Exit with error because Event.action is not set
 	assert.Error(t, handleCommentUpdate(gh, actionCtx))

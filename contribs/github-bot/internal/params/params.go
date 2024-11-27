@@ -6,6 +6,7 @@ import (
 	"os"
 	"time"
 
+	"github.com/gnolang/gno/contribs/github-bot/internal/utils"
 	"github.com/sethvargo/go-githubactions"
 )
 
@@ -83,7 +84,7 @@ func (p *Params) ValidateFlags() {
 
 	// Check if flags are coherent.
 	if p.PRAll && len(p.PRNums) != 0 {
-		errorUsage("You can specify only one of the '-pr-all' and '-pr-numbers' flags")
+		errorUsage("You can specify only one of the '-pr-all' and '-pr-numbers' flags.")
 	}
 
 	// If one of these values is empty, it must be retrieved
@@ -91,47 +92,27 @@ func (p *Params) ValidateFlags() {
 	if p.Owner == "" || p.Repo == "" || (len(p.PRNums) == 0 && !p.PRAll) {
 		actionCtx, err := githubactions.Context()
 		if err != nil {
-			errorUsage(fmt.Sprintf("Unable to get GitHub Actions context: %v", err))
+			errorUsage(fmt.Sprintf("Unable to get GitHub Actions context: %v.", err))
 		}
 
 		if p.Owner == "" {
 			if p.Owner, _ = actionCtx.Repo(); p.Owner == "" {
-				errorUsage("Unable to retrieve owner from GitHub Actions context, you may want to set it using -onwer flag")
+				errorUsage("Unable to retrieve owner from GitHub Actions context, you may want to set it using -onwer flag.")
 			}
 		}
 		if p.Repo == "" {
 			if _, p.Repo = actionCtx.Repo(); p.Repo == "" {
-				errorUsage("Unable to retrieve repo from GitHub Actions context, you may want to set it using -repo flag")
+				errorUsage("Unable to retrieve repo from GitHub Actions context, you may want to set it using -repo flag.")
 			}
 		}
-		if len(p.PRNums) == 0 && !p.PRAll {
-			const errMsg = "Unable to retrieve pull request number from GitHub Actions context, you may want to set it using -pr-numbers flag"
-			var num float64
 
-			switch actionCtx.EventName {
-			case "issue_comment":
-				issue, ok := actionCtx.Event["issue"].(map[string]any)
-				if !ok {
-					errorUsage(errMsg)
-				}
-				num, ok = issue["number"].(float64)
-				if !ok || num <= 0 {
-					errorUsage(errMsg)
-				}
-			case "pull_request":
-				pr, ok := actionCtx.Event["pull_request"].(map[string]any)
-				if !ok {
-					errorUsage(errMsg)
-				}
-				num, ok = pr["number"].(float64)
-				if !ok || num <= 0 {
-					errorUsage(errMsg)
-				}
-			default:
-				errorUsage(errMsg)
+		if len(p.PRNums) == 0 && !p.PRAll {
+			prNum, err := utils.GetPRNumFromActionsCtx(actionCtx)
+			if err != nil {
+				errorUsage(fmt.Sprintf("Unable to retrieve pull request number from GitHub Actions context: %s\nYou may want to set it using -pr-numbers flag.", err.Error()))
 			}
 
-			p.PRNums = PRList([]int{int(num)})
+			p.PRNums = PRList{prNum}
 		}
 	}
 }

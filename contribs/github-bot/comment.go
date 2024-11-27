@@ -9,6 +9,7 @@ import (
 	"text/template"
 
 	"github.com/gnolang/gno/contribs/github-bot/internal/client"
+	"github.com/gnolang/gno/contribs/github-bot/internal/utils"
 
 	"github.com/google/go-github/v64/github"
 	"github.com/sethvargo/go-githubactions"
@@ -71,23 +72,6 @@ func getCommentManualChecks(commentBody string) map[string]manualCheckDetails {
 	return checks
 }
 
-// Recursively search for nested values using the keys provided.
-func indexMap(m map[string]any, keys ...string) any {
-	if len(keys) == 0 {
-		return m
-	}
-
-	if val, ok := m[keys[0]]; ok {
-		if keys = keys[1:]; len(keys) == 0 {
-			return val
-		}
-		subMap, _ := val.(map[string]any)
-		return indexMap(subMap, keys...)
-	}
-
-	return nil
-}
-
 // handleCommentUpdate checks if:
 //   - the current run was triggered by GitHub Actions
 //   - the triggering event is an edit of the bot comment
@@ -96,7 +80,7 @@ func indexMap(m map[string]any, keys ...string) any {
 //   - the actor / comment editor has permission to modify this checkbox (or restore it)
 func handleCommentUpdate(gh *client.GitHub, actionCtx *githubactions.GitHubContext) error {
 	// Ignore if it's not a comment related event.
-	if actionCtx.EventName != "issue_comment" {
+	if actionCtx.EventName != utils.EventIssueComment {
 		gh.Logger.Debugf("Event is not issue comment related (%s)", actionCtx.EventName)
 		return nil
 	}
@@ -123,7 +107,7 @@ func handleCommentUpdate(gh *client.GitHub, actionCtx *githubactions.GitHubConte
 	}
 
 	// Get login of the author of the edited comment.
-	login, ok := indexMap(actionCtx.Event, "comment", "user", "login").(string)
+	login, ok := utils.IndexMap(actionCtx.Event, "comment", "user", "login").(string)
 	if !ok {
 		return errors.New("unable to get comment user login on issue comment event")
 	}
@@ -134,19 +118,19 @@ func handleCommentUpdate(gh *client.GitHub, actionCtx *githubactions.GitHubConte
 	}
 
 	// Get comment updated body.
-	current, ok := indexMap(actionCtx.Event, "comment", "body").(string)
+	current, ok := utils.IndexMap(actionCtx.Event, "comment", "body").(string)
 	if !ok {
 		return errors.New("unable to get comment body on issue comment event")
 	}
 
 	// Get comment previous body.
-	previous, ok := indexMap(actionCtx.Event, "changes", "body", "from").(string)
+	previous, ok := utils.IndexMap(actionCtx.Event, "changes", "body", "from").(string)
 	if !ok {
 		return errors.New("unable to get changes body content on issue comment event")
 	}
 
 	// Get PR number from GitHub Actions context.
-	prNum, ok := indexMap(actionCtx.Event, "issue", "number").(float64)
+	prNum, ok := utils.IndexMap(actionCtx.Event, "issue", "number").(float64)
 	if !ok || prNum <= 0 {
 		return errors.New("unable to get issue number on issue comment event")
 	}
@@ -200,7 +184,7 @@ func handleCommentUpdate(gh *client.GitHub, actionCtx *githubactions.GitHubConte
 		}
 
 		// This regex capture only the line of the current check.
-		specificManualCheck := regexp.MustCompile(fmt.Sprintf(`(?m:^- \[%s\] %s.*$)`, currentChecks[key].status, key))
+		specificManualCheck := regexp.MustCompile(fmt.Sprintf(`(?m:^- \[%s\] %s.*$)`, currentChecks[key].status, regexp.QuoteMeta(key)))
 
 		// If the box is checked, append the username of the user who checked it.
 		if strings.TrimSpace(currentChecks[key].status) == "x" {

@@ -28,18 +28,22 @@ func (p PRList) MarshalText() (text []byte, err error) {
 
 // UnmarshalText implements encoding.TextUnmarshaler.
 func (p *PRList) UnmarshalText(text []byte) error {
-	for _, prNumStr := range strings.Split(string(text), ",") {
-		prNum, err := strconv.Atoi(strings.TrimSpace(prNumStr))
+	prNumsStr := strings.Split(string(text), ",")
+	prNums := make([]int, len(prNumsStr))
+
+	for i := range prNumsStr {
+		prNum, err := strconv.Atoi(strings.TrimSpace(prNumsStr[i]))
 		if err != nil {
 			return err
 		}
 
 		if prNum <= 0 {
-			return fmt.Errorf("invalid pull request number (<= 0): original(%s) parsed(%d)", prNumStr, prNum)
+			return fmt.Errorf("invalid pull request number (<= 0): original(%s) parsed(%d)", prNumsStr[i], prNum)
 		}
 
-		*p = append(*p, prNum)
+		prNums[i] = prNum
 	}
+	*p = prNums
 
 	return nil
 }

@@ -12,12 +12,31 @@ import (
 	"github.com/gnolang/gno/contribs/github-bot/internal/logger"
 	p "github.com/gnolang/gno/contribs/github-bot/internal/params"
 	"github.com/gnolang/gno/contribs/github-bot/internal/utils"
+	"github.com/gnolang/gno/tm2/pkg/commands"
 	"github.com/google/go-github/v64/github"
 	"github.com/sethvargo/go-githubactions"
 	"github.com/xlab/treeprint"
 )
 
-func execBot(params *p.Params) error {
+func newCheckCmd() *commands.Command {
+	params := &p.Params{}
+
+	return commands.NewCommand(
+		commands.Metadata{
+			Name:       "check",
+			ShortUsage: "github-bot check [flags]",
+			ShortHelp:  "checks requirements for a pull request to be merged",
+			LongHelp:   "This tool checks if the requirements for a pull request to be merged are satisfied (defined in config.go) and displays PR status checks accordingly.\nA valid GitHub Token must be provided by setting the GITHUB_TOKEN environment variable.",
+		},
+		params,
+		func(_ context.Context, _ []string) error {
+			params.ValidateFlags()
+			return execCheck(params)
+		},
+	)
+}
+
+func execCheck(params *p.Params) error {
 	// Create context with timeout if specified in the parameters.
 	ctx := context.Background()
 	if params.Timeout > 0 {
@@ -51,27 +70,9 @@ func execBot(params *p.Params) error {
 
 	// If requested, retrieve all open pull requests.
 	if params.PRAll {
-		opts := &github.PullRequestListOptions{
-			State:     "open",
-			Sort:      "updated",
-			Direction: "desc",
-			ListOptions: github.ListOptions{
-				PerPage: client.PageSize,
-			},
-		}
-
-		for {
-			prsPage, response, err := gh.Client.PullRequests.List(gh.Ctx, gh.Owner, gh.Repo, opts)
-			if err != nil {
-				return fmt.Errorf("unable to retrieve all open pull requests: %w", err)
-			}
-
-			prs = append(prs, prsPage...)
-
-			if response.NextPage == 0 {
-				break
-			}
-			opts.Page = response.NextPage
+		prs, err = gh.ListPR(utils.PRStateOpen)
+		if err != nil {
+			return fmt.Errorf("unable to list all PR: %w", err)
 		}
 	} else {
 		// Otherwise, retrieve only specified pull request(s)
@@ -86,6 +87,10 @@ func execBot(params *p.Params) error {
 		}
 	}
 
+	return processPRList(gh, prs)
+}
+
+func processPRList(gh *client.GitHub, prs []*github.PullRequest) error {
 	if len(prs) > 1 {
 		prNums := make([]int, len(prs))
 		for i, pr := range prs {

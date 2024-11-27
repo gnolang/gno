@@ -237,6 +237,36 @@ func (gh *GitHub) ListPRReviews(prNum int) ([]*github.PullRequestReview, error) 
 	return allReviews, nil
 }
 
+// ListPR returns the list of pull requests in the specified state.
+func (gh *GitHub) ListPR(state string) ([]*github.PullRequest, error) {
+	var prs []*github.PullRequest
+
+	opts := &github.PullRequestListOptions{
+		State:     state,
+		Sort:      "updated",
+		Direction: "desc",
+		ListOptions: github.ListOptions{
+			PerPage: PageSize,
+		},
+	}
+
+	for {
+		prsPage, response, err := gh.Client.PullRequests.List(gh.Ctx, gh.Owner, gh.Repo, opts)
+		if err != nil {
+			return nil, fmt.Errorf("unable to list pull requests with state %s: %w", state, err)
+		}
+
+		prs = append(prs, prsPage...)
+
+		if response.NextPage == 0 {
+			break
+		}
+		opts.Page = response.NextPage
+	}
+
+	return prs, nil
+}
+
 // New initializes the API client, the logger, and creates an instance of GitHub.
 func New(ctx context.Context, params *p.Params) (*GitHub, error) {
 	gh := &GitHub{
