@@ -14,7 +14,7 @@ const (
 
 func Render(path string) string {
 	// TODO: remove this when query strings PR will be merged: https://github.com/gnolang/gno/pull/2594
-	router := newWrappedRouter()
+	router := newWrappedRouter(mux.NewRouter())
 	router.HandleFunc("", renderBoardsList)
 	router.HandleFunc("{board}", renderBoard)
 	router.HandleFunc("{board}/{thread}", renderThread)
@@ -27,11 +27,11 @@ func Render(path string) string {
 	return router.Render(path)
 }
 
-func renderBoardsList(res *mux.ResponseWriter, r request) {
+func renderBoardsList(res *mux.ResponseWriter, r *mux.Request) {
 	res.Write("These are all the boards of this realm:\n\n")
 
 	pg := pager.NewPager(&gBoardsByID, defaultPageSize)
-	pageNum, limit, err := pg.ParseQuery(r.requestURI)
+	pageNum, limit, err := pg.ParseQuery(r.Path)
 	if err != nil {
 		panic(err)
 	}
@@ -49,7 +49,7 @@ func renderBoardsList(res *mux.ResponseWriter, r request) {
 	}
 }
 
-func renderBoard(res *mux.ResponseWriter, req request) {
+func renderBoard(res *mux.ResponseWriter, req *mux.Request) {
 	name := req.GetVar("board")
 	v, found := gBoardsByName.Get(name)
 	if !found {
@@ -58,11 +58,11 @@ func renderBoard(res *mux.ResponseWriter, req request) {
 	}
 
 	board := v.(*Board)
-	p := req.pagination(defaultPageSize)
+	p := getPagination(req, defaultPageSize)
 	res.Write(board.Render(p))
 }
 
-func renderThread(res *mux.ResponseWriter, req request) {
+func renderThread(res *mux.ResponseWriter, req *mux.Request) {
 	name := req.GetVar("board")
 
 	v, found := gBoardsByName.Get(name)
@@ -85,11 +85,11 @@ func renderThread(res *mux.ResponseWriter, req request) {
 		return
 	}
 
-	p := req.pagination(defaultPageSize)
+	p := getPagination(req, defaultPageSize)
 	res.Write(thread.Render("", threadRenderDepth, &p))
 }
 
-func renderReply(res *mux.ResponseWriter, req request) {
+func renderReply(res *mux.ResponseWriter, req *mux.Request) {
 	name := req.GetVar("board")
 	v, found := gBoardsByName.Get(name)
 	if !found {
