@@ -43,8 +43,10 @@ func renderBoardsList(res *mux.ResponseWriter, r request) {
 		res.Write(" * " + newLink(url, url) + "\n")
 	}
 
-	res.Write("\n\n---\n\n")
-	res.Write(page.Selector())
+	if page.TotalPages > 1 {
+		res.Write("\n\n---\n\n")
+		res.Write(page.Selector())
+	}
 }
 
 func renderBoard(res *mux.ResponseWriter, req request) {
@@ -62,6 +64,7 @@ func renderBoard(res *mux.ResponseWriter, req request) {
 
 func renderThread(res *mux.ResponseWriter, req request) {
 	name := req.GetVar("board")
+
 	v, found := gBoardsByName.Get(name)
 	if !found {
 		res.Write("Board does not exist: " + name)
@@ -81,7 +84,9 @@ func renderThread(res *mux.ResponseWriter, req request) {
 		res.Write("Thread does not exist with ID: " + req.GetVar("thread"))
 		return
 	}
-	res.Write(thread.Render("", threadRenderDepth))
+
+	p := req.pagination(defaultPageSize)
+	res.Write(thread.Render("", threadRenderDepth, &p))
 }
 
 func renderReply(res *mux.ResponseWriter, req request) {

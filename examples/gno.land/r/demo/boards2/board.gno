@@ -119,6 +119,7 @@ func (board *Board) Render(p Pagination) string {
 		sb.WriteString("\n---\n\n")
 		sb.WriteString(page.Selector())
 	}
+
 	return sb.String()
 }
 
