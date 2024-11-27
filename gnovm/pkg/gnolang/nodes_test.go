@@ -47,6 +47,7 @@ func TestStaticBlock_Define2_MaxNames(t *testing.T) {
 }
 
 func TestReadMemPackage(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name        string
 		files       map[string]string // map[filename]content
@@ -83,24 +84,6 @@ func TestReadMemPackage(t *testing.T) {
 			pkgPath:     "crypto/sha256",
 			shouldPanic: false,
 			wantPkgName: "sha256",
-		},
-		{
-			name: "invalid package - internal",
-			files: map[string]string{
-				"internal.gno": `package internal
-					func someFunc() {}`,
-			},
-			pkgPath:     "std/internal",
-			shouldPanic: true,
-		},
-		{
-			name: "invalid package - crypto",
-			files: map[string]string{
-				"crypto.gno": `package crypto
-					func Hash(data []byte) []byte { return nil }`,
-			},
-			pkgPath:     "std/crypto",
-			shouldPanic: true,
 		},
 		{
 			name: "nested package - foo/bar",
@@ -168,19 +151,50 @@ func TestReadMemPackage(t *testing.T) {
 			shouldPanic: false,
 			wantPkgName: "tests",
 		},
-		// {
-		// 	name: "invalid package name mismatch",
-		// 	setupFiles: map[string]string{
-		// 		"bar.gno": `package foo  // package name doesn't match last path component
-		// 			func DoSomething() {}`,
-		// 	},
-		// 	pkgPath:     "gno.land/xxx/foo/bar",
-		// 	shouldPanic: true,
-		// },
+		{
+			name: "foo/bar with empty foo directory",
+			files: map[string]string{
+				"bar.gno": `package bar
+					func DoSomething() string { return "hello" }`,
+			},
+			pkgPath:     "gno.land/r/foo/bar",
+			shouldPanic: false,
+			wantPkgName: "bar",
+		},
+		{
+			name: "invalid package - internal",
+			files: map[string]string{
+				"internal.gno": `package internal
+					func someFunc() {}`,
+			},
+			pkgPath:     "std/internal",
+			shouldPanic: true,
+		},
+		{
+			name: "invalid package - crypto",
+			files: map[string]string{
+				"crypto.gno": `package crypto
+					func Hash(data []byte) []byte { return nil }`,
+			},
+			pkgPath:     "std/crypto",
+			shouldPanic: true,
+		},
+		{
+			name: "empty package without gno files",
+			files: map[string]string{
+				"README.md": "# Empty Package",
+				"LICENSE": "MIT License",
+			},
+			pkgPath:     "gno.land/r/foo",
+			shouldPanic: true,
+			wantPkgName: "",
+		},
 	}
 
 	for _, tt := range tests {
+		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			tmpDir, err := os.MkdirTemp("", "test-*")
 			if err != nil {
 				t.Fatal(err)
@@ -189,6 +203,10 @@ func TestReadMemPackage(t *testing.T) {
 
 			for fname, content := range tt.files {
 				fpath := filepath.Join(tmpDir, fname)
+				dir := filepath.Dir(fpath)
+				if err := os.MkdirAll(dir, 0o755); err != nil {
+					t.Fatal(err)
+				}
 				if err := os.WriteFile(fpath, []byte(content), 0o644); err != nil {
 					t.Fatal(err)
 				}
@@ -235,4 +253,86 @@ func TestReadMemPackage(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestInjectNativeMethod(t *testing.T) {
+    t.Parallel()
+    
+    tests := []struct {
+        name        string
+        files       map[string]string
+        pkgPath     string
+        shouldPanic bool
+    }{
+        {
+            name: "inject to valid package",
+            files: map[string]string{
+                "foo.gno": `package foo
+                    func RegularFunc() string { return "hello" }`,
+            },
+            pkgPath:     "gno.land/r/test/foo",
+            shouldPanic: false,
+        },
+        {
+            name: "inject to empty package",
+            files: map[string]string{
+                "README.md": "# Empty Package",
+            },
+            pkgPath:     "gno.land/r/test/empty",
+            shouldPanic: true,
+        },
+        {
+            name: "inject to foo in foo/bar structure",
+            files: map[string]string{
+                "bar/bar.gno": `package bar
+                    func BarFunc() string { return "bar" }`,
+            },
+            pkgPath:     "gno.land/r/test/foo",
+            shouldPanic: true,
+        },
+    }
+
+    for _, tt := range tests {
+        tt := tt
+        t.Run(tt.name, func(t *testing.T) {
+            t.Parallel()
+            
+            tmpDir, err := os.MkdirTemp("", "test-*")
+            if err != nil {
+                t.Fatal(err)
+            }
+            defer os.RemoveAll(tmpDir)
+
+            for fname, content := range tt.files {
+                fpath := filepath.Join(tmpDir, fname)
+                dir := filepath.Dir(fpath)
+                if err := os.MkdirAll(dir, 0o755); err != nil {
+                    t.Fatal(err)
+                }
+                if err := os.WriteFile(fpath, []byte(content), 0o644); err != nil {
+                    t.Fatal(err)
+                }
+            }
+
+            defer func() {
+                if r := recover(); r != nil {
+                    if !tt.shouldPanic {
+                        t.Errorf("unexpected panic: %v", r)
+                    }
+                } else if tt.shouldPanic {
+                    t.Error("expected panic, but got none")
+                }
+            }()
+
+            memPkg := gnolang.ReadMemPackage(tmpDir, tt.pkgPath)
+            fset := gnolang.ParseMemPackage(memPkg)
+            pkgNode := gnolang.NewPackageNode(gnolang.Name(memPkg.Name), tt.pkgPath, fset)
+
+            pkgNode.DefineNative("NativeMethod",
+                gnolang.FieldTypeExprs{},
+                gnolang.FieldTypeExprs{},
+                func(m *gnolang.Machine) {},
+            )
+        })
+    }
 }

@@ -1215,12 +1215,26 @@ func ReadMemPackageFromList(list []string, pkgPath string) *gnovm.MemPackage {
 			})
 	}
 
-	// If no .gno files are present, package simply does not exist.
-	if !memPkg.IsEmpty() {
-		// validatePkgName(string(pkgName))
-		validatePkgPath(pkgPath, string(pkgName))
-		memPkg.Name = string(pkgName)
+	// Check if package has any .gno files
+	hasGnoFiles := false
+	for _, file := range memPkg.Files {
+		if strings.HasSuffix(file.Name, ".gno") {
+			hasGnoFiles = true
+			break
+		}
 	}
+
+	// Package must have valid .gno files to be considered valid
+	if !hasGnoFiles {
+		panic("package must contain at least one .gno file")
+	}
+
+	if pkgName == "" {
+		panic("invalid package: no package name found")
+	}
+
+	validatePkgPath(pkgPath, string(pkgName))
+	memPkg.Name = string(pkgName)
 
 	return memPkg
 }
