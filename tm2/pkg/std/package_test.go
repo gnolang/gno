@@ -16,7 +16,6 @@ func TestAminoBaseAccount(t *testing.T) {
       "@type": "/tm.PubKeySecp256k1",
       "value": "AwMzujfppqEi8lozMVD8ORENUR8SIE06VLNP8FGL0aQ2"
     },
-    "account_number": "159",
     "sequence": "33"
 }`)
 	acc := std.BaseAccount{}

@@ -51,7 +51,6 @@ data: {
       "@type": "/tm.PubKeySecp256k1",
       "value": "A+FhNtsXHjLfSJk1lB8FbiL4mGPjc50Kt81J7EKDnJ2y"
     },
-    "account_number": "0",
     "sequence": "12"
   }
 }
@@ -67,7 +66,6 @@ to hold account data. It contains the following information:
 - `address` - the address of the account
 - `coins` - the list of coins the account owns
 - `public_key` - the TM2 public key of the account, from which the address is derived
-- `account_number` - a unique identifier for the account on the gno.land chain
 - `sequence` - a nonce, used for protection against replay attacks
 
 ## `bank/balances`

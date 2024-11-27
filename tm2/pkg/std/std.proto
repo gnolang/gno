@@ -8,11 +8,10 @@ import "google/protobuf/any.proto";
 
 // messages
 message BaseAccount {
-	string address = 1;
-	string coins = 2;
-	google.protobuf.Any pub_key = 3 [json_name = "public_key"];
-	uint64 account_number = 4;
-	uint64 sequence = 5;
+  string address = 1;
+  string coins = 2;
+  google.protobuf.Any pub_key = 3 [json_name = "public_key"];
+  uint64 sequence = 4;
 }
 
 message InternalError {

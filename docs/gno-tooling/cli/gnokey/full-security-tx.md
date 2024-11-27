@@ -12,21 +12,22 @@ id: full-security-tx
 ## Overview
 
 `gnokey` provides a way to create a transaction, sign it, and later
-broadcast it to a chain in the most secure fashion. This approach, while more 
+broadcast it to a chain in the most secure fashion. This approach, while more
 complicated than the standard approach shown [in a previous tutorial](./state-changing-calls.md),
 grants full control and provides [airgap](https://en.wikipedia.org/wiki/Air_gap_(networking))
-support. 
+support.
 
 By separating the signing and the broadcasting steps of submitting a transaction,
 users can make sure that the signing happens in a secure, offline environment,
-keeping private keys away from possible exposure to attacks coming from the 
+keeping private keys away from possible exposure to attacks coming from the
 internet.
 
-The intended purpose of this functionality is to provide maximum security when 
+The intended purpose of this functionality is to provide maximum security when
 signing and broadcasting a transaction. In practice, this procedure should take
 place on two separate machines controlled by the holder of the keys, one with
 access to the internet (`Machine A`), and the other one without (`Machine B`),
 with the separation of steps as follows:
+
 1. `Machine A`: Fetch account information from the chain
 2. `Machine B`: Create an unsigned transaction locally
 3. `Machine B`: Sign the transaction
@@ -41,7 +42,7 @@ using the [auth/accounts](./querying-a-network.md#authaccounts) query:
 gnokey query auth/accounts/<your_address> -remote "https://rpc.gno.land:443"
 ```
 
-We need to extract the account number and sequence from the output:
+We need to extract the sequence from the output:
 
 ```bash
 height: 0
@@ -50,13 +51,12 @@ data: {
     "address": "g1zzqd6phlfx0a809vhmykg5c6m44ap9756s7cjj",
     "coins": "10000000ugnot",
     "public_key": null,
-    "account_number": "468",
     "sequence": "0"
   }
 }
 ```
 
-In this case, the account number is `468`, and the sequence (nonce) is `0`. We
+In this case, the sequence (nonce) is `0`. We
 will need these values to sign the transaction later. These pieces of information
 are crucial during the signing process, as they are included in the signature
 of the transaction, preventing replay attacks.
@@ -82,16 +82,15 @@ Now we are ready to sign the transaction.
 
 To add a signature to the transaction, we can use the `gnokey sign` subcommand.
 To sign, we must set the correct flags for the subcommand:
+
 - `-tx-path` - path to the transaction file to sign, in our case, `userbook.tx`
 - `-chainid` - id of the chain to sign for
-- `-account-number` - number of the account fetched previously
 - `-account-sequence` - sequence of the account fetched previously
 
 ```bash
 gnokey sign \
 -tx-path userbook.tx \
 -chainid "portal-loop" \
--account-number 468 \
 -account-sequence 0 \
 mykey
 ```
