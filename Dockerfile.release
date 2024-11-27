@@ -11,11 +11,11 @@ CMD     [ "" ]
 ## ghcr.io/gnolang/gno/gnoland
 FROM base as gnoland
 
-COPY ./gnoland /usr/bin/gnoland
-COPY ./examples /gnoroot/examples/
-COPY ./gnovm/stdlibs /gnoroot/gnovm/stdlibs/
-COPY ./gno.land/genesis/genesis_balances.txt /gnoroot/gno.land/genesis/genesis_balances.txt
-COPY ./gno.land/genesis/genesis_txs.jsonl /gnoroot/gno.land/genesis/genesis_txs.jsonl
+COPY     ./gnoland                               /usr/bin/gnoland
+COPY     ./examples                              /gnoroot/examples/
+COPY     ./gnovm/stdlibs                         /gnoroot/gnovm/stdlibs/
+COPY     ./gno.land/genesis/genesis_balances.txt /gnoroot/gno.land/genesis/genesis_balances.txt
+COPY     ./gno.land/genesis/genesis_txs.jsonl    /gnoroot/gno.land/genesis/genesis_txs.jsonl
 
 EXPOSE 26656 26657
 
@@ -48,10 +48,10 @@ ENTRYPOINT [ "/usr/bin/gnofaucet" ]
 ## ghcr.io/gnolang/gno
 FROM base as gno
 
-COPY     ./gno                 /usr/bin/gno
-COPY     ./examples            /gnoroot/examples/
-COPY     ./gnovm/stdlibs       /gnoroot/gnovm/stdlibs/
-COPY     ./gnovm/tests/stdlibs /gnoroot/gnovm/tests/stdlibs/
+COPY       ./gnobro              /usr/bin/gno
+COPY       ./examples            /gnoroot/examples/
+COPY       ./gnovm/stdlibs       /gnoroot/gnovm/stdlibs/
+COPY       ./gnovm/tests/stdlibs /gnoroot/gnovm/tests/stdlibs/
 
 ENTRYPOINT [ "/usr/bin/gno" ]
 
@@ -59,9 +59,12 @@ ENTRYPOINT [ "/usr/bin/gno" ]
 ## ghcr.io/gnolang/gnocontribs
 FROM base as gnocontribs
 
-COPY     ./gnobro              /usr/bin/gnobro
-COPY     ./gnogenesis          /usr/bin/gnogenesis
-# COPY     ./examples            /gnoroot/examples/
-# Extrafiles...
+COPY       ./gnobro                                /usr/bin/gnobro
+COPY       ./gnogenesis                            /usr/bin/gnogenesis
+COPY       ./examples                              /gnoroot/examples/
+COPY       ./gnovm/stdlibs                         /gnoroot/gnovm/stdlibs/
+COPY       ./gno.land/genesis/genesis_balances.txt /gnoroot/gno.land/genesis/genesis_balances.txt
+COPY       ./gno.land/genesis/genesis_txs.jsonl    /gnoroot/gno.land/genesis/genesis_txs.jsonl
+EXPOSE     22
 
 ENTRYPOINT [ "/bin/sh", "-c" ]
