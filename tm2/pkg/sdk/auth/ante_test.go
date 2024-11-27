@@ -881,6 +881,8 @@ func TestNewGasFeeCollector(t *testing.T) {
 
 	// test inValid fee
 	t.Run("invalid denom test", func(t *testing.T) {
+		t.Parallel()
+
 		invalidDenomGasFee := std.NewFee(50000, std.Coin{Denom: "atom@", Amount: 100})
 		invalidDenomGasFee2 := std.NewFee(50000, std.Coin{Denom: "atom denom", Amount: 100})
 		invalidDenomGasFee3 := std.NewFee(50000, std.Coin{Denom: "a", Amount: 100})

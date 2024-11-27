@@ -37,7 +37,7 @@ stdout 'OK!'
 
 # Check that `sys/users` has been enabled
 # gui call -> sys/users.IsEnable
-gnokey maketx call -pkgpath gno.land/r/sys/users -func IsEnabled -gas-fee 100000ugnot -gas-wanted 2000000 -broadcast -chainid tendermint_test gui
+gnokey maketx call -pkgpath gno.land/r/sys/users -func IsEnabled -gas-fee 10ugnot -gas-wanted 2000000 -broadcast -chainid tendermint_test gui
 stdout 'OK!'
 stdout 'true'
 

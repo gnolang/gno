@@ -261,7 +261,7 @@ func createAndSignTx(
 	tx := std.Tx{
 		Msgs: msgs,
 		Fee: std.Fee{
-			GasFee:    std.NewCoin("ugnot", 2000000),
+			GasFee:    std.NewCoin("ugnot", 20),
 			GasWanted: 10000000,
 		},
 	}
