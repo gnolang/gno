@@ -86,18 +86,6 @@ var nativeFuncs = [...]NativeFunc{
 	},
 	{
 		"std",
-		"ClearStoreCache",
-		[]gno.FieldTypeExpr{},
-		[]gno.FieldTypeExpr{},
-		true,
-		func(m *gno.Machine) {
-			testlibs_std.ClearStoreCache(
-				m,
-			)
-		},
-	},
-	{
-		"std",
 		"callerAt",
 		[]gno.FieldTypeExpr{
 			{Name: gno.N("p0"), Type: gno.X("int")},

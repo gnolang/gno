@@ -16,7 +16,7 @@ import (
 var (
 	Token, privateLedger = grc20.NewToken("Foo", "FOO", 4)
 	UserTeller           = Token.CallerTeller()
-	owner                = ownable.NewWithAddress("g1u7y667z64x2h7vc6fmpcprgey4ck233jaww9zq") // @manfred
+	owner                = ownable.NewWithAddress("g1manfred47kzduec920z88wfr64ylksmdcedlf5") // @manfred
 )
 
 func init() {

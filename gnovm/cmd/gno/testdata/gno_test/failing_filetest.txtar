@@ -2,9 +2,8 @@
 
 ! gno test -v .
 
-stdout 'Machine.RunMain\(\) panic: beep boop'
 stderr '=== RUN   file/failing_filetest.gno'
-stderr 'panic: fail on failing_filetest.gno: got unexpected error: beep boop'
+stderr 'unexpected panic: beep boop'
 
 -- failing.gno --
 package failing

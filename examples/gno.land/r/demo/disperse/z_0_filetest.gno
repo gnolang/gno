@@ -30,5 +30,5 @@ func main() {
 }
 
 // Output:
-// main before: 200000200ugnot
-// main after: 200000000ugnot
+// main before: 200ugnot
+// main after:

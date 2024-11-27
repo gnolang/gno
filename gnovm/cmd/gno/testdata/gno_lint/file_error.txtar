@@ -17,4 +17,4 @@ func TestIHaveSomeError() {
 
 -- stdout.golden --
 -- stderr.golden --
-i_have_error_test.gno:6: name undefined_variable not declared (code=2).
+i_have_error_test.gno:6:7: name undefined_variable not declared (code=2).

@@ -7,7 +7,7 @@ stderr 'ok      \. 	\d\.\d\ds'
 
 gno test -v .
 
-! stdout .+
+stdout 'test'
 stderr '=== RUN   file/valid_filetest.gno'
 stderr '--- PASS: file/valid_filetest.gno \(\d\.\d\ds\)'
 stderr 'ok      \. 	\d\.\d\ds'

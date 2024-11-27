@@ -838,6 +838,11 @@ func makeUverseNode() {
 					li := lv.ConvertGetInt()
 					cv := vargs.TV.GetPointerAtIndexInt(m.Store, 1).Deref()
 					ci := cv.ConvertGetInt()
+
+					if ci < li {
+						panic(&Exception{Value: typedString(`makeslice: cap out of range`)})
+					}
+
 					if et.Kind() == Uint8Kind {
 						arrayValue := m.Alloc.NewDataArray(ci)
 						m.PushValue(TypedValue{

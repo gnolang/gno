@@ -1,7 +1,8 @@
 package main
 
 func main() {
-	x := int(float64(1.2))
+	f := float64(1.2)
+	x := int(f)
 	println(x)
 }
 

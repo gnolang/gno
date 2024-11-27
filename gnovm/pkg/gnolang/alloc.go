@@ -194,6 +194,9 @@ func (alloc *Allocator) NewString(s string) StringValue {
 }
 
 func (alloc *Allocator) NewListArray(n int) *ArrayValue {
+	if n < 0 {
+		panic(&Exception{Value: typedString("len out of range")})
+	}
 	alloc.AllocateListArray(int64(n))
 	return &ArrayValue{
 		List: make([]TypedValue, n),
@@ -201,6 +204,10 @@ func (alloc *Allocator) NewListArray(n int) *ArrayValue {
 }
 
 func (alloc *Allocator) NewDataArray(n int) *ArrayValue {
+	if n < 0 {
+		panic(&Exception{Value: typedString("len out of range")})
+	}
+
 	alloc.AllocateDataArray(int64(n))
 	return &ArrayValue{
 		Data: make([]byte, n),

@@ -2,7 +2,8 @@
 
 gno test -v .
 
-! stdout .+ # stdout should be empty
+stdout 'hey'
+stdout 'hru?'
 stderr '=== RUN   file/x_filetest.gno'
 stderr '--- PASS: file/x_filetest.gno \(\d\.\d\ds\)'
 stderr 'ok      \. 	\d\.\d\ds'

@@ -43,7 +43,7 @@ func setupDevNode(
 			nodeConfig.InitialTxs[index] = nodeTx
 		}
 
-		logger.Info("genesis file loaded", "path", devCfg.genesisFile, "txs", len(nodeConfig.InitialTxs))
+		logger.Info("genesis file loaded", "path", devCfg.genesisFile, "txs", len(stateTxs))
 	}
 
 	return gnodev.NewDevNode(ctx, nodeConfig)

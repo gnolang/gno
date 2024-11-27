@@ -2,11 +2,14 @@ package main
 
 import (
 	"fmt"
-	"image/color"
 )
 
+type NRGBA64 struct {
+	R, G, B, A uint16
+}
+
 func main() {
-	c := color.NRGBA64{1, 1, 1, 1}
+	c := NRGBA64{1, 1, 1, 1}
 
 	fmt.Println(c)
 }
