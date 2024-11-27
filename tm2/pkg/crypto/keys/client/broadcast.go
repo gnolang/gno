@@ -12,6 +12,7 @@ import (
 	ctypes "github.com/gnolang/gno/tm2/pkg/bft/rpc/core/types"
 	"github.com/gnolang/gno/tm2/pkg/commands"
 	"github.com/gnolang/gno/tm2/pkg/errors"
+	sdk_types "github.com/gnolang/gno/tm2/pkg/sdk"
 	"github.com/gnolang/gno/tm2/pkg/std"
 )
 
@@ -139,13 +140,23 @@ func SimulateTx(cli client.ABCIClient, tx []byte) (*ctypes.ResultBroadcastTxComm
 		return nil, errors.Wrap(err, "simulate tx")
 	}
 
-	var result abci.ResponseDeliverTx
-	err = amino.Unmarshal(bres.Response.Value, &result)
+	var result sdk_types.Result
+	err = amino.UnmarshalJSON(bres.Response.ResponseBase.Data, &result)
 	if err != nil {
 		return nil, errors.Wrap(err, "unmarshaling simulate result")
 	}
 
 	return &ctypes.ResultBroadcastTxCommit{
-		DeliverTx: result,
+		DeliverTx: abci.ResponseDeliverTx{
+			ResponseBase: abci.ResponseBase{
+				Error:  result.ResponseBase.Error,
+				Data:   result.ResponseBase.Data,
+				Events: result.ResponseBase.Events,
+				Log:    result.ResponseBase.Log,
+				Info:   result.ResponseBase.Info,
+			},
+			GasWanted: result.GasWanted,
+			GasUsed:   result.GasUsed,
+		},
 	}, nil
 }
