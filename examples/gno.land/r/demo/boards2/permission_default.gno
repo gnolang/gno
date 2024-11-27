@@ -12,7 +12,7 @@ type (
 	// PermissionsHandlerFunc defines a function to handle permission callbacks.
 	// Handlers are called by the `WithPermission()` method to execute callbacks
 	// when users have the permission assigned.
-	PermissionsHandlerFunc func(Args, *admindao.AdminDAO, func(Args))
+	PermissionsHandlerFunc func(Permissioner, Args, func(Args))
 
 	// DefaultPermissions manages users, roles and permissions.
 	DefaultPermissions struct {
@@ -132,7 +132,7 @@ func (dp *DefaultPermissions) HandleFunc(p Permission, fn PermissionsHandlerFunc
 // WithPermission calls a callback when a user has a specific permission.
 // It panics on error or when a handler panics.
 // Callbacks are by default called when there is no handle registered for the permission.
-func (dp DefaultPermissions) WithPermission(user std.Address, perm Permission, args Args, cb func(Args)) {
+func (dp *DefaultPermissions) WithPermission(user std.Address, perm Permission, args Args, cb func(Args)) {
 	if !dp.HasPermission(user, perm) || !dp.dao.IsMember(user) {
 		panic("unauthorized")
 	}
@@ -144,7 +144,7 @@ func (dp DefaultPermissions) WithPermission(user std.Address, perm Permission, a
 	}
 
 	fn := h.(PermissionsHandlerFunc)
-	fn(args, dp.dao, cb)
+	fn(dp, args, cb)
 }
 
 func createDefaultPermissions() *DefaultPermissions {
@@ -156,13 +156,14 @@ func createDefaultPermissions() *DefaultPermissions {
 	perms := NewDefaultPermissions(
 		dao,
 		WithSuperRole(RoleOwner),
-		WithRole(RoleAdmin, PermissionBoardCreate),
+		WithRole(RoleAdmin, PermissionBoardCreate, PermissionMemberInvite),
 		// TODO: Finish assigning all roles and permissions
 		// WithRole(RoleModerator, permissions...),
 		WithUser(owner, RoleOwner),
 	)
 
 	perms.HandleFunc(PermissionBoardCreate, handleBoardCreate)
+	perms.HandleFunc(PermissionMemberInvite, handleMemberInvite)
 
 	return perms
 }

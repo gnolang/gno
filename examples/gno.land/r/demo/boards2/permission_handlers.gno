@@ -3,11 +3,10 @@ package boards2
 import (
 	"std"
 
-	"gno.land/p/demo/boards2/admindao"
 	"gno.land/r/demo/users"
 )
 
-func handleBoardCreate(args Args, _ *admindao.AdminDAO, cb func(Args)) {
+func handleBoardCreate(_ Permissioner, args Args, cb func(Args)) {
 	// TODO: This way of dealing with arguments is delicate, ideally types should be used
 	name := args[0].(string)
 	if std.Address(name).IsValid() {
@@ -20,6 +19,19 @@ func handleBoardCreate(args Args, _ *admindao.AdminDAO, cb func(Args)) {
 	user := users.GetUserByName(name)
 	if user != nil && user.Address != caller {
 		panic("board name is a user name registered to a different user")
+	}
+
+	cb(args)
+}
+
+func handleMemberInvite(p Permissioner, args Args, cb func(Args)) {
+	// Make sure that only owners invite other owners
+	role := args[1].(Role)
+	if role == RoleOwner {
+		caller := std.GetOrigCaller()
+		if !p.HasRole(caller, RoleOwner) {
+			panic("only owners are allowed to invite other owners")
+		}
 	}
 
 	cb(args)

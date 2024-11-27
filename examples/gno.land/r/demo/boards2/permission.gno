@@ -31,6 +31,9 @@ type (
 
 	// Permissioner define an interface to for permissioned execution.
 	Permissioner interface {
+		// HasRole checks if a user has a specific role assigned.
+		HasRole(std.Address, Role) bool
+
 		// HasPermission checks if a user has a specific permission.
 		HasPermission(std.Address, Permission) bool
 
