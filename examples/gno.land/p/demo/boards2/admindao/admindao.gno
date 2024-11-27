@@ -1,6 +1,7 @@
 package admindao
 
 import (
+	"errors"
 	"std"
 
 	"gno.land/p/demo/avl"
@@ -8,6 +9,9 @@ import (
 
 // TODO: Add support for proposals
 // TODO: Add support for events
+
+// ErrMemberExists indicates that a member is already part of the DAO.
+var ErrMemberExists = errors.New("member already exist")
 
 // AdminDAO defines a Boards administration DAO.
 type AdminDAO struct {
@@ -38,6 +42,15 @@ func (dao AdminDAO) Members() []std.Address {
 		return false
 	})
 	return members
+}
+
+// AddMember adds a new member to the DAO.
+func (dao *AdminDAO) AddMember(user std.Address) error {
+	if dao.IsMember(user) {
+		return ErrMemberExists
+	}
+	dao.members.Set(user.String(), struct{}{})
+	return nil
 }
 
 // IsMember checks if a user is a member of the DAO.
