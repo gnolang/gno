@@ -71,6 +71,7 @@ func UsersByPrefix(prefix string, maxResults int) []string {
 }
 
 // UpdateBio allows the caller to change their bio, if they are registered
+// XXX do we want this?
 func UpdateBio(bio string) error {
 	caller := std.GetOrigCaller()
 	u := ResolveAddress(caller)

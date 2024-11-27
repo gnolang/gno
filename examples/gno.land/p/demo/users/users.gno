@@ -11,8 +11,8 @@ type User struct {
 	Address std.Address
 	Name    string
 	Bio     string
-	Number  uint64
-	Block   int64 // XXX: should we save this?
+	Number  uint64 // XXX we don't really need this for apart from knowing how many users they are. Keep it or not?
+	Block   int64  // XXX: should we save this? could be cool to see when someone signed up.
 }
 
 func (u *User) Render() string {

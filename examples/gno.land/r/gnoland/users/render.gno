@@ -31,8 +31,8 @@ func Render(path string) string {
 	out += "Page " + strconv.Itoa(page.PageNumber) + " of " + strconv.Itoa(page.TotalPages) + "\n\n"
 
 	return out
-	//}
 
+	//} XXX: pager + query params doesnt work right now
 	//if !strings.HasPrefix(path, "?") {
 	//	// Render specific user page
 	//	user := sys.ResolveUsername(path)
