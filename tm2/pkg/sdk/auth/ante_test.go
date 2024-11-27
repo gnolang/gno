@@ -57,6 +57,25 @@ func defaultAnteOptions() AnteOptions {
 	}
 }
 
+// run the tx through the gasFeeCollector and ensure its valid
+func checkGasFeeValidTx(t *testing.T, gasFeeCollector sdk.GasFeeCollector, ctx sdk.Context, tx std.Tx, gasUsed int64) {
+	t.Helper()
+
+	result := gasFeeCollector(ctx, tx, gasUsed)
+	require.Nil(t, result.Error)
+	require.Equal(t, tx.Fee.GasWanted, result.GasWanted)
+	require.True(t, result.IsOK())
+}
+
+// run the tx through the anteHandler and ensure it fails with the given code
+func checkGasFeeInvalidTx(t *testing.T, gasFeeCollector sdk.GasFeeCollector, ctx sdk.Context, tx std.Tx, gasUsed int64, err abci.Error) {
+	t.Helper()
+
+	result := gasFeeCollector(ctx, tx, gasUsed)
+	require.True(t, result.IsErr())
+	require.Equal(t, reflect.TypeOf(err), reflect.TypeOf(sdk.ABCIError(result.Error)), fmt.Sprintf("Expected %v, got %v", err, result))
+}
+
 // Test various error cases in the AnteHandler control flow.
 func TestAnteHandlerSigErrors(t *testing.T) {
 	t.Parallel()
@@ -822,4 +841,74 @@ func TestCustomSignatureVerificationGasConsumer(t *testing.T) {
 	msgs = []std.Msg{msg}
 	tx = tu.NewTestTx(t, ctx.ChainID(), msgs, privs, accnums, seqs, fee)
 	checkValidTx(t, anteHandler, ctx, tx, false)
+}
+
+// TestNewGasFeeCollector
+func TestNewGasFeeCollector(t *testing.T) {
+	t.Parallel()
+
+	// setup
+	env := setupTestEnv()
+	ctx := env.ctx
+	gasFeeCollector := NewGasFeeCollector(env.acck, env.bank)
+
+	// keys and addresses
+	priv1, _, addr1 := tu.KeyTestPubAddr()
+
+	// msg and signatures
+	var tx std.Tx
+	msg := tu.NewTestMsg(addr1)
+	privs, accnums, seqs := []crypto.PrivKey{priv1}, []uint64{0}, []uint64{0}
+	fee := tu.NewTestFee()
+	msgs := []std.Msg{msg}
+
+	// test signer use new account (UnknownAddress)
+	tx = tu.NewTestTx(t, ctx.ChainID(), msgs, privs, accnums, seqs, fee)
+	checkGasFeeInvalidTx(t, gasFeeCollector, ctx, tx, int64(1000), std.UnknownAddressError{})
+
+	// set the accounts
+	acc1 := env.acck.NewAccountWithAddress(ctx, addr1)
+	env.acck.SetAccount(ctx, acc1)
+
+	// test signer does not set gas-fee
+	zeroGasFee := std.NewFee(50000, std.NewCoin("atom", 0))
+	tx = tu.NewTestTx(t, ctx.ChainID(), msgs, privs, accnums, seqs, zeroGasFee)
+	checkGasFeeInvalidTx(t, gasFeeCollector, ctx, tx, int64(1000), std.InsufficientFeeError{})
+
+	// test signer does not have enough funds to pay the fee
+	tx = tu.NewTestTx(t, ctx.ChainID(), msgs, privs, accnums, seqs, fee)
+	checkGasFeeInvalidTx(t, gasFeeCollector, ctx, tx, int64(1000), std.InsufficientFundsError{})
+
+	// test inValid fee
+	t.Run("invalid denom test", func(t *testing.T) {
+		invalidDenomGasFee := std.NewFee(50000, std.Coin{Denom: "atom@", Amount: 100})
+		invalidDenomGasFee2 := std.NewFee(50000, std.Coin{Denom: "atom denom", Amount: 100})
+		invalidDenomGasFee3 := std.NewFee(50000, std.Coin{Denom: "a", Amount: 100})
+
+		txInvalidDenom := tu.NewTestTx(t, ctx.ChainID(), msgs, privs, accnums, seqs, invalidDenomGasFee)
+		txInvalidDenom2 := tu.NewTestTx(t, ctx.ChainID(), msgs, privs, accnums, seqs, invalidDenomGasFee2)
+		txInvalidDenom3 := tu.NewTestTx(t, ctx.ChainID(), msgs, privs, accnums, seqs, invalidDenomGasFee3)
+
+		require.Panics(t, func() { gasFeeCollector(ctx, txInvalidDenom, int64(1000)) })
+		require.Panics(t, func() { gasFeeCollector(ctx, txInvalidDenom2, int64(1000)) })
+		require.Panics(t, func() { gasFeeCollector(ctx, txInvalidDenom3, int64(1000)) })
+	})
+
+	// test signer does not have enough funds to pay the fee
+	notEnoughFee := std.NewFee(50000, std.NewCoin("atom", 100))
+	tx = tu.NewTestTx(t, ctx.ChainID(), msgs, privs, accnums, seqs, notEnoughFee)
+	checkGasFeeInvalidTx(t, gasFeeCollector, ctx, tx, int64(1000), std.InsufficientFundsError{})
+
+	// test good tx from one signer
+	acc1.SetCoins(tu.NewTestCoins())
+	env.acck.SetAccount(ctx, acc1)
+	require.Equal(t, env.acck.GetAccount(ctx, addr1).GetCoins().AmountOf("atom"), int64(10000000))
+
+	collector := env.bank.(DummyBankKeeper).acck.GetAccount(ctx, FeeCollectorAddress())
+	require.Nil(t, collector)
+	tx = tu.NewTestTx(t, ctx.ChainID(), msgs, privs, accnums, seqs, fee)
+	checkGasFeeValidTx(t, gasFeeCollector, ctx, tx, int64(1000))
+
+	require.Equal(t, env.bank.(DummyBankKeeper).acck.GetAccount(ctx, FeeCollectorAddress()).GetCoins().AmountOf("atom"), int64(150000))
+	require.Equal(t, env.acck.GetAccount(ctx, addr1).GetCoins().AmountOf("atom"), int64(9850000))
 }
