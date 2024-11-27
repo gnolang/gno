@@ -35,7 +35,7 @@
     - MISSION: be the basis for improving the encoding standard from proto3, because
       proto3 length-prefixing is slow, and we need "proto4" or "amino2".
     - LOOK at the auto-generated proto files!
-      https://github.com/gnolang/gno/blob/master/pkgs/bft/consensus/types/cstypes.proto
+      https://github.com/gnolang/gno/blob/master/tm2/pkg/bft/consensus/types/cstypes.proto
       for example.
     - There was work to remove this from the CosmosSDK because
       Amino wasn't ready, but now that it is, it makes sense to incorporate it into
