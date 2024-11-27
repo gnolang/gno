@@ -20,7 +20,6 @@ var (
 type BaseTxCfg struct {
 	GasFee         string // Gas fee
 	GasWanted      int64  // Gas wanted
-	AccountNumber  uint64 // Account number
 	SequenceNumber uint64 // Sequence number
 	Memo           string // Memo
 }
@@ -39,7 +38,7 @@ func (c *Client) Call(cfg BaseTxCfg, msgs ...vm.MsgCall) (*ctypes.ResultBroadcas
 	if err != nil {
 		return nil, err
 	}
-	return c.signAndBroadcastTxCommit(*tx, cfg.AccountNumber, cfg.SequenceNumber)
+	return c.signAndBroadcastTxCommit(*tx, cfg.SequenceNumber)
 }
 
 // NewCallTx makes an unsigned transaction from one or more MsgCall.
@@ -89,7 +88,7 @@ func (c *Client) Run(cfg BaseTxCfg, msgs ...vm.MsgRun) (*ctypes.ResultBroadcastT
 	if err != nil {
 		return nil, err
 	}
-	return c.signAndBroadcastTxCommit(*tx, cfg.AccountNumber, cfg.SequenceNumber)
+	return c.signAndBroadcastTxCommit(*tx, cfg.SequenceNumber)
 }
 
 // NewRunTx makes an unsigned transaction from one or more MsgRun.
@@ -139,7 +138,7 @@ func (c *Client) Send(cfg BaseTxCfg, msgs ...bank.MsgSend) (*ctypes.ResultBroadc
 	if err != nil {
 		return nil, err
 	}
-	return c.signAndBroadcastTxCommit(*tx, cfg.AccountNumber, cfg.SequenceNumber)
+	return c.signAndBroadcastTxCommit(*tx, cfg.SequenceNumber)
 }
 
 // NewSendTx makes an unsigned transaction from one or more MsgSend.
@@ -189,7 +188,7 @@ func (c *Client) AddPackage(cfg BaseTxCfg, msgs ...vm.MsgAddPackage) (*ctypes.Re
 	if err != nil {
 		return nil, err
 	}
-	return c.signAndBroadcastTxCommit(*tx, cfg.AccountNumber, cfg.SequenceNumber)
+	return c.signAndBroadcastTxCommit(*tx, cfg.SequenceNumber)
 }
 
 // NewAddPackageTx makes an unsigned transaction from one or more MsgAddPackage.
@@ -226,8 +225,8 @@ func NewAddPackageTx(cfg BaseTxCfg, msgs ...vm.MsgAddPackage) (*std.Tx, error) {
 }
 
 // signAndBroadcastTxCommit signs a transaction and broadcasts it, returning the result
-func (c *Client) signAndBroadcastTxCommit(tx std.Tx, accountNumber, sequenceNumber uint64) (*ctypes.ResultBroadcastTxCommit, error) {
-	signedTx, err := c.SignTx(tx, accountNumber, sequenceNumber)
+func (c *Client) signAndBroadcastTxCommit(tx std.Tx, sequenceNumber uint64) (*ctypes.ResultBroadcastTxCommit, error) {
+	signedTx, err := c.SignTx(tx, sequenceNumber)
 	if err != nil {
 		return nil, err
 	}
@@ -235,8 +234,8 @@ func (c *Client) signAndBroadcastTxCommit(tx std.Tx, accountNumber, sequenceNumb
 }
 
 // SignTx signs a transaction and returns a signed tx ready for broadcasting.
-// If accountNumber or sequenceNumber is 0 then query the blockchain for the value.
-func (c *Client) SignTx(tx std.Tx, accountNumber, sequenceNumber uint64) (*std.Tx, error) {
+// If the sequenceNumber is 0 then query the blockchain for the value.
+func (c *Client) SignTx(tx std.Tx, sequenceNumber uint64) (*std.Tx, error) {
 	if err := c.validateSigner(); err != nil {
 		return nil, err
 	}
@@ -245,19 +244,17 @@ func (c *Client) SignTx(tx std.Tx, accountNumber, sequenceNumber uint64) (*std.T
 		return nil, err
 	}
 
-	if sequenceNumber == 0 || accountNumber == 0 {
+	if sequenceNumber == 0 {
 		account, _, err := c.QueryAccount(caller.GetAddress())
 		if err != nil {
 			return nil, errors.Wrap(err, "query account")
 		}
-		accountNumber = account.AccountNumber
 		sequenceNumber = account.Sequence
 	}
 
 	signCfg := SignCfg{
 		UnsignedTX:     tx,
 		SequenceNumber: sequenceNumber,
-		AccountNumber:  accountNumber,
 	}
 	signedTx, err := c.Signer.Sign(signCfg)
 	if err != nil {

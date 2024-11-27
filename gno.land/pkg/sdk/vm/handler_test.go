@@ -106,7 +106,7 @@ func TestVmHandlerQuery_Eval(t *testing.T) {
 
 			// Give "addr1" some gnots.
 			addr := crypto.AddressFromPreimage([]byte("addr1"))
-			acc := env.acck.NewAccountWithAddress(ctx, addr)
+			acc := env.acck.NewAccountWithAddress(addr)
 			env.acck.SetAccount(ctx, acc)
 			env.bank.SetCoins(ctx, addr, std.MustParseCoins("10000000ugnot"))
 			assert.True(t, env.bank.GetCoins(ctx, addr).IsEqual(std.MustParseCoins("10000000ugnot")))
@@ -199,7 +199,7 @@ func TestVmHandlerQuery_Funcs(t *testing.T) {
 
 			// Give "addr1" some gnots.
 			addr := crypto.AddressFromPreimage([]byte("addr1"))
-			acc := env.acck.NewAccountWithAddress(ctx, addr)
+			acc := env.acck.NewAccountWithAddress(addr)
 			env.acck.SetAccount(ctx, acc)
 			env.bank.SetCoins(ctx, addr, std.MustParseCoins("10000000ugnot"))
 			assert.True(t, env.bank.GetCoins(ctx, addr).IsEqual(std.MustParseCoins("10000000ugnot")))
@@ -277,7 +277,7 @@ func TestVmHandlerQuery_File(t *testing.T) {
 
 			// Give "addr1" some gnots.
 			addr := crypto.AddressFromPreimage([]byte("addr1"))
-			acc := env.acck.NewAccountWithAddress(ctx, addr)
+			acc := env.acck.NewAccountWithAddress(addr)
 			env.acck.SetAccount(ctx, acc)
 			env.bank.SetCoins(ctx, addr, std.MustParseCoins("10000000ugnot"))
 			assert.True(t, env.bank.GetCoins(ctx, addr).IsEqual(std.MustParseCoins("10000000ugnot")))

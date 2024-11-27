@@ -107,14 +107,13 @@ func (tx Tx) GetMemo() string { return tx.Memo }
 // .Empty().
 func (tx Tx) GetSignatures() []Signature { return tx.Signatures }
 
-func (tx Tx) GetSignBytes(chainID string, accountNumber uint64, sequence uint64) ([]byte, error) {
+func (tx Tx) GetSignBytes(chainID string, sequence uint64) ([]byte, error) {
 	return GetSignaturePayload(SignDoc{
-		ChainID:       chainID,
-		AccountNumber: accountNumber,
-		Sequence:      sequence,
-		Fee:           tx.Fee,
-		Msgs:          tx.Msgs,
-		Memo:          tx.Memo,
+		ChainID:  chainID,
+		Sequence: sequence,
+		Fee:      tx.Fee,
+		Msgs:     tx.Msgs,
+		Memo:     tx.Memo,
 	})
 }
 

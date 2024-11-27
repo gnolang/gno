@@ -90,7 +90,6 @@ function updateCommand(x) {
   // command 2: sign tx.
   var args = ["gnokey", "sign",
     "-tx-path", "call.tx", "-chainid", shq(chainid),
-    "-account-number", "ACCOUNTNUMBER",
     "-account-sequence", "SEQUENCENUMBER", myAddr];
   var command = args.join(" ");
   shell.append(u("<span>").text(command)).append(u("<br>"));

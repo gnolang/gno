@@ -30,7 +30,7 @@ func TestVMKeeperAddPackage(t *testing.T) {
 
 	// Give "addr1" some gnots.
 	addr := crypto.AddressFromPreimage([]byte("addr1"))
-	acc := env.acck.NewAccountWithAddress(ctx, addr)
+	acc := env.acck.NewAccountWithAddress(addr)
 	env.acck.SetAccount(ctx, acc)
 	env.bank.SetCoins(ctx, addr, std.MustParseCoins(coinsString))
 	assert.True(t, env.bank.GetCoins(ctx, addr).IsEqual(std.MustParseCoins(coinsString)))
@@ -75,7 +75,7 @@ func TestVMKeeperOrigSend1(t *testing.T) {
 
 	// Give "addr1" some gnots.
 	addr := crypto.AddressFromPreimage([]byte("addr1"))
-	acc := env.acck.NewAccountWithAddress(ctx, addr)
+	acc := env.acck.NewAccountWithAddress(addr)
 	env.acck.SetAccount(ctx, acc)
 	env.bank.SetCoins(ctx, addr, std.MustParseCoins(coinsString))
 	assert.True(t, env.bank.GetCoins(ctx, addr).IsEqual(std.MustParseCoins(coinsString)))
@@ -120,7 +120,7 @@ func TestVMKeeperOrigSend2(t *testing.T) {
 
 	// Give "addr1" some gnots.
 	addr := crypto.AddressFromPreimage([]byte("addr1"))
-	acc := env.acck.NewAccountWithAddress(ctx, addr)
+	acc := env.acck.NewAccountWithAddress(addr)
 	env.acck.SetAccount(ctx, acc)
 	env.bank.SetCoins(ctx, addr, std.MustParseCoins(coinsString))
 	assert.True(t, env.bank.GetCoins(ctx, addr).IsEqual(std.MustParseCoins(coinsString)))
@@ -174,7 +174,7 @@ func TestVMKeeperOrigSend3(t *testing.T) {
 
 	// Give "addr1" some gnots.
 	addr := crypto.AddressFromPreimage([]byte("addr1"))
-	acc := env.acck.NewAccountWithAddress(ctx, addr)
+	acc := env.acck.NewAccountWithAddress(addr)
 	env.acck.SetAccount(ctx, acc)
 	env.bank.SetCoins(ctx, addr, std.MustParseCoins(coinsString))
 	assert.True(t, env.bank.GetCoins(ctx, addr).IsEqual(std.MustParseCoins(coinsString)))
@@ -218,7 +218,7 @@ func TestVMKeeperRealmSend1(t *testing.T) {
 
 	// Give "addr1" some gnots.
 	addr := crypto.AddressFromPreimage([]byte("addr1"))
-	acc := env.acck.NewAccountWithAddress(ctx, addr)
+	acc := env.acck.NewAccountWithAddress(addr)
 	env.acck.SetAccount(ctx, acc)
 	env.bank.SetCoins(ctx, addr, std.MustParseCoins(coinsString))
 	assert.True(t, env.bank.GetCoins(ctx, addr).IsEqual(std.MustParseCoins(coinsString)))
@@ -262,7 +262,7 @@ func TestVMKeeperRealmSend2(t *testing.T) {
 
 	// Give "addr1" some gnots.
 	addr := crypto.AddressFromPreimage([]byte("addr1"))
-	acc := env.acck.NewAccountWithAddress(ctx, addr)
+	acc := env.acck.NewAccountWithAddress(addr)
 	env.acck.SetAccount(ctx, acc)
 	env.bank.SetCoins(ctx, addr, std.MustParseCoins(coinsString))
 	assert.True(t, env.bank.GetCoins(ctx, addr).IsEqual(std.MustParseCoins(coinsString)))
@@ -306,7 +306,7 @@ func TestVMKeeperParams(t *testing.T) {
 
 	// Give "addr1" some gnots.
 	addr := crypto.AddressFromPreimage([]byte("addr1"))
-	acc := env.acck.NewAccountWithAddress(ctx, addr)
+	acc := env.acck.NewAccountWithAddress(addr)
 	env.acck.SetAccount(ctx, acc)
 	env.bank.SetCoins(ctx, addr, std.MustParseCoins(coinsString))
 	// env.prmk.
@@ -360,7 +360,7 @@ func TestVMKeeperOrigCallerInit(t *testing.T) {
 
 	// Give "addr1" some gnots.
 	addr := crypto.AddressFromPreimage([]byte("addr1"))
-	acc := env.acck.NewAccountWithAddress(ctx, addr)
+	acc := env.acck.NewAccountWithAddress(addr)
 	env.acck.SetAccount(ctx, acc)
 	env.bank.SetCoins(ctx, addr, std.MustParseCoins(coinsString))
 	assert.True(t, env.bank.GetCoins(ctx, addr).IsEqual(std.MustParseCoins(coinsString)))
@@ -414,7 +414,7 @@ func TestVMKeeperRunSimple(t *testing.T) {
 
 	// Give "addr1" some gnots.
 	addr := crypto.AddressFromPreimage([]byte("addr1"))
-	acc := env.acck.NewAccountWithAddress(ctx, addr)
+	acc := env.acck.NewAccountWithAddress(addr)
 	env.acck.SetAccount(ctx, acc)
 
 	files := []*gnovm.MemFile{
@@ -453,7 +453,7 @@ func testVMKeeperRunImportStdlibs(t *testing.T, env testEnv) {
 
 	// Give "addr1" some gnots.
 	addr := crypto.AddressFromPreimage([]byte("addr1"))
-	acc := env.acck.NewAccountWithAddress(ctx, addr)
+	acc := env.acck.NewAccountWithAddress(addr)
 	env.acck.SetAccount(ctx, acc)
 
 	files := []*gnovm.MemFile{
@@ -483,7 +483,7 @@ func TestNumberOfArgsError(t *testing.T) {
 
 	// Give "addr1" some gnots.
 	addr := crypto.AddressFromPreimage([]byte("addr1"))
-	acc := env.acck.NewAccountWithAddress(ctx, addr)
+	acc := env.acck.NewAccountWithAddress(addr)
 	env.acck.SetAccount(ctx, acc)
 	env.bank.SetCoins(ctx, addr, std.MustParseCoins(coinsString))
 	assert.True(t, env.bank.GetCoins(ctx, addr).IsEqual(std.MustParseCoins(coinsString)))
@@ -522,7 +522,7 @@ func TestVMKeeperReinitialize(t *testing.T) {
 
 	// Give "addr1" some gnots.
 	addr := crypto.AddressFromPreimage([]byte("addr1"))
-	acc := env.acck.NewAccountWithAddress(ctx, addr)
+	acc := env.acck.NewAccountWithAddress(addr)
 	env.acck.SetAccount(ctx, acc)
 	env.bank.SetCoins(ctx, addr, std.MustParseCoins(coinsString))
 	assert.True(t, env.bank.GetCoins(ctx, addr).IsEqual(std.MustParseCoins(coinsString)))

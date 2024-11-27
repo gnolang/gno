@@ -41,7 +41,6 @@ func TestCallSingle_Integration(t *testing.T) {
 	baseCfg := BaseTxCfg{
 		GasFee:         ugnot.ValueString(10000),
 		GasWanted:      8000000,
-		AccountNumber:  0,
 		SequenceNumber: 0,
 		Memo:           "",
 	}
@@ -94,7 +93,6 @@ func TestCallMultiple_Integration(t *testing.T) {
 	baseCfg := BaseTxCfg{
 		GasFee:         ugnot.ValueString(10000),
 		GasWanted:      8000000,
-		AccountNumber:  0,
 		SequenceNumber: 0,
 		Memo:           "",
 	}
@@ -156,7 +154,6 @@ func TestSendSingle_Integration(t *testing.T) {
 	baseCfg := BaseTxCfg{
 		GasFee:         ugnot.ValueString(10000),
 		GasWanted:      8000000,
-		AccountNumber:  0,
 		SequenceNumber: 0,
 		Memo:           "",
 	}
@@ -220,7 +217,6 @@ func TestSendMultiple_Integration(t *testing.T) {
 	baseCfg := BaseTxCfg{
 		GasFee:         ugnot.ValueString(10000),
 		GasWanted:      8000000,
-		AccountNumber:  0,
 		SequenceNumber: 0,
 		Memo:           "",
 	}
@@ -292,7 +288,6 @@ func TestRunSingle_Integration(t *testing.T) {
 	baseCfg := BaseTxCfg{
 		GasFee:         ugnot.ValueString(10000),
 		GasWanted:      8000000,
-		AccountNumber:  0,
 		SequenceNumber: 0,
 		Memo:           "",
 	}
@@ -360,7 +355,6 @@ func TestRunMultiple_Integration(t *testing.T) {
 	baseCfg := BaseTxCfg{
 		GasFee:         ugnot.ValueString(10000),
 		GasWanted:      13000000,
-		AccountNumber:  0,
 		SequenceNumber: 0,
 		Memo:           "",
 	}
@@ -453,7 +447,6 @@ func TestAddPackageSingle_Integration(t *testing.T) {
 	baseCfg := BaseTxCfg{
 		GasFee:         ugnot.ValueString(10000),
 		GasWanted:      8000000,
-		AccountNumber:  0,
 		SequenceNumber: 0,
 		Memo:           "",
 	}
@@ -538,7 +531,6 @@ func TestAddPackageMultiple_Integration(t *testing.T) {
 	baseCfg := BaseTxCfg{
 		GasFee:         ugnot.ValueString(10000),
 		GasWanted:      8000000,
-		AccountNumber:  0,
 		SequenceNumber: 0,
 		Memo:           "",
 	}

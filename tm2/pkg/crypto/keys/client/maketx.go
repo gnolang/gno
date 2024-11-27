@@ -146,13 +146,11 @@ func SignAndBroadcastHandler(
 	}
 
 	// sign tx
-	accountNumber := qret.BaseAccount.AccountNumber
 	sequence := qret.BaseAccount.Sequence
 
 	sOpts := signOpts{
 		chainID:         txopts.ChainID,
 		accountSequence: sequence,
-		accountNumber:   accountNumber,
 	}
 
 	kOpts := keyOpts{

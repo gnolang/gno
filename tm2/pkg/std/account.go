@@ -25,9 +25,6 @@ type Account interface {
 	GetPubKey() crypto.PubKey // can return nil.
 	SetPubKey(crypto.PubKey) error
 
-	GetAccountNumber() uint64
-	SetAccountNumber(uint64) error
-
 	GetSequence() uint64
 	SetSequence(uint64) error
 
@@ -38,30 +35,16 @@ type Account interface {
 	String() string
 }
 
-//----------------------------------------
+// ----------------------------------------
 // BaseAccount
 
 // BaseAccount - a base account structure.
 // This can be extended by embedding within in your *Account structure.
 type BaseAccount struct {
-	Address       crypto.Address `json:"address" yaml:"address"`
-	Coins         Coins          `json:"coins" yaml:"coins"`
-	PubKey        crypto.PubKey  `json:"public_key" yaml:"public_key"`
-	AccountNumber uint64         `json:"account_number" yaml:"account_number"`
-	Sequence      uint64         `json:"sequence" yaml:"sequence"`
-}
-
-// NewBaseAccount creates a new BaseAccount object
-func NewBaseAccount(address crypto.Address, coins Coins,
-	pubKey crypto.PubKey, accountNumber uint64, sequence uint64,
-) *BaseAccount {
-	return &BaseAccount{
-		Address:       address,
-		Coins:         coins,
-		PubKey:        pubKey,
-		AccountNumber: accountNumber,
-		Sequence:      sequence,
-	}
+	Address  crypto.Address `json:"address" yaml:"address"`
+	Coins    Coins          `json:"coins" yaml:"coins"`
+	PubKey   crypto.PubKey  `json:"public_key" yaml:"public_key"`
+	Sequence uint64         `json:"sequence" yaml:"sequence"`
 }
 
 // String implements fmt.Stringer
@@ -76,22 +59,14 @@ func (acc BaseAccount) String() string {
   Address:       %s
   Pubkey:        %s
   Coins:         %s
-  AccountNumber: %d
   Sequence:      %d`,
-		acc.Address, pubkey, acc.Coins, acc.AccountNumber, acc.Sequence,
+		acc.Address, pubkey, acc.Coins, acc.Sequence,
 	)
 }
 
 // ProtoBaseAccount - a prototype function for BaseAccount
 func ProtoBaseAccount() Account {
 	return &BaseAccount{}
-}
-
-// NewBaseAccountWithAddress - returns a new base account with a given address
-func NewBaseAccountWithAddress(addr crypto.Address) BaseAccount {
-	return BaseAccount{
-		Address: addr,
-	}
 }
 
 // GetAddress - Implements Account.
@@ -127,17 +102,6 @@ func (acc *BaseAccount) GetCoins() Coins {
 // SetCoins - Implements Account.
 func (acc *BaseAccount) SetCoins(coins Coins) error {
 	acc.Coins = coins
-	return nil
-}
-
-// GetAccountNumber - Implements Account
-func (acc *BaseAccount) GetAccountNumber() uint64 {
-	return acc.AccountNumber
-}
-
-// SetAccountNumber - Implements Account
-func (acc *BaseAccount) SetAccountNumber(accNumber uint64) error {
-	acc.AccountNumber = accNumber
 	return nil
 }
 

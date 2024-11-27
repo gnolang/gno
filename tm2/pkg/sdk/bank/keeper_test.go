@@ -19,7 +19,7 @@ func TestKeeper(t *testing.T) {
 	addr := crypto.AddressFromPreimage([]byte("addr1"))
 	addr2 := crypto.AddressFromPreimage([]byte("addr2"))
 	addr3 := crypto.AddressFromPreimage([]byte("addr3"))
-	acc := env.acck.NewAccountWithAddress(ctx, addr)
+	acc := env.acck.NewAccountWithAddress(addr)
 
 	// Test GetCoins/SetCoins
 	env.acck.SetAccount(ctx, acc)
@@ -99,7 +99,7 @@ func TestBankKeeper(t *testing.T) {
 
 	addr := crypto.AddressFromPreimage([]byte("addr1"))
 	addr2 := crypto.AddressFromPreimage([]byte("addr2"))
-	acc := env.acck.NewAccountWithAddress(ctx, addr)
+	acc := env.acck.NewAccountWithAddress(addr)
 
 	// Test GetCoins/SetCoins
 	env.acck.SetAccount(ctx, acc)
@@ -145,7 +145,7 @@ func TestViewKeeper(t *testing.T) {
 	view := NewViewKeeper(env.acck)
 
 	addr := crypto.AddressFromPreimage([]byte("addr1"))
-	acc := env.acck.NewAccountWithAddress(ctx, addr)
+	acc := env.acck.NewAccountWithAddress(addr)
 
 	// Test GetCoins/SetCoins
 	env.acck.SetAccount(ctx, acc)

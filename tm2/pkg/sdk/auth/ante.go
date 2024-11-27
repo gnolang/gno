@@ -153,7 +153,7 @@ func NewAnteHandler(ak AccountKeeper, bank BankKeeperI, sigGasConsumer Signature
 				// No signatures are needed for genesis.
 			} else {
 				// Check signature
-				signBytes, err := GetSignBytes(newCtx.ChainID(), tx, sacc, isGenesis)
+				signBytes, err := GetSignBytes(newCtx.ChainID(), tx, sacc)
 				if err != nil {
 					return newCtx, res, true
 				}
@@ -433,20 +433,14 @@ func SetGasMeter(simulate bool, ctx sdk.Context, gasLimit int64) sdk.Context {
 
 // GetSignBytes returns a slice of bytes to sign over for a given transaction
 // and an account.
-func GetSignBytes(chainID string, tx std.Tx, acc std.Account, genesis bool) ([]byte, error) {
-	var accNum uint64
-	if !genesis {
-		accNum = acc.GetAccountNumber()
-	}
-
+func GetSignBytes(chainID string, tx std.Tx, acc std.Account) ([]byte, error) {
 	return std.GetSignaturePayload(
 		std.SignDoc{
-			ChainID:       chainID,
-			AccountNumber: accNum,
-			Sequence:      acc.GetSequence(),
-			Fee:           tx.Fee,
-			Msgs:          tx.Msgs,
-			Memo:          tx.Memo,
+			ChainID:  chainID,
+			Sequence: acc.GetSequence(),
+			Fee:      tx.Fee,
+			Msgs:     tx.Msgs,
+			Memo:     tx.Memo,
 		},
 	)
 }

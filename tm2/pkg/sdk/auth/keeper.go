@@ -32,7 +32,7 @@ func NewAccountKeeper(
 }
 
 // NewAccountWithAddress implements AccountKeeper.
-func (ak AccountKeeper) NewAccountWithAddress(ctx sdk.Context, addr crypto.Address) std.Account {
+func (ak AccountKeeper) NewAccountWithAddress(addr crypto.Address) std.Account {
 	acc := ak.proto()
 	// acc.SetSequence(0) // start with 0.
 	err := acc.SetAddress(addr)
@@ -40,11 +40,7 @@ func (ak AccountKeeper) NewAccountWithAddress(ctx sdk.Context, addr crypto.Addre
 		// Handle w/ #870
 		panic(err)
 	}
-	err = acc.SetAccountNumber(ak.GetNextAccountNumber(ctx))
-	if err != nil {
-		// Handle w/ #870
-		panic(err)
-	}
+
 	return acc
 }
 
@@ -128,26 +124,6 @@ func (ak AccountKeeper) GetSequence(ctx sdk.Context, addr crypto.Address) (uint6
 		return 0, std.ErrUnknownAddress(fmt.Sprintf("account %s does not exist", addr))
 	}
 	return acc.GetSequence(), nil
-}
-
-// GetNextAccountNumber Returns and increments the global account number counter
-func (ak AccountKeeper) GetNextAccountNumber(ctx sdk.Context) uint64 {
-	var accNumber uint64
-	stor := ctx.Store(ak.key)
-	bz := stor.Get([]byte(GlobalAccountNumberKey))
-	if bz == nil {
-		accNumber = 0 // start with 0.
-	} else {
-		err := amino.Unmarshal(bz, &accNumber)
-		if err != nil {
-			panic(err)
-		}
-	}
-
-	bz = amino.MustMarshal(accNumber + 1)
-	stor.Set([]byte(GlobalAccountNumberKey), bz)
-
-	return accNumber
 }
 
 // -----------------------------------------------------------------------------

@@ -166,7 +166,7 @@ func (bank BankKeeper) SetCoins(ctx sdk.Context, addr crypto.Address, amt std.Co
 
 	acc := bank.acck.GetAccount(ctx, addr)
 	if acc == nil {
-		acc = bank.acck.NewAccountWithAddress(ctx, addr)
+		acc = bank.acck.NewAccountWithAddress(addr)
 	}
 
 	err := acc.SetCoins(amt)

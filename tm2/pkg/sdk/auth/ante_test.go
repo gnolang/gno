@@ -11,7 +11,6 @@ import (
 
 	"github.com/gnolang/gno/tm2/pkg/amino"
 	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
-	bft "github.com/gnolang/gno/tm2/pkg/bft/types"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
 	"github.com/gnolang/gno/tm2/pkg/crypto/ed25519"
 	"github.com/gnolang/gno/tm2/pkg/crypto/multisig"
@@ -80,8 +79,8 @@ func TestAnteHandlerSigErrors(t *testing.T) {
 	msgs := []std.Msg{msg1, msg2}
 
 	// test no signatures
-	privs, accNums, seqs := []crypto.PrivKey{}, []uint64{}, []uint64{}
-	tx = tu.NewTestTx(t, ctx.ChainID(), msgs, privs, accNums, seqs, fee)
+	privs, seqs := []crypto.PrivKey{}, []uint64{}
+	tx = tu.NewTestTx(t, ctx.ChainID(), msgs, privs, seqs, fee)
 
 	// tx.GetSigners returns addresses in correct order: addr1, addr2, addr3
 	expectedSigners := []crypto.Address{addr1, addr2, addr3}
@@ -91,140 +90,20 @@ func TestAnteHandlerSigErrors(t *testing.T) {
 	checkInvalidTx(t, anteHandler, ctx, tx, false, std.NoSignaturesError{})
 
 	// test num sigs dont match GetSigners
-	privs, accNums, seqs = []crypto.PrivKey{priv1}, []uint64{0}, []uint64{0}
-	tx = tu.NewTestTx(t, ctx.ChainID(), msgs, privs, accNums, seqs, fee)
+	privs, seqs = []crypto.PrivKey{priv1}, []uint64{0}
+	tx = tu.NewTestTx(t, ctx.ChainID(), msgs, privs, seqs, fee)
 	checkInvalidTx(t, anteHandler, ctx, tx, false, std.UnauthorizedError{})
 
 	// test an unrecognized account
-	privs, accNums, seqs = []crypto.PrivKey{priv1, priv2, priv3}, []uint64{0, 1, 2}, []uint64{0, 0, 0}
-	tx = tu.NewTestTx(t, ctx.ChainID(), msgs, privs, accNums, seqs, fee)
+	privs, seqs = []crypto.PrivKey{priv1, priv2, priv3}, []uint64{0, 0, 0}
+	tx = tu.NewTestTx(t, ctx.ChainID(), msgs, privs, seqs, fee)
 	checkInvalidTx(t, anteHandler, ctx, tx, false, std.UnknownAddressError{})
 
 	// save the first account, but second is still unrecognized
-	acc1 := env.acck.NewAccountWithAddress(ctx, addr1)
+	acc1 := env.acck.NewAccountWithAddress(addr1)
 	acc1.SetCoins(std.Coins{fee.GasFee})
 	env.acck.SetAccount(ctx, acc1)
 	checkInvalidTx(t, anteHandler, ctx, tx, false, std.UnknownAddressError{})
-}
-
-// Test logic around account number checking with one signer and many signers.
-func TestAnteHandlerAccountNumbers(t *testing.T) {
-	t.Parallel()
-
-	// setup
-	env := setupTestEnv()
-	anteHandler := NewAnteHandler(env.acck, env.bank, DefaultSigVerificationGasConsumer, defaultAnteOptions())
-	ctx := env.ctx
-
-	// keys and addresses
-	priv1, _, addr1 := tu.KeyTestPubAddr()
-	priv2, _, addr2 := tu.KeyTestPubAddr()
-
-	// set the accounts
-	acc1 := env.acck.NewAccountWithAddress(ctx, addr1)
-	acc1.SetCoins(tu.NewTestCoins())
-	require.NoError(t, acc1.SetAccountNumber(0))
-	env.acck.SetAccount(ctx, acc1)
-	acc2 := env.acck.NewAccountWithAddress(ctx, addr2)
-	acc2.SetCoins(tu.NewTestCoins())
-	require.NoError(t, acc2.SetAccountNumber(1))
-	env.acck.SetAccount(ctx, acc2)
-
-	// msg and signatures
-	var tx std.Tx
-	msg := tu.NewTestMsg(addr1)
-	fee := tu.NewTestFee()
-
-	msgs := []std.Msg{msg}
-
-	// test good tx from one signer
-	privs, accnums, seqs := []crypto.PrivKey{priv1}, []uint64{0}, []uint64{0}
-	tx = tu.NewTestTx(t, ctx.ChainID(), msgs, privs, accnums, seqs, fee)
-	checkValidTx(t, anteHandler, ctx, tx, false)
-
-	// new tx from wrong account number
-	seqs = []uint64{1}
-	tx = tu.NewTestTx(t, ctx.ChainID(), msgs, privs, []uint64{1}, seqs, fee)
-	checkInvalidTx(t, anteHandler, ctx, tx, false, std.UnauthorizedError{})
-
-	// from correct account number
-	seqs = []uint64{1}
-	tx = tu.NewTestTx(t, ctx.ChainID(), msgs, privs, []uint64{0}, seqs, fee)
-	checkValidTx(t, anteHandler, ctx, tx, false)
-
-	// new tx with another signer and incorrect account numbers
-	msg1 := tu.NewTestMsg(addr1, addr2)
-	msg2 := tu.NewTestMsg(addr2, addr1)
-	msgs = []std.Msg{msg1, msg2}
-	privs, accnums, seqs = []crypto.PrivKey{priv1, priv2}, []uint64{1, 0}, []uint64{2, 0}
-	tx = tu.NewTestTx(t, ctx.ChainID(), msgs, privs, accnums, seqs, fee)
-	checkInvalidTx(t, anteHandler, ctx, tx, false, std.UnauthorizedError{})
-
-	// correct account numbers
-	privs, accnums, seqs = []crypto.PrivKey{priv1, priv2}, []uint64{0, 1}, []uint64{2, 0}
-	tx = tu.NewTestTx(t, ctx.ChainID(), msgs, privs, accnums, seqs, fee)
-	checkValidTx(t, anteHandler, ctx, tx, false)
-}
-
-// Test logic around account number checking with many signers when BlockHeight is 0.
-func TestAnteHandlerAccountNumbersAtBlockHeightZero(t *testing.T) {
-	t.Parallel()
-
-	// setup
-	env := setupTestEnv()
-	anteHandler := NewAnteHandler(env.acck, env.bank, DefaultSigVerificationGasConsumer, defaultAnteOptions())
-	ctx := env.ctx
-	header := ctx.BlockHeader().(*bft.Header)
-	header.Height = 0
-	ctx = ctx.WithBlockHeader(header)
-
-	// keys and addresses
-	priv1, _, addr1 := tu.KeyTestPubAddr()
-	priv2, _, addr2 := tu.KeyTestPubAddr()
-
-	// set the accounts, we don't need the acc numbers as it is in the genesis block
-	acc1 := env.acck.NewAccountWithAddress(ctx, addr1)
-	acc1.SetCoins(tu.NewTestCoins())
-	env.acck.SetAccount(ctx, acc1)
-	acc2 := env.acck.NewAccountWithAddress(ctx, addr2)
-	acc2.SetCoins(tu.NewTestCoins())
-	require.NoError(t, acc2.SetAccountNumber(1))
-	env.acck.SetAccount(ctx, acc2)
-
-	// msg and signatures
-	var tx std.Tx
-	msg := tu.NewTestMsg(addr1)
-	fee := tu.NewTestFee()
-
-	msgs := []std.Msg{msg}
-
-	// test good tx from one signer
-	privs, accnums, seqs := []crypto.PrivKey{priv1}, []uint64{0}, []uint64{0}
-	tx = tu.NewTestTx(t, ctx.ChainID(), msgs, privs, accnums, seqs, fee)
-	checkValidTx(t, anteHandler, ctx, tx, false)
-
-	// new tx from wrong account number
-	seqs = []uint64{1}
-	tx = tu.NewTestTx(t, ctx.ChainID(), msgs, privs, []uint64{1}, seqs, fee)
-	checkInvalidTx(t, anteHandler, ctx, tx, false, std.UnauthorizedError{})
-
-	// from correct account number
-	seqs = []uint64{1}
-	tx = tu.NewTestTx(t, ctx.ChainID(), msgs, privs, []uint64{0}, seqs, fee)
-	checkValidTx(t, anteHandler, ctx, tx, false)
-
-	// new tx with another signer and incorrect account numbers
-	msg1 := tu.NewTestMsg(addr1, addr2)
-	msg2 := tu.NewTestMsg(addr2, addr1)
-	msgs = []std.Msg{msg1, msg2}
-	privs, accnums, seqs = []crypto.PrivKey{priv1, priv2}, []uint64{1, 0}, []uint64{2, 0}
-	tx = tu.NewTestTx(t, ctx.ChainID(), msgs, privs, accnums, seqs, fee)
-	checkInvalidTx(t, anteHandler, ctx, tx, false, std.UnauthorizedError{})
-
-	// correct account numbers
-	privs, accnums, seqs = []crypto.PrivKey{priv1, priv2}, []uint64{0, 0}, []uint64{2, 0}
-	tx = tu.NewTestTx(t, ctx.ChainID(), msgs, privs, accnums, seqs, fee)
-	checkValidTx(t, anteHandler, ctx, tx, false)
 }
 
 // Test logic around sequence checking with one signer and many signers.
@@ -242,17 +121,14 @@ func TestAnteHandlerSequences(t *testing.T) {
 	priv3, _, addr3 := tu.KeyTestPubAddr()
 
 	// set the accounts
-	acc1 := env.acck.NewAccountWithAddress(ctx, addr1)
+	acc1 := env.acck.NewAccountWithAddress(addr1)
 	acc1.SetCoins(tu.NewTestCoins())
-	require.NoError(t, acc1.SetAccountNumber(0))
 	env.acck.SetAccount(ctx, acc1)
-	acc2 := env.acck.NewAccountWithAddress(ctx, addr2)
+	acc2 := env.acck.NewAccountWithAddress(addr2)
 	acc2.SetCoins(tu.NewTestCoins())
-	require.NoError(t, acc2.SetAccountNumber(1))
 	env.acck.SetAccount(ctx, acc2)
-	acc3 := env.acck.NewAccountWithAddress(ctx, addr3)
+	acc3 := env.acck.NewAccountWithAddress(addr3)
 	acc3.SetCoins(tu.NewTestCoins())
-	require.NoError(t, acc3.SetAccountNumber(2))
 	env.acck.SetAccount(ctx, acc3)
 
 	// msg and signatures
@@ -263,8 +139,8 @@ func TestAnteHandlerSequences(t *testing.T) {
 	msgs := []std.Msg{msg}
 
 	// test good tx from one signer
-	privs, accnums, seqs := []crypto.PrivKey{priv1}, []uint64{0}, []uint64{0}
-	tx = tu.NewTestTx(t, ctx.ChainID(), msgs, privs, accnums, seqs, fee)
+	privs, seqs := []crypto.PrivKey{priv1}, []uint64{0}
+	tx = tu.NewTestTx(t, ctx.ChainID(), msgs, privs, seqs, fee)
 	checkValidTx(t, anteHandler, ctx, tx, false)
 
 	// test sending it again fails (replay protection)
@@ -272,7 +148,7 @@ func TestAnteHandlerSequences(t *testing.T) {
 
 	// fix sequence, should pass
 	seqs = []uint64{1}
-	tx = tu.NewTestTx(t, ctx.ChainID(), msgs, privs, accnums, seqs, fee)
+	tx = tu.NewTestTx(t, ctx.ChainID(), msgs, privs, seqs, fee)
 	checkValidTx(t, anteHandler, ctx, tx, false)
 
 	// new tx with another signer and correct sequences
@@ -280,8 +156,8 @@ func TestAnteHandlerSequences(t *testing.T) {
 	msg2 := tu.NewTestMsg(addr3, addr1)
 	msgs = []std.Msg{msg1, msg2}
 
-	privs, accnums, seqs = []crypto.PrivKey{priv1, priv2, priv3}, []uint64{0, 1, 2}, []uint64{2, 0, 0}
-	tx = tu.NewTestTx(t, ctx.ChainID(), msgs, privs, accnums, seqs, fee)
+	privs, seqs = []crypto.PrivKey{priv1, priv2, priv3}, []uint64{2, 0, 0}
+	tx = tu.NewTestTx(t, ctx.ChainID(), msgs, privs, seqs, fee)
 	checkValidTx(t, anteHandler, ctx, tx, false)
 
 	// replay fails
@@ -290,19 +166,19 @@ func TestAnteHandlerSequences(t *testing.T) {
 	// tx from just second signer with incorrect sequence fails
 	msg = tu.NewTestMsg(addr2)
 	msgs = []std.Msg{msg}
-	privs, accnums, seqs = []crypto.PrivKey{priv2}, []uint64{1}, []uint64{0}
-	tx = tu.NewTestTx(t, ctx.ChainID(), msgs, privs, accnums, seqs, fee)
+	privs, seqs = []crypto.PrivKey{priv2}, []uint64{0}
+	tx = tu.NewTestTx(t, ctx.ChainID(), msgs, privs, seqs, fee)
 	checkInvalidTx(t, anteHandler, ctx, tx, false, std.UnauthorizedError{})
 
 	// fix the sequence and it passes
-	tx = tu.NewTestTx(t, ctx.ChainID(), msgs, []crypto.PrivKey{priv2}, []uint64{1}, []uint64{1}, fee)
+	tx = tu.NewTestTx(t, ctx.ChainID(), msgs, []crypto.PrivKey{priv2}, []uint64{1}, fee)
 	checkValidTx(t, anteHandler, ctx, tx, false)
 
 	// another tx from both of them that passes
 	msg = tu.NewTestMsg(addr1, addr2)
 	msgs = []std.Msg{msg}
-	privs, accnums, seqs = []crypto.PrivKey{priv1, priv2}, []uint64{0, 1}, []uint64{3, 2}
-	tx = tu.NewTestTx(t, ctx.ChainID(), msgs, privs, accnums, seqs, fee)
+	privs, seqs = []crypto.PrivKey{priv1, priv2}, []uint64{3, 2}
+	tx = tu.NewTestTx(t, ctx.ChainID(), msgs, privs, seqs, fee)
 	checkValidTx(t, anteHandler, ctx, tx, false)
 }
 
@@ -319,18 +195,18 @@ func TestAnteHandlerFees(t *testing.T) {
 	priv1, _, addr1 := tu.KeyTestPubAddr()
 
 	// set the accounts
-	acc1 := env.acck.NewAccountWithAddress(ctx, addr1)
+	acc1 := env.acck.NewAccountWithAddress(addr1)
 	env.acck.SetAccount(ctx, acc1)
 
 	// msg and signatures
 	var tx std.Tx
 	msg := tu.NewTestMsg(addr1)
-	privs, accnums, seqs := []crypto.PrivKey{priv1}, []uint64{0}, []uint64{0}
+	privs, seqs := []crypto.PrivKey{priv1}, []uint64{0}
 	fee := tu.NewTestFee()
 	msgs := []std.Msg{msg}
 
 	// signer does not have enough funds to pay the fee
-	tx = tu.NewTestTx(t, ctx.ChainID(), msgs, privs, accnums, seqs, fee)
+	tx = tu.NewTestTx(t, ctx.ChainID(), msgs, privs, seqs, fee)
 	checkInvalidTx(t, anteHandler, ctx, tx, false, std.InsufficientFundsError{})
 
 	acc1.SetCoins(std.NewCoins(std.NewCoin("atom", 149)))
@@ -362,33 +238,32 @@ func TestAnteHandlerMemoGas(t *testing.T) {
 	priv1, _, addr1 := tu.KeyTestPubAddr()
 
 	// set the accounts
-	acc1 := env.acck.NewAccountWithAddress(ctx, addr1)
-	require.NoError(t, acc1.SetAccountNumber(0))
+	acc1 := env.acck.NewAccountWithAddress(addr1)
 	env.acck.SetAccount(ctx, acc1)
 
 	// msg and signatures
 	var tx std.Tx
 	msg := tu.NewTestMsg(addr1)
-	privs, accnums, seqs := []crypto.PrivKey{priv1}, []uint64{0}, []uint64{0}
+	privs, seqs := []crypto.PrivKey{priv1}, []uint64{0}
 	fee := std.NewFee(0, std.NewCoin("atom", 0))
 
 	// tx does not have enough gas
-	tx = tu.NewTestTx(t, ctx.ChainID(), []std.Msg{msg}, privs, accnums, seqs, fee)
+	tx = tu.NewTestTx(t, ctx.ChainID(), []std.Msg{msg}, privs, seqs, fee)
 	checkInvalidTx(t, anteHandler, ctx, tx, false, std.OutOfGasError{})
 
 	// tx with memo doesn't have enough gas
 	fee = std.NewFee(801, std.NewCoin("atom", 0))
-	tx = tu.NewTestTxWithMemo(t, ctx.ChainID(), []std.Msg{msg}, privs, accnums, seqs, fee, "abcininasidniandsinasindiansdiansdinaisndiasndiadninsd")
+	tx = tu.NewTestTxWithMemo(t, ctx.ChainID(), []std.Msg{msg}, privs, seqs, fee, "abcininasidniandsinasindiansdiansdinaisndiasndiadninsd")
 	checkInvalidTx(t, anteHandler, ctx, tx, false, std.OutOfGasError{})
 
 	// memo too large
 	fee = std.NewFee(9000, std.NewCoin("atom", 0))
-	tx = tu.NewTestTxWithMemo(t, ctx.ChainID(), []std.Msg{msg}, privs, accnums, seqs, fee, strings.Repeat("01234567890", 99000))
+	tx = tu.NewTestTxWithMemo(t, ctx.ChainID(), []std.Msg{msg}, privs, seqs, fee, strings.Repeat("01234567890", 99000))
 	checkInvalidTx(t, anteHandler, ctx, tx, false, std.MemoTooLargeError{})
 
 	// tx with memo has enough gas
 	fee = std.NewFee(9000, std.NewCoin("atom", 0))
-	tx = tu.NewTestTxWithMemo(t, ctx.ChainID(), []std.Msg{msg}, privs, accnums, seqs, fee, strings.Repeat("0123456789", 10))
+	tx = tu.NewTestTxWithMemo(t, ctx.ChainID(), []std.Msg{msg}, privs, seqs, fee, strings.Repeat("0123456789", 10))
 	checkValidTx(t, anteHandler, ctx, tx, false)
 }
 
@@ -406,17 +281,14 @@ func TestAnteHandlerMultiSigner(t *testing.T) {
 	priv3, _, addr3 := tu.KeyTestPubAddr()
 
 	// set the accounts
-	acc1 := env.acck.NewAccountWithAddress(ctx, addr1)
+	acc1 := env.acck.NewAccountWithAddress(addr1)
 	acc1.SetCoins(tu.NewTestCoins())
-	require.NoError(t, acc1.SetAccountNumber(0))
 	env.acck.SetAccount(ctx, acc1)
-	acc2 := env.acck.NewAccountWithAddress(ctx, addr2)
+	acc2 := env.acck.NewAccountWithAddress(addr2)
 	acc2.SetCoins(tu.NewTestCoins())
-	require.NoError(t, acc2.SetAccountNumber(1))
 	env.acck.SetAccount(ctx, acc2)
-	acc3 := env.acck.NewAccountWithAddress(ctx, addr3)
+	acc3 := env.acck.NewAccountWithAddress(addr3)
 	acc3.SetCoins(tu.NewTestCoins())
-	require.NoError(t, acc3.SetAccountNumber(2))
 	env.acck.SetAccount(ctx, acc3)
 
 	// set up msgs and fee
@@ -428,19 +300,19 @@ func TestAnteHandlerMultiSigner(t *testing.T) {
 	fee := tu.NewTestFee()
 
 	// signers in order
-	privs, accnums, seqs := []crypto.PrivKey{priv1, priv2, priv3}, []uint64{0, 1, 2}, []uint64{0, 0, 0}
-	tx = tu.NewTestTxWithMemo(t, ctx.ChainID(), msgs, privs, accnums, seqs, fee, "Check signers are in expected order and different account numbers works")
+	privs, seqs := []crypto.PrivKey{priv1, priv2, priv3}, []uint64{0, 0, 0}
+	tx = tu.NewTestTxWithMemo(t, ctx.ChainID(), msgs, privs, seqs, fee, "Check signers are in expected order and different account numbers works")
 
 	checkValidTx(t, anteHandler, ctx, tx, false)
 
 	// change sequence numbers
-	tx = tu.NewTestTx(t, ctx.ChainID(), []std.Msg{msg1}, []crypto.PrivKey{priv1, priv2}, []uint64{0, 1}, []uint64{1, 1}, fee)
+	tx = tu.NewTestTx(t, ctx.ChainID(), []std.Msg{msg1}, []crypto.PrivKey{priv1, priv2}, []uint64{1, 1}, fee)
 	checkValidTx(t, anteHandler, ctx, tx, false)
-	tx = tu.NewTestTx(t, ctx.ChainID(), []std.Msg{msg2}, []crypto.PrivKey{priv3, priv1}, []uint64{2, 0}, []uint64{1, 2}, fee)
+	tx = tu.NewTestTx(t, ctx.ChainID(), []std.Msg{msg2}, []crypto.PrivKey{priv3, priv1}, []uint64{1, 2}, fee)
 	checkValidTx(t, anteHandler, ctx, tx, false)
 
 	// expected seqs = [3, 2, 2]
-	tx = tu.NewTestTxWithMemo(t, ctx.ChainID(), msgs, privs, accnums, []uint64{3, 2, 2}, fee, "Check signers are in expected order and different account numbers and sequence numbers works")
+	tx = tu.NewTestTxWithMemo(t, ctx.ChainID(), msgs, privs, []uint64{3, 2, 2}, fee, "Check signers are in expected order and different account numbers and sequence numbers works")
 	checkValidTx(t, anteHandler, ctx, tx, false)
 }
 
@@ -457,13 +329,11 @@ func TestAnteHandlerBadSignBytes(t *testing.T) {
 	priv2, _, addr2 := tu.KeyTestPubAddr()
 
 	// set the accounts
-	acc1 := env.acck.NewAccountWithAddress(ctx, addr1)
+	acc1 := env.acck.NewAccountWithAddress(addr1)
 	acc1.SetCoins(tu.NewTestCoins())
-	require.NoError(t, acc1.SetAccountNumber(0))
 	env.acck.SetAccount(ctx, acc1)
-	acc2 := env.acck.NewAccountWithAddress(ctx, addr2)
+	acc2 := env.acck.NewAccountWithAddress(addr2)
 	acc2.SetCoins(tu.NewTestCoins())
-	require.NoError(t, acc2.SetAccountNumber(1))
 	env.acck.SetAccount(ctx, acc2)
 
 	var tx std.Tx
@@ -476,8 +346,8 @@ func TestAnteHandlerBadSignBytes(t *testing.T) {
 	fee3.GasFee.Amount += 100
 
 	// test good tx and signBytes
-	privs, accnums, seqs := []crypto.PrivKey{priv1}, []uint64{0}, []uint64{0}
-	tx = tu.NewTestTx(t, ctx.ChainID(), msgs, privs, accnums, seqs, fee)
+	privs, seqs := []crypto.PrivKey{priv1}, []uint64{0}
+	tx = tu.NewTestTx(t, ctx.ChainID(), msgs, privs, seqs, fee)
 	checkValidTx(t, anteHandler, ctx, tx, false)
 
 	chainID := ctx.ChainID()
@@ -486,28 +356,25 @@ func TestAnteHandlerBadSignBytes(t *testing.T) {
 
 	cases := []struct {
 		chainID string
-		accnum  uint64
 		seq     uint64
 		fee     std.Fee
 		msgs    []std.Msg
 		err     abci.Error
 	}{
-		{chainID2, 0, 1, fee, msgs, unauthErr},                           // test wrong chain_id
-		{chainID, 0, 2, fee, msgs, unauthErr},                            // test wrong seqs
-		{chainID, 1, 1, fee, msgs, unauthErr},                            // test wrong accnum
-		{chainID, 0, 1, fee, []std.Msg{tu.NewTestMsg(addr2)}, unauthErr}, // test wrong msg
-		{chainID, 0, 1, fee2, msgs, unauthErr},                           // test wrong fee
-		{chainID, 0, 1, fee3, msgs, unauthErr},                           // test wrong fee
+		{chainID2, 1, fee, msgs, unauthErr},                           // test wrong chain_id
+		{chainID, 2, fee, msgs, unauthErr},                            // test wrong seqs
+		{chainID, 1, fee, []std.Msg{tu.NewTestMsg(addr2)}, unauthErr}, // test wrong msg
+		{chainID, 1, fee2, msgs, unauthErr},                           // test wrong fee
+		{chainID, 1, fee3, msgs, unauthErr},                           // test wrong fee
 	}
 
 	privs, seqs = []crypto.PrivKey{priv1}, []uint64{1}
 	for _, cs := range cases {
 		signPayload, err := std.GetSignaturePayload(std.SignDoc{
-			ChainID:       cs.chainID,
-			AccountNumber: cs.accnum,
-			Sequence:      cs.seq,
-			Fee:           cs.fee,
-			Msgs:          cs.msgs,
+			ChainID:  cs.chainID,
+			Sequence: cs.seq,
+			Fee:      cs.fee,
+			Msgs:     cs.msgs,
 		})
 		require.NoError(t, err)
 
@@ -520,15 +387,15 @@ func TestAnteHandlerBadSignBytes(t *testing.T) {
 	}
 
 	// test wrong signer if public key exist
-	privs, accnums, seqs = []crypto.PrivKey{priv2}, []uint64{0}, []uint64{1}
-	tx = tu.NewTestTx(t, ctx.ChainID(), msgs, privs, accnums, seqs, fee)
+	privs, seqs = []crypto.PrivKey{priv2}, []uint64{1}
+	tx = tu.NewTestTx(t, ctx.ChainID(), msgs, privs, seqs, fee)
 	checkInvalidTx(t, anteHandler, ctx, tx, false, std.UnauthorizedError{})
 
 	// test wrong signer if public doesn't exist
 	msg = tu.NewTestMsg(addr2)
 	msgs = []std.Msg{msg}
-	privs, accnums, seqs = []crypto.PrivKey{priv1}, []uint64{1}, []uint64{0}
-	tx = tu.NewTestTx(t, ctx.ChainID(), msgs, privs, accnums, seqs, fee)
+	privs, seqs = []crypto.PrivKey{priv1}, []uint64{0}
+	tx = tu.NewTestTx(t, ctx.ChainID(), msgs, privs, seqs, fee)
 	checkInvalidTx(t, anteHandler, ctx, tx, false, std.InvalidPubKeyError{})
 }
 
@@ -545,13 +412,11 @@ func TestAnteHandlerSetPubKey(t *testing.T) {
 	_, _, addr2 := tu.KeyTestPubAddr()
 
 	// set the accounts
-	acc1 := env.acck.NewAccountWithAddress(ctx, addr1)
+	acc1 := env.acck.NewAccountWithAddress(addr1)
 	acc1.SetCoins(tu.NewTestCoins())
-	require.NoError(t, acc1.SetAccountNumber(0))
 	env.acck.SetAccount(ctx, acc1)
-	acc2 := env.acck.NewAccountWithAddress(ctx, addr2)
+	acc2 := env.acck.NewAccountWithAddress(addr2)
 	acc2.SetCoins(tu.NewTestCoins())
-	require.NoError(t, acc2.SetAccountNumber(1))
 	env.acck.SetAccount(ctx, acc2)
 
 	var tx std.Tx
@@ -559,9 +424,9 @@ func TestAnteHandlerSetPubKey(t *testing.T) {
 	// test good tx and set public key
 	msg := tu.NewTestMsg(addr1)
 	msgs := []std.Msg{msg}
-	privs, accnums, seqs := []crypto.PrivKey{priv1}, []uint64{0}, []uint64{0}
+	privs, seqs := []crypto.PrivKey{priv1}, []uint64{0}
 	fee := tu.NewTestFee()
-	tx = tu.NewTestTx(t, ctx.ChainID(), msgs, privs, accnums, seqs, fee)
+	tx = tu.NewTestTx(t, ctx.ChainID(), msgs, privs, seqs, fee)
 	checkValidTx(t, anteHandler, ctx, tx, false)
 
 	acc1 = env.acck.GetAccount(ctx, addr1)
@@ -570,7 +435,7 @@ func TestAnteHandlerSetPubKey(t *testing.T) {
 	// test public key not found
 	msg = tu.NewTestMsg(addr2)
 	msgs = []std.Msg{msg}
-	tx = tu.NewTestTx(t, ctx.ChainID(), msgs, privs, []uint64{1}, seqs, fee)
+	tx = tu.NewTestTx(t, ctx.ChainID(), msgs, privs, seqs, fee)
 	sigs := tx.GetSignatures()
 	sigs[0].PubKey = nil
 	checkInvalidTx(t, anteHandler, ctx, tx, false, std.InvalidPubKeyError{})
@@ -579,7 +444,7 @@ func TestAnteHandlerSetPubKey(t *testing.T) {
 	require.Nil(t, acc2.GetPubKey())
 
 	// test invalid signature and public key
-	tx = tu.NewTestTx(t, ctx.ChainID(), msgs, privs, []uint64{1}, seqs, fee)
+	tx = tu.NewTestTx(t, ctx.ChainID(), msgs, privs, seqs, fee)
 	checkInvalidTx(t, anteHandler, ctx, tx, false, std.InvalidPubKeyError{})
 
 	acc2 = env.acck.GetAccount(ctx, addr2)
@@ -590,13 +455,12 @@ func TestProcessPubKey(t *testing.T) {
 	t.Parallel()
 
 	env := setupTestEnv()
-	ctx := env.ctx
 
 	// keys
 	_, _, addr1 := tu.KeyTestPubAddr()
 	priv2, _, addr2 := tu.KeyTestPubAddr()
-	acc1 := env.acck.NewAccountWithAddress(ctx, addr1)
-	acc2 := env.acck.NewAccountWithAddress(ctx, addr2)
+	acc1 := env.acck.NewAccountWithAddress(addr1)
+	acc2 := env.acck.NewAccountWithAddress(addr2)
 
 	acc2.SetPubKey(priv2.PubKey())
 
@@ -765,12 +629,11 @@ func TestAnteHandlerSigLimitExceeded(t *testing.T) {
 	priv8, _, addr8 := tu.KeyTestPubAddr()
 
 	// set the accounts
-	acc1 := env.acck.NewAccountWithAddress(ctx, addr1)
+	acc1 := env.acck.NewAccountWithAddress(addr1)
 	acc1.SetCoins(tu.NewTestCoins())
 	env.acck.SetAccount(ctx, acc1)
-	acc2 := env.acck.NewAccountWithAddress(ctx, addr2)
+	acc2 := env.acck.NewAccountWithAddress(addr2)
 	acc2.SetCoins(tu.NewTestCoins())
-	require.NoError(t, acc2.SetAccountNumber(1))
 	env.acck.SetAccount(ctx, acc2)
 
 	var tx std.Tx
@@ -779,9 +642,8 @@ func TestAnteHandlerSigLimitExceeded(t *testing.T) {
 	fee := tu.NewTestFee()
 
 	// test rejection logic
-	privs, accnums, seqs := []crypto.PrivKey{priv1, priv2, priv3, priv4, priv5, priv6, priv7, priv8},
-		[]uint64{0, 0, 0, 0, 0, 0, 0, 0}, []uint64{0, 0, 0, 0, 0, 0, 0, 0}
-	tx = tu.NewTestTx(t, ctx.ChainID(), msgs, privs, accnums, seqs, fee)
+	privs, seqs := []crypto.PrivKey{priv1, priv2, priv3, priv4, priv5, priv6, priv7, priv8}, []uint64{0, 0, 0, 0, 0, 0, 0, 0}
+	tx = tu.NewTestTx(t, ctx.ChainID(), msgs, privs, seqs, fee)
 	checkInvalidTx(t, anteHandler, ctx, tx, false, std.TooManySignaturesError{})
 }
 
@@ -839,30 +701,29 @@ func TestCustomSignatureVerificationGasConsumer(t *testing.T) {
 
 	// verify that an secp256k1 account gets rejected
 	priv1, _, addr1 := tu.KeyTestPubAddr()
-	acc1 := env.acck.NewAccountWithAddress(ctx, addr1)
+	acc1 := env.acck.NewAccountWithAddress(addr1)
 	_ = acc1.SetCoins(std.NewCoins(std.NewCoin("atom", 150)))
 	env.acck.SetAccount(ctx, acc1)
 
 	var tx std.Tx
 	msg := tu.NewTestMsg(addr1)
-	privs, accnums, seqs := []crypto.PrivKey{priv1}, []uint64{0}, []uint64{0}
+	privs, seqs := []crypto.PrivKey{priv1}, []uint64{0}
 	fee := tu.NewTestFee()
 	msgs := []std.Msg{msg}
-	tx = tu.NewTestTx(t, ctx.ChainID(), msgs, privs, accnums, seqs, fee)
+	tx = tu.NewTestTx(t, ctx.ChainID(), msgs, privs, seqs, fee)
 	checkInvalidTx(t, anteHandler, ctx, tx, false, std.InvalidPubKeyError{})
 
 	// verify that an ed25519 account gets accepted
 	priv2 := ed25519.GenPrivKey()
 	pub2 := priv2.PubKey()
 	addr2 := pub2.Address()
-	acc2 := env.acck.NewAccountWithAddress(ctx, addr2)
+	acc2 := env.acck.NewAccountWithAddress(addr2)
 	require.NoError(t, acc2.SetCoins(std.NewCoins(std.NewCoin("atom", 150))))
-	require.NoError(t, acc2.SetAccountNumber(1))
 	env.acck.SetAccount(ctx, acc2)
 	msg = tu.NewTestMsg(addr2)
-	privs, accnums, seqs = []crypto.PrivKey{priv2}, []uint64{1}, []uint64{0}
+	privs, seqs = []crypto.PrivKey{priv2}, []uint64{0}
 	fee = tu.NewTestFee()
 	msgs = []std.Msg{msg}
-	tx = tu.NewTestTx(t, ctx.ChainID(), msgs, privs, accnums, seqs, fee)
+	tx = tu.NewTestTx(t, ctx.ChainID(), msgs, privs, seqs, fee)
 	checkValidTx(t, anteHandler, ctx, tx, false)
 }

@@ -61,7 +61,6 @@ func NewTestTx(
 	chainID string,
 	msgs []std.Msg,
 	privs []crypto.PrivKey,
-	accNums []uint64,
 	seqs []uint64,
 	fee std.Fee,
 ) std.Tx {
@@ -70,11 +69,10 @@ func NewTestTx(
 	sigs := make([]std.Signature, len(privs))
 	for i, priv := range privs {
 		signBytes, err := std.GetSignaturePayload(std.SignDoc{
-			ChainID:       chainID,
-			AccountNumber: accNums[i],
-			Sequence:      seqs[i],
-			Fee:           fee,
-			Msgs:          msgs,
+			ChainID:  chainID,
+			Sequence: seqs[i],
+			Fee:      fee,
+			Msgs:     msgs,
 		})
 		require.NoError(t, err)
 
@@ -95,7 +93,6 @@ func NewTestTxWithMemo(
 	chainID string,
 	msgs []std.Msg,
 	privs []crypto.PrivKey,
-	accNums []uint64,
 	seqs []uint64,
 	fee std.Fee,
 	memo string,
@@ -105,12 +102,11 @@ func NewTestTxWithMemo(
 	sigs := make([]std.Signature, len(privs))
 	for i, priv := range privs {
 		signBytes, err := std.GetSignaturePayload(std.SignDoc{
-			ChainID:       chainID,
-			AccountNumber: accNums[i],
-			Sequence:      seqs[i],
-			Fee:           fee,
-			Msgs:          msgs,
-			Memo:          memo,
+			ChainID:  chainID,
+			Sequence: seqs[i],
+			Fee:      fee,
+			Msgs:     msgs,
+			Memo:     memo,
 		})
 		require.NoError(t, err)
 

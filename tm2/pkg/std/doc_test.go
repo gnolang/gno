@@ -21,9 +21,8 @@ func TestSignDoc_GetSignaturePayload(t *testing.T) {
 		{
 			"non-empty sign doc",
 			SignDoc{
-				ChainID:       "dummy",
-				AccountNumber: 10,
-				Sequence:      20,
+				ChainID:  "dummy",
+				Sequence: 20,
 				Fee: Fee{
 					GasFee:    NewCoin("ugnot", 10),
 					GasWanted: 10,

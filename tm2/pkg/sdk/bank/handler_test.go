@@ -44,7 +44,7 @@ func TestBalances(t *testing.T) {
 	require.NoError(t, amino.UnmarshalJSON(res.Data, &coins))
 	require.True(t, coins.IsZero())
 
-	acc := env.acck.NewAccountWithAddress(env.ctx, addr)
+	acc := env.acck.NewAccountWithAddress(addr)
 	acc.SetCoins(std.NewCoins(std.NewCoin("foo", 10)))
 	env.acck.SetAccount(env.ctx, acc)
 	res = h.Query(env.ctx, req)

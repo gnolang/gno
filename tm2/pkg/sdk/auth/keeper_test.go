@@ -19,7 +19,7 @@ func TestAccountMapperGetSet(t *testing.T) {
 	require.Nil(t, acc)
 
 	// create account and check default values
-	acc = env.acck.NewAccountWithAddress(env.ctx, addr)
+	acc = env.acck.NewAccountWithAddress(addr)
 	require.NotNil(t, acc)
 	require.Equal(t, addr, acc.GetAddress())
 	require.EqualValues(t, nil, acc.GetPubKey())
@@ -47,8 +47,8 @@ func TestAccountMapperRemoveAccount(t *testing.T) {
 	addr2 := crypto.AddressFromPreimage([]byte("addr2"))
 
 	// create accounts
-	acc1 := env.acck.NewAccountWithAddress(env.ctx, addr1)
-	acc2 := env.acck.NewAccountWithAddress(env.ctx, addr2)
+	acc1 := env.acck.NewAccountWithAddress(addr1)
+	acc2 := env.acck.NewAccountWithAddress(addr2)
 
 	accSeq1 := uint64(20)
 	accSeq2 := uint64(40)

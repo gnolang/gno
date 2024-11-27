@@ -72,14 +72,12 @@ func (s SignerFromKeybase) Info() (keys.Info, error) {
 type SignCfg struct {
 	UnsignedTX     std.Tx
 	SequenceNumber uint64
-	AccountNumber  uint64
 }
 
 // Sign implements the Signer interface for SignerFromKeybase.
 func (s SignerFromKeybase) Sign(cfg SignCfg) (*std.Tx, error) {
 	tx := cfg.UnsignedTX
 	chainID := s.ChainID
-	accountNumber := cfg.AccountNumber
 	sequenceNumber := cfg.SequenceNumber
 	account := s.Account
 	password := s.Password
@@ -102,7 +100,7 @@ func (s SignerFromKeybase) Sign(cfg SignCfg) (*std.Tx, error) {
 	}
 
 	// Derive sign doc bytes.
-	signbz, err := tx.GetSignBytes(chainID, accountNumber, sequenceNumber)
+	signbz, err := tx.GetSignBytes(chainID, sequenceNumber)
 	if err != nil {
 		return nil, fmt.Errorf("unable to get tx signature payload, %w", err)
 	}

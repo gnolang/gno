@@ -194,8 +194,8 @@ fmt.Println(accountRes)
 //  Address:       g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5
 //  Pubkey:
 //  Coins:         9999862000000ugnot
-//  AccountNumber: 0
 //  Sequence:      0
+
 ```
 
 We are now ready to send a transaction to the chain.
@@ -212,7 +212,6 @@ To construct the base set of transaction fields, we can use the `BaseTxCfg` type
 txCfg := gnoclient.BaseTxCfg{
     GasFee:         "1000000ugnot",                 // gas price
     GasWanted:      1000000,                        // gas limit
-    AccountNumber:  accountRes.GetAccountNumber(),  // account ID
     SequenceNumber: accountRes.GetSequence(),       // account nonce
     Memo:           "This is a cool how-to guide!", // transaction memo
 }

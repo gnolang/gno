@@ -266,7 +266,7 @@ func createAndSignTx(
 		},
 	}
 
-	signBytes, err := tx.GetSignBytes(chainID, 0, 0)
+	signBytes, err := tx.GetSignBytes(chainID, 0)
 	require.NoError(t, err)
 
 	// Sign the tx

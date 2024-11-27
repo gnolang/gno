@@ -95,7 +95,6 @@ func TestCallSingle(t *testing.T) {
 	cfg := BaseTxCfg{
 		GasWanted:      100000,
 		GasFee:         testGasFee,
-		AccountNumber:  1,
 		SequenceNumber: 1,
 		Memo:           "Test memo",
 	}
@@ -164,7 +163,6 @@ func TestCallMultiple(t *testing.T) {
 	cfg := BaseTxCfg{
 		GasWanted:      100000,
 		GasFee:         testGasFee,
-		AccountNumber:  1,
 		SequenceNumber: 1,
 		Memo:           "Test memo",
 	}
@@ -227,7 +225,6 @@ func TestCallErrors(t *testing.T) {
 			cfg: BaseTxCfg{
 				GasWanted:      100000,
 				GasFee:         testGasFee,
-				AccountNumber:  1,
 				SequenceNumber: 1,
 				Memo:           "Test memo",
 			},
@@ -251,7 +248,6 @@ func TestCallErrors(t *testing.T) {
 			cfg: BaseTxCfg{
 				GasWanted:      100000,
 				GasFee:         testGasFee,
-				AccountNumber:  1,
 				SequenceNumber: 1,
 				Memo:           "Test memo",
 			},
@@ -275,7 +271,6 @@ func TestCallErrors(t *testing.T) {
 			cfg: BaseTxCfg{
 				GasWanted:      100000,
 				GasFee:         "",
-				AccountNumber:  1,
 				SequenceNumber: 1,
 				Memo:           "Test memo",
 			},
@@ -297,7 +292,6 @@ func TestCallErrors(t *testing.T) {
 			cfg: BaseTxCfg{
 				GasWanted:      -1,
 				GasFee:         testGasFee,
-				AccountNumber:  1,
 				SequenceNumber: 1,
 				Memo:           "Test memo",
 			},
@@ -321,7 +315,6 @@ func TestCallErrors(t *testing.T) {
 			cfg: BaseTxCfg{
 				GasWanted:      0,
 				GasFee:         testGasFee,
-				AccountNumber:  1,
 				SequenceNumber: 1,
 				Memo:           "Test memo",
 			},
@@ -345,7 +338,6 @@ func TestCallErrors(t *testing.T) {
 			cfg: BaseTxCfg{
 				GasWanted:      100000,
 				GasFee:         testGasFee,
-				AccountNumber:  1,
 				SequenceNumber: 1,
 				Memo:           "Test memo",
 			},
@@ -369,7 +361,6 @@ func TestCallErrors(t *testing.T) {
 			cfg: BaseTxCfg{
 				GasWanted:      100000,
 				GasFee:         testGasFee,
-				AccountNumber:  1,
 				SequenceNumber: 1,
 				Memo:           "Test memo",
 			},
@@ -421,7 +412,6 @@ func TestClient_Send_Errors(t *testing.T) {
 			cfg: BaseTxCfg{
 				GasWanted:      100000,
 				GasFee:         testGasFee,
-				AccountNumber:  1,
 				SequenceNumber: 1,
 				Memo:           "Test memo",
 			},
@@ -443,7 +433,6 @@ func TestClient_Send_Errors(t *testing.T) {
 			cfg: BaseTxCfg{
 				GasWanted:      100000,
 				GasFee:         testGasFee,
-				AccountNumber:  1,
 				SequenceNumber: 1,
 				Memo:           "Test memo",
 			},
@@ -465,7 +454,6 @@ func TestClient_Send_Errors(t *testing.T) {
 			cfg: BaseTxCfg{
 				GasWanted:      100000,
 				GasFee:         "",
-				AccountNumber:  1,
 				SequenceNumber: 1,
 				Memo:           "Test memo",
 			},
@@ -487,7 +475,6 @@ func TestClient_Send_Errors(t *testing.T) {
 			cfg: BaseTxCfg{
 				GasWanted:      -1,
 				GasFee:         testGasFee,
-				AccountNumber:  1,
 				SequenceNumber: 1,
 				Memo:           "Test memo",
 			},
@@ -509,7 +496,6 @@ func TestClient_Send_Errors(t *testing.T) {
 			cfg: BaseTxCfg{
 				GasWanted:      0,
 				GasFee:         testGasFee,
-				AccountNumber:  1,
 				SequenceNumber: 1,
 				Memo:           "Test memo",
 			},
@@ -540,7 +526,6 @@ func TestClient_Send_Errors(t *testing.T) {
 			cfg: BaseTxCfg{
 				GasWanted:      100000,
 				GasFee:         testGasFee,
-				AccountNumber:  1,
 				SequenceNumber: 1,
 				Memo:           "Test memo",
 			},
@@ -571,7 +556,6 @@ func TestClient_Send_Errors(t *testing.T) {
 			cfg: BaseTxCfg{
 				GasWanted:      100000,
 				GasFee:         testGasFee,
-				AccountNumber:  1,
 				SequenceNumber: 1,
 				Memo:           "Test memo",
 			},
@@ -633,7 +617,6 @@ func TestRunSingle(t *testing.T) {
 	cfg := BaseTxCfg{
 		GasWanted:      100000,
 		GasFee:         testGasFee,
-		AccountNumber:  1,
 		SequenceNumber: 1,
 		Memo:           "Test memo",
 	}
@@ -710,7 +693,6 @@ func TestRunMultiple(t *testing.T) {
 	cfg := BaseTxCfg{
 		GasWanted:      100000,
 		GasFee:         testGasFee,
-		AccountNumber:  1,
 		SequenceNumber: 1,
 		Memo:           "Test memo",
 	}
@@ -788,7 +770,6 @@ func TestRunErrors(t *testing.T) {
 			cfg: BaseTxCfg{
 				GasWanted:      100000,
 				GasFee:         testGasFee,
-				AccountNumber:  1,
 				SequenceNumber: 1,
 				Memo:           "Test memo",
 			},
@@ -819,7 +800,6 @@ func TestRunErrors(t *testing.T) {
 			cfg: BaseTxCfg{
 				GasWanted:      100000,
 				GasFee:         testGasFee,
-				AccountNumber:  1,
 				SequenceNumber: 1,
 				Memo:           "Test memo",
 			},
@@ -835,7 +815,6 @@ func TestRunErrors(t *testing.T) {
 			cfg: BaseTxCfg{
 				GasWanted:      100000,
 				GasFee:         "",
-				AccountNumber:  1,
 				SequenceNumber: 1,
 				Memo:           "Test memo",
 			},
@@ -866,7 +845,6 @@ func TestRunErrors(t *testing.T) {
 			cfg: BaseTxCfg{
 				GasWanted:      -1,
 				GasFee:         testGasFee,
-				AccountNumber:  1,
 				SequenceNumber: 1,
 				Memo:           "Test memo",
 			},
@@ -897,7 +875,6 @@ func TestRunErrors(t *testing.T) {
 			cfg: BaseTxCfg{
 				GasWanted:      0,
 				GasFee:         testGasFee,
-				AccountNumber:  1,
 				SequenceNumber: 1,
 				Memo:           "Test memo",
 			},
@@ -937,7 +914,6 @@ func TestRunErrors(t *testing.T) {
 			cfg: BaseTxCfg{
 				GasWanted:      100000,
 				GasFee:         testGasFee,
-				AccountNumber:  1,
 				SequenceNumber: 1,
 				Memo:           "Test memo",
 			},
@@ -987,7 +963,6 @@ func TestAddPackageErrors(t *testing.T) {
 			cfg: BaseTxCfg{
 				GasWanted:      100000,
 				GasFee:         testGasFee,
-				AccountNumber:  1,
 				SequenceNumber: 1,
 				Memo:           "Test memo",
 			},
@@ -1018,7 +993,6 @@ func TestAddPackageErrors(t *testing.T) {
 			cfg: BaseTxCfg{
 				GasWanted:      100000,
 				GasFee:         testGasFee,
-				AccountNumber:  1,
 				SequenceNumber: 1,
 				Memo:           "Test memo",
 			},
@@ -1034,7 +1008,6 @@ func TestAddPackageErrors(t *testing.T) {
 			cfg: BaseTxCfg{
 				GasWanted:      100000,
 				GasFee:         "",
-				AccountNumber:  1,
 				SequenceNumber: 1,
 				Memo:           "Test memo",
 			},
@@ -1065,7 +1038,6 @@ func TestAddPackageErrors(t *testing.T) {
 			cfg: BaseTxCfg{
 				GasWanted:      -1,
 				GasFee:         testGasFee,
-				AccountNumber:  1,
 				SequenceNumber: 1,
 				Memo:           "Test memo",
 			},
@@ -1096,7 +1068,6 @@ func TestAddPackageErrors(t *testing.T) {
 			cfg: BaseTxCfg{
 				GasWanted:      0,
 				GasFee:         testGasFee,
-				AccountNumber:  1,
 				SequenceNumber: 1,
 				Memo:           "Test memo",
 			},
@@ -1136,7 +1107,6 @@ func TestAddPackageErrors(t *testing.T) {
 			cfg: BaseTxCfg{
 				GasWanted:      100000,
 				GasFee:         testGasFee,
-				AccountNumber:  1,
 				SequenceNumber: 1,
 				Memo:           "Test memo",
 			},
@@ -1356,7 +1326,7 @@ func callSigningSeparately(t *testing.T, client Client, cfg BaseTxCfg, msgs ...v
 	tx, err := NewCallTx(cfg, msgs...)
 	assert.NoError(t, err)
 	require.NotNil(t, tx)
-	signedTx, err := client.SignTx(*tx, cfg.AccountNumber, cfg.SequenceNumber)
+	signedTx, err := client.SignTx(*tx, cfg.SequenceNumber)
 	assert.NoError(t, err)
 	require.NotNil(t, signedTx)
 	res, err := client.BroadcastTxCommit(signedTx)
@@ -1371,7 +1341,7 @@ func runSigningSeparately(t *testing.T, client Client, cfg BaseTxCfg, msgs ...vm
 	tx, err := NewRunTx(cfg, msgs...)
 	assert.NoError(t, err)
 	require.NotNil(t, tx)
-	signedTx, err := client.SignTx(*tx, cfg.AccountNumber, cfg.SequenceNumber)
+	signedTx, err := client.SignTx(*tx, cfg.SequenceNumber)
 	assert.NoError(t, err)
 	require.NotNil(t, signedTx)
 	res, err := client.BroadcastTxCommit(signedTx)
@@ -1386,7 +1356,7 @@ func sendSigningSeparately(t *testing.T, client Client, cfg BaseTxCfg, msgs ...b
 	tx, err := NewSendTx(cfg, msgs...)
 	assert.NoError(t, err)
 	require.NotNil(t, tx)
-	signedTx, err := client.SignTx(*tx, cfg.AccountNumber, cfg.SequenceNumber)
+	signedTx, err := client.SignTx(*tx, cfg.SequenceNumber)
 	assert.NoError(t, err)
 	require.NotNil(t, signedTx)
 	res, err := client.BroadcastTxCommit(signedTx)
@@ -1401,7 +1371,7 @@ func addPackageSigningSeparately(t *testing.T, client Client, cfg BaseTxCfg, msg
 	tx, err := NewAddPackageTx(cfg, msgs...)
 	assert.NoError(t, err)
 	require.NotNil(t, tx)
-	signedTx, err := client.SignTx(*tx, cfg.AccountNumber, cfg.SequenceNumber)
+	signedTx, err := client.SignTx(*tx, cfg.SequenceNumber)
 	assert.NoError(t, err)
 	require.NotNil(t, signedTx)
 	res, err := client.BroadcastTxCommit(signedTx)

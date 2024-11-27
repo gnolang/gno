@@ -75,7 +75,7 @@ func TestAddPkgDeliverTx(t *testing.T) {
 	assert.True(t, res.IsOK())
 
 	// NOTE: let's try to keep this bellow 100_000 :)
-	assert.Equal(t, int64(92825), gasDeliver)
+	assert.Equal(t, int64(89699), gasDeliver)
 }
 
 // Enough gas for a failed transaction.
@@ -145,7 +145,7 @@ func setupAddPkg(success bool) (sdk.Context, sdk.Tx, vmHandler) {
 	ctx = ctx.WithBlockHeader(&bft.Header{Height: int64(1)})
 	// Create an account  with 10M ugnot (10gnot)
 	addr := crypto.AddressFromPreimage([]byte("test1"))
-	acc := env.acck.NewAccountWithAddress(ctx, addr)
+	acc := env.acck.NewAccountWithAddress(addr)
 	env.acck.SetAccount(ctx, acc)
 	env.bank.SetCoins(ctx, addr, std.MustParseCoins(ugnot.ValueString(10000000)))
 	// success message

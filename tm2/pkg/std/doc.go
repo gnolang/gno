@@ -8,17 +8,13 @@ import (
 )
 
 // SignDoc is the standard object for transactions.
-// AccountNumber is a replay-prevention field for the whole account
-// (eg. nonce) to prevent the replay of txs after an account has been deleted
-// (due to zero balance). Sequence is a replay-prevention field for each transaction
-// given a nonce
+// Sequence is a replay-prevention field for each transaction given a nonce.
 type SignDoc struct {
-	ChainID       string `json:"chain_id" yaml:"chain_id"`
-	AccountNumber uint64 `json:"account_number" yaml:"account_number"`
-	Sequence      uint64 `json:"sequence" yaml:"sequence"`
-	Fee           Fee    `json:"fee" yaml:"fee"`
-	Msgs          []Msg  `json:"msgs" yaml:"msgs"`
-	Memo          string `json:"memo" yaml:"memo"`
+	ChainID  string `json:"chain_id" yaml:"chain_id"`
+	Sequence uint64 `json:"sequence" yaml:"sequence"`
+	Fee      Fee    `json:"fee" yaml:"fee"`
+	Msgs     []Msg  `json:"msgs" yaml:"msgs"`
+	Memo     string `json:"memo" yaml:"memo"`
 }
 
 // GetSignaturePayload returns the sign payload for the SignDoc.

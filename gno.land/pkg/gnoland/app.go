@@ -296,7 +296,7 @@ func (cfg InitChainerConfig) loadAppState(ctx sdk.Context, appState any) ([]abci
 
 	// Apply genesis balances.
 	for _, bal := range state.Balances {
-		acc := cfg.acctKpr.NewAccountWithAddress(ctx, bal.Address)
+		acc := cfg.acctKpr.NewAccountWithAddress(bal.Address)
 		cfg.acctKpr.SetAccount(ctx, acc)
 		err := cfg.bankKpr.SetCoins(ctx, bal.Address, bal.Amount)
 		if err != nil {

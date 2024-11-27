@@ -65,7 +65,7 @@ func (bank DummyBankKeeper) SendCoins(ctx sdk.Context, fromAddr crypto.Address, 
 	fromAcc := bank.acck.GetAccount(ctx, fromAddr)
 	toAcc := bank.acck.GetAccount(ctx, toAddr)
 	if toAcc == nil {
-		toAcc = bank.acck.NewAccountWithAddress(ctx, toAddr)
+		toAcc = bank.acck.NewAccountWithAddress(toAddr)
 	}
 
 	newFromCoins := fromAcc.GetCoins().SubUnsafe(amt)

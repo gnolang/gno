@@ -18,7 +18,6 @@ var errInvalidTxFile = errors.New("invalid transaction file")
 type signOpts struct {
 	chainID         string
 	accountSequence uint64
-	accountNumber   uint64
 }
 
 type keyOpts struct {
@@ -29,11 +28,10 @@ type keyOpts struct {
 type SignCfg struct {
 	RootCfg *BaseCfg
 
-	TxPath        string
-	ChainID       string
-	AccountNumber uint64
-	Sequence      uint64
-	NameOrBech32  string
+	TxPath       string
+	ChainID      string
+	Sequence     uint64
+	NameOrBech32 string
 }
 
 func NewSignCmd(rootCfg *BaseCfg, io commands.IO) *commands.Command {
@@ -67,13 +65,6 @@ func (c *SignCfg) RegisterFlags(fs *flag.FlagSet) {
 		"chainid",
 		"dev",
 		"the ID of the chain",
-	)
-
-	fs.Uint64Var(
-		&c.AccountNumber,
-		"account-number",
-		0,
-		"account number to sign with",
 	)
 
 	fs.Uint64Var(
@@ -161,7 +152,6 @@ func execSign(cfg *SignCfg, args []string, io commands.IO) error {
 	sOpts := signOpts{
 		chainID:         cfg.ChainID,
 		accountSequence: cfg.Sequence,
-		accountNumber:   cfg.AccountNumber,
 	}
 
 	kOpts := keyOpts{
@@ -187,7 +177,6 @@ func signTx(
 ) error {
 	signBytes, err := tx.GetSignBytes(
 		signOpts.chainID,
-		signOpts.accountNumber,
 		signOpts.accountSequence,
 	)
 	if err != nil {
