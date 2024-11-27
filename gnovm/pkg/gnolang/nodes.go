@@ -2145,8 +2145,18 @@ var invalidPkgNames = map[string]struct{}{
 func validatePkgPath(pkgPath, pkgName string) {
 	parts := strings.Split(pkgPath, "/")
 	lastPart := parts[len(parts)-1]
+
+	// testing env
+	if lastPart == "." {
+		return
+	}
+
 	if _, ok := invalidPkgNames[lastPart]; ok {
 		panic(fmt.Sprintf("cannot create package with invalid name %q", pkgName))
+	}
+
+	if strings.HasSuffix(lastPart, "_test") {
+		return
 	}
 
 	validatePkgName(lastPart)
@@ -2160,7 +2170,7 @@ func validatePkgPath(pkgPath, pkgName string) {
 	}
 }
 
-var rePkgName = regexp.MustCompile(`^[a-z][a-z0-9_]+$`)
+var rePkgName = regexp.MustCompile(`^[a-z0-9][a-z0-9_]+$`)
 
 // TODO: consider length restrictions.
 // If this function is changed, ReadMemPackage's documentation should be updated accordingly.
