@@ -1,3 +1,4 @@
+# yaml-language-server: $schema=https://goreleaser.com/static/schema-pro.json
 project_name: gno
 version: 2
 
@@ -540,6 +541,11 @@ dockers:
     ids:
       - gnobro
       - gnogenesis
+    extra_files:
+      - gno.land/genesis/genesis_balances.txt
+      - gno.land/genesis/genesis_txs.jsonl
+      - examples
+      - gnovm/stdlibs
   - use: buildx
     dockerfile: Dockerfile.release
     goos: linux
@@ -557,6 +563,11 @@ dockers:
     ids:
       - gnobro
       - gnogenesis
+    extra_files:
+      - gno.land/genesis/genesis_balances.txt
+      - gno.land/genesis/genesis_txs.jsonl
+      - examples
+      - gnovm/stdlibs
   - use: buildx
     dockerfile: Dockerfile.release
     goos: linux
@@ -575,6 +586,11 @@ dockers:
     ids:
       - gnobro
       - gnogenesis
+    extra_files:
+      - gno.land/genesis/genesis_balances.txt
+      - gno.land/genesis/genesis_txs.jsonl
+      - examples
+      - gnovm/stdlibs
   - use: buildx
     dockerfile: Dockerfile.release
     goos: linux
@@ -593,6 +609,11 @@ dockers:
     ids:
       - gnobro
       - gnogenesis
+    extra_files:
+      - gno.land/genesis/genesis_balances.txt
+      - gno.land/genesis/genesis_txs.jsonl
+      - examples
+      - gnovm/stdlibs
 
 docker_manifests:
   # https://goreleaser.com/customization/docker_manifest/
