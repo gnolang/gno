@@ -3616,11 +3616,8 @@ func doConvertType(store Store, last BlockNode, x *Expr, t Type) {
 //	case 2: isNamedConversion is called within evaluating make() or new()
 //	(uverse functions). It returns TypType (generic) which does have IsNamed appropriate
 func isNamedConversion(xt, t Type) bool {
-	// this happens when processing blank identifiers (_) in function parameters
-	// or when types are not fully resolved during preprocessing.
-	// relative test: gnovm/tests/files/blankidentifier7.gno
-	if xt == nil || t == nil {
-		return false
+	if t == nil {
+		t = xt
 	}
 	// no conversion case 1: the LHS is an interface
 
