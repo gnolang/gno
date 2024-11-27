@@ -5,4 +5,4 @@ func main() {
 }
 
 // Error:
-// main/files/const40.gno:4:8: (const (array[] [0]string)) (value of type [0]string) is not constant
+// main/files/const40.gno:4:8: invalid constant type [0]string
