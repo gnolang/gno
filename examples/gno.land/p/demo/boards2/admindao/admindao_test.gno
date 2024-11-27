@@ -72,6 +72,17 @@ func TestAdminDAOAddMember(t *testing.T) {
 	uassert.ErrorIs(t, err, ErrMemberExists)
 }
 
+func TestAdminDAORemoveMember(t *testing.T) {
+	member := std.Address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5")
+	dao := New(WithMember(member))
+
+	removed := dao.RemoveMember(member)
+	urequire.True(t, removed)
+
+	removed = dao.RemoveMember(member)
+	urequire.False(t, removed)
+}
+
 func TestAdminDAOIsMember(t *testing.T) {
 	cases := []struct {
 		name   string

@@ -53,6 +53,12 @@ func (dao *AdminDAO) AddMember(user std.Address) error {
 	return nil
 }
 
+// RemoveMember removes a member from the DAO.
+func (dao *AdminDAO) RemoveMember(user std.Address) (removed bool) {
+	_, removed = dao.members.Remove(user.String())
+	return removed
+}
+
 // IsMember checks if a user is a member of the DAO.
 func (dao AdminDAO) IsMember(user std.Address) bool {
 	return dao.members.Has(user.String())
