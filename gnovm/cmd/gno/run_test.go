@@ -84,8 +84,8 @@ func TestRunApp(t *testing.T) {
 			stdoutShouldContain: "Context worked",
 		},
 		{
-			args:                []string{"run", "../../tests/integ/several-files-multiple-errors/"},
-			stderrShouldContain: "../../tests/integ/several-files-multiple-errors/file2.gno:3:5: expected 'IDENT', found '{' (code=2).\n../../tests/integ/several-files-multiple-errors/file2.gno:5:1: expected type, found '}' (code=2).\n../../tests/integ/several-files-multiple-errors/main.gno:5:5: expected ';', found example (code=2).\n../../tests/integ/several-files-multiple-errors/main.gno:6:2: expected '}', found 'EOF' (code=2).\n",
+			args:                []string{"run", "../../tests/integ/several_files_multiple_errors/"},
+			stderrShouldContain: "../../tests/integ/several_files_multiple_errors/file2.gno:3:5: expected 'IDENT', found '{' (code=2).\n../../tests/integ/several_files_multiple_errors/file2.gno:5:1: expected type, found '}' (code=2).\n../../tests/integ/several_files_multiple_errors/main.gno:5:5: expected ';', found example (code=2).\n../../tests/integ/several_files_multiple_errors/main.gno:6:2: expected '}', found 'EOF' (code=2).\n",
 			errShouldBe:         "exit code: 1",
 		},
 		// TODO: a test file
