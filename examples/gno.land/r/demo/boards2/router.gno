@@ -12,13 +12,14 @@ type handleFunc = func(*mux.ResponseWriter, request)
 type request struct {
 	*mux.Request
 
-	requestUri string
+	requestURI string
 }
 
 func (r request) pagination(defaultPageSize int) Pagination {
 	// reuse query parameter extract logic from pager.
 	pg := pager.NewPager(nil, defaultPageSize)
-	pageNum, limit, err := pg.ParseQuery(r.requestUri)
+	pg.SizeQueryParam = ""
+	pageNum, limit, err := pg.ParseQuery(r.requestURI)
 	if err != nil {
 		panic(err)
 	}
@@ -32,7 +33,7 @@ func (r request) pagination(defaultPageSize int) Pagination {
 type wrappedRouter struct {
 	*mux.Router
 
-	requestUri string
+	requestURI string
 }
 
 // newWrappedRouter returns a wrapped mux router that supports query strings.
@@ -46,7 +47,7 @@ func newWrappedRouter() *wrappedRouter {
 
 func (r *wrappedRouter) Render(path string) string {
 	reqPath := trimRequestPath(path)
-	r.requestUri = path
+	r.requestURI = path
 	return r.Router.Render(reqPath)
 }
 
@@ -54,7 +55,7 @@ func (r *wrappedRouter) HandleFunc(pattern string, fn handleFunc) {
 	r.Router.HandleFunc(pattern, func(rw *mux.ResponseWriter, req *mux.Request) {
 		fn(rw, request{
 			Request:    req,
-			requestUri: r.requestUri,
+			requestURI: r.requestURI,
 		})
 	})
 }

@@ -31,7 +31,7 @@ func renderBoardsList(res *mux.ResponseWriter, r request) {
 	res.Write("These are all the boards of this realm:\n\n")
 
 	pg := pager.NewPager(&gBoardsByID, defaultPageSize)
-	pageNum, limit, err := pg.ParseQuery(r.requestUri)
+	pageNum, limit, err := pg.ParseQuery(r.requestURI)
 	if err != nil {
 		panic(err)
 	}
