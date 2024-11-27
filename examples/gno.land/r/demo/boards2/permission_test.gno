@@ -363,3 +363,39 @@ func TestDefaultPermissionsAddUser(t *testing.T) {
 		})
 	}
 }
+
+func TestDefaultPermissionsRemoveUser(t *testing.T) {
+	cases := []struct {
+		name  string
+		user  std.Address
+		setup func() *DefaultPermissions
+		want  bool
+	}{
+		{
+			name: "ok",
+			user: std.Address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"),
+			setup: func() *DefaultPermissions {
+				return NewDefaultPermissions(
+					admindao.New(admindao.WithMember("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5")),
+					WithUser("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"),
+				)
+			},
+			want: true,
+		},
+		{
+			name: "user not found",
+			user: std.Address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"),
+			setup: func() *DefaultPermissions {
+				return NewDefaultPermissions(admindao.New())
+			},
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			perm := tc.setup()
+			got := perm.RemoveUser(tc.user)
+			uassert.Equal(t, tc.want, got)
+		})
+	}
+}

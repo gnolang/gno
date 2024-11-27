@@ -97,7 +97,7 @@ func (dp DefaultPermissions) HasPermission(user std.Address, perm Permission) bo
 	return false
 }
 
-// AddUser adds a new user to the permissioner.
+// AddUser adds a new user to permissions.
 func (dp *DefaultPermissions) AddUser(user std.Address, roles ...Role) error {
 	if dp.users.Has(user.String()) {
 		return errors.New("user already exists")
@@ -115,6 +115,13 @@ func (dp *DefaultPermissions) AddUser(user std.Address, roles ...Role) error {
 
 	dp.users.Set(user.String(), append([]Role(nil), roles...))
 	return nil
+}
+
+// RemoveUser removes a user from permissions.
+func (dp *DefaultPermissions) RemoveUser(user std.Address) bool {
+	_, removed := dp.users.Remove(user.String())
+	dp.dao.RemoveMember(user)
+	return removed
 }
 
 // HandleFunc registers a handler function for a permission.

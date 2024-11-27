@@ -175,7 +175,7 @@ func EditReply(bid BoardID, threadID, replyID PostID, title, body string) {
 	reply.Update(title, body)
 }
 
-func InviteMember(user std.Address, role Role) { // TODO: Implement suport for removing members
+func InviteMember(user std.Address, role Role) {
 	assertIsUserCall()
 
 	caller := std.GetOrigCaller()
@@ -185,6 +185,18 @@ func InviteMember(user std.Address, role Role) { // TODO: Implement suport for r
 		role := a[1].(Role)
 		if err := gPerm.AddUser(user, role); err != nil {
 			panic(err)
+		}
+	})
+}
+
+func RemoveMember(user std.Address) {
+	assertIsUserCall()
+
+	caller := std.GetOrigCaller()
+	gPerm.WithPermission(caller, PermissionMemberRemove, Args{user}, func(a Args) {
+		user := a[0].(std.Address)
+		if !gPerm.RemoveUser(user) {
+			panic("member not found")
 		}
 	})
 }

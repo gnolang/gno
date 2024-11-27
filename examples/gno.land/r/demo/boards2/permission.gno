@@ -10,6 +10,7 @@ const (
 	PermissionThreadRepost            = "thread:repost"
 	PermissionReplyDelete             = "reply:delete"
 	PermissionMemberInvite            = "member:invite"
+	PermissionMemberRemove            = "member:remove"
 )
 
 const (
@@ -39,5 +40,8 @@ type (
 
 		// AddUser adds a new user to the permissioner.
 		AddUser(std.Address, ...Role) error
+
+		// RemoveUser removes a user from the permissioner.
+		RemoveUser(std.Address) (removed bool)
 	}
 )
