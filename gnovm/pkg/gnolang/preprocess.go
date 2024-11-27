@@ -2454,6 +2454,13 @@ func parseAssignFromExprList(
 		for i, vx := range valueExprs {
 			vt := evalStaticTypeOf(store, bn, vx)
 			sts[i] = vt
+			if xnt, ok := vt.(*NativeType); ok {
+				vt = go2GnoBaseType(xnt.Type)
+			}
+
+			if _, ok := baseOf(vt).(PrimitiveType); !ok {
+				panic(fmt.Sprintf("invalid constant type %s", vt.String()))
+			}
 		}
 	} else { // T is nil, n not const => same as AssignStmt DEFINE
 		// Convert n.Value to default type.
