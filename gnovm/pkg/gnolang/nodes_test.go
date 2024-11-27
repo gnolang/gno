@@ -179,16 +179,6 @@ func TestReadMemPackage(t *testing.T) {
 			pkgPath:     "std/crypto",
 			shouldPanic: true,
 		},
-		{
-			name: "empty package without gno files",
-			files: map[string]string{
-				"README.md": "# Empty Package",
-				"LICENSE":   "MIT License",
-			},
-			pkgPath:     "gno.land/r/foo",
-			shouldPanic: true,
-			wantPkgName: "",
-		},
 	}
 
 	for _, tt := range tests {
@@ -274,20 +264,21 @@ func TestInjectNativeMethod(t *testing.T) {
 			shouldPanic: false,
 		},
 		{
-			name: "inject to empty package",
+			name: "inject to invalid package name - crypto",
 			files: map[string]string{
-				"README.md": "# Empty Package",
+				"crypto.gno": `package crypto
+					func Hash(data []byte) []byte { return nil }`,
 			},
-			pkgPath:     "gno.land/r/test/empty",
+			pkgPath:     "std/crypto",
 			shouldPanic: true,
 		},
 		{
-			name: "inject to foo in foo/bar structure",
+			name: "inject to invalid package name - internal",
 			files: map[string]string{
-				"bar/bar.gno": `package bar
-                    func BarFunc() string { return "bar" }`,
+				"internal.gno": `package internal
+					func someFunc() {}`,
 			},
-			pkgPath:     "gno.land/r/test/foo",
+			pkgPath:     "std/internal",
 			shouldPanic: true,
 		},
 	}

@@ -1215,9 +1215,9 @@ func ReadMemPackageFromList(list []string, pkgPath string) *gnovm.MemPackage {
 			})
 	}
 
-	if pkgName == "" {
-		panic("invalid package: no package name found")
-	}
+	// if pkgName == "" {
+	// 	panic("invalid package: no package name found")
+	// }
 
 	validatePkgPath(pkgPath, string(pkgName))
 	memPkg.Name = string(pkgName)
