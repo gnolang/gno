@@ -13,7 +13,7 @@ import (
 
 func Test_Scripts(t *testing.T) {
 	t.SkipNow() // TODO remove
-	
+
 	testdata, err := filepath.Abs("testdata")
 	require.NoError(t, err)
 
