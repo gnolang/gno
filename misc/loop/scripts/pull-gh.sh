@@ -6,6 +6,10 @@ TMP_DIR=temp-tx-exports
 # that the portal loop use when looping (generating the genesis)
 MASTER_BACKUP_FILE="backup.jsonl"
 
+# The master balances file will contain the ultimate balances
+# backup that the portal loop uses when looping (generating the genesis)
+MASTER_BALANCES_FILE="balances.jsonl"
+
 # Clones the portal loop backups subdirectory, located in BACKUPS_REPO (tx-exports)
 pullGHBackups () {
   BACKUPS_REPO=https://github.com/gnolang/tx-exports.git
@@ -32,8 +36,10 @@ pullGHBackups
 
 # Combine the pulled backups into a single backup file
 TXS_BACKUPS_PREFIX="backup_portal_loop_txs_"
+BALANCES_BACKUP_NAME="backup_portal_loop_balances.jsonl"
 
 find . -type f -name "${TXS_BACKUPS_PREFIX}*.jsonl" | sort | xargs cat > "temp_$MASTER_BACKUP_FILE"
+find . -type f -name "${BALANCES_BACKUP_NAME}" | sort | xargs cat > "temp_$MASTER_BALANCES_FILE"
 
 BACKUPS_DIR="../backups"
 TIMESTAMP=$(date +%s)
@@ -47,9 +53,21 @@ if [ -e "$BACKUPS_DIR/$MASTER_BACKUP_FILE" ]; then
   echo "Renamed $MASTER_BACKUP_FILE to ${MASTER_BACKUP_FILE}-legacy-$TIMESTAMP"
 fi
 
+# Check if the master balances backup file already exists
+if [ -e "$BACKUPS_DIR/$MASTER_BALANCES_FILE" ]; then
+  # Back up the existing master txs file
+  echo "Master balances backup file exists, backing up..."
+  mv "$BACKUPS_DIR/$MASTER_BALANCES_FILE" "$BACKUPS_DIR/${MASTER_BALANCES_FILE}-legacy-$TIMESTAMP"
+
+  echo "Renamed $MASTER_BALANCES_FILE to ${MASTER_BALANCES_FILE}-legacy-$TIMESTAMP"
+fi
+
 # Use the GitHub state as the canonical backup
 mv "temp_$MASTER_BACKUP_FILE" "$BACKUPS_DIR/$MASTER_BACKUP_FILE"
 echo "Moved temp_$MASTER_BACKUP_FILE to $BACKUPS_DIR/$MASTER_BACKUP_FILE"
+
+mv "temp_$MASTER_BALANCES_FILE" "$BACKUPS_DIR/$MASTER_BALANCES_FILE"
+echo "Moved temp_$MASTER_BALANCES_FILE to $BACKUPS_DIR/$MASTER_BALANCES_FILE"
 
 # Clean up the temporary directory
 cd ..
