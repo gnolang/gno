@@ -43,6 +43,7 @@ func renderBoardsList(res *mux.ResponseWriter, r request) {
 		res.Write(" * " + newLink(url, url) + "\n")
 	}
 
+	res.Write("\n\n---\n\n")
 	res.Write(page.Selector())
 }
 

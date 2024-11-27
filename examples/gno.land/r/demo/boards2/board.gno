@@ -97,21 +97,29 @@ func (board *Board) DeleteThread(pid PostID) {
 }
 
 func (board *Board) Render(p Pagination) string {
-	s := "\\[" + newLink("post", board.GetPostFormURL()) + "]\n\n"
+	sb := new(strings.Builder)
+	sb.WriteString("\\[")
+	sb.WriteString(newLink("post", board.GetPostFormURL()))
+	sb.WriteString("]\n\n")
 	if board.threads.Size() == 0 {
-		s += "*No posts*"
-		return s
+		sb.WriteString("*No posts*")
+		return sb.String()
 	}
 
 	pg := pager.NewPager(&board.threads, p.PageSize)
 	page := pg.GetPage(p.PageNumber)
 	for _, v := range page.Items {
 		post := v.Value.(*Post)
-		s += "----------------------------------------\n"
-		s += post.RenderSummary() + "\n"
+		sb.WriteString("----------------------------------------\n")
+		sb.WriteString(post.RenderSummary())
+		sb.WriteString("\n")
 	}
 
-	return s
+	if page.TotalPages > 1 {
+		sb.WriteString("\n---\n\n")
+		sb.WriteString(page.Selector())
+	}
+	return sb.String()
 }
 
 func (board *Board) incGetPostID() PostID {
