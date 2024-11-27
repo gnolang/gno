@@ -288,6 +288,9 @@ func checkAssignableTo(xt, dt Type, autoNative bool) error {
 	}
 	// case0
 	if xt == nil { // see test/files/types/eql_0f18
+		if dt == nil || dt.Kind() == InterfaceKind {
+			return nil
+		}
 		if !maybeNil(dt) {
 			panic(fmt.Sprintf("invalid operation, nil can not be compared to %v", dt))
 		}
