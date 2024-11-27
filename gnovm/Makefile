@@ -97,6 +97,8 @@ _test.stdlibs:
 	go run ./cmd/gno test -v ./stdlibs/...
 
 
+_test.gnolang.stdlibs:;      go test pkg/gnolang/files_test.go -test.short -run 'TestFiles$$/' $(GOTEST_FLAGS)
+
 ########################################
 # Code gen
 # TODO: move _dev.stringer to go:generate instructions, simplify generate
