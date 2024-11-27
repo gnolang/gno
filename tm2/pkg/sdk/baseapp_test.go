@@ -3,7 +3,6 @@ package sdk
 import (
 	"bytes"
 	"encoding/binary"
-	"encoding/json"
 	"fmt"
 	"log/slog"
 	"os"
@@ -786,7 +785,7 @@ func TestSimulateTx(t *testing.T) {
 		require.True(t, queryResult.IsOK(), queryResult.Log)
 
 		var res Result
-		json.Unmarshal(queryResult.ResponseBase.Data, &res)
+		amino.UnmarshalJSON(queryResult.ResponseBase.Data, &res)
 		require.Nil(t, err, "Result unmarshalling failed")
 		require.True(t, res.IsOK(), res.Log)
 		require.Equal(t, gasConsumed, res.GasUsed, res.Log)
