@@ -475,7 +475,7 @@ func generateTestingPackage(t *testing.T, nameFile ...string) PackagePath {
 }
 
 func createDefaultTestingNodeConfig(pkgslist ...PackagePath) *NodeConfig {
-	cfg := DefaultNodeConfig(gnoenv.RootDir())
+	cfg := DefaultNodeConfig(gnoenv.RootDir(), "UTC")
 	cfg.PackagesPathList = pkgslist
 	return cfg
 }
