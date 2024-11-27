@@ -14,7 +14,6 @@ import (
 )
 
 func Test_ScriptsTranspile(t *testing.T) {
-	t.SkipNow() // TODO remove
 	p := testscript.Params{
 		Dir: "testdata/gno_transpile",
 	}
