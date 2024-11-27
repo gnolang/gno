@@ -13,7 +13,6 @@ import (
 	"strings"
 
 	"github.com/gnolang/gno/gnovm"
-	"github.com/gnolang/gno/tm2/pkg/errors"
 	"go.uber.org/multierr"
 )
 
@@ -1256,38 +1255,6 @@ func ParseMemPackage(memPkg *gnovm.MemPackage) (fset *FileSet) {
 		panic(errs)
 	}
 	return fset
-}
-
-func ParseMemPackageTests(memPkg *gnovm.MemPackage) (tset, itset *FileSet) {
-	tset = &FileSet{}
-	itset = &FileSet{}
-	for _, mfile := range memPkg.Files {
-		if !strings.HasSuffix(mfile.Name, ".gno") {
-			continue // skip this file.
-		}
-		n, err := ParseFile(mfile.Name, mfile.Body)
-		if err != nil {
-			panic(errors.Wrap(err, "parsing file "+mfile.Name))
-		}
-		if n == nil {
-			panic("should not happen")
-		}
-		if strings.HasSuffix(mfile.Name, "_test.gno") {
-			// add test file.
-			if memPkg.Name+"_test" == string(n.PkgName) {
-				itset.AddFiles(n)
-			} else {
-				tset.AddFiles(n)
-			}
-		} else if memPkg.Name == string(n.PkgName) {
-			// skip package file.
-		} else {
-			panic(fmt.Sprintf(
-				"expected package name [%s] or [%s_test] but got [%s] file [%s]",
-				memPkg.Name, memPkg.Name, n.PkgName, mfile))
-		}
-	}
-	return tset, itset
 }
 
 func (fs *FileSet) AddFiles(fns ...*FileNode) {
