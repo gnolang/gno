@@ -1860,7 +1860,7 @@ func (sb *StaticBlock) IsAssignable(store Store, n Name) bool {
 		} else if _, ok := UverseNode().GetLocalIndex(n); ok {
 			return false
 		} else {
-			panic(fmt.Sprintf("name %s not declared", n))
+			return true
 		}
 	}
 }
