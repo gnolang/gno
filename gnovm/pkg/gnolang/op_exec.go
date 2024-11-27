@@ -678,25 +678,15 @@ EXEC_SWITCH:
 			bs.Active = bs.Body[cs.BodyIndex] // prefill
 		case FALLTHROUGH:
 			ss, ok := m.LastFrame().Source.(*SwitchStmt)
+			// this is handled in the preprocessor
+			// should never happen
 			if !ok {
-				// fallthrough is only allowed in a switch statement
 				panic("fallthrough statement out of place")
 			}
-			if ss.IsTypeSwitch {
-				// fallthrough is not allowed in type switches
-				panic("cannot fallthrough in type switch")
-			}
+
 			b := m.LastBlock()
-			if b.bodyStmt.NextBodyIndex != len(b.bodyStmt.Body) {
-				// fallthrough is not the final statement
-				panic("fallthrough statement out of place")
-			}
 			// compute next switch clause from BodyIndex (assigned in preprocess)
 			nextClause := cs.BodyIndex + 1
-			if nextClause >= len(ss.Clauses) {
-				// no more clause after the one executed, this is not allowed
-				panic("cannot fallthrough final case in switch")
-			}
 			// expand block size
 			cl := ss.Clauses[nextClause]
 			if nn := cl.GetNumNames(); int(nn) > len(b.Values) {
