@@ -590,7 +590,11 @@ func (app *BaseApp) DeliverTx(req abci.RequestDeliverTx) (res abci.ResponseDeliv
 		// res.GasUsed is the finalized amount of gas used to run tx.
 		// Therefore, gas fee is deducted here.
 		if app.gasFeeCollector != nil {
-			app.gasFeeCollector(ctx, tx, res.GasUsed)
+			feeCollectResult := app.gasFeeCollector(ctx, tx, res.GasUsed)
+			if !feeCollectResult.IsOK() {
+				res.ResponseBase.Error = feeCollectResult.ResponseBase.Error
+				res.ResponseBase.Log = feeCollectResult.ResponseBase.Log
+			}
 		}
 		return
 	}

@@ -357,6 +357,8 @@ func NewGasFeeCollector(ak AccountKeeper, bank BankKeeperI) sdk.GasFeeCollector 
 			if !res.IsOK() {
 				return res
 			}
+		} else {
+			return abciResult(std.ErrInsufficientFee(fmt.Sprintf("invalid fee amount: %s", tx.Fee.GasFee)))
 		}
 		return sdk.Result{GasWanted: tx.Fee.GasWanted}
 	}
