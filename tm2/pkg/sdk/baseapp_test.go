@@ -157,7 +157,7 @@ func TestAppVersionSetterGetter(t *testing.T) {
 	require.Equal(t, "", app.AppVersion())
 	res := app.Query(abci.RequestQuery{Path: ".app/version"})
 	require.True(t, res.IsOK())
-	require.Equal(t, "", string(res.Value))
+	require.Equal(t, "", string(res.ResponseBase.Data))
 
 	versionString := "1.0.0"
 	app.SetAppVersion(versionString)
