@@ -174,6 +174,13 @@ func initStaticBlocks(store Store, ctx BlockNode, bn BlockNode) {
 			case *ImportDecl:
 				nx := &n.NameExpr
 				nn := nx.Name
+				loc := last.GetLocation()
+				// NOTE: imports from "pure packages" are actually sometimes
+				// allowed, most notably in MsgRun and filetests; IsPurePackagePath
+				// returns false in these cases.
+				if IsPurePackagePath(loc.PkgPath) && IsRealmPath(n.PkgPath) {
+					panic(fmt.Sprintf("pure package path %q cannot import realm path %q", loc.PkgPath, n.PkgPath))
+				}
 				if nn == "." {
 					panic("dot imports not allowed in gno")
 				}
@@ -358,6 +365,11 @@ func initStaticBlocks(store Store, ctx BlockNode, bn BlockNode) {
 
 func doRecover(stack []BlockNode, n Node) {
 	if r := recover(); r != nil {
+		if _, ok := r.(*PreprocessError); ok {
+			// re-panic directly if this is a PreprocessError already.
+			panic(r)
+		}
+
 		// before re-throwing the error, append location information to message.
 		last := stack[len(stack)-1]
 		loc := last.GetLocation()
@@ -4025,23 +4037,7 @@ func checkIntegerKind(xt Type) {
 // preprocess-able before other file-level declarations are
 // preprocessed).
 func predefineNow(store Store, last BlockNode, d Decl) (Decl, bool) {
-	defer func() {
-		if r := recover(); r != nil {
-			// before re-throwing the error, append location information to message.
-			loc := last.GetLocation()
-			if nline := d.GetLine(); nline > 0 {
-				loc.Line = nline
-				loc.Column = d.GetColumn()
-			}
-			if rerr, ok := r.(error); ok {
-				// NOTE: gotuna/gorilla expects error exceptions.
-				panic(errors.Wrap(rerr, loc.String()))
-			} else {
-				// NOTE: gotuna/gorilla expects error exceptions.
-				panic(fmt.Errorf("%s: %v", loc.String(), r))
-			}
-		}
-	}()
+	defer doRecover([]BlockNode{last}, d)
 	stack := &[]Name{}
 	return predefineNow2(store, last, d, stack)
 }
@@ -4106,10 +4102,10 @@ func predefineNow2(store Store, last BlockNode, d Decl, stack *[]Name) (Decl, bo
 			// check base type of receiver type, should not be pointer type or interface type
 			assertValidReceiverType := func(t Type) {
 				if _, ok := t.(*PointerType); ok {
-					panic(fmt.Sprintf("invalid receiver type %v (base type is pointer type)\n", rt))
+					panic(fmt.Sprintf("invalid receiver type %v (base type is pointer type)", rt))
 				}
 				if _, ok := t.(*InterfaceType); ok {
-					panic(fmt.Sprintf("invalid receiver type %v (base type is interface type)\n", rt))
+					panic(fmt.Sprintf("invalid receiver type %v (base type is interface type)", rt))
 				}
 			}
 

@@ -6,7 +6,6 @@ package strconv_test
 
 import (
 	"fmt"
-	"log"
 	"strconv"
 )
 
@@ -409,7 +408,7 @@ func ExampleUnquote() {
 func ExampleUnquoteChar() {
 	v, mb, t, err := strconv.UnquoteChar(`\"Fran & Freddie's Diner\"`, '"')
 	if err != nil {
-		log.Fatal(err)
+		panic(err)
 	}
 
 	fmt.Println("value:", string(v))

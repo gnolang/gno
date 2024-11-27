@@ -2,9 +2,10 @@
 
 ! gno test -v .
 
-stdout 'Machine\.RunMain\(\) panic: oups'
 stderr '=== RUN   file/x_filetest.gno'
-stderr 'panic: fail on x_filetest.gno: got "oups", want: "xxx"'
+stderr 'Error diff:'
+stderr '-xxx'
+stderr '\+oups'
 
 -- x_filetest.gno --
 package main
