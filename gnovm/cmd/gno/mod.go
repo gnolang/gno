@@ -333,13 +333,16 @@ func getImportToFilesMap(pkgPath string) (map[string][]string, error) {
 		if strings.HasSuffix(filename, "_filetest.gno") {
 			continue
 		}
-		imports, err := gnoimports.FileImports(filepath.Join(pkgPath, filename))
+		imports, _, err := gnoimports.FileImportsFromPath(filepath.Join(pkgPath, filename))
 		if err != nil {
 			return nil, err
 		}
 
 		for _, imp := range imports {
-			m[imp] = append(m[imp], filename)
+			if imp.Error != nil {
+				return nil, err
+			}
+			m[imp.PkgPath] = append(m[imp.PkgPath], filename)
 		}
 	}
 	return m, nil

@@ -2,6 +2,7 @@ package gnoimports
 
 import (
 	"fmt"
+	"go/ast"
 	"go/parser"
 	"go/token"
 	"os"
@@ -33,16 +34,20 @@ func PackageImports(path string) ([]string, error) {
 		if strings.HasSuffix(filename, "_filetest.gno") {
 			continue
 		}
-		imports, err := FileImports(filepath.Join(path, filename))
+		filePath := filepath.Join(path, filename)
+		imports, _, err := FileImportsFromPath(filePath)
 		if err != nil {
 			return nil, err
 		}
 		for _, im := range imports {
-			if _, ok := seen[im]; ok {
+			if im.Error != nil {
+				return nil, err
+			}
+			if _, ok := seen[im.PkgPath]; ok {
 				continue
 			}
-			allImports = append(allImports, im)
-			seen[im] = struct{}{}
+			allImports = append(allImports, im.PkgPath)
+			seen[im.PkgPath] = struct{}{}
 		}
 	}
 	sort.Strings(allImports)
@@ -50,27 +55,39 @@ func PackageImports(path string) ([]string, error) {
 	return allImports, nil
 }
 
-// FileImports returns the list of gno imports in a given file.
-func FileImports(fname string) ([]string, error) {
-	if !strings.HasSuffix(fname, ".gno") {
-		return nil, fmt.Errorf("not a gno file: %q", fname)
-	}
-	data, err := os.ReadFile(fname)
-	if err != nil {
-		return nil, err
-	}
+type FileImport struct {
+	PkgPath string
+	Spec    *ast.ImportSpec
+	Error   error
+}
+
+// FileImports returns the list of gno imports in the given file src.
+// The given filename is only used when recording position information.
+func FileImports(filename string, src []byte) ([]*FileImport, *token.FileSet, error) {
 	fs := token.NewFileSet()
-	f, err := parser.ParseFile(fs, fname, data, parser.ImportsOnly)
+	f, err := parser.ParseFile(fs, filename, src, parser.ImportsOnly)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
-	res := make([]string, len(f.Imports))
+	res := make([]*FileImport, len(f.Imports))
 	for i, im := range f.Imports {
+		fi := FileImport{Spec: im}
 		importPath, err := strconv.Unquote(im.Path.Value)
 		if err != nil {
-			return nil, fmt.Errorf("unquote %q: %w", im.Path.Value, err)
+			fi.Error = fmt.Errorf("%v: unexpected invalid import path: %v", fs.Position(im.Pos()).String(), im.Path.Value)
+		} else {
+			fi.PkgPath = importPath
 		}
-		res[i] = importPath
+		res[i] = &fi
 	}
-	return res, nil
+	return res, fs, nil
+}
+
+// FileImportsFromPath reads the file at filePath and returns the list of gno imports in it.
+func FileImportsFromPath(filePath string) ([]*FileImport, *token.FileSet, error) {
+	data, err := os.ReadFile(filePath)
+	if err != nil {
+		return nil, nil, err
+	}
+	return FileImports(filePath, data)
 }

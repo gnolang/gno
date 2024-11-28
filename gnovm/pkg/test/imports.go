@@ -4,17 +4,15 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"go/parser"
-	"go/token"
 	"io"
 	"math/big"
 	"os"
 	"path/filepath"
 	"runtime/debug"
-	"strconv"
 	"strings"
 	"time"
 
+	"github.com/gnolang/gno/gnovm/pkg/gnoimports"
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
 	teststdlibs "github.com/gnolang/gno/gnovm/tests/stdlibs"
 	teststd "github.com/gnolang/gno/gnovm/tests/stdlibs/std"
@@ -241,24 +239,22 @@ func LoadImports(store gno.Store, filename string, content []byte) (err error) {
 		}
 	}()
 
-	fset := token.NewFileSet()
-	fl, err := parser.ParseFile(fset, filename, content, parser.ImportsOnly)
+	imports, fset, err := gnoimports.FileImports(filename, content)
 	if err != nil {
-		return fmt.Errorf("parse failure: %w", err)
+		return err
 	}
-	for _, imp := range fl.Imports {
-		impPath, err := strconv.Unquote(imp.Path.Value)
-		if err != nil {
-			return fmt.Errorf("%v: unexpected invalid import path: %v", fset.Position(imp.Pos()).String(), imp.Path.Value)
+	for _, imp := range imports {
+		if imp.Error != nil {
+			return imp.Error
 		}
-		if gno.IsRealmPath(impPath) {
+		if gno.IsRealmPath(imp.PkgPath) {
 			// Don't eagerly load realms.
 			// Realms persist state and can change the state of other realms in initialization.
 			continue
 		}
-		pkg := store.GetPackage(impPath, true)
+		pkg := store.GetPackage(imp.PkgPath, true)
 		if pkg == nil {
-			return fmt.Errorf("%v: unknown import path %v", fset.Position(imp.Pos()).String(), impPath)
+			return fmt.Errorf("%v: unknown import path %v", fset.Position(imp.Spec.Pos()).String(), imp.PkgPath)
 		}
 	}
 	return nil
