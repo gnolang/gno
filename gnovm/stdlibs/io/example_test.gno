@@ -8,7 +8,6 @@ import (
 	"bytes"
 	"fmt"
 	"io"
-	"log"
 	"os"
 	"strings"
 )
@@ -17,7 +16,7 @@ func ExampleCopy() {
 	r := strings.NewReader("some io.Reader stream to be read\n")
 
 	if _, err := io.Copy(os.Stdout, r); err != nil {
-		log.Fatal(err)
+		panic(err)
 	}
 
 	// Output:
@@ -31,12 +30,12 @@ func ExampleCopyBuffer() {
 
 	// buf is used here...
 	if _, err := io.CopyBuffer(os.Stdout, r1, buf); err != nil {
-		log.Fatal(err)
+		panic(err)
 	}
 
 	// ... reused here also. No need to allocate an extra buffer.
 	if _, err := io.CopyBuffer(os.Stdout, r2, buf); err != nil {
-		log.Fatal(err)
+		panic(err)
 	}
 
 	// Output:
@@ -48,7 +47,7 @@ func ExampleCopyN() {
 	r := strings.NewReader("some io.Reader stream to be read")
 
 	if _, err := io.CopyN(os.Stdout, r, 4); err != nil {
-		log.Fatal(err)
+		panic(err)
 	}
 
 	// Output:
@@ -60,7 +59,7 @@ func ExampleReadAtLeast() {
 
 	buf := make([]byte, 14)
 	if _, err := io.ReadAtLeast(r, buf, 4); err != nil {
-		log.Fatal(err)
+		panic(err)
 	}
 	fmt.Printf("%s\n", buf)
 
@@ -87,7 +86,7 @@ func ExampleReadFull() {
 
 	buf := make([]byte, 4)
 	if _, err := io.ReadFull(r, buf); err != nil {
-		log.Fatal(err)
+		panic(err)
 	}
 	fmt.Printf("%s\n", buf)
 
@@ -104,7 +103,7 @@ func ExampleReadFull() {
 
 func ExampleWriteString() {
 	if _, err := io.WriteString(os.Stdout, "Hello World"); err != nil {
-		log.Fatal(err)
+		panic(err)
 	}
 
 	// Output: Hello World
@@ -115,7 +114,7 @@ func ExampleLimitReader() {
 	lr := io.LimitReader(r, 4)
 
 	if _, err := io.Copy(os.Stdout, lr); err != nil {
-		log.Fatal(err)
+		panic(err)
 	}
 
 	// Output:
@@ -129,7 +128,7 @@ func ExampleMultiReader() {
 	r := io.MultiReader(r1, r2, r3)
 
 	if _, err := io.Copy(os.Stdout, r); err != nil {
-		log.Fatal(err)
+		panic(err)
 	}
 
 	// Output:
@@ -153,7 +152,7 @@ func ExampleSectionReader() {
 	s := io.NewSectionReader(r, 5, 17)
 
 	if _, err := io.Copy(os.Stdout, s); err != nil {
-		log.Fatal(err)
+		panic(err)
 	}
 
 	// Output:
@@ -166,7 +165,7 @@ func ExampleSectionReader_ReadAt() {
 
 	buf := make([]byte, 6)
 	if _, err := s.ReadAt(buf, 10); err != nil {
-		log.Fatal(err)
+		panic(err)
 	}
 
 	fmt.Printf("%s\n", buf)
@@ -180,11 +179,11 @@ func ExampleSectionReader_Seek() {
 	s := io.NewSectionReader(r, 5, 17)
 
 	if _, err := s.Seek(10, io.SeekStart); err != nil {
-		log.Fatal(err)
+		panic(err)
 	}
 
 	if _, err := io.Copy(os.Stdout, s); err != nil {
-		log.Fatal(err)
+		panic(err)
 	}
 
 	// Output:
@@ -196,12 +195,12 @@ func ExampleSeeker_Seek() {
 
 	r.Seek(5, io.SeekStart) // move to the 5th char from the start
 	if _, err := io.Copy(os.Stdout, r); err != nil {
-		log.Fatal(err)
+		panic(err)
 	}
 
 	r.Seek(-5, io.SeekEnd)
 	if _, err := io.Copy(os.Stdout, r); err != nil {
-		log.Fatal(err)
+		panic(err)
 	}
 
 	// Output:
@@ -216,7 +215,7 @@ func ExampleMultiWriter() {
 	w := io.MultiWriter(&buf1, &buf2)
 
 	if _, err := io.Copy(w, r); err != nil {
-		log.Fatal(err)
+		panic(err)
 	}
 
 	fmt.Print(buf1.String())
@@ -237,7 +236,7 @@ func ExamplePipe() {
 	}()
 
 	if _, err := io.Copy(os.Stdout, r); err != nil {
-		log.Fatal(err)
+		panic(err)
 	}
 
 	// Output:
@@ -250,7 +249,7 @@ func ExampleReadAll() {
 
 	b, err := io.ReadAll(r)
 	if err != nil {
-		log.Fatal(err)
+		panic(err)
 	}
 
 	fmt.Printf("%s", b)
