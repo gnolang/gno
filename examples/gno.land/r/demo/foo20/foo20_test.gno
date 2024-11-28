@@ -12,7 +12,7 @@ import (
 
 func TestReadOnlyPublicMethods(t *testing.T) {
 	var (
-		admin = pusers.AddressOrName("g1u7y667z64x2h7vc6fmpcprgey4ck233jaww9zq")
+		admin = pusers.AddressOrName("g1manfred47kzduec920z88wfr64ylksmdcedlf5")
 		alice = pusers.AddressOrName(testutils.TestAddress("alice"))
 		bob   = pusers.AddressOrName(testutils.TestAddress("bob"))
 	)
@@ -60,7 +60,7 @@ func TestReadOnlyPublicMethods(t *testing.T) {
 
 func TestErrConditions(t *testing.T) {
 	var (
-		admin = pusers.AddressOrName("g1u7y667z64x2h7vc6fmpcprgey4ck233jaww9zq")
+		admin = pusers.AddressOrName("g1manfred47kzduec920z88wfr64ylksmdcedlf5")
 		alice = pusers.AddressOrName(testutils.TestAddress("alice"))
 		empty = pusers.AddressOrName("")
 	)

@@ -10,19 +10,27 @@ import (
 // ----------------------------------------
 // Functions centralizing definitions
 
-// ReGnoRealmPath is the regex used to identify pkgpaths which are meant to
-// be realms and as such to have their state persisted. This is used by [IsRealmPath].
-var ReGnoRealmPath = regexp.MustCompile(`^([a-zA-Z0-9-]+\.)*[a-zA-Z0-9-]+\.[a-zA-Z]{2,}/r/`)
+// ReRealmPath and RePackagePath are the regexes used to identify pkgpaths which are meant to
+// be realms with persisted states and pure packages.
+var ReRealmPath = regexp.MustCompile(`^([a-zA-Z0-9-]+\.)*[a-zA-Z0-9-]+\.[a-zA-Z]{2,}/r/[a-z0-9_/]+`)
+var RePackagePath = regexp.MustCompile(`^([a-zA-Z0-9-]+\.)*[a-zA-Z0-9-]+\.[a-zA-Z]{2,}/p/[a-z0-9_/]+`)
 
 // ReGnoRunPath is the path used for realms executed in maketx run.
-// These are not considered realms, as an exception to the ReGnoRealmPath rule.
+// These are not considered realms, as an exception to the ReRealmPathPrefix rule.
 var ReGnoRunPath = regexp.MustCompile(`^([a-zA-Z0-9-]+\.)*[a-zA-Z0-9-]+\.[a-zA-Z]{2,}/r/g[a-z0-9]+/run$`)
 
 // IsRealmPath determines whether the given pkgpath is for a realm, and as such
 // should persist the global state.
 func IsRealmPath(pkgPath string) bool {
-	return ReGnoRealmPath.MatchString(pkgPath) &&
+	return ReRealmPath.MatchString(pkgPath) &&
 		!ReGnoRunPath.MatchString(pkgPath)
+}
+
+// IsPurePackagePath determines whether the given pkgpath is for a published Gno package.
+// It only considers "pure" those starting with gno.land/p/, so it returns false for
+// stdlib packages and MsgRun paths.
+func IsPurePackagePath(pkgPath string) bool {
+	return RePackagePath.MatchString(pkgPath)
 }
 
 // IsStdlib determines whether s is a pkgpath for a standard library.
