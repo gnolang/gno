@@ -56,6 +56,14 @@ func DecodeBech32(addr Address) (prefix string, bz [20]byte, ok bool) {
 	return decodeBech32(string(addr))
 }
 
+// TODO: add regex check for denom
+func RealmDenom(pkgPath, denom string) {
+	// Similar to ibc spec
+	// ibc_denom := 'ibc/' + hash('path' + 'base_denom')
+	// gno_realm_denom := '/' + 'pkg_path' + ':' + 'base_denom'
+	return "/" + pkgPath + ":" + denom
+}
+
 // Variations which don't use named types.
 func origSend() (denoms []string, amounts []int64)
 func origCaller() string

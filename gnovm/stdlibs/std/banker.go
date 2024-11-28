@@ -75,30 +75,31 @@ func X_bankerTotalCoin(m *gno.Machine, bt uint8, denom string) int64 {
 
 func X_bankerIssueCoin(m *gno.Machine, bt uint8, addr string, denom string, amount int64) {
 	// gno checks for bt == RealmIssue
+	m.Context.(ExecContext).Banker.IssueCoin(crypto.Bech32Address(addr), denom, amount)
 
 	// check origin denom format
-	matched := reDenom.MatchString(denom)
-	if !matched {
-		m.Panic(typedString("invalid denom format to issue coin, must be " + reDenom.String()))
-		return
-	}
+	// matched := reDenom.MatchString(denom)
+	// if !matched {
+	// 	m.Panic(typedString("invalid denom format to issue coin, must be " + reDenom.String()))
+	// 	return
+	// }
 
 	// Similar to ibc spec
 	// ibc_denom := 'ibc/' + hash('path' + 'base_denom')
 	// gno_realm_denom := '/' + 'pkg_path' + ':' + 'base_denom'
-	newDenom := "/" + m.Realm.Path + ":" + denom
-	GetContext(m).Banker.IssueCoin(crypto.Bech32Address(addr), newDenom, amount)
+	// newDenom := "/" + m.Realm.Path + ":" + denom
+	// GetContext(m).Banker.IssueCoin(crypto.Bech32Address(addr), newDenom, amount)
 }
 
 func X_bankerRemoveCoin(m *gno.Machine, bt uint8, addr string, denom string, amount int64) {
 	// gno checks for bt == RealmIssue
 
-	matched := reDenom.MatchString(denom)
-	if !matched {
-		m.Panic(typedString("invalid denom format to remove coin, must be " + reDenom.String()))
-		return
-	}
+	// matched := reDenom.MatchString(denom)
+	// if !matched {
+	// 	m.Panic(typedString("invalid denom format to remove coin, must be " + reDenom.String()))
+	// 	return
+	// }
 
-	newDenom := "/" + m.Realm.Path + ":" + denom
-	GetContext(m).Banker.RemoveCoin(crypto.Bech32Address(addr), newDenom, amount)
+	// newDenom := "/" + m.Realm.Path + ":" + denom
+	GetContext(m).Banker.RemoveCoin(crypto.Bech32Address(addr), denom, amount)
 }
