@@ -22,9 +22,9 @@ func TestHeadBaseBranch(t *testing.T) {
 	}{
 		{"perfectly match", "base", "base", true},
 		{"prefix match", "^dev/", "dev/test-bot", true},
-		{"prefix doesn't match", "dev/$", "dev/test-bot", false},
+		{"prefix doesn't match", "^/test-bot", "dev/test-bot", false},
 		{"suffix match", "/test-bot$", "dev/test-bot", true},
-		{"suffix doesn't match", "^/test-bot", "dev/test-bot", false},
+		{"suffix doesn't match", "dev/$", "dev/test-bot", false},
 		{"doesn't match", "base", "notatall", false},
 	} {
 		t.Run(testCase.name, func(t *testing.T) {

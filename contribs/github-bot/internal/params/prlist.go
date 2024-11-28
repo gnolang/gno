@@ -23,7 +23,7 @@ func (p PRList) MarshalText() (text []byte, err error) {
 		prNumsStr[i] = strconv.Itoa(prNum)
 	}
 
-	return []byte(strings.Join(prNumsStr, ",")), nil
+	return []byte(strings.Join(prNumsStr, ", ")), nil
 }
 
 // UnmarshalText implements encoding.TextUnmarshaler.
