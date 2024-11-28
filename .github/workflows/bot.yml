@@ -44,16 +44,18 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+
       - name: Install Go
         uses: actions/setup-go@v5
         with:
-          go-version-file: go.mod
+          go-version-file: contribs/github-bot/go.mod
+
       - name: Generate matrix from event
         id: pr-numbers
         working-directory: contribs/github-bot
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: go run . matrix >> "$GITHUB_OUTPUT"
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: echo "pr-numbers=$(go run . matrix)" >> "$GITHUB_OUTPUT"
 
   # This job processes each pull request in the matrix individually while ensuring
   # that a same PR cannot be processed concurrently by mutliple runners
@@ -76,10 +78,10 @@ jobs:
       - name: Install Go
         uses: actions/setup-go@v5
         with:
-          go-version-file: go.mod
+          go-version-file: contribs/github-bot/go.mod
 
       - name: Run GitHub Bot
         working-directory: contribs/github-bot
         env:
           GITHUB_TOKEN: ${{ secrets.GH_BOT_PAT }}
-        run: go run . -pr-numbers '${{ matrix.pr-number }}' -verbose
+        run: go run . check -pr-numbers '${{ matrix.pr-number }}' -verbose

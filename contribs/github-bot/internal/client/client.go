@@ -80,7 +80,7 @@ func (gh *GitHub) GetBotComment(prNum int) (*github.IssueComment, error) {
 		opts.Page = response.NextPage
 	}
 
-	return nil, errors.New("bot comment not found")
+	return nil, ErrBotCommentNotFound
 }
 
 // SetBotComment creates a bot's comment on the provided PR number
