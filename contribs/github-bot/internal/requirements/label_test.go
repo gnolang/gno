@@ -16,7 +16,7 @@ import (
 )
 
 func TestLabel(t *testing.T) {
-	// t.Parallel()
+	t.Parallel()
 
 	labels := []*github.Label{
 		{Name: github.String("notTheRightOne")},
@@ -38,7 +38,7 @@ func TestLabel(t *testing.T) {
 		{"label list doesn't contain label with dry-run", "label", labels, true, false},
 	} {
 		t.Run(testCase.name, func(t *testing.T) {
-			// t.Parallel()
+			t.Parallel()
 
 			requested := false
 			mockedHTTPClient := mock.NewMockedHTTPClient(
