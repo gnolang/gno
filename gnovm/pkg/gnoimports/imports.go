@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
+	"strconv"
 	"strings"
 )
 
@@ -65,7 +66,10 @@ func FileImports(fname string) ([]string, error) {
 	}
 	res := make([]string, len(f.Imports))
 	for i, im := range f.Imports {
-		importPath := strings.TrimPrefix(strings.TrimSuffix(im.Path.Value, `"`), `"`)
+		importPath, err := strconv.Unquote(im.Path.Value)
+		if err != nil {
+			return nil, fmt.Errorf("unquote %q: %w", im.Path.Value, err)
+		}
 		res[i] = importPath
 	}
 	return res, nil
