@@ -11,7 +11,7 @@ import (
 
 	"github.com/cockroachdb/apd/v3"
 
-	"github.com/gnolang/gno/gnovm/pkg/gnolang/internal/softfloat"
+	"github.com/gnolang/gno/gnovm/pkg/gnolang/softfloat"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
 )
 

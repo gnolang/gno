@@ -15,33 +15,49 @@
 //	ge    f >= g
 package softfloat
 
+import (
+	"fmt"
+	"math"
+)
+
 const (
 	mask  = 0x7FF
 	shift = 64 - 11 - 1
 	bias  = 1023
 )
 
-type Float64 uint64
-type Float32 uint32
+type (
+	Float64 uint64
+	Float32 uint32
+)
+
+func (f Float64) String() string {
+	return fmt.Sprintf("%v", math.Float64frombits(uint64(f)))
+}
+
+func (f Float32) String() string {
+	return fmt.Sprintf("%v", math.Float32frombits(uint32(f)))
+}
 
 func Trunc(x Float64) Float64 {
-	_, _, _, isInf, IsNaN := funpack64(uint64(x))
-	if x == 0 || isInf || IsNaN {
+	cmp, _ := Fcmp64(x, Fintto64(0))
+	if _, _, _, isInf, IsNaN := funpack64(uint64(x)); cmp == 0 || isInf || IsNaN {
 		return x
 	}
 
 	d, _ := Modf(x)
 	return d
 }
-func Modf(u Float64) (int Float64, frac Float64) {
-	cmp, _ := Fcmp64(u, 1)
+
+func Modf(u Float64) (it Float64, frac Float64) {
+	cmp, _ := Fcmp64(u, Fintto64(1))
 
 	if cmp < 0 {
-		cmp, _ := Fcmp64(u, 0)
+		cmp, _ := Fcmp64(u, Fintto64(0))
 		switch {
 		case cmp < 0:
-			int, frac = Modf(Fneg64(u))
-			return Fneg64(int), Fneg64(frac)
+			it, frac = Modf(Fneg64(u))
+			return Fneg64(it), Fneg64(frac)
 		case cmp == 0:
 			return u, u // Return -0, -0 when f == -0
 		}
@@ -55,7 +71,7 @@ func Modf(u Float64) (int Float64, frac Float64) {
 		u &^= 1<<(64-12-e) - 1
 	}
 
-	frac = Fsub64(u, int)
+	frac = Fsub64(u, it)
 	return
 }
 
@@ -73,7 +89,7 @@ func Fgt64(f, g Float64) bool     { return fgt64(uint64(f), uint64(g)) }
 func Fge64(f, g Float64) bool     { return fge64(uint64(f), uint64(g)) }
 
 func Fadd32(f, g Float32) Float32 { return Float32(fadd32(uint32(f), uint32(g))) }
-func Fsub32(f, g Float32) Float32 { return Float32(fadd32(uint32(f), uint32(Fneg32(uint32(g))))) }
+func Fsub32(f, g Float32) Float32 { return Float32(fadd32(uint32(f), uint32(Fneg32(g)))) }
 func Fmul32(f, g Float32) Float32 { return Float32(fmul32(uint32(f), uint32(g))) }
 func Fdiv32(f, g Float32) Float32 { return Float32(fdiv32(uint32(f), uint32(g))) }
 func Feq32(f, g Float32) bool     { return feq32(uint32(f), uint32(g)) }
@@ -82,7 +98,7 @@ func Fge32(f, g Float32) bool     { return fge32(uint32(f), uint32(g)) }
 
 func Fcmp64(f, g Float64) (cmp int32, isnan bool) { return fcmp64(uint64(f), uint64(g)) }
 
-func Fneg32(f uint32) uint32 {
+func Fneg32(f Float32) Float32 {
 	// Not defined in runtime - this is a copy similar to fneg64.
 	return f ^ (1 << (mantbits32 + expbits32))
 }

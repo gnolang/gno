@@ -3,11 +3,13 @@ package vm
 import (
 	"encoding/base64"
 	"fmt"
+	"math"
 	"strconv"
 	"strings"
 
 	"github.com/cockroachdb/apd/v3"
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
+	"github.com/gnolang/gno/gnovm/pkg/gnolang/softfloat"
 )
 
 func assertNoPlusPrefix(s string) {
@@ -143,11 +145,11 @@ func convertArgToGno(arg string, argT gno.Type) (tv gno.TypedValue) {
 			return
 		case gno.Float32Type:
 			value := convertFloat(arg, 32)
-			tv.SetFloat32(float32(value))
+			tv.SetFloat32(softfloat.Float32(math.Float32bits(float32(value))))
 			return
 		case gno.Float64Type:
 			value := convertFloat(arg, 64)
-			tv.SetFloat64(value)
+			tv.SetFloat64(softfloat.Float64(math.Float64bits(value)))
 			return
 		default:
 			panic(fmt.Sprintf("unexpected primitive type %s", bt.String()))

@@ -12,7 +12,7 @@ func main() {
 	var u16 uint16 = 65535
 	var u32 uint32 = 4294967295
 	var u64 uint64 = 18446744073709551615
-	var f32 float32 = 0x1p127 * (1 + (1 - 0x1p-23))
+	var f32 float32 = math.MaxFloat32
 	var f64 float64 = math.MaxFloat64
 	println(f32 / 2)
 	println(f64 / 2)
@@ -41,8 +41,8 @@ func main() {
 	println(float32(u64))
 	println(float64(u64))
 	println(float32(f32))
-	// println(float64(f32))
-	// println(float32(f64))
+	println(float64(f32))
+	println(float32(f64))
 	println(float64(f64))
 }
 
@@ -74,4 +74,6 @@ func main() {
 // 1.8446744e+19
 // 1.8446744073709552e+19
 // 3.4028235e+38
+// 3.4028234663852886e+38
+// +Inf
 // 1.7976931348623157e+308

@@ -10,11 +10,11 @@
 package softfloat_test
 
 import (
+	. "github.com/gnolang/gno/gnovm/pkg/gnolang/softfloat"
 	"math"
 	"math/rand"
-	. "github.com/gnolang/gno/gnovm/pkg/gnolang/internal/softfloat"
+	"runtime"
 	"testing"
-    "runtime"
 )
 
 // turn uint64 op into float64 op

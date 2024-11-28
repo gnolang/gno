@@ -5,7 +5,7 @@ import (
 	"math"
 	"reflect"
 
-	"github.com/gnolang/gno/gnovm/pkg/gnolang/internal/softfloat"
+	"github.com/gnolang/gno/gnovm/pkg/gnolang/softfloat"
 )
 
 // NOTE
@@ -1052,7 +1052,7 @@ func gno2GoValue(tv *TypedValue, rv reflect.Value) (ret reflect.Value) {
 		case Uint64Type:
 			rv.SetUint(tv.GetUint64())
 		case Float32Type:
-			rv.SetFloat(math.Float64frombits(uint64(tv.GetFloat32())))
+			rv.SetFloat(math.Float64frombits(uint64(softfloat.F32to64(tv.GetFloat32()))))
 		case Float64Type:
 			rv.SetFloat(math.Float64frombits(uint64(tv.GetFloat64())))
 		default:

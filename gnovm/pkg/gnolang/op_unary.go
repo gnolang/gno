@@ -5,6 +5,7 @@ import (
 	"math/big"
 
 	"github.com/cockroachdb/apd/v3"
+	"github.com/gnolang/gno/gnovm/pkg/gnolang/softfloat"
 )
 
 func (m *Machine) doOpUpos() {
@@ -46,9 +47,9 @@ func (m *Machine) doOpUneg() {
 	case Uint64Type:
 		xv.SetUint64(-xv.GetUint64())
 	case Float32Type:
-		xv.SetFloat32(-xv.GetFloat32())
+		xv.SetFloat32(softfloat.Fneg32(xv.GetFloat32()))
 	case Float64Type:
-		xv.SetFloat64(-xv.GetFloat64())
+		xv.SetFloat64(softfloat.Fneg64(xv.GetFloat64()))
 	case UntypedBigintType, BigintType:
 		bv := xv.V.(BigintValue)
 		xv.V = BigintValue{V: new(big.Int).Neg(bv.V)}

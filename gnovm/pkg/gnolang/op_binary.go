@@ -6,7 +6,7 @@ import (
 	"math/big"
 
 	"github.com/cockroachdb/apd/v3"
-	"github.com/gnolang/gno/gnovm/pkg/gnolang/internal/softfloat"
+	"github.com/gnolang/gno/gnovm/pkg/gnolang/softfloat"
 )
 
 // ----------------------------------------
@@ -392,7 +392,7 @@ func isEql(store Store, lv, rv *TypedValue) bool {
 	case Uint64Kind:
 		return (lv.GetUint64() == rv.GetUint64())
 	case Float32Kind:
-		cmp, nan := softfloat.Fcmp64(softfloat.Float64(lv.GetFloat32()), softfloat.Float64(rv.GetFloat32()))
+		cmp, nan := softfloat.Fcmp64(softfloat.F32to64(lv.GetFloat32()), softfloat.F32to64(rv.GetFloat32()))
 		return cmp == 0 && !nan
 	case Float64Kind:
 		cmp, nan := softfloat.Fcmp64(lv.GetFloat64(), rv.GetFloat64())
@@ -535,7 +535,7 @@ func isLss(lv, rv *TypedValue) bool {
 	case Uint64Kind:
 		return (lv.GetUint64() < rv.GetUint64())
 	case Float32Kind:
-		cmp, nan := softfloat.Fcmp64(softfloat.Float64(lv.GetFloat32()), softfloat.Float64(rv.GetFloat32()))
+		cmp, nan := softfloat.Fcmp64(softfloat.F32to64(lv.GetFloat32()), softfloat.F32to64(rv.GetFloat32()))
 		return (cmp < 0) && !nan
 	case Float64Kind:
 		cmp, nan := softfloat.Fcmp64(lv.GetFloat64(), rv.GetFloat64())
@@ -581,7 +581,7 @@ func isLeq(lv, rv *TypedValue) bool {
 	case Uint64Kind:
 		return (lv.GetUint64() <= rv.GetUint64())
 	case Float32Kind:
-		cmp, nan := softfloat.Fcmp64(softfloat.Float64(lv.GetFloat32()), softfloat.Float64(rv.GetFloat32()))
+		cmp, nan := softfloat.Fcmp64(softfloat.F32to64(lv.GetFloat32()), softfloat.F32to64(rv.GetFloat32()))
 		return (cmp <= 0) && !nan
 	case Float64Kind:
 		cmp, nan := softfloat.Fcmp64(lv.GetFloat64(), rv.GetFloat64())
@@ -627,7 +627,7 @@ func isGtr(lv, rv *TypedValue) bool {
 	case Uint64Kind:
 		return (lv.GetUint64() > rv.GetUint64())
 	case Float32Kind:
-		cmp, nan := softfloat.Fcmp64(softfloat.Float64(lv.GetFloat32()), softfloat.Float64(rv.GetFloat32()))
+		cmp, nan := softfloat.Fcmp64(softfloat.F32to64(lv.GetFloat32()), softfloat.F32to64(rv.GetFloat32()))
 		return (cmp > 0) && !nan
 	case Float64Kind:
 		cmp, nan := softfloat.Fcmp64(lv.GetFloat64(), rv.GetFloat64())
@@ -673,7 +673,7 @@ func isGeq(lv, rv *TypedValue) bool {
 	case Uint64Kind:
 		return (lv.GetUint64() >= rv.GetUint64())
 	case Float32Kind:
-		cmp, nan := softfloat.Fcmp64(softfloat.Float64(lv.GetFloat32()), softfloat.Float64(rv.GetFloat32()))
+		cmp, nan := softfloat.Fcmp64(softfloat.F32to64(lv.GetFloat32()), softfloat.F32to64(rv.GetFloat32()))
 		return (cmp >= 0) && !nan
 	case Float64Kind:
 		cmp, nan := softfloat.Fcmp64(lv.GetFloat64(), rv.GetFloat64())
