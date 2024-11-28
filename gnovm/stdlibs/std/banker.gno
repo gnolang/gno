@@ -133,12 +133,12 @@ func (b banker) IssueCoin(addr Address, denom string, amount int64) {
 	}
 
 	if !strings.HasPrefix(denom, PrevRealm().PkgPath()) {
-		panic(b.bt.String() + " cannot issue coins with denom not prefixed by realm pkgPath, use std.CurrentRealm().Denom(denom) to get the correct denom")
+		panic(b.bt.String() + " cannot issue coins with denom not prefixed by current realm pkgPath, use std.CurrentRealm().Denom(denom) to get the correct denom")
 	}
 
-	dname := strings.TrimPrefix(denom, PrevRealm().PkgPath())
-	if !reDenom.MatchString(dname) {
-		panic(b.bt.String() + " cannot issue coins with invalid denom name, it should match [a-z][a-z0-9]{2,15}")
+	baseDenom := strings.TrimPrefix(denom, PrevRealm().PkgPath())
+	if !reDenom.MatchString(baseDenom) {
+		panic(b.bt.String() + " cannot issue coins with invalid denom name, it should start by a lowercase letter and be followed by 2-15 lowercase letters or digits")
 	}
 
 	bankerIssueCoin(uint8(b.bt), string(addr), denom, amount)
@@ -150,12 +150,12 @@ func (b banker) RemoveCoin(addr Address, denom string, amount int64) {
 	}
 
 	if !strings.HasPrefix(denom, PrevRealm().PkgPath()) {
-		panic(b.bt.String() + " cannot issue coins with denom not prefixed by realm pkgPath, use std.CurrentRealm().Denom(denom) to get the correct denom")
+		panic(b.bt.String() + " cannot issue coins with denom not prefixed by current realm pkgPath, use std.CurrentRealm().Denom(denom) to get the correct denom")
 	}
 
-	dname := strings.TrimPrefix(denom, PrevRealm().PkgPath())
-	if !reDenom.MatchString(dname) {
-		panic(b.bt.String() + " cannot issue coins with invalid denom name, it should match [a-z][a-z0-9]{2,15}")
+	baseDenom := strings.TrimPrefix(denom, PrevRealm().PkgPath())
+	if !reDenom.MatchString(baseDenom) {
+		panic(b.bt.String() + " cannot issue coins with invalid denom name, it should start by a lowercase letter and be followed by 2-15 lowercase letters or digits")
 	}
 
 	bankerRemoveCoin(uint8(b.bt), string(addr), denom, amount)
