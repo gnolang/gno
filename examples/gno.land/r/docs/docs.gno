@@ -12,6 +12,7 @@ Explore various examples to learn more about Gno functionality and usage.
 - [Adder](/r/docs/adder) - An interactive example to update a number with transactions.
 - [Source](/r/docs/source) - View realm source code.
 - [AVL Pager](/r/docs/avl_pager) - Paginate through AVL tree items.  
+- [Img Embed](/r/docs/img_embed) - Demonstrates how to embed an image.
 - ...
 
 ## Other resources
