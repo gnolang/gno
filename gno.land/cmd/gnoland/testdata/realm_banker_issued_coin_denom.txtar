@@ -79,10 +79,10 @@ import (
 
 func Mint(addr std.Address, denom string, amount int64) {
 	banker := std.GetBanker(std.BankerTypeRealmIssue)
-	banker.IssueCoin(addr, denom, amount)
+	banker.IssueCoin(addr, std.CurrentRealm().Denom(denom), amount)
 }
 
 func Burn(addr std.Address, denom string, amount int64) {
   banker := std.GetBanker(std.BankerTypeRealmIssue)
-  banker.RemoveCoin(addr, denom, amount)
+  banker.RemoveCoin(addr, std.CurrentRealm().Denom(denom), amount)
 }
