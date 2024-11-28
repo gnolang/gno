@@ -6,6 +6,7 @@ import (
 
 func (m *Machine) doOpValueDecl() {
 	s := m.PopStmt().(*ValueDecl)
+	fmt.Println("---doOpValueDecl, s: ", s)
 	lb := m.LastBlock()
 	nt := Type(nil)
 	if s.Type != nil {
@@ -18,6 +19,7 @@ func (m *Machine) doOpValueDecl() {
 	for i := 0; i < len(s.NameExprs); i++ {
 		var tv TypedValue
 		if rvs == nil {
+			println("---rvs is nil, using default value")
 			// NOTE: Go/Gno wart.
 			// implicit interface casting could
 			// requiring the consideration of the typed-nil case.
