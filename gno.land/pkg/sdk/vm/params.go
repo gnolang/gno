@@ -4,7 +4,7 @@ import "github.com/gnolang/gno/tm2/pkg/sdk"
 
 const (
 	sysUsersPkgParamPath = "gno.land/r/sys/params.sys.users_pkgpath.string"
-	chainDomainParamPath = "gno.land/r/sys/params.chain.domain.string"
+	chainDomainParamPath = "gno.land/r/sys/params.chain_domain.string"
 )
 
 func (vm *VMKeeper) getChainDomainParam(ctx sdk.Context) string {
