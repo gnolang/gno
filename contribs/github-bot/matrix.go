@@ -48,7 +48,13 @@ func execMatrix() error {
 		return err
 	}
 
-	fmt.Println(prList)
+	// Print PR list for GitHub Actions matrix definition
+	bytes, err := prList.MarshalText()
+	if err != nil {
+		return fmt.Errorf("unable to marshal PR list: %w", err)
+	}
+	fmt.Printf("[%s]", string(bytes))
+
 	return nil
 }
 
