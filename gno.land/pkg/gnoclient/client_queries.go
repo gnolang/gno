@@ -77,7 +77,7 @@ func (c *Client) QueryAppVersion() (string, *ctypes.ResultABCIQuery, error) {
 		return "", nil, errors.Wrap(err, "query app version")
 	}
 
-	version := string(qres.Response.ResponseBase.Data)
+	version := string(qres.Response.Value)
 	return version, qres, nil
 }
 

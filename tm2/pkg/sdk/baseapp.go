@@ -416,13 +416,13 @@ func handleQueryApp(app *BaseApp, path []string, req abci.RequestQuery) (res abc
 			if err != nil {
 				res.Error = ABCIError(std.ErrInternal(fmt.Sprintf("cannot encode to JSON: %s", err)))
 			} else {
-				res.ResponseBase.Data = bytes
+				res.Value = bytes
 			}
 
 			return res
 		case "version":
 			res.Height = req.Height
-			res.ResponseBase.Data = []byte(app.appVersion)
+			res.Value = []byte(app.appVersion)
 			return res
 		default:
 			res.Error = ABCIError(std.ErrUnknownRequest(fmt.Sprintf("Unknown query: %s", path)))

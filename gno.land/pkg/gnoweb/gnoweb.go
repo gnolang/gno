@@ -239,7 +239,7 @@ func handlerStatusJSON(logger *slog.Logger, app gotuna.App, cfg *Config) http.Ha
 			errmsg := err.Error()
 			ret.Gnoland.Error = &errmsg
 		} else {
-			version := string(res.ResponseBase.Data)
+			version := string(res.Value)
 			ret.Gnoland.Version = &version
 			ret.Gnoland.Height = &res.Height
 		}

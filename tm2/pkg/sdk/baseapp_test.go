@@ -156,14 +156,14 @@ func TestAppVersionSetterGetter(t *testing.T) {
 	require.Equal(t, "", app.AppVersion())
 	res := app.Query(abci.RequestQuery{Path: ".app/version"})
 	require.True(t, res.IsOK())
-	require.Equal(t, "", string(res.ResponseBase.Data))
+	require.Equal(t, "", string(res.Value))
 
 	versionString := "1.0.0"
 	app.SetAppVersion(versionString)
 	require.Equal(t, versionString, app.AppVersion())
 	res = app.Query(abci.RequestQuery{Path: ".app/version"})
 	require.True(t, res.IsOK())
-	require.Equal(t, versionString, string(res.ResponseBase.Data))
+	require.Equal(t, versionString, string(res.Value))
 }
 
 func TestLoadVersionInvalid(t *testing.T) {
@@ -785,7 +785,7 @@ func TestSimulateTx(t *testing.T) {
 		require.True(t, queryResult.IsOK(), queryResult.Log)
 
 		var res Result
-		amino.UnmarshalJSON(queryResult.ResponseBase.Data, &res)
+		amino.UnmarshalJSON(queryResult.Value, &res)
 		require.Nil(t, err, "Result unmarshalling failed")
 		require.True(t, res.IsOK(), res.Log)
 		require.Equal(t, gasConsumed, res.GasUsed, res.Log)
