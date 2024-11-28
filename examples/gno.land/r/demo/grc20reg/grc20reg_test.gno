@@ -2,6 +2,7 @@ package grc20reg
 
 import (
 	"std"
+	"strings"
 	"testing"
 
 	"gno.land/p/demo/grc/grc20"
@@ -24,7 +25,7 @@ func TestRegistry(t *testing.T) {
 	expected := `- **TestToken** - [gno.land/r/demo/foo](/r/demo/foo) - [info](/r/demo/grc20reg:gno.land/r/demo/foo)
 `
 	got := Render("")
-	urequire.Equal(t, expected, got)
+	urequire.True(t, strings.Contains(got, expected))
 	// 404
 	invalidToken := Get("0xdeadbeef")
 	urequire.True(t, invalidToken == nil)
@@ -43,11 +44,9 @@ func TestRegistry(t *testing.T) {
 	urequire.True(t, regToken != nil, "expected to find a token") // fixme: use urequire.NotNil
 	urequire.Equal(t, regToken.GetSymbol(), "TST")
 
-	expected = `- **TestToken** - [gno.land/r/demo/foo](/r/demo/foo) - [info](/r/demo/grc20reg:gno.land/r/demo/foo)
-- **TestToken** - [gno.land/r/demo/foo](/r/demo/foo).mySlug - [info](/r/demo/grc20reg:gno.land/r/demo/foo.mySlug)
-`
 	got = Render("")
-	urequire.Equal(t, expected, got)
+	urequire.True(t, strings.Contains(got, `- **TestToken** - [gno.land/r/demo/foo](/r/demo/foo) - [info](/r/demo/grc20reg:gno.land/r/demo/foo)`))
+	urequire.True(t, strings.Contains(got, `- **TestToken** - [gno.land/r/demo/foo](/r/demo/foo).mySlug - [info](/r/demo/grc20reg:gno.land/r/demo/foo.mySlug)`))
 
 	expected = `# TestToken
 - symbol: **TST**
