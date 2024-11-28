@@ -7,6 +7,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
 	"github.com/gnolang/gno/tm2/pkg/amino"
@@ -917,4 +918,31 @@ func TestEnsureBlockGasPrice(t *testing.T) {
 			"unexpected result; case #%d, input: %v, log: %v", i, c.input, res.Log,
 		)
 	}
+}
+
+func TestInvalidUserFee(t *testing.T) {
+	minGasPrice, err := std.ParseGasPrice("3ugnot/10gas") // 0.3ugnot
+	require.NoError(t, err)
+
+	blockGasPrice, err := std.ParseGasPrice("400ugnot/2000gas") // 0.2ugnot
+	require.NoError(t, err)
+
+	userFee1 := std.NewFee(0, std.NewCoin("ugnot", 50))
+	userFee2 := std.NewFee(100, std.NewCoin("uatom", 50))
+
+	// setup
+	env := setupTestEnv()
+	ctx := env.ctx
+
+	ctx = ctx.WithMinGasPrices(
+		[]std.GasPrice{minGasPrice},
+	)
+	ctx = ctx.WithValue(GasPriceContextKey{}, blockGasPrice)
+	res1 := EnsureSufficientMempoolFees(ctx, userFee1)
+	require.False(t, res1.IsOK())
+	assert.Contains(t, res1.Log, "GasPrice.Gas cannot be zero;")
+
+	res2 := EnsureSufficientMempoolFees(ctx, userFee2)
+	require.False(t, res2.IsOK())
+	assert.Contains(t, res2.Log, "Gas price denominations should be equal;")
 }

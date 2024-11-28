@@ -1,8 +1,10 @@
 package std
 
 import (
-	"strings"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestGasPriceGTE(t *testing.T) {
@@ -10,13 +12,13 @@ func TestGasPriceGTE(t *testing.T) {
 		name        string
 		gp          GasPrice
 		gpB         GasPrice
-		expectPanic bool
-		panicMsg    string
-		expected    bool // for non-panic cases: whether gp.IsGTE(gpB) should return true or false
+		expectError bool
+		errorMsg    string
+		expected    bool // for non-error cases: whether gp.IsGTE(gpB) should return true or false
 	}{
-		// Panic cases: Different denominations
+		// Error cases: Different denominations
 		{
-			name: "Different Denominations Panic",
+			name: "Different denominations error",
 			gp: GasPrice{
 				Gas: 100,
 				Price: Coin{
@@ -31,12 +33,12 @@ func TestGasPriceGTE(t *testing.T) {
 					Amount: 500,
 				},
 			},
-			expectPanic: true,
-			panicMsg:    "gas price denominations should be equal",
+			expectError: true,
+			errorMsg:    "Gas price denominations should be equal;",
 		},
-		// Panic cases: Zero Gas values
+		// Error cases: Zero Gas values
 		{
-			name: "Zero Gas in gp Panic",
+			name: "Zero Gas in gp error",
 			gp: GasPrice{
 				Gas: 0, // Zero Gas in gp
 				Price: Coin{
@@ -51,11 +53,11 @@ func TestGasPriceGTE(t *testing.T) {
 					Amount: 500,
 				},
 			},
-			expectPanic: true,
-			panicMsg:    "GasPrice.Gas cannot be zero",
+			expectError: true,
+			errorMsg:    "GasPrice.Gas cannot be zero;",
 		},
 		{
-			name: "Zero Gas in gpB Panic",
+			name: "Zero Gas in gpB error",
 			gp: GasPrice{
 				Gas: 100,
 				Price: Coin{
@@ -70,10 +72,10 @@ func TestGasPriceGTE(t *testing.T) {
 					Amount: 500,
 				},
 			},
-			expectPanic: true,
-			panicMsg:    "GasPrice.Gas cannot be zero",
+			expectError: true,
+			errorMsg:    "GasPrice.Gas cannot be zero;",
 		},
-		// Valid cases: No panic, just compare gas prices
+		// Valid cases: No errors, just compare gas prices
 		{
 			name: "Greater Gas Price",
 			gp: GasPrice{
@@ -90,7 +92,7 @@ func TestGasPriceGTE(t *testing.T) {
 					Amount: 500,
 				},
 			},
-			expectPanic: false,
+			expectError: false,
 			expected:    true,
 		},
 		{
@@ -109,7 +111,7 @@ func TestGasPriceGTE(t *testing.T) {
 					Amount: 500,
 				},
 			},
-			expectPanic: false,
+			expectError: false,
 			expected:    true,
 		},
 		{
@@ -128,37 +130,24 @@ func TestGasPriceGTE(t *testing.T) {
 					Amount: 500,
 				},
 			},
-			expectPanic: false,
+			expectError: false,
 			expected:    false,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			defer func() {
-				if r := recover(); r != nil {
-					if !tt.expectPanic {
-						t.Errorf("Test %s failed: expected no panic, but got panic: %v", tt.name, r)
-					} else if tt.expectPanic && r != nil {
-						// Check if the panic message contains the expected substring
-						panicMsg := r.(string)
-						if tt.expectPanic && !strings.Contains(panicMsg, tt.panicMsg) {
-							t.Errorf("Test %s failed: expected panic message containing %q, but got %q", tt.name, tt.panicMsg, panicMsg)
-						}
-					}
-				} else if tt.expectPanic {
-					t.Errorf("Test %s failed: expected panic, but no panic occurred", tt.name)
-				}
-			}()
-
-			if !tt.expectPanic {
-				got := tt.gp.IsGTE(tt.gpB)
+			got, err := tt.gp.IsGTE(tt.gpB)
+			if !tt.expectError {
+				require.NoError(t, err)
+				assert.Equal(t, tt.expected, got, "Expect that %v is less than %v", tt.gp, tt.gpB)
 				if got != tt.expected {
 					t.Errorf("Test %s failed: expected result %v, got %v", tt.name, tt.expected, got)
 				}
 			} else {
-				// This will panic, but we handle it in the defer/recover above.
-				_ = tt.gp.IsGTE(tt.gpB)
+				require.Error(t, err)
+				errorMsg := err.Error()
+				assert.Contains(t, errorMsg, tt.errorMsg, "expected error message containing %q, but got %q", tt.errorMsg, errorMsg)
 			}
 		})
 	}

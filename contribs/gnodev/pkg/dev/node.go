@@ -388,10 +388,10 @@ func (n *Node) rebuildNodeFromState(ctx context.Context) error {
 		if err != nil {
 			return fmt.Errorf("unable to load pkgs: %w", err)
 		}
-
-		return n.rebuildNode(ctx, gnoland.GnoGenesisState{
-			Balances: n.config.BalancesList, Txs: txs,
-		})
+		genesis := gnoland.DefaultGenState()
+		genesis.Balances = n.config.BalancesList
+		genesis.Txs = txs
+		return n.rebuildNode(ctx, genesis)
 	}
 
 	state, err := n.getBlockStoreState(ctx)

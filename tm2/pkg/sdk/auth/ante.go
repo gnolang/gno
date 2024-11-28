@@ -389,7 +389,13 @@ func EnsureSufficientMempoolFees(ctx sdk.Context, fee std.Fee) sdk.Result {
 	}
 	// check the block gas price
 	if blockGasPrice.Price.IsValid() && !blockGasPrice.Price.IsZero() {
-		if !feeGasPrice.IsGTE(blockGasPrice) {
+		ok, err := feeGasPrice.IsGTE(blockGasPrice)
+		if err != nil {
+			return abciResult(std.ErrInsufficientFee(
+				err.Error(),
+			))
+		}
+		if !ok {
 			return abciResult(std.ErrInsufficientFee(
 				fmt.Sprintf(
 					"insufficient fees; got: {Gas-Wanted: %d, Gas-Fee %s}, fee required: %+v as block gas price", feeGasPrice.Gas, feeGasPrice.Price, blockGasPrice,
