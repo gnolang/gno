@@ -54,7 +54,7 @@ jobs:
         id: pr-numbers
         working-directory: contribs/github-bot
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: echo "pr-numbers=$(go run . matrix)" >> "$GITHUB_OUTPUT"
 
   # This job processes each pull request in the matrix individually while ensuring
