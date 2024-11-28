@@ -3,7 +3,7 @@ package main
 import "fmt"
 
 func foo(a uint64, b float32) {
-	fmt.Printf("%T \n", a)
+	fmt.Printf("%T\n", a)
 	println(a)
 }
 

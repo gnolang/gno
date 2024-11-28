@@ -3,7 +3,7 @@
 gno test --print-runtime-metrics .
 
 ! stdout .+
-stderr '---       runtime: cycle=[\d\.kM]+ imports=\d+ allocs=[\d\.kM]+\(\d\.\d\d%\)'
+stderr '---       runtime: cycle=[\d\.kM]+ allocs=[\d\.kM]+\(\d\.\d\d%\)'
 
 -- metrics.gno --
 package metrics
@@ -20,4 +20,3 @@ func TestTimeout(t *testing.T) {
 		println("plop")
 	}
 }
-

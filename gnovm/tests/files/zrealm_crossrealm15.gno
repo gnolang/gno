@@ -16,7 +16,7 @@ var f *fooer
 func init() {
 	f = &fooer{}
 	crossrealm.SetFooer(f)
-	crossrealm.CallFoo()
+	crossrealm.CallFooerFoo()
 }
 
 func main() {
@@ -24,4 +24,4 @@ func main() {
 }
 
 // Error:
-// gno.land/r/crossrealm_test/main.gno:19:2: name CallFoo not declared
+// new escaped mark has no object ID

@@ -21,3 +21,5 @@ func main() {
 // Output:
 // 1
 // List of all Groups:
+//
+//

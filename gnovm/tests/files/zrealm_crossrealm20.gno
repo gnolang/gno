@@ -37,5 +37,7 @@ func main() {
 // .
 
 // Realm:
+// switchrealm["gno.land/r/crossrealm_test"]
 
 // Error:
+//
