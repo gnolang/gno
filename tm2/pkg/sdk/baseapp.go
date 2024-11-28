@@ -585,17 +585,6 @@ func (app *BaseApp) DeliverTx(req abci.RequestDeliverTx) (res abci.ResponseDeliv
 		res.GasWanted = result.GasWanted
 		res.GasUsed = result.GasUsed
 
-		// NOTE: After runTx, gas fee is deducted from the first signer.
-		// This is done in the BaseApp to ensure that the gas fee is deducted
-		// res.GasUsed is the finalized amount of gas used to run tx.
-		// Therefore, gas fee is deducted here.
-		if app.gasFeeCollector != nil {
-			feeCollectResult := app.gasFeeCollector(ctx, tx, res.GasUsed)
-			if !feeCollectResult.IsOK() {
-				res.ResponseBase.Error = feeCollectResult.ResponseBase.Error
-				res.ResponseBase.Log = feeCollectResult.ResponseBase.Log
-			}
-		}
 		return
 	}
 }
@@ -861,6 +850,24 @@ func (app *BaseApp) runTx(ctx Context, tx Tx) (result Result) {
 
 	if app.endTxHook != nil {
 		app.endTxHook(runMsgCtx, result)
+	}
+
+	// NOTE: Before update state, gas fee is deducted from the first signer.
+	// This is done in the BaseApp to ensure that the gas fee is deducted
+	// If the process of collecting a gas fee results in an error with insufficient funds,
+	// then the status should not be updated.
+	// result.GasUsed is the finalized amount of gas used to run Messages.
+	// This is because gasMeter does not accumulate gas used after this point,
+	// and gasUsed in the result accumulates the amount of gas used so far.
+	// Therefore, gas fee is deducted here.
+	isGenesis := ctx.BlockHeight() == 0
+	if !isGenesis && app.gasFeeCollector != nil {
+		feeCollectResult := app.gasFeeCollector(runMsgCtx, tx, result.GasUsed)
+		if !feeCollectResult.IsOK() {
+			result.ResponseBase.Error = feeCollectResult.ResponseBase.Error
+			result.ResponseBase.Log = feeCollectResult.ResponseBase.Log
+			return result
+		}
 	}
 
 	// only update state if all messages pass

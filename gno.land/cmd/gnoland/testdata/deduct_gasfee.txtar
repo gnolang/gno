@@ -1,6 +1,9 @@
 # load the package
 loadpkg gno.land/r/demo/foo20
 
+# another test user
+adduser test2
+
 # start a new node
 gnoland start
 
@@ -11,9 +14,49 @@ stdout 'data: "10000000000000ugnot"'
 
 # 2. execute the Faucet function
 gnokey maketx call -pkgpath gno.land/r/demo/foo20 -func Faucet -broadcast=true -chainid=tendermint_test -gas-fee 1ugnot -gas-wanted 100000000 -memo "" test1
-stdout 'GAS USED:   747265'
+stdout 'GAS USED:   767128'
 
 # 3. check the balance after the Faucet function
 gnokey query bank/balances/g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5
 stdout 'height: 0'
 stdout 'data: "9999999252735ugnot"'
+
+# 4. check the balance of test2
+gnokey query bank/balances/${USER_ADDR_test2}
+stdout 'height: 0'
+stdout 'data: "10000000ugnot"'
+
+# 5. add realm_banker
+gnokey maketx addpkg -pkgdir $WORK/short -pkgpath gno.land/r/test/realm_banker -gas-fee 10ugnot -gas-wanted 100000000 -broadcast -chainid=tendermint_test test1
+
+# 6. mint coin from banker
+gnokey maketx call -pkgpath gno.land/r/test/realm_banker -func Mint -args ${USER_ADDR_test2} -args "ugnot" -args "10000" -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test test1
+
+# 7. check balance after minting, without patching banker will return '10000ugnot'
+gnokey query bank/balances/${USER_ADDR_test2}
+stdout '"10000/gno.land/r/test/realm_banker:ugnot,10000000ugnot"'
+
+# 8. (fail case by insufficient funds)send 5000000ugnot to test1 from test2, by using 100foo20 as gas-fee
+! gnokey maketx send -send "5000000ugnot" -to ${USER_ADDR_test1} -gas-fee 10foo20 -gas-wanted 10000000 -broadcast -chainid=tendermint_test test2
+
+# 9. Now, as #8 is failed, test2 balance should be the same as before("10000000ugnot")
+gnokey query bank/balances/${USER_ADDR_test2}
+stdout 'data: "10000/gno.land/r/test/realm_banker:ugnot,10000000ugnot"'
+
+
+-- short/realm_banker.gno --
+package realm_banker
+
+import (
+	"std"
+)
+
+func Mint(addr std.Address, denom string, amount int64) {
+	banker := std.GetBanker(std.BankerTypeRealmIssue)
+	banker.IssueCoin(addr, denom, amount)
+}
+
+func Burn(addr std.Address, denom string, amount int64) {
+  banker := std.GetBanker(std.BankerTypeRealmIssue)
+  banker.RemoveCoin(addr, denom, amount)
+}
