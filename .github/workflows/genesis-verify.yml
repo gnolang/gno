@@ -6,6 +6,7 @@ on:
       - master
     paths:
       - "misc/deployments/**/genesis.json"
+      - ".github/workflows/genesis-verify.yml"
 
 jobs:
   verify:
@@ -20,7 +21,7 @@ jobs:
 
       - name: Get changed files
         id: changed-files
-        uses: tj-actions/changed-files@v41
+        uses: tj-actions/changed-files@v45
         with:
           files: "misc/deployments/${{ matrix.testnet }}/genesis.json"
 
