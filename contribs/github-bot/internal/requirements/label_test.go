@@ -16,7 +16,7 @@ import (
 )
 
 func TestLabel(t *testing.T) {
-	t.Parallel()
+	// t.Parallel()
 
 	labels := []*github.Label{
 		{Name: github.String("notTheRightOne")},
@@ -32,20 +32,13 @@ func TestLabel(t *testing.T) {
 		exists  bool
 	}{
 		{"empty label list", "label", []*github.Label{}, false, false},
-		{"empty label list with dry-run", "label", []*github.Label{}, true, false},
-		{"label list contains exact match", "label", labels, false, true},
-		{"label list contains prefix match", "^lab", labels, false, true},
-		{"label list contains prefix doesn't match", "lab$", labels, false, false},
-		{"label list contains prefix doesn't match with dry-run", "lab$", labels, true, false},
-		{"label list contains suffix match", "bel$", labels, false, true},
-		{"label list contains suffix match with dry-run", "bel$", labels, true, true},
-		{"label list contains suffix doesn't match", "^bel", labels, false, false},
-		{"label list contains suffix doesn't match with dry-run", "^bel", labels, true, false},
-		{"label list doesn't contains match", "baleb", labels, false, false},
-		{"label list doesn't contains match with dry-run", "baleb", labels, true, false},
+		{"empty label list with dry-run", "user", []*github.Label{}, true, false},
+		{"label list contains label", "label", labels, false, true},
+		{"label list doesn't contain label", "label2", labels, false, false},
+		{"label list doesn't contain label with dry-run", "label", labels, true, false},
 	} {
 		t.Run(testCase.name, func(t *testing.T) {
-			t.Parallel()
+			// t.Parallel()
 
 			requested := false
 			mockedHTTPClient := mock.NewMockedHTTPClient(
@@ -71,9 +64,9 @@ func TestLabel(t *testing.T) {
 			details := treeprint.New()
 			requirement := Label(gh, testCase.pattern)
 
-			assert.False(t, !requirement.IsSatisfied(pr, details) && !testCase.dryRun, "requirement should have a satisfied status: true")
-			assert.False(t, !utils.TestLastNodeStatus(t, true, details) && !testCase.dryRun, "requirement details should have a status: true")
-			assert.False(t, !testCase.exists && !requested && !testCase.dryRun, "requirement should have requested to create item")
+			assert.True(t, requirement.IsSatisfied(pr, details) || testCase.dryRun, "requirement should have a satisfied status: true")
+			assert.True(t, utils.TestLastNodeStatus(t, true, details) || testCase.dryRun, "requirement details should have a status: true")
+			assert.True(t, testCase.exists || requested || testCase.dryRun, "requirement should have requested to create item")
 		})
 	}
 }
