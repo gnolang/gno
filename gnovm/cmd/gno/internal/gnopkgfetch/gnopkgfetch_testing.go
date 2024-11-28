@@ -9,7 +9,6 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/gnolang/gno/gno.land/pkg/sdk/vm"
 	"github.com/gnolang/gno/tm2/pkg/amino"
 	ctypes "github.com/gnolang/gno/tm2/pkg/bft/rpc/core/types"
 	types "github.com/gnolang/gno/tm2/pkg/bft/rpc/lib/types"
@@ -29,7 +28,7 @@ func (m *examplesMockClient) SendRequest(ctx context.Context, request types.RPCR
 		return nil, fmt.Errorf("failed to unmarshal params: %w", err)
 	}
 	path := params.Path
-	if path != "vm/"+vm.QueryFile {
+	if path != "vm/qfile" {
 		return nil, fmt.Errorf("unexpected call to %q", path)
 	}
 	data := string(params.Data)
