@@ -123,10 +123,16 @@ func NewDevNode(ctx context.Context, cfg *NodeConfig) (*Node, error) {
 		currentStateIndex: len(cfg.InitialTxs),
 	}
 
+	var tzParam gnoland.Param
+	_ = tzParam.Parse("gno.land/r/sys/params.vm.chain_tz.string=" + cfg.ChainTz)
+
 	// generate genesis state
 	genesis := gnoland.GnoGenesisState{
 		Balances: cfg.BalancesList,
 		Txs:      append(pkgsTxs, cfg.InitialTxs...),
+		Params: []gnoland.Param{
+			tzParam,
+		},
 	}
 
 	if err := devnode.rebuildNode(ctx, genesis); err != nil {
