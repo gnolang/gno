@@ -246,18 +246,6 @@ func processSig(
 func ProcessPubKey(acc std.Account, sig std.Signature, simulate bool) (crypto.PubKey, sdk.Result) {
 	// If pubkey is not known for account, set it from the std.Signature.
 	pubKey := acc.GetPubKey()
-	if simulate {
-		// In simulate mode the transaction comes with no signatures, thus if the
-		// account's pubkey is nil, both signature verification and gasKVStore.Set()
-		// shall consume the largest amount, i.e. it takes more gas to verify
-		// secp256k1 keys than ed25519 ones.
-		if pubKey == nil {
-			return simSecp256k1Pubkey, sdk.Result{}
-		}
-
-		return pubKey, sdk.Result{}
-	}
-
 	if pubKey == nil {
 		pubKey = sig.PubKey
 		if pubKey == nil {
