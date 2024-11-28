@@ -65,23 +65,7 @@ func tNewDirs(t *testing.T) (string, *bfsDirs) {
 
 	// modify GNOHOME to testdata/dirsdep -- this allows us to test
 	// dependency lookup by dirs.
-	oldLegacy, exLegacy := os.LookupEnv("GNO_HOME")
-	old, ex := os.LookupEnv("GNOHOME")
-	os.Setenv("GNO_HOME", wdJoin(t, "testdata/dirsdep"))
-	os.Setenv("GNOHOME", wdJoin(t, "testdata/dirsdep"))
-
-	t.Cleanup(func() {
-		if exLegacy {
-			os.Setenv("GNO_HOME", oldLegacy)
-		} else {
-			os.Unsetenv("GNO_HOME")
-		}
-		if ex {
-			os.Setenv("GNOHOME", old)
-		} else {
-			os.Unsetenv("GNOHOME")
-		}
-	})
+	t.Setenv("GNOHOME", wdJoin(t, "testdata/dirsdep"))
 
 	return wdJoin(t, "testdata"),
 		newDirs([]string{wdJoin(t, "testdata/dirs")}, []string{wdJoin(t, "testdata/dirsmod")})
