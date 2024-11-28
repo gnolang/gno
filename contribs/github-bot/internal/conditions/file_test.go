@@ -33,9 +33,9 @@ func TestFileChanged(t *testing.T) {
 		{"empty file list", "foo", []*github.CommitFile{}, false},
 		{"file list contains exact match", "foo", filenames, true},
 		{"file list contains prefix match", "^fo", filenames, true},
-		{"file list contains prefix doesn't match", "fo$", filenames, false},
+		{"file list contains prefix doesn't match", "^oo", filenames, false},
 		{"file list contains suffix match", "oo$", filenames, true},
-		{"file list contains suffix doesn't match", "^oo", filenames, false},
+		{"file list contains suffix doesn't match", "fo$", filenames, false},
 		{"file list doesn't contains match", "foobar", filenames, false},
 	} {
 		t.Run(testCase.name, func(t *testing.T) {
