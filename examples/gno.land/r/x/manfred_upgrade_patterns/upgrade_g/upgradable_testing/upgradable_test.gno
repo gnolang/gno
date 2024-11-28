@@ -22,14 +22,14 @@ func TestPackage(t *testing.T) {
 	store.Init()
 
 	v1.Init()
-	urequire.Equal(t, admin.ReadCounter(), uint64(0))
+	urequire.Equal(t, uint64(0), admin.ReadCounter())
 	admin.UpdateCounter()
-	urequire.Equal(t, admin.ReadCounter(), uint64(1))
-
-	v2.Init()
-	urequire.Equal(t, admin.ReadCounter(), uint64(1))
+	urequire.Equal(t, uint64(1), admin.ReadCounter())
+                   
+	v2.Init()         
+	urequire.Equal(t, uint64(1), admin.ReadCounter())
 	admin.UpdateCounter()
-	urequire.Equal(t, admin.ReadCounter(), uint64(3))
+	urequire.Equal(t, uint64(3), admin.ReadCounter())
 
 	urequire.Equal(t, admin.DebugPrevRealm(), admin.DebugAdminPrevRealm())
 }

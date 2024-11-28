@@ -44,4 +44,4 @@ This repository explores different upgrade patterns for Gno smart contracts.
 - Diamond pattern of admin <-> (multiple version of logics) <-> store
 - The admin provides persistent interface for the interaction for the other contracts and users
 - The store acts as the persistent storage independent from the migration
-= Logics could be replaced, registering the entrypoint functions as function variables to the admin and taking the store access(while revoking the previous one)
+- Logics could be replaced, registering the entrypoint functions as function variables to the admin and taking the store access(while revoking the previous one)
