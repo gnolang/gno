@@ -19,7 +19,7 @@ func RenderBoard(bid BoardID) string {
 
 func Render(path string) string {
 	if path == "" {
-		str := "are all the boards of this realm:\n\n"
+		str := "There are all the boards of this realm:\n\n"
 		gBoards.Iterate("", "", func(key string, value interface{}) bool {
 			board := value.(*Board)
 			str += " * [" + board.url + "](" + board.url + ")\n"
