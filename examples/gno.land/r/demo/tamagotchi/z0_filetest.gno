@@ -23,3 +23,4 @@ func main() {
 // * [Play](/r/demo/tamagotchi$help&func=Play)
 // * [Heal](/r/demo/tamagotchi$help&func=Heal)
 // * [Reset](/r/demo/tamagotchi$help&func=Reset)
+//

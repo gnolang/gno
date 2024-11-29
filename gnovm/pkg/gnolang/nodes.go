@@ -13,7 +13,6 @@ import (
 	"strings"
 
 	"github.com/gnolang/gno/gnovm"
-	"github.com/gnolang/gno/tm2/pkg/errors"
 	"go.uber.org/multierr"
 )
 
@@ -149,16 +148,17 @@ func (loc Location) IsZero() bool {
 type GnoAttribute string
 
 const (
-	ATTR_PREPROCESSED  GnoAttribute = "ATTR_PREPROCESSED"
-	ATTR_PREDEFINED    GnoAttribute = "ATTR_PREDEFINED"
-	ATTR_TYPE_VALUE    GnoAttribute = "ATTR_TYPE_VALUE"
-	ATTR_TYPEOF_VALUE  GnoAttribute = "ATTR_TYPEOF_VALUE"
-	ATTR_IOTA          GnoAttribute = "ATTR_IOTA"
-	ATTR_LOCATIONED    GnoAttribute = "ATTR_LOCATIONE"     // XXX DELETE
-	ATTR_GOTOLOOP_STMT GnoAttribute = "ATTR_GOTOLOOP_STMT" // XXX delete?
-	ATTR_LOOP_DEFINES  GnoAttribute = "ATTR_LOOP_DEFINES"  // []Name defined within loops.
-	ATTR_LOOP_USES     GnoAttribute = "ATTR_LOOP_USES"     // []Name loop defines actually used.
-	ATTR_SHIFT_RHS     GnoAttribute = "ATTR_SHIFT_RHS"
+	ATTR_PREPROCESSED    GnoAttribute = "ATTR_PREPROCESSED"
+	ATTR_PREDEFINED      GnoAttribute = "ATTR_PREDEFINED"
+	ATTR_TYPE_VALUE      GnoAttribute = "ATTR_TYPE_VALUE"
+	ATTR_TYPEOF_VALUE    GnoAttribute = "ATTR_TYPEOF_VALUE"
+	ATTR_IOTA            GnoAttribute = "ATTR_IOTA"
+	ATTR_LOCATIONED      GnoAttribute = "ATTR_LOCATIONE"     // XXX DELETE
+	ATTR_GOTOLOOP_STMT   GnoAttribute = "ATTR_GOTOLOOP_STMT" // XXX delete?
+	ATTR_LOOP_DEFINES    GnoAttribute = "ATTR_LOOP_DEFINES"  // []Name defined within loops.
+	ATTR_LOOP_USES       GnoAttribute = "ATTR_LOOP_USES"     // []Name loop defines actually used.
+	ATTR_SHIFT_RHS       GnoAttribute = "ATTR_SHIFT_RHS"
+	ATTR_LAST_BLOCK_STMT GnoAttribute = "ATTR_LAST_BLOCK_STMT"
 )
 
 type Attributes struct {
@@ -441,7 +441,7 @@ type IndexExpr struct { // X[Index]
 	Attributes
 	X     Expr // expression
 	Index Expr // index expression
-	HasOK bool // if true, is form: `value, ok := <X>[<Key>]
+	HasOK bool // if true, is form: `value, ok := <X>[<Key>]`
 }
 
 type SelectorExpr struct { // X.Sel
@@ -1254,38 +1254,6 @@ func ParseMemPackage(memPkg *gnovm.MemPackage) (fset *FileSet) {
 		panic(errs)
 	}
 	return fset
-}
-
-func ParseMemPackageTests(memPkg *gnovm.MemPackage) (tset, itset *FileSet) {
-	tset = &FileSet{}
-	itset = &FileSet{}
-	for _, mfile := range memPkg.Files {
-		if !strings.HasSuffix(mfile.Name, ".gno") {
-			continue // skip this file.
-		}
-		n, err := ParseFile(mfile.Name, mfile.Body)
-		if err != nil {
-			panic(errors.Wrap(err, "parsing file "+mfile.Name))
-		}
-		if n == nil {
-			panic("should not happen")
-		}
-		if strings.HasSuffix(mfile.Name, "_test.gno") {
-			// add test file.
-			if memPkg.Name+"_test" == string(n.PkgName) {
-				itset.AddFiles(n)
-			} else {
-				tset.AddFiles(n)
-			}
-		} else if memPkg.Name == string(n.PkgName) {
-			// skip package file.
-		} else {
-			panic(fmt.Sprintf(
-				"expected package name [%s] or [%s_test] but got [%s] file [%s]",
-				memPkg.Name, memPkg.Name, n.PkgName, mfile))
-		}
-	}
-	return tset, itset
 }
 
 func (fs *FileSet) AddFiles(fns ...*FileNode) {
