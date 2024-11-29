@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"os"
 	"strings"
 
 	"github.com/gnolang/gno/contribs/github-bot/internal/client"
@@ -11,11 +12,16 @@ import (
 	"github.com/sethvargo/go-githubactions"
 )
 
-func execMatrix() error {
+func execMatrix(flags *matrixFlags) error {
 	// Get GitHub Actions context to retrieve event.
 	actionCtx, err := githubactions.Context()
 	if err != nil {
 		return fmt.Errorf("unable to get GitHub Actions context: %w", err)
+	}
+
+	// If verbose is set, print the Github Actions event for debugging purpose.
+	if flags.verbose {
+		fmt.Println("Event:", actionCtx.Event)
 	}
 
 	// Init Github client using only GitHub Actions context.
@@ -23,7 +29,7 @@ func execMatrix() error {
 	gh, err := client.New(context.Background(), &client.Config{
 		Owner:   owner,
 		Repo:    repo,
-		Verbose: false,
+		Verbose: flags.verbose,
 		DryRun:  true,
 	})
 	if err != nil {
@@ -36,12 +42,35 @@ func execMatrix() error {
 		return err
 	}
 
-	// Print PR list for GitHub Actions matrix definition.
+	// Format PR list for GitHub Actions matrix definition.
 	bytes, err := prList.MarshalText()
 	if err != nil {
 		return fmt.Errorf("unable to marshal PR list: %w", err)
 	}
-	fmt.Printf("[%s]", string(bytes))
+	matrix := fmt.Sprintf("%s=[%s]", flags.matrixKey, string(bytes))
+
+	// If verbose is set, print the matrix for debugging purpose.
+	if flags.verbose {
+		fmt.Printf("Matrix: %s\n", matrix)
+	}
+
+	// Get the path of the GitHub Actions environment file used for output.
+	output, ok := os.LookupEnv("GITHUB_OUTPUT")
+	if !ok {
+		return errors.New("unable to get GITHUB_OUTPUT var")
+	}
+
+	// Open GitHub Actions output file
+	file, err := os.OpenFile(output, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+	if err != nil {
+		return fmt.Errorf("unable to open GitHub Actions output file: %w", err)
+	}
+	defer file.Close()
+
+	// Append matrix to GitHub Actions output file
+	if _, err := fmt.Fprintf(file, "%s\n", matrix); err != nil {
+		return fmt.Errorf("unable to write matrix in GitHub Actions output file: %w", err)
+	}
 
 	return nil
 }
