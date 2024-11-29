@@ -433,7 +433,7 @@ EXEC_SWITCH:
 	}
 	switch cs := s.(type) {
 	case *AssignStmt:
-		m.recordCoverage(cs)
+		recordCoverage(m, cs)
 		switch cs.Op {
 		case ASSIGN:
 			m.PushOp(OpAssign)
@@ -541,7 +541,7 @@ EXEC_SWITCH:
 		// Push eval operations if needed.
 		m.PushForPointer(cs.X)
 	case *ReturnStmt:
-		m.recordCoverage(cs)
+		recordCoverage(m, cs)
 		m.PopStmt()
 		fr := m.MustLastCallFrame(1)
 		ft := fr.Func.GetType(m.Store)
@@ -778,12 +778,12 @@ EXEC_SWITCH:
 
 func (m *Machine) doOpIfCond() {
 	is := m.PopStmt().(*IfStmt)
-	m.recordCoverage(is) // start record coverage when IfStmt is popped
+	recordCoverage(m, is) // start record coverage when IfStmt is popped
 	b := m.LastBlock()
 	// Test cond and run Body or Else.
 	cond := m.PopValue()
 	if cond.GetBool() {
-		m.recordCoverage(&is.Then)
+		recordCoverage(m, &is.Then)
 		if len(is.Then.Body) != 0 {
 			// expand block size
 			if nn := is.Then.GetNumNames(); int(nn) > len(b.Values) {
@@ -799,7 +799,7 @@ func (m *Machine) doOpIfCond() {
 			m.PushStmt(b.GetBodyStmt())
 		}
 	} else {
-		m.recordCoverage(&is.Else)
+		recordCoverage(m, &is.Else)
 		if len(is.Else.Body) != 0 {
 			// expand block size
 			if nn := is.Else.GetNumNames(); int(nn) > len(b.Values) {

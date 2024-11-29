@@ -26,13 +26,6 @@ type testCfg struct {
 	updateGoldenTests   bool
 	printRuntimeMetrics bool
 	printEvents         bool
-
-	// coverage flags
-	coverage   bool
-	viewFile   string
-	showHits   bool
-	output     string
-	htmlOutput string
 }
 
 func newTestCmd(io commands.IO) *commands.Command {
@@ -144,43 +137,6 @@ func (c *testCfg) RegisterFlags(fs *flag.FlagSet) {
 		"print runtime metrics (gas, memory, cpu cycles)",
 	)
 
-	// test coverage flags
-
-	fs.BoolVar(
-		&c.coverage,
-		"cover",
-		false,
-		"enable coverage analysis",
-	)
-
-	fs.BoolVar(
-		&c.showHits,
-		"show-hits",
-		false,
-		"show number of times each line was executed",
-	)
-
-	fs.StringVar(
-		&c.viewFile,
-		"view",
-		"",
-		"view coverage for a specific file",
-	)
-
-	fs.StringVar(
-		&c.output,
-		"out",
-		"",
-		"save coverage data as JSON to specified file",
-	)
-
-	fs.StringVar(
-		&c.htmlOutput,
-		"html",
-		"",
-		"output coverage report in HTML format",
-	)
-
 	fs.BoolVar(
 		&c.printEvents,
 		"print-events",
@@ -239,21 +195,11 @@ func execTest(cfg *testCfg, args []string, io commands.IO) error {
 			io.ErrPrintfln("?       %s \t[no test files]", pkg.Dir)
 			continue
 		}
-
-    coverageData := gno.NewCoverageData(cfg.rootDir)
-	  if cfg.coverage {
-		    coverageData.Enable()
-	  } else {
-		    coverageData.Disable()
-	  }
-
 		// Determine gnoPkgPath by reading gno.mod
 		var gnoPkgPath string
 		modfile, err := gnomod.ParseAt(pkg.Dir)
 		if err == nil {
-			// TODO: use pkgPathFromRootDir?
 			gnoPkgPath = modfile.Module.Mod.Path
-			coverageData.PkgPath = gnoPkgPath
 		} else {
 			gnoPkgPath = pkgPathFromRootDir(pkg.Dir, cfg.rootDir)
 			if gnoPkgPath == "" {
@@ -261,7 +207,6 @@ func execTest(cfg *testCfg, args []string, io commands.IO) error {
 				io.ErrPrintfln("--- WARNING: unable to read package path from gno.mod or gno root directory; try creating a gno.mod file")
 				gnoPkgPath = gno.RealmPathPrefix + strings.ToLower(random.RandStr(8))
 			}
-			coverageData.PkgPath = pkgPath
 		}
 
 		memPkg := gno.ReadMemPackage(pkg.Dir, gnoPkgPath)
@@ -270,12 +215,6 @@ func execTest(cfg *testCfg, args []string, io commands.IO) error {
 		hasError := catchRuntimeError(gnoPkgPath, io.Err(), func() {
 			err = test.Test(memPkg, pkg.Dir, opts)
 		})
-
-    m := tests.TestMachine(testStore, stdout, gnoPkgPath)
-	  if coverageData.IsEnabled() {
-				m.Coverage = coverageData
-				m.Coverage.CurrentPackage = memPkg.Path
-		}
 
 		duration := time.Since(startedAt)
 		dstr := fmtDuration(duration)
@@ -297,37 +236,7 @@ func execTest(cfg *testCfg, args []string, io commands.IO) error {
 		return fmt.Errorf("FAIL: %d build errors, %d test errors", buildErrCount, testErrCount)
 	}
 
-	if cfg.coverage {
-		// TODO: consider cache
-		if cfg.viewFile != "" {
-			err := coverageData.ViewFiles(cfg.viewFile, cfg.showHits, io)
-			if err != nil {
-				return fmt.Errorf("failed to view file coverage: %w", err)
-			}
-			return nil // prevent printing out coverage report
-		}
-
-		if cfg.output != "" {
-			err := coverageData.SaveJSON(cfg.output)
-			if err != nil {
-				return fmt.Errorf("failed to save coverage data: %w", err)
-			}
-			io.Println("coverage data saved to", cfg.output)
-			return nil
-		}
-
-		if cfg.htmlOutput != "" {
-			err := coverageData.SaveHTML(cfg.htmlOutput)
-			if err != nil {
-				return fmt.Errorf("failed to save coverage data: %w", err)
-			}
-			io.Println("coverage report saved to", cfg.htmlOutput)
-			return nil
-		}
-		coverageData.Report(io)
-	}
-
-	return errs
+	return nil
 }
 
 // attempts to determine the full gno pkg path by analyzing the directory.
