@@ -764,10 +764,10 @@ func (m *Machine) EvalStatic(last BlockNode, x Expr) TypedValue {
 func (m *Machine) emitCallArg(call *CallExpr, x Expr, staticType Type) {
 	// these functions are the only onces in the language were they could be
 	// called from a const context
-	var builtins = []string{"len", "cap", "real", "imag", "complex"}
+	builtins := []string{"len", "cap", "real", "imag", "complex"}
 	dv := defaultTypedValue(m.Alloc, staticType)
 
-	if slices.Contains(builtins, string(call.Func.(*ConstExpr).Source.(*NameExpr).Name)) {
+	if ce, ok := call.Func.(*ConstExpr); ok && slices.Contains(builtins, string(ce.Source.(*NameExpr).Name)) {
 		m.PushExpr(&ConstExpr{TypedValue: dv})
 	} else {
 		m.PushExpr(x)
