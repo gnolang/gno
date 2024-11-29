@@ -2,6 +2,7 @@ package check
 
 import (
 	"bytes"
+	_ "embed"
 	"errors"
 	"fmt"
 	"regexp"
@@ -11,10 +12,12 @@ import (
 	"github.com/gnolang/gno/contribs/github-bot/internal/client"
 	"github.com/gnolang/gno/contribs/github-bot/internal/config"
 	"github.com/gnolang/gno/contribs/github-bot/internal/utils"
-
 	"github.com/google/go-github/v64/github"
 	"github.com/sethvargo/go-githubactions"
 )
+
+//go:embed comment.tmpl
+var tmplString string // Embed template used for comment generation.
 
 var errTriggeredByBot = errors.New("event triggered by bot")
 
@@ -218,8 +221,7 @@ func generateComment(content CommentContent) (string, error) {
 	}
 
 	// Bind markdown stripping function to template generator.
-	const tmplFile = "comment.tmpl"
-	tmpl, err := template.New(tmplFile).Funcs(funcMap).ParseFiles(tmplFile)
+	tmpl, err := template.New("comment").Funcs(funcMap).Parse(tmplString)
 	if err != nil {
 		return "", fmt.Errorf("unable to init template: %w", err)
 	}
