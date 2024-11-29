@@ -761,6 +761,21 @@ func (m *Machine) EvalStatic(last BlockNode, x Expr) TypedValue {
 	return res[0]
 }
 
+func (m *Machine) emitCallArg(call *CallExpr, x Expr, staticType Type) {
+	// these functions are the only onces in the language were they could be
+	// called from a const context
+	var builtins = []string{"len", "cap", "real", "imag", "complex"}
+	dv := defaultTypedValue(m.Alloc, staticType)
+
+	if slices.Contains(builtins, string(call.Func.(*ConstExpr).Source.(*NameExpr).Name)) {
+		m.PushExpr(&ConstExpr{TypedValue: dv})
+	} else {
+		m.PushExpr(x)
+	}
+
+	m.PushOp(OpEval)
+}
+
 // Evaluate the type of any preprocessed expression statically.
 // This is primiarily used by the preprocessor to evaluate
 // static types of nodes.

@@ -246,8 +246,8 @@ func (m *Machine) doOpEval() {
 		// Eval args.
 		args := x.Args
 		for i := len(args) - 1; 0 <= i; i-- {
-			m.PushExpr(args[i])
-			m.PushOp(OpEval)
+			t := m.EvalStaticTypeOf(m.LastBlock().GetSource(m.Store), args[i])
+			m.emitCallArg(x, args[i], t)
 		}
 		// evaluate func
 		m.PushExpr(x.Func)
