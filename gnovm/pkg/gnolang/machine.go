@@ -765,9 +765,9 @@ func (m *Machine) emitCallArg(call *CallExpr, x Expr, staticType Type) {
 	// these functions are the only onces in the language were they could be
 	// called from a const context
 	builtins := []string{"len", "cap", "real", "imag", "complex"}
-	dv := defaultTypedValue(m.Alloc, staticType)
 
 	if ce, ok := call.Func.(*ConstExpr); ok && slices.Contains(builtins, string(ce.Source.(*NameExpr).Name)) {
+		dv := defaultTypedValue(m.Alloc, staticType)
 		m.PushExpr(&ConstExpr{TypedValue: dv})
 	} else {
 		m.PushExpr(x)
