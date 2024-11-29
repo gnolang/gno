@@ -27,7 +27,12 @@ func (u *upToDateWith) IsSatisfied(pr *github.PullRequest, details treeprint.Tre
 	if u.base == PR_BASE {
 		base = pr.GetBase().GetRef()
 	}
+
 	head := pr.GetHead().GetRef()
+	// If pull request is open from a fork, prepend head ref with fork owner login
+	if pr.GetHead().GetRepo().GetFullName() != pr.GetBase().GetRepo().GetFullName() {
+		head = fmt.Sprintf("%s:%s", pr.GetHead().GetRepo().GetOwner().GetLogin(), pr.GetHead().GetRef())
+	}
 
 	cmp, _, err := u.gh.Client.Repositories.CompareCommits(u.gh.Ctx, u.gh.Owner, u.gh.Repo, base, head, nil)
 	if err != nil {
