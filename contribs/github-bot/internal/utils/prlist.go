@@ -7,7 +7,7 @@ import (
 	"strings"
 )
 
-// Type used to (un)marshal input/output for check and matrix subcommands
+// Type used to (un)marshal input/output for check and matrix subcommands.
 type PRList []int
 
 // PRList is both a TextMarshaler and a TextUnmarshaler.

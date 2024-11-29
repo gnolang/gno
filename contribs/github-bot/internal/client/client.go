@@ -40,19 +40,19 @@ type Config struct {
 
 // GetBotComment retrieves the bot's (current user) comment on provided PR number.
 func (gh *GitHub) GetBotComment(prNum int) (*github.IssueComment, error) {
-	// List existing comments
+	// List existing comments.
 	const (
 		sort      = "created"
 		direction = "desc"
 	)
 
-	// Get current user (bot)
+	// Get current user (bot).
 	currentUser, _, err := gh.Client.Users.Get(gh.Ctx, "")
 	if err != nil {
 		return nil, fmt.Errorf("unable to get current user: %w", err)
 	}
 
-	// Pagination option
+	// Pagination option.
 	opts := &github.IssueListCommentsOptions{
 		Sort:      github.String(sort),
 		Direction: github.String(direction),
@@ -73,7 +73,7 @@ func (gh *GitHub) GetBotComment(prNum int) (*github.IssueComment, error) {
 			return nil, fmt.Errorf("unable to list comments for PR %d: %w", prNum, err)
 		}
 
-		// Get the comment created by current user
+		// Get the comment created by current user.
 		for _, comment := range comments {
 			if comment.GetUser().GetLogin() == currentUser.GetLogin() {
 				return comment, nil
@@ -92,12 +92,12 @@ func (gh *GitHub) GetBotComment(prNum int) (*github.IssueComment, error) {
 // SetBotComment creates a bot's comment on the provided PR number
 // or updates it if it already exists.
 func (gh *GitHub) SetBotComment(body string, prNum int) (*github.IssueComment, error) {
-	// Prevent updating anything in dry run mode
+	// Prevent updating anything in dry run mode.
 	if gh.DryRun {
 		return nil, errors.New("should not write bot comment in dry run mode")
 	}
 
-	// Create bot comment if it does not already exist
+	// Create bot comment if it does not already exist.
 	comment, err := gh.GetBotComment(prNum)
 	if errors.Is(err, ErrBotCommentNotFound) {
 		newComment, _, err := gh.Client.Issues.CreateComment(
@@ -288,16 +288,16 @@ func New(ctx context.Context, cfg *Config) (*GitHub, error) {
 	}
 
 	// Detect if the current process was launched by a GitHub Action and return
-	// a logger suitable for terminal output or the GitHub Actions web interface
+	// a logger suitable for terminal output or the GitHub Actions web interface.
 	gh.Logger = logger.NewLogger(cfg.Verbose)
 
-	// Retrieve GitHub API token from env
+	// Retrieve GitHub API token from env.
 	token, set := os.LookupEnv("GITHUB_TOKEN")
 	if !set {
 		return nil, errors.New("GITHUB_TOKEN is not set in env")
 	}
 
-	// Init GitHub API client using token
+	// Init GitHub API client using token.
 	gh.Client = github.NewClient(nil).WithAuthToken(token)
 
 	return gh, nil

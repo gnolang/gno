@@ -18,7 +18,7 @@ func execMatrix() error {
 		return fmt.Errorf("unable to get GitHub Actions context: %w", err)
 	}
 
-	// Init Github client using only GitHub Actions context
+	// Init Github client using only GitHub Actions context.
 	owner, repo := actionCtx.Repo()
 	gh, err := client.New(context.Background(), &client.Config{
 		Owner:   owner,
@@ -30,13 +30,13 @@ func execMatrix() error {
 		return fmt.Errorf("unable to init GitHub client: %w", err)
 	}
 
-	// Retrieve PR list from GitHub Actions event
+	// Retrieve PR list from GitHub Actions event.
 	prList, err := getPRListFromEvent(gh, actionCtx)
 	if err != nil {
 		return err
 	}
 
-	// Print PR list for GitHub Actions matrix definition
+	// Print PR list for GitHub Actions matrix definition.
 	bytes, err := prList.MarshalText()
 	if err != nil {
 		return fmt.Errorf("unable to marshal PR list: %w", err)
@@ -50,16 +50,16 @@ func getPRListFromEvent(gh *client.GitHub, actionCtx *githubactions.GitHubContex
 	var prList utils.PRList
 
 	switch actionCtx.EventName {
-	// Event triggered from GitHub Actions user interface
+	// Event triggered from GitHub Actions user interface.
 	case utils.EventWorkflowDispatch:
-		// Get input entered by the user
+		// Get input entered by the user.
 		rawInput, ok := utils.IndexMap(actionCtx.Event, "inputs", "pull-request-list").(string)
 		if !ok {
 			return nil, errors.New("unable to get workflow dispatch input")
 		}
 		input := strings.TrimSpace(rawInput)
 
-		// If all PR are requested, list them from GitHub API
+		// If all PR are requested, list them from GitHub API.
 		if input == "all" {
 			prs, err := gh.ListPR(utils.PRStateOpen)
 			if err != nil {
@@ -71,12 +71,12 @@ func getPRListFromEvent(gh *client.GitHub, actionCtx *githubactions.GitHubContex
 				prList[i] = prs[i].GetNumber()
 			}
 		} else {
-			// If a PR list is provided, parse it
+			// If a PR list is provided, parse it.
 			if err := prList.UnmarshalText([]byte(input)); err != nil {
 				return nil, fmt.Errorf("invalid PR list provided as input: %w", err)
 			}
 
-			// Then check if all provided PR are opened
+			// Then check if all provided PR are opened.
 			for _, prNum := range prList {
 				pr, _, err := gh.Client.PullRequests.Get(gh.Ctx, gh.Owner, gh.Repo, prNum)
 				if err != nil {
@@ -88,9 +88,9 @@ func getPRListFromEvent(gh *client.GitHub, actionCtx *githubactions.GitHubContex
 		}
 
 	// Event triggered by an issue / PR comment being created / edited / deleted
-	// or any update on a PR
+	// or any update on a PR.
 	case utils.EventIssueComment, utils.EventPullRequest, utils.EventPullRequestTarget:
-		// For these events, retrieve the number of the associated PR from the context
+		// For these events, retrieve the number of the associated PR from the context.
 		prNum, err := utils.GetPRNumFromActionsCtx(actionCtx)
 		if err != nil {
 			return nil, fmt.Errorf("unable to retrieve PR number from GitHub Actions context: %w", err)

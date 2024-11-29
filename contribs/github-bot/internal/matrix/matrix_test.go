@@ -213,7 +213,7 @@ func TestProcessEvent(t *testing.T) {
 							prNumStr := parts[len(parts)-1]
 							prNum, err = strconv.Atoi(prNumStr)
 							if err != nil {
-								panic(err) // Should never happen
+								panic(err) // Should never happen.
 							}
 						}
 
