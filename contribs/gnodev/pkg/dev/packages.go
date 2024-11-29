@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/url"
 	"path/filepath"
+	"time"
 
 	"github.com/gnolang/gno/contribs/gnodev/pkg/address"
 	"github.com/gnolang/gno/gno.land/pkg/gnoland"
@@ -119,7 +120,7 @@ func (pm PackagesMap) toList() gnomod.PkgList {
 	return list
 }
 
-func (pm PackagesMap) Load(fee std.Fee) ([]gnoland.TxWithMetadata, error) {
+func (pm PackagesMap) Load(fee std.Fee, start time.Time) ([]gnoland.TxWithMetadata, error) {
 	pkgs := pm.toList()
 
 	sorted, err := pkgs.Sort()
@@ -128,8 +129,8 @@ func (pm PackagesMap) Load(fee std.Fee) ([]gnoland.TxWithMetadata, error) {
 	}
 
 	nonDraft := sorted.GetNonDraftPkgs()
-	txs := make([]gnoland.TxWithMetadata, 0, len(nonDraft))
 
+	metatxs := make([]gnoland.TxWithMetadata, 0, len(nonDraft))
 	for _, modPkg := range nonDraft {
 		pkg := pm[modPkg.Dir]
 		if pkg.Creator.IsZero() {
@@ -143,22 +144,27 @@ func (pm PackagesMap) Load(fee std.Fee) ([]gnoland.TxWithMetadata, error) {
 		}
 
 		// Create transaction
-		tx := gnoland.TxWithMetadata{
-			Tx: std.Tx{
-				Fee: fee,
-				Msgs: []std.Msg{
-					vmm.MsgAddPackage{
-						Creator: pkg.Creator,
-						Deposit: pkg.Deposit,
-						Package: memPkg,
-					},
+		tx := std.Tx{
+			Fee: fee,
+			Msgs: []std.Msg{
+				vmm.MsgAddPackage{
+					Creator: pkg.Creator,
+					Deposit: pkg.Deposit,
+					Package: memPkg,
 				},
 			},
 		}
 
-		tx.Tx.Signatures = make([]std.Signature, len(tx.Tx.GetSigners()))
-		txs = append(txs, tx)
+		tx.Signatures = make([]std.Signature, len(tx.GetSigners()))
+		metatx := gnoland.TxWithMetadata{
+			Tx: tx,
+			Metadata: &gnoland.GnoTxMetadata{
+				Timestamp: start.Unix(),
+			},
+		}
+
+		metatxs = append(metatxs, metatx)
 	}
 
-	return txs, nil
+	return metatxs, nil
 }
