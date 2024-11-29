@@ -116,8 +116,6 @@ func main() {
 // The voting period for this proposal is over.
 //
 //
-//
-//
 // --
 // # gno.land's blog
 //
@@ -148,8 +146,6 @@ func main() {
 // ### Actions
 //
 // The voting period for this proposal is over.
-//
-//
 //
 //
 // --

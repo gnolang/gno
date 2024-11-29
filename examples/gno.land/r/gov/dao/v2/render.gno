@@ -116,7 +116,7 @@ func renderActionBar(p dao.Proposal, idx int) string {
 			txlink.URL("VoteOnProposal", "id", strconv.Itoa(idx), "option", "ABSTAIN"),
 		)
 	} else {
-		out += "The voting period for this proposal is over.\n\n"
+		out += "The voting period for this proposal is over."
 	}
 
 	return out

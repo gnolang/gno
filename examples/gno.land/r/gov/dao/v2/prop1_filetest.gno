@@ -139,8 +139,6 @@ func main() {
 // The voting period for this proposal is over.
 //
 //
-//
-//
 // --
 // No valset changes to apply.
 // --
@@ -169,8 +167,6 @@ func main() {
 // ### Actions
 //
 // The voting period for this proposal is over.
-//
-//
 //
 //
 // --

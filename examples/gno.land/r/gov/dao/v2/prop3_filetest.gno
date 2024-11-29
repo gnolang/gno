@@ -131,8 +131,6 @@ func main() {
 // The voting period for this proposal is over.
 //
 //
-//
-//
 // --
 // # GovDAO Proposals
 //
@@ -169,8 +167,6 @@ func main() {
 // ### Actions
 //
 // The voting period for this proposal is over.
-//
-//
 //
 //
 // --
