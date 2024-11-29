@@ -22,7 +22,7 @@ func Render(path string) string {
 	if path == "motd" {
 		out := motd
 
-		link := txlink.URL("UpdateMOTD")
+		link := txlink.URL("UpdateMOTD") //  "/r/docs/buttons$help?func=UpdateMOTD"
 		out += ufmt.Sprintf("Click [this link](%s) to update the Message of The Day!\n\n", link)
 		out += "[Go back to home page](/r/docs/buttons)"
 
