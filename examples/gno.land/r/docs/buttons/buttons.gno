@@ -8,23 +8,25 @@ import (
 )
 
 var (
-	number = 1
-	motd   = "MOTD: The Initial Message\n\n"
+	motd       = "The Initial Message\n\n"
+	lastCaller std.Address
 )
 
-func UpdateMOTD() {
-	caller := std.PrevRealm().Addr().String()
-	motd = ufmt.Sprintf("MOTD: User %s just updated the MOTD, and they were the #%d user to do it!\n\n", caller, number)
-	number++
+func UpdateMOTD(newmotd string) {
+	motd = newmotd
+	lastCaller = std.PrevRealm().Addr()
 }
 
 func Render(path string) string {
 	if path == "motd" {
-		out := motd
-
-		link := txlink.URL("UpdateMOTD") //  "/r/docs/buttons$help?func=UpdateMOTD"
-		out += ufmt.Sprintf("Click [this link](%s) to update the Message of The Day!\n\n", link)
-		out += "[Go back to home page](/r/docs/buttons)"
+		out := "# Message of the Day:\n\n"
+		out += "---\n\n"
+		out += "# " + motd + "\n\n"
+		out += "---\n\n"
+		link := txlink.URL("UpdateMOTD", "newmotd", "Message!") //  "/r/docs/buttons$help?func=UpdateMOTD&newmotd=Message!"
+		out += ufmt.Sprintf("Click **[here](%s)** to update the Message of The Day!\n\n", link)
+		out += "[Go back to home page](/r/docs/buttons)\n\n"
+		out += "Last updated by " + lastCaller.String()
 
 		return out
 	}
@@ -34,9 +36,9 @@ func Render(path string) string {
 Users can create simple hyperlink buttons to view specific realm pages and 
 do specific realm actions, such as calling a specific function with some arguments.
 
-The foundation for this functionality are markdown links; for example,
-check out the Message Of The Day found in this realm, [here](/r/docs/buttons:motd).
-`
+The foundation for this functionality are markdown links; for example, you can
+click...
+` + "\n## [here](/r/docs/buttons:motd)\n" + `...to view this realm's message of the day.`
 
 	return out
 }
