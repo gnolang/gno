@@ -101,7 +101,7 @@ func TestCleanApp(t *testing.T) {
 			io.SetErr(commands.WriteNopCloser(mockErr))
 
 			// dry run clean
-			err = newGnocliCmd(io).ParseAndRun(context.Background(), []string{"clean", "-n"})
+			err = newGnocliCmd(io, nil).ParseAndRun(context.Background(), []string{"clean", "-n"})
 			require.NoError(t, err)
 			// check output
 			if tc.stdOut != "" {
@@ -114,7 +114,7 @@ func TestCleanApp(t *testing.T) {
 			}
 
 			// run clean
-			err = newGnocliCmd(io).ParseAndRun(context.Background(), []string{"clean"})
+			err = newGnocliCmd(io, nil).ParseAndRun(context.Background(), []string{"clean"})
 			require.NoError(t, err)
 			// check files
 			for _, file := range tc.filesRemoved {

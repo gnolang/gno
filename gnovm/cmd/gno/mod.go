@@ -8,7 +8,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/gnolang/gno/gnovm/cmd/gno/internal/gnopkgfetch"
+	"github.com/gnolang/gno/gnovm/cmd/gno/internal/pkgdownload"
 	"github.com/gnolang/gno/gnovm/pkg/gnoimports"
 	"github.com/gnolang/gno/gnovm/pkg/gnomod"
 	"github.com/gnolang/gno/tm2/pkg/commands"
@@ -16,7 +16,7 @@ import (
 	"go.uber.org/multierr"
 )
 
-func newModCmd(io commands.IO) *commands.Command {
+func newModCmd(io commands.IO, packageFetcher pkgdownload.PackageFetcher) *commands.Command {
 	cmd := commands.NewCommand(
 		commands.Metadata{
 			Name:       "mod",
@@ -28,7 +28,7 @@ func newModCmd(io commands.IO) *commands.Command {
 	)
 
 	cmd.AddSubCommands(
-		newModDownloadCmd(io),
+		newModDownloadCmd(io, packageFetcher),
 		newModInitCmd(),
 		newModTidy(io),
 		newModWhy(io),
@@ -37,7 +37,7 @@ func newModCmd(io commands.IO) *commands.Command {
 	return cmd
 }
 
-func newModDownloadCmd(io commands.IO) *commands.Command {
+func newModDownloadCmd(io commands.IO, packageFetcher pkgdownload.PackageFetcher) *commands.Command {
 	cfg := &modDownloadCfg{}
 
 	return commands.NewCommand(
@@ -48,7 +48,7 @@ func newModDownloadCmd(io commands.IO) *commands.Command {
 		},
 		cfg,
 		func(_ context.Context, args []string) error {
-			return execModDownload(cfg, args, io)
+			return execModDownload(cfg, args, io, packageFetcher)
 		},
 	)
 }
@@ -142,7 +142,7 @@ func (c *modDownloadCfg) RegisterFlags(fs *flag.FlagSet) {
 	)
 }
 
-func execModDownload(cfg *modDownloadCfg, args []string, io commands.IO) error {
+func execModDownload(cfg *modDownloadCfg, args []string, io commands.IO, packageFetcher pkgdownload.PackageFetcher) error {
 	if len(args) > 0 {
 		return flag.ErrHelp
 	}
@@ -175,7 +175,7 @@ func execModDownload(cfg *modDownloadCfg, args []string, io commands.IO) error {
 		return fmt.Errorf("validate: %w", err)
 	}
 
-	if err := gnopkgfetch.FetchPackageImportsRecursively(io, path, gnoMod); err != nil {
+	if err := DownwloadDeps(io, path, gnoMod, packageFetcher); err != nil {
 		return err
 	}
 

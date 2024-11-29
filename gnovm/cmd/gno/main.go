@@ -4,16 +4,18 @@ import (
 	"context"
 	"os"
 
+	"github.com/gnolang/gno/gnovm/cmd/gno/internal/pkgdownload"
+	"github.com/gnolang/gno/gnovm/cmd/gno/internal/pkgdownload/gnopkgfetcher"
 	"github.com/gnolang/gno/tm2/pkg/commands"
 )
 
 func main() {
-	cmd := newGnocliCmd(commands.NewDefaultIO())
+	cmd := newGnocliCmd(commands.NewDefaultIO(), gnopkgfetcher.New())
 
 	cmd.Execute(context.Background(), os.Args[1:])
 }
 
-func newGnocliCmd(io commands.IO) *commands.Command {
+func newGnocliCmd(io commands.IO, packageFetcher pkgdownload.PackageFetcher) *commands.Command {
 	cmd := commands.NewCommand(
 		commands.Metadata{
 			ShortUsage: "<subcommand> [flags] [<arg>...]",
@@ -24,7 +26,7 @@ func newGnocliCmd(io commands.IO) *commands.Command {
 	)
 
 	cmd.AddSubCommands(
-		newModCmd(io),
+		newModCmd(io, packageFetcher),
 		newTestCmd(io),
 		newLintCmd(io),
 		newRunCmd(io),
