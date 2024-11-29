@@ -62,7 +62,7 @@ func (b BankerType) String() string {
 }
 
 // regexp for denom format
-var reDenom = regexp.MustCompile("[a-z][a-z0-9]{2,15}")
+var reDenom = regexp.MustCompile(`^[a-z][a-z0-9]{2,15}$`)
 
 //----------------------------------------
 // adapter for native banker
@@ -132,11 +132,12 @@ func (b banker) IssueCoin(addr Address, denom string, amount int64) {
 		panic(b.bt.String() + " cannot issue coins")
 	}
 
-	if !strings.HasPrefix(denom, PrevRealm().PkgPath()) {
+	prefix := "/" + CurrentRealm().PkgPath() + ":"
+	if !strings.HasPrefix(denom, prefix) {
 		panic(b.bt.String() + " cannot issue coins with denom not prefixed by current realm pkgPath, use std.CurrentRealm().Denom(denom) to get the correct denom")
 	}
 
-	baseDenom := strings.TrimPrefix(denom, PrevRealm().PkgPath())
+	baseDenom := strings.TrimPrefix(denom, prefix)
 	if !reDenom.MatchString(baseDenom) {
 		panic(b.bt.String() + " cannot issue coins with invalid denom name, it should start by a lowercase letter and be followed by 2-15 lowercase letters or digits")
 	}
@@ -149,11 +150,12 @@ func (b banker) RemoveCoin(addr Address, denom string, amount int64) {
 		panic(b.bt.String() + " cannot remove coins")
 	}
 
-	if !strings.HasPrefix(denom, PrevRealm().PkgPath()) {
+	prefix := "/" + CurrentRealm().PkgPath() + ":"
+	if !strings.HasPrefix(denom, prefix) {
 		panic(b.bt.String() + " cannot issue coins with denom not prefixed by current realm pkgPath, use std.CurrentRealm().Denom(denom) to get the correct denom")
 	}
 
-	baseDenom := strings.TrimPrefix(denom, PrevRealm().PkgPath())
+	baseDenom := strings.TrimPrefix(denom, prefix)
 	if !reDenom.MatchString(baseDenom) {
 		panic(b.bt.String() + " cannot issue coins with invalid denom name, it should start by a lowercase letter and be followed by 2-15 lowercase letters or digits")
 	}
