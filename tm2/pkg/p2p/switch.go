@@ -19,6 +19,9 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/telemetry/metrics"
 )
 
+// defaultDialTimeout is the default wait time for a dial to succeed
+var defaultDialTimeout = 3 * time.Second
+
 type reactorPeerBehavior struct {
 	chDescs      []*conn.ChannelDescriptor
 	reactorsByCh map[byte]Reactor
@@ -298,7 +301,11 @@ func (sw *MultiplexSwitch) runDialLoop(ctx context.Context) {
 				continue
 			}
 
-			p, err := sw.transport.Dial(ctx, *peerAddr, sw.peerBehavior)
+			// Create a dial context
+			dialCtx, cancelFn := context.WithTimeout(ctx, defaultDialTimeout)
+			defer cancelFn()
+
+			p, err := sw.transport.Dial(dialCtx, *peerAddr, sw.peerBehavior)
 			if err != nil {
 				sw.Logger.Error(
 					"unable to dial peer",
