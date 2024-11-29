@@ -2354,8 +2354,8 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 					}
 				case PrimitiveType:
 					dst = tmp.(PrimitiveType)
-				case *PointerType:
-					*dst = *(tmp.(*PointerType))
+				// case *PointerType:
+				// 	*dst = *(tmp.(*PointerType))
 				default:
 					panic(fmt.Sprintf("unexpected type declaration type %v",
 						reflect.TypeOf(dst)))
