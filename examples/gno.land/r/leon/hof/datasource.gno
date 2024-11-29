@@ -10,7 +10,7 @@ import (
 
 type Datasource struct{}
 
-func (ds Datasource) GetRecords(offset, _ int, _ string) datasource.RecordIter {
+func (ds Datasource) GetRecords(offset, _ int, _ string) datasource.RecordIterator {
 	return &iterator{index: offset}
 }
 
