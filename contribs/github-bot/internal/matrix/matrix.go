@@ -61,7 +61,7 @@ func execMatrix(flags *matrixFlags) error {
 	}
 
 	// Open GitHub Actions output file
-	file, err := os.OpenFile(output, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+	file, err := os.OpenFile(output, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o644)
 	if err != nil {
 		return fmt.Errorf("unable to open GitHub Actions output file: %w", err)
 	}
