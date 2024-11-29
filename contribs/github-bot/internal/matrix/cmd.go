@@ -10,12 +10,12 @@ import (
 )
 
 type matrixFlags struct {
-	verbose   bool
+	verbose   *bool
 	matrixKey string
 	flagSet   *flag.FlagSet
 }
 
-func NewMatrixCmd(verbose bool) *commands.Command {
+func NewMatrixCmd(verbose *bool) *commands.Command {
 	flags := &matrixFlags{verbose: verbose}
 
 	return commands.NewCommand(

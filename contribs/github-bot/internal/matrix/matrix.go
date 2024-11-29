@@ -20,7 +20,7 @@ func execMatrix(flags *matrixFlags) error {
 	}
 
 	// If verbose is set, print the Github Actions event for debugging purpose.
-	if flags.verbose {
+	if *flags.verbose {
 		fmt.Println("Event:", actionCtx.Event)
 	}
 
@@ -29,7 +29,7 @@ func execMatrix(flags *matrixFlags) error {
 	gh, err := client.New(context.Background(), &client.Config{
 		Owner:   owner,
 		Repo:    repo,
-		Verbose: flags.verbose,
+		Verbose: *flags.verbose,
 		DryRun:  true,
 	})
 	if err != nil {
@@ -50,7 +50,7 @@ func execMatrix(flags *matrixFlags) error {
 	matrix := fmt.Sprintf("%s=[%s]", flags.matrixKey, string(bytes))
 
 	// If verbose is set, print the matrix for debugging purpose.
-	if flags.verbose {
+	if *flags.verbose {
 		fmt.Printf("Matrix: %s\n", matrix)
 	}
 

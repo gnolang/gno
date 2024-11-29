@@ -27,8 +27,8 @@ func main() {
 	)
 
 	cmd.AddSubCommands(
-		check.NewCheckCmd(flags.verbose),
-		matrix.NewMatrixCmd(flags.verbose),
+		check.NewCheckCmd(&flags.verbose),
+		matrix.NewMatrixCmd(&flags.verbose),
 	)
 
 	cmd.Execute(context.Background(), os.Args[1:])

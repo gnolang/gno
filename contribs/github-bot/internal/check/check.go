@@ -30,7 +30,7 @@ func execCheck(flags *checkFlags) error {
 	gh, err := client.New(ctx, &client.Config{
 		Owner:   flags.Owner,
 		Repo:    flags.Repo,
-		Verbose: flags.Verbose,
+		Verbose: *flags.Verbose,
 		DryRun:  flags.DryRun,
 	})
 	if err != nil {

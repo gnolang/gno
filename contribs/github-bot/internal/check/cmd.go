@@ -17,13 +17,13 @@ type checkFlags struct {
 	Repo    string
 	PRAll   bool
 	PRNums  utils.PRList
-	Verbose bool
+	Verbose *bool
 	DryRun  bool
 	Timeout time.Duration
 	flagSet *flag.FlagSet
 }
 
-func NewCheckCmd(verbose bool) *commands.Command {
+func NewCheckCmd(verbose *bool) *commands.Command {
 	flags := &checkFlags{Verbose: verbose}
 
 	return commands.NewCommand(
