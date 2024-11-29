@@ -6,28 +6,36 @@ import (
 	"flag"
 	"fmt"
 
+	"github.com/gnolang/gno/tm2/pkg/crypto"
+
 	"github.com/gnolang/gno/gno.land/pkg/gnoland"
 	"github.com/gnolang/gno/gno.land/pkg/gnoland/ugnot"
+	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
 	"github.com/gnolang/gno/tm2/pkg/bft/types"
 	"github.com/gnolang/gno/tm2/pkg/commands"
+	"github.com/gnolang/gno/tm2/pkg/crypto/keys"
 	"github.com/gnolang/gno/tm2/pkg/std"
 )
 
 var errInvalidPackageDir = errors.New("invalid package directory")
 
-var genesisDeployFee = std.NewFee(50000, std.MustParseCoin(ugnot.ValueString(1000000)))
+var (
+	// Keep in sync with gno.land/cmd/start.go
+	genesisDeployAddress = crypto.MustAddressFromString("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5") // test1
+	genesisDeployFee     = std.NewFee(50000, std.MustParseCoin(ugnot.ValueString(1000000)))
+)
 
 type addPkgCfg struct {
-	txsCfg           *txsCfg
-	deployerMnemonic string
+	txsCfg  *txsCfg
+	keyName string
 }
 
 func (c *addPkgCfg) RegisterFlags(fs *flag.FlagSet) {
 	fs.StringVar(
-		&c.deployerMnemonic,
-		"deployer-mnemonic",
-		"source bonus chronic canvas draft south burst lottery vacant surface solve popular case indicate oppose farm nothing bullet exhibit title speed wink action roast", // test1
-		"The mnemonic of the wallet that will create packages on the transaction genesis",
+		&c.keyName,
+		"key-name",
+		"",
+		"The package deployer key name or address",
 	)
 }
 
@@ -66,11 +74,26 @@ func execTxsAddPackages(
 	if len(args) == 0 {
 		return errInvalidPackageDir
 	}
+	var creator crypto.Address
+	if cfg.keyName != "" {
+
+		kb, err := keys.NewKeyBaseFromDir(gnoenv.HomeDir())
+		if err != nil {
+			return err
+		}
+		info, err := kb.GetByNameOrAddress(cfg.keyName)
+		if err != nil {
+			return err
+		}
+		creator = info.GetAddress()
+	} else {
+		creator = genesisDeployAddress
+	}
 
 	parsedTxs := make([]gnoland.TxWithMetadata, 0)
 	for _, path := range args {
 		// Generate transactions from the packages (recursively)
-		txs, err := gnoland.LoadPackagesFromDir(path, cfg.deployerMnemonic, genesis.ChainID, genesisDeployFee)
+		txs, err := gnoland.LoadPackagesFromDir(path, creator, genesisDeployFee)
 		if err != nil {
 			return fmt.Errorf("unable to load txs from directory, %w", err)
 		}
