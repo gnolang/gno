@@ -24,9 +24,14 @@ func New(remoteOverrides map[string]string) pkgdownload.PackageFetcher {
 
 // FetchPackage implements [pkgdownload.PackageFetcher].
 func (gpf *gnoPackageFetcher) FetchPackage(pkgPath string) ([]pkgdownload.PackageFile, error) {
-	client, err := clientFromPkgPath(pkgPath, gpf.remoteOverrides)
+	rpcURL, err := rpcURLFromPkgPath(pkgPath, gpf.remoteOverrides)
 	if err != nil {
-		return nil, fmt.Errorf("get client for pkg path %q: %w", pkgPath, err)
+		return nil, fmt.Errorf("get rpc url for pkg path %q: %w", pkgPath, err)
+	}
+
+	client, err := client.NewHTTPClient(rpcURL)
+	if err != nil {
+		return nil, fmt.Errorf("failed to instantiate tm2 client with remote %q: %w", rpcURL, err)
 	}
 	defer client.Close()
 
@@ -49,10 +54,10 @@ func (gpf *gnoPackageFetcher) FetchPackage(pkgPath string) ([]pkgdownload.Packag
 	return res, nil
 }
 
-func clientFromPkgPath(pkgPath string, remoteOverrides map[string]string) (*client.RPCClient, error) {
+func rpcURLFromPkgPath(pkgPath string, remoteOverrides map[string]string) (string, error) {
 	parts := strings.Split(pkgPath, "/")
-	if len(parts) < 1 {
-		return nil, fmt.Errorf("bad pkg path %q", pkgPath)
+	if len(parts) < 2 {
+		return "", fmt.Errorf("bad pkg path %q", pkgPath)
 	}
 	domain := parts[0]
 
@@ -64,11 +69,7 @@ func clientFromPkgPath(pkgPath string, remoteOverrides map[string]string) (*clie
 		rpcURL = fmt.Sprintf("https://rpc.%s:443", domain)
 	}
 
-	c, err := client.NewHTTPClient(rpcURL)
-	if err != nil {
-		return nil, fmt.Errorf("failed to instantiate tm2 client with remote %q: %w", rpcURL, err)
-	}
-	return c, nil
+	return rpcURL, nil
 }
 
 func qfile(c client.Client, pkgPath string) ([]byte, error) {
