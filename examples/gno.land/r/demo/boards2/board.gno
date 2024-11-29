@@ -31,10 +31,6 @@ type Board struct {
 }
 
 func newBoard(id BoardID, name string, creator std.Address) *Board {
-	if gBoardsByName.Has(name) {
-		panic("board already exists")
-	}
-
 	return &Board{
 		id:        id,
 		name:      name,

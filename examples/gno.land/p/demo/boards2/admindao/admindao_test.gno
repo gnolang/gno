@@ -59,6 +59,30 @@ func TestNew(t *testing.T) {
 	}
 }
 
+func TestAdminDAOAddMember(t *testing.T) {
+	member := std.Address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5")
+	dao := New(WithMember("g1w4ek2u33ta047h6lta047h6lta047h6ldvdwpn"))
+
+	err := dao.AddMember(member)
+	urequire.NoError(t, err)
+	uassert.Equal(t, 2, len(dao.Members()))
+	uassert.True(t, dao.IsMember(member))
+
+	err = dao.AddMember(member)
+	uassert.ErrorIs(t, err, ErrMemberExists)
+}
+
+func TestAdminDAORemoveMember(t *testing.T) {
+	member := std.Address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5")
+	dao := New(WithMember(member))
+
+	removed := dao.RemoveMember(member)
+	urequire.True(t, removed)
+
+	removed = dao.RemoveMember(member)
+	urequire.False(t, removed)
+}
+
 func TestAdminDAOIsMember(t *testing.T) {
 	cases := []struct {
 		name   string
