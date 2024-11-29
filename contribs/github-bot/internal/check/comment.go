@@ -1,4 +1,4 @@
-package main
+package check
 
 import (
 	"bytes"
@@ -9,6 +9,7 @@ import (
 	"text/template"
 
 	"github.com/gnolang/gno/contribs/github-bot/internal/client"
+	"github.com/gnolang/gno/contribs/github-bot/internal/config"
 	"github.com/gnolang/gno/contribs/github-bot/internal/utils"
 
 	"github.com/google/go-github/v64/github"
@@ -157,12 +158,12 @@ func handleCommentUpdate(gh *client.GitHub, actionCtx *githubactions.GitHubConte
 		// Get teams allowed to edit this box from config.
 		var teams []string
 		found := false
-		_, manualRules := config(gh)
+		_, manualRules := config.Config(gh)
 
 		for _, manualRule := range manualRules {
-			if manualRule.description == key {
+			if manualRule.Description == key {
 				found = true
-				teams = manualRule.teams
+				teams = manualRule.Teams
 			}
 		}
 

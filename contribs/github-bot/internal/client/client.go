@@ -7,7 +7,6 @@ import (
 	"os"
 
 	"github.com/gnolang/gno/contribs/github-bot/internal/logger"
-	p "github.com/gnolang/gno/contribs/github-bot/internal/params"
 
 	"github.com/google/go-github/v64/github"
 )
@@ -30,6 +29,13 @@ type GitHub struct {
 	Logger logger.Logger
 	Owner  string
 	Repo   string
+}
+
+type Config struct {
+	Owner   string
+	Repo    string
+	Verbose bool
+	DryRun  bool
 }
 
 // GetBotComment retrieves the bot's (current user) comment on provided PR number.
@@ -86,6 +92,11 @@ func (gh *GitHub) GetBotComment(prNum int) (*github.IssueComment, error) {
 // SetBotComment creates a bot's comment on the provided PR number
 // or updates it if it already exists.
 func (gh *GitHub) SetBotComment(body string, prNum int) (*github.IssueComment, error) {
+	// Prevent updating anything in dry run mode
+	if gh.DryRun {
+		return nil, errors.New("should not write bot comment in dry run mode")
+	}
+
 	// Create bot comment if it does not already exist
 	comment, err := gh.GetBotComment(prNum)
 	if errors.Is(err, ErrBotCommentNotFound) {
@@ -268,17 +279,17 @@ func (gh *GitHub) ListPR(state string) ([]*github.PullRequest, error) {
 }
 
 // New initializes the API client, the logger, and creates an instance of GitHub.
-func New(ctx context.Context, params *p.Params) (*GitHub, error) {
+func New(ctx context.Context, cfg *Config) (*GitHub, error) {
 	gh := &GitHub{
 		Ctx:    ctx,
-		Owner:  params.Owner,
-		Repo:   params.Repo,
-		DryRun: params.DryRun,
+		Owner:  cfg.Owner,
+		Repo:   cfg.Repo,
+		DryRun: cfg.DryRun,
 	}
 
 	// Detect if the current process was launched by a GitHub Action and return
 	// a logger suitable for terminal output or the GitHub Actions web interface
-	gh.Logger = logger.NewLogger(params.Verbose)
+	gh.Logger = logger.NewLogger(cfg.Verbose)
 
 	// Retrieve GitHub API token from env
 	token, set := os.LookupEnv("GITHUB_TOKEN")

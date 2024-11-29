@@ -1,4 +1,4 @@
-package main
+package check
 
 import (
 	"context"
@@ -9,44 +9,30 @@ import (
 	"sync/atomic"
 
 	"github.com/gnolang/gno/contribs/github-bot/internal/client"
+	"github.com/gnolang/gno/contribs/github-bot/internal/config"
 	"github.com/gnolang/gno/contribs/github-bot/internal/logger"
-	p "github.com/gnolang/gno/contribs/github-bot/internal/params"
 	"github.com/gnolang/gno/contribs/github-bot/internal/utils"
-	"github.com/gnolang/gno/tm2/pkg/commands"
 	"github.com/google/go-github/v64/github"
 	"github.com/sethvargo/go-githubactions"
 	"github.com/xlab/treeprint"
 )
 
-func newCheckCmd() *commands.Command {
-	params := &p.Params{}
-
-	return commands.NewCommand(
-		commands.Metadata{
-			Name:       "check",
-			ShortUsage: "github-bot check [flags]",
-			ShortHelp:  "checks requirements for a pull request to be merged",
-			LongHelp:   "This tool checks if the requirements for a pull request to be merged are satisfied (defined in config.go) and displays PR status checks accordingly.\nA valid GitHub Token must be provided by setting the GITHUB_TOKEN environment variable.",
-		},
-		params,
-		func(_ context.Context, _ []string) error {
-			params.ValidateFlags()
-			return execCheck(params)
-		},
-	)
-}
-
-func execCheck(params *p.Params) error {
+func execCheck(flags *checkFlags) error {
 	// Create context with timeout if specified in the parameters.
 	ctx := context.Background()
-	if params.Timeout > 0 {
+	if flags.Timeout > 0 {
 		var cancel context.CancelFunc
-		ctx, cancel = context.WithTimeout(context.Background(), params.Timeout)
+		ctx, cancel = context.WithTimeout(context.Background(), flags.Timeout)
 		defer cancel()
 	}
 
 	// Init GitHub API client.
-	gh, err := client.New(ctx, params)
+	gh, err := client.New(ctx, &client.Config{
+		Owner:   flags.Owner,
+		Repo:    flags.Repo,
+		Verbose: flags.Verbose,
+		DryRun:  flags.DryRun,
+	})
 	if err != nil {
 		return fmt.Errorf("comment update handling failed: %w", err)
 	}
@@ -69,7 +55,7 @@ func execCheck(params *p.Params) error {
 	var prs []*github.PullRequest
 
 	// If requested, retrieve all open pull requests.
-	if params.PRAll {
+	if flags.PRAll {
 		prs, err = gh.ListPR(utils.PRStateOpen)
 		if err != nil {
 			return fmt.Errorf("unable to list all PR: %w", err)
@@ -77,8 +63,8 @@ func execCheck(params *p.Params) error {
 	} else {
 		// Otherwise, retrieve only specified pull request(s)
 		// (flag or GitHub Action context).
-		prs = make([]*github.PullRequest, len(params.PRNums))
-		for i, prNum := range params.PRNums {
+		prs = make([]*github.PullRequest, len(flags.PRNums))
+		for i, prNum := range flags.PRNums {
 			pr, _, err := gh.Client.PullRequests.Get(gh.Ctx, gh.Owner, gh.Repo, prNum)
 			if err != nil {
 				return fmt.Errorf("unable to retrieve specified pull request (%d): %w", prNum, err)
@@ -101,7 +87,7 @@ func processPRList(gh *client.GitHub, prs []*github.PullRequest) error {
 	}
 
 	// Process all pull requests in parallel.
-	autoRules, manualRules := config(gh)
+	autoRules, manualRules := config.Config(gh)
 	var wg sync.WaitGroup
 
 	// Used in dry-run mode to log cleanly from different goroutines.
@@ -122,15 +108,15 @@ func processPRList(gh *client.GitHub, prs []*github.PullRequest) error {
 				ifDetails := treeprint.NewWithRoot(fmt.Sprintf("%s Condition met", utils.Success))
 
 				// Check if conditions of this rule are met by this PR.
-				if !autoRule.ifC.IsMet(pr, ifDetails) {
+				if !autoRule.If.IsMet(pr, ifDetails) {
 					continue
 				}
 
-				c := AutoContent{Description: autoRule.description, Satisfied: false}
+				c := AutoContent{Description: autoRule.Description, Satisfied: false}
 				thenDetails := treeprint.NewWithRoot(fmt.Sprintf("%s Requirement not satisfied", utils.Fail))
 
 				// Check if requirements of this rule are satisfied by this PR.
-				if autoRule.thenR.IsSatisfied(pr, thenDetails) {
+				if autoRule.Then.IsSatisfied(pr, thenDetails) {
 					thenDetails.SetValue(fmt.Sprintf("%s Requirement satisfied", utils.Success))
 					c.Satisfied = true
 				} else {
@@ -153,13 +139,13 @@ func processPRList(gh *client.GitHub, prs []*github.PullRequest) error {
 				ifDetails := treeprint.NewWithRoot(fmt.Sprintf("%s Condition met", utils.Success))
 
 				// Check if conditions of this rule are met by this PR.
-				if !manualRule.ifC.IsMet(pr, ifDetails) {
+				if !manualRule.If.IsMet(pr, ifDetails) {
 					continue
 				}
 
 				// Get check status from current comment, if any.
 				checkedBy := ""
-				check, ok := checks[manualRule.description]
+				check, ok := checks[manualRule.Description]
 				if ok {
 					checkedBy = check.checkedBy
 				}
@@ -167,10 +153,10 @@ func processPRList(gh *client.GitHub, prs []*github.PullRequest) error {
 				commentContent.ManualRules = append(
 					commentContent.ManualRules,
 					ManualContent{
-						Description:      manualRule.description,
+						Description:      manualRule.Description,
 						ConditionDetails: ifDetails.String(),
 						CheckedBy:        checkedBy,
-						Teams:            manualRule.teams,
+						Teams:            manualRule.Teams,
 					},
 				)
 
