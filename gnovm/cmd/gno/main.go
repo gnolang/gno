@@ -5,12 +5,11 @@ import (
 	"os"
 
 	"github.com/gnolang/gno/gnovm/cmd/gno/internal/pkgdownload"
-	"github.com/gnolang/gno/gnovm/cmd/gno/internal/pkgdownload/gnopkgfetcher"
 	"github.com/gnolang/gno/tm2/pkg/commands"
 )
 
 func main() {
-	cmd := newGnocliCmd(commands.NewDefaultIO(), gnopkgfetcher.New())
+	cmd := newGnocliCmd(commands.NewDefaultIO(), nil)
 
 	cmd.Execute(context.Background(), os.Args[1:])
 }

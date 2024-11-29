@@ -10,17 +10,21 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/errors"
 )
 
-type gnoPackageFetcher struct{}
+type gnoPackageFetcher struct {
+	remoteOverrides map[string]string
+}
 
 var _ pkgdownload.PackageFetcher = (*gnoPackageFetcher)(nil)
 
-func New() pkgdownload.PackageFetcher {
-	return &gnoPackageFetcher{}
+func New(remoteOverrides map[string]string) pkgdownload.PackageFetcher {
+	return &gnoPackageFetcher{
+		remoteOverrides: remoteOverrides,
+	}
 }
 
 // FetchPackage implements [pkgdownload.PackageFetcher].
 func (gpf *gnoPackageFetcher) FetchPackage(pkgPath string) ([]pkgdownload.PackageFile, error) {
-	client, err := clientFromPkgPath(pkgPath)
+	client, err := clientFromPkgPath(pkgPath, gpf.remoteOverrides)
 	if err != nil {
 		return nil, fmt.Errorf("get client for pkg path %q: %w", pkgPath, err)
 	}
@@ -45,15 +49,20 @@ func (gpf *gnoPackageFetcher) FetchPackage(pkgPath string) ([]pkgdownload.Packag
 	return res, nil
 }
 
-func clientFromPkgPath(pkgPath string) (*client.RPCClient, error) {
+func clientFromPkgPath(pkgPath string, remoteOverrides map[string]string) (*client.RPCClient, error) {
 	parts := strings.Split(pkgPath, "/")
 	if len(parts) < 1 {
 		return nil, fmt.Errorf("bad pkg path %q", pkgPath)
 	}
 	domain := parts[0]
 
-	// XXX: retrieve host/port from r/sys/zones.
-	rpcURL := fmt.Sprintf("https://rpc.%s:443", domain)
+	var rpcURL string
+	if override, ok := remoteOverrides[domain]; ok {
+		rpcURL = override
+	} else {
+		// XXX: retrieve host/port from r/sys/zones.
+		rpcURL = fmt.Sprintf("https://rpc.%s:443", domain)
+	}
 
 	c, err := client.NewHTTPClient(rpcURL)
 	if err != nil {

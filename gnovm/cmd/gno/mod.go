@@ -7,8 +7,10 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"unicode"
 
 	"github.com/gnolang/gno/gnovm/cmd/gno/internal/pkgdownload"
+	"github.com/gnolang/gno/gnovm/cmd/gno/internal/pkgdownload/gnopkgfetcher"
 	"github.com/gnolang/gno/gnovm/pkg/gnoimports"
 	"github.com/gnolang/gno/gnovm/pkg/gnomod"
 	"github.com/gnolang/gno/tm2/pkg/commands"
@@ -122,29 +124,33 @@ For example:
 }
 
 type modDownloadCfg struct {
-	remote  string
-	verbose bool
+	remoteOverrides string
 }
+
+const remoteOverridesArgName = "remote-overrides"
 
 func (c *modDownloadCfg) RegisterFlags(fs *flag.FlagSet) {
 	fs.StringVar(
-		&c.remote,
-		"remote",
-		"gno.land:26657",
-		"remote for fetching gno modules",
-	)
-
-	fs.BoolVar(
-		&c.verbose,
-		"v",
-		false,
-		"verbose output when running",
+		&c.remoteOverrides,
+		remoteOverridesArgName,
+		"",
+		"chain-domain=rpc-url comma-separated list",
 	)
 }
 
 func execModDownload(cfg *modDownloadCfg, args []string, io commands.IO, packageFetcher pkgdownload.PackageFetcher) error {
 	if len(args) > 0 {
 		return flag.ErrHelp
+	}
+
+	if packageFetcher == nil {
+		remoteOverrides, err := parseRemoteOverrides(cfg.remoteOverrides)
+		if err != nil {
+			return fmt.Errorf("invalid %s flag: %w", remoteOverridesArgName, err)
+		}
+		packageFetcher = gnopkgfetcher.New(remoteOverrides)
+	} else if len(cfg.remoteOverrides) != 0 {
+		return fmt.Errorf("can't use %s flag with a custom package fetcher", remoteOverridesArgName)
 	}
 
 	path, err := os.Getwd()
@@ -180,6 +186,21 @@ func execModDownload(cfg *modDownloadCfg, args []string, io commands.IO, package
 	}
 
 	return nil
+}
+
+func parseRemoteOverrides(arg string) (map[string]string, error) {
+	pairs := strings.Split(arg, ",")
+	res := make(map[string]string, len(pairs))
+	for _, pair := range pairs {
+		parts := strings.Split(pair, "=")
+		if len(parts) != 2 {
+			return nil, fmt.Errorf("expected 2 parts in chain-domain=rpc-url pair %q", arg)
+		}
+		domain := strings.TrimFunc(parts[0], unicode.IsSpace)
+		rpcURL := strings.TrimFunc(parts[1], unicode.IsSpace)
+		res[domain] = rpcURL
+	}
+	return res, nil
 }
 
 func execModInit(args []string) error {
