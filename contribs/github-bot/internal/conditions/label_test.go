@@ -29,9 +29,9 @@ func TestLabel(t *testing.T) {
 		{"empty label list", "label", []*github.Label{}, false},
 		{"label list contains exact match", "label", labels, true},
 		{"label list contains prefix match", "^lab", labels, true},
-		{"label list contains prefix doesn't match", "lab$", labels, false},
+		{"label list contains prefix doesn't match", "^bel", labels, false},
 		{"label list contains suffix match", "bel$", labels, true},
-		{"label list contains suffix doesn't match", "^bel", labels, false},
+		{"label list contains suffix doesn't match", "lab$", labels, false},
 		{"label list doesn't contains match", "baleb", labels, false},
 	} {
 		t.Run(testCase.name, func(t *testing.T) {
