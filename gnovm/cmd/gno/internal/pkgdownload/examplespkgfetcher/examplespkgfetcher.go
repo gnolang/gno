@@ -1,3 +1,5 @@
+// Package gnopkgfetcher provides an implementation of [pkgdownload.PackageFetcher]
+// to fetches packages from the examples folder at GNOROOT
 package examplespkgfetcher
 
 import (
@@ -17,7 +19,7 @@ func New() pkgdownload.PackageFetcher {
 	return &ExamplesPackageFetcher{}
 }
 
-// FetchPackage implements [pkgdownloadiface.PackageFetcher].
+// FetchPackage implements [pkgdownload.PackageFetcher].
 func (e *ExamplesPackageFetcher) FetchPackage(pkgPath string) ([]pkgdownload.PackageFile, error) {
 	pkgDir := filepath.Join(gnoenv.RootDir(), "examples", filepath.FromSlash(pkgPath))
 

@@ -1,7 +1,6 @@
 package gnopkgfetcher
 
 import (
-	"fmt"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -36,7 +35,7 @@ func TestRpcURLFromPkgPath(t *testing.T) {
 			name:          "error bad pkg path",
 			pkgPath:       "std",
 			result:        "",
-			errorContains: fmt.Sprintf("bad pkg path %q", "std"),
+			errorContains: `bad pkg path "std"`,
 		},
 	}
 
@@ -45,7 +44,7 @@ func TestRpcURLFromPkgPath(t *testing.T) {
 			res, err := rpcURLFromPkgPath(c.pkgPath, c.overrides)
 			if len(c.errorContains) == 0 {
 				require.NoError(t, err)
-			} else if err != nil {
+			} else {
 				require.ErrorContains(t, err, c.errorContains)
 			}
 			require.Equal(t, c.result, res)

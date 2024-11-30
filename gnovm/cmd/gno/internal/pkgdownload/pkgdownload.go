@@ -1,3 +1,4 @@
+// Package pkgdownload provides interfaces and utility functions to download gno packages files.
 package pkgdownload
 
 import (
@@ -6,6 +7,8 @@ import (
 	"path/filepath"
 )
 
+// Download downloads the package identified by `pkgPath` in the directory at `dst` using the provided [PackageFetcher].
+// The directory at `dst` is created if it does not exists.
 func Download(pkgPath string, dst string, fetcher PackageFetcher) error {
 	files, err := fetcher.FetchPackage(pkgPath)
 	if err != nil {

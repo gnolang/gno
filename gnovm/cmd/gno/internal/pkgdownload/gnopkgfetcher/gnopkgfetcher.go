@@ -1,3 +1,5 @@
+// Package gnopkgfetcher provides an implementation of [pkgdownload.PackageFetcher]
+// to fetches packages from tm2 rpc endpoints
 package gnopkgfetcher
 
 import (
