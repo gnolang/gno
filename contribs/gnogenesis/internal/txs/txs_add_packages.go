@@ -76,7 +76,6 @@ func execTxsAddPackages(
 	}
 	var creator crypto.Address
 	if cfg.keyName != "" {
-
 		kb, err := keys.NewKeyBaseFromDir(gnoenv.HomeDir())
 		if err != nil {
 			return err
