@@ -78,7 +78,7 @@ func main() {
 // </div><!-- /column-->
 // <div class="column">
 //
-// ### [Hall of Fame](/r/demo/hof)
+// ### [Hall of Fame](/r/leon/hof)
 //
 //
 // </div><!-- /column-->
