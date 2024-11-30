@@ -36,7 +36,7 @@
 //		prng = isaac.New() // pass 0 to 256 uint32 seeds; if fewer than 256 are provided, the rest
 //	                    // will be generated using the xorshiftr128plus PRNG.
 //
-// Or use it as a drop-in replacement for the default PRNT in Rand:
+// Or use it as a drop-in replacement for the default PRNG in Rand:
 //
 //	source = isaac.New()
 //	prng := rand.New(source)
