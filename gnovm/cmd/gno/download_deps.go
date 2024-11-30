@@ -36,8 +36,8 @@ func downwloadDeps(io commands.IO, pkgDir string, gnoMod *gnomod.File, fetcher p
 
 		depDir := gnomod.PackageDir("", module.Version{Path: resolvedPkgPath})
 
-		if err := fetchPackage(io, resolvedPkgPath, depDir, fetcher); err != nil {
-			return fmt.Errorf("fetch import %q of %q: %w", resolvedPkgPath, pkgDir, err)
+		if err := downloadPackage(io, resolvedPkgPath, depDir, fetcher); err != nil {
+			return fmt.Errorf("download import %q of %q: %w", resolvedPkgPath, pkgDir, err)
 		}
 
 		if err := downwloadDeps(io, depDir, gnoMod, fetcher); err != nil {
@@ -48,8 +48,8 @@ func downwloadDeps(io commands.IO, pkgDir string, gnoMod *gnomod.File, fetcher p
 	return nil
 }
 
-// fetchPackage downloads a remote gno package by pkg path and store it at dst
-func fetchPackage(io commands.IO, pkgPath string, dst string, fetcher pkgdownload.PackageFetcher) error {
+// downloadPackage downloads a remote gno package by pkg path and store it at dst
+func downloadPackage(io commands.IO, pkgPath string, dst string, fetcher pkgdownload.PackageFetcher) error {
 	modFilePath := filepath.Join(dst, "gno.mod")
 
 	if _, err := os.Stat(modFilePath); err == nil {
@@ -67,7 +67,7 @@ func fetchPackage(io commands.IO, pkgPath string, dst string, fetcher pkgdownloa
 
 	// We need to write a marker file for each downloaded package.
 	// For example: if you first download gno.land/r/foo/bar then download gno.land/r/foo,
-	// we need to know that gno.land/r/foo is not downloaded.
+	// we need to know that gno.land/r/foo is not downloaded yet.
 	// We do this by checking for the presence of gno.land/r/foo/gno.mod
 	if err := os.WriteFile(modFilePath, []byte("module "+pkgPath+"\n"), 0o644); err != nil {
 		return fmt.Errorf("write modfile at %q: %w", modFilePath, err)
