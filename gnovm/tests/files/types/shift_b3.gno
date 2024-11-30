@@ -24,7 +24,7 @@ func main() {
 	// passing params of interface type
 	bar(r)
 
-	fmt.Printf("%T \n", r) // TODO: should output main.U64 rather than the underlying type
+	fmt.Printf("%T\n", r) // TODO: should output main.U64 rather than the underlying type
 }
 
 // Output:

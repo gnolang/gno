@@ -2,6 +2,7 @@ package gnolang
 
 import (
 	"fmt"
+	"math"
 	"math/big"
 
 	"github.com/cockroachdb/apd/v3"
@@ -252,7 +253,10 @@ func (m *Machine) doOpQuo() {
 	}
 
 	// lv / rv
-	quoAssign(lv, rv)
+	err := quoAssign(lv, rv)
+	if err != nil {
+		panic(err)
+	}
 }
 
 func (m *Machine) doOpRem() {
@@ -266,7 +270,10 @@ func (m *Machine) doOpRem() {
 	}
 
 	// lv % rv
-	remAssign(lv, rv)
+	err := remAssign(lv, rv)
+	if err != nil {
+		panic(err)
+	}
 }
 
 func (m *Machine) doOpShl() {
@@ -282,7 +289,7 @@ func (m *Machine) doOpShl() {
 	}
 
 	// lv << rv
-	shlAssign(lv, rv)
+	shlAssign(m, lv, rv)
 }
 
 func (m *Machine) doOpShr() {
@@ -298,7 +305,7 @@ func (m *Machine) doOpShr() {
 	}
 
 	// lv >> rv
-	shrAssign(lv, rv)
+	shrAssign(m, lv, rv)
 }
 
 func (m *Machine) doOpBand() {
@@ -845,45 +852,94 @@ func mulAssign(lv, rv *TypedValue) {
 }
 
 // for doOpQuo and doOpQuoAssign.
-func quoAssign(lv, rv *TypedValue) {
+func quoAssign(lv, rv *TypedValue) *Exception {
+	expt := &Exception{
+		Value: typedString("division by zero"),
+	}
+
 	// set the result in lv.
 	// NOTE this block is replicated in op_assign.go
 	switch baseOf(lv.T) {
 	case IntType:
+		if rv.GetInt() == 0 {
+			return expt
+		}
 		lv.SetInt(lv.GetInt() / rv.GetInt())
 	case Int8Type:
+		if rv.GetInt8() == 0 {
+			return expt
+		}
 		lv.SetInt8(lv.GetInt8() / rv.GetInt8())
 	case Int16Type:
+		if rv.GetInt16() == 0 {
+			return expt
+		}
 		lv.SetInt16(lv.GetInt16() / rv.GetInt16())
 	case Int32Type, UntypedRuneType:
+		if rv.GetInt32() == 0 {
+			return expt
+		}
 		lv.SetInt32(lv.GetInt32() / rv.GetInt32())
 	case Int64Type:
+		if rv.GetInt64() == 0 {
+			return expt
+		}
 		lv.SetInt64(lv.GetInt64() / rv.GetInt64())
 	case UintType:
+		if rv.GetUint() == 0 {
+			return expt
+		}
 		lv.SetUint(lv.GetUint() / rv.GetUint())
 	case Uint8Type:
+		if rv.GetUint8() == 0 {
+			return expt
+		}
 		lv.SetUint8(lv.GetUint8() / rv.GetUint8())
 	case DataByteType:
+		if rv.GetUint8() == 0 {
+			return expt
+		}
 		lv.SetDataByte(lv.GetDataByte() / rv.GetUint8())
 	case Uint16Type:
+		if rv.GetUint16() == 0 {
+			return expt
+		}
 		lv.SetUint16(lv.GetUint16() / rv.GetUint16())
 	case Uint32Type:
+		if rv.GetUint32() == 0 {
+			return expt
+		}
 		lv.SetUint32(lv.GetUint32() / rv.GetUint32())
 	case Uint64Type:
+		if rv.GetUint64() == 0 {
+			return expt
+		}
 		lv.SetUint64(lv.GetUint64() / rv.GetUint64())
 	case Float32Type:
 		// NOTE: gno doesn't fuse *+.
+		if rv.GetFloat32() == 0 {
+			return expt
+		}
 		lv.SetFloat32(lv.GetFloat32() / rv.GetFloat32())
 		// XXX FOR DETERMINISM, PANIC IF NAN.
 	case Float64Type:
 		// NOTE: gno doesn't fuse *+.
+		if rv.GetFloat64() == 0 {
+			return expt
+		}
 		lv.SetFloat64(lv.GetFloat64() / rv.GetFloat64())
 		// XXX FOR DETERMINISM, PANIC IF NAN.
 	case BigintType, UntypedBigintType:
+		if rv.GetBigInt().Sign() == 0 {
+			return expt
+		}
 		lb := lv.GetBigInt()
 		lb = big.NewInt(0).Quo(lb, rv.GetBigInt())
 		lv.V = BigintValue{V: lb}
 	case BigdecType, UntypedBigdecType:
+		if rv.GetBigDec().Cmp(apd.New(0, 0)) == 0 {
+			return expt
+		}
 		lb := lv.GetBigDec()
 		rb := rv.GetBigDec()
 		quo := apd.New(0, 0)
@@ -898,36 +954,79 @@ func quoAssign(lv, rv *TypedValue) {
 			lv.T,
 		))
 	}
+
+	return nil
 }
 
 // for doOpRem and doOpRemAssign.
-func remAssign(lv, rv *TypedValue) {
+func remAssign(lv, rv *TypedValue) *Exception {
+	expt := &Exception{
+		Value: typedString("division by zero"),
+	}
+
 	// set the result in lv.
 	// NOTE this block is replicated in op_assign.go
 	switch baseOf(lv.T) {
 	case IntType:
+		if rv.GetInt() == 0 {
+			return expt
+		}
 		lv.SetInt(lv.GetInt() % rv.GetInt())
 	case Int8Type:
+		if rv.GetInt8() == 0 {
+			return expt
+		}
 		lv.SetInt8(lv.GetInt8() % rv.GetInt8())
 	case Int16Type:
+		if rv.GetInt16() == 0 {
+			return expt
+		}
 		lv.SetInt16(lv.GetInt16() % rv.GetInt16())
 	case Int32Type, UntypedRuneType:
+		if rv.GetInt32() == 0 {
+			return expt
+		}
 		lv.SetInt32(lv.GetInt32() % rv.GetInt32())
 	case Int64Type:
+		if rv.GetInt64() == 0 {
+			return expt
+		}
 		lv.SetInt64(lv.GetInt64() % rv.GetInt64())
 	case UintType:
+		if rv.GetUint() == 0 {
+			return expt
+		}
 		lv.SetUint(lv.GetUint() % rv.GetUint())
 	case Uint8Type:
+		if rv.GetUint8() == 0 {
+			return expt
+		}
 		lv.SetUint8(lv.GetUint8() % rv.GetUint8())
 	case DataByteType:
+		if rv.GetUint8() == 0 {
+			return expt
+		}
 		lv.SetDataByte(lv.GetDataByte() % rv.GetUint8())
 	case Uint16Type:
+		if rv.GetUint16() == 0 {
+			return expt
+		}
 		lv.SetUint16(lv.GetUint16() % rv.GetUint16())
 	case Uint32Type:
+		if rv.GetUint32() == 0 {
+			return expt
+		}
 		lv.SetUint32(lv.GetUint32() % rv.GetUint32())
 	case Uint64Type:
+		if rv.GetUint64() == 0 {
+			return expt
+		}
 		lv.SetUint64(lv.GetUint64() % rv.GetUint64())
 	case BigintType, UntypedBigintType:
+		if rv.GetBigInt().Sign() == 0 {
+			return expt
+		}
+
 		lb := lv.GetBigInt()
 		lb = big.NewInt(0).Rem(lb, rv.GetBigInt())
 		lv.V = BigintValue{V: lb}
@@ -937,6 +1036,8 @@ func remAssign(lv, rv *TypedValue) {
 			lv.T,
 		))
 	}
+
+	return nil
 }
 
 // for doOpBand and doOpBandAssign.
@@ -1096,32 +1197,116 @@ func xorAssign(lv, rv *TypedValue) {
 }
 
 // for doOpShl and doOpShlAssign.
-func shlAssign(lv, rv *TypedValue) {
+func shlAssign(m *Machine, lv, rv *TypedValue) {
 	rv.AssertNonNegative("runtime error: negative shift amount")
+
+	checkOverflow := func(v func() bool) {
+		if m.PreprocessorMode && !v() {
+			panic(`constant overflows`)
+		}
+	}
+
 	// set the result in lv.
 	// NOTE: baseOf(rv.T) is always UintType.
 	switch baseOf(lv.T) {
 	case IntType:
+		checkOverflow(func() bool {
+			l := big.NewInt(int64(lv.GetInt()))
+			r := big.NewInt(0).Lsh(l, rv.GetUint())
+
+			return r.Cmp(big.NewInt(math.MaxInt)) != 1
+		})
+
 		lv.SetInt(lv.GetInt() << rv.GetUint())
 	case Int8Type:
+		checkOverflow(func() bool {
+			l := big.NewInt(int64(lv.GetInt8()))
+			r := big.NewInt(0).Lsh(l, rv.GetUint())
+
+			return r.Cmp(big.NewInt(math.MaxInt8)) != 1
+		})
+
 		lv.SetInt8(lv.GetInt8() << rv.GetUint())
 	case Int16Type:
+		checkOverflow(func() bool {
+			l := big.NewInt(int64(lv.GetInt16()))
+			r := big.NewInt(0).Lsh(l, rv.GetUint())
+
+			return r.Cmp(big.NewInt(math.MaxInt16)) != 1
+		})
+
 		lv.SetInt16(lv.GetInt16() << rv.GetUint())
 	case Int32Type, UntypedRuneType:
+		checkOverflow(func() bool {
+			l := big.NewInt(int64(lv.GetInt32()))
+			r := big.NewInt(0).Lsh(l, rv.GetUint())
+
+			return r.Cmp(big.NewInt(math.MaxInt32)) != 1
+		})
+
 		lv.SetInt32(lv.GetInt32() << rv.GetUint())
 	case Int64Type:
+		checkOverflow(func() bool {
+			l := big.NewInt(lv.GetInt64())
+			r := big.NewInt(0).Lsh(l, rv.GetUint())
+
+			return r.Cmp(big.NewInt(math.MaxInt64)) != 1
+		})
+
 		lv.SetInt64(lv.GetInt64() << rv.GetUint())
 	case UintType:
+		checkOverflow(func() bool {
+			l := big.NewInt(0).SetUint64(uint64(lv.GetUint()))
+			r := big.NewInt(0).Lsh(l, rv.GetUint())
+
+			return r.Cmp(big.NewInt(0).SetUint64(math.MaxUint)) != 1
+		})
+
 		lv.SetUint(lv.GetUint() << rv.GetUint())
 	case Uint8Type:
+		checkOverflow(func() bool {
+			l := big.NewInt(0).SetUint64(uint64(lv.GetUint8()))
+			r := big.NewInt(0).Lsh(l, rv.GetUint())
+
+			return r.Cmp(big.NewInt(math.MaxUint8)) != 1
+		})
+
 		lv.SetUint8(lv.GetUint8() << rv.GetUint())
 	case DataByteType:
+		checkOverflow(func() bool {
+			l := big.NewInt(0).SetUint64(uint64(lv.GetDataByte()))
+			r := big.NewInt(0).Lsh(l, rv.GetUint())
+
+			return r.Cmp(big.NewInt(math.MaxUint8)) != 1
+		})
+
 		lv.SetDataByte(lv.GetDataByte() << rv.GetUint())
 	case Uint16Type:
+		checkOverflow(func() bool {
+			l := big.NewInt(0).SetUint64(uint64(lv.GetUint16()))
+			r := big.NewInt(0).Lsh(l, rv.GetUint())
+
+			return r.Cmp(big.NewInt(math.MaxUint16)) != 1
+		})
+
 		lv.SetUint16(lv.GetUint16() << rv.GetUint())
 	case Uint32Type:
+		checkOverflow(func() bool {
+			l := big.NewInt(0).SetUint64(uint64(lv.GetUint32()))
+			r := big.NewInt(0).Lsh(l, rv.GetUint())
+
+			return r.Cmp(big.NewInt(math.MaxUint32)) != 1
+		})
+
 		lv.SetUint32(lv.GetUint32() << rv.GetUint())
 	case Uint64Type:
+		checkOverflow(func() bool {
+			l := big.NewInt(0).SetUint64(lv.GetUint64())
+			r := big.NewInt(0).Lsh(l, rv.GetUint())
+
+			return r.Cmp(big.NewInt(0).SetUint64(math.MaxUint64)) != 1
+		})
+
 		lv.SetUint64(lv.GetUint64() << rv.GetUint())
 	case BigintType, UntypedBigintType:
 		lb := lv.GetBigInt()
@@ -1136,32 +1321,116 @@ func shlAssign(lv, rv *TypedValue) {
 }
 
 // for doOpShr and doOpShrAssign.
-func shrAssign(lv, rv *TypedValue) {
+func shrAssign(m *Machine, lv, rv *TypedValue) {
 	rv.AssertNonNegative("runtime error: negative shift amount")
+
+	checkOverflow := func(v func() bool) {
+		if m.PreprocessorMode && !v() {
+			panic(`constant overflows`)
+		}
+	}
+
 	// set the result in lv.
 	// NOTE: baseOf(rv.T) is always UintType.
 	switch baseOf(lv.T) {
 	case IntType:
+		checkOverflow(func() bool {
+			l := big.NewInt(int64(lv.GetInt()))
+			r := big.NewInt(0).Rsh(l, rv.GetUint())
+
+			return r.Cmp(big.NewInt(math.MaxInt)) != 1
+		})
+
 		lv.SetInt(lv.GetInt() >> rv.GetUint())
 	case Int8Type:
+		checkOverflow(func() bool {
+			l := big.NewInt(int64(lv.GetInt8()))
+			r := big.NewInt(0).Rsh(l, rv.GetUint())
+
+			return r.Cmp(big.NewInt(math.MaxInt8)) != 1
+		})
+
 		lv.SetInt8(lv.GetInt8() >> rv.GetUint())
 	case Int16Type:
+		checkOverflow(func() bool {
+			l := big.NewInt(int64(lv.GetInt16()))
+			r := big.NewInt(0).Rsh(l, rv.GetUint())
+
+			return r.Cmp(big.NewInt(math.MaxInt16)) != 1
+		})
+
 		lv.SetInt16(lv.GetInt16() >> rv.GetUint())
 	case Int32Type, UntypedRuneType:
+		checkOverflow(func() bool {
+			l := big.NewInt(int64(lv.GetInt32()))
+			r := big.NewInt(0).Rsh(l, rv.GetUint())
+
+			return r.Cmp(big.NewInt(math.MaxInt32)) != 1
+		})
+
 		lv.SetInt32(lv.GetInt32() >> rv.GetUint())
 	case Int64Type:
+		checkOverflow(func() bool {
+			l := big.NewInt(lv.GetInt64())
+			r := big.NewInt(0).Rsh(l, rv.GetUint())
+
+			return r.Cmp(big.NewInt(math.MaxInt64)) != 1
+		})
+
 		lv.SetInt64(lv.GetInt64() >> rv.GetUint())
 	case UintType:
+		checkOverflow(func() bool {
+			l := big.NewInt(0).SetUint64(uint64(lv.GetUint()))
+			r := big.NewInt(0).Rsh(l, rv.GetUint())
+
+			return r.Cmp(big.NewInt(0).SetUint64(math.MaxUint)) != 1
+		})
+
 		lv.SetUint(lv.GetUint() >> rv.GetUint())
 	case Uint8Type:
+		checkOverflow(func() bool {
+			l := big.NewInt(0).SetUint64(uint64(lv.GetUint8()))
+			r := big.NewInt(0).Rsh(l, rv.GetUint())
+
+			return r.Cmp(big.NewInt(math.MaxUint8)) != 1
+		})
+
 		lv.SetUint8(lv.GetUint8() >> rv.GetUint())
 	case DataByteType:
+		checkOverflow(func() bool {
+			l := big.NewInt(0).SetUint64(uint64(lv.GetDataByte()))
+			r := big.NewInt(0).Rsh(l, rv.GetUint())
+
+			return r.Cmp(big.NewInt(math.MaxUint8)) != 1
+		})
+
 		lv.SetDataByte(lv.GetDataByte() >> rv.GetUint())
 	case Uint16Type:
+		checkOverflow(func() bool {
+			l := big.NewInt(0).SetUint64(uint64(lv.GetUint16()))
+			r := big.NewInt(0).Rsh(l, rv.GetUint())
+
+			return r.Cmp(big.NewInt(math.MaxUint16)) != 1
+		})
+
 		lv.SetUint16(lv.GetUint16() >> rv.GetUint())
 	case Uint32Type:
+		checkOverflow(func() bool {
+			l := big.NewInt(0).SetUint64(uint64(lv.GetUint32()))
+			r := big.NewInt(0).Rsh(l, rv.GetUint())
+
+			return r.Cmp(big.NewInt(math.MaxUint32)) != 1
+		})
+
 		lv.SetUint32(lv.GetUint32() >> rv.GetUint())
 	case Uint64Type:
+		checkOverflow(func() bool {
+			l := big.NewInt(0).SetUint64(lv.GetUint64())
+			r := big.NewInt(0).Rsh(l, rv.GetUint())
+
+			return r.Cmp(big.NewInt(0).SetUint64(math.MaxUint64)) != 1
+		})
+
 		lv.SetUint64(lv.GetUint64() >> rv.GetUint())
 	case BigintType, UntypedBigintType:
 		lb := lv.GetBigInt()

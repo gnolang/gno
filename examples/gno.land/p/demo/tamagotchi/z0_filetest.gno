@@ -44,6 +44,7 @@ func main() {
 }
 
 // Output:
+//
 // -- INITIAL
 //
 // # Gnome 😃
