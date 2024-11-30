@@ -199,60 +199,6 @@ func (n *Node) getLatestBlockNumber() uint64 {
 	return uint64(n.Node.BlockStore().Height())
 }
 
-// UpdatePackages updates the currently known packages. It will be taken into
-// consideration in the next reload of the node.
-// func (n *Node) UpdatePackages(paths ...string) error {
-// 	n.muNode.Lock()
-// 	defer n.muNode.Unlock()
-
-// 	return n.updatePackages(paths...)
-// }
-
-// func (n *Node) updatePackages(paths ...string) error {
-// 	var pkgsUpdated int
-// 	for _, path := range paths {
-// 		abspath, err := filepath.Abs(path)
-// 		if err != nil {
-// 			return fmt.Errorf("unable to resolve abs path of %q: %w", path, err)
-// 		}
-
-// 		// Check if we already know the path (or its parent) and set
-// 		// associated deployer and deposit
-// 		deployer := n.config.DefaultCreator
-// 		var deposit std.Coins
-// 		for _, ppath := range n.config.PackagesPathList {
-// 			if !strings.HasPrefix(abspath, ppath.Path) {
-// 				continue
-// 			}
-
-// 			deployer = ppath.Creator
-// 			deposit = ppath.Deposit
-// 		}
-
-// 		// List all packages from target path
-// 		pkgslist, err := gnomod.ListPkgs(abspath)
-// 		if err != nil {
-// 			return fmt.Errorf("failed to list gno packages for %q: %w", path, err)
-// 		}
-
-// 		// Update or add package in the current known list.
-// 		for _, pkg := range pkgslist {
-// 			n.pkgs[pkg.Dir] = ModPackage{
-// 				Pkg:     pkg,
-// 				Creator: deployer,
-// 				Deposit: deposit,
-// 			}
-
-// 			n.logger.Debug("pkgs update", "name", pkg.Name, "path", pkg.Dir)
-// 		}
-
-// 		pkgsUpdated += len(pkgslist)
-// 	}
-
-// 	n.logger.Info(fmt.Sprintf("updated %d packages", pkgsUpdated))
-// 	return nil
-// }
-
 // Reset stops the node, if running, and reloads it with a new genesis state,
 // effectively ignoring the current state.
 func (n *Node) Reset(ctx context.Context) error {
@@ -574,8 +520,7 @@ func (n *Node) genesisTxResultHandler(ctx sdk.Context, tx std.Tx, res sdk.Result
 	// XXX: for now, this is only way to catch the error
 	before, after, found := strings.Cut(res.Log, "\n")
 	if !found {
-		err := fmt.Sprintf("%#v\n", res.Error)
-		n.logger.Error("unable to send tx", "err", err, "log", res.Log)
+		n.logger.Error("unable to send tx", "log", res.Log)
 		return
 	}
 

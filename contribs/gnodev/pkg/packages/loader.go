@@ -11,6 +11,7 @@ import (
 var ErrNoResolvers = errors.New("no resolvers setup")
 
 type Loader struct {
+	Host     string
 	Paths    []string
 	Resolver Resolver
 }
@@ -24,9 +25,9 @@ func (l Loader) LoadPackages() ([]Package, error) {
 	visited, stack := map[string]bool{}, map[string]bool{}
 	pkgs := make([]Package, 0)
 	for _, root := range l.Paths {
-		deps, err := loadPackage(root, fset, l.Resolver, visited, stack)
+		deps, err := l.loadPackage(root, fset, l.Resolver, visited, stack)
 		if err != nil {
-			return nil, fmt.Errorf("unable to load sorted packages: %w", err)
+			return nil, err
 		}
 		pkgs = append(pkgs, deps...)
 	}
@@ -34,7 +35,7 @@ func (l Loader) LoadPackages() ([]Package, error) {
 	return pkgs, nil
 }
 
-func loadPackage(path string, fset *token.FileSet, resolver Resolver, visited, stack map[string]bool) ([]Package, error) {
+func (l Loader) loadPackage(path string, fset *token.FileSet, resolver Resolver, visited, stack map[string]bool) ([]Package, error) {
 	if stack[path] {
 		return nil, fmt.Errorf("cycle detected: %s", path)
 	}
@@ -44,20 +45,20 @@ func loadPackage(path string, fset *token.FileSet, resolver Resolver, visited, s
 
 	visited[path] = true
 
-	// XXX: do not hardcode this
-	if !strings.HasPrefix(path, "gno.land") {
+	// do not try to load package that hasn't been prefixed
+	if l.Host != "" && !strings.HasPrefix(path, l.Host) {
 		return nil, nil
 	}
 
-	mempkg, err := resolver.Resolve(path)
+	mempkg, err := resolver.Resolve(fset, path)
 	if err != nil {
-		return nil, fmt.Errorf("unable to resolve package %q: %w", path, err)
+		return nil, fmt.Errorf("unable to resolve package: %w", err)
 	}
 
 	var name string
 	imports := map[string]struct{}{}
 	for _, file := range mempkg.Files {
-		f, err := parser.ParseFile(fset, file.Name, file.Body, parser.AllErrors)
+		f, err := parser.ParseFile(fset, file.Name, file.Body, parser.ImportsOnly)
 		if err != nil {
 			return nil, fmt.Errorf("unable to parse file %q: %w", file.Name, err)
 		}
@@ -80,9 +81,9 @@ func loadPackage(path string, fset *token.FileSet, resolver Resolver, visited, s
 
 	pkgs := []Package{}
 	for imp := range imports {
-		subDeps, err := loadPackage(imp, fset, resolver, visited, stack)
+		subDeps, err := l.loadPackage(imp, fset, resolver, visited, stack)
 		if err != nil {
-			return nil, fmt.Errorf("unable to load %q: %w", imp, err)
+			return nil, fmt.Errorf("importing %q: %w", imp, err)
 		}
 
 		pkgs = append(pkgs, subDeps...)

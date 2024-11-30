@@ -7,16 +7,13 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
-	"net/url"
 	"os"
 	"path/filepath"
-	"strings"
 	"time"
 
 	"github.com/gnolang/gno/contribs/gnodev/pkg/address"
 	gnodev "github.com/gnolang/gno/contribs/gnodev/pkg/dev"
 	"github.com/gnolang/gno/contribs/gnodev/pkg/emitter"
-	"github.com/gnolang/gno/contribs/gnodev/pkg/packages"
 	"github.com/gnolang/gno/contribs/gnodev/pkg/rawterm"
 	"github.com/gnolang/gno/contribs/gnodev/pkg/watcher"
 	"github.com/gnolang/gno/gno.land/pkg/integration"
@@ -32,6 +29,7 @@ const (
 	KeyPressLogName    = "KeyPress"
 	EventServerLogName = "Event"
 	AccountsLogName    = "Accounts"
+	ResolverLogName    = "Resolver"
 )
 
 var ErrConflictingFileArgs = errors.New("cannot specify `balances-file` or `txs-file` along with `genesis-file`")
@@ -64,6 +62,9 @@ type devCfg struct {
 	// Web Configuration
 	webListenerAddr     string
 	webRemoteHelperAddr string
+
+	// Resolver
+	resolvers varResolver
 
 	// Node Configuration
 	minimal    bool
@@ -144,6 +145,12 @@ func (c *devCfg) RegisterFlags(fs *flag.FlagSet) {
 		"web-help-remote",
 		defaultDevOptions.webRemoteHelperAddr,
 		"web server help page's remote addr (default to <node-rpc-listener>)",
+	)
+
+	fs.Var(
+		&c.resolvers,
+		"resolver",
+		"list of addtional resolvers, will be exectued in the same order",
 	)
 
 	fs.StringVar(
@@ -262,32 +269,6 @@ func execDev(cfg *devCfg, args []string, io commands.IO) (err error) {
 		}
 	}
 
-	dir, err := os.Getwd()
-	if err != nil {
-		return fmt.Errorf("unable to guess current dir: %w", err)
-	}
-
-	var resolvers []packages.Resolver
-	gnoroot := gnoenv.RootDir()
-	localresolver := packages.GuessLocalResolverGnoMod(dir)
-	if localresolver == nil {
-		localresolver = packages.GuessLocalResolverFromRoots(dir, []string{gnoroot})
-		if localresolver == nil {
-			return fmt.Errorf("unable to guess current package: %w", err)
-		}
-	}
-
-	path := localresolver.Path
-	resolvers = append(resolvers, localresolver)
-
-	exampleRoot := filepath.Join(gnoroot, "examples")
-	fsResolver := packages.NewFSResolver(exampleRoot)
-	resolvers = append(resolvers, fsResolver)
-	loader := &packages.Loader{
-		Paths:    []string{path},
-		Resolver: packages.ChainedResolver(resolvers),
-	}
-
 	if err := cfg.validateConfigFlags(); err != nil {
 		return fmt.Errorf("validate error: %w", err)
 	}
@@ -308,6 +289,17 @@ func execDev(cfg *devCfg, args []string, io commands.IO) (err error) {
 	logger := setuplogger(cfg, rt)
 	loggerEvents := logger.WithGroup(EventServerLogName)
 	emitterServer := emitter.NewServer(loggerEvents)
+
+	dir, err := os.Getwd()
+	if err != nil {
+		return fmt.Errorf("unable to guess current dir: %w", err)
+	}
+
+	loader, err := setupPackagesLoader(logger.WithGroup(ResolverLogName), cfg, dir)
+	if err != nil {
+		return fmt.Errorf("unable to setup resolver: %w", err)
+	}
+	loader.Host = "gno.land"
 
 	// load keybase
 	book, err := setupAddressBook(logger.WithGroup(AccountsLogName), cfg)
@@ -372,26 +364,26 @@ func execDev(cfg *devCfg, args []string, io commands.IO) (err error) {
 	// XXX: TODO:
 	// - create a map of known path that are allowed
 	// - move this
-	u, err := url.Parse("http://" + path)
-	if err != nil {
-		return fmt.Errorf("malformed path %q: %w", path, err)
-	}
-	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if !strings.HasPrefix(r.URL.Path, "/static") && !strings.HasPrefix(r.URL.Path, u.Path) {
-			http.Redirect(w, r, u.Path, http.StatusFound)
-			return
-		}
+	// u, err := url.Parse("http://" + path)
+	// if err != nil {
+	// 	return fmt.Errorf("malformed path %q: %w", path, err)
+	// }
+	// handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	// 	if !strings.HasPrefix(r.URL.Path, "/static") && !strings.HasPrefix(r.URL.Path, u.Path) {
+	// 		http.Redirect(w, r, u.Path, http.StatusFound)
+	// 		return
+	// 	}
 
-		webhandler.ServeHTTP(w, r)
-	})
+	// 	webhandler.ServeHTTP(w, r)
+	// })
 
 	// Setup HotReload if needed
 	if !cfg.noWatch {
 		evtstarget := fmt.Sprintf("%s/_events", server.Addr)
 		mux.Handle("/_events", emitterServer)
-		mux.Handle("/", emitter.NewMiddleware(evtstarget, handler))
+		mux.Handle("/", emitter.NewMiddleware(evtstarget, webhandler))
 	} else {
-		mux.Handle("/", handler)
+		mux.Handle("/", webhandler)
 	}
 
 	go func() {

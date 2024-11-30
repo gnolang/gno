@@ -39,20 +39,17 @@ func ReadPackageFromDir(fset *token.FileSet, path, dir string) (*Package, error)
 			return nil, fmt.Errorf("unable to read file %q: %w", filepath, err)
 		}
 
-		f, err := parser.ParseFile(fset, fname, body, parser.PackageClauseOnly)
+		memfile, pkgname, err := parseFile(fset, fname, body)
 		if err != nil {
 			return nil, fmt.Errorf("unable to parse file %q: %w", fname, err)
 		}
 
-		if name != "" && name != f.Name.Name {
-			return nil, fmt.Errorf("conflict package name between %q and %q", name, f.Name.Name)
+		if name != "" && name != pkgname {
+			return nil, fmt.Errorf("conflict package name between %q and %q", name, memfile.Name)
 		}
 
-		name = f.Name.Name
-		memFiles = append(memFiles, &gnovm.MemFile{
-			Name: fname,
-			Body: string(body),
-		})
+		name = pkgname
+		memFiles = append(memFiles, memfile)
 	}
 
 	return &Package{
@@ -64,4 +61,16 @@ func ReadPackageFromDir(fset *token.FileSet, path, dir string) (*Package, error)
 		Location: dir,
 		Kind:     PackageKindFS,
 	}, nil
+}
+
+func parseFile(fset *token.FileSet, fname string, body []byte) (*gnovm.MemFile, string, error) {
+	f, err := parser.ParseFile(fset, fname, body, parser.PackageClauseOnly)
+	if err != nil {
+		return nil, "", fmt.Errorf("unable to parse file %q: %w", fname, err)
+	}
+
+	return &gnovm.MemFile{
+		Name: fname,
+		Body: string(body),
+	}, f.Name.Name, nil
 }

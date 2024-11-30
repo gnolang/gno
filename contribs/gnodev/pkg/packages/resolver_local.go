@@ -1,7 +1,9 @@
 package packages
 
 import (
+	"fmt"
 	"go/token"
+	"path/filepath"
 	"strings"
 
 	"github.com/gnolang/gno/gnovm/pkg/gnomod"
@@ -10,45 +12,48 @@ import (
 type LocalResolver struct {
 	Path string
 	Dir  string
+}
 
-	fset *token.FileSet
+func (l *LocalResolver) Name() string {
+	return fmt.Sprintf("local<%s>", filepath.Base(l.Dir))
 }
 
 func NewLocalResolver(path, dir string) *LocalResolver {
 	return &LocalResolver{
-		fset: token.NewFileSet(),
 		Path: path,
 		Dir:  dir,
 	}
 }
 
-func GuessLocalResolverFromRoots(dir string, roots []string) *LocalResolver {
+func GuessLocalResolverFromRoots(dir string, roots []string) (res Resolver, path string) {
 	for _, root := range roots {
 		if !strings.HasPrefix(dir, root) {
 			continue
 		}
 
-		path := strings.TrimPrefix(dir, root)
-		return NewLocalResolver(path, dir)
+		path = strings.TrimPrefix(dir, root)
+		return NewLocalResolver(path, dir), path
 	}
 
-	return nil
+	return nil, ""
 }
 
-func GuessLocalResolverGnoMod(dir string) *LocalResolver {
+func GuessLocalResolverGnoMod(dir string) (res Resolver, path string) {
 	modfile, err := gnomod.ParseAt(dir)
 	if err != nil {
-		return nil
+		return nil, ""
 	}
 
-	path := modfile.Module.Mod.Path
-	return NewLocalResolver(path, dir)
+	path = modfile.Module.Mod.Path
+	return NewLocalResolver(path, dir), path
 }
 
-func (lr LocalResolver) Resolve(path string) (*Package, error) {
-	if path != lr.Path && path != lr.Dir {
+func (lr LocalResolver) Resolve(fset *token.FileSet, path string) (*Package, error) {
+	after, found := strings.CutPrefix(path, lr.Path)
+	if !found {
 		return nil, ErrResolverPackageNotFound
 	}
 
-	return ReadPackageFromDir(lr.fset, lr.Path, lr.Dir)
+	dir := filepath.Join(lr.Dir, after)
+	return ReadPackageFromDir(fset, path, dir)
 }
