@@ -5,7 +5,7 @@
 // unbiased, and unpredictable number generation. It can not be distinguished from real random
 // data, and in three decades of scrutiny, no practical attacks have been found.
 //
-// The default random number algorithm in gno was ported from Go's v2 rand implementatoon, which
+// The default random number algorithm in gno was ported from Go's v2 rand implementation, which
 // defaults to the PCG algorithm. This algorithm is commonly used in language PRNG implementations
 // because it has modest seeding requirements, and generates statistically strong randomness.
 //
