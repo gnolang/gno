@@ -30,9 +30,10 @@ var embeddedMemPackages = sync.OnceValue(func() map[string]*gnovm.MemPackage {
 	initOrder := stdlibs.InitOrder()
 	memPkgs := make(map[string]*gnovm.MemPackage, len(initOrder))
 
+	filesystems := []fs.FS{embeddedSources, stdlibs.EmbeddedSources()}
+	filesystemsNames := []string{"test", "normal"}
+
 	for _, pkgPath := range initOrder {
-		filesystems := []fs.FS{embeddedSources, stdlibs.EmbeddedSources()}
-		filesystemsNames := []string{"test", "normal"}
 		files := make([]string, 0, 32) // pre-alloc 32 as a likely high number of files
 		for i, fsys := range filesystems {
 			entries, err := fs.ReadDir(fsys, pkgPath)
