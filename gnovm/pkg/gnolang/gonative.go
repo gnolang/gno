@@ -2,10 +2,7 @@ package gnolang
 
 import (
 	"fmt"
-	"math"
 	"reflect"
-
-	"github.com/gnolang/gno/gnovm/pkg/gnolang/softfloat"
 )
 
 // NOTE
@@ -332,9 +329,9 @@ func go2GnoValue(alloc *Allocator, rv reflect.Value) (tv TypedValue) {
 	case reflect.Uint64:
 		tv.SetUint64(rv.Uint())
 	case reflect.Float32:
-		tv.SetFloat32(softfloat.Float32(math.Float32bits(float32(rv.Float()))))
+		tv.SetFloat32(ConvertToSoftFloat32(rv.Float()))
 	case reflect.Float64:
-		tv.SetFloat64(softfloat.Float64(math.Float64bits(rv.Float())))
+		tv.SetFloat64(ConvertToSoftFloat64(rv.Float()))
 	case reflect.Array:
 		tv.V = alloc.NewNative(rv)
 	case reflect.Slice:
@@ -431,11 +428,11 @@ func go2GnoValueUpdate(alloc *Allocator, rlm *Realm, lvl int, tv *TypedValue, rv
 		}
 	case Float32Kind:
 		if lvl != 0 {
-			tv.SetFloat32(softfloat.Float32(math.Float32bits(float32(rv.Float()))))
+			tv.SetFloat32(ConvertToSoftFloat32(rv.Float()))
 		}
 	case Float64Kind:
 		if lvl != 0 {
-			tv.SetFloat64(softfloat.Float64(math.Float64bits(rv.Float())))
+			tv.SetFloat64(ConvertToSoftFloat64(rv.Float()))
 		}
 	case BigintKind:
 		panic("not yet implemented")
@@ -647,9 +644,9 @@ func go2GnoValue2(alloc *Allocator, store Store, rv reflect.Value, recursive boo
 	case reflect.Uint64:
 		tv.SetUint64(rv.Uint())
 	case reflect.Float32:
-		tv.SetFloat32(softfloat.Float32(math.Float32bits(float32(rv.Float()))))
+		tv.SetFloat32(ConvertToSoftFloat32(rv.Float()))
 	case reflect.Float64:
-		tv.SetFloat64(softfloat.Float64(math.Float64bits(rv.Float())))
+		tv.SetFloat64(ConvertToSoftFloat64(rv.Float()))
 	case reflect.Array:
 		rvl := rv.Len()
 		if rv.Type().Elem().Kind() == reflect.Uint8 {
@@ -1052,9 +1049,9 @@ func gno2GoValue(tv *TypedValue, rv reflect.Value) (ret reflect.Value) {
 		case Uint64Type:
 			rv.SetUint(tv.GetUint64())
 		case Float32Type:
-			rv.SetFloat(math.Float64frombits(uint64(softfloat.F32to64(tv.GetFloat32()))))
+			rv.SetFloat(tv.GetFloat32().Float64())
 		case Float64Type:
-			rv.SetFloat(math.Float64frombits(uint64(tv.GetFloat64())))
+			rv.SetFloat(tv.GetFloat64().Float64())
 		default:
 			panic(fmt.Sprintf(
 				"unexpected type %s",

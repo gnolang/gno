@@ -26,7 +26,7 @@ cat > runtime_softfloat64_test.go << EOF
 EOF
 cat "$GOROOT/src/runtime/softfloat64_test.go" >> ./runtime_softfloat64_test.go
 sed -i 's/^package runtime_test$/package softfloat_test/
-s#^\t\. "runtime"$#\t. "github.com/gnolang/gno/gnovm/pkg/gnolang/softfloat"#
+s#^\t\. "runtime"$#\t. "github.com/gnolang/gno/gnovm/pkg/gnolang/internal/softfloat"#
 s/GOARCH/runtime.GOARCH/g
 16a\
     "runtime"' runtime_softfloat64_test.go

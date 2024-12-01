@@ -6,7 +6,6 @@ import (
 	"math/big"
 
 	"github.com/cockroachdb/apd/v3"
-	"github.com/gnolang/gno/gnovm/pkg/gnolang/softfloat"
 )
 
 // ----------------------------------------
@@ -392,11 +391,9 @@ func isEql(store Store, lv, rv *TypedValue) bool {
 	case Uint64Kind:
 		return (lv.GetUint64() == rv.GetUint64())
 	case Float32Kind:
-		cmp, nan := softfloat.Fcmp64(softfloat.F32to64(lv.GetFloat32()), softfloat.F32to64(rv.GetFloat32()))
-		return cmp == 0 && !nan
+		return lv.GetFloat32().Eq(rv.GetFloat32())
 	case Float64Kind:
-		cmp, nan := softfloat.Fcmp64(lv.GetFloat64(), rv.GetFloat64())
-		return cmp == 0 && !nan
+		return lv.GetFloat64().Eq(rv.GetFloat64())
 	case BigintKind:
 		lb := lv.V.(BigintValue).V
 		rb := rv.V.(BigintValue).V
@@ -535,11 +532,9 @@ func isLss(lv, rv *TypedValue) bool {
 	case Uint64Kind:
 		return (lv.GetUint64() < rv.GetUint64())
 	case Float32Kind:
-		cmp, nan := softfloat.Fcmp64(softfloat.F32to64(lv.GetFloat32()), softfloat.F32to64(rv.GetFloat32()))
-		return (cmp < 0) && !nan
+		return lv.GetFloat32().Lt(rv.GetFloat32())
 	case Float64Kind:
-		cmp, nan := softfloat.Fcmp64(lv.GetFloat64(), rv.GetFloat64())
-		return (cmp < 0) && !nan
+		return lv.GetFloat64().Lt(rv.GetFloat64())
 	case BigintKind:
 		lb := lv.V.(BigintValue).V
 		rb := rv.V.(BigintValue).V
@@ -581,11 +576,9 @@ func isLeq(lv, rv *TypedValue) bool {
 	case Uint64Kind:
 		return (lv.GetUint64() <= rv.GetUint64())
 	case Float32Kind:
-		cmp, nan := softfloat.Fcmp64(softfloat.F32to64(lv.GetFloat32()), softfloat.F32to64(rv.GetFloat32()))
-		return (cmp <= 0) && !nan
+		return lv.GetFloat32().Le(rv.GetFloat32())
 	case Float64Kind:
-		cmp, nan := softfloat.Fcmp64(lv.GetFloat64(), rv.GetFloat64())
-		return (cmp <= 0) && !nan
+		return lv.GetFloat64().Le(rv.GetFloat64())
 	case BigintKind:
 		lb := lv.V.(BigintValue).V
 		rb := rv.V.(BigintValue).V
@@ -627,11 +620,9 @@ func isGtr(lv, rv *TypedValue) bool {
 	case Uint64Kind:
 		return (lv.GetUint64() > rv.GetUint64())
 	case Float32Kind:
-		cmp, nan := softfloat.Fcmp64(softfloat.F32to64(lv.GetFloat32()), softfloat.F32to64(rv.GetFloat32()))
-		return (cmp > 0) && !nan
+		return lv.GetFloat32().Gt(rv.GetFloat32())
 	case Float64Kind:
-		cmp, nan := softfloat.Fcmp64(lv.GetFloat64(), rv.GetFloat64())
-		return (cmp > 0) && !nan
+		return lv.GetFloat64().Gt(rv.GetFloat64())
 	case BigintKind:
 		lb := lv.V.(BigintValue).V
 		rb := rv.V.(BigintValue).V
@@ -673,11 +664,9 @@ func isGeq(lv, rv *TypedValue) bool {
 	case Uint64Kind:
 		return (lv.GetUint64() >= rv.GetUint64())
 	case Float32Kind:
-		cmp, nan := softfloat.Fcmp64(softfloat.F32to64(lv.GetFloat32()), softfloat.F32to64(rv.GetFloat32()))
-		return (cmp >= 0) && !nan
+		return lv.GetFloat32().Ge(rv.GetFloat32())
 	case Float64Kind:
-		cmp, nan := softfloat.Fcmp64(lv.GetFloat64(), rv.GetFloat64())
-		return (cmp >= 0) && !nan
+		return lv.GetFloat64().Ge(rv.GetFloat64())
 	case BigintKind:
 		lb := lv.V.(BigintValue).V
 		rb := rv.V.(BigintValue).V
@@ -725,10 +714,10 @@ func addAssign(alloc *Allocator, lv, rv *TypedValue) {
 		lv.SetUint64(lv.GetUint64() + rv.GetUint64())
 	case Float32Type:
 		// NOTE: gno doesn't fuse *+.
-		lv.SetFloat32(softfloat.Fadd32(lv.GetFloat32(), rv.GetFloat32()))
+		lv.SetFloat32(lv.GetFloat32().Add(rv.GetFloat32()))
 	case Float64Type:
 		// NOTE: gno doesn't fuse *+.
-		lv.SetFloat64(softfloat.Fadd64(lv.GetFloat64(), rv.GetFloat64()))
+		lv.SetFloat64(lv.GetFloat64().Add(rv.GetFloat64()))
 	case BigintType, UntypedBigintType:
 		lb := lv.GetBigInt()
 		lb = big.NewInt(0).Add(lb, rv.GetBigInt())
@@ -781,10 +770,10 @@ func subAssign(lv, rv *TypedValue) {
 		lv.SetUint64(lv.GetUint64() - rv.GetUint64())
 	case Float32Type:
 		// NOTE: gno doesn't fuse *+.
-		lv.SetFloat32(softfloat.Fsub32(lv.GetFloat32(), rv.GetFloat32()))
+		lv.SetFloat32(lv.GetFloat32().Sub(rv.GetFloat32()))
 	case Float64Type:
 		// NOTE: gno doesn't fuse *+.
-		lv.SetFloat64(softfloat.Fsub64(lv.GetFloat64(), rv.GetFloat64()))
+		lv.SetFloat64(lv.GetFloat64().Sub(rv.GetFloat64()))
 	case BigintType, UntypedBigintType:
 		lb := lv.GetBigInt()
 		lb = big.NewInt(0).Sub(lb, rv.GetBigInt())
@@ -837,10 +826,10 @@ func mulAssign(lv, rv *TypedValue) {
 		lv.SetUint64(lv.GetUint64() * rv.GetUint64())
 	case Float32Type:
 		// NOTE: gno doesn't fuse *+.
-		lv.SetFloat32(softfloat.Fmul32(lv.GetFloat32(), rv.GetFloat32()))
+		lv.SetFloat32(lv.GetFloat32().Mul(rv.GetFloat32()))
 	case Float64Type:
 		// NOTE: gno doesn't fuse *+.
-		lv.SetFloat64(softfloat.Fmul64(lv.GetFloat64(), rv.GetFloat64()))
+		lv.SetFloat64(lv.GetFloat64().Mul(rv.GetFloat64()))
 	case BigintType, UntypedBigintType:
 		lb := lv.GetBigInt()
 		lb = big.NewInt(0).Mul(lb, rv.GetBigInt())
@@ -928,16 +917,16 @@ func quoAssign(lv, rv *TypedValue) *Exception {
 		lv.SetUint64(lv.GetUint64() / rv.GetUint64())
 	case Float32Type:
 		// NOTE: gno doesn't fuse *+.
-		if cmp, nan := softfloat.Fcmp64(softfloat.F32to64(rv.GetFloat32()), softfloat.Fint32to64(0)); cmp == 0 && !nan {
+		if rv.GetFloat32().Eq(0) {
 			return expt
 		}
-		lv.SetFloat32(softfloat.Fdiv32(lv.GetFloat32(), rv.GetFloat32()))
+		lv.SetFloat32(lv.GetFloat32().Div(rv.GetFloat32()))
 	case Float64Type:
 		// NOTE: gno doesn't fuse *+.
-		if cmp, nan := softfloat.Fcmp64(rv.GetFloat64(), 0); cmp == 0 && !nan {
+		if rv.GetFloat64().Eq(0) {
 			return expt
 		}
-		lv.SetFloat64(softfloat.Fdiv64(lv.GetFloat64(), rv.GetFloat64()))
+		lv.SetFloat64(lv.GetFloat64().Div(rv.GetFloat64()))
 	case BigintType, UntypedBigintType:
 		if rv.GetBigInt().Sign() == 0 {
 			return expt

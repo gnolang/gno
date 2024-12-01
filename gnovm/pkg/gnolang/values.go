@@ -11,7 +11,6 @@ import (
 
 	"github.com/cockroachdb/apd/v3"
 
-	"github.com/gnolang/gno/gnovm/pkg/gnolang/softfloat"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
 )
 
@@ -1450,7 +1449,7 @@ func (tv *TypedValue) GetUint64() uint64 {
 	return *(*uint64)(unsafe.Pointer(&tv.N))
 }
 
-func (tv *TypedValue) SetFloat32(n softfloat.Float32) {
+func (tv *TypedValue) SetFloat32(n SoftFloat32) {
 	if debug {
 		if tv.T.Kind() != Float32Kind || isNative(tv.T) {
 			panic(fmt.Sprintf(
@@ -1458,10 +1457,10 @@ func (tv *TypedValue) SetFloat32(n softfloat.Float32) {
 				tv.T.String()))
 		}
 	}
-	*(*softfloat.Float32)(unsafe.Pointer(&tv.N)) = n
+	*(*SoftFloat32)(unsafe.Pointer(&tv.N)) = n
 }
 
-func (tv *TypedValue) GetFloat32() softfloat.Float32 {
+func (tv *TypedValue) GetFloat32() SoftFloat32 {
 	if debug {
 		if tv.T != nil && tv.T.Kind() != Float32Kind {
 			panic(fmt.Sprintf(
@@ -1469,10 +1468,10 @@ func (tv *TypedValue) GetFloat32() softfloat.Float32 {
 				tv.T.String()))
 		}
 	}
-	return *(*softfloat.Float32)(unsafe.Pointer(&tv.N))
+	return *(*SoftFloat32)(unsafe.Pointer(&tv.N))
 }
 
-func (tv *TypedValue) SetFloat64(n softfloat.Float64) {
+func (tv *TypedValue) SetFloat64(n SoftFloat64) {
 	if debug {
 		if tv.T.Kind() != Float64Kind || isNative(tv.T) {
 			panic(fmt.Sprintf(
@@ -1480,10 +1479,10 @@ func (tv *TypedValue) SetFloat64(n softfloat.Float64) {
 				tv.T.String()))
 		}
 	}
-	*(*softfloat.Float64)(unsafe.Pointer(&tv.N)) = n
+	*(*SoftFloat64)(unsafe.Pointer(&tv.N)) = n
 }
 
-func (tv *TypedValue) GetFloat64() softfloat.Float64 {
+func (tv *TypedValue) GetFloat64() SoftFloat64 {
 	if debug {
 		if tv.T != nil && tv.T.Kind() != Float64Kind {
 			panic(fmt.Sprintf(
@@ -1491,7 +1490,7 @@ func (tv *TypedValue) GetFloat64() softfloat.Float64 {
 				tv.T.String()))
 		}
 	}
-	return *(*softfloat.Float64)(unsafe.Pointer(&tv.N))
+	return *(*SoftFloat64)(unsafe.Pointer(&tv.N))
 }
 
 func (tv *TypedValue) GetBigInt() *big.Int {

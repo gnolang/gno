@@ -6,7 +6,6 @@ import (
 	"testing"
 
 	"github.com/cockroachdb/apd/v3"
-	"github.com/gnolang/gno/gnovm/pkg/gnolang/softfloat"
 	"github.com/stretchr/testify/require"
 )
 
@@ -25,7 +24,7 @@ func TestConvertUntypedBigdecToFloat(t *testing.T) {
 
 	ConvertUntypedBigdecTo(dst, bd, typ)
 
-	require.Equal(t, softfloat.Fintto64(0), dst.GetFloat64())
+	require.Equal(t, ConvertToSoftFloat64(0), dst.GetFloat64())
 }
 
 func TestBitShiftingOverflow(t *testing.T) {
