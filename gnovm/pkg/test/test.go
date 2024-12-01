@@ -19,7 +19,6 @@ import (
 	"github.com/gnolang/gno/gnovm"
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
 	"github.com/gnolang/gno/gnovm/stdlibs"
-	teststdlibs "github.com/gnolang/gno/gnovm/tests/stdlibs"
 	teststd "github.com/gnolang/gno/gnovm/tests/stdlibs/std"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
 	"github.com/gnolang/gno/tm2/pkg/sdk"
@@ -312,7 +311,7 @@ func (opts *TestOptions) runTestFiles(
 		m.Alloc = alloc
 		m.SetActivePackage(pv)
 
-		testingpv := m.Store.GetPackage(teststdlibs.TestingLib, false)
+		testingpv := m.Store.GetPackage(stdlibs.TestingLib, false)
 		testingtv := gno.TypedValue{T: &gno.PackageType{}, V: testingpv}
 		testingcx := &gno.ConstExpr{TypedValue: testingtv}
 

@@ -16,5 +16,3 @@ func NativeStore(pkgPath string, name gno.Name) func(*gno.Machine) {
 	}
 	return stdlibs.NativeStore(pkgPath, name)
 }
-
-const TestingLib = "testing"
