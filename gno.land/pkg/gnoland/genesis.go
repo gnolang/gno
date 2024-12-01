@@ -192,7 +192,7 @@ func LoadPackage(pkg gnomod.Pkg, creator bft.Address, fee std.Fee, deposit std.C
 
 func LoadEmbeddedStdlibs(deployer crypto.Address, fee std.Fee) []TxWithMetadata {
 	pkgs := stdlibs.EmbeddedMemPackages()
-	stdlibsTxs := []TxWithMetadata{}
+	stdlibsTxs := make([]TxWithMetadata, 0, len(pkgs)-1)
 
 	for _, memPkg := range pkgs {
 		if memPkg.Path == teststdlibs.TestingLib {
