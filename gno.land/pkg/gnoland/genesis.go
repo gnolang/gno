@@ -190,10 +190,10 @@ func LoadPackage(pkg gnomod.Pkg, creator bft.Address, fee std.Fee, deposit std.C
 }
 
 func LoadEmbeddedStdlibs(deployer crypto.Address, fee std.Fee) []TxWithMetadata {
-	stdlibs := stdlibs.EmbeddedMemPackages()
-	stdlibsTxs := make([]TxWithMetadata, len(stdlibs))
+	pkgs := stdlibs.EmbeddedMemPackages()
+	stdlibsTxs := []TxWithMetadata{}
 
-	for i, memPkg := range stdlibs {
+	for _, memPkg := range pkgs {
 		if memPkg.Path == "testing" {
 			continue
 		}
@@ -209,7 +209,7 @@ func LoadEmbeddedStdlibs(deployer crypto.Address, fee std.Fee) []TxWithMetadata 
 		}}
 
 		tx.Tx.Signatures = make([]std.Signature, len(tx.Tx.GetSigners()))
-		stdlibsTxs[i] = tx
+		stdlibsTxs = append(stdlibsTxs, tx)
 	}
 
 	return stdlibsTxs
