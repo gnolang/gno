@@ -5,6 +5,7 @@ import (
 	"slices"
 	"strings"
 
+	teststdlibs "github.com/gnolang/gno/gnovm/tests/stdlibs"
 	"golang.org/x/exp/maps"
 )
 
@@ -37,7 +38,7 @@ func sortPackages(pkgs []*pkgData) []string {
 			if slices.Contains(res, imp) {
 				continue
 			}
-			if pkg.importPath == "testing" &&
+			if pkg.importPath == teststdlibs.TestingLib &&
 				slices.Contains(nativeInjections, imp) {
 				continue
 			}

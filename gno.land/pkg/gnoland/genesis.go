@@ -9,6 +9,7 @@ import (
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
 	"github.com/gnolang/gno/gnovm/pkg/gnomod"
 	"github.com/gnolang/gno/gnovm/stdlibs"
+	teststdlibs "github.com/gnolang/gno/gnovm/tests/stdlibs"
 	"github.com/gnolang/gno/tm2/pkg/amino"
 	bft "github.com/gnolang/gno/tm2/pkg/bft/types"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
@@ -194,7 +195,7 @@ func LoadEmbeddedStdlibs(deployer crypto.Address, fee std.Fee) []TxWithMetadata 
 	stdlibsTxs := []TxWithMetadata{}
 
 	for _, memPkg := range pkgs {
-		if memPkg.Path == "testing" {
+		if memPkg.Path == teststdlibs.TestingLib {
 			continue
 		}
 
