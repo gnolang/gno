@@ -24,7 +24,7 @@ func EmbeddedMemPackages() []*gnovm.MemPackage {
 	return embeddedMemPackages()
 }
 
-// EmbeddedMemPackage returns a slice of [gnovm.MemPackage] generated from embedded stdlibs sources
+// EmbeddedMemPackage returns a mapping of pkg paths to [gnovm.MemPackage] generated from embedded stdlibs sources
 func EmbeddedMemPackage(pkgPath string) *gnovm.MemPackage {
 	return embeddedMemPackagesMap()[pkgPath]
 }

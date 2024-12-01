@@ -21,7 +21,7 @@ import (
 //go:embed */*
 var embeddedSources embed.FS
 
-// EmbeddedMemPackage returns a slice of [gnovm.MemPackage] generated from embedded stdlibs sources
+// EmbeddedMemPackage returns the [gnovm.MemPackage] designated by pkgPath generated from embedded stdlibs sources
 func EmbeddedMemPackage(pkgPath string) *gnovm.MemPackage {
 	return embeddedMemPackages()[pkgPath]
 }
