@@ -1,1 +1,1 @@
-module gno.land/demo/p/btree
+module gno.land/p/demo/btree
