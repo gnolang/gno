@@ -10,10 +10,8 @@ import (
 
 	"github.com/gnolang/gno/gno.land/pkg/gnoland"
 	"github.com/gnolang/gno/gno.land/pkg/gnoland/ugnot"
-	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
 	"github.com/gnolang/gno/tm2/pkg/bft/types"
 	"github.com/gnolang/gno/tm2/pkg/commands"
-	"github.com/gnolang/gno/tm2/pkg/crypto/keys"
 	"github.com/gnolang/gno/tm2/pkg/std"
 )
 
@@ -21,21 +19,20 @@ var errInvalidPackageDir = errors.New("invalid package directory")
 
 var (
 	// Keep in sync with gno.land/cmd/start.go
-	genesisDeployAddress = crypto.MustAddressFromString("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5") // test1
-	genesisDeployFee     = std.NewFee(50000, std.MustParseCoin(ugnot.ValueString(1000000)))
+	genesisDeployFee = std.NewFee(50000, std.MustParseCoin(ugnot.ValueString(1000000)))
 )
 
 type addPkgCfg struct {
-	txsCfg  *txsCfg
-	keyName string
+	txsCfg          *txsCfg
+	deployerAddress string
 }
 
 func (c *addPkgCfg) RegisterFlags(fs *flag.FlagSet) {
 	fs.StringVar(
-		&c.keyName,
-		"key-name",
-		"",
-		"The package deployer key name or address",
+		&c.deployerAddress,
+		"deployer-address",
+		"g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5", // test1
+		"The address that will be used to deploy the package",
 	)
 }
 
@@ -74,20 +71,8 @@ func execTxsAddPackages(
 	if len(args) == 0 {
 		return errInvalidPackageDir
 	}
-	var creator crypto.Address
-	if cfg.keyName != "" {
-		kb, err := keys.NewKeyBaseFromDir(gnoenv.HomeDir())
-		if err != nil {
-			return err
-		}
-		info, err := kb.GetByNameOrAddress(cfg.keyName)
-		if err != nil {
-			return err
-		}
-		creator = info.GetAddress()
-	} else {
-		creator = genesisDeployAddress
-	}
+
+	creator := crypto.MustAddressFromString(cfg.deployerAddress)
 
 	parsedTxs := make([]gnoland.TxWithMetadata, 0)
 	for _, path := range args {
