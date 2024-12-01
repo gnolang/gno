@@ -18,11 +18,10 @@
 //////////
 
 
-// The btree package implements in-memory B-Trees of arbitrary degree.
+// Package btree implements in-memory B-Trees of arbitrary degree.
 //
 // It has a flatter structure than an equivalent red-black or other binary tree,
 // which may yield better memory usage and/or performance.
-
 package btree
 
 import "sort"
