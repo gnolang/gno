@@ -262,7 +262,7 @@ func (app *BaseApp) setConsensusParams(consensusParams *abci.ConsensusParams) {
 	app.consensusParams = consensusParams
 }
 
-// setConsensusParams stores the consensus params to the main store.
+// storeConsensusParams stores the consensus params to the main store.
 func (app *BaseApp) storeConsensusParams(consensusParams *abci.ConsensusParams) {
 	consensusParamsBz, err := amino.Marshal(consensusParams)
 	if err != nil {
