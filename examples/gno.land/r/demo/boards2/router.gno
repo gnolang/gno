@@ -61,4 +61,3 @@ func getPagination(r *mux.Request, defaultPageSize int) Pagination {
 		PageSize:   limit,
 	}
 }
-
