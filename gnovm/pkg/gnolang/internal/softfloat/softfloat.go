@@ -35,6 +35,25 @@ func Fdiv32(f, g uint32) uint32 { return fdiv32(f, g) }
 func Feq32(f, g uint32) bool    { return feq32(f, g) }
 func Fgt32(f, g uint32) bool    { return fgt32(f, g) }
 func Fge32(f, g uint32) bool    { return fge32(f, g) }
+func Flt32(f, g uint32) bool {
+	cmp, nan := fcmp64(f32to64(f), f32to64(f))
+	return cmp <= -1 && !nan
+}
+
+func Fle32(f, g uint32) bool {
+	cmp, nan := fcmp64(f32to64(f), f32to64(f))
+	return cmp <= 0 && !nan
+}
+
+func Flt64(f, g uint64) bool {
+	cmp, nan := fcmp64(f, g)
+	return cmp <= -1 && !nan
+}
+
+func Fle64(f, g uint64) bool {
+	cmp, nan := fcmp64(f, g)
+	return cmp <= 0 && !nan
+}
 
 func Fcmp64(f, g uint64) (cmp int32, isnan bool) { return fcmp64(f, g) }
 

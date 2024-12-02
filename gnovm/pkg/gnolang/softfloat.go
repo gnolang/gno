@@ -29,7 +29,7 @@ func Trunc(x SoftFloat64) SoftFloat64 {
 }
 
 func Modf(u SoftFloat64) (it SoftFloat64, frac SoftFloat64) {
-	if u.Le(1) {
+	if u.Lt(1) {
 		switch {
 		case u.Lt(0):
 			it, frac = Modf(u.Neg())
@@ -222,12 +222,12 @@ func (f SoftFloat64) Ge(g any) bool {
 
 // <
 func (f SoftFloat64) Lt(g any) bool {
-	return !softfloat.Fge64(uint64(f), uint64(ConvertToSoftFloat64(g)))
+	return softfloat.Flt64(uint64(f), uint64(ConvertToSoftFloat64(g)))
 }
 
 // <=
 func (f SoftFloat64) Le(g any) bool {
-	return !softfloat.Fgt64(uint64(f), uint64(ConvertToSoftFloat64(g)))
+	return softfloat.Fle64(uint64(f), uint64(ConvertToSoftFloat64(g)))
 }
 
 // SoftFloat32
@@ -325,12 +325,12 @@ func (f SoftFloat32) Ge(g any) bool {
 
 // <
 func (f SoftFloat32) Lt(g any) bool {
-	return !softfloat.Fge32(uint32(f), uint32(ConvertToSoftFloat32(g)))
+	return softfloat.Flt32(uint32(f), uint32(ConvertToSoftFloat32(g)))
 }
 
 // <=
 func (f SoftFloat32) Le(g any) bool {
-	return !softfloat.Fgt32(uint32(f), uint32(ConvertToSoftFloat32(g)))
+	return softfloat.Fle32(uint32(f), uint32(ConvertToSoftFloat32(g)))
 }
 
 func (f SoftFloat32) String() string {
