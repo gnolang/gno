@@ -17,10 +17,8 @@ import (
 
 var errInvalidPackageDir = errors.New("invalid package directory")
 
-var (
-	// Keep in sync with gno.land/cmd/start.go
-	genesisDeployFee = std.NewFee(50000, std.MustParseCoin(ugnot.ValueString(1000000)))
-)
+// Keep in sync with gno.land/cmd/start.go
+var genesisDeployFee = std.NewFee(50000, std.MustParseCoin(ugnot.ValueString(1000000)))
 
 type addPkgCfg struct {
 	txsCfg          *txsCfg
