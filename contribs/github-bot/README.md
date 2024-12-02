@@ -13,7 +13,7 @@ The bot operates by defining a set of rules that are evaluated against each pull
 - **Automatic Checks**: These are rules that the bot evaluates automatically. If a pull request meets the conditions specified in the rule, then the corresponding requirements are executed. For example, ensuring that changes to specific directories are reviewed by specific team members.
 - **Manual Checks**: These require human intervention. If a pull request meets the conditions specified in the rule, then a checkbox that can be checked only by specified teams is displayed on the bot comment. For example, determining if infrastructure needs to be updated based on changes to specific files.
 
-The bot configuration is defined in Go and is located in the file [config.go](./config.go).
+The bot configuration is defined in Go and is located in the file [config.go](./internal/config/config.go).
 
 ### GitHub Token
 
@@ -31,7 +31,7 @@ For the bot to make requests to the GitHub API, it needs a Personal Access Token
 USAGE
   github-bot check [flags]
 
-This tool checks if the requirements for a pull request to be merged are satisfied (defined in config.go) and displays PR status checks accordingly.
+This tool checks if the requirements for a pull request to be merged are satisfied (defined in ./internal/config/config.go) and displays PR status checks accordingly.
 A valid GitHub Token must be provided by setting the GITHUB_TOKEN environment variable.
 
 FLAGS
