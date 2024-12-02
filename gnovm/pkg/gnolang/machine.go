@@ -765,7 +765,7 @@ func (m *Machine) emitCallArg(call *CallExpr, x Expr, staticType Type) {
 	// these functions are the only onces in the language were they could be
 	// called from a const context
 	builtins := []string{"len", "cap", "real", "imag", "complex"}
-	_, isConst := x.(*ConstExpr)
+	_, isSel := x.(*SelectorExpr)
 
 	// this is a weird Go feature where you can pass a nil pointer
 	// to these builtin functions and it won't panic.
@@ -775,7 +775,7 @@ func (m *Machine) emitCallArg(call *CallExpr, x Expr, staticType Type) {
 	// var f *Foo
 	// const l = len(f.a)
 	// this works!!!!
-	if ce, ok := call.Func.(*ConstExpr); !isConst && ok && slices.Contains(builtins, string(ce.Source.(*NameExpr).Name)) {
+	if ce, ok := call.Func.(*ConstExpr); isSel && ok && slices.Contains(builtins, string(ce.Source.(*NameExpr).Name)) {
 		dv := defaultTypedValue(m.Alloc, staticType)
 		m.PushExpr(&ConstExpr{TypedValue: dv})
 	} else {
