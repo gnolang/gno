@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/gnolang/gno/contribs/gnodev/pkg/packages"
+	"github.com/gnolang/gno/gnovm/pkg/gnomod"
 	"github.com/gnolang/gno/tm2/pkg/bft/rpc/client"
 )
 
@@ -45,16 +46,55 @@ func (va *varResolver) Set(value string) error {
 	return nil
 }
 
-func setupPackagesLoader(logger *slog.Logger, cfg *devCfg, dir string) (*packages.Loader, error) {
-	// Setup first resolver for the current package directory
+func guessPathFromRoots(dir string, roots ...string) (path string, ok bool) {
+	for _, root := range roots {
+		if !strings.HasPrefix(dir, root) {
+			continue
+		}
+
+		return strings.TrimPrefix(dir, root), true
+	}
+
+	return "", false
+}
+
+func guessPathGnoMod(dir string) (path string, ok bool) {
+	modfile, err := gnomod.ParseAt(dir)
+	if err == nil {
+		return modfile.Module.Mod.Path, true
+
+	}
+
+	return "", false
+}
+
+func guessPath(cfg *devCfg, dir string) (path string, ok bool) {
 	gnoroot := cfg.root
-	localresolver, path := packages.GuessLocalResolverGnoMod(dir)
-	if localresolver == nil {
-		localresolver, path = packages.GuessLocalResolverFromRoots(dir, []string{gnoroot})
-		if localresolver == nil {
-			return nil, fmt.Errorf("unable to guess current package")
+	if path, ok := guessPathGnoMod(dir); ok {
+		return path, true
+	}
+
+	if path, ok = guessPathFromRoots(dir, gnoroot); ok {
+		return path, ok
+	}
+
+	return "", false
+}
+
+func isStdPath(path string) bool {
+	if i := strings.IndexRune(path, '/'); i > 0 {
+		if j := strings.IndexRune(path[:i], '.'); i >= 0 {
+			return false
 		}
 	}
+
+	return true
+}
+
+func setupPackagesLoader(logger *slog.Logger, cfg *devCfg, path, dir string) (loader *packages.Loader) {
+	gnoroot := cfg.root
+
+	localresolver := packages.NewLocalResolver(path, dir)
 
 	// Add root resolvers
 	exampleRoot := filepath.Join(gnoroot, "examples")
@@ -66,10 +106,8 @@ func setupPackagesLoader(logger *slog.Logger, cfg *devCfg, dir string) (*package
 		fsResolver,
 	)
 
-	return &packages.Loader{
-		Paths:    []string{path},
-		Resolver: packages.SyntaxChecker(resolver, resolverErrorHandler(logger)),
-	}, nil
+	syntaxResolver := packages.SyntaxChecker(resolver, resolverErrorHandler(logger))
+	return packages.NewLoaderWithFilter(isStdPath, syntaxResolver)
 }
 
 func resolverErrorHandler(logger *slog.Logger) packages.SyntaxErrorHandler {

@@ -9,25 +9,9 @@ import (
 	"log/slog"
 	"strings"
 	"time"
-
-	"github.com/gnolang/gno/gnovm"
 )
 
 var ErrResolverPackageNotFound = errors.New("package not found")
-
-type PackageKind int
-
-const (
-	PackageKindOther  = iota
-	PackageKindRemote = iota
-	PackageKindFS
-)
-
-type Package struct {
-	gnovm.MemPackage
-	Kind     PackageKind
-	Location string
-}
 
 type Resolver interface {
 	Name() string

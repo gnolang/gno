@@ -29,7 +29,7 @@ const (
 	KeyPressLogName    = "KeyPress"
 	EventServerLogName = "Event"
 	AccountsLogName    = "Accounts"
-	ResolverLogName    = "Resolver"
+	LoaderLogName      = "Loader"
 )
 
 var ErrConflictingFileArgs = errors.New("cannot specify `balances-file` or `txs-file` along with `genesis-file`")
@@ -295,23 +295,17 @@ func execDev(cfg *devCfg, args []string, io commands.IO) (err error) {
 		return fmt.Errorf("unable to guess current dir: %w", err)
 	}
 
-	loader, err := setupPackagesLoader(logger.WithGroup(ResolverLogName), cfg, dir)
-	if err != nil {
-		return fmt.Errorf("unable to setup resolver: %w", err)
+	path, ok := guessPath(cfg, dir)
+	if !ok {
+		return fmt.Errorf("unable to guess path from %q", dir)
 	}
-	loader.Host = "gno.land"
+	loader := setupPackagesLoader(logger.WithGroup(LoaderLogName), cfg, path, dir)
 
 	// load keybase
 	book, err := setupAddressBook(logger.WithGroup(AccountsLogName), cfg)
 	if err != nil {
 		return fmt.Errorf("unable to load keybase: %w", err)
 	}
-
-	// Check and Parse packages
-	// pkgpaths, err := resolvePackagesPathFromArgs(cfg, book, args)
-	// if err != nil {
-	// 	return fmt.Errorf("unable to parse package paths: %w", err)
-	// }
 
 	// generate balances
 	balances, err := generateBalances(book, cfg)
@@ -324,7 +318,7 @@ func execDev(cfg *devCfg, args []string, io commands.IO) (err error) {
 	// XXX: find a good way to export or display node logs
 	nodeLogger := logger.WithGroup(NodeLogName)
 	nodeCfg := setupDevNodeConfig(cfg, logger, emitterServer, balances, loader)
-	devNode, err := setupDevNode(ctx, cfg, nodeCfg)
+	devNode, err := setupDevNode(ctx, cfg, nodeCfg, path)
 	if err != nil {
 		return err
 	}

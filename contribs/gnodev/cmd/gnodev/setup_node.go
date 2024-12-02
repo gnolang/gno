@@ -15,11 +15,7 @@ import (
 )
 
 // setupDevNode initializes and returns a new DevNode.
-func setupDevNode(
-	ctx context.Context,
-	devCfg *devCfg,
-	nodeConfig *gnodev.NodeConfig,
-) (*gnodev.Node, error) {
+func setupDevNode(ctx context.Context, devCfg *devCfg, nodeConfig *gnodev.NodeConfig, path string) (*gnodev.Node, error) {
 	logger := nodeConfig.Logger
 
 	if devCfg.txsFile != "" { // Load txs files
@@ -47,7 +43,7 @@ func setupDevNode(
 		logger.Info("genesis file loaded", "path", devCfg.genesisFile, "txs", len(stateTxs))
 	}
 
-	return gnodev.NewDevNode(ctx, nodeConfig)
+	return gnodev.NewDevNode(ctx, nodeConfig, path)
 }
 
 // setupDevNodeConfig creates and returns a new dev.NodeConfig.

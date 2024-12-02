@@ -85,6 +85,7 @@ type Node struct {
 	logger  *slog.Logger
 	loader  packages.Loader
 	pkgs    []packages.Package
+	paths   []string
 
 	// keep track of number of loaded package to be able to skip them on restore
 	loadedPackages int
@@ -99,7 +100,7 @@ type Node struct {
 
 var DefaultFee = std.NewFee(50000, std.MustParseCoin(ugnot.ValueString(1000000)))
 
-func NewDevNode(ctx context.Context, cfg *NodeConfig) (*Node, error) {
+func NewDevNode(ctx context.Context, cfg *NodeConfig, pkgpaths ...string) (*Node, error) {
 	startTime := time.Now()
 
 	devnode := &Node{
@@ -112,10 +113,11 @@ func NewDevNode(ctx context.Context, cfg *NodeConfig) (*Node, error) {
 		state:             cfg.InitialTxs,
 		initialState:      cfg.InitialTxs,
 		currentStateIndex: len(cfg.InitialTxs),
+		paths:             pkgpaths,
 		// pkgsModifier:      pkgsModifier,
 	}
 
-	// XXX: MOVE THIS
+	// XXX: MOVE THIS, passing context here can be confusing
 	if err := devnode.Reset(ctx); err != nil {
 		return nil, fmt.Errorf("unable to initialize the node: %w", err)
 	}
@@ -146,6 +148,14 @@ func (n *Node) Client() client.Client {
 
 func (n *Node) GetRemoteAddress() string {
 	return n.Node.Config().RPC.ListenAddress
+}
+
+// AddPackagePaths to load
+func (n *Node) AddPackagePaths(paths ...string) {
+	n.muNode.Lock()
+	defer n.muNode.Unlock()
+
+	n.paths = append(n.paths, paths...)
 }
 
 // GetBlockTransactions returns the transactions contained
@@ -205,16 +215,11 @@ func (n *Node) Reset(ctx context.Context) error {
 	n.muNode.Lock()
 	defer n.muNode.Unlock()
 
-	// Stop the node if it's currently running.
-	if err := n.stopIfRunning(); err != nil {
-		return fmt.Errorf("unable to stop the node: %w", err)
-	}
-
 	// Reset starting time
 	startTime := time.Now()
 
 	// Generate a new genesis state based on the current packages
-	pkgs, err := n.loader.LoadPackages()
+	pkgs, err := n.loader.Load(n.paths...)
 	if err != nil {
 		return fmt.Errorf("unable to load pkgs: %w", err)
 	}
@@ -233,7 +238,6 @@ func (n *Node) Reset(ctx context.Context) error {
 		return fmt.Errorf("unable to initialize a new node: %w", err)
 	}
 
-	n.pkgs = pkgs
 	n.loadedPackages = len(pkgsTxs)
 	n.currentStateIndex = len(n.initialState)
 	n.startTime = startTime
@@ -381,7 +385,7 @@ func (n *Node) rebuildNodeFromState(ctx context.Context) error {
 		// If NoReplay is true, simply reset the node to its initial state
 		n.logger.Warn("replay disabled")
 
-		pkgs, err := n.loader.LoadPackages()
+		pkgs, err := n.loader.Load(n.paths...)
 		if err != nil {
 			return fmt.Errorf("unable to load pkgs: %w", err)
 		}
@@ -398,7 +402,7 @@ func (n *Node) rebuildNodeFromState(ctx context.Context) error {
 	}
 
 	// Load genesis packages
-	pkgs, err := n.loader.LoadPackages()
+	pkgs, err := n.loader.Load(n.paths...)
 	if err != nil {
 		return fmt.Errorf("unable to load pkgs: %w", err)
 	}

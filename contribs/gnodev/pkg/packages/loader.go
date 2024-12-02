@@ -5,18 +5,40 @@ import (
 	"fmt"
 	"go/parser"
 	"go/token"
-	"strings"
 )
 
 var ErrNoResolvers = errors.New("no resolvers setup")
 
+type FilterFunc func(path string) bool
+
+func NoopFilterFunc(path string) bool { return false }
+func FilterAllFunc(path string) bool  { return true }
+
 type Loader struct {
-	Host     string
-	Paths    []string
-	Resolver Resolver
+	Resolver
+	FilterFunc
 }
 
-func (l Loader) LoadPackages() ([]Package, error) {
+func NewLoader(res ...Resolver) *Loader {
+	loader := Loader{FilterFunc: NoopFilterFunc}
+	switch len(res) {
+	case 0: // Skip
+	case 1:
+		loader.Resolver = res[0]
+	default:
+		loader.Resolver = ChainResolvers(res...)
+	}
+
+	return &loader
+}
+
+func NewLoaderWithFilter(filter FilterFunc, res ...Resolver) *Loader {
+	loader := NewLoader(res...)
+	loader.FilterFunc = filter
+	return loader
+}
+
+func (l Loader) Load(paths ...string) ([]Package, error) {
 	if l.Resolver == nil {
 		return nil, ErrNoResolvers
 	}
@@ -24,7 +46,7 @@ func (l Loader) LoadPackages() ([]Package, error) {
 	fset := token.NewFileSet()
 	visited, stack := map[string]bool{}, map[string]bool{}
 	pkgs := make([]Package, 0)
-	for _, root := range l.Paths {
+	for _, root := range paths {
 		deps, err := l.loadPackage(root, fset, l.Resolver, visited, stack)
 		if err != nil {
 			return nil, err
@@ -45,8 +67,8 @@ func (l Loader) loadPackage(path string, fset *token.FileSet, resolver Resolver,
 
 	visited[path] = true
 
-	// do not try to load package that hasn't been prefixed
-	if l.Host != "" && !strings.HasPrefix(path, l.Host) {
+	// Apply filter func if any
+	if l.FilterFunc != nil && l.FilterFunc(path) {
 		return nil, nil
 	}
 
