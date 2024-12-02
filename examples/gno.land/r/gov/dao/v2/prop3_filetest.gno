@@ -28,9 +28,11 @@ func init() {
 	}
 
 	// Create a proposal
+	title := "new govdao member addition"
 	description := "add new members to the govdao"
 
 	prop := dao.ProposalRequest{
+		Title:       title,
 		Description: description,
 		Executor:    govdao.NewMemberPropExecutor(memberFn),
 	}
@@ -65,57 +67,117 @@ func main() {
 // --
 // 1
 // --
-// - [Proposal #0](/r/gov/dao/v2:0) - (**active**)(by g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm)
+// # GovDAO Proposals
+//
+// ## [Prop #0 - new govdao member addition](/r/gov/dao/v2:0)
+//
+// **Status: ACTIVE**
+//
+// **Author: g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm**
+//
 //
 // --
-// # Prop #0
+// # Proposal #0 - new govdao member addition
 //
-// Author: g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm
+// ## Description
 //
 // add new members to the govdao
 //
-// Status: active
+// ## Proposal information
 //
-// Voting stats: YES 0 (0%), NO 0 (0%), ABSTAIN 0 (0%), MISSING VOTE 10 (100%)
+// **Status: ACTIVE**
 //
-// Threshold met: false
+// **Voting stats:**
+// - YES 0 (0%)
+// - NO 0 (0%)
+// - ABSTAIN 0 (0%)
+// - MISSING VOTES 10 (100%)
+//
+//
+// **Threshold met: FALSE**
+//
+// **Author: g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm**
+//
+// ### Actions
+//
+// #### [[Vote YES](/r/gov/dao/v2$help&func=VoteOnProposal&id=0&option=YES)] - [[Vote NO](/r/gov/dao/v2$help&func=VoteOnProposal&id=0&option=NO)] - [[Vote ABSTAIN](/r/gov/dao/v2$help&func=VoteOnProposal&id=0&option=ABSTAIN)]
 //
 //
 // --
 // --
-// # Prop #0
+// # Proposal #0 - new govdao member addition
 //
-// Author: g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm
+// ## Description
 //
 // add new members to the govdao
 //
-// Status: accepted
+// ## Proposal information
 //
-// Voting stats: YES 10 (100%), NO 0 (0%), ABSTAIN 0 (0%), MISSING VOTE 0 (0%)
+// **Status: ACCEPTED**
 //
-// Threshold met: true
+// **Voting stats:**
+// - YES 10 (100%)
+// - NO 0 (0%)
+// - ABSTAIN 0 (0%)
+// - MISSING VOTES 0 (0%)
+//
+//
+// **Threshold met: TRUE**
+//
+// **Author: g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm**
+//
+// ### Actions
+//
+// The voting period for this proposal is over.
 //
 //
 // --
-// - [Proposal #0](/r/gov/dao/v2:0) - (**accepted**)(by g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm)
+// # GovDAO Proposals
+//
+// ## [Prop #0 - new govdao member addition](/r/gov/dao/v2:0)
+//
+// **Status: ACCEPTED**
+//
+// **Author: g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm**
+//
 //
 // --
 // --
-// # Prop #0
+// # Proposal #0 - new govdao member addition
 //
-// Author: g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm
+// ## Description
 //
 // add new members to the govdao
 //
-// Status: execution successful
+// ## Proposal information
 //
-// Voting stats: YES 10 (25%), NO 0 (0%), ABSTAIN 0 (0%), MISSING VOTE 30 (75%)
+// **Status: EXECUTION SUCCESSFUL**
 //
-// Threshold met: false
+// **Voting stats:**
+// - YES 10 (25%)
+// - NO 0 (0%)
+// - ABSTAIN 0 (0%)
+// - MISSING VOTES 30 (75%)
+//
+//
+// **Threshold met: FALSE**
+//
+// **Author: g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm**
+//
+// ### Actions
+//
+// The voting period for this proposal is over.
 //
 //
 // --
-// - [Proposal #0](/r/gov/dao/v2:0) - (**execution successful**)(by g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm)
+// # GovDAO Proposals
+//
+// ## [Prop #0 - new govdao member addition](/r/gov/dao/v2:0)
+//
+// **Status: EXECUTION SUCCESSFUL**
+//
+// **Author: g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm**
+//
 //
 // --
 // 4
