@@ -2,6 +2,7 @@ package matrix
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
@@ -21,7 +22,11 @@ func execMatrix(flags *matrixFlags) error {
 
 	// If verbose is set, print the Github Actions event for debugging purpose.
 	if *flags.verbose {
-		fmt.Println("Event:", actionCtx.Event)
+		jsonBytes, err := json.MarshalIndent(actionCtx.Event, "", "  ")
+		if err != nil {
+			return fmt.Errorf("unable to marshal event to json: %w", err)
+		}
+		fmt.Println("Event:", string(jsonBytes))
 	}
 
 	// Init Github client using only GitHub Actions context.
