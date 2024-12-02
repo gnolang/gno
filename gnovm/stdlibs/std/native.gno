@@ -56,7 +56,7 @@ func DecodeBech32(addr Address) (prefix string, bz [20]byte, ok bool) {
 	return decodeBech32(string(addr))
 }
 
-func RealmDenom(pkgPath, denom string) string {
+func ComposeRealmDenom(pkgPath, denom string) string {
 	// Similar to ibc spec
 	// ibc_denom := 'ibc/' + hash('path' + 'base_denom')
 	// gno_realm_denom := '/' + 'pkg_path' + ':' + 'base_denom'
