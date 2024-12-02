@@ -4,9 +4,11 @@ import (
 	"errors"
 	"std"
 	"strconv"
+	"strings"
 	"time"
 
 	"gno.land/p/demo/avl"
+	"gno.land/p/demo/avl/pager"
 	"gno.land/p/moul/txlink"
 )
 
@@ -240,7 +242,7 @@ func (post *Post) RenderSummary() string {
 	return s
 }
 
-func (post *Post) Render(indent string, levels int) string {
+func (post *Post) Render(indent string, levels int, pagination *Pagination) string {
 	if post == nil {
 		return "nil post"
 	}
@@ -263,20 +265,48 @@ func (post *Post) Render(indent string, levels int) string {
 		s += " \\[" + newLink("repost", post.GetRepostFormURL()) + "]"
 	}
 	s += " \\[" + newLink("x", post.GetDeleteFormURL()) + "]\n"
+	s += post.renderReplies(indent, levels, pagination)
 
-	if levels > 0 {
-		if post.replies.Size() > 0 {
-			post.replies.Iterate("", "", func(_ string, value interface{}) bool {
-				s += indent + "\n"
-				s += value.(*Post).Render(indent+"> ", levels-1)
-				return false
-			})
-		}
-	} else if post.replies.Size() > 0 {
-		s += indent + "\n"
-		s += indent + "_" + newLink("see all "+strconv.Itoa(post.replies.Size())+" replies", postURL) + "_\n"
-	}
 	return s
+}
+
+func (post *Post) renderReplies(indent string, levels int, p *Pagination) string {
+	if post.replies.Size() == 0 {
+		return ""
+	}
+
+	if levels == 0 {
+		postURL := post.GetURL()
+		s := indent + "\n"
+		s += indent + "_" + newLink("see all "+strconv.Itoa(post.replies.Size())+" replies", postURL) + "_\n"
+
+		return s
+	}
+
+	sb := new(strings.Builder)
+	callback := func(_ string, value interface{}) bool {
+		sb.WriteString(indent)
+		sb.WriteString("\n")
+		sb.WriteString(value.(*Post).Render(indent+"> ", levels-1, nil))
+		return false
+	}
+
+	if p == nil {
+		post.replies.Iterate("", "", callback)
+	} else {
+		pg := pager.NewPager(&post.replies, p.PageSize)
+		page := pg.GetPage(p.PageNumber)
+		for _, v := range page.Items {
+			callback(v.Key, v.Value)
+		}
+
+		if page.TotalPages > 1 {
+			sb.WriteString("\n\n---\n\n")
+			sb.WriteString(page.Selector())
+		}
+	}
+
+	return sb.String()
 }
 
 func (post *Post) RenderInner() string {
@@ -298,7 +328,7 @@ func (post *Post) RenderInner() string {
 	}
 
 	s := "_" + newLink("see thread", post.board.GetURLFromThreadID(threadID)) + "_\n\n"
-	s += parent.Render("", 0) + "\n"
-	s += post.Render("> ", 5)
+	s += parent.Render("", 0, nil) + "\n"
+	s += post.Render("> ", 5, nil)
 	return s
 }

@@ -7,8 +7,16 @@ import (
 	"time"
 
 	"gno.land/p/demo/avl"
+	"gno.land/p/demo/avl/pager"
 	"gno.land/p/moul/txlink"
 )
+
+const boardsPageSize = 50
+
+type Pagination struct {
+	PageNumber int
+	PageSize   int
+}
 
 type BoardID uint64
 
@@ -88,16 +96,32 @@ func (board *Board) DeleteThread(pid PostID) {
 	}
 }
 
-func (board *Board) Render() string {
-	s := "\\[" + newLink("post", board.GetPostFormURL()) + "]\n\n"
-	if board.threads.Size() > 0 {
-		board.threads.Iterate("", "", func(_ string, v interface{}) bool {
-			s += "----------------------------------------\n"
-			s += v.(*Post).RenderSummary() + "\n"
-			return false
-		})
+func (board *Board) Render(p Pagination) string {
+	var sb strings.Builder
+
+	sb.WriteString("\\[")
+	sb.WriteString(newLink("post", board.GetPostFormURL()))
+	sb.WriteString("]\n\n")
+	if board.threads.Size() == 0 {
+		sb.WriteString("*No posts*")
+		return sb.String()
 	}
-	return s
+
+	pg := pager.NewPager(&board.threads, p.PageSize)
+	page := pg.GetPage(p.PageNumber)
+	for _, v := range page.Items {
+		post := v.Value.(*Post)
+		sb.WriteString("----------------------------------------\n")
+		sb.WriteString(post.RenderSummary())
+		sb.WriteString("\n")
+	}
+
+	if page.TotalPages > 1 {
+		sb.WriteString("\n---\n\n")
+		sb.WriteString(page.Selector())
+	}
+
+	return sb.String()
 }
 
 func (board *Board) incGetPostID() PostID {

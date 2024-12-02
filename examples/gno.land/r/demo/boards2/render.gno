@@ -3,11 +3,18 @@ package boards2
 import (
 	"strconv"
 
+	"gno.land/p/demo/avl/pager"
 	"gno.land/p/demo/mux"
 )
 
+const (
+	defaultPageSize   = 50
+	threadRenderDepth = 5
+)
+
 func Render(path string) string {
-	router := mux.NewRouter()
+	// TODO: remove this when query strings PR will be merged: https://github.com/gnolang/gno/pull/2594
+	router := newWrappedRouter(mux.NewRouter())
 	router.HandleFunc("", renderBoardsList)
 	router.HandleFunc("{board}", renderBoard)
 	router.HandleFunc("{board}/{thread}", renderThread)
@@ -20,14 +27,26 @@ func Render(path string) string {
 	return router.Render(path)
 }
 
-func renderBoardsList(res *mux.ResponseWriter, _ *mux.Request) {
+func renderBoardsList(res *mux.ResponseWriter, r *mux.Request) {
 	res.Write("These are all the boards of this realm:\n\n")
-	gBoardsByID.Iterate("", "", func(_ string, value interface{}) bool {
-		board := value.(*Board)
+
+	pg := pager.NewPager(&gBoardsByID, defaultPageSize)
+	pageNum, limit, err := pg.ParseQuery(r.Path)
+	if err != nil {
+		panic(err)
+	}
+
+	page := pg.GetPageWithSize(pageNum, limit)
+	for _, item := range page.Items {
+		board := item.Value.(*Board)
 		url := board.GetURL()
 		res.Write(" * " + newLink(url, url) + "\n")
-		return false
-	})
+	}
+
+	if page.TotalPages > 1 {
+		res.Write("\n\n---\n\n")
+		res.Write(page.Selector())
+	}
 }
 
 func renderBoard(res *mux.ResponseWriter, req *mux.Request) {
@@ -35,14 +54,17 @@ func renderBoard(res *mux.ResponseWriter, req *mux.Request) {
 	v, found := gBoardsByName.Get(name)
 	if !found {
 		res.Write("Board does not exist: " + name)
-	} else {
-		board := v.(*Board)
-		res.Write(board.Render())
+		return
 	}
+
+	board := v.(*Board)
+	p := getPagination(req, defaultPageSize)
+	res.Write(board.Render(p))
 }
 
 func renderThread(res *mux.ResponseWriter, req *mux.Request) {
 	name := req.GetVar("board")
+
 	v, found := gBoardsByName.Get(name)
 	if !found {
 		res.Write("Board does not exist: " + name)
@@ -60,9 +82,11 @@ func renderThread(res *mux.ResponseWriter, req *mux.Request) {
 	thread, found := board.GetThread(PostID(tID))
 	if !found {
 		res.Write("Thread does not exist with ID: " + req.GetVar("thread"))
-	} else {
-		res.Write(thread.Render("", 5))
+		return
 	}
+
+	p := getPagination(req, defaultPageSize)
+	res.Write(thread.Render("", threadRenderDepth, &p))
 }
 
 func renderReply(res *mux.ResponseWriter, req *mux.Request) {
