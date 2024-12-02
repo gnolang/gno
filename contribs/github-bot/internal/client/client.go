@@ -7,8 +7,7 @@ import (
 	"os"
 
 	"github.com/gnolang/gno/contribs/github-bot/internal/logger"
-	p "github.com/gnolang/gno/contribs/github-bot/internal/params"
-
+	"github.com/gnolang/gno/contribs/github-bot/internal/utils"
 	"github.com/google/go-github/v64/github"
 )
 
@@ -32,21 +31,28 @@ type GitHub struct {
 	Repo   string
 }
 
+type Config struct {
+	Owner   string
+	Repo    string
+	Verbose bool
+	DryRun  bool
+}
+
 // GetBotComment retrieves the bot's (current user) comment on provided PR number.
 func (gh *GitHub) GetBotComment(prNum int) (*github.IssueComment, error) {
-	// List existing comments
+	// List existing comments.
 	const (
 		sort      = "created"
 		direction = "desc"
 	)
 
-	// Get current user (bot)
+	// Get current user (bot).
 	currentUser, _, err := gh.Client.Users.Get(gh.Ctx, "")
 	if err != nil {
 		return nil, fmt.Errorf("unable to get current user: %w", err)
 	}
 
-	// Pagination option
+	// Pagination option.
 	opts := &github.IssueListCommentsOptions{
 		Sort:      github.String(sort),
 		Direction: github.String(direction),
@@ -67,7 +73,7 @@ func (gh *GitHub) GetBotComment(prNum int) (*github.IssueComment, error) {
 			return nil, fmt.Errorf("unable to list comments for PR %d: %w", prNum, err)
 		}
 
-		// Get the comment created by current user
+		// Get the comment created by current user.
 		for _, comment := range comments {
 			if comment.GetUser().GetLogin() == currentUser.GetLogin() {
 				return comment, nil
@@ -86,7 +92,12 @@ func (gh *GitHub) GetBotComment(prNum int) (*github.IssueComment, error) {
 // SetBotComment creates a bot's comment on the provided PR number
 // or updates it if it already exists.
 func (gh *GitHub) SetBotComment(body string, prNum int) (*github.IssueComment, error) {
-	// Create bot comment if it does not already exist
+	// Prevent updating anything in dry run mode.
+	if gh.DryRun {
+		return nil, errors.New("should not write bot comment in dry run mode")
+	}
+
+	// Create bot comment if it does not already exist.
 	comment, err := gh.GetBotComment(prNum)
 	if errors.Is(err, ErrBotCommentNotFound) {
 		newComment, _, err := gh.Client.Issues.CreateComment(
@@ -117,6 +128,17 @@ func (gh *GitHub) SetBotComment(body string, prNum int) (*github.IssueComment, e
 	}
 
 	return editComment, nil
+}
+
+func (gh *GitHub) GetOpenedPullRequest(prNum int) (*github.PullRequest, error) {
+	pr, _, err := gh.Client.PullRequests.Get(gh.Ctx, gh.Owner, gh.Repo, prNum)
+	if err != nil {
+		return nil, fmt.Errorf("unable to retrieve specified pull request (%d): %w", prNum, err)
+	} else if pr.GetState() != utils.PRStateOpen {
+		return nil, fmt.Errorf("pull request %d is not opened, actual state: %s", prNum, pr.GetState())
+	}
+
+	return pr, nil
 }
 
 // ListTeamMembers lists the members of the specified team.
@@ -268,25 +290,25 @@ func (gh *GitHub) ListPR(state string) ([]*github.PullRequest, error) {
 }
 
 // New initializes the API client, the logger, and creates an instance of GitHub.
-func New(ctx context.Context, params *p.Params) (*GitHub, error) {
+func New(ctx context.Context, cfg *Config) (*GitHub, error) {
 	gh := &GitHub{
 		Ctx:    ctx,
-		Owner:  params.Owner,
-		Repo:   params.Repo,
-		DryRun: params.DryRun,
+		Owner:  cfg.Owner,
+		Repo:   cfg.Repo,
+		DryRun: cfg.DryRun,
 	}
 
 	// Detect if the current process was launched by a GitHub Action and return
-	// a logger suitable for terminal output or the GitHub Actions web interface
-	gh.Logger = logger.NewLogger(params.Verbose)
+	// a logger suitable for terminal output or the GitHub Actions web interface.
+	gh.Logger = logger.NewLogger(cfg.Verbose)
 
-	// Retrieve GitHub API token from env
+	// Retrieve GitHub API token from env.
 	token, set := os.LookupEnv("GITHUB_TOKEN")
 	if !set {
 		return nil, errors.New("GITHUB_TOKEN is not set in env")
 	}
 
-	// Init GitHub API client using token
+	// Init GitHub API client using token.
 	gh.Client = github.NewClient(nil).WithAuthToken(token)
 
 	return gh, nil
