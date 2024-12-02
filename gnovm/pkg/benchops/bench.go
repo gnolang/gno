@@ -48,9 +48,7 @@ func StartOpCode(code byte) {
 	measure.curOpCode = code
 }
 
-// StopMeasurement ends the current measurement and resumes the previous one
-// if one exists. It accepts the number of bytes that were read/written to/from
-// the store. This value is zero if the operation is not a read or write.
+// Stop the current measurement
 func StopOpCode() {
 	code := measure.curOpCode
 	if measure.opStartTime[code] == measure.timeZero {
@@ -58,6 +56,7 @@ func StopOpCode() {
 	}
 	measure.opAccumDur[code] += time.Since(measure.opStartTime[code])
 	measure.opStartTime[code] = measure.timeZero // stop the timer
+	measure.isOpCodeStarted = false
 }
 
 // Pause current opcode measurement
