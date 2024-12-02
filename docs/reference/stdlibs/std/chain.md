@@ -150,3 +150,21 @@ Derives the Realm address from its `pkgpath` parameter.
 ```go
 realmAddr := std.DerivePkgAddr("gno.land/r/demo/tamagotchi") //  g1a3tu874agjlkrpzt9x90xv3uzncapcn959yte4
 ```
+
+---
+
+## ComposeRealmDenom
+```go
+func ComposeRealmDenom(pkgPath, denom string) string
+```
+
+Composes a denomination string from the realm's pkg path and the provided denomination. e.g `/gno.land/r/demo/blog:ugnot`. This method should be used when interacting with the `Banker` interface. It can also be used as a method of the `Realm` object, see [here](realm.md#composedenom).
+
+#### Parameters
+- `pkgPath` **string** - package path of the realm
+- `denom` **string** - denomination to compose with the realm's pkg path
+
+#### Usage
+```go
+denom := std.ComposeRealmDenom("gno.land/r/demo/blog", "ugnot")
+```
