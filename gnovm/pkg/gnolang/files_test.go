@@ -142,14 +142,23 @@ func TestStdlibs(t *testing.T) {
 		t.Run(strings.ReplaceAll(memPkg.Path, "/", "-"), func(t *testing.T) {
 			capture, opts := sharedCapture, sharedOpts
 			switch memPkg.Path {
-			case "bufio", "bytes", "strconv", "regexp/syntax":
+			// Excluded in short
+			case
+				"bufio",
+				"bytes",
+				"strconv":
 				if testing.Short() {
 					t.Skip("Skipped because of -short, and this stdlib is very long currently.")
-				} else {
-					// Long test; run in parallel at the end with own store.
-					t.Parallel()
-					capture, opts = newOpts()
 				}
+				fallthrough
+			// Run using separate store, as it's faster
+			case
+				"math/rand",
+				"regexp",
+				"regexp/syntax",
+				"sort":
+				t.Parallel()
+				capture, opts = newOpts()
 			}
 
 			if capture != nil {
