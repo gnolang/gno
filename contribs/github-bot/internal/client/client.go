@@ -7,7 +7,7 @@ import (
 	"os"
 
 	"github.com/gnolang/gno/contribs/github-bot/internal/logger"
-
+	"github.com/gnolang/gno/contribs/github-bot/internal/utils"
 	"github.com/google/go-github/v64/github"
 )
 
@@ -128,6 +128,17 @@ func (gh *GitHub) SetBotComment(body string, prNum int) (*github.IssueComment, e
 	}
 
 	return editComment, nil
+}
+
+func (gh *GitHub) GetOpenedPullRequest(prNum int) (*github.PullRequest, error) {
+	pr, _, err := gh.Client.PullRequests.Get(gh.Ctx, gh.Owner, gh.Repo, prNum)
+	if err != nil {
+		return nil, fmt.Errorf("unable to retrieve specified pull request (%d): %w", prNum, err)
+	} else if pr.GetState() != utils.PRStateOpen {
+		return nil, fmt.Errorf("pull request %d is not opened, actual state: %s", prNum, pr.GetState())
+	}
+
+	return pr, nil
 }
 
 // ListTeamMembers lists the members of the specified team.

@@ -62,6 +62,8 @@ jobs:
   process-pr:
     name: Process PR
     needs: define-prs-matrix
+    # Just skip this job if PR numbers matrix is empty (prevent failed state)
+    if: ${{ needs.define-prs-matrix.outputs.pr-numbers != '[]' && needs.define-prs-matrix.outputs.pr-numbers != '' }}
     runs-on: ubuntu-latest
     strategy:
       matrix:

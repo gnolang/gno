@@ -109,16 +109,6 @@ func getPRListFromEvent(gh *client.GitHub, actionCtx *githubactions.GitHubContex
 			if err := prList.UnmarshalText([]byte(input)); err != nil {
 				return nil, fmt.Errorf("invalid PR list provided as input: %w", err)
 			}
-
-			// Then check if all provided PR are opened.
-			for _, prNum := range prList {
-				pr, _, err := gh.Client.PullRequests.Get(gh.Ctx, gh.Owner, gh.Repo, prNum)
-				if err != nil {
-					return nil, fmt.Errorf("unable to retrieve specified pull request (%d): %w", prNum, err)
-				} else if pr.GetState() != utils.PRStateOpen {
-					return nil, fmt.Errorf("pull request %d is not opened, actual state: %s", prNum, pr.GetState())
-				}
-			}
 		}
 
 	// Event triggered by an issue / PR comment being created / edited / deleted
@@ -135,5 +125,15 @@ func getPRListFromEvent(gh *client.GitHub, actionCtx *githubactions.GitHubContex
 		return nil, fmt.Errorf("unsupported event type: %s", actionCtx.EventName)
 	}
 
-	return prList, nil
+	// Then only keep provided PR that are opened.
+	var openedPRList utils.PRList = nil
+	for _, prNum := range prList {
+		if _, err := gh.GetOpenedPullRequest(prNum); err != nil {
+			gh.Logger.Warningf("Can't get PR from event: %v", err)
+		} else {
+			openedPRList = append(openedPRList, prNum)
+		}
+	}
+
+	return openedPRList, nil
 }

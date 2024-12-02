@@ -65,9 +65,9 @@ func execCheck(flags *checkFlags) error {
 		// (flag or GitHub Action context).
 		prs = make([]*github.PullRequest, len(flags.PRNums))
 		for i, prNum := range flags.PRNums {
-			pr, _, err := gh.Client.PullRequests.Get(gh.Ctx, gh.Owner, gh.Repo, prNum)
+			pr, err := gh.GetOpenedPullRequest(prNum)
 			if err != nil {
-				return fmt.Errorf("unable to retrieve specified pull request (%d): %w", prNum, err)
+				return fmt.Errorf("unable to process PR list: %w", err)
 			}
 			prs[i] = pr
 		}

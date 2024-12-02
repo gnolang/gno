@@ -97,7 +97,7 @@ func TestProcessEvent(t *testing.T) {
 				Event:     map[string]any{"inputs": map[string]any{"pull-request-list": "all"}},
 			},
 			nil,
-			utils.PRList{},
+			utils.PRList(nil),
 			false,
 		}, {
 			"valid workflow_dispatch list",
@@ -124,8 +124,8 @@ func TestProcessEvent(t *testing.T) {
 				Event:     map[string]any{"inputs": map[string]any{"pull-request-list": "1,2,3,4"}},
 			},
 			prs,
-			utils.PRList(nil),
-			true,
+			utils.PRList{1, 2, 3},
+			false,
 		}, {
 			"invalid workflow_dispatch list (1 doesn't exist)",
 			&githubactions.GitHubContext{
@@ -134,7 +134,7 @@ func TestProcessEvent(t *testing.T) {
 			},
 			prs,
 			utils.PRList(nil),
-			true,
+			false,
 		}, {
 			"invalid workflow_dispatch list (all closed)",
 			&githubactions.GitHubContext{
@@ -143,7 +143,7 @@ func TestProcessEvent(t *testing.T) {
 			},
 			prs,
 			utils.PRList(nil),
-			true,
+			false,
 		}, {
 			"invalid workflow_dispatch list (empty)",
 			&githubactions.GitHubContext{

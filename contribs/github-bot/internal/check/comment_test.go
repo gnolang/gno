@@ -120,6 +120,21 @@ func TestCommentUpdateHandler(t *testing.T) {
 	assert.NoError(t, handleCommentUpdate(gh, actionCtx))
 	actionCtx.Event["action"] = "deleted"
 
+	// Exit with error because Event.issue.number is not set.
+	assert.Error(t, handleCommentUpdate(gh, actionCtx))
+	actionCtx.Event = setValue(t, actionCtx.Event, float64(42), "issue", "number")
+
+	// Exit without error can't get open pull request associated with PR num.
+	assert.NoError(t, handleCommentUpdate(gh, actionCtx))
+	mockOptions = append(mockOptions, mock.WithRequestMatchPages(
+		mock.EndpointPattern{
+			Pattern: "/repos/pulls/42",
+			Method:  "GET",
+		},
+		github.PullRequest{Number: github.Int(42), State: github.String(utils.PRStateOpen)},
+	))
+	gh = newGHClient()
+
 	// Exit with error because mock not setup to return authUser.
 	assert.Error(t, handleCommentUpdate(gh, actionCtx))
 	mockOptions = append(mockOptions, mock.WithRequestMatchPages(
@@ -151,10 +166,6 @@ func TestCommentUpdateHandler(t *testing.T) {
 	// Exit with error because Event.changes.body.from is not set.
 	assert.Error(t, handleCommentUpdate(gh, actionCtx))
 	actionCtx.Event = setValue(t, actionCtx.Event, "updated_body", "changes", "body", "from")
-
-	// Exit with error because Event.issue.number is not set.
-	assert.Error(t, handleCommentUpdate(gh, actionCtx))
-	actionCtx.Event = setValue(t, actionCtx.Event, float64(42), "issue", "number")
 
 	// Exit with error because checkboxes are differents.
 	assert.Error(t, handleCommentUpdate(gh, actionCtx))

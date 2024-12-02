@@ -99,6 +99,18 @@ func handleCommentUpdate(gh *client.GitHub, actionCtx *githubactions.GitHubConte
 		return nil
 	}
 
+	// Get PR number from GitHub Actions context.
+	prNumFloat, ok := utils.IndexMap(actionCtx.Event, "issue", "number").(float64)
+	if !ok || prNumFloat <= 0 {
+		return errors.New("unable to get issue number on issue comment event")
+	}
+	prNum := int(prNumFloat)
+
+	// Ignore if this comment update is not related to an opened PR.
+	if _, err := gh.GetOpenedPullRequest(prNum); err != nil {
+		return nil // May come from an issue or a closed PR
+	}
+
 	// Return if comment was edited by bot (current authenticated user).
 	authUser, _, err := gh.Client.Users.Get(gh.Ctx, "")
 	if err != nil {
@@ -133,17 +145,11 @@ func handleCommentUpdate(gh *client.GitHub, actionCtx *githubactions.GitHubConte
 		return errors.New("unable to get changes body content on issue comment event")
 	}
 
-	// Get PR number from GitHub Actions context.
-	prNum, ok := utils.IndexMap(actionCtx.Event, "issue", "number").(float64)
-	if !ok || prNum <= 0 {
-		return errors.New("unable to get issue number on issue comment event")
-	}
-
 	// Check if change is only a checkbox being checked or unckecked.
 	if checkboxes.ReplaceAllString(current, "") != checkboxes.ReplaceAllString(previous, "") {
 		// If not, restore previous comment body.
 		if !gh.DryRun {
-			gh.SetBotComment(previous, int(prNum))
+			gh.SetBotComment(previous, prNum)
 		}
 		return errors.New("bot comment edited outside of checkboxes")
 	}
@@ -181,7 +187,7 @@ func handleCommentUpdate(gh *client.GitHub, actionCtx *githubactions.GitHubConte
 		if len(teams) > 0 {
 			if !gh.IsUserInTeams(actionCtx.Actor, teams) { // If user not allowed to check the boxes.
 				if !gh.DryRun {
-					gh.SetBotComment(previous, int(prNum)) // Then restore previous state.
+					gh.SetBotComment(previous, prNum) // Then restore previous state.
 				}
 				return errors.New("checkbox edited by a user not allowed to")
 			}
@@ -203,7 +209,7 @@ func handleCommentUpdate(gh *client.GitHub, actionCtx *githubactions.GitHubConte
 
 	// Update comment with username.
 	if edited != "" && !gh.DryRun {
-		gh.SetBotComment(edited, int(prNum))
+		gh.SetBotComment(edited, prNum)
 		gh.Logger.Debugf("Comment manual checks updated successfully")
 	}
 
