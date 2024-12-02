@@ -146,7 +146,7 @@ func (b banker) RemoveCoin(addr Address, denom string, amount int64) {
 func assertRealmDenom(denom string) {
 	prefix := "/" + CurrentRealm().PkgPath() + ":"
 	if !strings.HasPrefix(denom, prefix) {
-		panic("cannot issue coins with denom not prefixed by / + std.CurrentRealm().PkgPath() + :, take a look at std.CurrentRealm().ComposeDenom() function")
+		panic("cannot issue coins with denom not prefixed by: /realmPath:")
 	}
 
 	baseDenom := strings.TrimPrefix(denom, prefix)

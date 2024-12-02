@@ -57,19 +57,19 @@ stdout '"100/gno.land/r/test/package89_123456789_123456789_123456789_123456789_1
 
 ## mint invalid base denom
 ! gnokey maketx call -pkgpath gno.land/r/test/realm_banker -func Mint -args "g1cq2ecdq3eyn5qa0fzznpurg87zq3k77g63q6u7" -args "2gnot" -args "100" -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test test1
-stderr 'cannot issue coins with invalid denom name, it should start by a lowercase letter and be followed by 2-15 lowercase letters or digits'
+stderr 'cannot issue coins with invalid denom base name, it should start by a lowercase letter and be followed by 2-15 lowercase letters or digits'
 
 ## burn invalid base denom
 ! gnokey maketx call -pkgpath gno.land/r/test/realm_banker -func Burn -args "g1cq2ecdq3eyn5qa0fzznpurg87zq3k77g63q6u7" -args "2gnot" -args "100" -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test test1
-stderr 'cannot issue coins with invalid denom name, it should start by a lowercase letter and be followed by 2-15 lowercase letters or digits'
+stderr 'cannot issue coins with invalid denom base name, it should start by a lowercase letter and be followed by 2-15 lowercase letters or digits'
 
 ## mint invalid realm denom
 ! gnokey maketx call -pkgpath gno.land/r/test/invalid_realm_denom -func Mint -args "g1cq2ecdq3eyn5qa0fzznpurg87zq3k77g63q6u7" -args "ugnot" -args "100" -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test test1
-stderr 'cannot issue coins with denom not prefixed by current realm pkgPath'
+stderr 'cannot issue coins with denom not prefixed by: /realmPath:'
 
 ## burn invalid realm denom
 ! gnokey maketx call -pkgpath gno.land/r/test/invalid_realm_denom -func Burn -args "g1cq2ecdq3eyn5qa0fzznpurg87zq3k77g63q6u7" -args "ugnot" -args "100" -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test test1
-stderr 'cannot issue coins with denom not prefixed by current realm pkgPath'
+stderr 'cannot issue coins with denom not prefixed by: /realmPath:'
 
 -- short/realm_banker.gno --
 package realm_banker
@@ -80,12 +80,12 @@ import (
 
 func Mint(addr std.Address, denom string, amount int64) {
 	banker := std.GetBanker(std.BankerTypeRealmIssue)
-	banker.IssueCoin(addr, std.CurrentRealm().Denom(denom), amount)
+	banker.IssueCoin(addr, std.CurrentRealm().ComposeDenom(denom), amount)
 }
 
 func Burn(addr std.Address, denom string, amount int64) {
   banker := std.GetBanker(std.BankerTypeRealmIssue)
-  banker.RemoveCoin(addr, std.CurrentRealm().Denom(denom), amount)
+  banker.RemoveCoin(addr, std.CurrentRealm().ComposeDenom(denom), amount)
 }
 
 -- long/realm_banker.gno --
