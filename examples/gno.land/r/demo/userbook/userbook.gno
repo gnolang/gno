@@ -2,10 +2,11 @@
 package userbook
 
 import (
-	"gno.land/p/demo/avl"
-	"gno.land/p/demo/ufmt"
 	"std"
 	"time"
+
+	"gno.land/p/demo/avl"
+	"gno.land/p/demo/ufmt"
 )
 
 type Signup struct {
