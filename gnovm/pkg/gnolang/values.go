@@ -775,6 +775,9 @@ func (mv *MapValue) GetLength() int {
 // do for structs and arrays for assigning new entries.  If key
 // doesn't exist, a new slot is created.
 func (mv *MapValue) GetPointerForKey(alloc *Allocator, store Store, key *TypedValue) PointerValue {
+	fmt.Println("---GetPointerForKey, key: ", key)
+	fmt.Println("---path: ", key.GetPath())
+
 	kmk := key.ComputeMapKey(store, false)
 	if mli, ok := mv.vmap[kmk]; ok {
 		key2 := key.Copy(alloc)
@@ -799,6 +802,7 @@ func (mv *MapValue) GetPointerForKey(alloc *Allocator, store Store, key *TypedVa
 // Like GetPointerForKey, but does not create a slot if key
 // doesn't exist.
 func (mv *MapValue) GetValueForKey(store Store, key *TypedValue) (val TypedValue, ok bool) {
+	fmt.Println("---GetValueForkey, key: ", key)
 	kmk := key.ComputeMapKey(store, false)
 	if mli, exists := mv.vmap[kmk]; exists {
 		fillValueTV(store, &mli.Value)
@@ -962,9 +966,18 @@ func (nv *NativeValue) Copy(alloc *Allocator) *NativeValue {
 // TypedValue (is not a value, but a tuple)
 
 type TypedValue struct {
-	T Type    `json:",omitempty"` // never nil
-	V Value   `json:",omitempty"` // an untyped value
-	N [8]byte `json:",omitempty"` // numeric bytes
+	T    Type    `json:",omitempty"` // never nil
+	V    Value   `json:",omitempty"` // an untyped value
+	N    [8]byte `json:",omitempty"` // numeric bytes
+	Path ValuePath
+}
+
+func (tv *TypedValue) SetPath(path ValuePath) {
+	tv.Path = path
+}
+
+func (tv *TypedValue) GetPath() ValuePath {
+	return tv.Path
 }
 
 func (tv *TypedValue) IsDefined() bool {
@@ -1544,6 +1557,12 @@ func (tv *TypedValue) AssertNonNegative(msg string) {
 }
 
 func (tv *TypedValue) ComputeMapKey(store Store, omitType bool) MapKey {
+	fmt.Println("---ComputeMapKey, tv: ", tv)
+	fmt.Println("---path: ", tv.GetPath())
+	// map key might be refValue that was previously attached
+	if _, ok := tv.V.(RefValue); ok {
+		fillValueTV(store, tv)
+	}
 	// Special case when nil: has no separator.
 	if tv.T == nil {
 		if debug {
@@ -1564,8 +1583,9 @@ func (tv *TypedValue) ComputeMapKey(store Store, omitType bool) MapKey {
 		pbz := tv.PrimitiveBytes()
 		bz = append(bz, pbz...)
 	case *PointerType:
-		ptr := uintptr(unsafe.Pointer(tv.V.(PointerValue).TV))
-		bz = append(bz, uintptrToBytes(&ptr)...)
+		//fillValueTV(store, tv)
+		//return tv.V.(PointerValue).TV.ComputeMapKey(store, omitType)
+		bz = append(bz, []byte(tv.GetPath().String())...)
 	case FieldType:
 		panic("field (pseudo)type cannot be used as map key")
 	case *ArrayType:
@@ -1976,6 +1996,7 @@ func (tv *TypedValue) GetPointerAtIndexInt(store Store, ii int) PointerValue {
 }
 
 func (tv *TypedValue) GetPointerAtIndex(alloc *Allocator, store Store, iv *TypedValue) PointerValue {
+	fmt.Println("---GetPointerAtIndex, iv: ", iv)
 	switch bt := baseOf(tv.T).(type) {
 	case PrimitiveType:
 		if bt == StringType || bt == UntypedStringType {
@@ -2013,6 +2034,7 @@ func (tv *TypedValue) GetPointerAtIndex(alloc *Allocator, store Store, iv *Typed
 		ii := iv.ConvertGetInt()
 		return sv.GetPointerAtIndexInt2(store, ii, bt.Elt)
 	case *MapType:
+		println("---MapType")
 		if tv.V == nil {
 			panic(&Exception{Value: typedString("uninitialized map index")})
 		}

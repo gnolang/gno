@@ -23,6 +23,7 @@ func (m *Machine) doOpEval() {
 		debug.Printf("EVAL: (%T) %v\n", x, x)
 		// fmt.Println(m.String())
 	}
+	fmt.Printf("EVAL: (%T) %v\n", x, x)
 	// This case moved out of switch for performance.
 	// TODO: understand this better.
 	if nx, ok := x.(*NameExpr); ok {
@@ -37,7 +38,15 @@ func (m *Machine) doOpEval() {
 			lb := m.LastBlock()
 			// Push value, done.
 			ptr := lb.GetPointerToMaybeHeapUse(m.Store, nx)
-			m.PushValue(ptr.Deref())
+			v := ptr.Deref()
+
+			fmt.Println("---v: ", v)
+			v.SetPath(nx.Path)
+			fmt.Println("---v.Path: ", v.Path)
+			fmt.Println("---v.GetPath: ", v.GetPath())
+
+			//m.PushValue(ptr.Deref())
+			m.PushValue(v)
 			return
 		}
 	}

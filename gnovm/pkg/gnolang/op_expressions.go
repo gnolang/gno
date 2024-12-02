@@ -16,6 +16,8 @@ func (m *Machine) doOpIndex1() {
 	}
 	iv := m.PopValue()   // index
 	xv := m.PeekValue(1) // x
+	fmt.Println("---doOpIndex1, iv: ", iv)
+	fmt.Println("---doOpIndex1, xv: ", xv)
 	switch ct := baseOf(xv.T).(type) {
 	case *MapType:
 		mv := xv.V.(*MapValue)
@@ -184,8 +186,10 @@ func (m *Machine) doOpStar() {
 // XXX this is wrong, for var i interface{}; &i is *interface{}.
 func (m *Machine) doOpRef() {
 	rx := m.PopExpr().(*RefExpr)
+	fmt.Println("---doOpRef, rx: ", rx)
 	m.Alloc.AllocatePointer()
 	xv := m.PopAsPointer(rx.X)
+	fmt.Println("---xv: ", xv)
 	if nv, ok := xv.TV.V.(*NativeValue); ok {
 		// If a native pointer, ensure it is addressable.  This
 		// way, PointerValue{*NativeValue{rv}} can be converted
@@ -203,10 +207,17 @@ func (m *Machine) doOpRef() {
 	if elt == DataByteType {
 		elt = xv.TV.V.(DataByteValue).ElemType
 	}
-	m.PushValue(TypedValue{
+
+	tv := TypedValue{
 		T: m.Alloc.NewType(&PointerType{Elt: elt}),
 		V: xv,
-	})
+	}
+
+	if nx, ok := rx.X.(*NameExpr); ok {
+		tv.Path = nx.Path
+	}
+
+	m.PushValue(tv)
 }
 
 // NOTE: keep in sync with doOpTypeAssert2.

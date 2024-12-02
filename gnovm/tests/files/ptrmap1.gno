@@ -1,0 +1,32 @@
+// PKGPATH: gno.land/r/ptr_map
+package ptr_map
+
+var (
+	m = map[*int]int{}
+	i = new(int)
+)
+
+func AddToMap(value int) {
+	m[i] = value
+}
+
+func GetFromMap() int {
+	return m[i]
+}
+
+func init() {
+	*i = 1
+	AddToMap(5)
+}
+
+func main() {
+	r := GetFromMap()
+	println(r == 5)
+
+	*i = 2
+	println(r == 5)
+}
+
+// Output:
+// true
+// true

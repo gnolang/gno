@@ -1987,6 +1987,16 @@ func (m *Machine) PopAsPointer(lx Expr) PointerValue {
 	case *IndexExpr:
 		iv := m.PopValue()
 		xv := m.PopValue()
+		if mv, ok := xv.V.(*MapValue); ok {
+			kmk := iv.ComputeMapKey(m.Store, false)
+			if _, exist := mv.vmap[kmk]; !exist {
+				// XXX, make key object owned by map object
+				oo2 := iv.GetFirstObject(m.Store)
+				if oo2 != nil {
+					m.Realm.DidUpdate(mv, nil, oo2)
+				}
+			}
+		}
 		return xv.GetPointerAtIndex(m.Alloc, m.Store, iv)
 	case *SelectorExpr:
 		xv := m.PopValue()

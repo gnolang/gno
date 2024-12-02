@@ -664,8 +664,6 @@ func (rlm *Realm) saveUnsavedObjects(store Store) {
 		}
 	}
 	for _, uo := range rlm.updated {
-		// for i := len(rlm.updated) - 1; i >= 0; i-- {
-		// uo := rlm.updated[i]
 		if !uo.GetIsDirty() {
 			// might have happened already as child
 			// of something else created/dirty.

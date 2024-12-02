@@ -1,0 +1,32 @@
+// PKGPATH: gno.land/r/ptr_map
+package ptr_map
+
+type MyStruct struct {
+	Name string
+	Age  int
+}
+
+var (
+	m = map[*MyStruct]string{}
+
+	i1 = &MyStruct{Name: "alice", Age: 2}
+)
+
+func main() {
+	// Create an array of pointers to MyStruct
+	m[i1] = "first key"
+	println(m[i1])
+
+	i2 := *i1
+	i3 := &i2
+	println(m[i3] == "")
+
+	i1.Age = 3
+	println(m[i1])
+
+}
+
+// Output:
+// first key
+// true
+// first key
