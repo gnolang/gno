@@ -2,7 +2,6 @@ package users
 
 import (
 	"std"
-	"strings"
 
 	"gno.land/p/demo/ufmt"
 )
@@ -10,25 +9,11 @@ import (
 type User struct {
 	Address std.Address
 	Name    string
-	Bio     string
-	Number  uint64 // XXX we don't really need this for apart from knowing how many users they are. Keep it or not?
-	Block   int64  // XXX: should we save this? could be cool to see when someone signed up.
 }
 
 func (u *User) Render() string {
-	out := ufmt.Sprintf("# User #%d - %s\n\n", u.Number, u.Name)
-
-	out += "## Bio\n\n"
-	if strings.TrimSpace(u.Bio) != "" {
-		out += ufmt.Sprintf("%s\n\n", u.Bio)
-	} else {
-		out += "No bio provided.\n\n"
-	}
-
-	out += "## Stats\n\n"
-	out += ufmt.Sprintf("- ID #%d\n\n", u.Number)
+	out := ufmt.Sprintf("# User %s\n\n", u.Name)
 	out += ufmt.Sprintf("- Address: %s\n\n", u.Address.String())
-	out += ufmt.Sprintf("- Registered at block #%d\n\n", u.Block)
 
 	return out
 }
