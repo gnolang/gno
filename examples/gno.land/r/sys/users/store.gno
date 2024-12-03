@@ -57,6 +57,7 @@ func UserCount() int {
 	return aStore.Size()
 }
 
+// XXX: Should we have this? it's not modifiable directly.
 func GetUserStore() *avl.Tree {
 	return uStore
 }
@@ -73,8 +74,6 @@ func verifyUser(user *susers.User) error {
 	if !user.Address.IsValid() {
 		return ErrInvalidAddress
 	}
-
-	// todo check for ID
 
 	return nil
 }

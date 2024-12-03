@@ -1,12 +1,12 @@
 package users
 
 import (
-	"regexp"
-	"std"
-
+	"github.com/gnolang/gno/examples/gno.land/p/demo/avl"
 	"gno.land/p/demo/ownable"
 	p "gno.land/p/demo/pausable"
-	pusers "gno.land/p/demo/users"
+	susers "gno.land/p/sys/users"
+	"regexp"
+	"std"
 
 	sys "gno.land/r/sys/users"
 )
@@ -18,9 +18,10 @@ const (
 )
 
 var (
-	admin      = ownable.NewWithAddress(adminAddr) // @moul /// switch to dao managed down the line
-	pausable   = p.NewFromOwnable(admin)           //
-	reUsername = regexp.MustCompile(reValidUsername)
+	admin             = ownable.NewWithAddress(adminAddr) // @moul /// switch to dao managed down the line
+	pausable          = p.NewFromOwnable(admin)           //
+	reUsername        = regexp.MustCompile(reValidUsername)
+	extendedUserStore = avl.NewTree() // addr > *ExtendedUser
 )
 
 // Register registers a new username for the caller
@@ -40,19 +41,43 @@ func Register(username, bio string) error {
 	}
 
 	registrant := std.PrevRealm().Addr()
-	u := &pusers.User{
+
+	base := &susers.User{
 		Address: registrant,
 		Name:    username,
-		Profile: bio, // optional
-		Number:  sys.UserCount(),
-		Block:   std.GetHeight(),
 	}
 
-	err := sys.WriteUser(u)
+	extendedUser := &User{
+		base:         base,
+		Bio:          bio, // optional
+		Ordinal:      sys.UserCount(),
+		RegisteredAt: std.GetHeight(),
+	}
+
+	err := sys.WriteUser(base)
 	if err != nil {
 		return err
 	}
 
+	extendedUserStore.Set(registrant.String(), extendedUser)
+
 	std.Emit(RegisterEvent, "registrant", registrant.String(), "username", username)
+	return nil
+}
+
+func UpdateBio(bio string) error {
+	if pausable.IsPaused() {
+		return p.ErrPaused
+	}
+
+	raw, ok := extendedUserStore.Get(std.PrevRealm.Addr())
+	if !ok {
+		return ErrNotRegistered
+	}
+
+	user := raw.(*User)
+	user.Bio = bio
+	// do you need to set again?
+
 	return nil
 }
