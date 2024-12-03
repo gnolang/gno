@@ -73,7 +73,7 @@ const (
 )
 
 func init() {
-	// Skip Uverse init during benchmarking to load standards in the benchmark main function.
+	// Skip Uverse init during benchmarking to load stdlibs in the benchmark main function.
 	if !(bm.OpsEnabled || bm.StorageEnabled) {
 		// Call Uverse() so we initialize the Uverse node ahead of any calls to the package.
 		Uverse()
