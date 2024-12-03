@@ -77,7 +77,6 @@ func UpdateBio(bio string) error {
 
 	user := raw.(*User)
 	user.Bio = bio
-	// do you need to set again?
 
 	return nil
 }
