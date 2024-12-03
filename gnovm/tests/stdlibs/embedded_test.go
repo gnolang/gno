@@ -41,4 +41,7 @@ std
 testing
   native_testing.gno
   native_testing.go
+unicode
+  natives.gno
+  natives.go
 `
