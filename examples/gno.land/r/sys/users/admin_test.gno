@@ -7,13 +7,6 @@ import (
 	"gno.land/p/demo/uassert"
 )
 
-var (
-	whitelistedCallerAddr = std.DerivePkgAddr(gnolandUsers)
-	adminRealm            = std.NewUserRealm(adminAddr)
-	alice                 = std.Address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5")
-	aliceCodeRealm        = std.NewCodeRealm("gno.land/r/alice/package")
-)
-
 func TestAddToWhitelist(t *testing.T) {
 	t.Run("invalid new address", func(t *testing.T) {
 		t.Parallel()

@@ -36,7 +36,7 @@ func TestWriteUser(t *testing.T) {
 		std.TestSetRealm(std.NewCodeRealm(gnolandUsers))
 
 		u := &pusers.User{
-			Name:    "testuser123",
+			Name:    aliceUsername,
 			Address: alice,
 		}
 
