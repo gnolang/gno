@@ -4,10 +4,10 @@ import (
 	"std"
 
 	"gno.land/p/demo/avlhelpers"
-	pusers "gno.land/p/sys/users"
+	susers "gno.land/p/sys/users"
 )
 
-func ResolveName(username string) *pusers.User {
+func ResolveName(username string) *susers.User {
 	if username == "" {
 		return nil
 	}
@@ -17,10 +17,10 @@ func ResolveName(username string) *pusers.User {
 		return nil
 	}
 
-	return raw.(*pusers.User)
+	return raw.(*susers.User)
 }
 
-func ResolveAddress(addr std.Address) *pusers.User {
+func ResolveAddress(addr std.Address) *susers.User {
 	if !addr.IsValid() {
 		return nil
 	}
@@ -30,12 +30,12 @@ func ResolveAddress(addr std.Address) *pusers.User {
 		return nil
 	}
 
-	return raw.(*pusers.User)
+	return raw.(*susers.User)
 }
 
 // ResolveAddressOrName
 // Note: unlike ResolveName, input must be "@" prefixed for names.
-func ResolveAddressOrName(aon pusers.AddressOrName) *pusers.User {
+func ResolveAddressOrName(aon susers.AddressOrName) *susers.User {
 	name, isName := aon.Name()
 	if isName {
 		return ResolveName(name)
@@ -45,15 +45,15 @@ func ResolveAddressOrName(aon pusers.AddressOrName) *pusers.User {
 }
 
 // Users returns a paginated list of users
-func Users(offset, count uint64) []pusers.User {
+func Users(offset, count uint64) []susers.User {
 	if count < 1 {
-		return []pusers.User{}
+		return []susers.User{}
 	}
 
-	res := make([]pusers.User, 0, count)
+	res := make([]susers.User, 0, count)
 
 	uStore.IterateByOffset(int(offset), int(count), func(key string, value interface{}) bool {
-		user := value.(pusers.User)
+		user := value.(susers.User)
 		res = append(res, user)
 
 		return false
@@ -68,19 +68,4 @@ func UsersByPrefix(prefix string, maxResults int) []string {
 	// most likely moved to r/gnoland/users to keep this package minimal.
 	// in that case, should we get a value copy of the uStore available to whitelisted callers?
 	return avlhelpers.ListByteStringKeysByPrefix(*uStore, prefix, maxResults)
-}
-
-// UpdateBio allows the caller to change their bio, if they are registered
-// XXX do we want this?
-func UpdateBio(bio string) error {
-	caller := std.GetOrigCaller()
-	u := ResolveAddress(caller)
-	if u == nil {
-		return ErrNotRegistered
-	}
-
-	u.Bio = bio
-	uStore.Set(u.Name, u)
-
-	return nil
 }

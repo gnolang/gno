@@ -6,12 +6,12 @@ import (
 
 	"gno.land/p/demo/avl"
 	p "gno.land/p/demo/pausable"
-	pusers "gno.land/p/sys/users"
+	susers "gno.land/p/sys/users"
 )
 
 var (
-	uStore             = avl.NewTree() // username > *pusers.User
-	aStore             = avl.NewTree() // address > *pusers.User
+	uStore             = avl.NewTree() // username > *susers.User
+	aStore             = avl.NewTree() // address > *susers.User
 	callerWhitelist    = avl.NewTree() // addr > struct{}{}
 	preRestrictedNames = []string{
 		"bitcoin", "cosmos", "newtendermint", "ethereum",
@@ -21,7 +21,7 @@ var (
 // WriteUser writes to the sys/users store
 // Only whitelisted callers can call this function
 // Writing to the store can be paused by the admin
-func WriteUser(user *pusers.User) error {
+func WriteUser(user *susers.User) error {
 	if pausable.IsPaused() {
 		return p.ErrPaused
 	}
@@ -61,7 +61,7 @@ func GetUserStore() *avl.Tree {
 	return uStore
 }
 
-func verifyUser(user *pusers.User) error {
+func verifyUser(user *susers.User) error {
 	if user == nil {
 		return ErrUserIsNil
 	}

@@ -7,7 +7,7 @@ import (
 	"gno.land/p/demo/testutils"
 	"gno.land/p/demo/uassert"
 	"gno.land/p/demo/urequire"
-	pusers "gno.land/p/sys/users"
+	susers "gno.land/p/sys/users"
 )
 
 func TestResolveName(t *testing.T) {
@@ -27,7 +27,7 @@ func TestResolveName(t *testing.T) {
 		std.TestSetOrigCaller(std.NewCodeRealm(gnolandUsers).Addr())
 
 		addr := testutils.TestAddress("newUsername")
-		u := &pusers.User{
+		u := &susers.User{
 			Name:    "newUsername", // should be aliceUsername, but realm state is not reset
 			Address: addr,
 		}
@@ -57,14 +57,4 @@ func TestResolveAddress(t *testing.T) {
 		uassert.Equal(t, ResolveAddress(alice).Name, username)
 		uassert.Equal(t, ResolveAddress(alice).Address, alice)
 	})
-}
-
-func TestUpdateBio(t *testing.T) {
-	t.Run("caller not registered", func(t *testing.T) {
-		t.Parallel()
-
-		std.TestSetOrigCaller(testutils.TestAddress("bob"))
-		uassert.Error(t, UpdateBio("newbio"), ErrNotRegistered.Error())
-	})
-
 }
