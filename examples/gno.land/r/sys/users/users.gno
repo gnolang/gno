@@ -4,7 +4,7 @@ import (
 	"std"
 
 	"gno.land/p/demo/avlhelpers"
-	pusers "gno.land/p/demo/users"
+	pusers "gno.land/p/sys/users"
 )
 
 func ResolveName(username string) *pusers.User {

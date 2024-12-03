@@ -7,7 +7,6 @@ import (
 	"gno.land/p/demo/ufmt"
 )
 
-// XXX should we move this whole package to a p/sys as an important type/interface?
 type User struct {
 	Address std.Address
 	Name    string

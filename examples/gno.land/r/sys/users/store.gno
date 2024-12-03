@@ -6,7 +6,7 @@ import (
 
 	"gno.land/p/demo/avl"
 	p "gno.land/p/demo/pausable"
-	pusers "gno.land/p/demo/users"
+	pusers "gno.land/p/sys/users"
 )
 
 var (

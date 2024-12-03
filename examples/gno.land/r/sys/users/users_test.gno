@@ -7,7 +7,7 @@ import (
 	"gno.land/p/demo/testutils"
 	"gno.land/p/demo/uassert"
 	"gno.land/p/demo/urequire"
-	pusers "gno.land/p/demo/users"
+	pusers "gno.land/p/sys/users"
 )
 
 func TestResolveName(t *testing.T) {
