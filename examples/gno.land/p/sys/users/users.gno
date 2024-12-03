@@ -11,13 +11,6 @@ type User struct {
 	Name    string
 }
 
-func NewUser(address std.Address, name string) *User {
-	return &User{
-		Address: address,
-		Name:    name,
-	}
-}
-
 func (u *User) Render() string {
 	out := ufmt.Sprintf("# User %s\n\n", u.Name)
 	out += ufmt.Sprintf("- Address: %s\n\n", u.Address.String())
