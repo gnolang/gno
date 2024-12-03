@@ -15,7 +15,10 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/std"
 )
 
-var errInvalidPackageDir = errors.New("invalid package directory")
+var (
+	errInvalidPackageDir   = errors.New("invalid package directory")
+	errInvalidDeployerAddr = errors.New("invalid deployer address")
+)
 
 // Keep in sync with gno.land/cmd/start.go
 var (
@@ -73,7 +76,18 @@ func execTxsAddPackages(
 		return errInvalidPackageDir
 	}
 
-	creator := crypto.MustAddressFromString(cfg.deployerAddress)
+	var (
+		creator = defaultCreator
+		err     error
+	)
+
+	// Check if the deployer address is set
+	if cfg.deployerAddress != defaultCreator.String() {
+		creator, err = crypto.AddressFromString(cfg.deployerAddress)
+		if err != nil {
+			return fmt.Errorf("%w, %w", errInvalidDeployerAddr, err)
+		}
+	}
 
 	parsedTxs := make([]gnoland.TxWithMetadata, 0)
 	for _, path := range args {
