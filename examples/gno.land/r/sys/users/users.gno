@@ -62,10 +62,12 @@ func Users(offset, count uint64) []susers.User {
 	return res
 }
 
+// XXX: Figure out a flexible but minimalistic API for fetching users from this realm.
+
 // UsersByPrefix gets a slice of usernames starting from the given prefix. Limits the
 // number of results to maxResults. (This can be used for a name search tool.)
 func UsersByPrefix(prefix string, maxResults int) []string {
-	// most likely moved to r/gnoland/users to keep this package minimal.
+	// XXX: most likely moved to r/gnoland/users to keep this package minimal.
 	// in that case, should we get a value copy of the uStore available to whitelisted callers?
 	return avlhelpers.ListByteStringKeysByPrefix(*uStore, prefix, maxResults)
 }

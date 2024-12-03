@@ -10,5 +10,4 @@ var (
 	ErrInvalidAddress     = errors.New("r/sys/users: invalid address")
 	ErrEmptyUsername      = errors.New("r/sys/users: empty username provided")
 	ErrUserIsNil          = errors.New("r/sys/users: user provided is nil")
-	ErrNotRegistered      = errors.New("r/sys/users: user has not been registered")
 )
