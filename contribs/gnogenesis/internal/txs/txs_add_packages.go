@@ -32,7 +32,7 @@ func (c *addPkgCfg) RegisterFlags(fs *flag.FlagSet) {
 	fs.StringVar(
 		&c.deployerAddress,
 		"deployer-address",
-		"",
+		defaultCreator.String(),
 		"the address that will be used to deploy the package",
 	)
 }
@@ -73,10 +73,7 @@ func execTxsAddPackages(
 		return errInvalidPackageDir
 	}
 
-	creator := defaultCreator
-	if cfg.deployerAddress != "" {
-		creator = crypto.MustAddressFromString(cfg.deployerAddress)
-	}
+	creator := crypto.MustAddressFromString(cfg.deployerAddress)
 
 	parsedTxs := make([]gnoland.TxWithMetadata, 0)
 	for _, path := range args {
