@@ -21,6 +21,7 @@ gno.land testnets are categorized by 4 main points:
 Below you can find a breakdown of each existing testnet by these categories.
 
 ## Portal Loop
+
 Portal Loop is an always up-to-date rolling testnet. It is meant to be used as
 a nightly build of the Gno tech stack. The home page of [gno.land](https://gno.land)
 is the `gnoweb` render of the Portal Loop testnet.
@@ -43,8 +44,28 @@ For more information on the Portal Loop, and how it can be best utilized,
 check out the [Portal Loop concept page](./portal-loop.md). Also, you can find
 the Portal Loop faucet on [`gno.land/faucet`](https://gno.land/faucet).
 
+## Test5
+
+Test5 a permanent multi-node testnet. It bumped the validator set from 7 to 17 
+nodes, introduced GovDAO V2, and added lots of bug fixes and quality of life
+improvements.
+
+Test5 was launched in November 2024.
+
+- **Persistence of state:**
+  - State is fully persisted unless there are breaking changes in a new release,
+    where persistence partly depends on implementing a migration strategy
+- **Timeliness of code:**
+  - Versioning mechanisms for packages & realms will be implemented for test4
+- **Intended purpose**
+  - Running a full node, testing validator coordination, deploying stable Gno
+    dApps, creating tools that require persisted state & transaction history
+- **Versioning strategy**:
+  - Test5 is to be release-based, following releases of the Gno tech stack.
+
 ## Test4
-Test4 a permanent multi-node testnet.
+
+Test4 is the first permanent multi-node testnet, launched in July 2024.
 
 - **Persistence of state:**
   - State is fully persisted unless there are breaking changes in a new release,
@@ -59,6 +80,7 @@ Test4 a permanent multi-node testnet.
 of the Gno tech stack.
 
 ## Staging
+
 Staging is a testnet that is reset once every 60 minutes.
 
 - **Persistence of state:**
@@ -73,39 +95,25 @@ Staging is a testnet that is reset once every 60 minutes.
   - Staging is reset every 60 minutes to match the latest monorepo commit
 
 ## TestX
+
 These testnets are deprecated and currently serve as archives of previous progress.
 
-### Test3
-Test3 is the most recent persistent Gno testnet. It is still being used, but
-most packages, such as the AVL package, are outdated.
+### Test3 (archive)
 
-- **Persistence of state:**
-  - State is fully preserved
-- **Timeliness of code:**
-  - Test3 is at commit [1ca2d97](https://github.com/gnolang/gno/commit/1ca2d973817b174b5b06eb9da011e1fcd2cca575)
-of Gno, and it can contain new on-chain code
-- **Intended purpose**
-  - Running a full node, building an indexer, showing demos, persisting history
-- **Versioning strategy**:
-  - There is no versioning strategy for test3. It will stay the way it is, until
-the team chooses to shut it down.
-
-Since gno.land is designed with open-source in mind, anyone can see currently
-available code by browsing the [test3 homepage](https://test3.gno.land/).
-
-Test3 is a single-node testnet, ran by the Gno core team. There is no plan to
-upgrade test3 to a multi-node testnet.
+The third Gno testnet. Archived data for test3 can be found [here](https://github.com/gnolang/tx-exports/tree/main/test3.gno.land).
 
 Launch date: November 4th 2022
 Release commit: [1ca2d97](https://github.com/gnolang/gno/commit/1ca2d973817b174b5b06eb9da011e1fcd2cca575)
 
 ### Test2 (archive)
+
 The second Gno testnet. Find archive data [here](https://github.com/gnolang/tx-exports/tree/main/test2.gno.land).
 
 Launch date: July 10th 2022
 Release commit: [652dc7a](https://github.com/gnolang/gno/commit/652dc7a3a62ee0438093d598d123a8c357bf2499)
 
 ### Test1 (archive)
+
 The first Gno testnet. Find archive data [here](https://github.com/gnolang/tx-exports/tree/main/test1.gno.land).
 
 Launch date: May 6th 2022
