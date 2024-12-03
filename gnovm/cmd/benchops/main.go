@@ -11,7 +11,7 @@ import (
 
 var (
 	outFlag   = flag.String("out", "results.csv", "the out put file")
-	benchFlag = flag.String("bench", "./gno", "the path to the benchmark contract")
+	benchFlag = flag.String("bench", "./pkg/benchops/gno", "the path to the benchmark contract")
 	binFlag   = flag.String("bin", "", "interpret the existing benchmarking file.")
 )
 
