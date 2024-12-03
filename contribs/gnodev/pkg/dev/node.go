@@ -238,6 +238,7 @@ func (n *Node) Reset(ctx context.Context) error {
 		return fmt.Errorf("unable to initialize a new node: %w", err)
 	}
 
+	n.pkgs = pkgs
 	n.loadedPackages = len(pkgsTxs)
 	n.currentStateIndex = len(n.initialState)
 	n.startTime = startTime

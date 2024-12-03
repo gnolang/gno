@@ -2,14 +2,24 @@ package dev
 
 import (
 	"context"
+	"path/filepath"
 	"testing"
 
-	"github.com/alecthomas/assert"
+	mock "github.com/gnolang/gno/contribs/gnodev/internal/mock"
+	"github.com/gnolang/gno/contribs/gnodev/pkg/events"
 	"github.com/gnolang/gno/contribs/gnodev/pkg/packages"
+	"github.com/gnolang/gno/gno.land/pkg/gnoclient"
+	"github.com/gnolang/gno/gno.land/pkg/gnoland/ugnot"
+	"github.com/gnolang/gno/gno.land/pkg/integration"
+	"github.com/gnolang/gno/gno.land/pkg/sdk/vm"
+	"github.com/gnolang/gno/gnovm"
 	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
+	core_types "github.com/gnolang/gno/tm2/pkg/bft/rpc/core/types"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
+	"github.com/gnolang/gno/tm2/pkg/crypto/keys"
 	"github.com/gnolang/gno/tm2/pkg/log"
-	"github.com/jaekwon/testify/require"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 // XXX: We should probably use txtar to test this package.
@@ -51,113 +61,109 @@ func Render(_ string) string { return "foo" }
 	pkg := generateMemPackage(t, path, "foobar.gno", testFile)
 	logger := log.NewTestingLogger(t)
 
-	loader := packages.NewLoader(filter packages.FilterFunc, res ...packages.Resolver)
-	// Call NewDevNode with no package should work
 	cfg := DefaultNodeConfig(gnoenv.RootDir())
-	cfg.Loader = &loader
+	cfg.Loader = packages.NewLoader(packages.NewMockResolver(&pkg))
 	cfg.Logger = logger
-	node, err := NewDevNode(ctx, cfg)
+
+	node, err := NewDevNode(ctx, cfg, path)
 	require.NoError(t, err)
 	assert.Len(t, node.ListPkgs(), 1)
 
 	// Test rendering
-	render, err := testingRenderRealm(t, node, "gno.land/r/dev/foobar")
+	render, err := testingRenderRealm(t, node, path)
 	require.NoError(t, err)
 	assert.Equal(t, render, "foo")
 
 	require.NoError(t, node.Close())
 }
 
-// // func TestNodeAddPackage(t *testing.T) {
-// // 	// Setup a Node instance
-// // 	const (
-// // 		// foo package
-// // 		fooPath = "gno.land/r/dev/foo"
-// // 		fooFile = `package foo
-// // func Render(_ string) string { return "foo" }
-// // `
-// // 		// bar package
-// // 		barPath = "gno.land/r/dev/bar"
-// // 		barFile = `package bar
-// // func Render(_ string) string { return "bar" }
-// // `
-// // 	)
+func TestNodeAddPackage(t *testing.T) {
+	// Setup a Node instance
+	const (
+		// foo package
+		fooPath = "gno.land/r/dev/foo"
+		fooFile = `package foo
+func Render(_ string) string { return "foo" }
+`
+		// bar package
+		barPath = "gno.land/r/dev/bar"
+		barFile = `package bar
+func Render(_ string) string { return "bar" }
+`
+	)
 
-// // 	resolver := packages.NewMockResolver()
+	// Generate package foo
+	fooPkg := generateMemPackage(t, fooPath, "foo.gno", fooFile)
+	barPkg := generateMemPackage(t, barPath, "bar.gno", barFile)
+	cfg := newTestingNodeConfig(&fooPkg, &barPkg)
 
-// // 	// Generate package foo
-// // 	fooPkg := generateMemPackage(t, fooPath, "foo.gno", fooFile)
-// // 	resolver.AddPackage(fooPkg)
+	// Call NewDevNode with no package should work
+	node, emitter := newTestingDevNodeWithConfig(t, cfg, fooPath)
+	assert.Len(t, node.ListPkgs(), 1)
 
-// // 	// Call NewDevNode with no package should work
-// // 	node, emitter := newTestingDevNodeWithConfig(t, cfg)
-// // 	assert.Len(t, node.ListPkgs(), 1)
+	// Test render
+	render, err := testingRenderRealm(t, node, "gno.land/r/dev/foo")
+	require.NoError(t, err)
+	require.Equal(t, render, "foo")
 
-// // 	// Test render
-// // 	render, err := testingRenderRealm(t, node, "gno.land/r/dev/foo")
-// // 	require.NoError(t, err)
-// // 	require.Equal(t, render, "foo")
+	// Render should fail as the node hasn't reloaded
+	render, err = testingRenderRealm(t, node, "gno.land/r/dev/bar")
+	require.Error(t, err)
 
-// // 	// Generate package bar
-// // 	barPkg := generateMemPackage(t, barPath, "bar.gno", barFile)
-// // 	resolver.AddPackage(barPkg)
+	// Add bar package
+	node.AddPackagePaths(barPath)
 
-// // 	// Render should fail as the node hasn't reloaded
-// // 	render, err = testingRenderRealm(t, node, "gno.land/r/dev/bar")
-// // 	require.Error(t, err)
+	err = node.Reload(context.Background())
+	require.NoError(t, err)
+	assert.Equal(t, emitter.NextEvent().Type(), events.EvtReload)
 
-// // 	err = node.Reload(context.Background())
-// // 	require.NoError(t, err)
-// // 	assert.Equal(t, emitter.NextEvent().Type(), events.EvtReload)
+	// After a reload, render should succeed
+	render, err = testingRenderRealm(t, node, "gno.land/r/dev/bar")
+	require.NoError(t, err)
+	require.Equal(t, render, "bar")
+}
 
-// // 	// After a reload, render should succeed
-// // 	render, err = testingRenderRealm(t, node, "gno.land/r/dev/bar")
-// // 	require.NoError(t, err)
-// // 	require.Equal(t, render, "bar")
-// // }
+func TestNodeUpdatePackage(t *testing.T) {
+	// Setup a Node instance
+	const (
+		// foo package
+		foobarPath = "gno.land/r/dev/foobar"
+		fooFile    = `package foobar
+func Render(_ string) string { return "foo" }`
+		barFile = `package foobar
+func Render(_ string) string { return "bar" }
+`
+	)
 
-// func TestNodeUpdatePackage(t *testing.T) {
-// 	// Setup a Node instance
-// 	const (
-// 		// foo package
-// 		foobarGnoMod = "module gno.land/r/dev/foobar\n"
-// 		fooFile      = `package foobar
-// func Render(_ string) string { return "foo" }
-// `
-// 		barFile = `package foobar
-// func Render(_ string) string { return "bar" }
-// `
-// 	)
+	// Generate package foo
+	fooPkg := generateMemPackage(t, foobarPath, "foo.gno", fooFile)
 
-// 	// Generate package foo
-// 	foopkg := generateTestingPackage(t, "gno.mod", foobarGnoMod, "foo.gno", fooFile)
+	// Call NewDevNode with no package should work
+	node, emitter := newTestingDevNode(t, &fooPkg)
+	assert.Len(t, node.ListPkgs(), 1)
 
-// 	// Call NewDevNode with no package should work
-// 	node, emitter := newTestingDevNode(t, foopkg)
-// 	assert.Len(t, node.ListPkgs(), 1)
+	// Test that render is correct
+	render, err := testingRenderRealm(t, node, foobarPath)
+	require.NoError(t, err)
+	require.Equal(t, render, "foo")
 
-// 	// Test that render is correct
-// 	render, err := testingRenderRealm(t, node, "gno.land/r/dev/foobar")
-// 	require.NoError(t, err)
-// 	require.Equal(t, render, "foo")
+	// Update foo content with bar content
+	barPkg := generateMemPackage(t, foobarPath, "bar.gno", barFile)
+	fooPkg.Files = barPkg.Files
 
-// 	// Override `foo.gno` file with bar content
-// 	err = os.WriteFile(filepath.Join(foopkg.Path, "foo.gno"), []byte(barFile), 0o700)
-// 	require.NoError(t, err)
+	err = node.Reload(context.Background())
+	require.NoError(t, err)
 
-// 	err = node.Reload(context.Background())
-// 	require.NoError(t, err)
+	// Check reload event
+	assert.Equal(t, events.EvtReload, emitter.NextEvent().Type())
 
-// 	// Check reload event
-// 	assert.Equal(t, events.EvtReload, emitter.NextEvent().Type())
+	// After a reload, render should succeed
+	render, err = testingRenderRealm(t, node, foobarPath)
+	require.NoError(t, err)
+	require.Equal(t, render, "bar")
 
-// 	// After a reload, render should succeed
-// 	render, err = testingRenderRealm(t, node, "gno.land/r/dev/foobar")
-// 	require.NoError(t, err)
-// 	require.Equal(t, render, "bar")
-
-// 	assert.Equal(t, mock.EvtNull, emitter.NextEvent().Type())
-// }
+	assert.Equal(t, mock.EvtNull, emitter.NextEvent().Type())
+}
 
 // func TestNodeReset(t *testing.T) {
 // 	const (
@@ -398,132 +404,132 @@ func Render(_ string) string { return "foo" }
 // 	}
 // }
 
-// func testingRenderRealm(t *testing.T, node *Node, rlmpath string) (string, error) {
-// 	t.Helper()
+func testingRenderRealm(t *testing.T, node *Node, rlmpath string) (string, error) {
+	t.Helper()
 
-// 	signer := newInMemorySigner(t, node.Config().ChainID())
-// 	cli := gnoclient.Client{
-// 		Signer:    signer,
-// 		RPCClient: node.Client(),
-// 	}
+	signer := newInMemorySigner(t, node.Config().ChainID())
+	cli := gnoclient.Client{
+		Signer:    signer,
+		RPCClient: node.Client(),
+	}
 
-// 	render, res, err := cli.Render(rlmpath, "")
-// 	if err == nil {
-// 		err = res.Response.Error
-// 	}
+	render, res, err := cli.Render(rlmpath, "")
+	if err == nil {
+		err = res.Response.Error
+	}
 
-// 	return render, err
-// }
+	return render, err
+}
 
-// func testingCallRealm(t *testing.T, node *Node, msgs ...vm.MsgCall) (*core_types.ResultBroadcastTxCommit, error) {
-// 	t.Helper()
+func testingCallRealm(t *testing.T, node *Node, msgs ...vm.MsgCall) (*core_types.ResultBroadcastTxCommit, error) {
+	t.Helper()
 
-// 	signer := newInMemorySigner(t, node.Config().ChainID())
-// 	cli := gnoclient.Client{
-// 		Signer:    signer,
-// 		RPCClient: node.Client(),
-// 	}
+	signer := newInMemorySigner(t, node.Config().ChainID())
+	cli := gnoclient.Client{
+		Signer:    signer,
+		RPCClient: node.Client(),
+	}
 
-// 	txcfg := gnoclient.BaseTxCfg{
-// 		GasFee:    ugnot.ValueString(1000000), // Gas fee
-// 		GasWanted: 2_000_000,                  // Gas wanted
-// 	}
+	txcfg := gnoclient.BaseTxCfg{
+		GasFee:    ugnot.ValueString(1000000), // Gas fee
+		GasWanted: 2_000_000,                  // Gas wanted
+	}
 
-// 	// Set Caller in the msgs
-// 	caller, err := signer.Info()
-// 	require.NoError(t, err)
-// 	vmMsgs := make([]vm.MsgCall, 0, len(msgs))
-// 	for _, msg := range msgs {
-// 		vmMsgs = append(vmMsgs, vm.NewMsgCall(caller.GetAddress(), msg.Send, msg.PkgPath, msg.Func, msg.Args))
-// 	}
+	// Set Caller in the msgs
+	caller, err := signer.Info()
+	require.NoError(t, err)
+	vmMsgs := make([]vm.MsgCall, 0, len(msgs))
+	for _, msg := range msgs {
+		vmMsgs = append(vmMsgs, vm.NewMsgCall(caller.GetAddress(), msg.Send, msg.PkgPath, msg.Func, msg.Args))
+	}
 
-// 	return cli.Call(txcfg, vmMsgs...)
-// }
+	return cli.Call(txcfg, vmMsgs...)
+}
 
-// func generateMemPackage(t *testing.T, path string, pairNameFile ...string) gnovm.MemPackage {
-// 	t.Helper()
+func generateMemPackage(t *testing.T, path string, pairNameFile ...string) gnovm.MemPackage {
+	t.Helper()
 
-// 	if len(pairNameFile)%2 != 0 {
-// 		require.FailNow(t, "Generate testing packages require paired arguments.")
-// 	}
+	if len(pairNameFile)%2 != 0 {
+		require.FailNow(t, "Generate testing packages require paired arguments.")
+	}
 
-// 	// Guess the name based on dir
-// 	// We don't bother parsing files to actually guess the name of the package
-// 	name := filepath.Dir(path)
+	// Guess the name based on dir
+	// Don't bother parsing files to actually guess the name of the package
+	name := filepath.Base(path)
 
-// 	files := make([]*gnovm.MemFile, 0, len(pairNameFile)/2)
-// 	for i := 0; i < len(pairNameFile); i += 2 {
-// 		name := pairNameFile[i]
-// 		content := pairNameFile[i+1]
-// 		files = append(files, &gnovm.MemFile{
-// 			Name: name,
-// 			Body: content,
-// 		})
-// 	}
+	files := make([]*gnovm.MemFile, 0, len(pairNameFile)/2)
+	for i := 0; i < len(pairNameFile); i += 2 {
+		name := pairNameFile[i]
+		content := pairNameFile[i+1]
+		files = append(files, &gnovm.MemFile{
+			Name: name,
+			Body: content,
+		})
+	}
 
-// 	return gnovm.MemPackage{
-// 		Name:  name,
-// 		Path:  path,
-// 		Files: files,
-// 	}
-// }
+	return gnovm.MemPackage{
+		Name:  name,
+		Path:  path,
+		Files: files,
+	}
+}
 
-// func createDefaultTestingNodeConfig(pkgs ...gnovm.MemPackage) *NodeConfig {
-// 	var loader packages.Loader
+func newTestingNodeConfig(pkgs ...*gnovm.MemPackage) *NodeConfig {
+	var loader packages.Loader
+	loader.Resolver = packages.NewMockResolver(pkgs...)
+	cfg := DefaultNodeConfig(gnoenv.RootDir())
+	cfg.Loader = &loader
+	return cfg
+}
 
-// 	for _, pkg := range pkgs {
-// 		loader.Paths = append(loader.Paths, pkg.Path)
-// 	}
-// 	loader.Resolver = packages.NewMockResolver(pkgs...)
+func newTestingDevNode(t *testing.T, pkgs ...*gnovm.MemPackage) (*Node, *mock.ServerEmitter) {
+	t.Helper()
 
-// 	cfg := DefaultNodeConfig(gnoenv.RootDir())
-// 	cfg.Loader = &loader
-// 	return cfg
-// }
+	cfg := newTestingNodeConfig(pkgs...)
+	paths := make([]string, len(pkgs))
+	for i, pkg := range pkgs {
+		paths[i] = pkg.Path
+	}
 
-// func newTestingDevNode(t *testing.T, pkgs ...gnovm.MemPackage) (*Node, *mock.ServerEmitter) {
-// 	t.Helper()
+	return newTestingDevNodeWithConfig(t, cfg, paths...)
+}
 
-// 	cfg := createDefaultTestingNodeConfig(pkgs...)
-// 	return newTestingDevNodeWithConfig(t, cfg)
-// }
+func newTestingDevNodeWithConfig(t *testing.T, cfg *NodeConfig, pkgpaths ...string) (*Node, *mock.ServerEmitter) {
+	t.Helper()
 
-// func newTestingDevNodeWithConfig(t *testing.T, cfg *NodeConfig) (*Node, *mock.ServerEmitter) {
-// 	t.Helper()
+	ctx, cancel := context.WithCancel(context.Background())
+	logger := log.NewTestingLogger(t)
+	emitter := &mock.ServerEmitter{}
 
-// 	ctx, cancel := context.WithCancel(context.Background())
-// 	logger := log.NewTestingLogger(t)
-// 	emitter := &mock.ServerEmitter{}
+	cfg.Emitter = emitter
+	cfg.Logger = logger
 
-// 	cfg.Emitter = emitter
-// 	cfg.Logger = logger
+	node, err := NewDevNode(ctx, cfg, pkgpaths...)
+	require.NoError(t, err)
+	require.Equal(t, emitter.NextEvent().Type(), events.EvtReset)
 
-// 	node, err := NewDevNode(ctx, cfg)
-// 	require.NoError(t, err)
-// 	assert.Len(t, node.ListPkgs(), len(cfg.PackagesModifier))
+	t.Cleanup(func() {
+		node.Close()
+		cancel()
+	})
 
-// 	t.Cleanup(func() {
-// 		node.Close()
-// 		cancel()
-// 	})
+	return node, emitter
+}
 
-// 	return node, emitter
-// }
+func newInMemorySigner(t *testing.T, chainid string) *gnoclient.SignerFromKeybase {
+	t.Helper()
 
-// func newInMemorySigner(t *testing.T, chainid string) *gnoclient.SignerFromKeybase {
-// 	t.Helper()
+	mnemonic := integration.DefaultAccount_Seed
+	name := integration.DefaultAccount_Name
 
-// 	mnemonic := integration.DefaultAccount_Seed
-// 	name := integration.DefaultAccount_Name
+	kb := keys.NewInMemory()
+	_, err := kb.CreateAccount(name, mnemonic, "", "", uint32(0), uint32(0))
+	require.NoError(t, err)
 
-// 	kb := keys.NewInMemory()
-// 	_, err := kb.CreateAccount(name, mnemonic, "", "", uint32(0), uint32(0))
-// 	require.NoError(t, err)
-
-// 	return &gnoclient.SignerFromKeybase{
-// 		Keybase:  kb,      // Stores keys in memory
-// 		Account:  name,    // Account name
-// 		Password: "",      // Password for encryption
-// 		ChainID:  chainid, // Chain ID for transaction signing
-// 	}
-// }
+	return &gnoclient.SignerFromKeybase{
+		Keybase:  kb,      // Stores keys in memory
+		Account:  name,    // Account name
+		Password: "",      // Password for encryption
+		ChainID:  chainid, // Chain ID for transaction signing
+	}
+}

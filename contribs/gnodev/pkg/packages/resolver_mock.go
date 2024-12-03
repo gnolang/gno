@@ -7,11 +7,11 @@ import (
 )
 
 type MockResolver struct {
-	pkgs map[string]gnovm.MemPackage
+	pkgs map[string]*gnovm.MemPackage
 }
 
-func NewMockResolver(pkgs ...gnovm.MemPackage) *MockResolver {
-	mappkgs := make(map[string]gnovm.MemPackage, len(pkgs))
+func NewMockResolver(pkgs ...*gnovm.MemPackage) *MockResolver {
+	mappkgs := make(map[string]*gnovm.MemPackage, len(pkgs))
 	for _, pkg := range pkgs {
 		mappkgs[pkg.Path] = pkg
 	}
@@ -28,7 +28,7 @@ func (m *MockResolver) Name() string {
 func (m *MockResolver) Resolve(fset *token.FileSet, path string) (*Package, error) {
 	if mempkg, ok := m.pkgs[path]; ok {
 		return &Package{
-			MemPackage: mempkg,
+			MemPackage: *mempkg,
 			Kind:       PackageKindOther,
 			Location:   "",
 		}, nil
