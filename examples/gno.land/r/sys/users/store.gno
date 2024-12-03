@@ -44,6 +44,8 @@ func WriteUser(user *pusers.User) error {
 	return nil
 }
 
+// XXX: should we have a DeleteUser? Maybe with a separate whitelist?
+
 // IsOnWhitelist checks if the given address has
 // permission to write to the user store
 func IsOnWhitelist(addr std.Address) bool {

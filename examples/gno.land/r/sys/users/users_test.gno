@@ -26,15 +26,15 @@ func TestResolveName(t *testing.T) {
 
 		std.TestSetOrigCaller(std.NewCodeRealm(gnolandUsers).Addr())
 
-		username := "alice123"
+		addr := testutils.TestAddress("newUsername")
 		u := &pusers.User{
-			Name:    username,
-			Address: alice,
+			Name:    "newUsername", // should be aliceUsername, but realm state is not reset
+			Address: addr,
 		}
 
 		urequire.NoError(t, WriteUser(u))
-		uassert.Equal(t, ResolveName("alice123").Name, username)
-		uassert.Equal(t, ResolveName("alice123").Address, alice)
+		uassert.Equal(t, ResolveName("newUsername").Name, "newUsername")
+		uassert.Equal(t, ResolveName("newUsername").Address, addr)
 		// XXX: ptr for uassert.Equal not supported yet
 	})
 }
