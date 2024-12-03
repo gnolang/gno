@@ -1113,14 +1113,3 @@ func (currentNode *node) reset(copyOnWriteCtx *copyOnWriteContext) bool {
 	return freelistStatus != ftFreelistFull
 }
 
-// Int implements the Record interface for integers.
-//
-// TODO: Is there any advantage to implementing this interface for all of the standard
-// orderable types?
-//
-// type Int int
-
-// Less returns true if int(a) < int(b).
-// func (self Int) Less(other Record) bool {
-// 	return self < other.(Int)
-// }
