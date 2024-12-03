@@ -10,6 +10,7 @@ import (
 	"gno.land/p/demo/ownable"
 	"gno.land/p/demo/ufmt"
 	pusers "gno.land/p/demo/users"
+	"gno.land/r/demo/grc20reg"
 	"gno.land/r/demo/users"
 )
 
@@ -21,7 +22,8 @@ var (
 
 func init() {
 	privateLedger.Mint(owner.Owner(), 1_000_000*10_000) // @privateLedgeristrator (1M)
-	// XXX: grc20reg.Register(Token, "")
+	getter := func() *grc20.Token { return Token }
+	grc20reg.Register(getter, "")
 }
 
 func TotalSupply() uint64 {
