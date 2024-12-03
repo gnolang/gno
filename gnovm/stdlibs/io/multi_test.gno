@@ -6,7 +6,7 @@ package io
 
 import (
 	"bytes"
-	"crypto/sha1"
+	"crypto/sha256"
 	"fmt"
 	"strings"
 	"testing"
@@ -119,8 +119,8 @@ func testMultiWriter(t *testing.T, sink interface {
 	Stringer
 },
 ) {
-	sha1 := sha1.New()
-	mw := MultiWriter(sha1, sink)
+	var buf bytes.Buffer
+	mw := MultiWriter(&buf, sink)
 
 	sourceString := "My input text."
 	source := strings.NewReader(sourceString)
@@ -134,9 +134,9 @@ func testMultiWriter(t *testing.T, sink interface {
 		t.Errorf("unexpected error: %v", err)
 	}
 
-	sha1hex := fmt.Sprintf("%x", sha1.Sum(nil))
-	if sha1hex != "01cb303fa8c30a64123067c5aa6284ba7ec2d31b" {
-		t.Error("incorrect sha1 value")
+	sha1hex := fmt.Sprintf("%x", sha256.Sum256(buf.Bytes()))
+	if sha1hex != "d3e9e78d2a7e9c4756a4e8e57db6a57ccfd84c6d656d66b9d2bd2620b4ab81b8" {
+		t.Error("incorrect sha256 value")
 	}
 
 	if sink.String() != sourceString {

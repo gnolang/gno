@@ -2,7 +2,6 @@ package main
 
 import (
 	"fmt"
-	"text/template"
 )
 
 type fm map[string]interface{}
@@ -14,7 +13,7 @@ func main() {
 	a["foo"] = &foo{}
 	fmt.Println(a["foo"])
 
-	b := make(template.FuncMap) // type FuncMap map[string]interface{}
+	b := make(map[string]interface{})
 	b["foo"] = &foo{}
 	fmt.Println(b["foo"])
 }

@@ -9,18 +9,18 @@
 # | 4   |          | through /r/foo      | myrealm.A()            | PANIC  |
 # | 5   |          |                     | myrealm.B()            | pass   |
 # | 6   |          |                     | myrealm.C()            | PANIC  |
-# | 7   |          | through /p/demo/bar | myrealm.A()            | PANIC  |
-# | 8   |          |                     | myrealm.B()            | pass   |
-# | 9   |          |                     | myrealm.C()            | PANIC  |
+# | 7   |          | through /p/demo/bar | bar.A()                | PANIC  |
+# | 8   |          |                     | bar.B()                | pass   |
+# | 9   |          |                     | bar.C()                | PANIC  |
 # | 10  | MsgRun   | wallet direct       | myrealm.A()            | PANIC  |
 # | 11  |          |                     | myrealm.B()            | pass   |
 # | 12  |          |                     | myrealm.C()            | PANIC  |
 # | 13  |          | through /r/foo      | myrealm.A()            | PANIC  |
 # | 14  |          |                     | myrealm.B()            | pass   |
 # | 15  |          |                     | myrealm.C()            | PANIC  |
-# | 16  |          | through /p/demo/bar | myrealm.A()            | PANIC  |
-# | 17  |          |                     | myrealm.B()            | pass   |
-# | 18  |          |                     | myrealm.C()            | PANIC  |
+# | 16  |          | through /p/demo/bar | bar.A()                | PANIC  |
+# | 17  |          |                     | bar.B()                | pass   |
+# | 18  |          |                     | bar.C()                | PANIC  |
 # | 19  | MsgCall  | wallet direct       | std.AssertOriginCall() | pass   |
 # | 20  | MsgRun   | wallet direct       | std.AssertOriginCall() | PANIC  |
 
@@ -57,15 +57,15 @@ stdout 'OK!'
 stderr 'invalid non-origin call'
 
 ## remove due to update to maketx call can only call realm (case 7,8,9)
-## 7. MsgCall -> p/demo/bar.A -> myrlm.A: PANIC
+## 7. MsgCall -> p/demo/bar.A: PANIC
 ## ! gnokey maketx call -pkgpath gno.land/p/demo/bar -func A -gas-fee 100000ugnot -gas-wanted 4000000 -broadcast -chainid tendermint_test test1
 ## stderr 'invalid non-origin call'
 
-## 8. MsgCall -> p/demo/bar.B -> myrlm.B: PASS
+## 8. MsgCall -> p/demo/bar.B: PASS
 ## gnokey maketx call -pkgpath gno.land/p/demo/bar -func B -gas-fee 100000ugnot -gas-wanted 4000000 -broadcast -chainid tendermint_test test1
 ## stdout 'OK!'
 
-## 9. MsgCall -> p/demo/bar.C -> myrlm.C: PANIC
+## 9. MsgCall -> p/demo/bar.C: PANIC
 ## ! gnokey maketx call -pkgpath gno.land/p/demo/bar -func C -gas-fee 100000ugnot -gas-wanted 4000000 -broadcast -chainid tendermint_test test1
 ## stderr 'invalid non-origin call'
 
@@ -152,18 +152,19 @@ func C() {
 -- p/demo/bar/bar.gno --
 package bar
 
-import "gno.land/r/myrlm"
+import "std"
 
 func A() {
-	myrlm.A()
+	C()
 }
 
 func B() {
-	myrlm.B()
+	if false {
+		C()
+	}
 }
-
 func C() {
-	myrlm.C()
+	std.AssertOriginCall()
 }
 -- run/myrlmA.gno --
 package main
