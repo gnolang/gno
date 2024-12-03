@@ -36,7 +36,7 @@ import "sort"
 // BTree stores Record instances in an ordered structure, allowing easy insertion,
 // removal, and iteration.
 type BTree struct {
-	Degree int
+	degree int
 	length int
 	root   *node
 	cowCtx *copyOnWriteContext
@@ -183,7 +183,7 @@ func NewWithFreeNodeList(degree int, freeList *FreeNodeList) *BTree {
 		panic("Degrees less than 1 do not make any sense for a BTree. Please provide a degree of 1 or greater.")
 	}
 	return &BTree{
-		Degree: degree,
+		degree: degree,
 		cowCtx: &copyOnWriteContext{nodes: freeList},
 	}
 }
@@ -772,13 +772,13 @@ func (t *BTree) Clone() *BTree {
 
 // maxRecords returns the max number of records to allow per node.
 func (t *BTree) maxRecords() int {
-	return t.Degree*2 - 1
+	return t.degree*2 - 1
 }
 
 // minRecords returns the min number of records to allow per node (ignored for the
 // root node).
 func (t *BTree) minRecords() int {
-	return t.Degree - 1
+	return t.degree - 1
 }
 
 func (c *copyOnWriteContext) newNode() (n *node) {
