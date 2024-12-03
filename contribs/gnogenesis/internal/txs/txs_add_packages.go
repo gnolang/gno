@@ -22,15 +22,15 @@ var genesisDeployFee = std.NewFee(50000, std.MustParseCoin(ugnot.ValueString(100
 
 type addPkgCfg struct {
 	txsCfg          *txsCfg
-	deployerAddress string
+	DeployerAddress string
 }
 
 func (c *addPkgCfg) RegisterFlags(fs *flag.FlagSet) {
 	fs.StringVar(
-		&c.deployerAddress,
+		&c.DeployerAddress,
 		"deployer-address",
 		"g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5", // test1
-		"The address that will be used to deploy the package",
+		"the address that will be used to deploy the package",
 	)
 }
 
@@ -70,7 +70,7 @@ func execTxsAddPackages(
 		return errInvalidPackageDir
 	}
 
-	creator := crypto.MustAddressFromString(cfg.deployerAddress)
+	creator := crypto.MustAddressFromString(cfg.DeployerAddress)
 
 	parsedTxs := make([]gnoland.TxWithMetadata, 0)
 	for _, path := range args {
