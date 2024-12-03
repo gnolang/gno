@@ -5,4 +5,4 @@ func main() {
 }
 
 // Error:
-// main/files/var34.gno:4:6: cannot use nil as int value in variable declaration
+// main/files/var35.gno:4:6: cannot use nil as int value in variable declaration
