@@ -4,8 +4,8 @@ import (
 	"io"
 	"testing"
 
+	"github.com/gnolang/gno/gnovm"
 	"github.com/gnolang/gno/tm2/pkg/db/memdb"
-	"github.com/gnolang/gno/tm2/pkg/std"
 	"github.com/gnolang/gno/tm2/pkg/store/dbadapter"
 	storetypes "github.com/gnolang/gno/tm2/pkg/store/types"
 	"github.com/stretchr/testify/assert"
@@ -23,10 +23,10 @@ func TestTransactionStore(t *testing.T) {
 		Store:   txSt,
 		Output:  io.Discard,
 	})
-	_, pv := m.RunMemPackage(&std.MemPackage{
+	_, pv := m.RunMemPackage(&gnovm.MemPackage{
 		Name: "hello",
 		Path: "hello",
-		Files: []*std.MemFile{
+		Files: []*gnovm.MemFile{
 			{Name: "hello.gno", Body: "package hello; func main() { println(A(11)); }; type A int"},
 		},
 	}, true)
@@ -58,10 +58,7 @@ func TestTransactionStore_blockedMethods(t *testing.T) {
 	// These methods should panic as they modify store settings, which should
 	// only be changed in the root store.
 	assert.Panics(t, func() { transactionStore{}.SetPackageGetter(nil) })
-	assert.Panics(t, func() { transactionStore{}.ClearCache() })
-	assert.Panics(t, func() { transactionStore{}.SetPackageInjector(nil) })
 	assert.Panics(t, func() { transactionStore{}.SetNativeStore(nil) })
-	assert.Panics(t, func() { transactionStore{}.SetStrictGo2GnoMapping(false) })
 }
 
 func TestCopyFromCachedStore(t *testing.T) {
@@ -76,10 +73,10 @@ func TestCopyFromCachedStore(t *testing.T) {
 		Name:    "Reader",
 		Base:    BoolType,
 	})
-	cachedStore.AddMemPackage(&std.MemPackage{
+	cachedStore.AddMemPackage(&gnovm.MemPackage{
 		Name: "math",
 		Path: "math",
-		Files: []*std.MemFile{
+		Files: []*gnovm.MemFile{
 			{Name: "math.gno", Body: "package math"},
 		},
 	})

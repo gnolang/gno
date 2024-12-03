@@ -43,7 +43,7 @@ type Keybase interface {
 	CreateMulti(name string, pubkey crypto.PubKey) (info Info, err error)
 
 	// The following operations will *only* work on locally-stored keys
-	Update(name, oldpass string, getNewpass func() (string, error)) error
+	Rotate(name, oldpass string, getNewpass func() (string, error)) error
 	Import(name string, armor string) (err error)
 	ImportPrivKey(name, armor, decryptPassphrase, encryptPassphrase string) error
 	ImportPrivKeyUnsafe(name, armor, encryptPassphrase string) error

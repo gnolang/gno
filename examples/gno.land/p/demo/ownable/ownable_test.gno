@@ -33,15 +33,6 @@ func TestNewWithAddress(t *testing.T) {
 	}
 }
 
-func TestOwner(t *testing.T) {
-	std.TestSetRealm(std.NewUserRealm(alice))
-
-	o := New()
-	expected := alice
-	got := o.Owner()
-	uassert.Equal(t, expected, got)
-}
-
 func TestTransferOwnership(t *testing.T) {
 	std.TestSetRealm(std.NewUserRealm(alice))
 

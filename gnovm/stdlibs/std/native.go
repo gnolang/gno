@@ -158,6 +158,13 @@ func X_decodeBech32(addr string) (prefix string, bytes [20]byte, ok bool) {
 	return prefix, [20]byte(bz), true
 }
 
+func X_assertCallerIsRealm(m *gno.Machine) {
+	frame := m.Frames[m.NumFrames()-2]
+	if path := frame.LastPackage.PkgPath; !gno.IsRealmPath(path) {
+		m.Panic(typedString("caller is not a realm"))
+	}
+}
+
 func typedString(s string) gno.TypedValue {
 	tv := gno.TypedValue{T: gno.StringType}
 	tv.SetString(gno.StringValue(s))
