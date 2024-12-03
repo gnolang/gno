@@ -5,18 +5,18 @@ import (
 	"gno.land/r/demo/tests"
 )
 
-// NOTE: it is valid to persist external realm types.
-var somevalue tests.TestRealmObject
+// NOTE: it is valid to persist a pointer to an external object
+var somevalue *tests.TestRealmObject
 
 func init() {
-	somevalue.Field = "test"
+	somevalue = &tests.TestRealmObjectValue
 }
 
 func main() {
-	// NOTE: but it is invalid to modify it using an external realm function.
+	// NOTE: it is valid to modify it using the external realm function.
 	somevalue.Modify()
 	println(somevalue)
 }
 
-// Error:
-// cannot modify external-realm or non-realm object
+// Output:
+// &(struct{("_modified" string)} gno.land/r/demo/tests.TestRealmObject)
