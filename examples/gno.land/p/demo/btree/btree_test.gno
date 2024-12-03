@@ -306,89 +306,89 @@ func TestAscendRange(t *testing.T) {
 }
 
 func TestDeleteMin(t *testing.T) {
-  tree := genericSeeding(btree.New(3), 100)
+	tree := genericSeeding(btree.New(3), 100)
 
-  expected := []int{0, 1, 2, 3, 4}
-  found := []int{}
+	expected := []int{0, 1, 2, 3, 4}
+	found := []int{}
 
-  found = append(found, int(Content(tree.DeleteMin()).Key))
-  found = append(found, int(Content(tree.DeleteMin()).Key))
-  found = append(found, int(Content(tree.DeleteMin()).Key))
-  found = append(found, int(Content(tree.DeleteMin()).Key))
-  found = append(found, int(Content(tree.DeleteMin()).Key))
+	found = append(found, int(Content(tree.DeleteMin()).Key))
+	found = append(found, int(Content(tree.DeleteMin()).Key))
+	found = append(found, int(Content(tree.DeleteMin()).Key))
+	found = append(found, int(Content(tree.DeleteMin()).Key))
+	found = append(found, int(Content(tree.DeleteMin()).Key))
 
-  if intSlicesCompare(expected, found) != 0 {
-    t.Errorf("5 rounds of DeleteMin returned the wrong elements. Expected  %v, but got %v.", expected, found)
-  }
+	if intSlicesCompare(expected, found) != 0 {
+		t.Errorf("5 rounds of DeleteMin returned the wrong elements. Expected  %v, but got %v.", expected, found)
+	}
 }
 
 func TestShift(t *testing.T) {
-  tree := genericSeeding(btree.New(3), 100)
+	tree := genericSeeding(btree.New(3), 100)
 
-  expected := []int{0, 1, 2, 3, 4}
-  found := []int{}
+	expected := []int{0, 1, 2, 3, 4}
+	found := []int{}
 
-  found = append(found, int(Content(tree.Shift()).Key))
-  found = append(found, int(Content(tree.Shift()).Key))
-  found = append(found, int(Content(tree.Shift()).Key))
-  found = append(found, int(Content(tree.Shift()).Key))
-  found = append(found, int(Content(tree.Shift()).Key))
+	found = append(found, int(Content(tree.Shift()).Key))
+	found = append(found, int(Content(tree.Shift()).Key))
+	found = append(found, int(Content(tree.Shift()).Key))
+	found = append(found, int(Content(tree.Shift()).Key))
+	found = append(found, int(Content(tree.Shift()).Key))
 
-  if intSlicesCompare(expected, found) != 0 {
-    t.Errorf("5 rounds of Shift returned the wrong elements. Expected  %v, but got %v.", expected, found)
-  }
+	if intSlicesCompare(expected, found) != 0 {
+		t.Errorf("5 rounds of Shift returned the wrong elements. Expected  %v, but got %v.", expected, found)
+	}
 }
 
 func TestDeleteMax(t *testing.T) {
-  tree := genericSeeding(btree.New(3), 100)
+	tree := genericSeeding(btree.New(3), 100)
 
-  expected := []int{99, 98, 97, 96, 95}
-  found := []int{}
+	expected := []int{99, 98, 97, 96, 95}
+	found := []int{}
 
-  found = append(found, int(Content(tree.DeleteMax()).Key))
-  found = append(found, int(Content(tree.DeleteMax()).Key))
-  found = append(found, int(Content(tree.DeleteMax()).Key))
-  found = append(found, int(Content(tree.DeleteMax()).Key))
-  found = append(found, int(Content(tree.DeleteMax()).Key))
+	found = append(found, int(Content(tree.DeleteMax()).Key))
+	found = append(found, int(Content(tree.DeleteMax()).Key))
+	found = append(found, int(Content(tree.DeleteMax()).Key))
+	found = append(found, int(Content(tree.DeleteMax()).Key))
+	found = append(found, int(Content(tree.DeleteMax()).Key))
 
-  if intSlicesCompare(expected, found) != 0 {
-    t.Errorf("5 rounds of DeleteMin returned the wrong elements. Expected  %v, but got %v.", expected, found)
-  }
+	if intSlicesCompare(expected, found) != 0 {
+		t.Errorf("5 rounds of DeleteMin returned the wrong elements. Expected  %v, but got %v.", expected, found)
+	}
 }
 
 func TestPop(t *testing.T) {
-  tree := genericSeeding(btree.New(3), 100)
+	tree := genericSeeding(btree.New(3), 100)
 
-  expected := []int{99, 98, 97, 96, 95}
-  found := []int{}
+	expected := []int{99, 98, 97, 96, 95}
+	found := []int{}
 
-  found = append(found, int(Content(tree.Pop()).Key))
-  found = append(found, int(Content(tree.Pop()).Key))
-  found = append(found, int(Content(tree.Pop()).Key))
-  found = append(found, int(Content(tree.Pop()).Key))
-  found = append(found, int(Content(tree.Pop()).Key))
+	found = append(found, int(Content(tree.Pop()).Key))
+	found = append(found, int(Content(tree.Pop()).Key))
+	found = append(found, int(Content(tree.Pop()).Key))
+	found = append(found, int(Content(tree.Pop()).Key))
+	found = append(found, int(Content(tree.Pop()).Key))
 
-  if intSlicesCompare(expected, found) != 0 {
-    t.Errorf("5 rounds of DeleteMin returned the wrong elements. Expected  %v, but got %v.", expected, found)
-  }
+	if intSlicesCompare(expected, found) != 0 {
+		t.Errorf("5 rounds of DeleteMin returned the wrong elements. Expected  %v, but got %v.", expected, found)
+	}
 }
 
 func TestInsertGet(t *testing.T) {
-  tree := btree.New(4)
+	tree := btree.New(4)
 
-  expected := []Content{}
+	expected := []Content{}
 
-  for count := 0; count < 20; count++ {
-    value := fmt.Sprintf("Value_%d", count)
-    tree.Insert(Content{Key: count, Value: value})
-    expected = append(expected, Content{Key: count, Value: value})
-  }
+	for count := 0; count < 20; count++ {
+		value := fmt.Sprintf("Value_%d", count)
+		tree.Insert(Content{Key: count, Value: value})
+		expected = append(expected, Content{Key: count, Value: value})
+	}
 
-  for count := 0; count < 20; count++ {
-    if tree.Get(Content{Key: count}) != expected[count] {
-      t.Errorf("Insert/Get doesn't appear to be working. Expected to retrieve %v with key %d, but got %v.", expected[count], count, tree.Get(Content{Key: count}))
-    }
-  }
+	for count := 0; count < 20; count++ {
+		if tree.Get(Content{Key: count}) != expected[count] {
+			t.Errorf("Insert/Get doesn't appear to be working. Expected to retrieve %v with key %d, but got %v.", expected[count], count, tree.Get(Content{Key: count}))
+		}
+	}
 }
 
 func TestClone(t *testing.T) {
