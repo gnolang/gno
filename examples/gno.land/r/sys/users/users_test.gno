@@ -27,7 +27,7 @@ func TestResolveName(t *testing.T) {
 		std.TestSetOrigCaller(std.NewCodeRealm(gnolandUsers).Addr())
 
 		addr := testutils.TestAddress("newUsername")
-		u := &susers.User{
+		u := susers.User{
 			Name:    "newUsername", // should be aliceUsername, but realm state is not reset
 			Address: addr,
 		}

@@ -25,7 +25,7 @@ func TestWriteUser(t *testing.T) {
 	t.Run("unauthorized write", func(t *testing.T) {
 		t.Parallel()
 
-		u := &susers.User{}
+		u := susers.User{}
 		std.TestSetRealm(aliceCodeRealm)
 
 		uassert.Error(t, WriteUser(u), ErrUnauthorizedWrite.Error())
@@ -35,7 +35,7 @@ func TestWriteUser(t *testing.T) {
 		t.Parallel()
 		std.TestSetRealm(std.NewCodeRealm(gnolandUsers))
 
-		u := &susers.User{
+		u := susers.User{
 			Name:    aliceUsername,
 			Address: alice,
 		}
@@ -49,7 +49,7 @@ func TestWriteUser(t *testing.T) {
 		t.Parallel()
 		std.TestSetRealm(std.NewCodeRealm(gnolandUsers))
 
-		var u *susers.User
+		var u susers.User
 		uassert.Error(t, WriteUser(u), ErrUserIsNil.Error())
 	})
 
@@ -57,7 +57,7 @@ func TestWriteUser(t *testing.T) {
 		t.Parallel()
 		std.TestSetRealm(std.NewCodeRealm(gnolandUsers))
 
-		u := &susers.User{
+		u := susers.User{
 			Name:    "",
 			Address: alice,
 		}
@@ -69,23 +69,19 @@ func TestWriteUser(t *testing.T) {
 		t.Parallel()
 		std.TestSetRealm(std.NewCodeRealm(gnolandUsers))
 
-		uassert.Error(t, WriteUser(&susers.User{
+		uassert.Error(t, WriteUser(susers.User{
 			Name:    "test123",
 			Address: "invalidaddress",
 		}), ErrInvalidAddress.Error())
 
-		uassert.Error(t, WriteUser(&susers.User{
+		uassert.Error(t, WriteUser(susers.User{
 			Name:    "test123",
 			Address: "",
 		}), ErrInvalidAddress.Error())
 
-		uassert.Error(t, WriteUser(&susers.User{
+		uassert.Error(t, WriteUser(susers.User{
 			Name:    "test123",
 			Address: "000000000000000000000000000000000000000000000000",
 		}), ErrInvalidAddress.Error())
 	})
-
-	// todo
-	// 	check other invalid user fields
-	// 	check valid addition
 }

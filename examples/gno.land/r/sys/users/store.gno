@@ -21,7 +21,7 @@ var (
 // WriteUser writes to the sys/users store
 // Only whitelisted callers can call this function
 // Writing to the store can be paused by the admin
-func WriteUser(user *susers.User) error {
+func WriteUser(user susers.User) error {
 	if pausable.IsPaused() {
 		return p.ErrPaused
 	}
@@ -38,8 +38,8 @@ func WriteUser(user *susers.User) error {
 		return ErrAlreadyExists
 	}
 
-	uStore.Set(user.Name, user)
-	aStore.Set(user.Address.String(), user)
+	uStore.Set(user.Name, &user)
+	aStore.Set(user.Address.String(), &user)
 
 	return nil
 }
@@ -62,11 +62,7 @@ func GetUserStore() *avl.Tree {
 	return uStore
 }
 
-func verifyUser(user *susers.User) error {
-	if user == nil {
-		return ErrUserIsNil
-	}
-
+func verifyUser(user susers.User) error {
 	if strings.TrimSpace(user.Name) == "" {
 		return ErrEmptyUsername
 	}
