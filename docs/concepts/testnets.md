@@ -56,7 +56,7 @@ Test5 was launched in November 2024.
   - State is fully persisted unless there are breaking changes in a new release,
     where persistence partly depends on implementing a migration strategy
 - **Timeliness of code:**
-  - Versioning mechanisms for packages & realms will be implemented for test4
+  - Versioning mechanisms for packages & realms will be implemented for test5
 - **Intended purpose**
   - Running a full node, testing validator coordination, deploying stable Gno
     dApps, creating tools that require persisted state & transaction history
