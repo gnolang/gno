@@ -172,7 +172,6 @@ func NewMachineWithOptions(opts MachineOptions) *Machine {
 		mm.Alloc.M = mm
 	}
 
-	mm.CheckTypes = checkTypes
 	mm.PreprocessorMode = preprocessorMode
 	mm.ReadOnly = readOnly
 	mm.MaxCycles = maxCycles
