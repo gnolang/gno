@@ -288,6 +288,9 @@ func checkAssignableTo(n Node, xt, dt Type, autoNative bool) error {
 	}
 	// case0
 	if xt == nil { // see test/files/types/eql_0f18
+		if dt == nil || dt.Kind() == InterfaceKind {
+			return nil
+		}
 		if !maybeNil(dt) {
 			switch n := n.(type) {
 			case *ValueDecl:
@@ -1041,6 +1044,14 @@ func assertValidAssignRhs(store Store, last BlockNode, n Node) {
 		if _, ok := tt.(*TypeType); ok {
 			tt = evalStaticType(store, last, exp)
 			panic(fmt.Sprintf("%s (type) is not an expression", tt.String()))
+		}
+
+		// Ensures that function used in ValueDecl or AssignStmt must return at least 1 value.
+		if cx, ok := exp.(*CallExpr); ok {
+			tType, ok := tt.(*tupleType)
+			if ok && len(tType.Elts) == 0 {
+				panic(fmt.Sprintf("%s (no value) used as value", cx.Func.String()))
+			}
 		}
 	}
 }
