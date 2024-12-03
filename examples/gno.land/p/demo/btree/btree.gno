@@ -1112,4 +1112,3 @@ func (currentNode *node) reset(copyOnWriteCtx *copyOnWriteContext) bool {
 	freelistStatus := copyOnWriteCtx.freeNode(currentNode)
 	return freelistStatus != ftFreelistFull
 }
-
