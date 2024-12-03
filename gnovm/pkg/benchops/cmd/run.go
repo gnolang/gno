@@ -73,7 +73,6 @@ func benchStoreGet(bstore BenchStore, pv *gno.PackageValue) {
 			callFunc(bstore.gnoStore, pv, cx)
 			bstore.Write()
 			bstore.gnoStore.ClearObjectCache()
-
 		}
 	}
 }
