@@ -18,18 +18,19 @@ import (
 var errInvalidPackageDir = errors.New("invalid package directory")
 
 // Keep in sync with gno.land/cmd/start.go
+var defaultCreator = crypto.MustAddressFromString("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5") // test1
 var genesisDeployFee = std.NewFee(50000, std.MustParseCoin(ugnot.ValueString(1000000)))
 
 type addPkgCfg struct {
 	txsCfg          *txsCfg
-	DeployerAddress string
+	deployerAddress string
 }
 
 func (c *addPkgCfg) RegisterFlags(fs *flag.FlagSet) {
 	fs.StringVar(
-		&c.DeployerAddress,
+		&c.deployerAddress,
 		"deployer-address",
-		"g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5", // test1
+		"",
 		"the address that will be used to deploy the package",
 	)
 }
@@ -70,7 +71,10 @@ func execTxsAddPackages(
 		return errInvalidPackageDir
 	}
 
-	creator := crypto.MustAddressFromString(cfg.DeployerAddress)
+	creator := defaultCreator
+	if cfg.deployerAddress != "" {
+		creator = crypto.MustAddressFromString(cfg.deployerAddress)
+	}
 
 	parsedTxs := make([]gnoland.TxWithMetadata, 0)
 	for _, path := range args {
