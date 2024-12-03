@@ -1,4 +1,4 @@
-package main
+package check
 
 import (
 	"context"
@@ -108,19 +108,34 @@ func TestCommentUpdateHandler(t *testing.T) {
 	}
 	gh := newGHClient()
 
-	// Exit without error because EventName is empty
+	// Exit without error because EventName is empty.
 	assert.NoError(t, handleCommentUpdate(gh, actionCtx))
 	actionCtx.EventName = utils.EventIssueComment
 
-	// Exit with error because Event.action is not set
+	// Exit with error because Event.action is not set.
 	assert.Error(t, handleCommentUpdate(gh, actionCtx))
 	actionCtx.Event["action"] = ""
 
-	// Exit without error because Event.action is set but not 'deleted'
+	// Exit without error because Event.action is set but not 'deleted'.
 	assert.NoError(t, handleCommentUpdate(gh, actionCtx))
 	actionCtx.Event["action"] = "deleted"
 
-	// Exit with error because mock not setup to return authUser
+	// Exit with error because Event.issue.number is not set.
+	assert.Error(t, handleCommentUpdate(gh, actionCtx))
+	actionCtx.Event = setValue(t, actionCtx.Event, float64(42), "issue", "number")
+
+	// Exit without error can't get open pull request associated with PR num.
+	assert.NoError(t, handleCommentUpdate(gh, actionCtx))
+	mockOptions = append(mockOptions, mock.WithRequestMatchPages(
+		mock.EndpointPattern{
+			Pattern: "/repos/pulls/42",
+			Method:  "GET",
+		},
+		github.PullRequest{Number: github.Int(42), State: github.String(utils.PRStateOpen)},
+	))
+	gh = newGHClient()
+
+	// Exit with error because mock not setup to return authUser.
 	assert.Error(t, handleCommentUpdate(gh, actionCtx))
 	mockOptions = append(mockOptions, mock.WithRequestMatchPages(
 		mock.EndpointPattern{
@@ -132,31 +147,27 @@ func TestCommentUpdateHandler(t *testing.T) {
 	gh = newGHClient()
 	actionCtx.Actor = bot
 
-	// Exit with error because authUser and action actor is the same user
+	// Exit with error because authUser and action actor is the same user.
 	assert.ErrorIs(t, handleCommentUpdate(gh, actionCtx), errTriggeredByBot)
 	actionCtx.Actor = user
 
-	// Exit with error because Event.comment.user.login is not set
+	// Exit with error because Event.comment.user.login is not set.
 	assert.Error(t, handleCommentUpdate(gh, actionCtx))
 	actionCtx.Event = setValue(t, actionCtx.Event, user, "comment", "user", "login")
 
-	// Exit without error because comment author is not the bot
+	// Exit without error because comment author is not the bot.
 	assert.NoError(t, handleCommentUpdate(gh, actionCtx))
 	actionCtx.Event = setValue(t, actionCtx.Event, bot, "comment", "user", "login")
 
-	// Exit with error because Event.comment.body is not set
+	// Exit with error because Event.comment.body is not set.
 	assert.Error(t, handleCommentUpdate(gh, actionCtx))
 	actionCtx.Event = setValue(t, actionCtx.Event, "current_body", "comment", "body")
 
-	// Exit with error because Event.changes.body.from is not set
+	// Exit with error because Event.changes.body.from is not set.
 	assert.Error(t, handleCommentUpdate(gh, actionCtx))
 	actionCtx.Event = setValue(t, actionCtx.Event, "updated_body", "changes", "body", "from")
 
-	// Exit with error because Event.issue.number is not set
-	assert.Error(t, handleCommentUpdate(gh, actionCtx))
-	actionCtx.Event = setValue(t, actionCtx.Event, float64(42), "issue", "number")
-
-	// Exit with error because checkboxes are differents
+	// Exit with error because checkboxes are differents.
 	assert.Error(t, handleCommentUpdate(gh, actionCtx))
 	actionCtx.Event = setValue(t, actionCtx.Event, "current_body", "changes", "body", "from")
 
