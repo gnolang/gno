@@ -55,13 +55,15 @@ jobs:
         working-directory: contribs/github-bot
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: echo "pr-numbers=$(go run . matrix)" >> "$GITHUB_OUTPUT"
+        run: go run . matrix -matrix-key 'pr-numbers' -verbose
 
   # This job processes each pull request in the matrix individually while ensuring
   # that a same PR cannot be processed concurrently by mutliple runners
   process-pr:
     name: Process PR
     needs: define-prs-matrix
+    # Just skip this job if PR numbers matrix is empty (prevent failed state)
+    if: ${{ needs.define-prs-matrix.outputs.pr-numbers != '[]' && needs.define-prs-matrix.outputs.pr-numbers != '' }}
     runs-on: ubuntu-latest
     strategy:
       matrix:

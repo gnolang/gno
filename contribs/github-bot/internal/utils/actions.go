@@ -23,7 +23,7 @@ func IndexMap(m map[string]any, keys ...string) any {
 	return nil
 }
 
-// Retrieve PR number from GitHub Actions context
+// Retrieve PR number from GitHub Actions context.
 func GetPRNumFromActionsCtx(actionCtx *githubactions.GitHubContext) (int, error) {
 	firstKey := ""
 
