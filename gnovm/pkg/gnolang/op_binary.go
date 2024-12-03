@@ -6,6 +6,7 @@ import (
 	"math/big"
 
 	"github.com/cockroachdb/apd/v3"
+	"github.com/gnolang/overflow"
 )
 
 // ----------------------------------------
@@ -688,18 +689,20 @@ func addAssign(alloc *Allocator, lv, rv *TypedValue) {
 	// set the result in lv.
 	// NOTE this block is replicated in op_assign.go
 	switch baseOf(lv.T) {
+	// Signed integers may overflow, which triggers a panic.
 	case StringType, UntypedStringType:
 		lv.V = alloc.NewString(lv.GetString() + rv.GetString())
 	case IntType:
-		lv.SetInt(lv.GetInt() + rv.GetInt())
+		lv.SetInt(overflow.Addp(lv.GetInt(), rv.GetInt()))
 	case Int8Type:
-		lv.SetInt8(lv.GetInt8() + rv.GetInt8())
+		lv.SetInt8(overflow.Add8p(lv.GetInt8(), rv.GetInt8()))
 	case Int16Type:
-		lv.SetInt16(lv.GetInt16() + rv.GetInt16())
+		lv.SetInt16(overflow.Add16p(lv.GetInt16(), rv.GetInt16()))
 	case Int32Type, UntypedRuneType:
-		lv.SetInt32(lv.GetInt32() + rv.GetInt32())
+		lv.SetInt32(overflow.Add32p(lv.GetInt32(), rv.GetInt32()))
 	case Int64Type:
-		lv.SetInt64(lv.GetInt64() + rv.GetInt64())
+		lv.SetInt64(overflow.Add64p(lv.GetInt64(), rv.GetInt64()))
+	// Unsigned integers do not overflow, they just wrap.
 	case UintType:
 		lv.SetUint(lv.GetUint() + rv.GetUint())
 	case Uint8Type:
@@ -746,16 +749,18 @@ func subAssign(lv, rv *TypedValue) {
 	// set the result in lv.
 	// NOTE this block is replicated in op_assign.go
 	switch baseOf(lv.T) {
+	// Signed integers may overflow, which triggers a panic.
 	case IntType:
-		lv.SetInt(lv.GetInt() - rv.GetInt())
+		lv.SetInt(overflow.Subp(lv.GetInt(), rv.GetInt()))
 	case Int8Type:
-		lv.SetInt8(lv.GetInt8() - rv.GetInt8())
+		lv.SetInt8(overflow.Sub8p(lv.GetInt8(), rv.GetInt8()))
 	case Int16Type:
-		lv.SetInt16(lv.GetInt16() - rv.GetInt16())
+		lv.SetInt16(overflow.Sub16p(lv.GetInt16(), rv.GetInt16()))
 	case Int32Type, UntypedRuneType:
-		lv.SetInt32(lv.GetInt32() - rv.GetInt32())
+		lv.SetInt32(overflow.Sub32p(lv.GetInt32(), rv.GetInt32()))
 	case Int64Type:
-		lv.SetInt64(lv.GetInt64() - rv.GetInt64())
+		lv.SetInt64(overflow.Sub64p(lv.GetInt64(), rv.GetInt64()))
+	// Unsigned integers do not overflow, they just wrap.
 	case UintType:
 		lv.SetUint(lv.GetUint() - rv.GetUint())
 	case Uint8Type:
@@ -802,16 +807,18 @@ func mulAssign(lv, rv *TypedValue) {
 	// set the result in lv.
 	// NOTE this block is replicated in op_assign.go
 	switch baseOf(lv.T) {
+	// Signed integers may overflow, which triggers a panic.
 	case IntType:
-		lv.SetInt(lv.GetInt() * rv.GetInt())
+		lv.SetInt(overflow.Mulp(lv.GetInt(), rv.GetInt()))
 	case Int8Type:
-		lv.SetInt8(lv.GetInt8() * rv.GetInt8())
+		lv.SetInt8(overflow.Mul8p(lv.GetInt8(), rv.GetInt8()))
 	case Int16Type:
-		lv.SetInt16(lv.GetInt16() * rv.GetInt16())
+		lv.SetInt16(overflow.Mul16p(lv.GetInt16(), rv.GetInt16()))
 	case Int32Type, UntypedRuneType:
-		lv.SetInt32(lv.GetInt32() * rv.GetInt32())
+		lv.SetInt32(overflow.Mul32p(lv.GetInt32(), rv.GetInt32()))
 	case Int64Type:
-		lv.SetInt64(lv.GetInt64() * rv.GetInt64())
+		lv.SetInt64(overflow.Mul64p(lv.GetInt64(), rv.GetInt64()))
+	// Unsigned integers do not overflow, they just wrap.
 	case UintType:
 		lv.SetUint(lv.GetUint() * rv.GetUint())
 	case Uint8Type:
