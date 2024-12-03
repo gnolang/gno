@@ -1,4 +1,4 @@
-package main
+package matrix
 
 import (
 	"context"
@@ -9,7 +9,6 @@ import (
 
 	"github.com/gnolang/gno/contribs/github-bot/internal/client"
 	"github.com/gnolang/gno/contribs/github-bot/internal/logger"
-	"github.com/gnolang/gno/contribs/github-bot/internal/params"
 	"github.com/gnolang/gno/contribs/github-bot/internal/utils"
 	"github.com/google/go-github/v64/github"
 	"github.com/migueleliasweb/go-github-mock/src/mock"
@@ -34,7 +33,7 @@ func TestProcessEvent(t *testing.T) {
 		name           string
 		gaCtx          *githubactions.GitHubContext
 		prs            []*github.PullRequest
-		expectedPRList params.PRList
+		expectedPRList utils.PRList
 		expectedError  bool
 	}{
 		{
@@ -44,7 +43,7 @@ func TestProcessEvent(t *testing.T) {
 				Event:     map[string]any{"issue": map[string]any{"number": 1.}},
 			},
 			prs,
-			params.PRList{1},
+			utils.PRList{1},
 			false,
 		}, {
 			"valid pull_request event",
@@ -53,7 +52,7 @@ func TestProcessEvent(t *testing.T) {
 				Event:     map[string]any{"pull_request": map[string]any{"number": 1.}},
 			},
 			prs,
-			params.PRList{1},
+			utils.PRList{1},
 			false,
 		}, {
 			"valid pull_request_target event",
@@ -62,7 +61,7 @@ func TestProcessEvent(t *testing.T) {
 				Event:     map[string]any{"pull_request": map[string]any{"number": 1.}},
 			},
 			prs,
-			params.PRList{1},
+			utils.PRList{1},
 			false,
 		}, {
 			"invalid event (PR number not set)",
@@ -71,7 +70,7 @@ func TestProcessEvent(t *testing.T) {
 				Event:     map[string]any{"issue": nil},
 			},
 			prs,
-			params.PRList(nil),
+			utils.PRList(nil),
 			true,
 		}, {
 			"invalid event name",
@@ -80,7 +79,7 @@ func TestProcessEvent(t *testing.T) {
 				Event:     map[string]any{"issue": map[string]any{"number": 1.}},
 			},
 			prs,
-			params.PRList(nil),
+			utils.PRList(nil),
 			true,
 		}, {
 			"valid workflow_dispatch all",
@@ -89,7 +88,7 @@ func TestProcessEvent(t *testing.T) {
 				Event:     map[string]any{"inputs": map[string]any{"pull-request-list": "all"}},
 			},
 			openPRs,
-			params.PRList{1, 2, 3},
+			utils.PRList{1, 2, 3},
 			false,
 		}, {
 			"valid workflow_dispatch all (no prs)",
@@ -98,7 +97,7 @@ func TestProcessEvent(t *testing.T) {
 				Event:     map[string]any{"inputs": map[string]any{"pull-request-list": "all"}},
 			},
 			nil,
-			params.PRList{},
+			utils.PRList(nil),
 			false,
 		}, {
 			"valid workflow_dispatch list",
@@ -107,7 +106,7 @@ func TestProcessEvent(t *testing.T) {
 				Event:     map[string]any{"inputs": map[string]any{"pull-request-list": "1,2,3"}},
 			},
 			prs,
-			params.PRList{1, 2, 3},
+			utils.PRList{1, 2, 3},
 			false,
 		}, {
 			"valid workflow_dispatch list with spaces",
@@ -116,7 +115,7 @@ func TestProcessEvent(t *testing.T) {
 				Event:     map[string]any{"inputs": map[string]any{"pull-request-list": "    1,  2     ,3 "}},
 			},
 			prs,
-			params.PRList{1, 2, 3},
+			utils.PRList{1, 2, 3},
 			false,
 		}, {
 			"invalid workflow_dispatch list (1 closed)",
@@ -125,8 +124,8 @@ func TestProcessEvent(t *testing.T) {
 				Event:     map[string]any{"inputs": map[string]any{"pull-request-list": "1,2,3,4"}},
 			},
 			prs,
-			params.PRList(nil),
-			true,
+			utils.PRList{1, 2, 3},
+			false,
 		}, {
 			"invalid workflow_dispatch list (1 doesn't exist)",
 			&githubactions.GitHubContext{
@@ -134,8 +133,8 @@ func TestProcessEvent(t *testing.T) {
 				Event:     map[string]any{"inputs": map[string]any{"pull-request-list": "42"}},
 			},
 			prs,
-			params.PRList(nil),
-			true,
+			utils.PRList(nil),
+			false,
 		}, {
 			"invalid workflow_dispatch list (all closed)",
 			&githubactions.GitHubContext{
@@ -143,8 +142,8 @@ func TestProcessEvent(t *testing.T) {
 				Event:     map[string]any{"inputs": map[string]any{"pull-request-list": "4,5,6"}},
 			},
 			prs,
-			params.PRList(nil),
-			true,
+			utils.PRList(nil),
+			false,
 		}, {
 			"invalid workflow_dispatch list (empty)",
 			&githubactions.GitHubContext{
@@ -152,7 +151,7 @@ func TestProcessEvent(t *testing.T) {
 				Event:     map[string]any{"inputs": map[string]any{"pull-request-list": ""}},
 			},
 			prs,
-			params.PRList(nil),
+			utils.PRList(nil),
 			true,
 		}, {
 			"invalid workflow_dispatch list (unset)",
@@ -161,7 +160,7 @@ func TestProcessEvent(t *testing.T) {
 				Event:     map[string]any{"inputs": ""},
 			},
 			prs,
-			params.PRList(nil),
+			utils.PRList(nil),
 			true,
 		}, {
 			"invalid workflow_dispatch list (not a number list)",
@@ -170,7 +169,7 @@ func TestProcessEvent(t *testing.T) {
 				Event:     map[string]any{"inputs": map[string]any{"pull-request-list": "foo"}},
 			},
 			prs,
-			params.PRList(nil),
+			utils.PRList(nil),
 			true,
 		}, {
 			"invalid workflow_dispatch list (number list with invalid elem)",
@@ -179,7 +178,7 @@ func TestProcessEvent(t *testing.T) {
 				Event:     map[string]any{"inputs": map[string]any{"pull-request-list": "1,2,foo"}},
 			},
 			prs,
-			params.PRList(nil),
+			utils.PRList(nil),
 			true,
 		},
 	} {
@@ -214,7 +213,7 @@ func TestProcessEvent(t *testing.T) {
 							prNumStr := parts[len(parts)-1]
 							prNum, err = strconv.Atoi(prNumStr)
 							if err != nil {
-								panic(err) // Should never happen
+								panic(err) // Should never happen.
 							}
 						}
 
