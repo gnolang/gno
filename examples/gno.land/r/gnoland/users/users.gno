@@ -42,7 +42,7 @@ func Register(username, bio string) error {
 
 	registrant := std.PrevRealm().Addr()
 
-	base := &susers.User{
+	base := susers.User{
 		Address: registrant,
 		Name:    username,
 	}
