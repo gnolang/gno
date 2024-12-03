@@ -7,7 +7,7 @@
 
   font-display: swap;
 
-  src: url("./assets/fonts/roboto/roboto-mono-normal.woff2") format("woff2"), url("../fonts/roboto/roboto-mono-normal.woff") format("woff");
+  src: url("./fonts/roboto/roboto-mono-normal.woff2") format("woff2"), url("./fonts/roboto/roboto-mono-normal.woff") format("woff");
 }
 
 @font-face {
@@ -19,7 +19,7 @@
 
   font-style: oblique 0deg 10deg;
 
-  src: url("./assets/fonts/intervar/Inter.var.woff2") format("woff2");
+  src: url("./fonts/intervar/Inter.var.woff2") format("woff2");
 }
 
 *, ::before, ::after {
