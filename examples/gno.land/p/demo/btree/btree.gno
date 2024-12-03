@@ -74,7 +74,7 @@ type children []*node
 // FreeNodeList represents a slice of nodes which are available for reuse. The default
 // behavior of New() is for each BTree instance to have its own FreeNodeList. However,
 // it is possible for multiple instances of BTree to share the same tree. If one uses
-// NewWithFreeNodeList() to create a tree, one may pass an existing FreeNodeList, allowing
+// New(WithFreeNodeList()) to create a tree, one may pass an existing FreeNodeList, allowing
 // multiple trees to use a single list. In an application with multiple trees, it might
 // be more efficient to allocate a single FreeNodeList with a significant initial capacity,
 // and then have all of the trees use that same large FreeNodeList.
