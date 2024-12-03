@@ -28,7 +28,7 @@ func VerifyNameByUser(enabled bool, address std.Address, name string) bool {
 		return true
 	}
 
-	if user := ResolveUsername(name); user != nil {
+	if user := ResolveName(name); user != nil {
 		return user.Address == address
 	}
 

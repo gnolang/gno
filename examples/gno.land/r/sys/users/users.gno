@@ -7,7 +7,7 @@ import (
 	pusers "gno.land/p/demo/users"
 )
 
-func ResolveUsername(username string) *pusers.User {
+func ResolveName(username string) *pusers.User {
 	if username == "" {
 		return nil
 	}
@@ -34,11 +34,11 @@ func ResolveAddress(addr std.Address) *pusers.User {
 }
 
 // ResolveAddressOrName
-// Note: unlike ResolveUsername, input must be "@" prefixed for names.
+// Note: unlike ResolveName, input must be "@" prefixed for names.
 func ResolveAddressOrName(aon pusers.AddressOrName) *pusers.User {
 	name, isName := aon.Name()
 	if isName {
-		return ResolveUsername(name)
+		return ResolveName(name)
 	}
 
 	return ResolveAddress(std.Address(aon))
