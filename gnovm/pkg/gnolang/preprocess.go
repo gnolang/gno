@@ -2352,6 +2352,10 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 						// }
 						*dst = *dt2
 					}
+				case PrimitiveType:
+					dst = tmp.(PrimitiveType)
+				case *PointerType:
+					*dst = *(tmp.(*PointerType))
 				default:
 					panic(fmt.Sprintf("unexpected type declaration type %v",
 						reflect.TypeOf(dst)))
@@ -4283,9 +4287,6 @@ func tryPredefine(store Store, last BlockNode, d Decl) (un Name) {
 							// predefineNow preprocessed dependent types.
 							panic("should not happen")
 						}
-					} else {
-						// all names are declared types.
-						panic("should not happen")
 					}
 				} else if idx, ok := UverseNode().GetLocalIndex(tx.Name); ok {
 					// uverse name
