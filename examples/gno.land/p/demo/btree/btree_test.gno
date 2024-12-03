@@ -108,17 +108,17 @@ func intSlicesCompare(left, right []int) int {
 // ****************************************************************************
 
 func TestLen(t *testing.T) {
-	length := genericSeeding(btree.New(10), 7).Len()
+	length := genericSeeding(btree.New(WithDegree(10)), 7).Len()
 	if length != 7 {
 		t.Errorf("Length is incorrect. Expected 7, but got %d.", length)
 	}
 
-	length = genericSeeding(btree.New(5), 111).Len()
+	length = genericSeeding(btree.New(WithDegree(5)), 111).Len()
 	if length != 111 {
 		t.Errorf("Length is incorrect. Expected 111, but got %d.", length)
 	}
 
-	length = genericSeeding(btree.New(30), 123).Len()
+	length = genericSeeding(btree.New(WithDegree(30)), 123).Len()
 	if length != 123 {
 		t.Errorf("Length is incorrect. Expected 123, but got %d.", length)
 	}
@@ -126,7 +126,7 @@ func TestLen(t *testing.T) {
 }
 
 func TestHas(t *testing.T) {
-	tree := genericSeeding(btree.New(10), 40)
+	tree := genericSeeding(btree.New(WithDegree(10)), 40)
 
 	if tree.Has(Content{Key: 7}) != true {
 		t.Errorf("Has(7) reported false, but it should be true.")
@@ -140,7 +140,7 @@ func TestHas(t *testing.T) {
 }
 
 func TestMin(t *testing.T) {
-	min := Content(genericSeeding(btree.New(10), 53).Min())
+	min := Content(genericSeeding(btree.New(WithDegree(10)), 53).Min())
 
 	if min.Key != 0 {
 		t.Errorf("Minimum should have been 0, but it was reported as %d.", min)
@@ -148,7 +148,7 @@ func TestMin(t *testing.T) {
 }
 
 func TestMax(t *testing.T) {
-	max := Content(genericSeeding(btree.New(10), 53).Min())
+	max := Content(genericSeeding(btree.New(WithDegree(10)), 53).Min())
 
 	if max.Key != 0 {
 		t.Errorf("Minimum should have been 0, but it was reported as %d.", max)
@@ -156,7 +156,7 @@ func TestMax(t *testing.T) {
 }
 
 func TestGet(t *testing.T) {
-	tree := genericSeeding(btree.New(10), 40)
+	tree := genericSeeding(btree.New(WithDegree(10)), 40)
 
 	if Content(tree.Get(Content{Key: 7})).Value != "Value_7" {
 		t.Errorf("Get(7) should have returned 'Value_7', but it returned %v.", tree.Get(Content{Key: 7}))
@@ -170,7 +170,7 @@ func TestGet(t *testing.T) {
 }
 
 func TestDescend(t *testing.T) {
-	tree := genericSeeding(btree.New(10), 5)
+	tree := genericSeeding(btree.New(WithDegree(10)), 5)
 
 	expected := []int{4, 3, 2, 1, 0}
 	found := []int{}
@@ -187,7 +187,7 @@ func TestDescend(t *testing.T) {
 }
 
 func TestDescendGreaterThan(t *testing.T) {
-	tree := genericSeeding(btree.New(10), 10)
+	tree := genericSeeding(btree.New(WithDegree(10)), 10)
 
 	expected := []int{9, 8, 7, 6, 5}
 	found := []int{}
@@ -204,7 +204,7 @@ func TestDescendGreaterThan(t *testing.T) {
 }
 
 func TestDescendLessOrEqual(t *testing.T) {
-	tree := genericSeeding(btree.New(10), 10)
+	tree := genericSeeding(btree.New(WithDegree(10)), 10)
 
 	expected := []int{4, 3, 2, 1, 0}
 	found := []int{}
@@ -221,7 +221,7 @@ func TestDescendLessOrEqual(t *testing.T) {
 }
 
 func TestDescendRange(t *testing.T) {
-	tree := genericSeeding(btree.New(10), 10)
+	tree := genericSeeding(btree.New(WithDegree(10)), 10)
 
 	expected := []int{6, 5, 4, 3, 2}
 	found := []int{}
@@ -238,7 +238,7 @@ func TestDescendRange(t *testing.T) {
 }
 
 func TestAscend(t *testing.T) {
-	tree := genericSeeding(btree.New(10), 5)
+	tree := genericSeeding(btree.New(WithDegree(10)), 5)
 
 	expected := []int{0, 1, 2, 3, 4}
 	found := []int{}
@@ -255,7 +255,7 @@ func TestAscend(t *testing.T) {
 }
 
 func TestAscendGreaterOrEqual(t *testing.T) {
-	tree := genericSeeding(btree.New(10), 10)
+	tree := genericSeeding(btree.New(WithDegree(10)), 10)
 
 	expected := []int{5, 6, 7, 8, 9}
 	found := []int{}
@@ -272,7 +272,7 @@ func TestAscendGreaterOrEqual(t *testing.T) {
 }
 
 func TestAscendLessThan(t *testing.T) {
-	tree := genericSeeding(btree.New(10), 10)
+	tree := genericSeeding(btree.New(WithDegree(10)), 10)
 
 	expected := []int{0, 1, 2, 3, 4}
 	found := []int{}
@@ -289,7 +289,7 @@ func TestAscendLessThan(t *testing.T) {
 }
 
 func TestAscendRange(t *testing.T) {
-	tree := genericSeeding(btree.New(10), 10)
+	tree := genericSeeding(btree.New(WithDegree(10)), 10)
 
 	expected := []int{2, 3, 4, 5, 6}
 	found := []int{}
@@ -306,7 +306,7 @@ func TestAscendRange(t *testing.T) {
 }
 
 func TestDeleteMin(t *testing.T) {
-	tree := genericSeeding(btree.New(3), 100)
+	tree := genericSeeding(btree.New(WithDegree(3)), 100)
 
 	expected := []int{0, 1, 2, 3, 4}
 	found := []int{}
@@ -323,7 +323,7 @@ func TestDeleteMin(t *testing.T) {
 }
 
 func TestShift(t *testing.T) {
-	tree := genericSeeding(btree.New(3), 100)
+	tree := genericSeeding(btree.New(WithDegree(3)), 100)
 
 	expected := []int{0, 1, 2, 3, 4}
 	found := []int{}
@@ -340,7 +340,7 @@ func TestShift(t *testing.T) {
 }
 
 func TestDeleteMax(t *testing.T) {
-	tree := genericSeeding(btree.New(3), 100)
+	tree := genericSeeding(btree.New(WithDegree(3)), 100)
 
 	expected := []int{99, 98, 97, 96, 95}
 	found := []int{}
@@ -357,7 +357,7 @@ func TestDeleteMax(t *testing.T) {
 }
 
 func TestPop(t *testing.T) {
-	tree := genericSeeding(btree.New(3), 100)
+	tree := genericSeeding(btree.New(WithDegree(3)), 100)
 
 	expected := []int{99, 98, 97, 96, 95}
 	found := []int{}
@@ -374,7 +374,7 @@ func TestPop(t *testing.T) {
 }
 
 func TestInsertGet(t *testing.T) {
-	tree := btree.New(4)
+	tree := btree.New(WithDegree(4))
 
 	expected := []Content{}
 
@@ -398,7 +398,7 @@ func TestClone(t *testing.T) {
 
 func TestBTree(t *testing.T) {
 	// Create a B-Tree of degree 3
-	tree := btree.New(3)
+	tree := btree.New(WithDegree(3))
 
 	//insertData := []Content{}
 	var insertData ContentSlice
@@ -530,7 +530,7 @@ func TestStress(t *testing.T) {
 
 	for degree := 3; degree <= 12; degree += 3 {
 		t.Logf("Testing B-Tree of degree %d\n", degree)
-		tree := btree.New(degree)
+		tree := btree.New(WithDegree(degree))
 
 		// Insert 1000 records
 		t.Logf("Inserting 1000 records\n")
@@ -576,7 +576,7 @@ func TestStress(t *testing.T) {
 	// Print a few lines using Logf to let the user know what's happening.
 
 	t.Logf("Testing B-Tree of degree 10 with 100000 records\n")
-	tree := btree.New(10)
+	tree := btree.New(WithDegree(10))
 
 	// Insert 100000 records
 	t.Logf("Inserting 100000 records\n")
@@ -607,7 +607,7 @@ func TestStress(t *testing.T) {
 
 func TestBTreeCloneIsolation(t *testing.T) {
 	t.Logf("Creating B-Tree of degree 10 with 10000 records\n")
-	tree := genericSeeding(btree.New(10), 10000)
+	tree := genericSeeding(btree.New(WithDegree(10)), 10000)
 
 	// Clone the tree
 	t.Logf("Cloning the tree\n")

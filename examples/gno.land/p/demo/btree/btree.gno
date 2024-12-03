@@ -31,6 +31,9 @@ import "sort"
 //
 //////////
 
+// BTreeOption is a function interface for setting options on a btree with `New()`.
+type BTreeOption func(*BTree)
+
 // BTree is an implementation of a B-Tree.
 //
 // BTree stores Record instances in an ordered structure, allowing easy insertion,
@@ -161,31 +164,41 @@ func (freeList *FreeNodeList) freeNode(nodeInstance *node) (nodeWasAdded bool) {
 // much baggage in a given tree.
 const DefaultFreeNodeListSize = 32
 
-// New creates a new B-Tree with the given degree. If a degree is not provided,
-// it will default to 16 element nodes. Degree may not be less than 1 (which
-// effectively makes the tree into a binary tree).
-//
-// New(2), for example, will create a 2-3-4 tree (each node contains 1-3 records
-// and 2-4 children).
-func New(params ...int) *BTree {
-	if len(params) == 0 {
-		return NewWithFreeNodeList(16, NewFreeNodeList(DefaultFreeNodeListSize))
-	} else if len(params) == 1 {
-		return NewWithFreeNodeList(params[0], NewFreeNodeList(DefaultFreeNodeListSize))
-	} else {
-		return NewWithFreeNodeList(params[0], NewFreeNodeList(params[1]))
+// WithDegree sets the degree of the B-Tree.
+func WithDegree(degree int) BTreeOption {
+	return func(bt *BTree) {
+		if degree <= 1 {
+			panic("Degrees less than 1 do not make any sense for a BTree. Please provide a degree of 1 or greater.")
+		}
+		bt.degree = degree
 	}
 }
 
-// NewWithFreeNodeList creates a new B-Tree that uses the given node free list.
-func NewWithFreeNodeList(degree int, freeList *FreeNodeList) *BTree {
-	if degree <= 1 {
-		panic("Degrees less than 1 do not make any sense for a BTree. Please provide a degree of 1 or greater.")
+// WithFreeNodeList sets a custom free node list for the B-Tree.
+func WithFreeNodeList(freeList *FreeNodeList) BTreeOption {
+	return func(bt *BTree) {
+		bt.cowCtx = &copyOnWriteContext{nodes: freeList}
 	}
-	return &BTree{
-		degree: degree,
-		cowCtx: &copyOnWriteContext{nodes: freeList},
+}
+
+// New creates a new B-Tree with optional configurations. If configuration is not provided,
+// it will default to 16 element nodes. Degree may not be less than 1 (which effectively
+// makes the tree into a binary tree).
+//
+// `New(WithDegree(2))`, for example, will create a 2-3-4 tree (each node contains 1-3 records
+// and 2-4 children).
+//
+// `New(WithFreeNodeList(NewFreeNodeList(64)))` will create a tree with a degree of 16, and
+// with a free node list with a size of 64.
+func New(options ...BTreeOption) *BTree {
+	btree := &BTree{
+		degree: 16, // default degree
+		cowCtx: &copyOnWriteContext{nodes: NewFreeNodeList(DefaultFreeNodeListSize)},
 	}
+	for _, opt := range options {
+		opt(btree)
+	}
+	return btree
 }
 
 // insertAt inserts a value into the given index, pushing all subsequent values
