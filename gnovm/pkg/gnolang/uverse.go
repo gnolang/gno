@@ -2,9 +2,10 @@ package gnolang
 
 import (
 	"fmt"
-	bm "github.com/gnolang/gno/gnovm/pkg/benchops"
 	"reflect"
 	"strings"
+
+	bm "github.com/gnolang/gno/gnovm/pkg/benchops"
 )
 
 // ----------------------------------------
