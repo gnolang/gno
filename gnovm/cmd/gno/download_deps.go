@@ -15,8 +15,8 @@ import (
 	"golang.org/x/mod/module"
 )
 
-// downwloadDeps recursively fetches the imports of a local package while following a given gno.mod replace directives
-func downwloadDeps(io commands.IO, pkgDir string, gnoMod *gnomod.File, fetcher pkgdownload.PackageFetcher) error {
+// downloadDeps recursively fetches the imports of a local package while following a given gno.mod replace directives
+func downloadDeps(io commands.IO, pkgDir string, gnoMod *gnomod.File, fetcher pkgdownload.PackageFetcher) error {
 	if fetcher == nil {
 		return errors.New("fetcher is nil")
 	}
@@ -41,7 +41,7 @@ func downwloadDeps(io commands.IO, pkgDir string, gnoMod *gnomod.File, fetcher p
 			return fmt.Errorf("download import %q of %q: %w", resolvedPkgPath, pkgDir, err)
 		}
 
-		if err := downwloadDeps(io, depDir, gnoMod, fetcher); err != nil {
+		if err := downloadDeps(io, depDir, gnoMod, fetcher); err != nil {
 			return err
 		}
 	}

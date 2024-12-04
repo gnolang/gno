@@ -122,7 +122,7 @@ func TestDownloadDeps(t *testing.T) {
 			fetcher := examplespkgfetcher.New()
 
 			// gno: downloading dependencies
-			err = downwloadDeps(io, dirPath, &tc.modFile, fetcher)
+			err = downloadDeps(io, dirPath, &tc.modFile, fetcher)
 			if tc.errorShouldContain != "" {
 				require.ErrorContains(t, err, tc.errorShouldContain)
 			} else {
@@ -148,7 +148,7 @@ func TestDownloadDeps(t *testing.T) {
 				mockErr.Reset()
 
 				// Try fetching again. Should be cached
-				downwloadDeps(io, dirPath, &tc.modFile, fetcher)
+				downloadDeps(io, dirPath, &tc.modFile, fetcher)
 				for _, c := range tc.ioErrContains {
 					assert.NotContains(t, mockErr.String(), c)
 				}
