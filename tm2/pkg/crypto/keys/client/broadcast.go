@@ -140,7 +140,7 @@ func SimulateTx(cli client.ABCIClient, tx []byte) (*ctypes.ResultBroadcastTxComm
 	}
 
 	var result abci.ResponseDeliverTx
-	err = amino.UnmarshalJSON(bres.Response.Value, &result)
+	err = amino.Unmarshal(bres.Response.Value, &result)
 	if err != nil {
 		return nil, errors.Wrap(err, "unmarshaling simulate result")
 	}

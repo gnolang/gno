@@ -412,7 +412,7 @@ func handleQueryApp(app *BaseApp, path []string, req abci.RequestQuery) (res abc
 
 			res.Height = req.Height
 
-			bytes, err := amino.MarshalJSON(result)
+			bytes, err := amino.Marshal(result)
 			if err != nil {
 				res.Error = ABCIError(std.ErrInternal(fmt.Sprintf("cannot encode to JSON: %s", err)))
 			} else {
