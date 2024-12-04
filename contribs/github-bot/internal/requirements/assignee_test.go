@@ -45,7 +45,7 @@ func TestAssignee(t *testing.T) {
 				mock.WithRequestMatchHandler(
 					mock.EndpointPattern{
 						Pattern: "/repos/issues/0/assignees",
-						Method:  "GET", // It looks like this mock package doesn't support mocking POST requests
+						Method:  "GET", // It looks like this mock package doesn't support mocking POST requests.
 					},
 					http.HandlerFunc(func(_ http.ResponseWriter, _ *http.Request) {
 						requested = true
