@@ -76,30 +76,11 @@ func (h *WebHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 type PathKind string
 
-func generateBreadcrumbPaths(path string) []components.BreadcrumbPart {
-	split := strings.Split(path, "/")
-	parts := []components.BreadcrumbPart{}
-
-	for i := range split {
-		name := split[i]
-		if name == "" {
-			continue
-		}
-
-		parts = append(parts, components.BreadcrumbPart{
-			Name: split[i],
-			Path: strings.Join(split[:i+1], "/"),
-		})
-	}
-
-	return parts
-}
-
 func (h *WebHandler) Get(w http.ResponseWriter, r *http.Request) {
 	gnourl, err := ParseGnoURL(r.URL)
 	if err != nil {
 		h.logger.Error("invalid url", "err", err)
-		http.Error(w, "invalid url", http.StatusBadRequest)
+		http.Error(w, "not found: "+r.URL.Path, http.StatusNotFound)
 		return
 	}
 
@@ -109,15 +90,14 @@ func (h *WebHandler) Get(w http.ResponseWriter, r *http.Request) {
 	// Render the page body into the buffer
 	var status int
 	switch gnourl.Kind {
-	case KindRealm:
+	case KindRealm, KindPure:
 		status, err = h.renderRealm(body, gnourl)
-	case KindPure:
-		status, err = http.StatusNotFound, components.RenderStatusComponent(w, "page not found")
 	case KindUser:
+		// XXX
 		fallthrough
 	default:
-		http.Error(w, "not supported", http.StatusBadRequest)
-		return
+		h.logger.Warn("invalid page kind", "kind", gnourl.Kind)
+		status, err = http.StatusNotFound, components.RenderStatusComponent(body, "page not found")
 	}
 
 	if err != nil {
@@ -157,11 +137,7 @@ func (h *WebHandler) renderRealmHelp(w io.Writer, gnourl *GnoURL) (status int, e
 
 	// Catch last name of the path
 	// XXX: we should probably add a condition within the template
-	realmName := "unknown"
-	if i := strings.LastIndexByte(gnourl.Path, '/'); i > 0 {
-		realmName = gnourl.Path[i+1:]
-	}
-
+	realmName := filepath.Base(gnourl.Path)
 	err = components.RenderHelpComponent(w, components.HelpData{
 		RealmName: realmName,
 		ChainId:   h.static.ChaindID,
@@ -231,30 +207,34 @@ func (h *WebHandler) renderRealmSource(w io.Writer, gnourl *GnoURL) (status int,
 func (h *WebHandler) renderRealm(w io.Writer, gnourl *GnoURL) (status int, err error) {
 	h.logger.Info("component render", "path", gnourl.Path, "args", gnourl.Args)
 
-	// Display realm help page
+	// Display realm help page ?
 	if gnourl.WebQuery.Has("help") {
 		return h.renderRealmHelp(w, gnourl)
 	}
 
-	// XXX: would probably better to have this has a middleware
-	if endsWithRune(gnourl.Path, '/') || isFile(gnourl.Path) {
-		gnourl.WebQuery.Set("source", "") // set source
+	// Display realm source page ?
+	switch {
+	// XXX: it would probably be better to have this as a middleware somehow
+	case endsWithRune(gnourl.Path, '/') || isFile(gnourl.Path):
 		i := strings.LastIndexByte(gnourl.Path, '/')
 		if i < 0 {
 			return http.StatusInternalServerError, fmt.Errorf("unable get ending slash for %q", gnourl.Path)
 		}
+
+		// Fill webquery with file infos
+		gnourl.WebQuery.Set("source", "") // set source
 		if file := gnourl.Path[i+1:]; file != "" {
 			gnourl.WebQuery.Set("file", file)
 		}
 		gnourl.Path = gnourl.Path[:i]
-	}
 
-	// Display realm source page
-	if gnourl.WebQuery.Has("source") {
+		fallthrough // render realm source
+	case gnourl.WebQuery.Has("source"):
 		return h.renderRealmSource(w, gnourl)
 	}
 
 	// Render content into the content buffer
+
 	content := h.getBuffer()
 	defer h.putBuffer(content)
 
@@ -323,6 +303,25 @@ func (h *WebHandler) getBuffer() *bytes.Buffer {
 func (h *WebHandler) putBuffer(buf *bytes.Buffer) {
 	buf.Reset()
 	h.bufferPool.Put(buf)
+}
+
+func generateBreadcrumbPaths(path string) []components.BreadcrumbPart {
+	split := strings.Split(path, "/")
+	parts := []components.BreadcrumbPart{}
+
+	var name string
+	for i := range split {
+		if name = split[i]; name == "" {
+			continue
+		}
+
+		parts = append(parts, components.BreadcrumbPart{
+			Name: name,
+			Path: strings.Join(split[:i+1], "/"),
+		})
+	}
+
+	return parts
 }
 
 func contains(files []string, file string) bool {

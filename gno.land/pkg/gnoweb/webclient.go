@@ -8,10 +8,10 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/gnolang/gno/gno.land/pkg/gnoclient"
 	md "github.com/gnolang/gno/gno.land/pkg/markdown"
 	"github.com/gnolang/gno/gno.land/pkg/sdk/vm" // for error types
 	"github.com/gnolang/gno/tm2/pkg/amino"
+	"github.com/gnolang/gno/tm2/pkg/bft/rpc/client"
 	"github.com/yuin/goldmark"
 	"github.com/yuin/goldmark/parser"
 	"github.com/yuin/goldmark/text"
@@ -19,11 +19,11 @@ import (
 
 type WebClient struct {
 	logger *slog.Logger
-	client *gnoclient.Client
+	client *client.RPCClient
 	md     goldmark.Markdown
 }
 
-func NewWebClient(log *slog.Logger, cl *gnoclient.Client, m goldmark.Markdown) *WebClient {
+func NewWebClient(log *slog.Logger, cl *client.RPCClient, m goldmark.Markdown) *WebClient {
 	m.Parser().AddOptions(parser.WithAutoHeadingID())
 	return &WebClient{
 		logger: log,
@@ -61,12 +61,7 @@ func (s *WebClient) SourceFile(path, fileName string) ([]byte, error) {
 	// XXX: move this into gnoclient ?
 	path = fmt.Sprintf("gno.land/%s", strings.Trim(path, "/"))
 	path = filepath.Join(path, fileName)
-	res, err := s.query(qpath, []byte(path))
-	if err != nil {
-		return nil, err
-	}
-
-	return res, nil
+	return s.query(qpath, []byte(path))
 }
 
 func (s *WebClient) Sources(path string) ([]string, error) {
@@ -112,12 +107,8 @@ func (s *WebClient) Render(w io.Writer, pkgPath string, args string) (*Metadata,
 
 func (s *WebClient) query(qpath string, data []byte) ([]byte, error) {
 	s.logger.Info("query", "qpath", qpath, "data", string(data))
-	// XXX: move this into gnoclient
-	qres, err := s.client.Query(gnoclient.QueryCfg{
-		Path: qpath,
-		Data: data,
-	})
 
+	qres, err := s.client.ABCIQuery(qpath, data)
 	if err != nil {
 		s.logger.Error("request error", "path", qpath, "data", string(data), "error", err)
 		return nil, fmt.Errorf("unable to query path %q: %w", qpath, err)
