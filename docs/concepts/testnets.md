@@ -56,7 +56,7 @@ Test5 was launched in November 2024.
   - State is fully persisted unless there are breaking changes in a new release,
     where persistence partly depends on implementing a migration strategy
 - **Timeliness of code:**
-  - Versioning mechanisms for packages & realms will be implemented for test5
+  - Pre-deployed packages and realms are at monorepo commit [2e9f5ce](https://github.com/gnolang/gno/tree/2e9f5ce8ecc90ee81eb3ae41c06bab30ab926150) 
 - **Intended purpose**
   - Running a full node, testing validator coordination, deploying stable Gno
     dApps, creating tools that require persisted state & transaction history
