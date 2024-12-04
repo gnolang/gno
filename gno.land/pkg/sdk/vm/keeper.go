@@ -369,6 +369,7 @@ func (vm *VMKeeper) AddPackage(ctx sdk.Context, msg MsgAddPackage) (err error) {
 	// Parse and run the files, construct *PV.
 	msgCtx := stdlibs.ExecContext{
 		ChainID:       ctx.ChainID(),
+		ChainDomain:   chainDomain,
 		Height:        ctx.BlockHeight(),
 		Timestamp:     ctx.BlockTime().Unix(),
 		OrigCaller:    creator.Bech32(),
@@ -467,8 +468,10 @@ func (vm *VMKeeper) Call(ctx sdk.Context, msg MsgCall) (res string, err error) {
 	// Make context.
 	// NOTE: if this is too expensive,
 	// could it be safely partially memoized?
+	chainDomain := vm.getChainDomainParam(ctx)
 	msgCtx := stdlibs.ExecContext{
 		ChainID:       ctx.ChainID(),
+		ChainDomain:   chainDomain,
 		Height:        ctx.BlockHeight(),
 		Timestamp:     ctx.BlockTime().Unix(),
 		OrigCaller:    caller.Bech32(),
@@ -730,10 +733,12 @@ func (vm *VMKeeper) QueryEval(ctx sdk.Context, pkgPath string, expr string) (res
 		return "", err
 	}
 	// Construct new machine.
+	chainDomain := vm.getChainDomainParam(ctx)
 	msgCtx := stdlibs.ExecContext{
-		ChainID:   ctx.ChainID(),
-		Height:    ctx.BlockHeight(),
-		Timestamp: ctx.BlockTime().Unix(),
+		ChainID:     ctx.ChainID(),
+		ChainDomain: chainDomain,
+		Height:      ctx.BlockHeight(),
+		Timestamp:   ctx.BlockTime().Unix(),
 		// OrigCaller:    caller,
 		// OrigSend:      send,
 		// OrigSendSpent: nil,
@@ -796,10 +801,12 @@ func (vm *VMKeeper) QueryEvalString(ctx sdk.Context, pkgPath string, expr string
 		return "", err
 	}
 	// Construct new machine.
+	chainDomain := vm.getChainDomainParam(ctx)
 	msgCtx := stdlibs.ExecContext{
-		ChainID:   ctx.ChainID(),
-		Height:    ctx.BlockHeight(),
-		Timestamp: ctx.BlockTime().Unix(),
+		ChainID:     ctx.ChainID(),
+		ChainDomain: chainDomain,
+		Height:      ctx.BlockHeight(),
+		Timestamp:   ctx.BlockTime().Unix(),
 		// OrigCaller:    caller,
 		// OrigSend:      jsend,
 		// OrigSendSpent: nil,
