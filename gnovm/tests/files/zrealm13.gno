@@ -93,7 +93,7 @@ func main() {
 //         "BlockNode": null,
 //         "Location": {
 //             "Column": "1",
-//             "File": "main.gno",
+//             "File": "files/zrealm13.gno",
 //             "Line": "18",
 //             "PkgPath": "gno.land/r/test"
 //         }
