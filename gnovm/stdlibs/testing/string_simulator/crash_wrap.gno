@@ -134,7 +134,6 @@ func Detect_Crash(testFunc interface{}, inp interface{}) (result TestResult) {
 	} else {
 		result.Error = errors.New("testFunc is not of type func(interface{}) interface{}")
 	}
-
 	return result
 }
 
