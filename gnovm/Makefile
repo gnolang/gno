@@ -97,7 +97,8 @@ _test.stdlibs:
 	go run ./cmd/gno test -v ./stdlibs/...
 
 
-_test.gnolang.stdlibs:;      go test pkg/gnolang/files_test.go -test.short -run 'TestFiles$$/' $(GOTEST_FLAGS)
+_test.filetest:;
+	go test pkg/gnolang/files_test.go -test.short -run 'TestFiles$$/' $(GOTEST_FLAGS)
 
 ########################################
 # Code gen
