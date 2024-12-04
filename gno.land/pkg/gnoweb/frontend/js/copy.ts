@@ -2,13 +2,13 @@
   class Copy {
     private DOM: {
       el: HTMLElement | null;
-      btnClicked: HTMLElement | null;
     };
+    btnClicked: HTMLElement | null = null;
+    btnClickedIcons: HTMLElement[] = [];
 
     constructor() {
       this.DOM = {
         el: document.querySelector("main"),
-        btnClicked: null,
       };
 
       if (this.DOM.el) this.init();
@@ -28,7 +28,9 @@
 
       if (!button) return;
 
-      this.DOM.btnClicked = button;
+      this.btnClicked = button;
+      this.btnClickedIcons = Array.from(button.querySelectorAll<HTMLElement>(`[data-copy-icon] > use`));
+
       const contentId = button.getAttribute("data-copy-btn");
       if (!contentId) return;
 
@@ -37,21 +39,24 @@
     }
 
     private sanitizeContent(codeBlock: HTMLElement): string {
-      const clonedBlock = codeBlock.cloneNode(true) as HTMLElement;
-
-      clonedBlock.querySelectorAll(".chroma-ln").forEach((lineNumber) => lineNumber.remove());
-
-      return clonedBlock.textContent?.trim() || "";
+      const html = codeBlock.innerHTML.replace(/<span class="chroma-ln">.*?<\/span>/g, "");
+      const tempDiv = document.createElement("div");
+      tempDiv.innerHTML = html;
+      return tempDiv.textContent?.trim() || "";
     }
 
-    private showFeedback(success: boolean) {
-      if (!this.DOM.btnClicked) return;
+    private toggleIcons() {
+      this.btnClickedIcons.forEach((icon) => {
+        icon.classList.toggle("hidden");
+      });
+    }
 
-      const feedbackClass = success ? "text-green-600" : "";
+    private showFeedback() {
+      if (!this.btnClicked) return;
 
-      this.DOM.btnClicked.classList.add(feedbackClass);
+      this.toggleIcons();
       window.setTimeout(() => {
-        this.DOM.btnClicked?.classList.remove(feedbackClass);
+        this.toggleIcons();
       }, 1500);
     }
 
@@ -59,10 +64,10 @@
       const sanitizedText = this.sanitizeContent(codeBlock);
       try {
         await navigator.clipboard.writeText(sanitizedText);
-        this.showFeedback(true);
+        this.showFeedback();
       } catch (err) {
         console.error("Copy error: ", err);
-        this.showFeedback(false);
+        this.showFeedback();
       }
     }
   }
