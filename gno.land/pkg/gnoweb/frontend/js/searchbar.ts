@@ -22,10 +22,9 @@
 
     private init() {
       const { el } = this.DOM;
-      if (!el) return;
 
-      this.DOM.inputSearch = el.querySelector<HTMLInputElement>("[data-role='header-input-search']");
-      this.DOM.breadcrumb = el.querySelector<HTMLInputElement>("[data-role='header-breadcrumb-search']");
+      this.DOM.inputSearch = el?.querySelector<HTMLInputElement>("[data-role='header-input-search']") ?? null;
+      this.DOM.breadcrumb = el?.querySelector<HTMLInputElement>("[data-role='header-breadcrumb-search']") ?? null;
 
       this.bindEvents();
     }

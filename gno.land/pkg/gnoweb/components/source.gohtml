@@ -42,26 +42,26 @@
             <h1 class="text-600 font-bold">{{ .FileName }}</h1>
             <!-- <span class="text-gray-300">1.56 Kb · 56 lines</span> -->
         </div>
-        <!-- <div class="flex gap-4 text-gray-300">
-            <button class="flex items-center gap-1 hover:text-gray-600">
+         <div class="flex gap-4 text-gray-300">
+            <button class="flex items-center gap-1 hover:text-gray-600" data-copy-btn="source-code">
             <svg class="w-5 h-5 xxl:w-4 xxl:h-4 shrink-0 inline-block xl:hidden xxl:inline-block text-gray-200">
                 <use href="#ico-copy"></use>
             </svg>
             <span class="hidden xl:inline">Copy</span>
             </button>
-            <button class="flex items-center gap-1">
+            <!-- <button class="flex items-center gap-1">
             <svg class="w-5 h-5 xxl:w-4 xxl:h-4 shrink-0 inline-block xl:hidden xxl:inline-block text-gray-200">
                 <use href="#ico-ddl"></use>
             </svg>
             <span class="hidden xl:inline">Download</span>
-            </button>
-        </div> -->
+            </button> -->
+        </div>
         </div>
 
         <!-- Code Content -->
-        <div class="source-code font-mono">
+        <div class="source-code font-mono" data-copy-content="source-code">
             {{ .FileSource }}
-        </div>
+        </div> 
     </article>
     </section>
 </section>

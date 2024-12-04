@@ -75,4 +75,5 @@ export default {
     },
   },
   plugins: [],
+  safelist: ["text-green-600"],
 };

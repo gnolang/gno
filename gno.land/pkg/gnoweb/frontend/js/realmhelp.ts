@@ -55,6 +55,8 @@
       modes: HTMLElement[];
     };
 
+    private funcName: null | string = null;
+
     constructor(el: HTMLElement) {
       this.DOM = {
         el,
@@ -62,6 +64,8 @@
         args: Array.from(el.querySelectorAll<HTMLElement>("[data-role='help-code-args']")),
         modes: Array.from(el.querySelectorAll<HTMLElement>("[data-code-mode]")),
       };
+
+      this.funcName = this.DOM.el.dataset.func || "";
 
       this.bindEvents();
     }
@@ -92,6 +96,7 @@
     public updateMode(mode: string) {
       this.DOM.modes.forEach((cmd) => {
         cmd.className = cmd.dataset.codeMode === mode ? "inline" : "hidden";
+        cmd.dataset.copyContent = cmd.dataset.codeMode === mode ? `help-cmd-${this.funcName}` : "";
       });
     }
   }
