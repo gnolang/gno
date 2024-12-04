@@ -6,8 +6,8 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"io"
 	"log/slog"
-	"os"
 	"path/filepath"
 	"regexp"
 	"strings"
@@ -57,6 +57,9 @@ var _ VMKeeperI = &VMKeeper{}
 
 // VMKeeper holds all package code and store state.
 type VMKeeper struct {
+	// Needs to be explicitly set, like in the case of gnodev.
+	Output io.Writer
+
 	baseKey store.StoreKey
 	iavlKey store.StoreKey
 	acck    auth.AccountKeeper
@@ -97,7 +100,7 @@ func (vm *VMKeeper) Initialize(
 
 	alloc := gno.NewAllocator(maxAllocTx)
 	vm.gnoStore = gno.NewStore(alloc, baseStore, iavlStore)
-	vm.gnoStore.SetNativeStore(stdlibs.NativeStore)
+	vm.gnoStore.SetNativeResolver(stdlibs.NativeResolver)
 
 	if vm.gnoStore.NumMemPackages() > 0 {
 		// for now, all mem packages must be re-run after reboot.
@@ -108,7 +111,7 @@ func (vm *VMKeeper) Initialize(
 		m2 := gno.NewMachineWithOptions(
 			gno.MachineOptions{
 				PkgPath: "",
-				Output:  os.Stdout, // XXX
+				Output:  vm.Output,
 				Store:   vm.gnoStore,
 			})
 		defer m2.Release()
@@ -143,7 +146,7 @@ func (vm *VMKeeper) LoadStdlibCached(ctx sdk.Context, stdlibDir string) {
 		}
 
 		gs := gno.NewStore(nil, cachedStdlib.base, cachedStdlib.iavl)
-		gs.SetNativeStore(stdlibs.NativeStore)
+		gs.SetNativeResolver(stdlibs.NativeResolver)
 		loadStdlib(gs, stdlibDir)
 		cachedStdlib.gno = gs
 	})
@@ -191,8 +194,7 @@ func loadStdlibPackage(pkgPath, stdlibDir string, store gno.Store) {
 	m := gno.NewMachineWithOptions(gno.MachineOptions{
 		PkgPath: "gno.land/r/stdlibs/" + pkgPath,
 		// PkgPath: pkgPath, XXX why?
-		Output: os.Stdout,
-		Store:  store,
+		Store: store,
 	})
 	defer m.Release()
 	m.RunMemPackage(memPkg, true)
@@ -226,15 +228,15 @@ func (vm *VMKeeper) getGnoTransactionStore(ctx sdk.Context) gno.TransactionStore
 // Namespace can be either a user or crypto address.
 var reNamespace = regexp.MustCompile(`^gno.land/(?:r|p)/([\.~_a-zA-Z0-9]+)`)
 
-const (
-	sysUsersPkgParamKey = "vm/gno.land/r/sys/params.string"
-	sysUsersPkgDefault  = "gno.land/r/sys/users"
-)
+const sysUsersPkgParamPath = "gno.land/r/sys/params.sys.users_pkgpath.string"
 
 // checkNamespacePermission check if the user as given has correct permssion to on the given pkg path
 func (vm *VMKeeper) checkNamespacePermission(ctx sdk.Context, creator crypto.Address, pkgPath string) error {
-	sysUsersPkg := sysUsersPkgDefault
-	vm.prmk.GetString(ctx, sysUsersPkgParamKey, &sysUsersPkg)
+	var sysUsersPkg string
+	vm.prmk.GetString(ctx, sysUsersPkgParamPath, &sysUsersPkg)
+	if sysUsersPkg == "" {
+		return nil
+	}
 
 	store := vm.getGnoTransactionStore(ctx)
 
@@ -275,7 +277,7 @@ func (vm *VMKeeper) checkNamespacePermission(ctx sdk.Context, creator crypto.Add
 	m := gno.NewMachineWithOptions(
 		gno.MachineOptions{
 			PkgPath:  "",
-			Output:   os.Stdout, // XXX
+			Output:   vm.Output,
 			Store:    store,
 			Context:  msgCtx,
 			Alloc:    store.GetAllocator(),
@@ -363,7 +365,6 @@ func (vm *VMKeeper) AddPackage(ctx sdk.Context, msg MsgAddPackage) (err error) {
 		ChainID:       ctx.ChainID(),
 		Height:        ctx.BlockHeight(),
 		Timestamp:     ctx.BlockTime().Unix(),
-		Msg:           msg,
 		OrigCaller:    creator.Bech32(),
 		OrigSend:      deposit,
 		OrigSendSpent: new(std.Coins),
@@ -376,7 +377,7 @@ func (vm *VMKeeper) AddPackage(ctx sdk.Context, msg MsgAddPackage) (err error) {
 	m2 := gno.NewMachineWithOptions(
 		gno.MachineOptions{
 			PkgPath:  "",
-			Output:   os.Stdout, // XXX
+			Output:   vm.Output,
 			Store:    gnostore,
 			Alloc:    gnostore.GetAllocator(),
 			Context:  msgCtx,
@@ -464,7 +465,6 @@ func (vm *VMKeeper) Call(ctx sdk.Context, msg MsgCall) (res string, err error) {
 		ChainID:       ctx.ChainID(),
 		Height:        ctx.BlockHeight(),
 		Timestamp:     ctx.BlockTime().Unix(),
-		Msg:           msg,
 		OrigCaller:    caller.Bech32(),
 		OrigSend:      send,
 		OrigSendSpent: new(std.Coins),
@@ -477,7 +477,7 @@ func (vm *VMKeeper) Call(ctx sdk.Context, msg MsgCall) (res string, err error) {
 	m := gno.NewMachineWithOptions(
 		gno.MachineOptions{
 			PkgPath:  "",
-			Output:   os.Stdout, // XXX
+			Output:   vm.Output,
 			Store:    gnostore,
 			Context:  msgCtx,
 			Alloc:    gnostore.GetAllocator(),
@@ -563,7 +563,6 @@ func (vm *VMKeeper) Run(ctx sdk.Context, msg MsgRun) (res string, err error) {
 		ChainID:       ctx.ChainID(),
 		Height:        ctx.BlockHeight(),
 		Timestamp:     ctx.BlockTime().Unix(),
-		Msg:           msg,
 		OrigCaller:    caller.Bech32(),
 		OrigSend:      send,
 		OrigSendSpent: new(std.Coins),
@@ -574,10 +573,14 @@ func (vm *VMKeeper) Run(ctx sdk.Context, msg MsgRun) (res string, err error) {
 	}
 	// Parse and run the files, construct *PV.
 	buf := new(bytes.Buffer)
+	output := io.Writer(buf)
+	if vm.Output != nil {
+		output = io.MultiWriter(buf, vm.Output)
+	}
 	m := gno.NewMachineWithOptions(
 		gno.MachineOptions{
 			PkgPath:  "",
-			Output:   buf,
+			Output:   output,
 			Store:    gnostore,
 			Alloc:    gnostore.GetAllocator(),
 			Context:  msgCtx,
@@ -603,7 +606,7 @@ func (vm *VMKeeper) Run(ctx sdk.Context, msg MsgRun) (res string, err error) {
 	m2 := gno.NewMachineWithOptions(
 		gno.MachineOptions{
 			PkgPath:  "",
-			Output:   buf,
+			Output:   output,
 			Store:    gnostore,
 			Alloc:    gnostore.GetAllocator(),
 			Context:  msgCtx,
@@ -723,7 +726,6 @@ func (vm *VMKeeper) QueryEval(ctx sdk.Context, pkgPath string, expr string) (res
 		ChainID:   ctx.ChainID(),
 		Height:    ctx.BlockHeight(),
 		Timestamp: ctx.BlockTime().Unix(),
-		// Msg:           msg,
 		// OrigCaller:    caller,
 		// OrigSend:      send,
 		// OrigSendSpent: nil,
@@ -735,7 +737,7 @@ func (vm *VMKeeper) QueryEval(ctx sdk.Context, pkgPath string, expr string) (res
 	m := gno.NewMachineWithOptions(
 		gno.MachineOptions{
 			PkgPath:  pkgPath,
-			Output:   os.Stdout, // XXX
+			Output:   vm.Output,
 			Store:    gnostore,
 			Context:  msgCtx,
 			Alloc:    alloc,
@@ -790,7 +792,6 @@ func (vm *VMKeeper) QueryEvalString(ctx sdk.Context, pkgPath string, expr string
 		ChainID:   ctx.ChainID(),
 		Height:    ctx.BlockHeight(),
 		Timestamp: ctx.BlockTime().Unix(),
-		// Msg:           msg,
 		// OrigCaller:    caller,
 		// OrigSend:      jsend,
 		// OrigSendSpent: nil,
@@ -802,7 +803,7 @@ func (vm *VMKeeper) QueryEvalString(ctx sdk.Context, pkgPath string, expr string
 	m := gno.NewMachineWithOptions(
 		gno.MachineOptions{
 			PkgPath:  pkgPath,
-			Output:   os.Stdout, // XXX
+			Output:   vm.Output,
 			Store:    gnostore,
 			Context:  msgCtx,
 			Alloc:    alloc,

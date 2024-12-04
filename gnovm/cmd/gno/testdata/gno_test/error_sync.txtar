@@ -3,9 +3,9 @@
 # by the '-update-golden-tests' flag. The Error is only updated when it is
 # empty.
 
-! gno test -v .
+gno test -update-golden-tests -v .
 
-stdout 'Machine\.RunMain\(\) panic: oups'
+! stdout .+
 stderr '=== RUN   file/x_filetest.gno'
 
 cmp x_filetest.gno x_filetest.gno.golden
@@ -18,7 +18,6 @@ func main() {
 }
 
 // Error:
-
 -- x_filetest.gno.golden --
 package main
 
@@ -28,5 +27,3 @@ func main() {
 
 // Error:
 // oups
-// *** CHECK THE ERR MESSAGES ABOVE, MAKE SURE IT'S WHAT YOU EXPECTED, DELETE THIS LINE AND RUN TEST AGAIN ***
-

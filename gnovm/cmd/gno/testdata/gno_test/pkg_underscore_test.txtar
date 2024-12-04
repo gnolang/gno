@@ -66,4 +66,5 @@ func main() {
 	println("filetest " + hello.Name)
 }
 
-// Output: filetest foo
+// Output:
+// filetest foo

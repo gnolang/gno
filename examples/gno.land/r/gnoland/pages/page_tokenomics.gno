@@ -3,7 +3,7 @@ package gnopages
 func init() {
 	var (
 		path  = "tokenomics"
-		title = "Gno.land Tokenomics"
+		title = "gno.land Tokenomics"
 		// XXX: description = """
 		body = `Lorem Ipsum`
 	)

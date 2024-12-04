@@ -174,6 +174,13 @@ func initStaticBlocks(store Store, ctx BlockNode, bn BlockNode) {
 			case *ImportDecl:
 				nx := &n.NameExpr
 				nn := nx.Name
+				loc := last.GetLocation()
+				// NOTE: imports from "pure packages" are actually sometimes
+				// allowed, most notably in MsgRun and filetests; IsPurePackagePath
+				// returns false in these cases.
+				if IsPurePackagePath(loc.PkgPath) && IsRealmPath(n.PkgPath) {
+					panic(fmt.Sprintf("pure package path %q cannot import realm path %q", loc.PkgPath, n.PkgPath))
+				}
 				if nn == "." {
 					panic("dot imports not allowed in gno")
 				}
@@ -298,6 +305,11 @@ func initStaticBlocks(store Store, ctx BlockNode, bn BlockNode) {
 					last.Predefine(false, n.VarName)
 				}
 			case *SwitchClauseStmt:
+				blen := len(n.Body)
+				if blen > 0 {
+					n.Body[blen-1].SetAttribute(ATTR_LAST_BLOCK_STMT, true)
+				}
+
 				// parent switch statement.
 				ss := ns[len(ns)-1].(*SwitchStmt)
 				// anything declared in ss are copied,
@@ -353,6 +365,11 @@ func initStaticBlocks(store Store, ctx BlockNode, bn BlockNode) {
 
 func doRecover(stack []BlockNode, n Node) {
 	if r := recover(); r != nil {
+		if _, ok := r.(*PreprocessError); ok {
+			// re-panic directly if this is a PreprocessError already.
+			panic(r)
+		}
+
 		// before re-throwing the error, append location information to message.
 		last := stack[len(stack)-1]
 		loc := last.GetLocation()
@@ -910,6 +927,14 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 			switch n := n.(type) {
 			// TRANS_LEAVE -----------------------
 			case *NameExpr:
+				if isBlankIdentifier(n) {
+					switch ftype {
+					case TRANS_ASSIGN_LHS, TRANS_RANGE_KEY, TRANS_RANGE_VALUE, TRANS_VAR_NAME:
+						// can use _ as value or type in these contexts
+					default:
+						panic("cannot use _ as value or type")
+					}
+				}
 				// Validity: check that name isn't reserved.
 				if isReservedName(n.Name) {
 					panic(fmt.Sprintf(
@@ -1628,7 +1653,8 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 				}
 
 				// Type assertions on the blank identifier are illegal.
-				if nx, ok := n.X.(*NameExpr); ok && string(nx.Name) == blankIdentifier {
+
+				if isBlankIdentifier(n.X) {
 					panic("cannot use _ as value or type")
 				}
 
@@ -1961,6 +1987,7 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 			// TRANS_LEAVE -----------------------
 			case *AssignStmt:
 				n.AssertCompatible(store, last)
+
 				// NOTE: keep DEFINE and ASSIGN in sync.
 				if n.Op == DEFINE {
 					// Rhs consts become default *ConstExprs.
@@ -1969,60 +1996,12 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 						convertIfConst(store, last, rx)
 					}
 
-					if len(n.Lhs) > len(n.Rhs) {
-						switch cx := n.Rhs[0].(type) {
-						case *CallExpr:
-							// Call case: a, b := x(...)
-							ift := evalStaticTypeOf(store, last, cx.Func)
-							cft := getGnoFuncTypeOf(store, ift)
-							for i, lx := range n.Lhs {
-								ln := lx.(*NameExpr).Name
-								rf := cft.Results[i]
-								// re-definition
-								last.Define(ln, anyValue(rf.Type))
-							}
-						case *TypeAssertExpr:
-							lhs0 := n.Lhs[0].(*NameExpr).Name
-							lhs1 := n.Lhs[1].(*NameExpr).Name
-							tt := evalStaticType(store, last, cx.Type)
-							// re-definitions
-							last.Define(lhs0, anyValue(tt))
-							last.Define(lhs1, anyValue(BoolType))
-						case *IndexExpr:
-							lhs0 := n.Lhs[0].(*NameExpr).Name
-							lhs1 := n.Lhs[1].(*NameExpr).Name
-
-							var mt *MapType
-							dt := evalStaticTypeOf(store, last, cx.X)
-							mt, ok := baseOf(dt).(*MapType)
-							if !ok {
-								panic(fmt.Sprintf("invalid index expression on %T", dt))
-							}
-							// re-definitions
-							last.Define(lhs0, anyValue(mt.Value))
-							last.Define(lhs1, anyValue(BoolType))
-						default:
-							panic("should not happen")
-						}
-					} else {
-						// General case: a, b := x, y
-						for i, lx := range n.Lhs {
-							ln := lx.(*NameExpr).Name
-							rx := n.Rhs[i]
-							rt := evalStaticTypeOf(store, last, rx)
-							// re-definition
-							if rt == nil {
-								// e.g. (interface{})(nil), becomes ConstExpr(undefined).
-								// last.Define(ln, undefined) complains, since redefinition.
-							} else {
-								last.Define(ln, anyValue(rt))
-							}
-							// if rhs is untyped
-							if isUntyped(rt) {
-								checkOrConvertType(store, last, &n.Rhs[i], nil, false)
-							}
-						}
+					nameExprs := make(NameExprs, len(n.Lhs))
+					for i := range len(n.Lhs) {
+						nameExprs[i] = *n.Lhs[i].(*NameExpr)
 					}
+
+					defineOrDecl(store, last, false, nameExprs, nil, n.Rhs)
 				} else { // ASSIGN, or assignment operation (+=, -=, <<=, etc.)
 					// NOTE: Keep in sync with DEFINE above.
 					if len(n.Lhs) > len(n.Rhs) {
@@ -2136,9 +2115,7 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 				switch n.Op {
 				case BREAK:
 					if n.Label == "" {
-						if !findBreakableNode(ns) {
-							panic("cannot break with no parent loop or switch")
-						}
+						findBreakableNode(last, store)
 					} else {
 						// Make sure that the label exists, either for a switch or a
 						// BranchStmt.
@@ -2148,9 +2125,7 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 					}
 				case CONTINUE:
 					if n.Label == "" {
-						if !findContinuableNode(ns) {
-							panic("cannot continue with no parent loop")
-						}
+						findContinuableNode(last, store)
 					} else {
 						if isSwitchLabel(ns, n.Label) {
 							panic(fmt.Sprintf("invalid continue label %q\n", n.Label))
@@ -2162,17 +2137,36 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 					n.Depth = depth
 					n.BodyIndex = index
 				case FALLTHROUGH:
-					if swchC, ok := last.(*SwitchClauseStmt); ok {
-						// last is a switch clause, find its index in the switch and assign
-						// it to the fallthrough node BodyIndex. This will be used at
-						// runtime to determine the next switch clause to run.
-						swch := lastSwitch(ns)
-						for i := range swch.Clauses {
-							if &swch.Clauses[i] == swchC {
-								// switch clause found
-								n.BodyIndex = i
-								break
-							}
+					swchC, ok := last.(*SwitchClauseStmt)
+					if !ok {
+						// fallthrough is only allowed in a switch statement
+						panic("fallthrough statement out of place")
+					}
+
+					if n.GetAttribute(ATTR_LAST_BLOCK_STMT) != true {
+						// no more clause after the one executed, this is not allowed
+						panic("fallthrough statement out of place")
+					}
+
+					// last is a switch clause, find its index in the switch and assign
+					// it to the fallthrough node BodyIndex. This will be used at
+					// runtime to determine the next switch clause to run.
+					swch := lastSwitch(ns)
+
+					if swch.IsTypeSwitch {
+						// fallthrough is not allowed in type switches
+						panic("cannot fallthrough in type switch")
+					}
+
+					for i := range swch.Clauses {
+						if i == len(swch.Clauses)-1 {
+							panic("cannot fallthrough final case in switch")
+						}
+
+						if &swch.Clauses[i] == swchC {
+							// switch clause found
+							n.BodyIndex = i
+							break
 						}
 					}
 				default:
@@ -2291,6 +2285,8 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 
 			// TRANS_LEAVE -----------------------
 			case *ValueDecl:
+				assertValidAssignRhs(store, last, n)
+
 				// evaluate value if const expr.
 				if n.Const {
 					// NOTE: may or may not be a *ConstExpr,
@@ -2306,147 +2302,9 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 					// the implementation differ from
 					// runDeclaration(), as this uses OpStaticTypeOf.
 				}
-				numNames := len(n.NameExprs)
-				sts := make([]Type, numNames) // static types
-				tvs := make([]TypedValue, numNames)
 
-				if numNames > 1 && len(n.Values) == 1 {
-					// Special cases if one of the following:
-					// - `var a, b, c T = f()`
-					// - `var a, b = n.(T)`
-					// - `var a, b = n[i], where n is a map`
+				defineOrDecl(store, last, n.Const, n.NameExprs, n.Type, n.Values)
 
-					var tuple *tupleType
-					valueExpr := n.Values[0]
-					valueType := evalStaticTypeOfRaw(store, last, valueExpr)
-
-					switch expr := valueExpr.(type) {
-					case *CallExpr:
-						tuple = valueType.(*tupleType)
-					case *TypeAssertExpr, *IndexExpr:
-						tuple = &tupleType{Elts: []Type{valueType, BoolType}}
-						if ex, ok := expr.(*TypeAssertExpr); ok {
-							ex.HasOK = true
-							break
-						}
-						expr.(*IndexExpr).HasOK = true
-					default:
-						panic(fmt.Sprintf("unexpected ValueDecl value expression type %T", expr))
-					}
-
-					if rLen := len(tuple.Elts); rLen != numNames {
-						panic(
-							fmt.Sprintf(
-								"assignment mismatch: %d variable(s) but %s returns %d value(s)",
-								numNames,
-								valueExpr.String(),
-								rLen,
-							),
-						)
-					}
-
-					if n.Type != nil {
-						// only a single type can be specified.
-						nt := evalStaticType(store, last, n.Type)
-						// TODO check tt and nt compat.
-						for i := 0; i < numNames; i++ {
-							sts[i] = nt
-							tvs[i] = anyValue(nt)
-						}
-					} else {
-						// set types as return types.
-						for i := 0; i < numNames; i++ {
-							et := tuple.Elts[i]
-							sts[i] = et
-							tvs[i] = anyValue(et)
-						}
-					}
-				} else if len(n.Values) != 0 && numNames != len(n.Values) {
-					panic(fmt.Sprintf("assignment mismatch: %d variable(s) but %d value(s)", numNames, len(n.Values)))
-				} else { // general case
-					for _, v := range n.Values {
-						if cx, ok := v.(*CallExpr); ok {
-							tt, ok := evalStaticTypeOfRaw(store, last, cx).(*tupleType)
-							if ok && len(tt.Elts) != 1 {
-								panic(fmt.Sprintf("multiple-value %s (value of type %s) in single-value context", cx.Func.String(), tt.Elts))
-							}
-						}
-					}
-					// evaluate types and convert consts.
-					if n.Type != nil {
-						// only a single type can be specified.
-						nt := evalStaticType(store, last, n.Type)
-						for i := 0; i < numNames; i++ {
-							sts[i] = nt
-						}
-						// convert if const to nt.
-						for i := range n.Values {
-							checkOrConvertType(store, last, &n.Values[i], nt, false)
-						}
-					} else if n.Const {
-						// derive static type from values.
-						for i, vx := range n.Values {
-							vt := evalStaticTypeOf(store, last, vx)
-							sts[i] = vt
-						}
-					} else { // T is nil, n not const
-						// convert n.Value to default type.
-						for i, vx := range n.Values {
-							if cx, ok := vx.(*ConstExpr); ok {
-								convertConst(store, last, cx, nil)
-								// convertIfConst(store, last, vx)
-							} else {
-								checkOrConvertType(store, last, &vx, nil, false)
-							}
-							vt := evalStaticTypeOf(store, last, vx)
-							sts[i] = vt
-						}
-					}
-					// evaluate typed value for static definition.
-					for i := range n.NameExprs {
-						// consider value if specified.
-						if len(n.Values) > 0 {
-							vx := n.Values[i]
-							if cx, ok := vx.(*ConstExpr); ok &&
-								!cx.TypedValue.IsUndefined() {
-								if n.Const {
-									// const _ = <const_expr>: static block should contain value
-									tvs[i] = cx.TypedValue
-								} else {
-									// var _ = <const_expr>: static block should NOT contain value
-									tvs[i] = anyValue(cx.TypedValue.T)
-								}
-								continue
-							}
-						}
-						// for var decls of non-const expr.
-						st := sts[i]
-						tvs[i] = anyValue(st)
-					}
-				}
-				// define.
-				if fn, ok := last.(*FileNode); ok {
-					pn := fn.GetParentNode(nil).(*PackageNode)
-					for i := 0; i < numNames; i++ {
-						nx := &n.NameExprs[i]
-						if nx.Name == blankIdentifier {
-							nx.Path = NewValuePathBlock(0, 0, blankIdentifier)
-						} else {
-							pn.Define2(n.Const, nx.Name, sts[i], tvs[i])
-							nx.Path = last.GetPathForName(nil, nx.Name)
-						}
-					}
-				} else {
-					for i := 0; i < numNames; i++ {
-						nx := &n.NameExprs[i]
-						if nx.Name == blankIdentifier {
-							nx.Path = NewValuePathBlock(0, 0, blankIdentifier)
-						} else {
-							last.Define2(n.Const, nx.Name, sts[i], tvs[i])
-							nx.Path = last.GetPathForName(nil, nx.Name)
-						}
-					}
-				}
 				// TODO make note of constance in static block for
 				// future use, or consider "const paths".  set as
 				// preprocessed.
@@ -2494,6 +2352,10 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 						// }
 						*dst = *dt2
 					}
+				case PrimitiveType:
+					dst = tmp.(PrimitiveType)
+				case *PointerType:
+					*dst = *(tmp.(*PointerType))
 				default:
 					panic(fmt.Sprintf("unexpected type declaration type %v",
 						reflect.TypeOf(dst)))
@@ -2515,6 +2377,215 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 	})
 
 	return nn
+}
+
+// defineOrDecl merges the code logic from op define (:=) and declare (var/const).
+func defineOrDecl(
+	store Store,
+	bn BlockNode,
+	isConst bool,
+	nameExprs []NameExpr,
+	typeExpr Expr,
+	valueExprs []Expr,
+) {
+	numNames := len(nameExprs)
+	numVals := len(valueExprs)
+
+	if numVals > 1 && numNames != numVals {
+		panic(fmt.Sprintf("assignment mismatch: %d variable(s) but %d value(s)", numNames, numVals))
+	}
+
+	sts := make([]Type, numNames) // static types
+	tvs := make([]TypedValue, numNames)
+
+	if numVals == 1 && numNames > 1 {
+		parseMultipleAssignFromOneExpr(sts, tvs, store, bn, nameExprs, typeExpr, valueExprs[0])
+	} else {
+		parseAssignFromExprList(sts, tvs, store, bn, isConst, nameExprs, typeExpr, valueExprs)
+	}
+
+	node := skipFile(bn)
+
+	for i := 0; i < len(sts); i++ {
+		nx := nameExprs[i]
+		if nx.Name == blankIdentifier {
+			nx.Path = NewValuePathBlock(0, 0, blankIdentifier)
+		} else {
+			node.Define2(isConst, nx.Name, sts[i], tvs[i])
+			nx.Path = bn.GetPathForName(nil, nx.Name)
+		}
+	}
+}
+
+// parseAssignFromExprList parses assignment to multiple variables from a list of expressions.
+// This function will alter the value of sts, tvs.
+func parseAssignFromExprList(
+	sts []Type,
+	tvs []TypedValue,
+	store Store,
+	bn BlockNode,
+	isConst bool,
+	nameExprs []NameExpr,
+	typeExpr Expr,
+	valueExprs []Expr,
+) {
+	numNames := len(nameExprs)
+
+	// Ensure that function only return 1 value.
+	for _, v := range valueExprs {
+		if cx, ok := v.(*CallExpr); ok {
+			tt, ok := evalStaticTypeOfRaw(store, bn, cx).(*tupleType)
+			if ok && len(tt.Elts) > 1 {
+				panic(fmt.Sprintf("multiple-value %s (value of type %s) in single-value context", cx.Func.String(), tt.Elts))
+			}
+		}
+	}
+
+	// Evaluate types and convert consts.
+	if typeExpr != nil {
+		// Only a single type can be specified.
+		nt := evalStaticType(store, bn, typeExpr)
+		for i := 0; i < numNames; i++ {
+			sts[i] = nt
+		}
+		// Convert if const to nt.
+		for i := range valueExprs {
+			checkOrConvertType(store, bn, &valueExprs[i], nt, false)
+		}
+	} else if isConst {
+		// Derive static type from values.
+		for i, vx := range valueExprs {
+			vt := evalStaticTypeOf(store, bn, vx)
+			sts[i] = vt
+		}
+	} else { // T is nil, n not const => same as AssignStmt DEFINE
+		// Convert n.Value to default type.
+		for i, vx := range valueExprs {
+			if cx, ok := vx.(*ConstExpr); ok {
+				convertConst(store, bn, cx, nil)
+				// convertIfConst(store, last, vx)
+			} else {
+				checkOrConvertType(store, bn, &vx, nil, false)
+			}
+			vt := evalStaticTypeOf(store, bn, vx)
+			sts[i] = vt
+		}
+	}
+
+	// Evaluate typed value for static definition.
+	for i := range nameExprs {
+		// Consider value if specified.
+		if len(valueExprs) > 0 {
+			vx := valueExprs[i]
+			if cx, ok := vx.(*ConstExpr); ok &&
+				!cx.TypedValue.IsUndefined() {
+				if isConst {
+					// const _ = <const_expr>: static block should contain value
+					tvs[i] = cx.TypedValue
+				} else {
+					// var _ = <const_expr>: static block should NOT contain value
+					tvs[i] = anyValue(cx.TypedValue.T)
+				}
+				continue
+			}
+		}
+		// For var decls of non-const expr.
+		st := sts[i]
+		tvs[i] = anyValue(st)
+	}
+}
+
+// parseMultipleAssignFromOneExpr parses assignment to multiple variables from a single expression.
+// This function will alter the value of sts, tvs.
+// Declare:
+// - var a, b, c T = f()
+// - var a, b = n.(T)
+// - var a, b = n[i], where n is a map
+// Assign:
+// - a, b, c := f()
+// - a, b := n.(T)
+// - a, b := n[i], where n is a map
+func parseMultipleAssignFromOneExpr(
+	sts []Type,
+	tvs []TypedValue,
+	store Store,
+	bn BlockNode,
+	nameExprs []NameExpr,
+	typeExpr Expr,
+	valueExpr Expr,
+) {
+	var tuple *tupleType
+	numNames := len(nameExprs)
+	switch expr := valueExpr.(type) {
+	case *CallExpr:
+		// Call case:
+		// var a, b, c T = f()
+		// a, b, c := f()
+		valueType := evalStaticTypeOfRaw(store, bn, valueExpr)
+		tuple = valueType.(*tupleType)
+	case *TypeAssertExpr:
+		// Type assert case:
+		// var a, b = n.(T)
+		// a, b := n.(T)
+		tt := evalStaticType(store, bn, expr.Type)
+		tuple = &tupleType{Elts: []Type{tt, BoolType}}
+		expr.HasOK = true
+	case *IndexExpr:
+		// Map index case:
+		// var a, b = n[i], where n is a map
+		// a, b := n[i], where n is a map
+		var mt *MapType
+		dt := evalStaticTypeOf(store, bn, expr.X)
+		mt, ok := baseOf(dt).(*MapType)
+		if !ok {
+			panic(fmt.Sprintf("invalid index expression on %T", dt))
+		}
+		tuple = &tupleType{Elts: []Type{mt.Value, BoolType}}
+		expr.HasOK = true
+	default:
+		panic(fmt.Sprintf("unexpected value expression type %T", expr))
+	}
+
+	if numValues := len(tuple.Elts); numValues != numNames {
+		panic(
+			fmt.Sprintf(
+				"assignment mismatch: %d variable(s) but %s returns %d value(s)",
+				numNames,
+				valueExpr.String(),
+				numValues,
+			),
+		)
+	}
+
+	var st Type = nil
+	if typeExpr != nil {
+		// Only a single type can be specified.
+		st = evalStaticType(store, bn, typeExpr)
+	}
+
+	for i := 0; i < numNames; i++ {
+		if st != nil {
+			tt := tuple.Elts[i]
+
+			if checkAssignableTo(tt, st, false) != nil {
+				panic(
+					fmt.Sprintf(
+						"cannot use %v (value of type %s) as %s value in assignment",
+						valueExpr.String(),
+						tt.String(),
+						st.String(),
+					),
+				)
+			}
+
+			sts[i] = st
+		} else {
+			// Set types as return types.
+			sts[i] = tuple.Elts[i]
+		}
+
+		tvs[i] = anyValue(sts[i])
+	}
 }
 
 // Identifies NameExprTypeHeapDefines.
@@ -3086,18 +3157,12 @@ func gnoTypeOf(store Store, t Type) Type {
 // but rather computes the type OF x.
 func evalStaticTypeOf(store Store, last BlockNode, x Expr) Type {
 	t := evalStaticTypeOfRaw(store, last, x)
-	if tt, ok := t.(*tupleType); ok {
-		if len(tt.Elts) != 1 {
-			panic(fmt.Sprintf(
-				"evalStaticTypeOf() only supports *CallExpr with 1 result, got %s",
-				tt.String(),
-			))
-		} else {
-			return tt.Elts[0]
-		}
-	} else {
-		return t
+
+	if tt, ok := t.(*tupleType); ok && len(tt.Elts) == 1 {
+		return tt.Elts[0]
 	}
+
+	return t
 }
 
 // like evalStaticTypeOf() but returns the raw *tupleType for *CallExpr.
@@ -3218,7 +3283,10 @@ func evalConst(store Store, last BlockNode, x Expr) *ConstExpr {
 	// TODO: some check or verification for ensuring x
 	// is constant?  From the machine?
 	m := NewMachine(".dontcare", store)
+	m.PreprocessorMode = true
+
 	cv := m.EvalStatic(last, x)
+	m.PreprocessorMode = false
 	m.Release()
 	cx := &ConstExpr{
 		Source:     x,
@@ -3269,24 +3337,36 @@ func funcOf(last BlockNode) (BlockNode, *FuncTypeExpr) {
 	}
 }
 
-func findBreakableNode(ns []Node) bool {
-	for _, n := range ns {
-		switch n.(type) {
-		case *ForStmt, *RangeStmt, *SwitchClauseStmt:
-			return true
+func findBreakableNode(last BlockNode, store Store) {
+	for last != nil {
+		switch last.(type) {
+		case *FuncLitExpr, *FuncDecl:
+			panic("break statement out of place")
+		case *ForStmt:
+			return
+		case *RangeStmt:
+			return
+		case *SwitchClauseStmt:
+			return
 		}
+
+		last = last.GetParentNode(store)
 	}
-	return false
 }
 
-func findContinuableNode(ns []Node) bool {
-	for _, n := range ns {
-		switch n.(type) {
-		case *ForStmt, *RangeStmt:
-			return true
+func findContinuableNode(last BlockNode, store Store) {
+	for last != nil {
+		switch last.(type) {
+		case *FuncLitExpr, *FuncDecl:
+			panic("continue statement out of place")
+		case *ForStmt:
+			return
+		case *RangeStmt:
+			return
 		}
+
+		last = last.GetParentNode(store)
 	}
-	return false
 }
 
 func findBranchLabel(last BlockNode, label Name) (
@@ -3555,7 +3635,6 @@ func isNamedConversion(xt, t Type) bool {
 	if t == nil {
 		t = xt
 	}
-
 	// no conversion case 1: the LHS is an interface
 
 	_, c1 := t.(*InterfaceType)
@@ -3567,7 +3646,6 @@ func isNamedConversion(xt, t Type) bool {
 	_, oktt2 := xt.(*TypeType)
 	c2 := oktt || oktt2
 
-	//
 	if !c1 && !c2 { // carve out above two cases
 		// covert right to the type of left if one side is unnamed type and the other side is not
 
@@ -3598,7 +3676,7 @@ func convertConst(store Store, last BlockNode, cx *ConstExpr, t Type) {
 		setConstAttrs(cx)
 	} else if t != nil {
 		// e.g. a named type or uint8 type to int for indexing.
-		ConvertTo(nilAllocator, store, &cx.TypedValue, t)
+		ConvertTo(nilAllocator, store, &cx.TypedValue, t, true)
 		setConstAttrs(cx)
 	}
 }
@@ -3963,23 +4041,7 @@ func checkIntegerKind(xt Type) {
 // preprocess-able before other file-level declarations are
 // preprocessed).
 func predefineNow(store Store, last BlockNode, d Decl) (Decl, bool) {
-	defer func() {
-		if r := recover(); r != nil {
-			// before re-throwing the error, append location information to message.
-			loc := last.GetLocation()
-			if nline := d.GetLine(); nline > 0 {
-				loc.Line = nline
-				loc.Column = d.GetColumn()
-			}
-			if rerr, ok := r.(error); ok {
-				// NOTE: gotuna/gorilla expects error exceptions.
-				panic(errors.Wrap(rerr, loc.String()))
-			} else {
-				// NOTE: gotuna/gorilla expects error exceptions.
-				panic(fmt.Errorf("%s: %v", loc.String(), r))
-			}
-		}
-	}()
+	defer doRecover([]BlockNode{last}, d)
 	stack := &[]Name{}
 	return predefineNow2(store, last, d, stack)
 }
@@ -4044,10 +4106,10 @@ func predefineNow2(store Store, last BlockNode, d Decl, stack *[]Name) (Decl, bo
 			// check base type of receiver type, should not be pointer type or interface type
 			assertValidReceiverType := func(t Type) {
 				if _, ok := t.(*PointerType); ok {
-					panic(fmt.Sprintf("invalid receiver type %v (base type is pointer type)\n", rt))
+					panic(fmt.Sprintf("invalid receiver type %v (base type is pointer type)", rt))
 				}
 				if _, ok := t.(*InterfaceType); ok {
-					panic(fmt.Sprintf("invalid receiver type %v (base type is interface type)\n", rt))
+					panic(fmt.Sprintf("invalid receiver type %v (base type is interface type)", rt))
 				}
 			}
 
@@ -4165,6 +4227,12 @@ func tryPredefine(store Store, last BlockNode, d Decl) (un Name) {
 		})
 		d.Path = last.GetPathForName(store, d.Name)
 	case *ValueDecl:
+		// check for blank identifier in type
+		// e.g., `var x _`
+		if isBlankIdentifier(d.Type) {
+			panic("cannot use _ as value or type")
+		}
+
 		un = findUndefined(store, last, d.Type)
 		if un != "" {
 			return
@@ -4207,6 +4275,11 @@ func tryPredefine(store Store, last BlockNode, d Decl) (un Name) {
 			case *StarExpr:
 				t = &PointerType{}
 			case *NameExpr:
+				// check for blank identifier in type
+				// e.g., `type T _`
+				if isBlankIdentifier(tx) {
+					panic("cannot use _ as value or type")
+				}
 				if tv := last.GetValueRef(store, tx.Name, true); tv != nil {
 					t = tv.GetType()
 					if dt, ok := t.(*DeclaredType); ok {
@@ -4214,9 +4287,6 @@ func tryPredefine(store Store, last BlockNode, d Decl) (un Name) {
 							// predefineNow preprocessed dependent types.
 							panic("should not happen")
 						}
-					} else {
-						// all names are declared types.
-						panic("should not happen")
 					}
 				} else if idx, ok := UverseNode().GetLocalIndex(tx.Name); ok {
 					// uverse name

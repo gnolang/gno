@@ -3,6 +3,7 @@ package simpledao
 import (
 	"errors"
 	"std"
+	"strings"
 
 	"gno.land/p/demo/avl"
 	"gno.land/p/demo/dao"
@@ -12,6 +13,7 @@ import (
 
 var (
 	ErrInvalidExecutor           = errors.New("invalid executor provided")
+	ErrInvalidTitle              = errors.New("invalid proposal title provided")
 	ErrInsufficientProposalFunds = errors.New("insufficient funds for proposal")
 	ErrInsufficientExecuteFunds  = errors.New("insufficient funds for executing proposal")
 	ErrProposalExecuted          = errors.New("proposal already executed")
@@ -47,6 +49,11 @@ func (s *SimpleDAO) Propose(request dao.ProposalRequest) (uint64, error) {
 		return 0, ErrInvalidExecutor
 	}
 
+	// Make sure the title is set
+	if strings.TrimSpace(request.Title) == "" {
+		return 0, ErrInvalidTitle
+	}
+
 	var (
 		caller      = getDAOCaller()
 		sentCoins   = std.GetOrigSend() // Get the sent coins, if any
@@ -61,6 +68,7 @@ func (s *SimpleDAO) Propose(request dao.ProposalRequest) (uint64, error) {
 	// Create the wrapped proposal
 	prop := &proposal{
 		author:                caller,
+		title:                 request.Title,
 		description:           request.Description,
 		executor:              request.Executor,
 		status:                dao.Active,
