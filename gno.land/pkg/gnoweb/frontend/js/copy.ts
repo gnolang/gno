@@ -32,10 +32,7 @@
       const contentId = button.getAttribute("data-copy-btn");
       if (!contentId) return;
 
-      console.log("in");
       const codeBlock = this.DOM.el?.querySelector<HTMLElement>(`[data-copy-content="${contentId}"]`);
-      console.log(codeBlock);
-
       if (codeBlock) this.copyToClipboard(codeBlock);
     }
 
