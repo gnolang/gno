@@ -25,8 +25,8 @@ import (
 // cause writes to happen to the store, such as MemPackages to iavlstore.
 type PackageGetter func(pkgPath string, store Store) (*PackageNode, *PackageValue)
 
-// NativeStore is a function which can retrieve native bodies of native functions.
-type NativeStore func(pkgName string, name Name) func(m *Machine)
+// NativeResolver is a function which can retrieve native bodies of native functions.
+type NativeResolver func(pkgName string, name Name) func(m *Machine)
 
 // Store is the central interface that specifies the communications between the
 // GnoVM and the underlying data store; currently, generally the gno.land
@@ -62,7 +62,7 @@ type Store interface {
 	GetMemFile(path string, name string) *gnovm.MemFile
 	IterMemPackage() <-chan *gnovm.MemPackage
 	ClearObjectCache()                                    // run before processing a message
-	SetNativeStore(NativeStore)                           // for "new" natives XXX
+	SetNativeResolver(NativeResolver)                     // for "new" natives XXX
 	GetNative(pkgPath string, name Name) func(m *Machine) // for "new" natives XXX
 	SetLogStoreOps(enabled bool)
 	SprintStoreOps() string
@@ -95,7 +95,7 @@ type defaultStore struct {
 	// store configuration; cannot be modified in a transaction
 	pkgGetter        PackageGetter         // non-realm packages
 	cacheNativeTypes map[reflect.Type]Type // reflect doc: reflect.Type are comparable
-	nativeStore      NativeStore           // for injecting natives
+	nativeResolver   NativeResolver        // for injecting natives
 
 	// transient
 	opslog  []StoreOp // for debugging and testing.
@@ -116,7 +116,7 @@ func NewStore(alloc *Allocator, baseStore, iavlStore store.Store) *defaultStore 
 		// store configuration
 		pkgGetter:        nil,
 		cacheNativeTypes: make(map[reflect.Type]Type),
-		nativeStore:      nil,
+		nativeResolver:   nil,
 	}
 	InitStoreCaches(ds)
 	return ds
@@ -144,7 +144,7 @@ func (ds *defaultStore) BeginTransaction(baseStore, iavlStore store.Store) Trans
 		// store configuration
 		pkgGetter:        ds.pkgGetter,
 		cacheNativeTypes: ds.cacheNativeTypes,
-		nativeStore:      ds.nativeStore,
+		nativeResolver:   ds.nativeResolver,
 
 		// transient
 		current: nil,
@@ -174,8 +174,8 @@ func (transactionStore) SetPackageGetter(pg PackageGetter) {
 // 	panic("Go2GnoType may not be called in a transaction store")
 // }
 
-func (transactionStore) SetNativeStore(ns NativeStore) {
-	panic("SetNativeStore may not be called in a transaction store")
+func (transactionStore) SetNativeResolver(ns NativeResolver) {
+	panic("SetNativeResolver may not be called in a transaction store")
 }
 
 // CopyCachesFromStore allows to copy a store's internal object, type and
@@ -685,13 +685,13 @@ func (ds *defaultStore) ClearObjectCache() {
 	ds.SetCachePackage(Uverse())
 }
 
-func (ds *defaultStore) SetNativeStore(ns NativeStore) {
-	ds.nativeStore = ns
+func (ds *defaultStore) SetNativeResolver(ns NativeResolver) {
+	ds.nativeResolver = ns
 }
 
 func (ds *defaultStore) GetNative(pkgPath string, name Name) func(m *Machine) {
-	if ds.nativeStore != nil {
-		return ds.nativeStore(pkgPath, name)
+	if ds.nativeResolver != nil {
+		return ds.nativeResolver(pkgPath, name)
 	}
 	return nil
 }

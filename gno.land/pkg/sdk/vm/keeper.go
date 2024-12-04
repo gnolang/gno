@@ -92,7 +92,7 @@ func (vm *VMKeeper) Initialize(
 
 	alloc := gno.NewAllocator(maxAllocTx)
 	vm.gnoStore = gno.NewStore(alloc, baseStore, iavlStore)
-	vm.gnoStore.SetNativeStore(stdlibs.NativeStore)
+	vm.gnoStore.SetNativeResolver(stdlibs.NativeResolver)
 
 	if vm.gnoStore.NumMemPackages() > 0 {
 		// for now, all mem packages must be re-run after reboot.
