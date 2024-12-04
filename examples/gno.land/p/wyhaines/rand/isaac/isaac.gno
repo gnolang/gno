@@ -48,8 +48,8 @@ import (
 	"math/rand"
 
 	"gno.land/p/demo/entropy"
-	"gno.land/p/wyhaines/rand/xorshiftr128plus"
 	"gno.land/p/demo/ufmt"
+	"gno.land/p/wyhaines/rand/xorshiftr128plus"
 )
 
 type ISAAC struct {
