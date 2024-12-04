@@ -29,7 +29,7 @@ func (u *upToDateWith) IsSatisfied(pr *github.PullRequest, details treeprint.Tre
 	}
 
 	head := pr.GetHead().GetRef()
-	// If pull request is open from a fork, prepend head ref with fork owner login
+	// If pull request is open from a fork, prepend head ref with fork owner login.
 	if pr.GetHead().GetRepo().GetFullName() != pr.GetBase().GetRepo().GetFullName() {
 		head = fmt.Sprintf("%s:%s", pr.GetHead().GetRepo().GetOwner().GetLogin(), pr.GetHead().GetRef())
 	}
