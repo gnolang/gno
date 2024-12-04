@@ -8,6 +8,7 @@ import (
 	"slices"
 	"strings"
 
+	"github.com/gnolang/gno/gnovm"
 	"github.com/gnolang/gno/gnovm/pkg/gnolang"
 	"github.com/gnolang/gno/gnovm/pkg/packages"
 )
@@ -115,7 +116,7 @@ func ListPkgs(root string) (PkgList, error) {
 			return fmt.Errorf("validate: %w", err)
 		}
 
-		pkg := gnolang.ReadMemPackage(path, gnoMod.Module.Mod.Path)
+		pkg := tryReadMemPackage(path, gnoMod.Module.Mod.Path)
 		imports, err := packages.Imports(pkg)
 		_ = err // ignore error to get valid imports while ignoring bad/partial files
 
@@ -137,6 +138,16 @@ func ListPkgs(root string) (PkgList, error) {
 	}
 
 	return pkgs, nil
+}
+
+func tryReadMemPackage(root string, pkgPath string) (pkg *gnovm.MemPackage) {
+	defer func() {
+		if r := recover(); r != nil {
+			pkg = &gnovm.MemPackage{}
+		}
+	}()
+	pkg = gnolang.ReadMemPackage(root, pkgPath)
+	return
 }
 
 // GetNonDraftPkgs returns packages that are not draft
