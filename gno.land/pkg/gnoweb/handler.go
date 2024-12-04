@@ -165,7 +165,7 @@ func (h *WebHandler) renderRealmHelp(w io.Writer, gnourl *GnoURL) (status int, e
 	err = components.RenderHelpComponent(w, components.HelpData{
 		RealmName: realmName,
 		ChainId:   h.static.ChaindID,
-		PkgPath:   gnourl.FullPath,
+		PkgPath:   gnourl.HostPath(),
 		Remote:    h.static.RemoteHelp,
 		Functions: fsigs,
 	})
@@ -229,11 +229,24 @@ func (h *WebHandler) renderRealmSource(w io.Writer, gnourl *GnoURL) (status int,
 }
 
 func (h *WebHandler) renderRealm(w io.Writer, gnourl *GnoURL) (status int, err error) {
-	h.logger.Info("component render", "path", gnourl.Path, "args", gnourl.PathArgs)
+	h.logger.Info("component render", "path", gnourl.Path, "args", gnourl.Args)
 
 	// Display realm help page
 	if gnourl.WebQuery.Has("help") {
 		return h.renderRealmHelp(w, gnourl)
+	}
+
+	// XXX: would probably better to have this has a middleware
+	if endsWithRune(gnourl.Path, '/') || isFile(gnourl.Path) {
+		gnourl.WebQuery.Set("source", "") // set source
+		i := strings.LastIndexByte(gnourl.Path, '/')
+		if i < 0 {
+			return http.StatusInternalServerError, fmt.Errorf("unable get ending slash for %q", gnourl.Path)
+		}
+		if file := gnourl.Path[i+1:]; file != "" {
+			gnourl.WebQuery.Set("file", file)
+		}
+		gnourl.Path = gnourl.Path[:i]
 	}
 
 	// Display realm source page
@@ -319,4 +332,19 @@ func contains(files []string, file string) bool {
 		}
 	}
 	return false
+}
+
+// EndsWithRune checks if the given path ends with the specified rune.
+func endsWithRune(path string, r rune) bool {
+	if len(path) == 0 {
+		return false
+	}
+	return rune(path[len(path)-1]) == r
+}
+
+// IsFile checks if the last element of the path is a file (has an extension).
+func isFile(path string) bool {
+	base := filepath.Base(path)
+	ext := filepath.Ext(base)
+	return ext != ""
 }

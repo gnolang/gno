@@ -32,9 +32,9 @@ func TestParseGnoURL(t *testing.T) {
 			Name:  "webquery + query",
 			Input: "https://gno.land/r/demo/foo$help&func=Bar&name=Baz",
 			Expected: &GnoURL{
-				Path:     "/r/demo/foo",
-				Kind:     KindRealm,
-				PathArgs: "",
+				Path: "/r/demo/foo",
+				Kind: KindRealm,
+				Args: "",
 				WebQuery: url.Values{
 					"help": []string{""},
 					"func": []string{"Bar"},
@@ -49,9 +49,9 @@ func TestParseGnoURL(t *testing.T) {
 			Name:  "path args + webquery",
 			Input: "https://gno.land/r/demo/foo:example$tz=Europe/Paris",
 			Expected: &GnoURL{
-				Path:     "/r/demo/foo",
-				Kind:     KindRealm,
-				PathArgs: "example",
+				Path: "/r/demo/foo",
+				Kind: KindRealm,
+				Args: "example",
 				WebQuery: url.Values{
 					"tz": []string{"Europe/Paris"},
 				},
@@ -64,9 +64,9 @@ func TestParseGnoURL(t *testing.T) {
 			Name:  "path args + webquery + query",
 			Input: "https://gno.land/r/demo/foo:example$tz=Europe/Paris?hello=42",
 			Expected: &GnoURL{
-				Path:     "/r/demo/foo",
-				Kind:     KindRealm,
-				PathArgs: "example",
+				Path: "/r/demo/foo",
+				Kind: KindRealm,
+				Args: "example",
 				WebQuery: url.Values{
 					"tz": []string{"Europe/Paris"},
 				},
@@ -83,7 +83,7 @@ func TestParseGnoURL(t *testing.T) {
 			Expected: &GnoURL{
 				Path:     "/r/demo/foo",
 				Kind:     KindRealm,
-				PathArgs: "example",
+				Args:     "example",
 				WebQuery: url.Values{},
 				Query: url.Values{
 					"value": []string{"42$tz=Europe/Paris"},
@@ -96,9 +96,9 @@ func TestParseGnoURL(t *testing.T) {
 			Name:  "webquery escaped $",
 			Input: "https://gno.land/r/demo/foo:example%24hello=43$hello=42",
 			Expected: &GnoURL{
-				Path:     "/r/demo/foo",
-				Kind:     KindRealm,
-				PathArgs: "example$hello=43",
+				Path: "/r/demo/foo",
+				Kind: KindRealm,
+				Args: "example$hello=43",
 				WebQuery: url.Values{
 					"hello": []string{"42"},
 				},

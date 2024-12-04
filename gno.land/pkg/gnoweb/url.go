@@ -4,9 +4,13 @@ import (
 	"errors"
 	"fmt"
 	"net/url"
+	"path/filepath"
 	"regexp"
 	"strings"
 )
+
+// XXX: this should probably not be hardcoded
+const defaultHost = "gno.land"
 
 const (
 	KindUser  PathKind = "u"
@@ -17,16 +21,16 @@ const (
 type GnoURL struct {
 	Kind     PathKind
 	Path     string
-	PathArgs string
+	Args     string
 	WebQuery url.Values
 	Query    url.Values
-	FullPath string
+	Host     string
 }
 
 func (url GnoURL) EncodeArgs() string {
 	var urlstr strings.Builder
-	if url.PathArgs != "" {
-		urlstr.WriteString(url.PathArgs)
+	if url.Args != "" {
+		urlstr.WriteString(url.Args)
 	}
 
 	if len(url.Query) > 0 {
@@ -39,8 +43,8 @@ func (url GnoURL) EncodeArgs() string {
 func (url GnoURL) EncodePath() string {
 	var urlstr strings.Builder
 	urlstr.WriteString(url.Path)
-	if url.PathArgs != "" {
-		urlstr.WriteString(":" + url.PathArgs)
+	if url.Args != "" {
+		urlstr.WriteString(":" + url.Args)
 	}
 
 	if len(url.Query) > 0 {
@@ -50,15 +54,11 @@ func (url GnoURL) EncodePath() string {
 	return urlstr.String()
 }
 
-func escapeDollarSign(s string) string {
-	return strings.ReplaceAll(s, "$", "%24")
-}
-
 func (url GnoURL) EncodeWebPath() string {
 	var urlstr strings.Builder
 	urlstr.WriteString(url.Path)
-	if url.PathArgs != "" {
-		pathEscape := escapeDollarSign(url.PathArgs)
+	if url.Args != "" {
+		pathEscape := escapeDollarSign(url.Args)
 		urlstr.WriteString(":" + pathEscape)
 	}
 
@@ -85,7 +85,7 @@ var (
 var reRealmPath = regexp.MustCompile(`(?m)^` +
 	`(/([a-z]+)/` + // path kind
 	`[a-z][a-z0-9_]*` + // First path segment
-	`(?:/[a-z][a-z0-9_]*)*)` + // Additional path segments
+	`(?:/[a-z][.a-z0-9_]*)*/?)` + // Additional path segments
 	`([:$](?:.*)|$)`, // Remaining portions args, separate by `$` or `:`
 )
 
@@ -123,17 +123,23 @@ func ParseGnoURL(u *url.URL) (*GnoURL, error) {
 
 	host := u.Hostname()
 	if host == "" {
-		host = "gno.land"
+		host = defaultHost
 	}
-
-	fullPath := fmt.Sprintf("%s%s", host, path)
 
 	return &GnoURL{
 		Path:     path,
 		Kind:     PathKind(pathKind),
-		PathArgs: uargs,
+		Args:     uargs,
 		WebQuery: webquery,
 		Query:    u.Query(),
-		FullPath: fullPath,
+		Host:     host,
 	}, nil
+}
+
+func (u *GnoURL) HostPath() string {
+	return filepath.Join(u.Host, u.Path)
+}
+
+func escapeDollarSign(s string) string {
+	return strings.ReplaceAll(s, "$", "%24")
 }

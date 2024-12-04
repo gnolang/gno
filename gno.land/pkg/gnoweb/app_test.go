@@ -26,11 +26,11 @@ func TestRoutes(t *testing.T) {
 	}{
 		{"/", ok, "Welcome"}, // assert / gives 200 (OK). assert / contains "Welcome".
 		{"/about", ok, "blockchain"},
-		{"/r/gnoland/blogs", ok, ""}, // whatever content
+		{"/r/gnoland/blog", ok, ""}, // whatever content
 		{"/r/gnoland/blog$help", ok, "AdminSetAdminAddr"},
 		{"/r/gnoland/blog/", ok, "admin.gno"},
-		{"/r/gnoland/blog/admin.gno", ok, "func "},
-		{"/r/gnoland/blog$help&func=Render", ok, "Render(...)"},
+		{"/r/gnoland/blog/admin.gno", ok, ">func<"},
+		{"/r/gnoland/blog$help&func=Render", ok, "Render(path)"},
 		{"/r/gnoland/blog$help&func=Render&path=foo/bar", ok, `input type="text" value="foo/bar"`},
 		{"/r/gnoland/blog$help&func=NonExisting", ok, "NonExisting not found"},
 		{"/r/demo/users:administrator", ok, "address"},
