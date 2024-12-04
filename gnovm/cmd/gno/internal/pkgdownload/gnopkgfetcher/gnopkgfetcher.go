@@ -7,6 +7,7 @@ import (
 	"path"
 	"strings"
 
+	"github.com/gnolang/gno/gnovm"
 	"github.com/gnolang/gno/gnovm/cmd/gno/internal/pkgdownload"
 	"github.com/gnolang/gno/tm2/pkg/bft/rpc/client"
 	"github.com/gnolang/gno/tm2/pkg/errors"
@@ -25,7 +26,7 @@ func New(remoteOverrides map[string]string) pkgdownload.PackageFetcher {
 }
 
 // FetchPackage implements [pkgdownload.PackageFetcher].
-func (gpf *gnoPackageFetcher) FetchPackage(pkgPath string) ([]pkgdownload.PackageFile, error) {
+func (gpf *gnoPackageFetcher) FetchPackage(pkgPath string) ([]*gnovm.MemFile, error) {
 	rpcURL, err := rpcURLFromPkgPath(pkgPath, gpf.remoteOverrides)
 	if err != nil {
 		return nil, fmt.Errorf("get rpc url for pkg path %q: %w", pkgPath, err)
@@ -43,7 +44,7 @@ func (gpf *gnoPackageFetcher) FetchPackage(pkgPath string) ([]pkgdownload.Packag
 	}
 
 	files := strings.Split(string(data), "\n")
-	res := make([]pkgdownload.PackageFile, len(files))
+	res := make([]*gnovm.MemFile, len(files))
 	for i, file := range files {
 		filePath := path.Join(pkgPath, file)
 		data, err := qfile(client, filePath)
@@ -51,7 +52,7 @@ func (gpf *gnoPackageFetcher) FetchPackage(pkgPath string) ([]pkgdownload.Packag
 			return nil, fmt.Errorf("query package file %q: %w", filePath, err)
 		}
 
-		res[i] = pkgdownload.PackageFile{Name: file, Body: data}
+		res[i] = &gnovm.MemFile{Name: file, Body: string(data)}
 	}
 	return res, nil
 }

@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/gnolang/gno/gnovm"
 	"github.com/gnolang/gno/gnovm/cmd/gno/internal/pkgdownload"
 	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
 )
@@ -20,7 +21,7 @@ func New() pkgdownload.PackageFetcher {
 }
 
 // FetchPackage implements [pkgdownload.PackageFetcher].
-func (e *ExamplesPackageFetcher) FetchPackage(pkgPath string) ([]pkgdownload.PackageFile, error) {
+func (e *ExamplesPackageFetcher) FetchPackage(pkgPath string) ([]*gnovm.MemFile, error) {
 	pkgDir := filepath.Join(gnoenv.RootDir(), "examples", filepath.FromSlash(pkgPath))
 
 	entries, err := os.ReadDir(pkgDir)
@@ -30,7 +31,7 @@ func (e *ExamplesPackageFetcher) FetchPackage(pkgPath string) ([]pkgdownload.Pac
 		return nil, err
 	}
 
-	res := []pkgdownload.PackageFile{}
+	res := []*gnovm.MemFile{}
 	for _, entry := range entries {
 		if entry.IsDir() {
 			continue
@@ -44,7 +45,7 @@ func (e *ExamplesPackageFetcher) FetchPackage(pkgPath string) ([]pkgdownload.Pac
 			return nil, fmt.Errorf("read file at %q: %w", filePath, err)
 		}
 
-		res = append(res, pkgdownload.PackageFile{Name: name, Body: body})
+		res = append(res, &gnovm.MemFile{Name: name, Body: string(body)})
 	}
 
 	return res, nil

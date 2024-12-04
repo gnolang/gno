@@ -1,10 +1,7 @@
 package pkgdownload
 
-type PackageFetcher interface {
-	FetchPackage(pkgPath string) ([]PackageFile, error)
-}
+import "github.com/gnolang/gno/gnovm"
 
-type PackageFile struct {
-	Name string
-	Body []byte
+type PackageFetcher interface {
+	FetchPackage(pkgPath string) ([]*gnovm.MemFile, error)
 }

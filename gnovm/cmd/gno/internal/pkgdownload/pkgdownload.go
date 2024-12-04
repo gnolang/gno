@@ -21,7 +21,7 @@ func Download(pkgPath string, dst string, fetcher PackageFetcher) error {
 
 	for _, file := range files {
 		fileDst := filepath.Join(dst, file.Name)
-		if err := os.WriteFile(fileDst, file.Body, 0o644); err != nil {
+		if err := os.WriteFile(fileDst, []byte(file.Body), 0o644); err != nil {
 			return fmt.Errorf("write file at %q: %w", fileDst, err)
 		}
 	}
