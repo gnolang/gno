@@ -685,6 +685,11 @@ func (pl *pkgsLoader) List() gnomod.PkgList {
 				toRemove = append(toRemove, elem.Name)
 			}
 		}
+		if len(toRemove) == 0 {
+			// we can't find a way to correctly order deps, maybe due to a cyclic or missing dep
+			// return the sorted list and remaining packages
+			return append(sorted, toSort...)
+		}
 		toSort = slices.DeleteFunc(toSort, func(elem gnomod.Pkg) bool {
 			return slices.Contains(toRemove, elem.Name)
 		})
