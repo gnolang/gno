@@ -102,10 +102,10 @@ func packageImportsRecursive(root string, pkgPath string) []string {
 	pkg := tryReadMemPackage(root, pkgPath)
 
 	res, err := packages.Imports(pkg)
-	_ = err
+	_ = err // ignore error to get valid imports while ignoring bad/partial files
 
 	entries, err := os.ReadDir(root)
-	_ = err
+	_ = err // ignore unreadable dirs
 
 	for _, entry := range entries {
 		if !entry.IsDir() {
