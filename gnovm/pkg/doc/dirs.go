@@ -13,8 +13,10 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/gnolang/gno/gnovm/pkg/gnoimports"
+	"github.com/gnolang/gno/gnovm"
+	"github.com/gnolang/gno/gnovm/pkg/gnolang"
 	"github.com/gnolang/gno/gnovm/pkg/gnomod"
+	"github.com/gnolang/gno/gnovm/pkg/packages"
 	"golang.org/x/mod/module"
 )
 
@@ -73,7 +75,7 @@ func newDirs(dirs []string, modDirs []string) *bfsDirs {
 func getGnoModDirs(gm *gnomod.File, root string) []bfsDir {
 	// cmd/go makes use of the go list command, we don't have that here.
 
-	imports := packageImportsRecursive(root)
+	imports := packageImportsRecursive(root, gm.Module.Mod.Path)
 
 	dirs := make([]bfsDir, 0, len(imports))
 	for _, r := range imports {
@@ -96,8 +98,10 @@ func getGnoModDirs(gm *gnomod.File, root string) []bfsDir {
 	return dirs
 }
 
-func packageImportsRecursive(root string) []string {
-	res, err := gnoimports.PackageImports(root)
+func packageImportsRecursive(root string, pkgPath string) []string {
+	pkg := tryReadMemPackage(root, pkgPath)
+
+	res, err := packages.Imports(pkg)
 	_ = err
 
 	entries, err := os.ReadDir(root)
@@ -108,7 +112,8 @@ func packageImportsRecursive(root string) []string {
 			continue
 		}
 
-		sub := packageImportsRecursive(filepath.Join(root, entry.Name()))
+		dirName := entry.Name()
+		sub := packageImportsRecursive(filepath.Join(root, dirName), path.Join(pkgPath, dirName))
 
 		for _, imp := range sub {
 			if !slices.Contains(res, imp) {
@@ -120,6 +125,16 @@ func packageImportsRecursive(root string) []string {
 	sort.Strings(res)
 
 	return res
+}
+
+func tryReadMemPackage(root string, pkgPath string) (pkg *gnovm.MemPackage) {
+	defer func() {
+		if r := recover(); r != nil {
+			pkg = &gnovm.MemPackage{}
+		}
+	}()
+	pkg = gnolang.ReadMemPackage(root, pkgPath)
+	return
 }
 
 // Reset puts the scan back at the beginning.

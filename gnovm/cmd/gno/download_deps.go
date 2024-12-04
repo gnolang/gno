@@ -8,9 +8,9 @@ import (
 	"strings"
 
 	"github.com/gnolang/gno/gnovm/cmd/gno/internal/pkgdownload"
-	"github.com/gnolang/gno/gnovm/pkg/gnoimports"
 	"github.com/gnolang/gno/gnovm/pkg/gnolang"
 	"github.com/gnolang/gno/gnovm/pkg/gnomod"
+	"github.com/gnolang/gno/gnovm/pkg/packages"
 	"github.com/gnolang/gno/tm2/pkg/commands"
 	"golang.org/x/mod/module"
 )
@@ -21,7 +21,8 @@ func downwloadDeps(io commands.IO, pkgDir string, gnoMod *gnomod.File, fetcher p
 		return errors.New("fetcher is nil")
 	}
 
-	imports, err := gnoimports.PackageImports(pkgDir)
+	pkg := gnolang.ReadMemPackage(pkgDir, gnoMod.Module.Mod.Path)
+	imports, err := packages.Imports(pkg)
 	if err != nil {
 		return fmt.Errorf("read imports at %q: %w", pkgDir, err)
 	}

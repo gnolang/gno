@@ -12,8 +12,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/gnolang/gno/gnovm/pkg/gnoimports"
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
+	"github.com/gnolang/gno/gnovm/pkg/packages"
 	teststdlibs "github.com/gnolang/gno/gnovm/tests/stdlibs"
 	teststd "github.com/gnolang/gno/gnovm/tests/stdlibs/std"
 	"github.com/gnolang/gno/tm2/pkg/db/memdb"
@@ -239,7 +239,7 @@ func LoadImports(store gno.Store, filename string, content []byte) (err error) {
 		}
 	}()
 
-	imports, fset, err := gnoimports.FileImports(filename, content)
+	imports, fset, err := packages.FileImports(filename, string(content))
 	if err != nil {
 		return err
 	}

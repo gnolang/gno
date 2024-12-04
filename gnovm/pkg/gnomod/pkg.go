@@ -8,8 +8,8 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/gnolang/gno/gnovm/pkg/gnoimports"
 	"github.com/gnolang/gno/gnovm/pkg/gnolang"
+	"github.com/gnolang/gno/gnovm/pkg/packages"
 )
 
 type Pkg struct {
@@ -115,7 +115,8 @@ func ListPkgs(root string) (PkgList, error) {
 			return fmt.Errorf("validate: %w", err)
 		}
 
-		imports, err := gnoimports.PackageImports(path)
+		pkg := gnolang.ReadMemPackage(path, gnoMod.Module.Mod.Path)
+		imports, err := packages.Imports(pkg)
 		_ = err // ignore error to get valid imports while ignoring bad/partial files
 
 		// remove self and standard libraries from imports

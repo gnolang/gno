@@ -11,8 +11,8 @@ import (
 
 	"github.com/gnolang/gno/gnovm/cmd/gno/internal/pkgdownload"
 	"github.com/gnolang/gno/gnovm/cmd/gno/internal/pkgdownload/gnopkgfetcher"
-	"github.com/gnolang/gno/gnovm/pkg/gnoimports"
 	"github.com/gnolang/gno/gnovm/pkg/gnomod"
+	"github.com/gnolang/gno/gnovm/pkg/packages"
 	"github.com/gnolang/gno/tm2/pkg/commands"
 	"github.com/gnolang/gno/tm2/pkg/errors"
 	"go.uber.org/multierr"
@@ -354,7 +354,7 @@ func getImportToFilesMap(pkgPath string) (map[string][]string, error) {
 		if strings.HasSuffix(filename, "_filetest.gno") {
 			continue
 		}
-		imports, _, err := gnoimports.FileImportsFromPath(filepath.Join(pkgPath, filename))
+		imports, _, err := packages.FileImportsFromPath(filepath.Join(pkgPath, filename))
 		if err != nil {
 			return nil, err
 		}

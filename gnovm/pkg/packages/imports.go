@@ -1,4 +1,4 @@
-package gnoimports
+package packages
 
 import (
 	"fmt"
@@ -6,36 +6,25 @@ import (
 	"go/parser"
 	"go/token"
 	"os"
-	"path/filepath"
 	"sort"
 	"strconv"
 	"strings"
+
+	"github.com/gnolang/gno/gnovm"
 )
 
-// PackageImports returns the list of gno imports from a given path.
-// Note: It ignores subdirs. Since right now we are still deciding on
-// how to handle subdirs.
-// See:
-// - https://github.com/gnolang/gno/issues/1024
-// - https://github.com/gnolang/gno/issues/852
-func PackageImports(path string) ([]string, error) {
-	entries, err := os.ReadDir(path)
-	if err != nil {
-		return nil, err
-	}
-
+// Imports returns the list of gno imports from a [gnovm.MemPackage].
+func Imports(pkg *gnovm.MemPackage) ([]string, error) {
 	allImports := make([]string, 0)
 	seen := make(map[string]struct{})
-	for _, e := range entries {
-		filename := e.Name()
-		if !strings.HasSuffix(filename, ".gno") {
+	for _, file := range pkg.Files {
+		if !strings.HasSuffix(file.Name, ".gno") {
 			continue
 		}
-		if strings.HasSuffix(filename, "_filetest.gno") {
+		if strings.HasSuffix(file.Name, "_filetest.gno") {
 			continue
 		}
-		filePath := filepath.Join(path, filename)
-		imports, _, err := FileImportsFromPath(filePath)
+		imports, _, err := FileImports(file.Name, file.Body)
 		if err != nil {
 			return nil, err
 		}
@@ -63,7 +52,7 @@ type FileImport struct {
 
 // FileImports returns the list of gno imports in the given file src.
 // The given filename is only used when recording position information.
-func FileImports(filename string, src []byte) ([]*FileImport, *token.FileSet, error) {
+func FileImports(filename string, src string) ([]*FileImport, *token.FileSet, error) {
 	fs := token.NewFileSet()
 	f, err := parser.ParseFile(fs, filename, src, parser.ImportsOnly)
 	if err != nil {
@@ -89,5 +78,5 @@ func FileImportsFromPath(filePath string) ([]*FileImport, *token.FileSet, error)
 	if err != nil {
 		return nil, nil, err
 	}
-	return FileImports(filePath, data)
+	return FileImports(filePath, string(data))
 }

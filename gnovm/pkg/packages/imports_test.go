@@ -1,14 +1,15 @@
-package gnoimports
+package packages
 
 import (
 	"os"
 	"path/filepath"
 	"testing"
 
+	"github.com/gnolang/gno/gnovm/pkg/gnolang"
 	"github.com/stretchr/testify/require"
 )
 
-func TestPackageImports(t *testing.T) {
+func TestImports(t *testing.T) {
 	workingDir, err := os.Getwd()
 	require.NoError(t, err)
 
@@ -117,7 +118,8 @@ func TestPackageImports(t *testing.T) {
 		require.NoError(t, err)
 	}
 
-	imports, err := PackageImports(tmpDir)
+	pkg := gnolang.ReadMemPackage(tmpDir, "test")
+	imports, err := Imports(pkg)
 	require.NoError(t, err)
 
 	require.Equal(t, expected, imports)
