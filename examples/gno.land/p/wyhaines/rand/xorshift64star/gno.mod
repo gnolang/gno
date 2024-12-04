@@ -1,4 +1,4 @@
-module gno.land/p/demo/math/rand/xorshift64star
+module gno.land/p/wyhaines/rand/xorshift64star
 
 require (
 	gno.land/p/demo/entropy v0.0.0-latest
