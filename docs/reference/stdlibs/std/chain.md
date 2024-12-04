@@ -49,7 +49,7 @@ Returns the chain ID.
 
 #### Usage
 ```go
-chainID := std.GetChainID() // dev | test3 | main ...
+chainID := std.GetChainID() // dev | test5 | main ...
 ```
 ---
 
