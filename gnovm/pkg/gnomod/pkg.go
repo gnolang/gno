@@ -13,10 +13,10 @@ import (
 )
 
 type Pkg struct {
-	Dir     string // absolute path to package dir
-	Name    string // package name
-	Imports []string
-	Draft   bool // whether the package is a draft
+	Dir     string   // absolute path to package dir
+	Name    string   // package name
+	Imports []string // direct imports of this pkg
+	Draft   bool     // whether the package is a draft
 }
 
 type SubPkg struct {
