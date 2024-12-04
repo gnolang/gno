@@ -5,7 +5,6 @@ import (
 	"go/ast"
 	"go/parser"
 	"go/token"
-	"os"
 	"sort"
 	"strconv"
 	"strings"
@@ -70,13 +69,4 @@ func FileImports(filename string, src string) ([]*FileImport, *token.FileSet, er
 		res[i] = &fi
 	}
 	return res, fs, nil
-}
-
-// FileImportsFromPath reads the file at filePath and returns the list of gno imports in it.
-func FileImportsFromPath(filePath string) ([]*FileImport, *token.FileSet, error) {
-	data, err := os.ReadFile(filePath)
-	if err != nil {
-		return nil, nil, err
-	}
-	return FileImports(filePath, string(data))
 }

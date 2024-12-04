@@ -354,7 +354,12 @@ func getImportToFilesMap(pkgPath string) (map[string][]string, error) {
 		if strings.HasSuffix(filename, "_filetest.gno") {
 			continue
 		}
-		imports, _, err := packages.FileImportsFromPath(filepath.Join(pkgPath, filename))
+
+		data, err := os.ReadFile(filepath.Join(pkgPath, filename))
+		if err != nil {
+			return nil, err
+		}
+		imports, _, err := packages.FileImports(filename, string(data))
 		if err != nil {
 			return nil, err
 		}
