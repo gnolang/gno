@@ -158,7 +158,7 @@ func Store(
 	// Make a new store.
 	resStore = gno.NewStore(nil, baseStore, baseStore)
 	resStore.SetPackageGetter(getPackage)
-	resStore.SetNativeStore(teststdlibs.NativeStore)
+	resStore.SetNativeResolver(teststdlibs.NativeResolver)
 	return
 }
 
