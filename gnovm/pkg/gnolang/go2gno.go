@@ -471,6 +471,8 @@ func Go2Gno(fs *token.FileSet, gon ast.Node) (n Node) {
 			PkgName: pkgName,
 			Decls:   decls,
 		}
+	case *ast.EmptyStmt:
+		return &EmptyStmt{}
 	default:
 		panic(fmt.Sprintf("unknown Go type %v: %s\n",
 			reflect.TypeOf(gon),

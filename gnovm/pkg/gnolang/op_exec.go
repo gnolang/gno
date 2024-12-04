@@ -769,6 +769,7 @@ EXEC_SWITCH:
 		}
 		m.PushOp(OpBody)
 		m.PushStmt(b.GetBodyStmt())
+	case *EmptyStmt:
 	default:
 		panic(fmt.Sprintf("unexpected statement %#v", s))
 	}
