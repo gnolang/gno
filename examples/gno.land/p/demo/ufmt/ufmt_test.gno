@@ -43,6 +43,7 @@ func TestSprintf(t *testing.T) {
 		{"uint32 [%d]", []interface{}{uint32(32)}, "uint32 [32]"},
 		{"uint32 [%v]", []interface{}{uint32(32)}, "uint32 [32]"},
 		{"uint64 [%d]", []interface{}{uint64(64)}, "uint64 [64]"},
+		{"uint64 [%v]", []interface{}{uint64(64)}, "uint64 [64]"},
 		{"float64 [%e]", []interface{}{float64(64.1)}, "float64 [6.41e+01]"},
 		{"float64 [%E]", []interface{}{float64(64.1)}, "float64 [6.41E+01]"},
 		{"float64 [%f]", []interface{}{float64(64.1)}, "float64 [64.100000]"},
