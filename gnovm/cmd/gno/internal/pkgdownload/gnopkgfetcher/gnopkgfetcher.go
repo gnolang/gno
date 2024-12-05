@@ -64,13 +64,12 @@ func rpcURLFromPkgPath(pkgPath string, remoteOverrides map[string]string) (strin
 	}
 	domain := parts[0]
 
-	var rpcURL string
 	if override, ok := remoteOverrides[domain]; ok {
-		rpcURL = override
-	} else {
-		// XXX: retrieve host/port from r/sys/zones.
-		rpcURL = fmt.Sprintf("https://rpc.%s:443", domain)
+		return override, nil
 	}
+
+	// XXX: retrieve host/port from r/sys/zones.
+	rpcURL := fmt.Sprintf("https://rpc.%s:443", domain)
 
 	return rpcURL, nil
 }
