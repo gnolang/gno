@@ -9,7 +9,6 @@ import (
 
 	"github.com/alecthomas/chroma/v2/formatters/html"
 	"github.com/alecthomas/chroma/v2/styles"
-	"github.com/gnolang/gno/gno.land/pkg/gnoclient"
 	"github.com/gnolang/gno/tm2/pkg/bft/rpc/client"
 	"github.com/yuin/goldmark"
 )
@@ -46,18 +45,7 @@ func MakeRouterApp(logger *slog.Logger, cfg *AppConfig) (http.Handler, error) {
 	if err != nil {
 		return nil, fmt.Errorf("unable to create http client: %W", err)
 	}
-
-	signer, err := generateWebSigner(cfg.ChainID)
-	if err != nil {
-		return nil, fmt.Errorf("unable to generate web signer: %w", err)
-	}
-
-	// Setup webservice
-	gnocli := gnoclient.Client{
-		Signer:    signer,
-		RPCClient: client,
-	}
-	webcli := NewWebClient(logger, &gnocli, md)
+	webcli := NewWebClient(logger, client, md)
 
 	formatter := html.New(
 		html.WithLineNumbers(true),
@@ -101,14 +89,7 @@ func MakeRouterApp(logger *slog.Logger, cfg *AppConfig) (http.Handler, error) {
 	// Handle assets path
 	mux.Handle(assetsBase, AssetHandler(true))
 
-	mux.Handle("/status.json", handlerStatusJSON(logger, &gnocli))
+	mux.Handle("/status.json", handlerStatusJSON(logger, client))
 
 	return mux, nil
-}
-
-func generateWebSigner(chainid string) (gnoclient.Signer, error) {
-	mnemo := "index brass unknown lecture autumn provide royal shrimp elegant wink now zebra discover swarm act ill you bullet entire outdoor tilt usage gap multiply"
-	bip39Passphrase := ""
-	account, index := uint32(0), uint32(0)
-	return gnoclient.SignerFromBip39(mnemo, chainid, bip39Passphrase, account, index)
 }

@@ -83,9 +83,9 @@ var (
 // - matches[2]: path kind
 // - matches[3]: path args
 var reRealmPath = regexp.MustCompile(`(?m)^` +
-	`(/([a-z]+)/` + // path kind
-	`[a-z][a-z0-9_]*` + // First path segment
-	`(?:/[a-z][.a-z0-9_]*)*/?)` + // Additional path segments
+	`(/([a-zA-Z0-9_-]+)/` + // path kind
+	`[a-zA-Z][a-zA-Z0-9_-]*` + // First path segment
+	`(?:/[a-zA-Z][.a-zA-Z0-9_-]*)*/?)` + // Additional path segments
 	`([:$](?:.*)|$)`, // Remaining portions args, separate by `$` or `:`
 )
 
@@ -95,8 +95,10 @@ func ParseGnoURL(u *url.URL) (*GnoURL, error) {
 		return nil, fmt.Errorf("%w: %s", ErrURLMalformedPath, u.Path)
 	}
 
-	path, pathKind, args := matches[1], matches[2], matches[3]
+	// Force lower case
+	path := matches[1]
 
+	pathKind, args := matches[2], matches[3]
 	if len(args) > 0 {
 		switch args[0] {
 		case ':':
