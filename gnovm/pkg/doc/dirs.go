@@ -13,7 +13,6 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/gnolang/gno/gnovm"
 	"github.com/gnolang/gno/gnovm/pkg/gnolang"
 	"github.com/gnolang/gno/gnovm/pkg/gnomod"
 	"github.com/gnolang/gno/gnovm/pkg/packages"
@@ -99,7 +98,10 @@ func getGnoModDirs(gm *gnomod.File, root string) []bfsDir {
 }
 
 func packageImportsRecursive(root string, pkgPath string) []string {
-	pkg := tryReadMemPackage(root, pkgPath)
+	pkg, err := gnolang.ReadMemPackage(root, pkgPath)
+	if err != nil {
+		return nil
+	}
 
 	res, err := packages.Imports(pkg)
 	_ = err // ignore error to get valid imports while ignoring bad/partial files
@@ -125,16 +127,6 @@ func packageImportsRecursive(root string, pkgPath string) []string {
 	sort.Strings(res)
 
 	return res
-}
-
-func tryReadMemPackage(root string, pkgPath string) (pkg *gnovm.MemPackage) {
-	defer func() {
-		if r := recover(); r != nil {
-			pkg = &gnovm.MemPackage{}
-		}
-	}()
-	pkg = gnolang.ReadMemPackage(root, pkgPath)
-	return
 }
 
 // Reset puts the scan back at the beginning.

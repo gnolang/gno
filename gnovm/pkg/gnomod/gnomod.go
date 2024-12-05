@@ -57,7 +57,7 @@ func CreateGnoModFile(rootDir, modPath string) error {
 				return fmt.Errorf("read file %q: %w", fpath, err)
 			}
 
-			pn := gnolang.PackageNameFromFileBody(file.Name(), string(bz))
+			pn := gnolang.MustPackageNameFromFileBody(file.Name(), string(bz))
 			if strings.HasSuffix(string(pkgName), "_test") {
 				pkgName = pkgName[:len(pkgName)-len("_test")]
 			}

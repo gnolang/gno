@@ -116,9 +116,17 @@ func ListPkgs(root string) (PkgList, error) {
 			return fmt.Errorf("validate: %w", err)
 		}
 
-		pkg := tryReadMemPackage(path, gnoMod.Module.Mod.Path)
+		pkg, err := gnolang.ReadMemPackage(path, gnoMod.Module.Mod.Path)
+		if err != nil {
+			// ignore package files on error
+			pkg = &gnovm.MemPackage{}
+		}
+
 		imports, err := packages.Imports(pkg)
-		_ = err // ignore error to get valid imports while ignoring bad/partial files
+		if err != nil {
+			// ignore imports on error
+			imports = []string{}
+		}
 
 		// remove self and standard libraries from imports
 		imports = slices.DeleteFunc(imports, func(imp string) bool {
@@ -138,16 +146,6 @@ func ListPkgs(root string) (PkgList, error) {
 	}
 
 	return pkgs, nil
-}
-
-func tryReadMemPackage(root string, pkgPath string) (pkg *gnovm.MemPackage) {
-	defer func() {
-		if r := recover(); r != nil {
-			pkg = &gnovm.MemPackage{}
-		}
-	}()
-	pkg = gnolang.ReadMemPackage(root, pkgPath)
-	return
 }
 
 // GetNonDraftPkgs returns packages that are not draft

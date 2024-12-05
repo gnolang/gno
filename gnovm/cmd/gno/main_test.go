@@ -60,10 +60,7 @@ func testMainCaseRun(t *testing.T, tc []testMainCase) {
 			mockErr := bytes.NewBufferString("")
 
 			if !test.noTmpGnohome {
-				tmpGnoHome, err := os.MkdirTemp(os.TempDir(), "gnotesthome_")
-				require.NoError(t, err)
-				t.Cleanup(func() { os.RemoveAll(tmpGnoHome) })
-				t.Setenv("GNOHOME", tmpGnoHome)
+				t.Setenv("GNOHOME", t.TempDir())
 			}
 
 			checkOutputs := func(t *testing.T) {

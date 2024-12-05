@@ -43,7 +43,7 @@ func Store(
 			const testPath = "github.com/gnolang/gno/_test/"
 			if strings.HasPrefix(pkgPath, testPath) {
 				baseDir := filepath.Join(rootDir, "gnovm", "tests", "files", "extern", pkgPath[len(testPath):])
-				memPkg := gno.ReadMemPackage(baseDir, pkgPath)
+				memPkg := gno.MustReadMemPackage(baseDir, pkgPath)
 				send := std.Coins{}
 				ctx := Context(pkgPath, send)
 				m2 := gno.NewMachineWithOptions(gno.MachineOptions{
@@ -135,7 +135,7 @@ func Store(
 		// if examples package...
 		examplePath := filepath.Join(rootDir, "examples", pkgPath)
 		if osm.DirExists(examplePath) {
-			memPkg := gno.ReadMemPackage(examplePath, pkgPath)
+			memPkg := gno.MustReadMemPackage(examplePath, pkgPath)
 			if memPkg.IsEmpty() {
 				panic(fmt.Sprintf("found an empty package %q", pkgPath))
 			}
@@ -191,7 +191,7 @@ func loadStdlib(rootDir, pkgPath string, store gno.Store, stdout io.Writer) (*gn
 		return nil, nil
 	}
 
-	memPkg := gno.ReadMemPackageFromList(files, pkgPath)
+	memPkg := gno.MustReadMemPackageFromList(files, pkgPath)
 	m2 := gno.NewMachineWithOptions(gno.MachineOptions{
 		// NOTE: see also pkgs/sdk/vm/builtins.go
 		// Needs PkgPath != its name because TestStore.getPackage is the package

@@ -746,7 +746,7 @@ func (pl *pkgsLoader) LoadPackage(modroot string, path, name string) error {
 			currentPkg.Name = gm.Module.Mod.Path
 			currentPkg.Draft = gm.Draft
 
-			pkg := gno.ReadMemPackage(currentPkg.Dir, currentPkg.Name)
+			pkg := gno.MustReadMemPackage(currentPkg.Dir, currentPkg.Name)
 			imports, err := packages.Imports(pkg)
 			if err != nil {
 				return fmt.Errorf("unable to load package imports in %q: %w", currentPkg.Dir, err)
