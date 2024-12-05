@@ -604,11 +604,9 @@ html {
   }
 }
 
-a:hover {
-  --tw-text-opacity: 1;
-  color: rgb(34 108 87 / var(--tw-text-opacity));
-  text-decoration-line: underline;
-}
+/* a:hover {
+    @apply underline text-green-600;
+  } */
 
 svg {
   max-height: 100%;
@@ -1088,6 +1086,10 @@ main .source-code > pre {
   margin-top: 1rem;
 }
 
+.mt-6 {
+  margin-top: 1.5rem;
+}
+
 .line-clamp-2 {
   overflow: hidden;
   display: -webkit-box;
@@ -1153,6 +1155,10 @@ main .source-code > pre {
 
 .min-h-full {
   min-height: 100%;
+}
+
+.min-h-screen {
+  min-height: 100vh;
 }
 
 .w-10 {
@@ -1377,6 +1383,11 @@ main .source-code > pre {
   padding-right: 2.5rem;
 }
 
+.px-2 {
+  padding-left: 0.5rem;
+  padding-right: 0.5rem;
+}
+
 .px-4 {
   padding-left: 1rem;
   padding-right: 1rem;
@@ -1390,6 +1401,11 @@ main .source-code > pre {
 .py-1\.5 {
   padding-top: 0.375rem;
   padding-bottom: 0.375rem;
+}
+
+.py-2 {
+  padding-top: 0.5rem;
+  padding-bottom: 0.5rem;
 }
 
 .py-3 {
@@ -1581,12 +1597,21 @@ main .source-code > pre {
   background-color: rgb(34 108 87 / var(--tw-bg-opacity));
 }
 
+.first\:border-t:first-child {
+  border-top-width: 1px;
+}
+
 .focus-within\:outline-2:focus-within {
   outline-width: 2px;
 }
 
 .focus-within\:outline-gray-300:focus-within {
   outline-color: #8F8F8F;
+}
+
+.hover\:bg-gray-100:hover {
+  --tw-bg-opacity: 1;
+  background-color: rgb(226 226 226 / var(--tw-bg-opacity));
 }
 
 .hover\:text-gray-600:hover {

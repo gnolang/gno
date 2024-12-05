@@ -215,13 +215,41 @@ func (h *WebHandler) renderRealmSource(w io.Writer, gnourl *GnoURL) (status int,
 	}
 
 	err = components.RenderSourceComponent(w, components.SourceData{
-		PkgPath:    gnourl.Path,
-		Files:      files,
-		FileName:   fileName,
-		FileSource: template.HTML(hsource),
+		PkgPath:     gnourl.Path,
+		Files:       files,
+		FileName:    fileName,
+		FileCounter: len(files),
+		FileSource:  template.HTML(hsource),
 	})
 	if err != nil {
 		h.logger.Error("unable to render helper", "err", err)
+		return http.StatusInternalServerError, components.RenderStatusComponent(w, "internal error")
+	}
+
+	return http.StatusOK, nil
+}
+
+func (h *WebHandler) renderRealmDirectory(w io.Writer, gnourl *GnoURL) (status int, err error) {
+	pkgPath := gnourl.Path
+
+	files, err := h.webcli.Sources(pkgPath)
+	if err != nil {
+		h.logger.Error("unable to list sources file", "path", gnourl.Path, "err", err)
+		return http.StatusInternalServerError, components.RenderStatusComponent(w, "internal error")
+	}
+
+	if len(files) == 0 {
+		h.logger.Debug("no file(s) available", "path", gnourl.Path)
+		return http.StatusOK, components.RenderStatusComponent(w, "no files available")
+	}
+
+	err = components.RenderDirectoryComponent(w, components.DirData{
+		PkgPath:     gnourl.Path,
+		Files:       files,
+		FileCounter: len(files),
+	})
+	if err != nil {
+		h.logger.Error("unable to render directory", "err", err)
 		return http.StatusInternalServerError, components.RenderStatusComponent(w, "internal error")
 	}
 
@@ -252,6 +280,11 @@ func (h *WebHandler) renderRealm(w io.Writer, gnourl *GnoURL) (status int, err e
 	// Display realm source page
 	if gnourl.WebQuery.Has("source") {
 		return h.renderRealmSource(w, gnourl)
+	}
+
+	// TODO: Display realm dir page (TO REMOVE)
+	if gnourl.WebQuery.Has("dir") {
+		return h.renderRealmDirectory(w, gnourl)
 	}
 
 	// Render content into the content buffer

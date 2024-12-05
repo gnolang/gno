@@ -6,12 +6,13 @@ import (
 )
 
 type SourceData struct {
-	PkgPath    string
-	Files      []string
-	FileName   string
-	FileSize   float32
-	FileLines  int
-	FileSource template.HTML
+	PkgPath     string
+	Files       []string
+	FileName    string
+	FileSize    float32
+	FileLines   int
+	FileCounter int
+	FileSource  template.HTML
 }
 
 func RenderSourceComponent(w io.Writer, data SourceData) error {

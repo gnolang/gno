@@ -63,9 +63,9 @@
     }
   }
 
-  a:hover {
+  /* a:hover {
     @apply underline text-green-600;
-  }
+  } */
 
   svg {
     @apply max-w-full max-h-full;
