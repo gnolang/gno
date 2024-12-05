@@ -1,10 +1,8 @@
-package main
+package coverage
 
 import (
 	"strconv"
 	"strings"
-
-	"github.com/cespare/xxhash/v2"
 )
 
 // Coverage 타입 정의
@@ -41,7 +39,7 @@ func (s *Set[T]) Size() int {
 }
 
 // uint 슬라이스를 문자열로 변환
-func uintToString(nums []uint) string {
+func UintToString(nums []uint) string {
 	if len(nums) == 0 {
 		return ""
 	}
@@ -59,7 +57,9 @@ func uintToString(nums []uint) string {
 
 // Coverage 존재 여부 확인
 func Is_exist_coverage(c Coverage, set *Set[uint64]) bool {
-	valToHash := uintToString(c)
-	hash := xxhash.Sum64String(valToHash)
+	valToHash := UintToString(c)
+	hash := UseSum64String(valToHash)
 	return set.Contains(hash)
 }
+
+func UseSum64String(stVal string) uint64
