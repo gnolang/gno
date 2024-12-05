@@ -7,10 +7,10 @@ type Request struct {
 	// Path is request path name.
 	//
 	// Note: use RawPath to obtain a raw path with query string.
-	Path        string
+	Path string
 
 	// RawPath contains a whole request path, including query string.
-	RawPath     string
+	RawPath string
 
 	// HandlerPath is handler rule that matches a request.
 	HandlerPath string
