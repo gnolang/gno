@@ -1235,7 +1235,9 @@ func ReadMemPackageFromList(list []string, pkgPath string) (*gnovm.MemPackage, e
 
 	// If no .gno files are present, package simply does not exist.
 	if !memPkg.IsEmpty() {
-		validatePkgName(string(pkgName))
+		if err := validatePkgName(string(pkgName)); err != nil {
+			return nil, err
+		}
 		memPkg.Name = string(pkgName)
 	}
 
@@ -2167,10 +2169,11 @@ var rePkgName = regexp.MustCompile(`^[a-z][a-z0-9_]+$`)
 
 // TODO: consider length restrictions.
 // If this function is changed, ReadMemPackage's documentation should be updated accordingly.
-func validatePkgName(name string) {
+func validatePkgName(name string) error {
 	if !rePkgName.MatchString(name) {
-		panic(fmt.Sprintf("cannot create package with invalid name %q", name))
+		return fmt.Errorf("cannot create package with invalid name %q", name)
 	}
+	return nil
 }
 
 const hiddenResultVariable = ".res_"
