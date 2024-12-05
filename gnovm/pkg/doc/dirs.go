@@ -100,14 +100,21 @@ func getGnoModDirs(gm *gnomod.File, root string) []bfsDir {
 func packageImportsRecursive(root string, pkgPath string) []string {
 	pkg, err := gnolang.ReadMemPackage(root, pkgPath)
 	if err != nil {
-		return nil
+		// ignore invalid packages
+		pkg = nil
 	}
 
 	res, err := packages.Imports(pkg)
-	_ = err // ignore error to get valid imports while ignoring bad/partial files
+	if err != nil {
+		// ignore packages with invalid imports
+		res = nil
+	}
 
 	entries, err := os.ReadDir(root)
-	_ = err // ignore unreadable dirs
+	if err != nil {
+		// ignore unreadable dirs
+		entries = nil
+	}
 
 	for _, entry := range entries {
 		if !entry.IsDir() {
