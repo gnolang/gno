@@ -10,7 +10,6 @@ import (
 	"github.com/gnolang/gno/gnovm/cmd/gno/internal/pkgdownload/examplespkgfetcher"
 	"github.com/gnolang/gno/gnovm/pkg/gnomod"
 	"github.com/gnolang/gno/tm2/pkg/commands"
-	"github.com/gnolang/gno/tm2/pkg/testutils"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"golang.org/x/mod/modfile"
@@ -106,10 +105,7 @@ func TestDownloadDeps(t *testing.T) {
 			io := commands.NewTestIO()
 			io.SetErr(commands.WriteNopCloser(mockErr))
 
-			// Create test dir
-			dirPath, cleanUpFn := testutils.NewTestCaseDir(t)
-			assert.NotNil(t, dirPath)
-			defer cleanUpFn()
+			dirPath := t.TempDir()
 
 			err := os.WriteFile(filepath.Join(dirPath, "main.gno"), []byte(fmt.Sprintf("package main\n\n import %q\n", tc.pkgPath)), 0o644)
 			require.NoError(t, err)
