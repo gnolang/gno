@@ -1,8 +1,10 @@
 package mux
 
-import "gno.land/p/demo/uassert"
+import (
+	"testing"
 
-import "testing"
+	"gno.land/p/demo/uassert"
+)
 
 func TestRouter_Render(t *testing.T) {
 	cases := []struct {
