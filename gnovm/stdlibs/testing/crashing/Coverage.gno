@@ -1,4 +1,4 @@
-package coverage
+package crashing
 
 import (
 	"strconv"
@@ -8,33 +8,33 @@ import (
 // Coverage 타입 정의
 type Coverage []uint
 
-// 제네릭 Set 구조체 정의
-type Set[T comparable] struct {
-	data map[T]struct{}
+// Set 구조체 정의 (uint64 전용)
+type Set struct {
+	data map[uint64]struct{}
 }
 
 // Set 생성자
-func NewSet[T comparable]() *Set[T] {
-	return &Set[T]{
-		data: make(map[T]struct{}),
+func NewSet() *Set {
+	return &Set{
+		data: make(map[uint64]struct{}),
 	}
 }
 
 // Set 메서드들
-func (s *Set[T]) Add(element T) {
+func (s *Set) Add(element uint64) {
 	s.data[element] = struct{}{}
 }
 
-func (s *Set[T]) Remove(element T) {
+func (s *Set) Remove(element uint64) {
 	delete(s.data, element)
 }
 
-func (s *Set[T]) Contains(element T) bool {
+func (s *Set) Contains(element uint64) bool {
 	_, exists := s.data[element]
 	return exists
 }
 
-func (s *Set[T]) Size() int {
+func (s *Set) Size() int {
 	return len(s.data)
 }
 
@@ -56,10 +56,17 @@ func UintToString(nums []uint) string {
 }
 
 // Coverage 존재 여부 확인
-func Is_exist_coverage(c Coverage, set *Set[uint64]) bool {
+func Is_exist_coverage(c Coverage, set *Set) bool {
 	valToHash := UintToString(c)
 	hash := UseSum64String(valToHash)
 	return set.Contains(hash)
 }
 
-func UseSum64String(stVal string) uint64
+// UseSum64String 함수 정의
+func UseSum64String(stVal string) uint64 {
+	var result uint64
+	for _, char := range stVal {
+		result = result*31 + uint64(char)
+	}
+	return result
+}

@@ -1,4 +1,4 @@
-package coverage
+package crashing
 
 import (
 	"github.com/cespare/xxhash/v2"

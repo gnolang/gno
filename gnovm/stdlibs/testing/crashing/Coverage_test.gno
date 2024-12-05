@@ -1,10 +1,10 @@
-package coverage_test
+package crashing
 
 import "testing"
 
 func Test_Is_exist_coverage(t *testing.T) {
 	// 미리 정의된 set 만들어놓기
-	coverageSet := NewSet[uint64]()
+	coverageSet := NewSet()
 
 	testVal1 := []uint{1, 11, 1337}
 	testVal2 := []uint{1, 143, 1337}
@@ -26,6 +26,8 @@ func Test_Is_exist_coverage(t *testing.T) {
 	testVal := []uint{1, 10, 1337}
 	testValST := UintToString(testVal)
 	testValHash := UseSum64String(testValST)
+
+	println(testValHash)
 
 	// test
 	println(coverageSet.Contains(testValHash))
