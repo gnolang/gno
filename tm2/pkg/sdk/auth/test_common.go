@@ -29,7 +29,7 @@ func setupTestEnv() testEnv {
 	ms.MountStoreWithDB(authCapKey, iavl.StoreConstructor, db)
 	ms.LoadLatestVersion()
 
-	paramk := params.NewKeeper(authCapKey, nil)
+	paramk := params.NewParamsKeeper(authCapKey, "")
 	acck := NewAccountKeeper(authCapKey, paramk, std.ProtoBaseAccount)
 	bank := NewDummyBankKeeper(acck)
 	gk := NewGasPriceKeeper(authCapKey)

@@ -19,18 +19,16 @@ const (
 	broadcastTxTimerKey = "broadcast_tx_hist"
 	buildBlockTimerKey  = "build_block_hist"
 
-	inboundPeersKey  = "inbound_peers_hist"
-	outboundPeersKey = "outbound_peers_hist"
-	dialingPeersKey  = "dialing_peers_hist"
+	inboundPeersKey  = "inbound_peers_gauge"
+	outboundPeersKey = "outbound_peers_gauge"
+	dialingPeersKey  = "dialing_peers_gauge"
 
 	numMempoolTxsKey = "num_mempool_txs_hist"
 	numCachedTxsKey  = "num_cached_txs_hist"
 
-	vmQueryCallsKey  = "vm_query_calls_counter"
-	vmQueryErrorsKey = "vm_query_errors_counter"
-	vmGasUsedKey     = "vm_gas_used_hist"
-	vmCPUCyclesKey   = "vm_cpu_cycles_hist"
-	vmExecMsgKey     = "vm_exec_msg_hist"
+	vmExecMsgKey   = "vm_exec_msg_counter"
+	vmGasUsedKey   = "vm_gas_used_hist"
+	vmCPUCyclesKey = "vm_cpu_cycles_hist"
 
 	validatorCountKey       = "validator_count_hist"
 	validatorVotingPowerKey = "validator_vp_hist"
@@ -52,13 +50,13 @@ var (
 	// Networking //
 
 	// InboundPeers measures the active number of inbound peers
-	InboundPeers metric.Int64Histogram
+	InboundPeers metric.Int64Gauge
 
 	// OutboundPeers measures the active number of outbound peers
-	OutboundPeers metric.Int64Histogram
+	OutboundPeers metric.Int64Gauge
 
 	// DialingPeers measures the active number of peers in the dialing state
-	DialingPeers metric.Int64Histogram
+	DialingPeers metric.Int64Gauge
 
 	// Mempool //
 
@@ -70,20 +68,14 @@ var (
 
 	// Runtime //
 
-	// VMQueryCalls measures the frequency of VM query calls
-	VMQueryCalls metric.Int64Counter
-
-	// VMQueryErrors measures the frequency of VM query errors
-	VMQueryErrors metric.Int64Counter
+	// VMExecMsgFrequency measures the frequency of VM operations
+	VMExecMsgFrequency metric.Int64Counter
 
 	// VMGasUsed measures the VM gas usage
 	VMGasUsed metric.Int64Histogram
 
 	// VMCPUCycles measures the VM CPU cycles
 	VMCPUCycles metric.Int64Histogram
-
-	// VMExecMsgFrequency measures the frequency of VM operations
-	VMExecMsgFrequency metric.Int64Counter
 
 	// Consensus //
 
@@ -181,26 +173,32 @@ func Init(config config.Config) error {
 	}
 
 	// Networking //
-	if InboundPeers, err = meter.Int64Histogram(
+	if InboundPeers, err = meter.Int64Gauge(
 		inboundPeersKey,
 		metric.WithDescription("inbound peer count"),
 	); err != nil {
 		return fmt.Errorf("unable to create histogram, %w", err)
 	}
+	// Initialize InboundPeers Gauge
+	InboundPeers.Record(ctx, 0)
 
-	if OutboundPeers, err = meter.Int64Histogram(
+	if OutboundPeers, err = meter.Int64Gauge(
 		outboundPeersKey,
 		metric.WithDescription("outbound peer count"),
 	); err != nil {
 		return fmt.Errorf("unable to create histogram, %w", err)
 	}
+	// Initialize OutboundPeers Gauge
+	OutboundPeers.Record(ctx, 0)
 
-	if DialingPeers, err = meter.Int64Histogram(
+	if DialingPeers, err = meter.Int64Gauge(
 		dialingPeersKey,
 		metric.WithDescription("dialing peer count"),
 	); err != nil {
 		return fmt.Errorf("unable to create histogram, %w", err)
 	}
+	// Initialize DialingPeers Gauge
+	DialingPeers.Record(ctx, 0)
 
 	// Mempool //
 	if NumMempoolTxs, err = meter.Int64Histogram(
@@ -218,16 +216,9 @@ func Init(config config.Config) error {
 	}
 
 	// Runtime //
-	if VMQueryCalls, err = meter.Int64Counter(
-		vmQueryCallsKey,
-		metric.WithDescription("vm query call frequency"),
-	); err != nil {
-		return fmt.Errorf("unable to create counter, %w", err)
-	}
-
-	if VMQueryErrors, err = meter.Int64Counter(
-		vmQueryErrorsKey,
-		metric.WithDescription("vm query errors call frequency"),
+	if VMExecMsgFrequency, err = meter.Int64Counter(
+		vmExecMsgKey,
+		metric.WithDescription("vm msg operation call frequency"),
 	); err != nil {
 		return fmt.Errorf("unable to create counter, %w", err)
 	}
@@ -244,13 +235,6 @@ func Init(config config.Config) error {
 		metric.WithDescription("VM CPU cycles"),
 	); err != nil {
 		return fmt.Errorf("unable to create histogram, %w", err)
-	}
-
-	if VMExecMsgFrequency, err = meter.Int64Counter(
-		vmExecMsgKey,
-		metric.WithDescription("vm msg operation call frequency"),
-	); err != nil {
-		return fmt.Errorf("unable to create counter, %w", err)
 	}
 
 	// Consensus //

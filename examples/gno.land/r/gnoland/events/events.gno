@@ -73,8 +73,7 @@ func AddEvent(name, description, link, location, startTime, endTime string) (str
 	sort.Sort(events)
 
 	std.Emit(EventAdded,
-		"id",
-		e.id,
+		"id", e.id,
 	)
 
 	return id, nil
@@ -92,8 +91,7 @@ func DeleteEvent(id string) {
 	events = append(events[:idx], events[idx+1:]...)
 
 	std.Emit(EventDeleted,
-		"id",
-		e.id,
+		"id", e.id,
 	)
 }
 
@@ -142,8 +140,7 @@ func EditEvent(id string, name, description, link, location, startTime, endTime 
 	}
 
 	std.Emit(EventEdited,
-		"id",
-		e.id,
+		"id", e.id,
 	)
 }
 

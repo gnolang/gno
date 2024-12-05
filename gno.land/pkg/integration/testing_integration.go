@@ -132,9 +132,12 @@ func setupGnolandTestScript(t *testing.T, txtarDir string) testscript.Params {
 			// Track new user balances added via the `adduser`
 			// command and packages added with the `loadpkg` command.
 			// This genesis will be use when node is started.
+
 			genesis := gnoland.DefaultGenState()
 			genesis.Balances = LoadDefaultGenesisBalanceFile(t, gnoRootDir)
+			genesis.Params = LoadDefaultGenesisParamFile(t, gnoRootDir)
 			genesis.Auth.Params.InitialGasPrice = std.GasPrice{Gas: 0, Price: std.Coin{Amount: 0, Denom: "ugnot"}}
+			genesis.Txs = []gnoland.TxWithMetadata{}
 
 			// test1 must be created outside of the loop below because it is already included in genesis so
 			// attempting to recreate results in it getting overwritten and breaking existing tests that
@@ -661,13 +664,13 @@ func (pl *pkgsLoader) SetPatch(replace, with string) {
 	pl.patchs[replace] = with
 }
 
-func (pl *pkgsLoader) LoadPackages(creator bft.Address, fee std.Fee, deposit std.Coins) ([]std.Tx, error) {
+func (pl *pkgsLoader) LoadPackages(creator bft.Address, fee std.Fee, deposit std.Coins) ([]gnoland.TxWithMetadata, error) {
 	pkgslist, err := pl.List().Sort() // sorts packages by their dependencies.
 	if err != nil {
 		return nil, fmt.Errorf("unable to sort packages: %w", err)
 	}
 
-	txs := make([]std.Tx, len(pkgslist))
+	txs := make([]gnoland.TxWithMetadata, len(pkgslist))
 	for i, pkg := range pkgslist {
 		tx, err := gnoland.LoadPackage(pkg, creator, fee, deposit)
 		if err != nil {
@@ -694,7 +697,9 @@ func (pl *pkgsLoader) LoadPackages(creator bft.Address, fee std.Fee, deposit std
 			}
 		}
 
-		txs[i] = tx
+		txs[i] = gnoland.TxWithMetadata{
+			Tx: tx,
+		}
 	}
 
 	return txs, nil

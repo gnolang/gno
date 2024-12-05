@@ -14,9 +14,10 @@ import (
 
 	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
-	"github.com/gnolang/gno/gnovm/tests"
+	"github.com/gnolang/gno/gnovm/pkg/test"
 	"github.com/gnolang/gno/tm2/pkg/commands"
 	osm "github.com/gnolang/gno/tm2/pkg/os"
+	"go.uber.org/multierr"
 )
 
 type lintCfg struct {
@@ -90,10 +91,9 @@ func execLint(cfg *lintCfg, args []string, io commands.IO) error {
 		// Handle runtime errors
 		hasError = catchRuntimeError(pkgPath, io.Err(), func() {
 			stdout, stdin, stderr := io.Out(), io.In(), io.Err()
-			testStore := tests.TestStore(
-				rootDir, "",
+			_, testStore := test.Store(
+				rootDir, false,
 				stdin, stdout, stderr,
-				tests.ImportModeStdlibsOnly,
 			)
 
 			targetPath := pkgPath
@@ -103,7 +103,8 @@ func execLint(cfg *lintCfg, args []string, io commands.IO) error {
 			}
 
 			memPkg := gno.ReadMemPackage(targetPath, targetPath)
-			tm := tests.TestMachine(testStore, stdout, memPkg.Name)
+			tm := test.Machine(testStore, stdout, memPkg.Path)
+			defer tm.Release()
 
 			// Check package
 			tm.RunMemPackage(memPkg, true)
@@ -160,7 +161,7 @@ func guessSourcePath(pkg, source string) string {
 // reParseRecover is a regex designed to parse error details from a string.
 // It extracts the file location, line number, and error message from a formatted error string.
 // XXX: Ideally, error handling should encapsulate location details within a dedicated error type.
-var reParseRecover = regexp.MustCompile(`^([^:]+):(\d+)(?::\d+)?:? *(.*)$`)
+var reParseRecover = regexp.MustCompile(`^([^:]+)((?::(?:\d+)){1,2}):? *(.*)$`)
 
 func catchRuntimeError(pkgPath string, stderr io.WriteCloser, action func()) (hasError bool) {
 	defer func() {
@@ -174,12 +175,18 @@ func catchRuntimeError(pkgPath string, stderr io.WriteCloser, action func()) (ha
 		case *gno.PreprocessError:
 			err := verr.Unwrap()
 			fmt.Fprint(stderr, issueFromError(pkgPath, err).String()+"\n")
-		case scanner.ErrorList:
-			for _, err := range verr {
-				fmt.Fprint(stderr, issueFromError(pkgPath, err).String()+"\n")
-			}
 		case error:
-			fmt.Fprint(stderr, issueFromError(pkgPath, verr).String()+"\n")
+			errors := multierr.Errors(verr)
+			for _, err := range errors {
+				errList, ok := err.(scanner.ErrorList)
+				if ok {
+					for _, errorInList := range errList {
+						fmt.Fprint(stderr, issueFromError(pkgPath, errorInList).String()+"\n")
+					}
+				} else {
+					fmt.Fprint(stderr, issueFromError(pkgPath, err).String()+"\n")
+				}
+			}
 		case string:
 			fmt.Fprint(stderr, issueFromError(pkgPath, errors.New(verr)).String()+"\n")
 		default:
@@ -223,9 +230,9 @@ func issueFromError(pkgPath string, err error) lintIssue {
 	parsedError = strings.TrimPrefix(parsedError, pkgPath+"/")
 
 	matches := reParseRecover.FindStringSubmatch(parsedError)
-	if len(matches) == 4 {
+	if len(matches) > 0 {
 		sourcepath := guessSourcePath(pkgPath, matches[1])
-		issue.Location = fmt.Sprintf("%s:%s", sourcepath, matches[2])
+		issue.Location = sourcepath + matches[2]
 		issue.Msg = strings.TrimSpace(matches[3])
 	} else {
 		issue.Location = fmt.Sprintf("%s:0", filepath.Clean(pkgPath))

@@ -612,10 +612,11 @@ func TestProcessPubKey(t *testing.T) {
 		wantErr bool
 	}{
 		{"no sigs, simulate off", args{acc1, std.Signature{}, false}, true},
-		{"no sigs, simulate on", args{acc1, std.Signature{}, true}, false},
+		{"no sigs, simulate on", args{acc1, std.Signature{}, true}, true},
+		{"no sigs, account with pub, simulate off", args{acc2, std.Signature{}, false}, false},
 		{"no sigs, account with pub, simulate on", args{acc2, std.Signature{}, true}, false},
 		{"pubkey doesn't match addr, simulate off", args{acc1, std.Signature{PubKey: priv2.PubKey()}, false}, true},
-		{"pubkey doesn't match addr, simulate on", args{acc1, std.Signature{PubKey: priv2.PubKey()}, true}, false},
+		{"pubkey doesn't match addr, simulate on", args{acc1, std.Signature{PubKey: priv2.PubKey()}, true}, true},
 	}
 	for _, tt := range tests {
 		tt := tt

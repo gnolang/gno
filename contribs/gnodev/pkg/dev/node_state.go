@@ -8,7 +8,6 @@ import (
 	"github.com/gnolang/gno/contribs/gnodev/pkg/events"
 	"github.com/gnolang/gno/gno.land/pkg/gnoland"
 	bft "github.com/gnolang/gno/tm2/pkg/bft/types"
-	"github.com/gnolang/gno/tm2/pkg/std"
 )
 
 var ErrEmptyState = errors.New("empty state")
@@ -29,7 +28,7 @@ func (n *Node) SaveCurrentState(ctx context.Context) error {
 }
 
 // Export the current state as list of txs
-func (n *Node) ExportCurrentState(ctx context.Context) ([]std.Tx, error) {
+func (n *Node) ExportCurrentState(ctx context.Context) ([]gnoland.TxWithMetadata, error) {
 	n.muNode.RLock()
 	defer n.muNode.RUnlock()
 
@@ -42,7 +41,7 @@ func (n *Node) ExportCurrentState(ctx context.Context) ([]std.Tx, error) {
 	return state[:n.currentStateIndex], nil
 }
 
-func (n *Node) getState(ctx context.Context) ([]std.Tx, error) {
+func (n *Node) getState(ctx context.Context) ([]gnoland.TxWithMetadata, error) {
 	if n.state == nil {
 		var err error
 		n.state, err = n.getBlockStoreState(ctx)
@@ -85,7 +84,7 @@ func (n *Node) MoveBy(ctx context.Context, x int) error {
 	}
 
 	// Load genesis packages
-	pkgsTxs, err := n.pkgs.Load(DefaultFee)
+	pkgsTxs, err := n.pkgs.Load(DefaultFee, n.startTime)
 	if err != nil {
 		return fmt.Errorf("unable to load pkgs: %w", err)
 	}

@@ -17,10 +17,6 @@ var Package = amino.RegisterPackage(amino.NewPackage(
 	// GasPrice
 	&GasPrice{}, "GasPrice",
 
-	// MemFile/MemPackage
-	MemFile{}, "MemFile",
-	MemPackage{}, "MemPackage",
-
 	// Errors
 	InternalError{}, "InternalError",
 	TxDecodeError{}, "TxDecodeError",

@@ -12,8 +12,9 @@ import (
 
 	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
-	"github.com/gnolang/gno/gnovm/tests"
+	"github.com/gnolang/gno/gnovm/pkg/test"
 	"github.com/gnolang/gno/tm2/pkg/commands"
+	"github.com/gnolang/gno/tm2/pkg/std"
 )
 
 type runCfg struct {
@@ -91,9 +92,9 @@ func execRun(cfg *runCfg, args []string, io commands.IO) error {
 	stderr := io.Err()
 
 	// init store and machine
-	testStore := tests.TestStore(cfg.rootDir,
-		"", stdin, stdout, stderr,
-		tests.ImportModeStdlibsPreferred)
+	_, testStore := test.Store(
+		cfg.rootDir, false,
+		stdin, stdout, stderr)
 	if cfg.verbose {
 		testStore.SetLogStoreOps(true)
 	}
@@ -112,11 +113,15 @@ func execRun(cfg *runCfg, args []string, io commands.IO) error {
 		return errors.New("no files to run")
 	}
 
+	var send std.Coins
+	pkgPath := string(files[0].PkgName)
+	ctx := test.Context(pkgPath, send)
 	m := gno.NewMachineWithOptions(gno.MachineOptions{
-		PkgPath: string(files[0].PkgName),
-		Input:   stdin,
+		PkgPath: pkgPath,
 		Output:  stdout,
+		Input:   stdin,
 		Store:   testStore,
+		Context: ctx,
 		Debug:   cfg.debug || cfg.debugAddr != "",
 	})
 

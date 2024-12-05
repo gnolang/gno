@@ -2,9 +2,11 @@ package dev
 
 import (
 	"context"
+	"encoding/json"
 	"os"
 	"path/filepath"
 	"testing"
+	"time"
 
 	mock "github.com/gnolang/gno/contribs/gnodev/internal/mock"
 
@@ -15,8 +17,10 @@ import (
 	"github.com/gnolang/gno/gno.land/pkg/sdk/vm"
 	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
 	core_types "github.com/gnolang/gno/tm2/pkg/bft/rpc/core/types"
+	"github.com/gnolang/gno/tm2/pkg/bft/types"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
 	"github.com/gnolang/gno/tm2/pkg/crypto/keys"
+	tm2events "github.com/gnolang/gno/tm2/pkg/events"
 	"github.com/gnolang/gno/tm2/pkg/log"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -221,6 +225,191 @@ func Render(_ string) string { return str }
 	assert.Equal(t, mock.EvtNull, emitter.NextEvent().Type())
 }
 
+func TestTxTimestampRecover(t *testing.T) {
+	const (
+		// foo package
+		foobarGnoMod = "module gno.land/r/dev/foo\n"
+		fooFile      = `package foo
+import (
+	"strconv"
+	"strings"
+	"time"
+)
+
+var times = []time.Time{
+	time.Now(), // Evaluate at genesis
+}
+
+func SpanTime() {
+	times = append(times, time.Now())
+}
+
+func Render(_ string) string {
+	var strs strings.Builder
+
+	strs.WriteRune('[')
+	for i, t := range times {
+		if i > 0 {
+			strs.WriteRune(',')
+		}
+		strs.WriteString(strconv.Itoa(int(t.UnixNano())))
+	}
+	strs.WriteRune(']')
+
+	return strs.String()
+}
+`
+	)
+
+	// Add a hard deadline of 20 seconds to avoid potential deadlock and fail early
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*20)
+	defer cancel()
+
+	parseJSONTimesList := func(t *testing.T, render string) []time.Time {
+		t.Helper()
+
+		var times []time.Time
+		var nanos []int64
+
+		err := json.Unmarshal([]byte(render), &nanos)
+		require.NoError(t, err)
+
+		for _, nano := range nanos {
+			sec, nsec := nano/int64(time.Second), nano%int64(time.Second)
+			times = append(times, time.Unix(sec, nsec))
+		}
+
+		return times
+	}
+
+	// Generate package foo
+	foopkg := generateTestingPackage(t, "gno.mod", foobarGnoMod, "foo.gno", fooFile)
+
+	// Call NewDevNode with no package should work
+	cfg := createDefaultTestingNodeConfig(foopkg)
+
+	// XXX(gfanton): Setting this to `false` somehow makes the time block
+	// drift from the time spanned by the VM.
+	cfg.TMConfig.Consensus.SkipTimeoutCommit = false
+	cfg.TMConfig.Consensus.TimeoutCommit = 500 * time.Millisecond
+	cfg.TMConfig.Consensus.TimeoutPropose = 100 * time.Millisecond
+	cfg.TMConfig.Consensus.CreateEmptyBlocks = true
+
+	node, emitter := newTestingDevNodeWithConfig(t, cfg)
+
+	// We need to make sure that blocks are separated by at least 1 second
+	// (minimal time between blocks). We can ensure this by listening for
+	// new blocks and comparing timestamps
+	cc := make(chan types.EventNewBlock)
+	node.Node.EventSwitch().AddListener("test-timestamp", func(evt tm2events.Event) {
+		newBlock, ok := evt.(types.EventNewBlock)
+		if !ok {
+			return
+		}
+
+		select {
+		case cc <- newBlock:
+		default:
+		}
+	})
+
+	// wait for first block for reference
+	var refHeight, refTimestamp int64
+
+	select {
+	case <-ctx.Done():
+		require.FailNow(t, ctx.Err().Error())
+	case res := <-cc:
+		refTimestamp = res.Block.Time.Unix()
+		refHeight = res.Block.Height
+	}
+
+	// number of span to process
+	const nevents = 3
+
+	// Span multiple time
+	for i := 0; i < nevents; i++ {
+		t.Logf("waiting for a bock greater than height(%d) and unix(%d)", refHeight, refTimestamp)
+		for {
+			var block types.EventNewBlock
+			select {
+			case <-ctx.Done():
+				require.FailNow(t, ctx.Err().Error())
+			case block = <-cc:
+			}
+
+			t.Logf("got a block height(%d) and unix(%d)",
+				block.Block.Height, block.Block.Time.Unix())
+
+			// Ensure we consume every block before tx block
+			if refHeight >= block.Block.Height {
+				continue
+			}
+
+			// Ensure new block timestamp is before previous reference timestamp
+			if newRefTimestamp := block.Block.Time.Unix(); newRefTimestamp > refTimestamp {
+				refTimestamp = newRefTimestamp
+				break // break the loop
+			}
+		}
+
+		t.Logf("found a valid block(%d)! continue", refHeight)
+
+		// Span a new time
+		msg := vm.MsgCall{
+			PkgPath: "gno.land/r/dev/foo",
+			Func:    "SpanTime",
+		}
+
+		res, err := testingCallRealm(t, node, msg)
+
+		require.NoError(t, err)
+		require.NoError(t, res.CheckTx.Error)
+		require.NoError(t, res.DeliverTx.Error)
+		assert.Equal(t, emitter.NextEvent().Type(), events.EvtTxResult)
+
+		// Set the new height from the tx as reference
+		refHeight = res.Height
+	}
+
+	// Render JSON times list
+	render, err := testingRenderRealm(t, node, "gno.land/r/dev/foo")
+	require.NoError(t, err)
+
+	// Parse times list
+	timesList1 := parseJSONTimesList(t, render)
+	t.Logf("list of times: %+v", timesList1)
+
+	// Ensure times are correctly expending.
+	for i, t2 := range timesList1 {
+		if i == 0 {
+			continue
+		}
+
+		t1 := timesList1[i-1]
+		require.Greater(t, t2.UnixNano(), t1.UnixNano())
+	}
+
+	// Reload the node
+	err = node.Reload(context.Background())
+	require.NoError(t, err)
+	assert.Equal(t, emitter.NextEvent().Type(), events.EvtReload)
+
+	// Fetch time list again from render
+	render, err = testingRenderRealm(t, node, "gno.land/r/dev/foo")
+	require.NoError(t, err)
+
+	timesList2 := parseJSONTimesList(t, render)
+
+	// Times list should be identical from the orignal list
+	require.Len(t, timesList2, len(timesList1))
+	for i := 0; i < len(timesList1); i++ {
+		t1nsec, t2nsec := timesList1[i].UnixNano(), timesList2[i].UnixNano()
+		assert.Equal(t, t1nsec, t2nsec,
+			"comparing times1[%d](%d) == times2[%d](%d)", i, t1nsec, i, t2nsec)
+	}
+}
+
 func testingRenderRealm(t *testing.T, node *Node, rlmpath string) (string, error) {
 	t.Helper()
 
@@ -285,25 +474,37 @@ func generateTestingPackage(t *testing.T, nameFile ...string) PackagePath {
 	}
 }
 
-func newTestingDevNode(t *testing.T, pkgslist ...PackagePath) (*Node, *mock.ServerEmitter) {
-	t.Helper()
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-
-	logger := log.NewTestingLogger(t)
-
-	emitter := &mock.ServerEmitter{}
-
-	// Call NewDevNode with no package should work
+func createDefaultTestingNodeConfig(pkgslist ...PackagePath) *NodeConfig {
 	cfg := DefaultNodeConfig(gnoenv.RootDir())
 	cfg.PackagesPathList = pkgslist
+	return cfg
+}
+
+func newTestingDevNode(t *testing.T, pkgslist ...PackagePath) (*Node, *mock.ServerEmitter) {
+	t.Helper()
+
+	cfg := createDefaultTestingNodeConfig(pkgslist...)
+	return newTestingDevNodeWithConfig(t, cfg)
+}
+
+func newTestingDevNodeWithConfig(t *testing.T, cfg *NodeConfig) (*Node, *mock.ServerEmitter) {
+	t.Helper()
+
+	ctx, cancel := context.WithCancel(context.Background())
+	logger := log.NewTestingLogger(t)
+	emitter := &mock.ServerEmitter{}
+
 	cfg.Emitter = emitter
 	cfg.Logger = logger
+
 	node, err := NewDevNode(ctx, cfg)
 	require.NoError(t, err)
-	assert.Len(t, node.ListPkgs(), len(pkgslist))
+	assert.Len(t, node.ListPkgs(), len(cfg.PackagesPathList))
 
-	t.Cleanup(func() { node.Close() })
+	t.Cleanup(func() {
+		node.Close()
+		cancel()
+	})
 
 	return node, emitter
 }

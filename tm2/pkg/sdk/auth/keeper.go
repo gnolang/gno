@@ -18,7 +18,7 @@ type AccountKeeper struct {
 	// The (unexposed) key used to access the store from the Context.
 	key store.StoreKey
 	// The keeper used to store auth parameters
-	paramk params.Keeper
+	paramk params.ParamsKeeper
 	// The prototypical Account constructor.
 	proto func() std.Account
 }
@@ -26,18 +26,13 @@ type AccountKeeper struct {
 // NewAccountKeeper returns a new AccountKeeper that uses go-amino to
 // (binary) encode and decode concrete std.Accounts.
 func NewAccountKeeper(
-	key store.StoreKey, pk params.Keeper, proto func() std.Account,
+	key store.StoreKey, pk params.ParamsKeeper, proto func() std.Account,
 ) AccountKeeper {
 	return AccountKeeper{
 		key:    key,
 		paramk: pk,
 		proto:  proto,
 	}
-}
-
-// Logger returns a module-specific logger.
-func (ak AccountKeeper) Logger(ctx sdk.Context) *slog.Logger {
-	return ctx.Logger().With("module", fmt.Sprintf("auth"))
 }
 
 // NewAccountWithAddress implements AccountKeeper.
@@ -57,7 +52,12 @@ func (ak AccountKeeper) NewAccountWithAddress(ctx sdk.Context, addr crypto.Addre
 	return acc
 }
 
-// GetAccount implements AccountKeeper.
+// Logger returns a module-specific logger.
+func (ak AccountKeeper) Logger(ctx sdk.Context) *slog.Logger {
+	return ctx.Logger().With("module", ModuleName)
+}
+
+// GetAccount returns a specific account in the AccountKeeper.
 func (ak AccountKeeper) GetAccount(ctx sdk.Context, addr crypto.Address) std.Account {
 	stor := ctx.Store(ak.key)
 	bz := stor.Get(AddressStoreKey(addr))
