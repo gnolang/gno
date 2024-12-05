@@ -1,5 +1,5 @@
 //go:build benchmarkingops
 
-package benchmarking
+package benchops
 
 const OpsEnabled = true

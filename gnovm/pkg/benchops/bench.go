@@ -1,4 +1,4 @@
-package benchmarking
+package benchops
 
 import (
 	"time"

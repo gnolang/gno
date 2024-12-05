@@ -1,4 +1,4 @@
-package benchmarking
+package benchops
 
 // store code
 const (

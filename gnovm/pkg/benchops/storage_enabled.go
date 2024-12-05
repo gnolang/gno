@@ -1,5 +1,5 @@
 //go:build benchmarkingstorage
 
-package benchmarking
+package benchops
 
 const StorageEnabled = true

@@ -12,7 +12,7 @@ import (
 func TestBenchStoreSet(t *testing.T) {
 	assert := assert.New(t)
 
-	dir := "../gno"
+	dir := "../../pkg/benchops/gno"
 	bstore := benchmarkDiskStore()
 	gstore := bstore.gnoStore
 
