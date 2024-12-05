@@ -100,7 +100,7 @@ func (vm *VMKeeper) Initialize(
 
 	alloc := gno.NewAllocator(maxAllocTx)
 	vm.gnoStore = gno.NewStore(alloc, baseStore, iavlStore)
-	vm.gnoStore.SetNativeStore(stdlibs.NativeStore)
+	vm.gnoStore.SetNativeResolver(stdlibs.NativeResolver)
 
 	if vm.gnoStore.NumMemPackages() > 0 {
 		// for now, all mem packages must be re-run after reboot.
@@ -146,7 +146,7 @@ func (vm *VMKeeper) LoadStdlibCached(ctx sdk.Context, stdlibDir string) {
 		}
 
 		gs := gno.NewStore(nil, cachedStdlib.base, cachedStdlib.iavl)
-		gs.SetNativeStore(stdlibs.NativeStore)
+		gs.SetNativeResolver(stdlibs.NativeResolver)
 		loadStdlib(gs, stdlibDir)
 		cachedStdlib.gno = gs
 	})
