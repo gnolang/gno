@@ -2,7 +2,7 @@ module github.com/gnolang/gno
 
 go 1.22
 
-toolchain go1.22.4
+toolchain go1.22.0
 
 require (
 	dario.cat/mergo v1.0.1
@@ -49,6 +49,7 @@ require (
 
 require (
 	github.com/cenkalti/backoff/v4 v4.3.0 // indirect
+	github.com/cespare/xxhash/v2 v2.3.0 // indirect
 	github.com/go-logr/logr v1.4.2 // indirect
 	github.com/go-logr/stdr v1.2.2 // indirect
 	github.com/golang/protobuf v1.5.4 // indirect
