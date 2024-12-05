@@ -25,8 +25,8 @@ import (
 // cause writes to happen to the store, such as MemPackages to iavlstore.
 type PackageGetter func(pkgPath string, store Store) (*PackageNode, *PackageValue)
 
-// NativeStore is a function which can retrieve native bodies of native functions.
-type NativeStore func(pkgName string, name Name) func(m *Machine)
+// NativeResolver is a function which can retrieve native bodies of native functions.
+type NativeResolver func(pkgName string, name Name) func(m *Machine)
 
 // Store is the central interface that specifies the communications between the
 // GnoVM and the underlying data store; currently, generally the gno.land
@@ -51,7 +51,6 @@ type Store interface {
 	GetBlockNodeSafe(Location) BlockNode
 	SetBlockNode(BlockNode)
 	// UNSTABLE
-	SetStrictGo2GnoMapping(bool)
 	Go2GnoType(rt reflect.Type) Type
 	GetAllocator() *Allocator
 	NumMemPackages() int64
@@ -63,12 +62,11 @@ type Store interface {
 	GetMemFile(path string, name string) *gnovm.MemFile
 	IterMemPackage() <-chan *gnovm.MemPackage
 	ClearObjectCache()                                    // run before processing a message
-	SetNativeStore(NativeStore)                           // for "new" natives XXX
+	SetNativeResolver(NativeResolver)                     // for "new" natives XXX
 	GetNative(pkgPath string, name Name) func(m *Machine) // for "new" natives XXX
 	SetLogStoreOps(enabled bool)
 	SprintStoreOps() string
 	LogSwitchRealm(rlmpath string) // to mark change of realm boundaries
-	ClearCache()
 	Print()
 }
 
@@ -97,8 +95,7 @@ type defaultStore struct {
 	// store configuration; cannot be modified in a transaction
 	pkgGetter        PackageGetter         // non-realm packages
 	cacheNativeTypes map[reflect.Type]Type // reflect doc: reflect.Type are comparable
-	nativeStore      NativeStore           // for injecting natives
-	go2gnoStrict     bool                  // if true, native->gno type conversion must be registered.
+	nativeResolver   NativeResolver        // for injecting natives
 
 	// transient
 	opslog  []StoreOp // for debugging and testing.
@@ -119,8 +116,7 @@ func NewStore(alloc *Allocator, baseStore, iavlStore store.Store) *defaultStore 
 		// store configuration
 		pkgGetter:        nil,
 		cacheNativeTypes: make(map[reflect.Type]Type),
-		nativeStore:      nil,
-		go2gnoStrict:     true,
+		nativeResolver:   nil,
 	}
 	InitStoreCaches(ds)
 	return ds
@@ -148,8 +144,7 @@ func (ds *defaultStore) BeginTransaction(baseStore, iavlStore store.Store) Trans
 		// store configuration
 		pkgGetter:        ds.pkgGetter,
 		cacheNativeTypes: ds.cacheNativeTypes,
-		nativeStore:      ds.nativeStore,
-		go2gnoStrict:     ds.go2gnoStrict,
+		nativeResolver:   ds.nativeResolver,
 
 		// transient
 		current: nil,
@@ -171,10 +166,6 @@ func (transactionStore) SetPackageGetter(pg PackageGetter) {
 	panic("SetPackageGetter may not be called in a transaction store")
 }
 
-func (transactionStore) ClearCache() {
-	panic("ClearCache may not be called in a transaction store")
-}
-
 // XXX: we should block Go2GnoType, because it uses a global cache map;
 // but it's called during preprocess and thus breaks some testing code.
 // let's wait until we remove Go2Gno entirely.
@@ -183,12 +174,8 @@ func (transactionStore) ClearCache() {
 // 	panic("Go2GnoType may not be called in a transaction store")
 // }
 
-func (transactionStore) SetNativeStore(ns NativeStore) {
-	panic("SetNativeStore may not be called in a transaction store")
-}
-
-func (transactionStore) SetStrictGo2GnoMapping(strict bool) {
-	panic("SetStrictGo2GnoMapping may not be called in a transaction store")
+func (transactionStore) SetNativeResolver(ns NativeResolver) {
+	panic("SetNativeResolver may not be called in a transaction store")
 }
 
 // CopyCachesFromStore allows to copy a store's internal object, type and
@@ -498,8 +485,7 @@ func (ds *defaultStore) SetCacheType(tt Type) {
 	tid := tt.TypeID()
 	if tt2, exists := ds.cacheTypes.Get(tid); exists {
 		if tt != tt2 {
-			// NOTE: not sure why this would happen.
-			panic("should not happen")
+			panic(fmt.Sprintf("cannot re-register %q with different type", tid))
 		} else {
 			// already set.
 		}
@@ -699,13 +685,13 @@ func (ds *defaultStore) ClearObjectCache() {
 	ds.SetCachePackage(Uverse())
 }
 
-func (ds *defaultStore) SetNativeStore(ns NativeStore) {
-	ds.nativeStore = ns
+func (ds *defaultStore) SetNativeResolver(ns NativeResolver) {
+	ds.nativeResolver = ns
 }
 
 func (ds *defaultStore) GetNative(pkgPath string, name Name) func(m *Machine) {
-	if ds.nativeStore != nil {
-		return ds.nativeStore(pkgPath, name)
+	if ds.nativeResolver != nil {
+		return ds.nativeResolver(pkgPath, name)
 	}
 	return nil
 }
@@ -776,15 +762,6 @@ func (ds *defaultStore) SprintStoreOps() string {
 func (ds *defaultStore) LogSwitchRealm(rlmpath string) {
 	ds.opslog = append(ds.opslog,
 		StoreOp{Type: StoreOpSwitchRealm, RlmPath: rlmpath})
-}
-
-func (ds *defaultStore) ClearCache() {
-	ds.cacheObjects = make(map[ObjectID]Object)
-	ds.cacheTypes = txlog.GoMap[TypeID, Type](map[TypeID]Type{})
-	ds.cacheNodes = txlog.GoMap[Location, BlockNode](map[Location]BlockNode{})
-	ds.cacheNativeTypes = make(map[reflect.Type]Type)
-	// restore builtin types to cache.
-	InitStoreCaches(ds)
 }
 
 // for debugging

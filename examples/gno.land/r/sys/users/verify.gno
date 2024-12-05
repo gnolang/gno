@@ -7,7 +7,7 @@ import (
 	"gno.land/r/demo/users"
 )
 
-const admin = "g1u7y667z64x2h7vc6fmpcprgey4ck233jaww9zq" // @moul
+const admin = "g1manfred47kzduec920z88wfr64ylksmdcedlf5" // @moul
 
 type VerifyNameFunc func(enabled bool, address std.Address, name string) bool
 

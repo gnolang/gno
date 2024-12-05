@@ -100,7 +100,7 @@ func (vm *VMKeeper) Initialize(
 
 	alloc := gno.NewAllocator(maxAllocTx)
 	vm.gnoStore = gno.NewStore(alloc, baseStore, iavlStore)
-	vm.gnoStore.SetNativeStore(stdlibs.NativeStore)
+	vm.gnoStore.SetNativeResolver(stdlibs.NativeResolver)
 
 	if vm.gnoStore.NumMemPackages() > 0 {
 		// for now, all mem packages must be re-run after reboot.
@@ -146,7 +146,7 @@ func (vm *VMKeeper) LoadStdlibCached(ctx sdk.Context, stdlibDir string) {
 		}
 
 		gs := gno.NewStore(nil, cachedStdlib.base, cachedStdlib.iavl)
-		gs.SetNativeStore(stdlibs.NativeStore)
+		gs.SetNativeResolver(stdlibs.NativeResolver)
 		loadStdlib(gs, stdlibDir)
 		cachedStdlib.gno = gs
 	})
@@ -365,7 +365,6 @@ func (vm *VMKeeper) AddPackage(ctx sdk.Context, msg MsgAddPackage) (err error) {
 		ChainID:       ctx.ChainID(),
 		Height:        ctx.BlockHeight(),
 		Timestamp:     ctx.BlockTime().Unix(),
-		Msg:           msg,
 		OrigCaller:    creator.Bech32(),
 		OrigSend:      deposit,
 		OrigSendSpent: new(std.Coins),
@@ -466,7 +465,6 @@ func (vm *VMKeeper) Call(ctx sdk.Context, msg MsgCall) (res string, err error) {
 		ChainID:       ctx.ChainID(),
 		Height:        ctx.BlockHeight(),
 		Timestamp:     ctx.BlockTime().Unix(),
-		Msg:           msg,
 		OrigCaller:    caller.Bech32(),
 		OrigSend:      send,
 		OrigSendSpent: new(std.Coins),
@@ -565,7 +563,6 @@ func (vm *VMKeeper) Run(ctx sdk.Context, msg MsgRun) (res string, err error) {
 		ChainID:       ctx.ChainID(),
 		Height:        ctx.BlockHeight(),
 		Timestamp:     ctx.BlockTime().Unix(),
-		Msg:           msg,
 		OrigCaller:    caller.Bech32(),
 		OrigSend:      send,
 		OrigSendSpent: new(std.Coins),
@@ -729,7 +726,6 @@ func (vm *VMKeeper) QueryEval(ctx sdk.Context, pkgPath string, expr string) (res
 		ChainID:   ctx.ChainID(),
 		Height:    ctx.BlockHeight(),
 		Timestamp: ctx.BlockTime().Unix(),
-		// Msg:           msg,
 		// OrigCaller:    caller,
 		// OrigSend:      send,
 		// OrigSendSpent: nil,
@@ -796,7 +792,6 @@ func (vm *VMKeeper) QueryEvalString(ctx sdk.Context, pkgPath string, expr string
 		ChainID:   ctx.ChainID(),
 		Height:    ctx.BlockHeight(),
 		Timestamp: ctx.BlockTime().Unix(),
-		// Msg:           msg,
 		// OrigCaller:    caller,
 		// OrigSend:      jsend,
 		// OrigSendSpent: nil,
