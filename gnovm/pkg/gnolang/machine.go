@@ -268,7 +268,7 @@ func (m *Machine) RunMemPackage(memPkg *gnovm.MemPackage, save bool) (*PackageNo
 
 // RunMemPackageWithOverrides works as [RunMemPackage], however after parsing,
 // declarations are filtered removing duplicate declarations.
-// To control which declaration overrides which, use [MustReadMemPackageFromList],
+// To control which declaration overrides which, use [ReadMemPackageFromList],
 // putting the overrides at the top of the list.
 func (m *Machine) RunMemPackageWithOverrides(memPkg *gnovm.MemPackage, save bool) (*PackageNode, *PackageValue) {
 	return m.runMemPackage(memPkg, save, true)
