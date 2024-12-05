@@ -252,6 +252,7 @@ func (gk GasPriceKeeper) calcBlockGasPrice(lastGasPrice std.GasPrice, gasUsed in
 	c := params.GasPricesChangeCompressor
 	lastPriceInt := big.NewInt(lastGasPrice.Price.Amount)
 
+	bigOne := big.NewInt(1)
 	if gasUsedInt.Cmp(targetGasInt) == 1 { // gas used is more than the target
 		// increase gas price
 		num = num.Sub(gasUsedInt, targetGasInt)
@@ -259,7 +260,7 @@ func (gk GasPriceKeeper) calcBlockGasPrice(lastGasPrice std.GasPrice, gasUsed in
 		num.Div(num, targetGasInt)
 		num.Div(num, denom.SetInt64(c))
 		// increase at least 1
-		diff := max(num, big.NewInt(1))
+		diff := maxBig(num, bigOne)
 		num.Add(lastPriceInt, diff)
 		// XXX should we cap it with a max gas price?
 	} else { // gas used is less than the target
@@ -275,7 +276,7 @@ func (gk GasPriceKeeper) calcBlockGasPrice(lastGasPrice std.GasPrice, gasUsed in
 
 		num.Sub(lastPriceInt, num)
 		// gas price should not be less than the initial gas price,
-		num = max(num, initPriceInt)
+		num = maxBig(num, initPriceInt)
 	}
 
 	if !num.IsInt64() {
@@ -287,7 +288,7 @@ func (gk GasPriceKeeper) calcBlockGasPrice(lastGasPrice std.GasPrice, gasUsed in
 }
 
 // max returns the larger of x or y.
-func max(x, y *big.Int) *big.Int {
+func maxBig(x, y *big.Int) *big.Int {
 	if x.Cmp(y) < 0 {
 		return y
 	}

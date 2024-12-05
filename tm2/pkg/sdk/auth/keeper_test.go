@@ -127,7 +127,7 @@ func TestMax(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			result := max(tc.x, tc.y)
+			result := maxBig(tc.x, tc.y)
 			require.Equal(t, tc.expected, result)
 		})
 	}
