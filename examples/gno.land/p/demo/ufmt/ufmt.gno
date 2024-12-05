@@ -51,27 +51,28 @@ func Println(args ...interface{}) {
 //
 // The currently formatted verbs are the following:
 //
-//	%s: places a string value directly.
-//	    If the value implements the interface interface{ String() string },
-//	    the String() method is called to retrieve the value. Same about Error()
-//	    string.
-//	%c: formats the character represented by Unicode code point
-//	%d: formats an integer value using package "strconv".
-//	    Currently supports only uint, uint64, int, int64.
-//	%f: formats a float value, with a default precision of 6.
-//	%e: formats a float with scientific notation; 1.23456e+78
-//	%E: formats a float with scientific notation; 1.23456E+78
-//	%F: The same as %f
-//	%g: formats a float value with %e for large exponents, and %f with full precision for smaller numbers
-//	%G: formats a float value with %G for large exponents, and %F with full precision for smaller numbers
-//	%t: formats a boolean value to "true" or "false".
-//	%x: formats an integer value as a hexadecimal string.
-//	    Currently supports only uint8, []uint8, [32]uint8.
-//	%c: formats a rune value as a string.
-//	    Currently supports only rune, int.
-//	%q: formats a string value as a quoted string.
-//	%T: formats the type of the value.
-//	%%: outputs a literal %. Does not consume an argument.
+//		%s: places a string value directly.
+//		    If the value implements the interface interface{ String() string },
+//		    the String() method is called to retrieve the value. Same about Error()
+//		    string.
+//		%c: formats the character represented by Unicode code point
+//		%d: formats an integer value using package "strconv".
+//		    Currently supports only uint, uint64, int, int64.
+//		%f: formats a float value, with a default precision of 6.
+//		%e: formats a float with scientific notation; 1.23456e+78
+//		%E: formats a float with scientific notation; 1.23456E+78
+//		%F: The same as %f
+//		%g: formats a float value with %e for large exponents, and %f with full precision for smaller numbers
+//		%G: formats a float value with %G for large exponents, and %F with full precision for smaller numbers
+//		%t: formats a boolean value to "true" or "false".
+//		%x: formats an integer value as a hexadecimal string.
+//		    Currently supports only uint8, []uint8, [32]uint8.
+//		%c: formats a rune value as a string.
+//		    Currently supports only rune, int.
+//		%q: formats a string value as a quoted string.
+//		%T: formats the type of the value.
+//	     %v: formats the value with a default representation appropriate for the value's type
+//		%%: outputs a literal %. Does not consume an argument.
 func Sprintf(format string, args ...interface{}) string {
 	// we use runes to handle multi-byte characters
 	sTor := []rune(format)
@@ -105,6 +106,51 @@ func Sprintf(format string, args ...interface{}) string {
 		argNum++
 
 		switch verb {
+		case "v":
+			switch v := arg.(type) {
+			case nil:
+				buf += "<nil>"
+			case bool:
+				if v {
+					buf += "true"
+				} else {
+					buf += "false"
+				}
+			case int:
+				buf += strconv.Itoa(v)
+			case int8:
+				buf += strconv.Itoa(int(v))
+			case int16:
+				buf += strconv.Itoa(int(v))
+			case int32:
+				buf += strconv.Itoa(int(v))
+			case int64:
+				buf += strconv.Itoa(int(v))
+			case uint:
+				buf += strconv.FormatUint(uint64(v), 10)
+			case uint8:
+				buf += strconv.FormatUint(uint64(v), 10)
+			case uint16:
+				buf += strconv.FormatUint(uint64(v), 10)
+			case uint32:
+				buf += strconv.FormatUint(uint64(v), 10)
+			case uint64:
+				buf += strconv.FormatUint(v, 10)
+			case float64:
+				buf += strconv.FormatFloat(v, 'g', -1, 64)
+			case string:
+				buf += v
+			case []byte:
+				buf += string(v)
+			case []rune:
+				buf += string(v)
+			case interface{ String() string }:
+				buf += v.String()
+			case error:
+				buf += v.Error()
+			default:
+				buf += fallback(verb, v)
+			}
 		case "s":
 			switch v := arg.(type) {
 			case interface{ String() string }:
