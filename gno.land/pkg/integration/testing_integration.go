@@ -19,7 +19,7 @@ import (
 	"github.com/gnolang/gno/gno.land/pkg/log"
 	"github.com/gnolang/gno/gno.land/pkg/sdk/vm"
 	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
-	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
+	"github.com/gnolang/gno/gnovm/pkg/gnolang"
 	"github.com/gnolang/gno/gnovm/pkg/gnomod"
 	"github.com/gnolang/gno/gnovm/pkg/packages"
 	"github.com/gnolang/gno/tm2/pkg/bft/node"
@@ -746,13 +746,13 @@ func (pl *pkgsLoader) LoadPackage(modroot string, path, name string) error {
 			currentPkg.Name = gm.Module.Mod.Path
 			currentPkg.Draft = gm.Draft
 
-			pkg := gno.MustReadMemPackage(currentPkg.Dir, currentPkg.Name)
+			pkg := gnolang.MustReadMemPackage(currentPkg.Dir, currentPkg.Name)
 			imports, err := packages.Imports(pkg)
 			if err != nil {
 				return fmt.Errorf("unable to load package imports in %q: %w", currentPkg.Dir, err)
 			}
 			for _, imp := range imports {
-				if imp == currentPkg.Name || gno.IsStdlib(imp) {
+				if imp == currentPkg.Name || gnolang.IsStdlib(imp) {
 					continue
 				}
 				currentPkg.Imports = append(currentPkg.Imports, imp)
