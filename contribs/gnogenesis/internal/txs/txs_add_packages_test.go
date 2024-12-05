@@ -269,6 +269,7 @@ func TestGenesis_Txs_Add_Packages(t *testing.T) {
 }
 
 func createValidFile(t *testing.T, dir string, packagePath string) {
+	t.Helper()
 	createFile := func(path, data string) {
 		file, err := os.Create(path)
 		require.NoError(t, err)

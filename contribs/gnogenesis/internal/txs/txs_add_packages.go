@@ -18,8 +18,7 @@ import (
 )
 
 var (
-	errInvalidPackageDir   = errors.New("invalid package directory")
-	errInvalidDeployerAddr = errors.New("invalid deployer address")
+	errInvalidPackageDir = errors.New("invalid package directory")
 )
 
 // Keep in sync with gno.land/cmd/start.go
