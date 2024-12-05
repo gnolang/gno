@@ -114,9 +114,7 @@ func TestDownloadDeps(t *testing.T) {
 			err := os.WriteFile(filepath.Join(dirPath, "main.gno"), []byte(fmt.Sprintf("package main\n\n import %q\n", tc.pkgPath)), 0o644)
 			require.NoError(t, err)
 
-			tmpGnoHome, err := os.MkdirTemp(os.TempDir(), "gnotesthome_")
-			require.NoError(t, err)
-			t.Cleanup(func() { os.RemoveAll(tmpGnoHome) })
+			tmpGnoHome := t.TempDir()
 			t.Setenv("GNOHOME", tmpGnoHome)
 
 			fetcher := examplespkgfetcher.New()
