@@ -28,7 +28,7 @@
             <div class="flex justify-between mb-3">
                 <div class="flex items-center gap-8">
                     <h1 class="text-600 font-bold">{{ .FileName }}</h1>
-                    <span class="text-gray-300">1.56 Kb · 56 lines</span>
+                    <span class="text-gray-300">{{ .FileSize }} · {{ .FileLines }} lines</span>
                 </div>
                 <div class="flex gap-4 text-gray-300">
                     <button class="flex items-center gap-1 hover:text-gray-600" data-copy-btn="source-code">

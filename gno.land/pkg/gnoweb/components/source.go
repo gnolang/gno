@@ -9,7 +9,7 @@ type SourceData struct {
 	PkgPath     string
 	Files       []string
 	FileName    string
-	FileSize    float32
+	FileSize    string
 	FileLines   int
 	FileCounter int
 	FileSource  template.HTML

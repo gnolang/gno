@@ -184,6 +184,10 @@ func (h *WebHandler) renderRealmSource(w io.Writer, gnourl *GnoURL) (status int,
 		return http.StatusInternalServerError, components.RenderStatusComponent(w, "internal error")
 	}
 
+	fileLines := strings.Count(string(source), "\n")
+	fileSizeKb := float64(len(source)) / 1024.0
+	fileSizeStr := fmt.Sprintf("%.2f Kb", fileSizeKb)
+
 	hsource, err := h.highlightSource(fileName, source)
 	if err != nil {
 		h.logger.Error("unable to highlight source file", "file", fileName, "err", err)
@@ -195,6 +199,8 @@ func (h *WebHandler) renderRealmSource(w io.Writer, gnourl *GnoURL) (status int,
 		Files:       files,
 		FileName:    fileName,
 		FileCounter: len(files),
+		FileLines:   fileLines,
+		FileSize:    fileSizeStr,
 		FileSource:  template.HTML(hsource),
 	})
 	if err != nil {
