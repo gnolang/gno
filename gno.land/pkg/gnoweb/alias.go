@@ -25,7 +25,7 @@ var Redirects = map[string]string{
 	"/grants":                  "/partners",
 	"/language":                "/gnolang",
 	"/getting-started":         "/start",
-	"/gophercon24":             "https://docs.gno.land",
+	"/faucet":                  "https://faucet.gno.land/",
 }
 
 func AliasAndRedirectMiddleware(next http.Handler) http.Handler {
