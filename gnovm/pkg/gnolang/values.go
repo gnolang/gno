@@ -548,7 +548,7 @@ type FuncValue struct {
 	Captures   []TypedValue `json:",omitempty"` // HeapItemValues captured from closure.
 	FileName   Name         // file name where declared
 	PkgPath    string
-	NativePkg  string // for native bindings through NativeStore
+	NativePkg  string // for native bindings through NativeResolver
 	NativeName Name   // not redundant with Name; this cannot be changed in userspace
 
 	body       []Stmt         // function body
