@@ -21,14 +21,15 @@ type webCfg struct {
 	remote     string
 	remoteHelp string
 	bind       string
+	analytics  bool
 	json       bool
+	html       bool
 }
 
 var defaultWebOptions = &webCfg{
-	chainid:    "dev",
-	remote:     "127.0.0.1:26657",
-	bind:       ":8888",
-	remoteHelp: "",
+	chainid: "dev",
+	remote:  "127.0.0.1:26657",
+	bind:    ":8888",
 }
 
 func main() {
@@ -92,6 +93,21 @@ func (c *webCfg) RegisterFlags(fs *flag.FlagSet) {
 		defaultWebOptions.json,
 		"display log in json format",
 	)
+
+	fs.BoolVar(
+		&c.html,
+		"html",
+		defaultWebOptions.html,
+		"enable unsafe html",
+	)
+
+	fs.BoolVar(
+		&c.analytics,
+		"with-analytics",
+		defaultWebOptions.analytics,
+		"nable privacy-first analytics",
+	)
+
 }
 
 func execWeb(cfg *webCfg, args []string, io commands.IO) (err error) {
@@ -109,6 +125,8 @@ func execWeb(cfg *webCfg, args []string, io commands.IO) (err error) {
 	appcfg.ChainID = cfg.chainid
 	appcfg.Remote = cfg.remote
 	appcfg.RemoteHelp = cfg.remoteHelp
+	appcfg.Analytics = cfg.analytics
+	appcfg.UnsafeHTML = cfg.html
 	if appcfg.RemoteHelp == "" {
 		appcfg.RemoteHelp = appcfg.Remote
 	}

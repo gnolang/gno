@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 
 	"github.com/gnolang/gno/gno.land/pkg/integration"
@@ -117,9 +118,9 @@ func TestAnalytics(t *testing.T) {
 	logger := log.NewTestingLogger(t)
 
 	t.Run("with", func(t *testing.T) {
+		cfg.Analytics = true
 		for _, route := range routes {
 			t.Run(route, func(t *testing.T) {
-				// ccfg.WithAnalytics = true
 				router, err := MakeRouterApp(logger, cfg)
 				require.NoError(t, err)
 
@@ -130,17 +131,18 @@ func TestAnalytics(t *testing.T) {
 			})
 		}
 	})
-	// t.Run("without", func(t *testing.T) {
-	// 	for _, route := range routes {
-	// 		t.Run(route, func(t *testing.T) {
-	// 			ccfg := cfg // clone config
-	// 			ccfg.WithAnalytics = false
-	// 			app := MakeApp(logger, ccfg)
-	// 			request := httptest.NewRequest(http.MethodGet, route, nil)
-	// 			response := httptest.NewRecorder()
-	// 			app.Router.ServeHTTP(response, request)
-	// 			assert.Equal(t, strings.Contains(response.Body.String(), "sa.gno.services"), false)
-	// 		})
-	// 	}
-	// })
+	t.Run("without", func(t *testing.T) {
+		cfg.Analytics = false
+		for _, route := range routes {
+			t.Run(route, func(t *testing.T) {
+				router, err := MakeRouterApp(logger, cfg)
+				require.NoError(t, err)
+
+				request := httptest.NewRequest(http.MethodGet, route, nil)
+				response := httptest.NewRecorder()
+				router.ServeHTTP(response, request)
+				assert.Equal(t, strings.Contains(response.Body.String(), "sa.gno.services"), false)
+			})
+		}
+	})
 }

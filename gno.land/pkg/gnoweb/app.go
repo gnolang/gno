@@ -7,10 +7,11 @@ import (
 	"path"
 	"strings"
 
-	"github.com/alecthomas/chroma/v2/formatters/html"
+	chromahtml "github.com/alecthomas/chroma/v2/formatters/html"
 	"github.com/alecthomas/chroma/v2/styles"
 	"github.com/gnolang/gno/tm2/pkg/bft/rpc/client"
 	"github.com/yuin/goldmark"
+	mdhtml "github.com/yuin/goldmark/renderer/html"
 )
 
 var chromaStyle = styles.Get("friendly")
@@ -22,6 +23,8 @@ func init() {
 }
 
 type AppConfig struct {
+	UnsafeHTML bool
+	Analytics  bool
 	Remote     string
 	RemoteHelp string
 	ChainID    string
@@ -39,7 +42,11 @@ func NewDefaultAppConfig() *AppConfig {
 }
 
 func MakeRouterApp(logger *slog.Logger, cfg *AppConfig) (http.Handler, error) {
-	md := goldmark.New()
+	mdopts := []goldmark.Option{}
+	if cfg.UnsafeHTML {
+		mdopts = append(mdopts, goldmark.WithRendererOptions(mdhtml.WithXHTML(), mdhtml.WithUnsafe()))
+	}
+	md := goldmark.New(mdopts...)
 
 	client, err := client.NewHTTPClient(cfg.Remote)
 	if err != nil {
@@ -47,11 +54,11 @@ func MakeRouterApp(logger *slog.Logger, cfg *AppConfig) (http.Handler, error) {
 	}
 	webcli := NewWebClient(logger, client, md)
 
-	formatter := html.New(
-		html.WithLineNumbers(true),
-		html.WithLinkableLineNumbers(true, "L"),
-		html.WithClasses(true),
-		html.ClassPrefix("chroma-"),
+	formatter := chromahtml.New(
+		chromahtml.WithLineNumbers(true),
+		chromahtml.WithLinkableLineNumbers(true, "L"),
+		chromahtml.WithClasses(true),
+		chromahtml.ClassPrefix("chroma-"),
 	)
 	chromaStylePath := path.Join(cfg.AssetsPath, "_chroma", "style.css")
 
@@ -65,6 +72,7 @@ func MakeRouterApp(logger *slog.Logger, cfg *AppConfig) (http.Handler, error) {
 	webConfig.Meta.ChromaPath = chromaStylePath
 	webConfig.Meta.RemoteHelp = cfg.RemoteHelp
 	webConfig.Meta.ChaindID = cfg.ChainID
+	webConfig.Meta.Analytics = cfg.Analytics
 
 	// Setup main handler
 	webhandler := NewWebHandler(logger, webConfig)
@@ -72,7 +80,7 @@ func MakeRouterApp(logger *slog.Logger, cfg *AppConfig) (http.Handler, error) {
 	mux := http.NewServeMux()
 
 	// Setup Webahndler along Alias Middleware
-	mux.Handle("/", AliasAndRedirectMiddleware(webhandler))
+	mux.Handle("/", AliasAndRedirectMiddleware(webhandler, cfg.Analytics))
 
 	// setup assets
 	mux.Handle(chromaStylePath, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

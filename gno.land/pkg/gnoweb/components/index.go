@@ -15,6 +15,7 @@ type HeadData struct {
 	URL         string
 	ChromaPath  string
 	AssetsPath  string
+	Analytics   bool
 }
 
 type HeaderData struct {
@@ -23,9 +24,14 @@ type HeaderData struct {
 	WebQuery   url.Values
 }
 
+type FooterData struct {
+	Analytics bool
+}
+
 type IndexData struct {
 	HeadData
 	HeaderData
+	FooterData
 	Body template.HTML
 }
 

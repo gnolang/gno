@@ -11,7 +11,7 @@
         {{ template "main" .Body }}
 
         <!-- footer -->
-        {{ template "footer" }}
+        {{ template "footer" .FooterData }}
     </body>
 </html>
 {{ end }}
@@ -143,8 +143,14 @@
 </footer>
 <script src="/public/js/searchbar.js"></script>
 <script src="/public/js/copy.js"></script>
+{{- if .Analytics -}} {{- template "analytics" }} {{- end -}}
+
+{{- end }}
+
+{{- define "analytics" -}}
+<!-- 100% privacy-first analytics -->
 <script async="" defer="" src="https://sa.gno.services/latest.js"></script>
 <noscript>
-    <img src="https://sa.gno.services/noscript.gif" alt="" referrerpolicy="no-referrer-when-downgrade"/>
+		<img src="https://sa.gno.services/noscript.gif" alt="" referrerpolicy="no-referrer-when-downgrade"/>
 </noscript>
-{{ end }}
+{{- end -}}

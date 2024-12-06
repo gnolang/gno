@@ -70,7 +70,6 @@ dev:
 
 # Go server in development mode
 dev.gnoweb: | .cache
-	@killall gnowebserve || true # make sure that previous instances as been kill
 	$(run_reflex) -s -r '.*\.go(html)?' -- \
 		go run ../../cmd/gnoweb -chainid=${CHAIN_ID} -remote=${DEV_REMOTE} \
 		2>&1 | $(run_logname) gnoweb

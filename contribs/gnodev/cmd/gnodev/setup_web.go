@@ -14,6 +14,7 @@ func setupGnoWebServer(logger *slog.Logger, cfg *devCfg, dnode *gnodev.Node) (ht
 	remote := dnode.GetRemoteAddress()
 
 	appcfg := gnoweb.NewDefaultAppConfig()
+	appcfg.UnsafeHTML = cfg.webHTML
 	appcfg.Remote = remote
 	appcfg.ChainID = cfg.chainId
 	if cfg.webRemoteHelperAddr != "" {

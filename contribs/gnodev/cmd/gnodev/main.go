@@ -58,6 +58,7 @@ type devCfg struct {
 
 	// Web Configuration
 	noWeb               bool
+	webHTML             bool
 	webListenerAddr     string
 	webRemoteHelperAddr string
 
@@ -126,6 +127,13 @@ func (c *devCfg) RegisterFlags(fs *flag.FlagSet) {
 		"no-web",
 		defaultDevOptions.noWeb,
 		"disable gnoweb",
+	)
+
+	fs.BoolVar(
+		&c.webHTML,
+		"web-html",
+		defaultDevOptions.webHTML,
+		"enable usafe web html",
 	)
 
 	fs.StringVar(

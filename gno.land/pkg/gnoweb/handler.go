@@ -24,6 +24,7 @@ type StaticMetadata struct {
 	ChromaPath string
 	RemoteHelp string
 	ChaindID   string
+	Analytics  bool
 }
 
 type WebHandlerConfig struct {
@@ -91,6 +92,7 @@ func (h *WebHandler) Get(w http.ResponseWriter, r *http.Request) {
 	var indexData components.IndexData
 	indexData.HeadData.AssetsPath = h.static.AssetsPath
 	indexData.HeadData.ChromaPath = h.static.ChromaPath
+	indexData.FooterData.Analytics = h.static.Analytics
 
 	// Render the page body into the buffer
 	var status int
