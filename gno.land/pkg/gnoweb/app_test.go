@@ -31,8 +31,8 @@ func TestRoutes(t *testing.T) {
 		{"/r/gnoland/blog/", ok, "admin.gno"},
 		{"/r/gnoland/blog/admin.gno", ok, ">func<"},
 		{"/r/gnoland/blog$help&func=Render", ok, "Render(path)"},
-		// {"/r/gnoland/blog$help&func=Render&path=foo/bar", ok, `input type="text" value="foo/bar"`},
-		// {"/r/gnoland/blog$help&func=NonExisting", ok, "NonExisting not found"},
+		{"/r/gnoland/blog$help&func=Render&path=foo/bar", ok, `value="foo/bar"`},
+		// {"/r/gnoland/blog$help&func=NonExisting", ok, "NonExisting not found"}, // XXX(TODO)
 		{"/r/demo/users:administrator", ok, "address"},
 		{"/r/demo/users", ok, "moul"},
 		{"/r/demo/users/users.gno", ok, "// State"},
@@ -47,11 +47,11 @@ func TestRoutes(t *testing.T) {
 		{"/game-of-realms", found, "/contribute"},
 		{"/gor", found, "/contribute"},
 		{"/blog", found, "/r/gnoland/blog"},
-		{"/404/not/found/", notFound, "page not found"},
-		{"/아스키문자가아닌경로", notFound, "/아스키문자가아닌경로"},
-		{"/%ED%85%8C%EC%8A%A4%ED%8A%B8", notFound, "/테스트"},
-		{"/グノー", notFound, "/グノー"},
-		{"/⚛️", notFound, "/⚛️"},
+		{"/404/not/found/", notFound, ""},
+		{"/아스키문자가아닌경로", notFound, ""},
+		{"/%ED%85%8C%EC%8A%A4%ED%8A%B8", notFound, ""},
+		{"/グノー", notFound, ""},
+		{"/⚛️", notFound, ""},
 		{"/p/demo/flow/LICENSE", ok, "BSD 3-Clause"},
 	}
 

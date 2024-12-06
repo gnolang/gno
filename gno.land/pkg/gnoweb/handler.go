@@ -331,16 +331,15 @@ func (h *WebHandler) renderRealmDirectory(w io.Writer, gnourl *GnoURL) (status i
 func (h *WebHandler) highlightSource(fileName string, src []byte) ([]byte, error) {
 	var lexer chroma.Lexer
 
-	ext := strings.ToLower(filepath.Ext(fileName))
-	switch {
-	case ext == ".gno":
+	switch strings.ToLower(filepath.Ext(fileName)) {
+	case ".gno":
 		lexer = lexers.Get("go")
-	case ext == ".md":
+	case ".md":
 		lexer = lexers.Get("markdown")
-	case ext == ".mod":
+	case ".mod":
 		lexer = lexers.Get("gomod")
 	default:
-		return nil, fmt.Errorf("unsupported extension for highlighting source file: %q", fileName)
+		lexer = lexers.Get("txt") // file kind not supported, fallback on `.txt`
 	}
 
 	if lexer == nil {
