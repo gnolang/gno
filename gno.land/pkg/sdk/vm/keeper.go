@@ -397,7 +397,7 @@ func (vm *VMKeeper) AddPackage(ctx sdk.Context, msg MsgAddPackage) (err error) {
 			case store.OutOfGasException: // panic in consumeGas()
 				panic(r)
 			default:
-				err = errors.Wrap(fmt.Errorf("%v", r), "VM addpkg panic: %v\n%s\n",
+				err = errors.Wrapf(fmt.Errorf("%v", r), "VM addpkg panic: %v\n%s\n",
 					r, m2.String())
 				return
 			}
@@ -500,10 +500,10 @@ func (vm *VMKeeper) Call(ctx sdk.Context, msg MsgCall) (res string, err error) {
 			case store.OutOfGasException: // panic in consumeGas()
 				panic(r)
 			case gno.UnhandledPanicError:
-				err = errors.Wrap(fmt.Errorf("%v", r.Error()), "VM call panic: %s\nStacktrace: %s\n",
+				err = errors.Wrapf(fmt.Errorf("%v", r.Error()), "VM call panic: %s\nStacktrace: %s\n",
 					r.Error(), m.ExceptionsStacktrace())
 			default:
-				err = errors.Wrap(fmt.Errorf("%v", r), "VM call panic: %v\nMachine State:%s\nStacktrace: %s\n",
+				err = errors.Wrapf(fmt.Errorf("%v", r), "VM call panic: %v\nMachine State:%s\nStacktrace: %s\n",
 					r, m.String(), m.Stacktrace().String())
 				return
 			}
@@ -605,7 +605,7 @@ func (vm *VMKeeper) Run(ctx sdk.Context, msg MsgRun) (res string, err error) {
 			case store.OutOfGasException: // panic in consumeGas()
 				panic(r)
 			default:
-				err = errors.Wrap(fmt.Errorf("%v", r), "VM run main addpkg panic: %v\n%s\n",
+				err = errors.Wrapf(fmt.Errorf("%v", r), "VM run main addpkg panic: %v\n%s\n",
 					r, m.String())
 				return
 			}
@@ -631,7 +631,7 @@ func (vm *VMKeeper) Run(ctx sdk.Context, msg MsgRun) (res string, err error) {
 			case store.OutOfGasException: // panic in consumeGas()
 				panic(r)
 			default:
-				err = errors.Wrap(fmt.Errorf("%v", r), "VM run main call panic: %v\n%s\n",
+				err = errors.Wrapf(fmt.Errorf("%v", r), "VM run main call panic: %v\n%s\n",
 					r, m2.String())
 				return
 			}
@@ -763,7 +763,7 @@ func (vm *VMKeeper) QueryEval(ctx sdk.Context, pkgPath string, expr string) (res
 			case store.OutOfGasException: // panic in consumeGas()
 				panic(r)
 			default:
-				err = errors.Wrap(fmt.Errorf("%v", r), "VM query eval panic: %v\n%s\n",
+				err = errors.Wrapf(fmt.Errorf("%v", r), "VM query eval panic: %v\n%s\n",
 					r, m.String())
 				return
 			}
@@ -831,7 +831,7 @@ func (vm *VMKeeper) QueryEvalString(ctx sdk.Context, pkgPath string, expr string
 			case store.OutOfGasException: // panic in consumeGas()
 				panic(r)
 			default:
-				err = errors.Wrap(fmt.Errorf("%v", r), "VM query eval string panic: %v\n%s\n",
+				err = errors.Wrapf(fmt.Errorf("%v", r), "VM query eval string panic: %v\n%s\n",
 					r, m.String())
 				return
 			}
