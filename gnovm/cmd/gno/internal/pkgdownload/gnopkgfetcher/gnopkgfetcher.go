@@ -83,7 +83,7 @@ func qfile(c client.Client, pkgPath string) ([]byte, error) {
 		return nil, errors.Wrap(err, "query qfile")
 	}
 	if qres.Response.Error != nil {
-		return nil, errors.Wrap(qres.Response.Error, "QFile failed: log:%s", qres.Response.Log)
+		return nil, errors.Wrapf(qres.Response.Error, "QFile failed: log:%s", qres.Response.Log)
 	}
 
 	return qres.Response.Data, nil
