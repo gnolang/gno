@@ -7,7 +7,6 @@ func TestCheckAssignableTo(t *testing.T) {
 
 	tests := []struct {
 		name       string
-		n          Node
 		xt         Type
 		dt         Type
 		autoNative bool
@@ -52,7 +51,7 @@ func TestCheckAssignableTo(t *testing.T) {
 					}
 				}()
 			}
-			checkAssignableTo(tt.n, tt.xt, tt.dt, tt.autoNative)
+			checkAssignableTo(nil, tt.xt, tt.dt, tt.autoNative)
 		})
 	}
 }
