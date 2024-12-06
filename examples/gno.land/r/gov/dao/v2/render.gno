@@ -111,9 +111,9 @@ func renderActionBar(p dao.Proposal, idx int) string {
 	out += "### Actions\n\n"
 	if p.Status() == dao.Active {
 		out += ufmt.Sprintf("#### [[Vote YES](%s)] - [[Vote NO](%s)] - [[Vote ABSTAIN](%s)]",
-			txlink.URL("VoteOnProposal", "id", strconv.Itoa(idx), "option", "YES"),
-			txlink.URL("VoteOnProposal", "id", strconv.Itoa(idx), "option", "NO"),
-			txlink.URL("VoteOnProposal", "id", strconv.Itoa(idx), "option", "ABSTAIN"),
+			txlink.Call("VoteOnProposal", "id", strconv.Itoa(idx), "option", "YES"),
+			txlink.Call("VoteOnProposal", "id", strconv.Itoa(idx), "option", "NO"),
+			txlink.Call("VoteOnProposal", "id", strconv.Itoa(idx), "option", "ABSTAIN"),
 		)
 	} else {
 		out += "The voting period for this proposal is over."

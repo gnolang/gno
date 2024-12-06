@@ -8,7 +8,7 @@
 
 ## gnovm
 ["gno.land/r/sys/params.vm"]
-  # TODO: chain_domain.string = "gno.land"
+  chain_domain.string = "gno.land"
   # TODO: max_gas.int64 = 100_000_000
   # TODO: chain_tz.string = "UTC"
   # TODO: default_storage_allowance.string = ""

@@ -70,7 +70,7 @@ func (r Realm) Func(title string, fn string, args ...string) string {
 // arguments.
 func (r Realm) FuncURL(fn string, args ...string) string {
 	tlr := txlink.Realm(r)
-	return tlr.URL(fn, args...)
+	return tlr.Call(fn, args...)
 }
 
 // Home returns the base help URL for the specified realm.
