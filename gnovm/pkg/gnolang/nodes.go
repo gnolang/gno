@@ -1215,11 +1215,12 @@ func ReadMemPackageFromList(list []string, pkgPath string) *gnovm.MemPackage {
 			})
 	}
 
-	// If no .gno files are present, package simply does not exist.
-	if !memPkg.IsEmpty() {
-		validatePkgName(string(pkgName))
-		memPkg.Name = string(pkgName)
-	}
+	// if pkgName == "" {
+	// 	panic("invalid package: no package name found")
+	// }
+
+	validatePkgPath(pkgPath, string(pkgName))
+	memPkg.Name = string(pkgName)
 
 	return memPkg
 }
@@ -2136,7 +2137,40 @@ func (x *BasicLitExpr) GetInt() int {
 	return i
 }
 
-var rePkgName = regexp.MustCompile(`^[a-z][a-z0-9_]+$`)
+var invalidPkgNames = map[string]struct{}{
+	"internal": {},
+	"crypto":   {},
+}
+
+func validatePkgPath(pkgPath, pkgName string) {
+	parts := strings.Split(pkgPath, "/")
+	lastPart := parts[len(parts)-1]
+
+	// testing env
+	if lastPart == "." {
+		return
+	}
+
+	if _, ok := invalidPkgNames[lastPart]; ok {
+		panic(fmt.Sprintf("cannot create package with invalid name %q", pkgName))
+	}
+
+	if strings.HasSuffix(lastPart, "_test") {
+		return
+	}
+
+	validatePkgName(lastPart)
+
+	if len(parts) > 1 {
+		return
+	}
+
+	if !IsStdlib(pkgPath) {
+		panic(fmt.Sprintf("cannot create package with invalid path %q", pkgPath))
+	}
+}
+
+var rePkgName = regexp.MustCompile(`^[a-z0-9][a-z0-9_]+$`)
 
 // TODO: consider length restrictions.
 // If this function is changed, ReadMemPackage's documentation should be updated accordingly.
