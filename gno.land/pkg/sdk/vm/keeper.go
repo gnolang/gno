@@ -5,6 +5,7 @@ package vm
 import (
 	"bytes"
 	"context"
+	goErrors "errors"
 	"fmt"
 	"io"
 	"log/slog"
@@ -64,7 +65,7 @@ type VMKeeper struct {
 	iavlKey store.StoreKey
 	acck    auth.AccountKeeper
 	bank    bank.BankKeeper
-	prmk    params.ParamsKeeper
+	prmk    params.Keeper
 
 	// cached, the DeliverTx persistent state.
 	gnoStore gno.Store
@@ -76,7 +77,7 @@ func NewVMKeeper(
 	iavlKey store.StoreKey,
 	acck auth.AccountKeeper,
 	bank bank.BankKeeper,
-	prmk params.ParamsKeeper,
+	prmk params.Keeper,
 ) *VMKeeper {
 	vmk := &VMKeeper{
 		baseKey: baseKey,
@@ -232,10 +233,14 @@ const sysUsersPkgParamPath = "gno.land/r/sys/params.sys.users_pkgpath.string"
 
 // checkNamespacePermission check if the user as given has correct permssion to on the given pkg path
 func (vm *VMKeeper) checkNamespacePermission(ctx sdk.Context, creator crypto.Address, pkgPath string) error {
-	var sysUsersPkg string
-	vm.prmk.GetString(ctx, sysUsersPkgParamPath, &sysUsersPkg)
-	if sysUsersPkg == "" {
+	sysUsersPkg, err := vm.prmk.GetString(ctx, sysUsersPkgParamPath)
+	if goErrors.Is(err, params.ErrMissingParamValue) || sysUsersPkg == "" {
+		// No namespace support enabled
 		return nil
+	}
+
+	if err != nil {
+		return fmt.Errorf("unable to load param %s, %w", sysUsersPkgParamPath, err)
 	}
 
 	store := vm.getGnoTransactionStore(ctx)

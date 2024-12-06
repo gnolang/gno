@@ -333,7 +333,7 @@ func Do() string {
 	pkgPath := "gno.land/r/test"
 	msg1 := NewMsgAddPackage(addr, pkgPath, files)
 	err := env.vmk.AddPackage(ctx, msg1)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	// Run Echo function.
 	coins := std.MustParseCoins(ugnot.ValueString(9_000_000))
@@ -345,10 +345,12 @@ func Do() string {
 	expected := fmt.Sprintf("(\"%s\" string)\n\n", "XXX") // XXX: return something more useful
 	assert.Equal(t, expected, res)
 
-	var foo string
-	var bar int64
-	env.vmk.prmk.GetString(ctx, "gno.land/r/test.foo.string", &foo)
-	env.vmk.prmk.GetInt64(ctx, "gno.land/r/test.bar.int64", &bar)
+	foo, err := env.vmk.prmk.GetString(ctx, "gno.land/r/test.foo.string")
+	require.NoError(t, err)
+
+	bar, err := env.vmk.prmk.GetInt64(ctx, "gno.land/r/test.bar.int64")
+	require.NoError(t, err)
+
 	assert.Equal(t, "foo2", foo)
 	assert.Equal(t, int64(1337), bar)
 }
