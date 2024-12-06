@@ -27,7 +27,7 @@ func (c Config) GetLink() string {
 	return c.URL
 }
 
-const DefaultText = `Click [here]({link}) to visit the full rendering experience.\n`
+const DefaultText = "Click [here]({link}) to visit the full rendering experience.\n"
 
 // Render displays a frontend link at the top of your realm's Render function in
 // a concistent way to help gno visitors to have a consistent experience.

@@ -37,25 +37,28 @@ func Render(path string) string {
 
 	content += umd.H2("Status")
 	content += umd.Paragraph(status)
-	content += umd.Link("update", txlink.Call("UpdateStatus"))
+	content += umd.Paragraph(umd.Link("update", txlink.Call("UpdateStatus")))
 
-	content += umd.H2("Personal ToDo List")
+	content += umd.H2("Personal TODO List (bullet list)")
 	content += umd.BulletItem("test")
 	for i, todo := range todos {
-		deleteLink := umd.Link("x", txlink.Call("DeleteTodo", "idx", strconv.Itoa(i)))
+		idstr := strconv.Itoa(i)
+		deleteLink := umd.Link("x", txlink.Call("DeleteTodo", "idx", idstr))
 		content += umd.BulletItem(todo + " " + deleteLink)
 	}
 	content += umd.Paragraph(
 		umd.Link("new", txlink.Call("AddTodo")),
 	)
 
-	content += umd.H2("Table Example")
-	// TODO: replace with a useful example
+	content += umd.H2("Personal TODO List (table)")
 	table := mdtable.Table{
-		Headers: []string{"foo", "bar"},
+		Headers: []string{"ID", "Item", "Links"},
 	}
-	table.Append([]string{"foo1", "bar1"})
-	table.Append([]string{"foo2", "bar2"})
+	for i, todo := range todos {
+		idstr := strconv.Itoa(i)
+		deleteLink := umd.Link("del", txlink.Call("DeleteTodo", "idx", idstr))
+		table.Append([]string{"#" + idstr, todo, deleteLink})
+	}
 	content += table.String()
 
 	// TODO: my r/boards posts
