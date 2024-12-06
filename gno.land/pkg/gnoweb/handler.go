@@ -122,7 +122,7 @@ func (h *WebHandler) Get(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(status)
 
 	// NOTE: HTML escaping should have already been done by markdown rendering package
-	indexData.Body = template.HTML(body.String()) // nolint:gosec
+	indexData.Body = template.HTML(body.String()) //nolint:gosec
 
 	// Render the final page with the rendered body
 	if err = components.RenderIndexComponent(w, indexData); err != nil {
@@ -291,7 +291,7 @@ func (h *WebHandler) renderRealmSource(w io.Writer, gnourl *GnoURL) (status int,
 		FileCounter: len(files),
 		FileLines:   fileLines,
 		FileSize:    fileSizeStr,
-		FileSource:  template.HTML(hsource),
+		FileSource:  template.HTML(hsource), //nolint:gosec
 	})
 	if err != nil {
 		h.logger.Error("unable to render helper", "err", err)

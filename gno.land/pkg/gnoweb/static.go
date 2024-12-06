@@ -2,7 +2,6 @@ package gnoweb
 
 import (
 	"embed"
-	_ "embed"
 	"net/http"
 )
 
