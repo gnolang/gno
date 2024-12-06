@@ -44,11 +44,11 @@ type Keybase interface {
 	// CreateMulti creates, stores, and returns a new multsig (offline) key reference
 	CreateMulti(name string, pubkey crypto.PubKey) (info Info, err error)
 
-	// Rotate replaces the encryption password for a given key.
-	// In all import operations, if an account exists with the same address but a different name, it is replaced by the new name
+	// Rotate replaces the encryption password for a given key
 	Rotate(name, oldpass string, getNewpass func() (string, error)) error
 
-	// ImportPrivKey imports the given private key into the keybase
+	// ImportPrivKey imports the given private key into the keybase.
+	// In all import operations, if an account exists with the same address but a different name, it is replaced by the new name
 	ImportPrivKey(name string, key crypto.PrivKey, encryptPass string) error
 
 	// ExportPrivKey exports the private key from the keybase. It *only* works on locally-stored keys
