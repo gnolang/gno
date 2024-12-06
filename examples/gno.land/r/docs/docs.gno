@@ -14,6 +14,7 @@ Explore various examples to learn more about Gno functionality and usage.
 - [AVL Pager](/r/docs/avl_pager) - Paginate through AVL tree items.  
 - [Img Embed](/r/docs/img_embed) - Demonstrates how to embed an image.
 - ...
+<!-- meta issue with suggestions: https://github.com/gnolang/gno/issues/3292 -->
 
 ## Other resources
 
