@@ -17,7 +17,7 @@ var (
 	todos       []string
 	status      string
 	memeImgURL  string
-	web25config = web25.Config{CID: "12345678"}
+	web25config = web25.Config{URL: "https://moul.github.io/gno-moul-home-web25/"}
 )
 
 func init() {
