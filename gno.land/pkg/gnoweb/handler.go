@@ -39,8 +39,8 @@ type WebHandler struct {
 	static StaticMetadata
 	webcli *WebClient
 
-	// bufferPool is used to reuse Buffer instances
-	// to reduce memory allocations and improve performance.
+	// BufferPool is used to reuse Buffer instances
+	// to reduce memory allocations and improve performance
 	// XXX: maybe this is a too early optimization
 	bufferPool sync.Pool
 }
@@ -121,7 +121,7 @@ func (h *WebHandler) Get(w http.ResponseWriter, r *http.Request) {
 
 	w.WriteHeader(status)
 
-	// NOTE: HTML escaping should have already be done by markdown rendering package
+	// NOTE: HTML escaping should have already been done by markdown rendering package
 	indexData.Body = template.HTML(body.String()) // nolint:gosec
 
 	// Render the final page with the rendered body
@@ -135,12 +135,12 @@ func (h *WebHandler) Get(w http.ResponseWriter, r *http.Request) {
 func (h *WebHandler) renderRealm(w io.Writer, gnourl *GnoURL) (status int, err error) {
 	h.logger.Info("component render", "path", gnourl.Path, "args", gnourl.Args)
 
-	// Display realm help page ?
+	// Display realm help page?
 	if gnourl.WebQuery.Has("help") {
 		return h.renderRealmHelp(w, gnourl)
 	}
 
-	// Display realm source page ?
+	// Display realm source page?
 	// XXX: it would probably be better to have this as a middleware somehow
 	switch {
 	case gnourl.WebQuery.Has("source"):
@@ -148,7 +148,7 @@ func (h *WebHandler) renderRealm(w io.Writer, gnourl *GnoURL) (status int, err e
 	case gnourl.Kind == KindPure, endsWithRune(gnourl.Path, '/') || isFile(gnourl.Path):
 		i := strings.LastIndexByte(gnourl.Path, '/')
 		if i < 0 {
-			return http.StatusInternalServerError, fmt.Errorf("unable get ending slash for %q", gnourl.Path)
+			return http.StatusInternalServerError, fmt.Errorf("unable to get ending slash for %q", gnourl.Path)
 		}
 
 		// Fill webquery with file infos
@@ -184,7 +184,7 @@ func (h *WebHandler) renderRealm(w io.Writer, gnourl *GnoURL) (status int, err e
 		TocItems: &components.RealmTOCData{
 			Items: meta.Items,
 		},
-		// NOTE: `content` should have altready be escaped by
+		// NOTE: `content` should have already been escaped by
 		Content: template.HTML(content.String()), //nolint:gosec
 	})
 	if err != nil {
@@ -222,7 +222,7 @@ func (h *WebHandler) renderRealmHelp(w io.Writer, gnourl *GnoURL) (status int, e
 	}
 
 	// Catch last name of the path
-	// XXX: we should probably add an helper within the template
+	// XXX: we should probably add a helper within the template
 	realmName := filepath.Base(gnourl.Path)
 	err = components.RenderHelpComponent(w, components.HelpData{
 		SelectedFunc: selFn,
@@ -251,7 +251,7 @@ func (h *WebHandler) renderRealmSource(w io.Writer, gnourl *GnoURL) (status int,
 	}
 
 	if len(files) == 0 {
-		h.logger.Debug("no file(s) available", "path", gnourl.Path)
+		h.logger.Debug("no files available", "path", gnourl.Path)
 		return http.StatusOK, components.RenderStatusComponent(w, "no files available")
 	}
 
@@ -272,7 +272,7 @@ func (h *WebHandler) renderRealmSource(w io.Writer, gnourl *GnoURL) (status int,
 		return http.StatusInternalServerError, components.RenderStatusComponent(w, "internal error")
 	}
 
-	// XXX: we should either do this on the front
+	// XXX: we should either do this on the front or in the markdown parsing side
 	fileLines := strings.Count(string(source), "\n")
 	fileSizeKb := float64(len(source)) / 1024.0
 	fileSizeStr := fmt.Sprintf("%.2f Kb", fileSizeKb)
@@ -311,7 +311,7 @@ func (h *WebHandler) renderRealmDirectory(w io.Writer, gnourl *GnoURL) (status i
 	}
 
 	if len(files) == 0 {
-		h.logger.Debug("no file(s) available", "path", gnourl.Path)
+		h.logger.Debug("no files available", "path", gnourl.Path)
 		return http.StatusOK, components.RenderStatusComponent(w, "no files available")
 	}
 
@@ -344,7 +344,7 @@ func (h *WebHandler) highlightSource(fileName string, src []byte) ([]byte, error
 	}
 
 	if lexer == nil {
-		return nil, fmt.Errorf("unsuported lexer for file %q", fileName)
+		return nil, fmt.Errorf("unsupported lexer for file %q", fileName)
 	}
 
 	iterator, err := lexer.Tokenise(nil, string(src))
@@ -360,12 +360,12 @@ func (h *WebHandler) highlightSource(fileName string, src []byte) ([]byte, error
 	return buff.Bytes(), nil
 }
 
-// getBuffer retrieves a buffer from the sync.Pool
+// GetBuffer retrieves a buffer from the sync.Pool
 func (h *WebHandler) getBuffer() *bytes.Buffer {
 	return h.bufferPool.Get().(*bytes.Buffer)
 }
 
-// putBuffer resets and puts a buffer back into the sync.Pool
+// PutBuffer resets and puts a buffer back into the sync.Pool
 func (h *WebHandler) putBuffer(buf *bytes.Buffer) {
 	buf.Reset()
 	h.bufferPool.Put(buf)
@@ -399,7 +399,7 @@ func contains(files []string, file string) bool {
 	return false
 }
 
-// EndsWithRune checks if the given path ends with the specified rune.
+// EndsWithRune checks if the given path ends with the specified rune
 func endsWithRune(path string, r rune) bool {
 	if len(path) == 0 {
 		return false
@@ -407,7 +407,7 @@ func endsWithRune(path string, r rune) bool {
 	return rune(path[len(path)-1]) == r
 }
 
-// IsFile checks if the last element of the path is a file (has an extension).
+// IsFile checks if the last element of the path is a file (has an extension)
 func isFile(path string) bool {
 	base := filepath.Base(path)
 	ext := filepath.Ext(base)
