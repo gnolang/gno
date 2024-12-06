@@ -19,10 +19,23 @@ The bot configuration is defined in Go and is located in the file [config.go](./
 
 For the bot to make requests to the GitHub API, it needs a Personal Access Token. The fine-grained permissions to assign to the token for the bot to function are:
 
+#### Repository permissions
+
 - `pull_requests` scope to read is the bare minimum to run the bot in dry-run mode
 - `pull_requests` scope to write to be able to update bot comment, assign user, apply label and request review
 - `contents` scope to read to be able to check if the head branch is up to date with another one
 - `commit_statuses` scope to write to be able to update pull request bot status check
+
+#### Organization permissions
+
+- `members` scope to read to be able to list the members of a team
+
+#### Bot account role
+
+For the bot to create a commit status on a repo - and only for this feature at the time of writing this - the GitHub account of the bot must either:
+
+- have the `write` role on the repo
+- have the `owner` role in the organization that owns the repo
 
 ## Usage
 

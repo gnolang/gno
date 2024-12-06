@@ -41,7 +41,15 @@ func (tid TypeID) String() string {
 	return string(tid)
 }
 
-func typeid(f string, args ...interface{}) (tid TypeID) {
+func typeid(s string) (tid TypeID) {
+	x := TypeID(s)
+	if debug {
+		debug.Println("TYPEID", s)
+	}
+	return x
+}
+
+func typeidf(f string, args ...interface{}) (tid TypeID) {
 	fs := fmt.Sprintf(f, args...)
 	x := TypeID(fs)
 	if debug {
@@ -521,7 +529,7 @@ func (at *ArrayType) Kind() Kind {
 
 func (at *ArrayType) TypeID() TypeID {
 	if at.typeid.IsZero() {
-		at.typeid = typeid("[%d]%s", at.Len, at.Elt.TypeID().String())
+		at.typeid = typeidf("[%d]%s", at.Len, at.Elt.TypeID().String())
 	}
 	return at.typeid
 }
@@ -564,9 +572,9 @@ func (st *SliceType) Kind() Kind {
 func (st *SliceType) TypeID() TypeID {
 	if st.typeid.IsZero() {
 		if st.Vrd {
-			st.typeid = typeid("...%s", st.Elt.TypeID().String())
+			st.typeid = typeidf("...%s", st.Elt.TypeID().String())
 		} else {
-			st.typeid = typeid("[]%s", st.Elt.TypeID().String())
+			st.typeid = typeidf("[]%s", st.Elt.TypeID().String())
 		}
 	}
 	return st.typeid
@@ -607,7 +615,7 @@ func (pt *PointerType) Kind() Kind {
 
 func (pt *PointerType) TypeID() TypeID {
 	if pt.typeid.IsZero() {
-		pt.typeid = typeid("*%s", pt.Elt.TypeID().String())
+		pt.typeid = typeidf("*%s", pt.Elt.TypeID().String())
 	}
 	return pt.typeid
 }
@@ -748,7 +756,7 @@ func (st *StructType) TypeID() TypeID {
 		// may have the same TypeID if and only if neither have
 		// unexported fields.  st.PkgPath is only included in field
 		// names that are not uppercase.
-		st.typeid = typeid(
+		st.typeid = typeidf(
 			"struct{%s}",
 			FieldTypeList(st.Fields).TypeIDForPackage(st.PkgPath),
 		)
@@ -1078,11 +1086,11 @@ func (ct *ChanType) TypeID() TypeID {
 	if ct.typeid.IsZero() {
 		switch ct.Dir {
 		case SEND | RECV:
-			ct.typeid = typeid("chan{%s}" + ct.Elt.TypeID().String())
+			ct.typeid = typeidf("chan{%s}", ct.Elt.TypeID().String())
 		case SEND:
-			ct.typeid = typeid("<-chan{%s}" + ct.Elt.TypeID().String())
+			ct.typeid = typeidf("<-chan{%s}", ct.Elt.TypeID().String())
 		case RECV:
-			ct.typeid = typeid("chan<-{%s}" + ct.Elt.TypeID().String())
+			ct.typeid = typeidf("chan<-{%s}", ct.Elt.TypeID().String())
 		default:
 			panic("should not happen")
 		}
@@ -1298,7 +1306,7 @@ func (ft *FuncType) TypeID() TypeID {
 		}
 	*/
 	if ft.typeid.IsZero() {
-		ft.typeid = typeid(
+		ft.typeid = typeidf(
 			"func(%s)(%s)",
 			// pp,
 			ps.UnnamedTypeID(),
@@ -1361,7 +1369,7 @@ func (mt *MapType) Kind() Kind {
 
 func (mt *MapType) TypeID() TypeID {
 	if mt.typeid.IsZero() {
-		mt.typeid = typeid(
+		mt.typeid = typeidf(
 			"map[%s]%s",
 			mt.Key.TypeID().String(),
 			mt.Value.TypeID().String(),
@@ -1489,7 +1497,7 @@ func (dt *DeclaredType) TypeID() TypeID {
 }
 
 func DeclaredTypeID(pkgPath string, name Name) TypeID {
-	return typeid("%s.%s", pkgPath, name)
+	return typeidf("%s.%s", pkgPath, name)
 }
 
 func (dt *DeclaredType) String() string {
@@ -1787,9 +1795,9 @@ func (nt *NativeType) TypeID() TypeID {
 			// > (e.g., base64 instead of "encoding/base64") and is not
 			// > guaranteed to be unique among types. To test for type identity,
 			// > compare the Types directly.
-			nt.typeid = typeid("go:%s.%s", nt.Type.PkgPath(), nt.Type.String())
+			nt.typeid = typeidf("go:%s.%s", nt.Type.PkgPath(), nt.Type.String())
 		} else {
-			nt.typeid = typeid("go:%s.%s", nt.Type.PkgPath(), nt.Type.Name())
+			nt.typeid = typeidf("go:%s.%s", nt.Type.PkgPath(), nt.Type.Name())
 		}
 	}
 	return nt.typeid
