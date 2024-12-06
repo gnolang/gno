@@ -19,7 +19,7 @@ func main() {
 }
 
 // Output:
-// Click [here](https://ipfs.io/ipfs/12345678) to visit the full rendering experience.
+// Click [here](https://moul.github.io/gno-moul-home-web25/) to visit the full rendering experience.
 // # Manfred's (gn)home Dashboard
 // ## Meme
 // ![meme](https://i.imgflip.com/7ze8dc.jpg)
