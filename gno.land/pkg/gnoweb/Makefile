@@ -32,7 +32,7 @@ output_js := ./public/js
 #############
 # Targets
 #############
-.PHONY: all generate fmt css ts templ
+.PHONY: all generate fmt css ts
 
 # Install dependencies
 all: generate
@@ -48,24 +48,22 @@ ts:
 	npx -y esbuild $(input_js) --bundle --outdir=$(output_js) --format=esm --minify
 fonts:
 	mkdir -p $(output_statics)
-	cp -r $(static_folder)/* $(output_statics)
+	cp -v -r $(static_folder)/* $(output_statics)
 
 # Format process
 fmt:
-	go fmt ./...
-	$(run_templ) fmt $(COMPONENTS_FOLDER)
+	go fmt -w ./...
 
  ###############################
  # Developments
  ###############################
-.PHONY: dev dev.templ dev.server dev.css dev.ts deps
+.PHONY: dev dev.server dev.css dev.ts deps
 
 # Run the development dependencies in parallel
-dev:
+dev: generate
 	@echo "-- starting development tools"
-	@$(MAKE) -j 4 \
+	@$(MAKE) -j 3 \
 		dev.gnoweb \
-		dev.fonts \
 		dev.ts \
 		dev.css
 
@@ -74,7 +72,7 @@ dev.gnoweb: | .cache
 	@killall gnowebserve || true # make sure that previous instances as been kill
 	$(run_air) \
 		--build.cmd "go build -o .cache/gnowebserve ../../cmd/gnoweb" \
-		--build.bin ".cache/gnowebserve -chain-id=${CHAIN_ID} -remote=${DEV_REMOTE}" \
+		--build.bin ".cache/gnowebserve -chainid=${CHAIN_ID} -remote=${DEV_REMOTE}" \
 		--build.exclude_unchanged "true" \
 		--build.exclude_dir "gotools,node_modules" \
 		--build.exclude_regex '^\.#' \
@@ -97,12 +95,6 @@ dev.ts: | public
 		--format=esm \
 		--watch \
 		--minify
-
-# XXX: we should probably keep static files inside public folder instead of
-# moving theme around
-dev.fonts:
-	mkdir -p $(output_statics)
-	cp -r $(static_folder)/* $(output_statics)
 
 # Cleanup
 clean:
