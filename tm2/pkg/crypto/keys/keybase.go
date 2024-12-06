@@ -414,10 +414,17 @@ func (kb dbKeybase) writeInfo(name string, info Info) error {
 		kb.db.DeleteSync(addrKey(oldInfo.GetAddress()))
 	}
 
+	addressKey := addrKey(info.GetAddress())
+	nameKeyForAddress := kb.db.Get(addressKey)
+	if len(nameKeyForAddress) > 0 {
+		// Enforce 1-to-1 name to address. Remove the info by the old name with the same address
+		kb.db.DeleteSync(nameKeyForAddress)
+	}
+
 	serializedInfo := writeInfo(info)
 	kb.db.SetSync(key, serializedInfo)
 	// store a pointer to the infokey by address for fast lookup
-	kb.db.SetSync(addrKey(info.GetAddress()), key)
+	kb.db.SetSync(addressKey, key)
 	return nil
 }
 
