@@ -3,10 +3,13 @@ package main
 import "gno.land/p/moul/debug"
 
 func main() {
+	var d debug.Debug
+	d.Log("hello world!")
+	d.Log("foobar")
 	println("---")
-	println(debug.Render(""))
+	println(d.Render(""))
 	println("---")
-	println(debug.Render("?debug=1"))
+	println(d.Render("?debug=1"))
 	println("---")
 }
 
@@ -16,6 +19,9 @@ func main() {
 // ---
 // <details><summary>debug</summary>
 //
+// ### Logs
+// - hello world!
+// - foobar
 // ### Metadata
 // | Key | Value |
 // | --- | --- |
