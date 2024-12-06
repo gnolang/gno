@@ -547,7 +547,7 @@ type FuncValue struct {
 	Captures   []TypedValue `json:",omitempty"` // HeapItemValues captured from closure.
 	FileName   Name         // file name where declared
 	PkgPath    string
-	NativePkg  string // for native bindings through NativeStore
+	NativePkg  string // for native bindings through NativeResolver
 	NativeName Name   // not redundant with Name; this cannot be changed in userspace
 
 	body       []Stmt         // function body
@@ -2247,41 +2247,41 @@ func (tv *TypedValue) GetSlice(alloc *Allocator, low, high int) TypedValue {
 	}
 }
 
-func (tv *TypedValue) GetSlice2(alloc *Allocator, low, high, max int) TypedValue {
-	if low < 0 {
+func (tv *TypedValue) GetSlice2(alloc *Allocator, lowVal, highVal, maxVal int) TypedValue {
+	if lowVal < 0 {
 		panic(fmt.Sprintf(
 			"invalid slice index %d (index must be non-negative)",
-			low))
+			lowVal))
 	}
-	if high < 0 {
+	if highVal < 0 {
 		panic(fmt.Sprintf(
 			"invalid slice index %d (index must be non-negative)",
-			high))
+			highVal))
 	}
-	if max < 0 {
+	if maxVal < 0 {
 		panic(fmt.Sprintf(
 			"invalid slice index %d (index must be non-negative)",
-			max))
+			maxVal))
 	}
-	if low > high {
+	if lowVal > highVal {
 		panic(fmt.Sprintf(
 			"invalid slice index %d > %d",
-			low, high))
+			lowVal, highVal))
 	}
-	if high > max {
+	if highVal > maxVal {
 		panic(fmt.Sprintf(
 			"invalid slice index %d > %d",
-			high, max))
+			highVal, maxVal))
 	}
-	if tv.GetCapacity() < high {
+	if tv.GetCapacity() < highVal {
 		panic(fmt.Sprintf(
 			"slice bounds out of range [%d:%d:%d] with capacity %d",
-			low, high, max, tv.GetCapacity()))
+			lowVal, highVal, maxVal, tv.GetCapacity()))
 	}
-	if tv.GetCapacity() < max {
+	if tv.GetCapacity() < maxVal {
 		panic(fmt.Sprintf(
 			"slice bounds out of range [%d:%d:%d] with capacity %d",
-			low, high, max, tv.GetCapacity()))
+			lowVal, highVal, maxVal, tv.GetCapacity()))
 	}
 	switch bt := baseOf(tv.T).(type) {
 	case *ArrayType:
@@ -2293,15 +2293,15 @@ func (tv *TypedValue) GetSlice2(alloc *Allocator, low, high, max int) TypedValue
 		return TypedValue{
 			T: st,
 			V: alloc.NewSlice(
-				av,       // base
-				low,      // low
-				high-low, // length
-				max-low,  // maxcap
+				av,             // base
+				lowVal,         // low
+				highVal-lowVal, // length
+				maxVal-lowVal,  // maxcap
 			),
 		}
 	case *SliceType:
 		if tv.V == nil {
-			if low != 0 || high != 0 || max != 0 {
+			if lowVal != 0 || highVal != 0 || maxVal != 0 {
 				panic("nil slice index out of range")
 			}
 			return TypedValue{
@@ -2313,10 +2313,10 @@ func (tv *TypedValue) GetSlice2(alloc *Allocator, low, high, max int) TypedValue
 		return TypedValue{
 			T: tv.T,
 			V: alloc.NewSlice(
-				sv.Base,       // base
-				sv.Offset+low, // offset
-				high-low,      // length
-				max-low,       // maxcap
+				sv.Base,          // base
+				sv.Offset+lowVal, // offset
+				highVal-lowVal,   // length
+				maxVal-lowVal,    // maxcap
 			),
 		}
 	default:
