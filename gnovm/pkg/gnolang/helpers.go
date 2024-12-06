@@ -37,7 +37,12 @@ func IsPurePackagePath(pkgPath string) bool {
 
 // IsStdlib determines whether s is a pkgpath for a standard library.
 func IsStdlib(s string) bool {
-	return strings.IndexByte(s[:strings.IndexByte(s, '/')+1], '.') < 0
+	idx := strings.IndexByte(s, '/')
+	if idx < 0 {
+		// If no '/' is found, consider the whole string
+		return strings.IndexByte(s, '.') < 0
+	}
+	return strings.IndexByte(s[:idx+1], '.') < 0
 }
 
 // ----------------------------------------
