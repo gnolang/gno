@@ -11,9 +11,9 @@ import (
 type HelpData struct {
 	RealmName string
 	Functions []vm.FunctionSignature
-	ChainId string
-	Remote string
-	PkgPath string
+	ChainId   string
+	Remote    string
+	PkgPath   string
 }
 
 func registerHelpFuncs(funcs template.FuncMap) {
@@ -33,7 +33,6 @@ func registerHelpFuncs(funcs template.FuncMap) {
 		return fsigStr.String(), nil
 	}
 }
-
 
 func RenderHelpComponent(w io.Writer, data HelpData) error {
 	return tmpl.ExecuteTemplate(w, "renderHelp", data)

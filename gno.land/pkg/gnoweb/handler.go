@@ -117,6 +117,9 @@ func (h *WebHandler) Get(w http.ResponseWriter, r *http.Request) {
 
 	var indexData components.IndexData
 
+	// NOTE: HTML escaping should have already be done by markdown rendering package
+	indexData.Body = template.HTML(body.String()) // nolint:gosec
+
 	// Head
 	indexData.HeadData.AssetsPath = h.static.AssetsPath
 	indexData.HeadData.ChromaPath = h.static.ChromaPath
@@ -125,8 +128,6 @@ func (h *WebHandler) Get(w http.ResponseWriter, r *http.Request) {
 	indexData.HeaderData.RealmPath = gnourl.Path
 	indexData.HeaderData.Breadcrumb.Parts = generateBreadcrumbPaths(gnourl.Path)
 	indexData.HeaderData.WebQuery = gnourl.WebQuery
-
-	indexData.Body = template.HTML(body.String())
 
 	// Render the final page with the rendered body
 	if err = components.RenderIndexComponent(w, indexData); err != nil {
@@ -300,9 +301,9 @@ func (h *WebHandler) renderRealm(w io.Writer, gnourl *GnoURL) (status int, err e
 		TocItems: &components.RealmTOCData{
 			Items: meta.Items,
 		},
-		Content: template.HTML(content.String()),
+		// NOTE: `content` should have altready be escaped by previous rendering
+		Content: template.HTML(content.String()), //nolint:gosec
 	})
-
 	if err != nil {
 		h.logger.Error("unable to render template", "err", err)
 		return http.StatusInternalServerError, components.RenderStatusComponent(w, "internal error")

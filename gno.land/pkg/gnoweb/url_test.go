@@ -124,6 +124,5 @@ func TestParseGnoURL(t *testing.T) {
 
 			assert.Equal(t, tc.Expected, result)
 		})
-
 	}
 }

@@ -93,7 +93,7 @@ func (s *WebClient) Render(w io.Writer, pkgPath string, args string) (*Metadata,
 
 	doc := s.md.Parser().Parse(text.NewReader(rawres))
 	if err := s.md.Renderer().Render(w, rawres, doc); err != nil {
-		return nil, fmt.Errorf("unable render real %q: %q", data, err)
+		return nil, fmt.Errorf("unable render real %q: %w", data, err)
 	}
 
 	var meta Metadata

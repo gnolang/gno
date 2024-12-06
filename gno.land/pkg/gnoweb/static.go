@@ -25,5 +25,4 @@ func AssetHandler(cache bool) http.Handler {
 
 	handler := http.StripPrefix(publicAssetsDir, http.FileServer(http.Dir(publicAssetsDir)))
 	return disableCache(handler)
-
 }

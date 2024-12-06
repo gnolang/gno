@@ -138,8 +138,8 @@ func ParseGnoURL(u *url.URL) (*GnoURL, error) {
 	}, nil
 }
 
-func (u *GnoURL) HostPath() string {
-	return filepath.Join(u.Host, u.Path)
+func (url *GnoURL) HostPath() string {
+	return filepath.Join(url.Host, url.Path)
 }
 
 func escapeDollarSign(s string) string {

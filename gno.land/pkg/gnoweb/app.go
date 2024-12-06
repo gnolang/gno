@@ -43,7 +43,7 @@ func MakeRouterApp(logger *slog.Logger, cfg *AppConfig) (http.Handler, error) {
 
 	client, err := client.NewHTTPClient(cfg.Remote)
 	if err != nil {
-		return nil, fmt.Errorf("unable to create http client: %W", err)
+		return nil, fmt.Errorf("unable to create http client: %w", err)
 	}
 	webcli := NewWebClient(logger, client, md)
 

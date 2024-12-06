@@ -13,11 +13,13 @@ import (
 var gohtml embed.FS
 
 var funcMap = template.FuncMap{
+	// NOTE: this method does NOT escape HTML, use with caution
 	"noescape_string": func(in string) template.HTML {
-		return template.HTML(in)
+		return template.HTML(in) //nolint:gosec
 	},
+	// NOTE: this method does NOT escape HTML, use with caution
 	"noescape_bytes": func(in []byte) template.HTML {
-		return template.HTML(in)
+		return template.HTML(in) //nolint:gosec
 	},
 	"queryHas": func(vals url.Values, key string) bool {
 		if vals == nil {
