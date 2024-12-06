@@ -24,7 +24,7 @@ func TestHelpers(t *testing.T) {
 		{"Image", func() string { return umd.Image("foo", "http://example.com") }, "![foo](http://example.com)"},
 		{"InlineImageWithLink", func() string { return umd.InlineImageWithLink("alt", "image-url", "link-url") }, "[![alt](image-url)](link-url)"},
 		{"Footnote", func() string { return umd.Footnote("foo", "bar") }, "[foo]: bar"},
-		{"Paragraph", func() string { return umd.Paragraph("foo") }, "foo\n"},
+		{"Paragraph", func() string { return umd.Paragraph("foo") }, "foo\n\n"},
 	}
 
 	for _, tt := range tests {

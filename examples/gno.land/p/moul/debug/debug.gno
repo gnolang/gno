@@ -52,3 +52,18 @@ func (d Debug) Render(path string) string {
 func Render(path string) string {
 	return Debug{}.Render(path)
 }
+
+func IsEnabled(path string) bool {
+	req := realmpath.Parse(path)
+	return req.Query.Get("debug") == "1"
+}
+
+func ToggleURL(path string) string {
+	req := realmpath.Parse(path)
+	if IsEnabled(path) {
+		req.Query.Del("debug")
+	} else {
+		req.Query.Add("debug", "1")
+	}
+	return req.String()
+}

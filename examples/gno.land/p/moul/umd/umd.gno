@@ -204,7 +204,7 @@ func Footnote(reference, text string) string {
 // Paragraph wraps the given text in a Markdown paragraph.
 // Example: Paragraph("foo") => "foo\n"
 func Paragraph(content string) string {
-	return content + "\n"
+	return content + "\n\n"
 }
 
 // CollapsibleSection creates a collapsible section for markdown using

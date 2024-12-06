@@ -64,6 +64,7 @@ func Render(path string) string {
 	content += table.String()
 
 	content += umd.H2("SVG Example")
+	content += umd.Paragraph("this feature may not work with the current gnoweb version and/or configuration.")
 	content += umd.Paragraph(svg.Canvas{
 		Width: 500, Height: 500,
 		Elems: []svg.Elem{
@@ -74,8 +75,9 @@ func Render(path string) string {
 	}.String())
 
 	content += umd.H2("Debug")
+	content += umd.Paragraph("this feature may not work with the current gnoweb version and/or configuration.")
 	content += umd.Paragraph(
-		umd.Link("enable debug", "/r/moul/home?debug=1"),
+		umd.Link("toggle debug", debug.ToggleURL(path)),
 	)
 
 	// TODO: my r/boards posts

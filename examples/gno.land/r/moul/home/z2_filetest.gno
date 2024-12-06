@@ -23,27 +23,37 @@ func main() {
 // # Manfred's (gn)home Dashboard
 // ## Meme
 // ![meme](https://i.imgflip.com/7ze8dc.jpg)
+//
 // ## Status
 // Lorem Ipsum
+//
 // [update](/r/moul/home$help&func=UpdateStatus)
+//
 // ## Personal TODO List (bullet list)
-// - test
 // - fill this todo list... [x](/r/moul/home$help&func=DeleteTodo&idx=0)
 // - aaa [x](/r/moul/home$help&func=DeleteTodo&idx=1)
 // - bbb [x](/r/moul/home$help&func=DeleteTodo&idx=2)
 // - ddd [x](/r/moul/home$help&func=DeleteTodo&idx=3)
 // - eee [x](/r/moul/home$help&func=DeleteTodo&idx=4)
-// [new](/r/moul/home$help&func=AddTodo)
+// - [\[new\]](/r/moul/home$help&func=AddTodo)
 // ## Personal TODO List (table)
 // | ID | Item | Links |
 // | --- | --- | --- |
-// | #0 | fill this todo list... | [del](/r/moul/home$help&func=DeleteTodo&idx=0) |
-// | #1 | aaa | [del](/r/moul/home$help&func=DeleteTodo&idx=1) |
-// | #2 | bbb | [del](/r/moul/home$help&func=DeleteTodo&idx=2) |
-// | #3 | ddd | [del](/r/moul/home$help&func=DeleteTodo&idx=3) |
-// | #4 | eee | [del](/r/moul/home$help&func=DeleteTodo&idx=4) |
+// | #0 | fill this todo list... | [\[del\]](/r/moul/home$help&func=DeleteTodo&idx=0) |
+// | #1 | aaa | [\[del\]](/r/moul/home$help&func=DeleteTodo&idx=1) |
+// | #2 | bbb | [\[del\]](/r/moul/home$help&func=DeleteTodo&idx=2) |
+// | #3 | ddd | [\[del\]](/r/moul/home$help&func=DeleteTodo&idx=3) |
+// | #4 | eee | [\[del\]](/r/moul/home$help&func=DeleteTodo&idx=4) |
 // ## SVG Example
+// this feature may not work with the current gnoweb version and/or configuration.
+//
 // <svg xmlns="http://www.w3.org/2000/svg" width="500" height="500"><rect x="50" y="50" width="100" height="100" fill="red" /><circle cx="50" cy="50" r="100" fill="red" /><text x="100" y="100" fill="magenta">hello world!</text></svg>
+//
+// ## Debug
+// this feature may not work with the current gnoweb version and/or configuration.
+//
+// [toggle debug](/r/moul/home:)
+//
 // <details><summary>debug</summary>
 //
 // ### Logs
