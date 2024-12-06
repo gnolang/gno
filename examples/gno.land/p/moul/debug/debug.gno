@@ -4,9 +4,9 @@ import (
 	"std"
 
 	"gno.land/p/demo/ufmt"
+	"gno.land/p/moul/md"
 	"gno.land/p/moul/mdtable"
 	"gno.land/p/moul/realmpath"
-	"gno.land/p/moul/umd"
 )
 
 type Debug struct {
@@ -26,12 +26,12 @@ func (d Debug) Render(path string) string {
 	var content string
 
 	if d.Logs != nil {
-		content += umd.H3("Logs")
-		content += umd.BulletList(d.Logs)
+		content += md.H3("Logs")
+		content += md.BulletList(d.Logs)
 	}
 
 	if !d.HideMetadata {
-		content += umd.H3("Metadata")
+		content += md.H3("Metadata")
 		table := mdtable.Table{
 			Headers: []string{"Key", "Value"},
 		}
@@ -45,7 +45,7 @@ func (d Debug) Render(path string) string {
 		return ""
 	}
 
-	return umd.CollapsibleSection("debug", content)
+	return md.CollapsibleSection("debug", content)
 }
 
 // top-level Render returns a default Debug struct's Render.

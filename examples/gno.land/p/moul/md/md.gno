@@ -1,4 +1,4 @@
-// Package umd provides helper functions for generating Markdown content programmatically.
+// Package md provides helper functions for generating Markdown content programmatically.
 //
 // It includes utilities for text formatting, creating lists, blockquotes, code blocks,
 // links, images, and more.
@@ -7,7 +7,7 @@
 // - Supports basic Markdown syntax such as bold, italic, strikethrough, headers, and lists.
 // - Manages multiline support in lists (e.g., bullet, ordered, and todo lists).
 // - Includes advanced helpers like inline images with links and nested list prefixes.
-package umd
+package md
 
 import (
 	"strconv"

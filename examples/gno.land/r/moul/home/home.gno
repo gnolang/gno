@@ -5,9 +5,9 @@ import (
 
 	"gno.land/p/demo/svg"
 	"gno.land/p/moul/debug"
+	"gno.land/p/moul/md"
 	"gno.land/p/moul/mdtable"
 	"gno.land/p/moul/txlink"
-	"gno.land/p/moul/umd"
 	"gno.land/p/moul/web25"
 	"gno.land/r/leon/hof"
 	"gno.land/r/moul/config"
@@ -31,41 +31,41 @@ func Render(path string) string {
 	content := web25config.Render(path)
 	var d debug.Debug
 
-	content += umd.H1("Manfred's (gn)home Dashboard")
+	content += md.H1("Manfred's (gn)home Dashboard")
 
-	content += umd.H2("Meme")
-	content += umd.Paragraph(
-		umd.Image("meme", memeImgURL),
+	content += md.H2("Meme")
+	content += md.Paragraph(
+		md.Image("meme", memeImgURL),
 	)
 
-	content += umd.H2("Status")
-	content += umd.Paragraph(status)
-	content += umd.Paragraph(umd.Link("update", txlink.Call("UpdateStatus")))
+	content += md.H2("Status")
+	content += md.Paragraph(status)
+	content += md.Paragraph(md.Link("update", txlink.Call("UpdateStatus")))
 
 	d.Log("hello world!")
 
-	content += umd.H2("Personal TODO List (bullet list)")
+	content += md.H2("Personal TODO List (bullet list)")
 	for i, todo := range todos {
 		idstr := strconv.Itoa(i)
-		deleteLink := umd.Link("x", txlink.Call("DeleteTodo", "idx", idstr))
-		content += umd.BulletItem(todo + " " + deleteLink)
+		deleteLink := md.Link("x", txlink.Call("DeleteTodo", "idx", idstr))
+		content += md.BulletItem(todo + " " + deleteLink)
 	}
-	content += umd.BulletItem(umd.Link("[new]", txlink.Call("AddTodo")))
+	content += md.BulletItem(md.Link("[new]", txlink.Call("AddTodo")))
 
-	content += umd.H2("Personal TODO List (table)")
+	content += md.H2("Personal TODO List (table)")
 	table := mdtable.Table{
 		Headers: []string{"ID", "Item", "Links"},
 	}
 	for i, todo := range todos {
 		idstr := strconv.Itoa(i)
-		deleteLink := umd.Link("[del]", txlink.Call("DeleteTodo", "idx", idstr))
+		deleteLink := md.Link("[del]", txlink.Call("DeleteTodo", "idx", idstr))
 		table.Append([]string{"#" + idstr, todo, deleteLink})
 	}
 	content += table.String()
 
-	content += umd.H2("SVG Example")
-	content += umd.Paragraph("this feature may not work with the current gnoweb version and/or configuration.")
-	content += umd.Paragraph(svg.Canvas{
+	content += md.H2("SVG Example")
+	content += md.Paragraph("this feature may not work with the current gnoweb version and/or configuration.")
+	content += md.Paragraph(svg.Canvas{
 		Width: 500, Height: 500,
 		Elems: []svg.Elem{
 			svg.Rectangle{50, 50, 100, 100, "red"},
@@ -74,10 +74,10 @@ func Render(path string) string {
 		},
 	}.String())
 
-	content += umd.H2("Debug")
-	content += umd.Paragraph("this feature may not work with the current gnoweb version and/or configuration.")
-	content += umd.Paragraph(
-		umd.Link("toggle debug", debug.ToggleURL(path)),
+	content += md.H2("Debug")
+	content += md.Paragraph("this feature may not work with the current gnoweb version and/or configuration.")
+	content += md.Paragraph(
+		md.Link("toggle debug", debug.ToggleURL(path)),
 	)
 
 	// TODO: my r/boards posts

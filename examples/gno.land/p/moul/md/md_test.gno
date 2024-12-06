@@ -1,9 +1,9 @@
-package umd
+package md
 
 import (
 	"testing"
 
-	"gno.land/p/moul/umd"
+	"gno.land/p/moul/md"
 )
 
 func TestHelpers(t *testing.T) {
@@ -12,19 +12,19 @@ func TestHelpers(t *testing.T) {
 		function func() string
 		expected string
 	}{
-		{"Bold", func() string { return umd.Bold("foo") }, "**foo**"},
-		{"Italic", func() string { return umd.Italic("foo") }, "*foo*"},
-		{"Strikethrough", func() string { return umd.Strikethrough("foo") }, "~~foo~~"},
-		{"H1", func() string { return umd.H1("foo") }, "# foo\n"},
-		{"HorizontalRule", umd.HorizontalRule, "---\n"},
-		{"InlineCode", func() string { return umd.InlineCode("foo") }, "`foo`"},
-		{"CodeBlock", func() string { return umd.CodeBlock("foo") }, "```\nfoo\n```"},
-		{"LanguageCodeBlock", func() string { return umd.LanguageCodeBlock("go", "foo") }, "```go\nfoo\n```"},
-		{"Link", func() string { return umd.Link("foo", "http://example.com") }, "[foo](http://example.com)"},
-		{"Image", func() string { return umd.Image("foo", "http://example.com") }, "![foo](http://example.com)"},
-		{"InlineImageWithLink", func() string { return umd.InlineImageWithLink("alt", "image-url", "link-url") }, "[![alt](image-url)](link-url)"},
-		{"Footnote", func() string { return umd.Footnote("foo", "bar") }, "[foo]: bar"},
-		{"Paragraph", func() string { return umd.Paragraph("foo") }, "foo\n\n"},
+		{"Bold", func() string { return md.Bold("foo") }, "**foo**"},
+		{"Italic", func() string { return md.Italic("foo") }, "*foo*"},
+		{"Strikethrough", func() string { return md.Strikethrough("foo") }, "~~foo~~"},
+		{"H1", func() string { return md.H1("foo") }, "# foo\n"},
+		{"HorizontalRule", md.HorizontalRule, "---\n"},
+		{"InlineCode", func() string { return md.InlineCode("foo") }, "`foo`"},
+		{"CodeBlock", func() string { return md.CodeBlock("foo") }, "```\nfoo\n```"},
+		{"LanguageCodeBlock", func() string { return md.LanguageCodeBlock("go", "foo") }, "```go\nfoo\n```"},
+		{"Link", func() string { return md.Link("foo", "http://example.com") }, "[foo](http://example.com)"},
+		{"Image", func() string { return md.Image("foo", "http://example.com") }, "![foo](http://example.com)"},
+		{"InlineImageWithLink", func() string { return md.InlineImageWithLink("alt", "image-url", "link-url") }, "[![alt](image-url)](link-url)"},
+		{"Footnote", func() string { return md.Footnote("foo", "bar") }, "[foo]: bar"},
+		{"Paragraph", func() string { return md.Paragraph("foo") }, "foo\n\n"},
 	}
 
 	for _, tt := range tests {
@@ -41,7 +41,7 @@ func TestLists(t *testing.T) {
 	t.Run("BulletList", func(t *testing.T) {
 		items := []string{"foo", "bar"}
 		expected := "- foo\n- bar\n"
-		result := umd.BulletList(items)
+		result := md.BulletList(items)
 		if result != expected {
 			t.Errorf("BulletList(%q) = %q, want %q", items, result, expected)
 		}
@@ -50,7 +50,7 @@ func TestLists(t *testing.T) {
 	t.Run("OrderedList", func(t *testing.T) {
 		items := []string{"foo", "bar"}
 		expected := "1. foo\n2. bar\n"
-		result := umd.OrderedList(items)
+		result := md.OrderedList(items)
 		if result != expected {
 			t.Errorf("OrderedList(%q) = %q, want %q", items, result, expected)
 		}
@@ -60,7 +60,7 @@ func TestLists(t *testing.T) {
 		items := []string{"foo", "bar\nmore bar"}
 		done := []bool{true, false}
 		expected := "- [x] foo\n- [ ] bar\n  more bar\n"
-		result := umd.TodoList(items, done)
+		result := md.TodoList(items, done)
 		if result != expected {
 			t.Errorf("TodoList(%q, %q) = %q, want %q", items, done, result, expected)
 		}
@@ -71,7 +71,7 @@ func TestNested(t *testing.T) {
 	t.Run("Nested Single Level", func(t *testing.T) {
 		content := "- foo\n- bar"
 		expected := "  - foo\n  - bar"
-		result := umd.Nested(content, "  ")
+		result := md.Nested(content, "  ")
 		if result != expected {
 			t.Errorf("Nested(%q) = %q, want %q", content, result, expected)
 		}
@@ -80,7 +80,7 @@ func TestNested(t *testing.T) {
 	t.Run("Nested Double Level", func(t *testing.T) {
 		content := "  - foo\n  - bar"
 		expected := "    - foo\n    - bar"
-		result := umd.Nested(content, "  ")
+		result := md.Nested(content, "  ")
 		if result != expected {
 			t.Errorf("Nested(%q) = %q, want %q", content, result, expected)
 		}
