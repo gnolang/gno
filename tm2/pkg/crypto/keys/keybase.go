@@ -298,7 +298,7 @@ func (kb dbKeybase) ExportPrivateKeyObject(nameOrBech32 string, passphrase strin
 func (kb dbKeybase) Export(nameOrBech32 string) (astr string, err error) {
 	info, err := kb.GetByNameOrAddress(nameOrBech32)
 	if err != nil {
-		return "", errors.Wrap(err, "getting info for name %s", nameOrBech32)
+		return "", errors.Wrapf(err, "getting info for name %s", nameOrBech32)
 	}
 	bz := kb.db.Get(infoKey(info.GetName()))
 	if bz == nil {
@@ -313,7 +313,7 @@ func (kb dbKeybase) Export(nameOrBech32 string) (astr string, err error) {
 func (kb dbKeybase) ExportPubKey(nameOrBech32 string) (astr string, err error) {
 	info, err := kb.GetByNameOrAddress(nameOrBech32)
 	if err != nil {
-		return "", errors.Wrap(err, "getting info for name %s", nameOrBech32)
+		return "", errors.Wrapf(err, "getting info for name %s", nameOrBech32)
 	}
 	return armor.ArmorPubKeyBytes(info.GetPubKey().Bytes()), nil
 }
