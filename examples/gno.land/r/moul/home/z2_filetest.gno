@@ -15,7 +15,7 @@ func main() {
 	home.AddTodo("eee")
 	home.UpdateStatus("Lorem Ipsum")
 	home.DeleteTodo(3)
-	println(home.Render(""))
+	println(home.Render("?debug=1"))
 }
 
 // Output:
@@ -42,4 +42,18 @@ func main() {
 // | #2 | bbb | [del](/r/moul/home$help&func=DeleteTodo&idx=2) |
 // | #3 | ddd | [del](/r/moul/home$help&func=DeleteTodo&idx=3) |
 // | #4 | eee | [del](/r/moul/home$help&func=DeleteTodo&idx=4) |
+// ## SVG Example
+// <svg xmlns="http://www.w3.org/2000/svg" width="500" height="500"><rect x="50" y="50" width="100" height="100" fill="red" /><circle cx="50" cy="50" r="100" fill="red" /><text x="100" y="100" fill="magenta">hello world!</text></svg>
+// <details><summary>debug</summary>
+//
+// ### Logs
+// - hello world!
+// ### Metadata
+// | Key | Value |
+// | --- | --- |
+// | `std.CurrentRealm().PkgPath()` | gno.land/r/moul/home |
+// | `std.CurrentRealm().Addr()` | g1h8h57ntxadcze3f703skymfzdwa6t3ugf0nq3z |
+// | `std.GetHeight()` | 123 |
+//
+// </details>
 //

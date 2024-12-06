@@ -207,6 +207,19 @@ func Paragraph(content string) string {
 	return content + "\n"
 }
 
+// CollapsibleSection creates a collapsible section for markdown using
+// HTML <details> and <summary> tags.
+// Example:
+// CollapsibleSection("Click to expand", "Hidden content")
+// =>
+// <details><summary>Click to expand</summary>
+//
+// Hidden content
+// </details>
+func CollapsibleSection(title, content string) string {
+	return "<details><summary>" + EscapeText(title) + "</summary>\n\n" + content + "\n</details>\n"
+}
+
 // EscapeText escapes special Markdown characters in regular text where needed.
 func EscapeText(text string) string {
 	replacer := strings.NewReplacer(

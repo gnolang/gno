@@ -3,6 +3,8 @@ package home
 import (
 	"strconv"
 
+	"gno.land/p/demo/svg"
+	"gno.land/p/moul/debug"
 	"gno.land/p/moul/mdtable"
 	"gno.land/p/moul/txlink"
 	"gno.land/p/moul/umd"
@@ -27,6 +29,7 @@ func init() {
 
 func Render(path string) string {
 	content := web25config.Render(path)
+	var d debug.Debug
 
 	content += umd.H1("Manfred's (gn)home Dashboard")
 
@@ -38,6 +41,8 @@ func Render(path string) string {
 	content += umd.H2("Status")
 	content += umd.Paragraph(status)
 	content += umd.Paragraph(umd.Link("update", txlink.Call("UpdateStatus")))
+
+	d.Log("hello world!")
 
 	content += umd.H2("Personal TODO List (bullet list)")
 	content += umd.BulletItem("test")
@@ -60,6 +65,18 @@ func Render(path string) string {
 		table.Append([]string{"#" + idstr, todo, deleteLink})
 	}
 	content += table.String()
+
+	content += umd.H2("SVG Example")
+	content += umd.Paragraph(svg.Canvas{
+		Width: 500, Height: 500,
+		Elems: []svg.Elem{
+			svg.Rectangle{50, 50, 100, 100, "red"},
+			svg.Circle{50, 50, 100, "red"},
+			svg.Text{100, 100, "hello world!", "magenta"},
+		},
+	}.String())
+
+	content += d.Render(path)
 
 	// TODO: my r/boards posts
 	// TODO: my r/events events
