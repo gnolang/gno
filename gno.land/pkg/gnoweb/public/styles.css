@@ -743,7 +743,7 @@ form {
 }
 
 .realm-content code {
-  border-radius: 0.3125rem;
+  border-radius: 0.375rem;
   --tw-bg-opacity: 1;
   background-color: rgb(226 226 226 / var(--tw-bg-opacity));
   padding-left: 0.5rem;
@@ -756,7 +756,7 @@ form {
 
 .realm-content pre {
   overflow-x: auto;
-  border-radius: 0.3125rem;
+  border-radius: 0.375rem;
   --tw-bg-opacity: 1;
   background-color: rgb(226 226 226 / var(--tw-bg-opacity));
   padding: 1rem;
@@ -926,7 +926,7 @@ main :is(h1, h2, h3, h4) {
 
 main .source-code > pre {
   overflow: scroll;
-  border-radius: 0.3125rem;
+  border-radius: 0.375rem;
   --tw-bg-opacity: 1 !important;
   background-color: rgb(255 255 255 / var(--tw-bg-opacity)) !important;
   padding-top: 2rem;
@@ -1037,24 +1037,16 @@ main .source-code > pre {
   grid-column: span 1 / span 1;
 }
 
+.col-span-10 {
+  grid-column: span 10 / span 10;
+}
+
 .col-span-3 {
   grid-column: span 3 / span 3;
 }
 
 .col-span-7 {
   grid-column: span 7 / span 7;
-}
-
-.col-span-8 {
-  grid-column: span 8 / span 8;
-}
-
-.col-span-6 {
-  grid-column: span 6 / span 6;
-}
-
-.col-span-10 {
-  grid-column: span 10 / span 10;
 }
 
 .mx-auto {
@@ -1078,10 +1070,6 @@ main .source-code > pre {
   margin-right: 2.5rem;
 }
 
-.mr-4 {
-  margin-right: 1rem;
-}
-
 .mt-1 {
   margin-top: 0.25rem;
 }
@@ -1102,8 +1090,12 @@ main .source-code > pre {
   margin-top: 1.5rem;
 }
 
-.mt-20 {
-  margin-top: 5rem;
+.mt-14 {
+  margin-top: 3.5rem;
+}
+
+.mt-12 {
+  margin-top: 3rem;
 }
 
 .line-clamp-2 {
@@ -1141,10 +1133,6 @@ main .source-code > pre {
   display: none;
 }
 
-.aspect-square {
-  aspect-ratio: 1 / 1;
-}
-
 .h-10 {
   height: 2.5rem;
 }
@@ -1155,10 +1143,6 @@ main .source-code > pre {
 
 .h-5 {
   height: 1.25rem;
-}
-
-.h-6 {
-  height: 1.5rem;
 }
 
 .h-full {
@@ -1187,10 +1171,6 @@ main .source-code > pre {
 
 .w-5 {
   width: 1.25rem;
-}
-
-.w-6 {
-  width: 1.5rem;
 }
 
 .w-full {
@@ -1285,6 +1265,10 @@ main .source-code > pre {
   gap: 2rem;
 }
 
+.gap-6 {
+  gap: 1.5rem;
+}
+
 .space-y-1\.5 > :not([hidden]) ~ :not([hidden]) {
   --tw-space-y-reverse: 0;
   margin-top: calc(0.375rem * calc(1 - var(--tw-space-y-reverse)));
@@ -1306,7 +1290,7 @@ main .source-code > pre {
 }
 
 .rounded {
-  border-radius: 0.3125rem;
+  border-radius: 0.375rem;
 }
 
 .rounded-sm {
@@ -1377,11 +1361,6 @@ main .source-code > pre {
   background-color: rgb(255 255 255 / var(--tw-bg-opacity));
 }
 
-.bg-gray-300 {
-  --tw-bg-opacity: 1;
-  background-color: rgb(143 143 143 / var(--tw-bg-opacity));
-}
-
 .p-1\.5 {
   padding: 0.375rem;
 }
@@ -1423,6 +1402,11 @@ main .source-code > pre {
   padding-bottom: 0.125rem;
 }
 
+.py-1 {
+  padding-top: 0.25rem;
+  padding-bottom: 0.25rem;
+}
+
 .py-1\.5 {
   padding-top: 0.375rem;
   padding-bottom: 0.375rem;
@@ -1438,17 +1422,20 @@ main .source-code > pre {
   padding-bottom: 0.75rem;
 }
 
-.py-1 {
-  padding-top: 0.25rem;
-  padding-bottom: 0.25rem;
-}
-
 .pb-24 {
   padding-bottom: 6rem;
 }
 
 .pb-28 {
   padding-bottom: 7rem;
+}
+
+.pb-3 {
+  padding-bottom: 0.75rem;
+}
+
+.pb-4 {
+  padding-bottom: 1rem;
 }
 
 .pl-4 {
@@ -1463,20 +1450,16 @@ main .source-code > pre {
   padding-top: 0.5rem;
 }
 
-.pb-2 {
-  padding-bottom: 0.5rem;
+.pr-2 {
+  padding-right: 0.5rem;
 }
 
-.pb-4 {
-  padding-bottom: 1rem;
+.pr-1 {
+  padding-right: 0.25rem;
 }
 
-.pb-3 {
-  padding-bottom: 0.75rem;
-}
-
-.pb-5 {
-  padding-bottom: 1.25rem;
+.pr-px {
+  padding-right: 1px;
 }
 
 .font-mono {
@@ -1501,10 +1484,6 @@ main .source-code > pre {
 
 .text-600 {
   font-size: 1.5rem;
-}
-
-.text-800 {
-  font-size: 2.375rem;
 }
 
 .font-bold {
@@ -1551,11 +1530,6 @@ main .source-code > pre {
 .text-gray-900 {
   --tw-text-opacity: 1;
   color: rgb(8 8 9 / var(--tw-text-opacity));
-}
-
-.text-white-50 {
-  --tw-text-opacity: 1;
-  color: rgb(255 255 255 / var(--tw-text-opacity));
 }
 
 .outline-none {
@@ -1644,12 +1618,6 @@ main .source-code > pre {
   width: 100%;
 }
 
-.after\:rounded-t::after {
-  content: var(--tw-content);
-  border-top-left-radius: 0.3125rem;
-  border-top-right-radius: 0.3125rem;
-}
-
 .after\:bg-green-600::after {
   content: var(--tw-content);
   --tw-bg-opacity: 1;
@@ -1671,11 +1639,6 @@ main .source-code > pre {
 .hover\:bg-gray-100:hover {
   --tw-bg-opacity: 1;
   background-color: rgb(226 226 226 / var(--tw-bg-opacity));
-}
-
-.hover\:bg-gray-200:hover {
-  --tw-bg-opacity: 1;
-  background-color: rgb(189 189 189 / var(--tw-bg-opacity));
 }
 
 .hover\:text-gray-600:hover {
@@ -1740,8 +1703,16 @@ main .source-code > pre {
     height: 1rem;
   }
 
+  .xxl\:h-5 {
+    height: 1.25rem;
+  }
+
   .xxl\:w-4 {
     width: 1rem;
+  }
+
+  .xxl\:w-5 {
+    width: 1.25rem;
   }
 
   .xxl\:gap-20 {
