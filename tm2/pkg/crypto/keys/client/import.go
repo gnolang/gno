@@ -9,6 +9,7 @@ import (
 
 	"github.com/gnolang/gno/tm2/pkg/commands"
 	"github.com/gnolang/gno/tm2/pkg/crypto/keys"
+	"github.com/gnolang/gno/tm2/pkg/crypto/keys/armor"
 )
 
 type ImportCfg struct {
@@ -77,7 +78,7 @@ func execImport(cfg *ImportCfg, io commands.IO) error {
 	}
 
 	// Read the raw encrypted armor
-	armor, err := os.ReadFile(cfg.ArmorPath)
+	keyArmor, err := os.ReadFile(cfg.ArmorPath)
 	if err != nil {
 		return fmt.Errorf(
 			"unable to read armor from path %s, %w",
@@ -121,10 +122,16 @@ func execImport(cfg *ImportCfg, io commands.IO) error {
 	}
 
 	if cfg.Unsafe {
+		// Un-armor the private key
+		privKey, err := armor.UnarmorPrivateKey(string(keyArmor))
+		if err != nil {
+			return fmt.Errorf("unable to unarmor private key, %w", err)
+		}
+
 		// Import the unencrypted private key
-		if err := kb.ImportPrivKeyUnsafe(
+		if err := kb.ImportPrivKey(
 			cfg.KeyName,
-			string(armor),
+			privKey,
 			encryptPassword,
 		); err != nil {
 			return fmt.Errorf(
@@ -133,11 +140,16 @@ func execImport(cfg *ImportCfg, io commands.IO) error {
 			)
 		}
 	} else {
+		// Decrypt the armor
+		privKey, err := armor.UnarmorDecryptPrivKey(string(keyArmor), decryptPassword)
+		if err != nil {
+			return fmt.Errorf("unable to decrypt private key armor, %w", err)
+		}
+
 		// Import the encrypted private key
 		if err := kb.ImportPrivKey(
 			cfg.KeyName,
-			string(armor),
-			decryptPassword,
+			privKey,
 			encryptPassword,
 		); err != nil {
 			return fmt.Errorf(
