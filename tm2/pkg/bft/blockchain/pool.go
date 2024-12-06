@@ -330,13 +330,13 @@ func (pool *BlockPool) removePeer(peerID p2pTypes.ID) {
 
 // If no peers are left, maxPeerHeight is set to 0.
 func (pool *BlockPool) updateMaxPeerHeight() {
-	var max int64
+	var maxVal int64
 	for _, peer := range pool.peers {
-		if peer.height > max {
-			max = peer.height
+		if peer.height > maxVal {
+			maxVal = peer.height
 		}
 	}
-	pool.maxPeerHeight = max
+	pool.maxPeerHeight = maxVal
 }
 
 // Pick an available peer with at least the given minHeight.
