@@ -18,8 +18,8 @@ type mapping struct {
 	Results       []mappingType
 	MachineParam  bool
 
-	packages  []*ast.ImportSpec
-	goImports []*ast.ImportSpec
+	gnoImports []*ast.ImportSpec
+	goImports  []*ast.ImportSpec
 }
 
 type mappingType struct {
@@ -60,8 +60,8 @@ func linkFunctions(pkgs []*pkgData) []mapping {
 				GoImportPath:  "github.com/gnolang/gno/" + relPath() + "/" + pkg.importPath,
 				GoFunc:        fn.Name.Name,
 
-				packages:  gb.imports,
-				goImports: fn.imports,
+				gnoImports: gb.imports,
+				goImports:  fn.imports,
 			}
 			if !mp.signaturesMatch(gb, fn) {
 				panic(

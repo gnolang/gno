@@ -189,7 +189,7 @@ var typesEqualMapping = &mapping{
 			Path: &ast.BasicLit{Value: `"github.com/gnolang/gno/tm2/pkg/crypto"`},
 		},
 	},
-	packages: []*ast.ImportSpec{
+	gnoImports: []*ast.ImportSpec{
 		{
 			Path: &ast.BasicLit{Value: `"std"`},
 		},
