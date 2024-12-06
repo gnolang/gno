@@ -28,7 +28,7 @@ var (
 	// Regex for capturing only the checkboxes.
 	checkboxes = regexp.MustCompile(`(?m:^- \[[ x]\])`)
 	// Regex used to capture markdown links.
-	markdownLink = regexp.MustCompile(`\[(.*)\]\(.*\)`)
+	markdownLink = regexp.MustCompile(`\[(.*)\]\([^)]*\)`)
 )
 
 // These structures contain the necessary information to generate
