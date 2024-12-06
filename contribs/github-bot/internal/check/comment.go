@@ -1,7 +1,8 @@
-package main
+package check
 
 import (
 	"bytes"
+	_ "embed"
 	"errors"
 	"fmt"
 	"regexp"
@@ -9,11 +10,14 @@ import (
 	"text/template"
 
 	"github.com/gnolang/gno/contribs/github-bot/internal/client"
+	"github.com/gnolang/gno/contribs/github-bot/internal/config"
 	"github.com/gnolang/gno/contribs/github-bot/internal/utils"
-
 	"github.com/google/go-github/v64/github"
 	"github.com/sethvargo/go-githubactions"
 )
+
+//go:embed comment.tmpl
+var tmplString string // Embed template used for comment generation.
 
 var errTriggeredByBot = errors.New("event triggered by bot")
 
@@ -24,7 +28,7 @@ var (
 	// Regex for capturing only the checkboxes.
 	checkboxes = regexp.MustCompile(`(?m:^- \[[ x]\])`)
 	// Regex used to capture markdown links.
-	markdownLink = regexp.MustCompile(`\[(.*)\]\(.*\)`)
+	markdownLink = regexp.MustCompile(`\[(.*)\]\([^)]*\)`)
 )
 
 // These structures contain the necessary information to generate
@@ -95,6 +99,18 @@ func handleCommentUpdate(gh *client.GitHub, actionCtx *githubactions.GitHubConte
 		return nil
 	}
 
+	// Get PR number from GitHub Actions context.
+	prNumFloat, ok := utils.IndexMap(actionCtx.Event, "issue", "number").(float64)
+	if !ok || prNumFloat <= 0 {
+		return errors.New("unable to get issue number on issue comment event")
+	}
+	prNum := int(prNumFloat)
+
+	// Ignore if this comment update is not related to an opened PR.
+	if _, err := gh.GetOpenedPullRequest(prNum); err != nil {
+		return nil // May come from an issue or a closed PR
+	}
+
 	// Return if comment was edited by bot (current authenticated user).
 	authUser, _, err := gh.Client.Users.Get(gh.Ctx, "")
 	if err != nil {
@@ -129,17 +145,11 @@ func handleCommentUpdate(gh *client.GitHub, actionCtx *githubactions.GitHubConte
 		return errors.New("unable to get changes body content on issue comment event")
 	}
 
-	// Get PR number from GitHub Actions context.
-	prNum, ok := utils.IndexMap(actionCtx.Event, "issue", "number").(float64)
-	if !ok || prNum <= 0 {
-		return errors.New("unable to get issue number on issue comment event")
-	}
-
 	// Check if change is only a checkbox being checked or unckecked.
 	if checkboxes.ReplaceAllString(current, "") != checkboxes.ReplaceAllString(previous, "") {
 		// If not, restore previous comment body.
 		if !gh.DryRun {
-			gh.SetBotComment(previous, int(prNum))
+			gh.SetBotComment(previous, prNum)
 		}
 		return errors.New("bot comment edited outside of checkboxes")
 	}
@@ -157,12 +167,12 @@ func handleCommentUpdate(gh *client.GitHub, actionCtx *githubactions.GitHubConte
 		// Get teams allowed to edit this box from config.
 		var teams []string
 		found := false
-		_, manualRules := config(gh)
+		_, manualRules := config.Config(gh)
 
 		for _, manualRule := range manualRules {
-			if manualRule.description == key {
+			if manualRule.Description == key {
 				found = true
-				teams = manualRule.teams
+				teams = manualRule.Teams
 			}
 		}
 
@@ -175,9 +185,9 @@ func handleCommentUpdate(gh *client.GitHub, actionCtx *githubactions.GitHubConte
 
 		// If teams specified in rule, check if actor is a member of one of them.
 		if len(teams) > 0 {
-			if !gh.IsUserInTeams(actionCtx.Actor, teams) { // If user not allowed
+			if !gh.IsUserInTeams(actionCtx.Actor, teams) { // If user not allowed to check the boxes.
 				if !gh.DryRun {
-					gh.SetBotComment(previous, int(prNum)) // Restore previous state
+					gh.SetBotComment(previous, prNum) // Then restore previous state.
 				}
 				return errors.New("checkbox edited by a user not allowed to")
 			}
@@ -199,7 +209,7 @@ func handleCommentUpdate(gh *client.GitHub, actionCtx *githubactions.GitHubConte
 
 	// Update comment with username.
 	if edited != "" && !gh.DryRun {
-		gh.SetBotComment(edited, int(prNum))
+		gh.SetBotComment(edited, prNum)
 		gh.Logger.Debugf("Comment manual checks updated successfully")
 	}
 
@@ -217,8 +227,7 @@ func generateComment(content CommentContent) (string, error) {
 	}
 
 	// Bind markdown stripping function to template generator.
-	const tmplFile = "comment.tmpl"
-	tmpl, err := template.New(tmplFile).Funcs(funcMap).ParseFiles(tmplFile)
+	tmpl, err := template.New("comment").Funcs(funcMap).Parse(tmplString)
 	if err != nil {
 		return "", fmt.Errorf("unable to init template: %w", err)
 	}
