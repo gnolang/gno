@@ -5,8 +5,9 @@ package web25
 import "strings"
 
 type Config struct {
-	CID string
-	URL string
+	CID  string
+	URL  string
+	Text string
 }
 
 func (c *Config) SetRemoteFrontendByURL(url string) {
@@ -26,6 +27,8 @@ func (c Config) GetLink() string {
 	return c.URL
 }
 
+const DefaultText = `Click [here]({link}) to visit the full rendering experience.\n`
+
 // Render displays a frontend link at the top of your realm's Render function in
 // a concistent way to help gno visitors to have a consistent experience.
 //
@@ -35,5 +38,10 @@ func (c Config) Render(path string) string {
 	if strings.Contains(path, "?no-web25") {
 		return ""
 	}
-	return "Checkout the full experience from the [web2.5 frontend](" + c.GetLink() + ")"
+	text := c.Text
+	if text == "" {
+		text = DefaultText
+	}
+	text = strings.ReplaceAll(text, "{link}", c.GetLink())
+	return text
 }

@@ -3,6 +3,7 @@ package home
 import (
 	"strconv"
 
+	"gno.land/p/moul/mdtable"
 	"gno.land/p/moul/txlink"
 	"gno.land/p/moul/umd"
 	"gno.land/p/moul/web25"
@@ -41,19 +42,28 @@ func Render(path string) string {
 	content += umd.H2("Personal ToDo List")
 	content += umd.BulletItem("test")
 	for i, todo := range todos {
-		deleteLink := umd.Link("del", txlink.Call("DeleteTodo", "idx", strconv.Itoa(i)))
+		deleteLink := umd.Link("x", txlink.Call("DeleteTodo", "idx", strconv.Itoa(i)))
 		content += umd.BulletItem(todo + " " + deleteLink)
 	}
 	content += umd.Paragraph(
-		umd.Link("new todo", txlink.Call("AddNewTodo")),
+		umd.Link("new", txlink.Call("AddTodo")),
 	)
+
+	content += umd.H2("Table Example")
+	// TODO: replace with a useful example
+	table := mdtable.Table{
+		Headers: []string{"foo", "bar"},
+	}
+	table.Append([]string{"foo1", "bar1"})
+	table.Append([]string{"foo2", "bar2"})
+	content += table.String()
 
 	// TODO: my r/boards posts
 	// TODO: my r/events events
 	return content
 }
 
-func AddNewTodo(todo string) {
+func AddTodo(todo string) {
 	config.AssertIsAdmin()
 	todos = append(todos, todo)
 }
