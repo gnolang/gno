@@ -45,15 +45,12 @@ func Render(path string) string {
 	d.Log("hello world!")
 
 	content += umd.H2("Personal TODO List (bullet list)")
-	content += umd.BulletItem("test")
 	for i, todo := range todos {
 		idstr := strconv.Itoa(i)
 		deleteLink := umd.Link("x", txlink.Call("DeleteTodo", "idx", idstr))
 		content += umd.BulletItem(todo + " " + deleteLink)
 	}
-	content += umd.Paragraph(
-		umd.Link("new", txlink.Call("AddTodo")),
-	)
+	content += umd.BulletItem(umd.Link("[new]", txlink.Call("AddTodo")))
 
 	content += umd.H2("Personal TODO List (table)")
 	table := mdtable.Table{
@@ -61,7 +58,7 @@ func Render(path string) string {
 	}
 	for i, todo := range todos {
 		idstr := strconv.Itoa(i)
-		deleteLink := umd.Link("del", txlink.Call("DeleteTodo", "idx", idstr))
+		deleteLink := umd.Link("[del]", txlink.Call("DeleteTodo", "idx", idstr))
 		table.Append([]string{"#" + idstr, todo, deleteLink})
 	}
 	content += table.String()
@@ -76,10 +73,14 @@ func Render(path string) string {
 		},
 	}.String())
 
-	content += d.Render(path)
+	content += umd.H2("Debug")
+	content += umd.Paragraph(
+		umd.Link("enable debug", "/r/moul/home?debug=1"),
+	)
 
 	// TODO: my r/boards posts
 	// TODO: my r/events events
+	content += d.Render(path)
 	return content
 }
 

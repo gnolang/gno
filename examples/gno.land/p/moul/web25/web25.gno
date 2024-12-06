@@ -2,7 +2,11 @@
 // frontend to provide a "better" web2.5 experience.
 package web25
 
-import "strings"
+import (
+	"strings"
+
+	"gno.land/p/moul/realmpath"
+)
 
 type Config struct {
 	CID  string
@@ -35,7 +39,7 @@ const DefaultText = "Click [here]({link}) to visit the full rendering experience
 // if query is not nil, then it will check if it's not disable by ?no-web25, so
 // that you can call the render function from an external point of view.
 func (c Config) Render(path string) string {
-	if strings.Contains(path, "?no-web25") {
+	if realmpath.Parse(path).Query.Get("no-web25") == "1" {
 		return ""
 	}
 	text := c.Text
