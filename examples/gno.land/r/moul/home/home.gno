@@ -1,7 +1,10 @@
 package home
 
 import (
+	"gno.land/p/moul/txlink"
+	"gno.land/p/moul/umd"
 	"gno.land/p/moul/web25"
+	"gno.land/r/leon/hof"
 	"gno.land/r/moul/config"
 )
 
@@ -16,24 +19,25 @@ func init() {
 	todos = append(todos, "fill this todo list...")
 	status = "Online" // Initial status set to "Online"
 	memeImgURL = "https://i.imgflip.com/7ze8dc.jpg"
+	hof.Register()
 }
 
 func Render(path string) string {
 	content := web25config.Render(path)
 
-	content += "# Manfred's (gn)home Dashboard\n\n"
+	content += umd.H1("Manfred's (gn)home Dashboard")
 
-	content += "## Meme\n"
-	content += "![](" + memeImgURL + ")\n\n"
+	content += umd.H2("Meme")
+	content += umd.Paragraph(umd.Image("meme", memeImgURL))
 
-	content += "## Status\n"
-	content += status + "\n\n"
+	content += umd.H2("Status")
+	content += umd.Paragraph(status)
 
-	content += "## Personal ToDo List\n"
+	content += umd.H2("Personal ToDo List")
 	for _, todo := range todos {
 		content += "- [ ] " + todo + "\n"
 	}
-	content += "\n"
+	content += txlink.URL("foo")
 
 	// TODO: Implement a feature to list replies on r/boards on my posts
 	// TODO: Maybe integrate a calendar feature for upcoming events?

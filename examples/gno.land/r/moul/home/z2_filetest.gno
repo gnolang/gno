@@ -20,18 +20,14 @@ func main() {
 
 // Output:
 // Checkout the full experience from the [web2.5 frontend](https://ipfs.io/ipfs/12345678)# Manfred's (gn)home Dashboard
-//
 // ## Meme
-// ![](https://i.imgflip.com/7ze8dc.jpg)
-//
+// ![meme](https://i.imgflip.com/7ze8dc.jpg)
 // ## Status
 // Lorem Ipsum
-//
 // ## Personal ToDo List
 // - [ ] fill this todo list...
 // - [ ] aaa
 // - [ ] bbb
 // - [ ] ddd
 // - [ ] eee
-//
 //
