@@ -1221,7 +1221,10 @@ func ReadMemPackageFromList(list []string, pkgPath string) (*gnovm.MemPackage, e
 		}
 		// XXX: should check that all pkg names are the same (else package is invalid)
 		if pkgName == "" && strings.HasSuffix(fname, ".gno") {
-			pkgName = MustPackageNameFromFileBody(fname, string(bz))
+			pkgName, err = PackageNameFromFileBody(fname, string(bz))
+			if err != nil {
+				return nil, err
+			}
 			if strings.HasSuffix(string(pkgName), "_test") {
 				pkgName = pkgName[:len(pkgName)-len("_test")]
 			}
