@@ -2,7 +2,7 @@ package home
 
 import (
 	"gno.land/p/moul/web25"
-	"gno.land/r/manfred/config"
+	"gno.land/r/moul/config"
 )
 
 var (
