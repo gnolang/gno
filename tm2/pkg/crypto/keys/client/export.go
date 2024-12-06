@@ -100,7 +100,7 @@ func execExport(cfg *ExportCfg, io commands.IO) error {
 			decryptPassword,
 		)
 
-		privk, err := kb.ExportPrivateKeyObject(cfg.NameOrBech32, decryptPassword)
+		privk, err := kb.ExportPrivKey(cfg.NameOrBech32, decryptPassword)
 		if err != nil {
 			panic(err)
 		}
