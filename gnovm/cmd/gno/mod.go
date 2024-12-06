@@ -7,7 +7,6 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
-	"unicode"
 
 	"github.com/gnolang/gno/gnovm/cmd/gno/internal/pkgdownload"
 	"github.com/gnolang/gno/gnovm/cmd/gno/internal/pkgdownload/gnopkgfetcher"
@@ -196,8 +195,8 @@ func parseRemoteOverrides(arg string) (map[string]string, error) {
 		if len(parts) != 2 {
 			return nil, fmt.Errorf("expected 2 parts in chain-domain=rpc-url pair %q", arg)
 		}
-		domain := strings.TrimFunc(parts[0], unicode.IsSpace)
-		rpcURL := strings.TrimFunc(parts[1], unicode.IsSpace)
+		domain := strings.TrimSpace(parts[0])
+		rpcURL := strings.TrimSpace(parts[1])
 		res[domain] = rpcURL
 	}
 	return res, nil
