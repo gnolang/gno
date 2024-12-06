@@ -34,7 +34,7 @@ type NativeResolver func(pkgName string, name Name) func(m *Machine)
 // blockchain, or the file system.
 type Store interface {
 	// STABLE
-	BeginTransaction(baseStore, iavlStore store.Store) TransactionStore
+	BeginTransaction(baseStore, iavlStore store.Store, gasMeter store.GasMeter) TransactionStore
 	SetPackageGetter(PackageGetter)
 	GetPackage(pkgPath string, isImport bool) *PackageValue
 	SetCachePackage(*PackageValue)
@@ -51,7 +51,7 @@ type Store interface {
 	GetBlockNode(Location) BlockNode // to get a PackageNode, use PackageNodeLocation().
 	GetBlockNodeSafe(Location) BlockNode
 	SetBlockNode(BlockNode)
-	SetGasMeter(store.GasMeter)
+
 	// UNSTABLE
 	Go2GnoType(rt reflect.Type) Type
 	GetAllocator() *Allocator
@@ -171,7 +171,7 @@ func NewStore(alloc *Allocator, baseStore, iavlStore store.Store) *defaultStore 
 }
 
 // If nil baseStore and iavlStore, the baseStores are re-used.
-func (ds *defaultStore) BeginTransaction(baseStore, iavlStore store.Store) TransactionStore {
+func (ds *defaultStore) BeginTransaction(baseStore, iavlStore store.Store, gasMeter store.GasMeter) TransactionStore {
 	if baseStore == nil {
 		baseStore = ds.baseStore
 	}
@@ -195,7 +195,7 @@ func (ds *defaultStore) BeginTransaction(baseStore, iavlStore store.Store) Trans
 		nativeResolver:   ds.nativeResolver,
 
 		// gas meter
-		gasMeter:  ds.gasMeter,
+		gasMeter:  gasMeter,
 		gasConfig: ds.gasConfig,
 
 		// transient
@@ -742,10 +742,6 @@ func (ds *defaultStore) IterMemPackage() <-chan *gnovm.MemPackage {
 		}()
 		return ch
 	}
-}
-
-func (ds *defaultStore) SetGasMeter(gm store.GasMeter) {
-	ds.gasMeter = gm
 }
 
 func (ds *defaultStore) consumeGas(gas int64, descriptor string) {
