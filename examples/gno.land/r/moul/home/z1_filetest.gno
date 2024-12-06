@@ -12,6 +12,8 @@ func main() {
 // ![meme](https://i.imgflip.com/7ze8dc.jpg)
 // ## Status
 // Online
-// ## Personal ToDo List
-// - [ ] fill this todo list...
+// [update](/r/moul/home$help&func=UpdateStatus)## Personal ToDo List
+// - test
+// - fill this todo list... [del](/r/moul/home$help&func=DeleteTodo&idx=0)
+// [new todo](/r/moul/home$help&func=AddNewTodo)
 //

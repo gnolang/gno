@@ -73,11 +73,19 @@ func H6(text string) string {
 func BulletList(items []string) string {
 	var sb strings.Builder
 	for _, item := range items {
-		lines := strings.Split(item, "\n")
-		sb.WriteString("- " + lines[0] + "\n")
-		for _, line := range lines[1:] {
-			sb.WriteString("  " + line + "\n")
-		}
+		sb.WriteString(BulletItem(item))
+	}
+	return sb.String()
+}
+
+// BulletItem returns a bullet item for markdown.
+// Example: BulletItem("foo") => "- foo\n"
+func BulletItem(item string) string {
+	var sb strings.Builder
+	lines := strings.Split(item, "\n")
+	sb.WriteString("- " + lines[0] + "\n")
+	for _, line := range lines[1:] {
+		sb.WriteString("  " + line + "\n")
 	}
 	return sb.String()
 }
@@ -101,15 +109,23 @@ func OrderedList(items []string) string {
 func TodoList(items []string, done []bool) string {
 	var sb strings.Builder
 	for i, item := range items {
-		checkbox := " "
-		if done[i] {
-			checkbox = "x"
-		}
-		lines := strings.Split(item, "\n")
-		sb.WriteString("- [" + checkbox + "] " + lines[0] + "\n")
-		for _, line := range lines[1:] {
-			sb.WriteString("  " + line + "\n")
-		}
+		sb.WriteString(TodoItem(item, done[i]))
+	}
+	return sb.String()
+}
+
+// TodoItem returns a todo item with checkbox for markdown.
+// Example: TodoItem("foo", true) => "- [x] foo\n"
+func TodoItem(item string, done bool) string {
+	var sb strings.Builder
+	checkbox := " "
+	if done {
+		checkbox = "x"
+	}
+	lines := strings.Split(item, "\n")
+	sb.WriteString("- [" + checkbox + "] " + lines[0] + "\n")
+	for _, line := range lines[1:] {
+		sb.WriteString("  " + line + "\n")
 	}
 	return sb.String()
 }

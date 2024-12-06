@@ -24,10 +24,12 @@ func main() {
 // ![meme](https://i.imgflip.com/7ze8dc.jpg)
 // ## Status
 // Lorem Ipsum
-// ## Personal ToDo List
-// - [ ] fill this todo list...
-// - [ ] aaa
-// - [ ] bbb
-// - [ ] ddd
-// - [ ] eee
+// [update](/r/moul/home$help&func=UpdateStatus)## Personal ToDo List
+// - test
+// - fill this todo list... [del](/r/moul/home$help&func=DeleteTodo&idx=0)
+// - aaa [del](/r/moul/home$help&func=DeleteTodo&idx=1)
+// - bbb [del](/r/moul/home$help&func=DeleteTodo&idx=2)
+// - ddd [del](/r/moul/home$help&func=DeleteTodo&idx=3)
+// - eee [del](/r/moul/home$help&func=DeleteTodo&idx=4)
+// [new todo](/r/moul/home$help&func=AddNewTodo)
 //

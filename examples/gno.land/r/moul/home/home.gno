@@ -1,6 +1,8 @@
 package home
 
 import (
+	"strconv"
+
 	"gno.land/p/moul/txlink"
 	"gno.land/p/moul/umd"
 	"gno.land/p/moul/web25"
@@ -28,20 +30,26 @@ func Render(path string) string {
 	content += umd.H1("Manfred's (gn)home Dashboard")
 
 	content += umd.H2("Meme")
-	content += umd.Paragraph(umd.Image("meme", memeImgURL))
+	content += umd.Paragraph(
+		umd.Image("meme", memeImgURL),
+	)
 
 	content += umd.H2("Status")
 	content += umd.Paragraph(status)
+	content += umd.Link("update", txlink.Call("UpdateStatus"))
 
 	content += umd.H2("Personal ToDo List")
-	for _, todo := range todos {
-		content += "- [ ] " + todo + "\n"
+	content += umd.BulletItem("test")
+	for i, todo := range todos {
+		deleteLink := umd.Link("del", txlink.Call("DeleteTodo", "idx", strconv.Itoa(i)))
+		content += umd.BulletItem(todo + " " + deleteLink)
 	}
-	content += txlink.URL("foo")
+	content += umd.Paragraph(
+		umd.Link("new todo", txlink.Call("AddNewTodo")),
+	)
 
-	// TODO: Implement a feature to list replies on r/boards on my posts
-	// TODO: Maybe integrate a calendar feature for upcoming events?
-
+	// TODO: my r/boards posts
+	// TODO: my r/events events
 	return content
 }
 
@@ -50,11 +58,11 @@ func AddNewTodo(todo string) {
 	todos = append(todos, todo)
 }
 
-func DeleteTodo(todoIndex int) {
+func DeleteTodo(idx int) {
 	config.AssertIsAdmin()
-	if todoIndex >= 0 && todoIndex < len(todos) {
+	if idx >= 0 && idx < len(todos) {
 		// Remove the todo from the list by merging slices from before and after the todo
-		todos = append(todos[:todoIndex], todos[todoIndex+1:]...)
+		todos = append(todos[:idx], todos[idx+1:]...)
 	} else {
 		panic("Invalid todo index")
 	}
