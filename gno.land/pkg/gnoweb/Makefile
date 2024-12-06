@@ -60,7 +60,7 @@ fmt:
 .PHONY: dev dev.server dev.css dev.ts deps
 
 # Run the development dependencies in parallel
-dev: generate
+dev:
 	@echo "-- starting development tools"
 	@$(MAKE) -j 3 \
 		dev.gnoweb \

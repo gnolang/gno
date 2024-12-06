@@ -1,4 +1,5 @@
 {{ define "renderHelp" }}
+{{ $data := . }}
 <main class="w-full grow-[2] bg-gray-50">
   <section class="max-w-screen-max mx-auto px-10 grid grid-cols-10 grid-flow-dense gap-8 xxl:gap-20 items-start min-h-full">
     <aside id="sidebar" class="relative h-full" aria-label="Index">
@@ -45,8 +46,7 @@
           <h1 class="text-600 font-bold">{{ .RealmName }}</h1>
         </div>
         <div class="flex gap-3 text-gray-300">
-
-		  <form class="min-w-48 mx-auto">
+          <form class="min-w-48 mx-auto">
             <select
               id="cmdmode"
               data-role="help-select-mode"
@@ -54,7 +54,6 @@
             >
               <option value="fast" selected="selected">Mode: Fast</option>
               <option value="secure">Mode: Full Security</option>
-
             </select>
           </form>
 
@@ -67,7 +66,6 @@
 
       <!-- Function Content -->
       {{ range .Functions }}
-
       <article class="bg-gray-100 rounded p-4 mb-3" data-func="{{ .FuncName }}">
         <h2 id="func-{{ .FuncName }}" class="text-gray-600 font-bold text-300 mb-3 leading-tight">{{ .FuncName }}</h2>
         <div class="mb-1">
@@ -80,7 +78,15 @@
               <div class="flex flex-col gap-3 items-stretch text-gray-400 mb-2">
                 <div class="relative flex w-full">
                   <label for="func-{{ $funcName }}-param-{{ .Name }}" class="flex gap-3 items-center bg-gray-50 rounded-l-sm px-4 font-bold text-gray-600">{{ .Name }}</label>
-                  <input type="text" id="func-{{ $funcName }}-param-{{ .Name }}" data-role="help-param-input" data-param="{{ .Name }}" class="flex h-full bottom-1 w-full rounded-r-sm p-2 focus:border-gray-600 outline-none font-mono" />
+                  <input type="text"
+									  {{- if eq $data.SelectedFunc $funcName }}
+										value="{{ getSelectedArgValue $data . }}"
+										{{- end }}
+                    id="func-{{ $funcName }}-param-{{ .Name }}"
+                    data-role="help-param-input"
+                    data-param="{{ .Name }}"
+                    class="flex h-full bottom-1 w-full rounded-r-sm p-2 focus:border-gray-600 outline-none font-mono"
+                  />
                 </div>
               </div>
               {{ end }}
@@ -105,8 +111,7 @@ gnokey broadcast -remote "{{ $.Remote }}" call.tx</span></code></pre>
         </div>
       </article>
       {{ end }}
-			<!-- Function Content end-->
-
+      <!-- Function Content end-->
     </section>
   </section>
 </main>

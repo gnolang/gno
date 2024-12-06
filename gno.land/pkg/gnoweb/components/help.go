@@ -9,6 +9,10 @@ import (
 )
 
 type HelpData struct {
+	// Selected function
+	SelectedFunc string
+	SelectedArgs map[string]string
+
 	RealmName string
 	Functions []vm.FunctionSignature
 	ChainId   string
@@ -31,6 +35,14 @@ func registerHelpFuncs(funcs template.FuncMap) {
 		fsigStr.WriteRune(')')
 
 		return fsigStr.String(), nil
+	}
+
+	funcs["getSelectedArgValue"] = func(data HelpData, param vm.NamedType) (string, error) {
+		if data.SelectedArgs == nil {
+			return "", nil
+		}
+
+		return data.SelectedArgs[param.Name], nil
 	}
 }
 

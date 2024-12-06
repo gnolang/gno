@@ -81,9 +81,6 @@ func (h *WebHandler) Get(w http.ResponseWriter, r *http.Request) {
 	body := h.getBuffer()
 	defer h.putBuffer(body)
 
-	// Render the page body into the buffer
-	var status int
-
 	start := time.Now()
 	defer func() {
 		h.logger.Debug("request ended",
@@ -91,21 +88,30 @@ func (h *WebHandler) Get(w http.ResponseWriter, r *http.Request) {
 			"took", time.Since(start).String())
 	}()
 
+	var indexData components.IndexData
+	indexData.HeadData.AssetsPath = h.static.AssetsPath
+	indexData.HeadData.ChromaPath = h.static.ChromaPath
+
+	// Render the page body into the buffer
+	var status int
 	gnourl, err := ParseGnoURL(r.URL)
 	if err != nil {
 		h.logger.Warn("page not found", "path", r.URL.Path, "err", err)
-		status, err = http.StatusNotFound, components.RenderStatusComponent(body, "page not found: "+r.URL.Path)
+		status, err = http.StatusNotFound, components.RenderStatusComponent(body, "page not found")
 	} else {
 		switch gnourl.Kind {
+		// case KindUser: // XXX
 		case KindRealm, KindPure:
 			status, err = h.renderRealm(body, gnourl)
-		case KindUser:
-			// XXX
-			fallthrough
 		default:
 			h.logger.Warn("invalid page kind", "kind", gnourl.Kind)
 			status, err = http.StatusNotFound, components.RenderStatusComponent(body, "page not found")
 		}
+
+		// Header
+		indexData.HeaderData.RealmPath = gnourl.Path
+		indexData.HeaderData.Breadcrumb.Parts = generateBreadcrumbPaths(gnourl.Path)
+		indexData.HeaderData.WebQuery = gnourl.WebQuery
 	}
 
 	if err != nil {
@@ -115,19 +121,8 @@ func (h *WebHandler) Get(w http.ResponseWriter, r *http.Request) {
 
 	w.WriteHeader(status)
 
-	var indexData components.IndexData
-
 	// NOTE: HTML escaping should have already be done by markdown rendering package
 	indexData.Body = template.HTML(body.String()) // nolint:gosec
-
-	// Head
-	indexData.HeadData.AssetsPath = h.static.AssetsPath
-	indexData.HeadData.ChromaPath = h.static.ChromaPath
-
-	// Header
-	indexData.HeaderData.RealmPath = gnourl.Path
-	indexData.HeaderData.Breadcrumb.Parts = generateBreadcrumbPaths(gnourl.Path)
-	indexData.HeaderData.WebQuery = gnourl.WebQuery
 
 	// Render the final page with the rendered body
 	if err = components.RenderIndexComponent(w, indexData); err != nil {
@@ -137,6 +132,70 @@ func (h *WebHandler) Get(w http.ResponseWriter, r *http.Request) {
 	return
 }
 
+func (h *WebHandler) renderRealm(w io.Writer, gnourl *GnoURL) (status int, err error) {
+	h.logger.Info("component render", "path", gnourl.Path, "args", gnourl.Args)
+
+	// Display realm help page ?
+	if gnourl.WebQuery.Has("help") {
+		return h.renderRealmHelp(w, gnourl)
+	}
+
+	// Display realm source page ?
+	// XXX: it would probably be better to have this as a middleware somehow
+	switch {
+	case gnourl.WebQuery.Has("source"):
+		return h.renderRealmSource(w, gnourl)
+	case gnourl.Kind == KindPure, endsWithRune(gnourl.Path, '/') || isFile(gnourl.Path):
+		i := strings.LastIndexByte(gnourl.Path, '/')
+		if i < 0 {
+			return http.StatusInternalServerError, fmt.Errorf("unable get ending slash for %q", gnourl.Path)
+		}
+
+		// Fill webquery with file infos
+		gnourl.WebQuery.Set("source", "") // set source
+
+		file := gnourl.Path[i+1:]
+		if file == "" {
+			return h.renderRealmDirectory(w, gnourl)
+		}
+
+		gnourl.WebQuery.Set("file", file)
+		gnourl.Path = gnourl.Path[:i]
+
+		return h.renderRealmSource(w, gnourl)
+	}
+
+	// Render content into the content buffer
+
+	content := h.getBuffer()
+	defer h.putBuffer(content)
+
+	meta, err := h.webcli.Render(content, gnourl.Path, gnourl.EncodeArgs())
+	if err != nil {
+		if errors.Is(err, vm.InvalidPkgPathError{}) {
+			return http.StatusNotFound, components.RenderStatusComponent(w, "not found")
+		}
+
+		h.logger.Error("unable to render markdown", "err", err)
+		return http.StatusInternalServerError, components.RenderStatusComponent(w, "internal error")
+	}
+
+	err = components.RenderRealmComponent(w, components.RealmData{
+		TocItems: &components.RealmTOCData{
+			Items: meta.Items,
+		},
+		// NOTE: `content` should have altready be escaped by
+		Content: template.HTML(content.String()), //nolint:gosec
+	})
+	if err != nil {
+		h.logger.Error("unable to render template", "err", err)
+		return http.StatusInternalServerError, components.RenderStatusComponent(w, "internal error")
+	}
+
+	// Write the rendered content to the response writer
+	return http.StatusOK, nil
+}
+
 func (h *WebHandler) renderRealmHelp(w io.Writer, gnourl *GnoURL) (status int, err error) {
 	fsigs, err := h.webcli.Functions(gnourl.Path)
 	if err != nil {
@@ -144,15 +203,35 @@ func (h *WebHandler) renderRealmHelp(w io.Writer, gnourl *GnoURL) (status int, e
 		return http.StatusInternalServerError, components.RenderStatusComponent(w, "internal error")
 	}
 
+	var selArgs map[string]string
+	var selFn string
+	if selFn = gnourl.WebQuery.Get("func"); selFn != "" {
+		for _, fn := range fsigs {
+			if selFn != fn.FuncName {
+				continue
+			}
+
+			selArgs = make(map[string]string)
+			for _, param := range fn.Params {
+				selArgs[param.Name] = gnourl.WebQuery.Get(param.Name)
+			}
+
+			fsigs = []vm.FunctionSignature{fn}
+			break
+		}
+	}
+
 	// Catch last name of the path
-	// XXX: we should probably add a condition within the template
+	// XXX: we should probably add an helper within the template
 	realmName := filepath.Base(gnourl.Path)
 	err = components.RenderHelpComponent(w, components.HelpData{
-		RealmName: realmName,
-		ChainId:   h.static.ChaindID,
-		PkgPath:   gnourl.HostPath(),
-		Remote:    h.static.RemoteHelp,
-		Functions: fsigs,
+		SelectedFunc: selFn,
+		SelectedArgs: selArgs,
+		RealmName:    realmName,
+		ChainId:      h.static.ChaindID,
+		PkgPath:      gnourl.HostPath(),
+		Remote:       h.static.RemoteHelp,
+		Functions:    fsigs,
 	})
 	if err != nil {
 		h.logger.Error("unable to render helper", "err", err)
@@ -246,70 +325,6 @@ func (h *WebHandler) renderRealmDirectory(w io.Writer, gnourl *GnoURL) (status i
 		return http.StatusInternalServerError, components.RenderStatusComponent(w, "internal error")
 	}
 
-	return http.StatusOK, nil
-}
-
-func (h *WebHandler) renderRealm(w io.Writer, gnourl *GnoURL) (status int, err error) {
-	h.logger.Info("component render", "path", gnourl.Path, "args", gnourl.Args)
-
-	// Display realm help page ?
-	if gnourl.WebQuery.Has("help") {
-		return h.renderRealmHelp(w, gnourl)
-	}
-
-	// Display realm source page ?
-	// XXX: it would probably be better to have this as a middleware somehow
-	switch {
-	case gnourl.WebQuery.Has("source"):
-		return h.renderRealmSource(w, gnourl)
-	case gnourl.Kind == KindPure, endsWithRune(gnourl.Path, '/') || isFile(gnourl.Path):
-		i := strings.LastIndexByte(gnourl.Path, '/')
-		if i < 0 {
-			return http.StatusInternalServerError, fmt.Errorf("unable get ending slash for %q", gnourl.Path)
-		}
-
-		// Fill webquery with file infos
-		gnourl.WebQuery.Set("source", "") // set source
-
-		file := gnourl.Path[i+1:]
-		if file == "" {
-			return h.renderRealmDirectory(w, gnourl)
-		}
-
-		gnourl.WebQuery.Set("file", file)
-		gnourl.Path = gnourl.Path[:i]
-
-		return h.renderRealmSource(w, gnourl)
-	}
-
-	// Render content into the content buffer
-
-	content := h.getBuffer()
-	defer h.putBuffer(content)
-
-	meta, err := h.webcli.Render(content, gnourl.Path, gnourl.EncodeArgs())
-	if err != nil {
-		if errors.Is(err, vm.InvalidPkgPathError{}) {
-			return http.StatusNotFound, components.RenderStatusComponent(w, "not found")
-		}
-
-		h.logger.Error("unable to render markdown", "err", err)
-		return http.StatusInternalServerError, components.RenderStatusComponent(w, "internal error")
-	}
-
-	err = components.RenderRealmComponent(w, components.RealmData{
-		TocItems: &components.RealmTOCData{
-			Items: meta.Items,
-		},
-		// NOTE: `content` should have altready be escaped by previous rendering
-		Content: template.HTML(content.String()), //nolint:gosec
-	})
-	if err != nil {
-		h.logger.Error("unable to render template", "err", err)
-		return http.StatusInternalServerError, components.RenderStatusComponent(w, "internal error")
-	}
-
-	// Write the rendered content to the response writer
 	return http.StatusOK, nil
 }
 
