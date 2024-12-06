@@ -19,8 +19,6 @@ import (
 	"strings"
 )
 
-const chainDomain = "gno.land" // XXX: std.ChainDomain (#2911)
-
 // Call returns a URL for the specified function with optional key-value
 // arguments, for the current realm.
 func Call(fn string, args ...string) string {
@@ -32,6 +30,8 @@ type Realm string
 
 // prefix returns the URL prefix for the realm.
 func (r Realm) prefix() string {
+	chainDomain := std.GetChainDomain()
+
 	// relative
 	if r == "" {
 		curPath := std.CurrentRealm().PkgPath()
