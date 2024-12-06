@@ -12,6 +12,7 @@ import (
 	"github.com/gnolang/gno/gno.land/pkg/gnoweb"
 	"github.com/gnolang/gno/gno.land/pkg/log"
 	"github.com/gnolang/gno/tm2/pkg/commands"
+	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 )
 
@@ -20,6 +21,7 @@ type webCfg struct {
 	remote     string
 	remoteHelp string
 	bind       string
+	json       bool
 }
 
 var defaultWebOptions = &webCfg{
@@ -65,7 +67,14 @@ func (c *webCfg) RegisterFlags(fs *flag.FlagSet) {
 
 	fs.StringVar(
 		&c.chainid,
-		"chain-id",
+		"help-chainid",
+		defaultWebOptions.chainid,
+		"Deprecated: use `chainid` instead",
+	)
+
+	fs.StringVar(
+		&c.chainid,
+		"chainid",
 		defaultWebOptions.chainid,
 		"target chain id",
 	)
@@ -76,13 +85,24 @@ func (c *webCfg) RegisterFlags(fs *flag.FlagSet) {
 		defaultWebOptions.bind,
 		"gnoweb listener",
 	)
+
+	fs.BoolVar(
+		&c.json,
+		"json",
+		defaultWebOptions.json,
+		"display log in json format",
+	)
 }
 
 func execWeb(cfg *webCfg, args []string, io commands.IO) (err error) {
-	zapLogger := log.NewZapConsoleLogger(io.Out(), zapcore.DebugLevel)
-	defer zapLogger.Sync()
-
 	// Setup logger
+	var zapLogger *zap.Logger
+	if cfg.json {
+		zapLogger = log.NewZapJSONLogger(io.Out(), zapcore.DebugLevel)
+	} else {
+		zapLogger = log.NewZapConsoleLogger(io.Out(), zapcore.DebugLevel)
+	}
+	defer zapLogger.Sync()
 	logger := log.ZapLoggerToSlog(zapLogger)
 
 	appcfg := gnoweb.NewDefaultAppConfig()

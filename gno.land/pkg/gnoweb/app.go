@@ -49,6 +49,7 @@ func MakeRouterApp(logger *slog.Logger, cfg *AppConfig) (http.Handler, error) {
 
 	formatter := html.New(
 		html.WithLineNumbers(true),
+		html.WithLinkableLineNumbers(true, "L"),
 		html.WithClasses(true),
 		html.ClassPrefix("chroma-"),
 	)
@@ -59,7 +60,7 @@ func MakeRouterApp(logger *slog.Logger, cfg *AppConfig) (http.Handler, error) {
 	webConfig.RenderClient = webcli
 	webConfig.Formatter = newFormaterWithStyle(formatter, chromaStyle)
 
-	// static meta
+	// Static meta
 	webConfig.Meta.AssetsPath = cfg.AssetsPath
 	webConfig.Meta.ChromaPath = chromaStylePath
 	webConfig.Meta.RemoteHelp = cfg.RemoteHelp
@@ -89,6 +90,7 @@ func MakeRouterApp(logger *slog.Logger, cfg *AppConfig) (http.Handler, error) {
 	// Handle assets path
 	mux.Handle(assetsBase, AssetHandler(true))
 
+	// Handle status page
 	mux.Handle("/status.json", handlerStatusJSON(logger, client))
 
 	return mux, nil

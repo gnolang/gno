@@ -11,6 +11,7 @@ import (
 	"path/filepath"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/alecthomas/chroma/v2"
 	"github.com/alecthomas/chroma/v2/lexers"
@@ -77,33 +78,41 @@ func (h *WebHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 type PathKind string
 
 func (h *WebHandler) Get(w http.ResponseWriter, r *http.Request) {
-	gnourl, err := ParseGnoURL(r.URL)
-	if err != nil {
-		h.logger.Error("invalid url", "err", err)
-		http.Error(w, "not found: "+r.URL.Path, http.StatusNotFound)
-		return
-	}
-
 	body := h.getBuffer()
 	defer h.putBuffer(body)
 
 	// Render the page body into the buffer
 	var status int
-	switch gnourl.Kind {
-	case KindRealm, KindPure:
-		status, err = h.renderRealm(body, gnourl)
-	case KindUser:
-		// XXX
-		fallthrough
-	default:
-		h.logger.Warn("invalid page kind", "kind", gnourl.Kind)
-		status, err = http.StatusNotFound, components.RenderStatusComponent(body, "page not found")
+
+	start := time.Now()
+	defer func() {
+		h.logger.Debug("request ended",
+			"url", r.URL.String(),
+			"took", time.Since(start).String())
+	}()
+
+	gnourl, err := ParseGnoURL(r.URL)
+	if err != nil {
+		h.logger.Warn("page not found", "path", r.URL.Path, "err", err)
+		status, err = http.StatusNotFound, components.RenderStatusComponent(body, "page not found: "+r.URL.Path)
+	} else {
+		switch gnourl.Kind {
+		case KindRealm, KindPure:
+			status, err = h.renderRealm(body, gnourl)
+		case KindUser:
+			// XXX
+			fallthrough
+		default:
+			h.logger.Warn("invalid page kind", "kind", gnourl.Kind)
+			status, err = http.StatusNotFound, components.RenderStatusComponent(body, "page not found")
+		}
 	}
 
 	if err != nil {
 		http.Error(w, "internal server error", http.StatusInternalServerError)
 		return
 	}
+
 	w.WriteHeader(status)
 
 	var indexData components.IndexData
@@ -118,10 +127,9 @@ func (h *WebHandler) Get(w http.ResponseWriter, r *http.Request) {
 	indexData.HeaderData.WebQuery = gnourl.WebQuery
 
 	indexData.Body = template.HTML(body.String())
-	// Render the final page with the rendered body
-	err = components.RenderIndexComponent(w, indexData)
 
-	if err != nil {
+	// Render the final page with the rendered body
+	if err = components.RenderIndexComponent(w, indexData); err != nil {
 		h.logger.Error("failed to render index component", "err", err)
 	}
 
@@ -184,10 +192,12 @@ func (h *WebHandler) renderRealmSource(w io.Writer, gnourl *GnoURL) (status int,
 		return http.StatusInternalServerError, components.RenderStatusComponent(w, "internal error")
 	}
 
+	// XXX: we should either do this on the front
 	fileLines := strings.Count(string(source), "\n")
 	fileSizeKb := float64(len(source)) / 1024.0
 	fileSizeStr := fmt.Sprintf("%.2f Kb", fileSizeKb)
 
+	// Highlight code source
 	hsource, err := h.highlightSource(fileName, source)
 	if err != nil {
 		h.logger.Error("unable to highlight source file", "file", fileName, "err", err)
@@ -247,9 +257,11 @@ func (h *WebHandler) renderRealm(w io.Writer, gnourl *GnoURL) (status int, err e
 	}
 
 	// Display realm source page ?
-	switch {
 	// XXX: it would probably be better to have this as a middleware somehow
-	case endsWithRune(gnourl.Path, '/') || isFile(gnourl.Path):
+	switch {
+	case gnourl.WebQuery.Has("source"):
+		return h.renderRealmSource(w, gnourl)
+	case gnourl.Kind == KindPure, endsWithRune(gnourl.Path, '/') || isFile(gnourl.Path):
 		i := strings.LastIndexByte(gnourl.Path, '/')
 		if i < 0 {
 			return http.StatusInternalServerError, fmt.Errorf("unable get ending slash for %q", gnourl.Path)
@@ -257,19 +269,16 @@ func (h *WebHandler) renderRealm(w io.Writer, gnourl *GnoURL) (status int, err e
 
 		// Fill webquery with file infos
 		gnourl.WebQuery.Set("source", "") // set source
-		if file := gnourl.Path[i+1:]; file != "" {
-			gnourl.WebQuery.Set("file", file)
+
+		file := gnourl.Path[i+1:]
+		if file == "" {
+			return h.renderRealmDirectory(w, gnourl)
 		}
+
+		gnourl.WebQuery.Set("file", file)
 		gnourl.Path = gnourl.Path[:i]
 
-		fallthrough // render realm source
-	case gnourl.WebQuery.Has("source"):
 		return h.renderRealmSource(w, gnourl)
-	}
-
-	// TODO: Display realm dir page (TO REMOVE)
-	if gnourl.WebQuery.Has("dir") {
-		return h.renderRealmDirectory(w, gnourl)
 	}
 
 	// Render content into the content buffer
@@ -305,12 +314,14 @@ func (h *WebHandler) renderRealm(w io.Writer, gnourl *GnoURL) (status int, err e
 
 func (h *WebHandler) highlightSource(fileName string, src []byte) ([]byte, error) {
 	var lexer chroma.Lexer
-	switch strings.ToLower(filepath.Ext(fileName)) {
-	case ".gno":
+
+	ext := strings.ToLower(filepath.Ext(fileName))
+	switch {
+	case ext == ".gno":
 		lexer = lexers.Get("go")
-	case ".md":
+	case ext == ".md":
 		lexer = lexers.Get("markdown")
-	case ".mod":
+	case ext == ".mod":
 		lexer = lexers.Get("gomod")
 	default:
 		return nil, fmt.Errorf("unsupported extension for highlighting source file: %q", fileName)
