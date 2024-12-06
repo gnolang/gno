@@ -3,7 +3,7 @@
 
 # configurable arguments
 DEV_REMOTE ?= 127.0.0.1:26657
-CHAINID ?= test3
+CHAIN_ID ?= test3
 
 # Variable Declarations
 COMPONENTS_FOLDER := ./components
@@ -12,6 +12,7 @@ tools_run := go run -modfile ./tools/go.mod
 tools_install := go install -modfile ./tools/go.mod
 
 run_air := $(tools_run) github.com/air-verse/air
+run_reflex := $(tools_run) github.com/cespare/reflex
 
 run_logname := go -C ./tools run ./cmd/logname
 
@@ -70,15 +71,8 @@ dev:
 # Go server in development mode
 dev.gnoweb: | .cache
 	@killall gnowebserve || true # make sure that previous instances as been kill
-	$(run_air) \
-		--build.cmd "go build -o .cache/gnowebserve ../../cmd/gnoweb" \
-		--build.bin ".cache/gnowebserve -chainid=${CHAIN_ID} -remote=${DEV_REMOTE}" \
-		--build.exclude_unchanged "true" \
-		--build.exclude_dir "gotools,node_modules" \
-		--build.exclude_regex '^\.#' \
-		--build.include_ext "go,gohtml" \
-		--build.stop_on_error "false" \
-		--build.rerun_delay "1000" \
+	$(run_reflex) -s -r '.*\.go(html)?' -- \
+		go run ../../cmd/gnoweb -chainid=${CHAIN_ID} -remote=${DEV_REMOTE} \
 		2>&1 | $(run_logname) gnoweb
 
 # Tailwind CSS in development mode
