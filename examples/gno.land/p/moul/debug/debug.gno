@@ -1,7 +1,17 @@
+// Package debug provides utilities for logging and displaying debug information
+// within Gno realms. It supports conditional rendering of logs and metadata,
+// toggleable via query parameters.
+//
+// Key Features:
+// - Log collection and display using Markdown formatting.
+// - Metadata display for realm path, address, and height.
+// - Collapsible debug section for cleaner presentation.
+// - Query-based debug toggle using `?debug=1`.
 package debug
 
 import (
 	"std"
+	"time"
 
 	"gno.land/p/demo/ufmt"
 	"gno.land/p/moul/md"
@@ -9,15 +19,19 @@ import (
 	"gno.land/p/moul/realmpath"
 )
 
+// Debug encapsulates debug information, including logs and metadata.
 type Debug struct {
 	Logs         []string
 	HideMetadata bool
 }
 
+// Log appends a new line of debug information to the Logs slice.
 func (d *Debug) Log(line string) {
 	d.Logs = append(d.Logs, line)
 }
 
+// Render generates the debug content as a collapsible Markdown section.
+// It conditionally renders logs and metadata if enabled via the `?debug=1` query parameter.
 func (d Debug) Render(path string) string {
 	if realmpath.Parse(path).Query.Get("debug") != "1" {
 		return ""
@@ -37,7 +51,10 @@ func (d Debug) Render(path string) string {
 		}
 		table.Append([]string{"`std.CurrentRealm().PkgPath()`", string(std.CurrentRealm().PkgPath())})
 		table.Append([]string{"`std.CurrentRealm().Addr()`", string(std.CurrentRealm().Addr())})
+		table.Append([]string{"`std.PrevRealm().PkgPath()`", string(std.PrevRealm().PkgPath())})
+		table.Append([]string{"`std.PrevRealm().Addr()`", string(std.PrevRealm().Addr())})
 		table.Append([]string{"`std.GetHeight()`", ufmt.Sprintf("%d", std.GetHeight())})
+		table.Append([]string{"`time.Now().Format(time.RFC3339)`", time.Now().Format(time.RFC3339)})
 		content += table.String()
 	}
 
@@ -48,16 +65,22 @@ func (d Debug) Render(path string) string {
 	return md.CollapsibleSection("debug", content)
 }
 
-// top-level Render returns a default Debug struct's Render.
+// Render displays metadata about the current realm but does not display logs.
+// This function uses a default Debug struct with metadata enabled and no logs.
 func Render(path string) string {
 	return Debug{}.Render(path)
 }
 
+// IsEnabled checks if the `?debug=1` query parameter is set in the given path.
+// Returns true if debugging is enabled, otherwise false.
 func IsEnabled(path string) bool {
 	req := realmpath.Parse(path)
 	return req.Query.Get("debug") == "1"
 }
 
+// ToggleURL modifies the given path's query string to toggle the `?debug=1` parameter.
+// If debugging is currently enabled, it removes the parameter.
+// If debugging is disabled, it adds the parameter.
 func ToggleURL(path string) string {
 	req := realmpath.Parse(path)
 	if IsEnabled(path) {

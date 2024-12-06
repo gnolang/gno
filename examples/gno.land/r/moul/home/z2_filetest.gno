@@ -63,7 +63,10 @@ func main() {
 // | --- | --- |
 // | `std.CurrentRealm().PkgPath()` | gno.land/r/moul/home |
 // | `std.CurrentRealm().Addr()` | g1h8h57ntxadcze3f703skymfzdwa6t3ugf0nq3z |
+// | `std.PrevRealm().PkgPath()` |  |
+// | `std.PrevRealm().Addr()` | g1manfred47kzduec920z88wfr64ylksmdcedlf5 |
 // | `std.GetHeight()` | 123 |
+// | `time.Now().Format(time.RFC3339)` | 2009-02-13T23:31:30Z |
 //
 // </details>
 //
