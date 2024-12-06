@@ -34,7 +34,7 @@ jobs:
   define-prs-matrix:
     name: Define PRs matrix
     # Prevent bot from retriggering itself and ignore event emitted by codecov
-    if: ${{ github.actor != vars.GH_BOT_LOGIN && github.actor != "codecov[bot]" }}
+    if: ${{ github.actor != vars.GH_BOT_LOGIN && github.actor != 'codecov[bot]' }}
     runs-on: ubuntu-latest
     permissions:
       pull-requests: read
