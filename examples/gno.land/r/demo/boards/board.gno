@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"gno.land/p/demo/avl"
+	"gno.land/p/moul/txlink"
 )
 
 //----------------------------------------
@@ -134,7 +135,5 @@ func (board *Board) GetURLFromThreadAndReplyID(threadID, replyID PostID) string 
 }
 
 func (board *Board) GetPostFormURL() string {
-	return "/r/demo/boards?help&__func=CreateThread" +
-		"&bid=" + board.id.String() +
-		"&body.type=textarea"
+	return txlink.URL("CreateThread", "bid", board.id.String())
 }

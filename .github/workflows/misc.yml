@@ -12,18 +12,15 @@ on:
 jobs:
   main:
     strategy:
-        fail-fast: false
-        matrix:
-          # fixed list because we have some non go programs on that misc folder
-          program:
-            - autocounterd
-            # - devdeps
-            - docker-integration
-            - genproto
-            - genstd
-            - goscan
-            - logos
-            - loop
+      fail-fast: false
+      matrix:
+        # fixed list because we have some non go programs on that misc folder
+        program:
+          - autocounterd
+          - genproto
+          - genstd
+          - goscan
+          - loop
     name: Run Main
     uses: ./.github/workflows/main_template.yml
     with:

@@ -1,3 +1,5 @@
+// PKGPATH: gno.land/r/demo/main
+
 // SEND: 300ugnot
 
 package main
@@ -11,7 +13,7 @@ import (
 
 func main() {
 	disperseAddr := std.DerivePkgAddr("gno.land/r/demo/disperse")
-	mainaddr := std.DerivePkgAddr("main")
+	mainaddr := std.DerivePkgAddr("gno.land/r/demo/main")
 	beneficiary1 := std.Address("g1dmt3sa5ucvecxuhf3j6ne5r0e3z4x7h6c03xc0")
 	beneficiary2 := std.Address("g1akeqsvhucjt8gf5yupyzjxsjd29wv8fayng37c")
 
