@@ -4,11 +4,7 @@
 
 package time
 
-import (
-	"errors"
-	// "sync" XXX
-	// "syscall" XXX
-)
+import "errors"
 
 //go:generate env ZONEINFO=$GOROOT/lib/time/zoneinfo.zip go run genzabbrs.go -output zoneinfo_abbrs_windows.go
 
@@ -63,6 +59,8 @@ const (
 	omega = 1<<63 - 1 // math.MaxInt64
 )
 
+var timezoneChainParam *Location
+
 // UTC represents Universal Coordinated Time (UTC).
 var UTC *Location = &utcLoc
 
@@ -71,26 +69,16 @@ var UTC *Location = &utcLoc
 // even if a badly behaved client has changed UTC.
 var utcLoc = Location{name: "UTC"}
 
-// Local represents the system's local time zone.
-// On Unix systems, Local consults the TZ environment
-// variable to find the time zone to use. No TZ means
-// use the system default /etc/localtime.
-// TZ="" means use UTC.
-// TZ="foo" means use file foo in the system timezone directory.
-var Local *Location = &localLoc
+func init() {
+	chainTz := getChainTz()
+	timezoneChainParam, _ = LoadLocation(chainTz)
+}
 
-// localLoc is separate so that initLocal can initialize
-// it even if a client has changed Local.
-var localLoc Location
-
-// XXX var localOnce sync.Once
+func getChainTz() string // injected
 
 func (l *Location) get() *Location {
 	if l == nil {
 		return &utcLoc
-	}
-	if l == &localLoc {
-		// XXX localOnce.Do(initLocal)
 	}
 	return l
 }
@@ -644,9 +632,6 @@ func loadFromEmbeddedTZData(name string) ([]byte, bool) // injected
 func LoadLocation(name string) (*Location, error) {
 	if name == "" || name == "UTC" {
 		return UTC, nil
-	}
-	if name == "Local" {
-		return Local, nil
 	}
 	if containsDotDot(name) || name[0] == '/' || name[0] == '\\' {
 		// No valid IANA Time Zone name contains a single dot,

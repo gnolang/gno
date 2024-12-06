@@ -11,6 +11,7 @@ func AssertOriginCall() // injected
 func IsOriginCall() bool // injected
 
 func GetChainID() string // injected
+func GetChainTz() string // injected
 func GetHeight() int64   // injected
 
 func GetOrigSend() Coins {
