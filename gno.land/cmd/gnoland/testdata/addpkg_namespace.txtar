@@ -32,7 +32,7 @@ stdout 'OK!'
 
 # Enable `sys/users`
 # admin call -> sys/users.AdminEnable
-gnokey maketx call -pkgpath gno.land/r/sys/users -func AdminEnable -gas-fee 100000ugnot -gas-wanted 850000 -broadcast -chainid tendermint_test admin
+gnokey maketx call -pkgpath gno.land/r/sys/users -func AdminEnable -gas-fee 100000ugnot -gas-wanted 1000000 -broadcast -chainid tendermint_test admin
 stdout 'OK!'
 
 # Check that `sys/users` has been enabled
@@ -43,12 +43,12 @@ stdout 'true'
 
 # Try to add a pkg an with unregistered user
 # gui addpkg -> gno.land/r/<addr_test1>/one
-! gnokey maketx addpkg -pkgdir $WORK -pkgpath gno.land/r/$USER_ADDR_test1/one -gas-fee 1000000ugnot -gas-wanted 850000 -broadcast -chainid=tendermint_test gui
+! gnokey maketx addpkg -pkgdir $WORK -pkgpath gno.land/r/$USER_ADDR_test1/one -gas-fee 1000000ugnot -gas-wanted 1000000 -broadcast -chainid=tendermint_test gui
 stderr 'unauthorized user'
 
 # Try to add a pkg with an unregistered user, on their own address as namespace
 # gui addpkg -> gno.land/r/<addr_gui>/one
-gnokey maketx addpkg -pkgdir $WORK -pkgpath gno.land/r/$USER_ADDR_gui/one -gas-fee 1000000ugnot -gas-wanted 850000 -broadcast -chainid=tendermint_test gui
+gnokey maketx addpkg -pkgdir $WORK -pkgpath gno.land/r/$USER_ADDR_gui/one -gas-fee 1000000ugnot -gas-wanted 1000000 -broadcast -chainid=tendermint_test gui
 stdout 'OK!'
 
 ## Test unregistered namespace
@@ -73,7 +73,7 @@ stdout 'OK!'
 
 # Test gui publishing on guiland/one
 # gui addpkg -> gno.land/r/guiland/one
-gnokey maketx addpkg -pkgdir $WORK -pkgpath gno.land/r/guiland/one -gas-fee 1000000ugnot -gas-wanted 1600000 -broadcast -chainid=tendermint_test gui
+gnokey maketx addpkg -pkgdir $WORK -pkgpath gno.land/r/guiland/one -gas-fee 1000000ugnot -gas-wanted 1700000 -broadcast -chainid=tendermint_test gui
 stdout 'OK!'
 
 # Test admin publishing on guiland/two

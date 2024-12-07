@@ -14,7 +14,7 @@ gnokey maketx addpkg -pkgdir $WORK/foo20 -pkgpath gno.land/r/foo20 -gas-fee 1000
 gnokey maketx addpkg -pkgdir $WORK/foo20wrapper -pkgpath gno.land/r/foo20wrapper -gas-fee 1000000ugnot -gas-wanted 6000000 -broadcast -chainid=tendermint_test test1
 
 # we call Transfer with foo20, after it's registered
-gnokey maketx call -pkgpath gno.land/r/registry -func TransferByName -args 'foo20' -args 'g123456789' -args '42' -gas-fee 1000000ugnot -gas-wanted 700000 -broadcast -chainid=tendermint_test test1
+gnokey maketx call -pkgpath gno.land/r/registry -func TransferByName -args 'foo20' -args 'g123456789' -args '42' -gas-fee 1000000ugnot -gas-wanted 800000 -broadcast -chainid=tendermint_test test1
 stdout 'same address, success!'
 
 -- registry/registry.gno --
