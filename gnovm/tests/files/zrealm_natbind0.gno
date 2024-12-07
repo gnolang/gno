@@ -184,7 +184,7 @@ func main() {
 //         "ID": "a7f5397443359ea76c50be82c77f1f893a060925:8",
 //         "IsEscaped": true,
 //         "ModTime": "3",
-//         "RefCount": "19"
+//         "RefCount": "20"
 //     },
 //     "Parent": {
 //         "@type": "/gno.RefValue",
