@@ -60,7 +60,7 @@ func TestDownloadDeps(t *testing.T) {
 					},
 				},
 			},
-			requirements: []string{"avl", "blog", "ufmt", "mux"},
+			requirements: []string{"avl", "blog", "diff", "uassert", "ufmt", "mux"},
 			ioErrContains: []string{
 				"gno: downloading gno.land/p/demo/blog",
 				"gno: downloading gno.land/p/demo/avl",
