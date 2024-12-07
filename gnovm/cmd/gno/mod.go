@@ -17,8 +17,8 @@ import (
 	"go.uber.org/multierr"
 )
 
-// packageFetcherCfg allows to override the package fetcher
-var packageFetcherCfg pkgdownload.PackageFetcher
+// testPackageFetcher allows to override the package fetcher during tests.
+var testPackageFetcher pkgdownload.PackageFetcher
 
 func newModCmd(io commands.IO) *commands.Command {
 	cmd := commands.NewCommand(
@@ -145,12 +145,13 @@ func execModDownload(cfg *modDownloadCfg, args []string, io commands.IO) error {
 		return flag.ErrHelp
 	}
 
-	if packageFetcherCfg == nil {
+	fetcher := testPackageFetcher
+	if fetcher == nil {
 		remoteOverrides, err := parseRemoteOverrides(cfg.remoteOverrides)
 		if err != nil {
 			return fmt.Errorf("invalid %s flag: %w", remoteOverridesArgName, err)
 		}
-		packageFetcherCfg = rpcpkgfetcher.New(remoteOverrides)
+		fetcher = rpcpkgfetcher.New(remoteOverrides)
 	} else if len(cfg.remoteOverrides) != 0 {
 		return fmt.Errorf("can't use %s flag with a custom package fetcher", remoteOverridesArgName)
 	}
@@ -183,7 +184,7 @@ func execModDownload(cfg *modDownloadCfg, args []string, io commands.IO) error {
 		return fmt.Errorf("validate: %w", err)
 	}
 
-	if err := downloadDeps(io, path, gnoMod, packageFetcherCfg); err != nil {
+	if err := downloadDeps(io, path, gnoMod, fetcher); err != nil {
 		return err
 	}
 
