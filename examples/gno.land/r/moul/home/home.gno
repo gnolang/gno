@@ -1,14 +1,21 @@
 package home
 
 import (
+	"strconv"
+
+	"gno.land/p/moul/mdtable"
+	"gno.land/p/moul/txlink"
+	"gno.land/p/moul/umd"
+	"gno.land/p/moul/web25"
 	"gno.land/r/leon/hof"
 	"gno.land/r/moul/config"
 )
 
 var (
-	todos      []string
-	status     string
-	memeImgURL string
+	todos       []string
+	status      string
+	memeImgURL  string
+	web25config = web25.Config{CID: "12345678"}
 )
 
 func init() {
@@ -19,36 +26,53 @@ func init() {
 }
 
 func Render(path string) string {
-	content := "# Manfred's (gn)home Dashboard\n\n"
+	content := web25config.Render(path)
 
-	content += "## Meme\n"
-	content += "![](" + memeImgURL + ")\n\n"
+	content += umd.H1("Manfred's (gn)home Dashboard")
 
-	content += "## Status\n"
-	content += status + "\n\n"
+	content += umd.H2("Meme")
+	content += umd.Paragraph(
+		umd.Image("meme", memeImgURL),
+	)
 
-	content += "## Personal ToDo List\n"
-	for _, todo := range todos {
-		content += "- [ ] " + todo + "\n"
+	content += umd.H2("Status")
+	content += umd.Paragraph(status)
+	content += umd.Link("update", txlink.Call("UpdateStatus"))
+
+	content += umd.H2("Personal ToDo List")
+	content += umd.BulletItem("test")
+	for i, todo := range todos {
+		deleteLink := umd.Link("x", txlink.Call("DeleteTodo", "idx", strconv.Itoa(i)))
+		content += umd.BulletItem(todo + " " + deleteLink)
 	}
-	content += "\n"
+	content += umd.Paragraph(
+		umd.Link("new", txlink.Call("AddTodo")),
+	)
 
-	// TODO: Implement a feature to list replies on r/boards on my posts
-	// TODO: Maybe integrate a calendar feature for upcoming events?
+	content += umd.H2("Table Example")
+	// TODO: replace with a useful example
+	table := mdtable.Table{
+		Headers: []string{"foo", "bar"},
+	}
+	table.Append([]string{"foo1", "bar1"})
+	table.Append([]string{"foo2", "bar2"})
+	content += table.String()
 
+	// TODO: my r/boards posts
+	// TODO: my r/events events
 	return content
 }
 
-func AddNewTodo(todo string) {
+func AddTodo(todo string) {
 	config.AssertIsAdmin()
 	todos = append(todos, todo)
 }
 
-func DeleteTodo(todoIndex int) {
+func DeleteTodo(idx int) {
 	config.AssertIsAdmin()
-	if todoIndex >= 0 && todoIndex < len(todos) {
+	if idx >= 0 && idx < len(todos) {
 		// Remove the todo from the list by merging slices from before and after the todo
-		todos = append(todos[:todoIndex], todos[todoIndex+1:]...)
+		todos = append(todos[:idx], todos[idx+1:]...)
 	} else {
 		panic("Invalid todo index")
 	}

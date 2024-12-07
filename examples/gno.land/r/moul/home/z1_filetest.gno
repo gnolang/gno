@@ -7,15 +7,18 @@ func main() {
 }
 
 // Output:
-// # Manfred's (gn)home Dashboard
-//
+// Click [here](https://ipfs.io/ipfs/12345678) to visit the full rendering experience.\n# Manfred's (gn)home Dashboard
 // ## Meme
-// ![](https://i.imgflip.com/7ze8dc.jpg)
-//
+// ![meme](https://i.imgflip.com/7ze8dc.jpg)
 // ## Status
 // Online
-//
-// ## Personal ToDo List
-// - [ ] fill this todo list...
-//
+// [update](/r/moul/home$help&func=UpdateStatus)## Personal ToDo List
+// - test
+// - fill this todo list... [x](/r/moul/home$help&func=DeleteTodo&idx=0)
+// [new](/r/moul/home$help&func=AddTodo)
+// ## Table Example
+// | foo | bar |
+// | --- | --- |
+// | foo1 | bar1 |
+// | foo2 | bar2 |
 //
