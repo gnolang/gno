@@ -1,4 +1,4 @@
-package gnopkgfetcher
+package rpcpkgfetcher
 
 import (
 	"testing"

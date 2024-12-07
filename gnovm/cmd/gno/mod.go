@@ -9,7 +9,7 @@ import (
 	"strings"
 
 	"github.com/gnolang/gno/gnovm/cmd/gno/internal/pkgdownload"
-	"github.com/gnolang/gno/gnovm/cmd/gno/internal/pkgdownload/gnopkgfetcher"
+	"github.com/gnolang/gno/gnovm/cmd/gno/internal/pkgdownload/rpcpkgfetcher"
 	"github.com/gnolang/gno/gnovm/pkg/gnomod"
 	"github.com/gnolang/gno/gnovm/pkg/packages"
 	"github.com/gnolang/gno/tm2/pkg/commands"
@@ -150,7 +150,7 @@ func execModDownload(cfg *modDownloadCfg, args []string, io commands.IO) error {
 		if err != nil {
 			return fmt.Errorf("invalid %s flag: %w", remoteOverridesArgName, err)
 		}
-		packageFetcherCfg = gnopkgfetcher.New(remoteOverrides)
+		packageFetcherCfg = rpcpkgfetcher.New(remoteOverrides)
 	} else if len(cfg.remoteOverrides) != 0 {
 		return fmt.Errorf("can't use %s flag with a custom package fetcher", remoteOverridesArgName)
 	}

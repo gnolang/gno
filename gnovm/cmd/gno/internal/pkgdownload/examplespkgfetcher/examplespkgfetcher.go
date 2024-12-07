@@ -1,5 +1,5 @@
-// Package gnopkgfetcher provides an implementation of [pkgdownload.PackageFetcher]
-// to fetches packages from the examples folder at GNOROOT
+// Package examplespkgfetcher provides an implementation of [pkgdownload.PackageFetcher]
+// to fetch packages from the examples folder at GNOROOT
 package examplespkgfetcher
 
 import (

@@ -1,6 +1,6 @@
-// Package gnopkgfetcher provides an implementation of [pkgdownload.PackageFetcher]
-// to fetches packages from tm2 rpc endpoints
-package gnopkgfetcher
+// Package rpcpkgfetcher provides an implementation of [pkgdownload.PackageFetcher]
+// to fetch packages from gno.land rpc endpoints
+package rpcpkgfetcher
 
 import (
 	"fmt"
@@ -10,7 +10,6 @@ import (
 	"github.com/gnolang/gno/gnovm"
 	"github.com/gnolang/gno/gnovm/cmd/gno/internal/pkgdownload"
 	"github.com/gnolang/gno/tm2/pkg/bft/rpc/client"
-	"github.com/gnolang/gno/tm2/pkg/errors"
 )
 
 type gnoPackageFetcher struct {
@@ -80,10 +79,10 @@ func qfile(c client.Client, pkgPath string) ([]byte, error) {
 
 	qres, err := c.ABCIQuery(path, data)
 	if err != nil {
-		return nil, errors.Wrap(err, "query qfile")
+		return nil, fmt.Errorf("query qfile: %w", err)
 	}
 	if qres.Response.Error != nil {
-		return nil, errors.Wrapf(qres.Response.Error, "QFile failed: log:%s", qres.Response.Log)
+		return nil, fmt.Errorf("qfile failed: %w\n%s", qres.Response.Error, qres.Response.Log)
 	}
 
 	return qres.Response.Data, nil
