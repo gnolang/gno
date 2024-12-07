@@ -16,7 +16,7 @@ func Render(path string) string {
 
 	out := "# Welcome to UserBook!\n\n"
 
-	out += ufmt.Sprintf("## [Click here to sign up!](%s)\n\n", txlink.URL("SignUp"))
+	out += ufmt.Sprintf("## [Click here to sign up!](%s)\n\n", txlink.Call("SignUp"))
 	out += "---\n\n"
 
 	var sorted sortedSignups
