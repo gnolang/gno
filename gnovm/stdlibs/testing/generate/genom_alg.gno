@@ -20,9 +20,14 @@ func main() {
 
 	seed2 := Seed{Gen: 3, IsUsed: false, Content: "banana", Result: nil}
 
-	seeds := evolve(seed1, seed2)
+	seeds := evolve([]Seed{seed1, seed2})
+
+	o_seeds := evolve([]Seed{seed1})
 
 	println(seeds)
+	println(len(seeds))
+	println(o_seeds)
+	println(len(o_seeds))
 }
 
 // Seed의 Content를 랜덤으로 변형
@@ -115,11 +120,11 @@ func TwoPointCrossover(parent1, parent2 Seed) (Seed, Seed) {
 // parents를 받아 children을 리턴합니다.
 // 교배의 수와 정도를 gen따라 유동화 했습니다
 // 전체적으로 수정했습니다.
-func evolve(p1, p2 Seed) []Seed {
-	new_generation := []Seed{}
-
+func evolve(seeds []Seed) []Seed {
+	p1 := seeds[0]
 	// 이게 목표 수
-	loop_count := 120 / (p1.Gen * p1.Gen)
+	target_count := 120 / (p1.Gen * p1.Gen)
+	loop_count := target_count / 2
 
 	// 결과가 2 미만일 경우 2로 설정
 	if loop_count < 2 {
@@ -130,6 +135,26 @@ func evolve(p1, p2 Seed) []Seed {
 	if loop_count%2 != 0 {
 		loop_count++
 	}
+
+	new_generation := []Seed{}
+	if len(seeds) == 1 {
+		// seed가 하나인 경우에도 evlove가능하게 디자인
+		for i := 0; i < int(target_count); i++ {
+			if testing.UniformRandomBool(0.65) {
+				new_generation = append(new_generation, Mutate(seeds[0]))
+			}
+			if testing.UniformRandomBool(0.35) {
+				new_generation = append(new_generation, InsertDelete(seeds[0], 0.3))
+			}
+		}
+		return new_generation
+	}
+
+	if len(seeds) > 3 {
+		panic("not covered len")
+	}
+	// 두개인 경우 정상 유전 알고리즘
+	p2 := seeds[1]
 	// children 생성합니다. (120/(gen**2))
 	for i := 0; i < int(loop_count); i++ {
 
@@ -137,8 +162,7 @@ func evolve(p1, p2 Seed) []Seed {
 		new_generation = append(new_generation, c1, c2)
 	}
 
-	// 일정 비율 돌연변이 시킵니다. (gen과 반비례한 비율로 돌연변이)
-	// 확률은 기존 퍼징에 기반합니다.
+	// 변이 확률은 기존 퍼징에 기반합니다.
 	for i := range new_generation {
 		if testing.UniformRandomBool(0.3) {
 			new_generation[i] = Mutate(new_generation[i]) // 원본 데이터 수정
