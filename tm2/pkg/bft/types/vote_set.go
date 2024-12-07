@@ -167,7 +167,7 @@ func (voteSet *VoteSet) addVote(vote *Vote) (added bool, err error) {
 	if (vote.Height != voteSet.height) ||
 		(vote.Round != voteSet.round) ||
 		(vote.Type != voteSet.type_) {
-		return false, errors.Wrap(ErrVoteUnexpectedStep, "Expected %d/%d/%d, but got %d/%d/%d",
+		return false, errors.Wrapf(ErrVoteUnexpectedStep, "Expected %d/%d/%d, but got %d/%d/%d",
 			voteSet.height, voteSet.round, voteSet.type_,
 			vote.Height, vote.Round, vote.Type)
 	}
@@ -175,13 +175,13 @@ func (voteSet *VoteSet) addVote(vote *Vote) (added bool, err error) {
 	// Ensure that signer is a validator.
 	lookupAddr, val := voteSet.valSet.GetByIndex(valIndex)
 	if val == nil {
-		return false, errors.Wrap(ErrVoteInvalidValidatorIndex,
+		return false, errors.Wrapf(ErrVoteInvalidValidatorIndex,
 			"Cannot find validator %d in valSet of size %d", valIndex, voteSet.valSet.Size())
 	}
 
 	// Ensure that the signer has the right address.
 	if valAddr != lookupAddr {
-		return false, errors.Wrap(ErrVoteInvalidValidatorAddress,
+		return false, errors.Wrapf(ErrVoteInvalidValidatorAddress,
 			"vote.ValidatorAddress (%X) does not match address (%X) for vote.ValidatorIndex (%d)\nEnsure the genesis file is correct across all validators.",
 			valAddr, lookupAddr, valIndex)
 	}
@@ -191,12 +191,12 @@ func (voteSet *VoteSet) addVote(vote *Vote) (added bool, err error) {
 		if bytes.Equal(existing.Signature, vote.Signature) {
 			return false, nil // duplicate
 		}
-		return false, errors.Wrap(ErrVoteNonDeterministicSignature, "Existing vote: %v; New vote: %v", existing, vote)
+		return false, errors.Wrapf(ErrVoteNonDeterministicSignature, "Existing vote: %v; New vote: %v", existing, vote)
 	}
 
 	// Check signature.
 	if err := vote.Verify(voteSet.chainID, val.PubKey); err != nil {
-		return false, errors.Wrap(err, "Failed to verify vote with ChainID %s and PubKey %s", voteSet.chainID, val.PubKey)
+		return false, errors.Wrapf(err, "Failed to verify vote with ChainID %s and PubKey %s", voteSet.chainID, val.PubKey)
 	}
 
 	// Add vote and get conflicting vote if any.
