@@ -61,18 +61,20 @@ type devCfg struct {
 	webRemoteHelperAddr string
 
 	// Node Configuration
-	minimal    bool
-	verbose    bool
-	noWatch    bool
-	noReplay   bool
-	maxGas     int64
-	chainId    string
-	serverMode bool
-	unsafeAPI  bool
+	minimal     bool
+	verbose     bool
+	noWatch     bool
+	noReplay    bool
+	maxGas      int64
+	chainId     string
+	chainDomain string
+	serverMode  bool
+	unsafeAPI   bool
 }
 
 var defaultDevOptions = &devCfg{
 	chainId:             "dev",
+	chainDomain:         "gno.land",
 	maxGas:              10_000_000_000,
 	webListenerAddr:     "127.0.0.1:8888",
 	nodeRPCListenerAddr: "127.0.0.1:26657",
@@ -201,6 +203,13 @@ func (c *devCfg) RegisterFlags(fs *flag.FlagSet) {
 		"chain-id",
 		defaultDevOptions.chainId,
 		"set node ChainID",
+	)
+
+	fs.StringVar(
+		&c.chainDomain,
+		"chain-domain",
+		defaultDevOptions.chainDomain,
+		"set node ChainDomain",
 	)
 
 	fs.BoolVar(
