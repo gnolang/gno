@@ -19,6 +19,8 @@ import (
 	"github.com/gnolang/gno/gno.land/pkg/sdk/vm" // for error types
 )
 
+const DefaultHost = "gno.land"
+
 type StaticMetadata struct {
 	AssetsPath string
 	ChromaPath string
@@ -231,7 +233,7 @@ func (h *WebHandler) renderRealmHelp(w io.Writer, gnourl *GnoURL) (status int, e
 		SelectedArgs: selArgs,
 		RealmName:    realmName,
 		ChainId:      h.static.ChaindID,
-		PkgPath:      gnourl.HostPath(),
+		PkgPath:      filepath.Join(DefaultHost, gnourl.Path),
 		Remote:       h.static.RemoteHelp,
 		Functions:    fsigs,
 	})

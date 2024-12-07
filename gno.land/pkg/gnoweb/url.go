@@ -4,7 +4,6 @@ import (
 	"errors"
 	"fmt"
 	"net/url"
-	"path/filepath"
 	"regexp"
 	"strings"
 )
@@ -123,23 +122,14 @@ func ParseGnoURL(u *url.URL) (*GnoURL, error) {
 		return nil, fmt.Errorf("unable to unescape path %q: %w", args, err)
 	}
 
-	host := u.Hostname()
-	if host == "" {
-		host = defaultHost
-	}
-
 	return &GnoURL{
 		Path:     path,
 		Kind:     PathKind(pathKind),
 		Args:     uargs,
 		WebQuery: webquery,
 		Query:    u.Query(),
-		Host:     host,
+		Host:     u.Hostname(),
 	}, nil
-}
-
-func (url *GnoURL) HostPath() string {
-	return filepath.Join(url.Host, url.Path)
 }
 
 func escapeDollarSign(s string) string {

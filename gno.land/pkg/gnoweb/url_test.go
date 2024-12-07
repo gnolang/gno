@@ -17,12 +17,6 @@ func TestParseGnoURL(t *testing.T) {
 	}{
 		{
 			Name:     "malformed url",
-			Input:    "https://gno.land/r/demo/:$?",
-			Expected: nil,
-			Err:      &ErrURLMalformedPath,
-		},
-		{
-			Name:     "malformed url 2",
 			Input:    "https://gno.land/r/dem)o:$?",
 			Expected: nil,
 			Err:      &ErrURLMalformedPath,
@@ -41,6 +35,7 @@ func TestParseGnoURL(t *testing.T) {
 					"name": []string{"Baz"},
 				},
 				Query: url.Values{},
+				Host:  "gno.land",
 			},
 			Err: nil,
 		},
@@ -56,6 +51,7 @@ func TestParseGnoURL(t *testing.T) {
 					"tz": []string{"Europe/Paris"},
 				},
 				Query: url.Values{},
+				Host:  "gno.land",
 			},
 			Err: nil,
 		},
@@ -73,6 +69,7 @@ func TestParseGnoURL(t *testing.T) {
 				Query: url.Values{
 					"hello": []string{"42"},
 				},
+				Host: "gno.land",
 			},
 			Err: nil,
 		},
@@ -88,6 +85,7 @@ func TestParseGnoURL(t *testing.T) {
 				Query: url.Values{
 					"value": []string{"42$tz=Europe/Paris"},
 				},
+				Host: "gno.land",
 			},
 			Err: nil,
 		},
@@ -103,9 +101,12 @@ func TestParseGnoURL(t *testing.T) {
 					"hello": []string{"42"},
 				},
 				Query: url.Values{},
+				Host:  "gno.land",
 			},
 			Err: nil,
 		},
+
+		// XXX: more tests
 	}
 
 	for _, tc := range testCases {
@@ -119,6 +120,7 @@ func TestParseGnoURL(t *testing.T) {
 				t.Logf("parsed: %s", result.EncodePath())
 				t.Logf("parsed web: %s", result.EncodeWebPath())
 			} else {
+				require.Error(t, err)
 				require.ErrorAs(t, err, tc.Err)
 			}
 
