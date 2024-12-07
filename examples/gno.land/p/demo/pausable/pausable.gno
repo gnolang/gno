@@ -1,6 +1,7 @@
 package pausable
 
 import (
+	"errors"
 	"std"
 
 	"gno.land/p/demo/ownable"
@@ -10,6 +11,8 @@ type Pausable struct {
 	*ownable.Ownable
 	paused bool
 }
+
+var ErrPaused = errors.New("pausable: realm is currently paused")
 
 // New returns a new Pausable struct with non-paused state as default
 func New() *Pausable {
@@ -39,7 +42,7 @@ func (p *Pausable) Pause() error {
 	}
 
 	p.paused = true
-	std.Emit("Paused", "account", p.Owner().String())
+	std.Emit("Paused", "by", p.Owner().String())
 
 	return nil
 }
@@ -51,7 +54,7 @@ func (p *Pausable) Unpause() error {
 	}
 
 	p.paused = false
-	std.Emit("Unpaused", "account", p.Owner().String())
+	std.Emit("Unpaused", "by", p.Owner().String())
 
 	return nil
 }

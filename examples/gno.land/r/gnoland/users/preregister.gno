@@ -3,13 +3,9 @@ package users
 import (
 	"std"
 
-	"gno.land/p/demo/users"
+	susers "gno.land/p/sys/users"
+	sys "gno.land/r/sys/users"
 )
-
-// pre-restricted names
-var preRestrictedNames = []string{
-	"bitcoin", "cosmos", "newtendermint", "ethereum",
-}
 
 // pre-registered users
 var preRegisteredUsers = []struct {
@@ -32,38 +28,24 @@ var preRegisteredUsers = []struct {
 }
 
 func init() {
+	height := std.GetHeight()
+
 	// add pre-registered users
 	for _, res := range preRegisteredUsers {
-		// assert not already registered.
-		_, ok := name2User.Get(res.Name)
-		if ok {
-			panic("name already registered")
-		}
-
-		_, ok = addr2User.Get(res.Address.String())
-		if ok {
-			panic("address already registered")
-		}
-
-		counter++
-		user := &users.User{
+		base := &susers.User{
 			Address: res.Address,
 			Name:    res.Name,
-			Profile: "",
-			Number:  counter,
-			Invites: int(0),
-			Inviter: admin,
-		}
-		name2User.Set(res.Name, user)
-		addr2User.Set(res.Address.String(), user)
-	}
-
-	// add pre-restricted names
-	for _, name := range preRestrictedNames {
-		if _, ok := name2User.Get(name); ok {
-			panic("name already registered")
 		}
 
-		restricted.Set(name, true)
+		if err := sys.WriteUser(base); err != nil {
+			panic(err)
+		}
+
+		extendedUserStore.Set(res.Address.String(), &User{
+			base:         base,
+			Bio:          "Preregistered user.",
+			Ordinal:      sys.UserCount(),
+			RegisteredAt: height,
+		})
 	}
 }
