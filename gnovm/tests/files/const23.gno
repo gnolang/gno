@@ -8,4 +8,4 @@ func main() {
 }
 
 // Error:
-// main/files/const23.gno:6:8: [](const-type string) (variable of type []string) is not constant
+// main/files/const23.gno:6:8: invalid constant type []string

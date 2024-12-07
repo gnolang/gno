@@ -2292,7 +2292,7 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 					// NOTE: may or may not be a *ConstExpr,
 					// but if not, make one now.
 					for i, vx := range n.Values {
-						checkConstantExpr(store, last, vx)
+						assertValidConstExpr(store, last, n, vx)
 						n.Values[i] = evalConst(store, last, vx)
 					}
 				} else {
@@ -2449,15 +2449,6 @@ func parseAssignFromExprList(
 		for i := 0; i < numNames; i++ {
 			sts[i] = nt
 		}
-		if isConst {
-			if xnt, ok := nt.(*NativeType); ok {
-				nt = go2GnoBaseType(xnt.Type)
-			}
-
-			if _, ok := baseOf(nt).(PrimitiveType); !ok {
-				panic(fmt.Sprintf("invalid constant type %s", nt.String()))
-			}
-		}
 		// Convert if const to nt.
 		for i := range valueExprs {
 			checkOrConvertType(store, bn, &valueExprs[i], nt, false)
@@ -2467,13 +2458,6 @@ func parseAssignFromExprList(
 		for i, vx := range valueExprs {
 			vt := evalStaticTypeOf(store, bn, vx)
 			sts[i] = vt
-			if xnt, ok := vt.(*NativeType); ok {
-				vt = go2GnoBaseType(xnt.Type)
-			}
-
-			if _, ok := baseOf(vt).(PrimitiveType); !ok {
-				panic(fmt.Sprintf("invalid constant type %s", vt.String()))
-			}
 		}
 	} else { // T is nil, n not const => same as AssignStmt DEFINE
 		// Convert n.Value to default type.
