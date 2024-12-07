@@ -401,7 +401,7 @@ func destar(x Expr) Expr {
 // Stacktrace returns the stack trace of the machine.
 // It collects the executions and frames from the machine's frames and statements.
 func (m *Machine) Stacktrace() (stacktrace Stacktrace) {
-	if len(m.Frames) == 0 {
+	if len(m.Frames) == 0 || len(m.Stmts) == 0 {
 		return
 	}
 
