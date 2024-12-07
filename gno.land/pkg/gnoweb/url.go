@@ -8,9 +8,6 @@ import (
 	"strings"
 )
 
-// XXX: this should probably not be hardcoded
-const defaultHost = "gno.land"
-
 const (
 	KindUser  PathKind = "u"
 	KindRealm PathKind = "r"
