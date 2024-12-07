@@ -1029,6 +1029,10 @@ main .source-code > pre {
   top: 0.5rem;
 }
 
+.top-20 {
+  top: 5rem;
+}
+
 .z-max {
   z-index: 9999;
 }
@@ -1439,6 +1443,22 @@ main .source-code > pre {
 
 .pt-2 {
   padding-top: 0.5rem;
+}
+
+.pt-px {
+  padding-top: 1px;
+}
+
+.pt-1 {
+  padding-top: 0.25rem;
+}
+
+.pt-0\.5 {
+  padding-top: 0.125rem;
+}
+
+.pt-4 {
+  padding-top: 1rem;
 }
 
 .font-mono {

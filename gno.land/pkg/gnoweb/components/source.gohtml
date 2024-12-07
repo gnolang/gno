@@ -2,7 +2,7 @@
 <main class="w-full grow-[2] bg-gray-50">
     <section class="max-w-screen-max mx-auto px-10 grid grid-cols-10 grid-flow-dense gap-8 xxl:gap-20 items-start">
         <aside id="sidebar" class="relative h-full" aria-label="Table of Contents">
-            <div class="sticky top-16">
+            <div class="sticky top-16 pt-0.5">
                 <div id="sidebar-summary" class="toc overflow-scroll no-scrollbar">
                     <span class="block text-gray-300 font-semibold mt-10">Sources Files list</span>
                     <nav class="text-100 font-mono pb-28">
@@ -28,11 +28,11 @@
             <div class="flex justify-between mb-3">
                 <div class="flex items-center gap-8">
                     <h1 class="text-600 font-bold">{{ .FileName }}</h1>
-                    <span class="text-gray-300">{{ .FileSize }} · {{ .FileLines }} lines</span>
+                    <span class="text-gray-300 pt-0.5">{{ .FileSize }} · {{ .FileLines }} lines</span>
                 </div>
                 <div class="flex gap-4 text-gray-300">
-                    <button class="flex items-center gap-1 hover:text-gray-600" data-copy-btn="source-code">
-                        <svg class="w-5 h-5 xxl:w-4 xxl:h-4 shrink-0 inline-block xl:hidden xxl:inline-block text-gray-200" data-copy-icon>
+                    <button class="flex items-center gap-1 hover:text-gray-600 pt-0.5" data-copy-btn="source-code">
+                        <svg class="w-5 h-5 xxl:w-4 xxl:h-4 shrink-0 inline-block text-gray-200" data-copy-icon>
                             <use href="#ico-copy"></use>
                             <use href="#ico-check" class="hidden"></use>
                         </svg>
