@@ -17,7 +17,10 @@ import (
 	"go.uber.org/multierr"
 )
 
-func newModCmd(io commands.IO, packageFetcher pkgdownload.PackageFetcher) *commands.Command {
+// packageFetcherCfg allows to override the package fetcher
+var packageFetcherCfg pkgdownload.PackageFetcher
+
+func newModCmd(io commands.IO) *commands.Command {
 	cmd := commands.NewCommand(
 		commands.Metadata{
 			Name:       "mod",
@@ -29,7 +32,7 @@ func newModCmd(io commands.IO, packageFetcher pkgdownload.PackageFetcher) *comma
 	)
 
 	cmd.AddSubCommands(
-		newModDownloadCmd(io, packageFetcher),
+		newModDownloadCmd(io),
 		newModInitCmd(),
 		newModTidy(io),
 		newModWhy(io),
@@ -38,7 +41,7 @@ func newModCmd(io commands.IO, packageFetcher pkgdownload.PackageFetcher) *comma
 	return cmd
 }
 
-func newModDownloadCmd(io commands.IO, packageFetcher pkgdownload.PackageFetcher) *commands.Command {
+func newModDownloadCmd(io commands.IO) *commands.Command {
 	cfg := &modDownloadCfg{}
 
 	return commands.NewCommand(
@@ -49,7 +52,7 @@ func newModDownloadCmd(io commands.IO, packageFetcher pkgdownload.PackageFetcher
 		},
 		cfg,
 		func(_ context.Context, args []string) error {
-			return execModDownload(cfg, args, io, packageFetcher)
+			return execModDownload(cfg, args, io)
 		},
 	)
 }
@@ -137,17 +140,17 @@ func (c *modDownloadCfg) RegisterFlags(fs *flag.FlagSet) {
 	)
 }
 
-func execModDownload(cfg *modDownloadCfg, args []string, io commands.IO, packageFetcher pkgdownload.PackageFetcher) error {
+func execModDownload(cfg *modDownloadCfg, args []string, io commands.IO) error {
 	if len(args) > 0 {
 		return flag.ErrHelp
 	}
 
-	if packageFetcher == nil {
+	if packageFetcherCfg == nil {
 		remoteOverrides, err := parseRemoteOverrides(cfg.remoteOverrides)
 		if err != nil {
 			return fmt.Errorf("invalid %s flag: %w", remoteOverridesArgName, err)
 		}
-		packageFetcher = gnopkgfetcher.New(remoteOverrides)
+		packageFetcherCfg = gnopkgfetcher.New(remoteOverrides)
 	} else if len(cfg.remoteOverrides) != 0 {
 		return fmt.Errorf("can't use %s flag with a custom package fetcher", remoteOverridesArgName)
 	}
@@ -180,7 +183,7 @@ func execModDownload(cfg *modDownloadCfg, args []string, io commands.IO, package
 		return fmt.Errorf("validate: %w", err)
 	}
 
-	if err := downloadDeps(io, path, gnoMod, packageFetcher); err != nil {
+	if err := downloadDeps(io, path, gnoMod, packageFetcherCfg); err != nil {
 		return err
 	}
 
