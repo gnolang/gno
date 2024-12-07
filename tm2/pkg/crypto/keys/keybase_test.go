@@ -149,11 +149,12 @@ func TestSignVerify(t *testing.T) {
 	i2, err := cstore.CreateAccount(n2, mn2, bip39Passphrase, p2, 0, 0)
 	require.Nil(t, err)
 
-	// Import a public key
+	// Import a public key into a new store
 	armor, err := cstore.ExportPubKey(n2)
 	require.Nil(t, err)
-	cstore.ImportPubKey(n3, armor)
-	i3, err := cstore.GetByName(n3)
+	cstore2 := NewInMemory()
+	cstore2.ImportPubKey(n3, armor)
+	i3, err := cstore2.GetByName(n3)
 	require.NoError(t, err)
 	require.Equal(t, i3.GetName(), n3)
 
@@ -174,6 +175,7 @@ func TestSignVerify(t *testing.T) {
 	s21, pub2, err := cstore.Sign(n2, p2, d1)
 	require.Nil(t, err)
 	require.Equal(t, i2.GetPubKey(), pub2)
+	require.Equal(t, i3.GetPubKey(), pub2)
 
 	s22, pub2, err := cstore.Sign(n2, p2, d2)
 	require.Nil(t, err)
@@ -282,11 +284,10 @@ func TestExportImportPubKey(t *testing.T) {
 	require.NoError(t, err)
 	// Compare the public keys
 	require.True(t, john.GetPubKey().Equals(john2.GetPubKey()))
-	// Ensure the original key hasn't changed
-	john, err = cstore.GetByName("john")
+	// Ensure that storing with the address of "john-pubkey-only" removed the entry for "john"
+	has, err := cstore.HasByName("john")
 	require.NoError(t, err)
-	require.Equal(t, john.GetPubKey().Address(), addr)
-	require.Equal(t, john.GetName(), "john")
+	require.False(t, has)
 
 	// Ensure keys cannot be overwritten
 	err = cstore.ImportPubKey("john-pubkey-only", armor)

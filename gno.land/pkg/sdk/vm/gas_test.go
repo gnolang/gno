@@ -75,7 +75,7 @@ func TestAddPkgDeliverTx(t *testing.T) {
 	assert.True(t, res.IsOK())
 
 	// NOTE: let's try to keep this bellow 100_000 :)
-	assert.Equal(t, int64(92825), gasDeliver)
+	assert.Equal(t, int64(93825), gasDeliver)
 }
 
 // Enough gas for a failed transaction.
@@ -95,7 +95,7 @@ func TestAddPkgDeliverTxFailed(t *testing.T) {
 	gasDeliver := gctx.GasMeter().GasConsumed()
 
 	assert.False(t, res.IsOK())
-	assert.Equal(t, int64(2231), gasDeliver)
+	assert.Equal(t, int64(3231), gasDeliver)
 }
 
 // Not enough gas for a failed transaction.
