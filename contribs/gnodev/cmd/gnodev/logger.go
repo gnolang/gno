@@ -30,6 +30,7 @@ func setuplogger(cfg *devCfg, out io.Writer) *slog.Logger {
 	clogger.RegisterGroupColor(WebLogName, lipgloss.Color("4"))
 	clogger.RegisterGroupColor(KeyPressLogName, lipgloss.Color("5"))
 	clogger.RegisterGroupColor(EventServerLogName, lipgloss.Color("6"))
+	clogger.RegisterGroupColor(IndexerName, lipgloss.Color("7"))
 
 	return slog.New(clogger)
 }

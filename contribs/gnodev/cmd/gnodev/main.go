@@ -9,11 +9,13 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"sync"
 	"time"
 
 	"github.com/gnolang/gno/contribs/gnodev/pkg/address"
 	gnodev "github.com/gnolang/gno/contribs/gnodev/pkg/dev"
 	"github.com/gnolang/gno/contribs/gnodev/pkg/emitter"
+	"github.com/gnolang/gno/contribs/gnodev/pkg/indexer"
 	"github.com/gnolang/gno/contribs/gnodev/pkg/rawterm"
 	"github.com/gnolang/gno/contribs/gnodev/pkg/watcher"
 	"github.com/gnolang/gno/gno.land/pkg/integration"
@@ -28,7 +30,8 @@ const (
 	WebLogName         = "GnoWeb"
 	KeyPressLogName    = "KeyPress"
 	EventServerLogName = "Event"
-	AccountsLogName    = "Accounts"
+    AccountsLogName    = "Accounts"
+    IndexerName        = "Indexer"
 )
 
 var ErrConflictingFileArgs = errors.New("cannot specify `balances-file` or `txs-file` along with `genesis-file`")
@@ -251,7 +254,9 @@ func (c *devCfg) validateConfigFlags() error {
 
 func execDev(cfg *devCfg, args []string, io commands.IO) (err error) {
 	ctx, cancel := context.WithCancelCause(context.Background())
+	wg := sync.WaitGroup{}
 	defer cancel(nil)
+	defer wg.Wait()
 
 	if err := cfg.validateConfigFlags(); err != nil {
 		return fmt.Errorf("validate error: %w", err)
@@ -301,6 +306,12 @@ func execDev(cfg *devCfg, args []string, io commands.IO) (err error) {
 	if err != nil {
 		return err
 	}
+
+	indexer, err := indexer.NewIndexer(logger.WithGroup(IndexerName), indexer.DefaultIndexerSettings())
+	if err != nil {
+		return err
+	}
+
 	defer devNode.Close()
 
 	nodeLogger.Info("node started", "lisn", devNode.GetRemoteAddress(), "chainID", cfg.chainId)
@@ -348,6 +359,11 @@ func execDev(cfg *devCfg, args []string, io commands.IO) (err error) {
 		cancel(err)
 	}()
 
+	go func() {
+		err := indexer.Start(ctx, &wg)
+		cancel(err)
+	}()
+
 	logger.WithGroup(WebLogName).
 		Info("gnoweb started",
 			"lisn", fmt.Sprintf("http://%s", server.Addr))
@@ -366,7 +382,7 @@ func execDev(cfg *devCfg, args []string, io commands.IO) (err error) {
 	}
 
 	// Run the main event loop
-	return runEventLoop(ctx, logger, book, rt, devNode, watcher)
+	return runEventLoop(ctx, logger, book, rt, devNode, watcher, indexer)
 }
 
 var helper string = `For more in-depth documentation, visit the GNO Tooling CLI documentation: 
@@ -390,6 +406,7 @@ func runEventLoop(
 	rt *rawterm.RawTerm,
 	dnode *gnodev.Node,
 	watch *watcher.PackageWatcher,
+	indexer *indexer.Indexer,
 ) error {
 	// XXX: move this in above, but we need to have a proper struct first
 	// XXX: make this configurable
@@ -428,6 +445,11 @@ func runEventLoop(
 					Error("unable to reload node", "err", err)
 			}
 
+			logger.WithGroup(IndexerName).Info("reloading...")
+			if err = indexer.Reload(); err != nil {
+				logger.WithGroup(IndexerName).
+					Error("unable to reload tx-indexer", "err", err)
+			}
 		case key, ok := <-keyPressCh:
 			if !ok {
 				return nil
@@ -451,6 +473,11 @@ func runEventLoop(
 						Error("unable to reload node", "err", err)
 				}
 
+				logger.WithGroup(IndexerName).Info("reloading...")
+				if err = indexer.Reload(); err != nil {
+					logger.WithGroup(IndexerName).
+						Error("unable to reload tx-indexer", "err", err)
+				}
 			case rawterm.KeyCtrlR: // Reset
 				logger.WithGroup(NodeLogName).Info("reseting node state...")
 				if err = dnode.Reset(ctx); err != nil {
