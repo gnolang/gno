@@ -107,7 +107,6 @@ func (c *webCfg) RegisterFlags(fs *flag.FlagSet) {
 		defaultWebOptions.analytics,
 		"nable privacy-first analytics",
 	)
-
 }
 
 func execWeb(cfg *webCfg, args []string, io commands.IO) (err error) {

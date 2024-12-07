@@ -53,7 +53,7 @@ fonts:
 
 # Format process
 fmt:
-	go fmt -w ./...
+	go fmt ./...
 
  ###############################
  # Developments
