@@ -64,12 +64,12 @@ func (i Item) Render(dashboard bool) string {
 	out += ufmt.Sprintf("Submitted at Block #%d\n\n", i.blockNum)
 
 	out += ufmt.Sprintf("#### [%d👍](%s) - [%d👎](%s)\n\n",
-		i.upvote.Size(), txlink.URL("Upvote", "pkgpath", i.pkgpath),
-		i.downvote.Size(), txlink.URL("Downvote", "pkgpath", i.pkgpath),
+		i.upvote.Size(), txlink.Call("Upvote", "pkgpath", i.pkgpath),
+		i.downvote.Size(), txlink.Call("Downvote", "pkgpath", i.pkgpath),
 	)
 
 	if dashboard {
-		out += ufmt.Sprintf("[Delete](%s)", txlink.URL("Delete", "pkgpath", i.pkgpath))
+		out += ufmt.Sprintf("[Delete](%s)", txlink.Call("Delete", "pkgpath", i.pkgpath))
 	}
 
 	return out
@@ -83,9 +83,9 @@ func renderDashboard() string {
 	out += ufmt.Sprintf("Exhibition admin: %s\n\n", owner.Owner().String())
 
 	if !exhibition.IsPaused() {
-		out += ufmt.Sprintf("[Pause exhibition](%s)\n\n", txlink.URL("Pause"))
+		out += ufmt.Sprintf("[Pause exhibition](%s)\n\n", txlink.Call("Pause"))
 	} else {
-		out += ufmt.Sprintf("[Unpause exhibition](%s)\n\n", txlink.URL("Unpause"))
+		out += ufmt.Sprintf("[Unpause exhibition](%s)\n\n", txlink.Call("Unpause"))
 	}
 
 	out += "---\n\n"

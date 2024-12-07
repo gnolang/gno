@@ -38,8 +38,8 @@ type EvidenceOverflowError struct {
 }
 
 // NewErrEvidenceOverflow returns a new EvidenceOverflowError where got > max.
-func NewErrEvidenceOverflow(max, got int64) *EvidenceOverflowError {
-	return &EvidenceOverflowError{max, got}
+func NewErrEvidenceOverflow(maxVal, got int64) *EvidenceOverflowError {
+	return &EvidenceOverflowError{maxVal, got}
 }
 
 // Error returns a string representation of the error.
