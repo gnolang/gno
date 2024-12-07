@@ -23,7 +23,7 @@ func Render(path string) string {
 		out += "---\n\n"
 		out += "# " + motd + "\n\n"
 		out += "---\n\n"
-		link := txlink.URL("UpdateMOTD", "newmotd", "Message!") //  "/r/docs/buttons$help?func=UpdateMOTD&newmotd=Message!"
+		link := txlink.Call("UpdateMOTD", "newmotd", "Message!") // "/r/docs/buttons$help&func=UpdateMOTD&newmotd=Message!"
 		out += ufmt.Sprintf("Click **[here](%s)** to update the Message of The Day!\n\n", link)
 		out += "[Go back to home page](/r/docs/buttons)\n\n"
 		out += "Last updated by " + lastCaller.String()
@@ -33,7 +33,7 @@ func Render(path string) string {
 
 	out := `# Buttons
 
-Users can create simple hyperlink buttons to view specific realm pages and 
+Users can create simple hyperlink buttons to view specific realm pages and
 do specific realm actions, such as calling a specific function with some arguments.
 
 The foundation for this functionality are markdown links; for example, you can
