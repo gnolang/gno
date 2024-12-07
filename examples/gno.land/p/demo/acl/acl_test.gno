@@ -109,6 +109,307 @@ func Test(t *testing.T) {
 	shouldHasPerm(t, dir, cst, "read", "r/demo/boards:gnolang/1") // new
 }
 
+func TestUserPerms(t *testing.T) {
+	adm := testutils.TestAddress("admin")
+	mod := testutils.TestAddress("mod")
+	usr := testutils.TestAddress("user")
+	cst := testutils.TestAddress("custom")
+
+	dir := New()
+
+	dir.AddUserPerms(usr, []string{"write", "read"}, "r/demo/boards:gnolang/2")
+
+	shouldNotHasRole(t, dir, adm, "foo")
+	shouldNotHasRole(t, dir, mod, "foo")
+	shouldNotHasRole(t, dir, usr, "foo")
+	shouldNotHasRole(t, dir, cst, "foo")
+	shouldNotHasPerm(t, dir, adm, "write", "r/demo/boards:gnolang/2")
+	shouldNotHasPerm(t, dir, mod, "write", "r/demo/boards:gnolang/2")
+	shouldHasPerm(t, dir, usr, "write", "r/demo/boards:gnolang/2")
+	shouldNotHasPerm(t, dir, cst, "write", "r/demo/boards:gnolang/2")
+	shouldNotHasPerm(t, dir, adm, "read", "r/demo/boards:gnolang/2")
+	shouldNotHasPerm(t, dir, mod, "read", "r/demo/boards:gnolang/2")
+	shouldHasPerm(t, dir, usr, "read", "r/demo/boards:gnolang/2")
+	shouldNotHasPerm(t, dir, cst, "read", "r/demo/boards:gnolang/2")
+
+	dir.RemoveUserPerm(usr, "write", "r/demo/boards:gnolang/2")
+
+	shouldNotHasRole(t, dir, adm, "foo")
+	shouldNotHasRole(t, dir, mod, "foo")
+	shouldNotHasRole(t, dir, usr, "foo")
+	shouldNotHasRole(t, dir, cst, "foo")
+	shouldNotHasPerm(t, dir, adm, "write", "r/demo/boards:gnolang/2")
+	shouldNotHasPerm(t, dir, mod, "write", "r/demo/boards:gnolang/2")
+	shouldNotHasPerm(t, dir, usr, "write", "r/demo/boards:gnolang/2")
+	shouldNotHasPerm(t, dir, cst, "write", "r/demo/boards:gnolang/2")
+	shouldNotHasPerm(t, dir, adm, "read", "r/demo/boards:gnolang/2")
+	shouldNotHasPerm(t, dir, mod, "read", "r/demo/boards:gnolang/2")
+	shouldHasPerm(t, dir, usr, "read", "r/demo/boards:gnolang/2")
+	shouldNotHasPerm(t, dir, cst, "read", "r/demo/boards:gnolang/2")
+
+	dir.AddUserPerm(usr, "write", "r/demo/boards:gnolang/2")
+
+	shouldNotHasRole(t, dir, adm, "foo")
+	shouldNotHasRole(t, dir, mod, "foo")
+	shouldNotHasRole(t, dir, usr, "foo")
+	shouldNotHasRole(t, dir, cst, "foo")
+	shouldNotHasPerm(t, dir, adm, "write", "r/demo/boards:gnolang/2")
+	shouldNotHasPerm(t, dir, mod, "write", "r/demo/boards:gnolang/2")
+	shouldHasPerm(t, dir, usr, "write", "r/demo/boards:gnolang/2")
+	shouldNotHasPerm(t, dir, cst, "write", "r/demo/boards:gnolang/2")
+	shouldNotHasPerm(t, dir, adm, "read", "r/demo/boards:gnolang/2")
+	shouldNotHasPerm(t, dir, mod, "read", "r/demo/boards:gnolang/2")
+	shouldHasPerm(t, dir, usr, "read", "r/demo/boards:gnolang/2")
+	shouldNotHasPerm(t, dir, cst, "read", "r/demo/boards:gnolang/2")
+
+	dir.RemoveUserPerms(usr, []string{"write", "read"}, "r/demo/boards:gnolang/2")
+
+	shouldNotHasRole(t, dir, adm, "foo")
+	shouldNotHasRole(t, dir, mod, "foo")
+	shouldNotHasRole(t, dir, usr, "foo")
+	shouldNotHasRole(t, dir, cst, "foo")
+	shouldNotHasPerm(t, dir, adm, "write", "r/demo/boards:gnolang/2")
+	shouldNotHasPerm(t, dir, mod, "write", "r/demo/boards:gnolang/2")
+	shouldNotHasPerm(t, dir, usr, "write", "r/demo/boards:gnolang/2")
+	shouldNotHasPerm(t, dir, cst, "write", "r/demo/boards:gnolang/2")
+	shouldNotHasPerm(t, dir, adm, "read", "r/demo/boards:gnolang/2")
+	shouldNotHasPerm(t, dir, mod, "read", "r/demo/boards:gnolang/2")
+	shouldNotHasPerm(t, dir, usr, "read", "r/demo/boards:gnolang/2")
+	shouldNotHasPerm(t, dir, cst, "read", "r/demo/boards:gnolang/2")
+
+	dir.AddUserPerms(usr, []string{"write", "read"}, "r/demo/boards:gnolang/2")
+	dir.ResetUserPerms(usr)
+
+	shouldNotHasRole(t, dir, adm, "foo")
+	shouldNotHasRole(t, dir, mod, "foo")
+	shouldNotHasRole(t, dir, usr, "foo")
+	shouldNotHasRole(t, dir, cst, "foo")
+	shouldNotHasPerm(t, dir, adm, "write", "r/demo/boards:gnolang/2")
+	shouldNotHasPerm(t, dir, mod, "write", "r/demo/boards:gnolang/2")
+	shouldNotHasPerm(t, dir, usr, "write", "r/demo/boards:gnolang/2")
+	shouldNotHasPerm(t, dir, cst, "write", "r/demo/boards:gnolang/2")
+	shouldNotHasPerm(t, dir, adm, "read", "r/demo/boards:gnolang/2")
+	shouldNotHasPerm(t, dir, mod, "read", "r/demo/boards:gnolang/2")
+	shouldNotHasPerm(t, dir, usr, "read", "r/demo/boards:gnolang/2")
+	shouldNotHasPerm(t, dir, cst, "read", "r/demo/boards:gnolang/2")
+}
+
+func TestUserGroups(t *testing.T) {
+	adm := testutils.TestAddress("admin")
+	mod := testutils.TestAddress("mod")
+	usr := testutils.TestAddress("user")
+	cst := testutils.TestAddress("custom")
+
+	dir := New()
+
+	dir.AddGroupPerm("mods", "write", "r/demo/boards:gnolang/3")
+	dir.AddUserToGroup(usr, "mods")
+
+	shouldNotHasRole(t, dir, adm, "foo")
+	shouldNotHasRole(t, dir, mod, "foo")
+	shouldNotHasRole(t, dir, usr, "foo")
+	shouldNotHasRole(t, dir, cst, "foo")
+	shouldNotHasPerm(t, dir, adm, "write", "r/demo/boards:gnolang/3")
+	shouldNotHasPerm(t, dir, mod, "write", "r/demo/boards:gnolang/3")
+	shouldHasPerm(t, dir, usr, "write", "r/demo/boards:gnolang/3")
+	shouldNotHasPerm(t, dir, cst, "write", "r/demo/boards:gnolang/3")
+	shouldNotHasPerm(t, dir, adm, "read", "r/demo/boards:gnolang/3")
+	shouldNotHasPerm(t, dir, mod, "read", "r/demo/boards:gnolang/3")
+	shouldNotHasPerm(t, dir, usr, "read", "r/demo/boards:gnolang/3")
+	shouldNotHasPerm(t, dir, cst, "read", "r/demo/boards:gnolang/3")
+
+	dir.RemoveUserFromGroup(usr, "mods")
+
+	shouldNotHasRole(t, dir, adm, "foo")
+	shouldNotHasRole(t, dir, mod, "foo")
+	shouldNotHasRole(t, dir, usr, "foo")
+	shouldNotHasRole(t, dir, cst, "foo")
+	shouldNotHasPerm(t, dir, adm, "write", "r/demo/boards:gnolang/3")
+	shouldNotHasPerm(t, dir, mod, "write", "r/demo/boards:gnolang/3")
+	shouldNotHasPerm(t, dir, usr, "write", "r/demo/boards:gnolang/3")
+	shouldNotHasPerm(t, dir, cst, "write", "r/demo/boards:gnolang/3")
+	shouldNotHasPerm(t, dir, adm, "read", "r/demo/boards:gnolang/3")
+	shouldNotHasPerm(t, dir, mod, "read", "r/demo/boards:gnolang/3")
+	shouldNotHasPerm(t, dir, usr, "read", "r/demo/boards:gnolang/3")
+	shouldNotHasPerm(t, dir, cst, "read", "r/demo/boards:gnolang/3")
+
+	dir.AddGroupPerms("admins", []string{"read", "write"}, "r/demo/boards:gnolang/3")
+	dir.AddUserToGroups(adm, []string{"mods", "admins"})
+
+	shouldNotHasRole(t, dir, adm, "foo")
+	shouldNotHasRole(t, dir, mod, "foo")
+	shouldNotHasRole(t, dir, usr, "foo")
+	shouldNotHasRole(t, dir, cst, "foo")
+	shouldHasPerm(t, dir, adm, "write", "r/demo/boards:gnolang/3")
+	shouldNotHasPerm(t, dir, mod, "write", "r/demo/boards:gnolang/3")
+	shouldNotHasPerm(t, dir, usr, "write", "r/demo/boards:gnolang/3")
+	shouldNotHasPerm(t, dir, cst, "write", "r/demo/boards:gnolang/3")
+	shouldHasPerm(t, dir, adm, "read", "r/demo/boards:gnolang/3")
+	shouldNotHasPerm(t, dir, mod, "read", "r/demo/boards:gnolang/3")
+	shouldNotHasPerm(t, dir, usr, "read", "r/demo/boards:gnolang/3")
+	shouldNotHasPerm(t, dir, cst, "read", "r/demo/boards:gnolang/3")
+
+	dir.AddGroupPerms("mods", []string{"read", "write"}, "r/demo/boards:gnolang/3")
+	dir.RemoveUserFromGroups(adm, []string{"mods"})
+
+	shouldNotHasRole(t, dir, adm, "foo")
+	shouldNotHasRole(t, dir, mod, "foo")
+	shouldNotHasRole(t, dir, usr, "foo")
+	shouldNotHasRole(t, dir, cst, "foo")
+	shouldHasPerm(t, dir, adm, "write", "r/demo/boards:gnolang/3")
+	shouldNotHasPerm(t, dir, mod, "write", "r/demo/boards:gnolang/3")
+	shouldNotHasPerm(t, dir, usr, "write", "r/demo/boards:gnolang/3")
+	shouldNotHasPerm(t, dir, cst, "write", "r/demo/boards:gnolang/3")
+	shouldHasPerm(t, dir, adm, "read", "r/demo/boards:gnolang/3")
+	shouldNotHasPerm(t, dir, mod, "read", "r/demo/boards:gnolang/3")
+	shouldNotHasPerm(t, dir, usr, "read", "r/demo/boards:gnolang/3")
+	shouldNotHasPerm(t, dir, cst, "read", "r/demo/boards:gnolang/3")
+
+	dir.RemoveGroupPerms("admins", []string{"read", "write"}, "r/demo/boards:gnolang/3")
+
+	shouldNotHasRole(t, dir, adm, "foo")
+	shouldNotHasRole(t, dir, mod, "foo")
+	shouldNotHasRole(t, dir, usr, "foo")
+	shouldNotHasRole(t, dir, cst, "foo")
+	shouldNotHasPerm(t, dir, adm, "write", "r/demo/boards:gnolang/3")
+	shouldNotHasPerm(t, dir, mod, "write", "r/demo/boards:gnolang/3")
+	shouldNotHasPerm(t, dir, usr, "write", "r/demo/boards:gnolang/3")
+	shouldNotHasPerm(t, dir, cst, "write", "r/demo/boards:gnolang/3")
+	shouldNotHasPerm(t, dir, adm, "read", "r/demo/boards:gnolang/3")
+	shouldNotHasPerm(t, dir, mod, "read", "r/demo/boards:gnolang/3")
+	shouldNotHasPerm(t, dir, usr, "read", "r/demo/boards:gnolang/3")
+	shouldNotHasPerm(t, dir, cst, "read", "r/demo/boards:gnolang/3")
+
+	dir.AddGroupPerms("admins", []string{"read", "write"}, "r/demo/boards:gnolang/3")
+
+	shouldNotHasRole(t, dir, adm, "foo")
+	shouldNotHasRole(t, dir, mod, "foo")
+	shouldNotHasRole(t, dir, usr, "foo")
+	shouldNotHasRole(t, dir, cst, "foo")
+	shouldHasPerm(t, dir, adm, "write", "r/demo/boards:gnolang/3")
+	shouldNotHasPerm(t, dir, mod, "write", "r/demo/boards:gnolang/3")
+	shouldNotHasPerm(t, dir, usr, "write", "r/demo/boards:gnolang/3")
+	shouldNotHasPerm(t, dir, cst, "write", "r/demo/boards:gnolang/3")
+	shouldHasPerm(t, dir, adm, "read", "r/demo/boards:gnolang/3")
+	shouldNotHasPerm(t, dir, mod, "read", "r/demo/boards:gnolang/3")
+	shouldNotHasPerm(t, dir, usr, "read", "r/demo/boards:gnolang/3")
+	shouldNotHasPerm(t, dir, cst, "read", "r/demo/boards:gnolang/3")
+
+	dir.RemoveGroupPerm("admins", "write", "r/demo/boards:gnolang/3")
+
+	shouldNotHasRole(t, dir, adm, "foo")
+	shouldNotHasRole(t, dir, mod, "foo")
+	shouldNotHasRole(t, dir, usr, "foo")
+	shouldNotHasRole(t, dir, cst, "foo")
+	shouldNotHasPerm(t, dir, adm, "write", "r/demo/boards:gnolang/3")
+	shouldNotHasPerm(t, dir, mod, "write", "r/demo/boards:gnolang/3")
+	shouldNotHasPerm(t, dir, usr, "write", "r/demo/boards:gnolang/3")
+	shouldNotHasPerm(t, dir, cst, "write", "r/demo/boards:gnolang/3")
+	shouldHasPerm(t, dir, adm, "read", "r/demo/boards:gnolang/3")
+	shouldNotHasPerm(t, dir, mod, "read", "r/demo/boards:gnolang/3")
+	shouldNotHasPerm(t, dir, usr, "read", "r/demo/boards:gnolang/3")
+	shouldNotHasPerm(t, dir, cst, "read", "r/demo/boards:gnolang/3")
+
+	dir.ResetGroupPerms("admins")
+
+	shouldNotHasRole(t, dir, adm, "foo")
+	shouldNotHasRole(t, dir, mod, "foo")
+	shouldNotHasRole(t, dir, usr, "foo")
+	shouldNotHasRole(t, dir, cst, "foo")
+	shouldNotHasPerm(t, dir, adm, "write", "r/demo/boards:gnolang/3")
+	shouldNotHasPerm(t, dir, mod, "write", "r/demo/boards:gnolang/3")
+	shouldNotHasPerm(t, dir, usr, "write", "r/demo/boards:gnolang/3")
+	shouldNotHasPerm(t, dir, cst, "write", "r/demo/boards:gnolang/3")
+	shouldNotHasPerm(t, dir, adm, "read", "r/demo/boards:gnolang/3")
+	shouldNotHasPerm(t, dir, mod, "read", "r/demo/boards:gnolang/3")
+	shouldNotHasPerm(t, dir, usr, "read", "r/demo/boards:gnolang/3")
+	shouldNotHasPerm(t, dir, cst, "read", "r/demo/boards:gnolang/3")
+
+	dir.AddGroupPerm("admins", "write", "r/demo/boards:gnolang/3")
+
+	shouldNotHasRole(t, dir, adm, "foo")
+	shouldNotHasRole(t, dir, mod, "foo")
+	shouldNotHasRole(t, dir, usr, "foo")
+	shouldNotHasRole(t, dir, cst, "foo")
+	shouldHasPerm(t, dir, adm, "write", "r/demo/boards:gnolang/3")
+	shouldNotHasPerm(t, dir, mod, "write", "r/demo/boards:gnolang/3")
+	shouldNotHasPerm(t, dir, usr, "write", "r/demo/boards:gnolang/3")
+	shouldNotHasPerm(t, dir, cst, "write", "r/demo/boards:gnolang/3")
+	shouldNotHasPerm(t, dir, adm, "read", "r/demo/boards:gnolang/3")
+	shouldNotHasPerm(t, dir, mod, "read", "r/demo/boards:gnolang/3")
+	shouldNotHasPerm(t, dir, usr, "read", "r/demo/boards:gnolang/3")
+	shouldNotHasPerm(t, dir, cst, "read", "r/demo/boards:gnolang/3")
+
+	dir.ResetUserGroups(adm)
+
+	shouldNotHasRole(t, dir, adm, "foo")
+	shouldNotHasRole(t, dir, mod, "foo")
+	shouldNotHasRole(t, dir, usr, "foo")
+	shouldNotHasRole(t, dir, cst, "foo")
+	shouldNotHasPerm(t, dir, adm, "write", "r/demo/boards:gnolang/3")
+	shouldNotHasPerm(t, dir, mod, "write", "r/demo/boards:gnolang/3")
+	shouldNotHasPerm(t, dir, usr, "write", "r/demo/boards:gnolang/3")
+	shouldNotHasPerm(t, dir, cst, "write", "r/demo/boards:gnolang/3")
+	shouldNotHasPerm(t, dir, adm, "read", "r/demo/boards:gnolang/3")
+	shouldNotHasPerm(t, dir, mod, "read", "r/demo/boards:gnolang/3")
+	shouldNotHasPerm(t, dir, usr, "read", "r/demo/boards:gnolang/3")
+	shouldNotHasPerm(t, dir, cst, "read", "r/demo/boards:gnolang/3")
+}
+
+func TestPermDuplication(t *testing.T) {
+	user := testutils.TestAddress("user")
+
+	dir := New()
+	dir.AddUserPerm(user, "write", "r/demo/boards:gnolang/3")
+	dir.AddUserPerm(user, "write", "r/demo/boards:gnolang/3")
+
+	shouldHasPerm(t, dir, user, "write", "r/demo/boards:gnolang/3")
+
+	dir.RemoveUserPerm(user, "write", "r/demo/boards:gnolang/3")
+	shouldNotHasPerm(t, dir, user, "write", "r/demo/boards:gnolang/3")
+
+	dir.AddUserPerms(user, []string{"write", "write"}, "r/demo/boards:gnolang/3")
+	shouldHasPerm(t, dir, user, "write", "r/demo/boards:gnolang/3")
+
+	dir.RemoveUserPerm(user, "write", "r/demo/boards:gnolang/3")
+	shouldNotHasPerm(t, dir, user, "write", "r/demo/boards:gnolang/3")
+
+	dir.AddGroupPerm("mods", "write", "r/demo/boards:gnolang/3")
+	dir.AddGroupPerm("mods", "write", "r/demo/boards:gnolang/3")
+	dir.AddUserToGroup(user, "mods")
+
+	shouldHasPerm(t, dir, user, "write", "r/demo/boards:gnolang/3")
+
+	dir.RemoveGroupPerm("mods", "write", "r/demo/boards:gnolang/3")
+	shouldNotHasPerm(t, dir, user, "write", "r/demo/boards:gnolang/3")
+
+	dir.AddGroupPerms("mods", []string{"write", "write"}, "r/demo/boards:gnolang/3")
+	shouldHasPerm(t, dir, user, "write", "r/demo/boards:gnolang/3")
+
+	dir.RemoveGroupPerm("mods", "write", "r/demo/boards:gnolang/3")
+	shouldNotHasPerm(t, dir, user, "write", "r/demo/boards:gnolang/3")
+}
+
+func TestUserDuplication(t *testing.T) {
+	user := testutils.TestAddress("user")
+
+	dir := New()
+	dir.AddGroupPerm("mods", "write", "r/demo/boards:gnolang/4")
+	dir.AddUserToGroup(user, "mods")
+	dir.AddUserToGroup(user, "mods")
+
+	shouldHasPerm(t, dir, user, "write", "r/demo/boards:gnolang/4")
+
+	dir.RemoveUserFromGroup(user, "mods")
+	shouldNotHasPerm(t, dir, user, "write", "r/demo/boards:gnolang/4")
+
+	dir.AddUserToGroups(user, []string{"mods", "mods"})
+	shouldHasPerm(t, dir, user, "write", "r/demo/boards:gnolang/4")
+
+	dir.RemoveUserFromGroup(user, "mods")
+	shouldNotHasPerm(t, dir, user, "write", "r/demo/boards:gnolang/4")
+}
+
 func shouldHasRole(t *testing.T, dir *Directory, addr std.Address, role string) {
 	t.Helper()
 	check := dir.HasRole(addr, role)
