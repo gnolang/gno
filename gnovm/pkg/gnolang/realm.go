@@ -1135,7 +1135,7 @@ func copyValueWithRefs(val Value) Value {
 		if cv.Closure != nil {
 			closure = toRefValue(cv.Closure)
 		}
-		// nativeBody funcs which don't come from NativeStore (and thus don't
+		// nativeBody funcs which don't come from NativeResolver (and thus don't
 		// have NativePkg/Name) can't be persisted, and should not be able
 		// to get here anyway.
 		if cv.nativeBody != nil && cv.NativePkg == "" {
