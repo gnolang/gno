@@ -41,8 +41,8 @@ const pathLengthLimit = 256
 
 var (
 	rePkgName              = regexp.MustCompile(`^[a-z][a-z0-9_]*$`)
-	rePkgOrRlmPath         = regexp.MustCompile(`^gno\.land\/(?:p|r)(?:\/_?[a-z]+[a-z0-9_]*)+$`)
-	rePkgOrRlmOrStdlibPath = regexp.MustCompile(`^gno\.land\/(?:p|r)(?:\/_?[a-z]+[a-z0-9_]*)+|(?:[a-z]+[a-z0-9_]*)(?:\/_?[a-z]+[a-z0-9_]*)*$`)
+	rePkgOrRlmPath         = regexp.MustCompile(`^([a-zA-Z0-9-]+\.)*[a-zA-Z0-9-]+\.[a-zA-Z]{2,}\/(?:p|r)(?:\/_?[a-z]+[a-z0-9_]*)+$`)
+	rePkgOrRlmOrStdlibPath = regexp.MustCompile(`^([a-zA-Z0-9-]+\.)*[a-zA-Z0-9-]+\.[a-zA-Z]{2,}\/(?:p|r)(?:\/_?[a-z]+[a-z0-9_]*)+|(?:[a-z]+[a-z0-9_]*)(?:\/_?[a-z]+[a-z0-9_]*)*$`)
 	reFileName             = regexp.MustCompile(`^([a-zA-Z0-9_]*\.[a-z0-9_\.]*|LICENSE|README)$`)
 )
 

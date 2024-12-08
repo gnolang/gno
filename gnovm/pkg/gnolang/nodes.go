@@ -1,6 +1,7 @@
 package gnolang
 
 import (
+	"errors"
 	"fmt"
 	"go/parser"
 	"go/token"
@@ -1133,18 +1134,27 @@ type FileSet struct {
 
 // PackageNameFromFileBody extracts the package name from the given Gno code body.
 // The 'name' parameter is used for better error traces, and 'body' contains the Gno code.
-func PackageNameFromFileBody(name, body string) Name {
+func PackageNameFromFileBody(name, body string) (Name, error) {
 	fset := token.NewFileSet()
 	astFile, err := parser.ParseFile(fset, name, body, parser.PackageClauseOnly)
 	if err != nil {
-		panic(err)
+		return "", err
 	}
 
-	return Name(astFile.Name.Name)
+	return Name(astFile.Name.Name), nil
+}
+
+// MustPackageNameFromFileBody is a wrapper around [PackageNameFromFileBody] that panics on error.
+func MustPackageNameFromFileBody(name, body string) Name {
+	pkgName, err := PackageNameFromFileBody(name, body)
+	if err != nil {
+		panic(err)
+	}
+	return pkgName
 }
 
 // ReadMemPackage is a wrapper around [ReadMemPackageFromFS] using an OS filesystem rooted at dir
-func ReadMemPackage(dir string, pkgPath string) *gnovm.MemPackage {
+func ReadMemPackage(dir string, pkgPath string) (*gnovm.MemPackage, error) {
 	return ReadMemPackageFromFS(os.DirFS(dir), ".", pkgPath)
 }
 
@@ -1158,10 +1168,10 @@ func ReadMemPackage(dir string, pkgPath string) *gnovm.MemPackage {
 //
 // NOTE: panics if package name is invalid (characters must be alphanumeric or _,
 // lowercase, and must start with a letter).
-func ReadMemPackageFromFS(fsys fs.FS, dir string, pkgPath string) *gnovm.MemPackage {
+func ReadMemPackageFromFS(fsys fs.FS, dir string, pkgPath string) (*gnovm.MemPackage, error) {
 	files, err := fs.ReadDir(fsys, dir)
 	if err != nil {
-		panic(err)
+		return nil, err
 	}
 	allowedFiles := []string{ // make case insensitive?
 		"LICENSE",
@@ -1192,15 +1202,24 @@ func ReadMemPackageFromFS(fsys fs.FS, dir string, pkgPath string) *gnovm.MemPack
 	return ReadMemPackageFromList([]fs.FS{fsys}, list, pkgPath)
 }
 
+// MustReadMemPackage is a wrapper around [ReadMemPackage] that panics on error.
+func MustReadMemPackage(dir string, pkgPath string) *gnovm.MemPackage {
+	pkg, err := ReadMemPackage(dir, pkgPath)
+	if err != nil {
+		panic(err)
+	}
+	return pkg
+}
+
 // ReadMemPackageFromList creates a new [gnovm.MemPackage] with the specified pkgPath,
 // containing the contents of all the files provided in the list slice.
 // No parsing or validation is done on the filenames.
 //
-// NOTE: panics if package name is invalid (characters must be alphanumeric or _,
+// NOTE: errors out if package name is invalid (characters must be alphanumeric or _,
 // lowercase, and must start with a letter).
-func ReadMemPackageFromList(fss []fs.FS, list []string, pkgPath string) *gnovm.MemPackage {
+func ReadMemPackageFromList(fss []fs.FS, list []string, pkgPath string) (*gnovm.MemPackage, error) {
 	if len(fss) == 0 {
-		panic("no filesystems provided")
+		return nil, errors.New("no filesystems provided")
 	}
 	memPkg := &gnovm.MemPackage{Path: pkgPath}
 	var pkgName Name
@@ -1216,13 +1235,16 @@ func ReadMemPackageFromList(fss []fs.FS, list []string, pkgPath string) *gnovm.M
 				continue
 			}
 			if err != nil {
-				panic(fmt.Errorf("read %q in fsys #%d: %w", fpath, i, err))
+				return nil, fmt.Errorf("read %q in fsys #%d: %w", fpath, i, err)
 			}
 			break
 		}
 		// XXX: should check that all pkg names are the same (else package is invalid)
 		if pkgName == "" && strings.HasSuffix(fname, ".gno") {
-			pkgName = PackageNameFromFileBody(fname, string(bz))
+			pkgName, err = PackageNameFromFileBody(fname, string(bz))
+			if err != nil {
+				return nil, err
+			}
 			if strings.HasSuffix(string(pkgName), "_test") {
 				pkgName = pkgName[:len(pkgName)-len("_test")]
 			}
@@ -1236,11 +1258,22 @@ func ReadMemPackageFromList(fss []fs.FS, list []string, pkgPath string) *gnovm.M
 
 	// If no .gno files are present, package simply does not exist.
 	if !memPkg.IsEmpty() {
-		validatePkgName(string(pkgName))
+		if err := validatePkgName(string(pkgName)); err != nil {
+			return nil, err
+		}
 		memPkg.Name = string(pkgName)
 	}
 
-	return memPkg
+	return memPkg, nil
+}
+
+// MustReadMemPackageFromList is a wrapper around [ReadMemPackageFromList] that panics on error.
+func MustReadMemPackageFromList(fss []fs.FS, list []string, pkgPath string) *gnovm.MemPackage {
+	pkg, err := ReadMemPackageFromList(fss, list, pkgPath)
+	if err != nil {
+		panic(err)
+	}
+	return pkg
 }
 
 // ParseMemPackage executes [ParseFile] on each file of the memPkg, excluding
@@ -2159,10 +2192,11 @@ var rePkgName = regexp.MustCompile(`^[a-z][a-z0-9_]+$`)
 
 // TODO: consider length restrictions.
 // If this function is changed, ReadMemPackage's documentation should be updated accordingly.
-func validatePkgName(name string) {
+func validatePkgName(name string) error {
 	if !rePkgName.MatchString(name) {
-		panic(fmt.Sprintf("cannot create package with invalid name %q", name))
+		return fmt.Errorf("cannot create package with invalid name %q", name)
 	}
+	return nil
 }
 
 const hiddenResultVariable = ".res_"

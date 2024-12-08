@@ -77,6 +77,7 @@ func NewVMKeeper(
 		bank:    bank,
 		prmk:    prmk,
 	}
+
 	return vmk
 }
 
@@ -142,9 +143,7 @@ func (vm *VMKeeper) getGnoTransactionStore(ctx sdk.Context) gno.TransactionStore
 }
 
 // Namespace can be either a user or crypto address.
-var reNamespace = regexp.MustCompile(`^gno.land/(?:r|p)/([\.~_a-zA-Z0-9]+)`)
-
-const sysUsersPkgParamPath = "gno.land/r/sys/params.sys.users_pkgpath.string"
+var reNamespace = regexp.MustCompile(`^[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/(?:r|p)/([\.~_a-zA-Z0-9]+)`)
 
 // checkNamespacePermission check if the user as given has correct permssion to on the given pkg path
 func (vm *VMKeeper) checkNamespacePermission(ctx sdk.Context, creator crypto.Address, pkgPath string) error {
@@ -153,13 +152,17 @@ func (vm *VMKeeper) checkNamespacePermission(ctx sdk.Context, creator crypto.Add
 		return nil
 	}
 
-	var sysUsersPkg string
-	vm.prmk.GetString(ctx, sysUsersPkgParamPath, &sysUsersPkg)
+	sysUsersPkg := vm.getSysUsersPkgParam(ctx)
 	if sysUsersPkg == "" {
 		return nil
 	}
+	chainDomain := vm.getChainDomainParam(ctx)
 
 	store := vm.getGnoTransactionStore(ctx)
+
+	if !strings.HasPrefix(pkgPath, chainDomain+"/") {
+		return ErrInvalidPkgPath(pkgPath) // no match
+	}
 
 	match := reNamespace.FindStringSubmatch(pkgPath)
 	switch len(match) {
@@ -168,9 +171,6 @@ func (vm *VMKeeper) checkNamespacePermission(ctx sdk.Context, creator crypto.Add
 	case 2: // ok
 	default:
 		panic("invalid pattern while matching pkgpath")
-	}
-	if len(match) != 2 {
-		return ErrInvalidPkgPath(pkgPath)
 	}
 	username := match[1]
 
@@ -184,6 +184,7 @@ func (vm *VMKeeper) checkNamespacePermission(ctx sdk.Context, creator crypto.Add
 	pkgAddr := gno.DerivePkgAddr(pkgPath)
 	msgCtx := stdlibs.ExecContext{
 		ChainID:       ctx.ChainID(),
+		ChainDomain:   chainDomain,
 		Height:        ctx.BlockHeight(),
 		Timestamp:     ctx.BlockTime().Unix(),
 		OrigCaller:    creator.Bech32(),
@@ -241,6 +242,7 @@ func (vm *VMKeeper) AddPackage(ctx sdk.Context, msg MsgAddPackage) (err error) {
 	memPkg := msg.Package
 	deposit := msg.Deposit
 	gnostore := vm.getGnoTransactionStore(ctx)
+	chainDomain := vm.getChainDomainParam(ctx)
 
 	// Validate arguments.
 	if creator.IsZero() {
@@ -253,6 +255,9 @@ func (vm *VMKeeper) AddPackage(ctx sdk.Context, msg MsgAddPackage) (err error) {
 	allowStdlib := ctx.BlockHeight() == 0
 	if err := msg.Package.Validate(allowStdlib); err != nil {
 		return ErrInvalidPkgPath(err.Error())
+	}
+	if !strings.HasPrefix(pkgPath, chainDomain+"/") {
+		return ErrInvalidPkgPath("invalid domain: " + pkgPath)
 	}
 	if pv := gnostore.GetPackage(pkgPath, false); pv != nil {
 		return ErrPkgAlreadyExists("package already exists: " + pkgPath)
@@ -285,6 +290,7 @@ func (vm *VMKeeper) AddPackage(ctx sdk.Context, msg MsgAddPackage) (err error) {
 	// Parse and run the files, construct *PV.
 	msgCtx := stdlibs.ExecContext{
 		ChainID:       ctx.ChainID(),
+		ChainDomain:   chainDomain,
 		Height:        ctx.BlockHeight(),
 		Timestamp:     ctx.BlockTime().Unix(),
 		OrigCaller:    creator.Bech32(),
@@ -312,7 +318,7 @@ func (vm *VMKeeper) AddPackage(ctx sdk.Context, msg MsgAddPackage) (err error) {
 			case store.OutOfGasException: // panic in consumeGas()
 				panic(r)
 			default:
-				err = errors.Wrap(fmt.Errorf("%v", r), "VM addpkg panic: %v\n%s\n",
+				err = errors.Wrapf(fmt.Errorf("%v", r), "VM addpkg panic: %v\n%s\n",
 					r, m2.String())
 				return
 			}
@@ -383,8 +389,10 @@ func (vm *VMKeeper) Call(ctx sdk.Context, msg MsgCall) (res string, err error) {
 	// Make context.
 	// NOTE: if this is too expensive,
 	// could it be safely partially memoized?
+	chainDomain := vm.getChainDomainParam(ctx)
 	msgCtx := stdlibs.ExecContext{
 		ChainID:       ctx.ChainID(),
+		ChainDomain:   chainDomain,
 		Height:        ctx.BlockHeight(),
 		Timestamp:     ctx.BlockTime().Unix(),
 		OrigCaller:    caller.Bech32(),
@@ -413,10 +421,10 @@ func (vm *VMKeeper) Call(ctx sdk.Context, msg MsgCall) (res string, err error) {
 			case store.OutOfGasException: // panic in consumeGas()
 				panic(r)
 			case gno.UnhandledPanicError:
-				err = errors.Wrap(fmt.Errorf("%v", r.Error()), "VM call panic: %s\nStacktrace: %s\n",
+				err = errors.Wrapf(fmt.Errorf("%v", r.Error()), "VM call panic: %s\nStacktrace: %s\n",
 					r.Error(), m.ExceptionsStacktrace())
 			default:
-				err = errors.Wrap(fmt.Errorf("%v", r), "VM call panic: %v\nMachine State:%s\nStacktrace: %s\n",
+				err = errors.Wrapf(fmt.Errorf("%v", r), "VM call panic: %v\nMachine State:%s\nStacktrace: %s\n",
 					r, m.String(), m.Stacktrace().String())
 				return
 			}
@@ -453,11 +461,12 @@ func (vm *VMKeeper) Run(ctx sdk.Context, msg MsgRun) (res string, err error) {
 	gnostore := vm.getGnoTransactionStore(ctx)
 	send := msg.Send
 	memPkg := msg.Package
+	chainDomain := vm.getChainDomainParam(ctx)
 
 	// coerce path to right one.
 	// the path in the message must be "" or the following path.
 	// this is already checked in MsgRun.ValidateBasic
-	memPkg.Path = "gno.land/r/" + msg.Caller.String() + "/run"
+	memPkg.Path = chainDomain + "/r/" + msg.Caller.String() + "/run"
 
 	// Validate arguments.
 	callerAcc := vm.acck.GetAccount(ctx, caller)
@@ -483,6 +492,7 @@ func (vm *VMKeeper) Run(ctx sdk.Context, msg MsgRun) (res string, err error) {
 	// Parse and run the files, construct *PV.
 	msgCtx := stdlibs.ExecContext{
 		ChainID:       ctx.ChainID(),
+		ChainDomain:   chainDomain,
 		Height:        ctx.BlockHeight(),
 		Timestamp:     ctx.BlockTime().Unix(),
 		OrigCaller:    caller.Bech32(),
@@ -516,7 +526,7 @@ func (vm *VMKeeper) Run(ctx sdk.Context, msg MsgRun) (res string, err error) {
 			case store.OutOfGasException: // panic in consumeGas()
 				panic(r)
 			default:
-				err = errors.Wrap(fmt.Errorf("%v", r), "VM run main addpkg panic: %v\n%s\n",
+				err = errors.Wrapf(fmt.Errorf("%v", r), "VM run main addpkg panic: %v\n%s\n",
 					r, m.String())
 				return
 			}
@@ -542,7 +552,7 @@ func (vm *VMKeeper) Run(ctx sdk.Context, msg MsgRun) (res string, err error) {
 			case store.OutOfGasException: // panic in consumeGas()
 				panic(r)
 			default:
-				err = errors.Wrap(fmt.Errorf("%v", r), "VM run main call panic: %v\n%s\n",
+				err = errors.Wrapf(fmt.Errorf("%v", r), "VM run main call panic: %v\n%s\n",
 					r, m2.String())
 				return
 			}
@@ -644,10 +654,12 @@ func (vm *VMKeeper) QueryEval(ctx sdk.Context, pkgPath string, expr string) (res
 		return "", err
 	}
 	// Construct new machine.
+	chainDomain := vm.getChainDomainParam(ctx)
 	msgCtx := stdlibs.ExecContext{
-		ChainID:   ctx.ChainID(),
-		Height:    ctx.BlockHeight(),
-		Timestamp: ctx.BlockTime().Unix(),
+		ChainID:     ctx.ChainID(),
+		ChainDomain: chainDomain,
+		Height:      ctx.BlockHeight(),
+		Timestamp:   ctx.BlockTime().Unix(),
 		// OrigCaller:    caller,
 		// OrigSend:      send,
 		// OrigSendSpent: nil,
@@ -672,7 +684,7 @@ func (vm *VMKeeper) QueryEval(ctx sdk.Context, pkgPath string, expr string) (res
 			case store.OutOfGasException: // panic in consumeGas()
 				panic(r)
 			default:
-				err = errors.Wrap(fmt.Errorf("%v", r), "VM query eval panic: %v\n%s\n",
+				err = errors.Wrapf(fmt.Errorf("%v", r), "VM query eval panic: %v\n%s\n",
 					r, m.String())
 				return
 			}
@@ -710,10 +722,12 @@ func (vm *VMKeeper) QueryEvalString(ctx sdk.Context, pkgPath string, expr string
 		return "", err
 	}
 	// Construct new machine.
+	chainDomain := vm.getChainDomainParam(ctx)
 	msgCtx := stdlibs.ExecContext{
-		ChainID:   ctx.ChainID(),
-		Height:    ctx.BlockHeight(),
-		Timestamp: ctx.BlockTime().Unix(),
+		ChainID:     ctx.ChainID(),
+		ChainDomain: chainDomain,
+		Height:      ctx.BlockHeight(),
+		Timestamp:   ctx.BlockTime().Unix(),
 		// OrigCaller:    caller,
 		// OrigSend:      jsend,
 		// OrigSendSpent: nil,
@@ -738,7 +752,7 @@ func (vm *VMKeeper) QueryEvalString(ctx sdk.Context, pkgPath string, expr string
 			case store.OutOfGasException: // panic in consumeGas()
 				panic(r)
 			default:
-				err = errors.Wrap(fmt.Errorf("%v", r), "VM query eval string panic: %v\n%s\n",
+				err = errors.Wrapf(fmt.Errorf("%v", r), "VM query eval string panic: %v\n%s\n",
 					r, m.String())
 				return
 			}
