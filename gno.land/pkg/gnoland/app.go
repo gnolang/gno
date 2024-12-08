@@ -39,7 +39,7 @@ type AppOptions struct {
 	EventSwitch        events.EventSwitch // required
 	VMOutput           io.Writer          // optional
 	InitChainerConfig                     // options related to InitChainer
-	ParamsMaxCacheSize int                // optional
+	ParamsMaxCacheSize int                // optional, number of items
 }
 
 // TestAppOptions provides a "ready" default [AppOptions] for use with
