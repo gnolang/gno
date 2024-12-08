@@ -71,6 +71,12 @@ func UseSum64String(stVal string) uint64 {
 	return result
 }
 
+func Make_PathHash(c Coverage) uint64 {
+	valToHash := UintToString(c)
+	hash := UseSum64String(valToHash)
+	return hash
+}
+
 // func main() {
 // 	// 미리 정의된 set 만들어놓기
 // 	coverageSet := NewSet()
@@ -79,32 +85,25 @@ func UseSum64String(stVal string) uint64 {
 // 	testVal2 := []uint{11, 1, 1337}
 // 	testVal3 := []uint{9832, 10, 1337}
 
-// 	testVal1ST := UintToString(testVal1)
-// 	testVal2ST := UintToString(testVal2)
-// 	testVal3ST := UintToString(testVal3)
+// 	ph1 := Make_PathHash(testVal1)
+// 	ph2 := Make_PathHash(testVal2)
+// 	ph3 := Make_PathHash(testVal3)
 
-// 	exVal1 := UseSum64String(testVal1ST)
-// 	exVal2 := UseSum64String(testVal2ST)
-// 	exVal3 := UseSum64String(testVal3ST)
-
-// 	coverageSet.Add(exVal1)
-// 	coverageSet.Add(exVal2)
-// 	coverageSet.Add(exVal3)
+// 	coverageSet.Add(ph1)
+// 	coverageSet.Add(ph2)
+// 	coverageSet.Add(ph3)
 
 // 	// 테스트용 Val 생성
 // 	testVal_1 := []uint{1, 11, 1337}
-// 	testValST := UintToString(testVal_1)
-// 	testValHash := UseSum64String(testValST)
+// 	t_ph1 := Make_PathHash(testVal_1)
 
 // 	testVal_2 := []uint{11, 1, 1337}
-// 	testValST2 := UintToString(testVal_2)
-// 	testValHash2 := UseSum64String(testValST2)
+// 	t_ph2 := Make_PathHash(testVal_2)
 
 // 	testVal_3 := []uint{9832, 10, 1337}
-// 	testValST3 := UintToString(testVal_3)
-// 	testValHash3 := UseSum64String(testValST3)
+// 	t_ph1 := Make_PathHash(1testVal_3)
 
-// 	println("equal_inp->", exVal1, "|", testValHash)
-// 	println("equal_inp->", exVal2, "|", testValHash2)
-// 	println("equal_inp->", exVal3, "|", testValHash3)
+// 	println("equal_inp->", ph1, "|", t_ph1)
+// 	println("equal_inp->", ph2, "|",  t_ph2)
+// 	println("equal_inp->", ph3, "|",  t_ph3)
 // }
