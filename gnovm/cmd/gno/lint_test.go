@@ -35,7 +35,7 @@ func TestLintApp(t *testing.T) {
 			// TODO: raise an error because gno.mod is invalid
 		}, {
 			args:                []string{"lint", "../../tests/integ/invalid_gno_file/"},
-			stderrShouldContain: "../../tests/integ/invalid_gno_file/invalid.gno:1: expected 'package', found packag (code=2).",
+			stderrShouldContain: "../../tests/integ/invalid_gno_file/invalid.gno:1:1: expected 'package', found packag (code=2)",
 			errShouldBe:         "exit code: 1",
 		}, {
 			args:                []string{"lint", "../../tests/integ/typecheck_missing_return/"},

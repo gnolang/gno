@@ -18,9 +18,5 @@ module gno.land/p/demo/hello
 
 -- stdout.golden --
 -- stderr.golden --
-<<<<<<<< HEAD:gnovm/cmd/gno/testdata/lint/not_declared.txtar
 bad_file.gno:4:2: undefined: hello (code=4).
-bad_file.gno:4: name hello not declared (code=2).
-========
-bad_file.gno:6:3: name hello not declared (code=2).
->>>>>>>> 61a5c020ccf28ce1877aa783b264a6bb6f482fd2:gnovm/cmd/gno/testdata/gno_lint/not_declared.txtar
+bad_file.gno:4:2: name hello not declared (code=2).
