@@ -108,3 +108,5 @@ func Quotient${SIZE}(a, b int${SIZE}) (int${SIZE}, int${SIZE}, bool) {
 }
 "
 done
+
+go run -modfile ../../../misc/devdeps/go.mod mvdan.cc/gofumpt -w overflow_impl.go
