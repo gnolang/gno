@@ -10,27 +10,23 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/errors"
 )
 
-type queryCfg struct {
-	rootCfg *baseCfg
+type QueryCfg struct {
+	RootCfg *BaseCfg
 
-	data   string
-	height int64
-	prove  bool
-
-	// internal
-	path string
+	Data string
+	Path string
 }
 
-func newQueryCmd(rootCfg *baseCfg, io commands.IO) *commands.Command {
-	cfg := &queryCfg{
-		rootCfg: rootCfg,
+func NewQueryCmd(rootCfg *BaseCfg, io commands.IO) *commands.Command {
+	cfg := &QueryCfg{
+		RootCfg: rootCfg,
 	}
 
 	return commands.NewCommand(
 		commands.Metadata{
 			Name:       "query",
 			ShortUsage: "query [flags] <path>",
-			ShortHelp:  "Makes an ABCI query",
+			ShortHelp:  "makes an ABCI query",
 		},
 		cfg,
 		func(_ context.Context, args []string) error {
@@ -39,37 +35,23 @@ func newQueryCmd(rootCfg *baseCfg, io commands.IO) *commands.Command {
 	)
 }
 
-func (c *queryCfg) RegisterFlags(fs *flag.FlagSet) {
+func (c *QueryCfg) RegisterFlags(fs *flag.FlagSet) {
 	fs.StringVar(
-		&c.data,
+		&c.Data,
 		"data",
 		"",
 		"query data bytes",
 	)
-
-	fs.Int64Var(
-		&c.height,
-		"height",
-		0,
-		"query height (not yet supported)",
-	)
-
-	fs.BoolVar(
-		&c.prove,
-		"prove",
-		false,
-		"prove query result (not yet supported)",
-	)
 }
 
-func execQuery(cfg *queryCfg, args []string, io commands.IO) error {
+func execQuery(cfg *QueryCfg, args []string, io commands.IO) error {
 	if len(args) != 1 {
 		return flag.ErrHelp
 	}
 
-	cfg.path = args[0]
+	cfg.Path = args[0]
 
-	qres, err := queryHandler(cfg)
+	qres, err := QueryHandler(cfg)
 	if err != nil {
 		return err
 	}
@@ -90,20 +72,24 @@ func execQuery(cfg *queryCfg, args []string, io commands.IO) error {
 	return nil
 }
 
-func queryHandler(cfg *queryCfg) (*ctypes.ResultABCIQuery, error) {
-	remote := cfg.rootCfg.Remote
-	if remote == "" || remote == "y" {
+func QueryHandler(cfg *QueryCfg) (*ctypes.ResultABCIQuery, error) {
+	remote := cfg.RootCfg.Remote
+	if remote == "" {
 		return nil, errors.New("missing remote url")
 	}
 
-	data := []byte(cfg.data)
+	data := []byte(cfg.Data)
 	opts2 := client.ABCIQueryOptions{
 		// Height: height, XXX
 		// Prove: false, XXX
 	}
-	cli := client.NewHTTP(remote, "/websocket")
+	cli, err := client.NewHTTPClient(remote)
+	if err != nil {
+		return nil, errors.Wrap(err, "new http client")
+	}
+
 	qres, err := cli.ABCIQueryWithOptions(
-		cfg.path, data, opts2)
+		cfg.Path, data, opts2)
 	if err != nil {
 		return nil, errors.Wrap(err, "querying")
 	}

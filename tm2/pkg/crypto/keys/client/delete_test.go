@@ -23,8 +23,8 @@ func Test_execDelete(t *testing.T) {
 	defer kbCleanUp()
 
 	// initialize test options
-	cfg := &deleteCfg{
-		rootCfg: &baseCfg{
+	cfg := &DeleteCfg{
+		RootCfg: &BaseCfg{
 			BaseOptions: BaseOptions{
 				Home:                  kbHome,
 				InsecurePasswordStdin: true,
@@ -75,14 +75,14 @@ func Test_execDelete(t *testing.T) {
 	}
 
 	// Set config yes = true
-	cfg = &deleteCfg{
-		rootCfg: &baseCfg{
+	cfg = &DeleteCfg{
+		RootCfg: &BaseCfg{
 			BaseOptions: BaseOptions{
 				Home:                  kbHome,
 				InsecurePasswordStdin: true,
 			},
 		},
-		yes: true,
+		Yes: true,
 	}
 
 	_, err = kb.GetByName(fakeKeyName2)

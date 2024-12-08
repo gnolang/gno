@@ -171,8 +171,8 @@ func (m *Machine) doOpExec(op Op) {
 				case ASSIGN:
 					m.PopAsPointer(bs.Key).Assign2(m.Alloc, m.Store, m.Realm, iv, false)
 				case DEFINE:
-					knxp := bs.Key.(*NameExpr).Path
-					ptr := m.LastBlock().GetPointerTo(m.Store, knxp)
+					knx := bs.Key.(*NameExpr)
+					ptr := m.LastBlock().GetPointerToMaybeHeapDefine(m.Store, knx)
 					ptr.TV.Assign(m.Alloc, iv, false)
 				default:
 					panic("should not happen")
@@ -186,8 +186,8 @@ func (m *Machine) doOpExec(op Op) {
 				case ASSIGN:
 					m.PopAsPointer(bs.Value).Assign2(m.Alloc, m.Store, m.Realm, ev, false)
 				case DEFINE:
-					vnxp := bs.Value.(*NameExpr).Path
-					ptr := m.LastBlock().GetPointerTo(m.Store, vnxp)
+					vnx := bs.Value.(*NameExpr)
+					ptr := m.LastBlock().GetPointerToMaybeHeapDefine(m.Store, vnx)
 					ptr.TV.Assign(m.Alloc, ev, false)
 				default:
 					panic("should not happen")
@@ -267,8 +267,8 @@ func (m *Machine) doOpExec(op Op) {
 				case ASSIGN:
 					m.PopAsPointer(bs.Key).Assign2(m.Alloc, m.Store, m.Realm, iv, false)
 				case DEFINE:
-					knxp := bs.Key.(*NameExpr).Path
-					ptr := m.LastBlock().GetPointerTo(m.Store, knxp)
+					knx := bs.Key.(*NameExpr)
+					ptr := m.LastBlock().GetPointerToMaybeHeapDefine(m.Store, knx)
 					ptr.TV.Assign(m.Alloc, iv, false)
 				default:
 					panic("should not happen")
@@ -280,8 +280,8 @@ func (m *Machine) doOpExec(op Op) {
 				case ASSIGN:
 					m.PopAsPointer(bs.Value).Assign2(m.Alloc, m.Store, m.Realm, ev, false)
 				case DEFINE:
-					vnxp := bs.Value.(*NameExpr).Path
-					ptr := m.LastBlock().GetPointerTo(m.Store, vnxp)
+					vnx := bs.Value.(*NameExpr)
+					ptr := m.LastBlock().GetPointerToMaybeHeapDefine(m.Store, vnx)
 					ptr.TV.Assign(m.Alloc, ev, false)
 				default:
 					panic("should not happen")
@@ -360,8 +360,8 @@ func (m *Machine) doOpExec(op Op) {
 				case ASSIGN:
 					m.PopAsPointer(bs.Key).Assign2(m.Alloc, m.Store, m.Realm, kv, false)
 				case DEFINE:
-					knxp := bs.Key.(*NameExpr).Path
-					ptr := m.LastBlock().GetPointerTo(m.Store, knxp)
+					knx := bs.Key.(*NameExpr)
+					ptr := m.LastBlock().GetPointerToMaybeHeapDefine(m.Store, knx)
 					ptr.TV.Assign(m.Alloc, kv, false)
 				default:
 					panic("should not happen")
@@ -373,8 +373,8 @@ func (m *Machine) doOpExec(op Op) {
 				case ASSIGN:
 					m.PopAsPointer(bs.Value).Assign2(m.Alloc, m.Store, m.Realm, vv, false)
 				case DEFINE:
-					vnxp := bs.Value.(*NameExpr).Path
-					ptr := m.LastBlock().GetPointerTo(m.Store, vnxp)
+					vnx := bs.Value.(*NameExpr)
+					ptr := m.LastBlock().GetPointerToMaybeHeapDefine(m.Store, vnx)
 					ptr.TV.Assign(m.Alloc, vv, false)
 				default:
 					panic("should not happen")
@@ -541,7 +541,7 @@ EXEC_SWITCH:
 		m.PushForPointer(cs.X)
 	case *ReturnStmt:
 		m.PopStmt()
-		fr := m.LastCallFrame(1)
+		fr := m.MustLastCallFrame(1)
 		ft := fr.Func.GetType(m.Store)
 		hasDefers := 0 < len(fr.Defers)
 		hasResults := 0 < len(ft.Results)
@@ -676,25 +676,15 @@ EXEC_SWITCH:
 			bs.Active = bs.Body[cs.BodyIndex] // prefill
 		case FALLTHROUGH:
 			ss, ok := m.LastFrame().Source.(*SwitchStmt)
+			// this is handled in the preprocessor
+			// should never happen
 			if !ok {
-				// fallthrough is only allowed in a switch statement
 				panic("fallthrough statement out of place")
 			}
-			if ss.IsTypeSwitch {
-				// fallthrough is not allowed in type switches
-				panic("cannot fallthrough in type switch")
-			}
+
 			b := m.LastBlock()
-			if b.bodyStmt.NextBodyIndex != len(b.bodyStmt.Body) {
-				// fallthrough is not the final statement
-				panic("fallthrough statement out of place")
-			}
 			// compute next switch clause from BodyIndex (assigned in preprocess)
 			nextClause := cs.BodyIndex + 1
-			if nextClause >= len(ss.Clauses) {
-				// no more clause after the one executed, this is not allowed
-				panic("cannot fallthrough final case in switch")
-			}
 			// expand block size
 			cl := ss.Clauses[nextClause]
 			if nn := cl.GetNumNames(); int(nn) > len(b.Values) {
@@ -779,6 +769,7 @@ EXEC_SWITCH:
 		}
 		m.PushOp(OpBody)
 		m.PushStmt(b.GetBodyStmt())
+	case *EmptyStmt:
 	default:
 		panic(fmt.Sprintf("unexpected statement %#v", s))
 	}
@@ -884,6 +875,8 @@ func (m *Machine) doOpTypeSwitch() {
 					// NOTE: assumes the var is first in block.
 					vp := NewValuePath(
 						VPBlock, 1, 0, ss.VarName)
+					// NOTE: GetPointerToMaybeHeapDefine not needed,
+					// because this type is in new type switch clause block.
 					ptr := b.GetPointerTo(m.Store, vp)
 					ptr.TV.Assign(m.Alloc, *xv, false)
 				}
@@ -957,7 +950,7 @@ func (m *Machine) doOpSwitchClauseCase() {
 
 	// eval whether cv == tv.
 	if debug {
-		assertEqualityTypes(cv.T, tv.T)
+		debugAssertEqualityTypes(cv.T, tv.T)
 	}
 	match := isEql(m.Store, cv, tv)
 	if match {

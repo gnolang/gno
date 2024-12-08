@@ -9,12 +9,12 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/stretchr/testify/require"
-
+	"github.com/gnolang/gno/gnovm/cmd/gno/internal/pkgdownload/examplespkgfetcher"
 	"github.com/gnolang/gno/tm2/pkg/commands"
+	"github.com/stretchr/testify/require"
 )
 
-func TestMain_Gnodev(t *testing.T) {
+func TestMain_Gno(t *testing.T) {
 	tc := []testMainCase{
 		{args: []string{""}, errShouldBe: "flag: help requested"},
 	}
@@ -26,6 +26,7 @@ type testMainCase struct {
 	args                 []string
 	testDir              string
 	simulateExternalRepo bool
+	noTmpGnohome         bool
 
 	// for the following FooContain+FooBe expected couples, if both are empty,
 	// then the test suite will require that the "got" is not empty.
@@ -57,6 +58,10 @@ func testMainCaseRun(t *testing.T, tc []testMainCase) {
 		t.Run(testName, func(t *testing.T) {
 			mockOut := bytes.NewBufferString("")
 			mockErr := bytes.NewBufferString("")
+
+			if !test.noTmpGnohome {
+				t.Setenv("GNOHOME", t.TempDir())
+			}
 
 			checkOutputs := func(t *testing.T) {
 				t.Helper()
@@ -90,7 +95,7 @@ func testMainCaseRun(t *testing.T, tc []testMainCase) {
 				if r := recover(); r != nil {
 					output := fmt.Sprintf("%v", r)
 					t.Log("recover", output)
-					require.False(t, recoverShouldBeEmpty, "should panic")
+					require.False(t, recoverShouldBeEmpty, "should not panic")
 					require.True(t, errShouldBeEmpty, "should not return an error")
 					if test.recoverShouldContain != "" {
 						require.Regexpf(t, test.recoverShouldContain, output, "recover should contain")
@@ -100,7 +105,7 @@ func testMainCaseRun(t *testing.T, tc []testMainCase) {
 					}
 					checkOutputs(t)
 				} else {
-					require.True(t, recoverShouldBeEmpty, "should not panic")
+					require.True(t, recoverShouldBeEmpty, "should panic")
 				}
 			}()
 
@@ -123,12 +128,14 @@ func testMainCaseRun(t *testing.T, tc []testMainCase) {
 			io.SetOut(commands.WriteNopCloser(mockOut))
 			io.SetErr(commands.WriteNopCloser(mockErr))
 
+			testPackageFetcher = examplespkgfetcher.New()
+
 			err := newGnocliCmd(io).ParseAndRun(context.Background(), test.args)
 
 			if errShouldBeEmpty {
 				require.Nil(t, err, "err should be nil")
 			} else {
-				t.Log("err", err.Error())
+				t.Log("err", fmt.Sprintf("%v", err))
 				require.NotNil(t, err, "err shouldn't be nil")
 				if test.errShouldContain != "" {
 					require.Contains(t, err.Error(), test.errShouldContain, "err should contain")

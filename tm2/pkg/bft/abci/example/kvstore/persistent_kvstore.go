@@ -3,6 +3,7 @@ package kvstore
 import (
 	"encoding/base64"
 	"fmt"
+	"log/slog"
 	"strconv"
 	"strings"
 
@@ -11,6 +12,7 @@ import (
 	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
 	"github.com/gnolang/gno/tm2/pkg/db"
+	_ "github.com/gnolang/gno/tm2/pkg/db/goleveldb"
 	"github.com/gnolang/gno/tm2/pkg/log"
 )
 
@@ -31,7 +33,7 @@ type PersistentKVStoreApplication struct {
 	// validator set
 	ValSetChanges []abci.ValidatorUpdate
 
-	logger log.Logger
+	logger *slog.Logger
 }
 
 func NewPersistentKVStoreApplication(dbDir string) *PersistentKVStoreApplication {
@@ -45,11 +47,11 @@ func NewPersistentKVStoreApplication(dbDir string) *PersistentKVStoreApplication
 
 	return &PersistentKVStoreApplication{
 		app:    &KVStoreApplication{state: state},
-		logger: log.NewNopLogger(),
+		logger: log.NewNoopLogger(),
 	}
 }
 
-func (app *PersistentKVStoreApplication) SetLogger(l log.Logger) {
+func (app *PersistentKVStoreApplication) SetLogger(l *slog.Logger) {
 	app.logger = l
 }
 
@@ -209,7 +211,7 @@ func (app *PersistentKVStoreApplication) execValidatorTx(tx []byte) (res abci.Re
 	}
 
 	// update
-	return app.updateValidator(abci.ValidatorUpdate{pubkey.Address(), pubkey, power})
+	return app.updateValidator(abci.ValidatorUpdate{Address: pubkey.Address(), PubKey: pubkey, Power: power})
 }
 
 // add, update, or remove a validator

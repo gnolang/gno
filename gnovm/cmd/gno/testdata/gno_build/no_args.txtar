@@ -1,6 +1,0 @@
-# Run gno build without args
-
-! gno build
-
-! stdout .+ 
-stderr 'flag: help requested'

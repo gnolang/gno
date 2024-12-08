@@ -1,12 +1,13 @@
 package gnoland
 
 import (
+	"bufio"
+	"context"
 	"errors"
 	"fmt"
-	"strings"
+	"os"
 
-	bft "github.com/gnolang/gno/tm2/pkg/bft/types"
-	"github.com/gnolang/gno/tm2/pkg/crypto"
+	"github.com/gnolang/gno/tm2/pkg/amino"
 	"github.com/gnolang/gno/tm2/pkg/std"
 )
 
@@ -24,56 +25,62 @@ func ProtoGnoAccount() std.Account {
 }
 
 type GnoGenesisState struct {
-	Balances []Balance `json:"balances"`
-	Txs      []std.Tx  `json:"txs"`
+	Balances []Balance        `json:"balances"`
+	Txs      []TxWithMetadata `json:"txs"`
+	Params   []Param          `json:"params"`
 }
 
-type Balance struct {
-	Address bft.Address
-	Amount  std.Coins
+type TxWithMetadata struct {
+	Tx       std.Tx         `json:"tx"`
+	Metadata *GnoTxMetadata `json:"metadata,omitempty"`
 }
 
-func (b *Balance) Verify() error {
-	if b.Address.IsZero() {
-		return ErrBalanceEmptyAddress
+type GnoTxMetadata struct {
+	Timestamp int64 `json:"timestamp"`
+}
+
+// ReadGenesisTxs reads the genesis txs from the given file path
+func ReadGenesisTxs(ctx context.Context, path string) ([]TxWithMetadata, error) {
+	// Open the txs file
+	file, loadErr := os.Open(path)
+	if loadErr != nil {
+		return nil, fmt.Errorf("unable to open tx file %s: %w", path, loadErr)
+	}
+	defer file.Close()
+
+	var (
+		txs []TxWithMetadata
+
+		scanner = bufio.NewScanner(file)
+	)
+
+	scanner.Buffer(make([]byte, 1_000_000), 2_000_000)
+
+	for scanner.Scan() {
+		select {
+		case <-ctx.Done():
+			return nil, ctx.Err()
+		default:
+			// Parse the amino JSON
+			var tx TxWithMetadata
+			if err := amino.UnmarshalJSON(scanner.Bytes(), &tx); err != nil {
+				return nil, fmt.Errorf(
+					"unable to unmarshal amino JSON, %w",
+					err,
+				)
+			}
+
+			txs = append(txs, tx)
+		}
 	}
 
-	if b.Amount.Len() == 0 {
-		return ErrBalanceEmptyAmount
+	// Check for scanning errors
+	if err := scanner.Err(); err != nil {
+		return nil, fmt.Errorf(
+			"error encountered while reading file, %w",
+			err,
+		)
 	}
 
-	return nil
-}
-
-func (b *Balance) Parse(entry string) error {
-	parts := strings.Split(strings.TrimSpace(entry), "=") // <address>=<coins>
-	if len(parts) != 2 {
-		return fmt.Errorf("malformed entry: %q", entry)
-	}
-
-	var err error
-
-	b.Address, err = crypto.AddressFromBech32(parts[0])
-	if err != nil {
-		return fmt.Errorf("invalid address %q: %w", parts[0], err)
-	}
-
-	b.Amount, err = std.ParseCoins(parts[1])
-	if err != nil {
-		return fmt.Errorf("invalid amount %q: %w", parts[1], err)
-	}
-
-	return nil
-}
-
-func (b *Balance) UnmarshalAmino(rep string) error {
-	return b.Parse(rep)
-}
-
-func (b Balance) MarshalAmino() (string, error) {
-	return b.String(), nil
-}
-
-func (b Balance) String() string {
-	return fmt.Sprintf("%s=%s", b.Address.String(), b.Amount.String())
+	return txs, nil
 }

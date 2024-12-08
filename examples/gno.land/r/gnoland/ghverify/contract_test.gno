@@ -1,0 +1,105 @@
+package ghverify
+
+import (
+	"std"
+	"testing"
+
+	"gno.land/p/demo/testutils"
+)
+
+func TestVerificationLifecycle(t *testing.T) {
+	defaultAddress := std.GetOrigCaller()
+	user1Address := std.Address(testutils.TestAddress("user 1"))
+	user2Address := std.Address(testutils.TestAddress("user 2"))
+
+	// Verify request returns no feeds.
+	result := GnorkleEntrypoint("request")
+	if result != "[]" {
+		t.Fatalf("expected empty request result, got %s", result)
+	}
+
+	// Make a verification request with the created user.
+	std.TestSetOrigCaller(user1Address)
+	RequestVerification("deelawn")
+
+	// A subsequent request from the same address should panic because there is
+	// already a feed with an ID of this user's address.
+	var errMsg string
+	func() {
+		defer func() {
+			if r := recover(); r != nil {
+				errMsg = r.(error).Error()
+			}
+		}()
+		RequestVerification("deelawn")
+	}()
+	if errMsg != "feed already exists" {
+		t.Fatalf("expected feed already exists, got %s", errMsg)
+	}
+
+	// Verify the request returns no feeds for this non-whitelisted user.
+	result = GnorkleEntrypoint("request")
+	if result != "[]" {
+		t.Fatalf("expected empty request result, got %s", result)
+	}
+
+	// Make a verification request with the created user.
+	std.TestSetOrigCaller(user2Address)
+	RequestVerification("omarsy")
+
+	// Set the caller back to the whitelisted user and verify that the feed data
+	// returned matches what should have been created by the `RequestVerification`
+	// invocation.
+	std.TestSetOrigCaller(defaultAddress)
+	result = GnorkleEntrypoint("request")
+	expResult := `[{"id":"` + string(user1Address) + `","type":"0","value_type":"string","tasks":[{"gno_address":"` +
+		string(user1Address) + `","github_handle":"deelawn"}]},` +
+		`{"id":"` + string(user2Address) + `","type":"0","value_type":"string","tasks":[{"gno_address":"` +
+		string(user2Address) + `","github_handle":"omarsy"}]}]`
+	if result != expResult {
+		t.Fatalf("expected request result %s, got %s", expResult, result)
+	}
+
+	// Try to trigger feed ingestion from the non-authorized user.
+	std.TestSetOrigCaller(user1Address)
+	func() {
+		defer func() {
+			if r := recover(); r != nil {
+				errMsg = r.(error).Error()
+			}
+		}()
+		GnorkleEntrypoint("ingest," + string(user1Address) + ",OK")
+	}()
+	if errMsg != "caller not whitelisted" {
+		t.Fatalf("expected caller not whitelisted, got %s", errMsg)
+	}
+
+	// Set the caller back to the whitelisted user and transfer contract ownership.
+	std.TestSetOrigCaller(defaultAddress)
+	SetOwner(defaultAddress)
+
+	// Now trigger the feed ingestion from the user and new owner and only whitelisted address.
+	GnorkleEntrypoint("ingest," + string(user1Address) + ",OK")
+	GnorkleEntrypoint("ingest," + string(user2Address) + ",OK")
+
+	// Verify the ingestion autocommitted the value and triggered the post handler.
+	data := Render("")
+	expResult = `{"deelawn": "` + string(user1Address) + `","omarsy": "` + string(user2Address) + `"}`
+	if data != expResult {
+		t.Fatalf("expected render data %s, got %s", expResult, data)
+	}
+
+	// Finally make sure the feed was cleaned up after the data was committed.
+	result = GnorkleEntrypoint("request")
+	if result != "[]" {
+		t.Fatalf("expected empty request result, got %s", result)
+	}
+
+	// Check that the accessor functions are working as expected.
+	if handle := GetHandleByAddress(string(user1Address)); handle != "deelawn" {
+		t.Fatalf("expected deelawn, got %s", handle)
+	}
+	if address := GetAddressByHandle("deelawn"); address != string(user1Address) {
+		t.Fatalf("expected %s, got %s", string(user1Address), address)
+	}
+}

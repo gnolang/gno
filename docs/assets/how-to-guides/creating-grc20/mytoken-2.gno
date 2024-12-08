@@ -1,83 +1,88 @@
+package mytoken
+
+import (
+	"std"
+	"strings"
+
+	"gno.land/p/demo/ufmt"
+)
+
+// TotalSupply returns the total supply of mytoken
 func TotalSupply() uint64 {
 	return mytoken.TotalSupply()
 }
 
-func BalanceOf(owner users.AddressOrName) uint64 {
-	balance, err := mytoken.BalanceOf(owner.Resolve())
-	if err != nil {
-		panic(err)
-	}
-	return balance
+// Decimals returns the number of decimals of mytoken
+func Decimals() uint {
+	return mytoken.GetDecimals()
 }
 
-func Allowance(owner, spender users.AddressOrName) uint64 {
-	allowance, err := mytoken.Allowance(owner.Resolve(), spender.Resolve())
-	if err != nil {
-		panic(err)
-	}
-	return allowance
+// BalanceOf returns the balance mytoken for `account`
+func BalanceOf(account std.Address) uint64 {
+	return mytoken.BalanceOf(account)
 }
 
-func Transfer(to users.AddressOrName, amount uint64) {
-	caller := std.PrevRealm().Addr()
-	err := mytoken.Transfer(caller, to.Resolve(), amount)
-	if err != nil {
-		panic(err)
-	}
+// Allowance returns the allowance of spender on owner's balance
+func Allowance(owner, spender std.Address) uint64 {
+	return mytoken.Allowance(owner, spender)
 }
 
-func Approve(spender users.AddressOrName, amount uint64) {
-	caller := std.PrevRealm().Addr()
-	err := mytoken.Approve(caller, spender.Resolve(), amount)
-	if err != nil {
-		panic(err)
-	}
+// Transfer transfers amount from caller to recipient
+func Transfer(recipient std.Address, amount uint64) {
+	checkErr(mytoken.Transfer(recipient, amount))
 }
 
-func TransferFrom(from, to users.AddressOrName, amount uint64) {
-	caller := std.PrevRealm().Addr()
-	err := mytoken.TransferFrom(caller, from.Resolve(), to.Resolve(), amount)
-	if err != nil {
-		panic(err)
-	}
+// Approve approves amount of caller's tokens to be spent by spender
+func Approve(spender std.Address, amount uint64) {
+	checkErr(mytoken.Approve(spender, amount))
 }
 
-func Mint(address users.AddressOrName, amount uint64) {
-	caller := std.PrevRealm().Addr()
-	assertIsAdmin(caller)
-	err := mytoken.Mint(address.Resolve(), amount)
-	if err != nil {
-		panic(err)
-	}
+// TransferFrom transfers `amount` of tokens from `from` to `to`
+func TransferFrom(from, to std.Address, amount uint64) {
+	checkErr(mytoken.TransferFrom(from, to, amount))
 }
 
-func Burn(address users.AddressOrName, amount uint64) {
-	caller := std.PrevRealm().Addr()
-	assertIsAdmin(caller)
-	err := mytoken.Burn(address.Resolve(), amount)
-	if err != nil {
-		panic(err)
-	}
+// Mint mints amount of tokens to address. Callable only by admin of token
+func Mint(address std.Address, amount uint64) {
+	assertIsAdmin(std.PrevRealm().Addr())
+	checkErr(banker.Mint(address, amount))
 }
 
+// Burn burns amount of tokens from address. Callable only by admin of token
+func Burn(address std.Address, amount uint64) {
+	assertIsAdmin(std.PrevRealm().Addr())
+	checkErr(banker.Burn(address, amount))
+}
+
+// Render renders the state of the realm
 func Render(path string) string {
 	parts := strings.Split(path, "/")
 	c := len(parts)
 
 	switch {
 	case path == "":
+		// Default GRC20 render
 		return mytoken.RenderHome()
 	case c == 2 && parts[0] == "balance":
-		owner := users.AddressOrName(parts[1])
-		balance, _ := mytoken.BalanceOf(owner.Resolve())
+		// Render balance of specific address
+		owner := std.Address(parts[1])
+		balance, _ := mytoken.BalanceOf(owner)
 		return ufmt.Sprintf("%d\n", balance)
 	default:
 		return "404\n"
 	}
 }
 
+// assertIsAdmin asserts the address is the admin of token
 func assertIsAdmin(address std.Address) {
 	if address != admin {
 		panic("restricted access")
+	}
+}
+
+// checkErr asserts the function didn't returned an error
+func checkErr(err error) {
+	if err != nil {
+		panic(err)
 	}
 }

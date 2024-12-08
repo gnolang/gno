@@ -11,7 +11,6 @@ import (
 
 	"github.com/gnolang/gno/gnovm/pkg/gnomod"
 	"github.com/gnolang/gno/tm2/pkg/commands"
-	"github.com/gnolang/gno/tm2/pkg/crypto/keys/client"
 )
 
 type cleanCfg struct {
@@ -27,7 +26,7 @@ func newCleanCmd(io commands.IO) *commands.Command {
 		commands.Metadata{
 			Name:       "clean",
 			ShortUsage: "clean [flags]",
-			ShortHelp:  "Removes generated files and cached data",
+			ShortHelp:  "removes generated files and cached data",
 		},
 		cfg,
 		func(ctx context.Context, args []string) error {
@@ -55,13 +54,26 @@ func (c *cleanCfg) RegisterFlags(fs *flag.FlagSet) {
 		&c.modCache,
 		"modcache",
 		false,
-		"remove the entire module download cache",
+		"remove the entire module download cache and exit",
 	)
 }
 
 func execClean(cfg *cleanCfg, args []string, io commands.IO) error {
 	if len(args) > 0 {
 		return flag.ErrHelp
+	}
+
+	if cfg.modCache {
+		modCacheDir := gnomod.ModCachePath()
+		if !cfg.dryRun {
+			if err := os.RemoveAll(modCacheDir); err != nil {
+				return err
+			}
+		}
+		if cfg.dryRun || cfg.verbose {
+			io.Println("rm -rf", modCacheDir)
+		}
+		return nil
 	}
 
 	path, err := os.Getwd()
@@ -81,17 +93,6 @@ func execClean(cfg *cleanCfg, args []string, io commands.IO) error {
 		return err
 	}
 
-	if cfg.modCache {
-		modCacheDir := filepath.Join(client.HomeDir(), "pkg", "mod")
-		if !cfg.dryRun {
-			if err := os.RemoveAll(modCacheDir); err != nil {
-				return err
-			}
-		}
-		if cfg.dryRun || cfg.verbose {
-			io.Println("rm -rf", modCacheDir)
-		}
-	}
 	return nil
 }
 

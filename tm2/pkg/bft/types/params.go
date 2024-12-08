@@ -24,7 +24,7 @@ const (
 	MaxBlockDataBytes int64 = 2000000 // 2MB
 
 	// MaxBlockMaxGas is the max gas limit for the block
-	MaxBlockMaxGas int64 = 10000000 // 10M gas
+	MaxBlockMaxGas int64 = 100000000 // 100M gas
 
 	// BlockTimeIotaMS is the block time iota (in ms)
 	BlockTimeIotaMS int64 = 100 // ms
@@ -36,8 +36,8 @@ var validatorPubKeyTypeURLs = map[string]struct{}{
 
 func DefaultConsensusParams() abci.ConsensusParams {
 	return abci.ConsensusParams{
-		DefaultBlockParams(),
-		DefaultValidatorParams(),
+		Block:     DefaultBlockParams(),
+		Validator: DefaultValidatorParams(),
 	}
 }
 
@@ -51,7 +51,7 @@ func DefaultBlockParams() *abci.BlockParams {
 }
 
 func DefaultValidatorParams() *abci.ValidatorParams {
-	return &abci.ValidatorParams{[]string{
+	return &abci.ValidatorParams{PubKeyTypeURLs: []string{
 		amino.GetTypeURL(ed25519.PubKeyEd25519{}),
 	}}
 }

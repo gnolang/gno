@@ -1,7 +1,7 @@
 package core
 
 import (
-	cm "github.com/gnolang/gno/tm2/pkg/bft/consensus"
+	cstypes "github.com/gnolang/gno/tm2/pkg/bft/consensus/types"
 	ctypes "github.com/gnolang/gno/tm2/pkg/bft/rpc/core/types"
 	rpctypes "github.com/gnolang/gno/tm2/pkg/bft/rpc/lib/types"
 	sm "github.com/gnolang/gno/tm2/pkg/bft/state"
@@ -217,11 +217,13 @@ func DumpConsensusState(ctx *rpctypes.Context) (*ctypes.ResultDumpConsensusState
 	peers := p2pPeers.Peers().List()
 	peerStates := make([]ctypes.PeerStateInfo, len(peers))
 	for i, peer := range peers {
-		peerState, ok := peer.Get(types.PeerStateKey).(*cm.PeerState)
+		peerState, ok := peer.Get(types.PeerStateKey).(interface {
+			GetExposed() cstypes.PeerStateExposed
+		})
 		if !ok { // peer does not have a state yet
 			continue
 		}
-		peerStateJSON, err := peerState.ToJSON()
+		peerStateJSON, err := peerState.GetExposed().ToJSON()
 		if err != nil {
 			return nil, err
 		}

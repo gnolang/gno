@@ -14,12 +14,14 @@ const (
 	mnemonicEntropySize = 256
 )
 
-type baseCfg struct {
+type BaseCfg struct {
 	BaseOptions
 }
 
-func NewRootCmd(io commands.IO) *commands.Command {
-	cfg := &baseCfg{}
+func NewRootCmdWithBaseConfig(io commands.IO, base BaseOptions) *commands.Command {
+	cfg := &BaseCfg{
+		BaseOptions: base,
+	}
 
 	cmd := commands.NewCommand(
 		commands.Metadata{
@@ -35,56 +37,57 @@ func NewRootCmd(io commands.IO) *commands.Command {
 	)
 
 	cmd.AddSubCommands(
-		newAddCmd(cfg, io),
-		newDeleteCmd(cfg, io),
-		newGenerateCmd(cfg, io),
-		newExportCmd(cfg, io),
-		newImportCmd(cfg, io),
-		newListCmd(cfg, io),
-		newSignCmd(cfg, io),
-		newVerifyCmd(cfg, io),
-		newQueryCmd(cfg, io),
-		newBroadcastCmd(cfg, io),
-		newMakeTxCmd(cfg, io),
+		NewAddCmd(cfg, io),
+		NewDeleteCmd(cfg, io),
+		NewGenerateCmd(cfg, io),
+		NewExportCmd(cfg, io),
+		NewImportCmd(cfg, io),
+		NewListCmd(cfg, io),
+		NewRotateCmd(cfg, io),
+		NewSignCmd(cfg, io),
+		NewVerifyCmd(cfg, io),
+		NewQueryCmd(cfg, io),
+		NewBroadcastCmd(cfg, io),
+		NewMakeTxCmd(cfg, io),
 	)
 
 	return cmd
 }
 
-func (c *baseCfg) RegisterFlags(fs *flag.FlagSet) {
+func (c *BaseCfg) RegisterFlags(fs *flag.FlagSet) {
 	// Base options
 	fs.StringVar(
 		&c.Home,
 		"home",
-		DefaultBaseOptions.Home,
+		c.Home,
 		"home directory",
 	)
 
 	fs.StringVar(
 		&c.Remote,
 		"remote",
-		DefaultBaseOptions.Remote,
+		c.Remote,
 		"remote node URL",
 	)
 
 	fs.BoolVar(
 		&c.Quiet,
 		"quiet",
-		DefaultBaseOptions.Quiet,
+		c.Quiet,
 		"suppress output during execution",
 	)
 
 	fs.BoolVar(
 		&c.InsecurePasswordStdin,
 		"insecure-password-stdin",
-		DefaultBaseOptions.Quiet,
+		c.Quiet,
 		"WARNING! take password from stdin",
 	)
 
 	fs.StringVar(
 		&c.Config,
 		"config",
-		DefaultBaseOptions.Config,
+		c.Config,
 		"config file (optional)",
 	)
 }

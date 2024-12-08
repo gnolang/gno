@@ -16,7 +16,7 @@ the Discord server.
 ### Gnolang
 
 * Get basic Go tests working _COMPLETE_
-* Implement minimal toolsuite (precompile, gnodev)
+* Implement minimal toolsuite (transpile, gnodev)
 * Tweak/enforce gas limitations
 * Implement flat-as-struct supported
 * Implement ownership/realm logic; phase 1: no cycles

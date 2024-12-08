@@ -1,98 +1,131 @@
 package gnoland
 
 import (
+	"context"
 	"fmt"
+	"os"
+	"path/filepath"
 	"testing"
+	"time"
 
+	"github.com/gnolang/gno/gno.land/pkg/gnoland/ugnot"
 	"github.com/gnolang/gno/tm2/pkg/amino"
-	bft "github.com/gnolang/gno/tm2/pkg/bft/types"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
+	"github.com/gnolang/gno/tm2/pkg/sdk/bank"
 	"github.com/gnolang/gno/tm2/pkg/std"
-	"github.com/jaekwon/testify/assert"
-	"github.com/jaekwon/testify/require"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
-func TestBalance_Verify(t *testing.T) {
-	validAddress := crypto.MustAddressFromString("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5")
-	emptyAmount := std.Coins{}
-	nonEmptyAmount := std.NewCoins(std.NewCoin("test", 100))
+// generateTxs generates dummy transactions
+func generateTxs(t *testing.T, count int) []TxWithMetadata {
+	t.Helper()
 
-	tests := []struct {
-		name      string
-		balance   Balance
-		expectErr bool
-	}{
-		{"empty amount", Balance{Address: validAddress, Amount: emptyAmount}, true},
-		{"empty address", Balance{Address: bft.Address{}, Amount: nonEmptyAmount}, true},
-		{"valid balance", Balance{Address: validAddress, Amount: nonEmptyAmount}, false},
+	txs := make([]TxWithMetadata, count)
+
+	for i := 0; i < count; i++ {
+		txs[i] = TxWithMetadata{
+			Tx: std.Tx{
+				Msgs: []std.Msg{
+					bank.MsgSend{
+						FromAddress: crypto.Address{byte(i)},
+						ToAddress:   crypto.Address{byte(i)},
+						Amount:      std.NewCoins(std.NewCoin(ugnot.Denom, 1)),
+					},
+				},
+				Fee: std.Fee{
+					GasWanted: 10,
+					GasFee:    std.NewCoin(ugnot.Denom, 1000000),
+				},
+				Memo: fmt.Sprintf("tx %d", i),
+			},
+		}
 	}
 
-	for _, tc := range tests {
-		t.Run(tc.name, func(t *testing.T) {
-			err := tc.balance.Verify()
-			if tc.expectErr {
-				assert.Error(t, err, fmt.Sprintf("TestVerifyBalance: %s", tc.name))
-			} else {
-				assert.NoError(t, err, fmt.Sprintf("TestVerifyBalance: %s", tc.name))
-			}
-		})
-	}
+	return txs
 }
 
-func TestBalance_Parse(t *testing.T) {
-	validAddress := crypto.MustAddressFromString("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5")
-	validBalance := Balance{Address: validAddress, Amount: std.NewCoins(std.NewCoin("test", 100))}
+func TestReadGenesisTxs(t *testing.T) {
+	t.Parallel()
 
-	tests := []struct {
-		name      string
-		entry     string
-		expected  Balance
-		expectErr bool
-	}{
-		{"valid entry", "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5=100test", validBalance, false},
-		{"invalid address", "invalid=100test", Balance{}, true},
-		{"incomplete entry", "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5", Balance{}, true},
+	createFile := func(path, data string) {
+		file, err := os.Create(path)
+		require.NoError(t, err)
+
+		_, err = file.WriteString(data)
+		require.NoError(t, err)
 	}
 
-	for _, tc := range tests {
-		t.Run(tc.name, func(t *testing.T) {
-			balance := Balance{}
-			err := balance.Parse(tc.entry)
-			if tc.expectErr {
-				assert.Error(t, err)
-			} else {
-				assert.NoError(t, err)
-				assert.Equal(t, tc.expected, balance)
-			}
-		})
-	}
-}
+	t.Run("invalid path", func(t *testing.T) {
+		t.Parallel()
 
-func TestBalance_AminoUnmarshalJSON(t *testing.T) {
-	expected := Balance{
-		Address: crypto.MustAddressFromString("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"),
-		Amount:  std.MustParseCoins("100ugnot"),
-	}
-	value := fmt.Sprintf("[%q]", expected.String())
+		path := "" // invalid
 
-	var balances []Balance
-	err := amino.UnmarshalJSON([]byte(value), &balances)
-	require.NoError(t, err)
-	require.Len(t, balances, 1, "there should be one balance after unmarshaling")
+		ctx, cancelFn := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancelFn()
 
-	balance := balances[0]
-	require.Equal(t, expected.Address, balance.Address)
-	require.True(t, expected.Amount.IsEqual(balance.Amount))
-}
+		txs, err := ReadGenesisTxs(ctx, path)
+		assert.Nil(t, txs)
 
-func TestBalance_AminoMarshalJSON(t *testing.T) {
-	expected := Balance{
-		Address: crypto.MustAddressFromString("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"),
-		Amount:  std.MustParseCoins("100ugnot"),
-	}
-	expectedJSON := fmt.Sprintf("[%q]", expected.String())
+		assert.Error(t, err)
+	})
 
-	balancesJSON, err := amino.MarshalJSON([]Balance{expected})
-	require.NoError(t, err)
-	require.JSONEq(t, expectedJSON, string(balancesJSON))
+	t.Run("invalid tx format", func(t *testing.T) {
+		t.Parallel()
+
+		var (
+			dir  = t.TempDir()
+			path = filepath.Join(dir, "txs.jsonl")
+		)
+
+		// Create the file
+		createFile(
+			path,
+			"random data",
+		)
+
+		ctx, cancelFn := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancelFn()
+
+		txs, err := ReadGenesisTxs(ctx, path)
+		assert.Nil(t, txs)
+
+		assert.Error(t, err)
+	})
+
+	t.Run("valid txs", func(t *testing.T) {
+		t.Parallel()
+
+		var (
+			dir  = t.TempDir()
+			path = filepath.Join(dir, "txs.jsonl")
+			txs  = generateTxs(t, 1000)
+		)
+
+		// Create the file
+		file, err := os.Create(path)
+		require.NoError(t, err)
+
+		// Write the transactions
+		for _, tx := range txs {
+			encodedTx, err := amino.MarshalJSON(tx)
+			require.NoError(t, err)
+
+			_, err = file.WriteString(fmt.Sprintf("%s\n", encodedTx))
+			require.NoError(t, err)
+		}
+
+		ctx, cancelFn := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancelFn()
+
+		// Load the transactions
+		readTxs, err := ReadGenesisTxs(ctx, path)
+		require.NoError(t, err)
+
+		require.Len(t, readTxs, len(txs))
+
+		for index, readTx := range readTxs {
+			assert.Equal(t, txs[index], readTx)
+		}
+	})
 }

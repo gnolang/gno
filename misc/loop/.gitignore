@@ -1,0 +1,4 @@
+/portalloopd
+/backups
+/traefik/letsencrypt
+.env

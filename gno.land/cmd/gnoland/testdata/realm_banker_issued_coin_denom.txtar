@@ -1,0 +1,88 @@
+# test for https://github.com/gnolang/gno/pull/875
+
+## another test user, test2
+adduser test2
+
+## start a new node
+gnoland start
+
+## add realm_banker
+gnokey maketx addpkg -pkgdir $WORK/short -pkgpath gno.land/r/test/realm_banker -gas-fee 1000000ugnot -gas-wanted 100000000 -broadcast -chainid=tendermint_test test1
+
+## add realm_banker with long package_name
+gnokey maketx addpkg -pkgdir $WORK/long -pkgpath gno.land/r/test/package89_123456789_123456789_123456789_123456789_123456789_123456789_123456789_123456789_123456789_123456789_123456789_1234567890 -gas-fee 1000000ugnot -gas-wanted 100000000 -broadcast -chainid=tendermint_test test1
+
+## test2 spend all balance
+gnokey maketx send -send "9999999ugnot" -to g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5 -gas-fee 1ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test test2
+
+## check test2 balance
+gnokey query bank/balances/${USER_ADDR_test2}
+stdout ''
+
+## mint coin from banker
+gnokey maketx call -pkgpath gno.land/r/test/realm_banker -func Mint -args ${USER_ADDR_test2} -args "ugnot" -args "31337" -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test test1
+
+## check balance after minting, without patching banker will return '31337ugnot'
+gnokey query bank/balances/${USER_ADDR_test2}
+stdout '"31337/gno.land/r/test/realm_banker:ugnot"'
+
+## burn coin
+gnokey maketx call -pkgpath gno.land/r/test/realm_banker -func Burn -args ${USER_ADDR_test2} -args "ugnot" -args "7" -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test test1
+
+## check balance after burning
+gnokey query bank/balances/${USER_ADDR_test2}
+stdout '"31330/gno.land/r/test/realm_banker:ugnot"'
+
+## transfer 1ugnot to test2 for gas-fee of below tx
+gnokey maketx send -send "1ugnot" -to ${USER_ADDR_test2} -gas-fee 1ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test test1
+
+## transfer coin
+gnokey maketx send -send "1330/gno.land/r/test/realm_banker:ugnot" -to g1yr0dpfgthph7y6mepdx8afuec4q3ga2lg8tjt0 -gas-fee 1ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test test2
+
+## check sender balance
+gnokey query bank/balances/${USER_ADDR_test2}
+stdout '"30000/gno.land/r/test/realm_banker:ugnot"'
+
+## check receiver balance
+gnokey query bank/balances/g1yr0dpfgthph7y6mepdx8afuec4q3ga2lg8tjt0
+stdout '"1330/gno.land/r/test/realm_banker:ugnot"'
+
+## mint coin from long named package with banker
+gnokey maketx call -pkgpath gno.land/r/test/package89_123456789_123456789_123456789_123456789_123456789_123456789_123456789_123456789_123456789_123456789_123456789_1234567890 -func Mint -args "g1cq2ecdq3eyn5qa0fzznpurg87zq3k77g63q6u7" -args "ugnot" -args "100" -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test test1
+gnokey query bank/balances/g1cq2ecdq3eyn5qa0fzznpurg87zq3k77g63q6u7
+stdout '"100/gno.land/r/test/package89_123456789_123456789_123456789_123456789_123456789_123456789_123456789_123456789_123456789_123456789_123456789_1234567890:ugnot"'
+
+-- short/realm_banker.gno --
+package realm_banker
+
+import (
+	"std"
+)
+
+func Mint(addr std.Address, denom string, amount int64) {
+	banker := std.GetBanker(std.BankerTypeRealmIssue)
+	banker.IssueCoin(addr, denom, amount)
+}
+
+func Burn(addr std.Address, denom string, amount int64) {
+  banker := std.GetBanker(std.BankerTypeRealmIssue)
+  banker.RemoveCoin(addr, denom, amount)
+}
+
+-- long/realm_banker.gno --
+// package name is 130 characters long
+package package89_123456789_123456789_123456789_123456789_123456789_123456789_123456789_123456789_123456789_123456789_123456789_1234567890
+
+import (
+	"std"
+)
+
+func Mint(addr std.Address, denom string, amount int64) {
+	banker := std.GetBanker(std.BankerTypeRealmIssue)
+	banker.IssueCoin(addr, denom, amount)
+}
+
+func Burn(addr std.Address, denom string, amount int64) {
+  banker := std.GetBanker(std.BankerTypeRealmIssue)
+  banker.RemoveCoin(addr, denom, amount)
+}

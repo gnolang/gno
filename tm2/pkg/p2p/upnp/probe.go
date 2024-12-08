@@ -2,10 +2,9 @@ package upnp
 
 import (
 	"fmt"
+	"log/slog"
 	"net"
 	"time"
-
-	"github.com/gnolang/gno/tm2/pkg/log"
 )
 
 type UPNPCapabilities struct {
@@ -13,7 +12,7 @@ type UPNPCapabilities struct {
 	Hairpin     bool
 }
 
-func makeUPNPListener(intPort int, extPort int, logger log.Logger) (NAT, net.Listener, net.IP, error) {
+func makeUPNPListener(intPort int, extPort int, logger *slog.Logger) (NAT, net.Listener, net.IP, error) {
 	nat, err := Discover()
 	if err != nil {
 		return nil, nil, nil, fmt.Errorf("NAT upnp could not be discovered: %w", err)
@@ -40,7 +39,7 @@ func makeUPNPListener(intPort int, extPort int, logger log.Logger) (NAT, net.Lis
 	return nat, listener, ext, nil
 }
 
-func testHairpin(listener net.Listener, extAddr string, logger log.Logger) (supportsHairpin bool) {
+func testHairpin(listener net.Listener, extAddr string, logger *slog.Logger) (supportsHairpin bool) {
 	// Listener
 	go func() {
 		inConn, err := listener.Accept()
@@ -81,7 +80,7 @@ func testHairpin(listener net.Listener, extAddr string, logger log.Logger) (supp
 	return supportsHairpin
 }
 
-func Probe(logger log.Logger) (caps UPNPCapabilities, err error) {
+func Probe(logger *slog.Logger) (caps UPNPCapabilities, err error) {
 	logger.Info("Probing for UPnP!")
 
 	intPort, extPort := 8001, 8001

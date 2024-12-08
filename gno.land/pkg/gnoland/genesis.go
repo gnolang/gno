@@ -13,12 +13,16 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/crypto"
 	osm "github.com/gnolang/gno/tm2/pkg/os"
 	"github.com/gnolang/gno/tm2/pkg/std"
+	"github.com/pelletier/go-toml"
 )
 
 // LoadGenesisBalancesFile loads genesis balances from the provided file path.
 func LoadGenesisBalancesFile(path string) ([]Balance, error) {
 	// each balance is in the form: g1xxxxxxxxxxxxxxxx=100000ugnot
-	content := osm.MustReadFile(path)
+	content, err := osm.ReadFile(path)
+	if err != nil {
+		return nil, err
+	}
 	lines := strings.Split(string(content), "\n")
 
 	balances := make([]Balance, 0, len(lines))
@@ -58,11 +62,54 @@ func LoadGenesisBalancesFile(path string) ([]Balance, error) {
 	return balances, nil
 }
 
+// LoadGenesisParamsFile loads genesis params from the provided file path.
+func LoadGenesisParamsFile(path string) ([]Param, error) {
+	// each param is in the form: key.kind=value
+	content, err := osm.ReadFile(path)
+	if err != nil {
+		return nil, err
+	}
+
+	m := map[string] /*category*/ map[string] /*key*/ map[string] /*kind*/ interface{} /*value*/ {}
+	err = toml.Unmarshal(content, &m)
+	if err != nil {
+		return nil, err
+	}
+
+	params := make([]Param, 0)
+	for category, keys := range m {
+		for key, kinds := range keys {
+			for kind, val := range kinds {
+				param := Param{
+					key:  category + "." + key,
+					kind: kind,
+				}
+				switch kind {
+				case "uint64": // toml
+					param.value = uint64(val.(int64))
+				default:
+					param.value = val
+				}
+				if err := param.Verify(); err != nil {
+					return nil, err
+				}
+				params = append(params, param)
+			}
+		}
+	}
+
+	return params, nil
+}
+
 // LoadGenesisTxsFile loads genesis transactions from the provided file path.
 // XXX: Improve the way we generate and load this file
-func LoadGenesisTxsFile(path string, chainID string, genesisRemote string) ([]std.Tx, error) {
-	txs := []std.Tx{}
-	txsBz := osm.MustReadFile(path)
+func LoadGenesisTxsFile(path string, chainID string, genesisRemote string) ([]TxWithMetadata, error) {
+	txs := make([]TxWithMetadata, 0)
+
+	txsBz, err := osm.ReadFile(path)
+	if err != nil {
+		return nil, err
+	}
 	txsLines := strings.Split(string(txsBz), "\n")
 	for _, txLine := range txsLines {
 		if txLine == "" {
@@ -73,7 +120,7 @@ func LoadGenesisTxsFile(path string, chainID string, genesisRemote string) ([]st
 		txLine = strings.ReplaceAll(txLine, "%%CHAINID%%", chainID)
 		txLine = strings.ReplaceAll(txLine, "%%REMOTE%%", genesisRemote)
 
-		var tx std.Tx
+		var tx TxWithMetadata
 		if err := amino.UnmarshalJSON([]byte(txLine), &tx); err != nil {
 			return nil, fmt.Errorf("unable to Unmarshall txs file: %w", err)
 		}
@@ -86,7 +133,7 @@ func LoadGenesisTxsFile(path string, chainID string, genesisRemote string) ([]st
 
 // LoadPackagesFromDir loads gno packages from a directory.
 // It creates and returns a list of transactions based on these packages.
-func LoadPackagesFromDir(dir string, creator bft.Address, fee std.Fee, deposit std.Coins) ([]std.Tx, error) {
+func LoadPackagesFromDir(dir string, creator bft.Address, fee std.Fee) ([]TxWithMetadata, error) {
 	// list all packages from target path
 	pkgs, err := gnomod.ListPkgs(dir)
 	if err != nil {
@@ -101,26 +148,42 @@ func LoadPackagesFromDir(dir string, creator bft.Address, fee std.Fee, deposit s
 
 	// Filter out draft packages.
 	nonDraftPkgs := sortedPkgs.GetNonDraftPkgs()
-	txs := []std.Tx{}
+	txs := make([]TxWithMetadata, 0, len(nonDraftPkgs))
 	for _, pkg := range nonDraftPkgs {
-		// Open files in directory as MemPackage.
-		memPkg := gno.ReadMemPackage(pkg.Dir, pkg.Name)
-
-		// Create transaction
-		tx := std.Tx{
-			Fee: fee,
-			Msgs: []std.Msg{
-				vmm.MsgAddPackage{
-					Creator: creator,
-					Package: memPkg,
-					Deposit: deposit,
-				},
-			},
+		tx, err := LoadPackage(pkg, creator, fee, nil)
+		if err != nil {
+			return nil, fmt.Errorf("unable to load package %q: %w", pkg.Dir, err)
 		}
 
-		tx.Signatures = make([]std.Signature, len(tx.GetSigners()))
-		txs = append(txs, tx)
+		txs = append(txs, TxWithMetadata{
+			Tx: tx,
+		})
 	}
 
 	return txs, nil
+}
+
+// LoadPackage loads a single package into a `std.Tx`
+func LoadPackage(pkg gnomod.Pkg, creator bft.Address, fee std.Fee, deposit std.Coins) (std.Tx, error) {
+	var tx std.Tx
+
+	// Open files in directory as MemPackage.
+	memPkg := gno.MustReadMemPackage(pkg.Dir, pkg.Name)
+	err := memPkg.Validate()
+	if err != nil {
+		return tx, fmt.Errorf("invalid package: %w", err)
+	}
+
+	// Create transaction
+	tx.Fee = fee
+	tx.Msgs = []std.Msg{
+		vmm.MsgAddPackage{
+			Creator: creator,
+			Package: memPkg,
+			Deposit: deposit,
+		},
+	}
+	tx.Signatures = make([]std.Signature, len(tx.GetSigners()))
+
+	return tx, nil
 }

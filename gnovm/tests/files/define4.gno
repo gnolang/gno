@@ -2,8 +2,8 @@ package main
 
 func main() {
 	func() {
-		var int string = "foobar"
-		println(int)
+		var i string = "foobar"
+		println(i)
 	}()
 }
 

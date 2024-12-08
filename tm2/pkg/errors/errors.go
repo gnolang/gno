@@ -8,17 +8,24 @@ import (
 // ----------------------------------------
 // Convenience method.
 
-func Wrap(cause interface{}, format string, args ...interface{}) Error {
+func Wrap(cause interface{}, msg string) Error {
 	if causeCmnError, ok := cause.(*cmnError); ok { //nolint:gocritic
-		msg := fmt.Sprintf(format, args...)
 		return causeCmnError.Stacktrace().Trace(1, msg)
 	} else if cause == nil {
-		return newCmnError(FmtError{format, args}).Stacktrace()
+		return newCmnError(FmtError{format: msg, args: []interface{}{}}).Stacktrace()
 	} else {
 		// NOTE: causeCmnError is a typed nil here.
-		msg := fmt.Sprintf(format, args...)
 		return newCmnError(cause).Stacktrace().Trace(1, msg)
 	}
+}
+
+func Wrapf(cause interface{}, format string, args ...interface{}) Error {
+	if cause == nil {
+		return newCmnError(FmtError{format, args}).Stacktrace()
+	}
+
+	msg := fmt.Sprintf(format, args...)
+	return Wrap(cause, msg)
 }
 
 func Cause(err error) error {
@@ -237,6 +244,9 @@ type FmtError struct {
 }
 
 func (fe FmtError) Error() string {
+	if len(fe.args) == 0 {
+		return fe.format
+	}
 	return fmt.Sprintf(fe.format, fe.args...)
 }
 

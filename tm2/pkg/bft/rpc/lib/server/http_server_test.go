@@ -1,7 +1,6 @@
 package rpcserver
 
 import (
-	"bytes"
 	"crypto/tls"
 	"fmt"
 	"io"
@@ -23,28 +22,28 @@ import (
 func TestMaxOpenConnections(t *testing.T) {
 	t.Parallel()
 
-	const max = 5 // max simultaneous connections
+	const maxVal = 5 // max simultaneous connections
 
 	// Start the server.
 	var open int32
 	mux := http.NewServeMux()
 	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		if n := atomic.AddInt32(&open, 1); n > int32(max) {
-			t.Errorf("%d open connections, want <= %d", n, max)
+		if n := atomic.AddInt32(&open, 1); n > int32(maxVal) {
+			t.Errorf("%d open connections, want <= %d", n, maxVal)
 		}
 		defer atomic.AddInt32(&open, -1)
 		time.Sleep(10 * time.Millisecond)
 		fmt.Fprint(w, "some body")
 	})
 	config := DefaultConfig()
-	config.MaxOpenConnections = max
+	config.MaxOpenConnections = maxVal
 	l, err := Listen("tcp://127.0.0.1:0", config)
 	require.NoError(t, err)
 	defer l.Close()
-	go StartHTTPServer(l, mux, log.TestingLogger(), config)
+	go StartHTTPServer(l, mux, log.NewTestingLogger(t), config)
 
 	// Make N GET calls to the server.
-	attempts := max * 2
+	attempts := maxVal * 2
 	var wg sync.WaitGroup
 	var failed int32
 	for i := 0; i < attempts; i++ {
@@ -83,7 +82,7 @@ func TestStartHTTPAndTLSServer(t *testing.T) {
 		fmt.Fprint(w, "some body")
 	})
 
-	go StartHTTPAndTLSServer(ln, mux, "test.crt", "test.key", log.TestingLogger(), DefaultConfig())
+	go StartHTTPAndTLSServer(ln, mux, "test.crt", "test.key", log.NewTestingLogger(t), DefaultConfig())
 
 	tr := &http.Transport{
 		TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
@@ -161,11 +160,6 @@ func TestRecoverAndLogHandler(t *testing.T) {
   }
 }`,
 		},
-		{
-			name:             "panic with nil",
-			panicArg:         nil,
-			expectedResponse: ``,
-		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -174,7 +168,7 @@ func TestRecoverAndLogHandler(t *testing.T) {
 			var (
 				req, _ = http.NewRequest(http.MethodGet, "", nil)
 				resp   = httptest.NewRecorder()
-				logger = log.NewTMLogger(&bytes.Buffer{})
+				logger = log.NewNoopLogger()
 				// Create a handler that will always panic with argument tt.panicArg
 				handler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 					panic(tt.panicArg)

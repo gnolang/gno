@@ -63,18 +63,9 @@ func TestNewDirs_invalidModDir(t *testing.T) {
 func tNewDirs(t *testing.T) (string, *bfsDirs) {
 	t.Helper()
 
-	// modify GNO_HOME to testdata/dirsdep -- this allows us to test
+	// modify GNOHOME to testdata/dirsdep -- this allows us to test
 	// dependency lookup by dirs.
-	old, ex := os.LookupEnv("GNO_HOME")
-	os.Setenv("GNO_HOME", wdJoin(t, "testdata/dirsdep"))
-
-	t.Cleanup(func() {
-		if ex {
-			os.Setenv("GNO_HOME", old)
-		} else {
-			os.Unsetenv("GNO_HOME")
-		}
-	})
+	t.Setenv("GNOHOME", wdJoin(t, "testdata/dirsdep"))
 
 	return wdJoin(t, "testdata"),
 		newDirs([]string{wdJoin(t, "testdata/dirs")}, []string{wdJoin(t, "testdata/dirsmod")})
@@ -100,7 +91,7 @@ func TestDirs_findPackage(t *testing.T) {
 		}},
 		{"alpha", []bfsDir{
 			{importPath: "dirs.mod/dep/alpha", dir: filepath.Join(td, "dirsdep/pkg/mod/dirs.mod/dep/alpha")},
-			// no testdir/module/alpha as it is inside a module
+			// no gnoland-data/module/alpha as it is inside a module
 		}},
 		{"math", []bfsDir{
 			{importPath: "math", dir: filepath.Join(td, "dirs/math")},

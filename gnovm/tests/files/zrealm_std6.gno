@@ -1,5 +1,5 @@
-// PKGPATH: gno.land/r/test
-package test
+// PKGPATH: gno.land/r/std_test
+package std_test
 
 import (
 	"std"
@@ -14,4 +14,4 @@ func main() {
 }
 
 // Output:
-// g148esskg7wzxxw6axwv4j5nkgjzdp6v4zmy3pwc
+// g157y5v3k529jyzhjjz4fn49tzzhf4gess6v39xg

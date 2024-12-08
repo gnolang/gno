@@ -2,6 +2,7 @@ package mempool
 
 import (
 	"fmt"
+	"log/slog"
 	"math"
 	"reflect"
 	"sync"
@@ -11,7 +12,6 @@ import (
 	cfg "github.com/gnolang/gno/tm2/pkg/bft/mempool/config"
 	"github.com/gnolang/gno/tm2/pkg/bft/types"
 	"github.com/gnolang/gno/tm2/pkg/clist"
-	"github.com/gnolang/gno/tm2/pkg/log"
 	"github.com/gnolang/gno/tm2/pkg/p2p"
 )
 
@@ -112,7 +112,7 @@ func NewReactor(config *cfg.MempoolConfig, mempool *CListMempool) *Reactor {
 }
 
 // SetLogger sets the Logger on the reactor and the underlying mempool.
-func (memR *Reactor) SetLogger(l log.Logger) {
+func (memR *Reactor) SetLogger(l *slog.Logger) {
 	memR.Logger = l
 	memR.mempool.SetLogger(l)
 }
@@ -248,7 +248,7 @@ func (memR *Reactor) broadcastTxRoutine(peer p2p.Peer) {
 	}
 }
 
-//-----------------------------------------------------------------------------
+// -----------------------------------------------------------------------------
 // Messages
 
 // MempoolMessage is a message sent or received by the Reactor.
@@ -259,7 +259,7 @@ func (memR *Reactor) decodeMsg(bz []byte) (msg MempoolMessage, err error) {
 	return
 }
 
-//-------------------------------------
+// -------------------------------------
 
 // TxMessage is a MempoolMessage containing a transaction.
 type TxMessage struct {

@@ -155,7 +155,7 @@ func (d *documentable) output(pp *pkgPrinter) (err error) {
 var fpAbs = filepath.Abs
 
 // ResolveDocumentable returns a Documentable from the given arguments.
-// Refer to the documentation of gnodev doc for the formats accepted (in general
+// Refer to the documentation of gno doc for the formats accepted (in general
 // the same as the go doc command).
 // An error may be returned even if documentation was resolved in case some
 // packages in dirs could not be parsed correctly.

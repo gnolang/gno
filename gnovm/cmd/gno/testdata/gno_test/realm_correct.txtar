@@ -1,6 +1,6 @@
 # Test Realm instruction correct
 
-gno test -verbose .
+gno test -v .
 
 ! stdout .+ # stdout should be empty
 stderr '=== RUN   file/x_filetest.gno'
@@ -8,8 +8,8 @@ stderr '--- PASS: file/x_filetest.gno \(\d\.\d\ds\)'
 stderr 'ok      \. 	\d\.\d\ds'
 
 -- x_filetest.gno --
-// PKGPATH: gno.land/r/x
-package x
+// PKGPATH: gno.land/r/xx
+package xx
 
 var x int
 
@@ -18,11 +18,11 @@ func main() {
 }
 
 // Realm:
-// switchrealm["gno.land/r/x"]
-// u[58cde29876a8d185e30c727361981efb068f4726:2]={
+// switchrealm["gno.land/r/xx"]
+// u[aea84df38908f9569d0f552575606e6e6e7e22dd:2]={
 //     "Blank": {},
 //     "ObjectInfo": {
-//         "ID": "58cde29876a8d185e30c727361981efb068f4726:2",
+//         "ID": "aea84df38908f9569d0f552575606e6e6e7e22dd:2",
 //         "IsEscaped": true,
 //         "ModTime": "3",
 //         "RefCount": "2"
@@ -32,13 +32,20 @@ func main() {
 //         "@type": "/gno.RefNode",
 //         "BlockNode": null,
 //         "Location": {
+//             "Column": "0",
 //             "File": "",
 //             "Line": "0",
-//             "Nonce": "0",
-//             "PkgPath": "gno.land/r/x"
+//             "PkgPath": "gno.land/r/xx"
 //         }
 //     },
 //     "Values": [
+//         {
+//             "N": "AQAAAAAAAAA=",
+//             "T": {
+//                 "@type": "/gno.PrimitiveType",
+//                 "value": "32"
+//             }
+//         },
 //         {
 //             "T": {
 //                 "@type": "/gno.FuncType",
@@ -50,20 +57,22 @@ func main() {
 //                 "Closure": {
 //                     "@type": "/gno.RefValue",
 //                     "Escaped": true,
-//                     "ObjectID": "58cde29876a8d185e30c727361981efb068f4726:3"
+//                     "ObjectID": "aea84df38908f9569d0f552575606e6e6e7e22dd:3"
 //                 },
-//                 "FileName": "main.gno",
+//                 "FileName": "x.gno",
 //                 "IsMethod": false,
 //                 "Name": "main",
-//                 "PkgPath": "gno.land/r/x",
+//                 "NativeName": "",
+//                 "NativePkg": "",
+//                 "PkgPath": "gno.land/r/xx",
 //                 "Source": {
 //                     "@type": "/gno.RefNode",
 //                     "BlockNode": null,
 //                     "Location": {
-//                         "File": "main.gno",
+//                         "Column": "1",
+//                         "File": "x.gno",
 //                         "Line": "6",
-//                         "Nonce": "0",
-//                         "PkgPath": "gno.land/r/x"
+//                         "PkgPath": "gno.land/r/xx"
 //                     }
 //                 },
 //                 "Type": {
@@ -72,14 +81,6 @@ func main() {
 //                     "Results": []
 //                 }
 //             }
-//         },
-//         {
-//             "N": "AQAAAAAAAAA=",
-//             "T": {
-//                 "@type": "/gno.PrimitiveType",
-//                 "value": "32"
-//             }
 //         }
 //     ]
 // }
-

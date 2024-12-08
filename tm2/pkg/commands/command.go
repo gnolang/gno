@@ -5,6 +5,7 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"os"
 	"strings"
 	"text/tabwriter"
 
@@ -102,6 +103,27 @@ func (c *Command) AddSubCommands(cmds ...*Command) {
 
 		// Append the subcommand to the parent
 		c.subcommands = append(c.subcommands, cmd)
+	}
+}
+
+// Execute is a helper function for command entry. It wraps ParseAndRun and
+// handles the flag.ErrHelp error, ensuring that every command with -h or
+// --help won't show an error message:
+// 'error parsing commandline arguments: flag: help requested'
+//
+// Additionally, any error of type [ErrExitCode] will be handled by exiting with
+// the given status code.
+func (c *Command) Execute(ctx context.Context, args []string) {
+	if err := c.ParseAndRun(ctx, args); err != nil {
+		var ece ExitCodeError
+		switch {
+		case errors.Is(err, flag.ErrHelp): // just exit with 1 (help already printed)
+		case errors.As(err, &ece):
+			os.Exit(int(ece))
+		default:
+			_, _ = fmt.Fprintf(os.Stderr, "%+v\n", err)
+		}
+		os.Exit(1)
 	}
 }
 

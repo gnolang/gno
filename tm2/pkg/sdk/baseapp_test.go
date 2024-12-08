@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/binary"
 	"fmt"
+	"log/slog"
 	"os"
 	"reflect"
 	"testing"
@@ -15,12 +16,12 @@ import (
 	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
 	bft "github.com/gnolang/gno/tm2/pkg/bft/types"
 	dbm "github.com/gnolang/gno/tm2/pkg/db"
-	"github.com/gnolang/gno/tm2/pkg/log"
+	"github.com/gnolang/gno/tm2/pkg/db/memdb"
 	"github.com/gnolang/gno/tm2/pkg/sdk/testutils"
 	"github.com/gnolang/gno/tm2/pkg/std"
+	"github.com/gnolang/gno/tm2/pkg/store"
 	"github.com/gnolang/gno/tm2/pkg/store/dbadapter"
 	"github.com/gnolang/gno/tm2/pkg/store/iavl"
-	store "github.com/gnolang/gno/tm2/pkg/store/types"
 )
 
 var (
@@ -46,7 +47,7 @@ func newTxCounter(txInt int64, msgInts ...int64) std.Tx {
 	msgs := make([]std.Msg, len(msgInts))
 
 	for i, msgInt := range msgInts {
-		msgs[i] = msgCounter{msgInt, false}
+		msgs[i] = msgCounter{Counter: msgInt, FailOnHandler: false}
 	}
 
 	tx := std.Tx{Msgs: msgs}
@@ -55,8 +56,10 @@ func newTxCounter(txInt int64, msgInts ...int64) std.Tx {
 	return tx
 }
 
-func defaultLogger() log.Logger {
-	return log.NewTMLogger(log.NewSyncWriter(os.Stdout)).With("module", "sdk/app")
+func defaultLogger() *slog.Logger {
+	logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
+
+	return logger.With("module", "sdk/app")
 }
 
 func newBaseApp(name string, db dbm.DB, options ...func(*BaseApp)) *BaseApp {
@@ -71,7 +74,7 @@ func newBaseApp(name string, db dbm.DB, options ...func(*BaseApp)) *BaseApp {
 func setupBaseApp(t *testing.T, options ...func(*BaseApp)) *BaseApp {
 	t.Helper()
 
-	db := dbm.NewMemDB()
+	db := memdb.NewMemDB()
 	app := newBaseApp(t.Name(), db, options...)
 	require.Equal(t, t.Name(), app.Name())
 	err := app.LoadLatestVersion()
@@ -98,7 +101,7 @@ func TestLoadVersion(t *testing.T) {
 
 	pruningOpt := SetPruningOptions(store.PruneSyncable)
 	name := t.Name()
-	db := dbm.NewMemDB()
+	db := memdb.NewMemDB()
 	app := newBaseApp(name, db, pruningOpt)
 
 	// make a cap key and mount the store
@@ -117,13 +120,13 @@ func TestLoadVersion(t *testing.T) {
 	header := &bft.Header{ChainID: "test-chain", Height: 1}
 	app.BeginBlock(abci.RequestBeginBlock{Header: header})
 	res := app.Commit()
-	commitID1 := store.CommitID{1, res.Data}
+	commitID1 := store.CommitID{Version: 1, Hash: res.Data}
 
 	// execute a block, collect commit ID
 	header = &bft.Header{ChainID: "test-chain", Height: 2}
 	app.BeginBlock(abci.RequestBeginBlock{Header: header})
 	res = app.Commit()
-	commitID2 := store.CommitID{2, res.Data}
+	commitID2 := store.CommitID{Version: 2, Hash: res.Data}
 
 	// reload with LoadLatestVersion
 	app = newBaseApp(name, db, pruningOpt)
@@ -147,7 +150,7 @@ func TestAppVersionSetterGetter(t *testing.T) {
 
 	pruningOpt := SetPruningOptions(store.PruneSyncable)
 	name := t.Name()
-	db := dbm.NewMemDB()
+	db := memdb.NewMemDB()
 	app := newBaseApp(name, db, pruningOpt)
 
 	require.Equal(t, "", app.AppVersion())
@@ -168,7 +171,7 @@ func TestLoadVersionInvalid(t *testing.T) {
 
 	pruningOpt := SetPruningOptions(store.PruneSyncable)
 	name := t.Name()
-	db := dbm.NewMemDB()
+	db := memdb.NewMemDB()
 	app := newBaseApp(name, db, pruningOpt)
 
 	err := app.LoadLatestVersion()
@@ -181,7 +184,7 @@ func TestLoadVersionInvalid(t *testing.T) {
 	header := &bft.Header{ChainID: "test-chain", Height: 1}
 	app.BeginBlock(abci.RequestBeginBlock{Header: header})
 	res := app.Commit()
-	commitID1 := store.CommitID{1, res.Data}
+	commitID1 := store.CommitID{Version: 1, Hash: res.Data}
 
 	// create a new app with the stores mounted under the same cap key
 	app = newBaseApp(name, db, pruningOpt)
@@ -196,6 +199,47 @@ func TestLoadVersionInvalid(t *testing.T) {
 	require.Error(t, err)
 }
 
+func TestOptionSetters(t *testing.T) {
+	t.Parallel()
+
+	tt := []struct {
+		// Calling BaseApp.[method]([value]) should change BaseApp.[fieldName] to [value].
+		method    string
+		fieldName string
+		value     any
+	}{
+		{"SetName", "name", "hello"},
+		{"SetAppVersion", "appVersion", "12345"},
+		{"SetDB", "db", memdb.NewMemDB()},
+		{"SetCMS", "cms", store.NewCommitMultiStore(memdb.NewMemDB())},
+		{"SetInitChainer", "initChainer", func(Context, abci.RequestInitChain) abci.ResponseInitChain { panic("not implemented") }},
+		{"SetBeginBlocker", "beginBlocker", func(Context, abci.RequestBeginBlock) abci.ResponseBeginBlock { panic("not implemented") }},
+		{"SetEndBlocker", "endBlocker", func(Context, abci.RequestEndBlock) abci.ResponseEndBlock { panic("not implemented") }},
+		{"SetAnteHandler", "anteHandler", func(Context, Tx, bool) (Context, Result, bool) { panic("not implemented") }},
+		{"SetBeginTxHook", "beginTxHook", func(Context) Context { panic("not implemented") }},
+		{"SetEndTxHook", "endTxHook", func(Context, Result) { panic("not implemented") }},
+	}
+
+	for _, tc := range tt {
+		t.Run(tc.method, func(t *testing.T) {
+			t.Parallel()
+
+			var ba BaseApp
+			rv := reflect.ValueOf(&ba)
+
+			rv.MethodByName(tc.method).Call([]reflect.Value{reflect.ValueOf(tc.value)})
+			changed := rv.Elem().FieldByName(tc.fieldName)
+
+			if reflect.TypeOf(tc.value).Kind() == reflect.Func {
+				assert.Equal(t, reflect.ValueOf(tc.value).Pointer(), changed.Pointer(), "%s(%#v): function value should have changed", tc.method, tc.value)
+			} else {
+				assert.True(t, reflect.ValueOf(tc.value).Equal(changed), "%s(%#v): wanted %v got %v", tc.method, tc.value, tc.value, changed)
+			}
+			assert.False(t, changed.IsZero(), "%s(%#v): field's new value should not be zero value", tc.method, tc.value)
+		})
+	}
+}
+
 func testLoadVersionHelper(t *testing.T, app *BaseApp, expectedHeight int64, expectedID store.CommitID) {
 	t.Helper()
 
@@ -208,7 +252,7 @@ func testLoadVersionHelper(t *testing.T, app *BaseApp, expectedHeight int64, exp
 func TestOptionFunction(t *testing.T) {
 	t.Parallel()
 
-	db := dbm.NewMemDB()
+	db := memdb.NewMemDB()
 	bap := newBaseApp("starting name", db, testChangeNameHelper("new name"))
 	require.Equal(t, bap.name, "new name", "BaseApp should have had name changed via option function")
 }
@@ -223,7 +267,7 @@ func testChangeNameHelper(name string) func(*BaseApp) {
 func TestInfo(t *testing.T) {
 	t.Parallel()
 
-	db := dbm.NewMemDB()
+	db := memdb.NewMemDB()
 	app := newBaseApp(t.Name(), db)
 
 	// ----- test an empty response -------
@@ -269,6 +313,12 @@ func TestBaseAppOptionSeal(t *testing.T) {
 	require.Panics(t, func() {
 		app.SetAnteHandler(nil)
 	})
+	require.Panics(t, func() {
+		app.SetBeginTxHook(nil)
+	})
+	require.Panics(t, func() {
+		app.SetEndTxHook(nil)
+	})
 }
 
 func TestSetMinGasPrices(t *testing.T) {
@@ -276,7 +326,7 @@ func TestSetMinGasPrices(t *testing.T) {
 
 	minGasPrices, err := ParseGasPrices("5000stake/10gas")
 	require.Nil(t, err)
-	db := dbm.NewMemDB()
+	db := memdb.NewMemDB()
 	app := newBaseApp(t.Name(), db, SetMinGasPrices("5000stake/10gas"))
 	require.Equal(t, minGasPrices, app.minGasPrices)
 }
@@ -287,7 +337,7 @@ func TestInitChainer(t *testing.T) {
 	name := t.Name()
 	// keep the db and logger ourselves so
 	// we can reload the same  app later
-	db := dbm.NewMemDB()
+	db := memdb.NewMemDB()
 	app := newBaseApp(name, db)
 
 	// set a value in the store on init chain
@@ -389,7 +439,7 @@ func setCounter(tx *Tx, counter int64) {
 
 func setFailOnHandler(tx *Tx, fail bool) {
 	for i, msg := range tx.Msgs {
-		tx.Msgs[i] = msgCounter{msg.(msgCounter).Counter, fail}
+		tx.Msgs[i] = msgCounter{Counter: msg.(msgCounter).Counter, FailOnHandler: fail}
 	}
 }
 
@@ -584,6 +634,38 @@ func TestDeliverTx(t *testing.T) {
 	}
 }
 
+// Test that the gas used between Simulate and DeliverTx is the same.
+func TestGasUsedBetweenSimulateAndDeliver(t *testing.T) {
+	t.Parallel()
+
+	anteKey := []byte("ante-key")
+	anteOpt := func(bapp *BaseApp) { bapp.SetAnteHandler(anteHandlerTxTest(t, mainKey, anteKey)) }
+
+	deliverKey := []byte("deliver-key")
+	routerOpt := func(bapp *BaseApp) {
+		bapp.Router().AddRoute(routeMsgCounter, newMsgCounterHandler(t, mainKey, deliverKey))
+	}
+
+	app := setupBaseApp(t, anteOpt, routerOpt)
+	app.InitChain(abci.RequestInitChain{ChainID: "test-chain"})
+
+	header := &bft.Header{ChainID: "test-chain", Height: 1}
+	app.BeginBlock(abci.RequestBeginBlock{Header: header})
+
+	tx := newTxCounter(0, 0)
+	txBytes, err := amino.Marshal(tx)
+	require.Nil(t, err)
+
+	simulateRes := app.Simulate(txBytes, tx)
+	require.True(t, simulateRes.IsOK(), fmt.Sprintf("%v", simulateRes))
+	require.Greater(t, simulateRes.GasUsed, int64(0)) // gas used should be greater than 0
+
+	deliverRes := app.DeliverTx(abci.RequestDeliverTx{Tx: txBytes})
+	require.True(t, deliverRes.IsOK(), fmt.Sprintf("%v", deliverRes))
+
+	require.Equal(t, simulateRes.GasUsed, deliverRes.GasUsed) // gas used should be the same from simulate and deliver
+}
+
 // One call to DeliverTx should process all the messages, in order.
 func TestMultiMsgDeliverTx(t *testing.T) {
 	t.Parallel()
@@ -626,8 +708,8 @@ func TestMultiMsgDeliverTx(t *testing.T) {
 	// replace the second message with a msgCounter2
 
 	tx = newTxCounter(1, 3)
-	tx.Msgs = append(tx.Msgs, msgCounter2{0})
-	tx.Msgs = append(tx.Msgs, msgCounter2{1})
+	tx.Msgs = append(tx.Msgs, msgCounter2{Counter: 0})
+	tx.Msgs = append(tx.Msgs, msgCounter2{Counter: 1})
 	txBytes, err = amino.Marshal(tx)
 	require.NoError(t, err)
 	res = app.DeliverTx(abci.RequestDeliverTx{Tx: txBytes})
@@ -703,7 +785,7 @@ func TestSimulateTx(t *testing.T) {
 		require.True(t, queryResult.IsOK(), queryResult.Log)
 
 		var res Result
-		amino.MustUnmarshal(queryResult.Value, &res)
+		require.NoError(t, amino.Unmarshal(queryResult.Value, &res))
 		require.Nil(t, err, "Result unmarshalling failed")
 		require.True(t, res.IsOK(), res.Log)
 		require.Equal(t, gasConsumed, res.GasUsed, res.Log)
@@ -924,7 +1006,6 @@ func TestMaxBlockGasLimits(t *testing.T) {
 	}
 
 	for i, tc := range testCases {
-		fmt.Printf("debug i: %v\n", i)
 		tx := tc.tx
 
 		// reset the block gas

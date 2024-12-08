@@ -27,10 +27,12 @@ type Keybase interface {
 
 	// CreateAccount creates an account based using the BIP44 path (44'/118'/{account}'/0/{index}
 	// Encrypt the key to disk using encryptPasswd.
+	// If an account exists with the same address but a different name, it is replaced by the new name.
 	// See https://github.com/tendermint/classic/sdk/issues/2095
 	CreateAccount(name, mnemonic, bip39Passwd, encryptPasswd string, account uint32, index uint32) (Info, error)
 
 	// Like CreateAccount but from general bip44 params.
+	// If an account exists with the same address but a different name, it is replaced by the new name.
 	CreateAccountBip44(name, mnemonic, bip39Passwd, encryptPasswd string, params hd.BIP44Params) (Info, error)
 
 	// CreateLedger creates, stores, and returns a new Ledger key reference
@@ -43,7 +45,8 @@ type Keybase interface {
 	CreateMulti(name string, pubkey crypto.PubKey) (info Info, err error)
 
 	// The following operations will *only* work on locally-stored keys
-	Update(name, oldpass string, getNewpass func() (string, error)) error
+	// In all import operations, if an account exists with the same address but a different name, it is replaced by the new name.
+	Rotate(name, oldpass string, getNewpass func() (string, error)) error
 	Import(name string, armor string) (err error)
 	ImportPrivKey(name, armor, decryptPassphrase, encryptPassphrase string) error
 	ImportPrivKeyUnsafe(name, armor, encryptPassphrase string) error

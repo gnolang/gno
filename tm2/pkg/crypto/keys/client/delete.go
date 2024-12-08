@@ -9,23 +9,23 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/crypto/keys"
 )
 
-type deleteCfg struct {
-	rootCfg *baseCfg
+type DeleteCfg struct {
+	RootCfg *BaseCfg
 
-	yes   bool
-	force bool
+	Yes   bool
+	Force bool
 }
 
-func newDeleteCmd(rootCfg *baseCfg, io commands.IO) *commands.Command {
-	cfg := &deleteCfg{
-		rootCfg: rootCfg,
+func NewDeleteCmd(rootCfg *BaseCfg, io commands.IO) *commands.Command {
+	cfg := &DeleteCfg{
+		RootCfg: rootCfg,
 	}
 
 	return commands.NewCommand(
 		commands.Metadata{
 			Name:       "delete",
 			ShortUsage: "delete [flags] <key-name>",
-			ShortHelp:  "Deletes a key from the keybase",
+			ShortHelp:  "deletes a key from the keybase",
 		},
 		cfg,
 		func(_ context.Context, args []string) error {
@@ -34,30 +34,30 @@ func newDeleteCmd(rootCfg *baseCfg, io commands.IO) *commands.Command {
 	)
 }
 
-func (c *deleteCfg) RegisterFlags(fs *flag.FlagSet) {
+func (c *DeleteCfg) RegisterFlags(fs *flag.FlagSet) {
 	fs.BoolVar(
-		&c.yes,
+		&c.Yes,
 		"yes",
 		false,
 		"skip confirmation prompt",
 	)
 
 	fs.BoolVar(
-		&c.force,
+		&c.Force,
 		"force",
 		false,
 		"remove key unconditionally",
 	)
 }
 
-func execDelete(cfg *deleteCfg, args []string, io commands.IO) error {
+func execDelete(cfg *DeleteCfg, args []string, io commands.IO) error {
 	if len(args) != 1 {
 		return flag.ErrHelp
 	}
 
 	nameOrBech32 := args[0]
 
-	kb, err := keys.NewKeyBaseFromDir(cfg.rootCfg.Home)
+	kb, err := keys.NewKeyBaseFromDir(cfg.RootCfg.Home)
 	if err != nil {
 		return err
 	}
@@ -68,7 +68,7 @@ func execDelete(cfg *deleteCfg, args []string, io commands.IO) error {
 	}
 
 	if info.GetType() == keys.TypeLedger || info.GetType() == keys.TypeOffline {
-		if !cfg.yes {
+		if !cfg.Yes {
 			if err := confirmDeletion(io); err != nil {
 				return err
 			}
@@ -83,11 +83,11 @@ func execDelete(cfg *deleteCfg, args []string, io commands.IO) error {
 	}
 
 	// skip passphrase check if run with --force
-	skipPass := cfg.force
+	skipPass := cfg.Force
 	var oldpass string
 	if !skipPass {
 		msg := "DANGER - enter password to permanently delete key:"
-		if oldpass, err = io.GetPassword(msg, cfg.rootCfg.InsecurePasswordStdin); err != nil {
+		if oldpass, err = io.GetPassword(msg, cfg.RootCfg.InsecurePasswordStdin); err != nil {
 			return err
 		}
 	}

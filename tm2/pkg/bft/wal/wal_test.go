@@ -180,7 +180,7 @@ func TestWALPeriodicSync(t *testing.T) {
 
 	// Is this needed?
 	wal.SetFlushInterval(walTestFlushInterval)
-	wal.SetLogger(log.TestingLogger())
+	wal.SetLogger(log.NewNoopLogger())
 
 	// Take snapshot of starting state.
 	startInfo := wal.Group().ReadGroupInfo()

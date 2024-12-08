@@ -2,6 +2,9 @@ package gnoland
 
 import (
 	"fmt"
+	"io"
+	"log/slog"
+	"path/filepath"
 	"time"
 
 	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
@@ -9,20 +12,22 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/bft/node"
 	"github.com/gnolang/gno/tm2/pkg/bft/proxy"
 	bft "github.com/gnolang/gno/tm2/pkg/bft/types"
-	"github.com/gnolang/gno/tm2/pkg/crypto"
 	"github.com/gnolang/gno/tm2/pkg/crypto/ed25519"
 	"github.com/gnolang/gno/tm2/pkg/db"
-	"github.com/gnolang/gno/tm2/pkg/log"
+	"github.com/gnolang/gno/tm2/pkg/db/memdb"
+	"github.com/gnolang/gno/tm2/pkg/events"
 	"github.com/gnolang/gno/tm2/pkg/p2p"
-	"github.com/gnolang/gno/tm2/pkg/std"
 )
 
 type InMemoryNodeConfig struct {
-	PrivValidator         bft.PrivValidator // identity of the validator
-	Genesis               *bft.GenesisDoc
-	TMConfig              *tmcfg.Config
-	SkipFailingGenesisTxs bool
-	GenesisMaxVMCycles    int64
+	PrivValidator bft.PrivValidator // identity of the validator
+	Genesis       *bft.GenesisDoc
+	TMConfig      *tmcfg.Config
+	DB            *memdb.MemDB // will be initialized if nil
+	VMOutput      io.Writer    // optional
+
+	// If StdlibDir not set, then it's filepath.Join(TMConfig.RootDir, "gnovm", "stdlibs")
+	InitChainerConfig
 }
 
 // NewMockedPrivValidator generate a new key
@@ -30,55 +35,41 @@ func NewMockedPrivValidator() bft.PrivValidator {
 	return bft.NewMockPVWithParams(ed25519.GenPrivKey(), false, false)
 }
 
-// NewInMemoryNodeConfig creates a default configuration for an in-memory node.
-func NewDefaultGenesisConfig(pk crypto.PubKey, chainid string) *bft.GenesisDoc {
+// NewDefaultGenesisConfig creates a default configuration for an in-memory node.
+func NewDefaultGenesisConfig(chainid, chaindomain string) *bft.GenesisDoc {
+	// custom chain domain
+	var domainParam Param
+	_ = domainParam.Parse("gno.land/r/sys/params.vm.chain_domain.string=" + chaindomain)
+
 	return &bft.GenesisDoc{
 		GenesisTime: time.Now(),
 		ChainID:     chainid,
 		ConsensusParams: abci.ConsensusParams{
-			Block: &abci.BlockParams{
-				MaxTxBytes:   1_000_000,   // 1MB,
-				MaxDataBytes: 2_000_000,   // 2MB,
-				MaxGas:       10_0000_000, // 10M gas
-				TimeIotaMS:   100,         // 100ms
-			},
+			Block: defaultBlockParams(),
 		},
 		AppState: &GnoGenesisState{
 			Balances: []Balance{},
-			Txs:      []std.Tx{},
+			Txs:      []TxWithMetadata{},
+			Params: []Param{
+				domainParam,
+			},
 		},
+	}
+}
+
+func defaultBlockParams() *abci.BlockParams {
+	return &abci.BlockParams{
+		MaxTxBytes:   1_000_000,   // 1MB,
+		MaxDataBytes: 2_000_000,   // 2MB,
+		MaxGas:       100_000_000, // 100M gas
+		TimeIotaMS:   100,         // 100ms
 	}
 }
 
 func NewDefaultTMConfig(rootdir string) *tmcfg.Config {
-	return tmcfg.DefaultConfig().SetRootDir(rootdir)
-}
-
-// NewInMemoryNodeConfig creates a default configuration for an in-memory node.
-func NewDefaultInMemoryNodeConfig(rootdir string) *InMemoryNodeConfig {
-	tm := NewDefaultTMConfig(rootdir)
-
-	// Create Mocked Identity
-	pv := NewMockedPrivValidator()
-	genesis := NewDefaultGenesisConfig(pv.GetPubKey(), tm.ChainID())
-
-	// Add self as validator
-	self := pv.GetPubKey()
-	genesis.Validators = []bft.GenesisValidator{
-		{
-			Address: self.Address(),
-			PubKey:  self,
-			Power:   10,
-			Name:    "self",
-		},
-	}
-
-	return &InMemoryNodeConfig{
-		PrivValidator:      pv,
-		TMConfig:           tm,
-		Genesis:            genesis,
-		GenesisMaxVMCycles: 10_000_000,
-	}
+	// We use `TestConfig` here otherwise ChainID will be empty, and
+	// there is no other way to update it than using a config file
+	return tmcfg.TestConfig().SetRootDir(rootdir)
 }
 
 func (cfg *InMemoryNodeConfig) validate() error {
@@ -94,24 +85,38 @@ func (cfg *InMemoryNodeConfig) validate() error {
 		return fmt.Errorf("`TMConfig.RootDir` is required to locate `stdlibs` directory")
 	}
 
+	if cfg.GenesisTxResultHandler == nil {
+		return fmt.Errorf("`GenesisTxHandler` is required but not provided")
+	}
+
 	return nil
 }
 
 // NewInMemoryNode creates an in-memory gnoland node. In this mode, the node does not
 // persist any data and uses an in-memory database. The `InMemoryNodeConfig.TMConfig.RootDir`
 // should point to the correct gno repository to load the stdlibs.
-func NewInMemoryNode(logger log.Logger, cfg *InMemoryNodeConfig) (*node.Node, error) {
+func NewInMemoryNode(logger *slog.Logger, cfg *InMemoryNodeConfig) (*node.Node, error) {
 	if err := cfg.validate(); err != nil {
 		return nil, fmt.Errorf("validate config error: %w", err)
 	}
 
+	evsw := events.NewEventSwitch()
+
+	if cfg.StdlibDir == "" {
+		cfg.StdlibDir = filepath.Join(cfg.TMConfig.RootDir, "gnovm", "stdlibs")
+	}
+	// initialize db if nil
+	if cfg.DB == nil {
+		cfg.DB = memdb.NewMemDB()
+	}
+
 	// Initialize the application with the provided options
 	gnoApp, err := NewAppWithOptions(&AppOptions{
-		Logger:                logger,
-		GnoRootDir:            cfg.TMConfig.RootDir,
-		SkipFailingGenesisTxs: cfg.SkipFailingGenesisTxs,
-		MaxCycles:             cfg.GenesisMaxVMCycles,
-		DB:                    db.NewMemDB(),
+		Logger:            logger,
+		DB:                cfg.DB,
+		EventSwitch:       evsw,
+		InitChainerConfig: cfg.InitChainerConfig,
+		VMOutput:          cfg.VMOutput,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("error initializing new app: %w", err)
@@ -130,10 +135,9 @@ func NewInMemoryNode(logger log.Logger, cfg *InMemoryNodeConfig) (*node.Node, er
 	// Create genesis factory
 	genProvider := func() (*bft.GenesisDoc, error) { return cfg.Genesis, nil }
 
-	dbProvider := func(*node.DBContext) (db.DB, error) { return db.NewMemDB(), nil }
+	dbProvider := func(*node.DBContext) (db.DB, error) { return cfg.DB, nil }
 
-	// generate p2p node identity
-	// XXX: do we need to configur
+	// Generate p2p node identity
 	nodekey := &p2p.NodeKey{PrivKey: ed25519.GenPrivKey()}
 
 	// Create and return the in-memory node instance
@@ -142,6 +146,7 @@ func NewInMemoryNode(logger log.Logger, cfg *InMemoryNodeConfig) (*node.Node, er
 		appClientCreator,
 		genProvider,
 		dbProvider,
+		evsw,
 		logger,
 	)
 }

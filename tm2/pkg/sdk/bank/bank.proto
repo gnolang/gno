@@ -14,7 +14,7 @@ message InputOutputMismatchError {
 }
 
 message MsgSend {
-	string FromAddress = 1;
-	string ToAddress = 2;
-	string Amount = 3;
+	string from_address = 1;
+	string to_address = 2;
+	string amount = 3;
 }

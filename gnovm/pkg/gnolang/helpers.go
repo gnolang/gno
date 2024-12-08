@@ -8,6 +8,44 @@ import (
 )
 
 // ----------------------------------------
+// Functions centralizing definitions
+
+// ReRealmPath and RePackagePath are the regexes used to identify pkgpaths which are meant to
+// be realms with persisted states and pure packages.
+var (
+	ReRealmPath   = regexp.MustCompile(`^([a-zA-Z0-9-]+\.)*[a-zA-Z0-9-]+\.[a-zA-Z]{2,}/r/[a-z0-9_/]+`)
+	RePackagePath = regexp.MustCompile(`^([a-zA-Z0-9-]+\.)*[a-zA-Z0-9-]+\.[a-zA-Z]{2,}/p/[a-z0-9_/]+`)
+)
+
+// ReGnoRunPath is the path used for realms executed in maketx run.
+// These are not considered realms, as an exception to the ReRealmPathPrefix rule.
+var ReGnoRunPath = regexp.MustCompile(`^([a-zA-Z0-9-]+\.)*[a-zA-Z0-9-]+\.[a-zA-Z]{2,}/r/g[a-z0-9]+/run$`)
+
+// IsRealmPath determines whether the given pkgpath is for a realm, and as such
+// should persist the global state.
+func IsRealmPath(pkgPath string) bool {
+	return ReRealmPath.MatchString(pkgPath) &&
+		!ReGnoRunPath.MatchString(pkgPath)
+}
+
+// IsPurePackagePath determines whether the given pkgpath is for a published Gno package.
+// It only considers "pure" those starting with gno.land/p/, so it returns false for
+// stdlib packages and MsgRun paths.
+func IsPurePackagePath(pkgPath string) bool {
+	return RePackagePath.MatchString(pkgPath)
+}
+
+// IsStdlib determines whether s is a pkgpath for a standard library.
+func IsStdlib(s string) bool {
+	idx := strings.IndexByte(s, '/')
+	if idx < 0 {
+		// If no '/' is found, consider the whole string
+		return strings.IndexByte(s, '.') < 0
+	}
+	return strings.IndexByte(s[:idx+1], '.') < 0
+}
+
+// ----------------------------------------
 // AST Construction (Expr)
 // These are copied over from go-amino-x, but produces Gno ASTs.
 
@@ -91,7 +129,7 @@ func Flds(args ...interface{}) FieldTypeExprs {
 
 func Recv(n, t interface{}) FieldTypeExpr {
 	if n == "" {
-		n = "_"
+		n = blankIdentifier
 	}
 	return FieldTypeExpr{
 		Name: N(n),
@@ -105,6 +143,12 @@ func MaybeNativeT(tx interface{}) *MaybeNativeTypeExpr {
 	}
 }
 
+// FuncD creates a new function declaration.
+//
+// There is a difference between passing nil to body or passing []Stmt{}:
+// nil means that the curly brackets are missing in the source code, indicating
+// a declaration for an externally-defined function, while []Stmt{} is simply a
+// functions with no statements (func() {}).
 func FuncD(name interface{}, params, results FieldTypeExprs, body []Stmt) *FuncDecl {
 	return &FuncDecl{
 		NameExpr: *Nx(name),

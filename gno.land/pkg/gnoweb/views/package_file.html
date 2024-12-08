@@ -1,0 +1,28 @@
+{{- define "app" -}}
+<!doctype html>
+<html>
+    <head>
+        {{ template "html_head" . }}
+        <title>gno.land - {{.Data.DirPath}}/{{.Data.FileName}}</title>
+    </head>
+    <body onload="main()">
+        <div id="root">
+            <div id="header">
+                {{ template "logo" }} {{ template "header_buttons" }}
+            </div>
+            <div class="inline-list">
+                <span id="logo_path">
+                    <a href="{{ .Data.DirPath }}/">{{ .Data.DirPath }}/</a>{{
+                    .Data.FileName }}
+                </span>
+            </div>
+            <div id="package_file" class="container">
+                <code id="source">{{ .Data.FileContents }}</code>
+            </div>
+
+            {{ template "footer" }}
+        </div>
+        {{ template "js" .}}
+    </body>
+</html>
+{{- end -}}

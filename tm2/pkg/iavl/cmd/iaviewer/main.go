@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	dbm "github.com/gnolang/gno/tm2/pkg/db"
+	"github.com/gnolang/gno/tm2/pkg/db/goleveldb"
 	"github.com/gnolang/gno/tm2/pkg/iavl"
 )
 
@@ -66,7 +67,7 @@ func OpenDB(dir string) (dbm.DB, error) {
 		return nil, fmt.Errorf("cannot cut paths on %s", dir)
 	}
 	name := dir[cut+1:]
-	db, err := dbm.NewGoLevelDB(name, dir[:cut])
+	db, err := goleveldb.NewGoLevelDB(name, dir[:cut])
 	if err != nil {
 		return nil, err
 	}

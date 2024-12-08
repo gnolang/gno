@@ -9,7 +9,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/gnolang/gno/tm2/pkg/crypto/tmhash"
-	"github.com/gnolang/gno/tm2/pkg/db"
+	"github.com/gnolang/gno/tm2/pkg/db/memdb"
 	"github.com/gnolang/gno/tm2/pkg/iavl"
 )
 
@@ -19,7 +19,7 @@ func TestProofForgery(t *testing.T) {
 	source := rand.NewSource(0)
 	r := rand.New(source)
 	cacheSize := 0
-	tree := iavl.NewMutableTree(db.NewMemDB(), cacheSize)
+	tree := iavl.NewMutableTree(memdb.NewMemDB(), cacheSize)
 
 	// two keys only
 	keys := []byte{0x11, 0x32}

@@ -2,8 +2,10 @@ package consensus
 
 import (
 	"bytes"
+	"context"
 	goerrors "errors"
 	"fmt"
+	"log/slog"
 	"reflect"
 	"runtime/debug"
 	"sync"
@@ -20,10 +22,11 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/crypto"
 	"github.com/gnolang/gno/tm2/pkg/errors"
 	"github.com/gnolang/gno/tm2/pkg/events"
-	"github.com/gnolang/gno/tm2/pkg/log"
 	osm "github.com/gnolang/gno/tm2/pkg/os"
 	"github.com/gnolang/gno/tm2/pkg/p2p"
 	"github.com/gnolang/gno/tm2/pkg/service"
+	"github.com/gnolang/gno/tm2/pkg/telemetry"
+	"github.com/gnolang/gno/tm2/pkg/telemetry/metrics"
 )
 
 // -----------------------------------------------------------------------------
@@ -70,7 +73,7 @@ func (ti *timeoutInfo) GetHRS() cstypes.HRS {
 	if ti == nil {
 		return cstypes.HRS{}
 	} else {
-		return cstypes.HRS{ti.Height, ti.Round, ti.Step}
+		return cstypes.HRS{Height: ti.Height, Round: ti.Round, Step: ti.Step}
 	}
 }
 
@@ -122,6 +125,7 @@ type ConsensusState struct {
 	// a Write-Ahead Log ensures we can recover from any kind of crash
 	// and helps us avoid signing conflicting votes
 	wal          walm.WAL
+	walDisabled  bool
 	replayMode   bool // so we don't log signing errors during replay
 	doWALCatchup bool // determines if we even try to do the catchup
 
@@ -162,6 +166,7 @@ func NewConsensusState(
 		doWALCatchup:     true,
 		evsw:             events.NewEventSwitch(),
 		wal:              walm.NopWAL{},
+		walDisabled:      config.WALDisabled,
 	}
 	// set function defaults (may be overwritten before calling Start)
 	cs.decideProposal = cs.defaultDecideProposal
@@ -184,7 +189,7 @@ func NewConsensusState(
 // Public interface
 
 // SetLogger implements Service.
-func (cs *ConsensusState) SetLogger(l log.Logger) {
+func (cs *ConsensusState) SetLogger(l *slog.Logger) {
 	cs.BaseService.Logger = l
 	cs.timeoutTicker.SetLogger(l)
 }
@@ -198,7 +203,7 @@ func (cs *ConsensusState) SetEventSwitch(evsw events.EventSwitch) {
 // String returns a string.
 func (cs *ConsensusState) String() string {
 	// better not to access shared variables
-	return fmt.Sprintf("ConsensusState") // (H:%v R:%v S:%v", cs.Height, cs.Round, cs.Step)
+	return "ConsensusState" // (H:%v R:%v S:%v", cs.Height, cs.Round, cs.Step)
 }
 
 // GetConfig returns a copy of the chain state.
@@ -294,7 +299,7 @@ func (cs *ConsensusState) OnStart() error {
 
 	// we may set the WAL in testing before calling Start,
 	// so only OpenWAL if its still the walm.NopWAL
-	if _, ok := cs.wal.(walm.NopWAL); ok {
+	if _, ok := cs.wal.(walm.NopWAL); ok && !cs.walDisabled {
 		walFile := cs.config.WalFile()
 		wal, err := cs.OpenWAL(walFile)
 		if err != nil {
@@ -741,13 +746,13 @@ func (cs *ConsensusState) handleTimeout(ti timeoutInfo, rs cstypes.RoundState) {
 	case cstypes.RoundStepNewRound:
 		cs.enterPropose(ti.Height, 0)
 	case cstypes.RoundStepPropose:
-		cs.evsw.FireEvent(cstypes.EventTimeoutPropose{cs.RoundState.GetHRS()})
+		cs.evsw.FireEvent(cstypes.EventTimeoutPropose{HRS: cs.RoundState.GetHRS()})
 		cs.enterPrevote(ti.Height, ti.Round)
 	case cstypes.RoundStepPrevoteWait:
-		cs.evsw.FireEvent(cstypes.EventTimeoutWait{cs.RoundState.GetHRS()})
+		cs.evsw.FireEvent(cstypes.EventTimeoutWait{HRS: cs.RoundState.GetHRS()})
 		cs.enterPrecommit(ti.Height, ti.Round)
 	case cstypes.RoundStepPrecommitWait:
-		cs.evsw.FireEvent(cstypes.EventTimeoutWait{cs.RoundState.GetHRS()})
+		cs.evsw.FireEvent(cstypes.EventTimeoutWait{HRS: cs.RoundState.GetHRS()})
 		cs.enterPrecommit(ti.Height, ti.Round)
 		cs.enterNewRound(ti.Height, ti.Round+1)
 	default:
@@ -942,8 +947,15 @@ func (cs *ConsensusState) defaultDecideProposal(height int64, round int) {
 			part := blockParts.GetPart(i)
 			cs.sendInternalMessage(msgInfo{&BlockPartMessage{cs.Height, cs.Round, part}, ""})
 		}
-		cs.Logger.Info("Signed proposal", "height", height, "round", round, "proposal", proposal)
-		cs.Logger.Debug(fmt.Sprintf("Signed proposal block: %v", block))
+
+		cs.Logger.Info(
+			"Signed proposal",
+			"height", height,
+			"round", round,
+			"proposal block ID", proposal.BlockID.String(),
+			"proposal round", proposal.POLRound,
+			"proposal timestamp", proposal.Timestamp.Unix(),
+		)
 	} else if !cs.replayMode {
 		cs.Logger.Error("enterPropose: Error signing proposal", "height", height, "round", round, "err", err)
 	}
@@ -983,6 +995,13 @@ func (cs *ConsensusState) createProposalBlock() (block *types.Block, blockParts 
 		// This shouldn't happen.
 		cs.Logger.Error("enterPropose: Cannot propose anything: No commit for the previous block.")
 		return
+	}
+
+	if telemetry.MetricsEnabled() {
+		startTime := time.Now()
+		defer func(t time.Time) {
+			metrics.BuildBlockTimer.Record(context.Background(), time.Since(t).Milliseconds())
+		}(startTime)
 	}
 
 	proposerAddr := cs.privValidator.GetPubKey().Address()
@@ -1032,7 +1051,7 @@ func (cs *ConsensusState) defaultDoPrevote(height int64, round int) {
 	}
 
 	// Validate proposal block
-	err := cs.blockExec.ValidateBlock(cs.state, cs.ProposalBlock)
+	err := cs.state.ValidateBlock(cs.ProposalBlock)
 	if err != nil {
 		// ProposalBlock is invalid, prevote nil.
 		logger.Error("enterPrevote: ProposalBlock is invalid", "err", err)
@@ -1107,7 +1126,7 @@ func (cs *ConsensusState) enterPrecommit(height int64, round int) {
 	}
 
 	// At this point +2/3 prevoted for a particular block or nil.
-	cs.evsw.FireEvent(cstypes.EventPolka{cs.RoundState.GetHRS()})
+	cs.evsw.FireEvent(cstypes.EventPolka{HRS: cs.RoundState.GetHRS()})
 
 	// the latest POLRound should be this round.
 	polRound, _ := cs.Votes.POLInfo()
@@ -1124,7 +1143,7 @@ func (cs *ConsensusState) enterPrecommit(height int64, round int) {
 			cs.LockedRound = -1
 			cs.LockedBlock = nil
 			cs.LockedBlockParts = nil
-			cs.evsw.FireEvent(cstypes.EventUnlock{cs.RoundState.GetHRS()})
+			cs.evsw.FireEvent(cstypes.EventUnlock{HRS: cs.RoundState.GetHRS()})
 		}
 		cs.signAddVote(types.PrecommitType, nil, types.PartSetHeader{})
 		return
@@ -1136,7 +1155,7 @@ func (cs *ConsensusState) enterPrecommit(height int64, round int) {
 	if cs.LockedBlock.HashesTo(blockID.Hash) {
 		logger.Info("enterPrecommit: +2/3 prevoted locked block. Relocking")
 		cs.LockedRound = round
-		cs.evsw.FireEvent(cstypes.EventRelock{cs.RoundState.GetHRS()})
+		cs.evsw.FireEvent(cstypes.EventRelock{HRS: cs.RoundState.GetHRS()})
 		cs.signAddVote(types.PrecommitType, blockID.Hash, blockID.PartsHeader)
 		return
 	}
@@ -1145,13 +1164,13 @@ func (cs *ConsensusState) enterPrecommit(height int64, round int) {
 	if cs.ProposalBlock.HashesTo(blockID.Hash) {
 		logger.Info("enterPrecommit: +2/3 prevoted proposal block. Locking", "hash", blockID.Hash)
 		// Validate the block.
-		if err := cs.blockExec.ValidateBlock(cs.state, cs.ProposalBlock); err != nil {
+		if err := cs.state.ValidateBlock(cs.ProposalBlock); err != nil {
 			panic(fmt.Sprintf("enterPrecommit: +2/3 prevoted for an invalid block: %v", err))
 		}
 		cs.LockedRound = round
 		cs.LockedBlock = cs.ProposalBlock
 		cs.LockedBlockParts = cs.ProposalBlockParts
-		cs.evsw.FireEvent(cstypes.EventLock{cs.RoundState.GetHRS()})
+		cs.evsw.FireEvent(cstypes.EventLock{HRS: cs.RoundState.GetHRS()})
 		cs.signAddVote(types.PrecommitType, blockID.Hash, blockID.PartsHeader)
 		return
 	}
@@ -1167,7 +1186,7 @@ func (cs *ConsensusState) enterPrecommit(height int64, round int) {
 		cs.ProposalBlock = nil
 		cs.ProposalBlockParts = types.NewPartSetFromHeader(blockID.PartsHeader)
 	}
-	cs.evsw.FireEvent(cstypes.EventUnlock{cs.RoundState.GetHRS()})
+	cs.evsw.FireEvent(cstypes.EventUnlock{HRS: cs.RoundState.GetHRS()})
 	cs.signAddVote(types.PrecommitType, nil, types.PartSetHeader{})
 }
 
@@ -1286,21 +1305,25 @@ func (cs *ConsensusState) finalizeCommit(height int64) {
 	block, blockParts := cs.ProposalBlock, cs.ProposalBlockParts
 
 	if !ok {
-		panic(fmt.Sprintf("Cannot finalizeCommit, commit does not have two thirds majority"))
+		panic("Cannot finalizeCommit, commit does not have two thirds majority")
 	}
 	if !blockParts.HasHeader(blockID.PartsHeader) {
-		panic(fmt.Sprintf("Expected ProposalBlockParts header to be commit header"))
+		panic("Expected ProposalBlockParts header to be commit header")
 	}
 	if !block.HashesTo(blockID.Hash) {
-		panic(fmt.Sprintf("Cannot finalizeCommit, ProposalBlock does not hash to commit hash"))
+		panic("Cannot finalizeCommit, ProposalBlock does not hash to commit hash")
 	}
-	if err := cs.blockExec.ValidateBlock(cs.state, block); err != nil {
+	if err := cs.state.ValidateBlock(block); err != nil {
 		panic(fmt.Sprintf("+2/3 committed an invalid block: %v", err))
 	}
 
-	cs.Logger.Info(fmt.Sprintf("Finalizing commit of block with %d txs", block.NumTxs),
-		"height", block.Height, "hash", block.Hash(), "root", block.AppHash)
-	cs.Logger.Info(fmt.Sprintf("%v", block))
+	cs.Logger.Info(
+		"Finalizing commit of block",
+		"root", block.AppHash,
+		"height", block.Height,
+		"hash", block.Hash(),
+		"num txs", block.NumTxs,
+	)
 
 	fail.Fail() // XXX
 
@@ -1369,6 +1392,9 @@ func (cs *ConsensusState) finalizeCommit(height int64) {
 	// * cs.Height has been increment to height+1
 	// * cs.Step is now cstypes.RoundStepNewHeight
 	// * cs.StartTime is set to when we will start round0.
+
+	// Log the telemetry
+	cs.logTelemetry(block)
 }
 
 // -----------------------------------------------------------------------------
@@ -1403,7 +1429,16 @@ func (cs *ConsensusState) defaultSetProposal(proposal *types.Proposal) error {
 	if cs.ProposalBlockParts == nil {
 		cs.ProposalBlockParts = types.NewPartSetFromHeader(proposal.BlockID.PartsHeader)
 	}
-	cs.Logger.Info("Received proposal", "proposal", proposal)
+
+	cs.Logger.Info(
+		"Received proposal",
+		"height", proposal.Height,
+		"round", proposal.Round,
+		"proposal block ID", proposal.BlockID.String(),
+		"proposal round", proposal.POLRound,
+		"proposal timestamp", proposal.Timestamp.Unix(),
+	)
+
 	return nil
 }
 
@@ -1556,12 +1591,18 @@ func (cs *ConsensusState) addVote(vote *types.Vote, peerID p2p.ID) (added bool, 
 		return
 	}
 
-	cs.evsw.FireEvent(types.EventVote{vote})
+	cs.evsw.FireEvent(types.EventVote{Vote: vote})
 
 	switch vote.Type {
 	case types.PrevoteType:
 		prevotes := cs.Votes.Prevotes(vote.Round)
-		cs.Logger.Info("Added to prevote", "vote", vote, "prevotes", prevotes.StringShort())
+		cs.Logger.Debug(
+			"Added to prevote",
+			"type", vote.Type,
+			"vote height", vote.Height,
+			"vote round", vote.Round,
+			"prevotes", prevotes.StringShort(),
+		)
 
 		// If +2/3 prevotes for a block or nil for *any* round:
 		if blockID, ok := prevotes.TwoThirdsMajority(); ok {
@@ -1579,7 +1620,7 @@ func (cs *ConsensusState) addVote(vote *types.Vote, peerID p2p.ID) (added bool, 
 				cs.LockedRound = -1
 				cs.LockedBlock = nil
 				cs.LockedBlockParts = nil
-				cs.evsw.FireEvent(cstypes.EventUnlock{cs.RoundState.GetHRS()})
+				cs.evsw.FireEvent(cstypes.EventUnlock{HRS: cs.RoundState.GetHRS()})
 			}
 
 			// Update Valid* if we can.
@@ -1626,7 +1667,13 @@ func (cs *ConsensusState) addVote(vote *types.Vote, peerID p2p.ID) (added bool, 
 
 	case types.PrecommitType:
 		precommits := cs.Votes.Precommits(vote.Round)
-		cs.Logger.Info("Added to precommit", "vote", vote, "precommits", precommits.StringShort())
+		cs.Logger.Debug(
+			"Added to precommit",
+			"type", vote.Type,
+			"vote height", vote.Height,
+			"vote round", vote.Round,
+			"precommits", precommits.StringShort(),
+		)
 
 		blockID, ok := precommits.TwoThirdsMajority()
 		if ok {
@@ -1701,13 +1748,49 @@ func (cs *ConsensusState) signAddVote(type_ types.SignedMsgType, hash []byte, he
 	vote, err := cs.signVote(type_, hash, header)
 	if err == nil {
 		cs.sendInternalMessage(msgInfo{&VoteMessage{vote}, ""})
-		cs.Logger.Info("Signed and pushed vote", "height", cs.Height, "round", cs.Round, "vote", vote, "err", err)
+
+		cs.Logger.Info(
+			"Signed and pushed vote",
+			"height", cs.Height,
+			"round", cs.Round,
+			"type", vote.Type,
+			"timestamp", vote.Timestamp.String(),
+			"height", vote.Height,
+			"round", vote.Round,
+			"validator address", vote.ValidatorAddress,
+			"validator index", vote.ValidatorIndex,
+		)
+
 		return vote
 	}
 	// if !cs.replayMode {
 	cs.Logger.Error("Error signing vote", "height", cs.Height, "round", cs.Round, "vote", vote, "err", err)
 	// }
 	return nil
+}
+
+// logTelemetry logs the consensus state telemetry
+func (cs *ConsensusState) logTelemetry(block *types.Block) {
+	if !telemetry.MetricsEnabled() {
+		return
+	}
+
+	// Log the validator telemetry
+	metrics.ValidatorsCount.Record(context.Background(), int64(cs.Validators.Size()))
+	metrics.ValidatorsVotingPower.Record(context.Background(), cs.Validators.TotalVotingPower())
+
+	// Log the block telemetry
+	if block.Height > 1 {
+		if lastBlockMeta := cs.blockStore.LoadBlockMeta(block.Height - 1); lastBlockMeta != nil {
+			metrics.BlockInterval.Record(
+				context.Background(),
+				int64(block.Time.Sub(lastBlockMeta.Header.Time).Seconds()),
+			)
+		}
+	}
+
+	metrics.BlockTxs.Record(context.Background(), block.TotalTxs)
+	metrics.BlockSizeBytes.Record(context.Background(), int64(block.Size()))
 }
 
 // ---------------------------------------------------------

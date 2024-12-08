@@ -1,4 +1,4 @@
-// PKGPATH: gno.land/r/boards_test
+// PKGPATH: gno.land/r/demo/boards_test
 package boards_test
 
 // SEND: 200000000ugnot
@@ -26,3 +26,4 @@ func main() {
 //
 //  * [/r/demo/boards:test_board_1](/r/demo/boards:test_board_1)
 //  * [/r/demo/boards:test_board_2](/r/demo/boards:test_board_2)
+//

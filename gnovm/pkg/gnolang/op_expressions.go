@@ -78,26 +78,30 @@ func (m *Machine) doOpIndex2() {
 func (m *Machine) doOpSelector() {
 	sx := m.PopExpr().(*SelectorExpr)
 	xv := m.PeekValue(1)
-	res := xv.GetPointerTo(m.Alloc, m.Store, sx.Path)
-	*xv = res.Deref() // reuse as result
+	res := xv.GetPointerToFromTV(m.Alloc, m.Store, sx.Path).Deref()
+	if debug {
+		m.Printf("-v[S] %v\n", xv)
+		m.Printf("+v[S] %v\n", res)
+	}
+	*xv = res // reuse as result
 }
 
 func (m *Machine) doOpSlice() {
 	sx := m.PopExpr().(*SliceExpr)
-	var low, high, max int = -1, -1, -1
+	var lowVal, highVal, maxVal int = -1, -1, -1
 	// max
 	if sx.Max != nil {
-		max = m.PopValue().ConvertGetInt()
+		maxVal = m.PopValue().ConvertGetInt()
 	}
 	// high
 	if sx.High != nil {
-		high = m.PopValue().ConvertGetInt()
+		highVal = m.PopValue().ConvertGetInt()
 	}
 	// low
 	if sx.Low != nil {
-		low = m.PopValue().ConvertGetInt()
+		lowVal = m.PopValue().ConvertGetInt()
 	} else {
-		low = 0
+		lowVal = 0
 	}
 	// slice base x
 	xv := m.PopValue()
@@ -110,14 +114,14 @@ func (m *Machine) doOpSlice() {
 	}
 	// fill default based on xv
 	if sx.High == nil {
-		high = xv.GetLength()
+		highVal = xv.GetLength()
 	}
 	// all low:high:max cases
-	if max == -1 {
-		sv := xv.GetSlice(m.Alloc, low, high)
+	if maxVal == -1 {
+		sv := xv.GetSlice(m.Alloc, lowVal, highVal)
 		m.PushValue(sv)
 	} else {
-		sv := xv.GetSlice2(m.Alloc, low, high, max)
+		sv := xv.GetSlice2(m.Alloc, lowVal, highVal, maxVal)
 		m.PushValue(sv)
 	}
 }
@@ -141,9 +145,13 @@ func (m *Machine) doOpStar() {
 	xv := m.PopValue()
 	switch bt := baseOf(xv.T).(type) {
 	case *PointerType:
+		if xv.V == nil {
+			panic(&Exception{Value: typedString("nil pointer dereference")})
+		}
+
 		pv := xv.V.(PointerValue)
 		if pv.TV.T == DataByteType {
-			tv := TypedValue{T: xv.T.(*PointerType).Elt}
+			tv := TypedValue{T: bt.Elt}
 			dbv := pv.TV.V.(DataByteValue)
 			tv.SetUint8(dbv.GetByte())
 			m.PushValue(tv)
@@ -159,7 +167,7 @@ func (m *Machine) doOpStar() {
 		t := xv.GetType()
 		var pt Type
 		if nt, ok := t.(*NativeType); ok {
-			pt = &NativeType{Type: reflect.PtrTo(nt.Type)}
+			pt = &NativeType{Type: reflect.PointerTo(nt.Type)}
 		} else {
 			pt = &PointerType{Elt: t}
 		}
@@ -190,8 +198,13 @@ func (m *Machine) doOpRef() {
 			nv.Value = rv2
 		}
 	}
+	// when obtaining a pointer of the databyte type, use the ElemType of databyte
+	elt := xv.TV.T
+	if elt == DataByteType {
+		elt = xv.TV.V.(DataByteValue).ElemType
+	}
 	m.PushValue(TypedValue{
-		T: m.Alloc.NewType(&PointerType{Elt: xv.TV.T}),
+		T: m.Alloc.NewType(&PointerType{Elt: elt}),
 		V: xv,
 	})
 }
@@ -200,23 +213,48 @@ func (m *Machine) doOpRef() {
 func (m *Machine) doOpTypeAssert1() {
 	m.PopExpr()
 	// pop type
-	t := m.PopValue().GetType()
+	t := m.PopValue().GetType() // type being asserted
+
 	// peek x for re-use
-	xv := m.PeekValue(1)
-	xt := xv.T
+	xv := m.PeekValue(1) // value result / value to assert
+	xt := xv.T           // underlying value's type
+
+	// xt may be nil, but we need to wait to return because the value of xt that is set
+	// will depend on whether we are trying to assert to an interface or concrete type.
+	// xt can be nil in the case where recover can't find a panic to recover from and
+	// returns a bare TypedValue{}.
 
 	if t.Kind() == InterfaceKind { // is interface assert
+		if xt == nil || xv.IsNilInterface() {
+			// TODO: default panic type?
+			ex := fmt.Sprintf("interface conversion: interface is nil, not %s", t.String())
+			m.Panic(typedString(ex))
+			return
+		}
+
 		if it, ok := baseOf(t).(*InterfaceType); ok {
-			// t is Gno interface.
-			// assert that x implements type.
-			impl := false
-			impl = it.IsImplementedBy(xt)
-			if !impl {
+			// An interface type assertion on a value that doesn't have a concrete base
+			// type should always fail.
+			if _, ok := baseOf(xt).(*InterfaceType); ok {
 				// TODO: default panic type?
 				ex := fmt.Sprintf(
-					"%s doesn't implement %s",
+					"non-concrete %s doesn't implement %s",
 					xt.String(),
 					it.String())
+				m.Panic(typedString(ex))
+				return
+			}
+
+			// t is Gno interface.
+			// assert that x implements type.
+			err := it.VerifyImplementedBy(xt)
+			if err != nil {
+				// TODO: default panic type?
+				ex := fmt.Sprintf(
+					"%s doesn't implement %s (%s)",
+					xt.String(),
+					it.String(),
+					err.Error())
 				m.Panic(typedString(ex))
 				return
 			}
@@ -226,16 +264,22 @@ func (m *Machine) doOpTypeAssert1() {
 		} else if nt, ok := baseOf(t).(*NativeType); ok {
 			// t is Go interface.
 			// assert that x implements type.
-			impl := false
+			errPrefix := "non-concrete "
+			var impl bool
 			if nxt, ok := xt.(*NativeType); ok {
-				impl = nxt.Type.Implements(nt.Type)
-			} else {
-				impl = false
+				// If the underlying native type is reflect.Interface kind, then this has no
+				// concrete value and should fail.
+				if nxt.Type.Kind() != reflect.Interface {
+					impl = nxt.Type.Implements(nt.Type)
+					errPrefix = ""
+				}
 			}
+
 			if !impl {
 				// TODO: default panic type?
 				ex := fmt.Sprintf(
-					"%s doesn't implement %s",
+					"%s%s doesn't implement %s",
+					errPrefix,
 					xt.String(),
 					nt.String())
 				m.Panic(typedString(ex))
@@ -247,6 +291,12 @@ func (m *Machine) doOpTypeAssert1() {
 			panic("should not happen")
 		}
 	} else { // is concrete assert
+		if xt == nil {
+			ex := fmt.Sprintf("nil is not of type %s", t.String())
+			m.Panic(typedString(ex))
+			return
+		}
+
 		tid := t.TypeID()
 		xtid := xt.TypeID()
 		// assert that x is of type.
@@ -269,17 +319,37 @@ func (m *Machine) doOpTypeAssert1() {
 func (m *Machine) doOpTypeAssert2() {
 	m.PopExpr()
 	// peek type for re-use
-	tv := m.PeekValue(1)
-	t := tv.GetType()
+	tv := m.PeekValue(1) // boolean result
+	t := tv.GetType()    // type being asserted
+
 	// peek x for re-use
-	xv := m.PeekValue(2)
-	xt := xv.T
+	xv := m.PeekValue(2) // value result / value to assert
+	xt := xv.T           // underlying value's type
+
+	// xt may be nil, but we need to wait to return because the value of xt that is set
+	// will depend on whether we are trying to assert to an interface or concrete type.
+	// xt can be nil in the case where recover can't find a panic to recover from and
+	// returns a bare TypedValue{}.
 
 	if t.Kind() == InterfaceKind { // is interface assert
+		if xt == nil {
+			*xv = TypedValue{}
+			*tv = untypedBool(false)
+			return
+		}
+
 		if it, ok := baseOf(t).(*InterfaceType); ok {
+			// An interface type assertion on a value that doesn't have a concrete base
+			// type should always fail.
+			if _, ok := baseOf(xt).(*InterfaceType); ok {
+				*xv = TypedValue{}
+				*tv = untypedBool(false)
+				return
+			}
+
 			// t is Gno interface.
 			// assert that x implements type.
-			impl := false
+			var impl bool
 			impl = it.IsImplementedBy(xt)
 			if impl {
 				// *xv = *xv
@@ -291,14 +361,18 @@ func (m *Machine) doOpTypeAssert2() {
 				*tv = untypedBool(false)
 			}
 		} else if nt, ok := baseOf(t).(*NativeType); ok {
+			// If the value being asserted on is nil, it can't implement an interface.
 			// t is Go interface.
 			// assert that x implements type.
-			impl := false
+			var impl bool
 			if nxt, ok := xt.(*NativeType); ok {
-				impl = nxt.Type.Implements(nt.Type)
-			} else {
-				impl = false
+				// If the underlying native type is reflect.Interface kind, then this has no
+				// concrete value and should fail.
+				if nxt.Type.Kind() != reflect.Interface {
+					impl = nxt.Type.Implements(nt.Type)
+				}
 			}
+
 			if impl {
 				// *xv = *xv
 				*tv = untypedBool(true)
@@ -310,10 +384,20 @@ func (m *Machine) doOpTypeAssert2() {
 			panic("should not happen")
 		}
 	} else { // is concrete assert
+		if xt == nil {
+			*xv = TypedValue{
+				T: t,
+				V: defaultValue(m.Alloc, t),
+			}
+			*tv = untypedBool(false)
+			return
+		}
+
 		tid := t.TypeID()
 		xtid := xt.TypeID()
 		// assert that x is of type.
 		same := tid == xtid
+
 		if same {
 			// *xv = *xv
 			*tv = untypedBool(true)
@@ -509,16 +593,16 @@ func (m *Machine) doOpSliceLit2() {
 	// peek slice type.
 	st := m.PeekValue(1).V.(TypeValue).Type
 	// calculate maximum index.
-	max := 0
+	maxVal := 0
 	for i := 0; i < el; i++ {
 		itv := tvs[i*2+0]
 		idx := itv.ConvertGetInt()
-		if idx > max {
-			max = idx
+		if idx > maxVal {
+			maxVal = idx
 		}
 	}
 	// construct element buf slice.
-	es := make([]TypedValue, max+1)
+	es := make([]TypedValue, maxVal+1)
 	for i := 0; i < el; i++ {
 		itv := tvs[i*2+0]
 		vtv := tvs[i*2+1]
@@ -678,6 +762,25 @@ func (m *Machine) doOpFuncLit() {
 	ft := m.PopValue().V.(TypeValue).Type.(*FuncType)
 	lb := m.LastBlock()
 	m.Alloc.AllocateFunc()
+
+	// First copy closure captured heap values
+	// to *FuncValue. Later during doOpCall a block
+	// will be created that copies these values for
+	// every invocation of the function.
+	captures := []TypedValue(nil)
+	for _, nx := range x.HeapCaptures {
+		ptr := lb.GetPointerTo(m.Store, nx.Path)
+		// check that ptr.TV is a heap item value.
+		// it must be in the form of:
+		// {T:heapItemType{},V:HeapItemValue{...}}
+		if _, ok := ptr.TV.T.(heapItemType); !ok {
+			panic("should not happen, should be heapItemType")
+		}
+		if _, ok := ptr.TV.V.(*HeapItemValue); !ok {
+			panic("should not happen, should be heapItemValue")
+		}
+		captures = append(captures, *ptr.TV)
+	}
 	m.PushValue(TypedValue{
 		T: ft,
 		V: &FuncValue{
@@ -686,6 +789,7 @@ func (m *Machine) doOpFuncLit() {
 			Source:     x,
 			Name:       "",
 			Closure:    lb,
+			Captures:   captures,
 			PkgPath:    m.Package.PkgPath,
 			body:       x.Body,
 			nativeBody: nil,
@@ -696,6 +800,6 @@ func (m *Machine) doOpFuncLit() {
 func (m *Machine) doOpConvert() {
 	xv := m.PopValue()
 	t := m.PopValue().GetType()
-	ConvertTo(m.Alloc, m.Store, xv, t)
+	ConvertTo(m.Alloc, m.Store, xv, t, false)
 	m.PushValue(*xv)
 }

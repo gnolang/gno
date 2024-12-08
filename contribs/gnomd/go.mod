@@ -1,6 +1,8 @@
 module github.com/gnolang/gno/contribs/gnomd
 
-go 1.20
+go 1.22
+
+toolchain go1.22.4
 
 require github.com/MichaelMure/go-term-markdown v0.1.4
 
@@ -20,6 +22,6 @@ require (
 	github.com/mattn/go-runewidth v0.0.12 // indirect
 	github.com/rivo/uniseg v0.1.0 // indirect
 	golang.org/x/image v0.0.0-20191206065243-da761ea9ff43 // indirect
-	golang.org/x/net v0.0.0-20190813141303-74dc4d7220e7 // indirect
-	golang.org/x/sys v0.0.0-20191026070338-33540a1f6037 // indirect
+	golang.org/x/net v0.23.0 // indirect
+	golang.org/x/sys v0.18.0 // indirect
 )

@@ -7,8 +7,8 @@ type EventStoreParams map[string]any
 
 // Config defines the specific event store configuration
 type Config struct {
-	EventStoreType string
-	Params         EventStoreParams
+	EventStoreType string           `json:"event_store_type" toml:"event_store_type" comment:"Type of event store"`
+	Params         EventStoreParams `json:"event_store_params" toml:"event_store_params" comment:"Event store parameters"`
 }
 
 // GetParam fetches the specific config param, if any.
@@ -25,5 +25,6 @@ func (c *Config) GetParam(name string) any {
 func DefaultEventStoreConfig() *Config {
 	return &Config{
 		EventStoreType: null.EventStoreType,
+		Params:         make(EventStoreParams),
 	}
 }

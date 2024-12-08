@@ -15,6 +15,7 @@ import (
 	"time"
 
 	"github.com/gnolang/gno/tm2/pkg/amino"
+	"github.com/gnolang/gno/tm2/pkg/amino/genproto/stringutil"
 	"github.com/gnolang/gno/tm2/pkg/amino/pkg"
 )
 
@@ -189,6 +190,15 @@ func (p3c *P3Context) GenerateProto3MessagePartial(p3doc *P3Doc, rt reflect.Type
 
 	p3msg.Name = info.Name // not rinfo.
 
+	var fieldComments map[string]string
+	if rinfo.Package != nil {
+		if pkgType, ok := rinfo.Package.GetType(rt); ok {
+			p3msg.Comment = pkgType.Comment
+			// We will check for optional field comments below.
+			fieldComments = pkgType.FieldComments
+		}
+	}
+
 	// Append to p3msg.Fields, fields of the struct.
 	for _, field := range rsfields { // rinfo.
 		fp3, fp3IsRepeated, implicit := typeToP3Type(info.Package, field.TypeInfo, field.FieldOptions)
@@ -204,8 +214,12 @@ func (p3c *P3Context) GenerateProto3MessagePartial(p3doc *P3Doc, rt reflect.Type
 		p3Field := P3Field{
 			Repeated: fp3IsRepeated,
 			Type:     fp3,
-			Name:     field.Name,
+			Name:     stringutil.ToLowerSnakeCase(field.Name),
+			JSONName: field.JSONName,
 			Number:   field.FieldOptions.BinFieldNum,
+		}
+		if fieldComments != nil {
+			p3Field.Comment = fieldComments[field.Name]
 		}
 		p3msg.Fields = append(p3msg.Fields, p3Field)
 	}

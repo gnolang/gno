@@ -4,6 +4,7 @@ id: rpc-endpoints
 
 # Gno RPC Endpoints
 
+For network configurations, view the [network configuration page](./network-config.md).
 ## Common Parameters
 
 #### Response
@@ -108,7 +109,7 @@ Call with the /consensus\_params path to check the consensus algorithm parameter
 | `block_height`                | String | The block height.          |
 | `consensus_params`            | Object | The parameter information. |
 | `consensus_params.Block`      | Object | The block parameters.      |
-| `consensus_params.Validattor` | Object | The validator parameters.  |
+| `consensus_params.Validator` | Object | The validator parameters.  |
 
 ## Get Consensus State
 

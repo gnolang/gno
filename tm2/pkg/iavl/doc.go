@@ -7,7 +7,7 @@
 //	import "github.com/tendermint/classic/db"
 //	...
 //
-//	tree := iavl.NewMutableTree(db.NewMemDB(), 128)
+//	tree := iavl.NewMutableTree(memdb.NewMemDB(), 128)
 //
 //	tree.IsEmpty() // true
 //

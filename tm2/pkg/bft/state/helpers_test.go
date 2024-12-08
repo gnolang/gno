@@ -5,12 +5,14 @@ import (
 	"fmt"
 
 	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
+	"github.com/gnolang/gno/tm2/pkg/bft/appconn"
 	"github.com/gnolang/gno/tm2/pkg/bft/proxy"
 	sm "github.com/gnolang/gno/tm2/pkg/bft/state"
 	"github.com/gnolang/gno/tm2/pkg/bft/types"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
 	"github.com/gnolang/gno/tm2/pkg/crypto/ed25519"
 	dbm "github.com/gnolang/gno/tm2/pkg/db"
+	"github.com/gnolang/gno/tm2/pkg/db/memdb"
 )
 
 type paramsChangeTestCase struct {
@@ -18,10 +20,10 @@ type paramsChangeTestCase struct {
 	params abci.ConsensusParams
 }
 
-func newTestApp() proxy.AppConns {
+func newTestApp() appconn.AppConns {
 	app := &testApp{}
 	cc := proxy.NewLocalClientCreator(app)
-	return proxy.NewAppConns(cc)
+	return appconn.NewAppConns(cc)
 }
 
 func makeAndCommitGoodBlock(
@@ -50,7 +52,7 @@ func makeAndApplyGoodBlock(state sm.State, height int64, lastCommit *types.Commi
 	blockExec *sm.BlockExecutor,
 ) (sm.State, types.BlockID, error) {
 	block, _ := state.MakeBlock(height, makeTxs(height), lastCommit, proposerAddr)
-	if err := blockExec.ValidateBlock(state, block); err != nil {
+	if err := state.ValidateBlock(block); err != nil {
 		return state, types.BlockID{}, err
 	}
 	blockID := types.BlockID{Hash: block.Hash(), PartsHeader: types.PartSetHeader{}}
@@ -103,7 +105,7 @@ func makeState(nVals, height int) (sm.State, dbm.DB, map[string]types.PrivValida
 		AppHash:    nil,
 	})
 
-	stateDB := dbm.NewMemDB()
+	stateDB := memdb.NewMemDB()
 	sm.SaveState(stateDB, s)
 
 	for i := 1; i < height; i++ {

@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"fmt"
 	"os"
 
 	"github.com/gnolang/gno/tm2/pkg/amino"
@@ -12,6 +11,7 @@ import (
 
 	// TODO: move these out.
 	"github.com/gnolang/gno/gno.land/pkg/sdk/vm"
+	"github.com/gnolang/gno/gnovm"
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
 	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
 	"github.com/gnolang/gno/tm2/pkg/bft/blockchain"
@@ -38,11 +38,7 @@ func main() {
 		execGen,
 	)
 
-	if err := cmd.ParseAndRun(context.Background(), os.Args[1:]); err != nil {
-		_, _ = fmt.Fprintf(os.Stderr, "%+v\n", err)
-
-		os.Exit(1)
-	}
+	cmd.Execute(context.Background(), os.Args[1:])
 }
 
 func execGen(_ context.Context, _ []string) error {
@@ -59,6 +55,7 @@ func execGen(_ context.Context, _ []string) error {
 		hd.Package,
 		multisig.Package,
 		std.Package,
+		gnovm.Package,
 		sdk.Package,
 		bank.Package,
 		vm.Package,

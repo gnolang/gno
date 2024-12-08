@@ -1,18 +1,21 @@
-package db
+package db_test
 
 import (
 	"fmt"
 	"testing"
 
+	"github.com/gnolang/gno/tm2/pkg/db"
+	_ "github.com/gnolang/gno/tm2/pkg/db/_all"
+	"github.com/gnolang/gno/tm2/pkg/db/internal"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
-func testBackendGetSetDelete(t *testing.T, backend BackendType) {
+func testBackendGetSetDelete(t *testing.T, backend db.BackendType) {
 	t.Helper()
 
 	// Default
-	db, err := NewDB("testdb", backend, t.TempDir())
+	db, err := db.NewDB("testdb", backend, t.TempDir())
 	require.NoError(t, err)
 
 	// A nonexistent key should return nil, even if the key is empty
@@ -43,7 +46,7 @@ func testBackendGetSetDelete(t *testing.T, backend BackendType) {
 func TestBackendsGetSetDelete(t *testing.T) {
 	t.Parallel()
 
-	for dbType := range backends {
+	for _, dbType := range db.BackendList() {
 		t.Run(string(dbType), func(t *testing.T) {
 			t.Parallel()
 
@@ -52,11 +55,11 @@ func TestBackendsGetSetDelete(t *testing.T) {
 	}
 }
 
-func withDB(t *testing.T, creator dbCreator, fn func(DB)) {
+func withDB(t *testing.T, dbType db.BackendType, fn func(db.DB)) {
 	t.Helper()
 
-	name := fmt.Sprintf("test_%x", randStr(12))
-	db, err := creator(name, t.TempDir())
+	name := fmt.Sprintf("test_%x", internal.RandStr(12))
+	db, err := db.NewDB(name, dbType, t.TempDir())
 	require.Nil(t, err)
 	fn(db)
 	db.Close()
@@ -66,8 +69,8 @@ func TestBackendsNilKeys(t *testing.T) {
 	t.Parallel()
 
 	// Test all backends.
-	for dbType, creator := range backends {
-		withDB(t, creator, func(db DB) {
+	for _, dbType := range db.BackendList() {
+		withDB(t, dbType, func(db db.DB) {
 			t.Run(fmt.Sprintf("Testing %s", dbType), func(t *testing.T) {
 				// Nil keys are treated as the empty key for most operations.
 				expect := func(key, value []byte) {
@@ -142,21 +145,10 @@ func TestBackendsNilKeys(t *testing.T) {
 	}
 }
 
-func TestGoLevelDBBackend(t *testing.T) {
-	t.Parallel()
-
-	name := fmt.Sprintf("test_%x", randStr(12))
-	db, err := NewDB(name, GoLevelDBBackend, t.TempDir())
-	require.NoError(t, err)
-
-	_, ok := db.(*GoLevelDB)
-	assert.True(t, ok)
-}
-
 func TestDBIterator(t *testing.T) {
 	t.Parallel()
 
-	for dbType := range backends {
+	for _, dbType := range db.BackendList() {
 		t.Run(fmt.Sprintf("%v", dbType), func(t *testing.T) {
 			t.Parallel()
 
@@ -165,11 +157,11 @@ func TestDBIterator(t *testing.T) {
 	}
 }
 
-func testDBIterator(t *testing.T, backend BackendType) {
+func testDBIterator(t *testing.T, backend db.BackendType) {
 	t.Helper()
 
-	name := fmt.Sprintf("test_%x", randStr(12))
-	db, err := NewDB(name, backend, t.TempDir())
+	name := fmt.Sprintf("test_%x", internal.RandStr(12))
+	db, err := db.NewDB(name, backend, t.TempDir())
 	require.NoError(t, err)
 
 	for i := 0; i < 10; i++ {
@@ -221,7 +213,7 @@ func testDBIterator(t *testing.T, backend BackendType) {
 		[]int64(nil), "reverse iterator from 2 (ex) to 4")
 }
 
-func verifyIterator(t *testing.T, itr Iterator, expected []int64, msg string) {
+func verifyIterator(t *testing.T, itr db.Iterator, expected []int64, msg string) {
 	t.Helper()
 
 	var list []int64
@@ -230,4 +222,218 @@ func verifyIterator(t *testing.T, itr Iterator, expected []int64, msg string) {
 		itr.Next()
 	}
 	assert.Equal(t, expected, list, msg)
+}
+
+func TestDBIteratorSingleKey(t *testing.T) {
+	t.Parallel()
+
+	for _, backend := range db.BackendList() {
+		t.Run(fmt.Sprintf("Backend %s", backend), func(t *testing.T) {
+			t.Parallel()
+
+			db := newTempDB(t, backend)
+
+			db.SetSync(bz("1"), bz("value_1"))
+			itr := db.Iterator(nil, nil)
+
+			checkValid(t, itr, true)
+			checkNext(t, itr, false)
+			checkValid(t, itr, false)
+			checkNextPanics(t, itr)
+
+			// Once invalid...
+			checkInvalid(t, itr)
+		})
+	}
+}
+
+func TestDBIteratorTwoKeys(t *testing.T) {
+	t.Parallel()
+
+	for _, backend := range db.BackendList() {
+		t.Run(fmt.Sprintf("Backend %s", backend), func(t *testing.T) {
+			t.Parallel()
+
+			db := newTempDB(t, backend)
+
+			db.SetSync(bz("1"), bz("value_1"))
+			db.SetSync(bz("2"), bz("value_1"))
+
+			{ // Fail by calling Next too much
+				itr := db.Iterator(nil, nil)
+				checkValid(t, itr, true)
+
+				checkNext(t, itr, true)
+				checkValid(t, itr, true)
+
+				checkNext(t, itr, false)
+				checkValid(t, itr, false)
+
+				checkNextPanics(t, itr)
+
+				// Once invalid...
+				checkInvalid(t, itr)
+			}
+		})
+	}
+}
+
+func TestDBIteratorMany(t *testing.T) {
+	t.Parallel()
+
+	for _, backend := range db.BackendList() {
+		t.Run(fmt.Sprintf("Backend %s", backend), func(t *testing.T) {
+			t.Parallel()
+
+			db := newTempDB(t, backend)
+
+			keys := make([][]byte, 100)
+			for i := 0; i < 100; i++ {
+				keys[i] = []byte{byte(i)}
+			}
+
+			value := []byte{5}
+			for _, k := range keys {
+				db.Set(k, value)
+			}
+
+			itr := db.Iterator(nil, nil)
+			defer itr.Close()
+			for ; itr.Valid(); itr.Next() {
+				assert.Equal(t, db.Get(itr.Key()), itr.Value())
+			}
+		})
+	}
+}
+
+func TestDBIteratorEmpty(t *testing.T) {
+	t.Parallel()
+
+	for _, backend := range db.BackendList() {
+		t.Run(fmt.Sprintf("Backend %s", backend), func(t *testing.T) {
+			t.Parallel()
+
+			db := newTempDB(t, backend)
+
+			itr := db.Iterator(nil, nil)
+
+			checkInvalid(t, itr)
+		})
+	}
+}
+
+func TestDBIteratorEmptyBeginAfter(t *testing.T) {
+	t.Parallel()
+
+	for _, backend := range db.BackendList() {
+		t.Run(fmt.Sprintf("Backend %s", backend), func(t *testing.T) {
+			t.Parallel()
+
+			db := newTempDB(t, backend)
+
+			itr := db.Iterator(bz("1"), nil)
+
+			checkInvalid(t, itr)
+		})
+	}
+}
+
+func TestDBIteratorNonemptyBeginAfter(t *testing.T) {
+	t.Parallel()
+
+	for _, backend := range db.BackendList() {
+		t.Run(fmt.Sprintf("Backend %s", backend), func(t *testing.T) {
+			t.Parallel()
+
+			db := newTempDB(t, backend)
+
+			db.SetSync(bz("1"), bz("value_1"))
+			itr := db.Iterator(bz("2"), nil)
+
+			checkInvalid(t, itr)
+		})
+	}
+}
+
+func TestDBBatchWrite(t *testing.T) {
+	t.Parallel()
+
+	testCases := []struct {
+		modify func(batch db.Batch)
+		calls  map[string]int
+	}{
+		0: {
+			func(batch db.Batch) {
+				batch.Set(bz("1"), bz("1"))
+				batch.Set(bz("2"), bz("2"))
+				batch.Delete(bz("3"))
+				batch.Set(bz("4"), bz("4"))
+				batch.Write()
+			},
+			map[string]int{
+				"Set": 0, "SetSync": 0, "SetNoLock": 3, "SetNoLockSync": 0,
+				"Delete": 0, "DeleteSync": 0, "DeleteNoLock": 1, "DeleteNoLockSync": 0,
+			},
+		},
+		1: {
+			func(batch db.Batch) {
+				batch.Set(bz("1"), bz("1"))
+				batch.Set(bz("2"), bz("2"))
+				batch.Set(bz("4"), bz("4"))
+				batch.Delete(bz("3"))
+				batch.Write()
+			},
+			map[string]int{
+				"Set": 0, "SetSync": 0, "SetNoLock": 3, "SetNoLockSync": 0,
+				"Delete": 0, "DeleteSync": 0, "DeleteNoLock": 1, "DeleteNoLockSync": 0,
+			},
+		},
+		2: {
+			func(batch db.Batch) {
+				batch.Set(bz("1"), bz("1"))
+				batch.Set(bz("2"), bz("2"))
+				batch.Delete(bz("3"))
+				batch.Set(bz("4"), bz("4"))
+				batch.WriteSync()
+			},
+			map[string]int{
+				"Set": 0, "SetSync": 0, "SetNoLock": 2, "SetNoLockSync": 1,
+				"Delete": 0, "DeleteSync": 0, "DeleteNoLock": 1, "DeleteNoLockSync": 0,
+			},
+		},
+		3: {
+			func(batch db.Batch) {
+				batch.Set(bz("1"), bz("1"))
+				batch.Set(bz("2"), bz("2"))
+				batch.Set(bz("4"), bz("4"))
+				batch.Delete(bz("3"))
+				batch.WriteSync()
+			},
+			map[string]int{
+				"Set": 0, "SetSync": 0, "SetNoLock": 3, "SetNoLockSync": 0,
+				"Delete": 0, "DeleteSync": 0, "DeleteNoLock": 0, "DeleteNoLockSync": 1,
+			},
+		},
+	}
+
+	for i, tc := range testCases {
+		mdb := newMockDB()
+		batch := mdb.NewBatch()
+
+		tc.modify(batch)
+
+		for call, exp := range tc.calls {
+			got := mdb.calls[call]
+			assert.Equal(t, exp, got, "#%v - key: %s", i, call)
+		}
+	}
+}
+
+func newTempDB(t *testing.T, backend db.BackendType) db.DB {
+	t.Helper()
+
+	tmpdb, err := db.NewDB("testdb", backend, t.TempDir())
+	require.NoError(t, err)
+
+	return tmpdb
 }

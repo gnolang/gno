@@ -15,11 +15,8 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/store"
 )
 
-var (
-	// simulation signature values used to estimate gas consumption
-	simSecp256k1Pubkey secp256k1.PubKeySecp256k1
-	simSecp256k1Sig    [64]byte
-)
+// simulation signature values used to estimate gas consumption
+var simSecp256k1Pubkey secp256k1.PubKeySecp256k1
 
 func init() {
 	// This decodes a valid hex string into a sepc256k1Pubkey for use in transaction simulation
@@ -153,7 +150,10 @@ func NewAnteHandler(ak AccountKeeper, bank BankKeeperI, sigGasConsumer Signature
 				// No signatures are needed for genesis.
 			} else {
 				// Check signature
-				signBytes := GetSignBytes(newCtx.ChainID(), tx, sacc, isGenesis)
+				signBytes, err := GetSignBytes(newCtx.ChainID(), tx, sacc, isGenesis)
+				if err != nil {
+					return newCtx, res, true
+				}
 				signerAccs[i], res = processSig(newCtx, sacc, stdSigs[i], signBytes, simulate, params, sigGasConsumer)
 				if !res.IsOK() {
 					return newCtx, res, true
@@ -225,20 +225,12 @@ func processSig(
 		return nil, abciResult(std.ErrInternal("setting PubKey on signer's account"))
 	}
 
-	if simulate {
-		// Simulated txs should not contain a signature and are not required to
-		// contain a pubkey, so we must account for tx size of including a
-		// std.Signature (Amino encoding) and simulate gas consumption
-		// (assuming a SECP256k1 simulation key).
-		consumeSimSigGas(ctx.GasMeter(), pubKey, sig, params)
-	}
-
 	if res := sigGasConsumer(ctx.GasMeter(), sig.Signature, pubKey, params); !res.IsOK() {
 		return nil, res
 	}
 
 	if !simulate && !pubKey.VerifyBytes(signBytes, sig.Signature) {
-		return nil, abciResult(std.ErrUnauthorized("signature verification failed; verify correct account sequence and chain-id"))
+		return nil, abciResult(std.ErrUnauthorized("signature verification failed; verify correct account, sequence, and chain-id"))
 	}
 
 	if err := acc.SetSequence(acc.GetSequence() + 1); err != nil {
@@ -248,42 +240,12 @@ func processSig(
 	return acc, res
 }
 
-func consumeSimSigGas(gasmeter store.GasMeter, pubkey crypto.PubKey, sig std.Signature, params Params) {
-	simSig := std.Signature{PubKey: pubkey}
-	if len(sig.Signature) == 0 {
-		simSig.Signature = simSecp256k1Sig[:]
-	}
-
-	sigBz := amino.MustMarshalSized(simSig)
-	cost := store.Gas(len(sigBz) + 6)
-
-	// If the pubkey is a multi-signature pubkey, then we estimate for the maximum
-	// number of signers.
-	if _, ok := pubkey.(multisig.PubKeyMultisigThreshold); ok {
-		cost *= params.TxSigLimit
-	}
-
-	gasmeter.ConsumeGas(params.TxSizeCostPerByte*cost, "txSize")
-}
-
 // ProcessPubKey verifies that the given account address matches that of the
 // std.Signature. In addition, it will set the public key of the account if it
 // has not been set.
 func ProcessPubKey(acc std.Account, sig std.Signature, simulate bool) (crypto.PubKey, sdk.Result) {
 	// If pubkey is not known for account, set it from the std.Signature.
 	pubKey := acc.GetPubKey()
-	if simulate {
-		// In simulate mode the transaction comes with no signatures, thus if the
-		// account's pubkey is nil, both signature verification and gasKVStore.Set()
-		// shall consume the largest amount, i.e. it takes more gas to verify
-		// secp256k1 keys than ed25519 ones.
-		if pubKey == nil {
-			return simSecp256k1Pubkey, sdk.Result{}
-		}
-
-		return pubKey, sdk.Result{}
-	}
-
 	if pubKey == nil {
 		pubKey = sig.PubKey
 		if pubKey == nil {
@@ -393,6 +355,10 @@ func EnsureSufficientMempoolFees(ctx sdk.Context, fee std.Fee) sdk.Result {
 			if fgd == gpd {
 				prod1 := big.NewInt(0).Mul(fga, gpg) // fee amount * price gas
 				prod2 := big.NewInt(0).Mul(fgw, gpa) // fee gas * price amount
+				// This is equivalent to checking
+				// That the Fee / GasWanted ratio is greater than or equal to the minimum GasPrice per gas.
+				// This approach helps us avoid dealing with configurations where the value of
+				// the minimum gas price is set to 0.00001ugnot/gas.
 				if prod1.Cmp(prod2) >= 0 {
 					return sdk.Result{}
 				} else {
@@ -426,15 +392,22 @@ func SetGasMeter(simulate bool, ctx sdk.Context, gasLimit int64) sdk.Context {
 
 // GetSignBytes returns a slice of bytes to sign over for a given transaction
 // and an account.
-func GetSignBytes(chainID string, tx std.Tx, acc std.Account, genesis bool) []byte {
+func GetSignBytes(chainID string, tx std.Tx, acc std.Account, genesis bool) ([]byte, error) {
 	var accNum uint64
 	if !genesis {
 		accNum = acc.GetAccountNumber()
 	}
-	signbz := std.SignBytes(
-		chainID, accNum, acc.GetSequence(), tx.Fee, tx.Msgs, tx.Memo,
+
+	return std.GetSignaturePayload(
+		std.SignDoc{
+			ChainID:       chainID,
+			AccountNumber: accNum,
+			Sequence:      acc.GetSequence(),
+			Fee:           tx.Fee,
+			Msgs:          tx.Msgs,
+			Memo:          tx.Memo,
+		},
 	)
-	return signbz
 }
 
 func abciResult(err error) sdk.Result {

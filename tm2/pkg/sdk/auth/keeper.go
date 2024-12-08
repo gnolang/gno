@@ -2,10 +2,10 @@ package auth
 
 import (
 	"fmt"
+	"log/slog"
 
 	"github.com/gnolang/gno/tm2/pkg/amino"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
-	"github.com/gnolang/gno/tm2/pkg/log"
 	"github.com/gnolang/gno/tm2/pkg/sdk"
 	"github.com/gnolang/gno/tm2/pkg/std"
 	"github.com/gnolang/gno/tm2/pkg/store"
@@ -31,11 +31,6 @@ func NewAccountKeeper(
 	}
 }
 
-// Logger returns a module-specific logger.
-func (ak AccountKeeper) Logger(ctx sdk.Context) log.Logger {
-	return ctx.Logger().With("module", fmt.Sprintf("auth"))
-}
-
 // NewAccountWithAddress implements AccountKeeper.
 func (ak AccountKeeper) NewAccountWithAddress(ctx sdk.Context, addr crypto.Address) std.Account {
 	acc := ak.proto()
@@ -53,7 +48,12 @@ func (ak AccountKeeper) NewAccountWithAddress(ctx sdk.Context, addr crypto.Addre
 	return acc
 }
 
-// GetAccount implements AccountKeeper.
+// Logger returns a module-specific logger.
+func (ak AccountKeeper) Logger(ctx sdk.Context) *slog.Logger {
+	return ctx.Logger().With("module", ModuleName)
+}
+
+// GetAccount returns a specific account in the AccountKeeper.
 func (ak AccountKeeper) GetAccount(ctx sdk.Context, addr crypto.Address) std.Account {
 	stor := ctx.Store(ak.key)
 	bz := stor.Get(AddressStoreKey(addr))

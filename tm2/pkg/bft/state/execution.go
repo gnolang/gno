@@ -2,22 +2,22 @@ package state
 
 import (
 	"fmt"
+	"log/slog"
 
 	"github.com/gnolang/gno/tm2/pkg/amino"
 	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
+	"github.com/gnolang/gno/tm2/pkg/bft/appconn"
 	"github.com/gnolang/gno/tm2/pkg/bft/fail"
 	mempl "github.com/gnolang/gno/tm2/pkg/bft/mempool"
-	"github.com/gnolang/gno/tm2/pkg/bft/proxy"
 	"github.com/gnolang/gno/tm2/pkg/bft/types"
 	typesver "github.com/gnolang/gno/tm2/pkg/bft/types/version"
 	tmver "github.com/gnolang/gno/tm2/pkg/bft/version"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
 	dbm "github.com/gnolang/gno/tm2/pkg/db"
 	"github.com/gnolang/gno/tm2/pkg/events"
-	"github.com/gnolang/gno/tm2/pkg/log"
 )
 
-//-----------------------------------------------------------------------------
+// -----------------------------------------------------------------------------
 // BlockExecutor handles block execution and state updates.
 // It exposes ApplyBlock(), which validates & executes the block, updates state w/ ABCI responses,
 // then commits and updates the mempool atomically, then saves state.
@@ -28,7 +28,7 @@ type BlockExecutor struct {
 	db dbm.DB
 
 	// execute the app against this
-	proxyApp proxy.AppConnConsensus
+	proxyApp appconn.Consensus
 
 	// events
 	evsw events.EventSwitch
@@ -37,14 +37,14 @@ type BlockExecutor struct {
 	// and update both with block results after commit.
 	mempool mempl.Mempool
 
-	logger log.Logger
+	logger *slog.Logger
 }
 
 type BlockExecutorOption func(executor *BlockExecutor)
 
 // NewBlockExecutor returns a new BlockExecutor with a NopEventBus.
 // Call SetEventBus to provide one.
-func NewBlockExecutor(db dbm.DB, logger log.Logger, proxyApp proxy.AppConnConsensus, mempool mempl.Mempool, options ...BlockExecutorOption) *BlockExecutor {
+func NewBlockExecutor(db dbm.DB, logger *slog.Logger, proxyApp appconn.Consensus, mempool mempl.Mempool, options ...BlockExecutorOption) *BlockExecutor {
 	res := &BlockExecutor{
 		db:       db,
 		proxyApp: proxyApp,
@@ -82,20 +82,13 @@ func (blockExec *BlockExecutor) CreateProposalBlock(
 	return state.MakeBlock(height, txs, commit, proposerAddr)
 }
 
-// ValidateBlock validates the given block against the given state.
-// If the block is invalid, it returns an error.
-// Validation does not mutate state, but does require historical information from the stateDB
-func (blockExec *BlockExecutor) ValidateBlock(state State, block *types.Block) error {
-	return validateBlock(blockExec.db, state, block)
-}
-
 // ApplyBlock validates the block against the state, executes it against the app,
 // fires the relevant events, commits the app, and saves the new state and responses.
 // It's the only function that needs to be called
 // from outside this package to process and commit an entire block.
 // It takes a blockID to avoid recomputing the parts hash.
 func (blockExec *BlockExecutor) ApplyBlock(state State, blockID types.BlockID, block *types.Block) (State, error) {
-	if err := blockExec.ValidateBlock(state, block); err != nil {
+	if err := state.ValidateBlock(block); err != nil {
 		return state, InvalidBlockError(err)
 	}
 
@@ -106,8 +99,20 @@ func (blockExec *BlockExecutor) ApplyBlock(state State, blockID types.BlockID, b
 
 	fail.Fail() // XXX
 
-	// Save the results before we commit.
-	saveABCIResponses(blockExec.db, block.Height, abciResponses)
+	// Save the results by height
+	SaveABCIResponses(blockExec.db, block.Height, abciResponses)
+
+	// Save the results by tx hash
+	for index, tx := range block.Txs {
+		saveTxResultIndex(
+			blockExec.db,
+			tx.Hash(),
+			TxResultIndex{
+				BlockNum: block.Height,
+				TxIndex:  uint32(index),
+			},
+		)
+	}
 
 	fail.Fail() // XXX
 
@@ -143,7 +148,7 @@ func (blockExec *BlockExecutor) ApplyBlock(state State, blockID types.BlockID, b
 
 	// Events are fired after everything else.
 	// NOTE: if we crash between Commit and Save, events wont be fired during replay
-	fireEvents(blockExec.logger, blockExec.evsw, block, abciResponses)
+	fireEvents(blockExec.evsw, block, abciResponses)
 
 	return state, nil
 }
@@ -200,14 +205,14 @@ func (blockExec *BlockExecutor) Commit(
 	return res.Data, err
 }
 
-//---------------------------------------------------------
+// ---------------------------------------------------------
 // Helper functions for executing blocks and updating state
 
 // Executes block's transactions on proxyAppConn.
 // Returns a list of transaction results and updates to the validator set
 func execBlockOnProxyApp(
-	logger log.Logger,
-	proxyAppConn proxy.AppConnConsensus,
+	logger *slog.Logger,
+	proxyAppConn appconn.Consensus,
 	block *types.Block,
 	stateDB dbm.DB,
 ) (*ABCIResponses, error) {
@@ -398,7 +403,7 @@ func updateState(
 // Fire NewBlock, NewBlockHeader.
 // Fire TxEvent for every tx.
 // NOTE: if Tendermint crashes before commit, some or all of these events may be published again.
-func fireEvents(logger log.Logger, evsw events.EventSwitch, block *types.Block, abciResponses *ABCIResponses) {
+func fireEvents(evsw events.EventSwitch, block *types.Block, abciResponses *ABCIResponses) {
 	evsw.FireEvent(types.EventNewBlock{
 		Block:            block,
 		ResultBeginBlock: abciResponses.BeginBlock,
@@ -415,7 +420,7 @@ func fireEvents(logger log.Logger, evsw events.EventSwitch, block *types.Block, 
 			Height:   block.Height,
 			Index:    uint32(i),
 			Tx:       tx,
-			Response: (abciResponses.DeliverTxs[i]),
+			Response: abciResponses.DeliverTxs[i],
 		}})
 	}
 
@@ -425,15 +430,15 @@ func fireEvents(logger log.Logger, evsw events.EventSwitch, block *types.Block, 
 	}
 }
 
-//----------------------------------------------------------------------------------------------------
+// ----------------------------------------------------------------------------------------------------
 // Execute block without state. TODO: eliminate
 
 // ExecCommitBlock executes and commits a block on the proxyApp without validating or mutating the state.
 // It returns the application root hash (result of abci.Commit).
 func ExecCommitBlock(
-	appConnConsensus proxy.AppConnConsensus,
+	appConnConsensus appconn.Consensus,
 	block *types.Block,
-	logger log.Logger,
+	logger *slog.Logger,
 	stateDB dbm.DB,
 ) ([]byte, error) {
 	_, err := execBlockOnProxyApp(logger, appConnConsensus, block, stateDB)

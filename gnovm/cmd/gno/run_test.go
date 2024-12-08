@@ -9,59 +9,84 @@ func TestRunApp(t *testing.T) {
 			errShouldBe: "flag: help requested",
 		},
 		{
-			args:                []string{"run", "../../tests/integ/run-main/main.gno"},
+			args:                []string{"run", "../../tests/integ/run_main/main.gno"},
 			stdoutShouldContain: "hello world!",
 		},
 		{
-			args:                []string{"run", "../../tests/integ/run-main/"},
+			args:                []string{"run", "../../tests/integ/run_main/"},
 			stdoutShouldContain: "hello world!",
 		},
 		{
-			args:             []string{"run", "../../tests/integ/does-not-exist"},
+			args:             []string{"run", "../../tests/integ/does_not_exist"},
 			errShouldContain: "no such file or directory",
 		},
 		{
-			args:                []string{"run", "../../tests/integ/run-namedpkg/main.gno"},
+			args:                []string{"run", "../../tests/integ/run_namedpkg/main.gno"},
 			stdoutShouldContain: "hello, other world!",
 		},
 		{
-			args:                 []string{"run", "../../tests/integ/run-package"},
+			args:                 []string{"run", "../../tests/integ/run_package"},
 			recoverShouldContain: "name main not declared",
 		},
 		{
-			args:                []string{"run", "-expr", "Hello()", "../../tests/integ/run-package"},
+			args:                []string{"run", "-expr", "Hello()", "../../tests/integ/run_package"},
 			stdoutShouldContain: "called Hello",
 		},
 		{
-			args:                []string{"run", "-expr", "World()", "../../tests/integ/run-package"},
+			args:                []string{"run", "-expr", "World()", "../../tests/integ/run_package"},
 			stdoutShouldContain: "called World",
 		},
 		{
-			args:                []string{"run", "-expr", "otherFile()", "../../tests/integ/run-package"},
+			args:                []string{"run", "-expr", "otherFile()", "../../tests/integ/run_package"},
 			stdoutShouldContain: "hello from package2.gno",
 		},
 		{
 			args: []string{
 				"run", "-expr", "otherFile()",
-				"../../tests/integ/run-package/package.gno",
+				"../../tests/integ/run_package/package.gno",
 			},
 			recoverShouldContain: "name otherFile not declared",
 		},
 		{
 			args: []string{
 				"run", "-expr", "otherFile()",
-				"../../tests/integ/run-package/package.gno",
-				"../../tests/integ/run-package/package2.gno",
+				"../../tests/integ/run_package/package.gno",
+				"../../tests/integ/run_package/package2.gno",
 			},
 			stdoutShouldContain: "hello from package2.gno",
 		},
 		{
-			args:                []string{"run", "-expr", "WithArg(1)", "../../tests/integ/run-package"},
+			args:                []string{"run", "-expr", "WithArg(1)", "../../tests/integ/run_package"},
 			stdoutShouldContain: "one",
 		},
 		{
-			args:                []string{"run", "-expr", "WithArg(-255)", "../../tests/integ/run-package"},
+			args:                []string{"run", "-expr", "WithArg(-255)", "../../tests/integ/run_package"},
 			stdoutShouldContain: "out of range!",
+		},
+		{
+			args:                 []string{"run", "../../tests/integ/undefined_variable_test/undefined_variables_test.gno"},
+			recoverShouldContain: "--- preprocess stack ---", // should contain preprocess debug stack trace
+		},
+		{
+			args:                []string{"run", "-debug", "../../tests/integ/debugger/sample.gno"},
+			stdoutShouldContain: "Welcome to the Gnovm debugger",
+		},
+		{
+			args:             []string{"run", "-debug-addr", "invalidhost:17538", "../../tests/integ/debugger/sample.gno"},
+			errShouldContain: "listen tcp",
+		},
+		{
+			args:                 []string{"run", "../../tests/integ/invalid_assign/main.gno"},
+			recoverShouldContain: "cannot use bool as main.C without explicit conversion",
+		},
+		{
+			args:                []string{"run", "-expr", "Context()", "../../tests/integ/context/context.gno"},
+			stdoutShouldContain: "Context worked",
+		},
+		{
+			args:                []string{"run", "../../tests/integ/several-files-multiple-errors/"},
+			stderrShouldContain: "../../tests/integ/several-files-multiple-errors/file2.gno:3:5: expected 'IDENT', found '{' (code=2).\n../../tests/integ/several-files-multiple-errors/file2.gno:5:1: expected type, found '}' (code=2).\n../../tests/integ/several-files-multiple-errors/main.gno:5:5: expected ';', found example (code=2).\n../../tests/integ/several-files-multiple-errors/main.gno:6:2: expected '}', found 'EOF' (code=2).\n",
+			errShouldBe:         "exit code: 1",
 		},
 		// TODO: a test file
 		// TODO: args

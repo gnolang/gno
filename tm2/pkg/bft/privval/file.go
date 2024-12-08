@@ -35,13 +35,14 @@ func voteToStep(vote *types.Vote) int8 {
 	}
 }
 
-//-------------------------------------------------------------------------------
+// -------------------------------------------------------------------------------
 
 // FilePVKey stores the immutable part of PrivValidator.
+// NOTE: keep in sync with gno.land/cmd/gnoland/secrets.go
 type FilePVKey struct {
-	Address types.Address  `json:"address"`
-	PubKey  crypto.PubKey  `json:"pub_key"`
-	PrivKey crypto.PrivKey `json:"priv_key"`
+	Address types.Address  `json:"address" comment:"the validator address"`
+	PubKey  crypto.PubKey  `json:"pub_key" comment:"the validator public key"`
+	PrivKey crypto.PrivKey `json:"priv_key" comment:"the validator private key"`
 
 	filePath string
 }
@@ -63,15 +64,16 @@ func (pvKey FilePVKey) Save() {
 	}
 }
 
-//-------------------------------------------------------------------------------
+// -------------------------------------------------------------------------------
 
 // FilePVLastSignState stores the mutable part of PrivValidator.
+// NOTE: keep in sync with gno.land/cmd/gnoland/secrets.go
 type FilePVLastSignState struct {
-	Height    int64  `json:"height"`
-	Round     int    `json:"round"`
-	Step      int8   `json:"step"`
-	Signature []byte `json:"signature,omitempty"`
-	SignBytes []byte `json:"signbytes,omitempty"`
+	Height    int64  `json:"height" comment:"the height of the last sign"`
+	Round     int    `json:"round" comment:"the round of the last sign"`
+	Step      int8   `json:"step" comment:"the step of the last sign"`
+	Signature []byte `json:"signature,omitempty" comment:"the signature of the last sign"`
+	SignBytes []byte `json:"signbytes,omitempty" comment:"the raw signature bytes of the last sign"`
 
 	filePath string
 }
@@ -126,7 +128,7 @@ func (lss *FilePVLastSignState) Save() {
 	}
 }
 
-//-------------------------------------------------------------------------------
+// -------------------------------------------------------------------------------
 
 // FilePV implements PrivValidator using data persisted to disk
 // to prevent double signing.
@@ -273,7 +275,7 @@ func (pv *FilePV) String() string {
 	return fmt.Sprintf("PrivValidator{%v LH:%v, LR:%v, LS:%v}", pv.GetAddress(), pv.LastSignState.Height, pv.LastSignState.Round, pv.LastSignState.Step)
 }
 
-//------------------------------------------------------------------------------------
+// ------------------------------------------------------------------------------------
 
 // signVote checks if the vote is good to sign and sets the vote signature.
 // It may need to set the timestamp as well if the vote is otherwise the same as
@@ -371,7 +373,7 @@ func (pv *FilePV) saveSigned(height int64, round int, step int8,
 	pv.LastSignState.Save()
 }
 
-//-----------------------------------------------------------------------------------------
+// -----------------------------------------------------------------------------------------
 
 // returns the timestamp from the lastSignBytes.
 // returns true if the only difference in the votes is their timestamp.

@@ -1,8 +1,10 @@
 # Test Output instruction updated
 
-gno test -verbose . -update-golden-tests
+gno test -v . -update-golden-tests
 
-! stdout .+ # stdout should be empty
+stdout 'hey'
+stdout '^hru\?'
+
 stderr '=== RUN   file/x_filetest.gno'
 stderr '--- PASS: file/x_filetest.gno \(\d\.\d\ds\)'
 stderr 'ok      \. 	\d\.\d\ds'
@@ -19,7 +21,6 @@ func main() {
 
 // Output:
 // hey
-
 -- x_filetest.gno.golden --
 package main
 
@@ -31,4 +32,3 @@ func main() {
 // Output:
 // hey
 // hru?
-

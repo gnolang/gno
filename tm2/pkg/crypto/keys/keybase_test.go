@@ -24,52 +24,6 @@ func TestCreateAccountInvalidMnemonic(t *testing.T) {
 	assert.Equal(t, "invalid mnemonic", err.Error())
 }
 
-func TestCreateLedgerUnsupportedAlgo(t *testing.T) {
-	t.Parallel()
-
-	kb := NewInMemory()
-	_, err := kb.CreateLedger("some_account", Ed25519, "cosmos", 0, 1)
-	assert.Error(t, err)
-	assert.Equal(t, "unsupported signing algo: only secp256k1 is supported", err.Error())
-}
-
-func TestCreateLedger(t *testing.T) {
-	t.Parallel()
-
-	kb := NewInMemory()
-
-	// test_cover and test_unit will result in different answers
-	// test_cover does not compile some dependencies so ledger is disabled
-	// test_unit may add a ledger mock
-	// both cases are acceptable
-	ledger, err := kb.CreateLedger("some_account", Secp256k1, "cosmos", 3, 1)
-	if err != nil {
-		assert.Error(t, err)
-		assert.Equal(t, "no Ledger discovery function defined", err.Error())
-		assert.Nil(t, ledger)
-		t.Skip("ledger nano S: support for ledger devices is not available in this executable")
-		return
-	}
-
-	// The mock is available, check that the address is correct
-	pubKey := ledger.GetPubKey()
-	pubs := crypto.PubKeyToBech32(pubKey)
-	assert.Equal(t, "cosmospub1addwnpepqdszcr95mrqqs8lw099aa9h8h906zmet22pmwe9vquzcgvnm93eqygufdlv", pubs)
-
-	// Check that restoring the key gets the same results
-	restoredKey, err := kb.GetByName("some_account")
-	assert.NotNil(t, restoredKey)
-	assert.Equal(t, "some_account", restoredKey.GetName())
-	assert.Equal(t, TypeLedger, restoredKey.GetType())
-	pubKey = restoredKey.GetPubKey()
-	pubs = crypto.PubKeyToBech32(pubKey)
-	assert.Equal(t, "cosmospub1addwnpepqdszcr95mrqqs8lw099aa9h8h906zmet22pmwe9vquzcgvnm93eqygufdlv", pubs)
-
-	path, err := restoredKey.GetPath()
-	assert.NoError(t, err)
-	assert.Equal(t, "44'/118'/3'/0/1", path.String())
-}
-
 // TestKeyManagement makes sure we can manipulate these keys well
 func TestKeyManagement(t *testing.T) {
 	t.Parallel()
@@ -157,6 +111,19 @@ func TestKeyManagement(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, 1, len(keyS))
 
+	// Lookup by original i2 address
+	infoByAddress, err := cstore.GetByAddress(i2.GetAddress())
+	require.NoError(t, err)
+	// GetByAddress should return Info with the corresponding public key
+	require.Equal(t, infoByAddress.GetPubKey(), i2.GetPubKey())
+	// Replace n2 with a new address
+	mn2New := `fancy assault crane note start invite ladder ordinary gold amateur check cousin text mercy speak chuckle wine raw chief isolate swallow cushion wrist piece`
+	_, err = cstore.CreateAccount(n2, mn2New, bip39Passphrase, p2, 0, 0)
+	require.NoError(t, err)
+	// Check that CreateAccount removes the entry for the original address (public key)
+	_, err = cstore.GetByAddress(i2.GetAddress())
+	require.NotNil(t, err)
+
 	// addr cache gets nuked - and test skip flag
 	err = cstore.Delete(n2, "", true)
 	require.NoError(t, err)
@@ -182,11 +149,12 @@ func TestSignVerify(t *testing.T) {
 	i2, err := cstore.CreateAccount(n2, mn2, bip39Passphrase, p2, 0, 0)
 	require.Nil(t, err)
 
-	// Import a public key
+	// Import a public key into a new store
 	armor, err := cstore.ExportPubKey(n2)
 	require.Nil(t, err)
-	cstore.ImportPubKey(n3, armor)
-	i3, err := cstore.GetByName(n3)
+	cstore2 := NewInMemory()
+	cstore2.ImportPubKey(n3, armor)
+	i3, err := cstore2.GetByName(n3)
 	require.NoError(t, err)
 	require.Equal(t, i3.GetName(), n3)
 
@@ -207,6 +175,7 @@ func TestSignVerify(t *testing.T) {
 	s21, pub2, err := cstore.Sign(n2, p2, d1)
 	require.Nil(t, err)
 	require.Equal(t, i2.GetPubKey(), pub2)
+	require.Equal(t, i3.GetPubKey(), pub2)
 
 	s22, pub2, err := cstore.Sign(n2, p2, d2)
 	require.Nil(t, err)
@@ -245,9 +214,9 @@ func assertPassword(t *testing.T, cstore Keybase, name, pass, badpass string) {
 	t.Helper()
 
 	getNewpass := func() (string, error) { return pass, nil }
-	err := cstore.Update(name, badpass, getNewpass)
+	err := cstore.Rotate(name, badpass, getNewpass)
 	require.NotNil(t, err)
-	err = cstore.Update(name, pass, getNewpass)
+	err = cstore.Rotate(name, pass, getNewpass)
 	require.Nil(t, err, "%+v", err)
 }
 
@@ -315,18 +284,17 @@ func TestExportImportPubKey(t *testing.T) {
 	require.NoError(t, err)
 	// Compare the public keys
 	require.True(t, john.GetPubKey().Equals(john2.GetPubKey()))
-	// Ensure the original key hasn't changed
-	john, err = cstore.GetByName("john")
+	// Ensure that storing with the address of "john-pubkey-only" removed the entry for "john"
+	has, err := cstore.HasByName("john")
 	require.NoError(t, err)
-	require.Equal(t, john.GetPubKey().Address(), addr)
-	require.Equal(t, john.GetName(), "john")
+	require.False(t, has)
 
 	// Ensure keys cannot be overwritten
 	err = cstore.ImportPubKey("john-pubkey-only", armor)
 	require.NotNil(t, err)
 }
 
-// TestAdvancedKeyManagement verifies update, import, export functionality
+// TestAdvancedKeyManagement verifies rotate, import, export functionality
 func TestAdvancedKeyManagement(t *testing.T) {
 	t.Parallel()
 
@@ -343,14 +311,14 @@ func TestAdvancedKeyManagement(t *testing.T) {
 	require.Nil(t, err, "%+v", err)
 	assertPassword(t, cstore, n1, p1, p2)
 
-	// update password requires the existing password
+	// rotate password requires the existing password
 	getNewpass := func() (string, error) { return p2, nil }
-	err = cstore.Update(n1, "jkkgkg", getNewpass)
+	err = cstore.Rotate(n1, "jkkgkg", getNewpass)
 	require.NotNil(t, err)
 	assertPassword(t, cstore, n1, p1, p2)
 
 	// then it changes the password when correct
-	err = cstore.Update(n1, p1, getNewpass)
+	err = cstore.Rotate(n1, p1, getNewpass)
 	require.NoError(t, err)
 	// p2 is now the proper one!
 	assertPassword(t, cstore, n1, p2, p1)
