@@ -33,8 +33,8 @@ jobs:
   # handle the parallel processing of the pull-requests
   define-prs-matrix:
     name: Define PRs matrix
-    # Prevent bot from retriggering itself
-    if: ${{ github.actor != vars.GH_BOT_LOGIN }}
+    # Prevent bot from retriggering itself and ignore event emitted by codecov
+    if: ${{ github.actor != vars.GH_BOT_LOGIN && github.actor != 'codecov[bot]' }}
     runs-on: ubuntu-latest
     permissions:
       pull-requests: read
