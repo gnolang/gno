@@ -916,22 +916,27 @@ func quoAssign(lv, rv *TypedValue) *Exception {
 	case IntType:
 		var q int
 		q, _, ok = overflow.Quotient(lv.GetInt(), rv.GetInt())
+		ok = ok || q == 0 // XXX Remove this after fix of gnolang/overflow.
 		lv.SetInt(q)
 	case Int8Type:
 		var q int8
 		q, _, ok = overflow.Quotient8(lv.GetInt8(), rv.GetInt8())
+		ok = ok || q == 0 // XXX Remove this after fix of gnolang/overflow.
 		lv.SetInt8(q)
 	case Int16Type:
 		var q int16
 		q, _, ok = overflow.Quotient16(lv.GetInt16(), rv.GetInt16())
+		ok = ok || q == 0 // XXX Remove this after fix of gnolang/overflow.
 		lv.SetInt16(q)
 	case Int32Type, UntypedRuneType:
 		var q int32
 		q, _, ok = overflow.Quotient32(lv.GetInt32(), rv.GetInt32())
+		ok = ok || q == 0 // XXX Remove this after fix of gnolang/overflow.
 		lv.SetInt32(q)
 	case Int64Type:
 		var q int64
 		q, _, ok = overflow.Quotient64(lv.GetInt64(), rv.GetInt64())
+		ok = ok || q == 0 // XXX Remove this after fix of gnolang/overflow.
 		lv.SetInt64(q)
 	// Unsigned integers do not cause overflow, but a division by 0 may still occur.
 	case UintType:
@@ -1030,24 +1035,29 @@ func remAssign(lv, rv *TypedValue) *Exception {
 	switch baseOf(lv.T) {
 	// Signed integers may overflow or cause a division by 0, which triggers a panic.
 	case IntType:
-		var r int
-		_, r, ok = overflow.Quotient(lv.GetInt(), rv.GetInt())
+		var q, r int
+		q, r, ok = overflow.Quotient(lv.GetInt(), rv.GetInt())
+		ok = ok || q == 0 // XXX Remove this after fix of gnolang/overflow.
 		lv.SetInt(r)
 	case Int8Type:
-		var r int8
-		_, r, ok = overflow.Quotient8(lv.GetInt8(), rv.GetInt8())
+		var q, r int8
+		q, r, ok = overflow.Quotient8(lv.GetInt8(), rv.GetInt8())
+		ok = ok || q == 0 // XXX Remove this after fix of gnolang/overflow.
 		lv.SetInt8(r)
 	case Int16Type:
-		var r int16
-		_, r, ok = overflow.Quotient16(lv.GetInt16(), rv.GetInt16())
+		var q, r int16
+		q, r, ok = overflow.Quotient16(lv.GetInt16(), rv.GetInt16())
+		ok = ok || q == 0 // XXX Remove this after fix of gnolang/overflow.
 		lv.SetInt16(r)
 	case Int32Type, UntypedRuneType:
-		var r int32
-		_, r, ok = overflow.Quotient32(lv.GetInt32(), rv.GetInt32())
+		var q, r int32
+		q, r, ok = overflow.Quotient32(lv.GetInt32(), rv.GetInt32())
+		ok = ok || q == 0 // XXX Remove this after fix of gnolang/overflow.
 		lv.SetInt32(r)
 	case Int64Type:
-		var r int64
-		_, r, ok = overflow.Quotient64(lv.GetInt64(), rv.GetInt64())
+		var q, r int64
+		q, r, ok = overflow.Quotient64(lv.GetInt64(), rv.GetInt64())
+		ok = ok || q == 0 // XXX Remove this after fix of gnolang/overflow.
 		lv.SetInt64(r)
 	// Unsigned integers do not cause overflow, but a division by 0 may still occur.
 	case UintType:
