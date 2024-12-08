@@ -14,6 +14,10 @@ on:
       - converted_to_draft
       - ready_for_review
 
+  # Watch for changes on PR reviews
+  pull_request_review:
+    types: [submitted, edited, dismissed]
+
   # Watch for changes on PR comment
   issue_comment:
     types: [created, edited, deleted]
