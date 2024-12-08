@@ -7,6 +7,7 @@ import (
 	"crypto/sha256"
 	"crypto/subtle"
 	"encoding/binary"
+	"fmt"
 	"io"
 	"math"
 	"net"
@@ -128,7 +129,10 @@ func MakeSecretConnection(conn io.ReadWriteCloser, locPrivKey crypto.PrivKey) (*
 	}
 
 	// Sign the challenge bytes for authentication.
-	locSignature := signChallenge(challenge, locPrivKey)
+	locSignature, err := locPrivKey.Sign(challenge[:])
+	if err != nil {
+		return nil, fmt.Errorf("unable to sign challenge, %w", err)
+	}
 
 	// Share (in secret) each other's pubkey & challenge signature
 	authSigMsg, err := shareAuthSignature(sc, locPubKey, locSignature)
@@ -420,15 +424,6 @@ func sort32(foo, bar *[32]byte) (lo, hi *[32]byte) {
 	} else {
 		lo = bar
 		hi = foo
-	}
-	return
-}
-
-func signChallenge(challenge *[32]byte, locPrivKey crypto.PrivKey) (signature []byte) {
-	signature, err := locPrivKey.Sign(challenge[:])
-	// TODO(ismail): let signChallenge return an error instead
-	if err != nil {
-		panic(err)
 	}
 	return
 }
