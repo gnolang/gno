@@ -1,9 +1,13 @@
 package rpcserver
 
 import (
+	"bytes"
+	"encoding/base64"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"net/url"
 	"strconv"
 	"testing"
 
@@ -175,45 +179,121 @@ func TestParseJSONRPC(t *testing.T) {
 	}
 }
 
-func TestParseURI(t *testing.T) {
+func TestParseURINonJSON(t *testing.T) {
 	t.Parallel()
 
-	demo := func(ctx *types.Context, height int, name string) {}
-	call := NewRPCFunc(demo, "height,name")
+	// Define a demo RPC function
+	demo := func(ctx *types.Context, height int, name string, hash []byte) {}
+	call := NewRPCFunc(demo, "height,name,hash")
 
-	cases := []struct {
+	// Helper function to decode input base64 string to []byte
+	decodeBase64 := func(input string) []byte {
+		decoded, _ := base64.StdEncoding.DecodeString(input)
+		return decoded
+	}
+
+	// Helper function to decode input hex string to []byte
+	decodeHex := func(input string) []byte {
+		decoded, _ := hex.DecodeString(input[2:])
+		return decoded
+	}
+
+	// Test cases for non-JSON encoded parameters
+	nonJSONCases := []struct {
 		raw    []string
 		height int64
 		name   string
+		hash   []byte
 		fail   bool
 	}{
-		// can parse numbers unquoted and strings quoted
-		{[]string{"7", `"flew"`}, 7, "flew", false},
-		{[]string{"22", `"john"`}, 22, "john", false},
-		{[]string{"-10", `"bob"`}, -10, "bob", false},
+		// can parse numbers and strings, quoted and unquoted
+		{[]string{"7", `"flew"`, "MzMz"}, 7, "flew", decodeBase64("MzMz"), false},
+		{[]string{"22", `john`, "MzM="}, 22, "john", decodeBase64("MzM="), false},
+		{[]string{"-10", `"bob"`, "Z25v"}, -10, "bob", decodeBase64("Z25v"), false},
 		// can parse numbers quoted, too
-		{[]string{`"7"`, `"flew"`}, 7, "flew", false},
-		{[]string{`"-10"`, `"bob"`}, -10, "bob", false},
-		// cant parse strings uquoted
-		{[]string{`"-10"`, `bob`}, -10, "bob", true},
+		{[]string{`"7"`, `"flew"`, "0x486173682076616c7565"}, 7, "flew", decodeHex("0x486173682076616c7565"), false}, // Testing hex encoded data
+		{[]string{`"-10"`, `"bob"`, "0x6578616d706c65"}, -10, "bob", decodeHex("0x6578616d706c65"), false},           // Testing hex encoded data
+		// []byte must be base64
+		{[]string{`"-10"`, `bob`, "invalid_encoded_data"}, -10, "bob", []byte("invalid_encoded_data"), true}, // Invalid encoded data format
 	}
-	for idx, tc := range cases {
+
+	// Iterate over test cases for non-JSON encoded parameters
+	for idx, tc := range nonJSONCases {
 		i := strconv.Itoa(idx)
-		// data := []byte(tc.raw)
-		url := fmt.Sprintf(
-			"test.com/method?height=%v&name=%v",
-			tc.raw[0], tc.raw[1])
+		url := fmt.Sprintf("test.com/method?height=%v&name=%v&hash=%v", tc.raw[0], tc.raw[1], url.QueryEscape(tc.raw[2]))
 		req, err := http.NewRequest("GET", url, nil)
+
 		assert.NoError(t, err)
+
+		// Invoke httpParamsToArgs to parse the request and convert to reflect.Values
 		vals, err := httpParamsToArgs(call, req)
+
+		// Check for expected errors or successful parsing
 		if tc.fail {
 			assert.NotNil(t, err, i)
 		} else {
 			assert.Nil(t, err, "%s: %+v", i, err)
-			if assert.Equal(t, 2, len(vals), i) {
+			// Assert the parsed values match the expected height, name, and data
+
+			if assert.Equal(t, 3, len(vals), i) {
 				assert.Equal(t, tc.height, vals[0].Int(), i)
 				assert.Equal(t, tc.name, vals[1].String(), i)
+				assert.Equal(t, len(tc.hash), len(vals[2].Bytes()), i)
+				assert.True(t, bytes.Equal(tc.hash, vals[2].Bytes()), i)
 			}
 		}
+	}
+}
+
+func TestParseURI_JSON(t *testing.T) {
+	t.Parallel()
+
+	type Data struct {
+		Key string `json:"key"`
+	}
+
+	// Define a demo RPC function
+	demo := func(ctx *types.Context, data Data) {}
+	call := NewRPCFunc(demo, "data")
+
+	// Test cases for JSON encoded parameters
+	jsonCases := []struct {
+		raw  string
+		data Data
+		fail bool
+	}{
+		// Valid JSON encoded values
+		{`{"key": "value"}`, Data{Key: "value"}, false},
+		{`{"id": 123}`, Data{}, false},         // Invalid field "id" (not in struct)
+		{`{"list": [1, 2, 3]}`, Data{}, false}, // Invalid field "list" (not in struct)
+		// Invalid JSON encoded values
+		{`"string_data"`, Data{}, true},                // Invalid JSON format (not an object)
+		{`12345`, Data{}, true},                        // Invalid JSON format (not an object)
+		{`{"key": true}`, Data{}, true},                // Invalid field "key" type (expected string)
+		{`{"key": {"nested": "value"}}`, Data{}, true}, // Invalid field "key" type (nested object)
+	}
+
+	// Iterate over test cases for JSON encoded parameters
+	for _, tc := range jsonCases {
+		t.Run(tc.raw, func(t *testing.T) {
+			t.Parallel()
+			url := fmt.Sprintf("test.com/method?data=%v", url.PathEscape(tc.raw))
+			req, err := http.NewRequest("GET", url, nil)
+			assert.NoError(t, err)
+
+			// Invoke httpParamsToArgs to parse the request and convert to reflect.Values
+			vals, err := httpParamsToArgs(call, req)
+
+			// Check for expected errors or successful parsing
+			if tc.fail {
+				assert.NotNil(t, err)
+				return
+			}
+
+			assert.Nil(t, err, " %+v", err)
+			// Assert the parsed values match the expected data
+			_ = assert.Len(t, vals, 1) &&
+				assert.Equal(t, tc.data, vals[0].Interface())
+		})
 	}
 }
