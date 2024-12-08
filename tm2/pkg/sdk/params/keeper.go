@@ -7,6 +7,7 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/amino"
 	"github.com/gnolang/gno/tm2/pkg/sdk"
 	"github.com/gnolang/gno/tm2/pkg/store"
+	"github.com/golang/groupcache/lru"
 )
 
 const (
@@ -39,13 +40,15 @@ var _ ParamsKeeperI = ParamsKeeper{}
 type ParamsKeeper struct {
 	key    store.StoreKey
 	prefix string
+	cache  *lru.Cache
 }
 
 // NewParamsKeeper returns a new ParamsKeeper.
-func NewParamsKeeper(key store.StoreKey, prefix string) ParamsKeeper {
+func NewParamsKeeper(key store.StoreKey, prefix string, maxCacheSize int) ParamsKeeper {
 	return ParamsKeeper{
 		key:    key,
 		prefix: prefix,
+		cache:  lru.New(maxCacheSize),
 	}
 }
 
@@ -116,6 +119,14 @@ func (pk ParamsKeeper) SetBytes(ctx sdk.Context, key string, value []byte) {
 }
 
 func (pk ParamsKeeper) getIfExists(ctx sdk.Context, key string, ptr interface{}) {
+	if bz, ok := pk.cache.Get(key); ok {
+		if bz == nil {
+			return
+		}
+		amino.UnmarshalJSON(bz.([]byte), ptr)
+		return
+	}
+
 	stor := ctx.Store(pk.key)
 	bz := stor.Get([]byte(key))
 	if bz == nil {
@@ -125,15 +136,25 @@ func (pk ParamsKeeper) getIfExists(ctx sdk.Context, key string, ptr interface{})
 	if err != nil {
 		panic(err)
 	}
+	pk.cache.Add(key, bz)
 }
 
 func (pk ParamsKeeper) get(ctx sdk.Context, key string, ptr interface{}) {
+	if bz, ok := pk.cache.Get(key); ok {
+		err := amino.UnmarshalJSON(bz.([]byte), ptr)
+		if err != nil {
+			panic(err)
+		}
+		return
+	}
+
 	stor := ctx.Store(pk.key)
 	bz := stor.Get([]byte(key))
 	err := amino.UnmarshalJSON(bz, ptr)
 	if err != nil {
 		panic(err)
 	}
+	pk.cache.Add(key, bz)
 }
 
 func (pk ParamsKeeper) set(ctx sdk.Context, key string, value interface{}) {
@@ -143,6 +164,7 @@ func (pk ParamsKeeper) set(ctx sdk.Context, key string, value interface{}) {
 		panic(err)
 	}
 	stor.Set([]byte(key), bz)
+	pk.cache.Remove(key)
 }
 
 func checkSuffix(key, expectedSuffix string) {
