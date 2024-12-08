@@ -85,9 +85,12 @@ func (s *metadataNFT) mint(to std.Address, tid TokenID) error {
 	// Set owner of the token ID to the recipient address
 	s.basicNFT.owners.Set(string(tid), to)
 
-	// Emit transfer event
-	event := TransferEvent{zeroAddress, to, tid}
-	emit(&event)
+	std.Emit(
+		TransferEvent,
+		"from", string(zeroAddress),
+		"to", string(to),
+		"tokenId", string(tid),
+	)
 
 	s.basicNFT.afterTokenTransfer(zeroAddress, to, tid, 1)
 

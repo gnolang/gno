@@ -3,11 +3,11 @@ package std
 import (
 	"fmt"
 	"strings"
-	"testing"
 
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
 	"github.com/gnolang/gno/gnovm/stdlibs/std"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
+	tm2std "github.com/gnolang/gno/tm2/pkg/std"
 )
 
 // TestExecContext is the testing extension of the exec context.
@@ -41,9 +41,17 @@ func IsOriginCall(m *gno.Machine) bool {
 	tname := m.Frames[0].Func.Name
 	switch tname {
 	case "main": // test is a _filetest
+		// 0. main
+		// 1. $RealmFuncName
+		// 2. std.IsOriginCall
 		return len(m.Frames) == 3
-	case "runtest": // test is a _test
-		return len(m.Frames) == 7
+	case "RunTest": // test is a _test
+		// 0. testing.RunTest
+		// 1. tRunner
+		// 2. $TestFuncName
+		// 3. $RealmFuncName
+		// 4. std.IsOriginCall
+		return len(m.Frames) == 5
 	}
 	// support init() in _filetest
 	// XXX do we need to distinguish from 'runtest'/_test?
@@ -57,24 +65,8 @@ func IsOriginCall(m *gno.Machine) bool {
 func TestSkipHeights(m *gno.Machine, count int64) {
 	ctx := m.Context.(*TestExecContext)
 	ctx.Height += count
+	ctx.Timestamp += (count * 5)
 	m.Context = ctx
-}
-
-func ClearStoreCache(m *gno.Machine) {
-	if gno.IsDebug() && testing.Verbose() {
-		m.Store.Print()
-		fmt.Println("========================================")
-		fmt.Println("CLEAR CACHE (RUNTIME)")
-		fmt.Println("========================================")
-	}
-	m.Store.ClearCache()
-	m.PreprocessAllFilesAndSaveBlockNodes()
-	if gno.IsDebug() && testing.Verbose() {
-		m.Store.Print()
-		fmt.Println("========================================")
-		fmt.Println("CLEAR CACHE DONE")
-		fmt.Println("========================================")
-	}
 }
 
 func X_callerAt(m *gno.Machine, n int) string {
@@ -172,6 +164,10 @@ func X_getRealm(m *gno.Machine, height int) (address string, pkgPath string) {
 	return string(ctx.OrigCaller), ""
 }
 
+func X_isRealm(m *gno.Machine, pkgPath string) bool {
+	return gno.IsRealmPath(pkgPath)
+}
+
 func X_testSetOrigSend(m *gno.Machine,
 	sentDenom []string, sentAmt []int64,
 	spentDenom []string, spentAmt []int64,
@@ -181,6 +177,60 @@ func X_testSetOrigSend(m *gno.Machine,
 	spent := std.CompactCoins(spentDenom, spentAmt)
 	ctx.OrigSendSpent = &spent
 	m.Context = ctx
+}
+
+// TestBanker is a banker that can be used as a mock banker in test contexts.
+type TestBanker struct {
+	CoinTable map[crypto.Bech32Address]tm2std.Coins
+}
+
+var _ std.BankerInterface = &TestBanker{}
+
+// GetCoins implements the Banker interface.
+func (tb *TestBanker) GetCoins(addr crypto.Bech32Address) (dst tm2std.Coins) {
+	return tb.CoinTable[addr]
+}
+
+// SendCoins implements the Banker interface.
+func (tb *TestBanker) SendCoins(from, to crypto.Bech32Address, amt tm2std.Coins) {
+	fcoins, fexists := tb.CoinTable[from]
+	if !fexists {
+		panic(fmt.Sprintf(
+			"source address %s does not exist",
+			from.String()))
+	}
+	if !fcoins.IsAllGTE(amt) {
+		panic(fmt.Sprintf(
+			"source address %s has %s; cannot send %s",
+			from.String(), fcoins, amt))
+	}
+	// First, subtract from 'from'.
+	frest := fcoins.Sub(amt)
+	tb.CoinTable[from] = frest
+	// Second, add to 'to'.
+	// NOTE: even works when from==to, due to 2-step isolation.
+	tcoins, _ := tb.CoinTable[to]
+	tsum := tcoins.Add(amt)
+	tb.CoinTable[to] = tsum
+}
+
+// TotalCoin implements the Banker interface.
+func (tb *TestBanker) TotalCoin(denom string) int64 {
+	panic("not yet implemented")
+}
+
+// IssueCoin implements the Banker interface.
+func (tb *TestBanker) IssueCoin(addr crypto.Bech32Address, denom string, amt int64) {
+	coins, _ := tb.CoinTable[addr]
+	sum := coins.Add(tm2std.Coins{{Denom: denom, Amount: amt}})
+	tb.CoinTable[addr] = sum
+}
+
+// RemoveCoin implements the Banker interface.
+func (tb *TestBanker) RemoveCoin(addr crypto.Bech32Address, denom string, amt int64) {
+	coins, _ := tb.CoinTable[addr]
+	rest := coins.Sub(tm2std.Coins{{Denom: denom, Amount: amt}})
+	tb.CoinTable[addr] = rest
 }
 
 func X_testIssueCoins(m *gno.Machine, addr string, denom []string, amt []int64) {

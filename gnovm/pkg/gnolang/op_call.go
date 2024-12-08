@@ -27,6 +27,11 @@ func (m *Machine) doOpPrecall() {
 	case TypeValue:
 		// Do not pop type yet.
 		// No need for frames.
+		xv := m.PeekValue(1)
+		if cx.GetAttribute(ATTR_SHIFT_RHS) == true {
+			xv.AssertNonNegative("runtime error: negative shift amount")
+		}
+
 		m.PushOp(OpConvert)
 		if debug {
 			if len(cx.Args) != 1 {
@@ -57,6 +62,18 @@ func (m *Machine) doOpCall() {
 	// Create new block scope.
 	clo := fr.Func.GetClosure(m.Store)
 	b := m.Alloc.NewBlock(fr.Func.GetSource(m.Store), clo)
+
+	// Copy *FuncValue.Captures into block
+	// NOTE: addHeapCapture in preprocess ensures order.
+	if len(fv.Captures) != 0 {
+		if len(fv.Captures) > len(b.Values) {
+			panic("should not happen, length of captured variables must not exceed the number of values")
+		}
+		for i := 0; i < len(fv.Captures); i++ {
+			b.Values[len(b.Values)-len(fv.Captures)+i] = fv.Captures[i].Copy(m.Alloc)
+		}
+	}
+
 	m.PushBlock(b)
 	if fv.nativeBody == nil && fv.NativePkg != "" {
 		// native function, unmarshaled so doesn't have nativeBody yet
@@ -78,6 +95,7 @@ func (m *Machine) doOpCall() {
 			// Initialize return variables with default value.
 			numParams := len(ft.Params)
 			for i, rt := range ft.Results {
+				// results/parameters never are heap use/closure.
 				ptr := b.GetPointerToInt(nil, numParams+i)
 				dtv := defaultTypedValue(m.Alloc, rt.Type)
 				ptr.Assign2(m.Alloc, nil, nil, dtv, false)
@@ -287,6 +305,15 @@ func (m *Machine) doOpReturnCallDefers() {
 		// Create new block scope for defer.
 		clo := dfr.Func.GetClosure(m.Store)
 		b := m.Alloc.NewBlock(fv.GetSource(m.Store), clo)
+		// copy values from captures
+		if len(fv.Captures) != 0 {
+			if len(fv.Captures) > len(b.Values) {
+				panic("should not happen, length of captured variables must not exceed the number of values")
+			}
+			for i := 0; i < len(fv.Captures); i++ {
+				b.Values[len(b.Values)-len(fv.Captures)+i] = fv.Captures[i].Copy(m.Alloc)
+			}
+		}
 		m.PushBlock(b)
 		if fv.nativeBody == nil {
 			fbody := fv.GetBodyFromSource(m.Store)
@@ -427,7 +454,9 @@ func (m *Machine) doOpPanic2() {
 			for i, ex := range m.Exceptions {
 				exs[i] = ex.Sprint(m)
 			}
-			panic(strings.Join(exs, "\n\t"))
+			panic(UnhandledPanicError{
+				Descriptor: strings.Join(exs, "\n\t"),
+			})
 		}
 		m.PushOp(OpPanic2)
 		m.PushOp(OpReturnCallDefers) // XXX rename, not return?

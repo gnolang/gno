@@ -1,6 +1,7 @@
 package gnoweb
 
 import (
+	"bytes"
 	"embed"
 	"encoding/json"
 	"errors"
@@ -9,16 +10,18 @@ import (
 	"io/fs"
 	"log/slog"
 	"net/http"
+	"net/url"
 	"os"
 	"path/filepath"
+	"regexp"
 	"runtime"
 	"strings"
 	"time"
 
+	"github.com/gnolang/gno/gnovm"
 	"github.com/gnolang/gno/tm2/pkg/amino"
 	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
 	"github.com/gnolang/gno/tm2/pkg/bft/rpc/client"
-	"github.com/gnolang/gno/tm2/pkg/std"
 	"github.com/gorilla/mux"
 	"github.com/gotuna/gotuna"
 
@@ -29,7 +32,9 @@ import (
 )
 
 const (
-	qFileStr = "vm/qfile"
+	qFileStr            = "vm/qfile"
+	gnowebArgsSeparator = "$"
+	urlQuerySeparator   = "?"
 )
 
 //go:embed views/*
@@ -43,6 +48,7 @@ type Config struct {
 	HelpChainID   string
 	HelpRemote    string
 	WithAnalytics bool
+	WithHTML      bool
 }
 
 func NewDefaultConfig() Config {
@@ -54,6 +60,7 @@ func NewDefaultConfig() Config {
 		HelpChainID:   "dev",
 		HelpRemote:    "127.0.0.1:26657",
 		WithAnalytics: false,
+		WithHTML:      false,
 	}
 }
 
@@ -78,40 +85,18 @@ func MakeApp(logger *slog.Logger, cfg Config) gotuna.App {
 		Static:    static.EmbeddedStatic,
 	}
 
-	// realm aliases
-	aliases := map[string]string{
-		"/":               "/r/gnoland/home",
-		"/about":          "/r/gnoland/pages:p/about",
-		"/gnolang":        "/r/gnoland/pages:p/gnolang",
-		"/ecosystem":      "/r/gnoland/pages:p/ecosystem",
-		"/partners":       "/r/gnoland/pages:p/partners",
-		"/testnets":       "/r/gnoland/pages:p/testnets",
-		"/start":          "/r/gnoland/pages:p/start",
-		"/license":        "/r/gnoland/pages:p/license",
-		"/game-of-realms": "/r/gnoland/pages:p/gor", // XXX: replace with gor realm
-		"/events":         "/r/gnoland/events",
-	}
-
-	for from, to := range aliases {
+	for from, to := range Aliases {
 		app.Router.Handle(from, handlerRealmAlias(logger, app, &cfg, to))
 	}
-	// http redirects
-	redirects := map[string]string{
-		"/r/demo/boards:gnolang/6": "/r/demo/boards:gnolang/3", // XXX: temporary
-		"/blog":                    "/r/gnoland/blog",
-		"/gor":                     "/game-of-realms",
-		"/grants":                  "/partners",
-		"/language":                "/gnolang",
-		"/getting-started":         "/start",
-	}
-	for from, to := range redirects {
+
+	for from, to := range Redirects {
 		app.Router.Handle(from, handlerRedirect(logger, app, &cfg, to))
 	}
 	// realm routes
 	// NOTE: see rePathPart.
-	app.Router.Handle("/r/{rlmname:[a-z][a-z0-9_]*(?:/[a-z][a-z0-9_]*)+}/{filename:(?:.*\\.(?:gno|md|txt)$)?}", handlerRealmFile(logger, app, &cfg))
-	app.Router.Handle("/r/{rlmname:[a-z][a-z0-9_]*(?:/[a-z][a-z0-9_]*)+}", handlerRealmMain(logger, app, &cfg))
-	app.Router.Handle("/r/{rlmname:[a-z][a-z0-9_]*(?:/[a-z][a-z0-9_]*)+}:{querystr:.*}", handlerRealmRender(logger, app, &cfg))
+	app.Router.Handle("/r/{rlmname:[a-z][a-z0-9_]*(?:/[a-z][a-z0-9_]*)+}/{filename:(?:(?:.*\\.(?:gno|md|txt|mod)$)|(?:LICENSE$))?}", handlerRealmFile(logger, app, &cfg))
+	app.Router.Handle("/r/{rlmname:[a-z][a-z0-9_]*(?:/[a-z][a-z0-9_]*)+}{args:(?:\\$.*)?}", handlerRealmMain(logger, app, &cfg))
+	app.Router.Handle("/r/{rlmname:[a-z][a-z0-9_]*(?:/[a-z][a-z0-9_]*)+}:{querystr:[^$]*}{args:(?:\\$.*)?}", handlerRealmRender(logger, app, &cfg))
 	app.Router.Handle("/p/{filepath:.*}", handlerPackageFile(logger, app, &cfg))
 
 	// other
@@ -124,9 +109,37 @@ func MakeApp(logger *slog.Logger, cfg Config) gotuna.App {
 
 	app.Router.NotFoundHandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		path := r.RequestURI
-		handleNotFound(app, &cfg, path, w, r)
+		handleNotFound(logger, app, &cfg, path, w, r)
 	})
 	return app
+}
+
+var (
+	inlineCodePattern = regexp.MustCompile("`[^`]*`")
+	htmlTagPattern    = regexp.MustCompile(`<\/?\w+[^>]*?>`)
+)
+
+func sanitizeContent(cfg *Config, content string) string {
+	if cfg.WithHTML {
+		return content
+	}
+
+	placeholders := map[string]string{}
+	contentWithPlaceholders := inlineCodePattern.ReplaceAllStringFunc(content, func(match string) string {
+		placeholder := fmt.Sprintf("__GNOMDCODE_%d__", len(placeholders))
+		placeholders[placeholder] = match
+		return placeholder
+	})
+
+	sanitizedContent := htmlTagPattern.ReplaceAllString(contentWithPlaceholders, "")
+
+	if len(placeholders) > 0 {
+		for placeholder, code := range placeholders {
+			sanitizedContent = strings.ReplaceAll(sanitizedContent, placeholder, code)
+		}
+	}
+
+	return sanitizedContent
 }
 
 // handlerRealmAlias is used to render official pages from realms.
@@ -148,7 +161,7 @@ func handlerRealmAlias(logger *slog.Logger, app gotuna.App, cfg *Config, rlmpath
 		}
 		rlmname := strings.TrimPrefix(rlmfullpath, "gno.land/r/")
 		qpath := "vm/qrender"
-		data := []byte(fmt.Sprintf("%s\n%s", rlmfullpath, querystr))
+		data := []byte(fmt.Sprintf("%s:%s", rlmfullpath, querystr))
 		res, err := makeRequest(logger, cfg, qpath, data)
 		if err != nil {
 			writeError(logger, w, fmt.Errorf("gnoweb failed to query gnoland: %w", err))
@@ -171,7 +184,7 @@ func handlerRealmAlias(logger *slog.Logger, app gotuna.App, cfg *Config, rlmpath
 		tmpl.Set("RealmPath", rlmpath)
 		tmpl.Set("Query", querystr)
 		tmpl.Set("PathLinks", pathLinks)
-		tmpl.Set("Contents", string(res.Data))
+		tmpl.Set("Contents", sanitizeContent(cfg, string(res.Data)))
 		tmpl.Set("Config", cfg)
 		tmpl.Set("IsAlias", true)
 		tmpl.Render(w, r, "realm_render.html", "funcs.html")
@@ -249,15 +262,20 @@ func handlerRedirect(logger *slog.Logger, app gotuna.App, cfg *Config, to string
 
 func handlerRealmMain(logger *slog.Logger, app gotuna.App, cfg *Config) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		args, err := parseGnowebArgs(r.RequestURI)
+		if err != nil {
+			writeError(logger, w, err)
+			return
+		}
+
 		vars := mux.Vars(r)
 		rlmname := vars["rlmname"]
 		rlmpath := "gno.land/r/" + rlmname
-		query := r.URL.Query()
 
 		logger.Info("handling", "name", rlmname, "path", rlmpath)
-		if query.Has("help") {
+		if args.Has("help") {
 			// Render function helper.
-			funcName := query.Get("__func")
+			funcName := args.Get("func")
 			qpath := "vm/qfuncs"
 			data := []byte(rlmpath)
 			res, err := makeRequest(logger, cfg, qpath, data)
@@ -272,7 +290,7 @@ func handlerRealmMain(logger *slog.Logger, app gotuna.App, cfg *Config) http.Han
 				fsig := &(fsigs[i])
 				for j := range fsig.Params {
 					param := &(fsig.Params[j])
-					value := query.Get(param.Name)
+					value := args.Get(param.Name)
 					param.Value = value
 				}
 			}
@@ -311,17 +329,38 @@ func handlerRealmRender(logger *slog.Logger, app gotuna.App, cfg *Config) http.H
 }
 
 func handleRealmRender(logger *slog.Logger, app gotuna.App, cfg *Config, w http.ResponseWriter, r *http.Request) {
+	gnowebArgs, err := parseGnowebArgs(r.RequestURI)
+	if err != nil {
+		writeError(logger, w, err)
+		return
+	}
+
+	queryArgs, err := parseQueryArgs(r.RequestURI)
+	if err != nil {
+		writeError(logger, w, err)
+		return
+	}
+
+	var urlQuery, gnowebQuery string
+	if len(queryArgs) > 0 {
+		urlQuery = urlQuerySeparator + queryArgs.Encode()
+	}
+	if len(gnowebArgs) > 0 {
+		gnowebQuery = gnowebArgsSeparator + gnowebArgs.Encode()
+	}
+
 	vars := mux.Vars(r)
 	rlmname := vars["rlmname"]
 	rlmpath := "gno.land/r/" + rlmname
 	querystr := vars["querystr"]
 	if r.URL.Path == "/r/"+rlmname+":" {
 		// Redirect to /r/REALM if querypath is empty.
-		http.Redirect(w, r, "/r/"+rlmname, http.StatusFound)
+		http.Redirect(w, r, "/r/"+rlmname+urlQuery+gnowebQuery, http.StatusFound)
 		return
 	}
+
 	qpath := "vm/qrender"
-	data := []byte(fmt.Sprintf("%s\n%s", rlmpath, querystr))
+	data := []byte(fmt.Sprintf("%s:%s", rlmpath, querystr+urlQuery))
 	res, err := makeRequest(logger, cfg, qpath, data)
 	if err != nil {
 		// XXX hack
@@ -333,15 +372,32 @@ func handleRealmRender(logger *slog.Logger, app gotuna.App, cfg *Config, w http.
 			return
 		}
 	}
+
+	dirdata := []byte(rlmpath)
+	dirres, err := makeRequest(logger, cfg, qFileStr, dirdata)
+	if err != nil {
+		writeError(logger, w, err)
+		return
+	}
+	hasReadme := bytes.Contains(append(dirres.Data, '\n'), []byte("README.md\n"))
+
 	// linkify querystr.
 	queryParts := strings.Split(querystr, "/")
 	pathLinks := []pathLink{}
 	for i, part := range queryParts {
+		rlmpath := strings.Join(queryParts[:i+1], "/")
+
+		// Add URL query arguments to the last breadcrumb item's URL
+		if i+1 == len(queryParts) {
+			rlmpath = rlmpath + urlQuery + gnowebQuery
+		}
+
 		pathLinks = append(pathLinks, pathLink{
-			URL:  "/r/" + rlmname + ":" + strings.Join(queryParts[:i+1], "/"),
+			URL:  "/r/" + rlmname + ":" + rlmpath,
 			Text: part,
 		})
 	}
+
 	// Render template.
 	tmpl := app.NewTemplatingEngine()
 	// XXX: extract title from realm's output
@@ -350,8 +406,9 @@ func handleRealmRender(logger *slog.Logger, app gotuna.App, cfg *Config, w http.
 	tmpl.Set("RealmPath", rlmpath)
 	tmpl.Set("Query", querystr)
 	tmpl.Set("PathLinks", pathLinks)
-	tmpl.Set("Contents", string(res.Data))
+	tmpl.Set("Contents", sanitizeContent(cfg, string(res.Data)))
 	tmpl.Set("Config", cfg)
+	tmpl.Set("HasReadme", hasReadme)
 	tmpl.Render(w, r, "realm_render.html", "funcs.html")
 }
 
@@ -368,7 +425,7 @@ func handlerPackageFile(logger *slog.Logger, app gotuna.App, cfg *Config) http.H
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		vars := mux.Vars(r)
 		pkgpath := "gno.land/p/" + vars["filepath"]
-		diruri, filename := std.SplitFilepath(pkgpath)
+		diruri, filename := gnovm.SplitFilepath(pkgpath)
 		if filename == "" && diruri == pkgpath {
 			// redirect to diruri + "/"
 			http.Redirect(w, r, "/p/"+vars["filepath"]+"/", http.StatusFound)
@@ -450,12 +507,12 @@ func handlerStaticFile(logger *slog.Logger, app gotuna.App, cfg *Config) http.Ha
 		fpath := filepath.Clean(vars["path"])
 		f, err := fs.Open(fpath)
 		if os.IsNotExist(err) {
-			handleNotFound(app, cfg, fpath, w, r)
+			handleNotFound(logger, app, cfg, fpath, w, r)
 			return
 		}
 		stat, err := f.Stat()
 		if err != nil || stat.IsDir() {
-			handleNotFound(app, cfg, fpath, w, r)
+			handleNotFound(logger, app, cfg, fpath, w, r)
 			return
 		}
 
@@ -473,7 +530,7 @@ func handlerFavicon(logger *slog.Logger, app gotuna.App, cfg *Config) http.Handl
 		fpath := "img/favicon.ico"
 		f, err := fs.Open(fpath)
 		if os.IsNotExist(err) {
-			handleNotFound(app, cfg, fpath, w, r)
+			handleNotFound(logger, app, cfg, fpath, w, r)
 			return
 		}
 		w.Header().Set("Content-Type", "image/x-icon")
@@ -482,11 +539,17 @@ func handlerFavicon(logger *slog.Logger, app gotuna.App, cfg *Config) http.Handl
 	})
 }
 
-func handleNotFound(app gotuna.App, cfg *Config, path string, w http.ResponseWriter, r *http.Request) {
+func handleNotFound(logger *slog.Logger, app gotuna.App, cfg *Config, path string, w http.ResponseWriter, r *http.Request) {
+	// decode path for non-ascii characters
+	decodedPath, err := url.PathUnescape(path)
+	if err != nil {
+		logger.Error("failed to decode path", "error", err)
+		decodedPath = path
+	}
 	w.WriteHeader(http.StatusNotFound)
 	app.NewTemplatingEngine().
 		Set("title", "Not found").
-		Set("path", path).
+		Set("path", decodedPath).
 		Set("Config", cfg).
 		Render(w, r, "404.html", "funcs.html")
 }
@@ -495,7 +558,7 @@ func writeError(logger *slog.Logger, w http.ResponseWriter, err error) {
 	if details := errors.Unwrap(err); details != nil {
 		logger.Error("handler", "error", err, "details", details)
 	} else {
-		logger.Error("handler", "error:", err)
+		logger.Error("handler", "error", err)
 	}
 
 	// XXX: writeError should return an error page template.
@@ -507,7 +570,39 @@ func pathOf(diruri string) string {
 	parts := strings.Split(diruri, "/")
 	if parts[0] == "gno.land" {
 		return "/" + strings.Join(parts[1:], "/")
-	} else {
-		panic(fmt.Sprintf("invalid dir-URI %q", diruri))
 	}
+
+	panic(fmt.Sprintf("invalid dir-URI %q", diruri))
+}
+
+// parseQueryArgs parses URL query arguments that are not specific to gnoweb.
+// These are the standard arguments that comes after the "?" symbol and before
+// the special "$" symbol. The "$" symbol can be used within public query
+// arguments by using its encoded representation "%24".
+func parseQueryArgs(rawURL string) (url.Values, error) {
+	if i := strings.Index(rawURL, gnowebArgsSeparator); i != -1 {
+		rawURL = rawURL[:i]
+	}
+
+	u, err := url.Parse(rawURL)
+	if err != nil {
+		return url.Values{}, fmt.Errorf("invalid query arguments: %w", err)
+	}
+	return u.Query(), nil
+}
+
+// parseGnowebArgs parses URL query arguments that are specific to gnoweb.
+// These arguments are indicated by using the "$" symbol followed by a query
+// string with the arguments.
+func parseGnowebArgs(rawURL string) (url.Values, error) {
+	i := strings.Index(rawURL, gnowebArgsSeparator)
+	if i == -1 {
+		return url.Values{}, nil
+	}
+
+	values, err := url.ParseQuery(rawURL[i+1:])
+	if err != nil {
+		return url.Values{}, fmt.Errorf("invalid gnoweb arguments: %w", err)
+	}
+	return values, nil
 }

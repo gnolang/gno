@@ -159,6 +159,7 @@ type ResponseInitChain struct {
 	ResponseBase
 	ConsensusParams *ConsensusParams
 	Validators      []ValidatorUpdate
+	TxResponses     []ResponseDeliverTx
 }
 
 type ResponseQuery struct {

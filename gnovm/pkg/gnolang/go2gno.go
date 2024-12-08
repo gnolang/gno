@@ -31,8 +31,10 @@ package gnolang
 */
 
 import (
+	"bytes"
 	"fmt"
 	"go/ast"
+	"go/format"
 	"go/parser"
 	"go/token"
 	"go/types"
@@ -44,8 +46,8 @@ import (
 	"strings"
 
 	"github.com/davecgh/go-spew/spew"
+	"github.com/gnolang/gno/gnovm"
 	"github.com/gnolang/gno/tm2/pkg/errors"
-	"github.com/gnolang/gno/tm2/pkg/std"
 	"go.uber.org/multierr"
 )
 
@@ -139,6 +141,7 @@ func ParseFile(filename string, body string) (fn *FileNode, err error) {
 func setLoc(fs *token.FileSet, pos token.Pos, n Node) Node {
 	posn := fs.Position(pos)
 	n.SetLine(posn.Line)
+	n.SetColumn(posn.Column)
 	return n
 }
 
@@ -470,6 +473,8 @@ func Go2Gno(fs *token.FileSet, gon ast.Node) (n Node) {
 			PkgName: pkgName,
 			Decls:   decls,
 		}
+	case *ast.EmptyStmt:
+		return &EmptyStmt{}
 	default:
 		panic(fmt.Sprintf("unknown Go type %v: %s\n",
 			reflect.TypeOf(gon),
@@ -480,30 +485,34 @@ func Go2Gno(fs *token.FileSet, gon ast.Node) (n Node) {
 
 //----------------------------------------
 // type checking (using go/types)
+// XXX move to gotypecheck.go.
 
 // MemPackageGetter implements the GetMemPackage() method. It is a subset of
 // [Store], separated for ease of testing.
 type MemPackageGetter interface {
-	GetMemPackage(path string) *std.MemPackage
+	GetMemPackage(path string) *gnovm.MemPackage
 }
 
 // TypeCheckMemPackage performs type validation and checking on the given
 // mempkg. To retrieve dependencies, it uses getter.
 //
 // The syntax checking is performed entirely using Go's go/types package.
-func TypeCheckMemPackage(mempkg *std.MemPackage, getter MemPackageGetter) error {
-	return typeCheckMemPackage(mempkg, getter, false)
+//
+// If format is true, the code will be automatically updated with the
+// formatted source code.
+func TypeCheckMemPackage(mempkg *gnovm.MemPackage, getter MemPackageGetter, format bool) error {
+	return typeCheckMemPackage(mempkg, getter, false, format)
 }
 
 // TypeCheckMemPackageTest performs the same type checks as [TypeCheckMemPackage],
 // but allows re-declarations.
 //
 // Note: like TypeCheckMemPackage, this function ignores tests and filetests.
-func TypeCheckMemPackageTest(mempkg *std.MemPackage, getter MemPackageGetter) error {
-	return typeCheckMemPackage(mempkg, getter, true)
+func TypeCheckMemPackageTest(mempkg *gnovm.MemPackage, getter MemPackageGetter) error {
+	return typeCheckMemPackage(mempkg, getter, true, false)
 }
 
-func typeCheckMemPackage(mempkg *std.MemPackage, getter MemPackageGetter, testing bool) error {
+func typeCheckMemPackage(mempkg *gnovm.MemPackage, getter MemPackageGetter, testing, format bool) error {
 	var errs error
 	imp := &gnoImporter{
 		getter: getter,
@@ -517,7 +526,7 @@ func typeCheckMemPackage(mempkg *std.MemPackage, getter MemPackageGetter, testin
 	}
 	imp.cfg.Importer = imp
 
-	_, err := imp.parseCheckMemPackage(mempkg)
+	_, err := imp.parseCheckMemPackage(mempkg, format)
 	// prefer to return errs instead of err:
 	// err will generally contain only the first error encountered.
 	if errs != nil {
@@ -561,12 +570,13 @@ func (g *gnoImporter) ImportFrom(path, _ string, _ types.ImportMode) (*types.Pac
 		g.cache[path] = gnoImporterResult{err: err}
 		return nil, err
 	}
-	result, err := g.parseCheckMemPackage(mpkg)
+	fmt := false
+	result, err := g.parseCheckMemPackage(mpkg, fmt)
 	g.cache[path] = gnoImporterResult{pkg: result, err: err}
 	return result, err
 }
 
-func (g *gnoImporter) parseCheckMemPackage(mpkg *std.MemPackage) (*types.Package, error) {
+func (g *gnoImporter) parseCheckMemPackage(mpkg *gnovm.MemPackage, fmt bool) (*types.Package, error) {
 	// This map is used to allow for function re-definitions, which are allowed
 	// in Gno (testing context) but not in Go.
 	// This map links each function identifier with a closure to remove its
@@ -598,6 +608,17 @@ func (g *gnoImporter) parseCheckMemPackage(mpkg *std.MemPackage) (*types.Package
 
 		if delFunc != nil {
 			deleteOldIdents(delFunc, f)
+		}
+
+		// enforce formatting
+		if fmt {
+			var buf bytes.Buffer
+			err = format.Node(&buf, fset, f)
+			if err != nil {
+				errs = multierr.Append(errs, err)
+				continue
+			}
+			file.Body = buf.String()
 		}
 
 		files = append(files, f)
@@ -788,11 +809,13 @@ func toDecls(fs *token.FileSet, gd *ast.GenDecl) (ds Decls) {
 			name := toName(s.Name)
 			tipe := toExpr(fs, s.Type)
 			alias := s.Assign != 0
-			ds = append(ds, &TypeDecl{
+			td := &TypeDecl{
 				NameExpr: NameExpr{Name: name},
 				Type:     tipe,
 				IsAlias:  alias,
-			})
+			}
+			setLoc(fs, s.Pos(), td)
+			ds = append(ds, td)
 		case *ast.ValueSpec:
 			if gd.Tok == token.CONST {
 				var names []NameExpr
@@ -820,6 +843,7 @@ func toDecls(fs *token.FileSet, gd *ast.GenDecl) (ds Decls) {
 					Const:     true,
 				}
 				cd.SetAttribute(ATTR_IOTA, si)
+				setLoc(fs, s.Pos(), cd)
 				ds = append(ds, cd)
 			} else {
 				var names []NameExpr
@@ -838,6 +862,7 @@ func toDecls(fs *token.FileSet, gd *ast.GenDecl) (ds Decls) {
 					Values:    values,
 					Const:     false,
 				}
+				setLoc(fs, s.Pos(), vd)
 				ds = append(ds, vd)
 			}
 		case *ast.ImportSpec:
@@ -845,16 +870,19 @@ func toDecls(fs *token.FileSet, gd *ast.GenDecl) (ds Decls) {
 			if err != nil {
 				panic("unexpected import spec path type")
 			}
-			ds = append(ds, &ImportDecl{
+			im := &ImportDecl{
 				NameExpr: *Nx(toName(s.Name)),
 				PkgPath:  path,
-			})
+			}
+			setLoc(fs, s.Pos(), im)
+			ds = append(ds, im)
 		default:
 			panic(fmt.Sprintf(
 				"unexpected decl spec %v",
 				reflect.TypeOf(s)))
 		}
 	}
+
 	return ds
 }
 

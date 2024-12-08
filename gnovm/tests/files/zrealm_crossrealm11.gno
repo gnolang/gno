@@ -3,12 +3,10 @@ package crossrealm_test
 
 import (
 	"std"
-	"strings"
 
 	ptests "gno.land/p/demo/tests"
 	"gno.land/p/demo/ufmt"
 	rtests "gno.land/r/demo/tests"
-	testfoo "gno.land/r/demo/tests_foo"
 )
 
 func getPrevRealm() std.Realm {
@@ -66,10 +64,6 @@ func main() {
 		{
 			callStackAdd: " -> r/demo/tests -> r/demo/tests/subtests",
 			callerFn:     rtests.GetRSubtestsPrevRealm,
-		},
-		{
-			callStackAdd: " -> p/demo/tests -> r/demo/tests",
-			callerFn:     ptests.GetRTestsGetPrevRealm,
 		},
 	}
 
@@ -143,7 +137,3 @@ func printColumns(left, right string) {
 //    user1.gno -> r/crossrealm_test.main -> r/crossrealm_test.Exec -> r/demo/tests -> r/demo/tests/subtests = gno.land/r/demo/tests
 //         user1.gno -> r/crossrealm_test.main -> r/demo/tests.Exec -> r/demo/tests -> r/demo/tests/subtests = gno.land/r/demo/tests
 //         user1.gno -> r/crossrealm_test.main -> p/demo/tests.Exec -> r/demo/tests -> r/demo/tests/subtests = gno.land/r/demo/tests
-//                                       user1.gno -> r/crossrealm_test.main -> p/demo/tests -> r/demo/tests = gno.land/r/crossrealm_test
-//             user1.gno -> r/crossrealm_test.main -> r/crossrealm_test.Exec -> p/demo/tests -> r/demo/tests = gno.land/r/crossrealm_test
-//                  user1.gno -> r/crossrealm_test.main -> r/demo/tests.Exec -> p/demo/tests -> r/demo/tests = gno.land/r/crossrealm_test
-//                  user1.gno -> r/crossrealm_test.main -> p/demo/tests.Exec -> p/demo/tests -> r/demo/tests = gno.land/r/crossrealm_test

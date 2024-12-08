@@ -12,14 +12,14 @@ jobs:
     generated:
         runs-on: ubuntu-latest
         steps:
+          - name: Checkout code
+            uses: actions/checkout@v4
+
           - name: Install Go
             uses: actions/setup-go@v5
             with:
               go-version: ${{ inputs.go-version }}
-    
-          - name: Checkout code
-            uses: actions/checkout@v4
-    
+
           - name: Check generated files are up to date
             working-directory: ${{ inputs.modulepath }}
             run: |

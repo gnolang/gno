@@ -10,8 +10,9 @@ func AssertOriginCall() // injected
 // MsgRun.
 func IsOriginCall() bool // injected
 
-func GetChainID() string // injected
-func GetHeight() int64   // injected
+func GetChainID() string     // injected
+func GetChainDomain() string // injected
+func GetHeight() int64       // injected
 
 func GetOrigSend() Coins {
 	den, amt := origSend()
@@ -65,3 +66,4 @@ func getRealm(height int) (address string, pkgPath string)
 func derivePkgAddr(pkgPath string) string
 func encodeBech32(prefix string, bz [20]byte) string
 func decodeBech32(addr string) (prefix string, bz [20]byte, ok bool)
+func assertCallerIsRealm()

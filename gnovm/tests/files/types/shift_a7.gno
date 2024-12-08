@@ -1,0 +1,9 @@
+package main
+
+func main() {
+	r := int(1)
+	println(r << "a")
+}
+
+// Error:
+// main/files/types/shift_a7.gno:5:10: cannot convert (const ("a" <untyped> string)) to type uint

@@ -43,14 +43,29 @@ type Debugger struct {
 	out     io.Writer      // debugger output, defaults to Stdout
 	scanner *bufio.Scanner // to parse input per line
 
-	state       DebugState // current state of debugger
-	lastCmd     string     // last debugger command
-	lastArg     string     // last debugger command arguments
-	loc         Location   // source location of the current machine instruction
-	prevLoc     Location   // source location of the previous machine instruction
-	breakpoints []Location // list of breakpoints set by user, as source locations
-	call        []Location // for function tracking, ideally should be provided by machine frame
-	frameLevel  int        // frame level of the current machine instruction
+	state       DebugState          // current state of debugger
+	lastCmd     string              // last debugger command
+	lastArg     string              // last debugger command arguments
+	loc         Location            // source location of the current machine instruction
+	prevLoc     Location            // source location of the previous machine instruction
+	breakpoints []Location          // list of breakpoints set by user, as source locations
+	call        []Location          // for function tracking, ideally should be provided by machine frame
+	frameLevel  int                 // frame level of the current machine instruction
+	getSrc      func(string) string // helper to access source from repl or others
+}
+
+// Enable makes the debugger d active, using in as input reader, out as output writer and f as a source helper.
+func (d *Debugger) Enable(in io.Reader, out io.Writer, f func(string) string) {
+	d.in = in
+	d.out = out
+	d.enabled = true
+	d.state = DebugAtInit
+	d.getSrc = f
+}
+
+// Disable makes the debugger d inactive.
+func (d *Debugger) Disable() {
+	d.enabled = false
 }
 
 type debugCommand struct {
@@ -132,13 +147,11 @@ loop:
 					continue loop
 				}
 			default:
-				for _, b := range m.Debugger.breakpoints {
-					if b == m.Debugger.loc && m.Debugger.loc != m.Debugger.prevLoc {
-						m.Debugger.state = DebugAtCmd
-						m.Debugger.prevLoc = m.Debugger.loc
-						debugList(m, "")
-						continue loop
-					}
+				if atBreak(m) {
+					m.Debugger.state = DebugAtCmd
+					m.Debugger.prevLoc = m.Debugger.loc
+					debugList(m, "")
+					continue loop
 				}
 			}
 			break loop
@@ -157,6 +170,20 @@ loop:
 	case OpReturn, OpReturnFromBlock:
 		m.Debugger.call = m.Debugger.call[:len(m.Debugger.call)-1]
 	}
+}
+
+// atBreak returns true if current machine location matches a breakpoint, false otherwise.
+func atBreak(m *Machine) bool {
+	loc := m.Debugger.loc
+	if loc == m.Debugger.prevLoc {
+		return false
+	}
+	for _, b := range m.Debugger.breakpoints {
+		if loc.File == b.File && loc.Line == b.Line {
+			return true
+		}
+	}
+	return false
 }
 
 // debugCmd processes a debugger REPL command. It displays a prompt, then
@@ -230,7 +257,10 @@ func debugUpdateLocation(m *Machine) {
 	for i := nx - 1; i >= 0; i-- {
 		expr := m.Exprs[i]
 		if l := expr.GetLine(); l > 0 {
-			m.Debugger.loc.Line = l
+			if col := expr.GetColumn(); col > 0 {
+				m.Debugger.loc.Line = l
+				m.Debugger.loc.Column = expr.GetColumn()
+			}
 			return
 		}
 	}
@@ -238,7 +268,10 @@ func debugUpdateLocation(m *Machine) {
 	if len(m.Stmts) > 0 {
 		if stmt := m.PeekStmt1(); stmt != nil {
 			if l := stmt.GetLine(); l > 0 {
-				m.Debugger.loc.Line = l
+				if col := stmt.GetColumn(); col > 0 {
+					m.Debugger.loc.Line = l
+					m.Debugger.loc.Column = stmt.GetColumn()
+				}
 				return
 			}
 		}
@@ -470,7 +503,13 @@ func debugList(m *Machine, arg string) (err error) {
 	}
 	src, err := fileContent(m.Store, loc.PkgPath, loc.File)
 	if err != nil {
-		return err
+		// Use optional getSrc helper as fallback to get source.
+		if m.Debugger.getSrc != nil {
+			src = m.Debugger.getSrc(loc.File)
+		}
+		if src == "" {
+			return err
+		}
 	}
 	lines, offset := linesAround(src, loc.Line, 10)
 	for i, l := range lines {
@@ -613,7 +652,7 @@ func debugEvalExpr(m *Machine, node ast.Node) (tv TypedValue, err error) {
 			return tv, fmt.Errorf("invalid selector: %s", n.Sel.Name)
 		}
 		for _, vp := range tr {
-			x = x.GetPointerTo(m.Alloc, m.Store, vp).Deref()
+			x = x.GetPointerToFromTV(m.Alloc, m.Store, vp).Deref()
 		}
 		return x, nil
 	case *ast.IndexExpr:
@@ -699,7 +738,7 @@ func debugLookup(m *Machine, name string) (tv TypedValue, ok bool) {
 		}
 	}
 	// Fallback: search a global value.
-	if v := sblocks[0].Source.GetValueRef(m.Store, Name(name)); v != nil {
+	if v := sblocks[0].Source.GetValueRef(m.Store, Name(name), true); v != nil {
 		return *v, true
 	}
 	return tv, false

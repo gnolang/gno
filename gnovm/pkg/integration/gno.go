@@ -68,6 +68,8 @@ func SetupGno(p *testscript.Params, buildDir string) error {
 			return fmt.Errorf("unable to create temporary home directory: %w", err)
 		}
 		env.Setenv("HOME", home)
+		// Avoids go command printing errors relating to lack of go.mod.
+		env.Setenv("GO111MODULE", "off")
 
 		// Cleanup home folder
 		env.Defer(func() { os.RemoveAll(home) })

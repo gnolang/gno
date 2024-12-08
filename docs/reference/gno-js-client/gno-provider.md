@@ -7,6 +7,38 @@ id: gno-js-provider
 The `Gno Provider` is an extension on the `tm2-js-client` `Provider`,
 outlined [here](../tm2-js-client/Provider/provider.md). Both JSON-RPC and WS providers are included with the package.
 
+## Instantiation
+
+### new GnoWSProvider
+
+Creates a new instance of the Gno WebSocket Provider, based on [`tm2-js-client` `WSProvider`](../tm2-js-client/Provider/ws-provider.md).
+
+#### Parameters
+
+Same as [`tm2-js-client` `WSProvider`](../tm2-js-client/Provider/ws-provider.md).
+
+#### Usage
+
+```ts
+new GnoWSProvider('ws://staging.gno.land:26657/ws');
+// provider with WS connection is created
+```
+
+### new GnoJSONRPCProvider
+
+Creates a new instance of the Gno JSON-RPC Provider, based on [`tm2-js-client` `JSONRPCProvider`](../tm2-js-client/Provider/json-rpc-provider.md).
+
+#### Parameters
+
+Same as [`tm2-js-client` `JSONRPCProvider`](../tm2-js-client/Provider/json-rpc-provider.md).
+
+#### Usage
+
+```ts
+new GnoJSONRPCProvider('http://staging.gno.land:36657');
+// provider is created
+```
+
 ## Realm Methods
 
 ### getRenderOutput
@@ -39,7 +71,7 @@ Fetches public facing function signatures
 * `height` **number** the height for querying.
   If omitted, the latest height is used (optional, default `0`)
 
-Returns **Promise<FunctionSignature[]>**
+Returns **Promise<FunctionSignature[]\>**
 
 #### Usage
 
@@ -116,7 +148,7 @@ Returns **Promise<string\>**
 #### Usage
 
 ```ts
-await provider.getFileContent('gno.land/r/demo/foo20', 'TotalSupply()')
+await provider.getFileContent('gno.land/r/demo/foo20')
 /*
 foo20.gno
 foo20_test.gno

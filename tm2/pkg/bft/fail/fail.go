@@ -4,31 +4,33 @@ import (
 	"fmt"
 	"os"
 	"strconv"
+	"sync"
 )
 
-func envSet() int {
+func setFromEnv() {
 	callIndexToFailS := os.Getenv("FAIL_TEST_INDEX")
 
 	if callIndexToFailS == "" {
-		return -1
+		callIndexToFail = -1
 	} else {
 		var err error
-		callIndexToFail, err := strconv.Atoi(callIndexToFailS)
+		callIndexToFail, err = strconv.Atoi(callIndexToFailS)
 		if err != nil {
-			return -1
+			callIndexToFail = -1
 		}
-		return callIndexToFail
 	}
 }
 
-// Fail when FAIL_TEST_INDEX == callIndex
-var callIndex int // indexes Fail calls
+var (
+	callIndex           int       // indexes Fail calls
+	callIndexToFail     int       // index of call which should fail
+	callIndexToFailOnce sync.Once // sync.Once to set the value of the above
+)
 
+// Fail exits the program when after being called the same number of times as
+// that passed as the FAIL_TEST_INDEX environment variable.
 func Fail() {
-	callIndexToFail := envSet()
-	if callIndexToFail < 0 {
-		return
-	}
+	callIndexToFailOnce.Do(setFromEnv)
 
 	if callIndex == callIndexToFail {
 		Exit()

@@ -5,9 +5,9 @@ import (
 	"sort"
 	"sync"
 
+	"github.com/gnolang/gno/tm2/pkg/colors"
 	dbm "github.com/gnolang/gno/tm2/pkg/db"
 	"github.com/gnolang/gno/tm2/pkg/db/internal"
-	"github.com/gnolang/gno/tm2/pkg/strings"
 )
 
 func init() {
@@ -128,17 +128,9 @@ func (db *MemDB) Print() {
 
 	for key, value := range db.db {
 		var keystr, valstr string
-		if strings.IsASCIIText(key) {
-			keystr = key
-		} else {
-			keystr = fmt.Sprintf("0x%X", []byte(key))
-		}
-		if strings.IsASCIIText(string(value)) {
-			valstr = string(value)
-		} else {
-			valstr = fmt.Sprintf("0x%X", value)
-		}
-		fmt.Printf("%s:\t%s\n", keystr, valstr)
+		keystr = colors.DefaultColoredBytesN([]byte(key), 50)
+		valstr = colors.DefaultColoredBytesN(value, 100)
+		fmt.Printf("%s: %s\n", keystr, valstr)
 	}
 }
 
@@ -158,7 +150,7 @@ func (db *MemDB) NewBatch() dbm.Batch {
 	db.mtx.Lock()
 	defer db.mtx.Unlock()
 
-	return &internal.MemBatch{db, nil}
+	return &internal.MemBatch{DB: db}
 }
 
 // ----------------------------------------

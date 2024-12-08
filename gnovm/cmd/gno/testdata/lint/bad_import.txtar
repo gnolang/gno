@@ -19,5 +19,9 @@ module gno.land/p/test
 
 -- stdout.golden --
 -- stderr.golden --
+<<<<<<<< HEAD:gnovm/cmd/gno/testdata/lint/bad_import.txtar
 bad_file.gno:3:8: could not import python (import not found: python) (code=4).
 bad_file.gno:1: unknown import path python (code=2).
+========
+bad_file.gno:3:8: unknown import path python (code=2).
+>>>>>>>> 61a5c020ccf28ce1877aa783b264a6bb6f482fd2:gnovm/cmd/gno/testdata/gno_lint/bad_import.txtar
