@@ -940,7 +940,7 @@ func backendPackageIndexKey(index uint64) string {
 }
 
 func backendPackagePathKey(path string) string {
-	return fmt.Sprintf("pkg:" + path)
+	return "pkg:" + path
 }
 
 // ----------------------------------------

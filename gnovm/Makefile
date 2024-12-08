@@ -118,6 +118,9 @@ opcode: build_opcode
 storage: build_storage
 	./build/gnobench -out store_results_$(COMMIT_HASH).csv
 
+_test.filetest:;
+	go test pkg/gnolang/files_test.go -test.short -run 'TestFiles$$/' $(GOTEST_FLAGS)
+
 ########################################
 # Code gen
 # TODO: move _dev.stringer to go:generate instructions, simplify generate
