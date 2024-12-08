@@ -256,7 +256,7 @@ func (vm *VMKeeper) AddPackage(ctx sdk.Context, msg MsgAddPackage) (err error) {
 	if err := msg.Package.Validate(allowStdlib); err != nil {
 		return ErrInvalidPkgPath(err.Error())
 	}
-	if !strings.HasPrefix(pkgPath, chainDomain+"/") {
+	if !allowStdlib && !strings.HasPrefix(pkgPath, chainDomain+"/") {
 		return ErrInvalidPkgPath("invalid domain: " + pkgPath)
 	}
 	if pv := gnostore.GetPackage(pkgPath, false); pv != nil {
