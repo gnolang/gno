@@ -14,6 +14,7 @@ type Realm struct {
 func (r Realm) Addr() Address {...}
 func (r Realm) PkgPath() string {...}
 func (r Realm) IsUser() bool {...}
+func (r Realm) ComposeDenom(denom string) string {...}
 ```
 
 ## Addr
@@ -38,4 +39,15 @@ Checks if the realm it was called upon is a user realm.
 #### Usage
 ```go
 if r.IsUser() {...}
+```
+
+## ComposeDenom
+Composes a denomination string from the realm's pkg path and the provided denomination. e.g `/gno.land/r/demo/blog:ugnot`. This method should be used when interacting with the `Banker` interface.
+
+#### Parameters
+- `denom` **string** - denomination to compose with the realm's pkg path
+
+#### Usage
+```go
+denom := r.ComposeDenom("ugnot")
 ```

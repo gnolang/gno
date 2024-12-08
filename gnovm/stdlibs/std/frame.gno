@@ -16,3 +16,7 @@ func (r Realm) PkgPath() string {
 func (r Realm) IsUser() bool {
 	return r.pkgPath == ""
 }
+
+func (r Realm) ComposeDenom(denom string) string {
+	return ComposeRealmDenom(r.pkgPath, denom)
+}

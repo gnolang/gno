@@ -1,7 +1,9 @@
 package std
 
 import (
+	"regexp"
 	"strconv"
+	"strings"
 )
 
 // Realm functions can call std.GetBanker(options) to get
@@ -58,6 +60,9 @@ func (b BankerType) String() string {
 		panic("invalid BankerType: " + strconv.Itoa(int(b)))
 	}
 }
+
+// regexp for denom format
+var reDenom = regexp.MustCompile(`^[a-z][a-z0-9]{2,15}$`)
 
 //----------------------------------------
 // adapter for native banker
@@ -126,6 +131,7 @@ func (b banker) IssueCoin(addr Address, denom string, amount int64) {
 	if b.bt != BankerTypeRealmIssue {
 		panic(b.bt.String() + " cannot issue coins")
 	}
+	assertRealmDenom(denom)
 	bankerIssueCoin(uint8(b.bt), string(addr), denom, amount)
 }
 
@@ -133,5 +139,18 @@ func (b banker) RemoveCoin(addr Address, denom string, amount int64) {
 	if b.bt != BankerTypeRealmIssue {
 		panic(b.bt.String() + " cannot remove coins")
 	}
+	assertRealmDenom(denom)
 	bankerRemoveCoin(uint8(b.bt), string(addr), denom, amount)
+}
+
+func assertRealmDenom(denom string) {
+	prefix := "/" + CurrentRealm().PkgPath() + ":"
+	if !strings.HasPrefix(denom, prefix) {
+		panic("cannot issue coins with denom not prefixed by: /realmPath:")
+	}
+
+	baseDenom := strings.TrimPrefix(denom, prefix)
+	if !reDenom.MatchString(baseDenom) {
+		panic("cannot issue coins with invalid denom base name, it should start by a lowercase letter and be followed by 2-15 lowercase letters or digits")
+	}
 }
