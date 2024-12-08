@@ -42,7 +42,11 @@ var embeddedMemPackagesMap = sync.OnceValue(func() map[string]*gnovm.MemPackage 
 	pkgPaths := initOrder
 	pkgs := make(map[string]*gnovm.MemPackage, len(pkgPaths))
 	for _, pkgPath := range pkgPaths {
-		pkgs[pkgPath] = gnolang.ReadMemPackageFromFS(embeddedSources, pkgPath, pkgPath)
+		pkg, err := gnolang.ReadMemPackageFromFS(embeddedSources, pkgPath, pkgPath)
+		if err != nil {
+			panic(err)
+		}
+		pkgs[pkgPath] = pkg
 	}
 	return pkgs
 })

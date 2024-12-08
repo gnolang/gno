@@ -56,7 +56,11 @@ var embeddedMemPackages = sync.OnceValue(func() map[string]*gnovm.MemPackage {
 			return nil
 		}
 
-		memPkgs[pkgPath] = gnolang.ReadMemPackageFromList(filesystems, files, pkgPath)
+		pkg, err := gnolang.ReadMemPackageFromList(filesystems, files, pkgPath)
+		if err != nil {
+			panic(err)
+		}
+		memPkgs[pkgPath] = pkg
 	}
 
 	return memPkgs
