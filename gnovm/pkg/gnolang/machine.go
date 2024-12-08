@@ -11,10 +11,9 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/gnolang/overflow"
-
 	"github.com/gnolang/gno/gnovm"
 	"github.com/gnolang/gno/tm2/pkg/errors"
+	"github.com/gnolang/gno/tm2/pkg/overflow"
 	"github.com/gnolang/gno/tm2/pkg/store"
 )
 
