@@ -52,7 +52,7 @@ func (pl PkgList) Sort() (SortedPkgList, error) {
 	return sortedPkgs, nil
 }
 
-var injectedTestingLib = []string{"encoding/json", "fmt", "os"}
+var injectedTestingLib = []string{"encoding/json", "fmt", "os", "internal/os_test"}
 
 // visitNode visits a package's and its dependencies dependencies and adds them to the sorted list.
 func visitPackage(pkg Pkg, pkgs []Pkg, visited map[string]bool, stack []string, sortedPkgs *[]Pkg) error {

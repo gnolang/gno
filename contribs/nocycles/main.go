@@ -56,17 +56,62 @@ func main() {
 			}
 			pl = append(pl, gnomod.Pkg{
 				Dir:     "",
-				Name:    lib + "_test",
+				Name:    "_test_" + lib,
+				Imports: imports,
+			})
+		}
+	}
+
+	// load all examples
+	examples, err := gnomod.ListPkgs(filepath.Join(gnoRoot, "examples"))
+	if err != nil {
+		panic(fmt.Errorf("load examples: %w", err))
+	}
+	for _, example := range examples {
+		if example.Draft {
+			continue
+		}
+		pkgPath := example.Name
+		memPkg := gnolang.MustReadMemPackage(example.Dir, example.Name)
+		pkg, xpkg, err := splitMemPackage(memPkg)
+		if err != nil {
+			panic(fmt.Errorf("split %q: %w", pkgPath, err))
+		}
+		{
+			imports, err := packages.Imports(pkg)
+			if err != nil {
+				panic(fmt.Errorf("read %q: %w", pkgPath, err))
+			}
+			pl = append(pl, gnomod.Pkg{
+				Dir:     example.Dir,
+				Name:    pkgPath,
+				Imports: imports,
+			})
+		}
+		if !xpkg.IsEmpty() {
+			imports, err := packages.Imports(xpkg)
+			if err != nil {
+				panic(fmt.Errorf("read %q: %w", pkgPath, err))
+			}
+			pl = append(pl, gnomod.Pkg{
+				Dir:     example.Dir,
+				Name:    "_test_" + pkgPath,
 				Imports: imports,
 			})
 		}
 	}
 
 	// detect import cycles
-	_, err := pl.Sort()
-	if err != nil {
+	if _, err := pl.Sort(); err != nil {
 		panic(err)
 	}
+
+	/*
+		// uncomment to dump the final pkg list
+		for _, p := range pl {
+			fmt.Println(p.Name)
+		}
+	*/
 }
 
 func splitMemPackage(pkg *gnovm.MemPackage) (*gnovm.MemPackage, *gnovm.MemPackage, error) {

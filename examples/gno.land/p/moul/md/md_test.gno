@@ -1,4 +1,4 @@
-package md
+package md_test
 
 import (
 	"testing"
