@@ -28,6 +28,7 @@ linters:
     - misspell # Misspelled English words in comments
     - makezero # Finds slice declarations with non-zero initial length
     - importas # Enforces consistent import aliases
+    - govet # same as 'go vet'
     - gosec # Security problems
     - gofmt # Whether the code was gofmt-ed
     - goimports # Unused imports
@@ -50,6 +51,7 @@ linters-settings:
     excludes:
       - G204 # Subprocess launched with a potential tainted input or cmd arguments
       - G306 # Expect WriteFile permissions to be 0600 or less
+      - G115 # Integer overflow conversion, no solution to check the overflow in time of convert, so linter shouldn't check the overflow.
   stylecheck:
     checks: [ "all", "-ST1022", "-ST1003" ]
   errorlint:

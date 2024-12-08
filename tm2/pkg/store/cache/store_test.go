@@ -15,7 +15,7 @@ import (
 )
 
 func newCacheStore() types.Store {
-	mem := dbadapter.Store{memdb.NewMemDB()}
+	mem := dbadapter.Store{DB: memdb.NewMemDB()}
 	return cache.New(mem)
 }
 
@@ -25,7 +25,7 @@ func valFmt(i int) []byte { return bz(fmt.Sprintf("value%0.8d", i)) }
 func TestCacheStore(t *testing.T) {
 	t.Parallel()
 
-	mem := dbadapter.Store{memdb.NewMemDB()}
+	mem := dbadapter.Store{DB: memdb.NewMemDB()}
 	st := cache.New(mem)
 
 	require.Empty(t, st.Get(keyFmt(1)), "Expected `key1` to be empty")
@@ -70,7 +70,7 @@ func TestCacheStore(t *testing.T) {
 func TestCacheStoreNoNilSet(t *testing.T) {
 	t.Parallel()
 
-	mem := dbadapter.Store{memdb.NewMemDB()}
+	mem := dbadapter.Store{DB: memdb.NewMemDB()}
 	st := cache.New(mem)
 	require.Panics(t, func() { st.Set([]byte("key"), nil) }, "setting a nil value should panic")
 }
@@ -78,7 +78,7 @@ func TestCacheStoreNoNilSet(t *testing.T) {
 func TestCacheStoreNested(t *testing.T) {
 	t.Parallel()
 
-	mem := dbadapter.Store{memdb.NewMemDB()}
+	mem := dbadapter.Store{DB: memdb.NewMemDB()}
 	st := cache.New(mem)
 
 	// set. check its there on st and not on mem.
@@ -359,12 +359,12 @@ func TestCacheKVMergeIteratorRandom(t *testing.T) {
 	truth := memdb.NewMemDB()
 
 	start, end := 25, 975
-	max := 1000
+	maxVal := 1000
 	setRange(st, truth, start, end)
 
 	// do an op, test the iterator
 	for i := 0; i < 2000; i++ {
-		doRandomOp(st, truth, max)
+		doRandomOp(st, truth, maxVal)
 		assertIterateDomainCompare(t, st, truth)
 	}
 }

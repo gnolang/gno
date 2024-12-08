@@ -203,7 +203,7 @@ func (sw *Switch) OnStart() error {
 	for _, reactor := range sw.reactors {
 		err := reactor.Start()
 		if err != nil {
-			return errors.Wrap(err, "failed to start %v", reactor)
+			return errors.Wrapf(err, "failed to start %v", reactor)
 		}
 	}
 
@@ -219,7 +219,7 @@ func (sw *Switch) OnStop() {
 	if t, ok := sw.transport.(TransportLifecycle); ok {
 		err := t.Close()
 		if err != nil {
-			sw.Logger.Error("Error stopping transport on stop: ", err)
+			sw.Logger.Error("Error stopping transport on stop: ", "error", err)
 		}
 	}
 

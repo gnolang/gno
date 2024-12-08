@@ -845,6 +845,9 @@ func getChildObjects(val Value, more []Value) []Value {
 		if bv, ok := cv.Closure.(*Block); ok {
 			more = getSelfOrChildObjects(bv, more)
 		}
+		for _, c := range cv.Captures {
+			more = getSelfOrChildObjects(c.V, more)
+		}
 		return more
 	case *BoundMethodValue:
 		more = getChildObjects(cv.Func, more) // *FuncValue not object
@@ -1129,7 +1132,7 @@ func copyValueWithRefs(val Value) Value {
 		if cv.Closure != nil {
 			closure = toRefValue(cv.Closure)
 		}
-		// nativeBody funcs which don't come from NativeStore (and thus don't
+		// nativeBody funcs which don't come from NativeResolver (and thus don't
 		// have NativePkg/Name) can't be persisted, and should not be able
 		// to get here anyway.
 		if cv.nativeBody != nil && cv.NativePkg == "" {
@@ -1142,6 +1145,7 @@ func copyValueWithRefs(val Value) Value {
 			Source:     source,
 			Name:       cv.Name,
 			Closure:    closure,
+			Captures:   cv.Captures,
 			FileName:   cv.FileName,
 			PkgPath:    cv.PkgPath,
 			NativePkg:  cv.NativePkg,
