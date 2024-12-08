@@ -1,10 +1,10 @@
 package overflow
 
 import (
+	"fmt"
 	"math"
 	"testing"
 )
-import "fmt"
 
 // sample all possibilities of 8 bit numbers
 // by checking against 64 bit numbers
@@ -14,7 +14,6 @@ func TestAlgorithms(t *testing.T) {
 
 	for a64 := int64(math.MinInt8); a64 <= int64(math.MaxInt8); a64++ {
 		for b64 := int64(math.MinInt8); b64 <= int64(math.MaxInt8) && errors < 10; b64++ {
-
 			a8 := int8(a64)
 			b8 := int8(b64)
 
