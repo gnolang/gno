@@ -102,7 +102,7 @@ func execLint(cfg *lintCfg, args []string, io commands.IO) error {
 				targetPath = filepath.Dir(pkgPath)
 			}
 
-			memPkg := gno.ReadMemPackage(targetPath, targetPath)
+			memPkg := gno.MustReadMemPackage(targetPath, targetPath)
 			tm := test.Machine(testStore, stdout, memPkg.Path)
 			defer tm.Release()
 

@@ -927,6 +927,14 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 			switch n := n.(type) {
 			// TRANS_LEAVE -----------------------
 			case *NameExpr:
+				if isBlankIdentifier(n) {
+					switch ftype {
+					case TRANS_ASSIGN_LHS, TRANS_RANGE_KEY, TRANS_RANGE_VALUE, TRANS_VAR_NAME:
+						// can use _ as value or type in these contexts
+					default:
+						panic("cannot use _ as value or type")
+					}
+				}
 				// Validity: check that name isn't reserved.
 				if isReservedName(n.Name) {
 					panic(fmt.Sprintf(
@@ -1645,7 +1653,8 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 				}
 
 				// Type assertions on the blank identifier are illegal.
-				if nx, ok := n.X.(*NameExpr); ok && string(nx.Name) == blankIdentifier {
+
+				if isBlankIdentifier(n.X) {
 					panic("cannot use _ as value or type")
 				}
 
@@ -2343,6 +2352,10 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 						// }
 						*dst = *dt2
 					}
+				case PrimitiveType:
+					dst = tmp.(PrimitiveType)
+				case *PointerType:
+					*dst = *(tmp.(*PointerType))
 				default:
 					panic(fmt.Sprintf("unexpected type declaration type %v",
 						reflect.TypeOf(dst)))
@@ -3622,7 +3635,6 @@ func isNamedConversion(xt, t Type) bool {
 	if t == nil {
 		t = xt
 	}
-
 	// no conversion case 1: the LHS is an interface
 
 	_, c1 := t.(*InterfaceType)
@@ -3634,7 +3646,6 @@ func isNamedConversion(xt, t Type) bool {
 	_, oktt2 := xt.(*TypeType)
 	c2 := oktt || oktt2
 
-	//
 	if !c1 && !c2 { // carve out above two cases
 		// covert right to the type of left if one side is unnamed type and the other side is not
 
@@ -4216,6 +4227,12 @@ func tryPredefine(store Store, last BlockNode, d Decl) (un Name) {
 		})
 		d.Path = last.GetPathForName(store, d.Name)
 	case *ValueDecl:
+		// check for blank identifier in type
+		// e.g., `var x _`
+		if isBlankIdentifier(d.Type) {
+			panic("cannot use _ as value or type")
+		}
+
 		un = findUndefined(store, last, d.Type)
 		if un != "" {
 			return
@@ -4258,6 +4275,11 @@ func tryPredefine(store Store, last BlockNode, d Decl) (un Name) {
 			case *StarExpr:
 				t = &PointerType{}
 			case *NameExpr:
+				// check for blank identifier in type
+				// e.g., `type T _`
+				if isBlankIdentifier(tx) {
+					panic("cannot use _ as value or type")
+				}
 				if tv := last.GetValueRef(store, tx.Name, true); tv != nil {
 					t = tv.GetType()
 					if dt, ok := t.(*DeclaredType); ok {
@@ -4265,9 +4287,6 @@ func tryPredefine(store Store, last BlockNode, d Decl) (un Name) {
 							// predefineNow preprocessed dependent types.
 							panic("should not happen")
 						}
-					} else {
-						// all names are declared types.
-						panic("should not happen")
 					}
 				} else if idx, ok := UverseNode().GetLocalIndex(tx.Name); ok {
 					// uverse name

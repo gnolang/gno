@@ -1,14 +1,28 @@
-# test for https://github.com/gnolang/gno/pull/3003
+# Test for #3003, #2911.
 
 gnoland start
 
+# Query and validate official parameters.
+# These parameters should ideally be tested in a txtar format to ensure that a
+# default initialization of "gnoland" provides the expected default values.
+
+# Verify the default chain domain parameter for Gno.land
+gnokey query params/vm/gno.land/r/sys/params.vm.chain_domain.string
+stdout 'data: "gno.land"$'
+
+# Test custom parameters to confirm they return the expected values and types.
+
 gnokey query params/vm/gno.land/r/sys/params.test.foo.string
 stdout 'data: "bar"$'
+
 gnokey query params/vm/gno.land/r/sys/params.test.foo.int64
 stdout 'data: "-1337"'
+
 gnokey query params/vm/gno.land/r/sys/params.test.foo.uint64
 stdout 'data: "42"'
+
 gnokey query params/vm/gno.land/r/sys/params.test.foo.bool
 stdout 'data: true'
-# XXX: bytes
+
+# TODO: Consider adding a test case for a byte array parameter
 

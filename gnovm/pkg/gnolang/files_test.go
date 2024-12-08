@@ -33,19 +33,26 @@ func (nopReader) Read(p []byte) (int, error) { return 0, io.EOF }
 //	fix a specific test:
 //		go test -run TestFiles/'^bin1.gno' -short -v -update-golden-tests .
 func TestFiles(t *testing.T) {
+	t.Parallel()
+
 	rootDir, err := filepath.Abs("../../../")
 	require.NoError(t, err)
 
-	opts := &test.TestOptions{
-		RootDir: rootDir,
-		Output:  io.Discard,
-		Error:   io.Discard,
-		Sync:    *withSync,
+	newOpts := func() *test.TestOptions {
+		o := &test.TestOptions{
+			RootDir: rootDir,
+			Output:  io.Discard,
+			Error:   io.Discard,
+			Sync:    *withSync,
+		}
+		o.BaseStore, o.TestStore = test.Store(
+			rootDir, true,
+			nopReader{}, o.WriterForStore(), io.Discard,
+		)
+		return o
 	}
-	opts.BaseStore, opts.TestStore = test.Store(
-		rootDir, true,
-		nopReader{}, opts.WriterForStore(), io.Discard,
-	)
+	// sharedOpts is used for all "short" tests.
+	sharedOpts := newOpts()
 
 	dir := "../../tests/"
 	fsys := os.DirFS(dir)
@@ -59,7 +66,8 @@ func TestFiles(t *testing.T) {
 			return nil
 		}
 		subTestName := path[len("files/"):]
-		if strings.HasSuffix(path, "_long.gno") && testing.Short() {
+		isLong := strings.HasSuffix(path, "_long.gno")
+		if isLong && testing.Short() {
 			t.Run(subTestName, func(t *testing.T) {
 				t.Skip("skipping in -short")
 			})
@@ -73,6 +81,12 @@ func TestFiles(t *testing.T) {
 
 		var criticalError error
 		t.Run(subTestName, func(t *testing.T) {
+			opts := sharedOpts
+			if isLong {
+				// Long tests are run in parallel, and with their own store.
+				t.Parallel()
+				opts = newOpts()
+			}
 			changed, err := opts.RunFiletest(path, content)
 			if err != nil {
 				t.Fatal(err.Error())
@@ -94,16 +108,24 @@ func TestFiles(t *testing.T) {
 
 // TestStdlibs tests all the standard library packages.
 func TestStdlibs(t *testing.T) {
+	t.Parallel()
+
 	rootDir, err := filepath.Abs("../../../")
 	require.NoError(t, err)
 
-	var capture bytes.Buffer
-	out := io.Writer(&capture)
-	if testing.Verbose() {
-		out = os.Stdout
+	newOpts := func() (capture *bytes.Buffer, opts *test.TestOptions) {
+		var out io.Writer
+		if testing.Verbose() {
+			out = os.Stdout
+		} else {
+			capture = new(bytes.Buffer)
+			out = capture
+		}
+		opts = test.NewTestOptions(rootDir, nopReader{}, out, out)
+		opts.Verbose = true
+		return
 	}
-	opts := test.NewTestOptions(rootDir, nopReader{}, out, out)
-	opts.Verbose = true
+	sharedCapture, sharedOpts := newOpts()
 
 	dir := "../../stdlibs/"
 	fsys := os.DirFS(dir)
@@ -116,14 +138,33 @@ func TestStdlibs(t *testing.T) {
 		}
 
 		fp := filepath.Join(dir, path)
-		memPkg := gnolang.ReadMemPackage(fp, path)
+		memPkg := gnolang.MustReadMemPackage(fp, path)
 		t.Run(strings.ReplaceAll(memPkg.Path, "/", "-"), func(t *testing.T) {
-			if testing.Short() {
-				switch memPkg.Path {
-				case "bytes", "strconv", "regexp/syntax":
+			capture, opts := sharedCapture, sharedOpts
+			switch memPkg.Path {
+			// Excluded in short
+			case
+				"bufio",
+				"bytes",
+				"strconv":
+				if testing.Short() {
 					t.Skip("Skipped because of -short, and this stdlib is very long currently.")
 				}
+				fallthrough
+			// Run using separate store, as it's faster
+			case
+				"math/rand",
+				"regexp",
+				"regexp/syntax",
+				"sort":
+				t.Parallel()
+				capture, opts = newOpts()
 			}
+
+			if capture != nil {
+				capture.Reset()
+			}
+
 			err := test.Test(memPkg, "", opts)
 			if !testing.Verbose() {
 				t.Log(capture.String())
