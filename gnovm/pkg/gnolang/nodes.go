@@ -2153,6 +2153,7 @@ type ValuePather interface {
 // Utility
 
 func (x *BasicLitExpr) GetString() string {
+	// Matches string literal parsing in go/constant.MakeFromLiteral.
 	str, err := strconv.Unquote(x.Value)
 	if err != nil {
 		panic("error in parsing string literal: " + err.Error())
