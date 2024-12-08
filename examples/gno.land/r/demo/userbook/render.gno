@@ -11,7 +11,7 @@ import (
 )
 
 func Render(path string) string {
-	p := pager.NewPager(signupsTree, 2)
+	p := pager.NewPager(signupsTree, 30)
 	page := p.MustGetPageByPath(path)
 
 	out := "# Welcome to UserBook!\n\n"
