@@ -135,21 +135,21 @@ func (c *devCfg) RegisterFlags(fs *flag.FlagSet) {
 		&c.webHTML,
 		"web-html",
 		defaultDevOptions.webHTML,
-		"enable usafe web html",
+		"gnoweb: enable unsafe HTML parsing in markdown rendering",
 	)
 
 	fs.StringVar(
 		&c.webListenerAddr,
 		"web-listener",
 		defaultDevOptions.webListenerAddr,
-		"web server listener address",
+		"gnoweb: web server listener address",
 	)
 
 	fs.StringVar(
 		&c.webRemoteHelperAddr,
 		"web-help-remote",
 		defaultDevOptions.webRemoteHelperAddr,
-		"web server help page's remote addr (default to <node-rpc-listener>)",
+		"gnoweb: web server help page's remote addr (default to <node-rpc-listener>)",
 	)
 
 	fs.StringVar(
