@@ -44,9 +44,8 @@ services:
       - gnoweb
       - --bind=0.0.0.0:8888
       - --remote=traefik:26657
-      - --faucet-url=https://faucet-api.gno.land
       - --with-analytics
-      - --help-chainid=portal-loop
+      - --chainid=portal-loop
       - --help-remote=https://rpc.gno.land:443
     networks:
       - portal-loop
