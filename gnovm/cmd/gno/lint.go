@@ -140,7 +140,7 @@ func execLint(cfg *lintCfg, args []string, io commands.IO) error {
 					hasError = foundErr || hasError
 				}
 			} else if verbose {
-				io.ErrPrintfln("%s: module is draft, skipping type check\n", pkgPath)
+				io.ErrPrintfln("%s: module is draft, skipping type check", pkgPath)
 			}
 
 			tm := test.Machine(testStore, stdout, memPkg.Path)
@@ -196,7 +196,6 @@ func lintTypeCheck(io commands.IO, memPkg *gnovm.MemPackage, testStore gno.Store
 				Location:   err.Pos.String(),
 			})
 		default:
-			//nolint
 			return false, fmt.Errorf("unexpected error type: %T", err)
 		}
 	}
