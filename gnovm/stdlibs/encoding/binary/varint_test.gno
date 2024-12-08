@@ -200,12 +200,12 @@ func testOverflow(t *testing.T, buf []byte, x0 uint64, n0 int, err0 error) {
 	}
 
 	r := bytes.NewReader(buf)
-	len := r.Len()
+	ln := r.Len()
 	x, err := ReadUvarint(r)
 	if x != x0 || err != err0 {
 		t.Errorf("ReadUvarint(%v): got x = %d, err = %s; want %d, %s", buf, x, err, x0, err0)
 	}
-	if read := len - r.Len(); read > MaxVarintLen64 {
+	if read := ln - r.Len(); read > MaxVarintLen64 {
 		t.Errorf("ReadUvarint(%v): read more than MaxVarintLen64 bytes, got %d", buf, read)
 	}
 }
