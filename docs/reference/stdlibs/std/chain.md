@@ -28,6 +28,18 @@ std.AssertOriginCall()
 ```
 ---
 
+## ChainDomain
+```go
+func ChainDomain() string
+```
+Returns the chain domain. Currently only `gno.land` is supported.
+
+#### Usage
+```go
+domain := std.ChainDomain() // gno.land
+```
+---
+
 ## Emit
 ```go
 func Emit(typ string, attrs ...string)
