@@ -72,6 +72,7 @@ func PlaceBid(id int, amount int64, denom string) string {
 
 	// Retrieve the current deposit of the caller using Banker
 	banker := std.GetBanker(std.BankerTypeReadonly)
+	ufmt.Println("PrevRealm Coins:", banker.GetCoins(std.PrevRealm().Addr()))
 	existingCoins := banker.GetCoins(caller)
 	existingDeposit := existingCoins.AmountOf(denom)
 

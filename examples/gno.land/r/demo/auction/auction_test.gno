@@ -47,7 +47,6 @@ func TestPlaceBid(t *testing.T) {
 	// Switch to user2 as the bidder
 	std.TestSetOrigCaller(user2)                                       // Simulate user2 as the caller
 	std.TestSetOrigSend(std.Coins{{Denom: "ugnot", Amount: 200}}, nil) // Set user2's funds for the transaction
-
 	// Place a bid of 150 ugnots
 	bidAmount := int64(150)
 	denom := "ugnot"
@@ -62,26 +61,30 @@ func TestPlaceBid(t *testing.T) {
 }
 
 func TestEndAuction(t *testing.T) {
-	// Set user1 as the original caller and create the auction with both start and end times in the past
-	std.TestSetRealm(std.NewUserRealm(user1))
-	startTime := time.Now().Add(-2 * time.Hour) // Start time is 2 hours ago
-	endTime := time.Now().Add(1 * time.Hour)    // End time is 1 hour ago
-	CreateAuction("Test Auction", "This is a test auction", startTime.Unix(), endTime.Unix(), 100, "ugnot")
+	// Set user1 as the auction creator
+	std.TestSetOrigCaller(user1)
+	CreateAuction("Test Auction", "This is a test auction", time.Now().Add(-2*time.Hour).Unix(), time.Now().Add(1*time.Hour).Unix(), 100, "ugnot")
 
-	// Switch context to user2 to place a bid
+	// Place a bid with user2 before auction ends
 	std.TestSetOrigCaller(user2)
-	std.TestSetOrigSend(std.Coins{{Denom: "ugnot", Amount: 200}}, nil)
-	PlaceBid(0, 150, "ugnot")
+	std.TestIssueCoins(user2, std.Coins{{Denom: "ugnot", Amount: 200}})
+	std.TestSetOrigSend(std.Coins{{Denom: "ugnot", Amount: 150}}, nil)
 
-	// Reset the context to user1 before ending the auction
-	std.TestSetRealm(std.NewUserRealm(user1))
-	auction := auctionList[0]
-	auction.End = time.Now().Add(-1 * time.Hour) // Set the end time to 1 hour ago
-	// End the auction and check for successful completion
-	result := EndAuction(0)
+	// Place the bid while auction is active
+	result := PlaceBid(0, 150, "ugnot")
+	uassert.Equal(t, "Bid placed successfully", result)
+
+	// Simulate time progression after the bid
+	std.TestSkipHeights(2000) // Advance time to pass the auction's end time
+
+	// End the auction
+	std.TestSetOrigCaller(user1) // Set user1's realm
+	result = EndAuction(0)
 	uassert.Equal(t, "Auction ended successfully", result)
 
-	// Confirm that user2 is recorded as the highest bidder
-
-	uassert.Equal(t, user2, auction.Bids[len(auction.Bids)-1].Bidder)
+	// Verify the highest bidder
+	auction := auctionList[0]
+	highestBid := auction.Bids[len(auction.Bids)-1]
+	uassert.Equal(t, user2, highestBid.Bidder)
+	uassert.Equal(t, int64(150), highestBid.Amount.Amount)
 }
