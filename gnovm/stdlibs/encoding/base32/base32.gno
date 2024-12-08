@@ -195,7 +195,7 @@ func (enc *Encoding) AppendEncode(dst, src []byte) []byte {
 }
 
 // XXX: non-generic slices.Grow
-func slicesGrow(dst []byte, n int) {
+func slicesGrow(s []byte, n int) []byte {
 	if n -= cap(s) - len(s); n > 0 {
 		s = append(s[:cap(s)], make([]byte, n)...)[:len(s)]
 	}
