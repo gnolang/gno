@@ -8,7 +8,6 @@ package testing
 
 import (
 	"fmt"
-	"regexp"
 	"strings"
 	"unicode"
 )
@@ -16,11 +15,11 @@ import (
 type filterMatch interface {
 	// matches checks the name against the receiver's pattern strings using the
 	// given match function.
-	matches(name []string) (ok, partial bool)
+	matches(name []string, matchString func(pat, str string) (bool, error)) (ok, partial bool)
 
 	// verify checks that the receiver's pattern strings are valid filters by
 	// calling the given match function.
-	verify(name string) error
+	verify(name string, matchString func(pat, str string) (bool, error)) error
 }
 
 // simpleMatch matches a test name if all of the pattern strings match in
@@ -30,43 +29,43 @@ type simpleMatch []string
 // alternationMatch matches a test name if one of the alternations match.
 type alternationMatch []filterMatch
 
-func (m simpleMatch) matches(name []string) (ok, partial bool) {
+func (m simpleMatch) matches(name []string, matchString func(pat, str string) (bool, error)) (ok, partial bool) {
 	for i, s := range name {
 		if i >= len(m) {
 			break
 		}
-		if ok, _ := regexp.MatchString(m[i], s); !ok {
+		if ok, _ := matchString(m[i], s); !ok {
 			return false, false
 		}
 	}
 	return true, len(name) < len(m)
 }
 
-func (m simpleMatch) verify(name string) error {
+func (m simpleMatch) verify(name string, matchString func(pat, str string) (bool, error)) error {
 	for i, s := range m {
 		m[i] = rewrite(s)
 	}
 	// Verify filters before doing any processing.
 	for i, s := range m {
-		if _, err := regexp.MatchString(s, "non-empty"); err != nil {
+		if _, err := matchString(s, "non-empty"); err != nil {
 			return fmt.Errorf("element %d of %s (%q): %s", i, name, s, err)
 		}
 	}
 	return nil
 }
 
-func (m alternationMatch) matches(name []string) (ok, partial bool) {
+func (m alternationMatch) matches(name []string, matchString func(pat, str string) (bool, error)) (ok, partial bool) {
 	for _, m := range m {
-		if ok, partial = m.matches(name); ok {
+		if ok, partial = m.matches(name, matchString); ok {
 			return ok, partial
 		}
 	}
 	return false, false
 }
 
-func (m alternationMatch) verify(name string) error {
+func (m alternationMatch) verify(name string, matchString func(pat, str string) (bool, error)) error {
 	for i, m := range m {
-		if err := m.verify(name); err != nil {
+		if err := m.verify(name, matchString); err != nil {
 			return fmt.Errorf("alternation %d of %s", i, err)
 		}
 	}

@@ -70,3 +70,12 @@ func FileImports(filename string, src string) ([]*FileImport, *token.FileSet, er
 	}
 	return res, fs, nil
 }
+
+func FilePackageName(filename string, src string) (string, error) {
+	fs := token.NewFileSet()
+	f, err := parser.ParseFile(fs, filename, src, parser.PackageClauseOnly)
+	if err != nil {
+		return "", err
+	}
+	return f.Name.Name, nil
+}
