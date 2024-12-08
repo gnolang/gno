@@ -204,16 +204,14 @@ func (m *Machine) doOpEval() {
 			// and github.com/golang/go/issues/19921
 			panic("imaginaries are not supported")
 		case CHAR:
-			cstr, err := strconv.Unquote(x.Value)
+			// Matching character literal parsing in go/constant.MakeFromLiteral.
+			val := x.Value
+			rne, _, _, err := strconv.UnquoteChar(val[1:len(val)-1], '\'')
 			if err != nil {
 				panic("error in parsing character literal: " + err.Error())
 			}
-			runes := []rune(cstr)
-			if len(runes) != 1 {
-				panic(fmt.Sprintf("error in parsing character literal: 1 rune expected, but got %v (%s)", len(runes), cstr))
-			}
 			tv := TypedValue{T: UntypedRuneType}
-			tv.SetInt32(runes[0])
+			tv.SetInt32(rne)
 			m.PushValue(tv)
 		case STRING:
 			m.PushValue(TypedValue{
