@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"gno.land/p/demo/avl"
+	"gno.land/p/demo/seqid"
 	"gno.land/p/demo/ufmt"
 )
 
@@ -15,7 +16,11 @@ type Signup struct {
 	timestamp time.Time
 }
 
-var signupsTree = avl.NewTree()
+var (
+	signupsTree = avl.NewTree()
+	tracker     = avl.NewTree()
+	idCounter   seqid.ID
+)
 
 const signUpEvent = "SignUp"
 
@@ -28,19 +33,22 @@ func SignUp() string {
 	caller := std.PrevRealm().Addr()
 
 	// Check if the user is already signed up
-	if _, exists := signupsTree.Get(caller.String()); exists {
-		panic(caller + " is already signed up!")
+	if _, exists := tracker.Get(caller.String()); exists {
+		panic(caller.String() + " is already signed up!")
 	}
 
 	now := time.Now()
+
 	// Sign up the user
-	signupsTree.Set(caller.String(), &Signup{
-		std.PrevRealm().Addr(),
+	signupsTree.Set(idCounter.Next().String(), &Signup{
+		caller,
 		signupsTree.Size(),
 		now,
 	})
 
-	std.Emit(signUpEvent, "SignedUpAccount", caller.String())
+	tracker.Set(caller.String(), struct{}{})
+
+	std.Emit(signUpEvent, "account", caller.String())
 
 	return ufmt.Sprintf("%s added to userbook! Timestamp: %s", caller.String(), now.Format(time.RFC822Z))
 }
