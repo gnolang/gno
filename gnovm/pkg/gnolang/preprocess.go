@@ -3783,6 +3783,10 @@ func findUndefined(store Store, last BlockNode, x Expr) (un Name) {
 func findUndefined2SkipLocals(store Store, last BlockNode, x Expr, t Type) Name {
 	name := findUndefined2(store, last, x, t)
 
+	if name == "" {
+		return ""
+	}
+
 	existsLocal := func(name Name, bn BlockNode) bool {
 		curr := bn
 		for {
@@ -3806,18 +3810,16 @@ func findUndefined2SkipLocals(store Store, last BlockNode, x Expr, t Type) Name 
 		}
 	}
 
-	if name != "" {
-		pkg := packageOf(last)
+	pkg := packageOf(last)
 
-		if _, _, ok := pkg.FileSet.GetDeclForSafe(name); !ok {
-			return ""
-		}
+	if _, _, ok := pkg.FileSet.GetDeclForSafe(name); !ok {
+		return ""
+	}
 
-		isLocal := existsLocal(name, last)
+	isLocal := existsLocal(name, last)
 
-		if isLocal {
-			return ""
-		}
+	if isLocal {
+		return ""
 	}
 
 	return name
