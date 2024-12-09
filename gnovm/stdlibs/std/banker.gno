@@ -1,7 +1,6 @@
 package std
 
 import (
-	"regexp"
 	"strconv"
 	"strings"
 )
@@ -60,9 +59,6 @@ func (b BankerType) String() string {
 		panic("invalid BankerType: " + strconv.Itoa(int(b)))
 	}
 }
-
-// regexp for denom format
-var reDenom = regexp.MustCompile(`^[a-z][a-z0-9]{2,15}$`)
 
 //----------------------------------------
 // adapter for native banker
