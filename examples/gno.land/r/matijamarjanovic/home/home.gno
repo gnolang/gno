@@ -2,6 +2,7 @@ package home
 
 import (
         "std"
+
         "gno.land/p/demo/ufmt"
 )
 
@@ -79,7 +80,6 @@ func calculateRGB(red, green, blue int64) (int, int, int) {
 }
 
 func VoteRed() {
-
         ugnotAmount := std.GetOrigSend().AmountOf("ugnot")
 
         redVotes = redVotes + ugnotAmount/750
@@ -114,7 +114,6 @@ func CollectBalance() {
 }
 
 func Render(path string) string {
-
         out := ufmt.Sprintf("<div style='font-family: \"Trebuchet MS\", sans-serif;font-size: 5rem; color: %s;'>\n\n", currentColor)
         out += "# Matija's Homepage \n\n"
         out += "</div>\n\n"
