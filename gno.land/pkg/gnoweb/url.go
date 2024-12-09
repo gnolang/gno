@@ -98,7 +98,7 @@ var reRealmPath = regexp.MustCompile(`^` +
 	`(/(?:[a-zA-Z0-9_-]+)/` + // path kind
 	`[a-zA-Z][a-zA-Z0-9_-]*` + // First path segment
 	`(?:/[a-zA-Z][.a-zA-Z0-9_-]*)*/?)` + // Additional path segments
-	`([:$](?:.*))$`, // Remaining portions args, separate by `$` or `:`
+	`([:$](?:.*))?$`, // Remaining portions args, separate by `$` or `:`
 )
 
 func ParseGnoURL(u *url.URL) (*GnoURL, error) {

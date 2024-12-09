@@ -21,7 +21,17 @@ func TestParseGnoURL(t *testing.T) {
 			Expected: nil,
 			Err:      ErrURLMalformedPath,
 		},
-
+		{
+			Name:  "simple",
+			Input: "https://gno.land/r/simple/test",
+			Expected: &GnoURL{
+				Host:     "gno.land",
+				Path:     "/r/simple/test",
+				WebQuery: url.Values{},
+				Query:    url.Values{},
+			},
+			Err: nil,
+		},
 		{
 			Name:  "webquery + query",
 			Input: "https://gno.land/r/demo/foo$help&func=Bar&name=Baz",

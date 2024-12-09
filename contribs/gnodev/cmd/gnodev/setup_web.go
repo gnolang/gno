@@ -15,13 +15,13 @@ func setupGnoWebServer(logger *slog.Logger, cfg *devCfg, dnode *gnodev.Node) (ht
 
 	appcfg := gnoweb.NewDefaultAppConfig()
 	appcfg.UnsafeHTML = cfg.webHTML
-	appcfg.Remote = remote
+	appcfg.NodeRemote = remote
 	appcfg.ChainID = cfg.chainId
 	if cfg.webRemoteHelperAddr != "" {
 		appcfg.RemoteHelp = cfg.webRemoteHelperAddr
 	}
 
-	router, err := gnoweb.MakeRouterApp(logger, appcfg)
+	router, err := gnoweb.NewRouter(logger, appcfg)
 	if err != nil {
 		return nil, fmt.Errorf("unable to create router app: %w", err)
 	}
