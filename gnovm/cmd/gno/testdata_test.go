@@ -24,7 +24,6 @@ func Test_Scripts(t *testing.T) {
 		}
 
 		name := dir.Name()
-		t.Logf("testing: %s", name)
 		t.Run(name, func(t *testing.T) {
 			updateScripts, _ := strconv.ParseBool(os.Getenv("UPDATE_SCRIPTS"))
 			p := testscript.Params{
