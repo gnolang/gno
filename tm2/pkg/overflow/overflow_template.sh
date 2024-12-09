@@ -90,7 +90,7 @@ func Quotient${SIZE}(a, b int${SIZE}) (int${SIZE}, int${SIZE}, bool) {
 		return 0, 0, false
 	}
 	c := a / b
-	status := (c < 0) == ((a < 0) != (b < 0))
+	status := (c < 0) == ((a < 0) != (b < 0)) || (c == 0) // no sign check for 0 quotient
 	return c, a%b, status
 }
 "
