@@ -42,7 +42,7 @@ if r.IsUser() {...}
 ```
 
 ## ComposeDenom
-Composes a denomination string from the realm's pkg path and the provided denomination. e.g `/gno.land/r/demo/blog:ugnot`. This method should be used when interacting with the `Banker` interface.
+Composes a qualified denomination string from the realm's pkg path and the provided base denomination. e.g `/gno.land/r/demo/blog:ugnot`. This method should be used when interacting with the `Banker` interface.
 
 #### Parameters
 - `denom` **string** - denomination to compose with the realm's pkg path
@@ -51,3 +51,22 @@ Composes a denomination string from the realm's pkg path and the provided denomi
 ```go
 denom := r.ComposeDenom("ugnot")
 ```
+
+---
+
+## ComposeRealmDenom
+```go
+func ComposeRealmDenom(pkgPath, denom string) string
+```
+
+Composes a qualified denomination string from the realm's pkg path and the provided base denomination. e.g `/gno.land/r/demo/blog:ugnot`. This method should be used when interacting with the `Banker` interface. It can also be used as a method of the `Realm` object, see [Realm.Denom](realm.md#composedenom).
+
+#### Parameters
+- `pkgPath` **string** - package path of the realm
+- `denom` **string** - denomination to compose with the realm's pkg path
+
+#### Usage
+```go
+denom := std.ComposeRealmDenom("gno.land/r/demo/blog", "ugnot")
+```
+
