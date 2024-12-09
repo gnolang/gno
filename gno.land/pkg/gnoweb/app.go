@@ -81,7 +81,7 @@ func NewRouter(logger *slog.Logger, cfg *AppConfig) (http.Handler, error) {
 	var webConfig WebHandlerConfig
 
 	webConfig.RenderClient = webcli
-	webConfig.Formatter = newFormaterWithStyle(formatter, chromaStyle)
+	webConfig.Formatter = newFormatterWithStyle(formatter, chromaStyle)
 
 	// Static meta
 	webConfig.Meta.AssetsPath = cfg.AssetsPath
