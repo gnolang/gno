@@ -19,13 +19,13 @@ import (
 	"github.com/gnolang/gno/gno.land/pkg/sdk/vm" // for error types
 )
 
-const DefaultHost = "gno.land"
+const DefaultChainDomain = "gno.land"
 
 type StaticMetadata struct {
 	AssetsPath string
 	ChromaPath string
 	RemoteHelp string
-	ChainID    string
+	ChaindID   string
 	Analytics  bool
 }
 
@@ -232,10 +232,11 @@ func (h *WebHandler) renderRealmHelp(w io.Writer, gnourl *GnoURL) (status int, e
 		SelectedFunc: selFn,
 		SelectedArgs: selArgs,
 		RealmName:    realmName,
-		ChainId:      h.static.ChainID,
-		PkgPath:      filepath.Join(DefaultHost, gnourl.Path),
-		Remote:       h.static.RemoteHelp,
-		Functions:    fsigs,
+		ChainId:      h.static.ChaindID,
+		// TODO: get chain domain and use that.
+		PkgPath:   filepath.Join(DefaultChainDomain, gnourl.Path),
+		Remote:    h.static.RemoteHelp,
+		Functions: fsigs,
 	})
 	if err != nil {
 		h.logger.Error("unable to render helper", "err", err)
