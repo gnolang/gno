@@ -1,3 +1,4 @@
+// Package mdui copied from https://github.com/gnolang/gno/pull/2976 untill it's merged
 package mdui
 
 import (
