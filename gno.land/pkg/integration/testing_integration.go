@@ -19,7 +19,9 @@ import (
 	"github.com/gnolang/gno/gno.land/pkg/log"
 	"github.com/gnolang/gno/gno.land/pkg/sdk/vm"
 	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
+	"github.com/gnolang/gno/gnovm/pkg/gnolang"
 	"github.com/gnolang/gno/gnovm/pkg/gnomod"
+	"github.com/gnolang/gno/gnovm/pkg/packages"
 	"github.com/gnolang/gno/tm2/pkg/bft/node"
 	bft "github.com/gnolang/gno/tm2/pkg/bft/types"
 	"github.com/gnolang/gno/tm2/pkg/commands"
@@ -134,7 +136,8 @@ func setupGnolandTestScript(t *testing.T, txtarDir string) testscript.Params {
 			// This genesis will be use when node is started.
 			genesis := &gnoland.GnoGenesisState{
 				Balances: LoadDefaultGenesisBalanceFile(t, gnoRootDir),
-				Txs:      []std.Tx{},
+				Params:   LoadDefaultGenesisParamFile(t, gnoRootDir),
+				Txs:      []gnoland.TxWithMetadata{},
 			}
 
 			// test1 must be created outside of the loop below because it is already included in genesis so
@@ -660,13 +663,13 @@ func (pl *pkgsLoader) SetPatch(replace, with string) {
 	pl.patchs[replace] = with
 }
 
-func (pl *pkgsLoader) LoadPackages(creator bft.Address, fee std.Fee, deposit std.Coins) ([]std.Tx, error) {
+func (pl *pkgsLoader) LoadPackages(creator bft.Address, fee std.Fee, deposit std.Coins) ([]gnoland.TxWithMetadata, error) {
 	pkgslist, err := pl.List().Sort() // sorts packages by their dependencies.
 	if err != nil {
 		return nil, fmt.Errorf("unable to sort packages: %w", err)
 	}
 
-	txs := make([]std.Tx, len(pkgslist))
+	txs := make([]gnoland.TxWithMetadata, len(pkgslist))
 	for i, pkg := range pkgslist {
 		tx, err := gnoland.LoadPackage(pkg, creator, fee, deposit)
 		if err != nil {
@@ -693,7 +696,9 @@ func (pl *pkgsLoader) LoadPackages(creator bft.Address, fee std.Fee, deposit std
 			}
 		}
 
-		txs[i] = tx
+		txs[i] = gnoland.TxWithMetadata{
+			Tx: tx,
+		}
 	}
 
 	return txs, nil
@@ -740,8 +745,20 @@ func (pl *pkgsLoader) LoadPackage(modroot string, path, name string) error {
 			// Override package info with mod infos
 			currentPkg.Name = gm.Module.Mod.Path
 			currentPkg.Draft = gm.Draft
-			for _, req := range gm.Require {
-				currentPkg.Requires = append(currentPkg.Requires, req.Mod.Path)
+
+			pkg, err := gnolang.ReadMemPackage(currentPkg.Dir, currentPkg.Name)
+			if err != nil {
+				return fmt.Errorf("unable to read package at %q: %w", currentPkg.Dir, err)
+			}
+			imports, err := packages.Imports(pkg)
+			if err != nil {
+				return fmt.Errorf("unable to load package imports in %q: %w", currentPkg.Dir, err)
+			}
+			for _, imp := range imports {
+				if imp == currentPkg.Name || gnolang.IsStdlib(imp) {
+					continue
+				}
+				currentPkg.Imports = append(currentPkg.Imports, imp)
 			}
 		}
 
@@ -755,7 +772,7 @@ func (pl *pkgsLoader) LoadPackage(modroot string, path, name string) error {
 		pl.add(currentPkg)
 
 		// Add requirements to the queue
-		for _, pkgPath := range currentPkg.Requires {
+		for _, pkgPath := range currentPkg.Imports {
 			fullPath := filepath.Join(modroot, pkgPath)
 			queue = append(queue, gnomod.Pkg{Dir: fullPath})
 		}

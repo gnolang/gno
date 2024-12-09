@@ -25,7 +25,6 @@ func newRootCmd(io commands.IO) *commands.Command {
 
 	cmd.AddSubCommands(
 		newStartCmd(io),
-		newGenesisCmd(io),
 		newSecretsCmd(io),
 		newConfigCmd(io),
 	)

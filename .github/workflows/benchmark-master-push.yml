@@ -31,12 +31,15 @@ jobs:
 
       - uses: actions/setup-go@v5
         with:
-          go-version: "1.22.x"
+          go-version-file: go.mod
 
       - name: Run benchmark
+        # add more benchmarks by adding additional lines for different packages;
+        # or modify the -bench regexp.
         run: |
-          go test -benchmem -bench=. ./... -run=^$ \
-          -cpu 1,2 -timeout 50m | tee benchmarks.txt
+          set -xeuo pipefail && (
+            go test ./gnovm/pkg/gnolang -bench='BenchmarkBenchdata' -benchmem -run='^$' -v -cpu=1,2
+          ) | tee benchmarks.txt
 
       - name: Download previous benchmark data
         uses: actions/cache@v4

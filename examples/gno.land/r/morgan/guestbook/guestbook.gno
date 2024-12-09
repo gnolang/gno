@@ -83,7 +83,7 @@ func validateMessage(msg string) string {
 func Render(maxID string) string {
 	var bld strings.Builder
 
-	bld.WriteString("# Guestbook 📝\n\n[Come sign the guestbook!](./guestbook?help&__func=Sign)\n\n---\n\n")
+	bld.WriteString("# Guestbook 📝\n\n[Come sign the guestbook!](./guestbook$help&func=Sign)\n\n---\n\n")
 
 	var maxIDBinary string
 	if maxID != "" {

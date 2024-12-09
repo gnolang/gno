@@ -288,6 +288,9 @@ func checkAssignableTo(xt, dt Type, autoNative bool) error {
 	}
 	// case0
 	if xt == nil { // see test/files/types/eql_0f18
+		if dt == nil || dt.Kind() == InterfaceKind {
+			return nil
+		}
 		if !maybeNil(dt) {
 			panic(fmt.Sprintf("invalid operation, nil can not be compared to %v", dt))
 		}
@@ -837,6 +840,7 @@ func (x *RangeStmt) AssertCompatible(store Store, last BlockNode) {
 
 func (x *AssignStmt) AssertCompatible(store Store, last BlockNode) {
 	if x.Op == ASSIGN || x.Op == DEFINE {
+		assertValidAssignRhs(store, last, x)
 		if len(x.Lhs) > len(x.Rhs) {
 			if len(x.Rhs) != 1 {
 				panic(fmt.Sprintf("assignment mismatch: %d variables but %d values", len(x.Lhs), len(x.Rhs)))
@@ -994,6 +998,48 @@ func assertValidAssignLhs(store Store, last BlockNode, lx Expr) {
 	}
 	if shouldPanic {
 		panic(fmt.Sprintf("cannot assign to %v", lx))
+	}
+}
+
+func assertValidAssignRhs(store Store, last BlockNode, n Node) {
+	var exps []Expr
+	switch x := n.(type) {
+	case *ValueDecl:
+		exps = x.Values
+	case *AssignStmt:
+		exps = x.Rhs
+	default:
+		panic(fmt.Sprintf("unexpected node type %T", n))
+	}
+
+	for _, exp := range exps {
+		tt := evalStaticTypeOfRaw(store, last, exp)
+		if tt == nil {
+			switch x := n.(type) {
+			case *ValueDecl:
+				if x.Type != nil {
+					continue
+				}
+				panic("use of untyped nil in variable declaration")
+			case *AssignStmt:
+				if x.Op != DEFINE {
+					continue
+				}
+				panic("use of untyped nil in assignment")
+			}
+		}
+		if _, ok := tt.(*TypeType); ok {
+			tt = evalStaticType(store, last, exp)
+			panic(fmt.Sprintf("%s (type) is not an expression", tt.String()))
+		}
+
+		// Ensures that function used in ValueDecl or AssignStmt must return at least 1 value.
+		if cx, ok := exp.(*CallExpr); ok {
+			tType, ok := tt.(*tupleType)
+			if ok && len(tType.Elts) == 0 {
+				panic(fmt.Sprintf("%s (no value) used as value", cx.Func.String()))
+			}
+		}
 	}
 }
 

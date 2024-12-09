@@ -57,7 +57,7 @@ func init() {
 			`Hey there! I’m Stefan, a student of Computer Science. I’m all about exploring and adventure — whether it’s diving into the latest tech or discovering a new city, I’m always up for the challenge!`,
 
 			`### Contributions`,
-			`I'm just getting started, but you can follow my journey through Gno.land right [here](https://github.com/gnolang/hackerspace/issues/94) 🔗`,
+			`I'm just getting started, but you can follow my journey through gno.land right [here](https://github.com/gnolang/hackerspace/issues/94) 🔗`,
 		},
 	}
 
@@ -282,7 +282,7 @@ func renderSponsors() string {
 
 		out += ufmt.Sprintf(
 			`<li style="padding: %s; %s text-align: left;">
-				<strong style="padding-left: 5px;">%d. %s</strong> 
+				<strong style="padding-left: 5px;">%d. %s</strong>
 				<span style="float: right; padding-right: 5px;">%s</span>
 			</li>`,
 			padding, border, i+1, formatAddress(sponsor.Address.String()), sponsor.Amount.String(),
