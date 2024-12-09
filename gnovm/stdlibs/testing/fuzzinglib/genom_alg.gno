@@ -17,20 +17,20 @@ func randomASCIIChar() rune {
 	return rune(r)
 }
 
-// func main() {
-// 	seed1 := Seed{Gen: 3, IsUsed: false, Content: "apple", Result: nil}
+func main() {
+	seed1 := Seed{Gen: 3, IsUsed: false, Content: "apple", Result: nil}
 
-// 	seed2 := Seed{Gen: 3, IsUsed: false, Content: "banana", Result: nil}
+	seed2 := Seed{Gen: 3, IsUsed: false, Content: "banana", Result: nil}
 
-// 	seeds := evolve([]Seed{seed1, seed2})
+	seeds := evolve([]Seed{seed1, seed2})
 
-// 	o_seeds := evolve([]Seed{seed1})
+	o_seeds := evolve([]Seed{seed1})
 
-// 	println(seeds)
-// 	println(len(seeds))
-// 	println(o_seeds)
-// 	println(len(o_seeds))
-// }
+	println(seeds)
+	println(len(seeds))
+	println(o_seeds)
+	println(len(o_seeds))
+}
 
 // Seed의 Content를 랜덤으로 변형
 func Mutate(seed Seed) Seed {
@@ -142,12 +142,16 @@ func evolve(seeds []Seed) []Seed {
 	if len(seeds) == 1 {
 		// seed가 하나인 경우에도 evlove가능하게 디자인
 		for i := 0; i < int(target_count); i++ {
-			if testing.UniformRandomBool(0.65) {
-				new_generation = append(new_generation, Mutate(seeds[0]))
+			// 교배가 무의미하므로, "반드시" 둘 중 하나의 변형이 일어나야 함.
+			var new_ind Seed
+			if testing.UniformRandomBool(0.6) {
+				new_ind = Mutate(seeds[0])
+			} else {
+				new_ind = InsertDelete(seeds[0], 0.3)
 			}
-			if testing.UniformRandomBool(0.35) {
-				new_generation = append(new_generation, InsertDelete(seeds[0], 0.3))
-			}
+			new_ind.Gen = seeds[0].Gen + 1
+			new_generation = append(new_generation, new_ind)
+
 		}
 		return new_generation
 	}
@@ -159,7 +163,6 @@ func evolve(seeds []Seed) []Seed {
 	p2 := seeds[1]
 	// children 생성합니다. (120/(gen**2))
 	for i := 0; i < int(loop_count); i++ {
-
 		c1, c2 := TwoPointCrossover(p1, p2)
 		new_generation = append(new_generation, c1, c2)
 	}
