@@ -1,15 +1,19 @@
 package main
 
-import "testing"
+import (
+	"strings"
+	"testing"
+)
 
 func TestLintApp(t *testing.T) {
+	const longError = `` + "\n"
 	tc := []testMainCase{
 		{
 			args:        []string{"lint"},
 			errShouldBe: "flag: help requested",
 		}, {
 			args:                []string{"lint", "../../tests/integ/run_main/"},
-			stderrShouldContain: "./../../tests/integ/run_main: gno.mod file not found in current or any parent directory (code=1).",
+			stderrShouldContain: "./../../tests/integ/run_main: gno.mod file not found in current or any parent directory (code=1)",
 			errShouldBe:         "exit code: 1",
 		}, {
 			args:                []string{"lint", "../../tests/integ/undefined_variable_test/undefined_variables_test.gno"},
@@ -17,16 +21,24 @@ func TestLintApp(t *testing.T) {
 			errShouldBe:         "exit code: 1",
 		}, {
 			args:                []string{"lint", "../../tests/integ/package_not_declared/main.gno"},
-			stderrShouldContain: "main.gno:4:2: name fmt not declared (code=2).",
+			stderrShouldContain: "main.gno:4:2: name fmt not declared (code=2)",
 			errShouldBe:         "exit code: 1",
 		}, {
 			args:                []string{"lint", "../../tests/integ/several-lint-errors/main.gno"},
-			stderrShouldContain: "../../tests/integ/several-lint-errors/main.gno:5:5: expected ';', found example (code=2).\n../../tests/integ/several-lint-errors/main.gno:6",
+			stderrShouldContain: "../../tests/integ/several-lint-errors/main.gno:5:5: expected ';', found example (code=2)\n../../tests/integ/several-lint-errors/main.gno:6",
 			errShouldBe:         "exit code: 1",
 		}, {
-			args:                []string{"lint", "../../tests/integ/several-files-multiple-errors/main.gno"},
-			stderrShouldContain: "../../tests/integ/several-files-multiple-errors/file2.gno:3:5: expected 'IDENT', found '{' (code=2).\n../../tests/integ/several-files-multiple-errors/file2.gno:5:1: expected type, found '}' (code=2).\n../../tests/integ/several-files-multiple-errors/main.gno:5:5: expected ';', found example (code=2).\n../../tests/integ/several-files-multiple-errors/main.gno:6:2: expected '}', found 'EOF' (code=2).\n",
-			errShouldBe:         "exit code: 1",
+			args: []string{"lint", "../../tests/integ/several-files-multiple-errors/main.gno"},
+			stderrShouldContain: func() string {
+				lines := []string{
+					"../../tests/integ/several-files-multiple-errors/file2.gno:3:5: expected 'IDENT', found '{' (code=2)",
+					"../../tests/integ/several-files-multiple-errors/file2.gno:5:1: expected type, found '}' (code=2)",
+					"../../tests/integ/several-files-multiple-errors/main.gno:5:5: expected ';', found example (code=2)",
+					"../../tests/integ/several-files-multiple-errors/main.gno:6:2: expected '}', found 'EOF' (code=2)",
+				}
+				return strings.Join(lines, "\n") + "\n"
+			}(),
+			errShouldBe: "exit code: 1",
 		}, {
 			args: []string{"lint", "../../tests/integ/minimalist_gnomod/"},
 			// TODO: raise an error because there is a gno.mod, but no .gno files
@@ -39,7 +51,7 @@ func TestLintApp(t *testing.T) {
 			errShouldBe:         "exit code: 1",
 		}, {
 			args:                []string{"lint", "../../tests/integ/typecheck_missing_return/"},
-			stderrShouldContain: "../../tests/integ/typecheck_missing_return/main.gno:5:1: missing return (code=4).",
+			stderrShouldContain: "../../tests/integ/typecheck_missing_return/main.gno:5:1: missing return (code=4)",
 			errShouldBe:         "exit code: 1",
 		},
 

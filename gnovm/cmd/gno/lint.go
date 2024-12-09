@@ -74,7 +74,7 @@ type lintIssue struct {
 
 func (i lintIssue) String() string {
 	// TODO: consider crafting a doc URL based on Code.
-	return fmt.Sprintf("%s: %s (code=%d).", i.Location, i.Msg, i.Code)
+	return fmt.Sprintf("%s: %s (code=%d)", i.Location, i.Msg, i.Code)
 }
 
 func execLint(cfg *lintCfg, args []string, io commands.IO) error {
@@ -120,29 +120,34 @@ func execLint(cfg *lintCfg, args []string, io commands.IO) error {
 			hasError = true
 		}
 
-		// Handle runtime errors
-		hasError = catchRuntimeError(pkgPath, io.Err(), func() {
-			stdout, stdin, stderr := io.Out(), io.In(), io.Err()
-			_, testStore := test.Store(
-				rootDir, false,
-				stdin, stdout, stderr,
-			)
+		stdout, stdin, stderr := io.Out(), io.In(), io.Err()
+		_, testStore := test.Store(
+			rootDir, false,
+			stdin, stdout, stderr,
+		)
 
-			memPkg := gno.MustReadMemPackage(pkgPath, pkgPath)
+		memPkg, err := gno.ReadMemPackage(pkgPath, pkgPath)
+		if err != nil {
+			io.ErrPrintln(issueFromError(pkgPath, err).String())
+			hasError = true
+			continue
+		}
 
-			// Run type checking
-			if gmFile == nil || !gmFile.Draft {
-				foundErr, err := lintTypeCheck(io, memPkg, testStore)
-				if err != nil {
-					io.ErrPrintln(err)
-					hasError = true
-				} else {
-					hasError = foundErr || hasError
-				}
-			} else if verbose {
-				io.ErrPrintfln("%s: module is draft, skipping type check", pkgPath)
+		// Run type checking
+		if gmFile == nil || !gmFile.Draft {
+			foundErr, err := lintTypeCheck(io, memPkg, testStore)
+			if err != nil {
+				io.ErrPrintln(err)
+				hasError = true
+			} else if foundErr {
+				hasError = true
 			}
+		} else if verbose {
+			io.ErrPrintfln("%s: module is draft, skipping type check", pkgPath)
+		}
 
+		// Handle runtime errors
+		hasRuntimeErr := catchRuntimeError(pkgPath, io.Err(), func() {
 			tm := test.Machine(testStore, stdout, memPkg.Path)
 			defer tm.Release()
 
@@ -153,7 +158,10 @@ func execLint(cfg *lintCfg, args []string, io commands.IO) error {
 			testFiles := lintTestFiles(memPkg)
 
 			tm.RunFiles(testFiles.Files...)
-		}) || hasError
+		})
+		if hasRuntimeErr {
+			hasError = true
+		}
 	}
 
 	if hasError {
@@ -256,21 +264,21 @@ func catchRuntimeError(pkgPath string, stderr io.WriteCloser, action func()) (ha
 		switch verr := r.(type) {
 		case *gno.PreprocessError:
 			err := verr.Unwrap()
-			fmt.Fprint(stderr, issueFromError(pkgPath, err).String()+"\n")
+			fmt.Fprintln(stderr, issueFromError(pkgPath, err).String())
 		case error:
 			errors := multierr.Errors(verr)
 			for _, err := range errors {
 				errList, ok := err.(scanner.ErrorList)
 				if ok {
 					for _, errorInList := range errList {
-						fmt.Fprint(stderr, issueFromError(pkgPath, errorInList).String()+"\n")
+						fmt.Fprintln(stderr, issueFromError(pkgPath, errorInList).String())
 					}
 				} else {
-					fmt.Fprint(stderr, issueFromError(pkgPath, err).String()+"\n")
+					fmt.Fprintln(stderr, issueFromError(pkgPath, err).String())
 				}
 			}
 		case string:
-			fmt.Fprint(stderr, issueFromError(pkgPath, errors.New(verr)).String()+"\n")
+			fmt.Fprintln(stderr, issueFromError(pkgPath, errors.New(verr)).String())
 		default:
 			panic(r)
 		}
