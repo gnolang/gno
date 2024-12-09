@@ -2400,9 +2400,9 @@ func defineOrDecl(
 	tvs := make([]TypedValue, numNames)
 
 	if numVals == 1 && numNames > 1 {
-		parseMultipleAssignFromOneExpr(sts, tvs, store, bn, n, nameExprs, typeExpr, valueExprs[0])
+		parseMultipleAssignFromOneExpr(store, bn, n, sts, tvs, nameExprs, typeExpr, valueExprs[0])
 	} else {
-		parseAssignFromExprList(sts, tvs, store, bn, n, isConst, nameExprs, typeExpr, valueExprs)
+		parseAssignFromExprList(store, bn, n, sts, tvs, isConst, nameExprs, typeExpr, valueExprs)
 	}
 
 	node := skipFile(bn)
@@ -2421,11 +2421,11 @@ func defineOrDecl(
 // parseAssignFromExprList parses assignment to multiple variables from a list of expressions.
 // This function will alter the value of sts, tvs.
 func parseAssignFromExprList(
-	sts []Type,
-	tvs []TypedValue,
 	store Store,
 	bn BlockNode,
 	n Node,
+	sts []Type,
+	tvs []TypedValue,
 	isConst bool,
 	nameExprs []NameExpr,
 	typeExpr Expr,
@@ -2508,11 +2508,11 @@ func parseAssignFromExprList(
 // - a, b := n.(T)
 // - a, b := n[i], where n is a map
 func parseMultipleAssignFromOneExpr(
-	sts []Type,
-	tvs []TypedValue,
 	store Store,
 	bn BlockNode,
 	n Node,
+	sts []Type,
+	tvs []TypedValue,
 	nameExprs []NameExpr,
 	typeExpr Expr,
 	valueExpr Expr,
