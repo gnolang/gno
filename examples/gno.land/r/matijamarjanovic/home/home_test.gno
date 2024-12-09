@@ -3,6 +3,9 @@ package home
 import (
         "std"
         "testing"
+
+        "gno.land/p/demo/uassert"
+        "gno.land/p/demo/urequire"
 )
 
 func TestUpdatePFP(t *testing.T) {
@@ -12,83 +15,56 @@ func TestUpdatePFP(t *testing.T) {
 
         UpdatePFP("https://example.com/pic.png", "New Caption")
 
-        if pfp != "https://example.com/pic.png" {
-                t.Fatalf("expected pfp to be https://example.com/pic.png, got %s", pfp)
-        }
-
-        if pfpCaption != "New Caption" {
-                t.Fatalf("expected caption to be 'New Caption', got %s", pfpCaption)
-        }
+        urequire.Equal(t, pfp, "https://example.com/pic.png", "Profile picture URL should be updated")
+        urequire.Equal(t, pfpCaption, "New Caption", "Profile picture caption should be updated")
 }
 
 func TestUpdateAboutMe(t *testing.T) {
         std.TestSetOrigCaller(std.Address("g1ej0qca5ptsw9kfr64ey8jvfy9eacga6mpj2z0y"))
-
         abtMe = ""
 
         UpdateAboutMe("This is my new bio.")
 
-        if abtMe != "This is my new bio." {
-                t.Fatalf("expected About Me to be updated, got %s", abtMe)
-        }
+        urequire.Equal(t, abtMe, "This is my new bio.", "About Me should be updated")
 }
 
-func TestVoteRed(t *testing.T) {
-        redVotes, blueVotes, greenVotes = 0, 0, 0
+func TestVoteModern(t *testing.T) {
+        modernVotes, classicVotes, minimalVotes = 0, 0, 0
 
         coinsSent := std.NewCoins(std.NewCoin("ugnot", 75000000))
         coinsSpent := std.NewCoins(std.NewCoin("ugnot", 1))
 
         std.TestSetOrigSend(coinsSent, coinsSpent)
-        VoteRed()
+        VoteModern()
 
-        if redVotes != 75000000/750 {
-                t.Fatalf("expected redVotes to be %d, got %d", 75000000/750, redVotes)
-        }
-
-        red, _, _ := calculateRGB(redVotes, greenVotes, blueVotes)
-        if red != 255 {
-                t.Fatalf("expected red value to be 255, got %d", red)
-        }
+        uassert.Equal(t, modernVotes, 75000000/1000000, "Modern votes should be calculated correctly")
+        uassert.Equal(t, currentTheme, "modern", "Theme should be updated to modern")
 }
 
-func TestVoteBlue(t *testing.T) {
-        redVotes, blueVotes, greenVotes = 0, 0, 0
+func TestVoteClassic(t *testing.T) {
+        modernVotes, classicVotes, minimalVotes = 0, 0, 0
 
         coinsSent := std.NewCoins(std.NewCoin("ugnot", 75000000))
         coinsSpent := std.NewCoins(std.NewCoin("ugnot", 1))
 
         std.TestSetOrigSend(coinsSent, coinsSpent)
-        VoteBlue()
+        VoteClassic()
 
-        if blueVotes != 75000000/750 {
-                t.Fatalf("expected blueVotes to be %d, got %d", 75000000/750, blueVotes)
-        }
-
-        _, _, blue := calculateRGB(redVotes, greenVotes, blueVotes)
-        if blue != 255 {
-                t.Fatalf("expected blue value to be 255, got %d", blue)
-        }
+        uassert.Equal(t, classicVotes, 75000000/1000000, "Classic votes should be calculated correctly")
+        uassert.Equal(t, currentTheme, "classic", "Theme should be updated to classic")
 }
 
-func TestVoteGreen(t *testing.T) {
-        redVotes, greenVotes, greenVotes = 0, 0, 0
+func TestVoteMinimal(t *testing.T) {
+        modernVotes, classicVotes, minimalVotes = 0, 0, 0
 
         coinsSent := std.NewCoins(std.NewCoin("ugnot", 75000000))
         coinsSpent := std.NewCoins(std.NewCoin("ugnot", 1))
 
         std.TestSetOrigSend(coinsSent, coinsSpent)
-        VoteGreen()
+        VoteMinimal()
 
-        if greenVotes != 75000000/750 {
-                t.Fatalf("expected greenVotes to be %d, got %d", 75000000/750, greenVotes)
-        }
-
-        // Verify current color calculation
-        _, green, _ := calculateRGB(redVotes, greenVotes, greenVotes)
-        if green != 255 {
-                t.Fatalf("expected green value to be 255, got %d", green)
-        }
+        uassert.Equal(t, minimalVotes, 75000000/1000000, "Minimal votes should be calculated correctly")
+        uassert.Equal(t, currentTheme, "minimal", "Theme should be updated to minimal")
 }
 
 func TestRender(t *testing.T) {
@@ -97,14 +73,10 @@ func TestRender(t *testing.T) {
 
         out := Render("")
 
-        if out == "" {
-                t.Fatalf("Render output is empty")
-        }
+        urequire.NotEqual(t, out, "", "Render output should not be empty")
 
         expectedString := "<div style='font-family: \"Trebuchet MS\", sans-serif;font-size: 5rem;"
-        if !contains(out, expectedString) {
-                t.Fatalf("expected output to contain %s, got %s", expectedString, out)
-        }
+        uassert.True(t, contains(out, expectedString), "Render output should contain expected string")
 }
 
 func TestUpdateBlueLink(t *testing.T) {
