@@ -86,7 +86,7 @@ func (h *WebHandler) Get(w http.ResponseWriter, r *http.Request) {
 	defer func() {
 		h.logger.Debug("request ended",
 			"url", r.URL.String(),
-			"took", time.Since(start).String())
+			"elapsed", time.Since(start).String())
 	}()
 
 	var indexData components.IndexData
