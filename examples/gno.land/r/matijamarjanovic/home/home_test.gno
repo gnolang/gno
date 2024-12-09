@@ -2,9 +2,8 @@ package home
 
 import (
         "std"
-        "testing"
-
         "strings"
+        "testing"
 
         "gno.land/p/demo/uassert"
         "gno.land/p/demo/urequire"
@@ -82,15 +81,54 @@ func TestRender(t *testing.T) {
         // Reset the state to known values
         modernVotes, classicVotes, minimalVotes = 0, 0, 0
         currentTheme = "classic"
+        pfp = "https://example.com/pic.png"
+        pfpCaption = "Test Caption"
+        abtMe = "Test About Me"
 
         out := Render("")
         urequire.NotEqual(t, out, "", "Render output should not be empty")
 
-        // Check if the output contains the expected theme-specific content
-        expectedContent := "✨ Welcome to Matija's Homepage ✨"
-        uassert.True(t, contains(out, expectedContent), "Render output should contain welcome message")
+        // Test classic theme specific content
+        uassert.True(t, strings.Contains(out, "✨ Welcome to Matija's Homepage ✨"), "Classic theme should have correct header")
+        uassert.True(t, strings.Contains(out, pfp), "Should contain profile picture URL")
+        uassert.True(t, strings.Contains(out, pfpCaption), "Should contain profile picture caption")
+        uassert.True(t, strings.Contains(out, "About me"), "Should contain About me section")
+        uassert.True(t, strings.Contains(out, abtMe), "Should contain about me content")
+        uassert.True(t, strings.Contains(out, "Theme Customization"), "Should contain theme customization section")
+        uassert.True(t, strings.Contains(out, "Connect With Me"), "Should contain connect section")
 }
 
-func contains(s, substr string) bool {
-        return len(s) >= len(substr) && strings.Contains(s, substr)
+func TestRenderModernTheme(t *testing.T) {
+        setupTest()
+        modernVotes, classicVotes, minimalVotes = 100, 0, 0
+        currentTheme = "modern"
+        updateCurrentTheme()
+
+        out := Render("")
+        uassert.True(t, strings.Contains(out, "🚀 Matija's Space"), "Modern theme should have correct header")
+}
+
+func TestRenderMinimalTheme(t *testing.T) {
+        setupTest()
+        modernVotes, classicVotes, minimalVotes = 0, 0, 100
+        currentTheme = "minimal"
+        updateCurrentTheme()
+
+        out := Render("")
+        uassert.True(t, strings.Contains(out, "Matija Marjanovic"), "Minimal theme should have correct header")
+}
+
+func TestUpdateLinks(t *testing.T) {
+        setupTest()
+
+        newLink := "https://example.com/vote"
+
+        UpdateModernLink(newLink)
+        urequire.Equal(t, modernLink, newLink, "Modern link should be updated")
+
+        UpdateClassicLink(newLink)
+        urequire.Equal(t, classicLink, newLink, "Classic link should be updated")
+
+        UpdateMinimalLink(newLink)
+        urequire.Equal(t, minimalLink, newLink, "Minimal link should be updated")
 }
