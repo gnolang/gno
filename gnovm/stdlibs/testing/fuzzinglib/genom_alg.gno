@@ -17,20 +17,20 @@ func randomASCIIChar() rune {
 	return rune(r)
 }
 
-func main() {
-	seed1 := Seed{Gen: 3, IsUsed: false, Content: "apple", Result: nil}
+// func main() {
+// 	seed1 := Seed{Gen: 3, IsUsed: false, Content: "apple", Result: nil}
 
-	seed2 := Seed{Gen: 3, IsUsed: false, Content: "banana", Result: nil}
+// 	seed2 := Seed{Gen: 3, IsUsed: false, Content: "banana", Result: nil}
 
-	seeds := evolve([]Seed{seed1, seed2})
+// 	seeds := evolve([]Seed{seed1, seed2})
 
-	o_seeds := evolve([]Seed{seed1})
+// 	o_seeds := evolve([]Seed{seed1})
 
-	println(seeds)
-	println(len(seeds))
-	println(o_seeds)
-	println(len(o_seeds))
-}
+// 	println(seeds)
+// 	println(len(seeds))
+// 	println(o_seeds)
+// 	println(len(o_seeds))
+// }
 
 // Seed의 Content를 랜덤으로 변형
 func Mutate(seed Seed) Seed {
