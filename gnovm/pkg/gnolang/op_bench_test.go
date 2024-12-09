@@ -3,7 +3,7 @@ package gnolang
 import (
 	"testing"
 
-	"github.com/gnolang/overflow"
+	"github.com/gnolang/gno/tm2/pkg/overflow"
 )
 
 func BenchmarkOpAdd(b *testing.B) {

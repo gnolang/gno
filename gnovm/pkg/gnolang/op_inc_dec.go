@@ -5,7 +5,7 @@ import (
 	"math/big"
 
 	"github.com/cockroachdb/apd/v3"
-	"github.com/gnolang/overflow"
+	"github.com/gnolang/gno/tm2/pkg/overflow"
 )
 
 func (m *Machine) doOpInc() {
