@@ -150,7 +150,7 @@ func execWeb(cfg *webCfg, args []string, io commands.IO) (err error) {
 
 	if err := server.ListenAndServe(); err != nil {
 		logger.Error("HTTP server stopped", " error:", err)
-		os.Exit(1)
+		return commands.ExitCodeError(1)
 	}
 
 	return nil
