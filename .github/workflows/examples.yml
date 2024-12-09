@@ -2,9 +2,12 @@ name: examples
 
 on:
   pull_request:
+    paths:
+      - '**/*.gno'
   push:
-    branches: ["master"]
-
+    branches: [ "master" ]
+    paths:
+      - '**/*.gno'
 concurrency:
   group: ${{ github.workflow }}-${{ github.head_ref || github.run_id }}
   cancel-in-progress: true
@@ -70,7 +73,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        goversion: ["1.22.x"]
+        goversion: [ "1.22.x" ]
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -86,7 +89,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        go-version: ["1.22.x"]
+        go-version: [ "1.22.x" ]
         # unittests: TODO: matrix with contracts
     runs-on: ubuntu-latest
     timeout-minutes: 10

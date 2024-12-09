@@ -1,10 +1,9 @@
-name: "docs / lint"
+name: "docs linter"
 
 on:
-  push:
-    paths:
-      - master
   pull_request:
+    branches:
+      - master
     paths:
       - "docs/**"
 

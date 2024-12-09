@@ -5,6 +5,7 @@ on:
     paths:
       - '.github/dependabot.yml'
       - '.github/workflows/dependabot-validate.yml'
+
 jobs:
   validate:
     runs-on: ubuntu-latest

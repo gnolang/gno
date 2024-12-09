@@ -1,9 +1,6 @@
 name: autocounterd
 
 on:
-  pull_request:
-    branches:
-      - master
   push:
     paths:
       - misc/autocounterd
@@ -11,9 +8,6 @@ on:
       - .github/workflows/autocounterd.yml
     branches:
       - "master"
-      - "misc/autocounterd"
-    tags:
-      - "v*"
 
 permissions:
   contents: read
