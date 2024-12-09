@@ -227,15 +227,19 @@ func assertValidConstExpr(store Store, last BlockNode, n *ValueDecl, expr Expr) 
 		}
 	}
 
-	assertValidConstantExprRecursively(store, last, expr, nil)
+	assertValidConstValue(store, last, expr, nil)
 }
 
-func assertValidConstantExprRecursively(store Store, last BlockNode, currExpr, parentExpr Expr) {
+func assertValidConstValue(store Store, last BlockNode, currExpr, parentExpr Expr) {
 Main:
 	switch currExpr := currExpr.(type) {
 	case *NameExpr:
 		t := evalStaticTypeOf(store, last, currExpr)
-		if _, ok := t.(*ArrayType); ok {
+		_, okArray := t.(*ArrayType)
+		_, okCallExpr := parentExpr.(*CallExpr)
+
+		// special case for len, cap
+		if okArray && okCallExpr {
 			break Main
 		}
 		panic(fmt.Sprintf("%s (variable of type %s) is not constant", currExpr.Name, t))
@@ -256,10 +260,10 @@ Main:
 						// TODO: should support min, max, real, imag
 						switch {
 						case fv.Name == "len":
-							assertValidConstantExprRecursively(store, last, currExpr.Args[0], currExpr)
+							assertValidConstValue(store, last, currExpr.Args[0], currExpr)
 							break Main
 						case fv.Name == "cap":
-							assertValidConstantExprRecursively(store, last, currExpr.Args[0], currExpr)
+							assertValidConstValue(store, last, currExpr.Args[0], currExpr)
 							break Main
 						}
 					}
@@ -276,7 +280,7 @@ Main:
 			}
 		case *TypeType:
 			for _, arg := range currExpr.Args {
-				assertValidConstantExprRecursively(store, last, arg, currExpr)
+				assertValidConstValue(store, last, arg, currExpr)
 			}
 		case *NativeType:
 			// Todo: should add a test after the fix of https://github.com/gnolang/gno/issues/3006
@@ -288,8 +292,8 @@ Main:
 				ift, reflect.TypeOf(ift)))
 		}
 	case *BinaryExpr:
-		assertValidConstantExprRecursively(store, last, currExpr.Left, parentExpr)
-		assertValidConstantExprRecursively(store, last, currExpr.Right, parentExpr)
+		assertValidConstValue(store, last, currExpr.Left, parentExpr)
+		assertValidConstValue(store, last, currExpr.Right, parentExpr)
 	case *SelectorExpr:
 		xt := evalStaticTypeOf(store, last, currExpr.X)
 		switch xt := xt.(type) {
@@ -340,7 +344,7 @@ Main:
 	case *ConstExpr:
 	case *BasicLitExpr:
 	case *CompositeLitExpr:
-		assertValidConstantExprRecursively(store, last, currExpr.Type, parentExpr)
+		assertValidConstValue(store, last, currExpr.Type, parentExpr)
 	default:
 		ift := evalStaticTypeOf(store, last, currExpr)
 		if _, ok := ift.(*TypeType); ok {
