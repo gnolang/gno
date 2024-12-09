@@ -15,7 +15,7 @@ type HelpData struct {
 
 	RealmName string
 	Functions []vm.FunctionSignature
-	ChainId   string
+	ChainID   string
 	Remote    string
 	PkgPath   string
 }

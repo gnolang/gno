@@ -102,7 +102,6 @@ func (h *WebHandler) Get(w http.ResponseWriter, r *http.Request) {
 		status, err = http.StatusNotFound, components.RenderStatusComponent(body, "page not found")
 	} else {
 		switch gnourl.Kind() {
-		// case KindUser: // XXX
 		case KindRealm, KindPure:
 			status, err = h.renderRealm(body, gnourl)
 		default:
@@ -230,7 +229,7 @@ func (h *WebHandler) renderRealmHelp(w io.Writer, gnourl *GnoURL) (status int, e
 		SelectedFunc: selFn,
 		SelectedArgs: selArgs,
 		RealmName:    realmName,
-		ChainId:      h.static.ChainID,
+		ChainID:      h.static.ChainID,
 		// TODO: get chain domain and use that.
 		PkgPath:   filepath.Join(DefaultChainDomain, gnourl.Path),
 		Remote:    h.static.RemoteHelp,
