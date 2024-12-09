@@ -4,6 +4,7 @@ import (
         "std"
         "gno.land/p/demo/ufmt"
         "gno.land/r/matijamarjanovic/mdui"
+        "gno.land/r/leon/hof"
 )
 
 var (
@@ -41,6 +42,7 @@ In addition to my academic pursuits, I enjoy traveling and staying active throug
         modernLink = "https://www.google.com"
         classicLink = "https://www.google.com"
         minimalLink = "https://www.google.com"
+        hof.Register()
 }
 
 func UpdatePFP(url, caption string) {
