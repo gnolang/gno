@@ -2,9 +2,10 @@ package home
 
 import (
         "std"
+
         "gno.land/p/demo/ufmt"
-        "gno.land/r/matijamarjanovic/mdui"
         "gno.land/r/leon/hof"
+        "gno.land/r/matijamarjanovic/mdui"
 )
 
 var (
@@ -69,7 +70,7 @@ func maxOfThree(a, b, c int64) int64 {
 
 func VoteModern() {
         ugnotAmount := std.GetOrigSend().AmountOf("ugnot")
-        votes := ugnotAmount 
+        votes := ugnotAmount
         modernVotes += votes
         updateCurrentTheme()
 }
@@ -83,7 +84,7 @@ func VoteClassic() {
 
 func VoteMinimal() {
         ugnotAmount := std.GetOrigSend().AmountOf("ugnot")
-        votes := ugnotAmount 
+        votes := ugnotAmount
         minimalVotes += votes
         updateCurrentTheme()
 }

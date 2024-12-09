@@ -3,9 +3,11 @@ package home
 import (
         "std"
         "testing"
+
+        "strings"
+
         "gno.land/p/demo/uassert"
         "gno.land/p/demo/urequire"
-        "strings"
 )
 
 // Helper function to set up test environment
@@ -83,7 +85,7 @@ func TestRender(t *testing.T) {
 
         out := Render("")
         urequire.NotEqual(t, out, "", "Render output should not be empty")
-        
+
         // Check if the output contains the expected theme-specific content
         expectedContent := "✨ Welcome to Matija's Homepage ✨"
         uassert.True(t, contains(out, expectedContent), "Render output should contain welcome message")
