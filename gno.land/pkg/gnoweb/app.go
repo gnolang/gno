@@ -7,20 +7,13 @@ import (
 	"path"
 	"strings"
 
+	"github.com/alecthomas/chroma/v2"
 	chromahtml "github.com/alecthomas/chroma/v2/formatters/html"
 	"github.com/alecthomas/chroma/v2/styles"
 	"github.com/gnolang/gno/tm2/pkg/bft/rpc/client"
 	"github.com/yuin/goldmark"
 	mdhtml "github.com/yuin/goldmark/renderer/html"
 )
-
-var chromaStyle = styles.Get("friendly")
-
-func init() {
-	if chromaStyle == nil {
-		panic("unable to get chroma style")
-	}
-}
 
 // AppConfig contains configuration for the gnoweb.
 type AppConfig struct {
@@ -48,6 +41,16 @@ func NewDefaultAppConfig() *AppConfig {
 		ChainID:    "dev",
 		AssetsPath: "/public/",
 	}
+}
+
+var chromaStyle = mustGetStyle("friendly")
+
+func mustGetStyle(name string) *chroma.Style {
+	s := styles.Get(name)
+	if s != nil {
+		panic("unable to get chroma style")
+	}
+	return s
 }
 
 func MakeRouterApp(logger *slog.Logger, cfg *AppConfig) (http.Handler, error) {
