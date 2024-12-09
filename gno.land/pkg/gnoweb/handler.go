@@ -78,8 +78,6 @@ func (h *WebHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	h.Get(w, r)
 }
 
-type PathKind string
-
 func (h *WebHandler) Get(w http.ResponseWriter, r *http.Request) {
 	body := h.getBuffer()
 	defer h.putBuffer(body)
@@ -103,7 +101,7 @@ func (h *WebHandler) Get(w http.ResponseWriter, r *http.Request) {
 		h.logger.Warn("page not found", "path", r.URL.Path, "err", err)
 		status, err = http.StatusNotFound, components.RenderStatusComponent(body, "page not found")
 	} else {
-		switch gnourl.Kind {
+		switch gnourl.Kind() {
 		// case KindUser: // XXX
 		case KindRealm, KindPure:
 			status, err = h.renderRealm(body, gnourl)
@@ -149,7 +147,7 @@ func (h *WebHandler) renderRealm(w io.Writer, gnourl *GnoURL) (status int, err e
 	switch {
 	case gnourl.WebQuery.Has("source"):
 		return h.renderRealmSource(w, gnourl)
-	case gnourl.Kind == KindPure, endsWithRune(gnourl.Path, '/') || isFile(gnourl.Path):
+	case gnourl.Kind() == KindPure, endsWithRune(gnourl.Path, '/') || isFile(gnourl.Path):
 		i := strings.LastIndexByte(gnourl.Path, '/')
 		if i < 0 {
 			return http.StatusInternalServerError, fmt.Errorf("unable to get ending slash for %q", gnourl.Path)

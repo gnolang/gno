@@ -8,18 +8,21 @@ import (
 	"strings"
 )
 
+type PathKind byte
+
 const (
-	KindRealm PathKind = "r"
-	KindPure  PathKind = "p"
+	KindInvalid PathKind = 0
+	KindRealm   PathKind = 'r'
+	KindPure    PathKind = 'p'
 )
 
+// GnoURL decomposes the parts of an URL to query a realm.
 type GnoURL struct {
-	Kind     PathKind
-	Path     string
-	Args     string
-	WebQuery url.Values
-	Query    url.Values
-	Host     string
+	Host     string     // gno.land
+	Path     string     // /r/demo/users
+	Args     string     // :jae
+	WebQuery url.Values // $help&f1=f2
+	Query    url.Values // ?f1=f2
 }
 
 func (url GnoURL) EncodeArgs() string {
@@ -66,6 +69,18 @@ func (url GnoURL) EncodeWebPath() string {
 	}
 
 	return urlstr.String()
+}
+
+func (url GnoURL) Kind() PathKind {
+	if len(url.Path) < 2 {
+		return KindInvalid
+	}
+	pk := PathKind(url.Path[1])
+	switch pk {
+	case KindPure, KindRealm:
+		return pk
+	}
+	return KindInvalid
 }
 
 var (
@@ -120,7 +135,6 @@ func ParseGnoURL(u *url.URL) (*GnoURL, error) {
 
 	return &GnoURL{
 		Path:     path,
-		Kind:     PathKind(pathKind),
 		Args:     uargs,
 		WebQuery: webquery,
 		Query:    u.Query(),
