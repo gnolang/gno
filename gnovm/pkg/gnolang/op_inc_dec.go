@@ -54,9 +54,9 @@ func (m *Machine) doOpInc() {
 	case Uint64Type:
 		lv.SetUint64(lv.GetUint64() + 1)
 	case Float32Type:
-		lv.SetFloat32(lv.GetFloat32() + 1)
+		lv.SetFloat32(lv.GetFloat32().Add(1))
 	case Float64Type:
-		lv.SetFloat64(lv.GetFloat64() + 1)
+		lv.SetFloat64(lv.GetFloat64().Add(1))
 	case BigintType, UntypedBigintType:
 		lb := lv.GetBigInt()
 		lb = big.NewInt(0).Add(lb, big.NewInt(1))
@@ -124,9 +124,9 @@ func (m *Machine) doOpDec() {
 	case Uint64Type:
 		lv.SetUint64(lv.GetUint64() - 1)
 	case Float32Type:
-		lv.SetFloat32(lv.GetFloat32() - 1)
+		lv.SetFloat32(lv.GetFloat32().Sub(1))
 	case Float64Type:
-		lv.SetFloat64(lv.GetFloat64() - 1)
+		lv.SetFloat64(lv.GetFloat64().Sub(1))
 	case BigintType, UntypedBigintType:
 		lb := lv.GetBigInt()
 		lb = big.NewInt(0).Sub(lb, big.NewInt(1))
