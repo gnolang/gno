@@ -130,7 +130,7 @@ func execWeb(cfg *webCfg, args []string, io commands.IO) (err error) {
 		appcfg.RemoteHelp = appcfg.NodeRemote
 	}
 
-	app, err := gnoweb.MakeRouterApp(logger, appcfg)
+	app, err := gnoweb.NewRouter(logger, appcfg)
 	if err != nil {
 		return fmt.Errorf("unable to start gnoweb app: %w", err)
 	}

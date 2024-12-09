@@ -31,6 +31,9 @@ type AppConfig struct {
 	AssetsPath string
 }
 
+// NewDefaultAppConfig returns a new default [AppConfig]. The default sets
+// 127.0.0.1:26657 as the remote node, "dev" as the chain ID and sets up Assets
+// to be served on /public/.
 func NewDefaultAppConfig() *AppConfig {
 	const defaultRemote = "127.0.0.1:26657"
 
@@ -53,7 +56,8 @@ func mustGetStyle(name string) *chroma.Style {
 	return s
 }
 
-func MakeRouterApp(logger *slog.Logger, cfg *AppConfig) (http.Handler, error) {
+// NewRouter initializes the gnoweb router, with the given logger and config.
+func NewRouter(logger *slog.Logger, cfg *AppConfig) (http.Handler, error) {
 	mdopts := []goldmark.Option{}
 	if cfg.UnsafeHTML {
 		mdopts = append(mdopts, goldmark.WithRendererOptions(mdhtml.WithXHTML(), mdhtml.WithUnsafe()))
@@ -83,7 +87,7 @@ func MakeRouterApp(logger *slog.Logger, cfg *AppConfig) (http.Handler, error) {
 	webConfig.Meta.AssetsPath = cfg.AssetsPath
 	webConfig.Meta.ChromaPath = chromaStylePath
 	webConfig.Meta.RemoteHelp = cfg.RemoteHelp
-	webConfig.Meta.ChaindID = cfg.ChainID
+	webConfig.Meta.ChainID = cfg.ChainID
 	webConfig.Meta.Analytics = cfg.Analytics
 
 	// Setup main handler

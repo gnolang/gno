@@ -69,7 +69,7 @@ func TestRoutes(t *testing.T) {
 
 	// set the `remoteAddr` of the client to the listening address of the
 	// node, which is randomly assigned.
-	router, err := MakeRouterApp(logger, cfg)
+	router, err := NewRouter(logger, cfg)
 	require.NoError(t, err)
 
 	for _, r := range routes {
@@ -117,11 +117,11 @@ func TestAnalytics(t *testing.T) {
 
 	logger := log.NewTestingLogger(t)
 
-	t.Run("with", func(t *testing.T) {
+	t.Run("enabled", func(t *testing.T) {
 		cfg.Analytics = true
 		for _, route := range routes {
 			t.Run(route, func(t *testing.T) {
-				router, err := MakeRouterApp(logger, cfg)
+				router, err := NewRouter(logger, cfg)
 				require.NoError(t, err)
 
 				request := httptest.NewRequest(http.MethodGet, route, nil)
@@ -131,11 +131,11 @@ func TestAnalytics(t *testing.T) {
 			})
 		}
 	})
-	t.Run("without", func(t *testing.T) {
+	t.Run("disabled", func(t *testing.T) {
 		cfg.Analytics = false
 		for _, route := range routes {
 			t.Run(route, func(t *testing.T) {
-				router, err := MakeRouterApp(logger, cfg)
+				router, err := NewRouter(logger, cfg)
 				require.NoError(t, err)
 
 				request := httptest.NewRequest(http.MethodGet, route, nil)
