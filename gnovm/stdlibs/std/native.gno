@@ -49,13 +49,6 @@ func DerivePkgAddr(pkgPath string) Address {
 	return Address(derivePkgAddr(pkgPath))
 }
 
-func ComposeRealmDenom(pkgPath, denom string) string {
-	// Similar to ibc spec
-	// ibc_denom := 'ibc/' + hash('path' + 'base_denom')
-	// gno_realm_denom := '/' + 'pkg_path' + ':' + 'base_denom'
-	return "/" + pkgPath + ":" + denom
-}
-
 func EncodeBech32(prefix string, bz [20]byte) Address {
 	return Address(encodeBech32(prefix, bz))
 }

@@ -146,11 +146,31 @@ func (b banker) RemoveCoin(addr Address, denom string, amount int64) {
 func assertRealmDenom(denom string) {
 	prefix := "/" + CurrentRealm().PkgPath() + ":"
 	if !strings.HasPrefix(denom, prefix) {
-		panic("cannot issue coins with denom not prefixed by: /realmPath:")
+		panic("cannot issue coins with denom not prefixed by: / + std.CurrentRealm.PkgPath() + :")
 	}
 
-	baseDenom := strings.TrimPrefix(denom, prefix)
-	if !reDenom.MatchString(baseDenom) {
+	baseDenom := denom[len(prefix):]
+	if !isValidBaseDenom(baseDenom) {
 		panic("cannot issue coins with invalid denom base name, it should start by a lowercase letter and be followed by 2-15 lowercase letters or digits")
 	}
+}
+
+// check start by a lowercase letter and be followed by 2-15 lowercase letters or digits
+func isValidBaseDenom(denom string) bool {
+	length := len(denom)
+	if length < 3 || length > 16 {
+		return false
+	}
+	for i, c := range denom {
+		if i == 0 {
+			if c < 'a' || c > 'z' {
+				return false
+			}
+		} else {
+			if (c < 'a' || c > 'z') && (c < '0' || c > '9') {
+				return false
+			}
+		}
+	}
+	return true
 }
