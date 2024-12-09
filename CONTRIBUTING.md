@@ -141,7 +141,7 @@ if (executable('gnols'))
         \ 'workspace_config': {
         \   'root' : '/path/to/gno_repo',
         \	'gno'  : '/path/to/gno_bin',
-        \   'precompileOnSave' : v:true,
+        \   'transpileOnSave' : v:true,
         \   'buildOnSave'      : v:false,
         \ },
         \ 'languageId': {server_info->'gno'},
