@@ -9,7 +9,6 @@ import (
 )
 
 const (
-	KindUser  PathKind = "u"
 	KindRealm PathKind = "r"
 	KindPure  PathKind = "p"
 )
