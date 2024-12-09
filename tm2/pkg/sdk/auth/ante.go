@@ -146,7 +146,9 @@ func NewAnteHandler(ak AccountKeeper, bank BankKeeperI, sigGasConsumer Signature
 
 			// check signature, return account with incremented nonce
 			sacc := signerAccs[i]
-			if isGenesis && !opts.VerifyGenesisSignatures {
+			// Do not check signatures if the chainID is dev (gnodev) if we decide to verify the genesis signatures for
+			// gnodev the initialization would take longer
+			if isGenesis && (!opts.VerifyGenesisSignatures || newCtx.ChainID() == "dev") {
 				// No signatures are needed for genesis.
 			} else {
 				// Check signature

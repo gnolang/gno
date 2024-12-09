@@ -17,9 +17,7 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/std"
 )
 
-var (
-	errInvalidPackageDir = errors.New("invalid package directory")
-)
+var errInvalidPackageDir = errors.New("invalid package directory")
 
 // Keep in sync with gno.land/cmd/start.go
 var (
