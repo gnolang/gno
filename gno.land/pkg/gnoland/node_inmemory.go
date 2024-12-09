@@ -2,6 +2,7 @@ package gnoland
 
 import (
 	"fmt"
+	"io"
 	"log/slog"
 	"path/filepath"
 	"time"
@@ -16,15 +17,14 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/db/memdb"
 	"github.com/gnolang/gno/tm2/pkg/events"
 	"github.com/gnolang/gno/tm2/pkg/p2p"
-	"github.com/gnolang/gno/tm2/pkg/std"
 )
 
 type InMemoryNodeConfig struct {
-	PrivValidator      bft.PrivValidator // identity of the validator
-	Genesis            *bft.GenesisDoc
-	TMConfig           *tmcfg.Config
-	GenesisMaxVMCycles int64
-	DB                 *memdb.MemDB // will be initialized if nil
+	PrivValidator bft.PrivValidator // identity of the validator
+	Genesis       *bft.GenesisDoc
+	TMConfig      *tmcfg.Config
+	DB            *memdb.MemDB // will be initialized if nil
+	VMOutput      io.Writer    // optional
 
 	// If StdlibDir not set, then it's filepath.Join(TMConfig.RootDir, "gnovm", "stdlibs")
 	InitChainerConfig
@@ -36,7 +36,11 @@ func NewMockedPrivValidator() bft.PrivValidator {
 }
 
 // NewDefaultGenesisConfig creates a default configuration for an in-memory node.
-func NewDefaultGenesisConfig(chainid string) *bft.GenesisDoc {
+func NewDefaultGenesisConfig(chainid, chaindomain string) *bft.GenesisDoc {
+	// custom chain domain
+	var domainParam Param
+	_ = domainParam.Parse("gno.land/r/sys/params.vm.chain_domain.string=" + chaindomain)
+
 	return &bft.GenesisDoc{
 		GenesisTime: time.Now(),
 		ChainID:     chainid,
@@ -45,7 +49,10 @@ func NewDefaultGenesisConfig(chainid string) *bft.GenesisDoc {
 		},
 		AppState: &GnoGenesisState{
 			Balances: []Balance{},
-			Txs:      []std.Tx{},
+			Txs:      []TxWithMetadata{},
+			Params: []Param{
+				domainParam,
+			},
 		},
 	}
 }
@@ -106,10 +113,10 @@ func NewInMemoryNode(logger *slog.Logger, cfg *InMemoryNodeConfig) (*node.Node, 
 	// Initialize the application with the provided options
 	gnoApp, err := NewAppWithOptions(&AppOptions{
 		Logger:            logger,
-		MaxCycles:         cfg.GenesisMaxVMCycles,
 		DB:                cfg.DB,
 		EventSwitch:       evsw,
 		InitChainerConfig: cfg.InitChainerConfig,
+		VMOutput:          cfg.VMOutput,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("error initializing new app: %w", err)
