@@ -269,6 +269,14 @@ func (v *HeapItemValue) String() string {
 // ----------------------------------------
 // *TypedValue.Sprint
 
+func (tv *TypedValue) IsStringer() bool {
+	return IsImplementedBy(gStringerType, tv.T)
+}
+
+func (tv *TypedValue) IsError() bool {
+	return IsImplementedBy(gErrorType, tv.T)
+}
+
 // for print() and println().
 func (tv *TypedValue) Sprint(m *Machine) string {
 	// if undefined, just "undefined".
@@ -277,12 +285,12 @@ func (tv *TypedValue) Sprint(m *Machine) string {
 	}
 
 	// if implements .String(), return it.
-	if IsImplementedBy(gStringerType, tv.T) {
+	if tv.IsStringer() {
 		res := m.Eval(Call(Sel(&ConstExpr{TypedValue: *tv}, "String")))
 		return res[0].GetString()
 	}
 	// if implements .Error(), return it.
-	if IsImplementedBy(gErrorType, tv.T) {
+	if tv.IsError() {
 		res := m.Eval(Call(Sel(&ConstExpr{TypedValue: *tv}, "Error")))
 		return res[0].GetString()
 	}
