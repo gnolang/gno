@@ -91,7 +91,7 @@ func Quotient${SIZE}(a, b int${SIZE}) (int${SIZE}, int${SIZE}, bool) {
 	}
 	c := a / b
 	status := (c < 0) == ((a < 0) != (b < 0))
-	return c, a%b, true
+	return c, a%b, status
 }
 "
 done

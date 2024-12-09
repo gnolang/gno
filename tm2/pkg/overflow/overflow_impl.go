@@ -76,15 +76,15 @@ func Div8p(a, b int8) int8 {
 	return r
 }
 
-// Quotient8 performs / operation on two int8 operands,
-// returning a quotient, a remainder and status.
+// Quotient8 performs / operation on two int8 operands, returning a quotient,
+// a remainder and status.
 func Quotient8(a, b int8) (int8, int8, bool) {
 	if b == 0 {
 		return 0, 0, false
 	}
 	c := a / b
 	status := (c < 0) == ((a < 0) != (b < 0))
-	return c, a%b, true
+	return c, a%b, status
 }
 
 
@@ -162,15 +162,15 @@ func Div16p(a, b int16) int16 {
 	return r
 }
 
-// Quotient16 performs / operation on two int16 operands,
-// returning a quotient, a remainder and status.
+// Quotient16 performs / operation on two int16 operands, returning a quotient,
+// a remainder and status.
 func Quotient16(a, b int16) (int16, int16, bool) {
 	if b == 0 {
 		return 0, 0, false
 	}
 	c := a / b
 	status := (c < 0) == ((a < 0) != (b < 0))
-	return c, a%b, true
+	return c, a%b, status
 }
 
 
@@ -248,15 +248,15 @@ func Div32p(a, b int32) int32 {
 	return r
 }
 
-// Quotient32 performs / operation on two int32 operands,
-// returning a quotient, a remainder and status.
+// Quotient32 performs / operation on two int32 operands, returning a quotient,
+// a remainder and status.
 func Quotient32(a, b int32) (int32, int32, bool) {
 	if b == 0 {
 		return 0, 0, false
 	}
 	c := a / b
 	status := (c < 0) == ((a < 0) != (b < 0))
-	return c, a%b, true
+	return c, a%b, status
 }
 
 
@@ -334,14 +334,14 @@ func Div64p(a, b int64) int64 {
 	return r
 }
 
-// Quotient64 performs / operation on two int64 operands,
-// returning a quotient, a remainder and status.
+// Quotient64 performs / operation on two int64 operands, returning a quotient,
+// a remainder and status.
 func Quotient64(a, b int64) (int64, int64, bool) {
 	if b == 0 {
 		return 0, 0, false
 	}
 	c := a / b
 	status := (c < 0) == ((a < 0) != (b < 0))
-	return c, a%b, true
+	return c, a%b, status
 }
 
