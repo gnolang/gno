@@ -17,6 +17,7 @@ import (
 	"github.com/gnolang/gno/gno.land/pkg/gnoland/ugnot"
 	"github.com/gnolang/gno/gno.land/pkg/integration"
 	"github.com/gnolang/gno/gnovm/pkg/gnomod"
+	"github.com/gnolang/gno/gnovm/stdlibs"
 	"github.com/gnolang/gno/tm2/pkg/amino"
 	tmcfg "github.com/gnolang/gno/tm2/pkg/bft/config"
 	"github.com/gnolang/gno/tm2/pkg/bft/node"
@@ -98,6 +99,9 @@ type Node struct {
 var DefaultFee = std.NewFee(50000, std.MustParseCoin(ugnot.ValueString(1000000)))
 
 func NewDevNode(ctx context.Context, cfg *NodeConfig) (*Node, error) {
+	stdlibsDeployer := crypto.MustAddressFromString("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5") // test1, FIXME: replace
+	stdlibsTxs := gnoland.LoadEmbeddedStdlibs(stdlibsDeployer, DefaultFee)
+
 	mpkgs, err := NewPackagesMap(cfg.PackagesPathList)
 	if err != nil {
 		return nil, fmt.Errorf("unable map pkgs list: %w", err)
@@ -126,7 +130,7 @@ func NewDevNode(ctx context.Context, cfg *NodeConfig) (*Node, error) {
 	// generate genesis state
 	genesis := gnoland.GnoGenesisState{
 		Balances: cfg.BalancesList,
-		Txs:      append(pkgsTxs, cfg.InitialTxs...),
+		Txs:      append(stdlibsTxs, append(pkgsTxs, cfg.InitialTxs...)...),
 	}
 
 	if err := devnode.rebuildNode(ctx, genesis); err != nil {
@@ -280,6 +284,10 @@ func (n *Node) Reset(ctx context.Context) error {
 	// Reset starting time
 	startTime := time.Now()
 
+	// Load stdlibs
+	stdlibsDeployer := crypto.MustAddressFromString("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5") // test1, FIXME: replace
+	stdlibsTxs := gnoland.LoadEmbeddedStdlibs(stdlibsDeployer, DefaultFee)
+
 	// Generate a new genesis state based on the current packages
 	pkgsTxs, err := n.pkgs.Load(DefaultFee, startTime)
 	if err != nil {
@@ -287,7 +295,7 @@ func (n *Node) Reset(ctx context.Context) error {
 	}
 
 	// Append initialTxs
-	txs := append(pkgsTxs, n.initialState...)
+	txs := append(stdlibsTxs, append(pkgsTxs, n.initialState...)...)
 	genesis := gnoland.GnoGenesisState{
 		Balances: n.config.BalancesList,
 		Txs:      txs,
@@ -370,7 +378,9 @@ func (n *Node) getBlockStoreState(ctx context.Context) ([]gnoland.TxWithMetadata
 	// get current genesis state
 	genesis := n.GenesisDoc().AppState.(gnoland.GnoGenesisState)
 
-	initialTxs := genesis.Txs[n.loadedPackages:] // ignore previously loaded packages
+	numStdLibs := len(stdlibs.InitOrder()) - 1              // stdlibs count minus testing lib
+	initialTxs := genesis.Txs[n.loadedPackages+numStdLibs:] // ignore previously loaded packages
+
 	state := append([]gnoland.TxWithMetadata{}, initialTxs...)
 
 	lastBlock := n.getLatestBlockNumber()
@@ -491,8 +501,6 @@ func (n *Node) rebuildNode(ctx context.Context, genesis gnoland.GnoGenesisState)
 	// Setup node config
 	nodeConfig := newNodeConfig(n.config.TMConfig, n.config.ChainID, n.config.ChainDomain, genesis)
 	nodeConfig.GenesisTxResultHandler = n.genesisTxResultHandler
-	// Speed up stdlib loading after first start (saves about 2-3 seconds on each reload).
-	nodeConfig.CacheStdlibLoad = true
 	nodeConfig.Genesis.ConsensusParams.Block.MaxGas = n.config.MaxGasPerBlock
 
 	// recoverFromError handles panics and converts them to errors.
