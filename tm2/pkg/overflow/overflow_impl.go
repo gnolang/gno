@@ -83,7 +83,7 @@ func Quotient8(a, b int8) (int8, int8, bool) {
 		return 0, 0, false
 	}
 	c := a / b
-	status := (c < 0) == ((a < 0) != (b < 0)) || (c == 0)
+	status := (c < 0) == ((a < 0) != (b < 0)) || (c == 0) // no sign check for 0 quotient
 	return c, a%b, status
 }
 
@@ -169,7 +169,7 @@ func Quotient16(a, b int16) (int16, int16, bool) {
 		return 0, 0, false
 	}
 	c := a / b
-	status := (c < 0) == ((a < 0) != (b < 0)) || (c == 0)
+	status := (c < 0) == ((a < 0) != (b < 0)) || (c == 0) // no sign check for 0 quotient
 	return c, a%b, status
 }
 
@@ -255,7 +255,7 @@ func Quotient32(a, b int32) (int32, int32, bool) {
 		return 0, 0, false
 	}
 	c := a / b
-	status := (c < 0) == ((a < 0) != (b < 0)) || (c == 0)
+	status := (c < 0) == ((a < 0) != (b < 0)) || (c == 0) // no sign check for 0 quotient
 	return c, a%b, status
 }
 
@@ -341,8 +341,7 @@ func Quotient64(a, b int64) (int64, int64, bool) {
 		return 0, 0, false
 	}
 	c := a / b
-	// No sign check for 0 quotient.
-	status := (c < 0) == ((a < 0) != (b < 0)) || (c == 0)
+	status := (c < 0) == ((a < 0) != (b < 0)) || (c == 0) // no sign check for 0 quotient
 	return c, a%b, status
 }
 
