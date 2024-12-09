@@ -41,32 +41,32 @@ Checks if the realm it was called upon is a user realm.
 if r.IsUser() {...}
 ```
 
-## ComposeDenom
+## Denom
 Composes a qualified denomination string from the realm's pkg path and the provided base denomination. e.g `/gno.land/r/demo/blog:ugnot`. This method should be used when interacting with the `Banker` interface.
 
 #### Parameters
-- `denom` **string** - denomination to compose with the realm's pkg path
+- `denom` **string** - The base denomination used to build the qualified denomination. Must start with a lowercase letter, followed by 2–15 lowercase letters or digits.
 
 #### Usage
 ```go
-denom := r.ComposeDenom("ugnot")
+denom := r.Denom("ugnot")
 ```
 
 ---
 
-## ComposeRealmDenom
+## RealmDenom
 ```go
-func ComposeRealmDenom(pkgPath, denom string) string
+func RealmDenom(pkgPath, denom string) string
 ```
 
-Composes a qualified denomination string from the realm's pkg path and the provided base denomination. e.g `/gno.land/r/demo/blog:ugnot`. This method should be used when interacting with the `Banker` interface. It can also be used as a method of the `Realm` object, see [Realm.Denom](realm.md#composedenom).
+Composes a qualified denomination string from the realm's pkg path and the provided base denomination. e.g `/gno.land/r/demo/blog:ugnot`. This method should be used when interacting with the `Banker` interface. It can also be used as a method of the `Realm` object, see [Realm.Denom](realm.md#denom).
 
 #### Parameters
 - `pkgPath` **string** - package path of the realm
-- `denom` **string** - denomination to compose with the realm's pkg path
+- `denom` **string** - The base denomination used to build the qualified denomination.  Must start with a lowercase letter, followed by 2–15 lowercase letters or digits.
 
 #### Usage
 ```go
-denom := std.ComposeRealmDenom("gno.land/r/demo/blog", "ugnot")
+denom := std.RealmDenom("gno.land/r/demo/blog", "ugnot")
 ```
 
