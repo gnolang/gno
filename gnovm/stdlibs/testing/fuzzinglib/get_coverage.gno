@@ -62,11 +62,13 @@ func get_counter(start int) func() int {
 	}
 }
 
-type TestResult struct {
-	PanicOccurred bool        // panic 여부
-	PanicMessage  interface{} // panic 메시지
-	Error         error       // 반환된 에러
-	Coverage      []uint      // 반환된 값
+func Get_AllCoverage() Coverage {
+	// 배열 생성
+	var allLines Coverage
+	for i := 10; i <= 54; i++ {
+		allLines = append(allLines, uint(i))
+	}
+	return allLines
 }
 
 // SomeFunc의 커버리지 계산 함수

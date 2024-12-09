@@ -11,6 +11,13 @@ type Uint_LinkedList struct {
 	head *Node
 }
 
+// New_Uint_LinkedList: 새로운 Uint_LinkedList 생성자
+func New_Uint_LinkedList() *Uint_LinkedList {
+	return &Uint_LinkedList{
+		head: nil, // 초기값 설정
+	}
+}
+
 // Append: 리스트 끝에 새로운 노드 추가
 func (ll *Uint_LinkedList) Append(data uint) {
 	newNode := &Node{data: data, next: nil}
@@ -107,7 +114,7 @@ func (ll *Uint_LinkedList) IsEmpty() bool {
 }
 
 // func main() {
-// 	ll := &Uint_LinkedList{}
+// 	ll := New_Uint_LinkedList()
 
 // 	// 노드 추가
 // 	ll.Append(10)
