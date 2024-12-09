@@ -72,7 +72,7 @@ func (c *Client) GetBlock(blockNum uint64) (*client.Block, error) {
 	}
 
 	return &client.Block{
-		Timestamp: block.Block.Time.UnixMilli(),
+		Timestamp: block.Block.Time.Unix(),
 		Height:    blockNum,
 		Txs:       txs,
 	}, nil

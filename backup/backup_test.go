@@ -112,7 +112,7 @@ func TestBackup_ExecuteBackup_FixedRange(t *testing.T) {
 
 				return &client.Block{
 					Height:    blockNum,
-					Timestamp: blockTime.Add(time.Duration(blockNum) * time.Minute).UnixMilli(),
+					Timestamp: blockTime.Add(time.Duration(blockNum) * time.Minute).Unix(),
 					Txs:       []std.Tx{exampleTx},
 				}, nil // 1 tx per block
 			},
@@ -161,8 +161,8 @@ func TestBackup_ExecuteBackup_FixedRange(t *testing.T) {
 		assert.Equal(t, exampleTx, txData.Tx)
 		assert.Equal(
 			t,
-			blockTime.Add(time.Duration(expectedBlock)*time.Minute).Local(),
-			time.UnixMilli(txData.Metadata.Timestamp),
+			blockTime.Add(time.Duration(expectedBlock)*time.Minute).Unix(),
+			txData.Metadata.Timestamp,
 		)
 
 		expectedBlock++
@@ -214,7 +214,7 @@ func TestBackup_ExecuteBackup_Watch(t *testing.T) {
 
 				return &client.Block{
 					Height:    blockNum,
-					Timestamp: blockTime.Add(time.Duration(blockNum) * time.Minute).UnixMilli(),
+					Timestamp: blockTime.Add(time.Duration(blockNum) * time.Minute).Unix(),
 					Txs:       []std.Tx{exampleTx},
 				}, nil // 1 tx per block
 			},
@@ -266,7 +266,7 @@ func TestBackup_ExecuteBackup_Watch(t *testing.T) {
 		assert.Equal(
 			t,
 			blockTime.Add(time.Duration(expectedBlock)*time.Minute).Local(),
-			time.UnixMilli(txData.Metadata.Timestamp),
+			time.Unix(txData.Metadata.Timestamp, 0),
 		)
 
 		expectedBlock++
