@@ -15,6 +15,9 @@ import (
 )
 
 func main() {
+	// set to true to dump the final pkg list
+	verbose := true
+
 	// find stdlibs
 	libs := []string{}
 	gnoRoot := gnoenv.RootDir()
@@ -106,12 +109,11 @@ func main() {
 		panic(err)
 	}
 
-	/*
-		// uncomment to dump the final pkg list
+	if verbose {
 		for _, p := range pl {
 			fmt.Println(p.Name)
 		}
-	*/
+	}
 }
 
 func splitMemPackage(pkg *gnovm.MemPackage) (*gnovm.MemPackage, *gnovm.MemPackage, error) {
