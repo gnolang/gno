@@ -2,15 +2,7 @@ package params
 
 import "fmt"
 
-// KeyMapper is used to map one key string to another.
-type KeyMapper interface {
-	// Map does a transformation on an input key to produce the key
-	// appropriate for accessing a param keeper's storage instance.
-	Map(key string) (string, error)
-}
-
-var _ KeyMapper = PrefixKeyMapper{}
-
+// PrefixKeyMapper is used to map one key string to another.
 type PrefixKeyMapper struct {
 	keyMap map[string]string
 }
@@ -30,6 +22,8 @@ func (pkm PrefixKeyMapper) IsExist(prefix string) bool {
 	return ok
 }
 
+// Map does a transformation on an input key to produce the key
+// appropriate for accessing a param keeper's storage instance.
 func (pkm PrefixKeyMapper) Map(prefix string) (string, error) {
 	v, ok := pkm.keyMap[prefix]
 	if !ok {

@@ -29,7 +29,7 @@ func (bh paramsHandler) Process(ctx sdk.Context, msg std.Msg) sdk.Result {
 
 func (bh paramsHandler) Query(ctx sdk.Context, req abci.RequestQuery) (res abci.ResponseQuery) {
 	prefix := secondPart(req.Path)
-	if bh.params.PrefixExist(prefix) {
+	if bh.params.PrefixExists(prefix) {
 		return bh.queryParam(ctx, req)
 	}
 	res = sdk.ABCIResponseQueryFromError(

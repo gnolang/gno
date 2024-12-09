@@ -185,10 +185,10 @@ func setupGnolandTestScript(t *testing.T, txtarDir string) testscript.Params {
 					pkgs := ts.Value(envKeyPkgsLoader).(*pkgsLoader)                // grab logger
 					creator := crypto.MustAddressFromString(DefaultAccount_Address) // test1
 					defaultFee := std.NewFee(50000, std.MustParseCoin(ugnot.ValueString(1000000)))
-					// we need to define a new err1 otherwise the out err would be shadowed in the "start" case:
-					pkgsTxs, err1 := pkgs.LoadPackages(creator, defaultFee, nil)
-					if err1 != nil {
-						ts.Fatalf("unable to load packages txs: %s", err1)
+					// we need to define a new loadErr otherwise the out err would be shadowed in the "start" case:
+					pkgsTxs, loadErr := pkgs.LoadPackages(creator, defaultFee, nil)
+					if loadErr != nil {
+						ts.Fatalf("unable to load packages txs: %s", loadErr)
 					}
 
 					// Warp up `ts` so we can pass it to other testing method

@@ -47,11 +47,11 @@ func _setupTestEnv(cacheStdlibs bool) testEnv {
 	ms.LoadLatestVersion()
 
 	ctx := sdk.NewContext(sdk.RunTxModeDeliver, ms, &bft.Header{ChainID: "test-chain-id"}, log.NewNoopLogger())
-	acck := authm.NewAccountKeeper(iavlCapKey, std.ProtoBaseAccount)
 	km := paramsm.NewPrefixKeyMapper()
 	prefix := "params_test"
 	km.RegisterPrefix(prefix)
 	prmk := paramsm.NewParamsKeeper(iavlCapKey, km)
+	acck := authm.NewAccountKeeper(iavlCapKey, prmk, std.ProtoBaseAccount)
 	bank := bankm.NewBankKeeper(acck, prmk)
 	vmk := NewVMKeeper(baseCapKey, iavlCapKey, acck, bank, prmk)
 

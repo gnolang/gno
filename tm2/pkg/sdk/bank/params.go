@@ -8,6 +8,8 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/std"
 )
 
+const paramsKey = "p"
+
 type BankParamsContextKey struct{}
 
 // Params defines the parameters for the bank module.
@@ -53,15 +55,15 @@ func (bank BankKeeper) SetParams(ctx sdk.Context, params Params) error {
 		return err
 	}
 	bank.params = params
-	bank.paramk.SetParams(ctx, ModuleName, "p", params)
+	err := bank.paramk.SetParams(ctx, ModuleName, paramsKey, params)
 
-	return nil
+	return err
 }
 
 func (bank BankKeeper) GetParams(ctx sdk.Context) Params {
 	params := &Params{}
 
-	ok, err := bank.paramk.GetParams(ctx, ModuleName, "p", params)
+	ok, err := bank.paramk.GetParams(ctx, ModuleName, paramsKey, params)
 
 	if !ok {
 		panic("params key " + ModuleName + " does not exist")

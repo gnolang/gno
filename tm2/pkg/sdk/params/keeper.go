@@ -40,8 +40,8 @@ var _ ParamsKeeperI = ParamsKeeper{}
 
 // global paramstore Keeper.
 type ParamsKeeper struct {
-	key             store.StoreKey
-	prefix          string
+	key store.StoreKey
+	//	prefix          string
 	prefixKeyMapper PrefixKeyMapper
 }
 
@@ -162,7 +162,7 @@ func (pk ParamsKeeper) valueStoreKey(prefix string, key string) ([]byte, error) 
 	return append([]byte(prefix), []byte(key)...), nil
 }
 
-func (pk ParamsKeeper) PrefixExist(prefix string) bool {
+func (pk ParamsKeeper) PrefixExists(prefix string) bool {
 	_, err := pk.prefixKeyMapper.Map(prefix)
 	if err != nil {
 		return false

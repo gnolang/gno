@@ -8,6 +8,8 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/log"
 
 	"github.com/gnolang/gno/tm2/pkg/sdk"
+
+	"github.com/gnolang/gno/tm2/pkg/sdk/params"
 	"github.com/gnolang/gno/tm2/pkg/std"
 	"github.com/gnolang/gno/tm2/pkg/store"
 	"github.com/gnolang/gno/tm2/pkg/store/iavl"
@@ -27,8 +29,10 @@ func setupTestEnv() testEnv {
 	ms := store.NewCommitMultiStore(db)
 	ms.MountStoreWithDB(authCapKey, iavl.StoreConstructor, db)
 	ms.LoadLatestVersion()
-
-	acck := NewAccountKeeper(authCapKey, std.ProtoBaseAccount)
+	km := params.NewPrefixKeyMapper()
+	km.RegisterPrefix(ParamsPrefixKey)
+	paramk := params.NewParamsKeeper(authCapKey, km)
+	acck := NewAccountKeeper(authCapKey, paramk, std.ProtoBaseAccount)
 	bank := NewDummyBankKeeper(acck)
 
 	ctx := sdk.NewContext(sdk.RunTxModeDeliver, ms, &bft.Header{Height: 1, ChainID: "test-chain-id"}, log.NewNoopLogger())

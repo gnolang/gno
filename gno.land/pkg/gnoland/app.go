@@ -95,7 +95,7 @@ func NewAppWithOptions(cfg *AppOptions) (abci.Application, error) {
 	km.RegisterPrefix(bank.ParamsPrefixKey)
 	km.RegisterPrefix(vm.ParamsPrefixKey)
 	paramsKpr := params.NewParamsKeeper(mainKey, km)
-	acctKpr := auth.NewAccountKeeper(mainKey, ProtoGnoAccount)
+	acctKpr := auth.NewAccountKeeper(mainKey, paramsKpr, ProtoGnoAccount)
 	bankKpr := bank.NewBankKeeper(acctKpr, paramsKpr)
 	vmk := vm.NewVMKeeper(baseKey, mainKey, acctKpr, bankKpr, paramsKpr)
 	vmk.Output = cfg.VMOutput
@@ -119,7 +119,7 @@ func NewAppWithOptions(cfg *AppOptions) (abci.Application, error) {
 		) {
 			// Override auth params.
 			ctx = ctx.
-				WithValue(auth.AuthParamsContextKey{}, auth.DefaultParams())
+				WithValue(auth.AuthParamsContextKey{}, acctKpr.GetParams(ctx))
 			// Continue on with default auth ante handler.
 			newCtx, res, abort = authAnteHandler(ctx, tx, simulate)
 			return
@@ -308,7 +308,7 @@ func (cfg InitChainerConfig) loadAppState(ctx sdk.Context, appState any) ([]abci
 			panic(err)
 		}
 	}
-	// The account keeper's initial genesis state must be set after genesis areccounts are created.
+	// The account keeper's initial genesis state must be set after genesis accounts are created.
 	// We need to set genesis account status in account keeper.
 	cfg.acctKpr.InitGenesis(ctx, state.Auth)
 	cfg.vmKpr.InitGenesis(ctx, state.VM)

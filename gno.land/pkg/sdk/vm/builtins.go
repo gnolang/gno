@@ -63,8 +63,10 @@ func (bnk *SDKBanker) RemoveCoin(b32addr crypto.Bech32Address, denom string, amo
 // SDKParams
 
 type SDKParams struct {
-	vmk          *VMKeeper
-	ctx          sdk.Context
+	vmk *VMKeeper
+	ctx sdk.Context
+	// The curRealmPath is used to track the current realm accessing the SDKParams from the VM.
+	// It serves as a safeguard to control access from the VM.
 	curRealmPath string
 }
 

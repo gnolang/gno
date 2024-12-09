@@ -18,6 +18,8 @@ const (
 	DefaultTxSizeCostPerByte      int64 = 10
 	DefaultSigVerifyCostED25519   int64 = 590
 	DefaultSigVerifyCostSecp256k1 int64 = 1000
+
+	paramsKey = "p"
 )
 
 // Params defines the parameters for the auth module.
@@ -50,13 +52,13 @@ func (p Params) Equals(p2 Params) bool {
 
 // DefaultParams returns a default set of parameters.
 func DefaultParams() Params {
-	return Params{
-		MaxMemoBytes:           DefaultMaxMemoBytes,
-		TxSigLimit:             DefaultTxSigLimit,
-		TxSizeCostPerByte:      DefaultTxSizeCostPerByte,
-		SigVerifyCostED25519:   DefaultSigVerifyCostED25519,
-		SigVerifyCostSecp256k1: DefaultSigVerifyCostSecp256k1,
-	}
+	return NewParams(
+		DefaultMaxMemoBytes,
+		DefaultTxSigLimit,
+		DefaultTxSizeCostPerByte,
+		DefaultSigVerifyCostED25519,
+		DefaultSigVerifyCostSecp256k1,
+	)
 }
 
 // String implements the stringer interface.
@@ -72,16 +74,16 @@ func (p Params) String() string {
 }
 
 func (p Params) Validate() error {
-	if p.TxSigLimit == 0 {
+	if p.TxSigLimit <= 0 {
 		return fmt.Errorf("invalid tx signature limit: %d", p.TxSigLimit)
 	}
-	if p.SigVerifyCostED25519 == 0 {
+	if p.SigVerifyCostED25519 <= 0 {
 		return fmt.Errorf("invalid ED25519 signature verification cost: %d", p.SigVerifyCostED25519)
 	}
-	if p.SigVerifyCostSecp256k1 == 0 {
+	if p.SigVerifyCostSecp256k1 <= 0 {
 		return fmt.Errorf("invalid SECK256k1 signature verification cost: %d", p.SigVerifyCostSecp256k1)
 	}
-	if p.TxSizeCostPerByte == 0 {
+	if p.TxSizeCostPerByte <= 0 {
 		return fmt.Errorf("invalid tx size cost per byte: %d", p.TxSizeCostPerByte)
 	}
 	return nil
@@ -91,14 +93,14 @@ func (ak AccountKeeper) SetParams(ctx sdk.Context, params Params) error {
 	if err := params.Validate(); err != nil {
 		return err
 	}
-	ak.paramk.SetParams(ctx, ModuleName, "p", params)
-	return nil
+	err := ak.paramk.SetParams(ctx, ModuleName, paramsKey, params)
+	return err
 }
 
 func (ak AccountKeeper) GetParams(ctx sdk.Context) Params {
 	params := &Params{}
 
-	ok, err := ak.paramk.GetParams(ctx, ModuleName, "p", params)
+	ok, err := ak.paramk.GetParams(ctx, ModuleName, paramsKey, params)
 
 	if !ok {
 		panic("params key " + ModuleName + " does not exist")

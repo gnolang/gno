@@ -32,12 +32,12 @@ func setupTestEnv() testEnv {
 	ms.LoadLatestVersion()
 
 	ctx := sdk.NewContext(sdk.RunTxModeDeliver, ms, &bft.Header{ChainID: "test-chain-id"}, log.NewNoopLogger())
-	acck := auth.NewAccountKeeper(
-		authCapKey, std.ProtoBaseAccount,
-	)
 	km := params.NewPrefixKeyMapper()
 	km.RegisterPrefix(ParamsPrefixKey)
 	paramk := params.NewParamsKeeper(authCapKey, km)
+	acck := auth.NewAccountKeeper(
+		authCapKey, paramk, std.ProtoBaseAccount,
+	)
 	bank := NewBankKeeper(acck, paramk)
 
 	return testEnv{ctx: ctx, bank: bank, acck: acck, paramk: paramk}

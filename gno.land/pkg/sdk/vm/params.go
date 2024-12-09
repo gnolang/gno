@@ -9,7 +9,11 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/sdk"
 )
 
-const sysUsersPkgDefault = "gno.land/r/sys/users"
+const (
+	sysUsersPkgDefault = "gno.land/r/sys/users"
+
+	paramsKey = "p"
+)
 
 // Params defines the parameters for the bank module.
 type Params struct {
@@ -37,6 +41,7 @@ func (p Params) String() string {
 }
 
 func (p Params) Validate() error {
+	// XXX: This line is copied from gnovm/memfile.go. Should we instead export rePkgOrRlmPath with a getter method from gnovm?
 	rePkgOrRlmPath := regexp.MustCompile(`^gno\.land\/(?:p|r)(?:\/_?[a-z]+[a-z0-9_]*)+$`)
 	if !rePkgOrRlmPath.MatchString(p.SysUsersPkg) {
 		return fmt.Errorf("invalid package/realm path %q, failed to match %q", p.SysUsersPkg, rePkgOrRlmPath)
@@ -57,14 +62,14 @@ func (vm *VMKeeper) SetParams(ctx sdk.Context, params Params) error {
 		return err
 	}
 	vm.params = params
-	vm.prmk.SetParams(ctx, ModuleName, "p", params)
-	return nil
+	err := vm.prmk.SetParams(ctx, ModuleName, paramsKey, params)
+	return err
 }
 
 func (vm *VMKeeper) GetParams(ctx sdk.Context) Params {
 	params := &Params{}
 
-	ok, err := vm.prmk.GetParams(ctx, ModuleName, "p", params)
+	ok, err := vm.prmk.GetParams(ctx, ModuleName, paramsKey, params)
 
 	if !ok {
 		panic("params key " + ModuleName + " does not exist")

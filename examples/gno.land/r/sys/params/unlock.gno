@@ -7,9 +7,11 @@ import (
 	"gno.land/r/gov/dao/bridge"
 )
 
-const lockSendKey = "lockSend.bool"
-const UnlockSendDesc = "Proposal to unlock the sending functionality for ugnot."
-const LockSendDesc = "Proposal to lock the sending functionality for ugnot."
+const (
+	lockSendKey    = "lockSend.bool"
+	UnlockSendDesc = "Proposal to unlock the sending functionality for ugnot."
+	LockSendDesc   = "Proposal to lock the sending functionality for ugnot."
+)
 
 func ProposeUnlockSend() uint64 {
 	callback := func() error {

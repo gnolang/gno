@@ -69,7 +69,9 @@ func (bank *BankKeeper) AddRestrictedDenoms(ctx sdk.Context, restrictedDenoms ..
 	}
 	if len(bank.params.RestrictedDenoms) == 0 {
 		bank.params.RestrictedDenoms = restrictedDenoms
-		bank.SetParams(ctx, bank.params)
+		if err := bank.SetParams(ctx, bank.params); err != nil {
+			panic(err)
+		}
 	}
 	bank.updateParams(ctx)
 }
@@ -99,7 +101,9 @@ func (bank *BankKeeper) updateParams(ctx sdk.Context) {
 	params := bank.GetParams(ctx)
 	params.RestrictedDenoms = bank.RestrictedDenoms(ctx)
 	bank.params = params
-	bank.SetParams(ctx, params)
+	if err := bank.SetParams(ctx, params); err != nil {
+		panic(err)
+	}
 }
 
 // InputOutputCoins handles a list of inputs and outputs
@@ -164,11 +168,18 @@ func (bank BankKeeper) canSendCoins(ctx sdk.Context, addr crypto.Address, amt st
 
 // SendCoins moves coins from one account to another, restrction could be applied
 func (bank BankKeeper) SendCoins(ctx sdk.Context, fromAddr crypto.Address, toAddr crypto.Address, amt std.Coins) error {
-	return bank.sendCoins(ctx, fromAddr, toAddr, amt, true)
+	// read restricted boolean value from param.IsRestrictedTransfer()
+	// canSendCoins is true until they have agreed to the waiver
+	if !bank.canSendCoins(ctx, fromAddr, amt) {
+		return std.RestrictedTransferError{}
+	}
+
+	return bank.sendCoins(ctx, fromAddr, toAddr, amt)
 }
 
+// SendCoinsUnrestricted is used for paying gas.
 func (bank BankKeeper) SendCoinsUnrestricted(ctx sdk.Context, fromAddr crypto.Address, toAddr crypto.Address, amt std.Coins) error {
-	return bank.sendCoins(ctx, fromAddr, toAddr, amt, false)
+	return bank.sendCoins(ctx, fromAddr, toAddr, amt)
 }
 
 func (bank BankKeeper) sendCoins(
@@ -176,14 +187,7 @@ func (bank BankKeeper) sendCoins(
 	fromAddr crypto.Address,
 	toAddr crypto.Address,
 	amt std.Coins,
-	wRestriction bool, // with restriction
 ) error {
-	// read restricted boolean value from param.IsRestrictedTransfer()
-	// canSendCoins is true until they have agreed to the waiver
-
-	if wRestriction && !bank.canSendCoins(ctx, fromAddr, amt) {
-		return std.RestrictedTransferError{}
-	}
 	_, err := bank.SubtractCoins(ctx, fromAddr, amt)
 	if err != nil {
 		return err
