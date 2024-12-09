@@ -1,4 +1,4 @@
-package fuzztesting
+package testing
 
 import "math"
 
