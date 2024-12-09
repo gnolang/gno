@@ -13,13 +13,13 @@ func TestParseGnoURL(t *testing.T) {
 		Name     string
 		Input    string
 		Expected *GnoURL
-		Err      *error
+		Err      error
 	}{
 		{
 			Name:     "malformed url",
 			Input:    "https://gno.land/r/dem)o:$?",
 			Expected: nil,
-			Err:      &ErrURLMalformedPath,
+			Err:      ErrURLMalformedPath,
 		},
 
 		{
@@ -116,7 +116,7 @@ func TestParseGnoURL(t *testing.T) {
 				t.Logf("parsed web: %s", result.EncodeWebPath())
 			} else {
 				require.Error(t, err)
-				require.ErrorAs(t, err, tc.Err)
+				require.ErrorIs(t, err, tc.Err)
 			}
 
 			assert.Equal(t, tc.Expected, result)

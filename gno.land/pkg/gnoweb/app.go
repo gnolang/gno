@@ -50,7 +50,7 @@ var chromaStyle = mustGetStyle("friendly")
 
 func mustGetStyle(name string) *chroma.Style {
 	s := styles.Get(name)
-	if s != nil {
+	if s == nil {
 		panic("unable to get chroma style")
 	}
 	return s
