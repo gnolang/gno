@@ -3,13 +3,18 @@ package home
 import (
         "std"
         "testing"
-
         "gno.land/p/demo/uassert"
         "gno.land/p/demo/urequire"
+        "strings"
 )
 
-func TestUpdatePFP(t *testing.T) {
+// Helper function to set up test environment
+func setupTest() {
         std.TestSetOrigCaller(std.Address("g1ej0qca5ptsw9kfr64ey8jvfy9eacga6mpj2z0y"))
+}
+
+func TestUpdatePFP(t *testing.T) {
+        setupTest()
         pfp = ""
         pfpCaption = ""
 
@@ -20,7 +25,7 @@ func TestUpdatePFP(t *testing.T) {
 }
 
 func TestUpdateAboutMe(t *testing.T) {
-        std.TestSetOrigCaller(std.Address("g1ej0qca5ptsw9kfr64ey8jvfy9eacga6mpj2z0y"))
+        setupTest()
         abtMe = ""
 
         UpdateAboutMe("This is my new bio.")
@@ -29,6 +34,7 @@ func TestUpdateAboutMe(t *testing.T) {
 }
 
 func TestVoteModern(t *testing.T) {
+        setupTest()
         modernVotes, classicVotes, minimalVotes = 0, 0, 0
 
         coinsSent := std.NewCoins(std.NewCoin("ugnot", 75000000))
@@ -37,11 +43,12 @@ func TestVoteModern(t *testing.T) {
         std.TestSetOrigSend(coinsSent, coinsSpent)
         VoteModern()
 
-        uassert.Equal(t, modernVotes, 75000000/1000000, "Modern votes should be calculated correctly")
-        uassert.Equal(t, currentTheme, "modern", "Theme should be updated to modern")
+        uassert.Equal(t, int64(75000000), modernVotes, "Modern votes should be calculated correctly")
+        uassert.Equal(t, "modern", currentTheme, "Theme should be updated to modern")
 }
 
 func TestVoteClassic(t *testing.T) {
+        setupTest()
         modernVotes, classicVotes, minimalVotes = 0, 0, 0
 
         coinsSent := std.NewCoins(std.NewCoin("ugnot", 75000000))
@@ -50,11 +57,12 @@ func TestVoteClassic(t *testing.T) {
         std.TestSetOrigSend(coinsSent, coinsSpent)
         VoteClassic()
 
-        uassert.Equal(t, classicVotes, 75000000/1000000, "Classic votes should be calculated correctly")
-        uassert.Equal(t, currentTheme, "classic", "Theme should be updated to classic")
+        uassert.Equal(t, int64(75000000), classicVotes, "Classic votes should be calculated correctly")
+        uassert.Equal(t, "classic", currentTheme, "Theme should be updated to classic")
 }
 
 func TestVoteMinimal(t *testing.T) {
+        setupTest()
         modernVotes, classicVotes, minimalVotes = 0, 0, 0
 
         coinsSent := std.NewCoins(std.NewCoin("ugnot", 75000000))
@@ -63,55 +71,24 @@ func TestVoteMinimal(t *testing.T) {
         std.TestSetOrigSend(coinsSent, coinsSpent)
         VoteMinimal()
 
-        uassert.Equal(t, minimalVotes, 75000000/1000000, "Minimal votes should be calculated correctly")
-        uassert.Equal(t, currentTheme, "minimal", "Theme should be updated to minimal")
+        uassert.Equal(t, int64(75000000), minimalVotes, "Minimal votes should be calculated correctly")
+        uassert.Equal(t, "minimal", currentTheme, "Theme should be updated to minimal")
 }
 
 func TestRender(t *testing.T) {
-        redVotes, blueVotes, greenVotes = 0, 0, 0
-        currentColor = `rgb(120, 120, 120)`
+        setupTest()
+        // Reset the state to known values
+        modernVotes, classicVotes, minimalVotes = 0, 0, 0
+        currentTheme = "classic"
 
         out := Render("")
-
         urequire.NotEqual(t, out, "", "Render output should not be empty")
-
-        expectedString := "<div style='font-family: \"Trebuchet MS\", sans-serif;font-size: 5rem;"
-        uassert.True(t, contains(out, expectedString), "Render output should contain expected string")
-}
-
-func TestUpdateBlueLink(t *testing.T) {
-        std.TestSetOrigCaller(std.Address("g1ej0qca5ptsw9kfr64ey8jvfy9eacga6mpj2z0y"))
-        blueLink = ""
-
-        UpdateBlueLink("https://example.com/blue")
-
-        if blueLink != "https://example.com/blue" {
-                t.Fatalf("expected blueLink to be https://example.com/blue, got %s", blueLink)
-        }
-}
-
-func TestUpdateRedLink(t *testing.T) {
-        std.TestSetOrigCaller(std.Address("g1ej0qca5ptsw9kfr64ey8jvfy9eacga6mpj2z0y"))
-        redLink = ""
-
-        UpdateRedLink("https://example.com/red")
-
-        if redLink != "https://example.com/red" {
-                t.Fatalf("expected redLink to be https://example.com/red, got %s", redLink)
-        }
-}
-
-func TestUpdateGreenLink(t *testing.T) {
-        std.TestSetOrigCaller(std.Address("g1ej0qca5ptsw9kfr64ey8jvfy9eacga6mpj2z0y"))
-        greenLink = ""
-
-        UpdateGreenLink("https://example.com/green")
-
-        if greenLink != "https://example.com/green" {
-                t.Fatalf("expected greenLink to be https://example.com/green, got %s", greenLink)
-        }
+        
+        // Check if the output contains the expected theme-specific content
+        expectedContent := "✨ Welcome to Matija's Homepage ✨"
+        uassert.True(t, contains(out, expectedContent), "Render output should contain welcome message")
 }
 
 func contains(s, substr string) bool {
-        return len(s) >= len(substr) && s[0:len(substr)] == substr
+        return len(s) >= len(substr) && strings.Contains(s, substr)
 }

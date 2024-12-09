@@ -2,7 +2,6 @@ package home
 
 import (
         "std"
-
         "gno.land/p/demo/ufmt"
         "gno.land/r/matijamarjanovic/mdui"
 )
