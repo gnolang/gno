@@ -6,7 +6,6 @@ import (
 )
 
 func TestLintApp(t *testing.T) {
-	const longError = `` + "\n"
 	tc := []testMainCase{
 		{
 			args:        []string{"lint"},
