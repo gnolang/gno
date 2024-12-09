@@ -22,12 +22,19 @@ func init() {
 	}
 }
 
+// AppConfig contains configuration for the gnoweb.
 type AppConfig struct {
+	// UnsafeHTML, if enabled, allows to use HTML in the markdown.
 	UnsafeHTML bool
-	Analytics  bool
-	Remote     string
+	// Analytics enables SimpleAnalytics.
+	Analytics bool
+	// NodeRemote is the remote address of the gno.land node.
+	NodeRemote string
+	// RemoteHelp is the remote of the gno.land node, as used in the help page.
 	RemoteHelp string
-	ChainID    string
+	// ChainID is the chain id, used for constructing the help page.
+	ChainID string
+	// AssetsPath is the base path to the gnoweb assets.
 	AssetsPath string
 }
 
@@ -35,7 +42,9 @@ func NewDefaultAppConfig() *AppConfig {
 	const defaultRemote = "127.0.0.1:26657"
 
 	return &AppConfig{
-		Remote: defaultRemote, RemoteHelp: defaultRemote, // same as `Remote` by default
+		// same as Remote by default
+		NodeRemote: defaultRemote,
+		RemoteHelp: defaultRemote,
 		ChainID:    "dev",
 		AssetsPath: "/public/",
 	}
@@ -48,7 +57,7 @@ func MakeRouterApp(logger *slog.Logger, cfg *AppConfig) (http.Handler, error) {
 	}
 	md := goldmark.New(mdopts...)
 
-	client, err := client.NewHTTPClient(cfg.Remote)
+	client, err := client.NewHTTPClient(cfg.NodeRemote)
 	if err != nil {
 		return nil, fmt.Errorf("unable to create http client: %w", err)
 	}

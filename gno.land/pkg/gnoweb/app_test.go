@@ -63,7 +63,7 @@ func TestRoutes(t *testing.T) {
 	defer node.Stop()
 
 	cfg := NewDefaultAppConfig()
-	cfg.Remote = remoteAddr
+	cfg.NodeRemote = remoteAddr
 
 	logger := log.NewTestingLogger(t)
 
@@ -113,7 +113,7 @@ func TestAnalytics(t *testing.T) {
 	defer node.Stop()
 
 	cfg := NewDefaultAppConfig()
-	cfg.Remote = remoteAddr
+	cfg.NodeRemote = remoteAddr
 
 	logger := log.NewTestingLogger(t)
 

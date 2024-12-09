@@ -56,7 +56,7 @@ func (c *webCfg) RegisterFlags(fs *flag.FlagSet) {
 		&c.remote,
 		"remote",
 		defaultWebOptions.remote,
-		"target remote",
+		"remote gno.land node address",
 	)
 
 	fs.StringVar(
@@ -122,12 +122,12 @@ func execWeb(cfg *webCfg, args []string, io commands.IO) (err error) {
 
 	appcfg := gnoweb.NewDefaultAppConfig()
 	appcfg.ChainID = cfg.chainid
-	appcfg.Remote = cfg.remote
+	appcfg.NodeRemote = cfg.remote
 	appcfg.RemoteHelp = cfg.remoteHelp
 	appcfg.Analytics = cfg.analytics
 	appcfg.UnsafeHTML = cfg.html
 	if appcfg.RemoteHelp == "" {
-		appcfg.RemoteHelp = appcfg.Remote
+		appcfg.RemoteHelp = appcfg.NodeRemote
 	}
 
 	app, err := gnoweb.MakeRouterApp(logger, appcfg)
