@@ -11,9 +11,13 @@ package main
 import "python"
 
 func main() {
-	fmt.Println("Hello", 42)
+	println("Hello", 42)
 }
+
+-- gno.mod --
+module gno.land/p/test
 
 -- stdout.golden --
 -- stderr.golden --
-bad_file.gno:3:8: unknown import path python (code=2).
+bad_file.gno:3:8: could not import python (import not found: python) (code=4)
+bad_file.gno:3:8: unknown import path python (code=2)

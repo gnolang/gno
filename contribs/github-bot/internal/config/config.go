@@ -28,7 +28,7 @@ func Config(gh *client.GitHub) ([]AutomaticCheck, []ManualCheck) {
 	auto := []AutomaticCheck{
 		{
 			Description: "Maintainers must be able to edit this pull request ([more info](https://docs.github.com/en/pull-requests/collaborating-with-pull-requests/working-with-forks/allowing-changes-to-a-pull-request-branch-created-from-a-fork))",
-			If:          c.Always(),
+			If:          c.CreatedFromFork(),
 			Then:        r.MaintainerCanModify(),
 		},
 		{

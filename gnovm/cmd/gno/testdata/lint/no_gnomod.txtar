@@ -8,12 +8,10 @@ cmp stderr stderr.golden
 -- good_file.gno --
 package main
 
-import "fmt"
-
 func main() {
-	fmt.Println("Hello", 42)
+	println("Hello", 42)
 }
 
 -- stdout.golden --
 -- stderr.golden --
-./.: missing 'gno.mod' file (code=1).
+./.: parsing gno.mod at ./.: gno.mod file not found in current or any parent directory (code=1)
