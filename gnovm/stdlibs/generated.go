@@ -1028,7 +1028,6 @@ var initOrder = [...]string{
 	"encoding",
 	"encoding/base64",
 	"encoding/hex",
-	"fuzztesting",
 	"hash",
 	"hash/adler32",
 	"html",
