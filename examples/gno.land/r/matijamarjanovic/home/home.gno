@@ -2,10 +2,11 @@ package home
 
 import (
         "std"
+        "strings"
 
         "gno.land/p/demo/ufmt"
+        "gno.land/p/moul/md"
         "gno.land/r/leon/hof"
-        "gno.land/r/matijamarjanovic/mdui"
 )
 
 var (
@@ -26,16 +27,17 @@ var (
 func init() {
         pfp = "https://static.artzone.ai/media/38734/conversions/IPF9dR7ro7n05CmMLLrXIojycr1qdLFxgutaaanG-w768.webp"
         pfpCaption = "My profile picture - Tarantula Nebula"
-        abtMe =
-                `### About me
-Motivated Computer Science student with strong
-analytical and problem-solving skills. Proficient in
-programming and version control, with a high level of
-focus and attention to detail. Eager to apply academic
-knowledge to real-world projects and contribute to
-innovative technology solutions.
+        abtMe = `Motivated Computer Science student with strong
+                analytical and problem-solving skills. Proficient in
+                programming and version control, with a high level of
+                focus and attention to detail. Eager to apply academic
+                knowledge to real-world projects and contribute to
+                innovative technology solutions.
+                In addition to my academic pursuits,
+                I enjoy traveling and staying active through weightlifting.
+                I have a keen interest in electronic music and often explore various genres.
+                I believe in maintaining a balanced lifestyle that complements my professional development.`
 
-In addition to my academic pursuits, I enjoy traveling and staying active through weightlifting. I have a keen interest in electronic music and often explore various genres. I believe in maintaining a balanced lifestyle that complements my professional development.`        
         modernVotes = 0
         classicVotes = 0
         minimalVotes = 0
@@ -111,101 +113,113 @@ func CollectBalance() {
 }
 
 func Render(path string) string {
-        builder := mdui.NewBuilder()
+        var sb strings.Builder
 
         // Theme-specific header styling
         switch currentTheme {
         case "modern":
                 // Modern theme - Clean and minimalist with emojis
-                builder.AddHeading(1, "🚀 Matija's Space")
-                builder.AddBreakLine()
-                builder.AddImage(pfp, "Profile Picture")
-                builder.AddBreakLine()
-                builder.AddParagraph("_" + pfpCaption + "_") // Italicized caption
-                builder.AddDivider()
-                builder.AddParagraph(abtMe)
+                sb.WriteString(md.H1("🚀 Matija's Space"))
+                sb.WriteString(md.Image(pfpCaption, pfp))
+                sb.WriteString("\n")
+                sb.WriteString(md.Italic(pfpCaption))
+                sb.WriteString("\n")
+                sb.WriteString(md.HorizontalRule())
+                sb.WriteString(abtMe)
+                sb.WriteString("\n")
 
         case "minimal":
                 // Minimal theme - No emojis, minimal formatting
-                builder.AddHeading(1, "Matija Marjanovic")
-                builder.AddBreakLine()
-                builder.AddParagraph(abtMe)
-                builder.AddBreakLine()
-                builder.AddImage(pfp, "Profile Picture")
-                builder.AddBreakLine()
-                builder.AddParagraph(pfpCaption)
+                sb.WriteString(md.H1("Matija Marjanovic"))
+                sb.WriteString("\n")
+                sb.WriteString(abtMe)
+                sb.WriteString("\n")
+                sb.WriteString(md.Image(pfpCaption, pfp))
+                sb.WriteString("\n")
+                sb.WriteString(pfpCaption)
+                sb.WriteString("\n")
 
         default: // classic
                 // Classic theme - Traditional blog style with decorative elements
-                builder.AddHeading(1, "✨ Welcome to Matija's Homepage ✨")
-                builder.AddBreakLine()
-                builder.AddImage(pfp, "Profile Picture")
-                builder.AddBreakLine()
-                builder.AddParagraph("**" + pfpCaption + "**") // Bold caption
-                builder.AddDivider()
-                builder.AddParagraph(abtMe)
+                sb.WriteString(md.H1("✨ Welcome to Matija's Homepage ✨"))
+                sb.WriteString("\n")
+                sb.WriteString(md.Image(pfpCaption, pfp))
+                sb.WriteString("\n")
+                sb.WriteString(pfpCaption)
+                sb.WriteString("\n")
+                sb.WriteString(md.HorizontalRule())
+                sb.WriteString(md.H2("About me"))
+                sb.WriteString("\n")
+                sb.WriteString(abtMe)
+                sb.WriteString("\n")
         }
 
         // Theme-specific voting section
         switch currentTheme {
         case "modern":
-                builder.AddDivider()
-                builder.AddHeading(2, "🎨 Theme Selector")
-                builder.AddParagraph("Choose your preferred viewing experience:")
-                builder.AddList([]string{
-                        ufmt.Sprintf("Modern Design (%d votes)", modernVotes),
-                        ufmt.Sprintf("Classic Style (%d votes)", classicVotes),
-                        ufmt.Sprintf("Minimal Look (%d votes)", minimalVotes),
-                }, []string{modernLink, classicLink, minimalLink}, false)
+                sb.WriteString(md.HorizontalRule())
+                sb.WriteString(md.H2("🎨 Theme Selector"))
+                sb.WriteString("Choose your preferred viewing experience:\n")
+                items := []string{
+                        md.Link(ufmt.Sprintf("Modern Design (%d votes)", modernVotes), modernLink),
+                        md.Link(ufmt.Sprintf("Classic Style (%d votes)", classicVotes), classicLink),
+                        md.Link(ufmt.Sprintf("Minimal Look (%d votes)", minimalVotes), minimalLink),
+                }
+                sb.WriteString(md.BulletList(items))
 
         case "minimal":
-                builder.AddBreakLine()
-                builder.AddHeading(3, "Theme Selection")
-                builder.AddParagraph(ufmt.Sprintf("Current theme: %s", currentTheme))
-                builder.AddParagraph(ufmt.Sprintf("Votes - Modern: %d | Classic: %d | Minimal: %d",
+                sb.WriteString("\n")
+                sb.WriteString(md.H3("Theme Selection"))
+                sb.WriteString(ufmt.Sprintf("Current theme: %s\n", currentTheme))
+                sb.WriteString(ufmt.Sprintf("Votes - Modern: %d | Classic: %d | Minimal: %d\n",
                         modernVotes, classicVotes, minimalVotes))
-                builder.AddButton("Modern", modernLink)
-                builder.AddButton("Classic", classicLink)
-                builder.AddButton("Minimal", minimalLink)
+                sb.WriteString(md.Link("Modern", modernLink))
+                sb.WriteString(" | ")
+                sb.WriteString(md.Link("Classic", classicLink))
+                sb.WriteString(" | ")
+                sb.WriteString(md.Link("Minimal", minimalLink))
+                sb.WriteString("\n")
 
         default: // classic
-                builder.AddDivider()
-                builder.AddHeading(2, "✨ Theme Customization ✨")
-                builder.AddParagraph("**Choose Your Preferred Theme:**")
-                builder.AddTable(
-                        []string{"Theme", "Votes", "Action"},
-                        [][]string{
-                                {"Modern 🚀", ufmt.Sprintf("%d", modernVotes), "[Vote](" + modernLink + ")"},
-                                {"Classic ✨", ufmt.Sprintf("%d", classicVotes), "[Vote](" + classicLink + ")"},
-                                {"Minimal ⚡", ufmt.Sprintf("%d", minimalVotes), "[Vote](" + minimalLink + ")"},
-                        },
-                )
+                sb.WriteString(md.HorizontalRule())
+                sb.WriteString(md.H2("✨ Theme Customization ✨"))
+                sb.WriteString(md.Bold("Choose Your Preferred Theme:"))
+                sb.WriteString("\n\n")
+                items := []string{
+                        ufmt.Sprintf("Modern 🚀 (%d votes) - %s", modernVotes, md.Link("Vote", modernLink)),
+                        ufmt.Sprintf("Classic ✨ (%d votes) - %s", classicVotes, md.Link("Vote", classicLink)),
+                        ufmt.Sprintf("Minimal ⚡ (%d votes) - %s", minimalVotes, md.Link("Vote", minimalLink)),
+                }
+                sb.WriteString(md.BulletList(items))
         }
 
         // Theme-specific footer/links section
         switch currentTheme {
         case "modern":
-                builder.AddDivider()
-                builder.AddBadgeWithIcon("GitHub", "black", "github")
-                builder.AddBadgeWithIcon("LinkedIn", "blue", "linkedin")
+                sb.WriteString(md.HorizontalRule())
+                sb.WriteString(md.Link("GitHub", "https://github.com/matijamarjanovic"))
+                sb.WriteString(" | ")
+                sb.WriteString(md.Link("LinkedIn", "https://www.linkedin.com/in/matijamarjanovic"))
+                sb.WriteString("\n")
 
         case "minimal":
-                builder.AddBreakLine()
-                builder.AddNavbar([]mdui.NavLink{
-                        {Text: "GitHub", Href: "https://github.com/matijamarjanovic"},
-                        {Text: "LinkedIn", Href: "https://www.linkedin.com/in/matijamarjanovic"},
-                })
+                sb.WriteString("\n")
+                sb.WriteString(md.Link("GitHub", "https://github.com/matijamarjanovic"))
+                sb.WriteString(" | ")
+                sb.WriteString(md.Link("LinkedIn", "https://www.linkedin.com/in/matijamarjanovic"))
+                sb.WriteString("\n")
 
         default: // classic
-                builder.AddDivider()
-                builder.AddHeading(3, "✨ Connect With Me")
-                builder.AddNavbar([]mdui.NavLink{
-                        {Text: "🌟 GitHub", Href: "https://github.com/matijamarjanovic"},
-                        {Text: "💼 LinkedIn", Href: "https://www.linkedin.com/in/matijamarjanovic"},
-                })
+                sb.WriteString(md.HorizontalRule())
+                sb.WriteString(md.H3("✨ Connect With Me"))
+                items := []string{
+                        md.Link("🌟 GitHub", "https://github.com/matijamarjanovic"),
+                        md.Link("💼 LinkedIn", "https://www.linkedin.com/in/matijamarjanovic"),
+                }
+                sb.WriteString(md.BulletList(items))
         }
 
-        return builder.Render()
+        return sb.String()
 }
 
 func UpdateModernLink(link string) {
