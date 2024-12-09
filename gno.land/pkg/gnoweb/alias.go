@@ -6,7 +6,7 @@ import (
 	"github.com/gnolang/gno/gno.land/pkg/gnoweb/components"
 )
 
-// realm aliases
+// Aliases are gnoweb paths that are rewritten using [AliasAndRedirectMiddleware].
 var Aliases = map[string]string{
 	"/":           "/r/gnoland/home",
 	"/about":      "/r/gnoland/pages:p/about",
@@ -20,7 +20,7 @@ var Aliases = map[string]string{
 	"/events":     "/r/gnoland/events",
 }
 
-// http redirects
+// Redirect are gnoweb paths that are redirected using [AliasAndRedirectMiddleware].
 var Redirects = map[string]string{
 	"/r/demo/boards:gnolang/6": "/r/demo/boards:gnolang/3", // XXX: temporary
 	"/blog":                    "/r/gnoland/blog",
@@ -32,6 +32,9 @@ var Redirects = map[string]string{
 	"/faucet":                  "https://faucet.gno.land/",
 }
 
+// AliasAndRedirectMiddleware redirects all incoming requests whose path matches
+// any of the [Redirects] to the corresponding URL; and rewrites the URL path
+// for incoming requests which match any of the [Aliases].
 func AliasAndRedirectMiddleware(next http.Handler, analytics bool) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		// Check if the request path matches a redirect
