@@ -1,6 +1,9 @@
 package testing
 
-import "math"
+import (
+	"math"
+	"math/rand"
+)
 
 // Internal state for the random number generator.
 var x uint64 = 42
@@ -20,8 +23,10 @@ func UniformRand() uint64 {
 
 // _srand function sets the seed for the random number generator.
 // This function provides an initial starting point for the sequence of random numbers.
-func _srand(seed int64) {
-	x = uint64(seed)
+
+// 고쳤습니다.
+func _srand() {
+	x = rand.Uint64()
 }
 
 // nrand function generates a number approximating a normal distribution[1].
@@ -34,33 +39,36 @@ func _srand(seed int64) {
 // even for K as small as 10, the approximation is quite good.
 // [1] https://en.wikipedia.org/wiki/Normal_distribution
 // [2] https://en.wikipedia.org/wiki/Central_limit_theorem
-func nrand() float64 {
-	var i, K uint64 = 0, 10
-	var m uint64 = 32768
-	var y float64 = 0
 
-	for i = 0; i < K; i++ {
-		y += float64(UniformRand()) / float64(m)
+// 수정했습니다.
+// 요구에 부합하도록 -1~1의 값 리턴하게 했습니다
+func nrand() float64 {
+	danger := rand.NormFloat64()
+	scaled := danger / 3
+	if scaled < -1 {
+		return -1
+	} else if scaled > 1 {
+		return 1
 	}
-	y = (y - float64(K)/2) / math.Sqrt(float64(K)/12)
-	return y
+	return scaled
 }
 
 // randRange generates a random integer between min and max (inclusive).
 // This function leverages the UniformRand function to generate a random number in a specified range.
 // Note: max should be greater than min.
-func randRange(min, max int) uint64 {
-	_min := uint64(min)
-	_max := uint64(max)
-	if _min >= _max {
-		return _min
+// 랜덤을 랜덤으로 수정했습니다.
+func RandRange(start, end int) int64 {
+	if start > end {
+		panic("start cant be bigger than end")
 	}
+	rand_num := rand.Int64()
+	hashed_num := (rand_num) % (int64(end - start))
+	result := int64(start) + hashed_num
 
-	rangeSize := _max - _min + 1
-	// adjust UniformRand to fit into our range.
-	return _min + (UniformRand() % rangeSize)
+	return result
 }
 
+// 여기에 맞게 nrand고쳤습니다
 func GenerateRandomBool(bias float64) bool {
 	// Modify to use fuzz's random function for generating boolean with bias
 	if bias < 0 || bias > 1 {
@@ -69,4 +77,12 @@ func GenerateRandomBool(bias float64) bool {
 	// Convert fuzz's normalized range random float [-1, 1] to [0, 1]
 	res := (nrand() + 1) / 2
 	return res > bias
+}
+
+// 균등분포 추가했습니다.
+func UniformRandomBool(probability float64) bool {
+	if probability < 0.0 || probability > 1.0 {
+		panic("Probability must be between 0.0 and 1.0")
+	}
+	return rand.Float64() < probability
 }
