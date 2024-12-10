@@ -365,7 +365,6 @@ func initStaticBlocks(store Store, ctx BlockNode, bn BlockNode) {
 }
 
 func doRecover(stack []BlockNode, n Node) {
-
 	if r := recover(); r != nil {
 		// Catch the out-of-gas exception and throw it
 		if exp, ok := r.(tmstore.OutOfGasException); ok {
