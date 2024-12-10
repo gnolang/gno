@@ -82,8 +82,8 @@ type ReadOnlyTree struct {
 	makeEntrySafeFn func(interface{}) interface{}
 }
 
-// Verify that ReadOnlyTree implements TreeInterface
-var _ avl.TreeInterface = (*ReadOnlyTree)(nil)
+// Verify that ReadOnlyTree implements ITree
+var _ avl.ITree = (*ReadOnlyTree)(nil)
 
 // getSafeValue applies the makeEntrySafeFn if it exists, otherwise returns the original value
 func (roTree *ReadOnlyTree) getSafeValue(value interface{}) interface{} {

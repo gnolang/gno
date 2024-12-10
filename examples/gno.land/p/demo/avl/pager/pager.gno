@@ -11,7 +11,7 @@ import (
 
 // Pager is a struct that holds the AVL tree and pagination parameters.
 type Pager struct {
-	Tree            avl.TreeInterface
+	Tree            avl.ITree
 	PageQueryParam  string
 	SizeQueryParam  string
 	DefaultPageSize int

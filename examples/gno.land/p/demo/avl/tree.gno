@@ -1,6 +1,6 @@
 package avl
 
-type TreeInterface interface {
+type ITree interface {
 	// read operations
 
 	Size() int
@@ -121,4 +121,4 @@ func (tree *Tree) ReverseIterateByOffset(offset int, count int, cb IterCbFn) boo
 }
 
 // Verify that Tree implements TreeInterface
-var _ TreeInterface = (*Tree)(nil)
+var _ ITree = (*Tree)(nil)
