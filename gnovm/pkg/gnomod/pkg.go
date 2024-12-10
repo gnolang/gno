@@ -52,7 +52,7 @@ func (pl PkgList) Sort() (SortedPkgList, error) {
 	return sortedPkgs, nil
 }
 
-var injectedTestingLib = []string{"encoding/json", "fmt", "os", "internal/os_test"}
+var injectedTestingLibs = []string{"encoding/json", "fmt", "os", "internal/os_test"}
 
 // visitNode visits a package's and its dependencies dependencies and adds them to the sorted list.
 func visitPackage(pkg Pkg, pkgs []Pkg, visited map[string]bool, stack []string, sortedPkgs *[]Pkg) error {
@@ -68,7 +68,7 @@ func visitPackage(pkg Pkg, pkgs []Pkg, visited map[string]bool, stack []string, 
 
 	// Visit package's dependencies
 	for _, imp := range pkg.Imports {
-		if slices.Contains(injectedTestingLib, imp) {
+		if slices.Contains(injectedTestingLibs, imp) {
 			continue
 		}
 
