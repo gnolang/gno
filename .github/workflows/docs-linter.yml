@@ -1,9 +1,10 @@
-name: "docs linter"
+name: Docs Linter
 
 on:
-  pull_request:
+  push:
     branches:
       - master
+  pull_request:
     paths:
       - "docs/**"
 

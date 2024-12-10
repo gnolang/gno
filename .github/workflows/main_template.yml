@@ -17,7 +17,7 @@ on:
 
 jobs:
   lint:
-    name: Go Linter
+    name: Go Lint
     uses: ./.github/workflows/lint_template.yml
     with:
       modulepath: ${{ inputs.modulepath }}

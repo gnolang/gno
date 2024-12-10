@@ -1,13 +1,13 @@
-name: autocounterd
+name: Portal Loop - autocounterd
 
 on:
   push:
+    branches:
+      - "master"
     paths:
       - misc/autocounterd
       - misc/loop
       - .github/workflows/autocounterd.yml
-    branches:
-      - "master"
 
 permissions:
   contents: read

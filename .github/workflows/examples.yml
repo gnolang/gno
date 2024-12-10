@@ -1,13 +1,14 @@
-name: examples
+name: Gno Examples CI Suite
 
 on:
+  push:
+    branches:
+      - master
   pull_request:
     paths:
-      - '**/*.gno'
-  push:
-    branches: [ "master" ]
-    paths:
-      - '**/*.gno'
+      - gnovm/**/*.gno
+      - examples/**/*.gno
+
 concurrency:
   group: ${{ github.workflow }}-${{ github.head_ref || github.run_id }}
   cancel-in-progress: true
