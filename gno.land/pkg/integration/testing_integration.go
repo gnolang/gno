@@ -5,10 +5,13 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"go/parser"
+	"go/token"
 	"hash/crc32"
 	"log/slog"
 	"os"
 	"path/filepath"
+	"slices"
 	"strconv"
 	"strings"
 	"testing"
@@ -143,6 +146,8 @@ func setupGnolandTestScript(t *testing.T, txtarDir string) testscript.Params {
 			// test1 must be created outside of the loop below because it is already included in genesis so
 			// attempting to recreate results in it getting overwritten and breaking existing tests that
 			// rely on its address being static.
+			// NOTE: recreating test1 will break tests because it's used to deploy stdlibs and needs a greater balance than the default
+			// maybe we should deploy stdlibs with a dedicated account
 			kb.CreateAccount(DefaultAccount_Name, DefaultAccount_Seed, "", "", 0, 0)
 			env.Setenv("USER_SEED_"+DefaultAccount_Name, DefaultAccount_Seed)
 			env.Setenv("USER_ADDR_"+DefaultAccount_Name, DefaultAccount_Address)
@@ -183,10 +188,11 @@ func setupGnolandTestScript(t *testing.T, txtarDir string) testscript.Params {
 						ts.Fatalf("unable to parse `gnoland start` flags: %s", err)
 					}
 
-					// get packages
-					pkgs := ts.Value(envKeyPkgsLoader).(*pkgsLoader)                // grab logger
 					creator := crypto.MustAddressFromString(DefaultAccount_Address) // test1
 					defaultFee := std.NewFee(50000, std.MustParseCoin(ugnot.ValueString(1000000)))
+
+					// get packages
+					pkgs := ts.Value(envKeyPkgsLoader).(*pkgsLoader) // grab logger
 					pkgsTxs, err := pkgs.LoadPackages(creator, defaultFee, nil)
 					if err != nil {
 						ts.Fatalf("unable to load packages txs: %s", err)
@@ -198,7 +204,7 @@ func setupGnolandTestScript(t *testing.T, txtarDir string) testscript.Params {
 					// Generate config and node
 					cfg := TestingMinimalNodeConfig(t, gnoRootDir)
 					genesis := ts.Value(envKeyGenesis).(*gnoland.GnoGenesisState)
-					genesis.Txs = append(pkgsTxs, genesis.Txs...)
+					genesis.Txs = pkgsTxs
 
 					// setup genesis state
 					cfg.Genesis.AppState = *genesis
@@ -640,6 +646,7 @@ func createAccountFrom(env envSetter, kb keys.Keybase, accountName, mnemonic str
 
 type pkgsLoader struct {
 	pkgs    []gnomod.Pkg
+	deps    map[string][]string // direct dependencies by pkg
 	visited map[string]struct{}
 
 	// list of occurrences to patchs with the given value
@@ -650,13 +657,45 @@ type pkgsLoader struct {
 func newPkgsLoader() *pkgsLoader {
 	return &pkgsLoader{
 		pkgs:    make([]gnomod.Pkg, 0),
+		deps:    make(map[string][]string),
 		visited: make(map[string]struct{}),
 		patchs:  make(map[string]string),
 	}
 }
 
 func (pl *pkgsLoader) List() gnomod.PkgList {
-	return pl.pkgs
+	// TODO: probably can be optimized with graph theory
+	toSort := pl.pkgs[:]
+	loaded := make(map[string]struct{})
+	sorted := []gnomod.Pkg{}
+	for len(toSort) != 0 {
+		toRemove := []string{}
+		for _, elem := range toSort {
+			deps := pl.deps[elem.Name]
+			foundUnloaded := false
+			for _, dep := range deps {
+				if _, ok := loaded[dep]; ok {
+					continue
+				}
+				foundUnloaded = true
+				break
+			}
+			if !foundUnloaded {
+				loaded[elem.Name] = struct{}{}
+				sorted = append(sorted, elem)
+				toRemove = append(toRemove, elem.Name)
+			}
+		}
+		if len(toRemove) == 0 {
+			// we can't find a way to correctly order deps, maybe due to a cyclic or missing dep
+			// return the sorted list and remaining packages
+			return append(sorted, toSort...)
+		}
+		toSort = slices.DeleteFunc(toSort, func(elem gnomod.Pkg) bool {
+			return slices.Contains(toRemove, elem.Name)
+		})
+	}
+	return sorted
 }
 
 func (pl *pkgsLoader) SetPatch(replace, with string) {
@@ -705,6 +744,8 @@ func (pl *pkgsLoader) LoadPackages(creator bft.Address, fee std.Fee, deposit std
 }
 
 func (pl *pkgsLoader) LoadAllPackagesFromDir(path string) error {
+	// FIXME: stdlibs are not added here
+
 	// list all packages from target path
 	pkgslist, err := gnomod.ListPkgs(path)
 	if err != nil {
@@ -713,7 +754,7 @@ func (pl *pkgsLoader) LoadAllPackagesFromDir(path string) error {
 
 	for _, pkg := range pkgslist {
 		if !pl.exist(pkg) {
-			pl.add(pkg)
+			pl.add(pkg, nil)
 		}
 	}
 
@@ -769,21 +810,69 @@ func (pl *pkgsLoader) LoadPackage(modroot string, path, name string) error {
 		if pl.exist(currentPkg) {
 			continue
 		}
-		pl.add(currentPkg)
+
+		// deps list to correctly order MsgAddPackage list
+		deps := []string{}
+		addDep := func(dep string) {
+			if slices.Contains(deps, dep) {
+				return
+			}
+			deps = append(deps, dep)
+		}
+
+		// Add stdlibs requirements to the queue and add deps outside of gno.mod to deps list
+		pkgDir := currentPkg.Dir
+		entries, err := os.ReadDir(pkgDir)
+		if err != nil {
+			return err
+		}
+		for _, entry := range entries {
+			if entry.IsDir() {
+				continue
+			}
+			filename := entry.Name()
+			if !strings.HasSuffix(filename, ".gno") || strings.HasSuffix(filename, "_test.gno") || strings.HasSuffix(filename, "_filetest.gno") {
+				continue
+			}
+
+			filePath := filepath.Join(pkgDir, filename)
+			fset := token.NewFileSet()
+			parsed, err := parser.ParseFile(fset, filePath, nil, parser.ImportsOnly)
+			if err != nil {
+				return fmt.Errorf("parse %q: %w", filePath, err)
+			}
+			for _, imp := range parsed.Imports {
+				impPkgPath, err := strconv.Unquote(imp.Path.Value)
+				if err != nil {
+					return fmt.Errorf("unquote %q: %w", imp.Path.Value, err)
+				}
+				addDep(impPkgPath)
+				if !gnolang.IsStdlib(impPkgPath) {
+					continue
+				}
+				dir := filepath.Join(gnoenv.RootDir(), "gnovm", "stdlibs", filepath.FromSlash(impPkgPath))
+				queue = append(queue, gnomod.Pkg{Dir: dir, Name: impPkgPath})
+			}
+		}
 
 		// Add requirements to the queue
 		for _, pkgPath := range currentPkg.Imports {
 			fullPath := filepath.Join(modroot, pkgPath)
 			queue = append(queue, gnomod.Pkg{Dir: fullPath})
+			addDep(pkgPath)
 		}
+
+		// fmt.Println("addpkg", currentPkg.Name, currentPkg.Dir)
+		pl.add(currentPkg, deps)
 	}
 
 	return nil
 }
 
-func (pl *pkgsLoader) add(pkg gnomod.Pkg) {
+func (pl *pkgsLoader) add(pkg gnomod.Pkg, deps []string) {
 	pl.visited[pkg.Name] = struct{}{}
 	pl.pkgs = append(pl.pkgs, pkg)
+	pl.deps[pkg.Name] = deps
 }
 
 func (pl *pkgsLoader) exist(pkg gnomod.Pkg) (ok bool) {

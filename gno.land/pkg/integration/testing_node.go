@@ -91,7 +91,6 @@ func TestingMinimalNodeConfig(t TestingTS, gnoroot string) *gnoland.InMemoryNode
 		DB:            memdb.NewMemDB(),
 		InitChainerConfig: gnoland.InitChainerConfig{
 			GenesisTxResultHandler: gnoland.PanicOnFailingTxResultHandler,
-			CacheStdlibLoad:        true,
 		},
 	}
 }
@@ -134,10 +133,13 @@ func LoadDefaultPackages(t TestingTS, creator bft.Address, gnoroot string) []gno
 	examplesDir := filepath.Join(gnoroot, "examples")
 
 	defaultFee := std.NewFee(50000, std.MustParseCoin(ugnot.ValueString(1000000)))
-	txs, err := gnoland.LoadPackagesFromDir(examplesDir, creator, defaultFee)
+
+	stdlibsTxs := gnoland.LoadEmbeddedStdlibs(creator, defaultFee)
+
+	examplesTxs, err := gnoland.LoadPackagesFromDir(examplesDir, creator, defaultFee)
 	require.NoError(t, err)
 
-	return txs
+	return append(stdlibsTxs, examplesTxs...)
 }
 
 // LoadDefaultGenesisBalanceFile loads the default genesis balance file for testing.
