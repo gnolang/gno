@@ -9,6 +9,7 @@ import (
 	"log/slog"
 	"net/http"
 	"path/filepath"
+	"slices"
 	"strings"
 	"sync"
 	"time"
@@ -19,13 +20,13 @@ import (
 	"github.com/gnolang/gno/gno.land/pkg/sdk/vm" // for error types
 )
 
-const DefaultHost = "gno.land"
+const DefaultChainDomain = "gno.land"
 
 type StaticMetadata struct {
 	AssetsPath string
 	ChromaPath string
 	RemoteHelp string
-	ChaindID   string
+	ChainID    string
 	Analytics  bool
 }
 
@@ -78,17 +79,15 @@ func (h *WebHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	h.Get(w, r)
 }
 
-type PathKind string
-
 func (h *WebHandler) Get(w http.ResponseWriter, r *http.Request) {
 	body := h.getBuffer()
 	defer h.putBuffer(body)
 
 	start := time.Now()
 	defer func() {
-		h.logger.Debug("request ended",
+		h.logger.Debug("request completed",
 			"url", r.URL.String(),
-			"took", time.Since(start).String())
+			"elapsed", time.Since(start).String())
 	}()
 
 	var indexData components.IndexData
@@ -103,10 +102,9 @@ func (h *WebHandler) Get(w http.ResponseWriter, r *http.Request) {
 		h.logger.Warn("page not found", "path", r.URL.Path, "err", err)
 		status, err = http.StatusNotFound, components.RenderStatusComponent(body, "page not found")
 	} else {
-		switch gnourl.Kind {
-		// case KindUser: // XXX
+		switch gnourl.Kind() {
 		case KindRealm, KindPure:
-			status, err = h.renderRealm(body, gnourl)
+			status, err = h.renderPackage(body, gnourl)
 		default:
 			h.logger.Warn("invalid page kind", "kind", gnourl.Kind)
 			status, err = http.StatusNotFound, components.RenderStatusComponent(body, "page not found")
@@ -136,20 +134,23 @@ func (h *WebHandler) Get(w http.ResponseWriter, r *http.Request) {
 	return
 }
 
-func (h *WebHandler) renderRealm(w io.Writer, gnourl *GnoURL) (status int, err error) {
+func (h *WebHandler) renderPackage(w io.Writer, gnourl *GnoURL) (status int, err error) {
 	h.logger.Info("component render", "path", gnourl.Path, "args", gnourl.Args)
 
+	kind := gnourl.Kind()
+
 	// Display realm help page?
-	if gnourl.WebQuery.Has("help") {
+	if kind == KindRealm && gnourl.WebQuery.Has("help") {
 		return h.renderRealmHelp(w, gnourl)
 	}
 
-	// Display realm source page?
-	// XXX: it would probably be better to have this as a middleware somehow
+	// Display package source page?
 	switch {
 	case gnourl.WebQuery.Has("source"):
 		return h.renderRealmSource(w, gnourl)
-	case gnourl.Kind == KindPure, endsWithRune(gnourl.Path, '/') || isFile(gnourl.Path):
+	case kind == KindPure,
+		strings.HasSuffix(gnourl.Path, "/"),
+		isFile(gnourl.Path):
 		i := strings.LastIndexByte(gnourl.Path, '/')
 		if i < 0 {
 			return http.StatusInternalServerError, fmt.Errorf("unable to get ending slash for %q", gnourl.Path)
@@ -232,10 +233,11 @@ func (h *WebHandler) renderRealmHelp(w io.Writer, gnourl *GnoURL) (status int, e
 		SelectedFunc: selFn,
 		SelectedArgs: selArgs,
 		RealmName:    realmName,
-		ChainId:      h.static.ChaindID,
-		PkgPath:      filepath.Join(DefaultHost, gnourl.Path),
-		Remote:       h.static.RemoteHelp,
-		Functions:    fsigs,
+		ChainID:      h.static.ChainID,
+		// TODO: get chain domain and use that.
+		PkgPath:   filepath.Join(DefaultChainDomain, gnourl.Path),
+		Remote:    h.static.RemoteHelp,
+		Functions: fsigs,
 	})
 	if err != nil {
 		h.logger.Error("unable to render helper", "err", err)
@@ -263,7 +265,7 @@ func (h *WebHandler) renderRealmSource(w io.Writer, gnourl *GnoURL) (status int,
 	file := gnourl.WebQuery.Get("file")
 	if file == "" {
 		fileName = files[0]
-	} else if contains(files, file) {
+	} else if slices.Contains(files, file) {
 		fileName = file
 	} else {
 		h.logger.Error("unable to render source", "file", file, "err", "file does not exist")
@@ -391,23 +393,6 @@ func generateBreadcrumbPaths(path string) []components.BreadcrumbPart {
 	}
 
 	return parts
-}
-
-func contains(files []string, file string) bool {
-	for _, f := range files {
-		if f == file {
-			return true
-		}
-	}
-	return false
-}
-
-// EndsWithRune checks if the given path ends with the specified rune
-func endsWithRune(path string, r rune) bool {
-	if len(path) == 0 {
-		return false
-	}
-	return rune(path[len(path)-1]) == r
 }
 
 // IsFile checks if the last element of the path is a file (has an extension)

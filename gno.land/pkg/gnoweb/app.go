@@ -7,6 +7,7 @@ import (
 	"path"
 	"strings"
 
+	"github.com/alecthomas/chroma/v2"
 	chromahtml "github.com/alecthomas/chroma/v2/formatters/html"
 	"github.com/alecthomas/chroma/v2/styles"
 	"github.com/gnolang/gno/tm2/pkg/bft/rpc/client"
@@ -14,41 +15,56 @@ import (
 	mdhtml "github.com/yuin/goldmark/renderer/html"
 )
 
-var chromaStyle = styles.Get("friendly")
-
-func init() {
-	if chromaStyle == nil {
-		panic("unable to get chroma style")
-	}
-}
-
+// AppConfig contains configuration for the gnoweb.
 type AppConfig struct {
+	// UnsafeHTML, if enabled, allows to use HTML in the markdown.
 	UnsafeHTML bool
-	Analytics  bool
-	Remote     string
+	// Analytics enables SimpleAnalytics.
+	Analytics bool
+	// NodeRemote is the remote address of the gno.land node.
+	NodeRemote string
+	// RemoteHelp is the remote of the gno.land node, as used in the help page.
 	RemoteHelp string
-	ChainID    string
+	// ChainID is the chain id, used for constructing the help page.
+	ChainID string
+	// AssetsPath is the base path to the gnoweb assets.
 	AssetsPath string
 }
 
+// NewDefaultAppConfig returns a new default [AppConfig]. The default sets
+// 127.0.0.1:26657 as the remote node, "dev" as the chain ID and sets up Assets
+// to be served on /public/.
 func NewDefaultAppConfig() *AppConfig {
 	const defaultRemote = "127.0.0.1:26657"
 
 	return &AppConfig{
-		Remote: defaultRemote, RemoteHelp: defaultRemote, // same as `Remote` by default
+		// same as Remote by default
+		NodeRemote: defaultRemote,
+		RemoteHelp: defaultRemote,
 		ChainID:    "dev",
 		AssetsPath: "/public/",
 	}
 }
 
-func MakeRouterApp(logger *slog.Logger, cfg *AppConfig) (http.Handler, error) {
+var chromaStyle = mustGetStyle("friendly")
+
+func mustGetStyle(name string) *chroma.Style {
+	s := styles.Get(name)
+	if s == nil {
+		panic("unable to get chroma style")
+	}
+	return s
+}
+
+// NewRouter initializes the gnoweb router, with the given logger and config.
+func NewRouter(logger *slog.Logger, cfg *AppConfig) (http.Handler, error) {
 	mdopts := []goldmark.Option{}
 	if cfg.UnsafeHTML {
 		mdopts = append(mdopts, goldmark.WithRendererOptions(mdhtml.WithXHTML(), mdhtml.WithUnsafe()))
 	}
 	md := goldmark.New(mdopts...)
 
-	client, err := client.NewHTTPClient(cfg.Remote)
+	client, err := client.NewHTTPClient(cfg.NodeRemote)
 	if err != nil {
 		return nil, fmt.Errorf("unable to create http client: %w", err)
 	}
@@ -65,13 +81,13 @@ func MakeRouterApp(logger *slog.Logger, cfg *AppConfig) (http.Handler, error) {
 	var webConfig WebHandlerConfig
 
 	webConfig.RenderClient = webcli
-	webConfig.Formatter = newFormaterWithStyle(formatter, chromaStyle)
+	webConfig.Formatter = newFormatterWithStyle(formatter, chromaStyle)
 
 	// Static meta
 	webConfig.Meta.AssetsPath = cfg.AssetsPath
 	webConfig.Meta.ChromaPath = chromaStylePath
 	webConfig.Meta.RemoteHelp = cfg.RemoteHelp
-	webConfig.Meta.ChaindID = cfg.ChainID
+	webConfig.Meta.ChainID = cfg.ChainID
 	webConfig.Meta.Analytics = cfg.Analytics
 
 	// Setup main handler

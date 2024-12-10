@@ -17,6 +17,9 @@ func disableCache(next http.Handler) http.Handler {
 	})
 }
 
+// AssetHandler returns the handler to serve static assets. If cache is true,
+// these will be served using the static files embedded in the binary; otherwise
+// they will served from the filesystem.
 func AssetHandler(cache bool) http.Handler {
 	if cache {
 		return http.FileServer(http.FS(assets))

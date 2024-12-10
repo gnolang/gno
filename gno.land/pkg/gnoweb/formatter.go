@@ -11,15 +11,15 @@ type Formatter interface {
 	Format(w io.Writer, iterator chroma.Iterator) error
 }
 
-type formaterWithStyle struct {
+type formatterWithStyle struct {
 	*html.Formatter
 	style *chroma.Style
 }
 
-func newFormaterWithStyle(formater *html.Formatter, style *chroma.Style) Formatter {
-	return &formaterWithStyle{Formatter: formater, style: style}
+func newFormatterWithStyle(formater *html.Formatter, style *chroma.Style) Formatter {
+	return &formatterWithStyle{Formatter: formater, style: style}
 }
 
-func (f *formaterWithStyle) Format(w io.Writer, iterator chroma.Iterator) error {
+func (f *formatterWithStyle) Format(w io.Writer, iterator chroma.Iterator) error {
 	return f.Formatter.Format(w, f.style, iterator)
 }

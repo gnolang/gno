@@ -63,13 +63,13 @@ func TestRoutes(t *testing.T) {
 	defer node.Stop()
 
 	cfg := NewDefaultAppConfig()
-	cfg.Remote = remoteAddr
+	cfg.NodeRemote = remoteAddr
 
 	logger := log.NewTestingLogger(t)
 
 	// set the `remoteAddr` of the client to the listening address of the
 	// node, which is randomly assigned.
-	router, err := MakeRouterApp(logger, cfg)
+	router, err := NewRouter(logger, cfg)
 	require.NoError(t, err)
 
 	for _, r := range routes {
@@ -112,16 +112,15 @@ func TestAnalytics(t *testing.T) {
 	node, remoteAddr := integration.TestingInMemoryNode(t, log.NewTestingLogger(t), config)
 	defer node.Stop()
 
-	cfg := NewDefaultAppConfig()
-	cfg.Remote = remoteAddr
-
-	logger := log.NewTestingLogger(t)
-
-	t.Run("with", func(t *testing.T) {
-		cfg.Analytics = true
+	t.Run("enabled", func(t *testing.T) {
 		for _, route := range routes {
 			t.Run(route, func(t *testing.T) {
-				router, err := MakeRouterApp(logger, cfg)
+				cfg := NewDefaultAppConfig()
+				cfg.NodeRemote = remoteAddr
+				cfg.Analytics = true
+				logger := log.NewTestingLogger(t)
+
+				router, err := NewRouter(logger, cfg)
 				require.NoError(t, err)
 
 				request := httptest.NewRequest(http.MethodGet, route, nil)
@@ -131,11 +130,14 @@ func TestAnalytics(t *testing.T) {
 			})
 		}
 	})
-	t.Run("without", func(t *testing.T) {
-		cfg.Analytics = false
+	t.Run("disabled", func(t *testing.T) {
 		for _, route := range routes {
 			t.Run(route, func(t *testing.T) {
-				router, err := MakeRouterApp(logger, cfg)
+				cfg := NewDefaultAppConfig()
+				cfg.NodeRemote = remoteAddr
+				cfg.Analytics = true
+				logger := log.NewTestingLogger(t)
+				router, err := NewRouter(logger, cfg)
 				require.NoError(t, err)
 
 				request := httptest.NewRequest(http.MethodGet, route, nil)

@@ -13,21 +13,30 @@ func TestParseGnoURL(t *testing.T) {
 		Name     string
 		Input    string
 		Expected *GnoURL
-		Err      *error
+		Err      error
 	}{
 		{
 			Name:     "malformed url",
 			Input:    "https://gno.land/r/dem)o:$?",
 			Expected: nil,
-			Err:      &ErrURLMalformedPath,
+			Err:      ErrURLMalformedPath,
 		},
-
+		{
+			Name:  "simple",
+			Input: "https://gno.land/r/simple/test",
+			Expected: &GnoURL{
+				Host:     "gno.land",
+				Path:     "/r/simple/test",
+				WebQuery: url.Values{},
+				Query:    url.Values{},
+			},
+			Err: nil,
+		},
 		{
 			Name:  "webquery + query",
 			Input: "https://gno.land/r/demo/foo$help&func=Bar&name=Baz",
 			Expected: &GnoURL{
 				Path: "/r/demo/foo",
-				Kind: KindRealm,
 				Args: "",
 				WebQuery: url.Values{
 					"help": []string{""},
@@ -45,7 +54,6 @@ func TestParseGnoURL(t *testing.T) {
 			Input: "https://gno.land/r/demo/foo:example$tz=Europe/Paris",
 			Expected: &GnoURL{
 				Path: "/r/demo/foo",
-				Kind: KindRealm,
 				Args: "example",
 				WebQuery: url.Values{
 					"tz": []string{"Europe/Paris"},
@@ -61,7 +69,6 @@ func TestParseGnoURL(t *testing.T) {
 			Input: "https://gno.land/r/demo/foo:example$tz=Europe/Paris?hello=42",
 			Expected: &GnoURL{
 				Path: "/r/demo/foo",
-				Kind: KindRealm,
 				Args: "example",
 				WebQuery: url.Values{
 					"tz": []string{"Europe/Paris"},
@@ -79,7 +86,6 @@ func TestParseGnoURL(t *testing.T) {
 			Input: "https://gno.land/r/demo/foo:example?value=42$tz=Europe/Paris",
 			Expected: &GnoURL{
 				Path:     "/r/demo/foo",
-				Kind:     KindRealm,
 				Args:     "example",
 				WebQuery: url.Values{},
 				Query: url.Values{
@@ -95,7 +101,6 @@ func TestParseGnoURL(t *testing.T) {
 			Input: "https://gno.land/r/demo/foo:example%24hello=43$hello=42",
 			Expected: &GnoURL{
 				Path: "/r/demo/foo",
-				Kind: KindRealm,
 				Args: "example$hello=43",
 				WebQuery: url.Values{
 					"hello": []string{"42"},
@@ -121,7 +126,7 @@ func TestParseGnoURL(t *testing.T) {
 				t.Logf("parsed web: %s", result.EncodeWebPath())
 			} else {
 				require.Error(t, err)
-				require.ErrorAs(t, err, tc.Err)
+				require.ErrorIs(t, err, tc.Err)
 			}
 
 			assert.Equal(t, tc.Expected, result)
