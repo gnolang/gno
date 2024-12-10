@@ -1,12 +1,14 @@
 on:
   workflow_call:
-      inputs:
-          path:
-            required: true
-            type: string
-          go-version:
-            required: true
-            type: string
+    inputs:
+      path:
+        description: "Path to run gno fmt on"
+        required: true
+        type: string
+      go-version:
+        description: "Go version to use"
+        required: true
+        type: string
 
 jobs:
   fmt:
@@ -18,7 +20,7 @@ jobs:
           go-version: ${{ inputs.go-version }}
       - name: Checkout code
         uses: actions/checkout@v4
-      - name: Fmt
+      - name: fmt
         env:
           GNOFMT_PATH: ${{ inputs.path }}
         run: go run ./gnovm/cmd/gno fmt -v -diff $GNOFMT_PATH

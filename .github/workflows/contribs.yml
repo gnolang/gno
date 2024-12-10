@@ -19,12 +19,13 @@ jobs:
   main:
     needs: setup
     strategy:
-        fail-fast: false
-        matrix:
-          program: ${{ fromJson(needs.setup.outputs.programs) }}
+      fail-fast: false
+      matrix:
+        program: ${{ fromJson(needs.setup.outputs.programs) }}
     name: Run Main
     uses: ./.github/workflows/main_template.yml
     with:
       modulepath: contribs/${{ matrix.program }}
+      go-version: "1.22.x"
     secrets:
       codecov-token: ${{ secrets.CODECOV_TOKEN }}

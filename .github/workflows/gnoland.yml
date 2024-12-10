@@ -9,10 +9,11 @@ on:
 
 jobs:
   main:
-    name: Run Main
+    name: Run gno.land suite
     uses: ./.github/workflows/main_template.yml
     with:
       modulepath: "gno.land"
+      go-version: "1.22.x"
       tests-extra-args: "-coverpkg=github.com/gnolang/gno/gno.land/..."
     secrets:
       codecov-token: ${{ secrets.CODECOV_TOKEN }}

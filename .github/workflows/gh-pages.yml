@@ -1,4 +1,5 @@
-# generate docs and publish on gh-pages branch
+# generate Go docs and publish on gh-pages branch
+# Live at: https://gnolang.github.io/gno
 name: gh-pages
 
 on:
