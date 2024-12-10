@@ -22,6 +22,7 @@ func (r Realm) Denom(denom string) string {
 }
 
 func RealmDenom(pkgPath, denom string) string {
+	// TODO: Possibly remove after https://github.com/gnolang/gno/issues/3164
 	// Similar to ibc spec
 	// ibc_denom := 'ibc/' + hash('path' + 'base_denom')
 	// gno_realm_denom := '/' + 'pkg_path' + ':' + 'base_denom'
