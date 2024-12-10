@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"go/scanner"
 	"go/types"
-	"io"
 	goio "io"
 	"os"
 	"path/filepath"
@@ -322,4 +321,4 @@ func issueFromError(pkgPath string, err error) lintIssue {
 
 type nopReader struct{}
 
-func (nopReader) Read(p []byte) (int, error) { return 0, io.EOF }
+func (nopReader) Read(p []byte) (int, error) { return 0, goio.EOF }
