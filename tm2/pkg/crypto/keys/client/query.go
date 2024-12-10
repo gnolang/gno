@@ -3,7 +3,9 @@ package client
 import (
 	"context"
 	"flag"
+	"strings"
 
+	"github.com/gnolang/gno/gnovm/pkg/gnolang"
 	"github.com/gnolang/gno/tm2/pkg/bft/rpc/client"
 	ctypes "github.com/gnolang/gno/tm2/pkg/bft/rpc/core/types"
 	"github.com/gnolang/gno/tm2/pkg/commands"
@@ -16,6 +18,8 @@ type QueryCfg struct {
 	Data string
 	Path string
 }
+
+const balancesQuery = "bank/balances/"
 
 func NewQueryCmd(rootCfg *BaseCfg, io commands.IO) *commands.Command {
 	cfg := &QueryCfg{
@@ -78,21 +82,52 @@ func QueryHandler(cfg *QueryCfg) (*ctypes.ResultABCIQuery, error) {
 		return nil, errors.New("missing remote url")
 	}
 
+	path := cfg.Path
+
+	if path == "" {
+		return nil, errors.New("missing path")
+	}
+
+	if strings.Contains(path, balancesQuery) {
+		path = handleBalanceQuery(path)
+		if path == "" {
+			return nil, errors.New("could not derive address from pkgpath")
+		}
+	}
+
 	data := []byte(cfg.Data)
 	opts2 := client.ABCIQueryOptions{
 		// Height: height, XXX
 		// Prove: false, XXX
 	}
+
 	cli, err := client.NewHTTPClient(remote)
 	if err != nil {
 		return nil, errors.Wrap(err, "new http client")
 	}
 
 	qres, err := cli.ABCIQueryWithOptions(
-		cfg.Path, data, opts2)
+		path, data, opts2)
 	if err != nil {
 		return nil, errors.Wrap(err, "querying")
 	}
 
 	return qres, nil
+}
+
+func handleBalanceQuery(path string) string {
+	// If the query is bank/balances & it contains a path, derive the address from the path
+	if strings.Contains(path, "gno.land/") {
+		i := strings.Index(path, balancesQuery)
+		pkgPath := path[i+len(balancesQuery):]
+
+		pkgAddr := gnolang.DerivePkgAddr(pkgPath)
+		if len(pkgAddr.Bytes()) == 0 {
+			return ""
+		}
+
+		path = balancesQuery + pkgAddr.String()
+	}
+
+	return path
 }
