@@ -11,7 +11,7 @@ import (
 
 // Pager is a struct that holds the AVL tree and pagination parameters.
 type Pager struct {
-	Tree            *avl.Tree
+	Tree            avl.ITree
 	PageQueryParam  string
 	SizeQueryParam  string
 	DefaultPageSize int
@@ -37,7 +37,7 @@ type Item struct {
 }
 
 // NewPager creates a new Pager with default values.
-func NewPager(tree *avl.Tree, defaultPageSize int, reversed bool) *Pager {
+func NewPager(tree avl.TreeInterface, defaultPageSize int, reversed bool) *Pager {
 	return &Pager{
 		Tree:            tree,
 		PageQueryParam:  "page",
