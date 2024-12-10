@@ -19,7 +19,7 @@ func TestAuto(t *testing.T) {
 	// order in the deterministic seeded result.
 	var out []int64
 	for i := 0; i < 10; i++ {
-		out = append(out, Int64())
+		out = append(out, rand.Int64())
 	}
 
 	// Look for out in seeded output.
