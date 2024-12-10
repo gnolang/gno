@@ -21,19 +21,23 @@ const (
 // Gas measured by the SDK
 type Gas = int64
 
-// OutOfGasException defines an error thrown when an action results in out of gas.
-type OutOfGasException struct {
+// OutOfGasError defines an error thrown when an action results in out of gas.
+type OutOfGasError struct {
 	Descriptor string
 }
 
-func (oog *OutOfGasException) Error() string {
+func (oog *OutOfGasError) Error() string {
 	return "out of gas in location: " + oog.Descriptor
 }
 
-// GasOverflowException defines an error thrown when an action results gas consumption
+// GasOverflowError defines an error thrown when an action results gas consumption
 // unsigned integer overflow.
-type GasOverflowException struct {
+type GasOverflowError struct {
 	Descriptor string
+}
+
+func (oog *GasOverflowError) Error() string {
+	return "gas overflow in location: " + oog.Descriptor
 }
 
 // GasMeter interface to track gas consumption
@@ -92,13 +96,13 @@ func (g *basicGasMeter) ConsumeGas(amount Gas, descriptor string) {
 	}
 	consumed, ok := overflow.Add64(g.consumed, amount)
 	if !ok {
-		panic(GasOverflowException{descriptor})
+		panic(GasOverflowError{descriptor})
 	}
 	// consume gas even if out of gas.
 	// corollary, call (Did)ConsumeGas after consumption.
 	g.consumed = consumed
 	if consumed > g.limit {
-		panic(OutOfGasException{descriptor})
+		panic(OutOfGasError{descriptor})
 	}
 }
 
@@ -143,7 +147,7 @@ func (g *infiniteGasMeter) Remaining() Gas {
 func (g *infiniteGasMeter) ConsumeGas(amount Gas, descriptor string) {
 	consumed, ok := overflow.Add64(g.consumed, amount)
 	if !ok {
-		panic(GasOverflowException{descriptor})
+		panic(GasOverflowError{descriptor})
 	}
 	g.consumed = consumed
 }

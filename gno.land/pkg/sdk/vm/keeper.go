@@ -512,7 +512,7 @@ func (vm *VMKeeper) Call(ctx sdk.Context, msg MsgCall) (res string, err error) {
 func doRecover(m *gno.Machine, e *error) {
 	if r := recover(); r != nil {
 		if err := r.(error); r != nil {
-			oog := new(types.OutOfGasException)
+			oog := new(types.OutOfGasError)
 			if goerrors.As(err, &oog) {
 				// Re-panic and don't wrap.
 				panic(oog)
