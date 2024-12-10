@@ -71,17 +71,6 @@ func (m *Machine) doOpLand() {
 	lv.SetBool(lv.GetBool() && rv.GetBool())
 }
 
-// setMaybeUntypedBool sets lv to b; it will be untyped if both lv and rv are
-// untyped; otherwise, it will be a typed bool.
-func setMaybeUntypedBool(lv, rv *TypedValue, b bool) {
-	tp := BoolType
-	if isUntyped(lv.T) && isUntyped(rv.T) {
-		tp = UntypedBoolType
-	}
-	lv.T, lv.V = tp, nil
-	lv.SetBool(b)
-}
-
 func (m *Machine) doOpEql() {
 	m.PopExpr()
 
@@ -93,7 +82,9 @@ func (m *Machine) doOpEql() {
 	}
 	// set result in lv.
 	res := isEql(m.Store, lv, rv)
-	setMaybeUntypedBool(lv, rv, res)
+	lv.T = UntypedBoolType
+	lv.V = nil
+	lv.SetBool(res)
 }
 
 func (m *Machine) doOpNeq() {
@@ -108,7 +99,9 @@ func (m *Machine) doOpNeq() {
 
 	// set result in lv.
 	res := !isEql(m.Store, lv, rv)
-	setMaybeUntypedBool(lv, rv, res)
+	lv.T = UntypedBoolType
+	lv.V = nil
+	lv.SetBool(res)
 }
 
 func (m *Machine) doOpLss() {
@@ -123,7 +116,9 @@ func (m *Machine) doOpLss() {
 
 	// set the result in lv.
 	res := isLss(lv, rv)
-	setMaybeUntypedBool(lv, rv, res)
+	lv.T = UntypedBoolType
+	lv.V = nil
+	lv.SetBool(res)
 }
 
 func (m *Machine) doOpLeq() {
@@ -138,7 +133,9 @@ func (m *Machine) doOpLeq() {
 
 	// set the result in lv.
 	res := isLeq(lv, rv)
-	setMaybeUntypedBool(lv, rv, res)
+	lv.T = UntypedBoolType
+	lv.V = nil
+	lv.SetBool(res)
 }
 
 func (m *Machine) doOpGtr() {
@@ -153,7 +150,9 @@ func (m *Machine) doOpGtr() {
 
 	// set the result in lv.
 	res := isGtr(lv, rv)
-	setMaybeUntypedBool(lv, rv, res)
+	lv.T = UntypedBoolType
+	lv.V = nil
+	lv.SetBool(res)
 }
 
 func (m *Machine) doOpGeq() {
@@ -168,7 +167,9 @@ func (m *Machine) doOpGeq() {
 
 	// set the result in lv.
 	res := isGeq(lv, rv)
-	setMaybeUntypedBool(lv, rv, res)
+	lv.T = UntypedBoolType
+	lv.V = nil
+	lv.SetBool(res)
 }
 
 func (m *Machine) doOpAdd() {
