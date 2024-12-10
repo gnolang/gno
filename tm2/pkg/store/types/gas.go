@@ -26,6 +26,10 @@ type OutOfGasException struct {
 	Descriptor string
 }
 
+func (oog *OutOfGasException) Error() string {
+	return "out of gas in location: " + oog.Descriptor
+}
+
 // GasOverflowException defines an error thrown when an action results gas consumption
 // unsigned integer overflow.
 type GasOverflowException struct {
