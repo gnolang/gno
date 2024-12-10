@@ -1,3 +1,4 @@
+# This workflow must be kept in sync to some extent with bot-proxy.yml
 name: GitHub Bot
 
 on:
