@@ -4290,6 +4290,12 @@ func tryPredefine(store Store, last BlockNode, d Decl) (un Name) {
 				if isBlankIdentifier(tx) {
 					panic("cannot use _ as value or type")
 				}
+
+				// do not allow nil as type.
+				if tx.Name == "nil" {
+					panic("nil is not a type")
+				}
+
 				if tv := last.GetValueRef(store, tx.Name, true); tv != nil {
 					t = tv.GetType()
 					if dt, ok := t.(*DeclaredType); ok {
