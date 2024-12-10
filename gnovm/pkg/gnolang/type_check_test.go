@@ -51,7 +51,7 @@ func TestCheckAssignableTo(t *testing.T) {
 					}
 				}()
 			}
-			checkAssignableTo(tt.xt, tt.dt, tt.autoNative)
+			checkAssignableTo(nil, tt.xt, tt.dt, tt.autoNative)
 		})
 	}
 }
