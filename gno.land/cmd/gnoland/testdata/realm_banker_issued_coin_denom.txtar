@@ -65,11 +65,11 @@ stderr 'cannot issue coins with invalid denom base name, it should start by a lo
 
 ## mint invalid realm denom
 ! gnokey maketx call -pkgpath gno.land/r/test/invalid_realm_denom -func Mint -args "g1cq2ecdq3eyn5qa0fzznpurg87zq3k77g63q6u7" -args "ugnot" -args "100" -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test test1
-stderr 'cannot issue coins with denom not prefixed by: / \+ std.CurrentRealm\(\).PkgPath\(\) \+ :'
+stderr 'invalid denom, can only issue/remove coins with the realm.s prefix'
 
 ## burn invalid realm denom
 ! gnokey maketx call -pkgpath gno.land/r/test/invalid_realm_denom -func Burn -args "g1cq2ecdq3eyn5qa0fzznpurg87zq3k77g63q6u7" -args "ugnot" -args "100" -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test test1
-stderr 'cannot issue coins with denom not prefixed by: / \+ std.CurrentRealm\(\).PkgPath\(\) \+ :'
+stderr 'invalid denom, can only issue/remove coins with the realm.s prefix'
 
 -- short/realm_banker.gno --
 package realm_banker
