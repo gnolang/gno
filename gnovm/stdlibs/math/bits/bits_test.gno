@@ -1021,8 +1021,8 @@ func TestDivPanicOverflow(t *testing.T) {
 	defer func() {
 		if err := recover(); err == nil {
 			t.Error("Div should have panicked when y<=hi")
-		} else if err != bits.OverfowError {
-			t.Errorf("Div expected panic: %q, got: %v ", bits.OverfowError, err)
+		} else if err != bits.OverflowError {
+			t.Errorf("Div expected panic: %q, got: %v ", bits.OverflowError, err)
 		}
 	}()
 	q, r := bits.Div(1, 0, 1)
@@ -1034,8 +1034,8 @@ func TestDiv32PanicOverflow(t *testing.T) {
 	defer func() {
 		if err := recover(); err == nil {
 			t.Error("Div32 should have panicked when y<=hi")
-		} else if err != bits.OverfowError {
-			t.Errorf("Div32 expected panic: %q, got: %v ", bits.OverfowError, err)
+		} else if err != bits.OverflowError {
+			t.Errorf("Div32 expected panic: %q, got: %v ", bits.OverflowError, err)
 		}
 	}()
 	q, r := bits.Div32(1, 0, 1)
@@ -1047,8 +1047,8 @@ func TestDiv64PanicOverflow(t *testing.T) {
 	defer func() {
 		if err := recover(); err == nil {
 			t.Error("Div64 should have panicked when y<=hi")
-		} else if err != bits.OverfowError {
-			t.Errorf("Div64 expected panic: %q, got: %v ", bits.OverfowError, err)
+		} else if err != bits.OverflowError {
+			t.Errorf("Div64 expected panic: %q, got: %v ", bits.OverflowError, err)
 		}
 	}()
 	q, r := bits.Div64(1, 0, 1)
