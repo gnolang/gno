@@ -11,7 +11,6 @@ import (
 	"path/filepath"
 	"slices"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/alecthomas/chroma/v2"
@@ -42,11 +41,6 @@ type WebHandler struct {
 	logger *slog.Logger
 	static StaticMetadata
 	webcli *WebClient
-
-	// BufferPool is used to reuse Buffer instances
-	// to reduce memory allocations and improve performance
-	// XXX: maybe this is a too early optimization
-	bufferPool sync.Pool
 }
 
 func NewWebHandler(logger *slog.Logger, cfg WebHandlerConfig) *WebHandler {
@@ -59,12 +53,6 @@ func NewWebHandler(logger *slog.Logger, cfg WebHandlerConfig) *WebHandler {
 		webcli:    cfg.RenderClient,
 		logger:    logger,
 		static:    cfg.Meta,
-		// Initialize the pool with bytes.Buffer factory
-		bufferPool: sync.Pool{
-			New: func() interface{} {
-				return &bytes.Buffer{}
-			},
-		},
 	}
 }
 
@@ -171,11 +159,8 @@ func (h *WebHandler) renderPackage(w io.Writer, gnourl *GnoURL) (status int, err
 	}
 
 	// Render content into the content buffer
-
-	content := h.getBuffer()
-	defer h.putBuffer(content)
-
-	meta, err := h.webcli.Render(content, gnourl.Path, gnourl.EncodeArgs())
+	var content bytes.Buffer
+	meta, err := h.webcli.Render(&content, gnourl.Path, gnourl.EncodeArgs())
 	if err != nil {
 		if errors.Is(err, vm.InvalidPkgPathError{}) {
 			return http.StatusNotFound, components.RenderStatusComponent(w, "not found")
@@ -363,17 +348,6 @@ func (h *WebHandler) highlightSource(fileName string, src []byte) ([]byte, error
 	}
 
 	return buff.Bytes(), nil
-}
-
-// GetBuffer retrieves a buffer from the sync.Pool
-func (h *WebHandler) getBuffer() *bytes.Buffer {
-	return h.bufferPool.Get().(*bytes.Buffer)
-}
-
-// PutBuffer resets and puts a buffer back into the sync.Pool
-func (h *WebHandler) putBuffer(buf *bytes.Buffer) {
-	buf.Reset()
-	h.bufferPool.Put(buf)
 }
 
 func generateBreadcrumbPaths(path string) []components.BreadcrumbPart {
