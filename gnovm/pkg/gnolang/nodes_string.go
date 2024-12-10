@@ -96,7 +96,20 @@ func (vp ValuePath) String() string {
 }
 
 func (x NameExpr) String() string {
-	return fmt.Sprintf("%s<%s>", x.Name, x.Path.String())
+	switch x.Type {
+	case NameExprTypeNormal:
+		return fmt.Sprintf("%s<%s>", x.Name, x.Path.String())
+	case NameExprTypeDefine:
+		return fmt.Sprintf("%s<!%s>", x.Name, x.Path.String())
+	case NameExprTypeHeapDefine:
+		return fmt.Sprintf("%s<!~%s>", x.Name, x.Path.String())
+	case NameExprTypeHeapUse:
+		return fmt.Sprintf("%s<~%s>", x.Name, x.Path.String())
+	case NameExprTypeHeapClosure:
+		return fmt.Sprintf("%s<()~%s>", x.Name, x.Path.String())
+	default:
+		panic("unexpected NameExpr type")
+	}
 }
 
 func (x BasicLitExpr) String() string {
@@ -172,7 +185,11 @@ func (x CompositeLitExpr) String() string {
 }
 
 func (x FuncLitExpr) String() string {
-	return fmt.Sprintf("func %s{ %s }", x.Type, x.Body.String())
+	heapCaptures := ""
+	if len(x.HeapCaptures) > 0 {
+		heapCaptures = "<" + x.HeapCaptures.String() + ">"
+	}
+	return fmt.Sprintf("func %s{ %s }%s", x.Type, x.Body.String(), heapCaptures)
 }
 
 func (x KeyValueExpr) String() string {

@@ -91,13 +91,13 @@ func TestMarshalAminoJSON(t *testing.T) {
 		c: []*Foo{nil, nil, nil},
 		D: "J",
 	}
-	bz, err := cdc.MarshalJSON(f)
+	bz, err := cdc.JSONMarshal(f)
 	assert.Nil(t, err)
 
 	t.Logf("bz %X", bz)
 
 	var f2 Foo
-	err = cdc.UnmarshalJSON(bz, &f2)
+	err = cdc.JSONUnmarshal(bz, &f2)
 	assert.Nil(t, err)
 
 	assert.Equal(t, f, f2)

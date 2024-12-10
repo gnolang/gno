@@ -1,10 +1,6 @@
 // PKGPATH: gno.land/r/test
 package test
 
-import (
-	"fmt"
-)
-
 type (
 	word uint
 	nat  []word
@@ -214,7 +210,7 @@ func main() {
 //                     "Escaped": true,
 //                     "ObjectID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:3"
 //                 },
-//                 "FileName": "main.gno",
+//                 "FileName": "files/assign_unnamed_type/more/realm_compositelit.gno",
 //                 "IsMethod": false,
 //                 "Name": "main",
 //                 "NativeName": "",
@@ -225,8 +221,8 @@ func main() {
 //                     "BlockNode": null,
 //                     "Location": {
 //                         "Column": "1",
-//                         "File": "main.gno",
-//                         "Line": "20",
+//                         "File": "files/assign_unnamed_type/more/realm_compositelit.gno",
+//                         "Line": "16",
 //                         "PkgPath": "gno.land/r/test"
 //                     }
 //                 },

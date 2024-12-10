@@ -17,7 +17,7 @@ gnokey maketx addpkg -pkgdir $WORK/foo -pkgpath gno.land/r/foo -gas-fee 1000000u
 stderr '--= Error =--'
 stderr 'Data: out of gas error'
 stderr 'Msg Traces:'
-stderr 'out of gas'
+stderr 'out of gas.*?in preprocess'
 stderr '--= /Error =--'
 
 
@@ -29,7 +29,7 @@ stderr '--= /Error =--'
 stderr '--= Error =--'
 stderr 'Data: out of gas error'
 stderr 'Msg Traces:'
-stderr 'out of gas'
+stderr 'out of gas.*?in preprocess'
 stderr '--= /Error =--'
 
 

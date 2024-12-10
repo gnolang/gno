@@ -9,15 +9,16 @@ import (
 
 type ExecContext struct {
 	ChainID       string
+	ChainDomain   string
 	Height        int64
 	Timestamp     int64 // seconds
 	TimestampNano int64 // nanoseconds, only used for testing.
-	Msg           sdk.Msg
 	OrigCaller    crypto.Bech32Address
 	OrigPkgAddr   crypto.Bech32Address
 	OrigSend      std.Coins
 	OrigSendSpent *std.Coins // mutable
 	Banker        BankerInterface
+	Params        ParamsInterface
 	EventLogger   *sdk.EventLogger
 }
 
