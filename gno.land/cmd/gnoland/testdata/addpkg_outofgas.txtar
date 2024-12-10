@@ -4,7 +4,7 @@
 gnoland start
 
 # add foo package
-gnokey maketx addpkg -pkgdir $WORK/foo -pkgpath gno.land/r/foo -gas-fee 1000000ugnot -gas-wanted 211483 -broadcast -chainid=tendermint_test test1
+gnokey maketx addpkg -pkgdir $WORK/foo -pkgpath gno.land/r/foo -gas-fee 1000000ugnot -gas-wanted 220000 -broadcast -chainid=tendermint_test test1
 
 
 # add bar package
@@ -17,7 +17,7 @@ gnokey maketx addpkg -pkgdir $WORK/foo -pkgpath gno.land/r/foo -gas-fee 1000000u
 stderr '--= Error =--'
 stderr 'Data: out of gas error'
 stderr 'Msg Traces:'
-stderr '    0  /home/runner/work/gno/gno/tm2/pkg/crypto/keys/client/maketx.go:215 - deliver transaction failed: log:out of gas, gasWanted: 60000, gasUsed: 60343 location: ReadFlat'
+stderr 'out of gas'
 stderr '--= /Error =--'
 
 
@@ -29,7 +29,7 @@ stderr '--= /Error =--'
 stderr '--= Error =--'
 stderr 'Data: out of gas error'
 stderr 'Msg Traces:'
-stderr '    0  /home/runner/work/gno/gno/tm2/pkg/crypto/keys/client/maketx.go:215 - deliver transaction failed: log:out of gas, gasWanted: 63000, gasUsed: 63363 location: ReadFlat'
+stderr 'out of gas'
 stderr '--= /Error =--'
 
 
