@@ -44,9 +44,11 @@ linters:
 linters-settings:
   gofmt:
     simplify: true
+
   goconst:
     min-len: 3
     min-occurrences: 3
+
   gosec:
     excludes:
       - G204 # Subprocess launched with a potential tainted input or cmd arguments
@@ -56,6 +58,7 @@ linters-settings:
     checks: [ "all", "-ST1022", "-ST1003" ]
   errorlint:
     asserts: false
+
   gocritic:
     enabled-tags:
       - diagnostic
@@ -63,10 +66,11 @@ linters-settings:
       - opinionated
       - performance
       - style
+
   forbidigo:
     forbid:
       - p: '^regexp\.(Match|MatchString)$'
-        msg: it will re-compile the regexp for each execution; compile the regexp with regexp.Compile and store it as a singleton
+        msg: "Use compiled regex via regexp.Compile and store as a singleton"
 
 issues:
   whole-files: true
@@ -74,6 +78,7 @@ issues:
   max-same-issues: 0
   new: false
   fix: false
+
   exclude-rules:
     - path: _test\.go
       linters:
