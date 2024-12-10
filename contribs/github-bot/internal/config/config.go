@@ -22,6 +22,10 @@ type ManualCheck struct {
 	Teams       Teams       // Members of these teams can check the checkbox to make the check pass.
 }
 
+// This is the description for a persistent rule with a non-standard behavior
+// that allow maintainer to force the "success" state of the CI check
+const ForceSkipDescription = "**SKIP**: Do not block the CI for this PR"
+
 // This function returns the configuration of the bot consisting of automatic and manual checks
 // in which the GitHub client is injected.
 func Config(gh *client.GitHub) ([]AutomaticCheck, []ManualCheck) {
@@ -53,6 +57,11 @@ func Config(gh *client.GitHub) ([]AutomaticCheck, []ManualCheck) {
 	}
 
 	manual := []ManualCheck{
+		{
+			// WARN: Do not edit this special rule which must remain persistent.
+			Description: ForceSkipDescription,
+			If:          c.Always(),
+		},
 		{
 			Description: "The pull request description provides enough details",
 			If:          c.Not(c.AuthorInTeam(gh, "core-contributors")),
