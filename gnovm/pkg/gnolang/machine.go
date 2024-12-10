@@ -12,9 +12,11 @@ import (
 	"sync"
 
 	"github.com/gnolang/gno/gnovm"
+	bm "github.com/gnolang/gno/gnovm/pkg/benchops"
 	"github.com/gnolang/gno/tm2/pkg/errors"
 	"github.com/gnolang/gno/tm2/pkg/overflow"
 	"github.com/gnolang/gno/tm2/pkg/store"
+	"github.com/gnolang/overflow"
 )
 
 // Exception represents a panic that originates from a gno program.
@@ -262,6 +264,12 @@ func (m *Machine) PreprocessAllFilesAndSaveBlockNodes() {
 // and corresponding package node, package value, and types to store. Save
 // is set to false for tests where package values may be native.
 func (m *Machine) RunMemPackage(memPkg *gnovm.MemPackage, save bool) (*PackageNode, *PackageValue) {
+	if bm.OpsEnabled || bm.StorageEnabled {
+		bm.InitMeasure()
+	}
+	if bm.StorageEnabled {
+		defer bm.FinishStore()
+	}
 	return m.runMemPackage(memPkg, save, false)
 }
 
@@ -699,6 +707,13 @@ func (m *Machine) Eval(x Expr) []TypedValue {
 	if debug {
 		m.Printf("Machine.Eval(%v)\n", x)
 	}
+	if bm.OpsEnabled || bm.StorageEnabled {
+		// reset the benchmark
+		bm.InitMeasure()
+	}
+	if bm.StorageEnabled {
+		defer bm.FinishStore()
+	}
 	// X must not have been preprocessed.
 	if x.GetAttribute(ATTR_PREPROCESSED) != nil {
 		panic(fmt.Sprintf(
@@ -979,6 +994,7 @@ const (
 	OpRangeIterMap      Op = 0xD5
 	OpRangeIterArrayPtr Op = 0xD6
 	OpReturnCallDefers  Op = 0xD7 // TODO rename?
+	OpVoid              Op = 0xFF // For profiling simple operation
 )
 
 const GasFactorCPU int64 = 1
@@ -1126,6 +1142,12 @@ const (
 // main run loop.
 
 func (m *Machine) Run() {
+	if bm.OpsEnabled {
+		defer func() {
+			// output each machine run results to file
+			bm.FinishRun()
+		}()
+	}
 	defer func() {
 		r := recover()
 
@@ -1145,11 +1167,23 @@ func (m *Machine) Run() {
 			m.Debug()
 		}
 		op := m.PopOp()
+		if bm.OpsEnabled {
+			// benchmark the operation.
+			bm.StartOpCode(byte(OpVoid))
+			bm.StopOpCode()
+			// we do not benchmark static evaluation.
+			if op != OpStaticTypeOf {
+				bm.StartOpCode(byte(op))
+			}
+		}
 		// TODO: this can be optimized manually, even into tiers.
 		switch op {
 		/* Control operators */
 		case OpHalt:
 			m.incrCPU(OpCPUHalt)
+			if bm.OpsEnabled {
+				bm.StopOpCode()
+			}
 			return
 		case OpNoop:
 			m.incrCPU(OpCPUNoop)
@@ -1467,6 +1501,11 @@ func (m *Machine) Run() {
 			m.doOpReturnCallDefers()
 		default:
 			panic(fmt.Sprintf("unexpected opcode %s", op.String()))
+		}
+		if bm.OpsEnabled {
+			if op != OpStaticTypeOf {
+				bm.StopOpCode()
+			}
 		}
 	}
 }
