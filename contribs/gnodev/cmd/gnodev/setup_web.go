@@ -1,27 +1,30 @@
 package main
 
 import (
+	"fmt"
 	"log/slog"
 	"net/http"
 
 	gnodev "github.com/gnolang/gno/contribs/gnodev/pkg/dev"
-	"github.com/gnolang/gno/gno.land/pkg/gnoweb"
+	gnoweb "github.com/gnolang/gno/gno.land/pkg/gnoweb"
 )
 
 // setupGnowebServer initializes and starts the Gnoweb server.
-func setupGnoWebServer(logger *slog.Logger, cfg *devCfg, dnode *gnodev.Node) http.Handler {
-	webConfig := gnoweb.NewDefaultConfig()
+func setupGnoWebServer(logger *slog.Logger, cfg *devCfg, dnode *gnodev.Node) (http.Handler, error) {
+	remote := dnode.GetRemoteAddress()
 
-	webConfig.HelpChainID = cfg.chainId
-	webConfig.RemoteAddr = dnode.GetRemoteAddress()
-	webConfig.HelpRemote = cfg.webRemoteHelperAddr
-	webConfig.WithHTML = cfg.webWithHTML
-
-	// If `HelpRemote` is empty default it to `RemoteAddr`
-	if webConfig.HelpRemote == "" {
-		webConfig.HelpRemote = webConfig.RemoteAddr
+	appcfg := gnoweb.NewDefaultAppConfig()
+	appcfg.UnsafeHTML = cfg.webHTML
+	appcfg.Remote = remote
+	appcfg.ChainID = cfg.chainId
+	if cfg.webRemoteHelperAddr != "" {
+		appcfg.RemoteHelp = cfg.webRemoteHelperAddr
 	}
 
-	app := gnoweb.MakeApp(logger, webConfig)
-	return app.Router
+	router, err := gnoweb.MakeRouterApp(logger, appcfg)
+	if err != nil {
+		return nil, fmt.Errorf("unable to create router app: %w", err)
+	}
+
+	return router, nil
 }
