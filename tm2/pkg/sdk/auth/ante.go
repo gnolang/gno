@@ -146,7 +146,9 @@ func NewAnteHandler(ak AccountKeeper, bank BankKeeperI, sigGasConsumer Signature
 
 			// check signature, return account with incremented nonce
 			sacc := signerAccs[i]
-			if isGenesis && !opts.VerifyGenesisSignatures {
+			// Do not check signatures if the chainID is dev (gnodev) if we decide to verify the genesis signatures for
+			// gnodev the initialization would take longer
+			if isGenesis && (!opts.VerifyGenesisSignatures || newCtx.ChainID() == "dev") {
 				// No signatures are needed for genesis.
 			} else {
 				// Check signature
@@ -394,15 +396,17 @@ func SetGasMeter(simulate bool, ctx sdk.Context, gasLimit int64) sdk.Context {
 // and an account.
 func GetSignBytes(chainID string, tx std.Tx, acc std.Account, genesis bool) ([]byte, error) {
 	var accNum uint64
+	var accSequence uint64
 	if !genesis {
 		accNum = acc.GetAccountNumber()
+		accSequence = acc.GetSequence()
 	}
 
 	return std.GetSignaturePayload(
 		std.SignDoc{
 			ChainID:       chainID,
 			AccountNumber: accNum,
-			Sequence:      acc.GetSequence(),
+			Sequence:      accSequence,
 			Fee:           tx.Fee,
 			Msgs:          tx.Msgs,
 			Memo:          tx.Memo,
