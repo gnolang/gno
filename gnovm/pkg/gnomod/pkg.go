@@ -133,9 +133,9 @@ func ListPkgs(root string) (PkgList, error) {
 			imports = []string{}
 		}
 
-		// remove self and standard libraries from imports
+		// remove standard libraries from imports
 		imports = slices.DeleteFunc(imports, func(imp string) bool {
-			return imp == gnoMod.Module.Mod.Path || gnolang.IsStdlib(imp)
+			return gnolang.IsStdlib(imp)
 		})
 
 		pkgs = append(pkgs, Pkg{
