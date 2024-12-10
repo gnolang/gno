@@ -1,6 +1,6 @@
 package home
 
-import "gno.land/r/demo/hof"
+import "gno.land/r/leon/hof"
 
 const staticHome = `# morgan's (gn)home
 
