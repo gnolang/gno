@@ -8,7 +8,7 @@
 // Example usage:
 //
 //	// Create a new list and add elements
-//	l := list.New()
+//	var l list.List
 //	l.Append(1, 2, 3)
 //
 //	// Get and set elements
@@ -45,41 +45,6 @@ import (
 type List struct {
 	tree  avl.Tree
 	idGen seqid.ID
-}
-
-// New creates a new empty list.
-//
-// Example:
-//
-//	l := list.New()
-//	l.Append(1, 2, 3)
-//	println(l.Len()) // Output: 3
-func New() *List {
-	return &List{}
-}
-
-// Make creates a new list with the specified length, filled with the given default value.
-// If defaultValue is nil, the list will be filled with nil values.
-// Returns an empty list if length is negative.
-//
-// Example:
-//
-//	l := list.Make(3, "default")
-//	println(l.Get(0)) // Output: "default"
-//	println(l.Len())  // Output: 3
-//
-//	// With nil default value
-//	l2 := list.Make(2, nil)
-//	println(l2.Get(0)) // Output: nil
-func Make(length int, defaultValue interface{}) *List {
-	if length < 0 {
-		return New()
-	}
-	l := New()
-	for i := 0; i < length; i++ {
-		l.Append(defaultValue)
-	}
-	return l
 }
 
 // Len returns the number of elements in the list.
@@ -209,7 +174,7 @@ func (l *List) Delete(index int) (interface{}, bool) {
 	return value, true
 }
 
-// Range returns a slice of values from startIndex (inclusive) to endIndex (exclusive).
+// Slice returns a slice of values from startIndex (inclusive) to endIndex (exclusive).
 // Returns nil if the range is invalid.
 //
 // Example:
@@ -217,11 +182,11 @@ func (l *List) Delete(index int) (interface{}, bool) {
 //	l := list.New()
 //	l.Append(1, 2, 3, 4, 5)
 //
-//	println(l.Range(1, 4))   // Output: [2 3 4]
-//	println(l.Range(-1, 2))  // Output: [1 2]
-//	println(l.Range(3, 999)) // Output: [4 5]
-//	println(l.Range(3, 2))   // Output: nil
-func (l *List) Range(startIndex, endIndex int) []interface{} {
+//	println(l.Slice(1, 4))   // Output: [2 3 4]
+//	println(l.Slice(-1, 2))  // Output: [1 2]
+//	println(l.Slice(3, 999)) // Output: [4 5]
+//	println(l.Slice(3, 2))   // Output: nil
+func (l *List) Slice(startIndex, endIndex int) []interface{} {
 	size := l.tree.Size()
 
 	// Normalize bounds
@@ -369,17 +334,4 @@ func (l *List) DeleteRange(startIndex, endIndex int) int {
 	}
 
 	return len(keysToDelete)
-}
-
-// Clear removes all elements from the list.
-//
-// Example:
-//
-//	l := list.New()
-//	l.Append(1, 2, 3)
-//	l.Clear()
-//	println(l.Len()) // Output: 0
-func (l *List) Clear() {
-	l.tree = avl.Tree{}   // Reset to empty tree
-	l.idGen = seqid.ID(0) // Reset ID generator
 }

@@ -5,7 +5,7 @@ import (
 )
 
 func TestList_Basic(t *testing.T) {
-	l := New()
+	var l List
 
 	// Test empty list
 	if l.Len() != 0 {
@@ -39,7 +39,7 @@ func TestList_Basic(t *testing.T) {
 }
 
 func TestList_Set(t *testing.T) {
-	l := New()
+	var l List
 	l.Append(1, 2, 3)
 
 	// Test valid set within bounds
@@ -76,7 +76,7 @@ func TestList_Set(t *testing.T) {
 }
 
 func TestList_Delete(t *testing.T) {
-	l := New()
+	var l List
 	l.Append(1, 2, 3)
 
 	// Test valid delete
@@ -99,31 +99,31 @@ func TestList_Delete(t *testing.T) {
 	}
 }
 
-func TestList_Range(t *testing.T) {
-	l := New()
+func TestList_Slice(t *testing.T) {
+	var l List
 	l.Append(1, 2, 3, 4, 5)
 
 	// Test valid ranges
-	values := l.Range(1, 4)
+	values := l.Slice(1, 4)
 	expected := []interface{}{2, 3, 4}
 	if !sliceEqual(values, expected) {
-		t.Errorf("Range(1,4) = %v; want %v", values, expected)
+		t.Errorf("Slice(1,4) = %v; want %v", values, expected)
 	}
 
 	// Test edge cases
-	if values := l.Range(-1, 2); !sliceEqual(values, []interface{}{1, 2}) {
-		t.Errorf("Range(-1,2) = %v; want [1 2]", values)
+	if values := l.Slice(-1, 2); !sliceEqual(values, []interface{}{1, 2}) {
+		t.Errorf("Slice(-1,2) = %v; want [1 2]", values)
 	}
-	if values := l.Range(3, 10); !sliceEqual(values, []interface{}{4, 5}) {
-		t.Errorf("Range(3,10) = %v; want [4 5]", values)
+	if values := l.Slice(3, 10); !sliceEqual(values, []interface{}{4, 5}) {
+		t.Errorf("Slice(3,10) = %v; want [4 5]", values)
 	}
-	if values := l.Range(3, 2); values != nil {
-		t.Errorf("Range(3,2) = %v; want nil", values)
+	if values := l.Slice(3, 2); values != nil {
+		t.Errorf("Slice(3,2) = %v; want nil", values)
 	}
 }
 
 func TestList_ForEach(t *testing.T) {
-	l := New()
+	var l List
 	l.Append(1, 2, 3)
 
 	sum := 0
@@ -149,7 +149,7 @@ func TestList_ForEach(t *testing.T) {
 }
 
 func TestList_Clone(t *testing.T) {
-	l := New()
+	var l List
 	l.Append(1, 2, 3)
 
 	clone := l.Clone()
@@ -174,7 +174,7 @@ func TestList_Clone(t *testing.T) {
 }
 
 func TestList_DeleteRange(t *testing.T) {
-	l := New()
+	var l List
 	l.Append(1, 2, 3, 4, 5)
 
 	// Test valid range delete
@@ -193,7 +193,7 @@ func TestList_DeleteRange(t *testing.T) {
 	}
 
 	// Test edge cases
-	l = New()
+	l = List{}
 	l.Append(1, 2, 3)
 
 	// Delete with negative start
@@ -202,7 +202,7 @@ func TestList_DeleteRange(t *testing.T) {
 	}
 
 	// Delete with end > length
-	l = New()
+	l = List{}
 	l.Append(1, 2, 3)
 	if deleted := l.DeleteRange(1, 5); deleted != 2 {
 		t.Errorf("DeleteRange(1,5) deleted %d elements; want 2", deleted)
@@ -220,7 +220,7 @@ func TestList_DeleteRange(t *testing.T) {
 }
 
 func TestList_EmptyOperations(t *testing.T) {
-	l := New()
+	var l List
 
 	// Operations on empty list
 	if v := l.Get(0); v != nil {
@@ -235,17 +235,17 @@ func TestList_EmptyOperations(t *testing.T) {
 		t.Errorf("Get(0) after Set = %v; want 1", v)
 	}
 
-	l = New() // Reset to empty list
+	l = List{} // Reset to empty list
 	if v, ok := l.Delete(0); ok || v != nil {
 		t.Errorf("Delete(0) on empty list = %v, %v; want nil, false", v, ok)
 	}
-	if values := l.Range(0, 1); values != nil {
+	if values := l.Slice(0, 1); values != nil {
 		t.Errorf("Range(0,1) on empty list = %v; want nil", values)
 	}
 }
 
 func TestList_DifferentTypes(t *testing.T) {
-	l := New()
+	var l List
 
 	// Test with different types
 	l.Append(42, "hello", true, 3.14)
@@ -265,7 +265,7 @@ func TestList_DifferentTypes(t *testing.T) {
 }
 
 func TestList_LargeOperations(t *testing.T) {
-	l := New()
+	var l List
 
 	// Test with larger number of elements
 	n := 1000
@@ -278,7 +278,7 @@ func TestList_LargeOperations(t *testing.T) {
 	}
 
 	// Test range on large list
-	values := l.Range(n-3, n)
+	values := l.Slice(n-3, n)
 	expected := []interface{}{n - 3, n - 2, n - 1}
 	if !sliceEqual(values, expected) {
 		t.Errorf("Range(%d,%d) = %v; want %v", n-3, n, values, expected)
@@ -295,7 +295,7 @@ func TestList_LargeOperations(t *testing.T) {
 }
 
 func TestList_ChainedOperations(t *testing.T) {
-	l := New()
+	var l List
 
 	// Test sequence of operations
 	l.Append(1, 2, 3)
@@ -312,7 +312,7 @@ func TestList_ChainedOperations(t *testing.T) {
 }
 
 func TestList_RangeEdgeCases(t *testing.T) {
-	l := New()
+	var l List
 	l.Append(1, 2, 3, 4, 5)
 
 	// Test various edge cases for Range
@@ -329,65 +329,15 @@ func TestList_RangeEdgeCases(t *testing.T) {
 	}
 
 	for _, tc := range cases {
-		got := l.Range(tc.start, tc.end)
+		got := l.Slice(tc.start, tc.end)
 		if !sliceEqual(got, tc.want) {
-			t.Errorf("Range(%d,%d) = %v; want %v", tc.start, tc.end, got, tc.want)
+			t.Errorf("Slice(%d,%d) = %v; want %v", tc.start, tc.end, got, tc.want)
 		}
-	}
-}
-
-func TestList_Clear(t *testing.T) {
-	l := New()
-	l.Append(1, 2, 3)
-
-	// Test clear
-	l.Clear()
-	if l.Len() != 0 {
-		t.Errorf("after Clear(), Len() = %d; want 0", l.Len())
-	}
-
-	// Test that we can still append after clearing
-	l.Append(4)
-	if l.Len() != 1 {
-		t.Errorf("after Clear() and Append(), Len() = %d; want 1", l.Len())
-	}
-	if v := l.Get(0); v != 4 {
-		t.Errorf("after Clear() and Append(), Get(0) = %v; want 4", v)
-	}
-}
-
-func TestList_Make(t *testing.T) {
-	// Test with default value
-	l := Make(3, "default")
-	if l.Len() != 3 {
-		t.Errorf("Make(3, default) Len() = %d; want 3", l.Len())
-	}
-	for i := 0; i < l.Len(); i++ {
-		if v := l.Get(i); v != "default" {
-			t.Errorf("index %d = %v; want 'default'", i, v)
-		}
-	}
-
-	// Test with nil default value
-	l = Make(2, nil)
-	if l.Len() != 2 {
-		t.Errorf("Make(2, nil) Len() = %d; want 2", l.Len())
-	}
-	for i := 0; i < l.Len(); i++ {
-		if v := l.Get(i); v != nil {
-			t.Errorf("index %d = %v; want nil", i, v)
-		}
-	}
-
-	// Test with negative length
-	l = Make(-1, "default")
-	if l.Len() != 0 {
-		t.Errorf("Make(-1, default) Len() = %d; want 0", l.Len())
 	}
 }
 
 func TestList_IndexConsistency(t *testing.T) {
-	l := New()
+	var l List
 
 	// Initial additions
 	l.Append(1, 2, 3, 4, 5) // [1,2,3,4,5]
@@ -418,9 +368,9 @@ func TestList_IndexConsistency(t *testing.T) {
 	}
 
 	// Verify all indices are accessible
-	allValues := l.Range(0, l.Len())
+	allValues := l.Slice(0, l.Len())
 	if !sliceEqual(allValues, expected) {
-		t.Errorf("Range(0, Len()) = %v; want %v", allValues, expected)
+		t.Errorf("Slice(0, Len()) = %v; want %v", allValues, expected)
 	}
 
 	// Verify no gaps in iteration
