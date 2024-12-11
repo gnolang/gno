@@ -12,17 +12,43 @@ import (
 	"github.com/gnolang/gno/gnovm"
 )
 
+type ImportsMap map[FileKind][]string
+
+// Merge merges imports, it removes duplicates and sorts the result
+func (imap ImportsMap) Merge(kinds ...FileKind) []string {
+	res := []string{}
+	seen := map[string]struct{}{}
+
+	for _, kind := range kinds {
+		for _, im := range imap[kind] {
+			if _, ok := seen[im]; ok {
+				continue
+			}
+			seen[im] = struct{}{}
+
+			res = append(res, im)
+		}
+	}
+
+	sort.Strings(res)
+	return res
+}
+
 // Imports returns the list of gno imports from a [gnovm.MemPackage].
-func Imports(pkg *gnovm.MemPackage) ([]string, error) {
-	allImports := make([]string, 0)
-	seen := make(map[string]struct{})
+func Imports(pkg *gnovm.MemPackage) (ImportsMap, error) {
+	res := make(ImportsMap)
+	seen := make(map[FileKind]map[string]struct{})
+
 	for _, file := range pkg.Files {
 		if !strings.HasSuffix(file.Name, ".gno") {
 			continue
 		}
-		if strings.HasSuffix(file.Name, "_filetest.gno") {
-			continue
+
+		fileKind, err := GetFileKind(file.Name, file.Body)
+		if err != nil {
+			return nil, err
 		}
+
 		imports, _, err := FileImports(file.Name, file.Body)
 		if err != nil {
 			return nil, err
@@ -31,16 +57,22 @@ func Imports(pkg *gnovm.MemPackage) ([]string, error) {
 			if im.Error != nil {
 				return nil, err
 			}
-			if _, ok := seen[im.PkgPath]; ok {
+			if _, ok := seen[fileKind][im.PkgPath]; ok {
 				continue
 			}
-			allImports = append(allImports, im.PkgPath)
-			seen[im.PkgPath] = struct{}{}
+			res[fileKind] = append(res[fileKind], im.PkgPath)
+			if _, ok := seen[fileKind]; !ok {
+				seen[fileKind] = make(map[string]struct{})
+			}
+			seen[fileKind][im.PkgPath] = struct{}{}
 		}
 	}
-	sort.Strings(allImports)
 
-	return allImports, nil
+	for _, imports := range res {
+		sort.Strings(imports)
+	}
+
+	return res, nil
 }
 
 type FileImport struct {
