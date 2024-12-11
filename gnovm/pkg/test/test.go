@@ -53,6 +53,7 @@ func Context(pkgPath string, send std.Coins) *teststd.TestExecContext {
 	}
 	ctx := stdlibs.ExecContext{
 		ChainID:       "dev",
+		ChainDomain:   "tests.gno.land",
 		Height:        DefaultHeight,
 		Timestamp:     DefaultTimestamp,
 		OrigCaller:    DefaultCaller,
@@ -284,6 +285,8 @@ func (opts *TestOptions) runTestFiles(
 	if opts.Metrics {
 		alloc = gno.NewAllocator(math.MaxInt64)
 	}
+	// reset store ops, if any - we only need them for some filetests.
+	opts.TestStore.SetLogStoreOps(false)
 
 	// Check if we already have the package - it may have been eagerly
 	// loaded.

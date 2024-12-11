@@ -23,14 +23,14 @@ func IndexMap(m map[string]any, keys ...string) any {
 	return nil
 }
 
-// Retrieve PR number from GitHub Actions context
+// Retrieve PR number from GitHub Actions context.
 func GetPRNumFromActionsCtx(actionCtx *githubactions.GitHubContext) (int, error) {
 	firstKey := ""
 
 	switch actionCtx.EventName {
 	case EventIssueComment:
 		firstKey = "issue"
-	case EventPullRequest, EventPullRequestTarget:
+	case EventPullRequest, EventPullRequestReview, EventPullRequestTarget:
 		firstKey = "pull_request"
 	default:
 		return 0, fmt.Errorf("unsupported event: %s", actionCtx.EventName)
