@@ -26,14 +26,14 @@ type webCfg struct {
 	html       bool
 }
 
-var defaultWebOptions = &webCfg{
+var defaultWebOptions = webCfg{
 	chainid: "dev",
 	remote:  "127.0.0.1:26657",
 	bind:    ":8888",
 }
 
 func main() {
-	cfg := &webCfg{}
+	var cfg webCfg
 
 	stdio := commands.NewDefaultIO()
 	cmd := commands.NewCommand(
@@ -43,9 +43,14 @@ func main() {
 			ShortHelp:  "runs gno.land web interface",
 			LongHelp:   `gnoweb web interface`,
 		},
-		cfg,
-		func(_ context.Context, args []string) error {
-			return execWeb(cfg, args, stdio)
+		&cfg,
+		func(ctx context.Context, args []string) error {
+			run, err := setupWeb(&cfg, args, stdio)
+			if err != nil {
+				return err
+			}
+
+			return run()
 		})
 
 	cmd.Execute(context.Background(), os.Args[1:])
@@ -109,7 +114,7 @@ func (c *webCfg) RegisterFlags(fs *flag.FlagSet) {
 	)
 }
 
-func execWeb(cfg *webCfg, args []string, io commands.IO) (err error) {
+func setupWeb(cfg *webCfg, args []string, io commands.IO) (func() error, error) {
 	// Setup logger
 	var zapLogger *zap.Logger
 	if cfg.json {
@@ -118,6 +123,7 @@ func execWeb(cfg *webCfg, args []string, io commands.IO) (err error) {
 		zapLogger = log.NewZapConsoleLogger(io.Out(), zapcore.DebugLevel)
 	}
 	defer zapLogger.Sync()
+
 	logger := log.ZapLoggerToSlog(zapLogger)
 
 	appcfg := gnoweb.NewDefaultAppConfig()
@@ -132,12 +138,12 @@ func execWeb(cfg *webCfg, args []string, io commands.IO) (err error) {
 
 	app, err := gnoweb.NewRouter(logger, appcfg)
 	if err != nil {
-		return fmt.Errorf("unable to start gnoweb app: %w", err)
+		return nil, fmt.Errorf("unable to start gnoweb app: %w", err)
 	}
 
 	bindaddr, err := net.ResolveTCPAddr("tcp", cfg.bind)
 	if err != nil {
-		return fmt.Errorf("unable to resolve listener %q: %w", cfg.bind, err)
+		return nil, fmt.Errorf("unable to resolve listener %q: %w", cfg.bind, err)
 	}
 
 	logger.Info("Running", "listener", bindaddr.String())
@@ -148,10 +154,18 @@ func execWeb(cfg *webCfg, args []string, io commands.IO) (err error) {
 		ReadHeaderTimeout: 60 * time.Second,
 	}
 
-	if err := server.ListenAndServe(); err != nil {
-		logger.Error("HTTP server stopped", " error:", err)
-		return commands.ExitCodeError(1)
-	}
+	return func() error {
+		if err := server.ListenAndServe(); err != nil {
+			logger.Error("HTTP server stopped", " error:", err)
+			return commands.ExitCodeError(1)
+		}
+
+		return nil
+	}, nil
+
+}
+
+func execWeb(ctx context.Context) (err error) {
 
 	return nil
 }
