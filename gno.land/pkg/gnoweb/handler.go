@@ -68,8 +68,7 @@ func (h *WebHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *WebHandler) Get(w http.ResponseWriter, r *http.Request) {
-	body := h.getBuffer()
-	defer h.putBuffer(body)
+	var body bytes.Buffer
 
 	start := time.Now()
 	defer func() {
@@ -88,14 +87,14 @@ func (h *WebHandler) Get(w http.ResponseWriter, r *http.Request) {
 	gnourl, err := ParseGnoURL(r.URL)
 	if err != nil {
 		h.logger.Warn("page not found", "path", r.URL.Path, "err", err)
-		status, err = http.StatusNotFound, components.RenderStatusComponent(body, "page not found")
+		status, err = http.StatusNotFound, components.RenderStatusComponent(&body, "page not found")
 	} else {
 		switch gnourl.Kind() {
 		case KindRealm, KindPure:
-			status, err = h.renderPackage(body, gnourl)
+			status, err = h.renderPackage(&body, gnourl)
 		default:
 			h.logger.Warn("invalid page kind", "kind", gnourl.Kind)
-			status, err = http.StatusNotFound, components.RenderStatusComponent(body, "page not found")
+			status, err = http.StatusNotFound, components.RenderStatusComponent(&body, "page not found")
 		}
 
 		// Header
