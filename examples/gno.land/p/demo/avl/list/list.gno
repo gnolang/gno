@@ -1,0 +1,385 @@
+// Package list implements a dynamic list data structure backed by an AVL tree.
+// It provides O(log n) operations for most list operations while maintaining
+// order stability.
+//
+// The list supports various operations including append, get, set, delete,
+// range queries, and iteration. It can store values of any type.
+//
+// Example usage:
+//
+//	// Create a new list and add elements
+//	l := list.New()
+//	l.Append(1, 2, 3)
+//
+//	// Get and set elements
+//	value := l.Get(1)  // returns 2
+//	l.Set(1, 42)      // updates index 1 to 42
+//
+//	// Delete elements
+//	l.Delete(0)       // removes first element
+//
+//	// Iterate over elements
+//	l.ForEach(func(index int, value interface{}) bool {
+//	    ufmt.Printf("index %d: %v\n", index, value)
+//	    return false  // continue iteration
+//	})
+//	// Output:
+//	// index 0: 42
+//	// index 1: 3
+//
+//	// Create a list of specific size
+//	l = list.Make(3, "default")  // creates [default, default, default]
+//
+//	// Create a list using a variable declaration
+//	var l2 list.List
+//	l2.Append(4, 5, 6)
+//	ufmt.Println(l2.Len())  // Output: 3
+package list
+
+import (
+	"gno.land/p/demo/avl"
+	"gno.land/p/demo/seqid"
+)
+
+// List represents an ordered sequence of items backed by an AVL tree
+type List struct {
+	tree  avl.Tree
+	idGen seqid.ID
+}
+
+// New creates a new empty list.
+//
+// Example:
+//
+//	l := list.New()
+//	l.Append(1, 2, 3)
+//	ufmt.Println(l.Len()) // Output: 3
+func New() *List {
+	return &List{}
+}
+
+// Make creates a new list with the specified length, filled with the given default value.
+// If defaultValue is nil, the list will be filled with nil values.
+// Returns an empty list if length is negative.
+//
+// Example:
+//
+//	l := list.Make(3, "default")
+//	ufmt.Println(l.Get(0)) // Output: "default"
+//	ufmt.Println(l.Len())  // Output: 3
+//
+//	// With nil default value
+//	l2 := list.Make(2, nil)
+//	ufmt.Println(l2.Get(0)) // Output: nil
+func Make(length int, defaultValue interface{}) *List {
+	if length < 0 {
+		return New()
+	}
+	l := New()
+	for i := 0; i < length; i++ {
+		l.Append(defaultValue)
+	}
+	return l
+}
+
+// Len returns the number of elements in the list.
+//
+// Example:
+//
+//	l := list.New()
+//	l.Append(1, 2, 3)
+//	ufmt.Println(l.Len()) // Output: 3
+func (l *List) Len() int {
+	return l.tree.Size()
+}
+
+// Append adds one or more values to the end of the list.
+//
+// Example:
+//
+//	l := list.New()
+//	l.Append(1)        // adds single value
+//	l.Append(2, 3, 4)  // adds multiple values
+//	ufmt.Println(l.Len()) // Output: 4
+func (l *List) Append(values ...interface{}) {
+	for _, v := range values {
+		l.tree.Set(l.idGen.Next().String(), v)
+	}
+}
+
+// Get returns the value at the specified index.
+// Returns nil if index is out of bounds.
+//
+// Example:
+//
+//	l := list.New()
+//	l.Append(1, 2, 3)
+//	ufmt.Println(l.Get(1))    // Output: 2
+//	ufmt.Println(l.Get(-1))   // Output: nil
+//	ufmt.Println(l.Get(999))  // Output: nil
+func (l *List) Get(index int) interface{} {
+	if index < 0 || index >= l.tree.Size() {
+		return nil
+	}
+	_, value := l.tree.GetByIndex(index)
+	return value
+}
+
+// Set updates or appends a value at the specified index.
+// Returns true if the operation was successful, false otherwise.
+// For empty lists, only index 0 is valid (append case).
+//
+// Example:
+//
+//	l := list.New()
+//	l.Append(1, 2, 3)
+//
+//	l.Set(1, 42)      // updates existing index
+//	ufmt.Println(l.Get(1)) // Output: 42
+//
+//	l.Set(3, 4)       // appends at end
+//	ufmt.Println(l.Get(3)) // Output: 4
+//
+//	l.Set(-1, 5)      // invalid index
+//	ufmt.Println(l.Len()) // Output: 4 (list unchanged)
+func (l *List) Set(index int, value interface{}) bool {
+	size := l.tree.Size()
+
+	// Handle empty list case - only allow index 0
+	if size == 0 {
+		if index == 0 {
+			l.Append(value)
+			return true
+		}
+		return false
+	}
+
+	if index < 0 || index > size {
+		return false
+	}
+
+	// If setting at the end (append case)
+	if index == size {
+		l.Append(value)
+		return true
+	}
+
+	// Get the key at the specified index
+	key, _ := l.tree.GetByIndex(index)
+	if key == "" {
+		return false
+	}
+
+	// Update the value at the existing key
+	l.tree.Set(key, value)
+	return true
+}
+
+// Delete removes the element at the specified index.
+// Returns the deleted value and true if successful, nil and false otherwise.
+//
+// Example:
+//
+//	l := list.New()
+//	l.Append(1, 2, 3)
+//
+//	val, ok := l.Delete(1)
+//	ufmt.Println(val, ok)  // Output: 2 true
+//	ufmt.Println(l.Len())  // Output: 2
+//
+//	val, ok = l.Delete(-1)
+//	ufmt.Println(val, ok)  // Output: nil false
+func (l *List) Delete(index int) (interface{}, bool) {
+	size := l.tree.Size()
+	// Always return nil, false for empty list
+	if size == 0 {
+		return nil, false
+	}
+
+	if index < 0 || index >= size {
+		return nil, false
+	}
+
+	key, value := l.tree.GetByIndex(index)
+	if key == "" {
+		return nil, false
+	}
+
+	l.tree.Remove(key)
+	return value, true
+}
+
+// Range returns a slice of values from startIndex (inclusive) to endIndex (exclusive).
+// Returns nil if the range is invalid.
+//
+// Example:
+//
+//	l := list.New()
+//	l.Append(1, 2, 3, 4, 5)
+//
+//	ufmt.Println(l.Range(1, 4))   // Output: [2 3 4]
+//	ufmt.Println(l.Range(-1, 2))  // Output: [1 2]
+//	ufmt.Println(l.Range(3, 999)) // Output: [4 5]
+//	ufmt.Println(l.Range(3, 2))   // Output: nil
+func (l *List) Range(startIndex, endIndex int) []interface{} {
+	size := l.tree.Size()
+
+	// Normalize bounds
+	if startIndex < 0 {
+		startIndex = 0
+	}
+	if endIndex > size {
+		endIndex = size
+	}
+	if startIndex >= endIndex {
+		return nil
+	}
+
+	count := endIndex - startIndex
+	result := make([]interface{}, count)
+
+	// Fill the slice from end to start to maintain correct order
+	i := count - 1
+	l.tree.IterateByOffset(size-endIndex, count, func(_ string, value interface{}) bool {
+		result[i] = value
+		i--
+		return false
+	})
+	return result
+}
+
+// ForEach iterates through all elements in the list.
+// The callback function receives the index and value of each element.
+// Return true from the callback to stop iteration.
+//
+// Example:
+//
+//	l := list.New()
+//	l.Append(1, 2, 3)
+//
+//	sum := 0
+//	l.ForEach(func(index int, value interface{}) bool {
+//	    sum += value.(int)
+//	    return false  // continue iteration
+//	})
+//	ufmt.Println(sum)  // Output: 6
+//
+//	// Early stop
+//	l.ForEach(func(index int, value interface{}) bool {
+//	    if value.(int) > 2 {
+//	        return true  // stop iteration
+//	    }
+//	    return false
+//	})
+func (l *List) ForEach(fn func(index int, value interface{}) bool) {
+	size := l.tree.Size()
+	values := make([]interface{}, size)
+
+	// First collect values in reverse order
+	i := size - 1
+	l.tree.IterateByOffset(0, size, func(_ string, value interface{}) bool {
+		values[i] = value
+		i--
+		return false
+	})
+
+	// Then iterate through them in correct order
+	for i := 0; i < size; i++ {
+		if fn(i, values[i]) {
+			return
+		}
+	}
+}
+
+// Clone creates a deep copy of the list.
+//
+// Example:
+//
+//	l := list.New()
+//	l.Append(1, 2, 3)
+//
+//	clone := l.Clone()
+//	clone.Set(0, 42)
+//
+//	ufmt.Println(l.Get(0))    // Output: 1
+//	ufmt.Println(clone.Get(0)) // Output: 42
+func (l *List) Clone() *List {
+	newList := &List{
+		tree:  avl.Tree{}, // Create a new empty tree
+		idGen: l.idGen,    // Copy the current ID generator state
+	}
+
+	size := l.tree.Size()
+	if size == 0 {
+		return newList
+	}
+
+	// Collect values in correct order
+	values := make([]interface{}, size)
+	i := size - 1
+	l.tree.IterateByOffset(0, size, func(_ string, value interface{}) bool {
+		values[i] = value
+		i--
+		return false
+	})
+
+	// Add values to new list in correct order
+	for _, value := range values {
+		newList.Append(value)
+	}
+
+	return newList
+}
+
+// DeleteRange removes elements from startIndex (inclusive) to endIndex (exclusive).
+// Returns the number of elements deleted.
+//
+// Example:
+//
+//	l := list.New()
+//	l.Append(1, 2, 3, 4, 5)
+//
+//	deleted := l.DeleteRange(1, 4)
+//	ufmt.Println(deleted)     // Output: 3
+//	ufmt.Println(l.Range(0, l.Len())) // Output: [1 5]
+func (l *List) DeleteRange(startIndex, endIndex int) int {
+	size := l.tree.Size()
+
+	// Normalize bounds
+	if startIndex < 0 {
+		startIndex = 0
+	}
+	if endIndex > size {
+		endIndex = size
+	}
+	if startIndex >= endIndex {
+		return 0
+	}
+
+	// Collect keys to delete
+	keysToDelete := make([]string, 0, endIndex-startIndex)
+	l.tree.IterateByOffset(size-endIndex, endIndex-startIndex, func(key string, _ interface{}) bool {
+		keysToDelete = append(keysToDelete, key)
+		return false
+	})
+
+	// Delete collected keys
+	for _, key := range keysToDelete {
+		l.tree.Remove(key)
+	}
+
+	return len(keysToDelete)
+}
+
+// Clear removes all elements from the list.
+//
+// Example:
+//
+//	l := list.New()
+//	l.Append(1, 2, 3)
+//	l.Clear()
+//	ufmt.Println(l.Len()) // Output: 0
+func (l *List) Clear() {
+	l.tree = avl.Tree{}   // Reset to empty tree
+	l.idGen = seqid.ID(0) // Reset ID generator
+}
