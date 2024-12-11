@@ -26,7 +26,7 @@ type OutOfGasError struct {
 	Descriptor string
 }
 
-func (oog *OutOfGasError) Error() string {
+func (oog OutOfGasError) Error() string {
 	return "out of gas in location: " + oog.Descriptor
 }
 
@@ -36,7 +36,7 @@ type GasOverflowError struct {
 	Descriptor string
 }
 
-func (oog *GasOverflowError) Error() string {
+func (oog GasOverflowError) Error() string {
 	return "gas overflow in location: " + oog.Descriptor
 }
 
