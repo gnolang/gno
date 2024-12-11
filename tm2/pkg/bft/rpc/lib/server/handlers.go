@@ -613,7 +613,7 @@ func (wsc *wsConnection) GetRemoteAddr() string {
 	return wsc.remoteAddr
 }
 
-// WriteRPCResponse pushes a response to the writeChan, and blocks until it is accepted.
+// WriteRPCResponses pushes a response to the writeChan, and blocks until it is accepted.
 // It implements WSRPCConnection. It is Goroutine-safe.
 func (wsc *wsConnection) WriteRPCResponses(resp types.RPCResponses) {
 	select {
@@ -623,7 +623,7 @@ func (wsc *wsConnection) WriteRPCResponses(resp types.RPCResponses) {
 	}
 }
 
-// TryWriteRPCResponse attempts to push a response to the writeChan, but does not block.
+// TryWriteRPCResponses attempts to push a response to the writeChan, but does not block.
 // It implements WSRPCConnection. It is Goroutine-safe
 func (wsc *wsConnection) TryWriteRPCResponses(resp types.RPCResponses) bool {
 	select {
