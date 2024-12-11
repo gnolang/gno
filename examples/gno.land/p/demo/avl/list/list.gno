@@ -33,7 +33,7 @@
 //	// Create a list using a variable declaration
 //	var l2 list.List
 //	l2.Append(4, 5, 6)
-//	ufmt.Println(l2.Len())  // Output: 3
+//	println(l2.Len())  // Output: 3
 package list
 
 import (
@@ -53,7 +53,7 @@ type List struct {
 //
 //	l := list.New()
 //	l.Append(1, 2, 3)
-//	ufmt.Println(l.Len()) // Output: 3
+//	println(l.Len()) // Output: 3
 func New() *List {
 	return &List{}
 }
@@ -65,12 +65,12 @@ func New() *List {
 // Example:
 //
 //	l := list.Make(3, "default")
-//	ufmt.Println(l.Get(0)) // Output: "default"
-//	ufmt.Println(l.Len())  // Output: 3
+//	println(l.Get(0)) // Output: "default"
+//	println(l.Len())  // Output: 3
 //
 //	// With nil default value
 //	l2 := list.Make(2, nil)
-//	ufmt.Println(l2.Get(0)) // Output: nil
+//	println(l2.Get(0)) // Output: nil
 func Make(length int, defaultValue interface{}) *List {
 	if length < 0 {
 		return New()
@@ -88,7 +88,7 @@ func Make(length int, defaultValue interface{}) *List {
 //
 //	l := list.New()
 //	l.Append(1, 2, 3)
-//	ufmt.Println(l.Len()) // Output: 3
+//	println(l.Len()) // Output: 3
 func (l *List) Len() int {
 	return l.tree.Size()
 }
@@ -100,7 +100,7 @@ func (l *List) Len() int {
 //	l := list.New()
 //	l.Append(1)        // adds single value
 //	l.Append(2, 3, 4)  // adds multiple values
-//	ufmt.Println(l.Len()) // Output: 4
+//	println(l.Len()) // Output: 4
 func (l *List) Append(values ...interface{}) {
 	for _, v := range values {
 		l.tree.Set(l.idGen.Next().String(), v)
@@ -114,9 +114,9 @@ func (l *List) Append(values ...interface{}) {
 //
 //	l := list.New()
 //	l.Append(1, 2, 3)
-//	ufmt.Println(l.Get(1))    // Output: 2
-//	ufmt.Println(l.Get(-1))   // Output: nil
-//	ufmt.Println(l.Get(999))  // Output: nil
+//	println(l.Get(1))    // Output: 2
+//	println(l.Get(-1))   // Output: nil
+//	println(l.Get(999))  // Output: nil
 func (l *List) Get(index int) interface{} {
 	if index < 0 || index >= l.tree.Size() {
 		return nil
@@ -135,13 +135,13 @@ func (l *List) Get(index int) interface{} {
 //	l.Append(1, 2, 3)
 //
 //	l.Set(1, 42)      // updates existing index
-//	ufmt.Println(l.Get(1)) // Output: 42
+//	println(l.Get(1)) // Output: 42
 //
 //	l.Set(3, 4)       // appends at end
-//	ufmt.Println(l.Get(3)) // Output: 4
+//	println(l.Get(3)) // Output: 4
 //
 //	l.Set(-1, 5)      // invalid index
-//	ufmt.Println(l.Len()) // Output: 4 (list unchanged)
+//	println(l.Len()) // Output: 4 (list unchanged)
 func (l *List) Set(index int, value interface{}) bool {
 	size := l.tree.Size()
 
@@ -184,11 +184,11 @@ func (l *List) Set(index int, value interface{}) bool {
 //	l.Append(1, 2, 3)
 //
 //	val, ok := l.Delete(1)
-//	ufmt.Println(val, ok)  // Output: 2 true
-//	ufmt.Println(l.Len())  // Output: 2
+//	println(val, ok)  // Output: 2 true
+//	println(l.Len())  // Output: 2
 //
 //	val, ok = l.Delete(-1)
-//	ufmt.Println(val, ok)  // Output: nil false
+//	println(val, ok)  // Output: nil false
 func (l *List) Delete(index int) (interface{}, bool) {
 	size := l.tree.Size()
 	// Always return nil, false for empty list
@@ -217,10 +217,10 @@ func (l *List) Delete(index int) (interface{}, bool) {
 //	l := list.New()
 //	l.Append(1, 2, 3, 4, 5)
 //
-//	ufmt.Println(l.Range(1, 4))   // Output: [2 3 4]
-//	ufmt.Println(l.Range(-1, 2))  // Output: [1 2]
-//	ufmt.Println(l.Range(3, 999)) // Output: [4 5]
-//	ufmt.Println(l.Range(3, 2))   // Output: nil
+//	println(l.Range(1, 4))   // Output: [2 3 4]
+//	println(l.Range(-1, 2))  // Output: [1 2]
+//	println(l.Range(3, 999)) // Output: [4 5]
+//	println(l.Range(3, 2))   // Output: nil
 func (l *List) Range(startIndex, endIndex int) []interface{} {
 	size := l.tree.Size()
 
@@ -262,7 +262,7 @@ func (l *List) Range(startIndex, endIndex int) []interface{} {
 //	    sum += value.(int)
 //	    return false  // continue iteration
 //	})
-//	ufmt.Println(sum)  // Output: 6
+//	println(sum)  // Output: 6
 //
 //	// Early stop
 //	l.ForEach(func(index int, value interface{}) bool {
@@ -301,8 +301,8 @@ func (l *List) ForEach(fn func(index int, value interface{}) bool) {
 //	clone := l.Clone()
 //	clone.Set(0, 42)
 //
-//	ufmt.Println(l.Get(0))    // Output: 1
-//	ufmt.Println(clone.Get(0)) // Output: 42
+//	println(l.Get(0))    // Output: 1
+//	println(clone.Get(0)) // Output: 42
 func (l *List) Clone() *List {
 	newList := &List{
 		tree:  avl.Tree{}, // Create a new empty tree
@@ -340,8 +340,8 @@ func (l *List) Clone() *List {
 //	l.Append(1, 2, 3, 4, 5)
 //
 //	deleted := l.DeleteRange(1, 4)
-//	ufmt.Println(deleted)     // Output: 3
-//	ufmt.Println(l.Range(0, l.Len())) // Output: [1 5]
+//	println(deleted)     // Output: 3
+//	println(l.Range(0, l.Len())) // Output: [1 5]
 func (l *List) DeleteRange(startIndex, endIndex int) int {
 	size := l.tree.Size()
 
@@ -378,7 +378,7 @@ func (l *List) DeleteRange(startIndex, endIndex int) int {
 //	l := list.New()
 //	l.Append(1, 2, 3)
 //	l.Clear()
-//	ufmt.Println(l.Len()) // Output: 0
+//	println(l.Len()) // Output: 0
 func (l *List) Clear() {
 	l.tree = avl.Tree{}   // Reset to empty tree
 	l.idGen = seqid.ID(0) // Reset ID generator
