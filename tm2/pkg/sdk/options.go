@@ -99,3 +99,10 @@ func (app *BaseApp) SetEndTxHook(endTx EndTxHook) {
 	}
 	app.endTxHook = endTx
 }
+
+func (app *BaseApp) SetGasFeeCollector(gfc GasFeeCollector) {
+	if app.sealed {
+		panic("SetGasFeeCollector() on sealed BaseApp")
+	}
+	app.gasFeeCollector = gfc
+}
