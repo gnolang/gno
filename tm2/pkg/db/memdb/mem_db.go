@@ -6,7 +6,6 @@ import (
 	"sync"
 
 	"github.com/gnolang/gno/tm2/pkg/colors"
-	"github.com/gnolang/gno/tm2/pkg/db"
 	dbm "github.com/gnolang/gno/tm2/pkg/db"
 	"github.com/gnolang/gno/tm2/pkg/db/internal"
 	"github.com/tidwall/btree"
@@ -219,7 +218,7 @@ type iterator struct {
 	reverse    bool
 }
 
-var _ db.Iterator = (*iterator)(nil)
+var _ dbm.Iterator = (*iterator)(nil)
 
 func (i *iterator) Domain() (start []byte, end []byte) {
 	return []byte(i.start), []byte(i.end)
