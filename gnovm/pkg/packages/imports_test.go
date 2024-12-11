@@ -1,4 +1,4 @@
-package packages
+package packages_test
 
 import (
 	"os"
@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/gnolang/gno/gnovm/pkg/gnolang"
+	. "github.com/gnolang/gno/gnovm/pkg/packages"
 	"github.com/stretchr/testify/require"
 )
 
@@ -59,12 +60,25 @@ func TestImports(t *testing.T) {
 			`,
 		},
 		{
+			name: "file2_test.gno",
+			data: `
+			package tmp_test
+
+			import (
+				"testing"
+
+				"gno.land/p/demo/testpkg"
+				"gno.land/p/demo/xtestdep"
+			)
+			`,
+		},
+		{
 			name: "z_0_filetest.gno",
 			data: `
 			package main
 
 			import (
-				"gno.land/p/demo/filetestpkg"
+				"gno.land/p/demo/filetestdep"
 			)
 			`,
 		},
@@ -95,17 +109,28 @@ func TestImports(t *testing.T) {
 		},
 	}
 
-	// Expected list of imports
+	// Expected lists of imports
 	// - ignore subdirs
 	// - ignore duplicate
-	// - ignore *_filetest.gno
 	// - should be sorted
-	expected := []string{
-		"gno.land/p/demo/pkg1",
-		"gno.land/p/demo/pkg2",
-		"gno.land/p/demo/testpkg",
-		"std",
-		"testing",
+	expected := ImportsMap{
+		FileKindCompiled: {
+			"gno.land/p/demo/pkg1",
+			"gno.land/p/demo/pkg2",
+			"std",
+		},
+		FileKindTest: {
+			"gno.land/p/demo/testpkg",
+			"testing",
+		},
+		FileKindXtest: {
+			"gno.land/p/demo/testpkg",
+			"gno.land/p/demo/xtestdep",
+			"testing",
+		},
+		FileKindFiletest: {
+			"gno.land/p/demo/filetestdep",
+		},
 	}
 
 	// Create subpkg dir
@@ -120,8 +145,8 @@ func TestImports(t *testing.T) {
 
 	pkg, err := gnolang.ReadMemPackage(tmpDir, "test")
 	require.NoError(t, err)
-	imports, err := Imports(pkg)
-	require.NoError(t, err)
 
-	require.Equal(t, expected, imports)
+	importsMap, err := Imports(pkg)
+	require.NoError(t, err)
+	require.Equal(t, expected, importsMap)
 }

@@ -122,11 +122,12 @@ func ListPkgs(root string) (PkgList, error) {
 			pkg = &gnovm.MemPackage{}
 		}
 
-		imports, err := packages.Imports(pkg)
+		importsMap, err := packages.Imports(pkg)
 		if err != nil {
 			// ignore imports on error
-			imports = []string{}
+			importsMap = nil
 		}
+		imports := importsMap.Merge(packages.FileKindCompiled, packages.FileKindTest, packages.FileKindXtest)
 
 		// remove self and standard libraries from imports
 		imports = slices.DeleteFunc(imports, func(imp string) bool {
