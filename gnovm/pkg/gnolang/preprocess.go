@@ -3574,6 +3574,10 @@ func checkOrConvertType(store Store, last BlockNode, n Node, x *Expr, t Type, au
 						checkOrConvertType(store, last, n, &bx.Left, rt, autoNative)
 						checkOrConvertType(store, last, n, &bx.Right, rt, autoNative)
 					}
+					// this is not a constant expression; the result here should
+					// always be a BoolType. (in this scenario, we may have some
+					// UntypedBoolTypes)
+					t = BoolType
 				default:
 					// do nothing
 				}
