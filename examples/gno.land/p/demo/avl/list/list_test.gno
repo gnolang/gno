@@ -386,6 +386,65 @@ func TestList_Make(t *testing.T) {
 	}
 }
 
+func TestList_IndexConsistency(t *testing.T) {
+	l := New()
+
+	// Initial additions
+	l.Append(1, 2, 3, 4, 5) // [1,2,3,4,5]
+
+	// Delete from middle
+	l.Delete(2) // [1,2,4,5]
+
+	// Add more elements
+	l.Append(6, 7) // [1,2,4,5,6,7]
+
+	// Delete range from middle
+	l.DeleteRange(1, 4) // [1,6,7]
+
+	// Add more elements
+	l.Append(8, 9, 10) // [1,6,7,8,9,10]
+
+	// Verify sequence is continuous
+	expected := []interface{}{1, 6, 7, 8, 9, 10}
+	for i, want := range expected {
+		if got := l.Get(i); got != want {
+			t.Errorf("index %d = %v; want %v", i, got, want)
+		}
+	}
+
+	// Verify no extra elements exist
+	if l.Len() != len(expected) {
+		t.Errorf("length = %d; want %d", l.Len(), len(expected))
+	}
+
+	// Verify all indices are accessible
+	allValues := l.Range(0, l.Len())
+	if !sliceEqual(allValues, expected) {
+		t.Errorf("Range(0, Len()) = %v; want %v", allValues, expected)
+	}
+
+	// Verify no gaps in iteration
+	var iteratedValues []interface{}
+	var indices []int
+	l.ForEach(func(index int, value interface{}) bool {
+		iteratedValues = append(iteratedValues, value)
+		indices = append(indices, index)
+		return false
+	})
+
+	// Check values from iteration
+	if !sliceEqual(iteratedValues, expected) {
+		t.Errorf("ForEach values = %v; want %v", iteratedValues, expected)
+	}
+
+	// Check indices are sequential
+	for i, idx := range indices {
+		if idx != i {
+			t.Errorf("ForEach index %d = %d; want %d", i, idx, i)
+		}
+	}
+}
+
 // Helper function to compare slices
 func sliceEqual(a, b []interface{}) bool {
 	if len(a) != len(b) {
