@@ -1,22 +1,45 @@
+// Package cow provides a Copy-on-Write (CoW) AVL tree implementation.
+// This is a fork of gno.land/p/demo/avl that adds CoW functionality
+// while maintaining the original AVL tree interface and properties.
+//
+// Copy-on-Write creates a copy of a data structure only when it is modified,
+// while still presenting the appearance of a full copy. When a tree is cloned,
+// it initially shares all its nodes with the original tree. Only when a
+// modification is made to either the original or the clone are new nodes created,
+// and only along the path from the root to the modified node.
+//
+// Key features:
+//   - O(1) cloning operation
+//   - Minimal memory usage through structural sharing
+//   - Full AVL tree functionality (self-balancing, ordered operations)
+//   - Thread-safe for concurrent reads of shared structures
+//
+// While the CoW mechanism handles structural copying automatically, users need
+// to consider how to handle the values stored in the tree:
+//
+//  1. Simple Values (int, string, etc.):
+//     - These are copied by value automatically
+//     - No additional handling needed
+//
+//  2. Complex Values (structs, pointers):
+//     - Only the reference is copied by default
+//     - Users must implement their own deep copy mechanism if needed
+//
+// Example:
+//
+//	// Create original tree
+//	original := cow.NewTree()
+//	original.Set("key1", "value1")
+//
+//	// Create a clone - O(1) operation
+//	clone := original.Clone()
+//
+//	// Modify clone - only affected nodes are copied
+//	clone.Set("key1", "modified")
+//
+//	// Original remains unchanged
+//	val, _ := original.Get("key1") // Returns "value1"
 package cow
-
-type ITree interface {
-	// read operations
-
-	Size() int
-	Has(key string) bool
-	Get(key string) (value interface{}, exists bool)
-	GetByIndex(index int) (key string, value interface{})
-	Iterate(start, end string, cb IterCbFn) bool
-	ReverseIterate(start, end string, cb IterCbFn) bool
-	IterateByOffset(offset int, count int, cb IterCbFn) bool
-	ReverseIterateByOffset(offset int, count int, cb IterCbFn) bool
-
-	// write operations
-
-	Set(key string, value interface{}) (updated bool)
-	Remove(key string) (value interface{}, removed bool)
-}
 
 type IterCbFn func(key string, value interface{}) bool
 
@@ -120,5 +143,22 @@ func (tree *Tree) ReverseIterateByOffset(offset int, count int, cb IterCbFn) boo
 	)
 }
 
-// Verify that Tree implements ITree
-var _ ITree = (*Tree)(nil)
+// Equal returns true if the two trees contain the same key-value pairs.
+// WARNING: This is an expensive operation that recursively traverses the entire tree structure.
+// It should only be used in tests or when absolutely necessary.
+func (tree *Tree) Equal(other *Tree) bool {
+	if tree == nil || other == nil {
+		return tree == other
+	}
+	return tree.node.Equal(other.node)
+}
+
+// Clone creates a shallow copy of the tree
+func (tree *Tree) Clone() *Tree {
+	if tree == nil {
+		return nil
+	}
+	return &Tree{
+		node: tree.node,
+	}
+}

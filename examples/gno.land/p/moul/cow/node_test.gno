@@ -1,6 +1,7 @@
 package cow
 
 import (
+	"fmt"
 	"sort"
 	"strings"
 	"testing"
@@ -552,4 +553,243 @@ func reverseSlice(ss []string) {
 		j := len(ss) - 1 - i
 		ss[i], ss[j] = ss[j], ss[i]
 	}
+}
+
+func TestNodeStructuralSharing(t *testing.T) {
+	t.Run("unmodified paths remain shared", func(t *testing.T) {
+		root := NewNode("B", 2)
+		root, _ = root.Set("A", 1)
+		root, _ = root.Set("C", 3)
+
+		originalRight := root.rightNode
+		newRoot, _ := root.Set("A", 10)
+
+		if newRoot.rightNode != originalRight {
+			t.Error("Unmodified right subtree should remain shared")
+		}
+	})
+
+	t.Run("multiple modifications reuse shared structure", func(t *testing.T) {
+		// Create initial tree
+		root := NewNode("B", 2)
+		root, _ = root.Set("A", 1)
+		root, _ = root.Set("C", 3)
+
+		// Store original nodes
+		originalRight := root.rightNode
+
+		// First modification
+		mod1, _ := root.Set("A", 10)
+
+		// Second modification
+		mod2, _ := mod1.Set("C", 30)
+
+		// Check sharing in first modification
+		if mod1.rightNode != originalRight {
+			t.Error("First modification should share unmodified right subtree")
+		}
+
+		// Check that second modification creates new right node
+		if mod2.rightNode == originalRight {
+			t.Error("Second modification should create new right node")
+		}
+	})
+}
+
+func TestNodeCopyOnWrite(t *testing.T) {
+	t.Run("copy preserves structure", func(t *testing.T) {
+		root := NewNode("B", 2)
+		root, _ = root.Set("A", 1)
+		root, _ = root.Set("C", 3)
+
+		// Only copy non-leaf nodes
+		if !root.IsLeaf() {
+			copied := root._copy()
+			if copied == root {
+				t.Error("Copy should create new instance")
+			}
+
+			// Create temporary trees to use Equal method
+			original := &Tree{node: root}
+			copiedTree := &Tree{node: copied}
+			if !original.Equal(copiedTree) {
+				t.Error("Copied node should preserve structure")
+			}
+		}
+	})
+
+	t.Run("removal copy pattern", func(t *testing.T) {
+		// Create a more complex tree to test removal
+		root := NewNode("B", 2)
+		root, _ = root.Set("A", 1)
+		root, _ = root.Set("C", 3)
+		root, _ = root.Set("D", 4) // Add this to ensure proper tree structure
+
+		// Store references to original nodes
+		originalRight := root.rightNode
+		originalRightRight := originalRight.rightNode
+
+		// Remove "A" which should only affect the left subtree
+		newRoot, _, _, _ := root.Remove("A")
+
+		// Verify right subtree remains unchanged and shared
+		if newRoot.rightNode != originalRight {
+			t.Error("Right subtree should remain shared during removal of left node")
+		}
+
+		// Also verify deeper nodes remain shared
+		if newRoot.rightNode.rightNode != originalRightRight {
+			t.Error("Deep right subtree should remain shared during removal")
+		}
+
+		// Verify original tree is unchanged
+		if _, _, exists := root.Get("A"); !exists {
+			t.Error("Original tree should remain unchanged")
+		}
+	})
+
+	t.Run("copy leaf node panic", func(t *testing.T) {
+		leaf := NewNode("A", 1)
+
+		defer func() {
+			if r := recover(); r == nil {
+				t.Error("Expected panic when copying leaf node")
+			}
+		}()
+
+		// This should panic with our specific message
+		leaf._copy()
+	})
+}
+
+func TestNodeEqual(t *testing.T) {
+	tests := []struct {
+		name     string
+		node1    func() *Node
+		node2    func() *Node
+		expected bool
+	}{
+		{
+			name:     "nil nodes",
+			node1:    func() *Node { return nil },
+			node2:    func() *Node { return nil },
+			expected: true,
+		},
+		{
+			name:     "one nil node",
+			node1:    func() *Node { return NewNode("A", 1) },
+			node2:    func() *Node { return nil },
+			expected: false,
+		},
+		{
+			name:     "single leaf nodes equal",
+			node1:    func() *Node { return NewNode("A", 1) },
+			node2:    func() *Node { return NewNode("A", 1) },
+			expected: true,
+		},
+		{
+			name:     "single leaf nodes different key",
+			node1:    func() *Node { return NewNode("A", 1) },
+			node2:    func() *Node { return NewNode("B", 1) },
+			expected: false,
+		},
+		{
+			name:     "single leaf nodes different value",
+			node1:    func() *Node { return NewNode("A", 1) },
+			node2:    func() *Node { return NewNode("A", 2) },
+			expected: false,
+		},
+		{
+			name: "complex trees equal",
+			node1: func() *Node {
+				n, _ := NewNode("B", 2).Set("A", 1)
+				n, _ = n.Set("C", 3)
+				return n
+			},
+			node2: func() *Node {
+				n, _ := NewNode("B", 2).Set("A", 1)
+				n, _ = n.Set("C", 3)
+				return n
+			},
+			expected: true,
+		},
+		{
+			name: "complex trees different structure",
+			node1: func() *Node {
+				// Create a tree with structure:
+				//     B
+				//    / \
+				//   A   D
+				n := NewNode("B", 2)
+				n, _ = n.Set("A", 1)
+				n, _ = n.Set("D", 4)
+				return n
+			},
+			node2: func() *Node {
+				// Create a tree with structure:
+				//     C
+				//    / \
+				//   A   D
+				n := NewNode("C", 3)
+				n, _ = n.Set("A", 1)
+				n, _ = n.Set("D", 4)
+				return n
+			},
+			expected: false, // These trees should be different
+		},
+		{
+			name: "complex trees same structure despite different insertion order",
+			node1: func() *Node {
+				n, _ := NewNode("B", 2).Set("A", 1)
+				n, _ = n.Set("C", 3)
+				return n
+			},
+			node2: func() *Node {
+				n, _ := NewNode("A", 1).Set("B", 2)
+				n, _ = n.Set("C", 3)
+				return n
+			},
+			expected: true,
+		},
+		{
+			name: "truly different structures",
+			node1: func() *Node {
+				n, _ := NewNode("B", 2).Set("A", 1)
+				return n // Tree with just two nodes
+			},
+			node2: func() *Node {
+				n, _ := NewNode("B", 2).Set("C", 3)
+				return n // Different two-node tree
+			},
+			expected: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			node1 := tt.node1()
+			node2 := tt.node2()
+			result := node1.Equal(node2)
+			if result != tt.expected {
+				t.Errorf("Expected Equal to return %v for %s", tt.expected, tt.name)
+				println("\nComparison failed:")
+				println("Tree 1:")
+				printTree(node1, 0)
+				println("Tree 2:")
+				printTree(node2, 0)
+			}
+		})
+	}
+}
+
+// Helper function to print tree structure
+func printTree(node *Node, level int) {
+	if node == nil {
+		return
+	}
+	indent := strings.Repeat("  ", level)
+	println(fmt.Sprintf("%sKey: %s, Value: %v, Height: %d, Size: %d",
+		indent, node.key, node.value, node.height, node.size))
+	printTree(node.leftNode, level+1)
+	printTree(node.rightNode, level+1)
 }

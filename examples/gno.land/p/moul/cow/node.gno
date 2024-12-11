@@ -130,23 +130,29 @@ func (node *Node) Set(key string, value interface{}) (newSelf *Node, updated boo
 		return NewNode(key, value), false
 	}
 
+	// Always create a new node for leaf nodes
 	if node.height == 0 {
+		if key == node.key {
+			// Create new node even when updating
+			return NewNode(key, value), true
+		}
 		return node.setLeaf(key, value)
 	}
 
-	node = node._copy()
+	// Copy the node before modifying
+	newNode := node._copy()
 	if key < node.key {
-		node.leftNode, updated = node.getLeftNode().Set(key, value)
+		newNode.leftNode, updated = node.getLeftNode().Set(key, value)
 	} else {
-		node.rightNode, updated = node.getRightNode().Set(key, value)
+		newNode.rightNode, updated = node.getRightNode().Set(key, value)
 	}
 
-	if updated {
-		return node, updated
+	if !updated {
+		newNode.calcHeightAndSize()
+		return newNode.balance(), updated
 	}
 
-	node.calcHeightAndSize()
-	return node.balance(), updated
+	return newNode, updated
 }
 
 // setLeaf inserts a new leaf node with the given key-value pair into the subtree rooted at the node,
@@ -484,4 +490,33 @@ func maxInt8(a, b int8) int8 {
 		return a
 	}
 	return b
+}
+
+// Equal compares two nodes for structural equality.
+// WARNING: This is an expensive operation that recursively traverses the entire tree structure.
+// It should only be used in tests or when absolutely necessary.
+func (node *Node) Equal(other *Node) bool {
+	// Handle nil cases
+	if node == nil || other == nil {
+		return node == other
+	}
+
+	// Compare node properties
+	if node.key != other.key ||
+		node.value != other.value ||
+		node.height != other.height ||
+		node.size != other.size {
+		return false
+	}
+
+	// Compare children
+	leftEqual := (node.leftNode == nil && other.leftNode == nil) ||
+		(node.leftNode != nil && other.leftNode != nil && node.leftNode.Equal(other.leftNode))
+	if !leftEqual {
+		return false
+	}
+
+	rightEqual := (node.rightNode == nil && other.rightNode == nil) ||
+		(node.rightNode != nil && other.rightNode != nil && node.rightNode.Equal(other.rightNode))
+	return rightEqual
 }

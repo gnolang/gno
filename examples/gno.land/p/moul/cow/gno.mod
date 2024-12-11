@@ -1,1 +1,1 @@
-module gno.land/p/demo/avl/cow
+module gno.land/p/moul/cow
