@@ -1,14 +1,23 @@
 package home
 
 import (
+	"strconv"
+
+	"gno.land/p/demo/svg"
+	"gno.land/p/moul/debug"
+	"gno.land/p/moul/md"
+	"gno.land/p/moul/mdtable"
+	"gno.land/p/moul/txlink"
+	"gno.land/p/moul/web25"
 	"gno.land/r/leon/hof"
 	"gno.land/r/moul/config"
 )
 
 var (
-	todos      []string
-	status     string
-	memeImgURL string
+	todos       []string
+	status      string
+	memeImgURL  string
+	web25config = web25.Config{URL: "https://moul.github.io/gno-moul-home-web25/"}
 )
 
 func init() {
@@ -19,36 +28,74 @@ func init() {
 }
 
 func Render(path string) string {
-	content := "# Manfred's (gn)home Dashboard\n\n"
+	content := web25config.Render(path)
+	var d debug.Debug
 
-	content += "## Meme\n"
-	content += "![](" + memeImgURL + ")\n\n"
+	content += md.H1("Manfred's (gn)home Dashboard")
 
-	content += "## Status\n"
-	content += status + "\n\n"
+	content += md.H2("Meme")
+	content += md.Paragraph(
+		md.Image("meme", memeImgURL),
+	)
 
-	content += "## Personal ToDo List\n"
-	for _, todo := range todos {
-		content += "- [ ] " + todo + "\n"
+	content += md.H2("Status")
+	content += md.Paragraph(status)
+	content += md.Paragraph(md.Link("update", txlink.Call("UpdateStatus")))
+
+	d.Log("hello world!")
+
+	content += md.H2("Personal TODO List (bullet list)")
+	for i, todo := range todos {
+		idstr := strconv.Itoa(i)
+		deleteLink := md.Link("x", txlink.Call("DeleteTodo", "idx", idstr))
+		content += md.BulletItem(todo + " " + deleteLink)
 	}
-	content += "\n"
+	content += md.BulletItem(md.Link("[new]", txlink.Call("AddTodo")))
 
-	// TODO: Implement a feature to list replies on r/boards on my posts
-	// TODO: Maybe integrate a calendar feature for upcoming events?
+	content += md.H2("Personal TODO List (table)")
+	table := mdtable.Table{
+		Headers: []string{"ID", "Item", "Links"},
+	}
+	for i, todo := range todos {
+		idstr := strconv.Itoa(i)
+		deleteLink := md.Link("[del]", txlink.Call("DeleteTodo", "idx", idstr))
+		table.Append([]string{"#" + idstr, todo, deleteLink})
+	}
+	content += table.String()
 
+	content += md.H2("SVG Example")
+	content += md.Paragraph("this feature may not work with the current gnoweb version and/or configuration.")
+	content += md.Paragraph(svg.Canvas{
+		Width: 500, Height: 500,
+		Elems: []svg.Elem{
+			svg.Rectangle{50, 50, 100, 100, "red"},
+			svg.Circle{50, 50, 100, "red"},
+			svg.Text{100, 100, "hello world!", "magenta"},
+		},
+	}.String())
+
+	content += md.H2("Debug")
+	content += md.Paragraph("this feature may not work with the current gnoweb version and/or configuration.")
+	content += md.Paragraph(
+		md.Link("toggle debug", debug.ToggleURL(path)),
+	)
+
+	// TODO: my r/boards posts
+	// TODO: my r/events events
+	content += d.Render(path)
 	return content
 }
 
-func AddNewTodo(todo string) {
+func AddTodo(todo string) {
 	config.AssertIsAdmin()
 	todos = append(todos, todo)
 }
 
-func DeleteTodo(todoIndex int) {
+func DeleteTodo(idx int) {
 	config.AssertIsAdmin()
-	if todoIndex >= 0 && todoIndex < len(todos) {
+	if idx >= 0 && idx < len(todos) {
 		// Remove the todo from the list by merging slices from before and after the todo
-		todos = append(todos[:todoIndex], todos[todoIndex+1:]...)
+		todos = append(todos[:idx], todos[idx+1:]...)
 	} else {
 		panic("Invalid todo index")
 	}
