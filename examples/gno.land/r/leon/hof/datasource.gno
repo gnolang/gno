@@ -3,33 +3,36 @@ package hof
 import (
 	"errors"
 
+	"gno.land/p/demo/avl"
 	"gno.land/p/demo/seqid"
 	"gno.land/p/demo/ufmt"
-	"gno.land/p/gnome/datasource"
+	"gno.land/p/jeronimoalbi/datasource"
 )
 
-type Datasource struct{}
-
-func (ds Datasource) GetRecords(offset, _ int, _ string) datasource.RecordIterator {
-	return &iterator{index: offset}
+func NewDatasource() Datasource {
+	return Datasource{exhibition}
 }
 
-func (ds Datasource) GetContent(rawID string, fn func(content string)) error {
-	id, err := seqid.FromString(rawID)
-	if err != nil {
-		return err
+type Datasource struct {
+	exhibition *Exhibition
+}
+
+func (ds Datasource) Size() int { return ds.exhibition.itemsSorted.Size() }
+
+func (ds Datasource) Records(q datasource.Query) datasource.Iterator {
+	return &iterator{
+		exhibition: ds.exhibition,
+		index:      q.Offset,
+		maxIndex:   q.Offset + q.Count,
 	}
+}
 
-	v, ok := exhibition.itemsSorted.Get(id.String())
-	if !ok {
-		return errors.New("realm submission not found")
+func (ds Datasource) Record(id string) (datasource.Record, error) {
+	v, found := ds.exhibition.itemsSorted.Get(id)
+	if !found {
+		return nil, errors.New("realm submission not found")
 	}
-
-	content := ufmt.Sprintf("# Submission #%d\n\n", int(id))
-	content += v.(*Item).Render(false)
-
-	fn(content)
-	return nil
+	return record{v.(*Item)}, nil
 }
 
 type record struct {
@@ -37,27 +40,38 @@ type record struct {
 }
 
 func (r record) ID() string     { return r.item.id.String() }
-func (r record) Title() string  { return r.item.pkgpath }
-func (r record) Tags() []string { return nil }
+func (r record) String() string { return r.item.pkgpath }
 
-func (r record) Details() string {
-	return ufmt.Sprintf("Votes: ⏶ %d - ⏷ %d", r.item.upvote.Size(), r.item.downvote.Size())
+func (r record) Fields() (datasource.Fields, error) {
+	fields := avl.NewTree()
+	fields.Set(
+		"details",
+		ufmt.Sprintf("Votes: ⏶ %d - ⏷ %d", r.item.upvote.Size(), r.item.downvote.Size()),
+	)
+	return fields, nil
+}
+
+func (r record) Content() (string, error) {
+	content := ufmt.Sprintf("# Submission #%s\n\n", r.item.id.String())
+	content += r.item.Render(false)
+	return content, nil
 }
 
 type iterator struct {
-	index  int
-	record *record
+	exhibition      *Exhibition
+	index, maxIndex int
+	record          *record
 }
 
 func (it iterator) Record() datasource.Record { return it.record }
 func (it iterator) Err() error                { return nil }
 
 func (it *iterator) Next() bool {
-	if it.index >= exhibition.itemsSorted.Size() {
+	if it.index >= it.maxIndex || it.index >= it.exhibition.itemsSorted.Size() {
 		return false
 	}
 
-	_, v := exhibition.itemsSorted.GetByIndex(it.index)
+	_, v := it.exhibition.itemsSorted.GetByIndex(it.index)
 	it.record = &record{v.(*Item)}
 	it.index++
 	return true
