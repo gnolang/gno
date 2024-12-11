@@ -37,7 +37,7 @@ type Item struct {
 }
 
 // NewPager creates a new Pager with default values.
-func NewPager(tree avl.TreeInterface, defaultPageSize int, reversed bool) *Pager {
+func NewPager(tree avl.ITree, defaultPageSize int, reversed bool) *Pager {
 	return &Pager{
 		Tree:            tree,
 		PageQueryParam:  "page",
