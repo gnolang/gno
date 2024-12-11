@@ -256,7 +256,7 @@ func (l *List) ForEach(fn func(index int, value interface{}) bool) {
 	}
 }
 
-// Clone creates a deep copy of the list.
+// Clone creates a shallow copy of the list.
 //
 // Example:
 //
