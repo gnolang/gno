@@ -26,6 +26,7 @@ require (
 	github.com/rs/xid v1.6.0
 	github.com/stretchr/testify v1.9.0
 	github.com/syndtr/goleveldb v1.0.1-0.20210819022825-2ae1ddf74ef7
+	github.com/tidwall/btree v1.7.0
 	go.etcd.io/bbolt v1.3.11
 	go.opentelemetry.io/otel v1.29.0
 	go.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetricgrpc v1.29.0
@@ -58,7 +59,6 @@ require (
 	github.com/grpc-ecosystem/grpc-gateway/v2 v2.22.0 // indirect
 	github.com/nxadm/tail v1.4.11 // indirect
 	github.com/pkg/errors v0.9.1 // indirect
-	github.com/tidwall/btree v1.7.0 // indirect
 	github.com/zondax/hid v0.9.2 // indirect
 	github.com/zondax/ledger-go v0.14.3 // indirect
 	go.opentelemetry.io/otel/trace v1.29.0 // indirect
