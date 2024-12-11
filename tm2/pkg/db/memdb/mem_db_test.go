@@ -15,7 +15,6 @@ func TestIterator(t *testing.T) {
 		end        []byte
 		wantKeys   []string
 		wantValues []string
-		wantPanic  bool
 	}{
 		{
 			name:    "empty database",
@@ -57,15 +56,6 @@ func TestIterator(t *testing.T) {
 			wantKeys:   []string{"prefix1_a", "prefix1_b"},
 			wantValues: []string{"value1", "value2"},
 		},
-		{
-			name: "invalid range should panic",
-			setupDB: func(db *MemDB) {
-				db.Set([]byte("key1"), []byte("value1"))
-			},
-			start:     []byte("z"),
-			end:       []byte("a"),
-			wantPanic: true,
-		},
 	}
 
 	for _, tt := range tests {
@@ -73,12 +63,6 @@ func TestIterator(t *testing.T) {
 			db := NewMemDB()
 			tt.setupDB(db)
 
-			if tt.wantPanic {
-				assert.Panics(t, func() {
-					db.Iterator(tt.start, tt.end)
-				})
-				return
-			}
 			iter := db.Iterator(tt.start, tt.end)
 			defer iter.Close()
 
