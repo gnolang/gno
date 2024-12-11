@@ -36,13 +36,17 @@ func (m *Machine) doOpEval() {
 		} else {
 			// Get value from scope.
 			lb := m.LastBlock()
+			fmt.Println("---eval nx: ", nx)
+			fmt.Println("---eval nx.Type: ", nx.Type)
+			fmt.Println("---eval nx.BID: ", nx.BID)
+
 			// Push value, done.
 			ptr := lb.GetPointerToMaybeHeapUse(m.Store, nx)
 			v := ptr.Deref()
 
 			fmt.Println("---v: ", v)
 			if _, ok := v.V.(PointerValue); ok {
-				v.SetPath(nx.Path.String())
+				v.SetPath(nx.BID.String() + ":" + nx.Path.String())
 				fmt.Println("---v.GetPath: ", v.GetPath())
 			}
 

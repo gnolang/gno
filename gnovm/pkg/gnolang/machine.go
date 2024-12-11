@@ -446,7 +446,7 @@ func (m *Machine) TestMemPackage(t *testing.T, memPkg *gnovm.MemPackage) {
 // starts with `Test`.
 func (m *Machine) TestFunc(t *testing.T, tv TypedValue) {
 	if !(tv.T.Kind() == FuncKind &&
-		strings.HasPrefix(string(tv.V.(*FuncValue).Name), "Test")) {
+			strings.HasPrefix(string(tv.V.(*FuncValue).Name), "Test")) {
 		return // not a test function.
 	}
 	// XXX ensure correct func type.
@@ -2122,45 +2122,22 @@ func (m *Machine) PopAsPointer(lx Expr) PointerValue {
 	case *NameExpr:
 		println("---NameExpr")
 		lb := m.LastBlock()
-		fmt.Println("---lb: ", lb)
-		fmt.Println("---lb.ID: ", lb.ID)
-		fmt.Println("---lb.Hash: ", lb.Hash)
-		fmt.Println("---str: ", lb.GetSource(m.Store).String())
-		bid := BlockID{HashBytes([]byte(lb.GetSource(m.Store).String()))}
-		fmt.Println("---bid: ", bid)
-		bidStr := fmt.Sprintf("BID%X", bid.Hashlet[:])
-		fmt.Println("---bidStr", bidStr)
+		fmt.Println("---lx.Bid: ", lx.BID)
 
 		ptr := lb.GetPointerToMaybeHeapUse(m.Store, lx)
-		ptr.TV.SetPath(bidStr + ":" + lx.Path.String())
+		//ptr.TV.SetPath(bidStr + ":" + lx.Path.String())
+		ptr.TV.SetPath(lx.BID.String() + ":" + lx.Path.String())
 		return ptr
 
 	case *IndexExpr:
 		iv := m.PopValue()
 		xv := m.PopValue()
 		fmt.Println("---index expr, iv: ", iv)
-		//fmt.Println("---index expr, xv: ", xv)
-		fmt.Println("---path of iv: ", iv.GetPath())
-		if mv, ok := xv.V.(*MapValue); ok {
-			kmk := iv.ComputeMapKey(m.Store, false)
-			if _, exist := mv.vmap[kmk]; !exist {
-				println("---Not exist")
-				// XXX, make key object owned by map object
-				oo2 := iv.GetFirstObject(m.Store)
-				if oo2 != nil && oo2.GetRefCount() == 0 { // if it's already owned, no attach
-					m.Realm.DidUpdate(mv, nil, oo2)
-				}
-			}
-		}
+		fmt.Println("---lx.AbsPath: ", lx.AbsPath)
+
+		//iv.SetPath(lx.AbsPath)
 		pv := xv.GetPointerAtIndex(m.Alloc, m.Store, iv)
-		fmt.Println("---pv: ", pv)
-		var vp string
-		if nx, ok := lx.X.(*NameExpr); ok {
-			vp += nx.Path.String() + ":"
-		}
-		fmt.Println("---lx.Index: ", lx.Index, reflect.TypeOf(lx.Index))
-		vp += lx.Index.String()
-		pv.TV.SetPath(vp)
+		pv.TV.SetPath(lx.AbsPath)
 		return pv
 	case *SelectorExpr:
 		xv := m.PopValue()
@@ -2189,11 +2166,12 @@ func (m *Machine) PopAsPointer(lx Expr) PointerValue {
 		//ptr := m.PopValue().V.(PointerValue)
 		fmt.Println("---ptr: ", ptr)
 		fmt.Println("---ptr.TV.GetPath(): ", ptr.TV.GetPath())
-		if nx, ok := lx.X.(*NameExpr); ok {
-			ptr.TV.SetPath(nx.Path.String())
-		} else {
-			ptr.TV.SetPath(tv.GetPath())
-		}
+		//if nx, ok := lx.X.(*NameExpr); ok {
+		//	ptr.TV.SetPath(nx.BID.String() + ":" + nx.Path.String())
+		//} else {
+		//	ptr.TV.SetPath(tv.GetPath())
+		//}
+		ptr.TV.SetPath(tv.GetPath())
 		return ptr
 	case *CompositeLitExpr: // for *RefExpr
 		tv := *m.PopValue()

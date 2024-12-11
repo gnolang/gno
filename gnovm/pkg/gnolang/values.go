@@ -2,6 +2,7 @@ package gnolang
 
 import (
 	"encoding/binary"
+	"encoding/hex"
 	"fmt"
 	"math"
 	"math/big"
@@ -11,6 +12,7 @@ import (
 	"unsafe"
 
 	"github.com/cockroachdb/apd/v3"
+	"github.com/gnolang/gno/tm2/pkg/errors"
 
 	"github.com/gnolang/gno/tm2/pkg/crypto"
 )
@@ -2356,11 +2358,11 @@ func (tv *TypedValue) GetSlice2(alloc *Allocator, low, high, max int) TypedValue
 // TODO rename to BlockValue.
 type Block struct {
 	ObjectInfo
-	Source   BlockNode
-	Values   []TypedValue
-	Parent   Value
-	Blank    TypedValue // captures "_" // XXX remove and replace with global instance.
-	BID      BlockID
+	Source BlockNode
+	Values []TypedValue
+	Parent Value
+	Blank  TypedValue // captures "_" // XXX remove and replace with global instance.
+	//BID      BlockID
 	bodyStmt bodyStmt // XXX expose for persistence, not needed for MVP.
 }
 
@@ -2378,7 +2380,46 @@ func NewBlock(source BlockNode, parent *Block) *Block {
 }
 
 type BlockID struct {
-	Hashlet
+	PkgID   PkgID  // base
+	NewTime uint64 // time created
+}
+
+func (bid BlockID) IsZero() bool {
+	if debug {
+		if bid.PkgID.IsZero() {
+			if bid.NewTime != 0 {
+				panic("should not happen")
+			}
+		}
+	}
+	return bid.PkgID.IsZero()
+}
+
+func (bid BlockID) String() string {
+	bids, _ := bid.MarshalAmino()
+	return bids
+}
+
+func (bid BlockID) MarshalAmino() (string, error) {
+	pid := hex.EncodeToString(bid.PkgID.Hashlet[:])
+	return fmt.Sprintf("%s:%d", pid, bid.NewTime), nil
+}
+
+func (bid *BlockID) UnmarshalAmino(oids string) error {
+	parts := strings.Split(oids, ":")
+	if len(parts) != 2 {
+		return errors.New("invalid ObjectID %s", oids)
+	}
+	_, err := hex.Decode(bid.PkgID.Hashlet[:], []byte(parts[0]))
+	if err != nil {
+		return err
+	}
+	newTime, err := strconv.Atoi(parts[1])
+	if err != nil {
+		return err
+	}
+	bid.NewTime = uint64(newTime)
+	return nil
 }
 
 func (b *Block) String() string {
@@ -2474,6 +2515,8 @@ func (b *Block) GetPointerTo(store Store, path ValuePath) PointerValue {
 
 // Convenience
 func (b *Block) GetPointerToMaybeHeapUse(store Store, nx *NameExpr) PointerValue {
+	fmt.Println("---GetPointerToMaybeHeapUse")
+	fmt.Println("---nx: ", nx.String())
 	switch nx.Type {
 	case NameExprTypeNormal:
 		return b.GetPointerTo(store, nx.Path)

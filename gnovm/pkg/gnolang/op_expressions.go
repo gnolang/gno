@@ -13,17 +13,31 @@ func (m *Machine) doOpIndex1() {
 		_ = m.PopExpr().(*IndexExpr)
 	} else {
 		lx := m.PopExpr()
-		vp := lx.(*IndexExpr).X.String() + ":" + lx.(*IndexExpr).Index.String()
+		fmt.Println("---doOpIndex1, lx: ", lx)
+		//if nx, ok := lx.(*IndexExpr).X.(*NameExpr); ok {
+		//	fmt.Println("---nx: ", nx)
+		//	vp = nx.BID.String() + ":" + nx.Path.String() + ":" + lx.(*IndexExpr).Index.String()
+		//	fmt.Println("---nx.abs: ", vp)
+		//}
+		var vp string
+		if ix, ok := lx.(*IndexExpr); !ok {
+			panic("---should not happen")
+		} else {
+			fmt.Println("---ix.AbsPath: ", ix.AbsPath)
+			vp = ix.AbsPath
+		}
+
 		fmt.Println("---vp: ", vp)
 
-		fmt.Println("---doOpIndex1, lx: ", lx)
 		iv := m.PopValue()   // index
 		xv := m.PeekValue(1) // x
 		fmt.Println("---iv: ", iv)
 		fmt.Println("---xv: ", xv)
 		switch ct := baseOf(xv.T).(type) {
 		case *MapType:
+			println("---map type")
 			mv := xv.V.(*MapValue)
+			//iv.SetPath(vp)
 			vv, exists := mv.GetValueForKey(m.Store, iv)
 			if exists {
 				*xv = vv // reuse as result
@@ -56,8 +70,13 @@ func (m *Machine) doOpIndex2() {
 		_ = m.PopExpr().(*IndexExpr)
 	} else {
 		lx := m.PopExpr()
-		vp := lx.(*IndexExpr).X.String() + ":" + lx.(*IndexExpr).Index.String()
-		fmt.Println("---vp: ", vp)
+		var vp string
+		if ix, ok := lx.(*IndexExpr); !ok {
+			panic("---should not happen")
+		} else {
+			fmt.Println("---ix.AbsPath: ", ix.AbsPath)
+			vp = ix.AbsPath
+		}
 
 		iv := m.PeekValue(1) // index
 		xv := m.PeekValue(2) // x
@@ -139,7 +158,7 @@ func (m *Machine) doOpSlice() {
 	// if a is a pointer to an array, a[low : high : max] is
 	// shorthand for (*a)[low : high : max]
 	if xv.T.Kind() == PointerKind &&
-		xv.T.Elem().Kind() == ArrayKind {
+			xv.T.Elem().Kind() == ArrayKind {
 		// simply deref xv.
 		*xv = xv.V.(PointerValue).Deref()
 	}
@@ -740,7 +759,7 @@ func (m *Machine) doOpStructLit() {
 				// package doesn't match, we cannot use this
 				// method to initialize the struct.
 				if FieldTypeList(st.Fields).HasUnexported() &&
-					st.PkgPath != m.Package.PkgPath {
+						st.PkgPath != m.Package.PkgPath {
 					panic(fmt.Sprintf(
 						"Cannot initialize imported struct %s.%s with nameless composite lit expression (has unexported fields) from package %s",
 						st.PkgPath, st.String(), m.Package.PkgPath))

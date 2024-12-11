@@ -43,7 +43,7 @@ func TestGoNativeDefine(t *testing.T) {
 	pkg.DefineGoNativeType(rt)
 	nt := pkg.GetValueRef(nil, Name("Foo"), true).GetType().(*NativeType)
 	assert.Equal(t, rt, nt.Type)
-	path := pkg.GetPathForName(nil, Name("Foo"))
+	path, _ := pkg.GetPathForName(nil, Name("Foo"))
 	assert.Equal(t, uint8(1), path.Depth)
 	assert.Equal(t, uint16(0), path.Index)
 	pv := pkg.NewPackage()
