@@ -1,11 +1,12 @@
 package memdb
 
 import (
-	"bytes"
 	"fmt"
+	"strings"
 	"sync"
 
 	"github.com/gnolang/gno/tm2/pkg/colors"
+	"github.com/gnolang/gno/tm2/pkg/db"
 	dbm "github.com/gnolang/gno/tm2/pkg/db"
 	"github.com/gnolang/gno/tm2/pkg/db/internal"
 	"github.com/tidwall/btree"
@@ -158,11 +159,6 @@ func (db *MemDB) NewBatch() dbm.Batch {
 
 // Implements DB.
 func (db *MemDB) Iterator(start, end []byte) dbm.Iterator {
-	if len(start) > 0 && len(end) > 0 &&
-		bytes.Compare(start, end) != -1 {
-		panic("cannot create iterator with start >= end: " + fmt.Sprintf("%q < %q", start, end))
-	}
-
 	db.mtx.Lock()
 	defer db.mtx.Unlock()
 
@@ -171,12 +167,12 @@ func (db *MemDB) Iterator(start, end []byte) dbm.Iterator {
 		start: string(start),
 		end:   string(end),
 	}
-	if len(start) == 0 {
+	if start == nil {
 		if !res.it.First() {
 			res.invalid = true
 		}
 	} else {
-		if !res.it.Seek(string(start)) {
+		if !res.it.Seek(res.start) {
 			res.invalid = true
 		}
 	}
@@ -185,11 +181,6 @@ func (db *MemDB) Iterator(start, end []byte) dbm.Iterator {
 
 // Implements DB.
 func (db *MemDB) ReverseIterator(start, end []byte) dbm.Iterator {
-	if len(start) != 0 && len(end) != 0 &&
-		bytes.Compare(start, end) != -1 {
-		panic("cannot create iterator with start >= end: " + fmt.Sprintf("%q < %q", start, end))
-	}
-
 	db.mtx.Lock()
 	defer db.mtx.Unlock()
 
@@ -199,17 +190,20 @@ func (db *MemDB) ReverseIterator(start, end []byte) dbm.Iterator {
 		end:     string(end),
 		reverse: true,
 	}
-	if len(end) == 0 {
+	if end == nil {
 		if !res.it.Last() {
 			res.invalid = true
 		}
 	} else {
-		if res.it.Seek(string(end)) {
-			if !res.it.Prev() || res.it.Key() < res.start {
-				res.invalid = true
+		valid := res.it.Seek(res.end)
+		if valid {
+			eoakey := res.it.Key() // end or after key
+			if strings.Compare(res.end, eoakey) <= 0 {
+				if !res.it.Prev() {
+					res.invalid = true
+				}
 			}
 		} else {
-			// if nothing > end is found, use the last item in the map.
 			if !res.it.Last() {
 				res.invalid = true
 			}
@@ -225,26 +219,43 @@ type iterator struct {
 	reverse    bool
 }
 
-// The start & end (exclusive) limits to iterate over.
-// If end < start, then the Iterator goes in reverse order.
-//
-// A domain of ([]byte{12, 13}, []byte{12, 14}) will iterate
-// over anything with the prefix []byte{12, 13}.
-//
-// The smallest key is the empty byte array []byte{} - see BeginningKey().
-// The largest key is the nil byte array []byte(nil) - see EndingKey().
-// CONTRACT: start, end readonly []byte
+var _ db.Iterator = (*iterator)(nil)
+
 func (i *iterator) Domain() (start []byte, end []byte) {
-	if i.reverse {
-		return []byte(i.end), []byte(i.start)
-	}
 	return []byte(i.start), []byte(i.end)
 }
 
 // Valid returns whether the current position is valid.
 // Once invalid, an Iterator is forever invalid.
 func (i *iterator) Valid() bool {
-	return !i.invalid
+	// Once invalid, forever invalid.
+	if i.invalid {
+		return false
+	}
+
+	// If key is end or past it, invalid.
+	key := i.it.Key()
+
+	if i.reverse {
+		if i.start != "" && key < i.start {
+			i.invalid = true
+			return false
+		}
+	} else {
+		if i.end != "" && key >= i.end {
+			i.invalid = true
+			return false
+		}
+	}
+
+	// Valid
+	return true
+}
+
+func (i *iterator) assertIsValid() {
+	if !i.Valid() {
+		panic("memdb iterator is invalid")
+	}
 }
 
 // Next moves the iterator to the next sequential key in the database, as
@@ -252,17 +263,14 @@ func (i *iterator) Valid() bool {
 //
 // If Valid returns false, this method will panic.
 func (i *iterator) Next() {
-	if i.invalid {
-		panic("invalid iterator")
-	}
+	i.assertIsValid()
+
 	if i.reverse {
-		if !i.it.Prev() ||
-			i.it.Key() < i.start {
+		if !i.it.Prev() {
 			i.invalid = true
 		}
 	} else {
-		if !i.it.Next() ||
-			i.it.Key() >= i.end {
+		if !i.it.Next() {
 			i.invalid = true
 		}
 	}
@@ -272,6 +280,7 @@ func (i *iterator) Next() {
 // If Valid returns false, this method will panic.
 // CONTRACT: key readonly []byte
 func (i *iterator) Key() []byte {
+	i.assertIsValid()
 	return []byte(i.it.Key())
 }
 
@@ -279,6 +288,7 @@ func (i *iterator) Key() []byte {
 // If Valid returns false, this method will panic.
 // CONTRACT: value readonly []byte
 func (i *iterator) Value() []byte {
+	i.assertIsValid()
 	return i.it.Value()
 }
 
