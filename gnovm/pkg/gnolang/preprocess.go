@@ -3790,16 +3790,249 @@ func assertTypeDeclNoCycle2(store Store, last BlockNode, x Expr, stack *[]Name, 
 // type expressions, which must get preprocessed for inner
 // composite type eliding to work.
 func findUndefined(store Store, last BlockNode, x Expr) (un Name) {
-	return findUndefined2(store, last, x, nil)
+	return findUndefined2(store, last, x, nil, true)
 }
 
-func findUndefined2(store Store, last BlockNode, x Expr, t Type) (un Name) {
+// finds the next undefined identifier and returns it if it is global
+func findUndefined2SkipLocals(store Store, last BlockNode, x Expr, t Type) Name {
+	name := findUndefined2(store, last, x, t, false)
+
+	if name == "" {
+		return ""
+	}
+
+	existsLocal := func(name Name, bn BlockNode) bool {
+		curr := bn
+		for {
+			currNames := bn.GetBlockNames()
+
+			for _, currName := range currNames {
+				if currName == name {
+					return true
+				}
+			}
+
+			if bn.GetStaticBlock().Source == curr {
+				return false
+			}
+
+			curr = bn.GetStaticBlock().GetParentNode(store)
+
+			if curr == nil {
+				return false
+			}
+		}
+	}
+
+	pkg := packageOf(last)
+
+	if _, _, ok := pkg.FileSet.GetDeclForSafe(name); !ok {
+		return ""
+	}
+
+	isLocal := existsLocal(name, last)
+
+	if isLocal {
+		return ""
+	}
+
+	return name
+}
+
+func findUndefinedStmt(store Store, last BlockNode, stmt Stmt, t Type) Name {
+	switch s := stmt.(type) {
+	case *TypeDecl:
+		un := findUndefined2SkipLocals(store, last, s.Type, t)
+
+		if un != "" {
+			return un
+		}
+	case *ValueDecl:
+		un := findUndefined2SkipLocals(store, last, s.Type, t)
+
+		if un != "" {
+			return un
+		}
+		for _, rh := range s.Values {
+			un := findUndefined2SkipLocals(store, last, rh, t)
+
+			if un != "" {
+				return un
+			}
+		}
+	case *DeclStmt:
+		for _, rh := range s.Body {
+			un := findUndefinedStmt(store, last, rh, t)
+
+			if un != "" {
+				return un
+			}
+		}
+	case *IncDecStmt:
+		un := findUndefined2SkipLocals(store, last, s.X, t)
+
+		if un != "" {
+			return un
+		}
+	case *PanicStmt:
+		un := findUndefined2SkipLocals(store, last, s.Exception, t)
+
+		if un != "" {
+			return un
+		}
+	case *BlockStmt:
+		for _, rh := range s.Body {
+			un := findUndefinedStmt(store, s, rh, t)
+
+			if un != "" {
+				return un
+			}
+		}
+	case *DeferStmt:
+		un := findUndefined2SkipLocals(store, last, s.Call.Func, t)
+
+		if un != "" {
+			return un
+		}
+
+		for _, rh := range s.Call.Args {
+			un = findUndefined2SkipLocals(store, last, rh, t)
+
+			if un != "" {
+				return un
+			}
+		}
+	case *SwitchStmt:
+		un := findUndefined2SkipLocals(store, last, s.X, t)
+		if un != "" {
+			return un
+		}
+
+		un = findUndefinedStmt(store, last, s.Init, t)
+		if un != "" {
+			return un
+		}
+
+		for _, b := range s.Clauses {
+			b := b
+			un = findUndefinedStmt(store, s, &b, t)
+
+			if un != "" {
+				return un
+			}
+		}
+	case *SwitchClauseStmt:
+		for _, rh := range s.Cases {
+			un := findUndefined2SkipLocals(store, last, rh, t)
+
+			if un != "" {
+				return un
+			}
+		}
+
+		for _, b := range s.Body {
+			un := findUndefinedStmt(store, last, b, t)
+
+			if un != "" {
+				return un
+			}
+		}
+
+	case *ExprStmt:
+		return findUndefined2SkipLocals(store, last, s.X, t)
+	case *AssignStmt:
+		for _, rh := range s.Rhs {
+			un := findUndefined2SkipLocals(store, last, rh, t)
+
+			if un != "" {
+				return un
+			}
+		}
+	case *IfStmt:
+		un := findUndefinedStmt(store, last, s.Init, t)
+		if un != "" {
+			return un
+		}
+
+		un = findUndefined2SkipLocals(store, last, s.Cond, t)
+		if un != "" {
+			return un
+		}
+
+		un = findUndefinedStmt(store, last, &s.Else, t)
+		if un != "" {
+			return un
+		}
+
+		un = findUndefinedStmt(store, last, &s.Then, t)
+		if un != "" {
+			return un
+		}
+	case *IfCaseStmt:
+		for _, b := range s.Body {
+			un := findUndefinedStmt(store, last, b, t)
+
+			if un != "" {
+				return un
+			}
+		}
+	case *ReturnStmt:
+		for _, b := range s.Results {
+			un := findUndefined2SkipLocals(store, last, b, t)
+			if un != "" {
+				return un
+			}
+		}
+	case *RangeStmt:
+		un := findUndefined2SkipLocals(store, last, s.X, t)
+		if un != "" {
+			return un
+		}
+
+		for _, b := range s.Body {
+			un := findUndefinedStmt(store, last, b, t)
+			if un != "" {
+				return un
+			}
+		}
+	case *ForStmt:
+		un := findUndefinedStmt(store, s, s.Init, t)
+		if un != "" {
+			return un
+		}
+
+		un = findUndefined2SkipLocals(store, s, s.Cond, t)
+		if un != "" {
+			return un
+		}
+
+		un = findUndefinedStmt(store, s, s.Post, t)
+		if un != "" {
+			return un
+		}
+
+		for _, b := range s.Body {
+			un := findUndefinedStmt(store, last, b, t)
+			if un != "" {
+				return un
+			}
+		}
+	case *BranchStmt:
+	case nil:
+		return ""
+	default:
+		panic(fmt.Sprintf("findUndefinedStmt: %T not supported", s))
+	}
+	return ""
+}
+
+func findUndefined2(store Store, last BlockNode, x Expr, t Type, skipPredefined bool) (un Name) {
 	if x == nil {
 		return
 	}
 	switch cx := x.(type) {
 	case *NameExpr:
-		if tv := last.GetValueRef(store, cx.Name, true); tv != nil {
+		if tv := last.GetValueRef(store, cx.Name, skipPredefined); tv != nil {
 			return
 		}
 		if _, ok := UverseNode().GetLocalIndex(cx.Name); ok {
@@ -3812,51 +4045,51 @@ func findUndefined2(store Store, last BlockNode, x Expr, t Type) (un Name) {
 	case *BasicLitExpr:
 		return
 	case *BinaryExpr:
-		un = findUndefined(store, last, cx.Left)
+		un = findUndefined2(store, last, cx.Left, nil, skipPredefined)
 		if un != "" {
 			return
 		}
-		un = findUndefined(store, last, cx.Right)
+		un = findUndefined2(store, last, cx.Right, nil, skipPredefined)
 		if un != "" {
 			return
 		}
 	case *SelectorExpr:
-		return findUndefined(store, last, cx.X)
+		return findUndefined2(store, last, cx.X, nil, skipPredefined)
 	case *SliceExpr:
-		un = findUndefined(store, last, cx.X)
+		un = findUndefined2(store, last, cx.X, nil, skipPredefined)
 		if un != "" {
 			return
 		}
 		if cx.Low != nil {
-			un = findUndefined(store, last, cx.Low)
+			un = findUndefined2(store, last, cx.Low, nil, skipPredefined)
 			if un != "" {
 				return
 			}
 		}
 		if cx.High != nil {
-			un = findUndefined(store, last, cx.High)
+			un = findUndefined2(store, last, cx.High, nil, skipPredefined)
 			if un != "" {
 				return
 			}
 		}
 		if cx.Max != nil {
-			un = findUndefined(store, last, cx.Max)
+			un = findUndefined2(store, last, cx.Max, nil, skipPredefined)
 			if un != "" {
 				return
 			}
 		}
 	case *StarExpr:
-		return findUndefined(store, last, cx.X)
+		return findUndefined2(store, last, cx.X, nil, skipPredefined)
 	case *RefExpr:
-		return findUndefined(store, last, cx.X)
+		return findUndefined2(store, last, cx.X, nil, skipPredefined)
 	case *TypeAssertExpr:
-		un = findUndefined(store, last, cx.X)
+		un = findUndefined2(store, last, cx.X, nil, skipPredefined)
 		if un != "" {
 			return
 		}
-		return findUndefined(store, last, cx.Type)
+		return findUndefined2(store, last, cx.Type, nil, skipPredefined)
 	case *UnaryExpr:
-		return findUndefined(store, last, cx.X)
+		return findUndefined2(store, last, cx.X, nil, skipPredefined)
 	case *CompositeLitExpr:
 		var ct Type
 		if cx.Type == nil {
@@ -3866,7 +4099,7 @@ func findUndefined2(store Store, last BlockNode, x Expr, t Type) (un Name) {
 			ct = t
 			cx.Type = constType(cx, t)
 		} else {
-			un = findUndefined(store, last, cx.Type)
+			un = findUndefined2(store, last, cx.Type, nil, skipPredefined)
 			if un != "" {
 				return
 			}
@@ -3883,18 +4116,18 @@ func findUndefined2(store Store, last BlockNode, x Expr, t Type) (un Name) {
 		switch ct.Kind() {
 		case ArrayKind, SliceKind, MapKind:
 			for _, kvx := range cx.Elts {
-				un = findUndefined(store, last, kvx.Key)
+				un = findUndefined2(store, last, kvx.Key, nil, skipPredefined)
 				if un != "" {
 					return
 				}
-				un = findUndefined2(store, last, kvx.Value, ct.Elem())
+				un = findUndefined2(store, last, kvx.Value, ct.Elem(), skipPredefined)
 				if un != "" {
 					return
 				}
 			}
 		case StructKind:
 			for _, kvx := range cx.Elts {
-				un = findUndefined(store, last, kvx.Value)
+				un = findUndefined2(store, last, kvx.Value, nil, skipPredefined)
 				if un != "" {
 					return
 				}
@@ -3905,43 +4138,50 @@ func findUndefined2(store Store, last BlockNode, x Expr, t Type) (un Name) {
 				ct.String()))
 		}
 	case *FuncLitExpr:
-		return findUndefined(store, last, &cx.Type)
-	case *FieldTypeExpr:
-		return findUndefined(store, last, cx.Type)
-	case *ArrayTypeExpr:
-		if cx.Len != nil {
-			un = findUndefined(store, last, cx.Len)
+		for _, stmt := range cx.Body {
+			un = findUndefinedStmt(store, cx, stmt, t)
+
 			if un != "" {
 				return
 			}
 		}
-		return findUndefined(store, last, cx.Elt)
+		return findUndefined2(store, last, &cx.Type, nil, skipPredefined)
+	case *FieldTypeExpr:
+		return findUndefined2(store, last, cx.Type, nil, skipPredefined)
+	case *ArrayTypeExpr:
+		if cx.Len != nil {
+			un = findUndefined2(store, last, cx.Len, nil, skipPredefined)
+			if un != "" {
+				return
+			}
+		}
+		return findUndefined2(store, last, cx.Elt, nil, skipPredefined)
 	case *SliceTypeExpr:
-		return findUndefined(store, last, cx.Elt)
+		return findUndefined2(store, last, cx.Elt, nil, skipPredefined)
 	case *InterfaceTypeExpr:
 		for i := range cx.Methods {
-			un = findUndefined(store, last, &cx.Methods[i])
+			un = findUndefined2(store, last, &cx.Methods[i], nil, skipPredefined)
 			if un != "" {
 				return
 			}
 		}
 	case *ChanTypeExpr:
-		return findUndefined(store, last, cx.Value)
+		return findUndefined2(store, last, cx.Value, nil, skipPredefined)
 	case *FuncTypeExpr:
 		for i := range cx.Params {
-			un = findUndefined(store, last, &cx.Params[i])
+			un = findUndefined2(store, last, &cx.Params[i], nil, skipPredefined)
 			if un != "" {
 				return
 			}
 		}
 		for i := range cx.Results {
-			un = findUndefined(store, last, &cx.Results[i])
+			un = findUndefined2(store, last, &cx.Results[i], nil, skipPredefined)
 			if un != "" {
 				return
 			}
 		}
 	case *MapTypeExpr:
-		un = findUndefined(store, last, cx.Key)
+		un = findUndefined2(store, last, cx.Key, nil, skipPredefined)
 		if un != "" {
 			return
 		}
@@ -3951,33 +4191,33 @@ func findUndefined2(store Store, last BlockNode, x Expr, t Type) (un Name) {
 		}
 	case *StructTypeExpr:
 		for i := range cx.Fields {
-			un = findUndefined(store, last, &cx.Fields[i])
+			un = findUndefined2(store, last, &cx.Fields[i], nil, skipPredefined)
 			if un != "" {
 				return
 			}
 		}
 	case *MaybeNativeTypeExpr:
-		un = findUndefined(store, last, cx.Type)
+		un = findUndefined2(store, last, cx.Type, nil, skipPredefined)
 		if un != "" {
 			return
 		}
 	case *CallExpr:
-		un = findUndefined(store, last, cx.Func)
+		un = findUndefined2(store, last, cx.Func, nil, skipPredefined)
 		if un != "" {
 			return
 		}
 		for i := range cx.Args {
-			un = findUndefined(store, last, cx.Args[i])
+			un = findUndefined2(store, last, cx.Args[i], nil, skipPredefined)
 			if un != "" {
 				return
 			}
 		}
 	case *IndexExpr:
-		un = findUndefined(store, last, cx.X)
+		un = findUndefined2(store, last, cx.X, nil, skipPredefined)
 		if un != "" {
 			return
 		}
-		un = findUndefined(store, last, cx.Index)
+		un = findUndefined2(store, last, cx.Index, nil, skipPredefined)
 		if un != "" {
 			return
 		}
