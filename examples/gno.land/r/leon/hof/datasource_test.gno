@@ -10,9 +10,10 @@ import (
 )
 
 var (
-	_ datasource.Datasource = (*Datasource)(nil)
-	_ datasource.Record     = (*record)(nil)
-	_ datasource.Iterator   = (*iterator)(nil)
+	_ datasource.Datasource    = (*Datasource)(nil)
+	_ datasource.Record        = (*record)(nil)
+	_ datasource.ContentRecord = (*record)(nil)
+	_ datasource.Iterator      = (*iterator)(nil)
 )
 
 func TestDatasourceRecords(t *testing.T) {
