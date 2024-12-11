@@ -2299,6 +2299,7 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 					// NOTE: may or may not be a *ConstExpr,
 					// but if not, make one now.
 					for i, vx := range n.Values {
+						assertValidConstExpr(store, last, n, vx)
 						n.Values[i] = evalConst(store, last, vx)
 					}
 				} else {
