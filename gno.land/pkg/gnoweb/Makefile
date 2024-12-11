@@ -9,7 +9,6 @@ CHAIN_ID ?= test3
 COMPONENTS_FOLDER := ./components
 
 tools_run := go run -modfile ./tools/go.mod
-tools_install := go install -modfile ./tools/go.mod
 
 run_air := $(tools_run) github.com/air-verse/air
 run_reflex := $(tools_run) github.com/cespare/reflex
@@ -29,6 +28,7 @@ output_statics := ./public
 # Esbuild config
 input_js := ./frontend/js/**/*.ts
 output_js := ./public/js
+esbuild_version := 0.24.0
 
 #############
 # Targets
@@ -37,9 +37,6 @@ output_js := ./public/js
 
 # Install dependencies
 all: generate
-
-install: generate
-	go install -v .
 
 # Generate process
 generate: clean css ts fonts
@@ -76,25 +73,20 @@ dev.gnoweb: | .cache
 
 # Tailwind CSS in development mode
 dev.css: | public
-	npx tailwindcss@$(tw_version) -c $(tw_config_path) --verbose -i $(input_css) -o $(output_css) --watch \
+	npx -y tailwindcss@$(tw_version) -c $(tw_config_path) --verbose -i $(input_css) -o $(output_css) --watch \
 		2>&1 | $(run_logname) tailwind
 
 # XXX: add versioning on esbuild
 # TS in development mode
 dev.ts: | public
-	npx -y esbuild $(input_js) \
-		--bundle \
-		--outdir=$(output_js) \
-		--format=esm \
-		--watch \
-		--minify
+	npx -y esbuild@$(esbuild_version) $(input_js) --bundle --outdir=$(output_js) --format=esm --minify --watch \
+		2>&1 | $(run_logname) esbuild
 
 # Cleanup
 clean:
 	rm -rf public tmp
 fclean: clean
-	rm -rf node_modules .cache
+	rm -rf .cache
 
 # Dirs
-.cache:; mkdir -p $@
-public:; mkdir -p $@
+.cache public:; mkdir -p $@
