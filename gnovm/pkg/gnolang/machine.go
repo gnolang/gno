@@ -5,6 +5,7 @@ package gnolang
 import (
 	"fmt"
 	"io"
+	"path/filepath"
 	"reflect"
 	"slices"
 	"strconv"
@@ -12,6 +13,7 @@ import (
 	"sync"
 
 	"github.com/gnolang/gno/gnovm"
+	"github.com/gnolang/gno/gnovm/pkg/coverage"
 	"github.com/gnolang/gno/tm2/pkg/errors"
 	"github.com/gnolang/gno/tm2/pkg/overflow"
 	"github.com/gnolang/gno/tm2/pkg/store"
@@ -78,6 +80,9 @@ type Machine struct {
 	// it is executed. It is reset to zero after the defer functions in the current
 	// scope have finished executing.
 	DeferPanicScope uint
+
+	// Test Coverage
+	Coverage *coverage.Coverage
 }
 
 // NewMachine initializes a new gno virtual machine, acting as a shorthand
@@ -176,6 +181,7 @@ func NewMachineWithOptions(opts MachineOptions) *Machine {
 	mm.Debugger.enabled = opts.Debug
 	mm.Debugger.in = opts.Input
 	mm.Debugger.out = output
+	mm.Coverage = coverage.New("")
 
 	if pv != nil {
 		mm.SetActivePackage(pv)
@@ -262,6 +268,9 @@ func (m *Machine) PreprocessAllFilesAndSaveBlockNodes() {
 // and corresponding package node, package value, and types to store. Save
 // is set to false for tests where package values may be native.
 func (m *Machine) RunMemPackage(memPkg *gnovm.MemPackage, save bool) (*PackageNode, *PackageValue) {
+	if m.Coverage.Enabled() {
+		initCoverage(m, memPkg)
+	}
 	return m.runMemPackage(memPkg, save, false)
 }
 
@@ -320,6 +329,70 @@ func (m *Machine) runMemPackage(memPkg *gnovm.MemPackage, save, overrides bool) 
 	}
 
 	return pn, pv
+}
+
+func initCoverage(m *Machine, memPkg *gnovm.MemPackage) {
+	// m.Coverage.CurrentPackage = memPkg.Path
+	// for _, file := range memPkg.Files {
+	// 	if strings.HasSuffix(file.Name, ".gno") && !isTestFile(file.Name) {
+	// 		m.Coverage.currentFile = file.Name
+
+	// 		totalLines := countCodeLines(file.Body)
+	// 		path := filepath.Join(m.Coverage.CurrentPackage, m.Coverage.currentFile)
+
+	// 		executableLines, err := detectExecutableLines(file.Body)
+	// 		if err != nil {
+	// 			continue
+	// 		}
+
+	// 		m.Coverage.setExecutableLines(path, executableLines)
+	// 		m.addFileToCodeCoverage(path, totalLines)
+	// 	}
+	// }
+	if !m.Coverage.Enabled() {
+		return
+	}
+
+	m.Coverage.SetCurrentPath(memPkg.Path)
+
+	for _, file := range memPkg.Files {
+		if strings.HasSuffix(file.Name, ".gno") && !coverage.IsTestFile(file.Name) {
+			m.Coverage.SetCurrentFile(file.Name)
+
+			path := filepath.Join(memPkg.Path, file.Name)
+
+			totalLines := coverage.CountCodeLines(file.Body)
+			lines, err := coverage.DetectExecutableLines(file.Body)
+			if err != nil {
+				continue
+			}
+
+			m.Coverage.SetExecutableLines(path, lines)
+			m.Coverage.AddFile(path, totalLines)
+		}
+	}
+}
+
+// recordCoverage records the execution of a specific node in the AST.
+// This function tracking which parts of the code have been executed during the runtime.
+//
+// Note: This function assumes that CurrentPackage and CurrentFile are correctly set in the Machine
+// before it's called. These fields provide the context necessary to accurately record the coverage information.
+func recordCoverage(m *Machine, node Node) coverage.FileLocation {
+	if node == nil || !m.Coverage.Enabled() {
+		return coverage.FileLocation{}
+	}
+
+	loc := coverage.FileLocation{
+		PkgPath: m.Package.PkgPath,
+		File:    m.Coverage.CurrentFile(),
+		Line:    node.GetLine(),
+		Column:  node.GetColumn(),
+	}
+
+	m.Coverage.RecordHit(loc)
+
+	return loc
 }
 
 type redeclarationErrors []Name
@@ -1145,6 +1218,12 @@ func (m *Machine) Run() {
 			m.Debug()
 		}
 		op := m.PopOp()
+
+		if m.Coverage.Enabled() {
+			loc := getCurrentLocation(m)
+			m.Coverage.RecordHit(loc)
+		}
+
 		// TODO: this can be optimized manually, even into tiers.
 		switch op {
 		/* Control operators */
@@ -1471,6 +1550,24 @@ func (m *Machine) Run() {
 	}
 }
 
+func getCurrentLocation(m *Machine) coverage.FileLocation {
+	if len(m.Frames) == 0 {
+		return coverage.FileLocation{}
+	}
+
+	lastFrame := m.Frames[len(m.Frames)-1]
+	if lastFrame.Source == nil {
+		return coverage.FileLocation{}
+	}
+
+	return coverage.FileLocation{
+		PkgPath: m.Coverage.CurrentPath(),
+		File:    m.Coverage.CurrentFile(),
+		Line:    lastFrame.Source.GetLine(),
+		Column:  lastFrame.Source.GetColumn(),
+	}
+}
+
 //----------------------------------------
 // push pop methods.
 
@@ -1532,6 +1629,8 @@ func (m *Machine) PeekStmt1() Stmt {
 }
 
 func (m *Machine) PushStmt(s Stmt) {
+	recordCoverage(m, s)
+
 	if debug {
 		m.Printf("+s %v\n", s)
 	}
@@ -1582,6 +1681,7 @@ func (m *Machine) PushExpr(x Expr) {
 	if debug {
 		m.Printf("+x %v\n", x)
 	}
+	recordCoverage(m, x)
 	m.Exprs = append(m.Exprs, x)
 }
 
@@ -1617,7 +1717,6 @@ func (m *Machine) PushValue(tv TypedValue) {
 	}
 	m.Values[m.NumValues] = tv
 	m.NumValues++
-	return
 }
 
 // Resulting reference is volatile.
@@ -1770,6 +1869,9 @@ func (m *Machine) PushFrameCall(cx *CallExpr, fv *FuncValue, recv TypedValue) {
 	if rlm != nil && m.Realm != rlm {
 		m.Realm = rlm // enter new realm
 	}
+
+	m.Coverage.SetCurrentPath(fv.PkgPath)
+	m.Coverage.SetCurrentFile(string(fv.FileName))
 }
 
 func (m *Machine) PushFrameGoNative(cx *CallExpr, fv *NativeValue) {
