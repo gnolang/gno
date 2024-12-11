@@ -707,9 +707,9 @@ form {
   --tw-border-opacity: 1;
   border-color: rgb(143 143 143 / var(--tw-border-opacity));
   padding-left: 1rem;
-  font-style: italic;
   --tw-text-opacity: 1;
   color: rgb(84 89 93 / var(--tw-text-opacity));
+  font-style: oblique 10deg;
 }
 
 .realm-content ul,
@@ -804,28 +804,29 @@ form {
 }
 
 .realm-content q {
-  font-style: italic;
-  color: #555;
-  border-left: 4px solid #ccc;
+  margin-top: 1.5rem;
+  margin-bottom: 1.5rem;
+  border-left-width: 4px;
+  --tw-border-opacity: 1;
+  border-left-color: rgb(204 204 204 / var(--tw-border-opacity));
   padding-left: 1rem;
-  margin: 1.5rem 0;
+  --tw-text-opacity: 1;
+  color: rgb(85 85 85 / var(--tw-text-opacity));
+  font-style: oblique 10deg;
   quotes: "“" "”" "‘" "’";
 }
 
-.realm-content q::before {
-  content: open-quote;
-  font-size: 2rem;
-  color: #999;
+.realm-content q::before,.realm-content q::after {
   margin-right: 0.25rem;
+  font-size: 1.5rem;
+  --tw-text-opacity: 1;
+  color: rgb(143 143 143 / var(--tw-text-opacity));
+  content: open-quote;
   vertical-align: -0.4rem;
 }
 
 .realm-content q::after {
   content: close-quote;
-  font-size: 2rem;
-  color: #999;
-  margin-left: 0.25rem;
-  vertical-align: -0.4rem;
 }
 
 .realm-content q::before {
@@ -847,6 +848,10 @@ form {
 
 .realm-content ul {
   list-style-type: disc;
+}
+
+.realm-content ol {
+  list-style-type: decimal;
 }
 
 .realm-content table th:first-child,
@@ -1141,10 +1146,6 @@ main .source-code > pre {
   height: 100%;
 }
 
-.h-screen {
-  height: 100vh;
-}
-
 .max-h-screen {
   max-height: 100vh;
 }
@@ -1348,13 +1349,13 @@ main .source-code > pre {
   background-color: rgb(240 240 240 / var(--tw-bg-opacity));
 }
 
-.bg-transparent {
-  background-color: transparent;
-}
-
-.bg-white-50 {
+.bg-light {
   --tw-bg-opacity: 1;
   background-color: rgb(255 255 255 / var(--tw-bg-opacity));
+}
+
+.bg-transparent {
+  background-color: transparent;
 }
 
 .p-1\.5 {
@@ -1536,31 +1537,6 @@ main .source-code > pre {
 .no-scrollbar {
   -ms-overflow-style: none;
   scrollbar-width: none;
-}
-
-.quotes {
-  font-style: italic;
-  color: #555;
-  border-left: 4px solid #ccc;
-  padding-left: 1rem;
-  margin: 1.5rem 0;
-  quotes: "“" "”" "‘" "’";
-}
-
-.quotes::before {
-  content: open-quote;
-  font-size: 2rem;
-  color: #999;
-  margin-right: 0.25rem;
-  vertical-align: -0.4rem;
-}
-
-.quotes::after {
-  content: close-quote;
-  font-size: 2rem;
-  color: #999;
-  margin-left: 0.25rem;
-  vertical-align: -0.4rem;
 }
 
 .before\:px-1::before {

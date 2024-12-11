@@ -28,9 +28,7 @@ export default {
       DEFAULT: `${pxToRem(6)}rem`,
     },
     colors: {
-      white: {
-        50: "#FFFFFF",
-      },
+      light: "#FFFFFF",
       gray: {
         50: "#F0F0F0", // Background color
         100: "#E2E2E2", // Title dark color

@@ -18,34 +18,9 @@
 @tailwind components;
 @tailwind utilities;
 
-.quotes {
-  font-style: italic;
-  color: #555;
-  border-left: 4px solid #ccc;
-  padding-left: 1rem;
-  margin: 1.5rem 0;
-  quotes: "“" "”" "‘" "’";
-}
-
-.quotes::before {
-  content: open-quote;
-  font-size: 2rem;
-  color: #999;
-  margin-right: 0.25rem;
-  vertical-align: -0.4rem;
-}
-
-.quotes::after {
-  content: close-quote;
-  font-size: 2rem;
-  color: #999;
-  margin-left: 0.25rem;
-  vertical-align: -0.4rem;
-}
-
 @layer base {
   html {
-    @apply font-interNormal text-gray-600 bg-white-50 text-200;
+    @apply font-interNormal text-gray-600 bg-light text-200;
     font-feature-settings: "kern" on, "liga" on, "calt" on, "zero" on;
     -webkit-font-feature-settings: "kern" on, "liga" on, "calt" on, "zero" on;
     text-size-adjust: 100%;
@@ -137,7 +112,7 @@
   }
 
   .realm-content blockquote {
-    @apply border-l-4 border-gray-300 pl-4 text-gray-600 italic my-4;
+    @apply border-l-4 border-gray-300 pl-4 text-gray-600 italic-subtle my-4;
   }
 
   .realm-content ul,
@@ -214,6 +189,10 @@
     @apply list-disc;
   }
 
+  .realm-content ol {
+    @apply list-decimal;
+  }
+
   .realm-content table th:first-child,
   .realm-content td:first-child {
     @apply pl-0;
@@ -275,7 +254,7 @@
 
   /* chroma */
   main .source-code > pre {
-    @apply !bg-white-50 overflow-scroll rounded py-8 px-3 font-mono;
+    @apply !bg-light overflow-scroll rounded py-8 px-3 font-mono;
   }
 }
 
@@ -320,6 +299,23 @@
 }
 
 @layer utilities {
+  .italic-subtle {
+    font-style: oblique 10deg;
+  }
+
+  .quotes {
+    @apply italic-subtle text-[#555] border-l-4 border-l-[#ccc] pl-4 my-6 [quotes:"“"_"”"_"‘"_"’"];
+  }
+
+  .quotes::before,
+  .quotes::after {
+    @apply [content:open-quote] text-600 text-gray-300 mr-1 [vertical-align:-0.4rem];
+  }
+
+  .quotes::after {
+    @apply [content:close-quote];
+  }
+
   .text-stroke {
     -webkit-text-stroke: currentColor;
     -webkit-text-stroke-width: 0.6px;
