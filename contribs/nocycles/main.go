@@ -65,6 +65,8 @@ func main() {
 		}
 	}
 
+	// TODO: handle sub-pkgs
+
 	// load all examples
 	examples, err := gnomod.ListPkgs(filepath.Join(gnoRoot, "examples"))
 	if err != nil {
@@ -74,8 +76,14 @@ func main() {
 		if example.Draft {
 			continue
 		}
+
 		pkgPath := example.Name
 		memPkg := gnolang.MustReadMemPackage(example.Dir, example.Name)
+
+		if memPkg.IsEmpty() {
+			continue
+		}
+
 		pkg, xpkg, err := splitMemPackage(memPkg)
 		if err != nil {
 			panic(fmt.Errorf("split %q: %w", pkgPath, err))
