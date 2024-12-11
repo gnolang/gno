@@ -6,7 +6,7 @@ import (
 	"net/http"
 
 	gnodev "github.com/gnolang/gno/contribs/gnodev/pkg/dev"
-	gnoweb "github.com/gnolang/gno/gno.land/pkg/gnoweb"
+	"github.com/gnolang/gno/gno.land/pkg/gnoweb"
 )
 
 // setupGnowebServer initializes and starts the Gnoweb server.
