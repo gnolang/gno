@@ -2360,7 +2360,8 @@ type Block struct {
 	Values   []TypedValue
 	Parent   Value
 	Blank    TypedValue // captures "_" // XXX remove and replace with global instance.
-	bodyStmt bodyStmt   // XXX expose for persistence, not needed for MVP.
+	BID      BlockID
+	bodyStmt bodyStmt // XXX expose for persistence, not needed for MVP.
 }
 
 // NOTE: for allocation, use *Allocator.NewBlock.
@@ -2374,6 +2375,10 @@ func NewBlock(source BlockNode, parent *Block) *Block {
 		Values: values,
 		Parent: parent,
 	}
+}
+
+type BlockID struct {
+	Hashlet
 }
 
 func (b *Block) String() string {

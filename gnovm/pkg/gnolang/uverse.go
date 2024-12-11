@@ -746,19 +746,18 @@ func makeUverseNode() {
 					return
 				}
 
+				// delete
+				mv.DeleteForKey(m.Store, &itv)
+
 				if m.Realm != nil {
-					fmt.Println("---delete")
 					// mark key as deleted
 					keyObj := itv.GetFirstObject(m.Store)
-					//m.Realm.DidUpdate(mv, keyObj, nil)
-					m.Realm.DelObjectByValue(m.Store, mv, keyObj)
+					m.Realm.DidUpdate(mv, keyObj, nil)
 
 					// mark value as deleted
 					valObj := val.GetFirstObject(m.Store)
 					m.Realm.DidUpdate(mv, valObj, nil)
 				}
-				// delete
-				mv.DeleteForKey(m.Store, &itv)
 
 				return
 			case *NativeType:
@@ -839,6 +838,11 @@ func makeUverseNode() {
 					li := lv.ConvertGetInt()
 					cv := vargs.TV.GetPointerAtIndexInt(m.Store, 1).Deref()
 					ci := cv.ConvertGetInt()
+
+					if ci < li {
+						panic(&Exception{Value: typedString(`makeslice: cap out of range`)})
+					}
+
 					if et.Kind() == Uint8Kind {
 						arrayValue := m.Alloc.NewDataArray(ci)
 						m.PushValue(TypedValue{

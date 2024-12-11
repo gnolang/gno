@@ -108,6 +108,8 @@ func (s *staticAnalysis) staticAnalysisExpr(expr Expr) bool {
 // indicating whether a statement is terminating or not
 func (s *staticAnalysis) staticAnalysisStmt(stmt Stmt) bool {
 	switch n := stmt.(type) {
+	case *BlockStmt:
+		return s.staticAnalysisBlockStmt(n.Body)
 	case *BranchStmt:
 		switch n.Op {
 		case BREAK:

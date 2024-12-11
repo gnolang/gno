@@ -446,7 +446,7 @@ func (m *Machine) TestMemPackage(t *testing.T, memPkg *gnovm.MemPackage) {
 // starts with `Test`.
 func (m *Machine) TestFunc(t *testing.T, tv TypedValue) {
 	if !(tv.T.Kind() == FuncKind &&
-			strings.HasPrefix(string(tv.V.(*FuncValue).Name), "Test")) {
+		strings.HasPrefix(string(tv.V.(*FuncValue).Name), "Test")) {
 		return // not a test function.
 	}
 	// XXX ensure correct func type.
@@ -2122,8 +2122,17 @@ func (m *Machine) PopAsPointer(lx Expr) PointerValue {
 	case *NameExpr:
 		println("---NameExpr")
 		lb := m.LastBlock()
+		fmt.Println("---lb: ", lb)
+		fmt.Println("---lb.ID: ", lb.ID)
+		fmt.Println("---lb.Hash: ", lb.Hash)
+		fmt.Println("---str: ", lb.GetSource(m.Store).String())
+		bid := BlockID{HashBytes([]byte(lb.GetSource(m.Store).String()))}
+		fmt.Println("---bid: ", bid)
+		bidStr := fmt.Sprintf("BID%X", bid.Hashlet[:])
+		fmt.Println("---bidStr", bidStr)
+
 		ptr := lb.GetPointerToMaybeHeapUse(m.Store, lx)
-		ptr.TV.SetPath(lx.Path.String())
+		ptr.TV.SetPath(bidStr + ":" + lx.Path.String())
 		return ptr
 
 	case *IndexExpr:
