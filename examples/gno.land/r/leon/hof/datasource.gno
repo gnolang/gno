@@ -51,7 +51,7 @@ func (r record) Fields() (datasource.Fields, error) {
 }
 
 func (r record) Content() (string, error) {
-	content := ufmt.Sprintf("# Submission #%s\n\n", r.item.id.String())
+	content := ufmt.Sprintf("# Submission #%d\n\n", int(r.item.id))
 	content += r.item.Render(false)
 	return content, nil
 }

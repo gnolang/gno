@@ -148,7 +148,7 @@ func TestItemRecord(t *testing.T) {
 	uassert.Equal(t, "Votes: ⏶ 2 - ⏷ 1", details)
 
 	content, _ := r.Content()
-	wantContent := "# Submission #0000001\n\n\n```\ngno.land/r/demo/test\n```\n\nby demo\n\n" +
+	wantContent := "# Submission #1\n\n\n```\ngno.land/r/demo/test\n```\n\nby demo\n\n" +
 		"[View realm](/r/demo/test)\n\nSubmitted at Block #42\n\n" +
 		"#### [2👍](/r/leon/hof$help&func=Upvote&pkgpath=gno.land/r/demo/test) - " +
 		"[1👎](/r/leon/hof$help&func=Downvote&pkgpath=gno.land/r/demo/test)\n\n"
