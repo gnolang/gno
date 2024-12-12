@@ -74,8 +74,17 @@ func TestGenesis_Txs_Add_Packages(t *testing.T) {
 		genesis := common.GetDefaultGenesis()
 		require.NoError(t, genesis.SaveAs(tempGenesis.Name()))
 
+		io := commands.NewTestIO()
+		io.SetIn(
+			strings.NewReader(
+				fmt.Sprintf(
+					"%s\n",
+					"password",
+				),
+			),
+		)
 		// Create the command
-		cmd := NewTxsCmd(commands.NewTestIO())
+		cmd := NewTxsCmd(io)
 		args := []string{
 			"add",
 			"packages",
@@ -86,6 +95,7 @@ func TestGenesis_Txs_Add_Packages(t *testing.T) {
 			keyname, // non-existent key name
 			"--gno-home",
 			keybaseDir, // temporaryDir for keybase
+			"--insecure-password-stdin",
 		}
 
 		// Run the command
@@ -197,6 +207,54 @@ func TestGenesis_Txs_Add_Packages(t *testing.T) {
 			"--gno-home",
 			keybaseDir, // temporaryDir for keybase
 			"--insecure-password-stdin",
+			dir,
+		}
+
+		// Run the command
+		cmdErr := cmd.ParseAndRun(context.Background(), args)
+		require.NoError(t, cmdErr)
+
+		// Validate the transactions were written down
+		updatedGenesis, err := types.GenesisDocFromFile(tempGenesis.Name())
+		require.NoError(t, err)
+		require.NotNil(t, updatedGenesis.AppState)
+
+		// Fetch the state
+		state := updatedGenesis.AppState.(gnoland.GnoGenesisState)
+
+		require.Equal(t, 1, len(state.Txs))
+		require.Equal(t, 1, len(state.Txs[0].Tx.Msgs))
+
+		msgAddPkg, ok := state.Txs[0].Tx.Msgs[0].(vmm.MsgAddPackage)
+		require.True(t, ok)
+
+		assert.Equal(t, packagePath, msgAddPkg.Package.Path)
+	})
+	t.Run("okDefaultAccount", func(t *testing.T) {
+		t.Parallel()
+
+		tempGenesis, cleanup := testutils.NewTestFile(t)
+		t.Cleanup(cleanup)
+
+		genesis := common.GetDefaultGenesis()
+		require.NoError(t, genesis.SaveAs(tempGenesis.Name()))
+		// Prepare the package
+		var (
+			packagePath = "gno.land/p/demo/cuttlas"
+			dir         = t.TempDir()
+			keybaseDir  = t.TempDir()
+		)
+		createValidFile(t, dir, packagePath)
+
+		// Create the command
+		cmd := NewTxsCmd(commands.NewTestIO())
+		args := []string{
+			"add",
+			"packages",
+			"--genesis-path",
+			tempGenesis.Name(),
+			"--gno-home",
+			keybaseDir, // temporaryDir for keybase
 			dir,
 		}
 
