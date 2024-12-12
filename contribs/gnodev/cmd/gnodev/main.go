@@ -363,7 +363,6 @@ func execDev(cfg *devCfg, args []string, io commands.IO) (err error) {
 	}
 
 	// Serve gnoweb
-	// XXX: we should skip all the previous web setup if gnoweb is disable
 	if !cfg.noWeb {
 		go func() {
 			err := server.ListenAndServe()
