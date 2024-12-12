@@ -10,12 +10,9 @@ import (
 	"github.com/gnolang/gno/gno.land/pkg/sdk/vm"
 	"github.com/gnolang/gno/gnovm"
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
-	"github.com/gnolang/gno/tm2/pkg/amino"
 	"github.com/gnolang/gno/tm2/pkg/commands"
 	"github.com/gnolang/gno/tm2/pkg/crypto/keys"
 	"github.com/gnolang/gno/tm2/pkg/crypto/keys/client"
-	"github.com/gnolang/gno/tm2/pkg/errors"
-	"github.com/gnolang/gno/tm2/pkg/std"
 )
 
 type MakeRunCfg struct {
@@ -46,12 +43,6 @@ func execMakeRun(cfg *MakeRunCfg, args []string, cmdio commands.IO) error {
 	if len(args) != 2 {
 		return flag.ErrHelp
 	}
-	if cfg.RootCfg.GasWanted == 0 {
-		return errors.New("gas-wanted not specified")
-	}
-	if cfg.RootCfg.GasFee == "" {
-		return errors.New("gas-fee not specified")
-	}
 
 	nameOrBech32 := args[0]
 	sourcePath := args[1] // can be a file path, a dir path, or '-' for stdin
@@ -66,13 +57,6 @@ func execMakeRun(cfg *MakeRunCfg, args []string, cmdio commands.IO) error {
 		return err
 	}
 	caller := info.GetAddress()
-
-	// parse gas wanted & fee.
-	gaswanted := cfg.RootCfg.GasWanted
-	gasfee, err := std.ParseCoin(cfg.RootCfg.GasFee)
-	if err != nil {
-		return errors.Wrap(err, "parsing gas fee coin")
-	}
 
 	memPkg := &gnovm.MemPackage{}
 	if sourcePath == "-" { // stdin
@@ -115,24 +99,8 @@ func execMakeRun(cfg *MakeRunCfg, args []string, cmdio commands.IO) error {
 	memPkg.Path = ""
 
 	// construct msg & tx and marshal.
-	msg := vm.MsgRun{
+	return client.MakeTransaction(vm.MsgRun{
 		Caller:  caller,
 		Package: memPkg,
-	}
-	tx := std.Tx{
-		Msgs:       []std.Msg{msg},
-		Fee:        std.NewFee(gaswanted, gasfee),
-		Signatures: nil,
-		Memo:       cfg.RootCfg.Memo,
-	}
-
-	if cfg.RootCfg.Broadcast {
-		err := client.ExecSignAndBroadcast(cfg.RootCfg, args, tx, cmdio)
-		if err != nil {
-			return err
-		}
-	} else {
-		cmdio.Println(string(amino.MustMarshalJSON(tx)))
-	}
-	return nil
+	}, cfg.RootCfg, args, cmdio)
 }

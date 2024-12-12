@@ -4,7 +4,6 @@ import (
 	"context"
 	"flag"
 
-	"github.com/gnolang/gno/tm2/pkg/amino"
 	"github.com/gnolang/gno/tm2/pkg/commands"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
 	"github.com/gnolang/gno/tm2/pkg/crypto/keys"
@@ -59,12 +58,6 @@ func execMakeSend(cfg *MakeSendCfg, args []string, io commands.IO) error {
 		return flag.ErrHelp
 	}
 
-	if cfg.RootCfg.GasWanted == 0 {
-		return errors.New("gas-wanted not specified")
-	}
-	if cfg.RootCfg.GasFee == "" {
-		return errors.New("gas-fee not specified")
-	}
 	if cfg.Send == "" {
 		return errors.New("send (amount) must be specified")
 	}
@@ -97,33 +90,9 @@ func execMakeSend(cfg *MakeSendCfg, args []string, io commands.IO) error {
 		return errors.Wrap(err, "parsing send coins")
 	}
 
-	// parse gas wanted & fee.
-	gaswanted := cfg.RootCfg.GasWanted
-	gasfee, err := std.ParseCoin(cfg.RootCfg.GasFee)
-	if err != nil {
-		return errors.Wrap(err, "parsing gas fee coin")
-	}
-
-	// construct msg & tx and marshal.
-	msg := bank.MsgSend{
+	return MakeTransaction(bank.MsgSend{
 		FromAddress: fromAddr,
 		ToAddress:   toAddr,
 		Amount:      send,
-	}
-	tx := std.Tx{
-		Msgs:       []std.Msg{msg},
-		Fee:        std.NewFee(gaswanted, gasfee),
-		Signatures: nil,
-		Memo:       cfg.RootCfg.Memo,
-	}
-
-	if cfg.RootCfg.Broadcast {
-		err := ExecSignAndBroadcast(cfg.RootCfg, args, tx, io)
-		if err != nil {
-			return err
-		}
-	} else {
-		io.Println(string(amino.MustMarshalJSON(tx)))
-	}
-	return nil
+	}, cfg.RootCfg, args, io)
 }

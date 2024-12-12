@@ -7,7 +7,6 @@ import (
 
 	"github.com/gnolang/gno/gno.land/pkg/sdk/vm"
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
-	"github.com/gnolang/gno/tm2/pkg/amino"
 	"github.com/gnolang/gno/tm2/pkg/commands"
 	"github.com/gnolang/gno/tm2/pkg/crypto/keys"
 	"github.com/gnolang/gno/tm2/pkg/crypto/keys/client"
@@ -101,32 +100,9 @@ func execMakeAddPkg(cfg *MakeAddPkgCfg, args []string, io commands.IO) error {
 		panic(fmt.Sprintf("found an empty package %q", cfg.PkgPath))
 	}
 
-	// parse gas wanted & fee.
-	gaswanted := cfg.RootCfg.GasWanted
-	gasfee, err := std.ParseCoin(cfg.RootCfg.GasFee)
-	if err != nil {
-		panic(err)
-	}
-	// construct msg & tx and marshal.
-	msg := vm.MsgAddPackage{
+	return client.MakeTransaction(vm.MsgAddPackage{
 		Creator: creator,
 		Package: memPkg,
 		Deposit: deposit,
-	}
-	tx := std.Tx{
-		Msgs:       []std.Msg{msg},
-		Fee:        std.NewFee(gaswanted, gasfee),
-		Signatures: nil,
-		Memo:       cfg.RootCfg.Memo,
-	}
-
-	if cfg.RootCfg.Broadcast {
-		err := client.ExecSignAndBroadcast(cfg.RootCfg, args, tx, io)
-		if err != nil {
-			return err
-		}
-	} else {
-		io.Println(string(amino.MustMarshalJSON(tx)))
-	}
-	return nil
+	}, cfg.RootCfg, args, io)
 }
