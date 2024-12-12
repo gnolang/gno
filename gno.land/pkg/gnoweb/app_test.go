@@ -4,13 +4,12 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
-	"strings"
 	"testing"
 
 	"github.com/gnolang/gno/gno.land/pkg/integration"
 	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
 	"github.com/gnolang/gno/tm2/pkg/log"
-	"github.com/gotuna/gotuna/test/assert"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
@@ -126,6 +125,7 @@ func TestAnalytics(t *testing.T) {
 				request := httptest.NewRequest(http.MethodGet, route, nil)
 				response := httptest.NewRecorder()
 				router.ServeHTTP(response, request)
+				fmt.Println("HELLO:", response.Body.String())
 				assert.Contains(t, response.Body.String(), "sa.gno.services")
 			})
 		}
@@ -135,7 +135,7 @@ func TestAnalytics(t *testing.T) {
 			t.Run(route, func(t *testing.T) {
 				cfg := NewDefaultAppConfig()
 				cfg.NodeRemote = remoteAddr
-				cfg.Analytics = true
+				cfg.Analytics = false
 				logger := log.NewTestingLogger(t)
 				router, err := NewRouter(logger, cfg)
 				require.NoError(t, err)
@@ -143,7 +143,7 @@ func TestAnalytics(t *testing.T) {
 				request := httptest.NewRequest(http.MethodGet, route, nil)
 				response := httptest.NewRecorder()
 				router.ServeHTTP(response, request)
-				assert.Equal(t, strings.Contains(response.Body.String(), "sa.gno.services"), false)
+				assert.NotContains(t, response.Body.String(), "sa.gno.services")
 			})
 		}
 	})
