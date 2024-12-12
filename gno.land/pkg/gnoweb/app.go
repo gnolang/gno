@@ -10,6 +10,7 @@ import (
 	"github.com/alecthomas/chroma/v2"
 	chromahtml "github.com/alecthomas/chroma/v2/formatters/html"
 	"github.com/alecthomas/chroma/v2/styles"
+	"github.com/gnolang/gno/gno.land/pkg/gnoweb/components"
 	"github.com/gnolang/gno/gno.land/pkg/gnoweb/markdown"
 	"github.com/gnolang/gno/tm2/pkg/bft/rpc/client"
 	"github.com/yuin/goldmark"
@@ -30,6 +31,8 @@ type AppConfig struct {
 	ChainID string
 	// AssetsPath is the base path to the gnoweb assets.
 	AssetsPath string
+	// FaucetURL, if specified, will be the URL to which `/faucet` redirects.
+	FaucetURL string
 }
 
 // NewDefaultAppConfig returns a new default [AppConfig]. The default sets
@@ -107,6 +110,17 @@ func NewRouter(logger *slog.Logger, cfg *AppConfig) (http.Handler, error) {
 
 	// Setup Webahndler along Alias Middleware
 	mux.Handle("/", AliasAndRedirectMiddleware(webhandler, cfg.Analytics))
+
+	// Register faucet URL to `/faucet` if specified
+	if cfg.FaucetURL != "" {
+		mux.Handle("/faucet", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			http.Redirect(w, r, cfg.FaucetURL, http.StatusFound)
+			components.RenderRedirectComponent(w, components.RedirectData{
+				To:            cfg.FaucetURL,
+				WithAnalytics: cfg.Analytics,
+			})
+		}))
+	}
 
 	// setup assets
 	mux.Handle(chromaStylePath, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

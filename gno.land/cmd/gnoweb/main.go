@@ -21,6 +21,7 @@ type webCfg struct {
 	remote     string
 	remoteHelp string
 	bind       string
+	faucetURL  string
 	analytics  bool
 	json       bool
 	html       bool
@@ -92,6 +93,13 @@ func (c *webCfg) RegisterFlags(fs *flag.FlagSet) {
 		"gnoweb listener",
 	)
 
+	fs.StringVar(
+		&c.faucetURL,
+		"faucet-url",
+		defaultWebOptions.faucetURL,
+		"The faucet URL will redirect the user when they access `/faucet`.",
+	)
+
 	fs.BoolVar(
 		&c.json,
 		"json",
@@ -114,7 +122,7 @@ func (c *webCfg) RegisterFlags(fs *flag.FlagSet) {
 	)
 }
 
-func setupWeb(cfg *webCfg, args []string, io commands.IO) (func() error, error) {
+func setupWeb(cfg *webCfg, _ []string, io commands.IO) (func() error, error) {
 	// Setup logger
 	var zapLogger *zap.Logger
 	if cfg.json {
@@ -132,6 +140,7 @@ func setupWeb(cfg *webCfg, args []string, io commands.IO) (func() error, error) 
 	appcfg.RemoteHelp = cfg.remoteHelp
 	appcfg.Analytics = cfg.analytics
 	appcfg.UnsafeHTML = cfg.html
+	appcfg.FaucetURL = cfg.faucetURL
 	if appcfg.RemoteHelp == "" {
 		appcfg.RemoteHelp = appcfg.NodeRemote
 	}

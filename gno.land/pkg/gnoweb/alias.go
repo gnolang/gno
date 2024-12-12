@@ -29,7 +29,6 @@ var Redirects = map[string]string{
 	"/grants":                  "/partners",
 	"/language":                "/gnolang",
 	"/getting-started":         "/start",
-	"/faucet":                  "https://faucet.gno.land/",
 }
 
 // AliasAndRedirectMiddleware redirects all incoming requests whose path matches
