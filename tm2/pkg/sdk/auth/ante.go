@@ -76,7 +76,7 @@ func NewAnteHandler(ak AccountKeeper, bank BankKeeperI, sigGasConsumer Signature
 		defer func() {
 			if r := recover(); r != nil {
 				switch ex := r.(type) {
-				case store.OutOfGasException:
+				case store.OutOfGasError:
 					log := fmt.Sprintf(
 						"out of gas in location: %v; gasWanted: %d, gasUsed: %d",
 						ex.Descriptor, tx.Fee.GasWanted, newCtx.GasMeter().GasConsumed(),

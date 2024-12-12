@@ -38,7 +38,7 @@ func TestAddPkgDeliverTxInsuffGas(t *testing.T) {
 	defer func() {
 		if r := recover(); r != nil {
 			switch r.(type) {
-			case store.OutOfGasException:
+			case store.OutOfGasError:
 				res.Error = sdk.ABCIError(std.ErrOutOfGas(""))
 				abort = true
 			default:
@@ -117,7 +117,7 @@ func TestAddPkgDeliverTxFailedNoGas(t *testing.T) {
 	defer func() {
 		if r := recover(); r != nil {
 			switch r.(type) {
-			case store.OutOfGasException:
+			case store.OutOfGasError:
 				res.Error = sdk.ABCIError(std.ErrOutOfGas(""))
 				abort = true
 			default:

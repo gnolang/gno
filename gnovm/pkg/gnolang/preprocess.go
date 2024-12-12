@@ -10,7 +10,6 @@ import (
 	"sync/atomic"
 
 	"github.com/gnolang/gno/tm2/pkg/errors"
-	tmstore "github.com/gnolang/gno/tm2/pkg/store"
 )
 
 const (
@@ -366,12 +365,6 @@ func initStaticBlocks(store Store, ctx BlockNode, bn BlockNode) {
 
 func doRecover(stack []BlockNode, n Node) {
 	if r := recover(); r != nil {
-		// Catch the out-of-gas exception and throw it
-		if exp, ok := r.(tmstore.OutOfGasException); ok {
-			exp.Descriptor = fmt.Sprintf("in preprocess: %v", r)
-			panic(exp)
-		}
-
 		if _, ok := r.(*PreprocessError); ok {
 			// re-panic directly if this is a PreprocessError already.
 			panic(r)
@@ -388,10 +381,8 @@ func doRecover(stack []BlockNode, n Node) {
 		var err error
 		rerr, ok := r.(error)
 		if ok {
-			// NOTE: gotuna/gorilla expects error exceptions.
 			err = errors.Wrap(rerr, loc.String())
 		} else {
-			// NOTE: gotuna/gorilla expects error exceptions.
 			err = fmt.Errorf("%s: %v", loc.String(), r)
 		}
 
