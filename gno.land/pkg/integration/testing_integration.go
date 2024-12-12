@@ -664,6 +664,11 @@ func (pl *pkgsLoader) SetPatch(replace, with string) {
 }
 
 func (pl *pkgsLoader) LoadPackages(creator bft.Address, fee std.Fee, deposit std.Coins) ([]gnoland.TxWithMetadata, error) {
+	kb := keys.NewInMemory()
+	_, err := kb.CreateAccount("creator", DefaultAccount_Seed, "", "", 0, 0)
+	if err != nil {
+		return nil, fmt.Errorf("createAccount: %w", err)
+	}
 	pkgslist, err := pl.List().Sort() // sorts packages by their dependencies.
 	if err != nil {
 		return nil, fmt.Errorf("unable to sort packages: %w", err)
@@ -694,6 +699,20 @@ func (pl *pkgsLoader) LoadPackages(creator bft.Address, fee std.Fee, deposit std
 					}
 				}
 			}
+		}
+		signbytes, err := tx.GetSignBytes("tendermint_test", 0, 0)
+		if err != nil {
+			return nil, fmt.Errorf("unable to get sign bytes %q: %w", pkg.Name, err)
+		}
+		signature, pubKey, err := kb.Sign("creator", "", signbytes)
+		if err != nil {
+			return nil, fmt.Errorf("unable to sign transaction %q: %w", pkg.Name, err)
+		}
+		tx.Signatures = []std.Signature{
+			{
+				PubKey:    pubKey,
+				Signature: signature,
+			},
 		}
 
 		txs[i] = gnoland.TxWithMetadata{
