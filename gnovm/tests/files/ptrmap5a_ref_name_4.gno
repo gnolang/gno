@@ -22,7 +22,6 @@ func main() {
 
 	i1.Age = 3
 	println(m[i1])
-
 }
 
 // Output:

@@ -14,16 +14,11 @@ func (m *Machine) doOpIndex1() {
 	} else {
 		lx := m.PopExpr()
 		fmt.Println("---doOpIndex1, lx: ", lx)
-		//if nx, ok := lx.(*IndexExpr).X.(*NameExpr); ok {
-		//	fmt.Println("---nx: ", nx)
-		//	vp = nx.BID.String() + ":" + nx.Path.String() + ":" + lx.(*IndexExpr).Index.String()
-		//	fmt.Println("---nx.abs: ", vp)
-		//}
 		var vp string
 		if ix, ok := lx.(*IndexExpr); !ok {
 			panic("---should not happen")
 		} else {
-			fmt.Println("---ix.AbsPath: ", ix.AbsPath)
+			fmt.Println("---index expr AbsPath: ", ix.AbsPath)
 			vp = ix.AbsPath
 		}
 
@@ -41,6 +36,7 @@ func (m *Machine) doOpIndex1() {
 			vv, exists := mv.GetValueForKey(m.Store, iv)
 			if exists {
 				*xv = vv // reuse as result
+				fmt.Println("---xv: ", *xv)
 				xv.SetPath(vp)
 			} else {
 				vt := ct.Value
@@ -49,12 +45,14 @@ func (m *Machine) doOpIndex1() {
 					T: vt,
 					V: defaultValue(m.Alloc, vt),
 				}
+				fmt.Println("---xv: ", *xv)
 				xv.SetPath(vp)
 			}
 		default:
+			println("---default")
 			res := xv.GetPointerAtIndex(m.Alloc, m.Store, iv)
-			fmt.Println("---res: ", res)
 			*xv = res.Deref() // reuse as result
+			fmt.Println("---xv: ", *xv)
 
 			xv.SetPath(vp)
 
@@ -127,7 +125,7 @@ func (m *Machine) doOpSelector() {
 	*xv = res // reuse as result
 	var vp string
 	if nx, ok := sx.X.(*NameExpr); ok {
-		vp += nx.Path.String() + ":"
+		vp += nx.BID.String() + ":" + nx.Path.String() + ":"
 	}
 	vp += sx.Path.String()
 	fmt.Println("---vp: ", vp)
@@ -158,7 +156,7 @@ func (m *Machine) doOpSlice() {
 	// if a is a pointer to an array, a[low : high : max] is
 	// shorthand for (*a)[low : high : max]
 	if xv.T.Kind() == PointerKind &&
-			xv.T.Elem().Kind() == ArrayKind {
+		xv.T.Elem().Kind() == ArrayKind {
 		// simply deref xv.
 		*xv = xv.V.(PointerValue).Deref()
 	}
@@ -196,6 +194,7 @@ func (m *Machine) doOpStar() {
 	fmt.Println("---doOpStar, xv: ", xv)
 	switch bt := baseOf(xv.T).(type) {
 	case *PointerType:
+		println("---pointer type")
 		pv := xv.V.(PointerValue)
 		if pv.TV.T == DataByteType {
 			tv := TypedValue{T: bt.Elt}
@@ -205,8 +204,10 @@ func (m *Machine) doOpStar() {
 		} else {
 			if pv.TV.IsUndefined() && bt.Elt.Kind() != InterfaceKind {
 				refv := TypedValue{T: bt.Elt}
+				fmt.Println("---refv: ", refv, refv.Path)
 				m.PushValue(refv)
 			} else {
+				fmt.Println("---pv.TV: ", *pv.TV, pv.TV.Path)
 				m.PushValue(*pv.TV)
 			}
 		}
@@ -759,7 +760,7 @@ func (m *Machine) doOpStructLit() {
 				// package doesn't match, we cannot use this
 				// method to initialize the struct.
 				if FieldTypeList(st.Fields).HasUnexported() &&
-						st.PkgPath != m.Package.PkgPath {
+					st.PkgPath != m.Package.PkgPath {
 					panic(fmt.Sprintf(
 						"Cannot initialize imported struct %s.%s with nameless composite lit expression (has unexported fields) from package %s",
 						st.PkgPath, st.String(), m.Package.PkgPath))

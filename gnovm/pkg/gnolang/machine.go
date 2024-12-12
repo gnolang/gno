@@ -446,7 +446,7 @@ func (m *Machine) TestMemPackage(t *testing.T, memPkg *gnovm.MemPackage) {
 // starts with `Test`.
 func (m *Machine) TestFunc(t *testing.T, tv TypedValue) {
 	if !(tv.T.Kind() == FuncKind &&
-			strings.HasPrefix(string(tv.V.(*FuncValue).Name), "Test")) {
+		strings.HasPrefix(string(tv.V.(*FuncValue).Name), "Test")) {
 		return // not a test function.
 	}
 	// XXX ensure correct func type.
@@ -2096,11 +2096,12 @@ func (m *Machine) PushForPointer(lx Expr) {
 		m.PushExpr(lx.X)
 		m.PushOp(OpEval)
 	case *SelectorExpr:
+		println("---selector expr")
 		// evaluate X
 		m.PushExpr(lx.X)
 		m.PushOp(OpEval)
 	case *StarExpr:
-		println("---star expr")
+		println("---star expr, eval .X")
 		// evaluate X (a reference)
 		m.PushExpr(lx.X)
 		m.PushOp(OpEval)
@@ -2132,6 +2133,7 @@ func (m *Machine) PopAsPointer(lx Expr) PointerValue {
 	case *IndexExpr:
 		iv := m.PopValue()
 		xv := m.PopValue()
+		fmt.Println("---index expr: ", lx)
 		fmt.Println("---index expr, iv: ", iv)
 		fmt.Println("---lx.AbsPath: ", lx.AbsPath)
 
@@ -2147,10 +2149,9 @@ func (m *Machine) PopAsPointer(lx Expr) PointerValue {
 		fmt.Println("---lx.Path: ", lx.Path)
 		pv := xv.GetPointerToFromTV(m.Alloc, m.Store, lx.Path)
 		fmt.Println("---pv: ", pv)
-		fmt.Println("---pv.TV: ", pv.TV.GetPath())
 		var vp string
 		if nx, ok := lx.X.(*NameExpr); ok {
-			vp += nx.Path.String() + ":"
+			vp += nx.BID.String() + ":" + nx.Path.String() + ":"
 		}
 		vp += lx.Path.String()
 

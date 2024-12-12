@@ -45,10 +45,10 @@ func (m *Machine) doOpEval() {
 			v := ptr.Deref()
 
 			fmt.Println("---v: ", v)
-			if _, ok := v.V.(PointerValue); ok {
-				v.SetPath(nx.BID.String() + ":" + nx.Path.String())
-				fmt.Println("---v.GetPath: ", v.GetPath())
-			}
+			//if _, ok := v.V.(PointerValue); ok {
+			v.SetPath(nx.BID.String() + ":" + nx.Path.String())
+			fmt.Println("---nx abs: ", v.GetPath())
+			//}
 
 			m.PushValue(v)
 			return
@@ -304,12 +304,14 @@ func (m *Machine) doOpEval() {
 		m.PushExpr(x.X)
 		m.PushOp(OpEval)
 	case *StarExpr:
+		println("---op_eval, star expr")
 		m.PopExpr()
 		m.PushOp(OpStar)
 		// evaluate x.
 		m.PushExpr(x.X)
 		m.PushOp(OpEval)
 	case *RefExpr:
+		println("---op_eval, ref expr")
 		m.PushOp(OpRef)
 		// evaluate x
 		m.PushForPointer(x.X)

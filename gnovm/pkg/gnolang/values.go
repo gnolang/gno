@@ -969,6 +969,7 @@ type TypedValue struct {
 }
 
 func (tv *TypedValue) SetPath(path string) {
+	fmt.Printf("SetAbsPath for %v to be: %s \n", tv, path)
 	tv.Path = path
 }
 
