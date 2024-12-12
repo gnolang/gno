@@ -344,7 +344,7 @@ func DefaultBaseConfig() BaseConfig {
 // testBaseConfig returns a base configuration for testing a Tendermint node
 func testBaseConfig() BaseConfig {
 	cfg := DefaultBaseConfig()
-	cfg.chainID = "dev"
+	cfg.chainID = "tendermint_test"
 	cfg.ProxyApp = "mock://kvstore"
 	cfg.FastSyncMode = false
 	cfg.DBBackend = "memdb"
