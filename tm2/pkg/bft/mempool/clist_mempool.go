@@ -505,12 +505,12 @@ func (mem *CListMempool) ReapMaxBytesMaxGas(maxDataBytes, maxGas int64) types.Tx
 	return txs
 }
 
-func (mem *CListMempool) ReapMaxTxs(max int) types.Txs {
+func (mem *CListMempool) ReapMaxTxs(maxVal int) types.Txs {
 	mem.mtx.Lock()
 	defer mem.mtx.Unlock()
 
-	if max < 0 {
-		max = mem.txs.Len()
+	if maxVal < 0 {
+		maxVal = mem.txs.Len()
 	}
 
 	for atomic.LoadInt32(&mem.rechecking) > 0 {
@@ -518,8 +518,8 @@ func (mem *CListMempool) ReapMaxTxs(max int) types.Txs {
 		time.Sleep(time.Millisecond * 10)
 	}
 
-	txs := make([]types.Tx, 0, min(mem.txs.Len(), max))
-	for e := mem.txs.Front(); e != nil && len(txs) <= max; e = e.Next() {
+	txs := make([]types.Tx, 0, min(mem.txs.Len(), maxVal))
+	for e := mem.txs.Front(); e != nil && len(txs) <= maxVal; e = e.Next() {
 		memTx := e.Value.(*mempoolTx)
 		txs = append(txs, memTx.tx)
 	}

@@ -7,12 +7,15 @@ RPC_LADDR=${RPC_LADDR:-"tcp://0.0.0.0:26657"}
 CHAIN_ID=${CHAIN_ID:-"portal-loop"}
 
 GENESIS_BACKUP_FILE=${GENESIS_BACKUP_FILE:-""}
+GENESIS_BALANCES_FILE=${GENESIS_BALANCES_FILE:-""}
 
 SEEDS=${SEEDS:-""}
 PERSISTENT_PEERS=${PERSISTENT_PEERS:-""}
 
 echo "" >> /gnoroot/gno.land/genesis/genesis_txs.jsonl
-cat ${GENESIS_BACKUP_FILE} >> /gnoroot/gno.land/genesis/genesis_txs.jsonl
+echo "" >> /gnoroot/gno.land/genesis/genesis_balances.jsonl
+cat "${GENESIS_BACKUP_FILE}" >> /gnoroot/gno.land/genesis/genesis_txs.jsonl
+cat "${GENESIS_BALANCES_FILE}" >> /gnoroot/gno.land/genesis/genesis_balances.jsonl
 
 # Initialize the secrets
 gnoland secrets init
