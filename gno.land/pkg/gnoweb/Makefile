@@ -41,7 +41,7 @@ all: generate
 # Generate process
 generate: clean css ts fonts
 css:
-	npx tailwindcss@$(tw_version) -c $(tw_config_path) -i $(input_css) -o $(output_css) --minify # tailwind
+	npx -y tailwindcss@$(tw_version) -c $(tw_config_path) -i $(input_css) -o $(output_css) --minify # tailwind
 ts:
 	npx -y esbuild $(input_js) --bundle --outdir=$(output_js) --format=esm --minify
 fonts:
