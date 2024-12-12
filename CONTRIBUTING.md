@@ -469,6 +469,19 @@ Resources for idiomatic Go docs:
 - [godoc](https://go.dev/blog/godoc)
 - [Go Doc Comments](https://tip.golang.org/doc/comment)
 
+## Avoding Unhelpful Contributions
+
+While we welcome all contributions to the Gno project, it's important to ensure that your changes provide meaningful value or improve the quality of the codebase. Contributions that fail to meet these criteria may not be accepted. Examples of unhelpful contributions include (but not limited to):
+
+- Superficial changes: For example, comment typo fixes,minor formatting or stylistic edits that do not align with our style guide or existing code practices.
+- Unnecessary refactoring: Changes that do not improve code clarity, performance, or maintainability.
+- Incomplete submissions: Changes that lack adequate context, link to a related issue, documentation, or test coverage.
+
+Before submitting a pull request, ask yourself:
+- Does this change solve a specific problem or add clear value?
+- Is the implementation aligned with the gno.land's goals and style guide?
+- Have I tested my changes and included relevant documentation?
+
 ## Additional Notes
 
 ### Issue and Pull Request Labels
@@ -502,3 +515,4 @@ automatic label management.
 | info needed      | Issue is lacking information needed for resolving |
 | investigating    | Issue is still being investigated by the team     |
 | question         | Issue starts a discussion or raises a question    |
+
