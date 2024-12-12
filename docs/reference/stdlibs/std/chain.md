@@ -169,7 +169,7 @@ realmAddr := std.DerivePkgAddr("gno.land/r/demo/tamagotchi") //  g1a3tu874agjlkr
 ```go
 func CoinDenom(pkgPath, coinName string) string
 ```
-Composes a qualified denomination string from the realm's `pkgPath` and the provided coin name, e.g. `/gno.land/r/demo/blog:ugnot`. This method should be used to get fully qualified denominations of coins when interacting with the `Banker` module. It can also be used as a method of the `Realm` object, see [Realm.CoinDenom](./realm.md#coindenom).
+Composes a qualified denomination string from the realm's `pkgPath` and the provided coin name, e.g. `/gno.land/r/demo/blog:ugnot`. This method should be used to get fully qualified denominations of coins when interacting with the `Banker` module. It can also be used as a method of the `Realm` object, Read more[here](./realm.md#coindenom).
 
 #### Parameters
 - `pkgPath` **string** - package path of the realm
