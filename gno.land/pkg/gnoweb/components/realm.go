@@ -5,7 +5,7 @@ import (
 	"html/template"
 	"io"
 
-	"github.com/gnolang/gno/gno.land/pkg/markdown"
+	"github.com/gnolang/gno/gno.land/pkg/gnoweb/markdown"
 )
 
 type RealmTOCData struct {

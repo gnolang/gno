@@ -8,7 +8,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	md "github.com/gnolang/gno/gno.land/pkg/markdown"
+	md "github.com/gnolang/gno/gno.land/pkg/gnoweb/markdown"
 	"github.com/gnolang/gno/gno.land/pkg/sdk/vm" // for error types
 	"github.com/gnolang/gno/tm2/pkg/amino"
 	"github.com/gnolang/gno/tm2/pkg/bft/rpc/client"
