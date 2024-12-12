@@ -30,7 +30,7 @@ jobs:
           go-version: ${{ matrix.go-version }}
       - uses: actions/setup-node@v4
         with:
-          node-version: lts/jode # (22.x) https://github.com/nodejs/Release
+          node-version: lts/Jod # (22.x) https://github.com/nodejs/Release
       - uses: actions/checkout@v4
       - run: |
           make -C gno.land generate.gnoweb
