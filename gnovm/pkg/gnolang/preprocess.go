@@ -10,6 +10,7 @@ import (
 	"sync/atomic"
 
 	"github.com/gnolang/gno/tm2/pkg/errors"
+	tmstore "github.com/gnolang/gno/tm2/pkg/store"
 )
 
 const (
@@ -365,6 +366,12 @@ func initStaticBlocks(store Store, ctx BlockNode, bn BlockNode) {
 
 func doRecover(stack []BlockNode, n Node) {
 	if r := recover(); r != nil {
+		// Catch the out-of-gas exception and throw it
+		if exp, ok := r.(tmstore.OutOfGasException); ok {
+			exp.Descriptor = fmt.Sprintf("in preprocess: %v", r)
+			panic(exp)
+		}
+
 		if _, ok := r.(*PreprocessError); ok {
 			// re-panic directly if this is a PreprocessError already.
 			panic(r)
@@ -3567,6 +3574,10 @@ func checkOrConvertType(store Store, last BlockNode, n Node, x *Expr, t Type, au
 						checkOrConvertType(store, last, n, &bx.Left, rt, autoNative)
 						checkOrConvertType(store, last, n, &bx.Right, rt, autoNative)
 					}
+					// this is not a constant expression; the result here should
+					// always be a BoolType. (in this scenario, we may have some
+					// UntypedBoolTypes)
+					t = BoolType
 				default:
 					// do nothing
 				}
