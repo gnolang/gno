@@ -187,7 +187,9 @@ func setupGnolandTestScript(t *testing.T, txtarDir string) testscript.Params {
 					pkgs := ts.Value(envKeyPkgsLoader).(*pkgsLoader)                // grab logger
 					creator := crypto.MustAddressFromString(DefaultAccount_Address) // test1
 					defaultFee := std.NewFee(50000, std.MustParseCoin(ugnot.ValueString(1000000)))
-					pkgsTxs, err := pkgs.LoadPackages(creator, defaultFee, nil)
+					// Generate config and node
+					cfg := TestingMinimalNodeConfig(t, gnoRootDir)
+					pkgsTxs, err := pkgs.LoadPackages(creator, defaultFee, nil, cfg.TMConfig.ChainID())
 					if err != nil {
 						ts.Fatalf("unable to load packages txs: %s", err)
 					}
@@ -195,8 +197,6 @@ func setupGnolandTestScript(t *testing.T, txtarDir string) testscript.Params {
 					// Warp up `ts` so we can pass it to other testing method
 					t := TSTestingT(ts)
 
-					// Generate config and node
-					cfg := TestingMinimalNodeConfig(t, gnoRootDir)
 					genesis := ts.Value(envKeyGenesis).(*gnoland.GnoGenesisState)
 					genesis.Txs = append(pkgsTxs, genesis.Txs...)
 
@@ -663,9 +663,9 @@ func (pl *pkgsLoader) SetPatch(replace, with string) {
 	pl.patchs[replace] = with
 }
 
-func (pl *pkgsLoader) LoadPackages(creator bft.Address, fee std.Fee, deposit std.Coins) ([]gnoland.TxWithMetadata, error) {
+func (pl *pkgsLoader) LoadPackages(creator bft.Address, fee std.Fee, deposit std.Coins, chainID string) ([]gnoland.TxWithMetadata, error) {
 	kb := keys.NewInMemory()
-	_, err := kb.CreateAccount("creator", DefaultAccount_Seed, "", "", 0, 0)
+	_, err := kb.CreateAccount(DefaultAccount_Name, DefaultAccount_Seed, "", "", 0, 0)
 	if err != nil {
 		return nil, fmt.Errorf("createAccount: %w", err)
 	}
@@ -700,11 +700,11 @@ func (pl *pkgsLoader) LoadPackages(creator bft.Address, fee std.Fee, deposit std
 				}
 			}
 		}
-		signbytes, err := tx.GetSignBytes("tendermint_test", 0, 0)
+		signbytes, err := tx.GetSignBytes(chainID, 0, 0)
 		if err != nil {
 			return nil, fmt.Errorf("unable to get sign bytes %q: %w", pkg.Name, err)
 		}
-		signature, pubKey, err := kb.Sign("creator", "", signbytes)
+		signature, pubKey, err := kb.Sign(DefaultAccount_Name, "", signbytes)
 		if err != nil {
 			return nil, fmt.Errorf("unable to sign transaction %q: %w", pkg.Name, err)
 		}
