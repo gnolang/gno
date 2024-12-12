@@ -3,7 +3,6 @@ package core
 import (
 	ctypes "github.com/gnolang/gno/tm2/pkg/bft/rpc/core/types"
 	rpctypes "github.com/gnolang/gno/tm2/pkg/bft/rpc/lib/types"
-	"github.com/gnolang/gno/tm2/pkg/errors"
 )
 
 // Get network info.
@@ -154,10 +153,14 @@ import (
 //	  }
 //
 // ```
-func NetInfo(ctx *rpctypes.Context) (*ctypes.ResultNetInfo, error) {
-	out, in, _ := p2pPeers.NumPeers()
+func NetInfo(_ *rpctypes.Context) (*ctypes.ResultNetInfo, error) {
+	var (
+		set     = p2pPeers.Peers()
+		out, in = set.NumOutbound(), set.NumInbound()
+	)
+
 	peers := make([]ctypes.Peer, 0, out+in)
-	for _, peer := range p2pPeers.Peers().List() {
+	for _, peer := range set.List() {
 		nodeInfo := peer.NodeInfo()
 		peers = append(peers, ctypes.Peer{
 			NodeInfo:         nodeInfo,
@@ -166,42 +169,13 @@ func NetInfo(ctx *rpctypes.Context) (*ctypes.ResultNetInfo, error) {
 			RemoteIP:         peer.RemoteIP().String(),
 		})
 	}
-	// TODO: Should we include PersistentPeers and Seeds in here?
-	// PRO: useful info
-	// CON: privacy
+
 	return &ctypes.ResultNetInfo{
 		Listening: p2pTransport.IsListening(),
 		Listeners: p2pTransport.Listeners(),
 		NPeers:    len(peers),
 		Peers:     peers,
 	}, nil
-}
-
-func UnsafeDialSeeds(ctx *rpctypes.Context, seeds []string) (*ctypes.ResultDialSeeds, error) {
-	if len(seeds) == 0 {
-		return &ctypes.ResultDialSeeds{}, errors.New("No seeds provided")
-	}
-	logger.Info("DialSeeds", "seeds", seeds)
-	if err := p2pPeers.DialPeersAsync(seeds); err != nil {
-		return &ctypes.ResultDialSeeds{}, err
-	}
-	return &ctypes.ResultDialSeeds{Log: "Dialing seeds in progress. See /net_info for details"}, nil
-}
-
-func UnsafeDialPeers(ctx *rpctypes.Context, peers []string, persistent bool) (*ctypes.ResultDialPeers, error) {
-	if len(peers) == 0 {
-		return &ctypes.ResultDialPeers{}, errors.New("No peers provided")
-	}
-	logger.Info("DialPeers", "peers", peers, "persistent", persistent)
-	if persistent {
-		if err := p2pPeers.AddPersistentPeers(peers); err != nil {
-			return &ctypes.ResultDialPeers{}, err
-		}
-	}
-	if err := p2pPeers.DialPeersAsync(peers); err != nil {
-		return &ctypes.ResultDialPeers{}, err
-	}
-	return &ctypes.ResultDialPeers{Log: "Dialing peers in progress. See /net_info for details"}, nil
 }
 
 // Get genesis file.
