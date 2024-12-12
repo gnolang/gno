@@ -13,6 +13,8 @@ var (
 	members membstore.MemberStore // the member store
 )
 
+const daoPkgPath = "gno.land/r/gov/dao/v2"
+
 func init() {
 	// Example initial member set (just test addresses)
 	set := []membstore.Member{
@@ -23,7 +25,7 @@ func init() {
 	}
 
 	// Set the member store
-	members = membstore.NewMembStore(membstore.WithInitialMembers(set))
+	members = membstore.NewMembStore(membstore.WithInitialMembers(set), membstore.WithDAOPkgPath(daoPkgPath))
 
 	// Set the DAO implementation
 	d = simpledao.New(members)
