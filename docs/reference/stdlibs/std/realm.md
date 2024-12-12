@@ -42,7 +42,7 @@ if r.IsUser() {...}
 ```
 ---
 ## CoinDenom
-Composes a qualified denomination string from the realm's `pkgPath` and the provided coin name, e.g. `/gno.land/r/demo/blog:ugnot`. This method should be used to get fully qualified denominations of coins when interacting with the `Banker` module.
+Composes a qualified denomination string from the realm's `pkgPath` and the provided coin name, e.g. `/gno.land/r/demo/blog:blgcoin`. This method should be used to get fully qualified denominations of coins when interacting with the `Banker` module.
 
 #### Parameters
 - `coinName` **string** - The coin name used to build the qualified denomination. Must start with a lowercase letter, followed by 2–15 lowercase letters or digits.
