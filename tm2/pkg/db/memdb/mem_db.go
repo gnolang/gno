@@ -2,12 +2,13 @@ package memdb
 
 import (
 	"fmt"
-	"sort"
+	"strings"
 	"sync"
 
 	"github.com/gnolang/gno/tm2/pkg/colors"
 	dbm "github.com/gnolang/gno/tm2/pkg/db"
 	"github.com/gnolang/gno/tm2/pkg/db/internal"
+	"github.com/tidwall/btree"
 )
 
 func init() {
@@ -20,12 +21,12 @@ var _ dbm.DB = (*MemDB)(nil)
 
 type MemDB struct {
 	mtx sync.Mutex
-	db  map[string][]byte
+	db  *btree.Map[string, []byte]
 }
 
 func NewMemDB() *MemDB {
 	database := &MemDB{
-		db: make(map[string][]byte),
+		db: btree.NewMap[string, []byte](0),
 	}
 	return database
 }
@@ -41,7 +42,7 @@ func (db *MemDB) Get(key []byte) []byte {
 	defer db.mtx.Unlock()
 	key = internal.NonNilBytes(key)
 
-	value := db.db[string(key)]
+	value, _ := db.db.Get(string(key))
 	return value
 }
 
@@ -51,7 +52,7 @@ func (db *MemDB) Has(key []byte) bool {
 	defer db.mtx.Unlock()
 	key = internal.NonNilBytes(key)
 
-	_, ok := db.db[string(key)]
+	_, ok := db.db.Get(string(key))
 	return ok
 }
 
@@ -78,10 +79,9 @@ func (db *MemDB) SetNoLock(key []byte, value []byte) {
 
 // Implements internal.AtomicSetDeleter.
 func (db *MemDB) SetNoLockSync(key []byte, value []byte) {
-	key = internal.NonNilBytes(key)
 	value = internal.NonNilBytes(value)
 
-	db.db[string(key)] = value
+	db.db.Set(string(key), internal.NonNilBytes(value))
 }
 
 // Implements DB.
@@ -109,7 +109,7 @@ func (db *MemDB) DeleteNoLock(key []byte) {
 func (db *MemDB) DeleteNoLockSync(key []byte) {
 	key = internal.NonNilBytes(key)
 
-	delete(db.db, string(key))
+	db.db.Delete(string(key))
 }
 
 // Implements DB.
@@ -126,12 +126,12 @@ func (db *MemDB) Print() {
 	db.mtx.Lock()
 	defer db.mtx.Unlock()
 
-	for key, value := range db.db {
-		var keystr, valstr string
-		keystr = colors.DefaultColoredBytesN([]byte(key), 50)
-		valstr = colors.DefaultColoredBytesN(value, 100)
+	db.db.Scan(func(key string, value []byte) bool {
+		keystr := colors.DefaultColoredBytesN([]byte(key), 50)
+		valstr := colors.DefaultColoredBytesN(value, 100)
 		fmt.Printf("%s: %s\n", keystr, valstr)
-	}
+		return true
+	})
 }
 
 // Implements DB.
@@ -141,7 +141,7 @@ func (db *MemDB) Stats() map[string]string {
 
 	stats := make(map[string]string)
 	stats["database.type"] = "memDB"
-	stats["database.size"] = fmt.Sprintf("%d", len(db.db))
+	stats["database.size"] = fmt.Sprintf("%d", db.db.Len())
 	return stats
 }
 
@@ -161,8 +161,21 @@ func (db *MemDB) Iterator(start, end []byte) dbm.Iterator {
 	db.mtx.Lock()
 	defer db.mtx.Unlock()
 
-	keys := db.getSortedKeys(start, end, false)
-	return internal.NewMemIterator(db, keys, start, end)
+	res := &iterator{
+		it:    db.db.Iter(),
+		start: string(start),
+		end:   string(end),
+	}
+	if start == nil {
+		if !res.it.First() {
+			res.invalid = true
+		}
+	} else {
+		if !res.it.Seek(res.start) {
+			res.invalid = true
+		}
+	}
+	return res
 }
 
 // Implements DB.
@@ -170,29 +183,113 @@ func (db *MemDB) ReverseIterator(start, end []byte) dbm.Iterator {
 	db.mtx.Lock()
 	defer db.mtx.Unlock()
 
-	keys := db.getSortedKeys(start, end, true)
-	return internal.NewMemIterator(db, keys, start, end)
-}
-
-// ----------------------------------------
-// Misc.
-
-func (db *MemDB) getSortedKeys(start, end []byte, reverse bool) []string {
-	keys := []string{}
-	for key := range db.db {
-		inDomain := dbm.IsKeyInDomain([]byte(key), start, end)
-		if inDomain {
-			keys = append(keys, key)
+	res := &iterator{
+		it:      db.db.Iter(),
+		start:   string(start),
+		end:     string(end),
+		reverse: true,
+	}
+	if end == nil {
+		if !res.it.Last() {
+			res.invalid = true
+		}
+	} else {
+		valid := res.it.Seek(res.end)
+		if valid {
+			eoakey := res.it.Key() // end or after key
+			if strings.Compare(res.end, eoakey) <= 0 {
+				if !res.it.Prev() {
+					res.invalid = true
+				}
+			}
+		} else {
+			if !res.it.Last() {
+				res.invalid = true
+			}
 		}
 	}
-	sort.Strings(keys)
-	if reverse {
-		nkeys := len(keys)
-		for i := 0; i < nkeys/2; i++ {
-			temp := keys[i]
-			keys[i] = keys[nkeys-i-1]
-			keys[nkeys-i-1] = temp
+	return res
+}
+
+type iterator struct {
+	it         btree.MapIter[string, []byte]
+	start, end string
+	invalid    bool
+	reverse    bool
+}
+
+var _ dbm.Iterator = (*iterator)(nil)
+
+func (i *iterator) Domain() (start []byte, end []byte) {
+	return []byte(i.start), []byte(i.end)
+}
+
+// Valid returns whether the current position is valid.
+// Once invalid, an Iterator is forever invalid.
+func (i *iterator) Valid() bool {
+	// Once invalid, forever invalid.
+	if i.invalid {
+		return false
+	}
+
+	// If key is end or past it, invalid.
+	key := i.it.Key()
+
+	if i.reverse {
+		if i.start != "" && key < i.start {
+			i.invalid = true
+			return false
+		}
+	} else {
+		if i.end != "" && key >= i.end {
+			i.invalid = true
+			return false
 		}
 	}
-	return keys
+
+	// Valid
+	return true
 }
+
+func (i *iterator) assertIsValid() {
+	if !i.Valid() {
+		panic("memdb iterator is invalid")
+	}
+}
+
+// Next moves the iterator to the next sequential key in the database, as
+// defined by order of iteration.
+//
+// If Valid returns false, this method will panic.
+func (i *iterator) Next() {
+	i.assertIsValid()
+
+	if i.reverse {
+		if !i.it.Prev() {
+			i.invalid = true
+		}
+	} else {
+		if !i.it.Next() {
+			i.invalid = true
+		}
+	}
+}
+
+// Key returns the key of the cursor.
+// If Valid returns false, this method will panic.
+// CONTRACT: key readonly []byte
+func (i *iterator) Key() []byte {
+	i.assertIsValid()
+	return []byte(i.it.Key())
+}
+
+// Value returns the value of the cursor.
+// If Valid returns false, this method will panic.
+// CONTRACT: value readonly []byte
+func (i *iterator) Value() []byte {
+	i.assertIsValid()
+	return i.it.Value()
+}
+
+// Close releases the Iterator.
+func (i *iterator) Close() {}

@@ -1,41 +1,31 @@
 package db
 
-// DBs are goroutine safe.
+// A DB is goroutine safe.
+//
+// NOTE(morgan): these methods used to have comments to describe the semantics;
+// but the semantics described were wrong, and have been removed to avoid doing
+// more harm than good. Inspect the implementations and tests to understand
+// actual details, and maybe update this documentation for the next person who
+// has to deal with this interface.
 type DB interface {
-	// Get returns nil iff key doesn't exist.
-	// A nil key is interpreted as an empty byteslice.
 	// CONTRACT: key, value readonly []byte
 	Get([]byte) []byte
 
-	// Has checks if a key exists.
-	// A nil key is interpreted as an empty byteslice.
 	// CONTRACT: key, value readonly []byte
 	Has(key []byte) bool
 
-	// Set sets the key.
-	// A nil key is interpreted as an empty byteslice.
 	// CONTRACT: key, value readonly []byte
 	Set([]byte, []byte)
 	SetSync([]byte, []byte)
 
-	// Delete deletes the key.
-	// A nil key is interpreted as an empty byteslice.
 	// CONTRACT: key readonly []byte
 	Delete([]byte)
 	DeleteSync([]byte)
 
-	// Iterate over a domain of keys in ascending order. End is exclusive.
-	// Start must be less than end, or the Iterator is invalid.
-	// A nil start is interpreted as an empty byteslice.
-	// If end is nil, iterates up to the last item (inclusive).
 	// CONTRACT: No writes may happen within a domain while an iterator exists over it.
 	// CONTRACT: start, end readonly []byte
 	Iterator(start, end []byte) Iterator
 
-	// Iterate over a domain of keys in descending order. End is exclusive.
-	// Start must be less than end, or the Iterator is invalid.
-	// If start is nil, iterates up to the first/least item (inclusive).
-	// If end is nil, iterates from the last/greatest item (inclusive).
 	// CONTRACT: No writes may happen within a domain while an iterator exists over it.
 	// CONTRACT: start, end readonly []byte
 	ReverseIterator(start, end []byte) Iterator
