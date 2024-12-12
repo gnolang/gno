@@ -57,9 +57,10 @@ type devCfg struct {
 	txsFile      string
 
 	// Web Configuration
+	noWeb               bool
+	webHTML             bool
 	webListenerAddr     string
 	webRemoteHelperAddr string
-	webWithHTML         bool
 
 	// Node Configuration
 	minimal     bool
@@ -123,6 +124,20 @@ func (c *devCfg) RegisterFlags(fs *flag.FlagSet) {
 		"gno root directory",
 	)
 
+	fs.BoolVar(
+		&c.noWeb,
+		"no-web",
+		defaultDevOptions.noWeb,
+		"disable gnoweb",
+	)
+
+	fs.BoolVar(
+		&c.webHTML,
+		"web-html",
+		defaultDevOptions.webHTML,
+		"gnoweb: enable unsafe HTML parsing in markdown rendering",
+	)
+
 	fs.StringVar(
 		&c.webListenerAddr,
 		"web-listener",
@@ -135,13 +150,6 @@ func (c *devCfg) RegisterFlags(fs *flag.FlagSet) {
 		"web-help-remote",
 		defaultDevOptions.webRemoteHelperAddr,
 		"gnoweb: web server help page's remote addr (default to <node-rpc-listener>)",
-	)
-
-	fs.BoolVar(
-		&c.webWithHTML,
-		"web-with-html",
-		defaultDevOptions.webWithHTML,
-		"gnoweb: enable HTML parsing in markdown rendering",
 	)
 
 	fs.StringVar(
@@ -323,7 +331,10 @@ func execDev(cfg *devCfg, args []string, io commands.IO) (err error) {
 	defer server.Close()
 
 	// Setup gnoweb
-	webhandler := setupGnoWebServer(logger.WithGroup(WebLogName), cfg, devNode)
+	webhandler, err := setupGnoWebServer(logger.WithGroup(WebLogName), cfg, devNode)
+	if err != nil {
+		return fmt.Errorf("unable to setup gnoweb server: %w", err)
+	}
 
 	// Setup unsafe APIs if enabled
 	if cfg.unsafeAPI {
@@ -351,14 +362,17 @@ func execDev(cfg *devCfg, args []string, io commands.IO) (err error) {
 		mux.Handle("/", webhandler)
 	}
 
-	go func() {
-		err := server.ListenAndServe()
-		cancel(err)
-	}()
+	// Serve gnoweb
+	if !cfg.noWeb {
+		go func() {
+			err := server.ListenAndServe()
+			cancel(err)
+		}()
 
-	logger.WithGroup(WebLogName).
-		Info("gnoweb started",
-			"lisn", fmt.Sprintf("http://%s", server.Addr))
+		logger.WithGroup(WebLogName).
+			Info("gnoweb started",
+				"lisn", fmt.Sprintf("http://%s", server.Addr))
+	}
 
 	watcher, err := watcher.NewPackageWatcher(loggerEvents, emitterServer)
 	if err != nil {
@@ -377,7 +391,7 @@ func execDev(cfg *devCfg, args []string, io commands.IO) (err error) {
 	return runEventLoop(ctx, logger, book, rt, devNode, watcher)
 }
 
-var helper string = `For more in-depth documentation, visit the GNO Tooling CLI documentation: 
+var helper string = `For more in-depth documentation, visit the GNO Tooling CLI documentation:
 https://docs.gno.land/gno-tooling/cli/gno-tooling-gnodev
 
 P           Previous TX  - Go to the previous tx
