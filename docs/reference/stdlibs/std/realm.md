@@ -49,5 +49,6 @@ Composes a qualified denomination string from the realm's `pkgPath` and the prov
 
 #### Usage
 ```go
-denom := r.CoinDenom("ugnot")
+// in "gno.land/r/gnoland/blog"
+denom := r.CoinDenom("blgcoin") // /gno.land/r/gnoland/blog:blgcoin
 ```
