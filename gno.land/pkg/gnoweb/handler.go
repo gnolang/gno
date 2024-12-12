@@ -92,18 +92,20 @@ func (h *WebHandler) Get(w http.ResponseWriter, r *http.Request) {
 		//TODO: real data (title & description)
 		indexData.HeadData.Title = "gno.land - " + gnourl.Path
 
-		switch gnourl.Kind() {
-		case KindRealm, KindPure:
-			status, err = h.renderPackage(&body, gnourl)
-		default:
-			h.logger.Warn("invalid page kind", "kind", gnourl.Kind)
-			status, err = http.StatusNotFound, components.RenderStatusComponent(&body, "page not found")
-		}
-
 		// Header
 		indexData.HeaderData.RealmPath = gnourl.Path
 		indexData.HeaderData.Breadcrumb.Parts = generateBreadcrumbPaths(gnourl.Path)
 		indexData.HeaderData.WebQuery = gnourl.WebQuery
+
+		// Render
+		switch gnourl.Kind() {
+		case KindRealm, KindPure:
+			status, err = h.renderPackage(&body, gnourl)
+		default:
+			h.logger.Debug("invalid page kind", "kind", gnourl.Kind)
+			status, err = http.StatusNotFound, components.RenderStatusComponent(&body, "page not found")
+		}
+
 	}
 
 	if err != nil {
