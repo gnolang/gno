@@ -16,7 +16,8 @@ jobs:
       tests-extra-args: "-coverpkg=github.com/gnolang/gno/gno.land/..."
     secrets:
       codecov-token: ${{ secrets.CODECOV_TOKEN }}
-  generate:
+
+  gnoweb_generate:
     strategy:
       fail-fast: false
       matrix:
@@ -33,7 +34,7 @@ jobs:
           node-version: lts/Jod # (22.x) https://github.com/nodejs/Release
       - uses: actions/checkout@v4
       - run: |
-          make -C gno.land generate.gnoweb
+          make -C gno.land/pkg/gnoweb fclean generate
           # Check if there are changes after running generate.gnoweb
           git diff --exit-code || \
              (echo "\`gnoweb generate\` out of date, please run \`make gnoweb.generate\` within './gno.land'" && exit 1)
