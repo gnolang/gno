@@ -12,6 +12,7 @@ import (
 	"github.com/alecthomas/chroma/v2/styles"
 	"github.com/gnolang/gno/tm2/pkg/bft/rpc/client"
 	"github.com/yuin/goldmark"
+	highlighting "github.com/yuin/goldmark-highlighting/v2"
 	mdhtml "github.com/yuin/goldmark/renderer/html"
 )
 
@@ -58,10 +59,24 @@ func mustGetStyle(name string) *chroma.Style {
 
 // NewRouter initializes the gnoweb router, with the given logger and config.
 func NewRouter(logger *slog.Logger, cfg *AppConfig) (http.Handler, error) {
-	mdopts := []goldmark.Option{}
+	chromaOptions := []chromahtml.Option{
+		chromahtml.WithLineNumbers(true),
+		chromahtml.WithLinkableLineNumbers(true, "L"),
+		chromahtml.WithClasses(true),
+		chromahtml.ClassPrefix("chroma-"),
+	}
+
+	mdopts := []goldmark.Option{
+		goldmark.WithExtensions(
+			highlighting.NewHighlighting(
+				highlighting.WithFormatOptions(chromaOptions...),
+			),
+		),
+	}
 	if cfg.UnsafeHTML {
 		mdopts = append(mdopts, goldmark.WithRendererOptions(mdhtml.WithXHTML(), mdhtml.WithUnsafe()))
 	}
+
 	md := goldmark.New(mdopts...)
 
 	client, err := client.NewHTTPClient(cfg.NodeRemote)
@@ -70,12 +85,7 @@ func NewRouter(logger *slog.Logger, cfg *AppConfig) (http.Handler, error) {
 	}
 	webcli := NewWebClient(logger, client, md)
 
-	formatter := chromahtml.New(
-		chromahtml.WithLineNumbers(true),
-		chromahtml.WithLinkableLineNumbers(true, "L"),
-		chromahtml.WithClasses(true),
-		chromahtml.ClassPrefix("chroma-"),
-	)
+	formatter := chromahtml.New(chromaOptions...)
 	chromaStylePath := path.Join(cfg.AssetsPath, "_chroma", "style.css")
 
 	var webConfig WebHandlerConfig
