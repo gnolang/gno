@@ -17,14 +17,14 @@ func (r Realm) IsUser() bool {
 	return r.pkgPath == ""
 }
 
-func (r Realm) Denom(denom string) string {
-	return RealmDenom(r.pkgPath, denom)
+func (r Realm) CoinDenom(coinName string) string {
+	return CoinDenom(r.pkgPath, coinName)
 }
 
-func RealmDenom(pkgPath, denom string) string {
+func CoinDenom(pkgPath, coinName string) string {
 	// TODO: Possibly remove after https://github.com/gnolang/gno/issues/3164
 	// Similar to ibc spec
 	// ibc_denom := 'ibc/' + hash('path' + 'base_denom')
-	// gno_realm_denom := '/' + 'pkg_path' + ':' + 'base_denom'
-	return "/" + pkgPath + ":" + denom
+	// gno_qualified_denom := '/' + 'pkg_path' + ':' + 'base_denom'
+	return "/" + pkgPath + ":" + coinName
 }

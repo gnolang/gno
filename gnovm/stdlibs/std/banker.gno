@@ -127,7 +127,7 @@ func (b banker) IssueCoin(addr Address, denom string, amount int64) {
 	if b.bt != BankerTypeRealmIssue {
 		panic(b.bt.String() + " cannot issue coins")
 	}
-	assertRealmDenom(denom)
+	assertCoinDenom(denom)
 	bankerIssueCoin(uint8(b.bt), string(addr), denom, amount)
 }
 
@@ -135,11 +135,11 @@ func (b banker) RemoveCoin(addr Address, denom string, amount int64) {
 	if b.bt != BankerTypeRealmIssue {
 		panic(b.bt.String() + " cannot remove coins")
 	}
-	assertRealmDenom(denom)
+	assertCoinDenom(denom)
 	bankerRemoveCoin(uint8(b.bt), string(addr), denom, amount)
 }
 
-func assertRealmDenom(denom string) {
+func assertCoinDenom(denom string) {
 	prefix := "/" + CurrentRealm().PkgPath() + ":"
 	if !strings.HasPrefix(denom, prefix) {
 		panic("invalid denom, can only issue/remove coins with the realm's prefix: " + prefix)
