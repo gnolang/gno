@@ -8,13 +8,15 @@ cmp stderr stderr.golden
 -- bad_file.gno --
 package main
 
-import "fmt"
-
 func main() {
-  hello.Foo()
-	fmt.Println("Hello", 42)
+	hello.Foo()
+	println("Hello", 42)
 }
+
+-- gno.mod --
+module gno.land/p/demo/hello
 
 -- stdout.golden --
 -- stderr.golden --
-bad_file.gno:6:3: name hello not declared (code=2).
+bad_file.gno:4:2: undefined: hello (code=4)
+bad_file.gno:4:2: name hello not declared (code=2)
