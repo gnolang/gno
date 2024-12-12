@@ -162,7 +162,6 @@ Derives the Realm address from its `pkgpath` parameter.
 ```go
 realmAddr := std.DerivePkgAddr("gno.land/r/demo/tamagotchi") //  g1a3tu874agjlkrpzt9x90xv3uzncapcn959yte4
 ```
-
 ---
 
 ## CoinDenom
