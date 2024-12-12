@@ -1,4 +1,4 @@
-name: auto-author-assign
+name: Auto Assign PR Author
 
 on:
   pull_request_target:

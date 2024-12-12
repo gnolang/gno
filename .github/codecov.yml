@@ -4,7 +4,7 @@ codecov:
     wait_for_ci: true
 
 comment:
-  require_changes: false
+  require_changes: true
 
 coverage:
   round: down
@@ -13,7 +13,7 @@ coverage:
     project:
       default:
         target: auto
-        threshold: 10 # Let's decrease this later.
+        threshold: 5 # Let's decrease this later.
         base: parent
         if_no_uploads: error
         if_not_found: success
@@ -22,12 +22,12 @@ coverage:
     patch:
       default:
         target: auto
-        threshold: 10 # Let's decrease this later.
+        threshold: 5 # Let's decrease this later.
         base: auto
         if_no_uploads: error
         if_not_found: success
         if_ci_failed: error
-        only_pulls: false
+        only_pulls: true # Only check patch coverage on PRs
 
 flag_management:
   default_rules:
@@ -39,6 +39,55 @@ flag_management:
       - type: patch
         target: auto # Let's decrease this later.
         threshold: 10
+
+  groups:
+    gno-land:
+      paths:
+        - "gno.land/**"
+      flags:
+        - gno-land
+    gnovm:
+      paths:
+        - "gnovm/**"
+      flags:
+        - gnovm
+    misc:
+      paths:
+        - "misc/**"
+      flags:
+        - misc
+    tm2:
+      paths:
+        - "tm2/**"
+      flags:
+        - tm2
+    contribs:
+      paths:
+        - "contribs/**"
+      flags:
+        - contribs
+
+  statuses:
+    - type: project
+      flag: gno-land
+      target: auto
+      threshold: 5
+    - type: project
+      flag: gnovm
+      target: auto
+      threshold: 2 # Stricter threshold
+    - type: project
+      flag: misc
+      target: auto
+      threshold: 10
+    - type: project
+      flag: tm2
+      target: auto
+      threshold: 5
+    - type: project
+      flag: contribs
+      target: auto
+      threshold: 5
 
 ignore:
   - "gnovm/stdlibs/generated.go"

@@ -1,9 +1,11 @@
-# generate docs and publish on gh-pages branch
-name: gh-pages
+# generate Go docs and publish on gh-pages branch
+# Live at: https://gnolang.github.io/gno
+name: Go Reference Docs Deployment
 
 on:
   push:
-    branches: [ "master" ]
+    branches:
+      - master
   workflow_dispatch:
 
 permissions:

@@ -1,4 +1,4 @@
-name: run benchmarks when pushing on main branch
+name: Run and Save Benchmarks
 
 on:
   push:
@@ -9,6 +9,7 @@ on:
       - gno.land/**
       - gnovm/**
       - tm2/**
+      - '**/*.go'
 
 permissions:
   # deployments permission to deploy GitHub pages website
@@ -22,7 +23,7 @@ env:
 jobs:
   benchmarks:
     if: ${{ github.repository == 'gnolang/gno' }}
-    runs-on: [self-hosted, Linux, X64, benchmarks]
+    runs-on: [ self-hosted, Linux, X64, benchmarks ]
     steps:
       - name: Checkout
         uses: actions/checkout@v4

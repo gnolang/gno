@@ -1,19 +1,13 @@
-name: portal-loop
+name: Portal Loop CI Suite
 
 on:
-  pull_request:
-    branches:
-      - master
   push:
+    branches:
+      - "master"
+  pull_request:
     paths:
       - "misc/loop/**"
       - ".github/workflows/portal-loop.yml"
-    branches:
-      - "master"
-      # NOTE(albttx): branch name to simplify tests for this workflow
-      - "ci/portal-loop"
-    tags:
-      - "v*"
 
 permissions:
   contents: read
@@ -69,14 +63,14 @@ jobs:
           while
             block_height=$(curl -s localhost:26657/status | jq -r '.result.sync_info.latest_block_height')
             echo "Current block height: $block_height"
-            [[ "$block_height" -lt 10 ]]
+            [[ "$block_height" -lt 2 ]]
           do
             sleep 1
           done
 
           curl -s localhost:26657/status | jq
 
-      - name: "Buid new gnolang/gno image"
+      - name: "Build new gnolang/gno image"
         run: |
           docker build -t ghcr.io/gnolang/gno/gnoland:master -f Dockerfile --target gnoland .
 
@@ -96,7 +90,7 @@ jobs:
           while
             block_height=$(curl -s localhost:26657/status | jq -r '.result.sync_info.latest_block_height')
             echo "Current block height: $block_height"
-            [[ "$block_height" -lt 10 ]]
+            [[ "$block_height" -lt 2 ]]
           do
             sleep 5
           done
