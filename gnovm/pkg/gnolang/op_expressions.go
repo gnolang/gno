@@ -14,15 +14,15 @@ func (m *Machine) doOpIndex1() {
 	} else {
 		lx := m.PopExpr()
 		fmt.Println("---doOpIndex1, lx: ", lx)
-		var vp string
+		var abs string
 		if ix, ok := lx.(*IndexExpr); !ok {
 			panic("---should not happen")
 		} else {
 			fmt.Println("---index expr AbsPath: ", ix.AbsPath)
-			vp = ix.AbsPath
+			abs = ix.AbsPath
 		}
 
-		fmt.Println("---vp: ", vp)
+		fmt.Println("---abs: ", abs)
 
 		iv := m.PopValue()   // index
 		xv := m.PeekValue(1) // x
@@ -37,7 +37,7 @@ func (m *Machine) doOpIndex1() {
 			if exists {
 				*xv = vv // reuse as result
 				fmt.Println("---xv: ", *xv)
-				xv.SetPath(vp)
+				xv.SetPath(abs)
 			} else {
 				vt := ct.Value
 
@@ -46,7 +46,7 @@ func (m *Machine) doOpIndex1() {
 					V: defaultValue(m.Alloc, vt),
 				}
 				fmt.Println("---xv: ", *xv)
-				xv.SetPath(vp)
+				xv.SetPath(abs)
 			}
 		default:
 			println("---default")
@@ -54,7 +54,7 @@ func (m *Machine) doOpIndex1() {
 			*xv = res.Deref() // reuse as result
 			fmt.Println("---xv: ", *xv)
 
-			xv.SetPath(vp)
+			xv.SetPath(abs)
 
 			fmt.Println("---*xv: ", *xv)
 			fmt.Println("---xv.GetPath: ", xv.GetPath())
@@ -64,16 +64,17 @@ func (m *Machine) doOpIndex1() {
 
 // NOTE: keep in sync with doOpIndex1.
 func (m *Machine) doOpIndex2() {
+	println("---doOpIndex2")
 	if debug {
 		_ = m.PopExpr().(*IndexExpr)
 	} else {
 		lx := m.PopExpr()
-		var vp string
+		var abs string
 		if ix, ok := lx.(*IndexExpr); !ok {
 			panic("---should not happen")
 		} else {
 			fmt.Println("---ix.AbsPath: ", ix.AbsPath)
-			vp = ix.AbsPath
+			abs = ix.AbsPath
 		}
 
 		iv := m.PeekValue(1) // index
@@ -86,21 +87,21 @@ func (m *Machine) doOpIndex2() {
 					T: vt,
 					V: defaultValue(m.Alloc, vt),
 				}
-				xv.SetPath(vp)
+				xv.SetPath(abs)
 				*iv = untypedBool(false) // reuse as result
 			} else {
 				mv := xv.V.(*MapValue)
 				vv, exists := mv.GetValueForKey(m.Store, iv)
 				if exists {
 					*xv = vv // reuse as result
-					xv.SetPath(vp)
+					xv.SetPath(abs)
 					*iv = untypedBool(true) // reuse as result
 				} else {
 					*xv = TypedValue{ // reuse as result
 						T: vt,
 						V: defaultValue(m.Alloc, vt),
 					}
-					xv.SetPath(vp)
+					xv.SetPath(abs)
 					*iv = untypedBool(false) // reuse as result
 				}
 			}
@@ -123,19 +124,11 @@ func (m *Machine) doOpSelector() {
 		m.Printf("+v[S] %v\n", res)
 	}
 	*xv = res // reuse as result
-	var vp string
-	if nx, ok := sx.X.(*NameExpr); ok {
-		vp += nx.AbsPath + ":"
-	}
-	vp += sx.Path.String()
-	fmt.Println("---vp: ", vp)
-
-	xv.SetPath(vp)
+	xv.SetPath(sx.AbsPath)
 }
 
 func (m *Machine) doOpSlice() {
 	sx := m.PopExpr().(*SliceExpr)
-	fmt.Println("---doOpSlice, sx: ", sx)
 	var low, high, max int = -1, -1, -1
 	// max
 	if sx.Max != nil {
@@ -260,8 +253,10 @@ func (m *Machine) doOpRef() {
 		V: xv,
 	}
 
-	tv.Path = xv.TV.GetPath()
-	//fmt.Println("---type of rx.X: ", reflect.TypeOf(rx.X))
+	if pather, ok := rx.X.(AbsPather); ok {
+		tv.Path = pather.GetAbsPath()
+	}
+
 	fmt.Println("---tv.Path: ", tv.GetPath())
 
 	m.PushValue(tv)

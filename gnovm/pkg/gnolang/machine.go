@@ -446,7 +446,7 @@ func (m *Machine) TestMemPackage(t *testing.T, memPkg *gnovm.MemPackage) {
 // starts with `Test`.
 func (m *Machine) TestFunc(t *testing.T, tv TypedValue) {
 	if !(tv.T.Kind() == FuncKind &&
-		strings.HasPrefix(string(tv.V.(*FuncValue).Name), "Test")) {
+			strings.HasPrefix(string(tv.V.(*FuncValue).Name), "Test")) {
 		return // not a test function.
 	}
 	// XXX ensure correct func type.
@@ -2121,59 +2121,20 @@ func (m *Machine) PopAsPointer(lx Expr) PointerValue {
 	fmt.Println("---PopAsPointer, lx: ", lx)
 	switch lx := lx.(type) {
 	case *NameExpr:
-		println("---NameExpr")
 		lb := m.LastBlock()
-		fmt.Println("---lx.abs: ", lx.AbsPath)
-
 		ptr := lb.GetPointerToMaybeHeapUse(m.Store, lx)
-		//ptr.TV.SetPath(bidStr + ":" + lx.Path.String())
-		ptr.TV.SetPath(lx.AbsPath)
 		return ptr
-
 	case *IndexExpr:
 		iv := m.PopValue()
 		xv := m.PopValue()
 		fmt.Println("---index expr: ", lx)
-		fmt.Println("---index expr, iv: ", iv)
-		fmt.Println("---lx.AbsPath: ", lx.AbsPath)
-
-		//iv.SetPath(lx.AbsPath)
-		pv := xv.GetPointerAtIndex(m.Alloc, m.Store, iv)
-		pv.TV.SetPath(lx.AbsPath)
-		return pv
+		return xv.GetPointerAtIndex(m.Alloc, m.Store, iv)
 	case *SelectorExpr:
 		xv := m.PopValue()
-		fmt.Println("---SelectorExpr, xv: ", xv)
-		fmt.Println("---xv.GetPath: ", xv.GetPath())
-		fmt.Println("---lx: ", lx)
-		fmt.Println("---lx.Path: ", lx.Path)
-		pv := xv.GetPointerToFromTV(m.Alloc, m.Store, lx.Path)
-		fmt.Println("---pv: ", pv)
-		// TODO: mv the logic to preprocess
-		var vp string
-		if nx, ok := lx.X.(*NameExpr); ok {
-			vp += nx.AbsPath + ":"
-		}
-		vp += lx.Path.String()
-
-		pv.TV.SetPath(vp)
-		return pv
-		//return xv.GetPointerToFromTV(m.Alloc, m.Store, lx.Path)
+		return xv.GetPointerToFromTV(m.Alloc, m.Store, lx.Path)
 	case *StarExpr:
 		println("---StarExpr")
-		tv := m.PopValue()
-		fmt.Println("---tv: ", tv)
-		fmt.Println("---tv.GetPath: ", tv.GetPath())
-		ptr := tv.V.(PointerValue)
-		//ptr := m.PopValue().V.(PointerValue)
-		fmt.Println("---ptr: ", ptr)
-		fmt.Println("---ptr.TV.GetPath(): ", ptr.TV.GetPath())
-		//if nx, ok := lx.X.(*NameExpr); ok {
-		//	ptr.TV.SetPath(nx.BID.String() + ":" + nx.Path.String())
-		//} else {
-		//	ptr.TV.SetPath(tv.GetPath())
-		//}
-		ptr.TV.SetPath(tv.GetPath())
+		ptr := m.PopValue().V.(PointerValue)
 		return ptr
 	case *CompositeLitExpr: // for *RefExpr
 		tv := *m.PopValue()

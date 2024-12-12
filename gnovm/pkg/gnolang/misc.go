@@ -178,6 +178,10 @@ func buildAbsolutePath(n Expr) string {
 		return n.AbsPath
 	case *IndexExpr:
 		return buildAbsolutePath(n.X) + ":" + buildAbsolutePath(n.Index)
+	case *SelectorExpr:
+		return buildAbsolutePath(n.X) + ":" + string(n.Sel)
+	case *StarExpr:
+		return buildAbsolutePath(n.X)
 	default:
 		return n.String()
 	}
