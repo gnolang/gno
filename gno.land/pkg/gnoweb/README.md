@@ -1,6 +1,8 @@
-# Gnoweb
+# gnoweb
 
-This README provides instructions on how to set up and run Gnoweb for development purposes.
+`gnoweb` is a universal web frontend for the gno.land blockchain.
+
+This README provides instructions on how to set up and run `gnoweb` for development purposes.
 
 ## Prerequisites
 
@@ -40,30 +42,4 @@ any asset files:
 
 ```sh
 make generate
-```
-
-## Fmt
-
-To format all supported files in the project, use the following command:
-
-```sh
-make fmt
-```
-
-This ensures that your code follows standard formatting conventions.
-
-## Cleanup
-
-To clean up build artifacts, you can use the following commands:
-
-- To remove the `public` and `tmp` directories:
-
-```sh
-make clean
-```
-
-For a full clean, which also removes `.cache`, use:
-
-```sh
-make fclean
 ```
