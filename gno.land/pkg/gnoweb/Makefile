@@ -18,8 +18,10 @@ tw_version := 3.4.14
 tw_config_path := frontend/css/tx.config.js
 
 # static config
-static_folder := frontend/static
-output_statics := $(PUBLIC_DIR)
+src_dir_static := frontend/static
+out_dir_static := $(PUBLIC_DIR)
+input_static := $(shell find $(src_dir_static) -type f)
+output_static := $(patsubst $(src_dir_static)/%, $(out_dir_static)/%, $(input_static))
 
 # esbuild config
 src_dir_js := frontend/js
@@ -39,12 +41,8 @@ cache_dir := .cache
 # Install dependencies
 all: generate
 
-toto:
-	echo "$(input_js)"
-	echo "$(output_js)"
-
 # Generate process
-generate: css ts fonts
+generate: css ts static
 
 css: $(output_css)
 $(output_css): $(input_css)
@@ -53,11 +51,13 @@ $(output_css): $(input_css)
 
 ts: $(output_js)
 $(out_dir_js)/%.js: $(src_dir_js)/%.ts
-	npx -y esbuild $< --bundle --outdir=$(out_dir_js) --format=esm --minify
+	npx -y esbuild $< --color=false --log-level=error --bundle --outdir=$(out_dir_js) --format=esm --minify
 
-fonts:
-	mkdir -p $(output_statics)
-	cp -v -r $(static_folder)/* $(output_statics)
+# Rule to copy static files while preserving directory structure
+static: $(output_static)
+$(out_dir_static)/%: $(src_dir_static)/%
+	@mkdir -p $(dir $@)
+	@cp -v $< $@
 
 # Format process
 fmt:
