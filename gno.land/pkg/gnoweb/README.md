@@ -1,4 +1,3 @@
-```markdown
 # Gnoweb
 
 This README provides instructions on how to set up and run Gnoweb for development purposes.
@@ -21,9 +20,9 @@ make dev
 
 This will:
 
-- Start a Go server in development mode and watch for any Go files change.
+- Start a Go server in development mode and watch for any Go files change (targeting [localhost](http://localhost:8888)).
 - Enable Tailwind CSS in watch mode to automatically compile CSS changes.
-- Use esbuild in watch mode to automatically bundle JavaScript changes.
+- Use esbuild in watch mode to automatically transpile and bundle TypeScript changes.
 
 You can customize the behavior of the Go server using the `DEV_REMOTE` and
 `CHAIN_ID` environment variables. For example, to use `portal-loop` as the
@@ -35,8 +34,8 @@ CHAIN_ID=portal-loop DEV_REMOTE=https://rpc.gno.land make dev
 
 ## Generate
 
-To generate the public assets for the project, including CSS and JavaScript
-files, run the following command. This should be used while editing CSS, JS, or
+To generate the public assets for the project, including static assets (fonts, CSS and JavaScript...
+files), run the following command. This should be used while editing CSS, JS, or
 any asset files:
 
 ```sh
