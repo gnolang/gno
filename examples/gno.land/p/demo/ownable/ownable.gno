@@ -6,7 +6,7 @@ const OwnershipTransferEvent = "OwnershipTransfer"
 
 // Ownable is meant to be used as a top-level object to make your contract ownable OR
 // being embedded in a Gno object to manage per-object ownership.
-// Do not export this object, as its methods do not validate the caller.
+// WARNING: Do not directly export this object at top-level, as its methods do not validate the caller.
 // For this, check out SafeOwnable.
 type Ownable struct {
 	owner std.Address
@@ -86,6 +86,11 @@ func (o *Ownable) NewSafeOwnable() *SafeOwnable {
 	return &SafeOwnable{
 		ownable: o,
 	}
+}
+
+// AssertCallerIsOwner panics if the caller is not the owner
+func (so SafeOwnable) AssertCallerIsOwner() {
+	so.ownable.AssertCallerIsOwner()
 }
 
 func (so *SafeOwnable) TransferOwnership(newOwner std.Address) error {
