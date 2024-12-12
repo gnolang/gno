@@ -162,10 +162,4 @@ func setupWeb(cfg *webCfg, args []string, io commands.IO) (func() error, error) 
 
 		return nil
 	}, nil
-
-}
-
-func execWeb(ctx context.Context) (err error) {
-
-	return nil
 }

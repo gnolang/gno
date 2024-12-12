@@ -14,7 +14,7 @@ func TestSetupWeb(t *testing.T) {
 	stdio := commands.NewDefaultIO()
 
 	// Open /dev/null as a write-only file
-	devNull, err := os.OpenFile(os.DevNull, os.O_WRONLY, 0644)
+	devNull, err := os.OpenFile(os.DevNull, os.O_WRONLY, 0o644)
 	require.NoError(t, err)
 	defer devNull.Close()
 
