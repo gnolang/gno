@@ -10,9 +10,9 @@ import (
 	"github.com/alecthomas/chroma/v2"
 	chromahtml "github.com/alecthomas/chroma/v2/formatters/html"
 	"github.com/alecthomas/chroma/v2/styles"
+	"github.com/gnolang/gno/gno.land/pkg/gnoweb/markdown"
 	"github.com/gnolang/gno/tm2/pkg/bft/rpc/client"
 	"github.com/yuin/goldmark"
-	highlighting "github.com/yuin/goldmark-highlighting/v2"
 	mdhtml "github.com/yuin/goldmark/renderer/html"
 )
 
@@ -68,8 +68,8 @@ func NewRouter(logger *slog.Logger, cfg *AppConfig) (http.Handler, error) {
 
 	mdopts := []goldmark.Option{
 		goldmark.WithExtensions(
-			highlighting.NewHighlighting(
-				highlighting.WithFormatOptions(chromaOptions...),
+			markdown.NewHighlighting(
+				markdown.WithFormatOptions(chromaOptions...),
 			),
 		),
 	}
