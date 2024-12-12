@@ -175,12 +175,20 @@ type runResult struct {
 }
 
 func (opts *TestOptions) runTest(m *gno.Machine, pkgPath, filename string, content []byte) (rr runResult) {
+	pkgName := gno.Name(pkgPath[strings.LastIndexByte(pkgPath, '/')+1:])
+
 	// Eagerly load imports.
 	// This is executed using opts.Store, rather than the transaction store;
 	// it allows us to only have to load the imports once (and re-use the cached
 	// versions). Running the tests in separate "transactions" means that they
 	// don't get the parent store dirty.
-	if err := LoadImports(opts.TestStore, filename, content); err != nil {
+	if err := LoadImports(opts.TestStore, &gnovm.MemPackage{
+		Name: string(pkgName),
+		Path: pkgPath,
+		Files: []*gnovm.MemFile{
+			{Name: filename, Body: string(content)},
+		},
+	}); err != nil {
 		// NOTE: we perform this here, so we can capture the runResult.
 		return runResult{Error: err.Error()}
 	}
@@ -210,7 +218,6 @@ func (opts *TestOptions) runTest(m *gno.Machine, pkgPath, filename string, conte
 	}()
 
 	// Use last element after / (works also if slash is missing).
-	pkgName := gno.Name(pkgPath[strings.LastIndexByte(pkgPath, '/')+1:])
 	if !gno.IsRealmPath(pkgPath) {
 		// Simple case - pure package.
 		pn := gno.NewPackageNode(pkgName, pkgPath, &gno.FileSet{})
