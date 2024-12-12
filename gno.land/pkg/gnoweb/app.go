@@ -97,7 +97,7 @@ func NewRouter(logger *slog.Logger, cfg *AppConfig) (http.Handler, error) {
 	webConfig.Meta.AssetsPath = cfg.AssetsPath
 	webConfig.Meta.ChromaPath = chromaStylePath
 	webConfig.Meta.RemoteHelp = cfg.RemoteHelp
-	webConfig.Meta.ChainID = cfg.ChainID
+	webConfig.Meta.ChainId = cfg.ChainID
 	webConfig.Meta.Analytics = cfg.Analytics
 
 	// Setup main handler

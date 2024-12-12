@@ -25,7 +25,7 @@ type StaticMetadata struct {
 	AssetsPath string
 	ChromaPath string
 	RemoteHelp string
-	ChainID    string
+	ChainId    string
 	Analytics  bool
 }
 
@@ -221,7 +221,7 @@ func (h *WebHandler) renderRealmHelp(w io.Writer, gnourl *GnoURL) (status int, e
 		SelectedFunc: selFn,
 		SelectedArgs: selArgs,
 		RealmName:    realmName,
-		ChainID:      h.static.ChainID,
+		ChainId:      h.static.ChainId,
 		// TODO: get chain domain and use that.
 		PkgPath:   filepath.Join(DefaultChainDomain, gnourl.Path),
 		Remote:    h.static.RemoteHelp,
