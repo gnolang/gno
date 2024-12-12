@@ -62,6 +62,7 @@ services:
       - --remote=http://traefik:26657
       - --with-analytics
       - --chainid=staging
+      - --faucet-url=https://faucet-api.staging.gno.land
       - --help-remote=https://rpc.staging.gno.land:443
     labels:
       com.centurylinklabs.watchtower.enable: "true"
