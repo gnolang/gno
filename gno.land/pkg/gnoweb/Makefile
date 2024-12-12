@@ -73,7 +73,7 @@ dev.gnoweb: | .cache
 
 # Tailwind CSS in development mode
 dev.css: | public
-	npx -y tailwindcss@$(tw_version) -c $(tw_config_path) --verbose -i $(input_css) -o $(output_css) --watch \
+	npx -y tailwindcss@$(tw_version) -c $(tw_config_path) --verbose -i $(input_css) -o $(output_css) --minify --watch \
 		2>&1 | $(run_logname) tailwind
 
 # XXX: add versioning on esbuild
