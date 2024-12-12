@@ -131,14 +131,16 @@ func (c *MakeTxCfg) RegisterFlags(fs *flag.FlagSet) {
 	fs.Var(
 		&c.GasWanted,
 		"gas-wanted",
-		"gas requested for tx",
+		`gas requested for tx; with auto, exclusively with -broadcast and -simulate test,
+	detect required gas from the transaction simulation. transaction is simulated with
+	max_gas = `+strconv.FormatInt(AutoGasDefaultWanted, 10)+`, then run with min(gas_used * 1.10, max_gas)`,
 	)
 
 	fs.StringVar(
 		&c.GasFee,
 		"gas-fee",
 		"",
-		"gas payment fee",
+		"gas payment fee; automatically set with -gas-wanted auto",
 	)
 
 	fs.StringVar(
@@ -152,16 +154,16 @@ func (c *MakeTxCfg) RegisterFlags(fs *flag.FlagSet) {
 		&c.Broadcast,
 		"broadcast",
 		false,
-		"sign, simulate and broadcast",
+		"sign, simulate and broadcast the transaction",
 	)
 
 	fs.Var(
 		&c.Simulate,
 		"simulate",
 		`select how to simulate the transaction (only useful with --broadcast); valid options are
-		- test: attempts simulating the transaction, and if successful performs broadcasting (default)
-		- skip: avoids performing transaction simulation
-		- only: avoids broadcasting transaction (ie. dry run)`,
+	- test: attempts simulating the transaction, and if successful performs broadcasting (default)
+	- skip: avoids performing transaction simulation
+	- only: avoids broadcasting transaction (ie. dry run)`,
 	)
 
 	fs.StringVar(
@@ -333,7 +335,7 @@ func SignAndBroadcastHandler(
 		}
 		if cfg.GasWanted == GasWantedAuto {
 			used := resp.DeliverTx.GasUsed
-			tx.Fee.GasWanted = min(used + used/10, AutoGasDefaultWanted)
+			tx.Fee.GasWanted = min(used+used/10, AutoGasDefaultWanted)
 			if err := signTx(&tx, kb, sOpts, kOpts); err != nil {
 				return nil, fmt.Errorf("unable to sign transaction, %w", err)
 			}
@@ -350,5 +352,5 @@ func SignAndBroadcastHandler(
 
 var (
 	AutoGasDefaultWanted int64 = 10_000_000
-	AutoGasDefaultFee = std.Coin{Denom: "ugnot", Amount: 1_000_000}
+	AutoGasDefaultFee          = std.Coin{Denom: "ugnot", Amount: 1_000_000}
 )
