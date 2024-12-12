@@ -1,6 +1,6 @@
 // This file was copied from https://github.com/yuin/goldmark-highlighting
 //
-// package highlighting is a extension for the goldmark(http://github.com/yuin/goldmark).
+// package highlighting is an extension for the goldmark(http://github.com/yuin/goldmark).
 //
 // This extension adds syntax-highlighting to the fenced code blocks using
 // chroma(https://github.com/alecthomas/chroma).
@@ -206,17 +206,21 @@ func WithHTMLOptions(opts ...html.Option) Option {
 	return &withHTMLOptions{opts}
 }
 
-const optStyle renderer.OptionName = "HighlightingStyle"
-const optCustomStyle renderer.OptionName = "HighlightingCustomStyle"
+const (
+	optStyle       renderer.OptionName = "HighlightingStyle"
+	optCustomStyle renderer.OptionName = "HighlightingCustomStyle"
+)
 
 var highlightLinesAttrName = []byte("hl_lines")
 
-var styleAttrName = []byte("hl_style")
-var nohlAttrName = []byte("nohl")
-var linenosAttrName = []byte("linenos")
-var linenosTableAttrValue = []byte("table")
-var linenosInlineAttrValue = []byte("inline")
-var linenostartAttrName = []byte("linenostart")
+var (
+	styleAttrName          = []byte("hl_style")
+	nohlAttrName           = []byte("nohl")
+	linenosAttrName        = []byte("linenos")
+	linenosTableAttrValue  = []byte("table")
+	linenosInlineAttrValue = []byte("inline")
+	linenostartAttrName    = []byte("linenostart")
+)
 
 type withStyle struct {
 	value string
@@ -318,7 +322,7 @@ type withCodeBlockOptions struct {
 }
 
 func (o *withCodeBlockOptions) SetConfig(c *renderer.Config) {
-	c.Options[optWrapperRenderer] = o.value
+	c.Options[optCodeBlockOptions] = o.value
 }
 
 func (o *withCodeBlockOptions) SetHighlightingOption(c *Config) {
@@ -408,8 +412,10 @@ func (r *HTMLRenderer) renderFencedCodeBlock(w util.BufWriter, source []byte, no
 	}
 	language := n.Language(source)
 
-	chromaFormatterOptions := make([]chromahtml.Option, len(r.FormatOptions))
-	copy(chromaFormatterOptions, r.FormatOptions)
+	chromaFormatterOptions := make([]chromahtml.Option, 0, len(r.FormatOptions))
+	for _, opt := range r.FormatOptions {
+		chromaFormatterOptions = append(chromaFormatterOptions, opt)
+	}
 
 	style := r.CustomStyle
 	if style == nil {
@@ -427,7 +433,9 @@ func (r *HTMLRenderer) renderFencedCodeBlock(w util.BufWriter, source []byte, no
 		if linenostartAttr, ok := attrs.Get(linenostartAttrName); ok {
 			if linenostart, ok := linenostartAttr.(float64); ok {
 				baseLineNumber = int(linenostart)
-				chromaFormatterOptions = append(chromaFormatterOptions, chromahtml.BaseLineNumber(baseLineNumber))
+				chromaFormatterOptions = append(
+					chromaFormatterOptions, chromahtml.BaseLineNumber(baseLineNumber),
+				)
 			}
 		}
 		if linesAttr, hasLinesAttr := attrs.Get(highlightLinesAttrName); hasLinesAttr {
@@ -438,7 +446,7 @@ func (r *HTMLRenderer) renderFencedCodeBlock(w util.BufWriter, source []byte, no
 						hlRanges = append(hlRanges, [2]int{int(ln) + baseLineNumber - 1, int(ln) + baseLineNumber - 1})
 					}
 					if rng, ok := l.([]uint8); ok {
-						slices := strings.Split(string([]byte(rng)), "-")
+						slices := strings.Split(string(rng), "-")
 						lhs, err := strconv.Atoi(slices[0])
 						if err != nil {
 							continue
@@ -458,7 +466,7 @@ func (r *HTMLRenderer) renderFencedCodeBlock(w util.BufWriter, source []byte, no
 		}
 		if styleAttr, hasStyleAttr := attrs.Get(styleAttrName); hasStyleAttr {
 			if st, ok := styleAttr.([]uint8); ok {
-				styleStr := string([]byte(st))
+				styleStr := string(st)
 				style = styles.Get(styleStr)
 			}
 		}

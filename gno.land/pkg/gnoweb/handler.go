@@ -89,7 +89,7 @@ func (h *WebHandler) Get(w http.ResponseWriter, r *http.Request) {
 		h.logger.Warn("page not found", "path", r.URL.Path, "err", err)
 		status, err = http.StatusNotFound, components.RenderStatusComponent(&body, "page not found")
 	} else {
-		//TODO: real data (title & description)
+		// TODO: real data (title & description)
 		indexData.HeadData.Title = "gno.land - " + gnourl.Path
 
 		// Header
@@ -105,7 +105,6 @@ func (h *WebHandler) Get(w http.ResponseWriter, r *http.Request) {
 			h.logger.Debug("invalid page kind", "kind", gnourl.Kind)
 			status, err = http.StatusNotFound, components.RenderStatusComponent(&body, "page not found")
 		}
-
 	}
 
 	if err != nil {

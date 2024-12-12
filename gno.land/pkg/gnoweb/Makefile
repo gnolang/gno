@@ -1,7 +1,4 @@
-# XXX: refine and cleanup this Makefile. Most of these were designed to be used
-# in a single monorepo
-
-# configurable arguments
+# Configurable arguments
 DEV_REMOTE ?= 127.0.0.1:26657
 CHAIN_ID ?= test3
 PUBLIC_DIR ?= public
