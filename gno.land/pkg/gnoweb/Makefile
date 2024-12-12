@@ -68,7 +68,7 @@ fmt:
 # Run the development dependencies in parallel
 dev:
 	@echo "-- starting development tools"
-	PUBLIC_DIR=$(cache_dir)/public $(MAKE) -j 3 \
+	@PUBLIC_DIR=$(cache_dir)/public $(MAKE) -j 3 \
 		dev.gnoweb \
 		dev.ts \
 		dev.css
