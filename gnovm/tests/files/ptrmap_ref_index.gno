@@ -16,7 +16,9 @@ func init() {
 
 func main() {
 	println(m[&arr[0]])
+	println(m[&arr[1]] == "")
 }
 
 // Output:
 // first key
+// true

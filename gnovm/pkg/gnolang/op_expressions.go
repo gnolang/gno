@@ -32,7 +32,6 @@ func (m *Machine) doOpIndex1() {
 		case *MapType:
 			println("---map type")
 			mv := xv.V.(*MapValue)
-			//iv.SetPath(vp)
 			vv, exists := mv.GetValueForKey(m.Store, iv)
 			if exists {
 				*xv = vv // reuse as result
@@ -198,9 +197,12 @@ func (m *Machine) doOpStar() {
 			if pv.TV.IsUndefined() && bt.Elt.Kind() != InterfaceKind {
 				refv := TypedValue{T: bt.Elt}
 				fmt.Println("---refv: ", refv, refv.Path)
+				// TODO: check this
+				refv.SetPath(xv.Path)
 				m.PushValue(refv)
 			} else {
 				fmt.Println("---pv.TV: ", *pv.TV, pv.TV.Path)
+				pv.TV.SetPath(xv.Path)
 				m.PushValue(*pv.TV)
 			}
 		}
@@ -229,7 +231,6 @@ func (m *Machine) doOpRef() {
 	m.Alloc.AllocatePointer()
 	xv := m.PopAsPointer(rx.X)
 	fmt.Println("---xv: ", xv)
-	fmt.Println("---xv.TV.Path: ", xv.TV.GetPath())
 	if nv, ok := xv.TV.V.(*NativeValue); ok {
 		// If a native pointer, ensure it is addressable.  This
 		// way, PointerValue{*NativeValue{rv}} can be converted
