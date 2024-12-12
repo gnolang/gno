@@ -30,7 +30,6 @@ func PredefineFileSet(store Store, pn *PackageNode, fset *FileSet) {
 		setNodeLines(fn)
 		setNodeLocations(pn.PkgPath, string(fn.Name), fn)
 		initStaticBlocks(store, pn, fn)
-		//initStaticBlocks2(store, pn, fn)
 	}
 	// NOTE: The calls to .Predefine() above is more of a name reservation,
 	// and what comes later in PredefineFileset() below is a second type of
@@ -152,6 +151,7 @@ func initStaticBlocks(store Store, ctx BlockNode, bn BlockNode) {
 	pn := packageOf(last)
 
 	bid := pn.nextBlockID(pn.PkgPath)
+	fmt.Println("---bid: ", bid)
 	last.GetStaticBlock().BID = bid
 
 	defer func() {
@@ -439,13 +439,11 @@ func initStaticBlocks2(store Store, ctx BlockNode, bn BlockNode) {
 					fmt.Println("---nx: ", nx)
 					lastBid := last.GetStaticBlock().BID
 					fmt.Println("---last bid: ", lastBid)
-					fmt.Println("---nx.BID: ", nx.BID)
 					nn := nx.Name
 					if nn == blankIdentifier {
 						continue
 					}
 					nx.Type = NameExprTypeDefine
-					nx.BID = lastBid
 					last2.Predefine(n.Const, nn)
 				}
 			case *TypeDecl:
@@ -1159,7 +1157,7 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 			// TRANS_LEAVE -----------------------
 			case *NameExpr:
 				fmt.Println("---trans_leave, nx: ", n.String())
-				fmt.Println("---nx.BID: ", n.BID)
+				fmt.Println("---nx.abs: ", n.AbsPath)
 				// Validity: check that name isn't reserved.
 				if isReservedName(n.Name) {
 					panic(fmt.Sprintf(
@@ -1225,7 +1223,7 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 					// contain nil nodes.
 					fallthrough
 				default:
-					fmt.Println("---2, n.bid: ", n.BID)
+					fmt.Println("---2, n.abs: ", n.AbsPath)
 					if ftype == TRANS_ASSIGN_LHS {
 						as := ns[len(ns)-1].(*AssignStmt)
 						fillNameExprPath(last, n, as.Op == DEFINE)
@@ -1241,8 +1239,8 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 						cx := evalConst(store, last, n)
 						// built-in functions must be called.
 						if !cx.IsUndefined() &&
-							cx.T.Kind() == FuncKind &&
-							ftype != TRANS_CALL_FUNC {
+								cx.T.Kind() == FuncKind &&
+								ftype != TRANS_CALL_FUNC {
 							panic(fmt.Sprintf(
 								"use of builtin %s not in function call",
 								n.Name))
@@ -1834,7 +1832,7 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 
 			// TRANS_LEAVE -----------------------
 			case *IndexExpr:
-				fmt.Println("---trans_leave index expr: ")
+				fmt.Println("---trans_leave, index expr: ")
 				dt := evalStaticTypeOf(store, last, n.X)
 				if dt.Kind() == PointerKind {
 					// if a is a pointer to an array,
@@ -1858,19 +1856,13 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 						dt.String()))
 				}
 
-				// TODO: helper for this
-				// set abs path when it's addressable
-				if nx, ok := n.X.(*NameExpr); ok {
-					fmt.Println("---nx: ", nx)
-					fmt.Println("---n.X.String: ", n.X.String())
-					n.AbsPath = nx.BID.String() + ":" + nx.Path.String() + ":" + n.Index.String()
-					fmt.Println("---nx.abs: ", n.AbsPath)
-				}
+				n.AbsPath = buildAbsolutePath(n)
+				fmt.Println("---n.AbsPath: ", n.AbsPath)
 
 			// TRANS_LEAVE -----------------------
 			case *SliceExpr:
 				// Replace const L/H/M with int *ConstExpr,
-				// or if not const, assert integer type..
+				// or if not const, assert integer type.
 				checkOrConvertIntegerKind(store, last, n.Low)
 				checkOrConvertIntegerKind(store, last, n.High)
 				checkOrConvertIntegerKind(store, last, n.Max)
@@ -2068,8 +2060,8 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 					// Case 1: If receiver is pointer type but n.X is
 					// not:
 					if rcvr != nil &&
-						rcvr.Kind() == PointerKind &&
-						nxt2.Kind() != PointerKind {
+							rcvr.Kind() == PointerKind &&
+							nxt2.Kind() != PointerKind {
 						// Go spec: "If x is addressable and &x's
 						// method set contains m, x.m() is shorthand
 						// for (&x).m()"
@@ -2101,8 +2093,8 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 							))
 						}
 					} else if len(tr) > 0 &&
-						tr[len(tr)-1].IsDerefType() &&
-						nxt2.Kind() != PointerKind {
+							tr[len(tr)-1].IsDerefType() &&
+							nxt2.Kind() != PointerKind {
 						// Case 2: If tr[0] is deref type, but xt
 						// is not pointer type, replace n.X with
 						// &RefExpr{X: n.X}.
@@ -2672,7 +2664,7 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 						if len(n.Values) > 0 {
 							vx := n.Values[i]
 							if cx, ok := vx.(*ConstExpr); ok &&
-								!cx.TypedValue.IsUndefined() {
+									!cx.TypedValue.IsUndefined() {
 								if n.Const {
 									// const _ = <const_expr>: static block should contain value
 									tvs[i] = cx.TypedValue
@@ -3599,7 +3591,7 @@ func findContinuableNode(ns []Node) bool {
 }
 
 func findBranchLabel(last BlockNode, label Name) (
-	bn BlockNode, depth uint8, bodyIdx int,
+		bn BlockNode, depth uint8, bodyIdx int,
 ) {
 	for {
 		switch cbn := last.(type) {
@@ -3639,7 +3631,7 @@ func findBranchLabel(last BlockNode, label Name) (
 }
 
 func findGotoLabel(last BlockNode, label Name) (
-	bn BlockNode, depth uint8, bodyIdx int,
+		bn BlockNode, depth uint8, bodyIdx int,
 ) {
 	for {
 		switch cbn := last.(type) {
@@ -3881,7 +3873,7 @@ func isNamedConversion(xt, t Type) bool {
 		// covert right to the type of left if one side is unnamed type and the other side is not
 
 		if t.IsNamed() && !xt.IsNamed() ||
-			!t.IsNamed() && xt.IsNamed() {
+				!t.IsNamed() && xt.IsNamed() {
 			return true
 		}
 	}
@@ -4672,7 +4664,7 @@ func fillNameExprPath(last BlockNode, nx *NameExpr, isDefineLHS bool) {
 			// because .GetPathForName() doesn't distinguish between predefined
 			// and declared variables. See tests/files/define1.go for test case.
 			var path ValuePath
-			var bid BlockID
+			var abs string
 			var i int = 0
 			for {
 				i++
@@ -4693,18 +4685,17 @@ func fillNameExprPath(last BlockNode, nx *NameExpr, isDefineLHS bool) {
 				if last.GetStaticTypeOf(nil, nx.Name) == nil {
 					continue
 				} else {
-					path, bid = last.GetPathForName(nil, nx.Name)
+					path, abs = last.GetPathForName(nil, nx.Name)
 					if path.Type != VPBlock {
 						panic("expected block value path type; check this is not shadowing a builtin type")
 					}
-					fmt.Println("---path: ", bid)
-					fmt.Println("---bid: ", bid)
+					fmt.Println("---abs: ", abs)
 					break
 				}
 			}
 			path.Depth += uint8(i)
 			nx.Path = path
-			nx.BID = bid
+			nx.AbsPath = abs
 			return
 		}
 	} else if isUverseName(nx.Name) {
@@ -4713,8 +4704,7 @@ func fillNameExprPath(last BlockNode, nx *NameExpr, isDefineLHS bool) {
 	}
 	// Otherwise, set path for name.
 	// Uverse name paths get set here as well.
-	nx.Path, nx.BID = last.GetPathForName(nil, nx.Name)
-	//fmt.Println("---the bid2: ", nx.BID)
+	nx.Path, nx.AbsPath = last.GetPathForName(nil, nx.Name)
 }
 
 func isFile(n BlockNode) bool {

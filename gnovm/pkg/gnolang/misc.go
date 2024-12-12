@@ -171,3 +171,14 @@ func DerivePkgAddr(pkgPath string) crypto.Address {
 	// NOTE: must not collide with pubkey addrs.
 	return crypto.AddressFromPreimage([]byte("pkgPath:" + pkgPath))
 }
+
+func buildAbsolutePath(n Expr) string {
+	switch n := n.(type) {
+	case *NameExpr:
+		return n.AbsPath
+	case *IndexExpr:
+		return buildAbsolutePath(n.X) + ":" + buildAbsolutePath(n.Index)
+	default:
+		return n.String()
+	}
+}

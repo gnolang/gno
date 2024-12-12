@@ -408,8 +408,8 @@ type NameExpr struct {
 	// TODO rename .Path's to .ValuePaths.
 	Path ValuePath // set by preprocessor.
 	Name
-	Type NameExprType
-	BID  BlockID
+	Type    NameExprType
+	AbsPath string
 }
 
 type NameExprs []NameExpr
@@ -1532,7 +1532,7 @@ type BlockNode interface {
 	GetExternNames() []Name
 	GetNumNames() uint16
 	GetParentNode(Store) BlockNode
-	GetPathForName(Store, Name) (ValuePath, BlockID)
+	GetPathForName(Store, Name) (ValuePath, string)
 	GetBlockNodeForPath(Store, ValuePath) BlockNode
 	GetIsConst(Store, Name) bool
 	GetLocalIndex(Name) (uint16, bool)
@@ -1666,17 +1666,16 @@ func (sb *StaticBlock) GetParentNode(store Store) BlockNode {
 
 // Implements BlockNode.
 // As a side effect, notes externally defined names.
-func (sb *StaticBlock) GetPathForName(store Store, n Name) (ValuePath, BlockID) {
+func (sb *StaticBlock) GetPathForName(store Store, n Name) (rel ValuePath, abs string) {
 	fmt.Println("---GetPathForName, n: ", n)
-	var bid BlockID
 	if n == blankIdentifier {
-		return NewValuePathBlock(0, 0, blankIdentifier), bid
+		return NewValuePathBlock(0, 0, blankIdentifier), ""
 	}
 	// Check local.
 	gen := 1
 	if idx, ok := sb.GetLocalIndex(n); ok {
 		fmt.Println("---bid1: ", sb.BID)
-		return NewValuePathBlock(uint8(gen), idx, n), sb.BID
+		return NewValuePathBlock(uint8(gen), idx, n), fmt.Sprintf("%s:[%d]", sb.BID, idx)
 	}
 	// Register as extern.
 	// NOTE: uverse names are externs too.
@@ -1695,7 +1694,7 @@ func (sb *StaticBlock) GetPathForName(store Store, n Name) (ValuePath, BlockID) 
 			fmt.Println("---bid2: ", bp.GetStaticBlock().BID)
 			fmt.Println("---gen: ", gen)
 			fmt.Println("---idx: ", idx)
-			return NewValuePathBlock(uint8(gen), idx, n), bp.GetStaticBlock().BID
+			return NewValuePathBlock(uint8(gen), idx, n), fmt.Sprintf("%s:[%d]", bp.GetStaticBlock().BID, idx)
 		} else {
 			if !isFile(bp) {
 				bp.GetStaticBlock().addExternName(n)
@@ -1709,7 +1708,7 @@ func (sb *StaticBlock) GetPathForName(store Store, n Name) (ValuePath, BlockID) 
 	}
 	// Finally, check uverse.
 	if idx, ok := UverseNode().GetLocalIndex(n); ok {
-		return NewValuePathUverse(idx, n), bid
+		return NewValuePathUverse(idx, n), ""
 	}
 	// Name does not exist.
 	panic(fmt.Sprintf("name %s not declared", n))

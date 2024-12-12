@@ -125,7 +125,7 @@ func (m *Machine) doOpSelector() {
 	*xv = res // reuse as result
 	var vp string
 	if nx, ok := sx.X.(*NameExpr); ok {
-		vp += nx.BID.String() + ":" + nx.Path.String() + ":"
+		vp += nx.AbsPath + ":"
 	}
 	vp += sx.Path.String()
 	fmt.Println("---vp: ", vp)
@@ -261,7 +261,7 @@ func (m *Machine) doOpRef() {
 	}
 
 	tv.Path = xv.TV.GetPath()
-	fmt.Println("---type of rx.X: ", reflect.TypeOf(rx.X))
+	//fmt.Println("---type of rx.X: ", reflect.TypeOf(rx.X))
 	fmt.Println("---tv.Path: ", tv.GetPath())
 
 	m.PushValue(tv)

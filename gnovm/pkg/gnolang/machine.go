@@ -2123,11 +2123,11 @@ func (m *Machine) PopAsPointer(lx Expr) PointerValue {
 	case *NameExpr:
 		println("---NameExpr")
 		lb := m.LastBlock()
-		fmt.Println("---lx.Bid: ", lx.BID)
+		fmt.Println("---lx.abs: ", lx.AbsPath)
 
 		ptr := lb.GetPointerToMaybeHeapUse(m.Store, lx)
 		//ptr.TV.SetPath(bidStr + ":" + lx.Path.String())
-		ptr.TV.SetPath(lx.BID.String() + ":" + lx.Path.String())
+		ptr.TV.SetPath(lx.AbsPath)
 		return ptr
 
 	case *IndexExpr:
@@ -2149,9 +2149,10 @@ func (m *Machine) PopAsPointer(lx Expr) PointerValue {
 		fmt.Println("---lx.Path: ", lx.Path)
 		pv := xv.GetPointerToFromTV(m.Alloc, m.Store, lx.Path)
 		fmt.Println("---pv: ", pv)
+		// TODO: mv the logic to preprocess
 		var vp string
 		if nx, ok := lx.X.(*NameExpr); ok {
-			vp += nx.BID.String() + ":" + nx.Path.String() + ":"
+			vp += nx.AbsPath + ":"
 		}
 		vp += lx.Path.String()
 
