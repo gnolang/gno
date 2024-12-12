@@ -473,7 +473,7 @@ Resources for idiomatic Go docs:
 
 While we welcome all contributions to the Gno project, it's important to ensure that your changes provide meaningful value or improve the quality of the codebase. Contributions that fail to meet these criteria may not be accepted. Examples of unhelpful contributions include (but not limited to):
 
-- Superficial changes: For example, comment typo fixes,minor formatting or stylistic edits that do not align with our style guide or existing code practices.
+- Superficial changes: For example, comment typo fixes, minor formatting or stylistic edits that do not align with our style guide or existing code practices.
 - Unnecessary refactoring: Changes that do not improve code clarity, performance, or maintainability.
 - Incomplete submissions: Changes that lack adequate context, link to a related issue, documentation, or test coverage.
 
