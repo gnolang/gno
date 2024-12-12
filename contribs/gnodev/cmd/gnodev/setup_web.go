@@ -11,7 +11,7 @@ import (
 
 // setupGnowebServer initializes and starts the Gnoweb server.
 func setupGnoWebServer(logger *slog.Logger, cfg *devCfg, dnode *gnodev.Node) (http.Handler, error) {
-	if !cfg.noWeb {
+	if cfg.noWeb {
 		return http.HandlerFunc(http.NotFound), nil
 	}
 
