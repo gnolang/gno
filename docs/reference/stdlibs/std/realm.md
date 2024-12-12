@@ -40,9 +40,7 @@ Checks if the realm it was called upon is a user realm.
 ```go
 if r.IsUser() {...}
 ```
-
 ---
-
 ## CoinDenom
 Composes a qualified denomination string from the realm's `pkgPath` and the provided coin name, e.g. `/gno.land/r/demo/blog:ugnot`. This method should be used to get fully qualified denominations of coins when interacting with the `Banker` module.
 
@@ -53,4 +51,3 @@ Composes a qualified denomination string from the realm's `pkgPath` and the prov
 ```go
 denom := r.CoinDenom("ugnot")
 ```
-
