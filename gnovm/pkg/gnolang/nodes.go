@@ -134,9 +134,9 @@ func (loc Location) String() string {
 
 func (loc Location) IsZero() bool {
 	return loc.PkgPath == "" &&
-			loc.File == "" &&
-			loc.Line == 0 &&
-			loc.Column == 0
+		loc.File == "" &&
+		loc.Line == 0 &&
+		loc.Column == 0
 }
 
 // ----------------------------------------
@@ -1199,9 +1199,9 @@ func ReadMemPackage(dir string, pkgPath string) *gnovm.MemPackage {
 	list := make([]string, 0, len(files))
 	for _, file := range files {
 		if file.IsDir() ||
-				strings.HasPrefix(file.Name(), ".") ||
-				(!endsWith(file.Name(), allowedFileExtensions) && !contains(allowedFiles, file.Name())) ||
-				endsWith(file.Name(), rejectedFileExtensions) {
+			strings.HasPrefix(file.Name(), ".") ||
+			(!endsWith(file.Name(), allowedFileExtensions) && !contains(allowedFiles, file.Name())) ||
+			endsWith(file.Name(), rejectedFileExtensions) {
 			continue
 		}
 		list = append(list, filepath.Join(dir, file.Name()))
@@ -1257,7 +1257,7 @@ func ParseMemPackage(memPkg *gnovm.MemPackage) (fset *FileSet) {
 	var errs error
 	for _, mfile := range memPkg.Files {
 		if !strings.HasSuffix(mfile.Name, ".gno") ||
-				endsWith(mfile.Name, []string{"_test.gno", "_filetest.gno"}) {
+			endsWith(mfile.Name, []string{"_test.gno", "_filetest.gno"}) {
 			continue // skip spurious or test file.
 		}
 		n, err := ParseFile(mfile.Name, mfile.Body)

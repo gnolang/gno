@@ -36,7 +36,7 @@ func (m *Machine) doOpIndex1() {
 			if exists {
 				*xv = vv // reuse as result
 				fmt.Println("---xv: ", *xv)
-				xv.SetPath(abs)
+				SetPointerValueOrigin(&xv.V, abs)
 			} else {
 				vt := ct.Value
 
@@ -45,7 +45,7 @@ func (m *Machine) doOpIndex1() {
 					V: defaultValue(m.Alloc, vt),
 				}
 				fmt.Println("---xv: ", *xv)
-				xv.SetPath(abs)
+				SetPointerValueOrigin(&xv.V, abs)
 			}
 		default:
 			println("---default")
@@ -53,10 +53,9 @@ func (m *Machine) doOpIndex1() {
 			*xv = res.Deref() // reuse as result
 			fmt.Println("---xv: ", *xv)
 
-			xv.SetPath(abs)
+			SetPointerValueOrigin(&xv.V, abs)
 
 			fmt.Println("---*xv: ", *xv)
-			fmt.Println("---xv.GetPath: ", xv.GetPath())
 		}
 	}
 }
@@ -72,7 +71,6 @@ func (m *Machine) doOpIndex2() {
 		if ix, ok := lx.(*IndexExpr); !ok {
 			panic("---should not happen")
 		} else {
-			fmt.Println("---ix.AbsPath: ", ix.AbsPath)
 			abs = ix.AbsPath
 		}
 
@@ -86,21 +84,21 @@ func (m *Machine) doOpIndex2() {
 					T: vt,
 					V: defaultValue(m.Alloc, vt),
 				}
-				xv.SetPath(abs)
+				SetPointerValueOrigin(&xv.V, abs)
 				*iv = untypedBool(false) // reuse as result
 			} else {
 				mv := xv.V.(*MapValue)
 				vv, exists := mv.GetValueForKey(m.Store, iv)
 				if exists {
 					*xv = vv // reuse as result
-					xv.SetPath(abs)
+					SetPointerValueOrigin(&xv.V, abs)
 					*iv = untypedBool(true) // reuse as result
 				} else {
 					*xv = TypedValue{ // reuse as result
 						T: vt,
 						V: defaultValue(m.Alloc, vt),
 					}
-					xv.SetPath(abs)
+					SetPointerValueOrigin(&xv.V, abs)
 					*iv = untypedBool(false) // reuse as result
 				}
 			}
@@ -123,7 +121,8 @@ func (m *Machine) doOpSelector() {
 		m.Printf("+v[S] %v\n", res)
 	}
 	*xv = res // reuse as result
-	xv.SetPath(sx.AbsPath)
+	SetPointerValueOrigin(&xv.V, sx.AbsPath)
+	//xv.SetPath(sx.AbsPath)
 }
 
 func (m *Machine) doOpSlice() {
@@ -196,13 +195,18 @@ func (m *Machine) doOpStar() {
 		} else {
 			if pv.TV.IsUndefined() && bt.Elt.Kind() != InterfaceKind {
 				refv := TypedValue{T: bt.Elt}
-				fmt.Println("---refv: ", refv, refv.Path)
 				// TODO: check this
-				refv.SetPath(xv.Path)
+				if pv, ok := xv.V.(PointerValue); ok {
+					origin := pv.Origin
+					SetPointerValueOrigin(&refv.V, origin)
+				}
 				m.PushValue(refv)
 			} else {
-				fmt.Println("---pv.TV: ", *pv.TV, pv.TV.Path)
-				pv.TV.SetPath(xv.Path)
+				v2 := pv.TV.V
+				if pv, ok := xv.V.(PointerValue); ok {
+					origin := pv.Origin
+					SetPointerValueOrigin(&v2, origin)
+				}
 				m.PushValue(*pv.TV)
 			}
 		}
@@ -255,11 +259,8 @@ func (m *Machine) doOpRef() {
 	}
 
 	if pather, ok := rx.X.(AbsPather); ok {
-		tv.Path = pather.GetAbsPath()
+		SetPointerValueOrigin(&tv.V, pather.GetAbsPath())
 	}
-
-	fmt.Println("---tv.Path: ", tv.GetPath())
-
 	m.PushValue(tv)
 }
 

@@ -2,9 +2,8 @@ package gnolang
 
 import (
 	"fmt"
-	"math/big"
-
 	"github.com/cockroachdb/apd/v3"
+	"math/big"
 )
 
 // ----------------------------------------
@@ -335,8 +334,19 @@ func (m *Machine) doOpBandn() {
 // TODO: can be much faster.
 func isEql(store Store, lv, rv *TypedValue) bool {
 	//fmt.Println("---isEql: lv: ", lv)
-	//fmt.Println("---isEql: lv.T.Kind(): ", lv.T.Kind())
 	//fmt.Println("---isEql: rv: ", rv)
+	//fmt.Println("---isEql: lv.T: ", lv.T, lv.T.TypeID().Bytes())
+	//fmt.Println("---isEql: rv.T: ", rv.T, rv.T.TypeID().Bytes())
+	//println(lv.T.TypeID() == rv.T.TypeID())
+	//
+	//if lpv, ok := lv.V.(PointerValue); ok {
+	//	fmt.Println("---lpv.Base: ", lpv.Base)
+	//	if rpv, ok := lv.V.(PointerValue); ok {
+	//		fmt.Println("---rpv.Base: ", rpv.Base)
+	//		println(lpv.Base == rpv.Base)
+	//		println(lv.T == rv.T)
+	//	}
+	//}
 	// If one is undefined, the other must be as well.
 	// Fields/items are set to defaultValue along the way.
 	lvu := lv.IsUndefined()
@@ -347,8 +357,10 @@ func isEql(store Store, lv, rv *TypedValue) bool {
 		return false
 	}
 	if err := checkSame(lv.T, rv.T, ""); err != nil {
+		//println("---not equal type")
 		return false
 	}
+	//println("---equal type")
 	if lnt, ok := lv.T.(*NativeType); ok {
 		if rnt, ok := rv.T.(*NativeType); ok {
 			if lnt.Type != rnt.Type {
@@ -493,6 +505,31 @@ func isEql(store Store, lv, rv *TypedValue) bool {
 				return *(lpv.TV) == *(rpv.TV) && lpv.Base == rpv.Base && lpv.Index == rpv.Index && lpv.Key == rpv.Key
 			}
 		}
+		//fmt.Println("---lv.V: ", lv.V)
+		//fmt.Println("---rv.V: ", rv.V)
+		//fmt.Println("---type of base lv: ", reflect.TypeOf(lv.V.(PointerValue).Base))
+		//fmt.Println("---type of base rv: ", reflect.TypeOf(rv.V.(PointerValue).Base))
+		//
+		//fmt.Printf("addr of lv.TV: %p \n", lv.V.(PointerValue).TV)
+		//fmt.Printf("addr of rv.TV: %p \n", rv.V.(PointerValue).TV)
+
+		//if lav, ok := lv.V.(PointerValue).Base.(*ArrayValue); ok {
+		//	if rav, ok := rv.V.(PointerValue).Base.(*ArrayValue); ok {
+		//fmt.Println("---lav == rav: ", lav == rav)
+		//fmt.Printf("---lav: %v, %p \n", lav, lav)
+		//fmt.Printf("---rav: %v, %p \n", rav, rav)
+		//for i, l := range lav.List {
+		//	println("---list equal: ")
+		//	fmt.Println(l == rav.List[i])
+		//}
+		//fmt.Println("---is value string equal: ", lav.String() == rav.String())
+		//}
+		//}
+		//lv.V.String()
+		//
+		//fmt.Println(lv.V.(PointerValue).TV == rv.V.(PointerValue).TV)
+		//fmt.Println(lv.V.(PointerValue).Base == rv.V.(PointerValue).Base)
+		//fmt.Println(lv.V.(PointerValue).Index == rv.V.(PointerValue).Index)
 		return lv.V == rv.V
 	default:
 		panic(fmt.Sprintf(

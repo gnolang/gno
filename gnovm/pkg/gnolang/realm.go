@@ -1087,8 +1087,9 @@ func copyValueWithRefs(val Value) Value {
 					V: copyValueWithRefs(cv.TypedValue.V),
 				},
 			*/
-			Base:  toRefValue(cv.Base),
-			Index: cv.Index,
+			Base:   toRefValue(cv.Base),
+			Index:  cv.Index,
+			Origin: cv.Origin,
 		}
 	case *ArrayValue:
 		if cv.Data == nil {
@@ -1329,6 +1330,7 @@ func fillTypesTV(store Store, tv *TypedValue) {
 // Partially fills loaded objects shallowly, similarly to
 // getUnsavedTypes. Replaces all RefTypes with corresponding types.
 func fillTypesOfValue(store Store, val Value) Value {
+	fmt.Println("---fillTypesOfValue, val: ", val, reflect.TypeOf(val))
 	switch cv := val.(type) {
 	case nil: // do nothing
 		return cv

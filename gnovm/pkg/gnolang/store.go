@@ -361,6 +361,7 @@ func (ds *defaultStore) GetObjectSafe(oid ObjectID) Object {
 // loads and caches an object.
 // CONTRACT: object isn't already in the cache.
 func (ds *defaultStore) loadObjectSafe(oid ObjectID) Object {
+	println("---loadObjectSafe---")
 	key := backendObjectKey(oid)
 	hashbz := ds.baseStore.Get([]byte(key))
 	if hashbz != nil {
@@ -390,6 +391,7 @@ func (ds *defaultStore) SetObject(oo Object) {
 	oid := oo.GetObjectID()
 	// replace children/fields with Ref.
 	o2 := copyValueWithRefs(oo)
+	fmt.Println("---SetObject, o2: ", o2)
 	// marshal to binary.
 	bz := amino.MustMarshalAny(o2)
 	// set hash.

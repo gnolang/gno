@@ -37,17 +37,27 @@ func (m *Machine) doOpEval() {
 			// Get value from scope.
 			lb := m.LastBlock()
 			fmt.Println("---eval nx: ", nx)
-			fmt.Println("---eval nx.Type: ", nx.Type)
 			fmt.Println("---eval nx.abs: ", nx.AbsPath)
 
 			// Push value, done.
 			ptr := lb.GetPointerToMaybeHeapUse(m.Store, nx)
+
+			if pv, ok := ptr.TV.V.(PointerValue); ok {
+				pv.Origin = nx.AbsPath
+				ptr.TV.V = pv
+			}
+
 			v := ptr.Deref()
 
 			fmt.Println("---v: ", v)
-			v.SetPath(nx.AbsPath)
-			fmt.Println("---nx abs: ", v.GetPath())
+			fmt.Println("---v.T: ", v.T)
+			fmt.Println("---v.V: ", v.V)
 
+			//if pv, ok := v.V.(PointerValue); ok {
+			//	fmt.Println("---pv.Origin: ", pv.Origin)
+			//}
+
+			SetPointerValueOrigin(&v.V, nx.AbsPath)
 			m.PushValue(v)
 			return
 		}

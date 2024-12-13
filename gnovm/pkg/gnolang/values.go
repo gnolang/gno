@@ -182,10 +182,11 @@ func (dbv DataByteValue) SetByte(b byte) {
 // Since PointerValue is used internally for assignment etc,
 // it MUST stay minimal for computational efficiency.
 type PointerValue struct {
-	TV    *TypedValue // escape val if pointer to var.
-	Base  Value       // array/struct/block, or heapitem.
-	Index int         // list/fields/values index, or -1 or -2 (see below).
-	Key   *TypedValue `json:",omitempty"` // for maps.
+	TV     *TypedValue // escape val if pointer to var.
+	Base   Value       // array/struct/block, or heapitem.
+	Index  int         // list/fields/values index, or -1 or -2 (see below).
+	Key    *TypedValue `json:",omitempty"` // for maps.
+	Origin string
 }
 
 const (
@@ -717,6 +718,8 @@ func (ml *MapList) UnmarshalAmino(mlimg MapListImage) error {
 
 // NOTE: Value is undefined until assigned.
 func (ml *MapList) Append(alloc *Allocator, key TypedValue) *MapListItem {
+	println("---MapList Append")
+
 	alloc.AllocateMapItem()
 	item := &MapListItem{
 		Prev: ml.Tail,
@@ -724,6 +727,11 @@ func (ml *MapList) Append(alloc *Allocator, key TypedValue) *MapListItem {
 		Key:  key,
 		// Value: undefined,
 	}
+	if pv, ok := item.Key.V.(PointerValue); ok {
+		fmt.Println("---pv: ", pv)
+		fmt.Println("---pv.Origin: ", pv.Origin)
+	}
+
 	if ml.Head == nil {
 		ml.Head = item
 	}
@@ -962,19 +970,9 @@ func (nv *NativeValue) Copy(alloc *Allocator) *NativeValue {
 // TypedValue (is not a value, but a tuple)
 
 type TypedValue struct {
-	T    Type    `json:",omitempty"` // never nil
-	V    Value   `json:",omitempty"` // an untyped value
-	N    [8]byte `json:",omitempty"` // numeric bytes
-	Path string
-}
-
-func (tv *TypedValue) SetPath(path string) {
-	fmt.Printf("SetAbsPath for %v to be: %s \n", tv, path)
-	tv.Path = path
-}
-
-func (tv *TypedValue) GetPath() string {
-	return tv.Path
+	T Type    `json:",omitempty"` // never nil
+	V Value   `json:",omitempty"` // an untyped value
+	N [8]byte `json:",omitempty"` // numeric bytes
 }
 
 func (tv *TypedValue) IsDefined() bool {
@@ -1555,8 +1553,6 @@ func (tv *TypedValue) AssertNonNegative(msg string) {
 
 func (tv *TypedValue) ComputeMapKey(store Store, omitType bool) MapKey {
 	fmt.Println("---ComputeMapKey, tv: ", tv)
-	fmt.Println("---type of tv.T: ", reflect.TypeOf(tv.T))
-	fmt.Println("---path: ", tv.GetPath())
 	// map key might be refValue that was previously attached
 	if _, ok := tv.V.(RefValue); ok {
 		fillValueTV(store, tv)
@@ -1581,14 +1577,13 @@ func (tv *TypedValue) ComputeMapKey(store Store, omitType bool) MapKey {
 		pbz := tv.PrimitiveBytes()
 		bz = append(bz, pbz...)
 	case *PointerType:
-		//fillValueTV(store, tv)
-		//return tv.V.(PointerValue).TV.ComputeMapKey(store, omitType)
-		//if tv.GetPath().Type == VPUverse && tv.GetPath().Depth == 0 && tv.GetPath().Index == 0 {
-		if tv.GetPath() == "" {
+		origin := tv.V.(PointerValue).Origin
+		if origin == "" {
+			panic("---origin empty")
 			ptr := uintptr(unsafe.Pointer(tv.V.(PointerValue).TV))
 			bz = append(bz, uintptrToBytes(&ptr)...)
 		} else {
-			bz = append(bz, []byte(tv.GetPath())...)
+			bz = append(bz, []byte(origin)...)
 		}
 	case FieldType:
 		panic("field (pseudo)type cannot be used as map key")
@@ -2737,6 +2732,7 @@ func typedString(s string) TypedValue {
 }
 
 func fillValueTV(store Store, tv *TypedValue) *TypedValue {
+	fmt.Println("---fillValueTV, tv: ", tv)
 	switch cv := tv.V.(type) {
 	case RefValue:
 		if cv.PkgPath != "" { // load package
@@ -2802,4 +2798,13 @@ func signOfUnsignedBytes(n [8]byte) int {
 		return 0
 	}
 	return 1
+}
+
+func SetPointerValueOrigin(v *Value, origin string) {
+	fmt.Println("---SetPointerValueOrigin, v: ", *v)
+	fmt.Println("---SetPointerValueOrigin: ", origin)
+	if pv, ok := (*v).(PointerValue); ok {
+		pv.Origin = origin
+		*v = pv
+	}
 }
