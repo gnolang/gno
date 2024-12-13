@@ -38,7 +38,7 @@ func (e Exhibition) Render(path string, dashboard bool) string {
 
 	out += "<div class='columns-2'>\n\n"
 
-	page := pager.NewPager(e.itemsSorted, pageSize).MustGetPageByPath(path)
+	page := pager.NewPager(e.itemsSorted, pageSize, false).MustGetPageByPath(path)
 
 	for i := len(page.Items) - 1; i >= 0; i-- {
 		item := page.Items[i]
@@ -52,7 +52,7 @@ func (e Exhibition) Render(path string, dashboard bool) string {
 
 	out += "</div><!-- /columns-2 -->\n\n"
 
-	out += page.Selector()
+	out += page.Picker()
 
 	return out
 }
