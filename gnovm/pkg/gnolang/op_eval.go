@@ -47,7 +47,7 @@ func (m *Machine) doOpEval() {
 			fmt.Println("---v.T: ", v.T)
 			fmt.Println("---v.V: ", v.V)
 
-			SetPointerValueOrigin(&v.V, nx.AbsPath)
+			SetOriginForPointerValue(&v.V, nx.AbsPath)
 			m.PushValue(v)
 			return
 		}

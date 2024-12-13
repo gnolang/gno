@@ -36,7 +36,7 @@ func (m *Machine) doOpIndex1() {
 			if exists {
 				*xv = vv // reuse as result
 				fmt.Println("---xv1: ", *xv)
-				SetPointerValueOrigin(&xv.V, abs)
+				SetOriginForPointerValue(&xv.V, abs)
 			} else {
 				vt := ct.Value
 
@@ -45,7 +45,7 @@ func (m *Machine) doOpIndex1() {
 					V: defaultValue(m.Alloc, vt),
 				}
 				fmt.Println("---xv2: ", *xv)
-				SetPointerValueOrigin(&xv.V, abs)
+				SetOriginForPointerValue(&xv.V, abs)
 			}
 		default:
 			println("---default")
@@ -53,7 +53,7 @@ func (m *Machine) doOpIndex1() {
 			*xv = res.Deref() // reuse as result
 			fmt.Println("---xv: ", *xv)
 
-			SetPointerValueOrigin(&xv.V, abs)
+			SetOriginForPointerValue(&xv.V, abs)
 
 			fmt.Println("---*xv: ", *xv)
 		}
@@ -84,21 +84,21 @@ func (m *Machine) doOpIndex2() {
 					T: vt,
 					V: defaultValue(m.Alloc, vt),
 				}
-				SetPointerValueOrigin(&xv.V, abs)
+				SetOriginForPointerValue(&xv.V, abs)
 				*iv = untypedBool(false) // reuse as result
 			} else {
 				mv := xv.V.(*MapValue)
 				vv, exists := mv.GetValueForKey(m.Store, iv)
 				if exists {
 					*xv = vv // reuse as result
-					SetPointerValueOrigin(&xv.V, abs)
+					SetOriginForPointerValue(&xv.V, abs)
 					*iv = untypedBool(true) // reuse as result
 				} else {
 					*xv = TypedValue{ // reuse as result
 						T: vt,
 						V: defaultValue(m.Alloc, vt),
 					}
-					SetPointerValueOrigin(&xv.V, abs)
+					SetOriginForPointerValue(&xv.V, abs)
 					*iv = untypedBool(false) // reuse as result
 				}
 			}
@@ -121,7 +121,7 @@ func (m *Machine) doOpSelector() {
 		m.Printf("+v[S] %v\n", res)
 	}
 	*xv = res // reuse as result
-	SetPointerValueOrigin(&xv.V, sx.AbsPath)
+	SetOriginForPointerValue(&xv.V, sx.AbsPath)
 	//xv.SetPath(sx.AbsPath)
 }
 
@@ -198,14 +198,14 @@ func (m *Machine) doOpStar() {
 				// TODO: check this
 				if pv, ok := xv.V.(PointerValue); ok {
 					origin := pv.Origin
-					SetPointerValueOrigin(&refv.V, origin)
+					SetOriginForPointerValue(&refv.V, origin)
 				}
 				m.PushValue(refv)
 			} else {
 				v2 := pv.TV.V
 				if pv, ok := xv.V.(PointerValue); ok {
 					origin := pv.Origin
-					SetPointerValueOrigin(&v2, origin)
+					SetOriginForPointerValue(&v2, origin)
 				}
 				m.PushValue(*pv.TV)
 			}
@@ -267,7 +267,7 @@ func (m *Machine) doOpRef() {
 	//}
 	if pather, ok := rx.X.(AbsPather); ok {
 		println("---pather")
-		SetPointerValueOrigin(&tv.V, pather.GetAbsPath())
+		SetOriginForPointerValue(&tv.V, pather.GetAbsPath())
 	}
 	m.PushValue(tv)
 }

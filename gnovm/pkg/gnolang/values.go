@@ -2810,7 +2810,7 @@ func signOfUnsignedBytes(n [8]byte) int {
 	return 1
 }
 
-func SetPointerValueOrigin(v *Value, origin string) {
+func SetOriginForPointerValue(v *Value, origin string) {
 	fmt.Println("---SetPointerValueOrigin, v: ", *v)
 	fmt.Println("---origin: ", origin)
 	if pv, ok := (*v).(PointerValue); ok {
