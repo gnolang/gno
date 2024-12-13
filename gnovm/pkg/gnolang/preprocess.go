@@ -3781,7 +3781,7 @@ func findUndefined(store Store, last BlockNode, x Expr) (un Name) {
 
 // finds the next undefined identifier and returns it if it is global
 func findUndefined2SkipLocals(store Store, last BlockNode, x Expr, t Type) Name {
-	name := findUndefined2(store, last, x, t, false)
+	name := findUndefinedGlobal(store, last, x, t)
 
 	if name == "" {
 		return ""
@@ -3790,7 +3790,7 @@ func findUndefined2SkipLocals(store Store, last BlockNode, x Expr, t Type) Name 
 	existsLocal := func(name Name, bn BlockNode) bool {
 		curr := bn
 		for {
-			currNames := bn.GetBlockNames()
+			currNames := curr.GetBlockNames()
 
 			for _, currName := range currNames {
 				if currName == name {
@@ -3798,13 +3798,15 @@ func findUndefined2SkipLocals(store Store, last BlockNode, x Expr, t Type) Name 
 				}
 			}
 
-			if bn.GetStaticBlock().Source == curr {
-				return false
-			}
-
 			curr = bn.GetStaticBlock().GetParentNode(store)
 
 			if curr == nil {
+				return false
+			}
+
+			_, isFile := curr.(*FileNode)
+
+			if isFile {
 				return false
 			}
 		}
@@ -4010,6 +4012,235 @@ func findUndefinedStmt(store Store, last BlockNode, stmt Stmt, t Type) Name {
 		panic(fmt.Sprintf("findUndefinedStmt: %T not supported", s))
 	}
 	return ""
+}
+
+func getGlobalValueRef(sb BlockNode, store Store, n Name) *TypedValue {
+	sbb := sb.GetStaticBlock()
+	idx, ok := sb.GetLocalIndex(n)
+	bb := &sb.GetStaticBlock().Block
+	bp := sb.GetParentNode(store)
+
+	for {
+		if ok && sbb.Types[idx] != nil && (bp == nil || bp.GetParentNode(store) == nil) {
+			return bb.GetPointerToInt(store, int(idx)).TV
+		} else if bp != nil {
+			idx, ok = bp.GetLocalIndex(n)
+			sbb = bp.GetStaticBlock()
+			bb = sbb.GetBlock()
+			bp = bp.GetParentNode(store)
+		} else {
+			return nil
+		}
+	}
+}
+
+func findUndefinedGlobal(store Store, last BlockNode, x Expr, t Type) (un Name) {
+	if x == nil {
+		return
+	}
+	switch cx := x.(type) {
+	case *NameExpr:
+		if tv := getGlobalValueRef(last, store, cx.Name); tv != nil {
+			return
+		}
+
+		if _, ok := UverseNode().GetLocalIndex(cx.Name); ok {
+			// XXX NOTE even if the name is shadowed by a file
+			// level declaration, it is fine to return here as it
+			// will be predefined later.
+			return
+		}
+
+		return cx.Name
+	case *BasicLitExpr:
+		return
+	case *BinaryExpr:
+		un = findUndefinedGlobal(store, last, cx.Left, nil)
+		if un != "" {
+			return
+		}
+		un = findUndefinedGlobal(store, last, cx.Right, nil)
+		if un != "" {
+			return
+		}
+	case *SelectorExpr:
+		return findUndefinedGlobal(store, last, cx.X, nil)
+	case *SliceExpr:
+		un = findUndefinedGlobal(store, last, cx.X, nil)
+		if un != "" {
+			return
+		}
+		if cx.Low != nil {
+			un = findUndefinedGlobal(store, last, cx.Low, nil)
+			if un != "" {
+				return
+			}
+		}
+		if cx.High != nil {
+			un = findUndefinedGlobal(store, last, cx.High, nil)
+			if un != "" {
+				return
+			}
+		}
+		if cx.Max != nil {
+			un = findUndefinedGlobal(store, last, cx.Max, nil)
+			if un != "" {
+				return
+			}
+		}
+	case *StarExpr:
+		return findUndefinedGlobal(store, last, cx.X, nil)
+	case *RefExpr:
+		return findUndefinedGlobal(store, last, cx.X, nil)
+	case *TypeAssertExpr:
+		un = findUndefinedGlobal(store, last, cx.X, nil)
+		if un != "" {
+			return
+		}
+		return findUndefinedGlobal(store, last, cx.Type, nil)
+	case *UnaryExpr:
+		return findUndefinedGlobal(store, last, cx.X, nil)
+	case *CompositeLitExpr:
+		var ct Type
+		if cx.Type == nil {
+			if t == nil {
+				panic("cannot elide unknown composite type")
+			}
+			ct = t
+			cx.Type = constType(cx, t)
+		} else {
+			un = findUndefinedGlobal(store, last, cx.Type, nil)
+			if un != "" {
+				return
+			}
+			// preprocess now for eliding purposes.
+			// TODO recursive preprocessing here is hacky, find a better
+			// way.  This cannot be done asynchronously, cuz undefined
+			// names ought to be returned immediately to let the caller
+			// predefine it.
+			cx.Type = Preprocess(store, last, cx.Type).(Expr) // recursive
+			ct = evalStaticType(store, last, cx.Type)
+			// elide composite lit element (nested) composite types.
+			elideCompositeElements(cx, ct)
+		}
+		switch ct.Kind() {
+		case ArrayKind, SliceKind, MapKind:
+			for _, kvx := range cx.Elts {
+				un = findUndefinedGlobal(store, last, kvx.Key, nil)
+				if un != "" {
+					return
+				}
+				un = findUndefinedGlobal(store, last, kvx.Value, ct.Elem())
+				if un != "" {
+					return
+				}
+			}
+		case StructKind:
+			for _, kvx := range cx.Elts {
+				un = findUndefinedGlobal(store, last, kvx.Value, nil)
+				if un != "" {
+					return
+				}
+			}
+		default:
+			panic(fmt.Sprintf(
+				"unexpected composite lit type %s",
+				ct.String()))
+		}
+	case *FuncLitExpr:
+		for _, stmt := range cx.Body {
+			un = findUndefinedStmt(store, cx, stmt, t)
+
+			if un != "" {
+				return
+			}
+		}
+		return findUndefinedGlobal(store, last, &cx.Type, nil)
+	case *FieldTypeExpr:
+		return findUndefinedGlobal(store, last, cx.Type, nil)
+	case *ArrayTypeExpr:
+		if cx.Len != nil {
+			un = findUndefinedGlobal(store, last, cx.Len, nil)
+			if un != "" {
+				return
+			}
+		}
+		return findUndefinedGlobal(store, last, cx.Elt, nil)
+	case *SliceTypeExpr:
+		return findUndefinedGlobal(store, last, cx.Elt, nil)
+	case *InterfaceTypeExpr:
+		for i := range cx.Methods {
+			un = findUndefinedGlobal(store, last, &cx.Methods[i], nil)
+			if un != "" {
+				return
+			}
+		}
+	case *ChanTypeExpr:
+		return findUndefinedGlobal(store, last, cx.Value, nil)
+	case *FuncTypeExpr:
+		for i := range cx.Params {
+			un = findUndefinedGlobal(store, last, &cx.Params[i], nil)
+			if un != "" {
+				return
+			}
+		}
+		for i := range cx.Results {
+			un = findUndefinedGlobal(store, last, &cx.Results[i], nil)
+			if un != "" {
+				return
+			}
+		}
+	case *MapTypeExpr:
+		un = findUndefinedGlobal(store, last, cx.Key, nil)
+		if un != "" {
+			return
+		}
+		un = findUndefinedGlobal(store, last, cx.Value, nil)
+		if un != "" {
+			return
+		}
+	case *StructTypeExpr:
+		for i := range cx.Fields {
+			un = findUndefinedGlobal(store, last, &cx.Fields[i], nil)
+			if un != "" {
+				return
+			}
+		}
+	case *MaybeNativeTypeExpr:
+		un = findUndefinedGlobal(store, last, cx.Type, nil)
+		if un != "" {
+			return
+		}
+	case *CallExpr:
+		un = findUndefinedGlobal(store, last, cx.Func, nil)
+		if un != "" {
+			return
+		}
+		for i := range cx.Args {
+			un = findUndefinedGlobal(store, last, cx.Args[i], nil)
+			if un != "" {
+				return
+			}
+		}
+	case *IndexExpr:
+		un = findUndefinedGlobal(store, last, cx.X, nil)
+		if un != "" {
+			return
+		}
+		un = findUndefinedGlobal(store, last, cx.Index, nil)
+		if un != "" {
+			return
+		}
+	case *constTypeExpr:
+		return
+	case *ConstExpr:
+		return
+	default:
+		panic(fmt.Sprintf(
+			"unexpected expr: %v (%v)",
+			x, reflect.TypeOf(x)))
+	}
+	return
 }
 
 func findUndefined2(store Store, last BlockNode, x Expr, t Type, skipPredefined bool) (un Name) {
