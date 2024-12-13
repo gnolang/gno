@@ -33,7 +33,7 @@ import (
 
 type NodeConfig struct {
 	Logger                *slog.Logger
-	Loader                *packages.Loader
+	Loader                packages.Loader
 	DefaultCreator        crypto.Address
 	DefaultDeposit        std.Coins
 	BalancesList          []gnoland.Balance
@@ -106,7 +106,7 @@ func NewDevNode(ctx context.Context, cfg *NodeConfig, pkgpaths ...string) (*Node
 	startTime := time.Now()
 
 	devnode := &Node{
-		loader:            *cfg.Loader,
+		loader:            cfg.Loader,
 		config:            cfg,
 		client:            client.NewLocal(),
 		emitter:           cfg.Emitter,

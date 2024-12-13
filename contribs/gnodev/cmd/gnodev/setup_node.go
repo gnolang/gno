@@ -52,7 +52,7 @@ func setupDevNodeConfig(
 	logger *slog.Logger,
 	emitter emitter.Emitter,
 	balances gnoland.Balances,
-	loader *packages.Loader,
+	loader packages.Loader,
 ) *gnodev.NodeConfig {
 	config := gnodev.DefaultNodeConfig(cfg.root, cfg.chainDomain)
 	config.Loader = loader

@@ -55,11 +55,6 @@ func (res *remoteResolver) Resolve(fset *token.FileSet, path string) (*Package, 
 	files := bytes.Split(qres.Response.Data, []byte{'\n'})
 	for _, filename := range files {
 		fname := string(filename)
-
-		if !isGnoFile(fname) || isTestFile(fname) {
-			continue
-		}
-
 		fpath := filepath.Join(path, fname)
 		qres, err := res.RPCClient.ABCIQuery(qpath, []byte(fpath))
 		if err != nil {

@@ -3,56 +3,21 @@ package packages
 import (
 	"errors"
 	"fmt"
-	"go/parser"
-	"go/scanner"
 	"go/token"
-	"log/slog"
 	"strings"
-	"time"
 )
 
-var ErrResolverPackageNotFound = errors.New("package not found")
+var (
+	ErrResolverPackageNotFound = errors.New("package not found")
+	ErrResolverPackageSkip     = errors.New("package has been skip")
+)
 
 type Resolver interface {
 	Name() string
 	Resolve(fset *token.FileSet, path string) (*Package, error)
 }
 
-type logResolver struct {
-	logger *slog.Logger
-	Resolver
-}
-
-func LogResolver(l *slog.Logger, r Resolver) Resolver {
-	return &logResolver{l, r}
-}
-
-func (l logResolver) Resolve(fset *token.FileSet, path string) (*Package, error) {
-	start := time.Now()
-	pkg, err := l.Resolver.Resolve(fset, path)
-	if err == nil {
-		l.logger.Info("path resolved",
-			"resolver", l.Resolver.Name(),
-			"took", time.Since(start).String(),
-			"path", path,
-			"name", pkg.Name,
-			"location", pkg.Location)
-	} else if errors.Is(err, ErrResolverPackageNotFound) {
-		l.logger.Debug("path not found",
-			"resolver", l.Resolver.Name(),
-			"took", time.Since(start).String(),
-			"path", path)
-
-	} else {
-		l.logger.Error("unable to resolve path",
-			"resolver", l.Resolver.Name(),
-			"took", time.Since(start).String(),
-			"path", path,
-			"err", err)
-	}
-
-	return pkg, err
-}
+// Chain Resolver
 
 type ChainedResolver []Resolver
 
@@ -60,22 +25,19 @@ func ChainResolvers(rs ...Resolver) Resolver {
 	return ChainedResolver(rs)
 }
 
-func ChainWithLogger(logger *slog.Logger, rs ...Resolver) Resolver {
-	loggedResolvers := make([]Resolver, len(rs))
-	for i, r := range rs {
-		loggedResolvers[i] = LogResolver(logger, r)
-	}
-	return ChainedResolver(loggedResolvers)
-}
-
 func (cr ChainedResolver) Name() string {
 	var name strings.Builder
 
 	for i, r := range cr {
+		rname := r.Name()
+		if rname == "" {
+			continue
+		}
+
 		if i > 0 {
 			name.WriteRune('/')
 		}
-		name.WriteString(r.Name())
+		name.WriteString(rname)
 	}
 
 	return name.String()
@@ -96,75 +58,101 @@ func (cr ChainedResolver) Resolve(fset *token.FileSet, path string) (*Package, e
 	return nil, ErrResolverPackageNotFound
 }
 
-type inMemoryCacheResolver struct {
-	subr     Resolver
-	cacheMap map[string] /* path */ *Package
-}
+// // Cache Resolver
 
-func Cache(r Resolver) Resolver {
-	return &inMemoryCacheResolver{
-		subr:     r,
-		cacheMap: map[string]*Package{},
-	}
-}
+// type inMemoryCacheResolver struct {
+// 	subr     Resolver
+// 	cacheMap map[string] /* path */ *Package
+// }
 
-func (r *inMemoryCacheResolver) Name() string {
-	return "cache_" + r.subr.Name()
-}
+// func Cache(r Resolver) Resolver {
+// 	return &inMemoryCacheResolver{
+// 		subr:     r,
+// 		cacheMap: map[string]*Package{},
+// 	}
+// }
 
-func (r *inMemoryCacheResolver) Resolve(fset *token.FileSet, path string) (*Package, error) {
-	if p, ok := r.cacheMap[path]; ok {
-		return p, nil
-	}
+// func (r *inMemoryCacheResolver) Name() string {
+// 	return "cache_" + r.subr.Name()
+// }
 
-	p, err := r.subr.Resolve(fset, path)
-	if err != nil {
-		return nil, err
-	}
+// func (r *inMemoryCacheResolver) Resolve(fset *token.FileSet, path string) (*Package, error) {
+// 	if p, ok := r.cacheMap[path]; ok {
+// 		return p, nil
+// 	}
 
-	r.cacheMap[path] = p
-	return p, nil
-}
+// 	p, err := r.subr.Resolve(fset, path)
+// 	if err != nil {
+// 		return nil, err
+// 	}
 
-type SyntaxErrorHandler func(path string, filename string, serr *scanner.Error)
+// 	r.cacheMap[path] = p
+// 	return p, nil
+// }
 
-type SyntaxCheckerResolver struct {
-	SyntaxErrorHandler
-	Resolver
-}
+// // Filter Resolver
 
-func SyntaxChecker(r Resolver, handler SyntaxErrorHandler) Resolver {
-	return &SyntaxCheckerResolver{
-		SyntaxErrorHandler: handler,
-		Resolver:           r,
-	}
-}
+// func NoopFilterFunc(path string) bool { return false }
+// func FilterAllFunc(path string) bool  { return true }
 
-func (SyntaxCheckerResolver) Name() string {
-	return "syntax_checker"
-}
+// type FilterHandler func(path string) bool
 
-func (r *SyntaxCheckerResolver) Resolve(fset *token.FileSet, path string) (*Package, error) {
-	p, err := r.Resolver.Resolve(fset, path)
-	if err != nil {
-		return nil, err
-	}
+// type filterResolver struct {
+// 	Resolver
+// 	FilterHandler
+// }
 
-	for _, file := range p.Files {
-		_, err = parser.ParseFile(fset, file.Name, file.Body, parser.AllErrors)
-		if err == nil {
-			continue
-		}
+// func FilterResolver(handler FilterHandler, r Resolver) Resolver {
+// 	return &filterResolver{Resolver: r, FilterHandler: handler}
+// }
 
-		if el, ok := err.(scanner.ErrorList); ok {
-			for _, e := range el {
-				r.SyntaxErrorHandler(path, file.Name, e)
-			}
-		}
+// func (filterResolver) Name() string {
+// 	return "filter"
+// }
 
-		return nil, fmt.Errorf("unable to parse %q: %w",
-			file.Name, err)
-	}
+// func (r *filterResolver) Resolve(fset *token.FileSet, path string) (*Package, error) {
+// 	if r.FilterHandler(path) {
+// 		return nil, ErrResolverPackageSkip
+// 	}
 
-	return p, err
-}
+// 	return r.Resolver.Resolve(fset, path)
+// }
+
+// Utility Resolver
+
+// // Log Resolver
+
+// type logResolver struct {
+// 	logger *slog.Logger
+// 	Resolver
+// }
+
+// func LogResolver(l *slog.Logger, r Resolver) Resolver {
+// 	return &logResolver{l, r}
+// }
+
+// func (l logResolver) Resolve(fset *token.FileSet, path string) (*Package, error) {
+// 	start := time.Now()
+// 	pkg, err := l.Resolver.Resolve(fset, path)
+// 	if err == nil {
+// 		l.logger.Debug("path resolved",
+// 			"resolver", l.Resolver.Name(),
+// 			"path", path,
+// 			"name", pkg.Name,
+// 			"took", time.Since(start).String(),
+// 			"location", pkg.Location)
+// 	} else if errors.Is(err, ErrResolverPackageNotFound) {
+// 		l.logger.Warn("path not found",
+// 			"resolver", l.Resolver.Name(),
+// 			"path", path,
+// 			"took", time.Since(start).String())
+// 	} else {
+// 		l.logger.Error("unable to resolve path",
+// 			"resolver", l.Resolver.Name(),
+// 			"path", path,
+// 			"took", time.Since(start).String(),
+// 			"err", err)
+// 	}
+
+// 	return pkg, err
+// }

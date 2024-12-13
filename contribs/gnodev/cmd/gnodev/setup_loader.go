@@ -2,7 +2,6 @@ package main
 
 import (
 	"fmt"
-	"go/scanner"
 	"log/slog"
 	"path/filepath"
 	"strings"
@@ -30,20 +29,46 @@ func (va *varResolver) Set(value string) error {
 	case "remote":
 		rpc, err := client.NewHTTPClient(location)
 		if err != nil {
-			return fmt.Errorf("invalid resolver remote location: %q", location, name)
+			return fmt.Errorf("invalid resolver remote: %q", location)
 		}
 
-		res = packages.Cache(packages.NewRemoteResolver(rpc))
+		res = packages.NewRemoteResolver(rpc)
 	case "root":
-		res = packages.NewRootResolver(location)
-	// case "pkgdir":
-	// 	res = packages.NewLo(location)
+		res = packages.NewFSResolver(location)
+	case "pkgdir":
+		path, ok := guessPathGnoMod(location)
+		if !ok {
+			return fmt.Errorf("unable to read module path from gno.mod in %q", location)
+		}
+
+		res = packages.NewLocalResolver(path, location)
 	default:
 		return fmt.Errorf("invalid resolver name: %q", name)
 	}
 
 	*va = append(*va, res)
 	return nil
+}
+
+func setupPackagesResolver(logger *slog.Logger, cfg *devCfg, path, dir string) packages.Resolver {
+	// Add root resolvers
+	exampleRoot := filepath.Join(cfg.root, "examples")
+
+	resolver := packages.ChainResolvers(
+		packages.NewLocalResolver(path, dir),      // Resolve local directory
+		packages.ChainResolvers(cfg.resolvers...), // Use user's custom resolvers
+		packages.NewFSResolver(exampleRoot),       // Ultimately use fs resolver
+	)
+
+	// Enrich resolver with middleware
+	return packages.MiddlewareResolver(resolver,
+		packages.CacheMiddleware(func(pkg *packages.Package) bool {
+			return pkg.Kind == packages.PackageKindRemote // Cache only remote package
+		}),
+		packages.FilterMiddleware("stdlib", isStdPath), // Filter stdlib package from resolving
+		packages.SyntaxCheckerMiddleware(logger),       // Pre-check syntax to avoid bothering the node reloading on invalid files
+		packages.LogMiddleware(logger),                 // Log any request
+	)
 }
 
 func guessPathFromRoots(dir string, roots ...string) (path string, ok bool) {
@@ -83,39 +108,10 @@ func guessPath(cfg *devCfg, dir string) (path string, ok bool) {
 
 func isStdPath(path string) bool {
 	if i := strings.IndexRune(path, '/'); i > 0 {
-		if j := strings.IndexRune(path[:i], '.'); i >= 0 {
+		if j := strings.IndexRune(path[:i], '.'); j >= 0 {
 			return false
 		}
 	}
 
 	return true
-}
-
-func setupPackagesLoader(logger *slog.Logger, cfg *devCfg, path, dir string) (loader *packages.Loader) {
-	gnoroot := cfg.root
-
-	localresolver := packages.NewLocalResolver(path, dir)
-
-	// Add root resolvers
-	exampleRoot := filepath.Join(gnoroot, "examples")
-	fsResolver := packages.NewRootResolver(exampleRoot)
-
-	resolver := packages.ChainWithLogger(logger,
-		localresolver,
-		packages.ChainResolvers(cfg.resolvers...),
-		fsResolver,
-	)
-
-	syntaxResolver := packages.SyntaxChecker(resolver, resolverErrorHandler(logger))
-	return packages.NewLoaderWithFilter(isStdPath, syntaxResolver)
-}
-
-func resolverErrorHandler(logger *slog.Logger) packages.SyntaxErrorHandler {
-	return func(path string, filename string, serr *scanner.Error) {
-		logger.Error("syntax error",
-			"path", path,
-			"filename", filename,
-			"err", serr.Error(),
-		)
-	}
 }

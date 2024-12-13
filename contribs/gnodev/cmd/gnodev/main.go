@@ -14,6 +14,7 @@ import (
 	"github.com/gnolang/gno/contribs/gnodev/pkg/address"
 	gnodev "github.com/gnolang/gno/contribs/gnodev/pkg/dev"
 	"github.com/gnolang/gno/contribs/gnodev/pkg/emitter"
+	"github.com/gnolang/gno/contribs/gnodev/pkg/packages"
 	"github.com/gnolang/gno/contribs/gnodev/pkg/rawterm"
 	"github.com/gnolang/gno/contribs/gnodev/pkg/watcher"
 	"github.com/gnolang/gno/gno.land/pkg/integration"
@@ -75,11 +76,12 @@ type devCfg struct {
 	maxGas      int64
 	chainId     string
 	chainDomain string
-	serverMode  bool
 	unsafeAPI   bool
+	interactive bool
+	loadPath    string
 }
 
-var defaultDevOptions = &devCfg{
+var defaultDevOptions = devCfg{
 	chainId:             "dev",
 	chainDomain:         "gno.land",
 	maxGas:              10_000_000_000,
@@ -88,6 +90,8 @@ var defaultDevOptions = &devCfg{
 	deployKey:           DefaultDeployerAddress.String(),
 	home:                gnoenv.HomeDir(),
 	root:                gnoenv.RootDir(),
+	interactive:         true,
+	unsafeAPI:           true,
 
 	// As we have no reason to configure this yet, set this to random port
 	// to avoid potential conflict with other app
@@ -111,28 +115,41 @@ func main() {
 			return execDev(cfg, args, stdio)
 		})
 
+	cmd.AddSubCommands(NewStagingCmd(stdio))
+
 	cmd.Execute(context.Background(), os.Args[1:])
 }
 
 func (c *devCfg) RegisterFlags(fs *flag.FlagSet) {
-	fs.StringVar(
-		&c.chdir,
-		"C",
-		defaultDevOptions.chdir,
-		"change directory before running gnodev",
-	)
+	c.registerFlagsWithDefault(defaultDevOptions, fs)
+}
 
+func (c *devCfg) registerFlagsWithDefault(defaultCfg devCfg, fs *flag.FlagSet) {
 	fs.StringVar(
 		&c.home,
 		"home",
-		defaultDevOptions.home,
+		defaultCfg.home,
 		"user's local directory for keys",
+	)
+
+	fs.BoolVar(
+		&c.interactive,
+		"interactive",
+		defaultCfg.interactive,
+		"enable gnodev interactive mode",
+	)
+
+	fs.StringVar(
+		&c.chdir,
+		"chdir",
+		defaultCfg.chdir,
+		"change directory context",
 	)
 
 	fs.StringVar(
 		&c.root,
 		"root",
-		defaultDevOptions.root,
+		defaultCfg.root,
 		"gno root directory",
 	)
 
@@ -160,13 +177,13 @@ func (c *devCfg) RegisterFlags(fs *flag.FlagSet) {
 	fs.Var(
 		&c.resolvers,
 		"resolver",
-		"list of addtional resolvers, will be exectued in the same order",
+		"list of addtional resolvers, will be exectued in the given order",
 	)
 
 	fs.StringVar(
 		&c.nodeRPCListenerAddr,
 		"node-rpc-listener",
-		defaultDevOptions.nodeRPCListenerAddr,
+		defaultCfg.nodeRPCListenerAddr,
 		"listening address for GnoLand RPC node",
 	)
 
@@ -179,56 +196,42 @@ func (c *devCfg) RegisterFlags(fs *flag.FlagSet) {
 	fs.StringVar(
 		&c.balancesFile,
 		"balance-file",
-		defaultDevOptions.balancesFile,
+		defaultCfg.balancesFile,
 		"load the provided balance file (refer to the documentation for format)",
+	)
+
+	fs.StringVar(
+		&c.balancesFile,
+		"load-path",
+		defaultCfg.balancesFile,
+		"load given dir (glob supported)",
 	)
 
 	fs.StringVar(
 		&c.txsFile,
 		"txs-file",
-		defaultDevOptions.txsFile,
+		defaultCfg.txsFile,
 		"load the provided transactions file (refer to the documentation for format)",
 	)
 
 	fs.StringVar(
 		&c.genesisFile,
 		"genesis",
-		defaultDevOptions.genesisFile,
+		defaultCfg.genesisFile,
 		"load the given genesis file",
 	)
 
 	fs.StringVar(
 		&c.deployKey,
 		"deploy-key",
-		defaultDevOptions.deployKey,
+		defaultCfg.deployKey,
 		"default key name or Bech32 address for deploying packages",
-	)
-
-	fs.BoolVar(
-		&c.minimal,
-		"minimal",
-		defaultDevOptions.minimal,
-		"do not load packages from the examples directory",
-	)
-
-	fs.BoolVar(
-		&c.serverMode,
-		"server-mode",
-		defaultDevOptions.serverMode,
-		"disable interaction, and adjust logging for server use.",
-	)
-
-	fs.BoolVar(
-		&c.verbose,
-		"v",
-		defaultDevOptions.verbose,
-		"enable verbose output for development",
 	)
 
 	fs.StringVar(
 		&c.chainId,
 		"chain-id",
-		defaultDevOptions.chainId,
+		defaultCfg.chainId,
 		"set node ChainID",
 	)
 
@@ -242,29 +245,37 @@ func (c *devCfg) RegisterFlags(fs *flag.FlagSet) {
 	fs.BoolVar(
 		&c.noWatch,
 		"no-watch",
-		defaultDevOptions.noWatch,
+		defaultCfg.noWatch,
 		"do not watch for file changes",
 	)
 
 	fs.BoolVar(
 		&c.noReplay,
 		"no-replay",
-		defaultDevOptions.noReplay,
+		defaultCfg.noReplay,
 		"do not replay previous transactions upon reload",
 	)
 
 	fs.Int64Var(
 		&c.maxGas,
 		"max-gas",
-		defaultDevOptions.maxGas,
+		defaultCfg.maxGas,
 		"set the maximum gas per block",
 	)
 
 	fs.BoolVar(
 		&c.unsafeAPI,
 		"unsafe-api",
-		defaultDevOptions.unsafeAPI,
+		defaultCfg.unsafeAPI,
 		"enable /reset and /reload endpoints which are not safe to expose publicly",
+	)
+
+	// Short flags
+	fs.BoolVar(
+		&c.verbose,
+		"v",
+		defaultCfg.verbose,
+		"enable verbose output for development",
 	)
 }
 
@@ -276,21 +287,37 @@ func (c *devCfg) validateConfigFlags() error {
 	return nil
 }
 
-func execDev(cfg *devCfg, args []string, io commands.IO) (err error) {
-	ctx, cancel := context.WithCancelCause(context.Background())
-	defer cancel(nil)
+type App struct {
+	ctx    context.Context
+	cfg    *devCfg
+	io     commands.IO
+	logger *slog.Logger
 
-	if cfg.chdir != "" {
-		if err := os.Chdir(cfg.chdir); err != nil {
-			return fmt.Errorf("unable to change directory: %w", err)
-		}
+	devNode       *gnodev.Node
+	server        *http.Server
+	emitterServer *emitter.Server
+	watcher       *watcher.PackageWatcher
+	book          *address.Book
+	exportPath    string
+
+	// XXX: move this
+	exported uint
+}
+
+func NewApp(ctx context.Context, logger *slog.Logger, cfg *devCfg, io commands.IO) *App {
+	return &App{
+		ctx:    ctx,
+		logger: logger,
+		cfg:    cfg,
+		io:     io,
 	}
+}
 
-	if err := cfg.validateConfigFlags(); err != nil {
-		return fmt.Errorf("validate error: %w", err)
-	}
+func execDev(cfg *devCfg, args []string, io commands.IO) error {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
 
-	// Setup Raw Terminal
+	var err error
 	rt, restore, err := setupRawTerm(cfg, io)
 	if err != nil {
 		return fmt.Errorf("unable to init raw term: %w", err)
@@ -299,128 +326,157 @@ func execDev(cfg *devCfg, args []string, io commands.IO) (err error) {
 
 	// Setup trap signal
 	osm.TrapSignal(func() {
-		cancel(nil)
+		cancel()
 		restore()
 	})
 
 	logger := setuplogger(cfg, rt)
-	loggerEvents := logger.WithGroup(EventServerLogName)
-	emitterServer := emitter.NewServer(loggerEvents)
+	devServer := NewApp(ctx, logger, cfg, io)
+	if err := devServer.Setup(); err != nil {
+		return err
+	}
+
+	return devServer.Run(rt)
+}
+
+func (ds *App) Setup() error {
+	if err := ds.cfg.validateConfigFlags(); err != nil {
+		return fmt.Errorf("validate error: %w", err)
+	}
+
+	if ds.cfg.chdir != "" {
+		if err := os.Chdir(ds.cfg.chdir); err != nil {
+			return fmt.Errorf("unable to change directory: %w", err)
+		}
+	}
+
+	loggerEvents := ds.logger.WithGroup(EventServerLogName)
+	ds.emitterServer = emitter.NewServer(loggerEvents)
 
 	dir, err := os.Getwd()
 	if err != nil {
 		return fmt.Errorf("unable to guess current dir: %w", err)
 	}
 
-	path, ok := guessPath(cfg, dir)
+	path, ok := guessPath(ds.cfg, dir)
 	if !ok {
 		return fmt.Errorf("unable to guess path from %q", dir)
 	}
-	loader := setupPackagesLoader(logger.WithGroup(LoaderLogName), cfg, path, dir)
 
-	// load keybase
-	book, err := setupAddressBook(logger.WithGroup(AccountsLogName), cfg)
+	resolver := setupPackagesResolver(ds.logger.WithGroup(LoaderLogName), ds.cfg, path, dir)
+	loader := packages.NewResolverLoader(resolver)
+
+	ds.book, err = setupAddressBook(ds.logger.WithGroup(AccountsLogName), ds.cfg)
 	if err != nil {
 		return fmt.Errorf("unable to load keybase: %w", err)
 	}
 
-	// generate balances
-	balances, err := generateBalances(book, cfg)
+	balances, err := generateBalances(ds.book, ds.cfg)
 	if err != nil {
 		return fmt.Errorf("unable to generate balances: %w", err)
 	}
-	logger.Debug("balances loaded", "list", balances.List())
+	ds.logger.Debug("balances loaded", "list", balances.List())
 
-	// Setup Dev Node
-	// XXX: find a good way to export or display node logs
-	nodeLogger := logger.WithGroup(NodeLogName)
-	nodeCfg := setupDevNodeConfig(cfg, logger, emitterServer, balances, loader)
-	devNode, err := setupDevNode(ctx, cfg, nodeCfg, path)
+	nodeLogger := ds.logger.WithGroup(NodeLogName)
+	nodeCfg := setupDevNodeConfig(ds.cfg, nodeLogger, ds.emitterServer, balances, loader)
+	ds.devNode, err = setupDevNode(ds.ctx, ds.cfg, nodeCfg, path)
 	if err != nil {
 		return err
 	}
-	defer devNode.Close()
 
-	nodeLogger.Info("node started", "lisn", devNode.GetRemoteAddress(), "chainID", cfg.chainId)
-
-	// Create server
-	mux := http.NewServeMux()
-	server := http.Server{
-		Handler:           mux,
-		Addr:              cfg.webListenerAddr,
-		ReadHeaderTimeout: time.Second * 60,
+	ds.watcher, err = watcher.NewPackageWatcher(loggerEvents, ds.emitterServer)
+	if err != nil {
+		return fmt.Errorf("unable to setup packages watcher: %w", err)
 	}
-	defer server.Close()
 
-	// Setup gnoweb
-	webhandler := setupGnoWebServer(logger.WithGroup(WebLogName), cfg, devNode)
+	ds.watcher.UpdatePackagesWatch(ds.devNode.ListPkgs()...)
 
-	// Setup unsafe APIs if enabled
-	if cfg.unsafeAPI {
+	return nil
+}
+
+func (ds *App) setupHandlers() http.Handler {
+	mux := http.NewServeMux()
+	webhandler := setupGnoWebServer(ds.logger.WithGroup(WebLogName), ds.cfg, ds.devNode)
+
+	// Setup unsage api
+	if ds.cfg.unsafeAPI {
 		mux.HandleFunc("/reset", func(res http.ResponseWriter, req *http.Request) {
-			if err := devNode.Reset(req.Context()); err != nil {
-				logger.Error("failed to reset", slog.Any("err", err))
+			if err := ds.devNode.Reset(req.Context()); err != nil {
+				ds.logger.Error("failed to reset", slog.Any("err", err))
 				res.WriteHeader(http.StatusInternalServerError)
 			}
 		})
 
 		mux.HandleFunc("/reload", func(res http.ResponseWriter, req *http.Request) {
-			if err := devNode.Reload(req.Context()); err != nil {
-				logger.Error("failed to reload", slog.Any("err", err))
+			if err := ds.devNode.Reload(req.Context()); err != nil {
+				ds.logger.Error("failed to reload", slog.Any("err", err))
 				res.WriteHeader(http.StatusInternalServerError)
 			}
 		})
 	}
 
-	// XXX: TODO:
-	// - create a map of known path that are allowed
-	// - move this
-	// u, err := url.Parse("http://" + path)
-	// if err != nil {
-	// 	return fmt.Errorf("malformed path %q: %w", path, err)
-	// }
-	// handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-	// 	if !strings.HasPrefix(r.URL.Path, "/static") && !strings.HasPrefix(r.URL.Path, u.Path) {
-	// 		http.Redirect(w, r, u.Path, http.StatusFound)
-	// 		return
-	// 	}
-
-	// 	webhandler.ServeHTTP(w, r)
-	// })
-
-	// Setup HotReload if needed
-	if !cfg.noWatch {
-		evtstarget := fmt.Sprintf("%s/_events", server.Addr)
-		mux.Handle("/_events", emitterServer)
+	if !ds.cfg.noWatch {
+		evtstarget := fmt.Sprintf("%s/_events", ds.cfg.webListenerAddr)
+		mux.Handle("/_events", ds.emitterServer)
 		mux.Handle("/", emitter.NewMiddleware(evtstarget, webhandler))
 	} else {
 		mux.Handle("/", webhandler)
 	}
 
+	return mux
+}
+
+func (ds *App) Run(term *rawterm.RawTerm) error {
+	ctx, cancelWith := context.WithCancelCause(ds.ctx)
+	defer cancelWith(nil)
+
+	addr := ds.cfg.webListenerAddr
+	ds.logger.WithGroup(WebLogName).Info("gnoweb started", "lisn", fmt.Sprintf("http://%s", addr))
+
+	server := &http.Server{
+		Handler:           ds.setupHandlers(),
+		Addr:              ds.cfg.webListenerAddr,
+		ReadHeaderTimeout: time.Second * 60,
+	}
+
 	go func() {
 		err := server.ListenAndServe()
-		cancel(err)
+		cancelWith(err)
 	}()
 
-	logger.WithGroup(WebLogName).
-		Info("gnoweb started",
-			"lisn", fmt.Sprintf("http://%s", server.Addr))
-
-	watcher, err := watcher.NewPackageWatcher(loggerEvents, emitterServer)
-	if err != nil {
-		return fmt.Errorf("unable to setup packages watcher: %w", err)
-	}
-	defer watcher.Stop()
-
-	// Add node pkgs to watcher
-	watcher.UpdatePackagesWatch(devNode.ListPkgs()...)
-
-	if !cfg.serverMode {
-		logger.WithGroup("--- READY").Info("for commands and help, press `h`")
+	if ds.cfg.interactive {
+		ds.logger.WithGroup("--- READY").Info("for commands and help, press `h`")
 	}
 
-	// Run the main event loop
-	return runEventLoop(ctx, logger, book, rt, devNode, watcher)
+	keyPressCh := listenForKeyPress(ds.logger.WithGroup(KeyPressLogName), term)
+	for {
+		select {
+		case <-ctx.Done():
+			return context.Cause(ctx)
+		case _, ok := <-ds.watcher.PackagesUpdate:
+			if !ok {
+				return nil
+			}
+			ds.logger.WithGroup(NodeLogName).Info("reloading...")
+			if err := ds.devNode.Reload(ds.ctx); err != nil {
+				ds.logger.WithGroup(NodeLogName).Error("unable to reload node", "err", err)
+			}
+			ds.watcher.UpdatePackagesWatch(ds.devNode.ListPkgs()...)
+
+		case key, ok := <-keyPressCh:
+			if !ok {
+				return nil
+			}
+
+			if key == rawterm.KeyCtrlC {
+				cancelWith(nil)
+				continue
+			}
+
+			ds.handleKeyPress(key)
+			keyPressCh = listenForKeyPress(ds.logger.WithGroup(KeyPressLogName), term)
+		}
+	}
 }
 
 var helper string = `For more in-depth documentation, visit the GNO Tooling CLI documentation:
@@ -437,131 +493,72 @@ Ctrl+R      Reset        - Reset application to it's initial/save state.
 Ctrl+C      Exit         - Exit the application
 `
 
-func runEventLoop(
-	ctx context.Context,
-	logger *slog.Logger,
-	bk *address.Book,
-	rt *rawterm.RawTerm,
-	dnode *gnodev.Node,
-	watch *watcher.PackageWatcher,
-) error {
-	// XXX: move this in above, but we need to have a proper struct first
-	// XXX: make this configurable
-	var exported uint
-	path, err := os.MkdirTemp("", "gnodev-export")
-	if err != nil {
-		return fmt.Errorf("unable to create `export` directory: %w", err)
-	}
+func (ds *App) handleKeyPress(key rawterm.KeyPress) {
+	var err error
+	ds.logger.WithGroup(KeyPressLogName).Debug(fmt.Sprintf("<%s>", key.String()))
 
-	defer func() {
-		if exported == 0 {
-			_ = os.RemoveAll(path)
+	switch key.Upper() {
+	case rawterm.KeyH: // Helper
+		ds.logger.Info("Gno Dev Helper", "helper", helper)
+
+	case rawterm.KeyA: // Accounts
+		logAccounts(ds.logger.WithGroup(AccountsLogName), ds.book, ds.devNode)
+
+	case rawterm.KeyR: // Reload
+		ds.logger.WithGroup(NodeLogName).Info("reloading...")
+		if err = ds.devNode.ReloadAll(ds.ctx); err != nil {
+			ds.logger.WithGroup(NodeLogName).Error("unable to reload node", "err", err)
 		}
-	}()
 
-	keyPressCh := listenForKeyPress(logger.WithGroup(KeyPressLogName), rt)
-	for {
-		var err error
-
-		select {
-		case <-ctx.Done():
-			return context.Cause(ctx)
-		case _, ok := <-watch.PackagesUpdate:
-			if !ok {
-				return nil
-			}
-
-			// if err = dnode.UpdatePackages(pkgs.PackagesPath()...); err != nil {
-			// 	return fmt.Errorf("unable to update packages: %w", err)
-			// }
-
-			logger.WithGroup(NodeLogName).Info("reloading...")
-			if err = dnode.Reload(ctx); err != nil {
-				logger.WithGroup(NodeLogName).
-					Error("unable to reload node", "err", err)
-			}
-
-			listpkgs := dnode.ListPkgs()
-			watch.UpdatePackagesWatch(listpkgs...)
-
-		case key, ok := <-keyPressCh:
-			if !ok {
-				return nil
-			}
-
-			logger.WithGroup(KeyPressLogName).Debug(
-				fmt.Sprintf("<%s>", key.String()),
-			)
-
-			switch key.Upper() {
-			case rawterm.KeyH: // Helper
-				logger.Info("Gno Dev Helper", "helper", helper)
-
-			case rawterm.KeyA: // Accounts
-				logAccounts(logger.WithGroup(AccountsLogName), bk, dnode)
-
-			case rawterm.KeyR: // Reload
-				logger.WithGroup(NodeLogName).Info("reloading...")
-				if err = dnode.ReloadAll(ctx); err != nil {
-					logger.WithGroup(NodeLogName).
-						Error("unable to reload node", "err", err)
-				}
-
-			case rawterm.KeyCtrlR: // Reset
-				logger.WithGroup(NodeLogName).Info("reseting node state...")
-				if err = dnode.Reset(ctx); err != nil {
-					logger.WithGroup(NodeLogName).
-						Error("unable to reset node state", "err", err)
-				}
-
-			case rawterm.KeyCtrlS: // Save
-				logger.WithGroup(NodeLogName).Info("saving state...")
-				if err := dnode.SaveCurrentState(ctx); err != nil {
-					logger.WithGroup(NodeLogName).
-						Error("unable to save node state", "err", err)
-				}
-
-			case rawterm.KeyE:
-				logger.WithGroup(NodeLogName).Info("exporting state...")
-				doc, err := dnode.ExportStateAsGenesis(ctx)
-				if err != nil {
-					logger.WithGroup(NodeLogName).
-						Error("unable to export node state", "err", err)
-					continue
-				}
-
-				docfile := filepath.Join(path, fmt.Sprintf("export_%d.jsonl", exported))
-				if err := doc.SaveAs(docfile); err != nil {
-					logger.WithGroup(NodeLogName).
-						Error("unable to save genesis", "err", err)
-				}
-				exported++
-
-				logger.WithGroup(NodeLogName).Info("node state exported", "file", docfile)
-
-			case rawterm.KeyN: // Next tx
-				logger.Info("moving forward...")
-				if err := dnode.MoveToNextTX(ctx); err != nil {
-					logger.WithGroup(NodeLogName).
-						Error("unable to move forward", "err", err)
-				}
-
-			case rawterm.KeyP: // Next tx
-				logger.Info("moving backward...")
-				if err := dnode.MoveToPreviousTX(ctx); err != nil {
-					logger.WithGroup(NodeLogName).
-						Error("unable to move backward", "err", err)
-				}
-
-			case rawterm.KeyCtrlC: // Exit
-				return nil
-
-			default:
-			}
-
-			// Reset listen for the next keypress
-			keyPressCh = listenForKeyPress(logger.WithGroup(KeyPressLogName), rt)
+	case rawterm.KeyCtrlR: // Reset
+		ds.logger.WithGroup(NodeLogName).Info("reseting node state...")
+		if err = ds.devNode.Reset(ds.ctx); err != nil {
+			ds.logger.WithGroup(NodeLogName).Error("unable to reset node state", "err", err)
 		}
+
+	case rawterm.KeyCtrlS: // Save
+		ds.logger.WithGroup(NodeLogName).Info("saving state...")
+		if err := ds.devNode.SaveCurrentState(ds.ctx); err != nil {
+			ds.logger.WithGroup(NodeLogName).Error("unable to save node state", "err", err)
+		}
+
+	case rawterm.KeyE: // Export
+		// Create a temporary export dir
+		if ds.exported == 0 {
+			ds.exportPath, err = os.MkdirTemp("", "gnodev-export")
+			if err != nil {
+				ds.logger.WithGroup(NodeLogName).Error("unable to create `export` directory", "err", err)
+				return
+			}
+		}
+		ds.exported++
+
+		ds.logger.WithGroup(NodeLogName).Info("exporting state...")
+		doc, err := ds.devNode.ExportStateAsGenesis(ds.ctx)
+		if err != nil {
+			ds.logger.WithGroup(NodeLogName).Error("unable to export node state", "err", err)
+			return
+		}
+
+		docfile := filepath.Join(ds.exportPath, fmt.Sprintf("export_%d.jsonl", ds.exported))
+		if err := doc.SaveAs(docfile); err != nil {
+			ds.logger.WithGroup(NodeLogName).Error("unable to save genesis", "err", err)
+		}
+
+		ds.logger.WithGroup(NodeLogName).Info("node state exported", "file", docfile)
+
+	case rawterm.KeyN: // Next tx
+		ds.logger.Info("moving forward...")
+		if err := ds.devNode.MoveToNextTX(ds.ctx); err != nil {
+			ds.logger.WithGroup(NodeLogName).Error("unable to move forward", "err", err)
+		}
+
+	case rawterm.KeyP: // Previous tx
+		ds.logger.Info("moving backward...")
+		if err := ds.devNode.MoveToPreviousTX(ds.ctx); err != nil {
+			ds.logger.WithGroup(NodeLogName).Error("unable to move backward", "err", err)
+		}
+	default:
 	}
 }
 

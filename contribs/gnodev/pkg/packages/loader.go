@@ -9,18 +9,16 @@ import (
 
 var ErrNoResolvers = errors.New("no resolvers setup")
 
-type FilterFunc func(path string) bool
-
-func NoopFilterFunc(path string) bool { return false }
-func FilterAllFunc(path string) bool  { return true }
-
-type Loader struct {
-	Resolver
-	FilterFunc
+type Loader interface {
+	Load(paths ...string) ([]Package, error)
 }
 
-func NewLoader(res ...Resolver) *Loader {
-	loader := Loader{FilterFunc: NoopFilterFunc}
+type ResolverLoader struct {
+	Resolver
+}
+
+func NewResolverLoader(res ...Resolver) *ResolverLoader {
+	var loader ResolverLoader
 	switch len(res) {
 	case 0: // Skip
 	case 1:
@@ -32,22 +30,12 @@ func NewLoader(res ...Resolver) *Loader {
 	return &loader
 }
 
-func NewLoaderWithFilter(filter FilterFunc, res ...Resolver) *Loader {
-	loader := NewLoader(res...)
-	loader.FilterFunc = filter
-	return loader
-}
-
-func (l Loader) Load(paths ...string) ([]Package, error) {
-	if l.Resolver == nil {
-		return nil, ErrNoResolvers
-	}
-
+func (l ResolverLoader) Load(paths ...string) ([]Package, error) {
 	fset := token.NewFileSet()
 	visited, stack := map[string]bool{}, map[string]bool{}
 	pkgs := make([]Package, 0)
 	for _, root := range paths {
-		deps, err := l.loadPackage(root, fset, l.Resolver, visited, stack)
+		deps, err := loadPackage(root, fset, l.Resolver, visited, stack)
 		if err != nil {
 			return nil, err
 		}
@@ -57,7 +45,7 @@ func (l Loader) Load(paths ...string) ([]Package, error) {
 	return pkgs, nil
 }
 
-func (l Loader) loadPackage(path string, fset *token.FileSet, resolver Resolver, visited, stack map[string]bool) ([]Package, error) {
+func loadPackage(path string, fset *token.FileSet, resolver Resolver, visited, stack map[string]bool) ([]Package, error) {
 	if stack[path] {
 		return nil, fmt.Errorf("cycle detected: %s", path)
 	}
@@ -67,20 +55,24 @@ func (l Loader) loadPackage(path string, fset *token.FileSet, resolver Resolver,
 
 	visited[path] = true
 
-	// Apply filter func if any
-	if l.FilterFunc != nil && l.FilterFunc(path) {
-		return nil, nil
-	}
-
 	mempkg, err := resolver.Resolve(fset, path)
 	if err != nil {
+		if errors.Is(err, ErrResolverPackageSkip) {
+			return nil, nil
+		}
+
 		return nil, fmt.Errorf("unable to resolve package: %w", err)
 	}
 
 	var name string
 	imports := map[string]struct{}{}
 	for _, file := range mempkg.Files {
-		f, err := parser.ParseFile(fset, file.Name, file.Body, parser.ImportsOnly)
+		fname := file.Name
+		if !isGnoFile(fname) || isTestFile(fname) {
+			continue
+		}
+
+		f, err := parser.ParseFile(fset, fname, file.Body, parser.ImportsOnly)
 		if err != nil {
 			return nil, fmt.Errorf("unable to parse file %q: %w", file.Name, err)
 		}
@@ -103,7 +95,7 @@ func (l Loader) loadPackage(path string, fset *token.FileSet, resolver Resolver,
 
 	pkgs := []Package{}
 	for imp := range imports {
-		subDeps, err := l.loadPackage(imp, fset, resolver, visited, stack)
+		subDeps, err := loadPackage(imp, fset, resolver, visited, stack)
 		if err != nil {
 			return nil, fmt.Errorf("importing %q: %w", imp, err)
 		}

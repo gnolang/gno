@@ -7,19 +7,19 @@ import (
 	"path/filepath"
 )
 
-type rootResolver struct {
+type fsResolver struct {
 	root string // Root folder
 }
 
-func (l *rootResolver) Name() string {
-	return fmt.Sprintf("root<%s>", filepath.Base(l.root))
+func (l *fsResolver) Name() string {
+	return fmt.Sprintf("fs<%s>", filepath.Base(l.root))
 }
 
-func NewRootResolver(rootpath string) Resolver {
-	return &rootResolver{root: rootpath}
+func NewFSResolver(rootpath string) Resolver {
+	return &fsResolver{root: rootpath}
 }
 
-func (r *rootResolver) Resolve(fset *token.FileSet, path string) (*Package, error) {
+func (r *fsResolver) Resolve(fset *token.FileSet, path string) (*Package, error) {
 	dir := filepath.Join(r.root, path)
 	_, err := os.Stat(dir)
 	if err != nil {

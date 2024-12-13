@@ -62,7 +62,8 @@ func Render(_ string) string { return "foo" }
 	logger := log.NewTestingLogger(t)
 
 	cfg := DefaultNodeConfig(gnoenv.RootDir(), "gno.land")
-	cfg.Loader = packages.NewLoader(packages.NewMockResolver(&pkg))
+	cfg.Loader = packages.NewResolverLoader(packages.NewMockResolver(&pkg))
+	cfg.Logger = logger
 
 	node, err := NewDevNode(ctx, cfg, path)
 	require.NoError(t, err)
@@ -474,7 +475,7 @@ func generateMemPackage(t *testing.T, path string, pairNameFile ...string) gnovm
 }
 
 func newTestingNodeConfig(pkgs ...*gnovm.MemPackage) *NodeConfig {
-	var loader packages.Loader
+	var loader packages.ResolverLoader
 	loader.Resolver = packages.NewMockResolver(pkgs...)
 	cfg := DefaultNodeConfig(gnoenv.RootDir(), "gno.land")
 	cfg.Loader = &loader

@@ -6,7 +6,6 @@ import (
 
 	"github.com/charmbracelet/lipgloss"
 	"github.com/gnolang/gno/contribs/gnodev/pkg/logger"
-	gnolog "github.com/gnolang/gno/gno.land/pkg/log"
 	"github.com/muesli/termenv"
 )
 
@@ -16,10 +15,10 @@ func setuplogger(cfg *devCfg, out io.Writer) *slog.Logger {
 		level = slog.LevelDebug
 	}
 
-	if cfg.serverMode {
-		zaplogger := logger.NewZapLogger(out, level)
-		return gnolog.ZapLoggerToSlog(zaplogger)
-	}
+	// if cfg.serverMode {
+	// 	zaplogger := logger.NewZapLogger(out, level)
+	// 	return gnolog.ZapLoggerToSlog(zaplogger)
+	// }
 
 	// Detect term color profile
 	colorProfile := termenv.DefaultOutput().Profile

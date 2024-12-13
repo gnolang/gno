@@ -3,13 +3,16 @@ package main
 import (
 	"context"
 	"flag"
+	"fmt"
+	"path/filepath"
+	"strings"
 
 	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
 	"github.com/gnolang/gno/tm2/pkg/commands"
 )
 
 type stagingCfg struct {
-	devCfg
+	dev devCfg
 }
 
 var defaultStagingOptions = devCfg{
@@ -20,7 +23,7 @@ var defaultStagingOptions = devCfg{
 	deployKey:           DefaultDeployerAddress.String(),
 	home:                gnoenv.HomeDir(),
 	root:                gnoenv.RootDir(),
-	serverMode:          true,
+	interactive:         false,
 	unsafeAPI:           false,
 
 	// As we have no reason to configure this yet, set this to random port
@@ -30,7 +33,7 @@ var defaultStagingOptions = devCfg{
 }
 
 func NewStagingCmd(io commands.IO) *commands.Command {
-	cfg := &stagingCfg{}
+	var cfg stagingCfg
 
 	return commands.NewCommand(
 		commands.Metadata{
@@ -39,17 +42,27 @@ func NewStagingCmd(io commands.IO) *commands.Command {
 			ShortHelp:     "start gnodev in staging mode",
 			NoParentFlags: true,
 		},
-		cfg,
+		&cfg,
 		func(_ context.Context, args []string) error {
-			return execStagingCmd(cfg, args, io)
+			return execStagingCmd(&cfg, args, io)
 		},
 	)
 }
 
 func (c *stagingCfg) RegisterFlags(fs *flag.FlagSet) {
-	c.devCfg.registerFlagsWithDefault(defaultStagingOptions, fs)
+	c.dev.registerFlagsWithDefault(defaultStagingOptions, fs)
 }
 
-func execStagingCmd(cg *stagingCfg, args []string, io commands.IO) error {
+func execStagingCmd(cfg *stagingCfg, args []string, io commands.IO) error {
+	if len(args) == 0 {
+		return fmt.Errorf("no argument given")
+	}
+
+	mathches, err := filepath.Glob(args[0])
+	if err != nil {
+		return fmt.Errorf("invalid glob: %w", err)
+	}
+
+	io.Println(strings.Join(mathches, "\n"))
 	return nil
 }
