@@ -485,16 +485,16 @@ func isEql(store Store, lv, rv *TypedValue) bool {
 				return false
 			}
 			if lfv.Source.GetLocation() !=
-					rfv.Source.GetLocation() {
+				rfv.Source.GetLocation() {
 				return false
 			}
 			return lfv.GetClosure(store) ==
-					rfv.GetClosure(store)
+				rfv.GetClosure(store)
 		}
 	case PointerKind:
 		if lv.T != rv.T &&
-				lv.T.Elem() != DataByteType &&
-				lv.T.TypeID() != rv.T.TypeID() {
+			lv.T.Elem() != DataByteType &&
+			lv.T.TypeID() != rv.T.TypeID() {
 			return false
 		}
 
@@ -505,36 +505,29 @@ func isEql(store Store, lv, rv *TypedValue) bool {
 				return *(lpv.TV) == *(rpv.TV) && lpv.Base == rpv.Base && lpv.Index == rpv.Index && lpv.Key == rpv.Key
 			}
 		}
-		//fmt.Println("---lv.V: ", lv.V)
-		//fmt.Println("---rv.V: ", rv.V)
-		//fmt.Println("---type of base lv: ", reflect.TypeOf(lv.V.(PointerValue).Base))
-		//fmt.Println("---type of base rv: ", reflect.TypeOf(rv.V.(PointerValue).Base))
-		//
-		//fmt.Printf("addr of lv.TV: %p \n", lv.V.(PointerValue).TV)
-		//fmt.Printf("addr of rv.TV: %p \n", rv.V.(PointerValue).TV)
-
-		//if lav, ok := lv.V.(PointerValue).Base.(*ArrayValue); ok {
-		//	if rav, ok := rv.V.(PointerValue).Base.(*ArrayValue); ok {
-		//fmt.Println("---lav == rav: ", lav == rav)
-		//fmt.Printf("---lav: %v, %p \n", lav, lav)
-		//fmt.Printf("---rav: %v, %p \n", rav, rav)
-		//for i, l := range lav.List {
-		//	println("---list equal: ")
-		//	fmt.Println(l == rav.List[i])
-		//}
-		//fmt.Println("---is value string equal: ", lav.String() == rav.String())
-		//}
-		//}
-		//lv.V.String()
-		//
-		//fmt.Println(lv.V.(PointerValue).TV == rv.V.(PointerValue).TV)
 
 		fmt.Println("---l.base: ", lv.V.(PointerValue).Base)
 		fmt.Println("---r.base: ", rv.V.(PointerValue).Base)
-	
+
 		fmt.Println("l.base == r.base: ", lv.V.(PointerValue).Base == rv.V.(PointerValue).Base)
-		//fmt.Println(lv.V.(PointerValue).Index == rv.V.(PointerValue).Index)
+		fmt.Println("l.index == r.index: ", lv.V.(PointerValue).Index == rv.V.(PointerValue).Index)
+		fmt.Println("l.key == r.key: ", lv.V.(PointerValue).Key == rv.V.(PointerValue).Key)
+		fmt.Println("l.TV == r.TV: ", lv.V.(PointerValue).TV == rv.V.(PointerValue).TV)
+		fmt.Println("l.Origin == r.Origin: ", lv.V.(PointerValue).Origin == rv.V.(PointerValue).Origin)
+
+		fmt.Println("---l.Origin: ", lv.V.(PointerValue).Origin)
+		fmt.Println("---r.Origin: ", rv.V.(PointerValue).Origin)
+
+		//return lv.V.(PointerValue).Origin == rv.V.(PointerValue).Origin
+
+		fmt.Println("---lv.V: ", lv.V)
+		fmt.Println("---rv.V: ", rv.V)
 		fmt.Println("---lv.V == rv.V: ", lv.V == rv.V)
+
+		//lpv := lv.V.(PointerValue)
+		//rpv := rv.V.(PointerValue)
+		//return *(lpv.TV) == *(rpv.TV) && lpv.Base == rpv.Base && lpv.Index == rpv.Index && lpv.Key == rpv.Key
+
 		return lv.V == rv.V
 	default:
 		panic(fmt.Sprintf(

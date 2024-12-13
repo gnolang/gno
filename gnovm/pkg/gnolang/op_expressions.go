@@ -258,7 +258,15 @@ func (m *Machine) doOpRef() {
 		V: xv,
 	}
 
+	//fmt.Println("---rx.X: ", rx.X, reflect.TypeOf(rx.X))
+	//if cx, ok := rx.X.(*CompositeLitExpr); ok {
+	//	fmt.Println("---cx.Type: ", cx.Type)
+	//	if nx, ok := cx.Type.(*NameExpr); ok {
+	//		fmt.Println("---nx: ", nx)
+	//	}
+	//}
 	if pather, ok := rx.X.(AbsPather); ok {
+		println("---pather")
 		SetPointerValueOrigin(&tv.V, pather.GetAbsPath())
 	}
 	m.PushValue(tv)

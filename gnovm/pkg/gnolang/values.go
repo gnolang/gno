@@ -254,7 +254,7 @@ func (pv PointerValue) Assign2(alloc *Allocator, store Store, rlm *Realm, tv2 Ty
 								panic("should not happen")
 							}
 							if nv, ok := tv2.V.(*NativeValue); !ok ||
-								nv.Value.Kind() != reflect.Func {
+									nv.Value.Kind() != reflect.Func {
 								panic("should not happen")
 							}
 						}
@@ -1040,6 +1040,10 @@ func (tv *TypedValue) ClearNum() {
 }
 
 func (tv TypedValue) Copy(alloc *Allocator) (cp TypedValue) {
+	fmt.Println("---Copy tv: ", tv)
+	if pv, ok := tv.V.(PointerValue); ok {
+		fmt.Println("---pv.Origin: ", pv.Origin)
+	}
 	switch cv := tv.V.(type) {
 	case BigintValue:
 		cp.T = tv.T
@@ -1650,6 +1654,8 @@ func (tv *TypedValue) ComputeMapKey(store Store, omitType bool) MapKey {
 // cu: convert untyped after assignment. pass false
 // for const definitions, but true for all else.
 func (tv *TypedValue) Assign(alloc *Allocator, tv2 TypedValue, cu bool) {
+	fmt.Println("assign, tv: ", tv)
+	fmt.Println("assign, tv2: ", tv2)
 	if debug {
 		if tv.T == DataByteType {
 			// assignment to data byte types should only
@@ -1663,6 +1669,9 @@ func (tv *TypedValue) Assign(alloc *Allocator, tv2 TypedValue, cu bool) {
 		}
 	}
 	*tv = tv2.Copy(alloc)
+	if pv, ok := tv.V.(PointerValue); ok {
+		fmt.Println("---2, pv.Origin: ", pv.Origin)
+	}
 	if cu && isUntyped(tv.T) {
 		ConvertUntypedTo(tv, defaultTypeOf(tv.T))
 	}
@@ -2803,9 +2812,15 @@ func signOfUnsignedBytes(n [8]byte) int {
 
 func SetPointerValueOrigin(v *Value, origin string) {
 	fmt.Println("---SetPointerValueOrigin, v: ", *v)
-	fmt.Println("---SetPointerValueOrigin: ", origin)
+	fmt.Println("---origin: ", origin)
 	if pv, ok := (*v).(PointerValue); ok {
-		pv.Origin = origin
-		*v = pv
+		if pv.Origin == "" {
+			println("---Empty, assign origin")
+			pv.Origin = origin
+			*v = pv
+			fmt.Println("---Done")
+		} else {
+			fmt.Println("---Origin exist: ", pv.Origin)
+		}
 	}
 }

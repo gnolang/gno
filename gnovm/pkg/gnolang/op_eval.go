@@ -41,21 +41,11 @@ func (m *Machine) doOpEval() {
 
 			// Push value, done.
 			ptr := lb.GetPointerToMaybeHeapUse(m.Store, nx)
-
-			if pv, ok := ptr.TV.V.(PointerValue); ok {
-				pv.Origin = nx.AbsPath
-				ptr.TV.V = pv
-			}
-
 			v := ptr.Deref()
 
 			fmt.Println("---v: ", v)
 			fmt.Println("---v.T: ", v.T)
 			fmt.Println("---v.V: ", v.V)
-
-			//if pv, ok := v.V.(PointerValue); ok {
-			//	fmt.Println("---pv.Origin: ", pv.Origin)
-			//}
 
 			SetPointerValueOrigin(&v.V, nx.AbsPath)
 			m.PushValue(v)
