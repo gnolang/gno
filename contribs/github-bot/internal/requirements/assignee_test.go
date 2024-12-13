@@ -45,7 +45,7 @@ func TestAssignee(t *testing.T) {
 				mock.WithRequestMatchHandler(
 					mock.EndpointPattern{
 						Pattern: "/repos/issues/0/assignees",
-						Method:  "GET", // It looks like this mock package doesn't support mocking POST requests
+						Method:  "GET", // It looks like this mock package doesn't support mocking POST requests.
 					},
 					http.HandlerFunc(func(_ http.ResponseWriter, _ *http.Request) {
 						requested = true
@@ -64,9 +64,9 @@ func TestAssignee(t *testing.T) {
 			details := treeprint.New()
 			requirement := Assignee(gh, testCase.user)
 
-			assert.False(t, !requirement.IsSatisfied(pr, details) && !testCase.dryRun, "requirement should have a satisfied status: true")
-			assert.False(t, !utils.TestLastNodeStatus(t, true, details) && !testCase.dryRun, "requirement details should have a status: true")
-			assert.False(t, !testCase.exists && !requested && !testCase.dryRun, "requirement should have requested to create item")
+			assert.True(t, requirement.IsSatisfied(pr, details) || testCase.dryRun, "requirement should have a satisfied status: true")
+			assert.True(t, utils.TestLastNodeStatus(t, true, details) || testCase.dryRun, "requirement details should have a status: true")
+			assert.True(t, testCase.exists || requested || testCase.dryRun, "requirement should have requested to create item")
 		})
 	}
 }

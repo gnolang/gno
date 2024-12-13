@@ -34,7 +34,7 @@ func TestNewNode_NoPackages(t *testing.T) {
 	logger := log.NewTestingLogger(t)
 
 	// Call NewDevNode with no package should work
-	cfg := DefaultNodeConfig(gnoenv.RootDir())
+	cfg := DefaultNodeConfig(gnoenv.RootDir(), "gno.land")
 	cfg.Logger = logger
 	node, err := NewDevNode(ctx, cfg)
 	require.NoError(t, err)
@@ -61,9 +61,8 @@ func Render(_ string) string { return "foo" }
 	pkg := generateMemPackage(t, path, "foobar.gno", testFile)
 	logger := log.NewTestingLogger(t)
 
-	cfg := DefaultNodeConfig(gnoenv.RootDir())
+	cfg := DefaultNodeConfig(gnoenv.RootDir(), "gno.land")
 	cfg.Loader = packages.NewLoader(packages.NewMockResolver(&pkg))
-	cfg.Logger = logger
 
 	node, err := NewDevNode(ctx, cfg, path)
 	require.NoError(t, err)
@@ -477,7 +476,7 @@ func generateMemPackage(t *testing.T, path string, pairNameFile ...string) gnovm
 func newTestingNodeConfig(pkgs ...*gnovm.MemPackage) *NodeConfig {
 	var loader packages.Loader
 	loader.Resolver = packages.NewMockResolver(pkgs...)
-	cfg := DefaultNodeConfig(gnoenv.RootDir())
+	cfg := DefaultNodeConfig(gnoenv.RootDir(), "gno.land")
 	cfg.Loader = &loader
 	return cfg
 }
