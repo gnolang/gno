@@ -3798,7 +3798,13 @@ func findUndefined2SkipLocals(store Store, last BlockNode, x Expr, t Type) Name 
 				}
 			}
 
-			curr = bn.GetStaticBlock().GetParentNode(store)
+			newcurr := bn.GetStaticBlock().GetParentNode(store)
+
+			if curr == newcurr {
+				return false
+			}
+
+			curr = newcurr
 
 			if curr == nil {
 				return false
