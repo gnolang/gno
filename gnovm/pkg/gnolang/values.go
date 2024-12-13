@@ -1583,6 +1583,7 @@ func (tv *TypedValue) ComputeMapKey(store Store, omitType bool) MapKey {
 			ptr := uintptr(unsafe.Pointer(tv.V.(PointerValue).TV))
 			bz = append(bz, uintptrToBytes(&ptr)...)
 		} else {
+			fmt.Println("---Pointer origin: ", origin)
 			bz = append(bz, []byte(origin)...)
 		}
 	case FieldType:

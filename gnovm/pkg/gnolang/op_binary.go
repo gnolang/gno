@@ -485,16 +485,16 @@ func isEql(store Store, lv, rv *TypedValue) bool {
 				return false
 			}
 			if lfv.Source.GetLocation() !=
-				rfv.Source.GetLocation() {
+					rfv.Source.GetLocation() {
 				return false
 			}
 			return lfv.GetClosure(store) ==
-				rfv.GetClosure(store)
+					rfv.GetClosure(store)
 		}
 	case PointerKind:
 		if lv.T != rv.T &&
-			lv.T.Elem() != DataByteType &&
-			lv.T.TypeID() != rv.T.TypeID() {
+				lv.T.Elem() != DataByteType &&
+				lv.T.TypeID() != rv.T.TypeID() {
 			return false
 		}
 
@@ -528,8 +528,13 @@ func isEql(store Store, lv, rv *TypedValue) bool {
 		//lv.V.String()
 		//
 		//fmt.Println(lv.V.(PointerValue).TV == rv.V.(PointerValue).TV)
-		//fmt.Println(lv.V.(PointerValue).Base == rv.V.(PointerValue).Base)
+
+		fmt.Println("---l.base: ", lv.V.(PointerValue).Base)
+		fmt.Println("---r.base: ", rv.V.(PointerValue).Base)
+	
+		fmt.Println("l.base == r.base: ", lv.V.(PointerValue).Base == rv.V.(PointerValue).Base)
 		//fmt.Println(lv.V.(PointerValue).Index == rv.V.(PointerValue).Index)
+		fmt.Println("---lv.V == rv.V: ", lv.V == rv.V)
 		return lv.V == rv.V
 	default:
 		panic(fmt.Sprintf(

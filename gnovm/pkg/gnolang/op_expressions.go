@@ -35,7 +35,7 @@ func (m *Machine) doOpIndex1() {
 			vv, exists := mv.GetValueForKey(m.Store, iv)
 			if exists {
 				*xv = vv // reuse as result
-				fmt.Println("---xv: ", *xv)
+				fmt.Println("---xv1: ", *xv)
 				SetPointerValueOrigin(&xv.V, abs)
 			} else {
 				vt := ct.Value
@@ -44,7 +44,7 @@ func (m *Machine) doOpIndex1() {
 					T: vt,
 					V: defaultValue(m.Alloc, vt),
 				}
-				fmt.Println("---xv: ", *xv)
+				fmt.Println("---xv2: ", *xv)
 				SetPointerValueOrigin(&xv.V, abs)
 			}
 		default:
