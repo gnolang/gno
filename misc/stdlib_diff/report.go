@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	_ "embed"
+	"errors"
 	"fmt"
 	"html/template"
 	"io/fs"
@@ -79,7 +80,15 @@ func NewReportBuilder(srcPath, dstPath, outDir string) (*ReportBuilder, error) {
 
 	realOutPath, err := filepath.EvalSymlinks(outDir)
 	if err != nil {
-		return nil, err
+		if !errors.Is(err, fs.ErrNotExist) {
+			return nil, err
+		}
+		// Create output if not exist
+		err = os.MkdirAll(outDir, 0777)
+		if err != nil {
+			return nil, err
+		}
+		realOutPath = outDir
 	}
 	return &ReportBuilder{
 		// Trim suffix / in order to standardize paths accept path with or without `/`
