@@ -8,6 +8,7 @@ import (
 	"gno.land/p/demo/ui"
 	blog "gno.land/r/gnoland/blog"
 	events "gno.land/r/gnoland/events"
+	"gno.land/r/leon/hof"
 )
 
 // XXX: p/demo/ui API is crappy, we need to make it more idiomatic
@@ -16,7 +17,7 @@ import (
 
 var (
 	override string
-	admin    = ownable.NewWithAddress("g1u7y667z64x2h7vc6fmpcprgey4ck233jaww9zq") // @manfred by default
+	admin    = ownable.NewWithAddress("g1manfred47kzduec920z88wfr64ylksmdcedlf5") // @moul
 )
 
 func Render(_ string) string {
@@ -37,7 +38,7 @@ func Render(_ string) string {
 		ui.Columns{3, []ui.Element{
 			lastBlogposts(4),
 			upcomingEvents(),
-			lastContributions(4),
+			latestHOFItems(5),
 		}},
 	)
 
@@ -87,6 +88,15 @@ func upcomingEvents() ui.Element {
 	return ui.Element{
 		ui.H3("[Latest Events](/r/gnoland/events)"),
 		ui.Text(out),
+	}
+}
+
+func latestHOFItems(num int) ui.Element {
+	submissions := hof.RenderExhibWidget(num)
+
+	return ui.Element{
+		ui.H3("[Hall of Fame](/r/leon/hof)"),
+		ui.Text(submissions),
 	}
 }
 
@@ -246,7 +256,7 @@ func discoverLinks() ui.Element {
 - Tokenomics (soon)
 - [Partners, Fund, Grants](/partners)
 - [Explore the Ecosystem](/ecosystem)
-- [Careers](https://jobs.lever.co/allinbits?department=Gno.land)
+- [Careers](https://jobs.ashbyhq.com/allinbits)
 
 </div><!-- end column-->
 
@@ -270,7 +280,7 @@ func discoverLinks() ui.Element {
 - [Gnoscan](https://gnoscan.io)
 - [Portal Loop](https://docs.gno.land/concepts/portal-loop)
 - [Testnet 4](https://test4.gno.land/)
-- Testnet Faucet Hub (soon)
+- [Faucet Hub](https://faucet.gno.land)
 
 </div><!-- end column-->
 </div><!-- end columns-3-->`),

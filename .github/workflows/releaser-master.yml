@@ -23,11 +23,11 @@ jobs:
 
       - uses: actions/setup-go@v5
         with:
-          go-version: "1.22.x"
+          go-version-file: go.mod
           cache: true
 
       - uses: sigstore/cosign-installer@v3.7.0
-      - uses: anchore/sbom-action/download-syft@v0.17.5
+      - uses: anchore/sbom-action/download-syft@v0.17.8
 
       - uses: docker/login-action@v3
         with:

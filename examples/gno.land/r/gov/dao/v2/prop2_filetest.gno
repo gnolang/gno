@@ -19,9 +19,11 @@ func init() {
 	)
 
 	// Create a proposal
+	title := "govdao blog post title"
 	description := "post a new blogpost about govdao"
 
 	prop := dao.ProposalRequest{
+		Title:       title,
 		Description: description,
 		Executor:    ex,
 	}
@@ -50,61 +52,171 @@ func main() {
 
 // Output:
 // --
-// - [Proposal #0](/r/gov/dao/v2:0) - (**active**)(by g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm)
+// # GovDAO Proposals
+//
+// ## [Prop #0 - govdao blog post title](/r/gov/dao/v2:0)
+//
+// **Status: ACTIVE**
+//
+// **Author: g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm**
+//
 //
 // --
-// # Prop #0
+// # Proposal #0 - govdao blog post title
 //
-// Author: g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm
+// ## Description
 //
 // post a new blogpost about govdao
 //
-// Status: active
+// ## Proposal information
 //
-// Voting stats: YAY 0 (0%), NAY 0 (0%), ABSTAIN 0 (0%), HAVEN'T VOTED 10 (100%)
+// **Status: ACTIVE**
 //
-// Threshold met: false
+// **Voting stats:**
+// - YES 0 (0%)
+// - NO 0 (0%)
+// - ABSTAIN 0 (0%)
+// - MISSING VOTES 10 (100%)
+//
+//
+// **Threshold met: FALSE**
+//
+// **Author: g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm**
+//
+// ### Actions
+//
+// #### [[Vote YES](/r/gov/dao/v2$help&func=VoteOnProposal&id=0&option=YES)] - [[Vote NO](/r/gov/dao/v2$help&func=VoteOnProposal&id=0&option=NO)] - [[Vote ABSTAIN](/r/gov/dao/v2$help&func=VoteOnProposal&id=0&option=ABSTAIN)]
 //
 //
 // --
 // --
-// # Prop #0
+// # Proposal #0 - govdao blog post title
 //
-// Author: g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm
+// ## Description
 //
 // post a new blogpost about govdao
 //
-// Status: accepted
+// ## Proposal information
 //
-// Voting stats: YAY 10 (100%), NAY 0 (0%), ABSTAIN 0 (0%), HAVEN'T VOTED 0 (0%)
+// **Status: ACCEPTED**
 //
-// Threshold met: true
+// **Voting stats:**
+// - YES 10 (100%)
+// - NO 0 (0%)
+// - ABSTAIN 0 (0%)
+// - MISSING VOTES 0 (0%)
+//
+//
+// **Threshold met: TRUE**
+//
+// **Author: g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm**
+//
+// ### Actions
+//
+// The voting period for this proposal is over.
 //
 //
 // --
-// # Gnoland's Blog
+// # gno.land's blog
 //
 // No posts.
 // --
 // --
-// # Prop #0
+// # Proposal #0 - govdao blog post title
 //
-// Author: g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm
+// ## Description
 //
 // post a new blogpost about govdao
 //
-// Status: execution successful
+// ## Proposal information
 //
-// Voting stats: YAY 10 (100%), NAY 0 (0%), ABSTAIN 0 (0%), HAVEN'T VOTED 0 (0%)
+// **Status: EXECUTION SUCCESSFUL**
 //
-// Threshold met: true
+// **Voting stats:**
+// - YES 10 (100%)
+// - NO 0 (0%)
+// - ABSTAIN 0 (0%)
+// - MISSING VOTES 0 (0%)
+//
+//
+// **Threshold met: TRUE**
+//
+// **Author: g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm**
+//
+// ### Actions
+//
+// The voting period for this proposal is over.
 //
 //
 // --
-// # Gnoland's Blog
+// # gno.land's blog
 //
 // <div class='columns-3'><div>
 //
 // ### [Hello from GovDAO!](/r/gnoland/blog:p/hello-from-govdao)
 //  13 Feb 2009
 // </div></div>
+
+// Events:
+// [
+//   {
+//     "type": "ProposalAdded",
+//     "attrs": [
+//       {
+//         "key": "proposal-id",
+//         "value": "0"
+//       },
+//       {
+//         "key": "proposal-author",
+//         "value": "g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm"
+//       }
+//     ],
+//     "pkg_path": "gno.land/r/gov/dao/v2",
+//     "func": "EmitProposalAdded"
+//   },
+//   {
+//     "type": "VoteAdded",
+//     "attrs": [
+//       {
+//         "key": "proposal-id",
+//         "value": "0"
+//       },
+//       {
+//         "key": "author",
+//         "value": "g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm"
+//       },
+//       {
+//         "key": "option",
+//         "value": "YES"
+//       }
+//     ],
+//     "pkg_path": "gno.land/r/gov/dao/v2",
+//     "func": "EmitVoteAdded"
+//   },
+//   {
+//     "type": "ProposalAccepted",
+//     "attrs": [
+//       {
+//         "key": "proposal-id",
+//         "value": "0"
+//       }
+//     ],
+//     "pkg_path": "gno.land/r/gov/dao/v2",
+//     "func": "EmitProposalAccepted"
+//   },
+//   {
+//     "type": "ProposalExecuted",
+//     "attrs": [
+//       {
+//         "key": "proposal-id",
+//         "value": "0"
+//       },
+//       {
+//         "key": "exec-status",
+//         "value": "accepted"
+//       }
+//     ],
+//     "pkg_path": "gno.land/r/gov/dao/v2",
+//     "func": "ExecuteProposal"
+//   }
+// ]

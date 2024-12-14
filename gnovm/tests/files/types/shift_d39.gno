@@ -8,7 +8,7 @@ func main() {
 
 	v := float32(s[0]) // type determined when indexed
 	println(v)
-	fmt.Printf("%T \n", v)
+	fmt.Printf("%T\n", v)
 }
 
 // Output:
