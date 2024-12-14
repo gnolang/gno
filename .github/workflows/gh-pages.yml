@@ -25,11 +25,16 @@ jobs:
         with:
           go-version-file: go.mod
       - run: "cd misc/gendocs && make install gen"
+      - run: "cd misc/stdlib_diff && make install gen"
+      -run | # Combine files into a single directory for deployment
+          mkdir -p output/combined
+          cp -r ./misc/gendocs/godoc/* output/combined/
+          cp -r ./misc/stdlib_diff/gnoreport/* output/combined/gnoreport
       - uses: actions/configure-pages@v5
         id: pages
       - uses: actions/upload-pages-artifact@v3
         with:
-          path: ./misc/gendocs/godoc
+          path: ./output/combined
 
   deploy:
     if: ${{ github.repository == 'gnolang/gno' }} # Alternatively, validate based on provided tokens and permissions.
