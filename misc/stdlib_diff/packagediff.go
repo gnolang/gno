@@ -2,6 +2,7 @@ package main
 
 import (
 	"os"
+	"path/filepath"
 	"strings"
 )
 
@@ -12,7 +13,6 @@ type PackageDiffChecker struct {
 	SrcPath  string   // Source directory path.
 	DstFiles []string // List of destination files.
 	DstPath  string   // Destination directory path.
-	SrcIsGno bool     // Indicates if the SrcFiles are gno files.
 }
 
 // Differences represents the differences between source and destination packages.
@@ -32,7 +32,7 @@ type FileDifference struct {
 // NewPackageDiffChecker creates a new PackageDiffChecker instance with the specified
 // source and destination paths. It initializes the SrcFiles and DstFiles fields by
 // listing files in the corresponding directories.
-func NewPackageDiffChecker(srcPath, dstPath string, srcIsGno bool) (*PackageDiffChecker, error) {
+func NewPackageDiffChecker(srcPath, dstPath string) (*PackageDiffChecker, error) {
 	srcFiles, err := listDirFiles(srcPath)
 	if err != nil {
 		return nil, err
@@ -48,7 +48,6 @@ func NewPackageDiffChecker(srcPath, dstPath string, srcIsGno bool) (*PackageDiff
 		SrcPath:  srcPath,
 		DstFiles: dstFiles,
 		DstPath:  dstPath,
-		SrcIsGno: srcIsGno,
 	}, nil
 }
 
@@ -114,11 +113,20 @@ func (p *PackageDiffChecker) listAllPossibleFiles() []string {
 
 // inferFileExtensions by returning the src and dst files extensions.
 func (p *PackageDiffChecker) inferFileExtensions() (string, string) {
-	if p.SrcIsGno {
-		return ".gno", ".go"
+	var goFiles, gnoFiles int
+	for _, file := range p.SrcFiles {
+		switch filepath.Ext(file) {
+		case ".go":
+			goFiles++
+		case ".gno":
+			gnoFiles++
+		}
+	}
+	if goFiles > gnoFiles {
+		return ".go", ".gno"
 	}
 
-	return ".go", ".gno"
+	return ".gno", ".go"
 }
 
 // getStatus determines the diff status based on the differences in source and destination.
@@ -155,6 +163,9 @@ func listDirFiles(dirPath string) ([]string, error) {
 	}
 
 	for _, dirEntry := range dirEntries {
+		if dirEntry.IsDir() {
+			continue
+		}
 		// Only list .go and .gno files
 		if !strings.Contains(dirEntry.Name(), ".go") && !strings.Contains(dirEntry.Name(), ".gno") {
 			continue

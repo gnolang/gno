@@ -25,7 +25,6 @@ type ReportBuilder struct {
 	SrcPath         string             // Source directory path.
 	DstPath         string             // Destination directory path.
 	OutDir          string             // Output directory path for the reports.
-	SrcIsGno        bool               // Indicates if the Src files are gno files.
 	packageTemplate *template.Template // Template for generating reports.
 	indexTemplate   *template.Template // Template for generating index file of the reports.
 }
@@ -56,7 +55,7 @@ type LinkToReport struct {
 // NewReportBuilder creates a new ReportBuilder instance with the specified
 // source path, destination path, and output directory. It also initializes
 // the packageTemplate using the provided HTML template file.
-func NewReportBuilder(srcPath, dstPath, outDir string, srcIsGno bool) (*ReportBuilder, error) {
+func NewReportBuilder(srcPath, dstPath, outDir string) (*ReportBuilder, error) {
 	packageTemplate, err := template.New("").Parse(packageDiffTemplate)
 	if err != nil {
 		return nil, err
@@ -67,17 +66,18 @@ func NewReportBuilder(srcPath, dstPath, outDir string, srcIsGno bool) (*ReportBu
 		return nil, err
 	}
 
-	realSrcPath, err := getRealPath(srcPath)
+	//filepath.EvalSymlinks will return the original path if there are no simlinks associated to the given path
+	realSrcPath, err := filepath.EvalSymlinks(srcPath)
 	if err != nil {
 		return nil, err
 	}
 
-	realDstPath, err := getRealPath(dstPath)
+	realDstPath, err := filepath.EvalSymlinks(dstPath)
 	if err != nil {
 		return nil, err
 	}
 
-	realOutPath, err := getRealPath(outDir)
+	realOutPath, err := filepath.EvalSymlinks(outDir)
 	if err != nil {
 		return nil, err
 	}
@@ -86,7 +86,6 @@ func NewReportBuilder(srcPath, dstPath, outDir string, srcIsGno bool) (*ReportBu
 		SrcPath:         strings.TrimSuffix(realSrcPath, `/`),
 		DstPath:         strings.TrimSuffix(realDstPath, `/`),
 		OutDir:          strings.TrimSuffix(realOutPath, `/`),
-		SrcIsGno:        srcIsGno,
 		packageTemplate: packageTemplate,
 		indexTemplate:   indexTemplate,
 	}, nil
@@ -147,7 +146,7 @@ func (builder *ReportBuilder) ExecuteDiffTemplate(directory *Directory) error {
 
 	srcPackagePath := builder.SrcPath + "/" + directory.Path
 	dstPackagePath := builder.DstPath + "/" + directory.Path
-	packageChecker, err := NewPackageDiffChecker(srcPackagePath, dstPackagePath, builder.SrcIsGno)
+	packageChecker, err := NewPackageDiffChecker(srcPackagePath, dstPackagePath)
 	if err != nil {
 		return fmt.Errorf("can't create new PackageDiffChecker: %w", err)
 	}
@@ -272,25 +271,6 @@ func (builder *ReportBuilder) writePackageTemplate(templateData any, packageName
 	}
 
 	return nil
-}
-
-// getRealPath will check if the directory is a symbolic link and resolve if path before returning it
-func getRealPath(path string) (string, error) {
-	info, err := os.Lstat(path)
-	if err != nil {
-		return "", err
-	}
-
-	if info.Mode()&fs.ModeSymlink != 0 {
-		// File is symbolic link, no need to resolve
-		link, err := os.Readlink(path)
-		if err != nil {
-			return "", fmt.Errorf("can't resolve symbolic link: %w", err)
-		}
-		return link, nil
-	}
-
-	return path, nil
 }
 
 func (builder *ReportBuilder) findDirectories() ([]string, map[string]bool, map[string]bool, error) {
