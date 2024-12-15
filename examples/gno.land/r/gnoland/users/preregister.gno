@@ -40,12 +40,5 @@ func init() {
 		if err := sys.WriteUser(base); err != nil {
 			panic(err)
 		}
-
-		extendedUserStore.Set(res.Address.String(), &User{
-			base:         base,
-			Bio:          "Preregistered user.",
-			Ordinal:      sys.UserCount(),
-			RegisteredAt: height,
-		})
 	}
 }
