@@ -1,7 +1,6 @@
 package users
 
 import (
-	"github.com/gnolang/gno/examples/gno.land/p/demo/avl"
 	"gno.land/p/demo/ownable"
 	p "gno.land/p/demo/pausable"
 	susers "gno.land/p/sys/users"
@@ -13,15 +12,14 @@ import (
 
 const (
 	reValidUsername = "^[a-z]{3}[_a-z0-9]{0,14}[0-9]{3}$"
-	adminAddr       = "g1u7y667z64x2h7vc6fmpcprgey4ck233jaww9zq" // @moul
+	adminAddr       = "g1manfred47kzduec920z88wfr64ylksmdcedlf5" // @moul
 	RegisterEvent   = "Register"
 )
 
 var (
-	admin             = ownable.NewWithAddress(adminAddr) // @moul /// switch to dao managed down the line
-	pausable          = p.NewFromOwnable(admin)           //
-	reUsername        = regexp.MustCompile(reValidUsername)
-	extendedUserStore = avl.NewTree() // addr > *ExtendedUser
+	admin      = ownable.NewWithAddress(adminAddr) // @moul /// switch to dao managed down the line
+	pausable   = p.NewFromOwnable(admin)           //
+	reUsername = regexp.MustCompile(reValidUsername)
 )
 
 // Register registers a new username for the caller
@@ -47,19 +45,12 @@ func Register(username, bio string) error {
 		Name:    username,
 	}
 
-	extendedUser := &User{
-		base:         base,
-		Bio:          bio, // optional
-		Ordinal:      sys.UserCount(),
-		RegisteredAt: std.GetHeight(),
-	}
+	// set extra data to r/demo/profiles
 
 	err := sys.WriteUser(base)
 	if err != nil {
 		return err
 	}
-
-	extendedUserStore.Set(registrant.String(), extendedUser)
 
 	std.Emit(RegisterEvent, "registrant", registrant.String(), "username", username)
 	return nil
