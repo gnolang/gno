@@ -13,29 +13,20 @@ type Loader interface {
 	Load(paths ...string) ([]Package, error)
 }
 
-type ResolverLoader struct {
+type BaseLoader struct {
 	Resolver
 }
 
-func NewResolverLoader(res ...Resolver) *ResolverLoader {
-	var loader ResolverLoader
-	switch len(res) {
-	case 0: // Skip
-	case 1:
-		loader.Resolver = res[0]
-	default:
-		loader.Resolver = ChainResolvers(res...)
-	}
-
-	return &loader
+func NewLoader(res ...Resolver) *BaseLoader {
+	return &BaseLoader{ChainResolvers(res...)}
 }
 
-func (l ResolverLoader) Load(paths ...string) ([]Package, error) {
+func (l BaseLoader) Load(paths ...string) ([]Package, error) {
 	fset := token.NewFileSet()
 	visited, stack := map[string]bool{}, map[string]bool{}
 	pkgs := make([]Package, 0)
 	for _, root := range paths {
-		deps, err := loadPackage(root, fset, l.Resolver, visited, stack)
+		deps, err := load(root, fset, l.Resolver, visited, stack)
 		if err != nil {
 			return nil, err
 		}
@@ -45,7 +36,7 @@ func (l ResolverLoader) Load(paths ...string) ([]Package, error) {
 	return pkgs, nil
 }
 
-func loadPackage(path string, fset *token.FileSet, resolver Resolver, visited, stack map[string]bool) ([]Package, error) {
+func load(path string, fset *token.FileSet, resolver Resolver, visited, stack map[string]bool) ([]Package, error) {
 	if stack[path] {
 		return nil, fmt.Errorf("cycle detected: %s", path)
 	}
@@ -95,7 +86,7 @@ func loadPackage(path string, fset *token.FileSet, resolver Resolver, visited, s
 
 	pkgs := []Package{}
 	for imp := range imports {
-		subDeps, err := loadPackage(imp, fset, resolver, visited, stack)
+		subDeps, err := load(imp, fset, resolver, visited, stack)
 		if err != nil {
 			return nil, fmt.Errorf("importing %q: %w", imp, err)
 		}

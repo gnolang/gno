@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log/slog"
 	"os"
+	"path/filepath"
 	"strings"
 	"sync"
 	"time"
@@ -17,6 +18,7 @@ import (
 	"github.com/gnolang/gno/gno.land/pkg/gnoland/ugnot"
 	"github.com/gnolang/gno/gno.land/pkg/integration"
 	"github.com/gnolang/gno/gno.land/pkg/sdk/vm"
+	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
 	"github.com/gnolang/gno/tm2/pkg/amino"
 	tmcfg "github.com/gnolang/gno/tm2/pkg/bft/config"
 	"github.com/gnolang/gno/tm2/pkg/bft/node"
@@ -32,20 +34,52 @@ import (
 )
 
 type NodeConfig struct {
-	Logger                *slog.Logger
-	Loader                packages.Loader
-	DefaultCreator        crypto.Address
-	DefaultDeposit        std.Coins
-	BalancesList          []gnoland.Balance
-	PackagesModifier      []PackageModifier
-	Emitter               emitter.Emitter
-	InitialTxs            []gnoland.TxWithMetadata
-	TMConfig              *tmcfg.Config
+	// Logger is used for logging node activities. It can be set to a custom logger or a noop logger for
+	// silent operation.
+	Logger *slog.Logger
+
+	// Loader is responsible for loading packages. It abstracts the mechanism for retrieving and managing
+	// package data.
+	Loader packages.Loader
+
+	// DefaultCreator specifies the default address used for creating packages and transactions.
+	DefaultCreator crypto.Address
+
+	// DefaultDeposit is the default amount of coins deposited when creating a package.
+	DefaultDeposit std.Coins
+
+	// BalancesList defines the initial balance of accounts in the genesis state.
+	BalancesList []gnoland.Balance
+
+	// PackagesModifier allows modifications to be applied to packages during initialization.
+	PackagesModifier []PackageModifier
+
+	// Emitter is used to emit events for various node operations. It can be set to a noop emitter if no
+	// event emission is required.
+	Emitter emitter.Emitter
+
+	// InitialTxs contains the transactions that are included in the genesis state.
+	InitialTxs []gnoland.TxWithMetadata
+
+	// TMConfig holds the Tendermint configuration settings.
+	TMConfig *tmcfg.Config
+
+	// SkipFailingGenesisTxs indicates whether to skip failing transactions during the genesis
+	// initialization.
 	SkipFailingGenesisTxs bool
-	NoReplay              bool
-	MaxGasPerBlock        int64
-	ChainID               string
-	ChainDomain           string
+
+	// NoReplay, if set to true, prevents replaying of transactions from the block store during node
+	// initialization.
+	NoReplay bool
+
+	// MaxGasPerBlock sets the maximum amount of gas that can be used in a single block.
+	MaxGasPerBlock int64
+
+	// ChainID is the unique identifier for the blockchain.
+	ChainID string
+
+	// ChainDomain specifies the domain name associated with the blockchain network.
+	ChainDomain string
 }
 
 func DefaultNodeConfig(rootdir, domain string) *NodeConfig {
@@ -62,9 +96,13 @@ func DefaultNodeConfig(rootdir, domain string) *NodeConfig {
 		},
 	}
 
+	exampleFolder := filepath.Join(gnoenv.RootDir(), "example") // XXX: we should avoid having to hardcoding this here
+	defaultLoader := packages.NewLoader(packages.NewFSResolver(exampleFolder))
+
 	return &NodeConfig{
 		Logger:                log.NewNoopLogger(),
 		Emitter:               &emitter.NoopServer{},
+		Loader:                defaultLoader,
 		DefaultCreator:        defaultDeployer,
 		DefaultDeposit:        nil,
 		BalancesList:          balances,
@@ -254,16 +292,6 @@ func (n *Node) ReloadAll(ctx context.Context) error {
 	n.muNode.Lock()
 	defer n.muNode.Unlock()
 
-	// pkgs := n.pkgs.toList()
-	// paths := make([]string, len(pkgs))
-	// for i, pkg := range pkgs {
-	// 	paths[i] = pkg.Dir
-	// }
-
-	// if err := n.updatePackages(paths...); err != nil {
-	// 	return fmt.Errorf("unable to reload packages: %w", err)
-	// }
-
 	return n.rebuildNodeFromState(ctx)
 }
 
@@ -332,7 +360,6 @@ func (n *Node) getBlockStoreState(ctx context.Context) ([]gnoland.TxWithMetadata
 		state = append(state, txs...)
 	}
 
-	// override current state
 	return state, nil
 }
 
@@ -521,6 +548,16 @@ func (n *Node) rebuildNode(ctx context.Context, genesis gnoland.GnoGenesisState)
 
 func (n *Node) genesisTxResultHandler(ctx sdk.Context, tx std.Tx, res sdk.Result) {
 	if !res.IsErr() {
+		for _, msg := range tx.Msgs {
+			if addpkg, ok := msg.(vm.MsgAddPackage); ok && addpkg.Package != nil {
+				n.logger.Info("package added",
+					"path", addpkg.Package.Path,
+					"files", len(addpkg.Package.Files),
+					"creator", addpkg.Creator.String(),
+				)
+			}
+		}
+
 		return
 	}
 

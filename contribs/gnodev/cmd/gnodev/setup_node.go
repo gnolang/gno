@@ -15,19 +15,21 @@ import (
 )
 
 // setupDevNode initializes and returns a new DevNode.
-func setupDevNode(ctx context.Context, devCfg *devCfg, nodeConfig *gnodev.NodeConfig, path string) (*gnodev.Node, error) {
+func setupDevNode(ctx context.Context, cfg *devCfg, nodeConfig *gnodev.NodeConfig, path string) (*gnodev.Node, error) {
+	fmt.Printf("PATH: %+v\r\n", cfg.paths.String())
+
 	logger := nodeConfig.Logger
 
-	if devCfg.txsFile != "" { // Load txs files
+	if cfg.txsFile != "" { // Load txs files
 		var err error
-		nodeConfig.InitialTxs, err = gnoland.ReadGenesisTxs(ctx, devCfg.txsFile)
+		nodeConfig.InitialTxs, err = gnoland.ReadGenesisTxs(ctx, cfg.txsFile)
 		if err != nil {
 			return nil, fmt.Errorf("unable to load transactions: %w", err)
 		}
-	} else if devCfg.genesisFile != "" { // Load genesis file
-		state, err := extractAppStateFromGenesisFile(devCfg.genesisFile)
+	} else if cfg.genesisFile != "" { // Load genesis file
+		state, err := extractAppStateFromGenesisFile(cfg.genesisFile)
 		if err != nil {
-			return nil, fmt.Errorf("unable to load genesis file %q: %w", devCfg.genesisFile, err)
+			return nil, fmt.Errorf("unable to load genesis file %q: %w", cfg.genesisFile, err)
 		}
 
 		// Override balances and txs
@@ -40,10 +42,12 @@ func setupDevNode(ctx context.Context, devCfg *devCfg, nodeConfig *gnodev.NodeCo
 			nodeConfig.InitialTxs[index] = nodeTx
 		}
 
-		logger.Info("genesis file loaded", "path", devCfg.genesisFile, "txs", len(stateTxs))
+		logger.Info("genesis file loaded", "path", cfg.genesisFile, "txs", len(stateTxs))
 	}
 
-	return gnodev.NewDevNode(ctx, nodeConfig, path)
+	paths := append(cfg.paths.Strings(), path)
+	fmt.Println("PATHS:", paths)
+	return gnodev.NewDevNode(ctx, nodeConfig, paths...)
 }
 
 // setupDevNodeConfig creates and returns a new dev.NodeConfig.

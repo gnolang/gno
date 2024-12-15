@@ -65,9 +65,9 @@ func setupPackagesResolver(logger *slog.Logger, cfg *devCfg, path, dir string) p
 		packages.CacheMiddleware(func(pkg *packages.Package) bool {
 			return pkg.Kind == packages.PackageKindRemote // Cache only remote package
 		}),
-		packages.FilterMiddleware("stdlib", isStdPath), // Filter stdlib package from resolving
-		packages.SyntaxCheckerMiddleware(logger),       // Pre-check syntax to avoid bothering the node reloading on invalid files
-		packages.LogMiddleware(logger),                 // Log any request
+		packages.FilterPathMiddleware("stdlib", isStdPath), // Filter stdlib package from resolving
+		packages.PackageCheckerMiddleware(logger),          // Pre-check syntax to avoid bothering the node reloading on invalid files
+		packages.LogMiddleware(logger),                     // Log any request
 	)
 }
 

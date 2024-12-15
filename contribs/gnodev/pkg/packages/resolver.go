@@ -17,12 +17,26 @@ type Resolver interface {
 	Resolve(fset *token.FileSet, path string) (*Package, error)
 }
 
+type NoopResolver struct{}
+
+func (NoopResolver) Name() string { return "" }
+func (NoopResolver) Resolve(fset *token.FileSet, path string) (*Package, error) {
+	return nil, ErrResolverPackageNotFound
+}
+
 // Chain Resolver
 
 type ChainedResolver []Resolver
 
 func ChainResolvers(rs ...Resolver) Resolver {
-	return ChainedResolver(rs)
+	switch len(rs) {
+	case 0:
+		return &NoopResolver{}
+	case 1:
+		return rs[0]
+	default:
+		return ChainedResolver(rs)
+	}
 }
 
 func (cr ChainedResolver) Name() string {
@@ -57,102 +71,3 @@ func (cr ChainedResolver) Resolve(fset *token.FileSet, path string) (*Package, e
 
 	return nil, ErrResolverPackageNotFound
 }
-
-// // Cache Resolver
-
-// type inMemoryCacheResolver struct {
-// 	subr     Resolver
-// 	cacheMap map[string] /* path */ *Package
-// }
-
-// func Cache(r Resolver) Resolver {
-// 	return &inMemoryCacheResolver{
-// 		subr:     r,
-// 		cacheMap: map[string]*Package{},
-// 	}
-// }
-
-// func (r *inMemoryCacheResolver) Name() string {
-// 	return "cache_" + r.subr.Name()
-// }
-
-// func (r *inMemoryCacheResolver) Resolve(fset *token.FileSet, path string) (*Package, error) {
-// 	if p, ok := r.cacheMap[path]; ok {
-// 		return p, nil
-// 	}
-
-// 	p, err := r.subr.Resolve(fset, path)
-// 	if err != nil {
-// 		return nil, err
-// 	}
-
-// 	r.cacheMap[path] = p
-// 	return p, nil
-// }
-
-// // Filter Resolver
-
-// func NoopFilterFunc(path string) bool { return false }
-// func FilterAllFunc(path string) bool  { return true }
-
-// type FilterHandler func(path string) bool
-
-// type filterResolver struct {
-// 	Resolver
-// 	FilterHandler
-// }
-
-// func FilterResolver(handler FilterHandler, r Resolver) Resolver {
-// 	return &filterResolver{Resolver: r, FilterHandler: handler}
-// }
-
-// func (filterResolver) Name() string {
-// 	return "filter"
-// }
-
-// func (r *filterResolver) Resolve(fset *token.FileSet, path string) (*Package, error) {
-// 	if r.FilterHandler(path) {
-// 		return nil, ErrResolverPackageSkip
-// 	}
-
-// 	return r.Resolver.Resolve(fset, path)
-// }
-
-// Utility Resolver
-
-// // Log Resolver
-
-// type logResolver struct {
-// 	logger *slog.Logger
-// 	Resolver
-// }
-
-// func LogResolver(l *slog.Logger, r Resolver) Resolver {
-// 	return &logResolver{l, r}
-// }
-
-// func (l logResolver) Resolve(fset *token.FileSet, path string) (*Package, error) {
-// 	start := time.Now()
-// 	pkg, err := l.Resolver.Resolve(fset, path)
-// 	if err == nil {
-// 		l.logger.Debug("path resolved",
-// 			"resolver", l.Resolver.Name(),
-// 			"path", path,
-// 			"name", pkg.Name,
-// 			"took", time.Since(start).String(),
-// 			"location", pkg.Location)
-// 	} else if errors.Is(err, ErrResolverPackageNotFound) {
-// 		l.logger.Warn("path not found",
-// 			"resolver", l.Resolver.Name(),
-// 			"path", path,
-// 			"took", time.Since(start).String())
-// 	} else {
-// 		l.logger.Error("unable to resolve path",
-// 			"resolver", l.Resolver.Name(),
-// 			"path", path,
-// 			"took", time.Since(start).String(),
-// 			"err", err)
-// 	}
-
-// 	return pkg, err
-// }

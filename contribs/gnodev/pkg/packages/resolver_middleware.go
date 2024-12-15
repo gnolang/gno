@@ -97,7 +97,7 @@ func CacheMiddleware(shouldCache ShouldCacheFunc) MiddlewareHandler {
 		}
 
 		pkg, err := next.Resolve(fset, path)
-		if err == nil && shouldCache(pkg) {
+		if pkg != nil && shouldCache(pkg) {
 			cacheMap[path] = pkg
 		}
 
@@ -105,16 +105,10 @@ func CacheMiddleware(shouldCache ShouldCacheFunc) MiddlewareHandler {
 	}
 }
 
-// FilterHandler defines the function signature for filter handlers.
-type FilterHandler func(path string) bool
+// FilterPathHandler defines the function signature for filter handlers.
+type FilterPathHandler func(path string) bool
 
-// NoopFilterFunc is a filter that allows all paths.
-func NoopFilterFunc(path string) bool { return false }
-
-// FilterAllFunc is a filter that blocks all paths.
-func FilterAllFunc(path string) bool { return true }
-
-func FilterMiddleware(name string, filter FilterHandler) MiddlewareHandler {
+func FilterPathMiddleware(name string, filter FilterPathHandler) MiddlewareHandler {
 	return func(fset *token.FileSet, path string, next Resolver) (*Package, error) {
 		if filter(path) {
 			return nil, fmt.Errorf("filter %q: %w", name, ErrResolverPackageSkip)
@@ -124,8 +118,8 @@ func FilterMiddleware(name string, filter FilterHandler) MiddlewareHandler {
 	}
 }
 
-// SyntaxCheckerMiddleware creates a middleware handler for post-processing syntax.
-func SyntaxCheckerMiddleware(logger *slog.Logger) MiddlewareHandler {
+// PackageCheckerMiddleware creates a middleware handler for post-processing syntax.
+func PackageCheckerMiddleware(logger *slog.Logger) MiddlewareHandler {
 	return func(fset *token.FileSet, path string, next Resolver) (*Package, error) {
 		// First, resolve the package using the next resolver in the chain.
 		pkg, err := next.Resolve(fset, path)

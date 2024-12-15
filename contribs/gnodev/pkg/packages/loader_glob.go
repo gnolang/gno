@@ -2,54 +2,77 @@ package packages
 
 import (
 	"fmt"
-	"go/token"
+	"io/fs"
+	"os"
 	"path/filepath"
 	"strings"
 )
 
 type GlobLoader struct {
-	Resolver Resolver
 	Root     string
+	Resolver Resolver
 }
 
-func NewGlobResolverLoader(rootpath string, res ...Resolver) Loader {
-	loader := GlobLoader{Root: rootpath}
-	switch len(res) {
-	case 0: // Skip
-	case 1:
-		loader.Resolver = res[0]
-	default:
-		loader.Resolver = ChainResolvers(res...)
+func NewGlobLoader(rootpath string, res ...Resolver) *GlobLoader {
+	return &GlobLoader{rootpath, ChainResolvers(res...)}
+}
+
+func (l GlobLoader) MatchPaths(globs ...string) ([]string, error) {
+	if l.Root == "" {
+		return globs, nil
 	}
 
-	return &loader
-}
+	if _, err := os.Stat(l.Root); err != nil {
+		return nil, fmt.Errorf("unable to stats: %w", err)
+	}
 
-func (l GlobLoader) Load(paths ...string) ([]Package, error) {
-	fset := token.NewFileSet()
-	visited, stack := map[string]bool{}, map[string]bool{}
-	pkgs := make([]Package, 0)
-	for _, path := range paths {
-		// format path to match directory from loader `Root`
-		path = filepath.Clean(filepath.Join(l.Root, path) + "/")
-
-		matches, err := filepath.Glob(path)
+	mpaths := []string{}
+	for _, input := range globs {
+		cleanInputs := filepath.Clean(input)
+		gpath, err := Parse(cleanInputs)
 		if err != nil {
-			return nil, fmt.Errorf("invalid glob path: %w", err)
+			return nil, fmt.Errorf("invalid glob path %q: %w", input, err)
 		}
 
-		for _, match := range matches {
-			// extract path
-			mpath, _ := strings.CutPrefix(match, l.Root)
-			mpath = strings.Trim(mpath, "/")
+		base := gpath.StarFreeBase()
+		if base == cleanInputs {
+			mpaths = append(mpaths, base)
+			continue
+		}
 
-			deps, err := loadPackage(mpath, fset, l.Resolver, visited, stack)
+		root := filepath.Join(l.Root, base)
+		err = filepath.WalkDir(root, func(dirpath string, d fs.DirEntry, err error) error {
 			if err != nil {
-				return nil, err
+				return err
 			}
-			pkgs = append(pkgs, deps...)
-		}
+
+			if !d.IsDir() {
+				return nil
+			}
+
+			if strings.HasPrefix(d.Name(), ".") {
+				return fs.SkipDir
+			}
+
+			path := strings.TrimPrefix(dirpath, l.Root+"/")
+			if gpath.Match(path) {
+				mpaths = append(mpaths, path)
+				return nil
+			}
+
+			return nil
+		})
 	}
 
-	return pkgs, nil
+	return mpaths, nil
+}
+
+func (l GlobLoader) Load(gpaths ...string) ([]Package, error) {
+	paths, err := l.MatchPaths(gpaths...)
+	if err != nil {
+		return nil, fmt.Errorf("unable to resolve dir paths: %w", err)
+	}
+
+	loader := &BaseLoader{Resolver: l.Resolver}
+	return loader.Load(paths...)
 }

@@ -302,7 +302,9 @@ func usage(c *Command) string {
 
 			def := f.DefValue
 			if def == "" {
-				def = "..."
+				if def := f.Value.String(); def == "" {
+					def = "..."
+				}
 			}
 
 			fmt.Fprintf(tw, "  -%s%s%s\t%s\n", f.Name, space, def, f.Usage)

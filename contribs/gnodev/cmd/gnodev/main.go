@@ -24,6 +24,8 @@ import (
 	osm "github.com/gnolang/gno/tm2/pkg/os"
 )
 
+const DefaultDomain = "gno.land"
+
 const (
 	NodeLogName        = "Node"
 	WebLogName         = "GnoWeb"
@@ -78,12 +80,12 @@ type devCfg struct {
 	chainDomain string
 	unsafeAPI   bool
 	interactive bool
-	loadPath    string
+	paths       varStrings
 }
 
 var defaultDevOptions = devCfg{
 	chainId:             "dev",
-	chainDomain:         "gno.land",
+	chainDomain:         DefaultDomain,
 	maxGas:              10_000_000_000,
 	webListenerAddr:     "127.0.0.1:8888",
 	nodeRPCListenerAddr: "127.0.0.1:26657",
@@ -125,6 +127,7 @@ func (c *devCfg) RegisterFlags(fs *flag.FlagSet) {
 }
 
 func (c *devCfg) registerFlagsWithDefault(defaultCfg devCfg, fs *flag.FlagSet) {
+	*c = defaultCfg
 	fs.StringVar(
 		&c.home,
 		"home",
@@ -270,6 +273,12 @@ func (c *devCfg) registerFlagsWithDefault(defaultCfg devCfg, fs *flag.FlagSet) {
 		"enable /reset and /reload endpoints which are not safe to expose publicly",
 	)
 
+	fs.Var(
+		&c.paths,
+		"paths",
+		"additional path load, can be use multiple time to be chained",
+	)
+
 	// Short flags
 	fs.BoolVar(
 		&c.verbose,
@@ -363,8 +372,11 @@ func (ds *App) Setup() error {
 		return fmt.Errorf("unable to guess path from %q", dir)
 	}
 
+	// XXX: it would be nice to having this hardcoded
+	examplesDir := filepath.Join(gnoenv.RootDir(), "examples")
+
 	resolver := setupPackagesResolver(ds.logger.WithGroup(LoaderLogName), ds.cfg, path, dir)
-	loader := packages.NewResolverLoader(resolver)
+	loader := packages.NewGlobLoader(examplesDir, resolver)
 
 	ds.book, err = setupAddressBook(ds.logger.WithGroup(AccountsLogName), ds.cfg)
 	if err != nil {

@@ -6,6 +6,10 @@ import (
 	"strings"
 )
 
+func isModFile(name string) bool {
+	return strings.ToLower(name) == "gno.mod" && !strings.HasPrefix(name, ".")
+}
+
 func isGnoFile(name string) bool {
 	return filepath.Ext(name) == ".gno" && !strings.HasPrefix(name, ".")
 }
