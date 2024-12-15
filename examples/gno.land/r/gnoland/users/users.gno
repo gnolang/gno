@@ -45,7 +45,7 @@ func Register(username, bio string) error {
 		Name:    username,
 	}
 
-	// set extra data to r/demo/profiles
+	// todo set extra data to r/demo/profiles
 
 	err := sys.WriteUser(base)
 	if err != nil {
