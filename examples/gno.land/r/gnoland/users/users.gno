@@ -55,19 +55,3 @@ func Register(username, bio string) error {
 	std.Emit(RegisterEvent, "registrant", registrant.String(), "username", username)
 	return nil
 }
-
-func UpdateBio(bio string) error {
-	if pausable.IsPaused() {
-		return p.ErrPaused
-	}
-
-	raw, ok := extendedUserStore.Get(std.PrevRealm.Addr())
-	if !ok {
-		return ErrNotRegistered
-	}
-
-	user := raw.(*User)
-	user.Bio = bio
-
-	return nil
-}
