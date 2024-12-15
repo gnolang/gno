@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log/slog"
 	"path/filepath"
+	"regexp"
 	"strings"
 
 	"github.com/gnolang/gno/contribs/gnodev/pkg/packages"
@@ -50,14 +51,24 @@ func (va *varResolver) Set(value string) error {
 	return nil
 }
 
-func setupPackagesResolver(logger *slog.Logger, cfg *devCfg, path, dir string) packages.Resolver {
+func setupPackagesResolver(logger *slog.Logger, cfg *devCfg, dirs ...string) (packages.Resolver, []string) {
 	// Add root resolvers
 	exampleRoot := filepath.Join(cfg.root, "examples")
 
+	var localResolvers []packages.Resolver
+	var paths []string
+	for _, dir := range dirs {
+		path := guessPath(cfg, dir)
+		localResolvers = append(localResolvers, packages.NewLocalResolver(path, dir))
+		paths = append(paths, path)
+
+		logger.Info("guessing directory path", "path", path, "dir", dir)
+	}
+
 	resolver := packages.ChainResolvers(
-		packages.NewLocalResolver(path, dir),      // Resolve local directory
-		packages.ChainResolvers(cfg.resolvers...), // Use user's custom resolvers
-		packages.NewFSResolver(exampleRoot),       // Ultimately use fs resolver
+		packages.ChainResolvers(localResolvers...), // Resolve local directories
+		packages.ChainResolvers(cfg.resolvers...),  // Use user's custom resolvers
+		packages.NewFSResolver(exampleRoot),        // Ultimately use fs resolver
 	)
 
 	// Enrich resolver with middleware
@@ -68,7 +79,7 @@ func setupPackagesResolver(logger *slog.Logger, cfg *devCfg, path, dir string) p
 		packages.FilterPathMiddleware("stdlib", isStdPath), // Filter stdlib package from resolving
 		packages.PackageCheckerMiddleware(logger),          // Pre-check syntax to avoid bothering the node reloading on invalid files
 		packages.LogMiddleware(logger),                     // Log any request
-	)
+	), paths
 }
 
 func guessPathGnoMod(dir string) (path string, ok bool) {
@@ -80,12 +91,15 @@ func guessPathGnoMod(dir string) (path string, ok bool) {
 	return "", false
 }
 
+var reInvalidChar = regexp.MustCompile(`[^\w_-]`)
+
 func guessPath(cfg *devCfg, dir string) (path string) {
 	if path, ok := guessPathGnoMod(dir); ok {
 		return path
 	}
 
-	return filepath.Join(cfg.chainDomain, "/r/dev/myrealm")
+	rname := reInvalidChar.ReplaceAllString(filepath.Base(dir), "-")
+	return filepath.Join(cfg.chainDomain, "/r/dev/", rname)
 }
 
 func isStdPath(path string) bool {

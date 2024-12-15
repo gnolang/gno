@@ -8,7 +8,6 @@ import (
 	"github.com/charmbracelet/lipgloss"
 	"github.com/gnolang/gno/contribs/gnodev/pkg/logger"
 	"github.com/gnolang/gno/gno.land/pkg/log"
-	"github.com/muesli/termenv"
 	"go.uber.org/zap/zapcore"
 )
 
@@ -24,9 +23,7 @@ func setuplogger(cfg *devCfg, out io.Writer) (*slog.Logger, error) {
 		return newJSONLogger(out, level), nil
 	case "console", "":
 		// Detect term color profile
-		colorProfile := termenv.DefaultOutput().Profile
-
-		clogger := logger.NewColumnLogger(out, level, colorProfile)
+		clogger := logger.NewColumnLogger(out, level)
 
 		// Register well known group color with system colors
 		clogger.RegisterGroupColor(NodeLogName, lipgloss.Color("3"))

@@ -5,15 +5,12 @@ import (
 	"errors"
 	"flag"
 	"fmt"
-	"io"
 	"os"
 
-	"github.com/gnolang/gno/contribs/gnodev/pkg/rawterm"
 	"github.com/gnolang/gno/gno.land/pkg/integration"
 	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
 	"github.com/gnolang/gno/tm2/pkg/commands"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
-	osm "github.com/gnolang/gno/tm2/pkg/os"
 )
 
 const DefaultDomain = "gno.land"
@@ -58,6 +55,7 @@ type devCfg struct {
 	webListenerAddr     string
 	webRemoteHelperAddr string
 	webWithHTML         bool
+	webHome             string
 
 	// Resolver
 	resolvers varResolver
@@ -72,7 +70,7 @@ type devCfg struct {
 	chainDomain string
 	unsafeAPI   bool
 	interactive bool
-	paths       varStrings
+	paths       string
 }
 
 var defaultDevOptions = devCfg{
@@ -274,10 +272,11 @@ func (c *devCfg) registerFlagsWithDefault(defaultCfg devCfg, fs *flag.FlagSet) {
 		"log output format, can be `json` or `console`",
 	)
 
-	fs.Var(
+	fs.StringVar(
 		&c.paths,
 		"paths",
-		"additional path load, can be use multiple time to be chained",
+		defaultCfg.paths,
+		"additional path(s) to load, separated by comma",
 	)
 
 	// Short flags
@@ -298,47 +297,16 @@ func (c *devCfg) validateConfigFlags() error {
 }
 
 func execDev(cfg *devCfg, args []string, cio commands.IO) error {
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-
-	var rt *rawterm.RawTerm
-
-	var out io.Writer
-	if !cfg.interactive {
-		var err error
-		var restore func() error
-
-		// Setup raw terminal for interaction
-		rt, restore, err = setupRawTerm(cfg, cio)
-		if err != nil {
-			return fmt.Errorf("unable to init raw term: %w", err)
+	if cfg.chdir != "" {
+		if err := os.Chdir(cfg.chdir); err != nil {
+			return fmt.Errorf("unable to change directory: %w", err)
 		}
-		defer restore()
-
-		osm.TrapSignal(func() {
-			cancel()
-			restore()
-		})
-
-		out = rt
-	} else {
-		osm.TrapSignal(cancel)
-		out = cio.Out()
 	}
 
-	logger, err := setuplogger(cfg, out)
+	dir, err := os.Getwd()
 	if err != nil {
-		return fmt.Errorf("unable to setup logger: %w", err)
+		return fmt.Errorf("unable to guess current dir: %w", err)
 	}
 
-	app := NewApp(ctx, logger, cfg, cio)
-	if err := app.Setup(); err != nil {
-		return err
-	}
-
-	if rt != nil {
-		go app.RunInteractive(rt)
-	}
-
-	return app.RunServer(rt)
+	return runApp(cfg, cio, dir)
 }

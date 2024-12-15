@@ -549,7 +549,7 @@ func (n *Node) genesisTxResultHandler(ctx sdk.Context, tx std.Tx, res sdk.Result
 	if !res.IsErr() {
 		for _, msg := range tx.Msgs {
 			if addpkg, ok := msg.(vm.MsgAddPackage); ok && addpkg.Package != nil {
-				n.logger.Info("package added",
+				n.logger.Info("add package",
 					"path", addpkg.Package.Path,
 					"files", len(addpkg.Package.Files),
 					"creator", addpkg.Creator.String(),

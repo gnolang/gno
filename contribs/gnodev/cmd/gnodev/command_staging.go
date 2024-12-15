@@ -18,6 +18,7 @@ var defaultStagingOptions = devCfg{
 	chainDomain:         DefaultDomain,
 	logFormat:           "json",
 	maxGas:              10_000_000_000,
+	webHome:             "/",
 	webListenerAddr:     "127.0.0.1:8888",
 	nodeRPCListenerAddr: "127.0.0.1:26657",
 	deployKey:           DefaultDeployerAddress.String(),
@@ -25,7 +26,7 @@ var defaultStagingOptions = devCfg{
 	root:                gnoenv.RootDir(),
 	interactive:         false,
 	unsafeAPI:           false,
-	paths:               varStrings{filepath.Join(DefaultDomain, "/**")}, // Load every package under the main domain},
+	paths:               filepath.Join(DefaultDomain, "/**"), // Load every package under the main domain},
 
 	// As we have no reason to configure this yet, set this to random port
 	// to avoid potential conflict with other app
@@ -39,7 +40,7 @@ func NewStagingCmd(io commands.IO) *commands.Command {
 	return commands.NewCommand(
 		commands.Metadata{
 			Name:          "staging",
-			ShortUsage:    "gnodev staging [flags]",
+			ShortUsage:    "gnodev staging [flags] [package_dir...]",
 			ShortHelp:     "Start gnodev in staging mode",
 			LongHelp:      "STAGING: Staging mode configure the node for server usage",
 			NoParentFlags: true,
@@ -56,61 +57,5 @@ func (c *stagingCfg) RegisterFlags(fs *flag.FlagSet) {
 }
 
 func execStagingCmd(cfg *stagingCfg, args []string, io commands.IO) error {
-	return execDev(&cfg.dev, args, io)
-	// ctx, cancel := context.WithCancel(context.Background())
-	// defer cancel()
-
-	// // Setup trap signal
-	// osm.TrapSignal(cancel)
-
-	// level := zapcore.InfoLevel
-	// if cfg.dev.verbose {
-	// 	level = zapcore.DebugLevel
-	// }
-
-	// // Set up the logger
-	// logger := log.ZapLoggerToSlog(log.NewZapJSONLogger(io.Out(), level))
-
-	// // Setup trap signal
-	// devServer := NewApp(ctx, logger, &cfg.dev, io)
-	// if err := devServer.Setup(); err != nil {
-	// 	return err
-	// }
-
-	// return devServer.RunServer(ctx)
+	return runApp(&cfg.dev, io, args...)
 }
-
-// func (ds *App) RunServer(ctx context.Context) error {
-// 	ctx, cancelWith := context.WithCancelCause(ctx)
-// 	defer cancelWith(nil)
-
-// 	addr := ds.cfg.webListenerAddr
-
-// 	server := &http.Server{
-// 		Handler:           ds.setupHandlers(),
-// 		Addr:              ds.cfg.webListenerAddr,
-// 		ReadHeaderTimeout: time.Second * 60,
-// 	}
-
-// 	ds.logger.WithGroup(WebLogName).Info("gnoweb started", "lisn", fmt.Sprintf("http://%s", addr))
-// 	go func() {
-// 		err := server.ListenAndServe()
-// 		cancelWith(err)
-// 	}()
-
-// 	for {
-// 		select {
-// 		case <-ctx.Done():
-// 			return context.Cause(ctx)
-// 		case _, ok := <-ds.watcher.PackagesUpdate:
-// 			if !ok {
-// 				return nil
-// 			}
-// 			ds.logger.WithGroup(NodeLogName).Info("reloading...")
-// 			if err := ds.devNode.Reload(ds.ctx); err != nil {
-// 				ds.logger.WithGroup(NodeLogName).Error("unable to reload node", "err", err)
-// 			}
-// 			ds.watcher.UpdatePackagesWatch(ds.devNode.ListPkgs()...)
-// 		}
-// 	}
-// }

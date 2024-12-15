@@ -10,10 +10,9 @@ import (
 
 	"github.com/charmbracelet/lipgloss"
 	"github.com/charmbracelet/log"
-	"github.com/muesli/termenv"
 )
 
-func NewColumnLogger(w io.Writer, level slog.Level, profile termenv.Profile) *ColumnLogger {
+func NewColumnLogger(w io.Writer, level slog.Level) *ColumnLogger {
 	charmLogger := log.NewWithOptions(w, log.Options{
 		ReportTimestamp: false,
 		ReportCaller:    false,
@@ -21,11 +20,12 @@ func NewColumnLogger(w io.Writer, level slog.Level, profile termenv.Profile) *Co
 	})
 
 	// Default column output
-	renderer := lipgloss.NewRenderer(nil, termenv.WithProfile(profile))
+	renderer := lipgloss.DefaultRenderer()
+
 	defaultOutput := newColumeWriter(w, lipgloss.NewStyle(), "")
 	charmLogger.SetOutput(defaultOutput)
 	charmLogger.SetStyles(defaultStyles())
-	charmLogger.SetColorProfile(profile)
+	// charmLogger.SetColorProfile(profile)
 	charmLogger.SetReportCaller(false)
 	switch level {
 	case slog.LevelDebug:

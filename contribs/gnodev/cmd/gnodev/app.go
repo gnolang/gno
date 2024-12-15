@@ -3,10 +3,12 @@ package main
 import (
 	"context"
 	"fmt"
+	"io"
 	"log/slog"
 	"net/http"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/gnolang/gno/contribs/gnodev/pkg/address"
@@ -16,14 +18,16 @@ import (
 	"github.com/gnolang/gno/contribs/gnodev/pkg/rawterm"
 	"github.com/gnolang/gno/contribs/gnodev/pkg/watcher"
 	"github.com/gnolang/gno/tm2/pkg/commands"
+	osm "github.com/gnolang/gno/tm2/pkg/os"
 )
 
 type App struct {
-	ctx    context.Context
 	cfg    *devCfg
 	io     commands.IO
 	logger *slog.Logger
 
+	webHome       string
+	paths         []string
 	devNode       *gnodev.Node
 	emitterServer *emitter.Server
 	watcher       *watcher.PackageWatcher
@@ -34,42 +38,93 @@ type App struct {
 	exported uint
 }
 
-func NewApp(ctx context.Context, logger *slog.Logger, cfg *devCfg, io commands.IO) *App {
+func runApp(cfg *devCfg, cio commands.IO, dirs ...string) error {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	var rt *rawterm.RawTerm
+
+	var out io.Writer
+	if cfg.interactive {
+		var err error
+		var restore func() error
+
+		// Setup raw terminal for interaction
+		rt, restore, err = setupRawTerm(cfg, cio)
+		if err != nil {
+			return fmt.Errorf("unable to init raw term: %w", err)
+		}
+		defer restore()
+
+		osm.TrapSignal(func() {
+			cancel()
+			restore()
+		})
+
+		out = rt
+	} else {
+		osm.TrapSignal(cancel)
+		out = cio.Out()
+	}
+
+	logger, err := setuplogger(cfg, out)
+	if err != nil {
+		return fmt.Errorf("unable to setup logger: %w", err)
+	}
+
+	app := NewApp(logger, cfg, cio)
+	if err := app.Setup(ctx, dirs...); err != nil {
+		return err
+	}
+
+	if rt != nil {
+		go func() {
+			app.RunInteractive(ctx, rt)
+			cancel()
+		}()
+	}
+
+	return app.RunServer(ctx, rt)
+}
+
+func NewApp(logger *slog.Logger, cfg *devCfg, io commands.IO) *App {
 	return &App{
-		ctx:    ctx,
 		logger: logger,
 		cfg:    cfg,
 		io:     io,
 	}
 }
 
-func (ds *App) Setup() error {
-	if err := ds.cfg.validateConfigFlags(); err != nil {
-		return fmt.Errorf("validate error: %w", err)
-	}
+func (ds *App) Setup(ctx context.Context, dirs ...string) error {
+	var err error
 
-	if ds.cfg.chdir != "" {
-		if err := os.Chdir(ds.cfg.chdir); err != nil {
-			return fmt.Errorf("unable to change directory: %w", err)
-		}
+	if err = ds.cfg.validateConfigFlags(); err != nil {
+		return fmt.Errorf("validate error: %w", err)
 	}
 
 	loggerEvents := ds.logger.WithGroup(EventServerLogName)
 	ds.emitterServer = emitter.NewServer(loggerEvents)
 
-	dir, err := os.Getwd()
-	if err != nil {
-		return fmt.Errorf("unable to guess current dir: %w", err)
-	}
-
-	path := guessPath(ds.cfg, dir)
-	ds.logger.WithGroup(LoaderLogName).Info("realm path", "path", path, "dir", dir)
-
 	// XXX: it would be nice to having this hardcoded
 	examplesDir := filepath.Join(ds.cfg.root, "examples")
 
-	resolver := setupPackagesResolver(ds.logger.WithGroup(LoaderLogName), ds.cfg, path, dir)
+	resolver, localPaths := setupPackagesResolver(ds.logger.WithGroup(LoaderLogName), ds.cfg, dirs...)
 	loader := packages.NewGlobLoader(examplesDir, resolver)
+
+	// Setup default web home realm, fallback on first local path
+	switch webHome := ds.cfg.webHome; webHome {
+	case "":
+		if len(localPaths) > 0 {
+			ds.webHome = strings.TrimPrefix(localPaths[0], ds.cfg.chainDomain)
+		}
+	case "/": // skip
+	default:
+		ds.webHome = webHome
+	}
+
+	// generate paths
+	paths := strings.Split(ds.cfg.paths, ",")
+	ds.paths = append(localPaths, paths...)
 
 	ds.book, err = setupAddressBook(ds.logger.WithGroup(AccountsLogName), ds.cfg)
 	if err != nil {
@@ -84,7 +139,7 @@ func (ds *App) Setup() error {
 
 	nodeLogger := ds.logger.WithGroup(NodeLogName)
 	nodeCfg := setupDevNodeConfig(ds.cfg, nodeLogger, ds.emitterServer, balances, loader)
-	ds.devNode, err = setupDevNode(ds.ctx, ds.cfg, nodeCfg, path)
+	ds.devNode, err = setupDevNode(ctx, ds.cfg, nodeCfg, ds.paths...)
 	if err != nil {
 		return err
 	}
@@ -102,6 +157,17 @@ func (ds *App) Setup() error {
 func (ds *App) setupHandlers() http.Handler {
 	mux := http.NewServeMux()
 	webhandler := setupGnoWebServer(ds.logger.WithGroup(WebLogName), ds.cfg, ds.devNode)
+
+	if ds.webHome != "" {
+		serveWeb := webhandler.ServeHTTP
+		webhandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if r.URL.Path == "" || r.URL.Path == "/" {
+				http.Redirect(w, r, ds.webHome, http.StatusFound)
+			} else {
+				serveWeb(w, r)
+			}
+		})
+	}
 
 	// Setup unsage api
 	if ds.cfg.unsafeAPI {
@@ -131,8 +197,8 @@ func (ds *App) setupHandlers() http.Handler {
 	return mux
 }
 
-func (ds *App) RunServer(term *rawterm.RawTerm) error {
-	ctx, cancelWith := context.WithCancelCause(ds.ctx)
+func (ds *App) RunServer(ctx context.Context, term *rawterm.RawTerm) error {
+	ctx, cancelWith := context.WithCancelCause(ctx)
 	defer cancelWith(nil)
 
 	addr := ds.cfg.webListenerAddr
@@ -164,7 +230,7 @@ func (ds *App) RunServer(term *rawterm.RawTerm) error {
 				return nil
 			}
 			ds.logger.WithGroup(NodeLogName).Info("reloading...")
-			if err := ds.devNode.Reload(ds.ctx); err != nil {
+			if err := ds.devNode.Reload(ctx); err != nil {
 				ds.logger.WithGroup(NodeLogName).Error("unable to reload node", "err", err)
 			}
 			ds.watcher.UpdatePackagesWatch(ds.devNode.ListPkgs()...)
@@ -172,7 +238,7 @@ func (ds *App) RunServer(term *rawterm.RawTerm) error {
 	}
 }
 
-func (ds *App) RunInteractive(term *rawterm.RawTerm) {
+func (ds *App) RunInteractive(ctx context.Context, term *rawterm.RawTerm) {
 	var keyPressCh <-chan rawterm.KeyPress
 	if ds.cfg.interactive {
 		keyPressCh = listenForKeyPress(ds.logger.WithGroup(KeyPressLogName), term)
@@ -180,7 +246,8 @@ func (ds *App) RunInteractive(term *rawterm.RawTerm) {
 
 	for {
 		select {
-		case <-ds.ctx.Done():
+		case <-ctx.Done():
+			return
 		case key, ok := <-keyPressCh:
 			if !ok {
 				return
@@ -190,7 +257,7 @@ func (ds *App) RunInteractive(term *rawterm.RawTerm) {
 				return
 			}
 
-			ds.handleKeyPress(key)
+			ds.handleKeyPress(ctx, key)
 			keyPressCh = listenForKeyPress(ds.logger.WithGroup(KeyPressLogName), term)
 		}
 	}
@@ -210,7 +277,7 @@ Ctrl+R      Reset        - Reset application to it's initial/save state.
 Ctrl+C      Exit         - Exit the application
 `
 
-func (ds *App) handleKeyPress(key rawterm.KeyPress) {
+func (ds *App) handleKeyPress(ctx context.Context, key rawterm.KeyPress) {
 	var err error
 	ds.logger.WithGroup(KeyPressLogName).Debug(fmt.Sprintf("<%s>", key.String()))
 
@@ -223,19 +290,19 @@ func (ds *App) handleKeyPress(key rawterm.KeyPress) {
 
 	case rawterm.KeyR: // Reload
 		ds.logger.WithGroup(NodeLogName).Info("reloading...")
-		if err = ds.devNode.ReloadAll(ds.ctx); err != nil {
+		if err = ds.devNode.ReloadAll(ctx); err != nil {
 			ds.logger.WithGroup(NodeLogName).Error("unable to reload node", "err", err)
 		}
 
 	case rawterm.KeyCtrlR: // Reset
 		ds.logger.WithGroup(NodeLogName).Info("reseting node state...")
-		if err = ds.devNode.Reset(ds.ctx); err != nil {
+		if err = ds.devNode.Reset(ctx); err != nil {
 			ds.logger.WithGroup(NodeLogName).Error("unable to reset node state", "err", err)
 		}
 
 	case rawterm.KeyCtrlS: // Save
 		ds.logger.WithGroup(NodeLogName).Info("saving state...")
-		if err := ds.devNode.SaveCurrentState(ds.ctx); err != nil {
+		if err := ds.devNode.SaveCurrentState(ctx); err != nil {
 			ds.logger.WithGroup(NodeLogName).Error("unable to save node state", "err", err)
 		}
 
@@ -251,7 +318,7 @@ func (ds *App) handleKeyPress(key rawterm.KeyPress) {
 		ds.exported++
 
 		ds.logger.WithGroup(NodeLogName).Info("exporting state...")
-		doc, err := ds.devNode.ExportStateAsGenesis(ds.ctx)
+		doc, err := ds.devNode.ExportStateAsGenesis(ctx)
 		if err != nil {
 			ds.logger.WithGroup(NodeLogName).Error("unable to export node state", "err", err)
 			return
@@ -266,13 +333,13 @@ func (ds *App) handleKeyPress(key rawterm.KeyPress) {
 
 	case rawterm.KeyN: // Next tx
 		ds.logger.Info("moving forward...")
-		if err := ds.devNode.MoveToNextTX(ds.ctx); err != nil {
+		if err := ds.devNode.MoveToNextTX(ctx); err != nil {
 			ds.logger.WithGroup(NodeLogName).Error("unable to move forward", "err", err)
 		}
 
 	case rawterm.KeyP: // Previous tx
 		ds.logger.Info("moving backward...")
-		if err := ds.devNode.MoveToPreviousTX(ds.ctx); err != nil {
+		if err := ds.devNode.MoveToPreviousTX(ctx); err != nil {
 			ds.logger.WithGroup(NodeLogName).Error("unable to move backward", "err", err)
 		}
 	default:
