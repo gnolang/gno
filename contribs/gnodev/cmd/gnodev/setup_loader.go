@@ -93,17 +93,12 @@ func guessPathGnoMod(dir string) (path string, ok bool) {
 	return "", false
 }
 
-func guessPath(cfg *devCfg, dir string) (path string, ok bool) {
-	gnoroot := cfg.root
+func guessPath(cfg *devCfg, dir string) (path string) {
 	if path, ok := guessPathGnoMod(dir); ok {
-		return path, true
+		return path
 	}
 
-	if path, ok = guessPathFromRoots(dir, gnoroot); ok {
-		return path, ok
-	}
-
-	return "", false
+	return filepath.Join(cfg.chainDomain, "/r/dev/myrealm")
 }
 
 func isStdPath(path string) bool {

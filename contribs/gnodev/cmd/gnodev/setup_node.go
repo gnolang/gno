@@ -16,8 +16,6 @@ import (
 
 // setupDevNode initializes and returns a new DevNode.
 func setupDevNode(ctx context.Context, cfg *devCfg, nodeConfig *gnodev.NodeConfig, path string) (*gnodev.Node, error) {
-	fmt.Printf("PATH: %+v\r\n", cfg.paths.String())
-
 	logger := nodeConfig.Logger
 
 	if cfg.txsFile != "" { // Load txs files
@@ -46,7 +44,6 @@ func setupDevNode(ctx context.Context, cfg *devCfg, nodeConfig *gnodev.NodeConfi
 	}
 
 	paths := append(cfg.paths.Strings(), path)
-	fmt.Println("PATHS:", paths)
 	return gnodev.NewDevNode(ctx, nodeConfig, paths...)
 }
 

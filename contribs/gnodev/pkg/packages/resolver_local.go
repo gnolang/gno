@@ -1,6 +1,7 @@
 package packages
 
 import (
+	"errors"
 	"fmt"
 	"go/token"
 	"path/filepath"
@@ -30,5 +31,10 @@ func (lr LocalResolver) Resolve(fset *token.FileSet, path string) (*Package, err
 	}
 
 	dir := filepath.Join(lr.Dir, after)
-	return ReadPackageFromDir(fset, path, dir)
+	pkg, err := ReadPackageFromDir(fset, path, dir)
+	if err != nil && after == "" && errors.Is(err, ErrResolverPackageSkip) {
+		return nil, fmt.Errorf("empty local package %q", err)
+	}
+
+	return pkg, nil
 }
