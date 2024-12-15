@@ -10,7 +10,7 @@
       path: "/public/js/copy.js",
     },
     help: {
-      selector: "#data",
+      selector: "#help",
       path: "/public/js/realmhelp.js",
     },
     searchBar: {
@@ -29,7 +29,7 @@
         console.error(`Error while loading script ${path}:`, err);
       }
     } else {
-      console.info(`Modulee not loaded: no element matches selector "${selector}"`);
+      console.warn(`Module not loaded: no element matches selector "${selector}"`);
     }
   };
 
