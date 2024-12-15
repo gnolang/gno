@@ -25,7 +25,8 @@ type HeaderData struct {
 }
 
 type FooterData struct {
-	Analytics bool
+	Analytics  bool
+	AssetsPath string
 }
 
 type IndexData struct {

@@ -264,19 +264,6 @@
     @apply text-green-600;
   }
 
-  /* table of content */
-  #sidebar {
-    @apply col-span-3 order-2;
-  }
-  #sidebar + .realm-content,
-  #sidebar + .code-content {
-    @apply col-span-7;
-  }
-  .realm-content,
-  .code-content {
-    @apply col-span-4;
-  }
-
   /* sidebar */
   .main-header:has(#sidemenu-summary:checked) + main #sidebar #sidebar-summary,
   .main-header:has(#sidemenu-source:checked) + main #sidebar #sidebar-source,
@@ -287,11 +274,11 @@
 
   :is(.main-header:has(#sidemenu-source:checked), .main-header:has(#sidemenu-docs:checked), .main-header:has(#sidemenu-meta:checked)) + main .realm-content,
   :is(.main-header:has(#sidemenu-source:checked), .main-header:has(#sidemenu-docs:checked), .main-header:has(#sidemenu-meta:checked)) .main-navigation {
-    @apply col-span-6;
+    @apply md:col-span-6;
   }
   :is(.main-header:has(#sidemenu-source:checked), .main-header:has(#sidemenu-docs:checked), .main-header:has(#sidemenu-meta:checked)) + main #sidebar,
   :is(.main-header:has(#sidemenu-source:checked), .main-header:has(#sidemenu-docs:checked), .main-header:has(#sidemenu-meta:checked)) .sidemenu {
-    @apply col-span-4;
+    @apply md:col-span-4;
   }
   :is(.main-header:has(#sidemenu-source:checked), .main-header:has(#sidemenu-docs:checked), .main-header:has(#sidemenu-meta:checked)) + main #sidebar::before {
     @apply absolute block content-[''] top-0 w-[50vw] h-full -left-7 bg-gray-100 z-min;

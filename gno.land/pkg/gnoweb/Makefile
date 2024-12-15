@@ -68,7 +68,7 @@ fmt:
 # Run the development dependencies in parallel
 dev:
 	@echo "-- starting development tools"
-	@PUBLIC_DIR=$(cache_dir)/public $(MAKE) -j 3 \
+	$(MAKE) -j 3 \
 		dev.gnoweb \
 		dev.ts \
 		dev.css
@@ -81,7 +81,7 @@ dev.gnoweb: generate
 
 # Tailwind CSS in development mode
 dev.css: generate | $(PUBLIC_DIR)
-	npx -y tailwindcss@$(tw_version) -c $(tw_config_path) --verbose -i $(input_css) -o $(output_css) --watch \
+	npx -y tailwindcss@$(tw_version) -c $(tw_config_path) --verbose -i $(input_css) -o $(output_css) --minify --watch \
 		2>&1 | $(run_logname) tailwind
 
 # XXX: add versioning on esbuild

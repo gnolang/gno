@@ -29,7 +29,7 @@
         console.error(`Error while loading script ${path}:`, err);
       }
     } else {
-      console.info(`Module not loaded: no element matches selector "${selector}"`);
+      console.info(`Modulee not loaded: no element matches selector "${selector}"`);
     }
   };
 

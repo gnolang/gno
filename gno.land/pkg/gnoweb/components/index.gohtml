@@ -53,7 +53,7 @@
     <link rel="stylesheet" href="{{ .ChromaPath }}" />
 
 		<!-- web assets -->
-    <link rel="stylesheet" href="{{ .AssetsPath }}/styles.css" />
+    <link rel="stylesheet" href="{{ .AssetsPath }}styles.css" />
     <link rel="preload" href="{{ .AssetsPath }}fonts/intervar/Inter.var.woff2" as="font" type="font/woff2" crossorigin />
     <link rel="preload" href="{{ .AssetsPath }}fonts/roboto/roboto-mono-normal.woff2" as="font" type="font/woff2" crossorigin />
 </head>
@@ -61,24 +61,24 @@
 
 {{ define "header" }}
 <header class="main-header sticky top-0 bg-light border-b border-gray-400 text-100 z-max">
-    <nav aria-label="Realm navigation" class="max-w-screen-max mx-auto px-10 grid grid-cols-10 grid-flow-dense gap-8 xxl:gap-20 items-center">
-        <div class="main-navigation flex items-center gap-1 col-span-7 max-w-screen-max h-full py-2">
+    <nav aria-label="Realm navigation" class="max-w-screen-max mx-auto px-4 md:px-10 grid grid-cols-10 grid-flow-dense gap-4 md:gap-8 xxl:gap-20 items-center">
+        <div class="main-navigation flex items-center gap-1 col-span-7  max-w-screen-max h-full py-2">
             <a href="/" class="rounded border border-gray-100 cursor-pointer h-10 w-10 shrink-0">
                 <img src="/public/imgs/gnoland.svg" alt="Gno username profile pic" width="40px" height="40px" />
             </a>
 
-            <form id="header-searchbar" class="relative flex items-center bg-gray-100 border h-full border-gray-100 p-1.5 rounded w-full">
+            <form id="header-searchbar" class="relative overflow-scroll flex items-center bg-gray-100 border h-full border-gray-100 p-1.5 rounded w-full">
                 <input data-role="header-input-search" type="text" value="{{ .RealmPath }}" class="peer absolute w-full top-0 left-0 h-full bg-transparent p-1.5 text-200 focus-within:outline-gray-300 focus-within:outline-2" />
 
                 {{ template "breadcrumb" .Breadcrumb }}
             </form>
         </div>
 
-        <form class="sidemenu col-span-3 flex justify-start gap-6 h-full text-100 text-gray-300">
+        <form class="sidemenu col-span-3 md:col-span-2 flex justify-end md:justify-start gap-3 sm:gap-6 h-full text-100 text-gray-300">
             <a href="{{ .RealmPath }}">
                 <div class="gap-1 hover:text-gray-600 relative flex items-center h-full after:block after:absolute after:h-1 after:bg-green-600 after:bottom-0 {{ if (and (not (queryHas .WebQuery "source")) (not (queryHas .WebQuery "help"))) }}after:w-full text-stroke text-gray-600{{ end }}">
                     <input type="radio" value="summary" name="sidemenu" id="sidemenu-meta" class="peer hidden" />
-                    <svg class="w-5 h-5 xxl:w-4 xxl:h-4 shrink-0 inline-block xl:hidden xxl:inline-block">
+                    <svg class="w-5 h-5 min-w-2 xxl:w-4 xxl:h-4 shrink-0 inline-block xl:hidden xxl:inline-block">
                         <use href="#ico-info"></use>
                     </svg>
                     <span class="hidden xl:inline pr-px">Content</span>
@@ -88,7 +88,7 @@
             <a href="{{ .RealmPath }}$source">
                 <div class="gap-1 hover:text-gray-600 relative flex items-center h-full after:block after:absolute after:h-1 after:bg-green-600 after:bottom-0 {{ if queryHas .WebQuery "source" }}after:w-full text-stroke text-gray-600{{ end }}">
                     <input type="radio" value="summary" name="sidemenu" id="sidemenu-source" class="peer hidden" />
-                    <svg class="w-5 h-5 xxl:w-4 xxl:h-4 shrink-0 inline-block xl:hidden xxl:inline-block">
+                    <svg class="w-5 h-5 min-w-2 xxl:w-4 xxl:h-4 shrink-0 inline-block xl:hidden xxl:inline-block">
                         <use href="#ico-code"></use>
                     </svg>
                     <span class="hidden xl:inline pr-px">Source</span>
@@ -98,7 +98,7 @@
             <a href="{{ .RealmPath }}$help">
                 <div class="gap-1 hover:text-gray-600 relative flex items-center h-full inline-flex gap-1 items-center cursor-pointer after:block after:absolute after:h-1 after:bg-green-600 after:bottom-0 {{ if queryHas .WebQuery "help" }}after:w-full text-stroke text-gray-600{{ end }}">
                     <input type="radio" value="summary" name="sidemenu" id="sidemenu-docs" class="peer hidden" />
-                    <svg class="w-5 h-5 xxl:w-4 xxl:h-4 shrink-0 inline-block xl:hidden xxl:inline-block">
+                    <svg class="w-5 h-5 min-w-2 xxl:w-4 xxl:h-4 shrink-0 inline-block xl:hidden xxl:inline-block">
                         <use href="#ico-docs"></use>
                     </svg>
                     <span class="hidden xl:inline pr-px">Docs</span>
@@ -115,12 +115,12 @@
 
 {{ define "footer" }}
 <footer class="w-full text-100 py-1.5 border-t border-gray-300">
-    <nav class="max-w-screen-max mx-auto px-10 grid grid-cols-4 justify-between items-start xl:items-center gap-2 xl:gap-20 pt-2 xl:pt-0">
+    <nav class="max-w-screen-max mx-auto px-4 md:px-10 mb-8 md:mb-0 grid grid-cols-1 md:grid-cols-4 justify-between items-start xl:items-center gap-2 xl:gap-20 pt-2 xl:pt-0">
         <!-- Footer Navigation -->
-        <div class="col-span-1">
-            <a class="block h-4" href="">{{ template "logosvg" }}</a>
+        <div class="col-span-1 pb-8">
+            <a class="block h-6 md:h-4" href="">{{ template "logosvg" }}</a>
         </div>
-        <div class="flex justify-between col-span-3">
+        <div class="flex justify-between md:col-span-3">
             <ul aria-label="Footer navigation" class="flex flex-col xl:flex-row gap-4 xl:gap-6">
                 <li><a href="/about">About</a></li>
                 <li><a href="https://docs.gno.land/">Docs</a></li>
@@ -141,7 +141,7 @@
         </div>
     </nav>
 </footer>
-<script type="module" src="/public/js/index.js"></script>
+<script type="module" src="{{ .AssetsPath }}js/index.js"></script>
 {{- if .Analytics -}} {{- template "analytics" }} {{- end -}}
 
 {{- end }}
