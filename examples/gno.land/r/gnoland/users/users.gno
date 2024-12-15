@@ -17,7 +17,7 @@ const (
 )
 
 var (
-	admin      = ownable.NewWithAddress(adminAddr) // @moul /// switch to dao managed down the line
+	admin      = ownable.NewWithAddress(adminAddr) // @moul // switch to dao managed down the line
 	pausable   = p.NewFromOwnable(admin)           //
 	reUsername = regexp.MustCompile(reValidUsername)
 )
@@ -45,7 +45,7 @@ func Register(username, bio string) error {
 		Name:    username,
 	}
 
-	// todo set extra data to r/demo/profiles
+	// set extra data to r/demo/profiles
 
 	err := sys.WriteUser(base)
 	if err != nil {
