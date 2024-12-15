@@ -17,6 +17,7 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/errors"
 	osm "github.com/gnolang/gno/tm2/pkg/os"
 	p2p "github.com/gnolang/gno/tm2/pkg/p2p/config"
+	sdk "github.com/gnolang/gno/tm2/pkg/sdk/config"
 	telemetry "github.com/gnolang/gno/tm2/pkg/telemetry/config"
 )
 
@@ -54,6 +55,7 @@ type Config struct {
 	Consensus    *cns.ConsensusConfig `json:"consensus" toml:"consensus" comment:"##### consensus configuration options #####"`
 	TxEventStore *eventstore.Config   `json:"tx_event_store" toml:"tx_event_store" comment:"##### event store #####"`
 	Telemetry    *telemetry.Config    `json:"telemetry" toml:"telemetry" comment:"##### node telemetry #####"`
+	Application  *sdk.AppConfig       `json:"application" toml:"application" comment:"##### app settings #####"`
 }
 
 // DefaultConfig returns a default configuration for a Tendermint node
@@ -66,6 +68,7 @@ func DefaultConfig() *Config {
 		Consensus:    cns.DefaultConsensusConfig(),
 		TxEventStore: eventstore.DefaultEventStoreConfig(),
 		Telemetry:    telemetry.DefaultTelemetryConfig(),
+		Application:  sdk.DefaultAppConfig(),
 	}
 }
 
@@ -173,6 +176,7 @@ func TestConfig() *Config {
 		Consensus:    cns.TestConsensusConfig(),
 		TxEventStore: eventstore.DefaultEventStoreConfig(),
 		Telemetry:    telemetry.DefaultTelemetryConfig(),
+		Application:  sdk.DefaultAppConfig(),
 	}
 }
 
@@ -227,6 +231,9 @@ func (cfg *Config) ValidateBasic() error {
 	}
 	if err := cfg.Consensus.ValidateBasic(); err != nil {
 		return errors.Wrap(err, "Error in [consensus] section")
+	}
+	if err := cfg.Application.ValidateBasic(); err != nil {
+		return errors.Wrap(err, "Error in [application] section")
 	}
 	return nil
 }

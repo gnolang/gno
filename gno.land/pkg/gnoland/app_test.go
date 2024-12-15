@@ -128,7 +128,7 @@ func TestNewApp(t *testing.T) {
 	// NewApp should have good defaults and manage to run InitChain.
 	td := t.TempDir()
 
-	app, err := NewApp(td, true, events.NewEventSwitch(), log.NewNoopLogger())
+	app, err := NewApp(td, true, events.NewEventSwitch(), log.NewNoopLogger(), "")
 	require.NoError(t, err, "NewApp should be successful")
 
 	resp := app.InitChain(abci.RequestInitChain{

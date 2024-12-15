@@ -28,6 +28,11 @@ func ParseGasPrice(gasprice string) (GasPrice, error) {
 	if gas.Denom != "gas" {
 		return GasPrice{}, errors.New("invalid gas price: %s (invalid gas denom)", gasprice)
 	}
+
+	if gas.Amount <= 0 {
+		return GasPrice{}, errors.New("invalid gas price: %s (invalid gas amount)", gasprice)
+	}
+
 	return GasPrice{
 		Gas:   gas.Amount,
 		Price: price,

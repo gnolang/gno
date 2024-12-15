@@ -338,6 +338,13 @@ func DeductFees(bank BankKeeperI, ctx sdk.Context, acc std.Account, fees std.Coi
 // consensus.
 func EnsureSufficientMempoolFees(ctx sdk.Context, fee std.Fee) sdk.Result {
 	minGasPrices := ctx.MinGasPrices()
+	feeGasPrice := std.GasPrice{
+		Gas: fee.GasWanted,
+		Price: std.Coin{
+			Amount: fee.GasFee.Amount,
+			Denom:  fee.GasFee.Denom,
+		},
+	}
 	if len(minGasPrices) == 0 {
 		// no minimum gas price (not recommended)
 		// TODO: allow for selective filtering of 0 fee txs.
@@ -362,9 +369,10 @@ func EnsureSufficientMempoolFees(ctx sdk.Context, fee std.Fee) sdk.Result {
 				if prod1.Cmp(prod2) >= 0 {
 					return sdk.Result{}
 				} else {
+					fee := new(big.Int).Quo(prod2, gpg)
 					return abciResult(std.ErrInsufficientFee(
 						fmt.Sprintf(
-							"insufficient fees; got: %q required: %q", fee.GasFee, gp,
+							"insufficient fees; got: {Gas-Wanted: %d, Gas-Fee %s}, fee required: %d with %+v as minimum gas price set by the node", feeGasPrice.Gas, feeGasPrice.Price, fee, gp,
 						),
 					))
 				}
@@ -374,7 +382,7 @@ func EnsureSufficientMempoolFees(ctx sdk.Context, fee std.Fee) sdk.Result {
 
 	return abciResult(std.ErrInsufficientFee(
 		fmt.Sprintf(
-			"insufficient fees; got: %q required (one of): %q", fee.GasFee, minGasPrices,
+			"insufficient fees; got: {Gas-Wanted: %d, Gas-Fee %s}, required (one of): %q", feeGasPrice.Gas, feeGasPrice.Price, minGasPrices,
 		),
 	))
 }
