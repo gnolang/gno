@@ -1,7 +1,7 @@
 {{ define "renderSource" }}
 <main class="w-full grow-[2] bg-gray-50">
     <section class="max-w-screen-max mx-auto px-4 md:px-10 grid grid-cols-1 md:grid-cols-10 grid-flow-dense gap-x-8 xxl:gap-x-20 items-start">
-         <header class="mt-10 md:row-start-1 row-span-1 col-span-1 md:col-span-7 flex flex-col xl:flex-row gap-1 justify-between mb-6 md:mb-10 lg:mb-6">
+         <header class="mt-10 md:row-start-1 row-span-1 col-span-1 md:col-span-7 flex flex-col xl:flex-row justify-between mb-4">
                 <div class="flex items-center">
                     <h1 class="text-600 font-bold">{{ .FileName }}</h1>
                 </div>
@@ -16,11 +16,13 @@
                     </button>
                 </div>
             </header>
-        <aside class="mt-10 col-span-1 md:col-span-3 md:order-2 row-start-1 md:row-span-2 relative h-full" aria-label="Table of Contents">
-            <div class="sticky top-16 pt-2">
-                <div id="sidebar-summary" class="toc max-h-screen overflow-scroll no-scrollbar">
-                    <span class="block text-gray-300 font-semibold">Sources Files list</span>
-                    <nav class="text-100 font-mono md:pb-28">
+        <aside class="md:mt-10 col-span-1 md:col-span-3 md:order-2 row-start-1 md:row-span-2 relative h-full" aria-label="Table of Contents">
+            <div class="sticky top-16 md:pt-2">
+                <div id="sidebar-summary" class="toc max-h-screen overflow-scroll no-scrollbar bg-light md:bg-transparent rounded-sm mt-8 md:mt-0">
+                    <label for="toc-expend" class="toc-expend-btn flex text-gray-300 font-semibold justify-between items-center bg-gray-100 md:bg-transparent p-2 md:p-0 rounded-sm">Sources Files list
+                        <input id="toc-expend" type="checkbox" class="hidden" checked>
+                    </label>
+                    <nav class="hidden md:block text-100 mt-2 md:mt-0 pb-6 md:pb-28 p-2 font-mono">
                         <ul class="list-none space-y-1.5 pt-2">
                             {{ $pkgpath := .PkgPath }}
                             {{ range .Files }}

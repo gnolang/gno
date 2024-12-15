@@ -254,7 +254,7 @@
 
   /* chroma */
   main .source-code > pre {
-    @apply !bg-light overflow-scroll rounded py-8 px-3 font-mono;
+    @apply !bg-light overflow-scroll rounded py-4 md:py-8 px-1 md:px-3 font-mono text-100 md:text-200;
   }
 }
 
@@ -262,6 +262,17 @@
   /* header */
   .sidemenu .peer:checked + label > svg {
     @apply text-green-600;
+  }
+
+  /* toc */
+  .toc-expend-btn {
+    @apply after:content-['open'] after:font-medium after:text-100 md:after:content-none;
+  }
+  .toc-expend-btn:has(#toc-expend:checked) {
+    @apply after:content-['close'] md:after:content-none;
+  }
+  .toc-expend-btn:has(#toc-expend:checked) + nav {
+    @apply block;
   }
 
   /* sidebar */
