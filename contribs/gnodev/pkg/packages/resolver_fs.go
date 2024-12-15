@@ -11,12 +11,12 @@ type fsResolver struct {
 	root string // Root folder
 }
 
-func (l *fsResolver) Name() string {
-	return fmt.Sprintf("fs<%s>", filepath.Base(l.root))
-}
-
 func NewFSResolver(rootpath string) Resolver {
 	return &fsResolver{root: rootpath}
+}
+
+func (r *fsResolver) Name() string {
+	return fmt.Sprintf("fs<%s>", filepath.Base(r.root))
 }
 
 func (r *fsResolver) Resolve(fset *token.FileSet, path string) (*Package, error) {

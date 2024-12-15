@@ -71,23 +71,10 @@ func setupPackagesResolver(logger *slog.Logger, cfg *devCfg, path, dir string) p
 	)
 }
 
-func guessPathFromRoots(dir string, roots ...string) (path string, ok bool) {
-	for _, root := range roots {
-		if !strings.HasPrefix(dir, root) {
-			continue
-		}
-
-		return strings.TrimPrefix(dir, root), true
-	}
-
-	return "", false
-}
-
 func guessPathGnoMod(dir string) (path string, ok bool) {
 	modfile, err := gnomod.ParseAt(dir)
 	if err == nil {
 		return modfile.Module.Mod.Path, true
-
 	}
 
 	return "", false
@@ -110,3 +97,15 @@ func isStdPath(path string) bool {
 
 	return true
 }
+
+// func guessPathFromRoots(dir string, roots ...string) (path string, ok bool) {
+// 	for _, root := range roots {
+// 		if !strings.HasPrefix(dir, root) {
+// 			continue
+// 		}
+
+// 		return strings.TrimPrefix(dir, root), true
+// 	}
+
+// 	return "", false
+// }

@@ -12,10 +12,6 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/bft/rpc/client"
 )
 
-type remoteCaching interface {
-	Get(path string)
-}
-
 type remoteResolver struct {
 	*client.RPCClient // Root folder
 	fset              *token.FileSet
@@ -62,12 +58,11 @@ func (res *remoteResolver) Resolve(fset *token.FileSet, path string) (*Package, 
 		}
 
 		if err := qres.Response.Error; err != nil {
-			return nil, fmt.Errorf("unable to query file %q on path %q: %w",
-				string(fname), path, err)
+			return nil, fmt.Errorf("unable to query file %q on path %q: %w", fname, path, err)
 		}
 
 		body := qres.Response.Data
-		memfile, pkgname, err := parseFile(fset, string(fname), body)
+		memfile, pkgname, err := parseFile(fset, fname, body)
 		if err != nil {
 			return nil, fmt.Errorf("unable to parse file %q: %w", fname, err)
 		}

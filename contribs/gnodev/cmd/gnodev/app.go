@@ -25,7 +25,6 @@ type App struct {
 	logger *slog.Logger
 
 	devNode       *gnodev.Node
-	server        *http.Server
 	emitterServer *emitter.Server
 	watcher       *watcher.PackageWatcher
 	book          *address.Book
@@ -296,44 +295,44 @@ func listenForKeyPress(logger *slog.Logger, rt *rawterm.RawTerm) <-chan rawterm.
 	return cc
 }
 
-func resolvePackagesPathFromArgs(cfg *devCfg, bk *address.Book, args []string) ([]gnodev.PackageModifier, error) {
-	modifiers := make([]gnodev.PackageModifier, 0, len(args))
+// func resolvePackagesPathFromArgs(cfg *devCfg, bk *address.Book, args []string) ([]gnodev.PackageModifier, error) {
+// 	modifiers := make([]gnodev.PackageModifier, 0, len(args))
 
-	if cfg.deployKey == "" {
-		return nil, fmt.Errorf("default deploy key cannot be empty")
-	}
+// 	if cfg.deployKey == "" {
+// 		return nil, fmt.Errorf("default deploy key cannot be empty")
+// 	}
 
-	defaultKey, _, ok := bk.GetFromNameOrAddress(cfg.deployKey)
-	if !ok {
-		return nil, fmt.Errorf("unable to get deploy key %q", cfg.deployKey)
-	}
+// 	defaultKey, _, ok := bk.GetFromNameOrAddress(cfg.deployKey)
+// 	if !ok {
+// 		return nil, fmt.Errorf("unable to get deploy key %q", cfg.deployKey)
+// 	}
 
-	if len(args) == 0 {
-		args = append(args, ".") // add current dir if none are provided
-	}
+// 	if len(args) == 0 {
+// 		args = append(args, ".") // add current dir if none are provided
+// 	}
 
-	for _, arg := range args {
-		path, err := gnodev.ResolvePackageModifierQuery(bk, arg)
-		if err != nil {
-			return nil, fmt.Errorf("invalid package path/query %q: %w", arg, err)
-		}
+// 	for _, arg := range args {
+// 		path, err := gnodev.ResolvePackageModifierQuery(bk, arg)
+// 		if err != nil {
+// 			return nil, fmt.Errorf("invalid package path/query %q: %w", arg, err)
+// 		}
 
-		// Assign a default creator if user haven't specified it.
-		if path.Creator.IsZero() {
-			path.Creator = defaultKey
-		}
+// 		// Assign a default creator if user haven't specified it.
+// 		if path.Creator.IsZero() {
+// 			path.Creator = defaultKey
+// 		}
 
-		modifiers = append(modifiers, path)
-	}
+// 		modifiers = append(modifiers, path)
+// 	}
 
-	// Add examples folder if minimal is set to false
-	if cfg.minimal {
-		modifiers = append(modifiers, gnodev.PackageModifier{
-			Path:    filepath.Join(cfg.root, "examples"),
-			Creator: defaultKey,
-			Deposit: nil,
-		})
-	}
+// 	// Add examples folder if minimal is set to false
+// 	if cfg.minimal {
+// 		modifiers = append(modifiers, gnodev.PackageModifier{
+// 			Path:    filepath.Join(cfg.root, "examples"),
+// 			Creator: defaultKey,
+// 			Deposit: nil,
+// 		})
+// 	}
 
-	return modifiers, nil
-}
+// 	return modifiers, nil
+// }

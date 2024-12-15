@@ -77,7 +77,6 @@ func LogMiddleware(logger *slog.Logger) MiddlewareHandler {
 				"took", time.Since(start).String(),
 				"resolver", next.Name(),
 				"err", err)
-
 		}
 
 		return pkg, err

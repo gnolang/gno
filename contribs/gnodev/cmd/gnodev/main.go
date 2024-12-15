@@ -36,8 +36,7 @@ const (
 var ErrConflictingFileArgs = errors.New("cannot specify `balances-file` or `txs-file` along with `genesis-file`")
 
 type devCfg struct {
-	chdir    string
-	rootPath string
+	chdir string
 
 	// Listeners
 	nodeRPCListenerAddr      string
@@ -65,7 +64,6 @@ type devCfg struct {
 
 	// Node Configuration
 	logFormat   string
-	minimal     bool
 	verbose     bool
 	noWatch     bool
 	noReplay    bool
@@ -176,7 +174,7 @@ func (c *devCfg) registerFlagsWithDefault(defaultCfg devCfg, fs *flag.FlagSet) {
 	fs.Var(
 		&c.resolvers,
 		"resolver",
-		"list of addtional resolvers, will be exectued in the given order",
+		"list of additional resolvers, will be executed in the given order",
 	)
 
 	fs.StringVar(

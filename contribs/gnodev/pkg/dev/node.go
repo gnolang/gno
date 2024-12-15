@@ -526,7 +526,6 @@ func (n *Node) rebuildNode(ctx context.Context, genesis gnoland.GnoGenesisState)
 	node, nodeErr := gnoland.NewInMemoryNode(noopLogger, nodeConfig)
 	if nodeErr != nil {
 		return fmt.Errorf("unable to create a new node: %w", err)
-
 	}
 
 	node.EventSwitch().AddListener("dev-emitter", n.handleEventTX)
