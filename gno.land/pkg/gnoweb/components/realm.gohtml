@@ -2,7 +2,7 @@
 <ul class="space-y-2 pt-2 pl-4">
     {{ range .Items }}
         <li>
-            <a class="line-clamp-2 hover:text-green-600 hover:underline " href="{{ .Anchor }}">
+            <a class="line-clamp-2 hover:text-green-600 hover:underline" href="{{ .Anchor }}">
                 {{ .Title | noescape_bytes }}
             </a>
             {{ if .Items }}

@@ -16,18 +16,18 @@
                     </button>
                 </div>
             </header>
-        <aside class="lg:mt-10 col-span-1 lg:col-span-3 lg:order-2 row-start-1 lg:row-span-2 relative h-full" aria-label="Table of Contents">
+        <aside class="col-span-1 lg:col-span-3 lg:order-2 row-start-1 lg:row-span-2 relative h-full" aria-label="Table of Contents">
             <div class="sticky top-14 lg:pt-2">
                 <div id="sidebar-summary" class="toc max-h-screen overflow-scroll no-scrollbar bg-light lg:bg-transparent rounded-sm mt-8 lg:mt-0">
-                    <label for="toc-expend" class="toc-expend-btn flex text-gray-300 font-semibold justify-between items-center bg-gray-100 lg:bg-transparent p-2 lg:p-0 rounded-sm">Sources Files list
+                    <label for="toc-expend" class="toc-expend-btn flex text-gray-300 font-semibold lg:mt-10 justify-between items-center bg-gray-100 lg:bg-transparent p-2 lg:p-0 rounded-sm">Sources Files list
                         <input id="toc-expend" type="checkbox" class="hidden" checked>
                     </label>
                     <nav class="hidden lg:block text-100 mt-2 lg:mt-0 pb-6 lg:pb-28 p-2 lg:px-0 font-mono">
-                        <ul class="list-none space-y-1.5 pt-2">
+                        <ul class="list-none space-y-2 pt-2">
                             {{ $pkgpath := .PkgPath }}
                             {{ range .Files }}
                             <li>
-                                <a class="flex items-center gap-2 line-clamp-2 hover:text-green-600" href="{{ $pkgpath }}$source&file={{ . }}">
+                                <a class="flex items-center gap-2 line-clamp-2 hover:text-green-600 hover:underline" href="{{ $pkgpath }}$source&file={{ . }}">
                                     <svg class="w-4 h-4 shrink-0">
                                         <use href="#ico-file"></use>
                                     </svg>
