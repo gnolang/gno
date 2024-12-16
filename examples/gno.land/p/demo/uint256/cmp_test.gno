@@ -29,7 +29,7 @@ func TestSign(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		t.Run(tt.input.ToString(), func(t *testing.T) {
+		t.Run(tt.input.String(), func(t *testing.T) {
 			result := tt.input.Sign()
 			if result != tt.expected {
 				t.Errorf("Sign() = %d; want %d", result, tt.expected)

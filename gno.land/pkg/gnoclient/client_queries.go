@@ -31,7 +31,7 @@ func (c *Client) Query(cfg QueryCfg) (*ctypes.ResultABCIQuery, error) {
 	}
 
 	if qres.Response.Error != nil {
-		return qres, errors.Wrap(qres.Response.Error, "deliver transaction failed: log:%s", qres.Response.Log)
+		return qres, errors.Wrapf(qres.Response.Error, "deliver transaction failed: log:%s", qres.Response.Log)
 	}
 
 	return qres, nil
@@ -97,7 +97,7 @@ func (c *Client) Render(pkgPath string, args string) (string, *ctypes.ResultABCI
 		return "", nil, errors.Wrap(err, "query render")
 	}
 	if qres.Response.Error != nil {
-		return "", nil, errors.Wrap(qres.Response.Error, "Render failed: log:%s", qres.Response.Log)
+		return "", nil, errors.Wrapf(qres.Response.Error, "Render failed: log:%s", qres.Response.Log)
 	}
 
 	return string(qres.Response.Data), qres, nil
@@ -120,7 +120,7 @@ func (c *Client) QEval(pkgPath string, expression string) (string, *ctypes.Resul
 		return "", nil, errors.Wrap(err, "query qeval")
 	}
 	if qres.Response.Error != nil {
-		return "", nil, errors.Wrap(qres.Response.Error, "QEval failed: log:%s", qres.Response.Log)
+		return "", nil, errors.Wrapf(qres.Response.Error, "QEval failed: log:%s", qres.Response.Log)
 	}
 
 	return string(qres.Response.Data), qres, nil

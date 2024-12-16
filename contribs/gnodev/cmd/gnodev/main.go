@@ -59,20 +59,23 @@ type devCfg struct {
 	// Web Configuration
 	webListenerAddr     string
 	webRemoteHelperAddr string
+	webWithHTML         bool
 
 	// Node Configuration
-	minimal    bool
-	verbose    bool
-	noWatch    bool
-	noReplay   bool
-	maxGas     int64
-	chainId    string
-	serverMode bool
-	unsafeAPI  bool
+	minimal     bool
+	verbose     bool
+	noWatch     bool
+	noReplay    bool
+	maxGas      int64
+	chainId     string
+	chainDomain string
+	serverMode  bool
+	unsafeAPI   bool
 }
 
 var defaultDevOptions = &devCfg{
 	chainId:             "dev",
+	chainDomain:         "gno.land",
 	maxGas:              10_000_000_000,
 	webListenerAddr:     "127.0.0.1:8888",
 	nodeRPCListenerAddr: "127.0.0.1:26657",
@@ -124,14 +127,21 @@ func (c *devCfg) RegisterFlags(fs *flag.FlagSet) {
 		&c.webListenerAddr,
 		"web-listener",
 		defaultDevOptions.webListenerAddr,
-		"web server listener address",
+		"gnoweb: web server listener address",
 	)
 
 	fs.StringVar(
 		&c.webRemoteHelperAddr,
 		"web-help-remote",
 		defaultDevOptions.webRemoteHelperAddr,
-		"web server help page's remote addr (default to <node-rpc-listener>)",
+		"gnoweb: web server help page's remote addr (default to <node-rpc-listener>)",
+	)
+
+	fs.BoolVar(
+		&c.webWithHTML,
+		"web-with-html",
+		defaultDevOptions.webWithHTML,
+		"gnoweb: enable HTML parsing in markdown rendering",
 	)
 
 	fs.StringVar(
@@ -201,6 +211,13 @@ func (c *devCfg) RegisterFlags(fs *flag.FlagSet) {
 		"chain-id",
 		defaultDevOptions.chainId,
 		"set node ChainID",
+	)
+
+	fs.StringVar(
+		&c.chainDomain,
+		"chain-domain",
+		defaultDevOptions.chainDomain,
+		"set node ChainDomain",
 	)
 
 	fs.BoolVar(

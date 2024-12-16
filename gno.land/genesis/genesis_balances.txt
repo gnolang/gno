@@ -16,7 +16,8 @@ g13d7jc32adhc39erm5me38w5v7ej7lpvlnqjk73=1000000000000ugnot # faucet3 (devx)
 g18l9us6trqaljw39j94wzf5ftxmd9qqkvrxghd2=1000000000000ugnot # faucet4 (adena)
 
 # Contributors premine & GitHub requests (closed).
-g1u7y667z64x2h7vc6fmpcprgey4ck233jaww9zq=10000000000ugnot # @moul
+g1manfred47kzduec920z88wfr64ylksmdcedlf5=10000000000ugnot # @moul
+g1u7y667z64x2h7vc6fmpcprgey4ck233jaww9zq=10000000000ugnot # @manfred
 g14da4n9hcynyzz83q607uu8keuh9hwlv42ra6fa=10000000000ugnot # @piux2
 g15gdm49ktawvkrl88jadqpucng37yxutucuwaef=10000000000ugnot # @chadwick
 g1589c8cekvmjfmy0qrd4f3z52r7fn7rgk02667s=10000000000ugnot # @mefodica #83

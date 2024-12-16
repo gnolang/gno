@@ -35,7 +35,7 @@ func TestErrorPanic(t *testing.T) {
 func TestWrapSomething(t *testing.T) {
 	t.Parallel()
 
-	err := Wrap("something", "formatter%v%v", 0, 1)
+	err := Wrapf("something", "formatter%v%v", 0, 1)
 
 	assert.Equal(t, "something", err.Data())
 	assert.Equal(t, "something", fmt.Sprintf("%v", err))
@@ -46,7 +46,7 @@ func TestWrapSomething(t *testing.T) {
 func TestWrapNothing(t *testing.T) {
 	t.Parallel()
 
-	err := Wrap(nil, "formatter%v%v", 0, 1)
+	err := Wrapf(nil, "formatter%v%v", 0, 1)
 
 	assert.Equal(t,
 		FmtError{"formatter%v%v", []interface{}{0, 1}},

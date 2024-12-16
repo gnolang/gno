@@ -194,16 +194,29 @@ func TestParseGnoMod(t *testing.T) {
 			modPath: filepath.Join(pkgDir, "gno.mod"),
 		},
 		{
-			desc:             "error parsing gno.mod",
+			desc: "valid gno.mod file with replace",
+			modData: `module foo
+			replace bar => ../bar`,
+			modPath: filepath.Join(pkgDir, "gno.mod"),
+		},
+		{
+			desc:             "error bad module directive",
 			modData:          `module foo v0.0.0`,
 			modPath:          filepath.Join(pkgDir, "gno.mod"),
 			errShouldContain: "error parsing gno.mod file at",
 		},
 		{
-			desc:             "error validating gno.mod",
-			modData:          `require bar v0.0.0`,
+			desc:             "error gno.mod without module",
+			modData:          `replace bar => ../bar`,
 			modPath:          filepath.Join(pkgDir, "gno.mod"),
-			errShouldContain: "error validating gno.mod file at",
+			errShouldContain: "requires module",
+		},
+		{
+			desc: "error gno.mod with require",
+			modData: `module foo
+			require bar v0.0.0`,
+			modPath:          filepath.Join(pkgDir, "gno.mod"),
+			errShouldContain: "unknown directive: require",
 		},
 	} {
 		t.Run(tc.desc, func(t *testing.T) {

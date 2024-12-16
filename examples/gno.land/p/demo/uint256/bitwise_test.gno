@@ -43,7 +43,7 @@ func TestOr(t *testing.T) {
 			if *res != tt.want {
 				t.Errorf(
 					"Or(%s, %s) = %s, want %s",
-					tt.x.ToString(), tt.y.ToString(), res.ToString(), (tt.want).ToString(),
+					tt.x.String(), tt.y.String(), res.String(), (tt.want).String(),
 				)
 			}
 		})
@@ -102,7 +102,7 @@ func TestAnd(t *testing.T) {
 			if *res != tt.want {
 				t.Errorf(
 					"And(%s, %s) = %s, want %s",
-					tt.x.ToString(), tt.y.ToString(), res.ToString(), (tt.want).ToString(),
+					tt.x.String(), tt.y.String(), res.String(), (tt.want).String(),
 				)
 			}
 		})
@@ -138,7 +138,7 @@ func TestNot(t *testing.T) {
 			if *res != tt.want {
 				t.Errorf(
 					"Not(%s) = %s, want %s",
-					tt.x.ToString(), res.ToString(), (tt.want).ToString(),
+					tt.x.String(), res.String(), (tt.want).String(),
 				)
 			}
 		})
@@ -197,7 +197,7 @@ func TestAndNot(t *testing.T) {
 			if *res != tt.want {
 				t.Errorf(
 					"AndNot(%s, %s) = %s, want %s",
-					tt.x.ToString(), tt.y.ToString(), res.ToString(), (tt.want).ToString(),
+					tt.x.String(), tt.y.String(), res.String(), (tt.want).String(),
 				)
 			}
 		})
@@ -256,7 +256,7 @@ func TestXor(t *testing.T) {
 			if *res != tt.want {
 				t.Errorf(
 					"Xor(%s, %s) = %s, want %s",
-					tt.x.ToString(), tt.y.ToString(), res.ToString(), (tt.want).ToString(),
+					tt.x.String(), tt.y.String(), res.String(), (tt.want).String(),
 				)
 			}
 		})
@@ -311,7 +311,7 @@ func TestLsh(t *testing.T) {
 		got := new(Uint).Lsh(x, tt.y)
 
 		if got.Neq(want) {
-			t.Errorf("Lsh(%s, %d) = %s, want %s", tt.x, tt.y, got.ToString(), want.ToString())
+			t.Errorf("Lsh(%s, %d) = %s, want %s", tt.x, tt.y, got.String(), want.String())
 		}
 	}
 }
@@ -357,7 +357,7 @@ func TestRsh(t *testing.T) {
 		got := new(Uint).Rsh(x, tt.y)
 
 		if got.Neq(want) {
-			t.Errorf("Rsh(%s, %d) = %s, want %s", tt.x, tt.y, got.ToString(), want.ToString())
+			t.Errorf("Rsh(%s, %d) = %s, want %s", tt.x, tt.y, got.String(), want.String())
 		}
 	}
 }
@@ -417,7 +417,7 @@ func TestSRsh(t *testing.T) {
 		got := new(Uint).SRsh(x, tt.y)
 
 		if !got.Eq(want) {
-			t.Errorf("SRsh(%s, %d) = %s, want %s", tt.x, tt.y, got.ToString(), want.ToString())
+			t.Errorf("SRsh(%s, %d) = %s, want %s", tt.x, tt.y, got.String(), want.String())
 		}
 	}
 }

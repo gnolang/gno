@@ -59,6 +59,7 @@ func TestingNodeConfig(t TestingTS, gnoroot string, additionalTxs ...gnoland.TxW
 
 	creator := crypto.MustAddressFromString(DefaultAccount_Address) // test1
 
+	params := LoadDefaultGenesisParamFile(t, gnoroot)
 	balances := LoadDefaultGenesisBalanceFile(t, gnoroot)
 	txs := make([]gnoland.TxWithMetadata, 0)
 	txs = append(txs, LoadDefaultPackages(t, creator, gnoroot)...)
@@ -67,6 +68,7 @@ func TestingNodeConfig(t TestingTS, gnoroot string, additionalTxs ...gnoland.TxW
 	cfg.Genesis.AppState = gnoland.GnoGenesisState{
 		Balances: balances,
 		Txs:      txs,
+		Params:   params,
 	}
 
 	return cfg, creator
@@ -118,10 +120,11 @@ func DefaultTestingGenesisConfig(t TestingTS, gnoroot string, self crypto.PubKey
 			Balances: []gnoland.Balance{
 				{
 					Address: crypto.MustAddressFromString(DefaultAccount_Address),
-					Amount:  std.MustParseCoins(ugnot.ValueString(10000000000000)),
+					Amount:  std.MustParseCoins(ugnot.ValueString(10_000_000_000_000)),
 				},
 			},
-			Txs: []gnoland.TxWithMetadata{},
+			Txs:    []gnoland.TxWithMetadata{},
+			Params: []gnoland.Param{},
 		},
 	}
 }
@@ -145,6 +148,16 @@ func LoadDefaultGenesisBalanceFile(t TestingTS, gnoroot string) []gnoland.Balanc
 	require.NoError(t, err)
 
 	return genesisBalances
+}
+
+// LoadDefaultGenesisParamFile loads the default genesis balance file for testing.
+func LoadDefaultGenesisParamFile(t TestingTS, gnoroot string) []gnoland.Param {
+	paramFile := filepath.Join(gnoroot, "gno.land", "genesis", "genesis_params.toml")
+
+	genesisParams, err := gnoland.LoadGenesisParamsFile(paramFile)
+	require.NoError(t, err)
+
+	return genesisParams
 }
 
 // LoadDefaultGenesisTXsFile loads the default genesis transactions file for testing.

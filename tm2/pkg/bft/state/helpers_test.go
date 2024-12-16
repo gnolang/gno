@@ -52,7 +52,7 @@ func makeAndApplyGoodBlock(state sm.State, height int64, lastCommit *types.Commi
 	blockExec *sm.BlockExecutor,
 ) (sm.State, types.BlockID, error) {
 	block, _ := state.MakeBlock(height, makeTxs(height), lastCommit, proposerAddr)
-	if err := blockExec.ValidateBlock(state, block); err != nil {
+	if err := state.ValidateBlock(block); err != nil {
 		return state, types.BlockID{}, err
 	}
 	blockID := types.BlockID{Hash: block.Hash(), PartsHeader: types.PartSetHeader{}}

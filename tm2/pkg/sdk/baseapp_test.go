@@ -634,6 +634,38 @@ func TestDeliverTx(t *testing.T) {
 	}
 }
 
+// Test that the gas used between Simulate and DeliverTx is the same.
+func TestGasUsedBetweenSimulateAndDeliver(t *testing.T) {
+	t.Parallel()
+
+	anteKey := []byte("ante-key")
+	anteOpt := func(bapp *BaseApp) { bapp.SetAnteHandler(anteHandlerTxTest(t, mainKey, anteKey)) }
+
+	deliverKey := []byte("deliver-key")
+	routerOpt := func(bapp *BaseApp) {
+		bapp.Router().AddRoute(routeMsgCounter, newMsgCounterHandler(t, mainKey, deliverKey))
+	}
+
+	app := setupBaseApp(t, anteOpt, routerOpt)
+	app.InitChain(abci.RequestInitChain{ChainID: "test-chain"})
+
+	header := &bft.Header{ChainID: "test-chain", Height: 1}
+	app.BeginBlock(abci.RequestBeginBlock{Header: header})
+
+	tx := newTxCounter(0, 0)
+	txBytes, err := amino.Marshal(tx)
+	require.Nil(t, err)
+
+	simulateRes := app.Simulate(txBytes, tx)
+	require.True(t, simulateRes.IsOK(), fmt.Sprintf("%v", simulateRes))
+	require.Greater(t, simulateRes.GasUsed, int64(0)) // gas used should be greater than 0
+
+	deliverRes := app.DeliverTx(abci.RequestDeliverTx{Tx: txBytes})
+	require.True(t, deliverRes.IsOK(), fmt.Sprintf("%v", deliverRes))
+
+	require.Equal(t, simulateRes.GasUsed, deliverRes.GasUsed) // gas used should be the same from simulate and deliver
+}
+
 // One call to DeliverTx should process all the messages, in order.
 func TestMultiMsgDeliverTx(t *testing.T) {
 	t.Parallel()
@@ -753,7 +785,7 @@ func TestSimulateTx(t *testing.T) {
 		require.True(t, queryResult.IsOK(), queryResult.Log)
 
 		var res Result
-		amino.MustUnmarshal(queryResult.Value, &res)
+		require.NoError(t, amino.Unmarshal(queryResult.Value, &res))
 		require.Nil(t, err, "Result unmarshalling failed")
 		require.True(t, res.IsOK(), res.Log)
 		require.Equal(t, gasConsumed, res.GasUsed, res.Log)

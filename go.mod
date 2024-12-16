@@ -13,7 +13,6 @@ require (
 	github.com/davecgh/go-spew v1.1.1
 	github.com/decred/dcrd/dcrec/secp256k1/v4 v4.3.0
 	github.com/fortytw2/leaktest v1.3.0
-	github.com/gnolang/overflow v0.0.0-20170615021017-4d914c927216
 	github.com/google/gofuzz v1.2.0
 	github.com/gorilla/mux v1.8.1
 	github.com/gorilla/websocket v1.5.3
@@ -45,7 +44,6 @@ require (
 	golang.org/x/term v0.23.0
 	golang.org/x/tools v0.24.0
 	google.golang.org/protobuf v1.35.1
-	gopkg.in/yaml.v3 v3.0.1
 )
 
 require (
@@ -69,4 +67,5 @@ require (
 	google.golang.org/genproto/googleapis/api v0.0.0-20240822170219-fc7c04adadcd // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20240822170219-fc7c04adadcd // indirect
 	google.golang.org/grpc v1.65.0 // indirect
+	gopkg.in/yaml.v3 v3.0.1 // indirect
 )

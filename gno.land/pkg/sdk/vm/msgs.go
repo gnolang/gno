@@ -29,7 +29,7 @@ func NewMsgAddPackage(creator crypto.Address, pkgPath string, files []*gnovm.Mem
 	var pkgName string
 	for _, file := range files {
 		if strings.HasSuffix(file.Name, ".gno") {
-			pkgName = string(gno.PackageNameFromFileBody(file.Name, file.Body))
+			pkgName = string(gno.MustPackageNameFromFileBody(file.Name, file.Body))
 			break
 		}
 	}
@@ -156,7 +156,7 @@ var _ std.Msg = MsgRun{}
 func NewMsgRun(caller crypto.Address, send std.Coins, files []*gnovm.MemFile) MsgRun {
 	for _, file := range files {
 		if strings.HasSuffix(file.Name, ".gno") {
-			pkgName := string(gno.PackageNameFromFileBody(file.Name, file.Body))
+			pkgName := string(gno.MustPackageNameFromFileBody(file.Name, file.Body))
 			if pkgName != "main" {
 				panic("package name should be 'main'")
 			}
@@ -186,8 +186,8 @@ func (msg MsgRun) ValidateBasic() error {
 	}
 
 	// Force memPkg path to the reserved run path.
-	wantPath := "gno.land/r/" + msg.Caller.String() + "/run"
-	if path := msg.Package.Path; path != "" && path != wantPath {
+	wantSuffix := "/r/" + msg.Caller.String() + "/run"
+	if path := msg.Package.Path; path != "" && !strings.HasSuffix(path, wantSuffix) {
 		return ErrInvalidPkgPath(fmt.Sprintf("invalid pkgpath for MsgRun: %q", path))
 	}
 

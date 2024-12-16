@@ -6,7 +6,7 @@ import (
 	"gno.land/p/demo/urequire"
 )
 
-func TestURL(t *testing.T) {
+func TestCall(t *testing.T) {
 	tests := []struct {
 		fn    string
 		args  []string
@@ -30,7 +30,7 @@ func TestURL(t *testing.T) {
 	for _, tt := range tests {
 		title := tt.fn
 		t.Run(title, func(t *testing.T) {
-			got := tt.realm.URL(tt.fn, tt.args...)
+			got := tt.realm.Call(tt.fn, tt.args...)
 			urequire.Equal(t, tt.want, got)
 		})
 	}

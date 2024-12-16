@@ -48,12 +48,6 @@ func TestListAndNonDraftPkgs(t *testing.T) {
 					`module foo`,
 				},
 				{
-					"bar",
-					`module bar
-
-					require foo v0.0.0`,
-				},
-				{
 					"baz",
 					`module baz`,
 				},
@@ -64,121 +58,8 @@ func TestListAndNonDraftPkgs(t *testing.T) {
 					module qux`,
 				},
 			},
-			outListPkgs:     []string{"foo", "bar", "baz", "qux"},
-			outNonDraftPkgs: []string{"foo", "bar", "baz"},
-		},
-		{
-			desc: "package directly depends on draft package",
-			in: []struct{ name, modfile string }{
-				{
-					"foo",
-					`// Draft
-
-					module foo`,
-				},
-				{
-					"bar",
-					`module bar
-					require foo v0.0.0`,
-				},
-				{
-					"baz",
-					`module baz`,
-				},
-			},
-			outListPkgs:     []string{"foo", "bar", "baz"},
-			outNonDraftPkgs: []string{"baz"},
-		},
-		{
-			desc: "package indirectly depends on draft package",
-			in: []struct{ name, modfile string }{
-				{
-					"foo",
-					`// Draft
-
-					module foo`,
-				},
-				{
-					"bar",
-					`module bar
-
-					require foo v0.0.0`,
-				},
-				{
-					"baz",
-					`module baz
-
-					require bar v0.0.0`,
-				},
-				{
-					"qux",
-					`module qux`,
-				},
-			},
-			outListPkgs:     []string{"foo", "bar", "baz", "qux"},
-			outNonDraftPkgs: []string{"qux"},
-		},
-		{
-			desc: "package indirectly depends on draft package (multiple levels - 1)",
-			in: []struct{ name, modfile string }{
-				{
-					"foo",
-					`// Draft
-
-					module foo`,
-				},
-				{
-					"bar",
-					`module bar
-
-					require foo v0.0.0`,
-				},
-				{
-					"baz",
-					`module baz
-
-					require bar v0.0.0`,
-				},
-				{
-					"qux",
-					`module qux
-
-					require baz v0.0.0`,
-				},
-			},
-			outListPkgs:     []string{"foo", "bar", "baz", "qux"},
-			outNonDraftPkgs: []string{},
-		},
-		{
-			desc: "package indirectly depends on draft package (multiple levels - 2)",
-			in: []struct{ name, modfile string }{
-				{
-					"foo",
-					`// Draft
-
-					module foo`,
-				},
-				{
-					"bar",
-					`module bar
-
-					require qux v0.0.0`,
-				},
-				{
-					"baz",
-					`module baz
-
-					require foo v0.0.0`,
-				},
-				{
-					"qux",
-					`module qux
-
-					require baz v0.0.0`,
-				},
-			},
-			outListPkgs:     []string{"foo", "bar", "baz", "qux"},
-			outNonDraftPkgs: []string{},
+			outListPkgs:     []string{"foo", "baz", "qux"},
+			outNonDraftPkgs: []string{"foo", "baz"},
 		},
 	} {
 		t.Run(tc.desc, func(t *testing.T) {
@@ -224,6 +105,7 @@ func createGnoModPkg(t *testing.T, dirPath, pkgName, modData string) {
 
 	// Create gno.mod
 	err = os.WriteFile(filepath.Join(pkgDirPath, "gno.mod"), []byte(modData), 0o644)
+	require.NoError(t, err)
 }
 
 func TestSortPkgs(t *testing.T) {
@@ -240,30 +122,30 @@ func TestSortPkgs(t *testing.T) {
 		}, {
 			desc: "no_dependencies",
 			in: []Pkg{
-				{Name: "pkg1", Dir: "/path/to/pkg1", Requires: []string{}},
-				{Name: "pkg2", Dir: "/path/to/pkg2", Requires: []string{}},
-				{Name: "pkg3", Dir: "/path/to/pkg3", Requires: []string{}},
+				{Name: "pkg1", Dir: "/path/to/pkg1", Imports: []string{}},
+				{Name: "pkg2", Dir: "/path/to/pkg2", Imports: []string{}},
+				{Name: "pkg3", Dir: "/path/to/pkg3", Imports: []string{}},
 			},
 			expected: []string{"pkg1", "pkg2", "pkg3"},
 		}, {
 			desc: "circular_dependencies",
 			in: []Pkg{
-				{Name: "pkg1", Dir: "/path/to/pkg1", Requires: []string{"pkg2"}},
-				{Name: "pkg2", Dir: "/path/to/pkg2", Requires: []string{"pkg1"}},
+				{Name: "pkg1", Dir: "/path/to/pkg1", Imports: []string{"pkg2"}},
+				{Name: "pkg2", Dir: "/path/to/pkg2", Imports: []string{"pkg1"}},
 			},
 			shouldErr: true,
 		}, {
 			desc: "missing_dependencies",
 			in: []Pkg{
-				{Name: "pkg1", Dir: "/path/to/pkg1", Requires: []string{"pkg2"}},
+				{Name: "pkg1", Dir: "/path/to/pkg1", Imports: []string{"pkg2"}},
 			},
 			shouldErr: true,
 		}, {
 			desc: "valid_dependencies",
 			in: []Pkg{
-				{Name: "pkg1", Dir: "/path/to/pkg1", Requires: []string{"pkg2"}},
-				{Name: "pkg2", Dir: "/path/to/pkg2", Requires: []string{"pkg3"}},
-				{Name: "pkg3", Dir: "/path/to/pkg3", Requires: []string{}},
+				{Name: "pkg1", Dir: "/path/to/pkg1", Imports: []string{"pkg2"}},
+				{Name: "pkg2", Dir: "/path/to/pkg2", Imports: []string{"pkg3"}},
+				{Name: "pkg3", Dir: "/path/to/pkg3", Imports: []string{}},
 			},
 			expected: []string{"pkg3", "pkg2", "pkg1"},
 		},

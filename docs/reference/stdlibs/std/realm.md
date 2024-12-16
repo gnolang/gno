@@ -14,6 +14,7 @@ type Realm struct {
 func (r Realm) Addr() Address {...}
 func (r Realm) PkgPath() string {...}
 func (r Realm) IsUser() bool {...}
+func (r Realm) CoinDenom(coinName string) string {...}
 ```
 
 ## Addr
@@ -38,4 +39,16 @@ Checks if the realm it was called upon is a user realm.
 #### Usage
 ```go
 if r.IsUser() {...}
+```
+---
+## CoinDenom
+Composes a qualified denomination string from the realm's `pkgPath` and the provided coin name, e.g. `/gno.land/r/demo/blog:blgcoin`. This method should be used to get fully qualified denominations of coins when interacting with the `Banker` module.
+
+#### Parameters
+- `coinName` **string** - The coin name used to build the qualified denomination. Must start with a lowercase letter, followed by 2–15 lowercase letters or digits.
+
+#### Usage
+```go
+// in "gno.land/r/gnoland/blog"
+denom := r.CoinDenom("blgcoin") // /gno.land/r/gnoland/blog:blgcoin
 ```

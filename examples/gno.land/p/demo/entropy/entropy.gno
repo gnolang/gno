@@ -87,3 +87,11 @@ func (i *Instance) Value() uint32 {
 	i.addEntropy()
 	return i.value
 }
+
+func (i *Instance) Value64() uint64 {
+	i.addEntropy()
+	high := i.value
+	i.addEntropy()
+
+	return (uint64(high) << 32) | uint64(i.value)
+}

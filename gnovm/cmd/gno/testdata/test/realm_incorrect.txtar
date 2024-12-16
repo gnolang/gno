@@ -1,0 +1,26 @@
+# Test Realm instruction incorrect
+
+! gno test -v .
+
+! stdout .+ # stdout should be empty
+stderr '=== RUN   file/x_filetest.gno'
+stderr 'Realm diff:'
+stderr '--- Expected'
+stderr '\+\+\+ Actual'
+stderr '@@ -1,2 \+1,67 @@'
+stderr '-xxx'
+stderr '\+switchrealm\["gno.land/r/xx"\]'
+stderr 'x_filetest.gno failed'
+
+-- x_filetest.gno --
+// PKGPATH: gno.land/r/xx
+package xx
+
+var x int
+
+func main() {
+	x = 1
+}
+
+// Realm:
+// xxxx

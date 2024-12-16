@@ -8,7 +8,7 @@ import (
 	"strings"
 
 	"github.com/gnolang/gno/tm2/pkg/errors"
-	"github.com/gnolang/overflow"
+	"github.com/gnolang/gno/tm2/pkg/overflow"
 )
 
 // -----------------------------------------------------------------------------
@@ -658,7 +658,7 @@ func ParseCoin(coinStr string) (coin Coin, err error) {
 
 	amount, err := strconv.ParseInt(amountStr, 10, 64)
 	if err != nil {
-		return Coin{}, errors.Wrap(err, "failed to parse coin amount: %s", amountStr)
+		return Coin{}, errors.Wrapf(err, "failed to parse coin amount: %s", amountStr)
 	}
 
 	if err := validateDenom(denomStr); err != nil {

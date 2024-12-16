@@ -3,26 +3,49 @@ package txs
 import (
 	"context"
 	"errors"
+	"flag"
 	"fmt"
+
+	"github.com/gnolang/gno/tm2/pkg/crypto"
 
 	"github.com/gnolang/gno/gno.land/pkg/gnoland"
 	"github.com/gnolang/gno/gno.land/pkg/gnoland/ugnot"
 	"github.com/gnolang/gno/tm2/pkg/bft/types"
 	"github.com/gnolang/gno/tm2/pkg/commands"
-	"github.com/gnolang/gno/tm2/pkg/crypto"
 	"github.com/gnolang/gno/tm2/pkg/std"
 )
 
-var errInvalidPackageDir = errors.New("invalid package directory")
-
 var (
-	// Keep in sync with gno.land/cmd/start.go
-	genesisDeployAddress = crypto.MustAddressFromString("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5") // test1
-	genesisDeployFee     = std.NewFee(50000, std.MustParseCoin(ugnot.ValueString(1000000)))
+	errInvalidPackageDir   = errors.New("invalid package directory")
+	errInvalidDeployerAddr = errors.New("invalid deployer address")
 )
+
+// Keep in sync with gno.land/cmd/start.go
+var (
+	defaultCreator   = crypto.MustAddressFromString("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5") // test1
+	genesisDeployFee = std.NewFee(50000, std.MustParseCoin(ugnot.ValueString(1000000)))
+)
+
+type addPkgCfg struct {
+	txsCfg          *txsCfg
+	deployerAddress string
+}
+
+func (c *addPkgCfg) RegisterFlags(fs *flag.FlagSet) {
+	fs.StringVar(
+		&c.deployerAddress,
+		"deployer-address",
+		defaultCreator.String(),
+		"the address that will be used to deploy the package",
+	)
+}
 
 // newTxsAddPackagesCmd creates the genesis txs add packages subcommand
 func newTxsAddPackagesCmd(txsCfg *txsCfg, io commands.IO) *commands.Command {
+	cfg := &addPkgCfg{
+		txsCfg: txsCfg,
+	}
+
 	return commands.NewCommand(
 		commands.Metadata{
 			Name:       "packages",
@@ -30,20 +53,20 @@ func newTxsAddPackagesCmd(txsCfg *txsCfg, io commands.IO) *commands.Command {
 			ShortHelp:  "imports transactions from the given packages into the genesis.json",
 			LongHelp:   "Imports the transactions from a given package directory recursively to the genesis.json",
 		},
-		commands.NewEmptyConfig(),
+		cfg,
 		func(_ context.Context, args []string) error {
-			return execTxsAddPackages(txsCfg, io, args)
+			return execTxsAddPackages(cfg, io, args)
 		},
 	)
 }
 
 func execTxsAddPackages(
-	cfg *txsCfg,
+	cfg *addPkgCfg,
 	io commands.IO,
 	args []string,
 ) error {
 	// Load the genesis
-	genesis, loadErr := types.GenesisDocFromFile(cfg.GenesisPath)
+	genesis, loadErr := types.GenesisDocFromFile(cfg.txsCfg.GenesisPath)
 	if loadErr != nil {
 		return fmt.Errorf("unable to load genesis, %w", loadErr)
 	}
@@ -53,10 +76,23 @@ func execTxsAddPackages(
 		return errInvalidPackageDir
 	}
 
+	var (
+		creator = defaultCreator
+		err     error
+	)
+
+	// Check if the deployer address is set
+	if cfg.deployerAddress != defaultCreator.String() {
+		creator, err = crypto.AddressFromString(cfg.deployerAddress)
+		if err != nil {
+			return fmt.Errorf("%w, %w", errInvalidDeployerAddr, err)
+		}
+	}
+
 	parsedTxs := make([]gnoland.TxWithMetadata, 0)
 	for _, path := range args {
 		// Generate transactions from the packages (recursively)
-		txs, err := gnoland.LoadPackagesFromDir(path, genesisDeployAddress, genesisDeployFee)
+		txs, err := gnoland.LoadPackagesFromDir(path, creator, genesisDeployFee)
 		if err != nil {
 			return fmt.Errorf("unable to load txs from directory, %w", err)
 		}
@@ -70,7 +106,7 @@ func execTxsAddPackages(
 	}
 
 	// Save the updated genesis
-	if err := genesis.SaveAs(cfg.GenesisPath); err != nil {
+	if err := genesis.SaveAs(cfg.txsCfg.GenesisPath); err != nil {
 		return fmt.Errorf("unable to save genesis.json, %w", err)
 	}
 

@@ -50,3 +50,4 @@ func main() {
 // > Edited: First reply of the First post
 // >
 // > \- [@gnouser](/r/demo/users:gnouser), [2009-02-13 11:31pm (UTC)](/r/demo/boards:test_board/1/2) \[[reply](/r/demo/boards$help&func=CreateReply&bid=1&threadid=1&postid=2)] \[[x](/r/demo/boards$help&func=DeletePost&bid=1&threadid=1&postid=2)]
+//

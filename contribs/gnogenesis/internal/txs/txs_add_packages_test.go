@@ -60,6 +60,32 @@ func TestGenesis_Txs_Add_Packages(t *testing.T) {
 		assert.ErrorContains(t, cmdErr, errInvalidPackageDir.Error())
 	})
 
+	t.Run("invalid deployer address", func(t *testing.T) {
+		t.Parallel()
+
+		tempGenesis, cleanup := testutils.NewTestFile(t)
+		t.Cleanup(cleanup)
+
+		genesis := common.GetDefaultGenesis()
+		require.NoError(t, genesis.SaveAs(tempGenesis.Name()))
+
+		// Create the command
+		cmd := NewTxsCmd(commands.NewTestIO())
+		args := []string{
+			"add",
+			"packages",
+			"--genesis-path",
+			tempGenesis.Name(),
+			t.TempDir(), // package dir
+			"--deployer-address",
+			"beep-boop", // invalid address
+		}
+
+		// Run the command
+		cmdErr := cmd.ParseAndRun(context.Background(), args)
+		assert.ErrorIs(t, cmdErr, errInvalidDeployerAddr)
+	})
+
 	t.Run("valid package", func(t *testing.T) {
 		t.Parallel()
 

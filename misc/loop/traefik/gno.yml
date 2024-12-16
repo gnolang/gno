@@ -11,7 +11,7 @@ http:
     gno-portal-loop-local:
       service: gno-portal-loop
       rule: "PathPrefix(`/`)"
-      entrypoints: ["private"]
+      entrypoints: [ "rpc" ]
       middlewares: []
 
     gno-portal-loop:
@@ -19,11 +19,11 @@ http:
       tls:
         certResolver: le
       rule: "Host(`rpc.gno.land`) || Host(`rpc.portal.gnoteam.com`)"
-      entrypoints: ["web", "websecure"]
+      entrypoints: [ "web", "websecure" ]
       middlewares: []
 
   services:
     gno-portal-loop:
       loadBalancer:
         servers:
-          - url: "http://172.42.0.2:26657"
+          - url: "http://172.42.0.4:26657"

@@ -6,7 +6,7 @@ import "fmt"
 func main() {
 	r := int(uint(string("hello")))
 	println(r)
-	fmt.Printf("%T \n", r)
+	fmt.Printf("%T\n", r)
 }
 
 // Error:

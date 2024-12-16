@@ -4,6 +4,9 @@ on:
             modulepath:
               required: true
               type: string
+            tests-extra-args:
+              required: false
+              type: string
         secrets:
           codecov-token:
             required: true
@@ -32,6 +35,7 @@ jobs:
             modulepath: ${{ inputs.modulepath }}
             tests-timeout: "30m"
             go-version: "1.22.x"
+            tests-extra-args: ${{ inputs.tests-extra-args }}
         secrets:
             codecov-token: ${{ secrets.codecov-token }}
     

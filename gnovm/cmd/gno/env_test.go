@@ -18,13 +18,13 @@ func TestEnvApp(t *testing.T) {
 		{args: []string{"env", "foo"}, stdoutShouldBe: "\n"},
 		{args: []string{"env", "foo", "bar"}, stdoutShouldBe: "\n\n"},
 		{args: []string{"env", "GNOROOT"}, stdoutShouldBe: testGnoRootEnv + "\n"},
-		{args: []string{"env", "GNOHOME", "storm"}, stdoutShouldBe: testGnoHomeEnv + "\n\n"},
+		{args: []string{"env", "GNOHOME", "storm"}, stdoutShouldBe: testGnoHomeEnv + "\n\n", noTmpGnohome: true},
 		{args: []string{"env"}, stdoutShouldContain: fmt.Sprintf("GNOROOT=%q", testGnoRootEnv)},
-		{args: []string{"env"}, stdoutShouldContain: fmt.Sprintf("GNOHOME=%q", testGnoHomeEnv)},
+		{args: []string{"env"}, stdoutShouldContain: fmt.Sprintf("GNOHOME=%q", testGnoHomeEnv), noTmpGnohome: true},
 
 		// json
 		{args: []string{"env", "-json"}, stdoutShouldContain: fmt.Sprintf("\"GNOROOT\": %q", testGnoRootEnv)},
-		{args: []string{"env", "-json"}, stdoutShouldContain: fmt.Sprintf("\"GNOHOME\": %q", testGnoHomeEnv)},
+		{args: []string{"env", "-json"}, stdoutShouldContain: fmt.Sprintf("\"GNOHOME\": %q", testGnoHomeEnv), noTmpGnohome: true},
 		{
 			args:           []string{"env", "-json", "GNOROOT"},
 			stdoutShouldBe: fmt.Sprintf("{\n\t\"GNOROOT\": %q\n}\n", testGnoRootEnv),

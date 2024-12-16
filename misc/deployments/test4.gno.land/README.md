@@ -4,7 +4,7 @@ This deployment folder contains minimal information needed to launch a full test
 
 ## `genesis.json`
 
-The initial `genesis.json` validator set is consisted of 3 entities (7 validators in total):
+The initial `genesis.json` validator set consisted of 3 entities (7 validators in total):
 
 - Gno Core - the gno core team (**4 validators**)
 - Gno DevX - the gno devX team (**2 validators**)

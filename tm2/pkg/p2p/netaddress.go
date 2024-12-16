@@ -134,7 +134,7 @@ func NewNetAddressFromStrings(idaddrs []string) ([]*NetAddress, []error) {
 	return netAddrs, errs
 }
 
-// NewNetAddressIPPort returns a new NetAddress using the provided IP
+// NewNetAddressFromIPPort returns a new NetAddress using the provided IP
 // and port number.
 func NewNetAddressFromIPPort(id ID, ip net.IP, port uint16) *NetAddress {
 	return &NetAddress{

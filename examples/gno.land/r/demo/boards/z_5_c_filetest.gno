@@ -37,3 +37,4 @@ func main() {
 //
 // > Reply of the first post
 // > \- [g1w3jhxapjta047h6lta047h6lta047h6laqcyu4](/r/demo/users:g1w3jhxapjta047h6lta047h6lta047h6laqcyu4), [2009-02-13 11:31pm (UTC)](/r/demo/boards:test_board/1/2) \[[reply](/r/demo/boards$help&func=CreateReply&bid=1&threadid=1&postid=2)] \[[x](/r/demo/boards$help&func=DeletePost&bid=1&threadid=1&postid=2)]
+//

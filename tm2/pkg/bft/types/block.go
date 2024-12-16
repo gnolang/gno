@@ -10,7 +10,6 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/amino"
 	typesver "github.com/gnolang/gno/tm2/pkg/bft/types/version"
 	"github.com/gnolang/gno/tm2/pkg/bitarray"
-	"github.com/gnolang/gno/tm2/pkg/crypto"
 	"github.com/gnolang/gno/tm2/pkg/crypto/merkle"
 	"github.com/gnolang/gno/tm2/pkg/crypto/tmhash"
 	"github.com/gnolang/gno/tm2/pkg/errors"
@@ -54,10 +53,9 @@ func (b *Block) ValidateBasic() error {
 		)
 	}
 
-	// TODO: fix tests so we can do this
-	/*if b.TotalTxs < b.NumTxs {
+	if b.TotalTxs < b.NumTxs {
 		return fmt.Errorf("Header.TotalTxs (%d) is less than Header.NumTxs (%d)", b.TotalTxs, b.NumTxs)
-	}*/
+	}
 	if b.TotalTxs < 0 {
 		return errors.New("Negative Header.TotalTxs")
 	}
@@ -113,11 +111,6 @@ func (b *Block) ValidateBasic() error {
 	// NOTE: AppHash is arbitrary length
 	if err := ValidateHash(b.LastResultsHash); err != nil {
 		return fmt.Errorf("wrong Header.LastResultsHash: %w", err)
-	}
-
-	if len(b.ProposerAddress) != crypto.AddressSize {
-		return fmt.Errorf("expected len(Header.ProposerAddress) to be %d, got %d",
-			crypto.AddressSize, len(b.ProposerAddress))
 	}
 
 	return nil
@@ -265,8 +258,9 @@ func (h *Header) GetTime() time.Time { return h.Time }
 func MakeBlock(height int64, txs []Tx, lastCommit *Commit) *Block {
 	block := &Block{
 		Header: Header{
-			Height: height,
-			NumTxs: int64(len(txs)),
+			Height:   height,
+			NumTxs:   int64(len(txs)),
+			TotalTxs: int64(len(txs)),
 		},
 		Data: Data{
 			Txs: txs,

@@ -298,7 +298,7 @@ func (kb dbKeybase) ExportPrivateKeyObject(nameOrBech32 string, passphrase strin
 func (kb dbKeybase) Export(nameOrBech32 string) (astr string, err error) {
 	info, err := kb.GetByNameOrAddress(nameOrBech32)
 	if err != nil {
-		return "", errors.Wrap(err, "getting info for name %s", nameOrBech32)
+		return "", errors.Wrapf(err, "getting info for name %s", nameOrBech32)
 	}
 	bz := kb.db.Get(infoKey(info.GetName()))
 	if bz == nil {
@@ -313,7 +313,7 @@ func (kb dbKeybase) Export(nameOrBech32 string) (astr string, err error) {
 func (kb dbKeybase) ExportPubKey(nameOrBech32 string) (astr string, err error) {
 	info, err := kb.GetByNameOrAddress(nameOrBech32)
 	if err != nil {
-		return "", errors.Wrap(err, "getting info for name %s", nameOrBech32)
+		return "", errors.Wrapf(err, "getting info for name %s", nameOrBech32)
 	}
 	return armor.ArmorPubKeyBytes(info.GetPubKey().Bytes()), nil
 }
@@ -523,10 +523,17 @@ func (kb dbKeybase) writeInfo(name string, info Info) error {
 		kb.db.DeleteSync(addrKey(oldInfo.GetAddress()))
 	}
 
+	addressKey := addrKey(info.GetAddress())
+	nameKeyForAddress := kb.db.Get(addressKey)
+	if len(nameKeyForAddress) > 0 {
+		// Enforce 1-to-1 name to address. Remove the info by the old name with the same address
+		kb.db.DeleteSync(nameKeyForAddress)
+	}
+
 	serializedInfo := writeInfo(info)
 	kb.db.SetSync(key, serializedInfo)
 	// store a pointer to the infokey by address for fast lookup
-	kb.db.SetSync(addrKey(info.GetAddress()), key)
+	kb.db.SetSync(addressKey, key)
 	return nil
 }
 

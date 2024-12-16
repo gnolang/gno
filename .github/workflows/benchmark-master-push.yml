@@ -31,7 +31,7 @@ jobs:
 
       - uses: actions/setup-go@v5
         with:
-          go-version: "1.22.x"
+          go-version-file: go.mod
 
       - name: Run benchmark
         # add more benchmarks by adding additional lines for different packages;

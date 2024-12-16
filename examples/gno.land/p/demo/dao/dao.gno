@@ -15,6 +15,7 @@ const (
 // that contains the necessary information to
 // log and generate a valid proposal
 type ProposalRequest struct {
+	Title       string   // the title associated with the proposal
 	Description string   // the description associated with the proposal
 	Executor    Executor // the proposal executor
 }

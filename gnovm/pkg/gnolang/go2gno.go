@@ -39,7 +39,9 @@ import (
 	"go/token"
 	"go/types"
 	"os"
+	"path"
 	"reflect"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -471,6 +473,8 @@ func Go2Gno(fs *token.FileSet, gon ast.Node) (n Node) {
 			PkgName: pkgName,
 			Decls:   decls,
 		}
+	case *ast.EmptyStmt:
+		return &EmptyStmt{}
 	default:
 		panic(fmt.Sprintf("unknown Go type %v: %s\n",
 			reflect.TypeOf(gon),
@@ -497,6 +501,18 @@ type MemPackageGetter interface {
 // If format is true, the code will be automatically updated with the
 // formatted source code.
 func TypeCheckMemPackage(mempkg *gnovm.MemPackage, getter MemPackageGetter, format bool) error {
+	return typeCheckMemPackage(mempkg, getter, false, format)
+}
+
+// TypeCheckMemPackageTest performs the same type checks as [TypeCheckMemPackage],
+// but allows re-declarations.
+//
+// Note: like TypeCheckMemPackage, this function ignores tests and filetests.
+func TypeCheckMemPackageTest(mempkg *gnovm.MemPackage, getter MemPackageGetter) error {
+	return typeCheckMemPackage(mempkg, getter, true, false)
+}
+
+func typeCheckMemPackage(mempkg *gnovm.MemPackage, getter MemPackageGetter, testing, format bool) error {
 	var errs error
 	imp := &gnoImporter{
 		getter: getter,
@@ -506,6 +522,7 @@ func TypeCheckMemPackage(mempkg *gnovm.MemPackage, getter MemPackageGetter, form
 				errs = multierr.Append(errs, err)
 			},
 		},
+		allowRedefinitions: testing,
 	}
 	imp.cfg.Importer = imp
 
@@ -527,6 +544,9 @@ type gnoImporter struct {
 	getter MemPackageGetter
 	cache  map[string]gnoImporterResult
 	cfg    *types.Config
+
+	// allow symbol redefinitions? (test standard libraries)
+	allowRedefinitions bool
 }
 
 // Unused, but satisfies the Importer interface.
@@ -557,20 +577,37 @@ func (g *gnoImporter) ImportFrom(path, _ string, _ types.ImportMode) (*types.Pac
 }
 
 func (g *gnoImporter) parseCheckMemPackage(mpkg *gnovm.MemPackage, fmt bool) (*types.Package, error) {
+	// This map is used to allow for function re-definitions, which are allowed
+	// in Gno (testing context) but not in Go.
+	// This map links each function identifier with a closure to remove its
+	// associated declaration.
+	var delFunc map[string]func()
+	if g.allowRedefinitions {
+		delFunc = make(map[string]func())
+	}
+
 	fset := token.NewFileSet()
 	files := make([]*ast.File, 0, len(mpkg.Files))
 	var errs error
 	for _, file := range mpkg.Files {
+		// Ignore non-gno files.
+		// TODO: support filetest type checking. (should probably handle as each its
+		// own separate pkg, which should also be typechecked)
 		if !strings.HasSuffix(file.Name, ".gno") ||
-			endsWith(file.Name, []string{"_test.gno", "_filetest.gno"}) {
-			continue // skip spurious file.
+			strings.HasSuffix(file.Name, "_test.gno") ||
+			strings.HasSuffix(file.Name, "_filetest.gno") {
+			continue
 		}
 
 		const parseOpts = parser.ParseComments | parser.DeclarationErrors | parser.SkipObjectResolution
-		f, err := parser.ParseFile(fset, file.Name, file.Body, parseOpts)
+		f, err := parser.ParseFile(fset, path.Join(mpkg.Path, file.Name), file.Body, parseOpts)
 		if err != nil {
 			errs = multierr.Append(errs, err)
 			continue
+		}
+
+		if delFunc != nil {
+			deleteOldIdents(delFunc, f)
 		}
 
 		// enforce formatting
@@ -591,6 +628,24 @@ func (g *gnoImporter) parseCheckMemPackage(mpkg *gnovm.MemPackage, fmt bool) (*t
 	}
 
 	return g.cfg.Check(mpkg.Path, fset, files, nil)
+}
+
+func deleteOldIdents(idents map[string]func(), f *ast.File) {
+	for _, decl := range f.Decls {
+		fd, ok := decl.(*ast.FuncDecl)
+		if !ok || fd.Recv != nil { // ignore methods
+			continue
+		}
+		if del := idents[fd.Name.Name]; del != nil {
+			del()
+		}
+		decl := decl
+		idents[fd.Name.Name] = func() {
+			// NOTE: cannot use the index as a file may contain multiple decls to be removed,
+			// so removing one would make all "later" indexes wrong.
+			f.Decls = slices.DeleteFunc(f.Decls, func(d ast.Decl) bool { return decl == d })
+		}
+	}
 }
 
 //----------------------------------------

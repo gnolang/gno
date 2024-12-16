@@ -1,24 +1,22 @@
 package main
 
 import (
-	"encoding/xml"
+	"encoding/json"
 	"fmt"
 )
 
 type Email struct {
-	Where string `xml:"where,attr"`
+	Where string
 	Addr  string
 }
 
 func f(s string, r interface{}) interface{} {
-	return xml.Unmarshal([]byte(s), &r)
+	return json.Unmarshal([]byte(s), &r)
 }
 
 func main() {
 	data := `
-		<Email where='work'>
-			<Addr>bob@work.com</Addr>
-		</Email>
+		{"Where": "work", "Addr": "bob@work.com"}
 	`
 	v := Email{}
 	err := f(data, &v)
