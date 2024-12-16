@@ -5,9 +5,17 @@ import (
 )
 
 type UserLookup struct {
-	Name      string
-	Addr      std.Address
-	UsedAlias bool // lookup was found via an alias
+	Name  string
+	Addr  std.Address
+	Alias bool // lookup was found via an alias
+}
+
+func NewUserLookup(name string, addr std.Address, alias bool) UserLookup {
+	return UserLookup{
+		Name:  name,
+		Addr:  addr,
+		Alias: alias,
+	}
 }
 
 func (lookup UserLookup) Exists() bool {

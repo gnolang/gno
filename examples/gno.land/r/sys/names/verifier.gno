@@ -33,7 +33,7 @@ func defaultVerifier(enabled bool, address std.Address, name string) bool {
 		return true
 	}
 
-	// todo finish after implementing userlookup
-
-	return false
+	// Can be a registered name or an alias
+	lookup := susers.ResolveName(name)
+	return lookup.Addr == address
 }
