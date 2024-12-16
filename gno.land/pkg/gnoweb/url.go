@@ -21,7 +21,7 @@ type GnoURL struct {
 	// Example full path:
 	// gno.land/r/demo/users:jae$help&a=b?c=d
 
-	Host     string     // gno.land
+	Domain   string     // gno.land
 	Path     string     // /r/demo/users
 	Args     string     // jae
 	WebQuery url.Values // help&a=b
@@ -139,7 +139,7 @@ func ParseGnoURL(u *url.URL) (*GnoURL, error) {
 		Args:     uargs,
 		WebQuery: webquery,
 		Query:    u.Query(),
-		Host:     u.Hostname(),
+		Domain:   u.Hostname(),
 	}, nil
 }
 
