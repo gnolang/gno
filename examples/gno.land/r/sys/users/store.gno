@@ -10,12 +10,9 @@ import (
 )
 
 var (
-	uStore             = avl.NewTree() // username > *susers.User
-	aStore             = avl.NewTree() // address > *susers.User
-	callerWhitelist    = avl.NewTree() // addr > struct{}{}
-	preRestrictedNames = []string{
-		"bitcoin", "cosmos", "newtendermint", "ethereum",
-	}
+	uStore          = avl.NewTree() // username > *susers.User
+	aStore          = avl.NewTree() // address > *susers.User
+	callerWhitelist = avl.NewTree() // addr > struct{}{}
 )
 
 // WriteUser writes to the sys/users store
