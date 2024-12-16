@@ -2,20 +2,20 @@ package users
 
 import (
 	"std"
-
-	"gno.land/p/demo/ufmt"
 )
 
-type User struct {
-	Address std.Address
-	Name    string
+type UserLookup struct {
+	Name      string
+	Addr      std.Address
+	UsedAlias bool // lookup was found via an alias
 }
 
-func (u *User) Render() string {
-	out := ufmt.Sprintf("# User %s\n\n", u.Name)
-	out += ufmt.Sprintf("- Address: %s\n\n", u.Address.String())
+func (lookup UserLookup) Exists() bool {
+	return lookup.Addr != ""
+}
 
-	return out
+func (lookup UserLookup) Deleted() bool {
+	return lookup.Addr == "" && lookup.Name == "ghost" // todo see "ghost"?
 }
 
 // AddressOrName can be used for resolving either the address or the username
