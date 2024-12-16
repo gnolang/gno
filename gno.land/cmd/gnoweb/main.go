@@ -26,6 +26,7 @@ type webCfg struct {
 	analytics  bool
 	json       bool
 	html       bool
+	verbose    bool
 }
 
 var defaultWebOptions = webCfg{
@@ -129,15 +130,27 @@ func (c *webCfg) RegisterFlags(fs *flag.FlagSet) {
 		defaultWebOptions.analytics,
 		"nable privacy-first analytics",
 	)
+
+	fs.BoolVar(
+		&c.verbose,
+		"v",
+		defaultWebOptions.verbose,
+		"verbose logging mode",
+	)
 }
 
 func setupWeb(cfg *webCfg, _ []string, io commands.IO) (func() error, error) {
 	// Setup logger
+	level := zapcore.InfoLevel
+	if cfg.verbose {
+		level = zapcore.DebugLevel
+	}
+
 	var zapLogger *zap.Logger
 	if cfg.json {
-		zapLogger = log.NewZapJSONLogger(io.Out(), zapcore.DebugLevel)
+		zapLogger = log.NewZapJSONLogger(io.Out(), level)
 	} else {
-		zapLogger = log.NewZapConsoleLogger(io.Out(), zapcore.DebugLevel)
+		zapLogger = log.NewZapConsoleLogger(io.Out(), level)
 	}
 	defer zapLogger.Sync()
 
