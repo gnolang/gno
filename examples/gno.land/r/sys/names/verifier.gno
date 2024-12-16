@@ -28,6 +28,7 @@ func defaultVerifier(enabled bool, address std.Address, name string) bool {
 	}
 
 	// Allow user with their own address as name
+	// This enables pseudo-anon namespaces
 	if address.String() == name {
 		return true
 	}
