@@ -264,7 +264,7 @@
 
   /* toc */
   .toc-expend-btn {
-    @apply after:content-['open'] after:font-medium after:text-100 lg:after:content-none;
+    @apply after:content-['open'] after:font-normal after:text-100 lg:after:content-none;
   }
   .toc-expend-btn:has(#toc-expend:checked) {
     @apply after:content-['close'] lg:after:content-none;
