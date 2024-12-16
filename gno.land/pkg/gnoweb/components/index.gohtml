@@ -52,7 +52,7 @@
     <!-- chroma stylesheet -->
     <link rel="stylesheet" href="{{ .ChromaPath }}" />
 
-		<!-- web assets -->
+	<!-- web assets -->
     <link rel="stylesheet" href="{{ .AssetsPath }}styles.css" />
     <link rel="preload" href="{{ .AssetsPath }}fonts/intervar/Inter.var.woff2" as="font" type="font/woff2" crossorigin />
     <link rel="preload" href="{{ .AssetsPath }}fonts/roboto/roboto-mono-normal.woff2" as="font" type="font/woff2" crossorigin />
@@ -76,32 +76,32 @@
 
         <form class="sidemenu col-span-3 flex justify-end lg:justify-start gap-3 sm:gap-6 h-full text-100 text-gray-300">
             <a href="{{ .RealmPath }}">
-                <div class="gap-1 hover:text-gray-600 relative flex items-center h-full after:block after:absolute after:h-1 after:bg-green-600 after:bottom-0 {{ if (and (not (queryHas .WebQuery "source")) (not (queryHas .WebQuery "help"))) }}after:w-full text-stroke text-gray-600{{ end }}">
+                <div class="group gap-1 xxl:pr-1 hover:text-gray-600 relative flex items-center h-full after:block after:absolute after:h-1 after:bg-green-600 after:left-0 after:bottom-0 {{ if (and (not (queryHas .WebQuery "source")) (not (queryHas .WebQuery "help"))) }}after:w-full text-stroke text-gray-600 is-active{{ end }}">
                     <input type="radio" value="summary" name="sidemenu" id="sidemenu-meta" class="peer hidden" />
-                    <svg class="w-5 h-5 min-w-2 xxl:w-4 xxl:h-4 shrink-0 inline-block xl:hidden xxl:inline-block">
+                    <svg class="group-[.is-active]:text-green-600 w-5 h-5 min-w-2 xxl:w-4.5 xxl:h-4.5 shrink-0 inline-block xl:hidden xxl:inline-block group">
                         <use href="#ico-info"></use>
                     </svg>
-                    <span class="hidden xl:inline pr-px">Content</span>
+                    <span class="hidden xl:inline">Content</span>
                 </div>
             </a>
 
             <a href="{{ .RealmPath }}$source">
-                <div class="gap-1 hover:text-gray-600 relative flex items-center h-full after:block after:absolute after:h-1 after:bg-green-600 after:bottom-0 {{ if queryHas .WebQuery "source" }}after:w-full text-stroke text-gray-600{{ end }}">
+                <div class="group gap-1 xxl:pr-1 hover:text-gray-600 relative flex items-center h-full after:block after:absolute after:h-1 after:bg-green-600 after:left-0 after:bottom-0 {{ if queryHas .WebQuery "source" }}after:w-full text-stroke text-gray-600 is-active{{ end }}">
                     <input type="radio" value="summary" name="sidemenu" id="sidemenu-source" class="peer hidden" />
-                    <svg class="w-5 h-5 min-w-2 xxl:w-4 xxl:h-4 shrink-0 inline-block xl:hidden xxl:inline-block">
+                    <svg class="group-[.is-active]:text-green-600 w-5 h-5 min-w-2 xxl:w-4.5 xxl:h-4.5 shrink-0 inline-block xl:hidden xxl:inline-block">
                         <use href="#ico-code"></use>
                     </svg>
-                    <span class="hidden xl:inline pr-px">Source</span>
+                    <span class="hidden xl:inline">Source</span>
                 </div>
             </a>
 
             <a href="{{ .RealmPath }}$help">
-                <div class="gap-1 hover:text-gray-600 relative flex items-center h-full inline-flex gap-1 items-center cursor-pointer after:block after:absolute after:h-1 after:bg-green-600 after:bottom-0 {{ if queryHas .WebQuery "help" }}after:w-full text-stroke text-gray-600{{ end }}">
+                <div class="group gap-1 xxl:pr-1 hover:text-gray-600 relative flex items-center h-full after:block after:absolute after:h-1 after:left-0 after:bg-green-600 after:bottom-0 {{ if queryHas .WebQuery "help" }}after:w-full text-stroke text-gray-600 is-active{{ end }}">
                     <input type="radio" value="summary" name="sidemenu" id="sidemenu-docs" class="peer hidden" />
-                    <svg class="w-5 h-5 min-w-2 xxl:w-4 xxl:h-4 shrink-0 inline-block xl:hidden xxl:inline-block">
+                    <svg class="group-[.is-active]:text-green-600 w-5 h-5 min-w-2 xxl:w-4.5 xxl:h-4.5 shrink-0 inline-block xl:hidden xxl:inline-block">
                         <use href="#ico-docs"></use>
                     </svg>
-                    <span class="hidden xl:inline pr-px">Docs</span>
+                    <span class="hidden xl:inline">Docs</span>
                 </div>
             </a>
         </form>
@@ -122,21 +122,21 @@
         </div>
         <div class="flex justify-between md:col-span-3">
             <ul aria-label="Footer navigation" class="flex flex-col xl:flex-row gap-4 xl:gap-6">
-                <li><a href="/about">About</a></li>
-                <li><a href="https://docs.gno.land/">Docs</a></li>
-                <li><a href="https://faucet.gno.land/">Faucet</a></li>
-                <li><a href="https://gno.land/r/gnoland/blog">Blog</a></li>
-                <li><a href="https://status.gnoteam.com/">Status</a></li>
+                <li><a class="hover:underline" href="/about">About</a></li>
+                <li><a class="hover:underline" href="https://docs.gno.land/">Docs</a></li>
+                <li><a class="hover:underline" href="https://faucet.gno.land/">Faucet</a></li>
+                <li><a class="hover:underline" href="https://gno.land/r/gnoland/blog">Blog</a></li>
+                <li><a class="hover:underline" href="https://status.gnoteam.com/">Status</a></li>
             </ul>
             <ul aria-label="Social media" class="flex flex-col xl:flex-row gap-4 xl:gap-6">
-                <li><a href="https://github.com/gnolang/gno">GitHub</a></li>
-                <li><a href="https://twitter.com/_gnoland">X</a></li>
-                <li><a href="https://discord.gg/S8nKUqwkPn">Discord</a></li>
-                <li><a href="https://www.youtube.com/@_gnoland">YouTube</a></li>
+                <li><a class="hover:underline" href="https://github.com/gnolang/gno">GitHub</a></li>
+                <li><a class="hover:underline" href="https://twitter.com/_gnoland">X</a></li>
+                <li><a class="hover:underline" href="https://discord.gg/S8nKUqwkPn">Discord</a></li>
+                <li><a class="hover:underline" href="https://www.youtube.com/@_gnoland">YouTube</a></li>
             </ul>
             <ul aria-label="Legal" class="flex flex-col xl:flex-row gap-4 xl:gap-6">
-                <li><a href="https://github.com/gnolang/gno/blob/master/LICENSE.md">Terms</a></li>
-                <li><a href="https://github.com/gnolang/gno/blob/master/LICENSE.md">Privacy</a></li>
+                <li><a class="hover:underline" href="https://github.com/gnolang/gno/blob/master/LICENSE.md">Terms</a></li>
+                <li><a class="hover:underline" href="https://github.com/gnolang/gno/blob/master/LICENSE.md">Privacy</a></li>
             </ul>
         </div>
     </nav>
