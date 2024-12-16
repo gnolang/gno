@@ -2450,7 +2450,7 @@ func defineOrDecl(
 			nx.Path = NewValuePathBlock(0, 0, blankIdentifier)
 		} else {
 			node.Define2(isConst, nx.Name, sts[i], tvs[i])
-			nx.Path = bn.GetPathForName(nil, nx.Name)
+			nx.Path, _ = bn.GetPathForName(nil, nx.Name)
 		}
 	}
 }

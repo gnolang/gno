@@ -455,8 +455,10 @@ func (m *Machine) doOpPanic2() {
 			// Build exception string just as go, separated by \n\t.
 			exs := make([]string, len(m.Exceptions))
 			for i, ex := range m.Exceptions {
+				fmt.Println("ex.Sprint: ", ex.Sprint(m))
 				exs[i] = ex.Sprint(m)
 			}
+			fmt.Println("---exs: ", exs)
 			panic(UnhandledPanicError{
 				Descriptor: strings.Join(exs, "\n\t"),
 			})
