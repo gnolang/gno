@@ -12,10 +12,10 @@ import (
 var (
 	usernameStore   = avl.NewTree() // username > address
 	addressStore    = avl.NewTree() // address > username
-	aliases         = avl.NewTree() // username > address
+	aliasStore      = avl.NewTree() // username > address
 	callerWhitelist = avl.NewTree() // addr > struct{}{}
 
-	reInvalidUsername = regexp.MustCompile(`^g1[a-z0-9]{38}$`)
+	reAddressLookalike = regexp.MustCompile(`^g1[a-z0-9]{38}$`)
 )
 
 const maxUsernameLen = 50
@@ -46,7 +46,7 @@ func WriteUser(name string, addr std.Address) error {
 	}
 
 	// Cannot register name which is someone's alias
-	if aliases.Has(trimmedName) {
+	if aliasStore.Has(trimmedName) {
 		return ErrAlreadyExists
 	}
 
@@ -69,17 +69,17 @@ func CreateAlias(name string, addr std.Address) error {
 		return err
 	}
 
-	// Can only register alias if already registered username
+	// Cannot register alias without an already registered username
 	if !addressStore.Has(addr) {
 		return ErrAliasBeforeName
 	}
 
 	// Cannot register taken username as alias
-	if usernameStore.Has(trimmedName) || aliases.Has(trimmedName) {
+	if usernameStore.Has(trimmedName) || aliasStore.Has(trimmedName) {
 		return ErrAlreadyExists
 	}
 
-	aliases.Set(trimmedName, addr)
+	aliasStore.Set(trimmedName, addr)
 
 	return nil
 }
@@ -117,7 +117,7 @@ func validate(username string, address std.Address) error {
 	}
 
 	// Check if the username can be decoded or looks like a valid address
-	if _, _, ok := std.DecodeBech32(std.Address(username)); ok || reInvalidUsername.MatchString(username) {
+	if _, _, ok := std.DecodeBech32(std.Address(username)); ok || reAddressLookalike.MatchString(username) {
 		return ErrUsernameLikeAddress
 	}
 
