@@ -23,7 +23,7 @@ func (m *Machine) doOpEval() {
 		debug.Printf("EVAL: (%T) %v\n", x, x)
 		// fmt.Println(m.String())
 	}
-	fmt.Printf("EVAL: (%T) %v\n", x, x)
+	//fmt.Printf("EVAL: (%T) %v\n", x, x)
 	// This case moved out of switch for performance.
 	// TODO: understand this better.
 	if nx, ok := x.(*NameExpr); ok {
@@ -36,16 +36,16 @@ func (m *Machine) doOpEval() {
 		} else {
 			// Get value from scope.
 			lb := m.LastBlock()
-			fmt.Println("---eval nx: ", nx)
-			fmt.Println("---eval nx.abs: ", nx.AbsPath)
+			//fmt.Println("---eval nx: ", nx)
+			//fmt.Println("---eval nx.abs: ", nx.AbsPath)
 
 			// Push value, done.
 			ptr := lb.GetPointerToMaybeHeapUse(m.Store, nx)
 			v := ptr.Deref()
 
-			fmt.Println("---v: ", v)
-			fmt.Println("---v.T: ", v.T)
-			fmt.Println("---v.V: ", v.V)
+			//fmt.Println("---v: ", v)
+			//fmt.Println("---v.T: ", v.T)
+			//fmt.Println("---v.V: ", v.V)
 
 			SetOriginForPointerValue(&v.V, nx.AbsPath)
 			m.PushValue(v)
@@ -264,7 +264,7 @@ func (m *Machine) doOpEval() {
 		m.PushExpr(x.Func)
 		m.PushOp(OpEval)
 	case *IndexExpr:
-		println("---op_eval, index expr")
+		//println("---op_eval, index expr")
 		if x.HasOK {
 			m.PushOp(OpIndex2)
 		} else {
@@ -302,14 +302,14 @@ func (m *Machine) doOpEval() {
 		m.PushExpr(x.X)
 		m.PushOp(OpEval)
 	case *StarExpr:
-		println("---op_eval, star expr")
+		//println("---op_eval, star expr")
 		m.PopExpr()
 		m.PushOp(OpStar)
 		// evaluate x.
 		m.PushExpr(x.X)
 		m.PushOp(OpEval)
 	case *RefExpr:
-		println("---op_eval, ref expr")
+		//println("---op_eval, ref expr")
 		m.PushOp(OpRef)
 		// evaluate x
 		m.PushForPointer(x.X)

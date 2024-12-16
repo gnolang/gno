@@ -1752,7 +1752,7 @@ func (m *Machine) PushValue(tv TypedValue) {
 	if debug {
 		m.Printf("+v %v\n", tv)
 	}
-	fmt.Printf("+v %v\n", tv)
+	//fmt.Printf("+v %v\n", tv)
 	if len(m.Values) == m.NumValues {
 		// TODO tune. also see PushOp().
 		newValues := make([]TypedValue, len(m.Values)*2)
@@ -1770,7 +1770,7 @@ func (m *Machine) PopValue() (tv *TypedValue) {
 	if debug {
 		m.Printf("-v %v\n", tv)
 	}
-	fmt.Printf("-v %v\n", tv)
+	//fmt.Printf("-v %v\n", tv)
 	m.NumValues--
 	return tv
 }
@@ -2084,7 +2084,7 @@ func (m *Machine) PopUntilLastCallFrame() *Frame {
 }
 
 func (m *Machine) PushForPointer(lx Expr) {
-	fmt.Println("---PushForPointer, lx: ", lx)
+	//fmt.Println("---PushForPointer, lx: ", lx)
 	switch lx := lx.(type) {
 	case *NameExpr:
 		// no Lhs eval needed.
@@ -2096,17 +2096,16 @@ func (m *Machine) PushForPointer(lx Expr) {
 		m.PushExpr(lx.X)
 		m.PushOp(OpEval)
 	case *SelectorExpr:
-		println("---selector expr")
+		//println("---selector expr")
 		// evaluate X
 		m.PushExpr(lx.X)
 		m.PushOp(OpEval)
 	case *StarExpr:
-		println("---star expr, eval .X")
 		// evaluate X (a reference)
 		m.PushExpr(lx.X)
 		m.PushOp(OpEval)
 	case *CompositeLitExpr: // for *RefExpr e.g. &mystruct{}
-		println("---CompositeLitExpr")
+		//println("---CompositeLitExpr")
 		// evaluate lx.
 		m.PushExpr(lx)
 		m.PushOp(OpEval)
@@ -2117,8 +2116,48 @@ func (m *Machine) PushForPointer(lx Expr) {
 	}
 }
 
+func (m *Machine) PopAsPointer2(lx Expr) (PointerValue, string) {
+	//fmt.Println("---PopAsPointer, lx: ", lx)
+	switch lx := lx.(type) {
+	case *NameExpr:
+		lb := m.LastBlock()
+		ptr := lb.GetPointerToMaybeHeapUse(m.Store, lx)
+		return ptr, ""
+	case *IndexExpr:
+		iv := m.PopValue()
+		xv := m.PopValue()
+		// TODO: if xv is slice value, get origin..
+		//fmt.Println("---index expr: ", lx)
+		var origin string
+		if sv, ok := xv.V.(*SliceValue); ok {
+			if av, ok := sv.Base.(*ArrayValue); ok {
+				origin = av.AbsPath + ":" + strconv.Itoa(sv.Offset)
+			}
+		}
+
+		return xv.GetPointerAtIndex(m.Alloc, m.Store, iv), origin
+	case *SelectorExpr:
+		xv := m.PopValue()
+		return xv.GetPointerToFromTV(m.Alloc, m.Store, lx.Path), ""
+	case *StarExpr:
+		//println("---StarExpr")
+		ptr := m.PopValue().V.(PointerValue)
+		return ptr, ""
+	case *CompositeLitExpr: // for *RefExpr
+		tv := *m.PopValue()
+		hv := m.Alloc.NewHeapItem(tv)
+		return PointerValue{
+			TV:    &hv.Value,
+			Base:  hv,
+			Index: 0,
+		}, ""
+	default:
+		panic("should not happen")
+	}
+}
+
 func (m *Machine) PopAsPointer(lx Expr) PointerValue {
-	fmt.Println("---PopAsPointer, lx: ", lx)
+	//fmt.Println("---PopAsPointer, lx: ", lx)
 	switch lx := lx.(type) {
 	case *NameExpr:
 		lb := m.LastBlock()
@@ -2127,13 +2166,14 @@ func (m *Machine) PopAsPointer(lx Expr) PointerValue {
 	case *IndexExpr:
 		iv := m.PopValue()
 		xv := m.PopValue()
-		fmt.Println("---index expr: ", lx)
+		// TODO: if xv is slice value, get origin..
+		//fmt.Println("---index expr: ", lx)
 		return xv.GetPointerAtIndex(m.Alloc, m.Store, iv)
 	case *SelectorExpr:
 		xv := m.PopValue()
 		return xv.GetPointerToFromTV(m.Alloc, m.Store, lx.Path)
 	case *StarExpr:
-		println("---StarExpr")
+		//println("---StarExpr")
 		ptr := m.PopValue().V.(PointerValue)
 		return ptr
 	case *CompositeLitExpr: // for *RefExpr

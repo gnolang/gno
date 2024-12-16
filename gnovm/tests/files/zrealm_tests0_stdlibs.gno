@@ -63,6 +63,7 @@ func main() {
 //     }
 // }
 // c[0ffe7732b4d549b4cf9ec18bd68641cd2c75ad0a:16]={
+//     "AbsPath": "",
 //     "Data": null,
 //     "List": [
 //         {
@@ -81,6 +82,7 @@ func main() {
 //                     "ObjectID": "0ffe7732b4d549b4cf9ec18bd68641cd2c75ad0a:11"
 //                 },
 //                 "Index": "0",
+//                 "Origin": "0ffe7732b4d549b4cf9ec18bd68641cd2c75ad0a:3:[0]",
 //                 "TV": null
 //             }
 //         },
@@ -100,6 +102,7 @@ func main() {
 //                     "ObjectID": "0ffe7732b4d549b4cf9ec18bd68641cd2c75ad0a:14"
 //                 },
 //                 "Index": "0",
+//                 "Origin": "0ffe7732b4d549b4cf9ec18bd68641cd2c75ad0a:3:[0]",
 //                 "TV": null
 //             }
 //         },
@@ -119,6 +122,7 @@ func main() {
 //                     "ObjectID": "0ffe7732b4d549b4cf9ec18bd68641cd2c75ad0a:17"
 //                 },
 //                 "Index": "0",
+//                 "Origin": "0ffe7732b4d549b4cf9ec18bd68641cd2c75ad0a:3:[0]",
 //                 "TV": null
 //             }
 //         }
@@ -204,12 +208,13 @@ func main() {
 //                 "@type": "/gno.SliceValue",
 //                 "Base": {
 //                     "@type": "/gno.RefValue",
-//                     "Hash": "ad25f70f66c8c53042afd1377e5ff5ab744bf1a5",
+//                     "Hash": "762de5b1aa1339e4089d87b4e0217d960240e5de",
 //                     "ObjectID": "0ffe7732b4d549b4cf9ec18bd68641cd2c75ad0a:16"
 //                 },
 //                 "Length": "3",
 //                 "Maxcap": "3",
-//                 "Offset": "0"
+//                 "Offset": "0",
+//                 "Origin": ""
 //             }
 //         },
 //         {
@@ -473,6 +478,7 @@ func main() {
 //                     "ObjectID": "0ffe7732b4d549b4cf9ec18bd68641cd2c75ad0a:4"
 //                 },
 //                 "Index": "0",
+//                 "Origin": "",
 //                 "TV": null
 //             }
 //         },

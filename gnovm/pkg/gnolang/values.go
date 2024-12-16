@@ -214,6 +214,7 @@ func (pv *PointerValue) GetBase(store Store) Object {
 // TODO: document as something that enables into-native assignment.
 // TODO: maybe consider this as entrypoint for DataByteValue too?
 func (pv PointerValue) Assign2(alloc *Allocator, store Store, rlm *Realm, tv2 TypedValue, cu bool) {
+	//fmt.Println("---Assign2...")
 	// Special cases.
 	if pv.Index == PointerIndexNative {
 		// Special case if extended object && native.
@@ -254,7 +255,7 @@ func (pv PointerValue) Assign2(alloc *Allocator, store Store, rlm *Realm, tv2 Ty
 								panic("should not happen")
 							}
 							if nv, ok := tv2.V.(*NativeValue); !ok ||
-									nv.Value.Kind() != reflect.Func {
+								nv.Value.Kind() != reflect.Func {
 								panic("should not happen")
 							}
 						}
@@ -318,8 +319,9 @@ func (pv PointerValue) Deref() (tv TypedValue) {
 
 type ArrayValue struct {
 	ObjectInfo
-	List []TypedValue
-	Data []byte
+	List    []TypedValue
+	Data    []byte
+	AbsPath string
 }
 
 // NOTE: Result should not be written to,
@@ -410,6 +412,7 @@ type SliceValue struct {
 	Offset int
 	Length int
 	Maxcap int
+	Origin string
 }
 
 func (sv *SliceValue) GetBase(store Store) *ArrayValue {
@@ -718,7 +721,7 @@ func (ml *MapList) UnmarshalAmino(mlimg MapListImage) error {
 
 // NOTE: Value is undefined until assigned.
 func (ml *MapList) Append(alloc *Allocator, key TypedValue) *MapListItem {
-	println("---MapList Append")
+	//println("---MapList Append")
 
 	alloc.AllocateMapItem()
 	item := &MapListItem{
@@ -727,10 +730,10 @@ func (ml *MapList) Append(alloc *Allocator, key TypedValue) *MapListItem {
 		Key:  key,
 		// Value: undefined,
 	}
-	if pv, ok := item.Key.V.(PointerValue); ok {
-		fmt.Println("---pv: ", pv)
-		fmt.Println("---pv.Origin: ", pv.Origin)
-	}
+	//if pv, ok := item.Key.V.(PointerValue); ok {
+	//fmt.Println("---pv: ", pv)
+	//fmt.Println("---pv.Origin: ", pv.Origin)
+	//}
 
 	if ml.Head == nil {
 		ml.Head = item
@@ -779,7 +782,7 @@ func (mv *MapValue) GetLength() int {
 // do for structs and arrays for assigning new entries.  If key
 // doesn't exist, a new slot is created.
 func (mv *MapValue) GetPointerForKey(alloc *Allocator, store Store, key *TypedValue) PointerValue {
-	fmt.Println("---GetPointerForKey, key: ", key)
+	//fmt.Println("---GetPointerForKey, key: ", key)
 	//fmt.Println("---path: ", key.GetPath())
 
 	kmk := key.ComputeMapKey(store, false)
@@ -806,7 +809,7 @@ func (mv *MapValue) GetPointerForKey(alloc *Allocator, store Store, key *TypedVa
 // Like GetPointerForKey, but does not create a slot if key
 // doesn't exist.
 func (mv *MapValue) GetValueForKey(store Store, key *TypedValue) (val TypedValue, ok bool) {
-	fmt.Println("---GetValueForkey, key: ", key)
+	//fmt.Println("---GetValueForkey, key: ", key)
 	kmk := key.ComputeMapKey(store, false)
 	if mli, exists := mv.vmap[kmk]; exists {
 		fillValueTV(store, &mli.Value)
@@ -1040,10 +1043,10 @@ func (tv *TypedValue) ClearNum() {
 }
 
 func (tv TypedValue) Copy(alloc *Allocator) (cp TypedValue) {
-	fmt.Println("---Copy tv: ", tv)
-	if pv, ok := tv.V.(PointerValue); ok {
-		fmt.Println("---pv.Origin: ", pv.Origin)
-	}
+	//fmt.Println("---Copy tv: ", tv)
+	//if pv, ok := tv.V.(PointerValue); ok {
+	//	fmt.Println("---pv.Origin: ", pv.Origin)
+	//}
 	switch cv := tv.V.(type) {
 	case BigintValue:
 		cp.T = tv.T
@@ -1057,6 +1060,9 @@ func (tv TypedValue) Copy(alloc *Allocator) (cp TypedValue) {
 	case *NativeValue:
 		cp.T = tv.T
 		cp.V = cv.Copy(alloc)
+	//case *SliceValue:
+	//	fmt.Println("---slice value: ", cv)
+	//	fmt.Println("---base: ", cv.Base.(*ArrayValue).List)
 	default:
 		cp = tv
 	}
@@ -1556,7 +1562,7 @@ func (tv *TypedValue) AssertNonNegative(msg string) {
 }
 
 func (tv *TypedValue) ComputeMapKey(store Store, omitType bool) MapKey {
-	fmt.Println("---ComputeMapKey, tv: ", tv)
+	//fmt.Println("---ComputeMapKey, tv: ", tv)
 	// map key might be refValue that was previously attached
 	if _, ok := tv.V.(RefValue); ok {
 		fillValueTV(store, tv)
@@ -1583,11 +1589,11 @@ func (tv *TypedValue) ComputeMapKey(store Store, omitType bool) MapKey {
 	case *PointerType:
 		origin := tv.V.(PointerValue).Origin
 		if origin == "" {
-			panic("---origin empty")
+			//panic("---origin empty")
 			ptr := uintptr(unsafe.Pointer(tv.V.(PointerValue).TV))
 			bz = append(bz, uintptrToBytes(&ptr)...)
 		} else {
-			fmt.Println("---Pointer origin: ", origin)
+			//fmt.Println("---Pointer origin: ", origin)
 			bz = append(bz, []byte(origin)...)
 		}
 	case FieldType:
@@ -1654,8 +1660,22 @@ func (tv *TypedValue) ComputeMapKey(store Store, omitType bool) MapKey {
 // cu: convert untyped after assignment. pass false
 // for const definitions, but true for all else.
 func (tv *TypedValue) Assign(alloc *Allocator, tv2 TypedValue, cu bool) {
-	fmt.Println("assign, tv: ", tv)
-	fmt.Println("assign, tv2: ", tv2)
+	//fmt.Println("assign, tv: ", tv)
+	//fmt.Println("assign, tv2: ", tv2)
+	//
+	//if sv2, ok := tv2.V.(*SliceValue); ok {
+	//	fmt.Println("---sv2.Origin: ", sv2.Origin)
+	//	defer func() {
+	//		fmt.Println("---after assign2, tv: ", tv)
+	//		println("---------------------")
+	//		fmt.Println("---tv2.Base: ", sv2.Base)
+	//		fmt.Printf("---addr of tv2.base: %p \n", sv2.Base)
+	//		fmt.Println("---tv.Base: ", tv.V.(*SliceValue).Base)
+	//		fmt.Printf("---addr of tv.base: %p \n", tv.V.(*SliceValue).Base)
+	//		println("---------------------")
+	//		fmt.Println("---tv.Origin: ", tv.V.(*SliceValue).Base.(*ArrayValue).AbsPath)
+	//	}()
+	//}
 	if debug {
 		if tv.T == DataByteType {
 			// assignment to data byte types should only
@@ -1669,9 +1689,6 @@ func (tv *TypedValue) Assign(alloc *Allocator, tv2 TypedValue, cu bool) {
 		}
 	}
 	*tv = tv2.Copy(alloc)
-	if pv, ok := tv.V.(PointerValue); ok {
-		fmt.Println("---2, pv.Origin: ", pv.Origin)
-	}
 	if cu && isUntyped(tv.T) {
 		ConvertUntypedTo(tv, defaultTypeOf(tv.T))
 	}
@@ -2003,7 +2020,7 @@ func (tv *TypedValue) GetPointerAtIndexInt(store Store, ii int) PointerValue {
 }
 
 func (tv *TypedValue) GetPointerAtIndex(alloc *Allocator, store Store, iv *TypedValue) PointerValue {
-	fmt.Println("---GetPointerAtIndex, iv: ", iv)
+	//fmt.Println("---GetPointerAtIndex, iv: ", iv)
 	switch bt := baseOf(tv.T).(type) {
 	case PrimitiveType:
 		if bt == StringType || bt == UntypedStringType {
@@ -2033,7 +2050,6 @@ func (tv *TypedValue) GetPointerAtIndex(alloc *Allocator, store Store, iv *Typed
 		ii := iv.ConvertGetInt()
 		return sv.GetPointerAtIndexInt2(store, ii, bt.Elt)
 	case *MapType:
-		println("---MapType")
 		if tv.V == nil {
 			panic("uninitialized map index")
 		}
@@ -2521,8 +2537,8 @@ func (b *Block) GetPointerTo(store Store, path ValuePath) PointerValue {
 
 // Convenience
 func (b *Block) GetPointerToMaybeHeapUse(store Store, nx *NameExpr) PointerValue {
-	fmt.Println("---GetPointerToMaybeHeapUse")
-	fmt.Println("---nx: ", nx.String())
+	//fmt.Println("---GetPointerToMaybeHeapUse")
+	//fmt.Println("---nx: ", nx.String())
 	switch nx.Type {
 	case NameExprTypeNormal:
 		return b.GetPointerTo(store, nx.Path)
@@ -2742,7 +2758,7 @@ func typedString(s string) TypedValue {
 }
 
 func fillValueTV(store Store, tv *TypedValue) *TypedValue {
-	fmt.Println("---fillValueTV, tv: ", tv)
+	//fmt.Println("---fillValueTV, tv: ", tv)
 	switch cv := tv.V.(type) {
 	case RefValue:
 		if cv.PkgPath != "" { // load package
@@ -2811,16 +2827,32 @@ func signOfUnsignedBytes(n [8]byte) int {
 }
 
 func SetOriginForPointerValue(v *Value, origin string) {
-	fmt.Println("---SetPointerValueOrigin, v: ", *v)
-	fmt.Println("---origin: ", origin)
+	//fmt.Println("---SetPointerValueOrigin, v: ", *v)
+	//fmt.Println("---origin: ", origin)
 	if pv, ok := (*v).(PointerValue); ok {
+		//println("---Pointer value")
 		if pv.Origin == "" {
-			println("---Empty, assign origin")
+			//println("---Empty, assign origin")
 			pv.Origin = origin
 			*v = pv
-			fmt.Println("---Done")
+			//fmt.Println("---Done")
 		} else {
-			fmt.Println("---Origin exist: ", pv.Origin)
+			//fmt.Println("---Origin exist, do nothing: ", pv.Origin)
+		}
+	} else if sv, ok := (*v).(*SliceValue); ok {
+		//fmt.Println("---Slice value, sv: ", sv)
+		if baseArr, ok := sv.Base.(*ArrayValue); ok {
+			//fmt.Println("---baseArr: ", baseArr)
+			//fmt.Println("---baseArr.Abs: ", baseArr.AbsPath)
+			if baseArr.AbsPath == "" {
+				baseArr.AbsPath = origin // from name
+			} else if sv.Origin == "" { // using abs path
+				//println("--set origin from array abs")
+				sv.Origin = baseArr.AbsPath
+				*v = sv
+			}
+		} else {
+			//println("---base not array value")
 		}
 	}
 }

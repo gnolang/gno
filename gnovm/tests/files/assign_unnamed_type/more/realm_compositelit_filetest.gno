@@ -27,6 +27,7 @@ func main() {
 // Realm:
 // switchrealm["gno.land/r/test"]
 // c[a8ada09dee16d791fd406d629fe29bb0ed084a30:6]={
+//     "AbsPath": "",
 //     "Data": null,
 //     "List": [
 //         {
@@ -59,7 +60,8 @@ func main() {
 //                 },
 //                 "Length": "1",
 //                 "Maxcap": "1",
-//                 "Offset": "0"
+//                 "Offset": "0",
+//                 "Origin": ""
 //             }
 //         }
 //     ],
@@ -165,6 +167,7 @@ func main() {
 //                     "ObjectID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:4"
 //                 },
 //                 "Index": "0",
+//                 "Origin": "",
 //                 "TV": null
 //             }
 //         },

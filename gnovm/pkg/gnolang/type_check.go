@@ -201,7 +201,6 @@ func checkSame(at, bt Type, msg string) error {
 	if debug {
 		debug.Printf("checkSame, at: %v bt: %v \n", at, bt)
 	}
-	fmt.Printf("checkSame, at: %v bt: %v \n", at, bt)
 	if at.TypeID() != bt.TypeID() {
 		return errors.New("incompatible types %v and %v %s",
 			at.TypeID(), bt.TypeID(), msg)

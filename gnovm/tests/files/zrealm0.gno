@@ -21,14 +21,7 @@ func main() {
 // Realm:
 // switchrealm["gno.land/r/test"]
 // u[a8ada09dee16d791fd406d629fe29bb0ed084a30:2]={
-//     "Blank": {
-//         "Path": {
-//             "Depth": 0,
-//             "Index": 0,
-//             "Name": "",
-//             "Type": 0
-//         }
-//     },
+//     "Blank": {},
 //     "ObjectInfo": {
 //         "ID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:2",
 //         "IsEscaped": true,
@@ -49,24 +42,12 @@ func main() {
 //     "Values": [
 //         {
 //             "N": "AQAAAAAAAAA=",
-//             "Path": {
-//                 "Depth": 0,
-//                 "Index": 0,
-//                 "Name": "",
-//                 "Type": 0
-//             },
 //             "T": {
 //                 "@type": "/gno.PrimitiveType",
 //                 "value": "32"
 //             }
 //         },
 //         {
-//             "Path": {
-//                 "Depth": 0,
-//                 "Index": 0,
-//                 "Name": "",
-//                 "Type": 0
-//             },
 //             "T": {
 //                 "@type": "/gno.FuncType",
 //                 "Params": [],

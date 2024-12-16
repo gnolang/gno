@@ -213,7 +213,6 @@ func RunFileTest(rootDir string, path string, opts ...RunFileTestOption) error {
 				}
 				// run decls and init functions.
 				m.RunMemPackage(memPkg, true)
-				println("---after RunMemPackage")
 				// reconstruct machine and clear store cache.
 				// whether package is realm or not, since non-realm
 				// may call realm packages too.
@@ -223,7 +222,6 @@ func RunFileTest(rootDir string, path string, opts ...RunFileTestOption) error {
 					f.logger("========================================")
 				}
 				store.ClearCache()
-				println("---after CLEAR STORE CACHE")
 				/*
 					m = gno.NewMachineWithOptions(gno.MachineOptions{
 						PkgPath:       "",

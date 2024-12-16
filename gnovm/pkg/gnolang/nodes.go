@@ -1688,14 +1688,14 @@ func (sb *StaticBlock) GetParentNode(store Store) BlockNode {
 // Implements BlockNode.
 // As a side effect, notes externally defined names.
 func (sb *StaticBlock) GetPathForName(store Store, n Name) (rel ValuePath, abs string) {
-	fmt.Println("---GetPathForName, n: ", n)
+	//fmt.Println("---GetPathForName, n: ", n)
 	if n == blankIdentifier {
 		return NewValuePathBlock(0, 0, blankIdentifier), ""
 	}
 	// Check local.
 	gen := 1
 	if idx, ok := sb.GetLocalIndex(n); ok {
-		fmt.Println("---bid1: ", sb.BID)
+		//fmt.Println("---bid1: ", sb.BID)
 		return NewValuePathBlock(uint8(gen), idx, n), fmt.Sprintf("%s:[%d]", sb.BID, idx)
 	}
 	// Register as extern.
@@ -1711,10 +1711,6 @@ func (sb *StaticBlock) GetPathForName(store Store, n Name) (rel ValuePath, abs s
 	bp := sb.GetParentNode(store)
 	for bp != nil {
 		if idx, ok := bp.GetLocalIndex(n); ok {
-			fmt.Println("---bp: ", bp)
-			fmt.Println("---bid2: ", bp.GetStaticBlock().BID)
-			fmt.Println("---gen: ", gen)
-			fmt.Println("---idx: ", idx)
 			return NewValuePathBlock(uint8(gen), idx, n), fmt.Sprintf("%s:[%d]", bp.GetStaticBlock().BID, idx)
 		} else {
 			if !isFile(bp) {

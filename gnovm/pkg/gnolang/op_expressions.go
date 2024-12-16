@@ -13,29 +13,29 @@ func (m *Machine) doOpIndex1() {
 		_ = m.PopExpr().(*IndexExpr)
 	} else {
 		lx := m.PopExpr()
-		fmt.Println("---doOpIndex1, lx: ", lx)
+		//fmt.Println("---doOpIndex1, lx: ", lx)
 		var abs string
 		if ix, ok := lx.(*IndexExpr); !ok {
 			panic("---should not happen")
 		} else {
-			fmt.Println("---index expr AbsPath: ", ix.AbsPath)
+			//fmt.Println("---index expr AbsPath: ", ix.AbsPath)
 			abs = ix.AbsPath
 		}
 
-		fmt.Println("---abs: ", abs)
+		//fmt.Println("---abs: ", abs)
 
 		iv := m.PopValue()   // index
 		xv := m.PeekValue(1) // x
-		fmt.Println("---iv: ", iv)
-		fmt.Println("---xv: ", xv)
+		//fmt.Println("---iv: ", iv)
+		//fmt.Println("---xv: ", xv)
 		switch ct := baseOf(xv.T).(type) {
 		case *MapType:
-			println("---map type")
+			//println("---map type")
 			mv := xv.V.(*MapValue)
 			vv, exists := mv.GetValueForKey(m.Store, iv)
 			if exists {
 				*xv = vv // reuse as result
-				fmt.Println("---xv1: ", *xv)
+				//fmt.Println("---xv1: ", *xv)
 				SetOriginForPointerValue(&xv.V, abs)
 			} else {
 				vt := ct.Value
@@ -44,25 +44,35 @@ func (m *Machine) doOpIndex1() {
 					T: vt,
 					V: defaultValue(m.Alloc, vt),
 				}
-				fmt.Println("---xv2: ", *xv)
+				//fmt.Println("---xv2: ", *xv)
 				SetOriginForPointerValue(&xv.V, abs)
 			}
 		default:
-			println("---default")
+			//println("---default")
+
+			if sv, ok := xv.V.(*SliceValue); ok {
+				if arr, ok := sv.Base.(*ArrayValue); ok {
+					abs = arr.AbsPath + ":" + lx.(*IndexExpr).Index.String()
+					//fmt.Println("---!!! abs: ", abs)
+				} else {
+					//println("---base not array ")
+				}
+			}
+
 			res := xv.GetPointerAtIndex(m.Alloc, m.Store, iv)
 			*xv = res.Deref() // reuse as result
-			fmt.Println("---xv: ", *xv)
+			//fmt.Println("---xv: ", *xv)
 
 			SetOriginForPointerValue(&xv.V, abs)
 
-			fmt.Println("---*xv: ", *xv)
+			//fmt.Println("---*xv: ", *xv)
 		}
 	}
 }
 
 // NOTE: keep in sync with doOpIndex1.
 func (m *Machine) doOpIndex2() {
-	println("---doOpIndex2")
+	//println("---doOpIndex2")
 	if debug {
 		_ = m.PopExpr().(*IndexExpr)
 	} else {
@@ -113,7 +123,7 @@ func (m *Machine) doOpIndex2() {
 
 func (m *Machine) doOpSelector() {
 	sx := m.PopExpr().(*SelectorExpr)
-	fmt.Println("---doOpSelector, sx: ", sx)
+	//fmt.Println("---doOpSelector, sx: ", sx)
 	xv := m.PeekValue(1)
 	res := xv.GetPointerToFromTV(m.Alloc, m.Store, sx.Path).Deref()
 	if debug {
@@ -182,10 +192,10 @@ func (m *Machine) doOpSlice() {
 // deref, but the result is a pointer-to type.
 func (m *Machine) doOpStar() {
 	xv := m.PopValue()
-	fmt.Println("---doOpStar, xv: ", xv)
+	//fmt.Println("---doOpStar, xv: ", xv)
 	switch bt := baseOf(xv.T).(type) {
 	case *PointerType:
-		println("---pointer type")
+		//println("---pointer type")
 		pv := xv.V.(PointerValue)
 		if pv.TV.T == DataByteType {
 			tv := TypedValue{T: bt.Elt}
@@ -231,10 +241,10 @@ func (m *Machine) doOpStar() {
 // XXX this is wrong, for var i interface{}; &i is *interface{}.
 func (m *Machine) doOpRef() {
 	rx := m.PopExpr().(*RefExpr)
-	fmt.Println("---doOpRef, rx: ", rx)
+	//fmt.Println("---doOpRef, rx: ", rx)
 	m.Alloc.AllocatePointer()
-	xv := m.PopAsPointer(rx.X)
-	fmt.Println("---xv: ", xv)
+	xv, origin := m.PopAsPointer2(rx.X)
+	//fmt.Println("---xv: ", xv)
 	if nv, ok := xv.TV.V.(*NativeValue); ok {
 		// If a native pointer, ensure it is addressable.  This
 		// way, PointerValue{*NativeValue{rv}} can be converted
@@ -258,16 +268,20 @@ func (m *Machine) doOpRef() {
 		V: xv,
 	}
 
-	//fmt.Println("---rx.X: ", rx.X, reflect.TypeOf(rx.X))
-	//if cx, ok := rx.X.(*CompositeLitExpr); ok {
-	//	fmt.Println("---cx.Type: ", cx.Type)
-	//	if nx, ok := cx.Type.(*NameExpr); ok {
-	//		fmt.Println("---nx: ", nx)
-	//	}
-	//}
 	if pather, ok := rx.X.(AbsPather); ok {
-		println("---pather")
-		SetOriginForPointerValue(&tv.V, pather.GetAbsPath())
+		if _, ok := rx.X.(*IndexExpr); ok {
+			//fmt.Println("---index expr, ix: ", ix, reflect.TypeOf(ix.X))
+			if origin != "" {
+				//fmt.Println("---origin: ", origin)
+				SetOriginForPointerValue(&tv.V, origin)
+			} else {
+				SetOriginForPointerValue(&tv.V, pather.GetAbsPath())
+			}
+		} else {
+			//println("---pather")
+			SetOriginForPointerValue(&tv.V, pather.GetAbsPath())
+		}
+
 	}
 	m.PushValue(tv)
 }
@@ -739,7 +753,6 @@ func (m *Machine) doOpMapLit() {
 func (m *Machine) doOpStructLit() {
 	// assess performance TODO
 	x := m.PopExpr().(*CompositeLitExpr)
-	fmt.Println("---doOpStructLit, x: ", x)
 	el := len(x.Elts) // may be incomplete
 	// peek struct type.
 	xt := m.PeekValue(1 + el).V.(TypeValue).Type

@@ -51,7 +51,7 @@ func (m *Machine) doOpPrecall() {
 var gReturnStmt = &ReturnStmt{}
 
 func (m *Machine) doOpCall() {
-	fmt.Println("---doOpCall---")
+	//fmt.Println("---doOpCall---")
 	// NOTE: Frame won't be popped until the statement is complete, to
 	// discard the correct number of results for func calls in ExprStmts.
 	fr := m.LastFrame()
@@ -199,7 +199,7 @@ func (m *Machine) doOpCallDeferNativeBody() {
 
 // Assumes that result values are pushed onto the Values stack.
 func (m *Machine) doOpReturn() {
-	fmt.Println("---doOpReturn---")
+	//fmt.Println("---doOpReturn---")
 	cfr := m.PopUntilLastCallFrame()
 	// See if we are exiting a realm boundary.
 	// NOTE: there are other ways to implement realm boundary transitions,
@@ -231,7 +231,7 @@ func (m *Machine) doOpReturn() {
 // Like doOpReturn, but with results from the block;
 // i.e. named result vars declared in func signatures.
 func (m *Machine) doOpReturnFromBlock() {
-	fmt.Println("---doOpReturnFromBlock---")
+	//fmt.Println("---doOpReturnFromBlock---")
 	// Copy results from block.
 	cfr := m.PopUntilLastCallFrame()
 	ft := cfr.Func.GetType(m.Store)
@@ -254,7 +254,6 @@ func (m *Machine) doOpReturnFromBlock() {
 			// We are changing realms or exiting a realm.
 			finalize = true
 		}
-		fmt.Println("---isFinalize: ", finalize)
 		if finalize {
 			// Finalize realm updates!
 			// NOTE: This is a resource intensive undertaking.

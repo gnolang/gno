@@ -131,6 +131,7 @@ func main() {
 //                     "ObjectID": "1ffd45e074aa1b8df562907c95ad97526b7ca187:9"
 //                 },
 //                 "Index": "0",
+//                 "Origin": "213cb3b651dbaecc9e67a58b11a12c429d266616:3:[5]",
 //                 "TV": null
 //             }
 //         },
@@ -187,7 +188,7 @@ func main() {
 //         },
 //         "V": {
 //             "@type": "/gno.RefValue",
-//             "Hash": "869abdac30a3ae78b2191806e1c894c48e399122",
+//             "Hash": "0580a60151a7899d4e48f32f349992e269311ec2",
 //             "ObjectID": "1ffd45e074aa1b8df562907c95ad97526b7ca187:8"
 //         }
 //     }
@@ -206,10 +207,11 @@ func main() {
 //                 "@type": "/gno.PointerValue",
 //                 "Base": {
 //                     "@type": "/gno.RefValue",
-//                     "Hash": "a919087d0eba652876f9a8df18b30ec5ddc8c26e",
+//                     "Hash": "8679b8498d1fbc34af66eac56ca5f1462e740219",
 //                     "ObjectID": "1ffd45e074aa1b8df562907c95ad97526b7ca187:7"
 //                 },
 //                 "Index": "0",
+//                 "Origin": "26a90809de387e567a70972c32a4cc9e8d44e55f:8:[4]",
 //                 "TV": null
 //             }
 //         }
@@ -240,7 +242,7 @@ func main() {
 //             },
 //             "V": {
 //                 "@type": "/gno.RefValue",
-//                 "Hash": "dfdeb7ed80c5b030c3a5e9701d00c66203de6f57",
+//                 "Hash": "f5b71be6bbbea199b23a72ebc48aea682e30b429",
 //                 "ObjectID": "1ffd45e074aa1b8df562907c95ad97526b7ca187:6"
 //             }
 //         },
@@ -258,4 +260,137 @@ func main() {
 //         "OwnerID": "1ffd45e074aa1b8df562907c95ad97526b7ca187:4",
 //         "RefCount": "1"
 //     }
+// }
+// u[1ffd45e074aa1b8df562907c95ad97526b7ca187:4]={
+//     "ObjectInfo": {
+//         "ID": "1ffd45e074aa1b8df562907c95ad97526b7ca187:4",
+//         "ModTime": "11",
+//         "OwnerID": "1ffd45e074aa1b8df562907c95ad97526b7ca187:2",
+//         "RefCount": "1"
+//     },
+//     "Value": {
+//         "T": {
+//             "@type": "/gno.RefType",
+//             "ID": "gno.land/p/demo/dom.Plot"
+//         },
+//         "V": {
+//             "@type": "/gno.RefValue",
+//             "Hash": "6debec9a26b0fb085bd9ac9f55cbc76aaecdfae1",
+//             "ObjectID": "1ffd45e074aa1b8df562907c95ad97526b7ca187:5"
+//         }
+//     }
+// }
+// u[1ffd45e074aa1b8df562907c95ad97526b7ca187:2]={
+//     "Blank": {},
+//     "ObjectInfo": {
+//         "ID": "1ffd45e074aa1b8df562907c95ad97526b7ca187:2",
+//         "IsEscaped": true,
+//         "ModTime": "11",
+//         "RefCount": "2"
+//     },
+//     "Parent": null,
+//     "Source": {
+//         "@type": "/gno.RefNode",
+//         "BlockNode": null,
+//         "Location": {
+//             "Column": "0",
+//             "File": "",
+//             "Line": "0",
+//             "PkgPath": "gno.land/r/example"
+//         }
+//     },
+//     "Values": [
+//         {
+//             "T": {
+//                 "@type": "/gno.PointerType",
+//                 "Elt": {
+//                     "@type": "/gno.RefType",
+//                     "ID": "gno.land/p/demo/dom.Plot"
+//                 }
+//             },
+//             "V": {
+//                 "@type": "/gno.PointerValue",
+//                 "Base": {
+//                     "@type": "/gno.RefValue",
+//                     "Hash": "4e96047a6538e018a42a8773fda39adc90c7a60f",
+//                     "ObjectID": "1ffd45e074aa1b8df562907c95ad97526b7ca187:4"
+//                 },
+//                 "Index": "0",
+//                 "Origin": "",
+//                 "TV": null
+//             }
+//         },
+//         {
+//             "T": {
+//                 "@type": "/gno.FuncType",
+//                 "Params": [],
+//                 "Results": []
+//             },
+//             "V": {
+//                 "@type": "/gno.FuncValue",
+//                 "Closure": {
+//                     "@type": "/gno.RefValue",
+//                     "Escaped": true,
+//                     "ObjectID": "1ffd45e074aa1b8df562907c95ad97526b7ca187:3"
+//                 },
+//                 "FileName": "main.gno",
+//                 "IsMethod": false,
+//                 "Name": "init.1",
+//                 "NativeName": "",
+//                 "NativePkg": "",
+//                 "PkgPath": "gno.land/r/example",
+//                 "Source": {
+//                     "@type": "/gno.RefNode",
+//                     "BlockNode": null,
+//                     "Location": {
+//                         "Column": "1",
+//                         "File": "main.gno",
+//                         "Line": "10",
+//                         "PkgPath": "gno.land/r/example"
+//                     }
+//                 },
+//                 "Type": {
+//                     "@type": "/gno.FuncType",
+//                     "Params": [],
+//                     "Results": []
+//                 }
+//             }
+//         },
+//         {
+//             "T": {
+//                 "@type": "/gno.FuncType",
+//                 "Params": [],
+//                 "Results": []
+//             },
+//             "V": {
+//                 "@type": "/gno.FuncValue",
+//                 "Closure": {
+//                     "@type": "/gno.RefValue",
+//                     "Escaped": true,
+//                     "ObjectID": "1ffd45e074aa1b8df562907c95ad97526b7ca187:3"
+//                 },
+//                 "FileName": "main.gno",
+//                 "IsMethod": false,
+//                 "Name": "main",
+//                 "NativeName": "",
+//                 "NativePkg": "",
+//                 "PkgPath": "gno.land/r/example",
+//                 "Source": {
+//                     "@type": "/gno.RefNode",
+//                     "BlockNode": null,
+//                     "Location": {
+//                         "Column": "1",
+//                         "File": "main.gno",
+//                         "Line": "14",
+//                         "PkgPath": "gno.land/r/example"
+//                     }
+//                 },
+//                 "Type": {
+//                     "@type": "/gno.FuncType",
+//                     "Params": [],
+//                     "Results": []
+//                 }
+//             }
+//         }
+//     ]
 // }

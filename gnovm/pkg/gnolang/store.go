@@ -361,7 +361,6 @@ func (ds *defaultStore) GetObjectSafe(oid ObjectID) Object {
 // loads and caches an object.
 // CONTRACT: object isn't already in the cache.
 func (ds *defaultStore) loadObjectSafe(oid ObjectID) Object {
-	println("---loadObjectSafe---")
 	key := backendObjectKey(oid)
 	hashbz := ds.baseStore.Get([]byte(key))
 	if hashbz != nil {
@@ -387,11 +386,11 @@ func (ds *defaultStore) loadObjectSafe(oid ObjectID) Object {
 // NOTE: unlike GetObject(), SetObject() is also used to persist updated
 // package values.
 func (ds *defaultStore) SetObject(oo Object) {
-	fmt.Println("---SetObject, oo: ", oo)
+	//fmt.Println("---SetObject, oo: ", oo)
 	oid := oo.GetObjectID()
 	// replace children/fields with Ref.
 	o2 := copyValueWithRefs(oo)
-	fmt.Println("---SetObject, o2: ", o2)
+	//fmt.Println("---SetObject, o2: ", o2)
 	// marshal to binary.
 	bz := amino.MustMarshalAny(o2)
 	// set hash.
@@ -426,10 +425,8 @@ func (ds *defaultStore) SetObject(oo Object) {
 	if ds.opslog != nil {
 		var op StoreOpType
 		if oo.GetIsNewReal() {
-			println("---oo is new real")
 			op = StoreOpNew
 		} else {
-			println("---oo is NOT new real")
 			op = StoreOpMod
 		}
 		ds.opslog = append(ds.opslog,
@@ -445,7 +442,7 @@ func (ds *defaultStore) SetObject(oo Object) {
 }
 
 func (ds *defaultStore) DelObject(oo Object) {
-	fmt.Println("---DelObject, oo: ", oo)
+	//fmt.Println("---DelObject, oo: ", oo)
 	oid := oo.GetObjectID()
 	// delete from cache.
 	delete(ds.cacheObjects, oid)
@@ -767,16 +764,13 @@ func (ds *defaultStore) SetLogStoreOps(enabled bool) {
 
 // resets .realmops.
 func (ds *defaultStore) ResetStoreOps() {
-	fmt.Println("---ResetStoreOps")
 	ds.opslog = make([]StoreOp, 0, 1024)
 }
 
 // for test/file_test.go, to test realm changes.
 func (ds *defaultStore) SprintStoreOps() string {
-	fmt.Println("---SprintStoreOps")
 	ss := make([]string, 0, len(ds.opslog))
 	for _, sop := range ds.opslog {
-		fmt.Println("---sop: ", sop)
 		ss = append(ss, sop.String())
 	}
 	return strings.Join(ss, "\n")
@@ -788,7 +782,6 @@ func (ds *defaultStore) LogSwitchRealm(rlmpath string) {
 }
 
 func (ds *defaultStore) ClearCache() {
-	fmt.Println("---ClearCache")
 	ds.cacheObjects = make(map[ObjectID]Object)
 	ds.cacheTypes = txlog.GoMap[TypeID, Type](map[TypeID]Type{})
 	ds.cacheNodes = txlog.GoMap[Location, BlockNode](map[Location]BlockNode{})

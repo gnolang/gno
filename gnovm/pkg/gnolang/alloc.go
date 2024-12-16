@@ -1,6 +1,8 @@
 package gnolang
 
-import "reflect"
+import (
+	"reflect"
+)
 
 // Keeps track of in-memory allocations.
 // In the future, allocations within realm boundaries will be
@@ -194,6 +196,7 @@ func (alloc *Allocator) NewString(s string) StringValue {
 }
 
 func (alloc *Allocator) NewListArray(n int) *ArrayValue {
+	//fmt.Println("---NewListArray, n: ", n)
 	alloc.AllocateListArray(int64(n))
 	return &ArrayValue{
 		List: make([]TypedValue, n),
@@ -214,6 +217,7 @@ func (alloc *Allocator) NewArrayFromData(data []byte) *ArrayValue {
 }
 
 func (alloc *Allocator) NewSlice(base Value, offset, length, maxcap int) *SliceValue {
+	//fmt.Println("---NewSlice, base: ", base)
 	alloc.AllocateSlice()
 	return &SliceValue{
 		Base:   base,
@@ -230,6 +234,7 @@ func (alloc *Allocator) NewSlice(base Value, offset, length, maxcap int) *SliceV
 // to allocate the space for the `TypedValue` list before doing the allocation
 // in the go runtime -- see the `make()` code in uverse.go.
 func (alloc *Allocator) NewSliceFromList(list []TypedValue) *SliceValue {
+	//fmt.Println("---NewSliceFromList, list: ", list)
 	alloc.AllocateSlice()
 	alloc.AllocateListArray(int64(cap(list)))
 	fullList := list[:cap(list)]
