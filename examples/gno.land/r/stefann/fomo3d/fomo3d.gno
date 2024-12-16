@@ -2,8 +2,10 @@ package fomo3d
 
 import (
 	"std"
+	"strings"
 
 	"gno.land/p/demo/avl"
+	"gno.land/p/demo/ufmt"
 )
 
 // FOMO3D (Fear Of Missing Out 3D) is a blockchain-based game that combines elements
@@ -23,7 +25,7 @@ import (
 // Inspired by the original Ethereum FOMO3D game but implemented in Gno.
 
 const (
-	MIN_KEY_PRICE   int64 = 1000000 // minimum key price in ugnot
+	MIN_KEY_PRICE   int64 = 100000 // minimum key price in ugnot
 	TIME_EXTENSION  int64 = 30      // time extension in blocks when new key is bought
 	MAX_TIME_EXTEND int64 = 86400   // max time that can be added (~24 hours @ 1s blocks)
 
@@ -223,4 +225,64 @@ func GetPlayerInfo(addr std.Address) (int64, int64) {
 		return playerInfo.Keys, playerInfo.Dividends
 	}
 	return 0, 0
+}
+
+// Render handles the rendering of game state
+func Render(path string) string {
+	parts := strings.Split(path, "/")
+	c := len(parts)
+
+	switch {
+	case path == "":
+		// Default render showing game overview
+		return RenderHome()
+	case c == 2 && parts[0] == "player":
+		// Render specific player info
+		addr := std.Address(parts[1])
+		keys, dividends := GetPlayerInfo(addr)
+		return RenderPlayer(addr, keys, dividends)
+	default:
+		return "404: Invalid path\n"
+	}
+}
+
+// RenderHome renders the main game state
+func RenderHome() string {
+	gameStart, gameEnd, _, lastBuyer, pot, price, totalKeys, isEnded := GetGameState()
+	
+	var builder strings.Builder
+	builder.WriteString("# FOMO3D Game Status\n\n")
+	
+	if gameStart == 0 {
+		builder.WriteString("Game has not started yet.\n")
+		return builder.String()
+	}
+
+	builder.WriteString(ufmt.Sprintf("## Round %d\n\n", currentRound))
+	
+	if isEnded {
+		builder.WriteString("**Game Status:** Ended\n")
+		builder.WriteString(ufmt.Sprintf("**Winner:** %s\n", lastBuyer))
+	} else {
+		builder.WriteString("**Game Status:** Active\n")
+		builder.WriteString(ufmt.Sprintf("**Time Remaining:** %d blocks\n", gameEnd - std.GetHeight()))
+	}
+
+	builder.WriteString("\n## Game Statistics\n\n")
+	builder.WriteString(ufmt.Sprintf("* **Current Jackpot:** %d ugnot\n", pot))
+	builder.WriteString(ufmt.Sprintf("* **Current Key Price:** %d ugnot\n", price))
+	builder.WriteString(ufmt.Sprintf("* **Total Keys:** %d\n", totalKeys))
+	builder.WriteString(ufmt.Sprintf("* **Last Buyer:** %s\n", lastBuyer))
+	builder.WriteString(ufmt.Sprintf("* **Next Round Pot:** %d ugnot\n", nextPot))
+
+	return builder.String()
+}
+
+// RenderPlayer renders specific player information
+func RenderPlayer(addr std.Address, keys int64, dividends int64) string {
+	var builder strings.Builder
+	builder.WriteString(ufmt.Sprintf("# Player Info: %s\n\n", addr))
+	builder.WriteString(ufmt.Sprintf("* **Keys Owned:** %d\n", keys))
+	builder.WriteString(ufmt.Sprintf("* **Unclaimed Dividends:** %d ugnot\n", dividends))
+	return builder.String()
 }
