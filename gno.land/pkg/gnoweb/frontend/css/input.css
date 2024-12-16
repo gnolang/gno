@@ -38,10 +38,6 @@
     }
   }
 
-  /* a:hover {
-    @apply underline text-green-600;
-  } */
-
   svg {
     @apply max-w-full max-h-full;
   }
@@ -266,10 +262,10 @@
 
   /* toc */
   .toc-expend-btn {
-    @apply after:content-['open'] after:font-medium after:text-100 md:after:content-none;
+    @apply after:content-['open'] after:font-medium after:text-100 lg:after:content-none;
   }
   .toc-expend-btn:has(#toc-expend:checked) {
-    @apply after:content-['close'] md:after:content-none;
+    @apply after:content-['close'] lg:after:content-none;
   }
   .toc-expend-btn:has(#toc-expend:checked) + nav {
     @apply block;

@@ -97,7 +97,7 @@ func (s *WebClient) Render(w io.Writer, pkgPath string, args string) (*Metadata,
 	}
 
 	var meta Metadata
-	meta.Toc, err = md.TocInspect(doc, rawres, md.TocOptions{MaxDepth: 6})
+	meta.Toc, err = md.TocInspect(doc, rawres, md.TocOptions{MaxDepth: 6, MinDepth: 2})
 	if err != nil {
 		s.logger.Warn("unable to inspect for toc elements", "err", err)
 	}

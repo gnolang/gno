@@ -61,7 +61,7 @@
 
 {{ define "header" }}
 <header class="main-header sticky top-0 bg-light border-b border-gray-400 text-100 z-max">
-    <nav aria-label="Realm navigation" class="max-w-screen-max mx-auto px-4 md:px-10 grid grid-cols-10 grid-flow-dense gap-4 md:gap-8 xxl:gap-20 items-center">
+    <nav aria-label="Realm navigation" class="max-w-screen-max mx-auto px-4 md:px-10 grid grid-cols-10 grid-flow-dense gap-4 md:gap-x-20 xxl:gap-x-32 items-center">
         <div class="main-navigation flex items-center gap-1 col-span-7  max-w-screen-max h-full py-2">
             <a href="/" class="rounded border border-gray-100 cursor-pointer h-10 w-10 shrink-0">
                 <img src="/public/imgs/gnoland.svg" alt="Gno username profile pic" width="40px" height="40px" />
@@ -74,7 +74,7 @@
             </form>
         </div>
 
-        <form class="sidemenu col-span-3 md:col-span-2 flex justify-end md:justify-start gap-3 sm:gap-6 h-full text-100 text-gray-300">
+        <form class="sidemenu col-span-3 flex justify-end md:justify-start gap-3 sm:gap-6 h-full text-100 text-gray-300">
             <a href="{{ .RealmPath }}">
                 <div class="gap-1 hover:text-gray-600 relative flex items-center h-full after:block after:absolute after:h-1 after:bg-green-600 after:bottom-0 {{ if (and (not (queryHas .WebQuery "source")) (not (queryHas .WebQuery "help"))) }}after:w-full text-stroke text-gray-600{{ end }}">
                     <input type="radio" value="summary" name="sidemenu" id="sidemenu-meta" class="peer hidden" />
