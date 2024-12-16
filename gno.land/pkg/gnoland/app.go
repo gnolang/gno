@@ -388,6 +388,7 @@ func EndBlocker(
 			ctx,
 			valRealm,
 			fmt.Sprintf("%s(%d)", valChangesFn, app.LastBlockHeight()),
+			vm.FormatMachine,
 		)
 		if err != nil {
 			app.Logger().Error("unable to call VM during EndBlocker", "err", err)

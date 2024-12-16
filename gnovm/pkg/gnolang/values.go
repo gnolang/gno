@@ -88,6 +88,14 @@ func (bv BigintValue) MarshalAmino() (string, error) {
 	return string(bz), nil
 }
 
+func (bv BigintValue) MarshalAminoJSON() (string, error) {
+	bz, err := bv.V.MarshalText()
+	if err != nil {
+		return "", err
+	}
+	return string(bz), nil
+}
+
 func (bv *BigintValue) UnmarshalAmino(s string) error {
 	vv := big.NewInt(0)
 	err := vv.UnmarshalText([]byte(s))
