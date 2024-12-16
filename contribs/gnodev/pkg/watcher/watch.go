@@ -5,15 +5,14 @@ import (
 	"fmt"
 	"log/slog"
 	"path/filepath"
-	"sort"
 	"strings"
 	"time"
 
 	emitter "github.com/gnolang/gno/contribs/gnodev/pkg/emitter"
 	events "github.com/gnolang/gno/contribs/gnodev/pkg/events"
+	"github.com/gnolang/gno/contribs/gnodev/pkg/packages"
 
 	"github.com/fsnotify/fsnotify"
-	"github.com/gnolang/gno/gnovm/pkg/gnomod"
 )
 
 type PackageWatcher struct {
@@ -25,7 +24,6 @@ type PackageWatcher struct {
 
 	logger  *slog.Logger
 	watcher *fsnotify.Watcher
-	pkgsDir []string
 	emitter emitter.Emitter
 }
 
@@ -39,7 +37,6 @@ func NewPackageWatcher(logger *slog.Logger, emitter emitter.Emitter) (*PackageWa
 	p := &PackageWatcher{
 		ctx:     ctx,
 		stop:    cancel,
-		pkgsDir: []string{},
 		logger:  logger,
 		watcher: watcher,
 		emitter: emitter,
@@ -114,56 +111,59 @@ func (p *PackageWatcher) Stop() {
 	p.stop()
 }
 
-// AddPackages adds new packages to the watcher.
-// Packages are sorted by their length in descending order to facilitate easier
-// and more efficient matching with corresponding paths. The longest paths are
-// compared first.
-func (p *PackageWatcher) AddPackages(pkgs ...gnomod.Pkg) error {
+func (p *PackageWatcher) UpdatePackagesWatch(pkgs ...packages.Package) {
+	watchList := p.watcher.WatchList()
+
+	oldPkgs := make(map[string]struct{}, len(watchList))
+	for _, path := range watchList {
+		oldPkgs[path] = struct{}{}
+	}
+
+	newPkgs := make(map[string]struct{}, len(pkgs))
 	for _, pkg := range pkgs {
-		dir := pkg.Dir
+		if pkg.Kind != packages.PackageKindFS {
+			continue
+		}
 
-		abs, err := filepath.Abs(dir)
+		path, err := filepath.Abs(pkg.Location)
 		if err != nil {
-			return fmt.Errorf("unable to get absolute path of %q: %w", dir, err)
+			p.logger.Error("Unable to get absolute path", "path", pkg.Location, "error", err)
+			continue
 		}
 
-		// Use binary search to find the correct insertion point
-		index := sort.Search(len(p.pkgsDir), func(i int) bool {
-			return len(p.pkgsDir[i]) <= len(dir) // Longest paths first
-		})
+		newPkgs[path] = struct{}{}
+	}
 
-		// Check for duplicates
-		if index < len(p.pkgsDir) && p.pkgsDir[index] == dir {
-			continue // Skip
-		}
-
-		// Insert the package
-		p.pkgsDir = append(p.pkgsDir[:index], append([]string{abs}, p.pkgsDir[index:]...)...)
-
-		// Add the package to the watcher and handle any errors
-		if err := p.watcher.Add(abs); err != nil {
-			return fmt.Errorf("unable to watch %q: %w", pkg.Dir, err)
+	for path := range oldPkgs {
+		if _, exists := newPkgs[path]; !exists {
+			p.watcher.Remove(path)
+			p.logger.Debug("Watcher list: removed", "path", path)
 		}
 	}
 
-	return nil
+	for path := range newPkgs {
+		if _, exists := oldPkgs[path]; !exists {
+			p.watcher.Add(path)
+			p.logger.Debug("Watcher list: added", "path", path)
+		}
+	}
 }
 
 func (p *PackageWatcher) generatePackagesUpdateList(paths []string) PackageUpdateList {
 	pkgsUpdate := []events.PackageUpdate{}
 
 	mpkgs := map[string]*events.PackageUpdate{} // Pkg -> Update
+	watchList := p.watcher.WatchList()
 	for _, path := range paths {
-		for _, pkg := range p.pkgsDir {
-			dirPath := filepath.Dir(path)
-
-			// Check if a package directory contain our path directory
-			if !strings.HasPrefix(pkg, dirPath) {
-				continue
-			}
-
+		for _, pkg := range watchList {
 			if len(pkg) == len(path) {
 				continue // Skip if pkg == path
+			}
+
+			// Check if a package directory contain our path directory
+			dirPath := filepath.Dir(path)
+			if !strings.HasPrefix(pkg, dirPath) {
+				continue
 			}
 
 			// Accumulate file updates for each package

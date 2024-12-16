@@ -9,28 +9,25 @@ import (
 
 	gnodev "github.com/gnolang/gno/contribs/gnodev/pkg/dev"
 	"github.com/gnolang/gno/contribs/gnodev/pkg/emitter"
+	"github.com/gnolang/gno/contribs/gnodev/pkg/packages"
 	"github.com/gnolang/gno/gno.land/pkg/gnoland"
 	"github.com/gnolang/gno/tm2/pkg/bft/types"
 )
 
 // setupDevNode initializes and returns a new DevNode.
-func setupDevNode(
-	ctx context.Context,
-	devCfg *devCfg,
-	nodeConfig *gnodev.NodeConfig,
-) (*gnodev.Node, error) {
+func setupDevNode(ctx context.Context, cfg *devCfg, nodeConfig *gnodev.NodeConfig, paths ...string) (*gnodev.Node, error) {
 	logger := nodeConfig.Logger
 
-	if devCfg.txsFile != "" { // Load txs files
+	if cfg.txsFile != "" { // Load txs files
 		var err error
-		nodeConfig.InitialTxs, err = gnoland.ReadGenesisTxs(ctx, devCfg.txsFile)
+		nodeConfig.InitialTxs, err = gnoland.ReadGenesisTxs(ctx, cfg.txsFile)
 		if err != nil {
 			return nil, fmt.Errorf("unable to load transactions: %w", err)
 		}
-	} else if devCfg.genesisFile != "" { // Load genesis file
-		state, err := extractAppStateFromGenesisFile(devCfg.genesisFile)
+	} else if cfg.genesisFile != "" { // Load genesis file
+		state, err := extractAppStateFromGenesisFile(cfg.genesisFile)
 		if err != nil {
-			return nil, fmt.Errorf("unable to load genesis file %q: %w", devCfg.genesisFile, err)
+			return nil, fmt.Errorf("unable to load genesis file %q: %w", cfg.genesisFile, err)
 		}
 
 		// Override balances and txs
@@ -43,10 +40,15 @@ func setupDevNode(
 			nodeConfig.InitialTxs[index] = nodeTx
 		}
 
-		logger.Info("genesis file loaded", "path", devCfg.genesisFile, "txs", len(stateTxs))
+		logger.Info("genesis file loaded", "path", cfg.genesisFile, "txs", len(stateTxs))
 	}
 
-	return gnodev.NewDevNode(ctx, nodeConfig)
+	logger.Info("packages", "paths", paths)
+	if len(paths) == 0 {
+		logger.Warn("no path to load")
+	}
+
+	return gnodev.NewDevNode(ctx, nodeConfig, paths...)
 }
 
 // setupDevNodeConfig creates and returns a new dev.NodeConfig.
@@ -55,14 +57,15 @@ func setupDevNodeConfig(
 	logger *slog.Logger,
 	emitter emitter.Emitter,
 	balances gnoland.Balances,
-	pkgspath []gnodev.PackagePath,
+	loader packages.Loader,
 ) *gnodev.NodeConfig {
 	config := gnodev.DefaultNodeConfig(cfg.root, cfg.chainDomain)
+	config.Loader = loader
 
 	config.Logger = logger
 	config.Emitter = emitter
 	config.BalancesList = balances.List()
-	config.PackagesPathList = pkgspath
+	// config.PackagesModifier = pkgspath
 	config.TMConfig.RPC.ListenAddress = resolveUnixOrTCPAddr(cfg.nodeRPCListenerAddr)
 	config.NoReplay = cfg.noReplay
 	config.MaxGasPerBlock = cfg.maxGas
