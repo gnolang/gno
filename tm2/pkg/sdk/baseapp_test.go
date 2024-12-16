@@ -319,6 +319,9 @@ func TestBaseAppOptionSeal(t *testing.T) {
 	require.Panics(t, func() {
 		app.SetEndTxHook(nil)
 	})
+	require.Panics(t, func() {
+		app.SetGasFeeCollector(nil)
+	})
 }
 
 func TestSetMinGasPrices(t *testing.T) {
@@ -329,6 +332,11 @@ func TestSetMinGasPrices(t *testing.T) {
 	db := memdb.NewMemDB()
 	app := newBaseApp(t.Name(), db, SetMinGasPrices("5000stake/10gas"))
 	require.Equal(t, minGasPrices, app.minGasPrices)
+
+	// invalid input
+	_, err = ParseGasPrices("5000stake")
+	require.NotNil(t, err)
+	require.Panics(t, func() { SetMinGasPrices("5000stake") })
 }
 
 func TestInitChainer(t *testing.T) {
