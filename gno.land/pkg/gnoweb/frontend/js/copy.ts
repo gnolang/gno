@@ -57,9 +57,11 @@ class Copy {
   }
 
   private sanitizeContent(codeBlock: HTMLElement): string {
-    const html = codeBlock.innerHTML.replace(/<span class="chroma-ln">.*?<\/span>/g, "");
+    const html = codeBlock.innerHTML.replace(/<span[^>]*class="chroma-ln"[^>]*>[\s\S]*?<\/span>/g, "");
+
     const tempDiv = document.createElement("div");
     tempDiv.innerHTML = html;
+
     return tempDiv.textContent?.trim() || "";
   }
 
