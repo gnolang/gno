@@ -247,6 +247,13 @@
   main :is(h1, h2, h3, h4) {
     @apply scroll-mt-24;
   }
+
+  ::-moz-selection {
+    @apply bg-green-600 text-light;
+  }
+  ::selection {
+    @apply bg-green-600 text-light;
+  }
 }
 
 @layer components {
