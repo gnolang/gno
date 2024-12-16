@@ -245,12 +245,7 @@
   }
 
   main :is(h1, h2, h3, h4) {
-    scroll-margin-top: 5.5rem;
-  }
-
-  /* chroma */
-  main .source-code > pre {
-    @apply !bg-light overflow-scroll rounded py-4 md:py-8 px-1 md:px-3 font-mono text-100 md:text-200;
+    @apply scroll-mt-24;
   }
 }
 
@@ -289,6 +284,24 @@
   }
   :is(.main-header:has(#sidemenu-source:checked), .main-header:has(#sidemenu-docs:checked), .main-header:has(#sidemenu-meta:checked)) + main #sidebar::before {
     @apply absolute block content-[''] top-0 w-[50vw] h-full -left-7 bg-gray-100 z-min;
+  }
+
+  /* chroma */
+  main .source-code > pre {
+    @apply !bg-light overflow-scroll rounded py-4 md:py-8 px-1 md:px-3 font-mono text-100 md:text-200;
+  }
+
+  main .source-code > pre .chroma-ln:target {
+    @apply !bg-transparent;
+  }
+  main .source-code > pre .chroma-line:has(.chroma-ln:target),
+  main .source-code > pre .chroma-line:has(.chroma-lnlinks:hover),
+  main .source-code > pre .chroma-line:has(.chroma-ln:target) .chroma-cl,
+  main .source-code > pre .chroma-line:has(.chroma-lnlinks:hover) .chroma-cl {
+    @apply !bg-gray-100 rounded;
+  }
+  main .source-code > pre .chroma-ln {
+    @apply scroll-mt-24;
   }
 }
 
