@@ -151,22 +151,29 @@ func (c *devCfg) registerFlagsWithDefault(defaultCfg devCfg, fs *flag.FlagSet) {
 	fs.StringVar(
 		&c.webListenerAddr,
 		"web-listener",
-		defaultDevOptions.webListenerAddr,
+		defaultCfg.webListenerAddr,
 		"gnoweb: web server listener address",
 	)
 
 	fs.StringVar(
 		&c.webRemoteHelperAddr,
 		"web-help-remote",
-		defaultDevOptions.webRemoteHelperAddr,
+		defaultCfg.webRemoteHelperAddr,
 		"gnoweb: web server help page's remote addr (default to <node-rpc-listener>)",
 	)
 
 	fs.BoolVar(
 		&c.webWithHTML,
 		"web-with-html",
-		defaultDevOptions.webWithHTML,
+		defaultCfg.webWithHTML,
 		"gnoweb: enable HTML parsing in markdown rendering",
+	)
+
+	fs.StringVar(
+		&c.webHome,
+		"web-home",
+		defaultCfg.webHome,
+		"gnoweb: set default home page, use `/` or `:none:` to use default web home redirect",
 	)
 
 	fs.Var(
@@ -233,7 +240,7 @@ func (c *devCfg) registerFlagsWithDefault(defaultCfg devCfg, fs *flag.FlagSet) {
 	fs.StringVar(
 		&c.chainDomain,
 		"chain-domain",
-		defaultDevOptions.chainDomain,
+		defaultCfg.chainDomain,
 		"set node ChainDomain",
 	)
 

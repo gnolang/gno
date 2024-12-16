@@ -26,7 +26,7 @@ type App struct {
 	io     commands.IO
 	logger *slog.Logger
 
-	webHome       string
+	webHomePath   string
 	paths         []string
 	devNode       *gnodev.Node
 	emitterServer *emitter.Server
@@ -115,11 +115,11 @@ func (ds *App) Setup(ctx context.Context, dirs ...string) error {
 	switch webHome := ds.cfg.webHome; webHome {
 	case "":
 		if len(localPaths) > 0 {
-			ds.webHome = strings.TrimPrefix(localPaths[0], ds.cfg.chainDomain)
+			ds.webHomePath = strings.TrimPrefix(localPaths[0], ds.cfg.chainDomain)
 		}
-	case "/": // skip
+	case "/", ":none:": // skip
 	default:
-		ds.webHome = webHome
+		ds.webHomePath = webHome
 	}
 
 	// generate paths
@@ -158,11 +158,11 @@ func (ds *App) setupHandlers() http.Handler {
 	mux := http.NewServeMux()
 	webhandler := setupGnoWebServer(ds.logger.WithGroup(WebLogName), ds.cfg, ds.devNode)
 
-	if ds.webHome != "" {
+	if ds.webHomePath != "" {
 		serveWeb := webhandler.ServeHTTP
 		webhandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			if r.URL.Path == "" || r.URL.Path == "/" {
-				http.Redirect(w, r, ds.webHome, http.StatusFound)
+				http.Redirect(w, r, ds.webHomePath, http.StatusFound)
 			} else {
 				serveWeb(w, r)
 			}

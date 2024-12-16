@@ -18,7 +18,7 @@ var defaultStagingOptions = devCfg{
 	chainDomain:         DefaultDomain,
 	logFormat:           "json",
 	maxGas:              10_000_000_000,
-	webHome:             "/",
+	webHome:             ":none:",
 	webListenerAddr:     "127.0.0.1:8888",
 	nodeRPCListenerAddr: "127.0.0.1:26657",
 	deployKey:           DefaultDeployerAddress.String(),

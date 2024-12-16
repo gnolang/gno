@@ -34,7 +34,7 @@ func (r LocalResolver) Resolve(fset *token.FileSet, path string) (*Package, erro
 	pkg, err := ReadPackageFromDir(fset, path, dir)
 
 	if err != nil && after == "" && errors.Is(err, ErrResolverPackageSkip) {
-		return nil, fmt.Errorf("empty local package %w", err) // local package cannot be empty
+		return nil, fmt.Errorf("empty local package %q", r.Dir) // local package cannot be empty
 	}
 
 	return pkg, nil

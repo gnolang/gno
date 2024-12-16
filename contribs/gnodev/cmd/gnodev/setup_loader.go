@@ -59,10 +59,11 @@ func setupPackagesResolver(logger *slog.Logger, cfg *devCfg, dirs ...string) (pa
 	var paths []string
 	for _, dir := range dirs {
 		path := guessPath(cfg, dir)
-		localResolvers = append(localResolvers, packages.NewLocalResolver(path, dir))
-		paths = append(paths, path)
+		resolver := packages.NewLocalResolver(path, dir)
 
 		logger.Info("guessing directory path", "path", path, "dir", dir)
+		paths = append(paths, path)
+		localResolvers = append(localResolvers, resolver)
 	}
 
 	resolver := packages.ChainResolvers(

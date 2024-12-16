@@ -58,18 +58,6 @@ func ReadPackageFromDir(fset *token.FileSet, path, dir string) (*Package, error)
 			return nil, fmt.Errorf("unable to read file %q: %w", filepath, err)
 		}
 
-		if isModFile(fname) {
-			file, err := gnomod.Parse(fname, body)
-			if err != nil {
-				return nil, fmt.Errorf("unable to read `gno.mod`: %w", err)
-			}
-
-			// Skip draft package
-			if file.Draft {
-				return nil, ErrResolverPackageSkip
-			}
-		}
-
 		if isGnoFile(fname) {
 			memfile, pkgname, err := parseFile(fset, fname, body)
 			if err != nil {
