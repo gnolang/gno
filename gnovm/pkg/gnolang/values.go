@@ -255,7 +255,7 @@ func (pv PointerValue) Assign2(alloc *Allocator, store Store, rlm *Realm, tv2 Ty
 								panic("should not happen")
 							}
 							if nv, ok := tv2.V.(*NativeValue); !ok ||
-								nv.Value.Kind() != reflect.Func {
+									nv.Value.Kind() != reflect.Func {
 								panic("should not happen")
 							}
 						}
@@ -2400,12 +2400,11 @@ func (tv *TypedValue) GetSlice2(alloc *Allocator, lowVal, highVal, maxVal int) T
 // TODO rename to BlockValue.
 type Block struct {
 	ObjectInfo
-	Source BlockNode
-	Values []TypedValue
-	Parent Value
-	Blank  TypedValue // captures "_" // XXX remove and replace with global instance.
-	//BID      BlockID
-	bodyStmt bodyStmt // XXX expose for persistence, not needed for MVP.
+	Source   BlockNode
+	Values   []TypedValue
+	Parent   Value
+	Blank    TypedValue // captures "_" // XXX remove and replace with global instance.
+	bodyStmt bodyStmt   // XXX expose for persistence, not needed for MVP.
 }
 
 // NOTE: for allocation, use *Allocator.NewBlock.
@@ -2847,32 +2846,32 @@ func signOfUnsignedBytes(n [8]byte) int {
 }
 
 func SetOriginForPointerValue(v *Value, origin string) {
-	//fmt.Println("---SetPointerValueOrigin, v: ", *v)
-	//fmt.Println("---origin: ", origin)
+	fmt.Println("---SetPointerValueOrigin, v: ", *v)
+	fmt.Println("---origin: ", origin)
 	if pv, ok := (*v).(PointerValue); ok {
-		//println("---Pointer value")
+		println("---Pointer value")
 		if pv.Origin == "" {
-			//println("---Empty, assign origin")
+			println("---Empty, assign origin")
 			pv.Origin = origin
 			*v = pv
-			//fmt.Println("---Done")
+			fmt.Println("---Done")
 		} else {
-			//fmt.Println("---Origin exist, do nothing: ", pv.Origin)
+			fmt.Println("---Origin exist, do nothing: ", pv.Origin)
 		}
 	} else if sv, ok := (*v).(*SliceValue); ok {
-		//fmt.Println("---Slice value, sv: ", sv)
+		fmt.Println("---Slice value, sv: ", sv)
 		if baseArr, ok := sv.Base.(*ArrayValue); ok {
-			//fmt.Println("---baseArr: ", baseArr)
-			//fmt.Println("---baseArr.Abs: ", baseArr.AbsPath)
+			fmt.Println("---baseArr: ", baseArr)
+			fmt.Println("---baseArr.Abs: ", baseArr.AbsPath)
 			if baseArr.AbsPath == "" {
 				baseArr.AbsPath = origin // from name
 			} else if sv.Origin == "" { // using abs path
-				//println("--set origin from array abs")
+				println("--set origin from array abs")
 				sv.Origin = baseArr.AbsPath
 				*v = sv
 			}
 		} else {
-			//println("---base not array value")
+			println("---base not array value")
 		}
 	}
 }

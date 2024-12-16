@@ -172,7 +172,11 @@ func DerivePkgAddr(pkgPath string) crypto.Address {
 	return crypto.AddressFromPreimage([]byte("pkgPath:" + pkgPath))
 }
 
-func buildAbsolutePath(n Expr) string {
+func buildAbsolutePath(n Expr) (abs string) {
+	//defer func() {
+	//fmt.Println("---done build absolute path, abs: ", abs)
+	//}()
+	//fmt.Println("---expr: ", n)
 	switch n := n.(type) {
 	case *NameExpr:
 		return n.AbsPath

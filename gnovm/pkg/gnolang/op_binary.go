@@ -500,9 +500,9 @@ func isEql(store Store, lv, rv *TypedValue) bool {
 			}
 		}
 
-		fmt.Println("---lv.V: ", lv.V)
-		fmt.Println("---rv.V: ", rv.V)
-		fmt.Println("---lv.V == rv.V: ", lv.V == rv.V)
+		//fmt.Println("---lv.V: ", lv.V)
+		//fmt.Println("---rv.V: ", rv.V)
+		//fmt.Println("---lv.V == rv.V: ", lv.V == rv.V)
 
 		if lv.V != nil && rv.V != nil {
 			fmt.Println("---l.base: ", lv.V.(PointerValue).Base)
@@ -516,9 +516,9 @@ func isEql(store Store, lv, rv *TypedValue) bool {
 
 			fmt.Println("---l.Origin: ", lv.V.(PointerValue).Origin)
 			fmt.Println("---r.Origin: ", rv.V.(PointerValue).Origin)
-			lpv := lv.V.(PointerValue)
-			rpv := rv.V.(PointerValue)
-			return *(lpv.TV) == *(rpv.TV) && lpv.Base == rpv.Base && lpv.Index == rpv.Index && lpv.Key == rpv.Key
+			//lpv := lv.V.(PointerValue)
+			//rpv := rv.V.(PointerValue)
+			//return *(lpv.TV) == *(rpv.TV) && lpv.Base == rpv.Base && lpv.Index == rpv.Index && lpv.Key == rpv.Key
 			//return lv.V == rv.V
 		}
 

@@ -1,6 +1,7 @@
 package gnolang
 
 import (
+	"fmt"
 	"reflect"
 )
 
@@ -196,6 +197,8 @@ func (alloc *Allocator) NewString(s string) StringValue {
 }
 
 func (alloc *Allocator) NewListArray(n int) *ArrayValue {
+	//panic("!!!")
+	fmt.Println("---NewListArray, n: ", n)
 	if n < 0 {
 		panic(&Exception{Value: typedString("len out of range")})
 	}

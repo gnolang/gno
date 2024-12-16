@@ -989,7 +989,6 @@ func gno2GoTypeMatches(t Type, rt reflect.Type) (result bool) {
 // constructed and returned, otherwise returns rv.  if tv is undefined, rv must
 // be valid.
 func gno2GoValue(tv *TypedValue, rv reflect.Value) (ret reflect.Value) {
-	fmt.Println("---gno2GoValue")
 	if tv.IsUndefined() {
 		if debug {
 			if !rv.IsValid() {
@@ -1028,9 +1027,7 @@ func gno2GoValue(tv *TypedValue, rv reflect.Value) (ret reflect.Value) {
 		case BoolType, UntypedBoolType:
 			rv.SetBool(tv.GetBool())
 		case StringType, UntypedStringType:
-			println("---start")
 			rv.SetString(tv.GetString())
-			println("---end")
 		case IntType:
 			rv.SetInt(int64(tv.GetInt()))
 		case Int8Type:

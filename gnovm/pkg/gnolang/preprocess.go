@@ -1828,6 +1828,7 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 			case *SelectorExpr:
 				//fmt.Println("---trans_leave, selector expr")
 				xt := evalStaticTypeOf(store, last, n.X)
+				var abs string
 
 				// Set selector path based on xt's type.
 				switch cxt := xt.(type) {
@@ -1938,7 +1939,8 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 						// NOTE: this can happen with software upgrades,
 						// with multiple versions of the same package path.
 					}
-					n.Path, _ = pn.GetPathForName(store, n.Sel)
+					n.Path, abs = pn.GetPathForName(store, n.Sel)
+					//fmt.Println("---abs from another package: ", abs)
 					// packages may contain constant vars,
 					// so check and evaluate if so.
 					tt := pn.GetStaticTypeOfAt(store, n.Path)
@@ -1973,8 +1975,12 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 						reflect.TypeOf(xt)))
 				}
 
-				//fmt.Println("---n: ", n)
-				n.AbsPath = buildAbsolutePath(n)
+				if abs != "" {
+					n.AbsPath = abs
+				} else {
+					//fmt.Println("---n: ", n)
+					n.AbsPath = buildAbsolutePath(n)
+				}
 				//fmt.Println("---n.abs: ", n.AbsPath)
 
 			// TRANS_LEAVE -----------------------
@@ -3111,7 +3117,7 @@ func (pn *PackageNode) nextBlockID(PkgPath string) BlockID {
 // Idempotent.
 // Also makes sure the stack doesn't reach MaxUint8 in length.
 func pushInitBlock2(bn BlockNode, last *BlockNode, stack *[]BlockNode, pn *PackageNode) {
-	//fmt.Println("---pushInitBlock")
+	//fmt.Println("---pushInitBlock2")
 	//fmt.Println("---bn: ", bn)
 	//fmt.Println("---last: ", *last)
 	bid := pn.nextBlockID(pn.PkgPath)

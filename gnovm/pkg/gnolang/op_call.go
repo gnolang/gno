@@ -51,7 +51,7 @@ func (m *Machine) doOpPrecall() {
 var gReturnStmt = &ReturnStmt{}
 
 func (m *Machine) doOpCall() {
-	//fmt.Println("---doOpCall---")
+	fmt.Println("---doOpCall---")
 	// NOTE: Frame won't be popped until the statement is complete, to
 	// discard the correct number of results for func calls in ExprStmts.
 	fr := m.LastFrame()
@@ -62,7 +62,19 @@ func (m *Machine) doOpCall() {
 	isMethod := 0 // 1 if true
 	// Create new block scope.
 	clo := fr.Func.GetClosure(m.Store)
-	b := m.Alloc.NewBlock(fr.Func.GetSource(m.Store), clo)
+	fmt.Println("---clo: ", clo)
+	lb := m.LastBlock()
+	fmt.Println("---lb: ", lb)
+
+	var parent *Block
+	if clo == nil && lb != nil {
+		parent = lb
+	} else {
+		parent = clo
+	}
+	b := m.Alloc.NewBlock(fr.Func.GetSource(m.Store), parent)
+	//b := m.Alloc.NewBlock(fr.Func.GetSource(m.Store), clo)
+	fmt.Println("---b: ", b)
 
 	// Copy *FuncValue.Captures into block
 	// NOTE: addHeapCapture in preprocess ensures order.
@@ -455,10 +467,10 @@ func (m *Machine) doOpPanic2() {
 			// Build exception string just as go, separated by \n\t.
 			exs := make([]string, len(m.Exceptions))
 			for i, ex := range m.Exceptions {
-				fmt.Println("ex.Sprint: ", ex.Sprint(m))
+				//fmt.Println("ex.Sprint: ", ex.Sprint(m))
 				exs[i] = ex.Sprint(m)
 			}
-			fmt.Println("---exs: ", exs)
+			//fmt.Println("---exs: ", exs)
 			panic(UnhandledPanicError{
 				Descriptor: strings.Join(exs, "\n\t"),
 			})
