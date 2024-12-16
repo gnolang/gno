@@ -26,11 +26,11 @@
       <aside class="col-span-1 lg:col-span-3 lg:order-2 lg:row-start-1 lg:row-span-2 relative h-full" aria-label="Index">
         <div class="sticky top-14 pt-2">
           <div id="sidebar-summary" class="toc max-h-screen overflow-scroll no-scrollbar bg-light lg:bg-transparent rounded-sm">
-            <label for="toc-expend" class="toc-expend-btn flex font-semibold lg:mt-10 justify-between items-center bg-gray-100 lg:bg-transparent px-4 py-2 lg:p-0 rounded-sm">Functions Index
+            <label for="toc-expend" class="toc-expend-btn flex font-semibold lg:mt-10 justify-between items-center bg-gray-100 border lg:border-none lg:bg-transparent px-4 py-2 lg:p-0 rounded-sm">Functions Index
               <input id="toc-expend" type="checkbox" class="hidden">
             </label>
             <!-- Functions ToC -->
-            <nav class="hidden lg:block text-100 mt-2 lg:mt-0 pb-6 lg:pb-28 px-4 lg:px-0 font-mono">
+            <nav class="hidden lg:block text-100 mt-2 lg:mt-0 pb-6 lg:pb-28 px-4 lg:px-0 lg:pt-2 font-mono">
               <ul class="list-none space-y-2 pt-2">
                 {{ range .Functions }}
                   <li>
