@@ -6,7 +6,22 @@ import (
 	"gno.land/p/demo/avl"
 )
 
-// Game constants
+// FOMO3D (Fear Of Missing Out 3D) is a blockchain-based game that combines elements
+// of a lottery and investment mechanics. Players purchase keys using GNOT tokens,
+// where each key purchase:
+// - Extends the game timer
+// - Increases the key price by 1%
+// - Makes the buyer the potential winner of the jackpot
+// - Distributes dividends to all key holders
+//
+// Game Mechanics:
+// - The last person to buy a key before the timer expires wins the jackpot (50% of all purchases)
+// - Key holders earn dividends from each purchase (30% of all purchases)
+// - 20% of purchases go to the next round's starting pot
+// - Game ends when the timer expires (max ~24 hours)
+//
+// Inspired by the original Ethereum FOMO3D game but implemented in Gno.
+
 const (
 	MIN_KEY_PRICE   int64 = 1000000 // minimum key price in ugnot
 	TIME_EXTENSION  int64 = 30      // time extension in blocks when new key is bought
@@ -18,13 +33,11 @@ const (
 	NEXT_ROUND_POT    int64 = 20 // 20% goes to next round's starting pot
 )
 
-// PlayerInfo tracks a player's keys and dividends
 type PlayerInfo struct {
 	Keys      int64 // number of keys owned
 	Dividends int64 // unclaimed dividends in ugnot
 }
 
-// Game state variables
 var (
 	gameStartBlock int64
 	gameEndBlock   int64
