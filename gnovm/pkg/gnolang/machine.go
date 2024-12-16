@@ -11,10 +11,9 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/gnolang/overflow"
-
 	"github.com/gnolang/gno/gnovm"
 	"github.com/gnolang/gno/tm2/pkg/errors"
+	"github.com/gnolang/gno/tm2/pkg/overflow"
 	"github.com/gnolang/gno/tm2/pkg/store"
 )
 
@@ -401,7 +400,7 @@ func destar(x Expr) Expr {
 // Stacktrace returns the stack trace of the machine.
 // It collects the executions and frames from the machine's frames and statements.
 func (m *Machine) Stacktrace() (stacktrace Stacktrace) {
-	if len(m.Frames) == 0 {
+	if len(m.Frames) == 0 || len(m.Stmts) == 0 {
 		return
 	}
 

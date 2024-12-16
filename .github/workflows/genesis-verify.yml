@@ -28,7 +28,7 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
-          go-version: "1.22"
+          go-version-file: contribs/gnogenesis/go.mod
 
       - name: Build gnogenesis
         run: make -C contribs/gnogenesis

@@ -186,7 +186,7 @@ func loadStdlibPackage(pkgPath, stdlibDir string, store gno.Store) {
 		// does not exist.
 		panic(fmt.Sprintf("failed loading stdlib %q: does not exist", pkgPath))
 	}
-	memPkg := gno.ReadMemPackage(stdlibPath, pkgPath)
+	memPkg := gno.MustReadMemPackage(stdlibPath, pkgPath)
 	if memPkg.IsEmpty() {
 		// no gno files are present
 		panic(fmt.Sprintf("failed loading stdlib %q: not a valid MemPackage", pkgPath))
