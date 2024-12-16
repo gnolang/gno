@@ -1,24 +1,29 @@
 package users
 
 import (
+	"regexp"
 	"std"
 	"strings"
 
 	"gno.land/p/demo/avl"
 	p "gno.land/p/demo/pausable"
-	susers "gno.land/p/sys/users"
 )
 
 var (
-	uStore          = avl.NewTree() // username > *susers.User
-	aStore          = avl.NewTree() // address > *susers.User
+	usernameStore   = avl.NewTree() // username > address
+	addressStore    = avl.NewTree() // address > username
+	aliases         = avl.NewTree() // username > address
 	callerWhitelist = avl.NewTree() // addr > struct{}{}
+
+	reInvalidUsername = regexp.MustCompile(`^g1[a-z0-9]{38}$`)
 )
 
-// WriteUser writes to the sys/users store
+const maxUsernameLen = 50
+
+// WriteUser writes a *new* user to the store
 // Only whitelisted callers can call this function
 // Writing to the store can be paused by the admin
-func WriteUser(user susers.User) error {
+func WriteUser(name string, addr std.Address) error {
 	if pausable.IsPaused() {
 		return p.ErrPaused
 	}
@@ -27,16 +32,47 @@ func WriteUser(user susers.User) error {
 		return ErrUnauthorizedWrite
 	}
 
-	if err := verifyUser(user); err != nil {
+	trimmedName := strings.TrimSpace(name)
+	if err := validate(trimmedName, addr); err != nil {
 		return err
 	}
 
-	if uStore.Has(user.Name) {
+	if usernameStore.Has(trimmedName) {
 		return ErrAlreadyExists
 	}
 
-	uStore.Set(user.Name, &user)
-	aStore.Set(user.Address.String(), &user)
+	if addressStore.Has(addr) {
+		return ErrAlreadyHasName // use CreateAlias
+	}
+
+	return nil
+}
+
+func CreateAlias(name string, addr std.Address) error {
+	if pausable.IsPaused() {
+		return p.ErrPaused
+	}
+
+	if !IsOnWhitelist(std.PrevRealm().Addr()) {
+		return ErrUnauthorizedWrite
+	}
+
+	trimmedName := strings.TrimSpace(name)
+	if err := validate(trimmedName, addr); err != nil {
+		return err
+	}
+
+	// Can only register alias if already registered username
+	if !addressStore.Has(addr) {
+		return ErrAliasBeforeName
+	}
+
+	// Cannot register taken username as alias
+	if usernameStore.Has(trimmedName) || aliases.Has(trimmedName) {
+		return ErrAlreadyExists
+	}
+
+	aliases.Set(trimmedName, addr)
 
 	return nil
 }
@@ -59,13 +95,23 @@ func GetUserStore() *avl.Tree {
 	return uStore
 }
 
-func verifyUser(user susers.User) error {
-	if strings.TrimSpace(user.Name) == "" {
+// Validate validates username and address passed in
+func validate(username string, address std.Address) error {
+	if !address.IsValid() {
+		return ErrInvalidAddress
+	}
+
+	if username == "" {
 		return ErrEmptyUsername
 	}
 
-	if !user.Address.IsValid() {
-		return ErrInvalidAddress
+	if len(username) > maxUsernameLen {
+		return ErrUsernameTooLong
+	}
+
+	// Check if the username can be decoded or looks like a valid address
+	if _, _, ok := std.DecodeBech32(std.Address(username)); ok || reInvalidUsername.MatchString(username) {
+		return ErrUsernameLikeAddress
 	}
 
 	return nil
