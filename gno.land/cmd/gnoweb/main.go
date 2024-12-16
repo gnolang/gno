@@ -30,10 +30,9 @@ type webCfg struct {
 }
 
 var defaultWebOptions = webCfg{
-	chainid:   "dev",
-	assetsDir: "public",
-	remote:    "127.0.0.1:26657",
-	bind:      ":8888",
+	chainid: "dev",
+	remote:  "127.0.0.1:26657",
+	bind:    ":8888",
 }
 
 func main() {
