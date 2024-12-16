@@ -48,7 +48,7 @@ $(output_css): $(input_css)
 
 ts: $(output_js)
 $(out_dir_js)/%.js: $(src_dir_js)/%.ts
-	npx -y esbuild $< --color=false --log-level=error --bundle --outdir=$(out_dir_js) --format=esm --minify
+	npx -y esbuild $< --log-level=error --bundle --outdir=$(out_dir_js) --format=esm --minify
 
 # Rule to copy static files while preserving directory structure
 static: $(output_static)
@@ -68,7 +68,7 @@ fmt:
 # Run the development dependencies in parallel
 dev:
 	@echo "-- starting development tools"
-	$(MAKE) -j 3 \
+	@PUBLIC_DIR=$(cache_dir)/public $(MAKE) -j 3 \
 		dev.gnoweb \
 		dev.ts \
 		dev.css
@@ -76,18 +76,18 @@ dev:
 # Go server in development mode
 dev.gnoweb: generate
 	$(run_reflex) -s -r '.*\.go(html)?' -- \
-		go run ../../cmd/gnoweb -chainid=${CHAIN_ID} -remote=${DEV_REMOTE} \
+		go run ../../cmd/gnoweb -assets-dir=${PUBLIC_DIR} -chainid=${CHAIN_ID} -remote=${DEV_REMOTE} \
 		2>&1 | $(run_logname) gnoweb
 
 # Tailwind CSS in development mode
 dev.css: generate | $(PUBLIC_DIR)
-	npx -y tailwindcss@$(tw_version) -c $(tw_config_path) --verbose -i $(input_css) -o $(output_css) --minify --watch \
+	npx -y tailwindcss@$(tw_version) -c $(tw_config_path) --verbose -i $(input_css) -o $(output_css) --watch \
 		2>&1 | $(run_logname) tailwind
 
 # XXX: add versioning on esbuild
 # TS in development mode
 dev.ts: generate | $(PUBLIC_DIR)
-	npx -y esbuild@$(esbuild_version) $(input_js) --bundle --outdir=$(out_dir_js) --format=esm --minify --watch \
+	npx -y esbuild@$(esbuild_version) $(input_js) --bundle --outdir=$(out_dir_js) --sourcemap --format=esm --watch \
 		2>&1 | $(run_logname) esbuild
 
 # Cleanup

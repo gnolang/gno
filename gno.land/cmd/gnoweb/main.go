@@ -22,15 +22,17 @@ type webCfg struct {
 	remoteHelp string
 	bind       string
 	faucetURL  string
+	assetsDir  string
 	analytics  bool
 	json       bool
 	html       bool
 }
 
 var defaultWebOptions = webCfg{
-	chainid: "dev",
-	remote:  "127.0.0.1:26657",
-	bind:    ":8888",
+	chainid:   "dev",
+	assetsDir: "public",
+	remote:    "127.0.0.1:26657",
+	bind:      ":8888",
 }
 
 func main() {
@@ -66,10 +68,17 @@ func (c *webCfg) RegisterFlags(fs *flag.FlagSet) {
 	)
 
 	fs.StringVar(
-		&c.chainid,
+		&c.remoteHelp,
 		"help-remote",
 		defaultWebOptions.remoteHelp,
 		"help page's remote address",
+	)
+
+	fs.StringVar(
+		&c.assetsDir,
+		"assets-dir",
+		defaultWebOptions.assetsDir,
+		"if not empty, will be use as assets directory",
 	)
 
 	fs.StringVar(
@@ -141,6 +150,7 @@ func setupWeb(cfg *webCfg, _ []string, io commands.IO) (func() error, error) {
 	appcfg.Analytics = cfg.analytics
 	appcfg.UnsafeHTML = cfg.html
 	appcfg.FaucetURL = cfg.faucetURL
+	appcfg.AssetsDir = cfg.assetsDir
 	if appcfg.RemoteHelp == "" {
 		appcfg.RemoteHelp = appcfg.NodeRemote
 	}

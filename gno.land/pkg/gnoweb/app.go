@@ -31,6 +31,8 @@ type AppConfig struct {
 	ChainID string
 	// AssetsPath is the base path to the gnoweb assets.
 	AssetsPath string
+	// AssetDir, if set, will be used for assets instead of the embedded public directory
+	AssetsDir string
 	// FaucetURL, if specified, will be the URL to which `/faucet` redirects.
 	FaucetURL string
 }
@@ -136,7 +138,12 @@ func NewRouter(logger *slog.Logger, cfg *AppConfig) (http.Handler, error) {
 	assetsBase := "/" + strings.Trim(cfg.AssetsPath, "/") + "/"
 
 	// Handle assets path
-	mux.Handle(assetsBase, AssetHandler(true))
+	if cfg.AssetsDir != "" {
+		logger.Debug("using assets dir instead of embed assets", "dir", cfg.AssetsDir)
+		mux.Handle(assetsBase, DevAssetHandler(assetsBase, cfg.AssetsDir))
+	} else {
+		mux.Handle(assetsBase, AssetHandler())
+	}
 
 	// Handle status page
 	mux.Handle("/status.json", handlerStatusJSON(logger, client))
