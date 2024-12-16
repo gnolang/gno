@@ -33,7 +33,7 @@ export default {
         50: "#F0F0F0", // Background color
         100: "#E2E2E2", // Title dark color
         200: "#BDBDBD", // Content dark color
-        300: "#8F8F8F", // Muted color
+        300: "#999999", // Muted color
         400: "#7C7C7C", // Border color
         600: "#54595D", // Content color
         800: "#131313", // Background dark color

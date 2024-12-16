@@ -2,11 +2,11 @@
 <ol data-role="header-breadcrumb-search" class="peer-focus-within:hidden flex text-gray-800 font-semibold relative bg-gray-100">
     {{- range $index, $part := .Parts }}
         {{- if $index }}
-            <li class="flex before:content-['/'] before:px-1 before:text-gray-300">
+            <li class="flex before:content-['/'] before:px-[0.18rem] before:text-gray-300">
         {{- else }}
             <li>
         {{- end }}
-        <a class="hover:underline bg-light inline-block rounded px-1 py-0.5" href="{{ $part.Path }}">{{ $part.Name }}</a></li>
+        <a class="hover:bg-green-600 hover:text-light bg-light inline-block rounded px-1 py-px" href="{{ $part.Path }}">{{ $part.Name }}</a></li>
     {{- end }}
 </ol>
 {{ end }}
