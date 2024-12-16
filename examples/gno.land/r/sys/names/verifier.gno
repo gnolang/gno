@@ -1,24 +1,28 @@
-package users
+package names
 
 import (
 	"std"
+
+	susers "gno.land/r/sys/users"
 )
 
-type VerifyNameFunc func(enabled bool, address std.Address, name string) bool
+const VerifyFuncUpdatedEvent = "VerifyFuncUpdated"
+
+type verifierFunc func(enabled bool, address std.Address, name string) bool
 
 var (
-	checkFunc = VerifyNameByUser // Checking namespace callback
+	checkFunc = defaultVerifier // Checking namespace callback
 )
 
 // IsAuthorizedAddressForName ensures that the given address has ownership of the given name.
 func IsAuthorizedAddressForName(address std.Address, name string) bool {
-	return checkFunc(pausable.IsPaused(), address, name)
+	return checkFunc(susers.IsPaused(), address, name)
 }
 
-// VerifyNameByUser checks the store to see that the
+// defaultVerifyFunction checks the store to see that the
 // user has properly registered the given name.
 // This function considers as valid an `address` that matches the `name`.
-func VerifyNameByUser(enabled bool, address std.Address, name string) bool {
+func defaultVerifier(enabled bool, address std.Address, name string) bool {
 	if !enabled {
 		return true
 	}
@@ -28,9 +32,7 @@ func VerifyNameByUser(enabled bool, address std.Address, name string) bool {
 		return true
 	}
 
-	if user := ResolveName(name); user != nil {
-		return user.Address == address
-	}
+	// todo finish after implementing userlookup
 
 	return false
 }

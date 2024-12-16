@@ -8,10 +8,9 @@ import (
 )
 
 const (
-	adminAddr              = "g1u7y667z64x2h7vc6fmpcprgey4ck233jaww9zq" // @moul
-	WhitelistAddEvent      = "WhitelistAdd"
-	WhitelistDeleteEvent   = "WhitelistDelete"
-	VerifyFuncUpdatedEvent = "VerifyFuncUpdated"
+	adminAddr            = "g1u7y667z64x2h7vc6fmpcprgey4ck233jaww9zq" // @moul
+	WhitelistAddEvent    = "WhitelistAdd"
+	WhitelistDeleteEvent = "WhitelistDelete"
 
 	gnolandUsers = "gno.land/r/gnoland/users" // preregistered with store write perms
 )
@@ -58,7 +57,7 @@ func DelFromWhitelist(addr std.Address) error {
 
 	_, removed := callerWhitelist.Remove(addr.String())
 	if !removed {
-		// do what?
+		panic("failed to remove from whitelist") // should never happen
 	}
 
 	std.Emit(WhitelistDeleteEvent, "address", addr.String())
@@ -66,19 +65,11 @@ func DelFromWhitelist(addr std.Address) error {
 	return nil
 }
 
-// UpdateVerifyCall updates the method that verifies the namespace.
-func UpdateVerifyCall(check VerifyNameFunc) error {
-	if err := admin.CallerIsOwner(); err != nil {
-		return err
-	}
-
-	checkFunc = check
-	std.Emit(VerifyFuncUpdatedEvent)
-
-	return nil
-}
-
 // Exposing Ownable & Pausable APIs
+
+func IsPaused() bool {
+	return pausable.IsPaused()
+}
 
 func Pause() error {
 	return pausable.Pause()
