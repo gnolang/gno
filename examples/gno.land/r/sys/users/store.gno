@@ -45,9 +45,16 @@ func WriteUser(name string, addr std.Address) error {
 		return ErrAlreadyHasName // use CreateAlias
 	}
 
+	// Cannot register name which is someone's alias
+	if aliases.Has(trimmedName) {
+		return ErrAlreadyExists
+	}
+
 	return nil
 }
 
+// CreateAlias creates an alias username for a specific address
+// The address must already have a registered username
 func CreateAlias(name string, addr std.Address) error {
 	if pausable.IsPaused() {
 		return p.ErrPaused
