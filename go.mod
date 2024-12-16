@@ -49,7 +49,6 @@ require (
 require (
 	github.com/cenkalti/backoff/v4 v4.3.0 // indirect
 	github.com/dlclark/regexp2 v1.11.0 // indirect
-	github.com/gnolang/overflow v0.0.0-20170615021017-4d914c927216 // indirect
 	github.com/go-logr/logr v1.4.2 // indirect
 	github.com/go-logr/stdr v1.2.2 // indirect
 	github.com/golang/protobuf v1.5.4 // indirect

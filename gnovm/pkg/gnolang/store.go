@@ -11,10 +11,10 @@ import (
 	"github.com/gnolang/gno/gnovm/pkg/gnolang/internal/txlog"
 	"github.com/gnolang/gno/tm2/pkg/amino"
 	"github.com/gnolang/gno/tm2/pkg/colors"
+	"github.com/gnolang/gno/tm2/pkg/overflow"
 	"github.com/gnolang/gno/tm2/pkg/store"
 	"github.com/gnolang/gno/tm2/pkg/store/utils"
 	stringz "github.com/gnolang/gno/tm2/pkg/strings"
-	"github.com/gnolang/overflow"
 )
 
 // PackageGetter specifies how the store may retrieve packages which are not
