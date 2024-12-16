@@ -592,6 +592,10 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 				// define key/value.
 				n.X = Preprocess(store, last, n.X).(Expr)
 				xt := evalStaticTypeOf(store, last, n.X)
+				if xt == nil {
+					panic("cannot range over nil")
+				}
+
 				switch xt.Kind() {
 				case MapKind:
 					n.IsMap = true
