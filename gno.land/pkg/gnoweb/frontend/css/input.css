@@ -107,6 +107,10 @@
     @apply font-bold;
   }
 
+  .realm-content em {
+    @apply italic-subtle;
+  }
+
   .realm-content blockquote {
     @apply border-l-4 border-gray-300 pl-4 text-gray-600 italic-subtle my-4;
   }
@@ -133,12 +137,12 @@
     @apply text-100 text-gray-600;
   }
 
-  .realm-content code {
-    @apply bg-gray-100 px-2 py-1 rounded text-100 font-mono;
+  .realm-content :not(pre) > code {
+    @apply bg-gray-100 px-1 py-0.5 rounded-sm text-100 font-mono;
   }
 
   .realm-content pre {
-    @apply bg-gray-100 p-4 rounded overflow-x-auto font-mono;
+    @apply bg-gray-50 p-4 rounded overflow-x-auto font-mono;
   }
 
   .realm-content hr {
@@ -294,20 +298,23 @@
   }
 
   /* chroma */
-  main .source-code > pre {
+  main :is(.source-code) > pre {
     @apply !bg-light overflow-scroll rounded py-4 md:py-8 px-1 md:px-3 font-mono text-100 md:text-200;
   }
+  main .realm-content > pre a {
+    @apply hover:no-underline;
+  }
 
-  main .source-code > pre .chroma-ln:target {
+  main :is(.realm-content, .source-code) > pre .chroma-ln:target {
     @apply !bg-transparent;
   }
-  main .source-code > pre .chroma-line:has(.chroma-ln:target),
-  main .source-code > pre .chroma-line:has(.chroma-lnlinks:hover),
-  main .source-code > pre .chroma-line:has(.chroma-ln:target) .chroma-cl,
-  main .source-code > pre .chroma-line:has(.chroma-lnlinks:hover) .chroma-cl {
+  main :is(.realm-content, .source-code) > pre .chroma-line:has(.chroma-ln:target),
+  main :is(.realm-content, .source-code) > pre .chroma-line:has(.chroma-lnlinks:hover),
+  main :is(.realm-content, .source-code) > pre .chroma-line:has(.chroma-ln:target) .chroma-cl,
+  main :is(.realm-content, .source-code) > pre .chroma-line:has(.chroma-lnlinks:hover) .chroma-cl {
     @apply !bg-gray-100 rounded;
   }
-  main .source-code > pre .chroma-ln {
+  main :is(.realm-content, .source-code) > pre .chroma-ln {
     @apply scroll-mt-24;
   }
 }
