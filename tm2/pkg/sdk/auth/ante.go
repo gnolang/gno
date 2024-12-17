@@ -149,7 +149,7 @@ func NewAnteHandler(ak AccountKeeper, bank BankKeeperI, sigGasConsumer Signature
 			// Do not check signatures if the chainID is dev (gnodev) if we decide to verify the genesis signatures for
 			// gnodev the initialization would take longer
 			// tendermint_test to skip verification on tests
-			if isGenesis && (!opts.VerifyGenesisSignatures || newCtx.ChainID() == "dev" || newCtx.ChainID() == "tendermint_test") {
+			if isGenesis && !opts.VerifyGenesisSignatures {
 				// No signatures are needed for genesis.
 			} else {
 				// Check signature
