@@ -45,10 +45,7 @@ test:
 
 .PHONY: lint
 lint:
-	@for pkg in $(OFFICIAL_PACKAGES); do \
-		go run ../gnovm/cmd/gno lint -v $$pkg & \
-	done; \
-	wait
+	go run ../gnovm/cmd/gno lint -v $(OFFICIAL_PACKAGES)
 
 .PHONY: test.sync
 test.sync:
