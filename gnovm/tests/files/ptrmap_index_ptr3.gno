@@ -4,16 +4,16 @@ package ptr_map
 var (
 	m    = map[*int]string{}
 	a, b = 1, 2
-	arr  = [2]*int{&a, &b}
+	S    = []*int{&a, &b}
 )
 
 func init() {
-	m[arr[0]] = "first key"
+	m[S[0]] = "first key"
 }
 
 func main() {
-	println(m[arr[0]]) // Output: first key
-	println(m[arr[1]] == "")
+	println(m[S[0]]) // Output: first key
+	println(m[S[1]] == "")
 }
 
 // Output:

@@ -173,8 +173,8 @@ func makeUverseNode() {
 		),
 		func(m *Machine) {
 			arg0, arg1 := m.LastBlock().GetParams2()
-			fmt.Println("---append, arg0: ", arg0)
-			fmt.Println("---arg1: ", arg1)
+			//fmt.Println("---append, arg0: ", arg0)
+			//fmt.Println("---arg1: ", arg1)
 			// As a special case, if arg1 is a string type, first convert it into
 			// a data slice type.
 			if arg1.TV.T != nil && arg1.TV.T.Kind() == StringKind {
@@ -300,12 +300,12 @@ func makeUverseNode() {
 			// ----------------------------------------------------------------
 			// append(*SliceValue, ???)
 			case *SliceValue:
-				println("---append, slice, ???")
+				//println("---append, slice, ???")
 				arg0Length := arg0Value.Length
 				arg0Offset := arg0Value.Offset
 				arg0Capacity := arg0Value.Maxcap
 				arg0Base := arg0Value.GetBase(m.Store)
-				fmt.Println("---arg0Base: ", arg0Base)
+				//fmt.Println("---arg0Base: ", arg0Base)
 				switch arg1Value := arg1.TV.V.(type) {
 				// ------------------------------------------------------------
 				// append(*SliceValue, nil)
@@ -322,9 +322,9 @@ func makeUverseNode() {
 					arg1Length := arg1Value.Length
 					arg1Offset := arg1Value.Offset
 					arg1Base := arg1Value.GetBase(m.Store)
-					fmt.Println("---arg1base: ", arg1Base)
+					//fmt.Println("---arg1base: ", arg1Base)
 					if arg0Length+arg1Length <= arg0Capacity {
-						println("---within capacity")
+						//println("---within capacity")
 						// append(*SliceValue, *SliceValue) w/i capacity -----
 						if 0 < arg1Length { // implies 0 < xvc
 							if arg0Base.Data == nil {
@@ -410,34 +410,10 @@ func makeUverseNode() {
 						return
 					} else {
 						// append(*SliceValue, *SliceValue) new list ---------
-						println("---exceed capacity")
 						arrayLen := arg0Length + arg1Length
-						fmt.Println("---arrayLen: ", arrayLen)
-
-						//fmt.Println("---m.String(): ", m.String())
-						lb := m.LastBlock()
-						fmt.Println("---lb : ", lb)
-						//fmt.Println("---lb.Parent : ", lb.Parent)
-						//
-						llb := lb.GetParent(m.Store)
-						fmt.Println("---llb : ", llb)
-						//
-						bid := llb.GetSource(m.Store).GetStaticBlock().BID
-						fmt.Println("---bid: ", bid)
-						println("---new list array: ", arrayLen)
-
 						arrayValue := m.Alloc.NewListArray(arrayLen)
-						llb.ArrayValueIndex++
-						arrayValue.AbsPath = fmt.Sprintf("%s:arr[%d]", bid, llb.ArrayValueIndex)
-
-						fmt.Println("---arg0base: ", arg0Base, arg0Base.AbsPath)
-						for i, s := range arg0Base.Slices {
-							fmt.Printf("---arg0base.Slices[%d] is %v: \n", i, s)
-							s.Base = arrayValue
-						}
-
-						//arrayValue.AbsPath = arg0Base.AbsPath
-						fmt.Println("---arrayValue.AbsPath: ", arrayValue.AbsPath)
+						arrayValue.AbsPath = arg0Base.AbsPath // share same abs
+						//fmt.Println("---arrayValue.AbsPath: ", arrayValue.AbsPath)
 						if arg0Length > 0 {
 							if arg0Base.Data == nil {
 								for i := 0; i < arg0Length; i++ {
@@ -449,13 +425,11 @@ func makeUverseNode() {
 						}
 
 						if arg1Length > 0 {
-							println("---copy 1")
 							if arg1Base.Data == nil {
 								for i := 0; i < arg1Length; i++ {
 									arrayValue.List[arg0Length+i] = arg1Base.List[arg1Offset+i].unrefCopy(m.Alloc, m.Store)
 								}
 							} else {
-								println("---copy 2")
 								copyDataToList(
 									arrayValue.List[arg0Length:arg0Length+arg1Length],
 									arg1Base.Data[arg1Offset:arg1Offset+arg1Length],
@@ -834,15 +808,10 @@ func makeUverseNode() {
 			"", GenT("T", nil),
 		),
 		func(m *Machine) {
-			fmt.Println("---make slice")
+			//fmt.Println("---make slice")
 			arg0, arg1 := m.LastBlock().GetParams2()
-			fmt.Println("---arg0: ", arg0, reflect.TypeOf(arg0.TV.T))
-			fmt.Println("---arg0.TV.V", arg0.TV.V, reflect.TypeOf(arg0.TV.V))
-			fmt.Println("---arg0.TV: ", *arg0.TV)
 			vargs := arg1
-			fmt.Println("---vargs: ", vargs)
 			vargsl := vargs.TV.GetLength()
-			fmt.Println("---vargsl: ", vargsl)
 			tt := arg0.TV.GetType()
 			switch bt := baseOf(tt).(type) {
 			case *SliceType:
@@ -892,7 +861,7 @@ func makeUverseNode() {
 						return
 					} else {
 						arrayValue := m.Alloc.NewListArray(ci)
-						fmt.Println("---arrayValue: ", arrayValue)
+						//fmt.Println("---arrayValue: ", arrayValue)
 						if et := bt.Elem(); et.Kind() == InterfaceKind {
 							// leave as is
 						} else {

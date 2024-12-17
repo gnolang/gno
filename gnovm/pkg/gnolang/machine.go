@@ -29,7 +29,6 @@ type Exception struct {
 }
 
 func (e Exception) Sprint(m *Machine) string {
-	fmt.Println("---Sprint, e: ", e)
 	return e.Value.Sprint(m)
 }
 
@@ -1976,47 +1975,26 @@ func (m *Machine) PushForPointer(lx Expr) {
 }
 
 func (m *Machine) PopAsPointer2(lx Expr) (PointerValue, string) {
-	//fmt.Println("---PopAsPointer, lx: ", lx)
-	switch lx := lx.(type) {
-	case *NameExpr:
-		lb := m.LastBlock()
-		ptr := lb.GetPointerToMaybeHeapUse(m.Store, lx)
-		return ptr, ""
-	case *IndexExpr:
+	//fmt.Println("---PopAsPointer2, lx: ", lx, reflect.TypeOf(lx))
+	var origin string
+	var pv PointerValue
+	if _, ok := lx.(*IndexExpr); ok {
 		iv := m.PopValue()
 		xv := m.PopValue()
-		// TODO: if xv is slice value, get origin..
-		//fmt.Println("---index expr: ", lx)
-		var origin string
 		if sv, ok := xv.V.(*SliceValue); ok {
 			if av, ok := sv.Base.(*ArrayValue); ok {
 				origin = av.AbsPath + ":" + strconv.Itoa(sv.Offset)
 			}
 		}
-
-		return xv.GetPointerAtIndex(m.Alloc, m.Store, iv), origin
-	case *SelectorExpr:
-		xv := m.PopValue()
-		return xv.GetPointerToFromTV(m.Alloc, m.Store, lx.Path), ""
-	case *StarExpr:
-		//println("---StarExpr")
-		ptr := m.PopValue().V.(PointerValue)
-		return ptr, ""
-	case *CompositeLitExpr: // for *RefExpr
-		tv := *m.PopValue()
-		hv := m.Alloc.NewHeapItem(tv)
-		return PointerValue{
-			TV:    &hv.Value,
-			Base:  hv,
-			Index: 0,
-		}, ""
-	default:
-		panic("should not happen")
+		pv = xv.GetPointerAtIndex(m.Alloc, m.Store, iv)
+	} else {
+		pv = m.PopAsPointer(lx)
 	}
+	return pv, origin
 }
 
 func (m *Machine) PopAsPointer(lx Expr) PointerValue {
-	//fmt.Println("---PopAsPointer, lx: ", lx)
+	//fmt.Println("---PopAsPointer, lx: ", lx, reflect.TypeOf(lx))
 	switch lx := lx.(type) {
 	case *NameExpr:
 		lb := m.LastBlock()

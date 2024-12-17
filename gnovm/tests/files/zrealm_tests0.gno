@@ -65,7 +65,7 @@ func main() {
 //         }
 //     }
 // }
-// c[0ffe7732b4d549b4cf9ec18bd68641cd2c75ad0a:16]={
+// c[0ffe7732b4d549b4cf9ec18bd68641cd2c75ad0a:17]={
 //     "AbsPath": "",
 //     "Data": null,
 //     "List": [
@@ -211,7 +211,7 @@ func main() {
 //                 "@type": "/gno.SliceValue",
 //                 "Base": {
 //                     "@type": "/gno.RefValue",
-//                     "Hash": "3c58838c5667649add1ff8ee48a1cdc187fcd2ef",
+//                     "Hash": "079d43d4feb4511b3d87639063c15e6aadeb6109",
 //                     "ObjectID": "0ffe7732b4d549b4cf9ec18bd68641cd2c75ad0a:17"
 //                 },
 //                 "Length": "3",

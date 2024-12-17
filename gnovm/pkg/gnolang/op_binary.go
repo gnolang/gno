@@ -341,6 +341,8 @@ func (m *Machine) doOpBandn() {
 
 // TODO: can be much faster.
 func isEql(store Store, lv, rv *TypedValue) bool {
+	//fmt.Println("---isEql, lv: ", lv)
+	//fmt.Println("---rv: ", rv)
 	// If one is undefined, the other must be as well.
 	// Fields/items are set to defaultValue along the way.
 	lvu := lv.IsUndefined()
@@ -503,24 +505,24 @@ func isEql(store Store, lv, rv *TypedValue) bool {
 		//fmt.Println("---lv.V: ", lv.V)
 		//fmt.Println("---rv.V: ", rv.V)
 		//fmt.Println("---lv.V == rv.V: ", lv.V == rv.V)
-
-		if lv.V != nil && rv.V != nil {
-			fmt.Println("---l.base: ", lv.V.(PointerValue).Base)
-			fmt.Println("---r.base: ", rv.V.(PointerValue).Base)
-
-			fmt.Println("l.base == r.base: ", lv.V.(PointerValue).Base == rv.V.(PointerValue).Base)
-			fmt.Println("l.index == r.index: ", lv.V.(PointerValue).Index == rv.V.(PointerValue).Index)
-			fmt.Println("l.key == r.key: ", lv.V.(PointerValue).Key == rv.V.(PointerValue).Key)
-			fmt.Println("l.TV == r.TV: ", lv.V.(PointerValue).TV == rv.V.(PointerValue).TV)
-			fmt.Println("l.Origin == r.Origin: ", lv.V.(PointerValue).Origin == rv.V.(PointerValue).Origin)
-
-			fmt.Println("---l.Origin: ", lv.V.(PointerValue).Origin)
-			fmt.Println("---r.Origin: ", rv.V.(PointerValue).Origin)
-			//lpv := lv.V.(PointerValue)
-			//rpv := rv.V.(PointerValue)
-			//return *(lpv.TV) == *(rpv.TV) && lpv.Base == rpv.Base && lpv.Index == rpv.Index && lpv.Key == rpv.Key
-			//return lv.V == rv.V
-		}
+		//
+		//if lv.V != nil && rv.V != nil {
+		//	fmt.Println("---l.base: ", lv.V.(PointerValue).Base)
+		//	fmt.Println("---r.base: ", rv.V.(PointerValue).Base)
+		//
+		//	fmt.Println("l.base == r.base: ", lv.V.(PointerValue).Base == rv.V.(PointerValue).Base)
+		//	fmt.Println("l.index == r.index: ", lv.V.(PointerValue).Index == rv.V.(PointerValue).Index)
+		//	fmt.Println("l.key == r.key: ", lv.V.(PointerValue).Key == rv.V.(PointerValue).Key)
+		//	fmt.Println("l.TV == r.TV: ", lv.V.(PointerValue).TV == rv.V.(PointerValue).TV)
+		//	fmt.Println("l.Origin == r.Origin: ", lv.V.(PointerValue).Origin == rv.V.(PointerValue).Origin)
+		//
+		//	fmt.Println("---l.Origin: ", lv.V.(PointerValue).Origin)
+		//	fmt.Println("---r.Origin: ", rv.V.(PointerValue).Origin)
+		//	//lpv := lv.V.(PointerValue)
+		//	//rpv := rv.V.(PointerValue)
+		//	//return *(lpv.TV) == *(rpv.TV) && lpv.Base == rpv.Base && lpv.Index == rpv.Index && lpv.Key == rpv.Key
+		//	//return lv.V == rv.V
+		//}
 
 		return lv.V == rv.V
 	default:

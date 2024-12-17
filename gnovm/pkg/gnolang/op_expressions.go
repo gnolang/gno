@@ -14,8 +14,12 @@ func (m *Machine) doOpIndex1() {
 	} else {
 		lx := m.PopExpr()
 		//fmt.Println("---doOpIndex1, lx: ", lx)
-		var abs string
-		if ix, ok := lx.(*IndexExpr); !ok {
+		var (
+			abs string
+			ix  *IndexExpr
+			ok  bool
+		)
+		if ix, ok = lx.(*IndexExpr); !ok {
 			panic("---should not happen")
 		} else {
 			//fmt.Println("---index expr AbsPath: ", ix.AbsPath)
@@ -48,12 +52,19 @@ func (m *Machine) doOpIndex1() {
 				SetOriginForPointerValue(&xv.V, abs)
 			}
 		default:
-			println("---default")
+			//println("---default")
 
+			// special case for slice type, get origin from base array
 			if sv, ok := xv.V.(*SliceValue); ok {
 				if arr, ok := sv.Base.(*ArrayValue); ok {
-					abs = arr.AbsPath + ":" + lx.(*IndexExpr).Index.String()
-					fmt.Println("---!!! abs: ", abs)
+					var indexPath string
+					if nx, ok := ix.Index.(*NameExpr); ok {
+						indexPath = nx.AbsPath
+					} else {
+						indexPath = ix.Index.String()
+					}
+					abs = arr.AbsPath + ":" + indexPath
+					//fmt.Println("---!!! abs: ", abs)
 				} else {
 					//println("---base not array ")
 				}
@@ -61,11 +72,8 @@ func (m *Machine) doOpIndex1() {
 
 			res := xv.GetPointerAtIndex(m.Alloc, m.Store, iv)
 			*xv = res.Deref() // reuse as result
-			fmt.Println("---xv: ", *xv)
 
 			SetOriginForPointerValue(&xv.V, abs)
-
-			//fmt.Println("---*xv: ", *xv)
 		}
 	}
 }
@@ -132,7 +140,6 @@ func (m *Machine) doOpSelector() {
 	}
 	*xv = res // reuse as result
 	SetOriginForPointerValue(&xv.V, sx.AbsPath)
-	//xv.SetPath(sx.AbsPath)
 }
 
 func (m *Machine) doOpSlice() {

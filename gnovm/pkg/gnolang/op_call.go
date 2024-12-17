@@ -51,7 +51,7 @@ func (m *Machine) doOpPrecall() {
 var gReturnStmt = &ReturnStmt{}
 
 func (m *Machine) doOpCall() {
-	fmt.Println("---doOpCall---")
+	//fmt.Println("---doOpCall---")
 	// NOTE: Frame won't be popped until the statement is complete, to
 	// discard the correct number of results for func calls in ExprStmts.
 	fr := m.LastFrame()
@@ -62,9 +62,7 @@ func (m *Machine) doOpCall() {
 	isMethod := 0 // 1 if true
 	// Create new block scope.
 	clo := fr.Func.GetClosure(m.Store)
-	fmt.Println("---clo: ", clo)
 	lb := m.LastBlock()
-	fmt.Println("---lb: ", lb)
 
 	var parent *Block
 	if clo == nil && lb != nil {
@@ -74,7 +72,6 @@ func (m *Machine) doOpCall() {
 	}
 	b := m.Alloc.NewBlock(fr.Func.GetSource(m.Store), parent)
 	//b := m.Alloc.NewBlock(fr.Func.GetSource(m.Store), clo)
-	fmt.Println("---b: ", b)
 
 	// Copy *FuncValue.Captures into block
 	// NOTE: addHeapCapture in preprocess ensures order.

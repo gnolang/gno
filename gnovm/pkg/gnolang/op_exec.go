@@ -169,7 +169,6 @@ func (m *Machine) doOpExec(op Op) {
 				iv.SetInt(bs.ListIndex)
 				switch bs.Op {
 				case ASSIGN:
-					println("---: Assign")
 					m.PopAsPointer(bs.Key).Assign2(m.Alloc, m.Store, m.Realm, iv, false)
 				case DEFINE:
 					knx := bs.Key.(*NameExpr)
@@ -437,7 +436,7 @@ EXEC_SWITCH:
 	if debug {
 		debug.Printf("EXEC: %v\n", s)
 	}
-	fmt.Printf("EXEC: %v\n", s)
+	//fmt.Printf("EXEC: %v\n", s)
 	switch cs := s.(type) {
 	case *AssignStmt:
 		switch cs.Op {

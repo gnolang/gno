@@ -1,7 +1,5 @@
 package gnolang
 
-import "fmt"
-
 func (m *Machine) doOpDefine() {
 	s := m.PopStmt().(*AssignStmt)
 	//fmt.Println("---doOpDefine, s: ", s)
@@ -30,7 +28,7 @@ func (m *Machine) doOpDefine() {
 
 func (m *Machine) doOpAssign() {
 	s := m.PopStmt().(*AssignStmt)
-	fmt.Println("---doOpAssign, s: ", s)
+	//fmt.Println("---doOpAssign, s: ", s)
 	//fmt.Println("---bid: ", m.LastBlock().GetSource(m.Store).GetStaticBlock().BID)
 	// Assign each value evaluated for Lhs.
 	// NOTE: PopValues() returns a slice in

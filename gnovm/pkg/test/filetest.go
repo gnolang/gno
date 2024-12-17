@@ -80,6 +80,7 @@ func (opts *TestOptions) runFiletest(filename string, source []byte) (string, er
 		actual = reEndOfLineSpaces.ReplaceAllString(actual, "\n")
 		if dir.Content != actual {
 			if opts.Sync {
+				//if true {
 				dir.Content = actual
 				updated = true
 			} else {
