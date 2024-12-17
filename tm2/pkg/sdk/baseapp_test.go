@@ -447,7 +447,7 @@ func anteHandlerTxTest(t *testing.T, capKey store.StoreKey, storeKey []byte) Ant
 	t.Helper()
 
 	return func(ctx Context, tx std.Tx, simulate bool) (newCtx Context, res Result, abort bool) {
-		store := ctx.Store(capKey)
+		store := ctx.GasStore(capKey)
 		if getFailOnAnte(tx) {
 			res.Error = ABCIError(std.ErrInternal("ante handler failure"))
 			return newCtx, res, true
