@@ -161,7 +161,7 @@ func (m *Memeland) RemovePost(id string) string {
 	}
 
 	if !m.CallerIsOwner() {
-		panic(ownable.ErrUnauthorized.Error())
+		panic(ownable.ErrUnauthorized)
 	}
 
 	for i, post := range m.Posts {
