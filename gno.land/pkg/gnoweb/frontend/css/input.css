@@ -46,7 +46,11 @@
   }
 
   .realm-content {
-    @apply text-200 break-words;
+    @apply text-200 break-words pt-10;
+  }
+
+  .realm-content > *:first-child {
+    @apply !mt-0;
   }
 
   .realm-content a {
