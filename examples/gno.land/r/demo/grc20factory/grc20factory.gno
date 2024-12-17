@@ -126,9 +126,9 @@ func DropInstanceOwnership(symbol string) {
 	checkErr(inst.admin.DropOwnership())
 }
 
-func TransferinstanceOwnership(symbol string, newOwner std.Address) {
+func TransferInstanceOwnership(symbol string, newOwner std.Address) {
 	inst := mustGetInstance(symbol)
-	checkErr(inst.admin.Transferownership(newOwner))
+	checkErr(inst.admin.TransferOwnership(newOwner))
 }
 
 func Render(path string) string {
