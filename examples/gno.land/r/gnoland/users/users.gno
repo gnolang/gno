@@ -1,12 +1,12 @@
 package users
 
 import (
-	"gno.land/p/demo/ownable"
-	p "gno.land/p/demo/pausable"
-	susers "gno.land/p/sys/users"
 	"regexp"
 	"std"
 
+	"gno.land/p/demo/ownable"
+	p "gno.land/p/demo/pausable"
+	pusers "gno.land/p/sys/users"
 	sys "gno.land/r/sys/users"
 )
 
@@ -17,8 +17,8 @@ const (
 )
 
 var (
-	admin      = ownable.NewWithAddress(adminAddr) // @moul // switch to dao managed down the line
-	pausable   = p.NewFromOwnable(admin)           //
+	AdminStore = ownable.NewWithAddress(adminAddr) // @moul // switch to dao managed down the line
+	PauseStore = p.NewFromOwnable(AdminStore)      //
 	reUsername = regexp.MustCompile(reValidUsername)
 )
 
@@ -27,10 +27,10 @@ var (
 // end with a minimum of 3 numbers, and be less than 20 chars long.
 // All letters must be lowercase, and the only valid special char is `_`
 // Only calls from EOAs are supported
-func Register(username, bio string) error {
+func Register(username string) error {
 	std.AssertOriginCall()
 
-	if pausable.IsPaused() {
+	if PauseStore.IsPaused() {
 		return p.ErrPaused
 	}
 
@@ -40,7 +40,7 @@ func Register(username, bio string) error {
 
 	registrant := std.PrevRealm().Addr()
 
-	base := susers.User{
+	base := pusers.User{
 		Address: registrant,
 		Name:    username,
 	}

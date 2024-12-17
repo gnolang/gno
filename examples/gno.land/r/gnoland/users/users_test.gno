@@ -8,18 +8,3 @@ import (
 var (
 	alice
 )
-
-func TestRegister(t *testing.T) {
-	t.Run("paused", func(t *testing.T) {
-		std.TestSetOrigCaller(admin)
-		Pause()
-
-
-		std.TestSetOrigCaller(alice)
-
-
-
-	})
-
-
-}

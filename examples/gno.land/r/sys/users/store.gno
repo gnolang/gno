@@ -24,7 +24,7 @@ const maxUsernameLen = 50
 // Only whitelisted callers can call this function
 // Writing to the store can be paused by the admin
 func WriteUser(name string, addr std.Address) error {
-	if pausable.IsPaused() {
+	if PauseStore.IsPaused() {
 		return p.ErrPaused
 	}
 
@@ -56,7 +56,7 @@ func WriteUser(name string, addr std.Address) error {
 // CreateAlias creates an alias username for a specific address
 // The address must already have a registered username
 func CreateAlias(name string, addr std.Address) error {
-	if pausable.IsPaused() {
+	if PauseStore.IsPaused() {
 		return p.ErrPaused
 	}
 
@@ -99,7 +99,7 @@ func UserCount() int {
 
 // XXX: Should we have this? it's not modifiable directly.
 func GetUserStore() *avl.Tree {
-	return uStore
+	return usernameStore
 }
 
 // Validate validates username and address passed in
