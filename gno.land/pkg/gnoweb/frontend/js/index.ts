@@ -38,5 +38,5 @@
     await Promise.all(promises);
   };
 
-  //   document.addEventListener("DOMContentLoaded", initModules);
+  document.addEventListener("DOMContentLoaded", initModules);
 })();
