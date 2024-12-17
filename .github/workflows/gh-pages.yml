@@ -27,7 +27,7 @@ jobs:
       - run: echo "GOROOT=$(go env GOROOT)" >> $GITHUB_ENV
       - run: echo $GOROOT
       - run: "cd misc/stdlib_diff && make gen"
-      - run: "cd misc/gendocs && make gen"
+      - run: "cd misc/gendocs && make install gen"
       - run: |
           mv misc/gendocs/godoc pages_output
           mv misc/stdlib_diff/stdlib_diff pages_ouput/stdlib_diff
