@@ -20,9 +20,9 @@
               <use href="#ico-arrow-down"></use>
             </svg>
           </div>
-          <div class="relative flex w-full text-100">
-            <label for="help-input-addr" class="flex gap-3 items-center bg-gray-100 rounded-l-sm border border-r-transparent px-3 text-gray-600">Key&nbsp;/&nbsp;Address</label>
-            <input type="text" data-role="help-input-addr" id="help-input-addr" class="flex h-full bottom-1 w-full rounded-r-sm border px-4 py-2 lg:py-1.5 lg:px-2 text-gray-600 focus:border-gray-300 outline-none font-mono" placeholder="ADDRESS" />
+          <div class="group relative flex w-full text-100 border rounded-sm overflow-hidden has-[:focus]:border-gray-300 hover:border-gray-300">
+            <label for="help-input-addr" class="flex gap-3 items-center bg-gray-100 px-3 text-gray-600">Key&nbsp;/&nbsp;Address</label>
+            <input type="text" data-role="help-input-addr" id="help-input-addr" class="flex h-full bottom-1 w-full border-l px-4 py-2 lg:py-1.5 lg:px-2 text-gray-600 focus:border-l-gray-300 group-hover:border-l-gray-300 outline-none font-mono" placeholder="ADDRESS" />
           </div>
         </form>
       </header>
@@ -68,8 +68,8 @@
                   {{ $funcName := .FuncName }}
                   {{ range .Params }}
                     <div class="flex flex-col gap-3 items-stretch text-gray-400 mb-2">
-                      <div class="relative flex w-full border rounded-sm has-[:focus]:border-gray-300">
-                        <label for="func-{{ $funcName }}-param-{{ .Name }}" class="flex gap-3 items-center bg-gray-50 rounded-l-sm px-4 font-semibold text-gray-600">{{ .Name }}</label>
+                      <div class="group relative overflow-hidden flex w-full border rounded-sm has-[:focus]:border-gray-300 hover:border-gray-300">
+                        <label for="func-{{ $funcName }}-param-{{ .Name }}" class="flex gap-3 items-center bg-gray-50 px-4 font-semibold text-gray-600">{{ .Name }}</label>
                         <input type="text"
                           {{- if eq $data.SelectedFunc $funcName }}
                             value="{{ getSelectedArgValue $data . }}"
@@ -77,7 +77,7 @@
                           id="func-{{ $funcName }}-param-{{ .Name }}"
                           data-role="help-param-input"
                           data-param="{{ .Name }}"
-                          class="flex h-full bottom-1 w-full border-l rounded-r-sm p-2 focus:border-gray-300 outline-none font-mono"
+                          class="flex h-full bottom-1 w-full border-l p-2 focus:border-gray-300 group-hover:border-gray-300 outline-none font-mono"
                         />
                       </div>
                     </div>
