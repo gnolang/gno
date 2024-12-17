@@ -5,9 +5,9 @@
             {{- range .LineDiffferrences}}
                 {{- if eq .SrcOperation 2}}
                 <div style="display: flex; color: red;">
-                    <span style="user-select: none; min-width: 50px;">{{.SrcNumber}} </span><p>{{.SrcLine}}</p> 
+                    <span style="user-select: none; min-width: 50px;">{{.SrcNumber}} </span><p>{{.SrcLine}}</p>
                 </div>
-            
+
                 {{- else if eq .SrcOperation 3}}
                 <div div style="display: flex;">
                     <span style="user-select: none; min-width: 50px;">{{.SrcNumber}}</span>
@@ -28,10 +28,10 @@
                 {{- range .LineDiffferrences}}
                     {{- if eq .DestOperation 1}}
                     <div style="display: flex; color: #07ca07;">
-                    <span style="user-select: none; min-width: 50px;">{{.DestNumber}} </span><p>{{.DestLine}}</p> 
+                    <span style="user-select: none; min-width: 50px;">{{.DestNumber}} </span><p>{{.DestLine}}</p>
                     </div>
                     {{- else if eq .DestOperation 3}}
-                    <div div style="display: flex;">
+                    <div style="display: flex;">
                         <span style="user-select: none; min-width: 50px;">{{.DestNumber}}</span>
                         <p style="opacity: 0.75;">{{.DestLine}}</p>
                     </div>
@@ -52,8 +52,6 @@
     <title>{{ .PackageName }}</title>
     <style>
         body, html {
-            height: 100vh;
-            width: 100%;
             font-family: "Roboto Mono","Courier New",sans-serif;
             color: #eee;
             background-color: #1e1e1e;
@@ -72,23 +70,27 @@
             tab-size: 4;
         }
 
+        .diffs {
+            display: flex;
+            flex-direction: row;
+            align-items: stretch;
+            padding-bottom: 2rem;
+            width: 100%;
+        }
         .file-container {
             display: flex;
             flex-direction: column;
-            width: 50%;
-            max-width: 50%;
-            min-height: 100%;
         }
-        .file-viewer{
+        .file-viewer {
             border-style: solid;
             border-width: 2px;
             border-radius: 15px;
             border-color: #c7c7c7;
             padding: 1rem;
-            height: 100%;
             width: 50%;
             overflow-x: auto;
             white-space: nowrap;
+            box-sizing: border-box;
         }
     </style>
 </head>
@@ -113,18 +115,18 @@
     {{- range .FilesDifferences}}
         {{- if eq .Status "files differ"}}
             <details open>
-            <summary>{{.SourceName}} ({{.Status}})</summary>
+            <summary>~ {{.SourceName}} ({{.Status}})</summary>
         {{- else if eq .Status "missing in dst"}}
             <details>
-            <summary style="color: red;">{{.SourceName}} ({{.Status}}) ➖</summary>
+            <summary style="color: red;">- {{.SourceName}} ({{.Status}})</summary>
         {{- else if eq .Status "missing in src"}}
             <details>
-            <summary style="color:forestgreen;">{{.SourceName}} ({{.Status}}) ➕</summary>
+            <summary style="color: forestgreen;">+ {{.SourceName}} ({{.Status}})</summary>
         {{- else}}
             <details>
-            <summary style="opacity: 45%;">{{.SourceName}} ({{.Status}})</summary>
+            <summary style="opacity: 45%;">= {{.SourceName}} ({{.Status}})</summary>
         {{- end}}
-        <div style="display: flex; flex-direction: row; align-items: stretch; padding-bottom: 2rem;"> 
+        <div class="diffs">
             {{template "file-viewer" .}}
         </div>
     </details>
