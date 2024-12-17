@@ -155,7 +155,7 @@ func TestGetAndSetParams(t *testing.T) {
 	err := keeper.SetParams(ctx, ModuleName, a)
 	require.NoError(t, err)
 
-	//GetParams
+	// GetParams
 	a1 := Params{}
 	_, err1 := keeper.GetParams(ctx, ModuleName, &a1)
 	require.NoError(t, err1)
