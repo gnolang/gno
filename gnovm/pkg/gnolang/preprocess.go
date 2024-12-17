@@ -592,6 +592,10 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 				// define key/value.
 				n.X = Preprocess(store, last, n.X).(Expr)
 				xt := evalStaticTypeOf(store, last, n.X)
+				if xt == nil {
+					panic("cannot range over nil")
+				}
+
 				switch xt.Kind() {
 				case MapKind:
 					n.IsMap = true
@@ -3125,7 +3129,7 @@ func evalStaticType(store Store, last BlockNode, x Expr) Type {
 	// See comment in evalStaticTypeOfRaw.
 	if store != nil && pn.PkgPath != uversePkgPath {
 		pv := pn.NewPackage() // temporary
-		store = store.BeginTransaction(nil, nil)
+		store = store.BeginTransaction(nil, nil, nil)
 		store.SetCachePackage(pv)
 	}
 	m := NewMachine(pn.PkgPath, store)
@@ -3193,7 +3197,7 @@ func evalStaticTypeOfRaw(store Store, last BlockNode, x Expr) (t Type) {
 		// yet predefined this time around.
 		if store != nil && pn.PkgPath != uversePkgPath {
 			pv := pn.NewPackage() // temporary
-			store = store.BeginTransaction(nil, nil)
+			store = store.BeginTransaction(nil, nil, nil)
 			store.SetCachePackage(pv)
 		}
 		m := NewMachine(pn.PkgPath, store)
@@ -3574,6 +3578,10 @@ func checkOrConvertType(store Store, last BlockNode, n Node, x *Expr, t Type, au
 						checkOrConvertType(store, last, n, &bx.Left, rt, autoNative)
 						checkOrConvertType(store, last, n, &bx.Right, rt, autoNative)
 					}
+					// this is not a constant expression; the result here should
+					// always be a BoolType. (in this scenario, we may have some
+					// UntypedBoolTypes)
+					t = BoolType
 				default:
 					// do nothing
 				}
