@@ -189,9 +189,9 @@ func setupGnolandTestScript(t *testing.T, txtarDir string) testscript.Params {
 					creator := crypto.MustAddressFromString(DefaultAccount_Address) // test1
 					defaultFee := std.NewFee(50000, std.MustParseCoin(ugnot.ValueString(1000000)))
 					// we need to define a new err1 otherwise the out err would be shadowed in the case "start":
-					pkgsTxs, err1 := pkgs.LoadPackages(creator, defaultFee, nil)
+					pkgsTxs, loadErr := pkgs.LoadPackages(creator, defaultFee, nil)
 
-					if err1 != nil {
+					if loadErr != nil {
 						ts.Fatalf("unable to load packages txs: %s", err)
 					}
 

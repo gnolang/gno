@@ -663,11 +663,10 @@ func TestEndBlocker(t *testing.T) {
 }
 
 func TestGasPriceUpdate(t *testing.T) {
-	app, err := newGasPriceTestApp()
-	require.NoError(t, err)
+	app := newGasPriceTestApp(t)
+
 	// with default initial gas price 0.1 ugnot per gas
-	gnoGen, err := gnoGenesisState()
-	require.NoError(t, err)
+	gnoGen := gnoGenesisState(t)
 
 	// abci inintChain
 	app.InitChain(abci.RequestInitChain{
@@ -806,7 +805,8 @@ func TestGasPriceUpdate(t *testing.T) {
 	require.Equal(t, "100ugnot", gp.Price.String())
 }
 
-func newGasPriceTestApp() (abci.Application, error) {
+func newGasPriceTestApp(t *testing.T) abci.Application {
+	t.Helper()
 	cfg := TestAppOptions(memdb.NewMemDB())
 	cfg.EventSwitch = events.NewEventSwitch()
 
@@ -896,7 +896,7 @@ func newGasPriceTestApp() (abci.Application, error) {
 
 	// Load latest version.
 	if err := baseApp.LoadLatestVersion(); err != nil {
-		return nil, err
+		t.Fatalf("failed to load the lastest state: %v", err)
 	}
 
 	// Initialize the VMKeeper.
@@ -904,7 +904,7 @@ func newGasPriceTestApp() (abci.Application, error) {
 	vmk.Initialize(cfg.Logger, ms)
 	ms.MultiWrite() // XXX why was't this needed?
 
-	return baseApp, nil
+	return baseApp
 }
 
 // newTx constructs a tx with multiple counter messages.
@@ -928,7 +928,8 @@ func getTotalCount(tx sdk.Tx) int64 {
 	return c
 }
 
-func gnoGenesisState() (GnoGenesisState, error) {
+func gnoGenesisState(t *testing.T) GnoGenesisState {
+	t.Helper()
 	gen := GnoGenesisState{}
 	genBytes := []byte(`{
     "@type": "/gno.GenesisState",
@@ -949,8 +950,10 @@ func gnoGenesisState() (GnoGenesisState, error) {
     }
   }`)
 	err := amino.UnmarshalJSON(genBytes, &gen)
-
-	return gen, err
+	if err != nil {
+		t.Fatalf("failed to create genesis state: %v", err)
+	}
+	return gen
 }
 
 func replayBlock(t *testing.T, app *sdk.BaseApp, gas int64, hight int64) {

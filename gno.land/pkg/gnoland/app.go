@@ -404,10 +404,6 @@ func EndBlocker(
 			return abci.ResponseEndBlock{}
 		}
 
-		if vmk == nil {
-			return abci.ResponseEndBlock{}
-		}
-
 		// Run the VM to get the updates from the chain
 		response, err := vmk.QueryEval(
 			ctx,

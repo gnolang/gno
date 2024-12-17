@@ -156,7 +156,6 @@ func (ak AccountKeeper) GetNextAccountNumber(ctx sdk.Context) uint64 {
 
 // -----------------------------------------------------------------------------
 // Misc.
-
 func (ak AccountKeeper) decodeAccount(bz []byte) (acc std.Account) {
 	err := amino.Unmarshal(bz, &acc)
 	if err != nil {
@@ -181,7 +180,6 @@ func NewGasPriceKeeper(key store.StoreKey) GasPriceKeeper {
 }
 
 // SetGasPrice is called in InitChainer to store initial gas price set in the genesis
-
 func (gk GasPriceKeeper) SetGasPrice(ctx sdk.Context, gp std.GasPrice) {
 	if (gp == std.GasPrice{}) {
 		return
@@ -217,7 +215,6 @@ func (gk GasPriceKeeper) UpdateGasPrice(ctx sdk.Context) {
 // instead of round down for the integer divisions, and in the second case, we should set a floor
 // as the target gas price. This is just a starting point. Down the line, the solution might not be even
 // representable by one simple formula
-
 func (gk GasPriceKeeper) calcBlockGasPrice(lastGasPrice std.GasPrice, gasUsed int64, maxGas int64, params Params) std.GasPrice {
 	// If no block gas price is set, there is no need to change the last gas price.
 	if lastGasPrice.Price.Amount == 0 {
