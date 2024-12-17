@@ -107,14 +107,14 @@ func (ak AccountKeeper) SetParams(ctx sdk.Context, params Params) error {
 	if err := params.Validate(); err != nil {
 		return err
 	}
-	ak.paramk.SetParam(ctx, ModuleName, params)
-	return nil
+	err := ak.paramk.SetParams(ctx, ModuleName, params)
+	return err
 }
 
 func (ak AccountKeeper) GetParams(ctx sdk.Context) Params {
 	params := &Params{}
 
-	ok, err := ak.paramk.GetParam(ctx, ModuleName, params)
+	ok, err := ak.paramk.GetParams(ctx, ModuleName, params)
 
 	if !ok {
 		panic("params key " + ModuleName + " does not exist")

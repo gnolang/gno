@@ -57,7 +57,7 @@ func NewParamsKeeper(key store.StoreKey, prefix string) ParamsKeeper {
 }
 
 // GetParam gets a param value from the global param store.
-func (pk ParamsKeeper) GetParam(ctx sdk.Context, key string, target interface{}) (bool, error) {
+func (pk ParamsKeeper) GetParams(ctx sdk.Context, key string, target interface{}) (bool, error) {
 	stor := ctx.Store(pk.key)
 
 	bz := stor.Get(ValueStoreKey(key))
@@ -65,17 +65,16 @@ func (pk ParamsKeeper) GetParam(ctx sdk.Context, key string, target interface{})
 		return false, nil
 	}
 
-	return true, amino.Unmarshal(bz, target)
+	return true, amino.UnmarshalJSON(bz, target)
 }
 
 // SetParam sets a param value to the global param store.
-func (pk ParamsKeeper) SetParam(ctx sdk.Context, key string, param interface{}) error {
-	bz, err := amino.Marshal(param)
+func (pk ParamsKeeper) SetParams(ctx sdk.Context, key string, param interface{}) error {
+	stor := ctx.Store(pk.key)
+	bz, err := amino.MarshalJSON(param)
 	if err != nil {
 		return err
 	}
-
-	stor := ctx.Store(pk.key)
 
 	stor.Set(ValueStoreKey(key), bz)
 	return nil
