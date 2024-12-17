@@ -6,8 +6,7 @@ const OwnershipTransferEvent = "OwnershipTransfer"
 
 // Ownable is meant to be used as a top-level object to make your contract ownable OR
 // being embedded in a Gno object to manage per-object ownership.
-// WARNING: Do not directly export this object at top-level, as its methods do not validate the caller.
-// For this, check out SafeOwnable.
+// Ownable is safe to expose as a top-level object
 type Ownable struct {
 	owner std.Address
 }
@@ -26,6 +25,10 @@ func NewWithAddress(addr std.Address) *Ownable {
 
 // TransferOwnership transfers ownership of the Ownable struct to a new address
 func (o *Ownable) TransferOwnership(newOwner std.Address) error {
+	if !o.CallerIsOwner() {
+		return ErrUnauthorized
+	}
+
 	if !newOwner.IsValid() {
 		return ErrInvalidAddress
 	}
@@ -44,7 +47,11 @@ func (o *Ownable) TransferOwnership(newOwner std.Address) error {
 // DropOwnership removes the owner, effectively disabling any owner-related actions
 // Top-level usage: disables all only-owner actions/functions,
 // Embedded usage: behaves like a burn functionality, removing the owner from the struct
-func (o *Ownable) DropOwnership() {
+func (o *Ownable) DropOwnership() error {
+	if !o.CallerIsOwner() {
+		return ErrUnauthorized
+	}
+
 	prevOwner := o.owner
 	o.owner = ""
 
@@ -53,6 +60,8 @@ func (o *Ownable) DropOwnership() {
 		"from", prevOwner.String(),
 		"to", "",
 	)
+
+	return nil
 }
 
 // Owner returns the owner address from Ownable
@@ -70,46 +79,4 @@ func (o Ownable) AssertCallerIsOwner() {
 	if std.PrevRealm().Addr() != o.owner {
 		panic(ErrUnauthorized)
 	}
-}
-
-// Safe-object
-
-// SafeOwnable is an exportable struct that wraps Ownable
-// By exposing a SafeOwnable object, a realm will expose all SafeOwnable exported methods
-// to the public automatically. These methods, as per the implementation,
-// are only callable by the Ownable's admin.
-type SafeOwnable struct {
-	ownable *Ownable
-}
-
-func (o *Ownable) NewSafeOwnable() *SafeOwnable {
-	return &SafeOwnable{
-		ownable: o,
-	}
-}
-
-// AssertCallerIsOwner panics if the caller is not the owner
-func (so SafeOwnable) AssertCallerIsOwner() {
-	so.ownable.AssertCallerIsOwner()
-}
-
-func (so *SafeOwnable) TransferOwnership(newOwner std.Address) error {
-	if !so.ownable.CallerIsOwner() {
-		return ErrUnauthorized
-	}
-
-	if err := so.ownable.TransferOwnership(newOwner); err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func (so *SafeOwnable) DropOwnership() error {
-	if !so.ownable.CallerIsOwner() {
-		return ErrUnauthorized
-	}
-
-	so.ownable.DropOwnership()
-	return nil
 }

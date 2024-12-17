@@ -1,12 +1,12 @@
 package ownable
 
 import (
-	"github.com/gnolang/gno/examples/gno.land/p/demo/urequire"
 	"std"
 	"testing"
 
 	"gno.land/p/demo/testutils"
 	"gno.land/p/demo/uassert"
+	"gno.land/p/demo/urequire"
 )
 
 var (
@@ -39,8 +39,10 @@ func TestTransferOwnership(t *testing.T) {
 	o := New()
 
 	err := o.TransferOwnership(bob)
+	urequire.NoError(t, err)
 
 	got := o.Owner()
+
 	uassert.Equal(t, got, bob)
 }
 
