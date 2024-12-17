@@ -19,7 +19,8 @@ const (
 
 	// AddressStoreKeyPrefix prefix for account-by-address store
 	AddressStoreKeyPrefix = "/a/"
-
+	// key for gas price
+	GasPriceKey = "gasPrice"
 	// param key for global account number
 	GlobalAccountNumberKey = "globalAccountNumber"
 )
