@@ -51,8 +51,13 @@ func TestRoutes(t *testing.T) {
 		{"/아스키문자가아닌경로", notFound, ""},
 		{"/%ED%85%8C%EC%8A%A4%ED%8A%B8", notFound, ""},
 		{"/グノー", notFound, ""},
-		{"/⚛️", notFound, ""},
+		{"/\u269B\uFE0F", notFound, ""}, // unicode
 		{"/p/demo/flow/LICENSE", ok, "BSD 3-Clause"},
+		// Test assets
+		{"/public/styles.css", ok, ""},
+		{"/public/js/index.js", ok, ""},
+		{"/public/_chroma/style.css", ok, ""},
+		{"/public/imgs/gnoland.svg", ok, ""},
 	}
 
 	rootdir := gnoenv.RootDir()
