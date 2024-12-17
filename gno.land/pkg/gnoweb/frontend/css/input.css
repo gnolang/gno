@@ -11,7 +11,7 @@
   font-weight: 100 900;
   font-display: swap;
   font-style: oblique 0deg 10deg;
-  src: url("./fonts/intervar/Inter.var.woff2") format("woff2");
+  src: url("./fonts/intervar/Intervar.woff2") format("woff2");
 }
 
 @tailwind base;
