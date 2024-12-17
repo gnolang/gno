@@ -24,6 +24,7 @@ Presentation: https://github.com/gnolang/workshops/tree/main/presentations/2023-
 
 ## High-level schema
 
+```
             ____                   ____         ____                    __       _ __          __  _
            / __ \_________  ____  / __/  ____  / __/  _________  ____  / /______(_) /_  __  __/ /_(_)___  ____  _____
           / /_/ / ___/ __ \/ __ \/ /_   / __ \/ /_   / ___/ __ \/ __ \/ __/ ___/ / __ \/ / / / __/ / __ \/ __ \/ ___/
@@ -55,6 +56,7 @@ Presentation: https://github.com/gnolang/workshops/tree/main/presentations/2023-
                                     ^                                                                          |
                                     |                                                                          |
                                     +---------------user TXs can publish and call contracts--------------------+
+```
 
 ## Components
 

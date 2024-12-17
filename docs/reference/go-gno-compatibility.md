@@ -34,7 +34,7 @@ id: go-gno-compatibility
 
 Generics are currently not implemented.
 
-Note that Gno does not support shadowing of built-in types. 
+Note that Gno does not support shadowing of built-in types.
 While the following built-in typecasting assignment would work in Go, this is not supported in Gno.
 
 ```go
@@ -184,7 +184,7 @@ Legend:
 | hash/crc64                                  | `todo`   |
 | hash/fnv                                    | `todo`   |
 | hash/maphash                                | `todo`   |
-| html                                        | `todo`   |
+| html                                        | `full`   |
 | html/template                               | `todo`   |
 | image                                       | `tbd`    |
 | image/color                                 | `tbd`    |
@@ -205,7 +205,7 @@ Legend:
 | math/big                                    | `tbd`    |
 | math/bits                                   | `full`   |
 | math/cmplx                                  | `tbd`    |
-| math/rand                                   | `todo`   |
+| math/rand                                   | `full`[^9] |
 | mime                                        | `tbd`    |
 | mime/multipart                              | `tbd`    |
 | mime/quotedprintable                        | `tbd`    |
@@ -248,7 +248,7 @@ Legend:
 | runtime/trace                               | `gospec` |
 | slices                                      | `gnics`  |
 | sort                                        | `part`[^6] |
-| strconv                                     | `part`   |
+| strconv                                     | `full`[^10] |
 | strings                                     | `full`   |
 | sync                                        | `tbd`    |
 | sync/atomic                                 | `tbd`    |
@@ -291,6 +291,9 @@ Legend:
   determinism. Concurrent functionality (such as `time.Ticker`) is not implemented.
 [^8]: `crypto/ed25519` is currently only implemented for `Verify`, which should
   still cover a majority of use cases. A full implementation is welcome.
+[^9]: `math/rand` in Gno ports over Go's `math/rand/v2`.
+[^10]: `strconv` does not have the methods relating to types `complex64` and
+  `complex128`.
 
 ## Tooling (`gno` binary)
 
@@ -300,9 +303,9 @@ Legend:
 | go build          | gno transpile -gobuild    | same intention, limited compatibility                                 |
 | go clean          | gno clean                 | same intention, limited compatibility                                 |
 | go doc            | gno doc                   | limited compatibility; see https://github.com/gnolang/gno/issues/522  |
-| go env            |                           |                                                                       |
+| go env            | gno env                   |                                                                       |
 | go fix            |                           |                                                                       |
-| go fmt            |                           | gofmt (& similar tools, like gofumpt) works on gno code.              |
+| go fmt            | gno fmt                   | gofmt (& similar tools, like gofumpt) works on gno code.              |
 | go generate       |                           |                                                                       |
 | go get            |                           | see `gno mod download`.                                               |
 | go help           | gno $cmd --help           | ie. `gno doc --help`                                                  |

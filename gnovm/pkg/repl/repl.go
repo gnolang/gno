@@ -10,10 +10,12 @@ import (
 	"go/printer"
 	"go/token"
 	"io"
+	"os"
 	"text/template"
 
+	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
-	"github.com/gnolang/gno/gnovm/tests"
+	"github.com/gnolang/gno/gnovm/pkg/test"
 )
 
 const (
@@ -106,6 +108,7 @@ type Repl struct {
 	stdout    io.Writer
 	stderr    io.Writer
 	stdin     io.Reader
+	debug     bool
 }
 
 // NewRepl creates a Repl struct. It is able to process input source code and eventually run it.
@@ -122,7 +125,8 @@ func NewRepl(opts ...ReplOption) *Repl {
 	r.stderr = &b
 
 	r.storeFunc = func() gno.Store {
-		return tests.TestStore("teststore", "", r.stdin, r.stdout, r.stderr, tests.ImportModeStdlibsOnly)
+		_, st := test.Store(gnoenv.RootDir(), false, r.stdin, r.stdout, r.stderr)
+		return st
 	}
 
 	for _, o := range opts {
@@ -150,6 +154,14 @@ func (r *Repl) Process(input string) (out string, err error) {
 		}
 	}()
 	r.state.id++
+
+	if r.debug {
+		r.state.machine.Debugger.Enable(os.Stdin, os.Stdout, func(file string) string {
+			return r.state.files[file]
+		})
+		r.debug = false
+		defer r.state.machine.Debugger.Disable()
+	}
 
 	decl, declErr := r.parseDeclaration(input)
 	if declErr == nil {
@@ -316,4 +328,9 @@ func (r *Repl) Src() string {
 	}
 
 	return b.String()
+}
+
+// Debug activates the GnoVM debugger for the next evaluation.
+func (r *Repl) Debug() {
+	r.debug = true
 }

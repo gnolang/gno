@@ -88,55 +88,54 @@ func execSecretsInit(cfg *secretsInitCfg, args []string, io commands.IO) error {
 	switch key {
 	case validatorPrivateKeyKey:
 		if osm.FileExists(validatorKeyPath) && !cfg.forceOverwrite {
-			return errOverwriteNotEnabled
+			return fmt.Errorf("unable to overwrite validator key, %w", errOverwriteNotEnabled)
 		}
 
 		// Initialize and save the validator's private key
 		return initAndSaveValidatorKey(validatorKeyPath, io)
-	case nodeKeyKey:
+	case nodeIDKey:
 		if osm.FileExists(nodeKeyPath) && !cfg.forceOverwrite {
-			return errOverwriteNotEnabled
+			return fmt.Errorf("unable to overwrite the node' p2p key, %w", errOverwriteNotEnabled)
 		}
 
 		// Initialize and save the node's p2p key
 		return initAndSaveNodeKey(nodeKeyPath, io)
 	case validatorStateKey:
 		if osm.FileExists(validatorStatePath) && !cfg.forceOverwrite {
-			return errOverwriteNotEnabled
+			return fmt.Errorf("unable to overwrite validator last sign state, %w", errOverwriteNotEnabled)
 		}
 
 		// Initialize and save the validator's last sign state
 		return initAndSaveValidatorState(validatorStatePath, io)
 	default:
-		// Check if the validator key should be overwritten
-		if osm.FileExists(validatorKeyPath) && !cfg.forceOverwrite {
-			return errOverwriteNotEnabled
-		}
-
-		// Check if the validator state should be overwritten
-		if osm.FileExists(validatorStatePath) && !cfg.forceOverwrite {
-			return errOverwriteNotEnabled
-		}
-
-		// Check if the node key should be overwritten
-		if osm.FileExists(nodeKeyPath) && !cfg.forceOverwrite {
-			return errOverwriteNotEnabled
-		}
-
 		// No key provided, initialize everything
-		// Initialize and save the validator's private key
-		if err := initAndSaveValidatorKey(validatorKeyPath, io); err != nil {
-			return err
-		}
-
-		// Initialize and save the validator's last sign state
-		if err := initAndSaveValidatorState(validatorStatePath, io); err != nil {
-			return err
-		}
-
-		// Initialize and save the node's p2p key
-		return initAndSaveNodeKey(nodeKeyPath, io)
+		return errors.Join(
+			overwriteGuard(validatorKeyPath, initAndSaveValidatorKey, cfg.forceOverwrite, io),
+			overwriteGuard(validatorStatePath, initAndSaveValidatorState, cfg.forceOverwrite, io),
+			overwriteGuard(nodeKeyPath, initAndSaveNodeKey, cfg.forceOverwrite, io),
+		)
 	}
+}
+
+// overwriteGuard guards against unwanted secret overwrites,
+// and executes the secret initialization if the secret is not present
+func overwriteGuard(
+	path string,
+	initFn func(string, commands.IO) error,
+	overwriteEnabled bool,
+	io commands.IO,
+) error {
+	// Check if the secret already exists
+	if osm.FileExists(path) && !overwriteEnabled {
+		return fmt.Errorf(
+			"unable to overwrite secret at %q, %w",
+			path,
+			errOverwriteNotEnabled,
+		)
+	}
+
+	// Secret doesn't exist, initialize it
+	return initFn(path, io)
 }
 
 // initAndSaveValidatorKey generates a validator private key and saves it to the given path

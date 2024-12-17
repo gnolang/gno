@@ -7,7 +7,7 @@ import (
 )
 
 func TestPackage(t *testing.T) {
-	std.TestSetOrigCaller(std.Address("g1u7y667z64x2h7vc6fmpcprgey4ck233jaww9zq"))
+	std.TestSetOrigCaller(std.Address("g1manfred47kzduec920z88wfr64ylksmdcedlf5"))
 
 	author := std.GetOrigCaller()
 
@@ -15,7 +15,7 @@ func TestPackage(t *testing.T) {
 	{
 		got := Render("")
 		expected := `
-# Gnoland's Blog
+# gno.land's blog
 
 No posts.
 `
@@ -28,7 +28,7 @@ No posts.
 		ModAddPost("slug2", "title2", "body2", "2022-05-20T13:17:23Z", "moul", "tag1,tag3")
 		got := Render("")
 		expected := `
-	# Gnoland's Blog
+	# gno.land's blog
 
 <div class='columns-3'><div>
 
@@ -47,6 +47,8 @@ No posts.
 	{
 		got := Render("p/slug2")
 		expected := `
+<main class='gno-tmpl-page'>
+
 # title2
 
 body2
@@ -57,12 +59,13 @@ Tags: [#tag1](/r/gnoland/blog:t/tag1) [#tag3](/r/gnoland/blog:t/tag3)
 
 Written by moul on 20 May 2022
 
-Published by g1u7y667z64x2h7vc6fmpcprgey4ck233jaww9zq to Gnoland's Blog
+Published by g1manfred47kzduec920z88wfr64ylksmdcedlf5 to gno.land's blog
 
 ---
 <details><summary>Comment section</summary>
 
 </details>
+</main>
 
 	`
 		assertMDEquals(t, got, expected)
@@ -71,12 +74,12 @@ Published by g1u7y667z64x2h7vc6fmpcprgey4ck233jaww9zq to Gnoland's Blog
 	// list by tags.
 	{
 		got := Render("t/invalid")
-		expected := "# [Gnoland's Blog](/r/gnoland/blog:) / t / invalid\n\nNo posts."
+		expected := "# [gno.land's blog](/r/gnoland/blog:) / t / invalid\n\nNo posts."
 		assertMDEquals(t, got, expected)
 
 		got = Render("t/tag2")
 		expected = `
-# [Gnoland's Blog](/r/gnoland/blog:) / t / tag2
+# [gno.land's blog](/r/gnoland/blog:) / t / tag2
 
 <div>
 
@@ -95,7 +98,8 @@ Published by g1u7y667z64x2h7vc6fmpcprgey4ck233jaww9zq to Gnoland's Blog
 		AddComment("slug2", "comment4")
 		AddComment("slug1", "comment5")
 		got := Render("p/slug2")
-		expected := `
+		expected := `<main class='gno-tmpl-page'>
+
 # title2
 
 body2
@@ -106,34 +110,39 @@ Tags: [#tag1](/r/gnoland/blog:t/tag1) [#tag3](/r/gnoland/blog:t/tag3)
 
 Written by moul on 20 May 2022
 
-Published by g1u7y667z64x2h7vc6fmpcprgey4ck233jaww9zq to Gnoland's Blog
+Published by g1manfred47kzduec920z88wfr64ylksmdcedlf5 to gno.land's blog
 
 ---
 <details><summary>Comment section</summary>
 
 <h5>comment4
 
-</h5><h6>by g1u7y667z64x2h7vc6fmpcprgey4ck233jaww9zq on 13 Feb 09 23:31 UTC</h6>
+</h5><h6>by g1manfred47kzduec920z88wfr64ylksmdcedlf5 on 13 Feb 09 23:31 UTC</h6>
 
 ---
 
 <h5>comment2
 
-</h5><h6>by g1u7y667z64x2h7vc6fmpcprgey4ck233jaww9zq on 13 Feb 09 23:31 UTC</h6>
+</h5><h6>by g1manfred47kzduec920z88wfr64ylksmdcedlf5 on 13 Feb 09 23:31 UTC</h6>
 
 ---
 
 </details>
+</main>
 	`
 		assertMDEquals(t, got, expected)
 	}
 
 	// edit post.
 	{
-		ModEditPost("slug2", "title2++", "body2++", "2009-11-10T23:00:00Z", "manfred", "tag1,tag4")
+		oldTitle := "title2"
+		oldDate := "2022-05-20T13:17:23Z"
+
+		ModEditPost("slug2", oldTitle, "body2++", oldDate, "manfred", "tag1,tag4")
 		got := Render("p/slug2")
-		expected := `
-# title2++
+		expected := `<main class='gno-tmpl-page'>
+
+# title2
 
 body2++
 
@@ -141,28 +150,37 @@ body2++
 
 Tags: [#tag1](/r/gnoland/blog:t/tag1) [#tag4](/r/gnoland/blog:t/tag4)
 
-Written by manfred on 10 Nov 2009
+Written by manfred on 20 May 2022
 
-Published by g1u7y667z64x2h7vc6fmpcprgey4ck233jaww9zq to Gnoland's Blog
+Published by g1manfred47kzduec920z88wfr64ylksmdcedlf5 to gno.land's blog
 
 ---
 <details><summary>Comment section</summary>
 
 <h5>comment4
 
-</h5><h6>by g1u7y667z64x2h7vc6fmpcprgey4ck233jaww9zq on 13 Feb 09 23:31 UTC</h6>
+</h5><h6>by g1manfred47kzduec920z88wfr64ylksmdcedlf5 on 13 Feb 09 23:31 UTC</h6>
 
 ---
 
 <h5>comment2
 
-</h5><h6>by g1u7y667z64x2h7vc6fmpcprgey4ck233jaww9zq on 13 Feb 09 23:31 UTC</h6>
+</h5><h6>by g1manfred47kzduec920z88wfr64ylksmdcedlf5 on 13 Feb 09 23:31 UTC</h6>
 
 ---
 
 </details>
+</main>
 	`
 		assertMDEquals(t, got, expected)
+
+		home := Render("")
+
+		if strings.Count(home, oldTitle) != 1 {
+			t.Errorf("post not edited properly")
+		}
+		// Edits work everything except title, slug, and publicationDate
+		// Edits to the above will cause duplication on the blog home page
 	}
 
 	{ // Test remove functionality

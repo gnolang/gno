@@ -1,47 +1,10 @@
 package vm
 
 import (
-	"os"
-	"path/filepath"
-
-	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
-	"github.com/gnolang/gno/gnovm/stdlibs"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
-	osm "github.com/gnolang/gno/tm2/pkg/os"
 	"github.com/gnolang/gno/tm2/pkg/sdk"
 	"github.com/gnolang/gno/tm2/pkg/std"
 )
-
-func (vm *VMKeeper) initBuiltinPackagesAndTypes(store gno.Store) {
-	// NOTE: native functions/methods added here must be quick operations,
-	// or account for gas before operation.
-	// TODO: define criteria for inclusion, and solve gas calculations.
-	getPackage := func(pkgPath string, newStore gno.Store) (pn *gno.PackageNode, pv *gno.PackageValue) {
-		// otherwise, built-in package value.
-		// first, load from filepath.
-		stdlibPath := filepath.Join(vm.stdlibsDir, pkgPath)
-		if !osm.DirExists(stdlibPath) {
-			// does not exist.
-			return nil, nil
-		}
-		memPkg := gno.ReadMemPackage(stdlibPath, pkgPath)
-		if memPkg.IsEmpty() {
-			// no gno files are present, skip this package
-			return nil, nil
-		}
-
-		m2 := gno.NewMachineWithOptions(gno.MachineOptions{
-			PkgPath: "gno.land/r/stdlibs/" + pkgPath,
-			// PkgPath: pkgPath,
-			Output: os.Stdout,
-			Store:  newStore,
-		})
-		defer m2.Release()
-		return m2.RunMemPackage(memPkg, true)
-	}
-	store.SetPackageGetter(getPackage)
-	store.SetNativeStore(stdlibs.NativeStore)
-}
 
 // ----------------------------------------
 // SDKBanker
@@ -79,7 +42,7 @@ func (bnk *SDKBanker) TotalCoin(denom string) int64 {
 
 func (bnk *SDKBanker) IssueCoin(b32addr crypto.Bech32Address, denom string, amount int64) {
 	addr := crypto.MustAddressFromString(string(b32addr))
-	_, err := bnk.vmk.bank.AddCoins(bnk.ctx, addr, std.Coins{std.Coin{denom, amount}})
+	_, err := bnk.vmk.bank.AddCoins(bnk.ctx, addr, std.Coins{std.Coin{Denom: denom, Amount: amount}})
 	if err != nil {
 		panic(err)
 	}
@@ -87,8 +50,31 @@ func (bnk *SDKBanker) IssueCoin(b32addr crypto.Bech32Address, denom string, amou
 
 func (bnk *SDKBanker) RemoveCoin(b32addr crypto.Bech32Address, denom string, amount int64) {
 	addr := crypto.MustAddressFromString(string(b32addr))
-	_, err := bnk.vmk.bank.SubtractCoins(bnk.ctx, addr, std.Coins{std.Coin{denom, amount}})
+	_, err := bnk.vmk.bank.SubtractCoins(bnk.ctx, addr, std.Coins{std.Coin{Denom: denom, Amount: amount}})
 	if err != nil {
 		panic(err)
 	}
 }
+
+// ----------------------------------------
+// SDKParams
+
+type SDKParams struct {
+	vmk *VMKeeper
+	ctx sdk.Context
+}
+
+func NewSDKParams(vmk *VMKeeper, ctx sdk.Context) *SDKParams {
+	return &SDKParams{
+		vmk: vmk,
+		ctx: ctx,
+	}
+}
+
+func (prm *SDKParams) SetString(key, value string)      { prm.vmk.prmk.SetString(prm.ctx, key, value) }
+func (prm *SDKParams) SetBool(key string, value bool)   { prm.vmk.prmk.SetBool(prm.ctx, key, value) }
+func (prm *SDKParams) SetInt64(key string, value int64) { prm.vmk.prmk.SetInt64(prm.ctx, key, value) }
+func (prm *SDKParams) SetUint64(key string, value uint64) {
+	prm.vmk.prmk.SetUint64(prm.ctx, key, value)
+}
+func (prm *SDKParams) SetBytes(key string, value []byte) { prm.vmk.prmk.SetBytes(prm.ctx, key, value) }

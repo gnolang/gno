@@ -1,4 +1,4 @@
-// PKGPATH: gno.land/r/groups_test
+// PKGPATH: gno.land/r/demo/groups_test
 package groups_test
 
 // SEND: 200000000ugnot
@@ -22,3 +22,4 @@ func main() {
 // List of all Groups:
 //
 //  * [test_group](/r/demo/groups:test_group)
+//

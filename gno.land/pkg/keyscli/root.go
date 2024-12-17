@@ -17,7 +17,7 @@ func NewRootCmd(io commands.IO, base client.BaseOptions) *commands.Command {
 	cmd := commands.NewCommand(
 		commands.Metadata{
 			ShortUsage: "<subcommand> [flags] [<arg>...]",
-			LongHelp:   "Manages private keys for the node",
+			LongHelp:   "gno.land keychain & client",
 			Options: []ff.Option{
 				ff.WithConfigFileFlag("config"),
 				ff.WithConfigFileParser(fftoml.Parser),
@@ -30,6 +30,7 @@ func NewRootCmd(io commands.IO, base client.BaseOptions) *commands.Command {
 	cmd.AddSubCommands(
 		client.NewAddCmd(cfg, io),
 		client.NewDeleteCmd(cfg, io),
+		client.NewRotateCmd(cfg, io),
 		client.NewGenerateCmd(cfg, io),
 		client.NewExportCmd(cfg, io),
 		client.NewImportCmd(cfg, io),

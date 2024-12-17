@@ -4,22 +4,21 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	"go/parser"
-	"go/token"
 	"os"
 	"path/filepath"
-	"sort"
 	"strings"
 
+	"github.com/gnolang/gno/gnovm/cmd/gno/internal/pkgdownload"
+	"github.com/gnolang/gno/gnovm/cmd/gno/internal/pkgdownload/rpcpkgfetcher"
 	"github.com/gnolang/gno/gnovm/pkg/gnomod"
+	"github.com/gnolang/gno/gnovm/pkg/packages"
 	"github.com/gnolang/gno/tm2/pkg/commands"
 	"github.com/gnolang/gno/tm2/pkg/errors"
+	"go.uber.org/multierr"
 )
 
-type modDownloadCfg struct {
-	remote  string
-	verbose bool
-}
+// testPackageFetcher allows to override the package fetcher during tests.
+var testPackageFetcher pkgdownload.PackageFetcher
 
 func newModCmd(io commands.IO) *commands.Command {
 	cmd := commands.NewCommand(
@@ -73,15 +72,17 @@ func newModInitCmd() *commands.Command {
 }
 
 func newModTidy(io commands.IO) *commands.Command {
+	cfg := &modTidyCfg{}
+
 	return commands.NewCommand(
 		commands.Metadata{
 			Name:       "tidy",
-			ShortUsage: "tidy",
+			ShortUsage: "tidy [flags]",
 			ShortHelp:  "add missing and remove unused modules",
 		},
-		commands.NewEmptyConfig(),
+		cfg,
 		func(_ context.Context, args []string) error {
-			return execModTidy(args, io)
+			return execModTidy(cfg, args, io)
 		},
 	)
 }
@@ -124,25 +125,35 @@ For example:
 	)
 }
 
+type modDownloadCfg struct {
+	remoteOverrides string
+}
+
+const remoteOverridesArgName = "remote-overrides"
+
 func (c *modDownloadCfg) RegisterFlags(fs *flag.FlagSet) {
 	fs.StringVar(
-		&c.remote,
-		"remote",
-		"test3.gno.land:36657",
-		"remote for fetching gno modules",
-	)
-
-	fs.BoolVar(
-		&c.verbose,
-		"v",
-		false,
-		"verbose output when running",
+		&c.remoteOverrides,
+		remoteOverridesArgName,
+		"",
+		"chain-domain=rpc-url comma-separated list",
 	)
 }
 
 func execModDownload(cfg *modDownloadCfg, args []string, io commands.IO) error {
 	if len(args) > 0 {
 		return flag.ErrHelp
+	}
+
+	fetcher := testPackageFetcher
+	if fetcher == nil {
+		remoteOverrides, err := parseRemoteOverrides(cfg.remoteOverrides)
+		if err != nil {
+			return fmt.Errorf("invalid %s flag: %w", remoteOverridesArgName, err)
+		}
+		fetcher = rpcpkgfetcher.New(remoteOverrides)
+	} else if len(cfg.remoteOverrides) != 0 {
+		return fmt.Errorf("can't use %s flag with a custom package fetcher", remoteOverridesArgName)
 	}
 
 	path, err := os.Getwd()
@@ -173,23 +184,26 @@ func execModDownload(cfg *modDownloadCfg, args []string, io commands.IO) error {
 		return fmt.Errorf("validate: %w", err)
 	}
 
-	// fetch dependencies
-	if err := gnoMod.FetchDeps(gnomod.GetGnoModPath(), cfg.remote, cfg.verbose); err != nil {
-		return fmt.Errorf("fetch: %w", err)
-	}
-
-	gomod, err := gnomod.GnoToGoMod(*gnoMod)
-	if err != nil {
-		return fmt.Errorf("sanitize: %w", err)
-	}
-
-	// write go.mod file
-	err = gomod.Write(filepath.Join(path, "go.mod"))
-	if err != nil {
-		return fmt.Errorf("write go.mod file: %w", err)
+	if err := downloadDeps(io, path, gnoMod, fetcher); err != nil {
+		return err
 	}
 
 	return nil
+}
+
+func parseRemoteOverrides(arg string) (map[string]string, error) {
+	pairs := strings.Split(arg, ",")
+	res := make(map[string]string, len(pairs))
+	for _, pair := range pairs {
+		parts := strings.Split(pair, "=")
+		if len(parts) != 2 {
+			return nil, fmt.Errorf("expected 2 parts in chain-domain=rpc-url pair %q", arg)
+		}
+		domain := strings.TrimSpace(parts[0])
+		rpcURL := strings.TrimSpace(parts[1])
+		res[domain] = rpcURL
+	}
+	return res, nil
 }
 
 func execModInit(args []string) error {
@@ -211,7 +225,27 @@ func execModInit(args []string) error {
 	return nil
 }
 
-func execModTidy(args []string, io commands.IO) error {
+type modTidyCfg struct {
+	verbose   bool
+	recursive bool
+}
+
+func (c *modTidyCfg) RegisterFlags(fs *flag.FlagSet) {
+	fs.BoolVar(
+		&c.verbose,
+		"v",
+		false,
+		"verbose output when running",
+	)
+	fs.BoolVar(
+		&c.recursive,
+		"recursive",
+		false,
+		"walk subdirs for gno.mod files",
+	)
+}
+
+func execModTidy(cfg *modTidyCfg, args []string, io commands.IO) error {
 	if len(args) > 0 {
 		return flag.ErrHelp
 	}
@@ -220,27 +254,37 @@ func execModTidy(args []string, io commands.IO) error {
 	if err != nil {
 		return err
 	}
-	fname := filepath.Join(wd, "gno.mod")
+
+	if cfg.recursive {
+		pkgs, err := gnomod.ListPkgs(wd)
+		if err != nil {
+			return err
+		}
+		var errs error
+		for _, pkg := range pkgs {
+			err := modTidyOnce(cfg, wd, pkg.Dir, io)
+			errs = multierr.Append(errs, err)
+		}
+		return errs
+	}
+
+	// XXX: recursively check parents if no $PWD/gno.mod
+	return modTidyOnce(cfg, wd, wd, io)
+}
+
+func modTidyOnce(cfg *modTidyCfg, wd, pkgdir string, io commands.IO) error {
+	fname := filepath.Join(pkgdir, "gno.mod")
+	relpath, err := filepath.Rel(wd, fname)
+	if err != nil {
+		return err
+	}
+	if cfg.verbose {
+		io.ErrPrintfln("%s", relpath)
+	}
+
 	gm, err := gnomod.ParseGnoMod(fname)
 	if err != nil {
 		return err
-	}
-
-	// Drop all existing requires
-	for _, r := range gm.Require {
-		gm.DropRequire(r.Mod.Path)
-	}
-
-	imports, err := getGnoPackageImports(wd)
-	if err != nil {
-		return err
-	}
-	for _, im := range imports {
-		// skip if importpath is modulepath
-		if im == gm.Module.Mod.Path {
-			continue
-		}
-		gm.AddRequire(im, "v0.0.0-latest")
 	}
 
 	gm.Write(fname)
@@ -313,79 +357,22 @@ func getImportToFilesMap(pkgPath string) (map[string][]string, error) {
 		if strings.HasSuffix(filename, "_filetest.gno") {
 			continue
 		}
-		imports, err := getGnoFileImports(filepath.Join(pkgPath, filename))
+
+		data, err := os.ReadFile(filepath.Join(pkgPath, filename))
+		if err != nil {
+			return nil, err
+		}
+		imports, _, err := packages.FileImports(filename, string(data))
 		if err != nil {
 			return nil, err
 		}
 
 		for _, imp := range imports {
-			m[imp] = append(m[imp], filename)
+			if imp.Error != nil {
+				return nil, err
+			}
+			m[imp.PkgPath] = append(m[imp.PkgPath], filename)
 		}
 	}
 	return m, nil
-}
-
-// getGnoPackageImports returns the list of gno imports from a given path.
-// Note: It ignores subdirs. Since right now we are still deciding on
-// how to handle subdirs.
-// See:
-// - https://github.com/gnolang/gno/issues/1024
-// - https://github.com/gnolang/gno/issues/852
-//
-// TODO: move this to better location.
-func getGnoPackageImports(path string) ([]string, error) {
-	entries, err := os.ReadDir(path)
-	if err != nil {
-		return nil, err
-	}
-
-	allImports := make([]string, 0)
-	seen := make(map[string]struct{})
-	for _, e := range entries {
-		filename := e.Name()
-		if ext := filepath.Ext(filename); ext != ".gno" {
-			continue
-		}
-		if strings.HasSuffix(filename, "_filetest.gno") {
-			continue
-		}
-		imports, err := getGnoFileImports(filepath.Join(path, filename))
-		if err != nil {
-			return nil, err
-		}
-		for _, im := range imports {
-			if !strings.HasPrefix(im, "gno.land/") {
-				continue
-			}
-			if _, ok := seen[im]; ok {
-				continue
-			}
-			allImports = append(allImports, im)
-			seen[im] = struct{}{}
-		}
-	}
-	sort.Strings(allImports)
-
-	return allImports, nil
-}
-
-func getGnoFileImports(fname string) ([]string, error) {
-	if !strings.HasSuffix(fname, ".gno") {
-		return nil, fmt.Errorf("not a gno file: %q", fname)
-	}
-	data, err := os.ReadFile(fname)
-	if err != nil {
-		return nil, err
-	}
-	fs := token.NewFileSet()
-	f, err := parser.ParseFile(fs, fname, data, parser.ImportsOnly)
-	if err != nil {
-		return nil, err
-	}
-	res := make([]string, 0)
-	for _, im := range f.Imports {
-		importPath := strings.TrimPrefix(strings.TrimSuffix(im.Path.Value, `"`), `"`)
-		res = append(res, importPath)
-	}
-	return res, nil
 }

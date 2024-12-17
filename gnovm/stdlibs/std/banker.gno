@@ -1,6 +1,9 @@
 package std
 
-import "strconv"
+import (
+	"strconv"
+	"strings"
+)
 
 // Realm functions can call std.GetBanker(options) to get
 // a banker instance. Banker objects cannot be persisted,
@@ -63,10 +66,24 @@ func (b BankerType) String() string {
 // GetBanker returns a new Banker, with its capabilities matching the given
 // [BankerType].
 func GetBanker(bt BankerType) Banker {
+	assertCallerIsRealm()
 	if bt >= maxBanker {
 		panic("invalid banker type")
 	}
-	return banker{bt}
+
+	var pkgAddr Address
+	if bt == BankerTypeOrigSend {
+		pkgAddr = GetOrigPkgAddr()
+		if pkgAddr != CurrentRealm().Addr() {
+			panic("banker with type BankerTypeOrigSend can only be instantiated by the origin package")
+		}
+	} else if bt == BankerTypeRealmSend || bt == BankerTypeRealmIssue {
+		pkgAddr = CurrentRealm().Addr()
+	}
+	return banker{
+		bt,
+		pkgAddr,
+	}
 }
 
 // These are native bindings to the banker's functions.
@@ -77,7 +94,8 @@ func bankerIssueCoin(bt uint8, addr string, denom string, amount int64)
 func bankerRemoveCoin(bt uint8, addr string, denom string, amount int64)
 
 type banker struct {
-	bt BankerType
+	bt      BankerType
+	pkgAddr Address
 }
 
 func (b banker) GetCoins(addr Address) (dst Coins) {
@@ -93,6 +111,10 @@ func (b banker) SendCoins(from, to Address, amt Coins) {
 	if b.bt == BankerTypeReadonly {
 		panic("BankerTypeReadonly cannot send coins")
 	}
+	if b.pkgAddr != from {
+		msg := `can only send coins from realm that created banker "` + b.pkgAddr + `", not "` + from + `"`
+		panic(msg)
+	}
 	denoms, amounts := amt.expandNative()
 	bankerSendCoins(uint8(b.bt), string(from), string(to), denoms, amounts)
 }
@@ -105,6 +127,7 @@ func (b banker) IssueCoin(addr Address, denom string, amount int64) {
 	if b.bt != BankerTypeRealmIssue {
 		panic(b.bt.String() + " cannot issue coins")
 	}
+	assertCoinDenom(denom)
 	bankerIssueCoin(uint8(b.bt), string(addr), denom, amount)
 }
 
@@ -112,5 +135,35 @@ func (b banker) RemoveCoin(addr Address, denom string, amount int64) {
 	if b.bt != BankerTypeRealmIssue {
 		panic(b.bt.String() + " cannot remove coins")
 	}
+	assertCoinDenom(denom)
 	bankerRemoveCoin(uint8(b.bt), string(addr), denom, amount)
+}
+
+func assertCoinDenom(denom string) {
+	prefix := "/" + CurrentRealm().PkgPath() + ":"
+	if !strings.HasPrefix(denom, prefix) {
+		panic("invalid denom, can only issue/remove coins with the realm's prefix: " + prefix)
+	}
+
+	baseDenom := denom[len(prefix):]
+	if !isValidBaseDenom(baseDenom) {
+		panic("cannot issue coins with invalid denom base name, it should start by a lowercase letter and be followed by 2-15 lowercase letters or digits")
+	}
+}
+
+// check start by a lowercase letter and be followed by 2-15 lowercase letters or digits
+func isValidBaseDenom(denom string) bool {
+	length := len(denom)
+	if length < 3 || length > 16 {
+		return false
+	}
+	for i, c := range denom {
+		switch {
+		case c >= 'a' && c <= 'z',
+			i > 0 && (c >= '0' && c <= '9'): // continue
+		default:
+			return false
+		}
+	}
+	return true
 }

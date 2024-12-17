@@ -3,14 +3,17 @@ package integration
 import (
 	"log/slog"
 	"path/filepath"
+	"slices"
 	"time"
 
 	"github.com/gnolang/gno/gno.land/pkg/gnoland"
+	"github.com/gnolang/gno/gno.land/pkg/gnoland/ugnot"
 	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
 	tmcfg "github.com/gnolang/gno/tm2/pkg/bft/config"
 	"github.com/gnolang/gno/tm2/pkg/bft/node"
 	bft "github.com/gnolang/gno/tm2/pkg/bft/types"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
+	"github.com/gnolang/gno/tm2/pkg/db/memdb"
 	"github.com/gnolang/gno/tm2/pkg/std"
 	"github.com/stretchr/testify/require"
 )
@@ -30,10 +33,19 @@ func TestingInMemoryNode(t TestingTS, logger *slog.Logger, config *gnoland.InMem
 	err = node.Start()
 	require.NoError(t, err)
 
-	select {
-	case <-node.Ready():
-	case <-time.After(time.Second * 10):
-		require.FailNow(t, "timeout while waiting for the node to start")
+	ourAddress := config.PrivValidator.GetPubKey().Address()
+	isValidator := slices.ContainsFunc(config.Genesis.Validators, func(val bft.GenesisValidator) bool {
+		return val.Address == ourAddress
+	})
+
+	// Wait for first block if we are a validator.
+	// If we are not a validator, we don't produce blocks, so node.Ready() hangs.
+	if isValidator {
+		select {
+		case <-node.Ready():
+		case <-time.After(time.Second * 10):
+			require.FailNow(t, "timeout while waiting for the node to start")
+		}
 	}
 
 	return node, node.Config().RPC.ListenAddress
@@ -42,20 +54,22 @@ func TestingInMemoryNode(t TestingTS, logger *slog.Logger, config *gnoland.InMem
 // TestingNodeConfig constructs an in-memory node configuration
 // with default packages and genesis transactions already loaded.
 // It will return the default creator address of the loaded packages.
-func TestingNodeConfig(t TestingTS, gnoroot string) (*gnoland.InMemoryNodeConfig, bft.Address) {
+func TestingNodeConfig(t TestingTS, gnoroot string, additionalTxs ...gnoland.TxWithMetadata) (*gnoland.InMemoryNodeConfig, bft.Address) {
 	cfg := TestingMinimalNodeConfig(t, gnoroot)
 
 	creator := crypto.MustAddressFromString(DefaultAccount_Address) // test1
 
+	params := LoadDefaultGenesisParamFile(t, gnoroot)
 	balances := LoadDefaultGenesisBalanceFile(t, gnoroot)
-	txs := []std.Tx{}
+	txs := make([]gnoland.TxWithMetadata, 0)
 	txs = append(txs, LoadDefaultPackages(t, creator, gnoroot)...)
-	txs = append(txs, LoadDefaultGenesisTXsFile(t, cfg.Genesis.ChainID, gnoroot)...)
+	txs = append(txs, additionalTxs...)
 
-	cfg.Genesis.AppState = gnoland.GnoGenesisState{
-		Balances: balances,
-		Txs:      txs,
-	}
+	ggs := cfg.Genesis.AppState.(gnoland.GnoGenesisState)
+	ggs.Balances = balances
+	ggs.Txs = txs
+	ggs.Params = params
+	cfg.Genesis.AppState = ggs
 
 	return cfg, creator
 }
@@ -71,14 +85,27 @@ func TestingMinimalNodeConfig(t TestingTS, gnoroot string) *gnoland.InMemoryNode
 	genesis := DefaultTestingGenesisConfig(t, gnoroot, pv.GetPubKey(), tmconfig)
 
 	return &gnoland.InMemoryNodeConfig{
-		PrivValidator:    pv,
-		Genesis:          genesis,
-		TMConfig:         tmconfig,
-		GenesisTxHandler: gnoland.PanicOnFailingTxHandler,
+		PrivValidator: pv,
+		Genesis:       genesis,
+		TMConfig:      tmconfig,
+		DB:            memdb.NewMemDB(),
+		InitChainerConfig: gnoland.InitChainerConfig{
+			GenesisTxResultHandler: gnoland.PanicOnFailingTxResultHandler,
+			CacheStdlibLoad:        true,
+		},
 	}
 }
 
 func DefaultTestingGenesisConfig(t TestingTS, gnoroot string, self crypto.PubKey, tmconfig *tmcfg.Config) *bft.GenesisDoc {
+	genState := gnoland.DefaultGenState()
+	genState.Balances = []gnoland.Balance{
+		{
+			Address: crypto.MustAddressFromString(DefaultAccount_Address),
+			Amount:  std.MustParseCoins(ugnot.ValueString(10000000000000)),
+		},
+	}
+	genState.Txs = []gnoland.TxWithMetadata{}
+	genState.Params = []gnoland.Param{}
 	return &bft.GenesisDoc{
 		GenesisTime: time.Now(),
 		ChainID:     tmconfig.ChainID(),
@@ -98,24 +125,16 @@ func DefaultTestingGenesisConfig(t TestingTS, gnoroot string, self crypto.PubKey
 				Name:    "self",
 			},
 		},
-		AppState: gnoland.GnoGenesisState{
-			Balances: []gnoland.Balance{
-				{
-					Address: crypto.MustAddressFromString(DefaultAccount_Address),
-					Amount:  std.MustParseCoins("10000000000000ugnot"),
-				},
-			},
-			Txs: []std.Tx{},
-		},
+		AppState: genState,
 	}
 }
 
 // LoadDefaultPackages loads the default packages for testing using a given creator address and gnoroot directory.
-func LoadDefaultPackages(t TestingTS, creator bft.Address, gnoroot string) []std.Tx {
+func LoadDefaultPackages(t TestingTS, creator bft.Address, gnoroot string) []gnoland.TxWithMetadata {
 	examplesDir := filepath.Join(gnoroot, "examples")
 
-	defaultFee := std.NewFee(50000, std.MustParseCoin("1000000ugnot"))
-	txs, err := gnoland.LoadPackagesFromDir(examplesDir, creator, defaultFee, nil)
+	defaultFee := std.NewFee(50000, std.MustParseCoin(ugnot.ValueString(1000000)))
+	txs, err := gnoland.LoadPackagesFromDir(examplesDir, creator, defaultFee)
 	require.NoError(t, err)
 
 	return txs
@@ -131,8 +150,18 @@ func LoadDefaultGenesisBalanceFile(t TestingTS, gnoroot string) []gnoland.Balanc
 	return genesisBalances
 }
 
+// LoadDefaultGenesisParamFile loads the default genesis balance file for testing.
+func LoadDefaultGenesisParamFile(t TestingTS, gnoroot string) []gnoland.Param {
+	paramFile := filepath.Join(gnoroot, "gno.land", "genesis", "genesis_params.toml")
+
+	genesisParams, err := gnoland.LoadGenesisParamsFile(paramFile)
+	require.NoError(t, err)
+
+	return genesisParams
+}
+
 // LoadDefaultGenesisTXsFile loads the default genesis transactions file for testing.
-func LoadDefaultGenesisTXsFile(t TestingTS, chainid string, gnoroot string) []std.Tx {
+func LoadDefaultGenesisTXsFile(t TestingTS, chainid string, gnoroot string) []gnoland.TxWithMetadata {
 	txsFile := filepath.Join(gnoroot, "gno.land", "genesis", "genesis_txs.jsonl")
 
 	// NOTE: We dont care about giving a correct address here, as it's only for display

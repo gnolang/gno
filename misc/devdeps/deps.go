@@ -15,7 +15,6 @@ import (
 	_ "golang.org/x/tools/cmd/goimports"
 
 	// required for formatting, linting, pls.
-	_ "golang.org/x/tools/gopls"
 	_ "mvdan.cc/gofumpt"
 
 	// protoc, genproto
@@ -26,4 +25,7 @@ import (
 
 	// linter
 	_ "github.com/golangci/golangci-lint/cmd/golangci-lint"
+
+	// embedmd
+	_ "github.com/campoy/embedmd/embedmd"
 )

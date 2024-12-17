@@ -2,13 +2,8 @@ name: examples
 
 on:
   pull_request:
-    paths:
-      - "go.sum"
-      - "gnovm/**"
-      - "examples/**"
-      - ".github/workflows/examples.yml"
   push:
-    branches: [ "master" ]
+    branches: ["master"]
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.head_ref || github.run_id }}
@@ -20,7 +15,6 @@ jobs:
       fail-fast: false
       matrix:
         goversion:
-          - "1.21.x"
           - "1.22.x"
     runs-on: ubuntu-latest
     timeout-minutes: 30
@@ -36,7 +30,6 @@ jobs:
       fail-fast: false
       matrix:
         goversion:
-          - "1.21.x"
           - "1.22.x"
         # unittests: TODO: matrix with contracts
     runs-on: ubuntu-latest
@@ -54,13 +47,12 @@ jobs:
           echo "LOG_LEVEL=debug" >> $GITHUB_ENV
           echo "LOG_PATH_DIR=$LOG_PATH_DIR" >> $GITHUB_ENV
       - run: go install -v ./gnovm/cmd/gno
-      - run: go run ./gnovm/cmd/gno test -v ./examples/...
+      - run: go run ./gnovm/cmd/gno test -v -print-runtime-metrics -print-events ./examples/...
   lint:
     strategy:
       fail-fast: false
       matrix:
         goversion:
-          - "1.21.x"
           - "1.22.x"
         # unittests: TODO: matrix with contracts
     runs-on: ubuntu-latest
@@ -74,11 +66,27 @@ jobs:
       - run: make lint -C ./examples
       # TODO: consider running lint on every other directories, maybe in "warning" mode?
     # TODO: track coverage
+  fmt:
+    strategy:
+      fail-fast: false
+      matrix:
+        goversion: ["1.22.x"]
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: ${{ matrix.goversion }}
+      - run: |
+          make fmt -C ./examples
+          # Check if there are changes after running make fmt
+          git diff --exit-code || (echo "Some gno files are not formatted, please run 'make fmt'." && exit 1)
   mod-tidy:
     strategy:
       fail-fast: false
       matrix:
-        go-version: [ "1.22.x" ]
+        go-version: ["1.22.x"]
         # unittests: TODO: matrix with contracts
     runs-on: ubuntu-latest
     timeout-minutes: 10

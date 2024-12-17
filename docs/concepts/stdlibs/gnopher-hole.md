@@ -6,13 +6,13 @@ id: gnopher-hole-stdlib
 
 ## Native bindings
 
-Gno has support for "natively-defined" functions  exclusively within the standard
+Gno has support for "natively-defined" functions exclusively within the standard
 libraries. These are functions which are _declared_ in Gno code, but only _defined_
 in Go. There are generally three reasons why a function should be natively
 defined:
 
 1. It relies on inspecting the Gno Virtual Machine itself, i.e. `std.AssertOriginCall`
-   or `std.CurrentRealmPath`.
+   or `std.CurrentRealm`.
 2. It relies on `unsafe`, or other features which are not planned to be
    available in the GnoVM, i.e. `math.Float64frombits`.
 3. Its native Go performance significantly outperforms the Gno counterpart by

@@ -48,12 +48,12 @@ type Config struct {
 	BaseConfig `toml:",squash"`
 
 	// Options for services
-	RPC          *rpc.RPCConfig       `toml:"rpc" comment:"##### rpc server configuration options #####"`
-	P2P          *p2p.P2PConfig       `toml:"p2p" comment:"##### peer to peer configuration options #####"`
-	Mempool      *mem.MempoolConfig   `toml:"mempool" comment:"##### mempool configuration options #####"`
-	Consensus    *cns.ConsensusConfig `toml:"consensus" comment:"##### consensus configuration options #####"`
-	TxEventStore *eventstore.Config   `toml:"tx_event_store" comment:"##### event store #####"`
-	Telemetry    *telemetry.Config    `toml:"telemetry" comment:"##### node telemetry #####"`
+	RPC          *rpc.RPCConfig       `json:"rpc" toml:"rpc" comment:"##### rpc server configuration options #####"`
+	P2P          *p2p.P2PConfig       `json:"p2p" toml:"p2p" comment:"##### peer to peer configuration options #####"`
+	Mempool      *mem.MempoolConfig   `json:"mempool" toml:"mempool" comment:"##### mempool configuration options #####"`
+	Consensus    *cns.ConsensusConfig `json:"consensus" toml:"consensus" comment:"##### consensus configuration options #####"`
+	TxEventStore *eventstore.Config   `json:"tx_event_store" toml:"tx_event_store" comment:"##### event store #####"`
+	Telemetry    *telemetry.Config    `json:"telemetry" toml:"telemetry" comment:"##### node telemetry #####"`
 }
 
 // DefaultConfig returns a default configuration for a Tendermint node
@@ -70,6 +70,36 @@ func DefaultConfig() *Config {
 }
 
 type Option func(cfg *Config)
+
+// LoadConfig loads the node configuration from disk
+func LoadConfig(root string) (*Config, error) {
+	// Initialize the config as default
+	var (
+		cfg        = DefaultConfig()
+		configPath = filepath.Join(root, defaultConfigPath)
+	)
+
+	if !osm.FileExists(configPath) {
+		return nil, fmt.Errorf("config file at %q does not exist", configPath)
+	}
+
+	// Load the configuration
+	loadedCfg, loadErr := LoadConfigFile(configPath)
+	if loadErr != nil {
+		return nil, loadErr
+	}
+
+	// Merge the loaded config with the default values.
+	// This is done in case the loaded config is missing values
+	if err := mergo.Merge(loadedCfg, cfg); err != nil {
+		return nil, err
+	}
+
+	// Set the root directory
+	loadedCfg.SetRootDir(root)
+
+	return loadedCfg, nil
+}
 
 // LoadOrMakeConfigWithOptions loads the configuration located in the given
 // root directory, at [defaultConfigFilePath].
@@ -142,7 +172,7 @@ func TestConfig() *Config {
 		Mempool:      mem.TestMempoolConfig(),
 		Consensus:    cns.TestConsensusConfig(),
 		TxEventStore: eventstore.DefaultEventStoreConfig(),
-		Telemetry:    telemetry.TestTelemetryConfig(),
+		Telemetry:    telemetry.DefaultTelemetryConfig(),
 	}
 }
 
@@ -165,11 +195,11 @@ func (cfg *Config) EnsureDirs() error {
 		return fmt.Errorf("no root directory, %w", err)
 	}
 
-	if err := osm.EnsureDir(filepath.Join(rootDir, defaultConfigDir), DefaultDirPerm); err != nil {
+	if err := osm.EnsureDir(filepath.Join(rootDir, DefaultConfigDir), DefaultDirPerm); err != nil {
 		return fmt.Errorf("no config directory, %w", err)
 	}
 
-	if err := osm.EnsureDir(filepath.Join(rootDir, defaultSecretsDir), DefaultDirPerm); err != nil {
+	if err := osm.EnsureDir(filepath.Join(rootDir, DefaultSecretsDir), DefaultDirPerm); err != nil {
 		return fmt.Errorf("no secrets directory, %w", err)
 	}
 
@@ -205,18 +235,18 @@ func (cfg *Config) ValidateBasic() error {
 
 var (
 	DefaultDBDir      = "db"
-	defaultConfigDir  = "config"
-	defaultSecretsDir = "secrets"
+	DefaultConfigDir  = "config"
+	DefaultSecretsDir = "secrets"
 
-	defaultConfigFileName   = "config.toml"
+	DefaultConfigFileName   = "config.toml"
 	defaultNodeKeyName      = "node_key.json"
 	defaultPrivValKeyName   = "priv_validator_key.json"
 	defaultPrivValStateName = "priv_validator_state.json"
 
-	defaultConfigPath       = filepath.Join(defaultConfigDir, defaultConfigFileName)
-	defaultPrivValKeyPath   = filepath.Join(defaultSecretsDir, defaultPrivValKeyName)
-	defaultPrivValStatePath = filepath.Join(defaultSecretsDir, defaultPrivValStateName)
-	defaultNodeKeyPath      = filepath.Join(defaultSecretsDir, defaultNodeKeyName)
+	defaultConfigPath       = filepath.Join(DefaultConfigDir, DefaultConfigFileName)
+	defaultPrivValKeyPath   = filepath.Join(DefaultSecretsDir, defaultPrivValKeyName)
+	defaultPrivValStatePath = filepath.Join(DefaultSecretsDir, defaultPrivValStateName)
+	defaultNodeKeyPath      = filepath.Join(DefaultSecretsDir, defaultNodeKeyName)
 )
 
 // BaseConfig defines the base configuration for a Tendermint node.

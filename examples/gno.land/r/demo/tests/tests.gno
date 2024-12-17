@@ -3,6 +3,7 @@ package tests
 import (
 	"std"
 
+	"gno.land/p/demo/nestedpkg"
 	rsubtests "gno.land/r/demo/tests/subtests"
 )
 
@@ -17,7 +18,7 @@ func Counter() int {
 }
 
 func CurrentRealmPath() string {
-	return std.CurrentRealmPath()
+	return std.CurrentRealm().PkgPath()
 }
 
 var initOrigCaller = std.GetOrigCaller()
@@ -26,12 +27,20 @@ func InitOrigCaller() std.Address {
 	return initOrigCaller
 }
 
-func AssertOriginCall() {
+func CallAssertOriginCall() {
 	std.AssertOriginCall()
 }
 
-func IsOriginCall() bool {
+func CallIsOriginCall() bool {
 	return std.IsOriginCall()
+}
+
+func CallSubtestsAssertOriginCall() {
+	rsubtests.CallAssertOriginCall()
+}
+
+func CallSubtestsIsOriginCall() bool {
+	return rsubtests.CallIsOriginCall()
 }
 
 //----------------------------------------
@@ -40,6 +49,8 @@ func IsOriginCall() bool {
 type TestRealmObject struct {
 	Field string
 }
+
+var TestRealmObjectValue TestRealmObject
 
 func ModifyTestRealmObject(t *TestRealmObject) {
 	t.Field += "_modified"
@@ -90,4 +101,16 @@ func GetRSubtestsPrevRealm() std.Realm {
 
 func Exec(fn func()) {
 	fn()
+}
+
+func IsCallerSubPath() bool {
+	return nestedpkg.IsCallerSubPath()
+}
+
+func IsCallerParentPath() bool {
+	return nestedpkg.IsCallerParentPath()
+}
+
+func HasCallerSameNamespace() bool {
+	return nestedpkg.IsSameNamespace()
 }

@@ -3,6 +3,7 @@ package mempool
 import (
 	"bytes"
 	"container/list"
+	"context"
 	"crypto/sha256"
 	"fmt"
 	"log/slog"
@@ -19,6 +20,8 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/errors"
 	"github.com/gnolang/gno/tm2/pkg/log"
 	osm "github.com/gnolang/gno/tm2/pkg/os"
+	"github.com/gnolang/gno/tm2/pkg/telemetry"
+	"github.com/gnolang/gno/tm2/pkg/telemetry/metrics"
 )
 
 // --------------------------------------------------------------------------------
@@ -333,6 +336,22 @@ func (mem *CListMempool) addTx(memTx *mempoolTx) {
 	e := mem.txs.PushBack(memTx)
 	mem.txsMap.Store(txKey(memTx.tx), e)
 	atomic.AddInt64(&mem.txsBytes, int64(len(memTx.tx)))
+
+	// Update the telemetry
+	mem.logTelemetry()
+}
+
+// logTelemetry logs the mempool telemetry
+func (mem *CListMempool) logTelemetry() {
+	if !telemetry.MetricsEnabled() {
+		return
+	}
+
+	// Log the total number of mempool transactions
+	metrics.NumMempoolTxs.Record(context.Background(), int64(mem.txs.Len()))
+
+	// Log the total number of the mempool cache transactions
+	metrics.NumCachedTxs.Record(context.Background(), int64(mem.cache.Len()))
 }
 
 // Called from:
@@ -347,6 +366,9 @@ func (mem *CListMempool) removeTx(tx types.Tx, elem *clist.CElement, removeFromC
 	if removeFromCache {
 		mem.cache.Remove(tx)
 	}
+
+	// Update the telemetry
+	mem.logTelemetry()
 }
 
 // callback, which is called after the app checked the tx for the first time.
@@ -483,12 +505,12 @@ func (mem *CListMempool) ReapMaxBytesMaxGas(maxDataBytes, maxGas int64) types.Tx
 	return txs
 }
 
-func (mem *CListMempool) ReapMaxTxs(max int) types.Txs {
+func (mem *CListMempool) ReapMaxTxs(maxVal int) types.Txs {
 	mem.mtx.Lock()
 	defer mem.mtx.Unlock()
 
-	if max < 0 {
-		max = mem.txs.Len()
+	if maxVal < 0 {
+		maxVal = mem.txs.Len()
 	}
 
 	for atomic.LoadInt32(&mem.rechecking) > 0 {
@@ -496,8 +518,8 @@ func (mem *CListMempool) ReapMaxTxs(max int) types.Txs {
 		time.Sleep(time.Millisecond * 10)
 	}
 
-	txs := make([]types.Tx, 0, min(mem.txs.Len(), max))
-	for e := mem.txs.Front(); e != nil && len(txs) <= max; e = e.Next() {
+	txs := make([]types.Tx, 0, min(mem.txs.Len(), maxVal))
+	for e := mem.txs.Front(); e != nil && len(txs) <= maxVal; e = e.Next() {
 		memTx := e.Value.(*mempoolTx)
 		txs = append(txs, memTx.tx)
 	}
@@ -622,12 +644,13 @@ type txCache interface {
 	Reset()
 	Push(tx types.Tx) bool
 	Remove(tx types.Tx)
+	Len() int
 }
 
 // mapTxCache maintains a LRU cache of transactions. This only stores the hash
 // of the tx, due to memory concerns.
 type mapTxCache struct {
-	mtx  sync.Mutex
+	mtx  sync.RWMutex
 	size int
 	map_ map[[sha256.Size]byte]*list.Element
 	list *list.List
@@ -650,6 +673,13 @@ func (cache *mapTxCache) Reset() {
 	cache.map_ = make(map[[sha256.Size]byte]*list.Element, cache.size)
 	cache.list.Init()
 	cache.mtx.Unlock()
+}
+
+func (cache *mapTxCache) Len() int {
+	cache.mtx.RLock()
+	defer cache.mtx.RUnlock()
+
+	return cache.list.Len()
 }
 
 // Push adds the given tx to the cache and returns true. It returns
@@ -698,6 +728,7 @@ var _ txCache = (*nopTxCache)(nil)
 func (nopTxCache) Reset()             {}
 func (nopTxCache) Push(types.Tx) bool { return true }
 func (nopTxCache) Remove(types.Tx)    {}
+func (nopTxCache) Len() int           { return 0 }
 
 // --------------------------------------------------------------------------------
 

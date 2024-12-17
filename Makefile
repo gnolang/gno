@@ -35,16 +35,17 @@ install: install.gnokey install.gno install.gnodev
 .PHONY: install.gnokey
 install.gnokey:
 	$(MAKE) --no-print-directory -C ./gno.land	install.gnokey
-	# \033[0;32m ... \033[0m is ansi for green text.
-	@echo "\033[0;32m[+] 'gnokey' has been installed. Read more in ./gno.land/\033[0m"
+	@# \033[0;32m ... \033[0m is ansi for green text.
+	@printf "\033[0;32m[+] 'gnokey' has been installed. Read more in ./gno.land/\033[0m\n"
 .PHONY: install.gno
 install.gno:
 	$(MAKE) --no-print-directory -C ./gnovm	install
-	@echo "\033[0;32m[+] 'gno' has been installed. Read more in ./gnovm/\033[0m"
+	@printf "\033[0;32m[+] 'gno' has been installed. Read more in ./gnovm/\033[0m\n"
 .PHONY: install.gnodev
 install.gnodev:
-	$(MAKE) --no-print-directory -C ./contribs install.gnodev
-	@echo "\033[0;32m[+] 'gnodev' has been installed. Read more in ./contribs/gnodev/\033[0m"
+	$(MAKE) --no-print-directory -C ./contribs/gnodev install
+	@printf "\033[0;32m[+] 'gnodev' has been installed. Read more in ./contribs/gnodev/\033[0m\n"
+
 
 # old aliases
 .PHONY: install_gnokey
@@ -53,7 +54,7 @@ install_gnokey: install.gnokey
 install_gno: install.gno
 
 .PHONY: test
-test: test.components test.docker
+test: test.components
 
 .PHONY: test.components
 test.components:
@@ -62,14 +63,6 @@ test.components:
 	$(MAKE) --no-print-directory -C gno.land test
 	$(MAKE) --no-print-directory -C examples test
 	$(MAKE) --no-print-directory -C misc     test
-
-.PHONY: test.docker
-test.docker:
-	@if hash docker 2>/dev/null; then \
-		go test --tags=docker -count=1 -v ./misc/docker-integration; \
-	else \
-		echo "[-] 'docker' is missing, skipping ./misc/docker-integration tests."; \
-	fi
 
 .PHONY: fmt
 fmt:

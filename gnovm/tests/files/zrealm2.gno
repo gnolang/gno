@@ -63,13 +63,24 @@ func main() {
 //         "@type": "/gno.RefNode",
 //         "BlockNode": null,
 //         "Location": {
+//             "Column": "0",
 //             "File": "",
 //             "Line": "0",
-//             "Nonce": "0",
 //             "PkgPath": "gno.land/r/test"
 //         }
 //     },
 //     "Values": [
+//         {
+//             "T": {
+//                 "@type": "/gno.RefType",
+//                 "ID": "gno.land/r/test.InnerNode"
+//             },
+//             "V": {
+//                 "@type": "/gno.RefValue",
+//                 "Hash": "61d4aa77a87c01e07038c6030d6aca299d0fdc1b",
+//                 "ObjectID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:5"
+//             }
+//         },
 //         {
 //             "T": {
 //                 "@type": "/gno.TypeType"
@@ -170,9 +181,9 @@ func main() {
 //                     "Escaped": true,
 //                     "ObjectID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:3"
 //                 },
-//                 "FileName": "main.gno",
+//                 "FileName": "files/zrealm2.gno",
 //                 "IsMethod": false,
-//                 "Name": "init.3",
+//                 "Name": "init.4",
 //                 "NativeName": "",
 //                 "NativePkg": "",
 //                 "PkgPath": "gno.land/r/test",
@@ -180,9 +191,9 @@ func main() {
 //                     "@type": "/gno.RefNode",
 //                     "BlockNode": null,
 //                     "Location": {
-//                         "File": "main.gno",
+//                         "Column": "1",
+//                         "File": "files/zrealm2.gno",
 //                         "Line": "17",
-//                         "Nonce": "0",
 //                         "PkgPath": "gno.land/r/test"
 //                     }
 //                 },
@@ -206,7 +217,7 @@ func main() {
 //                     "Escaped": true,
 //                     "ObjectID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:3"
 //                 },
-//                 "FileName": "main.gno",
+//                 "FileName": "files/zrealm2.gno",
 //                 "IsMethod": false,
 //                 "Name": "main",
 //                 "NativeName": "",
@@ -216,9 +227,9 @@ func main() {
 //                     "@type": "/gno.RefNode",
 //                     "BlockNode": null,
 //                     "Location": {
-//                         "File": "main.gno",
+//                         "Column": "1",
+//                         "File": "files/zrealm2.gno",
 //                         "Line": "23",
-//                         "Nonce": "0",
 //                         "PkgPath": "gno.land/r/test"
 //                     }
 //                 },
@@ -227,17 +238,6 @@ func main() {
 //                     "Params": [],
 //                     "Results": []
 //                 }
-//             }
-//         },
-//         {
-//             "T": {
-//                 "@type": "/gno.RefType",
-//                 "ID": "gno.land/r/test.InnerNode"
-//             },
-//             "V": {
-//                 "@type": "/gno.RefValue",
-//                 "Hash": "61d4aa77a87c01e07038c6030d6aca299d0fdc1b",
-//                 "ObjectID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:5"
 //             }
 //         }
 //     ]

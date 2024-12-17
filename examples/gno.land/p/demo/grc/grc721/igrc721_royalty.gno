@@ -1,8 +1,6 @@
 package grc721
 
-import (
-	"std"
-)
+import "std"
 
 // IGRC2981 follows the Ethereum standard
 type IGRC2981 interface {

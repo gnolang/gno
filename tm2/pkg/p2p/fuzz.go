@@ -21,28 +21,6 @@ type FuzzedConnection struct {
 	config *config.FuzzConnConfig
 }
 
-// FuzzConn creates a new FuzzedConnection. Fuzzing starts immediately.
-func FuzzConn(conn net.Conn) net.Conn {
-	return FuzzConnFromConfig(conn, config.DefaultFuzzConnConfig())
-}
-
-// FuzzConnFromConfig creates a new FuzzedConnection from a config. Fuzzing
-// starts immediately.
-func FuzzConnFromConfig(conn net.Conn, config *config.FuzzConnConfig) net.Conn {
-	return &FuzzedConnection{
-		conn:   conn,
-		start:  make(<-chan time.Time),
-		active: true,
-		config: config,
-	}
-}
-
-// FuzzConnAfter creates a new FuzzedConnection. Fuzzing starts when the
-// duration elapses.
-func FuzzConnAfter(conn net.Conn, d time.Duration) net.Conn {
-	return FuzzConnAfterFromConfig(conn, d, config.DefaultFuzzConnConfig())
-}
-
 // FuzzConnAfterFromConfig creates a new FuzzedConnection from a config.
 // Fuzzing starts when the duration elapses.
 func FuzzConnAfterFromConfig(

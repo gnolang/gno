@@ -25,7 +25,7 @@ GOTEST_FLAGS ?= -v -p 1 -timeout=30m
 ########################################
 # Dev tools
 .PHONY: start.gnoland
-start.gnoland:; go run ./cmd/gnoland start
+start.gnoland:; go run ./cmd/gnoland start -lazy
 
 .PHONY: start.gnoweb
 start.gnoweb:; go run ./cmd/gnoweb
@@ -46,6 +46,12 @@ install: install.gnoland install.gnoweb install.gnokey
 install.gnoland:;    go install ./cmd/gnoland
 install.gnoweb:;     go install ./cmd/gnoweb
 install.gnokey:;     go install ./cmd/gnokey
+
+.PHONY: dev.gnoweb generate.gnoweb
+dev.gnoweb:
+	make -C ./pkg/gnoweb dev
+generate.gnoweb:
+	make -C ./pkg/gnoweb generate
 
 .PHONY: fclean
 fclean: clean

@@ -3,8 +3,6 @@ package main
 import (
 	"fmt"
 	"io"
-	"io"
-	"log"
 	"strings"
 )
 
@@ -68,7 +66,7 @@ func main() {
 	p.Reader = newReadAutoCloser(strings.NewReader("test"))
 	b, err := ReadAll(p.Reader)
 	if err != nil {
-		log.Fatal(err)
+		panic(err)
 	}
 	fmt.Println(string(b))
 }

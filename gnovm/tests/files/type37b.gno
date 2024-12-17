@@ -19,4 +19,4 @@ func main() {
 }
 
 // Error:
-// main/files/type37b.gno:7: invalid receiver type **main.Integer (base type is pointer type)
+// main/files/type37b.gno:7:1: invalid receiver type **main.Integer (base type is pointer type)

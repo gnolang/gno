@@ -71,6 +71,12 @@ func execMakeAddPkg(cfg *MakeAddPkgCfg, args []string, io commands.IO) error {
 	if cfg.PkgDir == "" {
 		return errors.New("pkgdir not specified")
 	}
+	if cfg.RootCfg.GasWanted == 0 {
+		return errors.New("gas-wanted not specified")
+	}
+	if cfg.RootCfg.GasFee == "" {
+		return errors.New("gas-fee not specified")
+	}
 
 	if len(args) != 1 {
 		return flag.ErrHelp
@@ -96,7 +102,7 @@ func execMakeAddPkg(cfg *MakeAddPkgCfg, args []string, io commands.IO) error {
 	}
 
 	// open files in directory as MemPackage.
-	memPkg := gno.ReadMemPackage(cfg.PkgDir, cfg.PkgPath)
+	memPkg := gno.MustReadMemPackage(cfg.PkgDir, cfg.PkgPath)
 	if memPkg.IsEmpty() {
 		panic(fmt.Sprintf("found an empty package %q", cfg.PkgPath))
 	}
@@ -126,7 +132,7 @@ func execMakeAddPkg(cfg *MakeAddPkgCfg, args []string, io commands.IO) error {
 			return err
 		}
 	} else {
-		fmt.Println(string(amino.MustMarshalJSON(tx)))
+		io.Println(string(amino.MustMarshalJSON(tx)))
 	}
 	return nil
 }

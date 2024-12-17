@@ -1,66 +1,81 @@
 # build gno
-FROM        golang:1.22 AS build-gno
-RUN         mkdir -p /opt/gno/src /opt/build
-WORKDIR     /opt/build
-ADD         go.mod go.sum .
-RUN         go mod download
-ADD         . ./
-RUN         go build -o ./build/gnoland   ./gno.land/cmd/gnoland
-RUN         go build -o ./build/gnokey    ./gno.land/cmd/gnokey
-RUN         go build -o ./build/gnoweb    ./gno.land/cmd/gnoweb
-RUN         go build -o ./build/gno       ./gnovm/cmd/gno
-RUN         ls -la ./build
-ADD         . /opt/gno/src/
-RUN         rm -rf /opt/gno/src/.git
+FROM        golang:1.22-alpine AS build-gno
+RUN         go env -w GOMODCACHE=/root/.cache/go-build
+WORKDIR     /gnoroot
+ENV         GNOROOT="/gnoroot"
+COPY        . ./
+RUN         --mount=type=cache,target=/root/.cache/go-build       go mod download
+RUN         --mount=type=cache,target=/root/.cache/go-build       go build -o ./build/gnoland   ./gno.land/cmd/gnoland
+RUN         --mount=type=cache,target=/root/.cache/go-build       go build -o ./build/gnokey    ./gno.land/cmd/gnokey
+RUN         --mount=type=cache,target=/root/.cache/go-build       go build -o ./build/gnoweb    ./gno.land/cmd/gnoweb
+RUN         --mount=type=cache,target=/root/.cache/go-build       go build -o ./build/gno       ./gnovm/cmd/gno
 
-# build faucet
-FROM        golang:1.22 AS build-faucet
-RUN         mkdir -p /opt/gno/src /opt/build
-WORKDIR     /opt/build
-ADD         contribs/gnofaucet/go.mod contribs/gnofaucet/go.sum .
-RUN         go mod download
-ADD         contribs/gnofaucet ./
-RUN         go build -o ./build/gnofaucet .
+# build misc binaries
+FROM        golang:1.22-alpine AS build-misc
+RUN         go env -w GOMODCACHE=/root/.cache/go-build
+WORKDIR     /gnoroot
+ENV         GNOROOT="/gnoroot"
+COPY        . ./
+RUN         --mount=type=cache,target=/root/.cache/go-build       go build -C ./misc/loop -o /gnoroot/build/portalloopd ./cmd
+RUN         --mount=type=cache,target=/root/.cache/go-build       go build -C ./misc/autocounterd -o /gnoroot/build/autocounterd ./cmd
 
+# Base image
+FROM        alpine:3.17 AS base
+WORKDIR     /gnoroot
+ENV         GNOROOT="/gnoroot"
+RUN         apk add --no-cache ca-certificates
+CMD         [ "" ]
 
-# runtime-base + runtime-tls
-FROM        debian:stable-slim AS runtime-base
-ENV         PATH="${PATH}:/opt/gno/bin" \
-            GNOROOT="/opt/gno/src"
-WORKDIR     /opt/gno/src
-FROM        runtime-base AS runtime-tls
-RUN         apt-get update && apt-get install -y expect ca-certificates && update-ca-certificates
+# alpine images
+# gnoland
+FROM        base AS gnoland
+COPY        --from=build-gno /gnoroot/build/gnoland /usr/bin/gnoland
+COPY        --from=build-gno /gnoroot/examples      /gnoroot/examples
+COPY        --from=build-gno /gnoroot/gnovm/stdlibs /gnoroot/gnovm/stdlibs
+COPY        --from=build-gno /gnoroot/gno.land/genesis/genesis_txs.jsonl    /gnoroot/gno.land/genesis/genesis_txs.jsonl
+COPY        --from=build-gno /gnoroot/gno.land/genesis/genesis_balances.txt /gnoroot/gno.land/genesis/genesis_balances.txt
+EXPOSE      26656 26657
+ENTRYPOINT  ["/usr/bin/gnoland"]
 
-# slim images
-FROM        runtime-base AS gnoland-slim
-WORKDIR     /opt/gno/src/gno.land/
-COPY        --from=build-gno /opt/build/build/gnoland /opt/gno/bin/
-ENTRYPOINT  ["gnoland"]
-EXPOSE      26657 36657
+# gnokey
+FROM        base AS gnokey
+COPY        --from=build-gno /gnoroot/build/gnokey   /usr/bin/gnokey
+# gofmt is required by `gnokey maketx addpkg`
+COPY        --from=build-gno /usr/local/go/bin/gofmt /usr/bin/gofmt
+ENTRYPOINT  ["/usr/bin/gnokey"]
 
-FROM        runtime-base AS gnokey-slim
-COPY        --from=build-gno /opt/build/build/gnokey /opt/gno/bin/
-ENTRYPOINT  ["gnokey"]
+# gno
+FROM        base AS gno
+COPY        --from=build-gno /gnoroot/build/gno /usr/bin/gno
+ENTRYPOINT  ["/usr/bin/gno"]
 
-FROM        runtime-base AS gno-slim
-COPY        --from=build-gno /opt/build/build/gno /opt/gno/bin/
-ENTRYPOINT  ["gno"]
-
-FROM        runtime-tls AS gnofaucet-slim
-COPY        --from=build-faucet /opt/build/build/gnofaucet /opt/gno/bin/
-ENTRYPOINT  ["gnofaucet"]
-EXPOSE      5050
-
-FROM        runtime-tls AS gnoweb-slim
-COPY        --from=build-gno /opt/build/build/gnoweb /opt/gno/bin/
-COPY        --from=build-gno /opt/gno/src/gno.land/cmd/gnoweb /opt/gno/src/gnoweb
-ENTRYPOINT  ["gnoweb"]
+# gnoweb
+FROM        base AS gnoweb
+COPY        --from=build-gno /gnoroot/build/gnoweb /usr/bin/gnoweb
 EXPOSE      8888
+ENTRYPOINT  ["/usr/bin/gnoweb"]
+
+# misc/loop
+FROM        docker AS portalloopd
+WORKDIR     /gnoroot
+ENV         GNOROOT="/gnoroot"
+RUN         apk add --no-cache ca-certificates bash curl jq
+COPY        --from=build-misc /gnoroot/build/portalloopd /usr/bin/portalloopd
+ENTRYPOINT  ["/usr/bin/portalloopd"]
+CMD         ["serve"]
+
+# misc/autocounterd
+FROM        base AS autocounterd
+COPY        --from=build-misc /gnoroot/build/autocounterd /usr/bin/autocounterd
+ENTRYPOINT  ["/usr/bin/autocounterd"]
+CMD         ["start"]
 
 # all, contains everything.
-FROM        runtime-tls AS all
-COPY        --from=build-gno /opt/build/build/* /opt/gno/bin/
-COPY        --from=build-faucet /opt/build/build/* /opt/gno/bin/
-COPY        --from=build-gno /opt/gno/src /opt/gno/src
+FROM        base AS all
+COPY        --from=build-gno /gnoroot/build/* /usr/bin/
+COPY        --from=build-gno /gnoroot/examples      /gnoroot/examples
+COPY        --from=build-gno /gnoroot/gnovm/stdlibs /gnoroot/gnovm/stdlibs
+COPY        --from=build-gno /gnoroot/gno.land/genesis/genesis_txs.jsonl    /gnoroot/gno.land/genesis/genesis_txs.jsonl
+COPY        --from=build-gno /gnoroot/gno.land/genesis/genesis_balances.txt /gnoroot/gno.land/genesis/genesis_balances.txt
 # gofmt is required by `gnokey maketx addpkg`
 COPY        --from=build-gno /usr/local/go/bin/gofmt /usr/bin

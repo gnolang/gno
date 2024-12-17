@@ -1,10 +1,6 @@
 package testing
 
-import (
-	"encoding/binary"
-	"strings"
-	"time"
-)
+import "strings"
 
 func TestMutate(t *T) {
 	originalValue := "Hello"

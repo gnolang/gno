@@ -56,7 +56,7 @@ The gno repository is primarily based on Go (Golang) and Gno.
 
 The primary tech stack for working on the repository:
 
-- Go (version 1.21+)
+- Go (version 1.22+)
 - make (for using Makefile configurations)
 
 It is recommended to work on a Unix environment, as most of the tooling is built around ready-made tools in Unix (WSL2
@@ -469,6 +469,18 @@ Resources for idiomatic Go docs:
 - [godoc](https://go.dev/blog/godoc)
 - [Go Doc Comments](https://tip.golang.org/doc/comment)
 
+## Avoding Unhelpful Contributions
+
+While we welcome all contributions to the Gno project, it's important to ensure that your changes provide meaningful value or improve the quality of the codebase. Contributions that fail to meet these criteria may not be accepted. Examples of unhelpful contributions include (but not limited to):
+
+- Airdrop farming & karma farming: Making minimal, superficial changes, with the goal of becoming eligible for airdrops and GovDAO participation.
+- Incomplete submissions: Changes that lack adequate context, link to a related issue, documentation, or test coverage.
+
+Before submitting a pull request, ask yourself:
+- Does this change solve a specific problem or add clear value?
+- Is the implementation aligned with the gno.land's goals and style guide?
+- Have I tested my changes and included relevant documentation?
+
 ## Additional Notes
 
 ### Issue and Pull Request Labels
@@ -502,3 +514,4 @@ automatic label management.
 | info needed      | Issue is lacking information needed for resolving |
 | investigating    | Issue is still being investigated by the team     |
 | question         | Issue starts a discussion or raises a question    |
+

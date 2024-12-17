@@ -203,7 +203,7 @@ func (sw *Switch) OnStart() error {
 	for _, reactor := range sw.reactors {
 		err := reactor.Start()
 		if err != nil {
-			return errors.Wrap(err, "failed to start %v", reactor)
+			return errors.Wrapf(err, "failed to start %v", reactor)
 		}
 	}
 
@@ -219,7 +219,7 @@ func (sw *Switch) OnStop() {
 	if t, ok := sw.transport.(TransportLifecycle); ok {
 		err := t.Close()
 		if err != nil {
-			sw.Logger.Error("Error stopping transport on stop: ", err)
+			sw.Logger.Error("Error stopping transport on stop: ", "error", err)
 		}
 	}
 
@@ -717,5 +717,29 @@ func (sw *Switch) addPeer(p Peer) error {
 
 	sw.Logger.Info("Added peer", "peer", p)
 
+	// Update the telemetry data
+	sw.logTelemetry()
+
 	return nil
+}
+
+// logTelemetry logs the switch telemetry data
+// to global metrics funnels
+func (sw *Switch) logTelemetry() {
+	// Update the telemetry data
+	if !telemetry.MetricsEnabled() {
+		return
+	}
+
+	// Fetch the number of peers
+	outbound, inbound, dialing := sw.NumPeers()
+
+	// Log the outbound peer count
+	metrics.OutboundPeers.Record(context.Background(), int64(outbound))
+
+	// Log the inbound peer count
+	metrics.InboundPeers.Record(context.Background(), int64(inbound))
+
+	// Log the dialing peer count
+	metrics.DialingPeers.Record(context.Background(), int64(dialing))
 }
