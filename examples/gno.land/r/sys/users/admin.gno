@@ -8,7 +8,7 @@ import (
 )
 
 const (
-	adminAddr            = "g1manfred47kzduec920z88wfr64ylksmdcedlf5" // @moul
+	adminAddr            = "g1u7y667z64x2h7vc6fmpcprgey4ck233jaww9zq" // @moul
 	WhitelistAddEvent    = "WhitelistAdd"
 	WhitelistDeleteEvent = "WhitelistDelete"
 

@@ -6,6 +6,7 @@ import (
 
 	"gno.land/p/demo/ownable"
 	"gno.land/p/demo/pausable"
+
 	"gno.land/r/sys/users"
 )
 
@@ -16,21 +17,11 @@ const (
 
 type verifierFunc func(enabled bool, address std.Address, name string) bool
 
-// UpdateVerifyCall updates the method that verifies the namespace.
-func UpdateVerifyCall(check verifierFunc) error {
-	if err := AdminStore.CallerIsOwner(); err != nil {
-		return err
-	}
-
-	checkFunc = check
-	std.Emit(VerifyFuncUpdatedEvent)
-
-	return nil
-}
-
 var (
-	checkFunc  = defaultVerifier // Checking namespace callback
+	checkFunc  = defaultVerifier // Callback for the namespace check
 	AdminStore = ownable.NewWithAddress(adminAddr)
+
+	// PauseStore manages whether namespace registration is enabled on-chain or not
 	PauseStore = pausable.NewFromOwnable(AdminStore)
 )
 
@@ -62,4 +53,16 @@ func defaultVerifier(enabled bool, address std.Address, name string) bool {
 	// Can be a registered name or an alias
 	lookup := users.ResolveName(name)
 	return lookup.Addr == address
+}
+
+// UpdateVerifyCall updates the method that verifies the namespace.
+func UpdateVerifyCall(check verifierFunc) error {
+	if err := AdminStore.CallerIsOwner(); err != nil {
+		return err
+	}
+
+	checkFunc = check
+	std.Emit(VerifyFuncUpdatedEvent)
+
+	return nil
 }
