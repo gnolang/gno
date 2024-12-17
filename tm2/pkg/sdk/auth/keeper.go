@@ -59,7 +59,7 @@ func (ak AccountKeeper) Logger(ctx sdk.Context) *slog.Logger {
 
 // GetAccount returns a specific account in the AccountKeeper.
 func (ak AccountKeeper) GetAccount(ctx sdk.Context, addr crypto.Address) std.Account {
-	stor := ctx.Store(ak.key)
+	stor := ctx.GasStore(ak.key)
 	bz := stor.Get(AddressStoreKey(addr))
 	if bz == nil {
 		return nil
@@ -82,7 +82,7 @@ func (ak AccountKeeper) GetAllAccounts(ctx sdk.Context) []std.Account {
 // SetAccount implements AccountKeeper.
 func (ak AccountKeeper) SetAccount(ctx sdk.Context, acc std.Account) {
 	addr := acc.GetAddress()
-	stor := ctx.Store(ak.key)
+	stor := ctx.GasStore(ak.key)
 	bz, err := amino.MarshalAny(acc)
 	if err != nil {
 		panic(err)
@@ -94,13 +94,13 @@ func (ak AccountKeeper) SetAccount(ctx sdk.Context, acc std.Account) {
 // NOTE: this will cause supply invariant violation if called
 func (ak AccountKeeper) RemoveAccount(ctx sdk.Context, acc std.Account) {
 	addr := acc.GetAddress()
-	stor := ctx.Store(ak.key)
+	stor := ctx.GasStore(ak.key)
 	stor.Delete(AddressStoreKey(addr))
 }
 
 // IterateAccounts implements AccountKeeper.
 func (ak AccountKeeper) IterateAccounts(ctx sdk.Context, process func(std.Account) (stop bool)) {
-	stor := ctx.Store(ak.key)
+	stor := ctx.GasStore(ak.key)
 	iter := store.PrefixIterator(stor, []byte(AddressStoreKeyPrefix))
 	defer iter.Close()
 	for {
@@ -137,7 +137,7 @@ func (ak AccountKeeper) GetSequence(ctx sdk.Context, addr crypto.Address) (uint6
 // GetNextAccountNumber Returns and increments the global account number counter
 func (ak AccountKeeper) GetNextAccountNumber(ctx sdk.Context) uint64 {
 	var accNumber uint64
-	stor := ctx.Store(ak.key)
+	stor := ctx.GasStore(ak.key)
 	bz := stor.Get([]byte(GlobalAccountNumberKey))
 	if bz == nil {
 		accNumber = 0 // start with 0.
