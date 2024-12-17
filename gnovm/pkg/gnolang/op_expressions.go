@@ -48,12 +48,12 @@ func (m *Machine) doOpIndex1() {
 				SetOriginForPointerValue(&xv.V, abs)
 			}
 		default:
-			//println("---default")
+			println("---default")
 
 			if sv, ok := xv.V.(*SliceValue); ok {
 				if arr, ok := sv.Base.(*ArrayValue); ok {
 					abs = arr.AbsPath + ":" + lx.(*IndexExpr).Index.String()
-					//fmt.Println("---!!! abs: ", abs)
+					fmt.Println("---!!! abs: ", abs)
 				} else {
 					//println("---base not array ")
 				}
@@ -61,7 +61,7 @@ func (m *Machine) doOpIndex1() {
 
 			res := xv.GetPointerAtIndex(m.Alloc, m.Store, iv)
 			*xv = res.Deref() // reuse as result
-			//fmt.Println("---xv: ", *xv)
+			fmt.Println("---xv: ", *xv)
 
 			SetOriginForPointerValue(&xv.V, abs)
 

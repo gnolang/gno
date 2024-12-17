@@ -214,7 +214,22 @@ func (pv *PointerValue) GetBase(store Store) Object {
 // TODO: document as something that enables into-native assignment.
 // TODO: maybe consider this as entrypoint for DataByteValue too?
 func (pv PointerValue) Assign2(alloc *Allocator, store Store, rlm *Realm, tv2 TypedValue, cu bool) {
-	//fmt.Println("---Assign2...")
+	fmt.Println("---Assign2...")
+
+	defer func() {
+		println("---Done Assign, attach slice to array")
+		if sv, ok := pv.TV.V.(*SliceValue); ok {
+			fmt.Println("---sv: ", sv)
+			if sv2, ok := tv2.V.(*SliceValue); ok {
+				fmt.Println("---sv2: ", sv2)
+				if av, ok := sv2.Base.(*ArrayValue); ok {
+					av.Slices = append(av.Slices, sv)
+					fmt.Println("---av.Slices: ", av.Slices)
+				}
+			}
+		}
+	}()
+
 	// Special cases.
 	if pv.Index == PointerIndexNative {
 		// Special case if extended object && native.
@@ -255,7 +270,7 @@ func (pv PointerValue) Assign2(alloc *Allocator, store Store, rlm *Realm, tv2 Ty
 								panic("should not happen")
 							}
 							if nv, ok := tv2.V.(*NativeValue); !ok ||
-									nv.Value.Kind() != reflect.Func {
+								nv.Value.Kind() != reflect.Func {
 								panic("should not happen")
 							}
 						}
@@ -322,6 +337,7 @@ type ArrayValue struct {
 	List    []TypedValue
 	Data    []byte
 	AbsPath string
+	Slices  []*SliceValue // slices reference this array
 }
 
 // NOTE: Result should not be written to,
@@ -1666,22 +1682,22 @@ func (tv *TypedValue) ComputeMapKey(store Store, omitType bool) MapKey {
 // cu: convert untyped after assignment. pass false
 // for const definitions, but true for all else.
 func (tv *TypedValue) Assign(alloc *Allocator, tv2 TypedValue, cu bool) {
-	//fmt.Println("assign, tv: ", tv)
-	//fmt.Println("assign, tv2: ", tv2)
-	//
-	//if sv2, ok := tv2.V.(*SliceValue); ok {
-	//	fmt.Println("---sv2.Origin: ", sv2.Origin)
-	//	defer func() {
-	//		fmt.Println("---after assign2, tv: ", tv)
-	//		println("---------------------")
-	//		fmt.Println("---tv2.Base: ", sv2.Base)
-	//		fmt.Printf("---addr of tv2.base: %p \n", sv2.Base)
-	//		fmt.Println("---tv.Base: ", tv.V.(*SliceValue).Base)
-	//		fmt.Printf("---addr of tv.base: %p \n", tv.V.(*SliceValue).Base)
-	//		println("---------------------")
-	//		fmt.Println("---tv.Origin: ", tv.V.(*SliceValue).Base.(*ArrayValue).AbsPath)
-	//	}()
-	//}
+	fmt.Println("assign, tv: ", tv)
+	fmt.Println("assign, tv2: ", tv2)
+
+	if sv2, ok := tv2.V.(*SliceValue); ok {
+		fmt.Println("---sv2.Origin: ", sv2.Origin)
+		defer func() {
+			fmt.Println("---after assign2, tv: ", tv)
+			println("---------------------")
+			fmt.Println("---tv2.Base: ", sv2.Base)
+			fmt.Printf("---addr of tv2.base: %p \n", sv2.Base)
+			fmt.Println("---tv.Base: ", tv.V.(*SliceValue).Base)
+			fmt.Printf("---addr of tv.base: %p \n", tv.V.(*SliceValue).Base)
+			println("---------------------")
+			fmt.Println("---tv.Origin: ", tv.V.(*SliceValue).Base.(*ArrayValue).AbsPath)
+		}()
+	}
 	if debug {
 		if tv.T == DataByteType {
 			// assignment to data byte types should only
@@ -2400,11 +2416,12 @@ func (tv *TypedValue) GetSlice2(alloc *Allocator, lowVal, highVal, maxVal int) T
 // TODO rename to BlockValue.
 type Block struct {
 	ObjectInfo
-	Source   BlockNode
-	Values   []TypedValue
-	Parent   Value
-	Blank    TypedValue // captures "_" // XXX remove and replace with global instance.
-	bodyStmt bodyStmt   // XXX expose for persistence, not needed for MVP.
+	Source          BlockNode
+	Values          []TypedValue
+	Parent          Value
+	Blank           TypedValue // captures "_" // XXX remove and replace with global instance.
+	bodyStmt        bodyStmt   // XXX expose for persistence, not needed for MVP.
+	ArrayValueIndex uint64
 }
 
 // NOTE: for allocation, use *Allocator.NewBlock.

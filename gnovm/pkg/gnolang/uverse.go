@@ -300,6 +300,7 @@ func makeUverseNode() {
 			// ----------------------------------------------------------------
 			// append(*SliceValue, ???)
 			case *SliceValue:
+				println("---append, slice, ???")
 				arg0Length := arg0Value.Length
 				arg0Offset := arg0Value.Offset
 				arg0Capacity := arg0Value.Maxcap
@@ -323,6 +324,7 @@ func makeUverseNode() {
 					arg1Base := arg1Value.GetBase(m.Store)
 					fmt.Println("---arg1base: ", arg1Base)
 					if arg0Length+arg1Length <= arg0Capacity {
+						println("---within capacity")
 						// append(*SliceValue, *SliceValue) w/i capacity -----
 						if 0 < arg1Length { // implies 0 < xvc
 							if arg0Base.Data == nil {
@@ -408,21 +410,34 @@ func makeUverseNode() {
 						return
 					} else {
 						// append(*SliceValue, *SliceValue) new list ---------
+						println("---exceed capacity")
 						arrayLen := arg0Length + arg1Length
+						fmt.Println("---arrayLen: ", arrayLen)
+
 						//fmt.Println("---m.String(): ", m.String())
-						//lb := m.LastBlock()
-						//fmt.Println("---lb : ", lb)
+						lb := m.LastBlock()
+						fmt.Println("---lb : ", lb)
 						//fmt.Println("---lb.Parent : ", lb.Parent)
 						//
-						//llb1 := lb.GetParent(m.Store)
-						//fmt.Println("---llb1 : ", llb1)
+						llb := lb.GetParent(m.Store)
+						fmt.Println("---llb : ", llb)
 						//
-						//bid := llb1.GetSource(m.Store).GetStaticBlock().BID
-						//fmt.Println("---bid: ", bid)
+						bid := llb.GetSource(m.Store).GetStaticBlock().BID
+						fmt.Println("---bid: ", bid)
 						println("---new list array: ", arrayLen)
+
 						arrayValue := m.Alloc.NewListArray(arrayLen)
+						llb.ArrayValueIndex++
+						arrayValue.AbsPath = fmt.Sprintf("%s:arr[%d]", bid, llb.ArrayValueIndex)
+
 						fmt.Println("---arg0base: ", arg0Base, arg0Base.AbsPath)
-						arrayValue.AbsPath = arg0Base.AbsPath
+						for i, s := range arg0Base.Slices {
+							fmt.Printf("---arg0base.Slices[%d] is %v: \n", i, s)
+							s.Base = arrayValue
+						}
+
+						//arrayValue.AbsPath = arg0Base.AbsPath
+						fmt.Println("---arrayValue.AbsPath: ", arrayValue.AbsPath)
 						if arg0Length > 0 {
 							if arg0Base.Data == nil {
 								for i := 0; i < arg0Length; i++ {
@@ -819,9 +834,15 @@ func makeUverseNode() {
 			"", GenT("T", nil),
 		),
 		func(m *Machine) {
+			fmt.Println("---make slice")
 			arg0, arg1 := m.LastBlock().GetParams2()
+			fmt.Println("---arg0: ", arg0, reflect.TypeOf(arg0.TV.T))
+			fmt.Println("---arg0.TV.V", arg0.TV.V, reflect.TypeOf(arg0.TV.V))
+			fmt.Println("---arg0.TV: ", *arg0.TV)
 			vargs := arg1
+			fmt.Println("---vargs: ", vargs)
 			vargsl := vargs.TV.GetLength()
+			fmt.Println("---vargsl: ", vargsl)
 			tt := arg0.TV.GetType()
 			switch bt := baseOf(tt).(type) {
 			case *SliceType:
@@ -871,6 +892,7 @@ func makeUverseNode() {
 						return
 					} else {
 						arrayValue := m.Alloc.NewListArray(ci)
+						fmt.Println("---arrayValue: ", arrayValue)
 						if et := bt.Elem(); et.Kind() == InterfaceKind {
 							// leave as is
 						} else {
