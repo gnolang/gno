@@ -260,7 +260,7 @@ func (d *DAOProposalSingle) ConfigJSON() string {
 func (d *DAOProposalSingle) Propose(title string, description string, messages []dao_interfaces.ExecutableMessage) int {
 	// TODO: creation policy
 
-	totalPower := d.core.VotingModule().TotalPowerAtHeight(0)
+	totalPower := d.core.VotingModule().TotalPowerAtHeight(0, []string{})
 
 	expiration := d.opts.MaxVotingPeriod.AfterCurrentBlock()
 	minVotingPeriod := dao_utils.Expiration(nil)
@@ -331,7 +331,7 @@ func (d *DAOProposalSingle) VoteJSON(proposalID int, voteJSON string) {
 		panic("proposal is expired")
 	}
 
-	votePower := d.core.VotingModule().VotingPowerAtHeight(voter, proposal.StartHeight)
+	votePower := d.core.VotingModule().VotingPowerAtHeight(voter, proposal.StartHeight, []string{})
 	if votePower == 0 {
 		panic("not registered")
 	}

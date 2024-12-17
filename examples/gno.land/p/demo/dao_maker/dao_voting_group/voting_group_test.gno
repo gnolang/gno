@@ -1,7 +1,6 @@
 package dao_voting_group
 
 import (
-	"std"
 	"testing"
 
 	dao_interfaces "gno.land/p/demo/dao_maker/dao_interfaces"
@@ -13,7 +12,7 @@ func TestVotingGroup(t *testing.T) {
 	i = v
 
 	{
-		got := i.TotalPowerAtHeight(0)
+		got := i.TotalPowerAtHeight(0, []string{})
 		expected := uint64(0)
 		if got != expected {
 			t.Fatalf("expected %s, got %s.", expected, got)
