@@ -2,10 +2,11 @@ class Copy {
   private DOM: {
     el: HTMLElement | null;
   };
-  private static FEEDBACK_DELAY = 1500;
+  private static FEEDBACK_DELAY = 750;
 
   private btnClicked: HTMLElement | null = null;
   private btnClickedIcons: HTMLElement[] = [];
+  private isAnimationRunning: boolean = 0;
 
   private static SELECTORS = {
     button: "[data-copy-btn]",
@@ -72,11 +73,13 @@ class Copy {
   }
 
   private showFeedback(icons: HTMLElement[]): void {
-    if (!this.btnClicked) return;
+    if (!this.btnClicked || this.isAnimationRunning === true) return;
 
+    this.isAnimationRunning = true;
     this.toggleIcons(icons);
     window.setTimeout(() => {
       this.toggleIcons(icons);
+      this.isAnimationRunning = false;
     }, Copy.FEEDBACK_DELAY);
   }
 
