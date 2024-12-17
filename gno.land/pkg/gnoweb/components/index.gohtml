@@ -67,7 +67,7 @@
                 <img src="/public/imgs/gnoland.svg" alt="Gno username profile pic" width="40px" height="40px" />
             </a>
 
-            <form id="header-searchbar" class="relative overflow-scroll flex items-center bg-gray-100 has-[:focus-within]:border-gray-300 border h-full border-gray-100 p-1.5 rounded w-full">
+            <form id="header-searchbar" class="relative overflow-scroll no-scrollbar flex items-center bg-gray-100 has-[:focus-within]:border-gray-300 border h-full border-gray-100 p-1.5 rounded w-full">
                 <input data-role="header-input-search" type="text" value="{{ .RealmPath }}" class="peer absolute w-full top-0 left-0 h-full bg-transparent p-1.5 text-200 outline-none text-gray-600 font-medium" />
 
                 {{ template "breadcrumb" .Breadcrumb }}
