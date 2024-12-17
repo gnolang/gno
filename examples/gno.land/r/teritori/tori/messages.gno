@@ -1,6 +1,7 @@
 package tori
 
 import (
+	"std"
 	"strconv"
 	"strings"
 
@@ -10,17 +11,19 @@ import (
 	"gno.land/p/teritori/jsonutil"
 )
 
+// TODO: move this file in a generic package to administrate grc20s via daos
+
 type ExecutableMessageMintTori struct {
 	dao_interfaces.ExecutableMessage
 
-	Recipient users.AddressOrName
+	Recipient std.Address
 	Amount    uint64
 }
 
 var _ dao_interfaces.ExecutableMessage = &ExecutableMessageMintTori{}
 
 func (msg ExecutableMessageMintTori) Type() string {
-	return "gno.land/r/teritori/tori.Mint"
+	return "gno.land/r/teritori/tori.MintTori"
 }
 
 func (msg *ExecutableMessageMintTori) String() string {
@@ -37,13 +40,13 @@ func (msg *ExecutableMessageMintTori) String() string {
 
 func (msg *ExecutableMessageMintTori) FromJSON(ast *json.Node) {
 	obj := ast.MustObject()
-	msg.Recipient = jsonutil.MustAddressOrName(obj["recipient"])
+	msg.Recipient = jsonutil.MustAddress(obj["recipient"])
 	msg.Amount = jsonutil.MustUint64(obj["amount"])
 }
 
 func (msg *ExecutableMessageMintTori) ToJSON() *json.Node {
 	return json.ObjectNode("", map[string]*json.Node{
-		"recipient": jsonutil.AddressOrNameNode(msg.Recipient),
+		"recipient": jsonutil.AddressNode(msg.Recipient),
 		"amount":    jsonutil.Uint64Node(msg.Amount),
 	})
 }
@@ -60,7 +63,7 @@ func NewMintToriHandler() *MintToriHandler {
 
 func (h *MintToriHandler) Execute(imsg dao_interfaces.ExecutableMessage) {
 	msg := imsg.(*ExecutableMessageMintTori)
-	Mint(msg.Recipient, msg.Amount)
+	Mint(users.AddressOrName(msg.Recipient), msg.Amount)
 }
 
 func (h MintToriHandler) Type() string {
@@ -81,7 +84,7 @@ type ExecutableMessageBurnTori struct {
 var _ dao_interfaces.ExecutableMessage = &ExecutableMessageBurnTori{}
 
 func (msg ExecutableMessageBurnTori) Type() string {
-	return "gno.land/r/teritori/tori.Burn"
+	return "gno.land/r/teritori/tori.BurnTori"
 }
 
 func (msg *ExecutableMessageBurnTori) String() string {
@@ -135,7 +138,7 @@ func (h *BurnToriHandler) Instantiate() dao_interfaces.ExecutableMessage {
 type ExecutableMessageChangeAdmin struct {
 	dao_interfaces.ExecutableMessage
 
-	NewAdmin users.AddressOrName
+	NewAdmin std.Address
 }
 
 var _ dao_interfaces.ExecutableMessage = &ExecutableMessageChangeAdmin{}
@@ -154,12 +157,12 @@ func (msg *ExecutableMessageChangeAdmin) String() string {
 
 func (msg *ExecutableMessageChangeAdmin) FromJSON(ast *json.Node) {
 	obj := ast.MustObject()
-	msg.NewAdmin = jsonutil.MustAddressOrName(obj["newAdmin"])
+	msg.NewAdmin = jsonutil.MustAddress(obj["newAdmin"])
 }
 
 func (msg *ExecutableMessageChangeAdmin) ToJSON() *json.Node {
 	return json.ObjectNode("", map[string]*json.Node{
-		"newAdmin": jsonutil.AddressOrNameNode(msg.NewAdmin),
+		"newAdmin": jsonutil.AddressNode(msg.NewAdmin),
 	})
 }
 
@@ -175,7 +178,7 @@ func NewChangeAdminHandler() *ChangeAdminHandler {
 
 func (h *ChangeAdminHandler) Execute(imsg dao_interfaces.ExecutableMessage) {
 	msg := imsg.(*ExecutableMessageChangeAdmin)
-	ChangeAdmin(msg.NewAdmin)
+	owner.TransferOwnership(msg.NewAdmin)
 }
 
 func (h ChangeAdminHandler) Type() string {

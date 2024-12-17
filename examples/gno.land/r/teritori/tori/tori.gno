@@ -1,3 +1,4 @@
+// tori is a copy of foo20 that can be administred by a dao
 package tori
 
 import (
@@ -5,86 +6,75 @@ import (
 	"strings"
 
 	"gno.land/p/demo/grc/grc20"
+	"gno.land/p/demo/ownable"
 	"gno.land/p/demo/ufmt"
-	"gno.land/p/demo/users"
-	rusers "gno.land/r/demo/users"
+	pusers "gno.land/p/demo/users"
+	"gno.land/r/demo/grc20reg"
+	"gno.land/r/demo/users"
 )
 
 var (
-	tori     *grc20.AdminToken
-	userTori grc20.IGRC20
-	admin    std.Address = std.DerivePkgAddr("gno.land/r/teritori/dao_realm")
+	Token, privateLedger = grc20.NewToken("Tori", "TORI", 4)
+	UserTeller           = Token.CallerTeller()
+	owner                = ownable.NewWithAddress(std.DerivePkgAddr("gno.land/r/teritori/dao_realm"))
 )
 
 func init() {
-	tori = grc20.NewAdminToken("Tori", "TORI", 6)
-	userTori = tori.GRC20()
+	privateLedger.Mint(owner.Owner(), 1_000_000*10_000)
+	getter := func() *grc20.Token { return Token }
+	grc20reg.Register(getter, "")
 }
-
-// method proxies as public functions.
-//
-
-// getters.
 
 func TotalSupply() uint64 {
-	return tori.TotalSupply()
+	return UserTeller.TotalSupply()
 }
 
-func BalanceOf(owner users.AddressOrName) uint64 {
-	balance, err := tori.BalanceOf(rusers.Resolve(owner))
-	if err != nil {
-		panic(err)
-	}
-	return balance
+func BalanceOf(owner pusers.AddressOrName) uint64 {
+	ownerAddr := users.Resolve(owner)
+	return UserTeller.BalanceOf(ownerAddr)
 }
 
-func Allowance(owner, spender users.AddressOrName) uint64 {
-	allowance, err := tori.Allowance(rusers.Resolve(owner), rusers.Resolve(spender))
-	if err != nil {
-		panic(err)
-	}
-	return allowance
+func Allowance(owner, spender pusers.AddressOrName) uint64 {
+	ownerAddr := users.Resolve(owner)
+	spenderAddr := users.Resolve(spender)
+	return UserTeller.Allowance(ownerAddr, spenderAddr)
 }
 
-// setters.
+func Transfer(to pusers.AddressOrName, amount uint64) {
+	toAddr := users.Resolve(to)
+	checkErr(UserTeller.Transfer(toAddr, amount))
+}
 
-func Transfer(to users.AddressOrName, amount uint64) {
+func Approve(spender pusers.AddressOrName, amount uint64) {
+	spenderAddr := users.Resolve(spender)
+	checkErr(UserTeller.Approve(spenderAddr, amount))
+}
+
+func TransferFrom(from, to pusers.AddressOrName, amount uint64) {
+	fromAddr := users.Resolve(from)
+	toAddr := users.Resolve(to)
+	checkErr(UserTeller.TransferFrom(fromAddr, toAddr, amount))
+}
+
+// Faucet is distributing tori tokens without restriction (unsafe).
+// For a real token faucet, you should take care of setting limits are asking payment.
+func Faucet() {
 	caller := std.PrevRealm().Addr()
-	tori.Transfer(caller, rusers.Resolve(to), amount)
+	amount := uint64(1_000 * 10_000) // 1k
+	checkErr(privateLedger.Mint(caller, amount))
 }
 
-func Approve(spender users.AddressOrName, amount uint64) {
-	caller := std.PrevRealm().Addr()
-	tori.Approve(caller, rusers.Resolve(spender), amount)
+func Mint(to pusers.AddressOrName, amount uint64) {
+	owner.AssertCallerIsOwner()
+	toAddr := users.Resolve(to)
+	checkErr(privateLedger.Mint(toAddr, amount))
 }
 
-func TransferFrom(from, to users.AddressOrName, amount uint64) {
-	caller := std.PrevRealm().Addr()
-	tori.TransferFrom(caller, rusers.Resolve(from), rusers.Resolve(to), amount)
+func Burn(from pusers.AddressOrName, amount uint64) {
+	owner.AssertCallerIsOwner()
+	fromAddr := users.Resolve(from)
+	checkErr(privateLedger.Burn(fromAddr, amount))
 }
-
-// administration.
-
-func ChangeAdmin(newAdmin users.AddressOrName) {
-	caller := std.PrevRealm().Addr()
-	assertIsAdmin(caller)
-	admin = rusers.Resolve(newAdmin)
-}
-
-func Mint(address users.AddressOrName, amount uint64) {
-	caller := std.PrevRealm().Addr()
-	assertIsAdmin(caller)
-	tori.Mint(rusers.Resolve(address), amount)
-}
-
-func Burn(address users.AddressOrName, amount uint64) {
-	caller := std.PrevRealm().Addr()
-	assertIsAdmin(caller)
-	tori.Burn(rusers.Resolve(address), amount)
-}
-
-// render.
-//
 
 func Render(path string) string {
 	parts := strings.Split(path, "/")
@@ -92,20 +82,19 @@ func Render(path string) string {
 
 	switch {
 	case path == "":
-		return tori.RenderHome()
-
+		return Token.RenderHome()
 	case c == 2 && parts[0] == "balance":
-		owner := users.AddressOrName(parts[1])
-		balance, _ := tori.BalanceOf(rusers.Resolve(owner))
+		owner := pusers.AddressOrName(parts[1])
+		ownerAddr := users.Resolve(owner)
+		balance := UserTeller.BalanceOf(ownerAddr)
 		return ufmt.Sprintf("%d\n", balance)
-
 	default:
 		return "404\n"
 	}
 }
 
-func assertIsAdmin(address std.Address) {
-	if address != admin {
-		panic("restricted access")
+func checkErr(err error) {
+	if err != nil {
+		panic(err)
 	}
 }
