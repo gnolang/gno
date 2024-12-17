@@ -19,7 +19,11 @@ type verifierFunc func(enabled bool, address std.Address, name string) bool
 
 var (
 	checkFunc = defaultVerifier // Callback for the namespace check
-	Ownable   = ownable.NewWithAddress(adminAddr)
+
+	// Safe objects
+
+	// Ownable manages the administration of this realm
+	Ownable = ownable.NewWithAddress(adminAddr)
 
 	// Pausable manages whether namespace registration is enabled on-chain or not
 	Pausable = pausable.NewFromOwnable(Ownable)
@@ -38,7 +42,7 @@ func defaultVerifier(enabled bool, address std.Address, name string) bool {
 		return true
 	}
 
-	if strings.TrimSpace(address) == "" || strings.TrimSpace(name) == "" {
+	if strings.TrimSpace(address.String()) == "" || strings.TrimSpace(name) == "" {
 		return false // XXX: possibly redundant?
 	}
 
@@ -57,8 +61,8 @@ func defaultVerifier(enabled bool, address std.Address, name string) bool {
 
 // UpdateVerifyCall updates the method that verifies the namespace.
 func UpdateVerifyCall(check verifierFunc) error {
-	if err := Ownable.CallerIsOwner(); err != nil {
-		return err
+	if !Ownable.CallerIsOwner() {
+		return ownable.ErrUnauthorized
 	}
 
 	checkFunc = check

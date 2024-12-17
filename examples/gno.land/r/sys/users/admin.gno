@@ -16,8 +16,8 @@ const (
 )
 
 var (
-	AdminStore = ownable.NewWithAddress(adminAddr) // Package owner
-	PauseStore = p.NewFromOwnable(AdminStore)
+	Ownable  = ownable.NewWithAddress(adminAddr) // Package owner
+	Pausable = p.NewFromOwnable(Ownable)
 )
 
 func init() {
@@ -27,8 +27,8 @@ func init() {
 
 // AddToWhitelist adds a new address to the caller whitelist
 func AddToWhitelist(addr std.Address) error {
-	if err := AdminStore.CallerIsOwner(); err != nil {
-		return err
+	if !Ownable.CallerIsOwner() {
+		return ownable.ErrUnauthorized
 	}
 
 	if !addr.IsValid() {
@@ -47,8 +47,8 @@ func AddToWhitelist(addr std.Address) error {
 
 // DelFromWhitelist removes a caller from the whitelist
 func DelFromWhitelist(addr std.Address) error {
-	if err := AdminStore.CallerIsOwner(); err != nil {
-		return err
+	if !Ownable.CallerIsOwner() {
+		return ownable.ErrUnauthorized
 	}
 
 	if !callerWhitelist.Has(addr.String()) {
@@ -61,32 +61,6 @@ func DelFromWhitelist(addr std.Address) error {
 	}
 
 	std.Emit(WhitelistDeleteEvent, "address", addr.String())
-
-	return nil
-}
-
-// Exposing Ownable & Pausable APIs
-
-func IsPaused() bool {
-	return PauseStore.IsPaused()
-}
-
-func Pause() error {
-	return PauseStore.Pause()
-}
-
-func Unpause() error {
-	return PauseStore.Unpause()
-}
-
-func GetOwner() std.Address {
-	return AdminStore.Owner()
-}
-
-func TransferOwnership(newOwner std.Address) error {
-	if err := AdminStore.TransferOwnership(newOwner); err != nil {
-		return err
-	}
 
 	return nil
 }

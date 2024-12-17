@@ -24,7 +24,7 @@ const maxUsernameLen = 50
 // Only whitelisted callers can call this function
 // Writing to the store can be paused by the admin
 func WriteUser(name string, addr std.Address) error {
-	if PauseStore.IsPaused() {
+	if Pausable.IsPaused() {
 		return p.ErrPaused
 	}
 
@@ -41,7 +41,7 @@ func WriteUser(name string, addr std.Address) error {
 		return ErrAlreadyExists
 	}
 
-	if addressStore.Has(addr) {
+	if addressStore.Has(addr.String()) {
 		return ErrAlreadyHasName // use CreateAlias
 	}
 
@@ -56,7 +56,7 @@ func WriteUser(name string, addr std.Address) error {
 // CreateAlias creates an alias username for a specific address
 // The address must already have a registered username
 func CreateAlias(name string, addr std.Address) error {
-	if PauseStore.IsPaused() {
+	if Pausable.IsPaused() {
 		return p.ErrPaused
 	}
 
@@ -70,7 +70,7 @@ func CreateAlias(name string, addr std.Address) error {
 	}
 
 	// Cannot register alias without an already registered username
-	if !addressStore.Has(addr) {
+	if !addressStore.Has(addr.String()) {
 		return ErrAliasBeforeName
 	}
 
@@ -94,7 +94,7 @@ func IsOnWhitelist(addr std.Address) bool {
 
 // UserCount returns the number of registered users
 func UserCount() int {
-	return aStore.Size()
+	return addressStore.Size()
 }
 
 // XXX: Should we have this? it's not modifiable directly.

@@ -1,15 +1,11 @@
 package users
 
 import (
-	"github.com/gnolang/gno/examples/gno.land/p/sys/users"
 	"std"
-)
+	"strings"
 
-//type UserLookup struct {
-//	Name      string
-//	Addr      std.Address
-//	UsedAlias bool // lookup was found via an alias
-//}
+	"gno.land/p/sys/users"
+)
 
 func ResolveName(username string) users.UserLookup {
 	if username == "" {
@@ -30,31 +26,32 @@ func ResolveName(username string) users.UserLookup {
 	return users.UserLookup{}
 }
 
-// todo refactor
-//func ResolveAddress(addr std.Address) *susers.User {
-//	if !addr.IsValid() {
-//		return nil
-//	}
-//
-//	raw, ok := aStore.Get(addr.String())
-//	if !ok {
-//		return nil
-//	}
-//
-//	return raw.(*susers.User)
-//}
+// ResolveAddress resolves a specific address' username
+// It does not resolve aliases
+func ResolveAddress(addr std.Address) users.UserLookup {
+	if !addr.IsValid() {
+		return users.UserLookup{}
+	}
+
+	raw, ok := addressStore.Get(addr.String())
+	if !ok {
+		return users.UserLookup{}
+	}
+
+	return users.NewUserLookup(raw.(string), addr, false)
+}
 
 // ResolveAddressOrName
-// Note: unlike ResolveName, input must be "@" prefixed for names.
-//func ResolveAddressOrName(aon susers.AddressOrName) users.UserLookup {
-//	name, isName := aon.Name()
-//	if isName {
-//		return ResolveName(name)
-//	}
-//
-//	return ResolveAddress(std.Address(aon))
-//}
-//
+// Note: unlike ResolveName, input must be "@" prefixed for names
+// It does not resolve aliases
+func ResolveAddressOrName(aon string) users.UserLookup {
+	if strings.HasPrefix(aon, "@") {
+		return ResolveName(strings.TrimPrefix(aon, "@"))
+	}
+
+	return ResolveAddress(std.Address(aon))
+}
+
 //// Users returns a paginated list of users
 //func Users(offset, count uint64) []susers.User {
 //	if count < 1 {
@@ -72,8 +69,6 @@ func ResolveName(username string) users.UserLookup {
 //
 //	return res
 //}
-
-// XXX: Figure out a flexible but minimalistic API for fetching users from this realm.
 
 // UsersByPrefix gets a slice of usernames starting from the given prefix. Limits the
 // number of results to maxResults. (This can be used for a name search tool.)
