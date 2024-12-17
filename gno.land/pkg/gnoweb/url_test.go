@@ -116,6 +116,8 @@ func TestParseGnoURL(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.Name, func(t *testing.T) {
+			t.Logf("testing: %s", tc.Input)
+
 			u, err := url.Parse(tc.Input)
 			require.NoError(t, err)
 
