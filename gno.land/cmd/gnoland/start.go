@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/gnolang/gno/gno.land/pkg/gnoland"
+	"github.com/gnolang/gno/gno.land/pkg/gnoland/ugnot"
 	"github.com/gnolang/gno/gno.land/pkg/log"
 	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
 	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
@@ -25,6 +26,7 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/crypto"
 	"github.com/gnolang/gno/tm2/pkg/events"
 	osm "github.com/gnolang/gno/tm2/pkg/os"
+	"github.com/gnolang/gno/tm2/pkg/std"
 	"github.com/gnolang/gno/tm2/pkg/telemetry"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
@@ -42,6 +44,12 @@ var startGraphic = strings.ReplaceAll(`
 /___/
 `, "'", "`")
 
+var (
+	// Keep in sync with contribs/gnogenesis/internal/txs/txs_add_packages.go
+	genesisDeployAddress = crypto.MustAddressFromString("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5") // test1
+	genesisDeployFee     = std.NewFee(50000, std.MustParseCoin(ugnot.ValueString(1000000)))
+)
+
 type startCfg struct {
 	gnoRootDir            string // TODO: remove as part of https://github.com/gnolang/gno/issues/1952
 	skipFailingGenesisTxs bool   // TODO: remove as part of https://github.com/gnolang/gno/issues/1952
@@ -51,8 +59,6 @@ type startCfg struct {
 	genesisFile           string
 	chainID               string
 	dataDir               string
-	genesisMaxVMCycles    int64
-	config                string
 	lazyInit              bool
 
 	logLevel  string
@@ -135,20 +141,6 @@ func (c *startCfg) RegisterFlags(fs *flag.FlagSet) {
 		"genesis-remote",
 		"localhost:26657",
 		"replacement for '%%REMOTE%%' in genesis",
-	)
-
-	fs.Int64Var(
-		&c.genesisMaxVMCycles,
-		"genesis-max-vm-cycles",
-		100_000_000,
-		"set maximum allowed vm cycles per operation. Zero means no limit.",
-	)
-
-	fs.StringVar(
-		&c.config,
-		flagConfigFlag,
-		"",
-		"the flag config file (optional)",
 	)
 
 	fs.StringVar(
@@ -418,10 +410,10 @@ func generateGenesisFile(genesisFile string, pk crypto.PubKey, c *startCfg) erro
 	genesisTxs = append(pkgsTxs, genesisTxs...)
 
 	// Construct genesis AppState.
-	gen.AppState = gnoland.GnoGenesisState{
-		Balances: balances,
-		Txs:      genesisTxs,
-	}
+	defaultGenState := gnoland.DefaultGenState()
+	defaultGenState.Balances = balances
+	defaultGenState.Txs = genesisTxs
+	gen.AppState = defaultGenState
 
 	// Write genesis state
 	if err := gen.SaveAs(genesisFile); err != nil {

@@ -15,11 +15,8 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/store"
 )
 
-var (
-	// simulation signature values used to estimate gas consumption
-	simSecp256k1Pubkey secp256k1.PubKeySecp256k1
-	simSecp256k1Sig    [64]byte
-)
+// simulation signature values used to estimate gas consumption
+var simSecp256k1Pubkey secp256k1.PubKeySecp256k1
 
 func init() {
 	// This decodes a valid hex string into a sepc256k1Pubkey for use in transaction simulation
@@ -228,14 +225,6 @@ func processSig(
 		return nil, abciResult(std.ErrInternal("setting PubKey on signer's account"))
 	}
 
-	if simulate {
-		// Simulated txs should not contain a signature and are not required to
-		// contain a pubkey, so we must account for tx size of including a
-		// std.Signature (Amino encoding) and simulate gas consumption
-		// (assuming a SECP256k1 simulation key).
-		consumeSimSigGas(ctx.GasMeter(), pubKey, sig, params)
-	}
-
 	if res := sigGasConsumer(ctx.GasMeter(), sig.Signature, pubKey, params); !res.IsOK() {
 		return nil, res
 	}
@@ -251,42 +240,12 @@ func processSig(
 	return acc, res
 }
 
-func consumeSimSigGas(gasmeter store.GasMeter, pubkey crypto.PubKey, sig std.Signature, params Params) {
-	simSig := std.Signature{PubKey: pubkey}
-	if len(sig.Signature) == 0 {
-		simSig.Signature = simSecp256k1Sig[:]
-	}
-
-	sigBz := amino.MustMarshalSized(simSig)
-	cost := store.Gas(len(sigBz) + 6)
-
-	// If the pubkey is a multi-signature pubkey, then we estimate for the maximum
-	// number of signers.
-	if _, ok := pubkey.(multisig.PubKeyMultisigThreshold); ok {
-		cost *= params.TxSigLimit
-	}
-
-	gasmeter.ConsumeGas(params.TxSizeCostPerByte*cost, "txSize")
-}
-
 // ProcessPubKey verifies that the given account address matches that of the
 // std.Signature. In addition, it will set the public key of the account if it
 // has not been set.
 func ProcessPubKey(acc std.Account, sig std.Signature, simulate bool) (crypto.PubKey, sdk.Result) {
 	// If pubkey is not known for account, set it from the std.Signature.
 	pubKey := acc.GetPubKey()
-	if simulate {
-		// In simulate mode the transaction comes with no signatures, thus if the
-		// account's pubkey is nil, both signature verification and gasKVStore.Set()
-		// shall consume the largest amount, i.e. it takes more gas to verify
-		// secp256k1 keys than ed25519 ones.
-		if pubKey == nil {
-			return simSecp256k1Pubkey, sdk.Result{}
-		}
-
-		return pubKey, sdk.Result{}
-	}
-
 	if pubKey == nil {
 		pubKey = sig.PubKey
 		if pubKey == nil {
@@ -379,6 +338,31 @@ func DeductFees(bank BankKeeperI, ctx sdk.Context, acc std.Account, fees std.Coi
 // consensus.
 func EnsureSufficientMempoolFees(ctx sdk.Context, fee std.Fee) sdk.Result {
 	minGasPrices := ctx.MinGasPrices()
+	blockGasPrice := ctx.Value(GasPriceContextKey{}).(std.GasPrice)
+	feeGasPrice := std.GasPrice{
+		Gas: fee.GasWanted,
+		Price: std.Coin{
+			Amount: fee.GasFee.Amount,
+			Denom:  fee.GasFee.Denom,
+		},
+	}
+	// check the block gas price
+	if blockGasPrice.Price.IsValid() && !blockGasPrice.Price.IsZero() {
+		ok, err := feeGasPrice.IsGTE(blockGasPrice)
+		if err != nil {
+			return abciResult(std.ErrInsufficientFee(
+				err.Error(),
+			))
+		}
+		if !ok {
+			return abciResult(std.ErrInsufficientFee(
+				fmt.Sprintf(
+					"insufficient fees; got: {Gas-Wanted: %d, Gas-Fee %s}, fee required: %+v as block gas price", feeGasPrice.Gas, feeGasPrice.Price, blockGasPrice,
+				),
+			))
+		}
+	}
+	// check min gas price set by the node.
 	if len(minGasPrices) == 0 {
 		// no minimum gas price (not recommended)
 		// TODO: allow for selective filtering of 0 fee txs.
@@ -405,7 +389,7 @@ func EnsureSufficientMempoolFees(ctx sdk.Context, fee std.Fee) sdk.Result {
 				} else {
 					return abciResult(std.ErrInsufficientFee(
 						fmt.Sprintf(
-							"insufficient fees; got: %q required: %q", fee.GasFee, gp,
+							"insufficient fees; got: {Gas-Wanted: %d, Gas-Fee %s}, fee required: %+v as minimum gas price set by the node", feeGasPrice.Gas, feeGasPrice.Price, gp,
 						),
 					))
 				}
@@ -415,7 +399,7 @@ func EnsureSufficientMempoolFees(ctx sdk.Context, fee std.Fee) sdk.Result {
 
 	return abciResult(std.ErrInsufficientFee(
 		fmt.Sprintf(
-			"insufficient fees; got: %q required (one of): %q", fee.GasFee, minGasPrices,
+			"insufficient fees; got: {Gas-Wanted: %d, Gas-Fee %s}, required (one of): %q", feeGasPrice.Gas, feeGasPrice.Price, minGasPrices,
 		),
 	))
 }

@@ -6,7 +6,7 @@ func main() {
 	a := uint(1)
 	r := uint64(1) << a
 	println(r)
-	fmt.Printf("%T \n", r)
+	fmt.Printf("%T\n", r)
 }
 
 // Output:
