@@ -24,12 +24,18 @@ jobs:
       - uses: actions/setup-go@v5
         with:
           go-version-file: go.mod
-      - run: "cd misc/gendocs && make install gen"
+      - run: echo "GOROOT=$(go env GOROOT)" >> $GITHUB_ENV
+      - run: echo $GOROOT
+      - run: "cd misc/stdlib_diff && make install gen"
+      - run: "cd misc/gendocs && make gen"
+      - run: |
+          mv misc/gendocs/godoc pages_output
+          mv misc/stdlib_diff/stdlib_diff pages_ouput/stdlib_diff
       - uses: actions/configure-pages@v5
         id: pages
       - uses: actions/upload-pages-artifact@v3
         with:
-          path: ./misc/gendocs/godoc
+          path: ./pages_output
 
   deploy:
     if: ${{ github.repository == 'gnolang/gno' }} # Alternatively, validate based on provided tokens and permissions.
