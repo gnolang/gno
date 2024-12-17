@@ -58,7 +58,7 @@
   .realm-content h2,
   .realm-content h3,
   .realm-content h4 {
-    @apply text-gray-900 mt-8 leading-tight;
+    @apply text-gray-900 mt-12 leading-tight;
   }
 
   .realm-content h2,
@@ -76,7 +76,7 @@
   .realm-content h1 + h2,
   .realm-content h2 + h3,
   .realm-content h3 + h4 {
-    @apply mt-1.5;
+    @apply mt-4;
   }
 
   .realm-content h1 {
@@ -88,15 +88,15 @@
   }
 
   .realm-content h3 {
-    @apply text-400 text-gray-600 mt-6;
+    @apply text-400 text-gray-600 mt-10;
   }
 
   .realm-content h4 {
-    @apply text-300 text-gray-600 font-medium my-4;
+    @apply text-300 text-gray-600 font-medium my-6;
   }
 
   .realm-content p {
-    @apply my-4;
+    @apply my-5;
   }
 
   .realm-content strong {
@@ -117,16 +117,16 @@
 
   .realm-content ul,
   .realm-content ol {
-    @apply pl-4 my-4;
+    @apply pl-4 my-6;
   }
 
   .realm-content ul li,
   .realm-content ol li {
-    @apply mb-1;
+    @apply mb-3;
   }
 
   .realm-content img {
-    @apply max-w-full my-6;
+    @apply max-w-full my-8;
   }
 
   .realm-content figure {
@@ -146,11 +146,11 @@
   }
 
   .realm-content hr {
-    @apply border-t border-gray-100 my-8;
+    @apply border-t border-gray-100 my-10;
   }
 
   .realm-content table {
-    @apply w-full border-collapse my-6;
+    @apply w-full border-collapse my-8;
   }
 
   .realm-content th,
@@ -182,7 +182,7 @@
   .realm-content ul ol,
   .realm-content ol ul,
   .realm-content ol ol {
-    @apply mt-2 mb-2 pl-4;
+    @apply mt-3 mb-2 pl-4;
   }
 
   .realm-content ul {
@@ -208,7 +208,7 @@
   }
 
   .realm-content details {
-    @apply my-4;
+    @apply my-5;
   }
 
   .realm-content summary {
@@ -220,7 +220,7 @@
   }
 
   .realm-content video {
-    @apply max-w-full my-6;
+    @apply max-w-full my-8;
   }
 
   .realm-content math {
