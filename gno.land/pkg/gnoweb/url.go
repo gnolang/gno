@@ -16,6 +16,9 @@ const (
 	KindPure    PathKind = 'p'
 )
 
+// reRealmPath match and validate a realm or package path
+var rePkgOrRealmPath = regexp.MustCompile(`^/[a-z]/[a-zA-Z0-9_/]*$`)
+
 // GnoURL decomposes the parts of an URL to query a realm.
 type GnoURL struct {
 	// Example full path:
@@ -75,55 +78,41 @@ func (url GnoURL) EncodeWebPath() string {
 }
 
 func (url GnoURL) Kind() PathKind {
-	if len(url.Path) < 2 {
-		return KindInvalid
+	// Check if the first and third character is '/' and extract the next character
+	if len(url.Path) > 2 && url.Path[0] == '/' && url.Path[2] == '/' {
+		switch k := PathKind(url.Path[1]); k {
+		case KindPure, KindRealm:
+			return k
+		}
 	}
-	pk := PathKind(url.Path[1])
-	switch pk {
-	case KindPure, KindRealm:
-		return pk
-	}
+
 	return KindInvalid
 }
 
 var (
-	ErrURLMalformedPath   = errors.New("malformed URL path")
+	ErrURLMalformedPath   = errors.New("malformed path")
 	ErrURLInvalidPathKind = errors.New("invalid path kind")
 )
 
-// reRealName match a realm path
-// - matches[1]: path
-// - matches[2]: path args
-var reRealmPath = regexp.MustCompile(`^` +
-	`(/(?:[a-zA-Z0-9_-]+)/` + // path kind
-	`[a-zA-Z][a-zA-Z0-9_-]*` + // First path segment
-	`(?:/[a-zA-Z][.a-zA-Z0-9_-]*)*/?)` + // Additional path segments
-	`([:$](?:.*))?$`, // Remaining portions args, separate by `$` or `:`
-)
-
 func ParseGnoURL(u *url.URL) (*GnoURL, error) {
-	matches := reRealmPath.FindStringSubmatch(u.EscapedPath())
-	if len(matches) != 3 {
-		return nil, fmt.Errorf("%w: %s", ErrURLMalformedPath, u.Path)
-	}
-
-	path := matches[1]
-	args := matches[2]
-
-	if len(args) > 0 {
-		switch args[0] {
-		case ':':
-			args = args[1:]
-		case '$':
-		default:
-			return nil, fmt.Errorf("%w: %s", ErrURLMalformedPath, u.Path)
-		}
-	}
-
-	var err error
-	webquery := url.Values{}
-	args, webargs, found := strings.Cut(args, "$")
+	var webargs string
+	path, args, found := strings.Cut(u.EscapedPath(), ":")
 	if found {
+		args, webargs, _ = strings.Cut(args, "$")
+	} else {
+		path, webargs, _ = strings.Cut(path, "$")
+	}
+
+	// XXX: should we lower case the path ?
+
+	// Validate path format
+	if !rePkgOrRealmPath.MatchString(path) {
+		return nil, fmt.Errorf("%w: %q", ErrURLMalformedPath, path)
+	}
+
+	webquery := url.Values{}
+	if len(webargs) > 0 {
+		var err error
 		if webquery, err = url.ParseQuery(webargs); err != nil {
 			return nil, fmt.Errorf("unable to parse webquery %q: %w ", webquery, err)
 		}
