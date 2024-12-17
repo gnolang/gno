@@ -39,7 +39,7 @@ func TestCallSingle_Integration(t *testing.T) {
 
 	// Make Tx config
 	baseCfg := BaseTxCfg{
-		GasFee:         ugnot.ValueString(10000),
+		GasFee:         ugnot.ValueString(2100000),
 		GasWanted:      21000000,
 		AccountNumber:  0,
 		SequenceNumber: 0,
@@ -92,7 +92,7 @@ func TestCallMultiple_Integration(t *testing.T) {
 
 	// Make Tx config
 	baseCfg := BaseTxCfg{
-		GasFee:         ugnot.ValueString(10000),
+		GasFee:         ugnot.ValueString(2100000),
 		GasWanted:      21000000,
 		AccountNumber:  0,
 		SequenceNumber: 0,
@@ -154,7 +154,7 @@ func TestSendSingle_Integration(t *testing.T) {
 
 	// Make Tx config
 	baseCfg := BaseTxCfg{
-		GasFee:         ugnot.ValueString(10000),
+		GasFee:         ugnot.ValueString(2100000),
 		GasWanted:      21000000,
 		AccountNumber:  0,
 		SequenceNumber: 0,
@@ -218,7 +218,7 @@ func TestSendMultiple_Integration(t *testing.T) {
 
 	// Make Tx config
 	baseCfg := BaseTxCfg{
-		GasFee:         ugnot.ValueString(10000),
+		GasFee:         ugnot.ValueString(2100000),
 		GasWanted:      21000000,
 		AccountNumber:  0,
 		SequenceNumber: 0,
@@ -290,7 +290,7 @@ func TestRunSingle_Integration(t *testing.T) {
 
 	// Make Tx config
 	baseCfg := BaseTxCfg{
-		GasFee:         ugnot.ValueString(10000),
+		GasFee:         ugnot.ValueString(2100000),
 		GasWanted:      21000000,
 		AccountNumber:  0,
 		SequenceNumber: 0,
@@ -358,7 +358,7 @@ func TestRunMultiple_Integration(t *testing.T) {
 
 	// Make Tx config
 	baseCfg := BaseTxCfg{
-		GasFee:         ugnot.ValueString(10000),
+		GasFee:         ugnot.ValueString(2300000),
 		GasWanted:      23000000,
 		AccountNumber:  0,
 		SequenceNumber: 0,
@@ -451,7 +451,7 @@ func TestAddPackageSingle_Integration(t *testing.T) {
 
 	// Make Tx config
 	baseCfg := BaseTxCfg{
-		GasFee:         ugnot.ValueString(10000),
+		GasFee:         ugnot.ValueString(2100000),
 		GasWanted:      21000000,
 		AccountNumber:  0,
 		SequenceNumber: 0,
@@ -536,7 +536,7 @@ func TestAddPackageMultiple_Integration(t *testing.T) {
 
 	// Make Tx config
 	baseCfg := BaseTxCfg{
-		GasFee:         ugnot.ValueString(10000),
+		GasFee:         ugnot.ValueString(2100000),
 		GasWanted:      21000000,
 		AccountNumber:  0,
 		SequenceNumber: 0,
