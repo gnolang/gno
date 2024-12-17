@@ -31,10 +31,12 @@ type AppConfig struct {
 	ChainID string
 	// AssetsPath is the base path to the gnoweb assets.
 	AssetsPath string
-	// AssetDir, if set, will be used for assets instead of the embedded public directory
+	// AssetDir, if set, will be used for assets instead of the embedded public directory.
 	AssetsDir string
 	// FaucetURL, if specified, will be the URL to which `/faucet` redirects.
 	FaucetURL string
+	// Domain is the domain used by the node.
+	Domain string
 }
 
 // NewDefaultAppConfig returns a new default [AppConfig]. The default sets
@@ -49,6 +51,7 @@ func NewDefaultAppConfig() *AppConfig {
 		RemoteHelp: defaultRemote,
 		ChainID:    "dev",
 		AssetsPath: "/public/",
+		Domain:     "gno.land",
 	}
 }
 
@@ -64,12 +67,18 @@ func mustGetStyle(name string) *chroma.Style {
 
 // NewRouter initializes the gnoweb router, with the given logger and config.
 func NewRouter(logger *slog.Logger, cfg *AppConfig) (http.Handler, error) {
+	client, err := client.NewHTTPClient(cfg.NodeRemote)
+	if err != nil {
+		return nil, fmt.Errorf("unable to create http client: %w", err)
+	}
+
 	chromaOptions := []chromahtml.Option{
 		chromahtml.WithLineNumbers(true),
 		chromahtml.WithLinkableLineNumbers(true, "L"),
 		chromahtml.WithClasses(true),
 		chromahtml.ClassPrefix("chroma-"),
 	}
+	chroma := chromahtml.New(chromaOptions...)
 
 	mdopts := []goldmark.Option{
 		goldmark.WithExtensions(
@@ -84,21 +93,23 @@ func NewRouter(logger *slog.Logger, cfg *AppConfig) (http.Handler, error) {
 
 	md := goldmark.New(mdopts...)
 
-	client, err := client.NewHTTPClient(cfg.NodeRemote)
-	if err != nil {
-		return nil, fmt.Errorf("unable to create http client: %w", err)
+	webcfg := WebClientConfig{
+		Markdown:    md,
+		Highlighter: NewChromaHighlighter(chroma, chromaStyle),
+		Domain:      cfg.Domain,
+		UnsafeHTML:  cfg.UnsafeHTML,
+		RPCClient:   client,
 	}
-	webcli := NewWebClient(logger, client, md)
 
-	formatter := chromahtml.New(chromaOptions...)
+	webcli := NewWebClient(logger, &webcfg)
 	chromaStylePath := path.Join(cfg.AssetsPath, "_chroma", "style.css")
 
 	var webConfig WebHandlerConfig
 
-	webConfig.RenderClient = webcli
-	webConfig.Formatter = newFormatterWithStyle(formatter, chromaStyle)
+	webConfig.WebClient = webcli
 
 	// Static meta
+	webConfig.Meta.Domain = cfg.Domain
 	webConfig.Meta.AssetsPath = cfg.AssetsPath
 	webConfig.Meta.ChromaPath = chromaStylePath
 	webConfig.Meta.RemoteHelp = cfg.RemoteHelp
@@ -106,7 +117,10 @@ func NewRouter(logger *slog.Logger, cfg *AppConfig) (http.Handler, error) {
 	webConfig.Meta.Analytics = cfg.Analytics
 
 	// Setup main handler
-	webhandler := NewWebHandler(logger, webConfig)
+	webhandler, err := NewWebHandler(logger, webConfig)
+	if err != nil {
+		return nil, fmt.Errorf("unable create web handler: %w", err)
+	}
 
 	mux := http.NewServeMux()
 
@@ -124,11 +138,11 @@ func NewRouter(logger *slog.Logger, cfg *AppConfig) (http.Handler, error) {
 		}))
 	}
 
-	// setup assets
+	// Setup assets
 	mux.Handle(chromaStylePath, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		// Setup Formatter
 		w.Header().Set("Content-Type", "text/css")
-		if err := formatter.WriteCSS(w, chromaStyle); err != nil {
+		if err := chroma.WriteCSS(w, chromaStyle); err != nil {
 			logger.Error("unable to write css", "err", err)
 			http.NotFound(w, r)
 		}
