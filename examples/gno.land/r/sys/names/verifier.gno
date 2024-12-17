@@ -1,11 +1,12 @@
 package names
 
 import (
-	"github.com/gnolang/gno/examples/gno.land/p/demo/ownable"
 	"std"
 	"strings"
 
-	susers "gno.land/r/sys/users"
+	"gno.land/p/demo/ownable"
+	"gno.land/p/demo/pausable"
+	"gno.land/r/sys/users"
 )
 
 const (
@@ -14,16 +15,6 @@ const (
 )
 
 type verifierFunc func(enabled bool, address std.Address, name string) bool
-
-var (
-	checkFunc  = defaultVerifier // Checking namespace callback
-	AdminStore = ownable.NewWithAddress(adminAddr)
-)
-
-// IsAuthorizedAddressForName ensures that the given address has ownership of the given name.
-func IsAuthorizedAddressForName(address std.Address, name string) bool {
-	return checkFunc(susers.IsPaused(), address, name)
-}
 
 // UpdateVerifyCall updates the method that verifies the namespace.
 func UpdateVerifyCall(check verifierFunc) error {
@@ -35,6 +26,17 @@ func UpdateVerifyCall(check verifierFunc) error {
 	std.Emit(VerifyFuncUpdatedEvent)
 
 	return nil
+}
+
+var (
+	checkFunc  = defaultVerifier // Checking namespace callback
+	AdminStore = ownable.NewWithAddress(adminAddr)
+	PauseStore = pausable.NewFromOwnable(AdminStore)
+)
+
+// IsAuthorizedAddressForName ensures that the given address has ownership of the given name.
+func IsAuthorizedAddressForName(address std.Address, name string) bool {
+	return checkFunc(PauseStore.IsPaused(), address, name)
 }
 
 // defaultVerifyFunction checks the store to see that the
@@ -55,7 +57,9 @@ func defaultVerifier(enabled bool, address std.Address, name string) bool {
 		return true
 	}
 
+	/// XXX: add check for r/sys/teams down the line
+
 	// Can be a registered name or an alias
-	lookup := susers.ResolveName(name)
+	lookup := users.ResolveName(name)
 	return lookup.Addr == address
 }
