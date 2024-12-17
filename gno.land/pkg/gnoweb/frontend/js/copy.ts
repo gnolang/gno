@@ -6,7 +6,7 @@ class Copy {
 
   private btnClicked: HTMLElement | null = null;
   private btnClickedIcons: HTMLElement[] = [];
-  private isAnimationRunning: boolean = 0;
+  private isAnimationRunning: boolean = false;
 
   private static SELECTORS = {
     button: "[data-copy-btn]",

@@ -1,6 +1,5 @@
 {{ define "renderRealmToc" }}
-    <ul class="space-y-2 pt-2 pl-4">
-        {{ range .Items }}
+    <ul class="space-y-2 pt-2 pl-4">{{ range .Items }}
             <li>
                 <a class="line-clamp-2 hover:text-green-600 hover:underline" href="{{ .Anchor }}">
                     {{ .Title | noescape_bytes }}
@@ -9,15 +8,14 @@
                     {{ template "renderRealmToc" . }}
                 {{ end }}
             </li>
-        {{ end }}
-    </ul>
+        {{ end }}</ul>
 {{ end }}
 
 {{ define "renderRealm" }}
     <main class="w-full grow-[2] bg-light">
         <section class="max-w-screen-max mx-auto px-4 md:px-10 grid grid-cols-1 lg:grid-cols-10 xl:grid-cols-10 grid-flow-dense gap-x-20 xxl:gap-x-32 items-start">
             <aside class="lg:col-span-3 lg:order-2 relative h-full" aria-label="Table of Contents">
-                <div class="sticky top-14 lg:pt-2">
+                <div class="sticky top-14 lg:pt-2 has-[ul:empty]:hidden">
                     <div id="sidebar-summary" class="max-h-screen overflow-scroll no-scrollbar bg-gray-50 lg:bg-transparent rounded-sm mt-8 lg:mt-0">
                         <label for="toc-expend" class="toc-expend-btn flex text-100 lg:text-200 font-normal lg:font-semibold lg:mt-10 justify-between items-center bg-light hover:bg-gray-100 cursor-pointer border lg:border-none lg:bg-transparent lg:hover:bg-transparent px-4 py-2 lg:p-0 rounded-sm">
                             On this page
