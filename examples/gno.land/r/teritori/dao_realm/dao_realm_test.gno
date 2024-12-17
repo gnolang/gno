@@ -52,7 +52,7 @@ func TestUpdateMembers(t *testing.T) {
 			t.Errorf("Expected:\n%s\nGot:\n%s", expected, membersJSON)
 		}
 
-		totalPower := group.TotalPowerAtHeight(havl.Latest)
+		totalPower := group.TotalPowerAtHeight(havl.Latest, nil)
 		if totalPower != 7 {
 			t.Errorf("Expected total power to be 6, got %d", totalPower)
 		}
@@ -82,7 +82,7 @@ func TestUpdateMembers(t *testing.T) {
 			t.Errorf("Expected:\n%s\nGot:\n%s", expected, membersJSON)
 		}
 
-		totalPower := group.TotalPowerAtHeight(havl.Latest)
+		totalPower := group.TotalPowerAtHeight(havl.Latest, nil)
 		if totalPower != 6 {
 			t.Errorf("Expected total power to be 6, got %d", totalPower)
 		}

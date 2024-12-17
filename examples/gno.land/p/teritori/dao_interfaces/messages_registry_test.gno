@@ -17,7 +17,7 @@ func TestRegistry(t *testing.T) {
 	registry.Execute(registerMsg)
 
 	// Test messages execution
-	msgs := registry.MessagesFromJSON(json.Must(json.Unmarshal(`[{"type":"CopyMessage","payload":"Hello"}]`)).MustArray())
+	msgs := registry.MessagesFromJSON(json.Must(json.Unmarshal([]byte(`[{"type":"CopyMessage","payload":"Hello"}]`))).MustArray())
 	if len(msgs) != 1 {
 		t.Errorf("Expected 1 message, got %d", len(msgs))
 	}
