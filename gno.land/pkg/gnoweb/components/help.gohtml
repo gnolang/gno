@@ -92,7 +92,7 @@
                 <button class="w-5 h-5 absolute top-2 right-2 text-gray-400" aria-label="Copy Command" data-copy-btn="help-cmd-{{ .FuncName }}">
                   <svg class="w-5 h-5 top-0" data-copy-icon>
                     <use href="#ico-copy"></use>
-                    <use href="#ico-check" class="hidden"></use>
+                    <use href="#ico-check" class="hidden text-green-600"></use>
                   </svg>
                 </button>
                 <pre class="font-mono text-gray-600 p-4 pr-10 whitespace-pre-wrap"><code><span data-code-mode="fast" class="inline" data-copy-content="help-cmd-{{ .FuncName }}">gnokey maketx call -pkgpath "{{ $.PkgPath }}" -func "{{ .FuncName }}" -gas-fee 1000000ugnot -gas-wanted 2000000 -broadcast -chainid "{{ $.ChainId }}"{{ range .Params }} -args "<span data-role="help-code-args" data-arg="{{ .Name }}" data-copy-content=""></span>"{{ end }} -remote "{{ $.Remote }}" <span data-role="help-code-address">ADDRESS</span></span><span data-code-mode="secure" class="hidden">gnokey query -remote "{{ $.Remote }}" auth/accounts/<span data-role="help-code-address">ADDRESS</span>
