@@ -3,8 +3,8 @@ package dao_proposal_single
 import (
 	"strings"
 
-	"gno.land/p/teritori/dao_interfaces"
 	"gno.land/p/demo/json"
+	"gno.land/p/teritori/dao_interfaces"
 )
 
 type UpdateSettingsMessage struct {

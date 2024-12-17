@@ -4,8 +4,8 @@ import (
 	"strconv"
 	"strings"
 
-	"gno.land/p/teritori/jsonutil"
 	"gno.land/p/demo/json"
+	"gno.land/p/teritori/jsonutil"
 )
 
 // ported from https://github.com/DA0-DA0/dao-contracts/blob/7776858e780f1ce9f038a3b06cce341dd41d2189/packages/dao-voting/src/threshold.rs

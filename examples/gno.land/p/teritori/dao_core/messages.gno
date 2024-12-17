@@ -1,8 +1,8 @@
 package core
 
 import (
-	dao_interfaces "gno.land/p/teritori/dao_interfaces"
 	"gno.land/p/demo/json"
+	dao_interfaces "gno.land/p/teritori/dao_interfaces"
 )
 
 // UpdateProposalModules

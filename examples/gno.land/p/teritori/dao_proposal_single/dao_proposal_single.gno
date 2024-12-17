@@ -6,9 +6,9 @@ import (
 	"strings"
 
 	"gno.land/p/demo/avl"
+	"gno.land/p/demo/json"
 	"gno.land/p/teritori/dao_interfaces"
 	"gno.land/p/teritori/dao_utils"
-	"gno.land/p/demo/json"
 )
 
 type DAOProposalSingleOpts struct {

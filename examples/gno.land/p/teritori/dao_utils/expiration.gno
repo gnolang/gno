@@ -5,8 +5,8 @@ import (
 	"strconv"
 	"time"
 
-	"gno.land/p/teritori/jsonutil"
 	"gno.land/p/demo/json"
+	"gno.land/p/teritori/jsonutil"
 )
 
 // loosely ported from https://github.com/CosmWasm/cw-utils/blob/7fce8a214f2f1e7763b8718dcbd2a6dd07f30988/src/expiration.rs

@@ -1,8 +1,8 @@
 package dao_voting_group
 
 import (
-	"gno.land/p/teritori/dao_interfaces"
 	"gno.land/p/demo/json"
+	"gno.land/p/teritori/dao_interfaces"
 )
 
 const updateMembersType = "gno.land/p/teritori/dao_voting_group.UpdateMembers"

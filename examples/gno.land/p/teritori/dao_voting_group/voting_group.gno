@@ -5,10 +5,10 @@ import (
 	"strconv"
 	"strings"
 
+	"gno.land/p/demo/json"
 	dao_interfaces "gno.land/p/teritori/dao_interfaces"
 	"gno.land/p/teritori/havl"
 	"gno.land/p/teritori/jsonutil"
-	"gno.land/p/demo/json"
 )
 
 type Member struct {

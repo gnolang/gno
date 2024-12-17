@@ -2,16 +2,11 @@ package dao_realm
 
 import (
 	"fmt"
-	"std"
 	"testing"
 
-	dao_core "gno.land/p/teritori/dao_core"
-	dao_interfaces "gno.land/p/teritori/dao_interfaces"
-	proposal_single "gno.land/p/teritori/dao_proposal_single"
+	"gno.land/p/demo/json"
 	"gno.land/p/teritori/dao_voting_group"
 	"gno.land/p/teritori/havl"
-	"gno.land/p/demo/json"
-	"gno.land/r/demo/users"
 )
 
 func TestInit(t *testing.T) {

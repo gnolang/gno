@@ -4,10 +4,10 @@ import (
 	"strconv"
 	"strings"
 
-	"gno.land/p/teritori/dao_interfaces"
-	"gno.land/p/teritori/jsonutil"
 	"gno.land/p/demo/json"
 	"gno.land/p/demo/users"
+	"gno.land/p/teritori/dao_interfaces"
+	"gno.land/p/teritori/jsonutil"
 )
 
 type ExecutableMessageMintTori struct {

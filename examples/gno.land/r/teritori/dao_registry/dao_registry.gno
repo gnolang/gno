@@ -6,9 +6,9 @@ import (
 	"time"
 
 	"gno.land/p/demo/avl"
+	"gno.land/p/demo/json"
 	"gno.land/p/teritori/dao_interfaces"
 	"gno.land/p/teritori/jsonutil"
-	"gno.land/p/demo/json"
 )
 
 type Registration struct {

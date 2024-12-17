@@ -5,10 +5,8 @@ import (
 	"testing"
 	"time"
 
-	"gno.land/r/teritori/dao_registry"
-
-	"gno.land/p/teritori/dao_interfaces"
 	"gno.land/p/demo/ufmt"
+	"gno.land/p/teritori/dao_interfaces"
 )
 
 func TestRegistry(t *testing.T) {

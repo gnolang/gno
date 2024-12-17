@@ -5,10 +5,10 @@ import (
 	"strconv"
 
 	"gno.land/p/demo/avl"
+	"gno.land/p/demo/json"
 	dao_interfaces "gno.land/p/teritori/dao_interfaces"
 	"gno.land/p/teritori/dao_utils"
 	"gno.land/p/teritori/jsonutil"
-	"gno.land/p/demo/json"
 )
 
 type Ballot struct {
