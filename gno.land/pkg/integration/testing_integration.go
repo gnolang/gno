@@ -134,11 +134,12 @@ func setupGnolandTestScript(t *testing.T, txtarDir string) testscript.Params {
 			// Track new user balances added via the `adduser`
 			// command and packages added with the `loadpkg` command.
 			// This genesis will be use when node is started.
-			genesis := &gnoland.GnoGenesisState{
-				Balances: LoadDefaultGenesisBalanceFile(t, gnoRootDir),
-				Params:   LoadDefaultGenesisParamFile(t, gnoRootDir),
-				Txs:      []gnoland.TxWithMetadata{},
-			}
+
+			genesis := gnoland.DefaultGenState()
+			genesis.Balances = LoadDefaultGenesisBalanceFile(t, gnoRootDir)
+			genesis.Params = LoadDefaultGenesisParamFile(t, gnoRootDir)
+			genesis.Auth.Params.InitialGasPrice = std.GasPrice{Gas: 0, Price: std.Coin{Amount: 0, Denom: "ugnot"}}
+			genesis.Txs = []gnoland.TxWithMetadata{}
 
 			// test1 must be created outside of the loop below because it is already included in genesis so
 			// attempting to recreate results in it getting overwritten and breaking existing tests that
@@ -147,7 +148,7 @@ func setupGnolandTestScript(t *testing.T, txtarDir string) testscript.Params {
 			env.Setenv("USER_SEED_"+DefaultAccount_Name, DefaultAccount_Seed)
 			env.Setenv("USER_ADDR_"+DefaultAccount_Name, DefaultAccount_Address)
 
-			env.Values[envKeyGenesis] = genesis
+			env.Values[envKeyGenesis] = &genesis
 			env.Values[envKeyPkgsLoader] = newPkgsLoader()
 
 			env.Setenv("GNOROOT", gnoRootDir)
@@ -187,16 +188,18 @@ func setupGnolandTestScript(t *testing.T, txtarDir string) testscript.Params {
 					pkgs := ts.Value(envKeyPkgsLoader).(*pkgsLoader)                // grab logger
 					creator := crypto.MustAddressFromString(DefaultAccount_Address) // test1
 					defaultFee := std.NewFee(50000, std.MustParseCoin(ugnot.ValueString(1000000)))
-					// Generate config and node
-					cfg := TestingMinimalNodeConfig(t, gnoRootDir)
-					pkgsTxs, err := pkgs.LoadPackages(creator, defaultFee, nil, cfg.TMConfig.ChainID())
-					if err != nil {
+					// we need to define a new err1 otherwise the out err would be shadowed in the case "start":
+					pkgsTxs, loadErr := pkgs.LoadPackages(creator, defaultFee, nil)
+
+					if loadErr != nil {
 						ts.Fatalf("unable to load packages txs: %s", err)
 					}
 
 					// Warp up `ts` so we can pass it to other testing method
 					t := TSTestingT(ts)
 
+					// Generate config and node
+					cfg := TestingMinimalNodeConfig(t, gnoRootDir)
 					genesis := ts.Value(envKeyGenesis).(*gnoland.GnoGenesisState)
 					genesis.Txs = append(pkgsTxs, genesis.Txs...)
 
@@ -663,12 +666,7 @@ func (pl *pkgsLoader) SetPatch(replace, with string) {
 	pl.patchs[replace] = with
 }
 
-func (pl *pkgsLoader) LoadPackages(creator bft.Address, fee std.Fee, deposit std.Coins, chainID string) ([]gnoland.TxWithMetadata, error) {
-	kb := keys.NewInMemory()
-	_, err := kb.CreateAccount(DefaultAccount_Name, DefaultAccount_Seed, "", "", 0, 0)
-	if err != nil {
-		return nil, fmt.Errorf("createAccount: %w", err)
-	}
+func (pl *pkgsLoader) LoadPackages(creator bft.Address, fee std.Fee, deposit std.Coins) ([]gnoland.TxWithMetadata, error) {
 	pkgslist, err := pl.List().Sort() // sorts packages by their dependencies.
 	if err != nil {
 		return nil, fmt.Errorf("unable to sort packages: %w", err)
@@ -699,20 +697,6 @@ func (pl *pkgsLoader) LoadPackages(creator bft.Address, fee std.Fee, deposit std
 					}
 				}
 			}
-		}
-		signbytes, err := tx.GetSignBytes(chainID, 0, 0)
-		if err != nil {
-			return nil, fmt.Errorf("unable to get sign bytes %q: %w", pkg.Name, err)
-		}
-		signature, pubKey, err := kb.Sign(DefaultAccount_Name, "", signbytes)
-		if err != nil {
-			return nil, fmt.Errorf("unable to sign transaction %q: %w", pkg.Name, err)
-		}
-		tx.Signatures = []std.Signature{
-			{
-				PubKey:    pubKey,
-				Signature: signature,
-			},
 		}
 
 		txs[i] = gnoland.TxWithMetadata{
