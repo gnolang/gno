@@ -7,15 +7,18 @@
           <h1 class="text-600 font-bold text-gray-900">{{ .RealmName }}</h1>
         </div>
         <form class="flex flex-col lg:flex-row gap-x-3 gap-y-2 text-gray-300">
-          <div class="min-w-48 border rounded-sm overflow-hidden">
+          <div class="relative min-w-48 border rounded-sm overflow-hidden text-gray-600">
             <select
               id="cmdmode"
               data-role="help-select-mode"
-              class="bg-gray-100 text-100 focus:outline-transparent text-gray-600 border-r-transparent border-r-8 block w-full px-4 py-2 lg:py-1.5 lg:px-2"
+              class="appearance-none cursor-pointer bg-gray-100 hover:bg-gray-50 text-100 outline-none block w-full px-3 py-2 lg:py-1.5 lg:px-2"
             >
               <option value="fast" selected="selected">Mode: Fast</option>
               <option value="secure">Mode: Full Security</option>
             </select>
+            <svg class="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4">
+              <use href="#ico-arrow-down"></use>
+            </svg>
           </div>
           <div class="relative flex w-full text-100">
             <label for="help-input-addr" class="flex gap-3 items-center bg-gray-100 rounded-l-sm border border-r-transparent px-3 text-gray-600">Key&nbsp;/&nbsp;Address</label>
@@ -26,8 +29,14 @@
       <aside class="col-span-1 lg:col-span-3 lg:order-2 lg:row-start-1 lg:row-span-2 relative h-full" aria-label="Index">
         <div class="sticky top-14 pt-2">
           <div id="sidebar-summary" class="toc max-h-screen overflow-scroll no-scrollbar bg-light lg:bg-transparent rounded-sm">
-            <label for="toc-expend" class="toc-expend-btn flex font-semibold lg:mt-10 justify-between items-center bg-gray-100 border lg:border-none lg:bg-transparent px-4 py-2 lg:p-0 rounded-sm">Functions Index
-              <input id="toc-expend" type="checkbox" class="hidden">
+            <label for="toc-expend" class="toc-expend-btn flex font-semibold lg:mt-10 justify-between items-center bg-gray-100 hover:bg-gray-50 cursor-pointer border lg:border-none lg:bg-transparent px-4 py-2 lg:p-0 rounded-sm">
+              Functions Index
+              <input id="toc-expend" type="checkbox" class="peer hidden">
+              <span class="flex xl:hidden gap-1.5 items-center before:content-['open'] peer-checked:before:content-['close'] before:text-100 before:font-normal lg:before:content-none">
+                <svg class="toc-expend-btn_ico w-4 h-4">
+                  <use href="#ico-arrow-down"></use>
+                </svg>
+              </span>
             </label>
             <!-- Functions ToC -->
             <nav class="hidden lg:block text-100 mt-2 lg:mt-0 pb-6 lg:pb-28 px-4 lg:px-0 lg:pt-2 font-mono">

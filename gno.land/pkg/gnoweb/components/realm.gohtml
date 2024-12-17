@@ -19,8 +19,14 @@
             <aside class="lg:col-span-3 lg:order-2 relative h-full" aria-label="Table of Contents">
                 <div class="sticky top-14 lg:pt-2">
                     <div id="sidebar-summary" class="toc max-h-screen overflow-scroll no-scrollbar bg-gray-50 lg:bg-transparent rounded-sm mt-8 lg:mt-0">
-                        <label for="toc-expend" class="toc-expend-btn flex font-semibold lg:mt-10 justify-between items-center bg-light border lg:border-none lg:bg-transparent px-4 py-2 lg:p-0 rounded-sm">On this page
-                            <input id="toc-expend" type="checkbox" class="hidden">
+                        <label for="toc-expend" class="toc-expend-btn flex font-semibold lg:mt-10 justify-between items-center bg-light hover:bg-gray-100 cursor-pointer border lg:border-none lg:bg-transparent lg:hover:bg-transparent px-4 py-2 lg:p-0 rounded-sm">
+                            On this page
+                            <input id="toc-expend" type="checkbox" class="peer hidden">
+                            <span class="flex xl:hidden gap-1.5 items-center before:content-['open'] peer-checked:before:content-['close'] before:text-100 before:font-normal lg:before:content-none">
+                                <svg class="toc-expend-btn_ico w-4 h-4">
+                                    <use href="#ico-arrow-down"></use>
+                                </svg>
+                            </span>
                         </label>
                         <nav class="hidden lg:block text-100 mt-2 lg:mt-0 pb-6 lg:pb-28 px-4 py-2 lg:px-0 *:pl-0">
                             {{ template "renderRealmToc" .TocItems }}

@@ -267,14 +267,11 @@
   }
 
   /* toc */
-  .toc-expend-btn {
-    @apply after:content-['open'] after:font-normal after:text-100 lg:after:content-none;
-  }
-  .toc-expend-btn:has(#toc-expend:checked) {
-    @apply after:content-['close'] lg:after:content-none;
-  }
   .toc-expend-btn:has(#toc-expend:checked) + nav {
     @apply block;
+  }
+  .toc-expend-btn:has(#toc-expend:checked) .toc-expend-btn_ico {
+    @apply rotate-180;
   }
 
   /* sidebar */
