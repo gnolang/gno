@@ -74,10 +74,11 @@
                           {{- if eq $data.SelectedFunc $funcName }}
                             value="{{ getSelectedArgValue $data . }}"
                           {{- end }}
+                          placeholder="parameter"
                           id="func-{{ $funcName }}-param-{{ .Name }}"
                           data-role="help-param-input"
                           data-param="{{ .Name }}"
-                          class="flex h-full bottom-1 w-full border-l p-2 focus:border-gray-300 group-hover:border-gray-300 outline-none font-mono"
+                          class="flex h-full bottom-1 w-full border-l p-2 focus:border-gray-300 group-hover:border-gray-300 text-gray-600 outline-none font-mono"
                         />
                       </div>
                     </div>
