@@ -22,8 +22,8 @@ func NewToken(name, symbol string, decimals uint) (*Token, *PrivateLedger) {
 	if len(name) > 15 {
 		panic("name should not exceed 15 characters")
 	}
-	if len(symbol) > 5 {
-		panic("symbol should not exceed 5 characters")
+	if len(symbol) > 10 {
+		panic("symbol should not exceed 10 characters")
 	}
 	if !isValidName(name) {
 		panic("name should be alphanumeric")
