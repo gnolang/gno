@@ -14,9 +14,6 @@ var (
 	bob   = testutils.TestAddress("bob")
 )
 
-// embed ownable and test
-// test safeownable
-
 func TestNew(t *testing.T) {
 	std.TestSetRealm(std.NewUserRealm(alice))
 	std.TestSetOrigCaller(alice) // TODO(bug): should not be needed
