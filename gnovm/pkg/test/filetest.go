@@ -60,7 +60,7 @@ func (opts *TestOptions) runFiletest(filename string, source []byte) (string, er
 	cw := opts.BaseStore.CacheWrap()
 	m := gno.NewMachineWithOptions(gno.MachineOptions{
 		Output:        &opts.outWriter,
-		Store:         opts.TestStore.BeginTransaction(cw, cw),
+		Store:         opts.TestStore.BeginTransaction(cw, cw, nil),
 		Context:       ctx,
 		MaxAllocBytes: maxAlloc,
 	})
@@ -240,7 +240,7 @@ func (opts *TestOptions) runTest(m *gno.Machine, pkgPath, filename string, conte
 				},
 			},
 		}
-		orig, tx := m.Store, m.Store.BeginTransaction(nil, nil)
+		orig, tx := m.Store, m.Store.BeginTransaction(nil, nil, nil)
 		m.Store = tx
 		// Run decls and init functions.
 		m.RunMemPackage(memPkg, true)
