@@ -125,7 +125,7 @@
 
   .realm-content ul li,
   .realm-content ol li {
-    @apply mb-3;
+    @apply mb-2;
   }
 
   .realm-content img {
