@@ -131,7 +131,6 @@ func TestAnalytics(t *testing.T) {
 				request := httptest.NewRequest(http.MethodGet, route, nil)
 				response := httptest.NewRecorder()
 				router.ServeHTTP(response, request)
-				fmt.Println("HELLO:", response.Body.String())
 				assert.Contains(t, response.Body.String(), "sa.gno.services")
 			})
 		}
