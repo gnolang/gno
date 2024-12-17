@@ -6,7 +6,7 @@ const OwnershipTransferEvent = "OwnershipTransfer"
 
 // Ownable is meant to be used as a top-level object to make your contract ownable OR
 // being embedded in a Gno object to manage per-object ownership.
-// Ownable is safe to expose as a top-level object
+// Ownable is safe to export as a top-level object
 type Ownable struct {
 	owner std.Address
 }
