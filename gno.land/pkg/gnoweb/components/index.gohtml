@@ -76,7 +76,7 @@
 
         <form class="sidemenu col-span-3 flex justify-end lg:justify-start gap-3 sm:gap-6 h-full text-100 text-gray-300">
             <a href="{{ .RealmPath }}">
-                <div class="group gap-1 xxl:pr-1 hover:text-gray-600 relative flex items-center h-full after:block after:absolute after:h-1 after:bg-green-600 after:left-0 after:bottom-0 {{ if (and (not (queryHas .WebQuery "source")) (not (queryHas .WebQuery "help"))) }}after:w-full text-stroke text-gray-600 is-active{{ end }}">
+                <div class="group gap-1 xxl:pr-1 hover:text-gray-600 relative flex items-center h-full after:block after:absolute after:h-1 after:bg-green-600 after:left-0 after:rounded-t-sm after:bottom-0 {{ if (and (not (queryHas .WebQuery "source")) (not (queryHas .WebQuery "help"))) }}after:w-full text-stroke text-gray-600 is-active{{ end }}">
                     <input type="radio" value="summary" name="sidemenu" id="sidemenu-meta" class="peer hidden" />
                     <svg class="group-[.is-active]:text-green-600 w-5 h-5 min-w-2 xxl:w-4.5 xxl:h-4.5 shrink-0 inline-block xl:hidden xxl:inline-block group">
                         <use href="#ico-info"></use>
@@ -86,7 +86,7 @@
             </a>
 
             <a href="{{ .RealmPath }}$source">
-                <div class="group gap-1 xxl:pr-1 hover:text-gray-600 relative flex items-center h-full after:block after:absolute after:h-1 after:bg-green-600 after:left-0 after:bottom-0 {{ if queryHas .WebQuery "source" }}after:w-full text-stroke text-gray-600 is-active{{ end }}">
+                <div class="group gap-1 xxl:pr-1 hover:text-gray-600 relative flex items-center h-full after:block after:absolute after:h-1 after:bg-green-600 after:left-0 after:rounded-t-sm after:bottom-0 {{ if queryHas .WebQuery "source" }}after:w-full text-stroke text-gray-600 is-active{{ end }}">
                     <input type="radio" value="summary" name="sidemenu" id="sidemenu-source" class="peer hidden" />
                     <svg class="group-[.is-active]:text-green-600 w-5 h-5 min-w-2 xxl:w-4.5 xxl:h-4.5 shrink-0 inline-block xl:hidden xxl:inline-block">
                         <use href="#ico-code"></use>
@@ -96,7 +96,7 @@
             </a>
 
             <a href="{{ .RealmPath }}$help">
-                <div class="group gap-1 xxl:pr-1 hover:text-gray-600 relative flex items-center h-full after:block after:absolute after:h-1 after:left-0 after:bg-green-600 after:bottom-0 {{ if queryHas .WebQuery "help" }}after:w-full text-stroke text-gray-600 is-active{{ end }}">
+                <div class="group gap-1 xxl:pr-1 hover:text-gray-600 relative flex items-center h-full after:block after:absolute after:h-1 after:left-0 after:bg-green-600 after:rounded-t-sm after:bottom-0 {{ if queryHas .WebQuery "help" }}after:w-full text-stroke text-gray-600 is-active{{ end }}">
                     <input type="radio" value="summary" name="sidemenu" id="sidemenu-docs" class="peer hidden" />
                     <svg class="group-[.is-active]:text-green-600 w-5 h-5 min-w-2 xxl:w-4.5 xxl:h-4.5 shrink-0 inline-block xl:hidden xxl:inline-block">
                         <use href="#ico-docs"></use>
