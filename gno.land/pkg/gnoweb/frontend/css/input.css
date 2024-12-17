@@ -29,7 +29,6 @@
     font-variant-ligatures: contextual common-ligatures;
     font-kerning: normal;
     text-rendering: optimizeLegibility;
-    overflow-x: hidden;
   }
 
   @supports (font-variation-settings: normal) {
@@ -47,7 +46,7 @@
   }
 
   .realm-content {
-    @apply text-200;
+    @apply text-200 break-words;
   }
 
   .realm-content a {
