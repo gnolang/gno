@@ -18,7 +18,19 @@ func NewToken(name, symbol string, decimals uint) (*Token, *PrivateLedger) {
 	if symbol == "" {
 		panic("symbol should not be empty")
 	}
-	// XXX additional checks (length, characters, limits, etc)
+
+	if len(name) > 15 {
+		panic("name should not exceed 15 characters")
+	}
+	if len(symbol) > 5 {
+		panic("symbol should not exceed 5 characters")
+	}
+	if !isValidName(name) {
+		panic("name should be alphanumeric")
+	}
+	if !isValidSymbol(symbol) {
+		panic("symbol should be uppercase alphabetic")
+	}
 
 	ledger := &PrivateLedger{}
 	token := &Token{
@@ -237,4 +249,24 @@ func (led PrivateLedger) allowance(owner, spender std.Address) uint64 {
 // allowanceKey returns the key for the allowance of the specified owner and spender.
 func allowanceKey(owner, spender std.Address) string {
 	return owner.String() + ":" + spender.String()
+}
+
+// Helper function to validate name, strictly alphanumeric
+func isValidName(name string) bool {
+	for _, c := range name {
+		if !((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9')) {
+			return false
+		}
+	}
+	return true
+}
+
+// Helper function to validate symbol, strictly uppercase alphabetic
+func isValidSymbol(symbol string) bool {
+	for _, c := range symbol {
+		if !(c >= 'A' && c <= 'Z') {
+			return false
+		}
+	}
+	return true
 }
