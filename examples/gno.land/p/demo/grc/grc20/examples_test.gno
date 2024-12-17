@@ -1,17 +1,18 @@
 package grc20
 
 import (
-	"gno.land/p/demo/ufmt"
 	"std"
+
+	"gno.land/p/demo/ufmt"
 )
 
 // ExampleInit demonstrates how to initialize a new token.
 func ExampleInit() {
 	token, ledger := NewToken("ExampleToken", "EXM", 2)
-	ufmt.Println(token.GetName())   // Output: ExampleToken
-	ufmt.Println(token.GetSymbol()) // Output: EXM
+	ufmt.Println(token.GetName())     // Output: ExampleToken
+	ufmt.Println(token.GetSymbol())   // Output: EXM
 	ufmt.Println(token.GetDecimals()) // Output: 2
-	ufmt.Println(ledger.totalSupply) // Output: 0
+	ufmt.Println(ledger.totalSupply)  // Output: 0
 }
 
 // ExampleTransfer demonstrates how to transfer tokens between accounts.
@@ -23,8 +24,8 @@ func ExampleTransfer() {
 	ledger.Mint(tony, 1000)
 	ledger.Transfer(tony, stefan, 200)
 
-	ufmt.Println(token.BalanceOf(tony)) // Output: 800
-	ufmt.Println(token.BalanceOf(stefan))   // Output: 200
+	ufmt.Println(token.BalanceOf(tony))   // Output: 800
+	ufmt.Println(token.BalanceOf(stefan)) // Output: 200
 }
 
 // ExampleApprove demonstrates how to approve a spender and transfer tokens using allowance.
@@ -38,8 +39,8 @@ func ExampleApprove() {
 	ledger.Approve(tony, stefan, 300)
 	ledger.TransferFrom(tony, stefan, carl, 200)
 
-	ufmt.Println(token.BalanceOf(tony)) // Output: 800
-	ufmt.Println(token.BalanceOf(carl))  // Output: 200
+	ufmt.Println(token.BalanceOf(tony))         // Output: 800
+	ufmt.Println(token.BalanceOf(carl))         // Output: 200
 	ufmt.Println(token.Allowance(tony, stefan)) // Output: 100
 }
 
@@ -51,7 +52,7 @@ func ExampleMint() {
 	ledger.Mint(tony, 500)
 
 	ufmt.Println(token.BalanceOf(tony)) // Output: 500
-	ufmt.Println(token.TotalSupply())    // Output: 500
+	ufmt.Println(token.TotalSupply())   // Output: 500
 }
 
 // ExampleBurn demonstrates how to burn tokens.
@@ -63,7 +64,7 @@ func ExampleBurn() {
 	ledger.Burn(tony, 200)
 
 	ufmt.Println(token.BalanceOf(tony)) // Output: 300
-	ufmt.Println(token.TotalSupply())    // Output: 300
+	ufmt.Println(token.TotalSupply())   // Output: 300
 }
 
 // ExampleCallerTeller demonstrates how to use the CallerTeller.
@@ -117,8 +118,8 @@ func ExampleImpersonateTeller() {
 
 	teller.Transfer(tony, 100)
 
-	ufmt.Println(token.BalanceOf(tony)) // Output: 1100
-	ufmt.Println(token.BalanceOf(stefan))   // Output: 0
+	ufmt.Println(token.BalanceOf(tony))   // Output: 1100
+	ufmt.Println(token.BalanceOf(stefan)) // Output: 0
 }
 
 // ...
