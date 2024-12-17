@@ -18,16 +18,16 @@ const (
 type verifierFunc func(enabled bool, address std.Address, name string) bool
 
 var (
-	checkFunc  = defaultVerifier // Callback for the namespace check
-	AdminStore = ownable.NewWithAddress(adminAddr)
+	checkFunc = defaultVerifier // Callback for the namespace check
+	Ownable   = ownable.NewWithAddress(adminAddr)
 
-	// PauseStore manages whether namespace registration is enabled on-chain or not
-	PauseStore = pausable.NewFromOwnable(AdminStore)
+	// Pausable manages whether namespace registration is enabled on-chain or not
+	Pausable = pausable.NewFromOwnable(Ownable)
 )
 
 // IsAuthorizedAddressForName ensures that the given address has ownership of the given name.
 func IsAuthorizedAddressForName(address std.Address, name string) bool {
-	return checkFunc(PauseStore.IsPaused(), address, name)
+	return checkFunc(Pausable.IsPaused(), address, name)
 }
 
 // defaultVerifyFunction checks the store to see that the
@@ -57,7 +57,7 @@ func defaultVerifier(enabled bool, address std.Address, name string) bool {
 
 // UpdateVerifyCall updates the method that verifies the namespace.
 func UpdateVerifyCall(check verifierFunc) error {
-	if err := AdminStore.CallerIsOwner(); err != nil {
+	if err := Ownable.CallerIsOwner(); err != nil {
 		return err
 	}
 
