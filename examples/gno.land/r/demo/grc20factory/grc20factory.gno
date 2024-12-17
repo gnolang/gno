@@ -120,6 +120,17 @@ func Burn(symbol string, from std.Address, amount uint64) {
 	checkErr(inst.ledger.Burn(from, amount))
 }
 
+// instance admin functionality
+func DropInstanceOwnership(symbol string) {
+	inst := mustGetInstance(symbol)
+	checkErr(inst.admin.DropOwnership())
+}
+
+func TransferinstanceOwnership(symbol string, newOwner std.Address) {
+	inst := mustGetInstance(symbol)
+	checkErr(inst.admin.Transferownership(newOwner))
+}
+
 func Render(path string) string {
 	parts := strings.Split(path, "/")
 	c := len(parts)

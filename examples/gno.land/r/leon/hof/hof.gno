@@ -14,7 +14,10 @@ import (
 
 var (
 	exhibition *Exhibition
-	owner      *ownable.Ownable
+
+	// Safe objects
+	AdminStore *ownable.Ownable
+	PauseStore *pausable.Pausable
 )
 
 type (
@@ -23,7 +26,6 @@ type (
 		description string
 		items       *avl.Tree // pkgPath > Item
 		itemsSorted *avl.Tree // same data but sorted, storing pointers
-		*pausable.Pausable
 	}
 
 	Item struct {
@@ -41,14 +43,14 @@ func init() {
 		itemsSorted: avl.NewTree(),
 	}
 
-	owner = ownable.NewWithAddress(std.Address("g125em6arxsnj49vx35f0n0z34putv5ty3376fg5"))
-	exhibition.Pausable = pausable.NewFromOwnable(owner)
+	AdminStore = ownable.NewWithAddress(std.Address("g125em6arxsnj49vx35f0n0z34putv5ty3376fg5"))
+	PauseStore = pausable.NewFromOwnable(AdminStore)
 }
 
 // Register registers your realm to the Hall of Fame
 // Should be called from within code
 func Register() {
-	if exhibition.IsPaused() {
+	if PauseStore.IsPaused() {
 		return
 	}
 
@@ -113,8 +115,8 @@ func Downvote(pkgpath string) {
 }
 
 func Delete(pkgpath string) {
-	if err := owner.CallerIsOwner(); err != nil {
-		panic(err)
+	if !AdminStore.CallerIsOwner() {
+		panic(ownable.ErrUnauthorized.Error())
 	}
 
 	i, ok := exhibition.items.Get(pkgpath)
