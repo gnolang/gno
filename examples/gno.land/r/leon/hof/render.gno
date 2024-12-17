@@ -80,9 +80,9 @@ func renderDashboard() string {
 	out += "## Dashboard\n\n"
 	out += ufmt.Sprintf("Total submissions: %d\n\n", exhibition.items.Size())
 
-	out += ufmt.Sprintf("Exhibition admin: %s\n\n", AdminStore.Owner().String())
+	out += ufmt.Sprintf("Exhibition admin: %s\n\n", Ownable.Owner().String())
 
-	if !PauseStore.IsPaused() {
+	if !Pausable.IsPaused() {
 		out += ufmt.Sprintf("[Pause exhibition](%s)\n\n", txlink.Call("Pause"))
 	} else {
 		out += ufmt.Sprintf("[Unpause exhibition](%s)\n\n", txlink.Call("Unpause"))

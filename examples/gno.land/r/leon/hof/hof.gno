@@ -16,8 +16,8 @@ var (
 	exhibition *Exhibition
 
 	// Safe objects
-	AdminStore *ownable.Ownable
-	PauseStore *pausable.Pausable
+	Ownable  *ownable.Ownable
+	Pausable *pausable.Pausable
 )
 
 type (
@@ -43,14 +43,14 @@ func init() {
 		itemsSorted: avl.NewTree(),
 	}
 
-	AdminStore = ownable.NewWithAddress(std.Address("g125em6arxsnj49vx35f0n0z34putv5ty3376fg5"))
-	PauseStore = pausable.NewFromOwnable(AdminStore)
+	Ownable = ownable.NewWithAddress(std.Address("g125em6arxsnj49vx35f0n0z34putv5ty3376fg5"))
+	Pausable = pausable.NewFromOwnable(Ownable)
 }
 
 // Register registers your realm to the Hall of Fame
 // Should be called from within code
 func Register() {
-	if PauseStore.IsPaused() {
+	if Pausable.IsPaused() {
 		return
 	}
 
@@ -115,7 +115,7 @@ func Downvote(pkgpath string) {
 }
 
 func Delete(pkgpath string) {
-	if !AdminStore.CallerIsOwner() {
+	if !Ownable.CallerIsOwner() {
 		panic(ownable.ErrUnauthorized.Error())
 	}
 
