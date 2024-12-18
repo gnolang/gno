@@ -5,9 +5,9 @@ import (
 	"std"
 
 	"gno.land/p/demo/ownable"
-	p "gno.land/p/demo/pausable"
-	pusers "gno.land/p/sys/users"
-	sys "gno.land/r/sys/users"
+	"gno.land/p/demo/pausable"
+
+	"gno.land/r/sys/users"
 )
 
 const (
@@ -17,8 +17,8 @@ const (
 )
 
 var (
-	AdminStore = ownable.NewWithAddress(adminAddr) // @moul // switch to dao managed down the line
-	PauseStore = p.NewFromOwnable(AdminStore)      //
+	Ownable    = ownable.NewWithAddress(adminAddr) // @moul // switch to dao managed down the line
+	Pausable   = pausable.NewFromOwnable(Ownable)  //
 	reUsername = regexp.MustCompile(reValidUsername)
 )
 
@@ -30,7 +30,7 @@ var (
 func Register(username string) error {
 	std.AssertOriginCall()
 
-	if PauseStore.IsPaused() {
+	if Pausable.IsPaused() {
 		return p.ErrPaused
 	}
 
@@ -40,14 +40,7 @@ func Register(username string) error {
 
 	registrant := std.PrevRealm().Addr()
 
-	base := pusers.User{
-		Address: registrant,
-		Name:    username,
-	}
-
-	// set extra data to r/demo/profiles
-
-	err := sys.WriteUser(base)
+	err := users.WriteUser(username, registrant)
 	if err != nil {
 		return err
 	}

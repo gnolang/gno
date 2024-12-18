@@ -3,8 +3,7 @@ package users
 import (
 	"std"
 
-	susers "gno.land/p/sys/users"
-	sys "gno.land/r/sys/users"
+	"gno.land/r/sys/users"
 )
 
 // pre-registered users
@@ -28,16 +27,9 @@ var preRegisteredUsers = []struct {
 }
 
 func init() {
-	height := std.GetHeight()
-
 	// add pre-registered users
 	for _, res := range preRegisteredUsers {
-		base := &susers.User{
-			Address: res.Address,
-			Name:    res.Name,
-		}
-
-		if err := sys.WriteUser(base); err != nil {
+		if err := users.WriteUser(res.Name, res.Address); err != nil {
 			panic(err)
 		}
 	}
