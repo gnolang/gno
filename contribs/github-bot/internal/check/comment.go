@@ -24,11 +24,11 @@ var errTriggeredByBot = errors.New("event triggered by bot")
 // Compile regex only once.
 var (
 	// Regex for capturing the entire line of a manual check.
-	manualCheckLine = regexp.MustCompile(`(?m:^-\s\[([ xX])\]\s+(.+?)\s*(\(checked by @(\w+)\))?$)`)
+	manualCheckLine = regexp.MustCompile(`(?m:^- \[([ xX])\] (.+?)(?: \(checked by @([A-Za-z0-9-]+)\))?$)`)
 	// Regex for capturing only the checkboxes.
-	checkboxes = regexp.MustCompile(`(?m:^- \[[ x]\])`)
+	checkboxes = regexp.MustCompile(`(?m:^- \[[ xX]\])`)
 	// Regex used to capture markdown links.
-	markdownLink = regexp.MustCompile(`\[(.*)\]\(.*\)`)
+	markdownLink = regexp.MustCompile(`\[(.*)\]\([^)]*\)`)
 )
 
 // These structures contain the necessary information to generate
@@ -46,9 +46,11 @@ type ManualContent struct {
 	Teams            []string
 }
 type CommentContent struct {
-	AutoRules    []AutoContent
-	ManualRules  []ManualContent
-	allSatisfied bool
+	AutoRules          []AutoContent
+	ManualRules        []ManualContent
+	AutoAllSatisfied   bool
+	ManualAllSatisfied bool
+	ForceSkip          bool
 }
 
 type manualCheckDetails struct {
@@ -64,10 +66,10 @@ func getCommentManualChecks(commentBody string) map[string]manualCheckDetails {
 	// For each line that matches the "Manual check" regex.
 	for _, match := range manualCheckLine.FindAllStringSubmatch(commentBody, -1) {
 		description := match[2]
-		status := match[1]
+		status := strings.ToLower(match[1]) // if X captured, convert it to x.
 		checkedBy := ""
-		if len(match) > 4 {
-			checkedBy = strings.ToLower(match[4]) // if X captured, convert it to x.
+		if len(match) > 3 {
+			checkedBy = match[3]
 		}
 
 		checks[description] = manualCheckDetails{status: status, checkedBy: checkedBy}
@@ -261,13 +263,15 @@ func updatePullRequest(gh *client.GitHub, pr *github.PullRequest, content Commen
 	var (
 		context     = "Merge Requirements"
 		targetURL   = comment.GetHTMLURL()
-		state       = "failure"
-		description = "Some requirements are not satisfied yet. See bot comment."
+		state       = "success"
+		description = "All requirements are satisfied."
 	)
 
-	if content.allSatisfied {
-		state = "success"
-		description = "All requirements are satisfied."
+	if content.ForceSkip {
+		description = "Bot checks are skipped for this PR."
+	} else if !content.AutoAllSatisfied || !content.ManualAllSatisfied {
+		state = "failure"
+		description = "Some requirements are not satisfied yet. See bot comment."
 	}
 
 	// Update or create commit status.

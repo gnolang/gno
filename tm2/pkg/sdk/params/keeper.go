@@ -2,6 +2,7 @@ package params
 
 import (
 	"fmt"
+	"log/slog"
 	"strings"
 
 	"github.com/gnolang/gno/tm2/pkg/amino"
@@ -18,7 +19,17 @@ const (
 	int64Suffix  = ".int64"
 	uint64Suffix = ".uint64"
 	bytesSuffix  = ".bytes"
+	ModuleName   = "params"
+
+	StoreKey = ModuleName
+
+	// ValueStoreKeyPrefix is "/pv/" for param value.
+	ValueStoreKeyPrefix = "/pv/"
 )
+
+func ValueStoreKey(key string) []byte {
+	return append([]byte(ValueStoreKeyPrefix), []byte(key)...)
+}
 
 // Keeper is the global param store keeper
 // TODO: The keeper, and its functionality is not thread safe,
@@ -34,6 +45,35 @@ func NewParamsKeeper(key store.StoreKey, prefix string) Keeper {
 		key:    key,
 		prefix: prefix,
 	}
+}
+
+// GetParams gets a param value from the global param store.
+func (pk Keeper) GetParams(ctx sdk.Context, key string, target interface{}) (bool, error) {
+	stor := ctx.Store(pk.key)
+
+	bz := stor.Get(ValueStoreKey(key))
+	if bz == nil {
+		return false, nil
+	}
+
+	return true, amino.UnmarshalJSON(bz, target)
+}
+
+// SetParams sets a param value to the global param store.
+func (pk Keeper) SetParams(ctx sdk.Context, key string, param interface{}) error {
+	stor := ctx.Store(pk.key)
+	bz, err := amino.MarshalJSON(param)
+	if err != nil {
+		return err
+	}
+
+	stor.Set(ValueStoreKey(key), bz)
+	return nil
+}
+
+// XXX: why do we expose this?
+func (pk Keeper) Logger(ctx sdk.Context) *slog.Logger {
+	return ctx.Logger().With("module", ModuleName)
 }
 
 func (pk Keeper) Has(ctx sdk.Context, key string) bool {

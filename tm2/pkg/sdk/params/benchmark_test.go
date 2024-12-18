@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
+	"github.com/stretchr/testify/require"
 )
 
 func BenchmarkParamsHandler_Query(b *testing.B) {
@@ -25,7 +26,7 @@ func BenchmarkParamsHandler_Query(b *testing.B) {
 	)
 
 	// Set an initial value in the keeper
-	env.keeper.SetString(env.ctx, key, value)
+	require.NoError(b, env.keeper.SetString(env.ctx, key, value))
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {

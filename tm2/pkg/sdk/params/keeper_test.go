@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"testing"
 
+	"github.com/gnolang/gno/tm2/pkg/amino"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -246,4 +247,27 @@ func TestKeeper_GetSetValues(t *testing.T) {
 			})
 		}
 	})
+}
+
+func TestGetAndSetParams(t *testing.T) {
+	t.Parallel()
+
+	type params struct {
+		p1 int
+		p2 string
+	}
+
+	env := setupTestEnv(t, "get_set_params_test")
+	ctx := env.ctx
+	keeper := env.keeper
+	// SetParams
+	a := params{p1: 1, p2: "a"}
+	err := keeper.SetParams(ctx, ModuleName, a)
+	require.NoError(t, err)
+
+	// GetParams
+	a1 := params{}
+	_, err1 := keeper.GetParams(ctx, ModuleName, &a1)
+	require.NoError(t, err1)
+	require.True(t, amino.DeepEqual(a, a1), "a and a1 should equal")
 }
