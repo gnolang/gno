@@ -15,10 +15,13 @@ var (
 	aliasStore      = avl.NewTree() // username > address
 	callerWhitelist = avl.NewTree() // addr > struct{}{}
 
-	reAddressLookalike = regexp.MustCompile(`^g1[a-z0-9]{38}$`)
+	reAddressLookalike = regexp.MustCompile(`^g1[a-z0-9]{20,38}$`)
 )
 
-const maxUsernameLen = 50
+const (
+	maxUsernameLen = 50
+	WriteUserEvent = "WriteUser"
+)
 
 // WriteUser writes a *new* user to the store
 // Only whitelisted callers can call this function
@@ -52,6 +55,8 @@ func WriteUser(name string, addr std.Address) error {
 
 	usernameStore.Set(trimmedName, addr)
 	addressStore.Set(addr.String(), trimmedName)
+
+	std.Emit(WriteUserEvent, "name", name, "address", addr.String())
 
 	return nil
 }

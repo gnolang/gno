@@ -1,12 +1,12 @@
 package users
 
 import (
+	"github.com/gnolang/gno/examples/gno.land/p/demo/avl/rotree"
+	"github.com/gnolang/gno/examples/gno.land/p/sys/users"
 	"std"
 	"strings"
 
-	"gno.land/p/demo/avl"
 	"gno.land/p/demo/avlhelpers"
-	"gno.land/p/sys/users"
 )
 
 func ResolveName(username string) users.UserLookup {
@@ -54,6 +54,10 @@ func ResolveAddressOrName(aon string) users.UserLookup {
 	return ResolveAddress(std.Address(aon))
 }
 
+func GetReadonlyStore() *rotree.ReadOnlyTree {
+	return rotree.Wrap(usernameStore, nil)
+}
+
 // Users returns a paginated list of user lookups
 // Looks users up by username; does not look up aliases
 func Users(offset, count uint64) []users.UserLookup {
@@ -64,21 +68,14 @@ func Users(offset, count uint64) []users.UserLookup {
 	res := make([]users.UserLookup, 0, count)
 
 	usernameStore.IterateByOffset(int(offset), int(count), func(key string, value interface{}) bool {
-		ul := users.UserLookup{
-			Name:  key,
-			Addr:  value.(std.Address),
-			Alias: false,
-		}
-
-		res = append(res, ul)
-
+		res = append(res, users.NewUserLookup(key, value.(std.Address), false))
 		return false
 	})
 
 	return res
 }
 
-// GetAllNames gets all names for a specific address
+// GetAllNames gets the name and all aliases for a specific address
 func GetAllNames(addr std.Address) []string {
 	var res []string
 
@@ -107,14 +104,4 @@ func UsersByPrefix(prefix string, maxResults int) []string {
 	// XXX: most likely moved to r/gnoland/users to keep this package minimal.
 	// in that case, should we get a value copy of the uStore available to whitelisted callers?
 	return avlhelpers.ListByteStringKeysByPrefix(*usernameStore, prefix, maxResults)
-}
-
-// UserCount returns the number of registered users
-func UserCount() int {
-	return addressStore.Size()
-}
-
-// XXX: Should we have this? it's not modifiable directly.
-func GetUserStore() *avl.Tree {
-	return usernameStore
 }
