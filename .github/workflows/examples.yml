@@ -78,7 +78,6 @@ jobs:
         uses: ./.github/workflows/gnofmt_template.yml
         with:
           path: "examples/..."
-          go-version: "1.22.x"
       - name: Check for unformatted gno files
         run: |
           git diff --exit-code || (echo "Some gno files are not formatted, please run 'make fmt'." && exit 1)

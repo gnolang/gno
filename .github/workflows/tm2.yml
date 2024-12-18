@@ -15,7 +15,6 @@ jobs:
     uses: ./.github/workflows/main_template.yml
     with:
       modulepath: "tm2"
-      go-version: "1.22.x"
       tests-extra-args: "-coverpkg=github.com/gnolang/gno/tm2/..."
     secrets:
       codecov-token: ${{ secrets.CODECOV_TOKEN }}

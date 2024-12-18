@@ -9,8 +9,9 @@ on:
         type: string
       go-version:
         description: "Go version to use"
-        required: true
+        required: false
         type: string
+        default: "1.22.x"
     secrets:
       codecov-token:
         required: true
