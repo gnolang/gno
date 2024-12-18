@@ -2,10 +2,11 @@ class Copy {
   private DOM: {
     el: HTMLElement | null;
   };
-  private static FEEDBACK_DELAY = 1500;
+  private static FEEDBACK_DELAY = 750;
 
   private btnClicked: HTMLElement | null = null;
   private btnClickedIcons: HTMLElement[] = [];
+  private isAnimationRunning: boolean = false;
 
   private static SELECTORS = {
     button: "[data-copy-btn]",
@@ -50,7 +51,7 @@ class Copy {
 
     const codeBlock = this.DOM.el?.querySelector<HTMLElement>(Copy.SELECTORS.content(contentId));
     if (codeBlock) {
-      this.copyToClipboard(codeBlock);
+      this.copyToClipboard(codeBlock, this.btnClickedIcons);
     } else {
       console.warn(`Copy: No content found for ID "${contentId}".`);
     }
@@ -65,37 +66,38 @@ class Copy {
     return tempDiv.textContent?.trim() || "";
   }
 
-  private toggleIcons(): void {
-    this.btnClickedIcons.forEach((icon) => {
+  private toggleIcons(icons: HTMLElement[]): void {
+    icons.forEach((icon) => {
       icon.classList.toggle("hidden");
     });
   }
 
-  private showFeedback(): void {
-    if (!this.btnClicked) return;
+  private showFeedback(icons: HTMLElement[]): void {
+    if (!this.btnClicked || this.isAnimationRunning === true) return;
 
-    this.toggleIcons();
+    this.isAnimationRunning = true;
+    this.toggleIcons(icons);
     window.setTimeout(() => {
-      this.toggleIcons();
+      this.toggleIcons(icons);
+      this.isAnimationRunning = false;
     }, Copy.FEEDBACK_DELAY);
   }
 
-  private async copyToClipboard(codeBlock: HTMLElement): Promise<void> {
+  private async copyToClipboard(codeBlock: HTMLElement, icons: HTMLElement[]): Promise<void> {
     const sanitizedText = this.sanitizeContent(codeBlock);
 
     if (!navigator.clipboard) {
       console.error("Copy: Clipboard API is not supported in this browser.");
-      this.showFeedback();
+      this.showFeedback(icons);
       return;
     }
 
     try {
       await navigator.clipboard.writeText(sanitizedText);
-      console.info("Copy: Text copied successfully.");
-      this.showFeedback();
+      this.showFeedback(icons);
     } catch (err) {
       console.error("Copy: Error while copying text.", err);
-      this.showFeedback();
+      this.showFeedback(icons);
     }
   }
 }

@@ -24,7 +24,7 @@ type ManualCheck struct {
 
 // This is the description for a persistent rule with a non-standard behavior
 // that allow maintainer to force the "success" state of the CI check
-const ForceSkipDescription = "**SKIP**: Do not block the CI for this PR"
+const ForceSkipDescription = "**IGNORE** the bot requirements for this PR (force green CI check)"
 
 // This function returns the configuration of the bot consisting of automatic and manual checks
 // in which the GitHub client is injected.
@@ -34,11 +34,6 @@ func Config(gh *client.GitHub) ([]AutomaticCheck, []ManualCheck) {
 			Description: "Maintainers must be able to edit this pull request ([more info](https://docs.github.com/en/pull-requests/collaborating-with-pull-requests/working-with-forks/allowing-changes-to-a-pull-request-branch-created-from-a-fork))",
 			If:          c.CreatedFromFork(),
 			Then:        r.MaintainerCanModify(),
-		},
-		{
-			Description: "The pull request head branch must be up-to-date with its base ([more info](https://docs.github.com/en/pull-requests/collaborating-with-pull-requests/proposing-changes-to-your-work-with-pull-requests/keeping-your-pull-request-in-sync-with-the-base-branch))",
-			If:          c.Always(),
-			Then:        r.UpToDateWith(gh, r.PR_BASE),
 		},
 		{
 			Description: "Changes to 'docs' folder must be reviewed/authored by at least one devrel and one tech-staff",
