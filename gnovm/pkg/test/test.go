@@ -53,6 +53,7 @@ func Context(pkgPath string, send std.Coins) *teststd.TestExecContext {
 	}
 	ctx := stdlibs.ExecContext{
 		ChainID:       "dev",
+		ChainDomain:   "tests.gno.land",
 		Height:        DefaultHeight,
 		Timestamp:     DefaultTimestamp,
 		OrigCaller:    DefaultCaller,
@@ -192,7 +193,7 @@ func Test(memPkg *gnovm.MemPackage, fsDir string, opts *TestOptions) error {
 		// tests. This allows us to "export" symbols from the pkg tests and
 		// import them from the `pkg_test` tests.
 		cw := opts.BaseStore.CacheWrap()
-		gs := opts.TestStore.BeginTransaction(cw, cw)
+		gs := opts.TestStore.BeginTransaction(cw, cw, nil)
 
 		// Run test files in pkg.
 		if len(tset.Files) > 0 {

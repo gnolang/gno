@@ -21,8 +21,8 @@ import (
 // Insufficient gas for a successful message.
 
 func TestAddPkgDeliverTxInsuffGas(t *testing.T) {
-	success := true
-	ctx, tx, vmHandler := setupAddPkg(success)
+	isValidTx := true
+	ctx, tx, vmHandler := setupAddPkg(isValidTx)
 
 	ctx = ctx.WithMode(sdk.RunTxModeDeliver)
 	simulate := false
@@ -47,7 +47,7 @@ func TestAddPkgDeliverTxInsuffGas(t *testing.T) {
 			assert.True(t, abort)
 			assert.False(t, res.IsOK())
 			gasCheck := gctx.GasMeter().GasConsumed()
-			assert.Equal(t, int64(3231), gasCheck)
+			assert.Equal(t, int64(3462), gasCheck)
 		} else {
 			t.Errorf("should panic")
 		}
@@ -58,8 +58,8 @@ func TestAddPkgDeliverTxInsuffGas(t *testing.T) {
 
 // Enough gas for a successful message.
 func TestAddPkgDeliverTx(t *testing.T) {
-	success := true
-	ctx, tx, vmHandler := setupAddPkg(success)
+	isValidTx := true
+	ctx, tx, vmHandler := setupAddPkg(isValidTx)
 
 	var simulate bool
 
@@ -75,13 +75,13 @@ func TestAddPkgDeliverTx(t *testing.T) {
 	assert.True(t, res.IsOK())
 
 	// NOTE: let's try to keep this bellow 100_000 :)
-	assert.Equal(t, int64(92825), gasDeliver)
+	assert.Equal(t, int64(135365), gasDeliver)
 }
 
 // Enough gas for a failed transaction.
 func TestAddPkgDeliverTxFailed(t *testing.T) {
-	success := false
-	ctx, tx, vmHandler := setupAddPkg(success)
+	isValidTx := false
+	ctx, tx, vmHandler := setupAddPkg(isValidTx)
 
 	var simulate bool
 
@@ -95,19 +95,19 @@ func TestAddPkgDeliverTxFailed(t *testing.T) {
 	gasDeliver := gctx.GasMeter().GasConsumed()
 
 	assert.False(t, res.IsOK())
-	assert.Equal(t, int64(2231), gasDeliver)
+	assert.Equal(t, int64(1231), gasDeliver)
 }
 
 // Not enough gas for a failed transaction.
 func TestAddPkgDeliverTxFailedNoGas(t *testing.T) {
-	success := false
-	ctx, tx, vmHandler := setupAddPkg(success)
+	isValidTx := false
+	ctx, tx, vmHandler := setupAddPkg(isValidTx)
 
 	var simulate bool
 
 	ctx = ctx.WithMode(sdk.RunTxModeDeliver)
 	simulate = false
-	tx.Fee.GasWanted = 2230
+	tx.Fee.GasWanted = 1230
 	gctx := auth.SetGasMeter(simulate, ctx, tx.Fee.GasWanted)
 	gctx = vmHandler.vm.MakeGnoTransactionStore(gctx)
 
@@ -126,7 +126,7 @@ func TestAddPkgDeliverTxFailedNoGas(t *testing.T) {
 			assert.True(t, abort)
 			assert.False(t, res.IsOK())
 			gasCheck := gctx.GasMeter().GasConsumed()
-			assert.Equal(t, int64(2231), gasCheck)
+			assert.Equal(t, int64(1231), gasCheck)
 		} else {
 			t.Errorf("should panic")
 		}
