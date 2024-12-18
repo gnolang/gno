@@ -19,10 +19,12 @@ func init() {
 	AddToMap(5)
 }
 
+// ----above is initialized and persisted before main is executed.
+
 func main() {
 	r := GetFromMap()
 	println(r == 5)
-
+	//
 	*i = 2 // this change TV, Base of a pointer value
 	r = GetFromMap()
 	println(r == 5)
