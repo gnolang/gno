@@ -12,12 +12,12 @@ import (
 type PathKind byte
 
 const (
-	KindInvalid PathKind = 0
+	KindUnknown PathKind = 0
 	KindRealm   PathKind = 'r'
 	KindPure    PathKind = 'p'
 )
 
-// reRealmPath match and validate a realm or package path
+// rePkgOrRealmPath matches and validates a realm or package path.
 var rePkgOrRealmPath = regexp.MustCompile(`^/[a-z]/[a-zA-Z0-9_/.]*$`)
 
 // GnoURL decomposes the parts of an URL to query a realm.
@@ -32,74 +32,67 @@ type GnoURL struct {
 	Query    url.Values // c=d
 }
 
-func (url GnoURL) EncodeArgs() string {
+// EncodeArgs encodes the arguments and query parameters into a string.
+func (gnoURL GnoURL) EncodeArgs() string {
 	var urlstr strings.Builder
-	if url.Args != "" {
-		urlstr.WriteString(url.Args)
+	if gnoURL.Args != "" {
+		urlstr.WriteString(gnoURL.Args)
 	}
-
-	if len(url.Query) > 0 {
-		urlstr.WriteString("?" + url.Query.Encode())
+	if len(gnoURL.Query) > 0 {
+		urlstr.WriteString("?" + gnoURL.Query.Encode())
 	}
-
 	return urlstr.String()
 }
 
-func (url GnoURL) EncodePath() string {
+// EncodePath encodes the path, arguments, and query parameters into a string.
+func (gnoURL GnoURL) EncodePath() string {
 	var urlstr strings.Builder
-	urlstr.WriteString(url.Path)
-	if url.Args != "" {
-		urlstr.WriteString(":" + url.Args)
+	urlstr.WriteString(gnoURL.Path)
+	if gnoURL.Args != "" {
+		urlstr.WriteString(":" + gnoURL.Args)
 	}
-
-	if len(url.Query) > 0 {
-		urlstr.WriteString("?" + url.Query.Encode())
+	if len(gnoURL.Query) > 0 {
+		urlstr.WriteString("?" + gnoURL.Query.Encode())
 	}
-
 	return urlstr.String()
 }
 
-func (url GnoURL) EncodeWebPath() string {
+// EncodeWebPath encodes the path, arguments, and both web and query parameters into a string.
+func (gnoURL GnoURL) EncodeWebPath() string {
 	var urlstr strings.Builder
-	urlstr.WriteString(url.Path)
-	if url.Args != "" {
-		pathEscape := escapeDollarSign(url.Args)
+	urlstr.WriteString(gnoURL.Path)
+	if gnoURL.Args != "" {
+		pathEscape := escapeDollarSign(gnoURL.Args)
 		urlstr.WriteString(":" + pathEscape)
 	}
-
-	if len(url.WebQuery) > 0 {
-		urlstr.WriteString("$" + url.WebQuery.Encode())
+	if len(gnoURL.WebQuery) > 0 {
+		urlstr.WriteString("$" + gnoURL.WebQuery.Encode())
 	}
-
-	if len(url.Query) > 0 {
-		urlstr.WriteString("?" + url.Query.Encode())
+	if len(gnoURL.Query) > 0 {
+		urlstr.WriteString("?" + gnoURL.Query.Encode())
 	}
-
 	return urlstr.String()
 }
 
-func (url GnoURL) Kind() PathKind {
-	// Check if the first and third character is '/' and extract the next character
-	if len(url.Path) > 2 && url.Path[0] == '/' && url.Path[2] == '/' {
-		switch k := PathKind(url.Path[1]); k {
+// Kind determines the kind of path (invalid, realm, or pure) based on the path structure.
+func (gnoURL GnoURL) Kind() PathKind {
+	if len(gnoURL.Path) > 2 && gnoURL.Path[0] == '/' && gnoURL.Path[2] == '/' {
+		switch k := PathKind(gnoURL.Path[1]); k {
 		case KindPure, KindRealm:
 			return k
 		}
 	}
-
-	return KindInvalid
+	return KindUnknown
 }
 
-func (url GnoURL) IsDir() bool {
-	if pathlen := len(url.Path); pathlen > 0 {
-		return url.Path[pathlen-1] == '/'
-	}
-
-	return false
+// IsDir checks if the URL path represents a directory.
+func (gnoURL GnoURL) IsDir() bool {
+	return len(gnoURL.Path) > 0 && gnoURL.Path[len(gnoURL.Path)-1] == '/'
 }
 
-func (url GnoURL) IsFile() bool {
-	return filepath.Ext(url.Path) != ""
+// IsFile checks if the URL path represents a file.
+func (gnoURL GnoURL) IsFile() bool {
+	return filepath.Ext(gnoURL.Path) != ""
 }
 
 var (
@@ -107,6 +100,7 @@ var (
 	ErrURLInvalidPathKind = errors.New("invalid path kind")
 )
 
+// ParseGnoURL parses a URL into a GnoURL structure, extracting and validating its components.
 func ParseGnoURL(u *url.URL) (*GnoURL, error) {
 	var webargs string
 	path, args, found := strings.Cut(u.EscapedPath(), ":")
@@ -116,22 +110,20 @@ func ParseGnoURL(u *url.URL) (*GnoURL, error) {
 		path, webargs, _ = strings.Cut(path, "$")
 	}
 
-	// XXX: should we lower case the path ?
 	upath, err := url.PathUnescape(path)
 	if err != nil {
-		return nil, fmt.Errorf("unable to unescape path %q: %w", args, err)
+		return nil, fmt.Errorf("unable to unescape path %q: %w", path, err)
 	}
 
-	// Validate path format
 	if !rePkgOrRealmPath.MatchString(upath) {
 		return nil, fmt.Errorf("%w: %q", ErrURLMalformedPath, upath)
 	}
 
 	webquery := url.Values{}
 	if len(webargs) > 0 {
-		var err error
-		if webquery, err = url.ParseQuery(webargs); err != nil {
-			return nil, fmt.Errorf("unable to parse webquery %q: %w ", webquery, err)
+		var parseErr error
+		if webquery, parseErr = url.ParseQuery(webargs); parseErr != nil {
+			return nil, fmt.Errorf("unable to parse webquery %q: %w", webargs, parseErr)
 		}
 	}
 
@@ -149,6 +141,7 @@ func ParseGnoURL(u *url.URL) (*GnoURL, error) {
 	}, nil
 }
 
+// escapeDollarSign replaces dollar signs with their URL-encoded equivalent.
 func escapeDollarSign(s string) string {
 	return strings.ReplaceAll(s, "$", "%24")
 }
