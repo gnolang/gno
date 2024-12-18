@@ -16,7 +16,6 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/errors"
 	"github.com/gnolang/gno/tm2/pkg/overflow"
 	"github.com/gnolang/gno/tm2/pkg/store"
-	"github.com/gnolang/overflow"
 )
 
 // Exception represents a panic that originates from a gno program.

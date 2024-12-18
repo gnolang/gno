@@ -26,18 +26,11 @@ func (bStore BenchStore) Write() {
 }
 
 func benchmarkDiskStore() BenchStore {
-	storeDir, err := filepath.Abs("bench_store")
+	storeDir, err := os.MkdirTemp("", "gno-bench-store-")
 	if err != nil {
 		log.Fatal("unable to get absolute path for storage directory.", err)
 	}
-	err = os.RemoveAll(storeDir)
-	if err != nil {
-		if os.IsNotExist(err) {
-			log.Fatal("Directory does not exist.", err)
-		} else {
-			log.Fatal("can not clean up storage directory", err)
-		}
-	}
+	defer os.RemoveAll(storeDir)
 
 	db, err := dbm.NewDB("gnolang", dbm.GoLevelDBBackend, filepath.Join(storeDir, config.DefaultDBDir))
 	if err != nil {
