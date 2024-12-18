@@ -1,10 +1,11 @@
 package users
 
 import (
+	"github.com/gnolang/gno/examples/gno.land/p/demo/avlhelpers"
+	"github.com/gnolang/gno/examples/gno.land/p/sys/users"
+
 	"std"
 	"strings"
-
-	"gno.land/p/sys/users"
 )
 
 func ResolveName(username string) users.UserLookup {
@@ -52,28 +53,57 @@ func ResolveAddressOrName(aon string) users.UserLookup {
 	return ResolveAddress(std.Address(aon))
 }
 
-//// Users returns a paginated list of users
-//func Users(offset, count uint64) []susers.User {
-//	if count < 1 {
-//		return []susers.User{}
-//	}
-//
-//	res := make([]susers.User, 0, count)
-//
-//	uStore.IterateByOffset(int(offset), int(count), func(key string, value interface{}) bool {
-//		user := value.(susers.User)
-//		res = append(res, user)
-//
-//		return false
-//	})
-//
-//	return res
-//}
+// Users returns a paginated list of user lookups
+// Looks users up by username; does not look up aliases
+func Users(offset, count uint64) []users.UserLookup {
+	if count < 1 {
+		return []users.UserLookup{}
+	}
+
+	res := make([]users.UserLookup, 0, count)
+
+	usernameStore.IterateByOffset(int(offset), int(count), func(key string, value interface{}) bool {
+		ul := users.UserLookup{
+			Name:  key,
+			Addr:  value.(std.Address),
+			Alias: false,
+		}
+
+		res = append(res, ul)
+
+		return false
+	})
+
+	return res
+}
+
+// GetAllNames gets all names for a specific address
+func GetAllNames(addr std.Address) []string {
+	var res []string
+
+	username, ok := addressStore.Get()
+	if !ok {
+		return res
+	}
+
+	res = append(res, username.(string))
+
+	aliasStore.Iterate(addr, func(key string, value interface{}) bool {
+		adr := value.(std.Address)
+		if adr == addr {
+			res = append(res, key)
+		}
+
+		return false
+	})
+
+	return res
+}
 
 // UsersByPrefix gets a slice of usernames starting from the given prefix. Limits the
 // number of results to maxResults. (This can be used for a name search tool.)
-//func UsersByPrefix(prefix string, maxResults int) []string {
-//	// XXX: most likely moved to r/gnoland/users to keep this package minimal.
-//	// in that case, should we get a value copy of the uStore available to whitelisted callers?
-//	return avlhelpers.ListByteStringKeysByPrefix(*uStore, prefix, maxResults)
-//}
+func UsersByPrefix(prefix string, maxResults int) []string {
+	// XXX: most likely moved to r/gnoland/users to keep this package minimal.
+	// in that case, should we get a value copy of the uStore available to whitelisted callers?
+	return avlhelpers.ListByteStringKeysByPrefix(*usernameStore, prefix, maxResults)
+}
