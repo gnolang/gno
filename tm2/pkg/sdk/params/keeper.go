@@ -21,8 +21,6 @@ const (
 	bytesSuffix  = ".bytes"
 	ModuleName   = "params"
 
-	StoreKey = ModuleName
-
 	// ValueStoreKeyPrefix is "/pv/" for param value.
 	ValueStoreKeyPrefix = "/pv/"
 )
