@@ -168,7 +168,7 @@ func (led *PrivateLedger) Mint(address std.Address, amount uint64) (err error) {
 
 	defer func() {
 		if r := recover(); r != nil {
-			if  r != "addition overflow" {
+			if r != "addition overflow" {
 				panic(r)
 			}
 			err = ErrOverflow
