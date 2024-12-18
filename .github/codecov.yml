@@ -40,45 +40,6 @@ flag_management:
         target: auto # Let's decrease this later.
         threshold: 10
 
-  groups:
-    gno-land:
-      paths:
-        - "gno.land/**"
-    gnovm:
-      paths:
-        - "gnovm/**"
-    misc:
-      paths:
-        - "misc/**"
-    tm2:
-      paths:
-        - "tm2/**"
-    contribs:
-      paths:
-        - "contribs/**"
-
-  statuses:
-    - type: project
-      flag: gno.land
-      target: auto
-      threshold: 5
-    - type: project
-      flag: gnovm
-      target: auto
-      threshold: 2 # Stricter threshold
-    - type: project
-      flag: misc
-      target: auto
-      threshold: 10
-    - type: project
-      flag: tm2
-      target: auto
-      threshold: 5
-    - type: project
-      flag: contribs
-      target: auto
-      threshold: 5
-
 ignore:
   - "gnovm/stdlibs/generated.go"
   - "gnovm/tests/stdlibs/generated.go"
