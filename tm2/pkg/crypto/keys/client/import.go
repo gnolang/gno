@@ -8,6 +8,7 @@ import (
 	"os"
 
 	"github.com/gnolang/gno/tm2/pkg/commands"
+	"github.com/gnolang/gno/tm2/pkg/crypto"
 	"github.com/gnolang/gno/tm2/pkg/crypto/keys"
 	"github.com/gnolang/gno/tm2/pkg/crypto/keys/armor"
 )
@@ -121,42 +122,32 @@ func execImport(cfg *ImportCfg, io commands.IO) error {
 		)
 	}
 
+	var privateKey crypto.PrivKey
+
 	if cfg.Unsafe {
 		// Un-armor the private key
-		privKey, err := armor.UnarmorPrivateKey(string(keyArmor))
+		privateKey, err = armor.UnarmorPrivateKey(string(keyArmor))
 		if err != nil {
 			return fmt.Errorf("unable to unarmor private key, %w", err)
 		}
-
-		// Import the unencrypted private key
-		if err := kb.ImportPrivKey(
-			cfg.KeyName,
-			privKey,
-			encryptPassword,
-		); err != nil {
-			return fmt.Errorf(
-				"unable to import the unencrypted private key, %w",
-				err,
-			)
-		}
 	} else {
 		// Decrypt the armor
-		privKey, err := armor.UnarmorDecryptPrivKey(string(keyArmor), decryptPassword)
+		privateKey, err = armor.UnarmorDecryptPrivKey(string(keyArmor), decryptPassword)
 		if err != nil {
 			return fmt.Errorf("unable to decrypt private key armor, %w", err)
 		}
+	}
 
-		// Import the encrypted private key
-		if err := kb.ImportPrivKey(
-			cfg.KeyName,
-			privKey,
-			encryptPassword,
-		); err != nil {
-			return fmt.Errorf(
-				"unable to import the encrypted private key, %w",
-				err,
-			)
-		}
+	// Import the private key
+	if err := kb.ImportPrivKey(
+		cfg.KeyName,
+		privateKey,
+		encryptPassword,
+	); err != nil {
+		return fmt.Errorf(
+			"unable to import the encrypted private key, %w",
+			err,
+		)
 	}
 
 	io.Printfln("Successfully imported private key %s", cfg.KeyName)
