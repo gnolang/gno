@@ -180,7 +180,7 @@ func (post *Post) GetURL() string {
 }
 
 func (post *Post) GetReplyFormURL() string {
-	return txlink.URL("CreateReply",
+	return txlink.Call("CreateReply",
 		"bid", post.board.id.String(),
 		"threadID", post.threadID.String(),
 		"postID", post.id.String(),
@@ -188,7 +188,7 @@ func (post *Post) GetReplyFormURL() string {
 }
 
 func (post *Post) GetRepostFormURL() string {
-	return txlink.URL("CreateRepost",
+	return txlink.Call("CreateRepost",
 		"bid", post.board.id.String(),
 		"postID", post.id.String(),
 	)
@@ -196,12 +196,12 @@ func (post *Post) GetRepostFormURL() string {
 
 func (post *Post) GetDeleteFormURL() string {
 	if post.IsThread() {
-		return txlink.URL("DeleteThread",
+		return txlink.Call("DeleteThread",
 			"bid", post.board.id.String(),
 			"threadID", post.threadID.String(),
 		)
 	}
-	return txlink.URL("DeleteReply",
+	return txlink.Call("DeleteReply",
 		"bid", post.board.id.String(),
 		"threadID", post.threadID.String(),
 		"replyID", post.id.String(),
