@@ -21,6 +21,7 @@ func TestParseGnoURL(t *testing.T) {
 			Expected: nil,
 			Err:      ErrURLMalformedPath,
 		},
+
 		{
 			Name:  "simple",
 			Input: "https://gno.land/r/simple/test",
@@ -30,8 +31,8 @@ func TestParseGnoURL(t *testing.T) {
 				WebQuery: url.Values{},
 				Query:    url.Values{},
 			},
-			Err: nil,
 		},
+
 		{
 			Name:  "webquery + query",
 			Input: "https://gno.land/r/demo/foo$help&func=Bar&name=Baz",
@@ -46,8 +47,8 @@ func TestParseGnoURL(t *testing.T) {
 				Query:  url.Values{},
 				Domain: "gno.land",
 			},
-			Err: nil,
 		},
+
 		{
 			Name:  "path args + webquery",
 			Input: "https://gno.land/r/demo/foo:example$tz=Europe/Paris",
@@ -60,8 +61,8 @@ func TestParseGnoURL(t *testing.T) {
 				Query:  url.Values{},
 				Domain: "gno.land",
 			},
-			Err: nil,
 		},
+
 		{
 			Name:  "path args + webquery + query",
 			Input: "https://gno.land/r/demo/foo:example$tz=Europe/Paris?hello=42",
@@ -76,8 +77,8 @@ func TestParseGnoURL(t *testing.T) {
 				},
 				Domain: "gno.land",
 			},
-			Err: nil,
 		},
+
 		{
 			Name:  "webquery inside query",
 			Input: "https://gno.land/r/demo/foo:example?value=42$tz=Europe/Paris",
@@ -90,8 +91,8 @@ func TestParseGnoURL(t *testing.T) {
 				},
 				Domain: "gno.land",
 			},
-			Err: nil,
 		},
+
 		{
 			Name:  "webquery escaped $",
 			Input: "https://gno.land/r/demo/foo:example%24hello=43$hello=42",
@@ -104,14 +105,20 @@ func TestParseGnoURL(t *testing.T) {
 				Query:  url.Values{},
 				Domain: "gno.land",
 			},
-			Err: nil,
 		},
+
 		{
-			Name:     "invalid path kind",
-			Input:    "https://gno.land/x/demo/foo",
-			Expected: nil,
-			Err:      ErrURLMalformedPath,
+			Name:  "unknown path kind",
+			Input: "https://gno.land/x/demo/foo",
+			Expected: &GnoURL{
+				Path:     "/x/demo/foo",
+				Args:     "",
+				WebQuery: url.Values{},
+				Query:    url.Values{},
+				Domain:   "gno.land",
+			},
 		},
+
 		{
 			Name:  "empty path",
 			Input: "https://gno.land/r/",
@@ -122,8 +129,8 @@ func TestParseGnoURL(t *testing.T) {
 				Query:    url.Values{},
 				Domain:   "gno.land",
 			},
-			Err: nil,
 		},
+
 		{
 			Name:  "complex query",
 			Input: "https://gno.land/r/demo/foo$help?func=Bar&name=Baz&age=30",
@@ -140,8 +147,8 @@ func TestParseGnoURL(t *testing.T) {
 				},
 				Domain: "gno.land",
 			},
-			Err: nil,
 		},
+
 		{
 			Name:  "multiple web queries",
 			Input: "https://gno.land/r/demo/foo$help&func=Bar$test=123",
@@ -150,14 +157,34 @@ func TestParseGnoURL(t *testing.T) {
 				Args: "",
 				WebQuery: url.Values{
 					"help": []string{""},
-					"func": []string{"Bar"},
-					"test": []string{"123"},
+					"func": []string{"Bar$test=123"},
 				},
 				Query:  url.Values{},
 				Domain: "gno.land",
 			},
-			Err: nil,
 		},
+
+		{
+			Name:  "webquery-args-webquery",
+			Input: "https://gno.land/r/demo/AAA$BBB:CCC&DDD$EEE",
+			Err:   ErrURLMalformedPath, // `/r/demo/AAA$BBB` is an invalid path
+		},
+
+		{
+			Name:  "args-webquery-args",
+			Input: "https://gno.land/r/demo/AAA:BBB$CCC&DDD:EEE",
+			Expected: &GnoURL{
+				Domain: "gno.land",
+				Path:   "/r/demo/AAA",
+				Args:   "BBB",
+				WebQuery: url.Values{
+					"CCC":     []string{""},
+					"DDD:EEE": []string{""},
+				},
+				Query: url.Values{},
+			},
+		},
+
 		{
 			Name:  "escaped characters in args",
 			Input: "https://gno.land/r/demo/foo:example%20with%20spaces$tz=Europe/Paris",
@@ -170,7 +197,6 @@ func TestParseGnoURL(t *testing.T) {
 				Query:  url.Values{},
 				Domain: "gno.land",
 			},
-			Err: nil,
 		},
 	}
 

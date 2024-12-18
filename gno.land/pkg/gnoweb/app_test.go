@@ -73,6 +73,7 @@ func TestRoutes(t *testing.T) {
 
 	for _, r := range routes {
 		t.Run(fmt.Sprintf("test route %s", r.route), func(t *testing.T) {
+			t.Logf("input: %q", r.route)
 			request := httptest.NewRequest(http.MethodGet, r.route, nil)
 			response := httptest.NewRecorder()
 			router.ServeHTTP(response, request)
