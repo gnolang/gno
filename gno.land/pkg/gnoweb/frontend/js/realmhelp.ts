@@ -40,17 +40,31 @@ class Help {
     this.DOM.addressInput = el.querySelector<HTMLInputElement>(Help.SELECTORS.addressInput);
     this.DOM.cmdModeSelect = el.querySelector<HTMLSelectElement>(Help.SELECTORS.cmdModeSelect);
 
-    console.log(this.DOM);
     this.funcList = this.DOM.funcs.map((funcEl) => new HelpFunc(funcEl));
 
+    this.restoreAddress();
+
     this.bindEvents();
+  }
+
+  private restoreAddress(): void {
+    const { addressInput } = this.DOM;
+    if (addressInput) {
+      const storedAddress = localStorage.getItem("helpAddressInput");
+      if (storedAddress) {
+        addressInput.value = storedAddress;
+        this.funcList.forEach((func) => func.updateAddr(storedAddress));
+      }
+    }
   }
 
   private bindEvents(): void {
     const { addressInput, cmdModeSelect } = this.DOM;
 
     addressInput?.addEventListener("input", () => {
-      this.funcList.forEach((func) => func.updateAddr(addressInput.value));
+      const address = addressInput.value;
+      localStorage.setItem("helpAddressInput", address);
+      this.funcList.forEach((func) => func.updateAddr(address));
     });
 
     cmdModeSelect?.addEventListener("change", (e) => {
