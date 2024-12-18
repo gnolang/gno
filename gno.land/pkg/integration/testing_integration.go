@@ -19,7 +19,9 @@ import (
 	"github.com/gnolang/gno/gno.land/pkg/log"
 	"github.com/gnolang/gno/gno.land/pkg/sdk/vm"
 	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
+	"github.com/gnolang/gno/gnovm/pkg/gnolang"
 	"github.com/gnolang/gno/gnovm/pkg/gnomod"
+	"github.com/gnolang/gno/gnovm/pkg/packages"
 	"github.com/gnolang/gno/tm2/pkg/bft/node"
 	bft "github.com/gnolang/gno/tm2/pkg/bft/types"
 	"github.com/gnolang/gno/tm2/pkg/commands"
@@ -132,11 +134,12 @@ func setupGnolandTestScript(t *testing.T, txtarDir string) testscript.Params {
 			// Track new user balances added via the `adduser`
 			// command and packages added with the `loadpkg` command.
 			// This genesis will be use when node is started.
-			genesis := &gnoland.GnoGenesisState{
-				Balances: LoadDefaultGenesisBalanceFile(t, gnoRootDir),
-				Params:   LoadDefaultGenesisParamFile(t, gnoRootDir),
-				Txs:      []gnoland.TxWithMetadata{},
-			}
+
+			genesis := gnoland.DefaultGenState()
+			genesis.Balances = LoadDefaultGenesisBalanceFile(t, gnoRootDir)
+			genesis.Params = LoadDefaultGenesisParamFile(t, gnoRootDir)
+			genesis.Auth.Params.InitialGasPrice = std.GasPrice{Gas: 0, Price: std.Coin{Amount: 0, Denom: "ugnot"}}
+			genesis.Txs = []gnoland.TxWithMetadata{}
 
 			// test1 must be created outside of the loop below because it is already included in genesis so
 			// attempting to recreate results in it getting overwritten and breaking existing tests that
@@ -145,7 +148,7 @@ func setupGnolandTestScript(t *testing.T, txtarDir string) testscript.Params {
 			env.Setenv("USER_SEED_"+DefaultAccount_Name, DefaultAccount_Seed)
 			env.Setenv("USER_ADDR_"+DefaultAccount_Name, DefaultAccount_Address)
 
-			env.Values[envKeyGenesis] = genesis
+			env.Values[envKeyGenesis] = &genesis
 			env.Values[envKeyPkgsLoader] = newPkgsLoader()
 
 			env.Setenv("GNOROOT", gnoRootDir)
@@ -185,8 +188,10 @@ func setupGnolandTestScript(t *testing.T, txtarDir string) testscript.Params {
 					pkgs := ts.Value(envKeyPkgsLoader).(*pkgsLoader)                // grab logger
 					creator := crypto.MustAddressFromString(DefaultAccount_Address) // test1
 					defaultFee := std.NewFee(50000, std.MustParseCoin(ugnot.ValueString(1000000)))
-					pkgsTxs, err := pkgs.LoadPackages(creator, defaultFee, nil)
-					if err != nil {
+					// we need to define a new err1 otherwise the out err would be shadowed in the case "start":
+					pkgsTxs, loadErr := pkgs.LoadPackages(creator, defaultFee, nil)
+
+					if loadErr != nil {
 						ts.Fatalf("unable to load packages txs: %s", err)
 					}
 
@@ -743,8 +748,20 @@ func (pl *pkgsLoader) LoadPackage(modroot string, path, name string) error {
 			// Override package info with mod infos
 			currentPkg.Name = gm.Module.Mod.Path
 			currentPkg.Draft = gm.Draft
-			for _, req := range gm.Require {
-				currentPkg.Requires = append(currentPkg.Requires, req.Mod.Path)
+
+			pkg, err := gnolang.ReadMemPackage(currentPkg.Dir, currentPkg.Name)
+			if err != nil {
+				return fmt.Errorf("unable to read package at %q: %w", currentPkg.Dir, err)
+			}
+			imports, err := packages.Imports(pkg)
+			if err != nil {
+				return fmt.Errorf("unable to load package imports in %q: %w", currentPkg.Dir, err)
+			}
+			for _, imp := range imports {
+				if imp == currentPkg.Name || gnolang.IsStdlib(imp) {
+					continue
+				}
+				currentPkg.Imports = append(currentPkg.Imports, imp)
 			}
 		}
 
@@ -758,7 +775,7 @@ func (pl *pkgsLoader) LoadPackage(modroot string, path, name string) error {
 		pl.add(currentPkg)
 
 		// Add requirements to the queue
-		for _, pkgPath := range currentPkg.Requires {
+		for _, pkgPath := range currentPkg.Imports {
 			fullPath := filepath.Join(modroot, pkgPath)
 			queue = append(queue, gnomod.Pkg{Dir: fullPath})
 		}

@@ -4,7 +4,7 @@ import (
 	"math"
 	"testing"
 
-	"github.com/gnolang/overflow"
+	"github.com/gnolang/gno/tm2/pkg/overflow"
 	"github.com/stretchr/testify/require"
 )
 

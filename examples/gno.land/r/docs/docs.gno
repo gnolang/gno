@@ -11,8 +11,11 @@ Explore various examples to learn more about Gno functionality and usage.
 - [Hello World](/r/docs/hello) - A simple introductory example.
 - [Adder](/r/docs/adder) - An interactive example to update a number with transactions.
 - [Source](/r/docs/source) - View realm source code.
+- [Buttons](/r/docs/buttons) - Add buttons to your realm's render.
 - [AVL Pager](/r/docs/avl_pager) - Paginate through AVL tree items.  
+- [Img Embed](/r/docs/img_embed) - Demonstrates how to embed an image.
 - ...
+<!-- meta issue with suggestions: https://github.com/gnolang/gno/issues/3292 -->
 
 ## Other resources
 
