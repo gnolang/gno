@@ -140,9 +140,7 @@ func (h *WebHandler) renderPackage(w io.Writer, gnourl *GnoURL) (status int, err
 	switch {
 	case gnourl.WebQuery.Has("source"):
 		return h.renderRealmSource(w, gnourl)
-	case kind == KindPure,
-		strings.HasSuffix(gnourl.Path, "/"),
-		isFile(gnourl.Path):
+	case kind == KindPure, gnourl.IsFile(), gnourl.IsDir():
 		i := strings.LastIndexByte(gnourl.Path, '/')
 		if i < 0 {
 			return http.StatusInternalServerError, fmt.Errorf("unable to get ending slash for %q", gnourl.Path)
@@ -152,10 +150,13 @@ func (h *WebHandler) renderPackage(w io.Writer, gnourl *GnoURL) (status int, err
 		gnourl.WebQuery.Set("source", "") // set source
 
 		file := gnourl.Path[i+1:]
+		// If there nothing after the last slash that mean its a
+		// directory ...
 		if file == "" {
 			return h.renderRealmDirectory(w, gnourl)
 		}
 
+		// ... else, remaining part is a file
 		gnourl.WebQuery.Set("file", file)
 		gnourl.Path = gnourl.Path[:i]
 

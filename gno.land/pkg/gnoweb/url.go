@@ -89,6 +89,18 @@ func (url GnoURL) Kind() PathKind {
 	return KindInvalid
 }
 
+func (url GnoURL) IsDir() bool {
+	if pathlen := len(url.Path); pathlen > 0 {
+		return url.Path[pathlen-1] == '/'
+	}
+
+	return false
+}
+
+func (url GnoURL) IsFile() bool {
+	return filepath.Ext(url.Path) != ""
+}
+
 var (
 	ErrURLMalformedPath   = errors.New("malformed path")
 	ErrURLInvalidPathKind = errors.New("invalid path kind")
