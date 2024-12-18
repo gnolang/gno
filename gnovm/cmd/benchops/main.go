@@ -30,6 +30,7 @@ func main() {
 	}
 	bm.Init(tmpFile)
 	bstore := benchmarkDiskStore()
+	defer bstore.Delete()
 
 	dir, err := filepath.Abs(*benchFlag)
 	if err != nil {

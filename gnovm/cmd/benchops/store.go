@@ -19,10 +19,15 @@ const maxAllocTx = 500 * 1000 * 1000
 type BenchStore struct {
 	mulStore store.MultiStore
 	gnoStore gno.Store
+	dir      string
 }
 
 func (bStore BenchStore) Write() {
 	bStore.mulStore.MultiWrite()
+}
+
+func (bStore BenchStore) Delete() error {
+	return os.RemoveAll(bStore.dir)
 }
 
 func benchmarkDiskStore() BenchStore {
@@ -30,7 +35,6 @@ func benchmarkDiskStore() BenchStore {
 	if err != nil {
 		log.Fatal("unable to get absolute path for storage directory.", err)
 	}
-	defer os.RemoveAll(storeDir)
 
 	db, err := dbm.NewDB("gnolang", dbm.GoLevelDBBackend, filepath.Join(storeDir, config.DefaultDBDir))
 	if err != nil {
@@ -53,5 +57,6 @@ func benchmarkDiskStore() BenchStore {
 	return BenchStore{
 		mulStore: msCache,
 		gnoStore: gStore,
+		dir:      storeDir,
 	}
 }

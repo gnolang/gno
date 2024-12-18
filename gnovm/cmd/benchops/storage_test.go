@@ -14,6 +14,7 @@ func TestBenchStoreSet(t *testing.T) {
 
 	dir := "../../pkg/benchops/gno"
 	bstore := benchmarkDiskStore()
+	t.Cleanup(func() { bstore.Delete() })
 	gstore := bstore.gnoStore
 
 	// load  stdlibs
