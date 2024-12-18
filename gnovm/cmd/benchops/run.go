@@ -1,7 +1,7 @@
 package main
 
 import (
-	"os"
+	"io"
 	"path/filepath"
 	"strings"
 
@@ -81,7 +81,7 @@ func callFunc(gstore gno.Store, pv *gno.PackageValue, cx gno.Expr) []gno.TypedVa
 	m := gno.NewMachineWithOptions(
 		gno.MachineOptions{
 			PkgPath: pv.PkgPath,
-			Output:  os.Stdout, // XXX
+			Output:  io.Discard,
 			Store:   gstore,
 		})
 
@@ -98,7 +98,7 @@ func addPackage(gstore gno.Store, dir string, pkgPath string) *gno.PackageValue 
 	m := gno.NewMachineWithOptions(
 		gno.MachineOptions{
 			PkgPath: "",
-			Output:  os.Stdout,
+			Output:  io.Discard,
 			Store:   gstore,
 		})
 	defer m.Release()
@@ -131,7 +131,7 @@ func loadStdlibs(bstore BenchStore) {
 		m2 := gno.NewMachineWithOptions(gno.MachineOptions{
 			PkgPath: "gno.land/r/stdlibs/" + pkgPath,
 			// PkgPath: pkgPath,
-			Output: os.Stdout,
+			Output: io.Discard,
 			Store:  newStore,
 		})
 		defer m2.Release()

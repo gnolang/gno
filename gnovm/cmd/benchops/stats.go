@@ -147,8 +147,8 @@ func calculateStats(crs []codeRecord) {
 		fmt.Fprintln(out, csv)
 	}
 
-	fmt.Println("## Benchmark results saved in : ", filename)
-	fmt.Println("## Benchmark result stats saved in : ", out.Name())
+	fmt.Println("## Benchmark results saved in:", filename)
+	fmt.Println("## Benchmark result stats saved in:", out.Name())
 }
 
 func addSuffix(filename string) string {
