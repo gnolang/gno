@@ -2,8 +2,9 @@
 // are not yet supported in Gno. They are kept here for inspiration and documentation
 // purposes only, and will be uncommented once Example testing is implemented.
 // See: https://github.com/gnolang/gno/pull/3353
-/* package grc20
+package grc20
 
+/*
 import (
 	"std"
 
