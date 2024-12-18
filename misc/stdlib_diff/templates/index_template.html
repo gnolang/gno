@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="en" >
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Index</title>
+    <style>
+        body, html {
+            height: 100vh;
+            font-family: "Roboto Mono","Courier New",sans-serif;
+            background-color: #1e1e1e;
+            color: #c7c7c7;
+        }
+        h1,h2,h3,h4,nav {
+            font-family: ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,"Noto Sans",sans-serif,"Apple Color Emoji","Segoe UI Emoji","Segoe UI Symbol","Noto Color Emoji";
+            font-weight: 600;
+            letter-spacing: .08rem
+        }
+        p {
+            margin: 0;
+            font-size: 1rem;
+            font-weight: 400;
+        }
+        a {
+            color: var(--link-color,#c7c7c7)
+        }   
+        .file-container {
+            display: flex;
+            flex-direction: column;
+            width: 50%;
+            max-width: 50%;
+            min-height: 100%;
+        }
+        .file-viewer{
+            border-style: solid;
+            border-width: 2px;
+            border-radius: 15px;
+            border-color: #c7c7c7;
+            padding: 1rem;
+            height: 100%;
+        }
+    </style>
+</head>
+<body style="padding: 2rem 5rem; ">
+    <H1>List of packages processed</H1>
+    <ul style="margin-bottom: 2rem;">
+    {{- range .Reports}}
+        {{- if .MissingGno}}
+    <li style="display: flex;" ><p style="color: red;">{{.PackageName}}</p>: missing in gno</a>
+        {{- else if .MissingGo}}
+        <li style="display: flex;" ><p style="color: red;">{{.PackageName}}</p>: missing in go</a>
+        {{- else}}
+        {{if .Subdirectories}}
+            <details>
+                <summary>{{.PackageName}}</summary>
+                <ul>
+                    <li><a href="{{.PathToReport}}">{{.PackageName}}</a></li>
+                </ul>
+                {{- range .Subdirectories}}
+                    {{- if .MissingGno}}
+                    <ul>
+                        <li style="display: flex;" ><p style="color: red;">{{.PackageName}}</p>: missing in gno</a></li>
+                    </ul>
+                    {{- else if .MissingGo}}
+                    <ul>
+                        <li style="display: flex;" ><p style="color: red;">{{.PackageName}}</p>: missing in go</a></li>
+                    </ul>
+                    {{- else}}
+                    <ul>
+                        <li><a href="{{.PathToReport}}">{{.PackageName}}</a></li>
+                    </ul>
+                    {{- end}}
+                {{- end}}
+            </details>
+        {{- else}}
+        <a href="{{.PathToReport}}">{{.PackageName}}</a><br>
+        {{- end}}
+    {{- end}}
+    </li>
+    {{- end}}
+    </ul>
+</body>
+</html>
