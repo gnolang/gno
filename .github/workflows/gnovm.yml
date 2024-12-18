@@ -1,4 +1,4 @@
-name: GnoVM CI Suite
+name: GnoVM
 
 on:
   push:

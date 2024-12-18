@@ -1,6 +1,6 @@
 # tests the "misc" directory & tools
 # (not meant for miscellaneous workflows)
-name: misc CI Suite
+name: misc
 
 on:
   push:

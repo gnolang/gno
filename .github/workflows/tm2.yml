@@ -1,4 +1,4 @@
-name: TM2 CI Suite
+name: TM2
 
 on:
   push:

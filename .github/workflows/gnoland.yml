@@ -1,4 +1,4 @@
-name: gno.land CI Suite
+name: gno.land
 
 on:
   push:

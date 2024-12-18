@@ -1,4 +1,4 @@
-name: Contribs CI Suite
+name: Contribs
 
 on:
   push:

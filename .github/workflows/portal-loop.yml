@@ -1,4 +1,4 @@
-name: Portal Loop CI Suite
+name: Portal Loop
 
 on:
   push:

@@ -1,4 +1,4 @@
-name: Gno Examples CI Suite
+name: Gno Examples
 
 on:
   push:
