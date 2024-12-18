@@ -70,7 +70,7 @@ linters-settings:
   forbidigo:
     forbid:
       - p: '^regexp\.(Match|MatchString)$'
-        msg: "Use compiled regex via regexp.Compile and store as a singleton"
+        msg: it will re-compile the regexp for each execution; compile the regexp with regexp.Compile and store it as a singleton
 
 issues:
   whole-files: true
