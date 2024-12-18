@@ -153,7 +153,7 @@ func initStaticBlocks(store Store, ctx BlockNode, bn BlockNode) {
 
 	bid := pn.nextBlockID(pn.PkgPath)
 	//fmt.Println("---bid: ", bid)
-	last.GetStaticBlock().BID = bid
+	last.GetStaticBlock().Bid = bid
 
 	defer func() {
 		pn.Time = 0
@@ -175,7 +175,7 @@ func initStaticBlocks(store Store, ctx BlockNode, bn BlockNode) {
 					for _, lx := range n.Lhs {
 						nx := lx.(*NameExpr)
 						//fmt.Println("---nx: ", nx)
-						//lastBid := last.GetStaticBlock().BID
+						//lastBid := last.GetStaticBlock().Bid
 						//fmt.Println("---lastBid: ", lastBid)
 						ln := nx.Name
 						if ln == blankIdentifier {
@@ -3022,7 +3022,7 @@ func findLoopUses2(ctx BlockNode, bn BlockNode) {
 					return n, TRANS_CONTINUE
 				}
 				//fmt.Println("---find loop use2, nx: ", n)
-				//fmt.Println("---find loop use2, nx.bid: ", n.BID)
+				//fmt.Println("---find loop use2, nx.bid: ", n.Bid)
 				switch n.Type {
 				case NameExprTypeNormal:
 					// Find the block where name is defined
@@ -3122,7 +3122,7 @@ func pushInitBlock2(bn BlockNode, last *BlockNode, stack *[]BlockNode, pn *Packa
 	//fmt.Println("---last: ", *last)
 	bid := pn.nextBlockID(pn.PkgPath)
 	//fmt.Println("---bid: ", bid)
-	bn.GetStaticBlock().BID = bid
+	bn.GetStaticBlock().Bid = bid
 
 	if !bn.IsInitialized() {
 		switch bn.(type) {

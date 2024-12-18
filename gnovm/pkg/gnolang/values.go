@@ -2,7 +2,6 @@ package gnolang
 
 import (
 	"encoding/binary"
-	"encoding/hex"
 	"fmt"
 	"math"
 	"math/big"
@@ -12,8 +11,6 @@ import (
 	"unsafe"
 
 	"github.com/cockroachdb/apd/v3"
-	"github.com/gnolang/gno/tm2/pkg/errors"
-
 	"github.com/gnolang/gno/tm2/pkg/crypto"
 )
 
@@ -2420,49 +2417,6 @@ func NewBlock(source BlockNode, parent *Block) *Block {
 	}
 }
 
-type BlockID struct {
-	PkgID   PkgID  // base
-	NewTime uint64 // time created
-}
-
-func (bid BlockID) IsZero() bool {
-	if debug {
-		if bid.PkgID.IsZero() {
-			if bid.NewTime != 0 {
-				panic("should not happen")
-			}
-		}
-	}
-	return bid.PkgID.IsZero()
-}
-
-func (bid BlockID) String() string {
-	bids, _ := bid.MarshalAmino()
-	return bids
-}
-
-func (bid BlockID) MarshalAmino() (string, error) {
-	pid := hex.EncodeToString(bid.PkgID.Hashlet[:])
-	return fmt.Sprintf("%s:%d", pid, bid.NewTime), nil
-}
-
-func (bid *BlockID) UnmarshalAmino(oids string) error {
-	parts := strings.Split(oids, ":")
-	if len(parts) != 2 {
-		return errors.New("invalid ObjectID %s", oids)
-	}
-	_, err := hex.Decode(bid.PkgID.Hashlet[:], []byte(parts[0]))
-	if err != nil {
-		return err
-	}
-	newTime, err := strconv.Atoi(parts[1])
-	if err != nil {
-		return err
-	}
-	bid.NewTime = uint64(newTime)
-	return nil
-}
-
 func (b *Block) String() string {
 	return b.StringIndented("    ")
 }
@@ -2861,17 +2815,18 @@ func SetOriginForPointerValue(store Store, v *Value, origin string) {
 	} else if sv, ok := (*v).(*SliceValue); ok {
 		//fmt.Println("---Slice value, sv: ", sv)
 		//fmt.Println("---sv.Base: ", sv.Base, reflect.TypeOf(sv.Base))
+		base := sv.Base
 		if rv, ok := sv.Base.(RefValue); ok {
 			//println("---base is ref value")
 			if rv.PkgPath != "" { // load package
-				sv.Base = store.GetPackage(rv.PkgPath, false)
+				base = store.GetPackage(rv.PkgPath, false)
 			} else { // load object
-				// XXX XXX allocate object.
-				sv.Base = store.GetObject(rv.ObjectID)
+				base = store.GetObject(rv.ObjectID)
 			}
 		}
+		//fmt.Println("---base: ", base)
 		//fmt.Println("---sv.base: ", sv.Base)
-		if baseArr, ok := sv.Base.(*ArrayValue); ok {
+		if baseArr, ok := base.(*ArrayValue); ok {
 			//fmt.Println("---baseArr: ", baseArr)
 			//fmt.Println("---baseArr.Abs: ", baseArr.AbsPath)
 			if baseArr.AbsPath == "" {
@@ -2883,6 +2838,7 @@ func SetOriginForPointerValue(store Store, v *Value, origin string) {
 				*v = sv
 			}
 		} else {
+			panic("should not happen, base not array value")
 			//println("---base not array value")
 		}
 	} else {

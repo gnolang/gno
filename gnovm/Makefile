@@ -64,7 +64,7 @@ imports:
 ########################################
 # Test suite
 .PHONY: test
-test: _test.cmd _test.pkg _test.stdlibs
+test: _test.cmd _test.pkg _test.stdlibs _test.filetest
 
 .PHONY: _test.cmd
 _test.cmd:
@@ -97,6 +97,7 @@ _test.stdlibs:
 	go run ./cmd/gno test -v ./stdlibs/...
 
 
+.PHONY: _test.filetest
 _test.filetest:;
 	go test pkg/gnolang/files_test.go -test.short -run 'TestFiles$$/' $(GOTEST_FLAGS)
 

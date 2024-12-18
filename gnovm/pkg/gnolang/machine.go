@@ -1981,6 +1981,8 @@ func (m *Machine) PopAsPointer2(lx Expr) (PointerValue, string) {
 	if _, ok := lx.(*IndexExpr); ok {
 		iv := m.PopValue()
 		xv := m.PopValue()
+		// special case for slice value, the origin
+		// is bound to its underlying array
 		if sv, ok := xv.V.(*SliceValue); ok {
 			if av, ok := sv.Base.(*ArrayValue); ok {
 				origin = av.AbsPath + ":" + strconv.Itoa(sv.Offset)
@@ -1994,7 +1996,6 @@ func (m *Machine) PopAsPointer2(lx Expr) (PointerValue, string) {
 }
 
 func (m *Machine) PopAsPointer(lx Expr) PointerValue {
-	//fmt.Println("---PopAsPointer, lx: ", lx, reflect.TypeOf(lx))
 	switch lx := lx.(type) {
 	case *NameExpr:
 		lb := m.LastBlock()
@@ -2003,14 +2004,11 @@ func (m *Machine) PopAsPointer(lx Expr) PointerValue {
 	case *IndexExpr:
 		iv := m.PopValue()
 		xv := m.PopValue()
-		// TODO: if xv is slice value, get origin..
-		//fmt.Println("---index expr: ", lx)
 		return xv.GetPointerAtIndex(m.Alloc, m.Store, iv)
 	case *SelectorExpr:
 		xv := m.PopValue()
 		return xv.GetPointerToFromTV(m.Alloc, m.Store, lx.Path)
 	case *StarExpr:
-		//println("---StarExpr")
 		ptr := m.PopValue().V.(PointerValue)
 		return ptr
 	case *CompositeLitExpr: // for *RefExpr

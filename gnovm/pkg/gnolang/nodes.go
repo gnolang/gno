@@ -1,9 +1,11 @@
 package gnolang
 
 import (
+	"encoding/hex"
 	"fmt"
 	"go/parser"
 	"go/token"
+
 	"math"
 	"os"
 	"path/filepath"
@@ -13,6 +15,7 @@ import (
 	"strings"
 
 	"github.com/gnolang/gno/gnovm"
+	"github.com/gnolang/gno/tm2/pkg/errors"
 	"go.uber.org/multierr"
 )
 
@@ -406,6 +409,7 @@ const (
 type AbsPather interface {
 	GetAbsPath() string
 }
+
 type NameExpr struct {
 	Attributes
 	// TODO rename .Path's to .ValuePaths.
@@ -466,7 +470,7 @@ type SelectorExpr struct { // X.Sel
 }
 
 func (sx *SelectorExpr) GetAbsPath() string {
-	fmt.Println("---GetAbsPath, sx: ", sx)
+	//fmt.Println("---GetAbsPath, sx: ", sx)
 	return sx.AbsPath
 }
 
@@ -1571,6 +1575,49 @@ type BlockNode interface {
 // ----------------------------------------
 // StaticBlock
 
+type BlockID struct {
+	PkgID   PkgID  // base
+	NewTime uint64 // time created
+}
+
+func (bid BlockID) IsZero() bool {
+	if debug {
+		if bid.PkgID.IsZero() {
+			if bid.NewTime != 0 {
+				panic("should not happen")
+			}
+		}
+	}
+	return bid.PkgID.IsZero()
+}
+
+func (bid BlockID) String() string {
+	bids, _ := bid.MarshalAmino()
+	return bids
+}
+
+func (bid BlockID) MarshalAmino() (string, error) {
+	pid := hex.EncodeToString(bid.PkgID.Hashlet[:])
+	return fmt.Sprintf("%s:%d", pid, bid.NewTime), nil
+}
+
+func (bid *BlockID) UnmarshalAmino(oids string) error {
+	parts := strings.Split(oids, ":")
+	if len(parts) != 2 {
+		return errors.New("invalid ObjectID %s", oids)
+	}
+	_, err := hex.Decode(bid.PkgID.Hashlet[:], []byte(parts[0]))
+	if err != nil {
+		return err
+	}
+	newTime, err := strconv.Atoi(parts[1])
+	if err != nil {
+		return err
+	}
+	bid.NewTime = uint64(newTime)
+	return nil
+}
+
 // Embed in node to make it a BlockNode.
 type StaticBlock struct {
 	Block
@@ -1580,7 +1627,7 @@ type StaticBlock struct {
 	Consts   []Name // TODO consider merging with Names.
 	Externs  []Name
 	Loc      Location
-	BID      BlockID
+	Bid      BlockID
 
 	// temporary storage for rolling back redefinitions.
 	oldValues []oldValue
@@ -1696,8 +1743,8 @@ func (sb *StaticBlock) GetPathForName(store Store, n Name) (rel ValuePath, abs s
 	// Check local.
 	gen := 1
 	if idx, ok := sb.GetLocalIndex(n); ok {
-		//fmt.Println("---bid1: ", sb.BID)
-		return NewValuePathBlock(uint8(gen), idx, n), fmt.Sprintf("%s:[%d]", sb.BID, idx)
+		//fmt.Println("---bid1: ", sb.Bid)
+		return NewValuePathBlock(uint8(gen), idx, n), fmt.Sprintf("%s:[%d]", sb.Bid, idx)
 	}
 	// Register as extern.
 	// NOTE: uverse names are externs too.
@@ -1712,7 +1759,7 @@ func (sb *StaticBlock) GetPathForName(store Store, n Name) (rel ValuePath, abs s
 	bp := sb.GetParentNode(store)
 	for bp != nil {
 		if idx, ok := bp.GetLocalIndex(n); ok {
-			return NewValuePathBlock(uint8(gen), idx, n), fmt.Sprintf("%s:[%d]", bp.GetStaticBlock().BID, idx)
+			return NewValuePathBlock(uint8(gen), idx, n), fmt.Sprintf("%s:[%d]", bp.GetStaticBlock().Bid, idx)
 		} else {
 			if !isFile(bp) {
 				bp.GetStaticBlock().addExternName(n)

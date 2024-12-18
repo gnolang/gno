@@ -13,7 +13,7 @@ func (m *Machine) doOpIndex1() {
 		_ = m.PopExpr().(*IndexExpr)
 	} else {
 		lx := m.PopExpr()
-		fmt.Println("---doOpIndex1, lx: ", lx)
+		//fmt.Println("---doOpIndex1, lx: ", lx)
 		var (
 			abs string
 			ix  *IndexExpr
@@ -48,9 +48,9 @@ func (m *Machine) doOpIndex1() {
 				SetOriginForPointerValue(m.Store, &xv.V, abs)
 			}
 		default:
-			println("---default")
-			fmt.Println("---xv: ", xv)
-			fmt.Println("---iv: ", iv)
+			//println("---default")
+			//fmt.Println("---xv: ", xv)
+			//fmt.Println("---iv: ", iv)
 
 			xv2 := xv.Copy(m.Alloc)
 
@@ -58,28 +58,22 @@ func (m *Machine) doOpIndex1() {
 			*xv = res.Deref() // reuse as result
 			//fmt.Println("---*xv: ", xv)
 
+			// set origin for reference type value
 			_, ok1 := xv.V.(PointerValue)
 			_, ok2 := xv.V.(*SliceValue)
 			if ok1 || ok2 {
 				// special case for slice type, get origin from base array
 				if sv, ok := xv2.V.(*SliceValue); ok {
-					//fmt.Println("---slice value, sv: ", sv)
-					//fmt.Println("---sv.Base: ", sv.Base)
 					if arr, ok := sv.Base.(*ArrayValue); ok {
-						//fmt.Println("---array.abs: ", arr.AbsPath)
-						//fmt.Println("---type of index expr: ", reflect.TypeOf(ix.Index))
 						var indexPath string
 						if pather, ok := ix.Index.(AbsPather); ok {
 							indexPath = pather.GetAbsPath()
-							println("---index path: ", indexPath)
 						} else {
 							indexPath = ix.Index.String()
 						}
-						// TODO: add some tests and make this logic recursive
 						abs = arr.AbsPath + ":" + indexPath
-						fmt.Println("---!!! abs: ", abs)
+						//fmt.Println("---!!! abs: ", abs)
 					} else {
-						//println("---base not array ")
 						panic("should not happen, base should be array value")
 					}
 				}
@@ -164,7 +158,7 @@ func (m *Machine) doOpSlice() {
 	// if a is a pointer to an array, a[low : high : max] is
 	// shorthand for (*a)[low : high : max]
 	if xv.T.Kind() == PointerKind &&
-			xv.T.Elem().Kind() == ArrayKind {
+		xv.T.Elem().Kind() == ArrayKind {
 		// simply deref xv.
 		*xv = xv.V.(PointerValue).Deref()
 	}
@@ -254,7 +248,6 @@ func (m *Machine) doOpRef() {
 	//fmt.Println("---doOpRef, rx: ", rx)
 	m.Alloc.AllocatePointer()
 	xv, origin := m.PopAsPointer2(rx.X)
-	//fmt.Println("---xv: ", xv)
 	if nv, ok := xv.TV.V.(*NativeValue); ok {
 		// If a native pointer, ensure it is addressable.  This
 		// way, PointerValue{*NativeValue{rv}} can be converted
@@ -278,20 +271,10 @@ func (m *Machine) doOpRef() {
 		V: xv,
 	}
 
-	if pather, ok := rx.X.(AbsPather); ok {
-		if _, ok := rx.X.(*IndexExpr); ok {
-			//fmt.Println("---index expr, ix: ", ix, reflect.TypeOf(ix.X))
-			if origin != "" {
-				//fmt.Println("---origin: ", origin)
-				SetOriginForPointerValue(m.Store, &tv.V, origin)
-			} else {
-				SetOriginForPointerValue(m.Store, &tv.V, pather.GetAbsPath())
-			}
-		} else {
-			//println("---pather")
-			SetOriginForPointerValue(m.Store, &tv.V, pather.GetAbsPath())
-		}
-
+	if origin != "" {
+		SetOriginForPointerValue(m.Store, &tv.V, origin)
+	} else if pather, ok := rx.X.(AbsPather); ok {
+		SetOriginForPointerValue(m.Store, &tv.V, pather.GetAbsPath())
 	}
 	m.PushValue(tv)
 }
@@ -788,7 +771,7 @@ func (m *Machine) doOpStructLit() {
 				// package doesn't match, we cannot use this
 				// method to initialize the struct.
 				if FieldTypeList(st.Fields).HasUnexported() &&
-						st.PkgPath != m.Package.PkgPath {
+					st.PkgPath != m.Package.PkgPath {
 					panic(fmt.Sprintf(
 						"Cannot initialize imported struct %s.%s with nameless composite lit expression (has unexported fields) from package %s",
 						st.PkgPath, st.String(), m.Package.PkgPath))
