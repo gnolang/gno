@@ -234,7 +234,6 @@ var reNamespace = regexp.MustCompile(`^[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/(?:r|p)/([\.
 
 // checkNamespacePermission check if the user as given has correct permssion to on the given pkg path
 func (vm *VMKeeper) checkNamespacePermission(ctx sdk.Context, creator crypto.Address, pkgPath string) error {
-	// TODO change?
 	sysUsersPkg, err := vm.prmk.GetString(ctx, sysUsersPkgParamPath)
 	if goErrors.Is(err, params.ErrMissingParamValue) || sysUsersPkg == "" {
 		// No namespace support enabled
