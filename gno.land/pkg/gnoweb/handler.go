@@ -373,10 +373,3 @@ func generateBreadcrumbPaths(path string) []components.BreadcrumbPart {
 
 	return parts
 }
-
-// IsFile checks if the last element of the path is a file (has an extension)
-func isFile(path string) bool {
-	base := filepath.Base(path)
-	ext := filepath.Ext(base)
-	return ext != ""
-}
