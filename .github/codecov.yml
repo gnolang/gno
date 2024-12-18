@@ -44,32 +44,22 @@ flag_management:
     gno-land:
       paths:
         - "gno.land/**"
-      flags:
-        - gno-land
     gnovm:
       paths:
         - "gnovm/**"
-      flags:
-        - gnovm
     misc:
       paths:
         - "misc/**"
-      flags:
-        - misc
     tm2:
       paths:
         - "tm2/**"
-      flags:
-        - tm2
     contribs:
       paths:
         - "contribs/**"
-      flags:
-        - contribs
 
   statuses:
     - type: project
-      flag: gno-land
+      flag: gno.land
       target: auto
       threshold: 5
     - type: project
