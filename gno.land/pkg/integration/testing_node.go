@@ -93,6 +93,7 @@ func TestingMinimalNodeConfig(t TestingTS, gnoroot string) *gnoland.InMemoryNode
 			GenesisTxResultHandler: gnoland.PanicOnFailingTxResultHandler,
 			CacheStdlibLoad:        true,
 		},
+		SkipGenesisVerification: true,
 	}
 }
 
