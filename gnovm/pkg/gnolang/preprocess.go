@@ -4404,7 +4404,7 @@ func tryPredefine(store Store, last BlockNode, d Decl) (un Name) {
 			if fv.body == nil && store != nil {
 				fv.nativeBody = store.GetNative(pkg.PkgPath, d.Name)
 				if fv.nativeBody == nil {
-					panic(fmt.Sprintf("function %s does not have a body but is not natively defined", d.Name))
+					panic(fmt.Sprintf("function %s does not have a body but is not natively defined (did you build after pulling from the repository?)", d.Name))
 				}
 				fv.NativePkg = pkg.PkgPath
 				fv.NativeName = d.Name
