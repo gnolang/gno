@@ -11,6 +11,7 @@ import (
 	"github.com/gnolang/gno/gnovm/pkg/gnolang/internal/txlog"
 	"github.com/gnolang/gno/tm2/pkg/amino"
 	"github.com/gnolang/gno/tm2/pkg/colors"
+	"github.com/gnolang/gno/tm2/pkg/overflow"
 	"github.com/gnolang/gno/tm2/pkg/store"
 	"github.com/gnolang/gno/tm2/pkg/store/utils"
 	stringz "github.com/gnolang/gno/tm2/pkg/strings"
@@ -25,15 +26,15 @@ import (
 // cause writes to happen to the store, such as MemPackages to iavlstore.
 type PackageGetter func(pkgPath string, store Store) (*PackageNode, *PackageValue)
 
-// NativeStore is a function which can retrieve native bodies of native functions.
-type NativeStore func(pkgName string, name Name) func(m *Machine)
+// NativeResolver is a function which can retrieve native bodies of native functions.
+type NativeResolver func(pkgName string, name Name) func(m *Machine)
 
 // Store is the central interface that specifies the communications between the
 // GnoVM and the underlying data store; currently, generally the gno.land
 // blockchain, or the file system.
 type Store interface {
 	// STABLE
-	BeginTransaction(baseStore, iavlStore store.Store) TransactionStore
+	BeginTransaction(baseStore, iavlStore store.Store, gasMeter store.GasMeter) TransactionStore
 	SetPackageGetter(PackageGetter)
 	GetPackage(pkgPath string, isImport bool) *PackageValue
 	SetCachePackage(*PackageValue)
@@ -50,8 +51,8 @@ type Store interface {
 	GetBlockNode(Location) BlockNode // to get a PackageNode, use PackageNodeLocation().
 	GetBlockNodeSafe(Location) BlockNode
 	SetBlockNode(BlockNode)
+
 	// UNSTABLE
-	SetStrictGo2GnoMapping(bool)
 	Go2GnoType(rt reflect.Type) Type
 	GetAllocator() *Allocator
 	NumMemPackages() int64
@@ -63,12 +64,11 @@ type Store interface {
 	GetMemFile(path string, name string) *gnovm.MemFile
 	IterMemPackage() <-chan *gnovm.MemPackage
 	ClearObjectCache()                                    // run before processing a message
-	SetNativeStore(NativeStore)                           // for "new" natives XXX
+	SetNativeResolver(NativeResolver)                     // for "new" natives XXX
 	GetNative(pkgPath string, name Name) func(m *Machine) // for "new" natives XXX
 	SetLogStoreOps(enabled bool)
 	SprintStoreOps() string
 	LogSwitchRealm(rlmpath string) // to mark change of realm boundaries
-	ClearCache()
 	Print()
 }
 
@@ -81,6 +81,47 @@ type TransactionStore interface {
 	// Write commits the current buffered transaction data to the underlying store.
 	// It also clears the current buffer of the transaction.
 	Write()
+}
+
+// Gas consumption descriptors.
+const (
+	GasGetObjectDesc       = "GetObjectPerByte"
+	GasSetObjectDesc       = "SetObjectPerByte"
+	GasGetTypeDesc         = "GetTypePerByte"
+	GasSetTypeDesc         = "SetTypePerByte"
+	GasGetPackageRealmDesc = "GetPackageRealmPerByte"
+	GasSetPackageRealmDesc = "SetPackageRealmPerByte"
+	GasAddMemPackageDesc   = "AddMemPackagePerByte"
+	GasGetMemPackageDesc   = "GetMemPackagePerByte"
+	GasDeleteObjectDesc    = "DeleteObjectFlat"
+)
+
+// GasConfig defines gas cost for each operation on KVStores
+type GasConfig struct {
+	GasGetObject       int64
+	GasSetObject       int64
+	GasGetType         int64
+	GasSetType         int64
+	GasGetPackageRealm int64
+	GasSetPackageRealm int64
+	GasAddMemPackage   int64
+	GasGetMemPackage   int64
+	GasDeleteObject    int64
+}
+
+// DefaultGasConfig returns a default gas config for KVStores.
+func DefaultGasConfig() GasConfig {
+	return GasConfig{
+		GasGetObject:       16,   // per byte cost
+		GasSetObject:       16,   // per byte cost
+		GasGetType:         52,   // per byte cost
+		GasSetType:         52,   // per byte cost
+		GasGetPackageRealm: 524,  // per byte cost
+		GasSetPackageRealm: 524,  // per byte cost
+		GasAddMemPackage:   8,    // per byte cost
+		GasGetMemPackage:   8,    // per byte cost
+		GasDeleteObject:    3715, // flat cost
+	}
 }
 
 type defaultStore struct {
@@ -97,12 +138,15 @@ type defaultStore struct {
 	// store configuration; cannot be modified in a transaction
 	pkgGetter        PackageGetter         // non-realm packages
 	cacheNativeTypes map[reflect.Type]Type // reflect doc: reflect.Type are comparable
-	nativeStore      NativeStore           // for injecting natives
-	go2gnoStrict     bool                  // if true, native->gno type conversion must be registered.
+	nativeResolver   NativeResolver        // for injecting natives
 
 	// transient
 	opslog  []StoreOp // for debugging and testing.
 	current []string  // for detecting import cycles.
+
+	// gas
+	gasMeter  store.GasMeter
+	gasConfig GasConfig
 }
 
 func NewStore(alloc *Allocator, baseStore, iavlStore store.Store) *defaultStore {
@@ -119,15 +163,15 @@ func NewStore(alloc *Allocator, baseStore, iavlStore store.Store) *defaultStore 
 		// store configuration
 		pkgGetter:        nil,
 		cacheNativeTypes: make(map[reflect.Type]Type),
-		nativeStore:      nil,
-		go2gnoStrict:     true,
+		nativeResolver:   nil,
+		gasConfig:        DefaultGasConfig(),
 	}
 	InitStoreCaches(ds)
 	return ds
 }
 
 // If nil baseStore and iavlStore, the baseStores are re-used.
-func (ds *defaultStore) BeginTransaction(baseStore, iavlStore store.Store) TransactionStore {
+func (ds *defaultStore) BeginTransaction(baseStore, iavlStore store.Store, gasMeter store.GasMeter) TransactionStore {
 	if baseStore == nil {
 		baseStore = ds.baseStore
 	}
@@ -148,8 +192,11 @@ func (ds *defaultStore) BeginTransaction(baseStore, iavlStore store.Store) Trans
 		// store configuration
 		pkgGetter:        ds.pkgGetter,
 		cacheNativeTypes: ds.cacheNativeTypes,
-		nativeStore:      ds.nativeStore,
-		go2gnoStrict:     ds.go2gnoStrict,
+		nativeResolver:   ds.nativeResolver,
+
+		// gas meter
+		gasMeter:  gasMeter,
+		gasConfig: ds.gasConfig,
 
 		// transient
 		current: nil,
@@ -171,10 +218,6 @@ func (transactionStore) SetPackageGetter(pg PackageGetter) {
 	panic("SetPackageGetter may not be called in a transaction store")
 }
 
-func (transactionStore) ClearCache() {
-	panic("ClearCache may not be called in a transaction store")
-}
-
 // XXX: we should block Go2GnoType, because it uses a global cache map;
 // but it's called during preprocess and thus breaks some testing code.
 // let's wait until we remove Go2Gno entirely.
@@ -183,12 +226,8 @@ func (transactionStore) ClearCache() {
 // 	panic("Go2GnoType may not be called in a transaction store")
 // }
 
-func (transactionStore) SetNativeStore(ns NativeStore) {
-	panic("SetNativeStore may not be called in a transaction store")
-}
-
-func (transactionStore) SetStrictGo2GnoMapping(strict bool) {
-	panic("SetStrictGo2GnoMapping may not be called in a transaction store")
+func (transactionStore) SetNativeResolver(ns NativeResolver) {
+	panic("SetNativeResolver may not be called in a transaction store")
 }
 
 // CopyCachesFromStore allows to copy a store's internal object, type and
@@ -308,6 +347,8 @@ func (ds *defaultStore) GetPackageRealm(pkgPath string) (rlm *Realm) {
 	if bz == nil {
 		return nil
 	}
+	gas := overflow.Mul64p(ds.gasConfig.GasGetPackageRealm, store.Gas(len(bz)))
+	ds.consumeGas(gas, GasGetPackageRealmDesc)
 	amino.MustUnmarshal(bz, &rlm)
 	if debug {
 		if rlm.ID != oid.PkgID {
@@ -323,6 +364,8 @@ func (ds *defaultStore) SetPackageRealm(rlm *Realm) {
 	oid := ObjectIDFromPkgPath(rlm.Path)
 	key := backendRealmKey(oid)
 	bz := amino.MustMarshal(rlm)
+	gas := overflow.Mul64p(ds.gasConfig.GasSetPackageRealm, store.Gas(len(bz)))
+	ds.consumeGas(gas, GasSetPackageRealmDesc)
 	ds.baseStore.Set([]byte(key), bz)
 }
 
@@ -368,6 +411,8 @@ func (ds *defaultStore) loadObjectSafe(oid ObjectID) Object {
 		bz := hashbz[HashSize:]
 		var oo Object
 		ds.alloc.AllocateAmino(int64(len(bz)))
+		gas := overflow.Mul64p(ds.gasConfig.GasGetObject, store.Gas(len(bz)))
+		ds.consumeGas(gas, GasGetObjectDesc)
 		amino.MustUnmarshal(bz, &oo)
 		if debug {
 			if oo.GetObjectID() != oid {
@@ -391,6 +436,8 @@ func (ds *defaultStore) SetObject(oo Object) {
 	o2 := copyValueWithRefs(oo)
 	// marshal to binary.
 	bz := amino.MustMarshalAny(o2)
+	gas := overflow.Mul64p(ds.gasConfig.GasSetObject, store.Gas(len(bz)))
+	ds.consumeGas(gas, GasSetObjectDesc)
 	// set hash.
 	hash := HashBytes(bz) // XXX objectHash(bz)???
 	if len(hash) != HashSize {
@@ -440,6 +487,7 @@ func (ds *defaultStore) SetObject(oo Object) {
 }
 
 func (ds *defaultStore) DelObject(oo Object) {
+	ds.consumeGas(ds.gasConfig.GasDeleteObject, GasDeleteObjectDesc)
 	oid := oo.GetObjectID()
 	// delete from cache.
 	delete(ds.cacheObjects, oid)
@@ -476,6 +524,8 @@ func (ds *defaultStore) GetTypeSafe(tid TypeID) Type {
 		key := backendTypeKey(tid)
 		bz := ds.baseStore.Get([]byte(key))
 		if bz != nil {
+			gas := overflow.Mul64p(ds.gasConfig.GasGetType, store.Gas(len(bz)))
+			ds.consumeGas(gas, GasGetTypeDesc)
 			var tt Type
 			amino.MustUnmarshal(bz, &tt)
 			if debug {
@@ -498,8 +548,7 @@ func (ds *defaultStore) SetCacheType(tt Type) {
 	tid := tt.TypeID()
 	if tt2, exists := ds.cacheTypes.Get(tid); exists {
 		if tt != tt2 {
-			// NOTE: not sure why this would happen.
-			panic("should not happen")
+			panic(fmt.Sprintf("cannot re-register %q with different type", tid))
 		} else {
 			// already set.
 		}
@@ -523,6 +572,8 @@ func (ds *defaultStore) SetType(tt Type) {
 		key := backendTypeKey(tid)
 		tcopy := copyTypeWithRefs(tt)
 		bz := amino.MustMarshalAny(tcopy)
+		gas := overflow.Mul64p(ds.gasConfig.GasSetType, store.Gas(len(bz)))
+		ds.consumeGas(gas, GasSetTypeDesc)
 		ds.baseStore.Set([]byte(key), bz)
 	}
 	// save type to cache.
@@ -616,6 +667,8 @@ func (ds *defaultStore) AddMemPackage(memPkg *gnovm.MemPackage) {
 	ctr := ds.incGetPackageIndexCounter()
 	idxkey := []byte(backendPackageIndexKey(ctr))
 	bz := amino.MustMarshal(memPkg)
+	gas := overflow.Mul64p(ds.gasConfig.GasAddMemPackage, store.Gas(len(bz)))
+	ds.consumeGas(gas, GasAddMemPackageDesc)
 	ds.baseStore.Set(idxkey, []byte(memPkg.Path))
 	pathkey := []byte(backendPackagePathKey(memPkg.Path))
 	ds.iavlStore.Set(pathkey, bz)
@@ -643,6 +696,8 @@ func (ds *defaultStore) getMemPackage(path string, isRetry bool) *gnovm.MemPacka
 		}
 		return nil
 	}
+	gas := overflow.Mul64p(ds.gasConfig.GasGetMemPackage, store.Gas(len(bz)))
+	ds.consumeGas(gas, GasGetMemPackageDesc)
 
 	var memPkg *gnovm.MemPackage
 	amino.MustUnmarshal(bz, &memPkg)
@@ -689,6 +744,13 @@ func (ds *defaultStore) IterMemPackage() <-chan *gnovm.MemPackage {
 	}
 }
 
+func (ds *defaultStore) consumeGas(gas int64, descriptor string) {
+	// In the tests, the defaultStore may not set the gas meter.
+	if ds.gasMeter != nil {
+		ds.gasMeter.ConsumeGas(gas, descriptor)
+	}
+}
+
 // Unstable.
 // This function is used to clear the object cache every transaction.
 // It also sets a new allocator.
@@ -699,13 +761,13 @@ func (ds *defaultStore) ClearObjectCache() {
 	ds.SetCachePackage(Uverse())
 }
 
-func (ds *defaultStore) SetNativeStore(ns NativeStore) {
-	ds.nativeStore = ns
+func (ds *defaultStore) SetNativeResolver(ns NativeResolver) {
+	ds.nativeResolver = ns
 }
 
 func (ds *defaultStore) GetNative(pkgPath string, name Name) func(m *Machine) {
-	if ds.nativeStore != nil {
-		return ds.nativeStore(pkgPath, name)
+	if ds.nativeResolver != nil {
+		return ds.nativeResolver(pkgPath, name)
 	}
 	return nil
 }
@@ -778,15 +840,6 @@ func (ds *defaultStore) LogSwitchRealm(rlmpath string) {
 		StoreOp{Type: StoreOpSwitchRealm, RlmPath: rlmpath})
 }
 
-func (ds *defaultStore) ClearCache() {
-	ds.cacheObjects = make(map[ObjectID]Object)
-	ds.cacheTypes = txlog.GoMap[TypeID, Type](map[TypeID]Type{})
-	ds.cacheNodes = txlog.GoMap[Location, BlockNode](map[Location]BlockNode{})
-	ds.cacheNativeTypes = make(map[reflect.Type]Type)
-	// restore builtin types to cache.
-	InitStoreCaches(ds)
-}
-
 // for debugging
 func (ds *defaultStore) Print() {
 	fmt.Println(colors.Yellow("//----------------------------------------"))
@@ -841,7 +894,7 @@ func backendPackageIndexKey(index uint64) string {
 }
 
 func backendPackagePathKey(path string) string {
-	return fmt.Sprintf("pkg:" + path)
+	return "pkg:" + path
 }
 
 // ----------------------------------------

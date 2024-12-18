@@ -421,11 +421,11 @@ func getHeight(currentHeight int64, heightPtr *int64) (int64, error) {
 	return getHeightWithMin(currentHeight, heightPtr, 1)
 }
 
-func getHeightWithMin(currentHeight int64, heightPtr *int64, min int64) (int64, error) {
+func getHeightWithMin(currentHeight int64, heightPtr *int64, minVal int64) (int64, error) {
 	if heightPtr != nil {
 		height := *heightPtr
-		if height < min {
-			return 0, fmt.Errorf("height must be greater than or equal to %d", min)
+		if height < minVal {
+			return 0, fmt.Errorf("height must be greater than or equal to %d", minVal)
 		}
 		if height > currentHeight {
 			return 0, fmt.Errorf("height must be less than or equal to the current blockchain height")
