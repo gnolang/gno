@@ -1,3 +1,5 @@
+import { debounce } from "./utils";
+
 class Help {
   private DOM: {
     el: HTMLElement | null;
@@ -60,11 +62,13 @@ class Help {
   private bindEvents(): void {
     const { addressInput, cmdModeSelect } = this.DOM;
 
-    addressInput?.addEventListener("input", () => {
+    const debouncedUpdate = debounce((addressInput: HTMLInputElement) => {
       const address = addressInput.value;
+
       localStorage.setItem("helpAddressInput", address);
       this.funcList.forEach((func) => func.updateAddr(address));
     });
+    addressInput?.addEventListener("input", () => debouncedUpdate(addressInput));
 
     cmdModeSelect?.addEventListener("change", (e) => {
       const target = e.target as HTMLSelectElement;
@@ -106,27 +110,35 @@ class HelpFunc {
     this.bindEvents();
   }
 
-  private sanitizeArgsInput(input: HTMLInputElement) {
-    return {
-      paramName: input.dataset.param || "",
-      paramValue: input.value.trim(),
-    };
+  private static sanitizeArgsInput(input: HTMLInputElement) {
+    const paramName = input.dataset.param || "";
+    const paramValue = input.value.trim();
+
+    if (!paramName) {
+      console.warn("sanitizeArgsInput: param is missing in arg input dataset.");
+    }
+
+    return { paramName, paramValue };
   }
 
   private bindEvents(): void {
+    const debouncedUpdate = debounce((paramName: string, paramValue: string) => {
+      if (paramName) this.updateArg(paramName, paramValue);
+    });
+
     this.DOM.el.addEventListener("input", (e) => {
       const target = e.target as HTMLInputElement;
       if (target.dataset.role === "help-param-input") {
-        const { paramName, paramValue } = this.sanitizeArgsInput(target);
-        this.updateArg(paramName, paramValue);
+        const { paramName, paramValue } = HelpFunc.sanitizeArgsInput(target);
+        debouncedUpdate(paramName, paramValue);
       }
     });
   }
 
   private initializeArgs(): void {
     this.DOM.paramInputs.forEach((input) => {
-      const { paramName, paramValue } = this.sanitizeArgsInput(input);
-      this.updateArg(paramName, paramValue);
+      const { paramName, paramValue } = HelpFunc.sanitizeArgsInput(input);
+      if (paramName) this.updateArg(paramName, paramValue);
     });
   }
 
