@@ -466,6 +466,7 @@ type SelectorExpr struct { // X.Sel
 }
 
 func (sx *SelectorExpr) GetAbsPath() string {
+	fmt.Println("---GetAbsPath, sx: ", sx)
 	return sx.AbsPath
 }
 

@@ -196,7 +196,7 @@ func (alloc *Allocator) NewString(s string) StringValue {
 }
 
 func (alloc *Allocator) NewListArray(n int) *ArrayValue {
-	//fmt.Println("---NewListArray, n: ", n)
+	println("---NewListArray, n: ", n)
 	if n < 0 {
 		panic(&Exception{Value: typedString("len out of range")})
 	}

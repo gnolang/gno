@@ -255,7 +255,7 @@ func (pv PointerValue) Assign2(alloc *Allocator, store Store, rlm *Realm, tv2 Ty
 								panic("should not happen")
 							}
 							if nv, ok := tv2.V.(*NativeValue); !ok ||
-									nv.Value.Kind() != reflect.Func {
+								nv.Value.Kind() != reflect.Func {
 								panic("should not happen")
 							}
 						}
@@ -2845,8 +2845,8 @@ func signOfUnsignedBytes(n [8]byte) int {
 	return 1
 }
 
-func SetOriginForPointerValue(v *Value, origin string) {
-	//fmt.Println("---SetPointerValueOrigin, v: ", *v)
+func SetOriginForPointerValue(store Store, v *Value, origin string) {
+	//fmt.Println("---SetPointerValueOrigin2, v: ", *v)
 	//fmt.Println("---origin: ", origin)
 	if pv, ok := (*v).(PointerValue); ok {
 		//println("---Pointer value")
@@ -2860,10 +2860,22 @@ func SetOriginForPointerValue(v *Value, origin string) {
 		}
 	} else if sv, ok := (*v).(*SliceValue); ok {
 		//fmt.Println("---Slice value, sv: ", sv)
+		//fmt.Println("---sv.Base: ", sv.Base, reflect.TypeOf(sv.Base))
+		if rv, ok := sv.Base.(RefValue); ok {
+			//println("---base is ref value")
+			if rv.PkgPath != "" { // load package
+				sv.Base = store.GetPackage(rv.PkgPath, false)
+			} else { // load object
+				// XXX XXX allocate object.
+				sv.Base = store.GetObject(rv.ObjectID)
+			}
+		}
+		//fmt.Println("---sv.base: ", sv.Base)
 		if baseArr, ok := sv.Base.(*ArrayValue); ok {
 			//fmt.Println("---baseArr: ", baseArr)
 			//fmt.Println("---baseArr.Abs: ", baseArr.AbsPath)
 			if baseArr.AbsPath == "" {
+				//println("---set to origin")
 				baseArr.AbsPath = origin // from name
 			} else if sv.Origin == "" { // using abs path
 				//println("--set origin from array abs")
@@ -2873,5 +2885,7 @@ func SetOriginForPointerValue(v *Value, origin string) {
 		} else {
 			//println("---base not array value")
 		}
+	} else {
+		//println("---nothing to do")
 	}
 }

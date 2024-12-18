@@ -184,7 +184,6 @@ func (m *Machine) doOpExec(op Op) {
 				ev := xv.GetPointerAtIndex(m.Alloc, m.Store, &iv).Deref()
 				switch bs.Op {
 				case ASSIGN:
-					println("---: Assign")
 					m.PopAsPointer(bs.Value).Assign2(m.Alloc, m.Store, m.Realm, ev, false)
 				case DEFINE:
 					vnx := bs.Value.(*NameExpr)
@@ -266,7 +265,6 @@ func (m *Machine) doOpExec(op Op) {
 				iv.SetInt(bs.ListIndex)
 				switch bs.Op {
 				case ASSIGN:
-					println("---: Assign")
 					m.PopAsPointer(bs.Key).Assign2(m.Alloc, m.Store, m.Realm, iv, false)
 				case DEFINE:
 					knx := bs.Key.(*NameExpr)
