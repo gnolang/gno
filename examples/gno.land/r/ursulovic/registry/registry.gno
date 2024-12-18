@@ -9,8 +9,8 @@ var (
 	mainAddress   std.Address
 	backupAddress std.Address
 
-	ErrInvalidAddr  = errors.New("leon's config: invalid address")
-	ErrUnauthorized = errors.New("leon's config: unauthorized")
+	ErrInvalidAddr  = errors.New("Ivan's registry: Invalid address")
+	ErrUnauthorized = errors.New("Ivan's registry: Unauthorized")
 )
 
 func init() {
@@ -32,7 +32,7 @@ func SetMainAddress(addr std.Address) error {
 		return ErrInvalidAddr
 	}
 
-	if err := checkAuthorized; err != nil {
+	if err := checkAuthorized(); err != nil {
 		return err
 	}
 	mainAddress = addr
@@ -44,13 +44,13 @@ func SetBackupAddress(addr std.Address) error {
 		return ErrInvalidAddr
 	}
 
-	if err := checkAuthorized; err != nil {
+	if err := checkAuthorized(); err != nil {
 		return err
 	}
-	backupAddr = addr
+	backupAddress = addr
 	return nil
 }
-
+// It will stay here for now, might be useful later
 func assertAuthorized() {
 	caller := std.PrevRealm().Addr()
 	isAuthorized := caller == mainAddress || caller == backupAddress
