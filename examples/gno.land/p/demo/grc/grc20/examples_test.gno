@@ -1,4 +1,8 @@
-package grc20
+// NOTE: The Example tests below are currently commented out since Example tests
+// are not yet supported in Gno. They are kept here for inspiration and documentation
+// purposes only, and will be uncommented once Example testing is implemented.
+// See: https://github.com/gnolang/gno/pull/3353
+/* package grc20
 
 import (
 	"std"
@@ -122,4 +126,17 @@ func ExampleImpersonateTeller() {
 	ufmt.Println(token.BalanceOf(stefan)) // Output: 0
 }
 
-// ...
+*/
+
+func ExampleInit()                            {}
+func ExampleExposeBankForMaketxRunOrImports() {}
+func ExampleCustomTellerImpl()                {}
+func ExampleAllowance()                       {}
+func ExampleRealmBanker()                     {}
+func ExamplePrevRealmBanker()                 {}
+func ExampleAccountBanker()                   {}
+func ExampleTransfer()                        {}
+func ExampleApprove()                         {}
+func ExampleTransferFrom()                    {}
+func ExampleMint()                            {}
+func ExampleBurn()                            {}
