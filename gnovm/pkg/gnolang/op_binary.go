@@ -687,8 +687,8 @@ func isGeq(lv, rv *TypedValue) bool {
 }
 
 // addAssign adds lv to rv and stores the result to lv.
-// It panics in case of overflow on signed integers.
-// The assignement is performed even in case of panic.
+// It returns an exception in case of overflow on signed integers.
+// The assignement is performed even in case of exception.
 func addAssign(alloc *Allocator, lv, rv *TypedValue) *Exception {
 	// set the result in lv.
 	// NOTE this block is replicated in op_assign.go
@@ -696,7 +696,7 @@ func addAssign(alloc *Allocator, lv, rv *TypedValue) *Exception {
 	switch baseOf(lv.T) {
 	case StringType, UntypedStringType:
 		lv.V = alloc.NewString(lv.GetString() + rv.GetString())
-	// Signed integers may overflow, which triggers a panic.
+	// Signed integers may overflow, which triggers an exception.
 	case IntType:
 		var r int
 		r, ok = overflow.Add(lv.GetInt(), rv.GetInt())
@@ -763,13 +763,15 @@ func addAssign(alloc *Allocator, lv, rv *TypedValue) *Exception {
 	return nil
 }
 
-// for doOpSub and doOpSubAssign.
+// subAssign subtracts lv to rv and stores the result to lv.
+// It returns an exception in case of overflow on signed integers.
+// The subtraction is performed even in case of exception.
 func subAssign(lv, rv *TypedValue) *Exception {
 	// set the result in lv.
 	// NOTE this block is replicated in op_assign.go
 	ok := true
 	switch baseOf(lv.T) {
-	// Signed integers may overflow, which triggers a panic.
+	// Signed integers may overflow, which triggers an exception.
 	case IntType:
 		var r int
 		r, ok = overflow.Sub(lv.GetInt(), rv.GetInt())
