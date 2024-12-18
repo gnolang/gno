@@ -1,11 +1,12 @@
 package users
 
 import (
-	"github.com/gnolang/gno/examples/gno.land/p/demo/avlhelpers"
-	"github.com/gnolang/gno/examples/gno.land/p/sys/users"
-
 	"std"
 	"strings"
+
+	"gno.land/p/demo/avl"
+	"gno.land/p/demo/avlhelpers"
+	"gno.land/p/sys/users"
 )
 
 func ResolveName(username string) users.UserLookup {
@@ -81,14 +82,14 @@ func Users(offset, count uint64) []users.UserLookup {
 func GetAllNames(addr std.Address) []string {
 	var res []string
 
-	username, ok := addressStore.Get()
+	username, ok := addressStore.Get(addr.String())
 	if !ok {
 		return res
 	}
 
 	res = append(res, username.(string))
 
-	aliasStore.Iterate(addr, func(key string, value interface{}) bool {
+	aliasStore.Iterate("", "", func(key string, value interface{}) bool {
 		adr := value.(std.Address)
 		if adr == addr {
 			res = append(res, key)
@@ -106,4 +107,14 @@ func UsersByPrefix(prefix string, maxResults int) []string {
 	// XXX: most likely moved to r/gnoland/users to keep this package minimal.
 	// in that case, should we get a value copy of the uStore available to whitelisted callers?
 	return avlhelpers.ListByteStringKeysByPrefix(*usernameStore, prefix, maxResults)
+}
+
+// UserCount returns the number of registered users
+func UserCount() int {
+	return addressStore.Size()
+}
+
+// XXX: Should we have this? it's not modifiable directly.
+func GetUserStore() *avl.Tree {
+	return usernameStore
 }

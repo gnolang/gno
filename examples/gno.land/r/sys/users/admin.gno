@@ -4,7 +4,7 @@ import (
 	"std"
 
 	"gno.land/p/demo/ownable"
-	p "gno.land/p/demo/pausable"
+	"gno.land/p/demo/pausable"
 )
 
 const (
@@ -16,8 +16,8 @@ const (
 )
 
 var (
-	Ownable  = ownable.NewWithAddress(adminAddr) // Package owner
-	Pausable = p.NewFromOwnable(Ownable)
+	Ownable  = ownable.NewWithAddress(adminAddr) // Until a DAO is formed to manage this contract
+	Pausable = pausable.NewFromOwnable(Ownable)
 )
 
 func init() {

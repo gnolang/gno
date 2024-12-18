@@ -6,7 +6,7 @@ import (
 	"strings"
 
 	"gno.land/p/demo/avl"
-	p "gno.land/p/demo/pausable"
+	"gno.land/p/demo/pausable"
 )
 
 var (
@@ -25,7 +25,7 @@ const maxUsernameLen = 50
 // Writing to the store can be paused by the admin
 func WriteUser(name string, addr std.Address) error {
 	if Pausable.IsPaused() {
-		return p.ErrPaused
+		return pausable.ErrPaused
 	}
 
 	if !IsOnWhitelist(std.PrevRealm().Addr()) {
@@ -50,6 +50,9 @@ func WriteUser(name string, addr std.Address) error {
 		return ErrAlreadyExists
 	}
 
+	usernameStore.Set(trimmedName, addr)
+	addressStore.Set(addr.String(), trimmedName)
+
 	return nil
 }
 
@@ -57,7 +60,7 @@ func WriteUser(name string, addr std.Address) error {
 // The address must already have a registered username
 func CreateAlias(name string, addr std.Address) error {
 	if Pausable.IsPaused() {
-		return p.ErrPaused
+		return pausable.ErrPaused
 	}
 
 	if !IsOnWhitelist(std.PrevRealm().Addr()) {
@@ -90,16 +93,6 @@ func CreateAlias(name string, addr std.Address) error {
 // permission to write to the user store
 func IsOnWhitelist(addr std.Address) bool {
 	return callerWhitelist.Has(addr.String())
-}
-
-// UserCount returns the number of registered users
-func UserCount() int {
-	return addressStore.Size()
-}
-
-// XXX: Should we have this? it's not modifiable directly.
-func GetUserStore() *avl.Tree {
-	return usernameStore
 }
 
 // Validate validates username and address passed in
