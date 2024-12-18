@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"net/url"
+	"path/filepath"
 	"regexp"
 	"strings"
 )
@@ -17,7 +18,7 @@ const (
 )
 
 // reRealmPath match and validate a realm or package path
-var rePkgOrRealmPath = regexp.MustCompile(`^/[a-z]/[a-zA-Z0-9_/]*$`)
+var rePkgOrRealmPath = regexp.MustCompile(`^/[a-z]/[a-zA-Z0-9_/.]*$`)
 
 // GnoURL decomposes the parts of an URL to query a realm.
 type GnoURL struct {
@@ -116,10 +117,14 @@ func ParseGnoURL(u *url.URL) (*GnoURL, error) {
 	}
 
 	// XXX: should we lower case the path ?
+	upath, err := url.PathUnescape(path)
+	if err != nil {
+		return nil, fmt.Errorf("unable to unescape path %q: %w", args, err)
+	}
 
 	// Validate path format
-	if !rePkgOrRealmPath.MatchString(path) {
-		return nil, fmt.Errorf("%w: %q", ErrURLMalformedPath, path)
+	if !rePkgOrRealmPath.MatchString(upath) {
+		return nil, fmt.Errorf("%w: %q", ErrURLMalformedPath, upath)
 	}
 
 	webquery := url.Values{}
@@ -132,11 +137,11 @@ func ParseGnoURL(u *url.URL) (*GnoURL, error) {
 
 	uargs, err := url.PathUnescape(args)
 	if err != nil {
-		return nil, fmt.Errorf("unable to unescape path %q: %w", args, err)
+		return nil, fmt.Errorf("unable to unescape args %q: %w", args, err)
 	}
 
 	return &GnoURL{
-		Path:     path,
+		Path:     upath,
 		Args:     uargs,
 		WebQuery: webquery,
 		Query:    u.Query(),
