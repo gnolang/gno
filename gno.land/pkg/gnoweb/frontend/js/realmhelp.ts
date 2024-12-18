@@ -43,7 +43,6 @@ class Help {
     this.funcList = this.DOM.funcs.map((funcEl) => new HelpFunc(funcEl));
 
     this.restoreAddress();
-
     this.bindEvents();
   }
 
@@ -80,6 +79,7 @@ class HelpFunc {
     addrs: HTMLElement[];
     args: HTMLElement[];
     modes: HTMLElement[];
+    paramInputs: HTMLInputElement[];
   };
 
   private funcName: string | null;
@@ -97,19 +97,36 @@ class HelpFunc {
       addrs: Array.from(el.querySelectorAll<HTMLElement>(HelpFunc.SELECTORS.address)),
       args: Array.from(el.querySelectorAll<HTMLElement>(HelpFunc.SELECTORS.args)),
       modes: Array.from(el.querySelectorAll<HTMLElement>(HelpFunc.SELECTORS.mode)),
+      paramInputs: Array.from(el.querySelectorAll<HTMLInputElement>(HelpFunc.SELECTORS.paramInput)),
     };
 
     this.funcName = el.dataset.func || null;
 
+    this.initializeArgs();
     this.bindEvents();
+  }
+
+  private sanitizeArgsInput(input: HTMLInputElement) {
+    return {
+      paramName: input.dataset.param || "",
+      paramValue: input.value.trim(),
+    };
   }
 
   private bindEvents(): void {
     this.DOM.el.addEventListener("input", (e) => {
       const target = e.target as HTMLInputElement;
       if (target.dataset.role === "help-param-input") {
-        this.updateArg(target.dataset.param || "", target.value);
+        const { paramName, paramValue } = this.sanitizeArgsInput(target);
+        this.updateArg(paramName, paramValue);
       }
+    });
+  }
+
+  private initializeArgs(): void {
+    this.DOM.paramInputs.forEach((input) => {
+      const { paramName, paramValue } = this.sanitizeArgsInput(input);
+      this.updateArg(paramName, paramValue);
     });
   }
 
@@ -117,7 +134,7 @@ class HelpFunc {
     this.DOM.args
       .filter((arg) => arg.dataset.arg === paramName)
       .forEach((arg) => {
-        arg.textContent = paramValue.trim() || "";
+        arg.textContent = paramValue || "";
       });
   }
 
@@ -130,7 +147,8 @@ class HelpFunc {
   public updateMode(mode: string): void {
     this.DOM.modes.forEach((cmd) => {
       const isVisible = cmd.dataset.codeMode === mode;
-      cmd.className = isVisible ? "inline" : "hidden";
+      cmd.classList.toggle("inline", isVisible);
+      cmd.classList.toggle("hidden", !isVisible);
       cmd.dataset.copyContent = isVisible ? `help-cmd-${this.funcName}` : "";
     });
   }
