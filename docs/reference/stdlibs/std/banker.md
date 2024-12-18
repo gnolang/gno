@@ -38,6 +38,10 @@ Returns `Banker` of the specified type.
 ```go
 banker := std.GetBanker(std.<BankerType>)
 ```
+
+:::info `Banker` methods expect qualified denomination of the coins. Read more [here](./realm.md#coindenom).
+:::
+
 ---
 
 ## GetCoins
