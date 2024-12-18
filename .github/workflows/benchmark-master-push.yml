@@ -5,11 +5,10 @@ on:
     branches:
       - master
     paths:
-      - contribs/**
-      - gno.land/**
-      - gnovm/**
-      - tm2/**
-      - '**/*.go'
+      - contribs/**/*.go
+      - gno.land/**/*.go
+      - gnovm/**/*.go
+      - tm2/**/*.go
 
 permissions:
   # deployments permission to deploy GitHub pages website
