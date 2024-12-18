@@ -11,9 +11,10 @@ import (
 )
 
 const (
-	reValidUsername = "^[a-z]{3}[_a-z0-9]{0,14}[0-9]{3}$"
-	adminAddr       = "g1manfred47kzduec920z88wfr64ylksmdcedlf5" // @moul
-	RegisterEvent   = "Register"
+	reValidUsername    = "^[a-z]{3}[_a-z0-9]{0,14}[0-9]{3}$"
+	adminAddr          = "g1manfred47kzduec920z88wfr64ylksmdcedlf5" // @moul
+	RegisterEvent      = "Register"
+	RegisterAliasEvent = "RegisterAlias"
 )
 
 var (
@@ -31,7 +32,7 @@ func Register(username string) error {
 	std.AssertOriginCall()
 
 	if Pausable.IsPaused() {
-		return p.ErrPaused
+		return pausable.ErrPaused
 	}
 
 	if matched := reUsername.MatchString(username); !matched {
@@ -46,5 +47,17 @@ func Register(username string) error {
 	}
 
 	std.Emit(RegisterEvent, "registrant", registrant.String(), "username", username)
+	return nil
+}
+
+func RegisterAlias(alias string) error {
+	std.AssertOriginCall()
+
+	if Pausable.IsPaused() {
+		return pausable.ErrPaused
+	}
+
+	std.Emit(RegisterAliasEvent, "registrant", registrant.String(), "alias", alias)
+
 	return nil
 }
