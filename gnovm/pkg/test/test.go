@@ -9,7 +9,6 @@ import (
 	"io"
 	"math"
 	"os"
-	"path"
 	"path/filepath"
 	"runtime/debug"
 	"strconv"
@@ -181,6 +180,11 @@ func Test(memPkg *gnovm.MemPackage, fsDir string, opts *TestOptions) error {
 	opts.outWriter.w = opts.Output
 
 	var errs error
+
+	// Eagerly load imports.
+	if err := LoadImports(opts.TestStore, memPkg); err != nil {
+		return err
+	}
 
 	// Stands for "test", "integration test", and "filetest".
 	// "integration test" are the test files with `package xxx_test` (they are
@@ -422,10 +426,6 @@ func parseMemPackageTests(store gno.Store, memPkg *gnovm.MemPackage) (tset, itse
 	for _, mfile := range memPkg.Files {
 		if !strings.HasSuffix(mfile.Name, ".gno") {
 			continue // skip this file.
-		}
-
-		if err := LoadImports(store, path.Join(memPkg.Path, mfile.Name), []byte(mfile.Body)); err != nil {
-			errs = multierr.Append(errs, err)
 		}
 
 		n, err := gno.ParseFile(mfile.Name, mfile.Body)
