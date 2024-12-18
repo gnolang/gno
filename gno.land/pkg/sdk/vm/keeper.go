@@ -246,7 +246,7 @@ func (vm *VMKeeper) checkNamespacePermission(ctx sdk.Context, creator crypto.Add
 
 	chainDomain, err := vm.getChainDomainParam(ctx)
 	if err != nil {
-		return fmt.Errorf("unable to load param %s, %w", chainDomainParamPath, err)
+		return err
 	}
 
 	if !strings.HasPrefix(pkgPath, chainDomain+"/") {
@@ -335,7 +335,7 @@ func (vm *VMKeeper) AddPackage(ctx sdk.Context, msg MsgAddPackage) (err error) {
 	gnostore := vm.getGnoTransactionStore(ctx)
 	chainDomain, err := vm.getChainDomainParam(ctx)
 	if err != nil {
-		return fmt.Errorf("unable to load param %s, %w", chainDomainParamPath, err)
+		return err
 	}
 
 	// Validate arguments.
@@ -484,7 +484,7 @@ func (vm *VMKeeper) Call(ctx sdk.Context, msg MsgCall) (res string, err error) {
 	// could it be safely partially memoized?
 	chainDomain, err := vm.getChainDomainParam(ctx)
 	if err != nil {
-		return "", fmt.Errorf("unable to load param %s, %w", chainDomainParamPath, err)
+		return "", err
 	}
 
 	msgCtx := stdlibs.ExecContext{
@@ -561,7 +561,7 @@ func (vm *VMKeeper) Run(ctx sdk.Context, msg MsgRun) (res string, err error) {
 
 	chainDomain, err := vm.getChainDomainParam(ctx)
 	if err != nil {
-		return "", fmt.Errorf("unable to load param %s, %w", chainDomainParamPath, err)
+		return "", err
 	}
 
 	// coerce path to right one.
@@ -757,7 +757,7 @@ func (vm *VMKeeper) QueryEval(ctx sdk.Context, pkgPath string, expr string) (res
 	// Construct new machine.
 	chainDomain, err := vm.getChainDomainParam(ctx)
 	if err != nil {
-		return "", fmt.Errorf("unable to load param %s, %w", chainDomainParamPath, err)
+		return "", err
 	}
 
 	msgCtx := stdlibs.ExecContext{
@@ -829,7 +829,7 @@ func (vm *VMKeeper) QueryEvalString(ctx sdk.Context, pkgPath string, expr string
 	// Construct new machine.
 	chainDomain, err := vm.getChainDomainParam(ctx)
 	if err != nil {
-		return "", fmt.Errorf("unable to load param %s, %w", chainDomainParamPath, err)
+		return "", err
 	}
 
 	msgCtx := stdlibs.ExecContext{
