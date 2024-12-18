@@ -91,23 +91,18 @@ func execExport(cfg *ExportCfg, io commands.IO) error {
 
 	var keyArmor string
 
-	if cfg.Unsafe {
-		privk, err := kb.ExportPrivKey(cfg.NameOrBech32, decryptPassword)
-		if err != nil {
-			return fmt.Errorf("unable to export private key, %w", err)
-		}
+	// Export the private key from the keybase
+	privateKey, err := kb.ExportPrivKey(cfg.NameOrBech32, decryptPassword)
+	if err != nil {
+		return fmt.Errorf("unable to export private key, %w", err)
+	}
 
-		io.Printf("privk:\n%x\n", privk.Bytes())
+	if cfg.Unsafe {
+		io.Printf("privk:\n%x\n", privateKey.Bytes())
 
 		// Generate the private key armor
-		keyArmor = armor.ArmorPrivateKey(privk)
+		keyArmor = armor.ArmorPrivateKey(privateKey)
 	} else {
-		// Generate the encrypted armor
-		privk, err := kb.ExportPrivKey(cfg.NameOrBech32, decryptPassword)
-		if err != nil {
-			return fmt.Errorf("unable to export private key, %w", err)
-		}
-
 		// Get the armor encrypt password
 		encryptPassword, err := io.GetCheckPassword(
 			[2]string{
@@ -123,7 +118,7 @@ func execExport(cfg *ExportCfg, io commands.IO) error {
 			)
 		}
 
-		keyArmor = armor.EncryptArmorPrivKey(privk, encryptPassword)
+		keyArmor = armor.EncryptArmorPrivKey(privateKey, encryptPassword)
 	}
 
 	// Write the armor to disk
