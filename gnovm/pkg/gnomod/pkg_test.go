@@ -135,6 +135,12 @@ func TestSortPkgs(t *testing.T) {
 			},
 			shouldErr: true,
 		}, {
+			desc: "self_import",
+			in: []Pkg{
+				{Name: "pkg1", Dir: "/path/to/pkg1", Imports: []string{"pkg1"}},
+			},
+			shouldErr: true,
+		}, {
 			desc: "missing_dependencies",
 			in: []Pkg{
 				{Name: "pkg1", Dir: "/path/to/pkg1", Imports: []string{"pkg2"}},

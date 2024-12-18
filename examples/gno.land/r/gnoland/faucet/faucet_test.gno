@@ -1,4 +1,4 @@
-package faucet
+package faucet_test
 
 import (
 	"std"
