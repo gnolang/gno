@@ -224,7 +224,11 @@ func (oi *ObjectInfo) SetOwner(po Object) {
 }
 
 func (oi *ObjectInfo) GetOwnerID() ObjectID {
-	return oi.OwnerID
+	if oi.owner == nil {
+		return ObjectID{}
+	} else {
+		return oi.owner.GetObjectID()
+	}
 }
 
 func (oi *ObjectInfo) GetIsOwned() bool {
