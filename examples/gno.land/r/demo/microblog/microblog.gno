@@ -91,7 +91,7 @@ func NewPost(text string) string {
 }
 
 func Register(name, profile string) string {
-	caller := std.GetOrigCaller() // main
+	caller := std.OrigCaller() // main
 	users.Register(caller, name, profile)
 	return "OK"
 }

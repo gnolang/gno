@@ -6,7 +6,7 @@ import (
 )
 
 func main() {
-	caller := std.GetOrigCaller()
+	caller := std.OrigCaller()
 	println(caller)
 }
 

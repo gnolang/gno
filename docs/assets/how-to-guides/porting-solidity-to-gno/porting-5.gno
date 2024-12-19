@@ -3,7 +3,7 @@ func Bid() {
 		panic("Exceeded auction end block")
 	}
 
-	sentCoins := std.GetOrigSend()
+	sentCoins := std.OrigSend()
 	if len(sentCoins) != 1 {
 		panic("Send only one type of coin")
 	}
@@ -23,7 +23,7 @@ func Bid() {
 		}
 
 		// Update the top bidder address
-		highestBidder = std.GetOrigCaller()
+		highestBidder = std.OrigCaller()
 		// Update the top bid amount
 		highestBid = sentAmount
 	}

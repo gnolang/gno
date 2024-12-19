@@ -50,7 +50,7 @@ import (
 )
 
 func ProxyWrap() {
-	sent := std.GetOrigSend()
+	sent := std.OrigSend()
 	ugnotSent := uint64(sent.AmountOf("ugnot"))
 
 	if ugnotSent == 0 {
@@ -64,7 +64,7 @@ func ProxyWrap() {
 	wugnot.Deposit() // `proxywugnot` has ugnot
 
 	// SEND WUGNOT: PROXY_WUGNOT -> USER
-	wugnot.Transfer(pusers.AddressOrName(std.GetOrigCaller()), ugnotSent)
+	wugnot.Transfer(pusers.AddressOrName(std.OrigCaller()), ugnotSent)
 }
 
 func ProxyUnwrap(wugnotAmount uint64) {
@@ -73,12 +73,12 @@ func ProxyUnwrap(wugnotAmount uint64) {
 	}
 
 	// SEND WUGNOT: USER -> PROXY_WUGNOT
-	wugnot.TransferFrom(pusers.AddressOrName(std.GetOrigCaller()), pusers.AddressOrName(std.CurrentRealm().Addr()), wugnotAmount)
+	wugnot.TransferFrom(pusers.AddressOrName(std.OrigCaller()), pusers.AddressOrName(std.CurrentRealm().Addr()), wugnotAmount)
 
 	// UNWRAP IT
 	wugnot.Withdraw(wugnotAmount)
 
 	// SEND GNOT: PROXY_WUGNOT -> USER
 	banker := std.GetBanker(std.BankerTypeRealmSend)
-	banker.SendCoins(std.CurrentRealm().Addr(), std.GetOrigCaller(), std.Coins{{"ugnot", int64(wugnotAmount)}})
+	banker.SendCoins(std.CurrentRealm().Addr(), std.OrigCaller(), std.Coins{{"ugnot", int64(wugnotAmount)}})
 }

@@ -82,10 +82,10 @@ func X_origPkgAddr(m *gno.Machine) string {
 
 func X_callerAt(m *gno.Machine, n int) string {
 	if n <= 0 {
-		m.Panic(typedString("GetCallerAt requires positive arg"))
+		m.Panic(typedString("CallerAt requires positive arg"))
 		return ""
 	}
-	// Add 1 to n to account for the GetCallerAt (gno fn) frame.
+	// Add 1 to n to account for the CallerAt (gno fn) frame.
 	n++
 	if n > m.NumFrames() {
 		// NOTE: the last frame's LastPackage
@@ -95,7 +95,7 @@ func X_callerAt(m *gno.Machine, n int) string {
 		return ""
 	}
 	if n == m.NumFrames() {
-		// This makes it consistent with GetOrigCaller.
+		// This makes it consistent with OrigCaller.
 		ctx := GetContext(m)
 		return string(ctx.OrigCaller)
 	}

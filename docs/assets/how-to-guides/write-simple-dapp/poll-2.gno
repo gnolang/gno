@@ -40,7 +40,7 @@ func NewPoll(title, description string, deadline int64) string {
 // yes - true, no - false
 func Vote(id string, vote bool) string {
 	// get txSender
-	txSender := std.GetOrigCaller()
+	txSender := std.OrigCaller()
 
 	// get specific Poll from AVL tree
 	pollRaw, exists := polls.Get(id)

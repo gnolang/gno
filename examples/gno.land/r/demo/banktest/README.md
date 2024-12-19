@@ -44,7 +44,7 @@ This means that calls to functions defined within this package are encapsulated 
 // Deposit will take the coins (to the realm's pkgaddr) or return them to user.
 func Deposit(returnDenom string, returnAmount int64) string {
     std.AssertOriginCall()
-    caller := std.GetOrigCaller()
+    caller := std.OrigCaller()
     send := std.Coins{{returnDenom, returnAmount}}
 ```
 
@@ -54,7 +54,7 @@ This is the beginning of the definition of the contract function named "Deposit"
     // record activity
     act := &activity{
         caller:   caller,
-        sent:     std.GetOrigSend(),
+        sent:     std.OrigSend(),
         returned: send,
         time:     time.Now(),
     }

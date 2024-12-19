@@ -128,9 +128,9 @@ func init() {
 }
 
 func Echo(msg string) string {
-	addr := std.GetOrigCaller()
+	addr := std.OrigCaller()
 	pkgAddr := std.GetOrigPkgAddr()
-	send := std.GetOrigSend()
+	send := std.OrigSend()
 	banker := std.GetBanker(std.BankerTypeOrigSend)
 	banker.SendCoins(pkgAddr, addr, send) // send back
 	return "echo:"+msg
@@ -172,13 +172,13 @@ import "std"
 var admin std.Address
 
 func init() {
-     admin =	std.GetOrigCaller()
+     admin =	std.OrigCaller()
 }
 
 func Echo(msg string) string {
-	addr := std.GetOrigCaller()
+	addr := std.OrigCaller()
 	pkgAddr := std.GetOrigPkgAddr()
-	send := std.GetOrigSend()
+	send := std.OrigSend()
 	banker := std.GetBanker(std.BankerTypeOrigSend)
 	banker.SendCoins(pkgAddr, addr, send) // send back
 	return "echo:"+msg
@@ -227,7 +227,7 @@ func init() {
 }
 
 func Echo(msg string) string {
-	addr := std.GetOrigCaller()
+	addr := std.OrigCaller()
 	pkgAddr := std.GetOrigPkgAddr()
 	send := std.Coins{{"ugnot", 10000000}}
 	banker := std.GetBanker(std.BankerTypeOrigSend)
@@ -271,7 +271,7 @@ func init() {
 }
 
 func Echo(msg string) string {
-	addr := std.GetOrigCaller()
+	addr := std.OrigCaller()
 	pkgAddr := std.GetOrigPkgAddr()
 	send := std.Coins{{"ugnot", 10000000}}
 	banker := std.GetBanker(std.BankerTypeRealmSend)
@@ -315,7 +315,7 @@ func init() {
 }
 
 func Echo(msg string) string {
-	addr := std.GetOrigCaller()
+	addr := std.OrigCaller()
 	pkgAddr := std.GetOrigPkgAddr()
 	send := std.Coins{{"ugnot", 10000000}}
 	banker := std.GetBanker(std.BankerTypeRealmSend)
@@ -412,13 +412,13 @@ import "std"
 var admin std.Address
 
 func init() {
-     admin = std.GetOrigCaller()
+     admin = std.OrigCaller()
 }
 
 func Echo(msg string) string {
-	addr := std.GetOrigCaller()
+	addr := std.OrigCaller()
 	pkgAddr := std.GetOrigPkgAddr()
-	send := std.GetOrigSend()
+	send := std.OrigSend()
 	banker := std.GetBanker(std.BankerTypeOrigSend)
 	banker.SendCoins(pkgAddr, addr, send) // send back
 	return "echo:"+msg
@@ -500,7 +500,7 @@ package main
 import "std"
 
 func main() {
-	addr := std.GetOrigCaller()
+	addr := std.OrigCaller()
 	println("hello world!", addr)
 }
 `},

@@ -26,7 +26,7 @@ func TestNewTodoList(t *testing.T) {
 
 	uassert.Equal(t, title, tdl.Title, "title does not match")
 	uassert.Equal(t, 1, tlid, "tlid does not match")
-	uassert.Equal(t, tdl.Owner.String(), std.GetOrigCaller().String(), "owner does not match")
+	uassert.Equal(t, tdl.Owner.String(), std.OrigCaller().String(), "owner does not match")
 	uassert.Equal(t, 0, len(tdl.GetTasks()), "Expected no tasks in the todo list")
 }
 

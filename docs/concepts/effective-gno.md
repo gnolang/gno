@@ -169,10 +169,10 @@ var (
 
 func init() {
     created = time.Now()
-    // std.GetOrigCaller in the context of realm initialisation is,
+    // std.OrigCaller in the context of realm initialisation is,
     // of course, the publisher of the realm :)
     // This can be better than hardcoding an admin address as a constant.
-    admin = std.GetOrigCaller()
+    admin = std.OrigCaller()
     // list is already initialized, so it will already contain "foo", "bar" and
     // the current time as existing items.
     list = append(list, admin.String())
@@ -498,10 +498,10 @@ One strategy is to look at the caller with `std.PrevRealm()`, which could be the
 EOA (Externally Owned Account), or the preceding realm in the call stack.
 
 Another approach is to look specifically at the EOA. For this, you should call
-`std.GetOrigCaller()`, which returns the public address of the account that
+`std.OrigCaller()`, which returns the public address of the account that
 signed the transaction.
 
-TODO: explain when to use `std.GetOrigCaller`.
+TODO: explain when to use `std.OrigCaller`.
 
 Internally, this call will look at the frame stack, which is basically the stack
 of callers including all the functions, anonymous functions, other realms, and

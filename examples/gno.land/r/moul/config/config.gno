@@ -14,7 +14,7 @@ func UpdateAddr(newAddr std.Address) {
 }
 
 func AssertIsAdmin() {
-	if std.GetOrigCaller() != addr {
+	if std.OrigCaller() != addr {
 		panic("restricted area")
 	}
 }

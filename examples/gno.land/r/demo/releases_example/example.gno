@@ -17,7 +17,7 @@ func init() {
 }
 
 func NewRelease(name, url, notes string) {
-	caller := std.GetOrigCaller()
+	caller := std.OrigCaller()
 	if caller != admin {
 		panic("restricted area")
 	}
@@ -25,7 +25,7 @@ func NewRelease(name, url, notes string) {
 }
 
 func UpdateAdmin(address std.Address) {
-	caller := std.GetOrigCaller()
+	caller := std.OrigCaller()
 	if caller != admin {
 		panic("restricted area")
 	}

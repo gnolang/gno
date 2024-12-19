@@ -26,7 +26,7 @@ func NewLifetimeSubscription(amount int64) *LifetimeSubscription {
 
 // processSubscription handles the subscription process for a given receiver.
 func (ls *LifetimeSubscription) processSubscription(receiver std.Address) error {
-	amount := std.GetOrigSend()
+	amount := std.OrigSend()
 
 	if amount.AmountOf("ugnot") != ls.amount {
 		return ErrAmt

@@ -7,7 +7,7 @@ func main() {
 		// assert panic is recoverable
 		println(recover())
 	}()
-	std.GetCallerAt(42)
+	std.CallerAt(42)
 }
 
 // Output:

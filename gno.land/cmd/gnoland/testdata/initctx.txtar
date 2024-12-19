@@ -18,7 +18,7 @@ var orig = std.Address("orig")
 var prev = std.Address("prev")
 
 func init() {
-    orig = std.GetOrigCaller()
+    orig = std.OrigCaller()
     prev = std.PrevRealm().Addr()
 }
 

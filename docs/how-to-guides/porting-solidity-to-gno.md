@@ -353,7 +353,7 @@ func Bid() {
 		panic("Exceeded auction end block")
 	}
 
-	sentCoins := std.GetOrigSend()
+	sentCoins := std.OrigSend()
 	if len(sentCoins) != 1 {
 		panic("Send only one type of coin")
 	}
@@ -373,7 +373,7 @@ func Bid() {
 		}
 
 		// Update the top bidder address
-		highestBidder = std.GetOrigCaller()
+		highestBidder = std.OrigCaller()
 		// Update the top bid amount
 		highestBid = sentAmount
 	}
@@ -466,17 +466,17 @@ function withdraw() external returns (bool) {
 ```go
 func Withdraw() {
 	// Query the return amount to non-highest bidders
-	amount, _ := pendingReturns.Get(std.GetOrigCaller().String())
+	amount, _ := pendingReturns.Get(std.OrigCaller().String())
 
 	if amount > 0 {
 		// If there's an amount, reset the amount first,
-		pendingReturns.Set(std.GetOrigCaller().String(), 0)
+		pendingReturns.Set(std.OrigCaller().String(), 0)
 
 		// Return the exceeded amount
 		banker := std.GetBanker(std.BankerTypeRealmSend)
 		pkgAddr := std.GetOrigPkgAddr()
 
-		banker.SendCoins(pkgAddr, std.GetOrigCaller(), std.Coins{{"ugnot", amount.(int64)}})
+		banker.SendCoins(pkgAddr, std.OrigCaller(), std.Coins{{"ugnot", amount.(int64)}})
 	}
 }
 ```

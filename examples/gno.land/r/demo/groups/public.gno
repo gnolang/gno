@@ -19,7 +19,7 @@ func GetGroupIDFromName(name string) (GroupID, bool) {
 
 func CreateGroup(name string) GroupID {
 	std.AssertOriginCall()
-	caller := std.GetOrigCaller()
+	caller := std.OrigCaller()
 	usernameOf(caller)
 	url := "/r/demo/groups:" + name
 	group := newGroup(url, name, caller)
@@ -31,7 +31,7 @@ func CreateGroup(name string) GroupID {
 
 func AddMember(gid GroupID, address string, weight int, metadata string) MemberID {
 	std.AssertOriginCall()
-	caller := std.GetOrigCaller()
+	caller := std.OrigCaller()
 	usernameOf(caller)
 	group := getGroup(gid)
 	if !group.HasPermission(caller, EditPermission) {
@@ -52,7 +52,7 @@ func AddMember(gid GroupID, address string, weight int, metadata string) MemberI
 
 func DeleteGroup(gid GroupID) {
 	std.AssertOriginCall()
-	caller := std.GetOrigCaller()
+	caller := std.OrigCaller()
 	group := getGroup(gid)
 	if !group.HasPermission(caller, DeletePermission) {
 		panic("unauthorized to delete group")
@@ -62,7 +62,7 @@ func DeleteGroup(gid GroupID) {
 
 func DeleteMember(gid GroupID, mid MemberID) {
 	std.AssertOriginCall()
-	caller := std.GetOrigCaller()
+	caller := std.OrigCaller()
 	group := getGroup(gid)
 	if !group.HasPermission(caller, DeletePermission) {
 		panic("unauthorized to delete member")

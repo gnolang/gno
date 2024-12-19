@@ -71,10 +71,10 @@ func TestSkipHeights(m *gno.Machine, count int64) {
 
 func X_callerAt(m *gno.Machine, n int) string {
 	if n <= 0 {
-		m.Panic(typedString("GetCallerAt requires positive arg"))
+		m.Panic(typedString("CallerAt requires positive arg"))
 		return ""
 	}
-	// Add 1 to n to account for the GetCallerAt (gno fn) frame.
+	// Add 1 to n to account for the CallerAt (gno fn) frame.
 	n++
 	if n > m.NumFrames()-1 {
 		// NOTE: the last frame's LastPackage
@@ -84,7 +84,7 @@ func X_callerAt(m *gno.Machine, n int) string {
 		return ""
 	}
 	if n == m.NumFrames()-1 {
-		// This makes it consistent with GetOrigCaller and TestSetOrigCaller.
+		// This makes it consistent with OrigCaller and TestSetOrigCaller.
 		ctx := m.Context.(*TestExecContext)
 		return string(ctx.OrigCaller)
 	}

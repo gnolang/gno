@@ -106,7 +106,7 @@ type PostMessageHandler interface {
 // TODO: Consider further message types that could allow administrative action such as modifying
 // a feed's whitelist without the owner of this oracle having to maintain a reference to it.
 func (i *Instance) HandleMessage(msg string, postHandler PostMessageHandler) (string, error) {
-	caller := string(std.GetOrigCaller())
+	caller := string(std.OrigCaller())
 
 	funcType, msg := message.ParseFunc(msg)
 

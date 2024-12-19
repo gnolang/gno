@@ -8,7 +8,7 @@ import (
 )
 
 func TestVerificationLifecycle(t *testing.T) {
-	defaultAddress := std.GetOrigCaller()
+	defaultAddress := std.OrigCaller()
 	user1Address := std.Address(testutils.TestAddress("user 1"))
 	user2Address := std.Address(testutils.TestAddress("user 2"))
 

@@ -7,8 +7,8 @@ func main() {
 		// assert panic is recoverable
 		println(recover())
 	}()
-	std.GetCallerAt(0)
+	std.CallerAt(0)
 }
 
 // Output:
-// GetCallerAt requires positive arg
+// CallerAt requires positive arg

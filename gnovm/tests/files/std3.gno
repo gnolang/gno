@@ -6,8 +6,8 @@ import (
 )
 
 func main() {
-	caller := std.GetOrigCaller()
-	caller2 := std.GetOrigCaller()
+	caller := std.OrigCaller()
+	caller2 := std.OrigCaller()
 	cmp := bytes.Compare([]byte(caller), []byte(caller2))
 	println(cmp)
 }

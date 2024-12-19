@@ -14,7 +14,7 @@ func GetChainID() string     // injected
 func GetChainDomain() string // injected
 func GetHeight() int64       // injected
 
-func GetOrigSend() Coins {
+func OrigSend() Coins {
 	den, amt := origSend()
 	coins := make(Coins, len(den))
 	for i := range coins {
@@ -23,7 +23,7 @@ func GetOrigSend() Coins {
 	return coins
 }
 
-func GetOrigCaller() Address {
+func OrigCaller() Address {
 	return Address(origCaller())
 }
 
@@ -41,7 +41,7 @@ func GetOrigPkgAddr() Address {
 	return Address(origPkgAddr())
 }
 
-func GetCallerAt(n int) Address {
+func CallerAt(n int) Address {
 	return Address(callerAt(n))
 }
 

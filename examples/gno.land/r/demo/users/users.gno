@@ -35,11 +35,11 @@ func Register(inviter std.Address, name string, profile string) {
 	std.AssertOriginCall()
 	// assert invited or paid.
 	caller := std.GetCallerAt(2)
-	if caller != std.GetOrigCaller() {
+	if caller != std.OrigCaller() {
 		panic("should not happen") // because std.AssertOrigCall().
 	}
 
-	sentCoins := std.GetOrigSend()
+	sentCoins := std.OrigSend()
 	minCoin := std.NewCoin("ugnot", minFee)
 
 	if inviter == "" {
@@ -119,7 +119,7 @@ func Invite(invitee string) {
 	std.AssertOriginCall()
 	// get caller/inviter.
 	caller := std.GetCallerAt(2)
-	if caller != std.GetOrigCaller() {
+	if caller != std.OrigCaller() {
 		panic("should not happen") // because std.AssertOrigCall().
 	}
 	lines := strings.Split(invitee, "\n")
@@ -158,7 +158,7 @@ func GrantInvites(invites string) {
 	std.AssertOriginCall()
 	// assert admin.
 	caller := std.GetCallerAt(2)
-	if caller != std.GetOrigCaller() {
+	if caller != std.OrigCaller() {
 		panic("should not happen") // because std.AssertOrigCall().
 	}
 	if caller != admin {
@@ -278,7 +278,7 @@ func AdminAddRestrictedName(name string) {
 	// assert CallTx call.
 	std.AssertOriginCall()
 	// get caller
-	caller := std.GetOrigCaller()
+	caller := std.OrigCaller()
 	// assert admin
 	if caller != admin {
 		panic("unauthorized")
