@@ -245,6 +245,11 @@ func (post *Post) RenderSummary() string {
 		if !found {
 			return "reposted post does not exist"
 		}
+
+		if thread.isHidden {
+			return "reposted post was hidden"
+		}
+
 		return "Repost: " + post.GetSummary() + "\n" + thread.RenderSummary()
 	}
 
@@ -293,8 +298,13 @@ func (post *Post) Render(indent string, levels int) string {
 	if levels > 0 {
 		if post.replies.Size() > 0 {
 			post.replies.Iterate("", "", func(_ string, value interface{}) bool {
+				reply := value.(*Post)
+				if reply.isHidden {
+					return false
+				}
+
 				s += indent + "\n"
-				s += value.(*Post).Render(indent+"> ", levels-1)
+				s += reply.Render(indent+"> ", levels-1)
 				return false
 			})
 		}
