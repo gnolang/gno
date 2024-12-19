@@ -2,7 +2,7 @@ package users
 
 import "errors"
 
-const prefix = "r/sys/users:"
+const prefix = "r/sys/users: "
 
 var (
 	ErrUnauthorizedWrite  = errors.New(prefix + "not authorized to write to store")
@@ -17,5 +17,9 @@ var (
 	ErrUsernameLikeAddress = errors.New(prefix + "username resembles a gno.land address")
 
 	ErrAlreadyHasName  = errors.New(prefix + "username for this address already registered")
+	ErrDeletedUser     = errors.New(prefix + "cannot register a new username after deleting")
+	ErrAlreadyDeleted  = errors.New(prefix + "cannot delete same user twice")
 	ErrAliasBeforeName = errors.New(prefix + "cannot register alias before a username")
+
+	ErrUserNotExist = errors.New(prefix + "this user has not been registered before")
 )

@@ -26,7 +26,7 @@ func TestWriteUser(t *testing.T) {
 
 		std.TestSetRealm(aliceCodeRealm)
 
-		uassert.Error(t, WriteUser(aliceUsername, alice), ErrUnauthorizedWrite.Error())
+		uassert.Error(t, SetUser(aliceUsername, alice), ErrUnauthorizedWrite.Error())
 	})
 
 	// todo tests:
@@ -40,17 +40,17 @@ func TestWriteUser(t *testing.T) {
 		std.TestSetRealm(std.NewCodeRealm(gnolandUsers))
 
 		// write same user twice
-		urequire.NoError(t, WriteUser(aliceUsername, alice))
-		uassert.Error(t, WriteUser(aliceUsername, alice), ErrAlreadyExists.Error())
+		urequire.NoError(t, SetUser(aliceUsername, alice))
+		uassert.Error(t, SetUser(aliceUsername, alice), ErrAlreadyExists.Error())
 	})
 
 	t.Run("invalid address", func(t *testing.T) {
 		t.Parallel()
 		std.TestSetRealm(std.NewCodeRealm(gnolandUsers))
 
-		uassert.Error(t, WriteUser("test123", "invalidaddress"), ErrInvalidAddress.Error())
-		uassert.Error(t, WriteUser("test123", ""), ErrInvalidAddress.Error())
-		uassert.Error(t, WriteUser("test123",
+		uassert.Error(t, SetUser("test123", "invalidaddress"), ErrInvalidAddress.Error())
+		uassert.Error(t, SetUser("test123", ""), ErrInvalidAddress.Error())
+		uassert.Error(t, SetUser("test123",
 			"000000000000000000000000000000000000000000000000"),
 			ErrInvalidAddress.Error())
 	})

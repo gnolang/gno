@@ -19,14 +19,16 @@ var (
 )
 
 const (
-	maxUsernameLen = 50
-	WriteUserEvent = "WriteUser"
+	maxUsernameLen   = 50
+	SetUserEvent     = "UserSet"
+	CreateAliasEvent = "AliasCreated"
+	deletedUser      = "ghost"
 )
 
-// WriteUser writes a *new* user to the store
+// SetUser writes a *new* user to the store
 // Only whitelisted callers can call this function
 // Writing to the store can be paused by the admin
-func WriteUser(name string, addr std.Address) error {
+func SetUser(name string, addr std.Address) error {
 	if Pausable.IsPaused() {
 		return pausable.ErrPaused
 	}
@@ -36,27 +38,31 @@ func WriteUser(name string, addr std.Address) error {
 	}
 
 	trimmedName := strings.TrimSpace(name)
-	if err := validate(trimmedName, addr); err != nil {
-		return err
-	}
 
-	if usernameStore.Has(trimmedName) {
-		return ErrAlreadyExists
-	}
+	// Check if addr is already registered or has been deleted
+	raw, ok := addressStore.Has(addr.String())
+	if ok {
+		if raw.(string) == deletedUser {
+			return ErrDeletedUser
+		}
 
-	if addressStore.Has(addr.String()) {
 		return ErrAlreadyHasName // use CreateAlias
 	}
 
-	// Cannot register name which is someone's alias
-	if aliasStore.Has(trimmedName) {
+	// Check if name is taken
+	if usernameStore.Has(trimmedName) || aliasStore.Has(trimmedName) {
 		return ErrAlreadyExists
+	}
+
+	// Validate fields before writing
+	if err := validate(trimmedName, addr); err != nil {
+		return err
 	}
 
 	usernameStore.Set(trimmedName, addr)
 	addressStore.Set(addr.String(), trimmedName)
 
-	std.Emit(WriteUserEvent, "name", name, "address", addr.String())
+	std.Emit(SetUserEvent, "name", name, "address", addr.String())
 
 	return nil
 }
@@ -73,13 +79,16 @@ func CreateAlias(name string, addr std.Address) error {
 	}
 
 	trimmedName := strings.TrimSpace(name)
-	if err := validate(trimmedName, addr); err != nil {
-		return err
+
+	// Check if addr is already registered or has been deleted
+	raw, ok := addressStore.Has(addr.String())
+	if !ok {
+		return ErrAliasBeforeName // must register beforehand
 	}
 
-	// Cannot register alias without an already registered username
-	if !addressStore.Has(addr.String()) {
-		return ErrAliasBeforeName
+	// Check if user has been deleted
+	if raw.(string) == deletedUser {
+		return ErrDeletedUser
 	}
 
 	// Cannot register taken username as alias
@@ -87,12 +96,57 @@ func CreateAlias(name string, addr std.Address) error {
 		return ErrAlreadyExists
 	}
 
+	// Validate before writing
+	if err := validate(trimmedName, addr); err != nil {
+		return err
+	}
+
 	aliasStore.Set(trimmedName, addr)
 
 	return nil
 }
 
-// XXX: should we have a DeleteUser? Maybe with a separate whitelist?
+func DeleteUser(addr std.Address) error {
+	if Pausable.IsPaused() {
+		return pausable.ErrPaused
+	}
+
+	if !IsOnWhitelist(std.PrevRealm().Addr()) {
+		return ErrUnauthorizedWrite
+	}
+
+	// Check if user is registered
+	raw, ok := addressStore.Get(addr.String())
+	if !ok {
+		return ErrUserNotExist
+	}
+
+	username := raw.(string)
+
+	// Check if user has already been deleted
+	if username == deletedUser {
+		return ErrAlreadyDeleted
+	}
+
+	// Find all aliases to delete
+	var toDelete []string
+	aliasStore.Iterate("", "", func(key string, value interface{}) bool {
+		if value.(std.Address) == addr {
+			toDelete = append(toDelete, key)
+		}
+
+		return false
+	})
+
+	// Delete user
+	usernameStore.Set(username, std.Address("")) // todo OR dstore as blacklist
+	addressStore.Set(addr, deletedUser)
+	for _, alias := range toDelete {
+		aliasStore.Set(alias, deletedUser)
+	}
+
+	return nil
+}
 
 // IsOnWhitelist checks if the given address has
 // permission to write to the user store

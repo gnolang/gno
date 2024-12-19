@@ -22,7 +22,7 @@ package users
 //			Address: addr,
 //		}
 //
-//		urequire.NoError(t, WriteUser(u))
+//		urequire.NoError(t, SetUser(u))
 //		uassert.Equal(t, ResolveName("newUsername").Name, "newUsername")
 //		uassert.Equal(t, ResolveName("newUsername").Address, addr)
 //		// XXX: ptr for uassert.Equal not supported yet
