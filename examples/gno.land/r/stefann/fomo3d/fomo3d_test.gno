@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"gno.land/p/demo/avl"
+	"gno.land/p/demo/ownable"
 	"gno.land/p/demo/testutils"
 )
 
@@ -46,10 +47,83 @@ func setupTestGame(t *testing.T) {
 	jackpot = int64(0)
 	nextPot = int64(0)
 	keyPrice = MIN_KEY_PRICE
+	ownerFee = int64(0)
 	lastBuyer = ""
 	players = avl.NewTree()
 	totalKeys = int64(0)
 	ended = true // So we can start a new game
+
+	// Reset Ownable
+	Ownable = ownable.New()
+}
+
+// Test ownership functionality
+func TestOwnership(t *testing.T) {
+	setupTestGame(t)
+
+	owner := testutils.TestAddress("owner")
+	nonOwner := testutils.TestAddress("nonOwner")
+
+	// Set initial owner
+	std.TestSetOrigCaller(owner)
+	std.TestSetPrevRealm(std.GetOrigCaller())
+	setupTestGame(t) // This will set owner as the owner
+
+	// Test GetOwnerInfo
+	ownerAddr, fees := GetOwnerInfo()
+	shouldEqual(t, ownerAddr, owner)
+	shouldEqual(t, fees, int64(0))
+
+	// Test unauthorized fee claim
+	std.TestSetOrigCaller(nonOwner)
+	std.TestSetPrevRealm(nonOwner)
+	shouldPanic(t, ClaimOwnerFee)
+
+	// Test unauthorized ownership transfer
+	shouldPanic(t, func() {
+		TransferOwnership(nonOwner)
+	})
+
+	// Test authorized ownership transfer
+	std.TestSetOrigCaller(owner)
+	std.TestSetPrevRealm(owner)
+	shouldNoPanic(t, func() {
+		TransferOwnership(nonOwner)
+	})
+
+	// Verify ownership changed
+	ownerAddr, _ = GetOwnerInfo()
+	shouldEqual(t, ownerAddr, nonOwner)
+
+	// Test fee accumulation and claiming
+	{
+		setupTestGame(t)
+		StartGame()
+
+		// Buy keys to generate fees
+		payment := MIN_KEY_PRICE * 10
+		std.TestSetOrigCaller(owner)
+		std.TestSetOrigSend(std.Coins{{"ugnot", payment}}, nil)
+		BuyKeys()
+
+		// Verify fee accumulation
+		_, fees = GetOwnerInfo()
+		expectedFees := payment * OWNER_FEE_PERCENT / 100
+		shouldEqual(t, fees, expectedFees)
+
+		// Test claiming fees
+		std.TestSetOrigCaller(nonOwner) // New owner after transfer
+		std.TestSetPrevRealm(nonOwner)
+		initialBalance := std.GetBanker(std.BankerTypeRealmSend).GetCoins(nonOwner)
+		shouldNoPanic(t, ClaimOwnerFee)
+
+		// Verify fees were claimed
+		_, feesAfter := GetOwnerInfo()
+		shouldEqual(t, feesAfter, int64(0))
+
+		finalBalance := std.GetBanker(std.BankerTypeRealmSend).GetCoins(nonOwner)
+		shouldEqual(t, finalBalance.AmountOf("ugnot"), initialBalance.AmountOf("ugnot")+expectedFees)
+	}
 }
 
 // Test full game flow
@@ -94,6 +168,10 @@ func TestFullGameFlow(t *testing.T) {
 		shouldEqual(t, keys, int64(3))
 		shouldEqual(t, isEnded, false)
 		shouldEqual(t, pot, payment*JACKPOT_PERCENT/100)
+
+		// Verify owner fee
+		_, ownerFees := GetOwnerInfo()
+		shouldEqual(t, ownerFees, payment*OWNER_FEE_PERCENT/100)
 	}
 
 	// Test dividend distribution and claiming
