@@ -17,7 +17,7 @@ import (
 	"github.com/pelletier/go-toml"
 )
 
-const initGasPrice = "10ugnot/100gas"
+const initGasPrice = "1ugnot/1000gas"
 
 // LoadGenesisBalancesFile loads genesis balances from the provided file path.
 func LoadGenesisBalancesFile(path string) ([]Balance, error) {
