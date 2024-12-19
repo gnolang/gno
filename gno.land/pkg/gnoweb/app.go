@@ -96,7 +96,7 @@ func NewRouter(logger *slog.Logger, cfg *AppConfig) (http.Handler, error) {
 	// Configure WebClient
 	webcfg := HTMLWebClientConfig{
 		Markdown:    md,
-		Highlighter: NewChromaHighlighter(chroma, chromaDefaultStyle),
+		Highlighter: NewChromaHighlighterFormat(chroma, chromaDefaultStyle),
 		Domain:      cfg.Domain,
 		UnsafeHTML:  cfg.UnsafeHTML,
 		RPCClient:   client,

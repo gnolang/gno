@@ -21,7 +21,7 @@ type HTMLWebClientConfig struct {
 	Domain      string
 	UnsafeHTML  bool
 	RPCClient   *client.RPCClient
-	Highlighter Highlighter
+	Highlighter FormatSource
 	Markdown    goldmark.Markdown
 }
 
@@ -31,7 +31,7 @@ func NewDefaultHTMLWebClientConfig(client *client.RPCClient) *HTMLWebClientConfi
 	mdopts := []goldmark.Option{goldmark.WithParserOptions(parser.WithAutoHeadingID())}
 	return &HTMLWebClientConfig{
 		Domain:      "gno.land",
-		Highlighter: &noopHighlighter{},
+		Highlighter: &noopFormat{},
 		Markdown:    goldmark.New(mdopts...),
 		RPCClient:   client,
 	}
@@ -42,7 +42,7 @@ type HTMLWebClient struct {
 	logger      *slog.Logger
 	client      *client.RPCClient
 	md          goldmark.Markdown
-	highlighter Highlighter
+	highlighter FormatSource
 }
 
 // NewHTMLClient creates a new instance of WebClient.
