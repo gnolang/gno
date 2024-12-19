@@ -1,22 +1,23 @@
 package btree_dao
 
 import (
+	"errors"
 	"std"
 	"strings"
 	"time"
-	"errors"
+
 	"gno.land/p/demo/btree"
 	"gno.land/p/demo/grc/grc721"
-	"gno.land/p/moul/md"
 	"gno.land/p/demo/ufmt"
-
+	"gno.land/p/moul/md"
 )
+
 // RegistrationDetails holds the details of a user's registration
 type RegistrationDetails struct {
-	Address     std.Address
-	RegTime     time.Time
-	UserBTree   *btree.BTree
-	NFTID       int
+	Address   std.Address
+	RegTime   time.Time
+	UserBTree *btree.BTree
+	NFTID     int
 }
 
 // Less implements the Record interface for RegistrationDetails
@@ -27,7 +28,7 @@ func (rd *RegistrationDetails) Less(than btree.Record) bool {
 }
 
 var (
-	dao = grc721.NewBasicNFT("BTree DAO", "BTDAO")
+	dao     = grc721.NewBasicNFT("BTree DAO", "BTDAO")
 	tokenID = 0
 	members = btree.New()
 )
@@ -126,9 +127,9 @@ func Render(path string) string {
 						nftList += ", "
 					}
 					if regDetails.UserBTree == nil {
-						nftList += "🌱#" + ufmt.Sprintf("seed_%d", regDetails.NFTID)  // Seed emoji for seeds
+						nftList += "🌱#" + ufmt.Sprintf("seed_%d", regDetails.NFTID) // Seed emoji for seeds
 					} else {
-						nftList += "🌳#" + ufmt.Sprintf("%d", regDetails.NFTID)  // Tree emoji for tree planters
+						nftList += "🌳#" + ufmt.Sprintf("%d", regDetails.NFTID) // Tree emoji for tree planters
 					}
 				}
 				nftList += ")"
@@ -153,9 +154,9 @@ func Render(path string) string {
 						nftList += ", "
 					}
 					if regDetails.UserBTree == nil {
-						nftList += "🌱#" + ufmt.Sprintf("seed_%d", regDetails.NFTID)  // Seed emoji for seeds
+						nftList += "🌱#" + ufmt.Sprintf("seed_%d", regDetails.NFTID) // Seed emoji for seeds
 					} else {
-						nftList += "🌳#" + ufmt.Sprintf("%d", regDetails.NFTID)  // Tree emoji for tree planters
+						nftList += "🌳#" + ufmt.Sprintf("%d", regDetails.NFTID) // Tree emoji for tree planters
 					}
 				}
 				nftList += ")"
@@ -168,7 +169,7 @@ func Render(path string) string {
 
 	// Use the md package to format the output
 	var sb strings.Builder
-	
+
 	sb.WriteString(md.H1("B-Tree DAO Members"))
 	sb.WriteString(md.H2("Total NFTs Minted"))
 	sb.WriteString(ufmt.Sprintf("Total NFTs minted: %d\n\n", dao.TokenCount()))
