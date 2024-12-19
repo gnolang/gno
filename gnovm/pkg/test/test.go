@@ -71,11 +71,12 @@ func Context(pkgPath string, send std.Coins) *teststd.TestExecContext {
 }
 
 // Machine is a minimal machine, set up with just the Store, Output and Context.
-func Machine(testStore gno.Store, output io.Writer, pkgPath string) *gno.Machine {
+func Machine(testStore gno.Store, output io.Writer, pkgPath string, debug bool) *gno.Machine {
 	return gno.NewMachineWithOptions(gno.MachineOptions{
 		Store:   testStore,
 		Output:  output,
 		Context: Context(pkgPath, nil),
+		Debug:   debug,
 	})
 }
 
@@ -108,6 +109,8 @@ type TestOptions struct {
 	Output io.Writer
 	// Used for os.Stderr, and for printing errors.
 	Error io.Writer
+	// Debug enables the interactive debugger on gno tests.
+	Debug bool
 
 	// Not set by NewTestOptions:
 
@@ -288,9 +291,8 @@ func (opts *TestOptions) runTestFiles(
 	// reset store ops, if any - we only need them for some filetests.
 	opts.TestStore.SetLogStoreOps(false)
 
-	// Check if we already have the package - it may have been eagerly
-	// loaded.
-	m = Machine(gs, opts.WriterForStore(), memPkg.Path)
+	// Check if we already have the package - it may have been eagerly loaded.
+	m = Machine(gs, opts.WriterForStore(), memPkg.Path, opts.Debug)
 	m.Alloc = alloc
 	if opts.TestStore.GetMemPackage(memPkg.Path) == nil {
 		m.RunMemPackage(memPkg, true)
@@ -310,13 +312,30 @@ func (opts *TestOptions) runTestFiles(
 		// - Run the test files before this for loop (but persist it to store;
 		//   RunFiles doesn't do that currently)
 		// - Wrap here.
-		m = Machine(gs, opts.Output, memPkg.Path)
+		m = Machine(gs, opts.Output, memPkg.Path, opts.Debug)
 		m.Alloc = alloc
 		m.SetActivePackage(pv)
 
 		testingpv := m.Store.GetPackage("testing", false)
 		testingtv := gno.TypedValue{T: &gno.PackageType{}, V: testingpv}
 		testingcx := &gno.ConstExpr{TypedValue: testingtv}
+
+		if opts.Debug {
+			fileContent := func(ppath, name string) string {
+				p := filepath.Join(opts.RootDir, ppath, name)
+				b, err := os.ReadFile(p)
+				if err != nil {
+					p = filepath.Join(opts.RootDir, "gnovm", "stdlibs", ppath, name)
+					b, err = os.ReadFile(p)
+				}
+				if err != nil {
+					p = filepath.Join(opts.RootDir, "examples", ppath, name)
+					b, err = os.ReadFile(p)
+				}
+				return string(b)
+			}
+			m.Debugger.Enable(os.Stdin, os.Stdout, fileContent)
+		}
 
 		eval := m.Eval(gno.Call(
 			gno.Sel(testingcx, "RunTest"),            // Call testing.RunTest

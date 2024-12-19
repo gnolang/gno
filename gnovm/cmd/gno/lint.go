@@ -148,7 +148,7 @@ func execLint(cfg *lintCfg, args []string, io commands.IO) error {
 
 		// Handle runtime errors
 		hasRuntimeErr := catchRuntimeError(pkgPath, io.Err(), func() {
-			tm := test.Machine(testStore, stdout, memPkg.Path)
+			tm := test.Machine(testStore, stdout, memPkg.Path, false)
 			defer tm.Release()
 
 			// Check package

@@ -43,19 +43,19 @@ type Debugger struct {
 	out     io.Writer      // debugger output, defaults to Stdout
 	scanner *bufio.Scanner // to parse input per line
 
-	state       DebugState          // current state of debugger
-	lastCmd     string              // last debugger command
-	lastArg     string              // last debugger command arguments
-	loc         Location            // source location of the current machine instruction
-	prevLoc     Location            // source location of the previous machine instruction
-	breakpoints []Location          // list of breakpoints set by user, as source locations
-	call        []Location          // for function tracking, ideally should be provided by machine frame
-	frameLevel  int                 // frame level of the current machine instruction
-	getSrc      func(string) string // helper to access source from repl or others
+	state       DebugState                  // current state of debugger
+	lastCmd     string                      // last debugger command
+	lastArg     string                      // last debugger command arguments
+	loc         Location                    // source location of the current machine instruction
+	prevLoc     Location                    // source location of the previous machine instruction
+	breakpoints []Location                  // list of breakpoints set by user, as source locations
+	call        []Location                  // for function tracking, ideally should be provided by machine frame
+	frameLevel  int                         // frame level of the current machine instruction
+	getSrc      func(string, string) string // helper to access source from repl or others
 }
 
 // Enable makes the debugger d active, using in as input reader, out as output writer and f as a source helper.
-func (d *Debugger) Enable(in io.Reader, out io.Writer, f func(string) string) {
+func (d *Debugger) Enable(in io.Reader, out io.Writer, f func(string, string) string) {
 	d.in = in
 	d.out = out
 	d.enabled = true
@@ -505,7 +505,7 @@ func debugList(m *Machine, arg string) (err error) {
 	if err != nil {
 		// Use optional getSrc helper as fallback to get source.
 		if m.Debugger.getSrc != nil {
-			src = m.Debugger.getSrc(loc.File)
+			src = m.Debugger.getSrc(loc.PkgPath, loc.File)
 		}
 		if src == "" {
 			return err
