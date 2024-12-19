@@ -497,6 +497,18 @@ func isEql(store Store, lv, rv *TypedValue) bool {
 				return *(lpv.TV) == *(rpv.TV) && lpv.Base == rpv.Base && lpv.Index == rpv.Index && lpv.Key == rpv.Key
 			}
 		}
+
+		if debug {
+			if lpv, ok := lv.V.(PointerValue); ok {
+				debug.Println("lpv.base: ", lpv.Base)
+				debug.Println("lpv.Origin: ", lpv.Origin)
+			}
+			if rpv, ok := rv.V.(PointerValue); ok {
+				debug.Println("rpv.base: ", rpv.Base)
+				debug.Println("rpv.Origin: ", rpv.Origin)
+			}
+		}
+
 		return lv.V == rv.V
 	default:
 		panic(fmt.Sprintf(

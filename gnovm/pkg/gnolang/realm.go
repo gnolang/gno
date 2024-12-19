@@ -1097,8 +1097,9 @@ func copyValueWithRefs(val Value) Value {
 					V: copyValueWithRefs(cv.TypedValue.V),
 				},
 			*/
-			Base:  toRefValue(cv.Base),
-			Index: cv.Index,
+			Base:   toRefValue(cv.Base),
+			Index:  cv.Index,
+			Origin: cv.Origin,
 		}
 	case *ArrayValue:
 		if cv.Data == nil {
@@ -1386,7 +1387,6 @@ func fillTypesOfValue(store Store, val Value) Value {
 		for cur := cv.List.Head; cur != nil; cur = cur.Next {
 			fillTypesTV(store, &cur.Key)
 			fillTypesTV(store, &cur.Value)
-
 			cv.vmap[cur.Key.ComputeMapKey(store, false)] = cur
 		}
 		return cv
