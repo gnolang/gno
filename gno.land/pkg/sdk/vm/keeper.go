@@ -511,30 +511,32 @@ func (vm *VMKeeper) Call(ctx sdk.Context, msg MsgCall) (res string, err error) {
 }
 
 func doRecover(m *gno.Machine, e *error) {
-	if r := recover(); r != nil {
-		if err, ok := r.(error); ok {
-			var oog types.OutOfGasError
-			if goerrors.As(err, &oog) {
-				// Re-panic and don't wrap.
-				panic(oog)
-			}
-			var up gno.UnhandledPanicError
-			if goerrors.As(err, &up) {
-				// Common unhandled panic error, skip machine state.
-				*e = errors.Wrapf(
-					errors.New(up.Descriptor),
-					"VM panic: %s\nStacktrace: %s\n",
-					up.Descriptor, m.ExceptionsStacktrace(),
-				)
-				return
-			}
-		}
-		*e = errors.Wrapf(
-			fmt.Errorf("%v", r),
-			"VM panic: %v\nMachine State:%s\nStacktrace: %s\n",
-			r, m.String(), m.Stacktrace().String(),
-		)
+	r := recover()
+	if r == nil {
+		return
 	}
+	if err, ok := r.(error); ok {
+		var oog types.OutOfGasError
+		if goerrors.As(err, &oog) {
+			// Re-panic and don't wrap.
+			panic(oog)
+		}
+		var up gno.UnhandledPanicError
+		if goerrors.As(err, &up) {
+			// Common unhandled panic error, skip machine state.
+			*e = errors.Wrapf(
+				errors.New(up.Descriptor),
+				"VM panic: %s\nStacktrace: %s\n",
+				up.Descriptor, m.ExceptionsStacktrace(),
+			)
+			return
+		}
+	}
+	*e = errors.Wrapf(
+		fmt.Errorf("%v", r),
+		"VM panic: %v\nMachine State:%s\nStacktrace: %s\n",
+		r, m.String(), m.Stacktrace().String(),
+	)
 }
 
 // Run executes arbitrary Gno code in the context of the caller's realm.
