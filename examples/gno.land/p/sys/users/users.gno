@@ -10,15 +10,6 @@ type UserLookup struct {
 	Alias bool // lookup was found via an alias
 }
 
-// NewUserLookup returns a new UserLookup struct
-func NewUserLookup(name string, addr std.Address, alias bool) UserLookup {
-	return UserLookup{
-		Name:  name,
-		Addr:  addr,
-		Alias: alias,
-	}
-}
-
 func (lookup UserLookup) Exists() bool {
 	return lookup.Addr != ""
 }
