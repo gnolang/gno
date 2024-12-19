@@ -5,6 +5,7 @@ package vm
 import (
 	"bytes"
 	"context"
+	goErrors "errors"
 	"fmt"
 	"io"
 	"log/slog"
@@ -64,7 +65,7 @@ type VMKeeper struct {
 	iavlKey store.StoreKey
 	acck    auth.AccountKeeper
 	bank    bank.BankKeeper
-	prmk    params.ParamsKeeper
+	prmk    params.Keeper
 
 	// cached, the DeliverTx persistent state.
 	gnoStore gno.Store
@@ -76,7 +77,7 @@ func NewVMKeeper(
 	iavlKey store.StoreKey,
 	acck auth.AccountKeeper,
 	bank bank.BankKeeper,
-	prmk params.ParamsKeeper,
+	prmk params.Keeper,
 ) *VMKeeper {
 	vmk := &VMKeeper{
 		baseKey: baseKey,
@@ -233,17 +234,26 @@ var reNamespace = regexp.MustCompile(`^[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/(?:r|p)/([\.
 
 // checkNamespacePermission check if the user as given has correct permssion to on the given pkg path
 func (vm *VMKeeper) checkNamespacePermission(ctx sdk.Context, creator crypto.Address, pkgPath string) error {
-	sysUsersPkg := vm.getSysUsersPkgParam(ctx)
-	if sysUsersPkg == "" {
+	sysUsersPkg, err := vm.prmk.GetString(ctx, sysUsersPkgParamPath)
+	if goErrors.Is(err, params.ErrMissingParamValue) || sysUsersPkg == "" {
+		// No namespace support enabled
 		return nil
 	}
-	chainDomain := vm.getChainDomainParam(ctx)
 
-	store := vm.getGnoTransactionStore(ctx)
+	if err != nil {
+		return fmt.Errorf("unable to load param %s, %w", sysUsersPkgParamPath, err)
+	}
+
+	chainDomain, err := vm.getChainDomainParam(ctx)
+	if err != nil {
+		return err
+	}
 
 	if !strings.HasPrefix(pkgPath, chainDomain+"/") {
 		return ErrInvalidPkgPath(pkgPath) // no match
 	}
+
+	store := vm.getGnoTransactionStore(ctx)
 
 	match := reNamespace.FindStringSubmatch(pkgPath)
 	switch len(match) {
@@ -323,7 +333,10 @@ func (vm *VMKeeper) AddPackage(ctx sdk.Context, msg MsgAddPackage) (err error) {
 	memPkg := msg.Package
 	deposit := msg.Deposit
 	gnostore := vm.getGnoTransactionStore(ctx)
-	chainDomain := vm.getChainDomainParam(ctx)
+	chainDomain, err := vm.getChainDomainParam(ctx)
+	if err != nil {
+		return err
+	}
 
 	// Validate arguments.
 	if creator.IsZero() {
@@ -469,7 +482,11 @@ func (vm *VMKeeper) Call(ctx sdk.Context, msg MsgCall) (res string, err error) {
 	// Make context.
 	// NOTE: if this is too expensive,
 	// could it be safely partially memoized?
-	chainDomain := vm.getChainDomainParam(ctx)
+	chainDomain, err := vm.getChainDomainParam(ctx)
+	if err != nil {
+		return "", err
+	}
+
 	msgCtx := stdlibs.ExecContext{
 		ChainID:       ctx.ChainID(),
 		ChainDomain:   chainDomain,
@@ -541,7 +558,11 @@ func (vm *VMKeeper) Run(ctx sdk.Context, msg MsgRun) (res string, err error) {
 	gnostore := vm.getGnoTransactionStore(ctx)
 	send := msg.Send
 	memPkg := msg.Package
-	chainDomain := vm.getChainDomainParam(ctx)
+
+	chainDomain, err := vm.getChainDomainParam(ctx)
+	if err != nil {
+		return "", err
+	}
 
 	// coerce path to right one.
 	// the path in the message must be "" or the following path.
@@ -734,7 +755,11 @@ func (vm *VMKeeper) QueryEval(ctx sdk.Context, pkgPath string, expr string) (res
 		return "", err
 	}
 	// Construct new machine.
-	chainDomain := vm.getChainDomainParam(ctx)
+	chainDomain, err := vm.getChainDomainParam(ctx)
+	if err != nil {
+		return "", err
+	}
+
 	msgCtx := stdlibs.ExecContext{
 		ChainID:     ctx.ChainID(),
 		ChainDomain: chainDomain,
@@ -802,7 +827,11 @@ func (vm *VMKeeper) QueryEvalString(ctx sdk.Context, pkgPath string, expr string
 		return "", err
 	}
 	// Construct new machine.
-	chainDomain := vm.getChainDomainParam(ctx)
+	chainDomain, err := vm.getChainDomainParam(ctx)
+	if err != nil {
+		return "", err
+	}
+
 	msgCtx := stdlibs.ExecContext{
 		ChainID:     ctx.ChainID(),
 		ChainDomain: chainDomain,

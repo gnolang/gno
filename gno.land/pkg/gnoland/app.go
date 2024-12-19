@@ -241,7 +241,7 @@ type InitChainerConfig struct {
 	vmKpr     vm.VMKeeperI
 	acctKpr   auth.AccountKeeperI
 	bankKpr   bank.BankKeeperI
-	paramsKpr params.ParamsKeeperI
+	paramsKpr params.Keeper
 	gpKpr     auth.GasPriceKeeperI
 }
 
@@ -317,7 +317,9 @@ func (cfg InitChainerConfig) loadAppState(ctx sdk.Context, appState any) ([]abci
 
 	// Apply genesis params.
 	for _, param := range state.Params {
-		param.register(ctx, cfg.paramsKpr)
+		if err := param.register(ctx, cfg.paramsKpr); err != nil {
+			panic(fmt.Errorf("unable to register genesis params, %w", err))
+		}
 	}
 
 	// Replay genesis txs.

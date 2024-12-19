@@ -102,20 +102,31 @@ func (p Param) MarshalAmino() (string, error) {
 	return p.String(), nil
 }
 
-func (p Param) register(ctx sdk.Context, prk params.ParamsKeeperI) {
-	key := p.key + "." + p.kind
+func (p Param) register(ctx sdk.Context, prk params.Keeper) error {
+	var (
+		key = p.key + "." + p.kind
+
+		err error
+	)
+
 	switch p.kind {
 	case ParamKindString:
-		prk.SetString(ctx, key, p.value.(string))
+		err = prk.SetString(ctx, key, p.value.(string))
 	case ParamKindInt64:
-		prk.SetInt64(ctx, key, p.value.(int64))
+		err = prk.SetInt64(ctx, key, p.value.(int64))
 	case ParamKindUint64:
-		prk.SetUint64(ctx, key, p.value.(uint64))
+		err = prk.SetUint64(ctx, key, p.value.(uint64))
 	case ParamKindBool:
-		prk.SetBool(ctx, key, p.value.(bool))
+		err = prk.SetBool(ctx, key, p.value.(bool))
 	case ParamKindBytes:
-		prk.SetBytes(ctx, key, p.value.([]byte))
+		err = prk.SetBytes(ctx, key, p.value.([]byte))
 	default:
-		panic("invalid param kind: " + p.kind)
+		return fmt.Errorf("unsupported param kind: %s", p.kind)
 	}
+
+	if err != nil {
+		return fmt.Errorf("could not set %s=%q,  %w", key, p.value, err)
+	}
+
+	return nil
 }
