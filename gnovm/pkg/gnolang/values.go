@@ -778,7 +778,7 @@ func (mv *MapValue) GetLength() int {
 // do for structs and arrays for assigning new entries.  If key
 // doesn't exist, a new slot is created.
 func (mv *MapValue) GetPointerForKey(alloc *Allocator, store Store, key *TypedValue) PointerValue {
-	fmt.Println("---GetPointerForKey, key: ", key)
+	//fmt.Println("---GetPointerForKey, key: ", key)
 	//fmt.Println("---path: ", key.GetPath())
 
 	kmk := key.ComputeMapKey(store, false)
@@ -805,7 +805,7 @@ func (mv *MapValue) GetPointerForKey(alloc *Allocator, store Store, key *TypedVa
 // Like GetPointerForKey, but does not create a slot if key
 // doesn't exist.
 func (mv *MapValue) GetValueForKey(store Store, key *TypedValue) (val TypedValue, ok bool) {
-	fmt.Println("---GetValueForkey, key: ", key)
+	//fmt.Println("---GetValueForkey, key: ", key)
 	kmk := key.ComputeMapKey(store, false)
 	if mli, exists := mv.vmap[kmk]; exists {
 		fillValueTV(store, &mli.Value)
@@ -1558,7 +1558,7 @@ func (tv *TypedValue) AssertNonNegative(msg string) {
 }
 
 func (tv *TypedValue) ComputeMapKey(store Store, omitType bool) MapKey {
-	fmt.Println("---ComputeMapKey, tv: ", tv)
+	//fmt.Println("---ComputeMapKey, tv: ", tv)
 	// map key might be refValue that was previously attached
 	if _, ok := tv.V.(RefValue); ok {
 		fillValueTV(store, tv)

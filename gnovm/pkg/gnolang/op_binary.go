@@ -502,23 +502,23 @@ func isEql(store Store, lv, rv *TypedValue) bool {
 			}
 		}
 
-		if lpv, ok := lv.V.(PointerValue); ok {
-			fmt.Println("---lpv.base: ", lpv.Base)
-			fmt.Println("---lpv.Origin: ", lpv.Origin)
-		}
-		if rpv, ok := rv.V.(PointerValue); ok {
-			fmt.Println("---rpv.base: ", rpv.Base)
-			fmt.Println("---rpv.Origin: ", rpv.Origin)
-		}
+		//if lpv, ok := lv.V.(PointerValue); ok {
+		//	fmt.Println("---lpv.base: ", lpv.Base)
+		//	fmt.Println("---lpv.Origin: ", lpv.Origin)
+		//}
+		//if rpv, ok := rv.V.(PointerValue); ok {
+		//	fmt.Println("---rpv.base: ", rpv.Base)
+		//	fmt.Println("---rpv.Origin: ", rpv.Origin)
+		//}
 
 		if debug {
 			if lpv, ok := lv.V.(PointerValue); ok {
-				debug.Println("---lpv.base: ", lpv.Base)
-				debug.Println("---lpv.Origin: ", lpv.Origin)
+				debug.Println("lpv.base: ", lpv.Base)
+				debug.Println("lpv.Origin: ", lpv.Origin)
 			}
 			if rpv, ok := rv.V.(PointerValue); ok {
-				debug.Println("---rpv.base: ", rpv.Base)
-				debug.Println("---rpv.Origin: ", rpv.Origin)
+				debug.Println("rpv.base: ", rpv.Base)
+				debug.Println("rpv.Origin: ", rpv.Origin)
 			}
 		}
 
