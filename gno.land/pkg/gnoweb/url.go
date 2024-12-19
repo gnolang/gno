@@ -9,6 +9,11 @@ import (
 	"strings"
 )
 
+var (
+	ErrURLMalformedPath   = errors.New("malformed path")
+	ErrURLInvalidPathKind = errors.New("invalid path kind")
+)
+
 type PathKind byte
 
 const (
@@ -94,11 +99,6 @@ func (gnoURL GnoURL) IsDir() bool {
 func (gnoURL GnoURL) IsFile() bool {
 	return filepath.Ext(gnoURL.Path) != ""
 }
-
-var (
-	ErrURLMalformedPath   = errors.New("malformed path")
-	ErrURLInvalidPathKind = errors.New("invalid path kind")
-)
 
 // ParseGnoURL parses a URL into a GnoURL structure, extracting and validating its components.
 func ParseGnoURL(u *url.URL) (*GnoURL, error) {
