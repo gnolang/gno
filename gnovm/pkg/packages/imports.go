@@ -43,7 +43,7 @@ func Imports(pkg *gnovm.MemPackage, fset *token.FileSet) (ImportsMap, error) {
 	}
 
 	for _, imports := range res {
-		SortImports(imports)
+		sortImports(imports)
 	}
 
 	return res, nil
@@ -100,11 +100,11 @@ func (imap ImportsMap) Merge(kinds ...FileKind) []FileImport {
 		}
 	}
 
-	SortImports(res)
+	sortImports(res)
 	return res
 }
 
-func SortImports(imports []FileImport) {
+func sortImports(imports []FileImport) {
 	sort.Slice(imports, func(i, j int) bool {
 		return imports[i].PkgPath < imports[j].PkgPath
 	})
