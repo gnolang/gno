@@ -26,7 +26,7 @@ var genesisDeployFee = std.NewFee(50000, std.MustParseCoin(ugnot.ValueString(100
 type addPkgCfg struct {
 	txsCfg                *txsCfg
 	keyName               string
-	gnoHome               string
+	gnoHome               string // default GNOHOME env var, just here to ease testing with parallel tests
 	insecurePasswordStdin bool
 }
 
