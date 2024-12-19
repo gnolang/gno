@@ -120,8 +120,12 @@ func TestImports(t *testing.T) {
 
 	pkg, err := gnolang.ReadMemPackage(tmpDir, "test")
 	require.NoError(t, err)
-	imports, err := Imports(pkg)
+	imports, err := Imports(pkg, nil)
 	require.NoError(t, err)
+	importsStrings := make([]string, len(imports))
+	for idx, imp := range imports {
+		importsStrings[idx] = imp.PkgPath
+	}
 
-	require.Equal(t, expected, imports)
+	require.Equal(t, expected, importsStrings)
 }
