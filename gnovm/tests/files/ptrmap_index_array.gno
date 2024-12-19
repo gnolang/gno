@@ -6,7 +6,6 @@ type S struct {
 
 var m = make(map[*S]string) // Initialize the map
 var sArr = make([]*S, 0, 4) // Use a slice of pointers
-// TODO: init here
 
 func init() {
 	// Append pointers to the slice
@@ -16,13 +15,15 @@ func init() {
 
 func main() {
 	// Create a new slice without reallocating memory for existing elements
-	newArr := append(sArr[:1], sArr[2:]...) // should inherit last path
+	newArr := append(sArr[:1], sArr[2:]...) // same base array
 
 	// Compare pointers directly
 	println(sArr[1] == newArr[1])
 	println(m[sArr[1]] == m[newArr[1]])
+	println(m[newArr[1]])
 }
 
 // Output:
 // true
 // true
+// a

@@ -7,18 +7,18 @@ type MyStruct struct {
 }
 
 var (
-	m = map[*MyStruct]string{}
-
+	m  = map[*MyStruct]string{}
 	i1 = &MyStruct{Name: "alice", Age: 2}
 )
 
-func main() {
+func init() {
 	m[i1] = "first key"
 	println(m[i1])
+}
 
+func main() {
 	i2 := *i1
-	i3 := &i2
-	println(m[i3] == "")
+	println(m[&i2] == "")
 
 	i1.Age = 3
 	println(m[i1])

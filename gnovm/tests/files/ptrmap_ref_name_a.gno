@@ -11,7 +11,7 @@ func AddToMap(value int) {
 }
 
 func GetFromMap() int {
-	i := 0
+	i := 0 // same name and value path(3, 1), but different `origin`
 	{
 		{
 			return m[&i]

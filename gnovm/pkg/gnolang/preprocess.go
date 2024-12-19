@@ -1664,7 +1664,7 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 			// TRANS_LEAVE -----------------------
 			case *SliceExpr:
 				// Replace const L/H/M with int *ConstExpr,
-				// or if not const, assert integer type..
+				// or if not const, assert integer type.
 				checkOrConvertIntegerKind(store, last, n, n.Low)
 				checkOrConvertIntegerKind(store, last, n, n.High)
 				checkOrConvertIntegerKind(store, last, n, n.Max)

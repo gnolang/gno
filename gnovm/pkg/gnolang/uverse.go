@@ -322,6 +322,7 @@ func makeUverseNode() {
 					arg1Length := arg1Value.Length
 					arg1Offset := arg1Value.Offset
 					arg1Base := arg1Value.GetBase(m.Store)
+					//println("---slice, slice")
 					//fmt.Println("---arg1base: ", arg1Base)
 					if arg0Length+arg1Length <= arg0Capacity {
 						//println("---within capacity")
@@ -379,6 +380,7 @@ func makeUverseNode() {
 						}
 					} else if arg0Type.Elem().Kind() == Uint8Kind {
 						// append(*SliceValue, *SliceValue) new data bytes ---
+						//println("---slice, slice, new data bytes")
 						newLength := arg0Length + arg1Length
 						arrayValue := m.Alloc.NewDataArray(newLength)
 						if 0 < arg0Length {
@@ -410,10 +412,11 @@ func makeUverseNode() {
 						return
 					} else {
 						// append(*SliceValue, *SliceValue) new list ---------
+						//println("---slice, slice, new list")
+						//fmt.Println("arg0Type.Elem().Kind(): ", arg0Type.Elem().Kind())
 						arrayLen := arg0Length + arg1Length
 						arrayValue := m.Alloc.NewListArray(arrayLen)
 						arrayValue.AbsPath = arg0Base.AbsPath // share same abs
-						//fmt.Println("---arrayValue.AbsPath: ", arrayValue.AbsPath)
 						if arg0Length > 0 {
 							if arg0Base.Data == nil {
 								for i := 0; i < arg0Length; i++ {
@@ -507,6 +510,7 @@ func makeUverseNode() {
 						// append(*SliceValue, *NativeValue) new list --------
 						listLen := arg0Length + arg1NativeValueLength
 						arrayValue := m.Alloc.NewListArray(listLen)
+						arrayValue.AbsPath = arg0Base.AbsPath // share same abs
 						if 0 < arg0Length {
 							for i := 0; i < listLen; i++ {
 								arrayValue.List[i] = arg0Base.List[arg0Offset+i].unrefCopy(m.Alloc, m.Store)

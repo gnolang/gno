@@ -181,9 +181,9 @@ func buildAbsolutePath(n Expr) (abs string) {
 	case *NameExpr:
 		return n.AbsPath
 	case *IndexExpr:
-		return buildAbsolutePath(n.X) + ":" + buildAbsolutePath(n.Index)
+		return fmt.Sprintf("%s:[%s]", buildAbsolutePath(n.X), buildAbsolutePath(n.Index))
 	case *SelectorExpr:
-		return buildAbsolutePath(n.X) + ":" + string(n.Sel)
+		return buildAbsolutePath(n.X) + "." + string(n.Sel)
 	case *StarExpr:
 		return buildAbsolutePath(n.X)
 	default:

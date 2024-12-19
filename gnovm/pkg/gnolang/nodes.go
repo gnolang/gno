@@ -15,7 +15,6 @@ import (
 	"strings"
 
 	"github.com/gnolang/gno/gnovm"
-	"github.com/gnolang/gno/tm2/pkg/errors"
 	"go.uber.org/multierr"
 )
 
@@ -1592,30 +1591,8 @@ func (bid BlockID) IsZero() bool {
 }
 
 func (bid BlockID) String() string {
-	bids, _ := bid.MarshalAmino()
-	return bids
-}
-
-func (bid BlockID) MarshalAmino() (string, error) {
 	pid := hex.EncodeToString(bid.PkgID.Hashlet[:])
-	return fmt.Sprintf("%s:%d", pid, bid.NewTime), nil
-}
-
-func (bid *BlockID) UnmarshalAmino(oids string) error {
-	parts := strings.Split(oids, ":")
-	if len(parts) != 2 {
-		return errors.New("invalid ObjectID %s", oids)
-	}
-	_, err := hex.Decode(bid.PkgID.Hashlet[:], []byte(parts[0]))
-	if err != nil {
-		return err
-	}
-	newTime, err := strconv.Atoi(parts[1])
-	if err != nil {
-		return err
-	}
-	bid.NewTime = uint64(newTime)
-	return nil
+	return fmt.Sprintf("%s:%d", pid, bid.NewTime)
 }
 
 // Embed in node to make it a BlockNode.

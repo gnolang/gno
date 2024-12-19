@@ -207,6 +207,7 @@ func (alloc *Allocator) NewListArray(n int) *ArrayValue {
 }
 
 func (alloc *Allocator) NewDataArray(n int) *ArrayValue {
+	//fmt.Println("---NewDataArray, n: ", n)
 	if n < 0 {
 		panic(&Exception{Value: typedString("len out of range")})
 	}

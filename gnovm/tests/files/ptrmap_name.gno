@@ -24,8 +24,8 @@ func init() {
 func main() {
 	r := GetFromMap()
 	println(r == 5)
-	//
-	*i = 2 // this change TV, Base of a pointer value
+
+	*i = 2 // this changes TV, also Base of a pointer value
 	r = GetFromMap()
 	println(r == 5)
 }
