@@ -988,7 +988,6 @@ func quoAssign(lv, rv *TypedValue) *Exception {
 		if ok {
 			lv.SetFloat64(lv.GetFloat64() / y)
 		}
-		lv.SetFloat64(lv.GetFloat64() / rv.GetFloat64())
 		// XXX FOR DETERMINISM, PANIC IF NAN.
 	case BigintType, UntypedBigintType:
 		if rv.GetBigInt().Sign() == 0 {
