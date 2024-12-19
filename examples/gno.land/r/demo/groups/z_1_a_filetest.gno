@@ -16,43 +16,43 @@ var gid groups.GroupID
 const admin = std.Address("g1manfred47kzduec920z88wfr64ylksmdcedlf5")
 
 func main() {
-	caller := std.OrigCaller() // main
+	caller := std.OriginCaller() // main
 	users.Register("", "gnouser0", "my profile 1")
 
-	std.TestSetOrigCaller(admin)
+	std.TestSetOriginCaller(admin)
 	users.GrantInvites(caller.String() + ":1")
 	// switch back to caller
-	std.TestSetOrigCaller(caller)
+	std.TestSetOriginCaller(caller)
 	// invite another addr
 	test1 := testutils.TestAddress("gnouser1")
 	users.Invite(test1.String())
 	// switch to test1
-	std.TestSetOrigCaller(test1)
+	std.TestSetOriginCaller(test1)
 	users.Register(caller, "gnouser1", "my other profile 1")
 
-	std.TestSetOrigCaller(admin)
+	std.TestSetOriginCaller(admin)
 	users.GrantInvites(caller.String() + ":1")
 	// switch back to caller
-	std.TestSetOrigCaller(caller)
+	std.TestSetOriginCaller(caller)
 	// invite another addr
 	test2 := testutils.TestAddress("gnouser2")
 	users.Invite(test2.String())
 	// switch to test1
-	std.TestSetOrigCaller(test2)
+	std.TestSetOriginCaller(test2)
 	users.Register(caller, "gnouser2", "my other profile 2")
 
-	std.TestSetOrigCaller(admin)
+	std.TestSetOriginCaller(admin)
 	users.GrantInvites(caller.String() + ":1")
 	// switch back to caller
-	std.TestSetOrigCaller(caller)
+	std.TestSetOriginCaller(caller)
 	// invite another addr
 	test3 := testutils.TestAddress("gnouser3")
 	users.Invite(test3.String())
 	// switch to test1
-	std.TestSetOrigCaller(test3)
+	std.TestSetOriginCaller(test3)
 	users.Register(caller, "gnouser3", "my other profile 3")
 
-	std.TestSetOrigCaller(caller)
+	std.TestSetOriginCaller(caller)
 
 	gid = groups.CreateGroup("test_group")
 	println(gid)

@@ -43,7 +43,7 @@ func (rs *RecurringSubscription) HasValidSubscription(addr std.Address) error {
 
 // processSubscription processes the payment for a given receiver and renews or adds their subscription.
 func (rs *RecurringSubscription) processSubscription(receiver std.Address) error {
-	amount := std.OrigSend()
+	amount := std.OriginSend()
 
 	if amount.AmountOf("ugnot") != rs.amount {
 		return ErrAmt

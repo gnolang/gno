@@ -13,9 +13,9 @@ var realmAddr = std.CurrentRealm().Addr()
 // The function will send out the coins to the addresses and return the leftover coins to the caller
 // if there are any to return
 func DisperseUgnot(addresses []std.Address, coins std.Coins) {
-	coinSent := std.OrigSend()
+	coinSent := std.OriginSend()
 	caller := std.PrevRealm().Addr()
-	banker := std.GetBanker(std.BankerTypeOrigSend)
+	banker := std.GetBanker(std.BankerTypeOriginSend)
 
 	if len(addresses) != len(coins) {
 		panic(ErrNumAddrValMismatch)

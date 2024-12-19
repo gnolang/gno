@@ -56,7 +56,7 @@ func (s *SimpleDAO) Propose(request dao.ProposalRequest) (uint64, error) {
 
 	var (
 		caller      = getDAOCaller()
-		sentCoins   = std.OrigSend() // Get the sent coins, if any
+		sentCoins   = std.OriginSend() // Get the sent coins, if any
 		canCoverFee = sentCoins.AmountOf("ugnot") >= minProposalFee.Amount
 	)
 
@@ -168,7 +168,7 @@ func (s *SimpleDAO) VoteOnProposal(id uint64, option dao.VoteOption) error {
 func (s *SimpleDAO) ExecuteProposal(id uint64) error {
 	var (
 		caller      = getDAOCaller()
-		sentCoins   = std.OrigSend() // Get the sent coins, if any
+		sentCoins   = std.OriginSend() // Get the sent coins, if any
 		canCoverFee = sentCoins.AmountOf("ugnot") >= minExecuteFee.Amount
 	)
 
@@ -219,5 +219,5 @@ func (s *SimpleDAO) ExecuteProposal(id uint64) error {
 // However, the current MsgRun context does not persist escaping the main() scope.
 // Until a better solution is developed, this enables proposals to be made through a package deployment + init()
 func getDAOCaller() std.Address {
-	return std.OrigCaller()
+	return std.OriginCaller()
 }

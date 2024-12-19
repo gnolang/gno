@@ -77,27 +77,27 @@ height := std.GetHeight()
 ```
 ---
 
-## OrigSend
+## OriginSend
 ```go
-func OrigSend() Coins
+func OriginSend() Coins
 ```
 Returns the `Coins` that were sent along with the calling transaction.
 
 #### Usage
 ```go
-coinsSent := std.OrigSend()
+coinsSent := std.OriginSend()
 ```
 ---
 
-## OrigCaller
+## OriginCaller
 ```go
-func OrigCaller() Address
+func OriginCaller() Address
 ```
 Returns the original signer of the transaction.
 
 #### Usage
 ```go
-caller := std.OrigCaller()
+caller := std.OriginCaller()
 ```
 ---
 

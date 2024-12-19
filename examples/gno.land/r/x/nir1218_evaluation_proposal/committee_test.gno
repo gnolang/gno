@@ -36,7 +36,7 @@ func TestCategoryEvaluationCriteria(t *testing.T) {
 	c.DesignateMembers([]std.Address{member})
 
 	t.Run("Add First Committee Category and Evaluation Criteria", func(t *testing.T) {
-		std.TestSetOrigCaller(member)
+		std.TestSetOriginCaller(member)
 		c.AddCategory(category, criteria)
 		value, exists := c.categories.Get(category)
 		if !exists {
@@ -49,7 +49,7 @@ func TestCategoryEvaluationCriteria(t *testing.T) {
 	})
 
 	t.Run("Add Second Committee Category and Evaluation Criteria", func(t *testing.T) {
-		std.TestSetOrigCaller(member)
+		std.TestSetOriginCaller(member)
 		c.AddCategory(category2, criteria2)
 		value2, exists2 := c.categories.Get(category2)
 		if !exists2 {
@@ -62,7 +62,7 @@ func TestCategoryEvaluationCriteria(t *testing.T) {
 	})
 
 	t.Run("Approve First Committee Category", func(t *testing.T) {
-		std.TestSetOrigCaller(member)
+		std.TestSetOriginCaller(member)
 		approved := c.ApproveCategory(category, VoteYes)
 		if !approved {
 			value, exists := c.categories.Get(category)

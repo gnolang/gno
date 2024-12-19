@@ -14,8 +14,8 @@ func GetChainID() string     // injected
 func GetChainDomain() string // injected
 func GetHeight() int64       // injected
 
-func OrigSend() Coins {
-	den, amt := origSend()
+func OriginSend() Coins {
+	den, amt := originSend()
 	coins := make(Coins, len(den))
 	for i := range coins {
 		coins[i] = Coin{Denom: den[i], Amount: amt[i]}
@@ -23,8 +23,8 @@ func OrigSend() Coins {
 	return coins
 }
 
-func OrigCaller() Address {
-	return Address(origCaller())
+func OriginCaller() Address {
+	return Address(originCaller())
 }
 
 func CurrentRealm() Realm {
@@ -58,8 +58,8 @@ func DecodeBech32(addr Address) (prefix string, bz [20]byte, ok bool) {
 }
 
 // Variations which don't use named types.
-func origSend() (denoms []string, amounts []int64)
-func origCaller() string
+func originSend() (denoms []string, amounts []int64)
+func originCaller() string
 func origPkgAddr() string
 func callerAt(n int) string
 func getRealm(height int) (address string, pkgPath string)

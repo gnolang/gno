@@ -48,7 +48,7 @@ func (m *Microblog) GetPages() []*Page {
 }
 
 func (m *Microblog) NewPost(text string) error {
-	author := std.OrigCaller()
+	author := std.OriginCaller()
 	_, found := m.Pages.Get(author.String())
 	if !found {
 		// make a new page for the new author

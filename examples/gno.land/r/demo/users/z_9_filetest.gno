@@ -10,16 +10,16 @@ import (
 const admin = std.Address("g1manfred47kzduec920z88wfr64ylksmdcedlf5")
 
 func main() {
-	caller := std.OrigCaller() // main
+	caller := std.OriginCaller() // main
 	test2 := testutils.TestAddress("test2")
 	// as admin, invite gnouser and test2
-	std.TestSetOrigCaller(admin)
+	std.TestSetOriginCaller(admin)
 	users.Invite(caller.String() + "\n" + test2.String())
 	// register as caller
-	std.TestSetOrigCaller(caller)
+	std.TestSetOriginCaller(caller)
 	users.Register(admin, "gnouser", "my profile")
 	// register as test2
-	std.TestSetOrigCaller(test2)
+	std.TestSetOriginCaller(test2)
 	users.Register(admin, "test222", "my profile 2")
 	println("done")
 }

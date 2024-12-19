@@ -44,7 +44,7 @@ This means that calls to functions defined within this package are encapsulated 
 // Deposit will take the coins (to the realm's pkgaddr) or return them to user.
 func Deposit(returnDenom string, returnAmount int64) string {
     std.AssertOriginCall()
-    caller := std.OrigCaller()
+    caller := std.OriginCaller()
     send := std.Coins{{returnDenom, returnAmount}}
 ```
 
@@ -54,7 +54,7 @@ This is the beginning of the definition of the contract function named "Deposit"
     // record activity
     act := &activity{
         caller:   caller,
-        sent:     std.OrigSend(),
+        sent:     std.OriginSend(),
         returned: send,
         time:     time.Now(),
     }
@@ -74,7 +74,7 @@ Updating the "latest" array for viewing at gno.land/r/demo/banktest: (w/ trailin
 If the user requested the return of coins...
 
 ```go
-        banker := std.GetBanker(std.BankerTypeOrigSend)
+        banker := std.GetBanker(std.BankerTypeOriginSend)
 ```
 
 use a std.Banker instance to return any deposited coins to the original sender.

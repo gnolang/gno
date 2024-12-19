@@ -12,22 +12,22 @@ import (
 const admin = std.Address("g1manfred47kzduec920z88wfr64ylksmdcedlf5")
 
 func main() {
-	caller := std.OrigCaller() // main
+	caller := std.OriginCaller() // main
 	users.Register("", "gnouser", "my profile")
 	// as admin, grant invites to gnouser
-	std.TestSetOrigCaller(admin)
+	std.TestSetOriginCaller(admin)
 	users.GrantInvites(caller.String() + ":1\n")
 	// switch back to caller
-	std.TestSetOrigCaller(caller)
+	std.TestSetOriginCaller(caller)
 	// invite another addr
 	test1 := testutils.TestAddress("test1")
 	users.Invite(test1.String())
 	// switch to test1
-	std.TestSetOrigCaller(test1)
-	std.TestSetOrigSend(std.Coins{{"dontcare", 1}}, nil)
+	std.TestSetOriginCaller(test1)
+	std.TestSetOriginSend(std.Coins{{"dontcare", 1}}, nil)
 	users.Register(caller, "satoshi", "my other profile")
 	// as admin, grant invites to gnouser(again) and satoshi.
-	std.TestSetOrigCaller(admin)
+	std.TestSetOriginCaller(admin)
 	users.GrantInvites(caller.String() + ":1\n" + test1.String() + ":1")
 	println("done")
 }

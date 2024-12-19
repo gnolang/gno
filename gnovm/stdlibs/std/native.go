@@ -67,13 +67,13 @@ func findPrevFuncName(m *gno.Machine, targetIndex int) string {
 	panic("function name not found")
 }
 
-func X_origSend(m *gno.Machine) (denoms []string, amounts []int64) {
-	os := GetContext(m).OrigSend
+func X_originSend(m *gno.Machine) (denoms []string, amounts []int64) {
+	os := GetContext(m).OriginSend
 	return ExpandCoins(os)
 }
 
-func X_origCaller(m *gno.Machine) string {
-	return string(GetContext(m).OrigCaller)
+func X_originCaller(m *gno.Machine) string {
+	return string(GetContext(m).OriginCaller)
 }
 
 func X_origPkgAddr(m *gno.Machine) string {
@@ -95,9 +95,9 @@ func X_callerAt(m *gno.Machine, n int) string {
 		return ""
 	}
 	if n == m.NumFrames() {
-		// This makes it consistent with OrigCaller.
+		// This makes it consistent with OriginCaller.
 		ctx := GetContext(m)
-		return string(ctx.OrigCaller)
+		return string(ctx.OriginCaller)
 	}
 	return string(m.MustLastCallFrame(n).LastPackage.GetPkgAddr().Bech32())
 }
@@ -132,8 +132,8 @@ func X_getRealm(m *gno.Machine, height int) (address, pkgPath string) {
 		}
 	}
 
-	// Fallback case: return OrigCaller.
-	return string(ctx.OrigCaller), ""
+	// Fallback case: return OriginCaller.
+	return string(ctx.OriginCaller), ""
 }
 
 // currentRealm retrieves the current realm's address and pkgPath.

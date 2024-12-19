@@ -6,9 +6,9 @@ id: testing
 
 ```go
 func TestSkipHeights(count int64)
-func TestSetOrigCaller(addr Address)
+func TestSetOriginCaller(addr Address)
 func TestSetOrigPkgAddr(addr Address)
-func TestSetOrigSend(sent, spent Coins)
+func TestSetOriginSend(sent, spent Coins)
 func TestIssueCoins(addr Address, coins Coins)
 func TestSetRealm(realm Realm)
 func NewUserRealm(address Address) Realm
@@ -32,16 +32,16 @@ std.TestSkipHeights(100)
 ```
 ---
 
-## TestSetOrigCaller
+## TestSetOriginCaller
 
 ```go
-func TestSetOrigCaller(addr Address)
+func TestSetOriginCaller(addr Address)
 ```
 Sets the current caller of the transaction to **addr**.
 
 #### Usage
 ```go
-std.TestSetOrigCaller(std.Address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"))
+std.TestSetOriginCaller(std.Address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"))
 ```
 ---
 
@@ -59,16 +59,16 @@ std.TestSetOrigPkgAddr(std.Address("g1ecely4gjy0yl6s9kt409ll330q9hk2lj9ls3ec"))
 
 ---
 
-## TestSetOrigSend
+## TestSetOriginSend
 
 ```go
-func TestSetOrigSend(sent, spent Coins)
+func TestSetOriginSend(sent, spent Coins)
 ```
 Sets the sent & spent coins for the current context.
 
 #### Usage
 ```go
-std.TestSetOrigSend(sent, spent Coins)
+std.TestSetOriginSend(sent, spent Coins)
 ```
 ---
 

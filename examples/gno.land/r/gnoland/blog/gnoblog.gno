@@ -15,7 +15,7 @@ func AddComment(postSlug, comment string) {
 	assertIsCommenter()
 	assertNotInPause()
 
-	caller := std.OrigCaller()
+	caller := std.OriginCaller()
 	err := b.GetPost(postSlug).AddComment(caller, comment)
 	checkErr(err)
 }

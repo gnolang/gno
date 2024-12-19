@@ -4,7 +4,7 @@ func AssertOriginCall()           // injected
 func IsOriginCall() bool          // injected
 func TestSkipHeights(count int64) // injected
 
-func TestSetOrigCaller(addr Address)  { testSetOrigCaller(string(addr)) }
+func TestSetOriginCaller(addr Address)  { testSetOriginCaller(string(addr)) }
 func TestSetOrigPkgAddr(addr Address) { testSetOrigPkgAddr(string(addr)) }
 
 // TestSetRealm sets the realm for the current frame.
@@ -14,10 +14,10 @@ func TestSetRealm(rlm Realm) {
 	testSetRealm(string(rlm.addr), rlm.pkgPath)
 }
 
-func TestSetOrigSend(sent, spent Coins) {
+func TestSetOriginSend(sent, spent Coins) {
 	sentDenom, sentAmt := sent.expandNative()
 	spentDenom, spentAmt := spent.expandNative()
-	testSetOrigSend(sentDenom, sentAmt, spentDenom, spentAmt)
+	testSetOriginSend(sentDenom, sentAmt, spentDenom, spentAmt)
 }
 
 func TestIssueCoins(addr Address, coins Coins) {
@@ -29,10 +29,10 @@ func TestIssueCoins(addr Address, coins Coins) {
 func callerAt(n int) string
 
 // native bindings
-func testSetOrigCaller(s string)
+func testSetOriginCaller(s string)
 func testSetOrigPkgAddr(s string)
 func testSetRealm(addr, pkgPath string)
-func testSetOrigSend(
+func testSetOriginSend(
 	sentDenom []string, sentAmt []int64,
 	spentDenom []string, spentAmt []int64)
 func testIssueCoins(addr string, denom []string, amt []int64)

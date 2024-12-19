@@ -71,21 +71,21 @@ func maxOfThree(a, b, c int64) int64 {
 }
 
 func VoteModern() {
-	ugnotAmount := std.OrigSend().AmountOf("ugnot")
+	ugnotAmount := std.OriginSend().AmountOf("ugnot")
 	votes := ugnotAmount
 	modernVotes += votes
 	updateCurrentTheme()
 }
 
 func VoteClassic() {
-	ugnotAmount := std.OrigSend().AmountOf("ugnot")
+	ugnotAmount := std.OriginSend().AmountOf("ugnot")
 	votes := ugnotAmount
 	classicVotes += votes
 	updateCurrentTheme()
 }
 
 func VoteMinimal() {
-	ugnotAmount := std.OrigSend().AmountOf("ugnot")
+	ugnotAmount := std.OriginSend().AmountOf("ugnot")
 	votes := ugnotAmount
 	minimalVotes += votes
 	updateCurrentTheme()

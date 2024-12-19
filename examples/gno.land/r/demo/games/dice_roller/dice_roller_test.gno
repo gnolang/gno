@@ -27,7 +27,7 @@ func resetGameState() {
 func TestNewGame(t *testing.T) {
 	resetGameState()
 
-	std.TestSetOrigCaller(player1)
+	std.TestSetOriginCaller(player1)
 	gameID := NewGame(player2)
 
 	// Verify that the game has been correctly initialized
@@ -43,7 +43,7 @@ func TestNewGame(t *testing.T) {
 func TestPlay(t *testing.T) {
 	resetGameState()
 
-	std.TestSetOrigCaller(player1)
+	std.TestSetOriginCaller(player1)
 	gameID := NewGame(player2)
 
 	g, err := getGame(gameID)
@@ -58,7 +58,7 @@ func TestPlay(t *testing.T) {
 	urequire.Equal(t, 0, g.roll2) // Player 2 hasn't rolled yet
 
 	// Simulate rolling dice for player 2
-	std.TestSetOrigCaller(player2)
+	std.TestSetOriginCaller(player2)
 	roll2 := Play(gameID)
 
 	// Verify player 2's roll
@@ -71,7 +71,7 @@ func TestPlay(t *testing.T) {
 func TestPlayAgainstSelf(t *testing.T) {
 	resetGameState()
 
-	std.TestSetOrigCaller(player1)
+	std.TestSetOriginCaller(player1)
 	gameID := NewGame(player1)
 
 	// Simulate rolling dice twice by the same player
@@ -88,11 +88,11 @@ func TestPlayAgainstSelf(t *testing.T) {
 func TestPlayInvalidPlayer(t *testing.T) {
 	resetGameState()
 
-	std.TestSetOrigCaller(player1)
+	std.TestSetOriginCaller(player1)
 	gameID := NewGame(player1)
 
 	// Attempt to play as an invalid player
-	std.TestSetOrigCaller(unknownPlayer)
+	std.TestSetOriginCaller(unknownPlayer)
 	urequire.PanicsWithMessage(t, "invalid player", func() {
 		Play(gameID)
 	})
@@ -102,7 +102,7 @@ func TestPlayInvalidPlayer(t *testing.T) {
 func TestPlayAlreadyPlayed(t *testing.T) {
 	resetGameState()
 
-	std.TestSetOrigCaller(player1)
+	std.TestSetOriginCaller(player1)
 	gameID := NewGame(player2)
 
 	// Player 1 rolls
@@ -118,13 +118,13 @@ func TestPlayAlreadyPlayed(t *testing.T) {
 func TestPlayBeyondGameEnd(t *testing.T) {
 	resetGameState()
 
-	std.TestSetOrigCaller(player1)
+	std.TestSetOriginCaller(player1)
 	gameID := NewGame(player2)
 
 	// Play for both players
-	std.TestSetOrigCaller(player1)
+	std.TestSetOriginCaller(player1)
 	Play(gameID)
-	std.TestSetOrigCaller(player2)
+	std.TestSetOriginCaller(player2)
 	Play(gameID)
 
 	// Check if the game is over
@@ -132,7 +132,7 @@ func TestPlayBeyondGameEnd(t *testing.T) {
 	urequire.NoError(t, err)
 
 	// Attempt to play more should fail
-	std.TestSetOrigCaller(player1)
+	std.TestSetOriginCaller(player1)
 	urequire.PanicsWithMessage(t, "game over", func() {
 		Play(gameID)
 	})

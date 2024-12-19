@@ -25,7 +25,7 @@ func SetNextVersion(addr string) {
 	std.AssertOriginCall()
 	// assert admin.
 	caller := std.GetCallerAt(2)
-	if caller != std.OrigCaller() {
+	if caller != std.OriginCaller() {
 		panic("should not happen") // because std.AssertOrigCall().
 	}
 	if caller != admin {

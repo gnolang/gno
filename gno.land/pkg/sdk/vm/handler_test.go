@@ -120,7 +120,7 @@ import "std"
 import "time"
 
 var _ = time.RFC3339
-func caller() std.Address { return std.OrigCaller() }
+func caller() std.Address { return std.OriginCaller() }
 var GetHeight = std.GetHeight
 var sl = []int{1,2,3,4,5}
 func fn() func(string) string { return Echo }

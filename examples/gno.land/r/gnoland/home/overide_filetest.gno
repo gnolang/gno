@@ -8,7 +8,7 @@ import (
 )
 
 func main() {
-	std.TestSetOrigCaller("g1manfred47kzduec920z88wfr64ylksmdcedlf5")
+	std.TestSetOriginCaller("g1manfred47kzduec920z88wfr64ylksmdcedlf5")
 	home.AdminSetOverride("Hello World!")
 	println(home.Render(""))
 	home.AdminTransferOwnership(testutils.TestAddress("newAdmin"))

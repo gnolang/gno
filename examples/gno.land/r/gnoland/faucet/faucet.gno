@@ -81,7 +81,7 @@ func Render(_ string) string {
 }
 
 func assertIsController() error {
-	caller := std.OrigCaller()
+	caller := std.OriginCaller()
 
 	ok := gControllers.Has(caller.String())
 	if !ok {

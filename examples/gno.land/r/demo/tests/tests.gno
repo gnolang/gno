@@ -21,10 +21,10 @@ func CurrentRealmPath() string {
 	return std.CurrentRealm().PkgPath()
 }
 
-var initOrigCaller = std.OrigCaller()
+var initOriginCaller = std.OriginCaller()
 
-func InitOrigCaller() std.Address {
-	return initOrigCaller
+func InitOriginCaller() std.Address {
+	return initOriginCaller
 }
 
 func CallAssertOriginCall() {

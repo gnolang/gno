@@ -84,16 +84,16 @@ func X_callerAt(m *gno.Machine, n int) string {
 		return ""
 	}
 	if n == m.NumFrames()-1 {
-		// This makes it consistent with OrigCaller and TestSetOrigCaller.
+		// This makes it consistent with OriginCaller and TestSetOriginCaller.
 		ctx := m.Context.(*TestExecContext)
-		return string(ctx.OrigCaller)
+		return string(ctx.OriginCaller)
 	}
 	return string(m.MustLastCallFrame(n).LastPackage.GetPkgAddr().Bech32())
 }
 
-func X_testSetOrigCaller(m *gno.Machine, addr string) {
+func X_testSetOriginCaller(m *gno.Machine, addr string) {
 	ctx := m.Context.(*TestExecContext)
-	ctx.OrigCaller = crypto.Bech32Address(addr)
+	ctx.OriginCaller = crypto.Bech32Address(addr)
 	m.Context = ctx
 }
 
@@ -160,22 +160,22 @@ func X_getRealm(m *gno.Machine, height int) (address string, pkgPath string) {
 		}
 	}
 
-	// Fallback case: return OrigCaller.
-	return string(ctx.OrigCaller), ""
+	// Fallback case: return OriginCaller.
+	return string(ctx.OriginCaller), ""
 }
 
 func X_isRealm(m *gno.Machine, pkgPath string) bool {
 	return gno.IsRealmPath(pkgPath)
 }
 
-func X_testSetOrigSend(m *gno.Machine,
+func X_testSetOriginSend(m *gno.Machine,
 	sentDenom []string, sentAmt []int64,
 	spentDenom []string, spentAmt []int64,
 ) {
 	ctx := m.Context.(*TestExecContext)
-	ctx.OrigSend = std.CompactCoins(sentDenom, sentAmt)
+	ctx.OriginSend = std.CompactCoins(sentDenom, sentAmt)
 	spent := std.CompactCoins(spentDenom, spentAmt)
-	ctx.OrigSendSpent = &spent
+	ctx.OriginSendSpent = &spent
 	m.Context = ctx
 }
 

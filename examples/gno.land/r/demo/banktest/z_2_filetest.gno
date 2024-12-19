@@ -16,16 +16,16 @@ func main() {
 
 	// print main balance before.
 	mainaddr := std.DerivePkgAddr("gno.land/r/demo/bank1")
-	std.TestSetOrigCaller(mainaddr)
+	std.TestSetOriginCaller(mainaddr)
 
 	banker := std.GetBanker(std.BankerTypeReadonly)
 	mainbal := banker.GetCoins(mainaddr)
-	println("main before:", mainbal) // plus OrigSend equals 300.
+	println("main before:", mainbal) // plus OriginSend equals 300.
 
 	// simulate a Deposit call.
 	std.TestSetOrigPkgAddr(banktestAddr)
 	std.TestIssueCoins(banktestAddr, std.Coins{{"ugnot", 100000000}})
-	std.TestSetOrigSend(std.Coins{{"ugnot", 100000000}}, nil)
+	std.TestSetOriginSend(std.Coins{{"ugnot", 100000000}}, nil)
 	res := banktest.Deposit("ugnot", 55000000)
 	println("Deposit():", res)
 

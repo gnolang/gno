@@ -122,7 +122,7 @@ func TestGetPostsInRangeByUpvote(t *testing.T) {
 	m.Upvote(id2)
 
 	// Change caller so avoid double upvote panic
-	std.TestSetOrigCaller(testutils.TestAddress("alice"))
+	std.TestSetOriginCaller(testutils.TestAddress("alice"))
 	m.Upvote(id1)
 
 	// Final upvote count:
@@ -236,21 +236,21 @@ func TestUpvote(t *testing.T) {
 
 func TestDelete(t *testing.T) {
 	alice := testutils.TestAddress("alice")
-	std.TestSetOrigCaller(alice)
+	std.TestSetOriginCaller(alice)
 
 	// Alice is admin
 	m := NewMemeland()
 
 	// Set caller to Bob
 	bob := testutils.TestAddress("bob")
-	std.TestSetOrigCaller(bob)
+	std.TestSetOriginCaller(bob)
 
 	// Bob adds post to Memeland
 	now := time.Now()
 	postID := m.PostMeme("Meme #1", now.Unix())
 
 	// Alice removes Bob's post
-	std.TestSetOrigCaller(alice)
+	std.TestSetOriginCaller(alice)
 
 	id := m.RemovePost(postID)
 	uassert.Equal(t, postID, id, "post IDs not matching")
@@ -259,7 +259,7 @@ func TestDelete(t *testing.T) {
 
 func TestDeleteByNonAdmin(t *testing.T) {
 	alice := testutils.TestAddress("alice")
-	std.TestSetOrigCaller(alice)
+	std.TestSetOriginCaller(alice)
 
 	m := NewMemeland()
 
@@ -269,7 +269,7 @@ func TestDeleteByNonAdmin(t *testing.T) {
 
 	// Bob will try to delete meme posted by Alice, which should fail
 	bob := testutils.TestAddress("bob")
-	std.TestSetOrigCaller(bob)
+	std.TestSetOriginCaller(bob)
 
 	defer func() {
 		if r := recover(); r == nil {

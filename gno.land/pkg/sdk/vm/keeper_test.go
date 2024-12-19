@@ -106,7 +106,7 @@ func Echo() string {return "hello world"}`,
 }
 
 // Sending total send amount succeeds.
-func TestVMKeeperOrigSend1(t *testing.T) {
+func TestVMKeeperOriginSend1(t *testing.T) {
 	env := setupTestEnv()
 	ctx := env.vmk.MakeGnoTransactionStore(env.ctx)
 
@@ -128,10 +128,10 @@ func init() {
 }
 
 func Echo(msg string) string {
-	addr := std.OrigCaller()
+	addr := std.OriginCaller()
 	pkgAddr := std.GetOrigPkgAddr()
-	send := std.OrigSend()
-	banker := std.GetBanker(std.BankerTypeOrigSend)
+	send := std.OriginSend()
+	banker := std.GetBanker(std.BankerTypeOriginSend)
 	banker.SendCoins(pkgAddr, addr, send) // send back
 	return "echo:"+msg
 }`},
@@ -151,7 +151,7 @@ func Echo(msg string) string {
 }
 
 // Sending too much fails
-func TestVMKeeperOrigSend2(t *testing.T) {
+func TestVMKeeperOriginSend2(t *testing.T) {
 	env := setupTestEnv()
 	ctx := env.vmk.MakeGnoTransactionStore(env.ctx)
 
@@ -172,14 +172,14 @@ import "std"
 var admin std.Address
 
 func init() {
-     admin =	std.OrigCaller()
+     admin =	std.OriginCaller()
 }
 
 func Echo(msg string) string {
-	addr := std.OrigCaller()
+	addr := std.OriginCaller()
 	pkgAddr := std.GetOrigPkgAddr()
-	send := std.OrigSend()
-	banker := std.GetBanker(std.BankerTypeOrigSend)
+	send := std.OriginSend()
+	banker := std.GetBanker(std.BankerTypeOriginSend)
 	banker.SendCoins(pkgAddr, addr, send) // send back
 	return "echo:"+msg
 }
@@ -205,7 +205,7 @@ func GetAdmin() string {
 }
 
 // Sending more than tx send fails.
-func TestVMKeeperOrigSend3(t *testing.T) {
+func TestVMKeeperOriginSend3(t *testing.T) {
 	env := setupTestEnv()
 	ctx := env.vmk.MakeGnoTransactionStore(env.ctx)
 
@@ -227,10 +227,10 @@ func init() {
 }
 
 func Echo(msg string) string {
-	addr := std.OrigCaller()
+	addr := std.OriginCaller()
 	pkgAddr := std.GetOrigPkgAddr()
 	send := std.Coins{{"ugnot", 10000000}}
-	banker := std.GetBanker(std.BankerTypeOrigSend)
+	banker := std.GetBanker(std.BankerTypeOriginSend)
 	banker.SendCoins(pkgAddr, addr, send) // send back
 	return "echo:"+msg
 }`},
@@ -271,7 +271,7 @@ func init() {
 }
 
 func Echo(msg string) string {
-	addr := std.OrigCaller()
+	addr := std.OriginCaller()
 	pkgAddr := std.GetOrigPkgAddr()
 	send := std.Coins{{"ugnot", 10000000}}
 	banker := std.GetBanker(std.BankerTypeRealmSend)
@@ -315,7 +315,7 @@ func init() {
 }
 
 func Echo(msg string) string {
-	addr := std.OrigCaller()
+	addr := std.OriginCaller()
 	pkgAddr := std.GetOrigPkgAddr()
 	send := std.Coins{{"ugnot", 10000000}}
 	banker := std.GetBanker(std.BankerTypeRealmSend)
@@ -390,8 +390,8 @@ func Do() string {
 	assert.Equal(t, int64(1337), bar)
 }
 
-// Assign admin as OrigCaller on deploying the package.
-func TestVMKeeperOrigCallerInit(t *testing.T) {
+// Assign admin as OriginCaller on deploying the package.
+func TestVMKeeperOriginCallerInit(t *testing.T) {
 	env := setupTestEnv()
 	ctx := env.vmk.MakeGnoTransactionStore(env.ctx)
 
@@ -412,14 +412,14 @@ import "std"
 var admin std.Address
 
 func init() {
-     admin = std.OrigCaller()
+     admin = std.OriginCaller()
 }
 
 func Echo(msg string) string {
-	addr := std.OrigCaller()
+	addr := std.OriginCaller()
 	pkgAddr := std.GetOrigPkgAddr()
-	send := std.OrigSend()
-	banker := std.GetBanker(std.BankerTypeOrigSend)
+	send := std.OriginSend()
+	banker := std.GetBanker(std.BankerTypeOriginSend)
 	banker.SendCoins(pkgAddr, addr, send) // send back
 	return "echo:"+msg
 }
@@ -500,7 +500,7 @@ package main
 import "std"
 
 func main() {
-	addr := std.OrigCaller()
+	addr := std.OriginCaller()
 	println("hello world!", addr)
 }
 `},

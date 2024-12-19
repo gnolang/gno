@@ -272,7 +272,7 @@ func Go2GnoNativeValue(alloc *Allocator, rv reflect.Value) (tv TypedValue) {
 	return go2GnoValue(alloc, rv)
 }
 
-// NOTE: used by imports_test.go TestSetOrigCaller.
+// NOTE: used by imports_test.go TestSetOriginCaller.
 func Gno2GoValue(tv *TypedValue, rv reflect.Value) (ret reflect.Value) {
 	return gno2GoValue(tv, rv)
 }

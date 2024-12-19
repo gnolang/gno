@@ -353,7 +353,7 @@ func Bid() {
 		panic("Exceeded auction end block")
 	}
 
-	sentCoins := std.OrigSend()
+	sentCoins := std.OriginSend()
 	if len(sentCoins) != 1 {
 		panic("Send only one type of coin")
 	}
@@ -373,7 +373,7 @@ func Bid() {
 		}
 
 		// Update the top bidder address
-		highestBidder = std.OrigCaller()
+		highestBidder = std.OriginCaller()
 		// Update the top bid amount
 		highestBid = sentAmount
 	}
@@ -387,39 +387,39 @@ func Bid() {
 // Bid Function Test - Send Coin
 func TestBidCoins(t *testing.T) {
 	// Sending two types of coins
-	std.TestSetOrigCaller(bidder01)
-	std.TestSetOrigSend(std.Coins{{"ugnot", 0}, {"test", 1}}, nil)
+	std.TestSetOriginCaller(bidder01)
+	std.TestSetOriginSend(std.Coins{{"ugnot", 0}, {"test", 1}}, nil)
 	shouldPanic(t, Bid)
 
 	// Sending lower amount than the current highest bid
-	std.TestSetOrigCaller(bidder01)
-	std.TestSetOrigSend(std.Coins{{"ugnot", 0}}, nil)
+	std.TestSetOriginCaller(bidder01)
+	std.TestSetOriginSend(std.Coins{{"ugnot", 0}}, nil)
 	shouldPanic(t, Bid)
 
 	// Sending more amount than the current highest bid (exceeded)
-	std.TestSetOrigCaller(bidder01)
-	std.TestSetOrigSend(std.Coins{{"ugnot", 1}}, nil)
+	std.TestSetOriginCaller(bidder01)
+	std.TestSetOriginSend(std.Coins{{"ugnot", 1}}, nil)
 	shouldNoPanic(t, Bid)
 }
 
 // Bid Function Test - Bid by two or more people
 func TestBidCoins(t *testing.T) {
 	// bidder01 bidding with 1 coin
-	std.TestSetOrigCaller(bidder01)
-	std.TestSetOrigSend(std.Coins{{"ugnot", 1}}, nil)
+	std.TestSetOriginCaller(bidder01)
+	std.TestSetOriginSend(std.Coins{{"ugnot", 1}}, nil)
 	shouldNoPanic(t, Bid)
 	shouldEqual(t, highestBid, 1)
 	shouldEqual(t, highestBidder, bidder01)
 	shouldEqual(t, pendingReturns.Size(), 0)
 
 	// bidder02 bidding with 1 coin
-	std.TestSetOrigCaller(bidder02)
-	std.TestSetOrigSend(std.Coins{{"ugnot", 1}}, nil)
+	std.TestSetOriginCaller(bidder02)
+	std.TestSetOriginSend(std.Coins{{"ugnot", 1}}, nil)
 	shouldPanic(t, Bid)
 
 	// bidder02 bidding with 2 coins
-	std.TestSetOrigCaller(bidder02)
-	std.TestSetOrigSend(std.Coins{{"ugnot", 2}}, nil)
+	std.TestSetOriginCaller(bidder02)
+	std.TestSetOriginSend(std.Coins{{"ugnot", 2}}, nil)
 	shouldNoPanic(t, Bid)
 	shouldEqual(t, highestBid, 2)
 	shouldEqual(t, highestBidder, bidder02)
@@ -466,17 +466,17 @@ function withdraw() external returns (bool) {
 ```go
 func Withdraw() {
 	// Query the return amount to non-highest bidders
-	amount, _ := pendingReturns.Get(std.OrigCaller().String())
+	amount, _ := pendingReturns.Get(std.OriginCaller().String())
 
 	if amount > 0 {
 		// If there's an amount, reset the amount first,
-		pendingReturns.Set(std.OrigCaller().String(), 0)
+		pendingReturns.Set(std.OriginCaller().String(), 0)
 
 		// Return the exceeded amount
 		banker := std.GetBanker(std.BankerTypeRealmSend)
 		pkgAddr := std.GetOrigPkgAddr()
 
-		banker.SendCoins(pkgAddr, std.OrigCaller(), std.Coins{{"ugnot", amount.(int64)}})
+		banker.SendCoins(pkgAddr, std.OriginCaller(), std.Coins{{"ugnot", amount.(int64)}})
 	}
 }
 ```
@@ -620,22 +620,22 @@ func TestFull(t *testing.T) {
 
 	// Send two or more types of coins
 	{
-		std.TestSetOrigCaller(bidder01)
-		std.TestSetOrigSend(std.Coins{{"ugnot", 0}, {"test", 1}}, nil)
+		std.TestSetOriginCaller(bidder01)
+		std.TestSetOriginSend(std.Coins{{"ugnot", 0}, {"test", 1}}, nil)
 		shouldPanic(t, Bid)
 	}
 
 	// Send less than the highest bid
 	{
-		std.TestSetOrigCaller(bidder01)
-		std.TestSetOrigSend(std.Coins{{"ugnot", 0}}, nil)
+		std.TestSetOriginCaller(bidder01)
+		std.TestSetOriginSend(std.Coins{{"ugnot", 0}}, nil)
 		shouldPanic(t, Bid)
 	}
 
 	// Send more than the highest bid
 	{
-		std.TestSetOrigCaller(bidder01)
-		std.TestSetOrigSend(std.Coins{{"ugnot", 1}}, nil)
+		std.TestSetOriginCaller(bidder01)
+		std.TestSetOriginSend(std.Coins{{"ugnot", 1}}, nil)
 		shouldNoPanic(t, Bid)
 
 		shouldEqual(t, pendingReturns.Size(), 0)
@@ -647,13 +647,13 @@ func TestFull(t *testing.T) {
 	{
 
 		// Send less amount than the current highest bid (current: 1)
-		std.TestSetOrigCaller(bidder02)
-		std.TestSetOrigSend(std.Coins{{"ugnot", 1}}, nil)
+		std.TestSetOriginCaller(bidder02)
+		std.TestSetOriginSend(std.Coins{{"ugnot", 1}}, nil)
 		shouldPanic(t, Bid)
 
 		// Send more amount than the current highest bid (exceeded)
-		std.TestSetOrigCaller(bidder02)
-		std.TestSetOrigSend(std.Coins{{"ugnot", 2}}, nil)
+		std.TestSetOriginCaller(bidder02)
+		std.TestSetOriginSend(std.Coins{{"ugnot", 2}}, nil)
 		shouldNoPanic(t, Bid)
 
 		shouldEqual(t, highestBid, 2)

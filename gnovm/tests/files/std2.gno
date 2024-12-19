@@ -3,7 +3,7 @@ package main
 import "std"
 
 func main() {
-	caller := std.OrigCaller()
+	caller := std.OriginCaller()
 	println(caller)
 }
 

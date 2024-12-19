@@ -148,7 +148,7 @@ func GovDAOProposal(address std.Address) {
 	)
 
 	// Make sure the valoper is the caller
-	if std.OrigCaller() != address {
+	if std.OriginCaller() != address {
 		panic(errValoperNotCaller)
 	}
 

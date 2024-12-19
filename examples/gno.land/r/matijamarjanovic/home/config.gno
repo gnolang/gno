@@ -48,7 +48,7 @@ func SetBackup(newAddress std.Address) error {
 }
 
 func checkAuthorized() error {
-	caller := std.OrigCaller()
+	caller := std.OriginCaller()
 	if caller != mainAddr && caller != backupAddr {
 		return errorUnauthorized
 	}
@@ -57,7 +57,7 @@ func checkAuthorized() error {
 }
 
 func AssertAuthorized() {
-	caller := std.OrigCaller()
+	caller := std.OriginCaller()
 	if caller != mainAddr && caller != backupAddr {
 		panic(errorUnauthorized)
 	}

@@ -10,7 +10,7 @@ type BankerType uint8
 
 const (
     BankerTypeReadonly BankerType = iota
-    BankerTypeOrigSend
+    BankerTypeOriginSend
     BankerTypeRealmSend
     BankerTypeRealmIssue
 )
@@ -29,7 +29,7 @@ Returns `Banker` of the specified type.
 #### Parameters
 - `BankerType` - type of Banker to get:
     - `BankerTypeReadonly` - read-only access to coin balances
-    - `BankerTypeOrigSend` - full access to coins sent with the transaction that calls the banker
+    - `BankerTypeOriginSend` - full access to coins sent with the transaction that calls the banker
     - `BankerTypeRealmSend` - full access to coins that the realm itself owns, including the ones sent with the transaction
     - `BankerTypeRealmIssue` - able to issue new coins
 

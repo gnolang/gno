@@ -22,7 +22,7 @@ func NewTodoList(title string) *TodoList {
 	return &TodoList{
 		Title: title,
 		Tasks: avl.NewTree(),
-		Owner: std.OrigCaller(),
+		Owner: std.OriginCaller(),
 	}
 }
 

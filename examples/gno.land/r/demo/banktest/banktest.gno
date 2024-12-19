@@ -24,12 +24,12 @@ var latest [10]*activity
 // Deposit will take the coins (to the realm's pkgaddr) or return them to user.
 func Deposit(returnDenom string, returnAmount int64) string {
 	std.AssertOriginCall()
-	caller := std.OrigCaller()
+	caller := std.OriginCaller()
 	send := std.Coins{{returnDenom, returnAmount}}
 	// record activity
 	act := &activity{
 		caller:   caller,
-		sent:     std.OrigSend(),
+		sent:     std.OriginSend(),
 		returned: send,
 		time:     time.Now(),
 	}
@@ -39,7 +39,7 @@ func Deposit(returnDenom string, returnAmount int64) string {
 	latest[0] = act
 	// return if any.
 	if returnAmount > 0 {
-		banker := std.GetBanker(std.BankerTypeOrigSend)
+		banker := std.GetBanker(std.BankerTypeOriginSend)
 		pkgaddr := std.GetOrigPkgAddr()
 		// TODO: use std.Coins constructors, this isn't generally safe.
 		banker.SendCoins(pkgaddr, caller, send)

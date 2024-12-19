@@ -14,7 +14,7 @@ func main() {
 		eoa        = testutils.TestAddress("someone")
 		rTestsAddr = std.DerivePkgAddr("gno.land/r/demo/tests")
 	)
-	std.TestSetOrigCaller(eoa)
+	std.TestSetOriginCaller(eoa)
 	println("tests.GetPrevRealm().Addr(): ", tests.GetPrevRealm().Addr())
 	println("tests.GetRSubtestsPrevRealm().Addr(): ", tests.GetRSubtestsPrevRealm().Addr())
 }
