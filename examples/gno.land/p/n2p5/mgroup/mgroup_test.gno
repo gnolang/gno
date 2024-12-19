@@ -21,7 +21,7 @@ func TestManagedGroup(t *testing.T) {
 		g := New(u1)
 		// happy path
 		{
-			std.TestSetOrigCaller(u1)
+			std.TestSetOriginCaller(u1)
 			err := g.AddBackupOwner(u2)
 			if err != nil {
 				t.Errorf("expected nil, got %v", err.Error())
@@ -29,7 +29,7 @@ func TestManagedGroup(t *testing.T) {
 		}
 		// ensure checking for authorized caller
 		{
-			std.TestSetOrigCaller(u2)
+			std.TestSetOriginCaller(u2)
 			err := g.AddBackupOwner(u3)
 			if err != ownable.ErrUnauthorized {
 				t.Errorf("expected %v, got %v", ErrNotBackupOwner.Error(), err.Error())
@@ -37,7 +37,7 @@ func TestManagedGroup(t *testing.T) {
 		}
 		// ensure invalid address is caught
 		{
-			std.TestSetOrigCaller(u1)
+			std.TestSetOriginCaller(u1)
 			var badAddr std.Address
 			err := g.AddBackupOwner(badAddr)
 			if err != ErrInvalidAddress {
@@ -50,7 +50,7 @@ func TestManagedGroup(t *testing.T) {
 		g := New(u1)
 		// happy path
 		{
-			std.TestSetOrigCaller(u1)
+			std.TestSetOriginCaller(u1)
 			g.AddBackupOwner(u2)
 			err := g.RemoveBackupOwner(u2)
 			if err != nil {
@@ -59,7 +59,7 @@ func TestManagedGroup(t *testing.T) {
 		}
 		// running this twice should not error.
 		{
-			std.TestSetOrigCaller(u1)
+			std.TestSetOriginCaller(u1)
 			err := g.RemoveBackupOwner(u2)
 			if err != nil {
 				t.Errorf("expected nil, got %v", err.Error())
@@ -67,14 +67,14 @@ func TestManagedGroup(t *testing.T) {
 		}
 		// ensure checking for authorized caller
 		{
-			std.TestSetOrigCaller(u2)
+			std.TestSetOriginCaller(u2)
 			err := g.RemoveBackupOwner(u3)
 			if err != ownable.ErrUnauthorized {
 				t.Errorf("expected %v, got %v", ErrNotBackupOwner.Error(), err.Error())
 			}
 		}
 		{
-			std.TestSetOrigCaller(u1)
+			std.TestSetOriginCaller(u1)
 			var badAddr std.Address
 			err := g.RemoveBackupOwner(badAddr)
 			if err != ErrInvalidAddress {
@@ -82,7 +82,7 @@ func TestManagedGroup(t *testing.T) {
 			}
 		}
 		{
-			std.TestSetOrigCaller(u1)
+			std.TestSetOriginCaller(u1)
 			err := g.RemoveBackupOwner(u1)
 			if err != ErrCannotRemoveOwner {
 				t.Errorf("expected %v, got %v", ErrCannotRemoveOwner.Error(), err.Error())
@@ -95,7 +95,7 @@ func TestManagedGroup(t *testing.T) {
 		g.AddBackupOwner(u2)
 		// happy path
 		{
-			std.TestSetOrigCaller(u2)
+			std.TestSetOriginCaller(u2)
 			err := g.ClaimOwnership()
 			if err != nil {
 				t.Errorf("expected nil, got %v", err.Error())
@@ -109,7 +109,7 @@ func TestManagedGroup(t *testing.T) {
 		}
 		// running this twice should not error.
 		{
-			std.TestSetOrigCaller(u2)
+			std.TestSetOriginCaller(u2)
 			err := g.ClaimOwnership()
 			if err != nil {
 				t.Errorf("expected nil, got %v", err.Error())
@@ -117,7 +117,7 @@ func TestManagedGroup(t *testing.T) {
 		}
 		// ensure checking for authorized caller
 		{
-			std.TestSetOrigCaller(u3)
+			std.TestSetOriginCaller(u3)
 			err := g.ClaimOwnership()
 			if err != ErrNotMember {
 				t.Errorf("expected %v, got %v", ErrNotMember.Error(), err.Error())
@@ -129,7 +129,7 @@ func TestManagedGroup(t *testing.T) {
 		g := New(u1)
 		// happy path
 		{
-			std.TestSetOrigCaller(u1)
+			std.TestSetOriginCaller(u1)
 			err := g.AddMember(u2)
 			if err != nil {
 				t.Errorf("expected nil, got %v", err.Error())
@@ -140,7 +140,7 @@ func TestManagedGroup(t *testing.T) {
 		}
 		// ensure checking for authorized caller
 		{
-			std.TestSetOrigCaller(u2)
+			std.TestSetOriginCaller(u2)
 			err := g.AddMember(u3)
 			if err != ownable.ErrUnauthorized {
 				t.Errorf("expected %v, got %v", ownable.ErrUnauthorized.Error(), err.Error())
@@ -148,7 +148,7 @@ func TestManagedGroup(t *testing.T) {
 		}
 		// ensure invalid address is caught
 		{
-			std.TestSetOrigCaller(u1)
+			std.TestSetOriginCaller(u1)
 			var badAddr std.Address
 			err := g.AddMember(badAddr)
 			if err != ErrInvalidAddress {
@@ -161,7 +161,7 @@ func TestManagedGroup(t *testing.T) {
 		g := New(u1)
 		// happy path
 		{
-			std.TestSetOrigCaller(u1)
+			std.TestSetOriginCaller(u1)
 			g.AddMember(u2)
 			err := g.RemoveMember(u2)
 			if err != nil {
@@ -173,7 +173,7 @@ func TestManagedGroup(t *testing.T) {
 		}
 		// running this twice should not error.
 		{
-			std.TestSetOrigCaller(u1)
+			std.TestSetOriginCaller(u1)
 			err := g.RemoveMember(u2)
 			if err != nil {
 				t.Errorf("expected nil, got %v", err.Error())
@@ -181,7 +181,7 @@ func TestManagedGroup(t *testing.T) {
 		}
 		// ensure checking for authorized caller
 		{
-			std.TestSetOrigCaller(u2)
+			std.TestSetOriginCaller(u2)
 			err := g.RemoveMember(u3)
 			if err != ownable.ErrUnauthorized {
 				t.Errorf("expected %v, got %v", ownable.ErrUnauthorized.Error(), err.Error())
@@ -189,7 +189,7 @@ func TestManagedGroup(t *testing.T) {
 		}
 		// ensure invalid address is caught
 		{
-			std.TestSetOrigCaller(u1)
+			std.TestSetOriginCaller(u1)
 			var badAddr std.Address
 			err := g.RemoveMember(badAddr)
 			if err != ErrInvalidAddress {
@@ -198,7 +198,7 @@ func TestManagedGroup(t *testing.T) {
 		}
 		// ensure owner cannot be removed
 		{
-			std.TestSetOrigCaller(u1)
+			std.TestSetOriginCaller(u1)
 			err := g.RemoveMember(u1)
 			if err != ErrCannotRemoveOwner {
 				t.Errorf("expected %v, got %v", ErrCannotRemoveOwner.Error(), err.Error())
@@ -281,7 +281,7 @@ func TestManagedGroup(t *testing.T) {
 		if g.Owner() != u1 {
 			t.Errorf("expected %v, got %v", u1, g.Owner())
 		}
-		std.TestSetOrigCaller(u2)
+		std.TestSetOriginCaller(u2)
 		g.ClaimOwnership()
 		if g.Owner() != u2 {
 			t.Errorf("expected %v, got %v", u2, g.Owner())
@@ -289,7 +289,7 @@ func TestManagedGroup(t *testing.T) {
 	})
 	t.Run("BackupOwners", func(t *testing.T) {
 		t.Parallel()
-		std.TestSetOrigCaller(u1)
+		std.TestSetOriginCaller(u1)
 		g := New(u1)
 		g.AddBackupOwner(u2)
 		g.AddBackupOwner(u3)
@@ -309,7 +309,7 @@ func TestManagedGroup(t *testing.T) {
 	})
 	t.Run("Members", func(t *testing.T) {
 		t.Parallel()
-		std.TestSetOrigCaller(u1)
+		std.TestSetOriginCaller(u1)
 		g := New(u1)
 		g.AddMember(u2)
 		g.AddMember(u3)

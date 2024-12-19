@@ -51,17 +51,17 @@ func Context(pkgPath string, send std.Coins) *teststd.TestExecContext {
 		},
 	}
 	ctx := stdlibs.ExecContext{
-		ChainID:       "dev",
-		ChainDomain:   "tests.gno.land",
-		Height:        DefaultHeight,
-		Timestamp:     DefaultTimestamp,
-		OrigCaller:    DefaultCaller,
-		OrigPkgAddr:   pkgAddr.Bech32(),
-		OrigSend:      send,
-		OrigSendSpent: new(std.Coins),
-		Banker:        banker,
-		Params:        newTestParams(),
-		EventLogger:   sdk.NewEventLogger(),
+		ChainID:         "dev",
+		ChainDomain:     "tests.gno.land",
+		Height:          DefaultHeight,
+		Timestamp:       DefaultTimestamp,
+		OriginCaller:    DefaultCaller,
+		OrigPkgAddr:     pkgAddr.Bech32(),
+		OriginSend:      send,
+		OriginSendSpent: new(std.Coins),
+		Banker:          banker,
+		Params:          newTestParams(),
+		EventLogger:     sdk.NewEventLogger(),
 	}
 	return &teststd.TestExecContext{
 		ExecContext: ctx,

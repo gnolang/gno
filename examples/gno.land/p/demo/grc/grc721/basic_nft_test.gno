@@ -259,7 +259,7 @@ func TestSetTokenURI(t *testing.T) {
 	addr2 := std.Address("g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj")
 	tokenURI := "http://example.com/token"
 
-	std.TestSetOrigCaller(std.Address(addr1)) // addr1
+	std.TestSetOriginCaller(std.Address(addr1)) // addr1
 
 	dummy.mint(addr1, TokenID("1"))
 	_, derr := dummy.SetTokenURI(TokenID("1"), TokenURI(tokenURI))
@@ -269,13 +269,13 @@ func TestSetTokenURI(t *testing.T) {
 	_, err := dummy.SetTokenURI(TokenID("3"), TokenURI(tokenURI))
 	uassert.ErrorIs(t, err, ErrInvalidTokenId)
 
-	std.TestSetOrigCaller(std.Address(addr2)) // addr2
+	std.TestSetOriginCaller(std.Address(addr2)) // addr2
 
 	_, cerr := dummy.SetTokenURI(TokenID("1"), TokenURI(tokenURI)) // addr2 trying to set URI for token 1
 	uassert.ErrorIs(t, cerr, ErrCallerIsNotOwner)
 
 	// Test case: Retrieving TokenURI
-	std.TestSetOrigCaller(std.Address(addr1)) // addr1
+	std.TestSetOriginCaller(std.Address(addr1)) // addr1
 
 	dummyTokenURI, err := dummy.TokenURI(TokenID("1"))
 	uassert.NoError(t, err, "TokenURI error")

@@ -18,7 +18,7 @@ func main() {
 	beneficiary2 := std.Address("g1akeqsvhucjt8gf5yupyzjxsjd29wv8fayng37c")
 
 	std.TestSetOrigPkgAddr(disperseAddr)
-	std.TestSetOrigCaller(mainaddr)
+	std.TestSetOriginCaller(mainaddr)
 
 	banker := std.GetBanker(std.BankerTypeRealmSend)
 

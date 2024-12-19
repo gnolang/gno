@@ -77,27 +77,27 @@ height := std.GetHeight()
 ```
 ---
 
-## GetOrigSend
+## OriginSend
 ```go
-func GetOrigSend() Coins
+func OriginSend() Coins
 ```
 Returns the `Coins` that were sent along with the calling transaction.
 
 #### Usage
 ```go
-coinsSent := std.GetOrigSend()
+coinsSent := std.OriginSend()
 ```
 ---
 
-## GetOrigCaller
+## OriginCaller
 ```go
-func GetOrigCaller() Address
+func OriginCaller() Address
 ```
 Returns the original signer of the transaction.
 
 #### Usage
 ```go
-caller := std.GetOrigCaller()
+caller := std.OriginCaller()
 ```
 ---
 
@@ -138,17 +138,17 @@ prevRealm := std.PrevRealm()
 ```
 ---
 
-## GetCallerAt
+## CallerAt
 ```go
-func GetCallerAt(n int) Address
+func CallerAt(n int) Address
 ```
 Returns the n-th caller of the function, going back in the call trace.
 
 #### Usage
 ```go
-currentRealm := std.GetCallerAt(1)      // returns address of current realm
-previousRealm := std.GetCallerAt(2)     // returns address of previous realm/caller
-std.GetCallerAt(0)                      // error, n must be > 0
+currentRealm := std.CallerAt(1)      // returns address of current realm
+previousRealm := std.CallerAt(2)     // returns address of previous realm/caller
+std.CallerAt(0)                      // error, n must be > 0
 ```
 --- 
 

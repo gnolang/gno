@@ -117,7 +117,7 @@ var nativeFuncs = [...]NativeFunc{
 	},
 	{
 		"std",
-		"testSetOrigCaller",
+		"testSetOriginCaller",
 		[]gno.FieldTypeExpr{
 			{Name: gno.N("p0"), Type: gno.X("string")},
 		},
@@ -132,7 +132,7 @@ var nativeFuncs = [...]NativeFunc{
 
 			gno.Gno2GoValue(b.GetPointerTo(nil, gno.NewValuePathBlock(1, 0, "")).TV, rp0)
 
-			testlibs_std.X_testSetOrigCaller(
+			testlibs_std.X_testSetOriginCaller(
 				m,
 				p0)
 		},
@@ -187,7 +187,7 @@ var nativeFuncs = [...]NativeFunc{
 	},
 	{
 		"std",
-		"testSetOrigSend",
+		"testSetOriginSend",
 		[]gno.FieldTypeExpr{
 			{Name: gno.N("p0"), Type: gno.X("[]string")},
 			{Name: gno.N("p1"), Type: gno.X("[]int64")},
@@ -214,7 +214,7 @@ var nativeFuncs = [...]NativeFunc{
 			gno.Gno2GoValue(b.GetPointerTo(nil, gno.NewValuePathBlock(1, 2, "")).TV, rp2)
 			gno.Gno2GoValue(b.GetPointerTo(nil, gno.NewValuePathBlock(1, 3, "")).TV, rp3)
 
-			testlibs_std.X_testSetOrigSend(
+			testlibs_std.X_testSetOriginSend(
 				m,
 				p0, p1, p2, p3)
 		},

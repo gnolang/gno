@@ -131,8 +131,8 @@ func UpdateMaxSponsors(newMax int) {
 }
 
 func Donate() {
-	address := std.GetOrigCaller()
-	amount := std.GetOrigSend()
+	address := std.OriginCaller()
+	amount := std.OriginSend()
 
 	if amount.AmountOf("ugnot") == 0 {
 		panic("Donation must include GNOT")

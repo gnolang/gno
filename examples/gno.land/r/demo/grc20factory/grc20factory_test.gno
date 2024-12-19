@@ -36,7 +36,7 @@ func TestReadOnlyPublicMethods(t *testing.T) {
 	}
 
 	// admin creates FOO and BAR.
-	std.TestSetOrigCaller(admin)
+	std.TestSetOriginCaller(admin)
 	std.TestSetRealm(std.NewUserRealm(admin))
 	NewWithAdmin("Foo", "FOO", 3, 1_111_111_000, 5_555, admin)
 	NewWithAdmin("Bar", "BAR", 3, 2_222_000, 6_666, admin)
@@ -47,25 +47,25 @@ func TestReadOnlyPublicMethods(t *testing.T) {
 	checkBalances("step2", 1_444_444_000, 1_111_111_000, 333_333_000, 0, 0)
 
 	// carl uses the faucet.
-	std.TestSetOrigCaller(carl)
+	std.TestSetOriginCaller(carl)
 	std.TestSetRealm(std.NewUserRealm(carl))
 	Faucet("FOO")
 	checkBalances("step3", 1_444_449_555, 1_111_111_000, 333_333_000, 0, 5_555)
 
 	// admin gives to bob some allowance.
-	std.TestSetOrigCaller(admin)
+	std.TestSetOriginCaller(admin)
 	std.TestSetRealm(std.NewUserRealm(admin))
 	Approve("FOO", bob, 1_000_000)
 	checkBalances("step4", 1_444_449_555, 1_111_111_000, 333_333_000, 1_000_000, 5_555)
 
 	// bob uses a part of the allowance.
-	std.TestSetOrigCaller(bob)
+	std.TestSetOriginCaller(bob)
 	std.TestSetRealm(std.NewUserRealm(bob))
 	TransferFrom("FOO", admin, carl, 400_000)
 	checkBalances("step5", 1_444_449_555, 1_110_711_000, 333_333_000, 600_000, 405_555)
 
 	// bob uses a part of the allowance.
-	std.TestSetOrigCaller(bob)
+	std.TestSetOriginCaller(bob)
 	std.TestSetRealm(std.NewUserRealm(bob))
 	TransferFrom("FOO", admin, carl, 600_000)
 	checkBalances("step6", 1_444_449_555, 1_110_111_000, 333_333_000, 0, 1_005_555)

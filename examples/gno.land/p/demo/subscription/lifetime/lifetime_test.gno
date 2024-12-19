@@ -18,7 +18,7 @@ func TestLifetimeSubscription(t *testing.T) {
 	std.TestSetRealm(std.NewUserRealm(alice))
 	ls := NewLifetimeSubscription(1000)
 
-	std.TestSetOrigSend([]std.Coin{{Denom: "ugnot", Amount: 1000}}, nil)
+	std.TestSetOriginSend([]std.Coin{{Denom: "ugnot", Amount: 1000}}, nil)
 	err := ls.Subscribe()
 	uassert.NoError(t, err, "Expected ProcessPayment to succeed")
 
@@ -30,7 +30,7 @@ func TestLifetimeSubscriptionGift(t *testing.T) {
 	std.TestSetRealm(std.NewUserRealm(alice))
 	ls := NewLifetimeSubscription(1000)
 
-	std.TestSetOrigSend([]std.Coin{{Denom: "ugnot", Amount: 1000}}, nil)
+	std.TestSetOriginSend([]std.Coin{{Denom: "ugnot", Amount: 1000}}, nil)
 	err := ls.GiftSubscription(bob)
 	uassert.NoError(t, err, "Expected ProcessPaymentGift to succeed for Bob")
 
@@ -48,7 +48,7 @@ func TestUpdateAmountAuthorization(t *testing.T) {
 	err := ls.UpdateAmount(2000)
 	uassert.NoError(t, err, "Expected Alice to succeed in updating amount")
 
-	std.TestSetOrigCaller(bob)
+	std.TestSetOriginCaller(bob)
 
 	err = ls.UpdateAmount(3000)
 	uassert.Error(t, err, "Expected Bob to fail when updating amount")
@@ -58,7 +58,7 @@ func TestIncorrectPaymentAmount(t *testing.T) {
 	std.TestSetRealm(std.NewUserRealm(alice))
 	ls := NewLifetimeSubscription(1000)
 
-	std.TestSetOrigSend([]std.Coin{{Denom: "ugnot", Amount: 500}}, nil)
+	std.TestSetOriginSend([]std.Coin{{Denom: "ugnot", Amount: 500}}, nil)
 	err := ls.Subscribe()
 	uassert.Error(t, err, "Expected payment to fail with incorrect amount")
 }
@@ -67,11 +67,11 @@ func TestMultipleSubscriptionAttempts(t *testing.T) {
 	std.TestSetRealm(std.NewUserRealm(alice))
 	ls := NewLifetimeSubscription(1000)
 
-	std.TestSetOrigSend([]std.Coin{{Denom: "ugnot", Amount: 1000}}, nil)
+	std.TestSetOriginSend([]std.Coin{{Denom: "ugnot", Amount: 1000}}, nil)
 	err := ls.Subscribe()
 	uassert.NoError(t, err, "Expected first subscription to succeed")
 
-	std.TestSetOrigSend([]std.Coin{{Denom: "ugnot", Amount: 1000}}, nil)
+	std.TestSetOriginSend([]std.Coin{{Denom: "ugnot", Amount: 1000}}, nil)
 	err = ls.Subscribe()
 	uassert.Error(t, err, "Expected second subscription to fail as Alice is already subscribed")
 }
@@ -80,7 +80,7 @@ func TestGiftSubscriptionWithIncorrectAmount(t *testing.T) {
 	std.TestSetRealm(std.NewUserRealm(alice))
 	ls := NewLifetimeSubscription(1000)
 
-	std.TestSetOrigSend([]std.Coin{{Denom: "ugnot", Amount: 500}}, nil)
+	std.TestSetOriginSend([]std.Coin{{Denom: "ugnot", Amount: 500}}, nil)
 	err := ls.GiftSubscription(bob)
 	uassert.Error(t, err, "Expected gift subscription to fail with incorrect amount")
 
@@ -95,11 +95,11 @@ func TestUpdateAmountEffectiveness(t *testing.T) {
 	err := ls.UpdateAmount(2000)
 	uassert.NoError(t, err, "Expected Alice to succeed in updating amount")
 
-	std.TestSetOrigSend([]std.Coin{{Denom: "ugnot", Amount: 1000}}, nil)
+	std.TestSetOriginSend([]std.Coin{{Denom: "ugnot", Amount: 1000}}, nil)
 	err = ls.Subscribe()
 	uassert.Error(t, err, "Expected subscription to fail with old amount after update")
 
-	std.TestSetOrigSend([]std.Coin{{Denom: "ugnot", Amount: 2000}}, nil)
+	std.TestSetOriginSend([]std.Coin{{Denom: "ugnot", Amount: 2000}}, nil)
 	err = ls.Subscribe()
 	uassert.NoError(t, err, "Expected subscription to succeed with new amount")
 }
