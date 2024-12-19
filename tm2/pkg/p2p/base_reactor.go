@@ -6,7 +6,7 @@ import (
 )
 
 // Reactor is responsible for handling incoming messages on one or more
-// Channel. Switch calls GetChannels when reactor is added to it. When a new
+// Channel. MultiplexSwitch calls GetChannels when reactor is added to it. When a new
 // peer joins our node, InitPeer and AddPeer are called. RemovePeer is called
 // when the peer is stopped. Receive is called when a message is received on a
 // channel associated with this reactor.
@@ -16,7 +16,7 @@ type Reactor interface {
 	service.Service // Start, Stop
 
 	// SetSwitch allows setting a switch.
-	SetSwitch(*Switch)
+	SetSwitch(Switch)
 
 	// GetChannels returns the list of MConnection.ChannelDescriptor. Make sure
 	// that each ID is unique across all the reactors added to the switch.
@@ -47,11 +47,11 @@ type Reactor interface {
 	Receive(chID byte, peer Peer, msgBytes []byte)
 }
 
-//--------------------------------------
+// --------------------------------------
 
 type BaseReactor struct {
-	service.BaseService // Provides Start, Stop, .Quit
-	Switch              *Switch
+	service.BaseService // Provides Start, Stop, Quit
+	Switch              Switch
 }
 
 func NewBaseReactor(name string, impl Reactor) *BaseReactor {
@@ -61,11 +61,11 @@ func NewBaseReactor(name string, impl Reactor) *BaseReactor {
 	}
 }
 
-func (br *BaseReactor) SetSwitch(sw *Switch) {
+func (br *BaseReactor) SetSwitch(sw Switch) {
 	br.Switch = sw
 }
-func (*BaseReactor) GetChannels() []*conn.ChannelDescriptor        { return nil }
-func (*BaseReactor) AddPeer(peer Peer)                             {}
-func (*BaseReactor) RemovePeer(peer Peer, reason interface{})      {}
-func (*BaseReactor) Receive(chID byte, peer Peer, msgBytes []byte) {}
-func (*BaseReactor) InitPeer(peer Peer) Peer                       { return peer }
+func (*BaseReactor) GetChannels() []*conn.ChannelDescriptor { return nil }
+func (*BaseReactor) AddPeer(_ Peer)                         {}
+func (*BaseReactor) RemovePeer(_ Peer, _ any)               {}
+func (*BaseReactor) Receive(_ byte, _ Peer, _ []byte)       {}
+func (*BaseReactor) InitPeer(peer Peer) Peer                { return peer }
