@@ -105,12 +105,16 @@ func packageImportsRecursive(root string, pkgPath string) []string {
 		pkg = &gnovm.MemPackage{}
 	}
 
-	importsMap, err := packages.Imports(pkg)
+	importsMap, err := packages.Imports(pkg, nil)
 	if err != nil {
 		// ignore packages with invalid imports
 		importsMap = nil
 	}
-	res := importsMap.Merge(packages.FileKindCompiled, packages.FileKindTest, packages.FileKindXtest)
+	resRaw := importsMap.Merge(packages.FileKindCompiled, packages.FileKindTest, packages.FileKindXtest)
+	res := make([]string, len(resRaw))
+	for idx, imp := range resRaw {
+		res[idx] = imp.PkgPath
+	}
 
 	entries, err := os.ReadDir(root)
 	if err != nil {
@@ -128,7 +132,7 @@ func packageImportsRecursive(root string, pkgPath string) []string {
 
 		for _, imp := range sub {
 			if !slices.Contains(res, imp) {
-				res = append(res, imp)
+				res = append(res, imp) //nolint:makezero
 			}
 		}
 	}

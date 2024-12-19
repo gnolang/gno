@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"reflect"
 	"strings"
+
+	bm "github.com/gnolang/gno/gnovm/pkg/benchops"
 )
 
 // ----------------------------------------
@@ -71,8 +73,11 @@ const (
 )
 
 func init() {
-	// Call Uverse() so we initialize the Uverse node ahead of any calls to the package.
-	Uverse()
+	// Skip Uverse init during benchmarking to load stdlibs in the benchmark main function.
+	if !(bm.OpsEnabled || bm.StorageEnabled) {
+		// Call Uverse() so we initialize the Uverse node ahead of any calls to the package.
+		Uverse()
+	}
 }
 
 const uversePkgPath = ".uverse"

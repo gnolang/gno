@@ -12,32 +12,32 @@ import (
 	"github.com/gnolang/gno/gnovm"
 )
 
-type ImportsMap map[FileKind][]string
+type ImportsMap map[FileKind][]FileImport
 
 // Merge merges imports, it removes duplicates and sorts the result
-func (imap ImportsMap) Merge(kinds ...FileKind) []string {
-	res := []string{}
-	seen := map[string]struct{}{}
+func (imap ImportsMap) Merge(kinds ...FileKind) []FileImport {
+	res := make([]FileImport, 0, 16)
+	seen := make(map[string]struct{}, 16)
 
 	for _, kind := range kinds {
 		for _, im := range imap[kind] {
-			if _, ok := seen[im]; ok {
+			if _, ok := seen[im.PkgPath]; ok {
 				continue
 			}
-			seen[im] = struct{}{}
+			seen[im.PkgPath] = struct{}{}
 
 			res = append(res, im)
 		}
 	}
 
-	sort.Strings(res)
+	SortImports(res)
 	return res
 }
 
 // Imports returns the list of gno imports from a [gnovm.MemPackage].
-func Imports(pkg *gnovm.MemPackage) (ImportsMap, error) {
-	res := make(ImportsMap)
-	seen := make(map[FileKind]map[string]struct{})
+func Imports(pkg *gnovm.MemPackage, fset *token.FileSet) (ImportsMap, error) {
+	res := make(ImportsMap, 16)
+	seen := make(map[FileKind]map[string]struct{}, 16)
 
 	for _, file := range pkg.Files {
 		if !strings.HasSuffix(file.Name, ".gno") {
@@ -48,57 +48,64 @@ func Imports(pkg *gnovm.MemPackage) (ImportsMap, error) {
 		if err != nil {
 			return nil, err
 		}
-
-		imports, _, err := FileImports(file.Name, file.Body)
+		imports, err := FileImports(file.Name, file.Body, fset)
 		if err != nil {
 			return nil, err
 		}
 		for _, im := range imports {
-			if im.Error != nil {
-				return nil, err
-			}
 			if _, ok := seen[fileKind][im.PkgPath]; ok {
 				continue
 			}
-			res[fileKind] = append(res[fileKind], im.PkgPath)
+			res[fileKind] = append(res[fileKind], im)
 			if _, ok := seen[fileKind]; !ok {
-				seen[fileKind] = make(map[string]struct{})
+				seen[fileKind] = make(map[string]struct{}, 16)
 			}
 			seen[fileKind][im.PkgPath] = struct{}{}
 		}
 	}
 
 	for _, imports := range res {
-		sort.Strings(imports)
+		SortImports(imports)
 	}
 
 	return res, nil
 }
 
+// FileImport represents an import
 type FileImport struct {
 	PkgPath string
 	Spec    *ast.ImportSpec
-	Error   error
 }
 
 // FileImports returns the list of gno imports in the given file src.
 // The given filename is only used when recording position information.
-func FileImports(filename string, src string) ([]*FileImport, *token.FileSet, error) {
-	fs := token.NewFileSet()
-	f, err := parser.ParseFile(fs, filename, src, parser.ImportsOnly)
-	if err != nil {
-		return nil, nil, err
+func FileImports(filename string, src string, fset *token.FileSet) ([]FileImport, error) {
+	if fset == nil {
+		fset = token.NewFileSet()
 	}
-	res := make([]*FileImport, len(f.Imports))
+	f, err := parser.ParseFile(fset, filename, src, parser.ImportsOnly)
+	if err != nil {
+		return nil, err
+	}
+	res := make([]FileImport, len(f.Imports))
 	for i, im := range f.Imports {
-		fi := FileImport{Spec: im}
 		importPath, err := strconv.Unquote(im.Path.Value)
 		if err != nil {
-			fi.Error = fmt.Errorf("%v: unexpected invalid import path: %v", fs.Position(im.Pos()).String(), im.Path.Value)
-		} else {
-			fi.PkgPath = importPath
+			// should not happen - parser.ParseFile should already ensure we get
+			// a valid string literal here.
+			panic(fmt.Errorf("%v: unexpected invalid import path: %v", fset.Position(im.Pos()).String(), im.Path.Value))
 		}
-		res[i] = &fi
+
+		res[i] = FileImport{
+			PkgPath: importPath,
+			Spec:    im,
+		}
 	}
-	return res, fs, nil
+	return res, nil
+}
+
+func SortImports(imports []FileImport) {
+	sort.Slice(imports, func(i, j int) bool {
+		return imports[i].PkgPath < imports[j].PkgPath
+	})
 }

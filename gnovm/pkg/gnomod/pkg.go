@@ -5,7 +5,6 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
-	"slices"
 	"strings"
 
 	"github.com/gnolang/gno/gnovm"
@@ -122,17 +121,21 @@ func ListPkgs(root string) (PkgList, error) {
 			pkg = &gnovm.MemPackage{}
 		}
 
-		importsMap, err := packages.Imports(pkg)
+		importsMap, err := packages.Imports(pkg, nil)
 		if err != nil {
 			// ignore imports on error
 			importsMap = nil
 		}
-		imports := importsMap.Merge(packages.FileKindCompiled, packages.FileKindTest, packages.FileKindXtest)
+		importsRaw := importsMap.Merge(packages.FileKindCompiled, packages.FileKindTest, packages.FileKindXtest)
 
-		// remove self and standard libraries from imports
-		imports = slices.DeleteFunc(imports, func(imp string) bool {
-			return imp == gnoMod.Module.Mod.Path || gnolang.IsStdlib(imp)
-		})
+		imports := make([]string, 0, len(importsRaw))
+		for _, imp := range importsRaw {
+			// remove self and standard libraries from imports
+			if imp.PkgPath != gnoMod.Module.Mod.Path &&
+				!gnolang.IsStdlib(imp.PkgPath) {
+				imports = append(imports, imp.PkgPath)
+			}
+		}
 
 		pkgs = append(pkgs, Pkg{
 			Dir:     path,

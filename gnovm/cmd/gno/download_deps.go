@@ -25,14 +25,14 @@ func downloadDeps(io commands.IO, pkgDir string, gnoMod *gnomod.File, fetcher pk
 	if err != nil {
 		return fmt.Errorf("read package at %q: %w", pkgDir, err)
 	}
-	importsMap, err := packages.Imports(pkg)
+	importsMap, err := packages.Imports(pkg, nil)
 	if err != nil {
 		return fmt.Errorf("read imports at %q: %w", pkgDir, err)
 	}
 	imports := importsMap.Merge(packages.FileKindCompiled, packages.FileKindTest, packages.FileKindXtest)
 
 	for _, pkgPath := range imports {
-		resolved := gnoMod.Resolve(module.Version{Path: pkgPath})
+		resolved := gnoMod.Resolve(module.Version{Path: pkgPath.PkgPath})
 		resolvedPkgPath := resolved.Path
 
 		if !isRemotePkgPath(resolvedPkgPath) {

@@ -113,7 +113,7 @@ func TestImports(t *testing.T) {
 	// - ignore subdirs
 	// - ignore duplicate
 	// - should be sorted
-	expected := ImportsMap{
+	expected := map[FileKind][]string{
 		FileKindCompiled: {
 			"gno.land/p/demo/pkg1",
 			"gno.land/p/demo/pkg2",
@@ -146,7 +146,18 @@ func TestImports(t *testing.T) {
 	pkg, err := gnolang.ReadMemPackage(tmpDir, "test")
 	require.NoError(t, err)
 
-	importsMap, err := Imports(pkg)
+	importsMap, err := Imports(pkg, nil)
 	require.NoError(t, err)
-	require.Equal(t, expected, importsMap)
+
+	// ignore specs
+	got := map[FileKind][]string{}
+	for key, vals := range importsMap {
+		stringVals := make([]string, len(vals))
+		for i, val := range vals {
+			stringVals[i] = val.PkgPath
+		}
+		got[key] = stringVals
+	}
+
+	require.Equal(t, expected, got)
 }
