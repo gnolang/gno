@@ -32,46 +32,57 @@ type GnoURL struct {
 	Query    url.Values // c=d
 }
 
-// EncodeArgs encodes the arguments and query parameters into a string.
-func (gnoURL GnoURL) EncodeArgs() string {
+type EncodeFlag int
+
+const (
+	EncodePath EncodeFlag = 1 << iota
+	EncodeArgs
+	EncodeWebQuery
+	EncodeQuery
+)
+
+// Encode encodes the URL components based on the provided flags.
+func (gnoURL GnoURL) Encode(encodeFlags EncodeFlag) string {
 	var urlstr strings.Builder
-	if gnoURL.Args != "" {
+
+	if encodeFlags&EncodePath != 0 {
+		urlstr.WriteString(gnoURL.Path)
+	}
+
+	if encodeFlags&EncodeArgs != 0 && gnoURL.Args != "" {
+		if encodeFlags&EncodePath != 0 {
+			urlstr.WriteString(":")
+		}
 		urlstr.WriteString(gnoURL.Args)
 	}
-	if len(gnoURL.Query) > 0 {
-		urlstr.WriteString("?" + gnoURL.Query.Encode())
-	}
-	return urlstr.String()
-}
 
-// EncodePath encodes the path, arguments, and query parameters into a string.
-func (gnoURL GnoURL) EncodePath() string {
-	var urlstr strings.Builder
-	urlstr.WriteString(gnoURL.Path)
-	if gnoURL.Args != "" {
-		urlstr.WriteString(":" + gnoURL.Args)
-	}
-	if len(gnoURL.Query) > 0 {
-		urlstr.WriteString("?" + gnoURL.Query.Encode())
-	}
-	return urlstr.String()
-}
-
-// EncodeWebPath encodes the path, arguments, and both web and query parameters into a string.
-func (gnoURL GnoURL) EncodeWebPath() string {
-	var urlstr strings.Builder
-	urlstr.WriteString(gnoURL.Path)
-	if gnoURL.Args != "" {
-		pathEscape := escapeDollarSign(gnoURL.Args)
-		urlstr.WriteString(":" + pathEscape)
-	}
-	if len(gnoURL.WebQuery) > 0 {
+	if encodeFlags&EncodeWebQuery != 0 && len(gnoURL.WebQuery) > 0 {
 		urlstr.WriteString("$" + gnoURL.WebQuery.Encode())
 	}
-	if len(gnoURL.Query) > 0 {
+
+	if encodeFlags&EncodeQuery != 0 && len(gnoURL.Query) > 0 {
 		urlstr.WriteString("?" + gnoURL.Query.Encode())
 	}
+
 	return urlstr.String()
+}
+
+// EncodeArgsQuery encodes the arguments and query parameters into a string.
+// This function is intended to be passed as a realm `Render` argument.
+func (gnoURL GnoURL) EncodeArgsQuery() string {
+	return gnoURL.Encode(EncodeArgs | EncodeQuery)
+}
+
+// EncodePathArgsQuery encodes the path, arguments, and query parameters into a string.
+// This function provides the full representation of the URL without the web query.
+func (gnoURL GnoURL) EncodePathArgsQuery() string {
+	return gnoURL.Encode(EncodePath | EncodeArgs | EncodeQuery)
+}
+
+// EncodeWebPath encodes the path, package arguments, web query, and query into a string.
+// This function provides the full representation of the URL.
+func (gnoURL GnoURL) EncodeWebPath() string {
+	return gnoURL.Encode(EncodePath | EncodeArgs | EncodeWebQuery | EncodeQuery)
 }
 
 // Kind determines the kind of path (invalid, realm, or pure) based on the path structure.

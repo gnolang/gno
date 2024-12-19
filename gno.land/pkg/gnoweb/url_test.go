@@ -210,7 +210,6 @@ func TestParseGnoURL(t *testing.T) {
 			result, err := ParseGnoURL(u)
 			if tc.Err == nil {
 				require.NoError(t, err)
-				t.Logf("encoded path: %q", result.EncodePath())
 				t.Logf("encoded web path: %q", result.EncodeWebPath())
 			} else {
 				require.Error(t, err)

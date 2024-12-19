@@ -165,7 +165,7 @@ func (h *WebHandler) renderPackage(w io.Writer, gnourl *GnoURL) (status int, err
 
 	// Render content into the content buffer
 	var content bytes.Buffer
-	meta, err := h.webcli.Render(&content, gnourl.Path, gnourl.EncodeArgs())
+	meta, err := h.webcli.Render(&content, gnourl.Path, gnourl.EncodeArgsQuery())
 	if err != nil {
 		if errors.Is(err, vm.InvalidPkgPathError{}) {
 			return http.StatusNotFound, components.RenderStatusComponent(w, "not found")
