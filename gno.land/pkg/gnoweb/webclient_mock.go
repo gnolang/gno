@@ -12,8 +12,8 @@ import (
 
 // MockPackage represents a mock package with files and function signatures.
 type MockPackage struct {
-	Domain    string
 	Path      string
+	Domain    string
 	Files     map[string] /* filename  */ string /* body */
 	Functions []vm.FunctionSignature
 }
@@ -23,14 +23,23 @@ type MockWebClient struct {
 	Packages map[string] /* path */ *MockPackage /* package */
 }
 
-// Render simulates rendering a package by writing its content to the writer.
-func (m *MockWebClient) RenderRealm((w io.Writer, path string, args string) (*RealmMeta, error) {
-	pkg, exists := m.Packages[path]
-	if !exists {
-		return nil, errors.New("package not found")
+func NewMockWebClient(pkgs ...*MockPackage) *MockWebClient {
+	mpkgs := make(map[string]*MockPackage)
+	for _, pkg := range pkgs {
+		mpkgs[pkg.Path] = pkg
 	}
 
-	fmt.Fprintf(w, "[%s]%s:%s: lorem ipsum", pkg.Domain, pkg.Path)
+	return &MockWebClient{Packages: mpkgs}
+}
+
+// Render simulates rendering a package by writing its content to the writer.
+func (m *MockWebClient) RenderRealm(w io.Writer, path string, args string) (*RealmMeta, error) {
+	pkg, exists := m.Packages[path]
+	if !exists {
+		return nil, ErrClientPathNotFound
+	}
+
+	fmt.Fprintf(w, "[%s]%s:", pkg.Domain, pkg.Path)
 
 	// Return a dummy RealmMeta for simplicity
 	return &RealmMeta{}, nil

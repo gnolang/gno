@@ -116,8 +116,8 @@ func (h *WebHandler) Get(w http.ResponseWriter, r *http.Request) {
 func (h *WebHandler) renderPage(body *bytes.Buffer, r *http.Request, indexData *components.IndexData) (int, error) {
 	gnourl, err := ParseGnoURL(r.URL)
 	if err != nil {
-		h.Logger.Warn("page not found", "path", r.URL.Path, "err", err)
-		return http.StatusNotFound, components.RenderStatusComponent(body, "page not found")
+		h.Logger.Warn("unable to parse url path", "path", r.URL.Path, "err", err)
+		return http.StatusBadRequest, components.RenderStatusComponent(body, "invalid path")
 	}
 
 	breadcrumb := components.BreadcrumbData{Parts: generateBreadcrumbPaths(gnourl.Path)}
@@ -128,12 +128,12 @@ func (h *WebHandler) renderPage(body *bytes.Buffer, r *http.Request, indexData *
 		WebQuery:   gnourl.WebQuery,
 	}
 
-	switch gnourl.Kind() {
+	switch k := gnourl.Kind(); k {
 	case KindRealm, KindPure:
 		return h.GetPackagePage(body, gnourl)
 	default:
-		h.Logger.Debug("invalid page kind", "kind", gnourl.Kind())
-		return http.StatusNotFound, components.RenderStatusComponent(body, "page not found")
+		h.Logger.Debug("invalid path kind", "kind", k)
+		return http.StatusBadRequest, components.RenderStatusComponent(body, "invalid path")
 	}
 }
 
@@ -189,7 +189,7 @@ func (h *WebHandler) renderRealmContent(w io.Writer, gnourl *GnoURL) (int, error
 
 	err = components.RenderRealmComponent(w, components.RealmData{
 		TocItems: &components.RealmTOCData{
-			Items: meta.Items,
+			Items: meta.Toc.Items,
 		},
 		// NOTE: `RenderRealm` should ensure that HTML content is
 		// sanitized before rendering
@@ -246,7 +246,7 @@ func (h *WebHandler) GetHelpPage(w io.Writer, gnourl *GnoURL) (int, error) {
 
 // GetSource renders the source page.
 func (h *WebHandler) GetSource(w io.Writer, gnourl *GnoURL) (int, error) {
-	pkgPath := gnourl.Path
+	pkgPath := strings.TrimSuffix(gnourl.Path, "/")
 
 	files, err := h.Client.Sources(pkgPath)
 	if err != nil {
@@ -291,7 +291,7 @@ func (h *WebHandler) GetSource(w io.Writer, gnourl *GnoURL) (int, error) {
 
 // GetDirectoryPage renders the directory page.
 func (h *WebHandler) GetDirectoryPage(w io.Writer, gnourl *GnoURL) (int, error) {
-	pkgPath := gnourl.Path
+	pkgPath := strings.TrimSuffix(gnourl.Path, "/")
 
 	files, err := h.Client.Sources(pkgPath)
 	if err != nil {
@@ -317,21 +317,21 @@ func (h *WebHandler) GetDirectoryPage(w io.Writer, gnourl *GnoURL) (int, error) 
 	return http.StatusOK, nil
 }
 
-func renderClientErrorStatusPage(w io.Writer, u *GnoURL, err error) (int, error) {
+func renderClientErrorStatusPage(w io.Writer, _ *GnoURL, err error) (int, error) {
 	if err == nil {
 		return http.StatusOK, nil
 	}
 
-	if errors.Is(err, ErrClientPathNotFound) {
-		msg := fmt.Sprintf(`not found: "%s"`, u.Path)
-		return http.StatusNotFound, components.RenderStatusComponent(w, msg)
-	}
-
-	if errors.Is(err, ErrClientBadRequest) || errors.Is(err, ErrClientResponse) {
+	switch {
+	case errors.Is(err, ErrClientPathNotFound):
 		return http.StatusNotFound, components.RenderStatusComponent(w, err.Error())
+	case errors.Is(err, ErrClientBadRequest):
+		return http.StatusInternalServerError, components.RenderStatusComponent(w, "bad request")
+	case errors.Is(err, ErrClientResponse):
+		fallthrough // XXX: for now fallback as internal error
+	default:
+		return http.StatusInternalServerError, components.RenderStatusComponent(w, "internal error")
 	}
-
-	return http.StatusInternalServerError, components.RenderStatusComponent(w, "internal error")
 }
 
 // generateBreadcrumbPaths creates breadcrumb paths from a given path.

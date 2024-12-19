@@ -115,7 +115,8 @@ func (s *HTMLWebClient) Sources(path string) ([]string, error) {
 	const qpath = "vm/qfile"
 
 	// XXX: Consider moving this into gnoclient
-	fullPath := fmt.Sprintf("%s/%s", s.domain, strings.Trim(path, "/"))
+	pkgPath := strings.Trim(path, "/")
+	fullPath := fmt.Sprintf("%s/%s", s.domain, pkgPath)
 	res, err := s.query(qpath, []byte(fullPath))
 	if err != nil {
 		return nil, err
