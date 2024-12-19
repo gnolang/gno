@@ -7,8 +7,6 @@ import (
 	"gno.land/p/demo/ufmt"
 	"gno.land/p/moul/md"
 	"gno.land/r/leon/hof"
-	"gno.land/p/demo/btree"
-	"gno.land/r/matijamarjanovic/btree_dao"
 )
 
 var (
