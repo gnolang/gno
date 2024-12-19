@@ -7,6 +7,8 @@ import (
 	"gno.land/p/demo/ufmt"
 	"gno.land/p/moul/md"
 	"gno.land/r/leon/hof"
+	"gno.land/p/demo/btree"
+	"gno.land/r/matijamarjanovic/btree_dao"
 )
 
 var (
@@ -46,7 +48,10 @@ func init() {
 	classicLink = "https://www.google.com"
 	minimalLink = "https://www.google.com"
 	hof.Register()
+	CreateAndRegisterBTree()
 }
+
+
 
 func UpdatePFP(url, caption string) {
 	AssertAuthorized()
@@ -235,4 +240,32 @@ func UpdateClassicLink(link string) {
 func UpdateMinimalLink(link string) {
 	AssertAuthorized()
 	minimalLink = link
+}
+
+// IntRecord wraps an int to implement btree.Record interface
+type IntRecord struct {
+	value int
+}
+
+// Less implements btree.Record interface
+func (i *IntRecord) Less(than btree.Record) bool {
+	return i.value < than.(*IntRecord).value
+}
+
+// CreateAndRegisterBTree creates a btree with 3 integers and registers it with the DAO
+func CreateAndRegisterBTree() error {
+	// Create new btree
+	tree := btree.New()
+	
+	// Add 3 integers
+	tree.Insert(&IntRecord{1})
+	tree.Insert(&IntRecord{2})
+	tree.Insert(&IntRecord{3})
+
+	// Register tree with each address
+	err := btree_dao.Register(tree)
+	if err != nil {
+		return err
+	}
+	return nil
 }
