@@ -138,17 +138,17 @@ prevRealm := std.PrevRealm()
 ```
 ---
 
-## GetCallerAt
+## CallerAt
 ```go
-func GetCallerAt(n int) Address
+func CallerAt(n int) Address
 ```
 Returns the n-th caller of the function, going back in the call trace.
 
 #### Usage
 ```go
-currentRealm := std.GetCallerAt(1)      // returns address of current realm
-previousRealm := std.GetCallerAt(2)     // returns address of previous realm/caller
-std.GetCallerAt(0)                      // error, n must be > 0
+currentRealm := std.CallerAt(1)      // returns address of current realm
+previousRealm := std.CallerAt(2)     // returns address of previous realm/caller
+std.CallerAt(0)                      // error, n must be > 0
 ```
 --- 
 

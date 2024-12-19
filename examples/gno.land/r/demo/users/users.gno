@@ -34,7 +34,7 @@ func Register(inviter std.Address, name string, profile string) {
 	// assert CallTx call.
 	std.AssertOriginCall()
 	// assert invited or paid.
-	caller := std.GetCallerAt(2)
+	caller := std.CallerAt(2)
 	if caller != std.OriginCaller() {
 		panic("should not happen") // because std.AssertOrigCall().
 	}
@@ -118,7 +118,7 @@ func Invite(invitee string) {
 	// assert CallTx call.
 	std.AssertOriginCall()
 	// get caller/inviter.
-	caller := std.GetCallerAt(2)
+	caller := std.CallerAt(2)
 	if caller != std.OriginCaller() {
 		panic("should not happen") // because std.AssertOrigCall().
 	}
@@ -157,7 +157,7 @@ func GrantInvites(invites string) {
 	// assert CallTx call.
 	std.AssertOriginCall()
 	// assert admin.
-	caller := std.GetCallerAt(2)
+	caller := std.CallerAt(2)
 	if caller != std.OriginCaller() {
 		panic("should not happen") // because std.AssertOrigCall().
 	}
@@ -208,7 +208,7 @@ func SetMinFee(newMinFee int64) {
 	// assert CallTx call.
 	std.AssertOriginCall()
 	// assert admin caller.
-	caller := std.GetCallerAt(2)
+	caller := std.CallerAt(2)
 	if caller != admin {
 		panic("unauthorized")
 	}
@@ -221,7 +221,7 @@ func SetMaxFeeMultiple(newMaxFeeMult int64) {
 	// assert CallTx call.
 	std.AssertOriginCall()
 	// assert admin caller.
-	caller := std.GetCallerAt(2)
+	caller := std.CallerAt(2)
 	if caller != admin {
 		panic("unauthorized")
 	}
