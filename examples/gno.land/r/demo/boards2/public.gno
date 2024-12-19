@@ -51,7 +51,7 @@ func FlagThread(bid BoardID, postID PostID, reason string) {
 	}
 
 	if flagItem(t, NewFlag(caller, reason)) {
-		t.SetVisibility(false)
+		t.SetVisible(false)
 	}
 }
 
@@ -101,7 +101,7 @@ func FlagReply(bid BoardID, threadID, replyID PostID, reason string) {
 	reply := mustGetReply(thread, replyID)
 
 	if flagItem(reply, NewFlag(caller, reason)) {
-		reply.SetVisibility(false)
+		reply.SetVisible(false)
 	}
 }
 
