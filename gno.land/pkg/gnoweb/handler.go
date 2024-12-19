@@ -117,7 +117,7 @@ func (h *WebHandler) renderPage(body *bytes.Buffer, r *http.Request, indexData *
 	gnourl, err := ParseGnoURL(r.URL)
 	if err != nil {
 		h.Logger.Warn("unable to parse url path", "path", r.URL.Path, "err", err)
-		return http.StatusBadRequest, components.RenderStatusComponent(body, "invalid path")
+		return http.StatusNotFound, components.RenderStatusComponent(body, "invalid path")
 	}
 
 	breadcrumb := components.BreadcrumbData{Parts: generateBreadcrumbPaths(gnourl.Path)}

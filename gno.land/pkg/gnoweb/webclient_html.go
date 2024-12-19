@@ -93,6 +93,12 @@ func (s *HTMLWebClient) SourceFile(w io.Writer, path, fileName string) (*FileMet
 
 	source, err := s.query(qpath, []byte(fullPath))
 	if err != nil {
+		// XXX: this is a bit ugly, we should make the keeper return an
+		// assertable error.
+		if strings.Contains(err.Error(), "not available") {
+			return nil, ErrClientPathNotFound
+		}
+
 		return nil, err
 	}
 
@@ -119,6 +125,12 @@ func (s *HTMLWebClient) Sources(path string) ([]string, error) {
 	fullPath := fmt.Sprintf("%s/%s", s.domain, pkgPath)
 	res, err := s.query(qpath, []byte(fullPath))
 	if err != nil {
+		// XXX: this is a bit ugly, we should make the keeper return an
+		// assertable error.
+		if strings.Contains(err.Error(), "not available") {
+			return nil, ErrClientPathNotFound
+		}
+
 		return nil, err
 	}
 

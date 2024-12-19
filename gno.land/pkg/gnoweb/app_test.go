@@ -24,9 +24,9 @@ func TestRoutes(t *testing.T) {
 		status    int
 		substring string
 	}{
-		{"/", ok, "Welcome"}, // assert / gives 200 (OK). assert / contains "Welcome".
+		{"/", ok, "Welcome"}, // Check if / returns 200 (OK) and contains "Welcome".
 		{"/about", ok, "blockchain"},
-		{"/r/gnoland/blog", ok, ""}, // whatever content
+		{"/r/gnoland/blog", ok, ""}, // Any content
 		{"/r/gnoland/blog$help", ok, "AdminSetAdminAddr"},
 		{"/r/gnoland/blog/", ok, "admin.gno"},
 		{"/r/gnoland/blog/admin.gno", ok, ">func<"},
@@ -47,11 +47,12 @@ func TestRoutes(t *testing.T) {
 		{"/game-of-realms", found, "/contribute"},
 		{"/gor", found, "/contribute"},
 		{"/blog", found, "/r/gnoland/blog"},
-		{"/404/not/found/", notFound, ""},
+		{"/r/not/found/", notFound, ""},
+		{"/404/not/found", notFound, ""},
 		{"/아스키문자가아닌경로", notFound, ""},
 		{"/%ED%85%8C%EC%8A%A4%ED%8A%B8", notFound, ""},
 		{"/グノー", notFound, ""},
-		{"/\u269B\uFE0F", notFound, ""}, // unicode
+		{"/\u269B\uFE0F", notFound, ""}, // Unicode
 		{"/p/demo/flow/LICENSE", ok, "BSD 3-Clause"},
 		// Test assets
 		{"/public/styles.css", ok, ""},
@@ -71,8 +72,7 @@ func TestRoutes(t *testing.T) {
 
 	logger := log.NewTestingLogger(t)
 
-	// set the `remoteAddr` of the client to the listening address of the
-	// node, which is randomly assigned.
+	// Initialize the router with the current node's remote address
 	router, err := NewRouter(logger, cfg)
 	require.NoError(t, err)
 
@@ -90,24 +90,24 @@ func TestRoutes(t *testing.T) {
 
 func TestAnalytics(t *testing.T) {
 	routes := []string{
-		// special realms
-		"/", // home
+		// Special realms
+		"/", // Home
 		"/about",
 		"/start",
 
-		// redirects
+		// Redirects
 		"/game-of-realms",
 		"/getting-started",
 		"/blog",
 		"/boards",
 
-		// realm, source, help page
+		// Realm, source, help page
 		"/r/gnoland/blog",
 		"/r/gnoland/blog/admin.gno",
 		"/r/demo/users:administrator",
 		"/r/gnoland/blog$help",
 
-		// special pages
+		// Special pages
 		"/404-not-found",
 	}
 
@@ -130,6 +130,7 @@ func TestAnalytics(t *testing.T) {
 
 				request := httptest.NewRequest(http.MethodGet, route, nil)
 				response := httptest.NewRecorder()
+
 				router.ServeHTTP(response, request)
 				assert.Contains(t, response.Body.String(), "sa.gno.services")
 			})
@@ -147,6 +148,7 @@ func TestAnalytics(t *testing.T) {
 
 				request := httptest.NewRequest(http.MethodGet, route, nil)
 				response := httptest.NewRecorder()
+
 				router.ServeHTTP(response, request)
 				assert.NotContains(t, response.Body.String(), "sa.gno.services")
 			})
