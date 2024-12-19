@@ -41,6 +41,7 @@ func CreateBoard(name string) BoardID {
 
 func FlagThread(bid BoardID, postID PostID, reason string) {
 	caller := std.GetOrigCaller()
+	// TODO: Replace by assertHasBoardPermission() when supported
 	assertHasPermission(caller, PermissionThreadFlag)
 
 	board := mustGetBoard(bid)
@@ -92,6 +93,7 @@ func CreateReply(bid BoardID, threadID, replyID PostID, body string) PostID {
 
 func FlagReply(bid BoardID, threadID, replyID PostID, reason string) {
 	caller := std.GetOrigCaller()
+	// TODO: Replace by assertHasBoardPermission() when supported
 	assertHasPermission(caller, PermissionThreadFlag)
 
 	board := mustGetBoard(bid)
