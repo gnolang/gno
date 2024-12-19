@@ -32,54 +32,77 @@ var (
 	members = btree.New()
 )
 
+// PlantTree allows a user to plant a B-Tree in the DAO forest
+func PlantTree(userBTree *btree.BTree) error {
+	return plantImpl(userBTree, "")
+}
 
-// Register allows a user to register by sending their B-Tree instance
-func Register(userBTree *btree.BTree) error {
-	// Check if this tree is already registered
-	var treeExists bool
-	members.Ascend(func(record btree.Record) bool {
-		regDetails := record.(*RegistrationDetails)
-		if regDetails.UserBTree == userBTree {
-			treeExists = true
-			return false // Stop iteration
-		}
-		return true
-	})
-	if treeExists {
-		return errors.New("tree is already registered")
-	}
+// PlantSeed allows a user to register as a seed with a message
+func PlantSeed(message string) error {
+	return plantImpl(nil, message)
+}
 
-	// Get the caller's address - use GetOrigCaller() if called from init()
+// plantImpl is the internal implementation that handles both trees and seeds
+func plantImpl(userBTree *btree.BTree, seedMessage string) error {
+	// Get the caller's address
 	var userAddress std.Address
 	if std.PrevRealm().IsUser() {
-		userAddress = std.PrevRealm().Addr() // technically this will never happen as you can't register a btree from manually created tx
+		userAddress = std.PrevRealm().Addr()
 	} else {
 		userAddress = std.GetOrigCaller()
 	}
 
-	// Check if the user has used a B-Tree or just made an empty one
-	// User can also cheat this system but I don't see the point
-	if userBTree == nil || userBTree.Len() == 0 {
-		return errors.New("Invalid B-Tree instance")
+	var nftID string
+	var regDetails *RegistrationDetails
+
+	if userBTree != nil {
+		// Handle tree planting
+		var treeExists bool
+		members.Ascend(func(record btree.Record) bool {
+			regDetails := record.(*RegistrationDetails)
+			if regDetails.UserBTree == userBTree {
+				treeExists = true
+				return false
+			}
+			return true
+		})
+		if treeExists {
+			return errors.New("tree is already planted in the forest")
+		}
+
+		if userBTree.Len() == 0 {
+			return errors.New("cannot plant an empty tree")
+		}
+
+		nftID = ufmt.Sprintf("%d", tokenID)
+		regDetails = &RegistrationDetails{
+			Address:   userAddress,
+			RegTime:   time.Now(),
+			UserBTree: userBTree,
+			NFTID:     tokenID,
+		}
+	} else {
+		// Handle seed planting
+		if seedMessage == "" {
+			return errors.New("seed message cannot be empty")
+		}
+		nftID = "seed_" + ufmt.Sprintf("%d", tokenID)
+		regDetails = &RegistrationDetails{
+			Address:   userAddress,
+			RegTime:   time.Now(),
+			UserBTree: nil,
+			NFTID:     tokenID,
+		}
 	}
 
 	// Mint an NFT to the user
-	err := dao.Mint(userAddress, grc721.TokenID(tokenID))
+	err := dao.Mint(userAddress, grc721.TokenID(nftID))
 	if err != nil {
 		return err
 	}
 
-	regDetails := &RegistrationDetails{
-		Address:   userAddress,
-		RegTime:   time.Now(),
-		UserBTree: userBTree,
-		NFTID:     tokenID,
-	}
-
 	members.Insert(regDetails)
-
 	tokenID++
-
 	return nil
 }
 
@@ -102,7 +125,11 @@ func Render(path string) string {
 					if i > 0 {
 						nftList += ", "
 					}
-					nftList += "#" + ufmt.Sprintf("%d", regDetails.NFTID)
+					if regDetails.UserBTree == nil {
+						nftList += "🌱#" + ufmt.Sprintf("seed_%d", regDetails.NFTID)  // Seed emoji for seeds
+					} else {
+						nftList += "🌳#" + ufmt.Sprintf("%d", regDetails.NFTID)  // Tree emoji for tree planters
+					}
 				}
 				nftList += ")"
 			}
@@ -125,7 +152,11 @@ func Render(path string) string {
 					if i > 0 {
 						nftList += ", "
 					}
-					nftList += "#" + ufmt.Sprintf("%d", regDetails.NFTID)
+					if regDetails.UserBTree == nil {
+						nftList += "🌱#" + ufmt.Sprintf("seed_%d", regDetails.NFTID)  // Seed emoji for seeds
+					} else {
+						nftList += "🌳#" + ufmt.Sprintf("%d", regDetails.NFTID)  // Tree emoji for tree planters
+					}
 				}
 				nftList += ")"
 			}
