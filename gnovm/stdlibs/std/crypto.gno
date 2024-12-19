@@ -1,6 +1,9 @@
 package std
 
-import "crypto/bech32"
+import (
+	"crypto/bech32"
+	"errors"
+)
 
 type Address string // NOTE: bech32
 
@@ -19,15 +22,15 @@ const RawAddressSize = 20
 type RawAddress [RawAddressSize]byte
 
 func EncodeBech32(prefix string, bz [20]byte) Address {
-	b32, err := convertAndEncode(prefix, bytes[:])
+	b32, err := convertAndEncode(prefix, bz[:])
 	if err != nil {
 		panic(err) // should not happen
 	}
-	return b32
+	return Address(b32)
 }
 
-func DecodeBech32(addr Address) (prefix string, bz [20]byte, ok bool) {
-	prefix, bz, err := bech32.Decode(addr)
+func DecodeBech32(addr Address) (string, [20]byte, bool) {
+	prefix, bz, err := bech32.Decode(string(addr))
 	if err != nil || len(bz) != 20 {
 		return "", [20]byte{}, false
 	}
@@ -37,7 +40,7 @@ func DecodeBech32(addr Address) (prefix string, bz [20]byte, ok bool) {
 func convertAndEncode(hrp string, data []byte) (string, error) {
 	converted, err := bech32.ConvertBits(data, 8, 5, true)
 	if err != nil {
-		return "", errors.Wrap(err, "encoding bech32 failed")
+		return "", errors.New("encoding bech32 failed: " + err.Error())
 	}
 	return bech32.Encode(hrp, converted)
 }
