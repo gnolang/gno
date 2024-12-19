@@ -353,11 +353,6 @@ func TestInitChainer(t *testing.T) {
 		Data: key,
 	}
 
-	// initChainer is nil - nothing happens
-	app.InitChain(abci.RequestInitChain{ChainID: "test-chain"})
-	res := app.Query(query)
-	require.Equal(t, 0, len(res.Value))
-
 	// set initChainer and try again - should see the value
 	app.SetInitChainer(initChainer)
 
@@ -365,6 +360,11 @@ func TestInitChainer(t *testing.T) {
 	err := app.LoadLatestVersion() // needed to make stores non-nil
 	require.Nil(t, err)
 	require.Equal(t, int64(0), app.LastBlockHeight())
+
+	// initChainer is nil - nothing happens
+	app.InitChain(abci.RequestInitChain{ChainID: "test-chain"})
+	res := app.Query(query)
+	require.Equal(t, 0, len(res.Value))
 
 	app.InitChain(abci.RequestInitChain{AppState: nil, ChainID: "test-chain-id"}) // must have valid JSON genesis file, even if empty
 
@@ -447,7 +447,7 @@ func anteHandlerTxTest(t *testing.T, capKey store.StoreKey, storeKey []byte) Ant
 	t.Helper()
 
 	return func(ctx Context, tx std.Tx, simulate bool) (newCtx Context, res Result, abort bool) {
-		store := ctx.Store(capKey)
+		store := ctx.GasStore(capKey)
 		if getFailOnAnte(tx) {
 			res.Error = ABCIError(std.ErrInternal("ante handler failure"))
 			return newCtx, res, true

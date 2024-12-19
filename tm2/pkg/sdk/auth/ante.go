@@ -76,7 +76,7 @@ func NewAnteHandler(ak AccountKeeper, bank BankKeeperI, sigGasConsumer Signature
 		defer func() {
 			if r := recover(); r != nil {
 				switch ex := r.(type) {
-				case store.OutOfGasException:
+				case store.OutOfGasError:
 					log := fmt.Sprintf(
 						"out of gas in location: %v; gasWanted: %d, gasUsed: %d",
 						ex.Descriptor, tx.Fee.GasWanted, newCtx.GasMeter().GasConsumed(),
@@ -338,6 +338,31 @@ func DeductFees(bank BankKeeperI, ctx sdk.Context, acc std.Account, fees std.Coi
 // consensus.
 func EnsureSufficientMempoolFees(ctx sdk.Context, fee std.Fee) sdk.Result {
 	minGasPrices := ctx.MinGasPrices()
+	blockGasPrice := ctx.Value(GasPriceContextKey{}).(std.GasPrice)
+	feeGasPrice := std.GasPrice{
+		Gas: fee.GasWanted,
+		Price: std.Coin{
+			Amount: fee.GasFee.Amount,
+			Denom:  fee.GasFee.Denom,
+		},
+	}
+	// check the block gas price
+	if blockGasPrice.Price.IsValid() && !blockGasPrice.Price.IsZero() {
+		ok, err := feeGasPrice.IsGTE(blockGasPrice)
+		if err != nil {
+			return abciResult(std.ErrInsufficientFee(
+				err.Error(),
+			))
+		}
+		if !ok {
+			return abciResult(std.ErrInsufficientFee(
+				fmt.Sprintf(
+					"insufficient fees; got: {Gas-Wanted: %d, Gas-Fee %s}, fee required: %+v as block gas price", feeGasPrice.Gas, feeGasPrice.Price, blockGasPrice,
+				),
+			))
+		}
+	}
+	// check min gas price set by the node.
 	if len(minGasPrices) == 0 {
 		// no minimum gas price (not recommended)
 		// TODO: allow for selective filtering of 0 fee txs.
@@ -364,7 +389,7 @@ func EnsureSufficientMempoolFees(ctx sdk.Context, fee std.Fee) sdk.Result {
 				} else {
 					return abciResult(std.ErrInsufficientFee(
 						fmt.Sprintf(
-							"insufficient fees; got: %q required: %q", fee.GasFee, gp,
+							"insufficient fees; got: {Gas-Wanted: %d, Gas-Fee %s}, fee required: %+v as minimum gas price set by the node", feeGasPrice.Gas, feeGasPrice.Price, gp,
 						),
 					))
 				}
@@ -374,7 +399,7 @@ func EnsureSufficientMempoolFees(ctx sdk.Context, fee std.Fee) sdk.Result {
 
 	return abciResult(std.ErrInsufficientFee(
 		fmt.Sprintf(
-			"insufficient fees; got: %q required (one of): %q", fee.GasFee, minGasPrices,
+			"insufficient fees; got: {Gas-Wanted: %d, Gas-Fee %s}, required (one of): %q", feeGasPrice.Gas, feeGasPrice.Price, minGasPrices,
 		),
 	))
 }

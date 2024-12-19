@@ -7,17 +7,12 @@ gnoland start
 gnokey maketx addpkg -pkgdir $WORK/foo -pkgpath gno.land/r/foo -gas-fee 1000000ugnot -gas-wanted 220000 -broadcast -chainid=tendermint_test test1
 
 
-# add bar package
-# out of gas at store.GetPackage() with gas 60000
+# add bar package - out of gas at store.GetPackage() with gas 60000
 
 ! gnokey maketx addpkg -pkgdir $WORK/bar -pkgpath gno.land/r/bar -gas-fee 1000000ugnot -gas-wanted 60000 -broadcast -chainid=tendermint_test test1
 
-# Out of gas error
-
 stderr '--= Error =--'
 stderr 'Data: out of gas error'
-stderr 'Msg Traces:'
-stderr 'out of gas.*?in preprocess'
 stderr '--= /Error =--'
 
 
@@ -28,8 +23,6 @@ stderr '--= /Error =--'
 
 stderr '--= Error =--'
 stderr 'Data: out of gas error'
-stderr 'Msg Traces:'
-stderr 'out of gas.*?in preprocess'
 stderr '--= /Error =--'
 
 

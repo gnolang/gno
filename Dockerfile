@@ -52,7 +52,6 @@ ENTRYPOINT  ["/usr/bin/gno"]
 # gnoweb
 FROM        base AS gnoweb
 COPY        --from=build-gno /gnoroot/build/gnoweb /usr/bin/gnoweb
-COPY        --from=build-gno /opt/gno/src/gno.land/cmd/gnoweb /opt/gno/src/gnoweb
 EXPOSE      8888
 ENTRYPOINT  ["/usr/bin/gnoweb"]
 
