@@ -95,7 +95,6 @@ func (vp ValuePath) String() string {
 	}
 }
 
-// TODO: modify this
 func (x NameExpr) String() string {
 	switch x.Type {
 	case NameExprTypeNormal:

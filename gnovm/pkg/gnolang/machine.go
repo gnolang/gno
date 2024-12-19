@@ -405,7 +405,6 @@ func (m *Machine) Stacktrace() (stacktrace Stacktrace) {
 	}
 
 	calls := make([]StacktraceCall, 0, len(m.Stmts))
-
 	nextStmtIndex := len(m.Stmts) - 1
 	for i := len(m.Frames) - 1; i >= 0; i-- {
 		if m.Frames[i].IsCall() {
@@ -1610,7 +1609,6 @@ func (m *Machine) PushValue(tv TypedValue) {
 	if debug {
 		m.Printf("+v %v\n", tv)
 	}
-	//fmt.Printf("+v %v\n", tv)
 	if len(m.Values) == m.NumValues {
 		// TODO tune. also see PushOp().
 		newValues := make([]TypedValue, len(m.Values)*2)
@@ -1628,7 +1626,6 @@ func (m *Machine) PopValue() (tv *TypedValue) {
 	if debug {
 		m.Printf("-v %v\n", tv)
 	}
-	//fmt.Printf("-v %v\n", tv)
 	m.NumValues--
 	return tv
 }
@@ -1942,7 +1939,6 @@ func (m *Machine) PopUntilLastCallFrame() *Frame {
 }
 
 func (m *Machine) PushForPointer(lx Expr) {
-	//fmt.Println("---PushForPointer, lx: ", lx)
 	switch lx := lx.(type) {
 	case *NameExpr:
 		// no Lhs eval needed.
@@ -1954,7 +1950,6 @@ func (m *Machine) PushForPointer(lx Expr) {
 		m.PushExpr(lx.X)
 		m.PushOp(OpEval)
 	case *SelectorExpr:
-		//println("---selector expr")
 		// evaluate X
 		m.PushExpr(lx.X)
 		m.PushOp(OpEval)
@@ -1963,7 +1958,6 @@ func (m *Machine) PushForPointer(lx Expr) {
 		m.PushExpr(lx.X)
 		m.PushOp(OpEval)
 	case *CompositeLitExpr: // for *RefExpr e.g. &mystruct{}
-		//println("---CompositeLitExpr")
 		// evaluate lx.
 		m.PushExpr(lx)
 		m.PushOp(OpEval)
@@ -1974,15 +1968,12 @@ func (m *Machine) PushForPointer(lx Expr) {
 	}
 }
 
-func (m *Machine) PopAsPointer2(lx Expr) (PointerValue, string) {
-	//fmt.Println("---PopAsPointer2, lx: ", lx, reflect.TypeOf(lx))
-	var origin string
-	var pv PointerValue
+func (m *Machine) PopAsPointer2(lx Expr) (pv PointerValue, origin string) {
 	if _, ok := lx.(*IndexExpr); ok {
 		iv := m.PopValue()
 		xv := m.PopValue()
 		// special case for slice value, the origin
-		// is bound to its underlying array
+		// is bound to its underlying array.
 		if sv, ok := xv.V.(*SliceValue); ok {
 			if av, ok := sv.Base.(*ArrayValue); ok {
 				origin = av.AbsPath + ":" + strconv.Itoa(sv.Offset)
@@ -1992,15 +1983,14 @@ func (m *Machine) PopAsPointer2(lx Expr) (PointerValue, string) {
 	} else {
 		pv = m.PopAsPointer(lx)
 	}
-	return pv, origin
+	return
 }
 
 func (m *Machine) PopAsPointer(lx Expr) PointerValue {
 	switch lx := lx.(type) {
 	case *NameExpr:
 		lb := m.LastBlock()
-		ptr := lb.GetPointerToMaybeHeapUse(m.Store, lx)
-		return ptr
+		return lb.GetPointerToMaybeHeapUse(m.Store, lx)
 	case *IndexExpr:
 		iv := m.PopValue()
 		xv := m.PopValue()

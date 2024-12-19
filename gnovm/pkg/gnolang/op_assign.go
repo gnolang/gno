@@ -2,8 +2,6 @@ package gnolang
 
 func (m *Machine) doOpDefine() {
 	s := m.PopStmt().(*AssignStmt)
-	//fmt.Println("---doOpDefine, s: ", s)
-	//fmt.Println("---bid: ", m.LastBlock().GetSource(m.Store).GetStaticBlock().Bid)
 	// Define each value evaluated for Lhs.
 	// NOTE: PopValues() returns a slice in
 	// forward order, not the usual reverse.
@@ -28,8 +26,6 @@ func (m *Machine) doOpDefine() {
 
 func (m *Machine) doOpAssign() {
 	s := m.PopStmt().(*AssignStmt)
-	//fmt.Println("---doOpAssign, s: ", s)
-	//fmt.Println("---bid: ", m.LastBlock().GetSource(m.Store).GetStaticBlock().Bid)
 	// Assign each value evaluated for Lhs.
 	// NOTE: PopValues() returns a slice in
 	// forward order, not the usual reverse.
@@ -45,9 +41,6 @@ func (m *Machine) doOpAssign() {
 				}
 			}
 		}
-		//if sv, ok := rvs[i].V.(*SliceValue); ok {
-		//
-		//}
 		lv.Assign2(m.Alloc, m.Store, m.Realm, rvs[i], true)
 	}
 }

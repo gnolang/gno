@@ -341,8 +341,6 @@ func (m *Machine) doOpBandn() {
 
 // TODO: can be much faster.
 func isEql(store Store, lv, rv *TypedValue) bool {
-	//fmt.Println("---isEql, lv: ", lv)
-	//fmt.Println("---rv: ", rv)
 	// If one is undefined, the other must be as well.
 	// Fields/items are set to defaultValue along the way.
 	lvu := lv.IsUndefined()
@@ -353,10 +351,8 @@ func isEql(store Store, lv, rv *TypedValue) bool {
 		return false
 	}
 	if err := checkSame(lv.T, rv.T, ""); err != nil {
-		//println("---not equal type")
 		return false
 	}
-	//println("---equal type")
 	if lnt, ok := lv.T.(*NativeType); ok {
 		if rnt, ok := rv.T.(*NativeType); ok {
 			if lnt.Type != rnt.Type {
@@ -501,15 +497,6 @@ func isEql(store Store, lv, rv *TypedValue) bool {
 				return *(lpv.TV) == *(rpv.TV) && lpv.Base == rpv.Base && lpv.Index == rpv.Index && lpv.Key == rpv.Key
 			}
 		}
-
-		//if lpv, ok := lv.V.(PointerValue); ok {
-		//	fmt.Println("---lpv.base: ", lpv.Base)
-		//	fmt.Println("---lpv.Origin: ", lpv.Origin)
-		//}
-		//if rpv, ok := rv.V.(PointerValue); ok {
-		//	fmt.Println("---rpv.base: ", rpv.Base)
-		//	fmt.Println("---rpv.Origin: ", rpv.Origin)
-		//}
 
 		if debug {
 			if lpv, ok := lv.V.(PointerValue); ok {

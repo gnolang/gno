@@ -23,7 +23,6 @@ func (m *Machine) doOpEval() {
 		debug.Printf("EVAL: (%T) %v\n", x, x)
 		// fmt.Println(m.String())
 	}
-	//fmt.Printf("EVAL: (%T) %v\n", x, x)
 	// This case moved out of switch for performance.
 	// TODO: understand this better.
 	if nx, ok := x.(*NameExpr); ok {
@@ -39,7 +38,7 @@ func (m *Machine) doOpEval() {
 			// Push value, done.
 			ptr := lb.GetPointerToMaybeHeapUse(m.Store, nx)
 			v := ptr.Deref()
-			//fmt.Println("---v: ", v)
+			// set origin if value is pointer or slice type
 			SetOriginForPointerValue(m.Store, &v.V, nx.AbsPath)
 			m.PushValue(v)
 			return
@@ -255,7 +254,6 @@ func (m *Machine) doOpEval() {
 		m.PushExpr(x.Func)
 		m.PushOp(OpEval)
 	case *IndexExpr:
-		//println("---op_eval, index expr")
 		if x.HasOK {
 			m.PushOp(OpIndex2)
 		} else {
@@ -293,14 +291,12 @@ func (m *Machine) doOpEval() {
 		m.PushExpr(x.X)
 		m.PushOp(OpEval)
 	case *StarExpr:
-		//println("---op_eval, star expr")
 		m.PopExpr()
 		m.PushOp(OpStar)
 		// evaluate x.
 		m.PushExpr(x.X)
 		m.PushOp(OpEval)
 	case *RefExpr:
-		//println("---op_eval, ref expr")
 		m.PushOp(OpRef)
 		// evaluate x
 		m.PushForPointer(x.X)

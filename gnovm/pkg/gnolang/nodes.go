@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"go/parser"
 	"go/token"
-
 	"math"
 	"os"
 	"path/filepath"
@@ -415,7 +414,7 @@ type NameExpr struct {
 	Path ValuePath // set by preprocessor.
 	Name
 	Type    NameExprType
-	AbsPath string
+	AbsPath string // absolute path
 }
 
 func (nx *NameExpr) GetAbsPath() string {
@@ -450,10 +449,10 @@ type CallExpr struct { // Func(Args<Varg?...>)
 
 type IndexExpr struct { // X[Index]
 	Attributes
-	X       Expr // expression
-	Index   Expr // index expression
-	HasOK   bool // if true, is form: `value, ok := <X>[<Key>]
-	AbsPath string
+	X       Expr   // expression
+	Index   Expr   // index expression
+	HasOK   bool   // if true, is form: `value, ok := <X>[<Key>]
+	AbsPath string // absolute path, set by preprocessor
 }
 
 func (ix *IndexExpr) GetAbsPath() string {
@@ -465,11 +464,10 @@ type SelectorExpr struct { // X.Sel
 	X       Expr      // expression
 	Path    ValuePath // set by preprocessor.
 	Sel     Name      // field selector
-	AbsPath string
+	AbsPath string    // absolute path, set by preprocessor
 }
 
 func (sx *SelectorExpr) GetAbsPath() string {
-	//fmt.Println("---GetAbsPath, sx: ", sx)
 	return sx.AbsPath
 }
 
@@ -486,8 +484,8 @@ type SliceExpr struct { // X[Low:High:Max]
 // expression, or a pointer type.
 type StarExpr struct { // *X
 	Attributes
-	X       Expr // operand
-	AbsPath string
+	X       Expr   // operand
+	AbsPath string // absolute path, set by preprocessor
 }
 
 func (sx *StarExpr) GetAbsPath() string {
@@ -1391,7 +1389,7 @@ type PackageNode struct {
 	PkgPath string
 	PkgName Name
 	*FileSet
-	Time uint64
+	Time uint64 // server as unique identifier for each block
 }
 
 func PackageNodeLocation(path string) Location {
@@ -1574,9 +1572,11 @@ type BlockNode interface {
 // ----------------------------------------
 // StaticBlock
 
+// BlockID provide static unique ID for every block,
+// thus provide an absolute path for variables as a coordinate basis
 type BlockID struct {
-	PkgID   PkgID  // base
-	NewTime uint64 // time created
+	PkgID   PkgID // base
+	NewTime uint64
 }
 
 func (bid BlockID) IsZero() bool {
@@ -1713,14 +1713,12 @@ func (sb *StaticBlock) GetParentNode(store Store) BlockNode {
 // Implements BlockNode.
 // As a side effect, notes externally defined names.
 func (sb *StaticBlock) GetPathForName(store Store, n Name) (rel ValuePath, abs string) {
-	//fmt.Println("---GetPathForName, n: ", n)
 	if n == blankIdentifier {
 		return NewValuePathBlock(0, 0, blankIdentifier), ""
 	}
 	// Check local.
 	gen := 1
 	if idx, ok := sb.GetLocalIndex(n); ok {
-		//fmt.Println("---bid1: ", sb.Bid)
 		return NewValuePathBlock(uint8(gen), idx, n), fmt.Sprintf("%s:[%d]", sb.Bid, idx)
 	}
 	// Register as extern.

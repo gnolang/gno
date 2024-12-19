@@ -371,7 +371,6 @@ func (m *Machine) doOpExec(op Op) {
 				vv := *fillValueTV(m.Store, &next.Value)
 				switch bs.Op {
 				case ASSIGN:
-					println("---: Assign")
 					m.PopAsPointer(bs.Value).Assign2(m.Alloc, m.Store, m.Realm, vv, false)
 				case DEFINE:
 					vnx := bs.Value.(*NameExpr)
@@ -432,7 +431,6 @@ EXEC_SWITCH:
 	if debug {
 		debug.Printf("EXEC: %v\n", s)
 	}
-	//fmt.Printf("EXEC: %v\n", s)
 	switch cs := s.(type) {
 	case *AssignStmt:
 		switch cs.Op {

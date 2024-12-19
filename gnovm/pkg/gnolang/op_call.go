@@ -51,7 +51,6 @@ func (m *Machine) doOpPrecall() {
 var gReturnStmt = &ReturnStmt{}
 
 func (m *Machine) doOpCall() {
-	//fmt.Println("---doOpCall---")
 	// NOTE: Frame won't be popped until the statement is complete, to
 	// discard the correct number of results for func calls in ExprStmts.
 	fr := m.LastFrame()
@@ -62,16 +61,7 @@ func (m *Machine) doOpCall() {
 	isMethod := 0 // 1 if true
 	// Create new block scope.
 	clo := fr.Func.GetClosure(m.Store)
-	lb := m.LastBlock()
-
-	var parent *Block
-	if clo == nil && lb != nil {
-		parent = lb
-	} else {
-		parent = clo
-	}
-	b := m.Alloc.NewBlock(fr.Func.GetSource(m.Store), parent)
-	//b := m.Alloc.NewBlock(fr.Func.GetSource(m.Store), clo)
+	b := m.Alloc.NewBlock(fr.Func.GetSource(m.Store), clo)
 
 	// Copy *FuncValue.Captures into block
 	// NOTE: addHeapCapture in preprocess ensures order.
@@ -208,7 +198,6 @@ func (m *Machine) doOpCallDeferNativeBody() {
 
 // Assumes that result values are pushed onto the Values stack.
 func (m *Machine) doOpReturn() {
-	//fmt.Println("---doOpReturn---")
 	cfr := m.PopUntilLastCallFrame()
 	// See if we are exiting a realm boundary.
 	// NOTE: there are other ways to implement realm boundary transitions,
@@ -464,10 +453,8 @@ func (m *Machine) doOpPanic2() {
 			// Build exception string just as go, separated by \n\t.
 			exs := make([]string, len(m.Exceptions))
 			for i, ex := range m.Exceptions {
-				//fmt.Println("ex.Sprint: ", ex.Sprint(m))
 				exs[i] = ex.Sprint(m)
 			}
-			//fmt.Println("---exs: ", exs)
 			panic(UnhandledPanicError{
 				Descriptor: strings.Join(exs, "\n\t"),
 			})
