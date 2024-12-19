@@ -16,12 +16,20 @@ func ResolveName(username string) users.UserLookup {
 
 	// Try fetching from username store
 	if rawAddr, ok := usernameStore.Get(username); ok {
-		return users.NewUserLookup(username, rawAddr.(std.Address), false)
+		return users.UserLookup{
+			Name:     username,
+			Addr:     rawAddr.(std.Address),
+			ViaAlias: false,
+		}
 	}
 
 	// Try fetching from alias store if not found in username store
 	if rawAddr, ok := aliasStore.Get(username); ok {
-		return users.NewUserLookup(username, rawAddr.(std.Address), true)
+		return users.UserLookup{
+			Name:     username,
+			Addr:     rawAddr.(std.Address),
+			ViaAlias: true,
+		}
 	}
 
 	// Not found in either store
@@ -40,7 +48,11 @@ func ResolveAddress(addr std.Address) users.UserLookup {
 		return users.UserLookup{}
 	}
 
-	return users.NewUserLookup(raw.(string), addr, false)
+	return users.UserLookup{
+		Name:     raw.(string),
+		Addr:     addr,
+		ViaAlias: false,
+	}
 }
 
 // ResolveAddressOrName
@@ -68,7 +80,12 @@ func Users(offset, count uint64) []users.UserLookup {
 	res := make([]users.UserLookup, 0, count)
 
 	usernameStore.IterateByOffset(int(offset), int(count), func(key string, value interface{}) bool {
-		res = append(res, users.NewUserLookup(key, value.(std.Address), false))
+		res = append(res, users.UserLookup{
+			Name:     key,
+			Addr:     value.(std.Address),
+			ViaAlias: false,
+		})
+
 		return false
 	})
 
