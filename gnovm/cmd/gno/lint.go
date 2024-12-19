@@ -144,7 +144,7 @@ func execLint(cfg *lintCfg, args []string, io commands.IO) error {
 			// Wrap in cache wrap so execution of the linter doesn't impact
 			// other packages.
 			cw := bs.CacheWrap()
-			gs := ts.BeginTransaction(cw, cw)
+			gs := ts.BeginTransaction(cw, cw, nil)
 
 			// Run type checking
 			if gmFile == nil || !gmFile.Draft {
