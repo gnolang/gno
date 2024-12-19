@@ -46,10 +46,7 @@ func init() {
 	classicLink = "https://www.google.com"
 	minimalLink = "https://www.google.com"
 	hof.Register()
-	CreateAndRegisterBTree()
 }
-
-
 
 func UpdatePFP(url, caption string) {
 	AssertAuthorized()
