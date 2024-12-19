@@ -5,13 +5,13 @@ import (
 	"io"
 
 	md "github.com/gnolang/gno/gno.land/pkg/gnoweb/markdown"
-	"github.com/gnolang/gno/gno.land/pkg/sdk/vm" // for error types
+	"github.com/gnolang/gno/gno.land/pkg/sdk/vm"
 )
 
 var (
 	ErrClientPathNotFound = errors.New("package path not found")
 	ErrClientBadRequest   = errors.New("bad request")
-	ErrClientResponse     = errors.New("node response error") // Corrected typo in "response"
+	ErrClientResponse     = errors.New("node response error")
 )
 
 type FileMeta struct {

@@ -144,7 +144,6 @@ func setupWeb(cfg *webCfg, _ []string, io commands.IO) (func() error, error) {
 	if cfg.verbose {
 		level = zapcore.DebugLevel
 	}
-
 	var zapLogger *zap.Logger
 	if cfg.json {
 		zapLogger = log.NewZapJSONLogger(io.Out(), level)
@@ -155,23 +154,24 @@ func setupWeb(cfg *webCfg, _ []string, io commands.IO) (func() error, error) {
 
 	logger := log.ZapLoggerToSlog(zapLogger)
 
+	// Setup app
 	appcfg := gnoweb.NewDefaultAppConfig()
 	appcfg.ChainID = cfg.chainid
 	appcfg.NodeRemote = cfg.remote
 	appcfg.RemoteHelp = cfg.remoteHelp
+	if appcfg.RemoteHelp == "" {
+		appcfg.RemoteHelp = appcfg.NodeRemote
+	}
 	appcfg.Analytics = cfg.analytics
 	appcfg.UnsafeHTML = cfg.html
 	appcfg.FaucetURL = cfg.faucetURL
 	appcfg.AssetsDir = cfg.assetsDir
-	if appcfg.RemoteHelp == "" {
-		appcfg.RemoteHelp = appcfg.NodeRemote
-	}
-
 	app, err := gnoweb.NewRouter(logger, appcfg)
 	if err != nil {
 		return nil, fmt.Errorf("unable to start gnoweb app: %w", err)
 	}
 
+	// Resolve binding address
 	bindaddr, err := net.ResolveTCPAddr("tcp", cfg.bind)
 	if err != nil {
 		return nil, fmt.Errorf("unable to resolve listener %q: %w", cfg.bind, err)
@@ -179,6 +179,7 @@ func setupWeb(cfg *webCfg, _ []string, io commands.IO) (func() error, error) {
 
 	logger.Info("Running", "listener", bindaddr.String())
 
+	// Setup server
 	server := &http.Server{
 		Handler:           app,
 		Addr:              bindaddr.String(),
@@ -187,10 +188,9 @@ func setupWeb(cfg *webCfg, _ []string, io commands.IO) (func() error, error) {
 
 	return func() error {
 		if err := server.ListenAndServe(); err != nil {
-			logger.Error("HTTP server stopped", " error:", err)
+			logger.Error("HTTP server stopped", "error", err)
 			return commands.ExitCodeError(1)
 		}
-
 		return nil
 	}, nil
 }

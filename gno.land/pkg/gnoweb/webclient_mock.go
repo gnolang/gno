@@ -30,7 +30,7 @@ func (m *MockWebClient) RenderRealm((w io.Writer, path string, args string) (*Re
 		return nil, errors.New("package not found")
 	}
 
-	fmt.Fprintf(w, "<code>[%s]%s:%s</code>", pkg.Domain, pkg.Path)
+	fmt.Fprintf(w, "[%s]%s:%s: lorem ipsum", pkg.Domain, pkg.Path)
 
 	// Return a dummy RealmMeta for simplicity
 	return &RealmMeta{}, nil
