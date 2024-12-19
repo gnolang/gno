@@ -80,7 +80,7 @@ func main() {
 //                 "@type": "/gno.PointerValue",
 //                 "Base": {
 //                     "@type": "/gno.RefValue",
-//                     "Hash": "148d314678615253ee2032d7ecff6b144b474baf",
+//                     "Hash": "4e0d77a91ba35733bf82329317bf8c8dffa6f655",
 //                     "ObjectID": "0ffe7732b4d549b4cf9ec18bd68641cd2c75ad0a:12"
 //                 },
 //                 "Index": "0",
@@ -207,7 +207,7 @@ func main() {
 //                 "@type": "/gno.SliceValue",
 //                 "Base": {
 //                     "@type": "/gno.RefValue",
-//                     "Hash": "3c58838c5667649add1ff8ee48a1cdc187fcd2ef",
+//                     "Hash": "c2aab89570a9faa4acf463a140a04e9b96fae73d",
 //                     "ObjectID": "0ffe7732b4d549b4cf9ec18bd68641cd2c75ad0a:17"
 //                 },
 //                 "Length": "3",
@@ -1771,6 +1771,44 @@ func main() {
 //             }
 //         }
 //     ]
+// }
+// u[0ffe7732b4d549b4cf9ec18bd68641cd2c75ad0a:12]={
+//     "ObjectInfo": {
+//         "ID": "0ffe7732b4d549b4cf9ec18bd68641cd2c75ad0a:12",
+//         "ModTime": "17",
+//         "OwnerID": "0ffe7732b4d549b4cf9ec18bd68641cd2c75ad0a:11",
+//         "RefCount": "1"
+//     },
+//     "Value": {
+//         "T": {
+//             "@type": "/gno.RefType",
+//             "ID": "gno.land/r/demo/tests_foo.FooStringer"
+//         },
+//         "V": {
+//             "@type": "/gno.RefValue",
+//             "Hash": "f163acee63433b44deb3168fef87beb588847322",
+//             "ObjectID": "0ffe7732b4d549b4cf9ec18bd68641cd2c75ad0a:13"
+//         }
+//     }
+// }
+// u[0ffe7732b4d549b4cf9ec18bd68641cd2c75ad0a:15]={
+//     "ObjectInfo": {
+//         "ID": "0ffe7732b4d549b4cf9ec18bd68641cd2c75ad0a:15",
+//         "ModTime": "17",
+//         "OwnerID": "0ffe7732b4d549b4cf9ec18bd68641cd2c75ad0a:14",
+//         "RefCount": "1"
+//     },
+//     "Value": {
+//         "T": {
+//             "@type": "/gno.RefType",
+//             "ID": "gno.land/r/demo/tests_foo.FooStringer"
+//         },
+//         "V": {
+//             "@type": "/gno.RefValue",
+//             "Hash": "2a96c074210eb2db31b7941e31d62deb04e59937",
+//             "ObjectID": "0ffe7732b4d549b4cf9ec18bd68641cd2c75ad0a:16"
+//         }
+//     }
 // }
 // d[0ffe7732b4d549b4cf9ec18bd68641cd2c75ad0a:14]
 // switchrealm["gno.land/r/demo/tests_foo"]
