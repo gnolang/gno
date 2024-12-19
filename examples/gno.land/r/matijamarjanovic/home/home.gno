@@ -239,31 +239,3 @@ func UpdateMinimalLink(link string) {
 	AssertAuthorized()
 	minimalLink = link
 }
-
-// IntRecord wraps an int to implement btree.Record interface
-type IntRecord struct {
-	value int
-}
-
-// Less implements btree.Record interface
-func (i *IntRecord) Less(than btree.Record) bool {
-	return i.value < than.(*IntRecord).value
-}
-
-// CreateAndRegisterBTree creates a btree with 3 integers and registers it with the DAO
-func CreateAndRegisterBTree() error {
-	// Create new btree
-	tree := btree.New()
-	
-	// Add 3 integers
-	tree.Insert(&IntRecord{1})
-	tree.Insert(&IntRecord{2})
-	tree.Insert(&IntRecord{3})
-
-	// Register tree with each address
-	err := btree_dao.Register(tree)
-	if err != nil {
-		return err
-	}
-	return nil
-}
