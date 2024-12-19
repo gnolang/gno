@@ -52,7 +52,7 @@ func TestGetFileKind(t *testing.T) {
 
 	for _, tc := range tcs {
 		t.Run(tc.name, func(t *testing.T) {
-			out, err := GetFileKind(tc.filename, tc.body)
+			out, err := GetFileKind(tc.filename, tc.body, nil)
 			if len(tc.errorContains) != 0 {
 				require.ErrorContains(t, err, tc.errorContains)
 			} else {

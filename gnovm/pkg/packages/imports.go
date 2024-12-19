@@ -22,7 +22,7 @@ func Imports(pkg *gnovm.MemPackage, fset *token.FileSet) (ImportsMap, error) {
 			continue
 		}
 
-		fileKind, err := GetFileKind(file.Name, file.Body)
+		fileKind, err := GetFileKind(file.Name, file.Body, fset)
 		if err != nil {
 			return nil, err
 		}

@@ -17,7 +17,8 @@ const (
 	FileKindFiletest
 )
 
-func GetFileKind(filename string, body string) (FileKind, error) {
+// GetFileKind analyzes a file's name and body to get it's [FileKind], fset is optional
+func GetFileKind(filename string, body string, fset *token.FileSet) (FileKind, error) {
 	if !strings.HasSuffix(filename, ".gno") {
 		return FileKindUnknown, fmt.Errorf("%q is not a gno file", filename)
 	}
@@ -30,7 +31,9 @@ func GetFileKind(filename string, body string) (FileKind, error) {
 		return FileKindCompiled, nil
 	}
 
-	fset := token.NewFileSet()
+	if fset == nil {
+		fset = token.NewFileSet()
+	}
 	ast, err := parser.ParseFile(fset, filename, body, parser.PackageClauseOnly)
 	if err != nil {
 		return FileKindUnknown, err
