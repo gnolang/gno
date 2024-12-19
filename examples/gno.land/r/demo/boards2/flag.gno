@@ -5,7 +5,7 @@ import (
 	"strconv"
 )
 
-var flagThreshold = 3
+const flagThreshold = 1
 
 type Flag struct {
 	User   std.Address
