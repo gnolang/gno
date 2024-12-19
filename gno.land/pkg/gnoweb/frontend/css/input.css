@@ -135,7 +135,7 @@
   }
 
   .realm-content :not(pre) > code {
-    @apply bg-gray-100 px-1 py-0.5 rounded-sm text-100 font-mono;
+    @apply bg-gray-100 px-1 py-0.5 rounded-sm text-[.96em] font-mono;
   }
 
   .realm-content pre {
