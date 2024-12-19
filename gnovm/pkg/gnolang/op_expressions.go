@@ -24,7 +24,7 @@ func (m *Machine) doOpIndex1() {
 		xv := m.PeekValue(1) // x
 		switch ct := baseOf(xv.T).(type) {
 		case *MapType:
-			//println("---map type")
+			// println("---map type")
 			mv := xv.V.(*MapValue)
 			vv, exists := mv.GetValueForKey(m.Store, iv)
 			if exists {

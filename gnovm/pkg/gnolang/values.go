@@ -2471,8 +2471,6 @@ func (b *Block) GetPointerTo(store Store, path ValuePath) PointerValue {
 
 // Convenience
 func (b *Block) GetPointerToMaybeHeapUse(store Store, nx *NameExpr) PointerValue {
-	//fmt.Println("---GetPointerToMaybeHeapUse")
-	//fmt.Println("---nx: ", nx.String())
 	switch nx.Type {
 	case NameExprTypeNormal:
 		return b.GetPointerTo(store, nx.Path)

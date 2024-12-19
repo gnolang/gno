@@ -1161,7 +1161,6 @@ func copyValueWithRefs(val Value) Value {
 			Receiver:   rtv,
 		}
 	case *MapValue:
-		println("---fill value")
 		list := &MapList{}
 		for cur := cv.List.Head; cur != nil; cur = cur.Next {
 			key2 := refOrCopyValue(cur.Key)
@@ -1374,12 +1373,10 @@ func fillTypesOfValue(store Store, val Value) Value {
 		fillTypesTV(store, &cv.Receiver)
 		return cv
 	case *MapValue:
-		//println("---fill map")
 		cv.vmap = make(map[MapKey]*MapListItem, cv.List.Size)
 		for cur := cv.List.Head; cur != nil; cur = cur.Next {
 			fillTypesTV(store, &cur.Key)
 			fillTypesTV(store, &cur.Value)
-			//fmt.Println("---cur.key: ", cur.Key)
 			cv.vmap[cur.Key.ComputeMapKey(store, false)] = cur
 		}
 		return cv

@@ -229,7 +229,6 @@ func (m *Machine) doOpReturn() {
 // Like doOpReturn, but with results from the block;
 // i.e. named result vars declared in func signatures.
 func (m *Machine) doOpReturnFromBlock() {
-	//fmt.Println("---doOpReturnFromBlock---")
 	// Copy results from block.
 	cfr := m.PopUntilLastCallFrame()
 	ft := cfr.Func.GetType(m.Store)

@@ -1719,7 +1719,11 @@ func (sb *StaticBlock) GetPathForName(store Store, n Name) (rel ValuePath, abs s
 	// Check local.
 	gen := 1
 	if idx, ok := sb.GetLocalIndex(n); ok {
-		return NewValuePathBlock(uint8(gen), idx, n), fmt.Sprintf("%s:[%d]", sb.Bid, idx)
+		var absPath string
+		if !sb.GetStaticBlock().Bid.IsZero() {
+			absPath = fmt.Sprintf("%s:[%d]", sb.GetStaticBlock().Bid, idx)
+		}
+		return NewValuePathBlock(uint8(gen), idx, n), absPath
 	}
 	// Register as extern.
 	// NOTE: uverse names are externs too.
@@ -1734,7 +1738,11 @@ func (sb *StaticBlock) GetPathForName(store Store, n Name) (rel ValuePath, abs s
 	bp := sb.GetParentNode(store)
 	for bp != nil {
 		if idx, ok := bp.GetLocalIndex(n); ok {
-			return NewValuePathBlock(uint8(gen), idx, n), fmt.Sprintf("%s:[%d]", bp.GetStaticBlock().Bid, idx)
+			var absPath string
+			if !bp.GetStaticBlock().Bid.IsZero() {
+				absPath = fmt.Sprintf("%s:[%d]", bp.GetStaticBlock().Bid, idx)
+			}
+			return NewValuePathBlock(uint8(gen), idx, n), absPath
 		} else {
 			if !isFile(bp) {
 				bp.GetStaticBlock().addExternName(n)

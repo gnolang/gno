@@ -221,7 +221,6 @@ func (alloc *Allocator) NewArrayFromData(data []byte) *ArrayValue {
 }
 
 func (alloc *Allocator) NewSlice(base Value, offset, length, maxcap int) *SliceValue {
-	//fmt.Println("---NewSlice, base: ", base)
 	alloc.AllocateSlice()
 	return &SliceValue{
 		Base:   base,

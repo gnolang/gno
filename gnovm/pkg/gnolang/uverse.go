@@ -373,7 +373,6 @@ func makeUverseNode() {
 						}
 					} else if arg0Type.Elem().Kind() == Uint8Kind {
 						// append(*SliceValue, *SliceValue) new data bytes ---
-						//println("---slice, slice, new data bytes")
 						newLength := arg0Length + arg1Length
 						arrayValue := m.Alloc.NewDataArray(newLength)
 						if 0 < arg0Length {
@@ -405,7 +404,6 @@ func makeUverseNode() {
 						return
 					} else {
 						// append(*SliceValue, *SliceValue) new list ---------
-						//println("---slice, slice, new list")
 						arrayLen := arg0Length + arg1Length
 						arrayValue := m.Alloc.NewListArray(arrayLen)
 						arrayValue.AbsPath = arg0Base.AbsPath // share same abs path
