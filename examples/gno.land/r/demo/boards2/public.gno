@@ -39,6 +39,22 @@ func CreateBoard(name string) BoardID {
 	return id
 }
 
+func FlagThread(bid BoardID, postID PostID, reason string) {
+	caller := std.GetOrigCaller()
+	// TODO: Replace by assertHasBoardPermission() when supported
+	assertHasPermission(caller, PermissionThreadFlag)
+
+	board := mustGetBoard(bid)
+	t, ok := board.GetThread(postID)
+	if !ok {
+		panic("post doesn't exist")
+	}
+
+	if flagItem(t, NewFlag(caller, reason)) {
+		t.SetVisible(false)
+	}
+}
+
 func CreateThread(bid BoardID, title, body string) PostID {
 	assertIsUserCall()
 
@@ -60,9 +76,10 @@ func CreateReply(bid BoardID, threadID, replyID PostID, body string) PostID {
 	board := mustGetBoard(bid)
 	thread := mustGetThread(board, threadID)
 
+	assertThreadVisible(thread)
+
 	// TODO: Assert thread is not locked
 	// TODO: Assert that caller is a board member (when board type is invite only)
-
 	var reply *Post
 	if replyID == threadID {
 		// When the parent reply is the thread just add reply to thread
@@ -70,9 +87,25 @@ func CreateReply(bid BoardID, threadID, replyID PostID, body string) PostID {
 	} else {
 		// Try to get parent reply and add a new child reply
 		post := mustGetReply(thread, replyID)
+		assertThreadVisible(thread)
+
 		reply = post.AddReply(caller, body)
 	}
 	return reply.id
+}
+
+func FlagReply(bid BoardID, threadID, replyID PostID, reason string) {
+	caller := std.GetOrigCaller()
+	// TODO: Replace by assertHasBoardPermission() when supported
+	assertHasPermission(caller, PermissionThreadFlag)
+
+	board := mustGetBoard(bid)
+	thread := mustGetThread(board, threadID)
+	reply := mustGetReply(thread, replyID)
+
+	if flagItem(reply, NewFlag(caller, reason)) {
+		reply.SetVisible(false)
+	}
 }
 
 func CreateRepost(bid BoardID, threadID PostID, title, body string, dstBoardID BoardID) PostID {
@@ -228,5 +261,11 @@ func assertThreadExists(b *Board, threadID PostID) {
 func assertReplyExists(thread *Post, replyID PostID) {
 	if _, found := thread.GetReply(replyID); !found {
 		panic("reply not found: " + replyID.String())
+	}
+}
+
+func assertThreadVisible(thread *Post) {
+	if thread.Hidden() {
+		panic("thread with ID: " + thread.GetPostID().String() + " was hidden")
 	}
 }
