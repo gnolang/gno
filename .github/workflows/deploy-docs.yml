@@ -1,4 +1,6 @@
-name: deploy docs on gnolang/docs.gno.land repository
+# This workflow triggers a cross-repo workflow call,
+# that deploys the monorepo docs on Netlify, using Docusaurus
+name: Deploy the Documentation
 on:
   push:
     branches:

@@ -44,9 +44,11 @@ linters:
 linters-settings:
   gofmt:
     simplify: true
+
   goconst:
     min-len: 3
     min-occurrences: 3
+
   gosec:
     excludes:
       - G204 # Subprocess launched with a potential tainted input or cmd arguments
@@ -56,6 +58,7 @@ linters-settings:
     checks: [ "all", "-ST1022", "-ST1003" ]
   errorlint:
     asserts: false
+
   gocritic:
     enabled-tags:
       - diagnostic
@@ -63,6 +66,7 @@ linters-settings:
       - opinionated
       - performance
       - style
+
   forbidigo:
     forbid:
       - p: '^regexp\.(Match|MatchString)$'
@@ -74,6 +78,7 @@ issues:
   max-same-issues: 0
   new: false
   fix: false
+
   exclude-rules:
     - path: _test\.go
       linters:
