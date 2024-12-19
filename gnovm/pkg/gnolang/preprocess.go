@@ -3080,12 +3080,12 @@ func isSwitchLabel(ns []Node, label Name) bool {
 	return false
 }
 
-func (pn *PackageNode) nextBlockID(PkgPath string) BlockID {
+func (x *PackageNode) nextBlockID(PkgPath string) BlockID {
 	pkgID := PkgIDFromPkgPath(PkgPath)
-	pn.Time++
+	x.Time++
 	return BlockID{
 		PkgID:   pkgID,
-		NewTime: pn.Time,
+		NewTime: x.Time,
 	}
 }
 

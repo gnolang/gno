@@ -417,8 +417,8 @@ type NameExpr struct {
 	AbsPath string // absolute path
 }
 
-func (nx *NameExpr) GetAbsPath() string {
-	return nx.AbsPath
+func (x *NameExpr) GetAbsPath() string {
+	return x.AbsPath
 }
 
 type NameExprs []NameExpr
@@ -455,8 +455,8 @@ type IndexExpr struct { // X[Index]
 	AbsPath string // absolute path, set by preprocessor
 }
 
-func (ix *IndexExpr) GetAbsPath() string {
-	return ix.AbsPath
+func (x *IndexExpr) GetAbsPath() string {
+	return x.AbsPath
 }
 
 type SelectorExpr struct { // X.Sel
@@ -467,8 +467,8 @@ type SelectorExpr struct { // X.Sel
 	AbsPath string    // absolute path, set by preprocessor
 }
 
-func (sx *SelectorExpr) GetAbsPath() string {
-	return sx.AbsPath
+func (x *SelectorExpr) GetAbsPath() string {
+	return x.AbsPath
 }
 
 type SliceExpr struct { // X[Low:High:Max]
@@ -488,8 +488,8 @@ type StarExpr struct { // *X
 	AbsPath string // absolute path, set by preprocessor
 }
 
-func (sx *StarExpr) GetAbsPath() string {
-	return sx.AbsPath
+func (x *StarExpr) GetAbsPath() string {
+	return x.AbsPath
 }
 
 type RefExpr struct { // &X
