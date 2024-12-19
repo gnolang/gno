@@ -54,6 +54,7 @@ func TestAppOptions(db dbm.DB) *AppOptions {
 			StdlibDir:              filepath.Join(gnoenv.RootDir(), "gnovm", "stdlibs"),
 			CacheStdlibLoad:        true,
 		},
+		SkipGenesisVerification: true,
 	}
 }
 
