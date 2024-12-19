@@ -36,6 +36,21 @@ func CreateBoard(name string) BoardID {
 	return id
 }
 
+func FlagThread(bid BoardID, postID PostID, reason string) {
+	caller := std.GetOrigCaller()
+	assertHasPermission(caller, PermissionThreadFlag)
+
+	board := mustGetBoard(bid)
+	t, ok := board.GetThread(postID)
+	if !ok {
+		panic("post doesn't exist")
+	}
+
+	if flagItem(t, NewFlag(caller, reason)) {
+		t.SetVisibility(false)
+	}
+}
+
 func CreateThread(bid BoardID, title, body string) PostID {
 	assertIsUserCall()
 
@@ -70,6 +85,19 @@ func CreateReply(bid BoardID, threadID, replyID PostID, body string) PostID {
 		reply = post.AddReply(caller, body)
 	}
 	return reply.id
+}
+
+func FlagReply(bid BoardID, threadID, replyID PostID, reason string) {
+	caller := std.GetOrigCaller()
+	assertHasPermission(caller, PermissionThreadFlag)
+
+	board := mustGetBoard(bid)
+	thread := mustGetThread(board, threadID)
+	reply := mustGetReply(thread, replyID)
+
+	if flagItem(reply, NewFlag(caller, reason)) {
+		reply.SetVisibility(false)
+	}
 }
 
 func CreateRepost(bid BoardID, threadID PostID, title, body string, dstBoardID BoardID) PostID {
