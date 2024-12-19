@@ -242,10 +242,11 @@ func LoadImports(store gno.Store, memPkg *gnovm.MemPackage) (err error) {
 	}()
 
 	fset := token.NewFileSet()
-	imports, err := packages.Imports(memPkg, fset)
+	importsMap, err := packages.Imports(memPkg, fset)
 	if err != nil {
 		return err
 	}
+	imports := importsMap.Merge(packages.FileKindCompiled, packages.FileKindTest, packages.FileKindXtest)
 	for _, imp := range imports {
 		if gno.IsRealmPath(imp.PkgPath) {
 			// Don't eagerly load realms.
