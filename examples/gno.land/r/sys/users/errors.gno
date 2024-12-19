@@ -9,7 +9,7 @@ var (
 	ErrNotWhitelisted     = errors.New(prefix + "does not exist in whitelist")
 	ErrAlreadyWhitelisted = errors.New(prefix + "already whitelisted")
 
-	ErrAlreadyExists  = errors.New(prefix + "name/alias already taken")
+	ErrNameTaken      = errors.New(prefix + "name/alias already taken")
 	ErrInvalidAddress = errors.New(prefix + "invalid address")
 
 	ErrEmptyUsername       = errors.New(prefix + "empty username provided")

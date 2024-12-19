@@ -66,6 +66,7 @@ func ResolveAddressOrName(aon string) users.UserLookup {
 	return ResolveAddress(std.Address(aon))
 }
 
+// GetReadonlyStore exposes the username store in readonly mode
 func GetReadonlyStore() *rotree.ReadOnlyTree {
 	return rotree.Wrap(usernameStore, nil)
 }

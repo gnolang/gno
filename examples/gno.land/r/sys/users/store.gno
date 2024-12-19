@@ -18,11 +18,25 @@ var (
 	reAddressLookalike = regexp.MustCompile(`^g1[a-z0-9]{20,38}$`)
 )
 
+//type UserData struct {
+//	name      string
+//	addr      std.Address
+//	IsAlias   bool
+//	IsDeleted bool
+//}
+//
+//var (
+//	usernameStore = avl.NewTree() // username > *UserData
+//	addressStore  = avl.NewTree() // address > *UserData
+//) todo see if this is the better approach
+
 const (
-	maxUsernameLen   = 50
 	SetUserEvent     = "UserSet"
 	CreateAliasEvent = "AliasCreated"
-	deletedUser      = "ghost"
+	DeleteUserEvent  = "UserDeleted"
+
+	maxUsernameLen = 50
+	deletedUser    = "ghost" // todo also need to forbid as username... not cool
 )
 
 // SetUser writes a *new* user to the store
@@ -51,7 +65,7 @@ func SetUser(name string, addr std.Address) error {
 
 	// Check if name is taken
 	if usernameStore.Has(trimmedName) || aliasStore.Has(trimmedName) {
-		return ErrAlreadyExists
+		return ErrNameTaken
 	}
 
 	// Validate fields before writing
@@ -93,7 +107,7 @@ func CreateAlias(name string, addr std.Address) error {
 
 	// Cannot register taken username as alias
 	if usernameStore.Has(trimmedName) || aliasStore.Has(trimmedName) {
-		return ErrAlreadyExists
+		return ErrNameTaken
 	}
 
 	// Validate before writing
@@ -144,6 +158,8 @@ func DeleteUser(addr std.Address) error {
 	for _, alias := range toDelete {
 		aliasStore.Set(alias, deletedUser)
 	}
+
+	std.Emit(DeleteUserEvent, "deletedUser", username)
 
 	return nil
 }

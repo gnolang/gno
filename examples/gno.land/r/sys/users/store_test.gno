@@ -41,7 +41,7 @@ func TestWriteUser(t *testing.T) {
 
 		// write same user twice
 		urequire.NoError(t, SetUser(aliceUsername, alice))
-		uassert.Error(t, SetUser(aliceUsername, alice), ErrAlreadyExists.Error())
+		uassert.Error(t, SetUser(aliceUsername, alice), ErrNameTaken.Error())
 	})
 
 	t.Run("invalid address", func(t *testing.T) {
