@@ -24,4 +24,17 @@ func intro() string {
 	out += md.Paragraph(`gno.land is a blockchain platform that allows users
 to have full transparency over the applications they are using`)
 
+	text := `
+# Welcome to gno.land
+
+	gno.land is xyz bla bla
+
+
+
+	## What is this website?
+	You're looking at the universal web frontend for gno.land - ` + "`gnoweb`" + `. Gnoweb queries the gno.land blockchain in 
+	order to get data from smart contracts called realms. This text, and everything on this page is a smart contract 
+	that represents gno.land's home page.`
+
+	return out
 }
