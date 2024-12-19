@@ -92,29 +92,6 @@ func Users(offset, count uint64) []users.UserLookup {
 	return res
 }
 
-// GetAllNames gets the name and all aliases for a specific address
-func GetAllNames(addr std.Address) []string {
-	var res []string
-
-	username, ok := addressStore.Get(addr.String())
-	if !ok {
-		return res
-	}
-
-	res = append(res, username.(string))
-
-	aliasStore.Iterate("", "", func(key string, value interface{}) bool {
-		adr := value.(std.Address)
-		if adr == addr {
-			res = append(res, key)
-		}
-
-		return false
-	})
-
-	return res
-}
-
 // UsersByPrefix gets a slice of usernames starting from the given prefix. Limits the
 // number of results to maxResults. (This can be used for a name search tool.)
 func UsersByPrefix(prefix string, maxResults int) []string {
