@@ -26,7 +26,7 @@ func Decode(bech string) (string, []byte, error) {
 	for i := 0; i < len(bech); i++ {
 		if bech[i] < 33 || bech[i] > 126 {
 			return "", nil, errors.New("invalid character in " +
-				"string: '" +string(bech[i]) + "'")
+				"string: '" + string(bech[i]) + "'")
 		}
 	}
 
@@ -67,7 +67,7 @@ func Decode(bech string) (string, []byte, error) {
 		expected, err := toChars(bech32Checksum(hrp,
 			decoded[:len(decoded)-6]))
 		if err == nil {
-			moreInfo = "Expected "+expected+", got "+checksum+"."
+			moreInfo = "Expected " + expected + ", got " + checksum + "."
 		}
 		return "", nil, errors.New("checksum failed. " + moreInfo)
 	}
