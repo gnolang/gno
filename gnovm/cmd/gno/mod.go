@@ -362,15 +362,12 @@ func getImportToFilesMap(pkgPath string) (map[string][]string, error) {
 		if err != nil {
 			return nil, err
 		}
-		imports, _, err := packages.FileImports(filename, string(data))
+		imports, err := packages.FileImports(filename, string(data), nil)
 		if err != nil {
 			return nil, err
 		}
 
 		for _, imp := range imports {
-			if imp.Error != nil {
-				return nil, err
-			}
 			m[imp.PkgPath] = append(m[imp.PkgPath], filename)
 		}
 	}

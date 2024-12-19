@@ -1,0 +1,39 @@
+{{ define "renderDir" }}
+<main class="w-full grow-[2] bg-gray-50">
+    <section class="max-w-screen-max mx-auto px-10 grid grid-cols-10 grid-flow-dense gap-8 xxl:gap-20 items-start">
+        <aside id="sidebar" class="relative h-full"></aside>
+
+        {{ $pkgpath := .PkgPath }}
+        <article class="code-content mt-10 pb-24 text-gray-900">
+            <div class="flex justify-between mb-3 items-center">
+                <div class="flex items-center gap-8">
+                    <h1 class="text-600 font-bold">{{ $pkgpath }}</h1>
+                </div>
+                <div class="flex gap-4 text-gray-300">
+                    <span class="text-gray-300">Directory · {{ .FileCounter }} Files</span>
+                </div>
+            </div>
+
+            <div class="source-code font-mono mt-6">
+                <ul>
+                    {{ range .Files }}
+                    <li class="border-b first:border-t">
+                        <a class="py-2 flex justify-between items-center px-2 text-gray-600 line-clamp-2 hover:bg-gray-100" href="{{ $pkgpath }}$source&file={{ . }}">
+                            <span class="flex items-center gap-2">
+                                <svg class="w-4 h-4 shrink-0">
+                                    <use href="#ico-file"></use>
+                                </svg>
+                                {{ . }}
+                            </span>
+                            <span class="text-gray-300">Open</span>
+                        </a>
+                    </li>
+                    {{ end }}
+                </ul>
+            </div> 
+        </article>
+    </section>
+</section>
+</main>
+{{ end }}
+

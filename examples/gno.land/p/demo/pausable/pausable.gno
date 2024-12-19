@@ -34,8 +34,8 @@ func (p Pausable) IsPaused() bool {
 
 // Pause sets the state of Pausable to true, meaning all pausable functions are paused
 func (p *Pausable) Pause() error {
-	if err := p.CallerIsOwner(); err != nil {
-		return err
+	if !p.CallerIsOwner() {
+		return ownable.ErrUnauthorized
 	}
 
 	p.paused = true
@@ -46,8 +46,8 @@ func (p *Pausable) Pause() error {
 
 // Unpause sets the state of Pausable to false, meaning all pausable functions are resumed
 func (p *Pausable) Unpause() error {
-	if err := p.CallerIsOwner(); err != nil {
-		return err
+	if !p.CallerIsOwner() {
+		return ownable.ErrUnauthorized
 	}
 
 	p.paused = false

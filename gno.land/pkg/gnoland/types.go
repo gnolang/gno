@@ -8,6 +8,7 @@ import (
 	"os"
 
 	"github.com/gnolang/gno/tm2/pkg/amino"
+	"github.com/gnolang/gno/tm2/pkg/sdk/auth"
 	"github.com/gnolang/gno/tm2/pkg/std"
 )
 
@@ -25,9 +26,10 @@ func ProtoGnoAccount() std.Account {
 }
 
 type GnoGenesisState struct {
-	Balances []Balance        `json:"balances"`
-	Txs      []TxWithMetadata `json:"txs"`
-	Params   []Param          `json:"params"`
+	Balances []Balance         `json:"balances"`
+	Txs      []TxWithMetadata  `json:"txs"`
+	Params   []Param           `json:"params"`
+	Auth     auth.GenesisState `json:"auth"`
 }
 
 type TxWithMetadata struct {

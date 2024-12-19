@@ -13,9 +13,10 @@ import (
 )
 
 // Imports returns the list of gno imports from a [gnovm.MemPackage].
-func Imports(pkg *gnovm.MemPackage) ([]string, error) {
-	allImports := make([]string, 0)
-	seen := make(map[string]struct{})
+// fset is optional.
+func Imports(pkg *gnovm.MemPackage, fset *token.FileSet) ([]FileImport, error) {
+	allImports := make([]FileImport, 0, 16)
+	seen := make(map[string]struct{}, 16)
 	for _, file := range pkg.Files {
 		if !strings.HasSuffix(file.Name, ".gno") {
 			continue
@@ -23,50 +24,54 @@ func Imports(pkg *gnovm.MemPackage) ([]string, error) {
 		if strings.HasSuffix(file.Name, "_filetest.gno") {
 			continue
 		}
-		imports, _, err := FileImports(file.Name, file.Body)
+		imports, err := FileImports(file.Name, file.Body, fset)
 		if err != nil {
 			return nil, err
 		}
 		for _, im := range imports {
-			if im.Error != nil {
-				return nil, err
-			}
 			if _, ok := seen[im.PkgPath]; ok {
 				continue
 			}
-			allImports = append(allImports, im.PkgPath)
+			allImports = append(allImports, im)
 			seen[im.PkgPath] = struct{}{}
 		}
 	}
-	sort.Strings(allImports)
+	sort.Slice(allImports, func(i, j int) bool {
+		return allImports[i].PkgPath < allImports[j].PkgPath
+	})
 
 	return allImports, nil
 }
 
+// FileImport represents an import
 type FileImport struct {
 	PkgPath string
 	Spec    *ast.ImportSpec
-	Error   error
 }
 
 // FileImports returns the list of gno imports in the given file src.
 // The given filename is only used when recording position information.
-func FileImports(filename string, src string) ([]*FileImport, *token.FileSet, error) {
-	fs := token.NewFileSet()
-	f, err := parser.ParseFile(fs, filename, src, parser.ImportsOnly)
-	if err != nil {
-		return nil, nil, err
+func FileImports(filename string, src string, fset *token.FileSet) ([]FileImport, error) {
+	if fset == nil {
+		fset = token.NewFileSet()
 	}
-	res := make([]*FileImport, len(f.Imports))
+	f, err := parser.ParseFile(fset, filename, src, parser.ImportsOnly)
+	if err != nil {
+		return nil, err
+	}
+	res := make([]FileImport, len(f.Imports))
 	for i, im := range f.Imports {
-		fi := FileImport{Spec: im}
 		importPath, err := strconv.Unquote(im.Path.Value)
 		if err != nil {
-			fi.Error = fmt.Errorf("%v: unexpected invalid import path: %v", fs.Position(im.Pos()).String(), im.Path.Value)
-		} else {
-			fi.PkgPath = importPath
+			// should not happen - parser.ParseFile should already ensure we get
+			// a valid string literal here.
+			panic(fmt.Errorf("%v: unexpected invalid import path: %v", fset.Position(im.Pos()).String(), im.Path.Value))
 		}
-		res[i] = &fi
+
+		res[i] = FileImport{
+			PkgPath: importPath,
+			Spec:    im,
+		}
 	}
-	return res, fs, nil
+	return res, nil
 }
