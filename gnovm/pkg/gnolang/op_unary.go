@@ -46,9 +46,9 @@ func (m *Machine) doOpUneg() {
 	case Uint64Type:
 		xv.SetUint64(-xv.GetUint64())
 	case Float32Type:
-		xv.SetFloat32(-xv.GetFloat32())
+		xv.SetFloat32(xv.GetFloat32().Neg())
 	case Float64Type:
-		xv.SetFloat64(-xv.GetFloat64())
+		xv.SetFloat64(xv.GetFloat64().Neg())
 	case UntypedBigintType, BigintType:
 		bv := xv.V.(BigintValue)
 		xv.V = BigintValue{V: new(big.Int).Neg(bv.V)}

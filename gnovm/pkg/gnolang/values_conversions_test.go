@@ -24,7 +24,7 @@ func TestConvertUntypedBigdecToFloat(t *testing.T) {
 
 	ConvertUntypedBigdecTo(dst, bd, typ)
 
-	require.Equal(t, float64(0), dst.GetFloat64())
+	require.Equal(t, ConvertToSoftFloat64(0), dst.GetFloat64())
 }
 
 func TestBitShiftingOverflow(t *testing.T) {
