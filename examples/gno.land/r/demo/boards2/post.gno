@@ -30,12 +30,14 @@ type Post struct {
 	creator       std.Address
 	title         string // optional
 	body          string
+	isHidden      bool
 	replies       avl.Tree // Post.id -> *Post
 	repliesAll    avl.Tree // Post.id -> *Post (all replies, for top-level posts)
 	reposts       avl.Tree // Board.id -> Post.id
-	threadID      PostID   // original Post.id
-	parentID      PostID   // parent Post.id (if reply or repost)
-	repostBoardID BoardID  // original Board.id (if repost)
+	flags         []Flag
+	threadID      PostID  // original Post.id
+	parentID      PostID  // parent Post.id (if reply or repost)
+	repostBoardID BoardID // original Board.id (if repost)
 	createdAt     time.Time
 	updatedAt     time.Time
 }
@@ -95,6 +97,30 @@ func (post *Post) GetCreatedAt() time.Time {
 
 func (post *Post) GetUpdatedAt() time.Time {
 	return post.updatedAt
+}
+
+func (post *Post) AddFlag(flag Flag) bool {
+	// TODO: sort flags for fast search in case of big thresholds
+	for _, v := range post.flags {
+		if v.User == flag.User {
+			return false
+		}
+	}
+
+	post.flags = append(post.flags, flag)
+	return true
+}
+
+func (post *Post) FlagsCount() int {
+	return len(post.flags)
+}
+
+func (post *Post) SetVisibility(isVisible bool) {
+	post.isHidden = !isVisible
+}
+
+func (post *Post) Hidden() bool {
+	return post.isHidden
 }
 
 func (post *Post) AddReply(creator std.Address, body string) *Post {
