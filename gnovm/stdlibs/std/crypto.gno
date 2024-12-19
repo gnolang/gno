@@ -30,11 +30,18 @@ func EncodeBech32(prefix string, bz [20]byte) Address {
 }
 
 func DecodeBech32(addr Address) (string, [20]byte, bool) {
-	prefix, bz, err := bech32.Decode(string(addr))
+	prefix, bz, err := decodeAndConvert(string(addr))
 	if err != nil || len(bz) != 20 {
 		return "", [20]byte{}, false
 	}
-	return prefix, [20]byte(bz), true
+	/* For some reason [20]byte(bz) fails with: 'cannot convert []uint8 to ArrayKind'
+	Maybe there is an issue to create
+	*/
+	result := [20]byte{}
+	for index, b := range bz {
+		result[index] = b
+	}
+	return prefix, result, true
 }
 
 func convertAndEncode(hrp string, data []byte) (string, error) {
@@ -43,4 +50,16 @@ func convertAndEncode(hrp string, data []byte) (string, error) {
 		return "", errors.New("encoding bech32 failed: " + err.Error())
 	}
 	return bech32.Encode(hrp, converted)
+}
+
+func decodeAndConvert(bech string) (string, []byte, error) {
+	hrp, data, err := bech32.Decode(bech)
+	if err != nil {
+		return "", nil, errors.New("decoding bech32 failed" + err.Error())
+	}
+	converted, err := bech32.ConvertBits(data, 5, 8, false)
+	if err != nil {
+		return "", nil, errors.New("decoding bech32 failed" + err.Error())
+	}
+	return hrp, converted, nil
 }
