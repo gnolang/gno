@@ -115,7 +115,7 @@ func (post *Post) FlagsCount() int {
 	return len(post.flags)
 }
 
-func (post *Post) SetVisibility(isVisible bool) {
+func (post *Post) SetVisible(isVisible bool) {
 	post.isHidden = !isVisible
 }
 
