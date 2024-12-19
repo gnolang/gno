@@ -12,28 +12,6 @@ import (
 	"github.com/gnolang/gno/gnovm"
 )
 
-type ImportsMap map[FileKind][]FileImport
-
-// Merge merges imports, it removes duplicates and sorts the result
-func (imap ImportsMap) Merge(kinds ...FileKind) []FileImport {
-	res := make([]FileImport, 0, 16)
-	seen := make(map[string]struct{}, 16)
-
-	for _, kind := range kinds {
-		for _, im := range imap[kind] {
-			if _, ok := seen[im.PkgPath]; ok {
-				continue
-			}
-			seen[im.PkgPath] = struct{}{}
-
-			res = append(res, im)
-		}
-	}
-
-	SortImports(res)
-	return res
-}
-
 // Imports returns the list of gno imports from a [gnovm.MemPackage].
 func Imports(pkg *gnovm.MemPackage, fset *token.FileSet) (ImportsMap, error) {
 	res := make(ImportsMap, 16)
@@ -102,6 +80,28 @@ func FileImports(filename string, src string, fset *token.FileSet) ([]FileImport
 		}
 	}
 	return res, nil
+}
+
+type ImportsMap map[FileKind][]FileImport
+
+// Merge merges imports, it removes duplicates and sorts the result
+func (imap ImportsMap) Merge(kinds ...FileKind) []FileImport {
+	res := make([]FileImport, 0, 16)
+	seen := make(map[string]struct{}, 16)
+
+	for _, kind := range kinds {
+		for _, im := range imap[kind] {
+			if _, ok := seen[im.PkgPath]; ok {
+				continue
+			}
+			seen[im.PkgPath] = struct{}{}
+
+			res = append(res, im)
+		}
+	}
+
+	SortImports(res)
+	return res
 }
 
 func SortImports(imports []FileImport) {
