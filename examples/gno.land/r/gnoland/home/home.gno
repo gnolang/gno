@@ -35,7 +35,7 @@ func init() {
 	}
 }
 
-func UpdateSection(ord1, ord2 uint) error {
+func RotateSections(ord1, ord2 uint) error {
 	if !Ownable.CallerIsOwner() {
 		return ownable.ErrUnauthorized
 	}
