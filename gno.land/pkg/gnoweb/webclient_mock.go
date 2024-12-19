@@ -2,7 +2,6 @@ package gnoweb
 
 import (
 	"bytes"
-	"errors"
 	"fmt"
 	"io"
 	"sort"
@@ -49,7 +48,7 @@ func (m *MockWebClient) RenderRealm(w io.Writer, path string, args string) (*Rea
 func (m *MockWebClient) SourceFile(w io.Writer, pkgPath, fileName string) (*FileMeta, error) {
 	pkg, exists := m.Packages[pkgPath]
 	if !exists {
-		return nil, errors.New("package not found")
+		return nil, ErrClientPathNotFound
 	}
 
 	if body, ok := pkg.Files[fileName]; ok {
@@ -60,14 +59,14 @@ func (m *MockWebClient) SourceFile(w io.Writer, pkgPath, fileName string) (*File
 		}, nil
 	}
 
-	return nil, errors.New("file not found")
+	return nil, ErrClientPathNotFound
 }
 
 // Functions simulates retrieving function signatures from a package.
 func (m *MockWebClient) Functions(path string) ([]vm.FunctionSignature, error) {
 	pkg, exists := m.Packages[path]
 	if !exists {
-		return nil, errors.New("package not found")
+		return nil, ErrClientPathNotFound
 	}
 
 	return pkg.Functions, nil
@@ -77,7 +76,7 @@ func (m *MockWebClient) Functions(path string) ([]vm.FunctionSignature, error) {
 func (m *MockWebClient) Sources(path string) ([]string, error) {
 	pkg, exists := m.Packages[path]
 	if !exists {
-		return nil, errors.New("package not found")
+		return nil, ErrClientPathNotFound
 	}
 
 	fileNames := make([]string, 0, len(pkg.Files))
