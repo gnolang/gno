@@ -20,12 +20,12 @@ func NewFlag(creator std.Address, reason string) Flag {
 }
 
 type Flaggable interface {
-	// AddFlag adds a new flag to an entry.
+	// AddFlag adds a new flag to an item.
 	//
 	// Returns false if item was already flagged by user.
 	AddFlag(flag Flag) bool
 
-	// FlagsCount returns number of times entry was flagged.
+	// FlagsCount returns number of times item was flagged.
 	FlagsCount() int
 }
 
@@ -40,7 +40,7 @@ func flagItem(item Flaggable, flag Flag) bool {
 	}
 
 	if !item.AddFlag(flag) {
-		panic("item has been already flagged by a user")
+		panic("item has been already flagged by a current user")
 	}
 
 	return item.FlagsCount() == flagThreshold
