@@ -1,10 +1,10 @@
 package home
 
 import (
-	"github.com/gnolang/gno/examples/gno.land/p/demo/ownable"
 	"std"
 	"strings"
 
+	"gno.land/p/demo/ownable"
 	"gno.land/p/demo/ufmt"
 	"gno.land/p/moul/md"
 )
@@ -16,7 +16,7 @@ var (
 
 type Section struct {
 	text    func() string
-	ordinal uint8
+	ordinal uint
 	enabled bool
 }
 
@@ -35,7 +35,7 @@ func init() {
 	}
 }
 
-func UpdateSection(ord1, ord2 uint8) error {
+func UpdateSection(ord1, ord2 uint) error {
 	if !Ownable.CallerIsOwner() {
 		return ownable.ErrUnauthorized
 	}
@@ -43,18 +43,32 @@ func UpdateSection(ord1, ord2 uint8) error {
 	if ord1 != ord2 {
 		sections[ord1], sections[ord2] = sections[ord2], sections[ord1]
 	}
+
+	// sort by ord at the end
+	return nil
 }
 
-func AddSection(text string, ordinal uint8, enabled bool) error {
+func AddSection(text func() string, ordinal uint8, enabled bool) error {
 	if !Ownable.CallerIsOwner() {
 		return ownable.ErrUnauthorized
 	}
 
+	return nil
 }
 
-func Render(_ string) string {
-
+func Render(path string) string {
 	var out string
+
+	if path == "admin" {
+		for _, section := range sections {
+			out += md.H3(ufmt.Sprintf("Section Ordinal: %d, enabled: %t", section.ordinal, section.enabled))
+			out += section.text()
+			out += "---\n\n"
+		}
+
+		return out
+	}
+
 	for _, section := range sections {
 		if section.enabled {
 			out += section.text()
