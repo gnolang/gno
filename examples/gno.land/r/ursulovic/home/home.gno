@@ -5,8 +5,10 @@ import (
 	"strings"
 
 	"gno.land/p/moul/md"
-
 	"gno.land/r/leon/hof"
+	"gno.land/p/demo/ownable"
+
+	"gno.land/r/ursulovic/registry"
 )
 
 var (
@@ -14,10 +16,12 @@ var (
 	aboutMe    string
 	pfp        string
 	pfpCaption string
-	currentIdx int
+	owner *ownable.Ownable
 )
 
 func init() {
+	owner = ownable.NewWithAddress(registry.MainAddress())
+
 	phrases[0] = "Why did the blockchain go to therapy? It had a lot of unprocessed transactions."
 	phrases[1] = "Why don’t blockchains ever tell secrets? They use smart contracts – always open and never closed!"
 	phrases[2] = "In Gnoland, we don’t worry about bugs – they’re just features waiting to be integrated!"
@@ -32,10 +36,31 @@ func init() {
 	aboutMe = "Hello everyone, my name is Ivan Ursulovic. I am a Computer Engineering graduate from the School of Computing at Union University. I have experience working as a backend ASP.NET developer, but beyond that, I am a big Web3 enthusiast!"
 	pfp = "https://i.ibb.co/W28NPkw/beograd.webp"
 	pfpCaption = "Belgrade, the city I come from"
-	currentIdx = 0
 	hof.Register()
 }
 
+//Update
+func UpdatePfp(url string, caption string) {
+	owner.AssertCallerIsOwner()
+	pfp = url
+	pfpCaption = caption
+}
+
+func UpdateAboutMe(abtMe string) {
+	owner.AssertCallerIsOwner()
+	aboutMe = abtMe
+}
+
+func UpdatePhrase(index int, newPhrase string) {
+	owner.AssertCallerIsOwner()
+	if index < 0 || index >= len(phrases) {
+		panic("index out of boundaries")
+	}
+	phrases[index] = newPhrase
+}
+
+
+//Rendering
 func Render(path string) string {
 	var out strings.Builder
 	out.WriteString(renderAboutMe())

@@ -28,25 +28,23 @@ func BackupAddress() std.Address {
 }
 
 func SetMainAddress(addr std.Address) error {
+	assertAuthorized()
+	
 	if !addr.IsValid() {
 		return ErrInvalidAddr
 	}
 
-	if err := checkAuthorized(); err != nil {
-		return err
-	}
 	mainAddress = addr
 	return nil
 }
 
 func SetBackupAddress(addr std.Address) error {
+	assertAuthorized()
+
 	if !addr.IsValid() {
 		return ErrInvalidAddr
 	}
 
-	if err := checkAuthorized(); err != nil {
-		return err
-	}
 	backupAddress = addr
 	return nil
 }
@@ -58,14 +56,4 @@ func assertAuthorized() {
 	if !isAuthorized {
 		panic(ErrUnauthorized)
 	}
-}
-
-func checkAuthorized() error {
-	caller := std.PrevRealm().Addr()
-	isAuthorized := caller == mainAddress || caller == backupAddress
-
-	if !isAuthorized {
-		return ErrUnauthorized
-	}
-	return nil
 }
