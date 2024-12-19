@@ -53,7 +53,7 @@ func convertAndEncode(hrp string, data []byte) (string, error) {
 }
 
 func decodeAndConvert(bech string) (string, []byte, error) {
-	hrp, data, err := bech32.Decode(bech)
+	hrp, data, err := bech32.DecodeNoLimit(bech)
 	if err != nil {
 		return "", nil, errors.New("decoding bech32 failed" + err.Error())
 	}
