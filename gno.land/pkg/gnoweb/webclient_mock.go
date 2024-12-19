@@ -81,7 +81,7 @@ func (m *MockWebClient) Sources(path string) ([]string, error) {
 	}
 
 	fileNames := make([]string, 0, len(pkg.Files))
-	for file, _ := range pkg.Files {
+	for file := range pkg.Files {
 		fileNames = append(fileNames, file)
 	}
 
