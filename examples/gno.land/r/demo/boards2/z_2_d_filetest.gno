@@ -13,11 +13,13 @@ func init() {
 }
 
 func main() {
+	// Only single user per flag can't be tested atm, as flagThreshold = 1.
 	bid := boards2.CreateBoard("test1")
 	pid := boards2.CreateThread(bid, "thread", "thread")
-	boards2.FlagThread(bid, pid, "reason")
-	_ = boards2.CreateReply(bid, pid, pid, "reply")
+
+	boards2.FlagThread(bid, pid, "reason1")
+	boards2.FlagThread(bid, pid, "reason2")
 }
 
 // Error:
-// thread with ID: 1 was hidden
+// item flag count threshold exceeded: 1
