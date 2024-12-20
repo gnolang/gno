@@ -7,7 +7,7 @@ func ExampleExposeBankForMaketxRunOrImports() {}
 func ExampleCustomTellerImpl()                {}
 func ExampleAllowance()                       {}
 func ExampleRealmBanker()                     {}
-func ExamplePreviousRealmBanker()                 {}
+func ExamplePreviousRealmBanker()             {}
 func ExampleAccountBanker()                   {}
 func ExampleTransfer()                        {}
 func ExampleApprove()                         {}

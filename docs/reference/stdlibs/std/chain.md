@@ -101,7 +101,7 @@ caller := std.OriginCaller()
 ```
 ---
 
-## GetOriginPkgAddr
+## GetOriginPkgAddress
 ```go
 func GetOriginPkgAddress() string
 ```

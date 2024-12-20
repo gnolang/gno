@@ -5,7 +5,7 @@ func IsOriginCall() bool          // injected
 func TestSkipHeights(count int64) // injected
 
 func TestSetOriginCaller(addr Address)  { testSetOriginCaller(string(addr)) }
-func TestSetOriginPkgAddr(addr Address) { testSetOriginPkgAddr(string(addr)) }
+func TestSetOriginPkgAddress(addr Address) { testSetOriginPkgAddr(string(addr)) }
 
 // TestSetRealm sets the realm for the current frame.
 // After calling TestSetRealm, calling CurrentRealm() in the test function will yield the value of

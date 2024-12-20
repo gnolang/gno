@@ -18,7 +18,7 @@ var (
 )
 
 func main() {
-	std.TestSetOriginPkgAddr(addrc)
+	std.TestSetOriginPkgAddress(addrc)
 	std.TestIssueCoins(addrc, std.Coins{{"ugnot", 100000001}}) // TODO: remove this
 
 	// issue ugnots
