@@ -203,57 +203,28 @@ func (l *List) Slice(startIndex, endIndex int) []interface{} {
 	count := endIndex - startIndex
 	result := make([]interface{}, count)
 
-	// Fill the slice from end to start to maintain correct order
-	i := count - 1
-	l.tree.IterateByOffset(size-endIndex, count, func(_ string, value interface{}) bool {
+	// Change: Use IterateByOffset instead of ReverseIterateByOffset
+	i := 0
+	l.tree.IterateByOffset(startIndex, count, func(_ string, value interface{}) bool {
 		result[i] = value
-		i--
+		i++
 		return false
 	})
 	return result
 }
 
 // ForEach iterates through all elements in the list.
-// The callback function receives the index and value of each element.
-// Return true from the callback to stop iteration.
-//
-// Example:
-//
-//	l := list.New()
-//	l.Append(1, 2, 3)
-//
-//	sum := 0
-//	l.ForEach(func(index int, value interface{}) bool {
-//	    sum += value.(int)
-//	    return false  // continue iteration
-//	})
-//	println(sum)  // Output: 6
-//
-//	// Early stop
-//	l.ForEach(func(index int, value interface{}) bool {
-//	    if value.(int) > 2 {
-//	        return true  // stop iteration
-//	    }
-//	    return false
-//	})
 func (l *List) ForEach(fn func(index int, value interface{}) bool) {
-	size := l.tree.Size()
-	values := make([]interface{}, size)
-
-	// First collect values in reverse order
-	i := size - 1
-	l.tree.IterateByOffset(0, size, func(_ string, value interface{}) bool {
-		values[i] = value
-		i--
-		return false
-	})
-
-	// Then iterate through them in correct order
-	for i := 0; i < size; i++ {
-		if fn(i, values[i]) {
-			return
-		}
+	if l.tree.Size() == 0 {
+		return
 	}
+
+	index := 0
+	l.tree.IterateByOffset(0, l.tree.Size(), func(_ string, value interface{}) bool {
+		result := fn(index, value)
+		index++
+		return result
+	})
 }
 
 // Clone creates a shallow copy of the list.
@@ -270,8 +241,8 @@ func (l *List) ForEach(fn func(index int, value interface{}) bool) {
 //	println(clone.Get(0)) // Output: 42
 func (l *List) Clone() *List {
 	newList := &List{
-		tree:  avl.Tree{}, // Create a new empty tree
-		idGen: l.idGen,    // Copy the current ID generator state
+		tree:  avl.Tree{},
+		idGen: l.idGen,
 	}
 
 	size := l.tree.Size()
@@ -279,19 +250,11 @@ func (l *List) Clone() *List {
 		return newList
 	}
 
-	// Collect values in correct order
-	values := make([]interface{}, size)
-	i := size - 1
+	// Change: Use IterateByOffset instead of ReverseIterateByOffset
 	l.tree.IterateByOffset(0, size, func(_ string, value interface{}) bool {
-		values[i] = value
-		i--
+		newList.Append(value)
 		return false
 	})
-
-	// Add values to new list in correct order
-	for _, value := range values {
-		newList.Append(value)
-	}
 
 	return newList
 }
@@ -323,7 +286,7 @@ func (l *List) DeleteRange(startIndex, endIndex int) int {
 
 	// Collect keys to delete
 	keysToDelete := make([]string, 0, endIndex-startIndex)
-	l.tree.IterateByOffset(size-endIndex, endIndex-startIndex, func(key string, _ interface{}) bool {
+	l.tree.IterateByOffset(startIndex, endIndex-startIndex, func(key string, _ interface{}) bool {
 		keysToDelete = append(keysToDelete, key)
 		return false
 	})

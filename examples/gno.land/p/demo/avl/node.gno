@@ -423,10 +423,12 @@ func (node *Node) traverseByOffset(offset, limit int, ascending bool, leavesOnly
 		if offset > 0 {
 			offset--
 		} else {
-			cb(first)
+			if cb(first) {
+				return true
+			}
 			limit--
 			if limit <= 0 {
-				return false
+				return true
 			}
 		}
 	} else {
