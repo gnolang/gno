@@ -37,8 +37,8 @@ Browser`
 				sl, reversed = reversed, sl
 			}
 
-			r := NewNode(sl[0], nil)
-			for _, v := range sl[1:] {
+			r := NewNode(reversed[0], nil)
+			for _, v := range reversed[1:] {
 				r, _ = r.Set(v, nil)
 			}
 
