@@ -5,6 +5,7 @@ import (
 	"std"
 	"strings"
 
+	"gno.land/p/demo/avl"
 	"gno.land/p/demo/mux"
 	"gno.land/p/demo/ufmt"
 )
