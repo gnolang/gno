@@ -3,7 +3,7 @@ package boards2
 import "gno.land/p/demo/avl"
 
 var (
-	gPerm         Permissioner // TODO: Support changing the permissioner
+	gPerm         Permissions // TODO: Support assigning a different implementation
 	gLastBoardID  BoardID
 	gBoardsByID   avl.Tree // string(id) -> *Board
 	gBoardsByName avl.Tree // string(name) -> *Board

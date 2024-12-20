@@ -12,7 +12,7 @@ type (
 	// PermissionsHandlerFunc defines a function to handle permission callbacks.
 	// Handlers are called by the `WithPermission()` method to execute callbacks
 	// when users have the permission assigned.
-	PermissionsHandlerFunc func(Permissioner, Args, func(Args))
+	PermissionsHandlerFunc func(Permissions, Args, func(Args))
 
 	// DefaultPermissions manages users, roles and permissions.
 	DefaultPermissions struct {
@@ -151,7 +151,7 @@ func createDefaultPermissions() *DefaultPermissions {
 	// TODO: Define and change the default realm owner (or owners)
 	owner := std.Address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5") // @test1
 	// TODO: DAO should be a different realm or proposal and voting functions should be part of boards realm?
-	//       Permissions and DAO mechanics should be discussed and improved. Add `GetDAO()` to `Permissioner`??
+	//       Permissions and DAO mechanics should be discussed and improved. Add `GetDAO()` to `Permissions`??
 	dao := admindao.New(admindao.WithMember(owner))
 	perms := NewDefaultPermissions(
 		dao,
