@@ -23,7 +23,9 @@ func TestForkGnoland(t *testing.T) {
 	gnoRootDir := gnoenv.RootDir()
 
 	gnolandBuildDir := filepath.Join(tmpdir, "build")
+	gnolandDBDir := filepath.Join(tmpdir, "db")
 	gnolandBin := filepath.Join(gnolandBuildDir, "gnoland")
+
 	err := buildGnoland(t, gnoRootDir, gnolandBin)
 	require.NoError(t, err)
 
@@ -32,6 +34,7 @@ func TestForkGnoland(t *testing.T) {
 	gnoenv.RootDir()
 	remoteAddr, cmd, err := ExecuteForkBinary(ctx, gnolandBin, &ForkConfig{
 		// PrivValidator: ed25519.GenPrivKey(),
+		DBDir:    gnolandDBDir,
 		RootDir:  gnoRootDir,
 		TMConfig: cfg.TMConfig,
 		Genesis:  NewMarshalableGenesisDoc(cfg.Genesis),
