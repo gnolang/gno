@@ -1122,13 +1122,13 @@ func (tv *TypedValue) PrimitiveBytes() (data []byte) {
 		data = make([]byte, 4)
 		u32 := tv.GetFloat32()
 		binary.LittleEndian.PutUint32(
-			data, uint32(u32))
+			data, u32)
 		return data
 	case Float64Type:
 		data = make([]byte, 8)
 		u64 := tv.GetFloat64()
 		binary.LittleEndian.PutUint64(
-			data, uint64(u64))
+			data, u64)
 		return data
 	case BigintType:
 		return tv.V.(BigintValue).V.Bytes()
@@ -1449,7 +1449,7 @@ func (tv *TypedValue) GetUint64() uint64 {
 	return *(*uint64)(unsafe.Pointer(&tv.N))
 }
 
-func (tv *TypedValue) SetFloat32(n SoftFloat32) {
+func (tv *TypedValue) SetFloat32(n uint32) {
 	if debug {
 		if tv.T.Kind() != Float32Kind || isNative(tv.T) {
 			panic(fmt.Sprintf(
@@ -1457,10 +1457,10 @@ func (tv *TypedValue) SetFloat32(n SoftFloat32) {
 				tv.T.String()))
 		}
 	}
-	*(*SoftFloat32)(unsafe.Pointer(&tv.N)) = n
+	*(*uint32)(unsafe.Pointer(&tv.N)) = n
 }
 
-func (tv *TypedValue) GetFloat32() SoftFloat32 {
+func (tv *TypedValue) GetFloat32() uint32 {
 	if debug {
 		if tv.T != nil && tv.T.Kind() != Float32Kind {
 			panic(fmt.Sprintf(
@@ -1468,10 +1468,10 @@ func (tv *TypedValue) GetFloat32() SoftFloat32 {
 				tv.T.String()))
 		}
 	}
-	return *(*SoftFloat32)(unsafe.Pointer(&tv.N))
+	return *(*uint32)(unsafe.Pointer(&tv.N))
 }
 
-func (tv *TypedValue) SetFloat64(n SoftFloat64) {
+func (tv *TypedValue) SetFloat64(n uint64) {
 	if debug {
 		if tv.T.Kind() != Float64Kind || isNative(tv.T) {
 			panic(fmt.Sprintf(
@@ -1479,10 +1479,10 @@ func (tv *TypedValue) SetFloat64(n SoftFloat64) {
 				tv.T.String()))
 		}
 	}
-	*(*SoftFloat64)(unsafe.Pointer(&tv.N)) = n
+	*(*uint64)(unsafe.Pointer(&tv.N)) = n
 }
 
-func (tv *TypedValue) GetFloat64() SoftFloat64 {
+func (tv *TypedValue) GetFloat64() uint64 {
 	if debug {
 		if tv.T != nil && tv.T.Kind() != Float64Kind {
 			panic(fmt.Sprintf(
@@ -1490,7 +1490,7 @@ func (tv *TypedValue) GetFloat64() SoftFloat64 {
 				tv.T.String()))
 		}
 	}
-	return *(*SoftFloat64)(unsafe.Pointer(&tv.N))
+	return *(*uint64)(unsafe.Pointer(&tv.N))
 }
 
 func (tv *TypedValue) GetBigInt() *big.Int {
