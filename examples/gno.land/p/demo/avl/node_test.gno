@@ -420,6 +420,30 @@ func TestTraverse(t *testing.T) {
 					t.Errorf("want %v got %v", expected, result)
 				}
 			})
+
+			t.Run("early termination", func(t *testing.T) {
+				if len(tt.input) == 0 {
+					return // Skip for empty tree
+				}
+
+				var result []string
+				var count int
+				tree.Iterate("", "", func(n *Node) bool {
+					count++
+					result = append(result, n.Key())
+					return true // Stop after first item
+				})
+
+				if count != 1 {
+					t.Errorf("Expected callback to be called exactly once, got %d calls", count)
+				}
+				if len(result) != 1 {
+					t.Errorf("Expected exactly one result, got %d items", len(result))
+				}
+				if len(result) > 0 && result[0] != tt.expected[0] {
+					t.Errorf("Expected first item to be %v, got %v", tt.expected[0], result[0])
+				}
+			})
 		})
 	}
 }

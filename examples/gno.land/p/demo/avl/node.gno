@@ -411,7 +411,7 @@ func (node *Node) traverseByOffset(offset, limit int, ascending bool, leavesOnly
 	// caller guarantees: offset < node.size; limit > 0.
 	if !leavesOnly {
 		if cb(node) {
-			return true
+			return true // Stop traversal if callback returns true
 		}
 	}
 	first, second := node.getLeftNode(), node.getRightNode()
@@ -423,10 +423,12 @@ func (node *Node) traverseByOffset(offset, limit int, ascending bool, leavesOnly
 		if offset > 0 {
 			offset--
 		} else {
-			cb(first)
+			if cb(first) {
+				return true // Stop traversal if callback returns true
+			}
 			limit--
 			if limit <= 0 {
-				return false
+				return true // Stop traversal when limit is reached
 			}
 		}
 	} else {
