@@ -80,7 +80,6 @@ func (gnoURL GnoURL) Encode(encodeFlags EncodeFlag) string {
 	if encodeFlags.Has(EncodeQuery) && len(gnoURL.Query) > 0 {
 		urlstr.WriteRune('?')
 		urlstr.WriteString(gnoURL.Query.Encode())
-
 	}
 
 	return urlstr.String()
