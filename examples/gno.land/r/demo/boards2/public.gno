@@ -193,6 +193,12 @@ func assertHasPermission(user std.Address, p Permission) {
 	}
 }
 
+func assertHasBoardPermission(b *Board, user std.Address, p Permission) {
+	if !b.perms.HasPermission(user, p) {
+		panic("unauthorized")
+	}
+}
+
 func assertBoardExists(id BoardID) {
 	if _, found := getBoard(id); !found {
 		panic("board not found: " + id.String())
