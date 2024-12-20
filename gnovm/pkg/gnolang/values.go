@@ -402,7 +402,6 @@ func (av *ArrayValue) Copy(alloc *Allocator) *ArrayValue {
 	}
 	av2 := alloc.NewDataArray(len(av.Data))
 	copy(av2.Data, av.Data)
-	av2.ObjectInfo = av.ObjectInfo.Copy()
 	return av2
 }
 
@@ -529,10 +528,7 @@ func (sv *StructValue) Copy(alloc *Allocator) *StructValue {
 	for i, field := range sv.Fields {
 		fields[i] = field.Copy(alloc)
 	}
-	nsv := alloc.NewStruct(fields)
-	nsv.ObjectInfo = sv.ObjectInfo.Copy()
-
-	return nsv
+	return alloc.NewStruct(fields)
 }
 
 // ----------------------------------------
@@ -2433,7 +2429,11 @@ func (b *Block) GetParent(store Store) *Block {
 }
 
 func (b *Block) GetPointerToInt(store Store, index int) PointerValue {
+	//fmt.Println("---GetPointerToInt")
+	//fmt.Println("---b: ", b)
+	//fmt.Println("---b.Values[index]: ", b.Values[index])
 	vv := fillValueTV(store, &b.Values[index])
+	//fmt.Println("---vv: ", vv)
 	return PointerValue{
 		TV:    vv,
 		Base:  b,
@@ -2468,6 +2468,7 @@ func (b *Block) GetPointerTo(store Store, path ValuePath) PointerValue {
 
 // Convenience
 func (b *Block) GetPointerToMaybeHeapUse(store Store, nx *NameExpr) PointerValue {
+	//fmt.Println("---GetpointerToMaybeHeapUse")
 	switch nx.Type {
 	case NameExprTypeNormal:
 		return b.GetPointerTo(store, nx.Path)
@@ -2687,7 +2688,7 @@ func typedString(s string) TypedValue {
 }
 
 func fillValueTV(store Store, tv *TypedValue) *TypedValue {
-	//fmt.Println("---fillValueTV, tv: ", tv)
+	//fmt.Println("---fillValueTV, tv: ", tv, reflect.TypeOf(tv))
 	switch cv := tv.V.(type) {
 	case RefValue:
 		//println("---ref value")

@@ -38,7 +38,12 @@ func (m *Machine) doOpEval() {
 			lb := m.LastBlock()
 			// Push value, done.
 			ptr := lb.GetPointerToMaybeHeapUse(m.Store, nx)
+			//v2 := ptr.Deref()
+			//if oo, ok := v2.V.(Object); ok {
+			//	fmt.Println("---oo...OwnerID: ", oo.GetObjectInfo().OwnerID)
+			//}
 			//fmt.Println("---ptr.Deref(): ", ptr.Deref())
+
 			m.PushValue(ptr.Deref())
 			return
 		}

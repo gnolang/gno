@@ -79,8 +79,7 @@ func (opts *TestOptions) runFiletest(filename string, source []byte) (string, er
 		// Remove end-of-line spaces, as these are removed from `fmt` in the filetests anyway.
 		actual = reEndOfLineSpaces.ReplaceAllString(actual, "\n")
 		if dir.Content != actual {
-			//if opts.Sync {
-			if true {
+			if opts.Sync {
 				dir.Content = actual
 				updated = true
 			} else {

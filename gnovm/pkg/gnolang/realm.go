@@ -633,6 +633,7 @@ func (rlm *Realm) markDirtyAncestors(store Store) {
 				}
 			}
 			if rc > 1 {
+				//println("---oo escaped")
 				if debug {
 					if !oo.GetIsEscaped() && !oo.GetIsNewEscaped() {
 						panic("ancestor should cannot be escaped or new escaped to be marked as dirty")
@@ -670,11 +671,13 @@ func (rlm *Realm) markDirtyAncestors(store Store) {
 	// NOTE: newly dirty-marked owners get appended
 	// to .updated without affecting iteration.
 	for _, oo := range rlm.updated {
+		//fmt.Println("---uo ", oo)
 		markAncestorsOne(oo)
 	}
 	// NOTE: must happen after iterating over rlm.updated
 	// for the same reason.
 	for _, oo := range rlm.created {
+		//fmt.Println("---co ", oo)
 		markAncestorsOne(oo)
 	}
 }
