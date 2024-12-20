@@ -33,7 +33,7 @@ func init() {
 	phrases[8] = "Why did the blockchain join a gym? To get a better hash rate!"
 	phrases[9] = "Why did the blockchain break up with traditional finance? It was looking for a more transparent relationship."
 
-	aboutMe = "Hello everyone, my name is Ivan Ursulovic. I am a Computer Engineering graduate from the School of Computing at Union University. I have experience working as a backend ASP.NET developer, but beyond that, I am a big Web3 enthusiast!"
+	aboutMe = "Hi, I’m Ivan Ursulovic, a computer engineering graduate, blockchain enthusiast, and backend developer specializing in ASP.NET. I love learning new things and taking on challenges."
 	pfp = "https://i.ibb.co/W28NPkw/beograd.webp"
 	pfpCaption = "Belgrade, the city I come from"
 	hof.Register()
@@ -74,8 +74,7 @@ func renderAboutMe() string {
     var out strings.Builder
     out.WriteString(md.H3("About me")) 
     
-    aboutMe := "Hello everyone, my name is Ivan Ursulovic. I am a Computer Engineering graduate from the School of Computing at Union University. I have experience working as a backend ASP.NET developer, but beyond that, I am a big Web3 enthusiast!"
-    out.WriteString(md.Paragraph(aboutMe)) // Use md.Paragraph instead of md.H4
+    out.WriteString(md.Paragraph(aboutMe))
     
     return out.String()
 }
