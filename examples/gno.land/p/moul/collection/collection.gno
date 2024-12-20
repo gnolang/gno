@@ -287,7 +287,8 @@ func (c *Collection) Update(id uint64, obj interface{}) uint64 {
 		}
 	}
 
-	// Remove old index entries
+	// Store old index entries for potential rollback
+	oldEntries := make(map[string]string)
 	for name, idx := range c.indexes {
 		if name == IDIndex {
 			continue
@@ -296,10 +297,10 @@ func (c *Collection) Update(id uint64, obj interface{}) uint64 {
 		if !ok {
 			continue
 		}
-		// Handle case-insensitive indexes when removing old key
 		if idx.options&CaseInsensitiveIndex != 0 {
 			oldKey = strings.ToLower(oldKey)
 		}
+		oldEntries[name] = oldKey
 		idx.tree.Remove(oldKey)
 	}
 
@@ -311,9 +312,16 @@ func (c *Collection) Update(id uint64, obj interface{}) uint64 {
 		}
 		newKey, ok := safeGenerateKey(idx.fn, obj)
 		if !ok {
-			// Rollback: restore old object
+			// Rollback: restore old object and all index entries
 			c.indexes[IDIndex].tree.Set(idStr, oldObj)
+			for idxName, oldKey := range oldEntries {
+				c.indexes[idxName].tree.Set(oldKey, idStr)
+			}
 			return 0
+		}
+
+		if idx.options&CaseInsensitiveIndex != 0 {
+			newKey = strings.ToLower(newKey)
 		}
 		idx.tree.Set(newKey, idStr)
 	}
