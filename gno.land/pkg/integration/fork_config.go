@@ -12,6 +12,7 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/amino"
 	tmcfg "github.com/gnolang/gno/tm2/pkg/bft/config"
 	bft "github.com/gnolang/gno/tm2/pkg/bft/types"
+	"github.com/gnolang/gno/tm2/pkg/crypto/ed25519"
 )
 
 type MarshalableGenesisDoc bft.GenesisDoc
@@ -42,9 +43,11 @@ func (m *MarshalableGenesisDoc) ToGenesisDoc() *bft.GenesisDoc {
 }
 
 type ForkConfig struct {
-	RootDir  string                 `json:"rootdir"`
-	Genesis  *MarshalableGenesisDoc `json:"genesis"`
-	TMConfig *tmcfg.Config          `json:"tm"`
+	PrivValidator ed25519.PrivKeyEd25519 `json:"priv"`
+	DBDir         string                 `json:"dbdir"`
+	RootDir       string                 `json:"rootdir"`
+	Genesis       *MarshalableGenesisDoc `json:"genesis"`
+	TMConfig      *tmcfg.Config          `json:"tm"`
 }
 
 // ExecuteForkBinary runs the binary at the given path with the provided configuration.
@@ -107,6 +110,7 @@ func ExecuteForkBinary(ctx context.Context, binaryPath string, cfg *ForkConfig) 
 	select {
 	case err := <-readyChan:
 		if err != nil {
+			fmt.Println("ERR", err)
 			cmd.Process.Kill()
 			return "", cmd, err
 		}

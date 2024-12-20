@@ -13,6 +13,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"syscall"
 	"testing"
 	"time"
 
@@ -25,6 +26,7 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/commands"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
 	"github.com/gnolang/gno/tm2/pkg/crypto/bip39"
+	"github.com/gnolang/gno/tm2/pkg/crypto/ed25519"
 	"github.com/gnolang/gno/tm2/pkg/crypto/keys"
 	"github.com/gnolang/gno/tm2/pkg/crypto/keys/client"
 	tm2Log "github.com/gnolang/gno/tm2/pkg/log"
@@ -114,8 +116,13 @@ func SetupGnolandTestscript(t *testing.T, p *testscript.Params) error {
 			}
 		}
 
-		tmpdir := t.TempDir()
+		// XXX: rework this
+		tmpdir, dbdir := t.TempDir(), t.TempDir()
 		gnoHomeDir := filepath.Join(tmpdir, "gno")
+
+		env.Values["PK"] = ed25519.GenPrivKey()
+
+		env.Setenv("GNO_DBDIR", dbdir)
 
 		// Get `TESTWORK` environement variable from setup
 		persistWorkDir, _ := strconv.ParseBool(env.Getenv("TESTWORK"))
@@ -264,21 +271,25 @@ func gnolandCmd(t *testing.T, nodesManager *NodesManager, gnolandBin, gnoRootDir
 			ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
 			defer cancel()
 
+			dbdir := ts.Getenv("GNO_DBDIR")
+			priv := ts.Value("PK").(ed25519.PrivKeyEd25519)
 			remoteAddr, cmd, err := ExecuteForkBinary(ctx, gnolandBin, &ForkConfig{
-				RootDir:  gnoRootDir,
-				TMConfig: cfg.TMConfig,
-				Genesis:  NewMarshalableGenesisDoc(cfg.Genesis),
+				PrivValidator: priv,
+				DBDir:         dbdir,
+				RootDir:       gnoRootDir,
+				TMConfig:      cfg.TMConfig,
+				Genesis:       NewMarshalableGenesisDoc(cfg.Genesis),
 			})
 			if err != nil {
 				ts.Fatalf("unable to start the node: %s", err)
 			}
 
-			cfg.TMConfig.RPC.ListenAddress = remoteAddr
 			nodesManager.Set(sid, &testNode{Cmd: cmd, remoteAddr: remoteAddr, cfg: cfg})
 
 			ts.Setenv("RPC_ADDR", remoteAddr)
 
 			fmt.Fprintln(ts.Stdout(), "node started successfully")
+
 		case "restart":
 			node, exists := nodesManager.Get(sid)
 			if !exists {
@@ -286,24 +297,37 @@ func gnolandCmd(t *testing.T, nodesManager *NodesManager, gnolandBin, gnoRootDir
 				break
 			}
 
-			if stopErr := node.Cmd.Process.Kill(); stopErr != nil {
-				err = fmt.Errorf("error stopping node: %w", stopErr)
+			fmt.Println("STOPING")
+
+			// Send SIGTERM to the process
+			if err := node.Cmd.Process.Signal(syscall.SIGTERM); err != nil {
+				err = fmt.Errorf("Error sending SIGTERM: %w\n", err)
 				break
 			}
 
-			ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
+			// Optionally wait for the process to exit
+			if _, err := node.Cmd.Process.Wait(); err != nil {
+				err = fmt.Errorf("Process exited with error: %w", err)
+				break
+			}
+
+			fmt.Println("STOP DONE")
+			ctx, cancel := context.WithTimeout(context.Background(), time.Second*20)
 			defer cancel()
 
+			priv := ts.Value("PK").(ed25519.PrivKeyEd25519)
+			dbdir := ts.Getenv("GNO_DBDIR")
 			newRemoteAddr, cmd, err := ExecuteForkBinary(ctx, gnolandBin, &ForkConfig{
-				RootDir:  gnoRootDir,
-				TMConfig: node.cfg.TMConfig,
-				Genesis:  NewMarshalableGenesisDoc(node.cfg.Genesis),
+				PrivValidator: priv,
+				DBDir:         dbdir,
+				RootDir:       gnoRootDir,
+				TMConfig:      node.cfg.TMConfig,
+				Genesis:       NewMarshalableGenesisDoc(node.cfg.Genesis),
 			})
 			if err != nil {
 				ts.Fatalf("unable to start the node: %s", err)
 			}
 
-			node.cfg.TMConfig.RPC.ListenAddress = newRemoteAddr
 			nodesManager.Set(sid, &testNode{Cmd: cmd, remoteAddr: newRemoteAddr, cfg: node.cfg})
 
 			fmt.Fprintln(ts.Stdout(), "node restarted successfully")
@@ -355,7 +379,7 @@ func gnokeyCmd(nodes *NodesManager) func(ts *testscript.TestScript, neg bool, ar
 		}
 
 		if n, ok := nodes.Get(sid); ok {
-			if raddr := n.cfg.TMConfig.RPC.ListenAddress; raddr != "" {
+			if raddr := n.remoteAddr; raddr != "" {
 				defaultArgs = append(defaultArgs, "-remote", raddr)
 			}
 

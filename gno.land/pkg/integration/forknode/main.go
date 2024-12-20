@@ -12,23 +12,56 @@ import (
 	"github.com/gnolang/gno/gno.land/pkg/gnoland"
 	"github.com/gnolang/gno/gno.land/pkg/integration"
 	bft "github.com/gnolang/gno/tm2/pkg/bft/types"
+	"github.com/gnolang/gno/tm2/pkg/db"
+	"github.com/gnolang/gno/tm2/pkg/db/goleveldb"
+	"github.com/gnolang/gno/tm2/pkg/db/memdb"
 )
+
+// isAllZero checks if all elements in the [64]byte array are zero.
+func isAllZero(arr [64]byte) bool {
+	for _, v := range arr {
+		if v != 0 {
+			return false
+		}
+	}
+	return true
+}
 
 func ForkableNode(cfg *integration.ForkConfig) error {
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+	// logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
+
+	var data db.DB
+	var err error
+	if cfg.DBDir == "" {
+		data = memdb.NewMemDB()
+	} else {
+		data, err = goleveldb.NewGoLevelDB("testdb", cfg.DBDir)
+		if err != nil {
+			return fmt.Errorf("unable to init database in %q: %w", cfg.DBDir, err)
+		}
+	}
 
 	nodecfg := integration.TestingMinimalNodeConfig(cfg.RootDir)
-	pv := nodecfg.PrivValidator.GetPubKey()
+
+	if len(cfg.PrivValidator) > 0 && !isAllZero(cfg.PrivValidator) {
+		nodecfg.PrivValidator = bft.NewMockPVWithParams(cfg.PrivValidator, false, false)
+		pv := nodecfg.PrivValidator.GetPubKey()
+		nodecfg.Genesis.Validators = []bft.GenesisValidator{
+			{
+				Address: pv.Address(),
+				PubKey:  pv,
+				Power:   10,
+				Name:    "self",
+			},
+		}
+
+	}
+
+	nodecfg.DB = data
+	nodecfg.TMConfig.DBPath = cfg.DBDir
 	nodecfg.TMConfig = cfg.TMConfig
 	nodecfg.Genesis = cfg.Genesis.ToGenesisDoc()
-	nodecfg.Genesis.Validators = []bft.GenesisValidator{
-		{
-			Address: pv.Address(),
-			PubKey:  pv,
-			Power:   10,
-			Name:    "self",
-		},
-	}
 
 	node, err := gnoland.NewInMemoryNode(logger, nodecfg)
 	if err != nil {

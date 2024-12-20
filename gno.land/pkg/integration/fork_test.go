@@ -2,13 +2,13 @@ package integration
 
 import (
 	"context"
-	"fmt"
 	"path/filepath"
 	"testing"
 	"time"
 
 	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
 	"github.com/gnolang/gno/tm2/pkg/bft/rpc/client"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
@@ -29,6 +29,7 @@ func TestForkGnoland(t *testing.T) {
 
 	gnoenv.RootDir()
 	remoteAddr, cmd, err := ExecuteForkBinary(ctx, gnolandBin, &ForkConfig{
+		// PrivValidator: ed25519.GenPrivKey(),
 		RootDir:  gnoRootDir,
 		TMConfig: cfg.TMConfig,
 		Genesis:  NewMarshalableGenesisDoc(cfg.Genesis),
@@ -42,6 +43,5 @@ func TestForkGnoland(t *testing.T) {
 
 	info, err := cli.ABCIInfo()
 	require.NoError(t, err)
-
-	fmt.Println(info)
+	assert.NotEmpty(t, info.Response.Data)
 }
