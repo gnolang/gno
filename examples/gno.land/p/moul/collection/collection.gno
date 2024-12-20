@@ -371,7 +371,7 @@ func (c *Collection) Update(id uint64, obj interface{}) uint64 {
 		// We only enforce uniqueness if it's a single-value, unique index
 		if (idx.options&UniqueIndex != 0) && (idx.options&MultiValueIndex == 0) {
 			newKeys, newOk := generateKeys(idx, obj)
-			oldKeys, oldOk := generateKeys(idx, oldObj)
+			_, oldOk := generateKeys(idx, oldObj)
 			if !newOk || !oldOk {
 				return 0
 			}
