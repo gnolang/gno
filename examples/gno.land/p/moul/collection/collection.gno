@@ -47,16 +47,24 @@ const (
 	// CaseInsensitiveIndex automatically converts string values to lowercase
 	CaseInsensitiveIndex
 
-	// SparseIndex only indexes non-null/non-empty values
+	// SparseIndex only indexes non-empty values
 	SparseIndex
 
-	// TODO: Add support for MultiValueIndex
-	// TODO: Add support for ReverseSorting
+	// MultiValueIndex supports multiple key entries for a single object.
+	// In this code, we store a slice of ID strings under each key
+	// so that multiple objects can share the same key.
+	MultiValueIndex
 )
 
-// Index represents an index with its configuration and data
+// Index represents an index with its configuration and data.
+//
+// If an index is MultiValueIndex, then its function is expected to
+// return []string (rather than a single string). We store one or more
+// object IDs in the backing tree for each key.
 type Index struct {
-	fn      func(interface{}) string
+	// fn should return either a single string if !(options & MultiValueIndex),
+	// or a []string if (options & MultiValueIndex) != 0.
+	fn      interface{}
 	options IndexOption
 	tree    avl.ITree
 }
@@ -64,22 +72,10 @@ type Index struct {
 // AddIndex adds a new index to the collection with the specified options
 //
 // Parameters:
-//   - name: the unique name of the index (e.g., "age", "email", "username")
-//   - indexFn: a function that extracts the index key from an object
-//   - options: bit flags for index configuration
-//
-// Example usage:
-//
-//	// Create a unique, case-insensitive index for email
-//	c.AddIndex("email", func(v interface{}) string {
-//	    return v.(*User).Email
-//	}, UniqueIndex|CaseInsensitiveIndex)
-//
-//	// Create a basic index for age
-//	c.AddIndex("age", func(v interface{}) string {
-//	    return strconv.Itoa(v.(*User).Age)
-//	}, DefaultIndex)
-func (c *Collection) AddIndex(name string, indexFn func(interface{}) string, options IndexOption) {
+//   - name: the unique name of the index (e.g., "tags")
+//   - indexFn: a function that extracts either a string or []string from an object
+//   - options: bit flags for index configuration (e.g., MultiValueIndex)
+func (c *Collection) AddIndex(name string, indexFn interface{}, options IndexOption) {
 	if name == IDIndex {
 		panic("_id is a reserved index name")
 	}
@@ -90,17 +86,93 @@ func (c *Collection) AddIndex(name string, indexFn func(interface{}) string, opt
 	}
 }
 
-// safeGenerateKey safely generates an index key from an object
-func safeGenerateKey(fn func(interface{}) string, obj interface{}) (string, bool) {
+// storeIndex handles how we insert the ID into the index tree. For multi-value indexes,
+// we store a []string of IDs. For single-value indexes, we store a single string (the most-recent ID).
+func storeIndex(idx *Index, key, idStr string) {
+	// For multi-value indexes, maintain a slice of IDs
+	if idx.options&MultiValueIndex != 0 {
+		if existing, exists := idx.tree.Get(key); exists {
+			if list, ok := existing.([]string); ok {
+				// Append new ID, avoiding duplicates
+				for _, eID := range list {
+					if eID == idStr {
+						return // already stored
+					}
+				}
+				list = append(list, idStr)
+				idx.tree.Set(key, list)
+				return
+			}
+		}
+		// If not found or not a slice yet, create a new slice
+		idx.tree.Set(key, []string{idStr})
+		return
+	}
+
+	// For single-value indexes, simply store last ID
+	idx.tree.Set(key, idStr)
+}
+
+// removeIndex handles how we remove an ID from the index tree. For multi-value indexes,
+// we remove only that ID from the stored slice (if present). If the slice becomes empty, remove the key entirely.
+// For single-value indexes, just remove the key if it matches the stored ID.
+func removeIndex(idx *Index, key, idStr string) {
+	if idx.options&MultiValueIndex != 0 {
+		existing, exists := idx.tree.Get(key)
+		if !exists {
+			return
+		}
+		if list, ok := existing.([]string); ok {
+			// Remove idStr from the slice
+			newList := make([]string, 0, len(list))
+			for _, eID := range list {
+				if eID != idStr {
+					newList = append(newList, eID)
+				}
+			}
+			if len(newList) == 0 {
+				idx.tree.Remove(key)
+			} else {
+				idx.tree.Set(key, newList)
+			}
+		}
+		return
+	}
+
+	// Single-value index:
+	if stored, exists := idx.tree.Get(key); exists {
+		if storedID, ok := stored.(string); ok && storedID == idStr {
+			idx.tree.Remove(key)
+		}
+	}
+}
+
+// generateKeys extracts one or more keys from an object for a given index.
+// If the index is MultiValueIndex, indexFn should return []string;
+// otherwise, a single string is cast as []string for uniform handling.
+//
+// This function recovers from any panic inside the index function.
+func generateKeys(idx *Index, obj interface{}) ([]string, bool) {
 	if obj == nil {
-		return "", false
+		return nil, false
 	}
 
 	defer func() {
-		recover() // recover from any panic
+		_ = recover() // recover from any panic
 	}()
 
-	return fn(obj), true
+	switch fnTyped := idx.fn.(type) {
+	case func(interface{}) string:
+		// Single-value index
+		key := fnTyped(obj)
+		return []string{key}, true
+	case func(interface{}) []string:
+		// Multi-value index
+		keys := fnTyped(obj)
+		return keys, true
+	default:
+		panic("invalid index function type")
+	}
 }
 
 // Set adds or updates an object in the collection
@@ -118,29 +190,31 @@ func (c *Collection) Set(obj interface{}) uint64 {
 		if name == IDIndex {
 			continue
 		}
-		key, ok := safeGenerateKey(idx.fn, obj)
+		keys, ok := generateKeys(idx, obj)
 		if !ok {
 			return 0
 		}
 
-		// Skip empty values for sparse indexes
-		if idx.options&SparseIndex != 0 && key == "" {
-			continue
-		}
-
-		if idx.options&CaseInsensitiveIndex != 0 {
-			key = strings.ToLower(key)
-		}
-
-		// Only check uniqueness for unique indexes
-		if idx.options&UniqueIndex != 0 {
-			if existing, exists := idx.tree.Get(key); exists && existing != nil {
-				return 0 // Uniqueness constraint violated
+		for _, key := range keys {
+			// Skip empty values for sparse indexes
+			if idx.options&SparseIndex != 0 && key == "" {
+				continue
+			}
+			if idx.options&CaseInsensitiveIndex != 0 {
+				key = strings.ToLower(key)
+			}
+			// Only check uniqueness for unique + single-value indexes
+			// (MultiValueIndex + UniqueIndex is ambiguous; skipping that scenario)
+			if idx.options&UniqueIndex != 0 && idx.options&MultiValueIndex == 0 {
+				if existing, exists := idx.tree.Get(key); exists && existing != nil {
+					// Uniqueness constraint violated
+					return 0
+				}
 			}
 		}
 	}
 
-	// Store in _id index first
+	// Store in _id index first (the actual object)
 	c.indexes[IDIndex].tree.Set(idStr, obj)
 
 	// Store in all other indexes
@@ -148,30 +222,32 @@ func (c *Collection) Set(obj interface{}) uint64 {
 		if name == IDIndex {
 			continue
 		}
-		key, ok := safeGenerateKey(idx.fn, obj)
+		keys, ok := generateKeys(idx, obj)
 		if !ok {
 			// Rollback: remove from _id index
 			c.indexes[IDIndex].tree.Remove(idStr)
 			return 0
 		}
 
-		// Skip empty values for sparse indexes
-		if idx.options&SparseIndex != 0 && key == "" {
-			continue
+		for _, key := range keys {
+			if idx.options&SparseIndex != 0 && key == "" {
+				continue
+			}
+			if idx.options&CaseInsensitiveIndex != 0 {
+				key = strings.ToLower(key)
+			}
+			storeIndex(idx, key, idStr)
 		}
-
-		if idx.options&CaseInsensitiveIndex != 0 {
-			key = strings.ToLower(key)
-		}
-
-		// For non-unique indexes, we store the ID as the value
-		idx.tree.Set(key, idStr)
 	}
 
 	return uint64(id)
 }
 
-// Get retrieves an object by index and key, returns (object, id)
+// Get retrieves an object by index and key, returns (object, id).
+//
+// If it's a MultiValueIndex, only the first found ID is returned.
+// For a more complete "GetAll", you'll need a separate method to iterate
+// all stored IDs in that key's slice.
 func (c *Collection) Get(indexName, key string) (interface{}, uint64) {
 	idx, exists := c.indexes[indexName]
 	if !exists {
@@ -195,22 +271,44 @@ func (c *Collection) Get(indexName, key string) (interface{}, uint64) {
 		key = strings.ToLower(key)
 	}
 
-	idStr, exists := idx.tree.Get(key)
+	idData, exists := idx.tree.Get(key)
 	if !exists {
 		return nil, 0
 	}
 
-	// Get the actual object from _id index
-	obj, exists := c.indexes[IDIndex].tree.Get(idStr.(string))
+	// If multi-value, just return the first object found
+	if idx.options&MultiValueIndex != 0 {
+		list, ok := idData.([]string)
+		if !ok || len(list) == 0 {
+			return nil, 0
+		}
+		// Get the first ID from the slice
+		idStr := list[0]
+		obj, exists := c.indexes[IDIndex].tree.Get(idStr)
+		if !exists {
+			return nil, 0
+		}
+		idVal, err := seqid.FromString(idStr)
+		if err != nil {
+			return nil, 0
+		}
+		return obj, uint64(idVal)
+	}
+
+	// single-value index
+	idStr, ok := idData.(string)
+	if !ok {
+		return nil, 0
+	}
+	obj, exists := c.indexes[IDIndex].tree.Get(idStr)
 	if !exists {
 		return nil, 0
 	}
-
-	id, err := seqid.FromString(idStr.(string))
+	idVal, err := seqid.FromString(idStr)
 	if err != nil {
 		return nil, 0
 	}
-	return obj, uint64(id)
+	return obj, uint64(idVal)
 }
 
 // GetIndex returns the underlying tree for an index
@@ -234,19 +332,21 @@ func (c *Collection) Delete(id uint64) {
 
 	// Remove from all indexes
 	for name, idx := range c.indexes {
+		// remove from _id or any other index
 		if name == IDIndex {
 			idx.tree.Remove(idStr)
 			continue
 		}
-		key, ok := safeGenerateKey(idx.fn, obj)
+		keys, ok := generateKeys(idx, obj)
 		if !ok {
 			continue
 		}
-		// Handle case-insensitive indexes
-		if idx.options&CaseInsensitiveIndex != 0 {
-			key = strings.ToLower(key)
+		for _, key := range keys {
+			if idx.options&CaseInsensitiveIndex != 0 {
+				key = strings.ToLower(key)
+			}
+			removeIndex(idx, key, idStr)
 		}
-		idx.tree.Remove(key)
 	}
 }
 
@@ -255,7 +355,6 @@ func (c *Collection) Update(id uint64, obj interface{}) uint64 {
 	if obj == nil {
 		return 0
 	}
-
 	idStr := seqid.ID(id).String()
 
 	// Check if object exists
@@ -264,70 +363,88 @@ func (c *Collection) Update(id uint64, obj interface{}) uint64 {
 		return 0
 	}
 
-	// Check uniqueness constraints
+	// Check uniqueness constraints for single-value unique indexes
 	for name, idx := range c.indexes {
 		if name == IDIndex {
 			continue
 		}
-		if idx.options&UniqueIndex != 0 {
-			newKey, ok := safeGenerateKey(idx.fn, obj)
-			if !ok {
+		if (idx.options&UniqueIndex != 0) && (idx.options&MultiValueIndex == 0) {
+			newKeys, newOk := generateKeys(idx, obj)
+			oldKeys, oldOk := generateKeys(idx, oldObj)
+			if !newOk || !oldOk {
 				return 0
 			}
-			oldKey, ok := safeGenerateKey(idx.fn, oldObj)
-			if !ok {
-				return 0
-			}
-			// If the key changed and new key already exists
-			if newKey != oldKey {
-				if existing, _ := idx.tree.Get(newKey); existing != nil {
-					return 0 // Uniqueness constraint violated
+			// If any new key changed and already exists, fail uniqueness
+			for _, newKey := range newKeys {
+				if idx.options&CaseInsensitiveIndex != 0 {
+					newKey = strings.ToLower(newKey)
+				}
+				found, _ := idx.tree.Get(newKey)
+				// If this key is found, but not the same ID, uniqueness is violated
+				if found != nil {
+					switch v := found.(type) {
+					case string:
+						if v != idStr {
+							return 0
+						}
+					case []string:
+						// For a single-value unique index, we don't expect a []string,
+						// so skip or handle as error.
+						return 0
+					}
 				}
 			}
 		}
 	}
 
 	// Store old index entries for potential rollback
-	oldEntries := make(map[string]string)
+	oldEntries := make(map[string][]string)
 	for name, idx := range c.indexes {
 		if name == IDIndex {
 			continue
 		}
-		oldKey, ok := safeGenerateKey(idx.fn, oldObj)
+		oldKeys, ok := generateKeys(idx, oldObj)
 		if !ok {
 			continue
 		}
-		if idx.options&CaseInsensitiveIndex != 0 {
-			oldKey = strings.ToLower(oldKey)
+		var adjusted []string
+		for _, okey := range oldKeys {
+			if idx.options&CaseInsensitiveIndex != 0 {
+				okey = strings.ToLower(okey)
+			}
+			// Remove right away
+			removeIndex(idx, okey, idStr)
+			adjusted = append(adjusted, okey)
 		}
-		oldEntries[name] = oldKey
-		idx.tree.Remove(oldKey)
+		oldEntries[name] = adjusted
 	}
+
+	// Update the object in _id index
+	c.indexes[IDIndex].tree.Set(idStr, obj)
 
 	// Add new index entries
 	for name, idx := range c.indexes {
 		if name == IDIndex {
-			idx.tree.Set(idStr, obj)
 			continue
 		}
-		newKey, ok := safeGenerateKey(idx.fn, obj)
+		newKeys, ok := generateKeys(idx, obj)
 		if !ok {
-			// Rollback: restore old object and all index entries
+			// Rollback: restore old object and old index entries
 			c.indexes[IDIndex].tree.Set(idStr, oldObj)
-			for idxName, oldKey := range oldEntries {
-				c.indexes[idxName].tree.Set(oldKey, idStr)
+			for idxName, keys := range oldEntries {
+				for _, oldKey := range keys {
+					storeIndex(c.indexes[idxName], oldKey, idStr)
+				}
 			}
 			return 0
 		}
-
-		if idx.options&CaseInsensitiveIndex != 0 {
-			newKey = strings.ToLower(newKey)
+		for _, nkey := range newKeys {
+			if idx.options&CaseInsensitiveIndex != 0 {
+				nkey = strings.ToLower(nkey)
+			}
+			storeIndex(idx, nkey, idStr)
 		}
-		idx.tree.Set(newKey, idStr)
 	}
 
 	return id
 }
-
-// TODO: Add support for GetAll to retrieve multiple objects matching a given index key
-// This will be particularly useful for non-unique indexes like "age" or "status"

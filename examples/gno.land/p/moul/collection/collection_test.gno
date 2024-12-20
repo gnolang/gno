@@ -13,6 +13,7 @@ type Person struct {
 	Age      int
 	Email    string
 	Username string
+	Tags     []string
 }
 
 // TestOperation represents a single operation in a test sequence
@@ -575,5 +576,119 @@ func TestGetInvalidID(t *testing.T) {
 	obj, id := c.Get(IDIndex, "not-a-valid-id")
 	if obj != nil || id != 0 {
 		t.Errorf("Get() with invalid ID format got (obj=%v, id=%v), want (nil, 0)", obj, id)
+	}
+}
+
+func TestMultiValueIndex(t *testing.T) {
+	c := New()
+
+	// Add a multi-value index for "tags"
+	c.AddIndex("tags", func(v interface{}) []string {
+		return v.(*Person).Tags
+	}, MultiValueIndex)
+
+	// Create a person with multiple tags
+	p := &Person{Name: "AliceWithTags", Tags: []string{"golang", "engineer", "travel"}}
+	id := c.Set(p)
+
+	if id == 0 {
+		t.Fatal("Failed to set object with multi-value index")
+	}
+
+	// Check each key in the "tags" index to confirm insertion
+	for _, tag := range p.Tags {
+		val, ok := c.GetIndex("tags").Get(tag)
+		if !ok {
+			t.Errorf("Expected to find key '%s' in multi-value index, but did not", tag)
+			continue
+		}
+		storedIDs, ok := val.([]string)
+		if !ok {
+			t.Errorf("Expected a []string for multi-value index under key '%s', but got %T", tag, val)
+			continue
+		}
+
+		found := false
+		for _, storedID := range storedIDs {
+			if storedID == seqid.ID(id).String() {
+				found = true
+				break
+			}
+		}
+		if !found {
+			t.Errorf("Expected to find ID %s in multi-value index for key '%s', but it was missing", seqid.ID(id).String(), tag)
+		}
+	}
+}
+
+func TestMultiValueDelete(t *testing.T) {
+	c := New()
+
+	// Add a multi-value index for "tags"
+	c.AddIndex("tags", func(v interface{}) []string {
+		return v.(*Person).Tags
+	}, MultiValueIndex)
+
+	// Create two people with overlapping tags.
+	pAlice := &Person{Name: "Alice", Tags: []string{"a", "dev", "gopher"}}
+	pBob := &Person{Name: "Bob", Tags: []string{"a", "cooking"}}
+
+	idAlice := c.Set(pAlice)
+	if idAlice == 0 {
+		t.Fatal("Failed to set Alice with multi-value index")
+	}
+	idBob := c.Set(pBob)
+	if idBob == 0 {
+		t.Fatal("Failed to set Bob with multi-value index")
+	}
+
+	// Confirm that both Alice and Bob's IDs appear under the tag "a".
+	val, ok := c.GetIndex("tags").Get("a")
+	if !ok {
+		t.Error("Expected to find key 'a' for multi-value index but did not.")
+	} else {
+		storedIDs, ok := val.([]string)
+		if !ok {
+			t.Errorf("Expected a []string for multi-value key 'a', got %T", val)
+		} else {
+			// Check that both IDs are present
+			var aliceFound, bobFound bool
+			for _, sid := range storedIDs {
+				switch sid {
+				case seqid.ID(idAlice).String():
+					aliceFound = true
+				case seqid.ID(idBob).String():
+					bobFound = true
+				}
+			}
+			if !aliceFound || !bobFound {
+				t.Errorf("Expected tag 'a' to contain both Alice (%v) and Bob (%v). Found: %v", idAlice, idBob, storedIDs)
+			}
+		}
+	}
+
+	// Now delete Alice
+	c.Delete(idAlice)
+
+	// After deleting Alice, "a" should remain for Bob only
+	valAfterDelete, ok := c.GetIndex("tags").Get("a")
+	if !ok {
+		t.Error("Expected to still find key 'a' pointing to Bob after deleting Alice, but key was not found.")
+	} else {
+		storedIDs, ok := valAfterDelete.([]string)
+		if !ok {
+			t.Errorf("Expected a []string for multi-value key 'a', got %T", valAfterDelete)
+		} else {
+			// Check that only Bob remains
+			if len(storedIDs) != 1 || storedIDs[0] != seqid.ID(idBob).String() {
+				t.Errorf("Expected 'a' to only have Bob's ID %v after deleting Alice, got %v", seqid.ID(idBob).String(), storedIDs)
+			}
+		}
+	}
+
+	// Double-check that Alice is not retrievable by her ID
+	_, gotId := c.Get(IDIndex, seqid.ID(idAlice).String())
+	if gotId != 0 {
+		t.Errorf("Expected Alice with ID %v to be deleted but she is still present", idAlice)
 	}
 }
