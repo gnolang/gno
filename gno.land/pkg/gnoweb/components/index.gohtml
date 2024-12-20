@@ -1,4 +1,5 @@
 {{ define "index" }}
+<!DOCTYPE html>
 <html lang="en">
     {{ template "head" .HeadData }}
     <body class="min-h-screen flex flex-col">
@@ -21,6 +22,11 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>{{ .Title }}</title>
+
+    <!-- Preload -->
+    <link rel="preload" href="{{ .AssetsPath }}fonts/intervar/Intervar.woff2" as="font" type="font/woff2" crossorigin />
+    <link rel="preload" href="{{ .AssetsPath }}fonts/roboto/roboto-mono-normal.woff2" as="font" type="font/woff2" crossorigin />
+
 
     <!-- Meta description -->
     <meta name="description" content="{{ .Description }}" />
@@ -54,29 +60,27 @@
 
 	<!-- web assets -->
     <link rel="stylesheet" href="{{ .AssetsPath }}styles.css" />
-    <link rel="preload" href="{{ .AssetsPath }}fonts/intervar/Inter.var.woff2" as="font" type="font/woff2" crossorigin />
-    <link rel="preload" href="{{ .AssetsPath }}fonts/roboto/roboto-mono-normal.woff2" as="font" type="font/woff2" crossorigin />
 </head>
 {{ end }}
 
 {{ define "header" }}
-<header class="main-header sticky top-0 bg-light border-b border-gray-400 text-100 z-max">
+<header class="main-header sticky top-0 bg-light border-b text-100 z-max">
     <nav aria-label="Realm navigation" class="max-w-screen-max mx-auto px-4 md:px-10 grid grid-cols-10 grid-flow-dense gap-4 md:gap-x-8 lg:gap-x-20 xxl:gap-x-32 items-center">
         <div class="main-navigation flex items-center gap-1 col-span-7 max-w-screen-max h-full py-2">
             <a href="/" class="rounded border border-gray-100 cursor-pointer h-10 w-10 shrink-0">
                 <img src="/public/imgs/gnoland.svg" alt="Gno username profile pic" width="40px" height="40px" />
             </a>
 
-            <form id="header-searchbar" class="relative overflow-scroll flex items-center bg-gray-100 has-[:focus-within]:border-gray-300 border h-full border-gray-100 p-1.5 rounded w-full">
+            <form id="header-searchbar" class="relative overflow-scroll no-scrollbar flex items-center bg-gray-100 has-[:focus-within]:border-gray-300 border h-full border-gray-100 p-1.5 rounded w-full">
                 <input data-role="header-input-search" type="text" value="{{ .RealmPath }}" class="peer absolute w-full top-0 left-0 h-full bg-transparent p-1.5 text-200 outline-none text-gray-600 font-medium" />
 
                 {{ template "breadcrumb" .Breadcrumb }}
             </form>
         </div>
 
-        <form class="sidemenu col-span-3 flex justify-end lg:justify-start gap-3 sm:gap-6 h-full text-100 text-gray-300">
+        <form class="sidemenu col-span-3 flex justify-end lg:justify-start gap-3 sm:gap-6 h-full text-100 text-gray-400">
             <a href="{{ .RealmPath }}">
-                <div class="group gap-1 xxl:pr-1 hover:text-gray-600 relative flex items-center h-full after:block after:absolute after:h-1 after:bg-green-600 after:left-0 after:bottom-0 {{ if (and (not (queryHas .WebQuery "source")) (not (queryHas .WebQuery "help"))) }}after:w-full text-stroke text-gray-600 is-active{{ end }}">
+                <div class="group gap-1 xxl:pr-1 hover:text-gray-600 relative flex items-center h-full after:block after:absolute after:h-1 after:bg-green-600 after:left-0 after:rounded-t-sm after:bottom-0 {{ if (and (not (queryHas .WebQuery "source")) (not (queryHas .WebQuery "help"))) }}after:w-full text-stroke text-gray-600 is-active{{ end }}">
                     <input type="radio" value="summary" name="sidemenu" id="sidemenu-meta" class="peer hidden" />
                     <svg class="group-[.is-active]:text-green-600 w-5 h-5 min-w-2 xxl:w-4.5 xxl:h-4.5 shrink-0 inline-block xl:hidden xxl:inline-block group">
                         <use href="#ico-info"></use>
@@ -86,7 +90,7 @@
             </a>
 
             <a href="{{ .RealmPath }}$source">
-                <div class="group gap-1 xxl:pr-1 hover:text-gray-600 relative flex items-center h-full after:block after:absolute after:h-1 after:bg-green-600 after:left-0 after:bottom-0 {{ if queryHas .WebQuery "source" }}after:w-full text-stroke text-gray-600 is-active{{ end }}">
+                <div class="group gap-1 xxl:pr-1 hover:text-gray-600 relative flex items-center h-full after:block after:absolute after:h-1 after:bg-green-600 after:left-0 after:rounded-t-sm after:bottom-0 {{ if queryHas .WebQuery "source" }}after:w-full text-stroke text-gray-600 is-active{{ end }}">
                     <input type="radio" value="summary" name="sidemenu" id="sidemenu-source" class="peer hidden" />
                     <svg class="group-[.is-active]:text-green-600 w-5 h-5 min-w-2 xxl:w-4.5 xxl:h-4.5 shrink-0 inline-block xl:hidden xxl:inline-block">
                         <use href="#ico-code"></use>
@@ -96,7 +100,7 @@
             </a>
 
             <a href="{{ .RealmPath }}$help">
-                <div class="group gap-1 xxl:pr-1 hover:text-gray-600 relative flex items-center h-full after:block after:absolute after:h-1 after:left-0 after:bg-green-600 after:bottom-0 {{ if queryHas .WebQuery "help" }}after:w-full text-stroke text-gray-600 is-active{{ end }}">
+                <div class="group gap-1 xxl:pr-1 hover:text-gray-600 relative flex items-center h-full after:block after:absolute after:h-1 after:left-0 after:bg-green-600 after:rounded-t-sm after:bottom-0 {{ if queryHas .WebQuery "help" }}after:w-full text-stroke text-gray-600 is-active{{ end }}">
                     <input type="radio" value="summary" name="sidemenu" id="sidemenu-docs" class="peer hidden" />
                     <svg class="group-[.is-active]:text-green-600 w-5 h-5 min-w-2 xxl:w-4.5 xxl:h-4.5 shrink-0 inline-block xl:hidden xxl:inline-block">
                         <use href="#ico-docs"></use>
@@ -114,7 +118,7 @@
 {{ end }}
 
 {{ define "footer" }}
-<footer class="w-full text-100 py-1.5 border-t border-gray-300">
+<footer class="w-full text-100 py-1.5 border-t">
     <nav class="max-w-screen-max mx-auto px-4 md:px-10 mb-8 md:mb-0 grid grid-cols-1 md:grid-cols-4 justify-between items-start xl:items-center gap-2 xl:gap-20 pt-2 xl:pt-0">
         <!-- Footer Navigation -->
         <div class="col-span-1 pb-8 md:pb-0">
