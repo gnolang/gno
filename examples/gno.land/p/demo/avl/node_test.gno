@@ -17,22 +17,24 @@ Book
 Browser`
 	tt := []struct {
 		name string
-		desc bool
+		asc  bool
 	}{
-		{"ascending", false},
-		{"descending", true},
+		{"ascending", true},
+		{"descending", false},
 	}
 
 	for _, tt := range tt {
 		t.Run(tt.name, func(t *testing.T) {
+			// use sl to insert the values, and reversed to match the values
+			// we do this to ensure that the order of TraverseByOffset is independent
+			// from the insertion order
 			sl := strings.Split(testStrings, "\n")
-
-			// sort a first time in the order opposite to how we'll be traversing
-			// the tree, to ensure that we are not just iterating through with
-			// insertion order.
 			sort.Strings(sl)
-			if !tt.desc {
-				reverseSlice(sl)
+			reversed := append([]string{}, sl...)
+			reverseSlice(reversed)
+
+			if !tt.asc {
+				sl, reversed = reversed, sl
 			}
 
 			r := NewNode(sl[0], nil)
@@ -40,13 +42,9 @@ Browser`
 				r, _ = r.Set(v, nil)
 			}
 
-			// then sort sl in the order we'll be traversing it, so that we can
-			// compare the result with sl.
-			reverseSlice(sl)
-
 			var result []string
 			for i := 0; i < len(sl); i++ {
-				r.TraverseByOffset(i, 1, tt.desc, true, func(n *Node) bool {
+				r.TraverseByOffset(i, 1, tt.asc, true, func(n *Node) bool {
 					result = append(result, n.Key())
 					return false
 				})
@@ -66,7 +64,7 @@ Browser`
 					exp := sl[i:max]
 					actual := []string{}
 
-					r.TraverseByOffset(i, l, tt.desc, true, func(tr *Node) bool {
+					r.TraverseByOffset(i, l, tt.asc, true, func(tr *Node) bool {
 						actual = append(actual, tr.Key())
 						return false
 					})
@@ -435,7 +433,7 @@ func TestRotateWhenHeightDiffers(t *testing.T) {
 		{
 			"right rotation when left subtree is higher",
 			[]string{"E", "C", "A", "B", "D"},
-			[]string{"A", "B", "C", "E", "D"},
+			[]string{"A", "B", "C", "D", "E"},
 		},
 		{
 			"left rotation when right subtree is higher",
@@ -445,12 +443,12 @@ func TestRotateWhenHeightDiffers(t *testing.T) {
 		{
 			"left-right rotation",
 			[]string{"E", "A", "C", "B", "D"},
-			[]string{"A", "B", "C", "E", "D"},
+			[]string{"A", "B", "C", "D", "E"},
 		},
 		{
 			"right-left rotation",
 			[]string{"A", "E", "C", "B", "D"},
-			[]string{"A", "B", "C", "E", "D"},
+			[]string{"A", "B", "C", "D", "E"},
 		},
 	}
 
@@ -533,7 +531,7 @@ func slicesEqual(w1, w2 []string) bool {
 		return false
 	}
 	for i := 0; i < len(w1); i++ {
-		if w1[0] != w2[0] {
+		if w1[i] != w2[i] {
 			return false
 		}
 	}
