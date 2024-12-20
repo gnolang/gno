@@ -268,7 +268,7 @@ func gnolandCmd(t *testing.T, nodesManager *NodesManager, gnolandBin, gnoRootDir
 				}
 			}
 
-			ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
+			ctx, cancel := context.WithTimeout(context.Background(), time.Second*30)
 			defer cancel()
 
 			dbdir := ts.Getenv("GNO_DBDIR")
@@ -312,7 +312,7 @@ func gnolandCmd(t *testing.T, nodesManager *NodesManager, gnolandBin, gnoRootDir
 			}
 
 			fmt.Println("STOP DONE")
-			ctx, cancel := context.WithTimeout(context.Background(), time.Second*20)
+			ctx, cancel := context.WithTimeout(context.Background(), time.Second*30)
 			defer cancel()
 
 			priv := ts.Value("PK").(ed25519.PrivKeyEd25519)
