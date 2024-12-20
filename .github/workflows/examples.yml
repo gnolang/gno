@@ -71,16 +71,10 @@ jobs:
       # TODO: consider running lint on every other directories, maybe in "warning" mode?
     # TODO: track coverage
   fmt:
-    name: Run gno fmt
-    runs-on: ubuntu-latest
-    steps:
-      - name: gno fmt
-        uses: ./.github/workflows/gnofmt_template.yml
-        with:
-          path: "examples/..."
-      - name: Check for unformatted gno files
-        run: |
-          git diff --exit-code || (echo "Some gno files are not formatted, please run 'make fmt'." && exit 1)
+    name: Run gno fmt on examples
+    uses: ./.github/workflows/gnofmt_template.yml
+    with:
+      path: "examples/..."
 
   mod-tidy:
     strategy:
