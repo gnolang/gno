@@ -3,6 +3,7 @@ package btree_dao
 import (
 	"std"
 	"testing"
+	"strings"
 	"time"
 
 	"gno.land/p/demo/btree"
@@ -33,7 +34,7 @@ func TestPlantTree(t *testing.T) {
 	}
 
 	err := PlantTree(tree)
-	urequire.NoError(t, err, "Should successfully plant a valid tree")
+	urequire.NoError(t, err)
 
 	found := false
 	members.Ascend(func(record btree.Record) bool {
@@ -44,37 +45,37 @@ func TestPlantTree(t *testing.T) {
 		}
 		return true
 	})
-	uassert.True(t, found, "Tree should be registered in members")
+	uassert.True(t, found)
 
 	err = PlantTree(tree)
-	uassert.Error(t, err, "Should not allow planting the same tree twice")
+	uassert.Error(t, err)
 
 	emptyTree := btree.New()
 	err = PlantTree(emptyTree)
-	uassert.Error(t, err, "Should not allow planting an empty tree")
+	uassert.Error(t, err)
 }
 
 func TestPlantSeed(t *testing.T) {
 	setupTest()
 
 	err := PlantSeed("Hello DAO!")
-	urequire.NoError(t, err, "Should successfully plant a seed with valid message")
+	urequire.NoError(t, err)
 
 	found := false
 	members.Ascend(func(record btree.Record) bool {
 		regDetails := record.(*RegistrationDetails)
 		if regDetails.UserBTree == nil {
 			found = true
-			uassert.True(t, len(regDetails.NFTID) > 0, "NFTID should not be empty")
-			uassert.Contains(t, regDetails.NFTID, "seed_", "Seed NFTID should contain 'seed_' prefix")
+			uassert.NotEmpty(t, regDetails.NFTID)
+			uassert.True(t, strings.Contains(regDetails.NFTID, "seed_"))
 			return false
 		}
 		return true
 	})
-	uassert.True(t, found, "Seed should be registered in members")
+	uassert.True(t, found)
 
 	err = PlantSeed("")
-	uassert.Error(t, err, "Should not allow planting seed with empty message")
+	uassert.Error(t, err)
 }
 
 func TestRegistrationDetailsOrdering(t *testing.T) {
@@ -91,6 +92,6 @@ func TestRegistrationDetailsOrdering(t *testing.T) {
 		NFTID:   "1",
 	}
 
-	uassert.True(t, rd1.Less(rd2), "Earlier registration should be less than later one")
-	uassert.False(t, rd2.Less(rd1), "Later registration should not be less than earlier one")
+	uassert.True(t, rd1.Less(rd2))
+	uassert.False(t, rd2.Less(rd1))
 }
