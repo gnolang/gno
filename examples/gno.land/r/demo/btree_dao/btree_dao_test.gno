@@ -65,6 +65,8 @@ func TestPlantSeed(t *testing.T) {
 		regDetails := record.(*RegistrationDetails)
 		if regDetails.UserBTree == nil {
 			found = true
+			uassert.True(t, len(regDetails.NFTID) > 0, "NFTID should not be empty")
+			uassert.Contains(t, regDetails.NFTID, "seed_", "Seed NFTID should contain 'seed_' prefix")
 			return false
 		}
 		return true
@@ -81,10 +83,12 @@ func TestRegistrationDetailsOrdering(t *testing.T) {
 	rd1 := &RegistrationDetails{
 		Address: std.Address("test1"),
 		RegTime: time.Now(),
+		NFTID:   "0",
 	}
 	rd2 := &RegistrationDetails{
 		Address: std.Address("test2"),
 		RegTime: time.Now().Add(time.Hour),
+		NFTID:   "1",
 	}
 
 	uassert.True(t, rd1.Less(rd2), "Earlier registration should be less than later one")

@@ -19,7 +19,7 @@ type RegistrationDetails struct {
 	Address   std.Address
 	RegTime   time.Time
 	UserBTree *btree.BTree
-	NFTID     int
+	NFTID     string
 }
 
 // Less implements the btree.Record interface for RegistrationDetails.
@@ -91,7 +91,7 @@ func plantImpl(userBTree *btree.BTree, seedMessage string) error {
 			Address:   userAddress,
 			RegTime:   time.Now(),
 			UserBTree: userBTree,
-			NFTID:     tokenID,
+			NFTID:     nftID,
 		}
 	} else {
 		// Handle seed planting
@@ -103,7 +103,7 @@ func plantImpl(userBTree *btree.BTree, seedMessage string) error {
 			Address:   userAddress,
 			RegTime:   time.Now(),
 			UserBTree: nil,
-			NFTID:     tokenID,
+			NFTID:     nftID,
 		}
 	}
 
@@ -155,9 +155,9 @@ func Render(path string) string {
 						nftList += ", "
 					}
 					if regDetails.UserBTree == nil {
-						nftList += "🌱#" + ufmt.Sprintf("seed_%d", regDetails.NFTID) // Seed emoji for seeds
+						nftList += "🌱#" + regDetails.NFTID // Use NFTID directly
 					} else {
-						nftList += "🌳#" + ufmt.Sprintf("%d", regDetails.NFTID) // Tree emoji for tree planters
+						nftList += "🌳#" + regDetails.NFTID // Use NFTID directly
 					}
 				}
 				nftList += ")"
@@ -182,9 +182,9 @@ func Render(path string) string {
 						nftList += ", "
 					}
 					if regDetails.UserBTree == nil {
-						nftList += "🌱#" + ufmt.Sprintf("seed_%d", regDetails.NFTID) // Seed emoji for seeds
+						nftList += "🌱#" + regDetails.NFTID // Use NFTID directly
 					} else {
-						nftList += "🌳#" + ufmt.Sprintf("%d", regDetails.NFTID) // Tree emoji for tree planters
+						nftList += "🌳#" + regDetails.NFTID // Use NFTID directly
 					}
 				}
 				nftList += ")"
