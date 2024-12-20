@@ -8,6 +8,8 @@ import (
 
 	"gno.land/p/demo/avl"
 	"gno.land/p/moul/txlink"
+
+	"gno.land/p/demo/boards2/admindao"
 )
 
 type BoardID uint64

@@ -1,6 +1,10 @@
 package boards2
 
-import "gno.land/p/demo/avl"
+import (
+	"std"
+
+	"gno.land/p/demo/avl"
+)
 
 var (
 	gPerm         Permissions // TODO: Support assigning a different implementation
