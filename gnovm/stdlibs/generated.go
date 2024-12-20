@@ -556,14 +556,14 @@ var nativeFuncs = [...]NativeFunc{
 	},
 	{
 		"std",
-		"origPkgAddr",
+		"originPkgAddr",
 		[]gno.FieldTypeExpr{},
 		[]gno.FieldTypeExpr{
 			{Name: gno.N("r0"), Type: gno.X("string")},
 		},
 		true,
 		func(m *gno.Machine) {
-			r0 := libs_std.X_origPkgAddr(
+			r0 := libs_std.X_originPkgAddr(
 				m,
 			)
 

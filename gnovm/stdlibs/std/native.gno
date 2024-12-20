@@ -38,7 +38,7 @@ func PreviousRealm() Realm {
 }
 
 func GetOriginPkgAddr() Address {
-	return Address(origPkgAddr())
+	return Address(originPkgAddr())
 }
 
 func CallerAt(n int) Address {
@@ -60,7 +60,7 @@ func DecodeBech32(addr Address) (prefix string, bz [20]byte, ok bool) {
 // Variations which don't use named types.
 func originSend() (denoms []string, amounts []int64)
 func originCaller() string
-func origPkgAddr() string
+func originPkgAddr() string
 func callerAt(n int) string
 func getRealm(height int) (address string, pkgPath string)
 func derivePkgAddr(pkgPath string) string

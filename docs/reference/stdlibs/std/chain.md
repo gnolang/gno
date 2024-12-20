@@ -109,7 +109,7 @@ Returns the address of the first (entry point) realm/package in a sequence of re
 
 #### Usage
 ```go
-origPkgAddr := std.GetOriginPkgAddr()
+originPkgAddr := std.GetOriginPkgAddr()
 ```
 ---
 
