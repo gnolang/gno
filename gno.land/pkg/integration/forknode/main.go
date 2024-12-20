@@ -17,9 +17,8 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/db/memdb"
 )
 
-// isAllZero checks if all elements in the [64]byte array are zero.
-func isAllZero(arr [64]byte) bool {
-	for _, v := range arr {
+func isAllZero(key [64]byte) bool {
+	for _, v := range key {
 		if v != 0 {
 			return false
 		}
@@ -46,32 +45,37 @@ func ForkableNode(cfg *integration.ForkConfig) error {
 
 	if len(cfg.PrivValidator) > 0 && !isAllZero(cfg.PrivValidator) {
 		nodecfg.PrivValidator = bft.NewMockPVWithParams(cfg.PrivValidator, false, false)
-		pv := nodecfg.PrivValidator.GetPubKey()
-		nodecfg.Genesis.Validators = []bft.GenesisValidator{
-			{
-				Address: pv.Address(),
-				PubKey:  pv,
-				Power:   10,
-				Name:    "self",
-			},
-		}
-
 	}
+	pv := nodecfg.PrivValidator.GetPubKey()
 
 	nodecfg.DB = data
 	nodecfg.TMConfig.DBPath = cfg.DBDir
 	nodecfg.TMConfig = cfg.TMConfig
 	nodecfg.Genesis = cfg.Genesis.ToGenesisDoc()
+	nodecfg.Genesis.Validators = []bft.GenesisValidator{
+		{
+			Address: pv.Address(),
+			PubKey:  pv,
+			Power:   10,
+			Name:    "self",
+		},
+	}
+
+	fmt.Println("NEW NODE")
 
 	node, err := gnoland.NewInMemoryNode(logger, nodecfg)
 	if err != nil {
 		return fmt.Errorf("failed to create new in-memory node: %w", err)
 	}
 
+	fmt.Println(">>>STARTING")
+
 	err = node.Start()
 	if err != nil {
 		return fmt.Errorf("failed to start node: %w", err)
 	}
+
+	fmt.Println(">>>STARTING DONE")
 
 	ourAddress := nodecfg.PrivValidator.GetPubKey().Address()
 	isValidator := slices.ContainsFunc(nodecfg.Genesis.Validators, func(val bft.GenesisValidator) bool {
