@@ -5,6 +5,10 @@ on:
     branches:
       - master
   pull_request:
+    paths:
+      - go.mod
+      - go.sum
+      - tm2/**
   workflow_dispatch:
 
 jobs:
