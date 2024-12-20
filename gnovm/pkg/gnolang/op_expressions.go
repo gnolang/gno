@@ -76,9 +76,14 @@ func (m *Machine) doOpIndex2() {
 }
 
 func (m *Machine) doOpSelector() {
+	//println("---doOpSelector")
 	sx := m.PopExpr().(*SelectorExpr)
 	xv := m.PeekValue(1)
 	res := xv.GetPointerToFromTV(m.Alloc, m.Store, sx.Path).Deref()
+	//fmt.Println("---res: ", res)
+	//if _, ok := res.V.(Object); ok {
+	//	fmt.Println("---res...OwnerID: ", res.V.(Object).GetObjectInfo().OwnerID)
+	//}
 	if debug {
 		m.Printf("-v[S] %v\n", xv)
 		m.Printf("+v[S] %v\n", res)
@@ -108,7 +113,7 @@ func (m *Machine) doOpSlice() {
 	// if a is a pointer to an array, a[low : high : max] is
 	// shorthand for (*a)[low : high : max]
 	if xv.T.Kind() == PointerKind &&
-		xv.T.Elem().Kind() == ArrayKind {
+			xv.T.Elem().Kind() == ArrayKind {
 		// simply deref xv.
 		*xv = xv.V.(PointerValue).Deref()
 	}
@@ -701,7 +706,7 @@ func (m *Machine) doOpStructLit() {
 				// package doesn't match, we cannot use this
 				// method to initialize the struct.
 				if FieldTypeList(st.Fields).HasUnexported() &&
-					st.PkgPath != m.Package.PkgPath {
+						st.PkgPath != m.Package.PkgPath {
 					panic(fmt.Sprintf(
 						"Cannot initialize imported struct %s.%s with nameless composite lit expression (has unexported fields) from package %s",
 						st.PkgPath, st.String(), m.Package.PkgPath))

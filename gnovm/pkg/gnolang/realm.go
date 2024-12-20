@@ -136,25 +136,20 @@ func (rlm *Realm) String() string {
 // xo or co is nil if the element value is undefined or has no
 // associated object.
 func (rlm *Realm) DidUpdate(po, xo, co Object) {
-	fmt.Println("---didUpdate, po: ", po)
-	fmt.Println("---xo: ", xo)
-	fmt.Println("---co: ", co)
-	if co != nil {
-		fmt.Println("---co.GetIsOwned: ", co.GetIsOwned())
-		fmt.Println("---co.GetOwner: ", co.GetOwner())
-
-		fmt.Println("---co.GetOwnerID(): ", co.GetOwnerID())
-		owner := co.GetOwner()
-		fmt.Println("---co.owner: ", owner)
-		if owner != nil {
-			ownerID := owner.GetObjectID()
-			fmt.Println("---co.owner.ObjectID: ", ownerID)
-
-			if ownerID != co.GetOwnerID() {
-				panic("!!!!!!")
-			}
-		}
-	}
+	//fmt.Println("---didUpdate, po: ", po)
+	//fmt.Println("---xo: ", xo)
+	//fmt.Println("---co: ", co)
+	//if co != nil {
+	//	fmt.Println("---co.GetIsOwned: ", co.GetIsOwned())
+	//	fmt.Println("---co.GetOwner: ", co.GetOwner())
+	//
+	//	fmt.Println("---co.GetOwnerID(): ", co.GetOwnerID())
+	//	ownerId := co.GetObjectInfo().OwnerID
+	//	fmt.Println("---ownerID: ", ownerId)
+	//	if ownerId != co.GetOwnerID() {
+	//		//panic("!!!!!!")
+	//	}
+	//}
 	if bm.OpsEnabled {
 		bm.PauseOpCode()
 		defer bm.ResumeOpCode()
@@ -201,8 +196,8 @@ func (rlm *Realm) DidUpdate(po, xo, co Object) {
 		} else if co.GetIsReal() {
 			rlm.MarkDirty(co)
 		} else {
-			fmt.Println("---set owner for co: ", co)
-			fmt.Println("---to be: ", po)
+			//fmt.Println("---set owner for co: ", co)
+			//fmt.Println("---to be: ", po)
 			co.SetOwner(po)
 			rlm.MarkNewReal(co)
 		}
@@ -253,6 +248,7 @@ func (rlm *Realm) MarkNewReal(oo Object) {
 }
 
 func (rlm *Realm) MarkDirty(oo Object) {
+	//fmt.Println("---MarkDirty, po: ", oo)
 	if debug {
 		if !oo.GetIsReal() && !oo.GetIsNewReal() {
 			panic("cannot mark unreal object as dirty")
@@ -326,13 +322,13 @@ func (rlm *Realm) FinalizeRealmTransaction(readonly bool, store Store) {
 	}
 	if readonly {
 		if true ||
-				len(rlm.newCreated) > 0 ||
-				len(rlm.newEscaped) > 0 ||
-				len(rlm.newDeleted) > 0 ||
-				len(rlm.created) > 0 ||
-				len(rlm.updated) > 0 ||
-				len(rlm.deleted) > 0 ||
-				len(rlm.escaped) > 0 {
+			len(rlm.newCreated) > 0 ||
+			len(rlm.newEscaped) > 0 ||
+			len(rlm.newDeleted) > 0 ||
+			len(rlm.created) > 0 ||
+			len(rlm.updated) > 0 ||
+			len(rlm.deleted) > 0 ||
+			len(rlm.escaped) > 0 {
 			panic("realm updates in readonly transaction")
 		}
 		return
@@ -347,9 +343,9 @@ func (rlm *Realm) FinalizeRealmTransaction(readonly bool, store Store) {
 		ensureUniq(rlm.newDeleted)
 		ensureUniq(rlm.updated)
 		if false ||
-				rlm.created != nil ||
-				rlm.deleted != nil ||
-				rlm.escaped != nil {
+			rlm.created != nil ||
+			rlm.deleted != nil ||
+			rlm.escaped != nil {
 			panic("realm should not have created, deleted, or escaped marks before beginning finalization")
 		}
 	}
@@ -389,8 +385,10 @@ func (rlm *Realm) FinalizeRealmTransaction(readonly bool, store Store) {
 // All newly created objects become appended to .created,
 // and get assigned ids.
 func (rlm *Realm) processNewCreatedMarks(store Store) {
+	//fmt.Println("---processNewCreatedMarks")
 	// Create new objects and their new descendants.
 	for _, oo := range rlm.newCreated {
+		//fmt.Println("---oo: ", oo)
 		if debug {
 			if oo.GetIsDirty() {
 				panic("new created mark cannot be dirty")
@@ -615,7 +613,9 @@ func (rlm *Realm) processNewEscapedMarks(store Store) {
 // (ancestors) must be marked as dirty to update the
 // hash tree.
 func (rlm *Realm) markDirtyAncestors(store Store) {
+	//fmt.Println("---markDirtyAncestors")
 	markAncestorsOne := func(oo Object) {
+		//fmt.Println("---oo: ", oo)
 		for {
 			if pv, ok := oo.(*PackageValue); ok {
 				if debug {
@@ -647,6 +647,7 @@ func (rlm *Realm) markDirtyAncestors(store Store) {
 			} // else, rc == 1
 
 			po := getOwner(store, oo)
+			//fmt.Println("---po: ", po)
 			if po == nil {
 				break // no more owners.
 			} else if po.GetIsNewReal() {
@@ -683,7 +684,9 @@ func (rlm *Realm) markDirtyAncestors(store Store) {
 
 // Saves .created and .updated objects.
 func (rlm *Realm) saveUnsavedObjects(store Store) {
+	//fmt.Println("---saveUnsavedObjects")
 	for _, co := range rlm.created {
+		//fmt.Println("---co: ", co)
 		// for i := len(rlm.created) - 1; i >= 0; i-- {
 		// co := rlm.created[i]
 		if !co.GetIsNewReal() {
@@ -695,6 +698,7 @@ func (rlm *Realm) saveUnsavedObjects(store Store) {
 		}
 	}
 	for _, uo := range rlm.updated {
+		//fmt.Println("---uo: ", uo)
 		// for i := len(rlm.updated) - 1; i >= 0; i-- {
 		// uo := rlm.updated[i]
 		if !uo.GetIsDirty() {
@@ -719,9 +723,9 @@ func (rlm *Realm) saveUnsavedObjectRecursively(store Store, oo Object) {
 		}
 		// deleted objects should not have gotten here.
 		if false ||
-				oo.GetRefCount() <= 0 ||
-				oo.GetIsNewDeleted() ||
-				oo.GetIsDeleted() {
+			oo.GetRefCount() <= 0 ||
+			oo.GetIsNewDeleted() ||
+			oo.GetIsDeleted() {
 			panic("cannot save deleted objects")
 		}
 	}

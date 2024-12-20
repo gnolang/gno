@@ -211,6 +211,11 @@ func (pv *PointerValue) GetBase(store Store) Object {
 // TODO: document as something that enables into-native assignment.
 // TODO: maybe consider this as entrypoint for DataByteValue too?
 func (pv PointerValue) Assign2(alloc *Allocator, store Store, rlm *Realm, tv2 TypedValue, cu bool) {
+	//fmt.Println("---Assign2, tv2: ", tv2)
+	//if oo, ok := tv2.V.(Object); ok {
+	//	fmt.Println("tv2...OwnerID: ", oo.GetObjectInfo().OwnerID)
+	//}
+
 	// Special cases.
 	if pv.Index == PointerIndexNative {
 		// Special case if extended object && native.
@@ -286,6 +291,7 @@ func (pv PointerValue) Assign2(alloc *Allocator, store Store, rlm *Realm, tv2 Ty
 		oo1 := pv.TV.GetFirstObject(store)
 		pv.TV.Assign(alloc, tv2, cu)
 		oo2 := pv.TV.GetFirstObject(store)
+		//fmt.Println("---oo2: ", oo2)
 		rlm.DidUpdate(pv.Base.(Object), oo1, oo2)
 	} else {
 		pv.TV.Assign(alloc, tv2, cu)
@@ -396,6 +402,7 @@ func (av *ArrayValue) Copy(alloc *Allocator) *ArrayValue {
 	}
 	av2 := alloc.NewDataArray(len(av.Data))
 	copy(av2.Data, av.Data)
+	av2.ObjectInfo = av.ObjectInfo.Copy()
 	return av2
 }
 
@@ -522,8 +529,10 @@ func (sv *StructValue) Copy(alloc *Allocator) *StructValue {
 	for i, field := range sv.Fields {
 		fields[i] = field.Copy(alloc)
 	}
+	nsv := alloc.NewStruct(fields)
+	nsv.ObjectInfo = sv.ObjectInfo.Copy()
 
-	return alloc.NewStruct(fields)
+	return nsv
 }
 
 // ----------------------------------------
@@ -2678,13 +2687,17 @@ func typedString(s string) TypedValue {
 }
 
 func fillValueTV(store Store, tv *TypedValue) *TypedValue {
+	//fmt.Println("---fillValueTV, tv: ", tv)
 	switch cv := tv.V.(type) {
 	case RefValue:
+		//println("---ref value")
 		if cv.PkgPath != "" { // load package
 			tv.V = store.GetPackage(cv.PkgPath, false)
 		} else { // load object
 			// XXX XXX allocate object.
 			tv.V = store.GetObject(cv.ObjectID)
+			//fmt.Println("---tv.V: ", tv.V)
+			//fmt.Println("ownerID: ", tv.V.(Object).GetObjectInfo().OwnerID)
 		}
 	case PointerValue:
 		// As a special case, cv.Base is filled
