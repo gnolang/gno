@@ -9,7 +9,7 @@ import (
 	"gno.land/p/demo/urequire"
 )
 
-var _ Permissioner = (*DefaultPermissions)(nil)
+var _ Permissions = (*DefaultPermissions)(nil)
 
 func TestNewDefaultPermissions(t *testing.T) {
 	roles := []Role{"a", "b"}

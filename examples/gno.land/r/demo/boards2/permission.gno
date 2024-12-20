@@ -29,8 +29,8 @@ type (
 	// Args is a list of generic arguments.
 	Args []interface{}
 
-	// Permissioner define an interface to for permissioned execution.
-	Permissioner interface {
+	// Permissions define an interface to for permissioned execution.
+	Permissions interface {
 		// HasRole checks if a user has a specific role assigned.
 		HasRole(std.Address, Role) bool
 
