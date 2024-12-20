@@ -203,7 +203,6 @@ func (l *List) Slice(startIndex, endIndex int) []interface{} {
 	count := endIndex - startIndex
 	result := make([]interface{}, count)
 
-	// Change: Use IterateByOffset instead of ReverseIterateByOffset
 	i := 0
 	l.tree.IterateByOffset(startIndex, count, func(_ string, value interface{}) bool {
 		result[i] = value
@@ -250,7 +249,6 @@ func (l *List) Clone() *List {
 		return newList
 	}
 
-	// Change: Use IterateByOffset instead of ReverseIterateByOffset
 	l.tree.IterateByOffset(0, size, func(_ string, value interface{}) bool {
 		newList.Append(value)
 		return false
