@@ -39,7 +39,7 @@ TODO import r/gh
 }
 
 func UpdatePFP(url, caption string) {
-	if !isAuthorized(std.PrevRealm().Addr()) {
+	if !isAuthorized(std.PreviousRealm().Addr()) {
 		panic(config.ErrUnauthorized)
 	}
 
@@ -48,7 +48,7 @@ func UpdatePFP(url, caption string) {
 }
 
 func UpdateAboutMe(col1, col2 string) {
-	if !isAuthorized(std.PrevRealm().Addr()) {
+	if !isAuthorized(std.PreviousRealm().Addr()) {
 		panic(config.ErrUnauthorized)
 	}
 

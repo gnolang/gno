@@ -125,16 +125,16 @@ currentRealm := std.CurrentRealm()
 ```
 ---
 
-## PrevRealm
+## PreviousRealm
 ```go
-func PrevRealm() Realm
+func PreviousRealm() Realm
 ```
 Returns the previous caller [realm](realm.md) (can be code or user realm). If caller is a
 user realm, `pkgpath` will be empty.
 
 #### Usage
 ```go
-prevRealm := std.PrevRealm()
+prevRealm := std.PreviousRealm()
 ```
 ---
 

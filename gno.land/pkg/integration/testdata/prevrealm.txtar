@@ -1,4 +1,4 @@
-# This tests ensure the consistency of the std.PrevRealm function, in the
+# This tests ensure the consistency of the std.PreviousRealm function, in the
 # following situations:
 #
 #
@@ -16,8 +16,8 @@
 # | 10  |          |                     | myrlm.B()       | r/foo        |
 # | 11  |          | through /p/demo/bar | bar.A()         | user address |
 # | 12  |          |                     | bar.B()         | user address |
-# | 13  | MsgCall  | wallet direct       | std.PrevRealm() | user address |
-# | 14  | MsgRun   | wallet direct       | std.PrevRealm() | user address |
+# | 13  | MsgCall  | wallet direct       | std.PreviousRealm() | user address |
+# | 14  | MsgRun   | wallet direct       | std.PreviousRealm() | user address |
 
 # Init
 ## deploy myrlm
@@ -82,11 +82,11 @@ stdout ${USER_ADDR_test1}
 gnokey maketx run -gas-fee 100000ugnot -gas-wanted 12000000 -broadcast -chainid tendermint_test test1 $WORK/run/barB.gno
 stdout ${USER_ADDR_test1}
 
-## 13. MsgCall -> std.PrevRealm(): user address
-## gnokey maketx call -pkgpath std -func PrevRealm -gas-fee 100000ugnot -gas-wanted 4000000 -broadcast -chainid tendermint_test test1
+## 13. MsgCall -> std.PreviousRealm(): user address
+## gnokey maketx call -pkgpath std -func PreviousRealm -gas-fee 100000ugnot -gas-wanted 4000000 -broadcast -chainid tendermint_test test1
 ## stdout ${USER_ADDR_test1}
 
-## 14. MsgRun -> std.PrevRealm(): user address
+## 14. MsgRun -> std.PreviousRealm(): user address
 gnokey maketx run -gas-fee 100000ugnot -gas-wanted 12000000 -broadcast -chainid tendermint_test test1 $WORK/run/baz.gno
 stdout ${USER_ADDR_test1}
 
@@ -96,7 +96,7 @@ package myrlm
 import "std"
 
 func A() string {
-	return std.PrevRealm().Addr().String()
+	return std.PreviousRealm().Addr().String()
 }
 
 func B() string {
@@ -120,7 +120,7 @@ package bar
 import "std"
 
 func A() string {
-	return std.PrevRealm().Addr().String()
+	return std.PreviousRealm().Addr().String()
 }
 
 func B() string {
@@ -180,5 +180,5 @@ package main
 import "std"
 
 func main() {
-	println(std.PrevRealm().Addr().String())
+	println(std.PreviousRealm().Addr().String())
 }

@@ -41,7 +41,7 @@ var (
 // init is called once at time of deployment
 func init() {
 	// Set deployer of Realm to admin
-	admin = std.PrevRealm().Addr()
+	admin = std.PreviousRealm().Addr()
 
 	// Set token name, symbol and number of decimals
 	banker = grc20.NewBanker("My Token", "TKN", 4)
@@ -142,7 +142,7 @@ caller’s allowance.
 ```go
 // Mint mints amount of tokens to address. Callable only by admin of token
 func Mint(address std.Address, amount uint64) {
-	assertIsAdmin(std.PrevRealm().Addr())
+	assertIsAdmin(std.PreviousRealm().Addr())
 	checkErr(banker.Mint(address, amount))
 }
 ```
@@ -153,7 +153,7 @@ increasing the total supply.
 ```go
 // Burn burns amount of tokens from address. Callable only by admin of token
 func Burn(address std.Address, amount uint64) {
-	assertIsAdmin(std.PrevRealm().Addr())
+	assertIsAdmin(std.PreviousRealm().Addr())
 	checkErr(banker.Burn(address, amount))
 }
 ```
@@ -162,7 +162,7 @@ decreasing the total supply.
 
 [embedmd]:# (../assets/how-to-guides/creating-grc20/mytoken-2.gno go /.*assertIsAdmin/ /^}/)
 ```go
-	assertIsAdmin(std.PrevRealm().Addr())
+	assertIsAdmin(std.PreviousRealm().Addr())
 	checkErr(banker.Mint(address, amount))
 }
 ```

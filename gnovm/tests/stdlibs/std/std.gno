@@ -9,7 +9,7 @@ func TestSetOrigPkgAddr(addr Address) { testSetOrigPkgAddr(string(addr)) }
 
 // TestSetRealm sets the realm for the current frame.
 // After calling TestSetRealm, calling CurrentRealm() in the test function will yield the value of
-// rlm, while if a realm function is called, using PrevRealm() will yield rlm.
+// rlm, while if a realm function is called, using PreviousRealm() will yield rlm.
 func TestSetRealm(rlm Realm) {
 	testSetRealm(string(rlm.addr), rlm.pkgPath)
 }

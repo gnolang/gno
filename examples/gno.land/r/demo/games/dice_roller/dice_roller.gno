@@ -62,7 +62,7 @@ func NewGame(addr std.Address) int {
 	}
 
 	games.Set(gameId.Next().String(), &game{
-		player1: std.PrevRealm().Addr(),
+		player1: std.PreviousRealm().Addr(),
 		player2: addr,
 	})
 
@@ -79,7 +79,7 @@ func Play(idx int) int {
 	roll := rollDice() // Random the player's dice roll
 
 	// Play the game and update the player's roll
-	if err := g.play(std.PrevRealm().Addr(), roll); err != nil {
+	if err := g.play(std.PreviousRealm().Addr(), roll); err != nil {
 		panic(err)
 	}
 

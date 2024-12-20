@@ -29,7 +29,7 @@ var (
 func Incr() int {
 	counter++
 	lastUpdate = time.Now()
-	lastCaller = std.PrevRealm().Addr()
+	lastCaller = std.PreviousRealm().Addr()
 	wd.Alive()
 	return counter
 }
@@ -40,7 +40,7 @@ func Reset() {
 	Ownable.AssertCallerIsOwner()
 
 	counter = 0
-	lastCaller = std.PrevRealm().Addr()
+	lastCaller = std.PreviousRealm().Addr()
 	lastUpdate = time.Now()
 	wd = watchdog.Watchdog{Duration: 5 * time.Minute}
 }

@@ -30,7 +30,7 @@ func init() {
 
 func SignUp() string {
 	// Get transaction caller
-	caller := std.PrevRealm().Addr()
+	caller := std.PreviousRealm().Addr()
 
 	// Check if the user is already signed up
 	if _, exists := tracker.Get(caller.String()); exists {

@@ -4,7 +4,7 @@ import (
 	"std"
 )
 
-// CallerTeller returns a GRC20 compatible teller that checks the PrevRealm
+// CallerTeller returns a GRC20 compatible teller that checks the PreviousRealm
 // caller for each call. It's usually safe to expose it publicly to let users
 // manipulate their tokens directly, or for realms to use their allowance.
 func (tok *Token) CallerTeller() Teller {
@@ -14,7 +14,7 @@ func (tok *Token) CallerTeller() Teller {
 
 	return &fnTeller{
 		accountFn: func() std.Address {
-			caller := std.PrevRealm().Addr()
+			caller := std.PreviousRealm().Addr()
 			return caller
 		},
 		Token: tok,
@@ -44,7 +44,7 @@ func (tok *Token) RealmTeller() Teller {
 		panic("Token cannot be nil")
 	}
 
-	caller := std.PrevRealm().Addr()
+	caller := std.PreviousRealm().Addr()
 
 	return &fnTeller{
 		accountFn: func() std.Address {
@@ -61,7 +61,7 @@ func (tok *Token) RealmSubTeller(slug string) Teller {
 		panic("Token cannot be nil")
 	}
 
-	caller := std.PrevRealm().Addr()
+	caller := std.PreviousRealm().Addr()
 	account := accountSlugAddr(caller, slug)
 
 	return &fnTeller{

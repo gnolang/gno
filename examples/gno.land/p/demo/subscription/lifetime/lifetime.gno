@@ -45,7 +45,7 @@ func (ls *LifetimeSubscription) processSubscription(receiver std.Address) error 
 
 // Subscribe processes the payment for a lifetime subscription.
 func (ls *LifetimeSubscription) Subscribe() error {
-	caller := std.PrevRealm().Addr()
+	caller := std.PreviousRealm().Addr()
 	return ls.processSubscription(caller)
 }
 

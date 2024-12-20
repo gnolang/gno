@@ -23,7 +23,7 @@ func Set(value string) {
 		panic(err)
 	}
 	store.Set(b)
-	std.Emit("SetValue", "ForAddr", string(std.PrevRealm().Addr()))
+	std.Emit("SetValue", "ForAddr", string(std.PreviousRealm().Addr()))
 }
 
 // Get retrieves the value stored at the provided address and

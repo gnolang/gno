@@ -17,7 +17,7 @@ var (
 // init is called once at time of deployment
 func init() {
 	// Set deployer of Realm to admin
-	admin = std.PrevRealm().Addr()
+	admin = std.PreviousRealm().Addr()
 
 	// Set token name, symbol and number of decimals
 	banker = grc20.NewBanker("My Token", "TKN", 4)

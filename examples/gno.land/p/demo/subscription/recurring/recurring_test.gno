@@ -23,10 +23,10 @@ func TestRecurringSubscription(t *testing.T) {
 	err := rs.Subscribe()
 	uassert.NoError(t, err, "Expected ProcessPayment to succeed for Alice")
 
-	err = rs.HasValidSubscription(std.PrevRealm().Addr())
+	err = rs.HasValidSubscription(std.PreviousRealm().Addr())
 	uassert.NoError(t, err, "Expected Alice to have access")
 
-	expiration, err := rs.GetExpiration(std.PrevRealm().Addr())
+	expiration, err := rs.GetExpiration(std.PreviousRealm().Addr())
 	uassert.NoError(t, err, "Expected to get expiration for Alice")
 }
 
@@ -53,13 +53,13 @@ func TestRecurringSubscriptionExpiration(t *testing.T) {
 	err := rs.Subscribe()
 	uassert.NoError(t, err, "Expected ProcessPayment to succeed for Alice")
 
-	err = rs.HasValidSubscription(std.PrevRealm().Addr())
+	err = rs.HasValidSubscription(std.PreviousRealm().Addr())
 	uassert.NoError(t, err, "Expected Alice to have access")
 
 	expiration := time.Now().Add(-time.Hour * 2)
-	rs.subs.Set(std.PrevRealm().Addr().String(), expiration)
+	rs.subs.Set(std.PreviousRealm().Addr().String(), expiration)
 
-	err = rs.HasValidSubscription(std.PrevRealm().Addr())
+	err = rs.HasValidSubscription(std.PreviousRealm().Addr())
 	uassert.Error(t, err, "Expected Alice's subscription to be expired")
 }
 
@@ -119,16 +119,16 @@ func TestRecurringSubscriptionWithMultiplePayments(t *testing.T) {
 	err := rs.Subscribe()
 	uassert.NoError(t, err, "Expected first ProcessPayment to succeed for Alice")
 
-	err = rs.HasValidSubscription(std.PrevRealm().Addr())
+	err = rs.HasValidSubscription(std.PreviousRealm().Addr())
 	uassert.NoError(t, err, "Expected Alice to have access after first payment")
 
 	expiration := time.Now().Add(-time.Hour * 2)
-	rs.subs.Set(std.PrevRealm().Addr().String(), expiration)
+	rs.subs.Set(std.PreviousRealm().Addr().String(), expiration)
 
 	std.TestSetOriginSend([]std.Coin{{Denom: "ugnot", Amount: 1000}}, nil)
 	err = rs.Subscribe()
 	uassert.NoError(t, err, "Expected second ProcessPayment to succeed for Alice")
 
-	err = rs.HasValidSubscription(std.PrevRealm().Addr())
+	err = rs.HasValidSubscription(std.PreviousRealm().Addr())
 	uassert.NoError(t, err, "Expected Alice to have access after second payment")
 }

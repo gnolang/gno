@@ -69,7 +69,7 @@ func TransferFrom(from, to pusers.AddressOrName, tid grc721.TokenID) {
 // Admin
 
 func Mint(to pusers.AddressOrName, tid grc721.TokenID) {
-	caller := std.PrevRealm().Addr()
+	caller := std.PreviousRealm().Addr()
 	assertIsAdmin(caller)
 	err := foo.Mint(users.Resolve(to), tid)
 	if err != nil {
@@ -78,7 +78,7 @@ func Mint(to pusers.AddressOrName, tid grc721.TokenID) {
 }
 
 func Burn(tid grc721.TokenID) {
-	caller := std.PrevRealm().Addr()
+	caller := std.PreviousRealm().Addr()
 	assertIsAdmin(caller)
 	err := foo.Burn(tid)
 	if err != nil {

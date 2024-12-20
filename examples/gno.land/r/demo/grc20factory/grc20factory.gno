@@ -21,7 +21,7 @@ type instance struct {
 }
 
 func New(name, symbol string, decimals uint, initialMint, faucet uint64) {
-	caller := std.PrevRealm().Addr()
+	caller := std.PreviousRealm().Addr()
 	NewWithAdmin(name, symbol, decimals, initialMint, faucet, caller)
 }
 
@@ -77,21 +77,21 @@ func Allowance(symbol string, owner, spender std.Address) uint64 {
 
 func Transfer(symbol string, to std.Address, amount uint64) {
 	inst := mustGetInstance(symbol)
-	caller := std.PrevRealm().Addr()
+	caller := std.PreviousRealm().Addr()
 	teller := inst.ledger.ImpersonateTeller(caller)
 	checkErr(teller.Transfer(to, amount))
 }
 
 func Approve(symbol string, spender std.Address, amount uint64) {
 	inst := mustGetInstance(symbol)
-	caller := std.PrevRealm().Addr()
+	caller := std.PreviousRealm().Addr()
 	teller := inst.ledger.ImpersonateTeller(caller)
 	checkErr(teller.Approve(spender, amount))
 }
 
 func TransferFrom(symbol string, from, to std.Address, amount uint64) {
 	inst := mustGetInstance(symbol)
-	caller := std.PrevRealm().Addr()
+	caller := std.PreviousRealm().Addr()
 	teller := inst.ledger.ImpersonateTeller(caller)
 	checkErr(teller.TransferFrom(from, to, amount))
 }
@@ -104,7 +104,7 @@ func Faucet(symbol string) {
 	}
 	// FIXME: add limits?
 	// FIXME: add payment in gnot?
-	caller := std.PrevRealm().Addr()
+	caller := std.PreviousRealm().Addr()
 	checkErr(inst.ledger.Mint(caller, inst.faucet))
 }
 

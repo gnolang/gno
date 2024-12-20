@@ -32,7 +32,7 @@ func CurrentRealm() Realm {
 	return Realm{Address(addr), path}
 }
 
-func PrevRealm() Realm {
+func PreviousRealm() Realm {
 	addr, path := getRealm(1)
 	return Realm{Address(addr), path}
 }

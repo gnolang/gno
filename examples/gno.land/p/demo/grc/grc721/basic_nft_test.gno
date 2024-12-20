@@ -111,7 +111,7 @@ func TestSetApprovalForAll(t *testing.T) {
 	dummy := NewBasicNFT(dummyNFTName, dummyNFTSymbol)
 	uassert.True(t, dummy != nil, "should not be nil")
 
-	caller := std.PrevRealm().Addr()
+	caller := std.PreviousRealm().Addr()
 	addr := std.Address("g1var589z07ppjsjd24ukm4uguzwdt0tw7g47cgm")
 
 	isApprovedForAll := dummy.IsApprovedForAll(caller, addr)
@@ -136,7 +136,7 @@ func TestApprove(t *testing.T) {
 	dummy := NewBasicNFT(dummyNFTName, dummyNFTSymbol)
 	uassert.True(t, dummy != nil, "should not be nil")
 
-	caller := std.PrevRealm().Addr()
+	caller := std.PreviousRealm().Addr()
 	addr := std.Address("g1var589z07ppjsjd24ukm4uguzwdt0tw7g47cgm")
 
 	dummy.mint(caller, TokenID("1"))
@@ -156,7 +156,7 @@ func TestTransferFrom(t *testing.T) {
 	dummy := NewBasicNFT(dummyNFTName, dummyNFTSymbol)
 	uassert.True(t, dummy != nil, "should not be nil")
 
-	caller := std.PrevRealm().Addr()
+	caller := std.PreviousRealm().Addr()
 	addr := std.Address("g1var589z07ppjsjd24ukm4uguzwdt0tw7g47cgm")
 
 	dummy.mint(caller, TokenID("1"))
@@ -185,7 +185,7 @@ func TestSafeTransferFrom(t *testing.T) {
 	dummy := NewBasicNFT(dummyNFTName, dummyNFTSymbol)
 	uassert.True(t, dummy != nil, "should not be nil")
 
-	caller := std.PrevRealm().Addr()
+	caller := std.PreviousRealm().Addr()
 	addr := std.Address("g1var589z07ppjsjd24ukm4uguzwdt0tw7g47cgm")
 
 	dummy.mint(caller, TokenID("1"))

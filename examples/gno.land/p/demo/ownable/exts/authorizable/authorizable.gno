@@ -72,7 +72,7 @@ func (a *Authorizable) DeleteFromAuthList(addr std.Address) error {
 }
 
 func (a Authorizable) CallerOnAuthList() error {
-	caller := std.PrevRealm().Addr()
+	caller := std.PreviousRealm().Addr()
 
 	if !a.authorized.Has(caller.String()) {
 		return ErrNotInAuthList
@@ -82,7 +82,7 @@ func (a Authorizable) CallerOnAuthList() error {
 }
 
 func (a Authorizable) AssertOnAuthList() {
-	caller := std.PrevRealm().Addr()
+	caller := std.PreviousRealm().Addr()
 
 	if !a.authorized.Has(caller.String()) {
 		panic(ErrNotInAuthList)

@@ -63,7 +63,7 @@ func (g *game) winner() int {
 // NewGame creates a new game where player1 is the caller and player2 the argument.
 // A new game index is returned.
 func NewGame(player std.Address) int {
-	games.Set(id.Next().String(), &game{player1: std.PrevRealm().Addr(), player2: player})
+	games.Set(id.Next().String(), &game{player1: std.PreviousRealm().Addr(), player2: player})
 	return int(id)
 }
 
@@ -74,7 +74,7 @@ func Play(idx, move int) {
 	if !ok {
 		panic("game not found")
 	}
-	if err := v.(*game).play(std.PrevRealm().Addr(), move); err != nil {
+	if err := v.(*game).play(std.PreviousRealm().Addr(), move); err != nil {
 		panic(err)
 	}
 }

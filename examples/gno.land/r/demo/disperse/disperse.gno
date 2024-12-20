@@ -14,7 +14,7 @@ var realmAddr = std.CurrentRealm().Addr()
 // if there are any to return
 func DisperseUgnot(addresses []std.Address, coins std.Coins) {
 	coinSent := std.OriginSend()
-	caller := std.PrevRealm().Addr()
+	caller := std.PreviousRealm().Addr()
 	banker := std.GetBanker(std.BankerTypeOriginSend)
 
 	if len(addresses) != len(coins) {
@@ -50,7 +50,7 @@ func DisperseUgnot(addresses []std.Address, coins std.Coins) {
 // Note that it is necessary to approve the realm to spend the tokens before calling this function
 // see the corresponding filetests for examples
 func DisperseGRC20(addresses []std.Address, amounts []uint64, symbols []string) {
-	caller := std.PrevRealm().Addr()
+	caller := std.PreviousRealm().Addr()
 
 	if (len(addresses) != len(amounts)) || (len(amounts) != len(symbols)) {
 		panic(ErrArgLenAndSentLenMismatch)

@@ -60,7 +60,7 @@ func TransferFrom(from, to pusers.AddressOrName, amount uint64) {
 // Faucet is distributing foo20 tokens without restriction (unsafe).
 // For a real token faucet, you should take care of setting limits are asking payment.
 func Faucet() {
-	caller := std.PrevRealm().Addr()
+	caller := std.PreviousRealm().Addr()
 	amount := uint64(1_000 * 10_000) // 1k
 	checkErr(privateLedger.Mint(caller, amount))
 }

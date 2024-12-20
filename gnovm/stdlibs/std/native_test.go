@@ -9,7 +9,7 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/crypto"
 )
 
-func TestPrevRealmIsOrigin(t *testing.T) {
+func TestPreviousRealmIsOrigin(t *testing.T) {
 	var (
 		user = gno.DerivePkgAddr("user1.gno").Bech32()
 		ctx  = ExecContext{

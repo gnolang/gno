@@ -91,12 +91,12 @@ func PrintTestNodes() {
 	println(gTestNode2.Child.Name)
 }
 
-func GetPrevRealm() std.Realm {
-	return std.PrevRealm()
+func GetPreviousRealm() std.Realm {
+	return std.PreviousRealm()
 }
 
-func GetRSubtestsPrevRealm() std.Realm {
-	return rsubtests.GetPrevRealm()
+func GetRSubtestsPreviousRealm() std.Realm {
+	return rsubtests.GetPreviousRealm()
 }
 
 func Exec(fn func()) {

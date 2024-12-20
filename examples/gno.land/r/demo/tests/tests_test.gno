@@ -42,17 +42,17 @@ func TestAssertOriginCall(t *testing.T) {
 	CallSubtestsAssertOriginCall()
 }
 
-func TestPrevRealm(t *testing.T) {
+func TestPreviousRealm(t *testing.T) {
 	var (
 		user1Addr  = std.DerivePkgAddr("user1.gno")
 		rTestsAddr = std.DerivePkgAddr("gno.land/r/demo/tests")
 	)
-	// When a single realm in the frames, PrevRealm returns the user
-	if addr := GetPrevRealm().Addr(); addr != user1Addr {
-		t.Errorf("want GetPrevRealm().Addr==%s, got %s", user1Addr, addr)
+	// When a single realm in the frames, PreviousRealm returns the user
+	if addr := GetPreviousRealm().Addr(); addr != user1Addr {
+		t.Errorf("want GetPreviousRealm().Addr==%s, got %s", user1Addr, addr)
 	}
-	// When 2 or more realms in the frames, PrevRealm returns the second to last
-	if addr := GetRSubtestsPrevRealm().Addr(); addr != rTestsAddr {
-		t.Errorf("want GetRSubtestsPrevRealm().Addr==%s, got %s", rTestsAddr, addr)
+	// When 2 or more realms in the frames, PreviousRealm returns the second to last
+	if addr := GetRSubtestsPreviousRealm().Addr(); addr != rTestsAddr {
+		t.Errorf("want GetRSubtestsPreviousRealm().Addr==%s, got %s", rTestsAddr, addr)
 	}
 }

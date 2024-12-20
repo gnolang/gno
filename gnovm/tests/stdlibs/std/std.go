@@ -14,7 +14,7 @@ import (
 type TestExecContext struct {
 	std.ExecContext
 
-	// These are used to set up the result of CurrentRealm() and PrevRealm().
+	// These are used to set up the result of CurrentRealm() and PreviousRealm().
 	RealmFrames map[*gno.Frame]RealmOverride
 }
 

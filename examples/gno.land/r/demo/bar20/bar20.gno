@@ -23,7 +23,7 @@ func init() {
 }
 
 func Faucet() string {
-	caller := std.PrevRealm().Addr()
+	caller := std.PreviousRealm().Addr()
 	if err := adm.Mint(caller, 1_000_000); err != nil {
 		return "error: " + err.Error()
 	}
