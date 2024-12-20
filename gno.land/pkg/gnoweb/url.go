@@ -18,7 +18,7 @@ const (
 )
 
 // rePkgOrRealmPath matches and validates a realm or package path.
-var rePkgOrRealmPath = regexp.MustCompile(`^/[a-z]/[a-zA-Z0-9_/.]*$`)
+var rePkgOrRealmPath = regexp.MustCompile(`^/[a-z][a-zA-Z0-9_/.]*$`)
 
 // GnoURL decomposes the parts of an URL to query a realm.
 type GnoURL struct {
@@ -32,6 +32,7 @@ type GnoURL struct {
 	Query    url.Values // c=d
 }
 
+// EncodeFlag is used to compose and encode URL components.
 type EncodeFlag int
 
 const (
@@ -39,49 +40,66 @@ const (
 	EncodeArgs
 	EncodeWebQuery
 	EncodeQuery
+	EncodeNoEscape // Disable escaping on arg
 )
+
+// Has checks if the EncodeFlag contains all the specified flags.
+func (f EncodeFlag) Has(flags EncodeFlag) bool {
+	return f&flags != 0
+}
 
 // Encode encodes the URL components based on the provided flags.
 func (gnoURL GnoURL) Encode(encodeFlags EncodeFlag) string {
 	var urlstr strings.Builder
 
-	if encodeFlags&EncodePath != 0 {
+	if encodeFlags.Has(EncodePath) {
 		urlstr.WriteString(gnoURL.Path)
 	}
 
-	if encodeFlags&EncodeArgs != 0 && gnoURL.Args != "" {
-		if encodeFlags&EncodePath != 0 {
-			urlstr.WriteString(":")
+	if encodeFlags.Has(EncodeArgs) && gnoURL.Args != "" {
+		if encodeFlags.Has(EncodePath) {
+			urlstr.WriteRune(':')
 		}
-		urlstr.WriteString(gnoURL.Args)
+
+		// XXX: Arguments should ideally always be escaped,
+		// but this may require changes in some realms.
+		args := gnoURL.Args
+		if !encodeFlags.Has(EncodeNoEscape) {
+			args = escapeDollarSign(url.PathEscape(args))
+		}
+
+		urlstr.WriteString(args)
 	}
 
-	if encodeFlags&EncodeWebQuery != 0 && len(gnoURL.WebQuery) > 0 {
-		urlstr.WriteString("$" + gnoURL.WebQuery.Encode())
+	if encodeFlags.Has(EncodeWebQuery) && len(gnoURL.WebQuery) > 0 {
+		urlstr.WriteRune('$')
+		urlstr.WriteString(gnoURL.WebQuery.Encode())
 	}
 
-	if encodeFlags&EncodeQuery != 0 && len(gnoURL.Query) > 0 {
-		urlstr.WriteString("?" + gnoURL.Query.Encode())
+	if encodeFlags.Has(EncodeQuery) && len(gnoURL.Query) > 0 {
+		urlstr.WriteRune('?')
+		urlstr.WriteString(gnoURL.Query.Encode())
+
 	}
 
 	return urlstr.String()
 }
 
-// EncodeArgsQuery encodes the arguments and query parameters into a string.
+// EncodeArgs encodes the arguments and query parameters into a string.
 // This function is intended to be passed as a realm `Render` argument.
-func (gnoURL GnoURL) EncodeArgsQuery() string {
-	return gnoURL.Encode(EncodeArgs | EncodeQuery)
+func (gnoURL GnoURL) EncodeArgs() string {
+	return gnoURL.Encode(EncodeArgs | EncodeQuery | EncodeNoEscape)
 }
 
-// EncodePathArgsQuery encodes the path, arguments, and query parameters into a string.
+// EncodeURL encodes the path, arguments, and query parameters into a string.
 // This function provides the full representation of the URL without the web query.
-func (gnoURL GnoURL) EncodePathArgsQuery() string {
+func (gnoURL GnoURL) EncodeURL() string {
 	return gnoURL.Encode(EncodePath | EncodeArgs | EncodeQuery)
 }
 
-// EncodeWebPath encodes the path, package arguments, web query, and query into a string.
+// EncodeWebURL encodes the path, package arguments, web query, and query into a string.
 // This function provides the full representation of the URL.
-func (gnoURL GnoURL) EncodeWebPath() string {
+func (gnoURL GnoURL) EncodeWebURL() string {
 	return gnoURL.Encode(EncodePath | EncodeArgs | EncodeWebQuery | EncodeQuery)
 }
 
@@ -106,10 +124,7 @@ func (gnoURL GnoURL) IsFile() bool {
 	return filepath.Ext(gnoURL.Path) != ""
 }
 
-var (
-	ErrURLMalformedPath   = errors.New("malformed path")
-	ErrURLInvalidPathKind = errors.New("invalid path kind")
-)
+var ErrURLInvalidPath = errors.New("invalid or malformed path")
 
 // ParseGnoURL parses a URL into a GnoURL structure, extracting and validating its components.
 func ParseGnoURL(u *url.URL) (*GnoURL, error) {
@@ -121,13 +136,14 @@ func ParseGnoURL(u *url.URL) (*GnoURL, error) {
 		path, webargs, _ = strings.Cut(path, "$")
 	}
 
+	// NOTE: `PathUnescape` should already unescape dollar signs.
 	upath, err := url.PathUnescape(path)
 	if err != nil {
 		return nil, fmt.Errorf("unable to unescape path %q: %w", path, err)
 	}
 
 	if !rePkgOrRealmPath.MatchString(upath) {
-		return nil, fmt.Errorf("%w: %q", ErrURLMalformedPath, upath)
+		return nil, fmt.Errorf("%w: %q", ErrURLInvalidPath, upath)
 	}
 
 	webquery := url.Values{}
