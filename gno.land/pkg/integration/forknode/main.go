@@ -28,7 +28,9 @@ func isAllZero(key [64]byte) bool {
 
 func ForkableNode(cfg *integration.ForkConfig) error {
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
-	// logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
+	if cfg.Verbose {
+		logger = slog.New(slog.NewTextHandler(os.Stdout, nil))
+	}
 
 	var data db.DB
 	var err error

@@ -43,6 +43,7 @@ func (m *MarshalableGenesisDoc) ToGenesisDoc() *bft.GenesisDoc {
 }
 
 type ForkConfig struct {
+	Verbose       bool                   `json:"verbose"`
 	PrivValidator ed25519.PrivKeyEd25519 `json:"priv"`
 	DBDir         string                 `json:"dbdir"`
 	RootDir       string                 `json:"rootdir"`

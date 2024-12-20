@@ -8,6 +8,7 @@ import (
 
 	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
 	"github.com/gnolang/gno/tm2/pkg/bft/rpc/client"
+	"github.com/gnolang/gno/tm2/pkg/crypto/ed25519"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -31,13 +32,13 @@ func TestForkGnoland(t *testing.T) {
 
 	cfg := TestingMinimalNodeConfig(gnoRootDir)
 
-	gnoenv.RootDir()
 	remoteAddr, cmd, err := ExecuteForkBinary(ctx, gnolandBin, &ForkConfig{
-		// PrivValidator: ed25519.GenPrivKey(),
-		DBDir:    gnolandDBDir,
-		RootDir:  gnoRootDir,
-		TMConfig: cfg.TMConfig,
-		Genesis:  NewMarshalableGenesisDoc(cfg.Genesis),
+		Verbose:       true,
+		PrivValidator: ed25519.GenPrivKey(),
+		DBDir:         gnolandDBDir,
+		RootDir:       gnoRootDir,
+		TMConfig:      cfg.TMConfig,
+		Genesis:       NewMarshalableGenesisDoc(cfg.Genesis),
 	})
 	require.NoError(t, err)
 
