@@ -71,11 +71,6 @@ func (mbt MembersByTier) GetMember(addr std.Address) (m *Member, t string) {
 func (mbt MembersByTier) GetTotalPower(tbn TiersByName) float64 {
 	var out float64
 	mbt.Iterate("", "", func(tn string, msv interface{}) bool {
-		mst, ok := msv.(*avl.Tree)
-		if !ok {
-			panic("MembersByTier values can only be avl.Tree")
-		}
-
 		tier, ok := tbn.GetTier(tn)
 		if !ok {
 			// tier does not exists, so we cannot count power from this tier
@@ -83,6 +78,8 @@ func (mbt MembersByTier) GetTotalPower(tbn TiersByName) float64 {
 		}
 
 		out = out + tier.PowerHandler(mbt, tbn)
+
+		return false
 	})
 
 	return out
