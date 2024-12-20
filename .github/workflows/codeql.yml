@@ -16,6 +16,10 @@ on:
     branches: [ "master", "chain/*" ]
   pull_request:
     branches: [ "master", "chain/*" ]
+    paths:
+      - '**/*.go'
+      - 'go.mod'
+      - 'go.sum'
   schedule:
     - cron: '22 17 * * 3'
 
