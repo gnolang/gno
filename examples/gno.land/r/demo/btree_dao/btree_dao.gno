@@ -57,12 +57,8 @@ func PlantSeed(message string) error {
 // Returns an error if any validation fails or if NFT minting fails.
 func plantImpl(userBTree *btree.BTree, seedMessage string) error {
 	// Get the caller's address
-	var userAddress std.Address
-	if std.PrevRealm().IsUser() {
-		userAddress = std.PrevRealm().Addr()
-	} else {
-		userAddress = std.GetOrigCaller()
-	}
+
+	userAddress := std.GetOrigCaller()
 
 	var nftID string
 	var regDetails *RegistrationDetails
@@ -155,9 +151,9 @@ func Render(path string) string {
 						nftList += ", "
 					}
 					if regDetails.UserBTree == nil {
-						nftList += "🌱#" + regDetails.NFTID // Use NFTID directly
+						nftList += "🌱#" + regDetails.NFTID 
 					} else {
-						nftList += "🌳#" + regDetails.NFTID // Use NFTID directly
+						nftList += "🌳#" + regDetails.NFTID 
 					}
 				}
 				nftList += ")"
@@ -182,9 +178,9 @@ func Render(path string) string {
 						nftList += ", "
 					}
 					if regDetails.UserBTree == nil {
-						nftList += "🌱#" + regDetails.NFTID // Use NFTID directly
+						nftList += "🌱#" + regDetails.NFTID 
 					} else {
-						nftList += "🌳#" + regDetails.NFTID // Use NFTID directly
+						nftList += "🌳#" + regDetails.NFTID 
 					}
 				}
 				nftList += ")"
@@ -195,7 +191,6 @@ func Render(path string) string {
 		return false
 	})
 
-	// Use the md package to format the output
 	var sb strings.Builder
 
 	sb.WriteString(md.H1("B-Tree DAO Members"))
