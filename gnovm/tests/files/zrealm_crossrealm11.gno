@@ -117,10 +117,10 @@ func printColumns(left, right string) {
 //                                             user1.gno -> r/crossrealm_test.main -> r/crossrealm_test.Exec = user1.gno
 //                                                  user1.gno -> r/crossrealm_test.main -> r/demo/tests.Exec = gno.land/r/demo/tests
 //                                                  user1.gno -> r/crossrealm_test.main -> p/demo/tests.Exec = user1.gno
-//                                     user1.gno -> r/crossrealm_test.main -> r/crossrealm_test.getPreviousRealm = user1.gno
-//           user1.gno -> r/crossrealm_test.main -> r/crossrealm_test.Exec -> r/crossrealm_test.getPreviousRealm = user1.gno
-//                user1.gno -> r/crossrealm_test.main -> r/demo/tests.Exec -> r/crossrealm_test.getPreviousRealm = gno.land/r/demo/tests
-//                user1.gno -> r/crossrealm_test.main -> p/demo/tests.Exec -> r/crossrealm_test.getPreviousRealm = user1.gno
+//                                 user1.gno -> r/crossrealm_test.main -> r/crossrealm_test.getPreviousRealm = user1.gno
+//       user1.gno -> r/crossrealm_test.main -> r/crossrealm_test.Exec -> r/crossrealm_test.getPreviousRealm = user1.gno
+//            user1.gno -> r/crossrealm_test.main -> r/demo/tests.Exec -> r/crossrealm_test.getPreviousRealm = gno.land/r/demo/tests
+//            user1.gno -> r/crossrealm_test.main -> p/demo/tests.Exec -> r/crossrealm_test.getPreviousRealm = user1.gno
 //                                                       user1.gno -> r/crossrealm_test.main -> p/demo/tests = user1.gno
 //                             user1.gno -> r/crossrealm_test.main -> r/crossrealm_test.Exec -> p/demo/tests = user1.gno
 //                                  user1.gno -> r/crossrealm_test.main -> r/demo/tests.Exec -> p/demo/tests = gno.land/r/demo/tests
