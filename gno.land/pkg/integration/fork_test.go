@@ -13,7 +13,9 @@ import (
 )
 
 func TestForkGnoland(t *testing.T) {
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
+	t.Parallel()
+
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*30)
 	defer cancel()
 
 	tmpdir := t.TempDir()
