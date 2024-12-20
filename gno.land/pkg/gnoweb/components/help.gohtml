@@ -69,7 +69,7 @@
                   {{ range .Params }}
                     <div class="flex flex-col gap-3 items-stretch text-gray-400 mb-2">
                       <div class="group relative overflow-hidden flex w-full border rounded-sm has-[:focus]:border-gray-300 hover:border-gray-300">
-                        <label for="func-{{ $funcName }}-param-{{ .Name }}" class="flex gap-3 items-center bg-gray-50 px-4 font-semibold text-gray-600">{{ .Name }}</label>
+                        <label for="func-{{ $funcName }}-param-{{ .Name }}" class="flex gap-3 items-center bg-gray-50 px-4 font-semibold text-gray-600 text-100">{{ .Name }}</label>
                         <input type="text"
                           {{- if eq $data.SelectedFunc $funcName }}
                             value="{{ getSelectedArgValue $data . }}"
@@ -89,7 +89,7 @@
             <div>
               <h3 class="text-gray-400 text-50 mb-1">Command</h3>
               <div class="relative rounded-sm text-100 bg-light">
-                <button class="w-5 h-5 absolute top-2 right-2 text-gray-400" aria-label="Copy Command" data-copy-btn="help-cmd-{{ .FuncName }}">
+                <button class="w-5 h-5 absolute top-2 right-2 text-gray-400 hover:text-gray-600" aria-label="Copy Command" data-copy-btn="help-cmd-{{ .FuncName }}">
                   <svg class="w-5 h-5 top-0" data-copy-icon>
                     <use href="#ico-copy"></use>
                     <use href="#ico-check" class="hidden text-green-600"></use>
