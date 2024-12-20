@@ -71,12 +71,15 @@ func Render(path string) string {
 }
 
 func renderAboutMe() string {
-	var out strings.Builder
-	out.WriteString(md.H1(`Ivan's Homepage`))
-	out.WriteString(md.H4(aboutMe))
-
-	return out.String()
+    var out strings.Builder
+    out.WriteString(md.H3("About me")) 
+    
+    aboutMe := "Hello everyone, my name is Ivan Ursulovic. I am a Computer Engineering graduate from the School of Computing at Union University. I have experience working as a backend ASP.NET developer, but beyond that, I am a big Web3 enthusiast!"
+    out.WriteString(md.Paragraph(aboutMe)) // Use md.Paragraph instead of md.H4
+    
+    return out.String()
 }
+
 
 func renderPhrase() string {
 	var out strings.Builder
