@@ -368,6 +368,7 @@ func (c *Collection) Update(id uint64, obj interface{}) uint64 {
 		if name == IDIndex {
 			continue
 		}
+		// We only enforce uniqueness if it's a single-value, unique index
 		if (idx.options&UniqueIndex != 0) && (idx.options&MultiValueIndex == 0) {
 			newKeys, newOk := generateKeys(idx, obj)
 			oldKeys, oldOk := generateKeys(idx, oldObj)
@@ -380,7 +381,7 @@ func (c *Collection) Update(id uint64, obj interface{}) uint64 {
 					newKey = strings.ToLower(newKey)
 				}
 				found, _ := idx.tree.Get(newKey)
-				// If this key is found, but not the same ID, uniqueness is violated
+				// If this key is found, but not tied to the same ID, uniqueness is violated
 				if found != nil {
 					switch v := found.(type) {
 					case string:
@@ -388,8 +389,8 @@ func (c *Collection) Update(id uint64, obj interface{}) uint64 {
 							return 0
 						}
 					case []string:
-						// For a single-value unique index, we don't expect a []string,
-						// so skip or handle as error.
+						// For a single-value unique index, we don't expect a slice,
+						// so treat it as a conflict.
 						return 0
 					}
 				}
@@ -412,14 +413,14 @@ func (c *Collection) Update(id uint64, obj interface{}) uint64 {
 			if idx.options&CaseInsensitiveIndex != 0 {
 				okey = strings.ToLower(okey)
 			}
-			// Remove right away
+			// Remove the oldObj from the index right away
 			removeIndex(idx, okey, idStr)
 			adjusted = append(adjusted, okey)
 		}
 		oldEntries[name] = adjusted
 	}
 
-	// Update the object in _id index
+	// Update the object in the _id index
 	c.indexes[IDIndex].tree.Set(idStr, obj)
 
 	// Add new index entries
