@@ -151,9 +151,9 @@ func Render(path string) string {
 						nftList += ", "
 					}
 					if regDetails.UserBTree == nil {
-						nftList += "🌱#" + regDetails.NFTID 
+						nftList += "🌱#" + regDetails.NFTID
 					} else {
-						nftList += "🌳#" + regDetails.NFTID 
+						nftList += "🌳#" + regDetails.NFTID
 					}
 				}
 				nftList += ")"
@@ -178,9 +178,9 @@ func Render(path string) string {
 						nftList += ", "
 					}
 					if regDetails.UserBTree == nil {
-						nftList += "🌱#" + regDetails.NFTID 
+						nftList += "🌱#" + regDetails.NFTID
 					} else {
-						nftList += "🌳#" + regDetails.NFTID 
+						nftList += "🌳#" + regDetails.NFTID
 					}
 				}
 				nftList += ")"
