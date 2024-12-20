@@ -331,8 +331,6 @@ func (h *WebHandler) highlightSource(fileName string, src []byte) ([]byte, error
 		lexer = lexers.Get("go")
 	case ".md":
 		lexer = lexers.Get("markdown")
-	case ".mod":
-		lexer = lexers.Get("gomod")
 	default:
 		lexer = lexers.Get("txt") // file kind not supported, fallback on `.txt`
 	}
