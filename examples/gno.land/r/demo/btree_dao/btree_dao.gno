@@ -113,6 +113,15 @@ func Render(path string) string {
 	var latestMembers []string
 	var ogMembers []string
 
+	// Get total size and first member
+	totalSize := members.Len()
+	biggestTree := 0
+	if maxMember := members.Max(); maxMember != nil {
+		if userBTree := maxMember.(*RegistrationDetails).UserBTree; userBTree != nil {
+			biggestTree = userBTree.Len()
+		}
+	}
+
 	// Collect the latest 10 members
 	members.Descend(func(record btree.Record) bool {
 		if len(latestMembers) < 10 {
@@ -173,6 +182,11 @@ func Render(path string) string {
 	sb.WriteString(md.H1("B-Tree DAO Members"))
 	sb.WriteString(md.H2("Total NFTs Minted"))
 	sb.WriteString(ufmt.Sprintf("Total NFTs minted: %d\n\n", dao.TokenCount()))
+	sb.WriteString(md.H2("Member Stats"))
+	sb.WriteString(ufmt.Sprintf("Total members: %d\n", totalSize))
+	if biggestTree > 0 {
+		sb.WriteString(ufmt.Sprintf("Biggest tree size: %d\n", biggestTree))
+	}
 	sb.WriteString(md.H2("OG Members"))
 	sb.WriteString(md.BulletList(ogMembers))
 	sb.WriteString(md.H2("Latest Members"))
