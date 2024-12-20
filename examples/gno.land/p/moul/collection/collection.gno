@@ -238,7 +238,14 @@ func (c *Collection) Delete(id uint64) {
 			idx.tree.Remove(idStr)
 			continue
 		}
-		key := idx.fn(obj)
+		key, ok := safeGenerateKey(idx.fn, obj)
+		if !ok {
+			continue
+		}
+		// Handle case-insensitive indexes
+		if idx.options&CaseInsensitiveIndex != 0 {
+			key = strings.ToLower(key)
+		}
 		idx.tree.Remove(key)
 	}
 }
@@ -288,6 +295,10 @@ func (c *Collection) Update(id uint64, obj interface{}) uint64 {
 		oldKey, ok := safeGenerateKey(idx.fn, oldObj)
 		if !ok {
 			continue
+		}
+		// Handle case-insensitive indexes when removing old key
+		if idx.options&CaseInsensitiveIndex != 0 {
+			oldKey = strings.ToLower(oldKey)
 		}
 		idx.tree.Remove(oldKey)
 	}
