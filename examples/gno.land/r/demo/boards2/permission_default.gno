@@ -147,23 +147,18 @@ func (dp *DefaultPermissions) WithPermission(user std.Address, perm Permission, 
 	fn(dp, args, cb)
 }
 
-func createDefaultPermissions() *DefaultPermissions {
-	// TODO: Define and change the default realm owner (or owners)
-	owner := std.Address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5") // @test1
+func createDefaultPermissions(owner std.Address) *DefaultPermissions {
 	// TODO: DAO should be a different realm or proposal and voting functions should be part of boards realm?
 	//       Permissions and DAO mechanics should be discussed and improved. Add `GetDAO()` to `Permissions`??
-	dao := admindao.New(admindao.WithMember(owner))
 	perms := NewDefaultPermissions(
-		dao,
+		admindao.New(admindao.WithMember(owner)),
 		WithSuperRole(RoleOwner),
 		WithRole(RoleAdmin, PermissionBoardCreate, PermissionMemberInvite),
 		// TODO: Finish assigning all roles and permissions
 		// WithRole(RoleModerator, permissions...),
 		WithUser(owner, RoleOwner),
 	)
-
 	perms.HandleFunc(PermissionBoardCreate, handleBoardCreate)
 	perms.HandleFunc(PermissionMemberInvite, handleMemberInvite)
-
 	return perms
 }

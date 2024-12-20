@@ -28,6 +28,7 @@ type Board struct {
 	postsCtr  uint64   // increments Post.id
 	createdAt time.Time
 	deleted   avl.Tree // TODO reserved for fast-delete.
+	perms     Permissions
 }
 
 func newBoard(id BoardID, name string, creator std.Address) *Board {
@@ -38,6 +39,7 @@ func newBoard(id BoardID, name string, creator std.Address) *Board {
 		threads:   avl.Tree{},
 		createdAt: time.Now(),
 		deleted:   avl.Tree{},
+		perms:     createDefaultBoardPermissions(creator),
 	}
 }
 
@@ -62,6 +64,10 @@ func (board *Board) GetID() BoardID {
 // GetURL returns the relative URL of the board.
 func (board *Board) GetURL() string {
 	return strings.TrimPrefix(std.CurrentRealm().PkgPath(), "gno.land") + ":" + board.name
+}
+
+func (board *Board) GetPermissions() Permissions {
+	return board.perms
 }
 
 func (board *Board) GetThread(threadID PostID) (_ *Post, found bool) {
@@ -115,4 +121,18 @@ func (board *Board) GetURLFromReplyID(threadID, replyID PostID) string {
 
 func (board *Board) GetPostFormURL() string {
 	return txlink.URL("CreateThread", "bid", board.id.String())
+}
+
+// TODO: This is a temporary implementation until the permissions and DAO mecahnics are defined
+func createDefaultBoardPermissions(owner std.Address) *DefaultPermissions {
+	perms := NewDefaultPermissions(
+		admindao.New(admindao.WithMember(owner)),
+		WithSuperRole(RoleOwner),
+		WithRole(RoleAdmin, PermissionMemberInvite),
+		// TODO: Finish assigning all roles and permissions
+		// WithRole(RoleModerator, permissions...),
+		WithUser(owner, RoleOwner),
+	)
+	perms.HandleFunc(PermissionMemberInvite, handleMemberInvite)
+	return perms
 }

@@ -10,8 +10,11 @@ var (
 )
 
 func init() {
+	// TODO: Define and change the default realm owner (or owners)
+	owner := std.Address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5") // @test1
+
 	// Initialize the default realm permissions
-	gPerm = createDefaultPermissions()
+	gPerm = createDefaultPermissions(owner)
 }
 
 // incGetBoardID returns a new board ID.
