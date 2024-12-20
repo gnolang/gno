@@ -49,7 +49,7 @@ func (f EncodeFlag) Has(flags EncodeFlag) bool {
 }
 
 // Encode encodes the URL components based on the provided flags.
-// Encode assums the URL is valid.
+// Encode assumes the URL is valid.
 func (gnoURL GnoURL) Encode(encodeFlags EncodeFlag) string {
 	var urlstr strings.Builder
 
