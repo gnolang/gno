@@ -5,7 +5,7 @@ type Realm struct {
 	pkgPath string
 }
 
-func (r Realm) Addr() Address {
+func (r Realm) Address() Address {
 	return r.addr
 }
 
