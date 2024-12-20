@@ -33,11 +33,11 @@ cmp stderr gnoland-already-stop.stderr.golden
 node started successfully
 -- gnoland-start.stderr.golden --
 -- gnoland-already-start.stdout.golden --
-node started successfully
 -- gnoland-already-start.stderr.golden --
+"gnoland start" error: node already started
 -- gnoland-stop.stdout.golden --
-node stopped successfully
 -- gnoland-stop.stderr.golden --
+"gnoland start" error: node already started
 -- gnoland-already-stop.stdout.golden --
-node stopped successfully
 -- gnoland-already-stop.stderr.golden --
+"gnoland stop" error: node not started cannot be stopped

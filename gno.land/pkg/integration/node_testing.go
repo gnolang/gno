@@ -55,7 +55,7 @@ func TestingInMemoryNode(t TestingTS, logger *slog.Logger, config *gnoland.InMem
 // with default packages and genesis transactions already loaded.
 // It will return the default creator address of the loaded packages.
 func TestingNodeConfig(t TestingTS, gnoroot string, additionalTxs ...gnoland.TxWithMetadata) (*gnoland.InMemoryNodeConfig, bft.Address) {
-	cfg := TestingMinimalNodeConfig(t, gnoroot)
+	cfg := TestingMinimalNodeConfig(gnoroot)
 
 	creator := crypto.MustAddressFromString(DefaultAccount_Address) // test1
 
@@ -75,14 +75,14 @@ func TestingNodeConfig(t TestingTS, gnoroot string, additionalTxs ...gnoland.TxW
 }
 
 // TestingMinimalNodeConfig constructs the default minimal in-memory node configuration for testing.
-func TestingMinimalNodeConfig(t TestingTS, gnoroot string) *gnoland.InMemoryNodeConfig {
+func TestingMinimalNodeConfig(gnoroot string) *gnoland.InMemoryNodeConfig {
 	tmconfig := DefaultTestingTMConfig(gnoroot)
 
 	// Create Mocked Identity
 	pv := gnoland.NewMockedPrivValidator()
 
 	// Generate genesis config
-	genesis := DefaultTestingGenesisConfig(t, gnoroot, pv.GetPubKey(), tmconfig)
+	genesis := DefaultTestingGenesisConfig(gnoroot, pv.GetPubKey(), tmconfig)
 
 	return &gnoland.InMemoryNodeConfig{
 		PrivValidator: pv,
@@ -96,7 +96,7 @@ func TestingMinimalNodeConfig(t TestingTS, gnoroot string) *gnoland.InMemoryNode
 	}
 }
 
-func DefaultTestingGenesisConfig(t TestingTS, gnoroot string, self crypto.PubKey, tmconfig *tmcfg.Config) *bft.GenesisDoc {
+func DefaultTestingGenesisConfig(gnoroot string, self crypto.PubKey, tmconfig *tmcfg.Config) *bft.GenesisDoc {
 	return &bft.GenesisDoc{
 		GenesisTime: time.Now(),
 		ChainID:     tmconfig.ChainID(),
