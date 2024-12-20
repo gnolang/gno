@@ -287,6 +287,7 @@ func setupGnolandTestScript(t *testing.T, txtarDir string) testscript.Params {
 				io.SetIn(strings.NewReader("\n")) // Inject empty password to stdin.
 				defaultArgs := []string{
 					"-home", gnoHomeDir,
+
 					"-insecure-password-stdin=true", // There no use to not have this param by default.
 				}
 
