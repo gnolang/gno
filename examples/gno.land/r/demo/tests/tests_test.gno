@@ -48,11 +48,11 @@ func TestPreviousRealm(t *testing.T) {
 		rTestsAddr = std.DerivePkgAddr("gno.land/r/demo/tests")
 	)
 	// When a single realm in the frames, PreviousRealm returns the user
-	if addr := GetPreviousRealm().Addr(); addr != user1Addr {
+	if addr := GetPreviousRealm().Address(); addr != user1Addr {
 		t.Errorf("want GetPreviousRealm().Addr==%s, got %s", user1Addr, addr)
 	}
 	// When 2 or more realms in the frames, PreviousRealm returns the second to last
-	if addr := GetRSubtestsPreviousRealm().Addr(); addr != rTestsAddr {
+	if addr := GetRSubtestsPreviousRealm().Address(); addr != rTestsAddr {
 		t.Errorf("want GetRSubtestsPreviousRealm().Addr==%s, got %s", rTestsAddr, addr)
 	}
 }

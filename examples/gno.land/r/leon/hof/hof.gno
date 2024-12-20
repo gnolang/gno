@@ -89,7 +89,7 @@ func Upvote(pkgpath string) {
 	}
 
 	item := rawItem.(*Item)
-	caller := std.PreviousRealm().Addr().String()
+	caller := std.PreviousRealm().Address().String()
 
 	if item.upvote.Has(caller) {
 		panic(ErrDoubleUpvote.Error())
@@ -105,7 +105,7 @@ func Downvote(pkgpath string) {
 	}
 
 	item := rawItem.(*Item)
-	caller := std.PreviousRealm().Addr().String()
+	caller := std.PreviousRealm().Address().String()
 
 	if item.downvote.Has(caller) {
 		panic(ErrDoubleDownvote.Error())

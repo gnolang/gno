@@ -34,7 +34,7 @@ func TransferByName(name string, to string, amount uint64) string {
 		if pair.name != name {
 			continue
 		}
-		if std.CurrentRealm().Addr().String() != pair.cb(std.Address(to), amount) {
+		if std.CurrentRealm().Address().String() != pair.cb(std.Address(to), amount) {
 			return "invalid address, ownership issue :("
 		}
 		return "same address, success!"
@@ -58,6 +58,6 @@ package foo20
 import "std"
 
 func Transfer(to std.Address, amount uint64) string {
-	println("transfer from=" + std.PreviousRealm().Addr().String() + " to=" + to.String() + " some-amount")
-	return std.PreviousRealm().Addr().String()
+	println("transfer from=" + std.PreviousRealm().Address().String() + " to=" + to.String() + " some-amount")
+	return std.PreviousRealm().Address().String()
 }

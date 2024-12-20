@@ -152,7 +152,7 @@ func Donate() {
 
 	banker := std.GetBanker(std.BankerTypeRealmSend)
 	ownerAddr := registry.MainAddr()
-	banker.SendCoins(std.CurrentRealm().Addr(), ownerAddr, banker.GetCoins(std.CurrentRealm().Addr()))
+	banker.SendCoins(std.CurrentRealm().Address(), ownerAddr, banker.GetCoins(std.CurrentRealm().Address()))
 }
 
 type SponsorSlice []Sponsor

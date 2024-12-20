@@ -129,7 +129,7 @@ func init() {
 
 func Echo(msg string) string {
 	addr := std.OriginCaller()
-	pkgAddr := std.GetOriginPkgAddr()
+	pkgAddr := std.GetOriginPkgAddress()
 	send := std.OriginSend()
 	banker := std.GetBanker(std.BankerTypeOriginSend)
 	banker.SendCoins(pkgAddr, addr, send) // send back
@@ -177,7 +177,7 @@ func init() {
 
 func Echo(msg string) string {
 	addr := std.OriginCaller()
-	pkgAddr := std.GetOriginPkgAddr()
+	pkgAddr := std.GetOriginPkgAddress()
 	send := std.OriginSend()
 	banker := std.GetBanker(std.BankerTypeOriginSend)
 	banker.SendCoins(pkgAddr, addr, send) // send back
@@ -228,7 +228,7 @@ func init() {
 
 func Echo(msg string) string {
 	addr := std.OriginCaller()
-	pkgAddr := std.GetOriginPkgAddr()
+	pkgAddr := std.GetOriginPkgAddress()
 	send := std.Coins{{"ugnot", 10000000}}
 	banker := std.GetBanker(std.BankerTypeOriginSend)
 	banker.SendCoins(pkgAddr, addr, send) // send back
@@ -272,7 +272,7 @@ func init() {
 
 func Echo(msg string) string {
 	addr := std.OriginCaller()
-	pkgAddr := std.GetOriginPkgAddr()
+	pkgAddr := std.GetOriginPkgAddress()
 	send := std.Coins{{"ugnot", 10000000}}
 	banker := std.GetBanker(std.BankerTypeRealmSend)
 	banker.SendCoins(pkgAddr, addr, send) // send back
@@ -316,7 +316,7 @@ func init() {
 
 func Echo(msg string) string {
 	addr := std.OriginCaller()
-	pkgAddr := std.GetOriginPkgAddr()
+	pkgAddr := std.GetOriginPkgAddress()
 	send := std.Coins{{"ugnot", 10000000}}
 	banker := std.GetBanker(std.BankerTypeRealmSend)
 	banker.SendCoins(pkgAddr, addr, send) // send back
@@ -417,7 +417,7 @@ func init() {
 
 func Echo(msg string) string {
 	addr := std.OriginCaller()
-	pkgAddr := std.GetOriginPkgAddr()
+	pkgAddr := std.GetOriginPkgAddress()
 	send := std.OriginSend()
 	banker := std.GetBanker(std.BankerTypeOriginSend)
 	banker.SendCoins(pkgAddr, addr, send) // send back

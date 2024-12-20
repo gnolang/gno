@@ -34,7 +34,7 @@ func (s *metadataNFT) SetTokenMetadata(tid TokenID, metadata Metadata) error {
 	if err != nil {
 		return err
 	}
-	caller := std.PreviousRealm().Addr()
+	caller := std.PreviousRealm().Address()
 	if caller != owner {
 		return ErrCallerIsNotOwner
 	}

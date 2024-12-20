@@ -115,7 +115,7 @@ that could lead to user frustration or the need to fork the code.
 import "std"
 
 func Foobar() {
-    caller := std.PreviousRealm().Addr()
+    caller := std.PreviousRealm().Address()
     if caller != "g1xxxxx" {
         panic("permission denied")
     }
@@ -399,7 +399,7 @@ certain operations.
 import "std"
 
 func PublicMethod(nb int) {
-    caller := std.PreviousRealm().Addr()
+    caller := std.PreviousRealm().Address()
     privateMethod(caller, nb)
 }
 
@@ -407,7 +407,7 @@ func privateMethod(caller std.Address, nb int) { /* ... */ }
 ```
 
 In this example, `PublicMethod` is a public function that can be called by other
-realms. It retrieves the caller's address using `std.PreviousRealm().Addr()`, and
+realms. It retrieves the caller's address using `std.PreviousRealm().Address()`, and
 then passes it to `privateMethod`, which is a private function that performs the
 actual logic. This way, `privateMethod` can only be called from within the
 realm, and it can use the caller's address for authentication or authorization
@@ -440,11 +440,11 @@ import (
 var owner std.Address
 
 func init() {
-	owner = std.PreviousRealm().Addr()
+	owner = std.PreviousRealm().Address()
 }
 
 func ChangeOwner(newOwner std.Address) {
-	caller := std.PreviousRealm().Addr()
+	caller := std.PreviousRealm().Address()
 
 	if caller != owner {
 		panic("access denied")
@@ -516,7 +516,7 @@ import "std"
 var admin std.Address = "g1xxxxx"
 
 func AdminOnlyFunction() {
-    caller := std.PreviousRealm().Addr()
+    caller := std.PreviousRealm().Address()
     if caller != admin {
         panic("permission denied")
     }
@@ -527,7 +527,7 @@ func AdminOnlyFunction() {
 ```
 
 In this example, `AdminOnlyFunction` is a function that can only be called by
-the admin. It retrieves the caller's address using `std.PreviousRealm().Addr()`,
+the admin. It retrieves the caller's address using `std.PreviousRealm().Address()`,
 this can be either another realm contract, or the calling user if there is no
 other intermediary realm. and then checks if the caller is the admin. If not, it
 panics and stops the execution.
@@ -543,7 +543,7 @@ Here's an example:
 import "std"
 
 func TransferTokens(to std.Address, amount int64) {
-    caller := std.PreviousRealm().Addr()
+    caller := std.PreviousRealm().Address()
     if caller != admin {
         panic("permission denied")
     }
@@ -552,7 +552,7 @@ func TransferTokens(to std.Address, amount int64) {
 ```
 
 In this example, `TransferTokens` is a function that can only be called by the
-admin. It retrieves the caller's address using `std.PreviousRealm().Addr()`, and
+admin. It retrieves the caller's address using `std.PreviousRealm().Address()`, and
 then checks if the caller is the admin. If not, the function panics and execution is stopped.
 
 By using these access control mechanisms, you can ensure that your contract's
@@ -631,7 +631,7 @@ type MySafeStruct {
 }
 
 func NewSafeStruct() *MySafeStruct {
-    caller := std.PreviousRealm().Addr()
+    caller := std.PreviousRealm().Address()
     return &MySafeStruct{
         counter: 0,
         admin: caller,
@@ -640,7 +640,7 @@ func NewSafeStruct() *MySafeStruct {
 
 func (s *MySafeStruct) Counter() int { return s.counter }
 func (s *MySafeStruct) Inc() {
-    caller := std.PreviousRealm().Addr()
+    caller := std.PreviousRealm().Address()
     if caller != s.admin {
         panic("permission denied")
     }
@@ -704,7 +704,7 @@ import "gno.land/p/demo/grc/grc20"
 var fooToken = grc20.NewBanker("Foo Token", "FOO", 4)
 
 func MyBalance() uint64 {
-	caller := std.PreviousRealm().Addr()
+	caller := std.PreviousRealm().Address()
 	return fooToken.BalanceOf(caller)
 }
 ```

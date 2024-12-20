@@ -52,7 +52,7 @@ func Render(path string) string {
 
 // assertAdmin panics if the caller is not an admin as defined in the config realm.
 func assertAdmin() {
-	caller := std.PreviousRealm().Addr()
+	caller := std.PreviousRealm().Address()
 	if !config.IsAdmin(caller) {
 		panic("forbidden: must be admin")
 	}

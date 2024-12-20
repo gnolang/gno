@@ -474,7 +474,7 @@ func Withdraw() {
 
 		// Return the exceeded amount
 		banker := std.GetBanker(std.BankerTypeRealmSend)
-		pkgAddr := std.GetOriginPkgAddr()
+		pkgAddr := std.GetOriginPkgAddress()
 
 		banker.SendCoins(pkgAddr, std.OriginCaller(), std.Coins{{"ugnot", amount.(int64)}})
 	}
@@ -500,7 +500,7 @@ func TestWithdraw(t *testing.T) {
 	shouldEqual(t, pendingReturns.Has(returnAddr), true)
 
 	banker := std.GetBanker(std.BankerTypeRealmSend)
-	pkgAddr := std.GetOriginPkgAddr()
+	pkgAddr := std.GetOriginPkgAddress()
 	banker.SendCoins(pkgAddr, std.Address(returnAddr), std.Coins{{"ugnot", returnAmount}})
 	shouldEqual(t, banker.GetCoins(std.Address(returnAddr)).String(), "3ugnot")
 }
@@ -565,7 +565,7 @@ func AuctionEnd() {
 
 	// Send the highest bid to the recipient
 	banker := std.GetBanker(std.BankerTypeRealmSend)
-	pkgAddr := std.GetOriginPkgAddr()
+	pkgAddr := std.GetOriginPkgAddress()
 
 	banker.SendCoins(pkgAddr, receiver, std.Coins{{"ugnot", int64(highestBid)}})
 }

@@ -14,7 +14,7 @@ func (tok *Token) CallerTeller() Teller {
 
 	return &fnTeller{
 		accountFn: func() std.Address {
-			caller := std.PreviousRealm().Addr()
+			caller := std.PreviousRealm().Address()
 			return caller
 		},
 		Token: tok,
@@ -44,7 +44,7 @@ func (tok *Token) RealmTeller() Teller {
 		panic("Token cannot be nil")
 	}
 
-	caller := std.PreviousRealm().Addr()
+	caller := std.PreviousRealm().Address()
 
 	return &fnTeller{
 		accountFn: func() std.Address {
@@ -61,7 +61,7 @@ func (tok *Token) RealmSubTeller(slug string) Teller {
 		panic("Token cannot be nil")
 	}
 
-	caller := std.PreviousRealm().Addr()
+	caller := std.PreviousRealm().Address()
 	account := accountSlugAddr(caller, slug)
 
 	return &fnTeller{

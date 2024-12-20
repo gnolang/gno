@@ -24,7 +24,7 @@ func init() {
 }
 
 func Deposit() {
-	caller := std.PreviousRealm().Addr()
+	caller := std.PreviousRealm().Address()
 	sent := std.OriginSend()
 	amount := sent.AmountOf("ugnot")
 
@@ -36,8 +36,8 @@ func Deposit() {
 func Withdraw(amount uint64) {
 	require(amount >= wugnotMinDeposit, ufmt.Sprintf("Deposit below minimum: %d/%d wugnot.", amount, wugnotMinDeposit))
 
-	caller := std.PreviousRealm().Addr()
-	pkgaddr := std.CurrentRealm().Addr()
+	caller := std.PreviousRealm().Address()
+	pkgaddr := std.CurrentRealm().Address()
 	callerBal := Token.BalanceOf(caller)
 	require(amount <= callerBal, ufmt.Sprintf("Insufficient balance: %d available, %d needed.", callerBal, amount))
 

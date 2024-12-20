@@ -47,18 +47,18 @@ func Sign(message string) {
 	switch {
 	case !prev.IsUser():
 		panic(errNotAUser)
-	case hasSigned.Has(prev.Addr().String()):
+	case hasSigned.Has(prev.Address().String()):
 		panic(errAlreadySigned)
 	}
 	message = validateMessage(message)
 
 	guestbook.Set(signatureID.Next().Binary(), Signature{
 		Message: message,
-		Author:  prev.Addr(),
+		Author:  prev.Address(),
 		// NOTE: time.Now() will yield the "block time", which is deterministic.
 		Time: time.Now(),
 	})
-	hasSigned.Set(prev.Addr().String(), struct{}{})
+	hasSigned.Set(prev.Address().String(), struct{}{})
 }
 
 func validateMessage(msg string) string {

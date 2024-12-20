@@ -68,7 +68,7 @@ func (rs *RecurringSubscription) processSubscription(receiver std.Address) error
 
 // Subscribe handles the payment for the caller's subscription.
 func (rs *RecurringSubscription) Subscribe() error {
-	caller := std.PreviousRealm().Addr()
+	caller := std.PreviousRealm().Address()
 
 	return rs.processSubscription(caller)
 }

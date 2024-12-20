@@ -43,7 +43,7 @@ func AdminRemoveModerator(addr std.Address) {
 
 func NewPostExecutor(slug, title, body, publicationDate, authors, tags string) dao.Executor {
 	callback := func() error {
-		addPost(std.PreviousRealm().Addr(), slug, title, body, publicationDate, authors, tags)
+		addPost(std.PreviousRealm().Address(), slug, title, body, publicationDate, authors, tags)
 
 		return nil
 	}

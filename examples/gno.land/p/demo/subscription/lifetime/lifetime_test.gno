@@ -22,7 +22,7 @@ func TestLifetimeSubscription(t *testing.T) {
 	err := ls.Subscribe()
 	uassert.NoError(t, err, "Expected ProcessPayment to succeed")
 
-	err = ls.HasValidSubscription(std.PreviousRealm().Addr())
+	err = ls.HasValidSubscription(std.PreviousRealm().Address())
 	uassert.NoError(t, err, "Expected Alice to have access")
 }
 

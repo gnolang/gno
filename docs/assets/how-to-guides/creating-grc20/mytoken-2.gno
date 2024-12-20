@@ -44,13 +44,13 @@ func TransferFrom(from, to std.Address, amount uint64) {
 
 // Mint mints amount of tokens to address. Callable only by admin of token
 func Mint(address std.Address, amount uint64) {
-	assertIsAdmin(std.PreviousRealm().Addr())
+	assertIsAdmin(std.PreviousRealm().Address())
 	checkErr(banker.Mint(address, amount))
 }
 
 // Burn burns amount of tokens from address. Callable only by admin of token
 func Burn(address std.Address, amount uint64) {
-	assertIsAdmin(std.PreviousRealm().Addr())
+	assertIsAdmin(std.PreviousRealm().Address())
 	checkErr(banker.Burn(address, amount))
 }
 

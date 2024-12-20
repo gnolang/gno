@@ -11,7 +11,7 @@ func AuctionEnd() {
 
 	// Send the highest bid to the recipient
 	banker := std.GetBanker(std.BankerTypeRealmSend)
-	pkgAddr := std.GetOriginPkgAddr()
+	pkgAddr := std.GetOriginPkgAddress()
 
 	banker.SendCoins(pkgAddr, receiver, std.Coins{{"ugnot", int64(highestBid)}})
 }

@@ -40,7 +40,7 @@ func Deposit(returnDenom string, returnAmount int64) string {
 	// return if any.
 	if returnAmount > 0 {
 		banker := std.GetBanker(std.BankerTypeOriginSend)
-		pkgaddr := std.GetOriginPkgAddr()
+		pkgaddr := std.GetOriginPkgAddress()
 		// TODO: use std.Coins constructors, this isn't generally safe.
 		banker.SendCoins(pkgaddr, caller, send)
 		return "returned!"
@@ -52,7 +52,7 @@ func Deposit(returnDenom string, returnAmount int64) string {
 func Render(path string) string {
 	// get realm coins.
 	banker := std.GetBanker(std.BankerTypeReadonly)
-	coins := banker.GetCoins(std.GetOriginPkgAddr())
+	coins := banker.GetCoins(std.GetOriginPkgAddress())
 
 	// render
 	res := ""

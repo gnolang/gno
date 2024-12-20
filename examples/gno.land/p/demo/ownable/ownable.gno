@@ -13,7 +13,7 @@ type Ownable struct {
 
 func New() *Ownable {
 	return &Ownable{
-		owner: std.PreviousRealm().Addr(),
+		owner: std.PreviousRealm().Address(),
 	}
 }
 
@@ -71,12 +71,12 @@ func (o Ownable) Owner() std.Address {
 
 // CallerIsOwner checks if the caller of the function is the Realm's owner
 func (o Ownable) CallerIsOwner() bool {
-	return std.PreviousRealm().Addr() == o.owner
+	return std.PreviousRealm().Address() == o.owner
 }
 
 // AssertCallerIsOwner panics if the caller is not the owner
 func (o Ownable) AssertCallerIsOwner() {
-	if std.PreviousRealm().Addr() != o.owner {
+	if std.PreviousRealm().Address() != o.owner {
 		panic(ErrUnauthorized)
 	}
 }

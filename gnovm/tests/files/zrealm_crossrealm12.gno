@@ -21,13 +21,13 @@ func main() {
 	for _, test := range tests {
 		r := test.fn()
 
-		if std.DerivePkgAddr(r.PkgPath()) != r.Addr() {
+		if std.DerivePkgAddr(r.PkgPath()) != r.Address() {
 			panic(fmt.Sprintf("ERROR: expected: %v, got: %v",
-				std.DerivePkgAddr(r.PkgPath()), r.Addr(),
+				std.DerivePkgAddr(r.PkgPath()), r.Address(),
 			))
 		}
 
-		println(r.PkgPath(), r.Addr())
+		println(r.PkgPath(), r.Address())
 	}
 }
 

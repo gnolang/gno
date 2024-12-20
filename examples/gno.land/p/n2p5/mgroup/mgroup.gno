@@ -74,7 +74,7 @@ func (g *ManagedGroup) RemoveBackupOwner(addr std.Address) error {
 // If the caller is not a backup owner, an error is returned.
 // The caller is automatically added as a member of the group.
 func (g *ManagedGroup) ClaimOwnership() error {
-	caller := std.PreviousRealm().Addr()
+	caller := std.PreviousRealm().Address()
 	// already owner, skip
 	if caller == g.Owner() {
 		return nil
