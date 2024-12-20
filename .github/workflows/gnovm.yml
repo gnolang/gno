@@ -5,9 +5,6 @@ on:
     branches:
       - master
   pull_request:
-    paths:
-      - gnovm/**
-      - tm2/** # GnoVM has a dependency on TM2 types
   workflow_dispatch:
 
 jobs:

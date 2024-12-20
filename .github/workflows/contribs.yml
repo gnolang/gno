@@ -5,8 +5,6 @@ on:
     branches:
       - master
   pull_request:
-    paths:
-      - contribs/**
   workflow_dispatch:
 
 jobs:
@@ -26,14 +24,14 @@ jobs:
         run: |
           contribs_programs=$(ls -d contribs/*/ | cut -d/ -f2)
           versions_map="{"
-          
+
           for p in $contribs_programs; do
             # Fetch the go version of the contribs entry, and save it
             # to a versions map we can reference later in the workflow
             go_version=$(grep "^go [0-9]" contribs/$p/go.mod | cut -d ' ' -f2)
             versions_map="$versions_map\"$p\":\"$go_version\","
           done
-          
+
           # Close out the JSON
           versions_map="${versions_map%,}"
           versions_map="$versions_map}"
