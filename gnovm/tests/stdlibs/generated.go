@@ -139,7 +139,7 @@ var nativeFuncs = [...]NativeFunc{
 	},
 	{
 		"std",
-		"testSetOrigPkgAddr",
+		"testSetOriginPkgAddr",
 		[]gno.FieldTypeExpr{
 			{Name: gno.N("p0"), Type: gno.X("string")},
 		},
@@ -154,7 +154,7 @@ var nativeFuncs = [...]NativeFunc{
 
 			gno.Gno2GoValue(b.GetPointerTo(nil, gno.NewValuePathBlock(1, 0, "")).TV, rp0)
 
-			testlibs_std.X_testSetOrigPkgAddr(
+			testlibs_std.X_testSetOriginPkgAddr(
 				m,
 				p0)
 		},

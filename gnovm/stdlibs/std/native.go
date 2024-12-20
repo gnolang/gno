@@ -77,7 +77,7 @@ func X_originCaller(m *gno.Machine) string {
 }
 
 func X_origPkgAddr(m *gno.Machine) string {
-	return string(GetContext(m).OrigPkgAddr)
+	return string(GetContext(m).OriginPkgAddr)
 }
 
 func X_callerAt(m *gno.Machine, n int) string {

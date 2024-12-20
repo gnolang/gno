@@ -7,7 +7,7 @@ id: testing
 ```go
 func TestSkipHeights(count int64)
 func TestSetOriginCaller(addr Address)
-func TestSetOrigPkgAddr(addr Address)
+func TestSetOriginPkgAddr(addr Address)
 func TestSetOriginSend(sent, spent Coins)
 func TestIssueCoins(addr Address, coins Coins)
 func TestSetRealm(realm Realm)
@@ -45,16 +45,16 @@ std.TestSetOriginCaller(std.Address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"))
 ```
 ---
 
-## TestSetOrigPkgAddr
+## TestSetOriginPkgAddr
 
 ```go
-func TestSetOrigPkgAddr(addr Address)
+func TestSetOriginPkgAddr(addr Address)
 ```
 Sets the call entry realm address to **addr**.
 
 #### Usage
 ```go
-std.TestSetOrigPkgAddr(std.Address("g1ecely4gjy0yl6s9kt409ll330q9hk2lj9ls3ec"))
+std.TestSetOriginPkgAddr(std.Address("g1ecely4gjy0yl6s9kt409ll330q9hk2lj9ls3ec"))
 ```
 
 ---

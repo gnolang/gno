@@ -101,15 +101,15 @@ caller := std.OriginCaller()
 ```
 ---
 
-## GetOrigPkgAddr
+## GetOriginPkgAddr
 ```go
-func GetOrigPkgAddr() string
+func GetOriginPkgAddr() string
 ```
 Returns the address of the first (entry point) realm/package in a sequence of realm/package calls.
 
 #### Usage
 ```go
-origPkgAddr := std.GetOrigPkgAddr()
+origPkgAddr := std.GetOriginPkgAddr()
 ```
 ---
 

@@ -97,9 +97,9 @@ func X_testSetOriginCaller(m *gno.Machine, addr string) {
 	m.Context = ctx
 }
 
-func X_testSetOrigPkgAddr(m *gno.Machine, addr string) {
+func X_testSetOriginPkgAddr(m *gno.Machine, addr string) {
 	ctx := m.Context.(*TestExecContext)
-	ctx.OrigPkgAddr = crypto.Bech32Address(addr)
+	ctx.OriginPkgAddr = crypto.Bech32Address(addr)
 	m.Context = ctx
 }
 

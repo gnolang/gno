@@ -271,7 +271,7 @@ func (vm *VMKeeper) checkNamespacePermission(ctx sdk.Context, creator crypto.Add
 		Timestamp:       ctx.BlockTime().Unix(),
 		OriginCaller:    creator.Bech32(),
 		OriginSendSpent: new(std.Coins),
-		OrigPkgAddr:     pkgAddr.Bech32(),
+		OriginPkgAddr:   pkgAddr.Bech32(),
 		// XXX: should we remove the banker ?
 		Banker:      NewSDKBanker(vm, ctx),
 		Params:      NewSDKParams(vm, ctx),
@@ -377,7 +377,7 @@ func (vm *VMKeeper) AddPackage(ctx sdk.Context, msg MsgAddPackage) (err error) {
 		OriginCaller:    creator.Bech32(),
 		OriginSend:      deposit,
 		OriginSendSpent: new(std.Coins),
-		OrigPkgAddr:     pkgAddr.Bech32(),
+		OriginPkgAddr:   pkgAddr.Bech32(),
 		Banker:          NewSDKBanker(vm, ctx),
 		Params:          NewSDKParams(vm, ctx),
 		EventLogger:     ctx.EventLogger(),
@@ -468,7 +468,7 @@ func (vm *VMKeeper) Call(ctx sdk.Context, msg MsgCall) (res string, err error) {
 		OriginCaller:    caller.Bech32(),
 		OriginSend:      send,
 		OriginSendSpent: new(std.Coins),
-		OrigPkgAddr:     pkgAddr.Bech32(),
+		OriginPkgAddr:   pkgAddr.Bech32(),
 		Banker:          NewSDKBanker(vm, ctx),
 		Params:          NewSDKParams(vm, ctx),
 		EventLogger:     ctx.EventLogger(),
@@ -583,7 +583,7 @@ func (vm *VMKeeper) Run(ctx sdk.Context, msg MsgRun) (res string, err error) {
 		OriginCaller:    caller.Bech32(),
 		OriginSend:      send,
 		OriginSendSpent: new(std.Coins),
-		OrigPkgAddr:     pkgAddr.Bech32(),
+		OriginPkgAddr:   pkgAddr.Bech32(),
 		Banker:          NewSDKBanker(vm, ctx),
 		Params:          NewSDKParams(vm, ctx),
 		EventLogger:     ctx.EventLogger(),
@@ -736,10 +736,10 @@ func (vm *VMKeeper) QueryEval(ctx sdk.Context, pkgPath string, expr string) (res
 		// OriginCaller:    caller,
 		// OriginSend:      send,
 		// OriginSendSpent: nil,
-		OrigPkgAddr: pkgAddr.Bech32(),
-		Banker:      NewSDKBanker(vm, ctx), // safe as long as ctx is a fork to be discarded.
-		Params:      NewSDKParams(vm, ctx),
-		EventLogger: ctx.EventLogger(),
+		OriginPkgAddr: pkgAddr.Bech32(),
+		Banker:        NewSDKBanker(vm, ctx), // safe as long as ctx is a fork to be discarded.
+		Params:        NewSDKParams(vm, ctx),
+		EventLogger:   ctx.EventLogger(),
 	}
 	m := gno.NewMachineWithOptions(
 		gno.MachineOptions{
@@ -793,10 +793,10 @@ func (vm *VMKeeper) QueryEvalString(ctx sdk.Context, pkgPath string, expr string
 		// OriginCaller:    caller,
 		// OriginSend:      jsend,
 		// OriginSendSpent: nil,
-		OrigPkgAddr: pkgAddr.Bech32(),
-		Banker:      NewSDKBanker(vm, ctx), // safe as long as ctx is a fork to be discarded.
-		Params:      NewSDKParams(vm, ctx),
-		EventLogger: ctx.EventLogger(),
+		OriginPkgAddr: pkgAddr.Bech32(),
+		Banker:        NewSDKBanker(vm, ctx), // safe as long as ctx is a fork to be discarded.
+		Params:        NewSDKParams(vm, ctx),
+		EventLogger:   ctx.EventLogger(),
 	}
 	m := gno.NewMachineWithOptions(
 		gno.MachineOptions{

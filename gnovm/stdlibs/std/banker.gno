@@ -73,7 +73,7 @@ func GetBanker(bt BankerType) Banker {
 
 	var pkgAddr Address
 	if bt == BankerTypeOriginSend {
-		pkgAddr = GetOrigPkgAddr()
+		pkgAddr = GetOriginPkgAddr()
 		if pkgAddr != CurrentRealm().Addr() {
 			panic("banker with type BankerTypeOriginSend can only be instantiated by the origin package")
 		}

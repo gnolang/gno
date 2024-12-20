@@ -56,7 +56,7 @@ func Context(pkgPath string, send std.Coins) *teststd.TestExecContext {
 		Height:          DefaultHeight,
 		Timestamp:       DefaultTimestamp,
 		OriginCaller:    DefaultCaller,
-		OrigPkgAddr:     pkgAddr.Bech32(),
+		OriginPkgAddr:   pkgAddr.Bech32(),
 		OriginSend:      send,
 		OriginSendSpent: new(std.Coins),
 		Banker:          banker,

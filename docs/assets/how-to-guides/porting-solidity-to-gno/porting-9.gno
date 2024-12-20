@@ -11,7 +11,7 @@ func TestWithdraw(t *testing.T) {
 	shouldEqual(t, pendingReturns.Has(returnAddr), true)
 
 	banker := std.GetBanker(std.BankerTypeRealmSend)
-	pkgAddr := std.GetOrigPkgAddr()
+	pkgAddr := std.GetOriginPkgAddr()
 	banker.SendCoins(pkgAddr, std.Address(returnAddr), std.Coins{{"ugnot", returnAmount}})
 	shouldEqual(t, banker.GetCoins(std.Address(returnAddr)).String(), "3ugnot")
 }
