@@ -1,3 +1,90 @@
+// Package collection provides a flexible, indexed data structure for storing and retrieving objects.
+// It supports multiple indexes with various options including unique constraints, case-insensitive
+// matching, sparse indexing, and multi-value indexes.
+//
+// Example usage:
+//
+//	// Define a data type
+//	type User struct {
+//	    Name     string
+//	    Email    string
+//	    Age      int
+//	    Username string
+//	    Tags     []string
+//	}
+//
+//	// Create a new collection
+//	c := collection.New()
+//
+//	// Add indexes with different options
+//	c.AddIndex("name", func(v interface{}) string {
+//	    return v.(*User).Name
+//	}, UniqueIndex)
+//
+//	c.AddIndex("email", func(v interface{}) string {
+//	    return v.(*User).Email
+//	}, UniqueIndex|CaseInsensitiveIndex)
+//
+//	c.AddIndex("age", func(v interface{}) string {
+//	    return strconv.Itoa(v.(*User).Age)
+//	}, DefaultIndex)  // Non-unique index
+//
+//	c.AddIndex("username", func(v interface{}) string {
+//	    return v.(*User).Username
+//	}, UniqueIndex|SparseIndex)  // Allow empty usernames
+//
+//	c.AddIndex("tags", func(v interface{}) []string {
+//	    return v.(*User).Tags
+//	}, MultiValueIndex)  // One object can have multiple tag values
+//
+//	// Insert objects
+//	user1 := &User{
+//	    Name:     "Alice Smith",
+//	    Email:    "alice@example.com",
+//	    Age:      30,
+//	    Username: "alice123",
+//	    Tags:     []string{"admin", "developer"},
+//	}
+//	id1 := c.Set(user1)
+//
+//	user2 := &User{
+//	    Name:  "Bob Jones",
+//	    Email: "BOB@EXAMPLE.COM",  // Case-insensitive, will be stored lowercase
+//	    Age:   30,                 // Same age as Alice (allowed, non-unique)
+//	    Tags:  []string{"developer"},
+//	}
+//	id2 := c.Set(user2)
+//
+//	// Retrieve objects in different ways
+//	obj1, id := c.Get("name", "Alice Smith")     // By unique name
+//	obj2, id := c.Get("email", "bob@example.com") // Case-insensitive
+//	obj3, id := c.Get(IDIndex, id1.String())     // Direct by ID
+//
+//	// Get by tag (returns first matching object)
+//	obj4, id := c.Get("tags", "developer")       // Returns either Alice or Bob
+//
+//	// Get all objects with a specific tag
+//	tagTree := c.GetIndex("tags")
+//	if ids, ok := tagTree.Get("developer").([]string); ok {
+//	    for _, idStr := range ids {
+//	        if obj, id := c.Get(IDIndex, idStr); obj != nil {
+//	            // Process each user with "developer" tag
+//	            user := obj.(*User)
+//	            // ... do something with user ...
+//	        }
+//	    }
+//	}
+//
+//	// Update an object
+//	user1.Email = "alice.smith@example.com"
+//	c.Update(id1, user1)
+//
+//	// Delete an object
+//	c.Delete(id2)
+//
+// The package maintains consistency across all indexes and enforces uniqueness
+// constraints where specified. It's particularly useful for building indexed
+// collections where objects need to be retrieved efficiently by different fields.
 package collection
 
 import (
