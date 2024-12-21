@@ -594,7 +594,7 @@ func (dec *WALReader) ReadMessage() (*TimedWALMessage, *MetaMessage, error) {
 	}
 
 	if len(line64) == 0 {
-		return nil, nil, DataCorruptionError{fmt.Errorf("found empty line")}
+		return nil, nil, DataCorruptionError{errors.New("found empty line")}
 	}
 
 	// special case for MetaMessage.

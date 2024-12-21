@@ -1,6 +1,7 @@
 package core
 
 import (
+	"errors"
 	"fmt"
 
 	ctypes "github.com/gnolang/gno/tm2/pkg/bft/rpc/core/types"
@@ -101,7 +102,7 @@ func BlockchainInfo(ctx *rpctypes.Context, minHeight, maxHeight int64) (*ctypes.
 func filterMinMax(height, low, high, limit int64) (int64, int64, error) {
 	// filter negatives
 	if low < 0 || high < 0 {
-		return low, high, fmt.Errorf("heights must be non-negative")
+		return low, high, errors.New("heights must be non-negative")
 	}
 
 	// adjust for default values
@@ -428,7 +429,7 @@ func getHeightWithMin(currentHeight int64, heightPtr *int64, minVal int64) (int6
 			return 0, fmt.Errorf("height must be greater than or equal to %d", minVal)
 		}
 		if height > currentHeight {
-			return 0, fmt.Errorf("height must be less than or equal to the current blockchain height")
+			return 0, errors.New("height must be less than or equal to the current blockchain height")
 		}
 		return height, nil
 	}

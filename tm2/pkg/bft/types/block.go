@@ -70,7 +70,7 @@ func (b *Block) ValidateBasic() error {
 			return errors.New("nil LastCommit")
 		}
 		if err := b.LastCommit.ValidateBasic(); err != nil {
-			return fmt.Errorf("wrong LastCommit")
+			return errors.New("wrong LastCommit")
 		}
 	}
 	if err := ValidateHash(b.LastCommitHash); err != nil {
@@ -753,7 +753,7 @@ func (blockID BlockID) Key() string {
 func (blockID BlockID) ValidateBasic() error {
 	// Hash can be empty in case of POLBlockID in Proposal.
 	if err := ValidateHash(blockID.Hash); err != nil {
-		return fmt.Errorf("wrong Hash")
+		return errors.New("wrong Hash")
 	}
 	if err := blockID.PartsHeader.ValidateBasic(); err != nil {
 		return fmt.Errorf("wrong PartsHeader: %w", err)
