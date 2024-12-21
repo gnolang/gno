@@ -30,7 +30,7 @@ func TestGetFileKind(t *testing.T) {
 			name:     "xtest",
 			filename: "foo_test.gno",
 			body:     "package foo_test",
-			fileKind: FileKindXtest,
+			fileKind: FileKindXTest,
 		},
 		{
 			name:     "filetest",

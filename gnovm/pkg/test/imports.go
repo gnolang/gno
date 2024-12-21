@@ -246,7 +246,7 @@ func LoadImports(store gno.Store, memPkg *gnovm.MemPackage) (err error) {
 	if err != nil {
 		return err
 	}
-	imports := importsMap.Merge(packages.FileKindPackageSource, packages.FileKindTest, packages.FileKindXtest)
+	imports := importsMap.Merge(packages.FileKindPackageSource, packages.FileKindTest, packages.FileKindXTest)
 	for _, imp := range imports {
 		if gno.IsRealmPath(imp.PkgPath) {
 			// Don't eagerly load realms.

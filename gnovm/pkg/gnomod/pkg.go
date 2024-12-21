@@ -126,7 +126,7 @@ func ListPkgs(root string) (PkgList, error) {
 			// ignore imports on error
 			importsMap = nil
 		}
-		importsRaw := importsMap.Merge(packages.FileKindPackageSource, packages.FileKindTest, packages.FileKindXtest)
+		importsRaw := importsMap.Merge(packages.FileKindPackageSource, packages.FileKindTest, packages.FileKindXTest)
 
 		imports := make([]string, 0, len(importsRaw))
 		for _, imp := range importsRaw {

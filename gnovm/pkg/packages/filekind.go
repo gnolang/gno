@@ -13,7 +13,7 @@ const (
 	FileKindUnknown FileKind = iota
 	FileKindPackageSource
 	FileKindTest
-	FileKindXtest
+	FileKindXTest
 	FileKindFiletest
 )
 
@@ -41,7 +41,7 @@ func GetFileKind(filename string, body string, fset *token.FileSet) (FileKind, e
 	packageName := ast.Name.Name
 
 	if strings.HasSuffix(packageName, "_test") {
-		return FileKindXtest, nil
+		return FileKindXTest, nil
 	}
 	return FileKindTest, nil
 }

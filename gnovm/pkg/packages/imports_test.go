@@ -123,7 +123,7 @@ func TestImports(t *testing.T) {
 			"gno.land/p/demo/testpkg",
 			"testing",
 		},
-		FileKindXtest: {
+		FileKindXTest: {
 			"gno.land/p/demo/testpkg",
 			"gno.land/p/demo/xtestdep",
 			"testing",
