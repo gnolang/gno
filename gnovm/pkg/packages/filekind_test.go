@@ -18,7 +18,7 @@ func TestGetFileKind(t *testing.T) {
 		{
 			name:     "compiled",
 			filename: "foo.gno",
-			fileKind: FileKindCompiled,
+			fileKind: FileKindPackageSource,
 		},
 		{
 			name:     "test",

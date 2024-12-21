@@ -11,7 +11,7 @@ type FileKind uint
 
 const (
 	FileKindUnknown FileKind = iota
-	FileKindCompiled
+	FileKindPackageSource
 	FileKindTest
 	FileKindXtest
 	FileKindFiletest
@@ -28,7 +28,7 @@ func GetFileKind(filename string, body string, fset *token.FileSet) (FileKind, e
 	}
 
 	if !strings.HasSuffix(filename, "_test.gno") {
-		return FileKindCompiled, nil
+		return FileKindPackageSource, nil
 	}
 
 	if fset == nil {

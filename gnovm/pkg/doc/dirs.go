@@ -110,7 +110,7 @@ func packageImportsRecursive(root string, pkgPath string) []string {
 		// ignore packages with invalid imports
 		importsMap = nil
 	}
-	resRaw := importsMap.Merge(packages.FileKindCompiled, packages.FileKindTest, packages.FileKindXtest)
+	resRaw := importsMap.Merge(packages.FileKindPackageSource, packages.FileKindTest, packages.FileKindXtest)
 	res := make([]string, len(resRaw))
 	for idx, imp := range resRaw {
 		res[idx] = imp.PkgPath

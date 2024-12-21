@@ -114,7 +114,7 @@ func TestImports(t *testing.T) {
 	// - ignore duplicate
 	// - should be sorted
 	expected := map[FileKind][]string{
-		FileKindCompiled: {
+		FileKindPackageSource: {
 			"gno.land/p/demo/pkg1",
 			"gno.land/p/demo/pkg2",
 			"std",
