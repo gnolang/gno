@@ -60,18 +60,12 @@
 //	obj2, id := c.Get("email", "bob@example.com") // Case-insensitive
 //	obj3, id := c.Get(IDIndex, id1.String())     // Direct by ID
 //
-//	// Get by tag (returns first matching object)
-//	obj4, id := c.Get("tags", "developer")       // Returns either Alice or Bob
-//
-//	// Get all objects with a specific tag
-//	tagTree := c.GetIndex("tags")
-//	if ids, ok := tagTree.Get("developer").([]string); ok {
-//	    for _, idStr := range ids {
-//	        if obj, id := c.Get(IDIndex, idStr); obj != nil {
-//	            // Process each user with "developer" tag
-//	            user := obj.(*User)
-//	            // ... do something with user ...
-//	        }
+//	// Retrieve all objects matching a multi-value index
+//	entries, ok := c.GetAll("tags", "developer")  // Get all users with "developer" tag
+//	if ok {
+//	    for _, entry := range entries {
+//	        user := entry.Obj.(*User)
+//	        ufmt.Printf("Developer: %s (ID: %s)\n", user.Name, entry.ID)
 //	    }
 //	}
 //
@@ -396,6 +390,68 @@ func (c *Collection) Get(indexName, key string) (interface{}, uint64) {
 		return nil, 0
 	}
 	return obj, uint64(idVal)
+}
+
+// Entry represents a single object with its ID in the collection
+type Entry struct {
+	ID  string
+	Obj interface{}
+}
+
+// GetAll retrieves all matching objects by index and key, returns a slice of entries and success boolean.
+//
+// For single-value indexes, the returned slice will contain at most one entry.
+// For multi-value indexes, the slice will contain all matching entries.
+func (c *Collection) GetAll(indexName, key string) ([]Entry, bool) {
+	idx, exists := c.indexes[indexName]
+	if !exists {
+		return nil, false
+	}
+
+	if indexName == IDIndex {
+		obj, exists := idx.tree.Get(key)
+		if !exists {
+			return nil, false
+		}
+		return []Entry{{ID: key, Obj: obj}}, true
+	}
+
+	// For other indexes
+	if idx.options&CaseInsensitiveIndex != 0 {
+		key = strings.ToLower(key)
+	}
+
+	idData, exists := idx.tree.Get(key)
+	if !exists {
+		return nil, false
+	}
+
+	// If multi-value, return all objects found
+	if idx.options&MultiValueIndex != 0 {
+		list, ok := idData.([]string)
+		if !ok || len(list) == 0 {
+			return nil, false
+		}
+
+		entries := make([]Entry, 0, len(list))
+		for _, idStr := range list {
+			if obj, exists := c.indexes[IDIndex].tree.Get(idStr); exists {
+				entries = append(entries, Entry{ID: idStr, Obj: obj})
+			}
+		}
+		return entries, len(entries) > 0
+	}
+
+	// single-value index
+	idStr, ok := idData.(string)
+	if !ok {
+		return nil, false
+	}
+	obj, exists := c.indexes[IDIndex].tree.Get(idStr)
+	if !exists {
+		return nil, false
+	}
+	return []Entry{{ID: idStr, Obj: obj}}, true
 }
 
 // GetIndex returns the underlying tree for an index

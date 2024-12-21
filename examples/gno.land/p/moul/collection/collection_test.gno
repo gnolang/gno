@@ -692,3 +692,164 @@ func TestMultiValueDelete(t *testing.T) {
 		t.Errorf("Expected Alice with ID %v to be deleted but she is still present", idAlice)
 	}
 }
+
+func TestGetAll(t *testing.T) {
+	c := New()
+	c.AddIndex("tags", func(v interface{}) []string {
+		return v.(*Person).Tags
+	}, MultiValueIndex)
+	c.AddIndex("age", func(v interface{}) string {
+		return strconv.Itoa(v.(*Person).Age)
+	}, DefaultIndex)
+	c.AddIndex("name", func(v interface{}) string {
+		return v.(*Person).Name
+	}, UniqueIndex)
+
+	// Create test data
+	people := []*Person{
+		{Name: "Alice", Age: 30, Tags: []string{"dev", "go"}},
+		{Name: "Bob", Age: 30, Tags: []string{"dev", "python"}},
+		{Name: "Charlie", Age: 25, Tags: []string{"dev", "rust"}},
+	}
+
+	ids := make([]uint64, len(people))
+	for i, p := range people {
+		ids[i] = c.Set(p)
+		if ids[i] == 0 {
+			t.Fatalf("Failed to set person %s", p.Name)
+		}
+	}
+
+	tests := []struct {
+		name      string
+		indexName string
+		key       string
+		wantLen   int
+		wantOK    bool
+	}{
+		{
+			name:      "Multi-value index with multiple matches",
+			indexName: "tags",
+			key:       "dev",
+			wantLen:   3,
+			wantOK:    true,
+		},
+		{
+			name:      "Multi-value index with single match",
+			indexName: "tags",
+			key:       "go",
+			wantLen:   1,
+			wantOK:    true,
+		},
+		{
+			name:      "Multi-value index with no matches",
+			indexName: "tags",
+			key:       "java",
+			wantLen:   0,
+			wantOK:    false,
+		},
+		{
+			name:      "Single-value non-unique index with multiple matches",
+			indexName: "age",
+			key:       "30",
+			wantLen:   1, // GetAll still returns just one entry for non-MultiValueIndex
+			wantOK:    true,
+		},
+		{
+			name:      "Single-value unique index",
+			indexName: "name",
+			key:       "Alice",
+			wantLen:   1,
+			wantOK:    true,
+		},
+		{
+			name:      "Non-existent index",
+			indexName: "invalid",
+			key:       "value",
+			wantLen:   0,
+			wantOK:    false,
+		},
+		{
+			name:      "ID index",
+			indexName: IDIndex,
+			key:       seqid.ID(ids[0]).String(),
+			wantLen:   1,
+			wantOK:    true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			entries, ok := c.GetAll(tt.indexName, tt.key)
+			if ok != tt.wantOK {
+				t.Errorf("GetAll() ok = %v, want %v", ok, tt.wantOK)
+			}
+			if len(entries) != tt.wantLen {
+				t.Errorf("GetAll() returned %d entries, want %d", len(entries), tt.wantLen)
+			}
+
+			// Verify each entry has both ID and Obj
+			for _, entry := range entries {
+				if entry.ID == "" {
+					t.Error("GetAll() returned entry with empty ID")
+				}
+				if entry.Obj == nil {
+					t.Error("GetAll() returned entry with nil Obj")
+				}
+			}
+		})
+	}
+}
+
+func TestGetAllWithCaseInsensitive(t *testing.T) {
+	c := New()
+	c.AddIndex("email", func(v interface{}) string {
+		return v.(*Person).Email
+	}, UniqueIndex|CaseInsensitiveIndex)
+
+	// Create test data
+	p := &Person{Name: "Alice", Email: "Test@Example.com"}
+	id := c.Set(p)
+	if id == 0 {
+		t.Fatal("Failed to set person")
+	}
+
+	tests := []struct {
+		name   string
+		key    string
+		wantOK bool
+	}{
+		{
+			name:   "Exact match",
+			key:    "Test@Example.com",
+			wantOK: true,
+		},
+		{
+			name:   "Different case",
+			key:    "test@example.COM",
+			wantOK: true,
+		},
+		{
+			name:   "Non-existent",
+			key:    "other@example.com",
+			wantOK: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			entries, ok := c.GetAll("email", tt.key)
+			if ok != tt.wantOK {
+				t.Errorf("GetAll() ok = %v, want %v", ok, tt.wantOK)
+			}
+			if tt.wantOK {
+				if len(entries) != 1 {
+					t.Errorf("GetAll() returned %d entries, want 1", len(entries))
+				}
+				if entries[0].ID != seqid.ID(id).String() {
+					t.Errorf("GetAll() returned ID %s, want %s", entries[0].ID, seqid.ID(id).String())
+				}
+			}
+		})
+	}
+}
