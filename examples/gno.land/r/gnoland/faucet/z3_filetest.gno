@@ -22,7 +22,7 @@ func main() {
 		testaddr1       = testutils.TestAddress("test1")
 		testaddr2       = testutils.TestAddress("test2")
 	)
-	std.TestSetOrigCaller(adminaddr)
+	std.TestSetOriginCaller(adminaddr)
 	err := faucet.AdminAddController(controlleraddr1)
 	if err != "" {
 		panic(err)
@@ -31,12 +31,12 @@ func main() {
 	if err != "" {
 		panic(err)
 	}
-	std.TestSetOrigCaller(controlleraddr1)
+	std.TestSetOriginCaller(controlleraddr1)
 	err = faucet.Transfer(testaddr1, 1000000)
 	if err != "" {
 		panic(err)
 	}
-	std.TestSetOrigCaller(controlleraddr2)
+	std.TestSetOriginCaller(controlleraddr2)
 	err = faucet.Transfer(testaddr1, 2000000)
 	if err != "" {
 		panic(err)

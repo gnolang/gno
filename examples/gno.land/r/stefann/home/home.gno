@@ -131,8 +131,8 @@ func UpdateMaxSponsors(newMax int) {
 }
 
 func Donate() {
-	address := std.GetOrigCaller()
-	amount := std.GetOrigSend()
+	address := std.OriginCaller()
+	amount := std.OriginSend()
 
 	if amount.AmountOf("ugnot") == 0 {
 		panic("Donation must include GNOT")
@@ -152,7 +152,7 @@ func Donate() {
 
 	banker := std.GetBanker(std.BankerTypeRealmSend)
 	ownerAddr := registry.MainAddr()
-	banker.SendCoins(std.CurrentRealm().Addr(), ownerAddr, banker.GetCoins(std.CurrentRealm().Addr()))
+	banker.SendCoins(std.CurrentRealm().Address(), ownerAddr, banker.GetCoins(std.CurrentRealm().Address()))
 }
 
 type SponsorSlice []Sponsor

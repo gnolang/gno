@@ -389,11 +389,11 @@ func otherFunc() {
 package std
 
 func AssertOriginCall()
-func origCaller() string
+func originCaller() string
 
 func testfunc() {
 	AssertOriginCall()
-	println(origCaller())
+	println(originCaller())
 }
 `,
 			expectedOutput: `
@@ -404,7 +404,7 @@ package std
 
 func testfunc() {
 	AssertOriginCall(nil)
-	println(X_origCaller(nil))
+	println(X_originCaller(nil))
 }
 `,
 		},

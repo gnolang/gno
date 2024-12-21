@@ -36,7 +36,7 @@ const (
 	// Can only read state.
 	BankerTypeReadonly BankerType = iota
 	// Can only send from tx send.
-	BankerTypeOrigSend
+	BankerTypeOriginSend
 	// Can send from all realm coins.
 	BankerTypeRealmSend
 	// Can issue and remove realm coins.
@@ -49,8 +49,8 @@ func (b BankerType) String() string {
 	switch b {
 	case BankerTypeReadonly:
 		return "BankerTypeReadonly"
-	case BankerTypeOrigSend:
-		return "BankerTypeOrigSend"
+	case BankerTypeOriginSend:
+		return "BankerTypeOriginSend"
 	case BankerTypeRealmSend:
 		return "BankerTypeRealmSend"
 	case BankerTypeRealmIssue:
@@ -72,13 +72,13 @@ func GetBanker(bt BankerType) Banker {
 	}
 
 	var pkgAddr Address
-	if bt == BankerTypeOrigSend {
-		pkgAddr = GetOrigPkgAddr()
-		if pkgAddr != CurrentRealm().Addr() {
-			panic("banker with type BankerTypeOrigSend can only be instantiated by the origin package")
+	if bt == BankerTypeOriginSend {
+		pkgAddr = GetOriginPkgAddress()
+		if pkgAddr != CurrentRealm().Address() {
+			panic("banker with type BankerTypeOriginSend can only be instantiated by the origin package")
 		}
 	} else if bt == BankerTypeRealmSend || bt == BankerTypeRealmIssue {
-		pkgAddr = CurrentRealm().Addr()
+		pkgAddr = CurrentRealm().Address()
 	}
 	return banker{
 		bt,

@@ -71,21 +71,21 @@ func maxOfThree(a, b, c int64) int64 {
 }
 
 func VoteModern() {
-	ugnotAmount := std.GetOrigSend().AmountOf("ugnot")
+	ugnotAmount := std.OriginSend().AmountOf("ugnot")
 	votes := ugnotAmount
 	modernVotes += votes
 	updateCurrentTheme()
 }
 
 func VoteClassic() {
-	ugnotAmount := std.GetOrigSend().AmountOf("ugnot")
+	ugnotAmount := std.OriginSend().AmountOf("ugnot")
 	votes := ugnotAmount
 	classicVotes += votes
 	updateCurrentTheme()
 }
 
 func VoteMinimal() {
-	ugnotAmount := std.GetOrigSend().AmountOf("ugnot")
+	ugnotAmount := std.OriginSend().AmountOf("ugnot")
 	votes := ugnotAmount
 	minimalVotes += votes
 	updateCurrentTheme()
@@ -109,7 +109,7 @@ func CollectBalance() {
 	banker := std.GetBanker(std.BankerTypeRealmSend)
 	ownerAddr := Address()
 
-	banker.SendCoins(std.CurrentRealm().Addr(), ownerAddr, banker.GetCoins(std.CurrentRealm().Addr()))
+	banker.SendCoins(std.CurrentRealm().Address(), ownerAddr, banker.GetCoins(std.CurrentRealm().Address()))
 }
 
 func Render(path string) string {
