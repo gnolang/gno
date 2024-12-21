@@ -205,5 +205,5 @@ func (m *MembStore) TotalPower() uint64 {
 // the API of the member store is public and callable
 // by anyone who has a reference to the member store instance.
 func (m *MembStore) isCallerDAORealm() bool {
-	return m.daoPkgPath == "" || std.CurrentRealm().PkgPath() == m.daoPkgPath
+	return m.daoPkgPath != "" && std.CurrentRealm().PkgPath() == m.daoPkgPath
 }

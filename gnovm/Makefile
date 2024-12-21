@@ -61,6 +61,26 @@ fmt:
 imports:
 	$(rundep) golang.org/x/tools/cmd/goimports $(GOIMPORTS_FLAGS) .
 
+# Benchmarking the VM's opcode and storage access
+.PHONY: opcode storage build_opcode build_storage
+build.bench.opcode:
+	go build -tags "benchmarkingops" -o build/gnobench ./cmd/benchops
+
+build.bench.storage:
+	go build -tags "benchmarkingstorage" -o build/gnobench ./cmd/benchops
+
+# Extract the latest commit hash
+COMMIT_HASH := $(shell git rev-parse --short=7 HEAD)
+
+# Run target
+run.bench.opcode: build.bench.opcode
+	./build/gnobench -out opcode_results_$(COMMIT_HASH).csv
+
+# Run target
+run.bench.storage: build.bench.storage
+	./build/gnobench -out store_results_$(COMMIT_HASH).csv
+
+
 ########################################
 # Test suite
 .PHONY: test
@@ -96,6 +116,8 @@ _test.pkg:
 _test.stdlibs:
 	go run ./cmd/gno test -v ./stdlibs/...
 
+_test.filetest:;
+	go test pkg/gnolang/files_test.go -test.short -run 'TestFiles$$/' $(GOTEST_FLAGS)
 
 ########################################
 # Code gen
