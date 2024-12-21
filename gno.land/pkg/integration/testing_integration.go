@@ -753,10 +753,11 @@ func (pl *pkgsLoader) LoadPackage(modroot string, path, name string) error {
 			if err != nil {
 				return fmt.Errorf("unable to read package at %q: %w", currentPkg.Dir, err)
 			}
-			imports, err := packages.Imports(pkg, nil)
+			importsMap, err := packages.Imports(pkg, nil)
 			if err != nil {
 				return fmt.Errorf("unable to load package imports in %q: %w", currentPkg.Dir, err)
 			}
+			imports := importsMap.Merge(packages.FileKindCompiled, packages.FileKindTest, packages.FileKindXtest)
 			for _, imp := range imports {
 				if imp.PkgPath == currentPkg.Name || gnolang.IsStdlib(imp.PkgPath) {
 					continue
