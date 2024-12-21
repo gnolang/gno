@@ -10,7 +10,7 @@ import (
 type FileKind uint
 
 const (
-	FileKindUnknown = FileKind(iota)
+	FileKindUnknown FileKind = iota
 	FileKindCompiled
 	FileKindTest
 	FileKindXtest
