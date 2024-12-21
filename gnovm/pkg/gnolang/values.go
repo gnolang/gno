@@ -11,7 +11,6 @@ import (
 	"unsafe"
 
 	"github.com/cockroachdb/apd/v3"
-
 	"github.com/gnolang/gno/tm2/pkg/crypto"
 )
 
@@ -180,10 +179,11 @@ func (dbv DataByteValue) SetByte(b byte) {
 // Since PointerValue is used internally for assignment etc,
 // it MUST stay minimal for computational efficiency.
 type PointerValue struct {
-	TV    *TypedValue // escape val if pointer to var.
-	Base  Value       // array/struct/block, or heapitem.
-	Index int         // list/fields/values index, or -1 or -2 (see below).
-	Key   *TypedValue `json:",omitempty"` // for maps.
+	TV     *TypedValue // escape val if pointer to var.
+	Base   Value       // array/struct/block, or heapitem.
+	Index  int         // list/fields/values index, or -1 or -2 (see below).
+	Key    *TypedValue `json:",omitempty"` // for maps.
+	Origin string      // absolute path to which pointer value refer
 }
 
 const (
@@ -315,8 +315,9 @@ func (pv PointerValue) Deref() (tv TypedValue) {
 
 type ArrayValue struct {
 	ObjectInfo
-	List []TypedValue
-	Data []byte
+	List    []TypedValue
+	Data    []byte
+	AbsPath string // different slices can share same array value
 }
 
 // NOTE: Result should not be written to,
@@ -407,6 +408,7 @@ type SliceValue struct {
 	Offset int
 	Length int
 	Maxcap int
+	Origin string
 }
 
 func (sv *SliceValue) GetBase(store Store) *ArrayValue {
@@ -1544,6 +1546,10 @@ func (tv *TypedValue) AssertNonNegative(msg string) {
 }
 
 func (tv *TypedValue) ComputeMapKey(store Store, omitType bool) MapKey {
+	// map key might be refValue that was previously attached
+	if _, ok := tv.V.(RefValue); ok {
+		fillValueTV(store, tv)
+	}
 	// Special case when nil: has no separator.
 	if tv.T == nil {
 		if debug {
@@ -1564,8 +1570,13 @@ func (tv *TypedValue) ComputeMapKey(store Store, omitType bool) MapKey {
 		pbz := tv.PrimitiveBytes()
 		bz = append(bz, pbz...)
 	case *PointerType:
-		ptr := uintptr(unsafe.Pointer(tv.V.(PointerValue).TV))
-		bz = append(bz, uintptrToBytes(&ptr)...)
+		origin := tv.V.(PointerValue).Origin
+		if origin == "" {
+			ptr := uintptr(unsafe.Pointer(tv.V.(PointerValue).TV))
+			bz = append(bz, uintptrToBytes(&ptr)...)
+		} else {
+			bz = append(bz, []byte(origin)...)
+		}
 	case FieldType:
 		panic("field (pseudo)type cannot be used as map key")
 	case *ArrayType:
@@ -1588,6 +1599,7 @@ func (tv *TypedValue) ComputeMapKey(store Store, omitType bool) MapKey {
 	case *SliceType:
 		panic("slice type cannot be used as map key")
 	case *StructType:
+		println("---struct value")
 		sv := tv.V.(*StructValue)
 		sl := len(sv.Fields)
 		bz = append(bz, '{')
@@ -2743,4 +2755,32 @@ func signOfUnsignedBytes(n [8]byte) int {
 		return 0
 	}
 	return 1
+}
+
+func SetOriginForPointerValue(store Store, v *Value, origin string) {
+	if pv, ok := (*v).(PointerValue); ok {
+		if pv.Origin == "" {
+			pv.Origin = origin
+			*v = pv
+		}
+	} else if sv, ok := (*v).(*SliceValue); ok {
+		base := sv.Base
+		if rv, ok := sv.Base.(RefValue); ok {
+			if rv.PkgPath != "" { // load package
+				base = store.GetPackage(rv.PkgPath, false)
+			} else { // load object
+				base = store.GetObject(rv.ObjectID)
+			}
+		}
+		if baseArr, ok := base.(*ArrayValue); ok {
+			if baseArr.AbsPath == "" {
+				baseArr.AbsPath = origin // from name
+			} else if sv.Origin == "" { // using abs path
+				sv.Origin = baseArr.AbsPath
+				*v = sv
+			}
+		} else {
+			panic("should not happen, base not array value")
+		}
+	}
 }

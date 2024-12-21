@@ -104,7 +104,7 @@ func isUpper(s string) bool {
 	return unicode.IsUpper(first)
 }
 
-//----------------------------------------
+// ----------------------------------------
 // converting uintptr to bytes.
 
 const sizeOfUintPtr = unsafe.Sizeof(uintptr(0))
@@ -170,4 +170,19 @@ func isUverseName(n Name) bool {
 func DerivePkgAddr(pkgPath string) crypto.Address {
 	// NOTE: must not collide with pubkey addrs.
 	return crypto.AddressFromPreimage([]byte("pkgPath:" + pkgPath))
+}
+
+func buildAbsolutePath(n Expr) (abs string) {
+	switch n := n.(type) {
+	case *NameExpr:
+		return n.AbsPath
+	case *IndexExpr:
+		return fmt.Sprintf("%s:[%s]", buildAbsolutePath(n.X), buildAbsolutePath(n.Index))
+	case *SelectorExpr:
+		return buildAbsolutePath(n.X) + "." + string(n.Sel)
+	case *StarExpr:
+		return buildAbsolutePath(n.X)
+	default:
+		return n.String()
+	}
 }

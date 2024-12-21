@@ -37,7 +37,10 @@ func (m *Machine) doOpEval() {
 			lb := m.LastBlock()
 			// Push value, done.
 			ptr := lb.GetPointerToMaybeHeapUse(m.Store, nx)
-			m.PushValue(ptr.Deref())
+			v := ptr.Deref()
+			// set origin if value is pointer or slice type
+			SetOriginForPointerValue(m.Store, &v.V, nx.AbsPath)
+			m.PushValue(v)
 			return
 		}
 	}
