@@ -23,10 +23,10 @@ func main() {
 
 // Stacktrace:
 // panic: frame not found
-// callerAt<VPBlock(3,48)>(n<VPBlock(1,0)>)
+// callerAt<VPBlock(3,47)>(n<VPBlock(1,0)>)
 //     gonative:std.callerAt
 // std<VPBlock(2,0)>.GetCallerAt(4)
-//     std/native.gno:45
+//     std/native.gno:46
 // fn<VPBlock(1,0)>()
 //     main/files/std8.gno:16
 // testutils<VPBlock(2,1)>.WrapCall(inner<VPBlock(3,0)>)

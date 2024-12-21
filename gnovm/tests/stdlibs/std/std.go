@@ -2,7 +2,6 @@ package std
 
 import (
 	"fmt"
-	"strings"
 
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
 	"github.com/gnolang/gno/gnovm/stdlibs/std"
@@ -25,41 +24,10 @@ type RealmOverride struct {
 	PkgPath string
 }
 
-func AssertOriginCall(m *gno.Machine) {
-	if !IsOriginCall(m) {
-		m.Panic(typedString("invalid non-origin call"))
-	}
-}
-
 func typedString(s gno.StringValue) gno.TypedValue {
 	tv := gno.TypedValue{T: gno.StringType}
 	tv.SetString(s)
 	return tv
-}
-
-func IsOriginCall(m *gno.Machine) bool {
-	tname := m.Frames[0].Func.Name
-	switch tname {
-	case "main": // test is a _filetest
-		// 0. main
-		// 1. $RealmFuncName
-		// 2. std.IsOriginCall
-		return len(m.Frames) == 3
-	case "RunTest": // test is a _test
-		// 0. testing.RunTest
-		// 1. tRunner
-		// 2. $TestFuncName
-		// 3. $RealmFuncName
-		// 4. std.IsOriginCall
-		return len(m.Frames) == 5
-	}
-	// support init() in _filetest
-	// XXX do we need to distinguish from 'runtest'/_test?
-	// XXX pretty hacky even if not.
-	if strings.HasPrefix(string(tname), "init.") {
-		return len(m.Frames) == 3
-	}
-	panic("unable to determine if test is a _test or a _filetest")
 }
 
 func TestSkipHeights(m *gno.Machine, count int64) {

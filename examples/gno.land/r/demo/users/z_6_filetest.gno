@@ -3,13 +3,15 @@ package main
 import (
 	"std"
 
+	"gno.land/p/demo/testutils"
 	"gno.land/r/demo/users"
 )
 
 const admin = std.Address("g1manfred47kzduec920z88wfr64ylksmdcedlf5")
 
 func main() {
-	caller := std.GetOrigCaller()
+	caller := testutils.TestAddress("caller")
+	std.TestSetRealm(std.NewUserRealm(admin))
 	// as admin, grant invites to unregistered user.
 	std.TestSetOrigCaller(admin)
 	users.GrantInvites(caller.String() + ":1")
@@ -17,4 +19,4 @@ func main() {
 }
 
 // Error:
-// invalid user g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm
+// invalid user g1vdskcmr9wf047h6lta047h6lta047h6lq5m7fe

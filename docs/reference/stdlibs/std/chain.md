@@ -4,18 +4,6 @@ id: chain
 
 # Chain-related
 
-## IsOriginCall
-```go
-func IsOriginCall() bool
-```
-Checks if the caller of the function is an EOA. Returns **true** if caller is an EOA, **false** otherwise.
-
-#### Usage
-```go
-if !std.IsOriginCall() {...}
-```
----
-
 ## AssertOriginCall
 ```go
 func AssertOriginCall()

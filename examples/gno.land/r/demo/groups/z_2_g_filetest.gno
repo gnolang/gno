@@ -14,6 +14,9 @@ import (
 var gid groups.GroupID
 
 func main() {
+	caller := testutils.TestAddress("caller")
+	std.TestSetRealm(std.NewUserRealm(caller))
+	std.TestSetOrigCaller(caller)
 	users.Register("", "gnouser", "my profile")
 	gid = groups.CreateGroup("test_group")
 	println(gid)

@@ -16,7 +16,9 @@ var gid groups.GroupID
 const admin = std.Address("g1manfred47kzduec920z88wfr64ylksmdcedlf5")
 
 func main() {
-	caller := std.GetOrigCaller() // main
+	caller := testutils.TestAddress("caller")
+	std.TestSetRealm(std.NewUserRealm(caller))
+	std.TestSetOrigCaller(caller)
 	users.Register("", "gnouser0", "my profile 1")
 
 	std.TestSetOrigCaller(admin)

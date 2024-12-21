@@ -11,4 +11,4 @@ func main() {
 }
 
 // Output:
-// invalid non-origin call
+// undefined

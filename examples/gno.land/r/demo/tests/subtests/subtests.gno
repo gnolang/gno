@@ -21,5 +21,5 @@ func CallAssertOriginCall() {
 }
 
 func CallIsOriginCall() bool {
-	return std.IsOriginCall()
+	return std.PrevRealm().IsUser()
 }
