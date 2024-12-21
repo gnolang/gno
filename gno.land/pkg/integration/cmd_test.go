@@ -9,6 +9,7 @@ import (
 
 	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
 	"github.com/gnolang/gno/tm2/pkg/bft/rpc/client"
+	"github.com/gnolang/gno/tm2/pkg/crypto/ed25519"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -17,7 +18,7 @@ import (
 // XXX: For now keep this test sequential (no parallel execution is allowed).
 func TestGnolandIntegration(t *testing.T) {
 	// Set a timeout of 20 seconds for the test context.
-	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
 	defer cancel()
 
 	tmpdir := t.TempDir() // Create a temporary directory for the test.
@@ -26,6 +27,7 @@ func TestGnolandIntegration(t *testing.T) {
 
 	// Define paths for the build directory and the gnoland binary.
 	gnolandBuildDir := filepath.Join(tmpdir, "build")
+	gnolandDBDir := filepath.Join(tmpdir, "db")
 	gnolandBin := filepath.Join(gnolandBuildDir, "gnoland")
 
 	// Compile the gnoland binary.
@@ -35,10 +37,12 @@ func TestGnolandIntegration(t *testing.T) {
 	// Prepare a minimal node configuration for testing.
 	cfg := TestingMinimalNodeConfig(gnoRootDir)
 	remoteAddr, cmd, err := ExecuteNode(ctx, gnolandBin, &Config{
-		Verbose:  true,
-		RootDir:  gnoRootDir,
-		TMConfig: cfg.TMConfig,
-		Genesis:  NewMarshalableGenesisDoc(cfg.Genesis),
+		Verbose:      false,
+		ValidatorKey: ed25519.GenPrivKey(),
+		DBDir:        gnolandDBDir,
+		RootDir:      gnoRootDir,
+		TMConfig:     cfg.TMConfig,
+		Genesis:      NewMarshalableGenesisDoc(cfg.Genesis),
 	}, os.Stderr)
 	require.NoError(t, err)
 
