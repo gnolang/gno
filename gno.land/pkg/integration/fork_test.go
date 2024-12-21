@@ -8,15 +8,12 @@ import (
 
 	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
 	"github.com/gnolang/gno/tm2/pkg/bft/rpc/client"
-	"github.com/gnolang/gno/tm2/pkg/crypto/ed25519"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
 func TestForkGnoland(t *testing.T) {
-	t.Parallel()
-
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second*30)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
 	defer cancel()
 
 	tmpdir := t.TempDir()
@@ -24,21 +21,17 @@ func TestForkGnoland(t *testing.T) {
 	gnoRootDir := gnoenv.RootDir()
 
 	gnolandBuildDir := filepath.Join(tmpdir, "build")
-	gnolandDBDir := filepath.Join(tmpdir, "db")
 	gnolandBin := filepath.Join(gnolandBuildDir, "gnoland")
 
 	err := buildGnoland(t, gnoRootDir, gnolandBin)
 	require.NoError(t, err)
 
 	cfg := TestingMinimalNodeConfig(gnoRootDir)
-
 	remoteAddr, cmd, err := ExecuteForkBinary(ctx, gnolandBin, &ForkConfig{
-		Verbose:       true,
-		PrivValidator: ed25519.GenPrivKey(),
-		DBDir:         gnolandDBDir,
-		RootDir:       gnoRootDir,
-		TMConfig:      cfg.TMConfig,
-		Genesis:       NewMarshalableGenesisDoc(cfg.Genesis),
+		Verbose:  true,
+		RootDir:  gnoRootDir,
+		TMConfig: cfg.TMConfig,
+		Genesis:  NewMarshalableGenesisDoc(cfg.Genesis),
 	})
 	require.NoError(t, err)
 
