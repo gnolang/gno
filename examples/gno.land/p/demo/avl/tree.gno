@@ -120,5 +120,5 @@ func (tree *Tree) ReverseIterateByOffset(offset int, count int, cb IterCbFn) boo
 	)
 }
 
-// Verify that Tree implements ITree
+// Verify that Tree implements TreeInterface
 var _ ITree = (*Tree)(nil)
