@@ -118,43 +118,6 @@ func main() {
 //         "RefCount": "0"
 //     }
 // }
-// u[a8ada09dee16d791fd406d629fe29bb0ed084a30:9]={
-//     "Blank": {},
-//     "ObjectInfo": {
-//         "ID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:9",
-//         "IsEscaped": true,
-//         "ModTime": "10",
-//         "RefCount": "0"
-//     },
-//     "Parent": {
-//         "@type": "/gno.RefValue",
-//         "Escaped": true,
-//         "ObjectID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:6"
-//     },
-//     "Source": {
-//         "@type": "/gno.RefNode",
-//         "BlockNode": null,
-//         "Location": {
-//             "Column": "1",
-//             "File": "files/zrealm15.gno",
-//             "Line": "21",
-//             "PkgPath": "gno.land/r/test"
-//         }
-//     },
-//     "Values": [
-//         {
-//             "T": {
-//                 "@type": "/gno.RefType",
-//                 "ID": "gno.land/r/test.B"
-//             },
-//             "V": {
-//                 "@type": "/gno.RefValue",
-//                 "Hash": "b539bd303432cae02c338b921b02725cfe3597db",
-//                 "ObjectID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:10"
-//             }
-//         }
-//     ]
-// }
 // u[a8ada09dee16d791fd406d629fe29bb0ed084a30:4]={
 //     "Fields": [
 //         {
@@ -212,30 +175,4 @@ func main() {
 //         }
 //     }
 // }
-// u[a8ada09dee16d791fd406d629fe29bb0ed084a30:6]={
-//     "Blank": {},
-//     "ObjectInfo": {
-//         "ID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:6",
-//         "IsEscaped": true,
-//         "ModTime": "10",
-//         "RefCount": "3"
-//     },
-//     "Parent": {
-//         "@type": "/gno.RefValue",
-//         "Escaped": true,
-//         "ObjectID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:2"
-//     },
-//     "Source": {
-//         "@type": "/gno.RefNode",
-//         "BlockNode": null,
-//         "Location": {
-//             "Column": "1",
-//             "File": "files/zrealm15.gno",
-//             "Line": "2",
-//             "PkgPath": "gno.land/r/test"
-//         }
-//     },
-//     "Values": []
-// }
-// d[a8ada09dee16d791fd406d629fe29bb0ed084a30:9]
 // d[a8ada09dee16d791fd406d629fe29bb0ed084a30:10]

@@ -145,54 +145,6 @@ func main() {
 //         "RefCount": "0"
 //     }
 // }
-// u[a8ada09dee16d791fd406d629fe29bb0ed084a30:7]={
-//     "Blank": {},
-//     "ObjectInfo": {
-//         "ID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:7",
-//         "IsEscaped": true,
-//         "ModTime": "9",
-//         "RefCount": "0"
-//     },
-//     "Parent": {
-//         "@type": "/gno.RefValue",
-//         "Escaped": true,
-//         "ObjectID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:6"
-//     },
-//     "Source": {
-//         "@type": "/gno.RefNode",
-//         "BlockNode": null,
-//         "Location": {
-//             "Column": "1",
-//             "File": "files/zrealm14.gno",
-//             "Line": "18",
-//             "PkgPath": "gno.land/r/test"
-//         }
-//     },
-//     "Values": [
-//         {
-//             "T": {
-//                 "@type": "/gno.RefType",
-//                 "ID": "gno.land/r/test.B"
-//             },
-//             "V": {
-//                 "@type": "/gno.RefValue",
-//                 "Hash": "af4b3d1d67eff97600796de84cd826ab3686be27",
-//                 "ObjectID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:8"
-//             }
-//         },
-//         {
-//             "T": {
-//                 "@type": "/gno.RefType",
-//                 "ID": "gno.land/r/test.B"
-//             },
-//             "V": {
-//                 "@type": "/gno.RefValue",
-//                 "Hash": "80865ce29b21998ddb4de4eb00cb161d139c28b7",
-//                 "ObjectID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:9"
-//             }
-//         }
-//     ]
-// }
 // u[a8ada09dee16d791fd406d629fe29bb0ed084a30:3]={
 //     "ObjectInfo": {
 //         "ID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:3",
@@ -212,31 +164,5 @@ func main() {
 //         }
 //     }
 // }
-// u[a8ada09dee16d791fd406d629fe29bb0ed084a30:6]={
-//     "Blank": {},
-//     "ObjectInfo": {
-//         "ID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:6",
-//         "IsEscaped": true,
-//         "ModTime": "9",
-//         "RefCount": "3"
-//     },
-//     "Parent": {
-//         "@type": "/gno.RefValue",
-//         "Escaped": true,
-//         "ObjectID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:2"
-//     },
-//     "Source": {
-//         "@type": "/gno.RefNode",
-//         "BlockNode": null,
-//         "Location": {
-//             "Column": "1",
-//             "File": "files/zrealm14.gno",
-//             "Line": "2",
-//             "PkgPath": "gno.land/r/test"
-//         }
-//     },
-//     "Values": []
-// }
-// d[a8ada09dee16d791fd406d629fe29bb0ed084a30:7]
 // d[a8ada09dee16d791fd406d629fe29bb0ed084a30:8]
 // d[a8ada09dee16d791fd406d629fe29bb0ed084a30:9]

@@ -519,7 +519,7 @@ func (ds *defaultStore) SetObject(oo Object) {
 	}
 	ds.cacheObjects[oid] = oo
 	// make store op log entry
-	if ds.opslog != nil {
+	if _, ok := oo.(*Block); !ok && ds.opslog != nil {
 		var op StoreOpType
 		if oo.GetIsNewReal() {
 			op = StoreOpNew
@@ -560,7 +560,7 @@ func (ds *defaultStore) DelObject(oo Object) {
 		ds.baseStore.Delete([]byte(key))
 	}
 	// make realm op log entry
-	if ds.opslog != nil {
+	if _, ok := oo.(*Block); !ok && ds.opslog != nil {
 		ds.opslog = append(ds.opslog,
 			StoreOp{Type: StoreOpDel, Object: oo})
 	}
