@@ -168,7 +168,7 @@ func SetupGnolandTestscript(t *testing.T, p *testscript.Params) error {
 		env.Setenv("USER_ADDR_"+DefaultAccount_Name, DefaultAccount_Address)
 
 		env.Values[envKeyGenesis] = genesis
-		env.Values[envKeyPkgsLoader] = newPkgsLoader()
+		env.Values[envKeyPkgsLoader] = NewPkgsLoader()
 
 		env.Setenv("GNOROOT", gnoRootDir)
 		env.Setenv("GNOHOME", gnoHomeDir)
@@ -243,7 +243,7 @@ func gnolandCmd(t *testing.T, nodesManager *NodesManager, gnolandBin, gnoRootDir
 				ts.Fatalf("unable to parse `gnoland start` flags: %s", err)
 			}
 
-			pkgs := ts.Value(envKeyPkgsLoader).(*pkgsLoader)
+			pkgs := ts.Value(envKeyPkgsLoader).(*PkgsLoader)
 			creator := crypto.MustAddressFromString(DefaultAccount_Address)
 			defaultFee := std.NewFee(50000, std.MustParseCoin(ugnot.ValueString(1000000)))
 			pkgsTxs, err := pkgs.LoadPackages(creator, defaultFee, nil)
@@ -273,13 +273,13 @@ func gnolandCmd(t *testing.T, nodesManager *NodesManager, gnolandBin, gnoRootDir
 
 			dbdir := ts.Getenv("GNO_DBDIR")
 			priv := ts.Value("PK").(ed25519.PrivKeyEd25519)
-			remoteAddr, cmd, err := ExecuteForkBinary(ctx, gnolandBin, &ForkConfig{
-				PrivValidator: priv,
-				DBDir:         dbdir,
-				RootDir:       gnoRootDir,
-				TMConfig:      cfg.TMConfig,
-				Genesis:       NewMarshalableGenesisDoc(cfg.Genesis),
-			})
+			remoteAddr, cmd, err := ExecuteNode(ctx, gnolandBin, &Config{
+				ValidatorKey: priv,
+				DBDir:        dbdir,
+				RootDir:      gnoRootDir,
+				TMConfig:     cfg.TMConfig,
+				Genesis:      NewMarshalableGenesisDoc(cfg.Genesis),
+			}, ts.Stderr())
 			if err != nil {
 				ts.Fatalf("unable to start the node: %s", err)
 			}
@@ -317,13 +317,13 @@ func gnolandCmd(t *testing.T, nodesManager *NodesManager, gnolandBin, gnoRootDir
 
 			priv := ts.Value("PK").(ed25519.PrivKeyEd25519)
 			dbdir := ts.Getenv("GNO_DBDIR")
-			newRemoteAddr, cmd, err := ExecuteForkBinary(ctx, gnolandBin, &ForkConfig{
-				PrivValidator: priv,
-				DBDir:         dbdir,
-				RootDir:       gnoRootDir,
-				TMConfig:      node.cfg.TMConfig,
-				Genesis:       NewMarshalableGenesisDoc(node.cfg.Genesis),
-			})
+			newRemoteAddr, cmd, err := ExecuteNode(ctx, gnolandBin, &Config{
+				ValidatorKey: priv,
+				DBDir:        dbdir,
+				RootDir:      gnoRootDir,
+				TMConfig:     node.cfg.TMConfig,
+				Genesis:      NewMarshalableGenesisDoc(node.cfg.Genesis),
+			}, ts.Stderr())
 			if err != nil {
 				ts.Fatalf("unable to start the node: %s", err)
 			}
@@ -484,7 +484,7 @@ func patchpkgCmd() func(ts *testscript.TestScript, neg bool, args []string) {
 			ts.Fatalf("`patchpkg`: should have exactly 2 arguments")
 		}
 
-		pkgs := ts.Value(envKeyPkgsLoader).(*pkgsLoader)
+		pkgs := ts.Value(envKeyPkgsLoader).(*PkgsLoader)
 		replace, with := args[0], args[1]
 		pkgs.SetPatch(replace, with)
 	}
@@ -495,7 +495,7 @@ func loadpkgCmd(gnoRootDir string) func(ts *testscript.TestScript, neg bool, arg
 		workDir := ts.Getenv("WORK")
 		examplesDir := filepath.Join(gnoRootDir, "examples")
 
-		pkgs := ts.Value(envKeyPkgsLoader).(*pkgsLoader)
+		pkgs := ts.Value(envKeyPkgsLoader).(*PkgsLoader)
 
 		var path, name string
 		switch len(args) {
@@ -643,36 +643,6 @@ func getTestingLogger(env *testscript.Env, logname string) (*slog.Logger, error)
 	return log.ZapLoggerToSlog(zapLogger), nil
 }
 
-func buildGnoland(t *testing.T, gnoroot, output string) error {
-	t.Helper()
-
-	t.Log("building gnoland fork binary...")
-	if _, err := os.Stat(output); err != nil {
-		if !errors.Is(err, os.ErrNotExist) {
-			// Handle other potential errors from os.Stat
-			return err
-		}
-
-		// Build a fresh gno binary in a temp directory
-		gnoArgsBuilder := []string{"build", "-o", output}
-
-		// Forward `-covermode` settings if set
-		if coverMode := testing.CoverMode(); coverMode != "" {
-			gnoArgsBuilder = append(gnoArgsBuilder, "-covermode", coverMode)
-		}
-
-		// Append the path to the gno command source
-		gnoArgsBuilder = append(gnoArgsBuilder, filepath.Join(gnoroot,
-			"gno.land", "pkg", "integration", "forknode"))
-
-		if err = exec.Command("go", gnoArgsBuilder...).Run(); err != nil {
-			return fmt.Errorf("unable to build gno binary: %w", err)
-		}
-	}
-
-	return nil
-}
-
 func tsValidateError(ts *testscript.TestScript, cmd string, neg bool, err error) {
 	if err != nil {
 		fmt.Fprintf(ts.Stderr(), "%q error: %+v\n", cmd, err)
@@ -740,4 +710,34 @@ func createAccountFrom(env envSetter, kb keys.Keybase, accountName, mnemonic str
 		Address: address,
 		Amount:  std.Coins{std.NewCoin(ugnot.Denom, 10e6)},
 	}, nil
+}
+
+func buildGnoland(t *testing.T, gnoroot, output string) error {
+	t.Helper()
+
+	t.Log("building gnoland fork binary...")
+	if _, err := os.Stat(output); err != nil {
+		if !errors.Is(err, os.ErrNotExist) {
+			// Handle other potential errors from os.Stat
+			return err
+		}
+
+		// Build a fresh gno binary in a temp directory
+		gnoArgsBuilder := []string{"build", "-o", output}
+
+		// Forward `-covermode` settings if set
+		if coverMode := testing.CoverMode(); coverMode != "" {
+			gnoArgsBuilder = append(gnoArgsBuilder, "-covermode", coverMode)
+		}
+
+		// Append the path to the gno command source
+		gnoArgsBuilder = append(gnoArgsBuilder, filepath.Join(gnoroot,
+			"gno.land", "pkg", "integration", "cmd_test"))
+
+		if err = exec.Command("go", gnoArgsBuilder...).Run(); err != nil {
+			return fmt.Errorf("unable to build gno binary: %w", err)
+		}
+	}
+
+	return nil
 }

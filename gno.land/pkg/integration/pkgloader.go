@@ -14,7 +14,7 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/std"
 )
 
-type pkgsLoader struct {
+type PkgsLoader struct {
 	pkgs    []gnomod.Pkg
 	visited map[string]struct{}
 
@@ -23,23 +23,23 @@ type pkgsLoader struct {
 	patchs map[string]string
 }
 
-func newPkgsLoader() *pkgsLoader {
-	return &pkgsLoader{
+func NewPkgsLoader() *PkgsLoader {
+	return &PkgsLoader{
 		pkgs:    make([]gnomod.Pkg, 0),
 		visited: make(map[string]struct{}),
 		patchs:  make(map[string]string),
 	}
 }
 
-func (pl *pkgsLoader) List() gnomod.PkgList {
+func (pl *PkgsLoader) List() gnomod.PkgList {
 	return pl.pkgs
 }
 
-func (pl *pkgsLoader) SetPatch(replace, with string) {
+func (pl *PkgsLoader) SetPatch(replace, with string) {
 	pl.patchs[replace] = with
 }
 
-func (pl *pkgsLoader) LoadPackages(creator bft.Address, fee std.Fee, deposit std.Coins) ([]gnoland.TxWithMetadata, error) {
+func (pl *PkgsLoader) LoadPackages(creator bft.Address, fee std.Fee, deposit std.Coins) ([]gnoland.TxWithMetadata, error) {
 	pkgslist, err := pl.List().Sort() // sorts packages by their dependencies.
 	if err != nil {
 		return nil, fmt.Errorf("unable to sort packages: %w", err)
@@ -80,7 +80,7 @@ func (pl *pkgsLoader) LoadPackages(creator bft.Address, fee std.Fee, deposit std
 	return txs, nil
 }
 
-func (pl *pkgsLoader) LoadAllPackagesFromDir(path string) error {
+func (pl *PkgsLoader) LoadAllPackagesFromDir(path string) error {
 	// list all packages from target path
 	pkgslist, err := gnomod.ListPkgs(path)
 	if err != nil {
@@ -96,7 +96,7 @@ func (pl *pkgsLoader) LoadAllPackagesFromDir(path string) error {
 	return nil
 }
 
-func (pl *pkgsLoader) LoadPackage(modroot string, path, name string) error {
+func (pl *PkgsLoader) LoadPackage(modroot string, path, name string) error {
 	// Initialize a queue with the root package
 	queue := []gnomod.Pkg{{Dir: path, Name: name}}
 
@@ -157,12 +157,12 @@ func (pl *pkgsLoader) LoadPackage(modroot string, path, name string) error {
 	return nil
 }
 
-func (pl *pkgsLoader) add(pkg gnomod.Pkg) {
+func (pl *PkgsLoader) add(pkg gnomod.Pkg) {
 	pl.visited[pkg.Name] = struct{}{}
 	pl.pkgs = append(pl.pkgs, pkg)
 }
 
-func (pl *pkgsLoader) exist(pkg gnomod.Pkg) (ok bool) {
+func (pl *PkgsLoader) exist(pkg gnomod.Pkg) (ok bool) {
 	_, ok = pl.visited[pkg.Name]
 	return
 }

@@ -5,7 +5,9 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
+	"io"
 	"os"
 	"os/exec"
 
@@ -37,25 +39,41 @@ func (m *MarshalableGenesisDoc) UnmarshalJSON(data []byte) (err error) {
 	return
 }
 
-// Function to cast back to the original bft.GenesisDoc
+// Cast back to the original bft.GenesisDoc.
 func (m *MarshalableGenesisDoc) ToGenesisDoc() *bft.GenesisDoc {
 	return (*bft.GenesisDoc)(m)
 }
 
-type ForkConfig struct {
-	Verbose       bool                   `json:"verbose"`
-	PrivValidator ed25519.PrivKeyEd25519 `json:"priv"`
-	DBDir         string                 `json:"dbdir"`
-	RootDir       string                 `json:"rootdir"`
-	Genesis       *MarshalableGenesisDoc `json:"genesis"`
-	TMConfig      *tmcfg.Config          `json:"tm"`
+type Config struct {
+	ValidatorKey ed25519.PrivKeyEd25519 `json:"priv"`
+	Verbose      bool                   `json:"verbose"`
+	DBDir        string                 `json:"dbdir"`
+	RootDir      string                 `json:"rootdir"`
+	Genesis      *MarshalableGenesisDoc `json:"genesis"`
+	TMConfig     *tmcfg.Config          `json:"tm"`
 }
 
-// ExecuteForkBinary runs the binary at the given path with the provided configuration.
+func (i Config) validate() error {
+	if i.TMConfig == nil {
+		return errors.New("no tm config set")
+	}
+
+	if i.Genesis == nil {
+		return errors.New("no genesis is set")
+	}
+
+	return nil
+}
+
+// ExecuteNode runs the binary at the given path with the provided configuration.
 // It marshals the configuration to JSON and passes it to the binary via stdin.
 // The function waits for "READY:<address>" on stdout and returns the address if successful,
-// or kills the process and returns an error if "READY" is not received within 10 seconds.
-func ExecuteForkBinary(ctx context.Context, binaryPath string, cfg *ForkConfig) (string, *exec.Cmd, error) {
+// or kills the process and returns an error if "READY" is not received within the context deadline.
+func ExecuteNode(ctx context.Context, binaryPath string, cfg *Config, out io.Writer) (string, *exec.Cmd, error) {
+	if err := cfg.validate(); err != nil {
+		return "", nil, err
+	}
+
 	// Marshal the configuration to JSON
 	configData, err := json.Marshal(cfg)
 	if err != nil {
@@ -85,21 +103,23 @@ func ExecuteForkBinary(ctx context.Context, binaryPath string, cfg *ForkConfig) 
 	readyChan := make(chan error, 1)
 	var address string
 
-	// Goroutine to read stdout and check for "READY"
+	// Wait for ready signal
 	go func() {
-		var scanned bool
+		var ready bool
 		scanner := bufio.NewScanner(stdoutPipe)
 		for scanner.Scan() {
 			line := scanner.Text()
-			fmt.Println(line) // Print each line to stdout for logging
-			if scanned {
-				continue
+			if !ready {
+				if _, err := fmt.Sscanf(line, "READY:%s", &address); err == nil {
+					readyChan <- nil
+					ready = true
+					continue
+				}
 			}
-			if _, err := fmt.Sscanf(line, "READY:%s", &address); err == nil {
-				readyChan <- nil
-				scanned = true
-			}
+
+			fmt.Fprintln(out, line)
 		}
+
 		if err := scanner.Err(); err != nil {
 			readyChan <- fmt.Errorf("error reading stdout: %w", err)
 		} else {
@@ -107,11 +127,11 @@ func ExecuteForkBinary(ctx context.Context, binaryPath string, cfg *ForkConfig) 
 		}
 	}()
 
-	// Wait for either the "READY" signal or a timeout
+	// Wait for either the "READY" signal or a context timeout.
 	select {
 	case err := <-readyChan:
 		if err != nil {
-			fmt.Println("ERR", err)
+			fmt.Fprintf(out, "err: %q\n", err)
 			cmd.Process.Kill()
 			return "", cmd, err
 		}

@@ -26,7 +26,7 @@ func isAllZero(key [64]byte) bool {
 	return true
 }
 
-func ForkableNode(cfg *integration.ForkConfig) error {
+func IntegrationNode(cfg *integration.Config) error {
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
 	if cfg.Verbose {
 		logger = slog.New(slog.NewTextHandler(os.Stdout, nil))
@@ -45,8 +45,8 @@ func ForkableNode(cfg *integration.ForkConfig) error {
 
 	nodecfg := integration.TestingMinimalNodeConfig(cfg.RootDir)
 
-	if len(cfg.PrivValidator) > 0 && !isAllZero(cfg.PrivValidator) {
-		nodecfg.PrivValidator = bft.NewMockPVWithParams(cfg.PrivValidator, false, false)
+	if len(cfg.ValidatorKey) > 0 && !isAllZero(cfg.ValidatorKey) {
+		nodecfg.PrivValidator = bft.NewMockPVWithParams(cfg.ValidatorKey, false, false)
 	}
 	pv := nodecfg.PrivValidator.GetPubKey()
 
@@ -63,21 +63,15 @@ func ForkableNode(cfg *integration.ForkConfig) error {
 		},
 	}
 
-	fmt.Println("NEW NODE")
-
 	node, err := gnoland.NewInMemoryNode(logger, nodecfg)
 	if err != nil {
 		return fmt.Errorf("failed to create new in-memory node: %w", err)
 	}
 
-	fmt.Println(">>>STARTING")
-
 	err = node.Start()
 	if err != nil {
 		return fmt.Errorf("failed to start node: %w", err)
 	}
-
-	fmt.Println(">>>STARTING DONE")
 
 	ourAddress := nodecfg.PrivValidator.GetPubKey().Address()
 	isValidator := slices.ContainsFunc(nodecfg.Genesis.Validators, func(val bft.GenesisValidator) bool {
@@ -110,7 +104,7 @@ func main() {
 	}
 
 	// Unmarshal the JSON configuration
-	var cfg integration.ForkConfig
+	var cfg integration.Config
 	err = json.Unmarshal(configData, &cfg)
 	if err != nil {
 		fmt.Fprintf(os.Stdout, "Error unmarshaling JSON: %v\n", err)
@@ -118,7 +112,7 @@ func main() {
 	}
 
 	// Call the ForkableNode function with the parsed configuration
-	if err := ForkableNode(&cfg); err != nil {
+	if err := IntegrationNode(&cfg); err != nil {
 		fmt.Fprintf(os.Stdout, "Error running ForkableNode: %v\n", err)
 		os.Exit(1)
 	}
