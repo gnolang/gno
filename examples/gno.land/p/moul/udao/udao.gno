@@ -7,37 +7,34 @@
 // and modular implementations of various DAO structures and behaviors.
 package udao
 
+import "time"
+
 // DAO defines a minimal interface for a Decentralized Autonomous Organization
-// from an external point of view, hiding the internal details of members and voting.
 type DAO interface {
 	// Propose submits a new proposal to the DAO
-	Propose(proposal Proposal) (uint64, error)
+	Propose(proposal PropDefinition) (uint64, error)
 
-	// GetProposalStatus retrieves the current status and metrics of a specific proposal
-	GetProposalStatus(proposalID uint64) (ProposalStatus, error)
+	// GetProposal retrieves both the definition and status of a specific proposal
+	GetProposal(proposalID uint64) (PropDefinition, PropStatus, error)
 
 	// Execute attempts to execute a proposal if it has passed
 	Execute(proposalID uint64) error
 
-	// GetProposal retrieves the details of a specific proposal
-	GetProposal(proposalID uint64) (Proposal, error)
-
 	// XXX: find a smart way to list proposals
-	// // ListProposalss retrieves a list of Proposals with pagination and optional filters
-	// ListDAOs(offset, limit int, filters ...ProposalFilter) ([]DAO, error)
 }
 
-// Proposal defines the interface for a DAO proposal
-type Proposal interface {
+// PropDefinition defines the interface for a DAO proposal
+type PropDefinition interface {
 	Title() string
 	Body() string
+	Created() time.Time
 	Constraints() []Constraint
 }
 
-// ProposalStatus represents the current status and metrics of a proposal
-type ProposalStatus struct {
+// PropStatus represents the current status and metrics of a proposal
+type PropStatus struct {
 	// status
-	State ProposalState
+	State PropState
 
 	// metrics
 	YeaPercentage          float64
@@ -47,32 +44,30 @@ type ProposalStatus struct {
 	// XXX: other metrics?
 }
 
-// ProposalState represents the current state of a proposal
-type ProposalState int
+// PropState represents the current state of a proposal
+type PropState string
 
 const (
-	Pending ProposalState = iota
-	Active
-	Passed
-	Rejected
-	Executed
-	Expired // XXX: better name for when it's expired but not because of time?
+	Pending  PropState = "pending"
+	Active   PropState = "active"
+	Passed   PropState = "passed"
+	Rejected PropState = "rejected"
+	Executed PropState = "executed"
+	Expired  PropState = "expired"
 )
 
 // Constraint defines an interface for proposal constraints
 type Constraint interface {
-	Validate() (bool, string)
-	Description() string
+	Validate() (valid bool, description string)
 }
 
 // ValidateConstraints checks if all constraints of a proposal are met
 func ValidateConstraints(p Proposal) (bool, []string) {
-	var unmetReasons []string
-	for _, constraint := range p.Constraints() {
-		valid, reason := constraint.Validate()
-		if !valid {
-			unmetReasons = append(unmetReasons, reason)
+	reasons := make([]string, 0)
+	for _, c := range p.Constraints() {
+		if valid, reason := c.Validate(); !valid {
+			reasons = append(reasons, reason)
 		}
 	}
-	return len(unmetReasons) == 0, unmetReasons
+	return len(reasons) == 0, reasons
 }
