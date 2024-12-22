@@ -1,0 +1,122 @@
+[33m1d926698[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mmaster[m[33m, [m[1;31morigin/master[m[33m, [m[1;31morigin/HEAD[m[33m)[m ㅠㅠㅠㅠㅠㅠ
+[33m4bd26ea5[m misc genstd mapping.go 수정
+[33md62b5ec6[m 오류 없음. 현재 포멧팅 중
+[33meff34600[m good
+[33m797f24ee[m sync
+[33m192f49aa[m Delete gnovm/stdlibs/testing/string_simulator directory
+[33m2a13333e[m Delete gnovm/stdlibs/testing/runner directory
+[33m250f19ca[m Delete gnovm/stdlibs/testing/queue directory
+[33m5c6678f3[m Delete gnovm/stdlibs/testing/pseudo_coverage directory
+[33mc33face8[m Delete gnovm/stdlibs/testing/generate directory
+[33mc14c5675[m Delete gnovm/stdlibs/testing/crashing directory
+[33m8343a89e[m Delete gnovm/stdlibs/testing/craash_catch_test directory
+[33m26b2b1db[m fixed genom_alg
+[33me177caeb[m .
+[33m15ff5c4e[m statemachine의 자료구조 설정 완료
+[33m65a213e1[m genom alg
+[33m0fe973ff[m 유전 알고리즘 정상화
+[33m0635997e[m good
+[33mc6bd5009[m Merge pull request #2 from pluto1011/master
+[33ma4412dc5[m 99%test
+[33me6ccbea1[m data structrue complete
+[33mb9fb97be[m Merge pull request #1 from pluto1011/master
+[33m9c5e3f68[m protoType
+[33m9313db14[m pushed
+[33mc17e9caf[m counting sort
+[33mf159794d[m simulate coverage
+[33mabb931a6[m reflect Tf
+[33m0f74272d[m crash-check
+[33mf27b1827[m fix: bit shifting const expr overflow (#3192)
+[33m30aac2a8[m feat(gnovm): returns error like in Golang when assignment with a function which does not return any value (#3049)
+[33ma723673b[m chore: revert "fix(portal-loop): hotfix revert "chore: rename r/manfred -> r/moul (#2820)" (#2865)" (#3024)
+[33m2f162b44[m chore: remove ancient docker integration in `misc` (#3172)
+[33mc6f8dd4e[m fix: const conversions for 32 bits (#3186)
+[33md0493dff[m fix: typed const conversion validation (#3117)
+[33m77e66061[m fix: invoke user recover with implicit panics (#3067)
+[33mb3e4aed7[m chore: (portal loop): Fixing Portal loop prod config (#3181)
+[33m139ba068[m chore: sync portal loop machine and `gnolang/gno` repo (#3173)
+[33mdb1d6990[m feat: r/docs/home -> r/docs (#3175)
+[33m4d803786[m docs(std/testing): fix NewUserRealm reference usage (#3178)
+[33m549da06d[m chore(otel): Open Telemetry metrics fixed and provided with demo example (#3038)
+[33mdc65f912[m feat(gnovm): sync code AssignStmt - ValueDecl (#3017)
+[33m7718bc37[m feat(p/int256): Optimize `int256` with two's complement implementation (#2846)
+[33m889082fa[m feat(examples): add source code view doc, add `r/` README (#3163)
+[33m7e5de12c[m chore: move `hof` under `r/leon` (#3167)
+[33m2c323f48[m ci: only run fossa action on workflow_dispatch (#3125)
+[33m4646ae67[m feat: add r/docs/home (#3160)
+[33m732bb0bc[m refactor: remove useless code and fix a test (#3159)
+[33m7188b1cd[m feat: add gnohealth cli tool (#3158)
+[33mb3800b7d[m feat(examples): mirror realm (#3156)
+[33m1e2929bb[m feat: bump codecov to v5 (#3152)
+[33m02467612[m fix: branch stmts (#3043)
+[33m6a13619d[m feat(examples): add hello_world, update `r/demo/event` (#3130)
+[33ma1a7cb3a[m feat: add bug label automatically to the bug report template (#3132)
+[33ma1812af6[m feat: add p/moul/mdtable (#3100)
+[33m6c5329d7[m docs(gno-js): Add provider instantiation docs (#2427)
+[33m38736e75[m chore(deps): bump the actions group across 1 directory with 2 updates (#3114)
+[33m1993c69c[m feat(examples): hall of fame (#2842)
+[33m6c3cc029[m chore(examples): update README (#3116)
+[33mbd1d76e0[m feat(examples): add haystack package and realm (#3082)
+[33m3bb666c0[m feat(examples): grc20 refactor (#2983)
+[33m36cdadb8[m feat: add r/sys/params + params genesis support (#3003)
+[33m60304df0[m chore(p/grc721): Distinct Event Types for GRC721 Functions (#3102)
+[33m5b64aa9a[m feat: add initial `test5.gno.land` deployment (#3092)
+[33m5f85d50e[m feat: add p/moul/realmpath (#3094)
+[33m4f27a572[m fix(cmd/gno/clean): allow to run `gno clean -modcache` from anywhere + rename and use `gnomod.ModCachePath` + tmp `GNOHOME` in main tests (#3083)
+[33mda79c846[m test(ci): coverpkg=gno.land/... for txtar tests (#3088)
+[33md73b6c6d[m ci: add go caching (#3091)
+[33m7ef606ce[m fix(gnovm): prevent assignment to non-assignable expressions (#2896)
+[33m9129e4e9[m fix(gnovm): don't print to stdout by default (#3076)
+[33m81a88a29[m feat: add p/avl/pager (#2584)
+[33me2e94353[m chore: `s/Gno.land/gno.land/g` (#3047)
+[33m2173b49d[m feat(examples): add `r/demo/daoweb` realm (#3074)
+[33m9dad8f18[m fix(simpledao): reject invalid voting options (#3077)
+[33m724ffc99[m ci: add a stale bot for PRs (#2804)
+[33mf2928f1c[m test(cmd/gno): prevent nil deref in testMainCaseRun (#3071)
+[33m538ebff9[m feat: change `gnoweb` to add URL query string to render path (#2876)
+[33m367408af[m chore: fix lint issues from `go vet` (#3069)
+[33m9096ef4e[m fix(tm2): rename methods to avoid conflicts with (un)marshaler interfaces (#3000)
+[33m95df7b0c[m chore: tidy `misc/loop` mod (#3065)
+[33me3995b97[m chore: update `tx-archive` in portal loop (#3064)
+[33m879041fc[m feat: add `contribs/gnomigrate` (#3063)
+[33mc776e32b[m feat: support metadata for genesis txs (#2941)
+[33maf057801[m ci: publish master Docker images without `--snapshot` flag (#3057)
+[33m28733546[m test(gnovm): indented json on filetests's Events: directives (#3055)
+[33m8ec556e6[m fix(gnovm): forbid star expression when value is nil (#3053)
+[33me9640ef5[m test(gno.land): add unit tests for sdk/vm.vmHandler (#2459)
+[33m494976da[m feat(p/json): remove unnecessary code and optimize (#2939)
+[33m850182ca[m fix(gnovm): forbid star expression when value is not a pointer (#2984)
+[33m9786fa36[m chore: put replaces on gnolang/gno for all go.mods (#3046)
+[33med919917[m chore: remove install.gnogenesis from root makefile (#3045)
+[33m2a2be394[m feat: `r/gov/dao` v2 (#2581)
+[33m12bd8da5[m chore: move `gnoland genesis` to `contribs/gnogenesis` (#3041)
+[33md03581ed[m ci: don't test verbosely (#3026)
+[33m534e6523[m docs: fix tm2 broken link (#3034)
+[33m2838ad1a[m ci: add workflow to ensure go.mod files are tidied (#3025)
+[33mcfbaff2a[m ci: benchmark only BenchmarkBenchdata (#3007)
+[33m49e718c0[m feat: add `p/moul/txlink` + `p/moul/helplink` (#2887)
+[33mb849b5a8[m ci: run gno test with --print-runtime-metrics (#2979)
+[33m603f6d3a[m chore: relocate tm2/std.MemFile in gnovm/std (#2910)
+[33m0b2c67ed[m fix(gnolang): ensure complete Uverse initialization (#2997)
+[33ma478348d[m chore: remove CODEOWNERS (#3022)
+[33m287c22ec[m fix(gnovm): fix issue with locally re-definition  (#3014)
+[33m520195e3[m feat(stdlibs/std): prohibit getting Banker from a pure package (#2248)
+[33mc2aef422[m ci: fix goreleaser ci again again (#3010)
+[33m4927d4b0[m ci: fixup goreleaser workflow, again (#3008)
+[33ma2e5c3dd[m ci: remove unused goreleaser files, ignore chain/ tags (#3004)
+[33mf4c4204c[m feat(gnovm): add 'gno test -print-events' + cleanup machine between tests (#2975)
+[33md9617858[m test(stdlibs/io): add additional test (#2898)
+[33m5e718378[m test(p/uint256): Increase Test Coverage for `uint256` Package (#2931)
+[33m247f2c63[m feat(ghverify): emit event when user request verification (#2778)
+[33me34a8f7e[m fix(tm2): enable coin benchmark tests after fixing panic error (#2884)
+[33m43dd3f33[m feat(tm2): add sdk/params module (#2920)
+[33m1a57e81f[m feat(gnovm): handle loop variables (#2429)
+[33m5c876f37[m chore(codecov): ignore generated files (#2998)
+[33mec222ec8[m feat(examples): add interactive realm `r/stefann/home` (#2918)
+[33m4b687129[m fix(crypto/keys): in dbKeybase.writeInfo, if replacing a name entry, remove the lookup by the old address (#2685)
+[33m47fb3890[m chore(deps): bump the actions group across 1 directory with 2 updates (#2995)
+[33m11541727[m chore: remove vmkeeper.maxcycles (#2993)
+[33m8417ca43[m chore: remove misc/logos (#2965)
+[33maf169ffd[m fix(ghverify): fix avl tree iteration in `Render` and `GetFeedDefinitions` (#2933)
+[33m88a0c4e4[m fix(gonative):  add constant information when we define a go native value (#2848)
+[33m13dfd218[m chore(pages): update bounty Ter

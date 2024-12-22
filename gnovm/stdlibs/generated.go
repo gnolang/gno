@@ -983,6 +983,7 @@ var initOrder = [...]string{
 	"std",
 	"testing",
 	"time",
+	"testing/fuzzinglib",
 	"unicode/utf16",
 }
 

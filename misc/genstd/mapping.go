@@ -231,9 +231,22 @@ func (m *mapping) typesEqual(gnoe, goe ast.Expr) error {
 		}
 		return nil
 
+	// 기존에 "panic("not implemented")"만 있던 부분을 세분화.
+	case *ast.InterfaceType:
+		goItf, ok := goe.(*ast.InterfaceType)
+		if !ok {
+			return &mismatch
+		}
+		// 예시) 둘 다 “빈 인터페이스(interface{})”인 경우에만 매칭 OK로 본다.
+		if isEmptyInterface(gnoe) && isEmptyInterface(goItf) {
+			return nil
+		}
+		// 그 외엔 아직 처리 안 함 → mismatch
+		panic("not implemented")
+
 	case *ast.StructType,
 		*ast.FuncType,
-		*ast.InterfaceType,
+
 		*ast.MapType,
 		*ast.Ellipsis,
 		*ast.SelectorExpr:
@@ -242,6 +255,11 @@ func (m *mapping) typesEqual(gnoe, goe ast.Expr) error {
 	default:
 		panic(fmt.Errorf("invalid expression as func param/return type: %T (%v)", gnoe, gnoe))
 	}
+}
+
+func isEmptyInterface(itf *ast.InterfaceType) bool {
+	// interface{} → 메서드가 전혀 없는 인터페이스
+	return itf.Methods == nil || len(itf.Methods.List) == 0
 }
 
 // returns full import path from package ident
