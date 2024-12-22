@@ -7,7 +7,11 @@
 // and modular implementations of various DAO structures and behaviors.
 package udao
 
-import "time"
+import (
+	"time"
+
+	"gno.land/p/demo/avl/rolist"
+)
 
 //-----------------------------------------------------------------------------
 // DAO Interface
@@ -104,11 +108,11 @@ type PropList interface {
 
 // PropListWrapper wraps an IReadOnlyList to implement PropList
 type PropListWrapper struct {
-	list IReadOnlyList
+	list rolist.IReadOnlyList
 }
 
 // WrapAsPropList converts an IReadOnlyList to a PropList
-func WrapAsPropList(list IReadOnlyList) PropList {
+func WrapAsPropList(list rolist.IReadOnlyList) PropList {
 	return &PropListWrapper{list: list}
 }
 
