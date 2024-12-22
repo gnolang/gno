@@ -16,7 +16,7 @@ import (
 // State
 
 var (
-	admin std.Address = "g1u7y667z64x2h7vc6fmpcprgey4ck233jaww9zq" // @moul
+	admin std.Address = "g1manfred47kzduec920z88wfr64ylksmdcedlf5" // @moul
 
 	restricted avl.Tree                  // Name -> true - restricted name
 	name2User  avl.Tree                  // Name -> *users.User
@@ -260,7 +260,7 @@ func GetUserByAddressOrName(input users.AddressOrName) *users.User {
 // Get a list of user names starting from the given prefix. Limit the
 // number of results to maxResults. (This can be used for a name search tool.)
 func ListUsersByPrefix(prefix string, maxResults int) []string {
-	return avlhelpers.ListByteStringKeysByPrefix(name2User, prefix, maxResults)
+	return avlhelpers.ListByteStringKeysByPrefix(&name2User, prefix, maxResults)
 }
 
 func Resolve(input users.AddressOrName) std.Address {
@@ -328,14 +328,14 @@ func Render(fullPath string) string {
 func renderHome(path string) string {
 	doc := ""
 
-	page := pager.NewPager(&name2User, 50).MustGetPageByPath(path)
+	page := pager.NewPager(&name2User, 50, false).MustGetPageByPath(path)
 
 	for _, item := range page.Items {
 		user := item.Value.(*users.User)
 		doc += " * [" + user.Name + "](/r/demo/users:" + user.Name + ")\n"
 	}
 	doc += "\n"
-	doc += page.Selector()
+	doc += page.Picker()
 	return doc
 }
 
