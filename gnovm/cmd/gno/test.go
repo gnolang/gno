@@ -26,6 +26,8 @@ type testCfg struct {
 	updateGoldenTests   bool
 	printRuntimeMetrics bool
 	printEvents         bool
+	debug               bool
+	debugAddr           string
 }
 
 func newTestCmd(io commands.IO) *commands.Command {
@@ -143,6 +145,20 @@ func (c *testCfg) RegisterFlags(fs *flag.FlagSet) {
 		false,
 		"print emitted events",
 	)
+
+	fs.BoolVar(
+		&c.debug,
+		"debug",
+		false,
+		"enable interactive debugger using stdin and stdout",
+	)
+
+	fs.StringVar(
+		&c.debugAddr,
+		"debug-addr",
+		"",
+		"enable interactive debugger using tcp address in the form [host]:port",
+	)
 }
 
 func execTest(cfg *testCfg, args []string, io commands.IO) error {
@@ -187,6 +203,7 @@ func execTest(cfg *testCfg, args []string, io commands.IO) error {
 	opts.Verbose = cfg.verbose
 	opts.Metrics = cfg.printRuntimeMetrics
 	opts.Events = cfg.printEvents
+	opts.Debug = cfg.debug
 
 	buildErrCount := 0
 	testErrCount := 0
