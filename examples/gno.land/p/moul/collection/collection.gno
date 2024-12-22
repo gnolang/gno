@@ -132,8 +132,10 @@ const (
 	SparseIndex
 
 	// MultiValueIndex supports multiple key entries for a single object.
-	// In this code, we store a slice of ID strings under each key
-	// so that multiple objects can share the same key.
+	// WARNING: The current implementation uses a simple slice to store multiple values,
+	// which is not optimized for large datasets. This should only be used in controlled
+	// environments with a small number of values per key.
+	// TODO(moul): Switch to avl/list implementation for better scalability with large datasets.
 	MultiValueIndex
 )
 
@@ -167,60 +169,63 @@ func (c *Collection) AddIndex(name string, indexFn interface{}, options IndexOpt
 	}
 }
 
-// storeIndex handles how we insert the ID into the index tree. For multi-value indexes,
-// we store a []string of IDs. For single-value indexes, we store a single string (the most-recent ID).
+// storeIndex handles how we store an ID in the index tree
 func storeIndex(idx *Index, key, idStr string) {
-	// For multi-value indexes, maintain a slice of IDs
 	if idx.options&MultiValueIndex != 0 {
-		if existing, exists := idx.tree.Get(key); exists {
-			if list, ok := existing.([]string); ok {
-				// Append new ID, avoiding duplicates
-				for _, eID := range list {
-					if eID == idStr {
-						return // already stored
+		// Get existing value
+		existing, exists := idx.tree.Get(key)
+
+		var ids []string
+		if exists {
+			switch v := existing.(type) {
+			case []string:
+				// Copy existing slice, checking for duplicates
+				for _, id := range v {
+					if id == idStr {
+						return // duplicate found, exit early
 					}
+					ids = append(ids, id)
 				}
-				list = append(list, idStr)
-				idx.tree.Set(key, list)
-				return
+			case string:
+				if v != idStr { // Only add if not duplicate
+					ids = append(ids, v)
+				}
 			}
 		}
-		// If not found or not a slice yet, create a new slice
-		idx.tree.Set(key, []string{idStr})
-		return
-	}
 
-	// For single-value indexes, simply store last ID
-	idx.tree.Set(key, idStr)
+		// Add new ID
+		ids = append(ids, idStr)
+		idx.tree.Set(key, ids)
+	} else {
+		idx.tree.Set(key, idStr)
+	}
 }
 
-// removeIndex handles how we remove an ID from the index tree. For multi-value indexes,
-// we remove only that ID from the stored slice (if present). If the slice becomes empty, remove the key entirely.
-// For single-value indexes, just remove the key if it matches the stored ID.
+// removeIndex handles how we remove an ID from the index tree
 func removeIndex(idx *Index, key, idStr string) {
 	if idx.options&MultiValueIndex != 0 {
 		existing, exists := idx.tree.Get(key)
 		if !exists {
 			return
 		}
-		if list, ok := existing.([]string); ok {
-			// Remove idStr from the slice
-			newList := make([]string, 0, len(list))
-			for _, eID := range list {
-				if eID != idStr {
-					newList = append(newList, eID)
+		if ids, ok := existing.([]string); ok {
+			// Filter out the ID to remove
+			newIds := make([]string, 0, len(ids)-1)
+			for _, id := range ids {
+				if id != idStr {
+					newIds = append(newIds, id)
 				}
 			}
-			if len(newList) == 0 {
+			if len(newIds) == 0 {
 				idx.tree.Remove(key)
 			} else {
-				idx.tree.Set(key, newList)
+				idx.tree.Set(key, newIds)
 			}
 		}
 		return
 	}
 
-	// Single-value index:
+	// Single-value index logic remains the same
 	if stored, exists := idx.tree.Get(key); exists {
 		if storedID, ok := stored.(string); ok && storedID == idStr {
 			idx.tree.Remove(key)
@@ -398,27 +403,23 @@ type Entry struct {
 	Obj interface{}
 }
 
-// GetAll retrieves all matching objects by index and key, returns a slice of entries and success boolean.
-//
-// For single-value indexes, the returned slice will contain at most one entry.
-// For multi-value indexes, the slice will contain all matching entries.
+// GetAll retrieves all entries matching the given key in the specified index.
 func (c *Collection) GetAll(indexName, key string) ([]Entry, bool) {
 	idx, exists := c.indexes[indexName]
 	if !exists {
 		return nil, false
 	}
 
-	if indexName == IDIndex {
-		obj, exists := idx.tree.Get(key)
-		if !exists {
-			return nil, false
-		}
-		return []Entry{{ID: key, Obj: obj}}, true
-	}
-
-	// For other indexes
 	if idx.options&CaseInsensitiveIndex != 0 {
 		key = strings.ToLower(key)
+	}
+
+	// Special handling for ID index
+	if indexName == IDIndex {
+		if obj, exists := idx.tree.Get(key); exists {
+			return []Entry{{ID: key, Obj: obj}}, true
+		}
+		return nil, false
 	}
 
 	idData, exists := idx.tree.Get(key)
@@ -426,32 +427,27 @@ func (c *Collection) GetAll(indexName, key string) ([]Entry, bool) {
 		return nil, false
 	}
 
-	// If multi-value, return all objects found
+	// For multi-value indexes
 	if idx.options&MultiValueIndex != 0 {
-		list, ok := idData.([]string)
-		if !ok || len(list) == 0 {
-			return nil, false
-		}
-
-		entries := make([]Entry, 0, len(list))
-		for _, idStr := range list {
-			if obj, exists := c.indexes[IDIndex].tree.Get(idStr); exists {
-				entries = append(entries, Entry{ID: idStr, Obj: obj})
+		if ids, ok := idData.([]string); ok {
+			result := make([]Entry, 0, len(ids))
+			for _, idStr := range ids {
+				if obj, exists := c.indexes[IDIndex].tree.Get(idStr); exists {
+					result = append(result, Entry{ID: idStr, Obj: obj})
+				}
 			}
+			return result, len(result) > 0
 		}
-		return entries, len(entries) > 0
+		return nil, false
 	}
 
-	// single-value index
-	idStr, ok := idData.(string)
-	if !ok {
-		return nil, false
+	// For single-value indexes
+	if idStr, ok := idData.(string); ok {
+		if obj, exists := c.indexes[IDIndex].tree.Get(idStr); exists {
+			return []Entry{{ID: idStr, Obj: obj}}, true
+		}
 	}
-	obj, exists := c.indexes[IDIndex].tree.Get(idStr)
-	if !exists {
-		return nil, false
-	}
-	return []Entry{{ID: idStr, Obj: obj}}, true
+	return nil, false
 }
 
 // GetIndex returns the underlying tree for an index

@@ -784,11 +784,18 @@ func TestGetAll(t *testing.T) {
 			if ok != tt.wantOK {
 				t.Errorf("GetAll() ok = %v, want %v", ok, tt.wantOK)
 			}
+
+			if !ok {
+				if entries != nil {
+					t.Error("GetAll() returned non-nil list when ok is false")
+				}
+				return
+			}
+
 			if len(entries) != tt.wantLen {
 				t.Errorf("GetAll() returned %d entries, want %d", len(entries), tt.wantLen)
 			}
 
-			// Verify each entry has both ID and Obj
 			for _, entry := range entries {
 				if entry.ID == "" {
 					t.Error("GetAll() returned entry with empty ID")
@@ -842,13 +849,20 @@ func TestGetAllWithCaseInsensitive(t *testing.T) {
 			if ok != tt.wantOK {
 				t.Errorf("GetAll() ok = %v, want %v", ok, tt.wantOK)
 			}
-			if tt.wantOK {
-				if len(entries) != 1 {
-					t.Errorf("GetAll() returned %d entries, want 1", len(entries))
+			if !ok {
+				if entries != nil {
+					t.Error("GetAll() returned non-nil list when ok is false")
 				}
-				if entries[0].ID != seqid.ID(id).String() {
-					t.Errorf("GetAll() returned ID %s, want %s", entries[0].ID, seqid.ID(id).String())
-				}
+				return
+			}
+
+			if len(entries) != 1 {
+				t.Errorf("GetAll() returned %d entries, want 1", len(entries))
+			}
+
+			entry := entries[0]
+			if entry.ID != seqid.ID(id).String() {
+				t.Errorf("GetAll() returned ID %s, want %s", entry.ID, seqid.ID(id).String())
 			}
 		})
 	}
