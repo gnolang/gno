@@ -22,10 +22,6 @@ type BroadcastCfg struct {
 
 	// internal
 	tx *std.Tx
-	// Set by SignAndBroadcastHandler, similar to DryRun.
-	// If true, simulation is attempted but not printed;
-	// the result is only returned in case of an error.
-	testSimulate bool
 }
 
 func NewBroadcastCmd(rootCfg *BaseCfg, io commands.IO) *commands.Command {
@@ -114,15 +110,10 @@ func BroadcastHandler(cfg *BroadcastCfg) (*ctypes.ResultBroadcastTxCommit, error
 		return nil, err
 	}
 
-	// Both for DryRun and testSimulate, we perform simulation.
-	// However, DryRun always returns here, while in case of success
-	// testSimulate continues onto broadcasting the transaction.
-	if cfg.DryRun || cfg.testSimulate {
+	// For -dry-run, run SimulateTx.
+	if cfg.DryRun {
 		res, err := SimulateTx(cli, bz)
-		hasError := err != nil || res.CheckTx.IsErr() || res.DeliverTx.IsErr()
-		if cfg.DryRun || hasError {
-			return res, err
-		}
+		return res, err
 	}
 
 	bres, err := cli.BroadcastTxCommit(bz)
