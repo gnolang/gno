@@ -1,4 +1,4 @@
-package toa
+package testing
 
 import (
 	"reflect"
@@ -17,11 +17,11 @@ var supportedTypes = map[reflect.Type]bool{
 	reflect.TypeOf((int16)(0)):    true,
 	reflect.TypeOf((int32)(0)):    true,
 	reflect.TypeOf((int64)(0)):    true,
-	//reflect.TypeOf((uint)(0)):     true,
-	reflect.TypeOf((uint8)(0)):  true,
-	reflect.TypeOf((uint16)(0)): true,
-	reflect.TypeOf((uint32)(0)): true,
-	reflect.TypeOf((uint64)(0)): true,
+	reflect.TypeOf((uint)(0)):     true,
+	reflect.TypeOf((uint8)(0)):    true,
+	reflect.TypeOf((uint16)(0)):   true,
+	reflect.TypeOf((uint32)(0)):   true,
+	reflect.TypeOf((uint64)(0)):   true,
 }
 
 func X_toa(args []interface{}) []string {

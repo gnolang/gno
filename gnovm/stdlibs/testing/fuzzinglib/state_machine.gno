@@ -57,16 +57,16 @@ func (sm *StateMachine) Format_StateMachine(f interface{}, s string) {
 		sm.Crash_Logger.AddCase(first_seed, result)
 	}
 	// TODO: 추가로 마저 스테이트 수정!! 배열 파트!!
-	// TODO: 라인 추가 등
+	// TODO: 라인 추가 등, 그리고 그를 위한 기반 함수들도 디자인.
 	// 힌트는, 밑에 포멧팅 출력해 보면서, 노션 보변서 감 잡으삼
 	// result := Get_PseudoCoverage_of_SomeFunc(s)
 }
 
-func main() {
-	state_machine := New_StateMachine()
-	state_machine.Format_StateMachine('some_func', "apple")
-	println(state_machine.ToString())
-}
+// func main() {
+// 	state_machine := New_StateMachine()
+// 	state_machine.Format_StateMachine("some_func", "apple")
+// 	println(state_machine.ToString())
+// }
 
 // print_machine: StateMachine을 예쁘게 출력하는 메서드
 func (sm *StateMachine) ToString() string {

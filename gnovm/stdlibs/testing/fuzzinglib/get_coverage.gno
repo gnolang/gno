@@ -54,14 +54,6 @@ func SomeFunc(input string) interface{} {
 	return nil
 }
 
-func get_counter(start int) func() int {
-	count := start
-	return func() int {
-		count += 1
-		return count
-	}
-}
-
 func Get_AllCoverage() Coverage {
 	// 배열 생성
 	var allLines Coverage

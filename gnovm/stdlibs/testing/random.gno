@@ -54,6 +54,7 @@ func nrand() float64 {
 }
 
 // randRange generates a random integer between min and max (inclusive).
+// TODO: 랜덤 질문. 이거 왜 익스클루시브 처리했는지?
 // This function leverages the UniformRand function to generate a random number in a specified range.
 // Note: max should be greater than min.
 // 랜덤을 랜덤으로 수정했습니다.

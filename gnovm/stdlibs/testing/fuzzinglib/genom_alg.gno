@@ -13,7 +13,6 @@ type Seed struct {
 
 func randomASCIIChar() rune {
 	r := int(testing.RandRange(32, 96))
-
 	return rune(r)
 }
 
