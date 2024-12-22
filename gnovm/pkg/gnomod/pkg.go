@@ -127,16 +127,20 @@ func ListPkgs(root string) (PkgList, error) {
 			pkg = &gnovm.MemPackage{}
 		}
 
-		imports, err := packages.Imports(pkg)
+		importsMap, err := packages.Imports(pkg, nil)
 		if err != nil {
 			// ignore imports on error
-			imports = []string{}
+			importsMap = nil
 		}
+		importsRaw := importsMap.Merge(packages.FileKindPackageSource, packages.FileKindTest, packages.FileKindXTest)
 
-		// remove standard libraries from imports
-		imports = slices.DeleteFunc(imports, func(imp string) bool {
-			return gnolang.IsStdlib(imp)
-		})
+		imports := make([]string, 0, len(importsRaw))
+		for _, imp := range importsRaw {
+			// remove standard libraries from imports
+			if !gnolang.IsStdlib(imp.PkgPath) {
+				imports = append(imports, imp.PkgPath)
+			}
+		}
 
 		pkgs = append(pkgs, Pkg{
 			Dir:     path,
