@@ -14,11 +14,12 @@ import (
 )
 
 //-----------------------------------------------------------------------------
-// DAO Interface
+// DAO Interfaces
 //-----------------------------------------------------------------------------
 
-// DAO defines a minimal interface for a Decentralized Autonomous Organization
-type DAO interface {
+// LightDAO defines a minimal interface for a Decentralized Autonomous Organization
+// without proposal listing capabilities
+type LightDAO interface {
 	// Propose submits a new proposal to the DAO and returns the created Proposal
 	Propose(definition PropDefinition) (Proposal, error)
 
@@ -27,6 +28,14 @@ type DAO interface {
 
 	// Execute attempts to execute a proposal if it has passed
 	Execute(proposalID uint64) error
+
+	// Len returns the total number of proposals
+	Len() int
+}
+
+// DAO extends LightDAO with proposal listing capabilities
+type DAO interface {
+	LightDAO
 
 	// ActiveProposals returns a read-only list of active proposals
 	ActiveProposals() PropList
