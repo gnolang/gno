@@ -60,8 +60,9 @@ type ReadOnlyList struct {
 	makeEntrySafeFn func(interface{}) interface{}
 }
 
-// Verify that ReadOnlyList implements IReadOnlyList
+// Verify interface implementations
 var _ IReadOnlyList = (*ReadOnlyList)(nil)
+var _ list.IList = (interface{ IReadOnlyList })(nil) // is subset of list.IList
 
 // Wrap creates a new ReadOnlyList from an existing list.List and a safety transformation function.
 // If makeEntrySafeFn is nil, values will be returned as-is without transformation.
