@@ -9,19 +9,38 @@ package udao
 
 import "time"
 
+//-----------------------------------------------------------------------------
+// DAO Interface
+//-----------------------------------------------------------------------------
+
 // DAO defines a minimal interface for a Decentralized Autonomous Organization
 type DAO interface {
-	// Propose submits a new proposal to the DAO
-	Propose(proposal PropDefinition) (uint64, error)
+	// Propose submits a new proposal to the DAO and returns the created Proposal
+	Propose(definition PropDefinition) (Proposal, error)
 
-	// GetProposal retrieves both the definition and status of a specific proposal
-	GetProposal(proposalID uint64) (PropDefinition, PropStatus, error)
+	// GetProposal retrieves a specific proposal
+	GetProposal(proposalID uint64) (Proposal, error)
 
 	// Execute attempts to execute a proposal if it has passed
 	Execute(proposalID uint64) error
 
-	// XXX: find a smart way to list proposals
+	// ActiveProposals returns a read-only list of active proposals
+	ActiveProposals() PropList
+
+	// ArchivedProposals returns a read-only list of archived proposals
+	ArchivedProposals() PropList
 }
+
+// Proposal represents a complete proposal including its ID, definition and status
+type Proposal interface {
+	ID() uint64
+	Definition() PropDefinition
+	PropStatus
+}
+
+//-----------------------------------------------------------------------------
+// Proposal Types & Helpers
+//-----------------------------------------------------------------------------
 
 // PropDefinition defines the interface for a DAO proposal
 type PropDefinition interface {
@@ -64,10 +83,59 @@ type Constraint interface {
 // ValidateConstraints checks if all constraints of a proposal are met
 func ValidateConstraints(p Proposal) (bool, []string) {
 	reasons := make([]string, 0)
-	for _, c := range p.Constraints() {
+	for _, c := range p.Definition().Constraints() {
 		if valid, reason := c.Validate(); !valid {
 			reasons = append(reasons, reason)
 		}
 	}
 	return len(reasons) == 0, reasons
+}
+
+//-----------------------------------------------------------------------------
+// PropList Interface & Implementation
+//-----------------------------------------------------------------------------
+
+// PropList defines the read-only operations available on a proposal list
+type PropList interface {
+	Len() int
+	Get(index int) Proposal
+	Slice(startIndex, endIndex int) []Proposal
+}
+
+// PropListWrapper wraps an IReadOnlyList to implement PropList
+type PropListWrapper struct {
+	list IReadOnlyList
+}
+
+// WrapAsPropList converts an IReadOnlyList to a PropList
+func WrapAsPropList(list IReadOnlyList) PropList {
+	return &PropListWrapper{list: list}
+}
+
+// Len returns the number of proposals in the list
+func (pl *PropListWrapper) Len() int {
+	return pl.list.Len()
+}
+
+// Get returns the proposal and status at the specified index
+func (pl *PropListWrapper) Get(index int) Proposal {
+	value := pl.list.Get(index)
+	if value == nil {
+		return nil
+	}
+	return value.(Proposal)
+}
+
+// Slice returns a slice of proposals from startIndex to endIndex
+func (pl *PropListWrapper) Slice(startIndex, endIndex int) []Proposal {
+	values := pl.list.Slice(startIndex, endIndex)
+	if values == nil {
+		return nil
+	}
+
+	result := make([]Proposal, len(values))
+	for i, v := range values {
+		result[i] = v.(Proposal)
+	}
+	return result
 }
