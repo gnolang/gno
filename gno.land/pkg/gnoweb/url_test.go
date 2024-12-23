@@ -34,6 +34,30 @@ func TestParseGnoURL(t *testing.T) {
 		},
 
 		{
+			Name:  "file",
+			Input: "https://gno.land/r/simple/test/encode.gno",
+			Expected: &GnoURL{
+				Domain:   "gno.land",
+				Path:     "/r/simple/test",
+				WebQuery: url.Values{},
+				Query:    url.Values{},
+				File:     "encode.gno",
+			},
+		},
+
+		{
+			Name:  "complex file path",
+			Input: "https://gno.land/r/simple/test///...gno",
+			Expected: &GnoURL{
+				Domain:   "gno.land",
+				Path:     "/r/simple/test//",
+				WebQuery: url.Values{},
+				Query:    url.Values{},
+				File:     "...gno",
+			},
+		},
+
+		{
 			Name:  "webquery + query",
 			Input: "https://gno.land/r/demo/foo$help&func=Bar&name=Baz",
 			Expected: &GnoURL{
@@ -166,16 +190,16 @@ func TestParseGnoURL(t *testing.T) {
 
 		{
 			Name:  "webquery-args-webquery",
-			Input: "https://gno.land/r/demo/AAA$BBB:CCC&DDD$EEE",
-			Err:   ErrURLInvalidPath, // `/r/demo/AAA$BBB` is an invalid path
+			Input: "https://gno.land/r/demo/aaa$bbb:CCC&DDD$EEE",
+			Err:   ErrURLInvalidPath, // `/r/demo/aaa$bbb` is an invalid path
 		},
 
 		{
 			Name:  "args-webquery-args",
-			Input: "https://gno.land/r/demo/AAA:BBB$CCC&DDD:EEE",
+			Input: "https://gno.land/r/demo/aaa:BBB$CCC&DDD:EEE",
 			Expected: &GnoURL{
 				Domain: "gno.land",
-				Path:   "/r/demo/AAA",
+				Path:   "/r/demo/aaa",
 				Args:   "BBB",
 				WebQuery: url.Values{
 					"CCC":     []string{""},
@@ -191,6 +215,21 @@ func TestParseGnoURL(t *testing.T) {
 			Expected: &GnoURL{
 				Path: "/r/demo/foo",
 				Args: "example with spaces",
+				WebQuery: url.Values{
+					"tz": []string{"Europe/Paris"},
+				},
+				Query:  url.Values{},
+				Domain: "gno.land",
+			},
+		},
+
+		{
+			Name:  "file in path + args + query",
+			Input: "https://gno.land/r/demo/foo/render.gno:example$tz=Europe/Paris",
+			Expected: &GnoURL{
+				Path: "/r/demo/foo",
+				File: "render.gno",
+				Args: "example",
 				WebQuery: url.Values{
 					"tz": []string{"Europe/Paris"},
 				},
@@ -235,6 +274,27 @@ func TestEncode(t *testing.T) {
 			},
 			EncodeFlags: EncodePath,
 			Expected:    "/r/demo/foo",
+		},
+
+		{
+			Name: "Encode Path and File",
+			GnoURL: GnoURL{
+				Path: "/r/demo/foo",
+				File: "render.gno",
+			},
+			EncodeFlags: EncodePath,
+			Expected:    "/r/demo/foo/render.gno",
+		},
+
+		{
+			Name: "Encode Path, File, and Args",
+			GnoURL: GnoURL{
+				Path: "/r/demo/foo",
+				File: "render.gno",
+				Args: "example",
+			},
+			EncodeFlags: EncodePath | EncodeArgs,
+			Expected:    "/r/demo/foo/render.gno:example",
 		},
 
 		{

@@ -99,11 +99,11 @@ func (h *WebHandler) Get(w http.ResponseWriter, r *http.Request) {
 		indexData.HeaderData.WebQuery = gnourl.WebQuery
 
 		// Render
-		switch gnourl.Kind() {
-		case KindRealm, KindPure:
+		switch {
+		case gnourl.IsRealm(), gnourl.IsPure():
 			status, err = h.renderPackage(&body, gnourl)
 		default:
-			h.logger.Debug("invalid page kind", "kind", gnourl.Kind)
+			h.logger.Debug("invalid path: path is neither a pure package or a realm")
 			status, err = http.StatusNotFound, components.RenderStatusComponent(&body, "page not found")
 		}
 	}
@@ -129,10 +129,8 @@ func (h *WebHandler) Get(w http.ResponseWriter, r *http.Request) {
 func (h *WebHandler) renderPackage(w io.Writer, gnourl *GnoURL) (status int, err error) {
 	h.logger.Info("component render", "path", gnourl.Path, "args", gnourl.Args)
 
-	kind := gnourl.Kind()
-
 	// Display realm help page?
-	if kind == KindRealm && gnourl.WebQuery.Has("help") {
+	if gnourl.WebQuery.Has("help") {
 		return h.renderRealmHelp(w, gnourl)
 	}
 
@@ -140,27 +138,11 @@ func (h *WebHandler) renderPackage(w io.Writer, gnourl *GnoURL) (status int, err
 	switch {
 	case gnourl.WebQuery.Has("source"):
 		return h.renderRealmSource(w, gnourl)
-	case kind == KindPure, gnourl.IsFile(), gnourl.IsDir():
-		i := strings.LastIndexByte(gnourl.Path, '/')
-		if i < 0 {
-			return http.StatusInternalServerError, fmt.Errorf("unable to get ending slash for %q", gnourl.Path)
-		}
-
+	case gnourl.IsFile():
 		// Fill webquery with file infos
-		gnourl.WebQuery.Set("source", "") // set source
-
-		file := gnourl.Path[i+1:]
-		// If there nothing after the last slash that mean its a
-		// directory ...
-		if file == "" {
-			return h.renderRealmDirectory(w, gnourl)
-		}
-
-		// ... else, remaining part is a file
-		gnourl.WebQuery.Set("file", file)
-		gnourl.Path = gnourl.Path[:i]
-
 		return h.renderRealmSource(w, gnourl)
+	case gnourl.IsDir(), gnourl.IsPure():
+		return h.renderRealmDirectory(w, gnourl)
 	}
 
 	// Render content into the content buffer
@@ -251,12 +233,16 @@ func (h *WebHandler) renderRealmSource(w io.Writer, gnourl *GnoURL) (status int,
 		return http.StatusOK, components.RenderStatusComponent(w, "no files available")
 	}
 
-	var fileName string
-	file := gnourl.WebQuery.Get("file")
+	file := gnourl.WebQuery.Get("file") // webquery override file
 	if file == "" {
-		fileName = files[0]
+		file = gnourl.File
+	}
+
+	var fileName string
+	if file == "" {
+		fileName = files[0] // Default to the first file if none specified
 	} else if slices.Contains(files, file) {
-		fileName = file
+		fileName = file // Use specified file if it exists
 	} else {
 		h.logger.Error("unable to render source", "file", file, "err", "file does not exist")
 		return http.StatusInternalServerError, components.RenderStatusComponent(w, "internal error")

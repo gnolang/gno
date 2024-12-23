@@ -9,38 +9,33 @@ import (
 	"strings"
 )
 
-type PathKind byte
+var ErrURLInvalidPath = errors.New("invalid path")
 
-const (
-	KindUnknown PathKind = 0
-	KindRealm   PathKind = 'r'
-	KindPure    PathKind = 'p'
-)
-
-// rePkgOrRealmPath matches and validates a realm or package path.
-var rePkgOrRealmPath = regexp.MustCompile(`^/[a-z][a-zA-Z0-9_/.]*$`)
+// rePkgOrRealmPath matches and validates a flexible path.
+var rePkgOrRealmPath = regexp.MustCompile(`^/[a-z][a-z0-9_/]*$`)
 
 // GnoURL decomposes the parts of an URL to query a realm.
 type GnoURL struct {
 	// Example full path:
-	// gno.land/r/demo/users:jae$help&a=b?c=d
+	// gno.land/r/demo/users/render.gno:jae$help&a=b?c=d
 
 	Domain   string     // gno.land
 	Path     string     // /r/demo/users
 	Args     string     // jae
 	WebQuery url.Values // help&a=b
 	Query    url.Values // c=d
+	File     string     // render.gno
 }
 
-// EncodeFlag is used to compose and encode URL components.
+// EncodeFlag is used to specify which URL components to encode.
 type EncodeFlag int
 
 const (
-	EncodePath EncodeFlag = 1 << iota
-	EncodeArgs
-	EncodeWebQuery
-	EncodeQuery
-	EncodeNoEscape // Disable escaping on arg
+	EncodePath     EncodeFlag = 1 << iota // Encode the path component
+	EncodeArgs                            // Encode the arguments component
+	EncodeWebQuery                        // Encode the web query component
+	EncodeQuery                           // Encode the query component
+	EncodeNoEscape                        // Disable escaping of arguments
 )
 
 // Has checks if the EncodeFlag contains all the specified flags.
@@ -49,12 +44,21 @@ func (f EncodeFlag) Has(flags EncodeFlag) bool {
 }
 
 // Encode encodes the URL components based on the provided flags.
-// Encode assumes the URL is valid.
 func (gnoURL GnoURL) Encode(encodeFlags EncodeFlag) string {
 	var urlstr strings.Builder
 
 	if encodeFlags.Has(EncodePath) {
+		path := gnoURL.Path
+		if !encodeFlags.Has(EncodeNoEscape) {
+			path = url.PathEscape(path)
+		}
+
 		urlstr.WriteString(gnoURL.Path)
+	}
+
+	if len(gnoURL.File) > 0 {
+		urlstr.WriteRune('/')
+		urlstr.WriteString(gnoURL.File)
 	}
 
 	if encodeFlags.Has(EncodeArgs) && gnoURL.Args != "" {
@@ -85,6 +89,10 @@ func (gnoURL GnoURL) Encode(encodeFlags EncodeFlag) string {
 	return urlstr.String()
 }
 
+func escapeDollarSign(s string) string {
+	return strings.ReplaceAll(s, "$", "%24")
+}
+
 // EncodeArgs encodes the arguments and query parameters into a string.
 // This function is intended to be passed as a realm `Render` argument.
 func (gnoURL GnoURL) EncodeArgs() string {
@@ -103,32 +111,30 @@ func (gnoURL GnoURL) EncodeWebURL() string {
 	return gnoURL.Encode(EncodePath | EncodeArgs | EncodeWebQuery | EncodeQuery)
 }
 
-// Kind determines the kind of path (invalid, realm, or pure) based on the path structure.
-func (gnoURL GnoURL) Kind() PathKind {
-	if len(gnoURL.Path) > 2 && gnoURL.Path[0] == '/' && gnoURL.Path[2] == '/' {
-		switch k := PathKind(gnoURL.Path[1]); k {
-		case KindPure, KindRealm:
-			return k
-		}
-	}
-	return KindUnknown
+// IsPure checks if the URL path represents a pure path.
+func (gnoURL GnoURL) IsPure() bool {
+	return strings.HasPrefix(gnoURL.Path, "/p/")
+}
+
+// IsRealm checks if the URL path represents a realm path.
+func (gnoURL GnoURL) IsRealm() bool {
+	return strings.HasPrefix(gnoURL.Path, "/r/")
+}
+
+// IsFile checks if the URL path represents a file.
+func (gnoURL GnoURL) IsFile() bool {
+	return gnoURL.File != ""
+}
+
+// IsDir checks if the URL path represents a directory.
+func (gnoURL GnoURL) IsDir() bool {
+	return !gnoURL.IsFile() &&
+		len(gnoURL.Path) > 0 && gnoURL.Path[len(gnoURL.Path)-1] == '/'
 }
 
 func (gnoURL GnoURL) IsValid() bool {
 	return rePkgOrRealmPath.MatchString(gnoURL.Path)
 }
-
-// IsDir checks if the URL path represents a directory.
-func (gnoURL GnoURL) IsDir() bool {
-	return len(gnoURL.Path) > 0 && gnoURL.Path[len(gnoURL.Path)-1] == '/'
-}
-
-// IsFile checks if the URL path represents a file.
-func (gnoURL GnoURL) IsFile() bool {
-	return filepath.Ext(gnoURL.Path) != ""
-}
-
-var ErrURLInvalidPath = errors.New("invalid or malformed path")
 
 // ParseGnoURL parses a URL into a GnoURL structure, extracting and validating its components.
 func ParseGnoURL(u *url.URL) (*GnoURL, error) {
@@ -140,10 +146,20 @@ func ParseGnoURL(u *url.URL) (*GnoURL, error) {
 		path, webargs, _ = strings.Cut(path, "$")
 	}
 
-	// NOTE: `PathUnescape` should already unescape dollar signs.
 	upath, err := url.PathUnescape(path)
 	if err != nil {
 		return nil, fmt.Errorf("unable to unescape path %q: %w", path, err)
+	}
+
+	var file string
+	if ext := filepath.Ext(upath); ext != "" {
+		file = filepath.Base(upath)
+		upath = strings.TrimSuffix(upath, file)
+
+		// Trim last slash
+		if i := strings.LastIndexByte(upath, '/'); i > 0 {
+			upath = upath[:i]
+		}
 	}
 
 	if !rePkgOrRealmPath.MatchString(upath) {
@@ -169,10 +185,6 @@ func ParseGnoURL(u *url.URL) (*GnoURL, error) {
 		WebQuery: webquery,
 		Query:    u.Query(),
 		Domain:   u.Hostname(),
+		File:     file,
 	}, nil
-}
-
-// escapeDollarSign replaces dollar signs with their URL-encoded equivalent.
-func escapeDollarSign(s string) string {
-	return strings.ReplaceAll(s, "$", "%24")
 }
