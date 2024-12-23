@@ -13,6 +13,8 @@ import (
 var gid groups.GroupID
 
 func main() {
+	test := testutils.TestAddress("test")
+	std.TestSetRealm(std.NewUserRealm(test))
 	gid = groups.CreateGroup("test_group")
 	println(gid)
 

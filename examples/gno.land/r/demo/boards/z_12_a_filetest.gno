@@ -12,6 +12,8 @@ import (
 )
 
 func main() {
+	caller := testutils.TestAddress("caller")
+	std.TestSetRealm(std.NewUserRealm(caller))
 	users.Register("", "gnouser", "my profile")
 	// create a post via registered user
 	bid1 := boards.CreateBoard("test_board1")
