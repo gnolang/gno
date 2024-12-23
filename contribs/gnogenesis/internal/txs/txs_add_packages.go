@@ -5,38 +5,51 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"os"
 
-	"github.com/gnolang/gno/tm2/pkg/crypto"
+	"github.com/gnolang/gno/tm2/pkg/crypto/keys"
 
+	"github.com/gnolang/gno/gno.land/pkg/gnoclient"
 	"github.com/gnolang/gno/gno.land/pkg/gnoland"
 	"github.com/gnolang/gno/gno.land/pkg/gnoland/ugnot"
+	"github.com/gnolang/gno/gno.land/pkg/integration"
 	"github.com/gnolang/gno/tm2/pkg/bft/types"
 	"github.com/gnolang/gno/tm2/pkg/commands"
 	"github.com/gnolang/gno/tm2/pkg/std"
 )
 
-var (
-	errInvalidPackageDir   = errors.New("invalid package directory")
-	errInvalidDeployerAddr = errors.New("invalid deployer address")
-)
+var errInvalidPackageDir = errors.New("invalid package directory")
 
 // Keep in sync with gno.land/cmd/start.go
-var (
-	defaultCreator   = crypto.MustAddressFromString("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5") // test1
-	genesisDeployFee = std.NewFee(50000, std.MustParseCoin(ugnot.ValueString(1000000)))
-)
+var genesisDeployFee = std.NewFee(50000, std.MustParseCoin(ugnot.ValueString(1000000)))
 
 type addPkgCfg struct {
-	txsCfg          *txsCfg
-	deployerAddress string
+	txsCfg                *txsCfg
+	keyName               string
+	gnoHome               string // default GNOHOME env var, just here to ease testing with parallel tests
+	insecurePasswordStdin bool
 }
 
 func (c *addPkgCfg) RegisterFlags(fs *flag.FlagSet) {
 	fs.StringVar(
-		&c.deployerAddress,
-		"deployer-address",
-		defaultCreator.String(),
-		"the address that will be used to deploy the package",
+		&c.keyName,
+		"key-name",
+		"",
+		"The package deployer key name or address",
+	)
+
+	fs.StringVar(
+		&c.gnoHome,
+		"gno-home",
+		os.Getenv("GNOHOME"),
+		"the gno home directory",
+	)
+
+	fs.BoolVar(
+		&c.insecurePasswordStdin,
+		"insecure-password-stdin",
+		false,
+		"the gno home directory",
 	)
 }
 
@@ -76,25 +89,26 @@ func execTxsAddPackages(
 		return errInvalidPackageDir
 	}
 
-	var (
-		creator = defaultCreator
-		err     error
-	)
+	signer, err := signerWithConfig(cfg, io, genesis.ChainID)
+	if err != nil {
+		return fmt.Errorf("unable to load signer, %w", err)
+	}
 
-	// Check if the deployer address is set
-	if cfg.deployerAddress != defaultCreator.String() {
-		creator, err = crypto.AddressFromString(cfg.deployerAddress)
-		if err != nil {
-			return fmt.Errorf("%w, %w", errInvalidDeployerAddr, err)
-		}
+	info, err := signer.Info()
+	if err != nil {
+		return fmt.Errorf("unable to get signer info, %w", err)
 	}
 
 	parsedTxs := make([]gnoland.TxWithMetadata, 0)
 	for _, path := range args {
 		// Generate transactions from the packages (recursively)
-		txs, err := gnoland.LoadPackagesFromDir(path, creator, genesisDeployFee)
+		txs, err := gnoland.LoadPackagesFromDir(path, info.GetAddress(), genesisDeployFee)
 		if err != nil {
 			return fmt.Errorf("unable to load txs from directory, %w", err)
+		}
+
+		if err := signTxs(txs, signer); err != nil {
+			return fmt.Errorf("unable to sign txs, %w", err)
 		}
 
 		parsedTxs = append(parsedTxs, txs...)
@@ -116,4 +130,56 @@ func execTxsAddPackages(
 	)
 
 	return nil
+}
+
+func signTxs(txs []gnoland.TxWithMetadata, signer *gnoclient.SignerFromKeybase) error {
+	for index, tx := range txs {
+		signBytes, err := tx.Tx.GetSignBytes(signer.ChainID, 0, 0)
+		if err != nil {
+			return fmt.Errorf("unable to load txs from directory, %w", err)
+		}
+		signature, publicKey, err := signer.Keybase.Sign(signer.Account, signer.Password, signBytes)
+		txs[index].Tx.Signatures = []std.Signature{
+			{
+				PubKey:    publicKey,
+				Signature: signature,
+			},
+		}
+		if err != nil {
+			return fmt.Errorf("unable sign tx %w", err)
+		}
+	}
+
+	return nil
+}
+
+func signerWithConfig(cfg *addPkgCfg, io commands.IO, chainID string) (*gnoclient.SignerFromKeybase, error) {
+	var (
+		keyname = integration.DefaultAccount_Name
+		pass    string
+		kb      keys.Keybase
+		err     error
+	)
+
+	if cfg.keyName != "" {
+		keyname = cfg.keyName
+		kb, err = keys.NewKeyBaseFromDir(cfg.gnoHome)
+		if err != nil {
+			return nil, fmt.Errorf("unable to load keybase: %w", err)
+		}
+		pass, err = io.GetPassword("Enter password.", cfg.insecurePasswordStdin)
+		if err != nil {
+			return nil, fmt.Errorf("cannot read password: %w", err)
+		}
+	} else {
+		kb = keys.NewInMemory()
+		kb.CreateAccount(integration.DefaultAccount_Name, integration.DefaultAccount_Seed, "", "", 0, 0)
+	}
+
+	return &gnoclient.SignerFromKeybase{
+		Account:  keyname,
+		ChainID:  chainID,
+		Keybase:  kb,
+		Password: pass,
+	}, nil
 }
