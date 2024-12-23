@@ -6,7 +6,7 @@ import (
 	"gno.land/r/demo/users"
 )
 
-func handleBoardCreate(_ Permissioner, args Args, cb func(Args)) {
+func handleBoardCreate(_ Permissions, args Args, cb func(Args)) {
 	// TODO: This way of dealing with arguments is delicate, ideally types should be used
 	name := args[0].(string)
 	if std.Address(name).IsValid() {
@@ -24,7 +24,7 @@ func handleBoardCreate(_ Permissioner, args Args, cb func(Args)) {
 	cb(args)
 }
 
-func handleMemberInvite(p Permissioner, args Args, cb func(Args)) {
+func handleMemberInvite(p Permissions, args Args, cb func(Args)) {
 	// Make sure that only owners invite other owners
 	role := args[1].(Role)
 	if role == RoleOwner {
