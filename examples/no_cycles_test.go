@@ -1,4 +1,4 @@
-package main
+package examples_test
 
 import (
 	"fmt"
@@ -8,33 +8,37 @@ import (
 	"path/filepath"
 	"slices"
 	"strings"
+	"testing"
 
 	"github.com/gnolang/gno/gnovm"
 	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
 	"github.com/gnolang/gno/gnovm/pkg/gnomod"
 	"github.com/gnolang/gno/gnovm/pkg/packages"
+	"github.com/stretchr/testify/require"
 )
 
 var injectedTestingLibs = []string{"encoding/json", "fmt", "os", "internal/os_test"}
 
-func main() {
+// TestNoCycles checks that there is no import cycles in stdlibs and examples
+func TestNoCycles(t *testing.T) {
 	// find stdlibs
 	gnoRoot := gnoenv.RootDir()
-	pkgs := listPkgs(gnomod.Pkg{
+	pkgs, err := listPkgs(gnomod.Pkg{
 		Dir:  filepath.Join(gnoRoot, "gnovm", "stdlibs"),
 		Name: "",
 	})
+	require.NoError(t, err)
 
 	// find examples
 	examples, err := gnomod.ListPkgs(filepath.Join(gnoRoot, "examples"))
-	if err != nil {
-		panic(fmt.Errorf("load examples: %w", err))
-	}
+	require.NoError(t, err)
 	for _, example := range examples {
 		if example.Draft {
 			continue
 		}
-		pkgs = append(pkgs, listPkgs(example)...)
+		examplePkgs, err := listPkgs(example)
+		require.NoError(t, err)
+		pkgs = append(pkgs, examplePkgs...)
 	}
 
 	// detect cycles
@@ -50,11 +54,14 @@ type testPkg struct {
 }
 
 // listPkgs lists all packages in rootMod
-func listPkgs(rootMod gnomod.Pkg) []testPkg {
+func listPkgs(rootMod gnomod.Pkg) ([]testPkg, error) {
 	res := []testPkg{}
 	rootDir := rootMod.Dir
 	visited := map[string]struct{}{}
 	if err := fs.WalkDir(os.DirFS(rootDir), ".", func(path string, d fs.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
 		if d.IsDir() {
 			return nil
 		}
@@ -77,19 +84,19 @@ func listPkgs(rootMod gnomod.Pkg) []testPkg {
 
 		memPkg, err := readPkg(pkg.Dir, pkg.PkgPath)
 		if err != nil {
-			panic(err)
+			return fmt.Errorf("read pkg %q: %w", pkg.Dir, err)
 		}
 		pkg.Imports, err = packages.Imports(memPkg, nil)
 		if err != nil {
-			panic(err)
+			return fmt.Errorf("list imports of %q: %w", memPkg.Path, err)
 		}
 
 		res = append(res, pkg)
 		return nil
 	}); err != nil {
-		panic(err)
+		return nil, fmt.Errorf("walk dirs at %q: %w", rootDir, err)
 	}
-	return res
+	return res, nil
 }
 
 func fileImportsToStrings(fis []packages.FileImport) []string {
@@ -226,7 +233,7 @@ func visitPackage(pkg testPkg, pkgs []testPkg, visited map[string]bool, stack []
 	return nil
 }
 
-// readPkg reads the sources of a package. It includes all .gno files but ignore the package name
+// readPkg reads the sources of a package. It includes all .gno files but ignores the package name
 func readPkg(dir string, pkgPath string) (*gnovm.MemPackage, error) {
 	list, err := os.ReadDir(dir)
 	if err != nil {
