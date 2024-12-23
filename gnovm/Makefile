@@ -32,15 +32,19 @@ GOBUILD_FLAGS ?= -ldflags "-X github.com/gnolang/gno/gnovm/pkg/gnoenv._GNOROOT=$
 # more complex than adding -coverprofile, like test.cmd.coverage.
 GOTEST_COVER_PROFILE ?= cmd-profile.out
 
+# user for gno version [branch].[N]+[hash]
+VERSION ?= $(shell git describe --tags --exact-match 2>/dev/null || echo "$(shell git rev-parse --abbrev-ref HEAD).$(shell git rev-list --count HEAD)+$(shell git rev-parse --short HEAD)")
+VCS_REF ?= $(shell git rev-parse --short HEAD)
+
 ########################################
 # Dev tools
 .PHONY: build
 build:
-	go build $(GOBUILD_FLAGS) -o build/gno ./cmd/gno
+	go build -ldflags="-X main.buildVersion=$(VERSION) -X main.commitHash=$(VCS_REF) -X github.com/gnolang/gno/gnovm/pkg/gnoenv._GNOROOT=$(GNOROOT_DIR)" -o build/gno ./cmd/gno
 
 .PHONY: install
 install:
-	go install $(GOBUILD_FLAGS) ./cmd/gno
+	go install -ldflags="-X main.buildVersion=$(VERSION) -X main.commitHash=$(VCS_REF) -X github.com/gnolang/gno/gnovm/pkg/gnoenv._GNOROOT=$(GNOROOT_DIR)" ./cmd/gno
 
 .PHONY: clean
 clean:
