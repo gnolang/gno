@@ -471,8 +471,6 @@ func (ds *defaultStore) loadObjectSafe(oid ObjectID) Object {
 // NOTE: unlike GetObject(), SetObject() is also used to persist updated
 // package values.
 func (ds *defaultStore) SetObject(oo Object) {
-	//fmt.Println("---SetObject, oo: ", oo)
-	//fmt.Println("---oo.GetObjectInfo.OwnerID: ", oo.GetObjectInfo().OwnerID)
 	if bm.OpsEnabled {
 		bm.PauseOpCode()
 		defer bm.ResumeOpCode()
@@ -487,7 +485,6 @@ func (ds *defaultStore) SetObject(oo Object) {
 	oid := oo.GetObjectID()
 	// replace children/fields with Ref.
 	o2 := copyValueWithRefs(oo)
-	//fmt.Println("---o2: ", o2)
 	// marshal to binary.
 	bz := amino.MustMarshalAny(o2)
 	gas := overflow.Mul64p(ds.gasConfig.GasSetObject, store.Gas(len(bz)))
@@ -529,7 +526,6 @@ func (ds *defaultStore) SetObject(oo Object) {
 		} else {
 			op = StoreOpMod
 		}
-		//fmt.Println("---set oplog, op: ", op)
 		ds.opslog = append(ds.opslog,
 			StoreOp{Type: op, Object: o2.(Object)})
 	}

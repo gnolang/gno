@@ -76,14 +76,9 @@ func (m *Machine) doOpIndex2() {
 }
 
 func (m *Machine) doOpSelector() {
-	//println("---doOpSelector")
 	sx := m.PopExpr().(*SelectorExpr)
 	xv := m.PeekValue(1)
 	res := xv.GetPointerToFromTV(m.Alloc, m.Store, sx.Path).Deref()
-	//fmt.Println("---res: ", res)
-	//if _, ok := res.V.(Object); ok {
-	//	fmt.Println("---res...OwnerID: ", res.V.(Object).GetObjectInfo().OwnerID)
-	//}
 	if debug {
 		m.Printf("-v[S] %v\n", xv)
 		m.Printf("+v[S] %v\n", res)

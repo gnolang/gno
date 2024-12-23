@@ -136,20 +136,6 @@ func (rlm *Realm) String() string {
 // xo or co is nil if the element value is undefined or has no
 // associated object.
 func (rlm *Realm) DidUpdate(po, xo, co Object) {
-	//fmt.Println("---didUpdate, po: ", po)
-	//fmt.Println("---xo: ", xo)
-	//fmt.Println("---co: ", co)
-	//if co != nil {
-	//	fmt.Println("---co.GetIsOwned: ", co.GetIsOwned())
-	//	fmt.Println("---co.GetOwner: ", co.GetOwner())
-	//
-	//	fmt.Println("---co.GetOwnerID(): ", co.GetOwnerID())
-	//	ownerId := co.GetObjectInfo().OwnerID
-	//	fmt.Println("---ownerID: ", ownerId)
-	//	if ownerId != co.GetOwnerID() {
-	//		//panic("!!!!!!")
-	//	}
-	//}
 	if bm.OpsEnabled {
 		bm.PauseOpCode()
 		defer bm.ResumeOpCode()
@@ -248,7 +234,6 @@ func (rlm *Realm) MarkNewReal(oo Object) {
 }
 
 func (rlm *Realm) MarkDirty(oo Object) {
-	//fmt.Println("---MarkDirty, po: ", oo)
 	if debug {
 		if !oo.GetIsReal() && !oo.GetIsNewReal() {
 			panic("cannot mark unreal object as dirty")
@@ -385,10 +370,8 @@ func (rlm *Realm) FinalizeRealmTransaction(readonly bool, store Store) {
 // All newly created objects become appended to .created,
 // and get assigned ids.
 func (rlm *Realm) processNewCreatedMarks(store Store) {
-	//fmt.Println("---processNewCreatedMarks")
 	// Create new objects and their new descendants.
 	for _, oo := range rlm.newCreated {
-		//fmt.Println("---oo: ", oo)
 		if debug {
 			if oo.GetIsDirty() {
 				panic("new created mark cannot be dirty")
@@ -613,9 +596,7 @@ func (rlm *Realm) processNewEscapedMarks(store Store) {
 // (ancestors) must be marked as dirty to update the
 // hash tree.
 func (rlm *Realm) markDirtyAncestors(store Store) {
-	//fmt.Println("---markDirtyAncestors")
 	markAncestorsOne := func(oo Object) {
-		//fmt.Println("---oo: ", oo)
 		for {
 			if pv, ok := oo.(*PackageValue); ok {
 				if debug {
@@ -633,7 +614,6 @@ func (rlm *Realm) markDirtyAncestors(store Store) {
 				}
 			}
 			if rc > 1 {
-				//println("---oo escaped")
 				if debug {
 					if !oo.GetIsEscaped() && !oo.GetIsNewEscaped() {
 						panic("ancestor should cannot be escaped or new escaped to be marked as dirty")
@@ -648,7 +628,6 @@ func (rlm *Realm) markDirtyAncestors(store Store) {
 			} // else, rc == 1
 
 			po := getOwner(store, oo)
-			//fmt.Println("---po: ", po)
 			if po == nil {
 				break // no more owners.
 			} else if po.GetIsNewReal() {
@@ -671,13 +650,11 @@ func (rlm *Realm) markDirtyAncestors(store Store) {
 	// NOTE: newly dirty-marked owners get appended
 	// to .updated without affecting iteration.
 	for _, oo := range rlm.updated {
-		//fmt.Println("---uo ", oo)
 		markAncestorsOne(oo)
 	}
 	// NOTE: must happen after iterating over rlm.updated
 	// for the same reason.
 	for _, oo := range rlm.created {
-		//fmt.Println("---co ", oo)
 		markAncestorsOne(oo)
 	}
 }
@@ -687,7 +664,6 @@ func (rlm *Realm) markDirtyAncestors(store Store) {
 
 // Saves .created and .updated objects.
 func (rlm *Realm) saveUnsavedObjects(store Store) {
-	//fmt.Println("---saveUnsavedObjects")
 	for _, co := range rlm.created {
 		//fmt.Println("---co: ", co)
 		// for i := len(rlm.created) - 1; i >= 0; i-- {
