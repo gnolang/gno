@@ -15,6 +15,7 @@ import (
 	dbm "github.com/gnolang/gno/tm2/pkg/db"
 	"github.com/gnolang/gno/tm2/pkg/events"
 	"github.com/gnolang/gno/tm2/pkg/p2p"
+	p2pTypes "github.com/gnolang/gno/tm2/pkg/p2p/types"
 )
 
 const (
@@ -38,14 +39,11 @@ type Consensus interface {
 type transport interface {
 	Listeners() []string
 	IsListening() bool
-	NodeInfo() p2p.NodeInfo
+	NodeInfo() p2pTypes.NodeInfo
 }
 
 type peers interface {
-	AddPersistentPeers([]string) error
-	DialPeersAsync([]string) error
-	NumPeers() (outbound, inbound, dialig int)
-	Peers() p2p.IPeerSet
+	Peers() p2p.PeerSet
 }
 
 // ----------------------------------------------
