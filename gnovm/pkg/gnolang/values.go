@@ -522,7 +522,6 @@ func (sv *StructValue) Copy(alloc *Allocator) *StructValue {
 	for i, field := range sv.Fields {
 		fields[i] = field.Copy(alloc)
 	}
-
 	return alloc.NewStruct(fields)
 }
 

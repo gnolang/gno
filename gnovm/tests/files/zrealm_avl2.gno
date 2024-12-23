@@ -243,3 +243,108 @@ func main() {
 //         "RefCount": "1"
 //     }
 // }
+// u[a8ada09dee16d791fd406d629fe29bb0ed084a30:2]={
+//     "Blank": {},
+//     "ObjectInfo": {
+//         "ID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:2",
+//         "IsEscaped": true,
+//         "ModTime": "10",
+//         "RefCount": "2"
+//     },
+//     "Parent": null,
+//     "Source": {
+//         "@type": "/gno.RefNode",
+//         "BlockNode": null,
+//         "Location": {
+//             "Column": "0",
+//             "File": "",
+//             "Line": "0",
+//             "PkgPath": "gno.land/r/test"
+//         }
+//     },
+//     "Values": [
+//         {
+//             "T": {
+//                 "@type": "/gno.RefType",
+//                 "ID": "gno.land/p/demo/avl.Tree"
+//             },
+//             "V": {
+//                 "@type": "/gno.RefValue",
+//                 "Hash": "c4593c7c144a94d12298b575504d9fe4eb631e48",
+//                 "ObjectID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:3"
+//             }
+//         },
+//         {
+//             "T": {
+//                 "@type": "/gno.FuncType",
+//                 "Params": [],
+//                 "Results": []
+//             },
+//             "V": {
+//                 "@type": "/gno.FuncValue",
+//                 "Closure": {
+//                     "@type": "/gno.RefValue",
+//                     "Escaped": true,
+//                     "ObjectID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:4"
+//                 },
+//                 "FileName": "files/zrealm_avl2.gno",
+//                 "IsMethod": false,
+//                 "Name": "init.1",
+//                 "NativeName": "",
+//                 "NativePkg": "",
+//                 "PkgPath": "gno.land/r/test",
+//                 "Source": {
+//                     "@type": "/gno.RefNode",
+//                     "BlockNode": null,
+//                     "Location": {
+//                         "Column": "1",
+//                         "File": "files/zrealm_avl2.gno",
+//                         "Line": "10",
+//                         "PkgPath": "gno.land/r/test"
+//                     }
+//                 },
+//                 "Type": {
+//                     "@type": "/gno.FuncType",
+//                     "Params": [],
+//                     "Results": []
+//                 }
+//             }
+//         },
+//         {
+//             "T": {
+//                 "@type": "/gno.FuncType",
+//                 "Params": [],
+//                 "Results": []
+//             },
+//             "V": {
+//                 "@type": "/gno.FuncValue",
+//                 "Closure": {
+//                     "@type": "/gno.RefValue",
+//                     "Escaped": true,
+//                     "ObjectID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:4"
+//                 },
+//                 "FileName": "files/zrealm_avl2.gno",
+//                 "IsMethod": false,
+//                 "Name": "main",
+//                 "NativeName": "",
+//                 "NativePkg": "",
+//                 "PkgPath": "gno.land/r/test",
+//                 "Source": {
+//                     "@type": "/gno.RefNode",
+//                     "BlockNode": null,
+//                     "Location": {
+//                         "Column": "1",
+//                         "File": "files/zrealm_avl2.gno",
+//                         "Line": "14",
+//                         "PkgPath": "gno.land/r/test"
+//                     }
+//                 },
+//                 "Type": {
+//                     "@type": "/gno.FuncType",
+//                     "Params": [],
+//                     "Results": []
+//                 }
+//             }
+//         }
+//     ]
+// }
