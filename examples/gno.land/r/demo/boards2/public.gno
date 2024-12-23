@@ -38,10 +38,9 @@ func CreateBoard(name string) BoardID {
 
 func FlagThread(bid BoardID, postID PostID, reason string) {
 	caller := std.GetOrigCaller()
-	// TODO: Replace by assertHasBoardPermission() when supported
-	assertHasPermission(caller, PermissionThreadFlag)
-
 	board := mustGetBoard(bid)
+	assertHasBoardOrGlobalPermission(board, caller, PermissionThreadFlag)
+
 	t, ok := board.GetThread(postID)
 	if !ok {
 		panic("post doesn't exist")
@@ -93,10 +92,10 @@ func CreateReply(bid BoardID, threadID, replyID PostID, body string) PostID {
 
 func FlagReply(bid BoardID, threadID, replyID PostID, reason string) {
 	caller := std.GetOrigCaller()
-	// TODO: Replace by assertHasBoardPermission() when supported
-	assertHasPermission(caller, PermissionThreadFlag)
 
 	board := mustGetBoard(bid)
+	assertHasBoardOrGlobalPermission(board, caller, PermissionThreadFlag)
+
 	thread := mustGetThread(board, threadID)
 	reply := mustGetReply(thread, replyID)
 
@@ -230,6 +229,14 @@ func assertHasBoardPermission(b *Board, user std.Address, p Permission) {
 	if !b.perms.HasPermission(user, p) {
 		panic("unauthorized")
 	}
+}
+
+func assertHasBoardOrGlobalPermission(b *Board, user std.Address, p Permission) {
+	if b.perms.HasPermission(user, p) || gPerm.HasPermission(user, p) {
+		return
+	}
+
+	panic("unauthorized")
 }
 
 func assertBoardExists(id BoardID) {
