@@ -43,7 +43,7 @@ func TestNoCycles(t *testing.T) {
 
 	// detect cycles
 	for _, p := range pkgs {
-		detectCycles(p, pkgs)
+		require.NoError(t, detectCycles(p, pkgs))
 	}
 }
 
@@ -135,13 +135,13 @@ func fileImportsToStrings(fis []packages.FileImport) []string {
 // - bar_pkg/bar_test.go imports foo_pkg
 //
 // This implementation can be optimized with better graph theory
-func detectCycles(root testPkg, pkgs []testPkg) {
+func detectCycles(root testPkg, pkgs []testPkg) error {
 	// check normal cycles
 	{
 		visited := make(map[string]bool)
 		stack := []string{}
 		if err := visitPackage(root, pkgs, visited, stack); err != nil {
-			panic(fmt.Errorf("compiled import error: %w", err))
+			return fmt.Errorf("compiled import error: %w", err)
 		}
 	}
 
@@ -162,10 +162,10 @@ func detectCycles(root testPkg, pkgs []testPkg) {
 				break
 			}
 			if pkg == nil {
-				panic(fmt.Errorf("import %q not found for %q xtests", imp.PkgPath, root.PkgPath))
+				return fmt.Errorf("import %q not found for %q xtests", imp.PkgPath, root.PkgPath)
 			}
 			if err := visitPackage(*pkg, pkgs, visited, stack); err != nil {
-				panic(fmt.Errorf("xtest import error: %w", err))
+				return fmt.Errorf("xtest import error: %w", err)
 			}
 		}
 	}
@@ -187,13 +187,14 @@ func detectCycles(root testPkg, pkgs []testPkg) {
 				break
 			}
 			if pkg == nil {
-				panic(fmt.Errorf("import %q not found for %q tests", imp.PkgPath, root.PkgPath))
+				return fmt.Errorf("import %q not found for %q tests", imp.PkgPath, root.PkgPath)
 			}
 			if err := visitPackage(*pkg, pkgs, visited, stack); err != nil {
-				panic(fmt.Errorf("test import error: %w", err))
+				return fmt.Errorf("test import error: %w", err)
 			}
 		}
 	}
+	return nil
 }
 
 // visitNode visits a package and its imports recursively. It only considers imports in PackageSource
