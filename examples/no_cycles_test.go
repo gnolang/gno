@@ -19,7 +19,7 @@ import (
 
 var injectedTestingLibs = []string{"encoding/json", "fmt", "os", "internal/os_test"}
 
-// TestNoCycles checks that there is no import cycles in stdlibs and examples
+// TestNoCycles checks that there is no import cycles in stdlibs and non-draft examples
 func TestNoCycles(t *testing.T) {
 	// find stdlibs
 	gnoRoot := gnoenv.RootDir()
