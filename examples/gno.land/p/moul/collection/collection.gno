@@ -3,27 +3,40 @@
 // indexes. It is designed to be used with any type and allows efficient lookups using
 // different fields or computed values.
 //
-// Basic usage:
+// Example usage:
+//
+//	// Define a data type
+//	type User struct {
+//	    Name     string
+//	    Email    string
+//	    Age      int
+//	    Username string
+//	    Tags     []string
+//	}
 //
 //	// Create a new collection
 //	c := collection.New()
 //
-//	// Add various types of indexes
+//	// Add indexes with different options
 //	c.AddIndex("name", func(v interface{}) string {
 //	    return v.(*User).Name
 //	}, UniqueIndex)
 //
 //	c.AddIndex("email", func(v interface{}) string {
 //	    return v.(*User).Email
-//	}, UniqueIndex | CaseInsensitiveIndex)
+//	}, UniqueIndex|CaseInsensitiveIndex)
 //
 //	c.AddIndex("age", func(v interface{}) string {
 //	    return strconv.Itoa(v.(*User).Age)
-//	}, DefaultIndex)
+//	}, DefaultIndex)  // Non-unique index
+//
+//	c.AddIndex("username", func(v interface{}) string {
+//	    return v.(*User).Username
+//	}, UniqueIndex|SparseIndex)  // Allow empty usernames
 //
 //	c.AddIndex("tags", func(v interface{}) []string {
 //	    return v.(*User).Tags
-//	}, MultiValueIndex)
+//	}, MultiValueIndex)  // One object can have multiple tag values
 //
 //	// Store an object
 //	id := c.Set(&User{
