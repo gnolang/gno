@@ -251,7 +251,7 @@ func (pv PointerValue) Assign2(alloc *Allocator, store Store, rlm *Realm, tv2 Ty
 								panic("should not happen")
 							}
 							if nv, ok := tv2.V.(*NativeValue); !ok ||
-									nv.Value.Kind() != reflect.Func {
+								nv.Value.Kind() != reflect.Func {
 								panic("should not happen")
 							}
 						}

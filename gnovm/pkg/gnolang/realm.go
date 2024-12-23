@@ -182,8 +182,6 @@ func (rlm *Realm) DidUpdate(po, xo, co Object) {
 		} else if co.GetIsReal() {
 			rlm.MarkDirty(co)
 		} else {
-			//fmt.Println("---set owner for co: ", co)
-			//fmt.Println("---to be: ", po)
 			co.SetOwner(po)
 			rlm.MarkNewReal(co)
 		}
@@ -665,7 +663,6 @@ func (rlm *Realm) markDirtyAncestors(store Store) {
 // Saves .created and .updated objects.
 func (rlm *Realm) saveUnsavedObjects(store Store) {
 	for _, co := range rlm.created {
-		//fmt.Println("---co: ", co)
 		// for i := len(rlm.created) - 1; i >= 0; i-- {
 		// co := rlm.created[i]
 		if !co.GetIsNewReal() {
@@ -677,7 +674,6 @@ func (rlm *Realm) saveUnsavedObjects(store Store) {
 		}
 	}
 	for _, uo := range rlm.updated {
-		//fmt.Println("---uo: ", uo)
 		// for i := len(rlm.updated) - 1; i >= 0; i-- {
 		// uo := rlm.updated[i]
 		if !uo.GetIsDirty() {
