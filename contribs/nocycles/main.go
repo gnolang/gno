@@ -15,7 +15,6 @@ import (
 	"github.com/gnolang/gno/gnovm/pkg/packages"
 )
 
-// TODO: only allow injected testing libs in tests
 var injectedTestingLibs = []string{"encoding/json", "fmt", "os", "internal/os_test"}
 
 func main() {
@@ -50,9 +49,10 @@ type testPkg struct {
 	Imports packages.ImportsMap
 }
 
-func listPkgs(rootPkg gnomod.Pkg) []testPkg {
+// listPkgs lists all packages in rootMod
+func listPkgs(rootMod gnomod.Pkg) []testPkg {
 	res := []testPkg{}
-	rootDir := rootPkg.Dir
+	rootDir := rootMod.Dir
 	visited := map[string]struct{}{}
 	if err := fs.WalkDir(os.DirFS(rootDir), ".", func(path string, d fs.DirEntry, err error) error {
 		if d.IsDir() {
@@ -68,7 +68,7 @@ func listPkgs(rootPkg gnomod.Pkg) []testPkg {
 		}
 		visited[dir] = struct{}{}
 
-		subPkgPath := pathlib.Join(rootPkg.Name, subPath)
+		subPkgPath := pathlib.Join(rootMod.Name, subPath)
 
 		pkg := testPkg{
 			Dir:     dir,
@@ -100,26 +100,34 @@ func fileImportsToStrings(fis []packages.FileImport) []string {
 	return res
 }
 
-// detectCycles detect import cycles
+// detectCycles detects import cycles
 //
-// We need to check 3 kinds of nodes
+// We need to check
+// 3 kinds of nodes
+//
 // - normal pkg: compiled source
+//
 // - xtest pkg: external test source (include xtests and filetests), can be treated as their own package
-// - test pkg: embedded test sources, these should not have their corresponding normal package in the stack
 //
-// the tricky thing is that we need to split test sources and normal source
+// - test pkg: embedded test sources,
+// these should not have their corresponding normal package in their dependencies tree
+//
+// The tricky thing is that we need to split test sources and normal source
 // while not considering them as distincitive packages.
-// Because if we don't we will have false positive if for example we have these edges:
+// Because if we don't we will have false positive for example if we have these edges:
 //
-// foo_pkg/foo_test.go -> bar_pkg/bar.go
-// bar_pkg/bar_test.go -> foo_pkg/foo.go
+// - foo_pkg/foo_test.go imports bar_pkg
 //
-// # The above example if allowed but the following is not
+// - bar_pkg/bar_test.go import foo_pkg
 //
-// foo_pkg/foo.go -> bar_pkg/bar.go
-// bar_pkg/bar_test.go -> foo_pkg/foo.go
+// In go, the above example is allowed
+// but the following is not
 //
-// This implementation can probably be optimized with better graph theory
+// - foo_pkg/foo.go imports bar_pkg
+//
+// - bar_pkg/bar_test.go imports foo_pkg
+//
+// This implementation can be optimized with better graph theory
 func detectCycles(root testPkg, pkgs []testPkg) {
 	// check normal cycles
 	{
@@ -218,6 +226,7 @@ func visitPackage(pkg testPkg, pkgs []testPkg, visited map[string]bool, stack []
 	return nil
 }
 
+// readPkg reads the sources of a package. It includes all .gno files but ignore the package name
 func readPkg(dir string, pkgPath string) (*gnovm.MemPackage, error) {
 	list, err := os.ReadDir(dir)
 	if err != nil {
