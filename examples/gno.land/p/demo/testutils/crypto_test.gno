@@ -1,7 +1,8 @@
 package testutils
+
 import (
-	"fmt"
 	"testing"
+
 	"gno.land/p/demo/uassert"
 )
 

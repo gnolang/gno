@@ -41,7 +41,7 @@ func (e ErrInvalidLength) Error() string {
 type ErrInvalidCharacter rune
 
 func (e ErrInvalidCharacter) Error() string {
-	return "invalid character in string: "+ string(e)
+	return "invalid character in string: " + string(e)
 }
 
 // ErrInvalidSeparatorIndex is returned when the separator character '1' is
@@ -49,7 +49,7 @@ func (e ErrInvalidCharacter) Error() string {
 type ErrInvalidSeparatorIndex int
 
 func (e ErrInvalidSeparatorIndex) Error() string {
-	return "invalid separator index"+ string(e)
+	return "invalid separator index" + string(e)
 }
 
 // ErrNonCharsetChar is returned when a character outside of the specific
@@ -70,8 +70,8 @@ type ErrInvalidChecksum struct {
 }
 
 func (e ErrInvalidChecksum) Error() string {
-	return  "invalid checksum (expected (bech32="+e.Expected+
-		" bech32m=)"+e.ExpectedM +", got "+ e.Actual+ ")"
+	return "invalid checksum (expected (bech32=" + e.Expected +
+		" bech32m=)" + e.ExpectedM + ", got " + e.Actual + ")"
 }
 
 // ErrInvalidDataByte is returned when a byte outside the range required for
@@ -79,5 +79,5 @@ func (e ErrInvalidChecksum) Error() string {
 type ErrInvalidDataByte byte
 
 func (e ErrInvalidDataByte) Error() string {
-	return  "invalid data byte: "+ string(e)
+	return "invalid data byte: " + string(e)
 }
