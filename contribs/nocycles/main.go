@@ -5,9 +5,7 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
-	"strings"
 
-	"github.com/gnolang/gno/gnovm"
 	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
 	"github.com/gnolang/gno/gnovm/pkg/gnolang"
 	"github.com/gnolang/gno/gnovm/pkg/gnomod"
@@ -37,45 +35,24 @@ func main() {
 	pl := gnomod.PkgList{}
 	for _, lib := range libs {
 		memPkg := gnolang.MustReadMemPackage(filepath.Join(stdlibsDir, lib), lib)
-		pkg, xpkg, err := splitMemPackage(memPkg)
+		importsMap, err := packages.Imports(memPkg, nil)
 		if err != nil {
-			panic(fmt.Errorf("split %q: %w", lib, err))
+			panic(fmt.Errorf("read %q: %w", memPkg.Name, err))
 		}
-		{
-			importsMap, err := packages.Imports(pkg, nil)
-			if err != nil {
-				panic(fmt.Errorf("read %q: %w", lib, err))
-			}
-			resRaw := importsMap.Merge(packages.FileKindPackageSource, packages.FileKindTest)
-			imports := make([]string, len(resRaw))
-			for i, imp := range resRaw {
-				imports[i] = imp.PkgPath
-			}
-			pl = append(pl, gnomod.Pkg{
-				Dir:     "",
-				Name:    lib,
-				Imports: imports,
-			})
-		}
-		if !xpkg.IsEmpty() {
-			importsMap, err := packages.Imports(xpkg, nil)
-			if err != nil {
-				panic(fmt.Errorf("read %q: %w", lib, err))
-			}
-			resRaw := importsMap.Merge(packages.FileKindXTest)
-			imports := make([]string, len(resRaw))
-			for i, imp := range resRaw {
-				imports[i] = imp.PkgPath
-			}
+		pl = append(pl, gnomod.Pkg{
+			Dir:     "",
+			Name:    lib,
+			Imports: fileImportsToStrings(importsMap.Merge(packages.FileKindPackageSource, packages.FileKindTest)),
+		})
+		xTestImports := fileImportsToStrings(importsMap.Merge(packages.FileKindXTest))
+		if len(xTestImports) > 0 {
 			pl = append(pl, gnomod.Pkg{
 				Dir:     "",
 				Name:    "_xtest_" + lib,
-				Imports: imports,
+				Imports: xTestImports,
 			})
 		}
 	}
-
-	// TODO: handle sub-pkgs
 
 	// load all examples
 	examples, err := gnomod.ListPkgs(filepath.Join(gnoRoot, "examples"))
@@ -94,40 +71,23 @@ func main() {
 			continue
 		}
 
-		pkg, xpkg, err := splitMemPackage(memPkg)
+		importsMap, err := packages.Imports(memPkg, nil)
 		if err != nil {
-			panic(fmt.Errorf("split %q: %w", pkgPath, err))
+			panic(fmt.Errorf("read %q: %w", pkgPath, err))
 		}
-		{
-			importsMap, err := packages.Imports(pkg, nil)
-			if err != nil {
-				panic(fmt.Errorf("read %q: %w", pkgPath, err))
-			}
-			resRaw := importsMap.Merge(packages.FileKindPackageSource, packages.FileKindTest)
-			imports := make([]string, len(resRaw))
-			for i, imp := range resRaw {
-				imports[i] = imp.PkgPath
-			}
-			pl = append(pl, gnomod.Pkg{
-				Dir:     example.Dir,
-				Name:    pkgPath,
-				Imports: imports,
-			})
-		}
-		if !xpkg.IsEmpty() {
-			importsMap, err := packages.Imports(xpkg, nil)
-			if err != nil {
-				panic(fmt.Errorf("read %q: %w", pkgPath, err))
-			}
-			resRaw := importsMap.Merge(packages.FileKindXTest)
-			imports := make([]string, len(resRaw))
-			for i, imp := range resRaw {
-				imports[i] = imp.PkgPath
-			}
+
+		pl = append(pl, gnomod.Pkg{
+			Dir:     example.Dir,
+			Name:    pkgPath,
+			Imports: fileImportsToStrings(importsMap.Merge(packages.FileKindPackageSource, packages.FileKindTest)),
+		})
+
+		xTestImports := fileImportsToStrings(importsMap.Merge(packages.FileKindXTest))
+		if len(xTestImports) > 0 {
 			pl = append(pl, gnomod.Pkg{
 				Dir:     example.Dir,
 				Name:    "_xtest_" + pkgPath,
-				Imports: imports,
+				Imports: xTestImports,
 			})
 		}
 	}
@@ -144,31 +104,10 @@ func main() {
 	}
 }
 
-func splitMemPackage(pkg *gnovm.MemPackage) (*gnovm.MemPackage, *gnovm.MemPackage, error) {
-	corePkg := gnovm.MemPackage{
-		Name: pkg.Name,
-		Path: pkg.Path,
+func fileImportsToStrings(fis []packages.FileImport) []string {
+	res := make([]string, len(fis))
+	for i, fi := range fis {
+		res[i] = fi.PkgPath
 	}
-	xtestPkg := gnovm.MemPackage{
-		Name: pkg.Name + "_test",
-		Path: pkg.Path,
-	}
-
-	for _, file := range pkg.Files {
-		if !strings.HasSuffix(file.Name, "_test.gno") {
-			corePkg.Files = append(corePkg.Files, file)
-			continue
-		}
-		pkgName, err := packages.FilePackageName(file.Name, file.Body)
-		if err != nil {
-			return nil, nil, fmt.Errorf("get package name in file %q: %w", file.Name, err)
-		}
-		if !strings.HasSuffix(pkgName, "_test") {
-			corePkg.Files = append(corePkg.Files, file)
-			continue
-		}
-		xtestPkg.Files = append(xtestPkg.Files, file)
-	}
-
-	return &corePkg, &xtestPkg, nil
+	return res
 }
