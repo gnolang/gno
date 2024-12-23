@@ -145,7 +145,7 @@ func detectCycles(root testPkg, pkgs []testPkg) error {
 		}
 	}
 
-	// check xtest cycles
+	// check external tests cycles
 	{
 		visited := make(map[string]bool)
 		stack := []string{}
