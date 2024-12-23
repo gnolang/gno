@@ -24,14 +24,11 @@ func CreateBoard(name string) BoardID {
 	caller := std.GetOrigCaller()
 	id := incGetBoardID()
 	args := Args{name, id}
-	gPerm.WithPermission(caller, PermissionBoardCreate, args, func(a Args) {
-		// TODO: Do the callback really need the args or we could have the same result directly referencing?
-		name := a[0].(string)
+	gPerm.WithPermission(caller, PermissionBoardCreate, args, func(Args) {
 		if gBoardsByName.Has(name) {
 			panic("board already exists")
 		}
 
-		id := a[1].(BoardID)
 		board := newBoard(id, name, caller)
 		gBoardsByID.Set(id.Key(), board)
 		gBoardsByName.Set(name, board)
@@ -106,11 +103,8 @@ func DeleteThread(bid BoardID, threadID PostID) {
 
 	caller := std.GetOrigCaller()
 	args := Args{bid, threadID}
-	gPerm.WithPermission(caller, PermissionThreadDelete, args, func(a Args) {
-		bid := a[0].(BoardID)
+	gPerm.WithPermission(caller, PermissionThreadDelete, args, func(Args) {
 		board := mustGetBoard(bid)
-
-		threadID := a[1].(PostID)
 		board.DeleteThread(threadID)
 	})
 }
@@ -128,13 +122,8 @@ func DeleteReply(bid BoardID, threadID, replyID PostID) {
 	caller := std.GetOrigCaller()
 	args := Args{bid, threadID, replyID}
 	gPerm.WithPermission(caller, PermissionReplyDelete, args, func(a Args) {
-		bid := a[0].(BoardID)
 		board := mustGetBoard(bid)
-
-		threadID := a[1].(PostID)
 		thread := mustGetThread(board, threadID)
-
-		replyID := a[2].(PostID)
 		thread.DeleteReply(replyID)
 	})
 }
@@ -147,15 +136,9 @@ func EditThread(bid BoardID, threadID PostID, title, body string) {
 
 	caller := std.GetOrigCaller()
 	args := Args{bid, threadID, title, body}
-	gPerm.WithPermission(caller, PermissionThreadEdit, args, func(a Args) {
-		bid := a[0].(BoardID)
+	gPerm.WithPermission(caller, PermissionThreadEdit, args, func(Args) {
 		board := mustGetBoard(bid)
-
-		threadID := a[1].(PostID)
 		thread := mustGetThread(board, threadID)
-
-		title := a[2].(string)
-		body := a[3].(string)
 		thread.Update(title, body)
 	})
 }
@@ -180,9 +163,7 @@ func InviteMember(user std.Address, role Role) {
 
 	caller := std.GetOrigCaller()
 	args := Args{user, role}
-	gPerm.WithPermission(caller, PermissionMemberInvite, args, func(a Args) {
-		user := a[0].(std.Address)
-		role := a[1].(Role)
+	gPerm.WithPermission(caller, PermissionMemberInvite, args, func(Args) {
 		if err := gPerm.AddUser(user, role); err != nil {
 			panic(err)
 		}
@@ -193,8 +174,7 @@ func RemoveMember(user std.Address) {
 	assertIsUserCall()
 
 	caller := std.GetOrigCaller()
-	gPerm.WithPermission(caller, PermissionMemberRemove, Args{user}, func(a Args) {
-		user := a[0].(std.Address)
+	gPerm.WithPermission(caller, PermissionMemberRemove, Args{user}, func(Args) {
 		if !gPerm.RemoveUser(user) {
 			panic("member not found")
 		}
@@ -209,6 +189,12 @@ func assertIsUserCall() {
 
 func assertHasPermission(user std.Address, p Permission) {
 	if !gPerm.HasPermission(user, p) {
+		panic("unauthorized")
+	}
+}
+
+func assertHasBoardPermission(b *Board, user std.Address, p Permission) {
+	if !b.perms.HasPermission(user, p) {
 		panic("unauthorized")
 	}
 }
