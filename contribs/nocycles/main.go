@@ -42,9 +42,14 @@ func main() {
 			panic(fmt.Errorf("split %q: %w", lib, err))
 		}
 		{
-			imports, err := packages.Imports(pkg)
+			importsMap, err := packages.Imports(pkg, nil)
 			if err != nil {
 				panic(fmt.Errorf("read %q: %w", lib, err))
+			}
+			resRaw := importsMap.Merge(packages.FileKindPackageSource, packages.FileKindTest)
+			imports := make([]string, len(resRaw))
+			for i, imp := range resRaw {
+				imports[i] = imp.PkgPath
 			}
 			pl = append(pl, gnomod.Pkg{
 				Dir:     "",
@@ -53,13 +58,18 @@ func main() {
 			})
 		}
 		if !xpkg.IsEmpty() {
-			imports, err := packages.Imports(xpkg)
+			importsMap, err := packages.Imports(xpkg, nil)
 			if err != nil {
 				panic(fmt.Errorf("read %q: %w", lib, err))
 			}
+			resRaw := importsMap.Merge(packages.FileKindXTest)
+			imports := make([]string, len(resRaw))
+			for i, imp := range resRaw {
+				imports[i] = imp.PkgPath
+			}
 			pl = append(pl, gnomod.Pkg{
 				Dir:     "",
-				Name:    "_test_" + lib,
+				Name:    "_xtest_" + lib,
 				Imports: imports,
 			})
 		}
@@ -89,9 +99,14 @@ func main() {
 			panic(fmt.Errorf("split %q: %w", pkgPath, err))
 		}
 		{
-			imports, err := packages.Imports(pkg)
+			importsMap, err := packages.Imports(pkg, nil)
 			if err != nil {
 				panic(fmt.Errorf("read %q: %w", pkgPath, err))
+			}
+			resRaw := importsMap.Merge(packages.FileKindPackageSource, packages.FileKindTest)
+			imports := make([]string, len(resRaw))
+			for i, imp := range resRaw {
+				imports[i] = imp.PkgPath
 			}
 			pl = append(pl, gnomod.Pkg{
 				Dir:     example.Dir,
@@ -100,13 +115,18 @@ func main() {
 			})
 		}
 		if !xpkg.IsEmpty() {
-			imports, err := packages.Imports(xpkg)
+			importsMap, err := packages.Imports(xpkg, nil)
 			if err != nil {
 				panic(fmt.Errorf("read %q: %w", pkgPath, err))
 			}
+			resRaw := importsMap.Merge(packages.FileKindXTest)
+			imports := make([]string, len(resRaw))
+			for i, imp := range resRaw {
+				imports[i] = imp.PkgPath
+			}
 			pl = append(pl, gnomod.Pkg{
 				Dir:     example.Dir,
-				Name:    "_test_" + pkgPath,
+				Name:    "_xtest_" + pkgPath,
 				Imports: imports,
 			})
 		}
