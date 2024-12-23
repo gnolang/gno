@@ -1,84 +1,48 @@
-// Package collection provides a flexible, indexed data structure for storing and retrieving objects.
-// It supports multiple indexes with various options including unique constraints, case-insensitive
-// matching, sparse indexing, and multi-value indexes.
+// Package collection provides a generic collection implementation with support for
+// multiple indexes, including unique indexes, multi-value indexes, and case-insensitive
+// indexes. It is designed to be used with any type and allows efficient lookups using
+// different fields or computed values.
 //
-// Example usage:
-//
-//	// Define a data type
-//	type User struct {
-//	    Name     string
-//	    Email    string
-//	    Age      int
-//	    Username string
-//	    Tags     []string
-//	}
+// Basic usage:
 //
 //	// Create a new collection
 //	c := collection.New()
 //
-//	// Add indexes with different options
+//	// Add various types of indexes
 //	c.AddIndex("name", func(v interface{}) string {
 //	    return v.(*User).Name
 //	}, UniqueIndex)
 //
 //	c.AddIndex("email", func(v interface{}) string {
 //	    return v.(*User).Email
-//	}, UniqueIndex|CaseInsensitiveIndex)
+//	}, UniqueIndex | CaseInsensitiveIndex)
 //
 //	c.AddIndex("age", func(v interface{}) string {
 //	    return strconv.Itoa(v.(*User).Age)
-//	}, DefaultIndex)  // Non-unique index
-//
-//	c.AddIndex("username", func(v interface{}) string {
-//	    return v.(*User).Username
-//	}, UniqueIndex|SparseIndex)  // Allow empty usernames
+//	}, DefaultIndex)
 //
 //	c.AddIndex("tags", func(v interface{}) []string {
 //	    return v.(*User).Tags
-//	}, MultiValueIndex)  // One object can have multiple tag values
+//	}, MultiValueIndex)
 //
-//	// Insert objects
-//	user1 := &User{
-//	    Name:     "Alice Smith",
-//	    Email:    "alice@example.com",
-//	    Age:      30,
-//	    Username: "alice123",
-//	    Tags:     []string{"admin", "developer"},
-//	}
-//	id1 := c.Set(user1)
+//	// Store an object
+//	id := c.Set(&User{
+//	    Name:  "Alice",
+//	    Email: "alice@example.com",
+//	    Age:   30,
+//	    Tags:  []string{"admin", "staff"},
+//	})
 //
-//	user2 := &User{
-//	    Name:  "Bob Jones",
-//	    Email: "BOB@EXAMPLE.COM",  // Case-insensitive, will be stored lowercase
-//	    Age:   30,                 // Same age as Alice (allowed, non-unique)
-//	    Tags:  []string{"developer"},
-//	}
-//	id2 := c.Set(user2)
+//	// Retrieve by any index
+//	entry = c.Get("email", "alice@example.com")
+//	entries := c.GetAll("tags", "admin")
 //
-//	// Retrieve objects in different ways
-//	obj1, id := c.Get("name", "Alice Smith")     // By unique name
-//	obj2, id := c.Get("email", "bob@example.com") // Case-insensitive
-//	obj3, id := c.Get(IDIndex, id1.String())     // Direct by ID
-//
-//	// Retrieve all objects matching a multi-value index
-//	entries, ok := c.GetAll("tags", "developer")  // Get all users with "developer" tag
-//	if ok {
-//	    for _, entry := range entries {
-//	        user := entry.Obj.(*User)
-//	        ufmt.Printf("Developer: %s (ID: %s)\n", user.Name, entry.ID)
-//	    }
-//	}
-//
-//	// Update an object
-//	user1.Email = "alice.smith@example.com"
-//	c.Update(id1, user1)
-//
-//	// Delete an object
-//	c.Delete(id2)
-//
-// The package maintains consistency across all indexes and enforces uniqueness
-// constraints where specified. It's particularly useful for building indexed
-// collections where objects need to be retrieved efficiently by different fields.
+// Index options can be combined using the bitwise OR operator:
+//   - UniqueIndex: Ensures values are unique within the index
+//   - MultiValueIndex: Allows storing multiple values for a single key
+//   - CaseInsensitiveIndex: Makes string comparisons case-insensitive
+//   - SparseIndex: Skips indexing empty values
+//   - DefaultIndex: Regular index with no special behavior
 package collection
 
 import (
@@ -329,27 +293,19 @@ func (c *Collection) Set(obj interface{}) uint64 {
 	return uint64(id)
 }
 
-// Get retrieves an object by index and key, returns (object, id).
-//
-// If it's a MultiValueIndex, only the first found ID is returned.
-// For a more complete "GetAll", you'll need a separate method to iterate
-// all stored IDs in that key's slice.
-func (c *Collection) Get(indexName, key string) (interface{}, uint64) {
+// Get retrieves an object by index and key, returns an Entry or nil if not found.
+func (c *Collection) Get(indexName, key string) *Entry {
 	idx, exists := c.indexes[indexName]
 	if !exists {
-		return nil, 0
+		return nil
 	}
 
 	if indexName == IDIndex {
 		obj, exists := idx.tree.Get(key)
 		if !exists {
-			return nil, 0
+			return nil
 		}
-		id, err := seqid.FromString(key)
-		if err != nil {
-			return nil, 0
-		}
-		return obj, uint64(id)
+		return &Entry{ID: key, Obj: obj}
 	}
 
 	// For other indexes
@@ -359,42 +315,34 @@ func (c *Collection) Get(indexName, key string) (interface{}, uint64) {
 
 	idData, exists := idx.tree.Get(key)
 	if !exists {
-		return nil, 0
+		return nil
 	}
 
 	// If multi-value, just return the first object found
 	if idx.options&MultiValueIndex != 0 {
 		list, ok := idData.([]string)
 		if !ok || len(list) == 0 {
-			return nil, 0
+			return nil
 		}
 		// Get the first ID from the slice
 		idStr := list[0]
 		obj, exists := c.indexes[IDIndex].tree.Get(idStr)
 		if !exists {
-			return nil, 0
+			return nil
 		}
-		idVal, err := seqid.FromString(idStr)
-		if err != nil {
-			return nil, 0
-		}
-		return obj, uint64(idVal)
+		return &Entry{ID: idStr, Obj: obj}
 	}
 
 	// single-value index
 	idStr, ok := idData.(string)
 	if !ok {
-		return nil, 0
+		return nil
 	}
 	obj, exists := c.indexes[IDIndex].tree.Get(idStr)
 	if !exists {
-		return nil, 0
+		return nil
 	}
-	idVal, err := seqid.FromString(idStr)
-	if err != nil {
-		return nil, 0
-	}
-	return obj, uint64(idVal)
+	return &Entry{ID: idStr, Obj: obj}
 }
 
 // Entry represents a single object with its ID in the collection
@@ -404,10 +352,10 @@ type Entry struct {
 }
 
 // GetAll retrieves all entries matching the given key in the specified index.
-func (c *Collection) GetAll(indexName, key string) ([]Entry, bool) {
+func (c *Collection) GetAll(indexName, key string) []Entry {
 	idx, exists := c.indexes[indexName]
 	if !exists {
-		return nil, false
+		return nil
 	}
 
 	if idx.options&CaseInsensitiveIndex != 0 {
@@ -417,14 +365,14 @@ func (c *Collection) GetAll(indexName, key string) ([]Entry, bool) {
 	// Special handling for ID index
 	if indexName == IDIndex {
 		if obj, exists := idx.tree.Get(key); exists {
-			return []Entry{{ID: key, Obj: obj}}, true
+			return []Entry{{ID: key, Obj: obj}}
 		}
-		return nil, false
+		return nil
 	}
 
 	idData, exists := idx.tree.Get(key)
 	if !exists {
-		return nil, false
+		return nil
 	}
 
 	// For multi-value indexes
@@ -436,18 +384,18 @@ func (c *Collection) GetAll(indexName, key string) ([]Entry, bool) {
 					result = append(result, Entry{ID: idStr, Obj: obj})
 				}
 			}
-			return result, len(result) > 0
+			return result
 		}
-		return nil, false
+		return nil
 	}
 
 	// For single-value indexes
 	if idStr, ok := idData.(string); ok {
 		if obj, exists := c.indexes[IDIndex].tree.Get(idStr); exists {
-			return []Entry{{ID: idStr, Obj: obj}}, true
+			return []Entry{{ID: idStr, Obj: obj}}
 		}
 	}
-	return nil, false
+	return nil
 }
 
 // GetIndex returns the underlying tree for an index

@@ -51,11 +51,11 @@ func TestBasicOperations(t *testing.T) {
 	}
 
 	// Get by ID
-	obj1, gotId := c.Get(IDIndex, seqid.ID(id1).String())
-	if gotId == 0 {
+	entry := c.Get(IDIndex, seqid.ID(id1).String())
+	if entry == nil {
 		t.Error("Failed to get object by ID")
 	}
-	if obj1.(*Person).Name != "Alice" {
+	if entry.Obj.(*Person).Name != "Alice" {
 		t.Error("Got wrong object")
 	}
 }
@@ -198,9 +198,9 @@ func TestDelete(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			c.Delete(tt.id)
-			_, gotId := c.Get(IDIndex, seqid.ID(tt.id).String())
-			if (gotId != 0) != tt.wantObj {
-				t.Errorf("After Delete(), Get() returned object: %v, want object: %v", gotId != 0, tt.wantObj)
+			entry := c.Get(IDIndex, seqid.ID(tt.id).String())
+			if entry != nil {
+				t.Errorf("After Delete(), Get() returned object: %v, want object: %v", entry != nil, tt.wantObj)
 			}
 		})
 	}
@@ -215,7 +215,6 @@ func TestEdgeCases(t *testing.T) {
 	tests := []struct {
 		name      string
 		operation func() uint64
-		wantID    uint64
 		wantPanic bool
 	}{
 		{
@@ -223,7 +222,6 @@ func TestEdgeCases(t *testing.T) {
 			operation: func() uint64 {
 				return c.Set(nil)
 			},
-			wantID:    0,
 			wantPanic: false,
 		},
 		{
@@ -231,7 +229,6 @@ func TestEdgeCases(t *testing.T) {
 			operation: func() uint64 {
 				return c.Set("not a person")
 			},
-			wantID:    0,
 			wantPanic: false,
 		},
 		{
@@ -240,16 +237,21 @@ func TestEdgeCases(t *testing.T) {
 				id := c.Set(&Person{Name: "Test"})
 				return c.Update(id, nil)
 			},
-			wantID:    0,
 			wantPanic: false,
 		},
 		{
 			name: "Get with invalid index name",
 			operation: func() uint64 {
-				_, id := c.Get("invalid_index", "key")
-				return id
+				entry := c.Get("invalid_index", "key")
+				if entry == nil {
+					return 0
+				}
+				id, err := seqid.FromString(entry.ID)
+				if err != nil {
+					return 0
+				}
+				return uint64(id)
 			},
-			wantID:    0,
 			wantPanic: false,
 		},
 	}
@@ -271,8 +273,8 @@ func TestEdgeCases(t *testing.T) {
 			if panicked != tt.wantPanic {
 				t.Errorf("Operation panicked = %v, want panic = %v", panicked, tt.wantPanic)
 			}
-			if !panicked && gotID != tt.wantID {
-				t.Errorf("Operation returned %v, want %v", gotID, tt.wantID)
+			if !panicked && gotID != 0 {
+				t.Errorf("Operation returned %v, want 0", gotID)
 			}
 		})
 	}
@@ -391,10 +393,10 @@ func TestConcurrentOperations(t *testing.T) {
 	id1 := c.Set(p1)
 
 	// Get and Update simultaneously
-	obj, gotId := c.Get(IDIndex, seqid.ID(id1).String())
+	entry := c.Get(IDIndex, seqid.ID(id1).String())
 	newID := c.Update(id1, &Person{Name: "Alice2"})
 
-	if gotId == 0 || newID == 0 {
+	if entry == nil || newID == 0 {
 		t.Error("Concurrent operations failed")
 	}
 }
@@ -560,12 +562,12 @@ func TestCaseInsensitiveGet(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			obj, gotId := c.Get("email", tt.key)
-			if (obj != nil) != tt.wantObj {
-				t.Errorf("Get() got object = %v, want object = %v", obj != nil, tt.wantObj)
+			entry := c.Get("email", tt.key)
+			if (entry != nil) != tt.wantObj {
+				t.Errorf("Get() got object = %v, want object = %v", entry != nil, tt.wantObj)
 			}
-			if tt.wantObj && gotId != id {
-				t.Errorf("Get() got id = %v, want id = %v", gotId, id)
+			if tt.wantObj && entry.ID != seqid.ID(id).String() {
+				t.Errorf("Get() got id = %v, want id = %v", entry.ID, seqid.ID(id).String())
 			}
 		})
 	}
@@ -573,9 +575,9 @@ func TestCaseInsensitiveGet(t *testing.T) {
 
 func TestGetInvalidID(t *testing.T) {
 	c := New()
-	obj, id := c.Get(IDIndex, "not-a-valid-id")
-	if obj != nil || id != 0 {
-		t.Errorf("Get() with invalid ID format got (obj=%v, id=%v), want (nil, 0)", obj, id)
+	entry := c.Get(IDIndex, "not-a-valid-id")
+	if entry != nil {
+		t.Errorf("Get() with invalid ID format got entry=%v, want nil", entry)
 	}
 }
 
@@ -687,8 +689,8 @@ func TestMultiValueDelete(t *testing.T) {
 	}
 
 	// Double-check that Alice is not retrievable by her ID
-	_, gotId := c.Get(IDIndex, seqid.ID(idAlice).String())
-	if gotId != 0 {
+	entry := c.Get(IDIndex, seqid.ID(idAlice).String())
+	if entry != nil {
 		t.Errorf("Expected Alice with ID %v to be deleted but she is still present", idAlice)
 	}
 }
@@ -725,72 +727,54 @@ func TestGetAll(t *testing.T) {
 		indexName string
 		key       string
 		wantLen   int
-		wantOK    bool
 	}{
 		{
 			name:      "Multi-value index with multiple matches",
 			indexName: "tags",
 			key:       "dev",
 			wantLen:   3,
-			wantOK:    true,
 		},
 		{
 			name:      "Multi-value index with single match",
 			indexName: "tags",
 			key:       "go",
 			wantLen:   1,
-			wantOK:    true,
 		},
 		{
 			name:      "Multi-value index with no matches",
 			indexName: "tags",
 			key:       "java",
 			wantLen:   0,
-			wantOK:    false,
 		},
 		{
 			name:      "Single-value non-unique index with multiple matches",
 			indexName: "age",
 			key:       "30",
 			wantLen:   1, // GetAll still returns just one entry for non-MultiValueIndex
-			wantOK:    true,
 		},
 		{
 			name:      "Single-value unique index",
 			indexName: "name",
 			key:       "Alice",
 			wantLen:   1,
-			wantOK:    true,
 		},
 		{
 			name:      "Non-existent index",
 			indexName: "invalid",
 			key:       "value",
 			wantLen:   0,
-			wantOK:    false,
 		},
 		{
 			name:      "ID index",
 			indexName: IDIndex,
 			key:       seqid.ID(ids[0]).String(),
 			wantLen:   1,
-			wantOK:    true,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			entries, ok := c.GetAll(tt.indexName, tt.key)
-			if ok != tt.wantOK {
-				t.Errorf("GetAll() ok = %v, want %v", ok, tt.wantOK)
-			}
-
-			if !ok {
-				if entries != nil {
-					t.Error("GetAll() returned non-nil list when ok is false")
-				}
-				return
-			}
+			entries := c.GetAll(tt.indexName, tt.key)
 
 			if len(entries) != tt.wantLen {
 				t.Errorf("GetAll() returned %d entries, want %d", len(entries), tt.wantLen)
@@ -822,47 +806,40 @@ func TestGetAllWithCaseInsensitive(t *testing.T) {
 	}
 
 	tests := []struct {
-		name   string
-		key    string
-		wantOK bool
+		name    string
+		key     string
+		wantLen int
 	}{
 		{
-			name:   "Exact match",
-			key:    "Test@Example.com",
-			wantOK: true,
+			name:    "Exact match",
+			key:     "Test@Example.com",
+			wantLen: 1,
 		},
 		{
-			name:   "Different case",
-			key:    "test@example.COM",
-			wantOK: true,
+			name:    "Different case",
+			key:     "test@example.COM",
+			wantLen: 1,
 		},
 		{
-			name:   "Non-existent",
-			key:    "other@example.com",
-			wantOK: false,
+			name:    "Non-existent",
+			key:     "other@example.com",
+			wantLen: 0,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			entries, ok := c.GetAll("email", tt.key)
-			if ok != tt.wantOK {
-				t.Errorf("GetAll() ok = %v, want %v", ok, tt.wantOK)
+			entries := c.GetAll("email", tt.key)
+
+			if len(entries) != tt.wantLen {
+				t.Errorf("GetAll() returned %d entries, want %d", len(entries), tt.wantLen)
 			}
-			if !ok {
-				if entries != nil {
-					t.Error("GetAll() returned non-nil list when ok is false")
+
+			if tt.wantLen > 0 {
+				entry := entries[0]
+				if entry.ID != seqid.ID(id).String() {
+					t.Errorf("GetAll() returned ID %s, want %s", entry.ID, seqid.ID(id).String())
 				}
-				return
-			}
-
-			if len(entries) != 1 {
-				t.Errorf("GetAll() returned %d entries, want 1", len(entries))
-			}
-
-			entry := entries[0]
-			if entry.ID != seqid.ID(id).String() {
-				t.Errorf("GetAll() returned ID %s, want %s", entry.ID, seqid.ID(id).String())
 			}
 		})
 	}
