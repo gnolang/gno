@@ -1,154 +1,140 @@
-// Package udao defines minimal interfaces for Decentralized Autonomous Organizations (DAOs).
-// It intentionally does not expose members and votes, as these details are implementation-specific.
-// Instead, it focuses on providing an external view of proposals and their statuses,
-// which is what non-members and non-voters typically care about.
-//
-// The package is designed to allow for composable DAO patterns, enabling flexible
-// and modular implementations of various DAO structures and behaviors.
 package udao
 
 import (
 	"time"
 
-	"gno.land/p/demo/avl/rolist"
+	"gno.land/p/demo/avl/list"
 )
 
-//-----------------------------------------------------------------------------
-// DAO Interfaces
-//-----------------------------------------------------------------------------
-
-// LightDAO defines a minimal interface for a Decentralized Autonomous Organization
-// without proposal listing capabilities
-type LightDAO interface {
-	// Propose submits a new proposal to the DAO and returns the created Proposal
-	Propose(definition PropDefinition) (Proposal, error)
-
-	// GetProposal retrieves a specific proposal
-	GetProposal(proposalID uint64) (Proposal, error)
-
-	// Execute attempts to execute a proposal if it has passed
-	Execute(proposalID uint64) error
-
-	// Len returns the total number of proposals
-	Len() int
+// BasicProposal implements the Proposal interface
+type BasicProposal struct {
+	id         uint64
+	definition PropDefinition
+	state      PropState
+	yea        float64
+	nay        float64
+	abstain    float64
+	pending    float64
 }
 
-// DAO extends LightDAO with proposal listing capabilities
-type DAO interface {
-	LightDAO
+func (p BasicProposal) ID() uint64                         { return p.id }
+func (p BasicProposal) Definition() PropDefinition         { return p.definition }
+func (p BasicProposal) GetState() PropState                { return p.state }
+func (p BasicProposal) GetYeaPercentage() float64          { return p.yea }
+func (p BasicProposal) GetNayPercentage() float64          { return p.nay }
+func (p BasicProposal) GetAbstainPercentage() float64      { return p.abstain }
+func (p BasicProposal) GetPendingVoterPercentage() float64 { return p.pending }
 
-	// ActiveProposals returns a read-only list of active proposals
-	ActiveProposals() PropList
-
-	// ArchivedProposals returns a read-only list of archived proposals
-	ArchivedProposals() PropList
+// BasicPropDefinition implements PropDefinition
+type BasicPropDefinition struct {
+	title    string
+	body     string
+	created  time.Time
+	finished time.Time
 }
 
-// Proposal represents a complete proposal including its ID, definition and status
-type Proposal interface {
-	ID() uint64
-	Definition() PropDefinition
-	PropStatus
+func (d BasicPropDefinition) Title() string       { return d.title }
+func (d BasicPropDefinition) Body() string        { return d.body }
+func (d BasicPropDefinition) Created() time.Time  { return d.created }
+func (d BasicPropDefinition) Finished() time.Time { return d.finished }
+func (d BasicPropDefinition) CheckConstraints() (valid bool, reasons []string) {
+	panic("not implemented")
 }
 
-//-----------------------------------------------------------------------------
-// Proposal Types & Helpers
-//-----------------------------------------------------------------------------
-
-// PropDefinition defines the interface for a DAO proposal
-type PropDefinition interface {
-	Title() string
-	Body() string
-	Created() time.Time
-	Constraints() []Constraint
+// BasicDAO provides a minimal implementation of the DAO interface
+type BasicDAO struct {
+	proposals map[uint64]Proposal
+	nextID    uint64
+	active    *list.List
+	archived  *list.List
 }
 
-// PropStatus represents the current status and metrics of a proposal
-type PropStatus struct {
-	// status
-	State PropState
-
-	// metrics
-	YeaPercentage          float64
-	NayPercentage          float64
-	AbstainPercentage      float64
-	PendingVoterPercentage float64
-	// XXX: other metrics?
+// NewBasicDAO creates a new BasicDAO instance
+func NewBasicDAO() *BasicDAO {
+	return &BasicDAO{
+		proposals: make(map[uint64]Proposal),
+		nextID:    1,
+		active:    &list.List{},
+		archived:  &list.List{},
+	}
 }
 
-// PropState represents the current state of a proposal
-type PropState string
-
-const (
-	Pending  PropState = "pending"
-	Active   PropState = "active"
-	Passed   PropState = "passed"
-	Rejected PropState = "rejected"
-	Executed PropState = "executed"
-	Expired  PropState = "expired"
-)
-
-// Constraint defines an interface for proposal constraints
-type Constraint interface {
-	Validate() (valid bool, description string)
+func (d *BasicDAO) Propose(def PropDefinition) (Proposal, error) {
+	prop := BasicProposal{
+		id:         d.nextID,
+		definition: def,
+		state:      Pending,
+		yea:        0,
+		nay:        0,
+		abstain:    0,
+		pending:    100,
+	}
+	d.proposals[d.nextID] = prop
+	d.active.Append(prop)
+	d.nextID++
+	return prop, nil
 }
 
-// ValidateConstraints checks if all constraints of a proposal are met
-func ValidateConstraints(p Proposal) (bool, []string) {
-	reasons := make([]string, 0)
-	for _, c := range p.Definition().Constraints() {
-		if valid, reason := c.Validate(); !valid {
-			reasons = append(reasons, reason)
+func (d *BasicDAO) GetProposal(proposalID uint64) (Proposal, error) {
+	if prop, ok := d.proposals[proposalID]; ok {
+		return prop, nil
+	}
+	return nil, nil
+}
+
+func (d *BasicDAO) Execute(proposalID uint64) error {
+	if prop, ok := d.proposals[proposalID]; ok {
+		if prop.GetState() == Passed {
+			newProp := prop.(BasicProposal)
+			newProp.state = Executed
+			d.proposals[proposalID] = newProp
+
+			// Move from active to archived
+			for i := 0; i < d.active.Len(); i++ {
+				if p := d.active.Get(i).(Proposal); p.ID() == proposalID {
+					d.active.Delete(i)
+					d.archived.Append(newProp)
+					break
+				}
+			}
+			return nil
 		}
 	}
-	return len(reasons) == 0, reasons
+	return nil
 }
 
-//-----------------------------------------------------------------------------
-// PropList Interface & Implementation
-//-----------------------------------------------------------------------------
-
-// PropList defines the read-only operations available on a proposal list
-type PropList interface {
-	Len() int
-	Get(index int) Proposal
-	Slice(startIndex, endIndex int) []Proposal
+func (d *BasicDAO) ActiveProposals() PropList {
+	return WrapAsPropList(d.active)
 }
 
-// PropListWrapper wraps an IReadOnlyList to implement PropList
-type PropListWrapper struct {
-	list rolist.IReadOnlyList
+func (d *BasicDAO) ArchivedProposals() PropList {
+	return WrapAsPropList(d.archived)
 }
 
-// WrapAsPropList converts an IReadOnlyList to a PropList
-func WrapAsPropList(list rolist.IReadOnlyList) PropList {
-	return &PropListWrapper{list: list}
+func (d *BasicDAO) Len() int {
+	return len(d.proposals)
 }
 
-// Len returns the number of proposals in the list
-func (pl *PropListWrapper) Len() int {
-	return pl.list.Len()
-}
-
-// Get returns the proposal and status at the specified index
-func (pl *PropListWrapper) Get(index int) Proposal {
-	value := pl.list.Get(index)
-	if value == nil {
+// Helper methods for managing proposal state
+func (d *BasicDAO) UpdateProposalState(proposalID uint64, state PropState) error {
+	if prop, ok := d.proposals[proposalID]; ok {
+		newProp := prop.(BasicProposal)
+		newProp.state = state
+		d.proposals[proposalID] = newProp
 		return nil
 	}
-	return value.(Proposal)
+	return nil
 }
 
-// Slice returns a slice of proposals from startIndex to endIndex
-func (pl *PropListWrapper) Slice(startIndex, endIndex int) []Proposal {
-	values := pl.list.Slice(startIndex, endIndex)
-	if values == nil {
+func (d *BasicDAO) UpdateVotingPercentages(proposalID uint64, yea, nay, abstain, pending float64) error {
+	if prop, ok := d.proposals[proposalID]; ok {
+		newProp := prop.(BasicProposal)
+		newProp.yea = yea
+		newProp.nay = nay
+		newProp.abstain = abstain
+		newProp.pending = pending
+		d.proposals[proposalID] = newProp
 		return nil
 	}
-
-	result := make([]Proposal, len(values))
-	for i, v := range values {
-		result[i] = v.(Proposal)
-	}
-	return result
+	return nil
 }
