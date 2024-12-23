@@ -38,6 +38,9 @@ cache_dir := .cache
 # Install dependencies
 all: generate
 
+test:
+	go test -v ./...
+
 # Generate process
 generate: css ts static
 
