@@ -5,9 +5,6 @@ on:
     branches:
       - master
   pull_request:
-    paths:
-      - gnovm/**/*.gno
-      - examples/**/*.gno
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.head_ref || github.run_id }}
@@ -80,7 +77,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        go-version: [ "1.22.x" ]
+        go-version: ["1.22.x"]
         # unittests: TODO: matrix with contracts
     runs-on: ubuntu-latest
     timeout-minutes: 10

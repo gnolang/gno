@@ -4,11 +4,6 @@ on:
   push:
     branches:
       - master
-    paths:
-      - contribs/**/*.go
-      - gno.land/**/*.go
-      - gnovm/**/*.go
-      - tm2/**/*.go
 
 permissions:
   # deployments permission to deploy GitHub pages website
@@ -22,7 +17,7 @@ env:
 jobs:
   benchmarks:
     if: ${{ github.repository == 'gnolang/gno' }}
-    runs-on: [ self-hosted, Linux, X64, benchmarks ]
+    runs-on: [self-hosted, Linux, X64, benchmarks]
     steps:
       - name: Checkout
         uses: actions/checkout@v4
