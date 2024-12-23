@@ -5,6 +5,7 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 
 	"github.com/gnolang/gno/gnovm"
@@ -38,12 +39,12 @@ type (
 // sortPkgs sorts the given packages by their dependencies.
 func (pl PkgList) Sort() (SortedPkgList, error) {
 	visited := make(map[string]bool)
-	onStack := make(map[string]bool)
+	stack := []string{}
 	sortedPkgs := make([]Pkg, 0, len(pl))
 
 	// Visit all packages
 	for _, p := range pl {
-		if err := visitPackage(p, pl, visited, onStack, &sortedPkgs); err != nil {
+		if err := visitPackage(p, pl, visited, stack, &sortedPkgs); err != nil {
 			return nil, err
 		}
 	}
@@ -51,26 +52,32 @@ func (pl PkgList) Sort() (SortedPkgList, error) {
 	return sortedPkgs, nil
 }
 
+var injectedTestingLibs = []string{"encoding/json", "fmt", "os", "internal/os_test"}
+
 // visitNode visits a package's and its dependencies dependencies and adds them to the sorted list.
-func visitPackage(pkg Pkg, pkgs []Pkg, visited, onStack map[string]bool, sortedPkgs *[]Pkg) error {
-	if onStack[pkg.Name] {
-		return fmt.Errorf("cycle detected: %s", pkg.Name)
+func visitPackage(pkg Pkg, pkgs []Pkg, visited map[string]bool, stack []string, sortedPkgs *[]Pkg) error {
+	if slices.Contains(stack, pkg.Name) {
+		return fmt.Errorf("cycle detected: %s -> %s", strings.Join(stack, " -> "), pkg.Name)
 	}
 	if visited[pkg.Name] {
 		return nil
 	}
 
 	visited[pkg.Name] = true
-	onStack[pkg.Name] = true
+	stack = append(stack, pkg.Name)
 
 	// Visit package's dependencies
 	for _, imp := range pkg.Imports {
+		if slices.Contains(injectedTestingLibs, imp) {
+			continue
+		}
+
 		found := false
 		for _, p := range pkgs {
 			if p.Name != imp {
 				continue
 			}
-			if err := visitPackage(p, pkgs, visited, onStack, sortedPkgs); err != nil {
+			if err := visitPackage(p, pkgs, visited, stack, sortedPkgs); err != nil {
 				return err
 			}
 			found = true
@@ -81,7 +88,6 @@ func visitPackage(pkg Pkg, pkgs []Pkg, visited, onStack map[string]bool, sortedP
 		}
 	}
 
-	onStack[pkg.Name] = false
 	*sortedPkgs = append(*sortedPkgs, pkg)
 	return nil
 }
@@ -121,16 +127,17 @@ func ListPkgs(root string) (PkgList, error) {
 			pkg = &gnovm.MemPackage{}
 		}
 
-		importsRaw, err := packages.Imports(pkg, nil)
+		importsMap, err := packages.Imports(pkg, nil)
 		if err != nil {
 			// ignore imports on error
-			importsRaw = nil
+			importsMap = nil
 		}
+		importsRaw := importsMap.Merge(packages.FileKindPackageSource, packages.FileKindTest, packages.FileKindXTest)
+
 		imports := make([]string, 0, len(importsRaw))
 		for _, imp := range importsRaw {
-			// remove self and standard libraries from imports
-			if imp.PkgPath != gnoMod.Module.Mod.Path &&
-				!gnolang.IsStdlib(imp.PkgPath) {
+			// remove standard libraries from imports
+			if !gnolang.IsStdlib(imp.PkgPath) {
 				imports = append(imports, imp.PkgPath)
 			}
 		}

@@ -2,11 +2,12 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package strconv
+package strconv_test
 
 import (
 	"math"
 	"math/rand"
+	"strconv"
 	"testing"
 )
 
@@ -176,20 +177,20 @@ var ftoatests = []ftoaTest{
 func TestFtoa(t *testing.T) {
 	for i := 0; i < len(ftoatests); i++ {
 		test := &ftoatests[i]
-		s := FormatFloat(test.f, test.fmt, test.prec, 64)
+		s := strconv.FormatFloat(test.f, test.fmt, test.prec, 64)
 		if s != test.s {
 			t.Error("testN=64", test.f, string(test.fmt), test.prec, "want", test.s, "got", s)
 		}
-		x := AppendFloat([]byte("abc"), test.f, test.fmt, test.prec, 64)
+		x := strconv.AppendFloat([]byte("abc"), test.f, test.fmt, test.prec, 64)
 		if string(x) != "abc"+test.s {
 			t.Error("AppendFloat testN=64", test.f, string(test.fmt), test.prec, "want", "abc"+test.s, "got", string(x))
 		}
 		if float64(float32(test.f)) == test.f && test.fmt != 'b' {
-			s := FormatFloat(test.f, test.fmt, test.prec, 32)
+			s := strconv.FormatFloat(test.f, test.fmt, test.prec, 32)
 			if s != test.s {
 				t.Error("testN=32", test.f, string(test.fmt), test.prec, "want", test.s, "got", s)
 			}
-			x := AppendFloat([]byte("abc"), test.f, test.fmt, test.prec, 32)
+			x := strconv.AppendFloat([]byte("abc"), test.f, test.fmt, test.prec, 32)
 			if string(x) != "abc"+test.s {
 				t.Error("AppendFloat testN=32", test.f, string(test.fmt), test.prec, "want", "abc"+test.s, "got", string(x))
 			}
@@ -201,15 +202,15 @@ func TestFtoaPowersOfTwo(t *testing.T) {
 	for exp := -2048; exp <= 2048; exp++ {
 		f := math.Ldexp(1, exp)
 		if !math.IsInf(f, 0) {
-			s := FormatFloat(f, 'e', -1, 64)
-			if x, _ := ParseFloat(s, 64); x != f {
+			s := strconv.FormatFloat(f, 'e', -1, 64)
+			if x, _ := strconv.ParseFloat(s, 64); x != f {
 				t.Errorf("failed roundtrip %v => %s => %v", f, s, x)
 			}
 		}
 		f32 := float32(f)
 		if !math.IsInf(float64(f32), 0) {
-			s := FormatFloat(float64(f32), 'e', -1, 32)
-			if x, _ := ParseFloat(s, 32); float32(x) != f32 {
+			s := strconv.FormatFloat(float64(f32), 'e', -1, 32)
+			if x, _ := strconv.ParseFloat(s, 32); float32(x) != f32 {
 				t.Errorf("failed roundtrip %v => %s => %v", f32, s, float32(x))
 			}
 		}
@@ -226,19 +227,19 @@ func TestFtoaRandom(t *testing.T) {
 		bits := uint64(rand.Uint32())<<32 | uint64(rand.Uint32())
 		x := math.Float64frombits(bits)
 
-		shortFast := FormatFloat(x, 'g', -1, 64)
-		SetOptimize(false)
-		shortSlow := FormatFloat(x, 'g', -1, 64)
-		SetOptimize(true)
+		shortFast := strconv.FormatFloat(x, 'g', -1, 64)
+		strconv.SetOptimize(false)
+		shortSlow := strconv.FormatFloat(x, 'g', -1, 64)
+		strconv.SetOptimize(true)
 		if shortSlow != shortFast {
 			t.Errorf("%b printed as %s, want %s", x, shortFast, shortSlow)
 		}
 
 		prec := rand.IntN(12) + 5
-		shortFast = FormatFloat(x, 'e', prec, 64)
-		SetOptimize(false)
-		shortSlow = FormatFloat(x, 'e', prec, 64)
-		SetOptimize(true)
+		shortFast = strconv.FormatFloat(x, 'e', prec, 64)
+		strconv.SetOptimize(false)
+		shortSlow = strconv.FormatFloat(x, 'e', prec, 64)
+		strconv.SetOptimize(true)
 		if shortSlow != shortFast {
 			t.Errorf("%b printed as %s, want %s", x, shortFast, shortSlow)
 		}
@@ -251,7 +252,7 @@ func TestFormatFloatInvalidBitSize(t *testing.T) {
 			t.Fatalf("expected panic due to invalid bitSize")
 		}
 	}()
-	_ = FormatFloat(3.14, 'g', -1, 100)
+	_ = strconv.FormatFloat(3.14, 'g', -1, 100)
 }
 
 var ftoaBenches = []struct {
@@ -305,7 +306,7 @@ func BenchmarkFormatFloat(b *testing.B) {
 	for _, c := range ftoaBenches {
 		b.Run(c.name, func(b *testing.B) {
 			for i := 0; i < b.N; i++ {
-				FormatFloat(c.float, c.fmt, c.prec, c.bitSize)
+				strconv.FormatFloat(c.float, c.fmt, c.prec, c.bitSize)
 			}
 		})
 	}
@@ -316,7 +317,7 @@ func BenchmarkAppendFloat(b *testing.B) {
 	for _, c := range ftoaBenches {
 		b.Run(c.name, func(b *testing.B) {
 			for i := 0; i < b.N; i++ {
-				AppendFloat(dst[:0], c.float, c.fmt, c.prec, c.bitSize)
+				strconv.AppendFloat(dst[:0], c.float, c.fmt, c.prec, c.bitSize)
 			}
 		})
 	}
