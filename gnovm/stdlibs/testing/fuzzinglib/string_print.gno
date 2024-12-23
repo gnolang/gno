@@ -36,29 +36,6 @@ func sliceToString(slice []uint) string {
 	return sb.String()
 }
 
-// []Seed 슬라이스를 문자열로 변환
-func seedsToString(seeds []Seed) string {
-	if len(seeds) == 0 {
-		return "[]"
-	}
-
-	var sb strings.Builder
-	sb.WriteString("[\n")
-	for _, seed := range seeds {
-		sb.WriteString("    {Gen: ")
-		sb.WriteString(uintToString(seed.Gen))
-		sb.WriteString(", IsUsed: ")
-		sb.WriteString(boolToString(seed.IsUsed))
-		sb.WriteString(", Content: ")
-		sb.WriteString(seed.Content)
-		sb.WriteString(", Result: ")
-		sb.WriteString(interfaceToString(seed.Result))
-		sb.WriteString("},\n")
-	}
-	sb.WriteString("]")
-	return sb.String()
-}
-
 // interface{} 값을 문자열로 변환
 func interfaceToString(i interface{}) string {
 	switch v := i.(type) {
@@ -80,4 +57,35 @@ func interfaceToString(i interface{}) string {
 	default:
 		return "unknown"
 	}
+}
+
+func interfacesliceToString(slice []interface{}) string {
+	var sb strings.Builder
+	sb.WriteString("[")
+	for i, elem := range slice {
+		sb.WriteString(interfaceToString(elem)) // 각 요소를 문자열로 변환
+		if i < len(slice)-1 {
+			sb.WriteString(", ")
+		}
+	}
+	sb.WriteString("]")
+	return sb.String()
+}
+
+// coverageToString: Coverage 타입을 문자열로 변환
+func coverageToString(coverage Coverage) string {
+	var sb strings.Builder
+	sb.WriteString("[")
+	for i, line := range coverage {
+		sb.WriteString("{co_name: ")
+		sb.WriteString(line.co_name)
+		sb.WriteString(", co_line: ")
+		sb.WriteString(strconv.Itoa(line.co_line)) // fmt.Sprintf 대신 strconv 사용
+		sb.WriteString("}")
+		if i < len(coverage)-1 {
+			sb.WriteString(", ")
+		}
+	}
+	sb.WriteString("]")
+	return sb.String()
 }

@@ -1,15 +1,47 @@
 package fuzzinglib
 
-import "strings"
+import (
+	"strconv"
+	"strings"
+)
 
+type SupportedType string
+
+const (
+	Byte_Array SupportedType = "[]byte"
+	String     SupportedType = "string"
+	Bool       SupportedType = "bool"
+	Byte       SupportedType = "byte"
+	Rune       SupportedType = "rune"
+	Float32    SupportedType = "float32"
+	Float64    SupportedType = "float64"
+	Int        SupportedType = "int"
+	Int8       SupportedType = "int8"
+	Int16      SupportedType = "int16"
+	Int32      SupportedType = "int32"
+	Int64      SupportedType = "int64"
+	Uint       SupportedType = "uint"
+	Uint8      SupportedType = "uint8"
+	Uint16     SupportedType = "uint16"
+	Uint32     SupportedType = "uint32"
+	Uint64     SupportedType = "uint64"
+)
+
+type Seed struct {
+	Gen     uint
+	IsUsed  bool
+	Content []interface{}
+	Result  interface{}
+}
 type StateMachine struct {
 	Input_count uint
 
-	All_Coverage     Coverage // []uint
-	Covered_Coverage Coverage // []uint
+	All_Coverage     Coverage // []coveredline
+	Covered_Coverage Coverage // []coveredline
 
-	Path_Hash2Coverage *PathHash2Coverage_table
-	First_seed         Seed
+	// Path_Hash2Coverage *PathHash2Coverage_table
+	InitSeeds []Seed
+	SeedType  []SupportedType
 
 	Path_hash2Priority   []uint             // 배열. 가장 간단.
 	Path_hash2Seeds      []*Seed_Stack      // 시드 스택의 배열 포인터
@@ -24,10 +56,10 @@ func New_StateMachine() *StateMachine {
 	return &StateMachine{
 		Input_count: 0,
 		// 기본값으로 0 설정
-		All_Coverage:     Coverage{0},
-		Covered_Coverage: Coverage{0},
+		All_Coverage:     Coverage{{co_name: "nil", co_line: 0}},
+		Covered_Coverage: Coverage{{co_name: "nil", co_line: 0}},
 
-		Path_Hash2Coverage: New_PathHash2Coverage_table(),
+		// Path_Hash2Coverage: New_PathHash2Coverage_table(),
 
 		Path_hash2Priority:   make([]uint, 0),                           // 빈 uint 배열
 		Path_hash2Seeds:      []*Seed_Stack{New_Seed_Stack()},           // 빈 Seed 배열
@@ -40,22 +72,25 @@ func New_StateMachine() *StateMachine {
 
 // 최초의 입력을 받음.
 // 함수와 시드에 대한 입력.
-func (sm *StateMachine) Format_StateMachine(f interface{}, s string) {
-	first_seed := Seed{
-		Gen:     1,
-		IsUsed:  false,
-		Content: s,
-		Result:  nil,
-	}
-	sm.First_seed = first_seed
-	// 원래는 함수를 입력받습니다.
-	// 그러나 현재 커버리지 기능은 개발을 기다려야 하는 상황입니다.
-	// 때문에 가상의 함수, "SomeFunc"에 대해 완전히 작동하는 커버리지 함수 만들었습니다.
+func (sm *StateMachine) Format_StateMachine(f interface{}) {
 	sm.All_Coverage = Get_AllCoverage()
-	result := Get_PseudoCoverage_of_SomeFunc(s)
-	if sm.Crash_Logger.IsCrash(result) {
-		sm.Crash_Logger.AddCase(first_seed, result)
+
+	for _, e := range sm.InitSeeds {
+		// TODO: 쩔 수 없음. 현재는  string에 대한 하드코딩밖에 안됨
+		// seed가 하나뿐
+		// 심지어 다변수는 지원도 안함
+		// 사후처리도 불가.
+		str, ok := e.Content[0].(string)
+		if !ok {
+			panic("nooooot a string")
+		}
+		result := Get_Coverage_of_target_func(str)
+		println("result", result)
 	}
+
+	// if sm.Crash_Logger.IsCrash(result) {
+	// 	sm.Crash_Logger.AddCase(first_seed, result)
+	// }
 	// TODO: 추가로 마저 스테이트 수정!! 배열 파트!!
 	// TODO: 라인 추가 등, 그리고 그를 위한 기반 함수들도 디자인.
 	// 힌트는, 밑에 포멧팅 출력해 보면서, 노션 보변서 감 잡으삼
@@ -79,25 +114,11 @@ func (sm *StateMachine) ToString() string {
 	sb.WriteString("\n")
 
 	sb.WriteString("  All_lines: ")
-	sb.WriteString(sliceToString(sm.All_Coverage))
+	sb.WriteString(coverageToString(sm.All_Coverage)) // 수정된 부분
 	sb.WriteString("\n")
 
 	sb.WriteString("  Covered_lines: ")
-	sb.WriteString(sliceToString(sm.Covered_Coverage))
-	sb.WriteString("\n")
-
-	sb.WriteString("  First_seed:\n")
-	sb.WriteString("    Gen: ")
-	sb.WriteString(uintToString(sm.First_seed.Gen))
-	sb.WriteString("\n")
-	sb.WriteString("    IsUsed: ")
-	sb.WriteString(boolToString(sm.First_seed.IsUsed))
-	sb.WriteString("\n")
-	sb.WriteString("    Content: ")
-	sb.WriteString(sm.First_seed.Content)
-	sb.WriteString("\n")
-	sb.WriteString("    Result: ")
-	sb.WriteString(interfaceToString(sm.First_seed.Result))
+	sb.WriteString(coverageToString(sm.Covered_Coverage)) // 수정된 부분
 	sb.WriteString("\n")
 
 	sb.WriteString("  Path_hash2Priority: ")

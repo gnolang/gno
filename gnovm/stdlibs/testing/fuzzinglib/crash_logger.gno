@@ -6,15 +6,15 @@ import (
 )
 
 type TestResult struct {
-	PanicOccurred bool   // panic 여부
-	PanicMessage  string // panic 메시지
-	Error         error  // 반환된 에러
-	Coverage      []uint // 반환된 값
+	PanicOccurred bool     // panic 여부
+	PanicMessage  string   // panic 메시지
+	Error         error    // 반환된 에러
+	Coverage      Coverage // 반환된 값
 }
 
 // Crash_Case 구조체 정의
 type Crash_Case struct {
-	Input        string
+	Input        interface{}
 	Coverage     Coverage
 	IsPanic      bool
 	PanicMessage string

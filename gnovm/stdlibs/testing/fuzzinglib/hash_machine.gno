@@ -1,4 +1,4 @@
-package main
+package fuzzinglib
 
 import (
 	"crypto/sha256"
