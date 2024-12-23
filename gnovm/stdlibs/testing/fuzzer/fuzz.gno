@@ -68,11 +68,37 @@ func (f *F) Add(args ...interface{}) {
 		values = append(values, args[i])
 		types = append(types, t)
 	}
+	println("ssssssss")
+	if f.fsm.SeedType == nil {
+		println(types)
+		f.fsm.SeedType = types
+	} else {
+		if !isSliceEqual(f.fsm.SeedType, types) {
+			panic("added arguments not equal together")
+		}
+	}
 	f.fsm.InitSeeds = append(f.fsm.InitSeeds, fuzzinglib.Seed{Gen: 1, IsUsed: false, Content: values})
+}
+
+// Slice 비교 함수
+func isSliceEqual(a, b []fuzzinglib.SupportedType) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	for i := range a {
+		if a[i] != b[i] {
+			return false
+		}
+	}
+	return true
 }
 
 func main() {
 	f := New_F()
 	f.fsm.Format_StateMachine("some_func")
+	f.Add("strrr")
+	f.Add("strrr22")
 	println(f.fsm.ToString())
+	println(f.fsm.SeedType)
+	println(f.fsm.InitSeeds)
 }
