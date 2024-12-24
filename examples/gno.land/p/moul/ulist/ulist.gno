@@ -48,29 +48,16 @@ import (
 	"gno.land/p/demo/seqid"
 )
 
-const (
-	maxNodeSize = 16
-	minNodeSize = maxNodeSize / 2
-)
-
-var (
-	ErrIndexOutOfRange = errors.New("index out of range")
-	ErrInvalidArgument = errors.New("invalid argument")
-)
-
-type nodeData struct {
-	elements []interface{}
-	size     int
-}
-
 type List struct {
-	tree  avl.ITree
-	count int
+	tree        avl.ITree
+	count       int
+	maxNodeSize int
 }
 
 func New() *List {
 	return &List{
-		tree: avl.NewTree(),
+		tree:        avl.NewTree(),
+		maxNodeSize: 16,
 	}
 }
 
@@ -82,6 +69,16 @@ func NewFromSlice(elements []interface{}) *List {
 	return l
 }
 
+var (
+	ErrIndexOutOfRange = errors.New("index out of range")
+	ErrInvalidArgument = errors.New("invalid argument")
+)
+
+type nodeData struct {
+	elements []interface{}
+	size     int
+}
+
 func (l *List) Len() int {
 	return l.count
 }
@@ -91,7 +88,7 @@ func (l *List) Get(index int) (interface{}, error) {
 		return nil, ErrIndexOutOfRange
 	}
 
-	nodeIndex := index / maxNodeSize
+	nodeIndex := index / l.maxNodeSize
 	key := seqid.ID(nodeIndex).String()
 
 	value, exists := l.tree.Get(key)
@@ -100,7 +97,7 @@ func (l *List) Get(index int) (interface{}, error) {
 	}
 
 	node := value.(*nodeData)
-	localIndex := index % maxNodeSize
+	localIndex := index % l.maxNodeSize
 	return node.elements[localIndex], nil
 }
 
@@ -109,7 +106,7 @@ func (l *List) Set(index int, value interface{}) error {
 		return ErrIndexOutOfRange
 	}
 
-	nodeIndex := index / maxNodeSize
+	nodeIndex := index / l.maxNodeSize
 	key := seqid.ID(nodeIndex).String()
 
 	nodeI, exists := l.tree.Get(key)
@@ -118,7 +115,7 @@ func (l *List) Set(index int, value interface{}) error {
 	}
 
 	node := nodeI.(*nodeData)
-	localIndex := index % maxNodeSize
+	localIndex := index % l.maxNodeSize
 	node.elements[localIndex] = value
 	l.tree.Set(key, node)
 
@@ -140,15 +137,15 @@ func (l *List) Insert(index int, value interface{}) error {
 		return ErrIndexOutOfRange
 	}
 
-	nodeIndex := index / maxNodeSize
+	nodeIndex := index / l.maxNodeSize
 	key := seqid.ID(nodeIndex).String()
-	localIndex := index % maxNodeSize
+	localIndex := index % l.maxNodeSize
 
 	if index == l.count && localIndex > 0 {
 		lastNodeI, exists := l.tree.Get(key)
 		if exists {
 			lastNode := lastNodeI.(*nodeData)
-			if lastNode.size < maxNodeSize {
+			if lastNode.size < l.maxNodeSize {
 				lastNode.elements = append(lastNode.elements, value)
 				lastNode.size++
 				l.tree.Set(key, lastNode)
@@ -162,7 +159,7 @@ func (l *List) Insert(index int, value interface{}) error {
 	nodeI, exists := l.tree.Get(key)
 	if exists {
 		node = nodeI.(*nodeData)
-		if node.size < maxNodeSize {
+		if node.size < l.maxNodeSize {
 			node.elements = append(node.elements[:localIndex], append([]interface{}{value}, node.elements[localIndex:]...)...)
 			node.size++
 			l.tree.Set(key, node)
@@ -187,9 +184,9 @@ func (l *List) Delete(index int) (interface{}, error) {
 		return nil, ErrIndexOutOfRange
 	}
 
-	nodeIndex := index / maxNodeSize
+	nodeIndex := index / l.maxNodeSize
 	key := seqid.ID(nodeIndex).String()
-	localIndex := index % maxNodeSize
+	localIndex := index % l.maxNodeSize
 
 	nodeI, exists := l.tree.Get(key)
 	if !exists {
@@ -222,8 +219,8 @@ func (l *List) Range(start, end int) ([]interface{}, error) {
 
 	result := make([]interface{}, 0, end-start)
 
-	startNode := start / maxNodeSize
-	endNode := (end - 1) / maxNodeSize
+	startNode := start / l.maxNodeSize
+	endNode := (end - 1) / l.maxNodeSize
 
 	for nodeIndex := startNode; nodeIndex <= endNode; nodeIndex++ {
 		key := seqid.ID(nodeIndex).String()
@@ -236,12 +233,12 @@ func (l *List) Range(start, end int) ([]interface{}, error) {
 
 		nodeStart := 0
 		if nodeIndex == startNode {
-			nodeStart = start % maxNodeSize
+			nodeStart = start % l.maxNodeSize
 		}
 
 		nodeEnd := node.size
 		if nodeIndex == endNode {
-			nodeEnd = ((end - 1) % maxNodeSize) + 1
+			nodeEnd = ((end - 1) % l.maxNodeSize) + 1
 		}
 
 		result = append(result, node.elements[nodeStart:nodeEnd]...)
@@ -288,7 +285,7 @@ func (it *Iterator) Next() (interface{}, bool) {
 		it.localIndex = 0
 	}
 
-	totalIndex := it.nodeIndex*maxNodeSize + it.localIndex
+	totalIndex := it.nodeIndex*it.list.maxNodeSize + it.localIndex
 	if totalIndex >= it.list.count {
 		it.done = true
 	}
