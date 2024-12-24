@@ -1,119 +1,26 @@
 package fuzzinglib
 
 import (
+	"errors"
+	"math"
 	"math/rand"
 	"testing"
 )
 
-// TODO: 수정하기
-func randomByte() rune {
-	r := int(testing.RandRange(32, 96))
-	return rune(r)
+func main() {
+	// seed1 := Seed{Gen: 1, IsUsed: false, Content: []interface{}{"apple"}, Result: nil}
+	// seed2 := Seed{Gen: 3, IsUsed: false, Content: []interface{}{"wellcome!"}, Result: nil}
+
+	// old_p := seed1
+
+	// println(i32(88)==uint8(88))
+	// for i := 0; i < 10; i++ {
+	// 	new_gen := evolve([]Seed{old_p})
+	// 	println(i+1, "번째 변이 결과-1:", new_gen[0].Content)
+	// 	println(i+1, "번째 변이 결과-2:", new_gen[1].Content)
+	// 	old_p = new_gen[0]
+	// }
 }
-
-const (
-	ABSOLUTE_MIN  = 0x00
-	SPECIAL_MAX   = 0x1F
-	LOW_ASCII_MIN = 0x20
-	LOW_ASCII_MAX = 0x7E
-
-	HIGH_ASCII_MIN = 0x80
-	HIGH_ASCII_MAX = 0xFF
-
-	PRINT_UNICODE_MIN = 0x100
-	PRINT_UNICODE_MAX = 0xD7FF
-
-	BOUNDARY_UNICODE_MIN = 0xD800
-	BOUNDARY_UNICODE_MAX = 0x10FFFF
-
-	ABSOLUTE_MAX = 0x7FFFFFFF
-)
-
-// 수정된 randomRune 함수
-func randomRune_from(seed_rune rune) rune {
-	p := rand.Float64() // 0.0 <= p < 1.0
-
-	var r int64
-	// 현재 케이스를 판별
-	currentCase := determineCase(seed_rune)
-
-	// 확률에 따른 케이스 이동
-	// 점진적인
-
-	switch {
-	case p < 0.3: // 이전 케이스
-		currentCase = (currentCase + 5) % 6 // 순환 처리
-		break
-	case p < 0.7: // 본인 케이스
-		break
-		// 유지
-	case p <= 1.0: // 다음 케이스
-		currentCase = (currentCase + 1) % 6 // 순환 처리
-	}
-
-	// 해당 케이스의 범위에서 랜덤 값 생성
-	switch currentCase {
-	case 0: // 0~31 스페셜 문자
-		r = testing.RandRange(ABSOLUTE_MIN, SPECIAL_MAX)
-	case 1: // 32~126 아스키
-		r = testing.RandRange(LOW_ASCII_MIN, LOW_ASCII_MAX)
-	case 2: // 128~255 하이 아스키
-		r = testing.RandRange(HIGH_ASCII_MIN, HIGH_ASCII_MAX)
-	case 3: // 그 외 프린트 가능한 유니코드
-		r = testing.RandRange(PRINT_UNICODE_MIN, PRINT_UNICODE_MAX)
-	case 4: // 그 외의 프린트 불가능한 유니코드
-		r = testing.RandRange(BOUNDARY_UNICODE_MIN, BOUNDARY_UNICODE_MAX)
-	case 5:
-		// 유니코드가 아닌 케이스
-		r = testing.RandRange(BOUNDARY_UNICODE_MAX, ABSOLUTE_MAX)
-	}
-
-	return rune(r)
-}
-
-// determineCase: seed_rune의 케이스를 판별
-// 유니코드를 점진적으로 변형시키기.
-func determineCase(seed_rune rune) int {
-	switch {
-	// 00~31의 특수문자 케이스
-	case seed_rune >= ABSOLUTE_MIN && seed_rune <= SPECIAL_MAX:
-		return 0
-	// 32 ~127의 아스키 케이스
-	case seed_rune >= LOW_ASCII_MIN && seed_rune <= LOW_ASCII_MAX:
-		return 1
-	// 128 ~256의 높은 아스키 케이스
-	case seed_rune >= HIGH_ASCII_MIN && seed_rune <= HIGH_ASCII_MAX:
-		return 2
-	// 프린트 가능한 유니코드 케이스
-	case seed_rune >= PRINT_UNICODE_MIN && seed_rune <= PRINT_UNICODE_MAX:
-		return 3
-	// 프린트 불가능한 유니코드 케이스
-	case seed_rune >= BOUNDARY_UNICODE_MIN && seed_rune <= BOUNDARY_UNICODE_MAX:
-		return 4
-	// 유니코드가 아닌 케이스
-	default:
-		return 5
-	}
-}
-
-// func main() {
-// 	seed1 := Seed{Gen: 1, IsUsed: false, Content: []interface{}{"apple"}, Result: nil}
-// 	// seed2 := Seed{Gen: 3, IsUsed: false, Content: []interface{}{"wellcome!"}, Result: nil}
-
-// 	old_p := seed1
-// 	for i := 0; i < 10; i++ {
-// 		new_gen := evolve([]Seed{old_p})
-// 		println(i+1, "번째 변이 결과-1:", new_gen[0].Content)
-// 		println(i+1, "번째 변이 결과-2:", new_gen[1].Content)
-// 		old_p = new_gen[0]
-// 	}
-
-// 	// a := 'a'
-// 	// for i := 0; i < 10; i++ {
-// 	// 	a = rune(a)
-// 	// 	a = randomRune_from(a)
-// 	// }
-// }
 
 // Seed의 Content를 랜덤으로 변형
 // 다변함수 시엔 하나를 잡아서 변형형
@@ -126,7 +33,7 @@ func Mutate(seed Seed) Seed {
 	}
 	index := 0
 	if len(seed.Content) > 1 {
-		index = int(testing.RandRange(0, len(seed.Content)-1))
+		index = int(testing.RandRange(0, int64(len(seed.Content)-1)))
 	}
 
 	selected := seed.Content[index]
@@ -138,7 +45,7 @@ func Mutate(seed Seed) Seed {
 
 	runes := []rune(str)
 	if len(runes) > 0 {
-		runeIndex := testing.RandRange(0, len(runes)-1)
+		runeIndex := testing.RandRange(0, int64(len(runes)-1))
 		runes[runeIndex] = randomRune_from(runes[runeIndex])
 	}
 	var new_str string = string(runes)
@@ -155,7 +62,7 @@ func InsertDelete(seed Seed, p float64) Seed {
 
 	index := 0
 	if len(seed.Content) > 1 {
-		index = int(testing.RandRange(0, len(seed.Content)-1))
+		index = int(testing.RandRange(0, int64(len(seed.Content)-1)))
 	}
 
 	selected := seed.Content[index]
@@ -171,10 +78,10 @@ func InsertDelete(seed Seed, p float64) Seed {
 	// Insert
 	if testing.GenerateRandomBool(p) {
 		// 삽입할 문자 결정
-		sample := rr[testing.RandRange(0, l-1)]
+		sample := rr[testing.RandRange(0, int64(l-1))]
 		char := randomRune_from(sample)
 		// 삽입 포지션 배정
-		pos := testing.RandRange(0, l-1)
+		pos := testing.RandRange(0, int64(l-1))
 		// 한 칸 늘리기
 		rr = append(rr, 0)
 		// 한 칸 밀기
@@ -186,7 +93,7 @@ func InsertDelete(seed Seed, p float64) Seed {
 			return seed
 		}
 
-		pos := testing.RandRange(0, l-1)
+		pos := testing.RandRange(0, int64(l-1))
 		rr = append(rr[:pos], rr[pos+1:]...)
 	}
 	var new_str string = string(rr)
@@ -238,8 +145,8 @@ func TwoPointCrossover(parent1, parent2 Seed) (Seed, Seed) {
 			minLen = p2Len
 		}
 
-		point1 := testing.RandRange(0, minLen)
-		point2 := testing.RandRange(0, minLen)
+		point1 := testing.RandRange(0, int64(minLen))
+		point2 := testing.RandRange(0, int64(minLen))
 
 		// 교차점 정렬 (point1 < point2 보장)
 		if point1 > point2 {
@@ -348,4 +255,502 @@ func evolve(seeds []Seed) []Seed {
 	}
 
 	return new_generation
+}
+
+// 랜덤 바이트를 점진적 변형
+func randomByte_from(seed_byte byte) byte {
+	p := rand.Float64() // 0.0 <= p < 1.0
+	// 단지, del확률 처리용으로 만든 변수. 신경 쓸 필요 없음.
+	next_flag := testing.GenerateRandomBool(0.5)
+	var b uint8
+	// 현재 케이스를 판별
+	// 이때 케이스는 0~3의 4개
+	currentCase := determineCase(rune(seed_byte))
+
+	// 확률에 따른 케이스 이동
+	// 점진적인
+	if currentCase == 2 {
+		// DEL케이스인 경우 확률 조정
+		switch {
+		case p < 0.45: // 이전 케이스
+			currentCase = (currentCase + 3) % 4 // 순환 처리
+			break
+		case p < 0.55: // 본인 케이스 유지 확률은 10%
+			break
+		// 유지
+		case p <= 1.0: // 다음 케이스
+			currentCase = (currentCase + 1) % 4 // 순환 처리
+		}
+	} else {
+		switch {
+		case p < 0.3: // 이전 케이스
+			currentCase = (currentCase + 3) % 4 // 순환 처리
+			next_flag = false
+			break
+		case p < 0.7: // 본인 케이스
+			break
+			// 유지
+		case p <= 1.0: // 다음 케이스
+			next_flag = true
+			currentCase = (currentCase + 1) % 4 // 순환 처리
+		}
+	}
+
+	if currentCase == 2 {
+		p2 := rand.Float64()
+		// DEL케이스인 경우 확률 조정
+		if next_flag {
+			if p2 < 0.8 {
+				// 다음 케이스로 넘어왔는데 DEL인 경우
+				// 높은 확률로 다음 케이스로 이어서 넘기기기
+				currentCase = (currentCase + 1) % 4 // 순환 처리
+			}
+		} else {
+			if p2 < 0.8 {
+				// 이전 케이스로 넘어왔는데 DEL인 경우
+				// 높은 확률로 이전전 케이스로 이어서 넘기기기
+				currentCase = (currentCase + 3) % 4 // 순환 처리
+			}
+		}
+	}
+
+	// 해당 케이스의 범위에서 랜덤 값 생성
+	switch currentCase {
+	case 0: // 0~31 스페셜 문자
+		b = uint8(testing.RandRange(ABSOLUTE_MIN, SPECIAL_MAX))
+	case 1: // 32~126 아스키
+		b = uint8(testing.RandRange(LOW_ASCII_MIN, LOW_ASCII_MAX))
+	case 2:
+		// DEL문자
+		b = DEL
+	case 3: // 128~255 하이 아스키
+		b = uint8(testing.RandRange(HIGH_ASCII_MIN, HIGH_ASCII_MAX))
+
+	}
+
+	return byte(b)
+}
+
+const (
+	ABSOLUTE_MIN = 0x00
+	SPECIAL_MAX  = 0x1F
+
+	LOW_ASCII_MIN = 0x20
+	LOW_ASCII_MAX = 0x7E
+	DEL           = 0x7F
+
+	HIGH_ASCII_MIN = 0x80
+	HIGH_ASCII_MAX = 0xFF
+
+	PRINT_UNICODE_MIN = 0x100
+	PRINT_UNICODE_MAX = 0xD7FF
+
+	BOUNDARY_UNICODE_MIN = 0xD800
+	BOUNDARY_UNICODE_MAX = 0x10FFFF
+
+	ABSOLUTE_MAX = 0x7FFFFFFF
+)
+
+// 수정된 randomRune 함수
+func randomRune_from(seed_rune rune) rune {
+	p := rand.Float64() // 0.0 <= p < 1.0
+
+	// 단지, del확률 처리용으로 만든 변수. 신경 쓸 필요 없음.
+	next_flag := testing.GenerateRandomBool(0.5)
+
+	var r int64
+	// 현재 케이스를 판별
+	currentCase := determineCase(seed_rune)
+
+	// 확률에 따른 케이스 이동
+	// 점진적인
+	if currentCase == 2 {
+		// DEL케이스인 경우 확률 조정
+		switch {
+		case p < 0.45: // 이전 케이스
+			currentCase = (currentCase + 6) % 7 // 순환 처리
+			break
+		case p < 0.55: // 본인 케이스 유지 확률은 10%
+			break
+		// 유지
+		case p <= 1.0: // 다음 케이스
+			currentCase = (currentCase + 1) % 7 // 순환 처리
+		}
+	} else {
+		switch {
+		case p < 0.25: // 이전 케이스
+			currentCase = (currentCase + 6) % 7 // 순환 처리
+			next_flag = false
+			break
+		case p < 0.75: // 본인 케이스
+			break
+			// 유지
+		case p <= 1.0: // 다음 케이스
+			next_flag = true
+			currentCase = (currentCase + 1) % 7 // 순환 처리
+		}
+	}
+
+	if currentCase == 2 {
+		p2 := rand.Float64()
+		// DEL케이스인 경우 확률 조정
+		if next_flag {
+			if p2 < 0.8 {
+				// 다음 케이스로 넘어왔는데 DEL인 경우
+				// 높은 확률로 다음 케이스로 이어서 넘기기기
+				currentCase = (currentCase + 1) % 7 // 순환 처리
+			}
+		} else {
+			if p2 < 0.8 {
+				// 이전 케이스로 넘어왔는데 DEL인 경우
+				// 높은 확률로 이전전 케이스로 이어서 넘기기기
+				currentCase = (currentCase + 6) % 7 // 순환 처리
+			}
+		}
+
+	}
+
+	// 해당 케이스의 범위에서 랜덤 값 생성
+	switch currentCase {
+	case 0: // 0~31 스페셜 문자
+		r = testing.RandRange(ABSOLUTE_MIN, SPECIAL_MAX)
+	case 1: // 32~126 아스키
+		r = testing.RandRange(LOW_ASCII_MIN, LOW_ASCII_MAX)
+	case 2:
+		// DEL문자
+		r = DEL
+	case 3: // 128~255 하이 아스키
+		r = testing.RandRange(HIGH_ASCII_MIN, HIGH_ASCII_MAX)
+	case 4: // 그 외 프린트 가능한 유니코드
+		r = testing.RandRange(PRINT_UNICODE_MIN, PRINT_UNICODE_MAX)
+	case 5: // 그 외의 프린트 불가능한 유니코드
+		r = testing.RandRange(BOUNDARY_UNICODE_MIN, BOUNDARY_UNICODE_MAX)
+	case 6:
+		// 유니코드가 아닌 케이스
+		r = testing.RandRange(BOUNDARY_UNICODE_MAX, ABSOLUTE_MAX)
+	}
+
+	return rune(r)
+}
+
+// determineCase: seed_rune의 케이스를 판별
+// 유니코드를 점진적으로 변형시키기.
+func determineCase(seed_rune rune) int {
+	switch {
+	// 00~31의 특수문자 케이스
+	case seed_rune >= ABSOLUTE_MIN && seed_rune <= SPECIAL_MAX:
+		return 0
+	// 32 ~127의 아스키 케이스
+	case seed_rune >= LOW_ASCII_MIN && seed_rune <= LOW_ASCII_MAX:
+		return 1
+	// DEL 문자 케이스
+	case seed_rune == DEL:
+		return 2
+	// 128 ~256의 높은 아스키 케이스
+	case seed_rune >= HIGH_ASCII_MIN && seed_rune <= HIGH_ASCII_MAX:
+		return 3
+	// 프린트 가능한 유니코드 케이스
+	case seed_rune >= PRINT_UNICODE_MIN && seed_rune <= PRINT_UNICODE_MAX:
+		return 4
+	// 프린트 불가능한 유니코드 케이스
+	case seed_rune >= BOUNDARY_UNICODE_MIN && seed_rune <= BOUNDARY_UNICODE_MAX:
+		return 5
+	// 유니코드가 아닌 케이스
+	default:
+		return 6
+	}
+}
+
+// 랜덤 변형 함수 for int types
+func randomInt_from(i interface{}) interface{} {
+	p := rand.Float64() // 0.0 ~ 1.0 사이의 랜덤 확률 값
+
+	switch v := i.(type) {
+	case int:
+		var int_std interface{}
+
+		switch {
+		case p < 0.15:
+			min := int64(v) - 100
+			max := int64(v) + 100
+			if min > max {
+				min, max = max, min
+			}
+			int_std = int(testing.RandRange(min, max))
+		case p < 0.3:
+			min := int64(v) - 1000
+			max := int64(v) + 1000
+			if min > max {
+				min, max = max, min
+			}
+			int_std = int(testing.RandRange(min, max))
+		case p < 0.45:
+			min := int64(v) - 10000
+			max := int64(v) + 10000
+			if min > max {
+				min, max = max, min
+			}
+			int_std = int(testing.RandRange(min, max))
+		case p < 0.60:
+			min := int64(v) - 100000
+			max := int64(v) + 100000
+			if min > max {
+				min, max = max, min
+			}
+			int_std = int(testing.RandRange(min, max))
+		default: // 나머지 확률: 완전 랜덤 값
+			int_std = rand.Int()
+		}
+		return int_std
+
+	case int8:
+		var int_8 interface{}
+		switch {
+		case p < 0.3:
+			min := int64(v) - 5
+			max := int64(v) + 5
+			if min > max {
+				min, max = max, min
+			}
+			int_8 = int8(testing.RandRange(min, max))
+		case p < 0.5:
+			min := int64(v) - 30
+			max := int64(v) + 30
+			if min > max {
+				min, max = max, min
+			}
+			int_8 = int8(testing.RandRange(min, max))
+		default: // 나머지 확률: 완전 랜덤 값
+			int_8 = int8(testing.RandRange(-128, 127))
+		}
+		return int_8
+
+	case int16:
+		var int_16 interface{}
+		switch {
+		case p < 0.3:
+			min := int64(v) - 100
+			max := int64(v) + 100
+			if min > max {
+				min, max = max, min
+			}
+			int_16 = int16(testing.RandRange(min, max))
+		case p < 0.5:
+			min := int64(v) - 1000
+			max := int64(v) + 1000
+			if min > max {
+				min, max = max, min
+			}
+			int_16 = int16(testing.RandRange(min, max))
+		default: // 나머지 확률: 완전 랜덤 값
+			int_16 = int16(testing.RandRange(-32768, 32767))
+		}
+		return int_16
+
+	case int32:
+		var int_32 interface{}
+		switch {
+		case p < 0.2:
+			min := int64(v) - 100
+			max := int64(v) + 100
+			if min > max {
+				min, max = max, min
+			}
+			int_32 = int32(testing.RandRange(min, max))
+		case p < 0.4:
+			min := int64(v) - 1000
+			max := int64(v) + 1000
+			if min > max {
+				min, max = max, min
+			}
+			int_32 = int32(testing.RandRange(min, max))
+		case p < 0.6:
+			min := int64(v) - 10000
+			max := int64(v) + 10000
+			if min > max {
+				min, max = max, min
+			}
+			int_32 = int32(testing.RandRange(min, max))
+		default: // 나머지 확률: 완전 랜덤 값
+			int_32 = rand.Int32()
+		}
+		return int_32
+
+	case int64:
+		var int_64 interface{}
+		switch {
+		case p < 0.15:
+			min := v - 100
+			max := v + 100
+			if min > max {
+				min, max = max, min
+			}
+			int_64 = testing.RandRange(min, max)
+		case p < 0.3:
+			min := v - 1000
+			max := v + 1000
+			if min > max {
+				min, max = max, min
+			}
+			int_64 = testing.RandRange(min, max)
+		case p < 0.45:
+			min := v - 10000
+			max := v + 10000
+			if min > max {
+				min, max = max, min
+			}
+			int_64 = testing.RandRange(min, max)
+		case p < 0.60:
+			min := v - 100000
+			max := v + 100000
+			if min > max {
+				min, max = max, min
+			}
+			int_64 = testing.RandRange(min, max)
+		default: // 나머지 확률: 완전 랜덤 값
+			int_64 = rand.Int64()
+		}
+		return int_64
+
+	default:
+		panic("it's not supported int type")
+	}
+}
+
+// 랜덤 변형 함수 for uint types
+func randomUint_from(u interface{}) interface{} {
+	p := rand.Float64() // 0.0 ~ 1.0 사이의 랜덤 확률 값
+
+	switch v := u.(type) {
+	case uint:
+		var uint_std interface{}
+		switch {
+		case p < 0.3:
+			min := int64(v) / 2
+			max := int64(v) * 2
+			if min > max {
+				min, max = max, min
+			}
+			uint_std = uint(testing.RandRange(min, max))
+		case p < 0.6:
+			min := int64(v) / 10
+			max := int64(v) * 10
+			if min > max {
+				min, max = max, min
+			}
+			uint_std = uint(testing.RandRange(min, max))
+		default:
+			uint_std = uint(rand.Uint64())
+		}
+		return uint_std
+
+	case uint8:
+		var uint_8 interface{}
+		switch {
+		case p < 0.3:
+			min := int64(v) / 2
+			max := int64(v) * 2
+			if min > max {
+				min, max = max, min
+			}
+			uint_8 = uint8(testing.RandRange(min, max))
+		case p < 0.6:
+			min := int64(v) / 10
+			max := int64(v) * 10
+			if min > max {
+				min, max = max, min
+			}
+			uint_8 = uint8(testing.RandRange(min, max))
+		default:
+			uint_8 = uint8(testing.RandRange(0, 255)) // uint8 범위: 0 ~ 255
+		}
+		return uint_8
+
+	case uint16:
+		var uint_16 interface{}
+		switch {
+		case p < 0.3:
+			min := int64(v) / 2
+			max := int64(v) * 2
+			if min > max {
+				min, max = max, min
+			}
+			uint_16 = uint16(testing.RandRange(min, max))
+		case p < 0.6:
+			min := int64(v) / 10
+			max := int64(v) * 10
+			if min > max {
+				min, max = max, min
+			}
+			uint_16 = uint16(testing.RandRange(min, max))
+		default:
+			uint_16 = uint16(testing.RandRange(0, 65535)) // uint16 범위: 0 ~ 65535
+		}
+		return uint_16
+
+	case uint32:
+		var uint_32 interface{}
+		switch {
+		case p < 0.2:
+			min := int64(v) / 2
+			max := int64(v) * 2
+			if min > max {
+				min, max = max, min
+			}
+			uint_32 = uint32(testing.RandRange(min, max))
+		case p < 0.4:
+			min := int64(v) / 8
+			max := int64(v) * 8
+			if min > max {
+				min, max = max, min
+			}
+			uint_32 = uint32(testing.RandRange(min, max))
+		case p < 0.6:
+			min := int64(v) / 16
+			max := int64(v) * 16
+			if min > max {
+				min, max = max, min
+			}
+			uint_32 = uint32(testing.RandRange(min, max))
+		default:
+			uint_32 = uint32(testing.RandRange(0, int64(^uint32(0))))
+		}
+		return uint_32
+
+	case uint64:
+		var uint_64 interface{}
+		switch {
+		case p < 0.3:
+			min := int64(v) / 2
+			max := int64(v) * 2
+			if min > max {
+				min, max = max, min
+			}
+			uint_64 = uint64(testing.RandRange(min, max))
+		case p < 0.6:
+			min := int64(v) / 8
+			max := int64(v) * 8
+			if min > max {
+				min, max = max, min
+			}
+			uint_64 = uint64(testing.RandRange(min, max))
+		case p < 0.6:
+			min := int64(v) / 32
+			max := int64(v) * 32
+			if min > max {
+				min, max = max, min
+			}
+			uint_64 = uint32(testing.RandRange(min, max))
+		default:
+			uint_64 = testing.RandRange(0, int64(uint64(0))) // uint64 범위: 0 ~ 18446744073709551615
+		}
+		return uint_64
+
+	default:
+		panic("it's not a supported uint type")
+	}
+}
+
+func randomBool() bool {
+	return testing.UniformRandomBool(0.5)
 }
