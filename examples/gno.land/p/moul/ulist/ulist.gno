@@ -68,12 +68,20 @@ func New() *List {
 	}
 }
 
-func NewFromSlice(elements []interface{}) *List {
-	l := New()
-	for _, element := range elements {
-		l.Append(element)
+func NewWithSize(size int) *List {
+	// ensure size is even
+	if size%2 != 0 {
+		size++
 	}
-	return l
+
+	// ensure size is at least 4
+	if size < 4 {
+		size = 4
+	}
+	return &List{
+		tree:        avl.NewTree(),
+		maxNodeSize: size,
+	}
 }
 
 var (

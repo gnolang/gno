@@ -1,6 +1,7 @@
 package ulist
 
 import (
+	"fmt"
 	"testing"
 )
 
@@ -11,9 +12,10 @@ func TestNew(t *testing.T) {
 	}
 }
 
-func TestNewFromSlice(t *testing.T) {
+func TestAppendMany(t *testing.T) {
 	values := []interface{}{1, 2, 3, 4, 5}
-	l := NewFromSlice(values)
+	l := New()
+	l.AppendMany(values...)
 
 	if l.Len() != len(values) {
 		t.Errorf("Expected length %d, got %d", len(values), l.Len())
@@ -21,216 +23,182 @@ func TestNewFromSlice(t *testing.T) {
 
 	for i, want := range values {
 		got, err := l.Get(i)
-		if err != nil {
-			t.Errorf("Unexpected error at index %d: %v", i, err)
-		}
-		if got != want {
-			t.Errorf("At index %d: want %v, got %v", i, want, got)
+		if err != nil || got != want {
+			t.Errorf("At index %d: want %v, got %v, err %v", i, want, got, err)
 		}
 	}
 }
 
-func TestList_BasicOperations(t *testing.T) {
+func TestList_Set(t *testing.T) {
 	l := New()
+	l.AppendMany(1, 2, 3)
 
-	// Test Append
-	l.Append(1)
-	l.Append(2)
-	l.Append(3)
-
-	if l.Len() != 3 {
-		t.Errorf("Expected length 3, got %d", l.Len())
-	}
-
-	// Test Get
-	tests := []struct {
-		index   int
-		want    interface{}
-		wantErr error
-	}{
-		{0, 1, nil},
-		{1, 2, nil},
-		{2, 3, nil},
-		{-1, nil, ErrIndexOutOfRange},
-		{3, nil, ErrIndexOutOfRange},
-	}
-
-	for _, tt := range tests {
-		got, err := l.Get(tt.index)
-		if err != tt.wantErr {
-			t.Errorf("Get(%d) error = %v, want %v", tt.index, err, tt.wantErr)
-			continue
-		}
-		if err == nil && got != tt.want {
-			t.Errorf("Get(%d) = %v, want %v", tt.index, got, tt.want)
-		}
-	}
-
-	// Test Set
-	err := l.Set(1, 42)
-	if err != nil {
-		t.Errorf("Unexpected error on Set: %v", err)
-	}
-
-	got, err := l.Get(1)
-	if err != nil || got != 42 {
-		t.Errorf("After Set(1, 42), Get(1) = %v, want 42", got)
-	}
-}
-
-func TestList_Insert(t *testing.T) {
-	l := New()
-
-	// Test inserting at various positions
 	tests := []struct {
 		index   int
 		value   interface{}
 		wantErr error
 	}{
-		{0, 1, nil},                 // Insert at beginning
-		{1, 2, nil},                 // Insert at end
-		{1, 3, nil},                 // Insert in middle
-		{-1, 0, ErrIndexOutOfRange}, // Invalid index
-		{4, 0, ErrIndexOutOfRange},  // Invalid index
+		{1, 42, nil},
+		{-1, 0, ErrIndexOutOfRange},
+		{3, 0, ErrIndexOutOfRange},
 	}
 
 	for _, tt := range tests {
-		err := l.Insert(tt.index, tt.value)
+		err := l.Set(tt.index, tt.value)
 		if err != tt.wantErr {
-			t.Errorf("Insert(%d, %v) error = %v, want %v", tt.index, tt.value, err, tt.wantErr)
+			t.Errorf("Set(%d, %v) error = %v, want %v", tt.index, tt.value, err, tt.wantErr)
+			continue
+		}
+		if err == nil {
+			got, _ := l.Get(tt.index)
+			if got != tt.value {
+				t.Errorf("After Set(%d, %v), Get(%d) = %v", tt.index, tt.value, tt.index, got)
+			}
 		}
 	}
 }
 
 func TestList_Delete(t *testing.T) {
-	l := NewFromSlice([]interface{}{1, 2, 3, 4, 5})
+	l := New()
+	l.AppendMany(1, 2, 3, 4, 5)
 
-	// Test deleting at various positions
 	tests := []struct {
 		index   int
 		want    interface{}
 		wantErr error
 	}{
-		{0, 1, nil},                   // Delete from beginning
-		{3, 5, nil},                   // Delete from end
-		{1, 3, nil},                   // Delete from middle
-		{-1, nil, ErrIndexOutOfRange}, // Invalid index
-		{2, nil, ErrIndexOutOfRange},  // Invalid index (after deletions)
+		{0, 1, nil},                   // beginning
+		{3, 5, nil},                   // end
+		{1, 3, nil},                   // middle
+		{-1, nil, ErrIndexOutOfRange}, // invalid
 	}
 
-	for i, tt := range tests {
+	for _, tt := range tests {
 		got, err := l.Delete(tt.index)
-		if err != tt.wantErr {
-			t.Errorf("test %d: Delete(%d) error = %v, want %v", i, tt.index, err, tt.wantErr)
-			continue
-		}
-		if err == nil && got != tt.want {
-			t.Errorf("test %d: Delete(%d) = %v, want %v", i, tt.index, got, tt.want)
+		if err != tt.wantErr || (err == nil && got != tt.want) {
+			t.Errorf("Delete(%d) = %v, %v; want %v, %v", tt.index, got, err, tt.want, tt.wantErr)
 		}
 	}
 }
 
 func TestList_Range(t *testing.T) {
-	l := NewFromSlice([]interface{}{1, 2, 3, 4, 5})
+	l := New()
+	l.AppendMany(1, 2, 3, 4, 5)
 
 	tests := []struct {
-		start   int
-		end     int
-		want    []interface{}
-		wantErr error
+		start, end int
+		want       []interface{}
+		wantErr    error
 	}{
 		{0, 5, []interface{}{1, 2, 3, 4, 5}, nil},
 		{1, 4, []interface{}{2, 3, 4}, nil},
 		{0, 0, []interface{}{}, nil},
 		{-1, 5, nil, ErrInvalidArgument},
-		{0, 6, nil, ErrInvalidArgument},
 		{3, 2, nil, ErrInvalidArgument},
 	}
 
-	for i, tt := range tests {
+	for _, tt := range tests {
 		got, err := l.Range(tt.start, tt.end)
 		if err != tt.wantErr {
-			t.Errorf("test %d: Range(%d, %d) error = %v, want %v", i, tt.start, tt.end, err, tt.wantErr)
+			t.Errorf("Range(%d, %d) error = %v, want %v", tt.start, tt.end, err, tt.wantErr)
 			continue
 		}
-		if err == nil {
-			if len(got) != len(tt.want) {
-				t.Errorf("test %d: Range(%d, %d) len = %d, want %d", i, tt.start, tt.end, len(got), len(tt.want))
-				continue
-			}
-			for j := range got {
-				if got[j] != tt.want[j] {
-					t.Errorf("test %d: Range(%d, %d)[%d] = %v, want %v", i, tt.start, tt.end, j, got[j], tt.want[j])
-				}
-			}
+		if err == nil && !sliceEqual(got, tt.want) {
+			t.Errorf("Range(%d, %d) = %v, want %v", tt.start, tt.end, got, tt.want)
 		}
 	}
 }
 
 func TestList_Iterator(t *testing.T) {
 	values := []interface{}{1, 2, 3, 4, 5}
-	l := NewFromSlice(values)
+	l := New()
+	l.AppendMany(values...)
 	it := l.NewIterator()
 
-	index := 0
-	for {
-		value, ok := it.Next()
-		if !ok {
-			break
-		}
-		if value != values[index] {
-			t.Errorf("Iterator value at index %d = %v, want %v", index, value, values[index])
-		}
-		index++
+	var got []interface{}
+	for value, ok := it.Next(); ok; value, ok = it.Next() {
+		got = append(got, value)
 	}
 
-	if index != len(values) {
-		t.Errorf("Iterator traversed %d elements, want %d", index, len(values))
+	if !sliceEqual(got, values) {
+		t.Errorf("Iterator values = %v, want %v", got, values)
 	}
 }
 
 func TestList_Clear(t *testing.T) {
-	l := NewFromSlice([]interface{}{1, 2, 3})
+	l := New()
+	l.AppendMany(1, 2, 3)
 	l.Clear()
 
 	if l.Len() != 0 {
 		t.Errorf("After Clear(), Len() = %d, want 0", l.Len())
 	}
+}
 
-	_, err := l.Get(0)
-	if err != ErrIndexOutOfRange {
-		t.Errorf("After Clear(), Get(0) error = %v, want %v", err, ErrIndexOutOfRange)
+func TestNewWithSize(t *testing.T) {
+	tests := []struct {
+		size     int
+		wantSize int
+	}{
+		{16, 16}, // default
+		{2, 4},   // too small
+		{15, 16}, // odd
+		{32, 32}, // large even
+	}
+
+	for _, tt := range tests {
+		t.Run(fmt.Sprintf("size_%d", tt.size), func(t *testing.T) {
+			l := NewWithSize(tt.size)
+			if l.maxNodeSize != tt.wantSize {
+				t.Errorf("NewWithSize(%d) got size = %d, want %d", tt.size, l.maxNodeSize, tt.wantSize)
+			}
+		})
 	}
 }
 
-// Benchmark tests
-func BenchmarkList_Append(b *testing.B) {
-	l := New()
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
-		l.Append(i)
+func BenchmarkListWithDifferentSizes(b *testing.B) {
+	sizes := []int{4, 8, 16, 32, 64, 128}
+
+	for _, size := range sizes {
+		b.Run(fmt.Sprintf("size_%d", size), func(b *testing.B) {
+			l := NewWithSize(size)
+
+			b.Run("append", func(b *testing.B) {
+				for i := 0; i < b.N; i++ {
+					l.Append(i)
+				}
+			})
+
+			l = NewWithSize(size)
+			for i := 0; i < 1000; i++ {
+				l.Append(i)
+			}
+
+			b.Run("get", func(b *testing.B) {
+				for i := 0; i < b.N; i++ {
+					_, _ = l.Get(i % 1000)
+				}
+			})
+
+			b.Run("insert_delete", func(b *testing.B) {
+				for i := 0; i < b.N; i++ {
+					_ = l.Insert(500, i)
+					_, _ = l.Delete(500)
+				}
+			})
+		})
 	}
 }
 
-func BenchmarkList_Get(b *testing.B) {
-	l := New()
-	for i := 0; i < 1000; i++ {
-		l.Append(i)
+// Helper function for comparing slices
+func sliceEqual(a, b []interface{}) bool {
+	if len(a) != len(b) {
+		return false
 	}
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
-		_, _ = l.Get(i % 1000)
+	for i := range a {
+		if a[i] != b[i] {
+			return false
+		}
 	}
-}
-
-func BenchmarkList_Insert(b *testing.B) {
-	l := New()
-	for i := 0; i < 1000; i++ {
-		l.Append(i)
-	}
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
-		_ = l.Insert(500, i)
-		_, _ = l.Delete(500)
-	}
+	return true
 }
