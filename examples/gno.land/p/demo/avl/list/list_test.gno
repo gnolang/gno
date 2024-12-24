@@ -1,8 +1,9 @@
 package list
 
 import (
-	"fmt"
 	"testing"
+
+	"gno.land/p/demo/ufmt"
 )
 
 func TestList_Basic(t *testing.T) {
@@ -426,14 +427,14 @@ func TestList_RecursiveSafety(t *testing.T) {
 	// Test recursive safety by performing multiple operations
 	for i := 0; i < 1000; i++ {
 		// Add new value
-		l.Append(fmt.Sprintf("id%d", i+4))
+		l.Append(ufmt.Sprintf("id%d", i+4))
 
 		if !short {
 			// Search for a value
 			var lastFound bool
 			l.ForEach(func(j int, v interface{}) bool {
 				if str, ok := v.(string); ok {
-					if str == fmt.Sprintf("id%d", i+3) {
+					if str == ufmt.Sprintf("id%d", i+3) {
 						lastFound = true
 						return true
 					}
