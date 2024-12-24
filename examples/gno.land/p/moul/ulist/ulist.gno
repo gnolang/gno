@@ -3,22 +3,29 @@
 // organized in an AVL tree, where each node can hold up to maxNodeSize elements.
 //
 // Implementation details:
-// - Elements are stored in chunks of size maxNodeSize (default: 16)
-// - Chunks are indexed using seqid-formatted keys in an AVL tree
-// - Each chunk maintains a size counter for O(1) capacity checks
-// - Elements maintain strict sequential ordering
+//   - Elements are stored in chunks of size maxNodeSize (default: 16)
+//   - Chunks are indexed using seqid-formatted keys in an AVL tree
+//   - Each chunk maintains a size counter for O(1) capacity checks
+//   - Elements maintain strict sequential ordering
 //
 // Performance characteristics:
-// - Get/Set: O(log n) for tree traversal + O(1) for chunk access
-// - Insert/Delete: O(log n) for tree traversal + O(k) for chunk manipulation
-// - Append: O(1) amortized when last chunk has space, O(log n) when creating new chunk
-// - Memory: Better locality than AVL tree, more overhead than slice
-// - Space: O(n) elements + O(n/maxNodeSize) tree nodes
+//   - Get/Set: O(log n) for tree traversal + O(1) for chunk access
+//   - Insert/Delete: O(log n) for tree traversal + O(k) for chunk manipulation
+//   - Append: O(1) amortized when last chunk has space, O(log n) when creating new chunk
+//   - Memory: Better locality than AVL tree, more overhead than slice
+//   - Space: O(n) elements + O(n/maxNodeSize) tree nodes
+//
+// Storage costs:
+//   - Each modification to a chunk requires rewriting the entire chunk
+//   - Smaller chunk sizes reduce the cost of modifications but increase tree overhead
+//   - Larger chunk sizes improve read performance but increase write amplification
+//   - Default chunk size (16) balances between read performance and write costs
 //
 // When to use:
-// - Over AVL tree: when needing index-based access or sequential iteration
-// - Over slice: when needing efficient insertion/deletion at arbitrary positions
-// - Over linked list: when needing fast random access
+//   - Over AVL tree: when needing index-based access or sequential iteration
+//   - Over slice: when needing efficient insertion/deletion at arbitrary positions
+//     or when frequent modifications to small portions would cause full slice rewrites
+//   - Over linked list: when needing fast random access
 //
 // Example usage:
 //
