@@ -55,12 +55,16 @@ import (
 	"gno.land/p/demo/seqid"
 )
 
+// List represents an ordered list using a hybrid B-tree/AVL structure.
+// It stores elements in fixed-size nodes (chunks) organized in an AVL tree.
 type List struct {
 	tree        avl.ITree
 	count       int
 	maxNodeSize int
 }
 
+// New creates a new List with the default node size of 16.
+// This size provides a good balance between read performance and write amplification.
 func New() *List {
 	return &List{
 		tree:        avl.NewTree(),
@@ -68,6 +72,10 @@ func New() *List {
 	}
 }
 
+// NewWithSize creates a new List with a custom node size.
+// The size must be even and at least 4 to maintain efficient operations.
+// Larger sizes improve read performance but increase write amplification.
+// Smaller sizes reduce write amplification but increase tree overhead.
 func NewWithSize(size int) *List {
 	// ensure size is even
 	if size%2 != 0 {
@@ -89,6 +97,8 @@ var (
 	ErrInvalidArgument = errors.New("invalid argument")
 )
 
+// nodeData represents a chunk of elements in the list.
+// Elements are stored in a slice to provide efficient sequential access.
 type nodeData struct {
 	elements []interface{}
 	size     int
@@ -98,11 +108,14 @@ func (l *List) Len() int {
 	return l.count
 }
 
+// Get retrieves the element at the specified index.
+// Performance: O(log n) for tree traversal + O(1) for chunk access.
 func (l *List) Get(index int) (interface{}, error) {
 	if index < 0 || index >= l.count {
 		return nil, ErrIndexOutOfRange
 	}
 
+	// Calculate which node contains our index
 	nodeIndex := index / l.maxNodeSize
 	key := seqid.ID(nodeIndex).String()
 
@@ -111,11 +124,15 @@ func (l *List) Get(index int) (interface{}, error) {
 		return nil, ErrIndexOutOfRange
 	}
 
+	// Calculate the local index within the node
 	node := value.(*nodeData)
 	localIndex := index % l.maxNodeSize
 	return node.elements[localIndex], nil
 }
 
+// Set updates the element at the specified index.
+// Performance: O(log n) for tree traversal + O(maxNodeSize) for chunk update.
+// Storage: Requires rewriting the entire chunk even for a single element update.
 func (l *List) Set(index int, value interface{}) error {
 	if index < 0 || index >= l.count {
 		return ErrIndexOutOfRange
@@ -132,7 +149,7 @@ func (l *List) Set(index int, value interface{}) error {
 	node := nodeI.(*nodeData)
 	localIndex := index % l.maxNodeSize
 	node.elements[localIndex] = value
-	l.tree.Set(key, node)
+	l.tree.Set(key, node) // Requires rewriting the entire chunk
 
 	return nil
 }
@@ -147,6 +164,9 @@ func (l *List) AppendMany(values ...interface{}) {
 	}
 }
 
+// Insert adds an element at the specified index, shifting existing elements right.
+// Performance: O(log n) for tree traversal + O(maxNodeSize) for chunk manipulation.
+// Storage: May require rewriting multiple chunks if the target chunk is full.
 func (l *List) Insert(index int, value interface{}) error {
 	if index < 0 || index > l.count {
 		return ErrIndexOutOfRange
@@ -156,11 +176,13 @@ func (l *List) Insert(index int, value interface{}) error {
 	key := seqid.ID(nodeIndex).String()
 	localIndex := index % l.maxNodeSize
 
+	// Optimization: If inserting at the end and last chunk has space
 	if index == l.count && localIndex > 0 {
 		lastNodeI, exists := l.tree.Get(key)
 		if exists {
 			lastNode := lastNodeI.(*nodeData)
 			if lastNode.size < l.maxNodeSize {
+				// Fast path: append to existing chunk
 				lastNode.elements = append(lastNode.elements, value)
 				lastNode.size++
 				l.tree.Set(key, lastNode)
@@ -170,11 +192,13 @@ func (l *List) Insert(index int, value interface{}) error {
 		}
 	}
 
+	// Normal insertion path
 	var node *nodeData
 	nodeI, exists := l.tree.Get(key)
 	if exists {
 		node = nodeI.(*nodeData)
 		if node.size < l.maxNodeSize {
+			// Insert into existing chunk with space
 			node.elements = append(node.elements[:localIndex], append([]interface{}{value}, node.elements[localIndex:]...)...)
 			node.size++
 			l.tree.Set(key, node)
@@ -182,6 +206,7 @@ func (l *List) Insert(index int, value interface{}) error {
 			return nil
 		}
 	} else {
+		// Create new chunk for sparse insertions
 		node = &nodeData{
 			elements: []interface{}{value},
 			size:     1,
@@ -194,6 +219,10 @@ func (l *List) Insert(index int, value interface{}) error {
 	return ErrInvalidArgument
 }
 
+// Delete removes and returns the element at the specified index.
+// Performance: O(log n) for tree traversal + O(maxNodeSize) for chunk update.
+// Storage: Requires rewriting the chunk even when removing a single element.
+// If the chunk becomes empty, it is removed from the tree entirely.
 func (l *List) Delete(index int) (interface{}, error) {
 	if index < 0 || index >= l.count {
 		return nil, ErrIndexOutOfRange
@@ -211,9 +240,11 @@ func (l *List) Delete(index int) (interface{}, error) {
 	node := nodeI.(*nodeData)
 	value := node.elements[localIndex]
 
+	// If this is the last element in the chunk, remove the entire chunk
 	if node.size == 1 {
 		l.tree.Remove(key)
 	} else {
+		// Otherwise, remove the element and shift remaining elements left
 		node.elements = append(node.elements[:localIndex], node.elements[localIndex+1:]...)
 		node.size--
 		l.tree.Set(key, node)
@@ -223,6 +254,9 @@ func (l *List) Delete(index int) (interface{}, error) {
 	return value, nil
 }
 
+// Range returns a slice of elements from start (inclusive) to end (exclusive).
+// Performance: O(log n) for tree traversal + O(end-start) for copying elements.
+// Storage: Creates a new slice containing the requested range of elements.
 func (l *List) Range(start, end int) ([]interface{}, error) {
 	if start < 0 || end > l.count || start > end {
 		return nil, ErrInvalidArgument
@@ -232,11 +266,14 @@ func (l *List) Range(start, end int) ([]interface{}, error) {
 		return []interface{}{}, nil
 	}
 
+	// Pre-allocate slice with exact size needed
 	result := make([]interface{}, 0, end-start)
 
+	// Calculate start and end nodes
 	startNode := start / l.maxNodeSize
 	endNode := (end - 1) / l.maxNodeSize
 
+	// Iterate through all nodes that contain our range
 	for nodeIndex := startNode; nodeIndex <= endNode; nodeIndex++ {
 		key := seqid.ID(nodeIndex).String()
 		nodeI, exists := l.tree.Get(key)
@@ -246,6 +283,7 @@ func (l *List) Range(start, end int) ([]interface{}, error) {
 
 		node := nodeI.(*nodeData)
 
+		// Calculate start and end indices within this node
 		nodeStart := 0
 		if nodeIndex == startNode {
 			nodeStart = start % l.maxNodeSize
@@ -256,34 +294,44 @@ func (l *List) Range(start, end int) ([]interface{}, error) {
 			nodeEnd = ((end - 1) % l.maxNodeSize) + 1
 		}
 
+		// Append the relevant portion of this node's elements
 		result = append(result, node.elements[nodeStart:nodeEnd]...)
 	}
 
 	return result, nil
 }
 
+// Iterator provides sequential access to list elements.
+// It maintains its position using nodeIndex and localIndex,
+// traversing through chunks in order.
 type Iterator struct {
 	list       *List
-	nodeIndex  int
-	localIndex int
-	done       bool
+	nodeIndex  int  // Current chunk index
+	localIndex int  // Current position within chunk
+	done       bool // Indicates if iteration is complete
 }
 
+// NewIterator creates an iterator starting at the beginning of the list.
+// The iterator will traverse elements in order from index 0 to Len()-1.
 func (l *List) NewIterator() *Iterator {
 	return &Iterator{
 		list:       l,
 		nodeIndex:  0,
 		localIndex: 0,
-
-		done: l.count == 0,
+		done:       l.count == 0,
 	}
 }
 
+// Next returns the next element in the iteration and a boolean indicating
+// if the iteration is complete. Returns (nil, false) when done.
+// Performance: O(1) amortized, as tree traversal only occurs when moving
+// to a new chunk.
 func (it *Iterator) Next() (interface{}, bool) {
 	if it.done {
 		return nil, false
 	}
 
+	// Get current chunk
 	key := seqid.ID(it.nodeIndex).String()
 	nodeI, exists := it.list.tree.Get(key)
 	if !exists {
@@ -294,12 +342,14 @@ func (it *Iterator) Next() (interface{}, bool) {
 	node := nodeI.(*nodeData)
 	value := node.elements[it.localIndex]
 
+	// Move to next position
 	it.localIndex++
 	if it.localIndex >= node.size {
 		it.nodeIndex++
 		it.localIndex = 0
 	}
 
+	// Check if we've reached the end
 	totalIndex := it.nodeIndex*it.list.maxNodeSize + it.localIndex
 	if totalIndex >= it.list.count {
 		it.done = true
@@ -308,6 +358,9 @@ func (it *Iterator) Next() (interface{}, bool) {
 	return value, true
 }
 
+// Clear removes all elements from the list.
+// Performance: O(1) as it simply creates a new empty tree.
+// Storage: Allows garbage collection of all nodes and elements.
 func (l *List) Clear() {
 	l.tree = avl.NewTree()
 	l.count = 0
