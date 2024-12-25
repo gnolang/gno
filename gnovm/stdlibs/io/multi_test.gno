@@ -222,7 +222,7 @@ func TestMultiWriterCopy(t *testing.T) {
 	}
 }
 
-// readerFunc is an io.Reader implemented by the underlying func.
+// readerFunc is an Reader implemented by the underlying func.
 type readerFunc func(p []byte) (int, error)
 
 func (f readerFunc) Read(p []byte) (int, error) {
@@ -241,7 +241,7 @@ func callDepth(callers []uintptr) (depth int) {
 	return
 }
 
-// Test that io.MultiReader properly flattens chained multiReaders when Read is called
+// Test that MultiReader properly flattens chained multiReaders when Read is called
 func TestMultiReaderFlatten(t *testing.T) {
 	pc := make([]uintptr, 1000) // 1000 should fit the full stack
 	n := runtime.Callers(0, pc)
@@ -261,14 +261,14 @@ func TestMultiReaderFlatten(t *testing.T) {
 	r.Read(nil) // don't care about errors, just want to check the call-depth for Read
 
 	if readDepth != myDepth+2 { // 2 should be io.MultiReader.Read and fakeReader.Read
-		t.Errorf("io.MultiReader did not flatten chained multiReaders: expected readDepth %d, got %d",
+		t.Errorf("MultiReader did not flatten chained multiReaders: expected readDepth %d, got %d",
 			myDepth+2, readDepth)
 	}
 }
 */
 
-// byteAndEOFReader is a io.Reader which reads one byte (the underlying
-// byte) and io.EOF at once in its Read call.
+// byteAndEOFReader is a Reader which reads one byte (the underlying
+// byte) and EOF at once in its Read call.
 type byteAndEOFReader byte
 
 func (b byteAndEOFReader) Read(p []byte) (n int, err error) {
@@ -293,15 +293,15 @@ func TestMultiReaderSingleByteWithEOF(t *testing.T) {
 	}
 }
 
-// Test that a io.Reader returning (n, io.EOF) at the end of a io.MultiReader
-// chain continues to return io.EOF on its final read, rather than
-// yielding a (0, io.EOF).
+// Test that a Reader returning (n, EOF) at the end of a MultiReader
+// chain continues to return EOF on its final read, rather than
+// yielding a (0, EOF).
 func TestMultiReaderFinalEOF(t *testing.T) {
 	r := io.MultiReader(bytes.NewReader(nil), byteAndEOFReader('a'))
 	buf := make([]byte, 2)
 	n, err := r.Read(buf)
 	if n != 1 || err != io.EOF {
-		t.Errorf("got %v, %v; want 1, io.EOF", n, err)
+		t.Errorf("got %v, %v; want 1, EOF", n, err)
 	}
 }
 
@@ -310,7 +310,7 @@ func TestMultiReaderFreesExhaustedReaders(t *testing.T) {
 	var mr io.Reader
 	closed := make(chan struct{})
 	// The closure ensures that we don't have a live reference to buf1
-	// on our stack after io.MultiReader is inlined (Issue 18819).  This
+	// on our stack after MultiReader is inlined (Issue 18819).  This
 	// is a work around for a limitation in liveness analysis.
 	func() {
 		buf1 := bytes.NewReader([]byte("foo"))
