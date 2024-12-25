@@ -10,7 +10,7 @@ import (
 )
 
 func main() {
-	tree := avl.Tree{}
+	tree := avl.NewTree()
 
 	{
 		// Empty tree.
@@ -44,7 +44,7 @@ func main() {
 		println("match: " + matches[0])
 	}
 
-	tree = avl.Tree{}
+	tree = avl.NewTree()
 	tree.Set("a\xff", "")
 	tree.Set("a\xff\xff", "")
 	tree.Set("b", "")
