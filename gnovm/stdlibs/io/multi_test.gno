@@ -145,7 +145,7 @@ func testMultiWriter(t *testing.T, sink interface {
 	}
 }
 
-// writerFunc is an io.Writer implemented by the underlying func.
+// writerFunc is an Writer implemented by the underlying func.
 type writerFunc func(p []byte) (int, error)
 
 func (f writerFunc) Write(p []byte) (int, error) {
@@ -196,7 +196,7 @@ func TestMultiWriterError(t *testing.T) {
 	}
 }
 
-// Test that io.MultiReader copies the input slice and is insulated from future modification.
+// Test that MultiReader copies the input slice and is insulated from future modification.
 func TestMultiReaderCopy(t *testing.T) {
 	slice := []io.Reader{strings.NewReader("hello world")}
 	r := io.MultiReader(slice...)
@@ -260,8 +260,8 @@ func TestMultiReaderFlatten(t *testing.T) {
 
 	r.Read(nil) // don't care about errors, just want to check the call-depth for Read
 
-	if readDepth != myDepth+2 { // 2 should be io.MultiReader.Read and fakeReader.Read
-		t.Errorf("MultiReader did not flatten chained multiReaders: expected readDepth %d, got %d",
+	if readDepth != myDepth+2 { // 2 should be multiReader.Read and fakeReader.Read
+		t.Errorf("multiReader did not flatten chained multiReaders: expected readDepth %d, got %d",
 			myDepth+2, readDepth)
 	}
 }
@@ -293,7 +293,7 @@ func TestMultiReaderSingleByteWithEOF(t *testing.T) {
 	}
 }
 
-// Test that a Reader returning (n, EOF) at the end of a MultiReader
+// Test that a reader returning (n, EOF) at the end of a MultiReader
 // chain continues to return EOF on its final read, rather than
 // yielding a (0, EOF).
 func TestMultiReaderFinalEOF(t *testing.T) {
