@@ -1,6 +1,7 @@
 package testing
 
 import (
+	"math"
 	"time"
 )
 
@@ -45,17 +46,9 @@ func Test_nrand(t *T) {
 	// on average for large sample sizes.
 	// The expectation of the standard deviation should be
 	// close to 1 for large sample sizes.
-	if abs(avg) > 0.1 { // can be adjusted based on sample size
+	if math.Abs(avg) > 0.1 { // can be adjusted based on sample size
 		t.Errorf("nrand() = %v, want in range [-0.1, 0.1]", avg)
 	}
-}
-
-// custom abs implem to avoid dependency cycle in math while still testing internals
-func abs(x float64) float64 {
-	if x > 0 {
-		return -x
-	}
-	return x
 }
 
 func Test_GenerateRandomBool(t *T) {
