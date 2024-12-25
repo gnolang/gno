@@ -1,6 +1,8 @@
 package testing
 
-import "regexp"
+import (
+	"errors"
+)
 
 func X_unixNano() int64 {
 	// only implemented in testing stdlibs
@@ -8,17 +10,5 @@ func X_unixNano() int64 {
 }
 
 func X_matchString(pat, str string) (result bool, err error) {
-	if matchRe == nil || matchPat != pat {
-		matchPat = pat
-		matchRe, err = regexp.Compile(matchPat)
-		if err != nil {
-			return
-		}
-	}
-	return matchRe.MatchString(str), nil
+	return false, errors.New("only implemented in testing stdlibs")
 }
-
-var (
-	matchPat string
-	matchRe  *regexp.Regexp
-)
