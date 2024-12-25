@@ -18,17 +18,21 @@ var (
 	reAddressLookalike = regexp.MustCompile(`^g1[a-z0-9]{20,38}$`)
 )
 
-//type UserData struct {
-//	name      string
-//	addr      std.Address
-//	IsAlias   bool
-//	IsDeleted bool
-//}
-//
-//var (
-//	usernameStore = avl.NewTree() // username > *UserData
-//	addressStore  = avl.NewTree() // address > *UserData
-//) todo see if this is the better approach
+// nameStore // name or alias > UserData
+// addrStore // addr > name or latestAlias
+
+type UserData struct {
+	address std.Address
+	name    string
+	aliasTo *UserData
+}
+
+// set -
+// if not reg > set nameStore(name, new(*UserData)), set addrStore(addr, same(*UserData)
+// set alias
+// get
+// delete
+// update? nemamo
 
 const (
 	SetUserEvent     = "UserSet"
