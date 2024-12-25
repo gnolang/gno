@@ -158,7 +158,7 @@ func TestMultiWriterSingleChainFlatten(t *testing.T) {
 	pc := make([]uintptr, 1000) // 1000 should fit the full stack
 	n := runtime.Callers(0, pc)
 	var myDepth = callDepth(pc[:n])
-	var writeDepth int // will contain the depth from which writerFunc.io.Writer was called
+	var writeDepth int // will contain the depth from which writerFunc.Writer was called
 	var w io.Writer = io.MultiWriter(writerFunc(func(p []byte) (int, error) {
 		n := runtime.Callers(1, pc)
 		writeDepth += callDepth(pc[:n])
