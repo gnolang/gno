@@ -99,14 +99,6 @@ func listPkgs(rootMod gnomod.Pkg) ([]testPkg, error) {
 	return res, nil
 }
 
-func fileImportsToStrings(fis []packages.FileImport) []string {
-	res := make([]string, len(fis))
-	for i, fi := range fis {
-		res[i] = fi.PkgPath
-	}
-	return res
-}
-
 // detectCycles detects import cycles
 //
 // We need to check
@@ -133,67 +125,44 @@ func fileImportsToStrings(fis []packages.FileImport) []string {
 // - foo_pkg/foo.go imports bar_pkg
 //
 // - bar_pkg/bar_test.go imports foo_pkg
-//
-// This implementation can be optimized with better graph theory
 func detectCycles(root testPkg, pkgs []testPkg) error {
-	// check normal cycles
-	{
-		visited := make(map[string]bool)
-		stack := []string{}
-		if err := visitPackage(root, pkgs, visited, stack); err != nil {
-			return fmt.Errorf("compiled import error: %w", err)
+	// check cycles in package's sources
+	visited := make(map[string]bool)
+	stack := []string{}
+	if err := visitPackage(root, pkgs, visited, stack); err != nil {
+		return fmt.Errorf("pkgsrc import: %w", err)
+	}
+	// check cycles in external tests' dependencies we might have missed
+	if err := visitImports([]packages.FileKind{packages.FileKindXTest, packages.FileKindFiletest}, root, pkgs, visited, stack); err != nil {
+		return fmt.Errorf("xtest import: %w", err)
+	}
+
+	// check cycles in tests' imports by marking the current package as visited while visiting the tests' imports
+	// we also coniders PackageSource imports here because tests can call package code
+	visited = map[string]bool{root.PkgPath: true}
+	stack = []string{root.PkgPath}
+	if err := visitImports([]packages.FileKind{packages.FileKindPackageSource, packages.FileKindTest}, root, pkgs, visited, stack); err != nil {
+		return fmt.Errorf("test import: %w", err)
+	}
+
+	return nil
+}
+
+// visitImports resolves and visits imports by kinds
+func visitImports(kinds []packages.FileKind, root testPkg, pkgs []testPkg, visited map[string]bool, stack []string) error {
+	for _, imp := range root.Imports.Merge(kinds...) {
+		if slices.Contains(injectedTestingLibs, imp.PkgPath) {
+			continue
+		}
+		idx := slices.IndexFunc(pkgs, func(p testPkg) bool { return p.PkgPath == imp.PkgPath })
+		if idx == -1 {
+			return fmt.Errorf("import %q not found for %q tests", imp.PkgPath, root.PkgPath)
+		}
+		if err := visitPackage(pkgs[idx], pkgs, visited, stack); err != nil {
+			return fmt.Errorf("test import error: %w", err)
 		}
 	}
 
-	// check external tests cycles
-	{
-		visited := make(map[string]bool)
-		stack := []string{}
-		for _, imp := range root.Imports.Merge(packages.FileKindXTest, packages.FileKindFiletest) {
-			if slices.Contains(injectedTestingLibs, imp.PkgPath) {
-				continue
-			}
-			pkg := (*testPkg)(nil)
-			for _, p := range pkgs {
-				if p.PkgPath != imp.PkgPath {
-					continue
-				}
-				pkg = &p
-				break
-			}
-			if pkg == nil {
-				return fmt.Errorf("import %q not found for %q xtests", imp.PkgPath, root.PkgPath)
-			}
-			if err := visitPackage(*pkg, pkgs, visited, stack); err != nil {
-				return fmt.Errorf("xtest import error: %w", err)
-			}
-		}
-	}
-
-	// check test cycles
-	{
-		visited := map[string]bool{root.PkgPath: true}
-		stack := []string{root.PkgPath}
-		for _, imp := range root.Imports.Merge(packages.FileKindPackageSource, packages.FileKindTest) {
-			if slices.Contains(injectedTestingLibs, imp.PkgPath) {
-				continue
-			}
-			pkg := (*testPkg)(nil)
-			for _, p := range pkgs {
-				if p.PkgPath != imp.PkgPath {
-					continue
-				}
-				pkg = &p
-				break
-			}
-			if pkg == nil {
-				return fmt.Errorf("import %q not found for %q tests", imp.PkgPath, root.PkgPath)
-			}
-			if err := visitPackage(*pkg, pkgs, visited, stack); err != nil {
-				return fmt.Errorf("test import error: %w", err)
-			}
-		}
-	}
 	return nil
 }
 
@@ -209,26 +178,8 @@ func visitPackage(pkg testPkg, pkgs []testPkg, visited map[string]bool, stack []
 	visited[pkg.PkgPath] = true
 	stack = append(stack, pkg.PkgPath)
 
-	// Visit package's imports
-	for _, imp := range pkg.Imports.Merge(packages.FileKindPackageSource) {
-		if slices.Contains(injectedTestingLibs, imp.PkgPath) {
-			continue
-		}
-
-		found := false
-		for _, p := range pkgs {
-			if p.PkgPath != imp.PkgPath {
-				continue
-			}
-			if err := visitPackage(p, pkgs, visited, stack); err != nil {
-				return err
-			}
-			found = true
-			break
-		}
-		if !found {
-			return fmt.Errorf("missing dependency '%s' for package '%s'", imp.PkgPath, pkg.PkgPath)
-		}
+	if err := visitImports([]packages.FileKind{packages.FileKindPackageSource}, pkg, pkgs, visited, stack); err != nil {
+		return err
 	}
 
 	return nil
