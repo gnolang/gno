@@ -2,6 +2,8 @@ package fuzzer
 
 import (
 	"errors"
+	"strings"
+	"testing"
 	"testing/fuzzinglib"
 )
 
@@ -25,6 +27,9 @@ import (
 type F struct {
 	fsm    *fuzzinglib.StateMachine
 	corpus []fuzzinglib.Seed
+	msgs   []string // Stores log messages for reporting.
+	iters  int      // Number of iterations to run the fuzzing process. TODO: CLI flag to set this.
+	failed bool     // Indicates whether the fuzzing has encountered a failure.
 }
 
 func New_F() *F {
@@ -108,6 +113,80 @@ func (f *F) Add(args ...interface{}) {
 	f.fsm.InitSeeds = append(f.fsm.InitSeeds, fuzzinglib.Seed{Gen: 1, IsUsed: false, Content: values})
 }
 
+type Runner func(*testing.T, ...interface{})
+
+func (f *F) Fuzz(run Runner) {
+	_, err, isPanic, panicMsg := monitor(run, "apple")
+	if isPanic {
+		msg := "Panic occered in target function: " + panicMsg
+		f.Fatal(msg)
+	}
+	if err != nil {
+
+		msg := "Error occered in target function: " + err.Error()
+		f.Fatal(msg)
+
+	}
+}
+
+// Fail marks the function as having failed bur continue execution.
+func (f *F) Fail() {
+	f.failed = true
+}
+
+// Fatal is equivalent to Log followed by FailNow.
+// It logs the message and marks the fuzzing as failed.
+func (f *F) Fatal(args ...interface{}) {
+	var sb strings.Builder
+
+	for _, arg := range args {
+		sb.WriteString(arg.(string))
+	}
+	f.msgs = append(f.msgs, sb.String())
+	println(f.msgs[0])
+	f.Fail()
+}
+
+func monitor(run Runner, inputs ...interface{}) (coverage fuzzinglib.Coverage, err error, isPanic bool, panicMsg string) {
+	isPanic = false
+	panicMsg = ""
+	err = nil
+	coverage = fuzzinglib.Coverage{}
+	// panic을 감지하기 위한 defer
+	defer func() {
+		if r := recover(); r != nil {
+			isPanic = true
+			// r이 error 타입이면 .Error() 문자열을 추출
+			if err, ok := r.(error); ok {
+				panicMsg = err.Error()
+				return
+			}
+			// r이 string 타입이면 그대로 문자열로 사용
+			if s, ok := r.(string); ok {
+				panicMsg = s
+				return
+			}
+			// 그 외에는 직접 문자열 리턴이 불가능하므로 예시로 "unknown panic" 처리
+			panicMsg = "unknown panic"
+		}
+	}()
+	t := testing.NewT("fuzzing")
+	run(t, inputs)
+	v, ok := inputs[0].(string)
+	if !ok {
+		panic("didnt implement other type")
+	}
+	coverage = fuzzinglib.Get_Coverage_of_runner(t, v)
+
+	info := t.GetResult()
+	if info.Failed {
+		err = errors.New(string(info.Output))
+	}
+
+	// println(string(t.output))
+	return coverage, err, isPanic, panicMsg
+}
+
 // Slice 비교 함수
 func isSliceEqual(a, b []fuzzinglib.SupportedType) bool {
 	if len(a) != len(b) {
@@ -132,4 +211,9 @@ func main() {
 	println(f.fsm.ToString())
 	println(f.fsm.SeedType)
 	println(f.fsm.InitSeeds)
+	f.Fuzz(func(t *testing.T, a ...interface{}) {
+		println(a[0])
+		panic("크아아악")
+	})
+	println("hello world")
 }
