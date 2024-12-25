@@ -119,22 +119,12 @@ func walkStdlibs(stdlibsPath string) ([]*pkgData, error) {
 			return nil
 		}
 
-		// skip non-source files.
+		// skip non-source and test files.
 		ext := filepath.Ext(fpath)
-		if (ext != ".go" && ext != ".gno") ||
-			strings.HasSuffix(fpath, ".gen.go") {
-			return nil
-		}
-
-		fs := token.NewFileSet()
-		f, err := parser.ParseFile(fs, fpath, nil, parser.SkipObjectResolution)
-		if err != nil {
-			return err
-		}
-
-		// skip external test files
 		noExt := fpath[:len(fpath)-len(ext)]
-		if strings.HasSuffix(noExt, "_test") && strings.HasSuffix(f.Name.Name, "_test") {
+		if (ext != ".go" && ext != ".gno") ||
+			strings.HasSuffix(noExt, "_test") ||
+			strings.HasSuffix(fpath, ".gen.go") {
 			return nil
 		}
 
@@ -152,6 +142,11 @@ func walkStdlibs(stdlibsPath string) ([]*pkgData, error) {
 			pkgs = append(pkgs, pkg)
 		} else {
 			pkg = pkgs[len(pkgs)-1]
+		}
+		fs := token.NewFileSet()
+		f, err := parser.ParseFile(fs, fpath, nil, parser.SkipObjectResolution)
+		if err != nil {
+			return err
 		}
 
 		if ext == ".go" {

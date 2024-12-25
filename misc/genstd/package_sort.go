@@ -37,7 +37,8 @@ func sortPackages(pkgs []*pkgData) []string {
 			if slices.Contains(res, imp) {
 				continue
 			}
-			if slices.Contains(nativeInjections, imp) {
+			if pkg.importPath == "testing" &&
+				slices.Contains(nativeInjections, imp) {
 				continue
 			}
 
