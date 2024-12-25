@@ -3,6 +3,7 @@ package fuzzinglib
 import (
 	"strconv"
 	"strings"
+	"testing"
 )
 
 type SupportedType string
@@ -75,6 +76,7 @@ func New_StateMachine() *StateMachine {
 func (sm *StateMachine) Format_StateMachine(f interface{}) {
 	sm.All_Coverage = Get_AllCoverage()
 
+	t := testing.NewT("for runner")
 	for _, e := range sm.InitSeeds {
 		// TODO: 쩔 수 없음. 현재는  string에 대한 하드코딩밖에 안됨
 		// seed가 하나뿐
@@ -84,7 +86,7 @@ func (sm *StateMachine) Format_StateMachine(f interface{}) {
 		if !ok {
 			panic("nooooot a string")
 		}
-		result := Get_Coverage_of_target_func(str)
+		result := Get_Coverage_of_runner(t, str)
 		println("result", result)
 	}
 

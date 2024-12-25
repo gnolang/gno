@@ -5,12 +5,104 @@ import (
 	"strings"
 )
 
+// func main() {
+// 	c1 := Coverage{
+// 		{"a", 1},
+// 		{"a", 2},
+// 		{"a", 3},
+// 	}
+// 	c2 := Coverage{
+// 		{"a", 1},
+// 		{"a", 1},
+// 		{"a", 1},
+// 		{"a", 2},
+// 		{"a", 3},
+// 	}
+// 	c3 := Coverage{
+// 		{"a", 1},
+// 		{"a", 3},
+// 	}
+// 	c4 := Coverage{
+// 		{"a", 1},
+// 		{"a", 2},
+// 		{"a", 3},
+// 		{"a", 3},
+// 	}
+// 	c5 := Coverage{
+// 		{"a", 4},
+// 		{"a", 2},
+// 		{"a", 3},
+// 		{"a", 3},
+// 	}
+
+// 	hm := New_HashMachine()
+
+// 	h1 := hm.RegisterCoverage2HashNumber(c1)
+// 	h2 := hm.RegisterCoverage2HashNumber(c2)
+// 	h3 := hm.RegisterCoverage2HashNumber(c3)
+// 	h4 := hm.RegisterCoverage2HashNumber(c4)
+// 	h5 := hm.RegisterCoverage2HashNumber(c5)
+// 	println(h1, h2, h3, h4, h5)
+// 	println(hm.HashNumber2Internal[0])
+// 	println(hm.HashNumber2Internal[100])
+// 	println(hm.Internal2Cov_dict)
+// }
+
 type CoveredLine struct {
 	co_name string
 	co_line int
 }
 
 type Coverage []CoveredLine
+
+type (
+	internalHash uint64
+	HashNumber   uint64
+)
+
+type HashMachine struct {
+	Internal2Cov_dict       map[internalHash]Coverage
+	HashNumber2Internal     [50000]internalHash
+	internalHash2hashNumber map[internalHash]HashNumber
+	hashNumber_counter      *hashNumberCounter
+}
+
+func (hm *HashMachine) RegisterCoverage2HashNumber(coverage Coverage) HashNumber {
+	internal_hash := GetInternalHash(coverage)
+	hm.Internal2Cov_dict[internal_hash] = coverage
+	hashNumber := hm.Count_HashNumber(internal_hash)
+	hm.HashNumber2Internal[hashNumber] = internal_hash
+	return HashNumber(hashNumber)
+}
+
+type hashNumberCounter struct {
+	counter HashNumber
+}
+
+func New_HashNumberCounter() *hashNumberCounter {
+	return &hashNumberCounter{
+		counter: 0,
+	}
+}
+
+func New_HashMachine() *HashMachine {
+	return &HashMachine{
+		hashNumber_counter:      New_HashNumberCounter(),
+		Internal2Cov_dict:       make(map[internalHash]Coverage),
+		internalHash2hashNumber: make(map[internalHash]HashNumber),
+	}
+}
+
+func (hm *HashMachine) Count_HashNumber(ih internalHash) HashNumber {
+	if value, exists := hm.internalHash2hashNumber[ih]; exists {
+		// If the key exists, return the value
+		return value
+	}
+	hm.internalHash2hashNumber[ih] = hm.hashNumber_counter.counter
+	current := hm.hashNumber_counter.counter
+	hm.hashNumber_counter.counter++
+	return current
+}
 
 func CoverageToBytes(coverage Coverage) []byte {
 	var builder strings.Builder
@@ -52,11 +144,11 @@ func intToString(n int) string {
 // GetPathHash calculates the hash of a Coverage type
 // 중복 제거도 추가함.
 // 타입 맞게 수정 추가함. 그래도 기반 기능은 동일.
-func GetPathHash(input Coverage) uint64 {
+func GetInternalHash(input Coverage) internalHash {
 	input = RemoveDuplicates(input)
 	valBytes := CoverageToBytes(input)
 	valArray := sha256.Sum256(valBytes)
-	return BytesToUint64(valArray)
+	return internalHash(BytesToUint64(valArray))
 }
 
 // BytesToUint64 converts the first 8 bytes of a SHA256 hash to uint64

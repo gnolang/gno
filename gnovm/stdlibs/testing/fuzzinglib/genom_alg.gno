@@ -7,35 +7,35 @@ import (
 	"time"
 )
 
-func main() {
-	var s1 string = "apple"
-	var b1 []byte = []byte("aaaaaa")
+// func main() {
+// 	var s1 string = "apple"
+// 	var b1 []byte = []byte("aaaaaa")
 
-	var s2 string = "banana"
-	var b2 []byte = []byte("bbbbbb")
+// 	var s2 string = "banana"
+// 	var b2 []byte = []byte("bbbbbb")
 
-	seed1 := Seed{Gen: 3, IsUsed: false, Content: []interface{}{s1, b1}, Result: nil}
-	seed2 := Seed{Gen: 3, IsUsed: false, Content: []interface{}{s2, b2}, Result: nil}
+// 	seed1 := Seed{Gen: 3, IsUsed: false, Content: []interface{}{s1, b1}, Result: nil}
+// 	seed2 := Seed{Gen: 3, IsUsed: false, Content: []interface{}{s2, b2}, Result: nil}
 
-	// old_p := seed1
+// 	// old_p := seed1
 
-	// for i := 0; i < 10; i++ {
-	// 	new_gen := evolve([]Seed{old_p})
-	// 	println(i+1, "번째 변이 결과-1:", new_gen[0].Content)
-	// 	println(i+1, "번째 변이 결과-2:", new_gen[1].Content)
-	// 	old_p = new_gen[0]
-	// }
+// 	// for i := 0; i < 10; i++ {
+// 	// 	new_gen := evolve([]Seed{old_p})
+// 	// 	println(i+1, "번째 변이 결과-1:", new_gen[0].Content)
+// 	// 	println(i+1, "번째 변이 결과-2:", new_gen[1].Content)
+// 	// 	old_p = new_gen[0]
+// 	// }
 
-	new_gen := evolve([]Seed{seed1, seed2})
-	for i, e := range new_gen {
-		println(i, "번쨰:", e.Content)
-		v, ok := e.Content[1].([]byte)
-		if !ok {
-			panic("AAA")
-		}
-		println(string(v))
-	}
-}
+// 	new_gen := evolve([]Seed{seed1, seed2})
+// 	for i, e := range new_gen {
+// 		println(i, "번쨰:", e.Content)
+// 		v, ok := e.Content[1].([]byte)
+// 		if !ok {
+// 			panic("AAA")
+// 		}
+// 		println(string(v))
+// 	}
+// }
 
 // Seed의 Content를 랜덤으로 변형
 // 다변함수 시엔 하나를 잡아서 변형형
@@ -278,7 +278,7 @@ func TwoPointCrossover(parent1, parent2 Seed) (Seed, Seed) {
 func evolve(seeds []Seed) []Seed {
 	p1 := seeds[0]
 	// 이게 목표 수
-	target_count := 120 / (p1.Gen * p1.Gen)
+	target_count := 240 / (p1.Gen * p1.Gen)
 	loop_count := target_count / 2
 
 	// 결과가 2 미만일 경우 2로 설정

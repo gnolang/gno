@@ -2,6 +2,7 @@ package fuzzinglib
 
 import (
 	"errors"
+	"testing"
 	"unicode/utf8"
 )
 
@@ -55,7 +56,7 @@ func Reverse1(s string) string {
 	return string(r)
 }
 
-func Get_Coverage_of_target_func(orig string) Coverage {
+func Get_Coverage_of_runner(t *testing.T, orig string) Coverage {
 	// 커버리지 받아오도록 하기.
 	// 형식은 (함수명, line)
 
