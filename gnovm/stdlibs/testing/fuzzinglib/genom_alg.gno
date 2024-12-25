@@ -3,15 +3,15 @@ package fuzzinglib
 import (
 	"errors"
 	"math"
-	"math/rand"
 	"testing"
+	"time"
 )
 
 func main() {
-	var s1 string = "䓭\U000ba316䓭ú헌"
+	var s1 string = "apple"
 	var b1 []byte = []byte("aaaaaa")
 
-	var s2 string = "김ú명ú헌"
+	var s2 string = "banana"
 	var b2 []byte = []byte("bbbbbb")
 
 	seed1 := Seed{Gen: 3, IsUsed: false, Content: []interface{}{s1, b1}, Result: nil}
@@ -357,7 +357,7 @@ func evolve(seeds []Seed) []Seed {
 
 // 랜덤 바이트를 점진적 변형
 func randomByte_from(seed_byte byte) byte {
-	p := rand.Float64() // 0.0 <= p < 1.0
+	p := testing.GetSingleRand().Float64() // 0.0 <= p < 1.0
 	// 단지, del확률 처리용으로 만든 변수. 신경 쓸 필요 없음.
 	next_flag := testing.GenerateRandomBool(0.5)
 	var b uint8
@@ -402,7 +402,7 @@ func randomByte_from(seed_byte byte) byte {
 	}
 
 	if currentCase == 2 {
-		p2 := rand.Float64()
+		p2 := testing.GetSingleRand().Float64()
 		// DEL케이스인 경우 확률 조정
 		if next_flag {
 			if p2 < 0.8 {
@@ -458,7 +458,7 @@ const (
 
 // 수정된 randomRune 함수
 func randomRune_from(seed_rune rune) rune {
-	p := rand.Float64() // 0.0 <= p < 1.0
+	p := testing.GetSingleRand().Float64() // 0.0 <= p < 1.0
 
 	// 단지, del확률 처리용으로 만든 변수. 신경 쓸 필요 없음.
 	next_flag := testing.GenerateRandomBool(0.5)
@@ -505,7 +505,7 @@ func randomRune_from(seed_rune rune) rune {
 	}
 
 	if currentCase == 2 {
-		p2 := rand.Float64()
+		p2 := testing.GetSingleRand().Float64()
 		// DEL케이스인 경우 확률 조정
 		if next_flag {
 			if p2 < 0.8 {
@@ -576,7 +576,7 @@ func determineCase(seed_rune rune) int {
 
 // 랜덤 변형 함수 for int types
 func randomInt_from(i interface{}) interface{} {
-	p := rand.Float64() // 0.0 ~ 1.0 사이의 랜덤 확률 값
+	p := testing.GetSingleRand().Float64() // 0.0 ~ 1.0 사이의 랜덤 확률 값
 
 	switch v := i.(type) {
 	case int:
@@ -612,7 +612,7 @@ func randomInt_from(i interface{}) interface{} {
 			}
 			int_std = int(testing.RandRange(min, max))
 		default: // 나머지 확률: 완전 랜덤 값
-			int_std = rand.Int()
+			int_std = testing.GetSingleRand().Int()
 		}
 		return int_std
 
@@ -685,7 +685,7 @@ func randomInt_from(i interface{}) interface{} {
 			}
 			int_32 = int32(testing.RandRange(min, max))
 		default: // 나머지 확률: 완전 랜덤 값
-			int_32 = rand.Int32()
+			int_32 = testing.GetSingleRand().Int32()
 		}
 		return int_32
 
@@ -721,7 +721,7 @@ func randomInt_from(i interface{}) interface{} {
 			}
 			int_64 = testing.RandRange(min, max)
 		default: // 나머지 확률: 완전 랜덤 값
-			int_64 = rand.Int64()
+			int_64 = testing.GetSingleRand().Int64()
 		}
 		return int_64
 
@@ -732,7 +732,7 @@ func randomInt_from(i interface{}) interface{} {
 
 // 랜덤 변형 함수 for uint types
 func randomUint_from(u interface{}) interface{} {
-	p := rand.Float64() // 0.0 ~ 1.0 사이의 랜덤 확률 값
+	p := testing.GetSingleRand().Float64() // 0.0 ~ 1.0 사이의 랜덤 확률 값
 
 	switch v := u.(type) {
 	case uint:
@@ -753,7 +753,7 @@ func randomUint_from(u interface{}) interface{} {
 			}
 			uint_std = uint(testing.RandRange(min, max))
 		default:
-			uint_std = uint(rand.Uint64())
+			uint_std = uint(testing.GetSingleRand().Uint64())
 		}
 		return uint_std
 
