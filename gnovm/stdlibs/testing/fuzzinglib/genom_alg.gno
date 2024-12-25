@@ -8,18 +8,33 @@ import (
 )
 
 func main() {
-	// seed1 := Seed{Gen: 1, IsUsed: false, Content: []interface{}{"apple"}, Result: nil}
-	// seed2 := Seed{Gen: 3, IsUsed: false, Content: []interface{}{"wellcome!"}, Result: nil}
+	var s1 string = "䓭\U000ba316䓭ú헌"
+	var b1 []byte = []byte("aaaaaa")
+
+	var s2 string = "김ú명ú헌"
+	var b2 []byte = []byte("bbbbbb")
+
+	seed1 := Seed{Gen: 3, IsUsed: false, Content: []interface{}{s1, b1}, Result: nil}
+	seed2 := Seed{Gen: 3, IsUsed: false, Content: []interface{}{s2, b2}, Result: nil}
 
 	// old_p := seed1
 
-	// println(i32(88)==uint8(88))
 	// for i := 0; i < 10; i++ {
 	// 	new_gen := evolve([]Seed{old_p})
 	// 	println(i+1, "번째 변이 결과-1:", new_gen[0].Content)
 	// 	println(i+1, "번째 변이 결과-2:", new_gen[1].Content)
 	// 	old_p = new_gen[0]
 	// }
+
+	new_gen := evolve([]Seed{seed1, seed2})
+	for i, e := range new_gen {
+		println(i, "번쨰:", e.Content)
+		v, ok := e.Content[1].([]byte)
+		if !ok {
+			panic("AAA")
+		}
+		println(string(v))
+	}
 }
 
 // Seed의 Content를 랜덤으로 변형
@@ -38,18 +53,34 @@ func Mutate(seed Seed) Seed {
 
 	selected := seed.Content[index]
 	// 선택된 원소를 수정
-	str, ok := selected.(string)
-	if !ok {
-		return seed
+	switch v := selected.(type) {
+	case int, int8, int16, int32, int64:
+		seed.Content[index] = randomInt_from(v)
+	case uint, uint8, uint16, uint32, uint64:
+		seed.Content[index] = randomUint_from(v)
+	case float32, float64:
+		seed.Content[index] = randomFloat_from(v)
+	case bool:
+		seed.Content[index] = randomBool()
+	case string:
+		runes := []rune(v)
+		if len(runes) > 0 {
+			runeIndex := testing.RandRange(0, int64(len(runes)-1))
+			runes[runeIndex] = randomRune_from(runes[runeIndex])
+		}
+		var new_str string = string(runes)
+		seed.Content[index] = new_str
+	case []byte:
+		bytes := []byte(v)
+		if len(bytes) > 0 {
+			byteIndex := testing.RandRange(0, int64(len(bytes)-1))
+			bytes[byteIndex] = randomByte_from(bytes[byteIndex])
+		}
+		var new_byt []byte = []byte(bytes)
+		seed.Content[index] = new_byt
+	default:
+		panic("not supported type")
 	}
-
-	runes := []rune(str)
-	if len(runes) > 0 {
-		runeIndex := testing.RandRange(0, int64(len(runes)-1))
-		runes[runeIndex] = randomRune_from(runes[runeIndex])
-	}
-	var new_str string = string(runes)
-	seed.Content[index] = new_str
 
 	return seed
 }
@@ -66,39 +97,64 @@ func InsertDelete(seed Seed, p float64) Seed {
 	}
 
 	selected := seed.Content[index]
-	// 선택된 원소를 수정
-	str, ok := selected.(string)
-	if !ok {
-		return seed
-	}
+	switch v := selected.(type) {
+	case string:
+		rr := []rune(v)
+		l := len(rr)
 
-	rr := []rune(str)
-	l := len(rr)
+		// Insert
+		if testing.GenerateRandomBool(p) {
+			// 삽입할 문자 결정
+			sample := rr[testing.RandRange(0, int64(l-1))]
+			char := randomRune_from(sample)
+			// 삽입 포지션 배정
+			pos := testing.RandRange(0, int64(l-1))
+			// 한 칸 늘리기
+			rr = append(rr, 0)
+			// 한 칸 밀기
+			copy(rr[pos+1:], rr[pos:])
+			// 그 사이에 삽입
+			rr[pos] = char
+		} else {
+			if l == 0 {
+				return seed
+			}
 
-	// Insert
-	if testing.GenerateRandomBool(p) {
-		// 삽입할 문자 결정
-		sample := rr[testing.RandRange(0, int64(l-1))]
-		char := randomRune_from(sample)
-		// 삽입 포지션 배정
-		pos := testing.RandRange(0, int64(l-1))
-		// 한 칸 늘리기
-		rr = append(rr, 0)
-		// 한 칸 밀기
-		copy(rr[pos+1:], rr[pos:])
-		// 그 사이에 삽입
-		rr[pos] = char
-	} else {
-		if l == 0 {
-			return seed
+			pos := testing.RandRange(0, int64(l-1))
+			rr = append(rr[:pos], rr[pos+1:]...)
 		}
+		var new_str string = string(rr)
+		seed.Content[index] = new_str
+	case []byte:
+		bb := []byte(v)
+		l := len(bb)
 
-		pos := testing.RandRange(0, int64(l-1))
-		rr = append(rr[:pos], rr[pos+1:]...)
+		// Insert
+		if testing.GenerateRandomBool(p) {
+			// 삽입할 문자 결정
+			sample := bb[testing.RandRange(0, int64(l-1))]
+			bt := randomByte_from(sample)
+			// 삽입 포지션 배정
+			pos := testing.RandRange(0, int64(l-1))
+			// 한 칸 늘리기
+			bb = append(bb, 0)
+			// 한 칸 밀기
+			copy(bb[pos+1:], bb[pos:])
+			// 그 사이에 삽입
+			bb[pos] = bt
+		} else {
+			if l == 0 {
+				return seed
+			}
+
+			pos := testing.RandRange(0, int64(l-1))
+			bb = append(bb[:pos], bb[pos+1:]...)
+		}
+		var new_byt []byte = []byte(bb)
+		seed.Content[index] = new_byt
+	default:
+
 	}
-	var new_str string = string(rr)
-	seed.Content[index] = new_str
-
 	return seed
 }
 
@@ -125,46 +181,88 @@ func TwoPointCrossover(parent1, parent2 Seed) (Seed, Seed) {
 	}
 
 	for i := 0; i < len(parent1.Content); i++ {
-		str1, ok1 := parent1.Content[i].(string)
-		if !ok1 {
-			continue
+		switch v1 := content1[i].(type) {
+		case int, int8, int16, int32, int64, uint, uint8, uint16, uint32, uint64, float32, float64:
+			content1[i], content2[i] = linear_crossover(v1, content2[i])
+		case bool:
+			content1[i] = v1
+			content2[i] = content2[i]
+		case string:
+			str1 := v1
+			str2, ok2 := parent2.Content[i].(string)
+			if !ok2 {
+				panic("type not equal")
+			}
+			p1Runes := []rune(str1)
+			p2Runes := []rune(str2)
+
+			p1Len := len(p1Runes)
+			p2Len := len(p2Runes)
+
+			// 최소 길이를 기준으로 교배 지점 설정
+			minLen := p1Len
+			if p2Len < p1Len {
+				minLen = p2Len
+			}
+
+			point1 := testing.RandRange(0, int64(minLen))
+			point2 := testing.RandRange(0, int64(minLen))
+
+			// 교차점 정렬 (point1 < point2 보장)
+			if point1 > point2 {
+				point1, point2 = point2, point1
+			}
+			// 자식 생성
+			crossed_str1 := append([]rune{}, p1Runes[:point1]...)          // 부모1의 첫 구간
+			crossed_str1 = append(crossed_str1, p2Runes[point1:point2]...) // 부모2의 중간 구간
+			crossed_str1 = append(crossed_str1, p1Runes[point2:]...)       // 부모1의 마지막 구간
+
+			crossed_str2 := append([]rune{}, p2Runes[:point1]...)          // 부모2의 첫 구간
+			crossed_str2 = append(crossed_str2, p1Runes[point1:point2]...) // 부모1의 중간 구간
+			crossed_str2 = append(crossed_str2, p2Runes[point2:]...)       // 부모2의 마지막 구간
+
+			result_str1 := string(crossed_str1)
+			result_str2 := string(crossed_str2)
+			content1[i] = result_str1
+			content2[i] = result_str2
+		case []byte:
+			byt1 := v1
+			byt2, ok := parent2.Content[i].([]byte)
+			if !ok {
+				panic("type not equal")
+			}
+			p1Bytes := []byte(byt1)
+			p2Bytes := []byte(byt2)
+			p1Len := len(p1Bytes)
+			p2Len := len(p2Bytes)
+			minLen := p1Len
+			if p2Len < p1Len {
+				minLen = p2Len
+			}
+
+			point1 := testing.RandRange(0, int64(minLen))
+			point2 := testing.RandRange(0, int64(minLen))
+			// 교차점 정렬 (point1 < point2 보장)
+			if point1 > point2 {
+				point1, point2 = point2, point1
+			}
+			// 자식 생성
+			crossed_byt1 := append([]byte{}, p1Bytes[:point1]...)          // 부모1의 첫 구간
+			crossed_byt1 = append(crossed_byt1, p2Bytes[point1:point2]...) // 부모2의 중간 구간
+			crossed_byt1 = append(crossed_byt1, p1Bytes[point2:]...)       // 부모1의 마지막 구간
+
+			crossed_byt2 := append([]byte{}, p2Bytes[:point1]...)          // 부모2의 첫 구간
+			crossed_byt2 = append(crossed_byt2, p1Bytes[point1:point2]...) // 부모1의 중간 구간
+			crossed_byt2 = append(crossed_byt2, p2Bytes[point2:]...)       // 부모2의 마지막 구간
+
+			result_byt1 := []byte(crossed_byt1)
+			result_byt2 := []byte(crossed_byt2)
+			content1[i] = result_byt1
+			content2[i] = result_byt2
+		default:
+			panic("not supported type")
+
 		}
-		str2, ok2 := parent2.Content[i].(string)
-		if !ok2 {
-			continue
-		}
-		p1Runes := []rune(str1)
-		p2Runes := []rune(str2)
-
-		p1Len := len(p1Runes)
-		p2Len := len(p2Runes)
-
-		// 최소 길이를 기준으로 교배 지점 설정
-		minLen := p1Len
-		if p2Len < p1Len {
-			minLen = p2Len
-		}
-
-		point1 := testing.RandRange(0, int64(minLen))
-		point2 := testing.RandRange(0, int64(minLen))
-
-		// 교차점 정렬 (point1 < point2 보장)
-		if point1 > point2 {
-			point1, point2 = point2, point1
-		}
-		// 자식 생성
-		crossed_str1 := append([]rune{}, p1Runes[:point1]...)          // 부모1의 첫 구간
-		crossed_str1 = append(crossed_str1, p2Runes[point1:point2]...) // 부모2의 중간 구간
-		crossed_str1 = append(crossed_str1, p1Runes[point2:]...)       // 부모1의 마지막 구간
-
-		crossed_str2 := append([]rune{}, p2Runes[:point1]...)          // 부모2의 첫 구간
-		crossed_str2 = append(crossed_str2, p1Runes[point1:point2]...) // 부모1의 중간 구간
-		crossed_str2 = append(crossed_str2, p2Runes[point2:]...)       // 부모2의 마지막 구간
-
-		result_str1 := string(crossed_str1)
-		result_str2 := string(crossed_str2)
-		content1[i] = result_str1
-		content2[i] = result_str2
 	}
 
 	// 새로운 자식 생성
@@ -206,7 +304,7 @@ func evolve(seeds []Seed) []Seed {
 			// 깊은 복사를 위해 새로운 슬라이스 생성
 			new_content := make([]interface{}, len(seeds[0].Content))
 			for i, v := range seeds[0].Content {
-				new_content[i] = v // 안전하게 string으로 캐스팅
+				new_content[i] = v
 			}
 
 			new_ind := Seed{
@@ -283,16 +381,23 @@ func randomByte_from(seed_byte byte) byte {
 		}
 	} else {
 		switch {
-		case p < 0.3: // 이전 케이스
+		case p < 0.15:
+			currentCase = (currentCase + 2) % 4 // 순환 처리
+			next_flag = false
+			break
+		case p < 0.35: // 이전 케이스
 			currentCase = (currentCase + 3) % 4 // 순환 처리
 			next_flag = false
 			break
-		case p < 0.7: // 본인 케이스
+		case p < 0.65: // 본인 케이스
 			break
 			// 유지
-		case p <= 1.0: // 다음 케이스
+		case p < 0.85:
 			next_flag = true
 			currentCase = (currentCase + 1) % 4 // 순환 처리
+		case p <= 1.0: // 다음 케이스
+			next_flag = true
+			currentCase = (currentCase + 2) % 4 // 순환 처리
 		}
 	}
 
@@ -378,16 +483,24 @@ func randomRune_from(seed_rune rune) rune {
 		}
 	} else {
 		switch {
-		case p < 0.25: // 이전 케이스
+		case p < 0.15: // 이전 케이스
+			currentCase = (currentCase + 5) % 7 // 순환 처리
+			next_flag = false
+			break
+		case p < 0.35:
 			currentCase = (currentCase + 6) % 7 // 순환 처리
 			next_flag = false
 			break
-		case p < 0.75: // 본인 케이스
+		case p < 0.65: // 본인 케이스
 			break
 			// 유지
+		case p < 0.85:
+			currentCase = (currentCase + 1) % 7 // 순환 처리
+			next_flag = true
+			break
 		case p <= 1.0: // 다음 케이스
 			next_flag = true
-			currentCase = (currentCase + 1) % 7 // 순환 처리
+			currentCase = (currentCase + 2) % 7 // 순환 처리
 		}
 	}
 
@@ -751,6 +864,132 @@ func randomUint_from(u interface{}) interface{} {
 	}
 }
 
+func randomFloat_from(f interface{}) interface{} {
+	switch v := f.(type) {
+	case float32:
+		var f_32 float32
+		f_32 = randFloat32_from(float32(v))
+		return float32(f_32)
+	case float64:
+		var f_64 float64
+		f_64 = randFloat64_from(float64(v))
+		return float64(f_64)
+	default:
+		panic("argument is not float 32 or float4")
+	}
+}
+
+func randFloat32_from(f float32) float32 {
+	return 0.0000000
+}
+
+func randFloat64_from(f float64) float64 {
+	return 0.0000000
+}
+
 func randomBool() bool {
 	return testing.UniformRandomBool(0.5)
+}
+
+func linear_crossover(a interface{}, b interface{}) (interface{}, interface{}) {
+	switch v1 := a.(type) {
+	case int:
+		v2, ok := b.(int)
+		if !ok {
+			panic("type not equal")
+		}
+		new_v1 := int(math.Round(0.7*float64(v1) + 0.3*float64(v2)))
+		new_v2 := int(math.Round(0.3*float64(v1) + 0.7*float64(v2)))
+		return new_v1, new_v2
+	case int8:
+		v2, ok := b.(int8)
+		if !ok {
+			panic("type not equal")
+		}
+		new_v1 := int8(math.Round(0.7*float64(v1) + 0.3*float64(v2)))
+		new_v2 := int8(math.Round(0.3*float64(v1) + 0.7*float64(v2)))
+		return new_v1, new_v2
+	case int16:
+		v2, ok := b.(int16)
+		if !ok {
+			panic("type not equal")
+		}
+		new_v1 := int16(math.Round(0.7*float64(v1) + 0.3*float64(v2)))
+		new_v2 := int16(math.Round(0.3*float64(v1) + 0.7*float64(v2)))
+		return new_v1, new_v2
+	case int32:
+		v2, ok := b.(int32)
+		if !ok {
+			panic("type not equal")
+		}
+		new_v1 := int32(math.Round(0.7*float64(v1) + 0.3*float64(v2)))
+		new_v2 := int32(math.Round(0.3*float64(v1) + 0.7*float64(v2)))
+		return new_v1, new_v2
+	case int64:
+		v2, ok := b.(int64)
+		if !ok {
+			panic("type not equal")
+		}
+		new_v1 := int64(math.Round(0.7*float64(v1) + 0.3*float64(v2)))
+		new_v2 := int64(math.Round(0.3*float64(v1) + 0.7*float64(v2)))
+		return new_v1, new_v2
+	case uint:
+		v2, ok := b.(uint)
+		if !ok {
+			panic("type not equal")
+		}
+		new_v1 := uint(math.Round(0.7*float64(v1) + 0.3*float64(v2)))
+		new_v2 := uint(math.Round(0.3*float64(v1) + 0.7*float64(v2)))
+		return new_v1, new_v2
+	case uint8:
+		v2, ok := b.(uint8)
+		if !ok {
+			panic("type not equal")
+		}
+		new_v1 := uint8(math.Round(0.7*float64(v1) + 0.3*float64(v2)))
+		new_v2 := uint8(math.Round(0.3*float64(v1) + 0.7*float64(v2)))
+		return new_v1, new_v2
+	case uint16:
+		v2, ok := b.(uint16)
+		if !ok {
+			panic("type not equal")
+		}
+		new_v1 := uint16(math.Round(0.7*float64(v1) + 0.3*float64(v2)))
+		new_v2 := uint16(math.Round(0.3*float64(v1) + 0.7*float64(v2)))
+		return new_v1, new_v2
+	case uint32:
+		v2, ok := b.(uint32)
+		if !ok {
+			panic("type not equal")
+		}
+		new_v1 := uint32(math.Round(0.7*float64(v1) + 0.3*float64(v2)))
+		new_v2 := uint32(math.Round(0.3*float64(v1) + 0.7*float64(v2)))
+		return new_v1, new_v2
+	case uint64:
+		v2, ok := b.(uint64)
+		if !ok {
+			panic("type not equal")
+		}
+		new_v1 := uint64(math.Round(0.7*float64(v1) + 0.3*float64(v2)))
+		new_v2 := uint64(math.Round(0.3*float64(v1) + 0.7*float64(v2)))
+		return new_v1, new_v2
+	case float32:
+		v2, ok := b.(float32)
+		if !ok {
+			panic("type not equal")
+		}
+		new_v1 := float32(0.7*float64(v1) + 0.3*float64(v2))
+		new_v2 := float32(0.3*float64(v1) + 0.7*float64(v2))
+		return new_v1, new_v2
+	case float64:
+		v2, ok := b.(float64)
+		if !ok {
+			panic("type not equal")
+		}
+		new_v1 := float64(0.3*float64(v1) + 0.7*float64(v2))
+		new_v2 := float64(0.3*float64(v1) + 0.7*float64(v2))
+		return new_v1, new_v2
+	default:
+		panic("type can't be linear crossed")
+	}
 }
