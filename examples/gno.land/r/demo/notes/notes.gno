@@ -15,6 +15,8 @@ var (
 	users avl.Tree // std.Address -> BTree
 )
 
+// TODO : add private notes with a check for the caller
+
 type Note struct {
 	id        int
 	content   string
