@@ -2,15 +2,14 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package rand_test
+package rand
 
 import (
-	"math/rand"
 	"testing"
 )
 
 func BenchmarkPCG_DXSM(b *testing.B) {
-	var p rand.PCG
+	var p PCG
 	var t uint64
 	for n := b.N; n > 0; n-- {
 		t += p.Uint64()
@@ -19,7 +18,7 @@ func BenchmarkPCG_DXSM(b *testing.B) {
 }
 
 func TestPCGMarshal(t *testing.T) {
-	var p rand.PCG
+	var p PCG
 	const (
 		seed1 = 0x123456789abcdef0
 		seed2 = 0xfedcba9876543210
@@ -31,7 +30,7 @@ func TestPCGMarshal(t *testing.T) {
 		t.Errorf("MarshalBinary() = %q, %v, want %q, nil", data, err, want)
 	}
 
-	q := rand.PCG{}
+	q := PCG{}
 	if err := q.UnmarshalBinary([]byte(want)); err != nil {
 		t.Fatalf("UnmarshalBinary(): %v", err)
 	}
@@ -47,7 +46,7 @@ func TestPCGMarshal(t *testing.T) {
 }
 
 func TestPCG(t *testing.T) {
-	p := rand.NewPCG(1, 2)
+	p := NewPCG(1, 2)
 	want := []uint64{
 		0xc4f5a58656eef510,
 		0x9dcec3ad077dec6c,
