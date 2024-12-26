@@ -22,13 +22,13 @@ func TestAuthIntegration(t *testing.T) {
 	std.TestSetOrigSend(std.Coins{{"ugnot", 42}}, nil)
 	authbanker.FundVault(aliceAccountID)
 	urequire.Equal(t, int64(42), authbanker.GetCoins(aliceAccountID))
+	// urequire.Equal(t, int64(42), std.GetBanker(std.BankerTypeReadonly).GetCoins(authbankerAddr)[0].Amount)
 
 	std.TestSetRealm(std.NewUserRealm(alice))
 	aliceToken := subacc.AuthToken("savings")
 	authbanker.SendCoins(aliceToken, bobAccountID, 14)
 	urequire.Equal(t, int64(28), authbanker.GetCoins(aliceAccountID))
 	urequire.Equal(t, int64(14), authbanker.GetCoins(bobAccountID))
-	// urequire.Equal(t, int64(0), std.GetBanker(std.BankerTypeReadonly).GetCoins(authbankerAddr)[0].Amount)
 
 	std.TestSetRealm(std.NewUserRealm(bob))
 	bobToken := subacc.AuthToken("savings")
