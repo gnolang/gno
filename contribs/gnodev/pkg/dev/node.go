@@ -43,10 +43,9 @@ type NodeConfig struct {
 	NoReplay              bool
 	MaxGasPerBlock        int64
 	ChainID               string
-	ChainTz               string
 }
 
-func DefaultNodeConfig(rootdir string, tz string) *NodeConfig {
+func DefaultNodeConfig(rootdir string) *NodeConfig {
 	tmc := gnoland.NewDefaultTMConfig(rootdir)
 	tmc.Consensus.SkipTimeoutCommit = false // avoid time drifting, see issue #1507
 	tmc.Consensus.WALDisabled = true
@@ -66,7 +65,6 @@ func DefaultNodeConfig(rootdir string, tz string) *NodeConfig {
 		DefaultDeployer:       defaultDeployer,
 		BalancesList:          balances,
 		ChainID:               tmc.ChainID(),
-		ChainTz:               tz,
 		TMConfig:              tmc,
 		SkipFailingGenesisTxs: true,
 		MaxGasPerBlock:        10_000_000_000,
@@ -123,16 +121,10 @@ func NewDevNode(ctx context.Context, cfg *NodeConfig) (*Node, error) {
 		currentStateIndex: len(cfg.InitialTxs),
 	}
 
-	var tzParam gnoland.Param
-	_ = tzParam.Parse("gno.land/r/sys/params.vm.chain_tz.string=" + cfg.ChainTz)
-
 	// generate genesis state
 	genesis := gnoland.GnoGenesisState{
 		Balances: cfg.BalancesList,
 		Txs:      append(pkgsTxs, cfg.InitialTxs...),
-		Params: []gnoland.Param{
-			tzParam,
-		},
 	}
 
 	if err := devnode.rebuildNode(ctx, genesis); err != nil {
@@ -495,7 +487,7 @@ func (n *Node) rebuildNode(ctx context.Context, genesis gnoland.GnoGenesisState)
 	}
 
 	// Setup node config
-	nodeConfig := newNodeConfig(n.config.TMConfig, n.config.ChainID, n.config.ChainTz, genesis)
+	nodeConfig := newNodeConfig(n.config.TMConfig, n.config.ChainID, genesis)
 	nodeConfig.GenesisTxResultHandler = n.genesisTxResultHandler
 	// Speed up stdlib loading after first start (saves about 2-3 seconds on each reload).
 	nodeConfig.CacheStdlibLoad = true
@@ -574,10 +566,10 @@ func (n *Node) genesisTxResultHandler(ctx sdk.Context, tx std.Tx, res sdk.Result
 	return
 }
 
-func newNodeConfig(tmc *tmcfg.Config, chainid string, chaintz string, appstate gnoland.GnoGenesisState) *gnoland.InMemoryNodeConfig {
+func newNodeConfig(tmc *tmcfg.Config, chainid string, appstate gnoland.GnoGenesisState) *gnoland.InMemoryNodeConfig {
 	// Create Mocked Identity
 	pv := gnoland.NewMockedPrivValidator()
-	genesis := gnoland.NewDefaultGenesisConfig(chainid, chaintz)
+	genesis := gnoland.NewDefaultGenesisConfig(chainid)
 	genesis.AppState = appstate
 
 	// Add self as validator

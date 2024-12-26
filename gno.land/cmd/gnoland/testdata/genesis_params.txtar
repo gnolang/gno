@@ -1,16 +1,6 @@
-# Test for #3003, #2911, #3193.
+# test for https://github.com/gnolang/gno/pull/3003
 
 gnoland start
-
-# Query and validate official parameters.
-# These parameters should ideally be tested in a txtar format to ensure that a
-# default initialization of "gnoland" provides the expected default values.
-
-# Verify the default chain domain parameter for Gno.land
-gnokey query params/vm/gno.land/r/sys/params.vm.chain_tz.string
-stdout 'data: "UTC"$'
-
-# Test custom parameters to confirm they return the expected values and types.
 
 gnokey query params/vm/gno.land/r/sys/params.test.foo.string
 stdout 'data: "bar"$'

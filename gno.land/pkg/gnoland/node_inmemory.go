@@ -36,10 +36,11 @@ func NewMockedPrivValidator() bft.PrivValidator {
 }
 
 // NewDefaultGenesisConfig creates a default configuration for an in-memory node.
-func NewDefaultGenesisConfig(chainid string, chaintz string) *bft.GenesisDoc {
-	var tzParam Param
-	_ = tzParam.Parse("gno.land/r/sys/params.vm.chain_tz.string=" + chaintz)
-	fmt.Println("tzParam", tzParam)
+func NewDefaultGenesisConfig(chainid, chaindomain string) *bft.GenesisDoc {
+	// custom chain domain
+	var domainParam Param
+	_ = domainParam.Parse("gno.land/r/sys/params.vm.chain_domain.string=" + chaindomain)
+
 	return &bft.GenesisDoc{
 		GenesisTime: time.Now(),
 		ChainID:     chainid,
@@ -50,7 +51,7 @@ func NewDefaultGenesisConfig(chainid string, chaintz string) *bft.GenesisDoc {
 			Balances: []Balance{},
 			Txs:      []TxWithMetadata{},
 			Params: []Param{
-				tzParam,
+				domainParam,
 			},
 		},
 	}

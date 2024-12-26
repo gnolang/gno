@@ -1,656 +1,351 @@
-// Copyright 2011 The Go Authors. All rights reserved.
+// Copyright 2009 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
+
+// Parse "zoneinfo" time zone file.
+// This is a fairly standard file format used on OS X, Linux, BSD, Sun, and others.
+// See tzfile(5), https://en.wikipedia.org/wiki/Zoneinfo,
+// and ftp://munnari.oz.au/pub/oldtz/
 
 package time
 
 import "errors"
 
-//go:generate env ZONEINFO=$GOROOT/lib/time/zoneinfo.zip go run genzabbrs.go -output zoneinfo_abbrs_windows.go
-
-// A Location maps time instants to the zone in use at that time.
-// Typically, the Location represents the collection of time offsets
-// in use in a geographical area. For many Locations the time offset varies
-// depending on whether daylight savings time is in use at the time instant.
-type Location struct {
-	name string
-	zone []zone
-	tx   []zoneTrans
-
-	// The tzdata information can be followed by a string that describes
-	// how to handle DST transitions not recorded in zoneTrans.
-	// The format is the TZ environment variable without a colon; see
-	// https://pubs.opengroup.org/onlinepubs/9699919799/basedefs/V1_chap08.html.
-	// Example string, for America/Los_Angeles: PST8PDT,M3.2.0,M11.1.0
-	extend string
-
-	// Most lookups will be for the current time.
-	// To avoid the binary search through tx, keep a
-	// static one-element cache that gives the correct
-	// zone for the time when the Location was created.
-	// if cacheStart <= t < cacheEnd,
-	// lookup can return cacheZone.
-	// The units for cacheStart and cacheEnd are seconds
-	// since January 1, 1970 UTC, to match the argument
-	// to lookup.
-	cacheStart int64
-	cacheEnd   int64
-	cacheZone  *zone
+// Simple I/O interface to binary blob of data.
+type dataIO struct {
+	p     []byte
+	error bool
 }
 
-// A zone represents a single time zone such as CET.
-type zone struct {
-	name   string // abbreviated name, "CET"
-	offset int    // seconds east of UTC
-	isDST  bool   // is this zone Daylight Savings Time?
-}
-
-// A zoneTrans represents a single time zone transition.
-type zoneTrans struct {
-	when         int64 // transition time, in seconds since 1970 GMT
-	index        uint8 // the index of the zone that goes into effect at that time
-	isstd, isutc bool  // ignored - no idea what these mean
-}
-
-// alpha and omega are the beginning and end of time for zone
-// transitions.
-const (
-	alpha = -1 << 63  // math.MinInt64
-	omega = 1<<63 - 1 // math.MaxInt64
-)
-
-var timezoneChainParam *Location
-
-// UTC represents Universal Coordinated Time (UTC).
-var UTC *Location = &utcLoc
-
-// utcLoc is separate so that get can refer to &utcLoc
-// and ensure that it never returns a nil *Location,
-// even if a badly behaved client has changed UTC.
-var utcLoc = Location{name: "UTC"}
-
-func init() {
-	chainTz := getChainTz()
-	timezoneChainParam, _ = LoadLocation(chainTz)
-}
-
-func getChainTz() string // injected
-
-func (l *Location) get() *Location {
-	if l == nil {
-		return &utcLoc
+func (d *dataIO) read(n int) []byte {
+	if len(d.p) < n {
+		d.p = nil
+		d.error = true
+		return nil
 	}
-	return l
+	p := d.p[0:n]
+	d.p = d.p[n:]
+	return p
 }
 
-// String returns a descriptive name for the time zone information,
-// corresponding to the name argument to LoadLocation or FixedZone.
-func (l *Location) String() string {
-	return l.get().name
-}
-
-// FixedZone returns a Location that always uses
-// the given zone name and offset (seconds east of UTC).
-func FixedZone(name string, offset int) *Location {
-	l := &Location{
-		name:       name,
-		zone:       []zone{{name, offset, false}},
-		tx:         []zoneTrans{{alpha, 0, false, false}},
-		cacheStart: alpha,
-		cacheEnd:   omega,
+func (d *dataIO) big4() (n uint32, ok bool) {
+	p := d.read(4)
+	if len(p) < 4 {
+		d.error = true
+		return 0, false
 	}
-	l.cacheZone = &l.zone[0]
-	return l
+	return uint32(p[3]) | uint32(p[2])<<8 | uint32(p[1])<<16 | uint32(p[0])<<24, true
 }
 
-// lookup returns information about the time zone in use at an
-// instant in time expressed as seconds since January 1, 1970 00:00:00 UTC.
-//
-// The returned information gives the name of the zone (such as "CET"),
-// the start and end times bracketing sec when that zone is in effect,
-// the offset in seconds east of UTC (such as -5*60*60), and whether
-// the daylight savings is being observed at that time.
-func (l *Location) lookup(sec int64) (name string, offset int, start, end int64, isDST bool) {
-	l = l.get()
+func (d *dataIO) big8() (n uint64, ok bool) {
+	n1, ok1 := d.big4()
+	n2, ok2 := d.big4()
+	if !ok1 || !ok2 {
+		d.error = true
+		return 0, false
+	}
+	return (uint64(n1) << 32) | uint64(n2), true
+}
 
-	if len(l.zone) == 0 {
-		name = "UTC"
-		offset = 0
-		start = alpha
-		end = omega
-		isDST = false
-		return
+func (d *dataIO) byte() (n byte, ok bool) {
+	p := d.read(1)
+	if len(p) < 1 {
+		d.error = true
+		return 0, false
+	}
+	return p[0], true
+}
+
+// rest returns the rest of the data in the buffer.
+func (d *dataIO) rest() []byte {
+	r := d.p
+	d.p = nil
+	return r
+}
+
+// Make a string by stopping at the first NUL
+func byteString(p []byte) string {
+	for i := 0; i < len(p); i++ {
+		if p[i] == 0 {
+			return string(p[0:i])
+		}
+	}
+	return string(p)
+}
+
+var errBadData = errors.New("malformed time zone information")
+
+// LoadLocationFromTZData returns a Location with the given name
+// initialized from the IANA Time Zone database-formatted data.
+// The data should be in the format of a standard IANA time zone file
+// (for example, the content of /etc/localtime on Unix systems).
+func LoadLocationFromTZData(name string, data []byte) (*Location, error) {
+	d := dataIO{data, false}
+
+	// 4-byte magic "TZif"
+	if magic := d.read(4); string(magic) != "TZif" {
+		return nil, errBadData
 	}
 
-	if zone := l.cacheZone; zone != nil && l.cacheStart <= sec && sec < l.cacheEnd {
-		name = zone.name
-		offset = zone.offset
-		start = l.cacheStart
-		end = l.cacheEnd
-		isDST = zone.isDST
-		return
+	// 1-byte version, then 15 bytes of padding
+	var version int
+	var p []byte
+	if p = d.read(16); len(p) != 16 {
+		return nil, errBadData
+	} else {
+		switch p[0] {
+		case 0:
+			version = 1
+		case '2':
+			version = 2
+		case '3':
+			version = 3
+		default:
+			return nil, errBadData
+		}
 	}
 
-	if len(l.tx) == 0 || sec < l.tx[0].when {
-		zone := &l.zone[l.lookupFirstZone()]
-		name = zone.name
-		offset = zone.offset
-		start = alpha
-		if len(l.tx) > 0 {
-			end = l.tx[0].when
+	// six big-endian 32-bit integers:
+	//	number of UTC/local indicators
+	//	number of standard/wall indicators
+	//	number of leap seconds
+	//	number of transition times
+	//	number of local time zones
+	//	number of characters of time zone abbrev strings
+	const (
+		NUTCLocal = iota
+		NStdWall
+		NLeap
+		NTime
+		NZone
+		NChar
+	)
+	var n [6]int
+	for i := 0; i < 6; i++ {
+		nn, ok := d.big4()
+		if !ok {
+			return nil, errBadData
+		}
+		if uint32(int(nn)) != nn {
+			return nil, errBadData
+		}
+		n[i] = int(nn)
+	}
+
+	// If we have version 2 or 3, then the data is first written out
+	// in a 32-bit format, then written out again in a 64-bit format.
+	// Skip the 32-bit format and read the 64-bit one, as it can
+	// describe a broader range of dates.
+
+	is64 := false
+	if version > 1 {
+		// Skip the 32-bit data.
+		skip := n[NTime]*4 +
+			n[NTime] +
+			n[NZone]*6 +
+			n[NChar] +
+			n[NLeap]*8 +
+			n[NStdWall] +
+			n[NUTCLocal]
+		// Skip the version 2 header that we just read.
+		skip += 4 + 16
+		d.read(skip)
+
+		is64 = true
+
+		// Read the counts again, they can differ.
+		for i := 0; i < 6; i++ {
+			nn, ok := d.big4()
+			if !ok {
+				return nil, errBadData
+			}
+			if uint32(int(nn)) != nn {
+				return nil, errBadData
+			}
+			n[i] = int(nn)
+		}
+	}
+
+	size := 4
+	if is64 {
+		size = 8
+	}
+
+	// Transition times.
+	txtimes := dataIO{d.read(n[NTime] * size), false}
+
+	// Time zone indices for transition times.
+	txzones := d.read(n[NTime])
+
+	// Zone info structures
+	zonedata := dataIO{d.read(n[NZone] * 6), false}
+
+	// Time zone abbreviations.
+	abbrev := d.read(n[NChar])
+
+	// Leap-second time pairs
+	d.read(n[NLeap] * (size + 4))
+
+	// Whether tx times associated with local time types
+	// are specified as standard time or wall time.
+	isstd := d.read(n[NStdWall])
+
+	// Whether tx times associated with local time types
+	// are specified as UTC or local time.
+	isutc := d.read(n[NUTCLocal])
+
+	if d.error { // ran out of data
+		return nil, errBadData
+	}
+
+	var extend string
+	rest := d.rest()
+	if len(rest) > 2 && rest[0] == '\n' && rest[len(rest)-1] == '\n' {
+		extend = string(rest[1 : len(rest)-1])
+	}
+
+	// Now we can build up a useful data structure.
+	// First the zone information.
+	//	utcoff[4] isdst[1] nameindex[1]
+	nzone := n[NZone]
+	if nzone == 0 {
+		// Reject tzdata files with no zones. There's nothing useful in them.
+		// This also avoids a panic later when we add and then use a fake transition (golang.org/issue/29437).
+		return nil, errBadData
+	}
+	zones := make([]zone, nzone)
+	for i := range zones {
+		var ok bool
+		var n uint32
+		if n, ok = zonedata.big4(); !ok {
+			return nil, errBadData
+		}
+		if uint32(int(n)) != n {
+			return nil, errBadData
+		}
+		zones[i].offset = int(int32(n))
+		var b byte
+		if b, ok = zonedata.byte(); !ok {
+			return nil, errBadData
+		}
+		zones[i].isDST = b != 0
+		if b, ok = zonedata.byte(); !ok || int(b) >= len(abbrev) {
+			return nil, errBadData
+		}
+		zones[i].name = byteString(abbrev[b:])
+	}
+
+	// Now the transition time info.
+	tx := make([]zoneTrans, n[NTime])
+	for i := range tx {
+		var n int64
+		if !is64 {
+			if n4, ok := txtimes.big4(); !ok {
+				return nil, errBadData
+			} else {
+				n = int64(int32(n4))
+			}
 		} else {
-			end = omega
+			if n8, ok := txtimes.big8(); !ok {
+				return nil, errBadData
+			} else {
+				n = int64(n8)
+			}
 		}
-		isDST = zone.isDST
-		return
-	}
-
-	// Binary search for entry with largest time <= sec.
-	// Not using sort.Search to avoid dependencies.
-	tx := l.tx
-	end = omega
-	lo := 0
-	hi := len(tx)
-	for hi-lo > 1 {
-		m := lo + (hi-lo)/2
-		lim := tx[m].when
-		if sec < lim {
-			end = lim
-			hi = m
-		} else {
-			lo = m
+		tx[i].when = n
+		if int(txzones[i]) >= len(zones) {
+			return nil, errBadData
 		}
-	}
-	zone := &l.zone[tx[lo].index]
-	name = zone.name
-	offset = zone.offset
-	start = tx[lo].when
-	// end = maintained during the search
-	isDST = zone.isDST
-
-	// If we're at the end of the known zone transitions,
-	// try the extend string.
-	if lo == len(tx)-1 && l.extend != "" {
-		if ename, eoffset, estart, eend, eisDST, ok := tzset(l.extend, end, sec); ok {
-			return ename, eoffset, estart, eend, eisDST
+		tx[i].index = txzones[i]
+		if i < len(isstd) {
+			tx[i].isstd = isstd[i] != 0
+		}
+		if i < len(isutc) {
+			tx[i].isutc = isutc[i] != 0
 		}
 	}
 
-	return
+	if len(tx) == 0 {
+		// Build fake transition to cover all time.
+		// This happens in fixed locations like "Etc/GMT0".
+		tx = append(tx, zoneTrans{when: alpha, index: 0})
+	}
+
+	// Committed to succeed.
+	l := &Location{zone: zones, tx: tx, name: name, extend: extend}
+
+	// Fill in the cache with information about right now,
+	// since that will be the most common lookup.
+	sec, _, _ := now()
+	for i := range tx {
+		if tx[i].when <= sec && (i+1 == len(tx) || sec < tx[i+1].when) {
+			l.cacheStart = tx[i].when
+			l.cacheEnd = omega
+			l.cacheZone = &l.zone[tx[i].index]
+			if i+1 < len(tx) {
+				l.cacheEnd = tx[i+1].when
+			} else if l.extend != "" {
+				// If we're at the end of the known zone transitions,
+				// try the extend string.
+				if name, offset, estart, eend, isDST, ok := tzset(l.extend, l.cacheStart, sec); ok {
+					l.cacheStart = estart
+					l.cacheEnd = eend
+					// Find the zone that is returned by tzset to avoid allocation if possible.
+					if zoneIdx := findZone(l.zone, name, offset, isDST); zoneIdx != -1 {
+						l.cacheZone = &l.zone[zoneIdx]
+					} else {
+						l.cacheZone = &zone{
+							name:   name,
+							offset: offset,
+							isDST:  isDST,
+						}
+					}
+				}
+			}
+			break
+		}
+	}
+
+	return l, nil
 }
 
-// lookupFirstZone returns the index of the time zone to use for times
-// before the first transition time, or when there are no transition
-// times.
-//
-// The reference implementation in localtime.c from
-// https://www.iana.org/time-zones/repository/releases/tzcode2013g.tar.gz
-// implements the following algorithm for these cases:
-//  1. If the first zone is unused by the transitions, use it.
-//  2. Otherwise, if there are transition times, and the first
-//     transition is to a zone in daylight time, find the first
-//     non-daylight-time zone before and closest to the first transition
-//     zone.
-//  3. Otherwise, use the first zone that is not daylight time, if
-//     there is one.
-//  4. Otherwise, use the first zone.
-func (l *Location) lookupFirstZone() int {
-	// Case 1.
-	if !l.firstZoneUsed() {
+func findZone(zones []zone, name string, offset int, isDST bool) int {
+	for i, z := range zones {
+		if z.name == name && z.offset == offset && z.isDST == isDST {
+			return i
+		}
+	}
+	return -1
+}
+
+// get4 returns the little-endian 32-bit value in b.
+func get4(b []byte) int {
+	if len(b) < 4 {
 		return 0
 	}
-
-	// Case 2.
-	if len(l.tx) > 0 && l.zone[l.tx[0].index].isDST {
-		for zi := int(l.tx[0].index) - 1; zi >= 0; zi-- {
-			if !l.zone[zi].isDST {
-				return zi
-			}
-		}
-	}
-
-	// Case 3.
-	for zi := range l.zone {
-		if !l.zone[zi].isDST {
-			return zi
-		}
-	}
-
-	// Case 4.
-	return 0
+	return int(b[0]) | int(b[1])<<8 | int(b[2])<<16 | int(b[3])<<24
 }
 
-// firstZoneUsed reports whether the first zone is used by some
-// transition.
-func (l *Location) firstZoneUsed() bool {
-	for _, tx := range l.tx {
-		if tx.index == 0 {
-			return true
-		}
+// get2 returns the little-endian 16-bit value in b.
+func get2(b []byte) int {
+	if len(b) < 2 {
+		return 0
 	}
-	return false
+	return int(b[0]) | int(b[1])<<8
 }
 
-// tzset takes a timezone string like the one found in the TZ environment
-// variable, the end of the last time zone transition expressed as seconds
-// since January 1, 1970 00:00:00 UTC, and a time expressed the same way.
-// We call this a tzset string since in C the function tzset reads TZ.
-// The return values are as for lookup, plus ok which reports whether the
-// parse succeeded.
-func tzset(s string, initEnd, sec int64) (name string, offset int, start, end int64, isDST, ok bool) {
-	var (
-		stdName, dstName     string
-		stdOffset, dstOffset int
-	)
-
-	stdName, s, ok = tzsetName(s)
-	if ok {
-		stdOffset, s, ok = tzsetOffset(s)
-	}
+// loadLocation returns the Location with the given name from the
+// embedded data.The first timezone data matching the given name
+// that is successfully loaded and parsed is returned as a Location.
+func loadLocation(name string) (*Location, error) {
+	zoneData, ok := loadFromEmbeddedTZData(name)
 	if !ok {
-		return "", 0, 0, 0, false, false
+		return nil, errors.New("unknown time zone " + name)
 	}
 
-	// The numbers in the tzset string are added to local time to get UTC,
-	// but our offsets are added to UTC to get local time,
-	// so we negate the number we see here.
-	stdOffset = -stdOffset
-
-	if len(s) == 0 || s[0] == ',' {
-		// No daylight savings time.
-		return stdName, stdOffset, initEnd, omega, false, true
+	if loc, err := LoadLocationFromTZData(name, zoneData); err == nil {
+		return loc, nil
 	}
 
-	dstName, s, ok = tzsetName(s)
-	if ok {
-		if len(s) == 0 || s[0] == ',' {
-			dstOffset = stdOffset + secondsPerHour
-		} else {
-			dstOffset, s, ok = tzsetOffset(s)
-			dstOffset = -dstOffset // as with stdOffset, above
-		}
-	}
-	if !ok {
-		return "", 0, 0, 0, false, false
-	}
-
-	if len(s) == 0 {
-		// Default DST rules per tzcode.
-		s = ",M3.2.0,M11.1.0"
-	}
-	// The TZ definition does not mention ';' here but tzcode accepts it.
-	if s[0] != ',' && s[0] != ';' {
-		return "", 0, 0, 0, false, false
-	}
-	s = s[1:]
-
-	var startRule, endRule rule
-	startRule, s, ok = tzsetRule(s)
-	if !ok || len(s) == 0 || s[0] != ',' {
-		return "", 0, 0, 0, false, false
-	}
-	s = s[1:]
-	endRule, s, ok = tzsetRule(s)
-	if !ok || len(s) > 0 {
-		return "", 0, 0, 0, false, false
-	}
-
-	year, _, _, yday := absDate(uint64(sec+unixToInternal+internalToAbsolute), false)
-
-	ysec := int64(yday*secondsPerDay) + sec%secondsPerDay
-
-	// Compute start of year in seconds since Unix epoch.
-	d := daysSinceEpoch(year)
-	abs := int64(d * secondsPerDay)
-	abs += absoluteToInternal + internalToUnix
-
-	startSec := int64(tzruleTime(year, startRule, stdOffset))
-	endSec := int64(tzruleTime(year, endRule, dstOffset))
-	dstIsDST, stdIsDST := true, false
-	// Note: this is a flipping of "DST" and "STD" while retaining the labels
-	// This happens in southern hemispheres. The labelling here thus is a little
-	// inconsistent with the goal.
-	if endSec < startSec {
-		startSec, endSec = endSec, startSec
-		stdName, dstName = dstName, stdName
-		stdOffset, dstOffset = dstOffset, stdOffset
-		stdIsDST, dstIsDST = dstIsDST, stdIsDST
-	}
-
-	// The start and end values that we return are accurate
-	// close to a daylight savings transition, but are otherwise
-	// just the start and end of the year. That suffices for
-	// the only caller that cares, which is Date.
-	if ysec < startSec {
-		return stdName, stdOffset, abs, startSec + abs, stdIsDST, true
-	} else if ysec >= endSec {
-		return stdName, stdOffset, endSec + abs, abs + 365*secondsPerDay, stdIsDST, true
-	} else {
-		return dstName, dstOffset, startSec + abs, endSec + abs, dstIsDST, true
-	}
-}
-
-// tzsetName returns the timezone name at the start of the tzset string s,
-// and the remainder of s, and reports whether the parsing is OK.
-func tzsetName(s string) (string, string, bool) {
-	if len(s) == 0 {
-		return "", "", false
-	}
-	if s[0] != '<' {
-		for i, r := range s {
-			switch r {
-			case '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', ',', '-', '+':
-				if i < 3 {
-					return "", "", false
-				}
-				return s[:i], s[i:], true
-			}
-		}
-		if len(s) < 3 {
-			return "", "", false
-		}
-		return s, "", true
-	} else {
-		for i, r := range s {
-			if r == '>' {
-				return s[1:i], s[i+1:], true
-			}
-		}
-		return "", "", false
-	}
-}
-
-// tzsetOffset returns the timezone offset at the start of the tzset string s,
-// and the remainder of s, and reports whether the parsing is OK.
-// The timezone offset is returned as a number of seconds.
-func tzsetOffset(s string) (offset int, rest string, ok bool) {
-	if len(s) == 0 {
-		return 0, "", false
-	}
-	neg := false
-	if s[0] == '+' {
-		s = s[1:]
-	} else if s[0] == '-' {
-		s = s[1:]
-		neg = true
-	}
-
-	// The tzdata code permits values up to 24 * 7 here,
-	// although POSIX does not.
-	var hours int
-	hours, s, ok = tzsetNum(s, 0, 24*7)
-	if !ok {
-		return 0, "", false
-	}
-	off := hours * secondsPerHour
-	if len(s) == 0 || s[0] != ':' {
-		if neg {
-			off = -off
-		}
-		return off, s, true
-	}
-
-	var mins int
-	mins, s, ok = tzsetNum(s[1:], 0, 59)
-	if !ok {
-		return 0, "", false
-	}
-	off += mins * secondsPerMinute
-	if len(s) == 0 || s[0] != ':' {
-		if neg {
-			off = -off
-		}
-		return off, s, true
-	}
-
-	var secs int
-	secs, s, ok = tzsetNum(s[1:], 0, 59)
-	if !ok {
-		return 0, "", false
-	}
-	off += secs
-
-	if neg {
-		off = -off
-	}
-	return off, s, true
-}
-
-// ruleKind is the kinds of rules that can be seen in a tzset string.
-type ruleKind int
-
-const (
-	ruleJulian ruleKind = iota
-	ruleDOY
-	ruleMonthWeekDay
-)
-
-// rule is a rule read from a tzset string.
-type rule struct {
-	kind ruleKind
-	day  int
-	week int
-	mon  int
-	time int // transition time
-}
-
-// tzsetRule parses a rule from a tzset string.
-// It returns the rule, and the remainder of the string, and reports success.
-func tzsetRule(s string) (rule, string, bool) {
-	var r rule
-	if len(s) == 0 {
-		return rule{}, "", false
-	}
-	ok := false
-	if s[0] == 'J' {
-		var jday int
-		jday, s, ok = tzsetNum(s[1:], 1, 365)
-		if !ok {
-			return rule{}, "", false
-		}
-		r.kind = ruleJulian
-		r.day = jday
-	} else if s[0] == 'M' {
-		var mon int
-		mon, s, ok = tzsetNum(s[1:], 1, 12)
-		if !ok || len(s) == 0 || s[0] != '.' {
-			return rule{}, "", false
-		}
-		var week int
-		week, s, ok = tzsetNum(s[1:], 1, 5)
-		if !ok || len(s) == 0 || s[0] != '.' {
-			return rule{}, "", false
-		}
-		var day int
-		day, s, ok = tzsetNum(s[1:], 0, 6)
-		if !ok {
-			return rule{}, "", false
-		}
-		r.kind = ruleMonthWeekDay
-		r.day = day
-		r.week = week
-		r.mon = mon
-	} else {
-		var day int
-		day, s, ok = tzsetNum(s, 0, 365)
-		if !ok {
-			return rule{}, "", false
-		}
-		r.kind = ruleDOY
-		r.day = day
-	}
-
-	if len(s) == 0 || s[0] != '/' {
-		r.time = 2 * secondsPerHour // 2am is the default
-		return r, s, true
-	}
-
-	offset, s, ok := tzsetOffset(s[1:])
-	if !ok {
-		return rule{}, "", false
-	}
-	r.time = offset
-
-	return r, s, true
-}
-
-// tzsetNum parses a number from a tzset string.
-// It returns the number, and the remainder of the string, and reports success.
-// The number must be between min and max.
-func tzsetNum(s string, min, max int) (num int, rest string, ok bool) {
-	if len(s) == 0 {
-		return 0, "", false
-	}
-	num = 0
-	for i, r := range s {
-		if r < '0' || r > '9' {
-			if i == 0 || num < min {
-				return 0, "", false
-			}
-			return num, s[i:], true
-		}
-		num *= 10
-		num += int(r) - '0'
-		if num > max {
-			return 0, "", false
-		}
-	}
-	if num < min {
-		return 0, "", false
-	}
-	return num, "", true
-}
-
-// tzruleTime takes a year, a rule, and a timezone offset,
-// and returns the number of seconds since the start of the year
-// that the rule takes effect.
-func tzruleTime(year int, r rule, off int) int {
-	var s int
-	switch r.kind {
-	case ruleJulian:
-		s = (r.day - 1) * secondsPerDay
-		if isLeap(year) && r.day >= 60 {
-			s += secondsPerDay
-		}
-	case ruleDOY:
-		s = r.day * secondsPerDay
-	case ruleMonthWeekDay:
-		// Zeller's Congruence.
-		m1 := (r.mon+9)%12 + 1
-		yy0 := year
-		if r.mon <= 2 {
-			yy0--
-		}
-		yy1 := yy0 / 100
-		yy2 := yy0 % 100
-		dow := ((26*m1-2)/10 + 1 + yy2 + yy2/4 + yy1/4 - 2*yy1) % 7
-		if dow < 0 {
-			dow += 7
-		}
-		// Now dow is the day-of-week of the first day of r.mon.
-		// Get the day-of-month of the first "dow" day.
-		d := r.day - dow
-		if d < 0 {
-			d += 7
-		}
-		for i := 1; i < r.week; i++ {
-			if d+7 >= daysIn(Month(r.mon), year) {
-				break
-			}
-			d += 7
-		}
-		d += int(daysBefore[r.mon-1])
-		if isLeap(year) && r.mon > 2 {
-			d++
-		}
-		s = d * secondsPerDay
-	}
-
-	return s + r.time - off
-}
-
-// lookupName returns information about the time zone with
-// the given name (such as "EST") at the given pseudo-Unix time
-// (what the given time of day would be in UTC).
-func (l *Location) lookupName(name string, unix int64) (offset int, ok bool) {
-	l = l.get()
-
-	// First try for a zone with the right name that was actually
-	// in effect at the given time. (In Sydney, Australia, both standard
-	// and daylight-savings time are abbreviated "EST". Using the
-	// offset helps us pick the right one for the given time.
-	// It's not perfect: during the backward transition we might pick
-	// either one.)
-	for i := range l.zone {
-		zone := &l.zone[i]
-		if zone.name == name {
-			nam, offset, _, _, _ := l.lookup(unix - int64(zone.offset))
-			if nam == zone.name {
-				return offset, true
-			}
-		}
-	}
-
-	// Otherwise fall back to an ordinary name match.
-	for i := range l.zone {
-		zone := &l.zone[i]
-		if zone.name == name {
-			return zone.offset, true
-		}
-	}
-
-	// Otherwise, give up.
-	return
-}
-
-// NOTE(rsc): Eventually we will need to accept the POSIX TZ environment
-// syntax too, but I don't feel like implementing it today.
-
-var errLocation = errors.New("time: invalid location name")
-
-var zoneinfo *string
-
-func loadFromEmbeddedTZData(name string) ([]byte, bool) // injected
-
-// XXX var zoneinfoOnce sync.Once
-
-// LoadLocation returns the Location with the given name.
-//
-// If the name is "" or "UTC", LoadLocation returns UTC.
-// If the name is "Local", LoadLocation returns Local.
-//
-// Otherwise, the name is taken to be a location name corresponding to a file
-// in the IANA Time Zone database, such as "America/New_York".
-//
-// LoadLocation looks for the IANA Time Zone database in the following
-// locations in order:
-//
-// - the directory or uncompressed zip file named by the ZONEINFO environment variable
-// - on a Unix system, the system standard installation location
-// - $GOROOT/lib/time/zoneinfo.zip
-// - the time/tzdata package, if it was imported
-func LoadLocation(name string) (*Location, error) {
-	if name == "" || name == "UTC" {
-		return UTC, nil
-	}
-	if containsDotDot(name) || name[0] == '/' || name[0] == '\\' {
-		// No valid IANA Time Zone name contains a single dot,
-		// much less dot dot. Likewise, none begin with a slash.
-		return nil, errLocation
-	}
-
-	return loadLocation(name)
-}
-
-// containsDotDot reports whether s contains "..".
-func containsDotDot(s string) bool {
-	if len(s) < 2 {
-		return false
-	}
-	for i := 0; i < len(s)-1; i++ {
-		if s[i] == '.' && s[i+1] == '.' {
-			return true
-		}
-	}
-	return false
+	return nil, errors.New("unknown time zone " + name)
 }

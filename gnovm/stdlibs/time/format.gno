@@ -539,7 +539,7 @@ func (t Time) GoString() string {
 	buf = append(buf, ", "...)
 	buf = appendInt(buf, t.Nanosecond(), 0)
 	buf = append(buf, ", "...)
-	switch loc := timezoneChainParam; loc {
+	switch loc := t.Location(); loc {
 	case UTC, nil:
 		buf = append(buf, "time.UTC"...)
 	default:
@@ -933,7 +933,7 @@ func skip(value, prefix string) (string, error) {
 // differ by the actual zone offset. To avoid such problems, prefer time layouts
 // that use a numeric zone offset, or use ParseInLocation.
 func Parse(layout, value string) (Time, error) {
-	return parse(layout, value, UTC, timezoneChainParam)
+	return parse(layout, value, UTC, ChainTZ)
 }
 
 // ParseInLocation is like Parse but differs in two important ways.
