@@ -369,11 +369,6 @@ Main:
 				reflect.TypeOf(xt)))
 		}
 
-	case *ArrayTypeExpr:
-		if parentExpr == nil {
-			ty := evalStaticTypeOf(store, last, currExpr)
-			panic(fmt.Sprintf("%s (variable of type %s) is not constant", currExpr.String(), ty))
-		}
 	case *ConstExpr:
 	case *BasicLitExpr:
 	case *CompositeLitExpr:
