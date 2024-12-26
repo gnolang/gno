@@ -14,11 +14,19 @@ func TestToken(t *testing.T) {
 	})
 
 	urequire.PanicsWithMessage(t, auth.ErrInvalidToken.Error(), func() {
+		authenticate((*token)(nil))
+	})
+
+	urequire.PanicsWithMessage(t, auth.ErrInvalidToken.Error(), func() {
 		authenticate(getFakeToken())
 	})
 
 	urequire.PanicsWithMessage(t, auth.ErrInvalidToken.Error(), func() {
 		authenticate(nil)
+	})
+
+	urequire.PanicsWithMessage(t, auth.ErrInvalidToken.Error(), func() {
+		authenticate((*fakeToken)(nil))
 	})
 }
 
@@ -39,10 +47,10 @@ func getToken() auth.Token {
 
 func authenticate(autok auth.Token) string {
 	// the next line is the core of the auth pattern, this ensures we created this token
-	_, ok := autok.(*token)
-	if !ok {
+	if val, ok := autok.(*token); !ok || val == nil {
 		panic(auth.ErrInvalidToken)
 	}
+
 	return "alice"
 }
 
