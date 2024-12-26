@@ -20,8 +20,6 @@ func TestFakeToken(t *testing.T) {
 	})
 }
 
-const testKey = "valid"
-
 type token struct {
 }
 
@@ -41,7 +39,7 @@ func authenticate(autok auth.Token) string {
 	if !ok {
 		panic(auth.ErrInvalidToken)
 	}
-	return testKey
+	return ""
 }
 
 var _ auth.AuthenticateFn = authenticate
