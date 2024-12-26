@@ -248,28 +248,32 @@ Main:
 	switch currExpr := currExpr.(type) {
 	case *NameExpr:
 		t := evalStaticTypeOf(store, last, currExpr)
-		_, okArray := t.(*ArrayType)
-		_, okCallExpr := parentExpr.(*CallExpr)
-
+		if _, ok := t.(*TypeType); ok {
+			t = evalStaticType(store, last, currExpr)
+		}
 		// special case for len, cap
-		if okArray && okCallExpr {
+		if isParentCallExprWithArrayArg(t, parentExpr) {
 			break Main
 		}
 		panic(fmt.Sprintf("%s (variable of type %s) is not constant", currExpr.Name, t))
 	case *TypeAssertExpr:
 		ty := evalStaticTypeOf(store, last, currExpr)
-		_, okCallExpr := parentExpr.(*CallExpr)
-		_, okArray := ty.(*ArrayType)
-		if okCallExpr && okArray {
+		if _, ok := ty.(*TypeType); ok {
+			ty = evalStaticType(store, last, currExpr)
+		}
+		// special case for len, cap
+		if isParentCallExprWithArrayArg(ty, parentExpr) {
 			break Main
 		}
 		panic(fmt.Sprintf("%s (comma, ok expression of type %s) is not constant", currExpr.String(), currExpr.Type))
 	case *IndexExpr:
 		ty := evalStaticTypeOf(store, last, currExpr)
-		_, okCallExpr := parentExpr.(*CallExpr)
-		_, okArray := ty.(*ArrayType)
-		if okCallExpr && okArray {
-			// TODO: should add a test after the fix of https://github.com/gnolang/gno/issues/3409
+		if _, ok := ty.(*TypeType); ok {
+			ty = evalStaticType(store, last, currExpr)
+		}
+		// TODO: should add a test after the fix of https://github.com/gnolang/gno/issues/3409
+		// special case for len, cap
+		if isParentCallExprWithArrayArg(ty, parentExpr) {
 			break Main
 		}
 
@@ -350,11 +354,12 @@ Main:
 			panic(fmt.Sprintf("%s (variable of type %s) is not constant", currExpr.String(), tt))
 		case *PointerType, *DeclaredType, *StructType, *InterfaceType, *TypeType, *NativeType:
 			ty := evalStaticTypeOf(store, last, currExpr)
-			_, okCallExpr := parentExpr.(*CallExpr)
-			_, okArray := ty.(*ArrayType)
+			if _, ok := ty.(*TypeType); ok {
+				ty = evalStaticType(store, last, currExpr)
+			}
 
 			// special case for len, cap
-			if okCallExpr && okArray {
+			if isParentCallExprWithArrayArg(ty, parentExpr) {
 				break Main
 			}
 			panic(fmt.Sprintf("%s (variable of type %s) is not constant", currExpr.String(), ty))
@@ -371,6 +376,8 @@ Main:
 		}
 	case *ConstExpr:
 	case *BasicLitExpr:
+	case *CompositeLitExpr:
+		assertValidConstValue(store, last, currExpr.Type, parentExpr)
 	default:
 		ift := evalStaticTypeOf(store, last, currExpr)
 		if _, ok := ift.(*TypeType); ok {
@@ -378,6 +385,13 @@ Main:
 		}
 		panic(fmt.Sprintf("%s (variable of type %s) is not constant", currExpr.String(), ift))
 	}
+}
+
+func isParentCallExprWithArrayArg(currType Type, parentExpr Expr) bool {
+	_, okArray := baseOf(currType).(*ArrayType)
+	_, okCallExpr := parentExpr.(*CallExpr)
+
+	return okArray && okCallExpr
 }
 
 // checkValDefineMismatch checks for mismatch between the number of variables and values in a ValueDecl or AssignStmt.
