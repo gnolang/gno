@@ -20,11 +20,13 @@ func TestFakeToken(t *testing.T) {
 	})
 }
 
+var testRealm = std.NewCodeRealm("gno.land/r/demo/absacc")
+
 type token struct {
 }
 
 func (t *token) Source() std.Realm {
-	return std.CurrentRealm()
+	return testRealm
 }
 
 var _ auth.Token = (*token)(nil)
@@ -48,7 +50,7 @@ type fakeToken struct {
 }
 
 func (t *fakeToken) Source() std.Realm {
-	return std.CurrentRealm()
+	return testRealm
 }
 
 var _ auth.Token = (*fakeToken)(nil)
