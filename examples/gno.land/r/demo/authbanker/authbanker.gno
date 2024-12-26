@@ -1,6 +1,7 @@
 package authbanker
 
 import (
+	"errors"
 	"std"
 	"strings"
 
@@ -64,6 +65,9 @@ func FundVault(entityID string) {
 	for _, coin := range sentCoins {
 		if coin.Denom != denom {
 			panic(ufmt.Errorf("only %q supported", denom))
+		}
+		if coin.Amount <= 0 {
+			panic(errors.New("send amount must be > 0"))
 		}
 		vaults[entityID] += coin.Amount
 	}
