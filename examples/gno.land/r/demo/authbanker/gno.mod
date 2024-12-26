@@ -1,1 +1,1 @@
-module gno.land/p/demo/authbanker
+module gno.land/r/demo/authbanker
