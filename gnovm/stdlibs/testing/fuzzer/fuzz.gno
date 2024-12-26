@@ -5,37 +5,30 @@ import (
 	"strings"
 	"testing"
 	"testing/fuzzinglib"
+	"unicode/utf8"
 )
 
-// type F struct {
-// 	common
-// 	fstate *fuzzState
-// 	tstate *testState
-
-// 	// inFuzzFn is true when the fuzz function is running. Most F methods cannot
-// 	// be called when inFuzzFn is true.
-// 	inFuzzFn bool
-
-// 	// corpus is a set of seed corpus entries, added with F.Add and loaded
-// 	// from testdata.
-// 	corpus []corpusEntry
-
-// 	result     fuzzResult
-// 	fuzzCalled bool
-// }
-
-type F struct {
-	fsm    *fuzzinglib.StateMachine
-	corpus []fuzzinglib.Seed
-	msgs   []string // Stores log messages for reporting.
-	iters  int      // Number of iterations to run the fuzzing process. TODO: CLI flag to set this.
-	failed bool     // Indicates whether the fuzzing has encountered a failure.
-}
+type (
+	Runner func(*testing.T, ...interface{})
+	F      struct {
+		fsm      *fuzzinglib.StateMachine
+		fhm      *fuzzinglib.HashMachine
+		corpus   []fuzzinglib.Seed
+		msgs     []string // Stores log messages for reporting.
+		iters    int      // Number of iterations to run the fuzzing process. TODO: CLI flag to set this.
+		failed   bool     // Indicates whether the fuzzing has encountered a failure.
+		ff       Runner
+		isFuzzed bool
+	}
+)
 
 func New_F() *F {
 	new_fsm := fuzzinglib.New_StateMachine()
+	new_fhm := fuzzinglib.New_HashMachine()
 	return &F{
-		fsm: new_fsm,
+		fsm:      new_fsm,
+		fhm:      new_fhm,
+		isFuzzed: false,
 	}
 }
 
@@ -108,25 +101,71 @@ func (f *F) Add(args ...interface{}) {
 			panic("added arguments not equal together")
 		}
 	}
+	f.corpus = append(f.corpus, fuzzinglib.Seed{
+		parent_id: 50000,
+		id:        0,
+		Gen:       1, IsUsed: false, Content: values,
+	})
 
 	// 초기화용 시드에 추가
-	f.fsm.InitSeeds = append(f.fsm.InitSeeds, fuzzinglib.Seed{Gen: 1, IsUsed: false, Content: values})
+	f.fsm.InitSeeds = append(f.fsm.InitSeeds,
+		fuzzinglib.Seed{
+			parent_id: 50000,
+			id:        0,
+			Gen:       1, IsUsed: false, Content: values,
+		})
 }
 
-type Runner func(*testing.T, ...interface{})
-
 func (f *F) Fuzz(run Runner) {
-	_, err, isPanic, panicMsg := monitor(run, "apple")
+	if !f.isFuzzed {
+		f.isFuzzed = true
+	} else {
+		panic("fuzz called more than once")
+	}
+
+	// 상태 초기화하기
+	// fsm의 정보들 초기화
+	f.ff = run
+	for i, corp := range f.corpus {
+		println("run corpus", i, "...")
+		coverage := f.runFF(corp.Content)
+		coverage = fuzzinglib.RemoveDuplicates(coverage)
+		hashNumber := f.fhm.RegisterCoverage2HashNumber(coverage)
+		f.fsm.CoordinateMachine(corp, hashNumber)
+		println("코디네이팅 결과 h0->p: ", f.fsm.HashNumber2Priority[0])
+		println("코디네이팅 결과 h1->p: ", f.fsm.HashNumber2Priority[1])
+	}
+	println("formatted machine")
+	println("h0-seeds")
+	f.fsm.HashNumber2Seeds[0].Display()
+	println("h1-seeds", f.fsm.HashNumber2Seeds[1])
+	f.fsm.HashNumber2Seeds[1].Display()
+	println("h0->p", f.fsm.HashNumber2Priority[0])
+	println("h1->p", f.fsm.HashNumber2Priority[1])
+	h0_p := f.fsm.HashNumber2Priority[0]
+	h1_p := f.fsm.HashNumber2Priority[1]
+	println("0번째 우선순위 해시넘버들", f.fsm.Priority2HashNumberULL[0])
+	println("1번째 우선순위 해시넘버들", f.fsm.Priority2HashNumberULL[1])
+	println("2번째 우선순위 해시넘버들", f.fsm.Priority2HashNumberULL[2])
+	println("h0의 우선순위==", h0_p, "실제", h0_p, "번째 우선순위 해시넘버들==")
+	f.fsm.Priority2HashNumberULL[h0_p].Display()
+	println("h1의 우선순위==", h1_p, "실제", h1_p, "번째 우선순위 해시넘버들==")
+	f.fsm.Priority2HashNumberULL[h1_p].Display()
+}
+
+// TODO: Fuzz의 모니터링 추상화하기.
+// TODO: f에 ff등록 후 그걸로 계속 러닝
+func (f *F) runFF(content []interface{}) fuzzinglib.Coverage {
+	coverage, err, isPanic, panicMsg := monitor(f.ff, content)
 	if isPanic {
 		msg := "Panic occered in target function: " + panicMsg
 		f.Fatal(msg)
 	}
 	if err != nil {
-
-		msg := "Error occered in target function: " + err.Error()
+		msg := "Error occered in target function: " + strings.TrimSpace(err.Error())
 		f.Fatal(msg)
-
 	}
+	return coverage
 }
 
 // Fail marks the function as having failed bur continue execution.
@@ -142,12 +181,13 @@ func (f *F) Fatal(args ...interface{}) {
 	for _, arg := range args {
 		sb.WriteString(arg.(string))
 	}
+
 	f.msgs = append(f.msgs, sb.String())
-	println(f.msgs[0])
+
 	f.Fail()
 }
 
-func monitor(run Runner, inputs ...interface{}) (coverage fuzzinglib.Coverage, err error, isPanic bool, panicMsg string) {
+func monitor(run Runner, content []interface{}) (coverage fuzzinglib.Coverage, err error, isPanic bool, panicMsg string) {
 	isPanic = false
 	panicMsg = ""
 	err = nil
@@ -171,17 +211,16 @@ func monitor(run Runner, inputs ...interface{}) (coverage fuzzinglib.Coverage, e
 		}
 	}()
 	t := testing.NewT("fuzzing")
-	run(t, inputs)
-	v, ok := inputs[0].(string)
-	if !ok {
-		panic("didnt implement other type")
-	}
-	coverage = fuzzinglib.Get_Coverage_of_runner(t, v)
-
+	// 배열을 스프레딩
+	run(t, content...)
+	// 테스팅 결과 핸들링링
 	info := t.GetResult()
 	if info.Failed {
 		err = errors.New(string(info.Output))
 	}
+
+	// TODO: 이 함수를, 진짜 커버리지 얻는 함수로 수정하기
+	coverage = fuzzinglib.Get_Coverage_of_runner(t, content)
 
 	// println(string(t.output))
 	return coverage, err, isPanic, panicMsg
@@ -202,18 +241,37 @@ func isSliceEqual(a, b []fuzzinglib.SupportedType) bool {
 
 func main() {
 	f := New_F()
-	var s []byte = []byte("hell")
-	var z []byte = []byte("apple")
-	f.Add("strrr", s)
-	f.Add("strrr22", z)
-	f.Add("sadaasd", s)
-	f.fsm.Format_StateMachine("some_func")
-	println(f.fsm.ToString())
-	println(f.fsm.SeedType)
-	println(f.fsm.InitSeeds)
-	f.Fuzz(func(t *testing.T, a ...interface{}) {
-		println(a[0])
-		panic("크아아악")
+
+	f.Add("sasdadss")
+	f.Add("sasdaasdas")
+	f.Add("瑦")
+	f.Add("qweqwew")
+	f.Add("김명헌")
+
+	// f.fsm.Format_StateMachine("some_func")
+
+	f.Fuzz(func(t *testing.T, orig ...interface{}) {
+		v, ok := orig[0].(string)
+		if !ok {
+			panic("dont match")
+		}
+		rev := fuzzinglib.Reverse1(v)
+		doubleRev := fuzzinglib.Reverse1(rev)
+		if v != doubleRev {
+			t.Errorf("Before: %q, after: %q", orig, doubleRev)
+		}
+		if utf8.ValidString(v) && !utf8.ValidString(rev) {
+			t.Errorf("Reverse produced invalid UTF-8 string %q", rev)
+		}
 	})
-	println("hello world")
+
+	// new_seed := fuzzinglib.Seed{
+	// 	Gen: 0,
+	// }
+	// slicetest([]fuzzinglib.Seed{new_seed})
+	// println(new_seed)
 }
+
+// func slicetest(seeds []fuzzinglib.Seed) {
+// 	seeds[0].Gen = 100
+// }
