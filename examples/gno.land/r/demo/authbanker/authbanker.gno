@@ -16,10 +16,14 @@ const denom = "ugnot"
 
 var vaults = make(map[string]int64)
 
-func GetCoins(account string) int64 {
-	return vaults[account]
+// GetCoins returns the amount of coins in the vault identified by `entityID`
+func GetCoins(entityID string) int64 {
+	return vaults[entityID]
 }
 
+// SendCoins sends `amount` coins from the vault identified by `atok` to the account identified by `to`.
+//
+// `to` can be an entity ID or an address.
 func SendCoins(atok auth.Token, to string, amount int64) {
 	if amount < 1 {
 		panic("sent amount must be >= 0")
@@ -36,7 +40,7 @@ func SendCoins(atok auth.Token, to string, amount int64) {
 
 	vaults[from] -= amount
 
-	if isEntityId(to) {
+	if isEntityID(to) {
 		vaults[to] += amount
 	} else {
 		realmBanker := std.GetBanker(std.BankerTypeRealmSend)
@@ -46,9 +50,11 @@ func SendCoins(atok auth.Token, to string, amount int64) {
 	}
 }
 
-func FundVault(to string) {
+// FundVault funds the vault identified by `entityID` with the `OrigSend` coins.
+// It panics if it's not an `OriginCall`.
+func FundVault(entityID string) {
 	// XXX: maybe replace the following with `authreg.Validate(to)`
-	if !isEntityId(to) {
+	if !isEntityID(entityID) {
 		panic("invalid destination")
 	}
 
@@ -59,10 +65,10 @@ func FundVault(to string) {
 		if coin.Denom != denom {
 			panic(ufmt.Errorf("only %q supported", denom))
 		}
-		vaults[to] += coin.Amount
+		vaults[entityID] += coin.Amount
 	}
 }
 
-func isEntityId(str string) bool {
+func isEntityID(str string) bool {
 	return strings.HasPrefix(str, "/")
 }
