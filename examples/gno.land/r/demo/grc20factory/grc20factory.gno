@@ -8,6 +8,7 @@ import (
 	"gno.land/p/demo/grc/grc20"
 	"gno.land/p/demo/ownable"
 	"gno.land/p/demo/ufmt"
+	"gno.land/r/demo/grc20reg"
 )
 
 var instances avl.Tree // symbol -> instance
@@ -42,7 +43,8 @@ func NewWithAdmin(name, symbol string, decimals uint, initialMint, faucet uint64
 		faucet: faucet,
 	}
 	instances.Set(symbol, &inst)
-	// XXX: grc20reg.Register(token, symbol)
+	getter := func() *grc20.Token { return token }
+	grc20reg.Register(getter, symbol)
 }
 
 func (inst instance) Token() *grc20.Token {
@@ -116,6 +118,17 @@ func Burn(symbol string, from std.Address, amount uint64) {
 	inst := mustGetInstance(symbol)
 	inst.admin.AssertCallerIsOwner()
 	checkErr(inst.ledger.Burn(from, amount))
+}
+
+// instance admin functionality
+func DropInstanceOwnership(symbol string) {
+	inst := mustGetInstance(symbol)
+	checkErr(inst.admin.DropOwnership())
+}
+
+func TransferInstanceOwnership(symbol string, newOwner std.Address) {
+	inst := mustGetInstance(symbol)
+	checkErr(inst.admin.TransferOwnership(newOwner))
 }
 
 func Render(path string) string {

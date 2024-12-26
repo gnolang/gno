@@ -4,18 +4,18 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"go/parser"
 	"go/token"
 	"io"
 	"math/big"
 	"os"
 	"path/filepath"
 	"runtime/debug"
-	"strconv"
 	"strings"
 	"time"
 
+	"github.com/gnolang/gno/gnovm"
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
+	"github.com/gnolang/gno/gnovm/pkg/packages"
 	teststdlibs "github.com/gnolang/gno/gnovm/tests/stdlibs"
 	teststd "github.com/gnolang/gno/gnovm/tests/stdlibs/std"
 	"github.com/gnolang/gno/tm2/pkg/db/memdb"
@@ -45,7 +45,7 @@ func Store(
 			const testPath = "github.com/gnolang/gno/_test/"
 			if strings.HasPrefix(pkgPath, testPath) {
 				baseDir := filepath.Join(rootDir, "gnovm", "tests", "files", "extern", pkgPath[len(testPath):])
-				memPkg := gno.ReadMemPackage(baseDir, pkgPath)
+				memPkg := gno.MustReadMemPackage(baseDir, pkgPath)
 				send := std.Coins{}
 				ctx := Context(pkgPath, send)
 				m2 := gno.NewMachineWithOptions(gno.MachineOptions{
@@ -137,7 +137,7 @@ func Store(
 		// if examples package...
 		examplePath := filepath.Join(rootDir, "examples", pkgPath)
 		if osm.DirExists(examplePath) {
-			memPkg := gno.ReadMemPackage(examplePath, pkgPath)
+			memPkg := gno.MustReadMemPackage(examplePath, pkgPath)
 			if memPkg.IsEmpty() {
 				panic(fmt.Sprintf("found an empty package %q", pkgPath))
 			}
@@ -160,7 +160,7 @@ func Store(
 	// Make a new store.
 	resStore = gno.NewStore(nil, baseStore, baseStore)
 	resStore.SetPackageGetter(getPackage)
-	resStore.SetNativeStore(teststdlibs.NativeStore)
+	resStore.SetNativeResolver(teststdlibs.NativeResolver)
 	return
 }
 
@@ -193,7 +193,7 @@ func loadStdlib(rootDir, pkgPath string, store gno.Store, stdout io.Writer) (*gn
 		return nil, nil
 	}
 
-	memPkg := gno.ReadMemPackageFromList(files, pkgPath)
+	memPkg := gno.MustReadMemPackageFromList(files, pkgPath)
 	m2 := gno.NewMachineWithOptions(gno.MachineOptions{
 		// NOTE: see also pkgs/sdk/vm/builtins.go
 		// Needs PkgPath != its name because TestStore.getPackage is the package
@@ -216,13 +216,13 @@ func (e *stackWrappedError) String() string {
 	return fmt.Sprintf("%v\nstack:\n%v", e.err, string(e.stack))
 }
 
-// LoadImports parses the given file and attempts to retrieve all pure packages
+// LoadImports parses the given MemPackage and attempts to retrieve all pure packages
 // from the store. This is mostly useful for "eager import loading", whereby all
 // imports are pre-loaded in a permanent store, so that the tests can use
 // ephemeral transaction stores.
-func LoadImports(store gno.Store, filename string, content []byte) (err error) {
+func LoadImports(store gno.Store, memPkg *gnovm.MemPackage) (err error) {
 	defer func() {
-		// This is slightly different from the handling below; we do not have a
+		// This is slightly different from other similar error handling; we do not have a
 		// machine to work with, as this comes from an import; so we need
 		// "machine-less" alternatives. (like v.String instead of v.Sprint)
 		if r := recover(); r != nil {
@@ -242,23 +242,19 @@ func LoadImports(store gno.Store, filename string, content []byte) (err error) {
 	}()
 
 	fset := token.NewFileSet()
-	fl, err := parser.ParseFile(fset, filename, content, parser.ImportsOnly)
+	imports, err := packages.Imports(memPkg, fset)
 	if err != nil {
-		return fmt.Errorf("parse failure: %w", err)
+		return err
 	}
-	for _, imp := range fl.Imports {
-		impPath, err := strconv.Unquote(imp.Path.Value)
-		if err != nil {
-			return fmt.Errorf("%v: unexpected invalid import path: %v", fset.Position(imp.Pos()).String(), imp.Path.Value)
-		}
-		if gno.IsRealmPath(impPath) {
+	for _, imp := range imports {
+		if gno.IsRealmPath(imp.PkgPath) {
 			// Don't eagerly load realms.
 			// Realms persist state and can change the state of other realms in initialization.
 			continue
 		}
-		pkg := store.GetPackage(impPath, true)
+		pkg := store.GetPackage(imp.PkgPath, true)
 		if pkg == nil {
-			return fmt.Errorf("%v: unknown import path %v", fset.Position(imp.Pos()).String(), impPath)
+			return fmt.Errorf("%v: unknown import path %v", fset.Position(imp.Spec.Pos()).String(), imp.PkgPath)
 		}
 	}
 	return nil

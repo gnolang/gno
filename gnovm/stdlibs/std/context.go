@@ -9,7 +9,7 @@ import (
 
 type ExecContext struct {
 	ChainID       string
-	ChainTz       string
+	ChainDomain   string
 	Height        int64
 	Timestamp     int64 // seconds
 	TimestampNano int64 // nanoseconds, only used for testing.

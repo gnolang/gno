@@ -1,4 +1,4 @@
-name: "Close stale PRs"
+name: Stale PR Bot
 on:
   schedule:
     - cron: "30 1 * * *"
