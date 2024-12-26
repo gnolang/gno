@@ -43,7 +43,7 @@ func authenticate(autho auth.Token) string {
 var _ auth.AuthenticateFn = authenticate
 
 func EntityID(creator std.Address, slug string) string {
-	return path.Join("/", std.CurrentRealm().Addr().String(), accountID(creator, slug))
+	return path.Join("/", source.Addr().String(), accountID(creator, slug))
 }
 
 func accountID(creator std.Address, slug string) string {

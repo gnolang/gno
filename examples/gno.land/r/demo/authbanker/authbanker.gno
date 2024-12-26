@@ -24,10 +24,10 @@ func SendCoins(atok auth.Token, to string, amount int64) {
 	account := authreg.Authenticate(atok)
 
 	if amount < 1 {
-		panic(ufmt.Errorf("sent amount of %q must be >= 0", denom))
+		panic("sent amount must be >= 0")
 	}
 	if vaultAmount := vaults[account]; amount > vaultAmount {
-		panic(ufmt.Errorf("not enough %q in account, wanted %d, got %d", denom, amount, vaultAmount))
+		panic("not enough in account")
 	}
 	if account == to {
 		panic("cannot send to self")
@@ -58,8 +58,4 @@ func FundVault(to string) {
 		}
 		vaults[to] += coin.Amount
 	}
-}
-
-func TotalCoin(denom string) int64 {
-	return std.GetBanker(std.BankerTypeRealmSend).TotalCoin(denom)
 }
