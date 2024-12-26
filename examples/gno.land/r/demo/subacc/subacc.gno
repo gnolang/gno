@@ -17,7 +17,7 @@ func init() {
 
 func AuthToken(slug string) auth.Token {
 	caller := std.PrevRealm().Addr()
-	return &token{accountKey: accountKey(caller, slug)}
+	return &token{accountKey: accountID(caller, slug)}
 }
 
 type token struct {
@@ -42,6 +42,10 @@ func authenticate(autho auth.Token) string {
 
 var _ auth.AuthenticateFn = authenticate
 
-func accountKey(creator std.Address, slug string) string {
-	return path.Join("/", creator.String(), slug)
+func EntityID(creator std.Address, slug string) string {
+	return path.Join("/", std.CurrentRealm().Addr().String(), accountID(creator, slug))
+}
+
+func accountID(creator std.Address, slug string) string {
+	return creator.String() + "/" + slug
 }
