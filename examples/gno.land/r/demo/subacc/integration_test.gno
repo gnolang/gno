@@ -22,6 +22,7 @@ func TestAuthIntegration(t *testing.T) {
 	std.TestSetOrigSend(std.Coins{{"ugnot", 42}}, nil)
 	authbanker.FundVault(aliceAccountID)
 	urequire.Equal(t, int64(42), authbanker.GetCoins(aliceAccountID))
+	// XXX: uncoment next line when tx send in tests is fixed
 	// urequire.Equal(t, int64(42), std.GetBanker(std.BankerTypeReadonly).GetCoins(authbankerAddr)[0].Amount)
 
 	std.TestSetRealm(std.NewUserRealm(alice))
@@ -33,10 +34,11 @@ func TestAuthIntegration(t *testing.T) {
 	std.TestSetRealm(std.NewUserRealm(bob))
 	bobToken := subacc.AuthToken("savings")
 	urequire.PanicsWithMessage(t, "not enough in account", func() { authbanker.SendCoins(bobToken, alice.String(), 15) })
-	std.TestIssueCoins(authbankerAddr, std.Coins{{"ugnot", 7}}) // we need this line because in tests, tx send does not work
+	std.TestIssueCoins(authbankerAddr, std.Coins{{"ugnot", 7}}) // XXX: we need this line because in tests, tx send does not work, remove when tx send in test is fixed
 	authbanker.SendCoins(bobToken, alice.String(), 7)
 	urequire.Equal(t, int64(28), authbanker.GetCoins(aliceAccountID))
 	urequire.Equal(t, int64(7), authbanker.GetCoins(bobAccountID))
 	urequire.Equal(t, int64(7), std.GetBanker(std.BankerTypeReadonly).GetCoins(alice)[0].Amount)
-	urequire.Equal(t, 0, len(std.GetBanker(std.BankerTypeReadonly).GetCoins(authbankerAddr)))
+	urequire.Equal(t, 0, len(std.GetBanker(std.BankerTypeReadonly).GetCoins(authbankerAddr))) // XXX: replace with next line when tx send in tests is fixed
+	// urequire.Equal(t, int64(35), std.GetBanker(std.BankerTypeReadonly).GetCoins(authbankerAddr)[0].Amount)
 }
