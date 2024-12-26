@@ -1,4 +1,4 @@
-package subacc_test
+package authbanker_test
 
 import (
 	"std"
