@@ -9,7 +9,7 @@ import (
 	"gno.land/r/demo/authreg"
 )
 
-// this example is there mostly to demonstrate auth usage, it is quite limited
+// This example is there mostly to demonstrate auth usage, it is quite limited
 // only EOAs can fund accounts
 
 const denom = "ugnot"
@@ -21,21 +21,22 @@ func GetCoins(account string) int64 {
 }
 
 func SendCoins(atok auth.Token, to string, amount int64) {
-	account := authreg.Authenticate(atok)
-
 	if amount < 1 {
 		panic("sent amount must be >= 0")
 	}
-	if vaultAmount := vaults[account]; amount > vaultAmount {
-		panic("not enough in account")
-	}
-	if account == to {
+
+	from := authreg.Authenticate(atok)
+
+	if from == to {
 		panic("cannot send to self")
 	}
+	if vaultAmount := vaults[from]; amount > vaultAmount {
+		panic("not enough in account")
+	}
 
-	vaults[account] -= amount
+	vaults[from] -= amount
 
-	if strings.HasPrefix(to, "/") {
+	if isEntityId(to) {
 		vaults[to] += amount
 	} else {
 		realmBanker := std.GetBanker(std.BankerTypeRealmSend)
@@ -46,11 +47,13 @@ func SendCoins(atok auth.Token, to string, amount int64) {
 }
 
 func FundVault(to string) {
-	if !strings.HasPrefix(to, "/") {
+	// XXX: maybe replace the following with `authreg.Validate(to)`
+	if !isEntityId(to) {
 		panic("invalid destination")
 	}
-	// XXX: maybe `authreg.Validate(to)`
+
 	std.AssertOriginCall()
+
 	sentCoins := std.GetOrigSend()
 	for _, coin := range sentCoins {
 		if coin.Denom != denom {
@@ -58,4 +61,8 @@ func FundVault(to string) {
 		}
 		vaults[to] += coin.Amount
 	}
+}
+
+func isEntityId(str string) bool {
+	return strings.HasPrefix(str, "/")
 }

@@ -27,13 +27,16 @@ func TestAuthIntegration(t *testing.T) {
 
 	std.TestSetRealm(std.NewUserRealm(alice))
 	aliceToken := subacc.AuthToken("savings")
+
 	authbanker.SendCoins(aliceToken, bobAccountID, 14)
 	urequire.Equal(t, int64(28), authbanker.GetCoins(aliceAccountID))
 	urequire.Equal(t, int64(14), authbanker.GetCoins(bobAccountID))
 
 	std.TestSetRealm(std.NewUserRealm(bob))
 	bobToken := subacc.AuthToken("savings")
+
 	urequire.PanicsWithMessage(t, "not enough in account", func() { authbanker.SendCoins(bobToken, alice.String(), 15) })
+
 	std.TestIssueCoins(authbankerAddr, std.Coins{{"ugnot", 7}}) // XXX: we need this line because in tests, tx send does not work, remove when tx send in test is fixed
 	authbanker.SendCoins(bobToken, alice.String(), 7)
 	urequire.Equal(t, int64(28), authbanker.GetCoins(aliceAccountID))
