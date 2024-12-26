@@ -41,7 +41,7 @@ func authenticate(autok auth.Token) string {
 	if !ok {
 		panic(auth.ErrInvalidToken)
 	}
-	return ""
+	return "alice"
 }
 
 var _ auth.AuthenticateFn = authenticate
