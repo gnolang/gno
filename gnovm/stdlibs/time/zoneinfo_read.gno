@@ -7,7 +7,7 @@
 // See tzfile(5), https://en.wikipedia.org/wiki/Zoneinfo,
 // and ftp://munnari.oz.au/pub/oldtz/
 
-package time2
+package time
 
 import "errors"
 
