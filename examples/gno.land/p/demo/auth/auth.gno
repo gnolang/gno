@@ -17,7 +17,7 @@ type Token interface {
 // It panics with [ErrInvalidToken] if the token is invalid.
 //
 // XXX: Should we add some kind of `Token.EntityID` method instead of returning the ID here?
-type AuthenticateFn = func(auth Token) string
+type AuthenticateFn = func(autok Token) string
 
 var (
 	ErrInvalidToken = errors.New("invalid token")
