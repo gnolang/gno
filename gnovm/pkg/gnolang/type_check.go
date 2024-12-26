@@ -227,6 +227,19 @@ func assertValidConstExpr(store Store, last BlockNode, n *ValueDecl, expr Expr) 
 		}
 	}
 
+	nt := evalStaticTypeOf(store, last, expr)
+	if xnt, ok := nt.(*NativeType); ok {
+		nt = go2GnoBaseType(xnt.Type)
+	}
+
+	if nt == nil {
+		panic(fmt.Sprintf("%s (variable of type nil) is not constant", expr))
+	}
+
+	if _, ok := baseOf(nt).(PrimitiveType); !ok {
+		panic(fmt.Sprintf("%s (variable of type %s) is not constant", expr, nt))
+	}
+
 	assertValidConstValue(store, last, expr, nil)
 }
 

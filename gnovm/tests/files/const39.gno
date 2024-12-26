@@ -11,4 +11,4 @@ func main() {
 }
 
 // Error:
-// main/files/const39.gno:10:8: T<VPBlock(3,0)>.Mv (variable of type main.T) is not constant
+// main/files/const39.gno:10:8: T<VPBlock(3,0)>.Mv (variable of type func(tv main.T,a int)( int)) is not constant

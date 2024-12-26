@@ -7,4 +7,4 @@ func main() {
 }
 
 // Error:
-// main/files/const43.gno:6:8: a (variable of type [2]int) is not constant
+// main/files/const43.gno:6:8: a<VPBlock(1,0)> (variable of type [2]int) is not constant
