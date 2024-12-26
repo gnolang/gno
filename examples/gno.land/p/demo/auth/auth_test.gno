@@ -8,15 +8,17 @@ import (
 	"gno.land/p/demo/urequire"
 )
 
-func TestValidToken(t *testing.T) {
+func TestToken(t *testing.T) {
 	urequire.NotPanics(t, func() {
 		authenticate(getToken())
 	})
-}
 
-func TestFakeToken(t *testing.T) {
 	urequire.PanicsWithMessage(t, auth.ErrInvalidToken.Error(), func() {
 		authenticate(getFakeToken())
+	})
+
+	urequire.PanicsWithMessage(t, auth.ErrInvalidToken.Error(), func() {
+		authenticate(nil)
 	})
 }
 
