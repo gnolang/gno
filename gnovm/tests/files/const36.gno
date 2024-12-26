@@ -10,4 +10,4 @@ func main() {
 }
 
 // Error:
-// main/files/const36.gno:9:8: s<VPBlock(1,0)>.x (variable of type main.s) is not constant
+// main/files/const36.gno:9:8: s<VPBlock(1,0)>.x (variable of type int) is not constant

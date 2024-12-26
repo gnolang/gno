@@ -257,8 +257,22 @@ Main:
 		}
 		panic(fmt.Sprintf("%s (variable of type %s) is not constant", currExpr.Name, t))
 	case *TypeAssertExpr:
+		ty := evalStaticTypeOf(store, last, currExpr)
+		_, okCallExpr := parentExpr.(*CallExpr)
+		_, okArray := ty.(*ArrayType)
+		if okCallExpr && okArray {
+			break Main
+		}
 		panic(fmt.Sprintf("%s (comma, ok expression of type %s) is not constant", currExpr.String(), currExpr.Type))
 	case *IndexExpr:
+		ty := evalStaticTypeOf(store, last, currExpr)
+		_, okCallExpr := parentExpr.(*CallExpr)
+		_, okArray := ty.(*ArrayType)
+		if okCallExpr && okArray {
+			// TODO: should add a test after the fix of https://github.com/gnolang/gno/issues/3409
+			break Main
+		}
+
 		panic(fmt.Sprintf("%s (variable of type %s) is not constant", currExpr.String(), currExpr.X))
 	case *CallExpr:
 		ift := evalStaticTypeOf(store, last, currExpr.Func)
@@ -334,14 +348,15 @@ Main:
 
 			tt := pv.GetBlock(store).Source.GetStaticTypeOf(store, currExpr.Sel)
 			panic(fmt.Sprintf("%s (variable of type %s) is not constant", currExpr.String(), tt))
-		case *PointerType, *DeclaredType, *StructType, *InterfaceType:
-			ty := evalStaticTypeOf(store, last, currExpr.X)
-			panic(fmt.Sprintf("%s (variable of type %s) is not constant", currExpr.String(), ty))
-		case *TypeType:
-			ty := evalStaticType(store, last, currExpr.X)
-			panic(fmt.Sprintf("%s (variable of type %s) is not constant", currExpr.String(), ty))
-		case *NativeType:
-			ty := evalStaticTypeOf(store, last, currExpr.X)
+		case *PointerType, *DeclaredType, *StructType, *InterfaceType, *TypeType, *NativeType:
+			ty := evalStaticTypeOf(store, last, currExpr)
+			_, okCallExpr := parentExpr.(*CallExpr)
+			_, okArray := ty.(*ArrayType)
+
+			// special case for len, cap
+			if okCallExpr && okArray {
+				break Main
+			}
 			panic(fmt.Sprintf("%s (variable of type %s) is not constant", currExpr.String(), ty))
 		default:
 			panic(fmt.Sprintf(
@@ -356,8 +371,6 @@ Main:
 		}
 	case *ConstExpr:
 	case *BasicLitExpr:
-	case *CompositeLitExpr:
-		assertValidConstValue(store, last, currExpr.Type, parentExpr)
 	default:
 		ift := evalStaticTypeOf(store, last, currExpr)
 		if _, ok := ift.(*TypeType); ok {
