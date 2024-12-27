@@ -147,17 +147,18 @@ type Params struct {
 }
 
 func TestGetAndSetParams(t *testing.T) {
+	prefix := "params_test"
 	env := setupTestEnv()
 	ctx := env.ctx
 	keeper := env.keeper
 	// SetParams
 	a := Params{p1: 1, p2: "a"}
-	err := keeper.SetParams(ctx, ModuleName, "p", a)
+	err := keeper.SetParams(ctx, prefix, "p", a)
 	require.NoError(t, err)
 
 	// GetParams
 	a1 := Params{}
-	_, err1 := keeper.GetParams(ctx, ModuleName, "p", &a1)
+	_, err1 := keeper.GetParams(ctx, prefix, "p", &a1)
 	require.NoError(t, err1)
 	require.True(t, amino.DeepEqual(a, a1), "a and a1 should equal")
 }
