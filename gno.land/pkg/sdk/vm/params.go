@@ -79,3 +79,20 @@ func (vm *VMKeeper) GetParams(ctx sdk.Context) Params {
 	}
 	return *params
 }
+
+const (
+	sysUsersPkgParamPath = "gno.land/r/sys/params.sys.users_pkgpath.string"
+	chainDomainParamPath = "gno.land/r/sys/params.vm.chain_domain.string"
+)
+
+func (vm *VMKeeper) getChainDomainParam(ctx sdk.Context) string {
+	chainDomain := "gno.land" // default
+	vm.prmk.GetString(ctx, chainDomainParamPath, &chainDomain)
+	return chainDomain
+}
+
+func (vm *VMKeeper) getSysUsersPkgParam(ctx sdk.Context) string {
+	var sysUsersPkg string
+	vm.prmk.GetString(ctx, sysUsersPkgParamPath, &sysUsersPkg)
+	return sysUsersPkg
+}

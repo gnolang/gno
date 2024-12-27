@@ -97,13 +97,14 @@ func NewAppWithOptions(cfg *AppOptions) (abci.Application, error) {
 	paramsKpr := params.NewParamsKeeper(mainKey, km)
 	acctKpr := auth.NewAccountKeeper(mainKey, paramsKpr, ProtoGnoAccount)
 	bankKpr := bank.NewBankKeeper(acctKpr, paramsKpr)
+	gpKpr := auth.NewGasPriceKeeper(mainKey)
 	vmk := vm.NewVMKeeper(baseKey, mainKey, acctKpr, bankKpr, paramsKpr)
 	vmk.Output = cfg.VMOutput
 
 	// Set InitChainer
 	icc := cfg.InitChainerConfig
 	icc.baseApp = baseApp
-	icc.acctKpr, icc.bankKpr, icc.vmKpr, icc.paramsKpr = acctKpr, bankKpr, vmk, paramsKpr
+	icc.acctKpr, icc.bankKpr, icc.vmKpr, icc.paramsKpr, icc.gpKpr = acctKpr, bankKpr, vmk, paramsKpr, gpKpr
 	baseApp.SetInitChainer(icc.InitChainer)
 
 	// Set AnteHandler
@@ -117,9 +118,10 @@ func NewAppWithOptions(cfg *AppOptions) (abci.Application, error) {
 		func(ctx sdk.Context, tx std.Tx, simulate bool) (
 			newCtx sdk.Context, res sdk.Result, abort bool,
 		) {
+			// Add last gas price in the context
+			ctx = ctx.WithValue(auth.GasPriceContextKey{}, gpKpr.LastGasPrice(ctx))
 			// Override auth params.
-			ctx = ctx.
-				WithValue(auth.AuthParamsContextKey{}, acctKpr.GetParams(ctx))
+			ctx = ctx.WithValue(auth.AuthParamsContextKey{}, acctKpr.GetParams(ctx))
 			// Continue on with default auth ante handler.
 			newCtx, res, abort = authAnteHandler(ctx, tx, simulate)
 			return
@@ -150,6 +152,8 @@ func NewAppWithOptions(cfg *AppOptions) (abci.Application, error) {
 	baseApp.SetEndBlocker(
 		EndBlocker(
 			c,
+			acctKpr,
+			gpKpr,
 			vmk,
 			baseApp,
 		),
@@ -241,6 +245,7 @@ type InitChainerConfig struct {
 	acctKpr   auth.AccountKeeperI
 	bankKpr   bank.BankKeeperI
 	paramsKpr params.ParamsKeeperI
+	gpKpr     auth.GasPriceKeeperI
 }
 
 // InitChainer is the function that can be used as a [sdk.InitChainer].
@@ -298,6 +303,7 @@ func (cfg InitChainerConfig) loadAppState(ctx sdk.Context, appState any) ([]abci
 	if !ok {
 		return nil, fmt.Errorf("invalid AppState of type %T", appState)
 	}
+
 	cfg.bankKpr.InitGenesis(ctx, state.Bank)
 	// Apply genesis balances.
 	for _, bal := range state.Balances {
@@ -308,10 +314,19 @@ func (cfg InitChainerConfig) loadAppState(ctx sdk.Context, appState any) ([]abci
 			panic(err)
 		}
 	}
-	// The account keeper's initial genesis state must be set after genesis accounts are created.
-	// We need to set genesis account status in account keeper.
+
+	// Apply genesis params.
+	for _, param := range state.Params {
+		param.register(ctx, cfg.paramsKpr)
+	}
+	// The account keeper's initial genesis state must be set after genesis
+	// accounts are created in account keeeper with genesis balances
 	cfg.acctKpr.InitGenesis(ctx, state.Auth)
 	cfg.vmKpr.InitGenesis(ctx, state.VM)
+
+	params := cfg.acctKpr.GetParams(ctx)
+	ctx = ctx.WithValue(auth.AuthParamsContextKey{}, params)
+	auth.InitChainer(ctx, cfg.gpKpr, params.InitialGasPrice)
 
 	// Replay genesis txs.
 	txResponses := make([]abci.ResponseDeliverTx, 0, len(state.Txs))
@@ -374,6 +389,8 @@ type endBlockerApp interface {
 // validator set changes
 func EndBlocker(
 	collector *collector[validatorUpdate],
+	acctKpr auth.AccountKeeperI,
+	gpKpr auth.GasPriceKeeperI,
 	vmk vm.VMKeeperI,
 	app endBlockerApp,
 ) func(
@@ -381,6 +398,14 @@ func EndBlocker(
 	req abci.RequestEndBlock,
 ) abci.ResponseEndBlock {
 	return func(ctx sdk.Context, _ abci.RequestEndBlock) abci.ResponseEndBlock {
+		// set the auth params value in the ctx.  The EndBlocker will use InitialGasPrice in
+		// the params to calculate the updated gas price.
+		if acctKpr != nil {
+			ctx = ctx.WithValue(auth.AuthParamsContextKey{}, acctKpr.GetParams(ctx))
+		}
+		if acctKpr != nil && gpKpr != nil {
+			auth.EndBlocker(ctx, gpKpr)
+		}
 		// Check if there was a valset change
 		if len(collector.getEvents()) == 0 {
 			// No valset updates

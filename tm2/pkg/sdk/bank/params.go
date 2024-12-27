@@ -66,7 +66,7 @@ func (bank BankKeeper) GetParams(ctx sdk.Context) Params {
 	ok, err := bank.paramk.GetParams(ctx, ModuleName, paramsKey, params)
 
 	if !ok {
-		panic("params key " + ModuleName + " does not exist")
+		panic("params module key " + ModuleName + " does not exist")
 	}
 	if err != nil {
 		panic(err.Error())

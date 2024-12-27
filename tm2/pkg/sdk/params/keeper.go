@@ -11,8 +11,15 @@ import (
 
 const (
 	ModuleName = "params"
-	StoreKey   = ModuleName
+
+	StoreKey = ModuleName
+	// ValueStorePrevfix is "/pv/" for param value.
+	ValueStoreKeyPrefix = "/pv/"
 )
+
+func ValueStoreKey(key string) []byte {
+	return append([]byte(ValueStoreKeyPrefix), []byte(key)...)
+}
 
 type ParamsKeeperI interface {
 	GetString(ctx sdk.Context, key string, ptr *string)
@@ -53,7 +60,6 @@ func NewParamsKeeper(key store.StoreKey, pkm PrefixKeyMapper) ParamsKeeper {
 	}
 }
 
-// Logger returns a module-specific logger.
 // XXX: why do we expose this?
 func (pk ParamsKeeper) Logger(ctx sdk.Context) *slog.Logger {
 	return ctx.Logger().With("module", ModuleName)
@@ -133,7 +139,7 @@ func (pk ParamsKeeper) GetParams(ctx sdk.Context, prefixKey string, key string, 
 		return false, nil
 	}
 
-	return true, amino.Unmarshal(bz, target)
+	return true, amino.UnmarshalJSON(bz, target)
 }
 
 // SetParam sets a param value to the global param store.
@@ -143,7 +149,7 @@ func (pk ParamsKeeper) SetParams(ctx sdk.Context, prefixKey string, key string, 
 		return err
 	}
 
-	bz, err := amino.Marshal(param)
+	bz, err := amino.MarshalJSON(param)
 	if err != nil {
 		return err
 	}

@@ -14,6 +14,7 @@ type AccountKeeperI interface {
 	SetAccount(ctx sdk.Context, acc std.Account)
 	IterateAccounts(ctx sdk.Context, process func(std.Account) bool)
 	InitGenesis(ctx sdk.Context, data GenesisState)
+	GetParams(ctx sdk.Context) Params
 }
 
 var _ AccountKeeperI = AccountKeeper{}
@@ -23,3 +24,11 @@ type BankKeeperI interface {
 	SendCoins(ctx sdk.Context, fromAddr crypto.Address, toAddr crypto.Address, amt std.Coins) error
 	SendCoinsUnrestricted(ctx sdk.Context, fromAddr crypto.Address, toAddr crypto.Address, amt std.Coins) error
 }
+
+type GasPriceKeeperI interface {
+	LastGasPrice(ctx sdk.Context) std.GasPrice
+	SetGasPrice(ctx sdk.Context, gp std.GasPrice)
+	UpdateGasPrice(ctx sdk.Context)
+}
+
+var _ GasPriceKeeperI = GasPriceKeeper{}

@@ -19,7 +19,9 @@ import (
 	"github.com/gnolang/gno/gno.land/pkg/log"
 	"github.com/gnolang/gno/gno.land/pkg/sdk/vm"
 	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
+	"github.com/gnolang/gno/gnovm/pkg/gnolang"
 	"github.com/gnolang/gno/gnovm/pkg/gnomod"
+	"github.com/gnolang/gno/gnovm/pkg/packages"
 	"github.com/gnolang/gno/tm2/pkg/bft/node"
 	bft "github.com/gnolang/gno/tm2/pkg/bft/types"
 	"github.com/gnolang/gno/tm2/pkg/commands"
@@ -135,8 +137,8 @@ func setupGnolandTestScript(t *testing.T, txtarDir string) testscript.Params {
 			cfg := TestingMinimalNodeConfig(t, gnoRootDir)
 			gs := cfg.Genesis.AppState.(gnoland.GnoGenesisState)
 			gs.Balances = LoadDefaultGenesisBalanceFile(t, gnoRootDir)
+			gs.Params = LoadDefaultGenesisParamFile(t, gnoRootDir)
 			genesis := &gs
-
 			// test1 must be created outside of the loop below because it is already included in genesis so
 			// attempting to recreate results in it getting overwritten and breaking existing tests that
 			// rely on its address being static.
@@ -747,8 +749,20 @@ func (pl *pkgsLoader) LoadPackage(modroot string, path, name string) error {
 			// Override package info with mod infos
 			currentPkg.Name = gm.Module.Mod.Path
 			currentPkg.Draft = gm.Draft
-			for _, req := range gm.Require {
-				currentPkg.Requires = append(currentPkg.Requires, req.Mod.Path)
+
+			pkg, err := gnolang.ReadMemPackage(currentPkg.Dir, currentPkg.Name)
+			if err != nil {
+				return fmt.Errorf("unable to read package at %q: %w", currentPkg.Dir, err)
+			}
+			imports, err := packages.Imports(pkg, nil)
+			if err != nil {
+				return fmt.Errorf("unable to load package imports in %q: %w", currentPkg.Dir, err)
+			}
+			for _, imp := range imports {
+				if imp.PkgPath == currentPkg.Name || gnolang.IsStdlib(imp.PkgPath) {
+					continue
+				}
+				currentPkg.Imports = append(currentPkg.Imports, imp.PkgPath)
 			}
 		}
 
@@ -762,7 +776,7 @@ func (pl *pkgsLoader) LoadPackage(modroot string, path, name string) error {
 		pl.add(currentPkg)
 
 		// Add requirements to the queue
-		for _, pkgPath := range currentPkg.Requires {
+		for _, pkgPath := range currentPkg.Imports {
 			fullPath := filepath.Join(modroot, pkgPath)
 			queue = append(queue, gnomod.Pkg{Dir: fullPath})
 		}

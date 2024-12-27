@@ -6,7 +6,7 @@ patchpkg "g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm" "g1jg8mtutu9khhfwc4nxmuhcpft
 
 adduser regular1
 
-## start a new node
+## The -lock-transfer flag is not a Gnoland service flag; it is a flag for the txtar setting.
 gnoland start -lock-transfer
 
 ## User test1 is an unrestricted account specified in the genesis state
@@ -21,18 +21,18 @@ stderr 'restricted token transfer error'
 
 ## Submit a proposal to unlock the transfer. When token transfer is locked, only the predefined unrestricted account test1 in the genesis state can
 ## pay the fee and submit a proposal to unlock the transfer.
-gnokey maketx call -pkgpath gno.land/r/sys/params -func ProposeUnlockSend -send 250000000ugnot -gas-fee 1ugnot -gas-wanted 2000000 -broadcast -chainid=tendermint_test test1
+gnokey maketx call -pkgpath gno.land/r/sys/params -func ProposeUnlockSend -send 250000000ugnot -gas-fee 1ugnot -gas-wanted 9500000 -broadcast -chainid=tendermint_test test1
 
 stdout '(0 uint64)'
 
 
-## vote unlock proposal with unrestricted account test1
-gnokey maketx call -pkgpath gno.land/r/gov/dao/v2 -func VoteOnProposal -args 0 -args "YES"  -send 250000000ugnot -gas-fee 1ugnot -gas-wanted 2000000 -broadcast -chainid=tendermint_test test1
+## Vote unlock proposal with unrestricted account test1
+gnokey maketx call -pkgpath gno.land/r/gov/dao/v2 -func VoteOnProposal -args 0 -args "YES"  -send 250000000ugnot -gas-fee 1ugnot -gas-wanted 9500000 -broadcast -chainid=tendermint_test test1
 
 stdout 'OK!'
 
-## vote unlock proposal with unrestricted account test1
-gnokey maketx call -pkgpath gno.land/r/gov/dao/v2 -func ExecuteProposal -args 0 -send 250000000ugnot -gas-fee 1ugnot -gas-wanted 2000000 -broadcast -chainid=tendermint_test test1
+## Execute unlock proposal with unrestricted account test1
+gnokey maketx call -pkgpath gno.land/r/gov/dao/v2 -func ExecuteProposal -args 0 -send 250000000ugnot -gas-fee 1ugnot -gas-wanted 9500000  -broadcast -chainid=tendermint_test test1
 
 stdout 'OK!'
 

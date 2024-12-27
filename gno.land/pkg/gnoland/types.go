@@ -33,6 +33,7 @@ type GnoGenesisState struct {
 	Auth     auth.GenesisState `json:"auth"`
 	Bank     bank.GenesisState `json:"bank"`
 	VM       vm.GenesisState   `json:"vm"`
+	Params   []Param           `json:"params"`
 }
 
 type TxWithMetadata struct {

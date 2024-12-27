@@ -59,6 +59,7 @@ func TestingInMemoryNode(t TestingTS, logger *slog.Logger, config *gnoland.InMem
 func TestingNodeConfig(t TestingTS, gnoroot string, additionalTxs ...gnoland.TxWithMetadata) (*gnoland.InMemoryNodeConfig, bft.Address) {
 	cfg := TestingMinimalNodeConfig(t, gnoroot)
 
+	params := LoadDefaultGenesisParamFile(t, gnoroot)
 	creator := crypto.MustAddressFromString(DefaultAccount_Address) // test1
 	balances := LoadDefaultGenesisBalanceFile(t, gnoroot)
 	txs := make([]gnoland.TxWithMetadata, 0)
@@ -67,6 +68,7 @@ func TestingNodeConfig(t TestingTS, gnoroot string, additionalTxs ...gnoland.TxW
 	ggs := cfg.Genesis.AppState.(gnoland.GnoGenesisState)
 	ggs.Balances = balances
 	ggs.Txs = txs
+	ggs.Params = params
 	cfg.Genesis.AppState = ggs
 
 	return cfg, creator
@@ -97,6 +99,19 @@ func TestingMinimalNodeConfig(t TestingTS, gnoroot string) *gnoland.InMemoryNode
 func DefaultTestingGenesisConfig(t TestingTS, gnoroot string, self crypto.PubKey, tmconfig *tmcfg.Config) *bft.GenesisDoc {
 	authGen := auth.DefaultGenesisState()
 	authGen.Params.UnrestrictedAddrs = []crypto.Address{crypto.MustAddressFromString(DefaultAccount_Address)}
+	authGen.Params.InitialGasPrice = std.GasPrice{Gas: 0, Price: std.Coin{Amount: 0, Denom: "ugnot"}}
+	genState := gnoland.DefaultGenState()
+	genState.Balances = []gnoland.Balance{
+		{
+			Address: crypto.MustAddressFromString(DefaultAccount_Address),
+			Amount:  std.MustParseCoins(ugnot.ValueString(10000000000000)),
+		},
+	}
+	genState.Txs = []gnoland.TxWithMetadata{}
+	genState.Params = []gnoland.Param{}
+	genState.Auth = authGen
+	genState.Bank = bank.DefaultGenesisState()
+
 	return &bft.GenesisDoc{
 		GenesisTime: time.Now(),
 		ChainID:     tmconfig.ChainID(),
@@ -116,17 +131,7 @@ func DefaultTestingGenesisConfig(t TestingTS, gnoroot string, self crypto.PubKey
 				Name:    "self",
 			},
 		},
-		AppState: gnoland.GnoGenesisState{
-			Balances: []gnoland.Balance{
-				{
-					Address: crypto.MustAddressFromString(DefaultAccount_Address),
-					Amount:  std.MustParseCoins(ugnot.ValueString(10_000_000_000_000)),
-				},
-			},
-			Txs:  []gnoland.TxWithMetadata{},
-			Auth: authGen,
-			Bank: bank.DefaultGenesisState(),
-		},
+		AppState: genState,
 	}
 }
 

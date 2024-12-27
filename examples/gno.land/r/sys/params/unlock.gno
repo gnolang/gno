@@ -8,9 +8,9 @@ import (
 )
 
 const (
-	lockSendKey    = "lockSend.bool"
-	UnlockSendDesc = "Proposal to unlock the sending functionality for ugnot."
-	LockSendDesc   = "Proposal to lock the sending functionality for ugnot."
+	lockSendKey     = "lockSend.bool"
+	UnlockSendTitle = "Proposal to unlock the sending functionality for ugnot."
+	LockSendTitle   = "Proposal to lock the sending functionality for ugnot."
 )
 
 func ProposeUnlockSend() uint64 {
@@ -18,7 +18,7 @@ func ProposeUnlockSend() uint64 {
 		std.SetParamBool(lockSendKey, false)
 		return nil
 	}
-	return propose(callback, UnlockSendDesc)
+	return propose(callback, UnlockSendTitle, "")
 }
 
 func ProposeLockSend() uint64 {
@@ -26,14 +26,15 @@ func ProposeLockSend() uint64 {
 		std.SetParamBool(lockSendKey, true)
 		return nil
 	}
-	return propose(callback, LockSendDesc)
+	return propose(callback, LockSendTitle, "")
 }
 
-func propose(callback func() error, desc string) uint64 {
+func propose(callback func() error, title, desc string) uint64 {
 	// The callback function is executed only after the proposal is voted on
 	// and approved by the GovDAO.
 	exe := bridge.GovDAO().NewGovDAOExecutor(callback)
 	prop := dao.ProposalRequest{
+		Title:       title,
 		Description: desc,
 		Executor:    exe,
 	}

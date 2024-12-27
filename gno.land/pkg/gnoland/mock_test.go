@@ -161,6 +161,7 @@ func (m *mockAuthKeeper) GetAllAccounts(ctx sdk.Context) []std.Account          
 func (m *mockAuthKeeper) SetAccount(ctx sdk.Context, acc std.Account)                     {}
 func (m *mockAuthKeeper) IterateAccounts(ctx sdk.Context, process func(std.Account) bool) {}
 func (m *mockAuthKeeper) InitGenesis(ctx sdk.Context, data auth.GenesisState)             {}
+func (m *mockAuthKeeper) GetParams(ctx sdk.Context) auth.Params                           { return auth.Params{} }
 
 type mockParamsKeeper struct{}
 
@@ -186,6 +187,12 @@ func (m *mockParamsKeeper) GetParams(ctx sdk.Context, prefixKey string, key stri
 func (m *mockParamsKeeper) SetParams(ctx sdk.Context, prefixKey string, key string, params interface{}) error {
 	return nil
 }
+
+type mockGasPriceKeeper struct{}
+
+func (m *mockGasPriceKeeper) LastGasPrice(ctx sdk.Context) std.GasPrice    { return std.GasPrice{} }
+func (m *mockGasPriceKeeper) SetGasPrice(ctx sdk.Context, gp std.GasPrice) {}
+func (m *mockGasPriceKeeper) UpdateGasPrice(ctx sdk.Context)               {}
 
 type (
 	lastBlockHeightDelegate func() int64

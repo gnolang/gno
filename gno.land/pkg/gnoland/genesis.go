@@ -14,10 +14,11 @@ import (
 	osm "github.com/gnolang/gno/tm2/pkg/os"
 	"github.com/gnolang/gno/tm2/pkg/sdk/auth"
 	"github.com/gnolang/gno/tm2/pkg/sdk/bank"
-
 	"github.com/gnolang/gno/tm2/pkg/std"
 	"github.com/pelletier/go-toml"
 )
+
+const initGasPrice = "10ugnot/100gas"
 
 // LoadGenesisBalancesFile loads genesis balances from the provided file path.
 func LoadGenesisBalancesFile(path string) ([]Balance, error) {
@@ -171,7 +172,7 @@ func LoadPackage(pkg gnomod.Pkg, creator bft.Address, fee std.Fee, deposit std.C
 	var tx std.Tx
 
 	// Open files in directory as MemPackage.
-	memPkg := gno.ReadMemPackage(pkg.Dir, pkg.Name)
+	memPkg := gno.MustReadMemPackage(pkg.Dir, pkg.Name)
 	err := memPkg.Validate()
 	if err != nil {
 		return tx, fmt.Errorf("invalid package: %w", err)
@@ -192,10 +193,17 @@ func LoadPackage(pkg gnomod.Pkg, creator bft.Address, fee std.Fee, deposit std.C
 }
 
 func DefaultGenState() GnoGenesisState {
+	authGen := auth.DefaultGenesisState()
+	gp, err := std.ParseGasPrice(initGasPrice)
+	if err != nil {
+		panic(err)
+	}
+	authGen.Params.InitialGasPrice = gp
+
 	gs := GnoGenesisState{
 		Balances: []Balance{},
 		Txs:      []TxWithMetadata{},
-		Auth:     auth.DefaultGenesisState(),
+		Auth:     authGen,
 		Bank:     bank.DefaultGenesisState(),
 		VM:       vmm.DefaultGenesisState(),
 	}
