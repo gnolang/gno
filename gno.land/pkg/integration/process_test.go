@@ -27,7 +27,9 @@ func TestNodeProcess(t *testing.T) {
 	gnolandDBDir := filepath.Join(t.TempDir(), "db")
 
 	// Compile the gnoland binary.
+	start := time.Now()
 	gnolandBin := buildGnoland(t, gnoRootDir)
+	t.Logf("time to build the node: %v", time.Since(start).String())
 
 	// Prepare a minimal node configuration for testing.
 	cfg := TestingMinimalNodeConfig(gnoRootDir)
@@ -38,6 +40,7 @@ func TestNodeProcess(t *testing.T) {
 		t.Log(stdio.String())
 	}()
 
+	start = time.Now()
 	node, err := RunNodeProcess(ctx, gnolandBin, ProcessConfig{
 		Stderr: &stdio, Stdout: &stdio,
 		Node: &ProcessNodeConfig{
@@ -50,9 +53,10 @@ func TestNodeProcess(t *testing.T) {
 		},
 	})
 	require.NoError(t, err)
+	t.Logf("time to start the node: %v", time.Since(start).String())
 
 	// Create a new HTTP client to interact with the integration node.
-	cli, err := client.NewHTTPClient(node.Address)
+	cli, err := client.NewHTTPClient(node.Address())
 	require.NoError(t, err)
 
 	// Retreive node info.

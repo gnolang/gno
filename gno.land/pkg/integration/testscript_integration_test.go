@@ -1,6 +1,8 @@
 package integration
 
 import (
+	"os"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -9,6 +11,10 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
+
+var debugTs = false
+
+func init() { debugTs, _ = strconv.ParseBool(os.Getenv("DEBUG_TS")) }
 
 func TestTestdata(t *testing.T) {
 	t.Parallel()
@@ -24,7 +30,11 @@ func TestTestdata(t *testing.T) {
 	err := SetupGnolandTestscript(t, &p)
 	require.NoError(t, err)
 
-	testscript.Run(t, p)
+	if debugTs {
+		RunInMemoryTestscripts(t, p)
+	} else {
+		testscript.Run(t, p)
+	}
 
 	// Run testscript
 	// XXX: We have to use seqshim for now as tests don't run well in parallel

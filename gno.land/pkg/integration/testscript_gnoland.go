@@ -27,8 +27,10 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/crypto"
 	"github.com/gnolang/gno/tm2/pkg/crypto/bip39"
 	"github.com/gnolang/gno/tm2/pkg/crypto/ed25519"
+	"github.com/gnolang/gno/tm2/pkg/crypto/hd"
 	"github.com/gnolang/gno/tm2/pkg/crypto/keys"
 	"github.com/gnolang/gno/tm2/pkg/crypto/keys/client"
+	"github.com/gnolang/gno/tm2/pkg/crypto/secp256k1"
 	tm2Log "github.com/gnolang/gno/tm2/pkg/log"
 	"github.com/gnolang/gno/tm2/pkg/std"
 	"github.com/rogpeppe/go-internal/testscript"
@@ -40,10 +42,11 @@ const (
 	envKeyGenesis int = iota
 	envKeyLogger
 	envKeyPkgsLoader
+	envKeyInMemory
 )
 
 type tNodeProcess struct {
-	*NodeProcess
+	NodeProcess
 	cfg         *gnoland.InMemoryNodeConfig
 	nGnoKeyExec uint // Counter for execution of gnokey.
 }
@@ -95,9 +98,18 @@ func SetupGnolandTestscript(t *testing.T, p *testscript.Params) error {
 	t.Helper()
 
 	gnoRootDir := gnoenv.RootDir()
+
+	start := time.Now()
 	gnolandBin := buildGnoland(t, gnoRootDir)
+	t.Logf("time to build the node: %v", time.Since(start).String())
 
 	nodesManager := NewNodesManager()
+
+	defaultPK, err := generatePrivKeyFromMnemonic(DefaultAccount_Seed, "", 0, 0)
+	require.NoError(t, err)
+
+	balanceFile := LoadDefaultGenesisBalanceFile(t, gnoRootDir)
+	genesisParamFile := LoadDefaultGenesisParamFile(t, gnoRootDir)
 
 	// Store the original setup scripts for potential wrapping
 	origSetup := p.Setup
@@ -110,20 +122,27 @@ func SetupGnolandTestscript(t *testing.T, p *testscript.Params) error {
 		}
 
 		// XXX: rework this
-		tmpdir, dbdir := t.TempDir(), t.TempDir()
-		gnoHomeDir := filepath.Join(tmpdir, "gno")
-
-		env.Values["PK"] = ed25519.GenPrivKey()
-
-		env.Setenv("GNO_DBDIR", dbdir)
 
 		// Get `TESTWORK` environement variable from setup
 		persistWorkDir, _ := strconv.ParseBool(env.Getenv("TESTWORK"))
+
+		// kb := keys.NewLazyDBKeybase(name string, dir string)
+
+		tmpdir, dbdir := t.TempDir(), t.TempDir()
+		gnoHomeDir := filepath.Join(tmpdir, "gno")
 
 		kb, err := keys.NewKeyBaseFromDir(gnoHomeDir)
 		if err != nil {
 			return err
 		}
+
+		kb.ImportPrivKey(DefaultAccount_Name, defaultPK, "")
+		env.Setenv("USER_SEED_"+DefaultAccount_Name, DefaultAccount_Seed)
+		env.Setenv("USER_ADDR_"+DefaultAccount_Name, DefaultAccount_Address)
+
+		// New private key
+		env.Values["PK"] = ed25519.GenPrivKey()
+		env.Setenv("GNO_DBDIR", dbdir)
 
 		// Generate node short id
 		var sid string
@@ -152,14 +171,10 @@ func SetupGnolandTestscript(t *testing.T, p *testscript.Params) error {
 		// command and packages added with the `loadpkg` command.
 		// This genesis will be use when node is started.
 		genesis := &gnoland.GnoGenesisState{
-			Balances: LoadDefaultGenesisBalanceFile(t, gnoRootDir),
-			Params:   LoadDefaultGenesisParamFile(t, gnoRootDir),
+			Balances: balanceFile,
+			Params:   genesisParamFile,
 			Txs:      []gnoland.TxWithMetadata{},
 		}
-
-		kb.CreateAccount(DefaultAccount_Name, DefaultAccount_Seed, "", "", 0, 0)
-		env.Setenv("USER_SEED_"+DefaultAccount_Name, DefaultAccount_Seed)
-		env.Setenv("USER_ADDR_"+DefaultAccount_Name, DefaultAccount_Address)
 
 		env.Values[envKeyGenesis] = genesis
 		env.Values[envKeyPkgsLoader] = NewPkgsLoader()
@@ -229,6 +244,11 @@ func gnolandCmd(t *testing.T, nodesManager *NodesManager, gnolandBin, gnoRootDir
 				break
 			}
 
+			start := time.Now()
+			ts.Defer(func() {
+				t.Logf("raw test took: %v", time.Since(start).String())
+			})
+
 			// XXX: this is a bit hacky, we should consider moving
 			// gnoland into his own package to be able to use it
 			// directly or use the config command for this.
@@ -285,7 +305,7 @@ func gnolandCmd(t *testing.T, nodesManager *NodesManager, gnolandBin, gnoRootDir
 
 			nodesManager.Set(sid, &tNodeProcess{NodeProcess: nodep, cfg: cfg})
 
-			ts.Setenv("RPC_ADDR", nodep.Address)
+			ts.Setenv("RPC_ADDR", nodep.Address())
 			fmt.Fprintln(ts.Stdout(), "node started successfully")
 
 		case "restart":
@@ -320,7 +340,7 @@ func gnolandCmd(t *testing.T, nodesManager *NodesManager, gnolandBin, gnoRootDir
 				ts.Fatalf("unable to start the node: %s", err)
 			}
 
-			ts.Setenv("RPC_ADDR", nodep.Address)
+			ts.Setenv("RPC_ADDR", nodep.Address())
 			nodesManager.Set(sid, &tNodeProcess{NodeProcess: nodep, cfg: node.cfg})
 
 			fmt.Fprintln(ts.Stdout(), "node restarted successfully")
@@ -376,7 +396,7 @@ func gnokeyCmd(nodes *NodesManager) func(ts *testscript.TestScript, neg bool, ar
 		}
 
 		if n, ok := nodes.Get(sid); ok {
-			if raddr := n.Address; raddr != "" {
+			if raddr := n.Address(); raddr != "" {
 				defaultArgs = append(defaultArgs, "-remote", raddr)
 			}
 
@@ -526,6 +546,30 @@ func loadpkgCmd(gnoRootDir string) func(ts *testscript.TestScript, neg bool, arg
 
 		ts.Logf("%q package was added to genesis", args[0])
 	}
+}
+
+func setupNode(ts *testscript.TestScript, ctx context.Context, gnolandBin string, cfg *ProcessNodeConfig) NodeProcess {
+	pcfg := ProcessConfig{
+		Node:   cfg,
+		Stdout: ts.Stdout(),
+		Stderr: ts.Stderr(),
+	}
+
+	if ts.Value(envKeyInMemory).(bool) {
+		nodep, err := RunInMemoryProcess(ctx, pcfg)
+		if err != nil {
+			ts.Fatalf("unable to start the node: %s", err)
+		}
+
+		return nodep
+	}
+
+	nodep, err := RunNodeProcess(ctx, gnolandBin, pcfg)
+	if err != nil {
+		ts.Fatalf("unable to start the node: %s", err)
+	}
+
+	return nodep
 }
 
 // `unquote` takes a slice of strings, resulting from splitting a string block by spaces, and
@@ -744,4 +788,26 @@ func buildGnoland(t *testing.T, rootdir string) string {
 	}
 
 	return bin
+}
+
+// GeneratePrivKeyFromMnemonic generates a crypto.PrivKey from a mnemonic.
+func generatePrivKeyFromMnemonic(mnemonic, bip39Passphrase string, account, index uint32) (crypto.PrivKey, error) {
+	// Generate Seed from Mnemonic
+	seed, err := bip39.NewSeedWithErrorChecking(mnemonic, bip39Passphrase)
+	if err != nil {
+		return nil, fmt.Errorf("failed to generate seed: %v", err)
+	}
+
+	// Derive Private Key
+	coinType := crypto.CoinType // ensure this is set correctly in your context
+	hdPath := hd.NewFundraiserParams(account, coinType, index)
+	masterPriv, ch := hd.ComputeMastersFromSeed(seed)
+	derivedPriv, err := hd.DerivePrivateKeyForPath(masterPriv, ch, hdPath.String())
+	if err != nil {
+		return nil, fmt.Errorf("failed to derive private key: %v", err)
+	}
+
+	// Convert to secp256k1 private key
+	privKey := secp256k1.PrivKeySecp256k1(derivedPriv)
+	return privKey, nil
 }

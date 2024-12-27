@@ -30,7 +30,6 @@ cmp stderr gnoland-already-stop.stderr.golden
 -- gnoland-no-arguments.stderr.golden --
 "gnoland" error: exit status 1
 -- gnoland-start.stdout.golden --
-READY:tcp://127.0.0.1:60444
 node started successfully
 -- gnoland-start.stderr.golden --
 -- gnoland-already-start.stdout.golden --

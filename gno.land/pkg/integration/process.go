@@ -38,6 +38,7 @@ type ProcessConfig struct {
 	Node *ProcessNodeConfig
 
 	// These parameters are not meant to be passed to the process
+	CPUProfilePath string
 	Stderr, Stdout io.Writer
 }
 
@@ -54,12 +55,15 @@ func (i ProcessConfig) validate() error {
 }
 
 // RunNode initializes and runs a gnoaland node with the provided configuration.
-func RunNode(ctx context.Context, pcfg *ProcessNodeConfig) error {
+func RunNode(ctx context.Context, pcfg *ProcessNodeConfig, stdout, stderr io.Writer) error {
 	// Setup logger based on verbosity
-	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+	var handler slog.Handler
 	if pcfg.Verbose {
-		logger = slog.New(slog.NewTextHandler(os.Stdout, nil))
+		handler = slog.NewTextHandler(stdout, nil)
+	} else {
+		handler = slog.NewTextHandler(io.Discard, nil)
 	}
+	logger := slog.New(handler)
 
 	// Initialize database
 	data, err := initDatabase(pcfg.DBDir)
@@ -116,31 +120,40 @@ func RunNode(ctx context.Context, pcfg *ProcessNodeConfig) error {
 	}
 
 	// Write READY signal to stdout
-	signalWriteReady(os.Stdout, lisnAddress)
+	signalWriteReady(stdout, lisnAddress)
 
 	<-ctx.Done()
 	return node.Stop()
 }
 
-type NodeProcess struct {
-	Cmd     *exec.Cmd
-	Address string
+type NodeProcess interface {
+	Stop() error
+	Address() string
+}
+
+type nodeProcess struct {
+	cmd     *exec.Cmd
+	address string
 
 	stopOnce sync.Once
 	stopErr  error
 }
 
-func (n *NodeProcess) Stop() error {
+func (n *nodeProcess) Address() string {
+	return n.address
+}
+
+func (n *nodeProcess) Stop() error {
 	n.stopOnce.Do(func() {
 		// Send SIGTERM to the process
-		if err := n.Cmd.Process.Signal(os.Interrupt); err != nil {
+		if err := n.cmd.Process.Signal(os.Interrupt); err != nil {
 			n.stopErr = fmt.Errorf("Error sending SIGTERM to the node: %w\n", err)
 			return
 
 		}
 
 		// Optionally wait for the process to exit
-		if _, err := n.Cmd.Process.Wait(); err != nil {
+		if _, err := n.cmd.Process.Wait(); err != nil {
 			n.stopErr = fmt.Errorf("Process exited with error: %w", err)
 			return
 		}
@@ -150,9 +163,9 @@ func (n *NodeProcess) Stop() error {
 }
 
 // RunNodeProcess runs the binary at the given path with the provided configuration.
-func RunNodeProcess(ctx context.Context, processBin string, cfg ProcessConfig) (*NodeProcess, error) {
+func RunNodeProcess(ctx context.Context, processBin string, cfg ProcessConfig) (NodeProcess, error) {
 	if cfg.Stdout == nil {
-		cfg.Stdout = cfg.Stdout
+		cfg.Stdout = os.Stdout
 	}
 
 	if cfg.Stderr == nil {
@@ -196,10 +209,45 @@ func RunNodeProcess(ctx context.Context, processBin string, cfg ProcessConfig) (
 		return nil, err
 	}
 
-	return &NodeProcess{
-		Cmd:     cmd,
-		Address: address,
+	return &nodeProcess{
+		cmd:     cmd,
+		address: address,
 	}, nil
+}
+
+type nodeInMemoryProcess struct {
+	stop    context.CancelFunc
+	address string
+}
+
+func (n *nodeInMemoryProcess) Address() string {
+	return n.address
+}
+
+func (n *nodeInMemoryProcess) Stop() error {
+	n.stop()
+	return nil
+}
+
+func RunInMemoryProcess(ctx context.Context, cfg ProcessConfig) (NodeProcess, error) {
+	ctx, cancel := context.WithCancel(ctx)
+
+	out, in := io.Pipe()
+	go func() {
+		defer cancel()
+
+		if err := RunNode(ctx, cfg.Node, in, cfg.Stderr); err != nil {
+			fmt.Fprintf(cfg.Stderr, "run node failed: %v", err)
+		}
+	}()
+
+	address, err := waitForProcessReady(ctx, out, cfg.Stdout)
+	if err != nil {
+		cancel()
+		return nil, err
+	}
+
+	return &nodeInMemoryProcess{stop: cancel, address: address}, nil
 }
 
 // initDatabase initializes the database based on the provided directory configuration.
@@ -241,16 +289,17 @@ func waitForProcessReady(ctx context.Context, stdoutPipe io.Reader, out io.Write
 		ready := false
 		for scanner.Scan() {
 			line := scanner.Text()
-			fmt.Fprintln(out, line)
-			if ready {
-				continue
+			if !ready {
+				if addr, ok := signalReadReady(line); ok {
+					address = addr
+					ready = true
+					cReady <- nil
+
+					continue
+				}
 			}
 
-			if addr, ok := signalReadReady(line); ok {
-				address = addr
-				ready = true
-				cReady <- nil
-			}
+			fmt.Fprintln(out, line)
 		}
 
 		if err := scanner.Err(); err != nil {
