@@ -8,6 +8,7 @@ on:
     paths:
       - gnovm/**/*.gno
       - examples/**/*.gno
+      - examples/**/gno.mod
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.head_ref || github.run_id }}
