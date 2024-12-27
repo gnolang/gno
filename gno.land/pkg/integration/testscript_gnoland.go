@@ -1,6 +1,7 @@
 package integration
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"flag"
@@ -13,7 +14,6 @@ import (
 	"strconv"
 	"strings"
 	"sync"
-	"syscall"
 	"testing"
 	"time"
 
@@ -32,6 +32,7 @@ import (
 	tm2Log "github.com/gnolang/gno/tm2/pkg/log"
 	"github.com/gnolang/gno/tm2/pkg/std"
 	"github.com/rogpeppe/go-internal/testscript"
+	"github.com/stretchr/testify/require"
 	"go.uber.org/zap/zapcore"
 )
 
@@ -41,23 +42,22 @@ const (
 	envKeyPkgsLoader
 )
 
-type testNode struct {
-	*exec.Cmd
-	remoteAddr  string
+type tNodeProcess struct {
+	*NodeProcess
 	cfg         *gnoland.InMemoryNodeConfig
 	nGnoKeyExec uint // Counter for execution of gnokey.
 }
 
 // NodesManager manages access to the nodes map with synchronization.
 type NodesManager struct {
-	nodes map[string]*testNode
+	nodes map[string]*tNodeProcess
 	mu    sync.RWMutex
 }
 
 // NewNodesManager creates a new instance of NodesManager.
 func NewNodesManager() *NodesManager {
 	return &NodesManager{
-		nodes: make(map[string]*testNode),
+		nodes: make(map[string]*tNodeProcess),
 	}
 }
 
@@ -70,7 +70,7 @@ func (nm *NodesManager) IsNodeRunning(sid string) bool {
 }
 
 // Get retrieves a node by its SID.
-func (nm *NodesManager) Get(sid string) (*testNode, bool) {
+func (nm *NodesManager) Get(sid string) (*tNodeProcess, bool) {
 	nm.mu.RLock()
 	defer nm.mu.RUnlock()
 	node, exists := nm.nodes[sid]
@@ -78,7 +78,7 @@ func (nm *NodesManager) Get(sid string) (*testNode, bool) {
 }
 
 // Set adds or updates a node in the map.
-func (nm *NodesManager) Set(sid string, node *testNode) {
+func (nm *NodesManager) Set(sid string, node *tNodeProcess) {
 	nm.mu.Lock()
 	defer nm.mu.Unlock()
 	nm.nodes[sid] = node
@@ -94,15 +94,8 @@ func (nm *NodesManager) Delete(sid string) {
 func SetupGnolandTestscript(t *testing.T, p *testscript.Params) error {
 	t.Helper()
 
-	tmpdir := t.TempDir()
-
 	gnoRootDir := gnoenv.RootDir()
-
-	gnolandBuildDir := filepath.Join(tmpdir, "build")
-	gnolandBin := filepath.Join(gnolandBuildDir, "gnoland")
-	if err := buildGnoland(t, gnoRootDir, gnolandBin); err != nil {
-		return fmt.Errorf("unable to build gnoland: %w", err)
-	}
+	gnolandBin := buildGnoland(t, gnoRootDir)
 
 	nodesManager := NewNodesManager()
 
@@ -132,6 +125,7 @@ func SetupGnolandTestscript(t *testing.T, p *testscript.Params) error {
 			return err
 		}
 
+		// Generate node short id
 		var sid string
 		{
 			works := env.Getenv("WORK")
@@ -174,15 +168,16 @@ func SetupGnolandTestscript(t *testing.T, p *testscript.Params) error {
 		env.Setenv("GNOHOME", gnoHomeDir)
 
 		env.Defer(func() {
+			// Gracefully stop the node, if any
 			n, exist := nodesManager.Get(sid)
 			if !exist {
 				return
 			}
 
-			if err := n.Cmd.Process.Kill(); err != nil {
+			if err := n.Stop(); err != nil {
+				err = fmt.Errorf("unable to stop the node gracefully: %w", err)
 				env.T().Fatal(err.Error())
 			}
-
 		})
 
 		return nil
@@ -273,21 +268,24 @@ func gnolandCmd(t *testing.T, nodesManager *NodesManager, gnolandBin, gnoRootDir
 
 			dbdir := ts.Getenv("GNO_DBDIR")
 			priv := ts.Value("PK").(ed25519.PrivKeyEd25519)
-			remoteAddr, cmd, err := ExecuteNode(ctx, gnolandBin, &Config{
-				ValidatorKey: priv,
-				DBDir:        dbdir,
-				RootDir:      gnoRootDir,
-				TMConfig:     cfg.TMConfig,
-				Genesis:      NewMarshalableGenesisDoc(cfg.Genesis),
-			}, ts.Stderr())
+			nodep, err := RunNodeProcess(ctx, gnolandBin, ProcessConfig{
+				Node: &ProcessNodeConfig{
+					ValidatorKey: priv,
+					DBDir:        dbdir,
+					RootDir:      gnoRootDir,
+					TMConfig:     cfg.TMConfig,
+					Genesis:      NewMarshalableGenesisDoc(cfg.Genesis),
+				},
+
+				Stdout: ts.Stdout(), Stderr: ts.Stderr(),
+			})
 			if err != nil {
 				ts.Fatalf("unable to start the node: %s", err)
 			}
 
-			nodesManager.Set(sid, &testNode{Cmd: cmd, remoteAddr: remoteAddr, cfg: cfg})
+			nodesManager.Set(sid, &tNodeProcess{NodeProcess: nodep, cfg: cfg})
 
-			ts.Setenv("RPC_ADDR", remoteAddr)
-
+			ts.Setenv("RPC_ADDR", nodep.Address)
 			fmt.Fprintln(ts.Stdout(), "node started successfully")
 
 		case "restart":
@@ -297,52 +295,51 @@ func gnolandCmd(t *testing.T, nodesManager *NodesManager, gnolandBin, gnoRootDir
 				break
 			}
 
-			fmt.Println("STOPING")
-
-			// Send SIGTERM to the process
-			if err := node.Cmd.Process.Signal(syscall.SIGTERM); err != nil {
-				err = fmt.Errorf("Error sending SIGTERM: %w\n", err)
+			if err := node.Stop(); err != nil {
+				err = fmt.Errorf("unable to stop the node gracefully: %w", err)
 				break
 			}
 
-			// Optionally wait for the process to exit
-			if _, err := node.Cmd.Process.Wait(); err != nil {
-				err = fmt.Errorf("Process exited with error: %w", err)
-				break
-			}
-
-			fmt.Println("STOP DONE")
 			ctx, cancel := context.WithTimeout(context.Background(), time.Second*30)
 			defer cancel()
 
 			priv := ts.Value("PK").(ed25519.PrivKeyEd25519)
 			dbdir := ts.Getenv("GNO_DBDIR")
-			newRemoteAddr, cmd, err := ExecuteNode(ctx, gnolandBin, &Config{
-				ValidatorKey: priv,
-				DBDir:        dbdir,
-				RootDir:      gnoRootDir,
-				TMConfig:     node.cfg.TMConfig,
-				Genesis:      NewMarshalableGenesisDoc(node.cfg.Genesis),
-			}, ts.Stderr())
+			nodep, err := RunNodeProcess(ctx, gnolandBin, ProcessConfig{
+				Node: &ProcessNodeConfig{
+					ValidatorKey: priv,
+					DBDir:        dbdir,
+					RootDir:      gnoRootDir,
+					TMConfig:     node.cfg.TMConfig,
+					Genesis:      NewMarshalableGenesisDoc(node.cfg.Genesis),
+				},
+
+				Stdout: ts.Stdout(), Stderr: ts.Stderr(),
+			})
 			if err != nil {
 				ts.Fatalf("unable to start the node: %s", err)
 			}
 
-			nodesManager.Set(sid, &testNode{Cmd: cmd, remoteAddr: newRemoteAddr, cfg: node.cfg})
+			ts.Setenv("RPC_ADDR", nodep.Address)
+			nodesManager.Set(sid, &tNodeProcess{NodeProcess: nodep, cfg: node.cfg})
 
 			fmt.Fprintln(ts.Stdout(), "node restarted successfully")
+
 		case "stop":
 			node, exists := nodesManager.Get(sid)
 			if !exists {
 				err = fmt.Errorf("node not started cannot be stopped")
 				break
 			}
-			if stopErr := node.Cmd.Process.Kill(); stopErr != nil {
-				err = fmt.Errorf("error stopping node: %w", stopErr)
-				fmt.Fprintln(ts.Stdout(), "node stopped successfully")
+
+			if err := node.Stop(); err != nil {
+				err = fmt.Errorf("unable to stop the node gracefully: %w", err)
+				break
 			}
 
+			fmt.Fprintln(ts.Stdout(), "node stopped successfully")
 			nodesManager.Delete(sid)
+
 		default:
 			// Fallback on gnoland binary for other commands
 			err = ts.Exec(gnolandBin, args...)
@@ -360,7 +357,7 @@ func gnokeyCmd(nodes *NodesManager) func(ts *testscript.TestScript, neg bool, ar
 		gnoHomeDir := ts.Getenv("GNOHOME")
 
 		logger := ts.Value(envKeyLogger).(*slog.Logger)
-		sid := ts.Getenv("SID")
+		sid := getNodeSID(ts)
 
 		args, err := unquote(args)
 		if err != nil {
@@ -379,7 +376,7 @@ func gnokeyCmd(nodes *NodesManager) func(ts *testscript.TestScript, neg bool, ar
 		}
 
 		if n, ok := nodes.Get(sid); ok {
-			if raddr := n.remoteAddr; raddr != "" {
+			if raddr := n.Address; raddr != "" {
 				defaultArgs = append(defaultArgs, "-remote", raddr)
 			}
 
@@ -712,32 +709,39 @@ func createAccountFrom(env envSetter, kb keys.Keybase, accountName, mnemonic str
 	}, nil
 }
 
-func buildGnoland(t *testing.T, gnoroot, output string) error {
+func buildGnoland(t *testing.T, rootdir string) string {
 	t.Helper()
 
-	t.Log("building gnoland fork binary...")
-	if _, err := os.Stat(output); err != nil {
-		if !errors.Is(err, os.ErrNotExist) {
-			// Handle other potential errors from os.Stat
-			return err
-		}
+	bin := filepath.Join(t.TempDir(), "gnoland-test")
 
-		// Build a fresh gno binary in a temp directory
-		gnoArgsBuilder := []string{"build", "-o", output}
+	t.Log("building gnoland integration binary...")
 
-		// Forward `-covermode` settings if set
-		if coverMode := testing.CoverMode(); coverMode != "" {
-			gnoArgsBuilder = append(gnoArgsBuilder, "-covermode", coverMode)
-		}
+	// Build a fresh gno binary in a temp directory
+	gnoArgsBuilder := []string{"build", "-o", bin}
 
-		// Append the path to the gno command source
-		gnoArgsBuilder = append(gnoArgsBuilder, filepath.Join(gnoroot,
-			"gno.land", "pkg", "integration", "cmd_test"))
-
-		if err = exec.Command("go", gnoArgsBuilder...).Run(); err != nil {
-			return fmt.Errorf("unable to build gno binary: %w", err)
-		}
+	// Forward `-covermode` settings if set
+	if coverMode := testing.CoverMode(); coverMode != "" {
+		gnoArgsBuilder = append(gnoArgsBuilder,
+			"-covermode", coverMode,
+		)
 	}
 
-	return nil
+	// Append the path to the gno command source
+	gnoArgsBuilder = append(gnoArgsBuilder, filepath.Join(rootdir,
+		"gno.land", "pkg", "integration", "process"))
+
+	t.Logf("build command: %s", strings.Join(gnoArgsBuilder, " "))
+
+	cmd := exec.Command("go", gnoArgsBuilder...)
+
+	var buff bytes.Buffer
+	cmd.Stderr, cmd.Stdout = &buff, &buff
+	defer buff.Reset()
+
+	if err := cmd.Run(); err != nil {
+		require.FailNowf(t, "unable to build binary", "%q\n%s",
+			err.Error(), buff.String())
+	}
+
+	return bin
 }
