@@ -18,6 +18,7 @@ gnokey maketx call alice -send 42ugnot -pkgpath gno.land/r/demo/authbanker -func
 gnokey maketx call -pkgpath gno.land/r/demo/authbanker -func "GetCoins" -args "/g1u5hdzuqfln65xyx5dvz9ldl9e45pmew5exg302/g1xd348e34sg4ndt3shpepv85dq8zw8dlufp9t6e/savings" -gas-fee 1000000ugnot -gas-wanted 2000000 -broadcast -chainid=tendermint_test test1
 stdout '42'
 
+
 # send from alice's 'savings' sub-account to bob's 'cashier' sub-account
 gnokey maketx run alice $WORK/send_to_bob_cashier.gno -gas-fee 1000000ugnot -gas-wanted 15000000 -broadcast -chainid=tendermint_test
 
@@ -38,6 +39,7 @@ gnokey maketx call -pkgpath gno.land/r/demo/authbanker -func "GetCoins" -args "/
 stdout '7'
 
 # XXX: check bob's address coins
+
 
 -- send_to_bob_cashier.gno --
 package main
