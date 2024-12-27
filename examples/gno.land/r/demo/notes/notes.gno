@@ -22,6 +22,7 @@ type Note struct {
 	content   string
 	created   time.Time
 	charCount int
+	private   bool
 }
 
 func (n Note) Less(than btree.Record) bool {
@@ -32,7 +33,7 @@ func (n Note) Less(than btree.Record) bool {
 	return n.created.Before(other.created)
 }
 
-func AddNote(noteContent string) {
+func AddNote(noteContent string, private bool) {
 	callerString := std.GetOrigCaller().String()
 
 	userProfile, exists := users.Get(callerString)
@@ -42,6 +43,7 @@ func AddNote(noteContent string) {
 			content:   noteContent,
 			created:   time.Now(),
 			charCount: len(noteContent),
+			private:   private,
 		}
 
 		userNotes := btree.New()
@@ -54,6 +56,7 @@ func AddNote(noteContent string) {
 			content:   noteContent,
 			created:   time.Now(),
 			charCount: len(noteContent),
+			private:   private,
 		}
 		userNotes.Insert(newNote)
 	}
@@ -130,8 +133,18 @@ func Render(path string) string {
 	var sb strings.Builder
 	sb.WriteString(md.H1("User Notes"))
 
+	caller := std.GetOrigCaller()
+	isOwner := caller.String() == path
+
 	for _, note := range userNotes {
+		if note.private && !isOwner {
+			continue
+		}
+
 		header := ufmt.Sprintf("Note #%d", note.id)
+		if note.private {
+			header += " (Private)"
+		}
 		sb.WriteString(md.H3(header))
 		sb.WriteString(note.content)
 		sb.WriteString("\n")
