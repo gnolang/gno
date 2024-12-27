@@ -340,3 +340,29 @@ func (l *List) GetRangeByOffset(offset int, count int) []Entry {
 	})
 	return entries
 }
+
+// IList defines the interface for list operations.
+// It provides methods for appending, accessing, deleting, and iterating over elements.
+type IList interface {
+	// Basic operations
+	Append(values ...interface{})
+	Get(index int) interface{}
+	Delete(indices ...int) error
+	Size() int
+	TotalSize() int
+
+	// Must variants that panic instead of returning errors
+	MustDelete(indices ...int)
+	MustGet(index int) interface{}
+
+	// Range operations
+	GetRange(start, end int) []Entry
+	GetRangeByOffset(offset int, count int) []Entry
+
+	// Iterator operations
+	Iterator(start, end int, cb IterCbFn) bool
+	IteratorByOffset(offset int, count int, cb IterCbFn) bool
+}
+
+// Verify that List implements IList
+var _ IList = (*List)(nil)
