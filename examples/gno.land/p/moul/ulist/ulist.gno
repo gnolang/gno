@@ -11,11 +11,12 @@
 // * No balancing needed
 // * Memory efficient
 // * Natural support for range queries
-
+// * Support for soft deletion of elements
+// * Forward and reverse iteration capabilities
+// * Offset-based iteration with count control
 package ulist
 
 // TODO: Make avl/pager compatible in some way. Explain the limitations (not always 10 items because of nil ones).
-// TODO: Add MustXXX helpers.
 // TODO: Use this ulist in moul/collection for the primary index.
 // TODO: Consider adding a "compact" method that removes nil nodes.
 
@@ -30,6 +31,8 @@ type List struct {
 	activeSize int
 }
 
+// Entry represents a key-value pair in the list, where Index is the position
+// and Value is the stored data
 type Entry struct {
 	Index int
 	Value interface{}
@@ -48,12 +51,13 @@ var (
 	ErrDeleted     = errors.New("element already deleted")
 )
 
-// New creates a new List
+// New creates a new empty List instance
 func New() *List {
 	return &List{}
 }
 
-// Append adds one or more values to the list
+// Append adds one or more values to the end of the list.
+// Values are added sequentially, and the list grows automatically.
 func (l *List) Append(values ...interface{}) {
 	for _, value := range values {
 		index := l.totalSize
@@ -64,7 +68,8 @@ func (l *List) Append(values ...interface{}) {
 	}
 }
 
-// Get retrieves the value at the specified index
+// Get retrieves the value at the specified index.
+// Returns nil if the index is out of bounds or if the element was deleted.
 func (l *List) Get(index int) interface{} {
 	node := l.findNode(index, false)
 	if node == nil {
@@ -73,7 +78,9 @@ func (l *List) Get(index int) interface{} {
 	return node.data
 }
 
-// Delete marks the elements at the specified indices as deleted
+// Delete marks the elements at the specified indices as deleted.
+// Returns ErrOutOfBounds if any index is invalid or ErrDeleted if
+// the element was already deleted.
 func (l *List) Delete(indices ...int) error {
 	if len(indices) == 0 {
 		return nil
@@ -98,7 +105,7 @@ func (l *List) Delete(indices ...int) error {
 	return nil
 }
 
-// Size returns the number of active elements
+// Size returns the number of active (non-deleted) elements in the list
 func (l *List) Size() int {
 	if l == nil {
 		return 0
@@ -106,7 +113,8 @@ func (l *List) Size() int {
 	return l.activeSize
 }
 
-// TotalSize returns the total number of elements (including deleted)
+// TotalSize returns the total number of elements ever added to the list,
+// including deleted elements
 func (l *List) TotalSize() int {
 	if l == nil {
 		return 0
@@ -114,12 +122,14 @@ func (l *List) TotalSize() int {
 	return l.totalSize
 }
 
-// IterCbFn is a callback function that processes an entry and returns whether to stop iterating
+// IterCbFn is a callback function type used in iteration methods.
+// Return true to stop iteration, false to continue.
 type IterCbFn func(index int, value interface{}) bool
 
 // Iterator performs iteration between start and end indices, calling cb for each entry.
 // If start > end, iteration is performed in reverse order.
-// Returns true if iteration was stopped by callback returning true.
+// Returns true if iteration was stopped early by the callback returning true.
+// Skips deleted elements.
 func (l *List) Iterator(start, end int, cb IterCbFn) bool {
 	// For empty list or invalid range
 	if l == nil || l.totalSize == 0 {
@@ -173,7 +183,8 @@ func (l *List) Iterator(start, end int, cb IterCbFn) bool {
 
 // IteratorByOffset performs iteration starting from offset for count elements.
 // If count is positive, iterates forward; if negative, iterates backward.
-// The iteration stops after abs(count) elements or when reaching the list bounds.
+// The iteration stops after abs(count) elements or when reaching list bounds.
+// Skips deleted elements.
 func (l *List) IteratorByOffset(offset int, count int, cb IterCbFn) bool {
 	if count == 0 || l == nil || l.totalSize == 0 {
 		return false
@@ -284,14 +295,16 @@ func (l *List) findNode(index int, create bool) *treeNode {
 	return node
 }
 
-// MustDelete deletes elements at the specified indices and panics if an error occurs
+// MustDelete deletes elements at the specified indices.
+// Panics if any index is invalid or if any element was already deleted.
 func (l *List) MustDelete(indices ...int) {
 	if err := l.Delete(indices...); err != nil {
 		panic(err)
 	}
 }
 
-// MustGet retrieves the value at the specified index and panics if the index is out of bounds or the element is deleted
+// MustGet retrieves the value at the specified index.
+// Panics if the index is out of bounds or if the element was deleted.
 func (l *List) MustGet(index int) interface{} {
 	if l == nil || index < 0 || index >= l.totalSize {
 		panic(ErrOutOfBounds)
