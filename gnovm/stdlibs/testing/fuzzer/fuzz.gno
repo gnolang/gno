@@ -2,6 +2,7 @@ package fuzzer
 
 import (
 	"errors"
+	"strconv"
 	"strings"
 	"testing"
 	"testing/fuzzinglib"
@@ -11,14 +12,16 @@ import (
 type (
 	Runner func(*testing.T, ...interface{})
 	F      struct {
-		fsm      *fuzzinglib.StateMachine
-		fhm      *fuzzinglib.HashMachine
-		corpus   []fuzzinglib.Seed
-		msgs     []string // Stores log messages for reporting.
-		iters    int      // Number of iterations to run the fuzzing process. TODO: CLI flag to set this.
-		failed   bool     // Indicates whether the fuzzing has encountered a failure.
-		ff       Runner
-		isFuzzed bool
+		fsm    *fuzzinglib.StateMachine
+		fhm    *fuzzinglib.HashMachine
+		corpus []fuzzinglib.Seed
+		msgs   []string // Stores log messages for reporting.
+		iters  int      // Number of iterations to run the fuzzing process.
+		// TODO: CLI flag to set this.
+		failed    bool // Indicates whether the fuzzing has encountered a failure.
+		ff        Runner
+		isFuzzed  bool
+		seedCount uint
 	}
 )
 
@@ -26,9 +29,10 @@ func New_F() *F {
 	new_fsm := fuzzinglib.New_StateMachine()
 	new_fhm := fuzzinglib.New_HashMachine()
 	return &F{
-		fsm:      new_fsm,
-		fhm:      new_fhm,
-		isFuzzed: false,
+		fsm:       new_fsm,
+		fhm:       new_fhm,
+		isFuzzed:  false,
+		seedCount: 0,
 	}
 }
 
@@ -101,19 +105,12 @@ func (f *F) Add(args ...interface{}) {
 			panic("added arguments not equal together")
 		}
 	}
+	f.seedCount++
 	f.corpus = append(f.corpus, fuzzinglib.Seed{
-		parent_id: 50000,
-		id:        0,
-		Gen:       1, IsUsed: false, Content: values,
+		Pid: 0,
+		Id:  f.seedCount,
+		Gen: 1, IsCoordinated: false, Content: values,
 	})
-
-	// 초기화용 시드에 추가
-	f.fsm.InitSeeds = append(f.fsm.InitSeeds,
-		fuzzinglib.Seed{
-			parent_id: 50000,
-			id:        0,
-			Gen:       1, IsUsed: false, Content: values,
-		})
 }
 
 func (f *F) Fuzz(run Runner) {
@@ -123,46 +120,95 @@ func (f *F) Fuzz(run Runner) {
 		panic("fuzz called more than once")
 	}
 
-	// 상태 초기화하기
-	// fsm의 정보들 초기화
+	// 초기 시드(코퍼스)들 바탕으로 머신 포멧팅
 	f.ff = run
 	for i, corp := range f.corpus {
 		println("run corpus", i, "...")
 		coverage := f.runFF(corp.Content)
-		coverage = fuzzinglib.RemoveDuplicates(coverage)
+		// 러닝 처리
 		hashNumber := f.fhm.RegisterCoverage2HashNumber(coverage)
-		f.fsm.CoordinateMachine(corp, hashNumber)
-		println("코디네이팅 결과 h0->p: ", f.fsm.HashNumber2Priority[0])
-		println("코디네이팅 결과 h1->p: ", f.fsm.HashNumber2Priority[1])
+		corp.HashNumber = hashNumber
+		is_end := f.fsm.CoordinateMachine(corp)
+		if is_end {
+			f.report()
+			return
+		}
+		// println("코디네이팅 결과 h0->p: ", f.fsm.HashNumber2Priority[0])
+		// println("코디네이팅 결과 h1->p: ", f.fsm.HashNumber2Priority[1])
 	}
-	println("formatted machine")
-	println("h0-seeds")
-	f.fsm.HashNumber2Seeds[0].Display()
-	println("h1-seeds", f.fsm.HashNumber2Seeds[1])
-	f.fsm.HashNumber2Seeds[1].Display()
-	println("h0->p", f.fsm.HashNumber2Priority[0])
-	println("h1->p", f.fsm.HashNumber2Priority[1])
-	h0_p := f.fsm.HashNumber2Priority[0]
-	h1_p := f.fsm.HashNumber2Priority[1]
-	println("0번째 우선순위 해시넘버들", f.fsm.Priority2HashNumberULL[0])
-	println("1번째 우선순위 해시넘버들", f.fsm.Priority2HashNumberULL[1])
-	println("2번째 우선순위 해시넘버들", f.fsm.Priority2HashNumberULL[2])
-	println("h0의 우선순위==", h0_p, "실제", h0_p, "번째 우선순위 해시넘버들==")
-	f.fsm.Priority2HashNumberULL[h0_p].Display()
-	println("h1의 우선순위==", h1_p, "실제", h1_p, "번째 우선순위 해시넘버들==")
-	f.fsm.Priority2HashNumberULL[h1_p].Display()
+	for {
+
+		parentSeeds := f.fsm.PopSeeds()
+		childSeeds := fuzzinglib.Evolve(parentSeeds, &f.seedCount)
+
+		for _, child := range childSeeds {
+			coverage := f.runFF(child.Content)
+			// 러닝 처리
+			hashNumber := f.fhm.RegisterCoverage2HashNumber(coverage)
+			child.HashNumber = hashNumber
+			is_end := f.fsm.CoordinateMachine(child)
+			if is_end {
+				f.report()
+
+				return
+			}
+		}
+		for _, p := range parentSeeds {
+			is_end := f.fsm.CoordinateMachine(p)
+			if is_end {
+				f.report()
+				return
+			}
+		}
+	}
+
+	// println("formatted machine")
+	// println("h0-seeds")
+	// f.fsm.HashNumber2Seeds[0].Display()
+	// println("h1-seeds", f.fsm.HashNumber2Seeds[1])
+	// f.fsm.HashNumber2Seeds[1].Display()
+	// println("h0->p", f.fsm.HashNumber2Priority[0])
+	// println("h1->p", f.fsm.HashNumber2Priority[1])
+	// h0_p := f.fsm.HashNumber2Priority[0]
+	// h1_p := f.fsm.HashNumber2Priority[1]
+	// println("0번째 우선순위 해시넘버들", f.fsm.Priority2HashNumberULL[0])
+	// println("1번째 우선순위 해시넘버들", f.fsm.Priority2HashNumberULL[1])
+	// println("2번째 우선순위 해시넘버들", f.fsm.Priority2HashNumberULL[2])
+	// println("h0의 우선순위==", h0_p, "실제", h0_p, "번째 우선순위 해시넘버들==")
+	// f.fsm.Priority2HashNumberULL[h0_p].Display()
+	// println("h1의 우선순위==", h1_p, "실제", h1_p, "번째 우선순위 해시넘버들==")
+	// f.fsm.Priority2HashNumberULL[h1_p].Display()
+	// println(f.msgs)
 }
 
-// TODO: Fuzz의 모니터링 추상화하기.
-// TODO: f에 ff등록 후 그걸로 계속 러닝
+func (f *F) report() {
+	println("done all trials")
+	println("개수", len(f.msgs))
+	for i, msg := range f.msgs {
+		if i > 9000 {
+			println(msg)
+		}
+	}
+}
+
 func (f *F) runFF(content []interface{}) fuzzinglib.Coverage {
 	coverage, err, isPanic, panicMsg := monitor(f.ff, content)
 	if isPanic {
-		msg := "Panic occered in target function: " + panicMsg
+		var sb strings.Builder
+		inputStr := fuzzinglib.ContentToString(content)
+		sb.WriteString("Input: ")
+		sb.WriteString(inputStr)
+		sb.WriteString(" -> ")
+		msg := sb.String() + "Panic: " + panicMsg
 		f.Fatal(msg)
 	}
 	if err != nil {
-		msg := "Error occered in target function: " + strings.TrimSpace(err.Error())
+		var sb strings.Builder
+		inputStr := fuzzinglib.ContentToString(content)
+		sb.WriteString("Input: ")
+		sb.WriteString(inputStr)
+		sb.WriteString(" -> ")
+		msg := sb.String() + "Error: " + strings.TrimSpace(err.Error())
 		f.Fatal(msg)
 	}
 	return coverage
@@ -183,7 +229,6 @@ func (f *F) Fatal(args ...interface{}) {
 	}
 
 	f.msgs = append(f.msgs, sb.String())
-
 	f.Fail()
 }
 
@@ -242,11 +287,8 @@ func isSliceEqual(a, b []fuzzinglib.SupportedType) bool {
 func main() {
 	f := New_F()
 
-	f.Add("sasdadss")
-	f.Add("sasdaasdas")
-	f.Add("瑦")
-	f.Add("qweqwew")
-	f.Add("김명헌")
+	f.Add("apple")
+	f.Add("banana")
 
 	// f.fsm.Format_StateMachine("some_func")
 
