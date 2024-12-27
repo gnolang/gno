@@ -1,0 +1,70 @@
+adduserfrom alice 'garbage still snack cake identify girl used spoil all reform allow cargo control model spider sound urban rural avoid obvious august oil large cake'
+stdout 'g1xd348e34sg4ndt3shpepv85dq8zw8dlufp9t6e'
+
+adduserfrom bob 'trap silent cross fold brisk burger teach end history sunset ignore swear proud female faculty burden upper change apart wink view stove surge answer'
+stdout 'g1gvcsfj492u6cpxudrprzz23ulmppxgv9pqmnpj'
+
+loadpkg gno.land/r/demo/authbanker
+loadpkg gno.land/r/demo/subacc
+
+## start a new node
+gnoland start
+
+
+# fund alice's 'savings' sub-account
+gnokey maketx call alice -send 42ugnot -pkgpath gno.land/r/demo/authbanker -func FundVault -args "/g1u5hdzuqfln65xyx5dvz9ldl9e45pmew5exg302/g1xd348e34sg4ndt3shpepv85dq8zw8dlufp9t6e/savings"  -gas-fee 1000000ugnot -gas-wanted 15000000 -broadcast -chainid=tendermint_test
+
+# check alice account
+gnokey maketx call -pkgpath gno.land/r/demo/authbanker -func "GetCoins" -args "/g1u5hdzuqfln65xyx5dvz9ldl9e45pmew5exg302/g1xd348e34sg4ndt3shpepv85dq8zw8dlufp9t6e/savings" -gas-fee 1000000ugnot -gas-wanted 2000000 -broadcast -chainid=tendermint_test test1
+stdout '42'
+
+# send from alice's 'savings' sub-account to bob's 'cashier' sub-account
+gnokey maketx run alice $WORK/send_to_bob_cashier.gno -gas-fee 1000000ugnot -gas-wanted 15000000 -broadcast -chainid=tendermint_test
+
+# check alice account
+gnokey maketx call -pkgpath gno.land/r/demo/authbanker -func "GetCoins" -args "/g1u5hdzuqfln65xyx5dvz9ldl9e45pmew5exg302/g1xd348e34sg4ndt3shpepv85dq8zw8dlufp9t6e/savings" -gas-fee 1000000ugnot -gas-wanted 2000000 -broadcast -chainid=tendermint_test test1
+stdout '28'
+
+# check bob account
+gnokey maketx call -pkgpath gno.land/r/demo/authbanker -func "GetCoins" -args "/g1u5hdzuqfln65xyx5dvz9ldl9e45pmew5exg302/g1gvcsfj492u6cpxudrprzz23ulmppxgv9pqmnpj/cashier" -gas-fee 1000000ugnot -gas-wanted 2000000 -broadcast -chainid=tendermint_test test1
+stdout '14'
+
+
+# send from bob's 'cashier' sub-account to bob's address
+gnokey maketx run bob $WORK/send_to_bob_address.gno -gas-fee 1000000ugnot -gas-wanted 15000000 -broadcast -chainid=tendermint_test
+
+# check bob account
+gnokey maketx call -pkgpath gno.land/r/demo/authbanker -func "GetCoins" -args "/g1u5hdzuqfln65xyx5dvz9ldl9e45pmew5exg302/g1gvcsfj492u6cpxudrprzz23ulmppxgv9pqmnpj/cashier" -gas-fee 1000000ugnot -gas-wanted 2000000 -broadcast -chainid=tendermint_test test1
+stdout '7'
+
+# XXX: check bob's address coins
+
+-- send_to_bob_cashier.gno --
+package main
+
+import (
+    "std"
+
+    "gno.land/r/demo/subacc"
+    "gno.land/r/demo/authbanker"
+)
+
+func main() {
+    // bob's cashier account
+    destinationID := subacc.EntityID(std.Address("g1gvcsfj492u6cpxudrprzz23ulmppxgv9pqmnpj"), "cashier")
+
+    authbanker.SendCoins(subacc.AuthToken("savings"), destinationID, 14)
+}
+
+
+-- send_to_bob_address.gno --
+package main
+
+import (
+    "gno.land/r/demo/subacc"
+    "gno.land/r/demo/authbanker"
+)
+
+func main() {
+    authbanker.SendCoins(subacc.AuthToken("cashier"), "g1gvcsfj492u6cpxudrprzz23ulmppxgv9pqmnpj", 7)
+}
