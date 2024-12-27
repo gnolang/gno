@@ -1,9 +1,11 @@
-# generate docs and publish on gh-pages branch
-name: gh-pages
+# generate Go docs and publish on gh-pages branch
+# Live at: https://gnolang.github.io/gno
+name: Go Reference Docs Deployment
 
 on:
   push:
-    branches: [ "master" ]
+    branches:
+      - master
   workflow_dispatch:
 
 permissions:
@@ -24,12 +26,19 @@ jobs:
       - uses: actions/setup-go@v5
         with:
           go-version-file: go.mod
+      - run: echo "GOROOT=$(go env GOROOT)" >> $GITHUB_ENV
+      - run: echo $GOROOT
+      - run: "cd misc/stdlib_diff && make gen"
       - run: "cd misc/gendocs && make install gen"
+      - run: "mkdir -p pages_output/stdlib_diff"
+      - run: |
+          cp -r misc/gendocs/godoc/* pages_output/
+          cp -r misc/stdlib_diff/stdlib_diff/* pages_output/stdlib_diff/
       - uses: actions/configure-pages@v5
         id: pages
       - uses: actions/upload-pages-artifact@v3
         with:
-          path: ./misc/gendocs/godoc
+          path: ./pages_output
 
   deploy:
     if: ${{ github.repository == 'gnolang/gno' }} # Alternatively, validate based on provided tokens and permissions.
