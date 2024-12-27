@@ -1167,3 +1167,256 @@ func TestGetRangeByOffset(t *testing.T) {
 		})
 	}
 }
+
+func TestMustSet(t *testing.T) {
+	tests := []struct {
+		name        string
+		setup       func() *List
+		index       int
+		value       interface{}
+		shouldPanic bool
+		panicMsg    string
+	}{
+		{
+			name: "successful set",
+			setup: func() *List {
+				l := New()
+				l.Append(42)
+				return l
+			},
+			index:       0,
+			value:       99,
+			shouldPanic: false,
+		},
+		{
+			name: "restore deleted element",
+			setup: func() *List {
+				l := New()
+				l.Append(42)
+				l.Delete(0)
+				return l
+			},
+			index:       0,
+			value:       99,
+			shouldPanic: false,
+		},
+		{
+			name: "out of bounds negative",
+			setup: func() *List {
+				l := New()
+				l.Append(1)
+				return l
+			},
+			index:       -1,
+			value:       99,
+			shouldPanic: true,
+			panicMsg:    ErrOutOfBounds.Error(),
+		},
+		{
+			name: "out of bounds positive",
+			setup: func() *List {
+				l := New()
+				l.Append(1)
+				return l
+			},
+			index:       1,
+			value:       99,
+			shouldPanic: true,
+			panicMsg:    ErrOutOfBounds.Error(),
+		},
+		{
+			name: "nil list",
+			setup: func() *List {
+				return nil
+			},
+			index:       0,
+			value:       99,
+			shouldPanic: true,
+			panicMsg:    ErrOutOfBounds.Error(),
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			l := tt.setup()
+			if tt.shouldPanic {
+				defer func() {
+					r := recover()
+					if r == nil {
+						t.Error("Expected panic but got none")
+					}
+					err, ok := r.(error)
+					if !ok {
+						t.Errorf("Expected error but got %v", r)
+					}
+					uassert.Equal(t, tt.panicMsg, err.Error())
+				}()
+			}
+			l.MustSet(tt.index, tt.value)
+			if tt.shouldPanic {
+				t.Error("Expected panic")
+			}
+			// Verify the value was set correctly for non-panic cases
+			if !tt.shouldPanic {
+				result := l.Get(tt.index)
+				uassert.Equal(t, typeutil.ToString(tt.value), typeutil.ToString(result))
+			}
+		})
+	}
+}
+
+func TestSet(t *testing.T) {
+	tests := []struct {
+		name        string
+		setup       func() *List
+		index       int
+		value       interface{}
+		expectedErr error
+		verify      func(t *testing.T, l *List)
+	}{
+		{
+			name: "set value in empty list",
+			setup: func() *List {
+				return New()
+			},
+			index:       0,
+			value:       42,
+			expectedErr: ErrOutOfBounds,
+			verify: func(t *testing.T, l *List) {
+				uassert.Equal(t, 0, l.Size())
+			},
+		},
+		{
+			name: "set value at valid index",
+			setup: func() *List {
+				l := New()
+				l.Append(1)
+				return l
+			},
+			index: 0,
+			value: 42,
+			verify: func(t *testing.T, l *List) {
+				uassert.Equal(t, 42, l.Get(0))
+				uassert.Equal(t, 1, l.Size())
+				uassert.Equal(t, 1, l.TotalSize())
+			},
+		},
+		{
+			name: "set value at negative index",
+			setup: func() *List {
+				l := New()
+				l.Append(1)
+				return l
+			},
+			index:       -1,
+			value:       42,
+			expectedErr: ErrOutOfBounds,
+			verify: func(t *testing.T, l *List) {
+				uassert.Equal(t, 1, l.Get(0))
+			},
+		},
+		{
+			name: "set value beyond size",
+			setup: func() *List {
+				l := New()
+				l.Append(1)
+				return l
+			},
+			index:       1,
+			value:       42,
+			expectedErr: ErrOutOfBounds,
+			verify: func(t *testing.T, l *List) {
+				uassert.Equal(t, 1, l.Get(0))
+				uassert.Equal(t, 1, l.Size())
+			},
+		},
+		{
+			name: "set nil value",
+			setup: func() *List {
+				l := New()
+				l.Append(1)
+				return l
+			},
+			index: 0,
+			value: nil,
+			verify: func(t *testing.T, l *List) {
+				uassert.Equal(t, nil, l.Get(0))
+				uassert.Equal(t, 0, l.Size())
+			},
+		},
+		{
+			name: "set value at deleted index",
+			setup: func() *List {
+				l := New()
+				l.Append(1, 2, 3)
+				l.Delete(1)
+				return l
+			},
+			index: 1,
+			value: 42,
+			verify: func(t *testing.T, l *List) {
+				uassert.Equal(t, 42, l.Get(1))
+				uassert.Equal(t, 3, l.Size())
+				uassert.Equal(t, 3, l.TotalSize())
+			},
+		},
+		{
+			name: "set value in nil list",
+			setup: func() *List {
+				return nil
+			},
+			index:       0,
+			value:       42,
+			expectedErr: ErrOutOfBounds,
+			verify: func(t *testing.T, l *List) {
+				uassert.Equal(t, 0, l.Size())
+			},
+		},
+		{
+			name: "set multiple values at same index",
+			setup: func() *List {
+				l := New()
+				l.Append(1)
+				return l
+			},
+			index: 0,
+			value: 42,
+			verify: func(t *testing.T, l *List) {
+				uassert.Equal(t, 42, l.Get(0))
+				err := l.Set(0, 99)
+				uassert.Equal(t, nil, err)
+				uassert.Equal(t, 99, l.Get(0))
+				uassert.Equal(t, 1, l.Size())
+			},
+		},
+		{
+			name: "set value at last index",
+			setup: func() *List {
+				l := New()
+				l.Append(1, 2, 3)
+				return l
+			},
+			index: 2,
+			value: 42,
+			verify: func(t *testing.T, l *List) {
+				uassert.Equal(t, 42, l.Get(2))
+				uassert.Equal(t, 3, l.Size())
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			l := tt.setup()
+			err := l.Set(tt.index, tt.value)
+
+			if tt.expectedErr != nil {
+				uassert.Equal(t, tt.expectedErr.Error(), err.Error())
+			} else {
+				uassert.Equal(t, nil, err)
+			}
+
+			tt.verify(t, l)
+		})
+	}
+}

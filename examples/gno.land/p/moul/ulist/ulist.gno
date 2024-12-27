@@ -18,7 +18,6 @@ package ulist
 
 // TODO: Make avl/pager compatible in some way. Explain the limitations (not always 10 items because of nil ones).
 // TODO: Use this ulist in moul/collection for the primary index.
-// TODO: Consider adding a "compact" method that removes nil nodes.
 
 import (
 	"errors"
@@ -102,6 +101,32 @@ func (l *List) Delete(indices ...int) error {
 		l.activeSize--
 	}
 
+	return nil
+}
+
+// Set updates or restores a value at the specified index if within bounds
+// Returns ErrOutOfBounds if the index is invalid
+func (l *List) Set(index int, value interface{}) error {
+	if l == nil || index < 0 || index >= l.totalSize {
+		return ErrOutOfBounds
+	}
+
+	node := l.findNode(index, false)
+	if node == nil {
+		return ErrOutOfBounds
+	}
+
+	// If this is restoring a deleted element
+	if value != nil && node.data == nil {
+		l.activeSize++
+	}
+
+	// If this is deleting an element
+	if value == nil && node.data != nil {
+		l.activeSize--
+	}
+
+	node.data = value
 	return nil
 }
 
@@ -316,6 +341,14 @@ func (l *List) MustGet(index int) interface{} {
 	return value
 }
 
+// MustSet updates or restores a value at the specified index.
+// Panics if the index is out of bounds.
+func (l *List) MustSet(index int, value interface{}) {
+	if err := l.Set(index, value); err != nil {
+		panic(err)
+	}
+}
+
 // GetRange returns a slice of Entry containing elements between start and end indices.
 // If start > end, elements are returned in reverse order.
 // Deleted elements are skipped.
@@ -350,10 +383,12 @@ type IList interface {
 	Delete(indices ...int) error
 	Size() int
 	TotalSize() int
+	Set(index int, value interface{}) error
 
 	// Must variants that panic instead of returning errors
 	MustDelete(indices ...int)
 	MustGet(index int) interface{}
+	MustSet(index int, value interface{})
 
 	// Range operations
 	GetRange(start, end int) []Entry
