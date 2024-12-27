@@ -409,8 +409,7 @@ func (l *List) GetRangeByOffset(offset int, count int) []Entry {
 	return entries
 }
 
-// IList defines the interface for list operations.
-// It provides methods for appending, accessing, deleting, and iterating over elements.
+// IList defines the interface for an ulist.List compatible structure.
 type IList interface {
 	// Basic operations
 	Append(values ...interface{})
