@@ -7,6 +7,7 @@ import (
 	"gno.land/p/demo/uassert"
 	"gno.land/p/demo/ufmt"
 	"gno.land/p/demo/urequire"
+	"gno.land/p/moul/pageable"
 )
 
 func TestPager_GetPage(t *testing.T) {
@@ -26,15 +27,15 @@ func TestPager_GetPage(t *testing.T) {
 		tests := []struct {
 			pageNumber int
 			pageSize   int
-			expected   []Item
+			expected   []pageable.Item
 		}{
-			{1, 2, []Item{{Key: "a", Value: 1}, {Key: "b", Value: 2}}},
-			{2, 2, []Item{{Key: "c", Value: 3}, {Key: "d", Value: 4}}},
-			{3, 2, []Item{{Key: "e", Value: 5}}},
-			{1, 3, []Item{{Key: "a", Value: 1}, {Key: "b", Value: 2}, {Key: "c", Value: 3}}},
-			{2, 3, []Item{{Key: "d", Value: 4}, {Key: "e", Value: 5}}},
-			{1, 5, []Item{{Key: "a", Value: 1}, {Key: "b", Value: 2}, {Key: "c", Value: 3}, {Key: "d", Value: 4}, {Key: "e", Value: 5}}},
-			{2, 5, []Item{}},
+			{1, 2, []pageable.Item{{Index: "a", Value: 1}, {Index: "b", Value: 2}}},
+			{2, 2, []pageable.Item{{Index: "c", Value: 3}, {Index: "d", Value: 4}}},
+			{3, 2, []pageable.Item{{Index: "e", Value: 5}}},
+			{1, 3, []pageable.Item{{Index: "a", Value: 1}, {Index: "b", Value: 2}, {Index: "c", Value: 3}}},
+			{2, 3, []pageable.Item{{Index: "d", Value: 4}, {Index: "e", Value: 5}}},
+			{1, 5, []pageable.Item{{Index: "a", Value: 1}, {Index: "b", Value: 2}, {Index: "c", Value: 3}, {Index: "d", Value: 4}, {Index: "e", Value: 5}}},
+			{2, 5, []pageable.Item{}},
 		}
 
 		for _, tt := range tests {
@@ -43,7 +44,7 @@ func TestPager_GetPage(t *testing.T) {
 			uassert.Equal(t, len(tt.expected), len(page.Items))
 
 			for i, item := range page.Items {
-				uassert.Equal(t, tt.expected[i].Key, item.Key)
+				uassert.Equal(t, tt.expected[i].Index, item.Index)
 				uassert.Equal(t, tt.expected[i].Value, item.Value)
 			}
 		}
@@ -57,15 +58,15 @@ func TestPager_GetPage(t *testing.T) {
 		tests := []struct {
 			pageNumber int
 			pageSize   int
-			expected   []Item
+			expected   []pageable.Item
 		}{
-			{1, 2, []Item{{Key: "e", Value: 5}, {Key: "d", Value: 4}}},
-			{2, 2, []Item{{Key: "c", Value: 3}, {Key: "b", Value: 2}}},
-			{3, 2, []Item{{Key: "a", Value: 1}}},
-			{1, 3, []Item{{Key: "e", Value: 5}, {Key: "d", Value: 4}, {Key: "c", Value: 3}}},
-			{2, 3, []Item{{Key: "b", Value: 2}, {Key: "a", Value: 1}}},
-			{1, 5, []Item{{Key: "e", Value: 5}, {Key: "d", Value: 4}, {Key: "c", Value: 3}, {Key: "b", Value: 2}, {Key: "a", Value: 1}}},
-			{2, 5, []Item{}},
+			{1, 2, []pageable.Item{{Index: "e", Value: 5}, {Index: "d", Value: 4}}},
+			{2, 2, []pageable.Item{{Index: "c", Value: 3}, {Index: "b", Value: 2}}},
+			{3, 2, []pageable.Item{{Index: "a", Value: 1}}},
+			{1, 3, []pageable.Item{{Index: "e", Value: 5}, {Index: "d", Value: 4}, {Index: "c", Value: 3}}},
+			{2, 3, []pageable.Item{{Index: "b", Value: 2}, {Index: "a", Value: 1}}},
+			{1, 5, []pageable.Item{{Index: "e", Value: 5}, {Index: "d", Value: 4}, {Index: "c", Value: 3}, {Index: "b", Value: 2}, {Index: "a", Value: 1}}},
+			{2, 5, []pageable.Item{}},
 		}
 
 		for _, tt := range tests {
@@ -74,7 +75,7 @@ func TestPager_GetPage(t *testing.T) {
 			uassert.Equal(t, len(tt.expected), len(page.Items))
 
 			for i, item := range page.Items {
-				uassert.Equal(t, tt.expected[i].Key, item.Key)
+				uassert.Equal(t, tt.expected[i].Index, item.Index)
 				uassert.Equal(t, tt.expected[i].Value, item.Value)
 			}
 		}
