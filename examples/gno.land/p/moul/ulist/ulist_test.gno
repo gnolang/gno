@@ -803,3 +803,160 @@ func TestIteratorByOffset(t *testing.T) {
 		})
 	}
 }
+
+func TestMustDelete(t *testing.T) {
+	tests := []struct {
+		name        string
+		setup       func() *List
+		indices     []int
+		shouldPanic bool
+		panicMsg    string
+	}{
+		{
+			name: "successful delete",
+			setup: func() *List {
+				l := New()
+				l.Append(1, 2, 3)
+				return l
+			},
+			indices:     []int{1},
+			shouldPanic: false,
+		},
+		{
+			name: "out of bounds",
+			setup: func() *List {
+				l := New()
+				l.Append(1)
+				return l
+			},
+			indices:     []int{1},
+			shouldPanic: true,
+			panicMsg:    ErrOutOfBounds.Error(),
+		},
+		{
+			name: "already deleted",
+			setup: func() *List {
+				l := New()
+				l.Append(1)
+				l.Delete(0)
+				return l
+			},
+			indices:     []int{0},
+			shouldPanic: true,
+			panicMsg:    ErrDeleted.Error(),
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			l := tt.setup()
+			if tt.shouldPanic {
+				defer func() {
+					r := recover()
+					if r == nil {
+						t.Error("Expected panic but got none")
+					}
+					err, ok := r.(error)
+					if !ok {
+						t.Errorf("Expected error but got %v", r)
+					}
+					uassert.Equal(t, tt.panicMsg, err.Error())
+				}()
+			}
+			l.MustDelete(tt.indices...)
+			if tt.shouldPanic {
+				t.Error("Expected panic")
+			}
+		})
+	}
+}
+
+func TestMustGet(t *testing.T) {
+	tests := []struct {
+		name        string
+		setup       func() *List
+		index       int
+		expected    interface{}
+		shouldPanic bool
+		panicMsg    string
+	}{
+		{
+			name: "successful get",
+			setup: func() *List {
+				l := New()
+				l.Append(42)
+				return l
+			},
+			index:       0,
+			expected:    42,
+			shouldPanic: false,
+		},
+		{
+			name: "out of bounds negative",
+			setup: func() *List {
+				l := New()
+				l.Append(1)
+				return l
+			},
+			index:       -1,
+			shouldPanic: true,
+			panicMsg:    ErrOutOfBounds.Error(),
+		},
+		{
+			name: "out of bounds positive",
+			setup: func() *List {
+				l := New()
+				l.Append(1)
+				return l
+			},
+			index:       1,
+			shouldPanic: true,
+			panicMsg:    ErrOutOfBounds.Error(),
+		},
+		{
+			name: "deleted element",
+			setup: func() *List {
+				l := New()
+				l.Append(1)
+				l.Delete(0)
+				return l
+			},
+			index:       0,
+			shouldPanic: true,
+			panicMsg:    ErrDeleted.Error(),
+		},
+		{
+			name: "nil list",
+			setup: func() *List {
+				return nil
+			},
+			index:       0,
+			shouldPanic: true,
+			panicMsg:    ErrOutOfBounds.Error(),
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			l := tt.setup()
+			if tt.shouldPanic {
+				defer func() {
+					r := recover()
+					if r == nil {
+						t.Error("Expected panic but got none")
+					}
+					err, ok := r.(error)
+					if !ok {
+						t.Errorf("Expected error but got %v", r)
+					}
+					uassert.Equal(t, tt.panicMsg, err.Error())
+				}()
+			}
+			result := l.MustGet(tt.index)
+			if tt.shouldPanic {
+				t.Error("Expected panic")
+			}
+			uassert.Equal(t, typeutil.ToString(tt.expected), typeutil.ToString(result))
+		})
+	}
+}

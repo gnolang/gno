@@ -18,8 +18,6 @@ package ulist
 // TODO: Add MustXXX helpers.
 // TODO: Use this ulist in moul/collection for the primary index.
 // TODO: Consider adding a "compact" method that removes nil nodes.
-// TODO: Remove debug logging.
-// TODO: add some iterator helpers, such as one that takes count entries.
 
 import (
 	"errors"
@@ -284,4 +282,23 @@ func (l *List) findNode(index int, create bool) *treeNode {
 	}
 
 	return node
+}
+
+// MustDelete deletes elements at the specified indices and panics if an error occurs
+func (l *List) MustDelete(indices ...int) {
+	if err := l.Delete(indices...); err != nil {
+		panic(err)
+	}
+}
+
+// MustGet retrieves the value at the specified index and panics if the index is out of bounds or the element is deleted
+func (l *List) MustGet(index int) interface{} {
+	if l == nil || index < 0 || index >= l.totalSize {
+		panic(ErrOutOfBounds)
+	}
+	value := l.Get(index)
+	if value == nil {
+		panic(ErrDeleted)
+	}
+	return value
 }
