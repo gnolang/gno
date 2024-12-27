@@ -25,10 +25,13 @@ func Authenticate(autok auth.Token) string {
 		panic(errors.New("unknown auth provider"))
 	}
 
-	subPath := path.Clean(authFn(autok))
+	return entityID(provider, authFn(autok))
+}
+
+func entityID(provider string, subPath string) string {
+	subPath = path.Clean(subPath)
 	if strings.HasPrefix(subPath, "..") {
 		panic(ufmt.Errorf("invalid sub-path %q", subPath))
 	}
-
 	return path.Join("/", provider, subPath)
 }
