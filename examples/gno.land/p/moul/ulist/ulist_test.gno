@@ -609,3 +609,129 @@ func TestEdgeCases(t *testing.T) {
 		})
 	}
 }
+
+func TestIteratorByOffset(t *testing.T) {
+	tests := []struct {
+		name     string
+		values   []interface{}
+		offset   int
+		count    int
+		expected []Entry
+		wantStop bool
+	}{
+		{
+			name:     "empty list",
+			values:   []interface{}{},
+			offset:   0,
+			count:    5,
+			expected: []Entry{},
+			wantStop: false,
+		},
+		{
+			name:   "positive count forward iteration",
+			values: []interface{}{1, 2, 3, 4, 5},
+			offset: 1,
+			count:  2,
+			expected: []Entry{
+				{Index: 1, Value: 2},
+				{Index: 2, Value: 3},
+			},
+			wantStop: false,
+		},
+		{
+			name:   "negative count backward iteration",
+			values: []interface{}{1, 2, 3, 4, 5},
+			offset: 3,
+			count:  -2,
+			expected: []Entry{
+				{Index: 3, Value: 4},
+				{Index: 2, Value: 3},
+			},
+			wantStop: false,
+		},
+		{
+			name:   "count exceeds available elements forward",
+			values: []interface{}{1, 2, 3},
+			offset: 1,
+			count:  5,
+			expected: []Entry{
+				{Index: 1, Value: 2},
+				{Index: 2, Value: 3},
+			},
+			wantStop: false,
+		},
+		{
+			name:   "count exceeds available elements backward",
+			values: []interface{}{1, 2, 3},
+			offset: 1,
+			count:  -5,
+			expected: []Entry{
+				{Index: 1, Value: 2},
+				{Index: 0, Value: 1},
+			},
+			wantStop: false,
+		},
+		{
+			name:     "zero count",
+			values:   []interface{}{1, 2, 3},
+			offset:   0,
+			count:    0,
+			expected: []Entry{},
+			wantStop: false,
+		},
+		{
+			name:   "negative offset",
+			values: []interface{}{1, 2, 3},
+			offset: -1,
+			count:  2,
+			expected: []Entry{
+				{Index: 0, Value: 1},
+				{Index: 1, Value: 2},
+			},
+			wantStop: false,
+		},
+		{
+			name:   "offset beyond size",
+			values: []interface{}{1, 2, 3},
+			offset: 5,
+			count:  -2,
+			expected: []Entry{
+				{Index: 2, Value: 3},
+				{Index: 1, Value: 2},
+			},
+			wantStop: false,
+		},
+		{
+			name:   "with deleted elements",
+			values: []interface{}{1, nil, 3, nil, 5},
+			offset: 0,
+			count:  3,
+			expected: []Entry{
+				{Index: 0, Value: 1},
+				{Index: 2, Value: 3},
+				{Index: 4, Value: 5},
+			},
+			wantStop: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			list := New()
+			list.Append(tt.values...)
+
+			var result []Entry
+			stopped := list.IteratorByOffset(tt.offset, tt.count, func(index int, value interface{}) bool {
+				result = append(result, Entry{Index: index, Value: value})
+				return false
+			})
+
+			uassert.Equal(t, len(tt.expected), len(result), "comparing length")
+			for i := range result {
+				uassert.Equal(t, tt.expected[i].Index, result[i].Index, "comparing index")
+				uassert.Equal(t, typeutil.ToString(tt.expected[i].Value), typeutil.ToString(result[i].Value), "comparing value")
+			}
+			uassert.Equal(t, tt.wantStop, stopped, "comparing stopped")
+		})
+	}
+}

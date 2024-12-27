@@ -173,6 +173,57 @@ func (l *List) Iterator(start, end int, cb IterCbFn) bool {
 	return false
 }
 
+// IteratorByOffset performs iteration starting from offset for count elements.
+// If count is positive, iterates forward; if negative, iterates backward.
+// The iteration stops after abs(count) elements or when reaching the list bounds.
+func (l *List) IteratorByOffset(offset int, count int, cb IterCbFn) bool {
+	if count == 0 || l == nil || l.totalSize == 0 {
+		return false
+	}
+
+	// Normalize offset
+	if offset < 0 {
+		offset = 0
+	}
+	if offset >= l.totalSize {
+		offset = l.totalSize - 1
+	}
+
+	// Determine end based on count direction
+	var end int
+	if count > 0 {
+		end = l.totalSize - 1
+	} else {
+		end = 0
+	}
+
+	wrapperReturned := false
+
+	// Wrap the callback to limit iterations
+	remaining := abs(count)
+	wrapper := func(index int, value interface{}) bool {
+		if remaining <= 0 {
+			wrapperReturned = true
+			return true
+		}
+		remaining--
+		return cb(index, value)
+	}
+	ret := l.Iterator(offset, end, wrapper)
+	if wrapperReturned {
+		return false
+	}
+	return ret
+}
+
+// abs returns the absolute value of x
+func abs(x int) int {
+	if x < 0 {
+		return -x
+	}
+	return x
+}
+
 // Add this helper method to the List struct
 func (l *List) findNode(index int, create bool) *treeNode {
 	// For read operations, check bounds strictly
