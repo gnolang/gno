@@ -713,6 +713,64 @@ func TestIteratorByOffset(t *testing.T) {
 			},
 			wantStop: false,
 		},
+		{
+			name:   "early stop in forward iteration",
+			values: []interface{}{1, 2, 3, 4, 5},
+			offset: 0,
+			count:  5,
+			expected: []Entry{
+				{Index: 0, Value: 1},
+				{Index: 1, Value: 2},
+			},
+			wantStop: true, // The callback will return true after 2 elements
+		},
+		{
+			name:   "early stop in backward iteration",
+			values: []interface{}{1, 2, 3, 4, 5},
+			offset: 4,
+			count:  -5,
+			expected: []Entry{
+				{Index: 4, Value: 5},
+				{Index: 3, Value: 4},
+			},
+			wantStop: true, // The callback will return true after 2 elements
+		},
+		{
+			name:     "nil list",
+			values:   nil,
+			offset:   0,
+			count:    5,
+			expected: []Entry{},
+			wantStop: false,
+		},
+		{
+			name:   "single element forward",
+			values: []interface{}{1},
+			offset: 0,
+			count:  5,
+			expected: []Entry{
+				{Index: 0, Value: 1},
+			},
+			wantStop: false,
+		},
+		{
+			name:   "single element backward",
+			values: []interface{}{1},
+			offset: 0,
+			count:  -5,
+			expected: []Entry{
+				{Index: 0, Value: 1},
+			},
+			wantStop: false,
+		},
+		{
+			name:     "all deleted elements",
+			values:   []interface{}{nil, nil, nil},
+			offset:   0,
+			count:    3,
+			expected: []Entry{},
+			wantStop: false,
+		},
 	}
 
 	for _, tt := range tests {
@@ -721,10 +779,20 @@ func TestIteratorByOffset(t *testing.T) {
 			list.Append(tt.values...)
 
 			var result []Entry
-			stopped := list.IteratorByOffset(tt.offset, tt.count, func(index int, value interface{}) bool {
-				result = append(result, Entry{Index: index, Value: value})
-				return false
-			})
+			var cb IterCbFn
+			if tt.wantStop {
+				cb = func(index int, value interface{}) bool {
+					result = append(result, Entry{Index: index, Value: value})
+					return len(result) >= 2 // Stop after 2 elements for early stop tests
+				}
+			} else {
+				cb = func(index int, value interface{}) bool {
+					result = append(result, Entry{Index: index, Value: value})
+					return false
+				}
+			}
+
+			stopped := list.IteratorByOffset(tt.offset, tt.count, cb)
 
 			uassert.Equal(t, len(tt.expected), len(result), "comparing length")
 			for i := range result {
