@@ -36,7 +36,7 @@ func TestNodeProcess(t *testing.T) {
 
 	var stdio bytes.Buffer
 	defer func() {
-		t.Log("node ouput:")
+		t.Log("node output:")
 		t.Log(stdio.String())
 	}()
 
@@ -59,7 +59,59 @@ func TestNodeProcess(t *testing.T) {
 	cli, err := client.NewHTTPClient(node.Address())
 	require.NoError(t, err)
 
-	// Retreive node info.
+	// Retrieve node info.
+	info, err := cli.ABCIInfo()
+	require.NoError(t, err)
+	assert.NotEmpty(t, info.Response.Data)
+
+	// Attempt to stop the node
+	err = node.Stop()
+	require.NoError(t, err)
+
+	// Attempt to stop the node a second time, should not fail
+	err = node.Stop()
+	require.NoError(t, err)
+}
+
+// TestGnolandIntegration tests the forking of a Gnoland node.
+func TestInMemoryNodeProcess(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*20)
+	defer cancel()
+
+	gnoRootDir := gnoenv.RootDir()
+
+	// Define paths for the build directory and the gnoland binary.
+	gnolandDBDir := filepath.Join(t.TempDir(), "db")
+
+	// Prepare a minimal node configuration for testing.
+	cfg := TestingMinimalNodeConfig(gnoRootDir)
+
+	var stdio bytes.Buffer
+	defer func() {
+		t.Log("node output:")
+		t.Log(stdio.String())
+	}()
+
+	start := time.Now()
+	node, err := RunInMemoryProcess(ctx, ProcessConfig{
+		Stderr: &stdio, Stdout: &stdio,
+		Node: &ProcessNodeConfig{
+			Verbose:      true,
+			ValidatorKey: ed25519.GenPrivKey(),
+			DBDir:        gnolandDBDir,
+			RootDir:      gnoRootDir,
+			TMConfig:     cfg.TMConfig,
+			Genesis:      NewMarshalableGenesisDoc(cfg.Genesis),
+		},
+	})
+	require.NoError(t, err)
+	t.Logf("time to start the node: %v", time.Since(start).String())
+
+	// Create a new HTTP client to interact with the integration node.
+	cli, err := client.NewHTTPClient(node.Address())
+	require.NoError(t, err)
+
+	// Retrieve node info.
 	info, err := cli.ABCIInfo()
 	require.NoError(t, err)
 	assert.NotEmpty(t, info.Response.Data)

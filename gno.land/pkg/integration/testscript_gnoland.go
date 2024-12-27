@@ -38,6 +38,8 @@ import (
 	"go.uber.org/zap/zapcore"
 )
 
+const nodeMaxLifespan = time.Second * 30
+
 const (
 	envKeyGenesis int = iota
 	envKeyLogger
@@ -283,25 +285,18 @@ func gnolandCmd(t *testing.T, nodesManager *NodesManager, gnolandBin, gnoRootDir
 				}
 			}
 
-			ctx, cancel := context.WithTimeout(context.Background(), time.Second*30)
-			defer cancel()
+			ctx, cancel := context.WithTimeout(context.Background(), nodeMaxLifespan)
+			ts.Defer(cancel)
 
 			dbdir := ts.Getenv("GNO_DBDIR")
 			priv := ts.Value("PK").(ed25519.PrivKeyEd25519)
-			nodep, err := RunNodeProcess(ctx, gnolandBin, ProcessConfig{
-				Node: &ProcessNodeConfig{
-					ValidatorKey: priv,
-					DBDir:        dbdir,
-					RootDir:      gnoRootDir,
-					TMConfig:     cfg.TMConfig,
-					Genesis:      NewMarshalableGenesisDoc(cfg.Genesis),
-				},
-
-				Stdout: ts.Stdout(), Stderr: ts.Stderr(),
+			nodep := setupNode(ts, ctx, gnolandBin, &ProcessNodeConfig{
+				ValidatorKey: priv,
+				DBDir:        dbdir,
+				RootDir:      gnoRootDir,
+				TMConfig:     cfg.TMConfig,
+				Genesis:      NewMarshalableGenesisDoc(cfg.Genesis),
 			})
-			if err != nil {
-				ts.Fatalf("unable to start the node: %s", err)
-			}
 
 			nodesManager.Set(sid, &tNodeProcess{NodeProcess: nodep, cfg: cfg})
 
@@ -320,25 +315,18 @@ func gnolandCmd(t *testing.T, nodesManager *NodesManager, gnolandBin, gnoRootDir
 				break
 			}
 
-			ctx, cancel := context.WithTimeout(context.Background(), time.Second*30)
-			defer cancel()
+			ctx, cancel := context.WithTimeout(context.Background(), nodeMaxLifespan)
+			ts.Defer(cancel)
 
 			priv := ts.Value("PK").(ed25519.PrivKeyEd25519)
 			dbdir := ts.Getenv("GNO_DBDIR")
-			nodep, err := RunNodeProcess(ctx, gnolandBin, ProcessConfig{
-				Node: &ProcessNodeConfig{
-					ValidatorKey: priv,
-					DBDir:        dbdir,
-					RootDir:      gnoRootDir,
-					TMConfig:     node.cfg.TMConfig,
-					Genesis:      NewMarshalableGenesisDoc(node.cfg.Genesis),
-				},
-
-				Stdout: ts.Stdout(), Stderr: ts.Stderr(),
+			nodep := setupNode(ts, ctx, gnolandBin, &ProcessNodeConfig{
+				ValidatorKey: priv,
+				DBDir:        dbdir,
+				RootDir:      gnoRootDir,
+				TMConfig:     node.cfg.TMConfig,
+				Genesis:      NewMarshalableGenesisDoc(node.cfg.Genesis),
 			})
-			if err != nil {
-				ts.Fatalf("unable to start the node: %s", err)
-			}
 
 			ts.Setenv("RPC_ADDR", nodep.Address())
 			nodesManager.Set(sid, &tNodeProcess{NodeProcess: nodep, cfg: node.cfg})
@@ -548,17 +536,26 @@ func loadpkgCmd(gnoRootDir string) func(ts *testscript.TestScript, neg bool, arg
 	}
 }
 
+type tsLogWriter struct {
+	ts *testscript.TestScript
+}
+
+func (l *tsLogWriter) Write(p []byte) (n int, err error) {
+	l.ts.Logf(string(p))
+	return len(p), nil
+}
+
 func setupNode(ts *testscript.TestScript, ctx context.Context, gnolandBin string, cfg *ProcessNodeConfig) NodeProcess {
 	pcfg := ProcessConfig{
 		Node:   cfg,
-		Stdout: ts.Stdout(),
+		Stdout: &tsLogWriter{ts},
 		Stderr: ts.Stderr(),
 	}
 
-	if ts.Value(envKeyInMemory).(bool) {
+	if v := ts.Value(envKeyInMemory); v != nil && v.(bool) {
 		nodep, err := RunInMemoryProcess(ctx, pcfg)
 		if err != nil {
-			ts.Fatalf("unable to start the node: %s", err)
+			ts.Fatalf("unable to start in memory node: %s", err)
 		}
 
 		return nodep
@@ -566,7 +563,7 @@ func setupNode(ts *testscript.TestScript, ctx context.Context, gnolandBin string
 
 	nodep, err := RunNodeProcess(ctx, gnolandBin, pcfg)
 	if err != nil {
-		ts.Fatalf("unable to start the node: %s", err)
+		ts.Fatalf("unable to start process node: %s", err)
 	}
 
 	return nodep
@@ -795,7 +792,7 @@ func generatePrivKeyFromMnemonic(mnemonic, bip39Passphrase string, account, inde
 	// Generate Seed from Mnemonic
 	seed, err := bip39.NewSeedWithErrorChecking(mnemonic, bip39Passphrase)
 	if err != nil {
-		return nil, fmt.Errorf("failed to generate seed: %v", err)
+		return nil, fmt.Errorf("failed to generate seed: %w", err)
 	}
 
 	// Derive Private Key
@@ -804,7 +801,7 @@ func generatePrivKeyFromMnemonic(mnemonic, bip39Passphrase string, account, inde
 	masterPriv, ch := hd.ComputeMastersFromSeed(seed)
 	derivedPriv, err := hd.DerivePrivateKeyForPath(masterPriv, ch, hdPath.String())
 	if err != nil {
-		return nil, fmt.Errorf("failed to derive private key: %v", err)
+		return nil, fmt.Errorf("failed to derive private key: %w", err)
 	}
 
 	// Convert to secp256k1 private key

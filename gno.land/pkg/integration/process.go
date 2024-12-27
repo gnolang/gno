@@ -38,7 +38,6 @@ type ProcessConfig struct {
 	Node *ProcessNodeConfig
 
 	// These parameters are not meant to be passed to the process
-	CPUProfilePath string
 	Stderr, Stdout io.Writer
 }
 
@@ -59,9 +58,9 @@ func RunNode(ctx context.Context, pcfg *ProcessNodeConfig, stdout, stderr io.Wri
 	// Setup logger based on verbosity
 	var handler slog.Handler
 	if pcfg.Verbose {
-		handler = slog.NewTextHandler(stdout, nil)
+		handler = slog.NewTextHandler(stdout, &slog.HandlerOptions{Level: slog.LevelDebug})
 	} else {
-		handler = slog.NewTextHandler(io.Discard, nil)
+		handler = slog.NewTextHandler(stdout, &slog.HandlerOptions{Level: slog.LevelError})
 	}
 	logger := slog.New(handler)
 
@@ -113,9 +112,9 @@ func RunNode(ctx context.Context, pcfg *ProcessNodeConfig, stdout, stderr io.Wri
 	lisnAddress := node.Config().RPC.ListenAddress
 	if isValidator {
 		select {
+		case <-ctx.Done():
+			return fmt.Errorf("waiting for the node to start: %w", ctx.Err())
 		case <-node.Ready():
-		case <-time.After(time.Second * 10):
-			return fmt.Errorf("timeout while waiting for the node to start")
 		}
 	}
 
@@ -147,14 +146,13 @@ func (n *nodeProcess) Stop() error {
 	n.stopOnce.Do(func() {
 		// Send SIGTERM to the process
 		if err := n.cmd.Process.Signal(os.Interrupt); err != nil {
-			n.stopErr = fmt.Errorf("Error sending SIGTERM to the node: %w\n", err)
+			n.stopErr = fmt.Errorf("error sending `SIGINT` to the node: %w", err)
 			return
-
 		}
 
 		// Optionally wait for the process to exit
 		if _, err := n.cmd.Process.Wait(); err != nil {
-			n.stopErr = fmt.Errorf("Process exited with error: %w", err)
+			n.stopErr = fmt.Errorf("process exited with error: %w", err)
 			return
 		}
 	})
@@ -206,7 +204,7 @@ func RunNodeProcess(ctx context.Context, processBin string, cfg ProcessConfig) (
 
 	address, err := waitForProcessReady(ctx, stdoutPipe, cfg.Stdout)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("waiting for readiness: %w", err)
 	}
 
 	return &nodeProcess{
@@ -216,8 +214,12 @@ func RunNodeProcess(ctx context.Context, processBin string, cfg ProcessConfig) (
 }
 
 type nodeInMemoryProcess struct {
-	stop    context.CancelFunc
 	address string
+
+	stopOnce    sync.Once
+	stopErr     error
+	stop        context.CancelFunc
+	ccNodeError chan error
 }
 
 func (n *nodeInMemoryProcess) Address() string {
@@ -225,20 +227,38 @@ func (n *nodeInMemoryProcess) Address() string {
 }
 
 func (n *nodeInMemoryProcess) Stop() error {
-	n.stop()
-	return nil
+	n.stopOnce.Do(func() {
+		n.stop()
+		var err error
+		select {
+		case err = <-n.ccNodeError:
+		case <-time.After(time.Second * 5):
+			err = fmt.Errorf("timeout while waiting for node to stop")
+		}
+
+		if err != nil {
+			n.stopErr = fmt.Errorf("unable to node gracefully: %w", err)
+		}
+	})
+
+	return n.stopErr
 }
 
 func RunInMemoryProcess(ctx context.Context, cfg ProcessConfig) (NodeProcess, error) {
 	ctx, cancel := context.WithCancel(ctx)
 
 	out, in := io.Pipe()
+	ccStopErr := make(chan error, 1)
 	go func() {
+		defer close(ccStopErr)
 		defer cancel()
 
-		if err := RunNode(ctx, cfg.Node, in, cfg.Stderr); err != nil {
+		err := RunNode(ctx, cfg.Node, in, cfg.Stderr)
+		if err != nil {
 			fmt.Fprintf(cfg.Stderr, "run node failed: %v", err)
 		}
+
+		ccStopErr <- err
 	}()
 
 	address, err := waitForProcessReady(ctx, out, cfg.Stdout)
@@ -247,7 +267,11 @@ func RunInMemoryProcess(ctx context.Context, cfg ProcessConfig) (NodeProcess, er
 		return nil, err
 	}
 
-	return &nodeInMemoryProcess{stop: cancel, address: address}, nil
+	return &nodeInMemoryProcess{
+		address:     address,
+		stop:        cancel,
+		ccNodeError: ccStopErr,
+	}, nil
 }
 
 // initDatabase initializes the database based on the provided directory configuration.
@@ -281,7 +305,7 @@ func signalReadReady(line string) (string, bool) {
 func waitForProcessReady(ctx context.Context, stdoutPipe io.Reader, out io.Writer) (string, error) {
 	var address string
 
-	cReady := make(chan error, 1)
+	cReady := make(chan error, 2)
 	go func() {
 		defer close(cReady)
 
@@ -289,13 +313,12 @@ func waitForProcessReady(ctx context.Context, stdoutPipe io.Reader, out io.Write
 		ready := false
 		for scanner.Scan() {
 			line := scanner.Text()
+
 			if !ready {
 				if addr, ok := signalReadReady(line); ok {
 					address = addr
 					ready = true
 					cReady <- nil
-
-					continue
 				}
 			}
 
