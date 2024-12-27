@@ -1,4 +1,4 @@
-package fuzzer
+package testing
 
 import (
 	"errors"
@@ -87,7 +87,7 @@ func (f *F) Add(args ...interface{}) {
 	var values []interface{}
 	var types []fuzzinglib.SupportedType
 
-	// 타입 검사 및 값 적층층
+	// 타입 검사 및 값 적층
 	for i := range args {
 		t, e := typeof(args[i])
 		if e != nil {
@@ -184,11 +184,6 @@ func (f *F) Fuzz(run Runner) {
 func (f *F) report() {
 	println("done all trials")
 	println("개수", len(f.msgs))
-	for i, msg := range f.msgs {
-		if i > 9000 {
-			println(msg)
-		}
-	}
 }
 
 func (f *F) runFF(content []interface{}) fuzzinglib.Coverage {

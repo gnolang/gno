@@ -6,7 +6,7 @@ import (
 )
 
 func updateSeed() {
-	seed := time.Now().UnixNano()
+	seed := unixNano()
 	_srand()
 }
 

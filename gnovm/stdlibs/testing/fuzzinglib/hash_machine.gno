@@ -62,7 +62,7 @@ type (
 
 type HashMachine struct {
 	Internal2Cov_dict       map[internalHash]Coverage
-	HashNumber2Internal     [50000]internalHash
+	HashNumber2Internal     *[MAX_CAPACITY]internalHash
 	internalHash2hashNumber map[internalHash]HashNumber
 	hashNumber_counter      *hashNumberCounter
 }
@@ -87,6 +87,7 @@ func New_HashNumberCounter() *hashNumberCounter {
 
 func New_HashMachine() *HashMachine {
 	return &HashMachine{
+		HashNumber2Internal:     &[MAX_CAPACITY]internalHash{},
 		hashNumber_counter:      New_HashNumberCounter(),
 		Internal2Cov_dict:       make(map[internalHash]Coverage),
 		internalHash2hashNumber: make(map[internalHash]HashNumber),
@@ -307,7 +308,7 @@ func RemoveDuplicates(coverage Coverage) Coverage {
 // 	println("Hash for sim_to_cov1: %x\n", sim_to_hash1)
 // }
 
-func findDifferences(cov1, cov2 Coverage) Coverage {
+func FindDifferences(cov1, cov2 Coverage) Coverage {
 	diff := Coverage{}
 	for _, line1 := range cov1 {
 		found := false

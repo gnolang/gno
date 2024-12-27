@@ -75,6 +75,21 @@ type T struct {
 	dur       string
 }
 
+type FuzzingInfo struct {
+	Failed bool
+	Output []byte
+	Dur    string
+}
+
+func (t *T) GetResult() FuzzingInfo {
+	info := FuzzingInfo{
+		Failed: t.failed,
+		Output: t.output,
+		Dur:    t.dur,
+	}
+	return info
+}
+
 func NewT(name string) *T {
 	return &T{name: name}
 }
