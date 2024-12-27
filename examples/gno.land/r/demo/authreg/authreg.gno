@@ -4,8 +4,10 @@ import (
 	"errors"
 	"path"
 	"std"
+	"strings"
 
 	"gno.land/p/demo/auth"
+	"gno.land/p/demo/ufmt"
 )
 
 var fns = make(map[string]auth.AuthenticateFn)
@@ -22,5 +24,11 @@ func Authenticate(autok auth.Token) string {
 	if !ok {
 		panic(errors.New("unknown auth provider"))
 	}
-	return path.Join("/", provider, authFn(autok))
+
+	subPath := path.Clean(authFn(autok))
+	if strings.HasPrefix(subPath, "..") {
+		panic(ufmt.Errorf("invalid sub-path %q", subPath))
+	}
+
+	return path.Join("/", provider, subPath)
 }
