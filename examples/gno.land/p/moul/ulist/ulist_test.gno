@@ -960,3 +960,210 @@ func TestMustGet(t *testing.T) {
 		})
 	}
 }
+
+func TestGetRange(t *testing.T) {
+	tests := []struct {
+		name     string
+		values   []interface{}
+		start    int
+		end      int
+		expected []Entry
+	}{
+		{
+			name:     "empty list",
+			values:   []interface{}{},
+			start:    0,
+			end:      10,
+			expected: []Entry{},
+		},
+		{
+			name:   "single element",
+			values: []interface{}{42},
+			start:  0,
+			end:    0,
+			expected: []Entry{
+				{Index: 0, Value: 42},
+			},
+		},
+		{
+			name:   "multiple elements forward",
+			values: []interface{}{1, 2, 3, 4, 5},
+			start:  1,
+			end:    3,
+			expected: []Entry{
+				{Index: 1, Value: 2},
+				{Index: 2, Value: 3},
+				{Index: 3, Value: 4},
+			},
+		},
+		{
+			name:   "multiple elements reverse",
+			values: []interface{}{1, 2, 3, 4, 5},
+			start:  3,
+			end:    1,
+			expected: []Entry{
+				{Index: 3, Value: 4},
+				{Index: 2, Value: 3},
+				{Index: 1, Value: 2},
+			},
+		},
+		{
+			name:   "with deleted elements",
+			values: []interface{}{1, nil, 3, nil, 5},
+			start:  0,
+			end:    4,
+			expected: []Entry{
+				{Index: 0, Value: 1},
+				{Index: 2, Value: 3},
+				{Index: 4, Value: 5},
+			},
+		},
+		{
+			name:     "nil list",
+			values:   nil,
+			start:    0,
+			end:      5,
+			expected: []Entry{},
+		},
+		{
+			name:     "negative indices",
+			values:   []interface{}{1, 2, 3},
+			start:    -1,
+			end:      -2,
+			expected: []Entry{},
+		},
+		{
+			name:   "indices beyond size",
+			values: []interface{}{1, 2, 3},
+			start:  1,
+			end:    5,
+			expected: []Entry{
+				{Index: 1, Value: 2},
+				{Index: 2, Value: 3},
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			list := New()
+			list.Append(tt.values...)
+
+			result := list.GetRange(tt.start, tt.end)
+
+			uassert.Equal(t, len(tt.expected), len(result), "comparing length")
+			for i := range result {
+				uassert.Equal(t, tt.expected[i].Index, result[i].Index, "comparing index")
+				uassert.Equal(t, typeutil.ToString(tt.expected[i].Value), typeutil.ToString(result[i].Value), "comparing value")
+			}
+		})
+	}
+}
+
+func TestGetRangeByOffset(t *testing.T) {
+	tests := []struct {
+		name     string
+		values   []interface{}
+		offset   int
+		count    int
+		expected []Entry
+	}{
+		{
+			name:     "empty list",
+			values:   []interface{}{},
+			offset:   0,
+			count:    5,
+			expected: []Entry{},
+		},
+		{
+			name:   "positive count forward",
+			values: []interface{}{1, 2, 3, 4, 5},
+			offset: 1,
+			count:  2,
+			expected: []Entry{
+				{Index: 1, Value: 2},
+				{Index: 2, Value: 3},
+			},
+		},
+		{
+			name:   "negative count backward",
+			values: []interface{}{1, 2, 3, 4, 5},
+			offset: 3,
+			count:  -2,
+			expected: []Entry{
+				{Index: 3, Value: 4},
+				{Index: 2, Value: 3},
+			},
+		},
+		{
+			name:   "count exceeds available elements",
+			values: []interface{}{1, 2, 3},
+			offset: 1,
+			count:  5,
+			expected: []Entry{
+				{Index: 1, Value: 2},
+				{Index: 2, Value: 3},
+			},
+		},
+		{
+			name:     "zero count",
+			values:   []interface{}{1, 2, 3},
+			offset:   0,
+			count:    0,
+			expected: []Entry{},
+		},
+		{
+			name:   "with deleted elements",
+			values: []interface{}{1, nil, 3, nil, 5},
+			offset: 0,
+			count:  3,
+			expected: []Entry{
+				{Index: 0, Value: 1},
+				{Index: 2, Value: 3},
+				{Index: 4, Value: 5},
+			},
+		},
+		{
+			name:   "negative offset",
+			values: []interface{}{1, 2, 3},
+			offset: -1,
+			count:  2,
+			expected: []Entry{
+				{Index: 0, Value: 1},
+				{Index: 1, Value: 2},
+			},
+		},
+		{
+			name:   "offset beyond size",
+			values: []interface{}{1, 2, 3},
+			offset: 5,
+			count:  -2,
+			expected: []Entry{
+				{Index: 2, Value: 3},
+				{Index: 1, Value: 2},
+			},
+		},
+		{
+			name:     "nil list",
+			values:   nil,
+			offset:   0,
+			count:    5,
+			expected: []Entry{},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			list := New()
+			list.Append(tt.values...)
+
+			result := list.GetRangeByOffset(tt.offset, tt.count)
+
+			uassert.Equal(t, len(tt.expected), len(result), "comparing length")
+			for i := range result {
+				uassert.Equal(t, tt.expected[i].Index, result[i].Index, "comparing index")
+				uassert.Equal(t, typeutil.ToString(tt.expected[i].Value), typeutil.ToString(result[i].Value), "comparing value")
+			}
+		})
+	}
+}

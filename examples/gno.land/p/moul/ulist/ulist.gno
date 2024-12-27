@@ -315,3 +315,28 @@ func (l *List) MustGet(index int) interface{} {
 	}
 	return value
 }
+
+// GetRange returns a slice of Entry containing elements between start and end indices.
+// If start > end, elements are returned in reverse order.
+// Deleted elements are skipped.
+func (l *List) GetRange(start, end int) []Entry {
+	var entries []Entry
+	l.Iterator(start, end, func(index int, value interface{}) bool {
+		entries = append(entries, Entry{Index: index, Value: value})
+		return false
+	})
+	return entries
+}
+
+// GetRangeByOffset returns a slice of Entry starting from offset for count elements.
+// If count is positive, returns elements forward; if negative, returns elements backward.
+// The operation stops after abs(count) elements or when reaching list bounds.
+// Deleted elements are skipped.
+func (l *List) GetRangeByOffset(offset int, count int) []Entry {
+	var entries []Entry
+	l.IteratorByOffset(offset, count, func(index int, value interface{}) bool {
+		entries = append(entries, Entry{Index: index, Value: value})
+		return false
+	})
+	return entries
+}
