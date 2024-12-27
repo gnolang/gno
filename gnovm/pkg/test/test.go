@@ -316,7 +316,7 @@ func (opts *TestOptions) runTestFiles(
 		//   RunFiles doesn't do that currently)
 		// - Wrap here.
 		m = Machine(gs, opts.Output, memPkg.Path)
-		m.Alloc = alloc
+		m.Alloc = alloc.Reset()
 		m.SetActivePackage(pv)
 
 		testingpv := m.Store.GetPackage("testing", false)
