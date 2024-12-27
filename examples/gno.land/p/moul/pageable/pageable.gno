@@ -99,10 +99,14 @@ func (p *Pager) GetPageWithSize(pageNumber, pageSize int) *Page {
 
 	items := []Item{}
 
-	start, end := startIndex, endIndex-startIndex
+	count := endIndex - startIndex
 	if p.Reversed {
-		end, start = start, end
+		count = -count
 	}
+	p.Source.IterateByOffset(startIndex, count, func(index interface{}, value interface{}) bool {
+		items = append(items, Item{Index: index, Value: value})
+		return false
+	})
 
 	page.Items = items
 	page.PageNumber = pageNumber

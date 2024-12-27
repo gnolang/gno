@@ -25,6 +25,11 @@ func (w *AVLWrapper) Size() int {
 }
 
 func (w *AVLWrapper) IterateByOffset(offset int, count int, cb func(index interface{}, value interface{}) bool) bool {
+	if count < 0 {
+		return w.tree.ReverseIterateByOffset(offset, count, func(key string, value interface{}) bool {
+			return cb(key, value)
+		})
+	}
 	return w.tree.IterateByOffset(offset, count, func(key string, value interface{}) bool {
 		return cb(key, value)
 	})
