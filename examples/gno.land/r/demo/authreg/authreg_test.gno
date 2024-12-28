@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"gno.land/p/demo/auth"
+	"gno.land/p/demo/ufmt"
 	"gno.land/p/demo/urequire"
 )
 

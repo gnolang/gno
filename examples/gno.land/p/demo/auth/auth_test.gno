@@ -106,7 +106,7 @@ func TestEntityID(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			run := func() {
-				res := entityID(tc.provider, tc.subPath)
+				res := auth.NamespacedEntityID(tc.provider, tc.subPath)
 				urequire.Equal(t, tc.res, res)
 			}
 			if tc.panicMessage != "" {
