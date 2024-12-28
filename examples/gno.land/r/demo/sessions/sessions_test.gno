@@ -32,7 +32,7 @@ func TestSessions(t *testing.T) {
 	{
 		std.TestSetRealm(aliceRealm)
 
-		Login(bobAddr, nil)
+		Login(bobAddr, NoExpiry)
 
 		std.TestSetRealm(bobRealm)
 

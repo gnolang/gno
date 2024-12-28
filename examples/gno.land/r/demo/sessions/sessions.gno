@@ -16,6 +16,8 @@ var (
 	source   std.Realm
 )
 
+const NoExpiry = int64(0)
+
 func init() {
 	sessions = make(map[string]map[string]*time.Time)
 	source = std.CurrentRealm()
