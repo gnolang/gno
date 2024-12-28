@@ -72,32 +72,32 @@ func getFakeToken() auth.Token {
 func TestEntityID(t *testing.T) {
 	cases := []struct {
 		name         string
-		provider     string
+		namespace    string
 		subPath      string
 		res          string
 		panicMessage string
 	}{
 		{
-			name:     "good",
-			provider: "alice",
-			subPath:  "savings",
-			res:      "/alice/savings",
+			name:      "good",
+			namespace: "alice",
+			subPath:   "savings",
+			res:       "/alice/savings",
 		},
 		{
 			name:         "mal_backtrack",
-			provider:     "eve",
+			namespace:    "eve",
 			subPath:      "../alice/savings",
 			panicMessage: `invalid sub-path "../alice/savings"`,
 		},
 		{
-			name:     "mal_backtrack_dumb",
-			provider: "eve",
-			subPath:  "/../alice/savings",
-			res:      "/eve/alice/savings",
+			name:      "mal_backtrack_dumb",
+			namespace: "eve",
+			subPath:   "/../alice/savings",
+			res:       "/eve/alice/savings",
 		},
 		{
 			name:         "mal_backtrack_hidden",
-			provider:     "eve",
+			namespace:    "eve",
 			subPath:      "todobien/very/deep/../../../../alice/savings",
 			panicMessage: `invalid sub-path "../alice/savings"`,
 		},
@@ -106,7 +106,7 @@ func TestEntityID(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			run := func() {
-				res := auth.NamespacedEntityID(tc.provider, tc.subPath)
+				res := auth.NamespacedEntityID(tc.namespace, tc.subPath)
 				urequire.Equal(t, tc.res, res)
 			}
 			if tc.panicMessage != "" {
