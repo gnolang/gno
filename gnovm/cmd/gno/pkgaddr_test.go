@@ -7,8 +7,13 @@ import (
 func TestPkgAddrApp(t *testing.T) {
 	tc := []testMainCase{
 		{
-			args:        []string{"pkgaddr"},
-			errShouldBe: "expected 1 arg, got 0",
+			args:             []string{"pkgaddr"},
+			errShouldContain: "flag: help requested",
+		},
+
+		{
+			args:             []string{"pkgaddr", "bli", "blu"},
+			errShouldContain: "flag: help requested",
 		},
 
 		{

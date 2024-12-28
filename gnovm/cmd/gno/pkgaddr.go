@@ -2,7 +2,7 @@ package main
 
 import (
 	"context"
-	"fmt"
+	"flag"
 
 	"github.com/gnolang/gno/gnovm/pkg/gnolang"
 	"github.com/gnolang/gno/tm2/pkg/commands"
@@ -24,7 +24,7 @@ func newPkgAddrCmd(io commands.IO) *commands.Command {
 
 func execPkgAddr(args []string, io commands.IO) error {
 	if len(args) != 1 {
-		return fmt.Errorf("expected 1 arg, got %d", len(args))
+		return flag.ErrHelp
 	}
 
 	io.Println(gnolang.DerivePkgAddr(args[0]))
