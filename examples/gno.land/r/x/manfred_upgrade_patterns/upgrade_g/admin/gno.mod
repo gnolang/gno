@@ -1,0 +1,1 @@
+module gno.land/r/x/manfred_upgrade_patterns/upgrade_g/admin
