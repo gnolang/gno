@@ -12,9 +12,12 @@ var fns = make(map[string]auth.AuthenticateFn)
 // XXX: we could add a slug there
 func Register(authenticate auth.AuthenticateFn) {
 	caller := std.PrevRealm()
-	if caller.IsUser() {
-		panic("can't register from user realm")
-	}
+	/*
+		XXX: this check makes the linter panic
+		if caller.IsUser() {
+			panic("can't register from user realm")
+		}
+	*/
 	callerStr := caller.Addr().String()
 
 	if authenticate == nil {
