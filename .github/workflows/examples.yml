@@ -75,6 +75,11 @@ jobs:
     uses: ./.github/workflows/gnofmt_template.yml
     with:
       path: "examples/..."
+  generate:
+    name: Check generated files are up to date
+    uses: ./.github/workflows/build_template.yml
+    with:
+      path: "examples"
 
   mod-tidy:
     strategy:
