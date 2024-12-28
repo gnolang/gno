@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"reflect"
 	"strings"
+	"sync"
 
 	bm "github.com/gnolang/gno/gnovm/pkg/benchops"
 )
@@ -71,8 +72,25 @@ func (pid PkgID) Bytes() []byte {
 	return pid.Hashlet[:]
 }
 
+var (
+	pkgIDMu sync.Mutex // pkgIDMu protects the shared cache.
+	// TODO: later on switch this to an LRU if needed to ensure
+	// fixed memory caps. For now though it isn't a problem:
+	// https://github.com/gnolang/gno/pull/3424#issuecomment-2564571785
+	pkgIDFromPkgPathCache = make(map[string]*PkgID, 100)
+)
+
 func PkgIDFromPkgPath(path string) PkgID {
-	return PkgID{HashBytes([]byte(path))}
+	pkgIDMu.Lock()
+	defer pkgIDMu.Unlock()
+
+	pkgID, ok := pkgIDFromPkgPathCache[path]
+	if !ok {
+		pkgID = new(PkgID)
+		*pkgID = PkgID{HashBytes([]byte(path))}
+		pkgIDFromPkgPathCache[path] = pkgID
+	}
+	return *pkgID
 }
 
 // Returns the ObjectID of the PackageValue associated with path.
