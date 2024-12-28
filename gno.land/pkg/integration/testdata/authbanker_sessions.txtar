@@ -57,22 +57,3 @@ func main() {
 
     authbanker.SendCoins(autok, bobsAddr, amount)
 }
-
-
--- send_to_bob_address.gno --
-package main
-
-import (
-    "gno.land/r/demo/subacc"
-    "gno.land/r/demo/authbanker"
-)
-
-func main() {
-    autok := subacc.AuthToken("cashier")
-
-    bobsAddr := "g1gvcsfj492u6cpxudrprzz23ulmppxgv9pqmnpj"
-
-    amount := int64(7)
-
-    authbanker.SendCoins(autok, bobsAddr, amount)
-}
