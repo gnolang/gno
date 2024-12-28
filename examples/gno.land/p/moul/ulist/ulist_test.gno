@@ -1060,7 +1060,7 @@ func TestGetRange(t *testing.T) {
 	}
 }
 
-func TestGetRangeByOffset(t *testing.T) {
+func TestGetByOffset(t *testing.T) {
 	tests := []struct {
 		name     string
 		values   []interface{}
@@ -1157,7 +1157,7 @@ func TestGetRangeByOffset(t *testing.T) {
 			list := New()
 			list.Append(tt.values...)
 
-			result := list.GetRangeByOffset(tt.offset, tt.count)
+			result := list.GetByOffset(tt.offset, tt.count)
 
 			uassert.Equal(t, len(tt.expected), len(result), "comparing length")
 			for i := range result {

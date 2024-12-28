@@ -396,11 +396,11 @@ func (l *List) GetRange(start, end int) []Entry {
 	return entries
 }
 
-// GetRangeByOffset returns a slice of Entry starting from offset for count elements.
+// GetByOffset returns a slice of Entry starting from offset for count elements.
 // If count is positive, returns elements forward; if negative, returns elements backward.
 // The operation stops after abs(count) elements or when reaching list bounds.
 // Deleted elements are skipped.
-func (l *List) GetRangeByOffset(offset int, count int) []Entry {
+func (l *List) GetByOffset(offset int, count int) []Entry {
 	var entries []Entry
 	l.IteratorByOffset(offset, count, func(index int, value interface{}) bool {
 		entries = append(entries, Entry{Index: index, Value: value})
@@ -426,7 +426,7 @@ type IList interface {
 
 	// Range operations
 	GetRange(start, end int) []Entry
-	GetRangeByOffset(offset int, count int) []Entry
+	GetByOffset(offset int, count int) []Entry
 
 	// Iterator operations
 	Iterator(start, end int, cb IterCbFn) bool
