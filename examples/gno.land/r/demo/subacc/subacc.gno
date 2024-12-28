@@ -30,14 +30,13 @@ func (a *token) Source() std.Realm {
 
 var _ auth.Token = (*token)(nil)
 
-func Authenticate(autho auth.Token) string {
-	// this check should ensure we created this object
-	cauth, ok := autho.(*token)
-	if !ok {
+func Authenticate(autok auth.Token) string {
+	val, ok := autok.(*token)
+	if !ok || val == nil {
 		panic(auth.ErrInvalidToken)
 	}
 
-	return cauth.accountKey
+	return val.accountKey
 }
 
 var _ auth.AuthenticateFn = Authenticate
