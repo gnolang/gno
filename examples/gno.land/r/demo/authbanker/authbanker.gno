@@ -1,3 +1,8 @@
+// Package authbanker provide an example auth-consumer allowing to manipulate coins with auth tokens.
+//
+// It is quite limited, it only supports ugnots and only EOAs can fund accounts.
+//
+// XXX: support grc20 to allow for realm-realm interactions
 package authbanker
 
 import (
@@ -9,9 +14,6 @@ import (
 	"gno.land/p/demo/ufmt"
 	"gno.land/r/demo/authreg"
 )
-
-// This example is there mostly to demonstrate auth usage, it is quite limited
-// only EOAs can fund accounts
 
 const denom = "ugnot"
 

@@ -1,3 +1,7 @@
+// Package authreg provides a permissionless authenticators registry.
+//
+// Authenticated entities get namespaced with the authenticator address, preventing
+// malicious authenticators from impersonating another authenticator.
 package authreg
 
 import (

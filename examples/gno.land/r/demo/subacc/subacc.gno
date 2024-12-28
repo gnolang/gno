@@ -1,3 +1,4 @@
+// Package subacc (short for sub-accounts) implements an authenticator based on the caller and an user-provided slug.
 package subacc
 
 import (
@@ -15,6 +16,10 @@ func init() {
 	authreg.Register(Authenticate)
 }
 
+// AuthToken constructs an [auth.Token] based on the caller and a slug.
+//
+// Returned tokens have an entity ID namespaced with the caller address, preventing
+// malicious callers from impersonating another address.
 func AuthToken(slug string) auth.Token {
 	caller := std.PrevRealm().Addr()
 	return &token{accountKey: accountID(caller, slug)}
@@ -30,6 +35,7 @@ func (a *token) Source() std.Realm {
 
 var _ auth.Token = (*token)(nil)
 
+// Authenticate implements [auth.AuthenticateFn]
 func Authenticate(autok auth.Token) string {
 	val, ok := autok.(*token)
 	if !ok || val == nil {
@@ -41,8 +47,9 @@ func Authenticate(autok auth.Token) string {
 
 var _ auth.AuthenticateFn = Authenticate
 
-func EntityID(creator std.Address, slug string) string {
-	return path.Join("/", source.Addr().String(), accountID(creator, slug))
+// EntityID returns the full entity ID for an address and a slug
+func EntityID(addr std.Address, slug string) string {
+	return path.Join("/", source.Addr().String(), accountID(addr, slug))
 }
 
 func accountID(creator std.Address, slug string) string {

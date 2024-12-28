@@ -1,3 +1,4 @@
+// Package auth provides object-based authentication interfaces and helpers.
 package auth
 
 import (
