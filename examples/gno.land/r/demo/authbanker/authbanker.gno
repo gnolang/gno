@@ -38,7 +38,7 @@ func SendCoins(atok auth.Token, to string, amount int64) {
 		panic("cannot send to self")
 	}
 	if vaultAmount := vaults[from]; amount > vaultAmount {
-		panic("not enough in account")
+		panic(ufmt.Errorf("not enough in account %q", from))
 	}
 
 	vaults[from] -= amount

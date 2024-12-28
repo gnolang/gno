@@ -1,0 +1,91 @@
+adduserfrom alice 'garbage still snack cake identify girl used spoil all reform allow cargo control model spider sound urban rural avoid obvious august oil large cake'
+stdout 'g1xd348e34sg4ndt3shpepv85dq8zw8dlufp9t6e'
+
+adduserfrom bob 'trap silent cross fold brisk burger teach end history sunset ignore swear proud female faculty burden upper change apart wink view stove surge answer'
+stdout 'g1gvcsfj492u6cpxudrprzz23ulmppxgv9pqmnpj'
+
+adduserfrom alice-session 'flee junk glad guitar require truth exhibit visit absurd february town decrease lobster pear mix path average depart wet rebel detail conduct often salon'
+stdout 'g15e6e70nujtydkwt655k68z8ytzytu4ys6q4typ'
+
+loadpkg gno.land/r/demo/authbanker
+loadpkg gno.land/r/demo/absacc
+loadpkg gno.land/r/demo/sessions
+
+## start a new node
+gnoland start
+
+
+# create alice's abstract account
+gnokey maketx call alice -pkgpath gno.land/r/demo/absacc -func CreateCallerAccount -gas-fee 1000000ugnot -gas-wanted 15000000 -broadcast -chainid=tendermint_test
+stdout '1'
+
+# create bob's abstract account
+gnokey maketx call alice -pkgpath gno.land/r/demo/absacc -func CreateCallerAccount -gas-fee 1000000ugnot -gas-wanted 15000000 -broadcast -chainid=tendermint_test
+stdout '2'
+
+
+
+# fund alice's abstract account
+gnokey maketx call alice -send 42ugnot -pkgpath gno.land/r/demo/authbanker -func FundVault -args "/g147gkrl6u5txjcvqpcm8ucamscg3f6qdnkht3lp/1"  -gas-fee 1000000ugnot -gas-wanted 15000000 -broadcast -chainid=tendermint_test
+
+# check alice account
+gnokey maketx call -pkgpath gno.land/r/demo/authbanker -func "GetCoins" -args "/g147gkrl6u5txjcvqpcm8ucamscg3f6qdnkht3lp/1" -gas-fee 1000000ugnot -gas-wanted 2000000 -broadcast -chainid=tendermint_test test1
+stdout '42'
+
+
+# send from alice's abstract account to bob's abstract account
+gnokey maketx run alice $WORK/send_from_alice_to_bob.gno -gas-fee 1000000ugnot -gas-wanted 30000000 -broadcast -chainid=tendermint_test
+
+# check alice account
+gnokey maketx call -pkgpath gno.land/r/demo/authbanker -func "GetCoins" -args "/g147gkrl6u5txjcvqpcm8ucamscg3f6qdnkht3lp/1" -gas-fee 1000000ugnot -gas-wanted 2000000 -broadcast -chainid=tendermint_test test1
+stdout '28'
+
+# check bob account
+gnokey maketx call -pkgpath gno.land/r/demo/authbanker -func "GetCoins" -args "/g147gkrl6u5txjcvqpcm8ucamscg3f6qdnkht3lp/2" -gas-fee 1000000ugnot -gas-wanted 2000000 -broadcast -chainid=tendermint_test test1
+stdout '14'
+
+
+# create session
+gnokey maketx call alice -pkgpath gno.land/r/demo/sessions -func "Login" -args "g15e6e70nujtydkwt655k68z8ytzytu4ys6q4typ" -args "0" -gas-fee 1000000ugnot -gas-wanted 20000000 -broadcast -chainid=tendermint_test
+
+# send from alice's session to bob's abstract account
+gnokey maketx run alice-session $WORK/send_from_alice_to_bob.gno -gas-fee 1000000ugnot -gas-wanted 30000000 -broadcast -chainid=tendermint_test
+
+# check alice account
+gnokey maketx call -pkgpath gno.land/r/demo/authbanker -func "GetCoins" -args "/g147gkrl6u5txjcvqpcm8ucamscg3f6qdnkht3lp/1" -gas-fee 1000000ugnot -gas-wanted 2000000 -broadcast -chainid=tendermint_test test1
+stdout '14'
+
+# check bob account
+gnokey maketx call -pkgpath gno.land/r/demo/authbanker -func "GetCoins" -args "/g147gkrl6u5txjcvqpcm8ucamscg3f6qdnkht3lp/2" -gas-fee 1000000ugnot -gas-wanted 2000000 -broadcast -chainid=tendermint_test test1
+stdout '28'
+
+
+# delete sessions
+gnokey maketx call alice -pkgpath gno.land/r/demo/sessions -func "Logout" -args "g1xd348e34sg4ndt3shpepv85dq8zw8dlufp9t6e" -args "" -gas-fee 1000000ugnot -gas-wanted 2000000 -broadcast -chainid=tendermint_test
+
+# try to send from alice's session to bob's abstract account, should fail
+! gnokey maketx run alice-session $WORK/send_from_alice_to_bob.gno -gas-fee 1000000ugnot -gas-wanted 30000000 -broadcast -chainid=tendermint_test
+stderr 'invalid token'
+
+
+-- send_from_alice_to_bob.gno --
+package main
+
+import (
+    "std"
+    
+    "gno.land/r/demo/absacc"
+    "gno.land/r/demo/sessions"
+    "gno.land/r/demo/authbanker"
+)
+
+func main() {
+    aliceAddr := std.Address("g1xd348e34sg4ndt3shpepv85dq8zw8dlufp9t6e")
+    autok := absacc.AuthToken(1, sessions.AuthToken(aliceAddr))
+
+    bobsAbstractAccount := absacc.EntityID(2)
+
+    amount := int64(14)
+
+    authbanker.SendCoins(autok, bobsAbstractAccount, amount)
+}
