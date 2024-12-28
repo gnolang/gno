@@ -12,7 +12,7 @@ var source std.Realm
 
 func init() {
 	source = std.CurrentRealm()
-	authreg.Register(authenticate)
+	authreg.Register(Authenticate)
 }
 
 func AuthToken(slug string) auth.Token {
@@ -30,7 +30,7 @@ func (a *token) Source() std.Realm {
 
 var _ auth.Token = (*token)(nil)
 
-func authenticate(autho auth.Token) string {
+func Authenticate(autho auth.Token) string {
 	// this check should ensure we created this object
 	cauth, ok := autho.(*token)
 	if !ok {
@@ -40,12 +40,12 @@ func authenticate(autho auth.Token) string {
 	return cauth.accountKey
 }
 
-var _ auth.AuthenticateFn = authenticate
+var _ auth.AuthenticateFn = Authenticate
 
 func EntityID(creator std.Address, slug string) string {
 	return path.Join("/", source.Addr().String(), accountID(creator, slug))
 }
 
 func accountID(creator std.Address, slug string) string {
-	return creator.String() + "/" + slug
+	return auth.NamespacedEntityID(creator.String(), slug)
 }

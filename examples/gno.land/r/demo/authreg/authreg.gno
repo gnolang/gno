@@ -2,12 +2,9 @@ package authreg
 
 import (
 	"errors"
-	"path"
 	"std"
-	"strings"
 
 	"gno.land/p/demo/auth"
-	"gno.land/p/demo/ufmt"
 )
 
 var fns = make(map[string]auth.AuthenticateFn)
@@ -25,13 +22,5 @@ func Authenticate(autok auth.Token) string {
 		panic(errors.New("unknown auth provider"))
 	}
 
-	return entityID(provider, authFn(autok))
-}
-
-func entityID(provider string, subPath string) string {
-	subPath = path.Clean(subPath)
-	if strings.HasPrefix(subPath, "..") {
-		panic(ufmt.Errorf("invalid sub-path %q", subPath))
-	}
-	return path.Join("/", provider, subPath)
+	return auth.NamespacedEntityID(provider, authFn(autok))
 }

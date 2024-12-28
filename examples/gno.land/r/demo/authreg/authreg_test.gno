@@ -4,62 +4,40 @@ import (
 	"std"
 	"testing"
 
+	"gno.land/p/demo/auth"
 	"gno.land/p/demo/urequire"
 )
 
-func TestEntityID(t *testing.T) {
-	cases := []struct {
-		name         string
-		provider     string
-		subPath      string
-		res          string
-		panicMessage string
-	}{
-		{
-			name:     "good",
-			provider: "alice",
-			subPath:  "savings",
-			res:      "/alice/savings",
-		},
-		{
-			name:         "mal_backtrack",
-			provider:     "eve",
-			subPath:      "../alice/savings",
-			panicMessage: `invalid sub-path "../alice/savings"`,
-		},
-		{
-			name:     "mal_backtrack_dumb",
-			provider: "eve",
-			subPath:  "/../alice/savings",
-			res:      "/eve/alice/savings",
-		},
-		{
-			name:         "mal_backtrack_hidden",
-			provider:     "eve",
-			subPath:      "todobien/very/deep/../../../../alice/savings",
-			panicMessage: `invalid sub-path "../alice/savings"`,
-		},
+func TestAuthreg(t *testing.T) {
+	autok := &testAuthToken{source: std.NewCodeRealm("gno.land/r/testing/tester")}
+	unknownAutok := &testAuthToken{source: std.NewCodeRealm("gno.land/r/testing/unknown")}
+	called := false
+	mockAuthFn := func(autok auth.Token) string {
+		called = true
+		return "alice"
 	}
 
-	for _, tc := range cases {
-		t.Run(tc.name, func(t *testing.T) {
-			run := func() {
-				res := entityID(tc.provider, tc.subPath)
-				urequire.Equal(t, tc.res, res)
-			}
-			if tc.panicMessage != "" {
-				urequire.PanicsWithMessage(t, tc.panicMessage, run)
-			} else {
-				urequire.NotPanics(t, run)
-			}
-		})
-	}
+	std.TestSetRealm(autok.Source())
+	Register(mockAuthFn)
+
+	val := Authenticate(autok)
+	urequire.True(t, called)
+	expected := ufmt.Sprintf("/%s/%s", autok.Source().Addr().String(), "alice")
+	urequire.Equal(t, expected, val)
+
+	called = false
+	urequire.PanicsWithMessage(t, "unknown auth provider", func() {
+		Authenticate(unknownAutok)
+	})
+	urequire.False(t, called)
 }
 
-type eveAuthToken struct {
+type testAuthToken struct {
 	source std.Realm
 }
 
-func (t *eveAuthToken) Source() std.Realm {
+func (t *testAuthToken) Source() std.Realm {
 	return t.source
 }
+
+var _ auth.Token = (*testAuthToken)(nil)

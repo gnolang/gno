@@ -52,10 +52,14 @@ import (
 )
 
 func main() {
-    // bob's cashier account
-    destinationID := subacc.EntityID(std.Address("g1gvcsfj492u6cpxudrprzz23ulmppxgv9pqmnpj"), "cashier")
+    autok := subacc.AuthToken("savings")
 
-    authbanker.SendCoins(subacc.AuthToken("savings"), destinationID, 14)
+    bobsAddr := std.Address("g1gvcsfj492u6cpxudrprzz23ulmppxgv9pqmnpj")
+    bobsCashier := subacc.EntityID(bobsAddr, "cashier")
+
+    amount := int64(14)
+
+    authbanker.SendCoins(autok, bobsCashier, amount)
 }
 
 
@@ -68,5 +72,11 @@ import (
 )
 
 func main() {
-    authbanker.SendCoins(subacc.AuthToken("cashier"), "g1gvcsfj492u6cpxudrprzz23ulmppxgv9pqmnpj", 7)
+    autok := subacc.AuthToken("cashier")
+
+    bobsAddr := "g1gvcsfj492u6cpxudrprzz23ulmppxgv9pqmnpj"
+
+    amount := int64(7)
+
+    authbanker.SendCoins(autok, bobsAddr, amount)
 }
