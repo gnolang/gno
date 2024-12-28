@@ -80,7 +80,7 @@ jobs:
     name: Check generated files are up to date
     uses: ./.github/workflows/build_template.yml
     with:
-      path: "examples"
+      modulepath: "examples"
 
   mod-tidy:
     strategy:
