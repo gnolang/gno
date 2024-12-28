@@ -6,9 +6,9 @@ var (
 	// Game state errors
 	ErrGameInProgress    = errors.New("fomo3d: game already in progress")
 	ErrGameNotInProgress = errors.New("fomo3d: game not in progress")
-	ErrGameEnded        = errors.New("fomo3d: game has ended")
-	ErrGameTimeExpired  = errors.New("fomo3d: game time expired")
-	ErrNoKeysPurchased  = errors.New("fomo3d: no keys purchased")
+	ErrGameEnded         = errors.New("fomo3d: game has ended")
+	ErrGameTimeExpired   = errors.New("fomo3d: game time expired")
+	ErrNoKeysPurchased   = errors.New("fomo3d: no keys purchased")
 
 	// Payment errors
 	ErrInvalidPayment      = errors.New("fomo3d: must send ugnot only")

@@ -158,7 +158,7 @@ func TestFullGameFlow(t *testing.T) {
 
 		// Verify player state
 		keys, dividends := GetPlayerInfo(player1)
-		
+
 		shouldEqual(t, keys, int64(3))
 		shouldEqual(t, dividends, int64(0))
 		shouldEqual(t, lastBuyer, player1)
@@ -185,7 +185,7 @@ func TestFullGameFlow(t *testing.T) {
 
 		// Check player1 received dividends
 		keys1, dividends1 := GetPlayerInfo(player1)
-		
+
 		shouldEqual(t, keys1, int64(3))
 		expectedDividends := payment * DIVIDENDS_PERCENT / 100 * 3 / totalKeys
 		shouldEqual(t, dividends1, expectedDividends)
@@ -236,7 +236,7 @@ func TestFullGameFlow(t *testing.T) {
 		shouldNoPanic(t, StartGame)
 		shouldEqual(t, ended, false)
 		shouldEqual(t, currentRound, int64(2))
-		
+
 		shouldEqual(t, jackpot, expectedNextPot) // New round starts with previous round's nextPot
 		shouldEqual(t, nextPot, int64(0))
 	})
@@ -319,10 +319,10 @@ func TestClaimDividends(t *testing.T) {
 func TestEndGame(t *testing.T) {
 	setupTestGame(t)
 	StartGame()
-	
+
 	// Skip to end + 1 to ensure we're past the end block
 	std.TestSkipHeights(MAX_TIME_EXTEND + 1)
-	
+
 	shouldPanic(t, EndGame) // Should panic because no keys purchased
 
 	// Reset and start new game
@@ -342,6 +342,6 @@ func TestEndGame(t *testing.T) {
 
 	// Skip to well past the end
 	std.TestSkipHeights(MAX_TIME_EXTEND + TIME_EXTENSION + 1)
-	
+
 	shouldNoPanic(t, EndGame)
 }

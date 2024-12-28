@@ -28,8 +28,8 @@ import (
 
 const (
 	MIN_KEY_PRICE   int64 = 100000 // minimum key price in ugnot
-	TIME_EXTENSION  int64 = 30      // time extension in blocks when new key is bought
-	MAX_TIME_EXTEND int64 = 86400   // max time that can be added (~24 hours @ 1s blocks)
+	TIME_EXTENSION  int64 = 30     // time extension in blocks when new key is bought
+	MAX_TIME_EXTEND int64 = 86400  // max time that can be added (~24 hours @ 1s blocks)
 
 	// Distribution percentages (total 100%)
 	JACKPOT_PERCENT   int64 = 47 // 47% goes to jackpot
@@ -57,7 +57,7 @@ var (
 
 	lastBuyer std.Address // last key buyer (potential winner)
 	players   *avl.Tree   // maps address -> PlayerInfo
-	totalKeys int64      // total number of keys in circulation
+	totalKeys int64       // total number of keys in circulation
 	ended     bool
 
 	// Ownable instance
@@ -306,10 +306,10 @@ func Render(path string) string {
 func RenderHome() string {
 	gameStart, gameEnd, _, lastBuyer, pot, price, totalKeys, isEnded := GetGameState()
 	// _, ownerFees := GetOwnerInfo()
-	
+
 	var builder strings.Builder
 	builder.WriteString("# FOMO3D - The Ultimate Game of Greed\n\n")
-	
+
 	// About section
 	builder.WriteString("## About the Game\n\n")
 	builder.WriteString("FOMO3D is a blockchain-based game that combines elements of lottery and investment mechanics. ")
@@ -335,7 +335,7 @@ func RenderHome() string {
 			builder.WriteString(ufmt.Sprintf("🏆 **Winner:** %s\n", lastBuyer))
 		} else {
 			builder.WriteString("🟢 **Game Status:** Active\n")
-			builder.WriteString(ufmt.Sprintf("⏱️ **Time Remaining:** %d blocks\n", gameEnd - std.GetHeight()))
+			builder.WriteString(ufmt.Sprintf("⏱️ **Time Remaining:** %d blocks\n", gameEnd-std.GetHeight()))
 		}
 		builder.WriteString(ufmt.Sprintf("💰 **Current Jackpot:** %d ugnot\n", pot))
 		builder.WriteString(ufmt.Sprintf("🔑 **Current Key Price:** %d ugnot\n", price))
@@ -376,12 +376,12 @@ func RenderPlayer(addr std.Address, keys int64, dividends int64) string {
 	builder.WriteString("## Your Holdings\n\n")
 	builder.WriteString(ufmt.Sprintf("🔑 **Keys Owned:** %d\n", keys))
 	builder.WriteString(ufmt.Sprintf("💰 **Unclaimed Dividends:** %d ugnot\n\n", dividends))
-	
+
 	builder.WriteString("## Actions\n\n")
 	builder.WriteString("* To buy more keys, send GNOT to this realm with `BuyKeys()`\n")
 	if dividends > 0 {
 		builder.WriteString("* You have unclaimed dividends! Call `ClaimDividends()` to collect them\n")
 	}
-	
+
 	return builder.String()
 }
