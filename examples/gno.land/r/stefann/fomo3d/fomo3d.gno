@@ -85,7 +85,6 @@ func StartGame() {
 	// Initialize round with previous nextPot
 	jackpot = nextPot
 	nextPot = 0
-	keyPrice = MIN_KEY_PRICE
 	ended = false
 
 	// Clear previous round's player data
@@ -115,8 +114,10 @@ func BuyKeys() {
 		panic(ErrInsufficientPayment.Error())
 	}
 
-	// Calculate number of keys that can be bought
+	// Calculate number of keys that can be bought and actual cost
 	numKeys := payment / keyPrice
+	actualCost := numKeys * keyPrice
+	excess := payment - actualCost
 
 	// Update buyer's info
 	buyer := std.GetOrigCaller()
@@ -127,16 +128,26 @@ func BuyKeys() {
 	buyerInfo.Keys += numKeys
 	totalKeys += numKeys
 
-	// Distribute payment
-	jackpotShare := payment * JACKPOT_PERCENT / 100
-	dividendShare := payment * DIVIDENDS_PERCENT / 100
-	nextPotShare := payment * NEXT_ROUND_POT / 100
-	ownerShare := payment * OWNER_FEE_PERCENT / 100
+	// Distribute actual cost
+	jackpotShare := actualCost * JACKPOT_PERCENT / 100
+	dividendShare := actualCost * DIVIDENDS_PERCENT / 100
+	nextPotShare := actualCost * NEXT_ROUND_POT / 100
+	ownerShare := actualCost * OWNER_FEE_PERCENT / 100
 
 	// Update pools
 	jackpot += jackpotShare
 	nextPot += nextPotShare
 	ownerFee += ownerShare
+
+	// Return excess payment to buyer if any
+	if excess > 0 {
+		banker := std.GetBanker(std.BankerTypeOrigSend)
+		banker.SendCoins(
+			std.CurrentRealm().Addr(),
+			buyer,
+			std.Coins{{"ugnot", excess}},
+		)
+	}
 
 	// Distribute dividends to all key holders
 	if players.Size() > 0 && totalKeys > 0 {
@@ -163,8 +174,8 @@ func BuyKeys() {
 		gameEndBlock = newEndBlock
 	}
 
-	// Increase key price by 1%
-	keyPrice += keyPrice / 100
+	// Increase key price by 1% for each key bought
+	keyPrice += (keyPrice * numKeys) / 100
 
 	// Save buyer's updated info
 	players.Set(buyer.String(), buyerInfo)
@@ -294,7 +305,7 @@ func Render(path string) string {
 // RenderHome renders the main game state
 func RenderHome() string {
 	gameStart, gameEnd, _, lastBuyer, pot, price, totalKeys, isEnded := GetGameState()
-	_, ownerFees := GetOwnerInfo()
+	// _, ownerFees := GetOwnerInfo()
 	
 	var builder strings.Builder
 	builder.WriteString("# FOMO3D - The Ultimate Game of Greed\n\n")
