@@ -130,6 +130,11 @@ func Authenticate(autok auth.Token) string {
 	return "/" + addr
 }
 
+// EntityID returns the full entity ID for an address
+func EntityID(addr std.Address) string {
+	return "/" + source.Addr().String() + "/" + addr.String()
+}
+
 type token struct {
 	addr        std.Address
 	sessionAddr std.Address
