@@ -48,7 +48,7 @@ stdout '14'
 # create session
 gnokey maketx call alice -pkgpath gno.land/r/demo/sessions -func "Login" -args "g15e6e70nujtydkwt655k68z8ytzytu4ys6q4typ" -args "0" -gas-fee 1000000ugnot -gas-wanted 20000000 -broadcast -chainid=tendermint_test
 
-# send from alice's account via a session to bob's abstract account
+# send from alice's abstract account via a session to bob's abstract account
 gnokey maketx run alice-session $WORK/send_from_alice_to_bob.gno -gas-fee 1000000ugnot -gas-wanted 30000000 -broadcast -chainid=tendermint_test
 
 # check alice account
@@ -63,7 +63,7 @@ stdout '28'
 # delete sessions
 gnokey maketx call alice -pkgpath gno.land/r/demo/sessions -func "Logout" -args "g1xd348e34sg4ndt3shpepv85dq8zw8dlufp9t6e" -args "" -gas-fee 1000000ugnot -gas-wanted 2000000 -broadcast -chainid=tendermint_test
 
-# try to send from alice's account via a session, should fail
+# try to send from alice's abstract account via a session, should fail
 ! gnokey maketx run alice-session $WORK/send_from_alice_to_bob.gno -gas-fee 1000000ugnot -gas-wanted 30000000 -broadcast -chainid=tendermint_test
 stderr 'invalid token'
 
