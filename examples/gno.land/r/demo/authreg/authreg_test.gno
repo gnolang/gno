@@ -21,16 +21,24 @@ func TestAuthreg(t *testing.T) {
 	std.TestSetRealm(autok.Source())
 	Register(mockAuthFn)
 
+	// test auth
 	val := Authenticate(autok)
 	urequire.True(t, called)
 	expected := ufmt.Sprintf("/%s/%s", autok.Source().Addr().String(), "alice")
 	urequire.Equal(t, expected, val)
 
+	// test unknown provider
 	called = false
 	urequire.PanicsWithMessage(t, "unknown auth provider", func() {
 		Authenticate(unknownAutok)
 	})
 	urequire.False(t, called)
+
+	// test unregistering
+	Register(nil)
+	urequire.PanicsWithMessage(t, "unknown auth provider", func() {
+		Authenticate(autok)
+	})
 }
 
 type testAuthToken struct {
