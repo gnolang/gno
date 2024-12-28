@@ -11,12 +11,30 @@ var fns = make(map[string]auth.AuthenticateFn)
 
 // XXX: we could add a slug there
 func Register(authenticate auth.AuthenticateFn) {
-	caller := std.PrevRealm().Addr()
+	caller := std.PrevRealm()
+	if caller.IsUser() {
+		panic("can't register from user realm")
+	}
+	callerStr := caller.Addr().String()
+
 	if authenticate == nil {
-		delete(fns, caller.String())
+		if _, ok := fns[callerStr]; !ok {
+			panic(errors.New("not registered"))
+		}
+
+		delete(fns, callerStr)
+		std.Emit(
+			unregisterEvent,
+			"caller", callerStr,
+		)
 		return
 	}
-	fns[caller.String()] = authenticate
+
+	fns[callerStr] = authenticate
+	std.Emit(
+		registerEvent,
+		"caller", callerStr,
+	)
 }
 
 func Authenticate(autok auth.Token) string {
@@ -26,5 +44,12 @@ func Authenticate(autok auth.Token) string {
 		panic(errors.New("unknown auth provider"))
 	}
 
+	// XXX: maybe emit event for audit purposes
+
 	return auth.NamespacedEntityID(provider, authFn(autok))
 }
+
+const (
+	registerEvent   = "register"
+	unregisterEvent = "unregister"
+)
