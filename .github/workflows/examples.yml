@@ -81,6 +81,7 @@ jobs:
     uses: ./.github/workflows/build_template.yml
     with:
       modulepath: "examples"
+      go-version: [ "1.22.x" ]
 
   mod-tidy:
     strategy:
