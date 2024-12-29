@@ -30,16 +30,28 @@ func TestTestdata(t *testing.T) {
 	err := SetupGnolandTestscript(t, &p)
 	require.NoError(t, err)
 
+	mode := commandKindTesting
 	if debugTs {
-		RunInMemoryTestscripts(t, p)
+		mode = commandKindInMemory
+	}
+
+	origSetup := p.Setup
+	p.Setup = func(env *testscript.Env) error {
+		env.Values[envKeyExecCommand] = mode
+		if origSetup != nil {
+			if err := origSetup(env); err != nil {
+				return err
+			}
+		}
+
+		return nil
+	}
+
+	if debugTs {
+		testscript.RunT(tSeqShim{t}, p)
 	} else {
 		testscript.Run(t, p)
 	}
-
-	// Run testscript
-	// XXX: We have to use seqshim for now as tests don't run well in parallel
-
-	// RunSeqShimTestscripts(t, p)
 }
 
 func TestUnquote(t *testing.T) {

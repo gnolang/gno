@@ -3,6 +3,9 @@ package integration
 import (
 	"bytes"
 	"context"
+	"flag"
+	"fmt"
+	"os"
 	"path/filepath"
 	"testing"
 	"time"
@@ -14,6 +17,29 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+const gracefulShutdown = time.Second * 5
+
+// Define a flag to indicate whether to run the embedded command
+var runCommand = flag.Bool("run-node-process", false, "execute the embedded command")
+
+func TestMain(m *testing.M) {
+	flag.Parse()
+
+	// Check if the embedded command should be executed
+	if !*runCommand {
+		fmt.Println("Running tests...")
+		os.Exit(m.Run())
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), gracefulShutdown)
+	defer cancel()
+
+	if err := RunMain(ctx, os.Stdin, os.Stdout, os.Stderr); err != nil {
+		fmt.Fprintln(os.Stderr, err.Error())
+		os.Exit(1)
+	}
+}
+
 // TestGnolandIntegration tests the forking of a Gnoland node.
 func TestNodeProcess(t *testing.T) {
 	t.Parallel()
@@ -23,15 +49,10 @@ func TestNodeProcess(t *testing.T) {
 
 	gnoRootDir := gnoenv.RootDir()
 
-	// Define paths for the build directory and the gnoland binary.
+	// Define paths for the build directory and the gnoland binary
 	gnolandDBDir := filepath.Join(t.TempDir(), "db")
 
-	// Compile the gnoland binary.
-	start := time.Now()
-	gnolandBin := buildGnoland(t, gnoRootDir)
-	t.Logf("time to build the node: %v", time.Since(start).String())
-
-	// Prepare a minimal node configuration for testing.
+	// Prepare a minimal node configuration for testing
 	cfg := TestingMinimalNodeConfig(gnoRootDir)
 
 	var stdio bytes.Buffer
@@ -40,8 +61,8 @@ func TestNodeProcess(t *testing.T) {
 		t.Log(stdio.String())
 	}()
 
-	start = time.Now()
-	node, err := RunNodeProcess(ctx, gnolandBin, ProcessConfig{
+	start := time.Now()
+	node := runTestingNodeProcess(t, ctx, ProcessConfig{
 		Stderr: &stdio, Stdout: &stdio,
 		Node: &ProcessNodeConfig{
 			Verbose:      true,
@@ -52,14 +73,13 @@ func TestNodeProcess(t *testing.T) {
 			Genesis:      NewMarshalableGenesisDoc(cfg.Genesis),
 		},
 	})
-	require.NoError(t, err)
 	t.Logf("time to start the node: %v", time.Since(start).String())
 
-	// Create a new HTTP client to interact with the integration node.
+	// Create a new HTTP client to interact with the integration node
 	cli, err := client.NewHTTPClient(node.Address())
 	require.NoError(t, err)
 
-	// Retrieve node info.
+	// Retrieve node info
 	info, err := cli.ABCIInfo()
 	require.NoError(t, err)
 	assert.NotEmpty(t, info.Response.Data)
@@ -80,10 +100,10 @@ func TestInMemoryNodeProcess(t *testing.T) {
 
 	gnoRootDir := gnoenv.RootDir()
 
-	// Define paths for the build directory and the gnoland binary.
+	// Define paths for the build directory and the gnoland binary
 	gnolandDBDir := filepath.Join(t.TempDir(), "db")
 
-	// Prepare a minimal node configuration for testing.
+	// Prepare a minimal node configuration for testing
 	cfg := TestingMinimalNodeConfig(gnoRootDir)
 
 	var stdio bytes.Buffer
@@ -107,11 +127,11 @@ func TestInMemoryNodeProcess(t *testing.T) {
 	require.NoError(t, err)
 	t.Logf("time to start the node: %v", time.Since(start).String())
 
-	// Create a new HTTP client to interact with the integration node.
+	// Create a new HTTP client to interact with the integration node
 	cli, err := client.NewHTTPClient(node.Address())
 	require.NoError(t, err)
 
-	// Retrieve node info.
+	// Retrieve node info
 	info, err := cli.ABCIInfo()
 	require.NoError(t, err)
 	assert.NotEmpty(t, info.Response.Data)

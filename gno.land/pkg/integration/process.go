@@ -11,6 +11,7 @@ import (
 	"log/slog"
 	"os"
 	"os/exec"
+	"os/signal"
 	"slices"
 	"sync"
 	"time"
@@ -23,6 +24,7 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/db"
 	"github.com/gnolang/gno/tm2/pkg/db/goleveldb"
 	"github.com/gnolang/gno/tm2/pkg/db/memdb"
+	"github.com/stretchr/testify/require"
 )
 
 type ProcessNodeConfig struct {
@@ -161,7 +163,7 @@ func (n *nodeProcess) Stop() error {
 }
 
 // RunNodeProcess runs the binary at the given path with the provided configuration.
-func RunNodeProcess(ctx context.Context, processBin string, cfg ProcessConfig) (NodeProcess, error) {
+func RunNodeProcess(ctx context.Context, cfg ProcessConfig, name string, args ...string) (NodeProcess, error) {
 	if cfg.Stdout == nil {
 		cfg.Stdout = os.Stdout
 	}
@@ -181,7 +183,7 @@ func RunNodeProcess(ctx context.Context, processBin string, cfg ProcessConfig) (
 	}
 
 	// Create and configure the command to execute the binary
-	cmd := exec.Command(processBin)
+	cmd := exec.Command(name, args...)
 	cmd.Env = os.Environ()
 	cmd.Stdin = bytes.NewReader(nodeConfigData)
 
@@ -272,6 +274,55 @@ func RunInMemoryProcess(ctx context.Context, cfg ProcessConfig) (NodeProcess, er
 		stop:        cancel,
 		ccNodeError: ccStopErr,
 	}, nil
+}
+
+func RunMain(ctx context.Context, stdin io.Reader, stdout, stderr io.Writer) error {
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt)
+	defer stop()
+
+	// Read the configuration from standard input
+	configData, err := io.ReadAll(stdin)
+	if err != nil {
+		// log.Fatalf("error reading stdin: %v", err)
+		return fmt.Errorf("error reading stdin: %w", err)
+	}
+
+	// Unmarshal the JSON configuration
+	var cfg ProcessNodeConfig
+	if err := json.Unmarshal(configData, &cfg); err != nil {
+		return fmt.Errorf("error unmarshaling JSON: %w", err)
+		// log.Fatalf("error unmarshaling JSON: %v", err)
+	}
+
+	// Run the node
+	ccErr := make(chan error, 1)
+	go func() {
+		ccErr <- RunNode(ctx, &cfg, stdout, stderr)
+		close(ccErr)
+	}()
+
+	// Wait for the node to gracefully terminate
+	<-ctx.Done()
+
+	// Attempt graceful shutdown
+	select {
+	case <-ctx.Done():
+		err = ctx.Err()
+		// log.Fatalf("unable to gracefully stop the node, exiting now")
+	case err = <-ccErr: // done
+	}
+
+	return err
+}
+
+func runTestingNodeProcess(t TestingTS, ctx context.Context, pcfg ProcessConfig) NodeProcess {
+	bin, err := os.Executable()
+	require.NoError(t, err)
+
+	node, err := RunNodeProcess(ctx, pcfg, bin, "-test.run=^$", "-run-node-process")
+	require.NoError(t, err)
+
+	return node
 }
 
 // initDatabase initializes the database based on the provided directory configuration.
