@@ -599,7 +599,7 @@ func setupNode(ts *testscript.TestScript, ctx context.Context, cfg *ProcessNodeC
 		return nodep
 
 	default:
-		ts.Fatalf("unkown command kind: %+v", cmd)
+		ts.Fatalf("unknown command kind: %+v", cmd)
 	}
 
 	return nil
