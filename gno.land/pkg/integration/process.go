@@ -14,6 +14,7 @@ import (
 	"os/signal"
 	"slices"
 	"sync"
+	"testing"
 	"time"
 
 	"github.com/gnolang/gno/gno.land/pkg/gnoland"
@@ -26,6 +27,8 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/db/memdb"
 	"github.com/stretchr/testify/require"
 )
+
+const gracefulShutdown = time.Second * 5
 
 type ProcessNodeConfig struct {
 	ValidatorKey ed25519.PrivKeyEd25519 `json:"priv"`
@@ -40,6 +43,7 @@ type ProcessConfig struct {
 	Node *ProcessNodeConfig
 
 	// These parameters are not meant to be passed to the process
+	CoverDir       string
 	Stderr, Stdout io.Writer
 }
 
@@ -187,6 +191,10 @@ func RunNodeProcess(ctx context.Context, cfg ProcessConfig, name string, args ..
 	cmd.Env = os.Environ()
 	cmd.Stdin = bytes.NewReader(nodeConfigData)
 
+	if cfg.CoverDir != "" {
+		cmd.Env = append(cmd.Env, "GOCOVERDIR="+cfg.CoverDir)
+	}
+
 	// Redirect all errors into a buffer
 	cmd.Stderr = os.Stderr
 	if cfg.Stderr != nil {
@@ -306,9 +314,8 @@ func RunMain(ctx context.Context, stdin io.Reader, stdout, stderr io.Writer) err
 
 	// Attempt graceful shutdown
 	select {
-	case <-ctx.Done():
-		err = ctx.Err()
-		// log.Fatalf("unable to gracefully stop the node, exiting now")
+	case <-time.After(gracefulShutdown):
+		return fmt.Errorf("unable to gracefully stop the node, exiting now")
 	case err = <-ccErr: // done
 	}
 
@@ -318,8 +325,16 @@ func RunMain(ctx context.Context, stdin io.Reader, stdout, stderr io.Writer) err
 func runTestingNodeProcess(t TestingTS, ctx context.Context, pcfg ProcessConfig) NodeProcess {
 	bin, err := os.Executable()
 	require.NoError(t, err)
+	args := []string{
+		"-test.run=^$",
+		"-run-node-process",
+	}
 
-	node, err := RunNodeProcess(ctx, pcfg, bin, "-test.run=^$", "-run-node-process")
+	if pcfg.CoverDir != "" && testing.CoverMode() != "" {
+		args = append(args, "-test.gocoverdir="+pcfg.CoverDir)
+	}
+
+	node, err := RunNodeProcess(ctx, pcfg, bin, args...)
 	require.NoError(t, err)
 
 	return node

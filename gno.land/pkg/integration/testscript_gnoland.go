@@ -571,6 +571,11 @@ func setupNode(ts *testscript.TestScript, ctx context.Context, cfg *ProcessNodeC
 		Stderr: ts.Stderr(),
 	}
 
+	// Setup coverdir provided
+	if coverdir := ts.Getenv("GOCOVERDIR"); coverdir != "" {
+		pcfg.CoverDir = coverdir
+	}
+
 	val := ts.Value(envKeyExecCommand)
 
 	switch cmd := val.(commandkind); cmd {

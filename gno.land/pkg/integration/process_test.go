@@ -17,8 +17,6 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-const gracefulShutdown = time.Second * 5
-
 // Define a flag to indicate whether to run the embedded command
 var runCommand = flag.Bool("run-node-process", false, "execute the embedded command")
 
@@ -31,7 +29,7 @@ func TestMain(m *testing.M) {
 		os.Exit(m.Run())
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), gracefulShutdown)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*30)
 	defer cancel()
 
 	if err := RunMain(ctx, os.Stdin, os.Stdout, os.Stderr); err != nil {
