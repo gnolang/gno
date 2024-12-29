@@ -39,89 +39,70 @@ func shouldNoPanic(t *testing.T, f func()) {
 
 // Reset game state
 func setupTestGame(t *testing.T) {
-	gameStartBlock = int64(0)
-	gameEndBlock = int64(0)
-	lastKeyBlock = int64(0)
-	currentRound = int64(1)
-	jackpot = int64(0)
-	nextPot = int64(0)
-	keyPrice = MIN_KEY_PRICE
-	ownerFee = int64(0)
-	lastBuyer = ""
+	gameState = GameState{
+		StartBlock:   0,
+		EndBlock:     0,
+		LastKeyBlock: 0,
+		LastBuyer:    "",
+		Jackpot:      0,
+		KeyPrice:     MIN_KEY_PRICE,
+		TotalKeys:    0,
+		Ended:        true,
+		CurrentRound: 1,
+		NextPot:      0,
+		OwnerFee:     0,
+	}
 	players = avl.NewTree()
-	totalKeys = int64(0)
-	ended = true
 	Ownable = ownable.New()
 }
 
 // Test ownership functionality
-// func TestOwnership(t *testing.T) {
-// 	setupTestGame(t)
+func TestOwnership(t *testing.T) {
+	owner := testutils.TestAddress("owner")
+	nonOwner := testutils.TestAddress("nonOwner")
 
-// 	owner := testutils.TestAddress("owner")
-// 	nonOwner := testutils.TestAddress("nonOwner")
+	// Set up initial owner
+	std.TestSetOrigCaller(owner)
+	std.TestSetOrigPkgAddr(owner)
+	setupTestGame(t)
 
-// 	// Set initial owner
-// 	std.TestSetOrigCaller(owner)
-// 	std.TestSetRealm(std.GetOrigCaller())
-// 	setupTestGame(t) // This will set owner as the owner
+	// Transfer ownership to nonOwner first to test ownership functions
+	std.TestSetOrigCaller(owner)
+	shouldNoPanic(t, func() {
+		TransferOwnership(nonOwner)
+	})
 
-// 	// Test GetOwnerInfo
-// 	ownerAddr, fees := GetOwnerInfo()
-// 	shouldEqual(t, ownerAddr, owner)
-// 	shouldEqual(t, fees, int64(0))
+	// Test fee accumulation
+	StartGame()
+	payment := MIN_KEY_PRICE * 10
+	std.TestSetOrigCaller(owner)
+	std.TestSetOrigSend(std.Coins{{"ugnot", payment}}, nil)
+	std.TestIssueCoins(owner, std.Coins{{"ugnot", payment}})
+	std.TestIssueCoins(std.GetOrigPkgAddr(), std.Coins{{"ugnot", payment}})
+	BuyKeys()
 
-// 	// Test unauthorized fee claim
-// 	std.TestSetOrigCaller(nonOwner)
-// 	std.TestSetPrevRealm(nonOwner)
-// 	shouldPanic(t, ClaimOwnerFee)
+	// Verify fee accumulation
+	_, fees := GetOwnerInfo()
+	expectedFees := payment * OWNER_FEE_PERCENT / 100
+	shouldEqual(t, fees, expectedFees)
 
-// 	// Test unauthorized ownership transfer
-// 	shouldPanic(t, func() {
-// 		TransferOwnership(nonOwner)
-// 	})
+	// Test unauthorized fee claim (using old owner)
+	std.TestSetOrigCaller(owner)
+	shouldPanic(t, ClaimOwnerFee)
 
-// 	// Test authorized ownership transfer
-// 	std.TestSetOrigCaller(owner)
-// 	std.TestSetPrevRealm(owner)
-// 	shouldNoPanic(t, func() {
-// 		TransferOwnership(nonOwner)
-// 	})
+	// Test authorized fee claim (using new owner)
+	std.TestSetOrigCaller(nonOwner)
+	initialBalance := std.GetBanker(std.BankerTypeRealmSend).GetCoins(nonOwner)
+	std.TestIssueCoins(std.CurrentRealm().Addr(), std.Coins{{"ugnot", expectedFees}})
+	shouldNoPanic(t, ClaimOwnerFee)
 
-// 	// Verify ownership changed
-// 	ownerAddr, _ = GetOwnerInfo()
-// 	shouldEqual(t, ownerAddr, nonOwner)
+	// Verify fees were claimed
+	_, feesAfter := GetOwnerInfo()
+	shouldEqual(t, feesAfter, int64(0))
 
-// 	// Test fee accumulation and claiming
-// 	{
-// 		setupTestGame(t)
-// 		StartGame()
-
-// 		// Buy keys to generate fees
-// 		payment := MIN_KEY_PRICE * 10
-// 		std.TestSetOrigCaller(owner)
-// 		std.TestSetOrigSend(std.Coins{{"ugnot", payment}}, nil)
-// 		BuyKeys()
-
-// 		// Verify fee accumulation
-// 		_, fees = GetOwnerInfo()
-// 		expectedFees := payment * OWNER_FEE_PERCENT / 100
-// 		shouldEqual(t, fees, expectedFees)
-
-// 		// Test claiming fees
-// 		std.TestSetOrigCaller(nonOwner) // New owner after transfer
-// 		std.TestSetPrevRealm(nonOwner)
-// 		initialBalance := std.GetBanker(std.BankerTypeRealmSend).GetCoins(nonOwner)
-// 		shouldNoPanic(t, ClaimOwnerFee)
-
-// 		// Verify fees were claimed
-// 		_, feesAfter := GetOwnerInfo()
-// 		shouldEqual(t, feesAfter, int64(0))
-
-// 		lastBuyerBalance := std.GetBanker(std.BankerTypeRealmSend).GetCoins(nonOwner)
-// 		shouldEqual(t, lastBuyerBalance.AmountOf("ugnot"), initialBalance.AmountOf("ugnot")+expectedFees)
-// 	}
-// }
+	finalBalance := std.GetBanker(std.BankerTypeRealmSend).GetCoins(nonOwner)
+	shouldEqual(t, finalBalance.AmountOf("ugnot"), initialBalance.AmountOf("ugnot")+expectedFees)
+}
 
 // Test full game flow
 func TestFullGameFlow(t *testing.T) {
@@ -132,14 +113,14 @@ func TestFullGameFlow(t *testing.T) {
 	player3 := testutils.TestAddress("player3")
 
 	// Test initial state
-	shouldEqual(t, currentRound, int64(1))
-	shouldEqual(t, keyPrice, MIN_KEY_PRICE)
-	shouldEqual(t, ended, true)
+	shouldEqual(t, gameState.CurrentRound, int64(1))
+	shouldEqual(t, gameState.KeyPrice, MIN_KEY_PRICE)
+	shouldEqual(t, gameState.Ended, true)
 
 	// Start game
 	shouldNoPanic(t, StartGame)
-	shouldEqual(t, ended, false)
-	shouldEqual(t, gameStartBlock, std.GetHeight())
+	shouldEqual(t, gameState.Ended, false)
+	shouldEqual(t, gameState.StartBlock, std.GetHeight())
 
 	t.Run("buying keys", func(t *testing.T) {
 
@@ -161,7 +142,7 @@ func TestFullGameFlow(t *testing.T) {
 
 		shouldEqual(t, keys, int64(3))
 		shouldEqual(t, dividends, int64(0))
-		shouldEqual(t, lastBuyer, player1)
+		shouldEqual(t, gameState.LastBuyer, player1)
 
 		// Verify game state
 		start, end, last, buyer, pot, price, keys, isEnded := GetGameState()
@@ -178,7 +159,7 @@ func TestFullGameFlow(t *testing.T) {
 	t.Run("dividend distribution and claiming", func(t *testing.T) {
 		// Player 2 buys keys
 		std.TestSetOrigCaller(player2)
-		payment := keyPrice * 2 // Buy 2 keys using current keyPrice
+		payment := gameState.KeyPrice * 2 // Buy 2 keys using current keyPrice
 		std.TestSetOrigSend(std.Coins{{"ugnot", payment}}, nil)
 		std.TestIssueCoins(std.GetOrigPkgAddr(), std.Coins{{"ugnot", payment}})
 		shouldNoPanic(t, BuyKeys)
@@ -187,7 +168,7 @@ func TestFullGameFlow(t *testing.T) {
 		keys1, dividends1 := GetPlayerInfo(player1)
 
 		shouldEqual(t, keys1, int64(3))
-		expectedDividends := payment * DIVIDENDS_PERCENT / 100 * 3 / totalKeys
+		expectedDividends := payment * DIVIDENDS_PERCENT / 100 * 3 / gameState.TotalKeys
 		shouldEqual(t, dividends1, expectedDividends)
 
 		// Test claiming dividends
@@ -215,12 +196,12 @@ func TestFullGameFlow(t *testing.T) {
 
 		// End game successfully
 		shouldNoPanic(t, EndGame)
-		shouldEqual(t, ended, true)
-		shouldEqual(t, currentRound, int64(2))
+		shouldEqual(t, gameState.Ended, true)
+		shouldEqual(t, gameState.CurrentRound, int64(2))
 
 		// Verify winner received jackpot
-		lastBuyerBalance := std.GetBanker(std.BankerTypeRealmSend).GetCoins(lastBuyer)
-		shouldEqual(t, lastBuyerBalance.AmountOf("ugnot"), jackpot)
+		lastBuyerBalance := std.GetBanker(std.BankerTypeRealmSend).GetCoins(gameState.LastBuyer)
+		shouldEqual(t, lastBuyerBalance.AmountOf("ugnot"), gameState.Jackpot)
 	})
 
 	// Test new round
@@ -234,11 +215,11 @@ func TestFullGameFlow(t *testing.T) {
 
 		// Start new round
 		shouldNoPanic(t, StartGame)
-		shouldEqual(t, ended, false)
-		shouldEqual(t, currentRound, int64(2))
+		shouldEqual(t, gameState.Ended, false)
+		shouldEqual(t, gameState.CurrentRound, int64(2))
 
-		shouldEqual(t, jackpot, expectedNextPot) // New round starts with previous round's nextPot
-		shouldEqual(t, nextPot, int64(0))
+		shouldEqual(t, gameState.Jackpot, expectedNextPot) // New round starts with previous round's nextPot
+		shouldEqual(t, gameState.NextPot, int64(0))
 	})
 }
 
@@ -248,8 +229,8 @@ func TestStartGame(t *testing.T) {
 
 	// Test starting first game
 	shouldNoPanic(t, StartGame)
-	shouldEqual(t, ended, false)
-	shouldEqual(t, gameStartBlock, std.GetHeight())
+	shouldEqual(t, gameState.Ended, false)
+	shouldEqual(t, gameState.StartBlock, std.GetHeight())
 
 	// Test cannot start while game in progress
 	shouldPanic(t, StartGame)
