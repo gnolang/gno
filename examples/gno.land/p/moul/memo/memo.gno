@@ -4,7 +4,7 @@
 // with optional validation of cached values. This is useful for expensive computations
 // that need to be cached and potentially invalidated based on custom conditions.
 //
-// ⚠️ Important Warning for Gno Usage:
+// /!\ Important Warning for Gno Usage:
 // In Gno, storage updates only persist during transactions. This means:
 //   - Cache entries created during queries will NOT persist
 //   - Creating cache entries during queries will actually decrease performance
@@ -60,46 +60,75 @@
 //	)
 package memo
 
+import (
+	"gno.land/p/demo/btree"
+	"gno.land/p/demo/ufmt"
+)
+
+// Record implements the btree.Record interface for our cache entries
+type cacheEntry struct {
+	key   interface{}
+	value interface{}
+}
+
+// Less implements btree.Record interface
+func (e cacheEntry) Less(than btree.Record) bool {
+	// Convert the other record to cacheEntry
+	other := than.(cacheEntry)
+	// Compare string representations of keys for consistent ordering
+	return ufmt.Sprintf("%v", e.key) < ufmt.Sprintf("%v", other.key)
+}
+
 // Memoizer is a structure to handle memoization of function results.
 type Memoizer struct {
-	cache map[interface{}]interface{}
+	cache *btree.BTree
 }
 
 // New creates a new Memoizer instance.
 func New() *Memoizer {
 	return &Memoizer{
-		cache: make(map[interface{}]interface{}),
+		cache: btree.New(),
 	}
 }
 
 // Memoize ensures the result of the given function is cached for the specified key.
 func (m *Memoizer) Memoize(key interface{}, fn func() interface{}) interface{} {
-	if cached, exists := m.cache[key]; exists {
-		return cached
+	entry := cacheEntry{key: key}
+	if found := m.cache.Get(entry); found != nil {
+		return found.(cacheEntry).value
 	}
 
 	value := fn()
-	m.cache[key] = value
+	m.cache.Insert(cacheEntry{key: key, value: value})
 	return value
 }
 
 // MemoizeWithValidator ensures the result is cached and valid according to the validator function.
 func (m *Memoizer) MemoizeWithValidator(key interface{}, fn func() interface{}, isValid func(interface{}) bool) interface{} {
-	if cached, exists := m.cache[key]; exists && isValid(cached) {
-		return cached
+	entry := cacheEntry{key: key}
+	if found := m.cache.Get(entry); found != nil {
+		cachedEntry := found.(cacheEntry)
+		if isValid(cachedEntry.value) {
+			return cachedEntry.value
+		}
 	}
 
 	value := fn()
-	m.cache[key] = value
+	m.cache.Insert(cacheEntry{key: key, value: value})
 	return value
 }
 
 // Invalidate removes the cached value for the specified key.
 func (m *Memoizer) Invalidate(key interface{}) {
-	delete(m.cache, key)
+	m.cache.Delete(cacheEntry{key: key})
 }
 
 // Clear clears all cached values.
 func (m *Memoizer) Clear() {
-	m.cache = make(map[interface{}]interface{})
+	m.cache.Clear(true)
+}
+
+// Size returns the number of items currently in the cache.
+func (m *Memoizer) Size() int {
+	return m.cache.Len()
 }

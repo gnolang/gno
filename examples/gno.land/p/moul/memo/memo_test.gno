@@ -41,6 +41,10 @@ func TestMemoize(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			m := New()
+			if m.Size() != 0 {
+				t.Errorf("Initial size = %d, want 0", m.Size())
+			}
+
 			fn := func() interface{} {
 				*tt.callCount++
 				return tt.value
@@ -54,6 +58,9 @@ func TestMemoize(t *testing.T) {
 			if *tt.callCount != 1 {
 				t.Errorf("Function called %d times, want 1", *tt.callCount)
 			}
+			if m.Size() != 1 {
+				t.Errorf("Size after first call = %d, want 1", m.Size())
+			}
 
 			// Second call should use cache
 			result = m.Memoize(tt.key, fn)
@@ -62,6 +69,9 @@ func TestMemoize(t *testing.T) {
 			}
 			if *tt.callCount != 1 {
 				t.Errorf("Function called %d times, want 1", *tt.callCount)
+			}
+			if m.Size() != 1 {
+				t.Errorf("Size after second call = %d, want 1", m.Size())
 			}
 		})
 	}
@@ -170,9 +180,15 @@ func TestInvalidate(t *testing.T) {
 
 			// First call
 			m.Memoize(tt.key, fn)
+			if m.Size() != 1 {
+				t.Errorf("Size after first call = %d, want 1", m.Size())
+			}
 
 			// Invalidate
 			m.Invalidate(tt.key)
+			if m.Size() != 0 {
+				t.Errorf("Size after invalidate = %d, want 0", m.Size())
+			}
 
 			// Call again should recompute
 			result := m.Memoize(tt.key, fn)
@@ -181,6 +197,9 @@ func TestInvalidate(t *testing.T) {
 			}
 			if *tt.callCount != 2 {
 				t.Errorf("Function called %d times, want 2", *tt.callCount)
+			}
+			if m.Size() != 1 {
+				t.Errorf("Size after recompute = %d, want 1", m.Size())
 			}
 		})
 	}
@@ -202,9 +221,15 @@ func TestClear(t *testing.T) {
 	if callCount != 2 {
 		t.Errorf("Initial calls = %d, want 2", callCount)
 	}
+	if m.Size() != 2 {
+		t.Errorf("Size after initial calls = %d, want 2", m.Size())
+	}
 
 	// Clear cache
 	m.Clear()
+	if m.Size() != 0 {
+		t.Errorf("Size after clear = %d, want 0", m.Size())
+	}
 
 	// Recompute values
 	m.Memoize("key1", fn)
@@ -212,5 +237,51 @@ func TestClear(t *testing.T) {
 
 	if callCount != 4 {
 		t.Errorf("Calls after clear = %d, want 4", callCount)
+	}
+	if m.Size() != 2 {
+		t.Errorf("Size after recompute = %d, want 2", m.Size())
+	}
+}
+
+func TestSize(t *testing.T) {
+	m := New()
+
+	if m.Size() != 0 {
+		t.Errorf("Initial size = %d, want 0", m.Size())
+	}
+
+	callCount := 0
+	fn := func() interface{} {
+		callCount++
+		return "value"
+	}
+
+	// Add items
+	m.Memoize("key1", fn)
+	if m.Size() != 1 {
+		t.Errorf("Size after first insert = %d, want 1", m.Size())
+	}
+
+	m.Memoize("key2", fn)
+	if m.Size() != 2 {
+		t.Errorf("Size after second insert = %d, want 2", m.Size())
+	}
+
+	// Duplicate key should not increase size
+	m.Memoize("key1", fn)
+	if m.Size() != 2 {
+		t.Errorf("Size after duplicate insert = %d, want 2", m.Size())
+	}
+
+	// Remove item
+	m.Invalidate("key1")
+	if m.Size() != 1 {
+		t.Errorf("Size after invalidate = %d, want 1", m.Size())
+	}
+
+	// Clear all
+	m.Clear()
+	if m.Size() != 0 {
+		t.Errorf("Size after clear = %d, want 0", m.Size())
 	}
 }
