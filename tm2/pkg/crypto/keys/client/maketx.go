@@ -205,7 +205,6 @@ func ExecSignAndBroadcast(
 
 	bres, err := SignAndBroadcastHandler(cfg, nameOrBech32, tx, pass)
 	if err != nil {
-		fmt.Printf("ERROR: %+v:\n ", err)
 		return errors.Wrap(err, "broadcast tx")
 	}
 	if bres.CheckTx.IsErr() {
