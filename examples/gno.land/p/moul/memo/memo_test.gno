@@ -11,6 +11,12 @@ type timestampedValue struct {
 	timestamp time.Time
 }
 
+// complexKey is used to test struct keys
+type complexKey struct {
+	ID   int
+	Name string
+}
+
 func TestMemoize(t *testing.T) {
 	tests := []struct {
 		name      string
@@ -280,6 +286,162 @@ func TestSize(t *testing.T) {
 	}
 
 	// Clear all
+	m.Clear()
+	if m.Size() != 0 {
+		t.Errorf("Size after clear = %d, want 0", m.Size())
+	}
+}
+
+func TestMemoizeWithDifferentKeyTypes(t *testing.T) {
+	tests := []struct {
+		name      string
+		keys      []interface{} // Now an array of keys
+		values    []string      // Corresponding values
+		callCount *int
+	}{
+		{
+			name:      "integer keys",
+			keys:      []interface{}{42, 43},
+			values:    []string{"value-for-42", "value-for-43"},
+			callCount: new(int),
+		},
+		{
+			name:      "float keys",
+			keys:      []interface{}{3.14, 2.718},
+			values:    []string{"value-for-pi", "value-for-e"},
+			callCount: new(int),
+		},
+		{
+			name:      "bool keys",
+			keys:      []interface{}{true, false},
+			values:    []string{"value-for-true", "value-for-false"},
+			callCount: new(int),
+		},
+		/*
+			{
+				name: "struct keys",
+				keys: []interface{}{
+					complexKey{ID: 1, Name: "test1"},
+					complexKey{ID: 2, Name: "test2"},
+				},
+				values:    []string{"value-for-struct1", "value-for-struct2"},
+				callCount: new(int),
+			},
+			{
+				name:      "nil and empty interface keys",
+				keys:      []interface{}{nil, interface{}(nil)},
+				values:    []string{"value-for-nil", "value-for-empty-interface"},
+				callCount: new(int),
+			},
+		*/
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			m := New()
+
+			// Test both keys
+			for i, key := range tt.keys {
+				value := tt.values[i]
+				fn := func() interface{} {
+					*tt.callCount++
+					return value
+				}
+
+				// First call should compute
+				result := m.Memoize(key, fn)
+				if result != value {
+					t.Errorf("Memoize() for key %v = %v, want %v", key, result, value)
+				}
+				if *tt.callCount != i+1 {
+					t.Errorf("Function called %d times, want %d", *tt.callCount, i+1)
+				}
+			}
+
+			// Verify size includes both entries
+			if m.Size() != 2 {
+				t.Errorf("Size after both inserts = %d, want 2", m.Size())
+			}
+
+			// Second call for each key should use cache
+			for i, key := range tt.keys {
+				initialCount := *tt.callCount
+				result := m.Memoize(key, func() interface{} {
+					*tt.callCount++
+					return "should-not-be-called"
+				})
+
+				if result != tt.values[i] {
+					t.Errorf("Memoize() second call for key %v = %v, want %v", key, result, tt.values[i])
+				}
+				if *tt.callCount != initialCount {
+					t.Errorf("Cache miss for key %v", key)
+				}
+			}
+
+			// Test invalidate for each key
+			for i, key := range tt.keys {
+				m.Invalidate(key)
+				if m.Size() != 1-i {
+					t.Errorf("Size after invalidate %d = %d, want %d", i+1, m.Size(), 1-i)
+				}
+			}
+		})
+	}
+}
+
+func TestMultipleKeyTypes(t *testing.T) {
+	m := New()
+	callCount := 0
+
+	// Insert different key types simultaneously (two of each type)
+	keys := []interface{}{
+		42, 43, // ints
+		"string-key1", "string-key2", // strings
+		3.14, 2.718, // floats
+		true, false, // bools
+	}
+
+	for i, key := range keys {
+		value := i
+		m.Memoize(key, func() interface{} {
+			callCount++
+			return value
+		})
+	}
+
+	// Verify size includes all entries
+	if m.Size() != len(keys) {
+		t.Errorf("Size = %d, want %d", m.Size(), len(keys))
+	}
+
+	// Verify all values are cached correctly
+	for i, key := range keys {
+		initialCount := callCount
+		result := m.Memoize(key, func() interface{} {
+			callCount++
+			return -1 // Should never be returned if cache works
+		})
+
+		if result != i {
+			t.Errorf("Memoize(%v) = %v, want %v", key, result, i)
+		}
+		if callCount != initialCount {
+			t.Errorf("Cache miss for key %v", key)
+		}
+	}
+
+	// Test invalidation of pairs
+	for i := 0; i < len(keys); i += 2 {
+		m.Invalidate(keys[i])
+		m.Invalidate(keys[i+1])
+		expectedSize := len(keys) - (i + 2)
+		if m.Size() != expectedSize {
+			t.Errorf("Size after invalidating pair %d = %d, want %d", i/2, m.Size(), expectedSize)
+		}
+	}
+
+	// Clear and verify
 	m.Clear()
 	if m.Size() != 0 {
 		t.Errorf("Size after clear = %d, want 0", m.Size())
