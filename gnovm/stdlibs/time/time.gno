@@ -6,7 +6,7 @@ import "errors"
 //
 // Programs using times should typically store and pass them as values,
 // not pointers. That is, time variables and struct fields should be of
-// type time.Time, not *time.Time.
+// type time.Time.
 //
 // A Time value can be used by multiple goroutines simultaneously except
 // that the methods GobDecode, UnmarshalBinary, UnmarshalJSON and
