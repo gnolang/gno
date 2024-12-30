@@ -7,6 +7,7 @@ import (
 	"gno.land/p/demo/avl"
 	"gno.land/p/demo/ownable"
 	"gno.land/p/demo/ufmt"
+	"gno.land/r/demo/users"
 	"gno.land/r/leon/hof"
 )
 
@@ -45,22 +46,22 @@ type PlayerInfo struct {
 
 // GameState represents the current state of the FOMO3D game
 type GameState struct {
-	StartBlock  int64       // Block when the game started
-	EndBlock    int64       // Block when the game will end
-	LastKeyBlock int64      // Block of last key purchase
-	LastBuyer   std.Address // Address of last key buyer
-	Jackpot     int64       // Current jackpot in ugnot
-	KeyPrice    int64       // Current price of keys in ugnot
-	TotalKeys   int64       // Total number of keys in circulation
-	Ended       bool        // Whether the game has ended
-	CurrentRound int64      // Current round number
-	NextPot     int64       // Next round's starting pot
-	OwnerFee    int64       // Accumulated owner fees
+	StartBlock   int64       // Block when the game started
+	EndBlock     int64       // Block when the game will end
+	LastKeyBlock int64       // Block of last key purchase
+	LastBuyer    std.Address // Address of last key buyer
+	Jackpot      int64       // Current jackpot in ugnot
+	KeyPrice     int64       // Current price of keys in ugnot
+	TotalKeys    int64       // Total number of keys in circulation
+	Ended        bool        // Whether the game has ended
+	CurrentRound int64       // Current round number
+	NextPot      int64       // Next round's starting pot
+	OwnerFee     int64       // Accumulated owner fees
 }
 
 var (
 	gameState GameState
-	players   *avl.Tree   // maps address -> PlayerInfo
+	players   *avl.Tree // maps address -> PlayerInfo
 	Ownable   *ownable.Ownable
 )
 
@@ -92,7 +93,7 @@ func StartGame() {
 // BuyKeys allows players to purchase keys
 func BuyKeys() {
 	if gameState.Ended {
-			panic(ErrGameEnded.Error())
+		panic(ErrGameEnded.Error())
 	}
 
 	currentBlock := std.GetHeight()
@@ -274,7 +275,18 @@ func GetGameState() (int64, int64, int64, std.Address, int64, int64, int64, bool
 }
 
 // GetPlayerInfo returns a player's keys and dividends
-func GetPlayerInfo(addr std.Address) (int64, int64) {
+func GetPlayerInfo(addrOrName interface{}) (int64, int64) {
+	var addr std.Address
+
+	switch v := addrOrName.(type) {
+	case std.Address:
+		addr = v
+	case string:
+		addr = stringToAddress(v)
+	default:
+		return 0, 0
+	}
+
 	if info, exists := players.Get(addr.String()); exists {
 		playerInfo := info.(PlayerInfo)
 		return playerInfo.Keys, playerInfo.Dividends
@@ -294,11 +306,9 @@ func Render(path string) string {
 
 	switch {
 	case path == "":
-		// Default render showing game overview
 		return RenderHome()
 	case c == 2 && parts[0] == "player":
-		// Render specific player info
-		addr := std.Address(parts[1])
+		addr := stringToAddress(parts[1])
 		keys, dividends := GetPlayerInfo(addr)
 		return RenderPlayer(addr, keys, dividends)
 	default:
@@ -309,7 +319,6 @@ func Render(path string) string {
 // RenderHome renders the main game state
 func RenderHome() string {
 	gameStart, gameEnd, _, lastBuyer, pot, price, totalKeys, isEnded := GetGameState()
-	// _, ownerFees := GetOwnerInfo()
 
 	var builder strings.Builder
 	builder.WriteString("# FOMO3D - The Ultimate Game of Greed\n\n")
@@ -344,7 +353,7 @@ func RenderHome() string {
 		builder.WriteString(ufmt.Sprintf("💰 **Current Jackpot:** %d ugnot\n", pot))
 		builder.WriteString(ufmt.Sprintf("🔑 **Current Key Price:** %d ugnot\n", price))
 		builder.WriteString(ufmt.Sprintf("📊 **Total Keys:** %d\n", totalKeys))
-		builder.WriteString(ufmt.Sprintf("👤 **Last Buyer:** %s\n", lastBuyer))
+		builder.WriteString(ufmt.Sprintf("👤 **Last Buyer:** %s\n", getDisplayName(lastBuyer)))
 		builder.WriteString(ufmt.Sprintf("🎮 **Next Round Pot:** %d ugnot\n", gameState.NextPot))
 		builder.WriteString(ufmt.Sprintf("🔄 **Current Round:** %d\n\n", gameState.CurrentRound))
 	}
@@ -376,7 +385,8 @@ func RenderHome() string {
 // RenderPlayer renders specific player information
 func RenderPlayer(addr std.Address, keys int64, dividends int64) string {
 	var builder strings.Builder
-	builder.WriteString(ufmt.Sprintf("# Player Stats: %s\n\n", addr))
+	displayName := getDisplayName(addr)
+	builder.WriteString(ufmt.Sprintf("# Player Stats: %s\n\n", displayName))
 	builder.WriteString("## Your Holdings\n\n")
 	builder.WriteString(ufmt.Sprintf("🔑 **Keys Owned:** %d\n", keys))
 	builder.WriteString(ufmt.Sprintf("💰 **Unclaimed Dividends:** %d ugnot\n\n", dividends))
@@ -388,4 +398,28 @@ func RenderPlayer(addr std.Address, keys int64, dividends int64) string {
 	}
 
 	return builder.String()
+}
+
+// Helper to get display name - just returns namespace if exists, otherwise address
+func getDisplayName(addr std.Address) string {
+	if user := users.GetUserByAddress(addr); user != nil {
+		return user.Name
+	}
+	return addr.String()
+}
+
+// Helper to convert string (address or username) to address
+func stringToAddress(input string) std.Address {
+	// Check if input is valid address
+	addr := std.Address(input)
+	if addr.IsValid() {
+		return addr
+	}
+
+	// Not an address, try to find namespace
+	if user := users.GetUserByName(input); user != nil {
+		return user.Address
+	}
+
+	panic(ErrInvalidAddressOrName.Error())
 }

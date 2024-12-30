@@ -19,4 +19,7 @@ var (
 
 	// Fee errors
 	ErrNoFeesToClaim = errors.New("fomo3d: no owner fees to claim")
+
+	// Resolution errors
+	ErrInvalidAddressOrName = errors.New("fomo3d: invalid address or unregistered username")
 )

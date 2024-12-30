@@ -123,7 +123,6 @@ func TestFullGameFlow(t *testing.T) {
 	shouldEqual(t, gameState.StartBlock, std.GetHeight())
 
 	t.Run("buying keys", func(t *testing.T) {
-
 		// Test insufficient payment
 		std.TestSetOrigCaller(player1)
 		std.TestIssueCoins(player1, std.Coins{{"ugnot", MIN_KEY_PRICE - 1}})
