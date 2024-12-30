@@ -146,7 +146,6 @@ func (c *testCfg) RegisterFlags(fs *flag.FlagSet) {
 }
 
 func execTest(cfg *testCfg, args []string, io commands.IO) error {
-
 	// guess opts.RootDir
 	if cfg.rootDir == "" {
 		cfg.rootDir = gnoenv.RootDir()
