@@ -134,7 +134,13 @@ func TestFullGameFlow(t *testing.T) {
 		payment := MIN_KEY_PRICE * 3
 		std.TestSetOrigSend(std.Coins{{"ugnot", payment}}, nil)
 		std.TestIssueCoins(std.GetOrigPkgAddr(), std.Coins{{"ugnot", payment}})
+		
+		currentBlock := std.GetHeight()
 		shouldNoPanic(t, BuyKeys)
+
+		// Verify time extension
+		_, endBlock, _, _, _, _, _, _, _, _ := GetGameState()
+		shouldEqual(t, endBlock, currentBlock+TIME_EXTENSION)
 
 		// Verify player state
 		keys, dividends := GetPlayerInfo(player1)
@@ -144,10 +150,11 @@ func TestFullGameFlow(t *testing.T) {
 		shouldEqual(t, gameState.LastBuyer, player1)
 
 		// Verify game state
-		start, end, last, buyer, pot, price, keys, isEnded := GetGameState()
+		_, endBlock, _, buyer, pot, price, keys, isEnded, nextPot, round := GetGameState()
 		shouldEqual(t, buyer, player1)
 		shouldEqual(t, keys, int64(3))
 		shouldEqual(t, isEnded, false)
+		
 		shouldEqual(t, pot, payment*JACKPOT_PERCENT/100)
 
 		// Verify owner fee
@@ -190,12 +197,14 @@ func TestFullGameFlow(t *testing.T) {
 		// Try ending too early
 		shouldPanic(t, EndGame)
 
-		// Skip to end of game
-		std.TestSkipHeights(MAX_TIME_EXTEND + 1)
+		// Skip to end of current time window
+		currentEndBlock := gameState.EndBlock
+		std.TestSkipHeights(currentEndBlock - std.GetHeight() + 1)
 
 		// End game successfully
 		shouldNoPanic(t, EndGame)
 		shouldEqual(t, gameState.Ended, true)
+		
 		shouldEqual(t, gameState.CurrentRound, int64(2))
 
 		// Verify winner received jackpot
@@ -217,8 +226,10 @@ func TestFullGameFlow(t *testing.T) {
 		shouldEqual(t, gameState.Ended, false)
 		shouldEqual(t, gameState.CurrentRound, int64(2))
 
-		shouldEqual(t, gameState.Jackpot, expectedNextPot) // New round starts with previous round's nextPot
-		shouldEqual(t, gameState.NextPot, int64(0))
+		start, end, last, buyer, pot, price, keys, isEnded, nextPot, round := GetGameState()
+		shouldEqual(t, round, int64(2))
+		shouldEqual(t, pot, expectedNextPot)
+		shouldEqual(t, nextPot, int64(0))
 	})
 }
 
@@ -301,7 +312,8 @@ func TestEndGame(t *testing.T) {
 	StartGame()
 
 	// Skip to end + 1 to ensure we're past the end block
-	std.TestSkipHeights(MAX_TIME_EXTEND + 1)
+	currentEndBlock := gameState.EndBlock
+	std.TestSkipHeights(currentEndBlock - std.GetHeight() + 1)
 
 	shouldPanic(t, EndGame) // Should panic because no keys purchased
 
@@ -320,8 +332,9 @@ func TestEndGame(t *testing.T) {
 	// Test ending too early
 	shouldPanic(t, EndGame)
 
-	// Skip to well past the end
-	std.TestSkipHeights(MAX_TIME_EXTEND + TIME_EXTENSION + 1)
+	// Skip to end of current time window
+	currentEndBlock = gameState.EndBlock
+	std.TestSkipHeights(currentEndBlock - std.GetHeight() + 1)
 
 	shouldNoPanic(t, EndGame)
 }

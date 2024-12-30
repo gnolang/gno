@@ -20,17 +20,17 @@ import (
 // - Distributes dividends to all key holders
 //
 // Game Mechanics:
-// - The last person to buy a key before the timer expires wins the jackpot (50% of all purchases)
-// - Key holders earn dividends from each purchase (30% of all purchases)
+// - The last person to buy a key before the timer expires wins the jackpot (47% of all purchases)
+// - Key holders earn dividends from each purchase (28% of all purchases)
 // - 20% of purchases go to the next round's starting pot
-// - Game ends when the timer expires (max ~24 hours)
+// - 5% goes to development fee
+// - Game ends when the timer expires
 //
 // Inspired by the original Ethereum FOMO3D game but implemented in Gno.
 
 const (
 	MIN_KEY_PRICE   int64 = 100000 // minimum key price in ugnot
-	TIME_EXTENSION  int64 = 30     // time extension in blocks when new key is bought
-	MAX_TIME_EXTEND int64 = 86400  // max time that can be added (~24 hours @ 1s blocks)
+	TIME_EXTENSION  int64 = 86400  // time extension in blocks when new key is bought (~24 hours @ 1s blocks)
 
 	// Distribution percentages (total 100%)
 	JACKPOT_PERCENT   int64 = 47 // 47% goes to jackpot
@@ -78,7 +78,7 @@ func StartGame() {
 	}
 
 	gameState.StartBlock = std.GetHeight()
-	gameState.EndBlock = gameState.StartBlock + MAX_TIME_EXTEND
+	gameState.EndBlock = gameState.StartBlock + TIME_EXTENSION  // Initial 24h window
 	gameState.LastKeyBlock = gameState.StartBlock
 	gameState.Jackpot = gameState.NextPot
 	gameState.NextPot = 0
@@ -88,6 +88,14 @@ func StartGame() {
 
 	// Clear previous round's player data
 	players = avl.NewTree()
+
+	// Emit event for game start
+	EmitGameStarted(
+		gameState.CurrentRound,
+		gameState.StartBlock,
+		gameState.EndBlock,
+		gameState.Jackpot,
+	)
 }
 
 // BuyKeys allows players to purchase keys
@@ -162,21 +170,20 @@ func BuyKeys() {
 	// Update game state
 	gameState.LastBuyer = buyer
 	gameState.LastKeyBlock = currentBlock
-
-	// Extend deadline within max time limit
-	newEndBlock := currentBlock + TIME_EXTENSION
-	if newEndBlock > gameState.StartBlock+MAX_TIME_EXTEND {
-		newEndBlock = gameState.StartBlock + MAX_TIME_EXTEND
-	}
-	if newEndBlock > gameState.EndBlock {
-		gameState.EndBlock = newEndBlock
-	}
-
-	// Increase key price by 1% for each key bought
+	gameState.EndBlock = currentBlock + TIME_EXTENSION  // Always extend 24h from current block
 	gameState.KeyPrice += (gameState.KeyPrice * numKeys) / 100
 
 	// Save buyer's updated info
 	players.Set(buyer.String(), buyerInfo)
+
+	// Emit events for key purchase
+	EmitKeysPurchased(
+		buyer,
+		numKeys,
+		gameState.KeyPrice,
+		jackpotShare,
+		dividendShare,
+	)
 }
 
 // ClaimDividends allows players to withdraw their earned dividends
@@ -204,6 +211,9 @@ func ClaimDividends() {
 		caller,
 		std.Coins{{"ugnot", amount}},
 	)
+
+	// Emit event for dividend claim
+	EmitDividendsClaimed(caller, amount)
 }
 
 // ClaimOwnerFee allows the owner to withdraw accumulated fees
@@ -225,6 +235,9 @@ func ClaimOwnerFee() {
 		Ownable.Owner(),
 		std.Coins{{"ugnot", amount}},
 	)
+
+	// Emit event for fee claim
+	EmitOwnerFeeClaimed(Ownable.Owner(), amount)
 }
 
 // TransferOwnership allows the current owner to transfer ownership to a new address
@@ -233,6 +246,9 @@ func TransferOwnership(newOwner std.Address) {
 	if err != nil {
 		panic(err.Error())
 	}
+
+	// Emit event for ownership transfer
+	EmitOwnershipTransferred(Ownable.Owner(), newOwner)
 }
 
 // EndGame ends the current round and distributes the jackpot
@@ -260,6 +276,13 @@ func EndGame() {
 		gameState.LastBuyer,
 		std.Coins{{"ugnot", gameState.Jackpot}},
 	)
+
+	// Emit event for game end
+	EmitGameEnded(
+		gameState.CurrentRound,
+		gameState.LastBuyer,
+		gameState.Jackpot,
+	)
 }
 
 // GetGameState returns current game state
@@ -276,6 +299,22 @@ func GetGameState() (int64, int64, int64, std.Address, int64, int64, int64, bool
 		gameState.CurrentRound
 }
 
+// Helper to convert string (address or username) to address
+func stringToAddress(input string) std.Address {
+	// Check if input is valid address
+	addr := std.Address(input)
+	if addr.IsValid() {
+		return addr
+	}
+
+	// Not an address, try to find namespace
+	if user := users.GetUserByName(input); user != nil {
+		return user.Address
+	}
+
+	return ""
+}
+
 // GetPlayerInfo returns a player's keys and dividends
 func GetPlayerInfo(addrOrName interface{}) (int64, int64) {
 	var addr std.Address
@@ -285,6 +324,9 @@ func GetPlayerInfo(addrOrName interface{}) (int64, int64) {
 		addr = v
 	case string:
 		addr = stringToAddress(v)
+		if addr == "" {
+			panic(ErrInvalidAddressOrName.Error())
+		}
 	default:
 		return 0, 0
 	}
@@ -311,6 +353,9 @@ func Render(path string) string {
 		return RenderHome()
 	case c == 2 && parts[0] == "player":
 		addr := stringToAddress(parts[1])
+		if addr == "" {
+			return "Invalid address or unregistered username. Please use a valid Gno address or registered username.\n\n"
+		}
 		keys, dividends := GetPlayerInfo(addr)
 		return RenderPlayer(addr, keys, dividends)
 	default:
@@ -406,20 +451,4 @@ func getDisplayName(addr std.Address) string {
 		return user.Name
 	}
 	return addr.String()
-}
-
-// Helper to convert string (address or username) to address
-func stringToAddress(input string) std.Address {
-	// Check if input is valid address
-	addr := std.Address(input)
-	if addr.IsValid() {
-		return addr
-	}
-
-	// Not an address, try to find namespace
-	if user := users.GetUserByName(input); user != nil {
-		return user.Address
-	}
-
-	panic(ErrInvalidAddressOrName.Error())
 }
