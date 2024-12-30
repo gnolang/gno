@@ -79,7 +79,7 @@ var utcLoc = Location{name: "UTC"}
 
 func (l *Location) get() *Location {
 	if l == nil {
-		return chainLoc
+		return &chainLoc
 	}
 	return l
 }
