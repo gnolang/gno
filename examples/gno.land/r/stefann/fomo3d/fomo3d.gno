@@ -263,7 +263,7 @@ func EndGame() {
 }
 
 // GetGameState returns current game state
-func GetGameState() (int64, int64, int64, std.Address, int64, int64, int64, bool) {
+func GetGameState() (int64, int64, int64, std.Address, int64, int64, int64, bool, int64, int64) {
 	return gameState.StartBlock,
 		gameState.EndBlock,
 		gameState.LastKeyBlock,
@@ -271,7 +271,9 @@ func GetGameState() (int64, int64, int64, std.Address, int64, int64, int64, bool
 		gameState.Jackpot,
 		gameState.KeyPrice,
 		gameState.TotalKeys,
-		gameState.Ended
+		gameState.Ended,
+		gameState.NextPot,
+		gameState.CurrentRound
 }
 
 // GetPlayerInfo returns a player's keys and dividends
@@ -312,14 +314,12 @@ func Render(path string) string {
 		keys, dividends := GetPlayerInfo(addr)
 		return RenderPlayer(addr, keys, dividends)
 	default:
-		return "404: Invalid path\n"
+		return "404: Invalid path\n\n"
 	}
 }
 
 // RenderHome renders the main game state
 func RenderHome() string {
-	gameStart, gameEnd, _, lastBuyer, pot, price, totalKeys, isEnded := GetGameState()
-
 	var builder strings.Builder
 	builder.WriteString("# FOMO3D - The Ultimate Game of Greed\n\n")
 
@@ -331,7 +331,8 @@ func RenderHome() string {
 	builder.WriteString("* Increases the key price by 1%\n")
 	builder.WriteString("* Makes you the potential winner of the jackpot\n")
 	builder.WriteString("* Distributes dividends to all key holders\n\n")
-	builder.WriteString("**How to Win:** Be the last person to buy a key before the timer expires!\n\n")
+	builder.WriteString("## How to Win\n\n")
+	builder.WriteString("* Be the last person to buy a key before the timer expires!\n\n")
 	builder.WriteString("**Rewards Distribution:**\n")
 	builder.WriteString("* 47% goes to the jackpot (for the winner)\n")
 	builder.WriteString("* 28% distributed as dividends to all key holders\n")
@@ -340,31 +341,30 @@ func RenderHome() string {
 
 	// Game Status section
 	builder.WriteString("## Game Status\n\n")
-	if gameStart == 0 {
+	if gameState.StartBlock == 0 {
 		builder.WriteString("🔴 Game has not started yet.\n\n")
 	} else {
-		if isEnded {
+		if gameState.Ended {
 			builder.WriteString("🔴 **Game Status:** Ended\n")
-			builder.WriteString(ufmt.Sprintf("🏆 **Winner:** %s\n", lastBuyer))
+			builder.WriteString(ufmt.Sprintf("🏆 **Winner:** %s\n\n", gameState.LastBuyer))
 		} else {
-			builder.WriteString("🟢 **Game Status:** Active\n")
-			builder.WriteString(ufmt.Sprintf("⏱️ **Time Remaining:** %d blocks\n", gameEnd-std.GetHeight()))
+			builder.WriteString("🟢 **Game Status:** Active\n\n")
+			builder.WriteString(ufmt.Sprintf("⏱️ **Time Remaining:** %d blocks\n\n", gameState.EndBlock-std.GetHeight()))
 		}
-		builder.WriteString(ufmt.Sprintf("💰 **Current Jackpot:** %d ugnot\n", pot))
-		builder.WriteString(ufmt.Sprintf("🔑 **Current Key Price:** %d ugnot\n", price))
-		builder.WriteString(ufmt.Sprintf("📊 **Total Keys:** %d\n", totalKeys))
-		builder.WriteString(ufmt.Sprintf("👤 **Last Buyer:** %s\n", getDisplayName(lastBuyer)))
-		builder.WriteString(ufmt.Sprintf("🎮 **Next Round Pot:** %d ugnot\n", gameState.NextPot))
+		builder.WriteString(ufmt.Sprintf("💰 **Current Jackpot:** %d ugnot\n\n", gameState.Jackpot))
+		builder.WriteString(ufmt.Sprintf("🔑 **Current Key Price:** %d ugnot\n\n", gameState.KeyPrice))
+		builder.WriteString(ufmt.Sprintf("📊 **Total Keys:** %d\n\n", gameState.TotalKeys))
+		builder.WriteString(ufmt.Sprintf("👤 **Last Buyer:** %s\n\n", getDisplayName(gameState.LastBuyer)))
+		builder.WriteString(ufmt.Sprintf("🎮 **Next Round Pot:** %d ugnot\n\n", gameState.NextPot))
 		builder.WriteString(ufmt.Sprintf("🔄 **Current Round:** %d\n\n", gameState.CurrentRound))
 	}
 
 	// Play Game section
-	builder.WriteString("## Play Game\n\n")
-	builder.WriteString("### How to Play:\n")
+	builder.WriteString("## How to Play\n\n")
 	builder.WriteString("1. **Buy Keys** - Send GNOT to this realm with function `BuyKeys()`\n")
 	builder.WriteString("2. **Collect Dividends** - Call `ClaimDividends()` to collect your earnings\n")
-	builder.WriteString("3. **Check Your Stats** - Visit `/player/YOUR_ADDRESS` to see your keys and dividends\n")
-	if isEnded {
+	builder.WriteString("3. **Check Your Stats** - Visit `:player/YOUR_ADDRESS` to see your keys and dividends\n")
+	if gameState.Ended {
 		builder.WriteString("4. **Start New Round** - Call `StartGame()` to begin a new round\n")
 	}
 	builder.WriteString("\n")
@@ -388,7 +388,7 @@ func RenderPlayer(addr std.Address, keys int64, dividends int64) string {
 	displayName := getDisplayName(addr)
 	builder.WriteString(ufmt.Sprintf("# Player Stats: %s\n\n", displayName))
 	builder.WriteString("## Your Holdings\n\n")
-	builder.WriteString(ufmt.Sprintf("🔑 **Keys Owned:** %d\n", keys))
+	builder.WriteString(ufmt.Sprintf("🔑 **Keys Owned:** %d\n\n", keys))
 	builder.WriteString(ufmt.Sprintf("💰 **Unclaimed Dividends:** %d ugnot\n\n", dividends))
 
 	builder.WriteString("## Actions\n\n")
