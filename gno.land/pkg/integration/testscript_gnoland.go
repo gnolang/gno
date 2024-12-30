@@ -7,7 +7,6 @@ import (
 	"flag"
 	"fmt"
 	"hash/crc32"
-	"log/slog"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -20,7 +19,6 @@ import (
 	"github.com/gnolang/gno/gno.land/pkg/gnoland"
 	"github.com/gnolang/gno/gno.land/pkg/gnoland/ugnot"
 	"github.com/gnolang/gno/gno.land/pkg/keyscli"
-	"github.com/gnolang/gno/gno.land/pkg/log"
 	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
 	bft "github.com/gnolang/gno/tm2/pkg/bft/types"
 	"github.com/gnolang/gno/tm2/pkg/commands"
@@ -31,11 +29,9 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/crypto/keys"
 	"github.com/gnolang/gno/tm2/pkg/crypto/keys/client"
 	"github.com/gnolang/gno/tm2/pkg/crypto/secp256k1"
-	tm2Log "github.com/gnolang/gno/tm2/pkg/log"
 	"github.com/gnolang/gno/tm2/pkg/std"
 	"github.com/rogpeppe/go-internal/testscript"
 	"github.com/stretchr/testify/require"
-	"go.uber.org/zap/zapcore"
 )
 
 const nodeMaxLifespan = time.Second * 30
@@ -147,11 +143,6 @@ func SetupGnolandTestscript(t *testing.T, p *testscript.Params) error {
 			env.Values[envKeyExecBin] = gnolandBin
 		}
 
-		// Get `TESTWORK` environement variable from setup
-		persistWorkDir, _ := strconv.ParseBool(env.Getenv("TESTWORK"))
-
-		// kb := keys.NewLazyDBKeybase(name string, dir string)
-
 		tmpdir, dbdir := t.TempDir(), t.TempDir()
 		gnoHomeDir := filepath.Join(tmpdir, "gno")
 
@@ -175,20 +166,6 @@ func SetupGnolandTestscript(t *testing.T, p *testscript.Params) error {
 			sum := crc32.ChecksumIEEE([]byte(works))
 			sid = strconv.FormatUint(uint64(sum), 16)
 			env.Setenv("SID", sid)
-		}
-
-		var logger *slog.Logger
-		{
-			logger = tm2Log.NewNoopLogger()
-			if persistWorkDir || os.Getenv("LOG_PATH_DIR") != "" {
-				logname := fmt.Sprintf("txtar-gnoland-%s.log", sid)
-				logger, err = getTestingLogger(env, logname)
-				if err != nil {
-					return fmt.Errorf("unable to setup logger: %w", err)
-				}
-			}
-
-			env.Values[envKeyLogger] = logger
 		}
 
 		balanceFile := LoadDefaultGenesisBalanceFile(t, gnoRootDir)
@@ -255,7 +232,6 @@ func gnolandCmd(t *testing.T, nodesManager *NodesManager, gnoRootDir string) fun
 	t.Helper()
 
 	return func(ts *testscript.TestScript, neg bool, args []string) {
-		// logger := ts.Value(envKeyLogger).(*slog.Logger)
 		sid := getNodeSID(ts)
 
 		cmd, cmdargs := "", []string{}
@@ -383,7 +359,6 @@ func gnokeyCmd(nodes *NodesManager) func(ts *testscript.TestScript, neg bool, ar
 	return func(ts *testscript.TestScript, neg bool, args []string) {
 		gnoHomeDir := ts.Getenv("GNOHOME")
 
-		logger := ts.Value(envKeyLogger).(*slog.Logger)
 		sid := getNodeSID(ts)
 
 		args, err := unquote(args)
@@ -408,10 +383,6 @@ func gnokeyCmd(nodes *NodesManager) func(ts *testscript.TestScript, neg bool, ar
 			}
 
 			n.nGnoKeyExec++
-			headerlog := fmt.Sprintf("%.02d!EXEC_GNOKEY", n.nGnoKeyExec)
-
-			logger.Info(headerlog, "args", strings.Join(args, " "))
-			defer logger.Info(headerlog, "delimiter", "END")
 		}
 
 		args = append(defaultArgs, args...)
@@ -677,49 +648,6 @@ func unquote(args []string) ([]string, error) {
 
 func getNodeSID(ts *testscript.TestScript) string {
 	return ts.Getenv("SID")
-}
-
-func getTestingLogger(env *testscript.Env, logname string) (*slog.Logger, error) {
-	var path string
-
-	if logdir := os.Getenv("LOG_PATH_DIR"); logdir != "" {
-		if err := os.MkdirAll(logdir, 0o755); err != nil {
-			return nil, fmt.Errorf("unable to make log directory %q", logdir)
-		}
-
-		var err error
-		if path, err = filepath.Abs(filepath.Join(logdir, logname)); err != nil {
-			return nil, fmt.Errorf("unable to get absolute path of logdir %q", logdir)
-		}
-	} else if workdir := env.Getenv("WORK"); workdir != "" {
-		path = filepath.Join(workdir, logname)
-	} else {
-		return tm2Log.NewNoopLogger(), nil
-	}
-
-	f, err := os.Create(path)
-	if err != nil {
-		return nil, fmt.Errorf("unable to create log file %q: %w", path, err)
-	}
-
-	env.Defer(func() {
-		if err := f.Close(); err != nil {
-			panic(fmt.Errorf("unable to close log file %q: %w", path, err))
-		}
-	})
-
-	// Initialize the logger
-	logLevel, err := zapcore.ParseLevel(strings.ToLower(os.Getenv("LOG_LEVEL")))
-	if err != nil {
-		return nil, fmt.Errorf("unable to parse log level, %w", err)
-	}
-
-	// Build zap logger for testing
-	zapLogger := log.NewZapTestingLogger(f, logLevel)
-	env.Defer(func() { zapLogger.Sync() })
-
-	env.T().Log("starting logger", path)
-	return log.ZapLoggerToSlog(zapLogger), nil
 }
 
 func tsValidateError(ts *testscript.TestScript, cmd string, neg bool, err error) {
