@@ -134,7 +134,7 @@ func TestFullGameFlow(t *testing.T) {
 		payment := MIN_KEY_PRICE * 3
 		std.TestSetOrigSend(std.Coins{{"ugnot", payment}}, nil)
 		std.TestIssueCoins(std.GetOrigPkgAddr(), std.Coins{{"ugnot", payment}})
-		
+
 		currentBlock := std.GetHeight()
 		shouldNoPanic(t, BuyKeys)
 
@@ -154,7 +154,7 @@ func TestFullGameFlow(t *testing.T) {
 		shouldEqual(t, buyer, player1)
 		shouldEqual(t, keys, int64(3))
 		shouldEqual(t, isEnded, false)
-		
+
 		shouldEqual(t, pot, payment*JACKPOT_PERCENT/100)
 
 		// Verify owner fee
@@ -204,7 +204,7 @@ func TestFullGameFlow(t *testing.T) {
 		// End game successfully
 		shouldNoPanic(t, EndGame)
 		shouldEqual(t, gameState.Ended, true)
-		
+
 		shouldEqual(t, gameState.CurrentRound, int64(2))
 
 		// Verify winner received jackpot

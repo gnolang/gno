@@ -29,8 +29,8 @@ import (
 // Inspired by the original Ethereum FOMO3D game but implemented in Gno.
 
 const (
-	MIN_KEY_PRICE   int64 = 100000 // minimum key price in ugnot
-	TIME_EXTENSION  int64 = 86400  // time extension in blocks when new key is bought (~24 hours @ 1s blocks)
+	MIN_KEY_PRICE  int64 = 100000 // minimum key price in ugnot
+	TIME_EXTENSION int64 = 86400  // time extension in blocks when new key is bought (~24 hours @ 1s blocks)
 
 	// Distribution percentages (total 100%)
 	JACKPOT_PERCENT   int64 = 47 // 47% goes to jackpot
@@ -78,7 +78,7 @@ func StartGame() {
 	}
 
 	gameState.StartBlock = std.GetHeight()
-	gameState.EndBlock = gameState.StartBlock + TIME_EXTENSION  // Initial 24h window
+	gameState.EndBlock = gameState.StartBlock + TIME_EXTENSION // Initial 24h window
 	gameState.LastKeyBlock = gameState.StartBlock
 	gameState.Jackpot = gameState.NextPot
 	gameState.NextPot = 0
@@ -170,7 +170,7 @@ func BuyKeys() {
 	// Update game state
 	gameState.LastBuyer = buyer
 	gameState.LastKeyBlock = currentBlock
-	gameState.EndBlock = currentBlock + TIME_EXTENSION  // Always extend 24h from current block
+	gameState.EndBlock = currentBlock + TIME_EXTENSION // Always extend 24h from current block
 	gameState.KeyPrice += (gameState.KeyPrice * numKeys) / 100
 
 	// Save buyer's updated info
