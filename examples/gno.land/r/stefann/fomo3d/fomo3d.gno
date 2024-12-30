@@ -218,9 +218,7 @@ func ClaimDividends() {
 
 // ClaimOwnerFee allows the owner to withdraw accumulated fees
 func ClaimOwnerFee() {
-	if !Ownable.CallerIsOwner() {
-		panic(ownable.ErrUnauthorized.Error())
-	}
+	Ownable.AssertCallerIsOwner()
 
 	if gameState.OwnerFee == 0 {
 		panic(ErrNoFeesToClaim.Error())
@@ -236,18 +234,13 @@ func ClaimOwnerFee() {
 		std.Coins{{"ugnot", amount}},
 	)
 
-	// Emit event for fee claim
 	EmitOwnerFeeClaimed(Ownable.Owner(), amount)
 }
 
 // TransferOwnership allows the current owner to transfer ownership to a new address
 func TransferOwnership(newOwner std.Address) {
-	err := Ownable.TransferOwnership(newOwner)
-	if err != nil {
-		panic(err.Error())
-	}
-
-	// Emit event for ownership transfer
+	Ownable.AssertCallerIsOwner()
+	Ownable.TransferOwnership(newOwner)
 	EmitOwnershipTransferred(Ownable.Owner(), newOwner)
 }
 
