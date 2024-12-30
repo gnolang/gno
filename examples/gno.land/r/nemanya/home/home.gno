@@ -239,8 +239,8 @@ func SponsorGnoProject(projectName string) {
 }
 
 func SponsorOtherProject(projectName string) {
-	address := std.GetOrigCaller()
-	amount := std.GetOrigSend()
+	address := std.GetOriginCaller()
+	amount := std.GetOriginSend()
 
 	if amount.AmountOf("ugnot") == 0 {
 		panic("Donation must include GNOT")
@@ -267,7 +267,7 @@ func Withdraw() string {
 	}
 
 	banker := std.GetBanker(std.BankerTypeRealmSend)
-	realmAddress := std.GetOrigPkgAddr()
+	realmAddress := std.GetOriginPkgAddress()
 	coins := banker.GetCoins(realmAddress)
 
 	if len(coins) == 0 {
