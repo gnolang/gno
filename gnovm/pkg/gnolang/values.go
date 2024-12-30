@@ -211,7 +211,8 @@ func (pv *PointerValue) GetBase(store Store) Object {
 // TODO: document as something that enables into-native assignment.
 // TODO: maybe consider this as entrypoint for DataByteValue too?
 func (pv PointerValue) Assign2(alloc *Allocator, store Store, rlm *Realm, tv2 TypedValue, cu bool) {
-	fmt.Println("---Assign2, tv2: ", tv2)
+	fmt.Println("---Assign2, pv: ", pv)
+	fmt.Println("---tv2: ", tv2)
 	// Special cases.
 	if pv.Index == PointerIndexNative {
 		// Special case if extended object && native.
@@ -298,7 +299,7 @@ func (pv PointerValue) Assign2(alloc *Allocator, store Store, rlm *Realm, tv2 Ty
 		fmt.Println("---oo2: ", oo2)
 		fmt.Println("---oo2 pkgId: ", pkgId)
 		if oo2 != nil { // cross realm
-			oo2.SetLastNewEscapedRealm(pkgId) // attach origin package info
+			oo2.SetOriginRealm(pkgId) // attach origin package info
 		}
 		// TODO: make check happens in here?
 		rlm.DidUpdate2(store, pv.Base.(Object), oo1, oo2, refValue)
@@ -2645,20 +2646,20 @@ func typedString(s string) TypedValue {
 }
 
 func fillValueTV(store Store, tv *TypedValue) *TypedValue {
-	//fmt.Println("---fillValueTV, tv: ", tv)
+	fmt.Println("---fillValueTV, tv: ", tv)
 	switch cv := tv.V.(type) {
 	case RefValue:
-		//println("---tv.V RefValue")
-		//fmt.Println("---cv: ", cv)
+		println("---tv.V RefValue")
+		fmt.Println("---cv: ", cv)
 		if cv.PkgPath != "" { // load package
 			tv.V = store.GetPackage(cv.PkgPath, false)
 		} else { // load object
 			// XXX XXX allocate object.
 			tv.V = store.GetObject(cv.ObjectID)
-			//fmt.Println("---tv.V: ", tv.V)
+			fmt.Println("---tv.V: ", tv.V)
 		}
 	case PointerValue:
-		//fmt.Println("---PointerValue")
+		fmt.Println("---PointerValue")
 		// As a special case, cv.Base is filled
 		// and cv.TV set appropriately.
 		// Alternatively, could implement

@@ -11,16 +11,15 @@ type Ibar interface {
 
 var ib Ibar
 
-var b0 *crossrealm.Bar
+var b0 *crossrealm.Bar // no attach
 
-func init() {
-}
+func init() {}
 
 func main() {
-	b0 = crossrealm.Bar2
+	b0 = crossrealm.Bar2 // attach by reference
 	ib = crossrealm.Bar2
 	println(ib)
-	crossrealm.ChangeBar()
+	b0.ModifyBar() // call bound methond
 	println(ib)
 	println(b0)
 }
@@ -200,7 +199,7 @@ func main() {
 //                     "Location": {
 //                         "Column": "1",
 //                         "File": "main.gno",
-//                         "Line": "19",
+//                         "Line": "18",
 //                         "PkgPath": "gno.land/r/crossrealm_test"
 //                     }
 //                 },

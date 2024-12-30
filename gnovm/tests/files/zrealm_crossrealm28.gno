@@ -17,16 +17,16 @@ func (foo) Foo() { println("hello " + std.CurrentRealm().PkgPath()) }
 var fs []crossrealm.Fooer
 
 func init() {
-	fs = append(fs, foo{name: "1"})
-	fs = append(fs, foo{name: "2"})
+	//fs = append(fs, foo{name: "1"}) // type of elem is from external realm
+	//s1 := []crossrealm.Fooer{foo{name: "s1"}}
+	//r := append(fs, s1)
+
+	r := append(fs, foo{name: "1"}) // type of elem is from external realm, but no panic since no attach
+	fs = r                          // panic while attach
 }
 
 func main() {
-	crossrealm.SetSlice(fs)
-	println("ok")
 }
 
-// Output:
-// (struct{("1" string)} gno.land/r/crossrealm_test.foo)
-// (struct{("2" string)} gno.land/r/crossrealm_test.foo)
-// ok
+// Error:
+// cannot attach a reference to an unreal object from an external realm

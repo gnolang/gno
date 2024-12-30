@@ -15,4 +15,4 @@ func main() {
 }
 
 // Error:
-// should not happen while attempting to attach new real object from external realm
+// cannot attach a reference to an unreal object from an external realm

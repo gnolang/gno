@@ -13,16 +13,10 @@ type foo struct {
 
 func (foo) Foo() { println("hello " + std.CurrentRealm().PkgPath()) }
 
-var arr [2]crossrealm.Fooer // panic
+var arr [2]crossrealm.Fooer // panic while attach zero value
 
 func main() {
-	arr[0] = foo{name: "1"}
-	arr[1] = foo{name: "2"}
-
-	fs := arr[1:]
-	println("ok")
-	crossrealm.SetSlice(fs)
 }
 
 // Error:
-// should not happen while attempting to attach new real object from external realm
+// cannot attach a value of a type defined by another realm

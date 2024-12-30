@@ -197,10 +197,13 @@ func (rlm *Realm) DidUpdate(po, xo, co Object) {
 
 // ref value is the derived value from co, like a slice.
 func (rlm *Realm) DidUpdate2(store Store, po, xo, co Object, refValue Value) {
-	fmt.Println("---DidUpdate2, rlm.ID: ", rlm.ID)
-	//fmt.Printf("---xo: %v, type of xo: %v\n", xo, reflect.TypeOf(xo))
+	fmt.Printf("---DidUpdate2, po: %v, type of po: %v\n", po, reflect.TypeOf(po))
+	fmt.Printf("---xo: %v, type of xo: %v\n", xo, reflect.TypeOf(xo))
 	fmt.Printf("---co: %v, type of co: %v\n", co, reflect.TypeOf(co))
-	fmt.Printf("---po: %v, type of po: %v\n", po, reflect.TypeOf(po))
+	if co != nil {
+		fmt.Println("co.GetOriginRealm: ", co.GetOriginRealm())
+	}
+	fmt.Println("---rlm.ID: ", rlm.ID)
 
 	if rlm == nil {
 		return
@@ -227,6 +230,7 @@ func (rlm *Realm) DidUpdate2(store Store, po, xo, co Object, refValue Value) {
 		return // do nothing.
 	}
 
+	// TODO: check not real external here, if po is real, association is invalid
 	fmt.Println("---po.GetObjectID().PkgID: ", po.GetObjectID().PkgID)
 	if po.GetObjectID().PkgID != rlm.ID {
 		panic("cannot modify external-realm or non-realm object")
@@ -252,6 +256,7 @@ func (rlm *Realm) DidUpdate2(store Store, po, xo, co Object, refValue Value) {
 				// XXX, why packageBlock is automatically escaped?
 				println("---already escaped, should check cross realm?")
 				// already escaped
+				rlm.MarkNewEscapedCheckCrossRealm(store, co, refValue)
 			} else {
 				rlm.MarkNewEscapedCheckCrossRealm(store, co, refValue)
 			}
@@ -282,7 +287,7 @@ func (rlm *Realm) DidUpdate2(store Store, po, xo, co Object, refValue Value) {
 // XXX, oo coming here must be referenced type, since they already escaped.
 // XXX, so oo has been persisted, thus fillValueTV
 func checkCrossRealm(store Store, oo Object, refValue Value) {
-	fmt.Println("---checkCrossReal, oo: ", oo)
+	fmt.Println("---checkCrossRealm, oo: ", oo)
 	switch v := oo.(type) {
 	case *StructValue:
 		fmt.Println("---StructValue...")
@@ -377,21 +382,23 @@ func (rlm *Realm) MarkNewEscapedCheckCrossRealm(store Store, oo Object, refValue
 	//fmt.Println("---oo.lastNewRealEscapedRealm: ", oo.GetLastNewEscapedRealm())
 	//fmt.Println("---oo.GetIsReal: ", oo.GetIsReal())
 
-	if oo.GetLastNewEscapedRealm() == rlm.ID {
+	if oo.GetOriginRealm() == rlm.ID {
 		return
 	}
 
-	fmt.Println("---oo.GetLastNewEscapedRealm(): ", oo.GetLastNewEscapedRealm())
+	fmt.Println("---oo.GetLastNewEscapedRealm(): ", oo.GetOriginRealm())
 	fmt.Println("---rlm.ID: ", rlm.ID)
-	if oo.GetLastNewEscapedRealm() != rlm.ID { // crossing realm
+	if oo.GetOriginRealm() != rlm.ID { // crossing realm
 		if refValue != nil { // is reference object from external realm
 			checkCrossRealm(store, oo, refValue)
 		} else {
-			panic("should not happen while attempting to attach objects by value from external realm")
+			panic("cannot attach objects by value from external realm")
 		}
 	}
 
-	rlm.MarkNewEscaped(oo)
+	if !oo.GetIsEscaped() {
+		rlm.MarkNewEscaped(oo)
+	}
 }
 
 func (rlm *Realm) MarkNewReal(oo Object) {
@@ -609,9 +616,9 @@ func (rlm *Realm) processNewCreatedMarks(store Store) {
 // oo must be marked new-real, and ref-count already incremented.
 func (rlm *Realm) incRefCreatedDescendants(store Store, oo Object) {
 	//fmt.Println("---incRefCreatedDescendants, rlm.ID: ", rlm.ID)
-	//fmt.Println("---incRefCreatedDescendants oo.GetLastEscapedRealm: ", oo.GetLastNewEscapedRealm())
 	fmt.Println("---incRefCreatedDescendants from oo: ", oo)
-	//fmt.Println("---oo.GetRefCount: ", oo.GetRefCount())
+	fmt.Println("---oo.GetOriginRealm: ", oo.GetOriginRealm())
+	fmt.Println("---oo.GetRefCount: ", oo.GetRefCount())
 	//fmt.Println("---incRefCreatedDescendants, oo.GetObjectID: ", oo.GetObjectID())
 
 	if debug {
@@ -626,10 +633,14 @@ func (rlm *Realm) incRefCreatedDescendants(store Store, oo Object) {
 	// XXX, oo must be new real here, it's not escaped
 	// if it's reference, all right
 	fmt.Println("---oo.GetIsRef: ", oo.GetIsRef())
-	if !oo.GetLastNewEscapedRealm().IsZero() && oo.GetLastNewEscapedRealm() != rlm.ID && !oo.GetIsRef() {
+	if !oo.GetOriginRealm().IsZero() && oo.GetOriginRealm() != rlm.ID {
 		//fmt.Println("---oo.GetLastNewEscapedRealm: ", oo.GetLastNewEscapedRealm())
 		//fmt.Println("---rlm.ID: ", rlm.ID)
-		panic("should not happen while attempting to attach new real object from external realm")
+		if oo.GetIsRef() {
+			panic("cannot attach a reference to an unreal object from an external realm")
+		} else {
+			panic("cannot attach a value of a type defined by another realm")
+		}
 	}
 
 	// RECURSE GUARD
@@ -661,7 +672,7 @@ func (rlm *Realm) incRefCreatedDescendants(store Store, oo Object) {
 		}
 		child.IncRefCount()
 		rc := child.GetRefCount()
-		//fmt.Println("---rc after inc: ", rc)
+		fmt.Println("---rc after inc: ", rc)
 		if rc == 1 {
 			if child.GetIsReal() {
 				//fmt.Println("---child is real, child: ", child)
@@ -990,7 +1001,8 @@ func (rlm *Realm) saveUnsavedObjectRecursively(store Store, oo Object) {
 func (rlm *Realm) saveObject(store Store, oo Object) {
 	fmt.Println("---saveObject: ", oo)
 	oid := oo.GetObjectID()
-	fmt.Println("---saveObject: ", oid)
+	fmt.Println("---oid: ", oid)
+	fmt.Println("---oo.GetRefCount: ", oo.GetRefCount())
 	if oid.IsZero() {
 		panic("unexpected zero object id")
 	}
@@ -1207,9 +1219,12 @@ func copyMethods(methods []TypedValue) []TypedValue {
 }
 
 func refOrCopyType(typ Type) Type {
+	fmt.Println("---refOrCopyType, typ: ", typ)
 	if dt, ok := typ.(*DeclaredType); ok {
+		fmt.Println("---declared type: ", dt)
 		return RefType{ID: dt.TypeID()}
 	} else {
+		println("---else")
 		return copyTypeWithRefs(typ)
 	}
 }
@@ -1230,6 +1245,7 @@ func copyFieldsWithRefs(fields []FieldType) []FieldType {
 // Copies type but with references to dependant types;
 // the result is suitable for persistence bytes serialization.
 func copyTypeWithRefs(typ Type) Type {
+	fmt.Println("---copyTypeWithRefs, typ: ", typ)
 	switch ct := typ.(type) {
 	case nil:
 		panic("cannot copy nil types")
@@ -1320,7 +1336,7 @@ func copyTypeWithRefs(typ Type) Type {
 // Also checks for integrity of immediate children -- they must already be
 // persistent (real), and not dirty, or else this function panics.
 func copyValueWithRefs(val Value) Value {
-	//fmt.Println("---copyValueWithRefs, val: ", val)
+	fmt.Println("---copyValueWithRefs, val: ", val)
 	switch cv := val.(type) {
 	case nil:
 		return nil
@@ -1371,6 +1387,7 @@ func copyValueWithRefs(val Value) Value {
 			Maxcap: cv.Maxcap,
 		}
 	case *StructValue:
+		println("---struct value")
 		fields := make([]TypedValue, len(cv.Fields))
 		for i, ftv := range cv.Fields {
 			fields[i] = refOrCopyValue(ftv)
@@ -1495,6 +1512,7 @@ func copyValueWithRefs(val Value) Value {
 
 // (fully) fills the type.
 func fillType(store Store, typ Type) Type {
+	fmt.Println("---fillType, typ: ", typ)
 	switch ct := typ.(type) {
 	case nil:
 		return nil
@@ -1570,6 +1588,7 @@ func fillType(store Store, typ Type) Type {
 		}
 		return ct
 	case RefType:
+		println("---ref type")
 		return store.GetType(ct.TypeID())
 	default:
 		panic(fmt.Sprintf(
@@ -1578,6 +1597,7 @@ func fillType(store Store, typ Type) Type {
 }
 
 func fillTypesTV(store Store, tv *TypedValue) {
+	fmt.Println("---fillTypesTV, tv: ", tv)
 	tv.T = fillType(store, tv.T)
 	tv.V = fillTypesOfValue(store, tv.V)
 }
@@ -1585,6 +1605,7 @@ func fillTypesTV(store Store, tv *TypedValue) {
 // Partially fills loaded objects shallowly, similarly to
 // getUnsavedTypes. Replaces all RefTypes with corresponding types.
 func fillTypesOfValue(store Store, val Value) Value {
+	fmt.Println("---fillTypesOfValue, val: ", val)
 	switch cv := val.(type) {
 	case nil: // do nothing
 		return cv
@@ -1615,6 +1636,7 @@ func fillTypesOfValue(store Store, val Value) Value {
 		fillTypesOfValue(store, cv.Base)
 		return cv
 	case *StructValue:
+		println("struct value")
 		for i := 0; i < len(cv.Fields); i++ {
 			ctv := &cv.Fields[i]
 			fillTypesTV(store, ctv)
@@ -1780,10 +1802,11 @@ func ensureUniq(oozz ...[]Object) {
 }
 
 func refOrCopyValue(tv TypedValue) TypedValue {
-	//fmt.Println("---refOrCopyValue:", tv)
+	fmt.Println("---refOrCopyValue:", tv)
 	if tv.T != nil {
 		tv.T = refOrCopyType(tv.T)
 	}
+	fmt.Println("---Tv.T: ", tv.T)
 	if obj, ok := tv.V.(Object); ok {
 		tv.V = toRefValue(obj)
 		return tv

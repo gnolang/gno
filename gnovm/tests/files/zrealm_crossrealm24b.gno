@@ -5,13 +5,17 @@ import (
 	crossrealm "gno.land/r/demo/tests/crossrealm"
 )
 
-var b0 *crossrealm.Bar = &crossrealm.Bar{A: 11}
+// TODO:
+// type XX crossrealm.Bar
+
+var b1 *crossrealm.Bar // this is valid decl, NOT attach
 
 func init() {
 }
 
 func main() {
-	print(".")
+	b1 = &crossrealm.Bar{A: 22} // this should panic
+	println(b1)
 }
 
 // Error:

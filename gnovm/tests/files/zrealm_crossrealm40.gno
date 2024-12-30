@@ -10,5 +10,5 @@ func main() {
 	println(f)
 }
 
-// XXX, fix this.
 // Error:
+// cannot attach a value of a type defined by another realm

@@ -56,8 +56,8 @@ func GetSlice5() []*XYZ { // TODO, unwrap
 }
 
 func GetSlice6(f func(s []*XYZ)) {
-	s6[1] = &XYZ{"6.1"} // the initial value is deleted, so this is not real after append
-	f(s6)
+	s6[1] = &XYZ{"6.1"}
+	f(s6) // not real now
 }
 
 func GetSlice7(f func(s [2]XYZ)) {

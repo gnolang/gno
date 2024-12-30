@@ -299,6 +299,7 @@ func (ds *defaultStore) GetObjectSafe(oid ObjectID) Object {
 // loads and caches an object.
 // CONTRACT: object isn't already in the cache.
 func (ds *defaultStore) loadObjectSafe(oid ObjectID) Object {
+	fmt.Println("---loadObjectSafe, oid: ", oid)
 	key := backendObjectKey(oid)
 	hashbz := ds.baseStore.Get([]byte(key))
 	if hashbz != nil {
@@ -324,11 +325,11 @@ func (ds *defaultStore) loadObjectSafe(oid ObjectID) Object {
 // NOTE: unlike GetObject(), SetObject() is also used to persist updated
 // package values.
 func (ds *defaultStore) SetObject(oo Object) {
-	//fmt.Println("---SetObject---,oo: ", oo)
+	fmt.Println("---SetObject: ", oo)
 	oid := oo.GetObjectID()
 	// replace children/fields with Ref.
 	o2 := copyValueWithRefs(oo)
-	//fmt.Println("---SetObject, o2: ", o2)
+	fmt.Println("---o2: ", o2)
 	// marshal to binary.
 	bz := amino.MustMarshalAny(o2)
 	// set hash.
@@ -399,7 +400,9 @@ func (ds *defaultStore) DelObject(oo Object) {
 // NOTE: The implementation matches that of GetObject() in anticipation of what
 // the persistent type system might work like.
 func (ds *defaultStore) GetType(tid TypeID) Type {
+	fmt.Println("---GetType: ", tid)
 	tt := ds.GetTypeSafe(tid)
+	fmt.Println("---tt: ", tt)
 	if tt == nil {
 		ds.Print()
 		panic(fmt.Sprintf("unexpected type with id %s", tid.String()))
@@ -408,6 +411,7 @@ func (ds *defaultStore) GetType(tid TypeID) Type {
 }
 
 func (ds *defaultStore) GetTypeSafe(tid TypeID) Type {
+	fmt.Println("---GetTypeSafe: ", tid)
 	// check cache.
 	if tt, exists := ds.cacheTypes[tid]; exists {
 		return tt

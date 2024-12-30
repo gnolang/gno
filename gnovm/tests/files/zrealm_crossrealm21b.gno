@@ -5,9 +5,17 @@ import (
 	crossrealm "gno.land/r/demo/tests/crossrealm"
 )
 
-var b0 *crossrealm.Bar = &crossrealm.Bar{A: 11}
+// associate to a containing object
+type Container struct {
+	name string
+	b    *crossrealm.Bar
+}
+
+var c Container
 
 func init() {
+	b0 := &crossrealm.Bar{A: 1}             // this is valid association
+	c = Container{name: "container", b: b0} // XXX, should panic
 }
 
 func main() {

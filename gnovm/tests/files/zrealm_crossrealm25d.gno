@@ -31,4 +31,4 @@ func main() {
 }
 
 // Error:
-// should not happen while attempting to attach objects by value from external realm
+// cannot attach objects by value from external realm

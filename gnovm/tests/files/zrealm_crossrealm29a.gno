@@ -13,9 +13,9 @@ var f = func() bool {
 }
 
 func main() {
-	crossrealm.SetCallback(f)
+	crossrealm.SetCallback(f) // func value
 	crossrealm.ExecuteCallback()
 }
 
-// Output:
-// callback
+// Error:
+// cannot attach objects by value from external realm

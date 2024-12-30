@@ -10,5 +10,5 @@ func main() {
 	println(f())
 }
 
-// Output:
-// a
+// Error:
+// cannot attach objects by value from external realm

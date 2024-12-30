@@ -14,4 +14,4 @@ func main() {
 }
 
 // Error:
-// should not happen while attempting to attach new real object from external realm
+// cannot attach a value of a type defined by another realm
