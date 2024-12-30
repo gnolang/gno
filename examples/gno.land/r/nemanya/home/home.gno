@@ -216,8 +216,8 @@ func isAuthorized(addr std.Address) bool {
 }
 
 func SponsorGnoProject(projectName string) {
-	address := std.GetOriginCaller()
-	amount := std.GetOriginSend()
+	address := std.OriginCaller()
+	amount := std.OriginSend()
 
 	if amount.AmountOf("ugnot") == 0 {
 		panic("Donation must include GNOT")
@@ -239,8 +239,8 @@ func SponsorGnoProject(projectName string) {
 }
 
 func SponsorOtherProject(projectName string) {
-	address := std.GetOriginCaller()
-	amount := std.GetOriginSend()
+	address := std.OriginCaller()
+	amount := std.OriginSend()
 
 	if amount.AmountOf("ugnot") == 0 {
 		panic("Donation must include GNOT")
