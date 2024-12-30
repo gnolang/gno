@@ -27,12 +27,12 @@ type Project struct {
 }
 
 var (
-	textArt       string
-	aboutMe       string
-	sponsorInfo   string
-	socialLinks   map[string]SocialLink
-	gnoProjects   map[string]Project
-	otherProjects map[string]Project
+	textArt        string
+	aboutMe        string
+	sponsorInfo    string
+	socialLinks    map[string]SocialLink
+	gnoProjects    map[string]Project
+	otherProjects  map[string]Project
 	totalDonations std.Coins
 )
 
@@ -266,15 +266,15 @@ func Withdraw() string {
 		panic(config.ErrUnauthorized)
 	}
 
-    banker := std.GetBanker(std.BankerTypeRealmSend)
-    realmAddress := std.GetOrigPkgAddr()
-    coins := banker.GetCoins(realmAddress)
+	banker := std.GetBanker(std.BankerTypeRealmSend)
+	realmAddress := std.GetOrigPkgAddr()
+	coins := banker.GetCoins(realmAddress)
 
-    if len(coins) == 0 {
-        return "No coins available to withdraw"
-    }
+	if len(coins) == 0 {
+		return "No coins available to withdraw"
+	}
 
-    banker.SendCoins(realmAddress, config.Address(), coins)
+	banker.SendCoins(realmAddress, config.Address(), coins)
 
-    return "Successfully withdrew all coins to config address"
+	return "Successfully withdrew all coins to config address"
 }
