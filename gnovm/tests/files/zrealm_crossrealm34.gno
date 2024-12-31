@@ -4,7 +4,7 @@ package crossrealm_test
 import (
 	"std"
 
-	crossrealm "gno.land/r/demo/tests/crossrealm"
+	crossrealm "gno.land/r/demo/tests/crossrealm/slice"
 )
 
 var SS []*crossrealm.XYZ
@@ -18,7 +18,7 @@ func main() {
 // .
 
 // Realm:
-// switchrealm["gno.land/r/demo/tests/crossrealm"]
+// switchrealm["gno.land/r/demo/tests/crossrealm/slice"]
 // switchrealm["gno.land/r/crossrealm_test"]
 // u[f5a516808f8976c33939133293d598ce3bca4e8d:2]={
 //     "Blank": {},
@@ -47,7 +47,7 @@ func main() {
 //                     "@type": "/gno.PointerType",
 //                     "Elt": {
 //                         "@type": "/gno.RefType",
-//                         "ID": "gno.land/r/demo/tests/crossrealm.XYZ"
+//                         "ID": "gno.land/r/demo/tests/crossrealm/slice.XYZ"
 //                     }
 //                 },
 //                 "Vrd": false
@@ -57,7 +57,7 @@ func main() {
 //                 "Base": {
 //                     "@type": "/gno.RefValue",
 //                     "Escaped": true,
-//                     "ObjectID": "1712ac7adcfdc8e58a67e5615e20fb312394c4df:35"
+//                     "ObjectID": "ff34c6500d0daee58e4ac9899c0e7ecc131db63e:17"
 //                 },
 //                 "Length": "1",
 //                 "Maxcap": "1",

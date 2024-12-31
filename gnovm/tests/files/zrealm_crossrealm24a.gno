@@ -2,7 +2,7 @@
 package crossrealm_test
 
 import (
-	crossrealm "gno.land/r/demo/tests/crossrealm"
+	crossrealm "gno.land/r/demo/tests/crossrealm/struct"
 )
 
 var b0 *crossrealm.Bar = &crossrealm.Bar{A: 11}

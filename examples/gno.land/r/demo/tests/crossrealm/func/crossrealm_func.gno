@@ -1,4 +1,16 @@
-package crossrealm
+package crossrealm_func
+
+type F func() bool
+
+var f F
+
+func SetCallback(ff F) {
+	f = ff
+}
+
+func ExecuteCallback() {
+	f()
+}
 
 var ff = func() string { return "a" } // parent object already escaped
 

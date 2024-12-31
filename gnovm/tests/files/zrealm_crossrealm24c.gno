@@ -3,7 +3,7 @@ package crossrealm_test
 
 import (
 	"fmt"
-	crossrealm "gno.land/r/demo/tests/crossrealm"
+	crossrealm "gno.land/r/demo/tests/crossrealm/struct"
 )
 
 type Dt *crossrealm.Bar

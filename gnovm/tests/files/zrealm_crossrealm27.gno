@@ -4,7 +4,7 @@ package crossrealm_test
 import (
 	"std"
 
-	crossrealm "gno.land/r/demo/tests/crossrealm"
+	crossrealm "gno.land/r/demo/tests/crossrealm/iface"
 )
 
 type fooer struct {
@@ -25,8 +25,8 @@ func main() {
 // .
 
 // Realm:
-// switchrealm["gno.land/r/demo/tests/crossrealm"]
-// u[1712ac7adcfdc8e58a67e5615e20fb312394c4df:8]={
+// switchrealm["gno.land/r/demo/tests/crossrealm/iface"]
+// u[5836d1a3cec217737a5553d4c1a03d8897d5f281:4]={
 //     "Fields": [
 //         {
 //             "T": {
@@ -55,9 +55,9 @@ func main() {
 //         }
 //     ],
 //     "ObjectInfo": {
-//         "ID": "1712ac7adcfdc8e58a67e5615e20fb312394c4df:8",
-//         "ModTime": "44",
-//         "OwnerID": "1712ac7adcfdc8e58a67e5615e20fb312394c4df:2",
+//         "ID": "5836d1a3cec217737a5553d4c1a03d8897d5f281:4",
+//         "ModTime": "4",
+//         "OwnerID": "5836d1a3cec217737a5553d4c1a03d8897d5f281:2",
 //         "RefCount": "1"
 //     }
 // }

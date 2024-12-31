@@ -1,7 +1,7 @@
 // PKGPATH: gno.land/r/crossrealm_test
 package crossrealm_test
 
-import crossrealm "gno.land/r/demo/tests/crossrealm"
+import crossrealm "gno.land/r/demo/tests/crossrealm/struct"
 import "fmt"
 
 type LocalBar *crossrealm.Bar // no attach

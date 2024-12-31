@@ -1,4 +1,4 @@
-package crossrealm
+package iface
 
 // XXX, how about not interface
 type Fooer interface{ Foo() }

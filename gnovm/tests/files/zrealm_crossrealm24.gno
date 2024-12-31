@@ -2,7 +2,7 @@
 package crossrealm_test
 
 import (
-	crossrealm "gno.land/r/demo/tests/crossrealm"
+	crossrealm "gno.land/r/demo/tests/crossrealm/struct"
 )
 
 type Ibar interface {
@@ -26,13 +26,13 @@ func main() {
 }
 
 // Output:
-// &(struct{(22 int)} gno.land/r/demo/tests/crossrealm.Bar)
-// &(struct{(23 int)} gno.land/r/demo/tests/crossrealm.Bar)
-// &(struct{(23 int)} gno.land/r/demo/tests/crossrealm.Bar)
+// &(struct{(22 int)} gno.land/r/demo/tests/crossrealm/struct.Bar)
+// &(struct{(23 int)} gno.land/r/demo/tests/crossrealm/struct.Bar)
+// &(struct{(23 int)} gno.land/r/demo/tests/crossrealm/struct.Bar)
 
 // Realm:
-// switchrealm["gno.land/r/demo/tests/crossrealm"]
-// u[1712ac7adcfdc8e58a67e5615e20fb312394c4df:20]={
+// switchrealm["gno.land/r/demo/tests/crossrealm/struct"]
+// u[5965ae851c02ab677bc8394b408535c1db9b2635:4]={
 //     "Fields": [
 //         {
 //             "N": "FwAAAAAAAAA=",
@@ -43,9 +43,9 @@ func main() {
 //         }
 //     ],
 //     "ObjectInfo": {
-//         "ID": "1712ac7adcfdc8e58a67e5615e20fb312394c4df:20",
-//         "ModTime": "44",
-//         "OwnerID": "1712ac7adcfdc8e58a67e5615e20fb312394c4df:19",
+//         "ID": "5965ae851c02ab677bc8394b408535c1db9b2635:4",
+//         "ModTime": "10",
+//         "OwnerID": "5965ae851c02ab677bc8394b408535c1db9b2635:3",
 //         "RefCount": "1"
 //     }
 // }
@@ -106,7 +106,7 @@ func main() {
 //                 "@type": "/gno.PointerType",
 //                 "Elt": {
 //                     "@type": "/gno.RefType",
-//                     "ID": "gno.land/r/demo/tests/crossrealm.Bar"
+//                     "ID": "gno.land/r/demo/tests/crossrealm/struct.Bar"
 //                 }
 //             },
 //             "V": {
@@ -114,7 +114,7 @@ func main() {
 //                 "Base": {
 //                     "@type": "/gno.RefValue",
 //                     "Escaped": true,
-//                     "ObjectID": "1712ac7adcfdc8e58a67e5615e20fb312394c4df:19"
+//                     "ObjectID": "5965ae851c02ab677bc8394b408535c1db9b2635:3"
 //                 },
 //                 "Index": "0",
 //                 "TV": null
@@ -125,7 +125,7 @@ func main() {
 //                 "@type": "/gno.PointerType",
 //                 "Elt": {
 //                     "@type": "/gno.RefType",
-//                     "ID": "gno.land/r/demo/tests/crossrealm.Bar"
+//                     "ID": "gno.land/r/demo/tests/crossrealm/struct.Bar"
 //                 }
 //             },
 //             "V": {
@@ -133,7 +133,7 @@ func main() {
 //                 "Base": {
 //                     "@type": "/gno.RefValue",
 //                     "Escaped": true,
-//                     "ObjectID": "1712ac7adcfdc8e58a67e5615e20fb312394c4df:19"
+//                     "ObjectID": "5965ae851c02ab677bc8394b408535c1db9b2635:3"
 //                 },
 //                 "Index": "0",
 //                 "TV": null

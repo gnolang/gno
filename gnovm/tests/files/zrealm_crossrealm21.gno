@@ -2,7 +2,7 @@
 package crossrealm_test
 
 import (
-	crossrealm "gno.land/r/demo/tests/crossrealm"
+	crossrealm "gno.land/r/demo/tests/crossrealm/struct"
 )
 
 func init() {

@@ -1,5 +1,17 @@
-package crossrealm
+package crossrealm_slice
 
+type Fooer interface{ Foo() }
+
+var S []Fooer
+
+func SetSlice(fs []Fooer) {
+	S = fs
+	for _, f := range fs {
+		println(f)
+	}
+}
+
+// -------------------------------------
 type XYZ struct{ name string }
 
 var s1 []XYZ

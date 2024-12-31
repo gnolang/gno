@@ -1,4 +1,4 @@
-package crossrealm
+package crossrealm_map
 
 var m map[string]int
 

@@ -4,7 +4,7 @@ package crossrealm_test
 import (
 	"std"
 
-	crossrealm "gno.land/r/demo/tests/crossrealm"
+	crossrealm "gno.land/r/demo/tests/crossrealm/func"
 )
 
 func main() {
