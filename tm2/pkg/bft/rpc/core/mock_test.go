@@ -1,6 +1,9 @@
 package core
 
-import "github.com/gnolang/gno/tm2/pkg/bft/types"
+import (
+	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
+	"github.com/gnolang/gno/tm2/pkg/bft/types"
+)
 
 type (
 	heightDelegate          func() int64
@@ -75,4 +78,27 @@ func (m *mockBlockStore) SaveBlock(block *types.Block, blockParts *types.PartSet
 	if m.saveBlockFn != nil {
 		m.saveBlockFn(block, blockParts, seenCommit)
 	}
+}
+
+type mockProxyAppQuery struct {
+	queryFn func(req abci.RequestQuery) (abci.ResponseQuery, error)
+}
+
+func (m *mockProxyAppQuery) QuerySync(req abci.RequestQuery) (abci.ResponseQuery, error) {
+	if m.queryFn != nil {
+		return m.queryFn(req)
+	}
+	return abci.ResponseQuery{}, nil
+}
+
+func (m *mockProxyAppQuery) EchoSync(msg string) (abci.ResponseEcho, error) {
+	return abci.ResponseEcho{}, nil
+}
+
+func (m *mockProxyAppQuery) InfoSync(req abci.RequestInfo) (abci.ResponseInfo, error) {
+	return abci.ResponseInfo{}, nil
+}
+
+func (m *mockProxyAppQuery) Error() error {
+	return nil
 }
