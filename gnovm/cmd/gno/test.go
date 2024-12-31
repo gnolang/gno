@@ -267,7 +267,6 @@ func execTest(cfg *testCfg, args []string, io commands.IO) error {
 				io.ErrPrintfln("ok      %s \t%s", pkg.Dir, dstr)
 			}
 		}()
-
 	}
 
 	wg.Wait()
