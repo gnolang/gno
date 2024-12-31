@@ -7,7 +7,9 @@ import (
 	goio "io"
 	"log"
 	"path/filepath"
+	"runtime"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
@@ -16,6 +18,7 @@ import (
 	"github.com/gnolang/gno/gnovm/pkg/test"
 	"github.com/gnolang/gno/tm2/pkg/commands"
 	"github.com/gnolang/gno/tm2/pkg/random"
+	"golang.org/x/sync/semaphore"
 )
 
 type testCfg struct {
@@ -23,6 +26,7 @@ type testCfg struct {
 	rootDir             string
 	run                 string
 	timeout             time.Duration
+	parallel            int
 	updateGoldenTests   bool
 	printRuntimeMetrics bool
 	printEvents         bool
@@ -123,6 +127,13 @@ func (c *testCfg) RegisterFlags(fs *flag.FlagSet) {
 		"test name filtering pattern",
 	)
 
+	fs.IntVar(
+		&c.parallel,
+		"parallel",
+		1,
+		"number of package to run concurrently (default(1): sequentially); 0 = GOMAXPROCESS",
+	)
+
 	fs.DurationVar(
 		&c.timeout,
 		"timeout",
@@ -181,15 +192,18 @@ func execTest(cfg *testCfg, args []string, io commands.IO) error {
 	if cfg.verbose {
 		stdout = io.Out()
 	}
-	opts := test.NewTestOptions(cfg.rootDir, io.In(), stdout, io.Err())
-	opts.RunFlag = cfg.run
-	opts.Sync = cfg.updateGoldenTests
-	opts.Verbose = cfg.verbose
-	opts.Metrics = cfg.printRuntimeMetrics
-	opts.Events = cfg.printEvents
 
-	buildErrCount := 0
-	testErrCount := 0
+	var buildErrCount, testErrCount uint64
+
+	var (
+		maxWorkers = runtime.GOMAXPROCS(cfg.parallel)
+		sem        = semaphore.NewWeighted(int64(maxWorkers))
+	)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	var wg sync.WaitGroup
 	for _, pkg := range subPkgs {
 		if len(pkg.TestGnoFiles) == 0 && len(pkg.FiletestGnoFiles) == 0 {
 			io.ErrPrintfln("?       %s \t[no test files]", pkg.Dir)
@@ -211,26 +225,53 @@ func execTest(cfg *testCfg, args []string, io commands.IO) error {
 
 		memPkg := gno.MustReadMemPackage(pkg.Dir, gnoPkgPath)
 
-		startedAt := time.Now()
-		hasError := catchRuntimeError(gnoPkgPath, io.Err(), func() {
-			err = test.Test(memPkg, pkg.Dir, opts)
-		})
+		var syncWrite sync.Mutex
 
-		duration := time.Since(startedAt)
-		dstr := fmtDuration(duration)
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
 
-		if hasError || err != nil {
-			if err != nil {
-				io.ErrPrintfln("%s: test pkg: %v", pkg.Dir, err)
+			if err := sem.Acquire(ctx, 1); err != nil {
+				return
 			}
-			io.ErrPrintfln("FAIL")
-			io.ErrPrintfln("FAIL    %s \t%s", pkg.Dir, dstr)
-			io.ErrPrintfln("FAIL")
-			testErrCount++
-		} else {
-			io.ErrPrintfln("ok      %s \t%s", pkg.Dir, dstr)
-		}
+			defer sem.Release(1)
+
+			opts := test.NewTestOptions(cfg.rootDir, io.In(), stdout, io.Err())
+			opts.RunFlag = cfg.run
+			opts.Sync = cfg.updateGoldenTests
+			opts.Verbose = cfg.verbose
+			opts.Metrics = cfg.printRuntimeMetrics
+			opts.Events = cfg.printEvents
+
+			startedAt := time.Now()
+			hasError := catchRuntimeError(gnoPkgPath, io.Err(), func() {
+				err = test.Test(memPkg, pkg.Dir, opts)
+			})
+
+			duration := time.Since(startedAt)
+			dstr := fmtDuration(duration)
+
+			syncWrite.Lock()
+			defer syncWrite.Unlock()
+
+			if hasError || err != nil {
+				if err != nil {
+					io.ErrPrintfln("%s: test pkg: %v", pkg.Dir, err)
+				}
+				io.ErrPrintfln("FAIL")
+				io.ErrPrintfln("FAIL    %s \t%s", pkg.Dir, dstr)
+				io.ErrPrintfln("FAIL")
+
+				testErrCount++
+			} else {
+				io.ErrPrintfln("ok      %s \t%s", pkg.Dir, dstr)
+			}
+		}()
+
 	}
+
+	wg.Wait()
+
 	if testErrCount > 0 || buildErrCount > 0 {
 		io.ErrPrintfln("FAIL")
 		return fmt.Errorf("FAIL: %d build errors, %d test errors", buildErrCount, testErrCount)
