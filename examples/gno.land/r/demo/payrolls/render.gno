@@ -176,6 +176,7 @@ func Render(renderPath string) string {
 
 		w.Write("\n\nTODO\n")
 		w.Write("- [ ] Stop / Archive\n")
+		w.Write("- [ ] Home actions")
 		w.Write("- [ ] Pause / Unpause\n")
 		w.Write("- [ ] Details: Events history\n")
 		w.Write("- [ ] PoV Tags\n")
