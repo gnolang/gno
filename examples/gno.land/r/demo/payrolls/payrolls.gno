@@ -141,11 +141,6 @@ func Fund(input string, namespace string) {
 	vaults.Set(id, getVaultAmount(id)+uint64(amount))
 }
 
-func Estimate(id seqid.ID, when time.Time) uint64 {
-	p := mustGetPayroll(id)
-	return p.freeAt(when) - p.totalWithdrawn
-}
-
 var id seqid.ID
 
 var payrolls avl.Tree                                       // seqid.ID -> *payroll
@@ -169,6 +164,10 @@ func (p *payroll) freeAt(when time.Time) uint64 {
 
 func (p *payroll) available() uint64 {
 	return p.freeAt(time.Now()) - p.totalWithdrawn
+}
+
+func (p *payroll) estimateDay() uint64 {
+	return p.freeAt(time.Now().Add(time.Hour*24)) - p.freeAt(time.Now())
 }
 
 func (p *payroll) withdraw(amount int64) uint64 {

@@ -7,6 +7,7 @@ import (
 	"strings"
 	"time"
 
+	"gno.land/p/demo/avl"
 	"gno.land/p/demo/mux"
 	"gno.land/p/demo/ufmt"
 	"gno.land/p/demo/users"
@@ -38,10 +39,10 @@ func Render(renderPath string) string {
 		sb := strings.Builder{}
 		tree, ok := payrollsByBeneficiary[addr]
 		if !ok {
-			return
+			tree = avl.NewTree()
 		}
 		estimatedDay := uint64(0)
-		estimatedFree := uint64(0)
+		estimatedAvailable := uint64(0)
 		estimatedClaimable := uint64(0)
 		shouldEstimate := tree.Size() <= listMaxSize
 		tree.ReverseIterateByOffset(0, listMaxSize, func(key string, value interface{}) bool {
@@ -49,14 +50,14 @@ func Render(renderPath string) string {
 			sb.WriteString(p.render("beneficiary"))
 
 			if shouldEstimate {
-				free := p.freeAt(time.Now())
-				estimatedFree += free
-				vault := getVaultAmount(p.vaultID)
-				if vault > free {
-					vault = free
+				available := p.available()
+				estimatedAvailable += available
+				vaultAmount := getVaultAmount(p.vaultID)
+				if available > vaultAmount {
+					available = vaultAmount
 				}
-				estimatedClaimable += vault
-				estimatedDay += p.freeAt(time.Now().Add(time.Hour*24)) - free
+				estimatedClaimable += available
+				estimatedDay += p.estimateDay()
 			}
 
 			return false
@@ -64,7 +65,7 @@ func Render(renderPath string) string {
 
 		if shouldEstimate {
 			w.Write(renderEstimatedMonthly("", estimatedDay, denom))
-			w.Write(renderClaimable("", estimatedClaimable, estimatedFree, denom, true))
+			w.Write(renderClaimable("", estimatedClaimable, estimatedAvailable, denom, true))
 		}
 
 		actions := []string{}
@@ -103,14 +104,14 @@ func Render(renderPath string) string {
 		estimatedDebt := uint64(0)
 		tree, ok := payrollsByVault[vaultID]
 		if !ok {
-			return
+			tree = avl.NewTree()
 		}
 		shouldEstimate := tree.Size() <= listMaxSize
 		tree.ReverseIterateByOffset(0, listMaxSize, func(key string, value interface{}) bool {
 			p := value.(*payroll)
 			if shouldEstimate {
 				estimatedDebt += p.available()
-				estimatedDay += p.freeAt(time.Now().Add(time.Hour*24)) - p.freeAt(time.Now())
+				estimatedDay += p.estimateDay()
 			}
 			payrollsBuffer.WriteString(p.render("vault"))
 			return false
@@ -216,18 +217,17 @@ func (p *payroll) render(pov string) string {
 		sb.WriteString(ufmt.Sprintf("  - 👤 Beneficiary: [%s](/r/demo/payrolls:/u/%s)\n", userStr, userStr))
 	}
 
-	free := p.freeAt(time.Now())
+	available := p.available()
 	vaultAmount := getVaultAmount(p.vaultID)
-	claimable := free
-	if free > vaultAmount {
+	claimable := available
+	if available > vaultAmount {
 		claimable = vaultAmount
 	}
-
-	if free > 0 {
-		sb.WriteString(renderClaimable("  ", claimable, free, denom, false))
+	if available > 0 {
+		sb.WriteString(renderClaimable("  ", claimable, available, denom, false))
 	}
 
-	estimatedDay := p.freeAt(time.Now().Add(time.Hour*24)) - p.freeAt(time.Now())
+	estimatedDay := p.estimateDay()
 	sb.WriteString(renderEstimatedMonthly("  ", estimatedDay, denom))
 
 	sb.WriteString("  - 🕙 Remaining: ")
@@ -253,14 +253,14 @@ func (p *payroll) render(pov string) string {
 	return sb.String()
 }
 
-func renderClaimable(prefix string, claimable uint64, free uint64, denom string, plural bool) string {
-	if free == 0 {
+func renderClaimable(prefix string, claimable uint64, available uint64, denom string, plural bool) string {
+	if available == 0 {
 		return ""
 	}
 	sb := strings.Builder{}
 	sb.WriteString(prefix)
 	sb.WriteString("- 💵 Claimable: ")
-	if claimable < free {
+	if claimable < available {
 		pls := ""
 		if plural {
 			pls = "(s)"
@@ -269,9 +269,9 @@ func renderClaimable(prefix string, claimable uint64, free uint64, denom string,
 		if claimable == 0 {
 			color = "🔴"
 		}
-		sb.WriteString(ufmt.Sprintf("%s %d%s/%d%s (not enough funds in vault%s!)\n", color, claimable, denom, free, denom, pls))
+		sb.WriteString(ufmt.Sprintf("%s %d%s/%d%s (not enough funds in vault%s!)\n", color, claimable, denom, available, denom, pls))
 	} else {
-		sb.WriteString(ufmt.Sprintf("🟢 %d%s\n", free, denom))
+		sb.WriteString(ufmt.Sprintf("🟢 %d%s\n", available, denom))
 	}
 	return sb.String()
 }
