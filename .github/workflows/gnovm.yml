@@ -34,12 +34,10 @@ jobs:
       - name: Install Go
         uses: actions/setup-go@v5
         with:
-          go-version: ${{ inputs.go-version }}
+          go-version: 1.22
       - name: Install Gno
         working-directory: gnovm
-        with:
-          go-version: ${{ inputs.go-version }}
-        run: go intsall .
+        run: go install -v ./cmd/gno
       - name: Go test
         working-directory: gnovm
         # use 0 for GOMAXPROCS
