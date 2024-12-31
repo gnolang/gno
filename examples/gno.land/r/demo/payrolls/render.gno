@@ -119,7 +119,7 @@ func Render(renderPath string) string {
 		funds := getVaultAmount(vaultID)
 
 		if shouldEstimate {
-			renderEstimatedMonthly("", estimatedDay, denom)
+			w.Write(renderEstimatedMonthly("", estimatedDay, denom))
 
 			balance := int64(funds) - int64(estimatedDebt)
 			prefix := "- 🏦 Funds: 🟢 "
@@ -226,7 +226,7 @@ func (p *payroll) render(pov string) string {
 	}
 
 	estimatedDay := p.freeAt(time.Now().Add(time.Hour*24)) - p.freeAt(time.Now())
-	renderEstimatedMonthly("  ", estimatedDay, denom)
+	sb.WriteString(renderEstimatedMonthly("  ", estimatedDay, denom))
 
 	sb.WriteString("  - 🕙 Remaining: ")
 	if p.amount >= 0 {
