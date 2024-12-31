@@ -176,6 +176,7 @@ func Render(renderPath string) string {
 		})
 
 		w.Write("\n\nTODO\n")
+		w.Write("- [ ] Fix actions with changed params")
 		w.Write("- [ ] Stop / Archive\n")
 		w.Write("- [ ] Home actions")
 		w.Write("- [ ] Unit tests")
