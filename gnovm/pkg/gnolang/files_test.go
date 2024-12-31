@@ -1,7 +1,6 @@
 package gnolang_test
 
 import (
-	"bytes"
 	"flag"
 	"fmt"
 	"io"
@@ -11,7 +10,6 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/gnolang/gno/gnovm/pkg/gnolang"
 	"github.com/gnolang/gno/gnovm/pkg/test"
 	"github.com/stretchr/testify/require"
 )
@@ -107,76 +105,76 @@ func TestFiles(t *testing.T) {
 }
 
 // TestStdlibs tests all the standard library packages.
-func TestStdlibs(t *testing.T) {
-	t.Parallel()
+// func TestStdlibs(t *testing.T) {
+// 	t.Parallel()
 
-	rootDir, err := filepath.Abs("../../../")
-	require.NoError(t, err)
+// 	rootDir, err := filepath.Abs("../../../")
+// 	require.NoError(t, err)
 
-	newOpts := func() (capture *bytes.Buffer, opts *test.TestOptions) {
-		var out io.Writer
-		if testing.Verbose() {
-			out = os.Stdout
-		} else {
-			capture = new(bytes.Buffer)
-			out = capture
-		}
-		opts = test.NewTestOptions(rootDir, nopReader{}, out, out)
-		opts.Verbose = true
-		return
-	}
-	sharedCapture, sharedOpts := newOpts()
+// 	newOpts := func() (capture *bytes.Buffer, opts *test.TestOptions) {
+// 		var out io.Writer
+// 		if testing.Verbose() {
+// 			out = os.Stdout
+// 		} else {
+// 			capture = new(bytes.Buffer)
+// 			out = capture
+// 		}
+// 		opts = test.NewTestOptions(rootDir, nopReader{}, out, out)
+// 		opts.Verbose = true
+// 		return
+// 	}
+// 	sharedCapture, sharedOpts := newOpts()
 
-	dir := "../../stdlibs/"
-	fsys := os.DirFS(dir)
-	err = fs.WalkDir(fsys, ".", func(path string, de fs.DirEntry, err error) error {
-		switch {
-		case err != nil:
-			return err
-		case !de.IsDir() || path == ".":
-			return nil
-		}
+// 	dir := "../../stdlibs/"
+// 	fsys := os.DirFS(dir)
+// 	err = fs.WalkDir(fsys, ".", func(path string, de fs.DirEntry, err error) error {
+// 		switch {
+// 		case err != nil:
+// 			return err
+// 		case !de.IsDir() || path == ".":
+// 			return nil
+// 		}
 
-		fp := filepath.Join(dir, path)
-		memPkg := gnolang.MustReadMemPackage(fp, path)
-		t.Run(strings.ReplaceAll(memPkg.Path, "/", "-"), func(t *testing.T) {
-			capture, opts := sharedCapture, sharedOpts
-			switch memPkg.Path {
-			// Excluded in short
-			case
-				"bufio",
-				"bytes",
-				"strconv":
-				if testing.Short() {
-					t.Skip("Skipped because of -short, and this stdlib is very long currently.")
-				}
-				fallthrough
-			// Run using separate store, as it's faster
-			case
-				"math/rand",
-				"regexp",
-				"regexp/syntax",
-				"sort":
-				t.Parallel()
-				capture, opts = newOpts()
-			}
+// 		fp := filepath.Join(dir, path)
+// 		memPkg := gnolang.MustReadMemPackage(fp, path)
+// 		t.Run(strings.ReplaceAll(memPkg.Path, "/", "-"), func(t *testing.T) {
+// 			capture, opts := sharedCapture, sharedOpts
+// 			switch memPkg.Path {
+// 			// Excluded in short
+// 			case
+// 				"bufio",
+// 				"bytes",
+// 				"strconv":
+// 				if testing.Short() {
+// 					t.Skip("Skipped because of -short, and this stdlib is very long currently.")
+// 				}
+// 				fallthrough
+// 			// Run using separate store, as it's faster
+// 			case
+// 				"math/rand",
+// 				"regexp",
+// 				"regexp/syntax",
+// 				"sort":
+// 				t.Parallel()
+// 				capture, opts = newOpts()
+// 			}
 
-			if capture != nil {
-				capture.Reset()
-			}
+// 			if capture != nil {
+// 				capture.Reset()
+// 			}
 
-			err := test.Test(memPkg, "", opts)
-			if !testing.Verbose() {
-				t.Log(capture.String())
-			}
-			if err != nil {
-				t.Error(err)
-			}
-		})
+// 			err := test.Test(memPkg, "", opts)
+// 			if !testing.Verbose() {
+// 				t.Log(capture.String())
+// 			}
+// 			if err != nil {
+// 				t.Error(err)
+// 			}
+// 		})
 
-		return nil
-	})
-	if err != nil {
-		t.Fatal(err)
-	}
-}
+// 		return nil
+// 	})
+// 	if err != nil {
+// 		t.Fatal(err)
+// 	}
+// }

@@ -24,3 +24,22 @@ jobs:
     uses: ./.github/workflows/gnofmt_template.yml
     with:
       path: "gnovm/stdlibs/..."
+
+  test-gno:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      - name: Install Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: ${{ inputs.go-version }}
+      - name: Install Gno
+        working-directory: gnovm
+        with:
+          go-version: ${{ inputs.go-version }}
+        run: go intsall .
+      - name: Go test
+        working-directory: gnovm
+        # use 0 for GOMAXPROCS
+        run: gno test -v -parallel=0 ./...
