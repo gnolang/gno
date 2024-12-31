@@ -12,8 +12,6 @@ import (
 )
 
 func Test_Scripts(t *testing.T) {
-	t.Parallel()
-
 	testdata, err := filepath.Abs("testdata")
 	require.NoError(t, err)
 
@@ -27,8 +25,6 @@ func Test_Scripts(t *testing.T) {
 
 		name := dir.Name()
 		t.Run(name, func(t *testing.T) {
-			t.Parallel()
-
 			updateScripts, _ := strconv.ParseBool(os.Getenv("UPDATE_SCRIPTS"))
 			p := testscript.Params{
 				UpdateScripts: updateScripts,

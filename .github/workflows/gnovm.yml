@@ -27,6 +27,7 @@ jobs:
       path: "gnovm/stdlibs/..."
 
   stdlibs-test:
+    name: Run gno test on stdlibs
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
