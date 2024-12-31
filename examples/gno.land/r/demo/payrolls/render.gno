@@ -193,7 +193,7 @@ func Render(renderPath string) string {
 func (p *payroll) render(pov string) string {
 	sb := strings.Builder{}
 
-	sb.WriteString(ufmt.Sprintf("### [%s](/r/demo/payrolls:/d/%s)\n", p.id.String(), p.id.String()))
+	sb.WriteString(ufmt.Sprintf("### [%s](%s:/d/%s)\n", p.id.String(), linkPrefix(), p.id.String()))
 
 	sb.WriteString(ufmt.Sprintf("  - ✍️ Label: %s\n", p.label))
 
@@ -203,7 +203,7 @@ func (p *payroll) render(pov string) string {
 
 	if pov != "vault" {
 		pvid := prettyVaultID(p.vaultID)
-		sb.WriteString(ufmt.Sprintf("  - 🎩 Vault: [%s](/r/demo/payrolls:/v/%s)\n", pvid, pvid))
+		sb.WriteString(ufmt.Sprintf("  - 🎩 Vault: [%s](%s:/v/%s)\n", pvid, linkPrefix(), pvid))
 	}
 
 	if pov != "beneficiary" {
@@ -214,7 +214,7 @@ func (p *payroll) render(pov string) string {
 		} else {
 			userStr = "@" + beneficiaryUser.Name
 		}
-		sb.WriteString(ufmt.Sprintf("  - 👤 Beneficiary: [%s](/r/demo/payrolls:/u/%s)\n", userStr, userStr))
+		sb.WriteString(ufmt.Sprintf("  - 👤 Beneficiary: [%s](%s:/u/%s)\n", userStr, linkPrefix(), userStr))
 	}
 
 	available := p.available()
@@ -293,4 +293,13 @@ func prettyVaultID(id string) string {
 
 	parts[0] = "@" + user.Name
 	return strings.Join(parts, ".")
+}
+
+func linkPrefix() string {
+	realmPath := std.CurrentRealm().PkgPath()
+	slashIdx := strings.Index(realmPath, "/")
+	if slashIdx == -1 {
+		return realmPath
+	}
+	return realmPath[slashIdx:]
 }
