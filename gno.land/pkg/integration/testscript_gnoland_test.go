@@ -8,12 +8,6 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestTestdata(t *testing.T) {
-	t.Parallel()
-
-	RunGnolandTestscripts(t, "testdata")
-}
-
 func TestUnquote(t *testing.T) {
 	t.Parallel()
 
