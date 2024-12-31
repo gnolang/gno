@@ -8,6 +8,7 @@ package bank1
 import (
 	"std"
 
+	"gno.land/p/demo/testutils"
 	"gno.land/r/demo/banktest"
 )
 
@@ -18,6 +19,8 @@ func main() {
 	std.TestSetOrigPkgAddr(banktestAddr)
 	std.TestIssueCoins(banktestAddr, std.Coins{{"ugnot", 100000000}})
 	std.TestSetOrigSend(std.Coins{{"ugnot", 100000000}}, nil)
+	caller := testutils.TestAddress("caller")
+	std.TestSetRealm(std.NewUserRealm(caller))
 	res := banktest.Deposit("ugnot", 101000000)
 	println(res)
 }

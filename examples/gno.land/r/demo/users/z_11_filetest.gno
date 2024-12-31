@@ -5,13 +5,15 @@ package main
 import (
 	"std"
 
+	"gno.land/p/demo/testutils"
 	"gno.land/r/demo/users"
 )
 
 const admin = std.Address("g1manfred47kzduec920z88wfr64ylksmdcedlf5")
 
 func main() {
-	caller := std.GetOrigCaller() // main
+	caller := testutils.TestAddress("caller")
+	std.TestSetRealm(std.NewUserRealm(caller))
 	std.TestSetOrigCaller(admin)
 	users.AdminAddRestrictedName("superrestricted")
 

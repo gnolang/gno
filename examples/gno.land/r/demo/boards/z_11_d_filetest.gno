@@ -4,8 +4,10 @@ package boards_test
 // SEND: 200000000ugnot
 
 import (
+	"std"
 	"strconv"
 
+	"gno.land/p/demo/testutils"
 	"gno.land/r/demo/boards"
 	"gno.land/r/demo/users"
 )
@@ -17,6 +19,8 @@ var (
 )
 
 func init() {
+	caller := testutils.TestAddress("caller")
+	std.TestSetRealm(std.NewUserRealm(caller))
 	users.Register("", "gnouser", "my profile")
 
 	bid = boards.CreateBoard("test_board")
@@ -26,6 +30,8 @@ func init() {
 
 func main() {
 	println(boards.Render("test_board/" + strconv.Itoa(int(pid))))
+	caller := testutils.TestAddress("caller")
+	std.TestSetRealm(std.NewUserRealm(caller))
 	boards.EditPost(bid, pid, rid, "", "Edited: First reply of the First post\n")
 	println("----------------------------------------------------")
 	println(boards.Render("test_board/" + strconv.Itoa(int(pid))))

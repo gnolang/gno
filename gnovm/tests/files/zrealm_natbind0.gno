@@ -69,7 +69,7 @@ func main() {
 //                 "Closure": {
 //                     "@type": "/gno.RefValue",
 //                     "Escaped": true,
-//                     "ObjectID": "a7f5397443359ea76c50be82c77f1f893a060925:9"
+//                     "ObjectID": "a7f5397443359ea76c50be82c77f1f893a060925:8"
 //                 },
 //                 "FileName": "native.gno",
 //                 "IsMethod": false,
@@ -83,7 +83,7 @@ func main() {
 //                     "Location": {
 //                         "Column": "1",
 //                         "File": "native.gno",
-//                         "Line": "13",
+//                         "Line": "14",
 //                         "PkgPath": "std"
 //                     }
 //                 },
