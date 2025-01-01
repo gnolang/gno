@@ -130,8 +130,8 @@ func (c *testCfg) RegisterFlags(fs *flag.FlagSet) {
 	fs.IntVar(
 		&c.parallel,
 		"parallel",
-		1,
-		"number of package to run concurrently (default(1): sequentially); 0 = GOMAXPROCESS",
+		0,
+		"number of packages to run concurrently; 0 = GOMAXPROCS",
 	)
 
 	fs.DurationVar(
@@ -195,10 +195,11 @@ func execTest(cfg *testCfg, args []string, io commands.IO) error {
 
 	var buildErrCount, testErrCount uint64
 
-	var (
-		maxWorkers = runtime.GOMAXPROCS(cfg.parallel)
-		sem        = semaphore.NewWeighted(int64(maxWorkers))
-	)
+	maxWorkers := runtime.GOMAXPROCS(0)
+	if cfg.parallel > 0 {
+		maxWorkers = cfg.parallel
+	}
+	sem := semaphore.NewWeighted(int64(maxWorkers))
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
