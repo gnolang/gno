@@ -19,7 +19,7 @@ func main() {
 
 // Realm:
 // switchrealm["gno.land/r/demo/tests/crossrealm/slice"]
-// c[ff34c6500d0daee58e4ac9899c0e7ecc131db63e:25]={
+// c[ff34c6500d0daee58e4ac9899c0e7ecc131db63e:26]={
 //     "Fields": [
 //         {
 //             "T": {
@@ -33,13 +33,13 @@ func main() {
 //         }
 //     ],
 //     "ObjectInfo": {
-//         "ID": "ff34c6500d0daee58e4ac9899c0e7ecc131db63e:25",
+//         "ID": "ff34c6500d0daee58e4ac9899c0e7ecc131db63e:26",
 //         "ModTime": "0",
-//         "OwnerID": "ff34c6500d0daee58e4ac9899c0e7ecc131db63e:24",
+//         "OwnerID": "ff34c6500d0daee58e4ac9899c0e7ecc131db63e:25",
 //         "RefCount": "1"
 //     }
 // }
-// c[ff34c6500d0daee58e4ac9899c0e7ecc131db63e:24]={
+// c[ff34c6500d0daee58e4ac9899c0e7ecc131db63e:25]={
 //     "Data": null,
 //     "List": [
 //         {
@@ -50,7 +50,7 @@ func main() {
 //             "V": {
 //                 "@type": "/gno.RefValue",
 //                 "Escaped": true,
-//                 "ObjectID": "ff34c6500d0daee58e4ac9899c0e7ecc131db63e:14"
+//                 "ObjectID": "ff34c6500d0daee58e4ac9899c0e7ecc131db63e:15"
 //             }
 //         },
 //         {
@@ -60,13 +60,13 @@ func main() {
 //             },
 //             "V": {
 //                 "@type": "/gno.RefValue",
-//                 "Hash": "d0a7406378470009aced840189d7ac80419e2b2b",
-//                 "ObjectID": "ff34c6500d0daee58e4ac9899c0e7ecc131db63e:25"
+//                 "Hash": "14593ec2b92fe8a53780cf8a6c430a6526f05283",
+//                 "ObjectID": "ff34c6500d0daee58e4ac9899c0e7ecc131db63e:26"
 //             }
 //         }
 //     ],
 //     "ObjectInfo": {
-//         "ID": "ff34c6500d0daee58e4ac9899c0e7ecc131db63e:24",
+//         "ID": "ff34c6500d0daee58e4ac9899c0e7ecc131db63e:25",
 //         "ModTime": "0",
 //         "OwnerID": "ff34c6500d0daee58e4ac9899c0e7ecc131db63e:2",
 //         "RefCount": "1"
@@ -77,7 +77,7 @@ func main() {
 //     "ObjectInfo": {
 //         "ID": "ff34c6500d0daee58e4ac9899c0e7ecc131db63e:2",
 //         "IsEscaped": true,
-//         "ModTime": "23",
+//         "ModTime": "24",
 //         "RefCount": "2"
 //     },
 //     "Parent": null,
@@ -172,7 +172,7 @@ func main() {
 //                     "Location": {
 //                         "Column": "1",
 //                         "File": "crossrealm_slice.gno",
-//                         "Line": "7",
+//                         "Line": "9",
 //                         "PkgPath": "gno.land/r/demo/tests/crossrealm/slice"
 //                     }
 //                 },
@@ -239,8 +239,8 @@ func main() {
 //                 "@type": "/gno.SliceValue",
 //                 "Base": {
 //                     "@type": "/gno.RefValue",
-//                     "Hash": "1b66d81a105bccbb2c1cb48b5826de001451c4f4",
-//                     "ObjectID": "ff34c6500d0daee58e4ac9899c0e7ecc131db63e:10"
+//                     "Hash": "0934dceb3731dd613f35a5e4a4a82396f3dc474e",
+//                     "ObjectID": "ff34c6500d0daee58e4ac9899c0e7ecc131db63e:11"
 //                 },
 //                 "Length": "2",
 //                 "Maxcap": "2",
@@ -260,8 +260,8 @@ func main() {
 //                 "@type": "/gno.SliceValue",
 //                 "Base": {
 //                     "@type": "/gno.RefValue",
-//                     "Hash": "4e2c5feb184ed4c3756c8662f4849b05e55b510a",
-//                     "ObjectID": "ff34c6500d0daee58e4ac9899c0e7ecc131db63e:24"
+//                     "Hash": "51b5198111d9cdcf7c980e3816d111cfbe0b7cc4",
+//                     "ObjectID": "ff34c6500d0daee58e4ac9899c0e7ecc131db63e:25"
 //                 },
 //                 "Length": "2",
 //                 "Maxcap": "2",
@@ -281,8 +281,8 @@ func main() {
 //                 "@type": "/gno.SliceValue",
 //                 "Base": {
 //                     "@type": "/gno.RefValue",
-//                     "Hash": "f6278e80ac84fd1944704d0ab55f4ba1b01e76f1",
-//                     "ObjectID": "ff34c6500d0daee58e4ac9899c0e7ecc131db63e:15"
+//                     "Hash": "9073c630fa09e61b0e3b824056c022eebe7bd86b",
+//                     "ObjectID": "ff34c6500d0daee58e4ac9899c0e7ecc131db63e:16"
 //                 },
 //                 "Length": "1",
 //                 "Maxcap": "1",
@@ -305,8 +305,8 @@ func main() {
 //                 "@type": "/gno.SliceValue",
 //                 "Base": {
 //                     "@type": "/gno.RefValue",
-//                     "Hash": "875dcfc247f2beb0db7a9556971202d5f83953a7",
-//                     "ObjectID": "ff34c6500d0daee58e4ac9899c0e7ecc131db63e:17"
+//                     "Hash": "088eb6ee7e7fe1c5e10101801be9e64ac6794e29",
+//                     "ObjectID": "ff34c6500d0daee58e4ac9899c0e7ecc131db63e:18"
 //                 },
 //                 "Length": "1",
 //                 "Maxcap": "1",
@@ -329,7 +329,7 @@ func main() {
 //                 "@type": "/gno.SliceValue",
 //                 "Base": {
 //                     "@type": "/gno.RefValue",
-//                     "Hash": "df881fbce43e93be6a59fa06c45b5b9959c2d597",
+//                     "Hash": "3450ddb4764c2026edd313f230c633e0af6cd8ed",
 //                     "ObjectID": "ff34c6500d0daee58e4ac9899c0e7ecc131db63e:4"
 //                 },
 //                 "Length": "2",
@@ -349,7 +349,7 @@ func main() {
 //             },
 //             "V": {
 //                 "@type": "/gno.RefValue",
-//                 "Hash": "719153550186d4f8347763b1c1ffcbb9b62a967f",
+//                 "Hash": "e03c7067902bb4b3c2aa477a27d6abfcd51ce3a6",
 //                 "ObjectID": "ff34c6500d0daee58e4ac9899c0e7ecc131db63e:5"
 //             }
 //         },
@@ -378,7 +378,7 @@ func main() {
 //                     "Location": {
 //                         "Column": "1",
 //                         "File": "crossrealm_slice.gno",
-//                         "Line": "25",
+//                         "Line": "27",
 //                         "PkgPath": "gno.land/r/demo/tests/crossrealm/slice"
 //                     }
 //                 },
@@ -428,7 +428,7 @@ func main() {
 //                     "Location": {
 //                         "Column": "1",
 //                         "File": "crossrealm_slice.gno",
-//                         "Line": "40",
+//                         "Line": "42",
 //                         "PkgPath": "gno.land/r/demo/tests/crossrealm/slice"
 //                     }
 //                 },
@@ -514,7 +514,7 @@ func main() {
 //                     "Location": {
 //                         "Column": "1",
 //                         "File": "crossrealm_slice.gno",
-//                         "Line": "48",
+//                         "Line": "50",
 //                         "PkgPath": "gno.land/r/demo/tests/crossrealm/slice"
 //                     }
 //                 },
@@ -578,7 +578,7 @@ func main() {
 //                     "Location": {
 //                         "Column": "1",
 //                         "File": "crossrealm_slice.gno",
-//                         "Line": "56",
+//                         "Line": "58",
 //                         "PkgPath": "gno.land/r/demo/tests/crossrealm/slice"
 //                     }
 //                 },
@@ -653,7 +653,7 @@ func main() {
 //                     "Location": {
 //                         "Column": "1",
 //                         "File": "crossrealm_slice.gno",
-//                         "Line": "61",
+//                         "Line": "63",
 //                         "PkgPath": "gno.land/r/demo/tests/crossrealm/slice"
 //                     }
 //                 },
@@ -731,7 +731,7 @@ func main() {
 //                     "Location": {
 //                         "Column": "1",
 //                         "File": "crossrealm_slice.gno",
-//                         "Line": "66",
+//                         "Line": "68",
 //                         "PkgPath": "gno.land/r/demo/tests/crossrealm/slice"
 //                     }
 //                 },
@@ -812,7 +812,7 @@ func main() {
 //                     "Location": {
 //                         "Column": "1",
 //                         "File": "crossrealm_slice.gno",
-//                         "Line": "70",
+//                         "Line": "72",
 //                         "PkgPath": "gno.land/r/demo/tests/crossrealm/slice"
 //                     }
 //                 },
@@ -902,7 +902,7 @@ func main() {
 //                     "Location": {
 //                         "Column": "1",
 //                         "File": "crossrealm_slice.gno",
-//                         "Line": "75",
+//                         "Line": "77",
 //                         "PkgPath": "gno.land/r/demo/tests/crossrealm/slice"
 //                     }
 //                 },
@@ -938,11 +938,199 @@ func main() {
 //                     "Results": []
 //                 }
 //             }
+//         },
+//         {
+//             "T": {
+//                 "@type": "/gno.ArrayType",
+//                 "Elt": {
+//                     "@type": "/gno.RefType",
+//                     "ID": "gno.land/p/demo/tests/p_crossrealm.Stringer"
+//                 },
+//                 "Len": "1",
+//                 "Vrd": false
+//             },
+//             "V": {
+//                 "@type": "/gno.RefValue",
+//                 "Hash": "ed9761e4c90097cbcf3d55a627ab1b7c65ff8a62",
+//                 "ObjectID": "ff34c6500d0daee58e4ac9899c0e7ecc131db63e:10"
+//             }
+//         },
+//         {
+//             "T": {
+//                 "@type": "/gno.FuncType",
+//                 "Params": [
+//                     {
+//                         "Embedded": false,
+//                         "Name": "f",
+//                         "Tag": "",
+//                         "Type": {
+//                             "@type": "/gno.RefType",
+//                             "ID": "gno.land/p/demo/tests/p_crossrealm.Stringer"
+//                         }
+//                     }
+//                 ],
+//                 "Results": [
+//                     {
+//                         "Embedded": false,
+//                         "Name": "",
+//                         "Tag": "",
+//                         "Type": {
+//                             "@type": "/gno.ArrayType",
+//                             "Elt": {
+//                                 "@type": "/gno.RefType",
+//                                 "ID": "gno.land/p/demo/tests/p_crossrealm.Stringer"
+//                             },
+//                             "Len": "1",
+//                             "Vrd": false
+//                         }
+//                     }
+//                 ]
+//             },
+//             "V": {
+//                 "@type": "/gno.FuncValue",
+//                 "Closure": {
+//                     "@type": "/gno.RefValue",
+//                     "Escaped": true,
+//                     "ObjectID": "ff34c6500d0daee58e4ac9899c0e7ecc131db63e:3"
+//                 },
+//                 "FileName": "crossrealm_slice.gno",
+//                 "IsMethod": false,
+//                 "Name": "GetSlice8",
+//                 "NativeName": "",
+//                 "NativePkg": "",
+//                 "PkgPath": "gno.land/r/demo/tests/crossrealm/slice",
+//                 "Source": {
+//                     "@type": "/gno.RefNode",
+//                     "BlockNode": null,
+//                     "Location": {
+//                         "Column": "1",
+//                         "File": "crossrealm_slice.gno",
+//                         "Line": "84",
+//                         "PkgPath": "gno.land/r/demo/tests/crossrealm/slice"
+//                     }
+//                 },
+//                 "Type": {
+//                     "@type": "/gno.FuncType",
+//                     "Params": [
+//                         {
+//                             "Embedded": false,
+//                             "Name": "f",
+//                             "Tag": "",
+//                             "Type": {
+//                                 "@type": "/gno.RefType",
+//                                 "ID": "gno.land/p/demo/tests/p_crossrealm.Stringer"
+//                             }
+//                         }
+//                     ],
+//                     "Results": [
+//                         {
+//                             "Embedded": false,
+//                             "Name": "",
+//                             "Tag": "",
+//                             "Type": {
+//                                 "@type": "/gno.ArrayType",
+//                                 "Elt": {
+//                                     "@type": "/gno.RefType",
+//                                     "ID": "gno.land/p/demo/tests/p_crossrealm.Stringer"
+//                                 },
+//                                 "Len": "1",
+//                                 "Vrd": false
+//                             }
+//                         }
+//                     ]
+//                 }
+//             }
+//         },
+//         {
+//             "T": {
+//                 "@type": "/gno.FuncType",
+//                 "Params": [
+//                     {
+//                         "Embedded": false,
+//                         "Name": "f",
+//                         "Tag": "",
+//                         "Type": {
+//                             "@type": "/gno.RefType",
+//                             "ID": "gno.land/p/demo/tests/p_crossrealm.Stringer"
+//                         }
+//                     }
+//                 ],
+//                 "Results": [
+//                     {
+//                         "Embedded": false,
+//                         "Name": "",
+//                         "Tag": "",
+//                         "Type": {
+//                             "@type": "/gno.ArrayType",
+//                             "Elt": {
+//                                 "@type": "/gno.RefType",
+//                                 "ID": "gno.land/p/demo/tests/p_crossrealm.Stringer"
+//                             },
+//                             "Len": "1",
+//                             "Vrd": false
+//                         }
+//                     }
+//                 ]
+//             },
+//             "V": {
+//                 "@type": "/gno.FuncValue",
+//                 "Closure": {
+//                     "@type": "/gno.RefValue",
+//                     "Escaped": true,
+//                     "ObjectID": "ff34c6500d0daee58e4ac9899c0e7ecc131db63e:3"
+//                 },
+//                 "FileName": "crossrealm_slice.gno",
+//                 "IsMethod": false,
+//                 "Name": "GetSlice9",
+//                 "NativeName": "",
+//                 "NativePkg": "",
+//                 "PkgPath": "gno.land/r/demo/tests/crossrealm/slice",
+//                 "Source": {
+//                     "@type": "/gno.RefNode",
+//                     "BlockNode": null,
+//                     "Location": {
+//                         "Column": "1",
+//                         "File": "crossrealm_slice.gno",
+//                         "Line": "89",
+//                         "PkgPath": "gno.land/r/demo/tests/crossrealm/slice"
+//                     }
+//                 },
+//                 "Type": {
+//                     "@type": "/gno.FuncType",
+//                     "Params": [
+//                         {
+//                             "Embedded": false,
+//                             "Name": "f",
+//                             "Tag": "",
+//                             "Type": {
+//                                 "@type": "/gno.RefType",
+//                                 "ID": "gno.land/p/demo/tests/p_crossrealm.Stringer"
+//                             }
+//                         }
+//                     ],
+//                     "Results": [
+//                         {
+//                             "Embedded": false,
+//                             "Name": "",
+//                             "Tag": "",
+//                             "Type": {
+//                                 "@type": "/gno.ArrayType",
+//                                 "Elt": {
+//                                     "@type": "/gno.RefType",
+//                                     "ID": "gno.land/p/demo/tests/p_crossrealm.Stringer"
+//                                 },
+//                                 "Len": "1",
+//                                 "Vrd": false
+//                             }
+//                         }
+//                     ]
+//                 }
+//             }
 //         }
 //     ]
 // }
-// d[ff34c6500d0daee58e4ac9899c0e7ecc131db63e:13]
 // d[ff34c6500d0daee58e4ac9899c0e7ecc131db63e:14]
+// d[ff34c6500d0daee58e4ac9899c0e7ecc131db63e:15]
 // switchrealm["gno.land/r/crossrealm_test"]
 // u[f5a516808f8976c33939133293d598ce3bca4e8d:2]={
 //     "Blank": {},
@@ -978,7 +1166,7 @@ func main() {
 //                 "Base": {
 //                     "@type": "/gno.RefValue",
 //                     "Escaped": true,
-//                     "ObjectID": "ff34c6500d0daee58e4ac9899c0e7ecc131db63e:24"
+//                     "ObjectID": "ff34c6500d0daee58e4ac9899c0e7ecc131db63e:25"
 //                 },
 //                 "Length": "2",
 //                 "Maxcap": "2",
@@ -1123,7 +1311,7 @@ func main() {
 //                     "Location": {
 //                         "Column": "1",
 //                         "File": "crossrealm_slice.gno",
-//                         "Line": "7",
+//                         "Line": "9",
 //                         "PkgPath": "gno.land/r/demo/tests/crossrealm/slice"
 //                     }
 //                 },
@@ -1190,8 +1378,8 @@ func main() {
 //                 "@type": "/gno.SliceValue",
 //                 "Base": {
 //                     "@type": "/gno.RefValue",
-//                     "Hash": "1b66d81a105bccbb2c1cb48b5826de001451c4f4",
-//                     "ObjectID": "ff34c6500d0daee58e4ac9899c0e7ecc131db63e:10"
+//                     "Hash": "0934dceb3731dd613f35a5e4a4a82396f3dc474e",
+//                     "ObjectID": "ff34c6500d0daee58e4ac9899c0e7ecc131db63e:11"
 //                 },
 //                 "Length": "2",
 //                 "Maxcap": "2",
@@ -1212,7 +1400,7 @@ func main() {
 //                 "Base": {
 //                     "@type": "/gno.RefValue",
 //                     "Escaped": true,
-//                     "ObjectID": "ff34c6500d0daee58e4ac9899c0e7ecc131db63e:24"
+//                     "ObjectID": "ff34c6500d0daee58e4ac9899c0e7ecc131db63e:25"
 //                 },
 //                 "Length": "2",
 //                 "Maxcap": "2",
@@ -1232,8 +1420,8 @@ func main() {
 //                 "@type": "/gno.SliceValue",
 //                 "Base": {
 //                     "@type": "/gno.RefValue",
-//                     "Hash": "f6278e80ac84fd1944704d0ab55f4ba1b01e76f1",
-//                     "ObjectID": "ff34c6500d0daee58e4ac9899c0e7ecc131db63e:15"
+//                     "Hash": "9073c630fa09e61b0e3b824056c022eebe7bd86b",
+//                     "ObjectID": "ff34c6500d0daee58e4ac9899c0e7ecc131db63e:16"
 //                 },
 //                 "Length": "1",
 //                 "Maxcap": "1",
@@ -1256,8 +1444,8 @@ func main() {
 //                 "@type": "/gno.SliceValue",
 //                 "Base": {
 //                     "@type": "/gno.RefValue",
-//                     "Hash": "875dcfc247f2beb0db7a9556971202d5f83953a7",
-//                     "ObjectID": "ff34c6500d0daee58e4ac9899c0e7ecc131db63e:17"
+//                     "Hash": "088eb6ee7e7fe1c5e10101801be9e64ac6794e29",
+//                     "ObjectID": "ff34c6500d0daee58e4ac9899c0e7ecc131db63e:18"
 //                 },
 //                 "Length": "1",
 //                 "Maxcap": "1",
@@ -1280,7 +1468,7 @@ func main() {
 //                 "@type": "/gno.SliceValue",
 //                 "Base": {
 //                     "@type": "/gno.RefValue",
-//                     "Hash": "df881fbce43e93be6a59fa06c45b5b9959c2d597",
+//                     "Hash": "3450ddb4764c2026edd313f230c633e0af6cd8ed",
 //                     "ObjectID": "ff34c6500d0daee58e4ac9899c0e7ecc131db63e:4"
 //                 },
 //                 "Length": "2",
@@ -1300,7 +1488,7 @@ func main() {
 //             },
 //             "V": {
 //                 "@type": "/gno.RefValue",
-//                 "Hash": "719153550186d4f8347763b1c1ffcbb9b62a967f",
+//                 "Hash": "e03c7067902bb4b3c2aa477a27d6abfcd51ce3a6",
 //                 "ObjectID": "ff34c6500d0daee58e4ac9899c0e7ecc131db63e:5"
 //             }
 //         },
@@ -1329,7 +1517,7 @@ func main() {
 //                     "Location": {
 //                         "Column": "1",
 //                         "File": "crossrealm_slice.gno",
-//                         "Line": "25",
+//                         "Line": "27",
 //                         "PkgPath": "gno.land/r/demo/tests/crossrealm/slice"
 //                     }
 //                 },
@@ -1379,7 +1567,7 @@ func main() {
 //                     "Location": {
 //                         "Column": "1",
 //                         "File": "crossrealm_slice.gno",
-//                         "Line": "40",
+//                         "Line": "42",
 //                         "PkgPath": "gno.land/r/demo/tests/crossrealm/slice"
 //                     }
 //                 },
@@ -1465,7 +1653,7 @@ func main() {
 //                     "Location": {
 //                         "Column": "1",
 //                         "File": "crossrealm_slice.gno",
-//                         "Line": "48",
+//                         "Line": "50",
 //                         "PkgPath": "gno.land/r/demo/tests/crossrealm/slice"
 //                     }
 //                 },
@@ -1529,7 +1717,7 @@ func main() {
 //                     "Location": {
 //                         "Column": "1",
 //                         "File": "crossrealm_slice.gno",
-//                         "Line": "56",
+//                         "Line": "58",
 //                         "PkgPath": "gno.land/r/demo/tests/crossrealm/slice"
 //                     }
 //                 },
@@ -1604,7 +1792,7 @@ func main() {
 //                     "Location": {
 //                         "Column": "1",
 //                         "File": "crossrealm_slice.gno",
-//                         "Line": "61",
+//                         "Line": "63",
 //                         "PkgPath": "gno.land/r/demo/tests/crossrealm/slice"
 //                     }
 //                 },
@@ -1682,7 +1870,7 @@ func main() {
 //                     "Location": {
 //                         "Column": "1",
 //                         "File": "crossrealm_slice.gno",
-//                         "Line": "66",
+//                         "Line": "68",
 //                         "PkgPath": "gno.land/r/demo/tests/crossrealm/slice"
 //                     }
 //                 },
@@ -1763,7 +1951,7 @@ func main() {
 //                     "Location": {
 //                         "Column": "1",
 //                         "File": "crossrealm_slice.gno",
-//                         "Line": "70",
+//                         "Line": "72",
 //                         "PkgPath": "gno.land/r/demo/tests/crossrealm/slice"
 //                     }
 //                 },
@@ -1853,7 +2041,7 @@ func main() {
 //                     "Location": {
 //                         "Column": "1",
 //                         "File": "crossrealm_slice.gno",
-//                         "Line": "75",
+//                         "Line": "77",
 //                         "PkgPath": "gno.land/r/demo/tests/crossrealm/slice"
 //                     }
 //                 },
@@ -1887,6 +2075,194 @@ func main() {
 //                         }
 //                     ],
 //                     "Results": []
+//                 }
+//             }
+//         },
+//         {
+//             "T": {
+//                 "@type": "/gno.ArrayType",
+//                 "Elt": {
+//                     "@type": "/gno.RefType",
+//                     "ID": "gno.land/p/demo/tests/p_crossrealm.Stringer"
+//                 },
+//                 "Len": "1",
+//                 "Vrd": false
+//             },
+//             "V": {
+//                 "@type": "/gno.RefValue",
+//                 "Hash": "ed9761e4c90097cbcf3d55a627ab1b7c65ff8a62",
+//                 "ObjectID": "ff34c6500d0daee58e4ac9899c0e7ecc131db63e:10"
+//             }
+//         },
+//         {
+//             "T": {
+//                 "@type": "/gno.FuncType",
+//                 "Params": [
+//                     {
+//                         "Embedded": false,
+//                         "Name": "f",
+//                         "Tag": "",
+//                         "Type": {
+//                             "@type": "/gno.RefType",
+//                             "ID": "gno.land/p/demo/tests/p_crossrealm.Stringer"
+//                         }
+//                     }
+//                 ],
+//                 "Results": [
+//                     {
+//                         "Embedded": false,
+//                         "Name": "",
+//                         "Tag": "",
+//                         "Type": {
+//                             "@type": "/gno.ArrayType",
+//                             "Elt": {
+//                                 "@type": "/gno.RefType",
+//                                 "ID": "gno.land/p/demo/tests/p_crossrealm.Stringer"
+//                             },
+//                             "Len": "1",
+//                             "Vrd": false
+//                         }
+//                     }
+//                 ]
+//             },
+//             "V": {
+//                 "@type": "/gno.FuncValue",
+//                 "Closure": {
+//                     "@type": "/gno.RefValue",
+//                     "Escaped": true,
+//                     "ObjectID": "ff34c6500d0daee58e4ac9899c0e7ecc131db63e:3"
+//                 },
+//                 "FileName": "crossrealm_slice.gno",
+//                 "IsMethod": false,
+//                 "Name": "GetSlice8",
+//                 "NativeName": "",
+//                 "NativePkg": "",
+//                 "PkgPath": "gno.land/r/demo/tests/crossrealm/slice",
+//                 "Source": {
+//                     "@type": "/gno.RefNode",
+//                     "BlockNode": null,
+//                     "Location": {
+//                         "Column": "1",
+//                         "File": "crossrealm_slice.gno",
+//                         "Line": "84",
+//                         "PkgPath": "gno.land/r/demo/tests/crossrealm/slice"
+//                     }
+//                 },
+//                 "Type": {
+//                     "@type": "/gno.FuncType",
+//                     "Params": [
+//                         {
+//                             "Embedded": false,
+//                             "Name": "f",
+//                             "Tag": "",
+//                             "Type": {
+//                                 "@type": "/gno.RefType",
+//                                 "ID": "gno.land/p/demo/tests/p_crossrealm.Stringer"
+//                             }
+//                         }
+//                     ],
+//                     "Results": [
+//                         {
+//                             "Embedded": false,
+//                             "Name": "",
+//                             "Tag": "",
+//                             "Type": {
+//                                 "@type": "/gno.ArrayType",
+//                                 "Elt": {
+//                                     "@type": "/gno.RefType",
+//                                     "ID": "gno.land/p/demo/tests/p_crossrealm.Stringer"
+//                                 },
+//                                 "Len": "1",
+//                                 "Vrd": false
+//                             }
+//                         }
+//                     ]
+//                 }
+//             }
+//         },
+//         {
+//             "T": {
+//                 "@type": "/gno.FuncType",
+//                 "Params": [
+//                     {
+//                         "Embedded": false,
+//                         "Name": "f",
+//                         "Tag": "",
+//                         "Type": {
+//                             "@type": "/gno.RefType",
+//                             "ID": "gno.land/p/demo/tests/p_crossrealm.Stringer"
+//                         }
+//                     }
+//                 ],
+//                 "Results": [
+//                     {
+//                         "Embedded": false,
+//                         "Name": "",
+//                         "Tag": "",
+//                         "Type": {
+//                             "@type": "/gno.ArrayType",
+//                             "Elt": {
+//                                 "@type": "/gno.RefType",
+//                                 "ID": "gno.land/p/demo/tests/p_crossrealm.Stringer"
+//                             },
+//                             "Len": "1",
+//                             "Vrd": false
+//                         }
+//                     }
+//                 ]
+//             },
+//             "V": {
+//                 "@type": "/gno.FuncValue",
+//                 "Closure": {
+//                     "@type": "/gno.RefValue",
+//                     "Escaped": true,
+//                     "ObjectID": "ff34c6500d0daee58e4ac9899c0e7ecc131db63e:3"
+//                 },
+//                 "FileName": "crossrealm_slice.gno",
+//                 "IsMethod": false,
+//                 "Name": "GetSlice9",
+//                 "NativeName": "",
+//                 "NativePkg": "",
+//                 "PkgPath": "gno.land/r/demo/tests/crossrealm/slice",
+//                 "Source": {
+//                     "@type": "/gno.RefNode",
+//                     "BlockNode": null,
+//                     "Location": {
+//                         "Column": "1",
+//                         "File": "crossrealm_slice.gno",
+//                         "Line": "89",
+//                         "PkgPath": "gno.land/r/demo/tests/crossrealm/slice"
+//                     }
+//                 },
+//                 "Type": {
+//                     "@type": "/gno.FuncType",
+//                     "Params": [
+//                         {
+//                             "Embedded": false,
+//                             "Name": "f",
+//                             "Tag": "",
+//                             "Type": {
+//                                 "@type": "/gno.RefType",
+//                                 "ID": "gno.land/p/demo/tests/p_crossrealm.Stringer"
+//                             }
+//                         }
+//                     ],
+//                     "Results": [
+//                         {
+//                             "Embedded": false,
+//                             "Name": "",
+//                             "Tag": "",
+//                             "Type": {
+//                                 "@type": "/gno.ArrayType",
+//                                 "Elt": {
+//                                     "@type": "/gno.RefType",
+//                                     "ID": "gno.land/p/demo/tests/p_crossrealm.Stringer"
+//                                 },
+//                                 "Len": "1",
+//                                 "Vrd": false
+//                             }
+//                         }
+//                     ]
 //                 }
 //             }
 //         }

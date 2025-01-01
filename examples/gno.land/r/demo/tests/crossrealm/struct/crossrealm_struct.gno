@@ -8,6 +8,7 @@ var bar *Bar
 
 // TODO: deprovision this
 var Bar2 *Bar = &Bar{A: 22} // exported
+var Bar3 Bar = Bar{A: 22}
 
 func (b *Bar) String() {
 	println("b.A: ", b.A)

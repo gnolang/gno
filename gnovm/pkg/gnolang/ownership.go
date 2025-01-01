@@ -392,76 +392,71 @@ func (tv *TypedValue) GetFirstObject(store Store) Object {
 // also get pkgId of the object, so it's clear where the object is from
 func (tv *TypedValue) GetFirstObject2(store Store) (obj Object, pkgId PkgID) {
 	fmt.Println("---GetFirstObject2---, tv: ", tv, reflect.TypeOf(tv.V))
-	// general case
-	if dt, ok := tv.T.(*DeclaredType); ok {
-		fmt.Printf("---dt: %v\n", dt)
-		fmt.Println("---dt.base: ", dt.Base)
-		if _, ok := dt.Base.(*FuncType); !ok {
-			fmt.Println("---dt.base.PkgPath: ", dt.Base.GetPkgPath())
-			if IsRealmPath(dt.Base.GetPkgPath()) {
-				pkgId = PkgIDFromPkgPath(dt.Base.GetPkgPath())
-			}
-		}
-	}
 
 	// get first object
 	obj = tv.GetFirstObject(store)
 	fmt.Println("---obj: ", obj)
-
-	// get actual pkgId
-	switch cv := tv.V.(type) {
-	case PointerValue:
-		println("---pointer value")
-		if v, ok := cv.TV.V.(Object); ok {
-			fmt.Println("---v: ", v)
-			// TODO: check this
-			if dt, ok := cv.TV.T.(*DeclaredType); ok {
-				fmt.Println("---dt: ", dt)
-				//fmt.Println("---cv.Base: ", cv.GetBase(store), reflect.TypeOf(cv.GetBase(store)))
-				//if _, ok := cv.GetBase(store).(*HeapItemValue); !ok {
-				//println("---base is heap item")
-				if IsRealmPath(dt.PkgPath) {
-					//println("---IsRealmPath")
-					pkgId = PkgIDFromPkgPath(dt.PkgPath)
-				}
-				//}
-			}
-			fmt.Println("---pkgId; ", pkgId)
-		}
-		return
-	case *ArrayValue:
-		fmt.Println("---array value, T: ", tv.T)
-		pkgId = PkgIDFromPkgPath(tv.T.Elem().GetPkgPath())
-		return
-	case *SliceValue:
-		pkgId = PkgIDFromPkgPath(tv.T.Elem().GetPkgPath())
-		base := cv.GetBase(store)
-		fmt.Println("---base: ", base)
-		fmt.Println("---base.ID: ", base.ID)
-		return
-	case *FuncValue:
-		fmt.Println("---FuncValue")
-		clo := cv.GetClosure(store)
-		fmt.Println("---clo: ", clo)
-		fmt.Println("clo...PkgPath", clo.Source.GetLocation().PkgPath)
-		pkgId = PkgIDFromPkgPath(clo.Source.GetLocation().PkgPath)
-		return
-	case *BoundMethodValue:
-		fmt.Println("---BoundMethodValue, recv: ", cv.Receiver)
-		fmt.Println("---type of T: ", reflect.TypeOf(cv.Receiver.T))
-		if pv, ok := cv.Receiver.V.(PointerValue); ok {
-			println("---pointer value")
-			// TODO: check this
-			if dt, ok := pv.TV.T.(*DeclaredType); ok {
-				fmt.Println("---2, dt: ", dt)
-				if IsRealmPath(dt.PkgPath) {
-					pkgId = PkgIDFromPkgPath(dt.PkgPath)
-				}
-			}
-			fmt.Println("---pkgId; ", pkgId)
-		}
-		return
-	default:
-		return
+	if obj != nil {
+		pkgId = obj.GetObjectID().PkgID
 	}
+
+	if pkgId.IsZero() {
+		switch cv := obj.(type) {
+		case *ArrayValue:
+			fmt.Println("---array value, T: ", tv.T)
+			debug2.Println2("objectInfo: ", cv.GetObjectInfo())
+			if IsRealmPath(tv.T.Elem().GetPkgPath()) {
+				// TODO: func type don't have pkgpath, retrieve from clo
+				pkgId = PkgIDFromPkgPath(tv.T.Elem().GetPkgPath())
+			}
+			return
+		case *Block:
+			pkgId = PkgIDFromPkgPath(cv.Source.GetLocation().PkgPath)
+			return
+		case *HeapItemValue:
+			debug2.Println2("heapItemValue: ", cv)
+			debug2.Println2("heapItemValue.Value.T: ", cv.Value.T)
+			if dt, ok := cv.Value.T.(*DeclaredType); ok {
+				fmt.Printf("---dt: %v\n", dt)
+				fmt.Println("---dt.base: ", dt.Base)
+				if _, ok := dt.Base.(*FuncType); !ok {
+					fmt.Println("---dt.base.PkgPath: ", dt.Base.GetPkgPath())
+					if IsRealmPath(dt.Base.GetPkgPath()) {
+						pkgId = PkgIDFromPkgPath(dt.Base.GetPkgPath())
+					}
+				}
+			}
+			return
+		case *BoundMethodValue:
+			fmt.Println("---BoundMethodValue, recv: ", cv.Receiver)
+			fmt.Println("---type of T: ", reflect.TypeOf(cv.Receiver.T))
+			if pv, ok := cv.Receiver.V.(PointerValue); ok {
+				println("---pointer value")
+				// TODO: check this
+				if dt, ok := pv.TV.T.(*DeclaredType); ok {
+					fmt.Println("---2, dt: ", dt)
+					if IsRealmPath(dt.PkgPath) {
+						pkgId = PkgIDFromPkgPath(dt.PkgPath)
+					}
+				}
+				fmt.Println("---pkgId; ", pkgId)
+			}
+			return
+		case *MapValue, *StructValue:
+			if dt, ok := tv.T.(*DeclaredType); ok {
+				fmt.Printf("---dt: %v\n", dt)
+				fmt.Println("---dt.base: ", dt.Base)
+				if _, ok := dt.Base.(*FuncType); !ok {
+					fmt.Println("---dt.base.PkgPath: ", dt.Base.GetPkgPath())
+					if IsRealmPath(dt.Base.GetPkgPath()) {
+						pkgId = PkgIDFromPkgPath(dt.Base.GetPkgPath())
+					}
+				}
+			}
+			return
+		default:
+			// do nothing
+		}
+	}
+	return
 }

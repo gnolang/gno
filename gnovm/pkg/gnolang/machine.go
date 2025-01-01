@@ -1974,6 +1974,7 @@ func (m *Machine) PopFrameAndReset() {
 
 // TODO: optimize by passing in last frame.
 func (m *Machine) PopFrameAndReturn() {
+	debug2.Println2("PopFrameAndReturn")
 	fr := m.PopFrame()
 	fr.Popped = true
 	if debug {
@@ -1995,6 +1996,11 @@ func (m *Machine) PopFrameAndReturn() {
 		res := m.Values[resStart+i]
 		if res.IsUndefined() && rtypes[i].Type.Kind() != InterfaceKind {
 			res.T = rtypes[i].Type
+		}
+		debug2.Println2("res: ", res)
+		debug2.Printf2("addr of res: %p \n", &res)
+		if oo, ok := res.V.(Object); ok {
+			debug2.Println2("oo.GetObjectInfo(): ", oo.GetObjectInfo())
 		}
 		m.Values[fr.NumValues+i] = res
 	}

@@ -221,7 +221,6 @@ func (rlm *Realm) DidUpdate2(store Store, po, xo, co Object, refValue Value) {
 	}
 
 	if refValue != nil {
-		fmt.Printf("---SetIsRef, co: %v\n", co)
 		co.SetIsRef(true)
 	}
 
@@ -252,8 +251,7 @@ func (rlm *Realm) DidUpdate2(store Store, po, xo, co Object, refValue Value) {
 		co.IncRefCount()
 		fmt.Println("---after inc, co.GetRefCount: ", co.GetRefCount())
 		if co.GetRefCount() > 1 {
-			if co.GetIsEscaped() { // XXX, this implies attached?
-				// XXX, why packageBlock is automatically escaped?
+			if co.GetIsEscaped() {
 				println("---already escaped, should check cross realm?")
 				// already escaped
 				rlm.MarkNewEscapedCheckCrossRealm(store, co, refValue)
@@ -282,31 +280,21 @@ func (rlm *Realm) DidUpdate2(store Store, po, xo, co Object, refValue Value) {
 //----------------------------------------
 // mark*
 
-// oo can can be base of the originType, like array for a slice type.
-// originType may contain infos like len, cap for slice type, etc.
-// XXX, oo coming here must be referenced type, since they already escaped.
+// XXX, oo here must be referenced type, since they already escaped.
 // XXX, so oo has been persisted, thus fillValueTV
 func checkCrossRealm(store Store, oo Object, refValue Value) {
-	fmt.Println("---checkCrossRealm, oo: ", oo)
+	debug2.Println2("checkCrossRealm, oo: ", oo, reflect.TypeOf(oo))
 	switch v := oo.(type) {
 	case *StructValue:
-		fmt.Println("---StructValue...")
-		fmt.Println("---sv: ", v)
+		// TODO: rm this
 		if !v.GetIsReal() {
 			panic(fmt.Sprintf("should not happen, %v is not real\n", v))
 		}
-		fmt.Println("---sv is real, check fields")
 		// check fields
 		for _, fv := range v.Fields {
-			fmt.Println("---fv: ", fv)
-			fmt.Println("---type of fv: ", reflect.TypeOf(fv.V))
-			// XXX, consider this
-			//if _, ok := fv.V.(RefValue); !ok {
-			//	panic("---sv is not ref value!!!")
-			//}
+			debug2.Println2("fv: ", fv)
 			rfv := fillValueTV(store, &fv)
-			fmt.Println("---rfv: ", rfv)
-			fmt.Println("---type of rfv.V: ", reflect.TypeOf(rfv.V))
+			debug2.Println2("---rfv: ", rfv)
 
 			if fo, ok := rfv.V.(Object); ok {
 				checkCrossRealm(store, fo, nil)
@@ -317,7 +305,12 @@ func checkCrossRealm(store Store, oo Object, refValue Value) {
 					refValue = rv
 					// TODO: consider pkgId here, A -> B - > A?...
 					// yes, check PkgId per object
-					reo, _ = rfv.GetFirstObject2(store)
+					var pkgId PkgID
+					reo, pkgId = rfv.GetFirstObject2(store)
+					// TODO: simplify
+					if !pkgId.IsZero() {
+						reo.SetOriginRealm(pkgId)
+					}
 					fmt.Println("---reo: ", reo)
 					// XXX, if elem of array is slice?, GetFirstObject2?...
 					checkCrossRealm(store, reo, refValue)
@@ -326,7 +319,7 @@ func checkCrossRealm(store Store, oo Object, refValue Value) {
 		}
 	case *MapValue:
 		println("---mapValue...")
-		// TODO: check elem? NO.
+		// TODO: check elem?
 	case *HeapItemValue:
 		fmt.Println("---heapItemValue: ", v)
 		r := fillValueTV(store, &v.Value)
@@ -339,18 +332,20 @@ func checkCrossRealm(store Store, oo Object, refValue Value) {
 		} else {
 			offset := sv.Offset
 			length := sv.Length
-			fmt.Println("---ArrayValue: ", v)
-			fmt.Printf("---offset: %d, length: %d \n", offset, length)
-			fmt.Println("---escaped array, check if elements are real")
+			debug2.Println2("ArrayValue: ", v)
+			debug2.Printf2("offset: %d, length: %d \n", offset, length)
+			debug2.Println2("escaped array, check if elements are real")
 
+			// check referenced elem
 			for i := offset; i < length; i++ {
 				// XXX, difference between them?
 				ee := oo.(*ArrayValue).List[i]
 				e := fillValueTV(store, &ee)
-
 				//e := oo.(*ArrayValue).GetPointerAtIndexInt2(store, i, nil).Deref()
+
 				fmt.Printf("---e[%d]: %v\n", i, e)
 				fmt.Printf("---type of e[%d].V: %v\n", i, reflect.TypeOf(e.V))
+
 				if eo, ok := e.V.(Object); ok {
 					checkCrossRealm(store, eo, nil)
 				} else { // reference to object
@@ -359,9 +354,12 @@ func checkCrossRealm(store Store, oo Object, refValue Value) {
 					case *SliceValue, PointerValue: // if reference object from external realm
 						refValue = rv
 						// TODO: consider pkgId here, A -> B - > A?...
-						// yes, check PkgId per object
-						reo, _ = e.GetFirstObject2(store)
-						fmt.Println("---reo: ", reo)
+						var pkgId PkgID
+						reo, pkgId = e.GetFirstObject2(store)
+						// TODO: simplify
+						if !pkgId.IsZero() {
+							reo.SetOriginRealm(pkgId)
+						}
 						// XXX, if elem of array is slice?, GetFirstObject2?...
 						checkCrossRealm(store, reo, refValue)
 					}
@@ -375,29 +373,26 @@ func checkCrossRealm(store Store, oo Object, refValue Value) {
 
 // escaped realm should be reference object
 func (rlm *Realm) MarkNewEscapedCheckCrossRealm(store Store, oo Object, refValue Value) {
-	fmt.Println("---MarkNewEscapedCheckCrossRealm")
-	fmt.Println("---refValue: ", refValue)
-	//fmt.Println("---rlm.ID: ", rlm.ID)
-	//fmt.Println("---oo.GetRefCount(): ", oo.GetRefCount())
-	//fmt.Println("---oo.lastNewRealEscapedRealm: ", oo.GetLastNewEscapedRealm())
-	//fmt.Println("---oo.GetIsReal: ", oo.GetIsReal())
+	debug2.Println2("MarkNewEscapedCheckCrossRealm")
+	debug2.Println2("---refValue: ", refValue)
+
+	// mark escaped
+	if !oo.GetIsEscaped() {
+		rlm.MarkNewEscaped(oo)
+	}
 
 	if oo.GetOriginRealm() == rlm.ID {
 		return
 	}
 
-	fmt.Println("---oo.GetLastNewEscapedRealm(): ", oo.GetOriginRealm())
-	fmt.Println("---rlm.ID: ", rlm.ID)
+	debug2.Println2("---oo.GetLastNewEscapedRealm(): ", oo.GetOriginRealm())
+	debug2.Println2("---rlm.ID: ", rlm.ID)
 	if oo.GetOriginRealm() != rlm.ID { // crossing realm
 		if refValue != nil { // is reference object from external realm
 			checkCrossRealm(store, oo, refValue)
 		} else {
 			panic("cannot attach objects by value from external realm")
 		}
-	}
-
-	if !oo.GetIsEscaped() {
-		rlm.MarkNewEscaped(oo)
 	}
 }
 
@@ -615,11 +610,9 @@ func (rlm *Realm) processNewCreatedMarks(store Store) {
 
 // oo must be marked new-real, and ref-count already incremented.
 func (rlm *Realm) incRefCreatedDescendants(store Store, oo Object) {
-	//fmt.Println("---incRefCreatedDescendants, rlm.ID: ", rlm.ID)
 	fmt.Println("---incRefCreatedDescendants from oo: ", oo)
 	fmt.Println("---oo.GetOriginRealm: ", oo.GetOriginRealm())
 	fmt.Println("---oo.GetRefCount: ", oo.GetRefCount())
-	//fmt.Println("---incRefCreatedDescendants, oo.GetObjectID: ", oo.GetObjectID())
 
 	if debug {
 		if oo.GetIsDirty() {
@@ -634,8 +627,6 @@ func (rlm *Realm) incRefCreatedDescendants(store Store, oo Object) {
 	// if it's reference, all right
 	fmt.Println("---oo.GetIsRef: ", oo.GetIsRef())
 	if !oo.GetOriginRealm().IsZero() && oo.GetOriginRealm() != rlm.ID {
-		//fmt.Println("---oo.GetLastNewEscapedRealm: ", oo.GetLastNewEscapedRealm())
-		//fmt.Println("---rlm.ID: ", rlm.ID)
 		if oo.GetIsRef() {
 			panic("cannot attach a reference to an unreal object from an external realm")
 		} else {
@@ -656,11 +647,8 @@ func (rlm *Realm) incRefCreatedDescendants(store Store, oo Object) {
 
 	// recurse for children.
 	more := getChildObjects2(store, oo)
-	//fmt.Println("---incRefCreatedDescendants, more: ", more)
-	//fmt.Println("---len of more: ", len(more))
 	for _, child := range more {
-		//fmt.Printf("---[%d]child: %v, type of child: %v \n", i, child, reflect.TypeOf(child))
-		//fmt.Printf("---child addr: %p\n", child)
+		//debug2.Printf2("---[%d]child: %v, type of child: %v \n", i, child, reflect.TypeOf(child))
 		if _, ok := child.(*PackageValue); ok {
 			if debug {
 				if child.GetRefCount() < 1 {
@@ -680,7 +668,6 @@ func (rlm *Realm) incRefCreatedDescendants(store Store, oo Object) {
 				child.SetOwner(oo)
 				rlm.MarkDirty(child)
 			} else {
-				//fmt.Println("---child NOT real, child: ", child)
 				// a (possibly pre-existing) new object
 				// became real (again).
 				// NOTE: may already be marked for first gen
@@ -693,7 +680,6 @@ func (rlm *Realm) incRefCreatedDescendants(store Store, oo Object) {
 			}
 		} else if rc > 1 {
 			if child.GetIsEscaped() {
-				//fmt.Println("---child is escaped, child: ", child)
 				// already escaped, do nothing.
 			} else {
 				// NOTE: do not unset owner here,

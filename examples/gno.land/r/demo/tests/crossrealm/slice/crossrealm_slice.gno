@@ -1,5 +1,7 @@
 package crossrealm_slice
 
+import "gno.land/p/demo/tests/p_crossrealm"
+
 type Fooer interface{ Foo() }
 
 var S []Fooer
@@ -75,4 +77,17 @@ func GetSlice6(f func(s []*XYZ)) {
 func GetSlice7(f func(s [2]XYZ)) {
 	//s7[1] = XYZ{"7.1"}
 	f(s7)
+}
+
+var s8 [1]p_crossrealm.Stringer
+
+func GetSlice8(f p_crossrealm.Stringer) [1]p_crossrealm.Stringer {
+	s8[0] = f
+	return s8
+}
+
+func GetSlice9(f p_crossrealm.Stringer) [1]p_crossrealm.Stringer {
+	var s9 [1]p_crossrealm.Stringer
+	s9[0] = f
+	return s9
 }

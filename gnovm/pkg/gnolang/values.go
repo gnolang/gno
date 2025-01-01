@@ -211,8 +211,10 @@ func (pv *PointerValue) GetBase(store Store) Object {
 // TODO: document as something that enables into-native assignment.
 // TODO: maybe consider this as entrypoint for DataByteValue too?
 func (pv PointerValue) Assign2(alloc *Allocator, store Store, rlm *Realm, tv2 TypedValue, cu bool) {
-	fmt.Println("---Assign2, pv: ", pv)
-	fmt.Println("---tv2: ", tv2)
+	debug2.Println2("Assign2, pv: ", pv)
+	debug2.Println2("tv2: ", tv2)
+	debug2.Printf2("addr of tv2: %p \n", &tv2)
+
 	// Special cases.
 	if pv.Index == PointerIndexNative {
 		// Special case if extended object && native.
@@ -287,21 +289,25 @@ func (pv PointerValue) Assign2(alloc *Allocator, store Store, rlm *Realm, tv2 Ty
 	if rlm != nil && pv.Base != nil {
 		oo1 := pv.TV.GetFirstObject(store)
 		fmt.Println("---oo1: ", oo1)
-		pv.TV.Assign(alloc, tv2, cu)
-		oo2, pkgId := pv.TV.GetFirstObject2(store)
 
+		// get origin pkgId
+		_, pkgId := tv2.GetFirstObject2(store)
+		debug2.Println2("pkgId ", pkgId)
+
+		pv.TV.Assign(alloc, tv2, cu)
+
+		oo2 := pv.TV.GetFirstObject(store)
 		// TODO: move to GetFirstObject2
 		var refValue Value
 		switch rv := pv.TV.V.(type) {
 		case *SliceValue, PointerValue:
 			refValue = rv
 		}
-		fmt.Println("---oo2: ", oo2)
-		fmt.Println("---oo2 pkgId: ", pkgId)
-		if oo2 != nil { // cross realm
+		debug2.Println2("oo2: ", oo2)
+		debug2.Println2("pkgId: ", pkgId)
+		if oo2 != nil && !pkgId.IsZero() { // cross realm
 			oo2.SetOriginRealm(pkgId) // attach origin package info
 		}
-		// TODO: make check happens in here?
 		rlm.DidUpdate2(store, pv.Base.(Object), oo1, oo2, refValue)
 	} else {
 		pv.TV.Assign(alloc, tv2, cu)
@@ -400,6 +406,7 @@ func (av *ArrayValue) GetPointerAtIndexInt2(store Store, ii int, et Type) Pointe
 }
 
 func (av *ArrayValue) Copy(alloc *Allocator) *ArrayValue {
+	debug2.Println2("Array copy, av: ", av)
 	/* TODO: consider second ref count field.
 	if av.GetRefCount() == 0 {
 		return av
@@ -1046,7 +1053,8 @@ func (tv *TypedValue) ClearNum() {
 }
 
 func (tv TypedValue) Copy(alloc *Allocator) (cp TypedValue) {
-	//fmt.Println("---Copy, type of tv.V: ", reflect.TypeOf(tv.V))
+	debug2.Println2("Copy, tv: ", tv)
+	debug2.Println2("Copy, type of tv.V: ", reflect.TypeOf(tv.V))
 	switch cv := tv.V.(type) {
 	case BigintValue:
 		cp.T = tv.T
@@ -1699,6 +1707,7 @@ func (tv *TypedValue) ComputeMapKey(store Store, omitType bool) MapKey {
 // cu: convert untyped after assignment. pass false
 // for const definitions, but true for all else.
 func (tv *TypedValue) Assign(alloc *Allocator, tv2 TypedValue, cu bool) {
+	debug2.Println2("Assign, tv2: ", tv2)
 	if debug {
 		if tv.T == DataByteType {
 			// assignment to data byte types should only
