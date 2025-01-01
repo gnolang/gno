@@ -382,6 +382,9 @@ Main:
 	}
 }
 
+// isParentCallExprWithArrayArg checks if the parent expression is a call expression with an array argument.
+// This is used to determine whether to skip the constant value check.
+// This is because the  parent expression may be a call to the len or cap built-in functions.
 func isParentCallExprWithArrayArg(currType Type, parentExpr Expr) bool {
 	_, okArray := baseOf(currType).(*ArrayType)
 	_, okCallExpr := parentExpr.(*CallExpr)
