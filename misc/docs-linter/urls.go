@@ -66,7 +66,7 @@ func lintURLs(filepathToURLs map[string][]string, ctx context.Context) (string, 
 						found = true
 					}
 
-					output.WriteString(fmt.Sprintf(">>> %s (found in file: %s)\n", url, filePath))
+					fmt.Fprintf(&output, ">>> %s (found in file: %s)\n", url, filePath)
 					lock.Unlock()
 				}
 
