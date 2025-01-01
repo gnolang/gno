@@ -21,6 +21,7 @@ func TestParseGnoURL(t *testing.T) {
 			Expected: nil,
 			Err:      ErrURLMalformedPath,
 		},
+
 		{
 			Name:  "simple",
 			Input: "https://gno.land/r/simple/test",
@@ -30,8 +31,8 @@ func TestParseGnoURL(t *testing.T) {
 				WebQuery: url.Values{},
 				Query:    url.Values{},
 			},
-			Err: nil,
 		},
+
 		{
 			Name:  "webquery + query",
 			Input: "https://gno.land/r/demo/foo$help&func=Bar&name=Baz",
@@ -46,7 +47,6 @@ func TestParseGnoURL(t *testing.T) {
 				Query:  url.Values{},
 				Domain: "gno.land",
 			},
-			Err: nil,
 		},
 
 		{
@@ -61,7 +61,6 @@ func TestParseGnoURL(t *testing.T) {
 				Query:  url.Values{},
 				Domain: "gno.land",
 			},
-			Err: nil,
 		},
 
 		{
@@ -78,7 +77,6 @@ func TestParseGnoURL(t *testing.T) {
 				},
 				Domain: "gno.land",
 			},
-			Err: nil,
 		},
 
 		{
@@ -93,7 +91,6 @@ func TestParseGnoURL(t *testing.T) {
 				},
 				Domain: "gno.land",
 			},
-			Err: nil,
 		},
 
 		{
@@ -108,22 +105,113 @@ func TestParseGnoURL(t *testing.T) {
 				Query:  url.Values{},
 				Domain: "gno.land",
 			},
-			Err: nil,
 		},
 
-		// XXX: more tests
+		{
+			Name:  "unknown path kind",
+			Input: "https://gno.land/x/demo/foo",
+			Expected: &GnoURL{
+				Path:     "/x/demo/foo",
+				Args:     "",
+				WebQuery: url.Values{},
+				Query:    url.Values{},
+				Domain:   "gno.land",
+			},
+		},
+
+		{
+			Name:  "empty path",
+			Input: "https://gno.land/r/",
+			Expected: &GnoURL{
+				Path:     "/r/",
+				Args:     "",
+				WebQuery: url.Values{},
+				Query:    url.Values{},
+				Domain:   "gno.land",
+			},
+		},
+
+		{
+			Name:  "complex query",
+			Input: "https://gno.land/r/demo/foo$help?func=Bar&name=Baz&age=30",
+			Expected: &GnoURL{
+				Path: "/r/demo/foo",
+				Args: "",
+				WebQuery: url.Values{
+					"help": []string{""},
+				},
+				Query: url.Values{
+					"func": []string{"Bar"},
+					"name": []string{"Baz"},
+					"age":  []string{"30"},
+				},
+				Domain: "gno.land",
+			},
+		},
+
+		{
+			Name:  "multiple web queries",
+			Input: "https://gno.land/r/demo/foo$help&func=Bar$test=123",
+			Expected: &GnoURL{
+				Path: "/r/demo/foo",
+				Args: "",
+				WebQuery: url.Values{
+					"help": []string{""},
+					"func": []string{"Bar$test=123"},
+				},
+				Query:  url.Values{},
+				Domain: "gno.land",
+			},
+		},
+
+		{
+			Name:  "webquery-args-webquery",
+			Input: "https://gno.land/r/demo/AAA$BBB:CCC&DDD$EEE",
+			Err:   ErrURLMalformedPath, // `/r/demo/AAA$BBB` is an invalid path
+		},
+
+		{
+			Name:  "args-webquery-args",
+			Input: "https://gno.land/r/demo/AAA:BBB$CCC&DDD:EEE",
+			Expected: &GnoURL{
+				Domain: "gno.land",
+				Path:   "/r/demo/AAA",
+				Args:   "BBB",
+				WebQuery: url.Values{
+					"CCC":     []string{""},
+					"DDD:EEE": []string{""},
+				},
+				Query: url.Values{},
+			},
+		},
+
+		{
+			Name:  "escaped characters in args",
+			Input: "https://gno.land/r/demo/foo:example%20with%20spaces$tz=Europe/Paris",
+			Expected: &GnoURL{
+				Path: "/r/demo/foo",
+				Args: "example with spaces",
+				WebQuery: url.Values{
+					"tz": []string{"Europe/Paris"},
+				},
+				Query:  url.Values{},
+				Domain: "gno.land",
+			},
+		},
 	}
 
 	for _, tc := range testCases {
 		t.Run(tc.Name, func(t *testing.T) {
+			t.Logf("testing input: %q", tc.Input)
+
 			u, err := url.Parse(tc.Input)
 			require.NoError(t, err)
 
 			result, err := ParseGnoURL(u)
 			if tc.Err == nil {
 				require.NoError(t, err)
-				t.Logf("parsed: %s", result.EncodePath())
-				t.Logf("parsed web: %s", result.EncodeWebPath())
+				t.Logf("encoded path: %q", result.EncodePath())
+				t.Logf("encoded web path: %q", result.EncodeWebPath())
 			} else {
 				require.Error(t, err)
 				require.ErrorIs(t, err, tc.Err)
