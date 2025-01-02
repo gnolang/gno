@@ -110,7 +110,7 @@ func ClaimAll(destination std.Address) {
 	}
 }
 
-func Fund(input string, namespace string) {
+func Fund(base string, namespace string) {
 	std.AssertOriginCall()
 
 	var (
@@ -118,10 +118,10 @@ func Fund(input string, namespace string) {
 		err error
 	)
 
-	if input == "" {
+	if base == "" {
 		id = vaultIDFromRealm(std.PrevRealm(), namespace)
 	} else {
-		id, err = vaultID(input, namespace)
+		id, err = vaultID(base, namespace)
 		if err != nil {
 			panic(err)
 		}

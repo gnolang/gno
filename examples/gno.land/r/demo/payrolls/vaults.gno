@@ -22,45 +22,43 @@ func getVaultAmount(id string) uint64 {
 
 var errInvalidInput = errors.New("invalid input")
 
-func vaultID(input string, namespace string) (string, error) {
-	if len(input) == 0 {
+func vaultID(base string, namespace string) (string, error) {
+	if len(base) == 0 {
 		return "", errInvalidInput
 	}
 
-	if id, ok := vaultIDFromPkgPath(input, namespace); ok {
+	if id, ok := vaultIDFromPkgPath(base, namespace); ok {
 		return id, nil
 	}
 
-	user := rusers.GetUserByAddressOrName(users.AddressOrName(input))
+	user := rusers.GetUserByAddressOrName(users.AddressOrName(base))
 	if user != nil {
 		return vaultIDUnsafe(user.Address.String(), namespace), nil
 	}
 
-	if id, ok := vaultIDFromAddr(std.Address(input), namespace); ok {
+	if id, ok := vaultIDFromAddr(std.Address(base), namespace); ok {
 		return id, nil
 	}
 
 	return "", errInvalidInput
 }
 
-func parseVaultID(id string) (string, error) {
-	parts := strings.Split(id, ".")
-	if len(parts) == 0 {
-		return "", errInvalidInput
+func splitVaultInput(input string) (string, string) {
+	lastDot := strings.LastIndex(input, ".")
+	if lastDot == -1 {
+		return input, ""
 	}
 
-	if len(parts) == 1 {
-		return vaultID(parts[0], "")
-	}
-
-	return vaultID(parts[0], parts[1])
+	base := input[:lastDot]
+	namespace := input[lastDot+1:]
+	return base, namespace
 }
 
-func vaultIDUnsafe(entity string, namespace string) string {
+func vaultIDUnsafe(base string, namespace string) string {
 	if namespace == "" {
-		return entity
+		return base
 	}
-	return entity + "." + namespace
+	return base + "." + namespace
 }
 
 func vaultIDFromAddr(addr std.Address, namespace string) (string, bool) {
@@ -70,17 +68,17 @@ func vaultIDFromAddr(addr std.Address, namespace string) (string, bool) {
 	return vaultIDUnsafe(addr.String(), namespace), true
 }
 
-func vaultIDFromPkgPath(entity string, namespace string) (string, bool) {
-	if !strings.HasPrefix(entity, std.GetChainDomain()+"/r/") {
+func vaultIDFromPkgPath(base string, namespace string) (string, bool) {
+	if !strings.HasPrefix(base, std.GetChainDomain()+"/r/") {
 		return "", false
 	}
-	return vaultIDUnsafe(entity, namespace), true
+	return vaultIDUnsafe(base, namespace), true
 }
 
-func vaultIDFromRealm(realm std.Realm, namespace string) string {
-	if realm.IsUser() {
-		return vaultIDUnsafe(realm.Addr().String(), namespace)
+func vaultIDFromRealm(base std.Realm, namespace string) string {
+	if base.IsUser() {
+		return vaultIDUnsafe(base.Addr().String(), namespace)
 	} else {
-		return vaultIDUnsafe(realm.PkgPath(), namespace)
+		return vaultIDUnsafe(base.PkgPath(), namespace)
 	}
 }

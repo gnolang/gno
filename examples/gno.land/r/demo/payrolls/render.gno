@@ -2,13 +2,12 @@ package payrolls
 
 import (
 	"net/url"
-	"path"
 	"std"
+	"strconv"
 	"strings"
 	"time"
 
 	"gno.land/p/demo/avl"
-	"gno.land/p/demo/mux"
 	"gno.land/p/demo/ufmt"
 	"gno.land/p/demo/users"
 	rusers "gno.land/r/demo/users"
@@ -18,23 +17,25 @@ import (
 const listMaxSize = 50
 
 func Render(renderPath string) string {
-	router := mux.NewRouter()
+	w := strings.Builder{}
 
-	router.HandleFunc("/u/*", func(w *mux.ResponseWriter, r *mux.Request) {
-		w.Write("# Payrolls beneficiary\n")
-		aon := users.AddressOrName(path.Base(r.Path))
+	switch {
+	case strings.HasPrefix(renderPath, "/u/"):
+		w.WriteString("# Payrolls beneficiary\n")
+
+		path := strings.TrimPrefix(renderPath, "/u/")
+		aon := users.AddressOrName(path)
 		user := rusers.GetUserByAddressOrName(aon)
 		addr := std.Address(aon)
-		name := string(aon)
 		if user != nil {
 			addr = user.Address
-			name = "@" + user.Name
-			w.Write(ufmt.Sprintf("- 👤 User: @%s\n", user.Name))
+			w.WriteString(ufmt.Sprintf("- 👤 User: @%s\n", user.Name))
 		} else if !addr.IsValid() {
-			w.Write(ufmt.Sprintf("❓ User %q not found\n", addr.String()))
-			return
+			w.WriteString(ufmt.Sprintf("❓ User %q not found\n", addr.String()))
+			break
 		}
-		w.Write(ufmt.Sprintf("- 🆔 Address: %s\n", addr.String()))
+
+		w.WriteString(ufmt.Sprintf("- 🆔 Address: %s\n", addr.String()))
 
 		sb := strings.Builder{}
 		tree, ok := payrollsByBeneficiary[addr]
@@ -64,40 +65,49 @@ func Render(renderPath string) string {
 		})
 
 		if shouldEstimate {
-			w.Write(renderEstimatedMonthly("", estimatedDay, denom))
-			w.Write(renderClaimable("", estimatedClaimable, estimatedAvailable, denom, true))
+			w.WriteString(renderEstimatedMonthly("", estimatedDay, denom))
+			w.WriteString(renderClaimable("", estimatedClaimable, estimatedAvailable, denom, true))
 		}
 
 		actions := []string{}
 
 		if !shouldEstimate || estimatedClaimable > 0 {
-			claimAllButton := ufmt.Sprintf("[[Claim all]]($help&func=ClaimAll&destination=%s)", addr.String())
-			actions = append(actions, claimAllButton)
+			actions = append(actions, renderButton("Claim all", "ClaimAll", map[string]string{
+				"destination": addr.String(),
+			}))
 		}
 
-		label := url.QueryEscape(ufmt.Sprintf("%s Salary Monthly", name))
-		newPayrollButton := ufmt.Sprintf("[[New payroll]]($help&func=CreateMonthly&namespace=&label=%s&beneficiary=%s&amount=10000&totalAmount=-1)", label, addr.String())
-		actions = append(actions, newPayrollButton)
+		actions = append(actions, renderButton("New payroll", "CreateMonthly", map[string]string{
+			"label":       "Salary Monthly",
+			"beneficiary": addr.String(),
+			"amount":      "10000",
+			"totalAmount": "-1",
+		}))
 
-		w.Write(ufmt.Sprintf("- ✋ Actions: %s\n", strings.Join(actions, " ")))
+		w.WriteString(renderActions("", actions))
 
-		w.Write(sb.String())
-	})
+		w.WriteString(sb.String())
 
-	router.HandleFunc("/v/*", func(w *mux.ResponseWriter, r *mux.Request) {
-		w.Write("# Payrolls vault\n")
+	case strings.HasPrefix(renderPath, "/v/"):
+		w.WriteString("# Payrolls vault\n")
 
-		name := path.Base(r.Path)
-		vaultID, err := parseVaultID(name)
-		if err != nil {
-			w.Write(ufmt.Sprintf("❓ Vault %q not found", name))
-			return
+		input := strings.TrimPrefix(renderPath, "/v/")
+		inputBase, namespace := splitVaultInput(input)
+		base, vaultUser, ok := resolveVaultBase(inputBase)
+		if !ok {
+			w.WriteString(ufmt.Sprintf("❓ Vault %q not found", input))
+			break
 		}
 
-		if name != vaultID {
-			w.Write(ufmt.Sprintf("- 🎩 Name: %s\n", name))
+		vaultID := vaultIDUnsafe(base, namespace)
+
+		name := vaultID
+		if vaultUser != nil {
+			name = vaultIDUnsafe("@"+vaultUser.Name, namespace)
 		}
-		w.Write(ufmt.Sprintf("- 🆔 ID: %s\n", vaultID))
+		w.WriteString(ufmt.Sprintf("- 🎩 Name: %s\n", name))
+
+		w.WriteString(ufmt.Sprintf("- 🆔 ID: %s\n", vaultID))
 
 		payrollsBuffer := strings.Builder{}
 		estimatedDay := uint64(0)
@@ -120,14 +130,14 @@ func Render(renderPath string) string {
 		funds := getVaultAmount(vaultID)
 
 		if shouldEstimate {
-			w.Write(renderEstimatedMonthly("", estimatedDay, denom))
+			w.WriteString(renderEstimatedMonthly("", estimatedDay, denom))
 
 			balance := int64(funds) - int64(estimatedDebt)
-			prefix := "- 🏦 Funds: 🟢 "
+			prefix := "Funds: 🟢 "
 			if balance < 0 {
-				prefix = "- 🏦 Debt 🔴 "
+				prefix = "Debt: 🔴 "
 			}
-			w.Write(ufmt.Sprintf("%s%d%s\n", prefix, balance, denom))
+			w.WriteString(ufmt.Sprintf("- 🏦 %s%d%s\n", prefix, balance, denom))
 
 			if balance > 0 {
 				color := "🔴"
@@ -137,58 +147,59 @@ func Render(renderPath string) string {
 				} else if runWayMonths >= 6 {
 					color = "🟠"
 				}
-				w.Write(ufmt.Sprintf("- 🛬 Estimated runway: %s %d months\n", color, runWayMonths))
+				w.WriteString(ufmt.Sprintf("- 🛬 Estimated runway: %s %d months\n", color, runWayMonths))
 			}
 		} else {
-			w.Write(ufmt.Sprintf("- 🏦 Funds: %d%s (does not account for unclaimed amounts)\n", funds, denom))
+			w.WriteString(ufmt.Sprintf("- 🏦 Funds: %d%s (does not account for unclaimed amounts)\n", funds, denom))
 		}
 
-		label := url.QueryEscape("Salary Monthly")
-		idParts := strings.Split(vaultID, ".")
-		slug := ""
-		if len(idParts) > 1 {
-			slug = idParts[1]
-		}
-		depositFundsAction := ufmt.Sprintf("[[Deposit funds]]($help&func=Fund&addr=%s&slug=%s)", idParts[0], slug)
-		newPayrollAction := ufmt.Sprintf("[[New payroll]]($help&func=CreateMonthly&namespace=&label=%s&beneficiary=&amount=10000&totalAmount=-1)", label)
-		w.Write(ufmt.Sprintf("- ✋ Actions: %s %s\n", depositFundsAction, newPayrollAction))
+		actions := []string{}
+		actions = append(actions, renderButton("Deposit funds", "Fund", map[string]string{
+			"base":      base,
+			"namespace": namespace,
+		}))
+		actions = append(actions, renderButton("New payroll", "CreateMonthly", map[string]string{
+			"label":       "Salary Monthly",
+			"amount":      "10000",
+			"totalAmount": "-1",
+		}))
+		w.WriteString(renderActions("", actions))
 
-		w.Write(payrollsBuffer.String())
+		w.WriteString(payrollsBuffer.String())
 
-	})
+	case strings.HasPrefix(renderPath, "/d/"):
+		w.WriteString("# Payroll details\n")
 
-	router.HandleFunc("/d/*", func(w *mux.ResponseWriter, r *mux.Request) {
-		w.Write("# Payroll details\n")
-		idStr := path.Base(r.Path)
+		idStr := strings.TrimPrefix(renderPath, "/d/")
 		p, ok := payrolls.Get(idStr)
 		if !ok {
-			w.Write(ufmt.Sprintf("❓ Payroll %q not found", idStr))
-			return
+			return ufmt.Sprintf("❓ Payroll %q not found", idStr)
 		}
-		w.Write(p.(*payroll).render(""))
-	})
-
-	router.HandleFunc("*", func(w *mux.ResponseWriter, r *mux.Request) {
-		w.Write("# Latest payrolls\n")
+		w.WriteString(p.(*payroll).render(""))
+	case renderPath == "":
+		w.WriteString("# Latest payrolls\n")
 		payrolls.ReverseIterateByOffset(0, listMaxSize, func(key string, value interface{}) bool {
-			w.Write(value.(*payroll).render(""))
+			w.WriteString(value.(*payroll).render(""))
 			return false
 		})
 
-		w.Write("\n\nTODO\n")
-		w.Write("- [ ] Fix actions with changed params")
-		w.Write("- [ ] Stop / Archive\n")
-		w.Write("- [ ] Home actions")
-		w.Write("- [ ] Unit tests")
-		w.Write("- [ ] Pause / Unpause\n")
-		w.Write("- [ ] Details: Events history\n")
-		w.Write("- [ ] PoV Tags\n")
-		w.Write("- [ ] Edit label / PoV labels\n")
-		w.Write("- [ ] Stop litigation\n")
-		w.Write("- [ ] Fix anchors\n")
-	})
+		w.WriteString("\n\nTODO\n")
+		w.WriteString("- [ ] Stop / Archive\n")
+		w.WriteString("- [ ] Home actions\n")
+		w.WriteString("- [ ] Unit tests\n")
+		w.WriteString("- [ ] Pause / Unpause\n")
+		w.WriteString("- [ ] Details: Events history\n")
+		w.WriteString("- [ ] PoV Tags\n")
+		w.WriteString("- [ ] Edit label / PoV labels\n")
+		w.WriteString("- [ ] Stop litigation\n")
+		w.WriteString("- [ ] Fix anchors\n")
 
-	return router.Render(renderPath)
+	default:
+		w.WriteString("# Payrolls\n")
+		w.WriteString("❓ 404 Not found")
+	}
+
+	return w.String()
 }
 
 func (p *payroll) render(pov string) string {
@@ -203,8 +214,14 @@ func (p *payroll) render(pov string) string {
 	}
 
 	if pov != "vault" {
-		pvid := prettyVaultID(p.vaultID)
+		base, namespace := splitVaultInput(p.vaultID)
+		_, usr, _ := resolveVaultBase(base)
+		if usr != nil {
+			base = "@" + usr.Name
+		}
+		pvid := vaultIDUnsafe(base, namespace)
 		sb.WriteString(ufmt.Sprintf("  - 🎩 Vault: [%s](%s:/v/%s)\n", pvid, linkPrefix(), pvid))
+
 	}
 
 	if pov != "beneficiary" {
@@ -243,13 +260,14 @@ func (p *payroll) render(pov string) string {
 	actions := []string{}
 
 	if pov != "vault" && claimable > 0 {
-		claim := ufmt.Sprintf("[[Claim]]($help&func=Claim&id=%d&requestedAmount=-1&destination=%s)", uint64(p.id), p.beneficiary.String())
-		actions = append(actions, claim)
+		actions = append(actions, renderButton("Claim", "Claim", map[string]string{
+			"id":              strconv.FormatUint(uint64(p.id), 10),
+			"requestedAmount": "-1",
+			"destination":     p.beneficiary.String(),
+		}))
 	}
 
-	if len(actions) > 0 {
-		sb.WriteString(ufmt.Sprintf("- ✋ Actions: %s\n", strings.Join(actions, " ")))
-	}
+	sb.WriteString(renderActions("  ", actions))
 
 	return sb.String()
 }
@@ -281,21 +299,6 @@ func renderEstimatedMonthly(prefix string, estimatedDay uint64, denom string) st
 	return ufmt.Sprintf("%s- 💸 Estimated monthly: %d%s\n", prefix, estimatedDay*30, denom)
 }
 
-func prettyVaultID(id string) string {
-	parts := strings.Split(id, ".")
-	if len(parts) == 0 {
-		return id
-	}
-
-	user := rusers.GetUserByAddress(std.Address(parts[0]))
-	if user == nil {
-		return id
-	}
-
-	parts[0] = "@" + user.Name
-	return strings.Join(parts, ".")
-}
-
 func linkPrefix() string {
 	realmPath := std.CurrentRealm().PkgPath()
 	slashIdx := strings.Index(realmPath, "/")
@@ -303,4 +306,40 @@ func linkPrefix() string {
 		return realmPath
 	}
 	return realmPath[slashIdx:]
+}
+
+func renderButton(text, funcName string, args map[string]string) string {
+	argsBuf := strings.Builder{}
+	for key, arg := range args {
+		argsBuf.WriteString("&" + url.QueryEscape(key) + "=" + url.QueryEscape(arg))
+	}
+	return ufmt.Sprintf("[[%s]](%s$help&func=%s%s)", text, linkPrefix(), funcName, argsBuf.String())
+}
+
+func renderActions(prefix string, actions []string) string {
+	if len(actions) == 0 {
+		return ""
+	}
+	return prefix + "- ✋ Actions: " + strings.Join(actions, " ") + "\n"
+}
+
+func resolveVaultBase(base string) (string, *users.User, bool) {
+	if len(base) == 0 {
+		return "", nil, false
+	}
+
+	if strings.HasPrefix(base, std.GetChainDomain()+"/r/") {
+		return base, nil, true
+	}
+
+	usr := rusers.GetUserByAddressOrName(users.AddressOrName(base))
+	if usr != nil {
+		return usr.Address.String(), usr, true
+	}
+
+	if std.Address(base).IsValid() {
+		return base, nil, true
+	}
+
+	return "", nil, false
 }
