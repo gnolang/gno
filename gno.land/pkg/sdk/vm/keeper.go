@@ -52,6 +52,7 @@ type VMKeeperI interface {
 	LoadStdlibCached(ctx sdk.Context, stdlibDir string)
 	MakeGnoTransactionStore(ctx sdk.Context) sdk.Context
 	CommitGnoTransactionStore(ctx sdk.Context)
+	InitGenesis(ctx sdk.Context, data GenesisState)
 }
 
 var _ VMKeeperI = &VMKeeper{}
@@ -64,8 +65,9 @@ type VMKeeper struct {
 	baseKey store.StoreKey
 	iavlKey store.StoreKey
 	acck    auth.AccountKeeper
-	bank    bank.BankKeeper
+	bank    *bank.BankKeeper
 	prmk    params.ParamsKeeper
+	params  Params
 
 	// cached, the DeliverTx persistent state.
 	gnoStore gno.Store
@@ -76,7 +78,7 @@ func NewVMKeeper(
 	baseKey store.StoreKey,
 	iavlKey store.StoreKey,
 	acck auth.AccountKeeper,
-	bank bank.BankKeeper,
+	bank *bank.BankKeeper,
 	prmk params.ParamsKeeper,
 ) *VMKeeper {
 	vmk := &VMKeeper{

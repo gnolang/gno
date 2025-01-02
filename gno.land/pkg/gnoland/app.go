@@ -89,11 +89,15 @@ func NewAppWithOptions(cfg *AppOptions) (abci.Application, error) {
 	baseApp.MountStoreWithDB(baseKey, dbadapter.StoreConstructor, cfg.DB)
 
 	// Construct keepers.
-	paramsKpr := params.NewParamsKeeper(mainKey, "vm")
-	acctKpr := auth.NewAccountKeeper(mainKey, paramsKpr, ProtoGnoAccount)
-	gpKpr := auth.NewGasPriceKeeper(mainKey)
-	bankKpr := bank.NewBankKeeper(acctKpr)
 
+	km := params.NewPrefixKeyMapper()
+	km.RegisterPrefix(auth.ParamsPrefixKey)
+	km.RegisterPrefix(bank.ParamsPrefixKey)
+	km.RegisterPrefix(vm.ParamsPrefixKey)
+	paramsKpr := params.NewParamsKeeper(mainKey, km)
+	acctKpr := auth.NewAccountKeeper(mainKey, paramsKpr, ProtoGnoAccount)
+	bankKpr := bank.NewBankKeeper(acctKpr, paramsKpr)
+	gpKpr := auth.NewGasPriceKeeper(mainKey)
 	vmk := vm.NewVMKeeper(baseKey, mainKey, acctKpr, bankKpr, paramsKpr)
 	vmk.Output = cfg.VMOutput
 
@@ -116,7 +120,6 @@ func NewAppWithOptions(cfg *AppOptions) (abci.Application, error) {
 		) {
 			// Add last gas price in the context
 			ctx = ctx.WithValue(auth.GasPriceContextKey{}, gpKpr.LastGasPrice(ctx))
-
 			// Override auth params.
 			ctx = ctx.WithValue(auth.AuthParamsContextKey{}, acctKpr.GetParams(ctx))
 			// Continue on with default auth ante handler.
@@ -300,11 +303,8 @@ func (cfg InitChainerConfig) loadAppState(ctx sdk.Context, appState any) ([]abci
 	if !ok {
 		return nil, fmt.Errorf("invalid AppState of type %T", appState)
 	}
-	cfg.acctKpr.InitGenesis(ctx, state.Auth)
-	params := cfg.acctKpr.GetParams(ctx)
-	ctx = ctx.WithValue(auth.AuthParamsContextKey{}, params)
-	auth.InitChainer(ctx, cfg.gpKpr.(auth.GasPriceKeeper), params.InitialGasPrice)
 
+	cfg.bankKpr.InitGenesis(ctx, state.Bank)
 	// Apply genesis balances.
 	for _, bal := range state.Balances {
 		acc := cfg.acctKpr.NewAccountWithAddress(ctx, bal.Address)
@@ -319,6 +319,14 @@ func (cfg InitChainerConfig) loadAppState(ctx sdk.Context, appState any) ([]abci
 	for _, param := range state.Params {
 		param.register(ctx, cfg.paramsKpr)
 	}
+	// The account keeper's initial genesis state must be set after genesis
+	// accounts are created in account keeeper with genesis balances
+	cfg.acctKpr.InitGenesis(ctx, state.Auth)
+	cfg.vmKpr.InitGenesis(ctx, state.VM)
+
+	params := cfg.acctKpr.GetParams(ctx)
+	ctx = ctx.WithValue(auth.AuthParamsContextKey{}, params)
+	auth.InitChainer(ctx, cfg.gpKpr, params.InitialGasPrice)
 
 	// Replay genesis txs.
 	txResponses := make([]abci.ResponseDeliverTx, 0, len(state.Txs))

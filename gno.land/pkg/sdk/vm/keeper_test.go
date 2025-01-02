@@ -352,7 +352,7 @@ func TestVMKeeperParams(t *testing.T) {
 	// Create test package.
 	files := []*gnovm.MemFile{
 		{Name: "init.gno", Body: `
-package test
+package params
 
 import "std"
 
@@ -367,7 +367,7 @@ func Do() string {
 	return "XXX" // return std.GetConfig("gno.land/r/test.foo"), if we want to expose std.GetConfig, maybe as a std.TestGetConfig
 }`},
 	}
-	pkgPath := "gno.land/r/test"
+	pkgPath := ParamsRealmPath
 	msg1 := NewMsgAddPackage(addr, pkgPath, files)
 	err := env.vmk.AddPackage(ctx, msg1)
 	assert.NoError(t, err)
@@ -384,8 +384,8 @@ func Do() string {
 
 	var foo string
 	var bar int64
-	env.vmk.prmk.GetString(ctx, "gno.land/r/test.foo.string", &foo)
-	env.vmk.prmk.GetInt64(ctx, "gno.land/r/test.bar.int64", &bar)
+	env.vmk.prmk.GetString(ctx, "gno.land/r/sys/params.foo.string", &foo)
+	env.vmk.prmk.GetInt64(ctx, "gno.land/r/sys/params.bar.int64", &bar)
 	assert.Equal(t, "foo2", foo)
 	assert.Equal(t, int64(1337), bar)
 }

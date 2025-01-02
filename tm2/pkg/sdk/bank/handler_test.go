@@ -18,7 +18,7 @@ import (
 func TestInvalidMsg(t *testing.T) {
 	t.Parallel()
 
-	h := NewHandler(BankKeeper{})
+	h := NewHandler(&BankKeeper{})
 	res := h.Process(sdk.NewContext(sdk.RunTxModeDeliver, nil, &bft.Header{ChainID: "test-chain"}, nil), tu.NewTestMsg())
 	require.False(t, res.IsOK())
 	require.True(t, strings.Contains(res.Log, "unrecognized bank message type"))

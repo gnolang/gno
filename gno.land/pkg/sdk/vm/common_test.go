@@ -21,7 +21,7 @@ import (
 type testEnv struct {
 	ctx  sdk.Context
 	vmk  *VMKeeper
-	bank bankm.BankKeeper
+	bank *bankm.BankKeeper
 	acck authm.AccountKeeper
 	vmh  vmHandler
 }
@@ -47,10 +47,12 @@ func _setupTestEnv(cacheStdlibs bool) testEnv {
 	ms.LoadLatestVersion()
 
 	ctx := sdk.NewContext(sdk.RunTxModeDeliver, ms, &bft.Header{ChainID: "test-chain-id"}, log.NewNoopLogger())
-	prmk := paramsm.NewParamsKeeper(iavlCapKey, "params")
+	km := paramsm.NewPrefixKeyMapper()
+	prefix := "params_test"
+	km.RegisterPrefix(prefix)
+	prmk := paramsm.NewParamsKeeper(iavlCapKey, km)
 	acck := authm.NewAccountKeeper(iavlCapKey, prmk, std.ProtoBaseAccount)
-	bank := bankm.NewBankKeeper(acck)
-
+	bank := bankm.NewBankKeeper(acck, prmk)
 	vmk := NewVMKeeper(baseCapKey, iavlCapKey, acck, bank, prmk)
 
 	mcw := ms.MultiCacheWrap()

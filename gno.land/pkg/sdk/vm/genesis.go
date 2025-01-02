@@ -1,4 +1,4 @@
-package auth
+package vm
 
 import (
 	"github.com/gnolang/gno/tm2/pkg/amino"
@@ -27,35 +27,22 @@ func ValidateGenesis(data GenesisState) error {
 }
 
 // InitGenesis - Init store state from genesis data
-func (ak AccountKeeper) InitGenesis(ctx sdk.Context, data GenesisState) {
+func (vm *VMKeeper) InitGenesis(ctx sdk.Context, data GenesisState) {
 	if amino.DeepEqual(data, GenesisState{}) {
-		if err := ak.SetParams(ctx, DefaultParams()); err != nil {
-			panic(err)
-		}
 		return
 	}
 
 	if err := ValidateGenesis(data); err != nil {
 		panic(err)
 	}
-
-	// The unrestricted address must have been created as one of the genesis accounts.
-	// Otherwise, we cannot verify the unrestricted address in the genesis state.
-
-	for _, addr := range data.Params.UnrestrictedAddrs {
-		acc := ak.GetAccount(ctx, addr)
-		acc.SetUnrestricted(true)
-		ak.SetAccount(ctx, acc)
-	}
-
-	if err := ak.SetParams(ctx, data.Params); err != nil {
+	if err := vm.SetParams(ctx, data.Params); err != nil {
 		panic(err)
 	}
 }
 
 // ExportGenesis returns a GenesisState for a given context and keeper
-func (ak AccountKeeper) ExportGenesis(ctx sdk.Context) GenesisState {
-	params := ak.GetParams(ctx)
+func (vm *VMKeeper) ExportGenesis(ctx sdk.Context) GenesisState {
+	params := vm.GetParams(ctx)
 
 	return NewGenesisState(params)
 }

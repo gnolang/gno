@@ -1,4 +1,4 @@
-package auth
+package bank
 
 import (
 	"github.com/gnolang/gno/tm2/pkg/amino"
@@ -27,35 +27,29 @@ func ValidateGenesis(data GenesisState) error {
 }
 
 // InitGenesis - Init store state from genesis data
-func (ak AccountKeeper) InitGenesis(ctx sdk.Context, data GenesisState) {
+func (bank *BankKeeper) InitGenesis(ctx sdk.Context, data GenesisState) {
 	if amino.DeepEqual(data, GenesisState{}) {
-		if err := ak.SetParams(ctx, DefaultParams()); err != nil {
-			panic(err)
-		}
 		return
 	}
-
 	if err := ValidateGenesis(data); err != nil {
 		panic(err)
 	}
 
-	// The unrestricted address must have been created as one of the genesis accounts.
-	// Otherwise, we cannot verify the unrestricted address in the genesis state.
+	bank.restrictedDenoms = map[string]struct{}{}
 
-	for _, addr := range data.Params.UnrestrictedAddrs {
-		acc := ak.GetAccount(ctx, addr)
-		acc.SetUnrestricted(true)
-		ak.SetAccount(ctx, acc)
+	params := data.Params
+	for _, denom := range params.RestrictedDenoms {
+		bank.restrictedDenoms[denom] = struct{}{}
 	}
 
-	if err := ak.SetParams(ctx, data.Params); err != nil {
+	if err := bank.SetParams(ctx, data.Params); err != nil {
 		panic(err)
 	}
 }
 
 // ExportGenesis returns a GenesisState for a given context and keeper
-func (ak AccountKeeper) ExportGenesis(ctx sdk.Context) GenesisState {
-	params := ak.GetParams(ctx)
+func (bank *BankKeeper) ExportGenesis(ctx sdk.Context) GenesisState {
+	params := bank.GetParams(ctx)
 
 	return NewGenesisState(params)
 }

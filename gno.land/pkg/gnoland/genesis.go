@@ -13,6 +13,7 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/crypto"
 	osm "github.com/gnolang/gno/tm2/pkg/os"
 	"github.com/gnolang/gno/tm2/pkg/sdk/auth"
+	"github.com/gnolang/gno/tm2/pkg/sdk/bank"
 	"github.com/gnolang/gno/tm2/pkg/std"
 	"github.com/pelletier/go-toml"
 )
@@ -203,7 +204,8 @@ func DefaultGenState() GnoGenesisState {
 		Balances: []Balance{},
 		Txs:      []TxWithMetadata{},
 		Auth:     authGen,
+		Bank:     bank.DefaultGenesisState(),
+		VM:       vmm.DefaultGenesisState(),
 	}
-
 	return gs
 }

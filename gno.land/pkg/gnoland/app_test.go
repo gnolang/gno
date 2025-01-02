@@ -114,6 +114,7 @@ func TestNewAppWithOptions(t *testing.T) {
 		{"params/vm/foo.bool", `true`},
 		{"params/vm/foo.bytes", `"SGkh"`}, // XXX: make this test more readable
 	}
+
 	for _, tc := range tcs {
 		qres := bapp.Query(abci.RequestQuery{
 			Path: tc.path,
@@ -216,12 +217,17 @@ func testInitChainerLoadStdlib(t *testing.T, cached bool) { //nolint:thelper
 	cfg := InitChainerConfig{
 		StdlibDir:       stdlibDir,
 		vmKpr:           mock,
+		acctKpr:         &mockAuthKeeper{},
+		bankKpr:         &mockBankKeeper{},
+		paramsKpr:       &mockParamsKeeper{},
+		gpKpr:           &mockGasPriceKeeper{},
 		CacheStdlibLoad: cached,
 	}
 	// Construct keepers.
-	paramsKpr := params.NewParamsKeeper(iavlCapKey, "")
-	cfg.acctKpr = auth.NewAccountKeeper(iavlCapKey, paramsKpr, ProtoGnoAccount)
-	cfg.gpKpr = auth.NewGasPriceKeeper(iavlCapKey)
+	// paramsKpr := params.NewParamsKeeper(iavlCapKey, params.PrefixKeyMapper{})
+	// cfg.paramsKpr = &mockParamsKeeper{}
+	// cfg.acctKpr = auth.NewAccountKeeper(iavlCapKey, paramsKpr, ProtoGnoAccount)
+	// cfg.gpKpr = auth.NewGasPriceKeeper(iavlCapKey)
 	cfg.InitChainer(testCtx, abci.RequestInitChain{
 		AppState: DefaultGenState(),
 	})
@@ -821,11 +827,16 @@ func newGasPriceTestApp(t *testing.T) abci.Application {
 	baseApp.MountStoreWithDB(mainKey, iavl.StoreConstructor, cfg.DB)
 	baseApp.MountStoreWithDB(baseKey, dbadapter.StoreConstructor, cfg.DB)
 
+	km := params.NewPrefixKeyMapper()
+	km.RegisterPrefix(auth.ParamsPrefixKey)
+	km.RegisterPrefix(bank.ParamsPrefixKey)
+	km.RegisterPrefix(vm.ParamsPrefixKey)
+
 	// Construct keepers.
-	paramsKpr := params.NewParamsKeeper(mainKey, "")
+	paramsKpr := params.NewParamsKeeper(mainKey, km)
 	acctKpr := auth.NewAccountKeeper(mainKey, paramsKpr, ProtoGnoAccount)
 	gpKpr := auth.NewGasPriceKeeper(mainKey)
-	bankKpr := bank.NewBankKeeper(acctKpr)
+	bankKpr := bank.NewBankKeeper(acctKpr, paramsKpr)
 	vmk := vm.NewVMKeeper(baseKey, mainKey, acctKpr, bankKpr, paramsKpr)
 
 	// Set InitChainer

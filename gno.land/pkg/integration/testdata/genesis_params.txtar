@@ -25,4 +25,3 @@ gnokey query params/vm/gno.land/r/sys/params.test.foo.bool
 stdout 'data: true'
 
 # TODO: Consider adding a test case for a byte array parameter
-

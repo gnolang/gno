@@ -28,8 +28,9 @@ func setupTestEnv() testEnv {
 	ms := store.NewCommitMultiStore(db)
 	ms.MountStoreWithDB(authCapKey, iavl.StoreConstructor, db)
 	ms.LoadLatestVersion()
-
-	paramk := params.NewParamsKeeper(authCapKey, "")
+	km := params.NewPrefixKeyMapper()
+	km.RegisterPrefix(ParamsPrefixKey)
+	paramk := params.NewParamsKeeper(authCapKey, km)
 	acck := NewAccountKeeper(authCapKey, paramk, std.ProtoBaseAccount)
 	bank := NewDummyBankKeeper(acck)
 	gk := NewGasPriceKeeper(authCapKey)
@@ -61,6 +62,10 @@ type DummyBankKeeper struct {
 // NewDummyBankKeeper creates a DummyBankKeeper instance
 func NewDummyBankKeeper(acck AccountKeeper) DummyBankKeeper {
 	return DummyBankKeeper{acck}
+}
+
+func (bank DummyBankKeeper) SendCoinsUnrestricted(ctx sdk.Context, fromAddr crypto.Address, toAddr crypto.Address, amt std.Coins) error {
+	return bank.SendCoins(ctx, fromAddr, toAddr, amt)
 }
 
 // SendCoins for the dummy supply keeper

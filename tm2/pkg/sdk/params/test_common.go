@@ -24,7 +24,9 @@ func setupTestEnv() testEnv {
 	ms.LoadLatestVersion()
 
 	prefix := "params_test"
-	keeper := NewParamsKeeper(paramsCapKey, prefix)
+	km := NewPrefixKeyMapper()
+	km.RegisterPrefix(prefix)
+	keeper := NewParamsKeeper(paramsCapKey, km)
 
 	ctx := sdk.NewContext(sdk.RunTxModeDeliver, ms, &bft.Header{Height: 1, ChainID: "test-chain-id"}, log.NewNoopLogger())
 	// XXX: context key?

@@ -16,9 +16,10 @@ import (
 )
 
 type testEnv struct {
-	ctx  sdk.Context
-	bank BankKeeper
-	acck auth.AccountKeeper
+	ctx    sdk.Context
+	bank   *BankKeeper
+	acck   auth.AccountKeeper
+	paramk params.ParamsKeeper
 }
 
 func setupTestEnv() testEnv {
@@ -29,13 +30,14 @@ func setupTestEnv() testEnv {
 	ms := store.NewCommitMultiStore(db)
 	ms.MountStoreWithDB(authCapKey, iavl.StoreConstructor, db)
 	ms.LoadLatestVersion()
-	paramk := params.NewParamsKeeper(authCapKey, "")
 	ctx := sdk.NewContext(sdk.RunTxModeDeliver, ms, &bft.Header{ChainID: "test-chain-id"}, log.NewNoopLogger())
+	km := params.NewPrefixKeyMapper()
+	km.RegisterPrefix(ParamsPrefixKey)
+	paramk := params.NewParamsKeeper(authCapKey, km)
 	acck := auth.NewAccountKeeper(
 		authCapKey, paramk, std.ProtoBaseAccount,
 	)
+	bank := NewBankKeeper(acck, paramk)
 
-	bank := NewBankKeeper(acck)
-
-	return testEnv{ctx: ctx, bank: bank, acck: acck}
+	return testEnv{ctx: ctx, bank: bank, acck: acck, paramk: paramk}
 }

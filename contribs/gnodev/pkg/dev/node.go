@@ -122,6 +122,8 @@ func NewDevNode(ctx context.Context, cfg *NodeConfig) (*Node, error) {
 		initialState:      cfg.InitialTxs,
 		currentStateIndex: len(cfg.InitialTxs),
 	}
+
+	// generate genesis state
 	genesis := gnoland.DefaultGenState()
 	genesis.Balances = cfg.BalancesList
 	genesis.Txs = append(pkgsTxs, cfg.InitialTxs...)
