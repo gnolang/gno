@@ -1,6 +1,7 @@
 package gnolang_test
 
 import (
+	"fmt"
 	"math"
 	"testing"
 
@@ -41,4 +42,60 @@ func TestStaticBlock_Define2_MaxNames(t *testing.T) {
 
 	// This one should panic because the maximum number of names has been reached.
 	staticBlock.Define2(false, gnolang.Name("a"), gnolang.BoolType, gnolang.TypedValue{T: gnolang.BoolType})
+}
+
+func TestAttributesSetGetDel(t *testing.T) {
+	attrs := new(gnolang.Attributes)
+	if got, want := attrs.GetAttribute("a"), (any)(nil); got != want {
+		t.Errorf(".Get returned an unexpected value=%v, want=%v", got, want)
+	}
+	attrs.SetAttribute("a", 10)
+	if got, want := attrs.GetAttribute("a"), 10; got != want {
+		t.Errorf(".Get returned an unexpected value=%v, want=%v", got, want)
+	}
+	attrs.SetAttribute("a", 20)
+	if got, want := attrs.GetAttribute("a"), 20; got != want {
+		t.Errorf(".Get returned an unexpected value=%v, want=%v", got, want)
+	}
+	attrs.DelAttribute("a")
+	if got, want := attrs.GetAttribute("a"), (any)(nil); got != want {
+		t.Errorf(".Get returned an unexpected value=%v, want=%v", got, want)
+	}
+}
+
+var sink any = nil
+
+func BenchmarkAttributesSetGetDel(b *testing.B) {
+	n := 100
+	keys := make([]gnolang.GnoAttribute, 0, n)
+	for i := 0; i < n; i++ {
+		keys = append(keys, gnolang.GnoAttribute(fmt.Sprintf("%d", i)))
+	}
+
+	b.ReportAllocs()
+	b.ResetTimer()
+
+	for i := 0; i < b.N; i++ {
+		attrs := new(gnolang.Attributes)
+		for j := 0; j < 100; j++ {
+			sink = attrs.GetAttribute("a")
+		}
+		for j := 0; j < 100; j++ {
+			attrs.SetAttribute("a", j)
+			sink = attrs.GetAttribute("a")
+		}
+
+		for j, key := range keys {
+			attrs.SetAttribute(key, j)
+		}
+
+		for _, key := range keys {
+			sink = attrs.GetAttribute(key)
+			attrs.GetAttribute(key)
+		}
+	}
+
+	if sink == nil {
+		b.Fatal("Benchmark did not run!")
+	}
 }
