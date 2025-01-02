@@ -164,7 +164,7 @@ type Attributes struct {
 	Line   int
 	Column int
 	Label  Name
-	data   map[GnoAttribute]interface{} // not persisted
+	data   []*attrKV // not persisted
 }
 
 func (attr *Attributes) GetLine() int {
@@ -192,28 +192,62 @@ func (attr *Attributes) SetLabel(label Name) {
 }
 
 func (attr *Attributes) HasAttribute(key GnoAttribute) bool {
-	_, ok := attr.data[key]
+	_, _, ok := attr.getAttribute(key)
 	return ok
 }
 
 // GnoAttribute must not be user provided / arbitrary,
 // otherwise will create potential exploits.
 func (attr *Attributes) GetAttribute(key GnoAttribute) interface{} {
-	return attr.data[key]
+	val, _, _ := attr.getAttribute(key)
+	return val
+}
+
+func (attr *Attributes) getAttribute(key GnoAttribute) (any, int, bool) {
+	for i, kv := range attr.data {
+		if kv.key == key {
+			return kv.value, i, true
+		}
+	}
+	return nil, -1, false
+}
+
+type attrKV struct {
+	key   GnoAttribute
+	value any
 }
 
 func (attr *Attributes) SetAttribute(key GnoAttribute, value interface{}) {
 	if attr.data == nil {
-		attr.data = make(map[GnoAttribute]interface{})
+		attr.data = make([]*attrKV, 0, 4)
 	}
-	attr.data[key] = value
+
+	for _, kv := range attr.data {
+		if kv.key == key {
+			kv.value = value
+			return
+		}
+	}
+
+	attr.data = append(attr.data, &attrKV{key, value})
 }
 
 func (attr *Attributes) DelAttribute(key GnoAttribute) {
 	if debug && attr.data == nil {
 		panic("should not happen, attribute is expected to be non-empty.")
 	}
-	delete(attr.data, key)
+	_, index, _ := attr.getAttribute(key)
+	if index < 0 {
+		return
+	}
+
+	if index == 0 {
+		attr.data = attr.data[1:]
+	} else if index == len(attr.data)-1 {
+		attr.data = attr.data[:len(attr.data)-1]
+	} else {
+		attr.data = append(attr.data[:index], attr.data[index+1:]...)
+	}
 }
 
 // ----------------------------------------
