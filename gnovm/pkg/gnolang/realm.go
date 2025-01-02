@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"reflect"
 	"strings"
+
+	bm "github.com/gnolang/gno/gnovm/pkg/benchops"
 )
 
 /*
@@ -134,6 +136,10 @@ func (rlm *Realm) String() string {
 // xo or co is nil if the element value is undefined or has no
 // associated object.
 func (rlm *Realm) DidUpdate(po, xo, co Object) {
+	if bm.OpsEnabled {
+		bm.PauseOpCode()
+		defer bm.ResumeOpCode()
+	}
 	if rlm == nil {
 		return
 	}
@@ -293,6 +299,10 @@ func (rlm *Realm) MarkNewEscaped(oo Object) {
 
 // OpReturn calls this when exiting a realm transaction.
 func (rlm *Realm) FinalizeRealmTransaction(readonly bool, store Store) {
+	if bm.OpsEnabled {
+		bm.PauseOpCode()
+		defer bm.ResumeOpCode()
+	}
 	if readonly {
 		if true ||
 			len(rlm.newCreated) > 0 ||
@@ -1132,7 +1142,7 @@ func copyValueWithRefs(val Value) Value {
 		if cv.Closure != nil {
 			closure = toRefValue(cv.Closure)
 		}
-		// nativeBody funcs which don't come from NativeStore (and thus don't
+		// nativeBody funcs which don't come from NativeResolver (and thus don't
 		// have NativePkg/Name) can't be persisted, and should not be able
 		// to get here anyway.
 		if cv.nativeBody != nil && cv.NativePkg == "" {

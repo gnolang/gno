@@ -43,9 +43,10 @@ type NodeConfig struct {
 	NoReplay              bool
 	MaxGasPerBlock        int64
 	ChainID               string
+	ChainDomain           string
 }
 
-func DefaultNodeConfig(rootdir string) *NodeConfig {
+func DefaultNodeConfig(rootdir, domain string) *NodeConfig {
 	tmc := gnoland.NewDefaultTMConfig(rootdir)
 	tmc.Consensus.SkipTimeoutCommit = false // avoid time drifting, see issue #1507
 	tmc.Consensus.WALDisabled = true
@@ -65,6 +66,7 @@ func DefaultNodeConfig(rootdir string) *NodeConfig {
 		DefaultDeployer:       defaultDeployer,
 		BalancesList:          balances,
 		ChainID:               tmc.ChainID(),
+		ChainDomain:           domain,
 		TMConfig:              tmc,
 		SkipFailingGenesisTxs: true,
 		MaxGasPerBlock:        10_000_000_000,
@@ -120,12 +122,9 @@ func NewDevNode(ctx context.Context, cfg *NodeConfig) (*Node, error) {
 		initialState:      cfg.InitialTxs,
 		currentStateIndex: len(cfg.InitialTxs),
 	}
-
-	// generate genesis state
-	genesis := gnoland.GnoGenesisState{
-		Balances: cfg.BalancesList,
-		Txs:      append(pkgsTxs, cfg.InitialTxs...),
-	}
+	genesis := gnoland.DefaultGenState()
+	genesis.Balances = cfg.BalancesList
+	genesis.Txs = append(pkgsTxs, cfg.InitialTxs...)
 
 	if err := devnode.rebuildNode(ctx, genesis); err != nil {
 		return nil, fmt.Errorf("unable to initialize the node: %w", err)
@@ -286,10 +285,9 @@ func (n *Node) Reset(ctx context.Context) error {
 
 	// Append initialTxs
 	txs := append(pkgsTxs, n.initialState...)
-	genesis := gnoland.GnoGenesisState{
-		Balances: n.config.BalancesList,
-		Txs:      txs,
-	}
+	genesis := gnoland.DefaultGenState()
+	genesis.Balances = n.config.BalancesList
+	genesis.Txs = txs
 
 	// Reset the node with the new genesis state.
 	err = n.rebuildNode(ctx, genesis)
@@ -411,10 +409,10 @@ func (n *Node) rebuildNodeFromState(ctx context.Context) error {
 		if err != nil {
 			return fmt.Errorf("unable to load pkgs: %w", err)
 		}
-
-		return n.rebuildNode(ctx, gnoland.GnoGenesisState{
-			Balances: n.config.BalancesList, Txs: txs,
-		})
+		genesis := gnoland.DefaultGenState()
+		genesis.Balances = n.config.BalancesList
+		genesis.Txs = txs
+		return n.rebuildNode(ctx, genesis)
 	}
 
 	state, err := n.getBlockStoreState(ctx)
@@ -429,10 +427,9 @@ func (n *Node) rebuildNodeFromState(ctx context.Context) error {
 	}
 
 	// Create genesis with loaded pkgs + previous state
-	genesis := gnoland.GnoGenesisState{
-		Balances: n.config.BalancesList,
-		Txs:      append(pkgsTxs, state...),
-	}
+	genesis := gnoland.DefaultGenState()
+	genesis.Balances = n.config.BalancesList
+	genesis.Txs = append(pkgsTxs, state...)
 
 	// Reset the node with the new genesis state.
 	err = n.rebuildNode(ctx, genesis)
@@ -487,7 +484,7 @@ func (n *Node) rebuildNode(ctx context.Context, genesis gnoland.GnoGenesisState)
 	}
 
 	// Setup node config
-	nodeConfig := newNodeConfig(n.config.TMConfig, n.config.ChainID, genesis)
+	nodeConfig := newNodeConfig(n.config.TMConfig, n.config.ChainID, n.config.ChainDomain, genesis)
 	nodeConfig.GenesisTxResultHandler = n.genesisTxResultHandler
 	// Speed up stdlib loading after first start (saves about 2-3 seconds on each reload).
 	nodeConfig.CacheStdlibLoad = true
@@ -566,10 +563,10 @@ func (n *Node) genesisTxResultHandler(ctx sdk.Context, tx std.Tx, res sdk.Result
 	return
 }
 
-func newNodeConfig(tmc *tmcfg.Config, chainid string, appstate gnoland.GnoGenesisState) *gnoland.InMemoryNodeConfig {
+func newNodeConfig(tmc *tmcfg.Config, chainid, chaindomain string, appstate gnoland.GnoGenesisState) *gnoland.InMemoryNodeConfig {
 	// Create Mocked Identity
 	pv := gnoland.NewMockedPrivValidator()
-	genesis := gnoland.NewDefaultGenesisConfig(chainid)
+	genesis := gnoland.NewDefaultGenesisConfig(chainid, chaindomain)
 	genesis.AppState = appstate
 
 	// Add self as validator
@@ -583,10 +580,11 @@ func newNodeConfig(tmc *tmcfg.Config, chainid string, appstate gnoland.GnoGenesi
 		},
 	}
 
-	return &gnoland.InMemoryNodeConfig{
+	cfg := &gnoland.InMemoryNodeConfig{
 		PrivValidator: pv,
 		TMConfig:      tmc,
 		Genesis:       genesis,
 		VMOutput:      os.Stdout,
 	}
+	return cfg
 }

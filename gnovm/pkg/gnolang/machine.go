@@ -12,11 +12,11 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/gnolang/overflow"
-
 	"github.com/gnolang/gno/gnovm"
 	"github.com/gnolang/gno/gnovm/pkg/coverage"
+	bm "github.com/gnolang/gno/gnovm/pkg/benchops"
 	"github.com/gnolang/gno/tm2/pkg/errors"
+	"github.com/gnolang/gno/tm2/pkg/overflow"
 	"github.com/gnolang/gno/tm2/pkg/store"
 )
 
@@ -271,6 +271,12 @@ func (m *Machine) PreprocessAllFilesAndSaveBlockNodes() {
 func (m *Machine) RunMemPackage(memPkg *gnovm.MemPackage, save bool) (*PackageNode, *PackageValue) {
 	if m.Coverage.Enabled() {
 		initCoverage(m, memPkg)
+  }
+	if bm.OpsEnabled || bm.StorageEnabled {
+		bm.InitMeasure()
+	}
+	if bm.StorageEnabled {
+		defer bm.FinishStore()
 	}
 	return m.runMemPackage(memPkg, save, false)
 }
@@ -474,7 +480,7 @@ func destar(x Expr) Expr {
 // Stacktrace returns the stack trace of the machine.
 // It collects the executions and frames from the machine's frames and statements.
 func (m *Machine) Stacktrace() (stacktrace Stacktrace) {
-	if len(m.Frames) == 0 {
+	if len(m.Frames) == 0 || len(m.Stmts) == 0 {
 		return
 	}
 
@@ -773,6 +779,13 @@ func (m *Machine) Eval(x Expr) []TypedValue {
 	if debug {
 		m.Printf("Machine.Eval(%v)\n", x)
 	}
+	if bm.OpsEnabled || bm.StorageEnabled {
+		// reset the benchmark
+		bm.InitMeasure()
+	}
+	if bm.StorageEnabled {
+		defer bm.FinishStore()
+	}
 	// X must not have been preprocessed.
 	if x.GetAttribute(ATTR_PREPROCESSED) != nil {
 		panic(fmt.Sprintf(
@@ -1053,6 +1066,7 @@ const (
 	OpRangeIterMap      Op = 0xD5
 	OpRangeIterArrayPtr Op = 0xD6
 	OpReturnCallDefers  Op = 0xD7 // TODO rename?
+	OpVoid              Op = 0xFF // For profiling simple operation
 )
 
 const GasFactorCPU int64 = 1
@@ -1073,133 +1087,142 @@ func (m *Machine) incrCPU(cycles int64) {
 }
 
 const (
+	// CPU cycles
 	/* Control operators */
 	OpCPUInvalid             = 1
 	OpCPUHalt                = 1
 	OpCPUNoop                = 1
-	OpCPUExec                = 1
-	OpCPUPrecall             = 1
-	OpCPUCall                = 1
-	OpCPUCallNativeBody      = 1
-	OpCPUReturn              = 1
-	OpCPUReturnFromBlock     = 1
-	OpCPUReturnToBlock       = 1
-	OpCPUDefer               = 1
-	OpCPUCallDeferNativeBody = 1
-	OpCPUGo                  = 1
-	OpCPUSelect              = 1
-	OpCPUSwitchClause        = 1
-	OpCPUSwitchClauseCase    = 1
-	OpCPUTypeSwitch          = 1
-	OpCPUIfCond              = 1
+	OpCPUExec                = 25
+	OpCPUPrecall             = 207
+	OpCPUCall                = 256
+	OpCPUCallNativeBody      = 424
+	OpCPUReturn              = 38
+	OpCPUReturnFromBlock     = 36
+	OpCPUReturnToBlock       = 23
+	OpCPUDefer               = 64
+	OpCPUCallDeferNativeBody = 33
+	OpCPUGo                  = 1 // Not yet implemented
+	OpCPUSelect              = 1 // Not yet implemented
+	OpCPUSwitchClause        = 38
+	OpCPUSwitchClauseCase    = 143
+	OpCPUTypeSwitch          = 171
+	OpCPUIfCond              = 38
 	OpCPUPopValue            = 1
 	OpCPUPopResults          = 1
-	OpCPUPopBlock            = 1
-	OpCPUPopFrameAndReset    = 1
-	OpCPUPanic1              = 1
-	OpCPUPanic2              = 1
+	OpCPUPopBlock            = 3
+	OpCPUPopFrameAndReset    = 15
+	OpCPUPanic1              = 121
+	OpCPUPanic2              = 21
 
 	/* Unary & binary operators */
-	OpCPUUpos  = 1
-	OpCPUUneg  = 1
-	OpCPUUnot  = 1
-	OpCPUUxor  = 1
-	OpCPUUrecv = 1
-	OpCPULor   = 1
-	OpCPULand  = 1
-	OpCPUEql   = 1
-	OpCPUNeq   = 1
-	OpCPULss   = 1
-	OpCPULeq   = 1
-	OpCPUGtr   = 1
-	OpCPUGeq   = 1
-	OpCPUAdd   = 1
-	OpCPUSub   = 1
-	OpCPUBor   = 1
-	OpCPUXor   = 1
-	OpCPUMul   = 1
-	OpCPUQuo   = 1
-	OpCPURem   = 1
-	OpCPUShl   = 1
-	OpCPUShr   = 1
-	OpCPUBand  = 1
-	OpCPUBandn = 1
+	OpCPUUpos  = 7
+	OpCPUUneg  = 25
+	OpCPUUnot  = 6
+	OpCPUUxor  = 14
+	OpCPUUrecv = 1 // Not yet implemented
+	OpCPULor   = 26
+	OpCPULand  = 24
+	OpCPUEql   = 160
+	OpCPUNeq   = 95
+	OpCPULss   = 13
+	OpCPULeq   = 19
+	OpCPUGtr   = 20
+	OpCPUGeq   = 26
+	OpCPUAdd   = 18
+	OpCPUSub   = 6
+	OpCPUBor   = 23
+	OpCPUXor   = 13
+	OpCPUMul   = 19
+	OpCPUQuo   = 16
+	OpCPURem   = 18
+	OpCPUShl   = 22
+	OpCPUShr   = 20
+	OpCPUBand  = 9
+	OpCPUBandn = 15
 
 	/* Other expression operators */
-	OpCPUEval         = 1
-	OpCPUBinary1      = 1
-	OpCPUIndex1       = 1
-	OpCPUIndex2       = 1
-	OpCPUSelector     = 1
-	OpCPUSlice        = 1
-	OpCPUStar         = 1
-	OpCPURef          = 1
-	OpCPUTypeAssert1  = 1
-	OpCPUTypeAssert2  = 1
-	OpCPUStaticTypeOf = 1
-	OpCPUCompositeLit = 1
-	OpCPUArrayLit     = 1
-	OpCPUSliceLit     = 1
-	OpCPUSliceLit2    = 1
-	OpCPUMapLit       = 1
-	OpCPUStructLit    = 1
-	OpCPUFuncLit      = 1
-	OpCPUConvert      = 1
+	OpCPUEval        = 29
+	OpCPUBinary1     = 19
+	OpCPUIndex1      = 77
+	OpCPUIndex2      = 195
+	OpCPUSelector    = 32
+	OpCPUSlice       = 103
+	OpCPUStar        = 40
+	OpCPURef         = 125
+	OpCPUTypeAssert1 = 30
+	OpCPUTypeAssert2 = 25
+	// TODO: OpCPUStaticTypeOf is an arbitrary number.
+	// A good way to benchmark this is yet to be determined.
+	OpCPUStaticTypeOf = 100
+	OpCPUCompositeLit = 50
+	OpCPUArrayLit     = 137
+	OpCPUSliceLit     = 183
+	OpCPUSliceLit2    = 467
+	OpCPUMapLit       = 475
+	OpCPUStructLit    = 179
+	OpCPUFuncLit      = 61
+	OpCPUConvert      = 16
 
 	/* Native operators */
-	OpCPUArrayLitGoNative  = 1
-	OpCPUSliceLitGoNative  = 1
-	OpCPUStructLitGoNative = 1
-	OpCPUCallGoNative      = 1
+	OpCPUArrayLitGoNative  = 137
+	OpCPUSliceLitGoNative  = 183
+	OpCPUStructLitGoNative = 179
+	OpCPUCallGoNative      = 256
 
 	/* Type operators */
-	OpCPUFieldType       = 1
-	OpCPUArrayType       = 1
-	OpCPUSliceType       = 1
-	OpCPUPointerType     = 1
-	OpCPUInterfaceType   = 1
-	OpCPUChanType        = 1
-	OpCPUFuncType        = 1
-	OpCPUMapType         = 1
-	OpCPUStructType      = 1
-	OpCPUMaybeNativeType = 1
+	OpCPUFieldType       = 59
+	OpCPUArrayType       = 57
+	OpCPUSliceType       = 55
+	OpCPUPointerType     = 1 // Not yet implemented
+	OpCPUInterfaceType   = 75
+	OpCPUChanType        = 57
+	OpCPUFuncType        = 81
+	OpCPUMapType         = 59
+	OpCPUStructType      = 174
+	OpCPUMaybeNativeType = 67
 
 	/* Statement operators */
-	OpCPUAssign      = 1
-	OpCPUAddAssign   = 1
-	OpCPUSubAssign   = 1
-	OpCPUMulAssign   = 1
-	OpCPUQuoAssign   = 1
-	OpCPURemAssign   = 1
-	OpCPUBandAssign  = 1
-	OpCPUBandnAssign = 1
-	OpCPUBorAssign   = 1
-	OpCPUXorAssign   = 1
-	OpCPUShlAssign   = 1
-	OpCPUShrAssign   = 1
-	OpCPUDefine      = 1
-	OpCPUInc         = 1
-	OpCPUDec         = 1
+	OpCPUAssign      = 79
+	OpCPUAddAssign   = 85
+	OpCPUSubAssign   = 57
+	OpCPUMulAssign   = 55
+	OpCPUQuoAssign   = 50
+	OpCPURemAssign   = 46
+	OpCPUBandAssign  = 54
+	OpCPUBandnAssign = 44
+	OpCPUBorAssign   = 55
+	OpCPUXorAssign   = 48
+	OpCPUShlAssign   = 68
+	OpCPUShrAssign   = 76
+	OpCPUDefine      = 111
+	OpCPUInc         = 76
+	OpCPUDec         = 46
 
 	/* Decl operators */
-	OpCPUValueDecl = 1
-	OpCPUTypeDecl  = 1
+	OpCPUValueDecl = 113
+	OpCPUTypeDecl  = 100
 
 	/* Loop (sticky) operators (>= 0xD0) */
-	OpCPUSticky            = 1
-	OpCPUBody              = 1
-	OpCPUForLoop           = 1
-	OpCPURangeIter         = 1
-	OpCPURangeIterString   = 1
-	OpCPURangeIterMap      = 1
-	OpCPURangeIterArrayPtr = 1
-	OpCPUReturnCallDefers  = 1
+	OpCPUSticky            = 1 // Not a real op
+	OpCPUBody              = 43
+	OpCPUForLoop           = 27
+	OpCPURangeIter         = 105
+	OpCPURangeIterString   = 55
+	OpCPURangeIterMap      = 48
+	OpCPURangeIterArrayPtr = 46
+	OpCPUReturnCallDefers  = 78
 )
 
 //----------------------------------------
 // main run loop.
 
 func (m *Machine) Run() {
+	if bm.OpsEnabled {
+		defer func() {
+			// output each machine run results to file
+			bm.FinishRun()
+		}()
+	}
 	defer func() {
 		r := recover()
 
@@ -1225,11 +1248,24 @@ func (m *Machine) Run() {
 			m.Coverage.RecordHit(loc)
 		}
 
+    if bm.OpsEnabled {
+			// benchmark the operation.
+			bm.StartOpCode(byte(OpVoid))
+			bm.StopOpCode()
+			// we do not benchmark static evaluation.
+			if op != OpStaticTypeOf {
+				bm.StartOpCode(byte(op))
+			}
+		}
+
 		// TODO: this can be optimized manually, even into tiers.
 		switch op {
 		/* Control operators */
 		case OpHalt:
 			m.incrCPU(OpCPUHalt)
+			if bm.OpsEnabled {
+				bm.StopOpCode()
+			}
 			return
 		case OpNoop:
 			m.incrCPU(OpCPUNoop)
@@ -1547,6 +1583,11 @@ func (m *Machine) Run() {
 			m.doOpReturnCallDefers()
 		default:
 			panic(fmt.Sprintf("unexpected opcode %s", op.String()))
+		}
+		if bm.OpsEnabled {
+			if op != OpStaticTypeOf {
+				bm.StopOpCode()
+			}
 		}
 	}
 }
