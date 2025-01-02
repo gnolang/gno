@@ -215,8 +215,6 @@ func Render(renderPath string) string {
 		})
 
 		w.WriteString("## TODO\n")
-		w.WriteString("- [ ] Show created at\n")
-		w.WriteString("- [ ] Show running duration\n")
 		w.WriteString("- [ ] Support any coin\n")
 		w.WriteString("- [ ] Render breakup amount\n")
 		w.WriteString("- [ ] Unit tests\n")
@@ -225,6 +223,7 @@ func Render(renderPath string) string {
 
 		w.WriteString("## v2\n")
 		w.WriteString("- [ ] Gnoweb pagination\n")
+		w.WriteString("- [ ] Show payroll running duration\n")
 		w.WriteString("- [ ] Archive\n")
 		w.WriteString("- [ ] Details: Events history\n")
 		w.WriteString("- [ ] PoV Tags\n")
