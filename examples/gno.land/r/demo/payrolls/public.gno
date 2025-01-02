@@ -56,8 +56,12 @@ func Create(namespace string, label string, beneficiary std.Address, cap int64, 
 	return p.id
 }
 
-func Claim(id seqid.ID, requestedAmount int64, destination std.Address) {
-	if requestedAmount == 0 {
+func Claim(id seqid.ID, amount int64, destination std.Address) {
+	if amount < -1 {
+		panic(errors.New("invalid amount"))
+	}
+	anyAmount := amount == -1
+	if amount == 0 {
 		panic(errors.New("invalid amount"))
 	}
 
@@ -67,20 +71,19 @@ func Claim(id seqid.ID, requestedAmount int64, destination std.Address) {
 	}
 
 	vaultAmount := getVaultAmount(p.vaultID)
-	if vaultAmount == 0 && requestedAmount != -1 {
-		panic(errors.New("nothing to claim: vault empty"))
+	if vaultAmount == 0 {
+		panic(errors.New("vault empty"))
 	}
-	if requestedAmount > int64(vaultAmount) {
-		requestedAmount = int64(vaultAmount)
+	if anyAmount {
+		amount = int64(vaultAmount)
 	}
-
-	withdrawn := p.claim(requestedAmount)
-	if withdrawn == 0 && requestedAmount != -1 {
-		panic(errors.New("nothing to claim"))
+	if !anyAmount && amount > int64(vaultAmount) {
+		panic("not enough in vault")
 	}
 
+	withdrawn := p.claim(amount)
 	if withdrawn == 0 {
-		return
+		panic(errors.New("nothing to claim"))
 	}
 
 	banker := std.GetBanker(std.BankerTypeRealmSend)
