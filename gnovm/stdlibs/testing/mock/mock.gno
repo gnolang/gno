@@ -6,10 +6,10 @@ import (
 )
 
 func main() {
-	f := testing.New_F(500_000)
-	var u1 uint = 1213123213
+	f := testing.New_F(1_000_000)
+	var u1 uint = 96797856766767765
 	// var u2 uint16 = 20
-	var u2 uint = 301321123123
+	var u2 uint = 30130243242412355
 	var u3 uint = 13123123123213123
 	f.Add("aaaaaaaaaaa", u1)
 	f.Add("bbbbbbbbbbb", u2)
