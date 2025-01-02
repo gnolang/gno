@@ -29,7 +29,7 @@ func main() {
 		if v != doubleRev && u > 300 && u < 1000 {
 			t.Errorf("Before: %q, after: %q", orig, doubleRev)
 		}
-		if utf8.ValidString(v) && !utf8.ValidString(rev) && u == 300 {
+		if utf8.ValidString(v) && !utf8.ValidString(rev) && u > 300 && u < 1000 {
 			t.Errorf("Reverse produced invalid UTF-8 string %q", rev)
 		}
 	})
