@@ -2,13 +2,11 @@ package mock
 
 import (
 	"testing"
-	"testing/fuzz"
-	"testing/fuzzinglib"
 	"unicode/utf8"
 )
 
 func main() {
-	f := fuzz.New_F()
+	f := testing.New_F(500_000)
 	var u1 uint = 30
 	// var u2 uint16 = 20
 	var u2 uint = 30
@@ -22,8 +20,8 @@ func main() {
 		if !ok {
 			panic("dont match")
 		}
-		rev := fuzzinglib.Reverse1(v)
-		doubleRev := fuzzinglib.Reverse1(rev)
+		rev := testing.Reverse1(v)
+		doubleRev := testing.Reverse1(rev)
 		u, ok2 := orig[1].(uint)
 		if !ok2 {
 			panic("dont match")
