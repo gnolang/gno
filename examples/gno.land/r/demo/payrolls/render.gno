@@ -14,7 +14,6 @@ import (
 	rusers "gno.land/r/demo/users"
 )
 
-// TODO: pagination
 const listMaxSize = 50
 
 func Render(renderPath string) string {
@@ -47,9 +46,14 @@ func Render(renderPath string) string {
 		estimatedAvailable := uint64(0)
 		estimatedClaimable := uint64(0)
 		shouldEstimate := tree.Size() <= listMaxSize
+		if shouldEstimate {
+			sb.WriteString("## All payrolls\n")
+		} else {
+			sb.WriteString("## Latest payrolls\n")
+		}
 		tree.ReverseIterateByOffset(0, listMaxSize, func(key string, value interface{}) bool {
 			p := value.(*payroll)
-			sb.WriteString(p.render("beneficiary"))
+			sb.WriteString(renderPayroll(p, "beneficiary"))
 
 			if shouldEstimate {
 				available := p.available()
@@ -117,13 +121,18 @@ func Render(renderPath string) string {
 			tree = avl.NewTree()
 		}
 		shouldEstimate := tree.Size() <= listMaxSize
+		if shouldEstimate {
+			payrollsBuffer.WriteString("## All payrolls\n")
+		} else {
+			payrollsBuffer.WriteString("## Latest payrolls\n")
+		}
 		tree.ReverseIterateByOffset(0, listMaxSize, func(key string, value interface{}) bool {
 			p := value.(*payroll)
 			if shouldEstimate {
 				estimatedDebt += p.available()
 				estimatedDay += p.estimateDay()
 			}
-			payrollsBuffer.WriteString(p.render("vault"))
+			payrollsBuffer.WriteString(renderPayroll(p, "vault"))
 			return false
 		})
 
@@ -174,14 +183,16 @@ func Render(renderPath string) string {
 		w.WriteString(payrollsBuffer.String())
 
 	case strings.HasPrefix(renderPath, "/d/"):
-		w.WriteString("# Payroll details\n")
-
 		idStr := strings.TrimPrefix(renderPath, "/d/")
+
+		w.WriteString(ufmt.Sprintf("# Payroll #%s\n", idStr))
+
 		p, ok := payrolls.Get(idStr)
 		if !ok {
 			return ufmt.Sprintf("❓ Payroll %q not found", idStr)
 		}
-		w.WriteString(p.(*payroll).render(""))
+
+		w.WriteString(renderPayroll(p.(*payroll), "details"))
 
 	case renderPath == "":
 		w.WriteString("# Payrolls\n")
@@ -193,21 +204,27 @@ func Render(renderPath string) string {
 		}))
 		w.WriteString(renderActions("", actions))
 
+		if payrolls.Size() <= listMaxSize {
+			w.WriteString("## All payrolls\n")
+		} else {
+			w.WriteString("## Latest payrolls\n")
+		}
 		payrolls.ReverseIterateByOffset(0, listMaxSize, func(key string, value interface{}) bool {
-			w.WriteString(value.(*payroll).render(""))
+			w.WriteString(renderPayroll(value.(*payroll), "home"))
 			return false
 		})
 
-		w.WriteString("\n\nTODO\n")
-		w.WriteString("- [ ] Fix anchors\n")
+		w.WriteString("## TODO\n")
 		w.WriteString("- [ ] Show created at\n")
 		w.WriteString("- [ ] Show running duration\n")
 		w.WriteString("- [ ] Support any coin\n")
+		w.WriteString("- [ ] Render breakup amount\n")
 		w.WriteString("- [ ] Unit tests\n")
 		w.WriteString("- [ ] txtar\n")
 		w.WriteString("- [ ] Write doc\n")
 
-		w.WriteString("\n\nv2\n\n")
+		w.WriteString("## v2\n")
+		w.WriteString("- [ ] Gnoweb pagination\n")
 		w.WriteString("- [ ] Archive\n")
 		w.WriteString("- [ ] Details: Events history\n")
 		w.WriteString("- [ ] PoV Tags\n")
@@ -222,10 +239,12 @@ func Render(renderPath string) string {
 	return w.String()
 }
 
-func (p *payroll) render(pov string) string {
+func renderPayroll(p *payroll, pov string) string {
 	sb := strings.Builder{}
 
-	sb.WriteString(ufmt.Sprintf("### [%s](%s:/d/%s)\n", p.id.String(), linkPrefix(), p.id.String()))
+	if pov != "details" {
+		sb.WriteString(ufmt.Sprintf("### %s\n", p.id.String()))
+	}
 
 	sb.WriteString(ufmt.Sprintf("  - ✍️ Label: %s\n", p.label))
 
@@ -280,7 +299,9 @@ func (p *payroll) render(pov string) string {
 		sb.WriteString(ufmt.Sprintf("  - 🛑 Stopped since: %s\n", p.stoppedAt.Format(time.DateTime)))
 	}
 
-	// TODO: render breakup amount, we need to be explicit depending on source
+	if pov != "details" {
+		sb.WriteString(ufmt.Sprintf("  - 🔍 [Details](%s:/d/%s)\n", linkPrefix(), p.id.String()))
+	}
 
 	actions := []string{}
 

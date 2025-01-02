@@ -10,8 +10,6 @@ import (
 	"gno.land/p/demo/ufmt"
 )
 
-// TODO: support grc20
-
 type DistribFn func(elapsed time.Duration) uint64
 type BreakupFn func(elapsed time.Duration, pauseDuration time.Duration, source BreakupSource) int64
 
