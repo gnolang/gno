@@ -128,11 +128,11 @@ func Render(renderPath string) string {
 		})
 
 		funds := getVaultAmount(vaultID)
+		balance := int64(funds) - int64(estimatedDebt)
 
 		if shouldEstimate {
 			w.WriteString(renderEstimatedMonthly("", estimatedDay, denom))
 
-			balance := int64(funds) - int64(estimatedDebt)
 			prefix := "Funds: 🟢 "
 			if balance < 0 {
 				prefix = "Debt: 🔴 "
@@ -158,6 +158,12 @@ func Render(renderPath string) string {
 			"base":      base,
 			"namespace": namespace,
 		}))
+		if !shouldEstimate || balance > 0 {
+			actions = append(actions, renderButton("Withdraw funds", "WithdrawFunds", map[string]string{
+				"namespace": namespace,
+				"amount":    "-1",
+			}))
+		}
 		actions = append(actions, renderButton("New payroll", "CreateMonthly", map[string]string{
 			"label":       "Salary Monthly",
 			"amount":      "10000",
@@ -193,6 +199,7 @@ func Render(renderPath string) string {
 		w.WriteString("- [ ] Edit label / PoV labels\n")
 		w.WriteString("- [ ] Stop litigation\n")
 		w.WriteString("- [ ] Fix anchors\n")
+		w.WriteString("- [ ] Support any coin\n")
 
 	default:
 		w.WriteString("# Payrolls\n")

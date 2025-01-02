@@ -96,7 +96,6 @@ func Claim(id seqid.ID, requestedAmount int64, destination std.Address) {
 }
 
 func ClaimAll(destination std.Address) {
-	// TODO: optimize
 	beneficiary := std.PrevRealm().Addr()
 	claimed := false
 	payrollsByBeneficiary[beneficiary].Iterate("", "", func(key string, value interface{}) bool {
@@ -139,6 +138,46 @@ func Fund(base string, namespace string) {
 	}
 
 	vaults.Set(id, getVaultAmount(id)+uint64(amount))
+}
+
+func WithdrawFunds(namespace string, amount int64, destination std.Address) {
+	if amount < -1 {
+		panic(errors.New("invalid amount"))
+	}
+	anyAmount := amount == -1
+	if amount == 0 {
+		panic(errors.New("invalid amount"))
+	}
+
+	prevRealm := std.PrevRealm()
+	if len(destination) == 0 {
+		destination = prevRealm.Addr()
+	}
+
+	id := vaultIDFromRealm(prevRealm, namespace)
+
+	vaultAmount := getVaultAmount(id)
+	if vaultAmount == 0 {
+		panic(errors.New("vault empty"))
+	}
+
+	available := int64(vaultAmount)
+	payrollsByVault[id].Iterate("", "", func(_ string, value interface{}) bool {
+		p := value.(*payroll)
+		available -= int64(p.available())
+		return false
+	})
+
+	if anyAmount {
+		amount = available
+	} else if available < amount {
+		panic(errors.New("not enough in vault"))
+	}
+
+	banker := std.GetBanker(std.BankerTypeRealmSend)
+	banker.SendCoins(std.CurrentRealm().Addr(), destination, std.NewCoins(std.Coin{Denom: denom, Amount: amount}))
+
+	vaults.Set(id, vaultAmount-uint64(amount))
 }
 
 var id seqid.ID
