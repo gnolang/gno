@@ -1,4 +1,4 @@
-package fuzzinglib
+package testing
 
 import "errors"
 
@@ -44,6 +44,9 @@ func (q *Seed_Queue) Peek() (Seed, error) {
 	}
 	return q.data[0], nil
 }
+
+// 임의 인덱스 대한 조회
+func (q *Seed_Queue) Select() Seed
 
 // IsEmpty: 큐가 비어있는지 확인
 func (q *Seed_Queue) IsEmpty() bool {

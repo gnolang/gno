@@ -237,7 +237,7 @@ func (m *mapping) typesEqual(gnoe, goe ast.Expr) error {
 		if !ok {
 			return &mismatch
 		}
-		// 예시) 둘 다 “빈 인터페이스(interface{})”인 경우에만 매칭 OK로 본다.
+		// 둘 다 “빈 인터페이스(interface{})”인 경우에만 매칭 OK로 본다.
 		if isEmptyInterface(gnoe) && isEmptyInterface(goItf) {
 			return nil
 		}

@@ -881,6 +881,34 @@ var nativeFuncs = [...]NativeFunc{
 		},
 	},
 	{
+		"testing",
+		"toa",
+		[]gno.FieldTypeExpr{
+			{Name: gno.N("p0"), Type: gno.X("[]interface{}")},
+		},
+		[]gno.FieldTypeExpr{
+			{Name: gno.N("r0"), Type: gno.X("[]string")},
+		},
+		false,
+		func(m *gno.Machine) {
+			b := m.LastBlock()
+			var (
+				p0  []interface{}
+				rp0 = reflect.ValueOf(&p0).Elem()
+			)
+
+			gno.Gno2GoValue(b.GetPointerTo(nil, gno.NewValuePathBlock(1, 0, "")).TV, rp0)
+
+			r0 := libs_testing.X_toa(p0)
+
+			m.PushValue(gno.Go2GnoValue(
+				m.Alloc,
+				m.Store,
+				reflect.ValueOf(&r0).Elem(),
+			))
+		},
+	},
+	{
 		"time",
 		"now",
 		[]gno.FieldTypeExpr{},

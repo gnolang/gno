@@ -1,10 +1,88 @@
-package fuzzinglib
+package testing
 
 import (
+	"bytes"
 	"strconv"
 	"strings"
+	"time"
+	"unicode/utf8"
 )
 
+// Token은 “정상 유니코드”인지, “깨진 바이트”인지 구분.
+type Token struct {
+	Data  []byte // 토큰의 실제 바이트
+	Valid bool   // true이면 UTF-8 디코딩에 성공한 문자
+}
+
+// tokenizeString: 문자열 s를 가능한 한 UTF-8로 디코딩하고, 깨진 바이트는 따로 보관
+func TokenizeString(s string) []Token {
+	var tokens []Token
+	b := []byte(s)
+	i := 0
+	for i < len(b) {
+		r, size := utf8.DecodeRune(b[i:])
+		switch {
+		case r == utf8.RuneError && size == 1:
+			// 디코딩 실패 → 깨진 바이트 하나를 토큰으로
+			tokens = append(tokens, Token{
+				Data:  []byte{b[i]},
+				Valid: false,
+			})
+			i++
+		default:
+			// 디코딩 성공 (유니코드 문자 하나)
+			tokens = append(tokens, Token{
+				Data:  b[i : i+size],
+				Valid: true,
+			})
+			i += size
+		}
+	}
+	return tokens
+}
+
+func RebuildString(tokens []Token) string {
+	var buf bytes.Buffer
+	for _, t := range tokens {
+		buf.Write(t.Data) // 토큰의 바이트 시퀀스를 그대로 연결
+	}
+	return buf.String()
+}
+
+func RebuildEscaped(tokens []Token) string {
+	var result []byte // 최종 바이트를 담을 슬라이스
+	for _, t := range tokens {
+		if t.Valid {
+			// 유효한 UTF-8 문자이므로 그대로 추가
+			result = append(result, t.Data...)
+		} else {
+			// 깨진 바이트 -> \xNN 형태로 변환
+			// (질문 내용대로, 보통 invalid token은 1바이트씩 들어있음)
+			for _, b := range t.Data {
+				result = append(result, []byte("\\x")...) // "\x"
+				hex := byteToHex(b)                       // 예: 0xEB -> "eb"
+				result = append(result, hex...)
+			}
+		}
+	}
+	return string(result)
+}
+
+// byteToHex: 한 바이트를 2자리 16진수 문자열로 반환 (예: 0xAB -> "ab")
+func byteToHex(b byte) []byte {
+	const hexdigits = "0123456789abcdef"
+	hi := hexdigits[b>>4]
+	lo := hexdigits[b&0x0F]
+	return []byte{hi, lo} // 예: [ 'a', 'b' ]
+}
+
+func TransForHuman(s string) string {
+	toks := TokenizeString(s)
+	escaped := RebuildEscaped(toks)
+	return escaped
+}
+
+// ///////////////////
 // uint 값을 문자열로 변환
 func uintToString(v uint) string {
 	return strconv.Itoa(int(v))
@@ -73,7 +151,7 @@ func interfacesliceToString(slice []interface{}) string {
 }
 
 // coverageToString: Coverage 타입을 문자열로 변환
-func coverageToString(coverage Coverage) string {
+func CoverageToString(coverage Coverage) string {
 	var sb strings.Builder
 	sb.WriteString("[")
 	for i, line := range coverage {

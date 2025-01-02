@@ -1,4 +1,4 @@
-package fuzzinglib
+package testing
 
 //! data는 유니크해야 함!!!
 //! 그걸 이용해서 시간복잡도 줄인 리스트기 때문!!

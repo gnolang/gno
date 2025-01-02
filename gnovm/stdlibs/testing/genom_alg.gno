@@ -1,10 +1,10 @@
-package fuzzinglib
+package testing
 
 import (
 	"bytes"
 	"errors"
 	"math"
-	"testing"
+	"strconv"
 	"time"
 	"unicode/utf8"
 )
@@ -39,77 +39,36 @@ import (
 // 	}
 // }
 
-// Token은 “정상 유니코드”인지, “깨진 바이트”인지 구분.
-type Token struct {
-	Data  []byte // 토큰의 실제 바이트
-	Valid bool   // true이면 UTF-8 디코딩에 성공한 문자
-}
+// func twoPointCrossoverTokens(toks1, toks2 []Token) (child1, child2 []Token) {
+// 	// 교배 지점을 위한 최소 길이
+// 	minLen := len(toks1)
+// 	if len(toks2) < minLen {
+// 		minLen = len(toks2)
+// 	}
+// 	// 만약 minLen == 0 → 한쪽이 토큰이 없다면, 한쪽 복사 etc...
+// 	if minLen == 0 {
+// 		return append([]Token{}, toks1...), append([]Token{}, toks2...)
+// 	}
 
-// tokenizeString: 문자열 s를 가능한 한 UTF-8로 디코딩하고, 깨진 바이트는 따로 보관
-func tokenizeString(s string) []Token {
-	var tokens []Token
-	b := []byte(s)
-	i := 0
-	for i < len(b) {
-		r, size := utf8.DecodeRune(b[i:])
-		switch {
-		case r == utf8.RuneError && size == 1:
-			// 디코딩 실패 → 깨진 바이트 하나를 토큰으로
-			tokens = append(tokens, Token{
-				Data:  []byte{b[i]},
-				Valid: false,
-			})
-			i++
-		default:
-			// 디코딩 성공 (유니코드 문자 하나)
-			tokens = append(tokens, Token{
-				Data:  b[i : i+size],
-				Valid: true,
-			})
-			i += size
-		}
-	}
-	return tokens
-}
+// 	// 교차 지점
+// 	point1 := RandRange(0, int64(minLen))
+// 	point2 := RandRange(0, int64(minLen))
+// 	if point1 > point2 {
+// 		point1, point2 = point2, point1
+// 	}
 
-func rebuildString(tokens []Token) string {
-	var buf bytes.Buffer
-	for _, t := range tokens {
-		buf.Write(t.Data) // 토큰의 바이트 시퀀스를 그대로 연결
-	}
-	return buf.String()
-}
+// 	// 자식1 = toks1[:point1] + toks2[point1:point2] + toks1[point2:]
+// 	c1 := append([]Token{}, toks1[:point1]...)
+// 	c1 = append(c1, toks2[point1:point2]...)
+// 	c1 = append(c1, toks1[point2:]...)
 
-func twoPointCrossoverTokens(toks1, toks2 []Token) (child1, child2 []Token) {
-	// 교배 지점을 위한 최소 길이
-	minLen := len(toks1)
-	if len(toks2) < minLen {
-		minLen = len(toks2)
-	}
-	// 만약 minLen == 0 → 한쪽이 토큰이 없다면, 한쪽 복사 etc...
-	if minLen == 0 {
-		return append([]Token{}, toks1...), append([]Token{}, toks2...)
-	}
+// 	// 자식2 = toks2[:point1] + toks1[point1:point2] + toks2[point2:]
+// 	c2 := append([]Token{}, toks2[:point1]...)
+// 	c2 = append(c2, toks1[point1:point2]...)
+// 	c2 = append(c2, toks2[point2:]...)
 
-	// 교차 지점
-	point1 := testing.RandRange(0, int64(minLen))
-	point2 := testing.RandRange(0, int64(minLen))
-	if point1 > point2 {
-		point1, point2 = point2, point1
-	}
-
-	// 자식1 = toks1[:point1] + toks2[point1:point2] + toks1[point2:]
-	c1 := append([]Token{}, toks1[:point1]...)
-	c1 = append(c1, toks2[point1:point2]...)
-	c1 = append(c1, toks1[point2:]...)
-
-	// 자식2 = toks2[:point1] + toks1[point1:point2] + toks2[point2:]
-	c2 := append([]Token{}, toks2[:point1]...)
-	c2 = append(c2, toks1[point1:point2]...)
-	c2 = append(c2, toks2[point2:]...)
-
-	return c1, c2
-}
+// 	return c1, c2
+// }
 
 // Seed의 Content를 랜덤으로 변형
 // 다변함수 시엔 하나를 잡아서 변형형
@@ -122,7 +81,7 @@ func Mutate(seed Seed) Seed {
 	}
 	index := 0
 	if len(seed.Content) > 1 {
-		index = int(testing.RandRange(0, int64(len(seed.Content))))
+		index = int(RandRange(0, int64(len(seed.Content))))
 	}
 
 	selected := seed.Content[index]
@@ -140,7 +99,7 @@ func Mutate(seed Seed) Seed {
 	// case string:
 	// 	runes := []rune(v)
 	// 	if len(runes) > 0 {
-	// 		runeIndex := testing.RandRange(0, int64(len(runes)))
+	// 		runeIndex := RandRange(0, int64(len(runes)))
 	// 		runes[runeIndex] = randomRune_from(runes[runeIndex])
 	// 	}
 	// 	var new_str string = string(runes)
@@ -148,7 +107,7 @@ func Mutate(seed Seed) Seed {
 	case string:
 		bytes := []byte(v)
 		if len(bytes) > 0 {
-			byteIndex := testing.RandRange(0, int64(len(bytes)))
+			byteIndex := RandRange(0, int64(len(bytes)))
 			bytes[byteIndex] = randomByte_from(bytes[byteIndex])
 		}
 		var new_str string = string(bytes)
@@ -157,7 +116,7 @@ func Mutate(seed Seed) Seed {
 	case []byte:
 		bytes := []byte(v)
 		if len(bytes) > 0 {
-			byteIndex := testing.RandRange(0, int64(len(bytes)))
+			byteIndex := RandRange(0, int64(len(bytes)))
 			bytes[byteIndex] = randomByte_from(bytes[byteIndex])
 		}
 		var new_byt []byte = []byte(bytes)
@@ -177,7 +136,7 @@ func InsertDelete(seed Seed, p float64) Seed {
 
 	index := 0
 	if len(seed.Content) > 1 {
-		index = int(testing.RandRange(0, int64(len(seed.Content))))
+		index = int(RandRange(0, int64(len(seed.Content))))
 	}
 
 	selected := seed.Content[index]
@@ -187,16 +146,16 @@ func InsertDelete(seed Seed, p float64) Seed {
 	// 	l := len(rr)
 
 	// 	// Insert
-	// 	if testing.GenerateRandomBool(p) {
+	// 	if GenerateRandomBool(p) {
 	// 		if l < 1 {
 	// 			rn := rune(' ')
 	// 			rr = []rune{randomRune_from(rn)}
 	// 		} else {
 	// 			// 삽입할 문자 결정
-	// 			sample := rr[testing.RandRange(0, int64(l))]
+	// 			sample := rr[RandRange(0, int64(l))]
 	// 			char := randomRune_from(sample)
 	// 			// 삽입 포지션 배정
-	// 			pos := testing.RandRange(0, int64(l))
+	// 			pos := RandRange(0, int64(l))
 	// 			// 한 칸 늘리기
 	// 			rr = append(rr, 0)
 	// 			// 한 칸 밀기
@@ -209,7 +168,7 @@ func InsertDelete(seed Seed, p float64) Seed {
 	// 			return seed
 	// 		}
 
-	// 		pos := testing.RandRange(0, int64(l))
+	// 		pos := RandRange(0, int64(l))
 	// 		rr = append(rr[:pos], rr[pos+1:]...)
 	// 	}
 	// 	var new_str string = string(rr)
@@ -219,16 +178,16 @@ func InsertDelete(seed Seed, p float64) Seed {
 		l := len(bb)
 
 		// Insert
-		if testing.GenerateRandomBool(p) {
+		if GenerateRandomBool(p) {
 			if l < 1 {
 				var b byte = ' '
 				bb = []byte{randomByte_from(b)}
 			} else {
 				// 삽입할 문자 결정
-				sample := bb[testing.RandRange(0, int64(l))]
+				sample := bb[RandRange(0, int64(l))]
 				bt := randomByte_from(sample)
 				// 삽입 포지션 배정
-				pos := testing.RandRange(0, int64(l))
+				pos := RandRange(0, int64(l))
 				// 한 칸 늘리기
 				bb = append(bb, 0)
 				// 한 칸 밀기
@@ -241,7 +200,7 @@ func InsertDelete(seed Seed, p float64) Seed {
 				return seed
 			}
 
-			pos := testing.RandRange(0, int64(l))
+			pos := RandRange(0, int64(l))
 			bb = append(bb[:pos], bb[pos+1:]...)
 		}
 		var new_byt []byte = bb
@@ -251,16 +210,16 @@ func InsertDelete(seed Seed, p float64) Seed {
 		l := len(bb)
 
 		// Insert
-		if testing.GenerateRandomBool(p) {
+		if GenerateRandomBool(p) {
 			if l < 1 {
 				var b byte = ' '
 				bb = []byte{randomByte_from(b)}
 			} else {
 				// 삽입할 문자 결정
-				sample := bb[testing.RandRange(0, int64(l))]
+				sample := bb[RandRange(0, int64(l))]
 				bt := randomByte_from(sample)
 				// 삽입 포지션 배정
-				pos := testing.RandRange(0, int64(l))
+				pos := RandRange(0, int64(l))
 				// 한 칸 늘리기
 				bb = append(bb, 0)
 				// 한 칸 밀기
@@ -273,7 +232,7 @@ func InsertDelete(seed Seed, p float64) Seed {
 				return seed
 			}
 
-			pos := testing.RandRange(0, int64(l))
+			pos := RandRange(0, int64(l))
 			bb = append(bb[:pos], bb[pos+1:]...)
 		}
 		var new_str string = string(bb)
@@ -302,13 +261,6 @@ func TwoPointCrossover(parent1, parent2 Seed, seedCount *uint) (Seed, Seed) {
 	content2 := make([]interface{}, len(parent2.Content))
 	for i, v := range parent2.Content {
 		content2[i] = v
-	}
-
-	if len(parent1.Content) == 0 {
-		// TODO: 아주 희박한 확률로 콘텐츠 길이가 0인 놈이 나온다....
-		println("@@@@@@@@@@@@@@@@@@@@@@")
-		panic("이게 가능한 거냐~")
-		println(parent1)
 	}
 
 	for i := 0; i < len(parent1.Content); i++ {
@@ -362,8 +314,8 @@ func TwoPointCrossover(parent1, parent2 Seed, seedCount *uint) (Seed, Seed) {
 			// 			continue
 			// 		}
 			// 	}
-			// 	point1 := testing.RandRange(0, int64(minLen))
-			// 	point2 := testing.RandRange(0, int64(minLen))
+			// 	point1 := RandRange(0, int64(minLen))
+			// 	point2 := RandRange(0, int64(minLen))
 
 			// 	// 교차점 정렬 (point1 < point2 보장)
 			// 	if point1 > point2 {
@@ -420,8 +372,8 @@ func TwoPointCrossover(parent1, parent2 Seed, seedCount *uint) (Seed, Seed) {
 				}
 			}
 
-			point1 := testing.RandRange(0, int64(minLen))
-			point2 := testing.RandRange(0, int64(minLen))
+			point1 := RandRange(0, int64(minLen))
+			point2 := RandRange(0, int64(minLen))
 			// 교차점 정렬 (point1 < point2 보장)
 			if point1 > point2 {
 				point1, point2 = point2, point1
@@ -487,8 +439,8 @@ func TwoPointCrossover(parent1, parent2 Seed, seedCount *uint) (Seed, Seed) {
 				}
 			}
 
-			point1 := testing.RandRange(0, int64(minLen))
-			point2 := testing.RandRange(0, int64(minLen))
+			point1 := RandRange(0, int64(minLen))
+			point2 := RandRange(0, int64(minLen))
 			// 교차점 정렬 (point1 < point2 보장)
 			if point1 > point2 {
 				point1, point2 = point2, point1
@@ -536,15 +488,17 @@ func Evolve(seeds []Seed, seedCount *uint) []Seed {
 	p1 := seeds[0]
 	// 이게 목표 수
 
-	target_count := 360 / (p1.Gen * p1.Gen)
+	x := float64(p1.Gen)
+
+	target_count := int(1160 / math.Sqrt(x*x*x))
 	loop_count := target_count / 2
 
-	// 결과가 2 미만일 경우 2로 설정
-	if target_count < 4 {
-		target_count = 4
+	// 결과가 60 미만일 경우 60로 설정
+	if target_count < 120 {
+		target_count = 120
 	}
-	if loop_count < 4 {
-		loop_count = 4
+	if loop_count < 120 {
+		loop_count = 120
 	}
 
 	// 결과를 짝수로 만듦
@@ -574,7 +528,7 @@ func Evolve(seeds []Seed, seedCount *uint) []Seed {
 				Id:            *seedCount,
 			}
 
-			if testing.UniformRandomBool(0.6) {
+			if UniformRandomBool(0.6) {
 				new_ind = Mutate(new_ind)
 			} else {
 				new_ind = InsertDelete(new_ind, 0.3)
@@ -603,10 +557,10 @@ func Evolve(seeds []Seed, seedCount *uint) []Seed {
 	// 변이 확률은 기존 퍼징에 기반합니다.
 	for i := range new_generation {
 
-		if testing.UniformRandomBool(0.3) {
+		if UniformRandomBool(0.3) {
 			new_generation[i] = Mutate(new_generation[i]) // 원본 데이터 수정
 		}
-		if testing.UniformRandomBool(0.2) {
+		if UniformRandomBool(0.2) {
 			new_generation[i] = InsertDelete(new_generation[i], 0.3)
 		}
 
@@ -617,9 +571,9 @@ func Evolve(seeds []Seed, seedCount *uint) []Seed {
 
 // 랜덤 바이트를 점진적 변형
 func randomByte_from(seed_byte byte) byte {
-	p := testing.GetSingleRand().Float64() // 0.0 <= p < 1.0
+	p := GetSingleRand().Float64() // 0.0 <= p < 1.0
 	// 단지, del확률 처리용으로 만든 변수. 신경 쓸 필요 없음.
-	next_flag := testing.GenerateRandomBool(0.5)
+	next_flag := GenerateRandomBool(0.5)
 	var b uint8
 	// 현재 케이스를 판별
 	// 이때 케이스는 0~3의 4개
@@ -662,7 +616,7 @@ func randomByte_from(seed_byte byte) byte {
 	}
 
 	if currentCase == 2 {
-		p2 := testing.GetSingleRand().Float64()
+		p2 := GetSingleRand().Float64()
 		// DEL케이스인 경우 확률 조정
 		if next_flag {
 			if p2 < 0.8 {
@@ -682,14 +636,14 @@ func randomByte_from(seed_byte byte) byte {
 	// 해당 케이스의 범위에서 랜덤 값 생성
 	switch currentCase {
 	case 0: // 0~31 스페셜 문자
-		b = uint8(testing.RandRange(ABSOLUTE_MIN, SPECIAL_MAX+1))
+		b = uint8(RandRange(ABSOLUTE_MIN, SPECIAL_MAX+1))
 	case 1: // 32~126 아스키
-		b = uint8(testing.RandRange(LOW_ASCII_MIN, LOW_ASCII_MAX+1))
+		b = uint8(RandRange(LOW_ASCII_MIN, LOW_ASCII_MAX+1))
 	case 2:
 		// DEL문자
 		b = DEL
 	case 3: // 128~255 하이 아스키
-		b = uint8(testing.RandRange(HIGH_ASCII_MIN, HIGH_ASCII_MAX+1))
+		b = uint8(RandRange(HIGH_ASCII_MIN, HIGH_ASCII_MAX+1))
 
 	}
 
@@ -720,10 +674,10 @@ const (
 //! rune은 자동 디코딩 설정 때문에 "string의 커버 범위 != []rune의 커버 범위" 됨
 // // 수정된 randomRune 함수
 // func randomRune_from(seed_rune rune) rune {
-// 	p := testing.GetSingleRand().Float64() // 0.0 <= p < 1.0
+// 	p := GetSingleRand().Float64() // 0.0 <= p < 1.0
 
 // 	// 단지, del확률 처리용으로 만든 변수. 신경 쓸 필요 없음.
-// 	next_flag := testing.GenerateRandomBool(0.5)
+// 	next_flag := GenerateRandomBool(0.5)
 
 // 	var r int64
 // 	// 현재 케이스를 판별
@@ -768,7 +722,7 @@ const (
 // 	}
 
 // 	if currentCase == 2 {
-// 		p2 := testing.GetSingleRand().Float64()
+// 		p2 := GetSingleRand().Float64()
 // 		// DEL케이스인 경우 확률 조정
 // 		if next_flag {
 // 			if p2 < 0.8 {
@@ -789,21 +743,21 @@ const (
 // 	// 해당 케이스의 범위에서 랜덤 값 생성
 // 	switch currentCase {
 // 	case 0: // 0~31 스페셜 문자
-// 		r = testing.RandRange(ABSOLUTE_MIN, SPECIAL_MAX+1)
+// 		r = RandRange(ABSOLUTE_MIN, SPECIAL_MAX+1)
 // 	case 1: // 32~126 아스키
-// 		r = testing.RandRange(LOW_ASCII_MIN, LOW_ASCII_MAX+1)
+// 		r = RandRange(LOW_ASCII_MIN, LOW_ASCII_MAX+1)
 // 	case 2:
 // 		// DEL문자
 // 		r = DEL
 // 	case 3: // 128~255 하이 아스키
-// 		r = testing.RandRange(HIGH_ASCII_MIN, HIGH_ASCII_MAX+1)
+// 		r = RandRange(HIGH_ASCII_MIN, HIGH_ASCII_MAX+1)
 // 	case 4: // 그 외 프린트 가능한 유니코드
-// 		r = testing.RandRange(PRINT_UNICODE_MIN, PRINT_UNICODE_MAX+1)
+// 		r = RandRange(PRINT_UNICODE_MIN, PRINT_UNICODE_MAX+1)
 // 	case 5: // 그 외의 프린트 불가능한 유니코드
-// 		r = testing.RandRange(BOUNDARY_UNICODE_MIN, BOUNDARY_UNICODE_MAX+1)
+// 		r = RandRange(BOUNDARY_UNICODE_MIN, BOUNDARY_UNICODE_MAX+1)
 // 	case 6:
 // 		// 유니코드가 아닌 케이스
-// 		r = testing.RandRange(BOUNDARY_UNICODE_MAX, ABSOLUTE_MAX+1)
+// 		r = RandRange(BOUNDARY_UNICODE_MAX, ABSOLUTE_MAX+1)
 
 // 	}
 
@@ -840,7 +794,7 @@ func determineCase(seed_rune rune) int {
 
 // 랜덤 변형 함수 for int types
 func randomInt_from(i interface{}) interface{} {
-	p := testing.GetSingleRand().Float64() // 0.0 ~ 1.0 사이의 랜덤 확률 값
+	p := GetSingleRand().Float64() // 0.0 ~ 1.0 사이의 랜덤 확률 값
 
 	switch v := i.(type) {
 	case int:
@@ -853,30 +807,30 @@ func randomInt_from(i interface{}) interface{} {
 			if min > max {
 				min, max = max, min
 			}
-			int_std = int(testing.RandRange(min, max))
+			int_std = int(RandRange(min, max))
 		case p < 0.3:
 			min := int64(v) - 1000
 			max := int64(v) + 1000
 			if min > max {
 				min, max = max, min
 			}
-			int_std = int(testing.RandRange(min, max))
+			int_std = int(RandRange(min, max))
 		case p < 0.45:
 			min := int64(v) - 10000
 			max := int64(v) + 10000
 			if min > max {
 				min, max = max, min
 			}
-			int_std = int(testing.RandRange(min, max))
+			int_std = int(RandRange(min, max))
 		case p < 0.60:
 			min := int64(v) - 100000
 			max := int64(v) + 100000
 			if min > max {
 				min, max = max, min
 			}
-			int_std = int(testing.RandRange(min, max))
+			int_std = int(RandRange(min, max))
 		default: // 나머지 확률: 완전 랜덤 값
-			int_std = testing.GetSingleRand().Int()
+			int_std = GetSingleRand().Int()
 		}
 		return int_std
 
@@ -889,16 +843,16 @@ func randomInt_from(i interface{}) interface{} {
 			if min > max {
 				min, max = max, min
 			}
-			int_8 = int8(testing.RandRange(min, max))
+			int_8 = int8(RandRange(min, max))
 		case p < 0.5:
 			min := int64(v) - 30
 			max := int64(v) + 30
 			if min > max {
 				min, max = max, min
 			}
-			int_8 = int8(testing.RandRange(min, max))
+			int_8 = int8(RandRange(min, max))
 		default: // 나머지 확률: 완전 랜덤 값
-			int_8 = int8(testing.RandRange(-128, 128))
+			int_8 = int8(RandRange(-128, 128))
 		}
 		return int_8
 
@@ -911,16 +865,16 @@ func randomInt_from(i interface{}) interface{} {
 			if min > max {
 				min, max = max, min
 			}
-			int_16 = int16(testing.RandRange(min, max))
+			int_16 = int16(RandRange(min, max))
 		case p < 0.5:
 			min := int64(v) - 1000
 			max := int64(v) + 1000
 			if min > max {
 				min, max = max, min
 			}
-			int_16 = int16(testing.RandRange(min, max))
+			int_16 = int16(RandRange(min, max))
 		default: // 나머지 확률: 완전 랜덤 값
-			int_16 = int16(testing.RandRange(-32768, 32768))
+			int_16 = int16(RandRange(-32768, 32768))
 		}
 		return int_16
 
@@ -933,23 +887,23 @@ func randomInt_from(i interface{}) interface{} {
 			if min > max {
 				min, max = max, min
 			}
-			int_32 = int32(testing.RandRange(min, max))
+			int_32 = int32(RandRange(min, max))
 		case p < 0.4:
 			min := int64(v) - 1000
 			max := int64(v) + 1000
 			if min > max {
 				min, max = max, min
 			}
-			int_32 = int32(testing.RandRange(min, max))
+			int_32 = int32(RandRange(min, max))
 		case p < 0.6:
 			min := int64(v) - 10000
 			max := int64(v) + 10000
 			if min > max {
 				min, max = max, min
 			}
-			int_32 = int32(testing.RandRange(min, max))
+			int_32 = int32(RandRange(min, max))
 		default: // 나머지 확률: 완전 랜덤 값
-			int_32 = testing.GetSingleRand().Int32()
+			int_32 = GetSingleRand().Int32()
 		}
 		return int_32
 
@@ -962,30 +916,30 @@ func randomInt_from(i interface{}) interface{} {
 			if min > max {
 				min, max = max, min
 			}
-			int_64 = testing.RandRange(min, max)
+			int_64 = RandRange(min, max)
 		case p < 0.3:
 			min := v - 1000
 			max := v + 1000
 			if min > max {
 				min, max = max, min
 			}
-			int_64 = testing.RandRange(min, max)
+			int_64 = RandRange(min, max)
 		case p < 0.45:
 			min := v - 10000
 			max := v + 10000
 			if min > max {
 				min, max = max, min
 			}
-			int_64 = testing.RandRange(min, max)
+			int_64 = RandRange(min, max)
 		case p < 0.60:
 			min := v - 100000
 			max := v + 100000
 			if min > max {
 				min, max = max, min
 			}
-			int_64 = testing.RandRange(min, max)
+			int_64 = RandRange(min, max)
 		default: // 나머지 확률: 완전 랜덤 값
-			int_64 = testing.GetSingleRand().Int64()
+			int_64 = GetSingleRand().Int64()
 		}
 		return int_64
 
@@ -996,7 +950,7 @@ func randomInt_from(i interface{}) interface{} {
 
 // 랜덤 변형 함수 for uint types
 func randomUint_from(u interface{}) interface{} {
-	p := testing.GetSingleRand().Float64() // 0.0 ~ 1.0 사이의 랜덤 확률 값
+	p := GetSingleRand().Float64() // 0.0 ~ 1.0 사이의 랜덤 확률 값
 
 	switch v := u.(type) {
 	case uint:
@@ -1008,16 +962,16 @@ func randomUint_from(u interface{}) interface{} {
 			if min > max {
 				min, max = max, min
 			}
-			uint_std = uint(testing.RandRange(min, max))
+			uint_std = uint(RandRange(min, max))
 		case p < 0.6:
 			min := int64(v) / 10
 			max := int64(v) * 10
 			if min > max {
 				min, max = max, min
 			}
-			uint_std = uint(testing.RandRange(min, max))
+			uint_std = uint(RandRange(min, max))
 		default:
-			uint_std = uint(testing.GetSingleRand().Uint64())
+			uint_std = uint(GetSingleRand().Uint64())
 		}
 		return uint_std
 
@@ -1030,16 +984,16 @@ func randomUint_from(u interface{}) interface{} {
 			if min > max {
 				min, max = max, min
 			}
-			uint_8 = uint8(testing.RandRange(min, max))
+			uint_8 = uint8(RandRange(min, max))
 		case p < 0.6:
 			min := int64(v) / 10
 			max := int64(v) * 10
 			if min > max {
 				min, max = max, min
 			}
-			uint_8 = uint8(testing.RandRange(min, max))
+			uint_8 = uint8(RandRange(min, max))
 		default:
-			uint_8 = uint8(testing.RandRange(0, 256)) // uint8 범위: 0 ~ 255
+			uint_8 = uint8(RandRange(0, 256)) // uint8 범위: 0 ~ 255
 		}
 		return uint_8
 
@@ -1052,16 +1006,16 @@ func randomUint_from(u interface{}) interface{} {
 			if min > max {
 				min, max = max, min
 			}
-			uint_16 = uint16(testing.RandRange(min, max))
+			uint_16 = uint16(RandRange(min, max))
 		case p < 0.6:
 			min := int64(v) / 10
 			max := int64(v) * 10
 			if min > max {
 				min, max = max, min
 			}
-			uint_16 = uint16(testing.RandRange(min, max))
+			uint_16 = uint16(RandRange(min, max))
 		default:
-			uint_16 = uint16(testing.RandRange(0, 65536)) // uint16 범위: 0 ~ 65535
+			uint_16 = uint16(RandRange(0, 65536)) // uint16 범위: 0 ~ 65535
 		}
 		return uint_16
 
@@ -1074,23 +1028,23 @@ func randomUint_from(u interface{}) interface{} {
 			if min > max {
 				min, max = max, min
 			}
-			uint_32 = uint32(testing.RandRange(min, max))
+			uint_32 = uint32(RandRange(min, max))
 		case p < 0.4:
 			min := int64(v) / 8
 			max := int64(v) * 8
 			if min > max {
 				min, max = max, min
 			}
-			uint_32 = uint32(testing.RandRange(min, max))
+			uint_32 = uint32(RandRange(min, max))
 		case p < 0.6:
 			min := int64(v) / 16
 			max := int64(v) * 16
 			if min > max {
 				min, max = max, min
 			}
-			uint_32 = uint32(testing.RandRange(min, max))
+			uint_32 = uint32(RandRange(min, max))
 		default:
-			uint_32 = uint32(testing.RandRange(0, int64(^uint32(0))))
+			uint_32 = uint32(RandRange(0, int64(^uint32(0))))
 		}
 		return uint_32
 
@@ -1103,23 +1057,23 @@ func randomUint_from(u interface{}) interface{} {
 			if min > max {
 				min, max = max, min
 			}
-			uint_64 = uint64(testing.RandRange(min, max))
+			uint_64 = uint64(RandRange(min, max))
 		case p < 0.6:
 			min := int64(v) / 8
 			max := int64(v) * 8
 			if min > max {
 				min, max = max, min
 			}
-			uint_64 = uint64(testing.RandRange(min, max))
+			uint_64 = uint64(RandRange(min, max))
 		case p < 0.6:
 			min := int64(v) / 32
 			max := int64(v) * 32
 			if min > max {
 				min, max = max, min
 			}
-			uint_64 = uint32(testing.RandRange(min, max))
+			uint_64 = uint32(RandRange(min, max))
 		default:
-			uint_64 = testing.RandUint64()
+			uint_64 = RandUint64()
 		}
 		return uint_64
 
@@ -1152,7 +1106,7 @@ func randFloat64_from(f float64) float64 {
 }
 
 func randomBool() bool {
-	return testing.UniformRandomBool(0.5)
+	return UniformRandomBool(0.5)
 }
 
 func linear_crossover(a interface{}, b interface{}) (interface{}, interface{}) {

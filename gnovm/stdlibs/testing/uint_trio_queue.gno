@@ -1,4 +1,4 @@
-package fuzzinglib
+package testing
 
 type (
 	gen uint

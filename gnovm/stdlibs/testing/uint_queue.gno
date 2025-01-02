@@ -1,4 +1,4 @@
-package fuzzinglib
+package testing
 
 // Queue 구조체
 type Uint_Queue struct {

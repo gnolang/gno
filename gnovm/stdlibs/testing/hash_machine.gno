@@ -1,4 +1,4 @@
-package fuzzinglib
+package testing
 
 import (
 	"crypto/sha256"
@@ -101,6 +101,7 @@ func (hm *HashMachine) Count_HashNumber(ih internalHash) HashNumber {
 	}
 	hm.internalHash2hashNumber[ih] = hm.hashNumber_counter.counter
 	current := hm.hashNumber_counter.counter
+
 	hm.hashNumber_counter.counter++
 	return current
 }
@@ -146,7 +147,11 @@ func intToString(n int) string {
 // 중복 제거도 추가함.
 // 타입 맞게 수정 추가함. 그래도 기반 기능은 동일.
 func GetInternalHash(input Coverage) internalHash {
-	input = RemoveDuplicates(input)
+	// 다시 생각해보니 좀 차이가 있긴 한데...
+	// 차이가 있긴 하네
+	// 중복 제거는 안하는 걸로 (평탄 확률이 아닐 시, 중복 놔두는게 더 정교)
+	// TODO: 다만 중복 제거는 이후 오염 체킹 등에 쓰기!!!
+	// input = RemoveDuplicates(input)
 	valBytes := CoverageToBytes(input)
 	valArray := sha256.Sum256(valBytes)
 	return internalHash(BytesToUint64(valArray))

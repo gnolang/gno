@@ -24,7 +24,7 @@ type CustomSource struct {
 
 // Uint64는 pseudo-random 64-bit value를 리턴해야 함
 func (cs *CustomSource) Uint64() uint64 {
-	// 예: 간단한 XORShift-like 알고리즘 (데모용)
+	// 예: 간단한 XORShift-like 알고리즘
 	cs.seed ^= cs.seed >> 12
 	cs.seed ^= cs.seed << 25
 	cs.seed ^= cs.seed >> 27
