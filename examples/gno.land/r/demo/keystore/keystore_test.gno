@@ -11,7 +11,10 @@ import (
 )
 
 func TestRender(t *testing.T) {
-	const (
+	// For some reason non native function fails with
+	// gno.land/r/demo/keystore/keystore_test.gno:15:3: constant overflows (code=2)
+	// TODO: check this issue after and if this PR is merged
+	var (
 		author1 std.Address = testutils.TestAddress("author1")
 		author2 std.Address = testutils.TestAddress("author2")
 	)
