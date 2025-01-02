@@ -283,6 +283,8 @@ func renderPayroll(p *payroll, pov string) string {
 		sb.WriteString(renderClaimable("  ", claimable, available, denom, false))
 	}
 
+	sb.WriteString(ufmt.Sprintf("  - 🏁 Created at: %s\n", p.createdAt.Format(time.DateTime)))
+
 	if !p.stopped {
 		estimatedDay := p.estimateDay()
 		sb.WriteString(renderEstimatedMonthly("  ", estimatedDay, denom))
