@@ -7,13 +7,13 @@ import (
 
 func main() {
 	f := testing.New_F(500_000)
-	var u1 uint = 30
+	var u1 uint = 1213123213
 	// var u2 uint16 = 20
-	var u2 uint = 30
-	var u3 uint = 30
-	f.Add("apple", u1)
-	f.Add("hello", u2)
-	f.Add("kkk", u3)
+	var u2 uint = 301321123123
+	var u3 uint = 13123123123213123
+	f.Add("aaaaaaaaaaa", u1)
+	f.Add("bbbbbbbbbbb", u2)
+	f.Add("ccccccccccc", u3)
 
 	f.Fuzz(func(t *testing.T, orig ...interface{}) {
 		v, ok := orig[0].(string)
