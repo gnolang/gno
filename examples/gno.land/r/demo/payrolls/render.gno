@@ -165,6 +165,7 @@ func Render(renderPath string) string {
 			}))
 		}
 		actions = append(actions, renderButton("New payroll", "CreateCDI", map[string]string{
+			"namespace":      namespace,
 			"label":          "Salary Monthly",
 			"amountPerMonth": "10000",
 		}))
@@ -181,16 +182,26 @@ func Render(renderPath string) string {
 			return ufmt.Sprintf("❓ Payroll %q not found", idStr)
 		}
 		w.WriteString(p.(*payroll).render(""))
+
 	case renderPath == "":
-		w.WriteString("# Latest payrolls\n")
+		w.WriteString("# Payrolls\n")
+
+		actions := []string{}
+		actions = append(actions, renderButton("New payroll", "CreateCDI", map[string]string{
+			"label":          "Salary Monthly",
+			"amountPerMonth": "10000",
+		}))
+		w.WriteString(renderActions("", actions))
+
 		payrolls.ReverseIterateByOffset(0, listMaxSize, func(key string, value interface{}) bool {
 			w.WriteString(value.(*payroll).render(""))
 			return false
 		})
 
 		w.WriteString("\n\nTODO\n")
-		w.WriteString("- [ ] Home actions\n")
 		w.WriteString("- [ ] Fix anchors\n")
+		w.WriteString("- [ ] Show created at\n")
+		w.WriteString("- [ ] Show running duration\n")
 		w.WriteString("- [ ] Support any coin\n")
 		w.WriteString("- [ ] Unit tests\n")
 		w.WriteString("- [ ] txtar\n")
