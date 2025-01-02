@@ -34,11 +34,12 @@ import (
 
 // AppOptions contains the options to create the gno.land ABCI application.
 type AppOptions struct {
-	DB                dbm.DB             // required
-	Logger            *slog.Logger       // required
-	EventSwitch       events.EventSwitch // required
-	VMOutput          io.Writer          // optional
-	InitChainerConfig                    // options related to InitChainer
+	DB                      dbm.DB             // required
+	Logger                  *slog.Logger       // required
+	EventSwitch             events.EventSwitch // required
+	VMOutput                io.Writer          // optional
+	SkipGenesisVerification bool               // default to verify genesis transactions
+	InitChainerConfig                          // options related to InitChainer
 }
 
 // TestAppOptions provides a "ready" default [AppOptions] for use with
@@ -53,6 +54,7 @@ func TestAppOptions(db dbm.DB) *AppOptions {
 			StdlibDir:              filepath.Join(gnoenv.RootDir(), "gnovm", "stdlibs"),
 			CacheStdlibLoad:        true,
 		},
+		SkipGenesisVerification: true,
 	}
 }
 
@@ -105,7 +107,7 @@ func NewAppWithOptions(cfg *AppOptions) (abci.Application, error) {
 
 	// Set AnteHandler
 	authOptions := auth.AnteOptions{
-		VerifyGenesisSignatures: false, // for development
+		VerifyGenesisSignatures: !cfg.SkipGenesisVerification,
 	}
 	authAnteHandler := auth.NewAnteHandler(
 		acctKpr, bankKpr, auth.DefaultSigVerificationGasConsumer, authOptions)

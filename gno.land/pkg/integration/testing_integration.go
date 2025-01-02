@@ -188,8 +188,10 @@ func setupGnolandTestScript(t *testing.T, txtarDir string) testscript.Params {
 					pkgs := ts.Value(envKeyPkgsLoader).(*pkgsLoader)                // grab logger
 					creator := crypto.MustAddressFromString(DefaultAccount_Address) // test1
 					defaultFee := std.NewFee(50000, std.MustParseCoin(ugnot.ValueString(1000000)))
+					// Generate config and node
+					cfg := TestingMinimalNodeConfig(t, gnoRootDir)
 					// we need to define a new err1 otherwise the out err would be shadowed in the case "start":
-					pkgsTxs, loadErr := pkgs.LoadPackages(creator, defaultFee, nil)
+					pkgsTxs, loadErr := pkgs.LoadPackages(creator, defaultFee, nil, cfg.TMConfig.ChainID())
 
 					if loadErr != nil {
 						ts.Fatalf("unable to load packages txs: %s", err)
@@ -198,8 +200,6 @@ func setupGnolandTestScript(t *testing.T, txtarDir string) testscript.Params {
 					// Warp up `ts` so we can pass it to other testing method
 					t := TSTestingT(ts)
 
-					// Generate config and node
-					cfg := TestingMinimalNodeConfig(t, gnoRootDir)
 					genesis := ts.Value(envKeyGenesis).(*gnoland.GnoGenesisState)
 					genesis.Txs = append(pkgsTxs, genesis.Txs...)
 
@@ -666,7 +666,12 @@ func (pl *pkgsLoader) SetPatch(replace, with string) {
 	pl.patchs[replace] = with
 }
 
-func (pl *pkgsLoader) LoadPackages(creator bft.Address, fee std.Fee, deposit std.Coins) ([]gnoland.TxWithMetadata, error) {
+func (pl *pkgsLoader) LoadPackages(creator bft.Address, fee std.Fee, deposit std.Coins, chainID string) ([]gnoland.TxWithMetadata, error) {
+	kb := keys.NewInMemory()
+	_, err := kb.CreateAccount(DefaultAccount_Name, DefaultAccount_Seed, "", "", 0, 0)
+	if err != nil {
+		return nil, fmt.Errorf("createAccount: %w", err)
+	}
 	pkgslist, err := pl.List().Sort() // sorts packages by their dependencies.
 	if err != nil {
 		return nil, fmt.Errorf("unable to sort packages: %w", err)
@@ -698,7 +703,20 @@ func (pl *pkgsLoader) LoadPackages(creator bft.Address, fee std.Fee, deposit std
 				}
 			}
 		}
-
+		signbytes, err := tx.GetSignBytes(chainID, 0, 0)
+		if err != nil {
+			return nil, fmt.Errorf("unable to get sign bytes %q: %w", pkg.Name, err)
+		}
+		signature, pubKey, err := kb.Sign(DefaultAccount_Name, "", signbytes)
+		if err != nil {
+			return nil, fmt.Errorf("unable to sign transaction %q: %w", pkg.Name, err)
+		}
+		tx.Signatures = []std.Signature{
+			{
+				PubKey:    pubKey,
+				Signature: signature,
+			},
+		}
 		txs[i] = gnoland.TxWithMetadata{
 			Tx: tx,
 		}
