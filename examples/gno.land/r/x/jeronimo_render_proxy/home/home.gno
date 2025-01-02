@@ -25,7 +25,7 @@ func Register(fn RenderFn) {
 	}
 
 	proxyPath := std.CurrentRealm().PkgPath()
-	callerPath := std.PrevRealm().PkgPath()
+	callerPath := std.PreviousRealm().PkgPath()
 	if !strings.HasPrefix(callerPath, proxyPath+"/") {
 		panic("caller realm path must start with " + proxyPath)
 	}

@@ -47,7 +47,7 @@ func TestBridge_SetDAO(t *testing.T) {
 			}
 		)
 
-		std.TestSetOrigCaller(addr)
+		std.TestSetOriginCaller(addr)
 
 		b.Ownable = ownable.NewWithAddress(addr)
 

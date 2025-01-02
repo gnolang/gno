@@ -33,20 +33,20 @@ func TestPackage(t *testing.T) {
 	// by default, balance is empty, and as a user I cannot call Transfer, or Admin commands.
 
 	assertBalance(t, test1addr, 0)
-	std.TestSetOrigCaller(test1addr)
+	std.TestSetOriginCaller(test1addr)
 	assertErr(t, faucet.Transfer(test1addr, 1000000))
 
 	assertErr(t, faucet.AdminAddController(controlleraddr1))
-	std.TestSetOrigCaller(controlleraddr1)
+	std.TestSetOriginCaller(controlleraddr1)
 	assertErr(t, faucet.Transfer(test1addr, 1000000))
 
 	// as an admin, add the controller to contract and deposit more 2000gnot to contract
-	std.TestSetOrigCaller(adminaddr)
+	std.TestSetOriginCaller(adminaddr)
 	assertNoErr(t, faucet.AdminAddController(controlleraddr1))
 	assertBalance(t, faucetaddr, 1000000000)
 
 	// now, send some tokens as controller.
-	std.TestSetOrigCaller(controlleraddr1)
+	std.TestSetOriginCaller(controlleraddr1)
 	assertNoErr(t, faucet.Transfer(test1addr, 1000000))
 	assertBalance(t, test1addr, 1000000)
 	assertNoErr(t, faucet.Transfer(test1addr, 1000000))
@@ -55,13 +55,13 @@ func TestPackage(t *testing.T) {
 
 	// remove controller
 	// as an admin, remove controller
-	std.TestSetOrigCaller(adminaddr)
+	std.TestSetOriginCaller(adminaddr)
 	assertNoErr(t, faucet.AdminRemoveController(controlleraddr1))
-	std.TestSetOrigCaller(controlleraddr1)
+	std.TestSetOriginCaller(controlleraddr1)
 	assertErr(t, faucet.Transfer(test1addr, 1000000))
 
 	// duplicate controller
-	std.TestSetOrigCaller(adminaddr)
+	std.TestSetOriginCaller(adminaddr)
 	assertNoErr(t, faucet.AdminAddController(controlleraddr1))
 	assertErr(t, faucet.AdminAddController(controlleraddr1))
 	// add more than more than allowed controllers
@@ -77,13 +77,13 @@ func TestPackage(t *testing.T) {
 	assertErr(t, faucet.AdminAddController(controlleraddr11))
 
 	// send more than per transfer limit
-	std.TestSetOrigCaller(adminaddr)
+	std.TestSetOriginCaller(adminaddr)
 	faucet.AdminSetTransferLimit(300000000)
-	std.TestSetOrigCaller(controlleraddr1)
+	std.TestSetOriginCaller(controlleraddr1)
 	assertErr(t, faucet.Transfer(test1addr, 301000000))
 
 	// block transefer from the address not on the controllers list.
-	std.TestSetOrigCaller(controlleraddr11)
+	std.TestSetOriginCaller(controlleraddr11)
 	assertErr(t, faucet.Transfer(test1addr, 1000000))
 }
 

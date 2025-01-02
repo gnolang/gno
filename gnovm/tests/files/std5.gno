@@ -5,9 +5,9 @@ import (
 )
 
 func main() {
-	caller1 := std.GetCallerAt(1)
+	caller1 := std.CallerAt(1)
 	println(caller1)
-	caller2 := std.GetCallerAt(2)
+	caller2 := std.CallerAt(2)
 	println(caller2)
 }
 
@@ -15,7 +15,7 @@ func main() {
 // panic: frame not found
 // callerAt<VPBlock(3,48)>(n<VPBlock(1,0)>)
 //     gonative:std.callerAt
-// std<VPBlock(2,0)>.GetCallerAt(2)
+// std<VPBlock(2,0)>.CallerAt(2)
 //     std/native.gno:45
 // main<VPBlock(1,0)>()
 //     main/files/std5.gno:10
