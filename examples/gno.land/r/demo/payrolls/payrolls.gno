@@ -13,34 +13,56 @@ import (
 // TODO: support grc20
 
 type DistribFn func(elapsed time.Duration) uint64
+type BreakupFn func(elapsed time.Duration, pauseDuration time.Duration, source BreakupSource) int64
 
 const denom = "ugnot"
 
+type BreakupSource uint
+
+const (
+	BreakupSourceCreator BreakupSource = iota
+	BreakupSourceBeneficiary
+)
+
 type payroll struct {
 	id             seqid.ID
+	creatorAddr    std.Address
 	vaultID        string
 	createdAt      time.Time
-	amount         int64
+	cap            int64 // XXX: maybe we should remove this and handle cap in distrib fn directly
 	beneficiary    std.Address
 	totalWithdrawn uint64
 	distrib        DistribFn
+	breakup        BreakupFn
 	paused         bool
 	pausedAt       time.Time
 	pauseDuration  time.Duration
 	label          string
+	breakupAmount  int64
+	stopped        bool
+	stoppedAt      time.Time
 }
 
-func Create(namespace string, label string, beneficiary std.Address, amount int64, distrib DistribFn) seqid.ID {
+func Create(namespace string, label string, beneficiary std.Address, cap int64, distrib DistribFn, breakup BreakupFn) seqid.ID {
 	vaultID := vaultIDFromRealm(std.PrevRealm(), namespace)
+
+	if distrib == nil {
+		panic(errors.New("nil distrib"))
+	}
+	if !beneficiary.IsValid() {
+		panic(errors.New("invalid beneficiary"))
+	}
 
 	p := payroll{
 		id:          id.Next(),
 		vaultID:     vaultID,
 		createdAt:   time.Now(),
-		amount:      amount,
+		cap:         cap,
 		distrib:     distrib,
+		breakup:     breakup,
 		beneficiary: beneficiary,
 		label:       label,
+		creatorAddr: std.PrevRealm().Addr(),
 	}
 
 	payrolls.Set(id.String(), &p)
@@ -56,10 +78,6 @@ func Create(namespace string, label string, beneficiary std.Address, amount int6
 	payrollsByVault[p.vaultID].Set(p.id.String(), &p)
 
 	return p.id
-}
-
-func CreateMonthly(namespace string, label string, beneficiary std.Address, amount uint64, totalAmount int64) seqid.ID {
-	return Create(namespace, label, beneficiary, totalAmount, MonthlyContinuous(amount))
 }
 
 func Claim(id seqid.ID, requestedAmount int64, destination std.Address) {
@@ -80,7 +98,7 @@ func Claim(id seqid.ID, requestedAmount int64, destination std.Address) {
 		requestedAmount = int64(vaultAmount)
 	}
 
-	withdrawn := p.withdraw(requestedAmount)
+	withdrawn := p.claim(requestedAmount)
 	if withdrawn == 0 && requestedAmount != -1 {
 		panic(errors.New("nothing to claim"))
 	}
@@ -180,6 +198,21 @@ func WithdrawFunds(namespace string, amount int64, destination std.Address) {
 	vaults.Set(id, vaultAmount-uint64(amount))
 }
 
+func Stop(id seqid.ID) {
+	p := mustGetPayroll(id)
+	p.stop(std.PrevRealm().Addr())
+}
+
+func Pause(id seqid.ID) {
+	p := mustGetPayroll(id)
+	p.pause(std.PrevRealm().Addr())
+}
+
+func Resume(id seqid.ID) {
+	p := mustGetPayroll(id)
+	p.resume(std.PrevRealm().Addr())
+}
+
 var id seqid.ID
 
 var payrolls avl.Tree                                       // seqid.ID -> *payroll
@@ -187,6 +220,10 @@ var payrollsByVault = make(map[string]*avl.Tree)            // seqid.ID -> *payr
 var payrollsByBeneficiary = make(map[std.Address]*avl.Tree) // seqid.ID -> *payroll
 
 func (p *payroll) freeAt(when time.Time) uint64 {
+	if p.stopped && p.stoppedAt.Before(when) {
+		when = p.stoppedAt
+	}
+
 	var elapsed time.Duration
 	if p.paused {
 		elapsed = p.pausedAt.Sub(p.createdAt)
@@ -195,21 +232,23 @@ func (p *payroll) freeAt(when time.Time) uint64 {
 	}
 	elapsed -= p.pauseDuration
 	res := p.distrib(elapsed)
-	if p.amount > 0 && res > uint64(p.amount) {
-		return uint64(p.amount)
+
+	if p.cap > 0 && res > uint64(p.cap) {
+		return uint64(p.cap)
 	}
+
 	return res
 }
 
 func (p *payroll) available() uint64 {
-	return p.freeAt(time.Now()) - p.totalWithdrawn
+	return (p.freeAt(time.Now()) + uint64(p.breakupAmount)) - p.totalWithdrawn
 }
 
 func (p *payroll) estimateDay() uint64 {
 	return p.freeAt(time.Now().Add(time.Hour*24)) - p.freeAt(time.Now())
 }
 
-func (p *payroll) withdraw(amount int64) uint64 {
+func (p *payroll) claim(amount int64) uint64 {
 	available := int64(p.available())
 	if amount > available || amount < 0 {
 		amount = available
@@ -218,7 +257,10 @@ func (p *payroll) withdraw(amount int64) uint64 {
 	return uint64(amount)
 }
 
-func (p *payroll) pause() {
+func (p *payroll) pause(source std.Address) {
+	p.assertNotStopped()
+	p.assertBeneficiary(source)
+
 	if p.paused {
 		panic(errors.New("already paused"))
 	}
@@ -226,12 +268,53 @@ func (p *payroll) pause() {
 	p.pausedAt = time.Now()
 }
 
-func (p *payroll) resume() {
+func (p *payroll) resume(source std.Address) {
+	p.assertNotStopped()
+	p.assertBeneficiary(source)
+
 	if !p.paused {
 		panic(errors.New("not paused"))
 	}
+	p.resumeUnsafe()
+}
+
+func (p *payroll) resumeUnsafe() {
 	p.paused = false
 	p.pauseDuration += time.Now().Sub(p.pausedAt)
+}
+
+func (p *payroll) stop(source std.Address) {
+	p.assertNotStopped()
+
+	var breakupSource BreakupSource
+	switch source {
+	case p.beneficiary:
+		breakupSource = BreakupSourceBeneficiary
+	case p.creatorAddr:
+		breakupSource = BreakupSourceCreator
+	default:
+		panic(errors.New("unknown source"))
+	}
+
+	if p.paused {
+		p.resumeUnsafe()
+	}
+
+	p.breakupAmount = p.breakup(time.Now().Sub(p.createdAt), p.pauseDuration, breakupSource)
+	p.stopped = true
+	p.stoppedAt = time.Now()
+}
+
+func (p *payroll) assertNotStopped() {
+	if p.stopped {
+		panic(errors.New("stopped"))
+	}
+}
+
+func (p *payroll) assertBeneficiary(addr std.Address) {
+	if addr != p.beneficiary {
+		panic(errors.New("only beneficiary allowed"))
+	}
 }
 
 func mustGetPayroll(id seqid.ID) *payroll {
@@ -242,25 +325,47 @@ func mustGetPayroll(id seqid.ID) *payroll {
 	return ip.(*payroll)
 }
 
-func StepDistrib(blockAmount uint64, per time.Duration) DistribFn {
+func DistribStep(amount uint64, per time.Duration) DistribFn {
 	return func(elapsed time.Duration) uint64 {
 		blocksCount := elapsed / per
-		return blockAmount * uint64(blocksCount)
+		return amount * uint64(blocksCount)
 	}
 }
 
-func LinearDistrib(blockAmount uint64, per time.Duration) DistribFn {
+func DistribLinear(amount uint64, per time.Duration) DistribFn {
 	return func(elapsed time.Duration) uint64 {
-		return (uint64(elapsed.Seconds()) * blockAmount) / uint64(per.Seconds())
+		return (uint64(elapsed.Seconds()) * amount) / uint64(per.Seconds())
 	}
 }
 
-func Monthly(amount uint64) DistribFn {
-	return StepDistrib(amount, time.Hour*24*30)
+func DistribMonthlyStep(amountPerMonth uint64) DistribFn {
+	return DistribStep(amountPerMonth, time.Hour*24*30)
 }
 
-func MonthlyContinuous(amount uint64) DistribFn {
-	return LinearDistrib(amount, time.Hour*24*30)
+func DistribMonthlyContinuous(amountPerMonth uint64) DistribFn {
+	return DistribLinear(amountPerMonth, time.Hour*24*30)
 }
 
-// Usage Create(std.Address("foo"), MonthlyContinuous(1000))
+// CreateCDI creates a payroll that tries to match the French CDI contract
+//
+// See: https://travail-emploi.gouv.fr/le-contrat-de-travail-duree-indeterminee-cdi
+func CreateCDI(namespace string, label string, beneficiary std.Address, amountPerMonth uint64) seqid.ID {
+	if amountPerMonth <= 0 {
+		panic(errors.New("invalid amount"))
+	}
+	return Create(namespace, label, beneficiary, -1, DistribMonthlyContinuous(amountPerMonth), BreakupCDI(amountPerMonth))
+}
+
+func BreakupCDI(amountPerMonth uint64) BreakupFn {
+	const hoursPerYear = float64(8_670)
+	return func(elapsed time.Duration, pauseDuration time.Duration, source BreakupSource) int64 {
+		if source != BreakupSourceCreator {
+			return 0
+		}
+
+		// conventional breakup
+		worked := elapsed - pauseDuration
+		numYears := worked.Hours() / hoursPerYear
+		return int64(0.25 * float64(amountPerMonth) * numYears)
+	}
+}

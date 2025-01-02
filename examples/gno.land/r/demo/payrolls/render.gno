@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"gno.land/p/demo/avl"
+	"gno.land/p/demo/seqid"
 	"gno.land/p/demo/ufmt"
 	"gno.land/p/demo/users"
 	rusers "gno.land/r/demo/users"
@@ -77,11 +78,10 @@ func Render(renderPath string) string {
 			}))
 		}
 
-		actions = append(actions, renderButton("New payroll", "CreateMonthly", map[string]string{
-			"label":       "Salary Monthly",
-			"beneficiary": addr.String(),
-			"amount":      "10000",
-			"totalAmount": "-1",
+		actions = append(actions, renderButton("New payroll", "CreateCDI", map[string]string{
+			"label":          "Salary Monthly",
+			"beneficiary":    addr.String(),
+			"amountPerMonth": "10000",
 		}))
 
 		w.WriteString(renderActions("", actions))
@@ -139,7 +139,7 @@ func Render(renderPath string) string {
 			}
 			w.WriteString(ufmt.Sprintf("- 🏦 %s%d%s\n", prefix, balance, denom))
 
-			if balance > 0 {
+			if balance > 0 && estimatedDay > 0 {
 				color := "🔴"
 				runWayMonths := funds / (estimatedDay * 30)
 				if runWayMonths >= 12 {
@@ -164,10 +164,9 @@ func Render(renderPath string) string {
 				"amount":    "-1",
 			}))
 		}
-		actions = append(actions, renderButton("New payroll", "CreateMonthly", map[string]string{
-			"label":       "Salary Monthly",
-			"amount":      "10000",
-			"totalAmount": "-1",
+		actions = append(actions, renderButton("New payroll", "CreateCDI", map[string]string{
+			"label":          "Salary Monthly",
+			"amountPerMonth": "10000",
 		}))
 		w.WriteString(renderActions("", actions))
 
@@ -190,16 +189,19 @@ func Render(renderPath string) string {
 		})
 
 		w.WriteString("\n\nTODO\n")
-		w.WriteString("- [ ] Stop / Archive\n")
 		w.WriteString("- [ ] Home actions\n")
+		w.WriteString("- [ ] Fix anchors\n")
+		w.WriteString("- [ ] Support any coin\n")
 		w.WriteString("- [ ] Unit tests\n")
-		w.WriteString("- [ ] Pause / Unpause\n")
+		w.WriteString("- [ ] txtar\n")
+		w.WriteString("- [ ] Write doc\n")
+
+		w.WriteString("\n\nv2\n\n")
+		w.WriteString("- [ ] Archive\n")
 		w.WriteString("- [ ] Details: Events history\n")
 		w.WriteString("- [ ] PoV Tags\n")
 		w.WriteString("- [ ] Edit label / PoV labels\n")
 		w.WriteString("- [ ] Stop litigation\n")
-		w.WriteString("- [ ] Fix anchors\n")
-		w.WriteString("- [ ] Support any coin\n")
 
 	default:
 		w.WriteString("# Payrolls\n")
@@ -228,7 +230,6 @@ func (p *payroll) render(pov string) string {
 		}
 		pvid := vaultIDUnsafe(base, namespace)
 		sb.WriteString(ufmt.Sprintf("  - 🎩 Vault: [%s](%s:/v/%s)\n", pvid, linkPrefix(), pvid))
-
 	}
 
 	if pov != "beneficiary" {
@@ -252,17 +253,23 @@ func (p *payroll) render(pov string) string {
 		sb.WriteString(renderClaimable("  ", claimable, available, denom, false))
 	}
 
-	estimatedDay := p.estimateDay()
-	sb.WriteString(renderEstimatedMonthly("  ", estimatedDay, denom))
+	if !p.stopped {
+		estimatedDay := p.estimateDay()
+		sb.WriteString(renderEstimatedMonthly("  ", estimatedDay, denom))
 
-	sb.WriteString("  - 🕙 Remaining: ")
-	if p.amount >= 0 {
-		amountRemaining := uint64(p.amount) - p.totalWithdrawn
-		sb.WriteString(ufmt.Sprintf("%s (%d%s)", ((time.Duration(amountRemaining) * 24) / time.Duration(estimatedDay) / time.Hour).String(), amountRemaining, denom))
+		sb.WriteString("  - 🕙 Remaining: ")
+		if p.cap >= 0 {
+			amountRemaining := uint64(p.cap) - p.totalWithdrawn
+			sb.WriteString(ufmt.Sprintf("%s (%d%s)", ((time.Duration(amountRemaining) * 24) / time.Duration(estimatedDay) / time.Hour).String(), amountRemaining, denom))
+		} else {
+			sb.WriteRune('∞')
+		}
+		sb.WriteRune('\n')
 	} else {
-		sb.WriteRune('∞')
+		sb.WriteString(ufmt.Sprintf("  - 🛑 Stopped since: %s\n", p.stoppedAt.Format(time.DateTime)))
 	}
-	sb.WriteRune('\n')
+
+	// TODO: render breakup amount, we need to be explicit depending on source
 
 	actions := []string{}
 
@@ -272,6 +279,22 @@ func (p *payroll) render(pov string) string {
 			"requestedAmount": "-1",
 			"destination":     p.beneficiary.String(),
 		}))
+	}
+
+	if pov != "vault" && !p.paused && !p.stopped {
+		actions = append(actions, renderButton("Pause", "Pause", map[string]string{
+			"id": strconv.FormatUint(uint64(p.id), 10),
+		}))
+	}
+
+	if pov != "vault" && p.paused {
+		actions = append(actions, renderButton("Resume", "Resume", map[string]string{
+			"id": strconv.FormatUint(uint64(p.id), 10),
+		}))
+	}
+
+	if !p.stopped {
+		actions = append(actions, renderStopButton(p.id))
 	}
 
 	sb.WriteString(renderActions("  ", actions))
@@ -306,13 +329,10 @@ func renderEstimatedMonthly(prefix string, estimatedDay uint64, denom string) st
 	return ufmt.Sprintf("%s- 💸 Estimated monthly: %d%s\n", prefix, estimatedDay*30, denom)
 }
 
-func linkPrefix() string {
-	realmPath := std.CurrentRealm().PkgPath()
-	slashIdx := strings.Index(realmPath, "/")
-	if slashIdx == -1 {
-		return realmPath
-	}
-	return realmPath[slashIdx:]
+func renderStopButton(id seqid.ID) string {
+	return renderButton("Stop", "Stop", map[string]string{
+		"id": strconv.FormatUint(uint64(id), 10),
+	})
 }
 
 func renderButton(text, funcName string, args map[string]string) string {
@@ -349,4 +369,13 @@ func resolveVaultBase(base string) (string, *users.User, bool) {
 	}
 
 	return "", nil, false
+}
+
+func linkPrefix() string {
+	realmPath := std.CurrentRealm().PkgPath()
+	slashIdx := strings.Index(realmPath, "/")
+	if slashIdx == -1 {
+		return realmPath
+	}
+	return realmPath[slashIdx:]
 }
