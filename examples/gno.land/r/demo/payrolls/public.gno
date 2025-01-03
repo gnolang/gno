@@ -19,7 +19,7 @@ var (
 	payrollsByBeneficiary = make(map[std.Address]*avl.Tree) // addr -> seqid.ID -> *payroll
 )
 
-// Create creates a new payrolls using the vault identified by the caller and namespace.
+// Create creates a new payroll using the vault identified by the caller and namespace.
 //
 // - distrib is the function used to compute the amount of coins release at a specific point it time. It must not be nil Example: [MonthlyContinuous]
 //
@@ -60,9 +60,9 @@ func Create(namespace string, label string, beneficiary std.Address, distrib Dis
 	return p.id
 }
 
-// ClaimAll claims the coins available in the payroll identified by id
+// ClaimAll claims the coins released in the payroll identified by id
 //
-// - The caller must be the beneficiary
+// - The caller must be the payroll's beneficiary
 //
 // - If destination is empty, it will send coins to the caller address
 func Claim(id seqid.ID, destination std.Address) {
@@ -97,9 +97,7 @@ func claimInternal(id seqid.ID, destination std.Address, mustClaim bool) bool {
 	return true
 }
 
-// ClaimAll claims the coins available in all payrolls where the caller is the beneficiary
-//
-// - The caller must be the beneficiary
+// ClaimAll claims the coins released in all payrolls where the caller is the beneficiary
 //
 // - If destination is empty, it will send coins to the caller address
 func ClaimAll(destination std.Address) {
@@ -118,6 +116,8 @@ func ClaimAll(destination std.Address) {
 }
 
 // FundNative funds a vault identified by base and namespace using the OrigSend coins
+//
+// - base must be an address or a pkgpath
 //
 // - Anyone can fund any vault
 func FundNative(base string, namespace string) {
@@ -150,6 +150,8 @@ func FundNative(base string, namespace string) {
 // FundGRC20Reg funds a vault identified by base and namespace using the fqname of a registered coin
 //
 // - If amount is empty, it will use the full allowance
+//
+// - base must be an address or a pkgpath
 //
 // - Anyone can fund any vault
 func FundGRC20Reg(base string, namespace string, fqname string, amount int64) {

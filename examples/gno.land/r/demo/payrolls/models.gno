@@ -83,8 +83,8 @@ func CreateCDI(namespace string, label string, beneficiary std.Address, amountPe
 	return Create(namespace, label, beneficiary, DistribMonthlyStep(coinsPerMonth), BreakupCDI(coinsPerMonth))
 }
 
-// BreakupCDI is a breakup function that will release the an amount of coins
-// based on a simplified "Rupture Conventionelle" (conventional breakup) model based on the French CDI employment contract
+// BreakupCDI is a breakup function that will release an amount of coins
+// according to a simplified "Rupture Conventionelle" (conventional breakup) model based on the French CDI employment contract
 func BreakupCDI(coinsPerMonth std.Coins) BreakupFn {
 	const hoursPerYear = float64(8_670)
 	return func(elapsed time.Duration, pauseDuration time.Duration, source BreakupSource) std.Coins {
