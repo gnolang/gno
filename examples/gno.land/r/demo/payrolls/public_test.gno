@@ -102,7 +102,7 @@ func TestPayrollsGRC20(t *testing.T) {
 	urequire.NotPanics(t, func() {
 		std.TestSetOrigCaller(beneficiary)
 		std.TestSetRealm(std.NewUserRealm(beneficiary))
-		payrolls.Claim(payrollID, std.Address(""))
+		payrolls.ClaimAll(std.Address(""))
 	})
 
 	expectedBeneficiaryBalance = uint64(1969060)
@@ -123,4 +123,131 @@ func TestPayrollsGRC20(t *testing.T) {
 	urequire.Equal(t, expectedBeneficiaryBalance, beneficiaryBalance)
 	creatorBalance = grc20factory.BalanceOf("PAY", creator)
 	urequire.Equal(t, fundAmount-expectedBeneficiaryBalance, creatorBalance)
+
+	urequire.PanicsWithMessage(t, "nothing to claim", func() {
+		std.TestSetOrigCaller(beneficiary)
+		std.TestSetRealm(std.NewUserRealm(beneficiary))
+		payrolls.ClaimAll(std.Address(""))
+	})
+}
+
+func TestPayrollsNative(t *testing.T) {
+	monthlyUgnot := std.NewCoin("ugnot", 5_000_0000)
+	monthlyNatives := std.NewCoins(monthlyUgnot)
+	namespace := "native-finance"
+	fundAmount := int64(20_000_000)
+	monthlyPayrollsCoins, err := payrolls.Coins(monthlyNatives, nil)
+	urequire.NoError(t, err)
+
+	balanceOf := func(addr std.Address) int64 {
+		banker := std.GetBanker(std.BankerTypeReadonly)
+		return banker.GetCoins(addr).AmountOf(monthlyNatives[0].Denom)
+	}
+
+	payrollsRealm := std.NewCodeRealm("gno.land/r/demo/payrolls")
+	creator := testutils.TestAddress("creator")
+	beneficiary := testutils.TestAddress("beneficiary")
+
+	std.TestSetOrigCaller(creator)
+	std.TestSetRealm(std.NewUserRealm(creator))
+
+	send := std.NewCoins(std.NewCoin("ugnot", fundAmount))
+	std.TestIssueCoins(payrollsRealm.Addr(), send)
+	std.TestSetOrigSend(send, nil)
+
+	payrolls.FundNative(creator.String(), namespace)
+
+	payrollID := payrolls.Create(namespace, "Salary Monthly", beneficiary,
+		payrolls.DistribMonthlyContinuous(monthlyPayrollsCoins),
+		payrolls.BreakupCDI(monthlyPayrollsCoins),
+	)
+
+	creatorBalance := balanceOf(creator)
+	urequire.Equal(t, int64(0), creatorBalance)
+
+	realmBalance := balanceOf(payrollsRealm.Addr())
+	urequire.Equal(t, fundAmount, realmBalance)
+
+	skipHeight := uint64(10000)
+	std.TestSkipHeights(int64(skipHeight))
+
+	urequire.NotPanics(t, func() {
+		std.TestSetOrigCaller(beneficiary)
+		std.TestSetRealm(std.NewUserRealm(beneficiary))
+		payrolls.Claim(payrollID, std.Address(""))
+	})
+
+	expectedBeneficiaryBalance := int64(964506)
+
+	beneficiaryBalance := balanceOf(beneficiary)
+	urequire.Equal(t, expectedBeneficiaryBalance, beneficiaryBalance)
+
+	realmBalance = balanceOf(payrollsRealm.Addr())
+	urequire.Equal(t, fundAmount-expectedBeneficiaryBalance, realmBalance)
+
+	urequire.NotPanics(t, func() {
+		std.TestSetOrigCaller(beneficiary)
+		std.TestSetRealm(std.NewUserRealm(beneficiary))
+		payrolls.Pause(payrollID)
+	})
+
+	std.TestSkipHeights(int64(skipHeight))
+
+	urequire.PanicsWithMessage(t, "nothing to claim", func() {
+		std.TestSetOrigCaller(beneficiary)
+		std.TestSetRealm(std.NewUserRealm(beneficiary))
+		payrolls.Claim(payrollID, std.Address(""))
+	})
+
+	urequire.NotPanics(t, func() {
+		std.TestSetOrigCaller(beneficiary)
+		std.TestSetRealm(std.NewUserRealm(beneficiary))
+		payrolls.Resume(payrollID)
+	})
+
+	std.TestSkipHeights(int64(skipHeight))
+
+	urequire.NotPanics(t, func() {
+		std.TestSetOrigCaller(creator)
+		std.TestSetRealm(std.NewUserRealm(creator))
+
+		payrolls.Stop(payrollID)
+	})
+
+	beneficiaryBalance = balanceOf(beneficiary)
+	urequire.Equal(t, expectedBeneficiaryBalance, beneficiaryBalance)
+
+	realmBalance = balanceOf(payrollsRealm.Addr())
+	urequire.Equal(t, fundAmount-expectedBeneficiaryBalance, realmBalance)
+
+	urequire.NotPanics(t, func() {
+		std.TestSetOrigCaller(beneficiary)
+		std.TestSetRealm(std.NewUserRealm(beneficiary))
+		payrolls.ClaimAll(std.Address(""))
+	})
+
+	expectedBeneficiaryBalance = int64(1969060)
+
+	beneficiaryBalance = balanceOf(beneficiary)
+	urequire.Equal(t, expectedBeneficiaryBalance, beneficiaryBalance)
+
+	realmBalance = balanceOf(payrollsRealm.Addr())
+	urequire.Equal(t, fundAmount-expectedBeneficiaryBalance, realmBalance)
+
+	urequire.NotPanics(t, func() {
+		std.TestSetOrigCaller(creator)
+		std.TestSetRealm(std.NewUserRealm(creator))
+		payrolls.WithdrawFunds(namespace, monthlyPayrollsCoins[0].Denom, -1, "")
+	})
+
+	beneficiaryBalance = balanceOf(beneficiary)
+	urequire.Equal(t, expectedBeneficiaryBalance, beneficiaryBalance)
+	creatorBalance = balanceOf(creator)
+	urequire.Equal(t, fundAmount-expectedBeneficiaryBalance, creatorBalance)
+
+	urequire.PanicsWithMessage(t, "nothing to claim", func() {
+		std.TestSetOrigCaller(beneficiary)
+		std.TestSetRealm(std.NewUserRealm(beneficiary))
+		payrolls.ClaimAll(std.Address(""))
+	})
 }
