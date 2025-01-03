@@ -7,16 +7,14 @@ import (
 
 	"gno.land/p/demo/avl"
 	"gno.land/p/demo/seqid"
-	"gno.land/p/demo/ufmt"
+	"gno.land/r/demo/grc20reg"
 )
-
-const denom = "ugnot"
 
 var (
 	id                    seqid.ID
 	payrolls              avl.Tree                          // seqid.ID -> *payroll
-	payrollsByVault       = make(map[string]*avl.Tree)      // seqid.ID -> *payroll
-	payrollsByBeneficiary = make(map[std.Address]*avl.Tree) // seqid.ID -> *payroll
+	payrollsByVault       = make(map[string]*avl.Tree)      // vaultID -> seqid.ID -> *payroll
+	payrollsByBeneficiary = make(map[std.Address]*avl.Tree) // addr -> seqid.ID -> *payroll
 )
 
 func Create(namespace string, label string, beneficiary std.Address, cap int64, distrib DistribFn, breakup BreakupFn) seqid.ID {
@@ -33,7 +31,6 @@ func Create(namespace string, label string, beneficiary std.Address, cap int64, 
 		id:          id.Next(),
 		vaultID:     vaultID,
 		createdAt:   time.Now(),
-		cap:         cap,
 		distrib:     distrib,
 		breakup:     breakup,
 		beneficiary: beneficiary,
@@ -56,40 +53,31 @@ func Create(namespace string, label string, beneficiary std.Address, cap int64, 
 	return p.id
 }
 
-func Claim(id seqid.ID, amount int64, destination std.Address) {
-	if amount < -1 {
-		panic(errors.New("invalid amount"))
-	}
-	anyAmount := amount == -1
-	if amount == 0 {
-		panic(errors.New("invalid amount"))
-	}
+func Claim(id seqid.ID, destination std.Address) {
+	claimInternal(id, destination, true)
+}
 
+func claimInternal(id seqid.ID, destination std.Address, mustClaim bool) bool {
 	p := mustGetPayroll(id)
 	if std.PrevRealm().Addr() != p.beneficiary {
 		panic(errors.New("only beneficiary can withdraw"))
 	}
 
-	vaultAmount := getVaultAmount(p.vaultID)
-	if vaultAmount == 0 {
-		panic(errors.New("vault empty"))
-	}
-	if anyAmount {
-		amount = int64(vaultAmount)
-	}
-	if !anyAmount && amount > int64(vaultAmount) {
-		panic("not enough in vault")
-	}
-
-	withdrawn := p.claim(amount)
-	if withdrawn == 0 {
-		panic(errors.New("nothing to claim"))
+	vaultAmount := getVaultCoins(p.vaultID)
+	claimed := p.claim(vaultAmount)
+	if coinsEmpty(claimed) {
+		if mustClaim {
+			panic(errors.New("nothing to claim"))
+		} else {
+			return false
+		}
 	}
 
-	banker := std.GetBanker(std.BankerTypeRealmSend)
-	banker.SendCoins(std.CurrentRealm().Addr(), destination, std.NewCoins(std.NewCoin(denom, int64(withdrawn))))
+	sendCoins(destination, claimed)
 
-	vaults.Set(p.vaultID, vaultAmount-withdrawn)
+	vaults.Set(p.vaultID, subCoins(vaultAmount, claimed))
+
+	return true
 }
 
 func ClaimAll(destination std.Address) {
@@ -97,8 +85,9 @@ func ClaimAll(destination std.Address) {
 	claimed := false
 	payrollsByBeneficiary[beneficiary].Iterate("", "", func(key string, value interface{}) bool {
 		p := value.(*payroll)
-		Claim(p.id, -1, destination)
-		claimed = true
+		if ok := claimInternal(p.id, destination, false); ok {
+			claimed = true
+		}
 		return false
 	})
 	if !claimed {
@@ -106,7 +95,7 @@ func ClaimAll(destination std.Address) {
 	}
 }
 
-func Fund(base string, namespace string) {
+func FundNative(base string, namespace string) {
 	std.AssertOriginCall()
 
 	var (
@@ -124,20 +113,54 @@ func Fund(base string, namespace string) {
 	}
 
 	send := std.GetOrigSend()
-	amount := send.AmountOf(denom)
-	if amount <= 0 {
+	if coinsEmpty(send) {
 		panic(errors.New("invalid amount"))
 	}
-	for _, coin := range send {
-		if coin.Denom != denom {
-			panic(ufmt.Errorf("only %q supported, got %q", denom, coin.Denom))
+	for i := range send {
+		send[i].Denom = "/native/" + send[i].Denom
+	}
+	vaults.Set(id, addCoins(getVaultCoins(id), send))
+}
+
+func FundGRC20(base string, namespace string, fqdenom string, amount int64) {
+	anyAmount := amount == -1
+	if !anyAmount && amount <= 0 {
+		panic(errors.New("invalid amount"))
+	}
+
+	var (
+		id  string
+		err error
+	)
+
+	if base == "" {
+		id = vaultIDFromRealm(std.PrevRealm(), namespace)
+	} else {
+		id, err = vaultID(base, namespace)
+		if err != nil {
+			panic(err)
 		}
 	}
 
-	vaults.Set(id, getVaultAmount(id)+uint64(amount))
+	tokenGetter := grc20reg.MustGet(fqdenom)
+	token := tokenGetter()
+	if token == nil {
+		panic(errors.New("token getter returned nil"))
+	}
+
+	if anyAmount {
+		amount = int64(token.Allowance(std.PrevRealm().Addr(), std.CurrentRealm().Addr()))
+	}
+
+	if err := token.CallerTeller().TransferFrom(std.PrevRealm().Addr(), std.CurrentRealm().Addr(), uint64(amount)); err != nil {
+		panic(err)
+	}
+
+	send := std.NewCoins(std.NewCoin("/grc20/"+fqdenom, int64(amount)))
+	vaults.Set(id, addCoins(getVaultCoins(id), send))
 }
 
-func WithdrawFunds(namespace string, amount int64, destination std.Address) {
+func WithdrawFunds(namespace string, denom string, amount int64, destination std.Address) {
 	if amount < -1 {
 		panic(errors.New("invalid amount"))
 	}
@@ -153,28 +176,29 @@ func WithdrawFunds(namespace string, amount int64, destination std.Address) {
 
 	id := vaultIDFromRealm(prevRealm, namespace)
 
-	vaultAmount := getVaultAmount(id)
-	if vaultAmount == 0 {
+	vaultAmount := getVaultCoins(id)
+	if vaultAmount.AmountOf(denom) == 0 {
 		panic(errors.New("vault empty"))
 	}
 
-	available := int64(vaultAmount)
+	available := vaultAmount
 	payrollsByVault[id].Iterate("", "", func(_ string, value interface{}) bool {
 		p := value.(*payroll)
-		available -= int64(p.available())
+		available = subCoins(available, p.available())
 		return false
 	})
 
+	availableAmount := available.AmountOf(denom)
 	if anyAmount {
-		amount = available
-	} else if available < amount {
+		amount = availableAmount
+	} else if availableAmount < amount {
 		panic(errors.New("not enough in vault"))
 	}
 
-	banker := std.GetBanker(std.BankerTypeRealmSend)
-	banker.SendCoins(std.CurrentRealm().Addr(), destination, std.NewCoins(std.Coin{Denom: denom, Amount: amount}))
+	toSend := std.NewCoins(std.Coin{Denom: denom, Amount: amount})
+	sendCoins(destination, toSend)
 
-	vaults.Set(id, vaultAmount-uint64(amount))
+	vaults.Set(id, subCoins(vaultAmount, toSend))
 }
 
 func Stop(id seqid.ID) {

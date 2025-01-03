@@ -10,14 +10,14 @@ import (
 	rusers "gno.land/r/demo/users"
 )
 
-var vaults avl.Tree // std.Addresss -> uint64
+var vaults avl.Tree // std.Addresss -> std.Coins
 
-func getVaultAmount(id string) uint64 {
+func getVaultCoins(id string) std.Coins {
 	amount, ok := vaults.Get(id)
 	if ok {
-		return amount.(uint64)
+		return amount.(std.Coins)
 	}
-	return 0
+	return nil
 }
 
 var errInvalidInput = errors.New("invalid input")

@@ -1,6 +1,7 @@
 package payrolls
 
 import (
+	"math"
 	"net/url"
 	"std"
 	"strconv"
@@ -11,10 +12,15 @@ import (
 	"gno.land/p/demo/seqid"
 	"gno.land/p/demo/ufmt"
 	"gno.land/p/demo/users"
+	"gno.land/r/demo/grc20reg"
 	rusers "gno.land/r/demo/users"
 )
 
-const listMaxSize = 50
+const (
+	listMaxSize    = 50
+	defaultFqdenom = "gno.land/r/demo/foo20"
+	defaultDenom   = "/grc20/" + defaultFqdenom
+)
 
 func Render(renderPath string) string {
 	w := strings.Builder{}
@@ -42,9 +48,9 @@ func Render(renderPath string) string {
 		if !ok {
 			tree = avl.NewTree()
 		}
-		estimatedDay := uint64(0)
-		estimatedAvailable := uint64(0)
-		estimatedClaimable := uint64(0)
+		estimatedDay := std.Coins{}
+		estimatedAvailable := std.Coins{}
+		estimatedClaimable := std.Coins{}
 		shouldEstimate := tree.Size() <= listMaxSize
 		if shouldEstimate {
 			sb.WriteString("## All payrolls\n")
@@ -57,26 +63,20 @@ func Render(renderPath string) string {
 
 			if shouldEstimate {
 				available := p.available()
-				estimatedAvailable += available
-				vaultAmount := getVaultAmount(p.vaultID)
-				if available > vaultAmount {
-					available = vaultAmount
-				}
-				estimatedClaimable += available
-				estimatedDay += p.estimateDay()
+				estimatedAvailable = addCoins(estimatedAvailable, available)
+
+				claimable := clampCoins(available, getVaultCoins(p.vaultID))
+				estimatedClaimable = addCoins(estimatedClaimable, claimable)
+
+				estimatedDay = addCoins(estimatedDay, p.estimateDay())
 			}
 
 			return false
 		})
 
-		if shouldEstimate {
-			w.WriteString(renderEstimatedMonthly("", estimatedDay, denom))
-			w.WriteString(renderClaimable("", estimatedClaimable, estimatedAvailable, denom, true))
-		}
-
 		actions := []string{}
 
-		if !shouldEstimate || estimatedClaimable > 0 {
+		if !shouldEstimate || !coinsEmpty(estimatedClaimable) {
 			actions = append(actions, renderButton("Claim all", "ClaimAll", map[string]string{
 				"destination": addr.String(),
 			}))
@@ -86,9 +86,18 @@ func Render(renderPath string) string {
 			"label":          "Salary Monthly",
 			"beneficiary":    addr.String(),
 			"amountPerMonth": "10000",
+			"denom":          defaultDenom,
 		}))
 
 		w.WriteString(renderActions("", actions))
+
+		if shouldEstimate {
+			for _, coin := range addCoins(estimatedAvailable, estimatedDay) {
+				w.WriteString(ufmt.Sprintf("- %s:\n", renderCoinDenom(coin)))
+				w.WriteString(renderEstimatedMonthly("  ", estimatedDay.AmountOf(coin.Denom), coin.Denom))
+				w.WriteString(renderClaimable("  ", estimatedClaimable.AmountOf(coin.Denom), estimatedAvailable.AmountOf(coin.Denom), coin.Denom, true))
+			}
+		}
 
 		w.WriteString(sb.String())
 
@@ -114,8 +123,8 @@ func Render(renderPath string) string {
 		w.WriteString(ufmt.Sprintf("- 🆔 ID: %s\n", vaultID))
 
 		payrollsBuffer := strings.Builder{}
-		estimatedDay := uint64(0)
-		estimatedDebt := uint64(0)
+		estimatedDay := std.Coins{}
+		estimatedDebt := std.Coins{}
 		tree, ok := payrollsByVault[vaultID]
 		if !ok {
 			tree = avl.NewTree()
@@ -129,56 +138,72 @@ func Render(renderPath string) string {
 		tree.ReverseIterateByOffset(0, listMaxSize, func(key string, value interface{}) bool {
 			p := value.(*payroll)
 			if shouldEstimate {
-				estimatedDebt += p.available()
-				estimatedDay += p.estimateDay()
+				estimatedDebt = addCoins(estimatedDebt, p.available())
+				estimatedDay = addCoins(estimatedDay, p.estimateDay())
 			}
 			payrollsBuffer.WriteString(renderPayroll(p, "vault"))
 			return false
 		})
 
-		funds := getVaultAmount(vaultID)
-		balance := int64(funds) - int64(estimatedDebt)
-
-		if shouldEstimate {
-			w.WriteString(renderEstimatedMonthly("", estimatedDay, denom))
-
-			prefix := "Funds: 🟢 "
-			if balance < 0 {
-				prefix = "Debt: 🔴 "
-			}
-			w.WriteString(ufmt.Sprintf("- 🏦 %s%d%s\n", prefix, balance, denom))
-
-			if balance > 0 && estimatedDay > 0 {
-				color := "🔴"
-				runWayMonths := funds / (estimatedDay * 30)
-				if runWayMonths >= 12 {
-					color = "🟢"
-				} else if runWayMonths >= 6 {
-					color = "🟠"
-				}
-				w.WriteString(ufmt.Sprintf("- 🛬 Estimated runway: %s %d months\n", color, runWayMonths))
-			}
-		} else {
-			w.WriteString(ufmt.Sprintf("- 🏦 Funds: %d%s (does not account for unclaimed amounts)\n", funds, denom))
-		}
+		funds := getVaultCoins(vaultID)
+		balance := subCoins(funds, estimatedDebt)
 
 		actions := []string{}
-		actions = append(actions, renderButton("Deposit funds", "Fund", map[string]string{
+		actions = append(actions, renderButton("Deposit native", "FundNative", map[string]string{
 			"base":      base,
 			"namespace": namespace,
 		}))
-		if !shouldEstimate || balance > 0 {
+		actions = append(actions, renderButton("Deposit GRC20", "FundGRC20", map[string]string{
+			"base":      base,
+			"namespace": namespace,
+			"fqdenom":   defaultFqdenom,
+			"amount":    "-1",
+		}))
+		if !shouldEstimate || coinsHasPositive(balance) {
 			actions = append(actions, renderButton("Withdraw funds", "WithdrawFunds", map[string]string{
-				"namespace": namespace,
-				"amount":    "-1",
+				"namespace":   namespace,
+				"amount":      "-1",
+				"denom":       defaultDenom,
+				"destination": base,
 			}))
 		}
 		actions = append(actions, renderButton("New payroll", "CreateCDI", map[string]string{
 			"namespace":      namespace,
 			"label":          "Salary Monthly",
 			"amountPerMonth": "10000",
+			"denom":          defaultDenom,
 		}))
 		w.WriteString(renderActions("", actions))
+
+		if shouldEstimate {
+			for _, coin := range addCoins(balance, estimatedDay) {
+				w.WriteString(ufmt.Sprintf("- %s:\n", renderCoinDenom(std.NewCoin(coin.Denom, 0))))
+
+				color := "🟢"
+				coinBalance := balance.AmountOf(coin.Denom)
+				if coinBalance < 0 {
+					color = "🔴"
+				}
+				w.WriteString(ufmt.Sprintf("  - 🏦 Funds: %s %s\n", color, renderCoin(std.NewCoin(coin.Denom, coinBalance))))
+
+				w.WriteString(renderEstimatedMonthly("  ", estimatedDay.AmountOf(coin.Denom), coin.Denom))
+
+				if coinBalance > 0 && estimatedDay.AmountOf(coin.Denom) > 0 {
+					color := "🔴"
+					runWayMonths := coinBalance / (estimatedDay.AmountOf(coin.Denom) * 30)
+					if runWayMonths >= 12 {
+						color = "🟢"
+					} else if runWayMonths >= 6 {
+						color = "🟠"
+					}
+					w.WriteString(ufmt.Sprintf("  - 🛬 Estimated runway: %s %d months\n", color, runWayMonths))
+				}
+			}
+		} else {
+			for _, coin := range funds {
+				w.WriteString(ufmt.Sprintf("- 🏦 Funds: %d %s (does not account for unclaimed amounts)\n", renderCoin(coin)))
+			}
+		}
 
 		w.WriteString(payrollsBuffer.String())
 
@@ -201,6 +226,7 @@ func Render(renderPath string) string {
 		actions = append(actions, renderButton("New payroll", "CreateCDI", map[string]string{
 			"label":          "Salary Monthly",
 			"amountPerMonth": "10000",
+			"denom":          defaultDenom,
 		}))
 		w.WriteString(renderActions("", actions))
 
@@ -215,7 +241,6 @@ func Render(renderPath string) string {
 		})
 
 		w.WriteString("## TODO\n")
-		w.WriteString("- [ ] Support any coin\n")
 		w.WriteString("- [ ] Render breakup amount\n")
 		w.WriteString("- [ ] Unit tests\n")
 		w.WriteString("- [ ] txtar\n")
@@ -273,30 +298,12 @@ func renderPayroll(p *payroll, pov string) string {
 	}
 
 	available := p.available()
-	vaultAmount := getVaultAmount(p.vaultID)
-	claimable := available
-	if available > vaultAmount {
-		claimable = vaultAmount
-	}
-	if available > 0 {
-		sb.WriteString(renderClaimable("  ", claimable, available, denom, false))
-	}
+	vaultAmount := getVaultCoins(p.vaultID)
+	claimable := clampCoins(available, vaultAmount)
 
 	sb.WriteString(ufmt.Sprintf("  - 🏁 Created at: %s\n", p.createdAt.Format(time.DateTime)))
 
-	if !p.stopped {
-		estimatedDay := p.estimateDay()
-		sb.WriteString(renderEstimatedMonthly("  ", estimatedDay, denom))
-
-		sb.WriteString("  - 🕙 Remaining: ")
-		if p.cap >= 0 {
-			amountRemaining := uint64(p.cap) - p.totalWithdrawn
-			sb.WriteString(ufmt.Sprintf("%s (%d%s)", ((time.Duration(amountRemaining) * 24) / time.Duration(estimatedDay) / time.Hour).String(), amountRemaining, denom))
-		} else {
-			sb.WriteRune('∞')
-		}
-		sb.WriteRune('\n')
-	} else {
+	if p.stopped {
 		sb.WriteString(ufmt.Sprintf("  - 🛑 Stopped since: %s\n", p.stoppedAt.Format(time.DateTime)))
 	}
 
@@ -306,11 +313,10 @@ func renderPayroll(p *payroll, pov string) string {
 
 	actions := []string{}
 
-	if pov != "vault" && claimable > 0 {
+	if pov != "vault" && coinsHasPositive(claimable) {
 		actions = append(actions, renderButton("Claim", "Claim", map[string]string{
-			"id":              strconv.FormatUint(uint64(p.id), 10),
-			"requestedAmount": "-1",
-			"destination":     p.beneficiary.String(),
+			"id":          strconv.FormatUint(uint64(p.id), 10),
+			"destination": p.beneficiary.String(),
 		}))
 	}
 
@@ -332,10 +338,17 @@ func renderPayroll(p *payroll, pov string) string {
 
 	sb.WriteString(renderActions("  ", actions))
 
+	estimatedDay := p.estimateDay()
+	for _, coin := range addCoins(available, estimatedDay) {
+		sb.WriteString(ufmt.Sprintf("  - %s:\n", renderCoinDenom(coin)))
+		sb.WriteString(renderEstimatedMonthly("    ", estimatedDay.AmountOf(coin.Denom), coin.Denom))
+		sb.WriteString(renderClaimable("    ", claimable.AmountOf(coin.Denom), available.AmountOf(coin.Denom), coin.Denom, true))
+	}
+
 	return sb.String()
 }
 
-func renderClaimable(prefix string, claimable uint64, available uint64, denom string, plural bool) string {
+func renderClaimable(prefix string, claimable int64, available int64, denom string, plural bool) string {
 	if available == 0 {
 		return ""
 	}
@@ -351,15 +364,24 @@ func renderClaimable(prefix string, claimable uint64, available uint64, denom st
 		if claimable == 0 {
 			color = "🔴"
 		}
-		sb.WriteString(ufmt.Sprintf("%s %d%s/%d%s (not enough funds in vault%s!)\n", color, claimable, denom, available, denom, pls))
+		sb.WriteString(ufmt.Sprintf("%s %s/%s %s (not enough funds in vault%s!)\n",
+			color,
+			renderCoinAmount(std.NewCoin(denom, claimable)),
+			renderCoinAmount(std.NewCoin(denom, available)),
+			renderCoinDenom(std.NewCoin(denom, available)),
+			pls,
+		))
 	} else {
-		sb.WriteString(ufmt.Sprintf("🟢 %d%s\n", available, denom))
+		sb.WriteString(ufmt.Sprintf("🟢 %s\n", renderCoin(std.NewCoin(denom, available))))
 	}
 	return sb.String()
 }
 
-func renderEstimatedMonthly(prefix string, estimatedDay uint64, denom string) string {
-	return ufmt.Sprintf("%s- 💸 Estimated monthly: %d%s\n", prefix, estimatedDay*30, denom)
+func renderEstimatedMonthly(prefix string, estimatedDay int64, denom string) string {
+	if estimatedDay == 0 {
+		return ""
+	}
+	return ufmt.Sprintf("%s- 💸 Estimated monthly: %s\n", prefix, renderCoin(std.NewCoin(denom, estimatedDay*30)))
 }
 
 func renderStopButton(id seqid.ID) string {
@@ -411,4 +433,46 @@ func linkPrefix() string {
 		return realmPath
 	}
 	return realmPath[slashIdx:]
+}
+
+func renderCoin(coin std.Coin) string {
+	return ufmt.Sprintf("%s %s", renderCoinAmount(coin), renderCoinDenom(coin))
+}
+
+func renderCoinAmount(coin std.Coin) string {
+	switch {
+	case strings.HasPrefix(coin.Denom, "/grc20/"):
+		fqdenom := strings.TrimPrefix(coin.Denom, "/grc20/")
+		tokenGetter := grc20reg.Get(fqdenom)
+		if tokenGetter == nil {
+			break
+		}
+		token := tokenGetter()
+		if token == nil {
+			break
+		}
+		amount := float64(coin.Amount) / float64(math.Pow10(int(token.GetDecimals())))
+		return ufmt.Sprintf("%g", amount)
+	}
+	return ufmt.Sprintf("%d", coin.Amount)
+}
+
+func renderCoinDenom(coin std.Coin) string {
+	switch {
+	case strings.HasPrefix(coin.Denom, "/native/"):
+		nativeDenom := strings.TrimPrefix(coin.Denom, "/native/")
+		return nativeDenom
+	case strings.HasPrefix(coin.Denom, "/grc20/"):
+		fqdenom := strings.TrimPrefix(coin.Denom, "/grc20/")
+		tokenGetter := grc20reg.Get(fqdenom)
+		if tokenGetter == nil {
+			break
+		}
+		token := tokenGetter()
+		if token == nil {
+			break
+		}
+		return ufmt.Sprintf("[$%s](%s)", tokenGetter().GetSymbol(), strings.TrimPrefix(fqdenom, std.GetChainDomain()))
+	}
+	return coin.Denom
 }
