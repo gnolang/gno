@@ -240,18 +240,17 @@ func Render(renderPath string) string {
 			return false
 		})
 
-		w.WriteString("## TODO\n")
-		w.WriteString("- [ ] Write doc\n")
-
-		w.WriteString("## v2\n")
-		w.WriteString("- [ ] Better test coverage\n")
-		w.WriteString("- [ ] Gnoweb pagination\n")
-		w.WriteString("- [ ] Show payroll running duration\n")
-		w.WriteString("- [ ] Archive\n")
-		w.WriteString("- [ ] Details: Events history\n")
-		w.WriteString("- [ ] PoV Tags\n")
-		w.WriteString("- [ ] Edit label / PoV labels\n")
-		w.WriteString("- [ ] Stop litigation\n")
+		/*
+			w.WriteString("## v2 ideas\n")
+			w.WriteString("- Better test coverage\n")
+			w.WriteString("- Gnoweb pagination\n")
+			w.WriteString("- Show payroll running duration\n")
+			w.WriteString("- Archive\n")
+			w.WriteString("- Details: Events history\n")
+			w.WriteString("- PoV Tags\n")
+			w.WriteString("- Edit label / PoV labels\n")
+			w.WriteString("- Stop litigation\n")
+		*/
 
 	default:
 		w.WriteString("# Payrolls\n")
