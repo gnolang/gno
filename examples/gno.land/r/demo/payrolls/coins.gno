@@ -63,16 +63,6 @@ func addCoinAmount(coins std.Coins, value std.Coin) std.Coins {
 	return append(coins, value)
 }
 
-func cleanCoins(coins std.Coins) std.Coins {
-	out := std.Coins{}
-	for _, coin := range coins {
-		if coin.Amount > 0 {
-			out = append(out, coin)
-		}
-	}
-	return out
-}
-
 func coinsEmpty(coins std.Coins) bool {
 	if len(coins) == 0 {
 		return true
