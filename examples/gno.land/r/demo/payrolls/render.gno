@@ -17,9 +17,9 @@ import (
 )
 
 const (
-	listMaxSize    = 50
-	defaultFqdenom = "gno.land/r/demo/foo20"
-	defaultDenom   = "/grc20/" + defaultFqdenom
+	listMaxSize   = 50
+	defaultFqname = "gno.land/r/demo/foo20"
+	defaultDenom  = "/grc20/" + defaultFqname
 )
 
 func Render(renderPath string) string {
@@ -156,7 +156,7 @@ func Render(renderPath string) string {
 		actions = append(actions, renderButton("Deposit GRC20", "FundGRC20Reg", map[string]string{
 			"base":      base,
 			"namespace": namespace,
-			"fqdenom":   defaultFqdenom,
+			"fqname":    defaultFqname,
 			"amount":    "-1",
 		}))
 		if !shouldEstimate || coinsHasPositive(balance) {
