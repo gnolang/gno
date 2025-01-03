@@ -18,6 +18,11 @@ var (
 	payrollsByBeneficiary = make(map[std.Address]*avl.Tree) // addr -> seqid.ID -> *payroll
 )
 
+// Create creates a new payrolls using the vault identified by the caller and namespace.
+//
+// - distrib is the function used to compute the amount of coins release at a specific point it time. It must not be nil Example: [MonthlyContinuous]
+//
+// - breakup is the function used to manage bonuses when a payroll is terminated. It can be nil. Example: [BreakupCDI]
 func Create(namespace string, label string, beneficiary std.Address, distrib DistribFn, breakup BreakupFn) seqid.ID {
 	vaultID := vaultIDFromRealm(std.PrevRealm(), namespace)
 
@@ -54,6 +59,11 @@ func Create(namespace string, label string, beneficiary std.Address, distrib Dis
 	return p.id
 }
 
+// ClaimAll claims the coins available in the payroll identified by id
+//
+// - The caller must be the beneficiary
+//
+// - If destination is empty, it will send coins to the caller address
 func Claim(id seqid.ID, destination std.Address) {
 	claimInternal(id, destination, true)
 }
@@ -86,6 +96,11 @@ func claimInternal(id seqid.ID, destination std.Address, mustClaim bool) bool {
 	return true
 }
 
+// ClaimAll claims the coins available in all payrolls where the caller is the beneficiary
+//
+// - The caller must be the beneficiary
+//
+// - If destination is empty, it will send coins to the caller address
 func ClaimAll(destination std.Address) {
 	beneficiary := std.PrevRealm().Addr()
 	claimed := false
@@ -101,6 +116,9 @@ func ClaimAll(destination std.Address) {
 	}
 }
 
+// FundNative funds a vault identified by base and namespace using the OrigSend coins
+//
+// - Anyone can fund any vault
 func FundNative(base string, namespace string) {
 	std.AssertOriginCall()
 
@@ -128,14 +146,19 @@ func FundNative(base string, namespace string) {
 	vaults.Set(id, addCoins(getVaultCoins(id), send))
 }
 
-func FundGRC20Reg(base string, namespace string, fqdenom string, amount int64) {
-	tokenGetter := grc20reg.MustGet(fqdenom)
+// FundGRC20Reg funds a vault identified by base and namespace using the fqname of a registered coin
+//
+// - If amount is empty, it will use the full allowance
+//
+// - Anyone can fund any vault
+func FundGRC20Reg(base string, namespace string, fqname string, amount int64) {
+	tokenGetter := grc20reg.MustGet(fqname)
 	token := tokenGetter()
 	if token == nil {
 		panic(errors.New("token getter returned nil"))
 	}
 
-	fundGRC20(base, namespace, token, "/grc20/"+fqdenom, amount)
+	fundGRC20(base, namespace, token, "/grc20/"+fqname, amount)
 }
 
 func fundGRC20(base string, namespace string, token *grc20.Token, tokenKey string, amount int64) {
@@ -171,6 +194,11 @@ func fundGRC20(base string, namespace string, token *grc20.Token, tokenKey strin
 	vaults.Set(id, addCoins(getVaultCoins(id), send))
 }
 
+// WithdrawFunds withdraws from a vault identified by the caller and namespace. It uses the coins identified by a payrolls denom (see [Coins])
+//
+// - If amount is empty, it will withdraw all available funds
+//
+// - If destination is empty, it will send to the caller's address
 func WithdrawFunds(namespace string, denom string, amount int64, destination std.Address) {
 	if amount < -1 {
 		panic(errors.New("invalid amount"))

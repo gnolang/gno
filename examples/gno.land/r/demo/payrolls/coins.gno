@@ -8,6 +8,7 @@ import (
 	"gno.land/r/demo/grc20reg"
 )
 
+// Coins transforms coins into payrolls coins, prefixing them with their type. Examples: "ugnot" -> "/native/ugnot", "gno.land/r/demo/foo20" -> "/grc20/gno.land/r/demo/foo20"
 func Coins(native std.Coins, grc20 std.Coins) (std.Coins, error) {
 	out := make(std.Coins, len(native)+len(grc20))
 	for i, coin := range native {

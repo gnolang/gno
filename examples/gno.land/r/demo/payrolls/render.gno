@@ -82,7 +82,7 @@ func Render(renderPath string) string {
 			}))
 		}
 
-		actions = append(actions, renderButton("New payroll", "CreateCDI", map[string]string{
+		actions = append(actions, renderButton("New payroll", "CreateMonthlyContinuous", map[string]string{
 			"label":          "Salary Monthly",
 			"beneficiary":    addr.String(),
 			"amountPerMonth": "10000",
@@ -153,7 +153,7 @@ func Render(renderPath string) string {
 			"base":      base,
 			"namespace": namespace,
 		}))
-		actions = append(actions, renderButton("Deposit GRC20", "FundGRC20", map[string]string{
+		actions = append(actions, renderButton("Deposit GRC20", "FundGRC20Reg", map[string]string{
 			"base":      base,
 			"namespace": namespace,
 			"fqdenom":   defaultFqdenom,
@@ -167,7 +167,7 @@ func Render(renderPath string) string {
 				"destination": base,
 			}))
 		}
-		actions = append(actions, renderButton("New payroll", "CreateCDI", map[string]string{
+		actions = append(actions, renderButton("New payroll", "CreateMonthlyContinuous", map[string]string{
 			"namespace":      namespace,
 			"label":          "Salary Monthly",
 			"amountPerMonth": "10000",
@@ -223,7 +223,7 @@ func Render(renderPath string) string {
 		w.WriteString("# Payrolls\n")
 
 		actions := []string{}
-		actions = append(actions, renderButton("New payroll", "CreateCDI", map[string]string{
+		actions = append(actions, renderButton("New payroll", "CreateMonthlyContinuous", map[string]string{
 			"label":          "Salary Monthly",
 			"amountPerMonth": "10000",
 			"denom":          defaultDenom,
