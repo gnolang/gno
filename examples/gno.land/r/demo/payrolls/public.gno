@@ -251,7 +251,7 @@ func WithdrawFunds(namespace string, denom string, amount int64, destination std
 	vaults.Set(id, subCoins(vaultAmount, toSend))
 }
 
-// Stop terminates the payroll identified by id.
+// Stop terminates the payroll identified by id. It will distribute coins using the payroll's breakup function.
 func Stop(id seqid.ID) {
 	p := mustGetPayroll(id)
 	p.stop(std.PrevRealm().Addr())
