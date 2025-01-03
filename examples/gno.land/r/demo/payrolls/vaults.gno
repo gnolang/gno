@@ -22,6 +22,13 @@ func getVaultCoins(id string) std.Coins {
 	return nil
 }
 
+func assertValidNamespace(namespace string) {
+	dotIdx := strings.Index(namespace, ".")
+	if dotIdx != -1 {
+		panic(errors.New("a namespace must not contain dots"))
+	}
+}
+
 func vaultID(base string, namespace string) (string, error) {
 	if len(base) == 0 {
 		return "", errInvalidInput

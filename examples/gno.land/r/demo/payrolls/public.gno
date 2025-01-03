@@ -25,6 +25,8 @@ var (
 //
 // - breakup is the function used to manage bonuses when a payroll is terminated. It can be nil. Example: [BreakupCDI]
 func Create(namespace string, label string, beneficiary std.Address, distrib DistribFn, breakup BreakupFn) seqid.ID {
+	assertValidNamespace(namespace)
+
 	vaultID := vaultIDFromRealm(std.PrevRealm(), namespace)
 
 	if distrib == nil {
@@ -121,6 +123,8 @@ func ClaimAll(destination std.Address) {
 //
 // - Anyone can fund any vault
 func FundNative(base string, namespace string) {
+	assertValidNamespace(namespace)
+
 	std.AssertOriginCall()
 
 	var (
@@ -155,6 +159,8 @@ func FundNative(base string, namespace string) {
 //
 // - Anyone can fund any vault
 func FundGRC20Reg(base string, namespace string, fqname string, amount int64) {
+	assertValidNamespace(namespace)
+
 	tokenGetter := grc20reg.MustGet(fqname)
 	token := tokenGetter()
 	if token == nil {
@@ -203,6 +209,8 @@ func fundGRC20(base string, namespace string, token *grc20.Token, tokenKey strin
 //
 // - If destination is empty, it will send to the caller's address
 func WithdrawFunds(namespace string, denom string, amount int64, destination std.Address) {
+	assertValidNamespace(namespace)
+
 	if amount < -1 {
 		panic(errors.New("invalid amount"))
 	}
