@@ -21,7 +21,7 @@ var (
 
 // Create creates a new payroll using the vault identified by the caller and namespace.
 //
-// - distrib is the function used to compute the amount of coins release at a specific point it time. It must not be nil Example: [MonthlyContinuous]
+// - distrib is the function used to compute the amount of coins to release at a specific point it time. It must not be nil. Example: [MonthlyContinuous]
 //
 // - breakup is the function used to manage bonuses when a payroll is terminated. It can be nil. Example: [BreakupCDI]
 func Create(namespace string, label string, beneficiary std.Address, distrib DistribFn, breakup BreakupFn) seqid.ID {
@@ -251,16 +251,19 @@ func WithdrawFunds(namespace string, denom string, amount int64, destination std
 	vaults.Set(id, subCoins(vaultAmount, toSend))
 }
 
+// Stop terminates the payroll identified by id.
 func Stop(id seqid.ID) {
 	p := mustGetPayroll(id)
 	p.stop(std.PrevRealm().Addr())
 }
 
+// Pause pauses the payroll identified by id. The payroll will not release coins during the pause.
 func Pause(id seqid.ID) {
 	p := mustGetPayroll(id)
 	p.pause(std.PrevRealm().Addr())
 }
 
+// Resume resumes the paused payroll identified by id.
 func Resume(id seqid.ID) {
 	p := mustGetPayroll(id)
 	p.resume(std.PrevRealm().Addr())
