@@ -1,3 +1,4 @@
+// package payrolls is a payroll management example
 package payrolls
 
 import (
