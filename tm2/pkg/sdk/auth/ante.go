@@ -387,9 +387,10 @@ func EnsureSufficientMempoolFees(ctx sdk.Context, fee std.Fee) sdk.Result {
 				if prod1.Cmp(prod2) >= 0 {
 					return sdk.Result{}
 				} else {
+					fee := new(big.Int).Quo(prod2, gpg)
 					return abciResult(std.ErrInsufficientFee(
 						fmt.Sprintf(
-							"insufficient fees; got: {Gas-Wanted: %d, Gas-Fee %s}, fee required: %+v as minimum gas price set by the node", feeGasPrice.Gas, feeGasPrice.Price, gp,
+							"insufficient fees; got: {Gas-Wanted: %d, Gas-Fee %s}, fee required: %d with %+v as minimum gas price set by the node", feeGasPrice.Gas, feeGasPrice.Price, fee, gp,
 						),
 					))
 				}
