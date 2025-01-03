@@ -12,6 +12,8 @@ import (
 
 var vaults avl.Tree // std.Addresss -> std.Coins
 
+var errInvalidInput = errors.New("invalid input")
+
 func getVaultCoins(id string) std.Coins {
 	amount, ok := vaults.Get(id)
 	if ok {
@@ -19,8 +21,6 @@ func getVaultCoins(id string) std.Coins {
 	}
 	return nil
 }
-
-var errInvalidInput = errors.New("invalid input")
 
 func vaultID(base string, namespace string) (string, error) {
 	if len(base) == 0 {
