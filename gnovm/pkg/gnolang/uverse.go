@@ -411,6 +411,7 @@ func makeUverseNode() {
 						// append(*SliceValue, *SliceValue) new list ---------
 						arrayLen := arg0Length + arg1Length
 						arrayValue := m.Alloc.NewListArray(arrayLen)
+						arrayValue.AbsPath = arg0Base.AbsPath // share same abs path
 						if arg0Length > 0 {
 							if arg0Base.Data == nil {
 								for i := 0; i < arg0Length; i++ {
@@ -504,6 +505,7 @@ func makeUverseNode() {
 						// append(*SliceValue, *NativeValue) new list --------
 						listLen := arg0Length + arg1NativeValueLength
 						arrayValue := m.Alloc.NewListArray(listLen)
+						arrayValue.AbsPath = arg0Base.AbsPath // share same abs
 						if 0 < arg0Length {
 							for i := 0; i < listLen; i++ {
 								arrayValue.List[i] = arg0Base.List[arg0Offset+i].unrefCopy(m.Alloc, m.Store)

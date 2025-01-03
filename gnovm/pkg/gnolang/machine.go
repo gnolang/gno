@@ -2009,21 +2009,29 @@ func (m *Machine) PushForPointer(lx Expr) {
 	}
 }
 
+func (m *Machine) PopAsPointer2(lx Expr) (pv PointerValue, origin string) {
+	if _, ok := lx.(*IndexExpr); ok {
+		iv := m.PopValue()
+		xv := m.PopValue()
+		// special case for slice value, the origin
+		// is bound to its underlying array.
+		if sv, ok := xv.V.(*SliceValue); ok {
+			if av, ok := sv.Base.(*ArrayValue); ok {
+				origin = av.AbsPath + ":" + strconv.Itoa(sv.Offset)
+			}
+		}
+		pv = xv.GetPointerAtIndex(m.Alloc, m.Store, iv)
+	} else {
+		pv = m.PopAsPointer(lx)
+	}
+	return
+}
+
 func (m *Machine) PopAsPointer(lx Expr) PointerValue {
 	switch lx := lx.(type) {
 	case *NameExpr:
-		switch lx.Type {
-		case NameExprTypeNormal:
-			lb := m.LastBlock()
-			return lb.GetPointerTo(m.Store, lx.Path)
-		case NameExprTypeHeapUse:
-			lb := m.LastBlock()
-			return lb.GetPointerToHeapUse(m.Store, lx.Path)
-		case NameExprTypeHeapClosure:
-			panic("should not happen")
-		default:
-			panic("unexpected NameExpr in PopAsPointer")
-		}
+		lb := m.LastBlock()
+		return lb.GetPointerToMaybeHeapUse(m.Store, lx)
 	case *IndexExpr:
 		iv := m.PopValue()
 		xv := m.PopValue()

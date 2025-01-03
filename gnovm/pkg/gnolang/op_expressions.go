@@ -12,26 +12,60 @@ func (m *Machine) doOpIndex1() {
 	if debug {
 		_ = m.PopExpr().(*IndexExpr)
 	} else {
-		m.PopExpr()
-	}
-	iv := m.PopValue()   // index
-	xv := m.PeekValue(1) // x
-	switch ct := baseOf(xv.T).(type) {
-	case *MapType:
-		mv := xv.V.(*MapValue)
-		vv, exists := mv.GetValueForKey(m.Store, iv)
-		if exists {
-			*xv = vv // reuse as result
-		} else {
-			vt := ct.Value
-			*xv = TypedValue{ // reuse as result
-				T: vt,
-				V: defaultValue(m.Alloc, vt),
+		lx := m.PopExpr()
+		var (
+			abs string
+			ix  *IndexExpr
+		)
+		ix, _ = lx.(*IndexExpr)
+		abs = ix.AbsPath
+
+		iv := m.PopValue()   // index
+		xv := m.PeekValue(1) // x
+		switch ct := baseOf(xv.T).(type) {
+		case *MapType:
+			// println("---map type")
+			mv := xv.V.(*MapValue)
+			vv, exists := mv.GetValueForKey(m.Store, iv)
+			if exists {
+				*xv = vv // reuse as result
+				SetOriginForPointerValue(m.Store, &xv.V, abs)
+			} else {
+				vt := ct.Value
+
+				*xv = TypedValue{ // reuse as result
+					T: vt,
+					V: defaultValue(m.Alloc, vt),
+				}
+				SetOriginForPointerValue(m.Store, &xv.V, abs)
+			}
+		default:
+			xv2 := xv.Copy(m.Alloc)
+
+			res := xv.GetPointerAtIndex(m.Alloc, m.Store, iv)
+			*xv = res.Deref() // reuse as result
+
+			// set origin for reference type value
+			_, ok1 := xv.V.(PointerValue)
+			_, ok2 := xv.V.(*SliceValue)
+			if ok1 || ok2 {
+				// special case for slice type, get origin from base array
+				if sv, ok := xv2.V.(*SliceValue); ok {
+					if arr, ok := sv.Base.(*ArrayValue); ok {
+						var indexPath string
+						if pather, ok := ix.Index.(AbsPather); ok {
+							indexPath = pather.GetAbsPath()
+						} else {
+							indexPath = ix.Index.String()
+						}
+						abs = arr.AbsPath + ":" + indexPath
+					} else {
+						panic("should not happen, base should be array value")
+					}
+				}
+				SetOriginForPointerValue(m.Store, &xv.V, abs)
 			}
 		}
-	default:
-		res := xv.GetPointerAtIndex(m.Alloc, m.Store, iv)
-		*xv = res.Deref() // reuse as result
 	}
 }
 
@@ -84,6 +118,7 @@ func (m *Machine) doOpSelector() {
 		m.Printf("+v[S] %v\n", res)
 	}
 	*xv = res // reuse as result
+	SetOriginForPointerValue(m.Store, &xv.V, sx.AbsPath)
 }
 
 func (m *Machine) doOpSlice() {
@@ -158,8 +193,13 @@ func (m *Machine) doOpStar() {
 		} else {
 			if pv.TV.IsUndefined() && bt.Elt.Kind() != InterfaceKind {
 				refv := TypedValue{T: bt.Elt}
+				origin := pv.Origin
+				SetOriginForPointerValue(m.Store, &refv.V, origin)
 				m.PushValue(refv)
 			} else {
+				v2 := pv.TV.V
+				origin := pv.Origin
+				SetOriginForPointerValue(m.Store, &v2, origin)
 				m.PushValue(*pv.TV)
 			}
 		}
@@ -185,7 +225,7 @@ func (m *Machine) doOpStar() {
 func (m *Machine) doOpRef() {
 	rx := m.PopExpr().(*RefExpr)
 	m.Alloc.AllocatePointer()
-	xv := m.PopAsPointer(rx.X)
+	xv, origin := m.PopAsPointer2(rx.X)
 	if nv, ok := xv.TV.V.(*NativeValue); ok {
 		// If a native pointer, ensure it is addressable.  This
 		// way, PointerValue{*NativeValue{rv}} can be converted
@@ -203,10 +243,18 @@ func (m *Machine) doOpRef() {
 	if elt == DataByteType {
 		elt = xv.TV.V.(DataByteValue).ElemType
 	}
-	m.PushValue(TypedValue{
+
+	tv := TypedValue{
 		T: m.Alloc.NewType(&PointerType{Elt: elt}),
 		V: xv,
-	})
+	}
+
+	if origin != "" { // origin is bound to an underlying array
+		SetOriginForPointerValue(m.Store, &tv.V, origin)
+	} else if pather, ok := rx.X.(AbsPather); ok {
+		SetOriginForPointerValue(m.Store, &tv.V, pather.GetAbsPath())
+	}
+	m.PushValue(tv)
 }
 
 // NOTE: keep in sync with doOpTypeAssert2.

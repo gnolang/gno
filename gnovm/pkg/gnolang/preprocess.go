@@ -144,6 +144,14 @@ func initStaticBlocks(store Store, ctx BlockNode, bn BlockNode) {
 	var last BlockNode = ctx
 	stack = append(stack, last)
 
+	pn := packageOf(last)
+	bid := pn.nextBlockID(pn.PkgPath)
+	last.GetStaticBlock().Bid = bid
+
+	defer func() {
+		pn.Time = 0
+	}()
+
 	// iterate over all nodes recursively.
 	_ = Transcribe(bn, func(ns []Node, ftype TransField, index int, n Node, stage TransStage) (Node, TransCtrl) {
 		defer doRecover(stack, n)
@@ -258,7 +266,7 @@ func initStaticBlocks(store Store, ctx BlockNode, bn BlockNode) {
 
 		// ----------------------------------------
 		case TRANS_BLOCK:
-			pushInitBlock(n.(BlockNode), &last, &stack)
+			pushInitBlock2(n.(BlockNode), &last, &stack, pn)
 			switch n := n.(type) {
 			case *IfCaseStmt:
 				// parent if statement.
@@ -1632,11 +1640,12 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 						"unexpected index base kind for type %s",
 						dt.String()))
 				}
+				n.AbsPath = buildAbsolutePath(n)
 
 			// TRANS_LEAVE -----------------------
 			case *SliceExpr:
 				// Replace const L/H/M with int *ConstExpr,
-				// or if not const, assert integer type..
+				// or if not const, assert integer type.
 				checkOrConvertIntegerKind(store, last, n, n.Low)
 				checkOrConvertIntegerKind(store, last, n, n.High)
 				checkOrConvertIntegerKind(store, last, n, n.Max)
@@ -1794,9 +1803,12 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 				if xt.Kind() != PointerKind && xt.Kind() != TypeKind {
 					panic(fmt.Sprintf("invalid operation: cannot indirect %s (variable of type %s)", n.X.String(), xt.String()))
 				}
+				n.AbsPath = buildAbsolutePath(n)
+
 			// TRANS_LEAVE -----------------------
 			case *SelectorExpr:
 				xt := evalStaticTypeOf(store, last, n.X)
+				var absPath string
 
 				// Set selector path based on xt's type.
 				switch cxt := xt.(type) {
@@ -1907,7 +1919,7 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 						// NOTE: this can happen with software upgrades,
 						// with multiple versions of the same package path.
 					}
-					n.Path = pn.GetPathForName(store, n.Sel)
+					n.Path, absPath = pn.GetPathForName(store, n.Sel)
 					// packages may contain constant vars,
 					// so check and evaluate if so.
 					tt := pn.GetStaticTypeOfAt(store, n.Path)
@@ -1940,6 +1952,12 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 					panic(fmt.Sprintf(
 						"unexpected selector expression type %v",
 						reflect.TypeOf(xt)))
+				}
+
+				if absPath != "" { // already set in other package
+					n.AbsPath = absPath
+				} else {
+					n.AbsPath = buildAbsolutePath(n)
 				}
 
 			// TRANS_LEAVE -----------------------
@@ -2415,7 +2433,7 @@ func defineOrDecl(
 			nx.Path = NewValuePathBlock(0, 0, blankIdentifier)
 		} else {
 			node.Define2(isConst, nx.Name, sts[i], tvs[i])
-			nx.Path = bn.GetPathForName(nil, nx.Name)
+			nx.Path, _ = bn.GetPathForName(nil, nx.Name)
 		}
 	}
 }
@@ -2899,7 +2917,7 @@ func addHeapCapture(dbn BlockNode, fle *FuncLitExpr, name Name) (idx uint16) {
 	fle.Define("~"+name, tv.Copy(nil))
 
 	// add name to fle.HeapCaptures.
-	vp := fle.GetPathForName(nil, name)
+	vp, _ := fle.GetPathForName(nil, name)
 	vp.Depth -= 1 // minus 1 for fle itself.
 	ne := NameExpr{
 		Path: vp,
@@ -3062,8 +3080,40 @@ func isSwitchLabel(ns []Node, label Name) bool {
 	return false
 }
 
+func (x *PackageNode) nextBlockID(PkgPath string) BlockID {
+	pkgID := PkgIDFromPkgPath(PkgPath)
+	x.Time++
+	return BlockID{
+		PkgID:   pkgID,
+		NewTime: x.Time,
+	}
+}
+
 // Idempotent.
 // Also makes sure the stack doesn't reach MaxUint8 in length.
+func pushInitBlock2(bn BlockNode, last *BlockNode, stack *[]BlockNode, pn *PackageNode) {
+	bid := pn.nextBlockID(pn.PkgPath)
+	bn.GetStaticBlock().Bid = bid
+
+	if !bn.IsInitialized() {
+		switch bn.(type) {
+		case *IfCaseStmt, *SwitchClauseStmt:
+			// skip faux block
+			bn.InitStaticBlock(bn, (*last).GetParentNode(nil))
+		default:
+			bn.InitStaticBlock(bn, *last)
+		}
+	}
+	if bn.GetStaticBlock().Source != bn {
+		panic("expected the source of a block node to be itself")
+	}
+	*last = bn
+	*stack = append(*stack, bn)
+	if len(*stack) >= math.MaxUint8 {
+		panic("block node depth reached maximum MaxUint8")
+	}
+}
+
 func pushInitBlock(bn BlockNode, last *BlockNode, stack *[]BlockNode) {
 	if !bn.IsInitialized() {
 		switch bn.(type) {
@@ -4234,7 +4284,7 @@ func tryPredefine(store Store, last BlockNode, d Decl) (un Name) {
 			T: gPackageType,
 			V: pv,
 		})
-		d.Path = last.GetPathForName(store, d.Name)
+		d.Path, _ = last.GetPathForName(store, d.Name)
 	case *ValueDecl:
 		// check for blank identifier in type
 		// e.g., `var x _`
@@ -4257,7 +4307,7 @@ func tryPredefine(store Store, last BlockNode, d Decl) (un Name) {
 			if nx.Name == blankIdentifier {
 				nx.Path.Name = blankIdentifier
 			} else {
-				nx.Path = last.GetPathForName(store, nx.Name)
+				nx.Path, _ = last.GetPathForName(store, nx.Name)
 			}
 		}
 	case *TypeDecl:
@@ -4331,7 +4381,7 @@ func tryPredefine(store Store, last BlockNode, d Decl) (un Name) {
 				}
 				// check package node for name.
 				pn := pv.GetPackageNode(store)
-				tx.Path = pn.GetPathForName(store, tx.Sel)
+				tx.Path, _ = pn.GetPathForName(store, tx.Sel)
 				ptr := pv.GetBlock(store).GetPointerTo(store, tx.Path)
 				t = ptr.TV.GetType()
 			default:
@@ -4348,7 +4398,7 @@ func tryPredefine(store Store, last BlockNode, d Decl) (un Name) {
 			}
 			// fill in later.
 			last2.Define(d.Name, asValue(t))
-			d.Path = last.GetPathForName(store, d.Name)
+			d.Path, _ = last.GetPathForName(store, d.Name)
 		}
 		// after predefinitions, return any undefined dependencies.
 		un = findUndefined(store, last, d.Type)
@@ -4407,7 +4457,7 @@ func tryPredefine(store Store, last BlockNode, d Decl) (un Name) {
 			if d.Name == "init" {
 				// init functions can't be referenced.
 			} else {
-				d.Path = last.GetPathForName(store, d.Name)
+				d.Path, _ = last.GetPathForName(store, d.Name)
 			}
 		}
 	default:
@@ -4447,6 +4497,7 @@ func fillNameExprPath(last BlockNode, nx *NameExpr, isDefineLHS bool) {
 			// because .GetPathForName() doesn't distinguish between predefined
 			// and declared variables. See tests/files/define1.go for test case.
 			var path ValuePath
+			var absPath string
 			var i int = 0
 			for {
 				i++
@@ -4467,7 +4518,7 @@ func fillNameExprPath(last BlockNode, nx *NameExpr, isDefineLHS bool) {
 				if last.GetStaticTypeOf(nil, nx.Name) == nil {
 					continue
 				} else {
-					path = last.GetPathForName(nil, nx.Name)
+					path, absPath = last.GetPathForName(nil, nx.Name)
 					if path.Type != VPBlock {
 						panic("expected block value path type; check this is not shadowing a builtin type")
 					}
@@ -4476,6 +4527,7 @@ func fillNameExprPath(last BlockNode, nx *NameExpr, isDefineLHS bool) {
 			}
 			path.Depth += uint8(i)
 			nx.Path = path
+			nx.AbsPath = absPath
 			return
 		}
 	} else if isUverseName(nx.Name) {
@@ -4484,7 +4536,7 @@ func fillNameExprPath(last BlockNode, nx *NameExpr, isDefineLHS bool) {
 	}
 	// Otherwise, set path for name.
 	// Uverse name paths get set here as well.
-	nx.Path = last.GetPathForName(nil, nx.Name)
+	nx.Path, nx.AbsPath = last.GetPathForName(nil, nx.Name)
 }
 
 func isFile(n BlockNode) bool {
