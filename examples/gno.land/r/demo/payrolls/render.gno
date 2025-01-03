@@ -241,7 +241,6 @@ func Render(renderPath string) string {
 		})
 
 		w.WriteString("## TODO\n")
-		w.WriteString("- [ ] Render breakup amount\n")
 		w.WriteString("- [ ] Unit tests\n")
 		w.WriteString("- [ ] txtar\n")
 		w.WriteString("- [ ] Write doc\n")
@@ -339,10 +338,28 @@ func renderPayroll(p *payroll, pov string) string {
 	sb.WriteString(renderActions("  ", actions))
 
 	estimatedDay := p.estimateDay()
-	for _, coin := range addCoins(available, estimatedDay) {
+	allCoins := addCoins(available, estimatedDay)
+
+	var beneficiaryBreakupCoins std.Coins
+	var creatorBreakupCoins std.Coins
+	if pov == "details" {
+		allCoins = addCoins(allCoins, beneficiaryBreakupCoins)
+		allCoins = addCoins(allCoins, creatorBreakupCoins)
+		beneficiaryBreakupCoins = p.getBreakupCoins(p.beneficiary)
+		creatorBreakupCoins = p.getBreakupCoins(p.creatorAddr)
+	}
+	for _, coin := range allCoins {
 		sb.WriteString(ufmt.Sprintf("  - %s:\n", renderCoinDenom(coin)))
 		sb.WriteString(renderEstimatedMonthly("    ", estimatedDay.AmountOf(coin.Denom), coin.Denom))
 		sb.WriteString(renderClaimable("    ", claimable.AmountOf(coin.Denom), available.AmountOf(coin.Denom), coin.Denom, true))
+		if pov == "details" {
+			if bb := beneficiaryBreakupCoins.AmountOf(coin.Denom); bb > 0 {
+				sb.WriteString(ufmt.Sprintf("    - Breakup by beneficiary bonus: %s\n", renderCoin(std.NewCoin(coin.Denom, bb))))
+			}
+			if cb := creatorBreakupCoins.AmountOf(coin.Denom); cb > 0 {
+				sb.WriteString(ufmt.Sprintf("    - Breakup by creator bonus: %s\n", renderCoin(std.NewCoin(coin.Denom, cb))))
+			}
+		}
 	}
 
 	return sb.String()

@@ -87,6 +87,16 @@ func (p *payroll) resumeUnsafe() {
 func (p *payroll) stop(source std.Address) {
 	p.assertNotStopped()
 
+	if p.paused {
+		p.resumeUnsafe()
+	}
+
+	p.breakupCoins = p.getBreakupCoins(source)
+	p.stopped = true
+	p.stoppedAt = time.Now()
+}
+
+func (p *payroll) getBreakupCoins(source std.Address) std.Coins {
 	var breakupSource BreakupSource
 	switch source {
 	case p.beneficiary:
@@ -97,13 +107,7 @@ func (p *payroll) stop(source std.Address) {
 		panic(errors.New("unknown source"))
 	}
 
-	if p.paused {
-		p.resumeUnsafe()
-	}
-
-	p.breakupCoins = p.breakup(time.Now().Sub(p.createdAt), p.pauseDuration, breakupSource)
-	p.stopped = true
-	p.stoppedAt = time.Now()
+	return p.breakup(time.Now().Sub(p.createdAt), p.pauseDuration, breakupSource)
 }
 
 func (p *payroll) assertNotStopped() {
