@@ -241,11 +241,10 @@ func Render(renderPath string) string {
 		})
 
 		w.WriteString("## TODO\n")
-		w.WriteString("- [ ] Unit tests\n")
-		w.WriteString("- [ ] txtar\n")
 		w.WriteString("- [ ] Write doc\n")
 
 		w.WriteString("## v2\n")
+		w.WriteString("- [ ] Better test coverage\n")
 		w.WriteString("- [ ] Gnoweb pagination\n")
 		w.WriteString("- [ ] Show payroll running duration\n")
 		w.WriteString("- [ ] Archive\n")

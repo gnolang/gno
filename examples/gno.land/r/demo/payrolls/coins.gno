@@ -8,6 +8,21 @@ import (
 	"gno.land/r/demo/grc20reg"
 )
 
+func Coins(native std.Coins, grc20 std.Coins) (std.Coins, error) {
+	out := make(std.Coins, len(native)+len(grc20))
+	for i, coin := range native {
+		out[i].Amount = coin.Amount
+		out[i].Denom = "/native/" + coin.Denom
+	}
+	offset := len(native)
+	for i, coin := range grc20 {
+		j := offset + i
+		out[j].Amount = coin.Amount
+		out[j].Denom = "/grc20/" + coin.Denom
+	}
+	return out, nil
+}
+
 func addCoins(a std.Coins, b std.Coins) std.Coins {
 	out := make(std.Coins, len(a))
 	copy(out, a)

@@ -97,6 +97,10 @@ func (p *payroll) stop(source std.Address) {
 }
 
 func (p *payroll) getBreakupCoins(source std.Address) std.Coins {
+	if p.breakup == nil {
+		return nil
+	}
+
 	var breakupSource BreakupSource
 	switch source {
 	case p.beneficiary:

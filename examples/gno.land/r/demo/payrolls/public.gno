@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"gno.land/p/demo/avl"
+	"gno.land/p/demo/grc/grc20"
 	"gno.land/p/demo/seqid"
 	"gno.land/r/demo/grc20reg"
 )
@@ -17,7 +18,7 @@ var (
 	payrollsByBeneficiary = make(map[std.Address]*avl.Tree) // addr -> seqid.ID -> *payroll
 )
 
-func Create(namespace string, label string, beneficiary std.Address, cap int64, distrib DistribFn, breakup BreakupFn) seqid.ID {
+func Create(namespace string, label string, beneficiary std.Address, distrib DistribFn, breakup BreakupFn) seqid.ID {
 	vaultID := vaultIDFromRealm(std.PrevRealm(), namespace)
 
 	if distrib == nil {
@@ -59,7 +60,8 @@ func Claim(id seqid.ID, destination std.Address) {
 
 func claimInternal(id seqid.ID, destination std.Address, mustClaim bool) bool {
 	p := mustGetPayroll(id)
-	if std.PrevRealm().Addr() != p.beneficiary {
+	caller := std.PrevRealm().Addr()
+	if caller != p.beneficiary {
 		panic(errors.New("only beneficiary can withdraw"))
 	}
 
@@ -71,6 +73,10 @@ func claimInternal(id seqid.ID, destination std.Address, mustClaim bool) bool {
 		} else {
 			return false
 		}
+	}
+
+	if len(destination) == 0 {
+		destination = caller
 	}
 
 	sendCoins(destination, claimed)
@@ -122,7 +128,17 @@ func FundNative(base string, namespace string) {
 	vaults.Set(id, addCoins(getVaultCoins(id), send))
 }
 
-func FundGRC20(base string, namespace string, fqdenom string, amount int64) {
+func FundGRC20Reg(base string, namespace string, fqdenom string, amount int64) {
+	tokenGetter := grc20reg.MustGet(fqdenom)
+	token := tokenGetter()
+	if token == nil {
+		panic(errors.New("token getter returned nil"))
+	}
+
+	fundGRC20(base, namespace, token, "/grc20/"+fqdenom, amount)
+}
+
+func fundGRC20(base string, namespace string, token *grc20.Token, tokenKey string, amount int64) {
 	anyAmount := amount == -1
 	if !anyAmount && amount <= 0 {
 		panic(errors.New("invalid amount"))
@@ -142,21 +158,16 @@ func FundGRC20(base string, namespace string, fqdenom string, amount int64) {
 		}
 	}
 
-	tokenGetter := grc20reg.MustGet(fqdenom)
-	token := tokenGetter()
-	if token == nil {
-		panic(errors.New("token getter returned nil"))
-	}
-
 	if anyAmount {
 		amount = int64(token.Allowance(std.PrevRealm().Addr(), std.CurrentRealm().Addr()))
 	}
 
-	if err := token.CallerTeller().TransferFrom(std.PrevRealm().Addr(), std.CurrentRealm().Addr(), uint64(amount)); err != nil {
+	teller := token.CallerTeller()
+	if err := teller.TransferFrom(std.PrevRealm().Addr(), std.CurrentRealm().Addr(), uint64(amount)); err != nil {
 		panic(err)
 	}
 
-	send := std.NewCoins(std.NewCoin("/grc20/"+fqdenom, int64(amount)))
+	send := std.NewCoins(std.NewCoin(tokenKey, int64(amount)))
 	vaults.Set(id, addCoins(getVaultCoins(id), send))
 }
 

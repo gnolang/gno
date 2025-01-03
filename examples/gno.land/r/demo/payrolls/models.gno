@@ -56,7 +56,7 @@ func CreateCDI(namespace string, label string, beneficiary std.Address, amountPe
 		panic(errors.New("invalid input"))
 	}
 	coinsPerMonth := std.NewCoins(std.NewCoin(denom, amountPerMonth))
-	return Create(namespace, label, beneficiary, -1, DistribMonthlyContinuous(coinsPerMonth), BreakupCDI(coinsPerMonth))
+	return Create(namespace, label, beneficiary, DistribMonthlyContinuous(coinsPerMonth), BreakupCDI(coinsPerMonth))
 }
 
 func BreakupCDI(coinsPerMonth std.Coins) BreakupFn {
