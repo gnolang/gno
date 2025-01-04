@@ -64,3 +64,9 @@ func DelFromWhitelist(addr std.Address) error {
 
 	return nil
 }
+
+// IsOnWhitelist checks if the given address has
+// permission to write to the user store
+func IsOnWhitelist(addr std.Address) bool {
+	return callerWhitelist.Has(addr.String())
+}
