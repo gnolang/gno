@@ -523,7 +523,6 @@ func runTestFiles(
 
 		// TODO: replace with amino or send native type?
 		var rep report
-		//! 여기서 return된 문자를 언마셜링
 		err = json.Unmarshal([]byte(ret), &rep)
 		if err != nil {
 			errs = multierr.Append(errs, err)
@@ -560,12 +559,10 @@ func runTestFiles(
 
 }
 
-// TODO 여기까진 분기 크게 없는듯
 func runFuzzFiles(
 	m *gno.Machine,
 	files *gno.FileSet,
 	pkgName string,
-	//* verbose는 받기. 이후 바탕으로 추가 로깅
 	verbose bool,
 	fuzzName string,
 	fuzzIters uint,
@@ -721,31 +718,6 @@ func runfuzz(name string) (report string) {
 	return ""
 }
 `))
-
-//? 전략 2시 사용
-// var fuzzmainTmpl = template.Must(template.New("fuzzmain").Parse(`
-// package {{ .PackageName }}
-
-// import (
-// 	"testing"
-// )
-
-// var tests = []testing.InternalFuzz{
-// {{range .Tests}}
-//     {"{{.Name}}", {{.Name}}},
-// {{end}}
-// }
-
-// func runfuzz(name string) (report string) {
-// 	for _, test := range tests {
-// 		if test.Name == name {
-// 			return testing.RunTest({{printf "%q" .FuzzName}}, {{printf "%u" .fuzzIters}}, test)
-// 		}
-// 	}
-// 	panic("no such fuzz test: " + name)
-// 	return ""
-// }
-// `))
 
 type testFuncs struct {
 	Tests       []testFunc
