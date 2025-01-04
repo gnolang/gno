@@ -10,9 +10,9 @@ func TestMock(t *testing.T) {
 }
 
 func FuzzMock(f *testing.F) {
-	f.Add("apple hello", int(40000))
-	f.Add("rainy day", int(98401))
-	f.Add("winter comes", int(123491))
+	f.Add("apple hello", int(40000213132312))
+	f.Add("rainy day", int(9840113223133111))
+	f.Add("winter comes", int(1234912312331))
 	f.Fuzz(func(t *testing.T, orig ...interface{}) {
 		v, ok := orig[0].(string)
 		if !ok {
