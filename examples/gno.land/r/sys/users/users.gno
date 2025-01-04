@@ -8,7 +8,7 @@ import (
 	"gno.land/p/demo/avlhelpers"
 )
 
-// ResolveName finds the original NameRecord for a given name or alias.
+// ResolveName returns the latest UserData of a specific user by name or alias
 func ResolveName(name string) *UserData {
 	raw, ok := nameStore.Get(name)
 	if !ok {
@@ -22,6 +22,7 @@ func ResolveName(name string) *UserData {
 	return data
 }
 
+// ResolveAddress returns the latest UserData of a specific user by address
 func ResolveAddress(addr std.Address) *UserData {
 	raw, ok := addressStore.Get(addr.String())
 	if !ok {
