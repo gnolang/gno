@@ -39,6 +39,9 @@ type testCfg struct {
 	printRuntimeMetrics bool
 	printEvents         bool
 	withNativeFallback  bool
+	// 새로 두 개의 필드 추가함
+	fuzzName  string
+	fuzzIters uint
 }
 
 func newTestCmd(io commands.IO) *commands.Command {
@@ -159,6 +162,18 @@ func (c *testCfg) RegisterFlags(fs *flag.FlagSet) {
 		false,
 		"print emitted events",
 	)
+	fs.StringVar(
+		&c.fuzzName,
+		"fuzz",
+		"",
+		"specify fuzz target name (e.g. FuzzXXX) or 'Fuzz' for all fuzz tests",
+	)
+	fs.UintVar(
+		&c.fuzzIters,
+		"i",
+		30000,
+		"number of fuzz iterations to run",
+	)
 }
 
 func execTest(cfg *testCfg, args []string, io commands.IO) error {
@@ -204,6 +219,8 @@ func execTest(cfg *testCfg, args []string, io commands.IO) error {
 		sort.Strings(pkg.FiletestGnoFiles)
 
 		startedAt := time.Now()
+		//TODO 실행 코드인가??
+		//TODO CFG와 파일까지 전달 후 실행 받는듯.
 		err = gnoTestPkg(pkg.Dir, pkg.TestGnoFiles, pkg.FiletestGnoFiles, cfg, io)
 		duration := time.Since(startedAt)
 		dstr := fmtDuration(duration)
@@ -234,16 +251,19 @@ func gnoTestPkg(
 	io commands.IO,
 ) error {
 	var (
-		verbose             = cfg.verbose
-		rootDir             = cfg.rootDir
-		runFlag             = cfg.run
+		verbose = cfg.verbose
+		rootDir = cfg.rootDir
+		runFlag = cfg.run
+
+		fuzzName  = cfg.fuzzName
+		fuzzIters = cfg.fuzzIters
+
 		printRuntimeMetrics = cfg.printRuntimeMetrics
 		printEvents         = cfg.printEvents
-
-		stdin  = io.In()
-		stdout = io.Out()
-		stderr = io.Err()
-		errs   error
+		stdin               = io.In()
+		stdout              = io.Out()
+		stderr              = io.Err()
+		errs                error
 	)
 
 	mode := tests.ImportModeStdlibsOnly
@@ -251,7 +271,7 @@ func gnoTestPkg(
 		// XXX: display a warn?
 		mode = tests.ImportModeStdlibsPreferred
 	}
-	if !verbose {
+	if !verbose && fuzzName == "" {
 		// TODO: speedup by ignoring if filter is file/*?
 		mockOut := bytes.NewBufferString("")
 		stdout = commands.WriteNopCloser(mockOut)
@@ -293,7 +313,8 @@ func gnoTestPkg(
 				stdin, stdout, stderr,
 				mode,
 			)
-			if verbose {
+			//퍼징 시엔 기본적으로 true처리
+			if verbose || fuzzName != "" {
 				testStore.SetLogStoreOps(true)
 			}
 
@@ -306,10 +327,20 @@ func gnoTestPkg(
 				m.Alloc = gno.NewAllocator(maxAllocTx)
 			}
 			m.RunMemPackage(memPkg, true)
-			err := runTestFiles(m, tfiles, memPkg.Name, verbose, printRuntimeMetrics, printEvents, runFlag, io)
-			if err != nil {
-				errs = multierr.Append(errs, err)
+
+			if fuzzName != "" {
+				err := runFuzzFiles(m, tfiles, memPkg.Name, verbose, fuzzName, fuzzIters, printRuntimeMetrics, printEvents, io)
+				if err != nil {
+					errs = multierr.Append(errs, err)
+				}
+
+			} else {
+				err := runTestFiles(m, tfiles, memPkg.Name, verbose, printRuntimeMetrics, printEvents, runFlag, io)
+				if err != nil {
+					errs = multierr.Append(errs, err)
+				}
 			}
+
 		}
 
 		// test xxx_test pkg
@@ -340,9 +371,17 @@ func gnoTestPkg(
 			memPkg.Path = memPkg.Path + "_test"
 			m.RunMemPackage(memPkg, true)
 
-			err := runTestFiles(m, ifiles, testPkgName, verbose, printRuntimeMetrics, printEvents, runFlag, io)
-			if err != nil {
-				errs = multierr.Append(errs, err)
+			if fuzzName != "" {
+				err := runFuzzFiles(m, tfiles, memPkg.Name, verbose, fuzzName, fuzzIters, printRuntimeMetrics, printEvents, io)
+				if err != nil {
+					errs = multierr.Append(errs, err)
+				}
+
+			} else {
+				err := runTestFiles(m, tfiles, memPkg.Name, verbose, printRuntimeMetrics, printEvents, runFlag, io)
+				if err != nil {
+					errs = multierr.Append(errs, err)
+				}
 			}
 		}
 	}
@@ -424,6 +463,7 @@ func pkgPathFromRootDir(pkgPath, rootDir string) string {
 	return ""
 }
 
+// TODO 여기까진 분기 크게 없는듯
 func runTestFiles(
 	m *gno.Machine,
 	files *gno.FileSet,
@@ -439,7 +479,6 @@ func runTestFiles(
 			errs = multierr.Append(fmt.Errorf("panic: %v\nstack:\n%v\ngno machine: %v", r, string(debug.Stack()), m.String()), errs)
 		}
 	}()
-
 	testFuncs := &testFuncs{
 		PackageName: pkgName,
 		Verbose:     verbose,
@@ -447,24 +486,20 @@ func runTestFiles(
 	}
 	loadTestFuncs(pkgName, testFuncs, files)
 
-	// before/after statistics
 	numPackagesBefore := m.Store.NumMemPackages()
 
 	testmain, err := formatTestmain(testFuncs)
 	if err != nil {
 		log.Fatal(err)
 	}
-
 	m.RunFiles(files.Files...)
 	n := gno.MustParseFile("main_test.gno", testmain)
 	m.RunFiles(n)
-
+	//gno test -v ~~시
 	for _, test := range testFuncs.Tests {
 		// cleanup machine between tests
 		tests.CleanupMachine(m)
-
 		testFuncStr := fmt.Sprintf("%q", test.Name)
-
 		eval := m.Eval(gno.Call("runtest", testFuncStr))
 
 		if printEvents {
@@ -488,6 +523,7 @@ func runTestFiles(
 
 		// TODO: replace with amino or send native type?
 		var rep report
+		//! 여기서 return된 문자를 언마셜링
 		err = json.Unmarshal([]byte(ret), &rep)
 		if err != nil {
 			errs = multierr.Append(errs, err)
@@ -518,9 +554,114 @@ func runTestFiles(
 				allocsVal,
 			)
 		}
-	}
 
+	}
 	return errs
+
+}
+
+// TODO 여기까진 분기 크게 없는듯
+func runFuzzFiles(
+	m *gno.Machine,
+	files *gno.FileSet,
+	pkgName string,
+	//* verbose는 받기. 이후 바탕으로 추가 로깅
+	verbose bool,
+	fuzzName string,
+	fuzzIters uint,
+	printRuntimeMetrics bool,
+	printEvents bool,
+	io commands.IO,
+) (errs error) {
+	defer func() {
+		if r := recover(); r != nil {
+			errs = multierr.Append(fmt.Errorf("panic: %v\nstack:\n%v\ngno machine: %v", r, string(debug.Stack()), m.String()), errs)
+		}
+	}()
+	fuzzFuncs := &fuzzFuncs{
+		PackageName: pkgName,
+		Verbose:     verbose,
+		FuzzName:    fuzzName,
+		FuzzIters:   fuzzIters}
+
+	loadFuzzFuncs(pkgName, fuzzFuncs, files)
+
+	// before/after statistics
+	numPackagesBefore := m.Store.NumMemPackages()
+
+	//TODO 정보 합성해서 전달 및 실행시킴
+	fuzzmain, err := formatFuzzmain(fuzzFuncs)
+	if err != nil {
+		log.Fatal(err)
+	}
+	m.RunFiles(files.Files...)
+	n := gno.MustParseFile("main_test.gno", fuzzmain)
+	m.RunFiles(n)
+	//gno test -v ~~시
+	// 이 경우 TestXXX함수만 실행행
+	for _, fuzz := range fuzzFuncs.Fuzzs {
+		// cleanup machine between tests
+		tests.CleanupMachine(m)
+		fuzzFuncStr := fmt.Sprintf("%q", fuzz.Name)
+
+		eval := m.Eval(gno.Call("runfuzz", fuzzFuncStr))
+
+		if printEvents {
+			events := m.Context.(*teststd.TestExecContext).EventLogger.Events()
+			if events != nil {
+				res, err := json.Marshal(events)
+				if err != nil {
+					panic(err)
+				}
+				io.ErrPrintfln("EVENTS: %s", string(res))
+			}
+		}
+
+		ret := eval[0].GetString()
+		if ret == "" {
+			err := errors.New("failed to execute unit test: %q", fuzz.Name)
+			errs = multierr.Append(errs, err)
+			io.ErrPrintfln("--- FAIL: %s [internal gno testing error]", fuzz.Name)
+			continue
+		}
+
+		// TODO: replace with amino or send native type?
+		var rep report
+		//! 여기서 return된 문자를 언마셜링
+		err = json.Unmarshal([]byte(ret), &rep)
+		if err != nil {
+			errs = multierr.Append(errs, err)
+			io.ErrPrintfln("--- FAIL: %s [internal gno testing error]", fuzz.Name)
+			continue
+		}
+
+		if rep.Failed {
+			err := errors.New("failed: %q", fuzz.Name)
+			errs = multierr.Append(errs, err)
+		}
+
+		if printRuntimeMetrics {
+			imports := m.Store.NumMemPackages() - numPackagesBefore - 1
+			// XXX: store changes
+			// XXX: max mem consumption
+			allocsVal := "n/a"
+			if m.Alloc != nil {
+				maxAllocs, allocs := m.Alloc.Status()
+				allocsVal = fmt.Sprintf("%s(%.2f%%)",
+					prettySize(allocs),
+					float64(allocs)/float64(maxAllocs)*100,
+				)
+			}
+			io.ErrPrintfln("---       runtime: cycle=%s imports=%d allocs=%s",
+				prettySize(m.Cycles),
+				imports,
+				allocsVal,
+			)
+		}
+
+	}
+	return errs
+
 }
 
 // mirror of stdlibs/testing.Report
@@ -529,6 +670,10 @@ type report struct {
 	Skipped bool
 }
 
+// TODO 아님 여기를 분기처리 해도 좋을수도
+// ! 여기서 test.Name의 prefix에 대한 분기를 시켜도 좋음!
+// ! 현재 테스트용으로 코드 바꿔놈
+// ! 테스트 결과! 현재 전혀 반영이 안되고 있다.
 var testmainTmpl = template.Must(template.New("testmain").Parse(`
 package {{ .PackageName }}
 
@@ -542,6 +687,7 @@ var tests = []testing.InternalTest{
 {{end}}
 }
 
+
 func runtest(name string) (report string) {
 	for _, test := range tests {
 		if test.Name == name {
@@ -552,6 +698,54 @@ func runtest(name string) (report string) {
 	return ""
 }
 `))
+var fuzzmainTmpl = template.Must(template.New("fuzzmain").Parse(`
+package {{ .PackageName }}
+
+import (
+	"testing"
+)
+
+var fuzzs = []testing.InternalFuzz{
+{{range .Fuzzs}}
+    {"{{.Name}}", {{.Name}}},
+{{end}}
+}
+
+func runfuzz(name string) (report string) {
+	for _, fuzz := range fuzzs {
+		if fuzz.Name == name {
+			return testing.RunFuzz("{{.FuzzName}}", {{.FuzzIters}},{{.Verbose}}, fuzz)
+		}
+	}
+	panic("no such test: " + name)
+	return ""
+}
+`))
+
+//? 전략 2시 사용
+// var fuzzmainTmpl = template.Must(template.New("fuzzmain").Parse(`
+// package {{ .PackageName }}
+
+// import (
+// 	"testing"
+// )
+
+// var tests = []testing.InternalFuzz{
+// {{range .Tests}}
+//     {"{{.Name}}", {{.Name}}},
+// {{end}}
+// }
+
+// func runfuzz(name string) (report string) {
+// 	for _, test := range tests {
+// 		if test.Name == name {
+// 			return testing.RunTest({{printf "%q" .FuzzName}}, {{printf "%u" .fuzzIters}}, test)
+// 		}
+// 	}
+// 	panic("no such fuzz test: " + name)
+// 	return ""
+// }
+// `))
 
 type testFuncs struct {
 	Tests       []testFunc
@@ -559,8 +753,19 @@ type testFuncs struct {
 	Verbose     bool
 	RunFlag     string
 }
+type fuzzFuncs struct {
+	Fuzzs       []fuzzFunc
+	PackageName string
+	Verbose     bool
+	FuzzName    string
+	FuzzIters   uint
+}
 
 type testFunc struct {
+	Package string
+	Name    string
+}
+type fuzzFunc struct {
 	Package string
 	Name    string
 }
@@ -575,6 +780,13 @@ func getPkgNameFromFileset(files *gno.FileSet) string {
 func formatTestmain(t *testFuncs) (string, error) {
 	var buf bytes.Buffer
 	if err := testmainTmpl.Execute(&buf, t); err != nil {
+		return "", err
+	}
+	return buf.String(), nil
+}
+func formatFuzzmain(f *fuzzFuncs) (string, error) {
+	var buf bytes.Buffer
+	if err := fuzzmainTmpl.Execute(&buf, f); err != nil {
 		return "", err
 	}
 	return buf.String(), nil
@@ -596,6 +808,23 @@ func loadTestFuncs(pkgName string, t *testFuncs, tfiles *gno.FileSet) *testFuncs
 		}
 	}
 	return t
+}
+func loadFuzzFuncs(pkgName string, f *fuzzFuncs, tfiles *gno.FileSet) *fuzzFuncs {
+	for _, ff := range tfiles.Files {
+		for _, d := range ff.Decls {
+			if fd, ok := d.(*gno.FuncDecl); ok {
+				fname := string(fd.Name)
+				if strings.HasPrefix(fname, "Fuzz") {
+					tf := fuzzFunc{
+						Package: pkgName,
+						Name:    fname,
+					}
+					f.Fuzzs = append(f.Fuzzs, tf)
+				}
+			}
+		}
+	}
+	return f
 }
 
 // parseMemPackageTests is copied from gno.ParseMemPackageTests

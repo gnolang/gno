@@ -154,14 +154,20 @@ func interfacesliceToString(slice []interface{}) string {
 func CoverageToString(coverage Coverage) string {
 	var sb strings.Builder
 	sb.WriteString("[")
+	count := 0
 	for i, line := range coverage {
 		sb.WriteString("{co_name: ")
 		sb.WriteString(line.co_name)
 		sb.WriteString(", co_line: ")
 		sb.WriteString(strconv.Itoa(line.co_line)) // fmt.Sprintf 대신 strconv 사용
 		sb.WriteString("}")
+		count++
 		if i < len(coverage)-1 {
-			sb.WriteString(", ")
+			if count%3 == 0 {
+				sb.WriteString(", \n")
+			} else {
+				sb.WriteString(", ")
+			}
 		}
 	}
 	sb.WriteString("]")
@@ -236,6 +242,30 @@ func ContentToString(content []interface{}) string {
 	result.WriteString("]")
 
 	return result.String()
+}
+
+func CrashCaseToString(c Crash_Case) string {
+	// Coverage 필드를 문자열화하려면 coverageToString(c.Coverage) 사용
+	// Content 필드는 ContentToString(c.Input) 사용
+	var sb strings.Builder
+
+	sb.WriteString("{ \n")
+
+	sb.WriteString("Input: ")
+	sb.WriteString(TransForHuman(c.Input))
+	if c.IsPanic {
+		sb.WriteString("\nPanic/Error: Panic ")
+		sb.WriteString("\nPanicMessage: \"")
+		sb.WriteString(c.PanicMessage)
+	} else {
+		sb.WriteString("\nPanic/Error: Error ")
+		sb.WriteString("\nErrorMessage: ")
+		sb.WriteString("\"" + c.ErrorMsg + "\"")
+	}
+
+	sb.WriteString("\n}")
+
+	return sb.String()
 }
 
 // func SeedToString(seed Seed) string {

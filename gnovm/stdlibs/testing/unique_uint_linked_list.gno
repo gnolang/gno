@@ -191,39 +191,3 @@ func (ll *Unique_Uint_LinkedList) Peek() (uint, bool) {
 	}
 	return ll.head.data, true
 }
-
-/*
-// -------------------------------------------------------
-// 간단한 테스트 예시
-// -------------------------------------------------------
-func main() {
-    ll := New_Unique_Uint_LinkedList()
-
-    // 노드 추가 (Append: O(1))
-    ll.Append(10)
-    ll.Append(20)
-    ll.Append(30)
-    println("After appending:")
-    ll.Display()
-
-    // 리스트 앞에 노드 추가 (Prepend: O(1))
-    ll.Prepend(5)
-    println("After prepending:")
-    ll.Display()
-
-    // Delete(20) => O(1) 삭제
-    println("Deleting node with value 20:")
-    ll.Delete(20)
-    ll.Display()
-
-    // head(5) 삭제 => O(1)
-    println("Deleting head node with value 5:")
-    ll.Delete(5)
-    ll.Display()
-
-    // 없는 값(40) 삭제 시도
-    println("Deleting node with value 40 (not exist):")
-    ll.Delete(40)
-    ll.Display()
-}
-*/

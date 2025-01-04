@@ -17,6 +17,7 @@ type TestResult struct {
 type Crash_Case struct {
 	HashNumber   uint
 	Input        string
+	RawContent   []interface{}
 	InputCount   uint
 	IsPanic      bool
 	PanicMessage string
@@ -43,6 +44,7 @@ func (log *Crash_Logger) AddCase(seed Seed, r TestResult) {
 		crashCase = Crash_Case{
 			HashNumber:   uint(seed.HashNumber),
 			Input:        ContentToString(seed.Content),
+			RawContent:   seed.Content,
 			InputCount:   seed.Id,
 			IsPanic:      r.PanicOccurred,
 			PanicMessage: r.PanicMessage,
@@ -53,6 +55,7 @@ func (log *Crash_Logger) AddCase(seed Seed, r TestResult) {
 		crashCase = Crash_Case{
 			HashNumber:   uint(seed.HashNumber),
 			Input:        ContentToString(seed.Content),
+			RawContent:   seed.Content,
 			InputCount:   seed.Id,
 			IsPanic:      r.PanicOccurred,
 			PanicMessage: r.PanicMessage,
@@ -200,63 +203,6 @@ func (log *Crash_Logger) Summary() CrashSummary {
 		}
 	}
 	return sm
-}
-
-// func main() {
-// 	// Crash_Logger 생성
-// 	crashLog := New_Crash_Logger()
-
-// 	// Crash_Case 추가
-// 	crashLog.AddCase("input1", Coverage{1, 2, 3}, "SIGSEGV at 0xdeadbeef")
-// 	crashLog.AddCase("input2", Coverage{4, 5, 6}, "NullPointerException")
-
-// 	// 크래시 로그 크기 확인
-// 	println("Crash Log Size:", crashLog.Size())
-
-// 	// 특정 Crash_Case 조회
-// 	case1, err := crashLog.GetCase(0)
-// 	if err == nil {
-// 		println("First Case - Input:", case1.Input, ", Error:", case1.Error)
-// 	}
-
-// 	// 모든 Crash_Case 출력
-// 	for i, c := range crashLog.ListCases() {
-// 		println("Case", i+1, "- Input:", c.Input, ", Error:", c.Error)
-// 	}
-
-// 	// Crash_Case 삭제
-// 	if err := crashLog.RemoveCase(0); err == nil {
-// 		println("First case removed.")
-// 	}
-
-// 	println("After Removed. Size:", crashLog.Size())
-// 	// 크래시 로그 초기화
-// 	crashLog.ClearLog()
-// 	println("Crash Log cleared. Size:", crashLog.Size())
-// }
-
-func CrashCaseToString(c Crash_Case) string {
-	// Coverage 필드를 문자열화하려면 coverageToString(c.Coverage) 사용
-	// Content 필드는 ContentToString(c.Input) 사용
-	var sb strings.Builder
-
-	sb.WriteString("CrashCase { ")
-	sb.WriteString("HashNumber: ")
-	sb.WriteString(strconv.FormatUint(uint64(c.HashNumber), 10))
-	sb.WriteString(", IsPanic: ")
-	sb.WriteString(strconv.FormatBool(c.IsPanic))
-	sb.WriteString(", PanicMessage: \"")
-	sb.WriteString(c.PanicMessage)
-	sb.WriteString("\", Error: ")
-	sb.WriteString("\"" + c.ErrorMsg + "\"")
-
-	sb.WriteString(", Input: ")
-	sb.WriteString(c.Input)
-	sb.WriteString(", Timestamp: ")
-	sb.WriteString(c.Timestamp.Format(time.RFC3339))
-	sb.WriteString(" }")
-
-	return sb.String()
 }
 
 func PrintSummary(sum CrashSummary) {

@@ -53,16 +53,18 @@ type StateMachine struct {
 	All_Coverage     Coverage // []coveredline
 	Covered_Coverage Coverage // []coveredline
 
-	// Path_Hash2Coverage *PathHash2Coverage_table
-	InitSeeds []Seed
-	SeedType  []SupportedType
+	SeedType               []SupportedType
+	init_hashnumber        []HashNumber
+	string_byte_candidates []int
 
 	Priority_Cache         uint
 	HashNumber2Seeds       *[MAX_CAPACITY]*Seed_Queue             // 시드 큐의 배열 포인터
 	HashNumber2Priority    *[MAX_CAPACITY]uint                    // 배열. 가장 간단.
 	Priority2HashNumberULL *[MAX_CAPACITY]*Unique_Uint_LinkedList // 시간복잡도 줄인 특수
 
-	Crash_Logger *Crash_Logger
+	Crash_Logger          *Crash_Logger
+	verbose               bool
+	inspectingHashNumbers uint
 }
 
 // New_StateMachine: 새로운 StateMachine 생성
@@ -90,7 +92,8 @@ func New_StateMachine(trials uint, inputCount uint) *StateMachine {
 		HashNumber2Seeds:       &[MAX_CAPACITY]*Seed_Queue{}, // 빈 Seed 배열
 		Priority2HashNumberULL: setted_AllULL,                // 빈 링크드 리스트 배열
 
-		Crash_Logger: New_Crash_Logger(),
+		inspectingHashNumbers: 0,
+		Crash_Logger:          New_Crash_Logger(),
 	}
 }
 
@@ -111,14 +114,10 @@ func (sm *StateMachine) CoordinateMachine(seed Seed) EndInfo {
 	hn := seed.HashNumber
 	seed.IsCoordinated = true
 	sm.Input_count++
-	if sm.Input_count%3000 == 0 {
-		kinds := sm.Crash_Logger.Kind()
-		totalNums := len(sm.Crash_Logger.data)
-		println(sm.Input_count, "times runned: found total", totalNums, "failing inputs", "("+strconv.Itoa(len(kinds))+" kind(s) of crash)")
 
-	}
 	// 미등록 해시 넘버시 새 큐 매칭
 	if sm.HashNumber2Seeds[hn] == nil {
+		sm.inspectingHashNumbers++
 		sm.HashNumber2Seeds[hn] = New_Seed_Queue()
 	}
 	sm.HashNumber2Seeds[hn].Enqueue(seed)
@@ -136,6 +135,18 @@ func (sm *StateMachine) CoordinateMachine(seed Seed) EndInfo {
 		sm.Priority2HashNumberULL[old_priority].Delete(uint(hn))
 		sm.Priority2HashNumberULL[updated_priority].Append(uint(hn))
 	}
+	if sm.verbose {
+		if sm.Input_count%1000 == 0 {
+			// kinds := sm.Crash_Logger.Kind()
+			// totalNums := len(sm.Crash_Logger.data)
+			println(sm.Input_count, "times runned: inspecting", sm.inspectingHashNumbers, "coverages")
+		}
+	} else {
+		if sm.Input_count%(sm.Trials/5) == 0 {
+			println(sm.Input_count, "times runned: inspecting", sm.inspectingHashNumbers, "coverages")
+		}
+	}
+
 	// 개수에 따른 종료조건 카운팅팅
 	if sm.Input_count >= sm.Trials {
 		return EndInfo{
@@ -156,6 +167,16 @@ func (sm *StateMachine) CoordinateMachine(seed Seed) EndInfo {
 	}
 }
 
+// 최초의 시드는 독립적으로 evolve되어야 하므로, 따로 전용 메서드 설정
+func (sm *StateMachine) PopInitSeedByHN(hn HashNumber) Seed {
+	popedSeed, isOnce := sm.HashNumber2Seeds[hn].Dequeue()
+	if !isOnce {
+		panic("logical internal error: it must has more than one seed")
+	}
+	return popedSeed
+}
+
+// 이후의 시드는 교배 쌍을 pop함으로써  evove
 func (sm *StateMachine) PopSeeds() []Seed {
 	// 가장 높은 우선순위의 hashnumber를 선택
 	var highest_hn uint
@@ -230,6 +251,7 @@ func (sm *StateMachine) Summarize() []Seed {
 	sort.Sort(collected_P_HN_Pair)
 	// println("state_machine- 정렬 완료:", collected_P_HN_Pair)
 	// 각 hashNumber별로 시드 샘플링
+	// 이때 시드는 우선순위별 기준으로 정렬이 된 상태.
 	sampled_sp_pair := []S_P_Pair{}
 
 	for _, pair := range collected_P_HN_Pair {
@@ -238,16 +260,20 @@ func (sm *StateMachine) Summarize() []Seed {
 		priority := pair.Priority
 		sampled_sp_pair = append(sampled_sp_pair, S_P_Pair{seed, priority})
 	}
-
+	// 총 시드의 개수
+	total := len(sampled_sp_pair)
 	// 요약시킬 배열 생성
 	summarized_seeds := []Seed{}
 	// 시드 내용 초기화(gen, Pid, Id, IsC )
 	for i, sp_pair := range sampled_sp_pair {
+		// 시드의 우선순위 랭킹킹
+		// 1등부터 시작작
+		rank := i + 1
 		// 시드를 알맞은 인풋 형태로 매핑
 		seed := sp_pair.Seed
 		seed.Pid = 0
 		seed.Id = uint(i)
-		seed.Gen = genAllocation(sp_pair.Priority)
+		seed.Gen = genAllocation(sp_pair.Priority, rank, total)
 		seed.IsCoordinated = false
 		// 배열에 매핑된 시드 추가
 		summarized_seeds = append(summarized_seeds, seed)
@@ -255,69 +281,71 @@ func (sm *StateMachine) Summarize() []Seed {
 	return summarized_seeds
 }
 
-func genAllocation(priority uint) uint {
+func genAllocation(priority uint, rank int, total int) uint {
+	var bigger uint
+	// 속도 형상을 위해서
+	// 랭크에 따라 우선순위 향상 로직
+	switch rank {
+	case 1:
+		bigger = 1
+	case 2:
+		bigger = 2
+	case 3:
+		bigger = 3
+	case 4:
+		bigger = 4
+	case 5:
+		bigger = 5
+	default:
+		bigger = 15
+	}
 	// 7~10단계 정도의 하드코딩
-	c1_cutLine := uint(float64(MAX_CAPACITY) * 0.012)
-	c2_cutLine := uint(float64(MAX_CAPACITY) * 0.015)
+	c1_cutLine := uint(float64(MAX_CAPACITY) * 0.008)
+	c2_cutLine := uint(float64(MAX_CAPACITY) * 0.014)
 	c3_cutLine := uint(float64(MAX_CAPACITY) * 0.02)
-	c4_cutLine := uint(float64(MAX_CAPACITY) * 0.05)
-	c5_cutLine := uint(float64(MAX_CAPACITY) * 0.8)
-	c6_cutLine := uint(float64(MAX_CAPACITY) * 0.15)
-	c7_cutLine := uint(float64(MAX_CAPACITY) * 0.25)
+	c4_cutLine := uint(float64(MAX_CAPACITY) * 0.03)
+	c5_cutLine := uint(float64(MAX_CAPACITY) * 0.08)
+	c6_cutLine := uint(float64(MAX_CAPACITY) * 0.1)
+	c7_cutLine := uint(float64(MAX_CAPACITY) * 0.15)
 	c8_cutLine := uint(float64(MAX_CAPACITY) * 0.30)
 	switch {
 	case priority <= c1_cutLine:
-		return 1
+		if bigger > 1 {
+			bigger = 1
+		}
 	case priority <= c2_cutLine:
-		return 2
+		if bigger > 2 {
+			bigger = 2
+		}
 	case priority <= c3_cutLine:
-		return 3
+		if bigger > 3 {
+			bigger = 3
+		}
 	case priority <= c4_cutLine:
-		return 4
+		if bigger > 4 {
+			bigger = 4
+		}
 	case priority <= c5_cutLine:
-		return 5
+		if bigger > 5 {
+			bigger = 5
+		}
 	case priority <= c6_cutLine:
-		return 6
+		if bigger > 6 {
+			bigger = 6
+		}
 	case priority <= c7_cutLine:
-		return 7
+		if bigger > 7 {
+			bigger = 7
+		}
 	case priority <= c8_cutLine:
-		return 8
+		if bigger > 10 {
+			bigger = 10
+		}
 	default:
 		// 기본값 (c7_cutLine보다 큰 경우)
-		return 9
+		if bigger > 15 {
+			bigger = 15
+		}
 	}
-}
-
-// func main() {
-// 	state_machine := New_StateMachine()
-// 	state_machine.Format_StateMachine("some_func", "apple")
-// 	println(state_machine.ToString())
-// }
-
-// print_machine: StateMachine을 예쁘게 출력하는 메서드
-func (sm *StateMachine) ToString() string {
-	// 문자열 빌더 사용
-	var sb strings.Builder
-
-	sb.WriteString("StateMachine:\n")
-	sb.WriteString("  Input_count: ")
-	sb.WriteString(uintToString(sm.Input_count))
-	sb.WriteString("\n")
-
-	sb.WriteString("  All_lines: ")
-	sb.WriteString(CoverageToString(sm.All_Coverage)) // 수정된 부분
-	sb.WriteString("\n")
-
-	sb.WriteString("  Covered_lines: ")
-	sb.WriteString(CoverageToString(sm.Covered_Coverage)) // 수정된 부분
-	sb.WriteString("\n")
-
-	sb.WriteString("  Path_hash2Priority: ")
-	sb.WriteString(sliceToString(sm.HashNumber2Priority[:]))
-	sb.WriteString("\n")
-
-	sb.WriteString("  나머진 추가 구현해보삼: ")
-
-	// 반환
-	return sb.String()
+	return bigger
 }

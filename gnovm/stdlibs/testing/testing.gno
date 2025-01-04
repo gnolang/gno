@@ -94,7 +94,10 @@ func NewT(name string) *T {
 	return &T{name: name}
 }
 
-type testingFunc func(*T)
+type (
+	testingFunc func(*T)
+	fuzzingFunc func(*F)
+)
 
 // Not yet implemented:
 // func (t *T) Cleanup(f func()) {
@@ -279,7 +282,6 @@ func (b *B) TempDir() string                           { panic("not yet implemen
 // ----------------------------------------
 // PB
 // TODO: actually implement
-
 type PB struct{}
 
 func (pb *PB) Next() bool { panic("not yet implemented") }
@@ -287,6 +289,10 @@ func (pb *PB) Next() bool { panic("not yet implemented") }
 type InternalTest struct {
 	Name string
 	F    testingFunc
+}
+type InternalFuzz struct {
+	Name string
+	F    fuzzingFunc
 }
 
 func (t *T) shouldRun(name string) bool {
@@ -301,6 +307,7 @@ func (t *T) shouldRun(name string) bool {
 }
 
 func RunTest(runFlag string, verbose bool, test InternalTest) (ret string) {
+	// func RunTest(runFlag string, verbose bool, test InternalTest) (ret string) {
 	t := &T{
 		name:    test.Name,
 		verbose: verbose,
@@ -322,6 +329,35 @@ func RunTest(runFlag string, verbose bool, test InternalTest) (ret string) {
 	return string(out)
 }
 
+func RunFuzz(fuzzName string, fuzzIters uint, verbose bool, fuzz InternalFuzz) (ret string) {
+	var report Report
+	fuzzer := New_F(verbose, fuzzIters)
+	if fuzzName == "" {
+		out, _ := json.Marshal(Report{
+			Failed:  false,
+			Skipped: true,
+		})
+		return string(out)
+	}
+	if strings.HasPrefix(fuzz.Name, fuzzName) {
+
+		fmt.Fprintln(os.Stderr, "fuzz", fuzz.Name, ":", strconv.Itoa(int(fuzzIters)), "iterate")
+		fRunner(fuzzer, fuzz.F)
+		report = Report{
+			Failed:  fuzzer.failed,
+			Skipped: true,
+		}
+	} else {
+		report = Report{
+			Failed:  false,
+			Skipped: true,
+		}
+	}
+
+	out, _ := json.Marshal(report)
+	return string(out)
+}
+
 func formatDur(dur int64) string {
 	// XXX switch to FormatFloat after it's been added
 	// 1 sec = 1e9 nsec
@@ -336,6 +372,17 @@ func formatDur(dur int64) string {
 
 // used to calculate execution times; only present in testing stdlibs
 func unixNano() int64
+
+func fRunner(f *F, fn fuzzingFunc) {
+	start := unixNano()
+	defer func() {
+		recover()
+		dur := unixNano() - start
+		f.dur = formatDur(dur)
+		fmt.Fprintln(os.Stderr, "Elapsed", f.dur)
+	}()
+	fn(f)
+}
 
 func tRunner(t *T, fn testingFunc, verbose bool) {
 	if !t.shouldRun(t.name) {

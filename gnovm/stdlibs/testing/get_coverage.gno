@@ -56,60 +56,6 @@ func Get_Coverage_of_Reverse1(c *Coverage, s string) string {
 	return string(r)
 }
 
-// // Token은 “정상 유니코드”인지, “깨진 바이트”인지 구분.
-// type Token struct {
-// 	Data  []byte // 토큰의 실제 바이트
-// 	Valid bool   // true이면 UTF-8 디코딩에 성공한 문자
-// }
-
-// // tokenizeString: 문자열 s를 가능한 한 UTF-8로 디코딩하고, 깨진 바이트는 따로 보관
-// func tokenizeString(s string) []Token {
-// 	var tokens []Token
-// 	b := []byte(s)
-// 	i := 0
-// 	for i < len(b) {
-// 		r, size := utf8.DecodeRune(b[i:])
-// 		switch {
-// 		case r == utf8.RuneError && size == 1:
-// 			// 디코딩 실패 → 깨진 바이트 하나를 토큰으로
-// 			tokens = append(tokens, Token{
-// 				Data:  []byte{b[i]},
-// 				Valid: false,
-// 			})
-// 			i++
-// 		default:
-// 			// 디코딩 성공 (유니코드 문자 하나)
-// 			tokens = append(tokens, Token{
-// 				Data:  b[i : i+size],
-// 				Valid: true,
-// 			})
-// 			i += size
-// 		}
-// 	}
-// 	return tokens
-// }
-
-func main() {
-	v := "김명헌apple�\x91\xecsb"
-	// v = "��"
-	tokens := TokenizeString(v)
-	println(TransForHuman(v))
-	// 김명헌apple�\x91\xecsb
-
-	for _, e := range tokens {
-		println(e)
-	}
-	println("v= %q", []rune(v))
-	rev := Reverse1(v)
-	doubleRev := Reverse1(rev)
-	if v != doubleRev {
-		println("Before: %q, after: %q", v, doubleRev)
-	}
-	if utf8.ValidString(v) && !utf8.ValidString(rev) {
-		println("Reverse produced invalid UTF-8 string %q", rev)
-	}
-}
-
 func byteToHexChar(b byte) string {
 	if b < 10 {
 		return string('0' + b) // 0-9
@@ -148,13 +94,12 @@ func Get_Coverage_of_runner(t *T, content []interface{}) Coverage {
 	if !ok {
 		coverage = append(coverage, CoveredLine{co_name: "closure", co_line: 16})
 		coverage = append(coverage, CoveredLine{co_name: "closure", co_line: 17})
-		println("리턴이 없다..........")
+
 		panic("did not implement other type")
 	}
 	orig := string(v)
-	u, ok2 := content[1].(uint)
+	u, ok2 := content[1].(int)
 	if !ok2 {
-		println("리턴이 없다..........")
 		panic("did not implement other type")
 	}
 	coverage = append(coverage, CoveredLine{co_name: "closure", co_line: 18})
@@ -172,7 +117,7 @@ func Get_Coverage_of_runner(t *T, content []interface{}) Coverage {
 	coverage = append(coverage, CoveredLine{co_name: "closure", co_line: 22})
 
 	coverage = append(coverage, CoveredLine{co_name: "closure", co_line: 23})
-	if utf8.ValidString(orig) && !utf8.ValidString(s1) && u == 300 {
+	if utf8.ValidString(orig) && !utf8.ValidString(s1) && u > 300 && u < 1000 {
 		coverage = append(coverage, CoveredLine{co_name: "closure", co_line: 24})
 		return coverage
 	}
@@ -202,59 +147,3 @@ func Get_AllCoverage() Coverage {
 		{"closure", 23},
 	}
 }
-
-// func main() {
-// 	coverage1 := Get_Coverage_of_target_func("ssss")
-// 	coverage2 := Get_Coverage_of_target_func("ǁ")
-// 	fmt.Println("Coverage1:")
-// 	for i, c := range coverage1 {
-// 		fmt.Printf("  covered line %d: co_name = %q, co_line = %d\n", i, c.co_name, c.co_line)
-// 	}
-
-// 	// coverage2 출력
-// 	fmt.Println("Coverage2:")
-// 	for i, c := range coverage2 {
-// 		fmt.Printf("  covered line %d: co_name = %q, co_line = %d\n", i, c.co_name, c.co_line)
-
-// 	} // 두 배열의 차이(diff) 계산
-// 	fmt.Println("\nDifferences:")
-
-// 	// coverage1에만 있는 항목
-// 	fmt.Println("In Coverage1 but not in Coverage2:")
-// 	for _, c1 := range coverage1 {
-// 		found := false
-// 		for _, c2 := range coverage2 {
-// 			if c1.co_name == c2.co_name && c1.co_line == c2.co_line {
-// 				found = true
-// 				break
-// 			}
-// 		}
-// 		if !found {
-// 			fmt.Printf("  co_name = %q, co_line = %d\n", c1.co_name, c1.co_line)
-// 		}
-// 	}
-
-// 	// coverage2에만 있는 항목
-// 	fmt.Println("\nIn Coverage2 but not in Coverage1:")
-// 	for _, c2 := range coverage2 {
-// 		found := false
-// 		for _, c1 := range coverage1 {
-// 			if c1.co_name == c2.co_name && c1.co_line == c2.co_line {
-// 				found = true
-// 				break
-// 			}
-// 		}
-// 		if !found {
-// 			fmt.Printf("  co_name = %q, co_line = %d\n", c2.co_name, c2.co_line)
-// 		}
-// 	}
-
-// input := "The quick brown fox jumped over the lazy dog"
-// rev := Reverse1(input)
-// doubleRev := Reverse1(rev)
-// fmt.Printf("original: %q\n", input)
-// fmt.Printf("original: %q\n", rev)
-// fmt.Printf("original: %q\n", doubleRev)
-//fmt.Printf("reversed: %q, err: %v\n", rev, revErr)
-//fmt.Printf("reversed again: %q, err: %v\n", doubleRev, doubleRevErr)
-//}

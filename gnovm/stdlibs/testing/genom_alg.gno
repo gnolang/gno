@@ -9,75 +9,11 @@ import (
 	"unicode/utf8"
 )
 
-// func main() {
-// 	var s1 string = "apple"
-// 	var b1 []byte = []byte("aaaaaa")
-
-// 	var s2 string = "banana"
-// 	var b2 []byte = []byte("bbbbbb")
-
-// 	seed1 := Seed{Gen: 3, IsUsed: false, Content: []interface{}{s1, b1}, Result: nil}
-// 	seed2 := Seed{Gen: 3, IsUsed: false, Content: []interface{}{s2, b2}, Result: nil}
-
-// 	// old_p := seed1
-
-// 	// for i := 0; i < 10; i++ {
-// 	// 	new_gen := evolve([]Seed{old_p})
-// 	// 	println(i+1, "번째 변이 결과-1:", new_gen[0].Content)
-// 	// 	println(i+1, "번째 변이 결과-2:", new_gen[1].Content)
-// 	// 	old_p = new_gen[0]
-// 	// }
-
-// 	new_gen := evolve([]Seed{seed1, seed2})
-// 	for i, e := range new_gen {
-// 		println(i, "번쨰:", e.Content)
-// 		v, ok := e.Content[1].([]byte)
-// 		if !ok {
-// 			panic("AAA")
-// 		}
-// 		println(string(v))
-// 	}
-// }
-
-// func twoPointCrossoverTokens(toks1, toks2 []Token) (child1, child2 []Token) {
-// 	// 교배 지점을 위한 최소 길이
-// 	minLen := len(toks1)
-// 	if len(toks2) < minLen {
-// 		minLen = len(toks2)
-// 	}
-// 	// 만약 minLen == 0 → 한쪽이 토큰이 없다면, 한쪽 복사 etc...
-// 	if minLen == 0 {
-// 		return append([]Token{}, toks1...), append([]Token{}, toks2...)
-// 	}
-
-// 	// 교차 지점
-// 	point1 := RandRange(0, int64(minLen))
-// 	point2 := RandRange(0, int64(minLen))
-// 	if point1 > point2 {
-// 		point1, point2 = point2, point1
-// 	}
-
-// 	// 자식1 = toks1[:point1] + toks2[point1:point2] + toks1[point2:]
-// 	c1 := append([]Token{}, toks1[:point1]...)
-// 	c1 = append(c1, toks2[point1:point2]...)
-// 	c1 = append(c1, toks1[point2:]...)
-
-// 	// 자식2 = toks2[:point1] + toks1[point1:point2] + toks2[point2:]
-// 	c2 := append([]Token{}, toks2[:point1]...)
-// 	c2 = append(c2, toks1[point1:point2]...)
-// 	c2 = append(c2, toks2[point2:]...)
-
-// 	return c1, c2
-// }
-
 // Seed의 Content를 랜덤으로 변형
 // 다변함수 시엔 하나를 잡아서 변형형
-// TODO: 다른 타입 가능하게 하기기
-// TODO: 변형 전략 강화도 고려하기. 일단 테스트 후, 좀더 강한 변형도 고려하기.
-// TODO: 그래도, 이런 변형이 나을지도. 점진적이니까.
-func Mutate(seed Seed) Seed {
+func Mutate(seed Seed, mut_range int) Seed {
 	if len(seed.Content) == 0 {
-		return seed
+		panic("mutate logic error: content's len==0")
 	}
 	index := 0
 	if len(seed.Content) > 1 {
@@ -88,11 +24,17 @@ func Mutate(seed Seed) Seed {
 	// 선택된 원소를 수정
 	switch v := selected.(type) {
 	case int, int8, int16, int32, int64:
-		seed.Content[index] = randomInt_from(v)
+		for i := 0; i < mut_range; i++ {
+			seed.Content[index] = randomInt_from(v)
+		}
 	case uint, uint8, uint16, uint32, uint64:
-		seed.Content[index] = randomUint_from(v)
+		for i := 0; i < mut_range; i++ {
+			seed.Content[index] = randomUint_from(v)
+		}
 	case float32, float64:
-		seed.Content[index] = randomFloat_from(v)
+		for i := 0; i < mut_range; i++ {
+			seed.Content[index] = randomFloat_from(v)
+		}
 	case bool:
 		seed.Content[index] = randomBool()
 	// 갑 집합 문제로 취소
@@ -107,8 +49,10 @@ func Mutate(seed Seed) Seed {
 	case string:
 		bytes := []byte(v)
 		if len(bytes) > 0 {
-			byteIndex := RandRange(0, int64(len(bytes)))
-			bytes[byteIndex] = randomByte_from(bytes[byteIndex])
+			for i := 0; i < mut_range; i++ {
+				byteIndex := RandRange(0, int64(len(bytes)))
+				bytes[byteIndex] = randomByte_from(bytes[byteIndex])
+			}
 		}
 		var new_str string = string(bytes)
 		seed.Content[index] = new_str
@@ -116,8 +60,10 @@ func Mutate(seed Seed) Seed {
 	case []byte:
 		bytes := []byte(v)
 		if len(bytes) > 0 {
-			byteIndex := RandRange(0, int64(len(bytes)))
-			bytes[byteIndex] = randomByte_from(bytes[byteIndex])
+			for i := 0; i < mut_range; i++ {
+				byteIndex := RandRange(0, int64(len(bytes)))
+				bytes[byteIndex] = randomByte_from(bytes[byteIndex])
+			}
 		}
 		var new_byt []byte = []byte(bytes)
 		seed.Content[index] = new_byt
@@ -129,116 +75,90 @@ func Mutate(seed Seed) Seed {
 }
 
 // TODO: 다른 타입도 변형 가능하게 하기.
-func InsertDelete(seed Seed, p float64) Seed {
-	if len(seed.Content) == 0 {
+func InsertDelete(seed Seed, p float64, mut_range int, string_byte_candidates []int) Seed {
+	if len(string_byte_candidates) == 0 {
 		return seed
 	}
 
 	index := 0
-	if len(seed.Content) > 1 {
-		index = int(RandRange(0, int64(len(seed.Content))))
+	if len(string_byte_candidates) > 0 {
+
+		selected_field_idx := RandRange(0, int64(len(string_byte_candidates)))
+		index = string_byte_candidates[selected_field_idx]
 	}
 
 	selected := seed.Content[index]
+
 	switch v := selected.(type) {
-	// case string:
-	// 	rr := []rune(v)
-	// 	l := len(rr)
-
-	// 	// Insert
-	// 	if GenerateRandomBool(p) {
-	// 		if l < 1 {
-	// 			rn := rune(' ')
-	// 			rr = []rune{randomRune_from(rn)}
-	// 		} else {
-	// 			// 삽입할 문자 결정
-	// 			sample := rr[RandRange(0, int64(l))]
-	// 			char := randomRune_from(sample)
-	// 			// 삽입 포지션 배정
-	// 			pos := RandRange(0, int64(l))
-	// 			// 한 칸 늘리기
-	// 			rr = append(rr, 0)
-	// 			// 한 칸 밀기
-	// 			copy(rr[pos+1:], rr[pos:])
-	// 			// 그 사이에 삽입
-	// 			rr[pos] = char
-	// 		}
-	// 	} else {
-	// 		if l == 0 {
-	// 			return seed
-	// 		}
-
-	// 		pos := RandRange(0, int64(l))
-	// 		rr = append(rr[:pos], rr[pos+1:]...)
-	// 	}
-	// 	var new_str string = string(rr)
-	// 	seed.Content[index] = new_str
 	case []byte:
 		bb := []byte(v)
-		l := len(bb)
-
-		// Insert
-		if GenerateRandomBool(p) {
-			if l < 1 {
-				var b byte = ' '
-				bb = []byte{randomByte_from(b)}
+		for i := 0; i < mut_range; i++ {
+			l := len(bb)
+			// Insert
+			if GenerateRandomBool(p) {
+				if l < 1 {
+					var b byte = ' '
+					bb = []byte{randomByte_from(b)}
+				} else {
+					// 삽입할 문자 결정
+					sample := bb[RandRange(0, int64(l))]
+					bt := randomByte_from(sample)
+					// 삽입 포지션 배정
+					pos := RandRange(0, int64(l))
+					// 한 칸 늘리기
+					bb = append(bb, 0)
+					// 한 칸 밀기
+					copy(bb[pos+1:], bb[pos:])
+					// 그 사이에 삽입
+					bb[pos] = bt
+				}
 			} else {
-				// 삽입할 문자 결정
-				sample := bb[RandRange(0, int64(l))]
-				bt := randomByte_from(sample)
-				// 삽입 포지션 배정
+				// Del
+				if l == 0 {
+					return seed
+				}
 				pos := RandRange(0, int64(l))
-				// 한 칸 늘리기
-				bb = append(bb, 0)
-				// 한 칸 밀기
-				copy(bb[pos+1:], bb[pos:])
-				// 그 사이에 삽입
-				bb[pos] = bt
-			}
-		} else {
-			if l == 0 {
-				return seed
+				bb = append(bb[:pos], bb[pos+1:]...)
 			}
 
-			pos := RandRange(0, int64(l))
-			bb = append(bb[:pos], bb[pos+1:]...)
 		}
 		var new_byt []byte = bb
 		seed.Content[index] = new_byt
 	case string:
 		bb := []byte(v)
-		l := len(bb)
-
-		// Insert
-		if GenerateRandomBool(p) {
-			if l < 1 {
-				var b byte = ' '
-				bb = []byte{randomByte_from(b)}
+		for i := 0; i < mut_range; i++ {
+			l := len(bb)
+			// Insert
+			if GenerateRandomBool(p) {
+				if l < 1 {
+					var b byte = ' '
+					bb = []byte{randomByte_from(b)}
+				} else {
+					// 삽입할 문자 결정
+					sample := bb[RandRange(0, int64(l))]
+					bt := randomByte_from(sample)
+					// 삽입 포지션 배정
+					pos := RandRange(0, int64(l))
+					// 한 칸 늘리기
+					bb = append(bb, 0)
+					// 한 칸 밀기
+					copy(bb[pos+1:], bb[pos:])
+					// 그 사이에 삽입
+					bb[pos] = bt
+				}
 			} else {
-				// 삽입할 문자 결정
-				sample := bb[RandRange(0, int64(l))]
-				bt := randomByte_from(sample)
-				// 삽입 포지션 배정
-				pos := RandRange(0, int64(l))
-				// 한 칸 늘리기
-				bb = append(bb, 0)
-				// 한 칸 밀기
-				copy(bb[pos+1:], bb[pos:])
-				// 그 사이에 삽입
-				bb[pos] = bt
-			}
-		} else {
-			if l == 0 {
-				return seed
+				if l != 0 {
+					pos := RandRange(0, int64(l))
+					bb = append(bb[:pos], bb[pos+1:]...)
+				}
 			}
 
-			pos := RandRange(0, int64(l))
-			bb = append(bb[:pos], bb[pos+1:]...)
 		}
 		var new_str string = string(bb)
 		seed.Content[index] = new_str
 	default:
-
+		println("maybe some nil string error:", v)
+		panic("internal logic error")
 	}
 	return seed
 }
@@ -266,74 +186,10 @@ func TwoPointCrossover(parent1, parent2 Seed, seedCount *uint) (Seed, Seed) {
 	for i := 0; i < len(parent1.Content); i++ {
 		switch v1 := content1[i].(type) {
 		case int, int8, int16, int32, int64, uint, uint8, uint16, uint32, uint64, float32, float64:
-			content1[i], content2[i] = linear_crossover(v1, content2[i])
+			content1[i], content2[i] = factorization_crossover(v1, content2[i])
 		case bool:
 			content1[i] = v1
 			content2[i] = content2[i]
-			// case string:
-			// 	str1 := v1
-			// 	str2, ok2 := parent2.Content[i].(string)
-			// 	if !ok2 {
-			// 		panic("type not equal")
-			// 	}
-			// 	p1Runes := []rune(str1)
-			// 	p2Runes := []rune(str2)
-
-			// 	p1Len := len(p1Runes)
-			// 	p2Len := len(p2Runes)
-
-			// 	// 최소 길이를 기준으로 교배 지점 설정
-			// 	minLen := p1Len
-			// 	if p2Len < p1Len {
-			// 		minLen = p2Len
-			// 	}
-			// 	if minLen < 1 {
-			// 		maxLen := p1Len
-			// 		m := 1
-			// 		if p2Len > p1Len {
-			// 			m = 2
-			// 			maxLen = p2Len
-			// 		}
-			// 		if maxLen < 1 {
-			// 			rn := rune(' ')
-			// 			content1[i] = randomRune_from(rn)
-			// 			if content1[i] == nil {
-			// 				content1[i] = "a"
-			// 			}
-			// 			content2[i] = randomRune_from(rn)
-			// 			if content2[i] == nil {
-			// 				content2[i] = "a"
-			// 			}
-			// 			continue
-			// 		} else {
-			// 			if m == 1 {
-			// 				content2[i] = content1[i]
-			// 			} else {
-			// 				content1[i] = content2[i]
-			// 			}
-			// 			continue
-			// 		}
-			// 	}
-			// 	point1 := RandRange(0, int64(minLen))
-			// 	point2 := RandRange(0, int64(minLen))
-
-			// 	// 교차점 정렬 (point1 < point2 보장)
-			// 	if point1 > point2 {
-			// 		point1, point2 = point2, point1
-			// 	}
-			// 	// 자식 생성
-			// 	crossed_str1 := append([]rune{}, p1Runes[:point1]...)          // 부모1의 첫 구간
-			// 	crossed_str1 = append(crossed_str1, p2Runes[point1:point2]...) // 부모2의 중간 구간
-			// 	crossed_str1 = append(crossed_str1, p1Runes[point2:]...)       // 부모1의 마지막 구간
-
-			// 	crossed_str2 := append([]rune{}, p2Runes[:point1]...)          // 부모2의 첫 구간
-			// 	crossed_str2 = append(crossed_str2, p1Runes[point1:point2]...) // 부모1의 중간 구간
-			// 	crossed_str2 = append(crossed_str2, p2Runes[point2:]...)       // 부모2의 마지막 구간
-
-			// 	result_str1 := string(crossed_str1)
-			// 	result_str2 := string(crossed_str2)
-			// 	content1[i] = result_str1
-			// 	content2[i] = result_str2
 
 		case []byte:
 			byt1 := v1
@@ -349,7 +205,7 @@ func TwoPointCrossover(parent1, parent2 Seed, seedCount *uint) (Seed, Seed) {
 			if p2Len < p1Len {
 				minLen = p2Len
 			}
-			if minLen < 1 {
+			if minLen == 0 {
 				maxLen := p1Len
 				m := 1
 				if p2Len > p1Len {
@@ -359,8 +215,8 @@ func TwoPointCrossover(parent1, parent2 Seed, seedCount *uint) (Seed, Seed) {
 				if maxLen < 1 {
 					s := ' '
 					bb := byte(s)
-					content1[i] = randomByte_from(bb)
-					content2[i] = randomByte_from(bb)
+					content1[i] = []byte([]byte{randomByte_from(bb)})
+					content2[i] = []byte([]byte{randomByte_from(bb)})
 					continue
 				} else {
 					if m == 1 {
@@ -426,8 +282,8 @@ func TwoPointCrossover(parent1, parent2 Seed, seedCount *uint) (Seed, Seed) {
 				if maxLen < 1 {
 					s := ' '
 					bb := byte(s)
-					content1[i] = randomByte_from(bb)
-					content2[i] = randomByte_from(bb)
+					content1[i] = string(randomByte_from(bb))
+					content2[i] = string(randomByte_from(bb))
 					continue
 				} else {
 					if m == 1 {
@@ -484,33 +340,33 @@ func TwoPointCrossover(parent1, parent2 Seed, seedCount *uint) (Seed, Seed) {
 // 교배의 수와 정도를 gen따라 유동화 했습니다
 // 전체적으로 수정했습니다.
 // 파라미터로 받는 시드는 함수 내에선 불변참조됩니다.
-func Evolve(seeds []Seed, seedCount *uint) []Seed {
+func Evolve(seeds []Seed, seedCount *uint, string_byte_candidates []int) []Seed {
 	p1 := seeds[0]
-	// 이게 목표 수
-
-	x := float64(p1.Gen)
-
-	target_count := int(1160 / math.Sqrt(x*x*x))
-	loop_count := target_count / 2
-
-	// 결과가 60 미만일 경우 60로 설정
-	if target_count < 120 {
-		target_count = 120
+	// 뮤테이션 레벨링
+	// 1. 변이 범위 레벨링
+	Mutation_Range := [10]int{5, 4, 3, 3, 3, 2, 2, 2, 2, 2}
+	var mutation_range int
+	if int(p1.Gen) > len(Mutation_Range) {
+		mutation_range = 1
+	} else {
+		mutation_range = Mutation_Range[p1.Gen-1]
 	}
-	if loop_count < 120 {
-		loop_count = 120
+	// 2. 자식 개수 레벨링
+	Evlove_Count := [10]int{1920, 1440, 1200, 1024, 960, 720, 600, 480, 360, 240}
+	var evolve_count int
+	if int(p1.Gen) > len(Evlove_Count) {
+		evolve_count = 240
+	} else {
+		evolve_count = Evlove_Count[p1.Gen-1]
 	}
 
-	// 결과를 짝수로 만듦
-	if loop_count%2 != 0 {
-		loop_count++
-	}
+	loop_count := evolve_count / 2
 
 	new_generation := []Seed{}
 
 	if len(seeds) == 1 {
 		// seed가 하나인 경우에도 evlove가능하게 디자인
-		for i := 0; i < int(target_count); i++ {
+		for i := 0; i < int(evolve_count); i++ {
 			// 교배가 무의미하므로, "반드시" 둘 중 하나의 변형이 일어나야 함.
 
 			// 깊은 복사를 위해 새로운 슬라이스 생성
@@ -527,12 +383,15 @@ func Evolve(seeds []Seed, seedCount *uint) []Seed {
 				Pid:           seeds[0].Id,
 				Id:            *seedCount,
 			}
+			// 뮤테이션 레벨만큼 변이하기
 
 			if UniformRandomBool(0.6) {
-				new_ind = Mutate(new_ind)
-			} else {
-				new_ind = InsertDelete(new_ind, 0.3)
+				new_ind = Mutate(new_ind, mutation_range)
 			}
+			if UniformRandomBool(0.4) {
+				new_ind = InsertDelete(new_ind, 0.5, mutation_range, string_byte_candidates)
+			}
+
 			new_ind.Gen = seeds[0].Gen + 1
 			new_generation = append(new_generation, new_ind)
 
@@ -556,12 +415,13 @@ func Evolve(seeds []Seed, seedCount *uint) []Seed {
 
 	// 변이 확률은 기존 퍼징에 기반합니다.
 	for i := range new_generation {
+		// 하나의 개체에 대해서 변이 적용
 
-		if UniformRandomBool(0.3) {
-			new_generation[i] = Mutate(new_generation[i]) // 원본 데이터 수정
+		if UniformRandomBool(0.4) {
+			new_generation[i] = Mutate(new_generation[i], mutation_range) // 원본 데이터 수정
 		}
-		if UniformRandomBool(0.2) {
-			new_generation[i] = InsertDelete(new_generation[i], 0.3)
+		if UniformRandomBool(0.3) {
+			new_generation[i] = InsertDelete(new_generation[i], 0.5, mutation_range, string_byte_candidates)
 		}
 
 	}
@@ -595,21 +455,21 @@ func randomByte_from(seed_byte byte) byte {
 		}
 	} else {
 		switch {
-		case p < 0.15:
+		case p < 0.1:
 			currentCase = (currentCase + 2) % 4 // 순환 처리
 			next_flag = false
 			break
-		case p < 0.35: // 이전 케이스
+		case p >= 0.1 && p < 0.3: // 이전 케이스
 			currentCase = (currentCase + 3) % 4 // 순환 처리
 			next_flag = false
 			break
-		case p < 0.65: // 본인 케이스
+		case p >= 0.3 && p < 0.7: // 본인 케이스
 			break
 			// 유지
-		case p < 0.85:
+		case p >= 0.7 && p < 0.9:
 			next_flag = true
 			currentCase = (currentCase + 1) % 4 // 순환 처리
-		case p <= 1.0: // 다음 케이스
+		case p >= 0. && p <= 1.0: // 다음 케이스
 			next_flag = true
 			currentCase = (currentCase + 2) % 4 // 순환 처리
 		}
@@ -670,100 +530,6 @@ const (
 	ABSOLUTE_MAX = 0x7FFFFFFF
 )
 
-//! 사용하지 말 것
-//! rune은 자동 디코딩 설정 때문에 "string의 커버 범위 != []rune의 커버 범위" 됨
-// // 수정된 randomRune 함수
-// func randomRune_from(seed_rune rune) rune {
-// 	p := GetSingleRand().Float64() // 0.0 <= p < 1.0
-
-// 	// 단지, del확률 처리용으로 만든 변수. 신경 쓸 필요 없음.
-// 	next_flag := GenerateRandomBool(0.5)
-
-// 	var r int64
-// 	// 현재 케이스를 판별
-// 	currentCase := determineCase(seed_rune)
-
-// 	// 확률에 따른 케이스 이동
-// 	// 점진적인
-// 	if currentCase == 2 {
-// 		// DEL케이스인 경우 확률 조정
-// 		switch {
-// 		case p < 0.45: // 이전 케이스
-// 			currentCase = (currentCase + 6) % 7 // 순환 처리
-// 			break
-// 		case p < 0.55: // 본인 케이스 유지 확률은 10%
-// 			break
-// 		// 유지
-// 		case p <= 1.0: // 다음 케이스
-// 			currentCase = (currentCase + 1) % 7 // 순환 처리
-// 		}
-// 	} else {
-// 		switch {
-// 		case p < 0.15: // 이전 케이스
-// 			currentCase = (currentCase + 5) % 7 // 순환 처리
-// 			next_flag = false
-// 			break
-// 		case p < 0.35:
-// 			currentCase = (currentCase + 6) % 7 // 순환 처리
-// 			next_flag = false
-// 			break
-// 		case p < 0.65: // 본인 케이스
-// 			break
-// 			// 유지
-// 		case p < 0.85:
-// 			currentCase = (currentCase + 1) % 7 // 순환 처리
-// 			next_flag = true
-// 			break
-// 		case p <= 1.0: // 다음 케이스
-// 			next_flag = true
-// 			currentCase = (currentCase + 2) % 7 // 순환 처리
-
-// 		}
-// 	}
-
-// 	if currentCase == 2 {
-// 		p2 := GetSingleRand().Float64()
-// 		// DEL케이스인 경우 확률 조정
-// 		if next_flag {
-// 			if p2 < 0.8 {
-// 				// 다음 케이스로 넘어왔는데 DEL인 경우
-// 				// 높은 확률로 다음 케이스로 이어서 넘기기기
-// 				currentCase = (currentCase + 1) % 7 // 순환 처리
-// 			}
-// 		} else {
-// 			if p2 < 0.8 {
-// 				// 이전 케이스로 넘어왔는데 DEL인 경우
-// 				// 높은 확률로 이전전 케이스로 이어서 넘기기기
-// 				currentCase = (currentCase + 6) % 7 // 순환 처리
-// 			}
-// 		}
-
-// 	}
-
-// 	// 해당 케이스의 범위에서 랜덤 값 생성
-// 	switch currentCase {
-// 	case 0: // 0~31 스페셜 문자
-// 		r = RandRange(ABSOLUTE_MIN, SPECIAL_MAX+1)
-// 	case 1: // 32~126 아스키
-// 		r = RandRange(LOW_ASCII_MIN, LOW_ASCII_MAX+1)
-// 	case 2:
-// 		// DEL문자
-// 		r = DEL
-// 	case 3: // 128~255 하이 아스키
-// 		r = RandRange(HIGH_ASCII_MIN, HIGH_ASCII_MAX+1)
-// 	case 4: // 그 외 프린트 가능한 유니코드
-// 		r = RandRange(PRINT_UNICODE_MIN, PRINT_UNICODE_MAX+1)
-// 	case 5: // 그 외의 프린트 불가능한 유니코드
-// 		r = RandRange(BOUNDARY_UNICODE_MIN, BOUNDARY_UNICODE_MAX+1)
-// 	case 6:
-// 		// 유니코드가 아닌 케이스
-// 		r = RandRange(BOUNDARY_UNICODE_MAX, ABSOLUTE_MAX+1)
-
-// 	}
-
-// 	return rune(r)
-// }
-
 // determineCase: seed_rune의 케이스를 판별
 // 유니코드를 점진적으로 변형시키기.
 func determineCase(seed_rune rune) int {
@@ -799,32 +565,35 @@ func randomInt_from(i interface{}) interface{} {
 	switch v := i.(type) {
 	case int:
 		var int_std interface{}
-
+		// 아래의 로직에서 min==max가 되는 경우를 미리 제함
+		if v == 0 {
+			return int(RandInt64())
+		}
 		switch {
 		case p < 0.15:
-			min := int64(v) - 100
-			max := int64(v) + 100
+			min := int64(v) * (-2)
+			max := int64(v) * 2
 			if min > max {
 				min, max = max, min
 			}
 			int_std = int(RandRange(min, max))
 		case p < 0.3:
-			min := int64(v) - 1000
-			max := int64(v) + 1000
+			min := int64(v) * (-4)
+			max := int64(v) * (4)
 			if min > max {
 				min, max = max, min
 			}
 			int_std = int(RandRange(min, max))
 		case p < 0.45:
-			min := int64(v) - 10000
-			max := int64(v) + 10000
+			min := int64(v) * (-8)
+			max := int64(v) * (8)
 			if min > max {
 				min, max = max, min
 			}
 			int_std = int(RandRange(min, max))
 		case p < 0.60:
-			min := int64(v) - 100000
-			max := int64(v) + 100000
+			min := int64(v) * (-16)
+			max := int64(v) * (16)
 			if min > max {
 				min, max = max, min
 			}
@@ -835,18 +604,21 @@ func randomInt_from(i interface{}) interface{} {
 		return int_std
 
 	case int8:
+		if v == 0 {
+			return int8(RandInt64())
+		}
 		var int_8 interface{}
 		switch {
 		case p < 0.3:
-			min := int64(v) - 5
-			max := int64(v) + 5
+			min := int64(v) * (-2)
+			max := int64(v) * (2)
 			if min > max {
 				min, max = max, min
 			}
 			int_8 = int8(RandRange(min, max))
 		case p < 0.5:
-			min := int64(v) - 30
-			max := int64(v) + 30
+			min := int64(v) * (-4)
+			max := int64(v) * (4)
 			if min > max {
 				min, max = max, min
 			}
@@ -857,18 +629,21 @@ func randomInt_from(i interface{}) interface{} {
 		return int_8
 
 	case int16:
+		if v == 0 {
+			return int16(RandInt64())
+		}
 		var int_16 interface{}
 		switch {
 		case p < 0.3:
-			min := int64(v) - 100
-			max := int64(v) + 100
+			min := int64(v) * (-2)
+			max := int64(v) * (2)
 			if min > max {
 				min, max = max, min
 			}
 			int_16 = int16(RandRange(min, max))
 		case p < 0.5:
-			min := int64(v) - 1000
-			max := int64(v) + 1000
+			min := int64(v) * (-4)
+			max := int64(v) * (4)
 			if min > max {
 				min, max = max, min
 			}
@@ -879,25 +654,28 @@ func randomInt_from(i interface{}) interface{} {
 		return int_16
 
 	case int32:
+		if v == 0 {
+			return int32(RandInt64())
+		}
 		var int_32 interface{}
 		switch {
 		case p < 0.2:
-			min := int64(v) - 100
-			max := int64(v) + 100
+			min := int64(v) * (-2)
+			max := int64(v) * (2)
 			if min > max {
 				min, max = max, min
 			}
 			int_32 = int32(RandRange(min, max))
 		case p < 0.4:
-			min := int64(v) - 1000
-			max := int64(v) + 1000
+			min := int64(v) * (-4)
+			max := int64(v) * (4)
 			if min > max {
 				min, max = max, min
 			}
 			int_32 = int32(RandRange(min, max))
 		case p < 0.6:
-			min := int64(v) - 10000
-			max := int64(v) + 10000
+			min := int64(v) * (-8)
+			max := int64(v) * (8)
 			if min > max {
 				min, max = max, min
 			}
@@ -908,32 +686,35 @@ func randomInt_from(i interface{}) interface{} {
 		return int_32
 
 	case int64:
+		if v == 0 {
+			return RandInt64()
+		}
 		var int_64 interface{}
 		switch {
 		case p < 0.15:
-			min := v - 100
-			max := v + 100
+			min := v * (-2)
+			max := v * (2)
 			if min > max {
 				min, max = max, min
 			}
 			int_64 = RandRange(min, max)
 		case p < 0.3:
-			min := v - 1000
-			max := v + 1000
+			min := v * (-4)
+			max := v * (4)
 			if min > max {
 				min, max = max, min
 			}
 			int_64 = RandRange(min, max)
 		case p < 0.45:
-			min := v - 10000
-			max := v + 10000
+			min := v * (-8)
+			max := v * (8)
 			if min > max {
 				min, max = max, min
 			}
 			int_64 = RandRange(min, max)
 		case p < 0.60:
-			min := v - 100000
-			max := v + 100000
+			min := v * (-16)
+			max := v * (16)
 			if min > max {
 				min, max = max, min
 			}
@@ -954,43 +735,37 @@ func randomUint_from(u interface{}) interface{} {
 
 	switch v := u.(type) {
 	case uint:
+		if v == 0 {
+			return uint(RandUint64())
+		}
 		var uint_std interface{}
 		switch {
 		case p < 0.3:
-			min := int64(v) / 2
-			max := int64(v) * 2
-			if min > max {
-				min, max = max, min
-			}
-			uint_std = uint(RandRange(min, max))
+			min := v / 254
+			max := v * 2
+			uint_std = uint(UintRandRange(uint64(min), uint64(max)))
 		case p < 0.6:
-			min := int64(v) / 10
-			max := int64(v) * 10
-			if min > max {
-				min, max = max, min
-			}
-			uint_std = uint(RandRange(min, max))
+			min := v / 9096
+			max := v * 8
+			uint_std = uint(UintRandRange(uint64(min), uint64(max)))
 		default:
 			uint_std = uint(GetSingleRand().Uint64())
 		}
 		return uint_std
 
 	case uint8:
+		if v == 0 {
+			return uint8(RandUint64())
+		}
 		var uint_8 interface{}
 		switch {
 		case p < 0.3:
-			min := int64(v) / 2
+			min := int64(v) / 8
 			max := int64(v) * 2
-			if min > max {
-				min, max = max, min
-			}
 			uint_8 = uint8(RandRange(min, max))
 		case p < 0.6:
-			min := int64(v) / 10
-			max := int64(v) * 10
-			if min > max {
-				min, max = max, min
-			}
+			min := int64(v) / 32
+			max := int64(v) * 8
 			uint_8 = uint8(RandRange(min, max))
 		default:
 			uint_8 = uint8(RandRange(0, 256)) // uint8 범위: 0 ~ 255
@@ -998,21 +773,18 @@ func randomUint_from(u interface{}) interface{} {
 		return uint_8
 
 	case uint16:
+		if v == 0 {
+			return uint16(RandUint64())
+		}
 		var uint_16 interface{}
 		switch {
 		case p < 0.3:
-			min := int64(v) / 2
+			min := int64(v) / 254
 			max := int64(v) * 2
-			if min > max {
-				min, max = max, min
-			}
 			uint_16 = uint16(RandRange(min, max))
 		case p < 0.6:
-			min := int64(v) / 10
-			max := int64(v) * 10
-			if min > max {
-				min, max = max, min
-			}
+			min := int64(v) / 9096
+			max := int64(v) * 8
 			uint_16 = uint16(RandRange(min, max))
 		default:
 			uint_16 = uint16(RandRange(0, 65536)) // uint16 범위: 0 ~ 65535
@@ -1020,28 +792,22 @@ func randomUint_from(u interface{}) interface{} {
 		return uint_16
 
 	case uint32:
+		if v == 0 {
+			return uint32(RandUint64())
+		}
 		var uint_32 interface{}
 		switch {
 		case p < 0.2:
-			min := int64(v) / 2
+			min := int64(v) / 254
 			max := int64(v) * 2
-			if min > max {
-				min, max = max, min
-			}
 			uint_32 = uint32(RandRange(min, max))
 		case p < 0.4:
-			min := int64(v) / 8
+			min := int64(v) / 9096
 			max := int64(v) * 8
-			if min > max {
-				min, max = max, min
-			}
 			uint_32 = uint32(RandRange(min, max))
 		case p < 0.6:
-			min := int64(v) / 16
+			min := int64(v) / (9096 * 9096)
 			max := int64(v) * 16
-			if min > max {
-				min, max = max, min
-			}
 			uint_32 = uint32(RandRange(min, max))
 		default:
 			uint_32 = uint32(RandRange(0, int64(^uint32(0))))
@@ -1049,29 +815,23 @@ func randomUint_from(u interface{}) interface{} {
 		return uint_32
 
 	case uint64:
+		if v == 0 {
+			return RandUint64()
+		}
 		var uint_64 interface{}
 		switch {
-		case p < 0.3:
-			min := int64(v) / 2
-			max := int64(v) * 2
-			if min > max {
-				min, max = max, min
-			}
-			uint_64 = uint64(RandRange(min, max))
-		case p < 0.6:
-			min := int64(v) / 8
-			max := int64(v) * 8
-			if min > max {
-				min, max = max, min
-			}
-			uint_64 = uint64(RandRange(min, max))
-		case p < 0.6:
-			min := int64(v) / 32
-			max := int64(v) * 32
-			if min > max {
-				min, max = max, min
-			}
-			uint_64 = uint32(RandRange(min, max))
+		case p < 0.2:
+			min := v / 254
+			max := v * 2
+			uint_64 = UintRandRange(min, max)
+		case p < 0.5:
+			min := v / 9096
+			max := v * 8
+			uint_64 = UintRandRange(min, max)
+		case p < 0.5:
+			min := v / (9096 * 9096)
+			max := v * 16
+			uint_64 = UintRandRange(min, max)
 		default:
 			uint_64 = RandUint64()
 		}
@@ -1098,99 +858,327 @@ func randomFloat_from(f interface{}) interface{} {
 }
 
 func randFloat32_from(f float32) float32 {
-	return 0.0000000
+	return randomFloat32(f)
 }
 
 func randFloat64_from(f float64) float64 {
-	return 0.0000000
+	return randomFloat64(f)
 }
 
 func randomBool() bool {
 	return UniformRandomBool(0.5)
 }
 
-func linear_crossover(a interface{}, b interface{}) (interface{}, interface{}) {
+// func factorization_crossover(a interface{}, b interface{}) (interface{}, interface{}) {
+func factorization_crossover(a interface{}, b interface{}) (interface{}, interface{}) {
 	switch v1 := a.(type) {
 	case int:
 		v2, ok := b.(int)
 		if !ok {
 			panic("type not equal")
 		}
-		new_v1 := int(math.Round(0.7*float64(v1) + 0.3*float64(v2)))
-		new_v2 := int(math.Round(0.3*float64(v1) + 0.7*float64(v2)))
+		min := v1
+		max := v2
+		if v1 > v2 {
+			min = v2
+			max = v1
+		}
+		if min < 0 && max < 0 {
+			// 둘다 음수 시 (-8,-2)=>-2
+			min = max
+			// 이후 양수로 변경
+			min = min * (-1)
+		}
+		// 제수는 반드시 양수 범위 내에서 생성
+		if min < 0 {
+			min = -1 * min
+		}
+		// randRange시의 순서 일치를 보장
+		if min < 4 {
+			min = 4
+		}
+		var new_v1 int
+		var new_v2 int
+		divisor := int(RandRange(1, int64(min)/2))
+		if randomBool() {
+			new_v1 = v1 / divisor
+			new_v2 = v2 * divisor
+		} else {
+			new_v1 = v1 * divisor
+			new_v2 = v2 / divisor
+		}
 		return new_v1, new_v2
 	case int8:
 		v2, ok := b.(int8)
 		if !ok {
 			panic("type not equal")
 		}
-		new_v1 := int8(math.Round(0.7*float64(v1) + 0.3*float64(v2)))
-		new_v2 := int8(math.Round(0.3*float64(v1) + 0.7*float64(v2)))
+		min := v1
+		max := v2
+		if v1 > v2 {
+			min = v2
+			max = v1
+		}
+		if min < 0 && max < 0 {
+			// 둘다 음수 시 (-8,-2)=>-2
+			min = max
+			// 이후 양수로 변경
+			min = min * (-1)
+		}
+		// 제수는 반드시 양수 범위 내에서 생성
+		if min < 0 {
+			min = -1 * min
+		}
+		// randRange시의 순서 일치를 보장
+		if min < 4 {
+			min = 4
+		}
+		var new_v1 int8
+		var new_v2 int8
+		divisor := int8(RandRange(1, int64(min)/2))
+		if randomBool() {
+			new_v1 = v1 / divisor
+			new_v2 = v2 * divisor
+		} else {
+			new_v1 = v1 * divisor
+			new_v2 = v2 / divisor
+		}
 		return new_v1, new_v2
 	case int16:
 		v2, ok := b.(int16)
 		if !ok {
 			panic("type not equal")
 		}
-		new_v1 := int16(math.Round(0.7*float64(v1) + 0.3*float64(v2)))
-		new_v2 := int16(math.Round(0.3*float64(v1) + 0.7*float64(v2)))
+		min := v1
+		max := v2
+		if v1 > v2 {
+			min = v2
+			max = v1
+		}
+		if min < 0 && max < 0 {
+			// 둘다 음수 시 (-8,-2)=>-2
+			min = max
+			// 이후 양수로 변경
+			min = min * (-1)
+		}
+		// 제수는 반드시 양수 범위 내에서 생성
+		if min < 0 {
+			min = -1 * min
+		}
+		// randRange시의 순서 일치를 보장
+		if min < 4 {
+			min = 4
+		}
+		var new_v1 int16
+		var new_v2 int16
+		divisor := int16(RandRange(1, int64(min)/2))
+		if randomBool() {
+			new_v1 = v1 / divisor
+			new_v2 = v2 * divisor
+		} else {
+			new_v1 = v1 * divisor
+			new_v2 = v2 / divisor
+		}
+
 		return new_v1, new_v2
 	case int32:
 		v2, ok := b.(int32)
 		if !ok {
 			panic("type not equal")
 		}
-		new_v1 := int32(math.Round(0.7*float64(v1) + 0.3*float64(v2)))
-		new_v2 := int32(math.Round(0.3*float64(v1) + 0.7*float64(v2)))
+		min := v1
+		max := v2
+		if v1 > v2 {
+			min = v2
+			max = v1
+		}
+		if min < 0 && max < 0 {
+			// 둘다 음수 시 (-8,-2)=>-2
+			min = max
+			// 이후 양수로 변경
+			min = min * (-1)
+		}
+		// 제수는 반드시 양수 범위 내에서 생성
+		if min < 0 {
+			min = -1 * min
+		}
+		// randRange시의 순서 일치를 보장
+		if min < 4 {
+			min = 4
+		}
+		var new_v1 int32
+		var new_v2 int32
+		divisor := int32(RandRange(1, int64(min)/2))
+		if randomBool() {
+			new_v1 = v1 / divisor
+			new_v2 = v2 * divisor
+		} else {
+			new_v1 = v1 * divisor
+			new_v2 = v2 / divisor
+		}
 		return new_v1, new_v2
+
 	case int64:
 		v2, ok := b.(int64)
 		if !ok {
 			panic("type not equal")
 		}
-		new_v1 := int64(math.Round(0.7*float64(v1) + 0.3*float64(v2)))
-		new_v2 := int64(math.Round(0.3*float64(v1) + 0.7*float64(v2)))
+		min := v1
+		max := v2
+		if v1 > v2 {
+			min = v2
+			max = v1
+		}
+		if min < 0 && max < 0 {
+			// 둘다 음수 시 (-8,-2)=>-2
+			min = max
+			// 이후 양수로 변경
+			min = min * (-1)
+		}
+		// 제수는 반드시 양수 범위 내에서 생성
+		if min < 0 {
+			min = -1 * min
+		}
+		// randRange시의 순서 일치를 보장
+		if min < 4 {
+			min = 4
+		}
+		var new_v1 int64
+		var new_v2 int64
+		divisor := RandRange(1, int64(min)/2)
+		if randomBool() {
+			new_v1 = v1 / divisor
+			new_v2 = v2 * divisor
+		} else {
+			new_v1 = v1 * divisor
+			new_v2 = v2 / divisor
+		}
 		return new_v1, new_v2
+
 	case uint:
 		v2, ok := b.(uint)
 		if !ok {
 			panic("type not equal")
 		}
-		new_v1 := uint(math.Round(0.7*float64(v1) + 0.3*float64(v2)))
-		new_v2 := uint(math.Round(0.3*float64(v1) + 0.7*float64(v2)))
+		min := v1
+		if v1 > v2 {
+			min = v2
+		}
+		// randRange시의 순서 일치를 보장
+		if min < 4 {
+			min = 4
+		}
+		var new_v1 uint
+		var new_v2 uint
+		divisor := uint(UintRandRange(1, uint64(min)/2))
+		if randomBool() {
+			new_v1 = v1 / divisor
+			new_v2 = v2 * divisor
+		} else {
+			new_v1 = v1 * divisor
+			new_v2 = v2 / divisor
+		}
 		return new_v1, new_v2
 	case uint8:
 		v2, ok := b.(uint8)
 		if !ok {
 			panic("type not equal")
 		}
-		new_v1 := uint8(math.Round(0.7*float64(v1) + 0.3*float64(v2)))
-		new_v2 := uint8(math.Round(0.3*float64(v1) + 0.7*float64(v2)))
+		min := v1
+		if v1 > v2 {
+			min = v2
+		}
+		// randRange시의 순서 일치를 보장
+		if min < 4 {
+			min = 4
+		}
+		var new_v1 uint8
+		var new_v2 uint8
+		divisor := uint8(UintRandRange(1, uint64(min)/2))
+		if randomBool() {
+			new_v1 = v1 / divisor
+			new_v2 = v2 * divisor
+		} else {
+			new_v1 = v1 * divisor
+			new_v2 = v2 / divisor
+		}
 		return new_v1, new_v2
+
 	case uint16:
 		v2, ok := b.(uint16)
 		if !ok {
 			panic("type not equal")
 		}
-		new_v1 := uint16(math.Round(0.7*float64(v1) + 0.3*float64(v2)))
-		new_v2 := uint16(math.Round(0.3*float64(v1) + 0.7*float64(v2)))
+		min := v1
+		if v1 > v2 {
+			min = v2
+		}
+		// randRange시의 순서 일치를 보장
+		if min < 4 {
+			min = 4
+		}
+		var new_v1 uint16
+		var new_v2 uint16
+		divisor := uint16(UintRandRange(1, uint64(min)/2))
+		if randomBool() {
+			new_v1 = v1 / divisor
+			new_v2 = v2 * divisor
+		} else {
+			new_v1 = v1 * divisor
+			new_v2 = v2 / divisor
+		}
 		return new_v1, new_v2
+
 	case uint32:
 		v2, ok := b.(uint32)
 		if !ok {
 			panic("type not equal")
 		}
-		new_v1 := uint32(math.Round(0.7*float64(v1) + 0.3*float64(v2)))
-		new_v2 := uint32(math.Round(0.3*float64(v1) + 0.7*float64(v2)))
+		min := v1
+		if v1 > v2 {
+			min = v2
+		}
+		// randRange시의 순서 일치를 보장
+		if min < 4 {
+			min = 4
+		}
+		var new_v1 uint32
+		var new_v2 uint32
+		divisor := uint32(UintRandRange(1, uint64(min)/2))
+		if randomBool() {
+			new_v1 = v1 / divisor
+			new_v2 = v2 * divisor
+		} else {
+			new_v1 = v1 * divisor
+			new_v2 = v2 / divisor
+		}
 		return new_v1, new_v2
+
 	case uint64:
 		v2, ok := b.(uint64)
 		if !ok {
 			panic("type not equal")
 		}
-		new_v1 := uint64(math.Round(0.7*float64(v1) + 0.3*float64(v2)))
-		new_v2 := uint64(math.Round(0.3*float64(v1) + 0.7*float64(v2)))
+		min := v1
+		if v1 > v2 {
+			min = v2
+		}
+		// randRange시의 순서 일치를 보장
+		if min < 4 {
+			min = 4
+		}
+		var new_v1 uint64
+		var new_v2 uint64
+		divisor := uint64(UintRandRange(1, uint64(min)/2))
+		if randomBool() {
+			new_v1 = v1 / divisor
+			new_v2 = v2 * divisor
+		} else {
+			new_v1 = v1 * divisor
+			new_v2 = v2 / divisor
+		}
 		return new_v1, new_v2
+
 	case float32:
 		v2, ok := b.(float32)
 		if !ok {
@@ -1208,6 +1196,6 @@ func linear_crossover(a interface{}, b interface{}) (interface{}, interface{}) {
 		new_v2 := float64(0.3*float64(v1) + 0.7*float64(v2))
 		return new_v1, new_v2
 	default:
-		panic("type can't be linear crossed")
+		panic("type can't be  factorization_crossovered.")
 	}
 }

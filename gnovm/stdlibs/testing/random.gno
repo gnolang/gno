@@ -105,13 +105,25 @@ func nrand() float64 {
 // Note: max should be greater than min.
 // 랜덤을 랜덤으로 수정했습니다.
 func RandRange(start, end int64) int64 {
-	if start > end {
-		panic("start bigger than end")
+	if start >= end {
+		panic("start >= end ")
 	}
 	r := GetSingleRand()
 	rand_num := r.Int64()
 	hashed_num := (rand_num) % (int64(end - start))
 	result := int64(start) + hashed_num
+
+	return result
+}
+
+func UintRandRange(start, end uint64) uint64 {
+	if start >= end {
+		panic("start >= end ")
+	}
+	r := GetSingleRand()
+	rand_num := r.Uint64()
+	hashed_num := (rand_num) % (uint64(end - start))
+	result := uint64(start) + hashed_num
 
 	return result
 }
