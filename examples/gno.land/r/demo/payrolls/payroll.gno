@@ -97,10 +97,6 @@ func (p *payroll) stop(source std.Address) {
 }
 
 func (p *payroll) getBreakupCoins(source std.Address) std.Coins {
-	if p.breakup == nil {
-		return nil
-	}
-
 	var breakupSource BreakupSource
 	switch source {
 	case p.beneficiary:
@@ -109,6 +105,10 @@ func (p *payroll) getBreakupCoins(source std.Address) std.Coins {
 		breakupSource = BreakupSourceCreator
 	default:
 		panic(errors.New("unknown source"))
+	}
+
+	if p.breakup == nil {
+		return nil
 	}
 
 	return p.breakup(time.Now().Sub(p.createdAt), p.pauseDuration, breakupSource)
