@@ -8,22 +8,17 @@ import (
 	"gno.land/p/demo/seqid"
 )
 
+// XXX: should pass a read-only payroll object to those funcs
+
 // DistribFn is a distribution function used to compute and amount of released coins at a particular point in time.
 //
 // It must return payrolls [Coins]
-type DistribFn func(elapsed time.Duration) std.Coins
+type DistribFn func(worked time.Duration) std.Coins
 
 // BreakupFn is a function used to compute payroll termination bonuses.
 //
 // It must return payrolls [Coins]
-type BreakupFn func(elapsed time.Duration, pauseDuration time.Duration, source BreakupSource) std.Coins
-
-type BreakupSource uint
-
-const (
-	BreakupSourceCreator BreakupSource = iota
-	BreakupSourceBeneficiary
-)
+type BreakupFn func(elapsed time.Duration, pauseDuration time.Duration, source CallSource) std.Coins
 
 // DistribStep returns a distribution function that will release coins every `per` duration.
 func DistribStep(coins std.Coins, per time.Duration) DistribFn {
@@ -87,8 +82,8 @@ func CreateCDI(namespace string, label string, beneficiary std.Address, amountPe
 // according to a simplified "Rupture Conventionelle" (conventional breakup) model based on the French CDI employment contract
 func BreakupCDI(coinsPerMonth std.Coins) BreakupFn {
 	const hoursPerYear = float64(8_670)
-	return func(elapsed time.Duration, pauseDuration time.Duration, source BreakupSource) std.Coins {
-		if source != BreakupSourceCreator {
+	return func(elapsed time.Duration, pauseDuration time.Duration, source CallSource) std.Coins {
+		if source != CallSourceCreator {
 			return nil
 		}
 

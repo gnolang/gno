@@ -26,6 +26,13 @@ type payroll struct {
 	stoppedAt      time.Time
 }
 
+type CallSource uint
+
+const (
+	CallSourceCreator CallSource = iota
+	CallSourceBeneficiary
+)
+
 func (p *payroll) freeAt(when time.Time, estimate bool) std.Coins {
 	if p.stopped && p.stoppedAt.Before(when) {
 		when = p.stoppedAt
@@ -87,31 +94,33 @@ func (p *payroll) resumeUnsafe() {
 func (p *payroll) stop(source std.Address) {
 	p.assertNotStopped()
 
+	breakupSource := p.assertSource(source)
+
 	if p.paused {
 		p.resumeUnsafe()
 	}
-
-	p.breakupCoins = p.getBreakupCoins(source)
+	p.breakupCoins = p.getBreakupCoins(breakupSource)
 	p.stopped = true
 	p.stoppedAt = time.Now()
 }
 
-func (p *payroll) getBreakupCoins(source std.Address) std.Coins {
-	var breakupSource BreakupSource
-	switch source {
-	case p.beneficiary:
-		breakupSource = BreakupSourceBeneficiary
-	case p.creatorAddr:
-		breakupSource = BreakupSourceCreator
-	default:
-		panic(errors.New("unknown source"))
-	}
-
+func (p *payroll) getBreakupCoins(source CallSource) std.Coins {
 	if p.breakup == nil {
 		return nil
 	}
 
-	return p.breakup(time.Now().Sub(p.createdAt), p.pauseDuration, breakupSource)
+	return p.breakup(time.Now().Sub(p.createdAt), p.pauseDuration, source)
+}
+
+func (p *payroll) assertSource(addr std.Address) CallSource {
+	switch addr {
+	case p.beneficiary:
+		return CallSourceBeneficiary
+	case p.creatorAddr:
+		return CallSourceCreator
+	default:
+		panic(errors.New("unknown source"))
+	}
 }
 
 func (p *payroll) assertNotStopped() {

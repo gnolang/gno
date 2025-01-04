@@ -343,8 +343,8 @@ func renderPayroll(p *payroll, pov string) string {
 	if pov == "details" {
 		allCoins = addCoins(allCoins, beneficiaryBreakupCoins)
 		allCoins = addCoins(allCoins, creatorBreakupCoins)
-		beneficiaryBreakupCoins = p.getBreakupCoins(p.beneficiary)
-		creatorBreakupCoins = p.getBreakupCoins(p.creatorAddr)
+		beneficiaryBreakupCoins = p.getBreakupCoins(CallSourceBeneficiary)
+		creatorBreakupCoins = p.getBreakupCoins(CallSourceCreator)
 	}
 	for _, coin := range allCoins {
 		sb.WriteString(ufmt.Sprintf("  - %s:\n", renderCoinDenom(coin.Denom)))
