@@ -38,8 +38,6 @@ func (u UserData) IsDeleted() bool {
 	return u.deleted
 }
 
-const maxNameLength = 64
-
 // RegisterUser adds a new user to the system.
 func RegisterUser(name string, address std.Address) error {
 	// Validate inputs
