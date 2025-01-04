@@ -1,0 +1,18 @@
+# Run valid gno test without args
+
+! gno test
+
+! stdout .+ 
+stderr 'ok      \. 	\d\.\d\ds'
+
+-- valid.gno --
+package valid
+
+-- valid_test.gno --
+package valid
+
+import "testing"
+
+func TestAlwaysValid(t *testing.T) {
+	// noop
+}
