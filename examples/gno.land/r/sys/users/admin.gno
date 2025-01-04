@@ -40,8 +40,8 @@ func AddToWhitelist(addr std.Address) error {
 	}
 
 	callerWhitelist.Set(addr.String(), struct{}{})
-	std.Emit(WhitelistAddEvent, "address", addr.String())
 
+	std.Emit(WhitelistAddEvent, "address", addr.String())
 	return nil
 }
 
@@ -61,7 +61,6 @@ func DelFromWhitelist(addr std.Address) error {
 	}
 
 	std.Emit(WhitelistDeleteEvent, "address", addr.String())
-
 	return nil
 }
 

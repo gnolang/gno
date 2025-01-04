@@ -27,7 +27,7 @@ func TestRegister(t *testing.T) {
 	t.Run("valid_registration", func(t *testing.T) {
 		t.Parallel()
 
-		urequire.NoError(t, Register(alice, aliceAddr))
+		urequire.NoError(t, RegisterUser(alice, aliceAddr))
 
 		res := ResolveName(alice)
 		uassert.Equal(t, aliceAddr, res.addr)
@@ -40,45 +40,45 @@ func TestRegister(t *testing.T) {
 		t.Parallel()
 		cleanStore(t)
 
-		uassert.ErrorContains(t, Register("   ", aliceAddr), ErrEmptyUsername.Error())
+		uassert.ErrorContains(t, RegisterUser("   ", aliceAddr), ErrEmptyUsername.Error())
 		uassert.ErrorContains(t,
-			Register("65letterusername65letterusername65letterusername65letterusername0",
+			RegisterUser("65letterusername65letterusername65letterusername65letterusername0",
 				aliceAddr),
 			ErrNameTooLong.Error())
 
-		uassert.ErrorContains(t, Register(alice, ""), ErrInvalidAddress.Error())
-		uassert.ErrorContains(t, Register(alice, "invalidaddress"), ErrInvalidAddress.Error())
+		uassert.ErrorContains(t, RegisterUser(alice, ""), ErrInvalidAddress.Error())
+		uassert.ErrorContains(t, RegisterUser(alice, "invalidaddress"), ErrInvalidAddress.Error())
 	})
 
 	t.Run("addr_already_registered", func(t *testing.T) {
 		t.Parallel()
 		cleanStore(t)
 
-		urequire.NoError(t, Register(alice, aliceAddr))
+		urequire.NoError(t, RegisterUser(alice, aliceAddr))
 
 		// Try registering again
-		uassert.ErrorContains(t, Register("othername", aliceAddr), ErrAlreadyHasName.Error())
+		uassert.ErrorContains(t, RegisterUser("othername", aliceAddr), ErrAlreadyHasName.Error())
 	})
 
 	t.Run("name_taken", func(t *testing.T) {
 		t.Parallel()
 		cleanStore(t)
 
-		urequire.NoError(t, Register(alice, aliceAddr))
+		urequire.NoError(t, RegisterUser(alice, aliceAddr))
 
 		// Try registering alice's name with bob's address
-		uassert.ErrorContains(t, Register(alice, bobAddr), ErrNameTaken.Error())
+		uassert.ErrorContains(t, RegisterUser(alice, bobAddr), ErrNameTaken.Error())
 	})
 
 	t.Run("user_deleted", func(t *testing.T) {
 		t.Parallel()
 		cleanStore(t)
 
-		urequire.NoError(t, Register(alice, aliceAddr))
+		urequire.NoError(t, RegisterUser(alice, aliceAddr))
 		urequire.NoError(t, Delete(alice))
 
 		// Try re-registering after deletion
-		uassert.ErrorContains(t, Register("newname", aliceAddr), ErrDeletedUser.Error())
+		uassert.ErrorContains(t, RegisterUser("newname", aliceAddr), ErrDeletedUser.Error())
 	})
 
 	t.Run("address_lookalike", func(t *testing.T) {
@@ -86,10 +86,10 @@ func TestRegister(t *testing.T) {
 		cleanStore(t)
 
 		// Address as username
-		uassert.ErrorContains(t, Register("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5", aliceAddr), ErrNameLikeAddress.Error())
+		uassert.ErrorContains(t, RegisterUser("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5", aliceAddr), ErrNameLikeAddress.Error())
 		// Beginning of address as username
-		uassert.ErrorContains(t, Register("g1jg8mtutu9khhfwc4nxmu", aliceAddr), ErrNameLikeAddress.Error())
-		uassert.NoError(t, Register("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5longerthananaddress", aliceAddr))
+		uassert.ErrorContains(t, RegisterUser("g1jg8mtutu9khhfwc4nxmu", aliceAddr), ErrNameLikeAddress.Error())
+		uassert.NoError(t, RegisterUser("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5longerthananaddress", aliceAddr))
 	})
 }
 
@@ -99,7 +99,7 @@ func TestRegisterAlias(t *testing.T) {
 		t.Parallel()
 		cleanStore(t)
 
-		urequire.NoError(t, Register(alice, aliceAddr))
+		urequire.NoError(t, RegisterUser(alice, aliceAddr))
 		uassert.NoError(t, RegisterAlias("alice1", aliceAddr))
 	})
 
@@ -107,7 +107,7 @@ func TestRegisterAlias(t *testing.T) {
 		t.Parallel()
 		cleanStore(t)
 
-		urequire.NoError(t, Register(alice, aliceAddr))
+		urequire.NoError(t, RegisterUser(alice, aliceAddr))
 		uassert.NoError(t, RegisterAlias("alice1", aliceAddr))
 		uassert.NoError(t, RegisterAlias("alice2", aliceAddr))
 
@@ -117,7 +117,7 @@ func TestRegisterAlias(t *testing.T) {
 		t.Parallel()
 		cleanStore(t)
 
-		urequire.NoError(t, Register(alice, aliceAddr))
+		urequire.NoError(t, RegisterUser(alice, aliceAddr))
 		uassert.NoError(t, RegisterAlias("alice1", aliceAddr))
 	})
 
@@ -132,7 +132,7 @@ func TestRegisterAlias(t *testing.T) {
 		t.Parallel()
 		cleanStore(t)
 
-		urequire.NoError(t, Register(alice, aliceAddr))
+		urequire.NoError(t, RegisterUser(alice, aliceAddr))
 		urequire.NoError(t, Delete(alice))
 
 		uassert.ErrorContains(t, RegisterAlias("newalice", aliceAddr), ErrDeletedUser.Error())
@@ -142,7 +142,7 @@ func TestRegisterAlias(t *testing.T) {
 		t.Parallel()
 		cleanStore(t)
 
-		urequire.NoError(t, Register(alice, aliceAddr))
+		urequire.NoError(t, RegisterUser(alice, aliceAddr))
 
 		uassert.ErrorContains(t, RegisterAlias("   ", aliceAddr), ErrEmptyUsername.Error())
 		uassert.ErrorContains(t,
@@ -158,7 +158,7 @@ func TestRegisterAlias(t *testing.T) {
 		t.Parallel()
 		cleanStore(t)
 
-		urequire.NoError(t, Register(alice, aliceAddr))
+		urequire.NoError(t, RegisterUser(alice, aliceAddr))
 
 		// Address as username
 		uassert.ErrorContains(t, RegisterAlias("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5", aliceAddr), ErrNameLikeAddress.Error())
@@ -175,7 +175,7 @@ func TestResolveName(t *testing.T) {
 		t.Parallel()
 		cleanStore(t)
 
-		urequire.NoError(t, Register(alice, aliceAddr))
+		urequire.NoError(t, RegisterUser(alice, aliceAddr))
 
 		res := ResolveName(alice)
 
@@ -189,7 +189,7 @@ func TestResolveName(t *testing.T) {
 		t.Parallel()
 		cleanStore(t)
 
-		urequire.NoError(t, Register(alice, aliceAddr))
+		urequire.NoError(t, RegisterUser(alice, aliceAddr))
 		urequire.NoError(t, RegisterAlias("alice1", aliceAddr))
 
 		res := ResolveName(alice)
@@ -205,9 +205,9 @@ func TestResolveName(t *testing.T) {
 		t.Parallel()
 		cleanStore(t)
 
-		urequire.NoError(t, Register(alice, aliceAddr))
+		urequire.NoError(t, RegisterUser(alice, aliceAddr))
 
-		// Register and check each alias
+		// RegisterUser and check each alias
 		var names []string
 		names = append(names, alice)
 		for i := 0; i < 5; i++ {
@@ -248,7 +248,7 @@ func TestResolveAddress(t *testing.T) {
 		t.Parallel()
 		cleanStore(t)
 
-		urequire.NoError(t, Register(alice, aliceAddr))
+		urequire.NoError(t, RegisterUser(alice, aliceAddr))
 
 		res := ResolveAddress(aliceAddr)
 
@@ -262,7 +262,7 @@ func TestResolveAddress(t *testing.T) {
 		t.Parallel()
 		cleanStore(t)
 
-		urequire.NoError(t, Register(alice, aliceAddr))
+		urequire.NoError(t, RegisterUser(alice, aliceAddr))
 		urequire.NoError(t, RegisterAlias("alice1", aliceAddr))
 
 		res := ResolveAddress(aliceAddr)
@@ -278,9 +278,9 @@ func TestResolveAddress(t *testing.T) {
 		t.Parallel()
 		cleanStore(t)
 
-		urequire.NoError(t, Register(alice, aliceAddr))
+		urequire.NoError(t, RegisterUser(alice, aliceAddr))
 
-		// Register and check each alias
+		// RegisterUser and check each alias
 		var names []string
 		names = append(names, alice)
 
@@ -316,7 +316,7 @@ func TestDelete(t *testing.T) {
 		t.Parallel()
 		cleanStore(t)
 
-		urequire.NoError(t, Register(alice, aliceAddr))
+		urequire.NoError(t, RegisterUser(alice, aliceAddr))
 		urequire.NoError(t, Delete(alice))
 
 		uassert.ErrorContains(t, Delete(alice), ErrAlreadyDeleted.Error())
@@ -326,7 +326,7 @@ func TestDelete(t *testing.T) {
 		t.Parallel()
 		cleanStore(t)
 
-		urequire.NoError(t, Register(alice, aliceAddr))
+		urequire.NoError(t, RegisterUser(alice, aliceAddr))
 		uassert.NoError(t, Delete(alice))
 
 		resolved := ResolveName(alice)

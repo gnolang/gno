@@ -19,9 +19,9 @@ var (
 )
 
 const (
-	SetUserEvent     = "UserSet"
-	CreateAliasEvent = "AliasCreated"
-	DeleteUserEvent  = "UserDeleted"
+	RegisterUserEvent  = "UserRegistered"
+	RegisterAliasEvent = "AliasRegistered"
+	DeleteUserEvent    = "UserDeleted"
 
 	maxUsernameLen = 64
 )
@@ -40,8 +40,8 @@ func (u UserData) IsDeleted() bool {
 
 const maxNameLength = 64
 
-// Register adds a new user to the system.
-func Register(name string, address std.Address) error {
+// RegisterUser adds a new user to the system.
+func RegisterUser(name string, address std.Address) error {
 	// Validate inputs
 	if err := validateInputs(name, address); err != nil {
 		return err
@@ -79,6 +79,7 @@ func Register(name string, address std.Address) error {
 	nameStore.Set(name, data)
 	addressStore.Set(address.String(), data)
 
+	std.Emit(RegisterUserEvent, "name", name, "address", address.String())
 	return nil
 }
 
@@ -121,6 +122,7 @@ func RegisterAlias(alias string, address std.Address) error {
 	addressStore.Set(address.String(), newData)
 	nameStore.Set(alias, newData)
 
+	std.Emit(RegisterAliasEvent, "alias", alias, "address", address.String())
 	return nil
 }
 
@@ -143,6 +145,7 @@ func Delete(name string) error {
 	// data.addr = "" // I don't think we should do this, it will likely cause user errors
 	// data.username = "ghost" // could cause issues with users named "ghost"
 
+	std.Emit(DeleteUserEvent, "address", data.addr.String())
 	return nil
 }
 
