@@ -143,6 +143,7 @@ func UverseNode() *PackageNode {
 			"res", GenT("X", nil), // res
 		),
 		func(m *Machine) {
+			debug2.Println2("append")
 			arg0, arg1 := m.LastBlock().GetParams2()
 			// As a special case, if arg1 is a string type, first convert it into
 			// a data slice type.
@@ -269,6 +270,7 @@ func UverseNode() *PackageNode {
 			// ----------------------------------------------------------------
 			// append(*SliceValue, ???)
 			case *SliceValue:
+				debug2.Println2("SliceValue, ???")
 				arg0Length := arg0Value.Length
 				arg0Offset := arg0Value.Offset
 				arg0Capacity := arg0Value.Maxcap
@@ -286,9 +288,12 @@ func UverseNode() *PackageNode {
 				// ------------------------------------------------------------
 				// append(*SliceValue, *SliceValue)
 				case *SliceValue:
+					debug2.Println2("arg1 slice value")
 					arg1Length := arg1Value.Length
 					arg1Offset := arg1Value.Offset
 					arg1Base := arg1Value.GetBase(m.Store)
+					debug2.Println2("arg1Base: ", arg1Base)
+					debug2.Println2("arg1Base.List: ", arg1Base.List)
 					if arg0Length+arg1Length <= arg0Capacity {
 						// append(*SliceValue, *SliceValue) w/i capacity -----
 						if 0 < arg1Length { // implies 0 < xvc
@@ -376,6 +381,7 @@ func UverseNode() *PackageNode {
 						return
 					} else {
 						// append(*SliceValue, *SliceValue) new list ---------
+						debug2.Println2("new list")
 						list := make([]TypedValue, arg0Length+arg1Length)
 						if 0 < arg0Length {
 							if arg0Base.Data == nil {

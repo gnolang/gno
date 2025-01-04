@@ -325,6 +325,9 @@ func (m *Machine) runMemPackage(memPkg *std.MemPackage, save, overrides bool) (*
 		// store mempackage
 		m.Store.AddMemPackage(memPkg)
 		if throwaway != nil {
+			debug2.Println2("m.Realm: ", m.Realm)
+			debug2.Println2("m.Realm created: ", m.Realm.created)
+			debug2.Println2("m.Realm updated: ", m.Realm.updated)
 			m.Realm = nil
 		}
 	}
@@ -750,16 +753,18 @@ func (m *Machine) runInitFromUpdates(pv *PackageValue, updates []TypedValue) {
 // Returns a throwaway realm package is not a realm,
 // such as stdlibs or /p/ packages.
 func (m *Machine) saveNewPackageValuesAndTypes() (throwaway *Realm) {
-	//fmt.Println("---saveNewPackageValuesAndTypes")
+	debug2.Println2("saveNewPackageValuesAndTypes")
 	// save package value and dependencies.
 	pv := m.Package
 	if pv.IsRealm() {
+		debug2.Println2("pv is realm")
 		rlm := pv.Realm
 		rlm.MarkNewReal(pv)
 		rlm.FinalizeRealmTransaction(m.ReadOnly, m.Store)
 		// save package realm info.
 		m.Store.SetPackageRealm(rlm)
 	} else { // use a throwaway realm.
+		debug2.Println2("pv not realm")
 		rlm := NewRealm(pv.PkgPath)
 		rlm.MarkNewReal(pv)
 		rlm.FinalizeRealmTransaction(m.ReadOnly, m.Store)
@@ -782,11 +787,12 @@ func (m *Machine) saveNewPackageValuesAndTypes() (throwaway *Realm) {
 // Pass in the realm from m.saveNewPackageValuesAndTypes()
 // in case a throwaway was created.
 func (m *Machine) resavePackageValues(rlm *Realm) {
+	debug2.Println2("resavePackageValues, rlm: ", rlm)
 	// save package value and dependencies.
 	pv := m.Package
 	if pv.IsRealm() {
 		rlm = pv.Realm
-		//fmt.Println("---rlm: ", rlm)
+		debug2.Println2("rlm.ID: ", rlm.ID)
 		rlm.FinalizeRealmTransaction(m.ReadOnly, m.Store)
 		// re-save package realm info.
 		m.Store.SetPackageRealm(rlm)
@@ -1849,9 +1855,9 @@ func (m *Machine) PushFrameBasic(s Stmt) {
 // ensure the counts are consistent, otherwise we mask
 // bugs with frame pops.
 func (m *Machine) PushFrameCall(cx *CallExpr, fv *FuncValue, recv TypedValue) {
-	//fmt.Println("---PushFrameCall, cx: ", cx)
+	debug2.Println2("PushFrameCall, cx: ", cx)
 	//fmt.Println("---fv: ", fv)
-	//fmt.Println("---m.Realm: ", m.Realm)
+	debug2.Println2("m.Realm: ", m.Realm)
 	fr := &Frame{
 		Source:      cx,
 		NumOps:      m.NumOps,

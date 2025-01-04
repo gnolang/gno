@@ -214,6 +214,7 @@ func (pv PointerValue) Assign2(alloc *Allocator, store Store, rlm *Realm, tv2 Ty
 	debug2.Println2("Assign2, pv: ", pv)
 	debug2.Println2("tv2: ", tv2)
 	debug2.Printf2("addr of tv2: %p \n", &tv2)
+	debug2.Println2("rlm: ", rlm)
 
 	// Special cases.
 	if pv.Index == PointerIndexNative {
@@ -292,7 +293,7 @@ func (pv PointerValue) Assign2(alloc *Allocator, store Store, rlm *Realm, tv2 Ty
 
 		// get origin pkgId
 		_, pkgId := tv2.GetFirstObject2(store)
-		debug2.Println2("pkgId ", pkgId)
+		debug2.Println2("pkgId: ", pkgId)
 
 		pv.TV.Assign(alloc, tv2, cu)
 
@@ -305,6 +306,7 @@ func (pv PointerValue) Assign2(alloc *Allocator, store Store, rlm *Realm, tv2 Ty
 		}
 		debug2.Println2("oo2: ", oo2)
 		debug2.Println2("pkgId: ", pkgId)
+
 		if oo2 != nil && !pkgId.IsZero() { // cross realm
 			oo2.SetOriginRealm(pkgId) // attach origin package info
 		}
@@ -525,7 +527,7 @@ func (sv *StructValue) GetSubrefPointerTo(store Store, st *StructType, path Valu
 }
 
 func (sv *StructValue) Copy(alloc *Allocator) *StructValue {
-	//fmt.Println("---StructValue copy, sv: ", sv)
+	debug2.Println2("StructValue copy, sv: ", sv)
 	/* TODO consider second refcount field
 	if sv.GetRefCount() == 0 {
 		return sv
@@ -542,8 +544,18 @@ func (sv *StructValue) Copy(alloc *Allocator) *StructValue {
 	}
 
 	nsv := alloc.NewStruct(fields)
-	fmt.Println("---sv.ObjectInfo", sv.ObjectInfo)
-	nsv.ObjectInfo = sv.ObjectInfo.Copy()
+	//debug2.Println2("sv.ObjectInfo", sv.ObjectInfo)
+	//nsv.ObjectInfo = sv.ObjectInfo.Copy()
+	debug2.Println2("sv.GetOriginRealm: ", sv.GetOriginRealm())
+	debug2.Println2("sv.GetObjectID(): ", sv.GetObjectID())
+	debug2.Println2("sv.GetRefCount: ", sv.GetRefCount())
+	debug2.Println2("sv...OwneID: ", sv.GetObjectInfo().OwnerID)
+	// append, unref copy...
+	//pkgId := sv.GetOriginRealm()
+	//if pkgId.IsZero() {
+	//	pkgId = sv.GetObjectID().PkgID
+	//}
+	//nsv.SetOriginRealm(pkgId)
 	return nsv
 	//return alloc.NewStruct(fields)
 }
@@ -1069,6 +1081,7 @@ func (tv TypedValue) Copy(alloc *Allocator) (cp TypedValue) {
 		cp.T = tv.T
 		cp.V = cv.Copy(alloc)
 	default:
+		println("---default")
 		cp = tv
 	}
 	return
@@ -1077,6 +1090,7 @@ func (tv TypedValue) Copy(alloc *Allocator) (cp TypedValue) {
 // unrefCopy makes a copy of the underlying value in the case of reference values.
 // It copies other values as expected using the normal Copy method.
 func (tv TypedValue) unrefCopy(alloc *Allocator, store Store) (cp TypedValue) {
+	debug2.Println2("UnrefCopy, tv: ", tv)
 	switch tv.V.(type) {
 	case RefValue:
 		cp.T = tv.T

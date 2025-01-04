@@ -28,12 +28,32 @@ func main() {
 //             },
 //             "V": {
 //                 "@type": "/gno.StringValue",
-//                 "value": "0"
+//                 "value": "3"
 //             }
 //         }
 //     ],
 //     "ObjectInfo": {
 //         "ID": "ff34c6500d0daee58e4ac9899c0e7ecc131db63e:26",
+//         "ModTime": "0",
+//         "OwnerID": "ff34c6500d0daee58e4ac9899c0e7ecc131db63e:25",
+//         "RefCount": "1"
+//     }
+// }
+// c[ff34c6500d0daee58e4ac9899c0e7ecc131db63e:27]={
+//     "Fields": [
+//         {
+//             "T": {
+//                 "@type": "/gno.PrimitiveType",
+//                 "value": "16"
+//             },
+//             "V": {
+//                 "@type": "/gno.StringValue",
+//                 "value": "0"
+//             }
+//         }
+//     ],
+//     "ObjectInfo": {
+//         "ID": "ff34c6500d0daee58e4ac9899c0e7ecc131db63e:27",
 //         "ModTime": "0",
 //         "OwnerID": "ff34c6500d0daee58e4ac9899c0e7ecc131db63e:25",
 //         "RefCount": "1"
@@ -49,8 +69,8 @@ func main() {
 //             },
 //             "V": {
 //                 "@type": "/gno.RefValue",
-//                 "Escaped": true,
-//                 "ObjectID": "ff34c6500d0daee58e4ac9899c0e7ecc131db63e:15"
+//                 "Hash": "47bf5eb54da0545110d6486001609dc4203f61b0",
+//                 "ObjectID": "ff34c6500d0daee58e4ac9899c0e7ecc131db63e:26"
 //             }
 //         },
 //         {
@@ -60,8 +80,8 @@ func main() {
 //             },
 //             "V": {
 //                 "@type": "/gno.RefValue",
-//                 "Hash": "14593ec2b92fe8a53780cf8a6c430a6526f05283",
-//                 "ObjectID": "ff34c6500d0daee58e4ac9899c0e7ecc131db63e:26"
+//                 "Hash": "eaa3017cfcfafd8f8217ee1df0afdac5e4ad12a9",
+//                 "ObjectID": "ff34c6500d0daee58e4ac9899c0e7ecc131db63e:27"
 //             }
 //         }
 //     ],
@@ -260,7 +280,7 @@ func main() {
 //                 "@type": "/gno.SliceValue",
 //                 "Base": {
 //                     "@type": "/gno.RefValue",
-//                     "Hash": "51b5198111d9cdcf7c980e3816d111cfbe0b7cc4",
+//                     "Hash": "fcdb6b41091d087be521ae9be69b8328ac495677",
 //                     "ObjectID": "ff34c6500d0daee58e4ac9899c0e7ecc131db63e:25"
 //                 },
 //                 "Length": "2",

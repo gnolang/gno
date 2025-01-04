@@ -18,7 +18,12 @@ type XYZ struct{ name string }
 
 var s1 []XYZ
 var s3 []XYZ
-var s4 []XYZ
+
+// var s4 []XYZ
+var s4 = make([]XYZ, 1, 2)
+
+// NOTE that if new list allocated, XYZ{"4"} will be copied, and it's a new object
+// var s4 = make([]XYZ, 1)
 var s5 []*XYZ
 var s6 = make([]*XYZ, 2)
 
@@ -29,7 +34,8 @@ func init() {
 	s1 = append(s1, XYZ{"2"})
 
 	s3 = append(s3, XYZ{"3"})
-	s4 = append(s4, XYZ{"4"})
+	//s4 = append(s4, XYZ{"4"})
+	s4[0] = XYZ{"4"}
 
 	s5 = append(s5, &XYZ{"5"})
 

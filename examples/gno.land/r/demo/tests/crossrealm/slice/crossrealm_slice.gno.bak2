@@ -1,0 +1,14 @@
+package crossrealm_slice
+
+type XYZ struct{ name string }
+
+var s4 = make([]XYZ, 1)
+
+func init() {
+	s4[0] = XYZ{"4"} // TODO; is it owned by array
+}
+
+func GetSlice4(f func(s []XYZ)) {
+	s4 = append(s4, XYZ{"0"}) // this is real after this function
+	f(s4)                     // XYZ{"0"} is floating
+}

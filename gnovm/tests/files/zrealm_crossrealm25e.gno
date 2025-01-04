@@ -29,4 +29,4 @@ func main() {
 }
 
 // Error:
-// cannot attach objects by value from external realm
+// cannot attach a value of a type defined by another realm

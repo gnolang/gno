@@ -9,9 +9,9 @@ func cb(c *crossrealm.C) {
 	s = c
 }
 func main() {
-	crossrealm.GetStruct(cb)
+	crossrealm.GetStruct2(cb)
 	println(s)
 }
 
 // Error:
-// cannot attach un-real object from external realm: struct{("d" string)}
+// cannot attach a reference to an unreal object from an external realm

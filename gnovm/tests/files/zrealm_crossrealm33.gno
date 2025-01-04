@@ -19,4 +19,4 @@ func main() {
 }
 
 // Error:
-// should not happen, struct{("0" string)} is not real
+// cannot attach un-real object from external realm: struct{("0" string)}

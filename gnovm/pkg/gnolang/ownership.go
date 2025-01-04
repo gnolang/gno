@@ -322,7 +322,7 @@ func (oi *ObjectInfo) GetOriginRealm() PkgID {
 }
 
 func (oi *ObjectInfo) SetOriginRealm(pkgId PkgID) {
-	fmt.Println("---SetLastNewEscapedRealm")
+	debug2.Println2("SetOriginRealm: ", pkgId)
 	oi.lastNewRealEscapedRealm = pkgId
 }
 
@@ -390,14 +390,22 @@ func (tv *TypedValue) GetFirstObject(store Store) Object {
 }
 
 // also get pkgId of the object, so it's clear where the object is from
+// TODO, just return isRealm
 func (tv *TypedValue) GetFirstObject2(store Store) (obj Object, pkgId PkgID) {
 	fmt.Println("---GetFirstObject2---, tv: ", tv, reflect.TypeOf(tv.V))
 
 	// get first object
 	obj = tv.GetFirstObject(store)
 	fmt.Println("---obj: ", obj)
+
 	if obj != nil {
-		pkgId = obj.GetObjectID().PkgID
+
+		pkgId = obj.GetOriginRealm()
+		if pkgId.IsZero() {
+			pkgId = obj.GetObjectID().PkgID
+		}
+		debug2.Println2("obj.GetObjectInfo(): ", obj.GetObjectInfo())
+		debug2.Println2("obj.GetObjectID.PkgID: ", pkgId)
 	}
 
 	if pkgId.IsZero() {

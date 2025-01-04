@@ -63,3 +63,11 @@ func GetStruct(cb func(v *C)) *C {
 	cb(c)
 	return c
 }
+
+func GetStruct2(cb func(v *C)) *C {
+	var e = &C{}
+	e.A = a
+	e.B = b
+	cb(e)
+	return e
+}
