@@ -11,9 +11,9 @@ var (
 	ErrNameTaken      = errors.New(prefix + "name/alias already taken")
 	ErrInvalidAddress = errors.New(prefix + "invalid address")
 
-	ErrEmptyUsername       = errors.New(prefix + "empty username provided")
-	ErrNameTooLong         = errors.New(prefix + "username is too long")
-	ErrUsernameLikeAddress = errors.New(prefix + "username resembles a gno.land address")
+	ErrEmptyUsername   = errors.New(prefix + "empty username provided")
+	ErrNameTooLong     = errors.New(prefix + "username is too long")
+	ErrNameLikeAddress = errors.New(prefix + "username resembles a gno.land address")
 
 	ErrAlreadyHasName  = errors.New(prefix + "username for this address already registered - try creating an alias")
 	ErrDeletedUser     = errors.New(prefix + "cannot register a new username after deleting")

@@ -80,6 +80,17 @@ func TestRegister(t *testing.T) {
 		// Try re-registering after deletion
 		uassert.ErrorContains(t, Register("newname", aliceAddr), ErrDeletedUser.Error())
 	})
+
+	t.Run("address_lookalike", func(t *testing.T) {
+		t.Parallel()
+		cleanStore(t)
+
+		// Address as username
+		uassert.ErrorContains(t, Register("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5", aliceAddr), ErrNameLikeAddress.Error())
+		// Beginning of address as username
+		uassert.ErrorContains(t, Register("g1jg8mtutu9khhfwc4nxmu", aliceAddr), ErrNameLikeAddress.Error())
+		uassert.NoError(t, Register("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5longerthananaddress", aliceAddr))
+	})
 }
 
 func TestRegisterAlias(t *testing.T) {
@@ -141,6 +152,19 @@ func TestRegisterAlias(t *testing.T) {
 
 		uassert.ErrorContains(t, RegisterAlias(alice, ""), ErrInvalidAddress.Error())
 		uassert.ErrorContains(t, RegisterAlias(alice, "invalidaddress"), ErrInvalidAddress.Error())
+	})
+
+	t.Run("address_lookalike", func(t *testing.T) {
+		t.Parallel()
+		cleanStore(t)
+
+		urequire.NoError(t, Register(alice, aliceAddr))
+
+		// Address as username
+		uassert.ErrorContains(t, RegisterAlias("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5", aliceAddr), ErrNameLikeAddress.Error())
+		// Beginning of address as username
+		uassert.ErrorContains(t, RegisterAlias("g1jg8mtutu9khhfwc4nxmu", aliceAddr), ErrNameLikeAddress.Error())
+		uassert.NoError(t, RegisterAlias("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5longerthananaddress", aliceAddr))
 	})
 }
 
