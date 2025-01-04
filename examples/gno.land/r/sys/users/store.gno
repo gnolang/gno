@@ -1,172 +1,24 @@
 package users
 
 import (
+	"gno.land/p/demo/avl"
 	"regexp"
 	"std"
-	"strings"
-
-	"gno.land/p/demo/avl"
-	"gno.land/p/demo/pausable"
 )
 
 var (
-	usernameStore   = avl.NewTree() // username > address
-	addressStore    = avl.NewTree() // address > username
-	aliasStore      = avl.NewTree() // username > address
 	callerWhitelist = avl.NewTree() // addr > struct{}{}
 
 	reAddressLookalike = regexp.MustCompile(`^g1[a-z0-9]{20,38}$`)
 )
-
-// nameStore // name or alias > UserData
-// addrStore // addr > name or latestAlias
-
-type UserData struct {
-	address std.Address
-	name    string
-	aliasTo *UserData
-}
-
-// set -
-// if not reg > set nameStore(name, new(*UserData)), set addrStore(addr, same(*UserData)
-// set alias
-// get
-// delete
-// update? nemamo
 
 const (
 	SetUserEvent     = "UserSet"
 	CreateAliasEvent = "AliasCreated"
 	DeleteUserEvent  = "UserDeleted"
 
-	maxUsernameLen = 50
-	deletedUser    = "ghost" // todo also need to forbid as username... not cool
+	maxUsernameLen = 64
 )
-
-// SetUser writes a *new* user to the store
-// Only whitelisted callers can call this function
-// Writing to the store can be paused by the admin
-func SetUser(name string, addr std.Address) error {
-	if Pausable.IsPaused() {
-		return pausable.ErrPaused
-	}
-
-	if !IsOnWhitelist(std.PrevRealm().Addr()) {
-		return ErrUnauthorizedWrite
-	}
-
-	trimmedName := strings.TrimSpace(name)
-
-	// Check if addr is already registered or has been deleted
-	raw, ok := addressStore.Has(addr.String())
-	if ok {
-		if raw.(string) == deletedUser {
-			return ErrDeletedUser
-		}
-
-		return ErrAlreadyHasName // use CreateAlias
-	}
-
-	// Check if name is taken
-	if usernameStore.Has(trimmedName) || aliasStore.Has(trimmedName) {
-		return ErrNameTaken
-	}
-
-	// Validate fields before writing
-	if err := validate(trimmedName, addr); err != nil {
-		return err
-	}
-
-	usernameStore.Set(trimmedName, addr)
-	addressStore.Set(addr.String(), trimmedName)
-
-	std.Emit(SetUserEvent, "name", name, "address", addr.String())
-
-	return nil
-}
-
-// CreateAlias creates an alias username for a specific address
-// The address must already have a registered username
-func CreateAlias(name string, addr std.Address) error {
-	if Pausable.IsPaused() {
-		return pausable.ErrPaused
-	}
-
-	if !IsOnWhitelist(std.PrevRealm().Addr()) {
-		return ErrUnauthorizedWrite
-	}
-
-	trimmedName := strings.TrimSpace(name)
-
-	// Check if addr is already registered or has been deleted
-	raw, ok := addressStore.Has(addr.String())
-	if !ok {
-		return ErrAliasBeforeName // must register beforehand
-	}
-
-	// Check if user has been deleted
-	if raw.(string) == deletedUser {
-		return ErrDeletedUser
-	}
-
-	// Cannot register taken username as alias
-	if usernameStore.Has(trimmedName) || aliasStore.Has(trimmedName) {
-		return ErrNameTaken
-	}
-
-	// Validate before writing
-	if err := validate(trimmedName, addr); err != nil {
-		return err
-	}
-
-	aliasStore.Set(trimmedName, addr)
-
-	return nil
-}
-
-func DeleteUser(addr std.Address) error {
-	if Pausable.IsPaused() {
-		return pausable.ErrPaused
-	}
-
-	if !IsOnWhitelist(std.PrevRealm().Addr()) {
-		return ErrUnauthorizedWrite
-	}
-
-	// Check if user is registered
-	raw, ok := addressStore.Get(addr.String())
-	if !ok {
-		return ErrUserNotExist
-	}
-
-	username := raw.(string)
-
-	// Check if user has already been deleted
-	if username == deletedUser {
-		return ErrAlreadyDeleted
-	}
-
-	// Find all aliases to delete
-	var toDelete []string
-	aliasStore.Iterate("", "", func(key string, value interface{}) bool {
-		if value.(std.Address) == addr {
-			toDelete = append(toDelete, key)
-		}
-
-		return false
-	})
-
-	// Delete user
-	usernameStore.Set(username, std.Address("")) // todo OR dstore as blacklist
-	addressStore.Set(addr, deletedUser)
-	for _, alias := range toDelete {
-		aliasStore.Set(alias, deletedUser)
-	}
-
-	std.Emit(DeleteUserEvent, "deletedUser", username)
-
-	return nil
-}
 
 // IsOnWhitelist checks if the given address has
 // permission to write to the user store
