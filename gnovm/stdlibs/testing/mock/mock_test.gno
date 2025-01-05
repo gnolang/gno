@@ -18,16 +18,16 @@ func FuzzMock(f *testing.F) {
 		if !ok {
 			panic("dont match")
 		}
-		rev := testing.Reverse1(v)
-		doubleRev := testing.Reverse1(rev)
-		u, ok2 := orig[1].(int)
+		i, ok2 := orig[1].(int)
 		if !ok2 {
 			panic("dont match")
 		}
-		if v != doubleRev && u > 300 && u < 500 {
+		rev := testing.Reverse1(v)
+		doubleRev := testing.Reverse1(rev)
+		if v != doubleRev && i > 300 && i < 500 {
 			t.Errorf("Before: %q, after: %q", orig, doubleRev)
 		}
-		if utf8.ValidString(v) && !utf8.ValidString(rev) && u > 300 && u < 1000 {
+		if utf8.ValidString(v) && !utf8.ValidString(rev) && i > 300 && i < 1000 {
 			t.Errorf("Reverse produced invalid UTF-8 string %q", rev)
 		}
 	})
