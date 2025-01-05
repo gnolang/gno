@@ -315,7 +315,7 @@ func (m *Machine) runMemPackage(memPkg *std.MemPackage, save, overrides bool) (*
 		if throwaway != nil {
 			m.Realm = throwaway
 		}
-		//fmt.Println("---save, throwaway: ", throwaway)
+		debug2.Println2("save, throwaway: ", throwaway)
 	}
 	// run init functions
 	m.runInitFromUpdates(pv, updates)
@@ -787,7 +787,7 @@ func (m *Machine) saveNewPackageValuesAndTypes() (throwaway *Realm) {
 // Pass in the realm from m.saveNewPackageValuesAndTypes()
 // in case a throwaway was created.
 func (m *Machine) resavePackageValues(rlm *Realm) {
-	debug2.Println2("resavePackageValues, rlm: ", rlm)
+	debug2.Println2("resavePackageValues, throwaway: ", rlm)
 	// save package value and dependencies.
 	pv := m.Package
 	if pv.IsRealm() {
@@ -978,7 +978,7 @@ func (m *Machine) RunDeclaration(d Decl) {
 // package level, for which evaluations happen during
 // preprocessing).
 func (m *Machine) runDeclaration(d Decl) {
-	fmt.Println("---run declaration, d: ", d)
+	debug2.Println2("run declaration, d: ", d)
 	switch d := d.(type) {
 	case *FuncDecl:
 		// nothing to do.
@@ -1896,11 +1896,11 @@ func (m *Machine) PushFrameCall(cx *CallExpr, fv *FuncValue, recv TypedValue) {
 			m.setCurrentPackage(pv) // maybe new realm
 		} else {
 			recvOID := obj.GetObjectInfo().ID
-			fmt.Println("---recvOID is: ", recvOID)
+			debug2.Println2("---recvOID is: ", recvOID)
 			if recvOID.IsZero() {
-				fmt.Println("!!! recvOID is ZERO!!!")
-				fmt.Println("---recv is ZERO, it's not owned, recv: ", recv)
-				fmt.Println("---recv is ZERO, m.realm: ", m.Realm)
+				debug2.Println2("!!! recvOID is ZERO!!!")
+				debug2.Println2("---recv is ZERO, it's not owned, recv: ", recv)
+				debug2.Println2("---recv is ZERO, m.realm: ", m.Realm)
 
 				// receiver isn't owned yet.
 				// just continue with current package and realm.

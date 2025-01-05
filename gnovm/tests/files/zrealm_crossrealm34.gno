@@ -57,7 +57,7 @@ func main() {
 //                 "Base": {
 //                     "@type": "/gno.RefValue",
 //                     "Escaped": true,
-//                     "ObjectID": "ff34c6500d0daee58e4ac9899c0e7ecc131db63e:18"
+//                     "ObjectID": "ff34c6500d0daee58e4ac9899c0e7ecc131db63e:20"
 //                 },
 //                 "Length": "1",
 //                 "Maxcap": "1",

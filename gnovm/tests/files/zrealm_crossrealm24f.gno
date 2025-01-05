@@ -8,7 +8,7 @@ import (
 var root interface{}
 
 func main() {
-	root = tests.F
+	root = tests.F // already attached in p
 	println("done")
 }
 

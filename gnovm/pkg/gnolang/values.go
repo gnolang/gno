@@ -289,7 +289,7 @@ func (pv PointerValue) Assign2(alloc *Allocator, store Store, rlm *Realm, tv2 Ty
 	// General case
 	if rlm != nil && pv.Base != nil {
 		oo1 := pv.TV.GetFirstObject(store)
-		fmt.Println("---oo1: ", oo1)
+		debug2.Println2("---oo1: ", oo1)
 
 		// get origin pkgId
 		_, pkgId := tv2.GetFirstObject2(store)
@@ -551,11 +551,11 @@ func (sv *StructValue) Copy(alloc *Allocator) *StructValue {
 	debug2.Println2("sv.GetRefCount: ", sv.GetRefCount())
 	debug2.Println2("sv...OwneID: ", sv.GetObjectInfo().OwnerID)
 	// append, unref copy...
-	//pkgId := sv.GetOriginRealm()
-	//if pkgId.IsZero() {
-	//	pkgId = sv.GetObjectID().PkgID
-	//}
-	//nsv.SetOriginRealm(pkgId)
+	pkgId := sv.GetOriginRealm()
+	if pkgId.IsZero() {
+		pkgId = sv.GetObjectID().PkgID
+	}
+	nsv.SetOriginRealm(pkgId)
 	return nsv
 	//return alloc.NewStruct(fields)
 }
@@ -1081,7 +1081,7 @@ func (tv TypedValue) Copy(alloc *Allocator) (cp TypedValue) {
 		cp.T = tv.T
 		cp.V = cv.Copy(alloc)
 	default:
-		println("---default")
+		debug2.Println2("---default")
 		cp = tv
 	}
 	return
@@ -2669,20 +2669,16 @@ func typedString(s string) TypedValue {
 }
 
 func fillValueTV(store Store, tv *TypedValue) *TypedValue {
-	fmt.Println("---fillValueTV, tv: ", tv)
+	debug2.Println2("fillValueTV, tv: ", tv)
 	switch cv := tv.V.(type) {
 	case RefValue:
-		println("---tv.V RefValue")
-		fmt.Println("---cv: ", cv)
 		if cv.PkgPath != "" { // load package
 			tv.V = store.GetPackage(cv.PkgPath, false)
 		} else { // load object
 			// XXX XXX allocate object.
 			tv.V = store.GetObject(cv.ObjectID)
-			fmt.Println("---tv.V: ", tv.V)
 		}
 	case PointerValue:
-		fmt.Println("---PointerValue")
 		// As a special case, cv.Base is filled
 		// and cv.TV set appropriately.
 		// Alternatively, could implement
