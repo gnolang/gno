@@ -4,8 +4,9 @@ import (
 	"github.com/gnolang/gno/examples/gno.land/p/demo/avl/pager"
 	"github.com/gnolang/gno/examples/gno.land/p/demo/ufmt"
 	"github.com/gnolang/gno/examples/gno.land/p/moul/realmpath"
-	"github.com/gnolang/gno/examples/gno.land/p/sys/users"
+	"github.com/gnolang/gno/examples/gno.land/r/demo/profile"
 	"github.com/gnolang/gno/examples/gno.land/r/sys/users"
+	"github.com/gnolang/gno/gnovm/stdlibs/std"
 	"strconv"
 )
 
@@ -32,17 +33,26 @@ func Render(path string) string {
 		return out
 	}
 
-	// specific user page
-	lookup := users.ResolveName(req.Path)
-	out += renderUserPage(lookup)
+	// Render specific user page
+	var lookup *users.UserData
+	if std.Address(req.Path).IsValid() {
+		lookup = users.ResolveAddress(req.Path)
+	} else {
+		lookup = users.ResolveName(req.Path)
+	}
+
+	if lookup == nil || lookup.IsDeleted() {
+		out += "This user has been deleted or does not exist.\n"
+	} else {
+		out += renderUserPage(lookup)
+	}
 
 	return out
 }
 
-func renderUserPage(lookup users.UserLookup) string {
-	// cheeck if alias
-	// if alias display original name as well
+func renderUserPage(lookup *users.UserData) string {
 	out := ufmt.Sprintf("# User %s\n", lookup.Name)
+	out += profile.GetStringField(lookup.Addr, "Bio", "No bio defined.")
 
 	return out
 }

@@ -41,7 +41,7 @@ func Register(username string) error {
 
 	registrant := std.PrevRealm().Addr()
 
-	err := users.WriteUser(username, registrant)
+	err := users.Register(username, registrant)
 	if err != nil {
 		return err
 	}
