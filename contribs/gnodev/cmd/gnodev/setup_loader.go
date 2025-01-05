@@ -61,25 +61,30 @@ func setupPackagesResolver(logger *slog.Logger, cfg *devCfg, dirs ...string) (pa
 		path := guessPath(cfg, dir)
 		resolver := packages.NewLocalResolver(path, dir)
 
-		logger.Info("guessing directory path", "path", path, "dir", dir)
-		paths = append(paths, path)
+		if resolver.IsValid() {
+			logger.Info("guessing directory path", "path", path, "dir", dir)
+			paths = append(paths, path) // append local path
+		} else {
+			logger.Warn("invalid local path", "dir", dir)
+		}
+
 		localResolvers = append(localResolvers, resolver)
 	}
 
 	resolver := packages.ChainResolvers(
 		packages.ChainResolvers(localResolvers...), // Resolve local directories
 		packages.ChainResolvers(cfg.resolvers...),  // Use user's custom resolvers
-		packages.NewFSResolver(exampleRoot),        // Ultimately use fs resolver
+		packages.NewFSResolver(exampleRoot),        // Ultimately use fs resolver from example folder
 	)
 
 	// Enrich resolver with middleware
 	return packages.MiddlewareResolver(resolver,
 		packages.CacheMiddleware(func(pkg *packages.Package) bool {
-			return pkg.Kind == packages.PackageKindRemote // Cache only remote package
+			return pkg.Kind == packages.PackageKindRemote // Only cache remote package
 		}),
 		packages.FilterPathMiddleware("stdlib", isStdPath), // Filter stdlib package from resolving
 		packages.PackageCheckerMiddleware(logger),          // Pre-check syntax to avoid bothering the node reloading on invalid files
-		packages.LogMiddleware(logger),                     // Log any request
+		packages.LogMiddleware(logger),                     // Log request
 	), paths
 }
 

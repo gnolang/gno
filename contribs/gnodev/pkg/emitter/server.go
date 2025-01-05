@@ -32,6 +32,10 @@ func NewServer(logger *slog.Logger) *Server {
 	}
 }
 
+func (s *Server) LockEmit() { s.muClients.Lock() }
+
+func (s *Server) UnlockEmit() { s.muClients.Unlock() }
+
 // ws handler
 func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	conn, err := s.upgrader.Upgrade(w, r, nil)

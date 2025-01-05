@@ -66,7 +66,7 @@ func setupDevNodeConfig(
 	config.Emitter = emitter
 	config.BalancesList = balances.List()
 	// config.PackagesModifier = pkgspath
-	config.TMConfig.RPC.ListenAddress = resolveUnixOrTCPAddr(cfg.nodeRPCListenerAddr)
+	config.TMConfig.RPC.ListenAddress = cfg.nodeRPCListenerAddr
 	config.NoReplay = cfg.noReplay
 	config.MaxGasPerBlock = cfg.maxGas
 	config.ChainID = cfg.chainId
@@ -92,21 +92,20 @@ func extractAppStateFromGenesisFile(path string) (*gnoland.GnoGenesisState, erro
 	return &state, nil
 }
 
-func resolveUnixOrTCPAddr(in string) (out string) {
+func resolveUnixOrTCPAddr(in string) (addr net.Addr) {
 	var err error
-	var addr net.Addr
 
 	if strings.HasPrefix(in, "unix://") {
 		in = strings.TrimPrefix(in, "unix://")
-		if addr, err := net.ResolveUnixAddr("unix", in); err == nil {
-			return fmt.Sprintf("%s://%s", addr.Network(), addr.String())
+		if addr, err = net.ResolveUnixAddr("unix", in); err == nil {
+			return addr
 		}
 
 		err = fmt.Errorf("unable to resolve unix address `unix://%s`: %w", in, err)
 	} else { // don't bother to checking prefix
 		in = strings.TrimPrefix(in, "tcp://")
 		if addr, err = net.ResolveTCPAddr("tcp", in); err == nil {
-			return fmt.Sprintf("%s://%s", addr.Network(), addr.String())
+			return addr
 		}
 
 		err = fmt.Errorf("unable to resolve tcp address `tcp://%s`: %w", in, err)

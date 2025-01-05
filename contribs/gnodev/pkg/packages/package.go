@@ -29,6 +29,10 @@ type Package struct {
 func ReadPackageFromDir(fset *token.FileSet, path, dir string) (*Package, error) {
 	files, err := os.ReadDir(dir)
 	if err != nil {
+		if os.IsNotExist(err) {
+			return nil, ErrResolverPackageNotFound
+		}
+
 		return nil, fmt.Errorf("unable to read dir %q: %w", dir, err)
 	}
 

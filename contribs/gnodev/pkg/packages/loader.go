@@ -7,10 +7,12 @@ import (
 	"go/token"
 )
 
-var ErrNoResolvers = errors.New("no resolvers setup")
-
 type Loader interface {
+	// Load resolves package package paths and all their dependencies in the correct order.
 	Load(paths ...string) ([]Package, error)
+
+	// Resolve processes a single package path and returns the corresponding Package.
+	Resolve(path string) (*Package, error)
 }
 
 type BaseLoader struct {
@@ -34,6 +36,11 @@ func (l BaseLoader) Load(paths ...string) ([]Package, error) {
 	}
 
 	return pkgs, nil
+}
+
+func (l BaseLoader) Resolve(path string) (*Package, error) {
+	fset := token.NewFileSet()
+	return l.Resolver.Resolve(fset, path)
 }
 
 func load(path string, fset *token.FileSet, resolver Resolver, visited, stack map[string]bool) ([]Package, error) {

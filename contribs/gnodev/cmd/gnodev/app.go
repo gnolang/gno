@@ -15,6 +15,7 @@ import (
 	gnodev "github.com/gnolang/gno/contribs/gnodev/pkg/dev"
 	"github.com/gnolang/gno/contribs/gnodev/pkg/emitter"
 	"github.com/gnolang/gno/contribs/gnodev/pkg/packages"
+	"github.com/gnolang/gno/contribs/gnodev/pkg/proxy"
 	"github.com/gnolang/gno/contribs/gnodev/pkg/rawterm"
 	"github.com/gnolang/gno/contribs/gnodev/pkg/watcher"
 	"github.com/gnolang/gno/tm2/pkg/commands"
@@ -22,34 +23,36 @@ import (
 )
 
 type App struct {
-	cfg    *devCfg
-	io     commands.IO
-	logger *slog.Logger
-
+	cfg           *devCfg
+	io            commands.IO
+	logger        *slog.Logger
 	webHomePath   string
 	paths         []string
 	devNode       *gnodev.Node
 	emitterServer *emitter.Server
 	watcher       *watcher.PackageWatcher
+	loader        packages.Loader
 	book          *address.Book
 	exportPath    string
+	proxy         *proxy.PathInterceptor
+	pathManager   *pathManager
+
+	// Contains all the deferred functions of the app.
+	// Will be triggered on close for cleanup.
+	deferred func()
 
 	// XXX: move this
 	exported uint
 }
 
-func runApp(cfg *devCfg, cio commands.IO, dirs ...string) error {
+func runApp(cfg *devCfg, cio commands.IO, dirs ...string) (err error) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
 	var rt *rawterm.RawTerm
-
 	var out io.Writer
 	if cfg.interactive {
-		var err error
 		var restore func() error
-
-		// Setup raw terminal for interaction
 		rt, restore, err = setupRawTerm(cfg, cio)
 		if err != nil {
 			return fmt.Errorf("unable to init raw term: %w", err)
@@ -76,6 +79,7 @@ func runApp(cfg *devCfg, cio commands.IO, dirs ...string) error {
 	if err := app.Setup(ctx, dirs...); err != nil {
 		return err
 	}
+	defer app.Close()
 
 	if rt != nil {
 		go func() {
@@ -89,27 +93,49 @@ func runApp(cfg *devCfg, cio commands.IO, dirs ...string) error {
 
 func NewApp(logger *slog.Logger, cfg *devCfg, io commands.IO) *App {
 	return &App{
-		logger: logger,
-		cfg:    cfg,
-		io:     io,
+		deferred:    func() {},
+		logger:      logger,
+		cfg:         cfg,
+		io:          io,
+		pathManager: newPathManager(),
 	}
 }
 
-func (ds *App) Setup(ctx context.Context, dirs ...string) error {
-	var err error
+func (ds *App) Defer(fn func()) {
+	old := ds.deferred
+	ds.deferred = func() {
+		defer old()
+		fn()
+	}
+}
 
-	if err = ds.cfg.validateConfigFlags(); err != nil {
+func (ds *App) DeferClose(fn func() error) {
+	ds.Defer(func() {
+		if err := fn(); err != nil {
+			ds.logger.Error("close", "error", err.Error())
+		}
+	})
+}
+
+func (ds *App) Close() {
+	ds.deferred()
+}
+
+func (ds *App) Setup(ctx context.Context, dirs ...string) (err error) {
+	if err := ds.cfg.validateConfigFlags(); err != nil {
 		return fmt.Errorf("validate error: %w", err)
 	}
 
 	loggerEvents := ds.logger.WithGroup(EventServerLogName)
 	ds.emitterServer = emitter.NewServer(loggerEvents)
 
-	// XXX: it would be nice to having this hardcoded
+	// XXX: it would be nice to not have this hardcoded
 	examplesDir := filepath.Join(ds.cfg.root, "examples")
 
-	resolver, localPaths := setupPackagesResolver(ds.logger.WithGroup(LoaderLogName), ds.cfg, dirs...)
-	loader := packages.NewGlobLoader(examplesDir, resolver)
+	// Setup loader and resolver
+	loaderLogger := ds.logger.WithGroup(LoaderLogName)
+	resolver, localPaths := setupPackagesResolver(loaderLogger, ds.cfg, dirs...)
+	ds.loader = packages.NewGlobLoader(examplesDir, resolver)
 
 	// Setup default web home realm, fallback on first local path
 	switch webHome := ds.cfg.webHome; webHome {
@@ -122,11 +148,12 @@ func (ds *App) Setup(ctx context.Context, dirs ...string) error {
 		ds.webHomePath = webHome
 	}
 
-	// generate paths
+	// Generate paths
 	paths := strings.Split(ds.cfg.paths, ",")
 	ds.paths = append(localPaths, paths...)
 
-	ds.book, err = setupAddressBook(ds.logger.WithGroup(AccountsLogName), ds.cfg)
+	accountLogger := ds.logger.WithGroup(AccountsLogName)
+	ds.book, err = setupAddressBook(accountLogger, ds.cfg)
 	if err != nil {
 		return fmt.Errorf("unable to load keybase: %w", err)
 	}
@@ -138,11 +165,30 @@ func (ds *App) Setup(ctx context.Context, dirs ...string) error {
 	ds.logger.Debug("balances loaded", "list", balances.List())
 
 	nodeLogger := ds.logger.WithGroup(NodeLogName)
-	nodeCfg := setupDevNodeConfig(ds.cfg, nodeLogger, ds.emitterServer, balances, loader)
+	nodeCfg := setupDevNodeConfig(ds.cfg, nodeLogger, ds.emitterServer, balances, ds.loader)
+
+	address := resolveUnixOrTCPAddr(nodeCfg.TMConfig.RPC.ListenAddress)
+
+	// Setup lazy proxy
+	if ds.cfg.lazyLoader {
+		proxyLogger := ds.logger.WithGroup(ProxyLogName)
+		ds.proxy, err = proxy.NewPathInterceptor(proxyLogger, address)
+		if err != nil {
+			return fmt.Errorf("unable to setup proxy: %w", err)
+		}
+		ds.DeferClose(ds.proxy.Close)
+
+		// Override current rpc listener
+		nodeCfg.TMConfig.RPC.ListenAddress = ds.proxy.ProxyAddress()
+	} else {
+		nodeCfg.TMConfig.RPC.ListenAddress = fmt.Sprintf("%s://%s", address.Network(), address.String())
+	}
+
 	ds.devNode, err = setupDevNode(ctx, ds.cfg, nodeCfg, ds.paths...)
 	if err != nil {
 		return err
 	}
+	ds.DeferClose(ds.devNode.Close)
 
 	ds.watcher, err = watcher.NewPackageWatcher(loggerEvents, ds.emitterServer)
 	if err != nil {
@@ -154,9 +200,53 @@ func (ds *App) Setup(ctx context.Context, dirs ...string) error {
 	return nil
 }
 
-func (ds *App) setupHandlers() http.Handler {
+func (ds *App) setupHandlers(ctx context.Context) http.Handler {
 	mux := http.NewServeMux()
-	webhandler := setupGnoWebServer(ds.logger.WithGroup(WebLogName), ds.cfg, ds.devNode)
+	remote := ds.devNode.GetRemoteAddress()
+
+	if ds.proxy != nil {
+		proxyLogger := ds.logger.WithGroup(ProxyLogName)
+		remote = ds.proxy.TargetAddress() // update remote address with proxy target address
+		ds.proxy.HandlePath(func(paths ...string) {
+			new := false
+			for _, path := range paths {
+				// Try to resolve the path first.
+				// If we are unable to resolve it, ignore and continue
+				if _, err := ds.loader.Resolve(path); err != nil {
+					proxyLogger.Debug("unable to resolve path",
+						"error", err,
+						"path", path)
+					continue
+				}
+
+				// If we already know this path, continue.
+				if exist := ds.pathManager.Save(path); exist {
+					continue
+				}
+
+				proxyLogger.Info("new monitored path",
+					"path", path)
+
+				new = true
+			}
+
+			if !new {
+				return
+			}
+
+			ds.emitterServer.LockEmit()
+			defer ds.emitterServer.UnlockEmit()
+
+			ds.devNode.SetPackagePaths(ds.paths...)
+			ds.devNode.AddPackagePaths(ds.pathManager.List()...)
+
+			// Reload node on new path
+			if err := ds.devNode.Reload(ctx); err != nil {
+				ds.logger.WithGroup(NodeLogName).Error("unable to reload node", "err", err)
+			}
+		})
+	}
+	webhandler := setupGnoWebServer(ds.logger.WithGroup(WebLogName), ds.cfg, remote)
 
 	if ds.webHomePath != "" {
 		serveWeb := webhandler.ServeHTTP
@@ -169,7 +259,7 @@ func (ds *App) setupHandlers() http.Handler {
 		})
 	}
 
-	// Setup unsage api
+	// Setup unsafe API
 	if ds.cfg.unsafeAPI {
 		mux.HandleFunc("/reset", func(res http.ResponseWriter, req *http.Request) {
 			if err := ds.devNode.Reset(req.Context()); err != nil {
@@ -205,9 +295,9 @@ func (ds *App) RunServer(ctx context.Context, term *rawterm.RawTerm) error {
 	ds.logger.WithGroup(WebLogName).Info("gnoweb started", "lisn", fmt.Sprintf("http://%s", addr))
 
 	server := &http.Server{
-		Handler:           ds.setupHandlers(),
-		Addr:              ds.cfg.webListenerAddr,
-		ReadHeaderTimeout: time.Second * 60,
+		Handler:           ds.setupHandlers(ctx),
+		Addr:              addr,
+		ReadHeaderTimeout: 60 * time.Second,
 	}
 
 	go func() {
@@ -229,6 +319,7 @@ func (ds *App) RunServer(ctx context.Context, term *rawterm.RawTerm) error {
 			if !ok {
 				return nil
 			}
+
 			ds.logger.WithGroup(NodeLogName).Info("reloading...")
 			if err := ds.devNode.Reload(ctx); err != nil {
 				ds.logger.WithGroup(NodeLogName).Error("unable to reload node", "err", err)
@@ -239,6 +330,7 @@ func (ds *App) RunServer(ctx context.Context, term *rawterm.RawTerm) error {
 }
 
 func (ds *App) RunInteractive(ctx context.Context, term *rawterm.RawTerm) {
+	ds.logger.WithGroup(KeyPressLogName).Debug("starting interactive mode")
 	var keyPressCh <-chan rawterm.KeyPress
 	if ds.cfg.interactive {
 		keyPressCh = listenForKeyPress(ds.logger.WithGroup(KeyPressLogName), term)
@@ -249,6 +341,7 @@ func (ds *App) RunInteractive(ctx context.Context, term *rawterm.RawTerm) {
 		case <-ctx.Done():
 			return
 		case key, ok := <-keyPressCh:
+			ds.logger.WithGroup(KeyPressLogName).Debug("pressed", "key", key.String())
 			if !ok {
 				return
 			}
@@ -279,7 +372,6 @@ Ctrl+C      Exit         - Exit the application
 
 func (ds *App) handleKeyPress(ctx context.Context, key rawterm.KeyPress) {
 	var err error
-	ds.logger.WithGroup(KeyPressLogName).Debug(fmt.Sprintf("<%s>", key.String()))
 
 	switch key.Upper() {
 	case rawterm.KeyH: // Helper
@@ -295,7 +387,11 @@ func (ds *App) handleKeyPress(ctx context.Context, key rawterm.KeyPress) {
 		}
 
 	case rawterm.KeyCtrlR: // Reset
-		ds.logger.WithGroup(NodeLogName).Info("reseting node state...")
+		ds.logger.WithGroup(NodeLogName).Info("resetting node state...")
+		// Reset paths
+		ds.pathManager.Reset()
+		ds.devNode.SetPackagePaths(ds.paths...)
+		// Reset the node
 		if err = ds.devNode.Reset(ctx); err != nil {
 			ds.logger.WithGroup(NodeLogName).Error("unable to reset node state", "err", err)
 		}
@@ -361,45 +457,3 @@ func listenForKeyPress(logger *slog.Logger, rt *rawterm.RawTerm) <-chan rawterm.
 
 	return cc
 }
-
-// func resolvePackagesPathFromArgs(cfg *devCfg, bk *address.Book, args []string) ([]gnodev.PackageModifier, error) {
-// 	modifiers := make([]gnodev.PackageModifier, 0, len(args))
-
-// 	if cfg.deployKey == "" {
-// 		return nil, fmt.Errorf("default deploy key cannot be empty")
-// 	}
-
-// 	defaultKey, _, ok := bk.GetFromNameOrAddress(cfg.deployKey)
-// 	if !ok {
-// 		return nil, fmt.Errorf("unable to get deploy key %q", cfg.deployKey)
-// 	}
-
-// 	if len(args) == 0 {
-// 		args = append(args, ".") // add current dir if none are provided
-// 	}
-
-// 	for _, arg := range args {
-// 		path, err := gnodev.ResolvePackageModifierQuery(bk, arg)
-// 		if err != nil {
-// 			return nil, fmt.Errorf("invalid package path/query %q: %w", arg, err)
-// 		}
-
-// 		// Assign a default creator if user haven't specified it.
-// 		if path.Creator.IsZero() {
-// 			path.Creator = defaultKey
-// 		}
-
-// 		modifiers = append(modifiers, path)
-// 	}
-
-// 	// Add examples folder if minimal is set to false
-// 	if cfg.minimal {
-// 		modifiers = append(modifiers, gnodev.PackageModifier{
-// 			Path:    filepath.Join(cfg.root, "examples"),
-// 			Creator: defaultKey,
-// 			Deposit: nil,
-// 		})
-// 	}
-
-// 	return modifiers, nil
-// }

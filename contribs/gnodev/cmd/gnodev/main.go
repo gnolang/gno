@@ -28,6 +28,7 @@ const (
 	EventServerLogName = "Event"
 	AccountsLogName    = "Accounts"
 	LoaderLogName      = "Loader"
+	ProxyLogName       = "Proxy"
 )
 
 var ErrConflictingFileArgs = errors.New("cannot specify `balances-file` or `txs-file` along with `genesis-file`")
@@ -62,6 +63,7 @@ type devCfg struct {
 
 	// Node Configuration
 	logFormat   string
+	lazyLoader  bool
 	verbose     bool
 	noWatch     bool
 	noReplay    bool
@@ -85,6 +87,7 @@ var defaultDevOptions = devCfg{
 	root:                gnoenv.RootDir(),
 	interactive:         true,
 	unsafeAPI:           true,
+	lazyLoader:          true,
 
 	// As we have no reason to configure this yet, set this to random port
 	// to avoid potential conflict with other app
@@ -132,13 +135,6 @@ func (c *devCfg) registerFlagsWithDefault(defaultCfg devCfg, fs *flag.FlagSet) {
 		"interactive",
 		defaultCfg.interactive,
 		"enable gnodev interactive mode",
-	)
-
-	fs.StringVar(
-		&c.chdir,
-		"chdir",
-		defaultCfg.chdir,
-		"change directory context",
 	)
 
 	fs.StringVar(
@@ -258,6 +254,13 @@ func (c *devCfg) registerFlagsWithDefault(defaultCfg devCfg, fs *flag.FlagSet) {
 		"do not replay previous transactions upon reload",
 	)
 
+	fs.BoolVar(
+		&c.lazyLoader,
+		"lazy-loader",
+		defaultCfg.lazyLoader,
+		"enable lazy loader",
+	)
+
 	fs.Int64Var(
 		&c.maxGas,
 		"max-gas",
@@ -287,6 +290,13 @@ func (c *devCfg) registerFlagsWithDefault(defaultCfg devCfg, fs *flag.FlagSet) {
 	)
 
 	// Short flags
+	fs.StringVar(
+		&c.chdir,
+		"C",
+		defaultCfg.chdir,
+		"change directory context before running gnodev",
+	)
+
 	fs.BoolVar(
 		&c.verbose,
 		"v",

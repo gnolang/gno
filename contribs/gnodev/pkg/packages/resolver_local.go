@@ -1,7 +1,6 @@
 package packages
 
 import (
-	"errors"
 	"fmt"
 	"go/token"
 	"path/filepath"
@@ -24,6 +23,11 @@ func (r *LocalResolver) Name() string {
 	return fmt.Sprintf("local<%s>", filepath.Base(r.Dir))
 }
 
+func (r LocalResolver) IsValid() bool {
+	pkg, err := r.Resolve(token.NewFileSet(), r.Path)
+	return err == nil && pkg != nil
+}
+
 func (r LocalResolver) Resolve(fset *token.FileSet, path string) (*Package, error) {
 	after, found := strings.CutPrefix(path, r.Path)
 	if !found {
@@ -31,11 +35,5 @@ func (r LocalResolver) Resolve(fset *token.FileSet, path string) (*Package, erro
 	}
 
 	dir := filepath.Join(r.Dir, after)
-	pkg, err := ReadPackageFromDir(fset, path, dir)
-
-	if err != nil && after == "" && errors.Is(err, ErrResolverPackageSkip) {
-		return nil, fmt.Errorf("empty local package %q", r.Dir) // local package cannot be empty
-	}
-
-	return pkg, nil
+	return ReadPackageFromDir(fset, path, dir)
 }

@@ -198,6 +198,13 @@ func (n *Node) AddPackagePaths(paths ...string) {
 	n.paths = append(n.paths, paths...)
 }
 
+func (n *Node) SetPackagePaths(paths ...string) {
+	n.muNode.Lock()
+	defer n.muNode.Unlock()
+
+	n.paths = paths
+}
+
 // GetBlockTransactions returns the transactions contained
 // within the specified block, if any
 func (n *Node) GetBlockTransactions(blockNum uint64) ([]gnoland.TxWithMetadata, error) {
@@ -549,7 +556,7 @@ func (n *Node) genesisTxResultHandler(ctx sdk.Context, tx std.Tx, res sdk.Result
 	if !res.IsErr() {
 		for _, msg := range tx.Msgs {
 			if addpkg, ok := msg.(vm.MsgAddPackage); ok && addpkg.Package != nil {
-				n.logger.Info("add package",
+				n.logger.Debug("add package",
 					"path", addpkg.Package.Path,
 					"files", len(addpkg.Package.Files),
 					"creator", addpkg.Creator.String(),

@@ -10,9 +10,10 @@ import (
 
 	"github.com/charmbracelet/lipgloss"
 	"github.com/charmbracelet/log"
+	"github.com/muesli/termenv"
 )
 
-func NewColumnLogger(w io.Writer, level slog.Level) *ColumnLogger {
+func NewColumnLogger(w io.Writer, level slog.Level, profile termenv.Profile) *ColumnLogger {
 	charmLogger := log.NewWithOptions(w, log.Options{
 		ReportTimestamp: false,
 		ReportCaller:    false,
@@ -20,12 +21,12 @@ func NewColumnLogger(w io.Writer, level slog.Level) *ColumnLogger {
 	})
 
 	// Default column output
-	renderer := lipgloss.DefaultRenderer()
+	renderer := lipgloss.NewRenderer(nil, termenv.WithProfile(profile))
 
 	defaultOutput := newColumeWriter(w, lipgloss.NewStyle(), "")
 	charmLogger.SetOutput(defaultOutput)
 	charmLogger.SetStyles(defaultStyles())
-	// charmLogger.SetColorProfile(profile)
+	charmLogger.SetColorProfile(profile)
 	charmLogger.SetReportCaller(false)
 	switch level {
 	case slog.LevelDebug:
@@ -41,20 +42,22 @@ func NewColumnLogger(w io.Writer, level slog.Level) *ColumnLogger {
 	}
 
 	return &ColumnLogger{
-		Logger:   charmLogger,
-		writer:   w,
-		prefix:   charmLogger.GetPrefix(),
-		colors:   map[string]lipgloss.Color{},
-		renderer: renderer,
+		Logger:       charmLogger,
+		writer:       w,
+		prefix:       charmLogger.GetPrefix(),
+		colors:       map[string]lipgloss.Color{},
+		colorProfile: profile,
+		renderer:     renderer,
 	}
 }
 
 type ColumnLogger struct {
 	*log.Logger
 
-	prefix   string
-	writer   io.Writer
-	renderer *lipgloss.Renderer
+	prefix       string
+	writer       io.Writer
+	renderer     *lipgloss.Renderer
+	colorProfile termenv.Profile
 
 	colors   map[string]lipgloss.Color
 	muColors sync.RWMutex
@@ -79,6 +82,7 @@ func (cl *ColumnLogger) WithGroup(group string) slog.Handler {
 
 	nlog := cl.Logger.With() // clone logger
 	nlog.SetOutput(newColumeWriter(cl.writer, baseStyle, group))
+	nlog.SetColorProfile(cl.colorProfile)
 	return &ColumnLogger{
 		Logger: nlog,
 		prefix: group,

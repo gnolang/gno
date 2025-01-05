@@ -26,6 +26,7 @@ var defaultStagingOptions = devCfg{
 	root:                gnoenv.RootDir(),
 	interactive:         false,
 	unsafeAPI:           false,
+	lazyLoader:          false,
 	paths:               filepath.Join(DefaultDomain, "/**"), // Load every package under the main domain},
 
 	// As we have no reason to configure this yet, set this to random port

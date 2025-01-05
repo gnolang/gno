@@ -4,16 +4,15 @@ import (
 	"log/slog"
 	"net/http"
 
-	gnodev "github.com/gnolang/gno/contribs/gnodev/pkg/dev"
 	"github.com/gnolang/gno/gno.land/pkg/gnoweb"
 )
 
 // setupGnowebServer initializes and starts the Gnoweb server.
-func setupGnoWebServer(logger *slog.Logger, cfg *devCfg, dnode *gnodev.Node) http.Handler {
+func setupGnoWebServer(logger *slog.Logger, cfg *devCfg, remoteAddr string) http.Handler {
 	webConfig := gnoweb.NewDefaultConfig()
 
 	webConfig.HelpChainID = cfg.chainId
-	webConfig.RemoteAddr = dnode.GetRemoteAddress()
+	webConfig.RemoteAddr = remoteAddr
 	webConfig.HelpRemote = cfg.webRemoteHelperAddr
 	webConfig.WithHTML = cfg.webWithHTML
 

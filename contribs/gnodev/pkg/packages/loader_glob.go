@@ -2,6 +2,7 @@ package packages
 
 import (
 	"fmt"
+	"go/token"
 	"io/fs"
 	"os"
 	"path/filepath"
@@ -75,4 +76,8 @@ func (l GlobLoader) Load(gpaths ...string) ([]Package, error) {
 
 	loader := &BaseLoader{Resolver: l.Resolver}
 	return loader.Load(paths...)
+}
+
+func (l GlobLoader) Resolve(path string) (*Package, error) {
+	return l.Resolver.Resolve(token.NewFileSet(), path)
 }

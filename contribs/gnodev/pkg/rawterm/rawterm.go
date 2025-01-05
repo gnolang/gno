@@ -54,12 +54,31 @@ func (rt *RawTerm) read(buf []byte) (n int, err error) {
 }
 
 func (rt *RawTerm) ReadKeyPress() (KeyPress, error) {
-	buf := make([]byte, 1)
-	if _, err := rt.read(buf); err != nil {
+	buf := make([]byte, 3)
+	n, err := rt.read(buf)
+	if err != nil {
 		return KeyNone, err
 	}
 
-	return KeyPress(buf[0]), nil
+	if n == 1 && buf[0] != '\x1b' {
+		// Single character, not an escape sequence
+		return KeyPress(buf[0]), nil
+	}
+
+	if n >= 3 && buf[0] == '\x1b' && buf[1] == '[' {
+		switch buf[2] {
+		case 'A':
+			return KeyUp, nil
+		case 'B':
+			return KeyDown, nil
+		case 'C':
+			return KeyRight, nil
+		case 'D':
+			return KeyLeft, nil
+		}
+	}
+
+	return KeyNone, fmt.Errorf("unknown key sequence: %v", buf[:n])
 }
 
 // writeWithCRLF writes buf to w but replaces all occurrences of \n with \r\n.
