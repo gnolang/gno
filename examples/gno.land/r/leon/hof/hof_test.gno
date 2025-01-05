@@ -12,7 +12,7 @@ import (
 const rlmPath = "gno.land/r/gnoland/home"
 
 var (
-	admin      = owner.Owner()
+	admin      = Ownable.Owner()
 	adminRealm = std.NewUserRealm(admin)
 	alice      = testutils.TestAddress("alice")
 )
@@ -27,7 +27,7 @@ func TestRegister(t *testing.T) {
 
 	// Test register while paused
 	std.TestSetRealm(adminRealm)
-	Pause()
+	Pausable.Pause()
 
 	// Set legitimate caller
 	std.TestSetRealm(std.NewCodeRealm(rlmPath))
@@ -37,7 +37,7 @@ func TestRegister(t *testing.T) {
 
 	// Unpause
 	std.TestSetRealm(adminRealm)
-	Unpause()
+	Pausable.Unpause()
 
 	// Set legitimate caller
 	std.TestSetRealm(std.NewCodeRealm(rlmPath))

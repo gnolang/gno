@@ -53,6 +53,8 @@ type devCfg struct {
 	txsFile      string
 
 	// Web Configuration
+	noWeb               bool
+	webHTML             bool
 	webListenerAddr     string
 	webRemoteHelperAddr string
 	webWithHTML         bool
@@ -142,6 +144,20 @@ func (c *devCfg) registerFlagsWithDefault(defaultCfg devCfg, fs *flag.FlagSet) {
 		"root",
 		defaultCfg.root,
 		"gno root directory",
+	)
+
+	fs.BoolVar(
+		&c.noWeb,
+		"no-web",
+		defaultDevOptions.noWeb,
+		"disable gnoweb",
+	)
+
+	fs.BoolVar(
+		&c.webHTML,
+		"web-html",
+		defaultDevOptions.webHTML,
+		"gnoweb: enable unsafe HTML parsing in markdown rendering",
 	)
 
 	fs.StringVar(

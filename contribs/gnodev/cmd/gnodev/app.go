@@ -112,7 +112,7 @@ func (ds *App) Defer(fn func()) {
 func (ds *App) DeferClose(fn func() error) {
 	ds.Defer(func() {
 		if err := fn(); err != nil {
-			ds.logger.Error("close", "error", err.Error())
+			ds.logger.Debug("close", "error", err.Error())
 		}
 	})
 }
@@ -180,6 +180,10 @@ func (ds *App) Setup(ctx context.Context, dirs ...string) (err error) {
 
 		// Override current rpc listener
 		nodeCfg.TMConfig.RPC.ListenAddress = ds.proxy.ProxyAddress()
+		proxyLogger.Debug("proxy started",
+			"proxy_addr", ds.proxy.ProxyAddress(),
+			"target_addr", ds.proxy.TargetAddress(),
+		)
 	} else {
 		nodeCfg.TMConfig.RPC.ListenAddress = fmt.Sprintf("%s://%s", address.Network(), address.String())
 	}
@@ -200,16 +204,26 @@ func (ds *App) Setup(ctx context.Context, dirs ...string) (err error) {
 	return nil
 }
 
-func (ds *App) setupHandlers(ctx context.Context) http.Handler {
+func (ds *App) setupHandlers(ctx context.Context) (http.Handler, error) {
 	mux := http.NewServeMux()
 	remote := ds.devNode.GetRemoteAddress()
 
 	if ds.proxy != nil {
 		proxyLogger := ds.logger.WithGroup(ProxyLogName)
 		remote = ds.proxy.TargetAddress() // update remote address with proxy target address
+		// Generate initlial paths
+		initPaths := map[string]struct{}{}
+		for _, path := range ds.paths {
+			initPaths[path] = struct{}{}
+		}
 		ds.proxy.HandlePath(func(paths ...string) {
 			new := false
 			for _, path := range paths {
+				// Check if the path is an initial path.
+				if _, ok := initPaths[path]; ok {
+					continue
+				}
+
 				// Try to resolve the path first.
 				// If we are unable to resolve it, ignore and continue
 				if _, err := ds.loader.Resolve(path); err != nil {
@@ -246,7 +260,12 @@ func (ds *App) setupHandlers(ctx context.Context) http.Handler {
 			}
 		})
 	}
-	webhandler := setupGnoWebServer(ds.logger.WithGroup(WebLogName), ds.cfg, remote)
+
+	// Setup gnoweb
+	webhandler, err := setupGnoWebServer(ds.logger.WithGroup(WebLogName), ds.cfg, remote)
+	if err != nil {
+		return nil, fmt.Errorf("unable to setup gnoweb server: %w", err)
+	}
 
 	if ds.webHomePath != "" {
 		serveWeb := webhandler.ServeHTTP
@@ -284,7 +303,7 @@ func (ds *App) setupHandlers(ctx context.Context) http.Handler {
 		mux.Handle("/", webhandler)
 	}
 
-	return mux
+	return mux, nil
 }
 
 func (ds *App) RunServer(ctx context.Context, term *rawterm.RawTerm) error {
@@ -292,18 +311,26 @@ func (ds *App) RunServer(ctx context.Context, term *rawterm.RawTerm) error {
 	defer cancelWith(nil)
 
 	addr := ds.cfg.webListenerAddr
-	ds.logger.WithGroup(WebLogName).Info("gnoweb started", "lisn", fmt.Sprintf("http://%s", addr))
+	handlers, err := ds.setupHandlers(ctx)
+	if err != nil {
+		return fmt.Errorf("unable to setup handlers: %w", err)
+	}
 
 	server := &http.Server{
-		Handler:           ds.setupHandlers(ctx),
+		Handler:           handlers,
 		Addr:              addr,
 		ReadHeaderTimeout: 60 * time.Second,
 	}
 
-	go func() {
-		err := server.ListenAndServe()
-		cancelWith(err)
-	}()
+	// Serve gnoweb
+	if !ds.cfg.noWeb {
+		go func() {
+			err := server.ListenAndServe()
+			cancelWith(err)
+		}()
+
+		ds.logger.WithGroup(WebLogName).Info("gnoweb started", "lisn", fmt.Sprintf("http://%s", addr))
+	}
 
 	if ds.cfg.interactive {
 		ds.logger.WithGroup("--- READY").Info("for commands and help, press `h`")

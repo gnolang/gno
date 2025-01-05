@@ -274,10 +274,10 @@ func (n *Node) Reset(ctx context.Context) error {
 	// Append initialTxs
 	pkgsTxs := n.generateTxs(DefaultFee, pkgs)
 	txs := append(pkgsTxs, n.initialState...)
-	genesis := gnoland.GnoGenesisState{
-		Balances: n.config.BalancesList,
-		Txs:      txs,
-	}
+
+	genesis := gnoland.DefaultGenState()
+	genesis.Balances = n.config.BalancesList
+	genesis.Txs = txs
 
 	// Reset the node with the new genesis state.
 	err = n.rebuildNode(ctx, genesis)
@@ -427,10 +427,10 @@ func (n *Node) rebuildNodeFromState(ctx context.Context) error {
 			return fmt.Errorf("unable to load pkgs: %w", err)
 		}
 
-		return n.rebuildNode(ctx, gnoland.GnoGenesisState{
-			Balances: n.config.BalancesList,
-			Txs:      n.generateTxs(DefaultFee, pkgs),
-		})
+		genesis := gnoland.DefaultGenState()
+		genesis.Balances = n.config.BalancesList
+		genesis.Txs = n.generateTxs(DefaultFee, pkgs)
+		return n.rebuildNode(ctx, genesis)
 	}
 
 	state, err := n.getBlockStoreState(ctx)
@@ -445,11 +445,12 @@ func (n *Node) rebuildNodeFromState(ctx context.Context) error {
 	}
 
 	// Create genesis with loaded pkgs + previous state
+	genesis := gnoland.DefaultGenState()
+	genesis.Balances = n.config.BalancesList
+
+	// Generate txs
 	pkgsTxs := n.generateTxs(DefaultFee, pkgs)
-	genesis := gnoland.GnoGenesisState{
-		Balances: n.config.BalancesList,
-		Txs:      append(pkgsTxs, state...),
-	}
+	genesis.Txs = append(pkgsTxs, state...)
 
 	// Reset the node with the new genesis state.
 	err = n.rebuildNode(ctx, genesis)
