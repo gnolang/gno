@@ -11,10 +11,12 @@ import (
 )
 
 const (
+	adminAddr = "g1manfred47kzduec920z88wfr64ylksmdcedlf5" // @moul
+
 	reValidUsername    = "^[a-z]{3}[_a-z0-9]{0,14}[0-9]{3}$"
-	adminAddr          = "g1manfred47kzduec920z88wfr64ylksmdcedlf5" // @moul
-	RegisterEvent      = "Register"
-	RegisterAliasEvent = "RegisterAlias"
+	RegisterEvent      = "Registered"
+	RegisterAliasEvent = "AliasRegistered"
+	DeleteUserEvent    = "UserDeleted"
 )
 
 var (
@@ -41,8 +43,7 @@ func Register(username string) error {
 
 	registrant := std.PrevRealm().Addr()
 
-	err := users.Register(username, registrant)
-	if err != nil {
+	if err := users.Register(username, registrant); err != nil {
 		return err
 	}
 
@@ -57,7 +58,31 @@ func RegisterAlias(alias string) error {
 		return pausable.ErrPaused
 	}
 
-	std.Emit(RegisterAliasEvent, "registrant", registrant.String(), "alias", alias)
+	registrant := std.PrevRealm().Addr()
 
+	if err := users.RegisterAlias(username, registrant); err != nil {
+		return err
+	}
+
+	std.Emit(RegisterAliasEvent, "registrant", registrant.String(), "alias", alias)
+	return nil
+}
+
+// Delete deletes the name and aliases associated with the PrevRealm() address.
+// WARN: After deletion, the same address WILL NOT be able to register a new name or alias.
+// TODO SEE IF THIS is the way
+func DeleteUser() error {
+	std.AssertOriginCall()
+
+	if Pausable.IsPaused() {
+		return pausable.ErrPaused
+	}
+
+	addr := std.PrevRealm().Addr()
+	if err := users.Delete(addr); err != nil {
+		return err
+	}
+
+	std.Emit(DeleteUserEvent, "address", registrant.String())
 	return nil
 }

@@ -129,12 +129,12 @@ func RegisterAlias(alias string, address std.Address) error {
 }
 
 // Delete marks a user and all their aliases as deleted.
-func Delete(name string) error {
+func Delete(addr std.Address) error {
 	if err := validateCall(); err != nil {
 		return err
 	}
 
-	data := ResolveName(name)
+	data := ResolveAddress(addr)
 	if data == nil {
 		return ErrUserNotExist
 	}
