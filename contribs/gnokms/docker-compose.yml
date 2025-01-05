@@ -1,0 +1,15 @@
+version: '3.8'
+
+services:
+  vault-filesystem:
+    build:
+      context: .
+      dockerfile: dockerfile
+    ports:
+      - 8200:8200
+    environment:
+      - VAULT_ADDR=http://127.0.0.1:8200
+      - VAULT_API_ADDR=http://127.0.0.1:8200
+    command: server -config=/vault/config/vault-config.json
+    cap_add:
+      - IPC_LOCK
