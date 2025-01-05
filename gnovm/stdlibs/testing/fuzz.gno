@@ -12,12 +12,11 @@ import (
 type (
 	Runner func(*T, ...interface{})
 	F      struct {
-		fsm    *StateMachine
-		fhm    *HashMachine
-		corpus []Seed
-		msgs   []string // Stores log messages for reporting.
-		// TODO: CLI flag to set this.
-		failed    bool // Indicates whether the fuzzing has encountered a failure.
+		fsm       *StateMachine
+		fhm       *HashMachine
+		corpus    []Seed
+		msgs      []string // Stores log messages for reporting.
+		failed    bool     // Indicates whether the fuzzing has encountered a failure.
 		ff        Runner
 		isFuzzed  bool
 		seedCount uint
@@ -67,14 +66,14 @@ func typeof(arg interface{}) (SupportedType, error) {
 		return Int8, nil
 	case int16:
 		return Int16, nil
-	// int32과 rune은 동일 타입이므로 중복 제거
+	// deduplication because int32 and rune are of the same type
 	// case int32:
 	// 	return Int32, nil
 	case int64:
 		return Int64, nil
 	case uint:
 		return Uint, nil
-	// uint8과 byte는 동일 타입이므로 중복 제거
+	// deduplication
 	// case uint8:
 	// 	return Uint8, nil
 	case uint16:
@@ -89,9 +88,6 @@ func typeof(arg interface{}) (SupportedType, error) {
 	}
 }
 
-// 일단 다변수함수를 지원하게는 해 놓았지만,
-// 현재로썬 걍 type string만 반환하는 상태.
-// 하나의 시드를 추가하는 코드.
 func (f *F) Add(args ...interface{}) {
 	if f.isFuzzed {
 		panic("Add after Fuzz")
@@ -101,7 +97,6 @@ func (f *F) Add(args ...interface{}) {
 	if len(args) == 0 {
 		panic("no-argument is denied")
 	}
-	// 타입 검사 및 값 적층
 	for i := range args {
 		t, e := typeof(args[i])
 		if e != nil {
@@ -111,7 +106,6 @@ func (f *F) Add(args ...interface{}) {
 		types = append(types, t)
 	}
 
-	// 타입 기록 및 타입 일관성 검사
 	if f.fsm.SeedType == nil {
 		f.fsm.SeedType = types
 	} else {
@@ -135,41 +129,42 @@ func (f *F) Fuzz(run Runner) {
 		panic("fuzz called more than once")
 	}
 
-	// 초기 시드(코퍼스)들 바탕으로 머신 포멧팅
+	// format machine
 	f.ff = run
 	for i, corp := range f.corpus {
-		println("Adding corpus", i+1, "...")
+		println("Adding corpus", i+1)
 		corp = f.simulateFF(corp)
 		if f.failed {
 			f.handleFail()
 			return
 		}
-		// 초기 시드들의 해시넘버를 케싱
+
 		hashNumber := corp.HashNumber
 		f.fsm.init_hashnumber = append(f.fsm.init_hashnumber, hashNumber)
-		endInfo := f.fsm.CoordinateMachine(corp)
+		endInfo := f.fsm.CoordinateSeed(corp)
 		if endInfo.Complete_Trials {
 			f.reportF()
 			return
 		}
 		if endInfo.MAXed_CAPACITY {
-			// 일종의 새로운 f.Add()
+
 			f.migrateMachines()
 			continue
 		}
 
 	}
-	println("Run trials")
+
 	string_byte_candidates := []int{}
 	for i, t := range f.fsm.SeedType {
 		if t == String || t == Byte_Array {
 			string_byte_candidates = append(string_byte_candidates, i)
 		}
 	}
-	// 상태 기계에 저징
-	f.fsm.string_byte_candidates = string_byte_candidates
 
-	// 초기 시드 바탕으로 1회 업데이트
+	f.fsm.string_byte_candidates = string_byte_candidates
+	println("Run trials...")
+
+	// format by init seeds
 	for i := 0; i < len(f.corpus); i++ {
 		hn := f.fsm.init_hashnumber[i]
 		initSeed := []Seed{f.fsm.PopInitSeedByHN(hn)}
@@ -188,35 +183,87 @@ func (f *F) Fuzz(run Runner) {
 	}
 }
 
+type abstractSeedInfo struct {
+	seeds          []Seed
+	abstractNumber uint
+}
+
+func (f *F) handleEndInfo(endInfo EndInfo, parentSeeds []Seed) bool {
+	if endInfo.Complete_Trials {
+		f.reportF()
+		return true
+	}
+	if endInfo.MAXed_CAPACITY {
+		for _, p := range parentSeeds {
+			f.fsm.CoordinateSeed(p)
+		}
+		f.migrateMachines()
+		return false
+	}
+	return false
+}
+
 func (f *F) updateMachines(parentSeeds []Seed) bool {
-	// 단, parentSeeds는 하나여도 가능
-	// 애초에 Evlove를 그에 맞게 설계함
+	abstractSeedMap := make(map[HashNumber]abstractSeedInfo)
 	childSeeds := Evolve(parentSeeds, &f.seedCount, f.fsm.string_byte_candidates)
+	// println("childlen", len(childSeeds))
+
 	for _, child := range childSeeds {
 		child = f.simulateFF(child)
 		if f.failed {
 			f.handleFail()
 			return true
 		}
-		endInfo := f.fsm.CoordinateMachine(child)
-		if endInfo.Complete_Trials {
-			f.reportF()
-			return true
+		hn := child.HashNumber
+		equal_hn_seeds := abstractSeedMap[hn].seeds
+		abstract_number := abstractSeedMap[hn].abstractNumber
+		if len(equal_hn_seeds) < 2 {
+			equal_hn_seeds = append(equal_hn_seeds, child)
+			abstract_number++
+		} else {
+			abstract_number++
 		}
-		if endInfo.MAXed_CAPACITY {
-			// 마저 정리
-			for _, p := range parentSeeds {
-				f.fsm.CoordinateMachine(p)
-			}
-			// 일종의 새로운 f.Add()
-			f.migrateMachines()
-			return false
+		absSeedInfo := abstractSeedInfo{
+			seeds:          equal_hn_seeds,
+			abstractNumber: abstract_number,
 		}
+		abstractSeedMap[hn] = absSeedInfo
 	}
-	// 마저 정리
-	// 여기선 인풋 수에 변동이 없다.
+	// println("len!", len(abstractSeedMap))
+
+	for hn, absSeedInfo := range abstractSeedMap {
+		seeds := absSeedInfo.seeds
+		if len(seeds) == 1 {
+			// println("hashNumber", hn, ": 1")
+			concreteEndInfo := f.fsm.CoordinateSeed(seeds[0])
+			flag := f.handleEndInfo(concreteEndInfo, parentSeeds)
+			if flag {
+				return flag
+			}
+		} else {
+			absNumber := absSeedInfo.abstractNumber - 2
+			// println("hashNumber", hn, ":", absNumber+2)
+			absEndInfo := f.fsm.CoordinateAbstraction(hn, absNumber)
+			flag := f.handleEndInfo(absEndInfo, parentSeeds)
+			if flag {
+				return flag
+			}
+			concreteEndInfo1 := f.fsm.CoordinateSeed(seeds[0])
+			flag = f.handleEndInfo(concreteEndInfo1, parentSeeds)
+			if flag {
+				return flag
+			}
+			concreteEndInfo2 := f.fsm.CoordinateSeed(seeds[1])
+			flag = f.handleEndInfo(concreteEndInfo2, parentSeeds)
+			if flag {
+				return flag
+			}
+		}
+
+	}
+	// println("iters!")
 	for _, p := range parentSeeds {
-		f.fsm.CoordinateMachine(p)
+		f.fsm.CoordinateSeed(p)
 	}
 	return false
 }
@@ -230,7 +277,6 @@ func (f *F) handleFail() {
 	println("start minimazing failing input")
 	f.minimazeAndLogInput(crashCase.RawContent)
 	log = f.fsm.Crash_Logger.data
-	// 로그가 업데이트 됨
 	minimaizedCase := log[len(log)-1]
 	println(CrashCaseToString(minimaizedCase))
 	hn := minimaizedCase.HashNumber
@@ -242,11 +288,9 @@ func (f *F) handleFail() {
 	return
 }
 
-// 로직 상 머신의 배열이 다 들어차는 순간이 옴 (인풋이 5만개 이상 시)
-// 이 경우 머신을 축약후, 새 머신으로 옮김으로써 이어 시작함.
 func (f *F) migrateMachines() {
 	println("Machine capacity is full. Start migration...")
-	// 기존의 스테이트_머신을 축약
+	// Abstract existing state_machine
 	summarized_seeds := f.fsm.Summarize()
 	old_hashNumbers := []HashNumber{}
 	for _, seed := range summarized_seeds {
@@ -256,23 +300,20 @@ func (f *F) migrateMachines() {
 	for _, hn := range old_hashNumbers {
 		coverages_of_seeds = append(coverages_of_seeds, f.fhm.HashNumber2Coverage(uint(hn)))
 	}
-	// 새 해시머신에 기존 시드의 커버리지를 재등록함으로써 정렬
-	// 이후 그 값을 시드에 리턴
-	// 시드의 헤시넘버는 0,1,2...이며, 해시머신에도 0,1,2 및 커버리지 등록
+	// Sort by re-registering existing seed coverage to the new hash machine
+	// Return the value to the seed afterwards
+	// The hash number of the seed is 0,1,2... and also registers 0,1,2 and coverage on the hash machine
 	f.fhm = New_HashMachine()
 	for i, cov := range coverages_of_seeds {
 		summarized_seeds[i].HashNumber = f.fhm.RegisterCoverage2HashNumber(cov)
 	}
-	// 새로운 스테이트_머신을 생성 후 이전시키기기
+	// Create and relocate a new State_machine
 	prev_inputCount := f.fsm.Input_count
-	// re-코디네이팅 시의 인풋 중복 제거.
 	substracted_inputCount := int(prev_inputCount) - len(summarized_seeds)
-	// 이주할 새 fsm생성
 	f.fsm = New_StateMachine(f.trials, uint(substracted_inputCount))
 	f.fsm.verbose = f.verbose
-	// 시뮬레이팅 할 필요 없이 곧바로 코디네이팅 (hashNumber가 이미 정해졌으므로로)
 	for _, seed := range summarized_seeds {
-		f.fsm.CoordinateMachine(seed)
+		f.fsm.CoordinateSeed(seed)
 	}
 	println("Migration completed. Resume fuzzing...")
 }
@@ -290,12 +331,11 @@ func (f *F) minimazeAndLogInput(seedContent []interface{}) {
 		return
 	}
 	sample := seedContent
-	// 샘플을 훼손하지 않아야 함.
 	content := make([]interface{}, len(sample))
 	for i, v := range sample {
-		content[i] = v // 안전하게 캐스팅
+		content[i] = v
 	}
-	// progressive, preserveness이용해서 최소화시키기
+	// minimaze by progressive, preserveness traits of error
 	for {
 		progressed, isProgressed, occeredPoint := f.checkProgress(content, minimazalbeIdXs)
 		if !isProgressed {
@@ -307,8 +347,7 @@ func (f *F) minimazeAndLogInput(seedContent []interface{}) {
 	sampleSeed := Seed{
 		Content: content,
 	}
-	// 다시 한 번 확인. 커버리지 받아오기
-	// 다시 로그에 기록
+	// re confirm error
 	f.simulateFF(sampleSeed)
 	println("minimaized input")
 }
@@ -322,8 +361,8 @@ func (f *F) reportF() {
 func (f *F) simulateFF(seed Seed) Seed {
 	coverage, err, isPanic, panicMsg := monitor(f.ff, seed.Content)
 
-	// seed.hn 연산
-	// 이로써 seed의 상태변화는 로깅 전에 마무리됨
+	// seed.hn computation
+	// This completes the status change of the seed before logging
 	hashNumber := f.fhm.RegisterCoverage2HashNumber(coverage)
 	seed.HashNumber = hashNumber
 	if isPanic {
@@ -369,7 +408,7 @@ func (f *F) checkProgress(content []interface{}, minimazalbeIdXs []int) ([]inter
 	changed := false
 	for _, idx := range minimazalbeIdXs {
 		sOrb := content[idx]
-		// sOrb를 하나 줄이기고 check
+
 		switch v := sOrb.(type) {
 		case string:
 			if len(v) < 1 {
@@ -378,14 +417,14 @@ func (f *F) checkProgress(content []interface{}, minimazalbeIdXs []int) ([]inter
 			for i := 0; i < len(v); i++ {
 				b := []byte(v)
 				candidate := append(b[:i], b[i+1:]...)
-				// 테스트용 데이터 생성
+
 				tester := make([]interface{}, len(content))
 				for i, v := range content {
-					tester[i] = v // 안전하게 캐스팅
+					tester[i] = v
 				}
 				tester[idx] = string(candidate)
 				if f.checkPreserve(tester).errorIsPreserved {
-					// 제거 확정
+
 					changed = true
 					return tester, changed, idx
 				}
@@ -397,14 +436,12 @@ func (f *F) checkProgress(content []interface{}, minimazalbeIdXs []int) ([]inter
 			for i := 0; i < len(v); i++ {
 				b := []byte(v)
 				candidate := append(b[:i], b[i+1:]...)
-				// 테스트용 데이터 생성
 				tester := make([]interface{}, len(content))
 				for i, v := range content {
-					tester[i] = v // 안전하게 캐스팅
+					tester[i] = v
 				}
 				tester[idx] = []byte(candidate)
 				if f.checkPreserve(tester).errorIsPreserved {
-					// 제거 확정
 					changed = true
 					return tester, changed, idx
 				}
@@ -453,57 +490,51 @@ func (f *F) checkPreserve(content []interface{}) PreserveFailing {
 	}
 }
 
-// TODO: 여기서 커버리지 관련은 반드시 수정하기!!!
-// TODO: 여기선 test결과 따라 커버리지 하드코딩해 두었음. 이거 추후 수정!!
+// TODO: Make sure to revise coverage here!!!
+// TODO: I've hard-coded coverage according to the test results here. This will be corrected later!!
 func monitor(run Runner, content []interface{}) (coverage Coverage, err error, isPanic bool, panicMsg string) {
 	isPanic = false
 	panicMsg = ""
 	err = nil
 	coverage = Coverage{}
-	// panic을 감지하기 위한 defer
 	defer func() {
 		if r := recover(); r != nil {
 			t := NewT("fuzzing")
 			coverage = Get_Coverage_of_runner(t, content)
 			isPanic = true
-			// r이 error 타입이면 .Error() 문자열을 추출
 			if err, ok := r.(error); ok {
 				panicMsg = err.Error()
 				return
 			}
-			// r이 string 타입이면 그대로 문자열로 사용
 			if s, ok := r.(string); ok {
 
 				panicMsg = s
 				return
 			}
-			// 그 외에는 직접 문자열 리턴이 불가능하므로 예시로 "unknown panic" 처리
+
 			panicMsg = "unknown panic"
 		}
 	}()
 	t := NewT("fuzzing")
 
-	// 콘텐트의 불변성 보장
+	// Ensuring the immutability of content
 	copied := make([]interface{}, len(content))
 	for i, v := range content {
-		copied[i] = v // 안전하게 캐스팅
+		copied[i] = v
 	}
-	// 배열을 스프레딩
 	run(t, copied...)
-	// 테스팅 결과 핸들링링
 	info := t.GetResult()
 	if info.Failed {
 		err = errors.New(string(info.Output))
 	}
-	// TODO: 이 함수를, 진짜 커버리지 얻는 함수로 수정하기
-	// TODO: 구현 따라서, 이것도 카피해서 넣어야 함.
+	// TODO: Modifying this function to get real coverage
+	// TODO: It's just pshedo-covrage of some function
 	coverage = Get_Coverage_of_runner(t, content)
 
 	// println(string(t.output))
 	return coverage, err, isPanic, panicMsg
 }
 
-// Slice 비교 함수
 func isSliceEqual(a, b []SupportedType) bool {
 	if len(a) != len(b) {
 		return false

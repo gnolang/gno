@@ -171,7 +171,7 @@ func (c *testCfg) RegisterFlags(fs *flag.FlagSet) {
 	fs.UintVar(
 		&c.fuzzIters,
 		"i",
-		30000,
+		50000,
 		"number of fuzz iterations to run",
 	)
 }
@@ -219,8 +219,6 @@ func execTest(cfg *testCfg, args []string, io commands.IO) error {
 		sort.Strings(pkg.FiletestGnoFiles)
 
 		startedAt := time.Now()
-		//TODO 실행 코드인가??
-		//TODO CFG와 파일까지 전달 후 실행 받는듯.
 		err = gnoTestPkg(pkg.Dir, pkg.TestGnoFiles, pkg.FiletestGnoFiles, cfg, io)
 		duration := time.Since(startedAt)
 		dstr := fmtDuration(duration)
@@ -313,7 +311,7 @@ func gnoTestPkg(
 				stdin, stdout, stderr,
 				mode,
 			)
-			//퍼징 시엔 기본적으로 true처리
+			//True processing by default when fuzzing
 			if verbose || fuzzName != "" {
 				testStore.SetLogStoreOps(true)
 			}
@@ -463,7 +461,6 @@ func pkgPathFromRootDir(pkgPath, rootDir string) string {
 	return ""
 }
 
-// TODO 여기까진 분기 크게 없는듯
 func runTestFiles(
 	m *gno.Machine,
 	files *gno.FileSet,
@@ -495,7 +492,6 @@ func runTestFiles(
 	m.RunFiles(files.Files...)
 	n := gno.MustParseFile("main_test.gno", testmain)
 	m.RunFiles(n)
-	//gno test -v ~~시
 	for _, test := range testFuncs.Tests {
 		// cleanup machine between tests
 		tests.CleanupMachine(m)
@@ -586,7 +582,6 @@ func runFuzzFiles(
 	// before/after statistics
 	numPackagesBefore := m.Store.NumMemPackages()
 
-	//TODO 정보 합성해서 전달 및 실행시킴
 	fuzzmain, err := formatFuzzmain(fuzzFuncs)
 	if err != nil {
 		log.Fatal(err)
@@ -594,8 +589,6 @@ func runFuzzFiles(
 	m.RunFiles(files.Files...)
 	n := gno.MustParseFile("main_test.gno", fuzzmain)
 	m.RunFiles(n)
-	//gno test -v ~~시
-	// 이 경우 TestXXX함수만 실행행
 	for _, fuzz := range fuzzFuncs.Fuzzs {
 		// cleanup machine between tests
 		tests.CleanupMachine(m)
@@ -624,7 +617,6 @@ func runFuzzFiles(
 
 		// TODO: replace with amino or send native type?
 		var rep report
-		//! 여기서 return된 문자를 언마셜링
 		err = json.Unmarshal([]byte(ret), &rep)
 		if err != nil {
 			errs = multierr.Append(errs, err)
@@ -667,10 +659,6 @@ type report struct {
 	Skipped bool
 }
 
-// TODO 아님 여기를 분기처리 해도 좋을수도
-// ! 여기서 test.Name의 prefix에 대한 분기를 시켜도 좋음!
-// ! 현재 테스트용으로 코드 바꿔놈
-// ! 테스트 결과! 현재 전혀 반영이 안되고 있다.
 var testmainTmpl = template.Must(template.New("testmain").Parse(`
 package {{ .PackageName }}
 

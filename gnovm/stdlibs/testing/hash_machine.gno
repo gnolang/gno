@@ -74,13 +74,12 @@ func CoverageToBytes(coverage Coverage) []byte {
 	for _, line := range coverage {
 		builder.WriteString(line.co_name)
 		builder.WriteString("|")
-		builder.WriteString(intToString(line.co_line)) // 숫자 변환 함수 사용
+		builder.WriteString(intToString(line.co_line))
 		builder.WriteString("|")
 	}
 	return []byte(builder.String())
 }
 
-// int를 string으로 변환하는 함수
 func intToString(n int) string {
 	if n == 0 {
 		return "0"
@@ -106,15 +105,8 @@ func intToString(n int) string {
 	return string(digits)
 }
 
-// GetPathHash calculates the hash of a Coverage type
-// 중복 제거도 추가함.
-// 타입 맞게 수정 추가함. 그래도 기반 기능은 동일.
+// calculates hash numbers without removing redundancy of line iterations in coverage
 func GetInternalHash(input Coverage) internalHash {
-	// 다시 생각해보니 좀 차이가 있긴 한데...
-	// 차이가 있긴 하네
-	// 중복 제거는 안하는 걸로 (평탄 확률이 아닐 시, 중복 놔두는게 더 정교)
-	// TODO: 다만 중복 제거는 이후 오염 체킹 등에 쓰기!!!
-	// input = RemoveDuplicates(input)
 	valBytes := CoverageToBytes(input)
 	valArray := sha256.Sum256(valBytes)
 	return internalHash(BytesToUint64(valArray))
@@ -126,7 +118,6 @@ func BytesToUint64(b [32]byte) uint64 {
 		uint64(b[4])<<24 | uint64(b[5])<<16 | uint64(b[6])<<8 | uint64(b[7])
 }
 
-// 중복 제거 함수
 func RemoveDuplicates(coverage Coverage) Coverage {
 	uniqueMap := make(map[CoveredLine]bool)
 	result := Coverage{}

@@ -17,29 +17,25 @@ var (
 	isCalled   bool
 )
 
-// CustomSource는 Source 인터페이스 구현
 type CustomSource struct {
 	seed uint64
 }
 
-// Uint64는 pseudo-random 64-bit value를 리턴해야 함
 func (cs *CustomSource) Uint64() uint64 {
-	// 예: 간단한 XORShift-like 알고리즘
 	cs.seed ^= cs.seed >> 12
 	cs.seed ^= cs.seed << 25
 	cs.seed ^= cs.seed >> 27
 	return cs.seed * 2685821657736338717
 }
 
-// NewCustomSource는 커스텀 소스를 초기화하며 시드를 설정
 func NewCustomSource(seed int64) *CustomSource {
 	return &CustomSource{
 		seed: uint64(seed),
 	}
 }
 
-// 싱글톤 패턴 사용했습니다.
-// GetGlobalRand: 단일 고루틴 환경이라 가정
+// used a single tone pattern.
+// GetGlobalRand: Assume to be a single high-routine environment
 func GetSingleRand() *rand.Rand {
 	if !isCalled {
 		isCalled = true
@@ -84,8 +80,6 @@ func _srand() {
 // [1] https://en.wikipedia.org/wiki/Normal_distribution
 // [2] https://en.wikipedia.org/wiki/Central_limit_theorem
 
-// 수정했습니다.
-// 요구에 부합하도록 -1~1의 값 리턴하게 했습니다
 func nrand() float64 {
 	r := GetSingleRand()
 	danger := r.NormFloat64()
@@ -98,12 +92,11 @@ func nrand() float64 {
 	return scaled
 }
 
-// randRange generates a random integer between min and max (inclusive).
-// TODO: 랜덤 질문. 이거 왜 인클루시브 처리했는지?
-// 일단 나는 익스클루시브 했음음
+// randRange generates a random integer between min and max (inclusive->exclusive: changend).
+// ? Random question. Why did you process this intrusive?
+// First of all, I changed to Exclusive
 // This function leverages the UniformRand function to generate a random number in a specified range.
 // Note: max should be greater than min.
-// 랜덤을 랜덤으로 수정했습니다.
 func RandRange(start, end int64) int64 {
 	if start >= end {
 		panic("start >= end ")
@@ -146,7 +139,6 @@ func RandUint32() uint32 {
 	return rand_num
 }
 
-// 여기에 맞게 nrand고쳤습니다
 func GenerateRandomBool(bias float64) bool {
 	// Modify to use fuzz's random function for generating boolean with bias
 	if bias < 0 || bias > 1 {
@@ -157,7 +149,6 @@ func GenerateRandomBool(bias float64) bool {
 	return res > bias
 }
 
-// 균등분포 추가했습니다.
 func UniformRandomBool(probability float64) bool {
 	if probability < 0.0 || probability > 1.0 {
 		panic("Probability must be between 0.0 and 1.0")

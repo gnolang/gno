@@ -5,7 +5,8 @@ import (
 	"unicode/utf8"
 )
 
-// l
+// TODO: This file is currently a virtual coverage acquisition file
+// TODO: To clear one day, replace it with a real coverage function.
 // l
 // l
 // l
@@ -30,7 +31,7 @@ func mock(t *T, orig ...interface{}) {
 // l
 // l
 // l
-// TODO: 리버스, 리버스 관련 처리도 원시 모델로 처리하기. 점진적 수정 시뮬 필요.
+// l
 // l
 // l
 func Reverse1(s string) string {
@@ -63,28 +64,9 @@ func byteToHexChar(b byte) string {
 	return string('a' + (b - 10)) // a-f
 }
 
-func Reverse3(s string) (string, error) {
-	if !utf8.ValidString(s) {
-		return s, errors.New("input is not valid UTF-8")
-	}
-	r := []rune(s)
-	for i, j := 0, len(r)-1; i < len(r)/2; i, j = i+1, j-1 {
-		r[i], r[j] = r[j], r[i]
-	}
-	return string(r), nil
-}
-
-func Reverse2(s string) string {
-	r := []rune(s)
-	for i, j := 0, len(r)-1; i < len(r)/2; i, j = i+1, j-1 {
-		r[i], r[j] = r[j], r[i]
-	}
-	return string(r)
-}
-
 func Get_Coverage_of_runner(t *T, content []interface{}) Coverage {
-	// 커버리지 받아오도록 하기.
-	// 형식은 (함수명, line)
+	// TODO: Make sure get coverage.
+	// TODO: The format is (function name, line)
 
 	coverage := Coverage{}
 	coverage = append(coverage, CoveredLine{co_name: "closure", co_line: 13})

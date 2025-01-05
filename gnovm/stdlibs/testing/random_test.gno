@@ -66,7 +66,7 @@ func Test_GenerateRandomBool(t *T) {
 				falseCount++
 			}
 		}
-		// TODO: 이것도 질문. 테케 왜이럼?
+		//? This is also a question. Why do you write a test case like this?
 		if trueCount == 0 || falseCount == 0 {
 			t.Errorf("Bias = %v, trueCount = %v, falseCount = %v, want both > 0", bias, trueCount, falseCount)
 		}
@@ -94,7 +94,7 @@ func TestRandRange(t *T) {
 	}
 
 	// if len(nums) != 11 {
-	//  테케 이상해서 수정했음. 원래 10이여야 하는 거 아닌가 싶습니다.
+	//? I modified it because the teke was weird. I think it should be 10.
 	// for num, count := range nums {
 	// 	t.Errorf("Number %d: %d times\n", num, count)
 	// }
