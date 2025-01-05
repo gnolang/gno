@@ -45,7 +45,7 @@ func RegisterUser(name string, address std.Address) error {
 		return err
 	}
 
-	if err := validateCall(std.PrevRealm().Addr()); err != nil {
+	if err := validateCall(); err != nil {
 		return err
 	}
 
@@ -88,6 +88,10 @@ func RegisterAlias(alias string, address std.Address) error {
 		return err
 	}
 
+	if err := validateCall(); err != nil {
+		return err
+	}
+
 	// Check if requested alias is already taken
 	if nameStore.Has(alias) {
 		return ErrNameTaken
@@ -126,7 +130,7 @@ func RegisterAlias(alias string, address std.Address) error {
 
 // Delete marks a user and all their aliases as deleted.
 func Delete(name string) error {
-	if err := validateCall(std.PrevRealm().Addr()); err != nil {
+	if err := validateCall(); err != nil {
 		return err
 	}
 
@@ -147,8 +151,8 @@ func Delete(name string) error {
 	return nil
 }
 
-func validateCall(caller std.Address) error {
-	if !IsOnWhitelist(caller) {
+func validateCall() error {
+	if !IsOnWhitelist(std.PrevRealm().Addr()) {
 		return ErrNotWhitelisted
 	}
 
