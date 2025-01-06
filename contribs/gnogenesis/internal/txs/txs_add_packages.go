@@ -35,7 +35,7 @@ func (c *addPkgCfg) RegisterFlags(fs *flag.FlagSet) {
 		&c.keyName,
 		"key-name",
 		"",
-		"The package deployer key name or address",
+		"The package deployer key name or address contained on gnokey",
 	)
 
 	fs.StringVar(
@@ -99,10 +99,11 @@ func execTxsAddPackages(
 		return fmt.Errorf("unable to get signer info, %w", err)
 	}
 
+	creator := info.GetAddress()
 	parsedTxs := make([]gnoland.TxWithMetadata, 0)
 	for _, path := range args {
 		// Generate transactions from the packages (recursively)
-		txs, err := gnoland.LoadPackagesFromDir(path, info.GetAddress(), genesisDeployFee)
+		txs, err := gnoland.LoadPackagesFromDir(path, creator, genesisDeployFee)
 		if err != nil {
 			return fmt.Errorf("unable to load txs from directory, %w", err)
 		}
@@ -134,6 +135,7 @@ func execTxsAddPackages(
 
 func signTxs(txs []gnoland.TxWithMetadata, signer *gnoclient.SignerFromKeybase) error {
 	for index, tx := range txs {
+		// Here accountNumber and sequenceNumber are set to 0 because they are considered as 0 on genesis transactions.
 		signBytes, err := tx.Tx.GetSignBytes(signer.ChainID, 0, 0)
 		if err != nil {
 			return fmt.Errorf("unable to load txs from directory, %w", err)
@@ -173,7 +175,10 @@ func signerWithConfig(cfg *addPkgCfg, io commands.IO, chainID string) (*gnoclien
 		}
 	} else {
 		kb = keys.NewInMemory()
-		kb.CreateAccount(integration.DefaultAccount_Name, integration.DefaultAccount_Seed, "", "", 0, 0)
+		_, err = kb.CreateAccount(integration.DefaultAccount_Name, integration.DefaultAccount_Seed, "", "", 0, 0)
+		if err != nil {
+			return nil, fmt.Errorf("unable to create account: %w", err)
+		}
 	}
 
 	return &gnoclient.SignerFromKeybase{

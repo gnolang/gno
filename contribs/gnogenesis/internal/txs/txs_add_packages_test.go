@@ -100,7 +100,6 @@ func TestGenesis_Txs_Add_Packages(t *testing.T) {
 
 		// Run the command
 		cmdErr := cmd.ParseAndRun(context.Background(), args)
-		fmt.Println(cmdErr.Error())
 		assert.ErrorContains(t, cmdErr, "Key "+keyname+" not found")
 	})
 
@@ -156,7 +155,6 @@ func TestGenesis_Txs_Add_Packages(t *testing.T) {
 
 		// Run the command
 		cmdErr := cmd.ParseAndRun(context.Background(), args)
-		fmt.Println(cmdErr.Error())
 		assert.ErrorContains(t, cmdErr, "unable to sign txs, unable sign tx invalid account password")
 	})
 
