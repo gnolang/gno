@@ -17,7 +17,7 @@ import (
 // If the `gno` binary doesn't exist, it's built using the `go build` command into the specified buildDir.
 // The function also include the `gno` command into `p.Cmds` to and wrap environment into p.Setup
 // to correctly set up the environment variables needed for the `gno` command.
-func SetupGno(p *testscript.Params, buildDir string) error {
+func SetupGno(p *testscript.Params, homeDir, buildDir string) error {
 	// Try to fetch `GNOROOT` from the environment variables
 	gnoroot := gnoenv.RootDir()
 
@@ -62,17 +62,9 @@ func SetupGno(p *testscript.Params, buildDir string) error {
 		// Set the GNOROOT environment variable
 		env.Setenv("GNOROOT", gnoroot)
 
-		// Create a temporary home directory because certain commands require access to $HOME/.cache/go-build
-		home, err := os.MkdirTemp("", "gno")
-		if err != nil {
-			return fmt.Errorf("unable to create temporary home directory: %w", err)
-		}
-		env.Setenv("HOME", home)
+		env.Setenv("HOME", homeDir)
 		// Avoids go command printing errors relating to lack of go.mod.
 		env.Setenv("GO111MODULE", "off")
-
-		// Cleanup home folder
-		env.Defer(func() { os.RemoveAll(home) })
 
 		return nil
 	}
