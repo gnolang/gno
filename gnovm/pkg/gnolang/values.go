@@ -775,11 +775,8 @@ func (mv *MapValue) GetLength() int {
 // do for structs and arrays for assigning new entries.  If key
 // doesn't exist, a new slot is created.
 func (mv *MapValue) GetPointerForKey(alloc *Allocator, store Store, key *TypedValue) PointerValue {
-	//fmt.Println("GetPointerForKey, key: ", key)
 	kmk := key.ComputeMapKey(store, false)
-	//fmt.Println("kmk1: ", kmk)
 	if mli, ok := mv.vmap[kmk]; ok {
-		//fmt.Println("exist")
 		key2 := key.Copy(alloc)
 		return PointerValue{
 			TV:    fillValueTV(store, &mli.Value),
@@ -788,7 +785,6 @@ func (mv *MapValue) GetPointerForKey(alloc *Allocator, store Store, key *TypedVa
 			Index: PointerIndexMap,
 		}
 	}
-	//fmt.Println("NOT exist, append")
 	mli := mv.List.Append(alloc, *key)
 	mv.vmap[kmk] = mli
 	key2 := key.Copy(alloc)
@@ -803,16 +799,11 @@ func (mv *MapValue) GetPointerForKey(alloc *Allocator, store Store, key *TypedVa
 // Like GetPointerForKey, but does not create a slot if key
 // doesn't exist.
 func (mv *MapValue) GetValueForKey(store Store, key *TypedValue) (val TypedValue, ok bool) {
-	//fmt.Println("GetValueForKey, key: ", key)
 	kmk := key.ComputeMapKey(store, false)
-	//fmt.Println("---kmk2: ", kmk)
 	if mli, exists := mv.vmap[kmk]; exists {
-		//fmt.Println("---exist")
 		fillValueTV(store, &mli.Value)
 		val, ok = mli.Value, true
-		//fmt.Println("---val: ", val)
 	}
-	//fmt.Println("---NOT exist")
 	return
 }
 
@@ -1553,15 +1544,7 @@ func (tv *TypedValue) AssertNonNegative(msg string) {
 }
 
 func (tv *TypedValue) ComputeMapKey(store Store, omitType bool) MapKey {
-	//fmt.Println("1 ComputeMapKey, tv: ", tv, reflect.TypeOf(tv.V))
 	fillValueTV(store, tv)
-	//fmt.Println("2 ComputeMapKey, tv: ", tv, reflect.TypeOf(tv.V))
-	//if pv, ok := tv.V.(PointerValue); ok {
-	//	if _, ok := pv.Base.(*HeapItemValue); ok {
-	//		omitType = true
-	//	}
-	//}
-
 	// Special case when nil: has no separator.
 	if tv.T == nil {
 		if debug {
@@ -1582,22 +1565,6 @@ func (tv *TypedValue) ComputeMapKey(store Store, omitType bool) MapKey {
 		pbz := tv.PrimitiveBytes()
 		bz = append(bz, pbz...)
 	case *PointerType:
-		//fmt.Println("pv: ", tv.V.(PointerValue))
-		//fmt.Println("pv.Base", tv.V.(PointerValue).Base, reflect.TypeOf(tv.V.(PointerValue).Base))
-		//var oid string
-		//if hiv, ok := tv.V.(PointerValue).Base.(*HeapItemValue); ok {
-		//	fmt.Println("---hiv: ", hiv, reflect.TypeOf(hiv))
-		//	fmt.Println("---hiv: ", hiv.GetObjectID())
-		//	//tv.V.(PointerValue).Base.(Object).GetObjectID()
-		//	if !hiv.GetObjectID().IsZero() {
-		//		oid = hiv.GetObjectID().String()
-		//		bz = append(bz, []byte(oid)...)
-		//		return MapKey(bz)
-		//	}
-		//}
-		//println("---else")
-		//ptr := uintptr(unsafe.Pointer(tv.V.(PointerValue).TV))
-		//bz = append(bz, uintptrToBytes(&ptr)...)
 		ptr := uintptr(unsafe.Pointer(tv.V.(PointerValue).TV))
 		bz = append(bz, uintptrToBytes(&ptr)...)
 	case FieldType:

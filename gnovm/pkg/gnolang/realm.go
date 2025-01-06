@@ -1387,11 +1387,7 @@ func fillTypesOfValue(store Store, val Value) Value {
 			fillTypesTV(store, &cur.Key)
 			fillTypesTV(store, &cur.Value)
 
-			//fmt.Println("fillTypesOfValue, cur: ", cur)
-			//fmt.Println("fillTypesOfValue, cur...key...v: ", reflect.TypeOf(cur.Key.V))
-			key2 := cur.Key.ComputeMapKey(store, false)
-			//fmt.Println("mapkey: ", key2)
-			cv.vmap[key2] = cur
+			cv.vmap[cur.Key.ComputeMapKey(store, false)] = cur
 		}
 		return cv
 	case TypeValue:
