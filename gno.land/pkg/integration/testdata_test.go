@@ -10,12 +10,11 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-var debugTs = false
-
-func init() { debugTs, _ = strconv.ParseBool(os.Getenv("DEBUG_TS")) }
-
 func TestTestdata(t *testing.T) {
 	t.Parallel()
+
+	flagInMemoryTS, _ := strconv.ParseBool(os.Getenv("INMEMORY_TS"))
+	flagNoSeqTS, _ := strconv.ParseBool(os.Getenv("NO_SEQ_TS"))
 
 	p := gno_integration.NewTestingParams(t, "testdata")
 
@@ -29,7 +28,7 @@ func TestTestdata(t *testing.T) {
 	require.NoError(t, err)
 
 	mode := commandKindTesting
-	if debugTs {
+	if flagInMemoryTS {
 		mode = commandKindInMemory
 	}
 
@@ -45,9 +44,24 @@ func TestTestdata(t *testing.T) {
 		return nil
 	}
 
-	if debugTs {
+	if flagInMemoryTS && !flagNoSeqTS {
 		testscript.RunT(tSeqShim{t}, p)
 	} else {
 		testscript.Run(t, p)
 	}
+}
+
+type tSeqShim struct{ *testing.T }
+
+// noop Parallel method allow us to run test sequentially
+func (tSeqShim) Parallel() {}
+
+func (t tSeqShim) Run(name string, f func(testscript.T)) {
+	t.T.Run(name, func(t *testing.T) {
+		f(tSeqShim{t})
+	})
+}
+
+func (t tSeqShim) Verbose() bool {
+	return testing.Verbose()
 }

@@ -50,8 +50,14 @@ const (
 type commandkind int
 
 const (
+	// commandKindBin builds and uses an integration binary to run the testscript
+	// in a separate process. This should be used for any external package that
+	// wants to use test scripts.
 	commandKindBin commandkind = iota
+	// commandKindTesting uses the current testing binary to run the testscript
+	// in a separate process. This command cannot be used outside this package.
 	commandKindTesting
+	// commandKindInMemory runs testscripts in memory.
 	commandKindInMemory
 )
 
