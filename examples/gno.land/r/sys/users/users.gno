@@ -1,56 +1,52 @@
 package users
 
 import (
-	"std"
-	"strings"
-
 	"gno.land/p/demo/avl/rotree"
 	"gno.land/p/demo/avlhelpers"
+	"std"
 )
 
-// ResolveName returns the latest UserData of a specific user by name or alias
-func ResolveName(name string) *UserData {
+// ResolveName returns the latest UserData of a specific user by name or Alias
+func ResolveName(name string) (data *UserData, deleted bool) {
 	raw, ok := nameStore.Get(name)
 	if !ok {
-		return nil
+		return nil, false
 	}
 
-	data := raw.(*UserData)
-	for data.alias != nil {
-		data = data.alias
+	data = raw.(*UserData)
+	for data.Alias != nil {
+		data = data.Alias
 	}
-	return data
+
+	return data, data.Deleted
 }
 
 // ResolveAddress returns the latest UserData of a specific user by address
-func ResolveAddress(addr std.Address) *UserData {
+func ResolveAddress(addr std.Address) (data *UserData, deleted bool) {
 	raw, ok := addressStore.Get(addr.String())
 	if !ok {
-		return nil
+		return nil, false
 	}
 
-	data := raw.(*UserData)
-	if data.deleted {
-		return nil
+	data = raw.(*UserData)
+	for data.Alias != nil {
+		data = data.Alias
 	}
 
-	for data.alias != nil {
-		data = data.alias
-	}
-	return data
+	return data, data.Deleted
 }
 
 // ResolveAddressOrName
 // Note: unlike ResolveName, input must be "@" prefixed for names
-func ResolveAddressOrName(aon string) *UserData {
-	if strings.HasPrefix(aon, "@") {
-		return ResolveName(strings.TrimPrefix(aon, "@"))
-	}
+//func ResolveAddressOrName(aon string) *UserData {
+//	if strings.HasPrefix(aon, "@") {
+//		return ResolveName(strings.TrimPrefix(aon, "@"))
+//	}
+//
+//	return ResolveAddress(std.Address(aon))
+//}
 
-	return ResolveAddress(std.Address(aon))
-}
-
-// GetReadonlyStore exposes the username store in readonly mode
+// GetReadonlyStore exposes the Username store in readonly mode
 func GetReadonlyStore() *rotree.ReadOnlyTree {
 	return rotree.Wrap(nameStore, nil)
 }

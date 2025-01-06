@@ -13,7 +13,7 @@ var (
 	callerWhitelist = avl.NewTree() // address > struct{}{}
 
 	nameStore    = avl.NewTree() // name/aliases > *UserData
-	addressStore = avl.NewTree() // address > *UserData - always points to the latest alias
+	addressStore = avl.NewTree() // address > *UserData - always points to the latest Alias
 
 	reAddressLookalike = regexp.MustCompile(`^g1[a-z0-9]{20,38}$`)
 )
@@ -27,15 +27,15 @@ const (
 )
 
 type UserData struct {
-	addr     std.Address
-	username string
-	alias    *UserData
-	deleted  bool
+	Addr     std.Address
+	Username string
+	Alias    *UserData
+	Deleted  bool
 }
 
 func (u UserData) IsDeleted() bool {
 	// No need to resolve, any UserData this is called upon will already be resolved
-	return u.deleted
+	return u.Deleted
 }
 
 // RegisterUser adds a new user to the system.
@@ -67,10 +67,10 @@ func RegisterUser(name string, address std.Address) error {
 
 	// Create UserData
 	data := &UserData{
-		addr:     address,
-		username: name,
-		alias:    nil,
-		deleted:  false,
+		Addr:     address,
+		Username: name,
+		Alias:    nil,
+		Deleted:  false,
 	}
 
 	// Set corresponding stores
@@ -81,7 +81,7 @@ func RegisterUser(name string, address std.Address) error {
 	return nil
 }
 
-// RegisterAlias adds an alias pointing to an existing user.
+// RegisterAlias adds an Alias pointing to an existing user.
 func RegisterAlias(alias string, address std.Address) error {
 	// Validate inputs
 	if err := validateInputs(alias, address); err != nil {
@@ -92,12 +92,12 @@ func RegisterAlias(alias string, address std.Address) error {
 		return err
 	}
 
-	// Check if requested alias is already taken
+	// Check if requested Alias is already taken
 	if nameStore.Has(alias) {
 		return ErrNameTaken
 	}
 
-	// Check if user has a name before an alias
+	// Check if user has a name before an Alias
 	raw, ok := addressStore.Get(address.String())
 	if !ok {
 		return ErrAliasBeforeName
@@ -109,45 +109,45 @@ func RegisterAlias(alias string, address std.Address) error {
 
 	// Create new Alias
 	newData := &UserData{
-		addr:     address,
-		username: alias,
-		alias:    nil,
-		deleted:  false,
+		Addr:     address,
+		Username: alias,
+		Alias:    nil,
+		Deleted:  false,
 	}
 
 	oldData := raw.(*UserData)
-	// Point to new alias
-	oldData.alias = newData
-	oldData.addr = ""
+	// Point to new Alias
+	oldData.Alias = newData
+	oldData.Addr = ""
 
-	// Set latest alias to stores
+	// Set latest Alias to stores
 	addressStore.Set(address.String(), newData)
 	nameStore.Set(alias, newData)
 
-	std.Emit(RegisterAliasEvent, "alias", alias, "address", address.String())
+	std.Emit(RegisterAliasEvent, "Alias", alias, "address", address.String())
 	return nil
 }
 
-// Delete marks a user and all their aliases as deleted.
+// Delete marks a user and all their aliases as Deleted.
 func Delete(addr std.Address) error {
 	if err := validateCall(); err != nil {
 		return err
 	}
 
-	data := ResolveAddress(addr)
+	data, deleted := ResolveAddress(addr)
 	if data == nil {
 		return ErrUserNotExist
 	}
 
-	if data.deleted {
+	if deleted {
 		return ErrAlreadyDeleted
 	}
 
-	data.deleted = true
-	// data.addr = "" // I don't think we should do this, it will likely cause user errors
-	// data.username = "ghost" // could cause issues with users named "ghost"
+	data.Deleted = true
+	// data.Addr = "" // I don't think we should do this, it will likely cause user errors
+	// data.Username = "ghost" // could cause issues with users named "ghost"
 
-	std.Emit(DeleteUserEvent, "address", data.addr.String())
+	std.Emit(DeleteUserEvent, "address", data.Addr.String())
 	return nil
 }
 
@@ -163,7 +163,7 @@ func validateCall() error {
 	return nil
 }
 
-// Validate validates username and address passed in
+// Validate validates Username and address passed in
 func validateInputs(username string, address std.Address) error {
 	if !address.IsValid() {
 		return ErrInvalidAddress
@@ -177,7 +177,7 @@ func validateInputs(username string, address std.Address) error {
 		return ErrNameTooLong
 	}
 
-	// Check if the username can be decoded or looks like a valid address
+	// Check if the Username can be decoded or looks like a valid address
 	if _, _, ok := std.DecodeBech32(std.Address(username)); ok || reAddressLookalike.MatchString(username) {
 		return ErrNameLikeAddress
 	}

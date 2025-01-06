@@ -29,11 +29,11 @@ func TestRegister(t *testing.T) {
 
 		urequire.NoError(t, RegisterUser(alice, aliceAddr))
 
-		res := ResolveName(alice)
-		uassert.Equal(t, aliceAddr, res.addr)
+		res, _ := ResolveName(alice)
+		uassert.Equal(t, aliceAddr, res.Addr)
 
-		res = ResolveAddress(aliceAddr)
-		uassert.Equal(t, alice, res.username)
+		res, _ = ResolveAddress(aliceAddr)
+		uassert.Equal(t, alice, res.Username)
 	})
 
 	t.Run("invalid_inputs", func(t *testing.T) {
@@ -75,7 +75,7 @@ func TestRegister(t *testing.T) {
 		cleanStore(t)
 
 		urequire.NoError(t, RegisterUser(alice, aliceAddr))
-		urequire.NoError(t, Delete(alice))
+		urequire.NoError(t, Delete(aliceAddr))
 
 		// Try re-registering after deletion
 		uassert.ErrorContains(t, RegisterUser("newname", aliceAddr), ErrDeletedUser.Error())
@@ -85,9 +85,9 @@ func TestRegister(t *testing.T) {
 		t.Parallel()
 		cleanStore(t)
 
-		// Address as username
+		// Address as Username
 		uassert.ErrorContains(t, RegisterUser("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5", aliceAddr), ErrNameLikeAddress.Error())
-		// Beginning of address as username
+		// Beginning of address as Username
 		uassert.ErrorContains(t, RegisterUser("g1jg8mtutu9khhfwc4nxmu", aliceAddr), ErrNameLikeAddress.Error())
 		uassert.NoError(t, RegisterUser("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5longerthananaddress", aliceAddr))
 	})
@@ -133,7 +133,7 @@ func TestRegisterAlias(t *testing.T) {
 		cleanStore(t)
 
 		urequire.NoError(t, RegisterUser(alice, aliceAddr))
-		urequire.NoError(t, Delete(alice))
+		urequire.NoError(t, Delete(aliceAddr))
 
 		uassert.ErrorContains(t, RegisterAlias("newalice", aliceAddr), ErrDeletedUser.Error())
 	})
@@ -160,9 +160,9 @@ func TestRegisterAlias(t *testing.T) {
 
 		urequire.NoError(t, RegisterUser(alice, aliceAddr))
 
-		// Address as username
+		// Address as Username
 		uassert.ErrorContains(t, RegisterAlias("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5", aliceAddr), ErrNameLikeAddress.Error())
-		// Beginning of address as username
+		// Beginning of address as Username
 		uassert.ErrorContains(t, RegisterAlias("g1jg8mtutu9khhfwc4nxmu", aliceAddr), ErrNameLikeAddress.Error())
 		uassert.NoError(t, RegisterAlias("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5longerthananaddress", aliceAddr))
 	})
@@ -177,28 +177,28 @@ func TestResolveName(t *testing.T) {
 
 		urequire.NoError(t, RegisterUser(alice, aliceAddr))
 
-		res := ResolveName(alice)
+		res, deleted := ResolveName(alice)
 
-		uassert.Equal(t, aliceAddr, res.addr)
-		uassert.Equal(t, alice, res.username)
-		uassert.Equal(t, nil, res.alias)
-		uassert.False(t, res.deleted)
+		uassert.Equal(t, aliceAddr, res.Addr)
+		uassert.Equal(t, alice, res.Username)
+		uassert.Equal(t, nil, res.Alias)
+		uassert.False(t, deleted)
 	})
 
-	t.Run("name+alias", func(t *testing.T) {
+	t.Run("name+Alias", func(t *testing.T) {
 		t.Parallel()
 		cleanStore(t)
 
 		urequire.NoError(t, RegisterUser(alice, aliceAddr))
 		urequire.NoError(t, RegisterAlias("alice1", aliceAddr))
 
-		res := ResolveName(alice)
+		res, deleted := ResolveName(alice)
 		urequire.NotEqual(t, nil, res)
 
-		uassert.Equal(t, aliceAddr, res.addr)
-		uassert.Equal(t, "alice1", res.username)
-		uassert.Equal(t, nil, res.alias)
-		uassert.False(t, res.deleted)
+		uassert.Equal(t, aliceAddr, res.Addr)
+		uassert.Equal(t, "alice1", res.Username)
+		uassert.Equal(t, nil, res.Alias)
+		uassert.False(t, deleted)
 	})
 
 	t.Run("multiple_aliases", func(t *testing.T) {
@@ -207,7 +207,7 @@ func TestResolveName(t *testing.T) {
 
 		urequire.NoError(t, RegisterUser(alice, aliceAddr))
 
-		// RegisterUser and check each alias
+		// RegisterUser and check each Alias
 		var names []string
 		names = append(names, alice)
 		for i := 0; i < 5; i++ {
@@ -217,26 +217,26 @@ func TestResolveName(t *testing.T) {
 			urequire.NoError(t, RegisterAlias(alias, aliceAddr))
 
 			// Right after registering, it should resolve to itself
-			res := ResolveName(alias)
+			res, deleted := ResolveName(alias)
 			urequire.NotEqual(t, nil, res)
 
-			uassert.Equal(t, aliceAddr, res.addr)
-			uassert.Equal(t, alias, res.username)
-			uassert.Equal(t, nil, res.alias)
-			uassert.False(t, res.deleted)
+			uassert.Equal(t, aliceAddr, res.Addr)
+			uassert.Equal(t, alias, res.Username)
+			uassert.Equal(t, nil, res.Alias)
+			uassert.False(t, deleted)
 		}
 
 		// Now verify that all aliases resolve to the latest one (alice4)
 		finalAlias := names[len(names)-1]
 
 		for _, alias := range names {
-			res := ResolveName(alias)
+			res, deleted := ResolveName(alias)
 			urequire.NotEqual(t, nil, res)
 
-			uassert.Equal(t, aliceAddr, res.addr)
-			uassert.Equal(t, finalAlias, res.username)
-			uassert.Equal(t, nil, res.alias)
-			uassert.False(t, res.deleted)
+			uassert.Equal(t, aliceAddr, res.Addr)
+			uassert.Equal(t, finalAlias, res.Username)
+			uassert.Equal(t, nil, res.Alias)
+			uassert.False(t, deleted)
 		}
 	})
 }
@@ -250,28 +250,28 @@ func TestResolveAddress(t *testing.T) {
 
 		urequire.NoError(t, RegisterUser(alice, aliceAddr))
 
-		res := ResolveAddress(aliceAddr)
+		res, deleted := ResolveAddress(aliceAddr)
 
-		uassert.Equal(t, aliceAddr, res.addr)
-		uassert.Equal(t, alice, res.username)
-		uassert.Equal(t, nil, res.alias)
-		uassert.False(t, res.deleted)
+		uassert.Equal(t, aliceAddr, res.Addr)
+		uassert.Equal(t, alice, res.Username)
+		uassert.Equal(t, nil, res.Alias)
+		uassert.False(t, deleted)
 	})
 
-	t.Run("name+alias", func(t *testing.T) {
+	t.Run("name+Alias", func(t *testing.T) {
 		t.Parallel()
 		cleanStore(t)
 
 		urequire.NoError(t, RegisterUser(alice, aliceAddr))
 		urequire.NoError(t, RegisterAlias("alice1", aliceAddr))
 
-		res := ResolveAddress(aliceAddr)
+		res, deleted := ResolveAddress(aliceAddr)
 		urequire.NotEqual(t, nil, res)
 
-		uassert.Equal(t, aliceAddr, res.addr)
-		uassert.Equal(t, "alice1", res.username)
-		uassert.Equal(t, nil, res.alias)
-		uassert.False(t, res.deleted)
+		uassert.Equal(t, aliceAddr, res.Addr)
+		uassert.Equal(t, "alice1", res.Username)
+		uassert.Equal(t, nil, res.Alias)
+		uassert.False(t, deleted)
 	})
 
 	t.Run("multiple_aliases", func(t *testing.T) {
@@ -280,7 +280,7 @@ func TestResolveAddress(t *testing.T) {
 
 		urequire.NoError(t, RegisterUser(alice, aliceAddr))
 
-		// RegisterUser and check each alias
+		// RegisterUser and check each Alias
 		var names []string
 		names = append(names, alice)
 
@@ -291,13 +291,13 @@ func TestResolveAddress(t *testing.T) {
 			urequire.NoError(t, RegisterAlias(alias, aliceAddr))
 
 			// Right after registering, it should resolve to itself
-			res := ResolveAddress(aliceAddr)
+			res, deleted := ResolveAddress(aliceAddr)
 			urequire.NotEqual(t, nil, res)
 
-			uassert.Equal(t, aliceAddr, res.addr)
-			uassert.Equal(t, alias, res.username)
-			uassert.Equal(t, nil, res.alias)
-			uassert.False(t, res.deleted)
+			uassert.Equal(t, aliceAddr, res.Addr)
+			uassert.Equal(t, alias, res.Username)
+			uassert.Equal(t, nil, res.Alias)
+			uassert.False(t, deleted)
 		}
 	})
 }
@@ -309,7 +309,7 @@ func TestDelete(t *testing.T) {
 		t.Parallel()
 		cleanStore(t)
 
-		uassert.ErrorContains(t, Delete("someone"), ErrUserNotExist.Error())
+		uassert.ErrorContains(t, Delete(testutils.TestAddress("unregistered")), ErrUserNotExist.Error())
 	})
 
 	t.Run("double_delete", func(t *testing.T) {
@@ -317,9 +317,10 @@ func TestDelete(t *testing.T) {
 		cleanStore(t)
 
 		urequire.NoError(t, RegisterUser(alice, aliceAddr))
-		urequire.NoError(t, Delete(alice))
 
-		uassert.ErrorContains(t, Delete(alice), ErrAlreadyDeleted.Error())
+		urequire.NoError(t, Delete(aliceAddr))
+
+		uassert.ErrorContains(t, Delete(aliceAddr), ErrAlreadyDeleted.Error())
 	})
 
 	t.Run("valid_delete", func(t *testing.T) {
@@ -327,13 +328,13 @@ func TestDelete(t *testing.T) {
 		cleanStore(t)
 
 		urequire.NoError(t, RegisterUser(alice, aliceAddr))
-		uassert.NoError(t, Delete(alice))
+		uassert.NoError(t, Delete(aliceAddr))
 
-		resolved := ResolveName(alice)
+		resolved, deleted := ResolveName(alice)
 		uassert.NotEqual(t, nil, resolved)
-		uassert.Equal(t, alice, resolved.username)
-		uassert.Equal(t, aliceAddr, resolved.addr)
-		uassert.True(t, resolved.deleted)
+		uassert.Equal(t, alice, resolved.Username)
+		uassert.Equal(t, aliceAddr, resolved.Addr)
+		uassert.True(t, deleted)
 	})
 }
 
