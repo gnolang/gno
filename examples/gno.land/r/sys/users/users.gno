@@ -42,7 +42,6 @@ func ResolveAddress(addr std.Address) *UserData {
 
 // ResolveAddressOrName
 // Note: unlike ResolveName, input must be "@" prefixed for names
-// It does not resolve aliases
 func ResolveAddressOrName(aon string) *UserData {
 	if strings.HasPrefix(aon, "@") {
 		return ResolveName(strings.TrimPrefix(aon, "@"))
