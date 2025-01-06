@@ -187,7 +187,8 @@ func createRoutableAddr(t *testing.T, id p2pTypes.ID) *p2pTypes.NetAddress {
 	}
 }
 
-// Peer is a live peer, utilized for testing purposes
+// Peer is a live peer, utilized for testing purposes.
+// This Peer implementation is NOT thread safe
 type Peer struct {
 	*service.BaseService
 	ip   net.IP
