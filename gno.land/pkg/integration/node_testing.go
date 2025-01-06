@@ -55,7 +55,7 @@ func TestingInMemoryNode(t TestingTS, logger *slog.Logger, config *gnoland.InMem
 // with default packages and genesis transactions already loaded.
 // It will return the default creator address of the loaded packages.
 func TestingNodeConfig(t TestingTS, gnoroot string, additionalTxs ...gnoland.TxWithMetadata) (*gnoland.InMemoryNodeConfig, bft.Address) {
-	cfg := TestingMinimalNodeConfig(t, gnoroot)
+	cfg := TestingMinimalNodeConfig(gnoroot)
 	cfg.SkipGenesisVerification = true
 
 	creator := crypto.MustAddressFromString(DefaultAccount_Address) // test1
@@ -66,24 +66,24 @@ func TestingNodeConfig(t TestingTS, gnoroot string, additionalTxs ...gnoland.TxW
 	txs = append(txs, LoadDefaultPackages(t, creator, gnoroot)...)
 	txs = append(txs, additionalTxs...)
 
-	ggs := cfg.Genesis.AppState.(gnoland.GnoGenesisState)
-	ggs.Balances = balances
-	ggs.Txs = txs
-	ggs.Params = params
-	cfg.Genesis.AppState = ggs
+	cfg.Genesis.AppState = gnoland.GnoGenesisState{
+		Balances: balances,
+		Txs:      txs,
+		Params:   params,
+	}
 
 	return cfg, creator
 }
 
 // TestingMinimalNodeConfig constructs the default minimal in-memory node configuration for testing.
-func TestingMinimalNodeConfig(t TestingTS, gnoroot string) *gnoland.InMemoryNodeConfig {
+func TestingMinimalNodeConfig(gnoroot string) *gnoland.InMemoryNodeConfig {
 	tmconfig := DefaultTestingTMConfig(gnoroot)
 
 	// Create Mocked Identity
 	pv := gnoland.NewMockedPrivValidator()
 
 	// Generate genesis config
-	genesis := DefaultTestingGenesisConfig(t, gnoroot, pv.GetPubKey(), tmconfig)
+	genesis := DefaultTestingGenesisConfig(gnoroot, pv.GetPubKey(), tmconfig)
 
 	return &gnoland.InMemoryNodeConfig{
 		PrivValidator: pv,
@@ -97,16 +97,7 @@ func TestingMinimalNodeConfig(t TestingTS, gnoroot string) *gnoland.InMemoryNode
 	}
 }
 
-func DefaultTestingGenesisConfig(t TestingTS, gnoroot string, self crypto.PubKey, tmconfig *tmcfg.Config) *bft.GenesisDoc {
-	genState := gnoland.DefaultGenState()
-	genState.Balances = []gnoland.Balance{
-		{
-			Address: crypto.MustAddressFromString(DefaultAccount_Address),
-			Amount:  std.MustParseCoins(ugnot.ValueString(10000000000000)),
-		},
-	}
-	genState.Txs = []gnoland.TxWithMetadata{}
-	genState.Params = []gnoland.Param{}
+func DefaultTestingGenesisConfig(gnoroot string, self crypto.PubKey, tmconfig *tmcfg.Config) *bft.GenesisDoc {
 	return &bft.GenesisDoc{
 		GenesisTime: time.Now(),
 		ChainID:     tmconfig.ChainID(),
@@ -126,7 +117,16 @@ func DefaultTestingGenesisConfig(t TestingTS, gnoroot string, self crypto.PubKey
 				Name:    "self",
 			},
 		},
-		AppState: genState,
+		AppState: gnoland.GnoGenesisState{
+			Balances: []gnoland.Balance{
+				{
+					Address: crypto.MustAddressFromString(DefaultAccount_Address),
+					Amount:  std.MustParseCoins(ugnot.ValueString(10_000_000_000_000)),
+				},
+			},
+			Txs:    []gnoland.TxWithMetadata{},
+			Params: []gnoland.Param{},
+		},
 	}
 }
 
@@ -179,8 +179,9 @@ func DefaultTestingTMConfig(gnoroot string) *tmcfg.Config {
 
 	tmconfig := tmcfg.TestConfig().SetRootDir(gnoroot)
 	tmconfig.Consensus.WALDisabled = true
+	tmconfig.Consensus.SkipTimeoutCommit = true
 	tmconfig.Consensus.CreateEmptyBlocks = true
-	tmconfig.Consensus.CreateEmptyBlocksInterval = time.Duration(0)
+	tmconfig.Consensus.CreateEmptyBlocksInterval = time.Millisecond * 100
 	tmconfig.RPC.ListenAddress = defaultListner
 	tmconfig.P2P.ListenAddress = defaultListner
 	return tmconfig
