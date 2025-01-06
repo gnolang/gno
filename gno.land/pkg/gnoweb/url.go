@@ -152,11 +152,16 @@ func ParseGnoURL(u *url.URL) (*GnoURL, error) {
 	}
 
 	var file string
-	if ext := filepath.Ext(upath); ext != "" {
-		file = filepath.Base(upath)
-		upath = strings.TrimSuffix(upath, file)
 
-		// Trim last slash
+	// A file is considered as one that either ends with an extension or
+	// contains an uppercase rune
+	ext := filepath.Ext(upath)
+	base := filepath.Base(upath)
+	if ext != "" || strings.ToLower(base) != base {
+		file = base
+		upath = strings.TrimSuffix(upath, base)
+
+		// Trim last slash if any
 		if i := strings.LastIndexByte(upath, '/'); i > 0 {
 			upath = upath[:i]
 		}

@@ -237,6 +237,19 @@ func TestParseGnoURL(t *testing.T) {
 				Domain: "gno.land",
 			},
 		},
+
+		{
+			Name:  "no extension file",
+			Input: "https://gno.land/r/demo/lIcEnSe",
+			Expected: &GnoURL{
+				Path:     "/r/demo",
+				File:     "lIcEnSe",
+				Args:     "",
+				WebQuery: url.Values{},
+				Query:    url.Values{},
+				Domain:   "gno.land",
+			},
+		},
 	}
 
 	for _, tc := range testCases {
