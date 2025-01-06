@@ -47,6 +47,23 @@ import (
 	verset "github.com/gnolang/gno/tm2/pkg/versionset"
 )
 
+// Reactors are hooks for the p2p module,
+// to alert of connecting / disconnecting peers
+const (
+	mempoolReactorName    = "MEMPOOL"
+	blockchainReactorName = "BLOCKCHAIN"
+	consensusReactorName  = "CONSENSUS"
+	discoveryReactorName  = "DISCOVERY"
+)
+
+const (
+	mempoolModuleName    = "mempool"
+	blockchainModuleName = "blockchain"
+	consensusModuleName  = "consensus"
+	p2pModuleName        = "p2p"
+	discoveryModuleName  = "discovery"
+)
+
 // ------------------------------------------------------------------------------
 
 // DBContext specifies config information for loading a new DB.
@@ -260,7 +277,7 @@ func createMempoolAndMempoolReactor(config *cfg.Config, proxyApp appconn.AppConn
 		state.ConsensusParams.Block.MaxTxBytes,
 		mempl.WithPreCheck(sm.TxPreCheck(state)),
 	)
-	mempoolLogger := logger.With("module", "mempool")
+	mempoolLogger := logger.With("module", mempoolModuleName)
 	mempoolReactor := mempl.NewReactor(config.Mempool, mempool)
 	mempoolReactor.SetLogger(mempoolLogger)
 
@@ -286,7 +303,7 @@ func createBlockchainReactor(
 		switchToConsensusFn,
 	)
 
-	bcReactor.SetLogger(logger.With("module", "blockchain"))
+	bcReactor.SetLogger(logger.With("module", blockchainModuleName))
 	return bcReactor, nil
 }
 
@@ -373,7 +390,7 @@ func NewNode(config *cfg.Config,
 
 	// Create the handshaker, which calls RequestInfo, sets the AppVersion on the state,
 	// and replays any blocks as necessary to sync tendermint with the app.
-	consensusLogger := logger.With("module", "consensus")
+	consensusLogger := logger.With("module", consensusModuleName)
 	if err := doHandshake(stateDB, state, blockStore, genDoc, evsw, proxyApp, consensusLogger); err != nil {
 		return nil, err
 	}
@@ -437,13 +454,13 @@ func NewNode(config *cfg.Config,
 
 	reactors := []nodeReactor{
 		{
-			"MEMPOOL", mempoolReactor,
+			mempoolReactorName, mempoolReactor,
 		},
 		{
-			"BLOCKCHAIN", bcReactor,
+			blockchainReactorName, bcReactor,
 		},
 		{
-			"CONSENSUS", consensusReactor,
+			consensusReactorName, consensusReactor,
 		},
 	}
 
@@ -452,7 +469,7 @@ func NewNode(config *cfg.Config,
 		return nil, errors.Wrap(err, "error making NodeInfo")
 	}
 
-	p2pLogger := logger.With("module", "p2p")
+	p2pLogger := logger.With("module", p2pModuleName)
 
 	// Setup the multiplex transport, used by the P2P switch
 	transport := p2p.NewMultiplexTransport(
@@ -467,10 +484,10 @@ func NewNode(config *cfg.Config,
 	if config.P2P.PeerExchange {
 		discoveryReactor = discovery.NewReactor()
 
-		discoveryReactor.SetLogger(logger.With("module", "discovery"))
+		discoveryReactor.SetLogger(logger.With("module", discoveryModuleName))
 
 		reactors = append(reactors, nodeReactor{
-			name:    "DISCOVERY",
+			name:    discoveryReactorName,
 			reactor: discoveryReactor,
 		})
 	}
