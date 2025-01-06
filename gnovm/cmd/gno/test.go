@@ -233,7 +233,6 @@ func execTest(cfg *testCfg, args []string, io commands.IO) error {
 
 		duration := time.Since(startedAt)
 		dstr := fmtDuration(duration)
-
 		if hasError || err != nil {
 			if err != nil {
 				io.ErrPrintfln("%s: test pkg: %v", pkg.Dir, err)

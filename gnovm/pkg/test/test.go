@@ -233,7 +233,6 @@ func Test(memPkg *gnovm.MemPackage, fsDir string, opts *TestOptions) error {
 				}
 			}
 		} else {
-
 			if len(itset.Files) > 0 {
 				itPkg := &gnovm.MemPackage{
 					Name:  memPkg.Name + "_test",
@@ -414,6 +413,7 @@ func (opts *TestOptions) runTestFiles(
 
 	return errs
 }
+
 func (opts *TestOptions) runFuzzFuncInTestFiles(
 	memPkg *gnovm.MemPackage,
 	files *gno.FileSet,

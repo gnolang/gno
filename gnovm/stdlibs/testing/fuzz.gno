@@ -30,7 +30,6 @@ type (
 )
 
 func New_F(verbose bool, trials uint) *F {
-	println("creating fuzzing enviroment...")
 	new_fsm := New_StateMachine(trials, 0)
 	new_fsm.verbose = verbose
 	new_fhm := New_HashMachine()
@@ -122,7 +121,6 @@ func (f *F) Add(args ...interface{}) {
 }
 
 func (f *F) Fuzz(run Runner) {
-	println("----------------------------- Fuzz Start --------------------------------")
 	if !f.isFuzzed {
 		f.isFuzzed = true
 	} else {
@@ -131,8 +129,7 @@ func (f *F) Fuzz(run Runner) {
 
 	// format machine
 	f.ff = run
-	for i, corp := range f.corpus {
-		println("Adding corpus", i+1)
+	for _, corp := range f.corpus {
 		corp = f.simulateFF(corp)
 		if f.failed {
 			f.handleFail()
@@ -270,21 +267,23 @@ func (f *F) updateMachines(parentSeeds []Seed) bool {
 
 func (f *F) handleFail() {
 	f.Fail()
-	println("----------------------------- FAIL --------------------------------")
+	println("--- FAIL:")
 	log := f.fsm.Crash_Logger.data
 	crashCase := log[len(log)-1]
-	println("found failing input", TransForHuman(crashCase.Input), "at", f.fsm.Input_count, "trials")
-	println("start minimazing failing input")
+	println("   --- found failing input", TransForHuman(crashCase.Input), "at", f.fsm.Input_count, "trials")
 	f.minimazeAndLogInput(crashCase.RawContent)
 	log = f.fsm.Crash_Logger.data
 	minimaizedCase := log[len(log)-1]
 	println(CrashCaseToString(minimaizedCase))
 	hn := minimaizedCase.HashNumber
 	coverage := f.fhm.HashNumber2Coverage(hn)
-
-	println("----------------------------- Trace --------------------------------")
-	println(CoverageToString(coverage))
-	println("--------------------------------------------------------------------")
+	if f.verbose {
+		println("--- Trace:")
+		println(CoverageToString(coverage))
+	} else {
+		println("--- Trace:")
+		println("   --- Most recently covered line: function", coverage[len(coverage)-1].co_name, "in line", coverage[len(coverage)-1].co_line)
+	}
 	return
 }
 
@@ -356,11 +355,11 @@ func (f *F) minimazeAndLogInput(seedContent []interface{}) {
 	}
 	// re confirm error
 	f.simulateFF(sampleSeed)
-	println("minimaized input")
+	println("minimaized input:")
 }
 
 func (f *F) reportF() {
-	println("----------------------------- PASS --------------------------------")
+	println("PASS")
 	println("Complete", f.fsm.Input_count, "Trials")
 	println("Found", (uint(f.fhm.hashNumber_counter.counter) + uint(1)), "coverage")
 }

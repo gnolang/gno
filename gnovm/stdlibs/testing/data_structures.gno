@@ -1,5 +1,66 @@
 package testing
 
+import "errors"
+
+type Seed_Queue struct {
+	data []Seed
+}
+
+func New_Seed_Queue() *Seed_Queue {
+	return &Seed_Queue{
+		data: make([]Seed, 0),
+	}
+}
+
+func (q *Seed_Queue) Enqueue(seed Seed) {
+	q.data = append(q.data, seed)
+}
+
+func (q *Seed_Queue) Dequeue() (Seed, bool) {
+	if len(q.data) == 0 {
+		return Seed{}, false
+	}
+
+	front := q.data[0]
+
+	q.data = q.data[1:]
+	// Reduce memory usage
+	if len(q.data) > 0 && len(q.data) <= cap(q.data)/2 {
+		newData := make([]Seed, len(q.data))
+		copy(newData, q.data)
+		q.data = newData
+	}
+	return front, true
+}
+
+func (q *Seed_Queue) Peek() (Seed, error) {
+	if len(q.data) == 0 {
+		return Seed{}, errors.New("queue is empty")
+	}
+	return q.data[0], nil
+}
+
+func (q *Seed_Queue) Select() Seed
+
+func (q *Seed_Queue) IsEmpty() bool {
+	return len(q.data) == 0
+}
+
+func (q *Seed_Queue) Size() int {
+	return len(q.data)
+}
+
+func (q *Seed_Queue) Display() {
+	if len(q.data) == 0 {
+		println("Queue is empty")
+		return
+	}
+	println("Queue seeds:")
+	for i, seed := range q.data {
+		println("[", i, "]: {content:", seed.Content, "}")
+	}
+}
+
 // ! Data must be unique!!!
 // ! It's a list that reduces time complexity by using it!!
 // Node: Node in single connection list
@@ -165,4 +226,56 @@ func (ll *Unique_Uint_LinkedList) Peek() (uint, bool) {
 		return 0, false
 	}
 	return ll.head.data, true
+}
+
+type Uint_Queue struct {
+	data []uint
+}
+
+func New_Uint_Queue() *Uint_Queue {
+	return &Uint_Queue{data: make([]uint, 0)}
+}
+
+func (q *Uint_Queue) Uint_Enqueue(value uint) {
+	q.data = append(q.data, value)
+}
+
+// Remove from queue and return.
+// If the slice is empty compared to the capacity,
+// Added logic to copy into new slices to organize memory.
+func (q *Uint_Queue) Uint_Dequeue() (uint, bool) {
+	if len(q.data) == 0 {
+		return 0, false
+	}
+
+	value := q.data[0]
+	q.data[0] = 0
+
+	q.data = q.data[1:]
+
+	// Memory leak prevention
+	// When the current slice length (len) is less than half the capacity (cap)
+	// Copy to new slice, remove the front discarded space.
+	if len(q.data) > 0 && len(q.data) <= cap(q.data)/2 {
+		newData := make([]uint, len(q.data))
+		copy(newData, q.data)
+		q.data = newData
+	}
+
+	return value, true
+}
+
+func (q *Uint_Queue) Uint_Peek() (uint, bool) {
+	if len(q.data) == 0 {
+		return 0, false
+	}
+	return q.data[0], true
+}
+
+func (q *Uint_Queue) IsEmpty() bool {
+	return len(q.data) == 0
+}
+
+func (q *Uint_Queue) Size() int {
+	return len(q.data)
 }
