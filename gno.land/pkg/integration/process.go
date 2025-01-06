@@ -289,7 +289,6 @@ func RunInMemoryProcess(ctx context.Context, cfg ProcessConfig) (NodeProcess, er
 	}
 
 	return nil, err
-
 }
 
 func RunMain(ctx context.Context, stdin io.Reader, stdout, stderr io.Writer) error {
