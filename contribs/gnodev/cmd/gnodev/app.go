@@ -211,11 +211,13 @@ func (ds *App) setupHandlers(ctx context.Context) (http.Handler, error) {
 	if ds.proxy != nil {
 		proxyLogger := ds.logger.WithGroup(ProxyLogName)
 		remote = ds.proxy.TargetAddress() // update remote address with proxy target address
-		// Generate initlial paths
+
+		// Generate initial paths
 		initPaths := map[string]struct{}{}
 		for _, path := range ds.paths {
 			initPaths[path] = struct{}{}
 		}
+
 		ds.proxy.HandlePath(func(paths ...string) {
 			new := false
 			for _, path := range paths {
