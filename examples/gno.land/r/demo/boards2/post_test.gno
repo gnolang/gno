@@ -35,13 +35,13 @@ func TestPostAddFlag(t *testing.T) {
 
 func TestPostSetVisible(t *testing.T) {
 	post := createTestThread(t)
-	uassert.False(t, post.Hidden(), "post should be visible by default")
+	uassert.False(t, post.IsHidden(), "post should be visible by default")
 
 	post.SetVisible(false)
-	uassert.True(t, post.Hidden(), "post should be hidden")
+	uassert.True(t, post.IsHidden(), "post should be hidden")
 
 	post.SetVisible(true)
-	uassert.False(t, post.Hidden(), "post should be visible")
+	uassert.False(t, post.IsHidden(), "post should be visible")
 }
 
 func TestPostAddRepostTo(t *testing.T) {

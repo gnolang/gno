@@ -60,8 +60,8 @@ func renderThread(res *mux.ResponseWriter, req *mux.Request) {
 	thread, found := board.GetThread(PostID(tID))
 	if !found {
 		res.Write("Thread does not exist with ID: " + rawID)
-	} else if thread.Hidden() {
-		res.Write("Thread with ID: " + rawID + " was hidden")
+	} else if thread.IsHidden() {
+		res.Write("Thread with ID: " + rawID + " has been flagged as inappropriate")
 	} else {
 		res.Write(thread.Render("", 5))
 	}
@@ -99,7 +99,7 @@ func renderReply(res *mux.ResponseWriter, req *mux.Request) {
 	reply, found := thread.GetReply(PostID(rID))
 	if !found {
 		res.Write("Reply does not exist with ID: " + rawID)
-	} else if reply.Hidden() {
+	} else if reply.IsHidden() {
 		res.Write("Reply with ID: " + rawID + " was hidden")
 	} else {
 		res.Write(reply.RenderInner())

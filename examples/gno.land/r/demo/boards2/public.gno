@@ -83,7 +83,7 @@ func CreateReply(bid BoardID, threadID, replyID PostID, body string) PostID {
 	} else {
 		// Try to get parent reply and add a new child reply
 		post := mustGetReply(thread, replyID)
-		assertThreadVisible(thread)
+		assertReplyVisible(post)
 
 		reply = post.AddReply(caller, body)
 	}
@@ -99,7 +99,7 @@ func FlagReply(bid BoardID, threadID, replyID PostID, reason string) {
 	thread := mustGetThread(board, threadID)
 	reply := mustGetReply(thread, replyID)
 
-	if flagItem(reply, NewFlag(caller, reason)) {
+	if hide := flagItem(reply, NewFlag(caller, reason)); hide {
 		reply.SetVisible(false)
 	}
 }
@@ -250,7 +250,13 @@ func assertReplyExists(thread *Post, replyID PostID) {
 }
 
 func assertThreadVisible(thread *Post) {
-	if thread.Hidden() {
+	if thread.IsHidden() {
 		panic("thread with ID: " + thread.GetPostID().String() + " was hidden")
+	}
+}
+
+func assertReplyVisible(thread *Post) {
+	if thread.IsHidden() {
+		panic("reply with ID: " + thread.GetPostID().String() + " was hidden")
 	}
 }
