@@ -23,4 +23,4 @@ func main() {
 }
 
 // Error:
-// thread with ID: 2 was hidden
+// reply with ID: 2 was hidden

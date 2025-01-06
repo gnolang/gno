@@ -119,7 +119,7 @@ func (post *Post) SetVisible(isVisible bool) {
 	post.isHidden = !isVisible
 }
 
-func (post *Post) Hidden() bool {
+func (post *Post) IsHidden() bool {
 	return post.isHidden
 }
 
@@ -300,6 +300,7 @@ func (post *Post) Render(indent string, levels int) string {
 			post.replies.Iterate("", "", func(_ string, value interface{}) bool {
 				reply := value.(*Post)
 				if reply.isHidden {
+					// TODO: change this in case of pagination
 					return false
 				}
 
