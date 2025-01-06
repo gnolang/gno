@@ -181,15 +181,6 @@ func (r *Reactor) Receive(chID byte, peer p2p.Peer, msgBytes []byte) {
 // handleDiscoveryRequest prepares a peer list that can be shared
 // with the peer requesting discovery
 func (r *Reactor) handleDiscoveryRequest(peer p2p.Peer) error {
-	// Check if there is anything to share,
-	// to avoid useless traffic
-	switchPeers := r.Switch.Peers()
-	if switchPeers.NumOutbound()+switchPeers.NumInbound() == 0 {
-		r.Logger.Warn("no peers to share in discovery request")
-
-		return nil
-	}
-
 	var (
 		localPeers = r.Switch.Peers().List()
 		peers      = make([]*types.NetAddress, 0, len(localPeers))
@@ -199,6 +190,14 @@ func (r *Reactor) handleDiscoveryRequest(peer p2p.Peer) error {
 	localPeers = slices.DeleteFunc(localPeers, func(p p2p.Peer) bool {
 		return p.IsPrivate()
 	})
+
+	// Check if there is anything to share,
+	// to avoid useless traffic
+	if len(localPeers) == 0 {
+		r.Logger.Warn("no peers to share in discovery request")
+
+		return nil
+	}
 
 	// Shuffle and limit the peers shared
 	shufflePeers(localPeers)
