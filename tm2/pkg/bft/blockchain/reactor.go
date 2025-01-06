@@ -38,6 +38,9 @@ const (
 		bcBlockResponseMessageFieldKeySize
 )
 
+// SwitchToConsensusFn is a callback method that is meant to
+// stop the syncing process as soon as the latest known height is reached,
+// and start the consensus process for the validator node
 type SwitchToConsensusFn func(sm.State, int)
 
 type peerError struct {
