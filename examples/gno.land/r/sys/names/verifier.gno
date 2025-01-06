@@ -55,8 +55,12 @@ func defaultVerifier(enabled bool, address std.Address, name string) bool {
 	/// XXX: add check for r/sys/teams down the line
 
 	// Can be a registered name or an alias
-	userData := users.ResolveName(name)
-	return userdata.addr == address
+	userData, deleted := users.ResolveName(name)
+	if userData == nil || deleted {
+		return false
+	}
+
+	return userData.Addr == address
 }
 
 // UpdateVerifyCall updates the method that verifies the namespace.

@@ -7,6 +7,9 @@ import (
 	"gno.land/p/demo/ownable"
 	"gno.land/p/demo/testutils"
 	"gno.land/p/demo/uassert"
+	"gno.land/p/demo/urequire"
+
+	"gno.land/r/sys/users"
 )
 
 var alice = testutils.TestAddress("alice")
@@ -27,12 +30,13 @@ func TestDefaultVerifier(t *testing.T) {
 	// Empty name/address
 	uassert.False(t, defaultVerifier(true, std.Address(""), ""))
 
-	//Register proper username fixme: doesn't work
-	//std.TestSetRealm(std.NewCodeRealm("gno.land/r/gnoland/users")) // authorized write
-	//std.TestSetOrigCaller(std.DerivePkgAddr("gno.land/r/gnoland/users"))
-	//urequire.NoError(t, users.WriteUser("alice", alice))
-	//// Proper namespace
-	//uassert.True(t, defaultVerifier(true, alice, "alice"))
+	//Register proper username
+	std.TestSetRealm(std.NewCodeRealm("gno.land/r/gnoland/users")) // authorized write
+	std.TestSetOrigCaller(std.DerivePkgAddr("gno.land/r/gnoland/users"))
+	urequire.NoError(t, users.RegisterUser("alice", alice))
+
+	// Proper namespace
+	uassert.True(t, defaultVerifier(true, alice, "alice"))
 }
 
 func TestUpdateVerifyCall(t *testing.T) {
