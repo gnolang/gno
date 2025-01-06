@@ -1777,7 +1777,7 @@ func TestStateOutputVoteStats(t *testing.T) {
 
 	cs, vss := randConsensusState(2)
 	// create dummy peer
-	peer := &p2pmock.Peer{}
+	peer := p2pmock.Peer{}
 
 	vote := signVote(vss[1], types.PrecommitType, []byte("test"), types.PartSetHeader{})
 
