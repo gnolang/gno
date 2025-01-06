@@ -1,0 +1,102 @@
+name: Go
+
+on:
+  push:
+    branches:
+      - master
+  pull_request:
+    branches:
+      - master
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        arch:
+          - x64
+          - armv7
+          - aarch64
+        go:
+          - '1.13'
+          - '1.14'
+          - '1.15'
+          - '1.16'
+          - '1.17'
+          - '1.18'
+          - '1.19'
+          - '1.20'
+
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: Set up Go
+        uses: actions/setup-go@v2
+        with:
+          go-version: '${{ matrix.go }}'
+
+      - name: 'Build'
+        if: ${{ matrix.arch == 'x64' }}
+        run: go build -v ./...
+
+      - name: 'Test'
+        if: ${{ matrix.arch == 'x64' }}
+        run: go test -v ./...
+
+      - name: 'TestRace'
+        if: ${{ matrix.arch == 'x64' }}
+        run: go test -race -v ./...
+
+      - name: 'Bench'
+        if: ${{ matrix.arch == 'x64' }}
+        run: go test -run=- -bench=. -benchtime=1x -v ./...
+
+      - name: 'BenchRace'
+        if: ${{ matrix.arch == 'x64' }}
+        run: go test -run=- -bench=. -benchtime=1x -race -v ./...
+
+      - name: 'Vet'
+        if: ${{ matrix.arch == 'x64' }}
+        # -unsafeptr=false is needed because of the noescape function in bigint.go.
+        run: go vet -unsafeptr=false ./...
+
+      - name: 'Staticcheck'
+        # staticcheck requires go1.19.
+        if: ${{ matrix.arch == 'x64' && matrix.go >= '1.19' }}
+        run: |
+          go install honnef.co/go/tools/cmd/staticcheck@v0.4.3
+          staticcheck ./...
+
+      - name: 'GCAssert'
+        # Only run gcassert on the latest versions of Go. Inlining heuristics
+        # change from version to version.
+        if: ${{ matrix.arch == 'x64' && matrix.go >= '1.17' }}
+        run: |
+          go install github.com/jordanlewis/gcassert/cmd/gcassert@latest
+          gcassert ./...
+
+      - name: 'BuildTest for armv7'
+        if: ${{ matrix.arch == 'armv7' }}
+        env:
+          GOARCH: arm
+          GOARM: 7
+        run: go test -c ./...
+
+      - name: 'BuildTest for aarch64'
+        if: ${{ matrix.arch == 'aarch64' }}
+        env:
+          GOARCH: arm64
+        run: go test -c ./...
+
+      - name: 'Test and Bench on ${{ matrix.arch }}'
+        # arch != 'x64': we already tested on x86 above.
+        # go != '1.13': go1.13 + arm is significantly slower, so don't run test suite.
+        if: ${{ matrix.arch != 'x64' && matrix.go != '1.13' }}
+        uses: uraimo/run-on-arch-action@v2.1.1
+        with:
+          arch: ${{ matrix.arch }}
+          distro: ubuntu20.04
+          dockerRunArgs: --mount type=bind,source="$(pwd)",target=/checkout,readonly
+          run: |
+            find /checkout -name '*.test' -type f -executable -print0 | xargs -0 -I '{}' sh -c '{} -test.run=. -test.bench=. -test.benchtime=1x -test.v'

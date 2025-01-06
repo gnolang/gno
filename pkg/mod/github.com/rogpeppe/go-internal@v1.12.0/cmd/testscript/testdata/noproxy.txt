@@ -1,0 +1,12 @@
+# With no .gomodproxy supporting files, we use the GOPROXY from
+# the environment.
+# Note that Go 1.21 started quoting with single quotes in "go env",
+# where older versions used double quotes.
+env GOPROXY=0.1.2.3
+unquote file.txt
+testscript -v file.txt
+
+-- file.txt --
+>go env
+>[!windows] stdout '^GOPROXY=[''"]0.1.2.3[''"]$'
+>[windows] stdout '^set GOPROXY=0.1.2.3$'

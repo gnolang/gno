@@ -1,0 +1,73 @@
+# File managed by web3-bot. DO NOT EDIT.
+# See https://github.com/protocol/.github/ for details.
+
+on: [push, pull_request]
+name: Go Checks
+
+jobs:
+  unit:
+    runs-on: ubuntu-latest
+    name: All
+    env:
+      RUNGOGENERATE: false
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          submodules: recursive
+      - uses: actions/setup-go@v2
+        with:
+          go-version: "1.18.x"
+      - name: Run repo-specific setup
+        uses: ./.github/actions/go-check-setup
+        if: hashFiles('./.github/actions/go-check-setup') != ''
+      - name: Read config
+        if: hashFiles('./.github/workflows/go-check-config.json') != ''
+        run: |
+          if jq -re .gogenerate ./.github/workflows/go-check-config.json; then
+            echo "RUNGOGENERATE=true" >> $GITHUB_ENV
+          fi
+      - name: Install staticcheck
+        run: go install honnef.co/go/tools/cmd/staticcheck@d7e217c1ff411395475b2971c0824e1e7cc1af98 # 2022.1 (v0.3.0)
+      - name: Check that go.mod is tidy
+        uses: protocol/multiple-go-modules@v1.2
+        with:
+          run: |
+            go mod tidy
+            if [[ -n $(git ls-files --other --exclude-standard --directory -- go.sum) ]]; then
+              echo "go.sum was added by go mod tidy"
+              exit 1
+            fi
+            git diff --exit-code -- go.sum go.mod
+      - name: gofmt
+        if: ${{ success() || failure() }} # run this step even if the previous one failed
+        run: |
+          out=$(gofmt -s -l .)
+          if [[ -n "$out" ]]; then
+            echo $out | awk '{print "::error file=" $0 ",line=0,col=0::File is not gofmt-ed."}'
+            exit 1
+          fi
+      - name: go vet
+        if: ${{ success() || failure() }} # run this step even if the previous one failed
+        uses: protocol/multiple-go-modules@v1.2
+        with:
+          run: go vet ./...
+      - name: staticcheck
+        if: ${{ success() || failure() }} # run this step even if the previous one failed
+        uses: protocol/multiple-go-modules@v1.2
+        with:
+          run: |
+            set -o pipefail
+            staticcheck ./... | sed -e 's@\(.*\)\.go@./\1.go@g'
+      - name: go generate
+        uses: protocol/multiple-go-modules@v1.2
+        if: (success() || failure()) && env.RUNGOGENERATE == 'true'
+        with:
+          run: |
+            git clean -fd # make sure there aren't untracked files / directories
+            go generate ./...
+            # check if go generate modified or added any files
+            if ! $(git add . && git diff-index HEAD --exit-code --quiet); then
+              echo "go generated caused changes to the repository:"
+              git status --short
+              exit 1
+            fi

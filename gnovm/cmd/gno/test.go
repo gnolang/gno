@@ -26,6 +26,8 @@ type testCfg struct {
 	updateGoldenTests   bool
 	printRuntimeMetrics bool
 	printEvents         bool
+	fuzzName            string
+	fuzzIters           int
 }
 
 func newTestCmd(io commands.IO) *commands.Command {
@@ -143,6 +145,18 @@ func (c *testCfg) RegisterFlags(fs *flag.FlagSet) {
 		false,
 		"print emitted events",
 	)
+	fs.StringVar(
+		&c.fuzzName,
+		"fuzz",
+		"",
+		"specify fuzz target name (e.g. FuzzXXX) or 'Fuzz' for all fuzz tests",
+	)
+	fs.IntVar(
+		&c.fuzzIters,
+		"i",
+		50000,
+		"number of fuzz iterations to run",
+	)
 }
 
 func execTest(cfg *testCfg, args []string, io commands.IO) error {
@@ -178,7 +192,7 @@ func execTest(cfg *testCfg, args []string, io commands.IO) error {
 
 	// Set up options to run tests.
 	stdout := goio.Discard
-	if cfg.verbose {
+	if cfg.verbose || cfg.fuzzName != "" {
 		stdout = io.Out()
 	}
 	opts := test.NewTestOptions(cfg.rootDir, io.In(), stdout, io.Err())
@@ -187,7 +201,8 @@ func execTest(cfg *testCfg, args []string, io commands.IO) error {
 	opts.Verbose = cfg.verbose
 	opts.Metrics = cfg.printRuntimeMetrics
 	opts.Events = cfg.printEvents
-
+	opts.FuzzName = cfg.fuzzName
+	opts.FuzzIters = cfg.fuzzIters
 	buildErrCount := 0
 	testErrCount := 0
 	for _, pkg := range subPkgs {

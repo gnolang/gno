@@ -1,9 +1,51 @@
 package testing
 
-import "math"
+import (
+	"math"
+	"math/rand"
+)
 
 // Internal state for the random number generator.
 var x uint64 = 42
+
+func ExUnixNano() int64 {
+	return unixNano()
+}
+
+var (
+	singleRand *rand.Rand
+	isCalled   bool
+)
+
+type CustomSource struct {
+	seed uint64
+}
+
+func (cs *CustomSource) Uint64() uint64 {
+	cs.seed ^= cs.seed >> 12
+	cs.seed ^= cs.seed << 25
+	cs.seed ^= cs.seed >> 27
+	return cs.seed * 2685821657736338717
+}
+
+func NewCustomSource(seed int64) *CustomSource {
+	return &CustomSource{
+		seed: uint64(seed),
+	}
+}
+
+// used a single tone pattern.
+// GetGlobalRand: Assume to be a single high-routine environment
+func GetSingleRand() *rand.Rand {
+	if !isCalled {
+		isCalled = true
+		seed := unixNano() // 동적 시드 설정
+		source := NewCustomSource(seed)
+		singleRand = rand.New(source)
+
+	}
+	return singleRand
+}
 
 // UniformRand generates a uniformly distributed random number.
 // It uses the linear congrential generator method to produce the random number.
@@ -20,8 +62,11 @@ func UniformRand() uint64 {
 
 // _srand function sets the seed for the random number generator.
 // This function provides an initial starting point for the sequence of random numbers.
-func _srand(seed int64) {
-	x = uint64(seed)
+
+// 고쳤습니다.
+func _srand() {
+	r := GetSingleRand()
+	x = uint64(r.Uint64())
 }
 
 // nrand function generates a number approximating a normal distribution[1].
@@ -34,31 +79,64 @@ func _srand(seed int64) {
 // even for K as small as 10, the approximation is quite good.
 // [1] https://en.wikipedia.org/wiki/Normal_distribution
 // [2] https://en.wikipedia.org/wiki/Central_limit_theorem
-func nrand() float64 {
-	var i, K uint64 = 0, 10
-	var m uint64 = 32768
-	var y float64 = 0
 
-	for i = 0; i < K; i++ {
-		y += float64(UniformRand()) / float64(m)
+func nrand() float64 {
+	r := GetSingleRand()
+	danger := r.NormFloat64()
+	scaled := danger / 3
+	if scaled < -1 {
+		return -1
+	} else if scaled > 1 {
+		return 1
 	}
-	y = (y - float64(K)/2) / math.Sqrt(float64(K)/12)
-	return y
+	return scaled
 }
 
-// randRange generates a random integer between min and max (inclusive).
+// randRange generates a random integer between min and max (inclusive->exclusive: changend).
+// ? Random question. Why did you process this intrusive?
+// First of all, I changed to Exclusive
 // This function leverages the UniformRand function to generate a random number in a specified range.
 // Note: max should be greater than min.
-func randRange(min, max int) uint64 {
-	_min := uint64(min)
-	_max := uint64(max)
-	if _min >= _max {
-		return _min
+func RandRange(start, end int64) int64 {
+	if start >= end {
+		panic("start >= end ")
 	}
+	r := GetSingleRand()
+	rand_num := r.Int64()
+	hashed_num := (rand_num) % (int64(end - start))
+	result := int64(start) + hashed_num
 
-	rangeSize := _max - _min + 1
-	// adjust UniformRand to fit into our range.
-	return _min + (UniformRand() % rangeSize)
+	return result
+}
+
+func UintRandRange(start, end uint64) uint64 {
+	if start >= end {
+		panic("start >= end ")
+	}
+	r := GetSingleRand()
+	rand_num := r.Uint64()
+	hashed_num := (rand_num) % (uint64(end - start))
+	result := uint64(start) + hashed_num
+
+	return result
+}
+
+func RandInt64() int64 {
+	r := GetSingleRand()
+	rand_num := r.Int64()
+	return rand_num
+}
+
+func RandUint64() uint64 {
+	r := GetSingleRand()
+	rand_num := r.Uint64()
+	return rand_num
+}
+
+func RandUint32() uint32 {
+	r := GetSingleRand()
+	rand_num := r.Uint32()
+	return rand_num
 }
 
 func GenerateRandomBool(bias float64) bool {
@@ -69,4 +147,12 @@ func GenerateRandomBool(bias float64) bool {
 	// Convert fuzz's normalized range random float [-1, 1] to [0, 1]
 	res := (nrand() + 1) / 2
 	return res > bias
+}
+
+func UniformRandomBool(probability float64) bool {
+	if probability < 0.0 || probability > 1.0 {
+		panic("Probability must be between 0.0 and 1.0")
+	}
+	r := GetSingleRand()
+	return r.Float64() < probability
 }

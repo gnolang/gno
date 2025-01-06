@@ -1,0 +1,39 @@
+name: Go
+
+on:
+  push:
+    branches:
+      - master
+  pull_request:
+    branches:
+      - master
+
+jobs:
+  test:
+    strategy:
+      matrix:
+        platform: [ ubuntu-latest, windows-latest, macos-13, macos-latest ]
+    name: Test - ${{ matrix.platform }}
+    runs-on: ${{ matrix.platform }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: "go.mod"
+          check-latest: true
+      - run: go vet ./... && go test -race -failfast ./...
+  golangci-lint:
+    strategy:
+      matrix:
+        platform: [ ubuntu-latest, windows-latest, macos-13, macos-latest ]
+    name: golangci-lint - ${{ matrix.platform }}
+    runs-on: ${{ matrix.platform }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: "go.mod"
+          check-latest: true
+      - uses: golangci/golangci-lint-action@v6
+        with:
+          version: latest

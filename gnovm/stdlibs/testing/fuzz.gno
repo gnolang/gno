@@ -1,268 +1,396 @@
 package testing
 
-import "strings"
+import (
+	"errors"
+	"fmt"
+	"os"
+	"strconv"
+	"strings"
+	"unicode/utf8"
+)
 
-type Fuzzer interface {
-	InsertDeleteMutate(p float64) Fuzzer
-	Mutate() Fuzzer
-	String() string
-}
-
-type StringFuzzer struct {
-	Value string
-	f     *F
-}
-
-func NewStringFuzzer(value string) *StringFuzzer {
-	return &StringFuzzer{Value: value}
-}
-
-// Mutate changes a StringFuzzer's value by replacing a random character
-// with a random ASCII character.
-func (sf *StringFuzzer) Mutate() Fuzzer {
-	runes := []rune(sf.Value)
-	if len(runes) == 0 {
-		return sf
+type (
+	Runner func(*T, ...interface{})
+	F      struct {
+		fsm       *StateMachine
+		fhm       *HashMachine
+		corpus    []Seed
+		msgs      []string // Stores log messages for reporting.
+		failed    bool     // Indicates whether the fuzzing has encountered a failure.
+		ff        Runner
+		isFuzzed  bool
+		seedCount uint
+		// for cmd test
+		output  []byte
+		verbose bool // Stores log messages for reporting.
+		trials  uint // Number of iterations to run the fuzzing process.
+		dur     string
+		name    string
 	}
+)
 
-	index := randRange(0, len(runes)-1)
-	runes[index] = randomASCIIChar()
-
-	return NewStringFuzzer(string(runes))
-}
-
-func (sf *StringFuzzer) InsertDeleteMutate(p float64) Fuzzer {
-	value := InsertDelete(sf.Value, p)
-	return NewStringFuzzer(value)
-}
-
-func (sf *StringFuzzer) Fuzz() string {
-	if GenerateRandomBool(0.2) {
-		return InsertDelete(sf.Value, 0.1)
+func New_F(verbose bool, trials uint) *F {
+	println("creating fuzzing enviroment...")
+	new_fsm := New_StateMachine(trials, 0)
+	new_fsm.verbose = verbose
+	new_fhm := New_HashMachine()
+	return &F{
+		verbose:   verbose,
+		fsm:       new_fsm,
+		fhm:       new_fhm,
+		isFuzzed:  false,
+		seedCount: 0,
+		trials:    trials,
 	}
+}
 
-	rs := []rune(sf.Value)
-	lrs := len(rs)
-
-	if lrs == 0 {
-		return sf.Value
+func typeof(arg interface{}) (SupportedType, error) {
+	switch v := arg.(type) {
+	case []byte:
+		return Byte_Array, nil
+	case string:
+		return String, nil
+	case bool:
+		return Bool, nil
+	case byte:
+		return Byte, nil
+	case rune:
+		return Rune, nil
+	case float32:
+		return Float32, nil
+	case float64:
+		return Float64, nil
+	case int:
+		return Int, nil
+	case int8:
+		return Int8, nil
+	case int16:
+		return Int16, nil
+	// deduplication because int32 and rune are of the same type
+	// case int32:
+	// 	return Int32, nil
+	case int64:
+		return Int64, nil
+	case uint:
+		return Uint, nil
+	// deduplication
+	// case uint8:
+	// 	return Uint8, nil
+	case uint16:
+		return Uint16, nil
+	case uint32:
+		return Uint32, nil
+	case uint64:
+		return Uint64, nil
+	default:
+		println("unsupported type:", v)
+		return "", errors.New("unsupported type:")
 	}
-
-	index := randRange(0, lrs-1)
-	rs[index] = randomASCIIChar()
-
-	return string(rs)
 }
 
-func (sf *StringFuzzer) String() string {
-	return sf.Value
-}
-
-func randomASCIIChar() rune {
-	r := int(randRange(32, 126))
-
-	return rune(r)
-}
-
-// Individual represents a single individual in the population.
-type Individual struct {
-	Fuzzer  Fuzzer
-	Fitness int
-}
-
-func NewIndividual(fuzzer Fuzzer) *Individual {
-	return &Individual{Fuzzer: fuzzer}
-}
-
-func (ind *Individual) calculateFitness() {
-	ind.Fitness = len(ind.Fuzzer.String())
-}
-
-// Selection selects individuals from the population based on their fitness.
-//
-// Use roulette wheel selection to select individuals from the population.
-// ref: https://en.wikipedia.org/wiki/Fitness_proportionate_selection
-func Selection(population []*Individual) []*Individual {
-	totalFitness := calculateTotalFitness(population)
-	selected := make([]*Individual, len(population))
-
-	for i := range selected {
-		selected[i] = selectIndividual(population, totalFitness)
+func (f *F) Add(args ...interface{}) {
+	if f.isFuzzed {
+		panic("Add after Fuzz")
 	}
-
-	return selected
-}
-
-func calculateTotalFitness(population []*Individual) int {
-	totalFitness := 0
-
-	for _, ind := range population {
-		totalFitness += ind.Fitness
+	var values []interface{}
+	var types []SupportedType
+	if len(args) == 0 {
+		panic("no-argument is denied")
 	}
-
-	return totalFitness
-}
-
-func selectIndividual(population []*Individual, totalFitness int) *Individual {
-	pick := randRange(0, totalFitness-1)
-	sum := 0
-
-	for _, ind := range population {
-		sum += ind.Fitness
-		if uint64(sum) > uint64(pick) {
-			return ind
+	for i := range args {
+		t, e := typeof(args[i])
+		if e != nil {
+			panic("not supported type")
 		}
+		values = append(values, args[i])
+		types = append(types, t)
 	}
 
-	return nil
-}
-
-// Crossover takes two parents and creates two children by combining their genetic material.
-//
-// The pivot point is chosen randomly from the length of the shortest parent. after the pivot point selected,
-// the genetic material of the two parents is swapped to create the two children.
-func Crossover(parent1, parent2 *Individual) (*Individual, *Individual) {
-	p1Runes := []rune(parent1.Fuzzer.String())
-	p2Runes := []rune(parent2.Fuzzer.String())
-
-	p1Len := len(p1Runes)
-	p2Len := len(p2Runes)
-
-	point := 0
-	if p1Len >= p2Len {
-		point = int(randRange(0, p2Len-1))
+	if f.fsm.SeedType == nil {
+		f.fsm.SeedType = types
 	} else {
-		point = int(randRange(0, p1Len-1))
+		if !isSliceEqual(f.fsm.SeedType, types) {
+			panic("added arguments not equal together")
+		}
 	}
-
-	child1 := append(append([]rune{}, p1Runes[:point]...), p2Runes[point:]...)
-	child2 := append(append([]rune{}, p2Runes[:point]...), p1Runes[point:]...)
-
-	updatedIdv1 := NewIndividual(NewStringFuzzer(string(child1)))
-	updatedIdv2 := NewIndividual(NewStringFuzzer(string(child2)))
-
-	return updatedIdv1, updatedIdv2
+	f.seedCount++
+	f.corpus = append(f.corpus, Seed{
+		Pid: f.seedCount,
+		Id:  f.seedCount,
+		Gen: 1, IsCoordinated: false, Content: values,
+	})
 }
 
-func (ind *Individual) Mutate() {
-	ind.Fuzzer = ind.Fuzzer.Mutate()
-}
-
-// InsertDelete randomly inserts or deletes a character from a string.
-func InsertDelete(s string, p float64) string {
-	rr := []rune(s)
-	l := len(rr)
-
-	// Insert
-	if GenerateRandomBool(p) {
-		pos := randRange(0, l-1)
-		rr = append(rr, 0)
-
-		copy(rr[pos+1:], rr[pos:])
-
-		char := randomASCIIChar()
-		rr[pos] = char
+func (f *F) Fuzz(run Runner) {
+	println("----------------------------- Fuzz Start --------------------------------")
+	if !f.isFuzzed {
+		f.isFuzzed = true
 	} else {
-		if l == 0 {
-			return s
-		}
-
-		pos := randRange(0, l-1)
-		rr = append(rr[:pos], rr[pos+1:]...)
+		panic("fuzz called more than once")
 	}
 
-	return string(rr)
-}
-
-type F struct {
-	corpus []string
-	failed bool     // Indicates whether the fuzzing has encountered a failure.
-	msgs   []string // Stores log messages for reporting.
-	iters  int      // Number of iterations to run the fuzzing process. TODO: CLI flag to set this.
-}
-
-// Runner is a type for the target function to fuzz.
-type Runner func(*T, ...interface{})
-
-// Fuzz applies the fuzzing process to the target function.
-func (f *F) Fuzz(run Runner, iter int) {
-	f.evolve(iter)
-
-	for _, input := range f.corpus {
-		args := make([]interface{}, len(f.corpus))
-		for i := range args {
-			args[i] = input
+	// format machine
+	f.ff = run
+	for i, corp := range f.corpus {
+		println("Adding corpus", i+1)
+		corp = f.simulateFF(corp)
+		if f.failed {
+			f.handleFail()
+			return
 		}
 
-		run(nil, args...)
-	}
-}
+		hashNumber := corp.HashNumber
+		f.fsm.init_hashnumber = append(f.fsm.init_hashnumber, hashNumber)
+		endInfo := f.fsm.CoordinateSeed(corp)
+		if endInfo.Complete_Trials {
+			f.reportF()
+			return
+		}
+		if endInfo.MAXed_CAPACITY {
 
-// Add adds test values to initialize the corpus.
-func (f *F) Add(values ...interface{}) []Fuzzer {
-	fuzzers := make([]Fuzzer, len(values))
-
-	for i, v := range values {
-		str, ok := v.(string)
-		if !ok {
+			f.migrateMachines()
 			continue
 		}
-		f.corpus = append(f.corpus, str)
-		fuzzers[i] = &StringFuzzer{Value: str}
+
 	}
 
-	return fuzzers
+	string_byte_candidates := []int{}
+	for i, t := range f.fsm.SeedType {
+		if t == String || t == Byte_Array {
+			string_byte_candidates = append(string_byte_candidates, i)
+		}
+	}
+
+	f.fsm.string_byte_candidates = string_byte_candidates
+	println("Run trials...")
+
+	// format by init seeds
+	for i := 0; i < len(f.corpus); i++ {
+		hn := f.fsm.init_hashnumber[i]
+		initSeed := []Seed{f.fsm.PopInitSeedByHN(hn)}
+		is_end := f.updateMachines(initSeed)
+		if is_end {
+			return
+		}
+	}
+
+	for {
+		parentSeeds := f.fsm.PopSeeds()
+		is_end := f.updateMachines(parentSeeds)
+		if is_end {
+			return
+		}
+	}
 }
 
-func (f *F) evolve(generations int) {
-	population := make([]*Individual, len(f.corpus))
-	for i, c := range f.corpus {
-		population[i] = &Individual{Fuzzer: &StringFuzzer{Value: c, f: f}}
+type abstractSeedInfo struct {
+	seeds          []Seed
+	abstractNumber uint
+}
+
+func (f *F) handleEndInfo(endInfo EndInfo, parentSeeds []Seed) bool {
+	if endInfo.Complete_Trials {
+		f.reportF()
+		return true
 	}
-
-	for _, ind := range population {
-		ind.calculateFitness()
+	if endInfo.MAXed_CAPACITY {
+		for _, p := range parentSeeds {
+			f.fsm.CoordinateSeed(p)
+		}
+		f.migrateMachines()
+		return false
 	}
+	return false
+}
 
-	for gen := 0; gen < generations; gen++ {
-		population = Selection(population)
-		newPopulation := make([]*Individual, 0, len(population))
+func (f *F) updateMachines(parentSeeds []Seed) bool {
+	abstractSeedMap := make(map[HashNumber]abstractSeedInfo)
+	childSeeds := Evolve(parentSeeds, &f.seedCount, f.fsm.string_byte_candidates)
+	// println("childlen", len(childSeeds))
 
-		for i := 0; i < len(population); i += 2 {
-			if i+1 < len(population) {
-				child1, child2 := Crossover(population[i], population[i+1])
-				newPopulation = append(newPopulation, child1, child2)
-				continue
+	for _, child := range childSeeds {
+		child = f.simulateFF(child)
+		if f.failed {
+			f.handleFail()
+			return true
+		}
+		hn := child.HashNumber
+		equal_hn_seeds := abstractSeedMap[hn].seeds
+		abstract_number := abstractSeedMap[hn].abstractNumber
+		if len(equal_hn_seeds) < 2 {
+			equal_hn_seeds = append(equal_hn_seeds, child)
+			abstract_number++
+		} else {
+			abstract_number++
+		}
+		absSeedInfo := abstractSeedInfo{
+			seeds:          equal_hn_seeds,
+			abstractNumber: abstract_number,
+		}
+		abstractSeedMap[hn] = absSeedInfo
+	}
+	// println("len!", len(abstractSeedMap))
+
+	for hn, absSeedInfo := range abstractSeedMap {
+		seeds := absSeedInfo.seeds
+		if len(seeds) == 1 {
+			// println("hashNumber", hn, ": 1")
+			concreteEndInfo := f.fsm.CoordinateSeed(seeds[0])
+			flag := f.handleEndInfo(concreteEndInfo, parentSeeds)
+			if flag {
+				return true
 			}
-
-			newPopulation = append(newPopulation, population[i])
+		} else {
+			absNumber := absSeedInfo.abstractNumber - 2
+			// println("hashNumber", hn, ":", absNumber+2)
+			absEndInfo := f.fsm.CoordinateAbstraction(hn, absNumber)
+			flag := f.handleEndInfo(absEndInfo, parentSeeds)
+			if flag {
+				return true
+			}
+			concreteEndInfo1 := f.fsm.CoordinateSeed(seeds[0])
+			flag = f.handleEndInfo(concreteEndInfo1, parentSeeds)
+			if flag {
+				return true
+			}
+			concreteEndInfo2 := f.fsm.CoordinateSeed(seeds[1])
+			flag = f.handleEndInfo(concreteEndInfo2, parentSeeds)
+			if flag {
+				return true
+			}
 		}
 
-		var bestFitness int
+	}
+	// println("iters!")
+	for _, p := range parentSeeds {
+		f.fsm.CoordinateSeed(p)
+	}
+	return false
+}
 
-		for _, ind := range newPopulation {
-			if GenerateRandomBool(0.2) {
-				ind.Mutate()
-			}
+func (f *F) handleFail() {
+	f.Fail()
+	println("----------------------------- FAIL --------------------------------")
+	log := f.fsm.Crash_Logger.data
+	crashCase := log[len(log)-1]
+	println("found failing input", TransForHuman(crashCase.Input), "at", f.fsm.Input_count, "trials")
+	println("start minimazing failing input")
+	f.minimazeAndLogInput(crashCase.RawContent)
+	log = f.fsm.Crash_Logger.data
+	minimaizedCase := log[len(log)-1]
+	println(CrashCaseToString(minimaizedCase))
+	hn := minimaizedCase.HashNumber
+	coverage := f.fhm.HashNumber2Coverage(hn)
 
-			if GenerateRandomBool(0.1) {
-				ind.Fuzzer = ind.Fuzzer.InsertDeleteMutate(0.3)
-			}
+	println("----------------------------- Trace --------------------------------")
+	println(CoverageToString(coverage))
+	println("--------------------------------------------------------------------")
+	return
+}
 
-			ind.calculateFitness()
+func (f *F) migrateMachines() {
+	println("Machine capacity is full. Start migration...")
+	// Abstract existing state_machine
+	summarized_seeds := f.fsm.Summarize()
+	old_hashNumbers := []HashNumber{}
+	for _, seed := range summarized_seeds {
+		old_hashNumbers = append(old_hashNumbers, seed.HashNumber)
+	}
+	coverages_of_seeds := []Coverage{}
+	for _, hn := range old_hashNumbers {
+		coverages_of_seeds = append(coverages_of_seeds, f.fhm.HashNumber2Coverage(uint(hn)))
+	}
+	// Sort by re-registering existing seed coverage to the new hash machine
+	// Return the value to the seed afterwards
+	// The hash number of the seed is 0,1,2... and also registers 0,1,2 and coverage on the hash machine
+	f.fhm = New_HashMachine()
+	for i, cov := range coverages_of_seeds {
+		summarized_seeds[i].HashNumber = f.fhm.RegisterCoverage2HashNumber(cov)
+	}
+	// Create and relocate a new State_machine
+	prev_inputCount := f.fsm.Input_count
+	substracted_inputCount := int(prev_inputCount) - len(summarized_seeds)
+	prev_seedType := make([]SupportedType, len(f.fsm.SeedType))
+	copy(prev_seedType, f.fsm.SeedType)
+	prev_init_hn := f.fsm.init_hashnumber
+	prev_s_b_c := f.fsm.string_byte_candidates
+	f.fsm = New_StateMachine(f.trials, uint(substracted_inputCount))
+	f.fsm.verbose = f.verbose
+	f.fsm.SeedType = prev_seedType
+	f.fsm.init_hashnumber = prev_init_hn
+	f.fsm.string_byte_candidates = prev_s_b_c
+	for _, seed := range summarized_seeds {
+		f.fsm.CoordinateSeed(seed)
+	}
+	println("Migration completed. Resume fuzzing...")
+}
 
-			if ind.Fitness > bestFitness {
-				bestFitness = ind.Fitness
-			}
+func (f *F) minimazeAndLogInput(seedContent []interface{}) {
+	minimazalbeIdXs := []int{}
+	for i, t := range f.fsm.SeedType {
+		if t == Byte_Array {
+			minimazalbeIdXs = append(minimazalbeIdXs, i)
+		} else if t == String {
+			minimazalbeIdXs = append(minimazalbeIdXs, i)
 		}
-
-		population = newPopulation
 	}
-
-	f.corpus = make([]string, len(population))
-	for i, ind := range population {
-		f.corpus[i] = ind.Fuzzer.String()
+	if len(minimazalbeIdXs) < 1 {
+		return
 	}
+	sample := seedContent
+	content := make([]interface{}, len(sample))
+	for i, v := range sample {
+		content[i] = v
+	}
+	// minimaze by progressive, preserveness traits of error
+	for {
+		progressed, isProgressed, occeredPoint := f.checkProgress(content, minimazalbeIdXs)
+		if !isProgressed {
+			break
+		}
+		content = progressed
+		minimazalbeIdXs = minimazalbeIdXs[occeredPoint:]
+	}
+	sampleSeed := Seed{
+		Content: content,
+	}
+	// re confirm error
+	f.simulateFF(sampleSeed)
+	println("minimaized input")
+}
+
+func (f *F) reportF() {
+	println("----------------------------- PASS --------------------------------")
+	println("Complete", f.fsm.Input_count, "Trials")
+	println("Found", (uint(f.fhm.hashNumber_counter.counter) + uint(1)), "coverage")
+}
+
+func (f *F) simulateFF(seed Seed) Seed {
+	coverage, err, isPanic, panicMsg := monitor(f.ff, seed.Content)
+
+	// seed.hn computation
+	// This completes the status change of the seed before logging
+	hashNumber := f.fhm.RegisterCoverage2HashNumber(coverage)
+	seed.HashNumber = hashNumber
+	if isPanic {
+		tr := TestResult{
+			PanicOccurred: true,
+			PanicMessage:  panicMsg,
+			Error:         err,
+		}
+		f.fsm.Crash_Logger.AddCase(seed, tr)
+		f.Fail()
+	}
+	if err != nil {
+		tr := TestResult{
+			PanicOccurred: false,
+			PanicMessage:  "",
+			Error:         err,
+		}
+		f.fsm.Crash_Logger.AddCase(seed, tr)
+		f.Fail()
+	}
+	return seed
 }
 
 // Fail marks the function as having failed bur continue execution.
@@ -281,4 +409,147 @@ func (f *F) Fatal(args ...interface{}) {
 
 	f.msgs = append(f.msgs, sb.String())
 	f.Fail()
+}
+
+func (f *F) checkProgress(content []interface{}, minimazalbeIdXs []int) ([]interface{}, bool, int) {
+	changed := false
+	for _, idx := range minimazalbeIdXs {
+		sOrb := content[idx]
+
+		switch v := sOrb.(type) {
+		case string:
+			if len(v) < 1 {
+				continue
+			}
+			for i := 0; i < len(v); i++ {
+				b := []byte(v)
+				candidate := append(b[:i], b[i+1:]...)
+
+				tester := make([]interface{}, len(content))
+				for i, v := range content {
+					tester[i] = v
+				}
+				tester[idx] = string(candidate)
+				if f.checkPreserve(tester).errorIsPreserved {
+
+					changed = true
+					return tester, changed, idx
+				}
+			}
+		case []byte:
+			if len(v) < 1 {
+				continue
+			}
+			for i := 0; i < len(v); i++ {
+				b := []byte(v)
+				candidate := append(b[:i], b[i+1:]...)
+				tester := make([]interface{}, len(content))
+				for i, v := range content {
+					tester[i] = v
+				}
+				tester[idx] = []byte(candidate)
+				if f.checkPreserve(tester).errorIsPreserved {
+					changed = true
+					return tester, changed, idx
+				}
+			}
+		default:
+			panic("internal logic error")
+		}
+	}
+	return content, changed, 0
+}
+
+type PreserveFailing struct {
+	errorIsPreserved bool
+	coverage         Coverage
+	err              error
+	isPanic          bool
+	panicMsg         string
+	hashNumber       HashNumber
+}
+
+func (f *F) checkPreserve(content []interface{}) PreserveFailing {
+	coverage, err, isPanic, panicMsg := monitor(f.ff, content)
+	hashNumber := f.fhm.RegisterCoverage2HashNumber(coverage)
+	if isPanic {
+		return PreserveFailing{
+			errorIsPreserved: true,
+			coverage:         coverage,
+			err:              err,
+			isPanic:          true,
+			panicMsg:         panicMsg,
+			hashNumber:       hashNumber,
+		}
+	}
+	if err != nil {
+		return PreserveFailing{
+			errorIsPreserved: true,
+			coverage:         coverage,
+			err:              err,
+			isPanic:          false,
+			panicMsg:         "",
+			hashNumber:       hashNumber,
+		}
+	}
+	return PreserveFailing{
+		errorIsPreserved: false,
+	}
+}
+
+// TODO: Make sure to revise coverage here!!!
+// TODO: I've hard-coded coverage according to the test results here. This will be corrected later!!
+func monitor(run Runner, content []interface{}) (coverage Coverage, err error, isPanic bool, panicMsg string) {
+	isPanic = false
+	panicMsg = ""
+	err = nil
+	coverage = Coverage{}
+	defer func() {
+		if r := recover(); r != nil {
+			t := NewT("fuzzing")
+			coverage = Get_Coverage_of_runner(t, content)
+			isPanic = true
+			if err, ok := r.(error); ok {
+				panicMsg = err.Error()
+				return
+			}
+			if s, ok := r.(string); ok {
+
+				panicMsg = s
+				return
+			}
+
+			panicMsg = "unknown panic"
+		}
+	}()
+	t := NewT("fuzzing")
+
+	// Ensuring the immutability of content
+	copied := make([]interface{}, len(content))
+	for i, v := range content {
+		copied[i] = v
+	}
+	run(t, copied...)
+	info := t.GetResult()
+	if info.Failed {
+		err = errors.New(string(info.Output))
+	}
+	// TODO: Modifying this function to get real coverage
+	// TODO: It's just pshedo-covrage of some function
+	coverage = Get_Coverage_of_runner(t, content)
+
+	// println(string(t.output))
+	return coverage, err, isPanic, panicMsg
+}
+
+func isSliceEqual(a, b []SupportedType) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	for i := range a {
+		if a[i] != b[i] {
+			return false
+		}
+	}
+	return true
 }

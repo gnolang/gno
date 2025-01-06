@@ -121,6 +121,10 @@ type TestOptions struct {
 	Metrics bool
 	// Uses Error to print the events emitted.
 	Events bool
+	// Fuzz target function's name
+	FuzzName string
+	// Fuzz iters
+	FuzzIters int
 
 	filetestBuffer bytes.Buffer
 	outWriter      proxyWriter
@@ -198,26 +202,48 @@ func Test(memPkg *gnovm.MemPackage, fsDir string, opts *TestOptions) error {
 		// import them from the `pkg_test` tests.
 		cw := opts.BaseStore.CacheWrap()
 		gs := opts.TestStore.BeginTransaction(cw, cw, nil)
-
-		// Run test files in pkg.
-		if len(tset.Files) > 0 {
-			err := opts.runTestFiles(memPkg, tset, cw, gs)
-			if err != nil {
-				errs = multierr.Append(errs, err)
+		if opts.FuzzName == "" {
+			// Run test files in pkg.
+			if len(tset.Files) > 0 {
+				err := opts.runTestFiles(memPkg, tset, cw, gs)
+				if err != nil {
+					errs = multierr.Append(errs, err)
+				}
+			}
+		} else {
+			if len(tset.Files) > 0 {
+				err := opts.runFuzzFuncInTestFiles(memPkg, tset, cw, gs)
+				if err != nil {
+					errs = multierr.Append(errs, err)
+				}
 			}
 		}
+		if opts.FuzzName == "" {
+			// Test xxx_test pkg.
+			if len(itset.Files) > 0 {
+				itPkg := &gnovm.MemPackage{
+					Name:  memPkg.Name + "_test",
+					Path:  memPkg.Path + "_test",
+					Files: itfiles,
+				}
 
-		// Test xxx_test pkg.
-		if len(itset.Files) > 0 {
-			itPkg := &gnovm.MemPackage{
-				Name:  memPkg.Name + "_test",
-				Path:  memPkg.Path + "_test",
-				Files: itfiles,
+				err := opts.runTestFiles(itPkg, itset, cw, gs)
+				if err != nil {
+					errs = multierr.Append(errs, err)
+				}
 			}
+		} else {
 
-			err := opts.runTestFiles(itPkg, itset, cw, gs)
-			if err != nil {
-				errs = multierr.Append(errs, err)
+			if len(itset.Files) > 0 {
+				itPkg := &gnovm.MemPackage{
+					Name:  memPkg.Name + "_test",
+					Path:  memPkg.Path + "_test",
+					Files: itfiles,
+				}
+				err := opts.runFuzzFuncInTestFiles(itPkg, itset, cw, gs)
+				if err != nil {
+					errs = multierr.Append(errs, err)
+				}
 			}
 		}
 	}
@@ -388,6 +414,132 @@ func (opts *TestOptions) runTestFiles(
 
 	return errs
 }
+func (opts *TestOptions) runFuzzFuncInTestFiles(
+	memPkg *gnovm.MemPackage,
+	files *gno.FileSet,
+	cw storetypes.Store, gs gno.TransactionStore,
+) (errs error) {
+	var m *gno.Machine
+	defer func() {
+		if r := recover(); r != nil {
+			if st := m.ExceptionsStacktrace(); st != "" {
+				errs = multierr.Append(errors.New(st), errs)
+			}
+			errs = multierr.Append(
+				fmt.Errorf("panic: %v\ngo stacktrace:\n%v\ngno machine: %v\ngno stacktrace:\n%v",
+					r, string(debug.Stack()), m.String(), m.Stacktrace()),
+				errs,
+			)
+		}
+	}()
+
+	tests := loadFuzzFuncs(memPkg.Name, files)
+
+	var alloc *gno.Allocator
+	if opts.Metrics {
+		alloc = gno.NewAllocator(math.MaxInt64)
+	}
+	// reset store ops, if any - we only need them for some filetests.
+	opts.TestStore.SetLogStoreOps(false)
+
+	// Check if we already have the package - it may have been eagerly
+	// loaded.
+	m = Machine(gs, opts.WriterForStore(), memPkg.Path)
+	m.Alloc = alloc
+	if opts.TestStore.GetMemPackage(memPkg.Path) == nil {
+		m.RunMemPackage(memPkg, true)
+	} else {
+		m.SetActivePackage(gs.GetPackage(memPkg.Path, false))
+	}
+	pv := m.Package
+
+	m.RunFiles(files.Files...)
+
+	for _, tf := range tests {
+		// TODO(morgan): we could theoretically use wrapping on the baseStore
+		// and gno store to achieve per-test isolation. However, that requires
+		// some deeper changes, as ideally we'd:
+		// - Run the MemPackage independently (so it can also be run as a
+		//   consequence of an import)
+		// - Run the test files before this for loop (but persist it to store;
+		//   RunFiles doesn't do that currently)
+		// - Wrap here.
+		m = Machine(gs, opts.Output, memPkg.Path)
+		m.Alloc = alloc.Reset()
+		m.SetActivePackage(pv)
+
+		testingpv := m.Store.GetPackage("testing", false)
+		testingtv := gno.TypedValue{T: &gno.PackageType{}, V: testingpv}
+		testingcx := &gno.ConstExpr{TypedValue: testingtv}
+
+		eval := m.Eval(gno.Call(
+			gno.Sel(testingcx, "RunFuzz"), // Call testing.RunFuzz
+
+			gno.Str(opts.FuzzName), // fuzz fuzzname
+			gno.Num(strconv.FormatInt(int64(opts.FuzzIters), 10)),
+			gno.Nx(strconv.FormatBool(opts.Verbose)), // is verbose?
+			&gno.CompositeLitExpr{ // Third param, the testing.InternalTest
+				Type: gno.Sel(testingcx, "InternalFuzz"),
+				Elts: gno.KeyValueExprs{
+					{Key: gno.X("Name"), Value: gno.Str(tf.Name)},
+					{Key: gno.X("F"), Value: gno.Nx(tf.Name)},
+				},
+			},
+		))
+
+		if opts.Events {
+			events := m.Context.(*teststd.TestExecContext).EventLogger.Events()
+			if events != nil {
+				res, err := json.Marshal(events)
+				if err != nil {
+					panic(err)
+				}
+				fmt.Fprintf(opts.Error, "EVENTS: %s\n", string(res))
+			}
+		}
+
+		ret := eval[0].GetString()
+		if ret == "" {
+			err := fmt.Errorf("failed to execute unit test: %q", tf.Name)
+			errs = multierr.Append(errs, err)
+			fmt.Fprintf(opts.Error, "--- FAIL: %s [internal gno testing error]", tf.Name)
+			continue
+		}
+
+		// TODO: replace with amino or send native type?
+		var rep report
+		err := json.Unmarshal([]byte(ret), &rep)
+		if err != nil {
+			errs = multierr.Append(errs, err)
+			fmt.Fprintf(opts.Error, "--- FAIL: %s [internal gno testing error]", tf.Name)
+			continue
+		}
+
+		if rep.Failed {
+			err := fmt.Errorf("failed: %q", tf.Name)
+			errs = multierr.Append(errs, err)
+		}
+
+		if opts.Metrics {
+			// XXX: store changes
+			// XXX: max mem consumption
+			allocsVal := "n/a"
+			if m.Alloc != nil {
+				maxAllocs, allocs := m.Alloc.Status()
+				allocsVal = fmt.Sprintf("%s(%.2f%%)",
+					prettySize(allocs),
+					float64(allocs)/float64(maxAllocs)*100,
+				)
+			}
+			fmt.Fprintf(opts.Error, "---       runtime: cycle=%s allocs=%s\n",
+				prettySize(m.Cycles),
+				allocsVal,
+			)
+		}
+	}
+
+	return errs
+}
 
 // report is a mirror of Gno's stdlibs/testing.Report.
 type report struct {
@@ -406,6 +558,24 @@ func loadTestFuncs(pkgName string, tfiles *gno.FileSet) (rt []testFunc) {
 			if fd, ok := d.(*gno.FuncDecl); ok {
 				fname := string(fd.Name)
 				if strings.HasPrefix(fname, "Test") {
+					tf := testFunc{
+						Package: pkgName,
+						Name:    fname,
+					}
+					rt = append(rt, tf)
+				}
+			}
+		}
+	}
+	return
+}
+
+func loadFuzzFuncs(pkgName string, tfiles *gno.FileSet) (rt []testFunc) {
+	for _, tf := range tfiles.Files {
+		for _, d := range tf.Decls {
+			if fd, ok := d.(*gno.FuncDecl); ok {
+				fname := string(fd.Name)
+				if strings.HasPrefix(fname, "Fuzz") {
 					tf := testFunc{
 						Package: pkgName,
 						Name:    fname,

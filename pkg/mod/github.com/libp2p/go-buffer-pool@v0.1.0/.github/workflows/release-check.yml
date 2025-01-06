@@ -1,0 +1,11 @@
+# File managed by web3-bot. DO NOT EDIT.
+# See https://github.com/protocol/.github/ for details.
+
+name: Release Checker
+on:
+  pull_request:
+    paths: [ 'version.json' ]
+
+jobs:
+  release-check:
+    uses: protocol/.github/.github/workflows/release-check.yml@master
