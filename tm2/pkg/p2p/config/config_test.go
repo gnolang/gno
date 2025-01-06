@@ -16,7 +16,7 @@ func TestP2PConfig_ValidateBasic(t *testing.T) {
 
 		cfg.FlushThrottleTimeout = -1
 
-		assert.ErrorIs(t, cfg.ValidateBasic(), errInvalidFlushThrottleTimeout)
+		assert.ErrorIs(t, cfg.ValidateBasic(), ErrInvalidFlushThrottleTimeout)
 	})
 
 	t.Run("invalid max packet payload size", func(t *testing.T) {
@@ -26,7 +26,7 @@ func TestP2PConfig_ValidateBasic(t *testing.T) {
 
 		cfg.MaxPacketMsgPayloadSize = -1
 
-		assert.ErrorIs(t, cfg.ValidateBasic(), errInvalidMaxPayloadSize)
+		assert.ErrorIs(t, cfg.ValidateBasic(), ErrInvalidMaxPayloadSize)
 	})
 
 	t.Run("invalid send rate", func(t *testing.T) {
@@ -36,7 +36,7 @@ func TestP2PConfig_ValidateBasic(t *testing.T) {
 
 		cfg.SendRate = -1
 
-		assert.ErrorIs(t, cfg.ValidateBasic(), errInvalidSendRate)
+		assert.ErrorIs(t, cfg.ValidateBasic(), ErrInvalidSendRate)
 	})
 
 	t.Run("invalid receive rate", func(t *testing.T) {
@@ -46,7 +46,7 @@ func TestP2PConfig_ValidateBasic(t *testing.T) {
 
 		cfg.RecvRate = -1
 
-		assert.ErrorIs(t, cfg.ValidateBasic(), errInvalidReceiveRate)
+		assert.ErrorIs(t, cfg.ValidateBasic(), ErrInvalidReceiveRate)
 	})
 
 	t.Run("valid configuration", func(t *testing.T) {

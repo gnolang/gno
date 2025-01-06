@@ -6,10 +6,10 @@ import (
 )
 
 var (
-	errInvalidFlushThrottleTimeout = errors.New("invalid flush throttle timeout")
-	errInvalidMaxPayloadSize       = errors.New("invalid message payload size")
-	errInvalidSendRate             = errors.New("invalid packet send rate")
-	errInvalidReceiveRate          = errors.New("invalid packet receive rate")
+	ErrInvalidFlushThrottleTimeout = errors.New("invalid flush throttle timeout")
+	ErrInvalidMaxPayloadSize       = errors.New("invalid message payload size")
+	ErrInvalidSendRate             = errors.New("invalid packet send rate")
+	ErrInvalidReceiveRate          = errors.New("invalid packet receive rate")
 )
 
 // P2PConfig defines the configuration options for the Tendermint peer-to-peer networking layer
@@ -72,19 +72,19 @@ func DefaultP2PConfig() *P2PConfig {
 // returns an error if any check fails.
 func (cfg *P2PConfig) ValidateBasic() error {
 	if cfg.FlushThrottleTimeout < 0 {
-		return errInvalidFlushThrottleTimeout
+		return ErrInvalidFlushThrottleTimeout
 	}
 
 	if cfg.MaxPacketMsgPayloadSize < 0 {
-		return errInvalidMaxPayloadSize
+		return ErrInvalidMaxPayloadSize
 	}
 
 	if cfg.SendRate < 0 {
-		return errInvalidSendRate
+		return ErrInvalidSendRate
 	}
 
 	if cfg.RecvRate < 0 {
-		return errInvalidReceiveRate
+		return ErrInvalidReceiveRate
 	}
 
 	return nil
