@@ -71,10 +71,11 @@ func RunNode(ctx context.Context, pcfg *ProcessNodeConfig, stdout, stderr io.Wri
 	logger := slog.New(handler)
 
 	// Initialize database
-	data, err := initDatabase(pcfg.DBDir)
+	db, err := initDatabase(pcfg.DBDir)
 	if err != nil {
 		return err
 	}
+	defer db.Close() // ensure db is close
 
 	nodecfg := TestingMinimalNodeConfig(pcfg.RootDir)
 
@@ -85,7 +86,7 @@ func RunNode(ctx context.Context, pcfg *ProcessNodeConfig, stdout, stderr io.Wri
 	pv := nodecfg.PrivValidator.GetPubKey()
 
 	// Setup node configuration
-	nodecfg.DB = data
+	nodecfg.DB = db
 	nodecfg.TMConfig.DBPath = pcfg.DBDir
 	nodecfg.TMConfig = pcfg.TMConfig
 	nodecfg.Genesis = pcfg.Genesis.ToGenesisDoc()
@@ -272,16 +273,23 @@ func RunInMemoryProcess(ctx context.Context, cfg ProcessConfig) (NodeProcess, er
 	}()
 
 	address, err := waitForProcessReady(ctx, out, cfg.Stdout)
-	if err != nil {
-		cancel()
-		return nil, err
+	if err == nil { // ok
+		return &nodeInMemoryProcess{
+			address:     address,
+			stop:        cancel,
+			ccNodeError: ccStopErr,
+		}, nil
 	}
 
-	return &nodeInMemoryProcess{
-		address:     address,
-		stop:        cancel,
-		ccNodeError: ccStopErr,
-	}, nil
+	cancel()
+
+	select {
+	case err = <-ccStopErr: // return node error in priority
+	default:
+	}
+
+	return nil, err
+
 }
 
 func RunMain(ctx context.Context, stdin io.Reader, stdout, stderr io.Writer) error {
