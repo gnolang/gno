@@ -43,8 +43,6 @@
 //	    set.Remove(addr1)  // returns true (was present)
 //	    set.Remove(addr1)  // returns false (not present)
 //	}
-//
-// Set represents a collection of unique addresses backed by an AVL tree.
 package addrset
 
 import (
