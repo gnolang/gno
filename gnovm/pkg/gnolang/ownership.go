@@ -388,37 +388,33 @@ func (tv *TypedValue) GetFirstObject(store Store) Object {
 	}
 }
 
-// also get pkgId of the object, so it's clear where the object is from
-// TODO, just return isRealm
-func (tv *TypedValue) GetFirstObject2(store Store) (obj Object, pkgId PkgID) {
-	debug2.Println2("GetFirstObject2---, tv: ", tv, reflect.TypeOf(tv.V))
-
+// GetOriginPkg get origin pkg for real or unreal object
+func (tv *TypedValue) GetOriginPkg(store Store) (originPkg PkgID) {
+	debug2.Println2("GetOriginPkg, tv: ", tv, reflect.TypeOf(tv.V))
 	// get first object
-	obj = tv.GetFirstObject(store)
+	obj := tv.GetFirstObject(store)
 	debug2.Println2("obj: ", obj)
-
 	if obj != nil {
-
-		pkgId = obj.GetOriginRealm()
-		if pkgId.IsZero() {
-			pkgId = obj.GetObjectID().PkgID
+		originPkg = obj.GetOriginRealm()
+		if originPkg.IsZero() {
+			originPkg = obj.GetObjectID().PkgID
 		}
 		debug2.Println2("obj.GetObjectInfo(): ", obj.GetObjectInfo())
-		debug2.Println2("obj.GetObjectID.PkgID: ", pkgId)
+		debug2.Println2("obj.originPkg: ", originPkg)
 	}
 
-	if pkgId.IsZero() {
+	// if still zero
+	if originPkg.IsZero() {
 		switch cv := obj.(type) {
 		case *ArrayValue:
 			debug2.Println2("array value, T: ", tv.T)
 			debug2.Println2("objectInfo: ", cv.GetObjectInfo())
 			if IsRealmPath(tv.T.Elem().GetPkgPath()) {
-				// TODO: func type don't have pkgpath, retrieve from clo
-				pkgId = PkgIDFromPkgPath(tv.T.Elem().GetPkgPath())
+				originPkg = PkgIDFromPkgPath(tv.T.Elem().GetPkgPath())
 			}
 			return
 		case *Block:
-			pkgId = PkgIDFromPkgPath(cv.Source.GetLocation().PkgPath)
+			originPkg = PkgIDFromPkgPath(cv.Source.GetLocation().PkgPath)
 			return
 		case *HeapItemValue:
 			debug2.Println2("heapItemValue: ", cv)
@@ -429,24 +425,24 @@ func (tv *TypedValue) GetFirstObject2(store Store) (obj Object, pkgId PkgID) {
 				if _, ok := dt.Base.(*FuncType); !ok {
 					debug2.Println2("---dt.base.PkgPath: ", dt.Base.GetPkgPath())
 					if IsRealmPath(dt.Base.GetPkgPath()) {
-						pkgId = PkgIDFromPkgPath(dt.Base.GetPkgPath())
+						originPkg = PkgIDFromPkgPath(dt.Base.GetPkgPath())
 					}
 				}
 			}
 			return
 		case *BoundMethodValue:
+			debug2.Println2("boundMethodValue: ", cv)
 			debug2.Println2("BoundMethodValue, recv: ", cv.Receiver)
-			debug2.Println2("---type of T: ", reflect.TypeOf(cv.Receiver.T))
+			debug2.Println2("type of T: ", reflect.TypeOf(cv.Receiver.T))
 			if pv, ok := cv.Receiver.V.(PointerValue); ok {
-				debug2.Println2("---pointer value")
-				// TODO: check this
+				debug2.Println2("pointer value, pv: ", pv)
 				if dt, ok := pv.TV.T.(*DeclaredType); ok {
-					fmt.Println("---2, dt: ", dt)
+					debug2.Println2("---2, dt: ", dt)
 					if IsRealmPath(dt.PkgPath) {
-						pkgId = PkgIDFromPkgPath(dt.PkgPath)
+						originPkg = PkgIDFromPkgPath(dt.PkgPath)
 					}
 				}
-				debug2.Println2("---pkgId; ", pkgId)
+				debug2.Println2("originPkg; ", originPkg)
 			}
 			return
 		case *MapValue, *StructValue:
@@ -456,7 +452,7 @@ func (tv *TypedValue) GetFirstObject2(store Store) (obj Object, pkgId PkgID) {
 				if _, ok := dt.Base.(*FuncType); !ok {
 					debug2.Println2("---dt.base.PkgPath: ", dt.Base.GetPkgPath())
 					if IsRealmPath(dt.Base.GetPkgPath()) {
-						pkgId = PkgIDFromPkgPath(dt.Base.GetPkgPath())
+						originPkg = PkgIDFromPkgPath(dt.Base.GetPkgPath())
 					}
 				}
 			}

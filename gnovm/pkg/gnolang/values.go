@@ -292,23 +292,27 @@ func (pv PointerValue) Assign2(alloc *Allocator, store Store, rlm *Realm, tv2 Ty
 		debug2.Println2("---oo1: ", oo1)
 
 		// get origin pkgId
-		_, pkgId := tv2.GetFirstObject2(store)
-		debug2.Println2("pkgId: ", pkgId)
+		originPkg := tv2.GetOriginPkg(store)
+		debug2.Println2("originPkg: ", originPkg)
 
 		pv.TV.Assign(alloc, tv2, cu)
 
+		// get origin pkgId, this should happen before assign,
+		// because assign will discard original object info
+
 		oo2 := pv.TV.GetFirstObject(store)
-		// TODO: move to GetFirstObject2
+		debug2.Println2("oo2: ", oo2)
+
+		// refValue checks for embedded values in the base
 		var refValue Value
 		switch rv := pv.TV.V.(type) {
 		case *SliceValue, PointerValue:
 			refValue = rv
+			oo2.SetIsRef(true)
 		}
-		debug2.Println2("oo2: ", oo2)
-		debug2.Println2("pkgId: ", pkgId)
 
-		if oo2 != nil && !pkgId.IsZero() { // cross realm
-			oo2.SetOriginRealm(pkgId) // attach origin package info
+		if oo2 != nil && !originPkg.IsZero() {
+			oo2.SetOriginRealm(originPkg) // attach origin package info
 		}
 		rlm.DidUpdate2(store, pv.Base.(Object), oo1, oo2, refValue)
 	} else {
@@ -2707,7 +2711,6 @@ func fillValueTV(store Store, tv *TypedValue) *TypedValue {
 				vpv := cb.GetPointerToInt(store, cv.Index)
 				cv.TV = vpv.TV // TODO optimize?
 			case *HeapItemValue:
-				//fmt.Println("---HeapItemValue: ", cb.Value)
 				cv.TV = &cb.Value
 			default:
 				panic("should not happen")
