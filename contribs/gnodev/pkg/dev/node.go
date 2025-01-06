@@ -418,6 +418,8 @@ func (n *Node) stopIfRunning() error {
 }
 
 func (n *Node) rebuildNodeFromState(ctx context.Context) error {
+	start := time.Now()
+
 	if n.config.NoReplay {
 		// If NoReplay is true, simply reset the node to its initial state
 		n.logger.Warn("replay disabled")
@@ -454,7 +456,11 @@ func (n *Node) rebuildNodeFromState(ctx context.Context) error {
 
 	// Reset the node with the new genesis state.
 	err = n.rebuildNode(ctx, genesis)
-	n.logger.Info("reload done", "pkgs", len(pkgsTxs), "state applied", len(state))
+	n.logger.Info("reload done",
+		"pkgs", len(pkgsTxs),
+		"state applied", len(state),
+		"took", time.Since(start),
+	)
 
 	// Update node infos
 	n.pkgs = pkgs

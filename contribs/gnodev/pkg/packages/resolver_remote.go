@@ -60,19 +60,34 @@ func (res *remoteResolver) Resolve(fset *token.FileSet, path string) (*Package, 
 		if err := qres.Response.Error; err != nil {
 			return nil, fmt.Errorf("unable to query file %q on path %q: %w", fname, path, err)
 		}
-
 		body := qres.Response.Data
-		memfile, pkgname, err := parseFile(fset, fname, body)
-		if err != nil {
-			return nil, fmt.Errorf("unable to parse file %q: %w", fname, err)
+
+		if isGnoFile(fname) {
+			memfile, pkgname, err := parseGnoFile(fset, fname, body)
+			if err != nil {
+				return nil, fmt.Errorf("unable to parse file %q: %w", fname, err)
+			}
+
+			if !isTestFile(fname) {
+				if name != "" && name != pkgname {
+					return nil, fmt.Errorf("conflict package name between %q and %q", name, memfile.Name)
+				}
+				name = pkgname
+			}
+
+			memFiles = append(memFiles, memfile)
+			continue
 		}
 
-		if name != "" && name != pkgname {
-			return nil, fmt.Errorf("conflict package name between %q and %q", name, memfile.Name)
+		if isValidPackageFile(fname) {
+			memFiles = append(memFiles, &gnovm.MemFile{
+				Name: fname, Body: string(body),
+			})
+
+			continue
 		}
 
-		name = pkgname
-		memFiles = append(memFiles, memfile)
+		// skip, not supported file
 	}
 
 	return &Package{

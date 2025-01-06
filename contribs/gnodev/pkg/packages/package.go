@@ -7,6 +7,7 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/gnolang/gno/gnovm"
 	"github.com/gnolang/gno/gnovm/pkg/gnomod"
@@ -63,7 +64,7 @@ func ReadPackageFromDir(fset *token.FileSet, path, dir string) (*Package, error)
 		}
 
 		if isGnoFile(fname) {
-			memfile, pkgname, err := parseFile(fset, fname, body)
+			memfile, pkgname, err := parseGnoFile(fset, fname, body)
 			if err != nil {
 				return nil, fmt.Errorf("unable to parse file %q: %w", fname, err)
 			}
@@ -72,21 +73,22 @@ func ReadPackageFromDir(fset *token.FileSet, path, dir string) (*Package, error)
 				if name != "" && name != pkgname {
 					return nil, fmt.Errorf("conflict package name between %q and %q", name, memfile.Name)
 				}
-
 				name = pkgname
 			}
 
 			memFiles = append(memFiles, memfile)
-			continue // continue
+			continue
 		}
 
 		if isValidPackageFile(fname) {
 			memFiles = append(memFiles, &gnovm.MemFile{
 				Name: fname, Body: string(body),
 			})
+
+			continue
 		}
 
-		// ignore the file
+		// skip, not supported file
 	}
 
 	// Empty package, skipping
@@ -133,6 +135,28 @@ func parseFile(fset *token.FileSet, fname string, body []byte) (*gnovm.MemFile, 
 	f, err := parser.ParseFile(fset, fname, body, parser.PackageClauseOnly)
 	if err != nil {
 		return nil, "", fmt.Errorf("unable to parse file %q: %w", fname, err)
+	}
+
+	pkgname := f.Name.Name
+	if isTestFile(fname) {
+		pkgname, _, _ = strings.Cut(pkgname, "_")
+	}
+
+	return &gnovm.MemFile{
+		Name: fname,
+		Body: string(body),
+	}, f.Name.Name, nil
+}
+
+func parseGnoFile(fset *token.FileSet, fname string, body []byte) (*gnovm.MemFile, string, error) {
+	f, err := parser.ParseFile(fset, fname, body, parser.PackageClauseOnly)
+	if err != nil {
+		return nil, "", fmt.Errorf("unable to parse file %q: %w", fname, err)
+	}
+
+	pkgname := f.Name.Name
+	if isTestFile(fname) {
+		pkgname, _, _ = strings.Cut(pkgname, "_")
 	}
 
 	return &gnovm.MemFile{
