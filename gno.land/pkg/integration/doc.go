@@ -76,13 +76,6 @@
 //
 // Input:
 //
-//   - LOG_LEVEL:
-//     The logging level to be used, which can be one of "error", "debug", "info", or an empty string.
-//     If empty, the log level defaults to "debug".
-//
-//   - LOG_DIR:
-//     If set, logs will be directed to the specified directory.
-//
 //   - TESTWORK:
 //     A boolean that, when enabled, retains working directories after tests for
 //     inspection. If enabled, gnoland logs will be persisted inside this
