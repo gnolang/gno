@@ -2,9 +2,10 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package strconv
+package strconv_test
 
 import (
+	"strconv"
 	"strings"
 	"testing"
 	"unicode"
@@ -14,8 +15,8 @@ import (
 func TestIsPrint(t *testing.T) {
 	n := 0
 	for r := rune(0); r <= unicode.MaxRune; r++ {
-		if IsPrint(r) != unicode.IsPrint(r) {
-			t.Errorf("IsPrint(%U)=%t incorrect", r, IsPrint(r))
+		if strconv.IsPrint(r) != unicode.IsPrint(r) {
+			t.Errorf("IsPrint(%U)=%t incorrect", r, strconv.IsPrint(r))
 			n++
 			if n > 10 {
 				return
@@ -28,8 +29,8 @@ func TestIsPrint(t *testing.T) {
 func TestIsGraphic(t *testing.T) {
 	n := 0
 	for r := rune(0); r <= unicode.MaxRune; r++ {
-		if IsGraphic(r) != unicode.IsGraphic(r) {
-			t.Errorf("IsGraphic(%U)=%t incorrect", r, IsGraphic(r))
+		if strconv.IsGraphic(r) != unicode.IsGraphic(r) {
+			t.Errorf("IsGraphic(%U)=%t incorrect", r, strconv.IsGraphic(r))
 			n++
 			if n > 10 {
 				return
@@ -59,10 +60,10 @@ var quotetests = []quoteTest{
 
 func TestQuote(t *testing.T) {
 	for _, tt := range quotetests {
-		if out := Quote(tt.in); out != tt.out {
+		if out := strconv.Quote(tt.in); out != tt.out {
 			t.Errorf("Quote(%s) = %s, want %s", tt.in, out, tt.out)
 		}
-		if out := AppendQuote([]byte("abc"), tt.in); string(out) != "abc"+tt.out {
+		if out := strconv.AppendQuote([]byte("abc"), tt.in); string(out) != "abc"+tt.out {
 			t.Errorf("AppendQuote(%q, %s) = %s, want %s", "abc", tt.in, out, "abc"+tt.out)
 		}
 	}
@@ -70,10 +71,10 @@ func TestQuote(t *testing.T) {
 
 func TestQuoteToASCII(t *testing.T) {
 	for _, tt := range quotetests {
-		if out := QuoteToASCII(tt.in); out != tt.ascii {
+		if out := strconv.QuoteToASCII(tt.in); out != tt.ascii {
 			t.Errorf("QuoteToASCII(%s) = %s, want %s", tt.in, out, tt.ascii)
 		}
-		if out := AppendQuoteToASCII([]byte("abc"), tt.in); string(out) != "abc"+tt.ascii {
+		if out := strconv.AppendQuoteToASCII([]byte("abc"), tt.in); string(out) != "abc"+tt.ascii {
 			t.Errorf("AppendQuoteToASCII(%q, %s) = %s, want %s", "abc", tt.in, out, "abc"+tt.ascii)
 		}
 	}
@@ -81,10 +82,10 @@ func TestQuoteToASCII(t *testing.T) {
 
 func TestQuoteToGraphic(t *testing.T) {
 	for _, tt := range quotetests {
-		if out := QuoteToGraphic(tt.in); out != tt.graphic {
+		if out := strconv.QuoteToGraphic(tt.in); out != tt.graphic {
 			t.Errorf("QuoteToGraphic(%s) = %s, want %s", tt.in, out, tt.graphic)
 		}
-		if out := AppendQuoteToGraphic([]byte("abc"), tt.in); string(out) != "abc"+tt.graphic {
+		if out := strconv.AppendQuoteToGraphic([]byte("abc"), tt.in); string(out) != "abc"+tt.graphic {
 			t.Errorf("AppendQuoteToGraphic(%q, %s) = %s, want %s", "abc", tt.in, out, "abc"+tt.graphic)
 		}
 	}
@@ -92,13 +93,13 @@ func TestQuoteToGraphic(t *testing.T) {
 
 func BenchmarkQuote(b *testing.B) {
 	for i := 0; i < b.N; i++ {
-		Quote("\a\b\f\r\n\t\v\a\b\f\r\n\t\v\a\b\f\r\n\t\v")
+		strconv.Quote("\a\b\f\r\n\t\v\a\b\f\r\n\t\v\a\b\f\r\n\t\v")
 	}
 }
 
 func BenchmarkQuoteRune(b *testing.B) {
 	for i := 0; i < b.N; i++ {
-		QuoteRune('\a')
+		strconv.QuoteRune('\a')
 	}
 }
 
@@ -106,7 +107,7 @@ var benchQuoteBuf []byte
 
 func BenchmarkAppendQuote(b *testing.B) {
 	for i := 0; i < b.N; i++ {
-		benchQuoteBuf = AppendQuote(benchQuoteBuf[:0], "\a\b\f\r\n\t\v\a\b\f\r\n\t\v\a\b\f\r\n\t\v")
+		benchQuoteBuf = strconv.AppendQuote(benchQuoteBuf[:0], "\a\b\f\r\n\t\v\a\b\f\r\n\t\v\a\b\f\r\n\t\v")
 	}
 }
 
@@ -114,7 +115,7 @@ var benchQuoteRuneBuf []byte
 
 func BenchmarkAppendQuoteRune(b *testing.B) {
 	for i := 0; i < b.N; i++ {
-		benchQuoteRuneBuf = AppendQuoteRune(benchQuoteRuneBuf[:0], '\a')
+		benchQuoteRuneBuf = strconv.AppendQuoteRune(benchQuoteRuneBuf[:0], '\a')
 	}
 }
 
@@ -144,10 +145,10 @@ var quoterunetests = []quoteRuneTest{
 
 func TestQuoteRune(t *testing.T) {
 	for _, tt := range quoterunetests {
-		if out := QuoteRune(tt.in); out != tt.out {
+		if out := strconv.QuoteRune(tt.in); out != tt.out {
 			t.Errorf("QuoteRune(%U) = %s, want %s", tt.in, out, tt.out)
 		}
-		if out := AppendQuoteRune([]byte("abc"), tt.in); string(out) != "abc"+tt.out {
+		if out := strconv.AppendQuoteRune([]byte("abc"), tt.in); string(out) != "abc"+tt.out {
 			t.Errorf("AppendQuoteRune(%q, %U) = %s, want %s", "abc", tt.in, out, "abc"+tt.out)
 		}
 	}
@@ -155,10 +156,10 @@ func TestQuoteRune(t *testing.T) {
 
 func TestQuoteRuneToASCII(t *testing.T) {
 	for _, tt := range quoterunetests {
-		if out := QuoteRuneToASCII(tt.in); out != tt.ascii {
+		if out := strconv.QuoteRuneToASCII(tt.in); out != tt.ascii {
 			t.Errorf("QuoteRuneToASCII(%U) = %s, want %s", tt.in, out, tt.ascii)
 		}
-		if out := AppendQuoteRuneToASCII([]byte("abc"), tt.in); string(out) != "abc"+tt.ascii {
+		if out := strconv.AppendQuoteRuneToASCII([]byte("abc"), tt.in); string(out) != "abc"+tt.ascii {
 			t.Errorf("AppendQuoteRuneToASCII(%q, %U) = %s, want %s", "abc", tt.in, out, "abc"+tt.ascii)
 		}
 	}
@@ -166,10 +167,10 @@ func TestQuoteRuneToASCII(t *testing.T) {
 
 func TestQuoteRuneToGraphic(t *testing.T) {
 	for _, tt := range quoterunetests {
-		if out := QuoteRuneToGraphic(tt.in); out != tt.graphic {
+		if out := strconv.QuoteRuneToGraphic(tt.in); out != tt.graphic {
 			t.Errorf("QuoteRuneToGraphic(%U) = %s, want %s", tt.in, out, tt.graphic)
 		}
-		if out := AppendQuoteRuneToGraphic([]byte("abc"), tt.in); string(out) != "abc"+tt.graphic {
+		if out := strconv.AppendQuoteRuneToGraphic([]byte("abc"), tt.in); string(out) != "abc"+tt.graphic {
 			t.Errorf("AppendQuoteRuneToGraphic(%q, %U) = %s, want %s", "abc", tt.in, out, "abc"+tt.graphic)
 		}
 	}
@@ -228,7 +229,7 @@ var canbackquotetests = []canBackquoteTest{
 
 func TestCanBackquote(t *testing.T) {
 	for _, tt := range canbackquotetests {
-		if out := CanBackquote(tt.in); out != tt.out {
+		if out := strconv.CanBackquote(tt.in); out != tt.out {
 			t.Errorf("CanBackquote(%q) = %v, want %v", tt.in, out, tt.out)
 		}
 	}
@@ -318,7 +319,7 @@ func TestUnquote(t *testing.T) {
 		testUnquote(t, tt.out, tt.in, nil)
 	}
 	for _, s := range misquoted {
-		testUnquote(t, s, "", ErrSyntax)
+		testUnquote(t, s, "", strconv.ErrSyntax)
 	}
 }
 
@@ -332,7 +333,7 @@ func TestUnquoteInvalidUTF8(t *testing.T) {
 		wantErr error
 	}{
 		{in: `"foo"`, want: "foo"},
-		{in: `"foo`, wantErr: ErrSyntax},
+		{in: `"foo`, wantErr: strconv.ErrSyntax},
 		{in: `"` + "\xc0" + `"`, want: "\xef\xbf\xbd"},
 		{in: `"a` + "\xc0" + `"`, want: "a\xef\xbf\xbd"},
 		{in: `"\t` + "\xc0" + `"`, want: "\t\xef\xbf\xbd"},
@@ -344,7 +345,7 @@ func TestUnquoteInvalidUTF8(t *testing.T) {
 
 func testUnquote(t *testing.T, in, want string, wantErr error) {
 	// Test Unquote.
-	got, gotErr := Unquote(in)
+	got, gotErr := strconv.Unquote(in)
 	if got != want || gotErr != wantErr {
 		t.Errorf("Unquote(%q) = (%q, %v), want (%q, %v)", in, got, gotErr, want, wantErr)
 	}
@@ -360,9 +361,9 @@ func testUnquote(t *testing.T, in, want string, wantErr error) {
 		suffix = strings.ReplaceAll(suffix, in[:1], "")
 	}
 	in += suffix
-	got, gotErr = QuotedPrefix(in)
+	got, gotErr = strconv.QuotedPrefix(in)
 	if gotErr == nil && wantErr != nil {
-		_, wantErr = Unquote(got) // original input had trailing junk, reparse with only valid prefix
+		_, wantErr = strconv.Unquote(got) // original input had trailing junk, reparse with only valid prefix
 		want = got
 	}
 	if got != want || gotErr != wantErr {
@@ -372,12 +373,12 @@ func testUnquote(t *testing.T, in, want string, wantErr error) {
 
 func BenchmarkUnquoteEasy(b *testing.B) {
 	for i := 0; i < b.N; i++ {
-		Unquote(`"Give me a rock, paper and scissors and I will move the world."`)
+		strconv.Unquote(`"Give me a rock, paper and scissors and I will move the world."`)
 	}
 }
 
 func BenchmarkUnquoteHard(b *testing.B) {
 	for i := 0; i < b.N; i++ {
-		Unquote(`"\x47ive me a \x72ock, \x70aper and \x73cissors and \x49 will move the world."`)
+		strconv.Unquote(`"\x47ive me a \x72ock, \x70aper and \x73cissors and \x49 will move the world."`)
 	}
 }

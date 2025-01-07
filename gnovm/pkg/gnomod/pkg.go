@@ -5,13 +5,17 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+
+	"github.com/gnolang/gno/gnovm"
+	"github.com/gnolang/gno/gnovm/pkg/gnolang"
+	"github.com/gnolang/gno/gnovm/pkg/packages"
 )
 
 type Pkg struct {
-	Dir      string   // absolute path to package dir
-	Name     string   // package name
-	Requires []string // dependencies
-	Draft    bool     // whether the package is a draft
+	Dir     string   // absolute path to package dir
+	Name    string   // package name
+	Imports []string // direct imports of this pkg
+	Draft   bool     // whether the package is a draft
 }
 
 type (
@@ -48,10 +52,10 @@ func visitPackage(pkg Pkg, pkgs []Pkg, visited, onStack map[string]bool, sortedP
 	onStack[pkg.Name] = true
 
 	// Visit package's dependencies
-	for _, req := range pkg.Requires {
+	for _, imp := range pkg.Imports {
 		found := false
 		for _, p := range pkgs {
-			if p.Name != req {
+			if p.Name != imp {
 				continue
 			}
 			if err := visitPackage(p, pkgs, visited, onStack, sortedPkgs); err != nil {
@@ -61,7 +65,7 @@ func visitPackage(pkg Pkg, pkgs []Pkg, visited, onStack map[string]bool, sortedP
 			break
 		}
 		if !found {
-			return fmt.Errorf("missing dependency '%s' for package '%s'", req, pkg.Name)
+			return fmt.Errorf("missing dependency '%s' for package '%s'", imp, pkg.Name)
 		}
 	}
 
@@ -99,17 +103,33 @@ func ListPkgs(root string) (PkgList, error) {
 			return fmt.Errorf("validate: %w", err)
 		}
 
+		pkg, err := gnolang.ReadMemPackage(path, gnoMod.Module.Mod.Path)
+		if err != nil {
+			// ignore package files on error
+			pkg = &gnovm.MemPackage{}
+		}
+
+		importsMap, err := packages.Imports(pkg, nil)
+		if err != nil {
+			// ignore imports on error
+			importsMap = nil
+		}
+		importsRaw := importsMap.Merge(packages.FileKindPackageSource, packages.FileKindTest, packages.FileKindXTest)
+
+		imports := make([]string, 0, len(importsRaw))
+		for _, imp := range importsRaw {
+			// remove self and standard libraries from imports
+			if imp.PkgPath != gnoMod.Module.Mod.Path &&
+				!gnolang.IsStdlib(imp.PkgPath) {
+				imports = append(imports, imp.PkgPath)
+			}
+		}
+
 		pkgs = append(pkgs, Pkg{
-			Dir:   path,
-			Name:  gnoMod.Module.Mod.Path,
-			Draft: gnoMod.Draft,
-			Requires: func() []string {
-				var reqs []string
-				for _, req := range gnoMod.Require {
-					reqs = append(reqs, req.Mod.Path)
-				}
-				return reqs
-			}(),
+			Dir:     path,
+			Name:    gnoMod.Module.Mod.Path,
+			Draft:   gnoMod.Draft,
+			Imports: imports,
 		})
 		return nil
 	})
@@ -132,7 +152,7 @@ func (sp SortedPkgList) GetNonDraftPkgs() SortedPkgList {
 			continue
 		}
 		dependsOnDraft := false
-		for _, req := range pkg.Requires {
+		for _, req := range pkg.Imports {
 			if draft[req] {
 				dependsOnDraft = true
 				draft[pkg.Name] = true

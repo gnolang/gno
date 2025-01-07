@@ -160,8 +160,8 @@ func (m *Memeland) RemovePost(id string) string {
 		panic("id cannot be empty")
 	}
 
-	if err := m.CallerIsOwner(); err != nil {
-		panic(err)
+	if !m.CallerIsOwner() {
+		panic(ownable.ErrUnauthorized)
 	}
 
 	for i, post := range m.Posts {

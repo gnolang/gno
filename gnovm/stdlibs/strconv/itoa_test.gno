@@ -2,9 +2,10 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package strconv
+package strconv_test
 
 import (
+	"strconv"
 	"testing"
 )
 
@@ -60,24 +61,24 @@ var itob64tests = []itob64Test{
 
 func TestItoa(t *testing.T) {
 	for _, test := range itob64tests {
-		s := FormatInt(test.in, test.base)
+		s := strconv.FormatInt(test.in, test.base)
 		if s != test.out {
 			t.Errorf("FormatInt(%v, %v) = %v want %v",
 				test.in, test.base, s, test.out)
 		}
-		x := AppendInt([]byte("abc"), test.in, test.base)
+		x := strconv.AppendInt([]byte("abc"), test.in, test.base)
 		if string(x) != "abc"+test.out {
 			t.Errorf("AppendInt(%q, %v, %v) = %q want %v",
 				"abc", test.in, test.base, x, test.out)
 		}
 
 		if test.in >= 0 {
-			s := FormatUint(uint64(test.in), test.base)
+			s := strconv.FormatUint(uint64(test.in), test.base)
 			if s != test.out {
 				t.Errorf("FormatUint(%v, %v) = %v want %v",
 					test.in, test.base, s, test.out)
 			}
-			x := AppendUint(nil, uint64(test.in), test.base)
+			x := strconv.AppendUint(nil, uint64(test.in), test.base)
 			if string(x) != test.out {
 				t.Errorf("AppendUint(%q, %v, %v) = %q want %v",
 					"abc", uint64(test.in), test.base, x, test.out)
@@ -85,7 +86,7 @@ func TestItoa(t *testing.T) {
 		}
 
 		if test.base == 10 && int64(int(test.in)) == test.in {
-			s := Itoa(int(test.in))
+			s := strconv.Itoa(int(test.in))
 			if s != test.out {
 				t.Errorf("Itoa(%v) = %v want %v",
 					test.in, s, test.out)
@@ -99,7 +100,7 @@ func TestItoa(t *testing.T) {
 			t.Fatalf("expected panic due to illegal base")
 		}
 	}()
-	FormatUint(12345678, 1)
+	strconv.FormatUint(12345678, 1)
 }
 
 type uitob64Test struct {
@@ -119,12 +120,12 @@ var uitob64tests = []uitob64Test{
 
 func TestUitoa(t *testing.T) {
 	for _, test := range uitob64tests {
-		s := FormatUint(test.in, test.base)
+		s := strconv.FormatUint(test.in, test.base)
 		if s != test.out {
 			t.Errorf("FormatUint(%v, %v) = %v want %v",
 				test.in, test.base, s, test.out)
 		}
-		x := AppendUint([]byte("abc"), test.in, test.base)
+		x := strconv.AppendUint([]byte("abc"), test.in, test.base)
 		if string(x) != "abc"+test.out {
 			t.Errorf("AppendUint(%q, %v, %v) = %q want %v",
 				"abc", test.in, test.base, x, test.out)
@@ -161,7 +162,7 @@ var varlenUints = []struct {
 
 func TestFormatUintVarlen(t *testing.T) {
 	for _, test := range varlenUints {
-		s := FormatUint(test.in, 10)
+		s := strconv.FormatUint(test.in, 10)
 		if s != test.out {
 			t.Errorf("FormatUint(%v, 10) = %v want %v", test.in, s, test.out)
 		}
@@ -171,7 +172,7 @@ func TestFormatUintVarlen(t *testing.T) {
 func BenchmarkFormatInt(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		for _, test := range itob64tests {
-			s := FormatInt(test.in, test.base)
+			s := strconv.FormatInt(test.in, test.base)
 			BenchSink += len(s)
 		}
 	}
@@ -181,7 +182,7 @@ func BenchmarkAppendInt(b *testing.B) {
 	dst := make([]byte, 0, 30)
 	for i := 0; i < b.N; i++ {
 		for _, test := range itob64tests {
-			dst = AppendInt(dst[:0], test.in, test.base)
+			dst = strconv.AppendInt(dst[:0], test.in, test.base)
 			BenchSink += len(dst)
 		}
 	}
@@ -190,7 +191,7 @@ func BenchmarkAppendInt(b *testing.B) {
 func BenchmarkFormatUint(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		for _, test := range uitob64tests {
-			s := FormatUint(test.in, test.base)
+			s := strconv.FormatUint(test.in, test.base)
 			BenchSink += len(s)
 		}
 	}
@@ -200,7 +201,7 @@ func BenchmarkAppendUint(b *testing.B) {
 	dst := make([]byte, 0, 30)
 	for i := 0; i < b.N; i++ {
 		for _, test := range uitob64tests {
-			dst = AppendUint(dst[:0], test.in, test.base)
+			dst = strconv.AppendUint(dst[:0], test.in, test.base)
 			BenchSink += len(dst)
 		}
 	}
@@ -209,9 +210,9 @@ func BenchmarkAppendUint(b *testing.B) {
 func BenchmarkFormatIntSmall(b *testing.B) {
 	smallInts := []int64{7, 42}
 	for _, smallInt := range smallInts {
-		b.Run(Itoa(int(smallInt)), func(b *testing.B) {
+		b.Run(strconv.Itoa(int(smallInt)), func(b *testing.B) {
 			for i := 0; i < b.N; i++ {
-				s := FormatInt(smallInt, 10)
+				s := strconv.FormatInt(smallInt, 10)
 				BenchSink += len(s)
 			}
 		})
@@ -222,7 +223,7 @@ func BenchmarkAppendIntSmall(b *testing.B) {
 	dst := make([]byte, 0, 30)
 	const smallInt = 42
 	for i := 0; i < b.N; i++ {
-		dst = AppendInt(dst[:0], smallInt, 10)
+		dst = strconv.AppendInt(dst[:0], smallInt, 10)
 		BenchSink += len(dst)
 	}
 }
@@ -232,7 +233,7 @@ func BenchmarkAppendUintVarlen(b *testing.B) {
 		b.Run(test.out, func(b *testing.B) {
 			dst := make([]byte, 0, 30)
 			for j := 0; j < b.N; j++ {
-				dst = AppendUint(dst[:0], test.in, 10)
+				dst = strconv.AppendUint(dst[:0], test.in, 10)
 				BenchSink += len(dst)
 			}
 		})

@@ -1,0 +1,17 @@
+# gno lint: no gnomod
+
+! gno lint .
+
+cmp stdout stdout.golden
+cmp stderr stderr.golden
+
+-- good_file.gno --
+package main
+
+func main() {
+	println("Hello", 42)
+}
+
+-- stdout.golden --
+-- stderr.golden --
+.: missing 'gno.mod' file (code=1).

@@ -9,6 +9,7 @@ import (
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
 	testlibs_std "github.com/gnolang/gno/gnovm/tests/stdlibs/std"
 	testlibs_testing "github.com/gnolang/gno/gnovm/tests/stdlibs/testing"
+	testlibs_unicode "github.com/gnolang/gno/gnovm/tests/stdlibs/unicode"
 )
 
 // NativeFunc represents a function in the standard library which has a native
@@ -82,18 +83,6 @@ var nativeFuncs = [...]NativeFunc{
 			testlibs_std.TestSkipHeights(
 				m,
 				p0)
-		},
-	},
-	{
-		"std",
-		"ClearStoreCache",
-		[]gno.FieldTypeExpr{},
-		[]gno.FieldTypeExpr{},
-		true,
-		func(m *gno.Machine) {
-			testlibs_std.ClearStoreCache(
-				m,
-			)
 		},
 	},
 	{
@@ -344,11 +333,162 @@ var nativeFuncs = [...]NativeFunc{
 			))
 		},
 	},
+	{
+		"testing",
+		"matchString",
+		[]gno.FieldTypeExpr{
+			{Name: gno.N("p0"), Type: gno.X("string")},
+			{Name: gno.N("p1"), Type: gno.X("string")},
+		},
+		[]gno.FieldTypeExpr{
+			{Name: gno.N("r0"), Type: gno.X("bool")},
+			{Name: gno.N("r1"), Type: gno.X("error")},
+		},
+		false,
+		func(m *gno.Machine) {
+			b := m.LastBlock()
+			var (
+				p0  string
+				rp0 = reflect.ValueOf(&p0).Elem()
+				p1  string
+				rp1 = reflect.ValueOf(&p1).Elem()
+			)
+
+			gno.Gno2GoValue(b.GetPointerTo(nil, gno.NewValuePathBlock(1, 0, "")).TV, rp0)
+			gno.Gno2GoValue(b.GetPointerTo(nil, gno.NewValuePathBlock(1, 1, "")).TV, rp1)
+
+			r0, r1 := testlibs_testing.X_matchString(p0, p1)
+
+			m.PushValue(gno.Go2GnoValue(
+				m.Alloc,
+				m.Store,
+				reflect.ValueOf(&r0).Elem(),
+			))
+			m.PushValue(gno.Go2GnoValue(
+				m.Alloc,
+				m.Store,
+				reflect.ValueOf(&r1).Elem(),
+			))
+		},
+	},
+	{
+		"unicode",
+		"IsPrint",
+		[]gno.FieldTypeExpr{
+			{Name: gno.N("p0"), Type: gno.X("rune")},
+		},
+		[]gno.FieldTypeExpr{
+			{Name: gno.N("r0"), Type: gno.X("bool")},
+		},
+		false,
+		func(m *gno.Machine) {
+			b := m.LastBlock()
+			var (
+				p0  rune
+				rp0 = reflect.ValueOf(&p0).Elem()
+			)
+
+			gno.Gno2GoValue(b.GetPointerTo(nil, gno.NewValuePathBlock(1, 0, "")).TV, rp0)
+
+			r0 := testlibs_unicode.IsPrint(p0)
+
+			m.PushValue(gno.Go2GnoValue(
+				m.Alloc,
+				m.Store,
+				reflect.ValueOf(&r0).Elem(),
+			))
+		},
+	},
+	{
+		"unicode",
+		"IsGraphic",
+		[]gno.FieldTypeExpr{
+			{Name: gno.N("p0"), Type: gno.X("rune")},
+		},
+		[]gno.FieldTypeExpr{
+			{Name: gno.N("r0"), Type: gno.X("bool")},
+		},
+		false,
+		func(m *gno.Machine) {
+			b := m.LastBlock()
+			var (
+				p0  rune
+				rp0 = reflect.ValueOf(&p0).Elem()
+			)
+
+			gno.Gno2GoValue(b.GetPointerTo(nil, gno.NewValuePathBlock(1, 0, "")).TV, rp0)
+
+			r0 := testlibs_unicode.IsGraphic(p0)
+
+			m.PushValue(gno.Go2GnoValue(
+				m.Alloc,
+				m.Store,
+				reflect.ValueOf(&r0).Elem(),
+			))
+		},
+	},
+	{
+		"unicode",
+		"SimpleFold",
+		[]gno.FieldTypeExpr{
+			{Name: gno.N("p0"), Type: gno.X("rune")},
+		},
+		[]gno.FieldTypeExpr{
+			{Name: gno.N("r0"), Type: gno.X("rune")},
+		},
+		false,
+		func(m *gno.Machine) {
+			b := m.LastBlock()
+			var (
+				p0  rune
+				rp0 = reflect.ValueOf(&p0).Elem()
+			)
+
+			gno.Gno2GoValue(b.GetPointerTo(nil, gno.NewValuePathBlock(1, 0, "")).TV, rp0)
+
+			r0 := testlibs_unicode.SimpleFold(p0)
+
+			m.PushValue(gno.Go2GnoValue(
+				m.Alloc,
+				m.Store,
+				reflect.ValueOf(&r0).Elem(),
+			))
+		},
+	},
+	{
+		"unicode",
+		"IsUpper",
+		[]gno.FieldTypeExpr{
+			{Name: gno.N("p0"), Type: gno.X("rune")},
+		},
+		[]gno.FieldTypeExpr{
+			{Name: gno.N("r0"), Type: gno.X("bool")},
+		},
+		false,
+		func(m *gno.Machine) {
+			b := m.LastBlock()
+			var (
+				p0  rune
+				rp0 = reflect.ValueOf(&p0).Elem()
+			)
+
+			gno.Gno2GoValue(b.GetPointerTo(nil, gno.NewValuePathBlock(1, 0, "")).TV, rp0)
+
+			r0 := testlibs_unicode.IsUpper(p0)
+
+			m.PushValue(gno.Go2GnoValue(
+				m.Alloc,
+				m.Store,
+				reflect.ValueOf(&r0).Elem(),
+			))
+		},
+	},
 }
 
 var initOrder = [...]string{
 	"std",
 	"testing",
+	"unicode",
 }
 
 // InitOrder returns the initialization order of the standard libraries.

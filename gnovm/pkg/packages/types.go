@@ -16,6 +16,8 @@ type Package struct {
 	FiletestGnoFiles []string `json:",omitempty"` // _filetest.gno files in package
 	FiletestImports  []string `json:",omitempty"` // imports from FiletestGnoFiles
 	Errors           []error  `json:",omitempty"` // error loading this package (not dependencies)
+
+	Draft bool
 }
 
 // ported from https://cs.opensource.google/go/go/+/refs/tags/go1.23.2:src/cmd/go/internal/modinfo/info.go

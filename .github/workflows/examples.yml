@@ -1,9 +1,14 @@
-name: examples
+name: Gno Examples
 
 on:
-  pull_request:
   push:
-    branches: ["master"]
+    branches:
+      - master
+  pull_request:
+    paths:
+      - gnovm/**/*.gno
+      - examples/**/*.gno
+      - examples/**/gno.mod
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.head_ref || github.run_id }}
@@ -67,21 +72,11 @@ jobs:
       # TODO: consider running lint on every other directories, maybe in "warning" mode?
     # TODO: track coverage
   fmt:
-    strategy:
-      fail-fast: false
-      matrix:
-        goversion: ["1.22.x"]
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-go@v5
-        with:
-          go-version: ${{ matrix.goversion }}
-      - run: |
-          make fmt -C ./examples
-          # Check if there are changes after running make fmt
-          git diff --exit-code || (echo "Some gno files are not formatted, please run 'make fmt'." && exit 1)
+    name: Run gno fmt on examples
+    uses: ./.github/workflows/gnofmt_template.yml
+    with:
+      path: "examples/..."
+
   mod-tidy:
     strategy:
       fail-fast: false

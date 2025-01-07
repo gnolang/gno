@@ -2,13 +2,14 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package strconv
+package strconv_test
 
 // XXX: changed not to use dot imports
 
 import (
 	"math"
 	"math/rand"
+	"strconv"
 	"strings"
 	"testing"
 )
@@ -20,11 +21,11 @@ type atofTest struct {
 }
 
 var atoftests = []atofTest{
-	{"", "0", ErrSyntax},
+	{"", "0", strconv.ErrSyntax},
 	{"1", "1", nil},
 	{"+1", "1", nil},
-	{"1x", "0", ErrSyntax},
-	{"1.1.", "0", ErrSyntax},
+	{"1x", "0", strconv.ErrSyntax},
+	{"1.1.", "0", strconv.ErrSyntax},
 	{"1e23", "1e+23", nil},
 	{"1E23", "1e+23", nil},
 	{"100000000000000000000000", "1e+23", nil},
@@ -55,8 +56,8 @@ var atoftests = []atofTest{
 	{"-0x2p3", "-16", nil},
 	{"0x0.fp4", "15", nil},
 	{"0x0.fp0", "0.9375", nil},
-	{"0x1e2", "0", ErrSyntax},
-	{"1p2", "0", ErrSyntax},
+	{"0x1e2", "0", strconv.ErrSyntax},
+	{"1p2", "0", strconv.ErrSyntax},
 
 	// zeros
 	{"0", "0", nil},
@@ -131,16 +132,16 @@ var atoftests = []atofTest{
 	{"-0x.1fffffffffffffp1027", "-1.7976931348623157e+308", nil},
 
 	// next float64 - too large
-	{"1.7976931348623159e308", "+Inf", ErrRange},
-	{"-1.7976931348623159e308", "-Inf", ErrRange},
-	{"0x1p1024", "+Inf", ErrRange},
-	{"-0x1p1024", "-Inf", ErrRange},
-	{"0x2p1023", "+Inf", ErrRange},
-	{"-0x2p1023", "-Inf", ErrRange},
-	{"0x.1p1028", "+Inf", ErrRange},
-	{"-0x.1p1028", "-Inf", ErrRange},
-	{"0x.2p1027", "+Inf", ErrRange},
-	{"-0x.2p1027", "-Inf", ErrRange},
+	{"1.7976931348623159e308", "+Inf", strconv.ErrRange},
+	{"-1.7976931348623159e308", "-Inf", strconv.ErrRange},
+	{"0x1p1024", "+Inf", strconv.ErrRange},
+	{"-0x1p1024", "-Inf", strconv.ErrRange},
+	{"0x2p1023", "+Inf", strconv.ErrRange},
+	{"-0x2p1023", "-Inf", strconv.ErrRange},
+	{"0x.1p1028", "+Inf", strconv.ErrRange},
+	{"-0x.1p1028", "-Inf", strconv.ErrRange},
+	{"0x.2p1027", "+Inf", strconv.ErrRange},
+	{"-0x.2p1027", "-Inf", strconv.ErrRange},
 
 	// the border is ...158079
 	// borderline - okay
@@ -149,34 +150,34 @@ var atoftests = []atofTest{
 	{"0x1.fffffffffffff7fffp1023", "1.7976931348623157e+308", nil},
 	{"-0x1.fffffffffffff7fffp1023", "-1.7976931348623157e+308", nil},
 	// borderline - too large
-	{"1.797693134862315808e308", "+Inf", ErrRange},
-	{"-1.797693134862315808e308", "-Inf", ErrRange},
-	{"0x1.fffffffffffff8p1023", "+Inf", ErrRange},
-	{"-0x1.fffffffffffff8p1023", "-Inf", ErrRange},
-	{"0x1fffffffffffff.8p+971", "+Inf", ErrRange},
-	{"-0x1fffffffffffff8p+967", "-Inf", ErrRange},
-	{"0x.1fffffffffffff8p1027", "+Inf", ErrRange},
-	{"-0x.1fffffffffffff9p1027", "-Inf", ErrRange},
+	{"1.797693134862315808e308", "+Inf", strconv.ErrRange},
+	{"-1.797693134862315808e308", "-Inf", strconv.ErrRange},
+	{"0x1.fffffffffffff8p1023", "+Inf", strconv.ErrRange},
+	{"-0x1.fffffffffffff8p1023", "-Inf", strconv.ErrRange},
+	{"0x1fffffffffffff.8p+971", "+Inf", strconv.ErrRange},
+	{"-0x1fffffffffffff8p+967", "-Inf", strconv.ErrRange},
+	{"0x.1fffffffffffff8p1027", "+Inf", strconv.ErrRange},
+	{"-0x.1fffffffffffff9p1027", "-Inf", strconv.ErrRange},
 
 	// a little too large
 	{"1e308", "1e+308", nil},
-	{"2e308", "+Inf", ErrRange},
-	{"1e309", "+Inf", ErrRange},
-	{"0x1p1025", "+Inf", ErrRange},
+	{"2e308", "+Inf", strconv.ErrRange},
+	{"1e309", "+Inf", strconv.ErrRange},
+	{"0x1p1025", "+Inf", strconv.ErrRange},
 
 	// way too large
-	{"1e310", "+Inf", ErrRange},
-	{"-1e310", "-Inf", ErrRange},
-	{"1e400", "+Inf", ErrRange},
-	{"-1e400", "-Inf", ErrRange},
-	{"1e400000", "+Inf", ErrRange},
-	{"-1e400000", "-Inf", ErrRange},
-	{"0x1p1030", "+Inf", ErrRange},
-	{"0x1p2000", "+Inf", ErrRange},
-	{"0x1p2000000000", "+Inf", ErrRange},
-	{"-0x1p1030", "-Inf", ErrRange},
-	{"-0x1p2000", "-Inf", ErrRange},
-	{"-0x1p2000000000", "-Inf", ErrRange},
+	{"1e310", "+Inf", strconv.ErrRange},
+	{"-1e310", "-Inf", strconv.ErrRange},
+	{"1e400", "+Inf", strconv.ErrRange},
+	{"-1e400", "-Inf", strconv.ErrRange},
+	{"1e400000", "+Inf", strconv.ErrRange},
+	{"-1e400000", "-Inf", strconv.ErrRange},
+	{"0x1p1030", "+Inf", strconv.ErrRange},
+	{"0x1p2000", "+Inf", strconv.ErrRange},
+	{"0x1p2000000000", "+Inf", strconv.ErrRange},
+	{"-0x1p1030", "-Inf", strconv.ErrRange},
+	{"-0x1p2000", "-Inf", strconv.ErrRange},
+	{"-0x1p2000000000", "-Inf", strconv.ErrRange},
 
 	// denormalized
 	{"1e-305", "1e-305", nil},
@@ -238,29 +239,29 @@ var atoftests = []atofTest{
 
 	// try to overflow exponent
 	{"1e-4294967296", "0", nil},
-	{"1e+4294967296", "+Inf", ErrRange},
+	{"1e+4294967296", "+Inf", strconv.ErrRange},
 	{"1e-18446744073709551616", "0", nil},
-	{"1e+18446744073709551616", "+Inf", ErrRange},
+	{"1e+18446744073709551616", "+Inf", strconv.ErrRange},
 	{"0x1p-4294967296", "0", nil},
-	{"0x1p+4294967296", "+Inf", ErrRange},
+	{"0x1p+4294967296", "+Inf", strconv.ErrRange},
 	{"0x1p-18446744073709551616", "0", nil},
-	{"0x1p+18446744073709551616", "+Inf", ErrRange},
+	{"0x1p+18446744073709551616", "+Inf", strconv.ErrRange},
 
 	// Parse errors
-	{"1e", "0", ErrSyntax},
-	{"1e-", "0", ErrSyntax},
-	{".e-1", "0", ErrSyntax},
-	{"1\x00.2", "0", ErrSyntax},
-	{"0x", "0", ErrSyntax},
-	{"0x.", "0", ErrSyntax},
-	{"0x1", "0", ErrSyntax},
-	{"0x.1", "0", ErrSyntax},
-	{"0x1p", "0", ErrSyntax},
-	{"0x.1p", "0", ErrSyntax},
-	{"0x1p+", "0", ErrSyntax},
-	{"0x.1p+", "0", ErrSyntax},
-	{"0x1p-", "0", ErrSyntax},
-	{"0x.1p-", "0", ErrSyntax},
+	{"1e", "0", strconv.ErrSyntax},
+	{"1e-", "0", strconv.ErrSyntax},
+	{".e-1", "0", strconv.ErrSyntax},
+	{"1\x00.2", "0", strconv.ErrSyntax},
+	{"0x", "0", strconv.ErrSyntax},
+	{"0x.", "0", strconv.ErrSyntax},
+	{"0x1", "0", strconv.ErrSyntax},
+	{"0x.1", "0", strconv.ErrSyntax},
+	{"0x1p", "0", strconv.ErrSyntax},
+	{"0x.1p", "0", strconv.ErrSyntax},
+	{"0x1p+", "0", strconv.ErrSyntax},
+	{"0x.1p+", "0", strconv.ErrSyntax},
+	{"0x1p-", "0", strconv.ErrSyntax},
+	{"0x.1p-", "0", strconv.ErrSyntax},
 	{"0x1p+2", "4", nil},
 	{"0x.1p+2", "0.25", nil},
 	{"0x1p-2", "0.25", nil},
@@ -309,40 +310,40 @@ var atoftests = []atofTest{
 
 	// Underscores.
 	{"1_23.50_0_0e+1_2", "1.235e+14", nil},
-	{"-_123.5e+12", "0", ErrSyntax},
-	{"+_123.5e+12", "0", ErrSyntax},
-	{"_123.5e+12", "0", ErrSyntax},
-	{"1__23.5e+12", "0", ErrSyntax},
-	{"123_.5e+12", "0", ErrSyntax},
-	{"123._5e+12", "0", ErrSyntax},
-	{"123.5_e+12", "0", ErrSyntax},
-	{"123.5__0e+12", "0", ErrSyntax},
-	{"123.5e_+12", "0", ErrSyntax},
-	{"123.5e+_12", "0", ErrSyntax},
-	{"123.5e_-12", "0", ErrSyntax},
-	{"123.5e-_12", "0", ErrSyntax},
-	{"123.5e+1__2", "0", ErrSyntax},
-	{"123.5e+12_", "0", ErrSyntax},
+	{"-_123.5e+12", "0", strconv.ErrSyntax},
+	{"+_123.5e+12", "0", strconv.ErrSyntax},
+	{"_123.5e+12", "0", strconv.ErrSyntax},
+	{"1__23.5e+12", "0", strconv.ErrSyntax},
+	{"123_.5e+12", "0", strconv.ErrSyntax},
+	{"123._5e+12", "0", strconv.ErrSyntax},
+	{"123.5_e+12", "0", strconv.ErrSyntax},
+	{"123.5__0e+12", "0", strconv.ErrSyntax},
+	{"123.5e_+12", "0", strconv.ErrSyntax},
+	{"123.5e+_12", "0", strconv.ErrSyntax},
+	{"123.5e_-12", "0", strconv.ErrSyntax},
+	{"123.5e-_12", "0", strconv.ErrSyntax},
+	{"123.5e+1__2", "0", strconv.ErrSyntax},
+	{"123.5e+12_", "0", strconv.ErrSyntax},
 
 	{"0x_1_2.3_4_5p+1_2", "74565", nil},
-	{"-_0x12.345p+12", "0", ErrSyntax},
-	{"+_0x12.345p+12", "0", ErrSyntax},
-	{"_0x12.345p+12", "0", ErrSyntax},
-	{"0x__12.345p+12", "0", ErrSyntax},
-	{"0x1__2.345p+12", "0", ErrSyntax},
-	{"0x12_.345p+12", "0", ErrSyntax},
-	{"0x12._345p+12", "0", ErrSyntax},
-	{"0x12.3__45p+12", "0", ErrSyntax},
-	{"0x12.345_p+12", "0", ErrSyntax},
-	{"0x12.345p_+12", "0", ErrSyntax},
-	{"0x12.345p+_12", "0", ErrSyntax},
-	{"0x12.345p_-12", "0", ErrSyntax},
-	{"0x12.345p-_12", "0", ErrSyntax},
-	{"0x12.345p+1__2", "0", ErrSyntax},
-	{"0x12.345p+12_", "0", ErrSyntax},
+	{"-_0x12.345p+12", "0", strconv.ErrSyntax},
+	{"+_0x12.345p+12", "0", strconv.ErrSyntax},
+	{"_0x12.345p+12", "0", strconv.ErrSyntax},
+	{"0x__12.345p+12", "0", strconv.ErrSyntax},
+	{"0x1__2.345p+12", "0", strconv.ErrSyntax},
+	{"0x12_.345p+12", "0", strconv.ErrSyntax},
+	{"0x12._345p+12", "0", strconv.ErrSyntax},
+	{"0x12.3__45p+12", "0", strconv.ErrSyntax},
+	{"0x12.345_p+12", "0", strconv.ErrSyntax},
+	{"0x12.345p_+12", "0", strconv.ErrSyntax},
+	{"0x12.345p+_12", "0", strconv.ErrSyntax},
+	{"0x12.345p_-12", "0", strconv.ErrSyntax},
+	{"0x12.345p-_12", "0", strconv.ErrSyntax},
+	{"0x12.345p+1__2", "0", strconv.ErrSyntax},
+	{"0x12.345p+12_", "0", strconv.ErrSyntax},
 
-	{"1e100x", "0", ErrSyntax},
-	{"1e1000x", "0", ErrSyntax},
+	{"1e100x", "0", strconv.ErrSyntax},
+	{"1e1000x", "0", strconv.ErrSyntax},
 }
 
 var atof32tests = []atofTest{
@@ -374,10 +375,10 @@ var atof32tests = []atofTest{
 	{"-340282346638528859811704183484516925440", "-3.4028235e+38", nil},
 	{"-0x.ffffffp128", "-3.4028235e+38", nil},
 	// next float32 - too large
-	{"3.4028236e38", "+Inf", ErrRange},
-	{"-3.4028236e38", "-Inf", ErrRange},
-	{"0x1.0p128", "+Inf", ErrRange},
-	{"-0x1.0p128", "-Inf", ErrRange},
+	{"3.4028236e38", "+Inf", strconv.ErrRange},
+	{"-3.4028236e38", "-Inf", strconv.ErrRange},
+	{"0x1.0p128", "+Inf", strconv.ErrRange},
+	{"-0x1.0p128", "-Inf", strconv.ErrRange},
 	// the border is 3.40282356779...e+38
 	// borderline - okay
 	{"3.402823567e38", "3.4028235e+38", nil},
@@ -385,10 +386,10 @@ var atof32tests = []atofTest{
 	{"0x.ffffff7fp128", "3.4028235e+38", nil},
 	{"-0x.ffffff7fp128", "-3.4028235e+38", nil},
 	// borderline - too large
-	{"3.4028235678e38", "+Inf", ErrRange},
-	{"-3.4028235678e38", "-Inf", ErrRange},
-	{"0x.ffffff8p128", "+Inf", ErrRange},
-	{"-0x.ffffff8p128", "-Inf", ErrRange},
+	{"3.4028235678e38", "+Inf", strconv.ErrRange},
+	{"-3.4028235678e38", "-Inf", strconv.ErrRange},
+	{"0x.ffffff8p128", "+Inf", strconv.ErrRange},
+	{"-0x.ffffff8p128", "-Inf", strconv.ErrRange},
 
 	// Denormals: less than 2^-126
 	{"1e-38", "1e-38", nil},
@@ -454,13 +455,13 @@ func initAtofOnce() {
 	for i := range atoftests {
 		test := &atoftests[i]
 		if test.err != nil {
-			test.err = &NumError{"ParseFloat", test.in, test.err}
+			test.err = &strconv.NumError{"ParseFloat", test.in, test.err}
 		}
 	}
 	for i := range atof32tests {
 		test := &atof32tests[i]
 		if test.err != nil {
-			test.err = &NumError{"ParseFloat", test.in, test.err}
+			test.err = &strconv.NumError{"ParseFloat", test.in, test.err}
 		}
 	}
 
@@ -473,19 +474,19 @@ func initAtofOnce() {
 	for i := range atofRandomTests {
 		n := uint64(rand.Uint32())<<32 | uint64(rand.Uint32())
 		x := math.Float64frombits(n)
-		s := FormatFloat(x, 'g', -1, 64)
+		s := strconv.FormatFloat(x, 'g', -1, 64)
 		atofRandomTests[i] = atofSimpleTest{x, s}
 	}
 
 	for i := range benchmarksRandomBits {
 		bits := uint64(rand.Uint32())<<32 | uint64(rand.Uint32())
 		x := math.Float64frombits(bits)
-		benchmarksRandomBits[i] = FormatFloat(x, 'g', -1, 64)
+		benchmarksRandomBits[i] = strconv.FormatFloat(x, 'g', -1, 64)
 	}
 
 	for i := range benchmarksRandomNormal {
 		x := rand.NormFloat64()
-		benchmarksRandomNormal[i] = FormatFloat(x, 'g', -1, 64)
+		benchmarksRandomNormal[i] = strconv.FormatFloat(x, 'g', -1, 64)
 	}
 }
 
@@ -500,7 +501,7 @@ func TestParseFloatPrefix(t *testing.T) {
 		// correctly as "inf" with suffix.
 		for _, suffix := range []string{" ", "q", "+", "-", "<", "=", ">", "(", ")", "i", "init"} {
 			in := test.in + suffix
-			_, n, err := ParseFloatPrefix(in, 64)
+			_, n, err := strconv.ParseFloatPrefix(in, 64)
 			if err != nil {
 				t.Errorf("ParseFloatPrefix(%q, 64): err = %v; want no error", in, err)
 			}
@@ -530,24 +531,24 @@ func printError(err error) string {
 
 func testAtof(t *testing.T, opt bool) {
 	initAtof()
-	oldopt := SetOptimize(opt)
+	oldopt := strconv.SetOptimize(opt)
 	for i := 0; i < len(atoftests); i++ {
 		test := &atoftests[i]
-		out, err := ParseFloat(test.in, 64)
-		outs := FormatFloat(out, 'g', -1, 64)
+		out, err := strconv.ParseFloat(test.in, 64)
+		outs := strconv.FormatFloat(out, 'g', -1, 64)
 		if outs != test.out || !errEqual(err, test.err) {
 			t.Errorf("ParseFloat(%v, 64) = %v, %v want %v, %v",
 				test.in, out, printError(err), test.out, printError(test.err))
 		}
 
 		if float64(float32(out)) == out {
-			out, err := ParseFloat(test.in, 32)
+			out, err := strconv.ParseFloat(test.in, 32)
 			out32 := float32(out)
 			if float64(out32) != out {
 				t.Errorf("ParseFloat(%v, 32) = %v, not a float32 (closest is %v)", test.in, out, float64(out32))
 				continue
 			}
-			outs := FormatFloat(float64(out32), 'g', -1, 32)
+			outs := strconv.FormatFloat(float64(out32), 'g', -1, 32)
 			if outs != test.out || !errEqual(err, test.err) {
 				t.Errorf("ParseFloat(%v, 32) = %v, %v want %v, %v  # %v",
 					test.in, out32, printError(err), test.out, printError(test.err), out)
@@ -555,19 +556,19 @@ func testAtof(t *testing.T, opt bool) {
 		}
 	}
 	for _, test := range atof32tests {
-		out, err := ParseFloat(test.in, 32)
+		out, err := strconv.ParseFloat(test.in, 32)
 		out32 := float32(out)
 		if float64(out32) != out {
 			t.Errorf("ParseFloat(%v, 32) = %v, not a float32 (closest is %v)", test.in, out, float64(out32))
 			continue
 		}
-		outs := FormatFloat(float64(out32), 'g', -1, 32)
+		outs := strconv.FormatFloat(float64(out32), 'g', -1, 32)
 		if outs != test.out || !errEqual(err, test.err) {
 			t.Errorf("ParseFloat(%v, 32) = %v, %v want %v, %v  # %v",
 				test.in, out32, printError(err), test.out, printError(test.err), out)
 		}
 	}
-	SetOptimize(oldopt)
+	strconv.SetOptimize(oldopt)
 }
 
 func TestAtof(t *testing.T) { testAtof(t, true) }
@@ -577,7 +578,7 @@ func TestAtofSlow(t *testing.T) { testAtof(t, false) }
 func TestAtofRandom(t *testing.T) {
 	initAtof()
 	for _, test := range atofRandomTests {
-		x, _ := ParseFloat(test.s, 64)
+		x, _ := strconv.ParseFloat(test.s, 64)
 		switch {
 		default:
 			t.Errorf("number %s badly parsed as %b (expected %b)", test.s, x, test.x)
@@ -604,25 +605,25 @@ var roundTripCases = []struct {
 
 func TestRoundTrip(t *testing.T) {
 	for _, tt := range roundTripCases {
-		old := SetOptimize(false)
-		s := FormatFloat(tt.f, 'g', -1, 64)
+		old := strconv.SetOptimize(false)
+		s := strconv.FormatFloat(tt.f, 'g', -1, 64)
 		if s != tt.s {
 			t.Errorf("no-opt FormatFloat(%b) = %s, want %s", tt.f, s, tt.s)
 		}
-		f, err := ParseFloat(tt.s, 64)
+		f, err := strconv.ParseFloat(tt.s, 64)
 		if f != tt.f || err != nil {
 			t.Errorf("no-opt ParseFloat(%s) = %b, %v want %b, nil", tt.s, f, err, tt.f)
 		}
-		SetOptimize(true)
-		s = FormatFloat(tt.f, 'g', -1, 64)
+		strconv.SetOptimize(true)
+		s = strconv.FormatFloat(tt.f, 'g', -1, 64)
 		if s != tt.s {
 			t.Errorf("opt FormatFloat(%b) = %s, want %s", tt.f, s, tt.s)
 		}
-		f, err = ParseFloat(tt.s, 64)
+		f, err = strconv.ParseFloat(tt.s, 64)
 		if f != tt.f || err != nil {
 			t.Errorf("opt ParseFloat(%s) = %b, %v want %b, nil", tt.s, f, err, tt.f)
 		}
-		SetOptimize(old)
+		strconv.SetOptimize(old)
 	}
 }
 
@@ -638,9 +639,9 @@ func TestRoundTrip32(t *testing.T) {
 		if i&1 == 1 {
 			f = -f // negative
 		}
-		s := FormatFloat(float64(f), 'g', -1, 32)
+		s := strconv.FormatFloat(float64(f), 'g', -1, 32)
 
-		parsed, err := ParseFloat(s, 32)
+		parsed, err := strconv.ParseFloat(s, 32)
 		parsed32 := float32(parsed)
 		switch {
 		case err != nil:
@@ -662,7 +663,7 @@ func TestParseFloatIncorrectBitSize(t *testing.T) {
 	const want = 1.5e308
 
 	for _, bitSize := range []int{0, 10, 100, 128} {
-		f, err := ParseFloat(s, bitSize)
+		f, err := strconv.ParseFloat(s, bitSize)
 		if err != nil {
 			t.Fatalf("ParseFloat(%q, %d) gave error %s", s, bitSize, err)
 		}
@@ -674,25 +675,25 @@ func TestParseFloatIncorrectBitSize(t *testing.T) {
 
 func BenchmarkAtof64Decimal(b *testing.B) {
 	for i := 0; i < b.N; i++ {
-		ParseFloat("33909", 64)
+		strconv.ParseFloat("33909", 64)
 	}
 }
 
 func BenchmarkAtof64Float(b *testing.B) {
 	for i := 0; i < b.N; i++ {
-		ParseFloat("339.7784", 64)
+		strconv.ParseFloat("339.7784", 64)
 	}
 }
 
 func BenchmarkAtof64FloatExp(b *testing.B) {
 	for i := 0; i < b.N; i++ {
-		ParseFloat("-5.09e75", 64)
+		strconv.ParseFloat("-5.09e75", 64)
 	}
 }
 
 func BenchmarkAtof64Big(b *testing.B) {
 	for i := 0; i < b.N; i++ {
-		ParseFloat("123456789123456789123456789", 64)
+		strconv.ParseFloat("123456789123456789123456789", 64)
 	}
 }
 
@@ -700,7 +701,7 @@ func BenchmarkAtof64RandomBits(b *testing.B) {
 	initAtof()
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		ParseFloat(benchmarksRandomBits[i%1024], 64)
+		strconv.ParseFloat(benchmarksRandomBits[i%1024], 64)
 	}
 }
 
@@ -708,7 +709,7 @@ func BenchmarkAtof64RandomFloats(b *testing.B) {
 	initAtof()
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		ParseFloat(benchmarksRandomNormal[i%1024], 64)
+		strconv.ParseFloat(benchmarksRandomNormal[i%1024], 64)
 	}
 }
 
@@ -716,12 +717,12 @@ func BenchmarkAtof64RandomLongFloats(b *testing.B) {
 	initAtof()
 	samples := make([]string, len(atofRandomTests))
 	for i, t := range atofRandomTests {
-		samples[i] = FormatFloat(t.x, 'g', 20, 64)
+		samples[i] = strconv.FormatFloat(t.x, 'g', 20, 64)
 	}
 	b.ResetTimer()
 	idx := 0
 	for i := 0; i < b.N; i++ {
-		ParseFloat(samples[idx], 64)
+		strconv.ParseFloat(samples[idx], 64)
 		idx++
 		if idx == len(samples) {
 			idx = 0
@@ -731,19 +732,19 @@ func BenchmarkAtof64RandomLongFloats(b *testing.B) {
 
 func BenchmarkAtof32Decimal(b *testing.B) {
 	for i := 0; i < b.N; i++ {
-		ParseFloat("33909", 32)
+		strconv.ParseFloat("33909", 32)
 	}
 }
 
 func BenchmarkAtof32Float(b *testing.B) {
 	for i := 0; i < b.N; i++ {
-		ParseFloat("339.778", 32)
+		strconv.ParseFloat("339.778", 32)
 	}
 }
 
 func BenchmarkAtof32FloatExp(b *testing.B) {
 	for i := 0; i < b.N; i++ {
-		ParseFloat("12.3456e32", 32)
+		strconv.ParseFloat("12.3456e32", 32)
 	}
 }
 
@@ -752,11 +753,11 @@ func BenchmarkAtof32Random(b *testing.B) {
 	var float32strings [4096]string
 	for i := range float32strings {
 		n = (99991*n + 42) % (0xff << 23)
-		float32strings[i] = FormatFloat(float64(math.Float32frombits(n)), 'g', -1, 32)
+		float32strings[i] = strconv.FormatFloat(float64(math.Float32frombits(n)), 'g', -1, 32)
 	}
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		ParseFloat(float32strings[i%4096], 32)
+		strconv.ParseFloat(float32strings[i%4096], 32)
 	}
 }
 
@@ -765,10 +766,10 @@ func BenchmarkAtof32RandomLong(b *testing.B) {
 	var float32strings [4096]string
 	for i := range float32strings {
 		n = (99991*n + 42) % (0xff << 23)
-		float32strings[i] = FormatFloat(float64(math.Float32frombits(n)), 'g', 20, 32)
+		float32strings[i] = strconv.FormatFloat(float64(math.Float32frombits(n)), 'g', 20, 32)
 	}
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		ParseFloat(float32strings[i%4096], 32)
+		strconv.ParseFloat(float32strings[i%4096], 32)
 	}
 }

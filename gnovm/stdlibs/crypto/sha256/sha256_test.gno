@@ -1,4 +1,4 @@
-package sha256
+package sha256_test
 
 import (
 	"crypto/sha256"
