@@ -4,6 +4,7 @@ import "std"
 
 const (
 	PermissionBoardCreate  Permission = "board:create"
+	PermissionBoardRename             = "board:rename"
 	PermissionThreadCreate            = "thread:create"
 	PermissionThreadEdit              = "thread:edit"
 	PermissionThreadDelete            = "thread:delete"

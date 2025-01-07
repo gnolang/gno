@@ -17,23 +17,42 @@ func CreateBoard(name string) BoardID {
 	assertIsUserCall()
 
 	name = strings.TrimSpace(name)
-	if name == "" {
-		panic("board name is empty")
-	}
+	assertBoardNameIsNotEmpty(name)
+	assertBoardNameNotExists(name)
 
 	caller := std.GetOrigCaller()
 	id := incGetBoardID()
 	args := Args{name, id}
 	gPerm.WithPermission(caller, PermissionBoardCreate, args, func(Args) {
-		if gBoardsByName.Has(name) {
-			panic("board already exists")
-		}
+		assertBoardNameNotExists(name)
 
 		board := newBoard(id, name, caller)
 		gBoardsByID.Set(id.Key(), board)
 		gBoardsByName.Set(name, board)
 	})
 	return id
+}
+
+func RenameBoard(bid BoardID, name string) {
+	assertIsUserCall()
+
+	name = strings.TrimSpace(name)
+	assertBoardNameIsNotEmpty(name)
+	assertBoardNameNotExists(name)
+
+	board := mustGetBoard(bid)
+	caller := std.GetOrigCaller()
+	args := Args{bid, name}
+	board.perms.WithPermission(caller, PermissionBoardRename, args, func(Args) {
+		assertBoardNameNotExists(name)
+
+		board := mustGetBoard(bid)
+		board.name = name
+
+		// Index board for the new name keeping previous indexes for older names
+		// TODO: Keep track of all board names
+		gBoardsByName.Set(name, board)
+	})
 }
 
 func CreateThread(bid BoardID, title, body string) PostID {
@@ -202,6 +221,18 @@ func assertHasBoardPermission(b *Board, user std.Address, p Permission) {
 func assertBoardExists(id BoardID) {
 	if _, found := getBoard(id); !found {
 		panic("board not found: " + id.String())
+	}
+}
+
+func assertBoardNameIsNotEmpty(name string) {
+	if name == "" {
+		panic("board name is empty")
+	}
+}
+
+func assertBoardNameNotExists(name string) {
+	if gBoardsByName.Has(name) {
+		panic("board already exists")
 	}
 }
 
