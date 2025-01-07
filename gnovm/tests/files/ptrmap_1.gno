@@ -1,27 +1,27 @@
 // PKGPATH: gno.land/r/ptr_map
 package ptr_map
 
-type Foo struct {
-	name string
+var (
+	m = map[int]int{}
+	i = 0
+)
+
+func AddToMap(value int) {
+	m[i] = value
 }
 
-var root *Foo
-
-var f = &Foo{name: "a"}
-var f2 = &Foo{name: "a2"}
+func GetFromMap() int {
+	return m[i]
+}
 
 func init() {
-	root = f // origin of root is set as f's
+	AddToMap(5)
 }
 
 func main() {
-	f.name = "b"
-	println(root == f)
-
-	root = f2 // root has new origin(and pointer value)
-	println(root == f2)
+	r := GetFromMap()
+	println(r == 5)
 }
 
 // Output:
-// true
 // true

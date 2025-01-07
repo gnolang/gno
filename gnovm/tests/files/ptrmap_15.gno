@@ -1,34 +1,23 @@
 // PKGPATH: gno.land/r/ptr_map
 package ptr_map
 
+type MyStruct struct {
+	Key *int
+}
+
 var (
-	m = map[*int]int{}
-	i = new(int)
+	m  = map[*int]string{}
+	i1 = MyStruct{Key: new(int)}
 )
 
-func AddToMap(value int) {
-	m[i] = value
-}
-
-func GetFromMap() int {
-	j := *i
-	return m[&j]
-}
-
 func init() {
-	*i = 1
-	AddToMap(5)
+	*i1.Key = 1 // Set the value of the pointer
+	m[i1.Key] = "first key"
 }
 
 func main() {
-	r := GetFromMap()
-	println(r == 5)
-
-	*i = 2
-	r = GetFromMap()
-	println(r == 5)
+	println(m[i1.Key]) // Output: first key
 }
 
 // Output:
-// false
-// false
+// first key

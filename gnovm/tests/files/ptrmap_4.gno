@@ -19,7 +19,6 @@ func main() {
 	newArr := append(sArr[:1], sArr[2:]...) // same base array
 
 	// Compare pointers directly
-	//println(sArr[1] == newArr[1])
 	println(m[sArr[1]] == m[newArr[1]])
 	println(m[sArr[1]] == "")
 	println(m[newArr[1]] == "")

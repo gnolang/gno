@@ -2,34 +2,19 @@
 package ptr_map
 
 var (
-	m = map[*int]int{}
-	i = new(int)
+	m         = map[*int]string{}
+	a         = 0
+	ptr *int  = &a // A pointer to an int
+	i1  **int = &ptr
 )
 
-func AddToMap(value int) {
-	m[i] = value
-}
-
-func GetFromMap() int {
-	return m[i]
-}
-
 func init() {
-	*i = 1
-	AddToMap(5)
+	m[*i1] = "first key"
 }
-
-// ----above is initialized and persisted before main is executed.
 
 func main() {
-	r := GetFromMap()
-	println(r == 5)
-
-	*i = 2 // this changes TV, also Base of a pointer value
-	r = GetFromMap()
-	println(r == 5)
+	println(m[*i1]) // Output: first key
 }
 
 // Output:
-// true
-// true
+// first key

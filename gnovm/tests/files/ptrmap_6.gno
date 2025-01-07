@@ -22,7 +22,7 @@ func main() {
 
 	newArr = append(newArr, &S{4})
 	newArr = append(newArr, &S{5})
-	newArr = append(newArr, &S{6}) // reallocate array, inherit abs from last underlying array
+	newArr = append(newArr, &S{6}) // reallocate array
 
 	// Compare pointers directly
 	println(sArr[1] == newArr[1])
