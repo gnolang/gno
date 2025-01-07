@@ -100,7 +100,7 @@ func (vm *VMKeeper) Initialize(
 	baseStore := ms.GetStore(vm.baseKey)
 	iavlStore := ms.GetStore(vm.iavlKey)
 
-	alloc := gno.NewAllocator(maxAllocTx)
+	alloc := gno.NewAllocator(maxAllocTx, nil)
 	vm.gnoStore = gno.NewStore(alloc, baseStore, iavlStore)
 	vm.gnoStore.SetNativeResolver(stdlibs.NativeResolver)
 
@@ -711,7 +711,7 @@ func (vm *VMKeeper) QueryFuncs(ctx sdk.Context, pkgPath string) (fsigs FunctionS
 // TODO: modify query protocol to allow MsgEval.
 // TODO: then, rename to "Eval".
 func (vm *VMKeeper) QueryEval(ctx sdk.Context, pkgPath string, expr string) (res string, err error) {
-	alloc := gno.NewAllocator(maxAllocQuery)
+	alloc := gno.NewAllocator(maxAllocQuery, nil)
 	gnostore := vm.newGnoTransactionStore(ctx) // throwaway (never committed)
 	pkgAddr := gno.DerivePkgAddr(pkgPath)
 	// Get Package.
@@ -768,7 +768,7 @@ func (vm *VMKeeper) QueryEval(ctx sdk.Context, pkgPath string, expr string) (res
 // TODO: modify query protocol to allow MsgEval.
 // TODO: then, rename to "EvalString".
 func (vm *VMKeeper) QueryEvalString(ctx sdk.Context, pkgPath string, expr string) (res string, err error) {
-	alloc := gno.NewAllocator(maxAllocQuery)
+	alloc := gno.NewAllocator(maxAllocQuery, nil)
 	gnostore := vm.newGnoTransactionStore(ctx) // throwaway (never committed)
 	pkgAddr := gno.DerivePkgAddr(pkgPath)
 	// Get Package.

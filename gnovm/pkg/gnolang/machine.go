@@ -145,7 +145,7 @@ func NewMachineWithOptions(opts MachineOptions) *Machine {
 	}
 	alloc := opts.Alloc
 	if alloc == nil {
-		alloc = NewAllocator(opts.MaxAllocBytes)
+		alloc = NewAllocator(opts.MaxAllocBytes, nil)
 	}
 	store := opts.Store
 	if store == nil {
@@ -167,6 +167,9 @@ func NewMachineWithOptions(opts MachineOptions) *Machine {
 	mm := machinePool.Get().(*Machine)
 	mm.Package = pv
 	mm.Alloc = alloc
+	if mm.Alloc != nil {
+		mm.Alloc.m = mm
+	}
 	mm.PreprocessorMode = preprocessorMode
 	mm.ReadOnly = readOnly
 	mm.MaxCycles = maxCycles
@@ -1762,6 +1765,7 @@ func (m *Machine) PushFrameBasic(s Stmt) {
 // ensure the counts are consistent, otherwise we mask
 // bugs with frame pops.
 func (m *Machine) PushFrameCall(cx *CallExpr, fv *FuncValue, recv TypedValue) {
+	debug2.Println2("PushFrameCall, cx: ", cx)
 	fr := &Frame{
 		Source:      cx,
 		NumOps:      m.NumOps,
@@ -1778,6 +1782,7 @@ func (m *Machine) PushFrameCall(cx *CallExpr, fv *FuncValue, recv TypedValue) {
 		LastPackage: m.Package,
 		LastRealm:   m.Realm,
 	}
+	debug2.Println2("fr: ", fr)
 	if debug {
 		if m.Package == nil {
 			panic("should not happen")
@@ -1844,12 +1849,14 @@ func (m *Machine) PopFrame() Frame {
 	if debug {
 		m.Printf("-F %#v\n", f)
 	}
+	debug2.Printf2("-F %#v\n", f)
 	m.Frames = m.Frames[:numFrames-1]
 
 	return *f
 }
 
 func (m *Machine) PopFrameAndReset() {
+	debug2.Println2("PopFrameAndReset")
 	fr := m.PopFrame()
 	fr.Popped = true
 	m.NumOps = fr.NumOps

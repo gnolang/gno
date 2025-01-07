@@ -1,12 +1,16 @@
 package gnolang
 
-import "reflect"
+import (
+	"fmt"
+	"reflect"
+)
 
 // Keeps track of in-memory allocations.
 // In the future, allocations within realm boundaries will be
 // (optionally?) condensed (objects to be GC'd will be discarded),
 // but for now, allocations strictly increment across the whole tx.
 type Allocator struct {
+	m        *Machine
 	maxBytes int64
 	bytes    int64
 }
@@ -65,12 +69,16 @@ const (
 	allocHeapItem  = _allocBase + _allocPointer + _allocTypedValue
 )
 
-func NewAllocator(maxBytes int64) *Allocator {
-	if maxBytes == 0 {
-		return nil
-	}
+func NewAllocator(maxBytes int64, m *Machine) *Allocator {
+	debug2.Println2("NewAllocator(), maxBytes:", maxBytes)
+	debug2.Println2("m:", m)
+	//if maxBytes == 0 {
+	//	return nil
+	//}
 	return &Allocator{
-		maxBytes: maxBytes,
+		//maxBytes: maxBytes,
+		maxBytes: 3000,
+		m:        m,
 	}
 }
 
@@ -96,10 +104,68 @@ func (alloc *Allocator) Fork() *Allocator {
 	}
 }
 
+func (throwaway *Allocator) allocate2(v Value) {
+	debug2.Println2("allocate2: ", v, reflect.TypeOf(v))
+	switch vv := v.(type) {
+	case TypeValue:
+		throwaway.AllocateType()
+	case *StructValue:
+		throwaway.AllocateStruct()
+		for _, field := range vv.Fields {
+			throwaway.allocate2(field.V)
+		}
+	case *FuncValue:
+		throwaway.AllocateFunc()
+	case PointerValue:
+		throwaway.AllocatePointer()
+		throwaway.allocate2(vv.Base)
+	case *HeapItemValue:
+		throwaway.AllocateHeapItem()
+		throwaway.allocate2(vv.Value.V)
+	case *SliceValue:
+		throwaway.AllocateSlice()
+		throwaway.allocate2(vv.Base)
+	case *ArrayValue:
+		// TODO: data array
+		throwaway.AllocateListArray(int64(len(vv.List)))
+	case *Block:
+		throwaway.AllocateBlock(int64(vv.Source.GetNumNames()))
+	case StringValue:
+		throwaway.AllocateString(int64(len(vv)))
+	default:
+		debug2.Println2("---default: ", vv)
+	}
+}
+
 func (alloc *Allocator) Allocate(size int64) {
+	debug2.Println2("Allocate, size: ", size)
 	if alloc == nil {
+		debug2.Println2("allocator is nil, do nothing")
 		// this can happen for map items just prior to assignment.
 		return
+	}
+
+	//debug2.Printf2("allocate, machine: %v\n", alloc.m)
+	debug2.Println2("allocator: ", alloc)
+	if alloc.m != nil {
+		fmt.Println("num of blocks in machine: ", len(alloc.m.Blocks))
+		if alloc.bytes > 2500 {
+			// a throwaway allocator
+			throwaway := NewAllocator(3000, nil)
+			debug2.Println2("---exceed memory size............")
+			for i, b := range alloc.m.Blocks {
+				debug2.Printf2("blocks[%d]: %v \n", i, b)
+				for i, v := range b.Values {
+					debug2.Printf2("values[%d]: %v, %v\n", i, v, reflect.TypeOf(v.V))
+					throwaway.allocate2(v.V)
+				}
+			}
+
+			debug2.Println2("---throwaway.bytes: ", throwaway.bytes)
+			debug2.Println2("---before reset, alloc.bytes: ", alloc.bytes)
+			alloc.bytes = throwaway.bytes
+			debug2.Println2("---after reset, alloc.bytes: ", alloc.bytes)
+		}
 	}
 
 	alloc.bytes += size
@@ -113,6 +179,7 @@ func (alloc *Allocator) AllocateString(size int64) {
 }
 
 func (alloc *Allocator) AllocatePointer() {
+	debug2.Println2("AllocatePointer")
 	alloc.Allocate(allocPointer)
 }
 
@@ -138,6 +205,7 @@ func (alloc *Allocator) AllocateStructFields(fields int64) {
 }
 
 func (alloc *Allocator) AllocateFunc() {
+	debug2.Println2("AllocateFunc")
 	alloc.Allocate(allocFunc)
 }
 
@@ -173,6 +241,7 @@ func (alloc *Allocator) AllocateDataByte() {
 */
 
 func (alloc *Allocator) AllocateType() {
+	debug2.Println2("AllocateType")
 	alloc.Allocate(allocType)
 }
 
@@ -189,6 +258,7 @@ func (alloc *Allocator) AllocateHeapItem() {
 // constructor utilities.
 
 func (alloc *Allocator) NewString(s string) StringValue {
+	debug2.Println2("NewString: ", s)
 	alloc.AllocateString(int64(len(s)))
 	return StringValue(s)
 }
@@ -269,6 +339,7 @@ func (alloc *Allocator) NewSliceFromData(data []byte) *SliceValue {
 
 // NOTE: fields must be allocated (e.g. from NewStructFields)
 func (alloc *Allocator) NewStruct(fields []TypedValue) *StructValue {
+	debug2.Println2("NewStruct", fields)
 	alloc.AllocateStruct()
 	return &StructValue{
 		Fields: fields,
@@ -307,6 +378,7 @@ func (alloc *Allocator) NewNative(rv reflect.Value) *NativeValue {
 }
 
 func (alloc *Allocator) NewType(t Type) Type {
+	debug2.Println2("NewType:", t)
 	alloc.AllocateType()
 	return t
 }

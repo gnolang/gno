@@ -108,7 +108,7 @@ func (m *Machine) doOpSlice() {
 	// if a is a pointer to an array, a[low : high : max] is
 	// shorthand for (*a)[low : high : max]
 	if xv.T.Kind() == PointerKind &&
-		xv.T.Elem().Kind() == ArrayKind {
+			xv.T.Elem().Kind() == ArrayKind {
 		// simply deref xv.
 		*xv = xv.V.(PointerValue).Deref()
 	}
@@ -183,6 +183,7 @@ func (m *Machine) doOpStar() {
 
 // XXX this is wrong, for var i interface{}; &i is *interface{}.
 func (m *Machine) doOpRef() {
+	debug2.Println2("doOpRef")
 	rx := m.PopExpr().(*RefExpr)
 	m.Alloc.AllocatePointer()
 	xv := m.PopAsPointer(rx.X)
@@ -701,7 +702,7 @@ func (m *Machine) doOpStructLit() {
 				// package doesn't match, we cannot use this
 				// method to initialize the struct.
 				if FieldTypeList(st.Fields).HasUnexported() &&
-					st.PkgPath != m.Package.PkgPath {
+						st.PkgPath != m.Package.PkgPath {
 					panic(fmt.Sprintf(
 						"Cannot initialize imported struct %s.%s with nameless composite lit expression (has unexported fields) from package %s",
 						st.PkgPath, st.String(), m.Package.PkgPath))
@@ -761,6 +762,7 @@ func (m *Machine) doOpFuncLit() {
 	x := m.PopExpr().(*FuncLitExpr)
 	ft := m.PopValue().V.(TypeValue).Type.(*FuncType)
 	lb := m.LastBlock()
+	debug2.Println2("doOpFuncLit, x: ", x)
 	m.Alloc.AllocateFunc()
 
 	// First copy closure captured heap values

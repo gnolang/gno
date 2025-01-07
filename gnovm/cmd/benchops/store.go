@@ -49,7 +49,7 @@ func benchmarkDiskStore() BenchStore {
 	ms.LoadLatestVersion()
 	msCache := ms.MultiCacheWrap()
 
-	alloc := gno.NewAllocator(maxAllocTx)
+	alloc := gno.NewAllocator(maxAllocTx, nil)
 	baseSDKStore := msCache.GetStore(baseKey)
 	iavlSDKStore := msCache.GetStore(iavlKey)
 	gStore := gno.NewStore(alloc, baseSDKStore, iavlSDKStore)

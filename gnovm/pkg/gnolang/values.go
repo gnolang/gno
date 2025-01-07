@@ -568,6 +568,8 @@ func (fv *FuncValue) IsNative() bool {
 }
 
 func (fv *FuncValue) Copy(alloc *Allocator) *FuncValue {
+	debug2.Println2("Copy, fv: ", fv)
+	debug2.Println2("allocator: ", alloc)
 	alloc.AllocateFunc()
 	return &FuncValue{
 		Type:       fv.Type,

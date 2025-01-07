@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"math"
 	"regexp"
 	"runtime/debug"
 	"strconv"
@@ -35,6 +36,7 @@ var reEndOfLineSpaces = func() *regexp.Regexp {
 }()
 
 func (opts *TestOptions) runFiletest(filename string, source []byte) (string, error) {
+	fmt.Println("---runFiletest")
 	dirs, err := ParseDirectives(bytes.NewReader(source))
 	if err != nil {
 		return "", fmt.Errorf("error parsing directives: %w", err)
@@ -64,6 +66,13 @@ func (opts *TestOptions) runFiletest(filename string, source []byte) (string, er
 		Context:       ctx,
 		MaxAllocBytes: maxAlloc,
 	})
+	fmt.Println("---m: ", m)
+	m.Alloc = gno.NewAllocator(math.MaxInt64, m)
+
+	maxBytes, bytes := m.Alloc.Status()
+	//fmt.Println("m.Alloc: ", m.Alloc)
+	fmt.Println("m.Alloc, maxBytes, bytes: ", maxBytes, bytes)
+
 	defer m.Release()
 	result := opts.runTest(m, pkgPath, filename, source)
 

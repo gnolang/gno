@@ -33,6 +33,7 @@ func (nopReader) Read(p []byte) (int, error) { return 0, io.EOF }
 //	fix a specific test:
 //		go test -run TestFiles/'^bin1.gno' -short -v -update-golden-tests .
 func TestFiles(t *testing.T) {
+	fmt.Println("---Testing files")
 	t.Parallel()
 
 	rootDir, err := filepath.Abs("../../../")
