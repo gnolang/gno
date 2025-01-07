@@ -234,8 +234,6 @@ func ContentToString(content []interface{}) string {
 func CrashCaseToString(c Crash_Case) string {
 	var sb strings.Builder
 
-	sb.WriteString("{ \n")
-
 	sb.WriteString("Input: ")
 	sb.WriteString(TransForHuman(c.Input))
 	if c.IsPanic {
@@ -247,8 +245,6 @@ func CrashCaseToString(c Crash_Case) string {
 		sb.WriteString("\nErrorMessage: ")
 		sb.WriteString("\"" + c.ErrorMsg + "\"")
 	}
-
-	sb.WriteString("\n}")
 
 	return sb.String()
 }

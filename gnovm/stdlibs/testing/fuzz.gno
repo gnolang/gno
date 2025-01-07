@@ -261,10 +261,10 @@ func (f *F) updateMachines(parentSeeds []Seed) bool {
 
 func (f *F) handleFail() {
 	f.Fail()
-	println("--- FAIL:")
+	println("\n--- FAIL:")
 	log := f.fsm.Crash_Logger.data
 	crashCase := log[len(log)-1]
-	println("   --- found failing input", TransForHuman(crashCase.Input), "at", f.fsm.Input_count, "trials")
+	println("Found failing input", TransForHuman(crashCase.Input), "at", f.fsm.Input_count, "trials")
 	f.minimazeAndLogInput(crashCase.RawContent)
 	log = f.fsm.Crash_Logger.data
 	minimaizedCase := log[len(log)-1]
@@ -272,11 +272,11 @@ func (f *F) handleFail() {
 	hn := minimaizedCase.HashNumber
 	coverage := f.fhm.HashNumber2Coverage(hn)
 	if f.verbose {
-		println("--- Trace:")
+		println("\n--- Trace:")
 		println(CoverageToString(coverage))
 	} else {
 		println("--- Trace:")
-		println("   --- Most recently covered line: function", coverage[len(coverage)-1].co_name, "in line", coverage[len(coverage)-1].co_line)
+		println("Most recently covered line: function", coverage[len(coverage)-1].co_name, "in line", coverage[len(coverage)-1].co_line)
 	}
 	return
 }
@@ -349,7 +349,7 @@ func (f *F) minimazeAndLogInput(seedContent []interface{}) {
 	}
 	// re confirm error
 	f.simulateFF(sampleSeed)
-	println("minimaized input:")
+	println("\n--- Minimaized input:")
 }
 
 func (f *F) reportF() {

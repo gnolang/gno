@@ -231,6 +231,13 @@ func execTest(cfg *testCfg, args []string, io commands.IO) error {
 			err = test.Test(memPkg, pkg.Dir, opts)
 		})
 
+		if cfg.fuzzName != "" {
+			if testErrCount > 0 || buildErrCount > 0 {
+				return fmt.Errorf("   --- %d build errors, %d test errors", buildErrCount, testErrCount)
+			} else {
+				return nil
+			}
+		}
 		duration := time.Since(startedAt)
 		dstr := fmtDuration(duration)
 		if hasError || err != nil {
