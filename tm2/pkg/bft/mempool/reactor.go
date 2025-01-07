@@ -42,7 +42,7 @@ type mempoolIDs struct {
 	mtx       sync.RWMutex
 	peerMap   map[p2pTypes.ID]uint16
 	nextID    uint16              // assumes that a node will never have over 65536 active peers
-	activeIDs map[uint16]struct{} // used to check if a given peerID key is used, the value doesn't matter
+	activeIDs map[uint16]struct{} // used to check if a given mempoolID key is used, the value doesn't matter
 }
 
 // Reserve searches for the next unused ID and assigns it to the
@@ -51,14 +51,14 @@ func (ids *mempoolIDs) ReserveForPeer(id p2pTypes.ID) {
 	ids.mtx.Lock()
 	defer ids.mtx.Unlock()
 
-	curID := ids.nextPeerID()
+	curID := ids.nextMempoolPeerID()
 	ids.peerMap[id] = curID
 	ids.activeIDs[curID] = struct{}{}
 }
 
-// nextPeerID returns the next unused peer ID to use.
+// nextMempoolPeerID returns the next unused peer ID to use.
 // This assumes that ids's mutex is already locked.
-func (ids *mempoolIDs) nextPeerID() uint16 {
+func (ids *mempoolIDs) nextMempoolPeerID() uint16 {
 	if len(ids.activeIDs) == maxActiveIDs {
 		panic(fmt.Sprintf("node has maximum %d active IDs and wanted to get one more", maxActiveIDs))
 	}
@@ -163,8 +163,8 @@ func (memR *Reactor) Receive(chID byte, src p2p.PeerConn, msgBytes []byte) {
 
 	switch msg := msg.(type) {
 	case *TxMessage:
-		peerID := memR.ids.GetForPeer(src.ID())
-		err := memR.mempool.CheckTxWithInfo(msg.Tx, nil, TxInfo{SenderID: peerID})
+		mempoolID := memR.ids.GetForPeer(src.ID())
+		err := memR.mempool.CheckTxWithInfo(msg.Tx, nil, TxInfo{SenderID: mempoolID})
 		if err != nil {
 			memR.Logger.Info("Could not check tx", "tx", txID(msg.Tx), "err", err)
 		}
@@ -185,7 +185,7 @@ func (memR *Reactor) broadcastTxRoutine(peer p2p.PeerConn) {
 		return
 	}
 
-	peerID := memR.ids.GetForPeer(peer.ID())
+	mempoolID := memR.ids.GetForPeer(peer.ID())
 	var next *clist.CElement
 	for {
 		// In case of both next.NextWaitChan() and peer.Quit() are variable at the same time
@@ -227,7 +227,7 @@ func (memR *Reactor) broadcastTxRoutine(peer p2p.PeerConn) {
 		}
 
 		// ensure peer hasn't already sent us this tx
-		if _, ok := memTx.senders.Load(peerID); !ok {
+		if _, ok := memTx.senders.Load(mempoolID); !ok {
 			// send memTx
 			msg := &TxMessage{Tx: memTx.tx}
 			success := peer.Send(MempoolChannel, amino.MustMarshalAny(msg))
