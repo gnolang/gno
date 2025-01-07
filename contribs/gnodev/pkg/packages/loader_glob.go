@@ -71,7 +71,7 @@ func (l GlobLoader) MatchPaths(globs ...string) ([]string, error) {
 func (l GlobLoader) Load(gpaths ...string) ([]Package, error) {
 	paths, err := l.MatchPaths(gpaths...)
 	if err != nil {
-		return nil, fmt.Errorf("unable to resolve dir paths: %w", err)
+		return nil, fmt.Errorf("match glob pattern error: %w", err)
 	}
 
 	loader := &BaseLoader{Resolver: l.Resolver}

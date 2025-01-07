@@ -14,7 +14,6 @@ func setupGnoWebServer(logger *slog.Logger, cfg *devCfg, remoteAddr string) (htt
 		return http.HandlerFunc(http.NotFound), nil
 	}
 
-	fmt.Printf("REMOTE: %+v\r\n", remoteAddr)
 	appcfg := gnoweb.NewDefaultAppConfig()
 	appcfg.UnsafeHTML = cfg.webHTML
 	appcfg.NodeRemote = remoteAddr

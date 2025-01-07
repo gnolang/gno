@@ -23,7 +23,7 @@ func (r *fsResolver) Resolve(fset *token.FileSet, path string) (*Package, error)
 	dir := filepath.Join(r.root, path)
 	_, err := os.Stat(dir)
 	if err != nil {
-		return nil, fmt.Errorf("unable to determine dir for path %q: %w", path, ErrResolverPackageNotFound)
+		return nil, ErrResolverPackageNotFound
 	}
 
 	return ReadPackageFromDir(fset, path, dir)

@@ -59,7 +59,7 @@ func load(path string, fset *token.FileSet, resolver Resolver, visited, stack ma
 			return nil, nil
 		}
 
-		return nil, fmt.Errorf("unable to resolve package: %w", err)
+		return nil, fmt.Errorf("unable to resolve package %q: %w", path, err)
 	}
 
 	var name string

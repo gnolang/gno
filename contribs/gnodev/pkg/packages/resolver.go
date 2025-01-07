@@ -66,7 +66,7 @@ func (cr ChainedResolver) Resolve(fset *token.FileSet, path string) (*Package, e
 			continue
 		}
 
-		return nil, fmt.Errorf("unable to resolve %q: %w", path, err)
+		return nil, fmt.Errorf("resolver %q error: %w", resolver.Name(), err)
 	}
 
 	return nil, ErrResolverPackageNotFound
