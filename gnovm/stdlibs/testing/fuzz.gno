@@ -2,11 +2,7 @@ package testing
 
 import (
 	"errors"
-	"fmt"
-	"os"
-	"strconv"
 	"strings"
-	"unicode/utf8"
 )
 
 type (
@@ -67,14 +63,14 @@ func typeof(arg interface{}) (SupportedType, error) {
 		return Int16, nil
 	// deduplication because int32 and rune are of the same type
 	// case int32:
-	// 	return Int32, nil
+	//      return Int32, nil
 	case int64:
 		return Int64, nil
 	case uint:
 		return Uint, nil
 	// deduplication
 	// case uint8:
-	// 	return Uint8, nil
+	//      return Uint8, nil
 	case uint16:
 		return Uint16, nil
 	case uint32:

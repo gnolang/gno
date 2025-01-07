@@ -2,8 +2,6 @@ package testing
 
 import (
 	"sort"
-	"strconv"
-	"strings"
 )
 
 type SupportedType string

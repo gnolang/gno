@@ -2,7 +2,6 @@ package testing
 
 import (
 	"math"
-	"time"
 )
 
 func updateSeed() {

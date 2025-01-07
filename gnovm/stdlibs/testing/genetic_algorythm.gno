@@ -1,12 +1,8 @@
 package testing
 
 import (
-	"bytes"
-	"errors"
 	"math"
-	"strconv"
 	"time"
-	"unicode/utf8"
 )
 
 func Mutate(seed Seed, mut_range int) Seed {
@@ -38,13 +34,13 @@ func Mutate(seed Seed, mut_range int) Seed {
 	// As in the comment code below, the spread in implementation does not cover all string values.
 	// This is the description of the logic that deals with strings as bytes.
 	// case string:
-	// 	runes := []rune(v)
-	// 	if len(runes) > 0 {
-	// 		runeIndex := RandRange(0, int64(len(runes)))
-	// 		runes[runeIndex] = randomRune_from(runes[runeIndex])
-	// 	}
-	// 	var new_str string = string(runes)
-	// 	seed.Content[index] = new_str
+	//      runes := []rune(v)
+	//      if len(runes) > 0 {
+	//              runeIndex := RandRange(0, int64(len(runes)))
+	//              runes[runeIndex] = randomRune_from(runes[runeIndex])
+	//      }
+	//      var new_str string = string(runes)
+	//      seed.Content[index] = new_str
 	case string:
 		bytes := []byte(v)
 		if len(bytes) > 0 {

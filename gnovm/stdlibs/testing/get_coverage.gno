@@ -1,7 +1,6 @@
 package testing
 
 import (
-	"errors"
 	"unicode/utf8"
 )
 

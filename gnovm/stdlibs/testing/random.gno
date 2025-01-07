@@ -1,7 +1,6 @@
 package testing
 
 import (
-	"math"
 	"math/rand"
 )
 
