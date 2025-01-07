@@ -1,14 +1,14 @@
 package names
 
 import (
-	"github.com/gnolang/gno/examples/gno.land/p/demo/dao"
-	"github.com/gnolang/gno/examples/gno.land/r/gov/dao/bridge"
 	"std"
 	"strings"
 
+	"gno.land/p/demo/dao"
 	"gno.land/p/demo/ownable"
 	"gno.land/p/demo/pausable"
 
+	"gno.land/r/gov/dao/bridge"
 	"gno.land/r/sys/users"
 )
 
