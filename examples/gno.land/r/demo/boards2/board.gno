@@ -130,7 +130,7 @@ func createDefaultBoardPermissions(owner std.Address) *DefaultPermissions {
 	perms := NewDefaultPermissions(
 		admindao.New(admindao.WithMember(owner)),
 		WithSuperRole(RoleOwner),
-		WithRole(RoleAdmin, PermissionMemberInvite),
+		WithRole(RoleAdmin, PermissionMemberInvite, PermissionBoardRename),
 		// TODO: Finish assigning all roles and permissions
 		// WithRole(RoleModerator, permissions...),
 		WithUser(owner, RoleOwner),
