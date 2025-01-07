@@ -100,8 +100,13 @@ func (board *Board) Render() string {
 	s := "\\[" + newLink("post", board.GetPostFormURL()) + "]\n\n"
 	if board.threads.Size() > 0 {
 		board.threads.Iterate("", "", func(_ string, v interface{}) bool {
+			post := v.(*Post)
+			if post.isHidden {
+				return false
+			}
+
 			s += "----------------------------------------\n"
-			s += v.(*Post).RenderSummary() + "\n"
+			s += post.RenderSummary() + "\n"
 			return false
 		})
 	}
