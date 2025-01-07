@@ -38,12 +38,27 @@ const (
 	EncodeNoEscape                        // Disable escaping of arguments
 )
 
-// Has checks if the EncodeFlag contains all the specified flags.
-func (f EncodeFlag) Has(flags EncodeFlag) bool {
-	return f&flags != 0
-}
-
-// Encode encodes the URL components based on the provided flags.
+// Encode constructs a URL string from the components of a GnoURL struct,
+// encoding the specified components based on the provided EncodeFlag bitmask.
+//
+// The function selectively encodes the URL's path, arguments, web query, and
+// query parameters, depending on the flags set in encodeFlags.
+//
+// Returns a string representing the encoded URL.
+//
+// Example:
+//
+//	gnoURL := GnoURL{
+//	    Domain: "gno.land",
+//	    Path:   "/r/demo/users",
+//	    Args:   "john",
+//	    File:   "render.gno",
+//	}
+//
+//	encodedURL := gnoURL.Encode(EncodePath | EncodeArgs)
+//	fmt.Println(encodedURL) // Output: /r/demo/users/render.gno:john
+//
+// URL components are encoded using url.PathEscape unless EncodeNoEscape is specified.
 func (gnoURL GnoURL) Encode(encodeFlags EncodeFlag) string {
 	var urlstr strings.Builder
 
@@ -87,6 +102,11 @@ func (gnoURL GnoURL) Encode(encodeFlags EncodeFlag) string {
 	}
 
 	return urlstr.String()
+}
+
+// Has checks if the EncodeFlag contains all the specified flags.
+func (f EncodeFlag) Has(flags EncodeFlag) bool {
+	return f&flags != 0
 }
 
 func escapeDollarSign(s string) string {
