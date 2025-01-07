@@ -15,7 +15,7 @@ type ConnConfig struct {
 	MConfig      conn.MConnConfig
 	ReactorsByCh map[byte]Reactor
 	ChDescs      []*conn.ChannelDescriptor
-	OnPeerError  func(Peer, error)
+	OnPeerError  func(PeerConn, error)
 }
 
 // ConnInfo wraps the remote peer connection
@@ -56,7 +56,7 @@ func newPeer(
 	connInfo *ConnInfo,
 	nodeInfo types.NodeInfo,
 	mConfig *ConnConfig,
-) Peer {
+) PeerConn {
 	p := &peer{
 		connInfo: connInfo,
 		nodeInfo: nodeInfo,

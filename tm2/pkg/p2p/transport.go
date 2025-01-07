@@ -91,7 +91,7 @@ func (mt *MultiplexTransport) NetAddress() types.NetAddress {
 }
 
 // Accept waits for a verified inbound Peer to connect, and returns it [BLOCKING]
-func (mt *MultiplexTransport) Accept(ctx context.Context, behavior PeerBehavior) (Peer, error) {
+func (mt *MultiplexTransport) Accept(ctx context.Context, behavior PeerBehavior) (PeerConn, error) {
 	// Sanity check, no need to wait
 	// on an inactive transport
 	if mt.listener == nil {
@@ -116,7 +116,7 @@ func (mt *MultiplexTransport) Dial(
 	ctx context.Context,
 	addr types.NetAddress,
 	behavior PeerBehavior,
-) (Peer, error) {
+) (PeerConn, error) {
 	// Set a dial timeout for the connection
 	c, err := addr.DialContext(ctx)
 	if err != nil {
@@ -289,7 +289,7 @@ func (mt *MultiplexTransport) processConn(c net.Conn, expectedID types.ID) (peer
 }
 
 // Remove removes the peer resources from the transport
-func (mt *MultiplexTransport) Remove(p Peer) {
+func (mt *MultiplexTransport) Remove(p PeerConn) {
 	mt.activeConns.Delete(p.RemoteAddr().String())
 }
 
@@ -341,7 +341,7 @@ func (mt *MultiplexTransport) newMultiplexPeer(
 	info peerInfo,
 	behavior PeerBehavior,
 	isOutbound bool,
-) (Peer, error) {
+) (PeerConn, error) {
 	// Extract the host
 	host, _, err := net.SplitHostPort(info.conn.RemoteAddr().String())
 	if err != nil {

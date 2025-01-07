@@ -11,7 +11,7 @@ import (
 type (
 	broadcastDelegate        func(byte, []byte)
 	peersDelegate            func() p2p.PeerSet
-	stopPeerForErrorDelegate func(p2p.Peer, error)
+	stopPeerForErrorDelegate func(p2p.PeerConn, error)
 	dialPeersDelegate        func(...*types.NetAddress)
 	subscribeDelegate        func(events.EventFilter) (<-chan events.Event, func())
 )
@@ -38,7 +38,7 @@ func (m *mockSwitch) Peers() p2p.PeerSet {
 	return nil
 }
 
-func (m *mockSwitch) StopPeerForError(peer p2p.Peer, err error) {
+func (m *mockSwitch) StopPeerForError(peer p2p.PeerConn, err error) {
 	if m.stopPeerForErrorFn != nil {
 		m.stopPeerForErrorFn(peer, err)
 	}
@@ -59,12 +59,12 @@ func (m *mockSwitch) Subscribe(filter events.EventFilter) (<-chan events.Event, 
 }
 
 type (
-	addDelegate         func(p2p.Peer)
+	addDelegate         func(p2p.PeerConn)
 	removeDelegate      func(types.ID) bool
 	hasDelegate         func(types.ID) bool
 	hasIPDelegate       func(net.IP) bool
-	getPeerDelegate     func(types.ID) p2p.Peer
-	listDelegate        func() []p2p.Peer
+	getPeerDelegate     func(types.ID) p2p.PeerConn
+	listDelegate        func() []p2p.PeerConn
 	numInboundDelegate  func() uint64
 	numOutboundDelegate func() uint64
 )
@@ -80,7 +80,7 @@ type mockPeerSet struct {
 	numOutboundFn numOutboundDelegate
 }
 
-func (m *mockPeerSet) Add(peer p2p.Peer) {
+func (m *mockPeerSet) Add(peer p2p.PeerConn) {
 	if m.addFn != nil {
 		m.addFn(peer)
 	}
@@ -102,7 +102,7 @@ func (m *mockPeerSet) Has(key types.ID) bool {
 	return false
 }
 
-func (m *mockPeerSet) Get(key types.ID) p2p.Peer {
+func (m *mockPeerSet) Get(key types.ID) p2p.PeerConn {
 	if m.getFn != nil {
 		return m.getFn(key)
 	}
@@ -110,7 +110,7 @@ func (m *mockPeerSet) Get(key types.ID) p2p.Peer {
 	return nil
 }
 
-func (m *mockPeerSet) List() []p2p.Peer {
+func (m *mockPeerSet) List() []p2p.PeerConn {
 	if m.listFn != nil {
 		return m.listFn()
 	}

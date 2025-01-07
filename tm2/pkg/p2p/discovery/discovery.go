@@ -115,7 +115,7 @@ func (r *Reactor) OnStop() {
 }
 
 // requestPeers requests the peer set from the given peer
-func (r *Reactor) requestPeers(peer p2p.Peer) {
+func (r *Reactor) requestPeers(peer p2p.PeerConn) {
 	// Initiate peer discovery
 	r.Logger.Debug("running peer discovery", "peer", peer.ID())
 
@@ -142,7 +142,7 @@ func (r *Reactor) GetChannels() []*conn.ChannelDescriptor {
 }
 
 // Receive handles incoming messages for the peer discovery reactor
-func (r *Reactor) Receive(chID byte, peer p2p.Peer, msgBytes []byte) {
+func (r *Reactor) Receive(chID byte, peer p2p.PeerConn, msgBytes []byte) {
 	r.Logger.Debug(
 		"received message",
 		"peerID", peer.ID(),
@@ -180,14 +180,14 @@ func (r *Reactor) Receive(chID byte, peer p2p.Peer, msgBytes []byte) {
 
 // handleDiscoveryRequest prepares a peer list that can be shared
 // with the peer requesting discovery
-func (r *Reactor) handleDiscoveryRequest(peer p2p.Peer) error {
+func (r *Reactor) handleDiscoveryRequest(peer p2p.PeerConn) error {
 	var (
 		localPeers = r.Switch.Peers().List()
 		peers      = make([]*types.NetAddress, 0, len(localPeers))
 	)
 
 	// Exclude the private peers from being shared
-	localPeers = slices.DeleteFunc(localPeers, func(p p2p.Peer) bool {
+	localPeers = slices.DeleteFunc(localPeers, func(p p2p.PeerConn) bool {
 		return p.IsPrivate()
 	})
 
@@ -230,7 +230,7 @@ func (r *Reactor) handleDiscoveryRequest(peer p2p.Peer) error {
 }
 
 // shufflePeers shuffles the peer list in-place
-func shufflePeers(peers []p2p.Peer) {
+func shufflePeers(peers []p2p.PeerConn) {
 	for i := len(peers) - 1; i > 0; i-- {
 		jBig, _ := rand.Int(rand.Reader, big.NewInt(int64(i+1)))
 

@@ -26,7 +26,7 @@ type reactorPeerBehavior struct {
 	chDescs      []*conn.ChannelDescriptor
 	reactorsByCh map[byte]Reactor
 
-	handlePeerErrFn    func(Peer, error)
+	handlePeerErrFn    func(PeerConn, error)
 	isPersistentPeerFn func(types.ID) bool
 	isPrivatePeerFn    func(types.ID) bool
 }
@@ -39,7 +39,7 @@ func (r *reactorPeerBehavior) Reactors() map[byte]Reactor {
 	return r.reactorsByCh
 }
 
-func (r *reactorPeerBehavior) HandlePeerError(p Peer, err error) {
+func (r *reactorPeerBehavior) HandlePeerError(p PeerConn, err error) {
 	r.handlePeerErrFn(p, err)
 }
 
@@ -199,7 +199,7 @@ func (sw *MultiplexSwitch) Peers() PeerSet {
 
 // StopPeerForError disconnects from a peer due to external error.
 // If the peer is persistent, it will attempt to reconnect
-func (sw *MultiplexSwitch) StopPeerForError(peer Peer, err error) {
+func (sw *MultiplexSwitch) StopPeerForError(peer PeerConn, err error) {
 	sw.Logger.Error("Stopping peer for error", "peer", peer, "err", err)
 
 	sw.stopAndRemovePeer(peer, err)
@@ -214,7 +214,7 @@ func (sw *MultiplexSwitch) StopPeerForError(peer Peer, err error) {
 	sw.DialPeers(peer.SocketAddr())
 }
 
-func (sw *MultiplexSwitch) stopAndRemovePeer(peer Peer, err error) {
+func (sw *MultiplexSwitch) stopAndRemovePeer(peer PeerConn, err error) {
 	// Remove the peer from the transport
 	sw.transport.Remove(peer)
 
@@ -662,7 +662,7 @@ func (sw *MultiplexSwitch) runAcceptLoop(ctx context.Context) {
 
 // addPeer starts up the Peer and adds it to the MultiplexSwitch. Error is returned if
 // the peer is filtered out or failed to start or can't be added.
-func (sw *MultiplexSwitch) addPeer(p Peer) error {
+func (sw *MultiplexSwitch) addPeer(p PeerConn) error {
 	p.SetLogger(sw.Logger.With("peer", p.SocketAddr()))
 
 	// Add some data to the peer, which is required by reactors.

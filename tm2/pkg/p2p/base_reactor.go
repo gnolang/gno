@@ -11,7 +11,7 @@ import (
 // when the peer is stopped. Receive is called when a message is received on a
 // channel associated with this reactor.
 //
-// Peer#Send or Peer#TrySend should be used to send the message to a peer.
+// PeerConn#Send or PeerConn#TrySend should be used to send the message to a peer.
 type Reactor interface {
 	service.Service // Start, Stop
 
@@ -28,15 +28,15 @@ type Reactor interface {
 	// NOTE: The switch won't call AddPeer nor RemovePeer if it fails to start
 	// the peer. Do not store any data associated with the peer in the reactor
 	// itself unless you don't want to have a state, which is never cleaned up.
-	InitPeer(peer Peer) Peer
+	InitPeer(peer PeerConn) PeerConn
 
 	// AddPeer is called by the switch after the peer is added and successfully
 	// started. Use it to start goroutines communicating with the peer.
-	AddPeer(peer Peer)
+	AddPeer(peer PeerConn)
 
 	// RemovePeer is called by the switch when the peer is stopped (due to error
 	// or other reason).
-	RemovePeer(peer Peer, reason interface{})
+	RemovePeer(peer PeerConn, reason interface{})
 
 	// Receive is called by the switch when msgBytes is received from the peer.
 	//
@@ -44,7 +44,7 @@ type Reactor interface {
 	// copying.
 	//
 	// CONTRACT: msgBytes are not nil.
-	Receive(chID byte, peer Peer, msgBytes []byte)
+	Receive(chID byte, peer PeerConn, msgBytes []byte)
 }
 
 // --------------------------------------
@@ -65,7 +65,7 @@ func (br *BaseReactor) SetSwitch(sw Switch) {
 	br.Switch = sw
 }
 func (*BaseReactor) GetChannels() []*conn.ChannelDescriptor { return nil }
-func (*BaseReactor) AddPeer(_ Peer)                         {}
-func (*BaseReactor) RemovePeer(_ Peer, _ any)               {}
-func (*BaseReactor) Receive(_ byte, _ Peer, _ []byte)       {}
-func (*BaseReactor) InitPeer(peer Peer) Peer                { return peer }
+func (*BaseReactor) AddPeer(_ PeerConn)                     {}
+func (*BaseReactor) RemovePeer(_ PeerConn, _ any)           {}
+func (*BaseReactor) Receive(_ byte, _ PeerConn, _ []byte)   {}
+func (*BaseReactor) InitPeer(peer PeerConn) PeerConn        { return peer }

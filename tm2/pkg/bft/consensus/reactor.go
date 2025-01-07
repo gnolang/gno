@@ -157,7 +157,7 @@ func (conR *ConsensusReactor) GetChannels() []*p2p.ChannelDescriptor {
 }
 
 // InitPeer implements Reactor by creating a state for the peer.
-func (conR *ConsensusReactor) InitPeer(peer p2p.Peer) p2p.Peer {
+func (conR *ConsensusReactor) InitPeer(peer p2p.PeerConn) p2p.PeerConn {
 	peerState := NewPeerState(peer).SetLogger(conR.Logger)
 	peer.Set(types.PeerStateKey, peerState)
 	return peer
@@ -165,7 +165,7 @@ func (conR *ConsensusReactor) InitPeer(peer p2p.Peer) p2p.Peer {
 
 // AddPeer implements Reactor by spawning multiple gossiping goroutines for the
 // peer.
-func (conR *ConsensusReactor) AddPeer(peer p2p.Peer) {
+func (conR *ConsensusReactor) AddPeer(peer p2p.PeerConn) {
 	if !conR.IsRunning() {
 		return
 	}
@@ -187,7 +187,7 @@ func (conR *ConsensusReactor) AddPeer(peer p2p.Peer) {
 }
 
 // RemovePeer is a noop.
-func (conR *ConsensusReactor) RemovePeer(peer p2p.Peer, reason interface{}) {
+func (conR *ConsensusReactor) RemovePeer(peer p2p.PeerConn, reason interface{}) {
 	if !conR.IsRunning() {
 		return
 	}
@@ -205,7 +205,7 @@ func (conR *ConsensusReactor) RemovePeer(peer p2p.Peer, reason interface{}) {
 // Peer state updates can happen in parallel, but processing of
 // proposals, block parts, and votes are ordered by the receiveRoutine
 // NOTE: blocks on consensus state for proposals, block parts, and votes
-func (conR *ConsensusReactor) Receive(chID byte, src p2p.Peer, msgBytes []byte) {
+func (conR *ConsensusReactor) Receive(chID byte, src p2p.PeerConn, msgBytes []byte) {
 	if !conR.IsRunning() {
 		conR.Logger.Debug("Receive", "src", src, "chId", chID, "bytes", msgBytes)
 		return
@@ -446,13 +446,13 @@ func makeRoundStepMessage(event cstypes.EventNewRoundStep) (nrsMsg *NewRoundStep
 	return
 }
 
-func (conR *ConsensusReactor) sendNewRoundStepMessage(peer p2p.Peer) {
+func (conR *ConsensusReactor) sendNewRoundStepMessage(peer p2p.PeerConn) {
 	rs := conR.conS.GetRoundState()
 	nrsMsg := makeRoundStepMessage(rs.EventNewRoundStep())
 	peer.Send(StateChannel, amino.MustMarshalAny(nrsMsg))
 }
 
-func (conR *ConsensusReactor) gossipDataRoutine(peer p2p.Peer, ps *PeerState) {
+func (conR *ConsensusReactor) gossipDataRoutine(peer p2p.PeerConn, ps *PeerState) {
 	logger := conR.Logger.With("peer", peer)
 
 OUTER_LOOP:
@@ -547,7 +547,7 @@ OUTER_LOOP:
 }
 
 func (conR *ConsensusReactor) gossipDataForCatchup(logger *slog.Logger, rs *cstypes.RoundState,
-	prs *cstypes.PeerRoundState, ps *PeerState, peer p2p.Peer,
+	prs *cstypes.PeerRoundState, ps *PeerState, peer p2p.PeerConn,
 ) {
 	if index, ok := prs.ProposalBlockParts.Not().PickRandom(); ok {
 		// Ensure that the peer's PartSetHeader is correct
@@ -589,7 +589,7 @@ func (conR *ConsensusReactor) gossipDataForCatchup(logger *slog.Logger, rs *csty
 	time.Sleep(conR.conS.config.PeerGossipSleepDuration)
 }
 
-func (conR *ConsensusReactor) gossipVotesRoutine(peer p2p.Peer, ps *PeerState) {
+func (conR *ConsensusReactor) gossipVotesRoutine(peer p2p.PeerConn, ps *PeerState) {
 	logger := conR.Logger.With("peer", peer)
 
 	// Simple hack to throttle logs upon sleep.
@@ -715,7 +715,7 @@ func (conR *ConsensusReactor) gossipVotesForHeight(logger *slog.Logger, rs *csty
 
 // NOTE: `queryMaj23Routine` has a simple crude design since it only comes
 // into play for liveness when there's a signature DDoS attack happening.
-func (conR *ConsensusReactor) queryMaj23Routine(peer p2p.Peer, ps *PeerState) {
+func (conR *ConsensusReactor) queryMaj23Routine(peer p2p.PeerConn, ps *PeerState) {
 	logger := conR.Logger.With("peer", peer)
 
 OUTER_LOOP:
@@ -878,7 +878,7 @@ var (
 // NOTE: PeerStateExposed gets dumped with rpc/core/consensus.go.
 // Be mindful of what you Expose.
 type PeerState struct {
-	peer   p2p.Peer
+	peer   p2p.PeerConn
 	logger *slog.Logger
 
 	mtx sync.Mutex // NOTE: Modify below using setters, never directly.
@@ -886,7 +886,7 @@ type PeerState struct {
 }
 
 // NewPeerState returns a new PeerState for the given Peer
-func NewPeerState(peer p2p.Peer) *PeerState {
+func NewPeerState(peer p2p.PeerConn) *PeerState {
 	return &PeerState{
 		peer:   peer,
 		logger: log.NewNoopLogger(),

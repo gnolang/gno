@@ -12,9 +12,9 @@ import (
 
 type (
 	netAddressDelegate func() types.NetAddress
-	acceptDelegate     func(context.Context, PeerBehavior) (Peer, error)
-	dialDelegate       func(context.Context, types.NetAddress, PeerBehavior) (Peer, error)
-	removeDelegate     func(Peer)
+	acceptDelegate     func(context.Context, PeerBehavior) (PeerConn, error)
+	dialDelegate       func(context.Context, types.NetAddress, PeerBehavior) (PeerConn, error)
+	removeDelegate     func(PeerConn)
 )
 
 type mockTransport struct {
@@ -32,7 +32,7 @@ func (m *mockTransport) NetAddress() types.NetAddress {
 	return types.NetAddress{}
 }
 
-func (m *mockTransport) Accept(ctx context.Context, behavior PeerBehavior) (Peer, error) {
+func (m *mockTransport) Accept(ctx context.Context, behavior PeerBehavior) (PeerConn, error) {
 	if m.acceptFn != nil {
 		return m.acceptFn(ctx, behavior)
 	}
@@ -40,7 +40,7 @@ func (m *mockTransport) Accept(ctx context.Context, behavior PeerBehavior) (Peer
 	return nil, nil
 }
 
-func (m *mockTransport) Dial(ctx context.Context, address types.NetAddress, behavior PeerBehavior) (Peer, error) {
+func (m *mockTransport) Dial(ctx context.Context, address types.NetAddress, behavior PeerBehavior) (PeerConn, error) {
 	if m.dialFn != nil {
 		return m.dialFn(ctx, address, behavior)
 	}
@@ -48,19 +48,19 @@ func (m *mockTransport) Dial(ctx context.Context, address types.NetAddress, beha
 	return nil, nil
 }
 
-func (m *mockTransport) Remove(p Peer) {
+func (m *mockTransport) Remove(p PeerConn) {
 	if m.removeFn != nil {
 		m.removeFn(p)
 	}
 }
 
 type (
-	addDelegate         func(Peer)
+	addDelegate         func(PeerConn)
 	removePeerDelegate  func(types.ID) bool
 	hasDelegate         func(types.ID) bool
 	hasIPDelegate       func(net.IP) bool
-	getDelegate         func(types.ID) Peer
-	listDelegate        func() []Peer
+	getDelegate         func(types.ID) PeerConn
+	listDelegate        func() []PeerConn
 	numInboundDelegate  func() uint64
 	numOutboundDelegate func() uint64
 )
@@ -76,7 +76,7 @@ type mockSet struct {
 	numOutboundFn numOutboundDelegate
 }
 
-func (m *mockSet) Add(peer Peer) {
+func (m *mockSet) Add(peer PeerConn) {
 	if m.addFn != nil {
 		m.addFn(peer)
 	}
@@ -98,7 +98,7 @@ func (m *mockSet) Has(key types.ID) bool {
 	return false
 }
 
-func (m *mockSet) Get(key types.ID) Peer {
+func (m *mockSet) Get(key types.ID) PeerConn {
 	if m.getFn != nil {
 		return m.getFn(key)
 	}
@@ -106,7 +106,7 @@ func (m *mockSet) Get(key types.ID) Peer {
 	return nil
 }
 
-func (m *mockSet) List() []Peer {
+func (m *mockSet) List() []PeerConn {
 	if m.listFn != nil {
 		return m.listFn()
 	}
@@ -262,10 +262,10 @@ type (
 	setLoggerDelegate        func(*slog.Logger)
 	setSwitchDelegate        func(Switch)
 	getChannelsDelegate      func() []*conn.ChannelDescriptor
-	initPeerDelegate         func(Peer)
-	addPeerDelegate          func(Peer)
-	removeSwitchPeerDelegate func(Peer, any)
-	receiveDelegate          func(byte, Peer, []byte)
+	initPeerDelegate         func(PeerConn)
+	addPeerDelegate          func(PeerConn)
+	removeSwitchPeerDelegate func(PeerConn, any)
+	receiveDelegate          func(byte, PeerConn, []byte)
 )
 
 type mockReactor struct {
@@ -377,7 +377,7 @@ func (m *mockReactor) GetChannels() []*conn.ChannelDescriptor {
 	return nil
 }
 
-func (m *mockReactor) InitPeer(peer Peer) Peer {
+func (m *mockReactor) InitPeer(peer PeerConn) PeerConn {
 	if m.initPeerFn != nil {
 		m.initPeerFn(peer)
 	}
@@ -385,19 +385,19 @@ func (m *mockReactor) InitPeer(peer Peer) Peer {
 	return nil
 }
 
-func (m *mockReactor) AddPeer(peer Peer) {
+func (m *mockReactor) AddPeer(peer PeerConn) {
 	if m.addPeerFn != nil {
 		m.addPeerFn(peer)
 	}
 }
 
-func (m *mockReactor) RemovePeer(peer Peer, reason any) {
+func (m *mockReactor) RemovePeer(peer PeerConn, reason any) {
 	if m.removePeerFn != nil {
 		m.removePeerFn(peer, reason)
 	}
 }
 
-func (m *mockReactor) Receive(chID byte, peer Peer, msgBytes []byte) {
+func (m *mockReactor) Receive(chID byte, peer PeerConn, msgBytes []byte) {
 	if m.receiveFn != nil {
 		m.receiveFn(chID, peer, msgBytes)
 	}

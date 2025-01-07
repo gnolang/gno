@@ -97,7 +97,7 @@ func TestMultiplexSwitch_Broadcast(t *testing.T) {
 		expectedData = []byte("broadcast data")
 
 		mockTransport = &mockTransport{
-			acceptFn: func(_ context.Context, _ PeerBehavior) (Peer, error) {
+			acceptFn: func(_ context.Context, _ PeerBehavior) (PeerConn, error) {
 				return nil, errors.New("constant error")
 			},
 		}
@@ -173,7 +173,7 @@ func TestMultiplexSwitch_StopPeer(t *testing.T) {
 		var (
 			p             = mock.GeneratePeers(t, 1)[0]
 			mockTransport = &mockTransport{
-				removeFn: func(removedPeer Peer) {
+				removeFn: func(removedPeer PeerConn) {
 					assert.Equal(t, p.ID(), removedPeer.ID())
 				},
 			}
@@ -200,7 +200,7 @@ func TestMultiplexSwitch_StopPeer(t *testing.T) {
 		var (
 			p             = mock.GeneratePeers(t, 1)[0]
 			mockTransport = &mockTransport{
-				removeFn: func(removedPeer Peer) {
+				removeFn: func(removedPeer PeerConn) {
 					assert.Equal(t, p.ID(), removedPeer.ID())
 				},
 				netAddressFn: func() types.NetAddress {
@@ -274,7 +274,7 @@ func TestMultiplexSwitch_DialLoop(t *testing.T) {
 					_ context.Context,
 					_ types.NetAddress,
 					_ PeerBehavior,
-				) (Peer, error) {
+				) (PeerConn, error) {
 					peerDialed = true
 
 					return nil, nil
@@ -333,7 +333,7 @@ func TestMultiplexSwitch_DialLoop(t *testing.T) {
 					_ context.Context,
 					_ types.NetAddress,
 					_ PeerBehavior,
-				) (Peer, error) {
+				) (PeerConn, error) {
 					peerDialed = true
 
 					cancelFn()
@@ -388,7 +388,7 @@ func TestMultiplexSwitch_DialLoop(t *testing.T) {
 					_ context.Context,
 					_ types.NetAddress,
 					_ PeerBehavior,
-				) (Peer, error) {
+				) (PeerConn, error) {
 					peerDialed = true
 
 					cancelFn()
@@ -443,10 +443,10 @@ func TestMultiplexSwitch_AcceptLoop(t *testing.T) {
 			p = mock.GeneratePeers(t, 1)[0]
 
 			mockTransport = &mockTransport{
-				acceptFn: func(_ context.Context, _ PeerBehavior) (Peer, error) {
+				acceptFn: func(_ context.Context, _ PeerBehavior) (PeerConn, error) {
 					return p, nil
 				},
-				removeFn: func(removedPeer Peer) {
+				removeFn: func(removedPeer PeerConn) {
 					require.Equal(t, p.ID(), removedPeer.ID())
 
 					peerRemoved = true
@@ -499,7 +499,7 @@ func TestMultiplexSwitch_AcceptLoop(t *testing.T) {
 			p = mock.GeneratePeers(t, 1)[0]
 
 			mockTransport = &mockTransport{
-				acceptFn: func(_ context.Context, _ PeerBehavior) (Peer, error) {
+				acceptFn: func(_ context.Context, _ PeerBehavior) (PeerConn, error) {
 					return p, nil
 				},
 			}
@@ -508,7 +508,7 @@ func TestMultiplexSwitch_AcceptLoop(t *testing.T) {
 				numInboundFn: func() uint64 {
 					return maxInbound - 1 // available slot
 				},
-				addFn: func(peer Peer) {
+				addFn: func(peer PeerConn) {
 					require.Equal(t, p.ID(), peer.ID())
 
 					peerAdded = true
@@ -623,7 +623,7 @@ func TestMultiplexSwitch_RedialLoop(t *testing.T) {
 					_ context.Context,
 					address types.NetAddress,
 					_ PeerBehavior,
-				) (Peer, error) {
+				) (PeerConn, error) {
 					peersDialed = append(peersDialed, address)
 
 					if address.Equals(*missingPeer.SocketAddr()) {

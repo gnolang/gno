@@ -209,7 +209,7 @@ func TestMultiplexTransport_Accept(t *testing.T) {
 			peerBehavior = &reactorPeerBehavior{
 				chDescs:      make([]*conn.ChannelDescriptor, 0),
 				reactorsByCh: make(map[byte]Reactor),
-				handlePeerErrFn: func(_ Peer, err error) {
+				handlePeerErrFn: func(_ PeerConn, err error) {
 					require.NoError(t, err)
 				},
 				isPersistentPeerFn: func(_ types.ID) bool {
@@ -288,7 +288,7 @@ func TestMultiplexTransport_Accept(t *testing.T) {
 			peerBehavior = &reactorPeerBehavior{
 				chDescs:      make([]*conn.ChannelDescriptor, 0),
 				reactorsByCh: make(map[byte]Reactor),
-				handlePeerErrFn: func(_ Peer, err error) {
+				handlePeerErrFn: func(_ PeerConn, err error) {
 					require.NoError(t, err)
 				},
 				isPersistentPeerFn: func(_ types.ID) bool {
@@ -368,7 +368,7 @@ func TestMultiplexTransport_Accept(t *testing.T) {
 			peerBehavior = &reactorPeerBehavior{
 				chDescs:      make([]*conn.ChannelDescriptor, 0),
 				reactorsByCh: make(map[byte]Reactor),
-				handlePeerErrFn: func(_ Peer, err error) {
+				handlePeerErrFn: func(_ PeerConn, err error) {
 					require.NoError(t, err)
 				},
 				isPersistentPeerFn: func(_ types.ID) bool {
@@ -446,7 +446,7 @@ func TestMultiplexTransport_Accept(t *testing.T) {
 			peerBehavior = &reactorPeerBehavior{
 				chDescs:      make([]*conn.ChannelDescriptor, 0),
 				reactorsByCh: make(map[byte]Reactor),
-				handlePeerErrFn: func(_ Peer, err error) {
+				handlePeerErrFn: func(_ PeerConn, err error) {
 					require.NoError(t, err)
 				},
 				isPersistentPeerFn: func(_ types.ID) bool {

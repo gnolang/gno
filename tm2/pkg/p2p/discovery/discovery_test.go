@@ -34,8 +34,8 @@ func TestReactor_DiscoveryRequest(t *testing.T) {
 		}
 
 		ps = &mockPeerSet{
-			listFn: func() []p2p.Peer {
-				return []p2p.Peer{mockPeer}
+			listFn: func() []p2p.PeerConn {
+				return []p2p.PeerConn{mockPeer}
 			},
 		}
 
@@ -105,8 +105,8 @@ func TestReactor_DiscoveryResponse(t *testing.T) {
 			}
 
 			ps = &mockPeerSet{
-				listFn: func() []p2p.Peer {
-					listed := make([]p2p.Peer, 0, len(peers))
+				listFn: func() []p2p.PeerConn {
+					listed := make([]p2p.PeerConn, 0, len(peers))
 
 					for _, peer := range peers {
 						listed = append(listed, peer)
@@ -192,8 +192,8 @@ func TestReactor_DiscoveryResponse(t *testing.T) {
 			}
 
 			ps = &mockPeerSet{
-				listFn: func() []p2p.Peer {
-					return make([]p2p.Peer, 0)
+				listFn: func() []p2p.PeerConn {
+					return make([]p2p.PeerConn, 0)
 				},
 			}
 
@@ -249,8 +249,8 @@ func TestReactor_DiscoveryResponse(t *testing.T) {
 			}
 
 			ps = &mockPeerSet{
-				listFn: func() []p2p.Peer {
-					listed := make([]p2p.Peer, 0, len(peers))
+				listFn: func() []p2p.PeerConn {
+					listed := make([]p2p.PeerConn, 0, len(peers))
 
 					for _, peer := range peers {
 						listed = append(listed, peer)
@@ -336,8 +336,8 @@ func TestReactor_DiscoveryResponse(t *testing.T) {
 			capturedDials []*types.NetAddress
 
 			ps = &mockPeerSet{
-				listFn: func() []p2p.Peer {
-					listed := make([]p2p.Peer, 0, len(peers))
+				listFn: func() []p2p.PeerConn {
+					listed := make([]p2p.PeerConn, 0, len(peers))
 
 					for _, peer := range peers {
 						listed = append(listed, peer)
@@ -405,8 +405,8 @@ func TestReactor_DiscoveryResponse(t *testing.T) {
 			capturedDials []*types.NetAddress
 
 			ps = &mockPeerSet{
-				listFn: func() []p2p.Peer {
-					listed := make([]p2p.Peer, 0, len(peers))
+				listFn: func() []p2p.PeerConn {
+					listed := make([]p2p.PeerConn, 0, len(peers))
 
 					for _, peer := range peers {
 						listed = append(listed, peer)

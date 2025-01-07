@@ -9,7 +9,7 @@ import (
 type set struct {
 	mux sync.RWMutex
 
-	peers    map[types.ID]Peer
+	peers    map[types.ID]PeerConn
 	outbound uint64
 	inbound  uint64
 }
@@ -17,14 +17,14 @@ type set struct {
 // newSet creates an empty peer set
 func newSet() *set {
 	return &set{
-		peers:    make(map[types.ID]Peer),
+		peers:    make(map[types.ID]PeerConn),
 		outbound: 0,
 		inbound:  0,
 	}
 }
 
 // Add adds the peer to the set
-func (s *set) Add(peer Peer) {
+func (s *set) Add(peer PeerConn) {
 	s.mux.Lock()
 	defer s.mux.Unlock()
 
@@ -52,7 +52,7 @@ func (s *set) Has(peerKey types.ID) bool {
 
 // Get looks up a peer by the peer ID. Returns nil if peer is not
 // found.
-func (s *set) Get(key types.ID) Peer {
+func (s *set) Get(key types.ID) PeerConn {
 	s.mux.RLock()
 	defer s.mux.RUnlock()
 
@@ -63,7 +63,7 @@ func (s *set) Get(key types.ID) Peer {
 		return nil
 	}
 
-	return p.(Peer)
+	return p.(PeerConn)
 }
 
 // Remove discards peer by its Key, if the peer was previously memoized.
@@ -80,7 +80,7 @@ func (s *set) Remove(key types.ID) bool {
 
 	delete(s.peers, key)
 
-	if p.(Peer).IsOutbound() {
+	if p.(PeerConn).IsOutbound() {
 		s.outbound -= 1
 
 		return true
@@ -108,13 +108,13 @@ func (s *set) NumOutbound() uint64 {
 }
 
 // List returns the list of peers
-func (s *set) List() []Peer {
+func (s *set) List() []PeerConn {
 	s.mux.RLock()
 	defer s.mux.RUnlock()
 
-	peers := make([]Peer, 0)
+	peers := make([]PeerConn, 0)
 	for _, p := range s.peers {
-		peers = append(peers, p.(Peer))
+		peers = append(peers, p.(PeerConn))
 	}
 
 	return peers

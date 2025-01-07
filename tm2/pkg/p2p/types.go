@@ -15,8 +15,8 @@ type (
 	ConnectionStatus  = conn.ConnectionStatus
 )
 
-// Peer is a wrapper for a connected peer
-type Peer interface {
+// PeerConn is a wrapper for a connected peer
+type PeerConn interface {
 	service.Service
 
 	FlushStop()
@@ -44,11 +44,11 @@ type Peer interface {
 
 // PeerSet has a (immutable) subset of the methods of PeerSet.
 type PeerSet interface {
-	Add(peer Peer)
+	Add(peer PeerConn)
 	Remove(key types.ID) bool
 	Has(key types.ID) bool
-	Get(key types.ID) Peer
-	List() []Peer
+	Get(key types.ID) PeerConn
+	List() []PeerConn
 
 	NumInbound() uint64  // returns the number of connected inbound nodes
 	NumOutbound() uint64 // returns the number of connected outbound nodes
@@ -62,14 +62,14 @@ type Transport interface {
 	NetAddress() types.NetAddress
 
 	// Accept returns a newly connected inbound peer
-	Accept(context.Context, PeerBehavior) (Peer, error)
+	Accept(context.Context, PeerBehavior) (PeerConn, error)
 
 	// Dial dials a peer, and returns it
-	Dial(context.Context, types.NetAddress, PeerBehavior) (Peer, error)
+	Dial(context.Context, types.NetAddress, PeerBehavior) (PeerConn, error)
 
 	// Remove drops any resources associated
-	// with the Peer in the transport
-	Remove(Peer)
+	// with the PeerConn in the transport
+	Remove(PeerConn)
 }
 
 // Switch is the abstraction in the p2p module that handles
@@ -85,7 +85,7 @@ type Switch interface {
 	Subscribe(filterFn events.EventFilter) (<-chan events.Event, func())
 
 	// StopPeerForError stops the peer with the given reason
-	StopPeerForError(peer Peer, err error)
+	StopPeerForError(peer PeerConn, err error)
 
 	// DialPeers marks the given peers as ready for async dialing
 	DialPeers(peerAddrs ...*types.NetAddress)
@@ -105,7 +105,7 @@ type PeerBehavior interface {
 	Reactors() map[byte]Reactor
 
 	// HandlePeerError propagates a peer connection error for further processing
-	HandlePeerError(Peer, error)
+	HandlePeerError(PeerConn, error)
 
 	// IsPersistentPeer returns a flag indicating if the given peer is persistent
 	IsPersistentPeer(types.ID) bool
