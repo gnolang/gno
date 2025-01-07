@@ -132,7 +132,7 @@ func (board *Board) GetPostFormURL() string {
 
 // TODO: This is a temporary implementation until the permissions and DAO mecahnics are defined
 func createDefaultBoardPermissions(owner std.Address) *DefaultPermissions {
-	perms := NewDefaultPermissions(
+	return NewDefaultPermissions(
 		admindao.New(admindao.WithMember(owner)),
 		WithSuperRole(RoleOwner),
 		WithRole(RoleAdmin, PermissionMemberInvite),
@@ -140,6 +140,4 @@ func createDefaultBoardPermissions(owner std.Address) *DefaultPermissions {
 		// WithRole(RoleModerator, permissions...),
 		WithUser(owner, RoleOwner),
 	)
-	perms.HandleFunc(PermissionMemberInvite, handleMemberInvite)
-	return perms
 }
