@@ -15,7 +15,7 @@ import (
 )
 
 type PkgsLoader struct {
-	pkgs    []gnomod.Pkg
+	pkgs    []packages.Pkg
 	visited map[string]struct{}
 
 	// list of occurrences to patchs with the given value
@@ -25,13 +25,13 @@ type PkgsLoader struct {
 
 func NewPkgsLoader() *PkgsLoader {
 	return &PkgsLoader{
-		pkgs:    make([]gnomod.Pkg, 0),
+		pkgs:    make([]packages.Pkg, 0),
 		visited: make(map[string]struct{}),
 		patchs:  make(map[string]string),
 	}
 }
 
-func (pl *PkgsLoader) List() gnomod.PkgList {
+func (pl *PkgsLoader) List() packages.PkgList {
 	return pl.pkgs
 }
 
@@ -82,7 +82,7 @@ func (pl *PkgsLoader) LoadPackages(creator bft.Address, fee std.Fee, deposit std
 
 func (pl *PkgsLoader) LoadAllPackagesFromDir(path string) error {
 	// list all packages from target path
-	pkgslist, err := gnomod.ListPkgs(path)
+	pkgslist, err := packages.ListPkgs(path)
 	if err != nil {
 		return fmt.Errorf("listing gno packages: %w", err)
 	}
@@ -98,7 +98,7 @@ func (pl *PkgsLoader) LoadAllPackagesFromDir(path string) error {
 
 func (pl *PkgsLoader) LoadPackage(modroot string, path, name string) error {
 	// Initialize a queue with the root package
-	queue := []gnomod.Pkg{{Dir: path, Name: name}}
+	queue := []packages.Pkg{{Dir: path, Name: name}}
 
 	for len(queue) > 0 {
 		// Dequeue the first package
@@ -151,19 +151,19 @@ func (pl *PkgsLoader) LoadPackage(modroot string, path, name string) error {
 		// Add requirements to the queue
 		for _, pkgPath := range currentPkg.Imports {
 			fullPath := filepath.Join(modroot, pkgPath)
-			queue = append(queue, gnomod.Pkg{Dir: fullPath})
+			queue = append(queue, packages.Pkg{Dir: fullPath})
 		}
 	}
 
 	return nil
 }
 
-func (pl *PkgsLoader) add(pkg gnomod.Pkg) {
+func (pl *PkgsLoader) add(pkg packages.Pkg) {
 	pl.visited[pkg.Name] = struct{}{}
 	pl.pkgs = append(pl.pkgs, pkg)
 }
 
-func (pl *PkgsLoader) exist(pkg gnomod.Pkg) (ok bool) {
+func (pl *PkgsLoader) exist(pkg packages.Pkg) (ok bool) {
 	_, ok = pl.visited[pkg.Name]
 	return
 }

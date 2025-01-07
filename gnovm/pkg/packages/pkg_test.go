@@ -1,4 +1,4 @@
-package gnomod
+package packages
 
 import (
 	"os"

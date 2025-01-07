@@ -12,7 +12,6 @@ import (
 
 	"github.com/gnolang/gno/gnovm"
 	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
-	"github.com/gnolang/gno/gnovm/pkg/gnomod"
 	"github.com/gnolang/gno/gnovm/pkg/packages"
 	"github.com/stretchr/testify/require"
 )
@@ -23,14 +22,14 @@ var injectedTestingLibs = []string{"encoding/json", "fmt", "os", "internal/os_te
 func TestNoCycles(t *testing.T) {
 	// find stdlibs
 	gnoRoot := gnoenv.RootDir()
-	pkgs, err := listPkgs(gnomod.Pkg{
+	pkgs, err := listPkgs(packages.Pkg{
 		Dir:  filepath.Join(gnoRoot, "gnovm", "stdlibs"),
 		Name: "",
 	})
 	require.NoError(t, err)
 
 	// find examples
-	examples, err := gnomod.ListPkgs(filepath.Join(gnoRoot, "examples"))
+	examples, err := packages.ListPkgs(filepath.Join(gnoRoot, "examples"))
 	require.NoError(t, err)
 	for _, example := range examples {
 		if example.Draft {
@@ -140,7 +139,7 @@ type testPkg struct {
 }
 
 // listPkgs lists all packages in rootMod
-func listPkgs(rootMod gnomod.Pkg) ([]testPkg, error) {
+func listPkgs(rootMod packages.Pkg) ([]testPkg, error) {
 	res := []testPkg{}
 	rootDir := rootMod.Dir
 	visited := map[string]struct{}{}

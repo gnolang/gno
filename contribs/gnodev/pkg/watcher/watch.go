@@ -11,9 +11,9 @@ import (
 
 	emitter "github.com/gnolang/gno/contribs/gnodev/pkg/emitter"
 	events "github.com/gnolang/gno/contribs/gnodev/pkg/events"
+	"github.com/gnolang/gno/gnovm/pkg/packages"
 
 	"github.com/fsnotify/fsnotify"
-	"github.com/gnolang/gno/gnovm/pkg/gnomod"
 )
 
 type PackageWatcher struct {
@@ -118,7 +118,7 @@ func (p *PackageWatcher) Stop() {
 // Packages are sorted by their length in descending order to facilitate easier
 // and more efficient matching with corresponding paths. The longest paths are
 // compared first.
-func (p *PackageWatcher) AddPackages(pkgs ...gnomod.Pkg) error {
+func (p *PackageWatcher) AddPackages(pkgs ...packages.Pkg) error {
 	for _, pkg := range pkgs {
 		dir := pkg.Dir
 

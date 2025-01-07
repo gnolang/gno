@@ -256,7 +256,7 @@ func execModTidy(cfg *modTidyCfg, args []string, io commands.IO) error {
 	}
 
 	if cfg.recursive {
-		pkgs, err := gnomod.ListPkgs(wd)
+		pkgs, err := packages.ListPkgs(wd)
 		if err != nil {
 			return err
 		}

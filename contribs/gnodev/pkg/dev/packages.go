@@ -11,7 +11,7 @@ import (
 	"github.com/gnolang/gno/gno.land/pkg/gnoland"
 	vmm "github.com/gnolang/gno/gno.land/pkg/sdk/vm"
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
-	"github.com/gnolang/gno/gnovm/pkg/gnomod"
+	"github.com/gnolang/gno/gnovm/pkg/packages"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
 	"github.com/gnolang/gno/tm2/pkg/std"
 )
@@ -63,7 +63,7 @@ func ResolvePackagePathQuery(bk *address.Book, path string) (PackagePath, error)
 }
 
 type Package struct {
-	gnomod.Pkg
+	packages.Pkg
 	Creator crypto.Address
 	Deposit std.Coins
 }
@@ -88,7 +88,7 @@ func NewPackagesMap(ppaths []PackagePath) (PackagesMap, error) {
 		}
 
 		// list all packages from target path
-		pkgslist, err := gnomod.ListPkgs(abspath)
+		pkgslist, err := packages.ListPkgs(abspath)
 		if err != nil {
 			return nil, fmt.Errorf("listing gno packages: %w", err)
 		}
@@ -112,8 +112,8 @@ func NewPackagesMap(ppaths []PackagePath) (PackagesMap, error) {
 	return pkgs, nil
 }
 
-func (pm PackagesMap) toList() gnomod.PkgList {
-	list := make([]gnomod.Pkg, 0, len(pm))
+func (pm PackagesMap) toList() packages.PkgList {
+	list := make([]packages.Pkg, 0, len(pm))
 	for _, pkg := range pm {
 		list = append(list, pkg.Pkg)
 	}

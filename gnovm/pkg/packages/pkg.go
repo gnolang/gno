@@ -1,4 +1,4 @@
-package gnomod
+package packages
 
 import (
 	"fmt"
@@ -8,7 +8,7 @@ import (
 
 	"github.com/gnolang/gno/gnovm"
 	"github.com/gnolang/gno/gnovm/pkg/gnolang"
-	"github.com/gnolang/gno/gnovm/pkg/packages"
+	"github.com/gnolang/gno/gnovm/pkg/gnomod"
 )
 
 type Pkg struct {
@@ -94,7 +94,7 @@ func ListPkgs(root string) (PkgList, error) {
 			return err
 		}
 
-		gnoMod, err := Parse(gnoModPath, data)
+		gnoMod, err := gnomod.Parse(gnoModPath, data)
 		if err != nil {
 			return fmt.Errorf("parse: %w", err)
 		}
@@ -109,12 +109,12 @@ func ListPkgs(root string) (PkgList, error) {
 			pkg = &gnovm.MemPackage{}
 		}
 
-		importsMap, err := packages.Imports(pkg, nil)
+		importsMap, err := Imports(pkg, nil)
 		if err != nil {
 			// ignore imports on error
 			importsMap = nil
 		}
-		importsRaw := importsMap.Merge(packages.FileKindPackageSource, packages.FileKindTest, packages.FileKindXTest)
+		importsRaw := importsMap.Merge(FileKindPackageSource, FileKindTest, FileKindXTest)
 
 		imports := make([]string, 0, len(importsRaw))
 		for _, imp := range importsRaw {

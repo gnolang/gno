@@ -16,7 +16,7 @@ import (
 	"github.com/gnolang/gno/gno.land/pkg/gnoland"
 	"github.com/gnolang/gno/gno.land/pkg/gnoland/ugnot"
 	"github.com/gnolang/gno/gno.land/pkg/integration"
-	"github.com/gnolang/gno/gnovm/pkg/gnomod"
+	"github.com/gnolang/gno/gnovm/pkg/packages"
 	"github.com/gnolang/gno/tm2/pkg/amino"
 	tmcfg "github.com/gnolang/gno/tm2/pkg/bft/config"
 	"github.com/gnolang/gno/tm2/pkg/bft/node"
@@ -140,7 +140,7 @@ func (n *Node) Close() error {
 	return n.Node.Stop()
 }
 
-func (n *Node) ListPkgs() []gnomod.Pkg {
+func (n *Node) ListPkgs() []packages.Pkg {
 	n.muNode.RLock()
 	defer n.muNode.RUnlock()
 
@@ -240,7 +240,7 @@ func (n *Node) updatePackages(paths ...string) error {
 		}
 
 		// List all packages from target path
-		pkgslist, err := gnomod.ListPkgs(abspath)
+		pkgslist, err := packages.ListPkgs(abspath)
 		if err != nil {
 			return fmt.Errorf("failed to list gno packages for %q: %w", path, err)
 		}

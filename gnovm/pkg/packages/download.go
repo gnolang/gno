@@ -11,7 +11,6 @@ import (
 	"github.com/gnolang/gno/gnovm/pkg/gnofiles"
 	"github.com/gnolang/gno/tm2/pkg/bft/rpc/client"
 	"github.com/gnolang/gno/tm2/pkg/commands"
-	"github.com/gnolang/gno/tm2/pkg/errors"
 )
 
 func DownloadModule(io commands.IO, pkgPath string, dst string) error {
@@ -76,10 +75,10 @@ func qfile(tmClient client.Client, pkgPath string) ([]byte, error) {
 
 	qres, err := tmClient.ABCIQuery(path, data)
 	if err != nil {
-		return nil, errors.Wrap(err, "query qfile")
+		return nil, fmt.Errorf("query qfile: %w", err)
 	}
 	if qres.Response.Error != nil {
-		return nil, errors.Wrap(qres.Response.Error, "QFile failed: log:%s", qres.Response.Log)
+		return nil, fmt.Errorf("qfile failed: %w\nlog:\n%s", qres.Response.Error, qres.Response.Log)
 	}
 
 	return qres.Response.Data, nil
