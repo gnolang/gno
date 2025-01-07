@@ -307,7 +307,6 @@ func (t *T) shouldRun(name string) bool {
 }
 
 func RunTest(runFlag string, verbose bool, test InternalTest) (ret string) {
-	// func RunTest(runFlag string, verbose bool, test InternalTest) (ret string) {
 	t := &T{
 		name:    test.Name,
 		verbose: verbose,

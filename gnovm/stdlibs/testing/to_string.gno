@@ -70,6 +70,7 @@ func byteToHex(b byte) []byte {
 	return []byte{hi, lo}
 }
 
+// Recover what the escape characters break when they are printed. (e.g."�" -> "\xeb")
 func TransForHuman(s string) string {
 	toks := TokenizeString(s)
 	escaped := RebuildEscaped(toks)

@@ -101,9 +101,9 @@ type EndInfo struct {
 
 func (sm *StateMachine) CoordinateAbstraction(hn HashNumber, abstract_number uint) EndInfo {
 	sm.Input_count = sm.Input_count + abstract_number
-	// 현재의 priort를 알아올 수 있음
-	// 1. prior는 불연속 증가함
-	// 2. hn는 반드시 연속 증가함
+	// Get current priorty
+	// 1. Prior increases discontinuously
+	// 2. Hn must increase continuously
 	sm.HashNumber2Priority[hn] = sm.HashNumber2Priority[hn] + abstract_number
 	next_priority := sm.HashNumber2Priority[hn]
 	next_hn := hn
@@ -262,7 +262,7 @@ func (sm *StateMachine) Summarize() []Seed {
 			Priority:   e,
 			HashNumber: i,
 		})
-		// 슬라이스 길이가 Partial_Capacity를를 초과하면 종료
+		// Exit when slice length exceeds Partial_Capacity
 		if len(collected_P_HN_Pair) >= int(Partial_Capacity) {
 			break
 		}

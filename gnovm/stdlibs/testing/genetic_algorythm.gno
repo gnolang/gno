@@ -35,6 +35,8 @@ func Mutate(seed Seed, mut_range int) Seed {
 	case bool:
 		seed.Content[index] = randomBool()
 	// Cancellation due to value set issue
+	// As in the comment code below, the spread in implementation does not cover all string values.
+	// This is the description of the logic that deals with strings as bytes.
 	// case string:
 	// 	runes := []rune(v)
 	// 	if len(runes) > 0 {
@@ -161,17 +163,16 @@ func InsertDelete(seed Seed, p float64, mut_range int, string_byte_candidates []
 
 // I deleted the existing fit, fitness.
 // As I tried to increase the speed by integrating into AFL, I decided that it was faster to manage it with just queue, stack, and unique linked list.
-// (Something gets uncomfortable if you follow the afl logic I've seen and maintain that fitness management.)
+// (Something gets uncomfortable if follow the afl logic I've seen and maintain that fitness management.)
 // Fitness and selection logic are replaced.
 
-// Modified existing mating logic.
-// I adjusted the number according to gen to solve the sticking problem.
+// Modified existing crossover logic.
+// I adjusted the number according to gen to solve the sticking problem.(a phenomenon in which they become similar as inputs increase)
 // Changed to multi-intersection logic.
 func TwoPointCrossover(parent1, parent2 Seed, seedCount *uint) (Seed, Seed) {
-	// 깊은 복사를 위해 새로운 슬라이스 생성
 	content1 := make([]interface{}, len(parent1.Content))
 	for i, v := range parent1.Content {
-		content1[i] = v // 안전하게 string으로 캐스팅
+		content1[i] = v
 	}
 	content2 := make([]interface{}, len(parent2.Content))
 	for i, v := range parent2.Content {
@@ -243,17 +244,6 @@ func TwoPointCrossover(parent1, parent2 Seed, seedCount *uint) (Seed, Seed) {
 			content1[i] = result_byt1
 			content2[i] = result_byt2
 		case string:
-			// t1 := tokenizeString(v1)
-			// v2, ok := parent2.Content[i].(string)
-			// if !ok {
-			// 	panic("type not equal")
-			// }
-			// t2 := tokenizeString(v2)
-
-			// c1, c2 := twoPointCrossoverTokens(t1, t2)
-			// result_str1 := rebuildString(c1)
-			// result_str2 := rebuildString(c2)
-
 			byt1 := v1
 			byt2, ok := parent2.Content[i].(string)
 			if !ok {
@@ -406,7 +396,7 @@ func Evolve(seeds []Seed, seedCount *uint, string_byte_candidates []int) []Seed 
 
 		// 40% range
 		if randSeed <= 3 {
-			new_generation[i] = Mutate(new_generation[i], mutation_range) // 원본 데이터 수정
+			new_generation[i] = Mutate(new_generation[i], mutation_range)
 		}
 		// 30%range and 10% intersection
 		if randSeed >= 3 && randSeed <= 5 {

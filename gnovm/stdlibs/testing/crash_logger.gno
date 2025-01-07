@@ -103,9 +103,7 @@ func (log *Crash_Logger) Kind() []KindInfo {
 	for _, c := range log.data {
 		ki, exists := lookup[c.HashNumber]
 		if !exists {
-
 			repMsg := ""
-
 			if c.IsPanic {
 				repMsg = c.PanicMessage
 			} else {
@@ -194,14 +192,12 @@ func PrintKinds(kinds []KindInfo) {
 		println("No crash kinds found.")
 		return
 	}
-
 	println("----- Crash Kinds -----")
 	for _, k := range kinds {
 		println("HashNumber:", k.HashNumber,
 			", IsPanic:", k.IsPanic,
 			", Count:", k.Count,
 			", RepresentativeError:", k.RepresentativeError)
-
 		inputStr := k.RepresentativeInput
 		println(" Printed Input:", inputStr)
 		println(" In machine(Escaped edge bytes) Input:", TransForHuman(inputStr))

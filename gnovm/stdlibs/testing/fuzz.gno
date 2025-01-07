@@ -203,8 +203,6 @@ func (f *F) handleEndInfo(endInfo EndInfo, parentSeeds []Seed) bool {
 func (f *F) updateMachines(parentSeeds []Seed) bool {
 	abstractSeedMap := make(map[HashNumber]abstractSeedInfo)
 	childSeeds := Evolve(parentSeeds, &f.seedCount, f.fsm.string_byte_candidates)
-	// println("childlen", len(childSeeds))
-
 	for _, child := range childSeeds {
 		child = f.simulateFF(child)
 		if f.failed {
@@ -226,12 +224,10 @@ func (f *F) updateMachines(parentSeeds []Seed) bool {
 		}
 		abstractSeedMap[hn] = absSeedInfo
 	}
-	// println("len!", len(abstractSeedMap))
 
 	for hn, absSeedInfo := range abstractSeedMap {
 		seeds := absSeedInfo.seeds
 		if len(seeds) == 1 {
-			// println("hashNumber", hn, ": 1")
 			concreteEndInfo := f.fsm.CoordinateSeed(seeds[0])
 			flag := f.handleEndInfo(concreteEndInfo, parentSeeds)
 			if flag {
@@ -239,7 +235,6 @@ func (f *F) updateMachines(parentSeeds []Seed) bool {
 			}
 		} else {
 			absNumber := absSeedInfo.abstractNumber - 2
-			// println("hashNumber", hn, ":", absNumber+2)
 			absEndInfo := f.fsm.CoordinateAbstraction(hn, absNumber)
 			flag := f.handleEndInfo(absEndInfo, parentSeeds)
 			if flag {
@@ -258,7 +253,6 @@ func (f *F) updateMachines(parentSeeds []Seed) bool {
 		}
 
 	}
-	// println("iters!")
 	for _, p := range parentSeeds {
 		f.fsm.CoordinateSeed(p)
 	}
@@ -522,7 +516,6 @@ func monitor(run Runner, content []interface{}) (coverage Coverage, err error, i
 		}
 	}()
 	t := NewT("fuzzing")
-
 	// Ensuring the immutability of content
 	copied := make([]interface{}, len(content))
 	for i, v := range content {
@@ -537,7 +530,6 @@ func monitor(run Runner, content []interface{}) (coverage Coverage, err error, i
 	// TODO: It's just pshedo-covrage of some function
 	coverage = Get_Coverage_of_runner(t, content)
 
-	// println(string(t.output))
 	return coverage, err, isPanic, panicMsg
 }
 

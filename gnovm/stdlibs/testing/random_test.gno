@@ -66,7 +66,10 @@ func Test_GenerateRandomBool(t *T) {
 				falseCount++
 			}
 		}
-		//? This is also a question. Why do you write a test case like this?
+		//? question. Why do you write a test case like this?
+		// If the bias is 0,1, most of them will fail the test.
+		// However, this is still a phenomenon that happens even if it is implemented correctly.
+		//I would like to know why you wrote the test case like this.
 		if trueCount == 0 || falseCount == 0 {
 			t.Errorf("Bias = %v, trueCount = %v, falseCount = %v, want both > 0", bias, trueCount, falseCount)
 		}
@@ -93,11 +96,6 @@ func TestRandRange(t *T) {
 		}
 	}
 
-	// if len(nums) != 11 {
-	//? I modified it because the teke was weird. I think it should be 10.
-	// for num, count := range nums {
-	// 	t.Errorf("Number %d: %d times\n", num, count)
-	// }
 	if len(nums) != 10 {
 		t.Errorf("len(nums) = %v, want in range [0, 10]", len(nums))
 	}

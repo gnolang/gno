@@ -39,7 +39,7 @@ func NewCustomSource(seed int64) *CustomSource {
 func GetSingleRand() *rand.Rand {
 	if !isCalled {
 		isCalled = true
-		seed := unixNano() // 동적 시드 설정
+		seed := unixNano()
 		source := NewCustomSource(seed)
 		singleRand = rand.New(source)
 
@@ -63,7 +63,6 @@ func UniformRand() uint64 {
 // _srand function sets the seed for the random number generator.
 // This function provides an initial starting point for the sequence of random numbers.
 
-// 고쳤습니다.
 func _srand() {
 	r := GetSingleRand()
 	x = uint64(r.Uint64())
