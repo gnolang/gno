@@ -4,7 +4,6 @@ import (
 	"std"
 	"testing"
 
-	"gno.land/p/demo/ownable"
 	"gno.land/p/demo/testutils"
 	"gno.land/p/demo/uassert"
 	"gno.land/p/demo/urequire"
@@ -37,24 +36,4 @@ func TestDefaultVerifier(t *testing.T) {
 
 	// Proper namespace
 	uassert.True(t, defaultVerifier(true, alice, "alice"))
-}
-
-func TestUpdateVerifyCall(t *testing.T) {
-	std.TestSetRealm(std.NewUserRealm(alice))
-	std.TestSetOrigCaller(alice)
-
-	newFunc := func(bool, std.Address, string) bool {
-		return true
-	}
-
-	uassert.Error(t, UpdateVerifyCall(newFunc), ownable.ErrUnauthorized.Error())
-
-	std.TestSetRealm(std.NewUserRealm(adminAddr))
-	std.TestSetOrigCaller(adminAddr)
-
-	uassert.NoError(t, UpdateVerifyCall(newFunc))
-
-	// These check would fail with the default verifier
-	uassert.True(t, checkFunc(true, alice, "notregistered"))
-	uassert.True(t, checkFunc(true, std.Address(""), ""))
 }

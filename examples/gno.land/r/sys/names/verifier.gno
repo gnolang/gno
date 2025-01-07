@@ -1,6 +1,8 @@
 package names
 
 import (
+	"github.com/gnolang/gno/examples/gno.land/p/demo/dao"
+	"github.com/gnolang/gno/examples/gno.land/r/gov/dao/bridge"
 	"std"
 	"strings"
 
@@ -63,14 +65,14 @@ func defaultVerifier(enabled bool, address std.Address, name string) bool {
 	return userData.Addr == address
 }
 
-// UpdateVerifyCall updates the method that verifies the namespace.
-func UpdateVerifyCall(check verifierFunc) error {
-	if !Ownable.CallerIsOwner() {
-		return ownable.ErrUnauthorized
+// NewVerifyCallExecutor allows updating the verifier function via a GovDAO proposal
+func NewVerifyCallExecutor(newVerifyCall func(enabled bool, address std.Address, name string) bool) dao.Executor {
+	callback := func() error {
+		checkFunc = newVerifyCall
+
+		std.Emit(VerifyFuncUpdatedEvent)
+		return nil
 	}
 
-	checkFunc = check
-	std.Emit(VerifyFuncUpdatedEvent)
-
-	return nil
+	return bridge.GovDAO().NewGovDAOExecutor(callback)
 }
