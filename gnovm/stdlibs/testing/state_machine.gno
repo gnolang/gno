@@ -62,7 +62,7 @@ type StateMachine struct {
 	HashNumber2Priority    *[MAX_CAPACITY]uint
 	Priority2HashNumberULL *[MAX_CAPACITY]*Unique_Uint_LinkedList
 
-	Crash_Logger          *Crash_Logger
+	Crash_Logger          *CrashLogger
 	verbose               bool
 	inspectingHashNumbers uint
 }
@@ -88,7 +88,7 @@ func New_StateMachine(trials uint, inputCount uint) *StateMachine {
 		Priority2HashNumberULL: setted_AllULL,
 
 		inspectingHashNumbers: 0,
-		Crash_Logger:          New_Crash_Logger(),
+		Crash_Logger:          NewCrashLogger(),
 	}
 }
 

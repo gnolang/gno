@@ -230,7 +230,7 @@ func ContentToString(content []interface{}) string {
 	return result.String()
 }
 
-func CrashCaseToString(c Crash_Case) string {
+func CrashCaseToString(c CrashCase) string {
 	var sb strings.Builder
 
 	sb.WriteString("Input: ")

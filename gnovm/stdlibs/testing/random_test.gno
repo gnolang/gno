@@ -69,7 +69,6 @@ func Test_GenerateRandomBool(t *T) {
 		// If the bias is 0,1, most of them will fail the test.
 		// However, this is still a phenomenon that happens even if it is implemented correctly.
 		//I would like to know why you wrote the test case like this.
-		// I annotated this codes below
 		// if trueCount == 0 || falseCount == 0 {
 		// 	t.Errorf("Bias = %v, trueCount = %v, falseCount = %v, want both > 0", bias, trueCount, falseCount)
 		// }
