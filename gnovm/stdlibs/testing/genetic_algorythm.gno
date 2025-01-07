@@ -5,31 +5,31 @@ import (
 	"time"
 )
 
-func Mutate(seed Seed, mut_range int) Seed {
-	if len(seed.Content) == 0 {
+func mutate(seed seed, mutationStrength int) seed {
+	if len(seed.content) == 0 {
 		panic("mutate logic error: content's len==0")
 	}
 	index := 0
-	if len(seed.Content) > 1 {
-		index = int(RandRange(0, int64(len(seed.Content))))
+	if len(seed.content) > 1 {
+		index = int(RandRange(0, int64(len(seed.content))))
 	}
 
-	selected := seed.Content[index]
+	selected := seed.content[index]
 	switch v := selected.(type) {
 	case int, int8, int16, int32, int64:
-		for i := 0; i < mut_range; i++ {
-			seed.Content[index] = randomInt_from(v)
+		for i := 0; i < mutationStrength; i++ {
+			seed.content[index] = randomIntFrom(v)
 		}
 	case uint, uint8, uint16, uint32, uint64:
-		for i := 0; i < mut_range; i++ {
-			seed.Content[index] = randomUint_from(v)
+		for i := 0; i < mutationStrength; i++ {
+			seed.content[index] = randomUintFrom(v)
 		}
 	case float32, float64:
-		for i := 0; i < mut_range; i++ {
-			seed.Content[index] = randomFloat_from(v)
+		for i := 0; i < mutationStrength; i++ {
+			seed.content[index] = randomFloatFrom(v)
 		}
 	case bool:
-		seed.Content[index] = randomBool()
+		seed.content[index] = randomBool()
 	// Cancellation due to value set issue
 	// As in the comment code below, the spread in implementation does not cover all string values.
 	// This is the description of the logic that deals with strings as bytes.
@@ -37,31 +37,31 @@ func Mutate(seed Seed, mut_range int) Seed {
 	//      runes := []rune(v)
 	//      if len(runes) > 0 {
 	//              runeIndex := RandRange(0, int64(len(runes)))
-	//              runes[runeIndex] = randomRune_from(runes[runeIndex])
+	//              runes[runeIndex] = randomRunefrom(runes[runeIndex])
 	//      }
 	//      var new_str string = string(runes)
 	//      seed.Content[index] = new_str
 	case string:
 		bytes := []byte(v)
 		if len(bytes) > 0 {
-			for i := 0; i < mut_range; i++ {
+			for i := 0; i < mutationStrength; i++ {
 				byteIndex := RandRange(0, int64(len(bytes)))
-				bytes[byteIndex] = randomByte_from(bytes[byteIndex])
+				bytes[byteIndex] = randomByteFrom(bytes[byteIndex])
 			}
 		}
-		var new_str string = string(bytes)
-		seed.Content[index] = new_str
+		var newStr string = string(bytes)
+		seed.content[index] = newStr
 
 	case []byte:
 		bytes := []byte(v)
 		if len(bytes) > 0 {
-			for i := 0; i < mut_range; i++ {
+			for i := 0; i < mutationStrength; i++ {
 				byteIndex := RandRange(0, int64(len(bytes)))
-				bytes[byteIndex] = randomByte_from(bytes[byteIndex])
+				bytes[byteIndex] = randomByteFrom(bytes[byteIndex])
 			}
 		}
-		var new_byt []byte = []byte(bytes)
-		seed.Content[index] = new_byt
+		var newByt []byte = []byte(bytes)
+		seed.content[index] = newByt
 	default:
 		panic("not supported type")
 	}
@@ -69,34 +69,34 @@ func Mutate(seed Seed, mut_range int) Seed {
 	return seed
 }
 
-func InsertDelete(seed Seed, p float64, mut_range int, string_byte_candidates []int) Seed {
-	if len(string_byte_candidates) == 0 {
+func insertDelete(seed seed, p float64, mutationStrength int, stringByteCandidates []int) seed {
+	if len(stringByteCandidates) == 0 {
 		return seed
 	}
 
 	index := 0
-	if len(string_byte_candidates) > 0 {
+	if len(stringByteCandidates) > 0 {
 
-		selected_field_idx := RandRange(0, int64(len(string_byte_candidates)))
-		index = string_byte_candidates[selected_field_idx]
+		selectedFieldidx := RandRange(0, int64(len(stringByteCandidates)))
+		index = stringByteCandidates[selectedFieldidx]
 	}
 
-	selected := seed.Content[index]
+	selected := seed.content[index]
 
 	switch v := selected.(type) {
 	case []byte:
 		bb := []byte(v)
-		for i := 0; i < mut_range; i++ {
+		for i := 0; i < mutationStrength; i++ {
 			l := len(bb)
 			// Insert
 			if GenerateRandomBool(p) {
 				if l < 1 {
 					var b byte = ' '
-					bb = []byte{randomByte_from(b)}
+					bb = []byte{randomByteFrom(b)}
 				} else {
 
 					sample := bb[RandRange(0, int64(l))]
-					bt := randomByte_from(sample)
+					bt := randomByteFrom(sample)
 
 					pos := RandRange(0, int64(l))
 
@@ -116,21 +116,21 @@ func InsertDelete(seed Seed, p float64, mut_range int, string_byte_candidates []
 			}
 
 		}
-		var new_byt []byte = bb
-		seed.Content[index] = new_byt
+		var newByte []byte = bb
+		seed.content[index] = newByte
 	case string:
 		bb := []byte(v)
-		for i := 0; i < mut_range; i++ {
+		for i := 0; i < mutationStrength; i++ {
 			l := len(bb)
 			// Insert
 			if GenerateRandomBool(p) {
 				if l < 1 {
 					var b byte = ' '
-					bb = []byte{randomByte_from(b)}
+					bb = []byte{randomByteFrom(b)}
 				} else {
 
 					sample := bb[RandRange(0, int64(l))]
-					bt := randomByte_from(sample)
+					bt := randomByteFrom(sample)
 
 					pos := RandRange(0, int64(l))
 
@@ -148,8 +148,8 @@ func InsertDelete(seed Seed, p float64, mut_range int, string_byte_candidates []
 			}
 
 		}
-		var new_str string = string(bb)
-		seed.Content[index] = new_str
+		var newString string = string(bb)
+		seed.content[index] = newString
 	default:
 		println("maybe some nil string error:", v)
 		panic("internal logic error")
@@ -165,27 +165,27 @@ func InsertDelete(seed Seed, p float64, mut_range int, string_byte_candidates []
 // Modified existing crossover logic.
 // I adjusted the number according to gen to solve the sticking problem.(a phenomenon in which they become similar as inputs increase)
 // Changed to multi-intersection logic.
-func TwoPointCrossover(parent1, parent2 Seed, seedCount *uint) (Seed, Seed) {
-	content1 := make([]interface{}, len(parent1.Content))
-	for i, v := range parent1.Content {
+func twoPointCrossover(parent1, parent2 seed, seedCount *uint) (seed, seed) {
+	content1 := make([]interface{}, len(parent1.content))
+	for i, v := range parent1.content {
 		content1[i] = v
 	}
-	content2 := make([]interface{}, len(parent2.Content))
-	for i, v := range parent2.Content {
+	content2 := make([]interface{}, len(parent2.content))
+	for i, v := range parent2.content {
 		content2[i] = v
 	}
 
-	for i := 0; i < len(parent1.Content); i++ {
+	for i := 0; i < len(parent1.content); i++ {
 		switch v1 := content1[i].(type) {
 		case int, int8, int16, int32, int64, uint, uint8, uint16, uint32, uint64, float32, float64:
-			content1[i], content2[i] = factorization_crossover(v1, content2[i])
+			content1[i], content2[i] = factorizationCrossover(v1, content2[i])
 		case bool:
 			content1[i] = v1
 			content2[i] = content2[i]
 
 		case []byte:
 			byt1 := v1
-			byt2, ok := parent2.Content[i].([]byte)
+			byt2, ok := parent2.content[i].([]byte)
 			if !ok {
 				panic("type not equal")
 			}
@@ -207,8 +207,8 @@ func TwoPointCrossover(parent1, parent2 Seed, seedCount *uint) (Seed, Seed) {
 				if maxLen < 1 {
 					s := ' '
 					bb := byte(s)
-					content1[i] = []byte([]byte{randomByte_from(bb)})
-					content2[i] = []byte([]byte{randomByte_from(bb)})
+					content1[i] = []byte([]byte{randomByteFrom(bb)})
+					content2[i] = []byte([]byte{randomByteFrom(bb)})
 					continue
 				} else {
 					if m == 1 {
@@ -227,21 +227,21 @@ func TwoPointCrossover(parent1, parent2 Seed, seedCount *uint) (Seed, Seed) {
 				point1, point2 = point2, point1
 			}
 
-			crossed_byt1 := append([]byte{}, p1Bytes[:point1]...)
-			crossed_byt1 = append(crossed_byt1, p2Bytes[point1:point2]...)
-			crossed_byt1 = append(crossed_byt1, p1Bytes[point2:]...)
+			crossedByt1 := append([]byte{}, p1Bytes[:point1]...)
+			crossedByt1 = append(crossedByt1, p2Bytes[point1:point2]...)
+			crossedByt1 = append(crossedByt1, p1Bytes[point2:]...)
 
-			crossed_byt2 := append([]byte{}, p2Bytes[:point1]...)
-			crossed_byt2 = append(crossed_byt2, p1Bytes[point1:point2]...)
-			crossed_byt2 = append(crossed_byt2, p2Bytes[point2:]...)
+			crossedByt2 := append([]byte{}, p2Bytes[:point1]...)
+			crossedByt2 = append(crossedByt2, p1Bytes[point1:point2]...)
+			crossedByt2 = append(crossedByt2, p2Bytes[point2:]...)
 
-			result_byt1 := []byte(crossed_byt1)
-			result_byt2 := []byte(crossed_byt2)
-			content1[i] = result_byt1
-			content2[i] = result_byt2
+			resultByt1 := []byte(crossedByt1)
+			resultByt2 := []byte(crossedByt2)
+			content1[i] = resultByt1
+			content2[i] = resultByt2
 		case string:
 			byt1 := v1
-			byt2, ok := parent2.Content[i].(string)
+			byt2, ok := parent2.content[i].(string)
 			if !ok {
 				panic("type not equal")
 			}
@@ -263,8 +263,8 @@ func TwoPointCrossover(parent1, parent2 Seed, seedCount *uint) (Seed, Seed) {
 				if maxLen < 1 {
 					s := ' '
 					bb := byte(s)
-					content1[i] = string(randomByte_from(bb))
-					content2[i] = string(randomByte_from(bb))
+					content1[i] = string(randomByteFrom(bb))
+					content2[i] = string(randomByteFrom(bb))
 					continue
 				} else {
 					if m == 1 {
@@ -283,18 +283,18 @@ func TwoPointCrossover(parent1, parent2 Seed, seedCount *uint) (Seed, Seed) {
 				point1, point2 = point2, point1
 			}
 
-			crossed_byt1 := append([]byte{}, p1Bytes[:point1]...)
-			crossed_byt1 = append(crossed_byt1, p2Bytes[point1:point2]...)
-			crossed_byt1 = append(crossed_byt1, p1Bytes[point2:]...)
+			crossedByt1 := append([]byte{}, p1Bytes[:point1]...)
+			crossedByt1 = append(crossedByt1, p2Bytes[point1:point2]...)
+			crossedByt1 = append(crossedByt1, p1Bytes[point2:]...)
 
-			crossed_byt2 := append([]byte{}, p2Bytes[:point1]...)
-			crossed_byt2 = append(crossed_byt2, p1Bytes[point1:point2]...)
-			crossed_byt2 = append(crossed_byt2, p2Bytes[point2:]...)
+			crossedByt2 := append([]byte{}, p2Bytes[:point1]...)
+			crossedByt2 = append(crossedByt2, p1Bytes[point1:point2]...)
+			crossedByt2 = append(crossedByt2, p2Bytes[point2:]...)
 
-			result_str1 := string(crossed_byt1)
-			result_str2 := string(crossed_byt2)
-			content1[i] = result_str1
-			content2[i] = result_str2
+			resultStr1 := string(crossedByt1)
+			resultStr2 := string(crossedByt2)
+			content1[i] = resultStr1
+			content2[i] = resultStr2
 
 		default:
 			panic("not supported type")
@@ -303,14 +303,14 @@ func TwoPointCrossover(parent1, parent2 Seed, seedCount *uint) (Seed, Seed) {
 	}
 
 	*seedCount++
-	updatedIdv1 := Seed{
-		Gen: parent1.Gen + 1, IsCoordinated: false, Content: content1, Result: nil,
-		Pid: parent1.Id, Id: *seedCount,
+	updatedIdv1 := seed{
+		gen: parent1.gen + 1, isCoordinated: false, content: content1, result: nil,
+		pid: parent1.id, id: *seedCount,
 	}
 	*seedCount++
-	updatedIdv2 := Seed{
-		Gen: parent2.Gen + 1, IsCoordinated: false, Content: content2, Result: nil,
-		Pid: parent1.Id, Id: *seedCount,
+	updatedIdv2 := seed{
+		gen: parent2.gen + 1, isCoordinated: false, content: content2, result: nil,
+		pid: parent1.id, id: *seedCount,
 	}
 
 	return updatedIdv1, updatedIdv2
@@ -319,59 +319,59 @@ func TwoPointCrossover(parent1, parent2 Seed, seedCount *uint) (Seed, Seed) {
 // Returns the parents and returns the child.
 // fluidized the number and degree of mutation along Gen
 // Seeds received as parameters are invariant referenced within the function.
-func Evolve(seeds []Seed, seedCount *uint, string_byte_candidates []int) []Seed {
+func evolve(seeds []seed, seedCount *uint, stringByteCandidates []int) []seed {
 	p1 := seeds[0]
-	Mutation_Range := [10]int{5, 4, 3, 3, 3, 2, 2, 2, 2, 2}
-	var mutation_range int
-	if int(p1.Gen) > len(Mutation_Range) {
-		mutation_range = 1
+	MutationStrength := [10]int{5, 4, 3, 3, 3, 2, 2, 2, 2, 2}
+	var mutationStrength int
+	if int(p1.gen) > len(MutationStrength) {
+		mutationStrength = 1
 	} else {
-		mutation_range = Mutation_Range[p1.Gen-1]
+		mutationStrength = MutationStrength[p1.gen-1]
 	}
-	Evlove_Count := [10]int{1920, 1440, 1200, 1024, 960, 720, 600, 480, 360, 240}
-	var evolve_count int
-	if int(p1.Gen) > len(Evlove_Count) {
-		evolve_count = 240
+	MakingCount := [10]int{1920, 1440, 1200, 1024, 960, 720, 600, 480, 360, 240}
+	var makingCount int
+	if int(p1.gen) > len(MakingCount) {
+		makingCount = 240
 	} else {
-		evolve_count = Evlove_Count[p1.Gen-1]
+		makingCount = MakingCount[p1.gen-1]
 	}
 
-	loop_count := evolve_count / 2
+	loopCount := makingCount / 2
 
-	new_generation := []Seed{}
+	newGeneration := []seed{}
 
 	if len(seeds) == 1 {
 
-		for i := 0; i < int(evolve_count); i++ {
-			new_content := make([]interface{}, len(seeds[0].Content))
-			for i, v := range seeds[0].Content {
-				new_content[i] = v
+		for i := 0; i < int(makingCount); i++ {
+			newContent := make([]interface{}, len(seeds[0].content))
+			for i, v := range seeds[0].content {
+				newContent[i] = v
 			}
 			*seedCount++
-			new_ind := Seed{
-				Gen:           seeds[0].Gen + 1,
-				IsCoordinated: false,
-				Content:       new_content,
-				Result:        nil,
-				Pid:           seeds[0].Id,
-				Id:            *seedCount,
+			newInd := seed{
+				gen:           seeds[0].gen + 1,
+				isCoordinated: false,
+				content:       newContent,
+				result:        nil,
+				pid:           seeds[0].id,
+				id:            *seedCount,
 			}
 
 			// 60% range
 			randSeed := i % 5
 			if randSeed <= 2 {
-				new_ind = Mutate(new_ind, mutation_range)
+				newInd = mutate(newInd, mutationStrength)
 			}
 			// 40% range with 20% intersection
 			if randSeed == 2 || randSeed == 3 {
-				new_ind = InsertDelete(new_ind, 0.5, mutation_range, string_byte_candidates)
+				newInd = insertDelete(newInd, 0.5, mutationStrength, stringByteCandidates)
 			}
 
-			new_ind.Gen = seeds[0].Gen + 1
-			new_generation = append(new_generation, new_ind)
+			newInd.gen = seeds[0].gen + 1
+			newGeneration = append(newGeneration, newInd)
 
 		}
-		return new_generation
+		return newGeneration
 	}
 
 	if len(seeds) > 3 {
@@ -380,38 +380,38 @@ func Evolve(seeds []Seed, seedCount *uint, string_byte_candidates []int) []Seed 
 
 	p2 := seeds[1]
 
-	for i := 0; i < int(loop_count); i++ {
-		c1, c2 := TwoPointCrossover(p1, p2, seedCount)
-		new_generation = append(new_generation, c1)
-		new_generation = append(new_generation, c2)
+	for i := 0; i < int(loopCount); i++ {
+		c1, c2 := twoPointCrossover(p1, p2, seedCount)
+		newGeneration = append(newGeneration, c1)
+		newGeneration = append(newGeneration, c2)
 
 	}
 
-	for i := range new_generation {
+	for i := range newGeneration {
 		randSeed := i % 10
 
 		// 40% range
 		if randSeed <= 3 {
-			new_generation[i] = Mutate(new_generation[i], mutation_range)
+			newGeneration[i] = mutate(newGeneration[i], mutationStrength)
 		}
 		// 30%range and 10% intersection
 		if randSeed >= 3 && randSeed <= 5 {
-			new_generation[i] = InsertDelete(new_generation[i], 0.5, mutation_range, string_byte_candidates)
+			newGeneration[i] = insertDelete(newGeneration[i], 0.5, mutationStrength, stringByteCandidates)
 		}
 
 	}
 
-	return new_generation
+	return newGeneration
 }
 
-func randomByte_from(seed_byte byte) byte {
+func randomByteFrom(seedByte byte) byte {
 	p := GetSingleRand().Float64() // 0.0 <= p < 1.0
 
-	next_flag := GenerateRandomBool(0.5)
 	var b uint8
 
-	currentCase := determineCase(rune(seed_byte))
+	currentCase := determineCase(rune(seedByte))
 
+	isProgress := GenerateRandomBool(0.5)
 	if currentCase == 2 {
 		switch {
 		case p < 0.45:
@@ -427,27 +427,27 @@ func randomByte_from(seed_byte byte) byte {
 		switch {
 		case p < 0.1:
 			currentCase = (currentCase + 2) % 4
-			next_flag = false
+			isProgress = false
 			break
 		case p >= 0.1 && p < 0.3:
 			currentCase = (currentCase + 3) % 4
-			next_flag = false
+			isProgress = false
 			break
 		case p >= 0.3 && p < 0.7:
 			break
 
 		case p >= 0.7 && p < 0.9:
-			next_flag = true
+			isProgress = true
 			currentCase = (currentCase + 1) % 4
 		case p >= 0. && p <= 1.0:
-			next_flag = true
+			isProgress = true
 			currentCase = (currentCase + 2) % 4
 		}
 	}
 
 	if currentCase == 2 {
 		p2 := GetSingleRand().Float64()
-		if next_flag {
+		if isProgress {
 			if p2 < 0.8 {
 				currentCase = (currentCase + 1) % 4
 			}
@@ -460,14 +460,14 @@ func randomByte_from(seed_byte byte) byte {
 
 	switch currentCase {
 	case 0:
-		b = uint8(RandRange(ABSOLUTE_MIN, SPECIAL_MAX+1))
+		b = uint8(RandRange(AbsoluteMin, SpecialMAX+1))
 	case 1:
-		b = uint8(RandRange(LOW_ASCII_MIN, LOW_ASCII_MAX+1))
+		b = uint8(RandRange(LowAsciiMIN, LowAsciiMAX+1))
 	case 2:
 
-		b = DEL
+		b = Del
 	case 3:
-		b = uint8(RandRange(HIGH_ASCII_MIN, HIGH_ASCII_MAX+1))
+		b = uint8(RandRange(HighAsciiMin, HighAscillMax+1))
 
 	}
 
@@ -475,50 +475,50 @@ func randomByte_from(seed_byte byte) byte {
 }
 
 const (
-	ABSOLUTE_MIN = 0x00
-	SPECIAL_MAX  = 0x1F
+	AbsoluteMin = 0x00
+	SpecialMAX  = 0x1F
 
-	LOW_ASCII_MIN = 0x20
-	LOW_ASCII_MAX = 0x7E
-	DEL           = 0x7F
+	LowAsciiMIN = 0x20
+	LowAsciiMAX = 0x7E
+	Del         = 0x7F
 
-	HIGH_ASCII_MIN = 0x80
-	HIGH_ASCII_MAX = 0xFF
+	HighAsciiMin  = 0x80
+	HighAscillMax = 0xFF
 
-	PRINT_UNICODE_MIN = 0x100
-	PRINT_UNICODE_MAX = 0xD7FF
+	PrintUnicodeMin = 0x100
+	PrintUnicodeMax = 0xD7FF
 
-	BOUNDARY_UNICODE_MIN = 0xD800
-	BOUNDARY_UNICODE_MAX = 0x10FFFF
+	BoundaryUnicodeMIN = 0xD800
+	BoundaryUnicodeMax = 0x10FFFF
 
-	ABSOLUTE_MAX = 0x7FFFFFFF
+	AbsoluteMax = 0x7FFFFFFF
 )
 
-func determineCase(seed_rune rune) int {
+func determineCase(seedRune rune) int {
 	switch {
-	case seed_rune >= ABSOLUTE_MIN && seed_rune <= SPECIAL_MAX:
+	case seedRune >= AbsoluteMin && seedRune <= SpecialMAX:
 		return 0
-	case seed_rune >= LOW_ASCII_MIN && seed_rune <= LOW_ASCII_MAX:
+	case seedRune >= LowAsciiMIN && seedRune <= LowAsciiMAX:
 		return 1
-	case seed_rune == DEL:
+	case seedRune == Del:
 		return 2
-	case seed_rune >= HIGH_ASCII_MIN && seed_rune <= HIGH_ASCII_MAX:
+	case seedRune >= HighAsciiMin && seedRune <= HighAscillMax:
 		return 3
-	case seed_rune >= PRINT_UNICODE_MIN && seed_rune <= PRINT_UNICODE_MAX:
+	case seedRune >= PrintUnicodeMin && seedRune <= PrintUnicodeMax:
 		return 4
-	case seed_rune >= BOUNDARY_UNICODE_MIN && seed_rune <= BOUNDARY_UNICODE_MAX:
+	case seedRune >= BoundaryUnicodeMIN && seedRune <= BoundaryUnicodeMax:
 		return 5
 	default:
 		return 6
 	}
 }
 
-func randomInt_from(i interface{}) interface{} {
+func randomIntFrom(i interface{}) interface{} {
 	p := GetSingleRand().Float64()
 
 	switch v := i.(type) {
 	case int:
-		var int_std interface{}
+		var i interface{}
 		if v == 0 {
 			return int(RandInt64())
 		}
@@ -529,38 +529,38 @@ func randomInt_from(i interface{}) interface{} {
 			if min > max {
 				min, max = max, min
 			}
-			int_std = int(RandRange(min, max))
+			i = int(RandRange(min, max))
 		case p < 0.3:
 			min := int64(v) * (-4)
 			max := int64(v) * (4)
 			if min > max {
 				min, max = max, min
 			}
-			int_std = int(RandRange(min, max))
+			i = int(RandRange(min, max))
 		case p < 0.45:
 			min := int64(v) * (-8)
 			max := int64(v) * (8)
 			if min > max {
 				min, max = max, min
 			}
-			int_std = int(RandRange(min, max))
+			i = int(RandRange(min, max))
 		case p < 0.60:
 			min := int64(v) * (-16)
 			max := int64(v) * (16)
 			if min > max {
 				min, max = max, min
 			}
-			int_std = int(RandRange(min, max))
+			i = int(RandRange(min, max))
 		default:
-			int_std = GetSingleRand().Int()
+			i = GetSingleRand().Int()
 		}
-		return int_std
+		return i
 
 	case int8:
 		if v == 0 {
 			return int8(RandInt64())
 		}
-		var int_8 interface{}
+		var i8 interface{}
 		switch {
 		case p < 0.3:
 			min := int64(v) * (-2)
@@ -568,24 +568,24 @@ func randomInt_from(i interface{}) interface{} {
 			if min > max {
 				min, max = max, min
 			}
-			int_8 = int8(RandRange(min, max))
+			i8 = int8(RandRange(min, max))
 		case p < 0.5:
 			min := int64(v) * (-4)
 			max := int64(v) * (4)
 			if min > max {
 				min, max = max, min
 			}
-			int_8 = int8(RandRange(min, max))
+			i8 = int8(RandRange(min, max))
 		default:
-			int_8 = int8(RandRange(-128, 128))
+			i8 = int8(RandRange(-128, 128))
 		}
-		return int_8
+		return i8
 
 	case int16:
 		if v == 0 {
 			return int16(RandInt64())
 		}
-		var int_16 interface{}
+		var i16 interface{}
 		switch {
 		case p < 0.3:
 			min := int64(v) * (-2)
@@ -593,24 +593,24 @@ func randomInt_from(i interface{}) interface{} {
 			if min > max {
 				min, max = max, min
 			}
-			int_16 = int16(RandRange(min, max))
+			i16 = int16(RandRange(min, max))
 		case p < 0.5:
 			min := int64(v) * (-4)
 			max := int64(v) * (4)
 			if min > max {
 				min, max = max, min
 			}
-			int_16 = int16(RandRange(min, max))
+			i16 = int16(RandRange(min, max))
 		default:
-			int_16 = int16(RandRange(-32768, 32768))
+			i16 = int16(RandRange(-32768, 32768))
 		}
-		return int_16
+		return i16
 
 	case int32:
 		if v == 0 {
 			return int32(RandInt64())
 		}
-		var int_32 interface{}
+		var i16 interface{}
 		switch {
 		case p < 0.2:
 			min := int64(v) * (-2)
@@ -618,31 +618,31 @@ func randomInt_from(i interface{}) interface{} {
 			if min > max {
 				min, max = max, min
 			}
-			int_32 = int32(RandRange(min, max))
+			i16 = int32(RandRange(min, max))
 		case p < 0.4:
 			min := int64(v) * (-4)
 			max := int64(v) * (4)
 			if min > max {
 				min, max = max, min
 			}
-			int_32 = int32(RandRange(min, max))
+			i16 = int32(RandRange(min, max))
 		case p < 0.6:
 			min := int64(v) * (-8)
 			max := int64(v) * (8)
 			if min > max {
 				min, max = max, min
 			}
-			int_32 = int32(RandRange(min, max))
+			i16 = int32(RandRange(min, max))
 		default:
-			int_32 = GetSingleRand().Int32()
+			i16 = GetSingleRand().Int32()
 		}
-		return int_32
+		return i16
 
 	case int64:
 		if v == 0 {
 			return RandInt64()
 		}
-		var int_64 interface{}
+		var i64 interface{}
 		switch {
 		case p < 0.15:
 			min := v * (-2)
@@ -650,39 +650,39 @@ func randomInt_from(i interface{}) interface{} {
 			if min > max {
 				min, max = max, min
 			}
-			int_64 = RandRange(min, max)
+			i64 = RandRange(min, max)
 		case p < 0.3:
 			min := v * (-4)
 			max := v * (4)
 			if min > max {
 				min, max = max, min
 			}
-			int_64 = RandRange(min, max)
+			i64 = RandRange(min, max)
 		case p < 0.45:
 			min := v * (-8)
 			max := v * (8)
 			if min > max {
 				min, max = max, min
 			}
-			int_64 = RandRange(min, max)
+			i64 = RandRange(min, max)
 		case p < 0.60:
 			min := v * (-16)
 			max := v * (16)
 			if min > max {
 				min, max = max, min
 			}
-			int_64 = RandRange(min, max)
+			i64 = RandRange(min, max)
 		default:
-			int_64 = GetSingleRand().Int64()
+			i64 = GetSingleRand().Int64()
 		}
-		return int_64
+		return i64
 
 	default:
 		panic("it's not supported int type")
 	}
 }
 
-func randomUint_from(u interface{}) interface{} {
+func randomUintFrom(u interface{}) interface{} {
 	p := GetSingleRand().Float64()
 
 	switch v := u.(type) {
@@ -690,130 +690,130 @@ func randomUint_from(u interface{}) interface{} {
 		if v == 0 {
 			return uint(RandUint64())
 		}
-		var uint_std interface{}
+		var u interface{}
 		switch {
 		case p < 0.3:
 			min := v / 256
 			max := v * 2
-			uint_std = uint(UintRandRange(uint64(min), uint64(max)))
+			u = uint(UintRandRange(uint64(min), uint64(max)))
 		case p < 0.6:
 			min := v / 9096
 			max := v * 8
-			uint_std = uint(UintRandRange(uint64(min), uint64(max)))
+			u = uint(UintRandRange(uint64(min), uint64(max)))
 		default:
-			uint_std = uint(GetSingleRand().Uint64())
+			u = uint(GetSingleRand().Uint64())
 		}
-		return uint_std
+		return u
 
 	case uint8:
 		if v == 0 {
 			return uint8(RandUint64())
 		}
-		var uint_8 interface{}
+		var u8 interface{}
 		switch {
 		case p < 0.3:
 			min := int64(v) / 8
 			max := int64(v) * 2
-			uint_8 = uint8(RandRange(min, max))
+			u8 = uint8(RandRange(min, max))
 		case p < 0.6:
 			min := int64(v) / 32
 			max := int64(v) * 8
-			uint_8 = uint8(RandRange(min, max))
+			u8 = uint8(RandRange(min, max))
 		default:
-			uint_8 = uint8(RandRange(0, 256))
+			u8 = uint8(RandRange(0, 256))
 		}
-		return uint_8
+		return u8
 
 	case uint16:
 		if v == 0 {
 			return uint16(RandUint64())
 		}
-		var uint_16 interface{}
+		var u16 interface{}
 		switch {
 		case p < 0.3:
 			min := int64(v) / 256
 			max := int64(v) * 2
-			uint_16 = uint16(RandRange(min, max))
+			u16 = uint16(RandRange(min, max))
 		case p < 0.6:
 			min := int64(v) / 9096
 			max := int64(v) * 8
-			uint_16 = uint16(RandRange(min, max))
+			u16 = uint16(RandRange(min, max))
 		default:
-			uint_16 = uint16(RandRange(0, 65536))
+			u16 = uint16(RandRange(0, 65536))
 		}
-		return uint_16
+		return u16
 
 	case uint32:
 		if v == 0 {
 			return uint32(RandUint64())
 		}
-		var uint_32 interface{}
+		var u32 interface{}
 		switch {
 		case p < 0.2:
 			min := int64(v) / 256
 			max := int64(v) * 2
-			uint_32 = uint32(RandRange(min, max))
+			u32 = uint32(RandRange(min, max))
 		case p < 0.4:
 			min := int64(v) / 9096
 			max := int64(v) * 8
-			uint_32 = uint32(RandRange(min, max))
+			u32 = uint32(RandRange(min, max))
 		case p < 0.6:
 			min := int64(v) / (9096 * 9096)
 			max := int64(v) * 16
-			uint_32 = uint32(RandRange(min, max))
+			u32 = uint32(RandRange(min, max))
 		default:
-			uint_32 = uint32(RandRange(0, int64(^uint32(0))))
+			u32 = uint32(RandRange(0, int64(^uint32(0))))
 		}
-		return uint_32
+		return u32
 
 	case uint64:
 		if v == 0 {
 			return RandUint64()
 		}
-		var uint_64 interface{}
+		var u64 interface{}
 		switch {
 		case p < 0.2:
 			min := v / 256
 			max := v * 2
-			uint_64 = UintRandRange(min, max)
+			u64 = UintRandRange(min, max)
 		case p < 0.5:
 			min := v / 9096
 			max := v * 8
-			uint_64 = UintRandRange(min, max)
+			u64 = UintRandRange(min, max)
 		case p < 0.5:
 			min := v / (9096 * 9096)
 			max := v * 16
-			uint_64 = UintRandRange(min, max)
+			u64 = UintRandRange(min, max)
 		default:
-			uint_64 = RandUint64()
+			u64 = RandUint64()
 		}
-		return uint_64
+		return u64
 
 	default:
 		panic("it's not a supported uint type")
 	}
 }
 
-func randomFloat_from(f interface{}) interface{} {
+func randomFloatFrom(f interface{}) interface{} {
 	switch v := f.(type) {
 	case float32:
-		var f_32 float32
-		f_32 = randFloat32_from(float32(v))
-		return float32(f_32)
+		var f32 float32
+		f32 = randFloat32From(float32(v))
+		return float32(f32)
 	case float64:
-		var f_64 float64
-		f_64 = randFloat64_from(float64(v))
-		return float64(f_64)
+		var f64 float64
+		f64 = randFloat64From(float64(v))
+		return float64(f64)
 	default:
 		panic("argument is not float 32 or float4")
 	}
 }
 
-func randFloat32_from(f float32) float32 {
+func randFloat32From(f float32) float32 {
 	return randomFloat32(f)
 }
 
-func randFloat64_from(f float64) float64 {
+func randFloat64From(f float64) float64 {
 	return randomFloat64(f)
 }
 
@@ -821,7 +821,7 @@ func randomBool() bool {
 	return UniformRandomBool(0.5)
 }
 
-func factorization_crossover(a interface{}, b interface{}) (interface{}, interface{}) {
+func factorizationCrossover(a interface{}, b interface{}) (interface{}, interface{}) {
 	switch v1 := a.(type) {
 	case int:
 		v2, ok := b.(int)
@@ -844,17 +844,17 @@ func factorization_crossover(a interface{}, b interface{}) (interface{}, interfa
 		if min < 4 {
 			min = 4
 		}
-		var new_v1 int
-		var new_v2 int
+		var newV1 int
+		var newV2 int
 		divisor := int(RandRange(1, int64(min)/2))
 		if randomBool() {
-			new_v1 = v1 / divisor
-			new_v2 = v2 * divisor
+			newV1 = v1 / divisor
+			newV2 = v2 * divisor
 		} else {
-			new_v1 = v1 * divisor
-			new_v2 = v2 / divisor
+			newV1 = v1 * divisor
+			newV2 = v2 / divisor
 		}
-		return new_v1, new_v2
+		return newV1, newV2
 	case int8:
 		v2, ok := b.(int8)
 		if !ok {
@@ -876,17 +876,17 @@ func factorization_crossover(a interface{}, b interface{}) (interface{}, interfa
 		if min < 4 {
 			min = 4
 		}
-		var new_v1 int8
-		var new_v2 int8
+		var newV1 int8
+		var newV2 int8
 		divisor := int8(RandRange(1, int64(min)/2))
 		if randomBool() {
-			new_v1 = v1 / divisor
-			new_v2 = v2 * divisor
+			newV1 = v1 / divisor
+			newV2 = v2 * divisor
 		} else {
-			new_v1 = v1 * divisor
-			new_v2 = v2 / divisor
+			newV1 = v1 * divisor
+			newV2 = v2 / divisor
 		}
-		return new_v1, new_v2
+		return newV1, newV2
 	case int16:
 		v2, ok := b.(int16)
 		if !ok {
@@ -908,18 +908,18 @@ func factorization_crossover(a interface{}, b interface{}) (interface{}, interfa
 		if min < 4 {
 			min = 4
 		}
-		var new_v1 int16
-		var new_v2 int16
+		var newV1 int16
+		var newV2 int16
 		divisor := int16(RandRange(1, int64(min)/2))
 		if randomBool() {
-			new_v1 = v1 / divisor
-			new_v2 = v2 * divisor
+			newV1 = v1 / divisor
+			newV2 = v2 * divisor
 		} else {
-			new_v1 = v1 * divisor
-			new_v2 = v2 / divisor
+			newV1 = v1 * divisor
+			newV2 = v2 / divisor
 		}
 
-		return new_v1, new_v2
+		return newV1, newV2
 	case int32:
 		v2, ok := b.(int32)
 		if !ok {
@@ -941,17 +941,17 @@ func factorization_crossover(a interface{}, b interface{}) (interface{}, interfa
 		if min < 4 {
 			min = 4
 		}
-		var new_v1 int32
-		var new_v2 int32
+		var newV1 int32
+		var newV2 int32
 		divisor := int32(RandRange(1, int64(min)/2))
 		if randomBool() {
-			new_v1 = v1 / divisor
-			new_v2 = v2 * divisor
+			newV1 = v1 / divisor
+			newV2 = v2 * divisor
 		} else {
-			new_v1 = v1 * divisor
-			new_v2 = v2 / divisor
+			newV1 = v1 * divisor
+			newV2 = v2 / divisor
 		}
-		return new_v1, new_v2
+		return newV1, newV2
 
 	case int64:
 		v2, ok := b.(int64)
@@ -974,17 +974,17 @@ func factorization_crossover(a interface{}, b interface{}) (interface{}, interfa
 		if min < 4 {
 			min = 4
 		}
-		var new_v1 int64
-		var new_v2 int64
+		var newV1 int64
+		var newV2 int64
 		divisor := RandRange(1, int64(min)/2)
 		if randomBool() {
-			new_v1 = v1 / divisor
-			new_v2 = v2 * divisor
+			newV1 = v1 / divisor
+			newV2 = v2 * divisor
 		} else {
-			new_v1 = v1 * divisor
-			new_v2 = v2 / divisor
+			newV1 = v1 * divisor
+			newV2 = v2 / divisor
 		}
-		return new_v1, new_v2
+		return newV1, newV2
 
 	case uint:
 		v2, ok := b.(uint)
@@ -998,17 +998,17 @@ func factorization_crossover(a interface{}, b interface{}) (interface{}, interfa
 		if min < 4 {
 			min = 4
 		}
-		var new_v1 uint
-		var new_v2 uint
+		var newV1 uint
+		var newV2 uint
 		divisor := uint(UintRandRange(1, uint64(min)/2))
 		if randomBool() {
-			new_v1 = v1 / divisor
-			new_v2 = v2 * divisor
+			newV1 = v1 / divisor
+			newV2 = v2 * divisor
 		} else {
-			new_v1 = v1 * divisor
-			new_v2 = v2 / divisor
+			newV1 = v1 * divisor
+			newV2 = v2 / divisor
 		}
-		return new_v1, new_v2
+		return newV1, newV2
 	case uint8:
 		v2, ok := b.(uint8)
 		if !ok {
@@ -1021,17 +1021,17 @@ func factorization_crossover(a interface{}, b interface{}) (interface{}, interfa
 		if min < 4 {
 			min = 4
 		}
-		var new_v1 uint8
-		var new_v2 uint8
+		var newV1 uint8
+		var newV2 uint8
 		divisor := uint8(UintRandRange(1, uint64(min)/2))
 		if randomBool() {
-			new_v1 = v1 / divisor
-			new_v2 = v2 * divisor
+			newV1 = v1 / divisor
+			newV2 = v2 * divisor
 		} else {
-			new_v1 = v1 * divisor
-			new_v2 = v2 / divisor
+			newV1 = v1 * divisor
+			newV2 = v2 / divisor
 		}
-		return new_v1, new_v2
+		return newV1, newV2
 
 	case uint16:
 		v2, ok := b.(uint16)
@@ -1045,17 +1045,17 @@ func factorization_crossover(a interface{}, b interface{}) (interface{}, interfa
 		if min < 4 {
 			min = 4
 		}
-		var new_v1 uint16
-		var new_v2 uint16
+		var newV1 uint16
+		var newV2 uint16
 		divisor := uint16(UintRandRange(1, uint64(min)/2))
 		if randomBool() {
-			new_v1 = v1 / divisor
-			new_v2 = v2 * divisor
+			newV1 = v1 / divisor
+			newV2 = v2 * divisor
 		} else {
-			new_v1 = v1 * divisor
-			new_v2 = v2 / divisor
+			newV1 = v1 * divisor
+			newV2 = v2 / divisor
 		}
-		return new_v1, new_v2
+		return newV1, newV2
 
 	case uint32:
 		v2, ok := b.(uint32)
@@ -1069,17 +1069,17 @@ func factorization_crossover(a interface{}, b interface{}) (interface{}, interfa
 		if min < 4 {
 			min = 4
 		}
-		var new_v1 uint32
-		var new_v2 uint32
+		var newV1 uint32
+		var newV2 uint32
 		divisor := uint32(UintRandRange(1, uint64(min)/2))
 		if randomBool() {
-			new_v1 = v1 / divisor
-			new_v2 = v2 * divisor
+			newV1 = v1 / divisor
+			newV2 = v2 * divisor
 		} else {
-			new_v1 = v1 * divisor
-			new_v2 = v2 / divisor
+			newV1 = v1 * divisor
+			newV2 = v2 / divisor
 		}
-		return new_v1, new_v2
+		return newV1, newV2
 
 	case uint64:
 		v2, ok := b.(uint64)
@@ -1093,36 +1093,36 @@ func factorization_crossover(a interface{}, b interface{}) (interface{}, interfa
 		if min < 4 {
 			min = 4
 		}
-		var new_v1 uint64
-		var new_v2 uint64
+		var newV1 uint64
+		var newV2 uint64
 		divisor := uint64(UintRandRange(1, uint64(min)/2))
 		if randomBool() {
-			new_v1 = v1 / divisor
-			new_v2 = v2 * divisor
+			newV1 = v1 / divisor
+			newV2 = v2 * divisor
 		} else {
-			new_v1 = v1 * divisor
-			new_v2 = v2 / divisor
+			newV1 = v1 * divisor
+			newV2 = v2 / divisor
 		}
-		return new_v1, new_v2
+		return newV1, newV2
 
 	case float32:
 		v2, ok := b.(float32)
 		if !ok {
 			panic("type not equal")
 		}
-		new_v1 := float32(0.7*float64(v1) + 0.3*float64(v2))
-		new_v2 := float32(0.3*float64(v1) + 0.7*float64(v2))
-		return new_v1, new_v2
+		newV1 := float32(0.7*float64(v1) + 0.3*float64(v2))
+		newV2 := float32(0.3*float64(v1) + 0.7*float64(v2))
+		return newV1, newV2
 	case float64:
 		v2, ok := b.(float64)
 		if !ok {
 			panic("type not equal")
 		}
-		new_v1 := float64(0.3*float64(v1) + 0.7*float64(v2))
-		new_v2 := float64(0.3*float64(v1) + 0.7*float64(v2))
-		return new_v1, new_v2
+		newV1 := float64(0.3*float64(v1) + 0.7*float64(v2))
+		newV2 := float64(0.3*float64(v1) + 0.7*float64(v2))
+		return newV1, newV2
 	default:
-		panic("type can't be  factorization_crossovered.")
+		panic("type can't be  factorization crossovered.")
 	}
 }
 

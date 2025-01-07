@@ -4,11 +4,6 @@ import (
 	"unicode/utf8"
 )
 
-// TODO: This file is currently a virtual coverage acquisition file
-// TODO: To clear one day, replace it with a real coverage function.
-// l
-// l
-// l
 func mock(t *T, orig ...interface{}) {
 	v, ok := orig[0].(string)
 	if !ok {
@@ -41,18 +36,18 @@ func Reverse1(s string) string {
 	return string(r)
 }
 
-func Get_Coverage_of_Reverse1(c *Coverage, s string) string {
+func getCoverageOfReverse1(c *Coverage, s string) string {
 	r := []rune(s)
-	*c = append(*c, CoveredLine{co_name: "Reverse1", co_line: 37})
-	*c = append(*c, CoveredLine{co_name: "Reverse1", co_line: 38})
+	*c = append(*c, coveredLine{coName: "Reverse1", coLine: 37})
+	*c = append(*c, coveredLine{coName: "Reverse1", coLine: 38})
 	for i, j := 0, len(r)-1; i < len(r)/2; i, j = i+1, j-1 {
-		*c = append(*c, CoveredLine{co_name: "Reverse1", co_line: 39})
+		*c = append(*c, coveredLine{coName: "Reverse1", coLine: 39})
 		r[i], r[j] = r[j], r[i]
-		*c = append(*c, CoveredLine{co_name: "Reverse1", co_line: 40})
-		*c = append(*c, CoveredLine{co_name: "Reverse1", co_line: 41})
+		*c = append(*c, coveredLine{coName: "Reverse1", coLine: 40})
+		*c = append(*c, coveredLine{coName: "Reverse1", coLine: 41})
 	}
-	*c = append(*c, CoveredLine{co_name: "Reverse1", co_line: 39})
-	*c = append(*c, CoveredLine{co_name: "Reverse1", co_line: 42})
+	*c = append(*c, coveredLine{coName: "Reverse1", coLine: 39})
+	*c = append(*c, coveredLine{coName: "Reverse1", coLine: 42})
 	return string(r)
 }
 
@@ -63,18 +58,18 @@ func byteToHexChar(b byte) string {
 	return string('a' + (b - 10)) // a-f
 }
 
-func Get_Coverage_of_runner(t *T, content []interface{}) Coverage {
+func getCoverageofrunner(t *T, content []interface{}) Coverage {
 	// TODO: Make sure get coverage.
 	// TODO: The format is (function name, line)
 
 	coverage := Coverage{}
-	coverage = append(coverage, CoveredLine{co_name: "closure", co_line: 13})
-	coverage = append(coverage, CoveredLine{co_name: "closure", co_line: 14})
-	coverage = append(coverage, CoveredLine{co_name: "closure", co_line: 15})
+	coverage = append(coverage, coveredLine{coName: "closure", coLine: 13})
+	coverage = append(coverage, coveredLine{coName: "closure", coLine: 14})
+	coverage = append(coverage, coveredLine{coName: "closure", coLine: 15})
 	v, ok := content[0].(string)
 	if !ok {
-		coverage = append(coverage, CoveredLine{co_name: "closure", co_line: 16})
-		coverage = append(coverage, CoveredLine{co_name: "closure", co_line: 17})
+		coverage = append(coverage, coveredLine{coName: "closure", coLine: 16})
+		coverage = append(coverage, coveredLine{coName: "closure", coLine: 17})
 
 		panic("did not implement other type")
 	}
@@ -83,48 +78,26 @@ func Get_Coverage_of_runner(t *T, content []interface{}) Coverage {
 	if !ok2 {
 		panic("did not implement other type")
 	}
-	coverage = append(coverage, CoveredLine{co_name: "closure", co_line: 18})
-	s1 := Get_Coverage_of_Reverse1(&coverage, orig)
-	coverage = append(coverage, CoveredLine{co_name: "closure", co_line: 19})
-	s2 := Get_Coverage_of_Reverse1(&coverage, s1)
+	coverage = append(coverage, coveredLine{coName: "closure", coLine: 18})
+	s1 := getCoverageOfReverse1(&coverage, orig)
+	coverage = append(coverage, coveredLine{coName: "closure", coLine: 19})
+	s2 := getCoverageOfReverse1(&coverage, s1)
 
-	coverage = append(coverage, CoveredLine{co_name: "closure", co_line: 20})
+	coverage = append(coverage, coveredLine{coName: "closure", coLine: 20})
 	if orig != s2 && u > 300 && u < 1000 {
 
 		// println("orig=", orig, "doublereverse", s2)
-		coverage = append(coverage, CoveredLine{co_name: "closure", co_line: 21})
+		coverage = append(coverage, coveredLine{coName: "closure", coLine: 21})
 		return coverage
 	}
-	coverage = append(coverage, CoveredLine{co_name: "closure", co_line: 22})
+	coverage = append(coverage, coveredLine{coName: "closure", coLine: 22})
 
-	coverage = append(coverage, CoveredLine{co_name: "closure", co_line: 23})
+	coverage = append(coverage, coveredLine{coName: "closure", coLine: 23})
 	if utf8.ValidString(orig) && !utf8.ValidString(s1) && u > 300 && u < 1000 {
-		coverage = append(coverage, CoveredLine{co_name: "closure", co_line: 24})
+		coverage = append(coverage, coveredLine{coName: "closure", coLine: 24})
 		return coverage
 	}
-	coverage = append(coverage, CoveredLine{co_name: "closure", co_line: 25})
-	coverage = append(coverage, CoveredLine{co_name: "closure", co_line: 26})
+	coverage = append(coverage, coveredLine{coName: "closure", coLine: 25})
+	coverage = append(coverage, coveredLine{coName: "closure", coLine: 26})
 	return coverage
-}
-
-func Get_AllCoverage() Coverage {
-	return Coverage{
-		{"closure", 13},
-		{"closure", 14},
-		{"Reverse1", 37},
-		{"Reverse1", 38},
-		{"Reverse1", 39},
-		{"Reverse1", 40},
-		{"Reverse1", 41},
-		{"Reverse1", 42},
-		{"closure", 15},
-		{"closure", 16},
-		{"closure", 17},
-		{"closure", 18},
-		{"closure", 19},
-		{"closure", 20},
-		{"closure", 21},
-		{"closure", 22},
-		{"closure", 23},
-	}
 }

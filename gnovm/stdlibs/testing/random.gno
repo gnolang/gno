@@ -100,9 +100,9 @@ func RandRange(start, end int64) int64 {
 		panic("start >= end ")
 	}
 	r := GetSingleRand()
-	rand_num := r.Int64()
-	hashed_num := (rand_num) % (int64(end - start))
-	result := int64(start) + hashed_num
+	randNum := r.Int64()
+	hashedNum := (randNum) % (int64(end - start))
+	result := int64(start) + hashedNum
 
 	return result
 }
@@ -112,29 +112,29 @@ func UintRandRange(start, end uint64) uint64 {
 		panic("start >= end ")
 	}
 	r := GetSingleRand()
-	rand_num := r.Uint64()
-	hashed_num := (rand_num) % (uint64(end - start))
-	result := uint64(start) + hashed_num
+	randNum := r.Uint64()
+	hashedNum := (randNum) % (uint64(end - start))
+	result := uint64(start) + hashedNum
 
 	return result
 }
 
 func RandInt64() int64 {
 	r := GetSingleRand()
-	rand_num := r.Int64()
-	return rand_num
+	randNum := r.Int64()
+	return randNum
 }
 
 func RandUint64() uint64 {
 	r := GetSingleRand()
-	rand_num := r.Uint64()
-	return rand_num
+	randNum := r.Uint64()
+	return randNum
 }
 
 func RandUint32() uint32 {
 	r := GetSingleRand()
-	rand_num := r.Uint32()
-	return rand_num
+	randNum := r.Uint32()
+	return randNum
 }
 
 func GenerateRandomBool(bias float64) bool {

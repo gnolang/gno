@@ -8,9 +8,9 @@ import (
 type (
 	Runner func(*T, ...interface{})
 	F      struct {
-		fsm       *StateMachine
-		fhm       *HashMachine
-		corpus    []Seed
+		fsm       *stateMachine
+		fhm       *hashMachine
+		corpus    []seed
 		msgs      []string // Stores log messages for reporting.
 		failed    bool     // Indicates whether the fuzzing has encountered a failure.
 		ff        Runner
@@ -25,24 +25,43 @@ type (
 	}
 )
 
-func New_F(verbose bool, trials uint) *F {
-	new_fsm := New_StateMachine(trials, 0)
-	new_fsm.verbose = verbose
-	new_fhm := New_HashMachine()
-	return &F{
-		verbose:   verbose,
-		fsm:       new_fsm,
-		fhm:       new_fhm,
-		isFuzzed:  false,
-		seedCount: 0,
-		trials:    trials,
+func (f *F) Add(args ...interface{}) {
+	if f.isFuzzed {
+		panic("Add after Fuzz")
 	}
+	var values []interface{}
+	var types []supportedType
+	if len(args) == 0 {
+		panic("zero-argument is denied")
+	}
+	for i := range args {
+		t, e := typeof(args[i])
+		if e != nil {
+			panic("not supported type")
+		}
+		values = append(values, args[i])
+		types = append(types, t)
+	}
+
+	if f.fsm.seedType == nil {
+		f.fsm.seedType = types
+	} else {
+		if !isSliceEqual(f.fsm.seedType, types) {
+			panic("added arguments not equal together")
+		}
+	}
+	f.seedCount++
+	f.corpus = append(f.corpus, seed{
+		pid: f.seedCount,
+		id:  f.seedCount,
+		gen: 1, isCoordinated: false, content: values,
+	})
 }
 
-func typeof(arg interface{}) (SupportedType, error) {
+func typeof(arg interface{}) (supportedType, error) {
 	switch v := arg.(type) {
 	case []byte:
-		return Byte_Array, nil
+		return ByteArray, nil
 	case string:
 		return String, nil
 	case bool:
@@ -83,37 +102,16 @@ func typeof(arg interface{}) (SupportedType, error) {
 	}
 }
 
-func (f *F) Add(args ...interface{}) {
-	if f.isFuzzed {
-		panic("Add after Fuzz")
+func isSliceEqual(a, b []supportedType) bool {
+	if len(a) != len(b) {
+		return false
 	}
-	var values []interface{}
-	var types []SupportedType
-	if len(args) == 0 {
-		panic("no-argument is denied")
-	}
-	for i := range args {
-		t, e := typeof(args[i])
-		if e != nil {
-			panic("not supported type")
-		}
-		values = append(values, args[i])
-		types = append(types, t)
-	}
-
-	if f.fsm.SeedType == nil {
-		f.fsm.SeedType = types
-	} else {
-		if !isSliceEqual(f.fsm.SeedType, types) {
-			panic("added arguments not equal together")
+	for i := range a {
+		if a[i] != b[i] {
+			return false
 		}
 	}
-	f.seedCount++
-	f.corpus = append(f.corpus, Seed{
-		Pid: f.seedCount,
-		Id:  f.seedCount,
-		Gen: 1, IsCoordinated: false, Content: values,
-	})
+	return true
 }
 
 func (f *F) Fuzz(run Runner) {
@@ -132,14 +130,14 @@ func (f *F) Fuzz(run Runner) {
 			return
 		}
 
-		hashNumber := corp.HashNumber
-		f.fsm.init_hashnumber = append(f.fsm.init_hashnumber, hashNumber)
+		hashNumber := corp.hashNumber
+		f.fsm.inithashnumber = append(f.fsm.inithashnumber, hashNumber)
 		endInfo := f.fsm.CoordinateSeed(corp)
-		if endInfo.Complete_Trials {
+		if endInfo.completeTrials {
 			f.reportF()
 			return
 		}
-		if endInfo.MAXed_CAPACITY {
+		if endInfo.maxedCAPACITY {
 
 			f.migrateMachines()
 			continue
@@ -147,177 +145,137 @@ func (f *F) Fuzz(run Runner) {
 
 	}
 
-	string_byte_candidates := []int{}
-	for i, t := range f.fsm.SeedType {
-		if t == String || t == Byte_Array {
-			string_byte_candidates = append(string_byte_candidates, i)
+	stringByteCandidates := []int{}
+	for i, t := range f.fsm.seedType {
+		if t == String || t == ByteArray {
+			stringByteCandidates = append(stringByteCandidates, i)
 		}
 	}
 
-	f.fsm.string_byte_candidates = string_byte_candidates
+	f.fsm.stringByteCandidates = stringByteCandidates
 	println("Run trials...")
 
 	// format by init seeds
 	for i := 0; i < len(f.corpus); i++ {
-		hn := f.fsm.init_hashnumber[i]
-		initSeed := []Seed{f.fsm.PopInitSeedByHN(hn)}
-		is_end := f.updateMachines(initSeed)
-		if is_end {
+		hn := f.fsm.inithashnumber[i]
+		initSeed := []seed{f.fsm.PopInitSeedByHN(hn)}
+		isEnd := f.updateMachines(initSeed)
+		if isEnd {
 			return
 		}
 	}
 
 	for {
 		parentSeeds := f.fsm.PopSeeds()
-		is_end := f.updateMachines(parentSeeds)
-		if is_end {
+		isEnd := f.updateMachines(parentSeeds)
+		if isEnd {
 			return
 		}
 	}
 }
 
-type abstractSeedInfo struct {
-	seeds          []Seed
-	abstractNumber uint
+func (f *F) simulateFF(seed seed) seed {
+	coverage, err, isPanic, panicMsg := monitor(f.ff, seed.content)
+
+	// seed.hn computation
+	// This completes the status change of the seed before logging
+	hashNumber := f.fhm.RegisterCoverage2HashNumber(coverage)
+	seed.hashNumber = hashNumber
+	if isPanic {
+		tr := testResult{
+			panicOccurred: true,
+			panicMessage:  panicMsg,
+			prror:         err,
+		}
+		f.fsm.crashLogger.AddCase(seed, tr)
+		f.Fail()
+	}
+	if err != nil {
+		tr := testResult{
+			panicOccurred: false,
+			panicMessage:  "",
+			prror:         err,
+		}
+		f.fsm.crashLogger.AddCase(seed, tr)
+		f.Fail()
+	}
+	return seed
 }
 
-func (f *F) handleEndInfo(endInfo EndInfo, parentSeeds []Seed) bool {
-	if endInfo.Complete_Trials {
-		f.reportF()
-		return true
-	}
-	if endInfo.MAXed_CAPACITY {
-		for _, p := range parentSeeds {
-			f.fsm.CoordinateSeed(p)
+// TODO: Make sure to revise coverage here!!!
+// TODO: I've hard-coded coverage according to the test results here. This will be corrected later!!
+func monitor(run Runner, content []interface{}) (coverage Coverage, err error, isPanic bool, panicMsg string) {
+	isPanic = false
+	panicMsg = ""
+	err = nil
+	coverage = Coverage{}
+	defer func() {
+		if r := recover(); r != nil {
+			t := NewT("fuzzing")
+			coverage = getCoverageofrunner(t, content)
+			isPanic = true
+			if err, ok := r.(error); ok {
+				panicMsg = err.Error()
+				return
+			}
+			if s, ok := r.(string); ok {
+
+				panicMsg = s
+				return
+			}
+
+			panicMsg = "unknown panic"
 		}
-		f.migrateMachines()
-		return false
+	}()
+	t := NewT("fuzzing")
+	// Ensuring the immutability of content
+	copied := make([]interface{}, len(content))
+	for i, v := range content {
+		copied[i] = v
 	}
-	return false
+	run(t, copied...)
+	info := t.GetResult()
+	if info.Failed {
+		err = errors.New(string(info.Output))
+	}
+	// TODO: Modifying this function to get real coverage
+	// TODO: It's just pshedo-covrage of some function
+	coverage = getCoverageofrunner(t, content)
+
+	return coverage, err, isPanic, panicMsg
 }
 
-func (f *F) updateMachines(parentSeeds []Seed) bool {
-	abstractSeedMap := make(map[HashNumber]abstractSeedInfo)
-	childSeeds := Evolve(parentSeeds, &f.seedCount, f.fsm.string_byte_candidates)
-	for _, child := range childSeeds {
-		child = f.simulateFF(child)
-		if f.failed {
-			f.handleFail()
-			return true
-		}
-		hn := child.HashNumber
-		equal_hn_seeds := abstractSeedMap[hn].seeds
-		abstract_number := abstractSeedMap[hn].abstractNumber
-		if len(equal_hn_seeds) < 2 {
-			equal_hn_seeds = append(equal_hn_seeds, child)
-			abstract_number++
-		} else {
-			abstract_number++
-		}
-		absSeedInfo := abstractSeedInfo{
-			seeds:          equal_hn_seeds,
-			abstractNumber: abstract_number,
-		}
-		abstractSeedMap[hn] = absSeedInfo
-	}
-
-	for hn, absSeedInfo := range abstractSeedMap {
-		seeds := absSeedInfo.seeds
-		if len(seeds) == 1 {
-			concreteEndInfo := f.fsm.CoordinateSeed(seeds[0])
-			flag := f.handleEndInfo(concreteEndInfo, parentSeeds)
-			if flag {
-				return true
-			}
-		} else {
-			absNumber := absSeedInfo.abstractNumber - 2
-			absEndInfo := f.fsm.CoordinateAbstraction(hn, absNumber)
-			flag := f.handleEndInfo(absEndInfo, parentSeeds)
-			if flag {
-				return true
-			}
-			concreteEndInfo1 := f.fsm.CoordinateSeed(seeds[0])
-			flag = f.handleEndInfo(concreteEndInfo1, parentSeeds)
-			if flag {
-				return true
-			}
-			concreteEndInfo2 := f.fsm.CoordinateSeed(seeds[1])
-			flag = f.handleEndInfo(concreteEndInfo2, parentSeeds)
-			if flag {
-				return true
-			}
-		}
-
-	}
-	for _, p := range parentSeeds {
-		f.fsm.CoordinateSeed(p)
-	}
-	return false
+// Fail marks the function as having failed bur continue execution.
+func (f *F) Fail() {
+	f.failed = true
 }
 
 func (f *F) handleFail() {
 	f.Fail()
 	println("\n--- FAIL:")
-	log := f.fsm.Crash_Logger.data
+	log := f.fsm.crashLogger.data
 	crashCase := log[len(log)-1]
-	println("Found failing input", TransForHuman(crashCase.Input), "at", f.fsm.Input_count, "trials")
-	f.minimazeAndLogInput(crashCase.RawContent)
-	log = f.fsm.Crash_Logger.data
+	println("Found failing input", transEscapedString(crashCase.input), "at", f.fsm.inputCount, "trials")
+	f.minimazeAndLogInput(crashCase.rawContent)
+	log = f.fsm.crashLogger.data
 	minimaizedCase := log[len(log)-1]
-	println(CrashCaseToString(minimaizedCase))
-	hn := minimaizedCase.HashNumber
+	println(crashCaseToString(minimaizedCase))
+	hn := minimaizedCase.hashNumber
 	coverage := f.fhm.HashNumber2Coverage(hn)
 	if f.verbose {
 		println("\n--- Trace:")
-		println(CoverageToString(coverage))
+		println(coverageToString(coverage))
 	} else {
 		println("\n--- Trace:")
-		println("Last covered line: function \""+coverage[len(coverage)-1].co_name+"\" in line", coverage[len(coverage)-1].co_line)
+		println("Last covered line: function \""+coverage[len(coverage)-1].coName+"\" in line", coverage[len(coverage)-1].coLine)
 	}
 	return
 }
 
-func (f *F) migrateMachines() {
-	println("Machine capacity is full. Start migration...")
-	// Abstract existing state_machine
-	summarized_seeds := f.fsm.Summarize()
-	old_hashNumbers := []HashNumber{}
-	for _, seed := range summarized_seeds {
-		old_hashNumbers = append(old_hashNumbers, seed.HashNumber)
-	}
-	coverages_of_seeds := []Coverage{}
-	for _, hn := range old_hashNumbers {
-		coverages_of_seeds = append(coverages_of_seeds, f.fhm.HashNumber2Coverage(uint(hn)))
-	}
-	// Sort by re-registering existing seed coverage to the new hash machine
-	// Return the value to the seed afterwards
-	// The hash number of the seed is 0,1,2... and also registers 0,1,2 and coverage on the hash machine
-	f.fhm = New_HashMachine()
-	for i, cov := range coverages_of_seeds {
-		summarized_seeds[i].HashNumber = f.fhm.RegisterCoverage2HashNumber(cov)
-	}
-	// Create and relocate a new State_machine
-	prev_inputCount := f.fsm.Input_count
-	substracted_inputCount := int(prev_inputCount) - len(summarized_seeds)
-	prev_seedType := make([]SupportedType, len(f.fsm.SeedType))
-	copy(prev_seedType, f.fsm.SeedType)
-	prev_init_hn := f.fsm.init_hashnumber
-	prev_s_b_c := f.fsm.string_byte_candidates
-	f.fsm = New_StateMachine(f.trials, uint(substracted_inputCount))
-	f.fsm.verbose = f.verbose
-	f.fsm.SeedType = prev_seedType
-	f.fsm.init_hashnumber = prev_init_hn
-	f.fsm.string_byte_candidates = prev_s_b_c
-	for _, seed := range summarized_seeds {
-		f.fsm.CoordinateSeed(seed)
-	}
-	println("Migration completed. Resume fuzzing...")
-}
-
 func (f *F) minimazeAndLogInput(seedContent []interface{}) {
 	minimazalbeIdXs := []int{}
-	for i, t := range f.fsm.SeedType {
-		if t == Byte_Array {
+	for i, t := range f.fsm.seedType {
+		if t == ByteArray {
 			minimazalbeIdXs = append(minimazalbeIdXs, i)
 		} else if t == String {
 			minimazalbeIdXs = append(minimazalbeIdXs, i)
@@ -340,64 +298,12 @@ func (f *F) minimazeAndLogInput(seedContent []interface{}) {
 		content = progressed
 		minimazalbeIdXs = minimazalbeIdXs[occeredPoint:]
 	}
-	sampleSeed := Seed{
-		Content: content,
+	sampleSeed := seed{
+		content: content,
 	}
 	// re confirm error
 	f.simulateFF(sampleSeed)
 	println("\n--- Minimaized input:")
-}
-
-func (f *F) reportF() {
-	println("\n--- PASS")
-	println("Complete", f.fsm.Input_count, "Trials")
-	println("Found", (uint(f.fhm.hashNumber_counter.counter) + uint(1)), "coverage")
-}
-
-func (f *F) simulateFF(seed Seed) Seed {
-	coverage, err, isPanic, panicMsg := monitor(f.ff, seed.Content)
-
-	// seed.hn computation
-	// This completes the status change of the seed before logging
-	hashNumber := f.fhm.RegisterCoverage2HashNumber(coverage)
-	seed.HashNumber = hashNumber
-	if isPanic {
-		tr := TestResult{
-			PanicOccurred: true,
-			PanicMessage:  panicMsg,
-			Error:         err,
-		}
-		f.fsm.Crash_Logger.AddCase(seed, tr)
-		f.Fail()
-	}
-	if err != nil {
-		tr := TestResult{
-			PanicOccurred: false,
-			PanicMessage:  "",
-			Error:         err,
-		}
-		f.fsm.Crash_Logger.AddCase(seed, tr)
-		f.Fail()
-	}
-	return seed
-}
-
-// Fail marks the function as having failed bur continue execution.
-func (f *F) Fail() {
-	f.failed = true
-}
-
-// Fatal is equivalent to Log followed by FailNow.
-// It logs the message and marks the fuzzing as failed.
-func (f *F) Fatal(args ...interface{}) {
-	var sb strings.Builder
-
-	for _, arg := range args {
-		sb.WriteString(arg.(string))
-	}
-
-	f.msgs = append(f.msgs, sb.String())
-	f.Fail()
 }
 
 func (f *F) checkProgress(content []interface{}, minimazalbeIdXs []int) ([]interface{}, bool, int) {
@@ -486,57 +392,138 @@ func (f *F) checkPreserve(content []interface{}) PreserveFailing {
 	}
 }
 
-// TODO: Make sure to revise coverage here!!!
-// TODO: I've hard-coded coverage according to the test results here. This will be corrected later!!
-func monitor(run Runner, content []interface{}) (coverage Coverage, err error, isPanic bool, panicMsg string) {
-	isPanic = false
-	panicMsg = ""
-	err = nil
-	coverage = Coverage{}
-	defer func() {
-		if r := recover(); r != nil {
-			t := NewT("fuzzing")
-			coverage = Get_Coverage_of_runner(t, content)
-			isPanic = true
-			if err, ok := r.(error); ok {
-				panicMsg = err.Error()
-				return
-			}
-			if s, ok := r.(string); ok {
-
-				panicMsg = s
-				return
-			}
-
-			panicMsg = "unknown panic"
-		}
-	}()
-	t := NewT("fuzzing")
-	// Ensuring the immutability of content
-	copied := make([]interface{}, len(content))
-	for i, v := range content {
-		copied[i] = v
-	}
-	run(t, copied...)
-	info := t.GetResult()
-	if info.Failed {
-		err = errors.New(string(info.Output))
-	}
-	// TODO: Modifying this function to get real coverage
-	// TODO: It's just pshedo-covrage of some function
-	coverage = Get_Coverage_of_runner(t, content)
-
-	return coverage, err, isPanic, panicMsg
+func (f *F) reportF() {
+	println("\n--- PASS")
+	println("Complete", f.fsm.inputCount, "Trials")
+	println("Found", (uint(f.fhm.hashNumberCounter.counter) + uint(1)), "coverage")
 }
 
-func isSliceEqual(a, b []SupportedType) bool {
-	if len(a) != len(b) {
+func (f *F) migrateMachines() {
+	println("Machine capacity is full. Start migration...")
+	// Abstract existing state_machine
+	summarizedSeeds := f.fsm.Summarize()
+	oldHashNumbers := []HashNumber{}
+	for _, seed := range summarizedSeeds {
+		oldHashNumbers = append(oldHashNumbers, seed.hashNumber)
+	}
+	coveragesOfSeeds := []Coverage{}
+	for _, hn := range oldHashNumbers {
+		coveragesOfSeeds = append(coveragesOfSeeds, f.fhm.HashNumber2Coverage(uint(hn)))
+	}
+	// Sort by re-registering existing seed coverage to the new hash machine
+	// Return the value to the seed afterwards
+	// The hash number of the seed is 0,1,2... and also registers 0,1,2 and coverage on the hash machine
+	f.fhm = newHashMachine()
+	for i, cov := range coveragesOfSeeds {
+		summarizedSeeds[i].hashNumber = f.fhm.RegisterCoverage2HashNumber(cov)
+	}
+	// Create and relocate a new StateMachine
+	prevInputCount := f.fsm.inputCount
+	substractedInputCount := int(prevInputCount) - len(summarizedSeeds)
+	prevSeedType := make([]supportedType, len(f.fsm.seedType))
+	copy(prevSeedType, f.fsm.seedType)
+	prevInitHashNumber := f.fsm.inithashnumber
+	prevStringByteCandidates := f.fsm.stringByteCandidates
+	f.fsm = newStateMachine(f.trials, uint(substractedInputCount))
+	f.fsm.verbose = f.verbose
+	f.fsm.seedType = prevSeedType
+	f.fsm.inithashnumber = prevInitHashNumber
+	f.fsm.stringByteCandidates = prevStringByteCandidates
+	for _, seed := range summarizedSeeds {
+		f.fsm.CoordinateSeed(seed)
+	}
+	println("Migration completed. Resume fuzzing...")
+}
+
+func (f *F) updateMachines(parentSeeds []seed) bool {
+	abstractSeedMap := make(map[HashNumber]abstractSeedInfo)
+	childSeeds := evolve(parentSeeds, &f.seedCount, f.fsm.stringByteCandidates)
+	for _, child := range childSeeds {
+		child = f.simulateFF(child)
+		if f.failed {
+			f.handleFail()
+			return true
+		}
+		hn := child.hashNumber
+		equalHashNumberSeeds := abstractSeedMap[hn].seeds
+		abstractNumber := abstractSeedMap[hn].abstractNumber
+		if len(equalHashNumberSeeds) < 2 {
+			equalHashNumberSeeds = append(equalHashNumberSeeds, child)
+			abstractNumber++
+		} else {
+			abstractNumber++
+		}
+		absSeedInfo := abstractSeedInfo{
+			seeds:          equalHashNumberSeeds,
+			abstractNumber: abstractNumber,
+		}
+		abstractSeedMap[hn] = absSeedInfo
+	}
+
+	for hn, absSeedInfo := range abstractSeedMap {
+		seeds := absSeedInfo.seeds
+		if len(seeds) == 1 {
+			concreteEndInfo := f.fsm.CoordinateSeed(seeds[0])
+			flag := f.handleEndInfo(concreteEndInfo, parentSeeds)
+			if flag {
+				return true
+			}
+		} else {
+			absNumber := absSeedInfo.abstractNumber - 2
+			absEndInfo := f.fsm.CoordinateAbstraction(hn, absNumber)
+			flag := f.handleEndInfo(absEndInfo, parentSeeds)
+			if flag {
+				return true
+			}
+			concreteEndInfo1 := f.fsm.CoordinateSeed(seeds[0])
+			flag = f.handleEndInfo(concreteEndInfo1, parentSeeds)
+			if flag {
+				return true
+			}
+			concreteEndInfo2 := f.fsm.CoordinateSeed(seeds[1])
+			flag = f.handleEndInfo(concreteEndInfo2, parentSeeds)
+			if flag {
+				return true
+			}
+		}
+
+	}
+	for _, p := range parentSeeds {
+		f.fsm.CoordinateSeed(p)
+	}
+	return false
+}
+
+type abstractSeedInfo struct {
+	seeds          []seed
+	abstractNumber uint
+}
+
+func (f *F) handleEndInfo(endInfo endInfo, parentSeeds []seed) bool {
+	if endInfo.completeTrials {
+		f.reportF()
+		return true
+	}
+	if endInfo.maxedCAPACITY {
+		for _, p := range parentSeeds {
+			f.fsm.CoordinateSeed(p)
+		}
+		f.migrateMachines()
 		return false
 	}
-	for i := range a {
-		if a[i] != b[i] {
-			return false
-		}
+	return false
+}
+
+func NewF(verbose bool, trials uint) *F {
+	newFsm := newStateMachine(trials, 0)
+	newFsm.verbose = verbose
+	newFhm := newHashMachine()
+	return &F{
+		verbose:   verbose,
+		fsm:       newFsm,
+		fhm:       newFhm,
+		isFuzzed:  false,
+		seedCount: 0,
+		trials:    trials,
 	}
-	return true
 }

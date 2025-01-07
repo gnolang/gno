@@ -329,7 +329,7 @@ func RunTest(runFlag string, verbose bool, test InternalTest) (ret string) {
 
 func RunFuzz(fuzzName string, fuzzIters int, verbose bool, fuzz InternalFuzz) (ret string) {
 	var report Report
-	fuzzer := New_F(verbose, uint(fuzzIters))
+	fuzzer := NewF(verbose, uint(fuzzIters))
 	if fuzzName == "" {
 		out, _ := json.Marshal(Report{
 			Failed:  false,

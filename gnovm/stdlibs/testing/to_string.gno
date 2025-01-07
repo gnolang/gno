@@ -7,28 +7,28 @@ import (
 	"unicode/utf8"
 )
 
-// Token distinguishes whether it is "normal Unicode" or "broken bytes".
-type Token struct {
+// token distinguishes whether it is "normal Unicode" or "broken bytes".
+type token struct {
 	Data  []byte // Actual bytes of the token
 	Valid bool   // If true, characters that have successfully decoded UTF-8
 }
 
 // tokenizeString: Decode string s as UTF-8 as much as possible, keep broken bytes separate
-func TokenizeString(s string) []Token {
-	var tokens []Token
+func tokenizeString(s string) []token {
+	var tokens []token
 	b := []byte(s)
 	i := 0
 	for i < len(b) {
 		r, size := utf8.DecodeRune(b[i:])
 		switch {
 		case r == utf8.RuneError && size == 1:
-			tokens = append(tokens, Token{
+			tokens = append(tokens, token{
 				Data:  []byte{b[i]},
 				Valid: false,
 			})
 			i++
 		default:
-			tokens = append(tokens, Token{
+			tokens = append(tokens, token{
 				Data:  b[i : i+size],
 				Valid: true,
 			})
@@ -38,7 +38,7 @@ func TokenizeString(s string) []Token {
 	return tokens
 }
 
-func RebuildString(tokens []Token) string {
+func rebuildString(tokens []token) string {
 	var buf bytes.Buffer
 	for _, t := range tokens {
 		buf.Write(t.Data)
@@ -46,7 +46,7 @@ func RebuildString(tokens []Token) string {
 	return buf.String()
 }
 
-func RebuildEscaped(tokens []Token) string {
+func rebuildEscaped(tokens []token) string {
 	var result []byte
 	for _, t := range tokens {
 		if t.Valid {
@@ -70,9 +70,9 @@ func byteToHex(b byte) []byte {
 }
 
 // Recover what the escape characters break when they are printed. (e.g."�" -> "\xeb")
-func TransForHuman(s string) string {
-	toks := TokenizeString(s)
-	escaped := RebuildEscaped(toks)
+func transEscapedString(s string) string {
+	toks := tokenizeString(s)
+	escaped := rebuildEscaped(toks)
 	return escaped
 }
 
@@ -139,15 +139,15 @@ func interfacesliceToString(slice []interface{}) string {
 	return sb.String()
 }
 
-func CoverageToString(coverage Coverage) string {
+func coverageToString(coverage Coverage) string {
 	var sb strings.Builder
 	sb.WriteString("[")
 	count := 0
 	for i, line := range coverage {
 		sb.WriteString("{co_name: ")
-		sb.WriteString(line.co_name)
+		sb.WriteString(line.coName)
 		sb.WriteString(", co_line: ")
-		sb.WriteString(strconv.Itoa(line.co_line))
+		sb.WriteString(strconv.Itoa(line.coLine))
 		sb.WriteString("}")
 		count++
 		if i < len(coverage)-1 {
@@ -162,7 +162,7 @@ func CoverageToString(coverage Coverage) string {
 	return sb.String()
 }
 
-func ContentToString(content []interface{}) string {
+func contentToString(content []interface{}) string {
 	var result strings.Builder
 
 	result.WriteString("[")
@@ -230,19 +230,19 @@ func ContentToString(content []interface{}) string {
 	return result.String()
 }
 
-func CrashCaseToString(c CrashCase) string {
+func crashCaseToString(c crashCase) string {
 	var sb strings.Builder
 
 	sb.WriteString("Input: ")
-	sb.WriteString(TransForHuman(c.Input))
-	if c.IsPanic {
+	sb.WriteString(transEscapedString(c.input))
+	if c.isPanic {
 		sb.WriteString("\nPanic/Error: Panic ")
 		sb.WriteString("\nPanicMessage: \"")
-		sb.WriteString(c.PanicMessage)
+		sb.WriteString(c.panicMessage)
 	} else {
 		sb.WriteString("\nPanic/Error: Error ")
 		sb.WriteString("\nErrorMessage: ")
-		sb.WriteString("\"" + c.ErrorMsg + "\"")
+		sb.WriteString("\"" + c.errorMsg + "\"")
 	}
 
 	return sb.String()

@@ -1,302 +1,305 @@
 package testing
 
 import (
+	"errors"
 	"sort"
+	"strings"
+	"time"
 )
 
-type SupportedType string
+type supportedType string
 
 const (
-	Byte_Array SupportedType = "[]byte"
-	String     SupportedType = "string"
-	Bool       SupportedType = "bool"
-	Byte       SupportedType = "byte"
-	Rune       SupportedType = "rune"
-	Float32    SupportedType = "float32"
-	Float64    SupportedType = "float64"
-	Int        SupportedType = "int"
-	Int8       SupportedType = "int8"
-	Int16      SupportedType = "int16"
-	Int32      SupportedType = "int32"
-	Int64      SupportedType = "int64"
-	Uint       SupportedType = "uint"
-	Uint8      SupportedType = "uint8"
-	Uint16     SupportedType = "uint16"
-	Uint32     SupportedType = "uint32"
-	Uint64     SupportedType = "uint64"
+	ByteArray supportedType = "[]byte"
+	String    supportedType = "string"
+	Bool      supportedType = "bool"
+	Byte      supportedType = "byte"
+	Rune      supportedType = "rune"
+	Float32   supportedType = "float32"
+	Float64   supportedType = "float64"
+	Int       supportedType = "int"
+	Int8      supportedType = "int8"
+	Int16     supportedType = "int16"
+	Int32     supportedType = "int32"
+	Int64     supportedType = "int64"
+	Uint      supportedType = "uint"
+	Uint8     supportedType = "uint8"
+	Uint16    supportedType = "uint16"
+	Uint32    supportedType = "uint32"
+	Uint64    supportedType = "uint64"
 )
 
-type Seed struct {
-	Pid           uint
-	Id            uint
-	Gen           uint
-	IsCoordinated bool
-	HashNumber    HashNumber
-	Content       []interface{}
-	Result        interface{}
+type seed struct {
+	pid           uint
+	id            uint
+	gen           uint
+	isCoordinated bool
+	hashNumber    HashNumber
+	content       []interface{}
+	result        interface{}
 }
 
 const (
 	// Effective when path kinds(coverage) is in range 300,000~1,000,000.
 	// and effiective when iters is less than 100_000_000
 	// More than that is possible, but less effective.
-	MAX_CAPACITY     uint64 = 100_000
-	Partial_Capacity        = MAX_CAPACITY / 5
+	MaxCapacity     uint64 = 100_000
+	PartialCapacity        = MaxCapacity / 5
 )
 
-type StateMachine struct {
-	Trials      uint
-	Input_count uint
+type stateMachine struct {
+	trials     uint
+	inputCount uint
 
-	All_Coverage     Coverage // []coveredline
-	Covered_Coverage Coverage // []coveredline
+	allCoverage     Coverage // []coveredline
+	coveredCoverage Coverage // []coveredline
 
 	// for f.Add in f.Fuzz
-	SeedType               []SupportedType
-	init_hashnumber        []HashNumber
-	string_byte_candidates []int
+	seedType             []supportedType
+	inithashnumber       []HashNumber
+	stringByteCandidates []int
 
 	// for f.Fuzz
-	Priority_Cache         uint
-	HashNumber2Seeds       *[MAX_CAPACITY]*Seed_Queue
-	HashNumber2Priority    *[MAX_CAPACITY]uint
-	Priority2HashNumberULL *[MAX_CAPACITY]*Unique_Uint_LinkedList
+	priorityCache          uint
+	hashNumber2Seeds       *[MaxCapacity]*seedQueue
+	hashNumber2Priority    *[MaxCapacity]uint
+	priority2HashNumberULL *[MaxCapacity]*uniquesLinkedList
 
-	Crash_Logger          *CrashLogger
+	crashLogger           *crashLogger
 	verbose               bool
 	inspectingHashNumbers uint
 }
 
-func New_StateMachine(trials uint, inputCount uint) *StateMachine {
-	setted_AllULL := func() *[MAX_CAPACITY]*Unique_Uint_LinkedList {
-		arr := &[MAX_CAPACITY]*Unique_Uint_LinkedList{}
+func newStateMachine(trials uint, inputCount uint) *stateMachine {
+	settedAllULL := func() *[MaxCapacity]*uniquesLinkedList {
+		arr := &[MaxCapacity]*uniquesLinkedList{}
 		for i := range arr {
-			arr[i] = New_Unique_Uint_LinkedList()
+			arr[i] = newUniquesLinkedList()
 		}
 		return arr
 	}()
-	return &StateMachine{
-		Input_count:      inputCount,
-		Trials:           trials,
-		All_Coverage:     Coverage{{co_name: "nil", co_line: 0}},
-		Covered_Coverage: Coverage{{co_name: "nil", co_line: 0}},
+	return &stateMachine{
+		inputCount:      inputCount,
+		trials:          trials,
+		allCoverage:     Coverage{{coName: "nil", coLine: 0}},
+		coveredCoverage: Coverage{{coName: "nil", coLine: 0}},
 
-		Priority_Cache: 1,
+		priorityCache: 1,
 
-		HashNumber2Priority:    &[MAX_CAPACITY]uint{},
-		HashNumber2Seeds:       &[MAX_CAPACITY]*Seed_Queue{},
-		Priority2HashNumberULL: setted_AllULL,
+		hashNumber2Priority:    &[MaxCapacity]uint{},
+		hashNumber2Seeds:       &[MaxCapacity]*seedQueue{},
+		priority2HashNumberULL: settedAllULL,
 
 		inspectingHashNumbers: 0,
-		Crash_Logger:          NewCrashLogger(),
+		crashLogger:           newCrashLogger(),
 	}
 }
 
-type EndInfo struct {
-	Complete_Trials bool
-	MAXed_CAPACITY  bool
+type endInfo struct {
+	completeTrials bool
+	maxedCAPACITY  bool
 }
 
-func (sm *StateMachine) CoordinateAbstraction(hn HashNumber, abstract_number uint) EndInfo {
-	sm.Input_count = sm.Input_count + abstract_number
+func (sm *stateMachine) CoordinateAbstraction(hn HashNumber, abstractNumber uint) endInfo {
+	sm.inputCount = sm.inputCount + abstractNumber
 	// Get current priorty
 	// 1. Prior increases discontinuously
 	// 2. Hn must increase continuously
-	sm.HashNumber2Priority[hn] = sm.HashNumber2Priority[hn] + abstract_number
-	next_priority := sm.HashNumber2Priority[hn]
-	next_hn := hn
+	sm.hashNumber2Priority[hn] = sm.hashNumber2Priority[hn] + abstractNumber
+	nextPriority := sm.hashNumber2Priority[hn]
+	nextHashNumber := hn
 	if sm.verbose {
-		if (sm.Input_count-abstract_number)%2000 > sm.Input_count%2000 {
-			println(sm.Input_count, "times runned: inspecting", sm.inspectingHashNumbers, "coverages")
+		if (sm.inputCount-abstractNumber)%2000 > sm.inputCount%2000 {
+			println(sm.inputCount, "times runned: inspecting", sm.inspectingHashNumbers, "coverages")
 		}
 	} else {
-		if (sm.Input_count-abstract_number)%(sm.Trials/5) > sm.Input_count%(sm.Trials/5) {
-			println(sm.Input_count, "times runned: inspecting", sm.inspectingHashNumbers, "coverages")
+		if (sm.inputCount-abstractNumber)%(sm.trials/5) > sm.inputCount%(sm.trials/5) {
+			println(sm.inputCount, "times runned: inspecting", sm.inspectingHashNumbers, "coverages")
 		}
 	}
-	if sm.Input_count >= sm.Trials {
-		return EndInfo{
-			Complete_Trials: true,
-			MAXed_CAPACITY:  false,
+	if sm.inputCount >= sm.trials {
+		return endInfo{
+			completeTrials: true,
+			maxedCAPACITY:  false,
 		}
-	} else if uint64(next_priority) >= (MAX_CAPACITY-1) || uint64(next_hn) >= (MAX_CAPACITY-1) {
+	} else if uint64(nextPriority) >= (MaxCapacity-1) || uint64(nextHashNumber) >= (MaxCapacity-1) {
 		// Case 1: Priority reaches MAX (and protect overflow)
 		// Case 2 HashNumber reaches Max (and protect overflow)
-		return EndInfo{
-			Complete_Trials: false,
-			MAXed_CAPACITY:  true,
+		return endInfo{
+			completeTrials: false,
+			maxedCAPACITY:  true,
 		}
 	} else {
-		return EndInfo{
-			Complete_Trials: false,
-			MAXed_CAPACITY:  false,
+		return endInfo{
+			completeTrials: false,
+			maxedCAPACITY:  false,
 		}
 	}
 }
 
-func (sm *StateMachine) CoordinateSeed(seed Seed) EndInfo {
-	if seed.IsCoordinated {
-		sm.HashNumber2Seeds[seed.HashNumber].Enqueue(seed)
-		return EndInfo{
-			Complete_Trials: false,
-			MAXed_CAPACITY:  false,
+func (sm *stateMachine) CoordinateSeed(seed seed) endInfo {
+	if seed.isCoordinated {
+		sm.hashNumber2Seeds[seed.hashNumber].Enqueue(seed)
+		return endInfo{
+			completeTrials: false,
+			maxedCAPACITY:  false,
 		}
 	}
-	hn := seed.HashNumber
-	seed.IsCoordinated = true
-	sm.Input_count++
+	hn := seed.hashNumber
+	seed.isCoordinated = true
+	sm.inputCount++
 
-	if sm.HashNumber2Seeds[hn] == nil {
+	if sm.hashNumber2Seeds[hn] == nil {
 		sm.inspectingHashNumbers++
-		sm.HashNumber2Seeds[hn] = New_Seed_Queue()
+		sm.hashNumber2Seeds[hn] = newSeedQueue()
 	}
-	sm.HashNumber2Seeds[hn].Enqueue(seed)
-	old_priority := sm.HashNumber2Priority[hn]
-	sm.HashNumber2Priority[hn]++
-	updated_priority := sm.HashNumber2Priority[hn]
+	sm.hashNumber2Seeds[hn].Enqueue(seed)
+	oldPriority := sm.hashNumber2Priority[hn]
+	sm.hashNumber2Priority[hn]++
+	updatedPriority := sm.hashNumber2Priority[hn]
 
-	if updated_priority == 1 {
-		sm.Priority_Cache = 1
-		sm.Priority2HashNumberULL[updated_priority].Append(uint(hn))
+	if updatedPriority == 1 {
+		sm.priorityCache = 1
+		sm.priority2HashNumberULL[updatedPriority].Append(uint(hn))
 	} else {
-		sm.Priority2HashNumberULL[old_priority].Delete(uint(hn))
-		sm.Priority2HashNumberULL[updated_priority].Append(uint(hn))
+		sm.priority2HashNumberULL[oldPriority].Delete(uint(hn))
+		sm.priority2HashNumberULL[updatedPriority].Append(uint(hn))
 	}
 	if sm.verbose {
-		if sm.Input_count%2000 == 0 {
-			println(sm.Input_count, "times runned: inspecting", sm.inspectingHashNumbers, "coverages")
+		if sm.inputCount%2000 == 0 {
+			println(sm.inputCount, "times runned: inspecting", sm.inspectingHashNumbers, "coverages")
 		}
 	} else {
-		if sm.Input_count%(sm.Trials/5) == 0 {
-			println(sm.Input_count, "times runned: inspecting", sm.inspectingHashNumbers, "coverages")
+		if sm.inputCount%(sm.trials/5) == 0 {
+			println(sm.inputCount, "times runned: inspecting", sm.inspectingHashNumbers, "coverages")
 		}
 	}
 
-	if sm.Input_count >= sm.Trials {
-		return EndInfo{
-			Complete_Trials: true,
-			MAXed_CAPACITY:  false,
+	if sm.inputCount >= sm.trials {
+		return endInfo{
+			completeTrials: true,
+			maxedCAPACITY:  false,
 		}
-	} else if uint64(updated_priority) >= (MAX_CAPACITY-1) || uint64(hn) >= (MAX_CAPACITY-1) {
+	} else if uint64(updatedPriority) >= (MaxCapacity-1) || uint64(hn) >= (MaxCapacity-1) {
 		// Case 1: Priority reaches MAX
 		// Case 2 HashNumber reaches Max
-		return EndInfo{
-			Complete_Trials: false,
-			MAXed_CAPACITY:  true,
+		return endInfo{
+			completeTrials: false,
+			maxedCAPACITY:  true,
 		}
 	} else {
-		return EndInfo{
-			Complete_Trials: false,
-			MAXed_CAPACITY:  false,
+		return endInfo{
+			completeTrials: false,
+			maxedCAPACITY:  false,
 		}
 	}
 }
 
-func (sm *StateMachine) PopInitSeedByHN(hn HashNumber) Seed {
-	popedSeed, isOnce := sm.HashNumber2Seeds[hn].Dequeue()
+func (sm *stateMachine) PopInitSeedByHN(hn HashNumber) seed {
+	popedSeed, isOnce := sm.hashNumber2Seeds[hn].Dequeue()
 	if !isOnce {
 		panic("logical internal error: it must has more than one seed")
 	}
 	return popedSeed
 }
 
-func (sm *StateMachine) PopSeeds() []Seed {
-	var highest_hn uint
+func (sm *stateMachine) PopSeeds() []seed {
+	var highestProrityHashNumber uint
 
 	for {
 
-		hn, isExist := sm.Priority2HashNumberULL[sm.Priority_Cache].Peek()
+		hn, isExist := sm.priority2HashNumberULL[sm.priorityCache].Peek()
 		if !isExist {
-			sm.Priority_Cache++
+			sm.priorityCache++
 
 			continue
 		}
 
-		highest_hn = hn
+		highestProrityHashNumber = hn
 		break
 	}
 
-	popedSeed_1, isOnce := sm.HashNumber2Seeds[highest_hn].Dequeue()
+	popedSeed1, isOnce := sm.hashNumber2Seeds[highestProrityHashNumber].Dequeue()
 	if !isOnce {
 		panic("logical internal error: it must has more than one seed")
 	}
-	peekedSeed_2, err := sm.HashNumber2Seeds[highest_hn].Peek()
+	peekedSeed2, err := sm.hashNumber2Seeds[highestProrityHashNumber].Peek()
 	if err != nil {
-		return []Seed{popedSeed_1}
+		return []seed{popedSeed1}
 	}
-	pid_1 := popedSeed_1.Pid
-	pid_2 := peekedSeed_2.Pid
-	if pid_1 == pid_2 {
-		popedSeed_2, _ := sm.HashNumber2Seeds[highest_hn].Dequeue()
-		return []Seed{popedSeed_1, popedSeed_2}
+	pid1 := popedSeed1.pid
+	pid2 := peekedSeed2.pid
+	if pid1 == pid2 {
+		popedSeed2, _ := sm.hashNumber2Seeds[highestProrityHashNumber].Dequeue()
+		return []seed{popedSeed1, popedSeed2}
 	} else {
-		return []Seed{popedSeed_1}
+		return []seed{popedSeed1}
 	}
 }
 
-type P_HN_Pair struct {
-	Priority   uint
-	HashNumber int
+type priorytyAndHashNumber struct {
+	priority   uint
+	hashNumber int
 }
-type PHP_List []P_HN_Pair
+type priorytyHashNumberList []priorytyAndHashNumber
 
-func (phpl PHP_List) Len() int           { return len(phpl) }
-func (phpl PHP_List) Less(i, j int) bool { return phpl[i].Priority < phpl[j].Priority }
-func (phpl PHP_List) Swap(i, j int)      { phpl[i], phpl[j] = phpl[j], phpl[i] }
+func (phl priorytyHashNumberList) Len() int           { return len(phl) }
+func (phl priorytyHashNumberList) Less(i, j int) bool { return phl[i].priority < phl[j].priority }
+func (phl priorytyHashNumberList) Swap(i, j int)      { phl[i], phl[j] = phl[j], phl[i] }
 
-type S_P_Pair struct {
-	Seed     Seed
-	Priority uint
+type seedAndPrioryty struct {
+	seed     seed
+	priority uint
 }
 
-func (sm *StateMachine) Summarize() []Seed {
-	collected_P_HN_Pair := PHP_List{}
-	for i, e := range sm.HashNumber2Priority {
+func (sm *stateMachine) Summarize() []seed {
+	collectedPriorytyAndHN := priorytyHashNumberList{}
+	for i, e := range sm.hashNumber2Priority {
 
 		if e == 0 {
 			break
 		}
-		collected_P_HN_Pair = append(collected_P_HN_Pair, P_HN_Pair{
-			Priority:   e,
-			HashNumber: i,
+		collectedPriorytyAndHN = append(collectedPriorytyAndHN, priorytyAndHashNumber{
+			priority:   e,
+			hashNumber: i,
 		})
 		// Exit when slice length exceeds Partial_Capacity
-		if len(collected_P_HN_Pair) >= int(Partial_Capacity) {
+		if len(collectedPriorytyAndHN) >= int(PartialCapacity) {
 			break
 		}
 	}
 
-	sort.Sort(collected_P_HN_Pair)
+	sort.Sort(collectedPriorytyAndHN)
 
-	sampled_sp_pair := []S_P_Pair{}
+	sampledSeedAndPrioryty := []seedAndPrioryty{}
 
-	for _, pair := range collected_P_HN_Pair {
-		hn := pair.HashNumber
-		seed := sm.HashNumber2Seeds[hn].data[0]
-		priority := pair.Priority
-		sampled_sp_pair = append(sampled_sp_pair, S_P_Pair{seed, priority})
+	for _, pair := range collectedPriorytyAndHN {
+		hn := pair.hashNumber
+		seed := sm.hashNumber2Seeds[hn].data[0]
+		priority := pair.priority
+		sampledSeedAndPrioryty = append(sampledSeedAndPrioryty, seedAndPrioryty{seed, priority})
 	}
 
-	total := len(sampled_sp_pair)
+	total := len(sampledSeedAndPrioryty)
 
-	summarized_seeds := []Seed{}
+	summarizedSeeds := []seed{}
 
-	for i, sp_pair := range sampled_sp_pair {
+	for i, seedAndPriority := range sampledSeedAndPrioryty {
 
 		rank := i + 1
 
-		seed := sp_pair.Seed
-		seed.Pid = 0
-		seed.Id = uint(i)
-		seed.Gen = genAllocation(sp_pair.Priority, rank, total)
-		seed.IsCoordinated = false
+		seed := seedAndPriority.seed
+		seed.pid = 0
+		seed.id = uint(i)
+		seed.gen = allocateGen(seedAndPriority.priority, rank, total)
+		seed.isCoordinated = false
 
-		summarized_seeds = append(summarized_seeds, seed)
+		summarizedSeeds = append(summarizedSeeds, seed)
 	}
-	return summarized_seeds
+	return summarizedSeeds
 }
 
-func genAllocation(priority uint, rank int, total int) uint {
+func allocateGen(priority uint, rank int, total int) uint {
 	var bigger uint
 
 	switch rank {
@@ -313,44 +316,44 @@ func genAllocation(priority uint, rank int, total int) uint {
 	default:
 		bigger = 15
 	}
-	c1_cutLine := uint(float64(MAX_CAPACITY) * 0.008)
-	c2_cutLine := uint(float64(MAX_CAPACITY) * 0.014)
-	c3_cutLine := uint(float64(MAX_CAPACITY) * 0.02)
-	c4_cutLine := uint(float64(MAX_CAPACITY) * 0.03)
-	c5_cutLine := uint(float64(MAX_CAPACITY) * 0.08)
-	c6_cutLine := uint(float64(MAX_CAPACITY) * 0.1)
-	c7_cutLine := uint(float64(MAX_CAPACITY) * 0.15)
-	c8_cutLine := uint(float64(MAX_CAPACITY) * 0.30)
+	c1CutLine := uint(float64(MaxCapacity) * 0.008)
+	c2CutLine := uint(float64(MaxCapacity) * 0.014)
+	c3CutLine := uint(float64(MaxCapacity) * 0.02)
+	c4CutLine := uint(float64(MaxCapacity) * 0.03)
+	c5CutLine := uint(float64(MaxCapacity) * 0.08)
+	c6CutLine := uint(float64(MaxCapacity) * 0.1)
+	c7CutLine := uint(float64(MaxCapacity) * 0.15)
+	c8CutLine := uint(float64(MaxCapacity) * 0.30)
 	switch {
-	case priority <= c1_cutLine:
+	case priority <= c1CutLine:
 		if bigger > 1 {
 			bigger = 1
 		}
-	case priority <= c2_cutLine:
+	case priority <= c2CutLine:
 		if bigger > 2 {
 			bigger = 2
 		}
-	case priority <= c3_cutLine:
+	case priority <= c3CutLine:
 		if bigger > 3 {
 			bigger = 3
 		}
-	case priority <= c4_cutLine:
+	case priority <= c4CutLine:
 		if bigger > 4 {
 			bigger = 4
 		}
-	case priority <= c5_cutLine:
+	case priority <= c5CutLine:
 		if bigger > 5 {
 			bigger = 5
 		}
-	case priority <= c6_cutLine:
+	case priority <= c6CutLine:
 		if bigger > 6 {
 			bigger = 6
 		}
-	case priority <= c7_cutLine:
+	case priority <= c7CutLine:
 		if bigger > 7 {
 			bigger = 7
 		}
-	case priority <= c8_cutLine:
+	case priority <= c8CutLine:
 		if bigger > 10 {
 			bigger = 10
 		}
@@ -361,4 +364,313 @@ func genAllocation(priority uint, rank int, total int) uint {
 		}
 	}
 	return bigger
+}
+
+type testResult struct {
+	panicOccurred bool
+	panicMessage  string
+	prror         error
+}
+
+type crashCase struct {
+	hashNumber   uint
+	input        string
+	rawContent   []interface{}
+	inputCount   uint
+	isPanic      bool
+	panicMessage string
+	errorMsg     string
+	timestamp    time.Time
+}
+
+// crash logger
+type crashLogger struct {
+	data []crashCase
+}
+
+func newCrashLogger() *crashLogger {
+	return &crashLogger{
+		data: make([]crashCase, 0),
+	}
+}
+
+func (c *crashLogger) AddCase(seed seed, r testResult) {
+	var crashcase crashCase
+	if r.prror == nil {
+		crashcase = crashCase{
+			hashNumber:   uint(seed.hashNumber),
+			input:        contentToString(seed.content),
+			rawContent:   seed.content,
+			inputCount:   seed.id,
+			isPanic:      r.panicOccurred,
+			panicMessage: r.panicMessage,
+			errorMsg:     "",
+			timestamp:    time.Now(),
+		}
+	} else {
+		crashcase = crashCase{
+			hashNumber:   uint(seed.hashNumber),
+			input:        contentToString(seed.content),
+			rawContent:   seed.content,
+			inputCount:   seed.id,
+			isPanic:      r.panicOccurred,
+			panicMessage: r.panicMessage,
+			errorMsg:     strings.TrimSpace(r.prror.Error()),
+			timestamp:    time.Now(),
+		}
+	}
+	c.data = append(c.data, crashcase)
+}
+
+func (c *crashLogger) GetCase(index int) (crashCase, error) {
+	if index < 0 || index >= len(c.data) {
+		return crashCase{}, errors.New("index out of bounds")
+	}
+	return c.data[index], nil
+}
+
+func (c *crashLogger) RemoveCase(index int) error {
+	if index < 0 || index >= len(c.data) {
+		return errors.New("index out of bounds")
+	}
+	c.data = append(c.data[:index], c.data[index+1:]...)
+	return nil
+}
+
+func (c *crashLogger) ListCases() []crashCase {
+	return c.data
+}
+
+func (c *crashLogger) Size() int {
+	return len(c.data)
+}
+
+func (c *crashLogger) ClearLog() {
+	c.data = make([]crashCase, 0)
+}
+
+// data structures
+type seedQueue struct {
+	data []seed
+}
+
+func newSeedQueue() *seedQueue {
+	return &seedQueue{
+		data: make([]seed, 0),
+	}
+}
+
+func (q *seedQueue) Enqueue(seed seed) {
+	q.data = append(q.data, seed)
+}
+
+func (q *seedQueue) Dequeue() (seed, bool) {
+	if len(q.data) == 0 {
+		return seed{}, false
+	}
+
+	front := q.data[0]
+
+	q.data = q.data[1:]
+	// Reduce memory usage
+	if len(q.data) > 0 && len(q.data) <= cap(q.data)/2 {
+		newData := make([]seed, len(q.data))
+		copy(newData, q.data)
+		q.data = newData
+	}
+	return front, true
+}
+
+func (q *seedQueue) Peek() (seed, error) {
+	if len(q.data) == 0 {
+		return seed{}, errors.New("queue is empty")
+	}
+	return q.data[0], nil
+}
+
+func (q *seedQueue) Select() seed
+
+func (q *seedQueue) IsEmpty() bool {
+	return len(q.data) == 0
+}
+
+func (q *seedQueue) Size() int {
+	return len(q.data)
+}
+
+func (q *seedQueue) Display() {
+	if len(q.data) == 0 {
+		println("Queue is empty")
+		return
+	}
+	println("Queue seeds:")
+	for i, seed := range q.data {
+		println("[", i, "]: {content:", seed.content, "}")
+	}
+}
+
+// ! Data must be unique!!!
+// ! It's a list that reduces time complexity by using it!!
+// node: node in single connection list
+type node struct {
+	data uint
+	next *node
+}
+
+// uniquesLinkedList: Data Structure for Singly Linked List + O(1) Insertion/Deletion
+type uniquesLinkedList struct {
+	head      *node
+	tail      *node
+	nodeMap   map[uint]*node  // data -> node
+	parentMap map[*node]*node // node -> parent node
+}
+
+func newUniquesLinkedList() *uniquesLinkedList {
+	return &uniquesLinkedList{
+		head:      nil,
+		tail:      nil,
+		nodeMap:   make(map[uint]*node),
+		parentMap: make(map[*node]*node),
+	}
+}
+
+// -------------------------------------------------------
+// 1) Add a new node to O(1) at the end of the Appendix list
+// -------------------------------------------------------
+func (ll *uniquesLinkedList) Append(data uint) {
+	newNode := &node{data: data, next: nil}
+
+	if ll.head == nil {
+		ll.head = newNode
+		ll.tail = newNode
+		ll.nodeMap[data] = newNode
+		ll.parentMap[newNode] = nil
+		return
+	}
+
+	ll.tail.next = newNode
+	ll.parentMap[newNode] = ll.tail
+	ll.tail = newNode
+	ll.nodeMap[data] = newNode
+}
+
+// -------------------------------------------------------
+// 2) Prepend: Add a new node to O(1) in the head of the list
+// -------------------------------------------------------
+func (ll *uniquesLinkedList) Prepend(data uint) {
+	newNode := &node{data: data}
+
+	if ll.head == nil {
+		ll.head = newNode
+		ll.tail = newNode
+		ll.nodeMap[data] = newNode
+		ll.parentMap[newNode] = nil
+		return
+	}
+
+	newNode.next = ll.head
+
+	ll.parentMap[ll.head] = newNode
+
+	ll.head = newNode
+
+	ll.nodeMap[data] = newNode
+	ll.parentMap[newNode] = nil
+}
+
+// -------------------------------------------------------
+// 3) Delete: Delete node with data == value to O(1)
+// -------------------------------------------------------
+func (ll *uniquesLinkedList) Delete(value uint) {
+	targetNode, ok := ll.nodeMap[value]
+	if !ok {
+		return
+	}
+
+	if targetNode == ll.head {
+		ll.head = ll.head.next
+		if ll.head == nil {
+			ll.tail = nil
+		} else {
+			ll.parentMap[ll.head] = nil
+		}
+		delete(ll.nodeMap, value)
+		delete(ll.parentMap, targetNode)
+		return
+	}
+
+	parent := ll.parentMap[targetNode]
+	if parent == nil {
+		return
+	}
+	parent.next = targetNode.next
+
+	if targetNode == ll.tail {
+		ll.tail = parent
+	} else {
+		ll.parentMap[targetNode.next] = parent
+	}
+
+	delete(ll.nodeMap, value)
+	delete(ll.parentMap, targetNode)
+}
+
+// -------------------------------------------------------
+// 4) DeleteNode: Delete directly to O(1) with node pointer
+// -------------------------------------------------------
+func (ll *uniquesLinkedList) DeleteNode(node *node) {
+	if node == nil {
+		return
+	}
+
+	if node == ll.head {
+		ll.head = ll.head.next
+		if ll.head == nil {
+			ll.tail = nil
+		} else {
+			ll.parentMap[ll.head] = nil
+		}
+		delete(ll.nodeMap, node.data)
+		delete(ll.parentMap, node)
+		return
+	}
+
+	parent := ll.parentMap[node]
+	if parent == nil {
+		return
+	}
+	parent.next = node.next
+
+	if node == ll.tail {
+		ll.tail = parent
+	} else {
+		ll.parentMap[node.next] = parent
+	}
+
+	delete(ll.nodeMap, node.data)
+	delete(ll.parentMap, node)
+}
+
+func (ll *uniquesLinkedList) SearchNode(value uint) *node {
+	return ll.nodeMap[value]
+}
+
+func (ll *uniquesLinkedList) Display() {
+	current := ll.head
+	for current != nil {
+		println("%d -> ", current.data)
+		current = current.next
+	}
+	println("nil")
+}
+
+func (ll *uniquesLinkedList) IsEmpty() bool {
+	return ll.head == nil
+}
+
+func (ll *uniquesLinkedList) Peek() (uint, bool) {
+	if ll.head == nil {
+		return 0, false
+	}
+	return ll.head.data, true
 }
