@@ -77,6 +77,11 @@ func (pl *PkgsLoader) LoadPackages(creator bft.Address, fee std.Fee, deposit std
 		}
 	}
 
+	err = SignTxs(txs, "tendermint_test")
+	if err != nil {
+		return nil, fmt.Errorf("unable to sign txs: %w", err)
+	}
+
 	return txs, nil
 }
 

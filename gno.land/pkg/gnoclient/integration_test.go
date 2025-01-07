@@ -719,6 +719,5 @@ func loadpkgs(t *testing.T, rootdir string, paths ...string) []gnoland.TxWithMet
 
 	meta, err := loader.LoadPackages(creator, defaultFee, nil)
 	require.NoError(t, err)
-
 	return meta
 }
