@@ -74,8 +74,12 @@ func setupPackagesResolver(logger *slog.Logger, cfg *devCfg, dirs ...string) (pa
 	resolver := packages.ChainResolvers(
 		packages.ChainResolvers(localResolvers...), // Resolve local directories
 		packages.ChainResolvers(cfg.resolvers...),  // Use user's custom resolvers
-		packages.NewFSResolver(exampleRoot),        // Ultimately use fs resolver from example folder
 	)
+
+	// If not resolvers are provided, fallback on example folder
+	if len(cfg.resolvers) == 0 {
+		resolver = packages.ChainResolvers(resolver, packages.NewFSResolver(exampleRoot))
+	}
 
 	// Enrich resolver with middleware
 	return packages.MiddlewareResolver(resolver,
