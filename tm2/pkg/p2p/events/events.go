@@ -68,7 +68,12 @@ type (
 func (s *subscriptions) add(filterFn EventFilter) (string, chan Event) {
 	var (
 		id = xid.New().String()
-		ch = make(chan Event, 1)
+		// Since the event stream is non-blocking,
+		// the event buffer should be sufficiently
+		// large for most use-cases. Subscribers can
+		// handle large event load caller-side to mitigate
+		// events potentially being missed
+		ch = make(chan Event, 100)
 	)
 
 	(*s)[id] = subscription{
@@ -99,6 +104,9 @@ func (s *subscriptions) notify(event Event) {
 			continue
 		}
 
-		sub.ch <- event
+		select {
+		case sub.ch <- event:
+		default: // non-blocking
+		}
 	}
 }
