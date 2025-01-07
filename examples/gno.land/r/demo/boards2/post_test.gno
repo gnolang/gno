@@ -23,6 +23,27 @@ func TestPostUpdate(t *testing.T) {
 	uassert.False(t, post.GetUpdatedAt().IsZero())
 }
 
+func TestPostAddFlag(t *testing.T) {
+	addr := testutils.TestAddress("creator")
+	post := createTestThread(t)
+
+	flag := NewFlag(addr, "foobar")
+	uassert.True(t, post.AddFlag(flag))
+	uassert.False(t, post.AddFlag(flag), "should reject flag from duplicate user")
+	uassert.Equal(t, post.FlagsCount(), 1)
+}
+
+func TestPostSetVisible(t *testing.T) {
+	post := createTestThread(t)
+	uassert.False(t, post.IsHidden(), "post should be visible by default")
+
+	post.SetVisible(false)
+	uassert.True(t, post.IsHidden(), "post should be hidden")
+
+	post.SetVisible(true)
+	uassert.False(t, post.IsHidden(), "post should be visible")
+}
+
 func TestPostAddRepostTo(t *testing.T) {
 	cases := []struct {
 		name, title, body string
