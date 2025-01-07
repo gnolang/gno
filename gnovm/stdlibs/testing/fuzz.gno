@@ -132,7 +132,7 @@ func (f *F) Fuzz(run Runner) {
 
 		hashNumber := corp.hashNumber
 		f.fsm.inithashnumber = append(f.fsm.inithashnumber, hashNumber)
-		endInfo := f.fsm.CoordinateSeed(corp)
+		endInfo := f.fsm.coordinateSeed(corp)
 		if endInfo.completeTrials {
 			f.reportF()
 			return
@@ -158,7 +158,7 @@ func (f *F) Fuzz(run Runner) {
 	// format by init seeds
 	for i := 0; i < len(f.corpus); i++ {
 		hn := f.fsm.inithashnumber[i]
-		initSeed := []seed{f.fsm.PopInitSeedByHN(hn)}
+		initSeed := []seed{f.fsm.popInitSeedByHN(hn)}
 		isEnd := f.updateMachines(initSeed)
 		if isEnd {
 			return
@@ -166,7 +166,7 @@ func (f *F) Fuzz(run Runner) {
 	}
 
 	for {
-		parentSeeds := f.fsm.PopSeeds()
+		parentSeeds := f.fsm.popSeeds()
 		isEnd := f.updateMachines(parentSeeds)
 		if isEnd {
 			return
@@ -179,7 +179,7 @@ func (f *F) simulateFF(seed seed) seed {
 
 	// seed.hn computation
 	// This completes the status change of the seed before logging
-	hashNumber := f.fhm.RegisterCoverage2HashNumber(coverage)
+	hashNumber := f.fhm.registerCoverage2HashNumber(coverage)
 	seed.hashNumber = hashNumber
 	if isPanic {
 		tr := testResult{
@@ -187,7 +187,7 @@ func (f *F) simulateFF(seed seed) seed {
 			panicMessage:  panicMsg,
 			prror:         err,
 		}
-		f.fsm.crashLogger.AddCase(seed, tr)
+		f.fsm.crashLogger.addCase(seed, tr)
 		f.Fail()
 	}
 	if err != nil {
@@ -196,7 +196,7 @@ func (f *F) simulateFF(seed seed) seed {
 			panicMessage:  "",
 			prror:         err,
 		}
-		f.fsm.crashLogger.AddCase(seed, tr)
+		f.fsm.crashLogger.addCase(seed, tr)
 		f.Fail()
 	}
 	return seed
@@ -261,7 +261,7 @@ func (f *F) handleFail() {
 	minimaizedCase := log[len(log)-1]
 	println(crashCaseToString(minimaizedCase))
 	hn := minimaizedCase.hashNumber
-	coverage := f.fhm.HashNumber2Coverage(hn)
+	coverage := f.fhm.hashNumber2Coverage(hn)
 	if f.verbose {
 		println("\n--- Trace:")
 		println(coverageToString(coverage))
@@ -366,7 +366,7 @@ type PreserveFailing struct {
 
 func (f *F) checkPreserve(content []interface{}) PreserveFailing {
 	coverage, err, isPanic, panicMsg := monitor(f.ff, content)
-	hashNumber := f.fhm.RegisterCoverage2HashNumber(coverage)
+	hashNumber := f.fhm.registerCoverage2HashNumber(coverage)
 	if isPanic {
 		return PreserveFailing{
 			errorIsPreserved: true,
@@ -401,21 +401,21 @@ func (f *F) reportF() {
 func (f *F) migrateMachines() {
 	println("Machine capacity is full. Start migration...")
 	// Abstract existing state_machine
-	summarizedSeeds := f.fsm.Summarize()
+	summarizedSeeds := f.fsm.summarize()
 	oldHashNumbers := []HashNumber{}
 	for _, seed := range summarizedSeeds {
 		oldHashNumbers = append(oldHashNumbers, seed.hashNumber)
 	}
 	coveragesOfSeeds := []Coverage{}
 	for _, hn := range oldHashNumbers {
-		coveragesOfSeeds = append(coveragesOfSeeds, f.fhm.HashNumber2Coverage(uint(hn)))
+		coveragesOfSeeds = append(coveragesOfSeeds, f.fhm.hashNumber2Coverage(uint(hn)))
 	}
 	// Sort by re-registering existing seed coverage to the new hash machine
 	// Return the value to the seed afterwards
 	// The hash number of the seed is 0,1,2... and also registers 0,1,2 and coverage on the hash machine
 	f.fhm = newHashMachine()
 	for i, cov := range coveragesOfSeeds {
-		summarizedSeeds[i].hashNumber = f.fhm.RegisterCoverage2HashNumber(cov)
+		summarizedSeeds[i].hashNumber = f.fhm.registerCoverage2HashNumber(cov)
 	}
 	// Create and relocate a new StateMachine
 	prevInputCount := f.fsm.inputCount
@@ -430,7 +430,7 @@ func (f *F) migrateMachines() {
 	f.fsm.inithashnumber = prevInitHashNumber
 	f.fsm.stringByteCandidates = prevStringByteCandidates
 	for _, seed := range summarizedSeeds {
-		f.fsm.CoordinateSeed(seed)
+		f.fsm.coordinateSeed(seed)
 	}
 	println("Migration completed. Resume fuzzing...")
 }
@@ -463,24 +463,24 @@ func (f *F) updateMachines(parentSeeds []seed) bool {
 	for hn, absSeedInfo := range abstractSeedMap {
 		seeds := absSeedInfo.seeds
 		if len(seeds) == 1 {
-			concreteEndInfo := f.fsm.CoordinateSeed(seeds[0])
+			concreteEndInfo := f.fsm.coordinateSeed(seeds[0])
 			flag := f.handleEndInfo(concreteEndInfo, parentSeeds)
 			if flag {
 				return true
 			}
 		} else {
 			absNumber := absSeedInfo.abstractNumber - 2
-			absEndInfo := f.fsm.CoordinateAbstraction(hn, absNumber)
+			absEndInfo := f.fsm.coordinateAbstraction(hn, absNumber)
 			flag := f.handleEndInfo(absEndInfo, parentSeeds)
 			if flag {
 				return true
 			}
-			concreteEndInfo1 := f.fsm.CoordinateSeed(seeds[0])
+			concreteEndInfo1 := f.fsm.coordinateSeed(seeds[0])
 			flag = f.handleEndInfo(concreteEndInfo1, parentSeeds)
 			if flag {
 				return true
 			}
-			concreteEndInfo2 := f.fsm.CoordinateSeed(seeds[1])
+			concreteEndInfo2 := f.fsm.coordinateSeed(seeds[1])
 			flag = f.handleEndInfo(concreteEndInfo2, parentSeeds)
 			if flag {
 				return true
@@ -489,7 +489,7 @@ func (f *F) updateMachines(parentSeeds []seed) bool {
 
 	}
 	for _, p := range parentSeeds {
-		f.fsm.CoordinateSeed(p)
+		f.fsm.coordinateSeed(p)
 	}
 	return false
 }
@@ -506,7 +506,7 @@ func (f *F) handleEndInfo(endInfo endInfo, parentSeeds []seed) bool {
 	}
 	if endInfo.maxedCAPACITY {
 		for _, p := range parentSeeds {
-			f.fsm.CoordinateSeed(p)
+			f.fsm.coordinateSeed(p)
 		}
 		f.migrateMachines()
 		return false

@@ -24,15 +24,15 @@ type hashMachine struct {
 	hashNumberCounter       *hashNumberCounter
 }
 
-func (hm *hashMachine) RegisterCoverage2HashNumber(coverage Coverage) HashNumber {
+func (hm *hashMachine) registerCoverage2HashNumber(coverage Coverage) HashNumber {
 	internalHash := getInternalHash(coverage)
 	hm.Internal2Cov[internalHash] = coverage
-	hashNumber := hm.CountHashNumber(internalHash)
+	hashNumber := hm.countHashNumber(internalHash)
 	hm.HashNumber2Internal[hashNumber] = internalHash
 	return HashNumber(hashNumber)
 }
 
-func (hm *hashMachine) HashNumber2Coverage(hn uint) Coverage {
+func (hm *hashMachine) hashNumber2Coverage(hn uint) Coverage {
 	internal := hm.HashNumber2Internal[hn]
 	cov := hm.Internal2Cov[internal]
 	return cov
@@ -57,7 +57,7 @@ func newHashMachine() *hashMachine {
 	}
 }
 
-func (hm *hashMachine) CountHashNumber(ih internalHash) HashNumber {
+func (hm *hashMachine) countHashNumber(ih internalHash) HashNumber {
 	if value, exists := hm.internalHash2hashNumber[ih]; exists {
 		// If the key exists, return the value
 		return value

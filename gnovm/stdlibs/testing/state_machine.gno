@@ -100,7 +100,7 @@ type endInfo struct {
 	maxedCAPACITY  bool
 }
 
-func (sm *stateMachine) CoordinateAbstraction(hn HashNumber, abstractNumber uint) endInfo {
+func (sm *stateMachine) coordinateAbstraction(hn HashNumber, abstractNumber uint) endInfo {
 	sm.inputCount = sm.inputCount + abstractNumber
 	// Get current priorty
 	// 1. Prior increases discontinuously
@@ -137,9 +137,9 @@ func (sm *stateMachine) CoordinateAbstraction(hn HashNumber, abstractNumber uint
 	}
 }
 
-func (sm *stateMachine) CoordinateSeed(seed seed) endInfo {
+func (sm *stateMachine) coordinateSeed(seed seed) endInfo {
 	if seed.isCoordinated {
-		sm.hashNumber2Seeds[seed.hashNumber].Enqueue(seed)
+		sm.hashNumber2Seeds[seed.hashNumber].enqueue(seed)
 		return endInfo{
 			completeTrials: false,
 			maxedCAPACITY:  false,
@@ -153,17 +153,17 @@ func (sm *stateMachine) CoordinateSeed(seed seed) endInfo {
 		sm.inspectingHashNumbers++
 		sm.hashNumber2Seeds[hn] = newSeedQueue()
 	}
-	sm.hashNumber2Seeds[hn].Enqueue(seed)
+	sm.hashNumber2Seeds[hn].enqueue(seed)
 	oldPriority := sm.hashNumber2Priority[hn]
 	sm.hashNumber2Priority[hn]++
 	updatedPriority := sm.hashNumber2Priority[hn]
 
 	if updatedPriority == 1 {
 		sm.priorityCache = 1
-		sm.priority2HashNumberULL[updatedPriority].Append(uint(hn))
+		sm.priority2HashNumberULL[updatedPriority].append(uint(hn))
 	} else {
-		sm.priority2HashNumberULL[oldPriority].Delete(uint(hn))
-		sm.priority2HashNumberULL[updatedPriority].Append(uint(hn))
+		sm.priority2HashNumberULL[oldPriority].delete(uint(hn))
+		sm.priority2HashNumberULL[updatedPriority].append(uint(hn))
 	}
 	if sm.verbose {
 		if sm.inputCount%2000 == 0 {
@@ -195,20 +195,20 @@ func (sm *stateMachine) CoordinateSeed(seed seed) endInfo {
 	}
 }
 
-func (sm *stateMachine) PopInitSeedByHN(hn HashNumber) seed {
-	popedSeed, isOnce := sm.hashNumber2Seeds[hn].Dequeue()
+func (sm *stateMachine) popInitSeedByHN(hn HashNumber) seed {
+	popedSeed, isOnce := sm.hashNumber2Seeds[hn].dequeue()
 	if !isOnce {
 		panic("logical internal error: it must has more than one seed")
 	}
 	return popedSeed
 }
 
-func (sm *stateMachine) PopSeeds() []seed {
+func (sm *stateMachine) popSeeds() []seed {
 	var highestProrityHashNumber uint
 
 	for {
 
-		hn, isExist := sm.priority2HashNumberULL[sm.priorityCache].Peek()
+		hn, isExist := sm.priority2HashNumberULL[sm.priorityCache].peek()
 		if !isExist {
 			sm.priorityCache++
 
@@ -219,18 +219,18 @@ func (sm *stateMachine) PopSeeds() []seed {
 		break
 	}
 
-	popedSeed1, isOnce := sm.hashNumber2Seeds[highestProrityHashNumber].Dequeue()
+	popedSeed1, isOnce := sm.hashNumber2Seeds[highestProrityHashNumber].dequeue()
 	if !isOnce {
 		panic("logical internal error: it must has more than one seed")
 	}
-	peekedSeed2, err := sm.hashNumber2Seeds[highestProrityHashNumber].Peek()
+	peekedSeed2, err := sm.hashNumber2Seeds[highestProrityHashNumber].peek()
 	if err != nil {
 		return []seed{popedSeed1}
 	}
 	pid1 := popedSeed1.pid
 	pid2 := peekedSeed2.pid
 	if pid1 == pid2 {
-		popedSeed2, _ := sm.hashNumber2Seeds[highestProrityHashNumber].Dequeue()
+		popedSeed2, _ := sm.hashNumber2Seeds[highestProrityHashNumber].dequeue()
 		return []seed{popedSeed1, popedSeed2}
 	} else {
 		return []seed{popedSeed1}
@@ -252,7 +252,7 @@ type seedAndPrioryty struct {
 	priority uint
 }
 
-func (sm *stateMachine) Summarize() []seed {
+func (sm *stateMachine) summarize() []seed {
 	collectedPriorytyAndHN := priorytyHashNumberList{}
 	for i, e := range sm.hashNumber2Priority {
 
@@ -394,7 +394,7 @@ func newCrashLogger() *crashLogger {
 	}
 }
 
-func (c *crashLogger) AddCase(seed seed, r testResult) {
+func (c *crashLogger) addCase(seed seed, r testResult) {
 	var crashcase crashCase
 	if r.prror == nil {
 		crashcase = crashCase{
@@ -422,33 +422,6 @@ func (c *crashLogger) AddCase(seed seed, r testResult) {
 	c.data = append(c.data, crashcase)
 }
 
-func (c *crashLogger) GetCase(index int) (crashCase, error) {
-	if index < 0 || index >= len(c.data) {
-		return crashCase{}, errors.New("index out of bounds")
-	}
-	return c.data[index], nil
-}
-
-func (c *crashLogger) RemoveCase(index int) error {
-	if index < 0 || index >= len(c.data) {
-		return errors.New("index out of bounds")
-	}
-	c.data = append(c.data[:index], c.data[index+1:]...)
-	return nil
-}
-
-func (c *crashLogger) ListCases() []crashCase {
-	return c.data
-}
-
-func (c *crashLogger) Size() int {
-	return len(c.data)
-}
-
-func (c *crashLogger) ClearLog() {
-	c.data = make([]crashCase, 0)
-}
-
 // data structures
 type seedQueue struct {
 	data []seed
@@ -460,11 +433,11 @@ func newSeedQueue() *seedQueue {
 	}
 }
 
-func (q *seedQueue) Enqueue(seed seed) {
+func (q *seedQueue) enqueue(seed seed) {
 	q.data = append(q.data, seed)
 }
 
-func (q *seedQueue) Dequeue() (seed, bool) {
+func (q *seedQueue) dequeue() (seed, bool) {
 	if len(q.data) == 0 {
 		return seed{}, false
 	}
@@ -481,32 +454,11 @@ func (q *seedQueue) Dequeue() (seed, bool) {
 	return front, true
 }
 
-func (q *seedQueue) Peek() (seed, error) {
+func (q *seedQueue) peek() (seed, error) {
 	if len(q.data) == 0 {
 		return seed{}, errors.New("queue is empty")
 	}
 	return q.data[0], nil
-}
-
-func (q *seedQueue) Select() seed
-
-func (q *seedQueue) IsEmpty() bool {
-	return len(q.data) == 0
-}
-
-func (q *seedQueue) Size() int {
-	return len(q.data)
-}
-
-func (q *seedQueue) Display() {
-	if len(q.data) == 0 {
-		println("Queue is empty")
-		return
-	}
-	println("Queue seeds:")
-	for i, seed := range q.data {
-		println("[", i, "]: {content:", seed.content, "}")
-	}
 }
 
 // ! Data must be unique!!!
@@ -537,7 +489,7 @@ func newUniquesLinkedList() *uniquesLinkedList {
 // -------------------------------------------------------
 // 1) Add a new node to O(1) at the end of the Appendix list
 // -------------------------------------------------------
-func (ll *uniquesLinkedList) Append(data uint) {
+func (ll *uniquesLinkedList) append(data uint) {
 	newNode := &node{data: data, next: nil}
 
 	if ll.head == nil {
@@ -557,7 +509,7 @@ func (ll *uniquesLinkedList) Append(data uint) {
 // -------------------------------------------------------
 // 2) Prepend: Add a new node to O(1) in the head of the list
 // -------------------------------------------------------
-func (ll *uniquesLinkedList) Prepend(data uint) {
+func (ll *uniquesLinkedList) prepend(data uint) {
 	newNode := &node{data: data}
 
 	if ll.head == nil {
@@ -581,7 +533,7 @@ func (ll *uniquesLinkedList) Prepend(data uint) {
 // -------------------------------------------------------
 // 3) Delete: Delete node with data == value to O(1)
 // -------------------------------------------------------
-func (ll *uniquesLinkedList) Delete(value uint) {
+func (ll *uniquesLinkedList) delete(value uint) {
 	targetNode, ok := ll.nodeMap[value]
 	if !ok {
 		return
@@ -618,7 +570,7 @@ func (ll *uniquesLinkedList) Delete(value uint) {
 // -------------------------------------------------------
 // 4) DeleteNode: Delete directly to O(1) with node pointer
 // -------------------------------------------------------
-func (ll *uniquesLinkedList) DeleteNode(node *node) {
+func (ll *uniquesLinkedList) deleteNode(node *node) {
 	if node == nil {
 		return
 	}
@@ -651,11 +603,11 @@ func (ll *uniquesLinkedList) DeleteNode(node *node) {
 	delete(ll.parentMap, node)
 }
 
-func (ll *uniquesLinkedList) SearchNode(value uint) *node {
+func (ll *uniquesLinkedList) searchNode(value uint) *node {
 	return ll.nodeMap[value]
 }
 
-func (ll *uniquesLinkedList) Display() {
+func (ll *uniquesLinkedList) display() {
 	current := ll.head
 	for current != nil {
 		println("%d -> ", current.data)
@@ -664,11 +616,11 @@ func (ll *uniquesLinkedList) Display() {
 	println("nil")
 }
 
-func (ll *uniquesLinkedList) IsEmpty() bool {
+func (ll *uniquesLinkedList) isEmpty() bool {
 	return ll.head == nil
 }
 
-func (ll *uniquesLinkedList) Peek() (uint, bool) {
+func (ll *uniquesLinkedList) peek() (uint, bool) {
 	if ll.head == nil {
 		return 0, false
 	}
