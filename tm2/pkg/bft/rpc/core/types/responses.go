@@ -11,6 +11,7 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/bft/types"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
 	"github.com/gnolang/gno/tm2/pkg/p2p"
+	p2pTypes "github.com/gnolang/gno/tm2/pkg/p2p/types"
 )
 
 // List of blocks
@@ -74,9 +75,9 @@ type ValidatorInfo struct {
 
 // Node Status
 type ResultStatus struct {
-	NodeInfo      p2p.NodeInfo  `json:"node_info"`
-	SyncInfo      SyncInfo      `json:"sync_info"`
-	ValidatorInfo ValidatorInfo `json:"validator_info"`
+	NodeInfo      p2pTypes.NodeInfo `json:"node_info"`
+	SyncInfo      SyncInfo          `json:"sync_info"`
+	ValidatorInfo ValidatorInfo     `json:"validator_info"`
 }
 
 // Is TxIndexing enabled
@@ -107,7 +108,7 @@ type ResultDialPeers struct {
 
 // A peer
 type Peer struct {
-	NodeInfo         p2p.NodeInfo         `json:"node_info"`
+	NodeInfo         p2pTypes.NodeInfo    `json:"node_info"`
 	IsOutbound       bool                 `json:"is_outbound"`
 	ConnectionStatus p2p.ConnectionStatus `json:"connection_status"`
 	RemoteIP         string               `json:"remote_ip"`
