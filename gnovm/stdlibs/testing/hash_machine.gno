@@ -5,24 +5,25 @@ import (
 	"strings"
 )
 
-type coveredLine struct {
-	coName string
-	coLine int
-}
-
-type Coverage []coveredLine
-
-type (
-	internalHash uint64
-	HashNumber   uint64
-)
-
 type hashMachine struct {
 	Internal2Cov            map[internalHash]Coverage
 	HashNumber2Internal     *[MaxCapacity]internalHash
 	internalHash2hashNumber map[internalHash]HashNumber
 	hashNumberCounter       *hashNumberCounter
 }
+
+type (
+	Coverage    []coveredLine
+	coveredLine struct {
+		coName string
+		coLine int
+	}
+	internalHash      uint64
+	HashNumber        uint64
+	hashNumberCounter struct {
+		counter HashNumber
+	}
+)
 
 func (hm *hashMachine) registerCoverage2HashNumber(coverage Coverage) HashNumber {
 	internalHash := getInternalHash(coverage)
@@ -32,41 +33,11 @@ func (hm *hashMachine) registerCoverage2HashNumber(coverage Coverage) HashNumber
 	return HashNumber(hashNumber)
 }
 
-func (hm *hashMachine) hashNumber2Coverage(hn uint) Coverage {
-	internal := hm.HashNumber2Internal[hn]
-	cov := hm.Internal2Cov[internal]
-	return cov
-}
-
-type hashNumberCounter struct {
-	counter HashNumber
-}
-
-func newHashNumberCounter(counter HashNumber) *hashNumberCounter {
-	return &hashNumberCounter{
-		counter: counter,
-	}
-}
-
-func newHashMachine() *hashMachine {
-	return &hashMachine{
-		HashNumber2Internal:     &[MaxCapacity]internalHash{},
-		hashNumberCounter:       newHashNumberCounter(0),
-		Internal2Cov:            make(map[internalHash]Coverage),
-		internalHash2hashNumber: make(map[internalHash]HashNumber),
-	}
-}
-
-func (hm *hashMachine) countHashNumber(ih internalHash) HashNumber {
-	if value, exists := hm.internalHash2hashNumber[ih]; exists {
-		// If the key exists, return the value
-		return value
-	}
-	hm.internalHash2hashNumber[ih] = hm.hashNumberCounter.counter
-	current := hm.hashNumberCounter.counter
-
-	hm.hashNumberCounter.counter++
-	return current
+// calculates hash numbers without removing redundancy of line iterations in coverage
+func getInternalHash(input Coverage) internalHash {
+	valBytes := coverageToBytes(input)
+	valArray := sha256.Sum256(valBytes)
+	return internalHash(bytesToUint64(valArray))
 }
 
 func coverageToBytes(coverage Coverage) []byte {
@@ -105,46 +76,41 @@ func intToString(n int) string {
 	return string(digits)
 }
 
-// calculates hash numbers without removing redundancy of line iterations in coverage
-func getInternalHash(input Coverage) internalHash {
-	valBytes := coverageToBytes(input)
-	valArray := sha256.Sum256(valBytes)
-	return internalHash(bytesToUint64(valArray))
-}
-
 // bytesToUint64 converts the first 8 bytes of a SHA256 hash to uint64
 func bytesToUint64(b [32]byte) uint64 {
 	return uint64(b[0])<<56 | uint64(b[1])<<48 | uint64(b[2])<<40 | uint64(b[3])<<32 |
 		uint64(b[4])<<24 | uint64(b[5])<<16 | uint64(b[6])<<8 | uint64(b[7])
 }
 
-func removeDuplicates(coverage Coverage) Coverage {
-	uniqueMap := make(map[coveredLine]bool)
-	result := Coverage{}
-
-	for _, line := range coverage {
-		if !uniqueMap[line] {
-			uniqueMap[line] = true
-			result = append(result, line)
-		}
+func (hm *hashMachine) countHashNumber(ih internalHash) HashNumber {
+	if value, exists := hm.internalHash2hashNumber[ih]; exists {
+		// If the key exists, return the value
+		return value
 	}
+	hm.internalHash2hashNumber[ih] = hm.hashNumberCounter.counter
+	current := hm.hashNumberCounter.counter
 
-	return result
+	hm.hashNumberCounter.counter++
+	return current
 }
 
-func findDifferences(cov1, cov2 Coverage) Coverage {
-	diff := Coverage{}
-	for _, line1 := range cov1 {
-		found := false
-		for _, line2 := range cov2 {
-			if line1.coName == line2.coName && line1.coLine == line2.coLine {
-				found = true
-				break
-			}
-		}
-		if !found {
-			diff = append(diff, line1)
-		}
+func (hm *hashMachine) hashNumber2Coverage(hn uint) Coverage {
+	internal := hm.HashNumber2Internal[hn]
+	cov := hm.Internal2Cov[internal]
+	return cov
+}
+
+func newHashNumberCounter(counter HashNumber) *hashNumberCounter {
+	return &hashNumberCounter{
+		counter: counter,
 	}
-	return diff
+}
+
+func newHashMachine() *hashMachine {
+	return &hashMachine{
+		HashNumber2Internal:     &[MaxCapacity]internalHash{},
+		hashNumberCounter:       newHashNumberCounter(0),
+		Internal2Cov:            make(map[internalHash]Coverage),
+		internalHash2hashNumber: make(map[internalHash]HashNumber),
+	}
 }

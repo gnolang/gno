@@ -5,6 +5,28 @@ import (
 	"strings"
 )
 
+type supportedType string
+
+const (
+	ByteArray supportedType = "[]byte"
+	String    supportedType = "string"
+	Bool      supportedType = "bool"
+	Byte      supportedType = "byte"
+	Rune      supportedType = "rune"
+	Float32   supportedType = "float32"
+	Float64   supportedType = "float64"
+	Int       supportedType = "int"
+	Int8      supportedType = "int8"
+	Int16     supportedType = "int16"
+	Int32     supportedType = "int32"
+	Int64     supportedType = "int64"
+	Uint      supportedType = "uint"
+	Uint8     supportedType = "uint8"
+	Uint16    supportedType = "uint16"
+	Uint32    supportedType = "uint32"
+	Uint64    supportedType = "uint64"
+)
+
 type (
 	Runner func(*T, ...interface{})
 	F      struct {

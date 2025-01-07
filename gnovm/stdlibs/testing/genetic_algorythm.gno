@@ -5,6 +5,94 @@ import (
 	"time"
 )
 
+// Returns the parents and returns the child.
+// fluidized the number and degree of mutation along Gen
+// Seeds received as parameters are invariant referenced within the function.
+func evolve(seeds []seed, seedCount *uint, stringByteCandidates []int) []seed {
+	p1 := seeds[0]
+	MutationStrength := [10]int{5, 4, 3, 3, 3, 2, 2, 2, 2, 2}
+	var mutationStrength int
+	if int(p1.gen) > len(MutationStrength) {
+		mutationStrength = 1
+	} else {
+		mutationStrength = MutationStrength[p1.gen-1]
+	}
+	MakingCount := [10]int{1920, 1440, 1200, 1024, 960, 720, 600, 480, 360, 240}
+	var makingCount int
+	if int(p1.gen) > len(MakingCount) {
+		makingCount = 240
+	} else {
+		makingCount = MakingCount[p1.gen-1]
+	}
+
+	loopCount := makingCount / 2
+
+	newGeneration := []seed{}
+
+	if len(seeds) == 1 {
+
+		for i := 0; i < int(makingCount); i++ {
+			newContent := make([]interface{}, len(seeds[0].content))
+			for i, v := range seeds[0].content {
+				newContent[i] = v
+			}
+			*seedCount++
+			newInd := seed{
+				gen:           seeds[0].gen + 1,
+				isCoordinated: false,
+				content:       newContent,
+				result:        nil,
+				pid:           seeds[0].id,
+				id:            *seedCount,
+			}
+
+			// 60% range
+			randSeed := i % 5
+			if randSeed <= 2 {
+				newInd = mutate(newInd, mutationStrength)
+			}
+			// 40% range with 20% intersection
+			if randSeed == 2 || randSeed == 3 {
+				newInd = insertDelete(newInd, 0.5, mutationStrength, stringByteCandidates)
+			}
+
+			newInd.gen = seeds[0].gen + 1
+			newGeneration = append(newGeneration, newInd)
+
+		}
+		return newGeneration
+	}
+
+	if len(seeds) > 3 {
+		panic("not covered len")
+	}
+
+	p2 := seeds[1]
+
+	for i := 0; i < int(loopCount); i++ {
+		c1, c2 := twoPointCrossover(p1, p2, seedCount)
+		newGeneration = append(newGeneration, c1)
+		newGeneration = append(newGeneration, c2)
+
+	}
+
+	for i := range newGeneration {
+		randSeed := i % 10
+
+		// 40% range
+		if randSeed <= 3 {
+			newGeneration[i] = mutate(newGeneration[i], mutationStrength)
+		}
+		// 30%range and 10% intersection
+		if randSeed >= 3 && randSeed <= 5 {
+			newGeneration[i] = insertDelete(newGeneration[i], 0.5, mutationStrength, stringByteCandidates)
+		}
+
+	}
+
+	return newGeneration
+}
+
 func mutate(seed seed, mutationStrength int) seed {
 	if len(seed.content) == 0 {
 		panic("mutate logic error: content's len==0")
@@ -316,92 +404,309 @@ func twoPointCrossover(parent1, parent2 seed, seedCount *uint) (seed, seed) {
 	return updatedIdv1, updatedIdv2
 }
 
-// Returns the parents and returns the child.
-// fluidized the number and degree of mutation along Gen
-// Seeds received as parameters are invariant referenced within the function.
-func evolve(seeds []seed, seedCount *uint, stringByteCandidates []int) []seed {
-	p1 := seeds[0]
-	MutationStrength := [10]int{5, 4, 3, 3, 3, 2, 2, 2, 2, 2}
-	var mutationStrength int
-	if int(p1.gen) > len(MutationStrength) {
-		mutationStrength = 1
-	} else {
-		mutationStrength = MutationStrength[p1.gen-1]
-	}
-	MakingCount := [10]int{1920, 1440, 1200, 1024, 960, 720, 600, 480, 360, 240}
-	var makingCount int
-	if int(p1.gen) > len(MakingCount) {
-		makingCount = 240
-	} else {
-		makingCount = MakingCount[p1.gen-1]
-	}
-
-	loopCount := makingCount / 2
-
-	newGeneration := []seed{}
-
-	if len(seeds) == 1 {
-
-		for i := 0; i < int(makingCount); i++ {
-			newContent := make([]interface{}, len(seeds[0].content))
-			for i, v := range seeds[0].content {
-				newContent[i] = v
-			}
-			*seedCount++
-			newInd := seed{
-				gen:           seeds[0].gen + 1,
-				isCoordinated: false,
-				content:       newContent,
-				result:        nil,
-				pid:           seeds[0].id,
-				id:            *seedCount,
-			}
-
-			// 60% range
-			randSeed := i % 5
-			if randSeed <= 2 {
-				newInd = mutate(newInd, mutationStrength)
-			}
-			// 40% range with 20% intersection
-			if randSeed == 2 || randSeed == 3 {
-				newInd = insertDelete(newInd, 0.5, mutationStrength, stringByteCandidates)
-			}
-
-			newInd.gen = seeds[0].gen + 1
-			newGeneration = append(newGeneration, newInd)
-
+func factorizationCrossover(a interface{}, b interface{}) (interface{}, interface{}) {
+	switch v1 := a.(type) {
+	case int:
+		v2, ok := b.(int)
+		if !ok {
+			panic("type not equal")
 		}
-		return newGeneration
-	}
-
-	if len(seeds) > 3 {
-		panic("not covered len")
-	}
-
-	p2 := seeds[1]
-
-	for i := 0; i < int(loopCount); i++ {
-		c1, c2 := twoPointCrossover(p1, p2, seedCount)
-		newGeneration = append(newGeneration, c1)
-		newGeneration = append(newGeneration, c2)
-
-	}
-
-	for i := range newGeneration {
-		randSeed := i % 10
-
-		// 40% range
-		if randSeed <= 3 {
-			newGeneration[i] = mutate(newGeneration[i], mutationStrength)
+		min := v1
+		max := v2
+		if v1 > v2 {
+			min = v2
+			max = v1
 		}
-		// 30%range and 10% intersection
-		if randSeed >= 3 && randSeed <= 5 {
-			newGeneration[i] = insertDelete(newGeneration[i], 0.5, mutationStrength, stringByteCandidates)
+		if min < 0 && max < 0 {
+			min = max
+			min = min * (-1)
+		}
+		if min < 0 {
+			min = -1 * min
+		}
+		if min < 4 {
+			min = 4
+		}
+		var newV1 int
+		var newV2 int
+		divisor := int(RandRange(1, int64(min)/2))
+		if randomBool() {
+			newV1 = v1 / divisor
+			newV2 = v2 * divisor
+		} else {
+			newV1 = v1 * divisor
+			newV2 = v2 / divisor
+		}
+		return newV1, newV2
+	case int8:
+		v2, ok := b.(int8)
+		if !ok {
+			panic("type not equal")
+		}
+		min := v1
+		max := v2
+		if v1 > v2 {
+			min = v2
+			max = v1
+		}
+		if min < 0 && max < 0 {
+			min = max
+			min = min * (-1)
+		}
+		if min < 0 {
+			min = -1 * min
+		}
+		if min < 4 {
+			min = 4
+		}
+		var newV1 int8
+		var newV2 int8
+		divisor := int8(RandRange(1, int64(min)/2))
+		if randomBool() {
+			newV1 = v1 / divisor
+			newV2 = v2 * divisor
+		} else {
+			newV1 = v1 * divisor
+			newV2 = v2 / divisor
+		}
+		return newV1, newV2
+	case int16:
+		v2, ok := b.(int16)
+		if !ok {
+			panic("type not equal")
+		}
+		min := v1
+		max := v2
+		if v1 > v2 {
+			min = v2
+			max = v1
+		}
+		if min < 0 && max < 0 {
+			min = max
+			min = min * (-1)
+		}
+		if min < 0 {
+			min = -1 * min
+		}
+		if min < 4 {
+			min = 4
+		}
+		var newV1 int16
+		var newV2 int16
+		divisor := int16(RandRange(1, int64(min)/2))
+		if randomBool() {
+			newV1 = v1 / divisor
+			newV2 = v2 * divisor
+		} else {
+			newV1 = v1 * divisor
+			newV2 = v2 / divisor
 		}
 
-	}
+		return newV1, newV2
+	case int32:
+		v2, ok := b.(int32)
+		if !ok {
+			panic("type not equal")
+		}
+		min := v1
+		max := v2
+		if v1 > v2 {
+			min = v2
+			max = v1
+		}
+		if min < 0 && max < 0 {
+			min = max
+			min = min * (-1)
+		}
+		if min < 0 {
+			min = -1 * min
+		}
+		if min < 4 {
+			min = 4
+		}
+		var newV1 int32
+		var newV2 int32
+		divisor := int32(RandRange(1, int64(min)/2))
+		if randomBool() {
+			newV1 = v1 / divisor
+			newV2 = v2 * divisor
+		} else {
+			newV1 = v1 * divisor
+			newV2 = v2 / divisor
+		}
+		return newV1, newV2
 
-	return newGeneration
+	case int64:
+		v2, ok := b.(int64)
+		if !ok {
+			panic("type not equal")
+		}
+		min := v1
+		max := v2
+		if v1 > v2 {
+			min = v2
+			max = v1
+		}
+		if min < 0 && max < 0 {
+			min = max
+			min = min * (-1)
+		}
+		if min < 0 {
+			min = -1 * min
+		}
+		if min < 4 {
+			min = 4
+		}
+		var newV1 int64
+		var newV2 int64
+		divisor := RandRange(1, int64(min)/2)
+		if randomBool() {
+			newV1 = v1 / divisor
+			newV2 = v2 * divisor
+		} else {
+			newV1 = v1 * divisor
+			newV2 = v2 / divisor
+		}
+		return newV1, newV2
+
+	case uint:
+		v2, ok := b.(uint)
+		if !ok {
+			panic("type not equal")
+		}
+		min := v1
+		if v1 > v2 {
+			min = v2
+		}
+		if min < 4 {
+			min = 4
+		}
+		var newV1 uint
+		var newV2 uint
+		divisor := uint(UintRandRange(1, uint64(min)/2))
+		if randomBool() {
+			newV1 = v1 / divisor
+			newV2 = v2 * divisor
+		} else {
+			newV1 = v1 * divisor
+			newV2 = v2 / divisor
+		}
+		return newV1, newV2
+	case uint8:
+		v2, ok := b.(uint8)
+		if !ok {
+			panic("type not equal")
+		}
+		min := v1
+		if v1 > v2 {
+			min = v2
+		}
+		if min < 4 {
+			min = 4
+		}
+		var newV1 uint8
+		var newV2 uint8
+		divisor := uint8(UintRandRange(1, uint64(min)/2))
+		if randomBool() {
+			newV1 = v1 / divisor
+			newV2 = v2 * divisor
+		} else {
+			newV1 = v1 * divisor
+			newV2 = v2 / divisor
+		}
+		return newV1, newV2
+
+	case uint16:
+		v2, ok := b.(uint16)
+		if !ok {
+			panic("type not equal")
+		}
+		min := v1
+		if v1 > v2 {
+			min = v2
+		}
+		if min < 4 {
+			min = 4
+		}
+		var newV1 uint16
+		var newV2 uint16
+		divisor := uint16(UintRandRange(1, uint64(min)/2))
+		if randomBool() {
+			newV1 = v1 / divisor
+			newV2 = v2 * divisor
+		} else {
+			newV1 = v1 * divisor
+			newV2 = v2 / divisor
+		}
+		return newV1, newV2
+
+	case uint32:
+		v2, ok := b.(uint32)
+		if !ok {
+			panic("type not equal")
+		}
+		min := v1
+		if v1 > v2 {
+			min = v2
+		}
+		if min < 4 {
+			min = 4
+		}
+		var newV1 uint32
+		var newV2 uint32
+		divisor := uint32(UintRandRange(1, uint64(min)/2))
+		if randomBool() {
+			newV1 = v1 / divisor
+			newV2 = v2 * divisor
+		} else {
+			newV1 = v1 * divisor
+			newV2 = v2 / divisor
+		}
+		return newV1, newV2
+
+	case uint64:
+		v2, ok := b.(uint64)
+		if !ok {
+			panic("type not equal")
+		}
+		min := v1
+		if v1 > v2 {
+			min = v2
+		}
+		if min < 4 {
+			min = 4
+		}
+		var newV1 uint64
+		var newV2 uint64
+		divisor := uint64(UintRandRange(1, uint64(min)/2))
+		if randomBool() {
+			newV1 = v1 / divisor
+			newV2 = v2 * divisor
+		} else {
+			newV1 = v1 * divisor
+			newV2 = v2 / divisor
+		}
+		return newV1, newV2
+
+	case float32:
+		v2, ok := b.(float32)
+		if !ok {
+			panic("type not equal")
+		}
+		newV1 := float32(0.7*float64(v1) + 0.3*float64(v2))
+		newV2 := float32(0.3*float64(v1) + 0.7*float64(v2))
+		return newV1, newV2
+	case float64:
+		v2, ok := b.(float64)
+		if !ok {
+			panic("type not equal")
+		}
+		newV1 := float64(0.3*float64(v1) + 0.7*float64(v2))
+		newV2 := float64(0.3*float64(v1) + 0.7*float64(v2))
+		return newV1, newV2
+	default:
+		panic("type can't be  factorization crossovered.")
+	}
 }
 
 func randomByteFrom(seedByte byte) byte {
@@ -819,311 +1124,6 @@ func randFloat64From(f float64) float64 {
 
 func randomBool() bool {
 	return UniformRandomBool(0.5)
-}
-
-func factorizationCrossover(a interface{}, b interface{}) (interface{}, interface{}) {
-	switch v1 := a.(type) {
-	case int:
-		v2, ok := b.(int)
-		if !ok {
-			panic("type not equal")
-		}
-		min := v1
-		max := v2
-		if v1 > v2 {
-			min = v2
-			max = v1
-		}
-		if min < 0 && max < 0 {
-			min = max
-			min = min * (-1)
-		}
-		if min < 0 {
-			min = -1 * min
-		}
-		if min < 4 {
-			min = 4
-		}
-		var newV1 int
-		var newV2 int
-		divisor := int(RandRange(1, int64(min)/2))
-		if randomBool() {
-			newV1 = v1 / divisor
-			newV2 = v2 * divisor
-		} else {
-			newV1 = v1 * divisor
-			newV2 = v2 / divisor
-		}
-		return newV1, newV2
-	case int8:
-		v2, ok := b.(int8)
-		if !ok {
-			panic("type not equal")
-		}
-		min := v1
-		max := v2
-		if v1 > v2 {
-			min = v2
-			max = v1
-		}
-		if min < 0 && max < 0 {
-			min = max
-			min = min * (-1)
-		}
-		if min < 0 {
-			min = -1 * min
-		}
-		if min < 4 {
-			min = 4
-		}
-		var newV1 int8
-		var newV2 int8
-		divisor := int8(RandRange(1, int64(min)/2))
-		if randomBool() {
-			newV1 = v1 / divisor
-			newV2 = v2 * divisor
-		} else {
-			newV1 = v1 * divisor
-			newV2 = v2 / divisor
-		}
-		return newV1, newV2
-	case int16:
-		v2, ok := b.(int16)
-		if !ok {
-			panic("type not equal")
-		}
-		min := v1
-		max := v2
-		if v1 > v2 {
-			min = v2
-			max = v1
-		}
-		if min < 0 && max < 0 {
-			min = max
-			min = min * (-1)
-		}
-		if min < 0 {
-			min = -1 * min
-		}
-		if min < 4 {
-			min = 4
-		}
-		var newV1 int16
-		var newV2 int16
-		divisor := int16(RandRange(1, int64(min)/2))
-		if randomBool() {
-			newV1 = v1 / divisor
-			newV2 = v2 * divisor
-		} else {
-			newV1 = v1 * divisor
-			newV2 = v2 / divisor
-		}
-
-		return newV1, newV2
-	case int32:
-		v2, ok := b.(int32)
-		if !ok {
-			panic("type not equal")
-		}
-		min := v1
-		max := v2
-		if v1 > v2 {
-			min = v2
-			max = v1
-		}
-		if min < 0 && max < 0 {
-			min = max
-			min = min * (-1)
-		}
-		if min < 0 {
-			min = -1 * min
-		}
-		if min < 4 {
-			min = 4
-		}
-		var newV1 int32
-		var newV2 int32
-		divisor := int32(RandRange(1, int64(min)/2))
-		if randomBool() {
-			newV1 = v1 / divisor
-			newV2 = v2 * divisor
-		} else {
-			newV1 = v1 * divisor
-			newV2 = v2 / divisor
-		}
-		return newV1, newV2
-
-	case int64:
-		v2, ok := b.(int64)
-		if !ok {
-			panic("type not equal")
-		}
-		min := v1
-		max := v2
-		if v1 > v2 {
-			min = v2
-			max = v1
-		}
-		if min < 0 && max < 0 {
-			min = max
-			min = min * (-1)
-		}
-		if min < 0 {
-			min = -1 * min
-		}
-		if min < 4 {
-			min = 4
-		}
-		var newV1 int64
-		var newV2 int64
-		divisor := RandRange(1, int64(min)/2)
-		if randomBool() {
-			newV1 = v1 / divisor
-			newV2 = v2 * divisor
-		} else {
-			newV1 = v1 * divisor
-			newV2 = v2 / divisor
-		}
-		return newV1, newV2
-
-	case uint:
-		v2, ok := b.(uint)
-		if !ok {
-			panic("type not equal")
-		}
-		min := v1
-		if v1 > v2 {
-			min = v2
-		}
-		if min < 4 {
-			min = 4
-		}
-		var newV1 uint
-		var newV2 uint
-		divisor := uint(UintRandRange(1, uint64(min)/2))
-		if randomBool() {
-			newV1 = v1 / divisor
-			newV2 = v2 * divisor
-		} else {
-			newV1 = v1 * divisor
-			newV2 = v2 / divisor
-		}
-		return newV1, newV2
-	case uint8:
-		v2, ok := b.(uint8)
-		if !ok {
-			panic("type not equal")
-		}
-		min := v1
-		if v1 > v2 {
-			min = v2
-		}
-		if min < 4 {
-			min = 4
-		}
-		var newV1 uint8
-		var newV2 uint8
-		divisor := uint8(UintRandRange(1, uint64(min)/2))
-		if randomBool() {
-			newV1 = v1 / divisor
-			newV2 = v2 * divisor
-		} else {
-			newV1 = v1 * divisor
-			newV2 = v2 / divisor
-		}
-		return newV1, newV2
-
-	case uint16:
-		v2, ok := b.(uint16)
-		if !ok {
-			panic("type not equal")
-		}
-		min := v1
-		if v1 > v2 {
-			min = v2
-		}
-		if min < 4 {
-			min = 4
-		}
-		var newV1 uint16
-		var newV2 uint16
-		divisor := uint16(UintRandRange(1, uint64(min)/2))
-		if randomBool() {
-			newV1 = v1 / divisor
-			newV2 = v2 * divisor
-		} else {
-			newV1 = v1 * divisor
-			newV2 = v2 / divisor
-		}
-		return newV1, newV2
-
-	case uint32:
-		v2, ok := b.(uint32)
-		if !ok {
-			panic("type not equal")
-		}
-		min := v1
-		if v1 > v2 {
-			min = v2
-		}
-		if min < 4 {
-			min = 4
-		}
-		var newV1 uint32
-		var newV2 uint32
-		divisor := uint32(UintRandRange(1, uint64(min)/2))
-		if randomBool() {
-			newV1 = v1 / divisor
-			newV2 = v2 * divisor
-		} else {
-			newV1 = v1 * divisor
-			newV2 = v2 / divisor
-		}
-		return newV1, newV2
-
-	case uint64:
-		v2, ok := b.(uint64)
-		if !ok {
-			panic("type not equal")
-		}
-		min := v1
-		if v1 > v2 {
-			min = v2
-		}
-		if min < 4 {
-			min = 4
-		}
-		var newV1 uint64
-		var newV2 uint64
-		divisor := uint64(UintRandRange(1, uint64(min)/2))
-		if randomBool() {
-			newV1 = v1 / divisor
-			newV2 = v2 * divisor
-		} else {
-			newV1 = v1 * divisor
-			newV2 = v2 / divisor
-		}
-		return newV1, newV2
-
-	case float32:
-		v2, ok := b.(float32)
-		if !ok {
-			panic("type not equal")
-		}
-		newV1 := float32(0.7*float64(v1) + 0.3*float64(v2))
-		newV2 := float32(0.3*float64(v1) + 0.7*float64(v2))
-		return newV1, newV2
-	case float64:
-		v2, ok := b.(float64)
-		if !ok {
-			panic("type not equal")
-		}
-		newV1 := float64(0.3*float64(v1) + 0.7*float64(v2))
-		newV2 := float64(0.3*float64(v1) + 0.7*float64(v2))
-		return newV1, newV2
-	default:
-		panic("type can't be  factorization crossovered.")
-	}
 }
 
 func randomFloat32(a float32) float32 {

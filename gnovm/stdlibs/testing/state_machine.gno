@@ -7,38 +7,6 @@ import (
 	"time"
 )
 
-type supportedType string
-
-const (
-	ByteArray supportedType = "[]byte"
-	String    supportedType = "string"
-	Bool      supportedType = "bool"
-	Byte      supportedType = "byte"
-	Rune      supportedType = "rune"
-	Float32   supportedType = "float32"
-	Float64   supportedType = "float64"
-	Int       supportedType = "int"
-	Int8      supportedType = "int8"
-	Int16     supportedType = "int16"
-	Int32     supportedType = "int32"
-	Int64     supportedType = "int64"
-	Uint      supportedType = "uint"
-	Uint8     supportedType = "uint8"
-	Uint16    supportedType = "uint16"
-	Uint32    supportedType = "uint32"
-	Uint64    supportedType = "uint64"
-)
-
-type seed struct {
-	pid           uint
-	id            uint
-	gen           uint
-	isCoordinated bool
-	hashNumber    HashNumber
-	content       []interface{}
-	result        interface{}
-}
-
 const (
 	// Effective when path kinds(coverage) is in range 300,000~1,000,000.
 	// and effiective when iters is less than 100_000_000
@@ -68,73 +36,6 @@ type stateMachine struct {
 	crashLogger           *crashLogger
 	verbose               bool
 	inspectingHashNumbers uint
-}
-
-func newStateMachine(trials uint, inputCount uint) *stateMachine {
-	settedAllULL := func() *[MaxCapacity]*uniquesLinkedList {
-		arr := &[MaxCapacity]*uniquesLinkedList{}
-		for i := range arr {
-			arr[i] = newUniquesLinkedList()
-		}
-		return arr
-	}()
-	return &stateMachine{
-		inputCount:      inputCount,
-		trials:          trials,
-		allCoverage:     Coverage{{coName: "nil", coLine: 0}},
-		coveredCoverage: Coverage{{coName: "nil", coLine: 0}},
-
-		priorityCache: 1,
-
-		hashNumber2Priority:    &[MaxCapacity]uint{},
-		hashNumber2Seeds:       &[MaxCapacity]*seedQueue{},
-		priority2HashNumberULL: settedAllULL,
-
-		inspectingHashNumbers: 0,
-		crashLogger:           newCrashLogger(),
-	}
-}
-
-type endInfo struct {
-	completeTrials bool
-	maxedCAPACITY  bool
-}
-
-func (sm *stateMachine) coordinateAbstraction(hn HashNumber, abstractNumber uint) endInfo {
-	sm.inputCount = sm.inputCount + abstractNumber
-	// Get current priorty
-	// 1. Prior increases discontinuously
-	// 2. Hn must increase continuously
-	sm.hashNumber2Priority[hn] = sm.hashNumber2Priority[hn] + abstractNumber
-	nextPriority := sm.hashNumber2Priority[hn]
-	nextHashNumber := hn
-	if sm.verbose {
-		if (sm.inputCount-abstractNumber)%2000 > sm.inputCount%2000 {
-			println(sm.inputCount, "times runned: inspecting", sm.inspectingHashNumbers, "coverages")
-		}
-	} else {
-		if (sm.inputCount-abstractNumber)%(sm.trials/5) > sm.inputCount%(sm.trials/5) {
-			println(sm.inputCount, "times runned: inspecting", sm.inspectingHashNumbers, "coverages")
-		}
-	}
-	if sm.inputCount >= sm.trials {
-		return endInfo{
-			completeTrials: true,
-			maxedCAPACITY:  false,
-		}
-	} else if uint64(nextPriority) >= (MaxCapacity-1) || uint64(nextHashNumber) >= (MaxCapacity-1) {
-		// Case 1: Priority reaches MAX (and protect overflow)
-		// Case 2 HashNumber reaches Max (and protect overflow)
-		return endInfo{
-			completeTrials: false,
-			maxedCAPACITY:  true,
-		}
-	} else {
-		return endInfo{
-			completeTrials: false,
-			maxedCAPACITY:  false,
-		}
-	}
 }
 
 func (sm *stateMachine) coordinateSeed(seed seed) endInfo {
@@ -195,12 +96,46 @@ func (sm *stateMachine) coordinateSeed(seed seed) endInfo {
 	}
 }
 
-func (sm *stateMachine) popInitSeedByHN(hn HashNumber) seed {
-	popedSeed, isOnce := sm.hashNumber2Seeds[hn].dequeue()
-	if !isOnce {
-		panic("logical internal error: it must has more than one seed")
+type endInfo struct {
+	completeTrials bool
+	maxedCAPACITY  bool
+}
+
+func (sm *stateMachine) coordinateAbstraction(hn HashNumber, abstractNumber uint) endInfo {
+	sm.inputCount = sm.inputCount + abstractNumber
+	// Get current priorty
+	// 1. Prior increases discontinuously
+	// 2. Hn must increase continuously
+	sm.hashNumber2Priority[hn] = sm.hashNumber2Priority[hn] + abstractNumber
+	nextPriority := sm.hashNumber2Priority[hn]
+	nextHashNumber := hn
+	if sm.verbose {
+		if (sm.inputCount-abstractNumber)%2000 > sm.inputCount%2000 {
+			println(sm.inputCount, "times runned: inspecting", sm.inspectingHashNumbers, "coverages")
+		}
+	} else {
+		if (sm.inputCount-abstractNumber)%(sm.trials/5) > sm.inputCount%(sm.trials/5) {
+			println(sm.inputCount, "times runned: inspecting", sm.inspectingHashNumbers, "coverages")
+		}
 	}
-	return popedSeed
+	if sm.inputCount >= sm.trials {
+		return endInfo{
+			completeTrials: true,
+			maxedCAPACITY:  false,
+		}
+	} else if uint64(nextPriority) >= (MaxCapacity-1) || uint64(nextHashNumber) >= (MaxCapacity-1) {
+		// Case 1: Priority reaches MAX (and protect overflow)
+		// Case 2 HashNumber reaches Max (and protect overflow)
+		return endInfo{
+			completeTrials: false,
+			maxedCAPACITY:  true,
+		}
+	} else {
+		return endInfo{
+			completeTrials: false,
+			maxedCAPACITY:  false,
+		}
+	}
 }
 
 func (sm *stateMachine) popSeeds() []seed {
@@ -237,11 +172,21 @@ func (sm *stateMachine) popSeeds() []seed {
 	}
 }
 
-type priorytyAndHashNumber struct {
-	priority   uint
-	hashNumber int
+func (sm *stateMachine) popInitSeedByHN(hn HashNumber) seed {
+	popedSeed, isOnce := sm.hashNumber2Seeds[hn].dequeue()
+	if !isOnce {
+		panic("logical internal error: it must has more than one seed")
+	}
+	return popedSeed
 }
-type priorytyHashNumberList []priorytyAndHashNumber
+
+type (
+	priorytyHashNumberList []priorytyAndHashNumber
+	priorytyAndHashNumber  struct {
+		priority   uint
+		hashNumber int
+	}
+)
 
 func (phl priorytyHashNumberList) Len() int           { return len(phl) }
 func (phl priorytyHashNumberList) Less(i, j int) bool { return phl[i].priority < phl[j].priority }
@@ -366,12 +311,35 @@ func allocateGen(priority uint, rank int, total int) uint {
 	return bigger
 }
 
-type testResult struct {
-	panicOccurred bool
-	panicMessage  string
-	prror         error
+func newStateMachine(trials uint, inputCount uint) *stateMachine {
+	settedAllULL := func() *[MaxCapacity]*uniquesLinkedList {
+		arr := &[MaxCapacity]*uniquesLinkedList{}
+		for i := range arr {
+			arr[i] = newUniquesLinkedList()
+		}
+		return arr
+	}()
+	return &stateMachine{
+		inputCount:      inputCount,
+		trials:          trials,
+		allCoverage:     Coverage{{coName: "nil", coLine: 0}},
+		coveredCoverage: Coverage{{coName: "nil", coLine: 0}},
+
+		priorityCache: 1,
+
+		hashNumber2Priority:    &[MaxCapacity]uint{},
+		hashNumber2Seeds:       &[MaxCapacity]*seedQueue{},
+		priority2HashNumberULL: settedAllULL,
+
+		inspectingHashNumbers: 0,
+		crashLogger:           newCrashLogger(),
+	}
 }
 
+// crash logger
+type crashLogger struct {
+	data []crashCase
+}
 type crashCase struct {
 	hashNumber   uint
 	input        string
@@ -382,16 +350,10 @@ type crashCase struct {
 	errorMsg     string
 	timestamp    time.Time
 }
-
-// crash logger
-type crashLogger struct {
-	data []crashCase
-}
-
-func newCrashLogger() *crashLogger {
-	return &crashLogger{
-		data: make([]crashCase, 0),
-	}
+type testResult struct {
+	panicOccurred bool
+	panicMessage  string
+	prror         error
 }
 
 func (c *crashLogger) addCase(seed seed, r testResult) {
@@ -422,9 +384,24 @@ func (c *crashLogger) addCase(seed seed, r testResult) {
 	c.data = append(c.data, crashcase)
 }
 
+func newCrashLogger() *crashLogger {
+	return &crashLogger{
+		data: make([]crashCase, 0),
+	}
+}
+
 // data structures
 type seedQueue struct {
 	data []seed
+}
+type seed struct {
+	pid           uint
+	id            uint
+	gen           uint
+	isCoordinated bool
+	hashNumber    HashNumber
+	content       []interface{}
+	result        interface{}
 }
 
 func newSeedQueue() *seedQueue {
