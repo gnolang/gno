@@ -10,18 +10,19 @@ import (
 	"gno.land/p/demo/ownable"
 	"gno.land/p/demo/ufmt"
 	pusers "gno.land/p/demo/users"
+	"gno.land/r/demo/grc20reg"
 	"gno.land/r/demo/users"
 )
 
 var (
 	Token, privateLedger = grc20.NewToken("Foo", "FOO", 4)
 	UserTeller           = Token.CallerTeller()
-	owner                = ownable.NewWithAddress("g1u7y667z64x2h7vc6fmpcprgey4ck233jaww9zq") // @manfred
+	Ownable              = ownable.NewWithAddress("g1manfred47kzduec920z88wfr64ylksmdcedlf5") // @manfred
 )
 
 func init() {
-	privateLedger.Mint(owner.Owner(), 1_000_000*10_000) // @privateLedgeristrator (1M)
-	// XXX: grc20reg.Register(Token, "")
+	privateLedger.Mint(Ownable.Owner(), 1_000_000*10_000) // @privateLedgeristrator (1M)
+	grc20reg.Register(Token.Getter(), "")
 }
 
 func TotalSupply() uint64 {
@@ -64,13 +65,13 @@ func Faucet() {
 }
 
 func Mint(to pusers.AddressOrName, amount uint64) {
-	owner.AssertCallerIsOwner()
+	Ownable.AssertCallerIsOwner()
 	toAddr := users.Resolve(to)
 	checkErr(privateLedger.Mint(toAddr, amount))
 }
 
 func Burn(from pusers.AddressOrName, amount uint64) {
-	owner.AssertCallerIsOwner()
+	Ownable.AssertCallerIsOwner()
 	fromAddr := users.Resolve(from)
 	checkErr(privateLedger.Burn(fromAddr, amount))
 }

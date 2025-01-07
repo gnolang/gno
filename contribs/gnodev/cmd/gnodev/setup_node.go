@@ -43,7 +43,7 @@ func setupDevNode(
 			nodeConfig.InitialTxs[index] = nodeTx
 		}
 
-		logger.Info("genesis file loaded", "path", devCfg.genesisFile, "txs", len(nodeConfig.InitialTxs))
+		logger.Info("genesis file loaded", "path", devCfg.genesisFile, "txs", len(stateTxs))
 	}
 
 	return gnodev.NewDevNode(ctx, nodeConfig)
@@ -57,7 +57,7 @@ func setupDevNodeConfig(
 	balances gnoland.Balances,
 	pkgspath []gnodev.PackagePath,
 ) *gnodev.NodeConfig {
-	config := gnodev.DefaultNodeConfig(cfg.root)
+	config := gnodev.DefaultNodeConfig(cfg.root, cfg.chainDomain)
 
 	config.Logger = logger
 	config.Emitter = emitter

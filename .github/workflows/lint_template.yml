@@ -8,7 +8,6 @@ on:
         required: true
         type: string
 
-
 jobs:
   lint:
     runs-on: ubuntu-latest
@@ -25,4 +24,4 @@ jobs:
           working-directory: ${{ inputs.modulepath }}
           args:
             --config=${{ github.workspace }}/.github/golangci.yml
-          version: v1.59 # sync with misc/devdeps
+          version: v1.62 # sync with misc/devdeps
