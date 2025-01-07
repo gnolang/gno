@@ -377,6 +377,10 @@ func (cfg BaseConfig) NodeKeyFile() string {
 
 // DBDir returns the full path to the database directory
 func (cfg BaseConfig) DBDir() string {
+	if filepath.IsAbs(cfg.DBPath) {
+		return cfg.DBPath
+	}
+
 	return filepath.Join(cfg.RootDir, cfg.DBPath)
 }
 

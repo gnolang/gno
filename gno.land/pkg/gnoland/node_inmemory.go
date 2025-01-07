@@ -23,8 +23,8 @@ type InMemoryNodeConfig struct {
 	PrivValidator bft.PrivValidator // identity of the validator
 	Genesis       *bft.GenesisDoc
 	TMConfig      *tmcfg.Config
-	DB            *memdb.MemDB // will be initialized if nil
-	VMOutput      io.Writer    // optional
+	DB            db.DB     // will be initialized if nil
+	VMOutput      io.Writer // optional
 
 	// If StdlibDir not set, then it's filepath.Join(TMConfig.RootDir, "gnovm", "stdlibs")
 	InitChainerConfig

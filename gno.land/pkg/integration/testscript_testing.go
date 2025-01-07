@@ -2,6 +2,7 @@ package integration
 
 import (
 	"errors"
+	"testing"
 
 	"github.com/rogpeppe/go-internal/testscript"
 	"github.com/stretchr/testify/assert"
@@ -16,6 +17,7 @@ var errFailNow = errors.New("fail now!") //nolint:stylecheck
 var (
 	_ require.TestingT = (*testingTS)(nil)
 	_ assert.TestingT  = (*testingTS)(nil)
+	_ TestingTS        = &testing.T{}
 )
 
 type TestingTS = require.TestingT
