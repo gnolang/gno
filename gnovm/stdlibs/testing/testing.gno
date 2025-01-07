@@ -377,7 +377,7 @@ func fRunner(f *F, fn fuzzingFunc) {
 		recover()
 		dur := unixNano() - start
 		f.dur = formatDur(dur)
-		fmt.Fprintln(os.Stderr, "--- Elapsed "+f.dur+":")
+		fmt.Fprintln(os.Stderr, "\n--- Elapsed "+f.dur+":")
 	}()
 	fn(f)
 }

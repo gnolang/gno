@@ -275,8 +275,8 @@ func (f *F) handleFail() {
 		println("\n--- Trace:")
 		println(CoverageToString(coverage))
 	} else {
-		println("--- Trace:")
-		println("Most recently covered line: function", coverage[len(coverage)-1].co_name, "in line", coverage[len(coverage)-1].co_line)
+		println("\n--- Trace:")
+		println("Last covered line: function \""+coverage[len(coverage)-1].co_name+"\" in line", coverage[len(coverage)-1].co_line)
 	}
 	return
 }
@@ -353,7 +353,7 @@ func (f *F) minimazeAndLogInput(seedContent []interface{}) {
 }
 
 func (f *F) reportF() {
-	println("PASS")
+	println("\n--- PASS")
 	println("Complete", f.fsm.Input_count, "Trials")
 	println("Found", (uint(f.fhm.hashNumber_counter.counter) + uint(1)), "coverage")
 }
