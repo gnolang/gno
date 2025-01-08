@@ -5,7 +5,7 @@ import (
 	"testing"
 
 	"github.com/gnolang/gno/tm2/pkg/crypto"
-	"github.com/gnolang/gno/tm2/pkg/p2p"
+	"github.com/gnolang/gno/tm2/pkg/p2p/types"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -26,7 +26,7 @@ func TestCommon_SaveReadData(t *testing.T) {
 	t.Run("invalid data read path", func(t *testing.T) {
 		t.Parallel()
 
-		readData, err := readSecretData[p2p.NodeKey]("")
+		readData, err := readSecretData[types.NodeKey]("")
 		assert.Nil(t, readData)
 
 		assert.ErrorContains(
@@ -44,7 +44,7 @@ func TestCommon_SaveReadData(t *testing.T) {
 
 		require.NoError(t, saveSecretData("totally valid key", path))
 
-		readData, err := readSecretData[p2p.NodeKey](path)
+		readData, err := readSecretData[types.NodeKey](path)
 		require.Nil(t, readData)
 
 		assert.ErrorContains(t, err, "unable to unmarshal data")
@@ -59,7 +59,7 @@ func TestCommon_SaveReadData(t *testing.T) {
 
 		require.NoError(t, saveSecretData(key, path))
 
-		readKey, err := readSecretData[p2p.NodeKey](path)
+		readKey, err := readSecretData[types.NodeKey](path)
 		require.NoError(t, err)
 
 		assert.Equal(t, key, readKey)

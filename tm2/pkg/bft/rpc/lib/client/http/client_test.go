@@ -76,7 +76,7 @@ func TestClient_makeHTTPDialer(t *testing.T) {
 	t.Run("http", func(t *testing.T) {
 		t.Parallel()
 
-		_, err := makeHTTPDialer("https://.")("hello", "world")
+		_, err := makeHTTPDialer("https://.")
 		require.Error(t, err)
 
 		assert.Contains(t, err.Error(), "dial tcp:", "should convert https to tcp")
@@ -85,7 +85,7 @@ func TestClient_makeHTTPDialer(t *testing.T) {
 	t.Run("udp", func(t *testing.T) {
 		t.Parallel()
 
-		_, err := makeHTTPDialer("udp://.")("hello", "world")
+		_, err := makeHTTPDialer("udp://.")
 		require.Error(t, err)
 
 		assert.Contains(t, err.Error(), "dial udp:", "udp protocol should remain the same")
