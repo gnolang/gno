@@ -92,7 +92,6 @@ func readPkgDir(pkgDir string, importPath string, fset *token.FileSet) *Package 
 	}
 
 	return readPkgFiles(pkg, files, fset)
-
 }
 
 func readPkgFiles(pkg *Package, files []string, fset *token.FileSet) *Package {
