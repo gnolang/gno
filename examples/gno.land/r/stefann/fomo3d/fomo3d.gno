@@ -46,19 +46,19 @@ type PlayerInfo struct {
 
 // GameState represents the current state of the FOMO3D game
 type GameState struct {
-	StartBlock   int64       // Block when the game started
-	EndBlock     int64       // Block when the game will end
-	LastKeyBlock int64       // Block of last key purchase
-	LastBuyer    std.Address // Address of last key buyer
-	Jackpot      int64       // Current jackpot in ugnot
-	KeyPrice     int64       // Current price of keys in ugnot
-	TotalKeys    int64       // Total number of keys in circulation
-	Ended        bool        // Whether the game has ended
-	CurrentRound int64       // Current round number
-	NextPot      int64       // Next round's starting pot
-	OwnerFee     int64       // Accumulated owner fees
-	BuyKeysLink          string      // Link to BuyKeys function
-	ClaimDividendsLink   string      // Link to ClaimDividends function
+	StartBlock         int64       // Block when the game started
+	EndBlock           int64       // Block when the game will end
+	LastKeyBlock       int64       // Block of last key purchase
+	LastBuyer          std.Address // Address of last key buyer
+	Jackpot            int64       // Current jackpot in ugnot
+	KeyPrice           int64       // Current price of keys in ugnot
+	TotalKeys          int64       // Total number of keys in circulation
+	Ended              bool        // Whether the game has ended
+	CurrentRound       int64       // Current round number
+	NextPot            int64       // Next round's starting pot
+	OwnerFee           int64       // Accumulated owner fees
+	BuyKeysLink        string      // Link to BuyKeys function
+	ClaimDividendsLink string      // Link to ClaimDividends function
 }
 
 var (
@@ -67,9 +67,8 @@ var (
 	Ownable   *ownable.Ownable
 )
 
-// init initializes the first round
 func init() {
-	Ownable = ownable.New() // Initialize with caller as owner
+	Ownable = ownable.New()
 	hof.Register()
 }
 
@@ -91,7 +90,6 @@ func StartGame() {
 	// Clear previous round's player data
 	players = avl.NewTree()
 
-	// Emit event for game start
 	EmitGameStarted(
 		gameState.CurrentRound,
 		gameState.StartBlock,
@@ -178,7 +176,6 @@ func BuyKeys() {
 	// Save buyer's updated info
 	players.Set(buyer.String(), buyerInfo)
 
-	// Emit events for key purchase
 	EmitKeysPurchased(
 		buyer,
 		numKeys,
@@ -214,7 +211,6 @@ func ClaimDividends() {
 		std.Coins{{"ugnot", amount}},
 	)
 
-	// Emit event for dividend claim
 	EmitDividendsClaimed(caller, amount)
 }
 
@@ -272,7 +268,6 @@ func EndGame() {
 		std.Coins{{"ugnot", gameState.Jackpot}},
 	)
 
-	// Emit event for game end
 	EmitGameEnded(
 		gameState.CurrentRound,
 		gameState.LastBuyer,
@@ -448,7 +443,7 @@ func getDisplayName(addr std.Address) string {
 	return addr.String()
 }
 
-// UpdateFunctionLinks updates the links for game functions
+// updates the links for game functions
 func UpdateFunctionLinks(buyKeysLink string, claimDividendsLink string) {
 	Ownable.AssertCallerIsOwner()
 	gameState.BuyKeysLink = buyKeysLink
