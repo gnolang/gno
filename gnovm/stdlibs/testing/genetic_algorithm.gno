@@ -10,14 +10,14 @@ import (
 // Seeds received as parameters are invariant referenced within the function.
 func evolve(seeds []seed, seedCount *uint, stringByteCandidates []int) []seed {
 	p1 := seeds[0]
-	MutationStrength := [10]int{5, 4, 3, 3, 3, 2, 2, 2, 2, 2}
+	MutationStrength := [10]int{5, 4, 3, 3, 2, 2, 2, 2, 2, 2}
 	var mutationStrength int
 	if int(p1.gen) > len(MutationStrength) {
 		mutationStrength = 1
 	} else {
 		mutationStrength = MutationStrength[p1.gen-1]
 	}
-	CreatingCount := [10]int{1920, 1440, 1200, 1024, 960, 720, 600, 480, 360, 240}
+	CreatingCount := [10]int{1920, 1440, 1200, 1000, 960, 720, 600, 480, 360, 240}
 	var creatingCount int
 	if int(p1.gen) > len(CreatingCount) {
 		creatingCount = 240
@@ -46,14 +46,20 @@ func evolve(seeds []seed, seedCount *uint, stringByteCandidates []int) []seed {
 				id:            *seedCount,
 			}
 
-			// 60% range
-			randSeed := i % 5
-			if randSeed <= 2 {
+			randSeed := i % 10
+			switch randSeed {
+			case 0, 1, 2, 3:
+				// Variations that are flexible with 50% probability
 				newInd = mutate(newInd, mutationStrength)
-			}
-			// 40% range with 20% intersection
-			if randSeed == 2 || randSeed == 3 {
-				newInd = insertDelete(newInd, 0.5, mutationStrength, stringByteCandidates)
+			case 4, 5, 6:
+				newInd = insertDelete(newInd, mutationStrength, stringByteCandidates)
+			case 7, 8:
+				// Variations of only the degree of uniformity with 10% probability. Maintaining the characteristics of the seed.
+				newInd = mutate(newInd, 2)
+			case 9:
+				// Variate strongly with 10% probability
+				newInd = mutate(newInd, mutationStrength)
+				newInd = insertDelete(newInd, mutationStrength, stringByteCandidates)
 			}
 
 			newInd.gen = seeds[0].gen + 1
@@ -78,14 +84,16 @@ func evolve(seeds []seed, seedCount *uint, stringByteCandidates []int) []seed {
 
 	for i := range newGeneration {
 		randSeed := i % 10
-
-		// 40% range
-		if randSeed <= 3 {
+		switch randSeed {
+		case 0, 1, 2, 3:
 			newGeneration[i] = mutate(newGeneration[i], mutationStrength)
-		}
-		// 30%range and 10% intersection
-		if randSeed >= 3 && randSeed <= 5 {
-			newGeneration[i] = insertDelete(newGeneration[i], 0.5, mutationStrength, stringByteCandidates)
+		case 4, 5, 6:
+			// do nothing
+		case 7, 8:
+			newGeneration[i] = insertDelete(newGeneration[i], mutationStrength, stringByteCandidates)
+		case 9:
+			newGeneration[i] = mutate(newGeneration[i], mutationStrength)
+			newGeneration[i] = insertDelete(newGeneration[i], mutationStrength, stringByteCandidates)
 		}
 
 	}
@@ -94,9 +102,6 @@ func evolve(seeds []seed, seedCount *uint, stringByteCandidates []int) []seed {
 }
 
 func mutate(seed seed, mutationStrength int) seed {
-	if len(seed.content) == 0 {
-		panic("mutate logic error: content's len==0")
-	}
 	index := 0
 	if len(seed.content) > 1 {
 		index = int(RandRange(0, int64(len(seed.content))))
@@ -118,17 +123,11 @@ func mutate(seed seed, mutationStrength int) seed {
 		}
 	case bool:
 		seed.content[index] = randomBool()
-	// Cancellation due to value set issue
-	// As in the comment code below, the spread in implementation does not cover all string values.
+	// String is treated as []byte rather than []rune
+	// []rune is not allowed to contain escaped bytes, but string can contain them.
+	// https://go.dev/blog/strings
+	// so all strings must be treated as []byte in fuzzing.
 	// This is the description of the logic that deals with strings as bytes.
-	// case string:
-	//      runes := []rune(v)
-	//      if len(runes) > 0 {
-	//              runeIndex := RandRange(0, int64(len(runes)))
-	//              runes[runeIndex] = randomRunefrom(runes[runeIndex])
-	//      }
-	//      var new_str string = string(runes)
-	//      seed.Content[index] = new_str
 	case string:
 		bytes := []byte(v)
 		if len(bytes) > 0 {
@@ -157,14 +156,13 @@ func mutate(seed seed, mutationStrength int) seed {
 	return seed
 }
 
-func insertDelete(seed seed, p float64, mutationStrength int, stringByteCandidates []int) seed {
+func insertDelete(seed seed, mutationStrength int, stringByteCandidates []int) seed {
 	if len(stringByteCandidates) == 0 {
 		return seed
 	}
 
 	index := 0
 	if len(stringByteCandidates) > 0 {
-
 		selectedFieldidx := RandRange(0, int64(len(stringByteCandidates)))
 		index = stringByteCandidates[selectedFieldidx]
 	}
@@ -175,66 +173,14 @@ func insertDelete(seed seed, p float64, mutationStrength int, stringByteCandidat
 	case []byte:
 		bb := []byte(v)
 		for i := 0; i < mutationStrength; i++ {
-			l := len(bb)
-			// Insert
-			if GenerateRandomBool(p) {
-				if l < 1 {
-					var b byte = ' '
-					bb = []byte{randomByteFrom(b)}
-				} else {
-
-					sample := bb[RandRange(0, int64(l))]
-					bt := randomByteFrom(sample)
-
-					pos := RandRange(0, int64(l))
-
-					bb = append(bb, 0)
-
-					copy(bb[pos+1:], bb[pos:])
-
-					bb[pos] = bt
-				}
-			} else {
-				// Del
-				if l == 0 {
-					return seed
-				}
-				pos := RandRange(0, int64(l))
-				bb = append(bb[:pos], bb[pos+1:]...)
-			}
-
+			bb = addOrRemoveByte(bb)
 		}
 		var newByte []byte = bb
 		seed.content[index] = newByte
 	case string:
 		bb := []byte(v)
 		for i := 0; i < mutationStrength; i++ {
-			l := len(bb)
-			// Insert
-			if GenerateRandomBool(p) {
-				if l < 1 {
-					var b byte = ' '
-					bb = []byte{randomByteFrom(b)}
-				} else {
-
-					sample := bb[RandRange(0, int64(l))]
-					bt := randomByteFrom(sample)
-
-					pos := RandRange(0, int64(l))
-
-					bb = append(bb, 0)
-
-					copy(bb[pos+1:], bb[pos:])
-
-					bb[pos] = bt
-				}
-			} else {
-				if l != 0 {
-					pos := RandRange(0, int64(l))
-					bb = append(bb[:pos], bb[pos+1:]...)
-				}
-			}
-
+			bb = addOrRemoveByte(bb)
 		}
 		var newString string = string(bb)
 		seed.content[index] = newString
@@ -242,6 +188,34 @@ func insertDelete(seed seed, p float64, mutationStrength int, stringByteCandidat
 		panic("internal logic error")
 	}
 	return seed
+}
+
+func addOrRemoveByte(bb []byte) []byte {
+	l := len(bb)
+	if GenerateRandomBool(0.6) {
+		// Insert
+		if l == 0 {
+			var b byte = ' '
+			bb = []byte{randomByteFrom(b)}
+		} else {
+			sample := bb[RandRange(0, int64(l))]
+			bt := randomByteFrom(sample)
+			pos := RandRange(0, int64(l))
+			bb = append(bb, 0)
+			copy(bb[pos+1:], bb[pos:])
+			bb[pos] = bt
+		}
+		return bb
+	} else {
+		// Del
+		if l == 0 {
+			b := byte(RandRange(HighAsciiMin, HighAscillMax+1))
+			return []byte{b}
+		}
+		pos := RandRange(0, int64(l))
+		bb = append(bb[:pos], bb[pos+1:]...)
+		return bb
+	}
 }
 
 // I deleted the existing fit, fitness.
@@ -278,52 +252,7 @@ func twoPointCrossover(parent1, parent2 seed, seedCount *uint) (seed, seed) {
 			}
 			p1Bytes := []byte(byt1)
 			p2Bytes := []byte(byt2)
-			p1Len := len(p1Bytes)
-			p2Len := len(p2Bytes)
-			minLen := p1Len
-			if p2Len < p1Len {
-				minLen = p2Len
-			}
-			if minLen == 0 {
-				maxLen := p1Len
-				m := 1
-				if p2Len > p1Len {
-					m = 2
-					maxLen = p2Len
-				}
-				if maxLen < 1 {
-					s := ' '
-					bb := byte(s)
-					content1[i] = []byte([]byte{randomByteFrom(bb)})
-					content2[i] = []byte([]byte{randomByteFrom(bb)})
-					continue
-				} else {
-					if m == 1 {
-						content2[i] = content1[i]
-					} else {
-						content1[i] = content2[i]
-					}
-					continue
-				}
-			}
-
-			point1 := RandRange(0, int64(minLen))
-			point2 := RandRange(0, int64(minLen))
-
-			if point1 > point2 {
-				point1, point2 = point2, point1
-			}
-
-			crossedByt1 := append([]byte{}, p1Bytes[:point1]...)
-			crossedByt1 = append(crossedByt1, p2Bytes[point1:point2]...)
-			crossedByt1 = append(crossedByt1, p1Bytes[point2:]...)
-
-			crossedByt2 := append([]byte{}, p2Bytes[:point1]...)
-			crossedByt2 = append(crossedByt2, p1Bytes[point1:point2]...)
-			crossedByt2 = append(crossedByt2, p2Bytes[point2:]...)
-
-			resultByt1 := []byte(crossedByt1)
-			resultByt2 := []byte(crossedByt2)
+			resultByt1, resultByt2 := twoPointCrossoverByte(p1Bytes, p2Bytes)
 			content1[i] = resultByt1
 			content2[i] = resultByt2
 		case string:
@@ -334,55 +263,11 @@ func twoPointCrossover(parent1, parent2 seed, seedCount *uint) (seed, seed) {
 			}
 			p1Bytes := []byte(byt1)
 			p2Bytes := []byte(byt2)
-			p1Len := len(p1Bytes)
-			p2Len := len(p2Bytes)
-			minLen := p1Len
-			if p2Len < p1Len {
-				minLen = p2Len
-			}
-			if minLen < 1 {
-				maxLen := p1Len
-				m := 1
-				if p2Len > p1Len {
-					m = 2
-					maxLen = p2Len
-				}
-				if maxLen < 1 {
-					s := ' '
-					bb := byte(s)
-					content1[i] = string(randomByteFrom(bb))
-					content2[i] = string(randomByteFrom(bb))
-					continue
-				} else {
-					if m == 1 {
-						content2[i] = content1[i]
-					} else {
-						content1[i] = content2[i]
-					}
-					continue
-				}
-			}
-
-			point1 := RandRange(0, int64(minLen))
-			point2 := RandRange(0, int64(minLen))
-
-			if point1 > point2 {
-				point1, point2 = point2, point1
-			}
-
-			crossedByt1 := append([]byte{}, p1Bytes[:point1]...)
-			crossedByt1 = append(crossedByt1, p2Bytes[point1:point2]...)
-			crossedByt1 = append(crossedByt1, p1Bytes[point2:]...)
-
-			crossedByt2 := append([]byte{}, p2Bytes[:point1]...)
-			crossedByt2 = append(crossedByt2, p1Bytes[point1:point2]...)
-			crossedByt2 = append(crossedByt2, p2Bytes[point2:]...)
-
-			resultStr1 := string(crossedByt1)
-			resultStr2 := string(crossedByt2)
+			resultByt1, resultByt2 := twoPointCrossoverByte(p1Bytes, p2Bytes)
+			resultStr1 := string(resultByt1)
+			resultStr2 := string(resultByt2)
 			content1[i] = resultStr1
 			content2[i] = resultStr2
-
 		default:
 			panic("not supported type")
 
@@ -401,6 +286,51 @@ func twoPointCrossover(parent1, parent2 seed, seedCount *uint) (seed, seed) {
 	}
 
 	return updatedIdv1, updatedIdv2
+}
+
+func twoPointCrossoverByte(p1Bytes []byte, p2Bytes []byte) ([]byte, []byte) {
+	p1Len := len(p1Bytes)
+	p2Len := len(p2Bytes)
+	minLen := p1Len
+	minIdx := 1
+	if p2Len < p1Len {
+		minLen = p2Len
+		minIdx = 2
+	}
+	if minLen == 0 {
+		maxLen := p1Len
+		if minIdx == 1 {
+			maxLen = p2Len
+		}
+		var seedByte byte
+		if maxLen == 0 {
+			seedByte = byte(' ')
+		} else {
+			if minIdx == 1 {
+				seedByte = p2Bytes[0]
+			} else {
+				seedByte = p1Bytes[0]
+			}
+		}
+		return []byte([]byte{randomByteFrom(seedByte)}), []byte([]byte{randomByteFrom(seedByte)})
+	}
+
+	point1 := RandRange(0, int64(minLen))
+	point2 := RandRange(0, int64(minLen))
+
+	if point1 > point2 {
+		point1, point2 = point2, point1
+	}
+
+	crossedByt1 := append([]byte{}, p1Bytes[:point1]...)
+	crossedByt1 = append(crossedByt1, p2Bytes[point1:point2]...)
+	crossedByt1 = append(crossedByt1, p1Bytes[point2:]...)
+
+	crossedByt2 := append([]byte{}, p2Bytes[:point1]...)
+	crossedByt2 = append(crossedByt2, p1Bytes[point1:point2]...)
+	crossedByt2 = append(crossedByt2, p2Bytes[point2:]...)
+
+	return []byte(crossedByt1), []byte(crossedByt2)
 }
 
 func factorizationCrossover(a interface{}, b interface{}) (interface{}, interface{}) {
@@ -733,17 +663,17 @@ func randomByteFrom(seedByte byte) byte {
 			currentCase = (currentCase + 2) % 4
 			isProgress = false
 			break
-		case p >= 0.1 && p < 0.3:
+		case p >= 0.1 && p < 0.25:
 			currentCase = (currentCase + 3) % 4
 			isProgress = false
 			break
-		case p >= 0.3 && p < 0.7:
+		case p >= 0.25 && p < 0.75:
 			break
 
-		case p >= 0.7 && p < 0.9:
+		case p >= 0.75 && p < 0.90:
 			isProgress = true
 			currentCase = (currentCase + 1) % 4
-		case p >= 0. && p <= 1.0:
+		case p >= 0.90 && p <= 1.0:
 			isProgress = true
 			currentCase = (currentCase + 2) % 4
 		}

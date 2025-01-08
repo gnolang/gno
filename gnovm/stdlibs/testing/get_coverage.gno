@@ -4,30 +4,6 @@ import (
 	"unicode/utf8"
 )
 
-func mock(t *T, orig ...interface{}) {
-	v, ok := orig[0].(string)
-	if !ok {
-		panic("dont match")
-	}
-	rev := Reverse(v)
-	doubleRev := Reverse(rev)
-	if v != doubleRev && v == "some cond" {
-		t.Errorf("Before: %q, after: %q", orig, doubleRev)
-	}
-	if utf8.ValidString(v) && !utf8.ValidString(rev) && v == "some cond" {
-		t.Errorf("Reverse produced invalid UTF-8 string %q", rev)
-	}
-}
-
-// l
-// l
-// l
-// l
-// l
-// l
-// l
-// l
-// l
 func Reverse(s string) string {
 	r := []rune(s)
 	for i, j := 0, len(r)-1; i < len(r)/2; i, j = i+1, j-1 {

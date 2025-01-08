@@ -43,11 +43,12 @@ type (
 		isFuzzed  bool
 		seedCount uint
 		// for cmd test
-		output  []byte
-		verbose bool // Stores log messages for reporting.
-		trials  uint // Number of iterations to run the fuzzing process.
-		dur     string
-		name    string
+		output               []byte
+		verbose              bool // Stores log messages for reporting.
+		trials               uint // Number of iterations to run the fuzzing process.
+		dur                  string
+		name                 string
+		stringByteCandidates []int
 	}
 )
 
@@ -177,7 +178,7 @@ func (f *F) Fuzz(run Runner) {
 		}
 	}
 
-	f.manager.stringByteCandidates = stringByteCandidates
+	f.stringByteCandidates = stringByteCandidates
 	fmt.Fprintln(os.Stderr, "Run trials...")
 
 	// format by init seeds
@@ -278,8 +279,8 @@ func (f *F) Fail() {
 func (f *F) handleFail() {
 	fmt.Fprintln(os.Stderr, "\n--- FAIL:")
 
-	lastCrashCase := f.logger.getLastCrashCase()
 	f.logger.reportLastFailingInput()
+	lastCrashCase := f.logger.getLastCrashCase()
 	f.minimazeAndLogInput(lastCrashCase.rawContent)
 	f.logger.reportLastCrashCase()
 	minimaizedCase := f.logger.getLastCrashCase()
@@ -347,58 +348,65 @@ func (f *F) minimazeAndLogInput(seedContent []interface{}) {
 	sampleSeed := seed{
 		content: content,
 	}
-	// re confirm error
+	// confirm and log error
 	f.simulateFF(sampleSeed)
 	fmt.Fprintln(os.Stderr, "\n--- Minimaized input:")
 }
 
-func (f *F) checkProgress(content []interface{}, minimazalbeIdXs []int) ([]interface{}, bool, int) {
+func (f *F) checkProgress(content []interface{}, minimizableIdXs []int) ([]interface{}, bool, int) {
 	changed := false
-	for _, idx := range minimazalbeIdXs {
+
+	for occeredPoint, idx := range minimizableIdXs {
 		sOrb := content[idx]
+		var candidates [][]byte
+		var isString bool
 
 		switch v := sOrb.(type) {
 		case string:
 			if len(v) < 1 {
 				continue
 			}
-			for i := 0; i < len(v); i++ {
-				b := []byte(v)
-				candidate := append(b[:i], b[i+1:]...)
-
-				tester := make([]interface{}, len(content))
-				for i, v := range content {
-					tester[i] = v
-				}
-				tester[idx] = string(candidate)
-				if f.checkPreserve(tester).errorIsPreserved {
-
-					changed = true
-					return tester, changed, idx
-				}
-			}
+			isString = true
+			candidates = generateCandidates([]byte(v))
 		case []byte:
 			if len(v) < 1 {
 				continue
 			}
-			for i := 0; i < len(v); i++ {
-				b := []byte(v)
-				candidate := append(b[:i], b[i+1:]...)
-				tester := make([]interface{}, len(content))
-				for i, v := range content {
-					tester[i] = v
-				}
-				tester[idx] = []byte(candidate)
-				if f.checkPreserve(tester).errorIsPreserved {
-					changed = true
-					return tester, changed, idx
-				}
-			}
+			isString = false
+			candidates = generateCandidates(v)
 		default:
 			panic("internal logic error")
 		}
+
+		for _, candidate := range candidates {
+			tester := make([]interface{}, len(content))
+			copy(tester, content)
+
+			if isString {
+				tester[idx] = string(candidate)
+			} else {
+				tester[idx] = candidate
+			}
+
+			if f.checkPreserve(tester).errorIsPreserved {
+				changed = true
+				return tester, changed, occeredPoint
+			}
+		}
 	}
 	return content, changed, 0
+}
+
+// returns a new slice with the letter of each index removed from a given byte slice.
+func generateCandidates(b []byte) [][]byte {
+	candidates := make([][]byte, 0, len(b))
+	for i := 0; i < len(b); i++ {
+		// Create a new slice that removes characters from a particular index
+		candidate := append([]byte{}, b[:i]...)
+		candidate = append(candidate, b[i+1:]...)
+		candidates = append(candidates, candidate)
+	}
+	return candidates
 }
 
 type PreserveFailing struct {
@@ -468,20 +476,18 @@ func (f *F) migrateMachines() {
 	prevSeedType := make([]supportedType, len(f.manager.seedType))
 	copy(prevSeedType, f.manager.seedType)
 	prevInitHashNumber := f.manager.inithashnumber
-	prevStringByteCandidates := f.manager.stringByteCandidates
 	f.manager = newFuzzManager(f.trials, uint(substractedInputCount))
 	f.manager.verbose = f.verbose
 	f.manager.seedType = prevSeedType
 	f.manager.inithashnumber = prevInitHashNumber
-	f.manager.stringByteCandidates = prevStringByteCandidates
 	for _, seed := range summarizedSeeds {
 		f.manager.coordinateSeed(seed)
 	}
 }
 
 func (f *F) updateMachines(parentSeeds []seed) bool {
-	abstractSeedMap := make(map[hashNumber]abstractSeedInfo)
-	childSeeds := evolve(parentSeeds, &f.seedCount, f.manager.stringByteCandidates)
+	seedsMap := make(map[hashNumber]*[]seed)
+	childSeeds := evolve(parentSeeds, &f.seedCount, f.stringByteCandidates)
 	for _, child := range childSeeds {
 		child = f.simulateFF(child)
 		if f.failed {
@@ -489,58 +495,53 @@ func (f *F) updateMachines(parentSeeds []seed) bool {
 			return true
 		}
 		hn := child.hashNumber
-		equalHashNumberSeeds := abstractSeedMap[hn].seeds
-		abstractNumber := abstractSeedMap[hn].abstractNumber
-		if len(equalHashNumberSeeds) < 2 {
-			equalHashNumberSeeds = append(equalHashNumberSeeds, child)
-			abstractNumber++
-		} else {
-			abstractNumber++
+		if _, exists := seedsMap[hn]; !exists {
+			seedsMap[hn] = &[]seed{}
 		}
-		absSeedInfo := abstractSeedInfo{
-			seeds:          equalHashNumberSeeds,
-			abstractNumber: abstractNumber,
-		}
-		abstractSeedMap[hn] = absSeedInfo
+		seeds := seedsMap[hn]
+		*seeds = append(*seeds, child)
 	}
 
-	for hn, absSeedInfo := range abstractSeedMap {
-		seeds := absSeedInfo.seeds
-		if len(seeds) == 1 {
-			concreteEndInfo := f.manager.coordinateSeed(seeds[0])
+	for hn, seeds := range seedsMap {
+		if len(*seeds) == 1 {
+			concreteEndInfo := f.manager.coordinateSeed((*seeds)[0])
 			flag := f.handleEndInfo(concreteEndInfo, parentSeeds)
 			if flag {
 				return true
 			}
 		} else {
-			absNumber := absSeedInfo.abstractNumber - 2
+			seedArray := *(seeds)
+			absNumber := uint(len(seedArray) - 2)
 			absEndInfo := f.manager.coordinateAbstraction(hn, absNumber)
 			flag := f.handleEndInfo(absEndInfo, parentSeeds)
 			if flag {
 				return true
 			}
-			concreteEndInfo1 := f.manager.coordinateSeed(seeds[0])
+			selectedIdx1 := RandRange(0, int64(len(seedArray)))
+			selectedIdx2 := RandRange(0, int64(len(seedArray)))
+			if selectedIdx1 == selectedIdx2 {
+				if selectedIdx1 == 0 {
+					selectedIdx2 = 1
+				} else {
+					selectedIdx2 = selectedIdx1 - 1
+				}
+			}
+			concreteEndInfo1 := f.manager.coordinateSeed(seedArray[selectedIdx1])
 			flag = f.handleEndInfo(concreteEndInfo1, parentSeeds)
 			if flag {
 				return true
 			}
-			concreteEndInfo2 := f.manager.coordinateSeed(seeds[1])
+			concreteEndInfo2 := f.manager.coordinateSeed(seedArray[selectedIdx2])
 			flag = f.handleEndInfo(concreteEndInfo2, parentSeeds)
 			if flag {
 				return true
 			}
 		}
-
 	}
 	for _, p := range parentSeeds {
 		f.manager.coordinateSeed(p)
 	}
 	return false
-}
-
-type abstractSeedInfo struct {
-	seeds          []seed
-	abstractNumber uint
 }
 
 func (f *F) handleEndInfo(endInfo endInfo, parentSeeds []seed) bool {

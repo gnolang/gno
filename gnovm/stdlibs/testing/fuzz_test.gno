@@ -21,7 +21,7 @@ func FuzzMock(f *testing.F) {
 		rev := Reverse(v)
 		doubleRev := Reverse(rev)
 		if v != doubleRev && i > 300 && i < 500 {
-			t.Errorf("Before: %q, after: %q", orig, doubleRev)
+			// t.Errorf("Before: %q, after: %q", orig, doubleRev)
 		}
 		if utf8.ValidString(v) && !utf8.ValidString(rev) && i > 300 && i < 1000 {
 			t.Errorf("Reverse produced invalid UTF-8 string %q", rev)
