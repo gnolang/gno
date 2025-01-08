@@ -113,13 +113,13 @@ func execLint(cfg *lintCfg, args []string, io commands.IO) error {
 	)
 
 	for _, pkg := range pkgs {
-		parentName := pkg.ImportPath
-		if parentName == "" {
-			parentName = pkg.Dir
+		logName := pkg.ImportPath
+		if logName == "" {
+			logName = pkg.Dir
 		}
 
 		if verbose {
-			io.ErrPrintln(parentName)
+			io.ErrPrintln(logName)
 		}
 
 		// Check if 'gno.mod' exists
@@ -141,7 +141,7 @@ func execLint(cfg *lintCfg, args []string, io commands.IO) error {
 		loadDepsCfg.Cache = pkgsMap
 		deps, loadDepsErr := packages.Load(&loadDepsCfg, pkg.Dir)
 		if loadDepsErr != nil {
-			io.ErrPrintln(issueFromError(parentName, err).String())
+			io.ErrPrintln(issueFromError(logName, err).String())
 			hasError = true
 			continue
 		}
@@ -150,20 +150,20 @@ func execLint(cfg *lintCfg, args []string, io commands.IO) error {
 		// read mempkg
 		memPkg, err := gno.ReadMemPackage(pkg.Dir, pkg.ImportPath)
 		if err != nil {
-			io.ErrPrintln(issueFromError(parentName, err).String())
+			io.ErrPrintln(issueFromError(logName, err).String())
 			hasError = true
 			continue
 		}
 
 		// Perform imports using the parent store.
 		if err := test.LoadImports(ts, memPkg); err != nil {
-			io.ErrPrintln(issueFromError(parentName, err).String())
+			io.ErrPrintln(issueFromError(logName, err).String())
 			hasError = true
 			continue
 		}
 
 		// Handle runtime errors
-		hasRuntimeErr := catchRuntimeError(parentName, io.Err(), func() {
+		hasRuntimeErr := catchRuntimeError(logName, io.Err(), func() {
 			// Wrap in cache wrap so execution of the linter doesn't impact
 			// other packages.
 			cw := bs.CacheWrap()
@@ -179,7 +179,7 @@ func execLint(cfg *lintCfg, args []string, io commands.IO) error {
 					hasError = true
 				}
 			} else if verbose {
-				io.ErrPrintfln("%s: module is draft, skipping type check", parentName)
+				io.ErrPrintfln("%s: module is draft, skipping type check", logName)
 			}
 
 			tm := test.Machine(gs, goio.Discard, memPkg.Path)

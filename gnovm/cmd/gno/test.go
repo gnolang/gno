@@ -195,13 +195,13 @@ func execTest(cfg *testCfg, args []string, io commands.IO) error {
 			continue
 		}
 
-		parentName := pkg.ImportPath
-		if parentName == "" {
-			parentName = pkg.Dir
+		logName := pkg.ImportPath
+		if logName == "" {
+			logName = pkg.Dir
 		}
 
 		if len(pkg.Files[packages.FileKindTest]) == 0 && len(pkg.Files[packages.FileKindXTest]) == 0 && len(pkg.Files[packages.FileKindFiletest]) == 0 {
-			io.ErrPrintfln("?       %s \t[no test files]", parentName)
+			io.ErrPrintfln("?       %s \t[no test files]", logName)
 			continue
 		}
 
@@ -210,19 +210,19 @@ func execTest(cfg *testCfg, args []string, io commands.IO) error {
 		depsConf.Cache = pkgsMap
 		deps, loadDepsErr := packages.Load(&depsConf, pkg.Dir)
 		if loadDepsErr != nil {
-			io.ErrPrintfln("%s: load deps: %v", pkg.Dir, err)
+			io.ErrPrintfln("%s: load deps: %v", logName, err)
 			io.ErrPrintfln("FAIL")
-			io.ErrPrintfln("FAIL    %s", parentName)
+			io.ErrPrintfln("FAIL    %s", logName)
 			io.ErrPrintfln("FAIL")
 			buildErrCount++
 			continue
 		}
 		packages.Inject(pkgsMap, deps)
 
-		memPkg := gno.MustReadMemPackage(pkg.Dir, parentName)
+		memPkg := gno.MustReadMemPackage(pkg.Dir, logName)
 
 		startedAt := time.Now()
-		hasError := catchRuntimeError(parentName, io.Err(), func() {
+		hasError := catchRuntimeError(logName, io.Err(), func() {
 			err = test.Test(memPkg, pkg.Dir, opts)
 		})
 
@@ -231,14 +231,14 @@ func execTest(cfg *testCfg, args []string, io commands.IO) error {
 
 		if hasError || err != nil {
 			if err != nil {
-				io.ErrPrintfln("%s: test pkg: %v", pkg.Dir, err)
+				io.ErrPrintfln("%s: test pkg: %v", logName, err)
 			}
 			io.ErrPrintfln("FAIL")
-			io.ErrPrintfln("FAIL    %s \t%s", parentName, dstr)
+			io.ErrPrintfln("FAIL    %s \t%s", logName, dstr)
 			io.ErrPrintfln("FAIL")
 			testErrCount++
 		} else {
-			io.ErrPrintfln("ok      %s \t%s", parentName, dstr)
+			io.ErrPrintfln("ok      %s \t%s", logName, dstr)
 		}
 	}
 	if testErrCount > 0 || buildErrCount > 0 {
