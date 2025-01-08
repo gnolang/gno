@@ -1,6 +1,7 @@
 package gnolang
 
 import (
+	"fmt"
 	"reflect"
 )
 
@@ -76,7 +77,7 @@ func NewAllocator(maxBytes int64, m *Machine) *Allocator {
 	//}
 	return &Allocator{
 		//maxBytes: maxBytes,
-		maxBytes: 5000,
+		maxBytes: 10000000000,
 		m:        m,
 	}
 }
@@ -101,6 +102,56 @@ func (alloc *Allocator) Fork() *Allocator {
 		maxBytes: alloc.maxBytes,
 		bytes:    alloc.bytes,
 	}
+}
+
+func (alloc *Allocator) MemStats() string {
+	return fmt.Sprintf("Allocator{maxBytes:%d,bytes,bytes:%d}", alloc.maxBytes, alloc.bytes)
+}
+
+func (alloc *Allocator) GC() {
+	println("---gc")
+	// a throwaway allocator
+	throwaway := NewAllocator(3000, nil)
+	debug2.Println2("m: ", alloc.m)
+	for i, fr := range alloc.m.Frames {
+		debug2.Printf2("frames[%d]: %v \n", i, fr)
+
+		ft := fr.Func.GetType(alloc.m.Store)
+		if ft.HasVarg() {
+			debug2.Println2("has varg")
+			pts := ft.Params
+			numParams := len(pts)
+			isMethod := 0 // 1 if true
+			nvar := fr.NumArgs - (numParams - 1 - isMethod)
+			throwaway.AllocateSlice()
+			throwaway.AllocateListArray(int64(nvar))
+		}
+		// defer func
+		for _, dfr := range fr.Defers {
+			debug2.Println2("has defer")
+			fv := dfr.Func
+			ft := fv.GetType(alloc.m.Store)
+			numParams := len(ft.Params)
+			numArgs := len(dfr.Args)
+			nvar := numArgs - (numParams - 1)
+			throwaway.AllocateSlice()
+			throwaway.AllocateListArray(int64(nvar))
+		}
+	}
+
+	for i, b := range alloc.m.Blocks {
+		debug2.Printf2("blocks[%d]: %v \n", i, b)
+		throwaway.allocate2(b)
+		for i, v := range b.Values {
+			debug2.Printf2("values[%d]: %v, %v\n", i, v, reflect.TypeOf(v.V))
+			throwaway.allocate2(v.V)
+		}
+	}
+
+	debug2.Println2("---throwaway.bytes: ", throwaway.bytes)
+	debug2.Println2("---before reset, alloc.bytes: ", alloc.bytes)
+	alloc.bytes = throwaway.bytes
+	println("---after reset, alloc.bytes: ", alloc.bytes)
 }
 
 func (throwaway *Allocator) allocate2(v Value) {
@@ -151,55 +202,14 @@ func (alloc *Allocator) Allocate(size int64) {
 		return
 	}
 
-	debug2.Println2("allocator: ", alloc)
-	if alloc.m != nil {
-		//fmt.Println("num of blocks in machine: ", len(alloc.m.Blocks))
-		if alloc.bytes > 3000 {
-			debug2.Println2("---exceed memory size............")
-			// a throwaway allocator
-			throwaway := NewAllocator(3000, nil)
-			debug2.Println2("m: ", alloc.m)
-			for i, fr := range alloc.m.Frames {
-				debug2.Printf2("frames[%d]: %v \n", i, fr)
-
-				ft := fr.Func.GetType(alloc.m.Store)
-				if ft.HasVarg() {
-					debug2.Println2("has varg")
-					pts := ft.Params
-					numParams := len(pts)
-					isMethod := 0 // 1 if true
-					nvar := fr.NumArgs - (numParams - 1 - isMethod)
-					throwaway.AllocateSlice()
-					throwaway.AllocateListArray(int64(nvar))
-				}
-				// defer func
-				for _, dfr := range fr.Defers {
-					debug2.Println2("has defer")
-					fv := dfr.Func
-					ft := fv.GetType(alloc.m.Store)
-					numParams := len(ft.Params)
-					numArgs := len(dfr.Args)
-					nvar := numArgs - (numParams - 1)
-					throwaway.AllocateSlice()
-					throwaway.AllocateListArray(int64(nvar))
-				}
-			}
-
-			for i, b := range alloc.m.Blocks {
-				debug2.Printf2("blocks[%d]: %v \n", i, b)
-				throwaway.allocate2(b)
-				for i, v := range b.Values {
-					debug2.Printf2("values[%d]: %v, %v\n", i, v, reflect.TypeOf(v.V))
-					throwaway.allocate2(v.V)
-				}
-			}
-
-			debug2.Println2("---throwaway.bytes: ", throwaway.bytes)
-			debug2.Println2("---before reset, alloc.bytes: ", alloc.bytes)
-			alloc.bytes = throwaway.bytes
-			debug2.Println2("---after reset, alloc.bytes: ", alloc.bytes)
-		}
-	}
+	//debug2.Println2("allocator: ", alloc)
+	//if alloc.m != nil {
+	//	//fmt.Println("num of blocks in machine: ", len(alloc.m.Blocks))
+	//	if alloc.bytes > 3000 {
+	//		debug2.Println2("---exceed memory size............")
+	//		alloc.GC()
+	//	}
+	//}
 
 	debug2.Println2("new allocated: ", size)
 	alloc.bytes += size

@@ -192,3 +192,11 @@ func CompactCoins(denoms []string, amounts []int64) std.Coins {
 	}
 	return coins
 }
+
+func GC(m *gno.Machine) {
+	m.Alloc.GC()
+}
+
+func MemStats(m *gno.Machine) string {
+	return m.Alloc.MemStats()
+}

@@ -66,7 +66,7 @@ func (opts *TestOptions) runFiletest(filename string, source []byte) (string, er
 		Context:       ctx,
 		MaxAllocBytes: maxAlloc,
 	})
-	fmt.Println("---m: ", m)
+	//fmt.Println("---m: ", m)
 	m.Alloc = gno.NewAllocator(math.MaxInt64, m)
 
 	maxBytes, bytes := m.Alloc.Status()
@@ -236,7 +236,7 @@ func (opts *TestOptions) runTest(m *gno.Machine, pkgPath, filename string, conte
 		m.SetActivePackage(pv)
 		n := gno.MustParseFile(filename, string(content))
 		m.RunFiles(n)
-		fmt.Println("---after RunFiles, m: ", m)
+		//fmt.Println("---after RunFiles, m: ", m)
 
 		m.RunStatement(gno.S(gno.Call(gno.X("main"))))
 	} else {
