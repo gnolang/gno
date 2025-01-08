@@ -117,7 +117,7 @@ func SetupGnolandTestscript(t *testing.T, p *testscript.Params) error {
 
 	nodesManager := NewNodesManager()
 
-	defaultPK, err := generatePrivKeyFromMnemonic(DefaultAccount_Seed, "", 0, 0)
+	defaultPK, err := GeneratePrivKeyFromMnemonic(DefaultAccount_Seed, "", 0, 0)
 	require.NoError(t, err)
 
 	var buildOnce sync.Once
@@ -237,7 +237,7 @@ func SetupGnolandTestscript(t *testing.T, p *testscript.Params) error {
 func gnolandCmd(t *testing.T, nodesManager *NodesManager, gnoRootDir string) func(ts *testscript.TestScript, neg bool, args []string) {
 	t.Helper()
 
-	defaultPK, err := generatePrivKeyFromMnemonic(DefaultAccount_Seed, "", 0, 0)
+	defaultPK, err := GeneratePrivKeyFromMnemonic(DefaultAccount_Seed, "", 0, 0)
 	require.NoError(t, err)
 
 	return func(ts *testscript.TestScript, neg bool, args []string) {
@@ -768,7 +768,7 @@ func buildGnoland(t *testing.T, rootdir string) string {
 }
 
 // GeneratePrivKeyFromMnemonic generates a crypto.PrivKey from a mnemonic.
-func generatePrivKeyFromMnemonic(mnemonic, bip39Passphrase string, account, index uint32) (crypto.PrivKey, error) {
+func GeneratePrivKeyFromMnemonic(mnemonic, bip39Passphrase string, account, index uint32) (crypto.PrivKey, error) {
 	// Generate Seed from Mnemonic
 	seed, err := bip39.NewSeedWithErrorChecking(mnemonic, bip39Passphrase)
 	if err != nil {

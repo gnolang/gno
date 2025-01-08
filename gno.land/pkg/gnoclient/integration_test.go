@@ -713,11 +713,12 @@ func loadpkgs(t *testing.T, rootdir string, paths ...string) []gnoland.TxWithMet
 		err := loader.LoadPackage(examplesDir, path, "")
 		require.NoErrorf(t, err, "`loadpkg` unable to load package(s) from %q: %s", path, err)
 	}
-
+	privKey, err := integration.GeneratePrivKeyFromMnemonic(integration.DefaultAccount_Seed, "", 0, 0)
+	require.NoError(t, err)
 	creator := crypto.MustAddressFromString(integration.DefaultAccount_Address)
 	defaultFee := std.NewFee(50000, std.MustParseCoin(ugnot.ValueString(1000000)))
 
-	meta, err := loader.LoadPackages(creator, defaultFee, nil)
+	meta, err := loader.LoadPackages(creator, defaultFee, nil, privKey)
 	require.NoError(t, err)
 	return meta
 }
