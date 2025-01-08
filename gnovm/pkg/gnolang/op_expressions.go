@@ -108,7 +108,7 @@ func (m *Machine) doOpSlice() {
 	// if a is a pointer to an array, a[low : high : max] is
 	// shorthand for (*a)[low : high : max]
 	if xv.T.Kind() == PointerKind &&
-			xv.T.Elem().Kind() == ArrayKind {
+		xv.T.Elem().Kind() == ArrayKind {
 		// simply deref xv.
 		*xv = xv.V.(PointerValue).Deref()
 	}
@@ -638,6 +638,7 @@ func (m *Machine) doOpSliceLit2() {
 
 func (m *Machine) doOpMapLit() {
 	x := m.PopExpr().(*CompositeLitExpr)
+	debug2.Println2("doOpMapLit, x: ", x)
 	ne := len(x.Elts)
 	// peek map type.
 	mt := m.PeekValue(1 + ne*2).V.(TypeValue).Type
@@ -702,7 +703,7 @@ func (m *Machine) doOpStructLit() {
 				// package doesn't match, we cannot use this
 				// method to initialize the struct.
 				if FieldTypeList(st.Fields).HasUnexported() &&
-						st.PkgPath != m.Package.PkgPath {
+					st.PkgPath != m.Package.PkgPath {
 					panic(fmt.Sprintf(
 						"Cannot initialize imported struct %s.%s with nameless composite lit expression (has unexported fields) from package %s",
 						st.PkgPath, st.String(), m.Package.PkgPath))

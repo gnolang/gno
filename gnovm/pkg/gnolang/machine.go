@@ -449,6 +449,7 @@ func (m *Machine) Stacktrace() (stacktrace Stacktrace) {
 // must happen after persistence and realm finalization,
 // then changes from init persisted again.
 func (m *Machine) RunFiles(fns ...*FileNode) {
+	debug2.Println2("RunFiles, m: ", m)
 	pv := m.Package
 	if pv == nil {
 		panic("RunFiles requires Machine.Package")
@@ -461,6 +462,8 @@ func (m *Machine) RunFiles(fns ...*FileNode) {
 // This will also run each init function encountered.
 // Returns the updated typed values of package.
 func (m *Machine) runFileDecls(fns ...*FileNode) []TypedValue {
+	debug2.Println2("===runFileDecls", len(fns))
+	defer debug2.Println2("===Done runFileDecls")
 	// Files' package names must match the machine's active one.
 	// if there is one.
 	for _, fn := range fns {
@@ -512,6 +515,7 @@ func (m *Machine) runFileDecls(fns ...*FileNode) []TypedValue {
 		// Each file for each *PackageValue gets its own file *Block,
 		// with values copied over from each file's
 		// *FileNode.StaticBlock.
+		debug2.Println2("---machine, runFileDecls")
 		fb := m.Alloc.NewBlock(fn, pb)
 		fb.Values = make([]TypedValue, len(fn.StaticBlock.Values))
 		copy(fb.Values, fn.StaticBlock.Values)
@@ -810,6 +814,8 @@ func (m *Machine) EvalStaticTypeOf(last BlockNode, x Expr) Type {
 func (m *Machine) RunStatement(s Stmt) {
 	sn := m.LastBlock().GetSource(m.Store)
 	s = Preprocess(m.Store, sn, s).(Stmt)
+	debug2.Println2("Machine.RunStatement, s: ", s)
+	debug2.Println2("current machine: ", m)
 	m.PushOp(OpHalt)
 	m.PushStmt(s)
 	m.PushOp(OpExec)
@@ -1724,6 +1730,7 @@ func (m *Machine) PushBlock(b *Block) {
 	if debug {
 		m.Println("+B")
 	}
+	m.Println("+B")
 	m.Blocks = append(m.Blocks, b)
 }
 
@@ -1731,6 +1738,7 @@ func (m *Machine) PopBlock() (b *Block) {
 	if debug {
 		m.Println("-B")
 	}
+	m.Println("-B")
 	numBlocks := len(m.Blocks)
 	b = m.Blocks[numBlocks-1]
 	m.Blocks = m.Blocks[:numBlocks-1]

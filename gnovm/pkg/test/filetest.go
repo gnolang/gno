@@ -36,7 +36,7 @@ var reEndOfLineSpaces = func() *regexp.Regexp {
 }()
 
 func (opts *TestOptions) runFiletest(filename string, source []byte) (string, error) {
-	fmt.Println("---runFiletest")
+	fmt.Println("========runFiletest=========")
 	dirs, err := ParseDirectives(bytes.NewReader(source))
 	if err != nil {
 		return "", fmt.Errorf("error parsing directives: %w", err)
@@ -236,6 +236,8 @@ func (opts *TestOptions) runTest(m *gno.Machine, pkgPath, filename string, conte
 		m.SetActivePackage(pv)
 		n := gno.MustParseFile(filename, string(content))
 		m.RunFiles(n)
+		fmt.Println("---after RunFiles, m: ", m)
+
 		m.RunStatement(gno.S(gno.Call(gno.X("main"))))
 	} else {
 		// Realm case.
@@ -260,6 +262,7 @@ func (opts *TestOptions) runTest(m *gno.Machine, pkgPath, filename string, conte
 		m.Store = tx
 		// Run decls and init functions.
 		m.RunMemPackage(memPkg, true)
+		fmt.Println("---after RunMemPackage, m: ", m)
 		// Clear store cache and reconstruct machine from committed info
 		// (mimicking on-chain behaviour).
 		tx.Write()

@@ -154,6 +154,7 @@ func (m *Machine) doOpCall() {
 		} else {
 			list := m.PopCopyValues(nvar)
 			vart := pts[numParams-1].Type.(*SliceType)
+			debug2.Println2("varg")
 			varg := m.Alloc.NewSliceFromList(list)
 			m.PushValue(TypedValue{
 				T: vart,
@@ -352,6 +353,7 @@ func (m *Machine) doOpReturnCallDefers() {
 				vart := pts[len(pts)-1].Type.(*SliceType)
 				vargs := make([]TypedValue, nvar)
 				copy(vargs, dfr.Args[numArgs-nvar:numArgs])
+				debug2.Println2("---defer")
 				varg := m.Alloc.NewSliceFromList(vargs)
 				dfr.Args = dfr.Args[:numArgs-nvar]
 				dfr.Args = append(dfr.Args, TypedValue{

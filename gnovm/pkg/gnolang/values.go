@@ -723,6 +723,7 @@ func (ml *MapList) UnmarshalAmino(mlimg MapListImage) error {
 
 // NOTE: Value is undefined until assigned.
 func (ml *MapList) Append(alloc *Allocator, key TypedValue) *MapListItem {
+	debug2.Println2("MapList, Append, key: ", key)
 	alloc.AllocateMapItem()
 	item := &MapListItem{
 		Prev: ml.Tail,
