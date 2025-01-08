@@ -14,6 +14,7 @@ var Package = amino.RegisterPackage(amino.NewPackage(
 	std.Package,
 	gnovm.Package,
 ).WithTypes(
+	MsgEval{}, "m_eval",
 	MsgCall{}, "m_call",
 	MsgRun{}, "m_run",
 	MsgAddPackage{}, "m_addpkg", // TODO rename both to MsgAddPkg?

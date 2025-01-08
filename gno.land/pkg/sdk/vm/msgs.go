@@ -12,13 +12,13 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/std"
 )
 
-type Format string
+type ResultFormat string
 
 const (
-	FormatMachine = "machine" // Default machine representation
-	FormatJSON    = "json"    // XXX: EXPERIMENTAL, only supports primitive types for now
-
-	FormatDefault = FormatMachine
+	ResultFormatMachine ResultFormat = "machine" // Default machine representation
+	ResultFormatString               = "string"  // Single string represnetation
+	ResultFormatJSON                 = "json"    // XXX: EXPERIMENTAL, only supports primitive types for now
+	ResultFormatDefault              = ResultFormatMachine
 )
 
 //----------------------------------------
@@ -93,21 +93,24 @@ func (msg MsgAddPackage) GetReceived() std.Coins {
 
 // MsgEval - eval a Gno Expr.
 type MsgEval struct {
-	Caller  crypto.Address `json:"caller" yaml:"caller"`
-	PkgPath string         `json:"pkg_path" yaml:"pkg_path"`
-	Expr    string         `json:"expr" yaml:"expr"`
+	PkgPath string `json:"pkg_path" yaml:"pkg_path"`
+	Expr    string `json:"expr" yaml:"expr"`
+
+	// Caller will be use for signing only
+	Caller crypto.Address `json:"caller" yaml:"caller"`
 
 	// XXX: This field is experimental, use with care as output is likely to change
-	Format Format `json:"format" yaml:"format"`
+	// Default format is machine
+	ResultFormat ResultFormat `json:"format" yaml:"format"`
 }
 
 var _ std.Msg = MsgEval{}
 
-func NewMsgEval(caller crypto.Address, format Format, pkgPath, expr string) MsgEval {
+func NewMsgEval(format ResultFormat, pkgPath, expr string) MsgEval {
 	return MsgEval{
-		Caller:  caller,
-		PkgPath: pkgPath,
-		Format:  FormatDefault,
+		PkgPath:      pkgPath,
+		Expr:         expr,
+		ResultFormat: format,
 	}
 }
 
@@ -122,12 +125,7 @@ func (msg MsgEval) ValidateBasic() error {
 	if msg.Caller.IsZero() {
 		return std.ErrInvalidAddress("missing caller address")
 	}
-	if msg.PkgPath == "" {
-		return ErrInvalidPkgPath("missing package path")
-	}
-	if !gno.IsRealmPath(msg.PkgPath) {
-		return ErrInvalidPkgPath("pkgpath must be of a realm")
-	}
+
 	if msg.Expr == "" {
 		return ErrInvalidExpr("missing expr to eval")
 	}
@@ -157,14 +155,14 @@ type MsgCall struct {
 	Args    []string       `json:"args" yaml:"args"`
 
 	// XXX: This field is experimental, use with care as output is likely to change
-	Format Format `json:"format" yaml:"format"`
+	Format ResultFormat `json:"format" yaml:"format"`
 }
 
 var _ std.Msg = MsgCall{}
 
 func NewMsgCall(caller crypto.Address, send sdk.Coins, pkgPath, fnc string, args []string) MsgCall {
 	return MsgCall{
-		Format:  FormatDefault,
+		Format:  ResultFormatDefault,
 		Caller:  caller,
 		Send:    send,
 		PkgPath: pkgPath,
