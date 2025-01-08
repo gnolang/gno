@@ -3,17 +3,17 @@ package main
 import "math"
 
 func main() {
-	var i8 int8 = 127
-	var i16 int16 = 32767
-	var i32 int32 = 2147483647
-	var i64 int64 = 9223372036854775807
-	var i int = 9223372036854775807
-	var u8 uint8 = 255
-	var u16 uint16 = 65535
-	var u32 uint32 = 4294967295
-	var u64 uint64 = 18446744073709551615
-	var f32 float32 = math.MaxFloat32
-	var f64 float64 = math.MaxFloat64
+	const i8 int8 = 127
+	const i16 int16 = 32767
+	const i32 int32 = 2147483647
+	const i64 int64 = 9223372036854775807
+	const i int = 9223372036854775807
+	const u8 uint8 = 255
+	const u16 uint16 = 65535
+	const u32 uint32 = 4294967295
+	const u64 uint64 = 18446744073709551615
+	const f32 float32 = math.MaxFloat32
+	const f64 float64 = math.MaxFloat64
 	println(f32 / 2)
 	println(f64 / 2)
 	println((f32 - 1) + 1)
