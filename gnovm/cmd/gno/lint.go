@@ -81,8 +81,6 @@ func (i lintIssue) String() string {
 		location, err = filepath.Rel(wd, i.Location)
 		if err != nil {
 			location = i.Location
-		} else {
-			location = fmt.Sprintf(".%c%s", filepath.Separator, filepath.Join(location))
 		}
 	}
 	// TODO: consider crafting a doc URL based on Code.
@@ -133,7 +131,7 @@ func execLint(cfg *lintCfg, args []string, io commands.IO) error {
 		}
 
 		// Check if 'gno.mod' exists
-		if pkg.Root == "" {
+		if pkg.Root == "" && pkg.ImportPath != "command-line-arguments" {
 			issue := lintIssue{
 				Code:       lintGnoMod,
 				Confidence: 1,
@@ -158,7 +156,7 @@ func execLint(cfg *lintCfg, args []string, io commands.IO) error {
 
 		// read mempkg
 		memPkgPath := pkg.ImportPath
-		if memPkgPath == "" {
+		if memPkgPath == "" || memPkgPath == "command-line-arguments" {
 			memPkgPath = pkg.Dir
 		}
 		memPkg, err := gno.ReadMemPackage(pkg.Dir, memPkgPath)
@@ -278,12 +276,12 @@ func lintTestFiles(memPkg *gnovm.MemPackage) *gno.FileSet {
 	return testfiles
 }
 
-func guessSourcePath(pkg, source string) string {
-	if info, err := os.Stat(pkg); !os.IsNotExist(err) && !info.IsDir() {
-		pkg = filepath.Dir(pkg)
+func guessSourcePath(pkgDir, source string) string {
+	if info, err := os.Stat(pkgDir); !os.IsNotExist(err) && !info.IsDir() {
+		pkgDir = filepath.Dir(pkgDir)
 	}
 
-	sourceJoin := filepath.Join(pkg, source)
+	sourceJoin := filepath.Join(pkgDir, source)
 	if _, err := os.Stat(sourceJoin); !os.IsNotExist(err) {
 		return filepath.Clean(sourceJoin)
 	}
@@ -292,7 +290,7 @@ func guessSourcePath(pkg, source string) string {
 		return filepath.Clean(source)
 	}
 
-	return filepath.Clean(pkg)
+	return filepath.Clean(pkgDir)
 }
 
 // reParseRecover is a regex designed to parse error details from a string.
@@ -300,7 +298,7 @@ func guessSourcePath(pkg, source string) string {
 // XXX: Ideally, error handling should encapsulate location details within a dedicated error type.
 var reParseRecover = regexp.MustCompile(`^([^:]+)((?::(?:\d+)){1,2}):? *(.*)$`)
 
-func catchRuntimeError(pkgPath string, stderr goio.WriteCloser, action func()) (hasError bool) {
+func catchRuntimeError(pkgDir string, stderr goio.WriteCloser, action func()) (hasError bool) {
 	defer func() {
 		// Errors catched here mostly come from: gnovm/pkg/gnolang/preprocess.go
 		r := recover()
@@ -311,21 +309,21 @@ func catchRuntimeError(pkgPath string, stderr goio.WriteCloser, action func()) (
 		switch verr := r.(type) {
 		case *gno.PreprocessError:
 			err := verr.Unwrap()
-			fmt.Fprintln(stderr, issueFromError(pkgPath, err).String())
+			fmt.Fprintln(stderr, issueFromError(pkgDir, err).String())
 		case error:
 			errors := multierr.Errors(verr)
 			for _, err := range errors {
 				errList, ok := err.(scanner.ErrorList)
 				if ok {
 					for _, errorInList := range errList {
-						fmt.Fprintln(stderr, issueFromError(pkgPath, errorInList).String())
+						fmt.Fprintln(stderr, issueFromError(pkgDir, errorInList).String())
 					}
 				} else {
-					fmt.Fprintln(stderr, issueFromError(pkgPath, err).String())
+					fmt.Fprintln(stderr, issueFromError(pkgDir, err).String())
 				}
 			}
 		case string:
-			fmt.Fprintln(stderr, issueFromError(pkgPath, errors.New(verr)).String())
+			fmt.Fprintln(stderr, issueFromError(pkgDir, errors.New(verr)).String())
 		default:
 			panic(r)
 		}
@@ -335,21 +333,21 @@ func catchRuntimeError(pkgPath string, stderr goio.WriteCloser, action func()) (
 	return
 }
 
-func issueFromError(pkgPath string, err error) lintIssue {
+func issueFromError(pkgDir string, err error) lintIssue {
 	var issue lintIssue
 	issue.Confidence = 1
 	issue.Code = lintGnoError
 
 	parsedError := strings.TrimSpace(err.Error())
-	parsedError = strings.TrimPrefix(parsedError, pkgPath+"/")
+	parsedError = strings.TrimPrefix(parsedError, pkgDir+"/")
 
 	matches := reParseRecover.FindStringSubmatch(parsedError)
 	if len(matches) > 0 {
-		sourcepath := guessSourcePath(pkgPath, matches[1])
+		sourcepath := guessSourcePath(pkgDir, matches[1])
 		issue.Location = sourcepath + matches[2]
 		issue.Msg = strings.TrimSpace(matches[3])
 	} else {
-		issue.Location = fmt.Sprintf("%s:0", filepath.Clean(pkgPath))
+		issue.Location = fmt.Sprintf("%s:0", filepath.Clean(pkgDir))
 		issue.Msg = err.Error()
 	}
 	return issue

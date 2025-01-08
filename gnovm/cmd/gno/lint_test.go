@@ -12,11 +12,11 @@ func TestLintApp(t *testing.T) {
 			errShouldBe: "flag: help requested",
 		}, {
 			args:                []string{"lint", "../../tests/integ/run_main/"},
-			stderrShouldContain: "./../../tests/integ/run_main: gno.mod file not found in current or any parent directory (code=1)",
+			stderrShouldContain: "../../tests/integ/run_main: gno.mod file not found in current or any parent directory (code=1)",
 			errShouldBe:         "exit code: 1",
 		}, {
 			args:                []string{"lint", "../../tests/integ/undefined_variable_test/undefined_variables_test.gno"},
-			stderrShouldContain: "../../tests/integ/undefined_variable_test:6:28: name toto not declared (code=2)",
+			stderrShouldContain: "../../tests/integ/undefined_variable_test/undefined_variables_test.gno:6:28: name toto not declared (code=2)",
 			errShouldBe:         "exit code: 1",
 		}, {
 			args:                []string{"lint", "../../tests/integ/package_not_declared/main.gno"},

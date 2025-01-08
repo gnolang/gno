@@ -3,7 +3,6 @@ package packages
 import (
 	"errors"
 	"fmt"
-	"go/parser"
 	"go/token"
 	"os"
 	"path"
@@ -43,20 +42,22 @@ func readCLAPkg(patterns []string, fset *token.FileSet) (*Package, error) {
 		Files:      make(FilesMap),
 		Imports:    make(ImportsMap),
 	}
+	var err error
 
 	files := []string{}
 	for _, match := range patterns {
-		dir := filepath.Dir(match)
+		dir, base := filepath.Split(match)
+		dir, err = filepath.Abs(dir)
+		if err != nil {
+			return nil, err
+		}
 		if pkg.Dir == "" {
 			pkg.Dir = dir
 		} else if dir != pkg.Dir {
 			return nil, fmt.Errorf("named files must all be in one directory; have %s and %s", pkg.Dir, dir)
 		}
-		abs, err := filepath.Abs(match)
-		if err != nil {
-			return nil, fmt.Errorf("%s: %w", match, err)
-		}
-		files = append(files, abs)
+
+		files = append(files, filepath.Join(dir, base))
 	}
 
 	return readPkgFiles(pkg, files, fset), nil
@@ -112,13 +113,6 @@ func readPkgFiles(pkg *Package, files []string, fset *token.FileSet) *Package {
 		body := string(bodyBytes)
 
 		fileKind, err := GetFileKind(base, body, fset)
-		if err != nil {
-			pkg.Errors = append(pkg.Errors, err)
-			continue
-		}
-
-		// ignore files with invalid package clause
-		_, err = parser.ParseFile(fset, fpath, nil, parser.PackageClauseOnly)
 		if err != nil {
 			pkg.Errors = append(pkg.Errors, err)
 			continue

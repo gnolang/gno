@@ -45,7 +45,7 @@ func GetFileKind(filename string, body string, fset *token.FileSet) (FileKind, e
 	}
 	ast, err := parser.ParseFile(fset, filename, body, parser.PackageClauseOnly)
 	if err != nil {
-		return FileKindUnknown, err
+		return FileKindTest, nil
 	}
 	packageName := ast.Name.Name
 

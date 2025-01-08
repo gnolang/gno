@@ -364,13 +364,13 @@ func getImportToFilesMap(pkgPath string) (map[string][]string, error) {
 		if err != nil {
 			return nil, err
 		}
-		imports, err := packages.FileImports(filename, string(data), nil)
+		imports, err := packages.FileImportsSpecs(filename, string(data), nil)
 		if err != nil {
 			return nil, err
 		}
 
 		for _, imp := range imports {
-			m[imp] = append(m[imp], filename)
+			m[imp.Path.Value] = append(m[imp.Path.Value], filename)
 		}
 	}
 	return m, nil

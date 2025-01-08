@@ -216,10 +216,14 @@ func execTest(cfg *testCfg, args []string, io commands.IO) error {
 		}
 		packages.Inject(pkgsMap, deps)
 
-		memPkg := gno.MustReadMemPackage(pkg.Dir, logName)
+		memPkg, err := gno.ReadMemPackage(pkg.Dir, logName)
+		if err != nil {
+			io.ErrPrintln(err)
+			return nil
+		}
 
 		startedAt := time.Now()
-		hasError := catchRuntimeError(logName, io.Err(), func() {
+		hasError := catchRuntimeError(pkg.Dir, io.Err(), func() {
 			err = test.Test(memPkg, pkg.Dir, opts)
 		})
 

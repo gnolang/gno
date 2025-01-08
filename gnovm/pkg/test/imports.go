@@ -10,6 +10,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime/debug"
+	"strconv"
 	"strings"
 	"time"
 
@@ -246,20 +247,26 @@ func LoadImports(store gno.Store, memPkg *gnovm.MemPackage) (err error) {
 	}()
 
 	fset := token.NewFileSet()
-	importsMap, err := packages.Imports(memPkg, fset)
+	importsMap, err := packages.ImportsSpecs(memPkg, fset)
 	if err != nil {
 		return err
 	}
 	imports := importsMap.Merge(packages.FileKindPackageSource, packages.FileKindTest, packages.FileKindXTest)
-	for _, imp := range imports {
-		if gno.IsRealmPath(imp) {
+	for _, im := range imports {
+		pkgPath, err := strconv.Unquote(im.Path.Value)
+		if err != nil {
+			// should not happen - parser.ParseFile should already ensure we get
+			// a valid string literal here.
+			panic(fmt.Errorf("%v: unexpected invalid import path: %v", fset.Position(im.Pos()).String(), im.Path.Value))
+		}
+		if gno.IsRealmPath(pkgPath) {
 			// Don't eagerly load realms.
 			// Realms persist state and can change the state of other realms in initialization.
 			continue
 		}
-		pkg := store.GetPackage(imp, true)
+		pkg := store.GetPackage(pkgPath, true)
 		if pkg == nil {
-			return fmt.Errorf("unknown import path %v", imp)
+			return fmt.Errorf("%s: unknown import path %s", fset.Position(im.Pos()).String(), pkgPath)
 		}
 	}
 	return nil
