@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	vmm "github.com/gnolang/gno/gno.land/pkg/sdk/vm"
+	"github.com/gnolang/gno/gnovm/pkg/gnolang"
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
 	"github.com/gnolang/gno/gnovm/pkg/packages"
 	"github.com/gnolang/gno/tm2/pkg/amino"
@@ -154,6 +155,10 @@ func LoadPackagesFromDir(cfg *packages.LoadConfig, dir string, creator bft.Addre
 	nonDraftPkgs := sortedPkgs.GetNonDraftPkgs()
 	txs := make([]TxWithMetadata, 0, len(nonDraftPkgs))
 	for _, pkg := range nonDraftPkgs {
+		if pkg.ImportPath == "" || gnolang.IsStdlib(pkg.ImportPath) {
+			continue
+		}
+
 		tx, err := LoadPackage(pkg, creator, fee, nil)
 		if err != nil {
 			return nil, fmt.Errorf("unable to load package %q: %w", pkg.Dir, err)
