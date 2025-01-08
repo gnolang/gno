@@ -48,10 +48,10 @@ func RenameBoard(name, newName string) {
 		assertBoardNameNotExists(newName)
 
 		board := mustGetBoard(bid)
+		board.aliases = append(board.aliases, board.name)
 		board.name = newName
 
 		// Index board for the new name keeping previous indexes for older names
-		// TODO: Keep track of all board names
 		gBoardsByName.Set(newName, board)
 	})
 }

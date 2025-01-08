@@ -25,6 +25,7 @@ func (id BoardID) Key() string {
 type Board struct {
 	id        BoardID // only set for public boards.
 	name      string
+	aliases   []string
 	creator   std.Address
 	threads   avl.Tree // Post.id -> *Post
 	postsCtr  uint64   // increments Post.id
