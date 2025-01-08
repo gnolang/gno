@@ -134,6 +134,8 @@ func (dp *DefaultPermissions) WithPermission(user std.Address, perm Permission, 
 	switch perm {
 	case PermissionBoardCreate:
 		dp.handleBoardCreate(args, cb)
+	case PermissionBoardRename:
+		dp.handleBoardRename(args, cb)
 	case PermissionMemberInvite:
 		dp.handleMemberInvite(args, cb)
 	default:
@@ -144,17 +146,16 @@ func (dp *DefaultPermissions) WithPermission(user std.Address, perm Permission, 
 func (DefaultPermissions) handleBoardCreate(args Args, cb func(Args)) {
 	// TODO: This way of dealing with arguments is delicate, ideally types should be used
 	name := args[0].(string)
-	if std.Address(name).IsValid() {
-		panic("addresses are not allowed as board name")
-	}
+	assertBoardNameIsNotAddress(name)
+	assertBoardNameBelongsToCaller(name)
 
-	// When the board name is the name of a registered user
-	// check that caller is the owner of the name.
-	caller := std.GetOrigCaller()
-	user := users.GetUserByName(name)
-	if user != nil && user.Address != caller {
-		panic("board name is a user name registered to a different user")
-	}
+	cb(args)
+}
+
+func (DefaultPermissions) handleBoardRename(args Args, cb func(Args)) {
+	name := args[0].(string)
+	assertBoardNameIsNotAddress(name)
+	assertBoardNameBelongsToCaller(name)
 
 	cb(args)
 }
@@ -183,4 +184,20 @@ func createDefaultPermissions(owner std.Address) *DefaultPermissions {
 		// WithRole(RoleModerator, permissions...),
 		WithUser(owner, RoleOwner),
 	)
+}
+
+func assertBoardNameIsNotAddress(s string) {
+	if std.Address(s).IsValid() {
+		panic("addresses are not allowed as board name")
+	}
+}
+
+func assertBoardNameBelongsToCaller(name string) {
+	// When the board name is the name of a registered user
+	// check that caller is the owner of the name.
+	caller := std.GetOrigCaller()
+	user := users.GetUserByName(name)
+	if user != nil && user.Address != caller {
+		panic("board name is a user name registered to a different user")
+	}
 }
