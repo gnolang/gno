@@ -44,11 +44,29 @@ func expandPatterns(conf *LoadConfig, patterns ...string) ([]*pkgMatch, error) {
 		pkgMatches[idx].Match = append(pkgMatches[idx].Match, match)
 	}
 
+	kinds := make([]patternKind, 0, len(patterns))
 	for _, match := range patterns {
 		patKind, err := getPatternKind(match)
 		if err != nil {
 			return nil, fmt.Errorf("%s: %w", match, err)
 		}
+		kinds = append(kinds, patKind)
+	}
+
+	if slices.Contains(kinds, patternKindSingleFile) {
+		files := make([]string, 0, len(patterns))
+		for i, match := range patterns {
+			kind := kinds[i]
+			if kind != patternKindSingleFile || !strings.HasSuffix(match, ".gno") {
+				return nil, fmt.Errorf("named files must be .gno files: %s", match)
+			}
+			files = append(files, match)
+		}
+		return []*pkgMatch{{Dir: "command-line-arguments", Match: files}}, nil
+	}
+
+	for i, match := range patterns {
+		patKind := kinds[i]
 
 		switch patKind {
 		case patternKindSingleFile:

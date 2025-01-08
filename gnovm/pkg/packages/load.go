@@ -3,6 +3,7 @@ package packages
 import (
 	"errors"
 	"fmt"
+	"go/token"
 	"os"
 	"path/filepath"
 
@@ -41,12 +42,17 @@ func (conf *LoadConfig) applyDefaults() {
 func Load(conf *LoadConfig, patterns ...string) (PkgList, error) {
 	conf.applyDefaults()
 
+	fset := token.NewFileSet()
+
 	expanded, err := expandPatterns(conf, patterns...)
 	if err != nil {
 		return nil, err
 	}
 
-	pkgs := readPackages(expanded)
+	pkgs, err := readPackages(expanded, fset)
+	if err != nil {
+		return nil, err
+	}
 
 	if !conf.Deps {
 		return pkgs, nil
@@ -104,7 +110,7 @@ func Load(conf *LoadConfig, patterns ...string) (PkgList, error) {
 					continue
 				}
 
-				pileDown(readPkg(dir, imp))
+				pileDown(readPkgDir(dir, imp, fset))
 				continue
 			}
 
@@ -112,7 +118,7 @@ func Load(conf *LoadConfig, patterns ...string) (PkgList, error) {
 				examplePkgDir := filepath.Join(gnoroot, "examples", filepath.FromSlash(imp))
 				finfo, err := os.Stat(examplePkgDir)
 				if err == nil && finfo.IsDir() {
-					pileDown(readPkg(examplePkgDir, imp))
+					pileDown(readPkgDir(examplePkgDir, imp, fset))
 					continue
 				}
 			}
@@ -129,7 +135,7 @@ func Load(conf *LoadConfig, patterns ...string) (PkgList, error) {
 				byPkgPath[imp] = nil // stop trying to download pkg, we can't
 				continue
 			}
-			pileDown(readPkg(dir, imp))
+			pileDown(readPkgDir(dir, imp, fset))
 		}
 
 		list = append(list, pkg)

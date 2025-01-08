@@ -2,6 +2,7 @@ package packages
 
 import (
 	"errors"
+	"fmt"
 	"go/parser"
 	"go/token"
 	"os"
@@ -14,44 +15,95 @@ import (
 	"github.com/gnolang/gno/gnovm/pkg/gnomod"
 )
 
-func readPackages(matches []*pkgMatch) []*Package {
+func readPackages(matches []*pkgMatch, fset *token.FileSet) ([]*Package, error) {
+	if fset == nil {
+		fset = token.NewFileSet()
+	}
 	pkgs := make([]*Package, 0, len(matches))
 	for _, pkgMatch := range matches {
-		pkg := readPkg(pkgMatch.Dir, "")
+		var pkg *Package
+		var err error
+		if pkgMatch.Dir == "command-line-arguments" {
+			pkg, err = readCLAPkg(pkgMatch.Match, fset)
+			if err != nil {
+				return nil, err
+			}
+		} else {
+			pkg = readPkgDir(pkgMatch.Dir, "", fset)
+		}
 		pkg.Match = pkgMatch.Match
 		pkgs = append(pkgs, pkg)
 	}
-	return pkgs
+	return pkgs, nil
 }
 
-func readPkg(pkgDir string, importPath string) *Package {
+func readCLAPkg(patterns []string, fset *token.FileSet) (*Package, error) {
+	pkg := &Package{
+		ImportPath: "command-line-arguments",
+		Files:      make(FilesMap),
+		Imports:    make(ImportsMap),
+	}
+
+	files := []string{}
+	for _, match := range patterns {
+		dir := filepath.Dir(match)
+		if pkg.Dir == "" {
+			pkg.Dir = dir
+		} else if dir != pkg.Dir {
+			return nil, fmt.Errorf("named files must all be in one directory; have %s and %s", pkg.Dir, dir)
+		}
+		abs, err := filepath.Abs(match)
+		if err != nil {
+			return nil, fmt.Errorf("%s: %w", match, err)
+		}
+		files = append(files, abs)
+	}
+
+	return readPkgFiles(pkg, files, fset), nil
+}
+
+func readPkgDir(pkgDir string, importPath string, fset *token.FileSet) *Package {
 	pkg := &Package{
 		Dir:        pkgDir,
 		Files:      make(FilesMap),
+		Imports:    make(ImportsMap),
 		ImportPath: importPath,
 	}
 
+	files := []string{}
 	entries, err := os.ReadDir(pkgDir)
 	if err != nil {
 		pkg.Errors = append(pkg.Errors, err)
 		return pkg
 	}
-
-	fset := token.NewFileSet()
-
-	mempkg := gnovm.MemPackage{}
-
 	for _, entry := range entries {
 		if entry.IsDir() {
 			continue
 		}
 
 		base := entry.Name()
-		fpath := filepath.Join(pkgDir, base)
 
 		if !strings.HasSuffix(base, ".gno") {
 			continue
 		}
+
+		fpath := filepath.Join(pkgDir, base)
+		files = append(files, fpath)
+	}
+
+	return readPkgFiles(pkg, files, fset)
+
+}
+
+func readPkgFiles(pkg *Package, files []string, fset *token.FileSet) *Package {
+	if fset == nil {
+		fset = token.NewFileSet()
+	}
+
+	mempkg := gnovm.MemPackage{}
+
+	for _, fpath := range files {
+		base := filepath.Base(fpath)
 
 		bodyBytes, err := os.ReadFile(fpath)
 		if err != nil {
@@ -77,12 +129,13 @@ func readPkg(pkgDir string, importPath string) *Package {
 		pkg.Files[fileKind] = append(pkg.Files[fileKind], base)
 	}
 
+	var err error
 	pkg.Imports, err = Imports(&mempkg, fset)
 	if err != nil {
 		pkg.Errors = append(pkg.Errors, err)
 	}
 
-	// we use the ReadMemPkg utils because we want name resolution like the vm
+	// we use the ReadMemPkg utils to get the package name because we want name resolution like the vm
 	nameFiles := pkg.Files.Merge(FileKindPackageSource, FileKindTest, FileKindXTest)
 	absFiles := make([]string, 0, len(nameFiles))
 	for _, f := range nameFiles {
@@ -97,7 +150,11 @@ func readPkg(pkgDir string, importPath string) *Package {
 
 	// TODO: check if stdlib
 
-	pkg.Root, err = gnomod.FindRootDir(pkgDir)
+	if pkg.ImportPath == "command-line-arguments" {
+		return pkg
+	}
+
+	pkg.Root, err = gnomod.FindRootDir(pkg.Dir)
 	if errors.Is(err, gnomod.ErrGnoModNotFound) {
 		return pkg
 	}
@@ -119,7 +176,7 @@ func readPkg(pkgDir string, importPath string) *Package {
 	}
 
 	pkg.ModPath = mod.Module.Mod.Path
-	subPath, err := filepath.Rel(pkg.Root, pkgDir)
+	subPath, err := filepath.Rel(pkg.Root, pkg.Dir)
 	if err != nil {
 		pkg.Errors = append(pkg.Errors, err)
 		return pkg

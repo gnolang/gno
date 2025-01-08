@@ -16,11 +16,11 @@ func TestLintApp(t *testing.T) {
 			errShouldBe:         "exit code: 1",
 		}, {
 			args:                []string{"lint", "../../tests/integ/undefined_variable_test/undefined_variables_test.gno"},
-			stderrShouldContain: "undefined_variables_test.gno:6:28: name toto not declared (code=2)",
+			stderrShouldContain: "../../tests/integ/undefined_variable_test:6:28: name toto not declared (code=2)",
 			errShouldBe:         "exit code: 1",
 		}, {
 			args:                []string{"lint", "../../tests/integ/package_not_declared/main.gno"},
-			stderrShouldContain: "main.gno:4:2: name fmt not declared (code=2)",
+			stderrShouldContain: "../../tests/integ/package_not_declared/main.gno:4:2: undefined: fmt (code=4)",
 			errShouldBe:         "exit code: 1",
 		}, {
 			args:                []string{"lint", "../../tests/integ/several-lint-errors/main.gno"},
