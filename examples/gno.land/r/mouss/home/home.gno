@@ -58,6 +58,8 @@ func renderHomepage(res *mux.ResponseWriter, req *mux.Request) {
 	link := ufmt.Sprintf(AbtMe)
 	b.WriteString("[Home]() | " + ufmt.Sprintf("[About Me](%s)", link) + " | [Hackerspace](https://github.com/gnolang/hackerspace/issues/86#issuecomment-2535795751)\n\n")
 	b.WriteString("------\n\n")
+	b.WriteString("# Welcome to my Homepage\n\n")
+	b.WriteString("------\n\n")
 	b.WriteString("```\n")
 	for _, line := range gnoArt() {
 		b.WriteString(line)
@@ -70,7 +72,7 @@ func renderHomepage(res *mux.ResponseWriter, req *mux.Request) {
 }
 func renderAboutMe(res *mux.ResponseWriter, req *mux.Request) {
 	var b bytes.Buffer
-	b.WriteString("## Aboute Me\n")
+	b.WriteString("## About Me\n")
 	b.WriteString("------\n\n")
 	b.WriteString("![avatar](" + avatar + ")\n\n")
 	b.WriteString(abtMe + "\n\n")
@@ -78,7 +80,7 @@ func renderAboutMe(res *mux.ResponseWriter, req *mux.Request) {
 	b.WriteString("### Contact\n\n")
 	b.WriteString("- e-mail:mustapha.benazzouz@outlook.fr\n")
 	b.WriteString("- github : [@mous1985](https://github.com/mous1985)\n")
-	b.WriteString("- linkdin : [Mustapha](https://www.linkedin.com/in/mustapha-benazzouz-88646887/)\n")
+	b.WriteString("- LinkedIn : [Mustapha](https://www.linkedin.com/in/mustapha-benazzouz-88646887/)\n")
 	b.WriteString("------\n\n")
 	b.WriteString("👤followers: " + ufmt.Sprintf("%d", len(followers)))
 
@@ -87,16 +89,17 @@ func renderAboutMe(res *mux.ResponseWriter, req *mux.Request) {
 
 func gnoArt() []string {
 	return []string{
-		"    -==++.                                                                  ",
-		"   *@@@@=                                     @-                          -@",
-		"  #@@@@@:       -==-.-- :-::===:   .-++-.     @-   .===:.- .-.-==-   .===:=@",
-		" #@@@@@@@:    -@@%**%@@ #@@#*#@@- *@@**@@*    @-  +%=::-*@ +@=-:-@* +%=::-*@",
-		"+@%#**#%@@    %@+   :@@ *@+   #@=+@%    %@+   @= :@:    -@ +%    +%.@:    -@",
-		"-:       -    *@%:..+@@ *@+   #@=-@@:  :@@=   @- .@=    =@ +@    *%.@=    =@",
-		"--:==+=-:=.    =%@%#*@@ *@+   #@+ =%@%%@%= #* %#=.:%*===*@ +%    +% -%*===*@",
-		"-++++=++++.    =-:::*@#  .     .    .::.   ..  ::   .::  .  .         .::  .",
-		" .-=+++=:     .*###%#=                                                      ",
-		"    ::                                                                      ",
+
+		"                -==++.                                                                  ",
+		"               *@@@@=                                     @-                          -@",
+		"              #@@@@@:       -==-.-- :-::===:   .-++-.     @-   .===:.- .-.-==-   .===:=@",
+		"             #@@@@@@@:    -@@%**%@@ #@@#*#@@- *@@**@@*    @-  +%=::-*@ +@=-:-@* +%=::-*@",
+		"            +@%#**#%@@    %@+   :@@ *@+   #@=+@%    %@+   @= :@:    -@ +%    +%.@:    -@",
+		"            -:       -    *@%:..+@@ *@+   #@=-@@:  :@@=   @- .@=    =@ +@    *%.@=    =@",
+		"            --:==+=-:=.    =%@%#*@@ *@+   #@+ =%@%%@%= #* %#=.:%*===*@ +%    +% -%*===*@",
+		"            -++++=++++.    =-:::*@#  .     .    .::.   ..  ::   .::  .  .         .::  .",
+		"             .-=+++=:     .*###%#=                                                      ",
+		"                ::                                                                      ",
 	}
 
 }
