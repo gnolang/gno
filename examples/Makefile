@@ -58,7 +58,7 @@ clean:
 .PHONY: fmt
 GNOFMT_FLAGS ?= -w
 fmt:
-	go run ../gnovm/cmd/gno fmt $(GNOFMT_FLAGS) .
+	go run ../gnovm/cmd/gno fmt $(GNOFMT_FLAGS) ./...
 
 .PHONY: tidy
 tidy:
