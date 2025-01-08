@@ -248,14 +248,14 @@ func LoadImports(store gno.Store, memPkg *gnovm.MemPackage) (err error) {
 	}
 	imports := importsMap.Merge(packages.FileKindPackageSource, packages.FileKindTest, packages.FileKindXTest)
 	for _, imp := range imports {
-		if gno.IsRealmPath(imp.PkgPath) {
+		if gno.IsRealmPath(imp) {
 			// Don't eagerly load realms.
 			// Realms persist state and can change the state of other realms in initialization.
 			continue
 		}
-		pkg := store.GetPackage(imp.PkgPath, true)
+		pkg := store.GetPackage(imp, true)
 		if pkg == nil {
-			return fmt.Errorf("%v: unknown import path %v", fset.Position(imp.Spec.Pos()).String(), imp.PkgPath)
+			return fmt.Errorf("unknown import path %v", imp)
 		}
 	}
 	return nil

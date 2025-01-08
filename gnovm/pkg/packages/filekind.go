@@ -16,14 +16,14 @@ import (
 // - [FileKindXTest] -> A *_test.gno file with a package name ending in _test that will be used for blackbox testing
 //
 // - [FileKindFiletest] -> A *_filetest.gno file that will be used for snapshot testing
-type FileKind uint
+type FileKind string
 
 const (
-	FileKindUnknown FileKind = iota
-	FileKindPackageSource
-	FileKindTest
-	FileKindXTest
-	FileKindFiletest
+	FileKindUnknown       FileKind = ""
+	FileKindPackageSource          = "PackageSource"
+	FileKindTest                   = "Test"
+	FileKindXTest                  = "XTest"
+	FileKindFiletest               = "Filetest"
 )
 
 // GetFileKind analyzes a file's name and body to get it's [FileKind], fset is optional

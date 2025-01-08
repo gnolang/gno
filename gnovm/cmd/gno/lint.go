@@ -91,7 +91,8 @@ func execLint(cfg *lintCfg, args []string, io commands.IO) error {
 		rootDir = gnoenv.RootDir()
 	}
 
-	pkgs, err := packages.Load(io, args...)
+	conf := &packages.LoadConfig{IO: io, Fetcher: testPackageFetcher}
+	pkgs, err := packages.Load(conf, args...)
 	if err != nil {
 		return fmt.Errorf("list packages from args: %w", err)
 	}
@@ -127,7 +128,7 @@ func execLint(cfg *lintCfg, args []string, io commands.IO) error {
 		}
 
 		// Check if 'gno.mod' exists
-		if pkg.Module.Path == "" {
+		if pkg.ModPath == "" {
 			hasError = true
 			issue := lintIssue{
 				Code:       lintGnoMod,
@@ -161,8 +162,8 @@ func execLint(cfg *lintCfg, args []string, io commands.IO) error {
 			gs := ts.BeginTransaction(cw, cw, nil)
 
 			var gmFile *gnomod.File
-			if pkg.Module.GnoMod != "" {
-				gmFile, err = gnomod.ParseGnoMod(pkg.Module.GnoMod)
+			if pkg.ModPath != "" {
+				gmFile, err = gnomod.ParseGnoMod(filepath.Join(pkg.ModPath, "gno.mod"))
 				if err != nil {
 					io.ErrPrintln(err)
 					hasError = true

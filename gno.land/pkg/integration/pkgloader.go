@@ -132,10 +132,10 @@ func (pl *PkgsLoader) LoadPackage(modroot string, path, name string) error {
 			}
 			imports := importsMap.Merge(packages.FileKindPackageSource, packages.FileKindTest, packages.FileKindFiletest)
 			for _, imp := range imports {
-				if imp.PkgPath == currentPkg.Name || gnolang.IsStdlib(imp.PkgPath) {
+				if imp == currentPkg.Name || gnolang.IsStdlib(imp) {
 					continue
 				}
-				currentPkg.Imports = append(currentPkg.Imports, imp.PkgPath)
+				currentPkg.Imports = append(currentPkg.Imports, imp)
 			}
 		}
 

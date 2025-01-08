@@ -157,7 +157,8 @@ func execTest(cfg *testCfg, args []string, io commands.IO) error {
 	}
 
 	// Find targets for test.
-	pkgs, err := packages.Load(io, args...)
+	conf := &packages.LoadConfig{IO: io, Fetcher: testPackageFetcher}
+	pkgs, err := packages.Load(conf, args...)
 	if err != nil {
 		return fmt.Errorf("list targets from patterns: %w", err)
 	}
@@ -194,7 +195,7 @@ func execTest(cfg *testCfg, args []string, io commands.IO) error {
 		}
 		// Determine gnoPkgPath by reading gno.mod
 		var gnoPkgPath string
-		modfile, err := gnomod.ParseGnoMod(pkg.Module.GnoMod)
+		modfile, err := gnomod.ParseGnoMod(filepath.Join(pkg.ModPath, "gno.mod"))
 		if err == nil {
 			gnoPkgPath = modfile.Module.Mod.Path
 		} else {
@@ -206,7 +207,7 @@ func execTest(cfg *testCfg, args []string, io commands.IO) error {
 			}
 		}
 
-		if len(pkg.TestGnoFiles) == 0 && len(pkg.FiletestGnoFiles) == 0 {
+		if len(pkg.Files[packages.FileKindTest]) == 0 && len(pkg.Files[packages.FileKindXTest]) == 0 && len(pkg.Files[packages.FileKindFiletest]) == 0 {
 			io.ErrPrintfln("?       %s \t[no test files]", pkg.ImportPath)
 			continue
 		}

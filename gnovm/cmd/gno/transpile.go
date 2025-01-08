@@ -134,7 +134,8 @@ func execTranspile(cfg *transpileCfg, args []string, io commands.IO) error {
 	}
 
 	// load packages
-	pkgs, err := packages.Load(io, args...)
+	conf := &packages.LoadConfig{IO: io, Fetcher: testPackageFetcher}
+	pkgs, err := packages.Load(conf, args...)
 	if err != nil {
 		return fmt.Errorf("load pkgs: %w", err)
 	}
@@ -232,7 +233,7 @@ func transpilePkg(pkg *packages.Package, pkgs map[string]*packages.Package, opts
 	if opts.cfg.verbose {
 		opts.io.ErrPrintln(filepath.Clean(dirPath))
 	}
-	for _, file := range pkg.GnoFiles {
+	for _, file := range pkg.Files[packages.FileKindPackageSource] {
 		fpath := filepath.Join(pkg.Dir, file)
 		if err := transpileFile(fpath, pkgs, opts); err != nil {
 			return fmt.Errorf("%s: %w", file, err)

@@ -154,7 +154,7 @@ func TestImports(t *testing.T) {
 	for key, vals := range importsMap {
 		stringVals := make([]string, len(vals))
 		for i, val := range vals {
-			stringVals[i] = val.PkgPath
+			stringVals[i] = val
 		}
 		got[key] = stringVals
 	}

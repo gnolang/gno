@@ -119,9 +119,9 @@ func ListPkgs(root string) (PkgList, error) {
 		imports := make([]string, 0, len(importsRaw))
 		for _, imp := range importsRaw {
 			// remove self and standard libraries from imports
-			if imp.PkgPath != gnoMod.Module.Mod.Path &&
-				!gnolang.IsStdlib(imp.PkgPath) {
-				imports = append(imports, imp.PkgPath)
+			if imp != gnoMod.Module.Mod.Path &&
+				!gnolang.IsStdlib(imp) {
+				imports = append(imports, imp)
 			}
 		}
 

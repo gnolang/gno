@@ -1,28 +1,38 @@
 package packages
 
+import "sort"
+
 // ported from https://cs.opensource.google/go/go/+/refs/tags/go1.23.2:src/cmd/go/internal/load/pkg.go
 type Package struct {
-	Dir              string   `json:",omitempty"` // directory containing package sources
-	ImportPath       string   `json:",omitempty"` // import path of package in dir
-	Name             string   `json:",omitempty"` // package name
-	Root             string   `json:",omitempty"` // Gno root, Gno path dir, or module root dir containing this package
-	Module           Module   `json:",omitempty"` // info about package's module, if any
-	Match            []string `json:",omitempty"` // command-line patterns matching this package
-	GnoFiles         []string `json:",omitempty"` // .gno source files (excluding TestGnoFiles, FiletestGnoFiles)
-	Imports          []string `json:",omitempty"` // import paths used by this package
-	Deps             []string `json:",omitempty"` // all (recursively) imported dependencies
-	TestGnoFiles     []string `json:",omitempty"` // _test.gno files in package
-	TestImports      []string `json:",omitempty"` // imports from TestGnoFiles
-	FiletestGnoFiles []string `json:",omitempty"` // _filetest.gno files in package
-	FiletestImports  []string `json:",omitempty"` // imports from FiletestGnoFiles
-	Errors           []error  `json:",omitempty"` // error loading this package (not dependencies)
-
-	Draft bool
+	Dir        string `json:",omitempty"` // directory containing package sources
+	ImportPath string `json:",omitempty"` // import path of package in dir
+	Name       string `json:",omitempty"` // package name
+	Root       string `json:",omitempty"` // Gno root, Gno path dir, or module root dir containing this package
+	ModPath    string
+	Match      []string `json:",omitempty"` // command-line patterns matching this package
+	Error      error    `json:",omitempty"` // error loading this package (not dependencies)
+	Draft      bool
+	Files      FilesMap
+	Imports    ImportsMap `json:",omitempty"` // import paths used by this package
+	Deps       []string   `json:",omitempty"` // all (recursively) imported dependencies
 }
 
-// ported from https://cs.opensource.google/go/go/+/refs/tags/go1.23.2:src/cmd/go/internal/modinfo/info.go
-type Module struct {
-	Path   string `json:",omitempty"` // module path
-	Dir    string `json:",omitempty"` // directory holding local copy of files, if any
-	GnoMod string `json:",omitempty"` // path to gno.mod file describing module, if any
+type FilesMap map[FileKind][]string
+
+// Merge merges imports, it removes duplicates and sorts the result
+func (imap FilesMap) Merge(kinds ...FileKind) []string {
+	res := make([]string, 0, 16)
+
+	for _, kind := range kinds {
+		res = append(res, imap[kind]...)
+	}
+
+	sortPaths(res)
+	return res
+}
+
+func sortPaths(imports []string) {
+	sort.Slice(imports, func(i, j int) bool {
+		return imports[i] < imports[j]
+	})
 }

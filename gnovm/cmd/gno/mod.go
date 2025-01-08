@@ -8,10 +8,10 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/gnolang/gno/gnovm/cmd/gno/internal/pkgdownload"
-	"github.com/gnolang/gno/gnovm/cmd/gno/internal/pkgdownload/rpcpkgfetcher"
 	"github.com/gnolang/gno/gnovm/pkg/gnomod"
 	"github.com/gnolang/gno/gnovm/pkg/packages"
+	"github.com/gnolang/gno/gnovm/pkg/packages/pkgdownload"
+	"github.com/gnolang/gno/gnovm/pkg/packages/pkgdownload/rpcpkgfetcher"
 	"github.com/gnolang/gno/tm2/pkg/commands"
 	"github.com/gnolang/gno/tm2/pkg/errors"
 	"go.uber.org/multierr"
@@ -184,7 +184,8 @@ func execModDownload(cfg *modDownloadCfg, args []string, io commands.IO) error {
 		return fmt.Errorf("validate: %w", err)
 	}
 
-	if err := downloadDeps(io, path, gnoMod, fetcher); err != nil {
+	conf := &packages.LoadConfig{IO: io, Fetcher: fetcher}
+	if err := packages.DownloadDeps(conf, path, gnoMod); err != nil {
 		return err
 	}
 
@@ -368,7 +369,7 @@ func getImportToFilesMap(pkgPath string) (map[string][]string, error) {
 		}
 
 		for _, imp := range imports {
-			m[imp.PkgPath] = append(m[imp.PkgPath], filename)
+			m[imp] = append(m[imp], filename)
 		}
 	}
 	return m, nil

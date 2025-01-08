@@ -51,21 +51,27 @@ func execList(cfg *listCfg, args []string, io commands.IO) error {
 		return flag.ErrHelp
 	}
 
+	conf := &packages.LoadConfig{IO: io, Fetcher: testPackageFetcher}
+
+	if cfg.deps {
+		conf.Deps = true
+	}
+
 	if !cfg.json {
-		pkgs, err := packages.DiscoverPackages(args...)
+		pkgs, err := packages.Load(conf, args...)
 		if err != nil {
 			fmt.Println(err)
 			os.Exit(1)
 		}
 		pkgPaths := make([]string, len(pkgs))
 		for i, pkg := range pkgs {
-			pkgPaths[i] = pkg.PkgPath
+			pkgPaths[i] = pkg.ImportPath
 		}
 		fmt.Println(strings.Join(pkgPaths, "\n"))
 		return nil
 	}
 
-	pkgs, err := packages.Load(io, args...)
+	pkgs, err := packages.Load(conf, args...)
 	if err != nil {
 		fmt.Println(err)
 		os.Exit(1)

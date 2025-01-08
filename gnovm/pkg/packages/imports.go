@@ -2,7 +2,6 @@ package packages
 
 import (
 	"fmt"
-	"go/ast"
 	"go/parser"
 	"go/token"
 	"sort"
@@ -32,14 +31,14 @@ func Imports(pkg *gnovm.MemPackage, fset *token.FileSet) (ImportsMap, error) {
 			return nil, err
 		}
 		for _, im := range imports {
-			if _, ok := seen[fileKind][im.PkgPath]; ok {
+			if _, ok := seen[fileKind][im]; ok {
 				continue
 			}
 			res[fileKind] = append(res[fileKind], im)
 			if _, ok := seen[fileKind]; !ok {
 				seen[fileKind] = make(map[string]struct{}, 16)
 			}
-			seen[fileKind][im.PkgPath] = struct{}{}
+			seen[fileKind][im] = struct{}{}
 		}
 	}
 
@@ -50,15 +49,9 @@ func Imports(pkg *gnovm.MemPackage, fset *token.FileSet) (ImportsMap, error) {
 	return res, nil
 }
 
-// FileImport represents an import
-type FileImport struct {
-	PkgPath string
-	Spec    *ast.ImportSpec
-}
-
 // FileImports returns the list of gno imports in the given file src.
 // The given filename is only used when recording position information.
-func FileImports(filename string, src string, fset *token.FileSet) ([]FileImport, error) {
+func FileImports(filename string, src string, fset *token.FileSet) ([]string, error) {
 	if fset == nil {
 		fset = token.NewFileSet()
 	}
@@ -66,7 +59,7 @@ func FileImports(filename string, src string, fset *token.FileSet) ([]FileImport
 	if err != nil {
 		return nil, err
 	}
-	res := make([]FileImport, len(f.Imports))
+	res := make([]string, len(f.Imports))
 	for i, im := range f.Imports {
 		importPath, err := strconv.Unquote(im.Path.Value)
 		if err != nil {
@@ -75,27 +68,24 @@ func FileImports(filename string, src string, fset *token.FileSet) ([]FileImport
 			panic(fmt.Errorf("%v: unexpected invalid import path: %v", fset.Position(im.Pos()).String(), im.Path.Value))
 		}
 
-		res[i] = FileImport{
-			PkgPath: importPath,
-			Spec:    im,
-		}
+		res[i] = importPath
 	}
 	return res, nil
 }
 
-type ImportsMap map[FileKind][]FileImport
+type ImportsMap map[FileKind][]string
 
 // Merge merges imports, it removes duplicates and sorts the result
-func (imap ImportsMap) Merge(kinds ...FileKind) []FileImport {
-	res := make([]FileImport, 0, 16)
+func (imap ImportsMap) Merge(kinds ...FileKind) []string {
+	res := make([]string, 0, 16)
 	seen := make(map[string]struct{}, 16)
 
 	for _, kind := range kinds {
 		for _, im := range imap[kind] {
-			if _, ok := seen[im.PkgPath]; ok {
+			if _, ok := seen[im]; ok {
 				continue
 			}
-			seen[im.PkgPath] = struct{}{}
+			seen[im] = struct{}{}
 
 			res = append(res, im)
 		}
@@ -105,9 +95,9 @@ func (imap ImportsMap) Merge(kinds ...FileKind) []FileImport {
 	return res
 }
 
-func sortImports(imports []FileImport) {
+func sortImports(imports []string) {
 	sort.Slice(imports, func(i, j int) bool {
-		return imports[i].PkgPath < imports[j].PkgPath
+		return imports[i] < imports[j]
 	})
 }
 
