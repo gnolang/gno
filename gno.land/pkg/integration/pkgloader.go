@@ -7,15 +7,13 @@ import (
 
 	"github.com/gnolang/gno/gno.land/pkg/gnoland"
 	"github.com/gnolang/gno/gno.land/pkg/sdk/vm"
-	"github.com/gnolang/gno/gnovm/pkg/gnolang"
-	"github.com/gnolang/gno/gnovm/pkg/gnomod"
 	"github.com/gnolang/gno/gnovm/pkg/packages"
 	bft "github.com/gnolang/gno/tm2/pkg/bft/types"
 	"github.com/gnolang/gno/tm2/pkg/std"
 )
 
 type PkgsLoader struct {
-	pkgs    []packages.Pkg
+	pkgs    []*packages.Package
 	visited map[string]struct{}
 
 	// list of occurrences to patchs with the given value
@@ -25,7 +23,7 @@ type PkgsLoader struct {
 
 func NewPkgsLoader() *PkgsLoader {
 	return &PkgsLoader{
-		pkgs:    make([]packages.Pkg, 0),
+		pkgs:    make([]*packages.Package, 0),
 		visited: make(map[string]struct{}),
 		patchs:  make(map[string]string),
 	}
@@ -49,7 +47,7 @@ func (pl *PkgsLoader) LoadPackages(creator bft.Address, fee std.Fee, deposit std
 	for i, pkg := range pkgslist {
 		tx, err := gnoland.LoadPackage(pkg, creator, fee, deposit)
 		if err != nil {
-			return nil, fmt.Errorf("unable to load pkg %q: %w", pkg.Name, err)
+			return nil, fmt.Errorf("unable to load pkg %q: %w", pkg.ImportPath, err)
 		}
 
 		// If any replace value is specified, apply them
@@ -82,7 +80,8 @@ func (pl *PkgsLoader) LoadPackages(creator bft.Address, fee std.Fee, deposit std
 
 func (pl *PkgsLoader) LoadAllPackagesFromDir(path string) error {
 	// list all packages from target path
-	pkgslist, err := packages.ListPkgs(path)
+	cfg := &packages.LoadConfig{SelfContained: true}
+	pkgslist, err := packages.Load(cfg, filepath.Join(path, "..."))
 	if err != nil {
 		return fmt.Errorf("listing gno packages: %w", err)
 	}
@@ -96,74 +95,31 @@ func (pl *PkgsLoader) LoadAllPackagesFromDir(path string) error {
 	return nil
 }
 
-func (pl *PkgsLoader) LoadPackage(modroot string, path, name string) error {
-	// Initialize a queue with the root package
-	queue := []packages.Pkg{{Dir: path, Name: name}}
+func (pl *PkgsLoader) LoadPackage(modroot string, path string, name string) error {
+	// FIXME: name override
+	cfg := &packages.LoadConfig{Deps: true, SelfContained: true}
+	pkgDir := filepath.Join(modroot, path)
+	pkgs, err := packages.Load(cfg, pkgDir)
+	if err != nil {
+		return fmt.Errorf("%q: loading: %w", pkgDir, err)
+	}
 
-	for len(queue) > 0 {
-		// Dequeue the first package
-		currentPkg := queue[0]
-		queue = queue[1:]
-
-		if currentPkg.Dir == "" {
-			return fmt.Errorf("no path specified for package")
-		}
-
-		if currentPkg.Name == "" {
-			// Load `gno.mod` information
-			gnoModPath := filepath.Join(currentPkg.Dir, "gno.mod")
-			gm, err := gnomod.ParseGnoMod(gnoModPath)
-			if err != nil {
-				return fmt.Errorf("unable to load %q: %w", gnoModPath, err)
-			}
-			gm.Sanitize()
-
-			// Override package info with mod infos
-			currentPkg.Name = gm.Module.Mod.Path
-			currentPkg.Draft = gm.Draft
-
-			pkg, err := gnolang.ReadMemPackage(currentPkg.Dir, currentPkg.Name)
-			if err != nil {
-				return fmt.Errorf("unable to read package at %q: %w", currentPkg.Dir, err)
-			}
-			importsMap, err := packages.Imports(pkg, nil)
-			if err != nil {
-				return fmt.Errorf("unable to load package imports in %q: %w", currentPkg.Dir, err)
-			}
-			imports := importsMap.Merge(packages.FileKindPackageSource, packages.FileKindTest, packages.FileKindFiletest)
-			for _, imp := range imports {
-				if imp == currentPkg.Name || gnolang.IsStdlib(imp) {
-					continue
-				}
-				currentPkg.Imports = append(currentPkg.Imports, imp)
-			}
-		}
-
-		if currentPkg.Draft {
-			continue // Skip draft package
-		}
-
-		if pl.exist(currentPkg) {
+	for _, pkg := range pkgs {
+		if pl.exist(pkg) {
 			continue
 		}
-		pl.add(currentPkg)
-
-		// Add requirements to the queue
-		for _, pkgPath := range currentPkg.Imports {
-			fullPath := filepath.Join(modroot, pkgPath)
-			queue = append(queue, packages.Pkg{Dir: fullPath})
-		}
+		pl.add(pkg)
 	}
 
 	return nil
 }
 
-func (pl *PkgsLoader) add(pkg packages.Pkg) {
-	pl.visited[pkg.Name] = struct{}{}
+func (pl *PkgsLoader) add(pkg *packages.Package) {
+	pl.visited[pkg.ImportPath] = struct{}{}
 	pl.pkgs = append(pl.pkgs, pkg)
 }
 
-func (pl *PkgsLoader) exist(pkg packages.Pkg) (ok bool) {
-	_, ok = pl.visited[pkg.Name]
+func (pl *PkgsLoader) exist(pkg *packages.Package) (ok bool) {
+	_, ok = pl.visited[pkg.ImportPath]
 	return
 }

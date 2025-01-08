@@ -22,6 +22,7 @@ type LoadConfig struct {
 	Deps            bool
 	Cache           map[string]*Package
 	GnorootExamples bool // allow loading packages from gnoroot examples if not found in the set
+	SelfContained   bool
 }
 
 func (conf *LoadConfig) applyDefaults() {
@@ -36,7 +37,7 @@ func (conf *LoadConfig) applyDefaults() {
 	}
 }
 
-func Load(conf *LoadConfig, patterns ...string) ([]*Package, error) {
+func Load(conf *LoadConfig, patterns ...string) (PkgList, error) {
 	conf.applyDefaults()
 
 	expanded, err := expandPatterns(conf, patterns...)
@@ -113,6 +114,12 @@ func Load(conf *LoadConfig, patterns ...string) ([]*Package, error) {
 					pileDown(readPkg(examplePkgDir, imp))
 					continue
 				}
+			}
+
+			if conf.SelfContained {
+				pkg.Error = errors.Join(pkg.Error, fmt.Errorf("self-contained: package %q not found", imp))
+				byPkgPath[imp] = nil // stop trying to get this lib, we can't
+				continue
 			}
 
 			dir := gnomod.PackageDir("", module.Version{Path: imp})

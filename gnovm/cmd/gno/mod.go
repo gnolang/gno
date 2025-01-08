@@ -257,7 +257,8 @@ func execModTidy(cfg *modTidyCfg, args []string, io commands.IO) error {
 	}
 
 	if cfg.recursive {
-		pkgs, err := packages.ListPkgs(wd)
+		loadCfg := packages.LoadConfig{IO: io, Fetcher: testPackageFetcher}
+		pkgs, err := packages.Load(&loadCfg, filepath.Join(wd, "..."))
 		if err != nil {
 			return err
 		}

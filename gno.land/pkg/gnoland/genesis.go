@@ -3,6 +3,7 @@ package gnoland
 import (
 	"errors"
 	"fmt"
+	"path/filepath"
 	"strings"
 
 	vmm "github.com/gnolang/gno/gno.land/pkg/sdk/vm"
@@ -136,9 +137,9 @@ func LoadGenesisTxsFile(path string, chainID string, genesisRemote string) ([]Tx
 
 // LoadPackagesFromDir loads gno packages from a directory.
 // It creates and returns a list of transactions based on these packages.
-func LoadPackagesFromDir(dir string, creator bft.Address, fee std.Fee) ([]TxWithMetadata, error) {
+func LoadPackagesFromDir(cfg *packages.LoadConfig, dir string, creator bft.Address, fee std.Fee) ([]TxWithMetadata, error) {
 	// list all packages from target path
-	pkgs, err := packages.ListPkgs(dir)
+	pkgs, err := packages.Load(cfg, filepath.Join(dir, "..."))
 	if err != nil {
 		return nil, fmt.Errorf("listing gno packages: %w", err)
 	}
@@ -167,11 +168,11 @@ func LoadPackagesFromDir(dir string, creator bft.Address, fee std.Fee) ([]TxWith
 }
 
 // LoadPackage loads a single package into a `std.Tx`
-func LoadPackage(pkg packages.Pkg, creator bft.Address, fee std.Fee, deposit std.Coins) (std.Tx, error) {
+func LoadPackage(pkg *packages.Package, creator bft.Address, fee std.Fee, deposit std.Coins) (std.Tx, error) {
 	var tx std.Tx
 
 	// Open files in directory as MemPackage.
-	memPkg := gno.MustReadMemPackage(pkg.Dir, pkg.Name)
+	memPkg := gno.MustReadMemPackage(pkg.Dir, pkg.ImportPath)
 	err := memPkg.Validate()
 	if err != nil {
 		return tx, fmt.Errorf("invalid package: %w", err)

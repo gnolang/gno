@@ -63,7 +63,7 @@ func ResolvePackagePathQuery(bk *address.Book, path string) (PackagePath, error)
 }
 
 type Package struct {
-	packages.Pkg
+	*packages.Package
 	Creator crypto.Address
 	Deposit std.Coins
 }
@@ -75,7 +75,7 @@ var (
 	ErrEmptyDepositPackage = errors.New("no deposit specified for package")
 )
 
-func NewPackagesMap(ppaths []PackagePath) (PackagesMap, error) {
+func NewPackagesMap(cfg *packages.LoadConfig, ppaths []PackagePath) (PackagesMap, error) {
 	pkgs := make(map[string]Package)
 	for _, ppath := range ppaths {
 		if ppath.Creator.IsZero() {
@@ -88,7 +88,7 @@ func NewPackagesMap(ppaths []PackagePath) (PackagesMap, error) {
 		}
 
 		// list all packages from target path
-		pkgslist, err := packages.ListPkgs(abspath)
+		pkgslist, err := packages.Load(cfg, filepath.Join(abspath, "..."))
 		if err != nil {
 			return nil, fmt.Errorf("listing gno packages: %w", err)
 		}
@@ -102,7 +102,7 @@ func NewPackagesMap(ppaths []PackagePath) (PackagesMap, error) {
 				continue // skip
 			}
 			pkgs[pkg.Dir] = Package{
-				Pkg:     pkg,
+				Package: pkg,
 				Creator: ppath.Creator,
 				Deposit: ppath.Deposit,
 			}
@@ -113,9 +113,9 @@ func NewPackagesMap(ppaths []PackagePath) (PackagesMap, error) {
 }
 
 func (pm PackagesMap) toList() packages.PkgList {
-	list := make([]packages.Pkg, 0, len(pm))
+	list := make([]*packages.Package, 0, len(pm))
 	for _, pkg := range pm {
-		list = append(list, pkg.Pkg)
+		list = append(list, pkg.Package)
 	}
 	return list
 }
@@ -138,7 +138,7 @@ func (pm PackagesMap) Load(fee std.Fee, start time.Time) ([]gnoland.TxWithMetada
 		}
 
 		// Open files in directory as MemPackage.
-		memPkg := gno.MustReadMemPackage(modPkg.Dir, modPkg.Name)
+		memPkg := gno.MustReadMemPackage(modPkg.Dir, modPkg.ImportPath)
 		if err := memPkg.Validate(); err != nil {
 			return nil, fmt.Errorf("invalid package: %w", err)
 		}

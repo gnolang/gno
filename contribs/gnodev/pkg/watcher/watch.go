@@ -118,7 +118,7 @@ func (p *PackageWatcher) Stop() {
 // Packages are sorted by their length in descending order to facilitate easier
 // and more efficient matching with corresponding paths. The longest paths are
 // compared first.
-func (p *PackageWatcher) AddPackages(pkgs ...packages.Pkg) error {
+func (p *PackageWatcher) AddPackages(pkgs ...*packages.Package) error {
 	for _, pkg := range pkgs {
 		dir := pkg.Dir
 

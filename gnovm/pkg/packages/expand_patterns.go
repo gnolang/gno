@@ -56,6 +56,11 @@ func expandPatterns(conf *LoadConfig, patterns ...string) ([]*pkgMatch, error) {
 
 		case patternKindRecursiveRemote:
 			return nil, fmt.Errorf("%s: recursive remote patterns are not supported", match)
+
+		case patternKindRemote:
+			if conf.SelfContained {
+				return nil, fmt.Errorf("%s: remote patterns are not supported in self-contained mode", match)
+			}
 		}
 
 		pat, err := cleanPattern(match, patKind)

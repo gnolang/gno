@@ -44,6 +44,7 @@ type NodeConfig struct {
 	MaxGasPerBlock        int64
 	ChainID               string
 	ChainDomain           string
+	LoadConfig            *packages.LoadConfig
 }
 
 func DefaultNodeConfig(rootdir, domain string) *NodeConfig {
@@ -70,6 +71,7 @@ func DefaultNodeConfig(rootdir, domain string) *NodeConfig {
 		TMConfig:              tmc,
 		SkipFailingGenesisTxs: true,
 		MaxGasPerBlock:        10_000_000_000,
+		LoadConfig:            &packages.LoadConfig{Deps: true},
 	}
 }
 
@@ -98,7 +100,7 @@ type Node struct {
 var DefaultFee = std.NewFee(50000, std.MustParseCoin(ugnot.ValueString(1000000)))
 
 func NewDevNode(ctx context.Context, cfg *NodeConfig) (*Node, error) {
-	mpkgs, err := NewPackagesMap(cfg.PackagesPathList)
+	mpkgs, err := NewPackagesMap(cfg.LoadConfig, cfg.PackagesPathList)
 	if err != nil {
 		return nil, fmt.Errorf("unable map pkgs list: %w", err)
 	}
@@ -140,7 +142,7 @@ func (n *Node) Close() error {
 	return n.Node.Stop()
 }
 
-func (n *Node) ListPkgs() []packages.Pkg {
+func (n *Node) ListPkgs() []*packages.Package {
 	n.muNode.RLock()
 	defer n.muNode.RUnlock()
 
@@ -240,7 +242,8 @@ func (n *Node) updatePackages(paths ...string) error {
 		}
 
 		// List all packages from target path
-		pkgslist, err := packages.ListPkgs(abspath)
+		loadCfg := &packages.LoadConfig{Deps: true}
+		pkgslist, err := packages.Load(loadCfg, filepath.Join(abspath, "..."))
 		if err != nil {
 			return fmt.Errorf("failed to list gno packages for %q: %w", path, err)
 		}
@@ -248,12 +251,12 @@ func (n *Node) updatePackages(paths ...string) error {
 		// Update or add package in the current known list.
 		for _, pkg := range pkgslist {
 			n.pkgs[pkg.Dir] = Package{
-				Pkg:     pkg,
+				Package: pkg,
 				Creator: deployer,
 				Deposit: deposit,
 			}
 
-			n.logger.Debug("pkgs update", "name", pkg.Name, "path", pkg.Dir)
+			n.logger.Debug("pkgs update", "name", pkg.ImportPath, "path", pkg.Dir)
 		}
 
 		pkgsUpdated += len(pkgslist)

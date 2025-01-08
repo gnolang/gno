@@ -17,6 +17,7 @@ import (
 	"github.com/gnolang/gno/gno.land/pkg/gnoland/ugnot"
 	"github.com/gnolang/gno/gno.land/pkg/log"
 	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
+	"github.com/gnolang/gno/gnovm/pkg/packages"
 	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
 	"github.com/gnolang/gno/tm2/pkg/bft/config"
 	"github.com/gnolang/gno/tm2/pkg/bft/node"
@@ -340,7 +341,7 @@ func lazyInitGenesis(
 	}
 
 	// Generate the new genesis.json file
-	if err := generateGenesisFile(genesisPath, publicKey, c); err != nil {
+	if err := generateGenesisFile(io, genesisPath, publicKey, c); err != nil {
 		return fmt.Errorf("unable to generate genesis file, %w", err)
 	}
 
@@ -365,7 +366,7 @@ func initializeLogger(io io.WriteCloser, logLevel, logFormat string) (*zap.Logge
 	return log.GetZapLoggerFn(format)(io, level), nil
 }
 
-func generateGenesisFile(genesisFile string, pk crypto.PubKey, c *startCfg) error {
+func generateGenesisFile(io commands.IO, genesisFile string, pk crypto.PubKey, c *startCfg) error {
 	gen := &bft.GenesisDoc{}
 	gen.GenesisTime = time.Now()
 	gen.ChainID = c.chainID
@@ -396,7 +397,8 @@ func generateGenesisFile(genesisFile string, pk crypto.PubKey, c *startCfg) erro
 
 	// Load examples folder
 	examplesDir := filepath.Join(c.gnoRootDir, "examples")
-	pkgsTxs, err := gnoland.LoadPackagesFromDir(examplesDir, genesisDeployAddress, genesisDeployFee)
+	loadCfg := &packages.LoadConfig{IO: io}
+	pkgsTxs, err := gnoland.LoadPackagesFromDir(loadCfg, examplesDir, genesisDeployAddress, genesisDeployFee)
 	if err != nil {
 		return fmt.Errorf("unable to load examples folder: %w", err)
 	}
