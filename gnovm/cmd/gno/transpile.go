@@ -152,22 +152,7 @@ func execTranspile(cfg *transpileCfg, args []string, io commands.IO) error {
 			continue
 		}
 
-		st, err := os.Stat(pkg.Dir)
-		if err != nil {
-			return err
-		}
-		if st.IsDir() {
-			err = transpilePkg(pkg, pkgsMap, opts)
-		} else {
-			panic("should ot try to transpile file yet")
-
-			if opts.cfg.verbose {
-				io.ErrPrintln(filepath.Clean(pkg.Dir))
-			}
-
-			err = transpileFile(pkg.Dir, pkgsMap, opts)
-		}
-		if err != nil {
+		if err := transpilePkg(pkg, pkgsMap, opts); err != nil {
 			var fileErrlist scanner.ErrorList
 			if !errors.As(err, &fileErrlist) {
 				// Not an scanner.ErrorList: return immediately.
