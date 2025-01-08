@@ -29,7 +29,7 @@ jobs:
         with:
           go-version: ${{ matrix.goversion }}
       - run: go install -v ./gnovm/cmd/gno
-      - run: go run ./gnovm/cmd/gno transpile -v --gobuild ./examples/gno.land/...
+      - run: go run ./gnovm/cmd/gno transpile -v --gobuild ./examples/...
   test:
     strategy:
       fail-fast: false
@@ -81,7 +81,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        go-version: ["1.22.x"]
+        go-version: [ "1.22.x" ]
         # unittests: TODO: matrix with contracts
     runs-on: ubuntu-latest
     timeout-minutes: 10
