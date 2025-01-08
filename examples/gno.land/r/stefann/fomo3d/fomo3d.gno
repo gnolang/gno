@@ -403,7 +403,7 @@ func RenderHome() string {
 	builder.WriteString("## How to Play\n\n")
 	builder.WriteString(ufmt.Sprintf("1. **Buy Keys** - Send GNOT to this realm with function [`BuyKeys()`](%s)\n", gameState.BuyKeysLink))
 	builder.WriteString(ufmt.Sprintf("2. **Collect Dividends** - Call [`ClaimDividends()`](%s) to collect your earnings\n", gameState.ClaimDividendsLink))
-	builder.WriteString("3. **Check Your Stats** - Add `:player/` followed by your address or namespace to current URL to see your keys and dividends\n")
+	builder.WriteString("3. **Check Your Stats** - Append `:player/` followed by your address or namespace to the current URL to view your keys and dividends\n")
 	if gameState.Ended {
 		builder.WriteString("4. **Start New Round** - Call `StartGame()` to begin a new round\n")
 	}
