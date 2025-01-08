@@ -8,15 +8,17 @@ func ExUnixNano() int64 {
 	return unixNano()
 }
 
+// singleRand is the singleton instance of rand.Rand.
+// isCalled indicates whether the singleton has been initialized.
 var (
 	singleRand *rand.Rand
 	isCalled   bool
 )
 
+// CustomSource is a custom source for rand.Rand that uses a seed.
 type CustomSource struct {
 	seed uint64
 }
-
 func (cs *CustomSource) Uint64() uint64 {
 	cs.seed ^= cs.seed >> 12
 	cs.seed ^= cs.seed << 25
@@ -67,6 +69,7 @@ func nrand() float64 {
 
 // This function leverages the GetSingleRand function to generate a random number in a specified range.
 // Don't use it in a multi-threading environment
+// Exclude end
 // Note: max should be greater than min.
 func RandRange(start, end int64) int64 {
 	if start >= end {
@@ -122,7 +125,7 @@ func RandUint32() uint32 {
 	return randNum
 }
 
-// This function leverages the GetSingleRand function to generate a normal distribution bool in a specified range.
+// This function leverages the GetSingleRand function to generate a normal distributionbool in a specified range.
 // Don't use it in a multi-threading environment
 func GenerateRandomBool(bias float64) bool {
 	// Modify to use fuzz's random function for generating boolean with bias

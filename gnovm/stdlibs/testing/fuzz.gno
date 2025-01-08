@@ -383,7 +383,9 @@ func (f *F) minimazeAndLogInput(seedContent []interface{}) {
 	fmt.Fprintln(os.Stderr, "\n--- Minimaized input:")
 }
 
-// checkProgress attempts to minimize the input by removing characters from string or []byte arguments.
+// checkProgres checks if the input can be reduced by one more step while preserving the error.
+// If it is reduced, it returns the reduced value by one step.
+// returns (reducedInput, isReduced, occeredPoint)
 func (f *F) checkProgress(content []interface{}, minimizableIdXs []int) ([]interface{}, bool, int) {
 	changed := false
 

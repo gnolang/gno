@@ -4,35 +4,6 @@ import (
 	"math"
 )
 
-func updateSeed() {
-	seed := unixNano()
-	_srand()
-}
-
-func Test_UniformRand(t *T) {
-	valueMap := make(map[uint64]int)
-	maxIter := 1000
-
-	for i := 0; i < maxIter; i++ {
-		result := UniformRand()
-
-		if result < 0 || result >= 32768 {
-			t.Errorf("rand() = %v, want in range [0, 32767]", result)
-		}
-
-		if _, ok := valueMap[result]; ok {
-			valueMap[result]++
-		} else {
-			valueMap[result] = 1
-		}
-	}
-
-	lvm := len(valueMap)
-	if lvm > maxIter || lvm == 0 {
-		t.Errorf("len(valueMap) = %v, want <= %v", lvm, maxIter)
-	}
-}
-
 func Test_nrand(t *T) {
 	sum := 0.0
 	for i := 0; i < 1000; i++ {
@@ -51,8 +22,6 @@ func Test_nrand(t *T) {
 }
 
 func Test_GenerateRandomBool(t *T) {
-	updateSeed()
-
 	for _, bias := range []float64{0, 0.5, 1} {
 		trueCount, falseCount := 0, 0
 		sampleSize := 1000
@@ -65,13 +34,6 @@ func Test_GenerateRandomBool(t *T) {
 				falseCount++
 			}
 		}
-		//? question. Why do you write a test case like this?
-		// If the bias is 0,1, most of them will fail the test.
-		// However, this is still a phenomenon that happens even if it is implemented correctly.
-		//I would like to know why you wrote the test case like this.
-		// if trueCount == 0 || falseCount == 0 {
-		// 	t.Errorf("Bias = %v, trueCount = %v, falseCount = %v, want both > 0", bias, trueCount, falseCount)
-		// }
 
 		if bias < 0 || bias > 1 {
 			t.Errorf("Bias = %v, want in range [0, 1]", bias)

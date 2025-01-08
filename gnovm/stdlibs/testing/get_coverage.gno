@@ -4,9 +4,9 @@ import (
 	"unicode/utf8"
 )
 
-// TODO: this files implemented just psheudo-coverage functins
-// TODO: not real functions
-// TODO: must implement real get-coverage function and replace this file
+// TODO: This file implements just pseudo-coverage functions.
+// TODO: Not real functions!
+// TODO: Must implement a real get-coverage function and replace this file.
 
 // Reverse reverses the input string and returns the reversed string.
 func Reverse(s string) string {
@@ -42,9 +42,11 @@ func byteToHexChar(b byte) string {
 	return string('a' + (b - 10)) // a-f
 }
 
+// TODO: This is a pseudo-coverage function. Must replace with a real coverage function in the future.
+
 // getCoverageOfrunner is a pseudo-coverage function. It must be replaced with a real coverage function in the future.
 func getCoverageOfrunner(t *T, content []interface{}) Coverage {
-	// TODO: Make sure to get coverage.
+	// TODO: Ensure to get coverage.
 	// TODO: The format is (function name, line)
 
 	coverage := Coverage{}
@@ -82,6 +84,6 @@ func getCoverageOfrunner(t *T, content []interface{}) Coverage {
 		return coverage
 	}
 	coverage = append(coverage, coveredLine{coName: "closure", coLine: 25})
-	coverage = append(*c, coveredLine{coName: "closure", coLine: 26})
+	coverage = append(coverage, coveredLine{coName: "closure", coLine: 26})
 	return coverage
 }
