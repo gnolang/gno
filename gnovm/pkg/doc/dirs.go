@@ -128,7 +128,7 @@ func packageImportsRecursive(root string, pkgPath string) []string {
 
 		for _, imp := range sub {
 			if !slices.Contains(res, imp) {
-				res = append(res, imp) //nolint:makezero
+				res = append(res, imp)
 			}
 		}
 	}

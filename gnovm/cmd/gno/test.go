@@ -5,9 +5,6 @@ import (
 	"flag"
 	"fmt"
 	goio "io"
-	"log"
-	"path/filepath"
-	"strings"
 	"time"
 
 	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
@@ -247,33 +244,4 @@ func execTest(cfg *testCfg, args []string, io commands.IO) error {
 	}
 
 	return nil
-}
-
-// attempts to determine the full gno pkg path by analyzing the directory.
-func pkgPathFromRootDir(pkgPath, rootDir string) string {
-	abPkgPath, err := filepath.Abs(pkgPath)
-	if err != nil {
-		log.Printf("could not determine abs path: %v", err)
-		return ""
-	}
-	abRootDir, err := filepath.Abs(rootDir)
-	if err != nil {
-		log.Printf("could not determine abs path: %v", err)
-		return ""
-	}
-	abRootDir += string(filepath.Separator)
-	if !strings.HasPrefix(abPkgPath, abRootDir) {
-		return ""
-	}
-	impPath := strings.ReplaceAll(abPkgPath[len(abRootDir):], string(filepath.Separator), "/")
-	for _, prefix := range [...]string{
-		"examples/",
-		"gnovm/stdlibs/",
-		"gnovm/tests/stdlibs/",
-	} {
-		if strings.HasPrefix(impPath, prefix) {
-			return impPath[len(prefix):]
-		}
-	}
-	return ""
 }

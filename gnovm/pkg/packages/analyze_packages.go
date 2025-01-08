@@ -98,7 +98,7 @@ func readPkg(pkgDir string, importPath string) *Package {
 	// TODO: check if stdlib
 
 	pkg.Root, err = gnomod.FindRootDir(pkgDir)
-	if err == gnomod.ErrGnoModNotFound {
+	if errors.Is(err, gnomod.ErrGnoModNotFound) {
 		return pkg
 	}
 	if err != nil {
