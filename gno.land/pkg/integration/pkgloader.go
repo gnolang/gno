@@ -7,6 +7,7 @@ import (
 
 	"github.com/gnolang/gno/gno.land/pkg/gnoland"
 	"github.com/gnolang/gno/gno.land/pkg/sdk/vm"
+	"github.com/gnolang/gno/gnovm/pkg/gnolang"
 	"github.com/gnolang/gno/gnovm/pkg/packages"
 	bft "github.com/gnolang/gno/tm2/pkg/bft/types"
 	"github.com/gnolang/gno/tm2/pkg/std"
@@ -96,7 +97,6 @@ func (pl *PkgsLoader) LoadAllPackagesFromDir(path string) error {
 }
 
 func (pl *PkgsLoader) LoadPackage(pkgDir string, name string) error {
-	// FIXME: name override
 	cfg := &packages.LoadConfig{Deps: true, SelfContained: true, GnorootExamples: true}
 	pkgs, err := packages.Load(cfg, pkgDir)
 	if err != nil {
@@ -104,6 +104,12 @@ func (pl *PkgsLoader) LoadPackage(pkgDir string, name string) error {
 	}
 
 	for _, pkg := range pkgs {
+		if pkg.Dir == pkgDir {
+			pkg.ImportPath = name
+		}
+		if gnolang.IsStdlib(pkg.ImportPath) {
+			continue
+		}
 		if pl.exist(pkg) {
 			continue
 		}
