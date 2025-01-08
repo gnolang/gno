@@ -1,3 +1,5 @@
+// Package names provides functionality for checking if package deployments
+// by users registered in r/sys/users are done to proper namespaces.
 package names
 
 import (
