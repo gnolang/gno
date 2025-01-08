@@ -33,7 +33,7 @@ func readPkg(pkgDir string, importPath string) *Package {
 
 	entries, err := os.ReadDir(pkgDir)
 	if err != nil {
-		pkg.Error = errors.Join(pkg.Error, err)
+		pkg.Errors = append(pkg.Errors, err)
 		return pkg
 	}
 
@@ -55,21 +55,21 @@ func readPkg(pkgDir string, importPath string) *Package {
 
 		bodyBytes, err := os.ReadFile(fpath)
 		if err != nil {
-			pkg.Error = errors.Join(pkg.Error, err)
+			pkg.Errors = append(pkg.Errors, err)
 			continue
 		}
 		body := string(bodyBytes)
 
 		fileKind, err := GetFileKind(base, body, fset)
 		if err != nil {
-			pkg.Error = errors.Join(pkg.Error, err)
+			pkg.Errors = append(pkg.Errors, err)
 			continue
 		}
 
 		// ignore files with invalid package clause
 		_, err = parser.ParseFile(fset, fpath, nil, parser.PackageClauseOnly)
 		if err != nil {
-			pkg.Error = errors.Join(pkg.Error, err)
+			pkg.Errors = append(pkg.Errors, err)
 			continue
 		}
 
@@ -79,7 +79,7 @@ func readPkg(pkgDir string, importPath string) *Package {
 
 	pkg.Imports, err = Imports(&mempkg, fset)
 	if err != nil {
-		pkg.Error = errors.Join(pkg.Error, err)
+		pkg.Errors = append(pkg.Errors, err)
 	}
 
 	// we use the ReadMemPkg utils because we want name resolution like the vm
@@ -90,7 +90,7 @@ func readPkg(pkgDir string, importPath string) *Package {
 	}
 	minMempkg, err := gnolang.ReadMemPackageFromList(absFiles, "")
 	if err != nil {
-		pkg.Error = errors.Join(pkg.Error, err)
+		pkg.Errors = append(pkg.Errors, err)
 	} else {
 		pkg.Name = minMempkg.Name
 	}
@@ -102,13 +102,13 @@ func readPkg(pkgDir string, importPath string) *Package {
 		return pkg
 	}
 	if err != nil {
-		pkg.Error = errors.Join(pkg.Error, err)
+		pkg.Errors = append(pkg.Errors, err)
 		return pkg
 	}
 
 	mod, err := gnomod.ParseGnoMod(filepath.Join(pkg.Root, "gno.mod"))
 	if err != nil {
-		pkg.Error = errors.Join(pkg.Error, err)
+		pkg.Errors = append(pkg.Errors, err)
 		return pkg
 	}
 
@@ -121,7 +121,7 @@ func readPkg(pkgDir string, importPath string) *Package {
 	pkg.ModPath = mod.Module.Mod.Path
 	subPath, err := filepath.Rel(pkg.Root, pkgDir)
 	if err != nil {
-		pkg.Error = errors.Join(pkg.Error, err)
+		pkg.Errors = append(pkg.Errors, err)
 		return pkg
 	}
 

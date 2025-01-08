@@ -122,17 +122,41 @@ func execLint(cfg *lintCfg, args []string, io commands.IO) error {
 			io.ErrPrintln(logName)
 		}
 
-		// Check if 'gno.mod' exists
-		if pkg.ModPath == "" {
+		for _, err := range pkg.Errors {
 			hasError = true
 			issue := lintIssue{
 				Code:       lintGnoMod,
 				Confidence: 1,
 				Location:   pkg.Dir,
-				Msg:        "missing 'gno.mod' file",
+				Msg:        err.Error(),
 			}
 			io.ErrPrintln(issue)
+		}
+		if len(pkg.Errors) != 0 {
+			continue
+		}
+
+		// Check if 'gno.mod' exists
+		if pkg.ModPath == "" {
 			hasError = true
+			wd, err := os.Getwd()
+			location := pkg.Dir
+			if err == nil {
+				location, err = filepath.Rel(wd, pkg.Dir)
+				if err != nil {
+					location = pkg.Dir
+				} else {
+					location = fmt.Sprintf(".%c%s", filepath.Separator, filepath.Join(location))
+				}
+
+			}
+			issue := lintIssue{
+				Code:       lintGnoMod,
+				Confidence: 1,
+				Location:   location,
+				Msg:        "gno.mod file not found in current or any parent directory",
+			}
+			io.ErrPrintln(issue)
 		}
 
 		// load deps

@@ -99,7 +99,7 @@ func Load(conf *LoadConfig, patterns ...string) (PkgList, error) {
 					err = fmt.Errorf("stdlib %q not found", imp)
 				}
 				if err != nil {
-					pkg.Error = errors.Join(pkg.Error, err)
+					pkg.Errors = append(pkg.Errors, err)
 					byPkgPath[imp] = nil // stop trying to get this lib, we can't
 					continue
 				}
@@ -118,14 +118,14 @@ func Load(conf *LoadConfig, patterns ...string) (PkgList, error) {
 			}
 
 			if conf.SelfContained {
-				pkg.Error = errors.Join(pkg.Error, fmt.Errorf("self-contained: package %q not found", imp))
+				pkg.Errors = append(pkg.Errors, fmt.Errorf("self-contained: package %q not found", imp))
 				byPkgPath[imp] = nil // stop trying to get this lib, we can't
 				continue
 			}
 
 			dir := gnomod.PackageDir("", module.Version{Path: imp})
 			if err := downloadPackage(conf, imp, dir); err != nil {
-				pkg.Error = errors.Join(pkg.Error, err)
+				pkg.Errors = append(pkg.Errors, err)
 				byPkgPath[imp] = nil // stop trying to download pkg, we can't
 				continue
 			}
@@ -139,7 +139,7 @@ func Load(conf *LoadConfig, patterns ...string) (PkgList, error) {
 		// TODO: this could be optimized
 		pkg.Deps, err = listDeps(pkg.ImportPath, byPkgPath)
 		if err != nil {
-			pkg.Error = errors.Join(pkg.Error, err)
+			pkg.Errors = append(pkg.Errors, err)
 		}
 	}
 
