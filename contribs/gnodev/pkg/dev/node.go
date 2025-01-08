@@ -16,6 +16,7 @@ import (
 	"github.com/gnolang/gno/gno.land/pkg/gnoland"
 	"github.com/gnolang/gno/gno.land/pkg/gnoland/ugnot"
 	"github.com/gnolang/gno/gno.land/pkg/integration"
+	"github.com/gnolang/gno/gnovm/pkg/gnolang"
 	"github.com/gnolang/gno/gnovm/pkg/packages"
 	"github.com/gnolang/gno/tm2/pkg/amino"
 	tmcfg "github.com/gnolang/gno/tm2/pkg/bft/config"
@@ -249,6 +250,10 @@ func (n *Node) updatePackages(paths ...string) error {
 
 		// Update or add package in the current known list.
 		for _, pkg := range pkgslist {
+			if pkg.ImportPath != "" && gnolang.IsStdlib(pkg.ImportPath) {
+				continue
+			}
+
 			n.pkgs[pkg.Dir] = Package{
 				Package: pkg,
 				Creator: deployer,

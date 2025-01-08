@@ -2,6 +2,9 @@ package packages
 
 import (
 	"fmt"
+	"slices"
+
+	"github.com/gnolang/gno/gnovm/pkg/gnolang"
 )
 
 type (
@@ -25,6 +28,8 @@ func (pl PkgList) Sort() (SortedPkgList, error) {
 	return sortedPkgs, nil
 }
 
+var injectedTestingLibs = []string{"encoding/json", "fmt", "os", "crypto/sha256"}
+
 // visitNode visits a package's and its dependencies dependencies and adds them to the sorted list.
 func visitPackage(pkg *Package, pkgs []*Package, visited, onStack map[string]bool, sortedPkgs *[]*Package) error {
 	if onStack[pkg.ImportPath] {
@@ -39,6 +44,12 @@ func visitPackage(pkg *Package, pkgs []*Package, visited, onStack map[string]boo
 
 	// Visit package's dependencies
 	for _, imp := range pkg.Imports.Merge(FileKindPackageSource) {
+		if gnolang.IsStdlib(imp) {
+			continue
+		}
+		if slices.Contains(injectedTestingLibs, imp) {
+			continue
+		}
 		found := false
 		for _, p := range pkgs {
 			if p.ImportPath != imp {

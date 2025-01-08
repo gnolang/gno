@@ -10,6 +10,7 @@ import (
 	"github.com/gnolang/gno/contribs/gnodev/pkg/address"
 	"github.com/gnolang/gno/gno.land/pkg/gnoland"
 	vmm "github.com/gnolang/gno/gno.land/pkg/sdk/vm"
+	"github.com/gnolang/gno/gnovm/pkg/gnolang"
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
 	"github.com/gnolang/gno/gnovm/pkg/packages"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
@@ -95,6 +96,10 @@ func NewPackagesMap(cfg *packages.LoadConfig, ppaths []PackagePath) (PackagesMap
 
 		for _, pkg := range pkgslist {
 			if pkg.Dir == "" {
+				continue
+			}
+
+			if pkg.ImportPath != "" && gnolang.IsStdlib(pkg.ImportPath) {
 				continue
 			}
 
