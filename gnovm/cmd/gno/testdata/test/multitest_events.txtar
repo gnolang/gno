@@ -5,7 +5,10 @@ gno test -print-events .
 ! stdout .+ 
 stderr 'EVENTS: \[{\"type\":\"EventA\",\"attrs\":\[\],\"pkg_path\":\"gno.land/r/.*\",\"func\":\"TestA\"}\]'
 stderr 'EVENTS: \[{\"type\":\"EventB\",\"attrs\":\[{\"key\":\"keyA\",\"value\":\"valA\"}\],\"pkg_path\":\"gno.land/r/.*\",\"func\":\"TestB\"},{\"type\":\"EventC\",\"attrs\":\[{\"key\":\"keyD\",\"value\":\"valD\"}\],\"pkg_path\":\"gno.land/r/.*\",\"func\":\"TestB\"}\]'
-stderr 'ok      \. 	\d\.\d\ds'
+stderr 'ok      gno.land/r/.* 	\d\.\d\ds'
+
+-- gno.mod --
+module gno.land/r/tests/multitest_events
 
 -- valid.gno --
 package valid

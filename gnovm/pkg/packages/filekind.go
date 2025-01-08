@@ -26,6 +26,10 @@ const (
 	FileKindFiletest               = "Filetest"
 )
 
+func AllFileKinds() []FileKind {
+	return []FileKind{FileKindPackageSource, FileKindTest, FileKindXTest, FileKindFiletest}
+}
+
 // GetFileKind analyzes a file's name and body to get it's [FileKind], fset is optional
 func GetFileKind(filename string, body string, fset *token.FileSet) (FileKind, error) {
 	if !strings.HasSuffix(filename, ".gno") {

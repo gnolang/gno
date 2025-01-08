@@ -2,9 +2,13 @@ package main
 
 import (
 	"context"
+	"errors"
 	"flag"
 	"fmt"
 	goio "io"
+	"os"
+	"path/filepath"
+	"slices"
 	"time"
 
 	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
@@ -151,6 +155,9 @@ func execTest(cfg *testCfg, args []string, io commands.IO) error {
 		cfg.rootDir = gnoenv.RootDir()
 	}
 
+	// inject cwd, we need this to pass some txtars
+	args = append(args, fmt.Sprintf(".%c...", filepath.Separator))
+
 	// Find targets for test.
 	conf := &packages.LoadConfig{IO: io, Fetcher: testPackageFetcher}
 	pkgs, err := packages.Load(conf, args...)
@@ -158,8 +165,12 @@ func execTest(cfg *testCfg, args []string, io commands.IO) error {
 		return fmt.Errorf("list targets from patterns: %w", err)
 	}
 	if len(pkgs) == 0 {
-		io.ErrPrintln("no packages to test")
-		return nil
+		return errors.New("no packages to test")
+	}
+	for _, pkg := range pkgs {
+		if len(pkg.Match) != 0 && !slices.ContainsFunc(pkg.Match, func(s string) bool { return !packages.PatternIsLiteral(s) }) && pkg.Files.Size() == 0 {
+			return fmt.Errorf("no Gno files in %s", pkg.Dir)
+		}
 	}
 
 	if cfg.timeout > 0 {
@@ -187,18 +198,24 @@ func execTest(cfg *testCfg, args []string, io commands.IO) error {
 	buildErrCount := 0
 	testErrCount := 0
 	for _, pkg := range pkgs {
-		// ignore deps
+		// ignore side-loaded packages, mostly coming from siblings injection (TODO: explain siblings injection, why we chose it over go's forcing to have an arching context (go.mod, go.work))
 		if len(pkg.Match) == 0 {
 			continue
 		}
 
-		logName := pkg.ImportPath
-		if logName == "" {
-			logName = pkg.Dir
+		label := pkg.ImportPath
+		if label == "" {
+			label = pkg.Dir
+		}
+		if cwd, err := os.Getwd(); err == nil {
+			relLogName, err := filepath.Rel(cwd, label)
+			if err == nil {
+				label = relLogName
+			}
 		}
 
 		if len(pkg.Files[packages.FileKindTest]) == 0 && len(pkg.Files[packages.FileKindXTest]) == 0 && len(pkg.Files[packages.FileKindFiletest]) == 0 {
-			io.ErrPrintfln("?       %s \t[no test files]", logName)
+			io.ErrPrintfln("?       %s \t[no test files]", label)
 			continue
 		}
 
@@ -207,15 +224,17 @@ func execTest(cfg *testCfg, args []string, io commands.IO) error {
 		depsConf.Cache = pkgsMap
 		deps, loadDepsErr := packages.Load(&depsConf, pkg.Dir)
 		if loadDepsErr != nil {
-			io.ErrPrintfln("%s: load deps: %v", logName, err)
-			return nil
+			io.ErrPrintfln("%s: load deps: %v", label, err)
+			buildErrCount++
+			continue
 		}
 		packages.Inject(pkgsMap, deps)
 
-		memPkg, err := gno.ReadMemPackage(pkg.Dir, logName)
+		memPkg, err := gno.ReadMemPackage(pkg.Dir, label)
 		if err != nil {
 			io.ErrPrintln(err)
-			return nil
+			buildErrCount++
+			continue
 		}
 
 		startedAt := time.Now()
@@ -228,14 +247,14 @@ func execTest(cfg *testCfg, args []string, io commands.IO) error {
 
 		if hasError || err != nil {
 			if err != nil {
-				io.ErrPrintfln("%s: test pkg: %v", logName, err)
+				io.ErrPrintfln("%s: test pkg: %v", label, err)
 			}
 			io.ErrPrintfln("FAIL")
-			io.ErrPrintfln("FAIL    %s \t%s", logName, dstr)
+			io.ErrPrintfln("FAIL    %s \t%s", label, dstr)
 			io.ErrPrintfln("FAIL")
 			testErrCount++
 		} else {
-			io.ErrPrintfln("ok      %s \t%s", logName, dstr)
+			io.ErrPrintfln("ok      %s \t%s", label, dstr)
 		}
 	}
 	if testErrCount > 0 || buildErrCount > 0 {

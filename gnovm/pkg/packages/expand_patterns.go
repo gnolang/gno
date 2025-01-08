@@ -32,16 +32,23 @@ type pkgMatch struct {
 func expandPatterns(conf *LoadConfig, patterns ...string) ([]*pkgMatch, error) {
 	pkgMatches := []*pkgMatch{}
 
-	addMatch := func(dir string, match string) {
+	addPkgDir := func(dir string, match *string) {
 		idx := slices.IndexFunc(pkgMatches, func(sum *pkgMatch) bool { return sum.Dir == dir })
 		if idx == -1 {
-			pkgMatches = append(pkgMatches, &pkgMatch{Dir: dir, Match: []string{match}})
+			matches := []string{}
+			if match != nil {
+				matches = append(matches, *match)
+			}
+			pkgMatches = append(pkgMatches, &pkgMatch{Dir: dir, Match: matches})
 			return
 		}
-		if slices.Contains(pkgMatches[idx].Match, match) {
+		if match == nil {
 			return
 		}
-		pkgMatches[idx].Match = append(pkgMatches[idx].Match, match)
+		if slices.Contains(pkgMatches[idx].Match, *match) {
+			return
+		}
+		pkgMatches[idx].Match = append(pkgMatches[idx].Match, *match)
 	}
 
 	kinds := make([]patternKind, 0, len(patterns))
@@ -54,24 +61,33 @@ func expandPatterns(conf *LoadConfig, patterns ...string) ([]*pkgMatch, error) {
 	}
 
 	if slices.Contains(kinds, patternKindSingleFile) {
+		remaining := []string{}
+		remainingKinds := []patternKind{}
+
 		files := make([]string, 0, len(patterns))
 		for i, match := range patterns {
 			kind := kinds[i]
-			if kind != patternKindSingleFile || !strings.HasSuffix(match, ".gno") {
+			if kind != patternKindSingleFile {
+				remaining = append(remaining, match)
+				remainingKinds = append(remainingKinds, kind)
+				continue
+			}
+			if !strings.HasSuffix(match, ".gno") {
 				return nil, fmt.Errorf("named files must be .gno files: %s", match)
 			}
 			files = append(files, match)
 		}
-		return []*pkgMatch{{Dir: "command-line-arguments", Match: files}}, nil
+
+		pkgMatches = append(pkgMatches, &pkgMatch{Dir: "command-line-arguments", Match: files})
+
+		patterns = remaining
+		kinds = remainingKinds
 	}
 
 	for i, match := range patterns {
 		patKind := kinds[i]
 
 		switch patKind {
-		case patternKindSingleFile:
-			return nil, fmt.Errorf("%s: single file patterns are not supported", match)
-
 		case patternKindRecursiveRemote:
 			return nil, fmt.Errorf("%s: recursive remote patterns are not supported", match)
 
@@ -79,6 +95,8 @@ func expandPatterns(conf *LoadConfig, patterns ...string) ([]*pkgMatch, error) {
 			if conf.SelfContained {
 				return nil, fmt.Errorf("%s: remote patterns are not supported in self-contained mode", match)
 			}
+		case patternKindSingleFile:
+			return nil, fmt.Errorf("unexpected single pattern at this point")
 		}
 
 		pat, err := cleanPattern(match, patKind)
@@ -88,22 +106,25 @@ func expandPatterns(conf *LoadConfig, patterns ...string) ([]*pkgMatch, error) {
 
 		switch patKind {
 		case patternKindDirectory:
-			addMatch(pat, match)
+			addPkgDir(pat, &match)
 
 		case patternKindRemote:
 			dir := gnomod.PackageDir("", module.Version{Path: pat})
 			if err := downloadPackage(conf, pat, dir); err != nil {
 				return nil, err
 			}
-			addMatch(dir, match)
+			addPkgDir(dir, &match)
 
 		case patternKindRecursiveLocal:
 			dirs, err := expandRecursive(pat)
 			if err != nil {
 				return nil, fmt.Errorf("%s: %w", pat, err)
 			}
+			if len(dirs) == 0 {
+				conf.IO.ErrPrintfln(`gno: warning: %q matched no packages`, match)
+			}
 			for _, dir := range dirs {
-				addMatch(dir, match)
+				addPkgDir(dir, &match)
 			}
 		}
 	}
@@ -158,7 +179,7 @@ const (
 )
 
 func getPatternKind(pat string) (patternKind, error) {
-	isLitteral := patternIsLiteral(pat)
+	isLitteral := PatternIsLiteral(pat)
 
 	if patternIsRemote(pat) {
 		if isLitteral {

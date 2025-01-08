@@ -19,6 +19,14 @@ type Package struct {
 
 type FilesMap map[FileKind][]string
 
+func (fm FilesMap) Size() int {
+	total := 0
+	for _, kind := range AllFileKinds() {
+		total += len(fm[kind])
+	}
+	return total
+}
+
 // Merge merges imports, it removes duplicates and sorts the result
 func (imap FilesMap) Merge(kinds ...FileKind) []string {
 	res := make([]string, 0, 16)

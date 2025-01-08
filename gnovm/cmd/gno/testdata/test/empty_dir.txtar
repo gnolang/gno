@@ -3,9 +3,9 @@
 ! gno test .
 
 ! stdout .+
-stderr 'no valid gno files'
+stderr 'no Gno files in '
 
-gno test ./...
+! gno test ./...
 
 ! stdout .+
-stderr 'no packages to test'
+stderr 'gno: warning: "./..." matched no packages\nno packages to test'

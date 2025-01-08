@@ -19,9 +19,9 @@ func patternIsRemote(path string) bool {
 	return strings.ContainsRune(path[:slashIdx], '.')
 }
 
-// patternIsLiteral reports whether the pattern is free of wildcards.
+// PatternIsLiteral reports whether the pattern is free of wildcards.
 //
 // A literal pattern must match at most one package.
-func patternIsLiteral(pattern string) bool {
+func PatternIsLiteral(pattern string) bool {
 	return !strings.Contains(pattern, "...")
 }

@@ -25,6 +25,9 @@ func (c *Counter) Inc() {
 	c.n++
 }
 
+-- examples/gno.land/r/demo/realm1/gno.mod --
+module gno.land/r/demo/realm1
+
 -- examples/gno.land/r/demo/realm1/realm1.gno --
 package realm1
 
@@ -35,6 +38,9 @@ var c = counter.Counter{}
 func GetCounter() *counter.Counter {
 	return &c
 }
+
+-- examples/gno.land/r/demo/realm2/gno.mod --
+module gno.land/r/demo/realm2
 
 -- examples/gno.land/r/demo/realm2/realm2.gno --
 package realm2
