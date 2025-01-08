@@ -265,9 +265,11 @@ func checkCrossRealm2(rlm *Realm, store Store, tv *TypedValue) {
 
 // checkCrossRealm check cross realm recursively
 func checkCrossRealm(rlm *Realm, store Store, oo Object, refValue Value) {
-	fmt.Println("checkCrossRealm, oo: ", oo, reflect.TypeOf(oo))
+	debug2.Println2("checkCrossRealm, oo: ", oo, reflect.TypeOf(oo))
+	debug2.Println2("refValue: ", refValue)
 	debug2.Println2("oo.GetRefCount: ", oo.GetRefCount())
 	debug2.Println2("oo.GetObjectInfo: ", oo.GetObjectInfo())
+
 	switch v := oo.(type) {
 	case *StructValue:
 		if !v.GetIsReal() {
@@ -283,7 +285,7 @@ func checkCrossRealm(rlm *Realm, store Store, oo Object, refValue Value) {
 	case *MapValue:
 	// TODO: check recursively
 	case *BoundMethodValue:
-	// TODO: check recursively
+	// TODO: check
 	case *Block:
 		// XXX, can this happen?
 		if !v.GetIsRef() {
@@ -315,8 +317,7 @@ func checkCrossRealm(rlm *Realm, store Store, oo Object, refValue Value) {
 
 // MarkNewEscapedCheckCrossRealm check for escaped object
 func (rlm *Realm) MarkNewEscapedCheckCrossRealm(store Store, oo Object, refValue Value) {
-	//fmt.Println("MarkNewEscapedCheckCrossRealm, oo: ", oo)
-	//fmt.Println("refValue: ", refValue)
+	debug2.Println2("MarkNewEscapedCheckCrossRealm, oo: ", oo)
 	//fmt.Println("oo.GetOriginRealm(): ", oo.GetOriginRealm())
 	//fmt.Println("rlm.ID: ", rlm.ID)
 
@@ -555,6 +556,7 @@ func (rlm *Realm) incRefCreatedDescendants(store Store, oo Object) {
 	debug2.Println2("---oo.GetOriginRealm: ", oo.GetOriginRealm())
 	debug2.Println2("---oo.GetRefCount: ", oo.GetRefCount())
 	debug2.Println2("---oo.GetObjectID: ", oo.GetObjectInfo())
+	debug2.Println2("oo.GetIsRef: ", oo.GetIsRef())
 
 	if debug {
 		if oo.GetIsDirty() {
@@ -567,7 +569,6 @@ func (rlm *Realm) incRefCreatedDescendants(store Store, oo Object) {
 
 	// XXX, oo must be new real here, it's not escaped
 	// if it's reference, all right
-	debug2.Println2("oo.GetIsRef: ", oo.GetIsRef())
 	if !oo.GetOriginRealm().IsZero() && oo.GetOriginRealm() != rlm.ID {
 		if oo.GetIsRef() {
 			panic("cannot attach a reference to an unreal object from an external realm")
@@ -576,7 +577,6 @@ func (rlm *Realm) incRefCreatedDescendants(store Store, oo Object) {
 		}
 	}
 
-	debug2.Println2("oo.GetObjectID(): ", oo.GetObjectID())
 	// RECURSE GUARD
 	// if id already set, skip.
 	// this happens when a node marked created was already

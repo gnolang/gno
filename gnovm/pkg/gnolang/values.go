@@ -213,7 +213,6 @@ func (pv *PointerValue) GetBase(store Store) Object {
 func (pv PointerValue) Assign2(alloc *Allocator, store Store, rlm *Realm, tv2 TypedValue, cu bool) {
 	debug2.Println2("Assign2, pv: ", pv)
 	debug2.Println2("tv2: ", tv2)
-	debug2.Printf2("addr of tv2: %p \n", &tv2)
 	debug2.Println2("rlm: ", rlm)
 
 	// Special cases.
@@ -291,14 +290,12 @@ func (pv PointerValue) Assign2(alloc *Allocator, store Store, rlm *Realm, tv2 Ty
 		oo1 := pv.TV.GetFirstObject(store)
 		debug2.Println2("---oo1: ", oo1)
 
-		// get origin pkgId
+		// get origin pkgId, this should happen before assign,
+		// because assign will discard original object info
 		originPkg := tv2.GetOriginPkg(store)
 		debug2.Println2("originPkg: ", originPkg)
 
 		pv.TV.Assign(alloc, tv2, cu)
-
-		// get origin pkgId, this should happen before assign,
-		// because assign will discard original object info
 
 		oo2 := pv.TV.GetFirstObject(store)
 		debug2.Println2("oo2: ", oo2)
@@ -548,8 +545,6 @@ func (sv *StructValue) Copy(alloc *Allocator) *StructValue {
 	}
 
 	nsv := alloc.NewStruct(fields)
-	//debug2.Println2("sv.ObjectInfo", sv.ObjectInfo)
-	//nsv.ObjectInfo = sv.ObjectInfo.Copy()
 	debug2.Println2("sv.GetOriginRealm: ", sv.GetOriginRealm())
 	debug2.Println2("sv.GetObjectID(): ", sv.GetObjectID())
 	debug2.Println2("sv.GetRefCount: ", sv.GetRefCount())
@@ -1085,7 +1080,6 @@ func (tv TypedValue) Copy(alloc *Allocator) (cp TypedValue) {
 		cp.T = tv.T
 		cp.V = cv.Copy(alloc)
 	default:
-		debug2.Println2("---default")
 		cp = tv
 	}
 	return
@@ -2673,7 +2667,7 @@ func typedString(s string) TypedValue {
 }
 
 func fillValueTV(store Store, tv *TypedValue) *TypedValue {
-	debug2.Println2("fillValueTV, tv: ", tv)
+	debug2.Println2("fillValueTV, tv: ", tv, reflect.TypeOf(tv.V))
 	switch cv := tv.V.(type) {
 	case RefValue:
 		if cv.PkgPath != "" { // load package
@@ -2690,14 +2684,11 @@ func fillValueTV(store Store, tv *TypedValue) *TypedValue {
 		// but for execution speed traded off for
 		// loading speed, we do the following for now:
 		if ref, ok := cv.Base.(RefValue); ok {
-			//fmt.Println("---cv.Base: ", ref)
 			base := store.GetObject(ref.ObjectID).(Value)
-			//fmt.Println("---base: ", base)
 			cv.Base = base
 			switch cb := base.(type) {
 			case *ArrayValue:
 				et := baseOf(tv.T).(*PointerType).Elt
-				fmt.Println("---et: ", et)
 				epv := cb.GetPointerAtIndexInt2(store, cv.Index, et)
 				cv.TV = epv.TV // TODO optimize? (epv.* ignored)
 			case *StructValue:

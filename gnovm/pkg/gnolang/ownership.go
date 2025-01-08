@@ -145,13 +145,13 @@ type ObjectInfo struct {
 	RefCount  int       // for persistence. deleted/gc'd if 0.
 	IsEscaped bool      `json:",omitempty"` // hash in iavl.
 	// MemRefCount int // consider for optimizations.
-	isDirty                 bool
-	isDeleted               bool
-	isNewReal               bool
-	isRef                   bool
-	isNewEscaped            bool
-	isNewDeleted            bool
-	lastNewRealEscapedRealm PkgID
+	isDirty      bool
+	isDeleted    bool
+	isNewReal    bool
+	isRef        bool
+	isNewEscaped bool
+	isNewDeleted bool
+	originRealm  PkgID // realm where object is from
 
 	// XXX huh?
 	owner Object // mem reference to owner.
@@ -160,13 +160,13 @@ type ObjectInfo struct {
 // Note that "owner" is nil.
 func (oi *ObjectInfo) Copy() ObjectInfo {
 	return ObjectInfo{
-		ID:                      oi.ID,
-		Hash:                    oi.Hash.Copy(),
-		OwnerID:                 oi.OwnerID,
-		ModTime:                 oi.ModTime,
-		RefCount:                oi.RefCount,
-		IsEscaped:               oi.IsEscaped,
-		lastNewRealEscapedRealm: oi.lastNewRealEscapedRealm,
+		ID:          oi.ID,
+		Hash:        oi.Hash.Copy(),
+		OwnerID:     oi.OwnerID,
+		ModTime:     oi.ModTime,
+		RefCount:    oi.RefCount,
+		IsEscaped:   oi.IsEscaped,
+		originRealm: oi.originRealm,
 		/*
 			// XXX do the following need copying too?
 			isDirty:          oi.isDirty,
@@ -174,7 +174,7 @@ func (oi *ObjectInfo) Copy() ObjectInfo {
 			isNewReal:        oi.isNewReal,
 			isNewEscaped:     oi.isNewEscaped,
 			isNewDeleted:     oi.isNewDeleted,
-			lastNewRealEscapedRealm: oi.lastNewRealEscapedRealm,
+			originRealm: oi.originRealm,
 		*/
 	}
 }
@@ -317,12 +317,12 @@ func (oi *ObjectInfo) SetIsNewReal(x bool) {
 }
 
 func (oi *ObjectInfo) GetOriginRealm() PkgID {
-	return oi.lastNewRealEscapedRealm
+	return oi.originRealm
 }
 
 func (oi *ObjectInfo) SetOriginRealm(pkgId PkgID) {
 	debug2.Println2("SetOriginRealm: ", pkgId)
-	oi.lastNewRealEscapedRealm = pkgId
+	oi.originRealm = pkgId
 }
 
 func (oi *ObjectInfo) GetIsRef() bool {
@@ -393,22 +393,36 @@ func (tv *TypedValue) GetOriginPkg(store Store) (originPkg PkgID) {
 	debug2.Println2("GetOriginPkg, tv: ", tv, reflect.TypeOf(tv.V))
 	// get first object
 	obj := tv.GetFirstObject(store)
-	debug2.Println2("obj: ", obj)
+	debug2.Println2("obj: ", obj, reflect.TypeOf(obj))
 	if obj != nil {
 		originPkg = obj.GetOriginRealm()
 		if originPkg.IsZero() {
 			originPkg = obj.GetObjectID().PkgID
 		}
 		debug2.Println2("obj.GetObjectInfo(): ", obj.GetObjectInfo())
-		debug2.Println2("obj.originPkg: ", originPkg)
+	}
+	debug2.Println2("obj.originPkg: ", originPkg)
+
+	// get pkgId from type
+	getPkgId := func(t Type) (pkgId PkgID) {
+		defer debug2.Println2("getPkgId: ", pkgId)
+		if dt, ok := t.(*DeclaredType); ok {
+			debug2.Printf2("dt: %v, dt.Base: \n", dt, dt.Base)
+			if _, ok := dt.Base.(*FuncType); !ok {
+				debug2.Println2("---dt.base.PkgPath: ", dt.Base.GetPkgPath())
+				if IsRealmPath(dt.Base.GetPkgPath()) {
+					pkgId = PkgIDFromPkgPath(dt.Base.GetPkgPath())
+					return
+				}
+			}
+		}
+		return
 	}
 
 	// if still zero
 	if originPkg.IsZero() {
 		switch cv := obj.(type) {
 		case *ArrayValue:
-			debug2.Println2("array value, T: ", tv.T)
-			debug2.Println2("objectInfo: ", cv.GetObjectInfo())
 			if IsRealmPath(tv.T.Elem().GetPkgPath()) {
 				originPkg = PkgIDFromPkgPath(tv.T.Elem().GetPkgPath())
 			}
@@ -417,45 +431,16 @@ func (tv *TypedValue) GetOriginPkg(store Store) (originPkg PkgID) {
 			originPkg = PkgIDFromPkgPath(cv.Source.GetLocation().PkgPath)
 			return
 		case *HeapItemValue:
-			debug2.Println2("heapItemValue: ", cv)
-			debug2.Println2("heapItemValue.Value.T: ", cv.Value.T)
-			if dt, ok := cv.Value.T.(*DeclaredType); ok {
-				debug2.Printf2("---dt: %v\n", dt)
-				debug2.Println2("---dt.base: ", dt.Base)
-				if _, ok := dt.Base.(*FuncType); !ok {
-					debug2.Println2("---dt.base.PkgPath: ", dt.Base.GetPkgPath())
-					if IsRealmPath(dt.Base.GetPkgPath()) {
-						originPkg = PkgIDFromPkgPath(dt.Base.GetPkgPath())
-					}
-				}
-			}
+			originPkg = getPkgId(cv.Value.T)
 			return
 		case *BoundMethodValue:
-			debug2.Println2("boundMethodValue: ", cv)
 			debug2.Println2("BoundMethodValue, recv: ", cv.Receiver)
-			debug2.Println2("type of T: ", reflect.TypeOf(cv.Receiver.T))
 			if pv, ok := cv.Receiver.V.(PointerValue); ok {
-				debug2.Println2("pointer value, pv: ", pv)
-				if dt, ok := pv.TV.T.(*DeclaredType); ok {
-					debug2.Println2("---2, dt: ", dt)
-					if IsRealmPath(dt.PkgPath) {
-						originPkg = PkgIDFromPkgPath(dt.PkgPath)
-					}
-				}
-				debug2.Println2("originPkg; ", originPkg)
+				originPkg = getPkgId(pv.TV.T)
 			}
 			return
 		case *MapValue, *StructValue:
-			if dt, ok := tv.T.(*DeclaredType); ok {
-				debug2.Printf2("---dt: %v\n", dt)
-				debug2.Println2("---dt.base: ", dt.Base)
-				if _, ok := dt.Base.(*FuncType); !ok {
-					debug2.Println2("---dt.base.PkgPath: ", dt.Base.GetPkgPath())
-					if IsRealmPath(dt.Base.GetPkgPath()) {
-						originPkg = PkgIDFromPkgPath(dt.Base.GetPkgPath())
-					}
-				}
-			}
+			originPkg = getPkgId(tv.T)
 			return
 		default:
 			// do nothing
