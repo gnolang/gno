@@ -104,7 +104,7 @@ func (pl *PkgsLoader) LoadPackage(pkgDir string, name string) error {
 	}
 
 	for _, pkg := range pkgs {
-		if pkg.Dir == pkgDir {
+		if pkg.Dir == pkgDir && name != "" {
 			pkg.ImportPath = name
 		}
 		if gnolang.IsStdlib(pkg.ImportPath) {
