@@ -8,8 +8,10 @@ const (
 	PermissionThreadCreate            = "thread:create"
 	PermissionThreadEdit              = "thread:edit"
 	PermissionThreadDelete            = "thread:delete"
+	PermissionThreadFlag              = "thread:flag"
 	PermissionThreadRepost            = "thread:repost"
 	PermissionReplyDelete             = "reply:delete"
+	PermissionReplyFlag               = "reply:flag"
 	PermissionMemberInvite            = "member:invite"
 	PermissionMemberRemove            = "member:remove"
 )

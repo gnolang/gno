@@ -30,12 +30,14 @@ type Post struct {
 	creator       std.Address
 	title         string // optional
 	body          string
+	isHidden      bool
 	replies       avl.Tree // Post.id -> *Post
 	repliesAll    avl.Tree // Post.id -> *Post (all replies, for top-level posts)
 	reposts       avl.Tree // Board.id -> Post.id
-	threadID      PostID   // original Post.id
-	parentID      PostID   // parent Post.id (if reply or repost)
-	repostBoardID BoardID  // original Board.id (if repost)
+	flags         []Flag
+	threadID      PostID  // original Post.id
+	parentID      PostID  // parent Post.id (if reply or repost)
+	repostBoardID BoardID // original Board.id (if repost)
 	createdAt     time.Time
 	updatedAt     time.Time
 }
@@ -95,6 +97,30 @@ func (post *Post) GetCreatedAt() time.Time {
 
 func (post *Post) GetUpdatedAt() time.Time {
 	return post.updatedAt
+}
+
+func (post *Post) AddFlag(flag Flag) bool {
+	// TODO: sort flags for fast search in case of big thresholds
+	for _, v := range post.flags {
+		if v.User == flag.User {
+			return false
+		}
+	}
+
+	post.flags = append(post.flags, flag)
+	return true
+}
+
+func (post *Post) FlagsCount() int {
+	return len(post.flags)
+}
+
+func (post *Post) SetVisible(isVisible bool) {
+	post.isHidden = !isVisible
+}
+
+func (post *Post) IsHidden() bool {
+	return post.isHidden
 }
 
 func (post *Post) AddReply(creator std.Address, body string) *Post {
@@ -219,6 +245,11 @@ func (post *Post) RenderSummary() string {
 		if !found {
 			return "reposted post does not exist"
 		}
+
+		if thread.isHidden {
+			return "reposted post was hidden"
+		}
+
 		return "Repost: " + post.GetSummary() + "\n" + thread.RenderSummary()
 	}
 
@@ -267,8 +298,14 @@ func (post *Post) Render(indent string, levels int) string {
 	if levels > 0 {
 		if post.replies.Size() > 0 {
 			post.replies.Iterate("", "", func(_ string, value interface{}) bool {
+				reply := value.(*Post)
+				if reply.isHidden {
+					// TODO: change this in case of pagination
+					return false
+				}
+
 				s += indent + "\n"
-				s += value.(*Post).Render(indent+"> ", levels-1)
+				s += reply.Render(indent+"> ", levels-1)
 				return false
 			})
 		}

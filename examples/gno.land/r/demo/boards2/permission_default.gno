@@ -6,32 +6,25 @@ import (
 
 	"gno.land/p/demo/avl"
 	"gno.land/p/demo/boards2/admindao"
+
+	"gno.land/r/demo/users"
 )
 
-type (
-	// PermissionsHandlerFunc defines a function to handle permission callbacks.
-	// Handlers are called by the `WithPermission()` method to execute callbacks
-	// when users have the permission assigned.
-	PermissionsHandlerFunc func(Permissions, Args, func(Args))
-
-	// DefaultPermissions manages users, roles and permissions.
-	DefaultPermissions struct {
-		superRole Role
-		dao       *admindao.AdminDAO
-		handlers  *avl.Tree // string(permission) -> PermissionsHandlerFunc
-		users     *avl.Tree // string(std.Address) -> []Role
-		roles     *avl.Tree // string(role) -> []Permission
-	}
-)
+// DefaultPermissions manages users, roles and permissions.
+type DefaultPermissions struct {
+	superRole Role
+	dao       *admindao.AdminDAO
+	users     *avl.Tree // string(std.Address) -> []Role
+	roles     *avl.Tree // string(role) -> []Permission
+}
 
 // NewDefaultPermissions creates a new permissions type.
 // This type is a default implementation to handle users, roles and permissions.
 func NewDefaultPermissions(dao *admindao.AdminDAO, options ...DefaultPermissionsOption) *DefaultPermissions {
 	dp := &DefaultPermissions{
-		dao:      dao,
-		handlers: avl.NewTree(),
-		roles:    avl.NewTree(),
-		users:    avl.NewTree(),
+		dao:   dao,
+		roles: avl.NewTree(),
+		users: avl.NewTree(),
 	}
 	for _, apply := range options {
 		apply(dp)
@@ -124,11 +117,6 @@ func (dp *DefaultPermissions) RemoveUser(user std.Address) bool {
 	return removed
 }
 
-// HandleFunc registers a handler function for a permission.
-func (dp *DefaultPermissions) HandleFunc(p Permission, fn PermissionsHandlerFunc) {
-	dp.handlers.Set(string(p), fn)
-}
-
 // WithPermission calls a callback when a user has a specific permission.
 // It panics on error or when a handler panics.
 // Callbacks are by default called when there is no handle registered for the permission.
@@ -137,20 +125,51 @@ func (dp *DefaultPermissions) WithPermission(user std.Address, perm Permission, 
 		panic("unauthorized")
 	}
 
-	h, found := dp.handlers.Get(string(perm))
-	if !found {
-		cb(args) // TODO: Should we fail instead?
-		return
+	switch perm {
+	case PermissionBoardCreate:
+		dp.handleBoardCreate(args, cb)
+	case PermissionMemberInvite:
+		dp.handleMemberInvite(args, cb)
+	default:
+		cb(args)
+	}
+}
+
+func (DefaultPermissions) handleBoardCreate(args Args, cb func(Args)) {
+	// TODO: This way of dealing with arguments is delicate, ideally types should be used
+	name := args[0].(string)
+	if std.Address(name).IsValid() {
+		panic("addresses are not allowed as board name")
 	}
 
-	fn := h.(PermissionsHandlerFunc)
-	fn(dp, args, cb)
+	// When the board name is the name of a registered user
+	// check that caller is the owner of the name.
+	caller := std.GetOrigCaller()
+	user := users.GetUserByName(name)
+	if user != nil && user.Address != caller {
+		panic("board name is a user name registered to a different user")
+	}
+
+	cb(args)
+}
+
+func (dp DefaultPermissions) handleMemberInvite(args Args, cb func(Args)) {
+	// Make sure that only owners invite other owners
+	role := args[1].(Role)
+	if role == RoleOwner {
+		caller := std.GetOrigCaller()
+		if !dp.HasRole(caller, RoleOwner) {
+			panic("only owners are allowed to invite other owners")
+		}
+	}
+
+	cb(args)
 }
 
 func createDefaultPermissions(owner std.Address) *DefaultPermissions {
 	// TODO: DAO should be a different realm or proposal and voting functions should be part of boards realm?
 	//       Permissions and DAO mechanics should be discussed and improved. Add `GetDAO()` to `Permissions`??
-	perms := NewDefaultPermissions(
+	return NewDefaultPermissions(
 		admindao.New(admindao.WithMember(owner)),
 		WithSuperRole(RoleOwner),
 		WithRole(RoleAdmin, PermissionBoardCreate, PermissionMemberInvite),
@@ -158,7 +177,4 @@ func createDefaultPermissions(owner std.Address) *DefaultPermissions {
 		// WithRole(RoleModerator, permissions...),
 		WithUser(owner, RoleOwner),
 	)
-	perms.HandleFunc(PermissionBoardCreate, handleBoardCreate)
-	perms.HandleFunc(PermissionMemberInvite, handleMemberInvite)
-	return perms
 }
