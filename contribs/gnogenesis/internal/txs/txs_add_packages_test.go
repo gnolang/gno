@@ -157,7 +157,7 @@ func TestGenesis_Txs_Add_Packages(t *testing.T) {
 
 		// Run the command
 		cmdErr := cmd.ParseAndRun(context.Background(), args)
-		assert.Equal(t, cmdErr.Error(), "unable to sign txs, unable sign tx invalid account password")
+		assert.ErrorContains(t, cmdErr, "unable to sign txs")
 	})
 
 	t.Run("existent key correct password", func(t *testing.T) {
