@@ -17,6 +17,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/gnolang/gno/gnovm"
 	"go.uber.org/multierr"
 )
 
@@ -254,6 +255,22 @@ func resolveDocumentable(dirs *bfsDirs, parsed docArgs, unexported bool) (Docume
 		fmt.Errorf("commands/doc: could not resolve arguments: %+v", parsed),
 		multierr.Combine(errs...),
 	)
+}
+
+// NewDocumentableFromMemPkg gets the pkgData from memPkg and returns a Documentable.
+func NewDocumentableFromMemPkg(memPkg *gnovm.MemPackage, unexported bool, symbol, accessible string) (Documentable, error) {
+	pd, err := newPkgDataFromMemPkg(memPkg, unexported)
+	if err != nil {
+		return nil, err
+	}
+
+	doc := &documentable{
+		bfsDir:     pd.dir,
+		pkgData:    pd,
+		symbol:     symbol,
+		accessible: accessible,
+	}
+	return doc, nil
 }
 
 // docArgs represents the parsed args of the doc command.
