@@ -40,6 +40,7 @@ type AppOptions struct {
 	VMOutput                io.Writer          // optional
 	SkipGenesisVerification bool               // default to verify genesis transactions
 	InitChainerConfig                          // options related to InitChainer
+	MinGasPrices            string             // optional
 }
 
 // TestAppOptions provides a "ready" default [AppOptions] for use with
@@ -81,9 +82,13 @@ func NewAppWithOptions(cfg *AppOptions) (abci.Application, error) {
 	mainKey := store.NewStoreKey("main")
 	baseKey := store.NewStoreKey("base")
 
+	//  set sdk app options
+	var appOpts []func(*sdk.BaseApp)
+	if cfg.MinGasPrices != "" {
+		appOpts = append(appOpts, sdk.SetMinGasPrices(cfg.MinGasPrices))
+	}
 	// Create BaseApp.
-	// TODO: Add a consensus based min gas prices for the node, by default it does not check
-	baseApp := sdk.NewBaseApp("gnoland", cfg.Logger, cfg.DB, baseKey, mainKey)
+	baseApp := sdk.NewBaseApp("gnoland", cfg.Logger, cfg.DB, baseKey, mainKey, appOpts...)
 	baseApp.SetAppVersion("dev")
 
 	// Set mounts for BaseApp's MultiStore.
@@ -183,6 +188,7 @@ func NewApp(
 	skipFailingGenesisTxs bool,
 	evsw events.EventSwitch,
 	logger *slog.Logger,
+	minGasPrices string,
 ) (abci.Application, error) {
 	var err error
 
@@ -193,6 +199,7 @@ func NewApp(
 			GenesisTxResultHandler: PanicOnFailingTxResultHandler,
 			StdlibDir:              filepath.Join(gnoenv.RootDir(), "gnovm", "stdlibs"),
 		},
+		MinGasPrices: minGasPrices,
 	}
 	if skipFailingGenesisTxs {
 		cfg.GenesisTxResultHandler = NoopGenesisTxResultHandler
