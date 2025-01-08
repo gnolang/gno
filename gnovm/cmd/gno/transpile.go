@@ -16,7 +16,6 @@ import (
 	"strings"
 
 	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
-	"github.com/gnolang/gno/gnovm/pkg/gnomod"
 	"github.com/gnolang/gno/gnovm/pkg/packages"
 	"github.com/gnolang/gno/gnovm/pkg/transpiler"
 	"github.com/gnolang/gno/tm2/pkg/commands"
@@ -134,7 +133,7 @@ func execTranspile(cfg *transpileCfg, args []string, io commands.IO) error {
 	}
 
 	// load packages
-	conf := &packages.LoadConfig{IO: io, Fetcher: testPackageFetcher}
+	conf := &packages.LoadConfig{IO: io, Fetcher: testPackageFetcher, Deps: true}
 	pkgs, err := packages.Load(conf, args...)
 	if err != nil {
 		return fmt.Errorf("load pkgs: %w", err)
@@ -214,11 +213,7 @@ func transpilePkg(pkg *packages.Package, pkgs map[string]*packages.Package, opts
 	}
 	opts.markAsTranspiled(dirPath)
 
-	gmod, err := gnomod.ParseAt(dirPath)
-	if err != nil && !errors.Is(err, gnomod.ErrGnoModNotFound) {
-		return err
-	}
-	if err == nil && gmod.Draft {
+	if pkg.Draft {
 		if opts.cfg.verbose {
 			opts.io.ErrPrintfln("%s (skipped, gno.mod marks module as draft)", filepath.Clean(dirPath))
 		}

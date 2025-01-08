@@ -23,21 +23,21 @@ GOIMPORTS_FLAGS ?= $(GOFMT_FLAGS)
 GOTEST_FLAGS ?= -v -p 1 -timeout=30m
 
 # Official packages (non-overridable): more reliable and tested modules, distinct from the experimentation area.
-OFFICIAL_PACKAGES = ./gno.land/p
-OFFICIAL_PACKAGES += ./gno.land/r/demo
-OFFICIAL_PACKAGES += ./gno.land/r/gnoland
-OFFICIAL_PACKAGES += ./gno.land/r/sys
-OFFICIAL_PACKAGES += ./gno.land/r/gov
+OFFICIAL_PACKAGES = ./gno.land/p/...
+OFFICIAL_PACKAGES += ./gno.land/r/demo/...
+OFFICIAL_PACKAGES += ./gno.land/r/gnoland/...
+OFFICIAL_PACKAGES += ./gno.land/r/sys/...
+OFFICIAL_PACKAGES += ./gno.land/r/gov/...
 
 ########################################
 # Dev tools
 .PHONY: transpile
 transpile:
-	go run ../gnovm/cmd/gno transpile -v .
+	go run ../gnovm/cmd/gno transpile -v ./...
 
 .PHONY: build
 build:
-	go run ../gnovm/cmd/gno transpile -v --gobuild .
+	go run ../gnovm/cmd/gno transpile -v --gobuild ./...
 
 .PHONY: test
 test:
@@ -45,7 +45,7 @@ test:
 
 .PHONY: lint
 lint:
-	go run ../gnovm/cmd/gno lint -v $(OFFICIAL_PACKAGES)
+	go run ../gnovm/cmd/gno lint --root-examples -v $(OFFICIAL_PACKAGES)
 
 .PHONY: test.sync
 test.sync:
@@ -58,7 +58,7 @@ clean:
 .PHONY: fmt
 GNOFMT_FLAGS ?= -w
 fmt:
-	go run ../gnovm/cmd/gno fmt $(GNOFMT_FLAGS) ./...
+	go run ../gnovm/cmd/gno fmt $(GNOFMT_FLAGS) .
 
 .PHONY: tidy
 tidy:

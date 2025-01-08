@@ -77,10 +77,6 @@ func execList(cfg *listCfg, args []string, io commands.IO) error {
 		os.Exit(1)
 	}
 	for _, pkg := range pkgs {
-		if len(pkg.Match) == 0 && !cfg.deps {
-			continue
-		}
-
 		pkgBytes, err := json.MarshalIndent(pkg, "", "\t")
 		if err != nil {
 			panic(err)

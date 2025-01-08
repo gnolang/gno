@@ -19,7 +19,6 @@ import (
 	teststdlibs "github.com/gnolang/gno/gnovm/tests/stdlibs"
 	teststd "github.com/gnolang/gno/gnovm/tests/stdlibs/std"
 	"github.com/gnolang/gno/tm2/pkg/db/memdb"
-	osm "github.com/gnolang/gno/tm2/pkg/os"
 	"github.com/gnolang/gno/tm2/pkg/std"
 	"github.com/gnolang/gno/tm2/pkg/store/dbadapter"
 	storetypes "github.com/gnolang/gno/tm2/pkg/store/types"
@@ -28,6 +27,7 @@ import (
 // NOTE: this isn't safe, should only be used for testing.
 func Store(
 	rootDir string,
+	pkgs map[string]*packages.Package,
 	withExtern bool,
 	stdin io.Reader,
 	stdout, stderr io.Writer,
@@ -36,6 +36,8 @@ func Store(
 	resStore gno.Store,
 ) {
 	getPackage := func(pkgPath string, store gno.Store) (pn *gno.PackageNode, pv *gno.PackageValue) {
+		// fmt.Println("getting pkg", pkgPath)
+
 		if pkgPath == "" {
 			panic(fmt.Sprintf("invalid zero package path in testStore().pkgGetter"))
 		}
@@ -134,13 +136,14 @@ func Store(
 			return
 		}
 
-		// if examples package...
-		examplePath := filepath.Join(rootDir, "examples", pkgPath)
-		if osm.DirExists(examplePath) {
-			memPkg := gno.MustReadMemPackage(examplePath, pkgPath)
+		// if known package
+		if pkg, ok := pkgs[pkgPath]; ok {
+			memPkg := gno.MustReadMemPackage(pkg.Dir, pkgPath)
 			if memPkg.IsEmpty() {
 				panic(fmt.Sprintf("found an empty package %q", pkgPath))
 			}
+
+			// fmt.Println("loading", pkgPath, "from", pkg.Dir, "err", pkg.Error)
 
 			send := std.Coins{}
 			ctx := Context(pkgPath, send)
@@ -153,6 +156,28 @@ func Store(
 			pn, pv = m2.RunMemPackage(memPkg, true)
 			return
 		}
+
+		/*
+			// if examples package...
+			examplePath := filepath.Join(rootDir, "examples", pkgPath)
+			if osm.DirExists(examplePath) {
+				memPkg := gno.MustReadMemPackage(examplePath, pkgPath)
+				if memPkg.IsEmpty() {
+					panic(fmt.Sprintf("found an empty package %q", pkgPath))
+				}
+
+				send := std.Coins{}
+				ctx := Context(pkgPath, send)
+				m2 := gno.NewMachineWithOptions(gno.MachineOptions{
+					PkgPath: "test",
+					Output:  stdout,
+					Store:   store,
+					Context: ctx,
+				})
+				pn, pv = m2.RunMemPackage(memPkg, true)
+				return
+			}
+		*/
 		return nil, nil
 	}
 	db := memdb.NewMemDB()

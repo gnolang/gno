@@ -12,11 +12,9 @@ import (
 
 	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
-	"github.com/gnolang/gno/gnovm/pkg/gnomod"
 	"github.com/gnolang/gno/gnovm/pkg/packages"
 	"github.com/gnolang/gno/gnovm/pkg/test"
 	"github.com/gnolang/gno/tm2/pkg/commands"
-	"github.com/gnolang/gno/tm2/pkg/random"
 )
 
 type testCfg struct {
@@ -174,12 +172,20 @@ func execTest(cfg *testCfg, args []string, io commands.IO) error {
 		}()
 	}
 
+	pkgsMap := map[string]*packages.Package{}
+	for _, pkg := range pkgs {
+		if _, ok := pkgsMap[pkg.ImportPath]; ok {
+			continue
+		}
+		pkgsMap[pkg.ImportPath] = pkg
+	}
+
 	// Set up options to run tests.
 	stdout := goio.Discard
 	if cfg.verbose {
 		stdout = io.Out()
 	}
-	opts := test.NewTestOptions(cfg.rootDir, io.In(), stdout, io.Err())
+	opts := test.NewTestOptions(cfg.rootDir, pkgsMap, io.In(), stdout, io.Err())
 	opts.RunFlag = cfg.run
 	opts.Sync = cfg.updateGoldenTests
 	opts.Verbose = cfg.verbose
@@ -193,29 +199,43 @@ func execTest(cfg *testCfg, args []string, io commands.IO) error {
 		if len(pkg.Match) == 0 {
 			continue
 		}
-		// Determine gnoPkgPath by reading gno.mod
-		var gnoPkgPath string
-		modfile, err := gnomod.ParseGnoMod(filepath.Join(pkg.ModPath, "gno.mod"))
-		if err == nil {
-			gnoPkgPath = modfile.Module.Mod.Path
-		} else {
-			gnoPkgPath = pkgPathFromRootDir(pkg.Dir, cfg.rootDir)
-			if gnoPkgPath == "" {
-				// unable to read pkgPath from gno.mod, generate a random realm path
-				io.ErrPrintfln("--- WARNING: unable to read package path from gno.mod or gno root directory; try creating a gno.mod file")
-				gnoPkgPath = "gno.land/r/" + strings.ToLower(random.RandStr(8)) // XXX: gno.land hardcoded for convenience.
-			}
+
+		parentName := pkg.ImportPath
+		if parentName == "" {
+			parentName = pkg.Dir
 		}
 
 		if len(pkg.Files[packages.FileKindTest]) == 0 && len(pkg.Files[packages.FileKindXTest]) == 0 && len(pkg.Files[packages.FileKindFiletest]) == 0 {
-			io.ErrPrintfln("?       %s \t[no test files]", pkg.ImportPath)
+			io.ErrPrintfln("?       %s \t[no test files]", parentName)
 			continue
 		}
 
-		memPkg := gno.MustReadMemPackage(pkg.Dir, gnoPkgPath)
+		depsConf := *conf
+		depsConf.Deps = true
+		depsConf.Cache = pkgsMap
+
+		deps, loadDepsErr := packages.Load(&depsConf, pkg.Dir)
+		if loadDepsErr != nil {
+			io.ErrPrintfln("%s: load deps: %v", pkg.Dir, err)
+			io.ErrPrintfln("FAIL")
+			io.ErrPrintfln("FAIL    %s", parentName)
+			io.ErrPrintfln("FAIL")
+			buildErrCount++
+			continue
+		}
+
+		for _, dep := range deps {
+			if _, ok := pkgsMap[dep.ImportPath]; ok {
+				continue
+			}
+			pkgsMap[dep.ImportPath] = dep
+			continue
+		}
+
+		memPkg := gno.MustReadMemPackage(pkg.Dir, parentName)
 
 		startedAt := time.Now()
-		hasError := catchRuntimeError(gnoPkgPath, io.Err(), func() {
+		hasError := catchRuntimeError(parentName, io.Err(), func() {
 			err = test.Test(memPkg, pkg.Dir, opts)
 		})
 
@@ -227,11 +247,11 @@ func execTest(cfg *testCfg, args []string, io commands.IO) error {
 				io.ErrPrintfln("%s: test pkg: %v", pkg.Dir, err)
 			}
 			io.ErrPrintfln("FAIL")
-			io.ErrPrintfln("FAIL    %s \t%s", pkg.ImportPath, dstr)
+			io.ErrPrintfln("FAIL    %s \t%s", parentName, dstr)
 			io.ErrPrintfln("FAIL")
 			testErrCount++
 		} else {
-			io.ErrPrintfln("ok      %s \t%s", pkg.ImportPath, dstr)
+			io.ErrPrintfln("ok      %s \t%s", parentName, dstr)
 		}
 	}
 	if testErrCount > 0 || buildErrCount > 0 {

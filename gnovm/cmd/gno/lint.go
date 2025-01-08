@@ -24,8 +24,9 @@ import (
 )
 
 type lintCfg struct {
-	verbose bool
-	rootDir string
+	verbose      bool
+	rootDir      string
+	rootExamples bool
 	// min_confidence: minimum confidence of a problem to print it (default 0.8)
 	// auto-fix: apply suggested fixes automatically.
 }
@@ -51,6 +52,7 @@ func (c *lintCfg) RegisterFlags(fs *flag.FlagSet) {
 
 	fs.BoolVar(&c.verbose, "v", false, "verbose output when lintning")
 	fs.StringVar(&c.rootDir, "root-dir", rootdir, "clone location of github.com/gnolang/gno (gno tries to guess it)")
+	fs.BoolVar(&c.rootExamples, "root-examples", false, "use the examples present in GNOROOT rather than downloading them")
 }
 
 type lintCode int
@@ -91,8 +93,12 @@ func execLint(cfg *lintCfg, args []string, io commands.IO) error {
 		rootDir = gnoenv.RootDir()
 	}
 
-	conf := &packages.LoadConfig{IO: io, Fetcher: testPackageFetcher}
-	pkgs, err := packages.Load(conf, args...)
+	loadCfg := &packages.LoadConfig{IO: io, Fetcher: testPackageFetcher}
+	if cfg.rootExamples {
+		loadCfg.GnorootExamples = true
+	}
+
+	pkgs, err := packages.Load(loadCfg, args...)
 	if err != nil {
 		return fmt.Errorf("list packages from args: %w", err)
 	}
@@ -105,7 +111,7 @@ func execLint(cfg *lintCfg, args []string, io commands.IO) error {
 	hasError := false
 
 	bs, ts := test.Store(
-		rootDir, false,
+		rootDir, pkgsMap, false,
 		nopReader{}, goio.Discard, goio.Discard,
 	)
 
@@ -140,7 +146,27 @@ func execLint(cfg *lintCfg, args []string, io commands.IO) error {
 			hasError = true
 		}
 
-		memPkg, err := gno.ReadMemPackage(pkgPath, pkgPath)
+		// load deps
+		loadDepsCfg := *loadCfg
+		loadDepsCfg.Deps = true
+		loadDepsCfg.Cache = pkgsMap
+
+		deps, loadDepsErr := packages.Load(&loadDepsCfg, pkg.Dir)
+		if loadDepsErr != nil {
+			io.ErrPrintln(issueFromError(pkgPath, err).String())
+			hasError = true
+			continue
+		}
+
+		for _, dep := range deps {
+			if _, ok := pkgsMap[dep.ImportPath]; ok {
+				continue
+			}
+			pkgsMap[dep.ImportPath] = dep
+			continue
+		}
+
+		memPkg, err := gno.ReadMemPackage(pkg.Dir, pkgPath)
 		if err != nil {
 			io.ErrPrintln(issueFromError(pkgPath, err).String())
 			hasError = true
@@ -163,7 +189,7 @@ func execLint(cfg *lintCfg, args []string, io commands.IO) error {
 
 			var gmFile *gnomod.File
 			if pkg.ModPath != "" {
-				gmFile, err = gnomod.ParseGnoMod(filepath.Join(pkg.ModPath, "gno.mod"))
+				gmFile, err = gnomod.ParseGnoMod(filepath.Join(pkg.Root, "gno.mod"))
 				if err != nil {
 					io.ErrPrintln(err)
 					hasError = true

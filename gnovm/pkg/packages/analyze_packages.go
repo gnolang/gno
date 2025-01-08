@@ -2,6 +2,7 @@ package packages
 
 import (
 	"errors"
+	"go/parser"
 	"go/token"
 	"os"
 	"path"
@@ -16,17 +17,18 @@ import (
 func readPackages(matches []*pkgMatch) []*Package {
 	pkgs := make([]*Package, 0, len(matches))
 	for _, pkgMatch := range matches {
-		pkg := readPkg(pkgMatch.Dir)
+		pkg := readPkg(pkgMatch.Dir, "")
 		pkg.Match = pkgMatch.Match
 		pkgs = append(pkgs, pkg)
 	}
 	return pkgs
 }
 
-func readPkg(pkgDir string) *Package {
+func readPkg(pkgDir string, importPath string) *Package {
 	pkg := &Package{
-		Dir:   pkgDir,
-		Files: make(FilesMap),
+		Dir:        pkgDir,
+		Files:      make(FilesMap),
+		ImportPath: importPath,
 	}
 
 	entries, err := os.ReadDir(pkgDir)
@@ -59,6 +61,13 @@ func readPkg(pkgDir string) *Package {
 		body := string(bodyBytes)
 
 		fileKind, err := GetFileKind(base, body, fset)
+		if err != nil {
+			pkg.Error = errors.Join(pkg.Error, err)
+			continue
+		}
+
+		// ignore files with invalid package clause
+		_, err = parser.ParseFile(fset, fpath, nil, parser.PackageClauseOnly)
 		if err != nil {
 			pkg.Error = errors.Join(pkg.Error, err)
 			continue
