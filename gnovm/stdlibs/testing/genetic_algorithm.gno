@@ -5,18 +5,28 @@ import (
 	"time"
 )
 
-// Returns the parents and returns the child.
-// fluidized the number and degree of mutation along Gen
-// Seeds received as parameters are invariant referenced within the function.
+// I deleted the existing fit, fitness.
+// As I tried to increase the speed by integrating into AFL, I decided that it was faster to manage it with just queue, stack, and unique linked list.
+// (Something gets uncomfortable if follow the AFL logic I've seen and maintain that fitness management.)
+// Fitness and selection logic have been replaced by f.manager.
+//
+// evolve takes one or two parent seeds and returns evolved child seeds by performing crossover, mutate, and insertDelete operations.
+// seeds is a slice of parent seeds. seedCount is a pointer to f.seedCount, used to measure the number of inputs during the fuzzing process.
+// stringByteCandidates is a slice of indices indicating which arguments in seed.Content are of type string or []byte, which need to be specially handled during insertDelete.
 func evolve(seeds []seed, seedCount *uint, stringByteCandidates []int) []seed {
 	p1 := seeds[0]
+	// Set the mutation strength.
+	// The lower the seed.Gen, the stronger the mutation, meaning more transformation attempts.
 	MutationStrength := [10]int{5, 4, 3, 3, 2, 2, 2, 2, 2, 2}
 	var mutationStrength int
 	if int(p1.gen) > len(MutationStrength) {
+		// The minimum number of transformations is 1
 		mutationStrength = 1
 	} else {
 		mutationStrength = MutationStrength[p1.gen-1]
 	}
+	// Set the number of children to create.
+	// The lower the seed.Gen, the higher the number, meaning more children are generated.
 	CreatingCount := [10]int{1920, 1440, 1200, 1000, 960, 720, 600, 480, 360, 240}
 	var creatingCount int
 	if int(p1.gen) > len(CreatingCount) {
@@ -29,10 +39,11 @@ func evolve(seeds []seed, seedCount *uint, stringByteCandidates []int) []seed {
 
 	newGeneration := []seed{}
 
+	// Case when there is only one parent seed
 	if len(seeds) == 1 {
-
 		for i := 0; i < int(creatingCount); i++ {
 			newContent := make([]interface{}, len(seeds[0].content))
+			// Perform immediate transformation without twoPointCrossover.
 			for i, v := range seeds[0].content {
 				newContent[i] = v
 			}
@@ -46,18 +57,20 @@ func evolve(seeds []seed, seedCount *uint, stringByteCandidates []int) []seed {
 				id:            *seedCount,
 			}
 
+			// Maintain the ratio and strength of mutate and insertDelete.
 			randSeed := i % 10
 			switch randSeed {
 			case 0, 1, 2, 3:
-				// Variations that are flexible with 50% probability
+				// Only mutate
 				newInd = mutate(newInd, mutationStrength)
 			case 4, 5, 6:
+				// Only insertDelete
 				newInd = insertDelete(newInd, mutationStrength, stringByteCandidates)
 			case 7, 8:
-				// Variations of only the degree of uniformity with 10% probability. Maintaining the characteristics of the seed.
+				// Modify with a fixed strength regardless of seed.gen to prevent mutations that are too small or too large.
 				newInd = mutate(newInd, 2)
 			case 9:
-				// Variate strongly with 10% probability
+				// Mutate and insertDelete
 				newInd = mutate(newInd, mutationStrength)
 				newInd = insertDelete(newInd, mutationStrength, stringByteCandidates)
 			}
@@ -75,6 +88,7 @@ func evolve(seeds []seed, seedCount *uint, stringByteCandidates []int) []seed {
 
 	p2 := seeds[1]
 
+	// 1. Create newGeneration through twoPointCrossover
 	for i := 0; i < int(loopCount); i++ {
 		c1, c2 := twoPointCrossover(p1, p2, seedCount)
 		newGeneration = append(newGeneration, c1)
@@ -82,16 +96,23 @@ func evolve(seeds []seed, seedCount *uint, stringByteCandidates []int) []seed {
 
 	}
 
+	// 2. Modify each element of newGeneration with a certain ratio
 	for i := range newGeneration {
 		randSeed := i % 10
 		switch randSeed {
-		case 0, 1, 2, 3:
+		case 0, 1, 2:
+			// Only mutate
 			newGeneration[i] = mutate(newGeneration[i], mutationStrength)
+		case 3:
+			// Modify with a fixed strength regardless of seed.gen to prevent mutations that are too small or too large.
+			newGeneration[i] = mutate(newGeneration[i], 2)
 		case 4, 5, 6:
-			// do nothing
+			// Crossover and do nothing
 		case 7, 8:
+			// Only insertDelete
 			newGeneration[i] = insertDelete(newGeneration[i], mutationStrength, stringByteCandidates)
 		case 9:
+			// Mutate and insertDelete
 			newGeneration[i] = mutate(newGeneration[i], mutationStrength)
 			newGeneration[i] = insertDelete(newGeneration[i], mutationStrength, stringByteCandidates)
 		}
@@ -101,6 +122,7 @@ func evolve(seeds []seed, seedCount *uint, stringByteCandidates []int) []seed {
 	return newGeneration
 }
 
+// mutate modifies the seed.content by the given mutationStrength and returns the mutated seed.
 func mutate(seed seed, mutationStrength int) seed {
 	index := 0
 	if len(seed.content) > 1 {
@@ -108,6 +130,8 @@ func mutate(seed seed, mutationStrength int) seed {
 	}
 
 	selected := seed.content[index]
+
+	// Use randomXXXFrom functions to gradually modify the given value.
 	switch v := selected.(type) {
 	case int, int8, int16, int32, int64:
 		for i := 0; i < mutationStrength; i++ {
@@ -126,8 +150,8 @@ func mutate(seed seed, mutationStrength int) seed {
 	// String is treated as []byte rather than []rune
 	// []rune is not allowed to contain escaped bytes, but string can contain them.
 	// https://go.dev/blog/strings
-	// so all strings must be treated as []byte in fuzzing.
-	// This is the description of the logic that deals with strings as bytes.
+	// So all strings must be treated as []byte in fuzzing.
+	// This describes the logic that handles strings as bytes.
 	case string:
 		bytes := []byte(v)
 		if len(bytes) > 0 {
@@ -156,6 +180,7 @@ func mutate(seed seed, mutationStrength int) seed {
 	return seed
 }
 
+// insertDelete performs insertions and deletions on string and []byte fields in seed.content by the given mutationStrength and returns the modified seed.
 func insertDelete(seed seed, mutationStrength int, stringByteCandidates []int) seed {
 	if len(stringByteCandidates) == 0 {
 		return seed
@@ -163,8 +188,8 @@ func insertDelete(seed seed, mutationStrength int, stringByteCandidates []int) s
 
 	index := 0
 	if len(stringByteCandidates) > 0 {
-		selectedFieldidx := RandRange(0, int64(len(stringByteCandidates)))
-		index = stringByteCandidates[selectedFieldidx]
+		selectedFieldIdx := RandRange(0, int64(len(stringByteCandidates)))
+		index = stringByteCandidates[selectedFieldIdx]
 	}
 
 	selected := seed.content[index]
@@ -190,6 +215,7 @@ func insertDelete(seed seed, mutationStrength int, stringByteCandidates []int) s
 	return seed
 }
 
+// addOrRemoveByte returns a new byte slice with a byte inserted or removed based on a probability.
 func addOrRemoveByte(bb []byte) []byte {
 	l := len(bb)
 	if GenerateRandomBool(0.6) {
@@ -207,7 +233,7 @@ func addOrRemoveByte(bb []byte) []byte {
 		}
 		return bb
 	} else {
-		// Del
+		// Delete
 		if l == 0 {
 			b := byte(RandRange(HighAsciiMin, HighAscillMax+1))
 			return []byte{b}
@@ -218,14 +244,7 @@ func addOrRemoveByte(bb []byte) []byte {
 	}
 }
 
-// I deleted the existing fit, fitness.
-// As I tried to increase the speed by integrating into AFL, I decided that it was faster to manage it with just queue, stack, and unique linked list.
-// (Something gets uncomfortable if follow the afl logic I've seen and maintain that fitness management.)
-// Fitness and selection logic are replaced.
-
-// Modified existing crossover logic.
-// I adjusted the number according to gen to solve the sticking problem.(a phenomenon in which they become similar as inputs increase)
-// Changed to multi-intersection logic.
+// twoPointCrossover performs two-point crossover on seed.content and returns two new seeds.
 func twoPointCrossover(parent1, parent2 seed, seedCount *uint) (seed, seed) {
 	content1 := make([]interface{}, len(parent1.content))
 	for i, v := range parent1.content {
@@ -276,13 +295,21 @@ func twoPointCrossover(parent1, parent2 seed, seedCount *uint) (seed, seed) {
 
 	*seedCount++
 	updatedIdv1 := seed{
-		gen: parent1.gen + 1, isCoordinated: false, content: content1, result: nil,
-		pid: parent1.id, id: *seedCount,
+		gen:           parent1.gen + 1,
+		isCoordinated: false,
+		content:       content1,
+		result:        nil,
+		pid:           parent1.id,
+		id:            *seedCount,
 	}
 	*seedCount++
 	updatedIdv2 := seed{
-		gen: parent2.gen + 1, isCoordinated: false, content: content2, result: nil,
-		pid: parent1.id, id: *seedCount,
+		gen:           parent2.gen + 1,
+		isCoordinated: false,
+		content:       content2,
+		result:        nil,
+		pid:           parent1.id,
+		id:            *seedCount,
 	}
 
 	return updatedIdv1, updatedIdv2
@@ -333,6 +360,9 @@ func twoPointCrossoverByte(p1Bytes []byte, p2Bytes []byte) ([]byte, []byte) {
 	return []byte(crossedByt1), []byte(crossedByt2)
 }
 
+// factorizationCrossover implements the crossover by multiplying two numbers and then dividing them into two numbers.
+// and return these two numbers
+// It actually worked.
 func factorizationCrossover(a interface{}, b interface{}) (interface{}, interface{}) {
 	switch v1 := a.(type) {
 	case int:
@@ -638,6 +668,7 @@ func factorizationCrossover(a interface{}, b interface{}) (interface{}, interfac
 	}
 }
 
+// randomXXXFrom gradually mutates XXX and return XXX
 func randomByteFrom(seedByte byte) byte {
 	p := GetSingleRand().Float64() // 0.0 <= p < 1.0
 
@@ -747,6 +778,7 @@ func determineCase(seedRune rune) int {
 	}
 }
 
+// randomXXXFrom gradually mutates XXX and return XXX
 func randomIntFrom(i interface{}) interface{} {
 	p := GetSingleRand().Float64()
 
@@ -916,6 +948,7 @@ func randomIntFrom(i interface{}) interface{} {
 	}
 }
 
+// randomXXXFrom gradually mutates XXX and return XXX
 func randomUintFrom(u interface{}) interface{} {
 	p := GetSingleRand().Float64()
 
@@ -1028,6 +1061,7 @@ func randomUintFrom(u interface{}) interface{} {
 	}
 }
 
+// randomXXXFrom gradually mutates XXX and return XXX
 func randomFloatFrom(f interface{}) interface{} {
 	switch v := f.(type) {
 	case float32:

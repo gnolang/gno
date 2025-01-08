@@ -75,12 +75,14 @@ type T struct {
 	dur       string
 }
 
+// FuzzingInfo represents the information passed internally to the fuzzer F.
 type FuzzingInfo struct {
 	Failed bool
 	Output []byte
 	Dur    string
 }
 
+// GetResult returns the fuzzing information to the fuzzer F.
 func (t *T) GetResult() FuzzingInfo {
 	info := FuzzingInfo{
 		Failed: t.failed,
@@ -340,6 +342,7 @@ func RunFuzz(fuzzName string, fuzzIters int, verbose bool, internalFuzz Internal
 		})
 		return string(out)
 	}
+	// When "fuzz=FuzzXXX" is entered in cli, run any function that begins with fuzzXXX in the _test.gno file.
 	if strings.HasPrefix(internalFuzz.Name, fuzzName) {
 		fmt.Fprintf(os.Stderr, "--- Fuzz %s:\nSet %s iterate\n", internalFuzz.Name, strconv.Itoa(int(fuzzIters)))
 		fRunner(fuzzer, internalFuzz.F)

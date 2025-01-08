@@ -10,6 +10,9 @@ import (
 
 type supportedType string
 
+// supportedType is a list of argument types that the target function of f.Fuzz can accept.
+// In other words, the function passed to f.Fuzz cannot take complex structs as arguments.
+// The types are selected based on the supported types of Go's fuzzer (the same as Go's fuzzer).
 const (
 	ByteArray supportedType = "[]byte"
 	String    supportedType = "string"
@@ -31,27 +34,29 @@ const (
 )
 
 type (
+	// Runner is the type of the target function that f.Fuzz will execute.
 	Runner func(*T, ...interface{})
-	F      struct {
-		manager   *fuzzManager
-		hasher    *fuzzHasher
-		logger    *fuzzLogger
-		corpus    []seed
-		msgs      []string // Stores log messages for reporting.
-		failed    bool     // Indicates whether the fuzzing has encountered a failure.
-		ff        Runner
-		isFuzzed  bool
-		seedCount uint
-		// for cmd test
-		output               []byte
-		verbose              bool // Stores log messages for reporting.
-		trials               uint // Number of iterations to run the fuzzing process.
-		dur                  string
-		name                 string
-		stringByteCandidates []int
+
+	// F is the structure used for fuzzing.
+	F struct {
+		manager   *fuzzManager // Manages seeds and coverage for fuzzing, sorting and organizing them to quickly find the next input candidate.
+		hasher    *fuzzHasher  // Assigns unique hashNumbers to coverage used in fuzzing.
+		logger    *fuzzLogger  // Logs and outputs crash cases found during fuzzing.
+		corpus    []seed       // "Real seeds" added through f.Add.
+		msgs      []string     // Stores log messages for reporting.
+		failed    bool         // Indicates whether the fuzzing has encountered a failure.
+		ff        Runner       // The target function for f.Fuzz.
+		isFuzzed  bool         // Monitors whether f.Fuzz has been called.
+		seedCount uint         // Counts the number of seeds attempted.
+		// For command-line tests
+		verbose              bool   // Determines the frequency of logging based on CLI input.
+		trials               uint   // Number of iterations to run the fuzzing process.
+		dur                  string // Records the time taken for fuzzing.
+		stringByteCandidates []int  // Records the indices of string and []byte arguments among Runner's args.
 	}
 )
 
+// Add adds initial seeds to the f.corpus.
 func (f *F) Add(args ...interface{}) {
 	if f.isFuzzed {
 		panic("Add after Fuzz")
@@ -79,12 +84,15 @@ func (f *F) Add(args ...interface{}) {
 	}
 	f.seedCount++
 	f.corpus = append(f.corpus, seed{
-		pid: f.seedCount,
-		id:  f.seedCount,
-		gen: 1, isCoordinated: false, content: values,
+		pid:           f.seedCount,
+		id:            f.seedCount,
+		gen:           1,
+		isCoordinated: false,
+		content:       values,
 	})
 }
 
+// typeof takes an interface{} and returns its type and whether it is supported.
 func typeof(arg interface{}) (supportedType, error) {
 	switch arg.(type) {
 	case []byte:
@@ -128,6 +136,7 @@ func typeof(arg interface{}) (supportedType, error) {
 	}
 }
 
+// isSliceEqual checks if two slices of supportedType are equal.
 func isSliceEqual(a, b []supportedType) bool {
 	if len(a) != len(b) {
 		return false
@@ -140,6 +149,13 @@ func isSliceEqual(a, b []supportedType) bool {
 	return true
 }
 
+// Fuzz formats the manager using seeds received via f.Add and receives the target function to run via f.Fuzz.
+// It then repeatedly:
+// 1) Pops input from the manager
+// 2) Generates evolved input from the popped input
+// 3) Simulates and logs evolved input to the target function
+// 4) Coordinates input to the manager
+// 5) If an error occurs or trials (iterations) are completed, it outputs the result and terminates.
 func (f *F) Fuzz(run Runner) {
 	if !f.isFuzzed {
 		f.isFuzzed = true
@@ -147,7 +163,7 @@ func (f *F) Fuzz(run Runner) {
 		panic("fuzz called more than once")
 	}
 
-	// format machine
+	// Format machine
 	f.ff = run
 	for _, corp := range f.corpus {
 		corp = f.simulateFF(corp)
@@ -171,6 +187,8 @@ func (f *F) Fuzz(run Runner) {
 
 	}
 
+	// Guidelines for evolving seeds.
+	// In mutate, insertDelete, and minimazeAndLogInput functions, string and []byte types are treated specially.
 	stringByteCandidates := []int{}
 	for i, t := range f.manager.seedType {
 		if t == String || t == ByteArray {
@@ -181,7 +199,7 @@ func (f *F) Fuzz(run Runner) {
 	f.stringByteCandidates = stringByteCandidates
 	fmt.Fprintln(os.Stderr, "Run trials...")
 
-	// format by init seeds
+	// Independently generate inputs from the initially formatted seeds.
 	for i := 0; i < len(f.corpus); i++ {
 		hn := f.manager.inithashnumber[i]
 		initSeed := []seed{f.manager.popInitSeedByHN(hn)}
@@ -192,18 +210,24 @@ func (f *F) Fuzz(run Runner) {
 	}
 
 	for {
+		// 1) Pop input from the manager
 		parentSeeds := f.manager.popSeeds()
+		// 2) Generate evolved input from the popped input
+		// 3) Simulate and log evolved input to the target function
+		// 4) Coordinate input to the manager repeatedly
 		isEnd := f.updateMachines(parentSeeds)
+		// 5) If an error occurs or trials (iterations) are completed, output the result and terminate.
 		if isEnd {
 			return
 		}
 	}
 }
 
+// simulateFF simulates the target function with the given seed.
 func (f *F) simulateFF(seed seed) seed {
 	coverage, err, isPanic, panicMsg := monitor(f.ff, seed.content)
 
-	// seed.hn computation
+	// Compute seed.hn
 	// This completes the status change of the seed before logging
 	hashNumber := f.hasher.registerCoverage2HashNumber(coverage)
 	seed.hashNumber = hashNumber
@@ -228,6 +252,7 @@ func (f *F) simulateFF(seed seed) seed {
 	return seed
 }
 
+// monitor runs the target function and captures coverage, errors, and panics.
 // TODO: Make sure to revise coverage here!!!
 // TODO: I've hard-coded coverage according to the test results here. This will be corrected later!!
 func monitor(run Runner, content []interface{}) (coverage Coverage, err error, isPanic bool, panicMsg string) {
@@ -238,6 +263,7 @@ func monitor(run Runner, content []interface{}) (coverage Coverage, err error, i
 	defer func() {
 		if r := recover(); r != nil {
 			t := NewT("fuzzing")
+			// TODO: part 1
 			coverage = getCoverageOfrunner(t, content)
 			isPanic = true
 			if err, ok := r.(error); ok {
@@ -264,18 +290,20 @@ func monitor(run Runner, content []interface{}) (coverage Coverage, err error, i
 	if info.Failed {
 		err = errors.New(string(info.Output))
 	}
+	// TODO: part 2
 	// TODO: Modifying this function to get real coverage
-	// TODO: It's just pshedo-covrage of some function
+	// TODO: It's just pseudo-coverage of some function
 	coverage = getCoverageOfrunner(t, content)
 
 	return coverage, err, isPanic, panicMsg
 }
 
-// Fail marks the function as having failed bur continue execution.
+// Fail marks the function as having failed but continues execution.
 func (f *F) Fail() {
 	f.failed = true
 }
 
+// handleFail handles a failure during fuzzing by logging and minimizing the input.
 func (f *F) handleFail() {
 	fmt.Fprintln(os.Stderr, "\n--- FAIL:")
 
@@ -296,6 +324,7 @@ func (f *F) handleFail() {
 	return
 }
 
+// coverageToString converts coverage data to a string representation.
 func coverageToString(coverage Coverage) string {
 	var sb strings.Builder
 	sb.WriteString("[")
@@ -319,6 +348,7 @@ func coverageToString(coverage Coverage) string {
 	return sb.String()
 }
 
+// minimazeAndLogInput minimizes the input that caused a failure and logs it.
 func (f *F) minimazeAndLogInput(seedContent []interface{}) {
 	minimazalbeIdXs := []int{}
 	for i, t := range f.manager.seedType {
@@ -336,7 +366,7 @@ func (f *F) minimazeAndLogInput(seedContent []interface{}) {
 	for i, v := range sample {
 		content[i] = v
 	}
-	// minimaze by progressive, preserveness traits of error
+	// Minimize by progressive, preserveness traits of error
 	for {
 		progressed, isProgressed, occeredPoint := f.checkProgress(content, minimazalbeIdXs)
 		if !isProgressed {
@@ -348,11 +378,12 @@ func (f *F) minimazeAndLogInput(seedContent []interface{}) {
 	sampleSeed := seed{
 		content: content,
 	}
-	// confirm and log error
+	// Confirm and log error
 	f.simulateFF(sampleSeed)
 	fmt.Fprintln(os.Stderr, "\n--- Minimaized input:")
 }
 
+// checkProgress attempts to minimize the input by removing characters from string or []byte arguments.
 func (f *F) checkProgress(content []interface{}, minimizableIdXs []int) ([]interface{}, bool, int) {
 	changed := false
 
@@ -397,11 +428,11 @@ func (f *F) checkProgress(content []interface{}, minimizableIdXs []int) ([]inter
 	return content, changed, 0
 }
 
-// returns a new slice with the letter of each index removed from a given byte slice.
+// generateCandidates returns a new slice with the character at each index removed from a given byte slice.
 func generateCandidates(b []byte) [][]byte {
 	candidates := make([][]byte, 0, len(b))
 	for i := 0; i < len(b); i++ {
-		// Create a new slice that removes characters from a particular index
+		// Create a new slice that removes the character at a particular index
 		candidate := append([]byte{}, b[:i]...)
 		candidate = append(candidate, b[i+1:]...)
 		candidates = append(candidates, candidate)
@@ -418,6 +449,7 @@ type PreserveFailing struct {
 	hashNumber       hashNumber
 }
 
+// checkPreserve checks if the error is preserved after minimizing the input.
 func (f *F) checkPreserve(content []interface{}) PreserveFailing {
 	coverage, err, isPanic, panicMsg := monitor(f.ff, content)
 	hashNumber := f.hasher.registerCoverage2HashNumber(coverage)
@@ -446,12 +478,14 @@ func (f *F) checkPreserve(content []interface{}) PreserveFailing {
 	}
 }
 
+// reportF reports the fuzzing results after successful completion.
 func (f *F) reportF() {
 	fmt.Fprintln(os.Stderr, "\n--- PASS:")
 	fmt.Fprintf(os.Stderr, "Complete %d Trials\n", f.manager.inputCount)
 	fmt.Fprintf(os.Stderr, "Inspected %d coverage\n", (uint(f.hasher.hashNumberCounter.counter) + uint(1)))
 }
 
+// migrateMachines abstracts the existing state_machine and relocates the fuzzManager.
 func (f *F) migrateMachines() {
 	// Abstract existing state_machine
 	summarizedSeeds := f.manager.summarize()
@@ -485,9 +519,16 @@ func (f *F) migrateMachines() {
 	}
 }
 
+// updateMachines performs the following steps:
+// 1) Generates evolved input from the popped input
+// 2) Simulates and logs evolved input to the target function
+// 3) Coordinates input to the fuzzManager
 func (f *F) updateMachines(parentSeeds []seed) bool {
 	seedsMap := make(map[hashNumber]*[]seed)
+	// 1) Generate evolved input from the popped input
 	childSeeds := evolve(parentSeeds, &f.seedCount, f.stringByteCandidates)
+	// 2) Simulate and log evolved input to the target function
+	// If failure occurs, log it and terminate
 	for _, child := range childSeeds {
 		child = f.simulateFF(child)
 		if f.failed {
@@ -501,7 +542,12 @@ func (f *F) updateMachines(parentSeeds []seed) bool {
 		seeds := seedsMap[hn]
 		*seeds = append(*seeds, child)
 	}
-
+	// 3) Coordinate input to the fuzzManager
+	// To prevent excessive coordinating of seeds sharing the same hashNumber,
+	// only some seeds are concretely stored.
+	// When coordinating all seeds of a specific hashNumber,
+	// seeds that should naturally be selected are continuously deferred.
+	// Coordinate up to 2 seeds concretely, and abstractly coordinate the rest to only affect priority.
 	for hn, seeds := range seedsMap {
 		if len(*seeds) == 1 {
 			concreteEndInfo := f.manager.coordinateSeed((*seeds)[0])
@@ -509,7 +555,21 @@ func (f *F) updateMachines(parentSeeds []seed) bool {
 			if flag {
 				return true
 			}
+		} else if len(*seeds) == 2 {
+			seedArray := *(seeds)
+			concreteEndInfo1 := f.manager.coordinateSeed(seedArray[0])
+			flag := f.handleEndInfo(concreteEndInfo1, parentSeeds)
+			if flag {
+				return true
+			}
+			concreteEndInfo2 := f.manager.coordinateSeed(seedArray[1])
+			flag = f.handleEndInfo(concreteEndInfo2, parentSeeds)
+			if flag {
+				return true
+			}
 		} else {
+			// If more than 2 seeds share the same hashNumber, randomly select 2 to coordinate
+			// and abstractly coordinate the rest to only affect priority.
 			seedArray := *(seeds)
 			absNumber := uint(len(seedArray) - 2)
 			absEndInfo := f.manager.coordinateAbstraction(hn, absNumber)
@@ -538,12 +598,14 @@ func (f *F) updateMachines(parentSeeds []seed) bool {
 			}
 		}
 	}
+	// After coordinating the evolved child seeds, coordinate the parents
 	for _, p := range parentSeeds {
 		f.manager.coordinateSeed(p)
 	}
 	return false
 }
 
+// handleEndInfo handles the endInfo returned by coordinateSeed or coordinateAbstraction.
 func (f *F) handleEndInfo(endInfo endInfo, parentSeeds []seed) bool {
 	if endInfo.completeTrials {
 		f.reportF()
@@ -559,6 +621,7 @@ func (f *F) handleEndInfo(endInfo endInfo, parentSeeds []seed) bool {
 	return false
 }
 
+// NewF creates a new instance of F with the specified verbosity and number of trials.
 func NewF(verbose bool, trials uint) *F {
 	newManager := newFuzzManager(trials, 0)
 	newManager.verbose = verbose
