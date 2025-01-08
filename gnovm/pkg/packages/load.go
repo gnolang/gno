@@ -21,7 +21,7 @@ type LoadConfig struct {
 	Fetcher         pkgdownload.PackageFetcher
 	Deps            bool
 	Cache           map[string]*Package
-	GnorootExamples bool // allow loading packages from gnoroot examples if not found in the set
+	GnorootExamples bool // allow loading packages from gnoroot examples if not found in the args set
 	SelfContained   bool
 }
 
