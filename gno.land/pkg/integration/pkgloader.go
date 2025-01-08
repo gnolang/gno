@@ -11,6 +11,7 @@ import (
 	"github.com/gnolang/gno/gnovm/pkg/gnomod"
 	"github.com/gnolang/gno/gnovm/pkg/packages"
 	bft "github.com/gnolang/gno/tm2/pkg/bft/types"
+	"github.com/gnolang/gno/tm2/pkg/crypto"
 	"github.com/gnolang/gno/tm2/pkg/std"
 )
 
@@ -39,7 +40,7 @@ func (pl *PkgsLoader) SetPatch(replace, with string) {
 	pl.patchs[replace] = with
 }
 
-func (pl *PkgsLoader) LoadPackages(creator bft.Address, fee std.Fee, deposit std.Coins) ([]gnoland.TxWithMetadata, error) {
+func (pl *PkgsLoader) LoadPackages(creator bft.Address, fee std.Fee, deposit std.Coins, creatorKey crypto.PrivKey) ([]gnoland.TxWithMetadata, error) {
 	pkgslist, err := pl.List().Sort() // sorts packages by their dependencies.
 	if err != nil {
 		return nil, fmt.Errorf("unable to sort packages: %w", err)
@@ -77,7 +78,7 @@ func (pl *PkgsLoader) LoadPackages(creator bft.Address, fee std.Fee, deposit std
 		}
 	}
 
-	err = SignTxs(txs, "tendermint_test")
+	err = SignTxs(txs, creatorKey, "tendermint_test")
 	if err != nil {
 		return nil, fmt.Errorf("unable to sign txs: %w", err)
 	}

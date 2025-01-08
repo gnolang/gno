@@ -23,6 +23,7 @@ import (
 
 func TestGenesis_Txs_Add_Packages(t *testing.T) {
 	t.Parallel()
+	const addPkgExpectedSignature = "cfe5a15d8def04cbdaf9d08e2511db7928152b26419c4577cbfa282c83118852411f3de5d045ce934555572c21bda8042ce5c64b793a01748e49cf2cff7c2983"
 
 	t.Run("invalid genesis file", func(t *testing.T) {
 		t.Parallel()
@@ -179,7 +180,7 @@ func TestGenesis_Txs_Add_Packages(t *testing.T) {
 		// Create key
 		kb, err := keys.NewKeyBaseFromDir(keybaseDir)
 		require.NoError(t, err)
-		_, err = kb.CreateAccount(keyname, DefaultAccount_Seed, "", password, 0, 0)
+		info, err := kb.CreateAccount(keyname, defaultAccount_Seed, "", password, 0, 0)
 		require.NoError(t, err)
 
 		io := commands.NewTestIO()
@@ -224,11 +225,12 @@ func TestGenesis_Txs_Add_Packages(t *testing.T) {
 
 		msgAddPkg, ok := state.Txs[0].Tx.Msgs[0].(vmm.MsgAddPackage)
 		require.True(t, ok)
-		require.Equal(t, "gpub1pgfj7ard9eg82cjtv4u4xetrwqer2dntxyfzxz3pq0skzdkmzu0r9h6gny6eg8c9dc303xrrudee6z4he4y7cs5rnjwmyf40yaj", state.Txs[0].Tx.Signatures[0].PubKey.String())
-		require.Equal(t, "cfe5a15d8def04cbdaf9d08e2511db7928152b26419c4577cbfa282c83118852411f3de5d045ce934555572c21bda8042ce5c64b793a01748e49cf2cff7c2983", hex.EncodeToString(state.Txs[0].Tx.Signatures[0].Signature))
+		require.Equal(t, info.GetPubKey(), state.Txs[0].Tx.Signatures[0].PubKey)
+		require.Equal(t, addPkgExpectedSignature, hex.EncodeToString(state.Txs[0].Tx.Signatures[0].Signature))
 
 		assert.Equal(t, packagePath, msgAddPkg.Package.Path)
 	})
+
 	t.Run("ok default key", func(t *testing.T) {
 		t.Parallel()
 
@@ -274,8 +276,8 @@ func TestGenesis_Txs_Add_Packages(t *testing.T) {
 
 		msgAddPkg, ok := state.Txs[0].Tx.Msgs[0].(vmm.MsgAddPackage)
 		require.True(t, ok)
-		require.Equal(t, "gpub1pgfj7ard9eg82cjtv4u4xetrwqer2dntxyfzxz3pq0skzdkmzu0r9h6gny6eg8c9dc303xrrudee6z4he4y7cs5rnjwmyf40yaj", state.Txs[0].Tx.Signatures[0].PubKey.String())
-		require.Equal(t, "cfe5a15d8def04cbdaf9d08e2511db7928152b26419c4577cbfa282c83118852411f3de5d045ce934555572c21bda8042ce5c64b793a01748e49cf2cff7c2983", hex.EncodeToString(state.Txs[0].Tx.Signatures[0].Signature))
+		require.Equal(t, defaultAccount_publicKey, state.Txs[0].Tx.Signatures[0].PubKey.String())
+		require.Equal(t, addPkgExpectedSignature, hex.EncodeToString(state.Txs[0].Tx.Signatures[0].Signature))
 
 		assert.Equal(t, packagePath, msgAddPkg.Package.Path)
 	})
@@ -322,8 +324,8 @@ func TestGenesis_Txs_Add_Packages(t *testing.T) {
 
 		msgAddPkg, ok := state.Txs[0].Tx.Msgs[0].(vmm.MsgAddPackage)
 		require.True(t, ok)
-		require.Equal(t, "gpub1pgfj7ard9eg82cjtv4u4xetrwqer2dntxyfzxz3pq0skzdkmzu0r9h6gny6eg8c9dc303xrrudee6z4he4y7cs5rnjwmyf40yaj", state.Txs[0].Tx.Signatures[0].PubKey.String())
-		require.Equal(t, "cfe5a15d8def04cbdaf9d08e2511db7928152b26419c4577cbfa282c83118852411f3de5d045ce934555572c21bda8042ce5c64b793a01748e49cf2cff7c2983", hex.EncodeToString(state.Txs[0].Tx.Signatures[0].Signature))
+		require.Equal(t, defaultAccount_publicKey, state.Txs[0].Tx.Signatures[0].PubKey.String())
+		require.Equal(t, addPkgExpectedSignature, hex.EncodeToString(state.Txs[0].Tx.Signatures[0].Signature))
 
 		assert.Equal(t, packagePath, msgAddPkg.Package.Path)
 	})
