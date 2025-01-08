@@ -34,7 +34,7 @@ env RFOO_ADDR=g1evezrh92xaucffmtgsaa3rvmz5s8kedffsg469
 
 # Test cases
 ## 1. MsgCall -> myrlm.A: user address
-gnokey maketx call -pkgpath gno.land/r/myrlm -func A -gas-fee 100000ugnot -gas-wanted 700000 -broadcast -chainid tendermint_test test1
+gnokey maketx call -pkgpath gno.land/r/myrlm -func A -gas-fee 100000ugnot -gas-wanted 1500000 -broadcast -chainid tendermint_test test1
 stdout ${USER_ADDR_test1}
 
 ## 2. MsgCall -> myrealm.B -> myrlm.A: user address
