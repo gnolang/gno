@@ -8,7 +8,6 @@ import (
 
 	vmm "github.com/gnolang/gno/gno.land/pkg/sdk/vm"
 	"github.com/gnolang/gno/gnovm/pkg/gnolang"
-	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
 	"github.com/gnolang/gno/gnovm/pkg/packages"
 	"github.com/gnolang/gno/tm2/pkg/amino"
 	bft "github.com/gnolang/gno/tm2/pkg/bft/types"
@@ -177,7 +176,7 @@ func LoadPackage(pkg *packages.Package, creator bft.Address, fee std.Fee, deposi
 	var tx std.Tx
 
 	// Open files in directory as MemPackage.
-	memPkg := gno.MustReadMemPackage(pkg.Dir, pkg.ImportPath)
+	memPkg := gnolang.MustReadMemPackage(pkg.Dir, pkg.ImportPath)
 	err := memPkg.Validate()
 	if err != nil {
 		return tx, fmt.Errorf("invalid package: %w", err)
