@@ -16,7 +16,6 @@ import (
 	"github.com/gnolang/gno/gnovm"
 	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
-	"github.com/gnolang/gno/gnovm/pkg/gnomod"
 	"github.com/gnolang/gno/gnovm/pkg/packages"
 	"github.com/gnolang/gno/gnovm/pkg/test"
 	"github.com/gnolang/gno/tm2/pkg/commands"
@@ -170,17 +169,8 @@ func execLint(cfg *lintCfg, args []string, io commands.IO) error {
 			cw := bs.CacheWrap()
 			gs := ts.BeginTransaction(cw, cw, nil)
 
-			var gmFile *gnomod.File
-			if pkg.ModPath != "" {
-				gmFile, err = gnomod.ParseGnoMod(filepath.Join(pkg.Root, "gno.mod"))
-				if err != nil {
-					io.ErrPrintln(err)
-					hasError = true
-				}
-			}
-
 			// Run type checking
-			if gmFile == nil || !pkg.Draft {
+			if !pkg.Draft {
 				foundErr, err := lintTypeCheck(io, memPkg, gs)
 				if err != nil {
 					io.ErrPrintln(err)
