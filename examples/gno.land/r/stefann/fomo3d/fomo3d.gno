@@ -273,6 +273,12 @@ func EndGame() {
 		gameState.LastBuyer,
 		gameState.Jackpot,
 	)
+
+	// Mint NFT for the round winner
+	err := GetNFT().MintRoundWinnerNFT(gameState.LastBuyer)
+	if err != nil {
+		panic(err.Error())
+	}
 }
 
 // GetGameState returns current game state
