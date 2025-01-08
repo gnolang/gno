@@ -242,8 +242,7 @@ func (n *Node) updatePackages(paths ...string) error {
 		}
 
 		// List all packages from target path
-		loadCfg := &packages.LoadConfig{Deps: true}
-		pkgslist, err := packages.Load(loadCfg, filepath.Join(abspath, "..."))
+		pkgslist, err := packages.Load(n.config.LoadConfig, filepath.Join(abspath, "..."))
 		if err != nil {
 			return fmt.Errorf("failed to list gno packages for %q: %w", path, err)
 		}
