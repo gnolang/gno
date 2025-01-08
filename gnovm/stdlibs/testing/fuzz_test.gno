@@ -18,8 +18,8 @@ func FuzzMock(f *testing.F) {
 		if !ok2 {
 			panic("dont match")
 		}
-		rev := testing.Reverse1(v)
-		doubleRev := testing.Reverse1(rev)
+		rev := Reverse(v)
+		doubleRev := Reverse(rev)
 		if v != doubleRev && i > 300 && i < 500 {
 			t.Errorf("Before: %q, after: %q", orig, doubleRev)
 		}
@@ -27,4 +27,27 @@ func FuzzMock(f *testing.F) {
 			t.Errorf("Reverse produced invalid UTF-8 string %q", rev)
 		}
 	})
+}
+
+func FuzzAnother(f *testing.F) {
+	f.Add("\xbe", int(400))
+	f.Fuzz(func(t *testing.T, orig ...interface{}) {
+		v, ok := orig[0].(string)
+		if !ok {
+			panic("dont match")
+		}
+		i, ok2 := orig[1].(int)
+		if !ok2 {
+			panic("dont match")
+		}
+		rev := Reverse(v)
+		doubleRev := Reverse(rev)
+		if v != doubleRev && i > 300 && i < 500 {
+			t.Errorf("Before: %q, after: %q", orig, doubleRev)
+		}
+	})
+}
+
+func TestMock(t *testing.T) {
+	t.Errorf("testing")
 }

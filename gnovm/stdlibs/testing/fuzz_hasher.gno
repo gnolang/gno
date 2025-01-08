@@ -1,17 +1,19 @@
 package testing
+
 import (
 	"crypto/sha256"
 	"strings"
 )
 
-type hashMachine struct {
-	Internal2Cov            map[internalHash]Coverage
-	HashNumber2Internal     *[MaxCapacity]internalHash
-	internalHash2hashNumber map[internalHash]HashNumber
+type fuzzHasher struct {
+	internal2Cov            map[internalHash]Coverage
+	hashNumber2Internal     *[MaxCapacity]internalHash
+	internalHash2hashNumber map[internalHash]hashNumber
 	hashNumberCounter       *hashNumberCounter
 }
 
 type (
+	// It is a type made assuming that a new Coverage type will be created and exported later
 	Coverage    []coveredLine
 	coveredLine struct {
 		coName string
@@ -21,18 +23,18 @@ type (
 
 type (
 	internalHash      uint64
-	HashNumber        uint64
+	hashNumber        uint64
 	hashNumberCounter struct {
-		counter HashNumber
+		counter hashNumber
 	}
 )
 
-func (hm *hashMachine) registerCoverage2HashNumber(coverage Coverage) HashNumber {
+func (fh *fuzzHasher) registerCoverage2HashNumber(coverage Coverage) hashNumber {
 	internalHash := getInternalHash(coverage)
-	hm.Internal2Cov[internalHash] = coverage
-	hashNumber := hm.countHashNumber(internalHash)
-	hm.HashNumber2Internal[hashNumber] = internalHash
-	return HashNumber(hashNumber)
+	fh.internal2Cov[internalHash] = coverage
+	hashnumber := fh.countHashNumber(internalHash)
+	fh.hashNumber2Internal[hashnumber] = internalHash
+	return hashNumber(hashnumber)
 }
 
 // calculates hash numbers without removing redundancy of line iterations in coverage
@@ -51,6 +53,21 @@ func coverageToBytes(coverage Coverage) []byte {
 		builder.WriteString("|")
 	}
 	return []byte(builder.String())
+}
+
+func newHashNumberCounter(counter hashNumber) *hashNumberCounter {
+	return &hashNumberCounter{
+		counter: counter,
+	}
+}
+
+func newFuzzHasher() *fuzzHasher {
+	return &fuzzHasher{
+		hashNumber2Internal:     &[MaxCapacity]internalHash{},
+		hashNumberCounter:       newHashNumberCounter(0),
+		internal2Cov:            make(map[internalHash]Coverage),
+		internalHash2hashNumber: make(map[internalHash]hashNumber),
+	}
 }
 
 func intToString(n int) string {
@@ -84,35 +101,20 @@ func bytesToUint64(b [32]byte) uint64 {
 		uint64(b[4])<<24 | uint64(b[5])<<16 | uint64(b[6])<<8 | uint64(b[7])
 }
 
-func (hm *hashMachine) countHashNumber(ih internalHash) HashNumber {
-	if value, exists := hm.internalHash2hashNumber[ih]; exists {
+func (fh *fuzzHasher) countHashNumber(ih internalHash) hashNumber {
+	if value, exists := fh.internalHash2hashNumber[ih]; exists {
 		// If the key exists, return the value
 		return value
 	}
-	hm.internalHash2hashNumber[ih] = hm.hashNumberCounter.counter
-	current := hm.hashNumberCounter.counter
+	fh.internalHash2hashNumber[ih] = fh.hashNumberCounter.counter
+	current := fh.hashNumberCounter.counter
 
-	hm.hashNumberCounter.counter++
+	fh.hashNumberCounter.counter++
 	return current
 }
 
-func (hm *hashMachine) hashNumber2Coverage(hn uint) Coverage {
-	internal := hm.HashNumber2Internal[hn]
-	cov := hm.Internal2Cov[internal]
+func (fh *fuzzHasher) hashNumber2Coverage(hn uint) Coverage {
+	internal := fh.hashNumber2Internal[hn]
+	cov := fh.internal2Cov[internal]
 	return cov
-}
-
-func newHashNumberCounter(counter HashNumber) *hashNumberCounter {
-	return &hashNumberCounter{
-		counter: counter,
-	}
-}
-
-func newHashMachine() *hashMachine {
-	return &hashMachine{
-		HashNumber2Internal:     &[MaxCapacity]internalHash{},
-		hashNumberCounter:       newHashNumberCounter(0),
-		Internal2Cov:            make(map[internalHash]Coverage),
-		internalHash2hashNumber: make(map[internalHash]HashNumber),
-	}
 }

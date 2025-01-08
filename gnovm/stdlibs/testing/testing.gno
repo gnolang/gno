@@ -327,7 +327,7 @@ func RunTest(runFlag string, verbose bool, test InternalTest) (ret string) {
 	return string(out)
 }
 
-func RunFuzz(fuzzName string, fuzzIters int, verbose bool, fuzz InternalFuzz) (ret string) {
+func RunFuzz(fuzzName string, fuzzIters int, verbose bool, internalFuzz InternalFuzz) (ret string) {
 	var report Report
 	fuzzer := NewF(verbose, uint(fuzzIters))
 	if fuzzName == "" {
@@ -337,10 +337,9 @@ func RunFuzz(fuzzName string, fuzzIters int, verbose bool, fuzz InternalFuzz) (r
 		})
 		return string(out)
 	}
-	if strings.HasPrefix(fuzz.Name, fuzzName) {
-
-		fmt.Fprintf(os.Stderr, "fuzz %s : %s iterate\n", fuzz.Name, strconv.Itoa(int(fuzzIters)))
-		fRunner(fuzzer, fuzz.F)
+	if strings.HasPrefix(internalFuzz.Name, fuzzName) {
+		fmt.Fprintf(os.Stderr, "--- Fuzz %s:\nSet %s iterate\n", internalFuzz.Name, strconv.Itoa(int(fuzzIters)))
+		fRunner(fuzzer, internalFuzz.F)
 		report = Report{
 			Failed:  fuzzer.failed,
 			Skipped: true,

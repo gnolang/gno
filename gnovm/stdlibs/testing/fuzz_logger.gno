@@ -2,10 +2,73 @@ package testing
 
 import (
 	"bytes"
+	"fmt"
+	"os"
 	"strconv"
 	"strings"
 	"unicode/utf8"
 )
+
+type (
+	fuzzLogger struct {
+		data []crashCase
+	}
+	crashCase struct {
+		hashNumber   uint
+		input        string
+		rawContent   []interface{}
+		inputCount   uint
+		isPanic      bool
+		panicMessage string
+		errorMsg     string
+	}
+)
+
+type testResult struct {
+	panicOccurred bool
+	panicMessage  string
+	prror         error
+}
+
+func (fl *fuzzLogger) addCase(seed seed, r testResult) {
+	var crashcase crashCase
+	if r.prror == nil {
+		crashcase = crashCase{
+			hashNumber:   uint(seed.hashNumber),
+			input:        contentToString(seed.content),
+			rawContent:   seed.content,
+			inputCount:   seed.id,
+			isPanic:      r.panicOccurred,
+			panicMessage: r.panicMessage,
+			errorMsg:     "",
+		}
+	} else {
+		crashcase = crashCase{
+			hashNumber:   uint(seed.hashNumber),
+			input:        contentToString(seed.content),
+			rawContent:   seed.content,
+			inputCount:   seed.id,
+			isPanic:      r.panicOccurred,
+			panicMessage: r.panicMessage,
+			errorMsg:     strings.TrimSpace(r.prror.Error()),
+		}
+	}
+	fl.data = append(fl.data, crashcase)
+}
+
+func (fl *fuzzLogger) reportLastFailingInput() {
+	log := fl.data
+	lastCrashCase := log[len(log)-1]
+	fmt.Fprintf(os.Stderr, "Found failing input %s at %d trials\n", escapedToString(lastCrashCase.input), lastCrashCase.inputCount)
+	return
+}
+
+// Recover what the escape characters break when they are printed. (e.g."�" -> "\xeb")
+func escapedToString(s string) string {
+	toks := tokenizeString(s)
+	escaped := rebuildEscaped(toks)
+	return escaped
+}
 
 // token distinguishes whether it is "normal Unicode" or "broken bytes".
 type token struct {
@@ -69,33 +132,28 @@ func byteToHex(b byte) []byte {
 	return []byte{hi, lo}
 }
 
-// Recover what the escape characters break when they are printed. (e.g."�" -> "\xeb")
-func transEscapedString(s string) string {
-	toks := tokenizeString(s)
-	escaped := rebuildEscaped(toks)
-	return escaped
+func (fl *fuzzLogger) reportLastCrashCase() {
+	log := fl.data
+	lastCrashCase := log[len(log)-1]
+	fmt.Fprintf(os.Stderr, "%s\n", crashCaseToString(lastCrashCase))
+	return
 }
 
-func coverageToString(coverage Coverage) string {
+func crashCaseToString(c crashCase) string {
 	var sb strings.Builder
-	sb.WriteString("[")
-	count := 0
-	for i, line := range coverage {
-		sb.WriteString("{co_name: ")
-		sb.WriteString(line.coName)
-		sb.WriteString(", co_line: ")
-		sb.WriteString(strconv.Itoa(line.coLine))
-		sb.WriteString("}")
-		count++
-		if i < len(coverage)-1 {
-			if count%3 == 0 {
-				sb.WriteString(", \n")
-			} else {
-				sb.WriteString(", ")
-			}
-		}
+
+	sb.WriteString("Input: ")
+	sb.WriteString(escapedToString(c.input))
+	if c.isPanic {
+		sb.WriteString("\nPanic/Error: Panic ")
+		sb.WriteString("\nPanicMessage: \"")
+		sb.WriteString(c.panicMessage)
+	} else {
+		sb.WriteString("\nPanic/Error: Error ")
+		sb.WriteString("\nErrorMessage: ")
+		sb.WriteString("\"" + c.errorMsg + "\"")
 	}
-	sb.WriteString("]")
+
 	return sb.String()
 }
 
@@ -167,20 +225,14 @@ func contentToString(content []interface{}) string {
 	return result.String()
 }
 
-func crashCaseToString(c crashCase) string {
-	var sb strings.Builder
+func (fl *fuzzLogger) getLastCrashCase() crashCase {
+	log := fl.data
+	lastCrashCase := log[len(log)-1]
+	return lastCrashCase
+}
 
-	sb.WriteString("Input: ")
-	sb.WriteString(transEscapedString(c.input))
-	if c.isPanic {
-		sb.WriteString("\nPanic/Error: Panic ")
-		sb.WriteString("\nPanicMessage: \"")
-		sb.WriteString(c.panicMessage)
-	} else {
-		sb.WriteString("\nPanic/Error: Error ")
-		sb.WriteString("\nErrorMessage: ")
-		sb.WriteString("\"" + c.errorMsg + "\"")
+func newFuzzLogger() *fuzzLogger {
+	return &fuzzLogger{
+		data: make([]crashCase, 0),
 	}
-
-	return sb.String()
 }

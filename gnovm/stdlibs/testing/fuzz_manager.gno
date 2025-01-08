@@ -17,7 +17,7 @@ const (
 	PartialCapacity        = MaxCapacity / 5
 )
 
-type stateMachine struct {
+type fuzzManager struct {
 	trials     uint
 	inputCount uint
 
@@ -26,7 +26,7 @@ type stateMachine struct {
 
 	// for f.Add in f.Fuzz
 	seedType             []supportedType
-	inithashnumber       []HashNumber
+	inithashnumber       []hashNumber
 	stringByteCandidates []int
 
 	// for f.Fuzz
@@ -34,15 +34,13 @@ type stateMachine struct {
 	hashNumber2Seeds       *[MaxCapacity]*seedQueue
 	hashNumber2Priority    *[MaxCapacity]uint
 	priority2HashNumberULL *[MaxCapacity]*uniquesLinkedList
-
-	crashLogger           *crashLogger
-	verbose               bool
-	inspectingHashNumbers uint
+	verbose                bool
+	inspectingHashNumbers  uint
 }
 
-func (sm *stateMachine) coordinateSeed(seed seed) endInfo {
+func (fm *fuzzManager) coordinateSeed(seed seed) endInfo {
 	if seed.isCoordinated {
-		sm.hashNumber2Seeds[seed.hashNumber].enqueue(seed)
+		fm.hashNumber2Seeds[seed.hashNumber].enqueue(seed)
 		return endInfo{
 			completeTrials: false,
 			maxedCAPACITY:  false,
@@ -50,42 +48,42 @@ func (sm *stateMachine) coordinateSeed(seed seed) endInfo {
 	}
 	hn := seed.hashNumber
 	seed.isCoordinated = true
-	sm.inputCount++
+	fm.inputCount++
 
-	if sm.hashNumber2Seeds[hn] == nil {
-		sm.inspectingHashNumbers++
-		sm.hashNumber2Seeds[hn] = newSeedQueue()
+	if fm.hashNumber2Seeds[hn] == nil {
+		fm.inspectingHashNumbers++
+		fm.hashNumber2Seeds[hn] = newSeedQueue()
 	}
-	sm.hashNumber2Seeds[hn].enqueue(seed)
-	oldPriority := sm.hashNumber2Priority[hn]
-	sm.hashNumber2Priority[hn]++
-	updatedPriority := sm.hashNumber2Priority[hn]
+	fm.hashNumber2Seeds[hn].enqueue(seed)
+	oldPriority := fm.hashNumber2Priority[hn]
+	fm.hashNumber2Priority[hn]++
+	updatedPriority := fm.hashNumber2Priority[hn]
 
 	if updatedPriority == 1 {
-		sm.priorityCache = 1
-		sm.priority2HashNumberULL[updatedPriority].append(uint(hn))
+		fm.priorityCache = 1
+		fm.priority2HashNumberULL[updatedPriority].append(uint(hn))
 	} else {
-		sm.priority2HashNumberULL[oldPriority].delete(uint(hn))
-		sm.priority2HashNumberULL[updatedPriority].append(uint(hn))
+		fm.priority2HashNumberULL[oldPriority].delete(uint(hn))
+		fm.priority2HashNumberULL[updatedPriority].append(uint(hn))
 	}
-	sm.conditionallyLogProgress()
-	return sm.evaluateEndState(updatedPriority, hn)
+	fm.conditionallyLogProgress(1)
+	return fm.evaluateEndState(updatedPriority, hn)
 }
 
-func (sm *stateMachine) conditionallyLogProgress() {
-	if sm.verbose {
-		if sm.inputCount%2000 == 0 {
-			fmt.Fprintf(os.Stderr, "%d times runned: inspecting %d coverages\n", sm.inputCount, sm.inspectingHashNumbers)
+func (fm *fuzzManager) conditionallyLogProgress(progressed uint) {
+	if fm.verbose {
+		if (fm.inputCount-progressed)%2000 > fm.inputCount%2000 {
+			fmt.Fprintf(os.Stderr, "%d times runned: inspecting %d coverages\n", fm.inputCount, fm.inspectingHashNumbers)
 		}
 	} else {
-		if sm.inputCount%(sm.trials/5) == 0 {
-			fmt.Fprintf(os.Stderr, "%d times runned: inspecting %d coverages\n", sm.inputCount, sm.inspectingHashNumbers)
+		if (fm.inputCount-progressed)%(fm.trials/5) > fm.inputCount%(fm.trials/5) {
+			fmt.Fprintf(os.Stderr, "%d times runned: inspecting %d coverages\n", fm.inputCount, fm.inspectingHashNumbers)
 		}
 	}
 }
 
-func (sm *stateMachine) evaluateEndState(updatedPriority uint, hn HashNumber) endInfo {
-	if sm.inputCount >= sm.trials {
+func (fm *fuzzManager) evaluateEndState(updatedPriority uint, hn hashNumber) endInfo {
+	if fm.inputCount >= fm.trials {
 		return endInfo{
 			completeTrials: true,
 			maxedCAPACITY:  false,
@@ -110,25 +108,25 @@ type endInfo struct {
 	maxedCAPACITY  bool
 }
 
-func (sm *stateMachine) coordinateAbstraction(hn HashNumber, abstractNumber uint) endInfo {
-	sm.inputCount = sm.inputCount + abstractNumber
+func (fm *fuzzManager) coordinateAbstraction(hn hashNumber, abstractNumber uint) endInfo {
+	fm.inputCount = fm.inputCount + abstractNumber
 	// Get current priorty
 	// 1. Prior increases discontinuously
 	// 2. Hn must increase continuously
-	sm.hashNumber2Priority[hn] = sm.hashNumber2Priority[hn] + abstractNumber
-	nextPriority := sm.hashNumber2Priority[hn]
+	fm.hashNumber2Priority[hn] = fm.hashNumber2Priority[hn] + abstractNumber
+	nextPriority := fm.hashNumber2Priority[hn]
 	nextHashNumber := hn
-	sm.conditionallyLogProgress()
-	return sm.evaluateEndState(nextPriority, nextHashNumber)
+	fm.conditionallyLogProgress(abstractNumber)
+	return fm.evaluateEndState(nextPriority, nextHashNumber)
 }
 
-func (sm *stateMachine) popSeeds() []seed {
+func (fm *fuzzManager) popSeeds() []seed {
 	var highestProrityHashNumber uint
 
 	for {
-		hn, isExist := sm.priority2HashNumberULL[sm.priorityCache].peek()
+		hn, isExist := fm.priority2HashNumberULL[fm.priorityCache].peek()
 		if !isExist {
-			sm.priorityCache++
+			fm.priorityCache++
 
 			continue
 		}
@@ -137,26 +135,26 @@ func (sm *stateMachine) popSeeds() []seed {
 		break
 	}
 
-	popedSeed1, isOnce := sm.hashNumber2Seeds[highestProrityHashNumber].dequeue()
+	popedSeed1, isOnce := fm.hashNumber2Seeds[highestProrityHashNumber].dequeue()
 	if !isOnce {
 		panic("logical internal error: it must has more than one seed")
 	}
-	peekedSeed2, err := sm.hashNumber2Seeds[highestProrityHashNumber].peek()
+	peekedSeed2, err := fm.hashNumber2Seeds[highestProrityHashNumber].peek()
 	if err != nil {
 		return []seed{popedSeed1}
 	}
 	pid1 := popedSeed1.pid
 	pid2 := peekedSeed2.pid
 	if pid1 == pid2 {
-		popedSeed2, _ := sm.hashNumber2Seeds[highestProrityHashNumber].dequeue()
+		popedSeed2, _ := fm.hashNumber2Seeds[highestProrityHashNumber].dequeue()
 		return []seed{popedSeed1, popedSeed2}
 	} else {
 		return []seed{popedSeed1}
 	}
 }
 
-func (sm *stateMachine) popInitSeedByHN(hn HashNumber) seed {
-	popedSeed, isOnce := sm.hashNumber2Seeds[hn].dequeue()
+func (fm *fuzzManager) popInitSeedByHN(hn hashNumber) seed {
+	popedSeed, isOnce := fm.hashNumber2Seeds[hn].dequeue()
 	if !isOnce {
 		panic("logical internal error: it must has more than one seed")
 	}
@@ -180,9 +178,9 @@ type seedAndPrioryty struct {
 	priority uint
 }
 
-func (sm *stateMachine) summarize() []seed {
+func (fm *fuzzManager) summarize() []seed {
 	collectedPriorytyAndHN := priorytyHashNumberList{}
-	for i, e := range sm.hashNumber2Priority {
+	for i, e := range fm.hashNumber2Priority {
 
 		if e == 0 {
 			break
@@ -203,7 +201,7 @@ func (sm *stateMachine) summarize() []seed {
 
 	for _, pair := range collectedPriorytyAndHN {
 		hn := pair.hashNumber
-		seed := sm.hashNumber2Seeds[hn].data[0]
+		seed := fm.hashNumber2Seeds[hn].data[0]
 		priority := pair.priority
 		sampledSeedAndPrioryty = append(sampledSeedAndPrioryty, seedAndPrioryty{seed, priority})
 	}
@@ -294,7 +292,7 @@ func allocateGen(priority uint, rank int, total int) uint {
 	return bigger
 }
 
-func newStateMachine(trials uint, inputCount uint) *stateMachine {
+func newFuzzManager(trials uint, inputCount uint) *fuzzManager {
 	settedAllULL := func() *[MaxCapacity]*uniquesLinkedList {
 		arr := &[MaxCapacity]*uniquesLinkedList{}
 		for i := range arr {
@@ -302,7 +300,7 @@ func newStateMachine(trials uint, inputCount uint) *stateMachine {
 		}
 		return arr
 	}()
-	return &stateMachine{
+	return &fuzzManager{
 		inputCount:      inputCount,
 		trials:          trials,
 		allCoverage:     Coverage{{coName: "nil", coLine: 0}},
@@ -315,64 +313,6 @@ func newStateMachine(trials uint, inputCount uint) *stateMachine {
 		priority2HashNumberULL: settedAllULL,
 
 		inspectingHashNumbers: 0,
-		crashLogger:           newCrashLogger(),
-	}
-}
-
-// crash logger
-type (
-	crashLogger struct {
-		data []crashCase
-	}
-	crashCase struct {
-		hashNumber   uint
-		input        string
-		rawContent   []interface{}
-		inputCount   uint
-		isPanic      bool
-		panicMessage string
-		errorMsg     string
-		timestamp    time.Time
-	}
-)
-
-type testResult struct {
-	panicOccurred bool
-	panicMessage  string
-	prror         error
-}
-
-func (c *crashLogger) addCase(seed seed, r testResult) {
-	var crashcase crashCase
-	if r.prror == nil {
-		crashcase = crashCase{
-			hashNumber:   uint(seed.hashNumber),
-			input:        contentToString(seed.content),
-			rawContent:   seed.content,
-			inputCount:   seed.id,
-			isPanic:      r.panicOccurred,
-			panicMessage: r.panicMessage,
-			errorMsg:     "",
-			timestamp:    time.Now(),
-		}
-	} else {
-		crashcase = crashCase{
-			hashNumber:   uint(seed.hashNumber),
-			input:        contentToString(seed.content),
-			rawContent:   seed.content,
-			inputCount:   seed.id,
-			isPanic:      r.panicOccurred,
-			panicMessage: r.panicMessage,
-			errorMsg:     strings.TrimSpace(r.prror.Error()),
-			timestamp:    time.Now(),
-		}
-	}
-	c.data = append(c.data, crashcase)
-}
-
-func newCrashLogger() *crashLogger {
-	return &crashLogger{
-		data: make([]crashCase, 0),
 	}
 }
 
@@ -386,7 +326,7 @@ type (
 		id            uint
 		gen           uint
 		isCoordinated bool
-		hashNumber    HashNumber
+		hashNumber    hashNumber
 		content       []interface{}
 		result        interface{}
 	}

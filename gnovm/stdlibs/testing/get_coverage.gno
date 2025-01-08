@@ -9,8 +9,8 @@ func mock(t *T, orig ...interface{}) {
 	if !ok {
 		panic("dont match")
 	}
-	rev := Reverse1(v)
-	doubleRev := Reverse1(rev)
+	rev := Reverse(v)
+	doubleRev := Reverse(rev)
 	if v != doubleRev && v == "some cond" {
 		t.Errorf("Before: %q, after: %q", orig, doubleRev)
 	}
@@ -28,7 +28,7 @@ func mock(t *T, orig ...interface{}) {
 // l
 // l
 // l
-func Reverse1(s string) string {
+func Reverse(s string) string {
 	r := []rune(s)
 	for i, j := 0, len(r)-1; i < len(r)/2; i, j = i+1, j-1 {
 		r[i], r[j] = r[j], r[i]
@@ -36,18 +36,18 @@ func Reverse1(s string) string {
 	return string(r)
 }
 
-func getCoverageOfReverse1(c *Coverage, s string) string {
+func getCoverageOfReverse(c *Coverage, s string) string {
 	r := []rune(s)
-	*c = append(*c, coveredLine{coName: "Reverse1", coLine: 37})
-	*c = append(*c, coveredLine{coName: "Reverse1", coLine: 38})
+	*c = append(*c, coveredLine{coName: "Reverse", coLine: 37})
+	*c = append(*c, coveredLine{coName: "Reverse", coLine: 38})
 	for i, j := 0, len(r)-1; i < len(r)/2; i, j = i+1, j-1 {
-		*c = append(*c, coveredLine{coName: "Reverse1", coLine: 39})
+		*c = append(*c, coveredLine{coName: "Reverse", coLine: 39})
 		r[i], r[j] = r[j], r[i]
-		*c = append(*c, coveredLine{coName: "Reverse1", coLine: 40})
-		*c = append(*c, coveredLine{coName: "Reverse1", coLine: 41})
+		*c = append(*c, coveredLine{coName: "Reverse", coLine: 40})
+		*c = append(*c, coveredLine{coName: "Reverse", coLine: 41})
 	}
-	*c = append(*c, coveredLine{coName: "Reverse1", coLine: 39})
-	*c = append(*c, coveredLine{coName: "Reverse1", coLine: 42})
+	*c = append(*c, coveredLine{coName: "Reverse", coLine: 39})
+	*c = append(*c, coveredLine{coName: "Reverse", coLine: 42})
 	return string(r)
 }
 
@@ -58,7 +58,7 @@ func byteToHexChar(b byte) string {
 	return string('a' + (b - 10)) // a-f
 }
 
-func getCoverageofrunner(t *T, content []interface{}) Coverage {
+func getCoverageOfrunner(t *T, content []interface{}) Coverage {
 	// TODO: Make sure get coverage.
 	// TODO: The format is (function name, line)
 
@@ -79,9 +79,9 @@ func getCoverageofrunner(t *T, content []interface{}) Coverage {
 		panic("did not implement other type")
 	}
 	coverage = append(coverage, coveredLine{coName: "closure", coLine: 18})
-	s1 := getCoverageOfReverse1(&coverage, orig)
+	s1 := getCoverageOfReverse(&coverage, orig)
 	coverage = append(coverage, coveredLine{coName: "closure", coLine: 19})
-	s2 := getCoverageOfReverse1(&coverage, s1)
+	s2 := getCoverageOfReverse(&coverage, s1)
 
 	coverage = append(coverage, coveredLine{coName: "closure", coLine: 20})
 	if orig != s2 && u > 300 && u < 1000 {
