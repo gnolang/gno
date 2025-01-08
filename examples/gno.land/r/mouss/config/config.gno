@@ -9,8 +9,8 @@ var (
 	main   std.Address // mouss's main address
 	backup std.Address // backup address
 
-	errorInvalidAddr  = errors.New("config: invalid address")
-	errorUnauthorized = errors.New("config: unauthorized")
+	ErrorInvalidAddr  = errors.New("config: invalid address")
+	ErrorUnauthorized = errors.New("config: unauthorized")
 )
 
 func init() {
@@ -25,7 +25,7 @@ func Backup() std.Address {
 }
 func SetBack(buAddress std.Address) error {
 	if !buAddress.IsValid() {
-		return errorInvalidAddr
+		return ErrorInvalidAddr
 	}
 
 	if err := checkAuthorized(); err != nil {
@@ -39,7 +39,7 @@ func SetBack(buAddress std.Address) error {
 func checkAuthorized() error {
 	caller := std.GetOrigCaller()
 	if caller != main && caller != backup {
-		return errorUnauthorized
+		return ErrorUnauthorized
 	}
 
 	return nil
