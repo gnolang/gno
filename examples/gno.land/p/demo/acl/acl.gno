@@ -56,16 +56,17 @@ func (d *Directory) HasRole(addr std.Address, role string) bool {
 	return d.HasPerm(addr, "role", role)
 }
 
-func (d *Directory) AddUserPerm(addr std.Address, verb, resource string) {
+func (d *Directory) AddUserPerm(addr std.Address, verb, resource string) bool {
 	bucket := "u:" + addr.String()
 	p := perm{
 		verbs:     []string{verb},
 		resources: []string{resource},
 	}
 	d.addPermsToBucket(bucket, []perm{p})
+	return true
 }
 
-func (d *Directory) AddUserPerms(addr std.Address, verbs []string, resource string) {
+func (d *Directory) AddUserPerms(addr std.Address, verbs []string, resource string) bool {
 	bucket := "u:" + addr.String()
 	var ps perms
 	for _, verb := range verbs {
@@ -76,18 +77,20 @@ func (d *Directory) AddUserPerms(addr std.Address, verbs []string, resource stri
 		ps = append(ps, p)
 	}
 	d.addPermsToBucket(bucket, ps)
+	return true
 }
 
-func (d *Directory) AddGroupPerm(name string, verb, resource string) {
+func (d *Directory) AddGroupPerm(name string, verb, resource string) bool {
 	bucket := "g:" + name
 	p := perm{
 		verbs:     []string{verb},
 		resources: []string{resource},
 	}
 	d.addPermsToBucket(bucket, []perm{p})
+	return true
 }
 
-func (d *Directory) AddGroupPerms(name string, verbs []string, resource string) {
+func (d *Directory) AddGroupPerms(name string, verbs []string, resource string) bool {
 	bucket := "g:" + name
 	var ps perms
 	for _, verb := range verbs {
@@ -98,6 +101,7 @@ func (d *Directory) AddGroupPerms(name string, verbs []string, resource string) 
 		ps = append(ps, p)
 	}
 	d.addPermsToBucket(bucket, ps)
+	return true
 }
 
 func (d *Directory) addPermsToBucket(bucket string, p perms) {
@@ -112,7 +116,7 @@ func (d *Directory) addPermsToBucket(bucket string, p perms) {
 	d.permBuckets.Set(bucket, ps)
 }
 
-func (d *Directory) AddUserToGroup(user std.Address, group string) {
+func (d *Directory) AddUserToGroup(user std.Address, group string) bool {
 	existing, ok := d.userGroups.Get(user.String())
 	var groups []string
 	if ok {
@@ -120,9 +124,10 @@ func (d *Directory) AddUserToGroup(user std.Address, group string) {
 	}
 	groups = appendGroupsWithoutDuplicates(groups, []string{group})
 	d.userGroups.Set(user.String(), groups)
+	return true
 }
 
-func (d *Directory) AddUserToGroups(user std.Address, newGroups []string) {
+func (d *Directory) AddUserToGroups(user std.Address, newGroups []string) bool {
 	existing, ok := d.userGroups.Get(user.String())
 	var groups []string
 	if ok {
@@ -130,83 +135,103 @@ func (d *Directory) AddUserToGroups(user std.Address, newGroups []string) {
 	}
 	groups = appendGroupsWithoutDuplicates(groups, newGroups)
 	d.userGroups.Set(user.String(), groups)
+	return true
 }
 
-func (d *Directory) RemoveUserFromGroup(user std.Address, group string) {
+func (d *Directory) RemoveUserFromGroup(user std.Address, group string) bool {
 	existing, ok := d.userGroups.Get(user.String())
 	if !ok {
-		return
+		return false
 	}
+	found := false
 	groups := existing.([]string)
 	for i, g := range groups {
 		if g == group {
 			groups = append(groups[:i], groups[i+1:]...)
+			found = true
 			break
 		}
 	}
 
+	if !found {
+		return false
+	}
 	if len(groups) == 0 {
 		d.userGroups.Remove(user.String())
 	} else {
 		d.userGroups.Set(user.String(), groups)
 	}
+	return true
 }
 
-func (d *Directory) RemoveUserFromGroups(user std.Address, groups []string) {
+func (d *Directory) RemoveUserFromGroups(user std.Address, groups []string) bool {
 	existing, ok := d.userGroups.Get(user.String())
 	if !ok {
-		return
+		return false
 	}
 	existingGroups := existing.([]string)
+
+	foundGroups := 0
 	for _, group := range groups {
 		for i, g := range existingGroups {
 			if g == group {
 				existingGroups = append(existingGroups[:i], existingGroups[i+1:]...)
+				foundGroups++
 				break
 			}
 		}
 	}
 
+	if foundGroups == 0 {
+		return false
+	}
 	if len(existingGroups) == 0 {
 		d.userGroups.Remove(user.String())
 	} else {
 		d.userGroups.Set(user.String(), existingGroups)
 	}
+	return foundGroups == len(groups)
 }
 
-func (d *Directory) removePermsFromBucket(bucket string, p []perm) {
+func (d *Directory) removePermsFromBucket(bucket string, p []perm) bool {
 	existing, ok := d.permBuckets.Get(bucket)
 	if !ok {
-		return
+		return false
 	}
 	ps := existing.(perms)
 
+	foundPerms := 0
 	for _, perm := range p {
 		for i, existingPerm := range ps {
 			if perm.Equal(existingPerm) {
 				ps = append(ps[:i], ps[i+1:]...)
+				foundPerms++
 				break
 			}
 		}
 	}
 
+	if foundPerms == 0 {
+		return false
+	}
 	if len(ps) == 0 {
 		d.permBuckets.Remove(bucket)
 	} else {
 		d.permBuckets.Set(bucket, ps)
 	}
+	return foundPerms == len(p)
 }
 
-func (d *Directory) RemoveUserPerm(addr std.Address, verb, resource string) {
+func (d *Directory) RemoveUserPerm(addr std.Address, verb, resource string) bool {
 	bucket := "u:" + addr.String()
 	p := perm{
 		verbs:     []string{verb},
 		resources: []string{resource},
 	}
-	d.removePermsFromBucket(bucket, []perm{p})
+	return d.removePermsFromBucket(bucket, []perm{p})
 }
 
-func (d *Directory) RemoveUserPerms(addr std.Address, verbs []string, resource string) {
+func (d *Directory) RemoveUserPerms(addr std.Address, verbs []string, resource string) bool {
 	bucket := "u:" + addr.String()
 	var ps perms
 	for _, verb := range verbs {
@@ -216,19 +241,19 @@ func (d *Directory) RemoveUserPerms(addr std.Address, verbs []string, resource s
 		}
 		ps = append(ps, p)
 	}
-	d.removePermsFromBucket(bucket, ps)
+	return d.removePermsFromBucket(bucket, ps)
 }
 
-func (d *Directory) RemoveGroupPerm(name string, verb, resource string) {
+func (d *Directory) RemoveGroupPerm(name string, verb, resource string) bool {
 	bucket := "g:" + name
 	p := perm{
 		verbs:     []string{verb},
 		resources: []string{resource},
 	}
-	d.removePermsFromBucket(bucket, []perm{p})
+	return d.removePermsFromBucket(bucket, []perm{p})
 }
 
-func (d *Directory) RemoveGroupPerms(name string, verbs []string, resource string) {
+func (d *Directory) RemoveGroupPerms(name string, verbs []string, resource string) bool {
 	bucket := "g:" + name
 	var ps perms
 	for _, verb := range verbs {
@@ -238,19 +263,22 @@ func (d *Directory) RemoveGroupPerms(name string, verbs []string, resource strin
 		}
 		ps = append(ps, p)
 	}
-	d.removePermsFromBucket(bucket, ps)
+	return d.removePermsFromBucket(bucket, ps)
 }
 
-func (d *Directory) ResetGroupPerms(name string) {
+func (d *Directory) ResetGroupPerms(name string) bool {
 	bucket := "g:" + name
 	d.permBuckets.Remove(bucket)
+	return true
 }
 
-func (d *Directory) ResetUserPerms(addr std.Address) {
+func (d *Directory) ResetUserPerms(addr std.Address) bool {
 	bucket := "u:" + addr.String()
 	d.permBuckets.Remove(bucket)
+	return true
 }
 
-func (d *Directory) ResetUserGroups(addr std.Address) {
+func (d *Directory) ResetUserGroups(addr std.Address) bool {
 	d.userGroups.Remove(addr.String())
+	return true
 }
