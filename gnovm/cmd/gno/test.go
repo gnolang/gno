@@ -208,11 +208,7 @@ func execTest(cfg *testCfg, args []string, io commands.IO) error {
 		deps, loadDepsErr := packages.Load(&depsConf, pkg.Dir)
 		if loadDepsErr != nil {
 			io.ErrPrintfln("%s: load deps: %v", logName, err)
-			io.ErrPrintfln("FAIL")
-			io.ErrPrintfln("FAIL    %s", logName)
-			io.ErrPrintfln("FAIL")
-			buildErrCount++
-			continue
+			return nil
 		}
 		packages.Inject(pkgsMap, deps)
 

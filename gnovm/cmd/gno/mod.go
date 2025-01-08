@@ -4,8 +4,10 @@ import (
 	"context"
 	"flag"
 	"fmt"
+	"go/token"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 
 	"github.com/gnolang/gno/gnovm/pkg/gnomod"
@@ -298,23 +300,27 @@ func execModWhy(args []string, io commands.IO) error {
 		return flag.ErrHelp
 	}
 
-	wd, err := os.Getwd()
+	conf := &packages.LoadConfig{SelfContained: true, Fetcher: testPackageFetcher}
+	pkgs, err := packages.Load(conf, ".")
 	if err != nil {
 		return err
 	}
-	fname := filepath.Join(wd, "gno.mod")
-	gm, err := gnomod.ParseGnoMod(fname)
+	if len(pkgs) < 1 {
+		return errors.New("no package found")
+	}
+	pkg := pkgs[0]
+
+	importToFilesMap, err := getImportToFilesMap(pkg)
 	if err != nil {
 		return err
 	}
 
-	importToFilesMap, err := getImportToFilesMap(wd)
-	if err != nil {
-		return err
+	if pkg.ModPath == "" {
+		pkg.ModPath = "."
 	}
 
 	// Format and print `gno mod why` output stanzas
-	out := formatModWhyStanzas(gm.Module.Mod.Path, args, importToFilesMap)
+	out := formatModWhyStanzas(pkg.ModPath, args, importToFilesMap)
 	io.Printf(out)
 
 	return nil
@@ -345,11 +351,12 @@ func formatModWhyStanzas(modulePath string, args []string, importToFilesMap map[
 
 // getImportToFilesMap returns a map where each key is an import path and its
 // value is a list of files importing that package with the specified import path.
-func getImportToFilesMap(pkgPath string) (map[string][]string, error) {
-	entries, err := os.ReadDir(pkgPath)
+func getImportToFilesMap(pkg *packages.Package) (map[string][]string, error) {
+	entries, err := os.ReadDir(pkg.Dir)
 	if err != nil {
 		return nil, err
 	}
+	fset := token.NewFileSet()
 	m := make(map[string][]string) // import -> []file
 	for _, e := range entries {
 		filename := e.Name()
@@ -360,17 +367,23 @@ func getImportToFilesMap(pkgPath string) (map[string][]string, error) {
 			continue
 		}
 
-		data, err := os.ReadFile(filepath.Join(pkgPath, filename))
+		data, err := os.ReadFile(filepath.Join(pkg.Dir, filename))
 		if err != nil {
 			return nil, err
 		}
-		imports, err := packages.FileImportsSpecs(filename, string(data), nil)
+		imports, err := packages.FileImportsSpecs(filename, string(data), fset)
 		if err != nil {
 			return nil, err
 		}
 
 		for _, imp := range imports {
-			m[imp.Path.Value] = append(m[imp.Path.Value], filename)
+			pkgPath, err := strconv.Unquote(imp.Path.Value)
+			if err != nil {
+				// should not happen - parser.ParseFile should already ensure we get
+				// a valid string literal here.
+				panic(fmt.Errorf("%v: unexpected invalid import path: %v", fset.Position(imp.Pos()).String(), imp.Path.Value))
+			}
+			m[pkgPath] = append(m[pkgPath], filename)
 		}
 	}
 	return m, nil
