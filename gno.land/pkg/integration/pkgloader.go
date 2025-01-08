@@ -95,10 +95,9 @@ func (pl *PkgsLoader) LoadAllPackagesFromDir(path string) error {
 	return nil
 }
 
-func (pl *PkgsLoader) LoadPackage(modroot string, path string, name string) error {
+func (pl *PkgsLoader) LoadPackage(pkgDir string, name string) error {
 	// FIXME: name override
-	cfg := &packages.LoadConfig{Deps: true, SelfContained: true}
-	pkgDir := filepath.Join(modroot, path)
+	cfg := &packages.LoadConfig{Deps: true, SelfContained: true, GnorootExamples: true}
 	pkgs, err := packages.Load(cfg, pkgDir)
 	if err != nil {
 		return fmt.Errorf("%q: loading: %w", pkgDir, err)

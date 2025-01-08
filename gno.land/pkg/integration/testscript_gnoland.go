@@ -524,7 +524,7 @@ func loadpkgCmd(gnoRootDir string) func(ts *testscript.TestScript, neg bool, arg
 			path = filepath.Join(examplesDir, path)
 		}
 
-		if err := pkgs.LoadPackage(examplesDir, path, name); err != nil {
+		if err := pkgs.LoadPackage(path, name); err != nil {
 			ts.Fatalf("`loadpkg` unable to load package(s) from %q: %s", args[0], err)
 		}
 

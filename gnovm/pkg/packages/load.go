@@ -17,12 +17,13 @@ import (
 )
 
 type LoadConfig struct {
-	IO              commands.IO
-	Fetcher         pkgdownload.PackageFetcher
-	Deps            bool
-	Cache           map[string]*Package
+	IO            commands.IO
+	Fetcher       pkgdownload.PackageFetcher
+	Deps          bool
+	Cache         map[string]*Package
+	SelfContained bool
+
 	GnorootExamples bool // allow loading packages from gnoroot examples if not found in the args set
-	SelfContained   bool
 }
 
 func (conf *LoadConfig) applyDefaults() {

@@ -710,7 +710,7 @@ func loadpkgs(t *testing.T, rootdir string, paths ...string) []gnoland.TxWithMet
 	for _, path := range paths {
 		path = filepath.Clean(path)
 		path = filepath.Join(examplesDir, path)
-		err := loader.LoadPackage(examplesDir, path, "")
+		err := loader.LoadPackage(path, "")
 		require.NoErrorf(t, err, "`loadpkg` unable to load package(s) from %q: %s", path, err)
 	}
 
