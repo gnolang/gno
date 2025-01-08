@@ -141,10 +141,6 @@ func currentRealm(m *gno.Machine) (address, pkgPath string) {
 	return X_getRealm(m, 0)
 }
 
-func X_derivePkgAddr(pkgPath string) string {
-	return string(gno.DerivePkgAddr(pkgPath).Bech32())
-}
-
 func X_assertCallerIsRealm(m *gno.Machine) {
 	frame := m.Frames[m.NumFrames()-2]
 	if path := frame.LastPackage.PkgPath; !gno.IsRealmPath(path) {

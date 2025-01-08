@@ -45,15 +45,10 @@ func GetCallerAt(n int) Address {
 	return Address(callerAt(n))
 }
 
-func DerivePkgAddr(pkgPath string) Address {
-	return Address(derivePkgAddr(pkgPath))
-}
-
 // Variations which don't use named types.
 func origSend() (denoms []string, amounts []int64)
 func origCaller() string
 func origPkgAddr() string
 func callerAt(n int) string
 func getRealm(height int) (address string, pkgPath string)
-func derivePkgAddr(pkgPath string) string
 func assertCallerIsRealm()

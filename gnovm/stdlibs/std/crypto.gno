@@ -2,10 +2,14 @@ package std
 
 import (
 	"crypto/bech32"
+	"crypto/sha256"
 	"errors"
 )
 
 type Address string // NOTE: bech32
+
+// bech32AddrPrefix defines the Bech32 prefix of an address
+const bech32AddrPrefix = "g"
 
 func (a Address) String() string {
 	return string(a)
@@ -34,14 +38,7 @@ func DecodeBech32(addr Address) (string, [20]byte, bool) {
 	if err != nil || len(bz) != 20 {
 		return "", [20]byte{}, false
 	}
-	/* For some reason [20]byte(bz) fails with: 'cannot convert []uint8 to ArrayKind'
-	Maybe there is an issue to create
-	*/
-	result := [20]byte{}
-	for index, b := range bz {
-		result[index] = b
-	}
-	return prefix, result, true
+	return prefix, convertTo20Byte(bz), true
 }
 
 func convertAndEncode(hrp string, data []byte) (string, error) {
@@ -62,4 +59,26 @@ func decodeAndConvert(bech string) (string, []byte, error) {
 		return "", nil, errors.New("decoding bech32 failed" + err.Error())
 	}
 	return hrp, converted, nil
+}
+
+func DerivePkgAddr(pkgPath string) Address {
+	data := sumTruncated([]byte("pkgPath:" + pkgPath))
+	return EncodeBech32(bech32AddrPrefix, data)
+}
+
+func sumTruncated(bz []byte) [20]byte {
+	hash := sha256.Sum256(bz)
+	return convertTo20Byte(hash[:RawAddressSize])
+}
+
+func convertTo20Byte(in []byte) [20]byte {
+	/* For some reason [20]byte(bz) fails with: 'cannot convert []uint8 to ArrayKind'
+	Maybe there is an issue to create
+	*/
+	result := [20]byte{}
+	for index, b := range in {
+		result[index] = b
+	}
+
+	return result
 }
