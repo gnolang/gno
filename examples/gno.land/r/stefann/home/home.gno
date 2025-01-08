@@ -213,7 +213,6 @@ func renderAboutMe() string {
 func renderTips() string {
 	out := "# Help Me Travel The World\n\n"
 
-
 	out += ufmt.Sprintf("## I am currently in %s, tip the jar to send me somewhere else!\n\n", travel.cities[travel.currentCityIndex].Name)
 	out += "### **Click** the jar, **tip** in GNOT coins, and **watch** my background change as I head to a new adventure!\n\n"
 
@@ -273,8 +272,8 @@ func renderSponsors() string {
 		default:
 			position = ufmt.Sprintf("%d.", i+1)
 		}
-		
-		out += ufmt.Sprintf("%s **%s** - %s\n\n", 
+
+		out += ufmt.Sprintf("%s **%s** - %s\n\n",
 			position,
 			getDisplayName(sponsor.Address),
 			formatAmount(sponsor.Amount),
