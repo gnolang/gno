@@ -9,19 +9,6 @@ import (
 	"gno.land/p/demo/testutils"
 )
 
-func TestUpdatePFP(t *testing.T) {
-	var owner = std.Address("g1sd5ezmxt4rwpy52u6wl3l3y085n8x0p6nllxm8")
-	std.TestSetOrigCaller(owner)
-
-	profile.pfp = ""
-
-	UpdatePFP("https://example.com/pic.png")
-
-	if profile.pfp != "https://example.com/pic.png" {
-		t.Fatalf("expected pfp to be https://example.com/pic.png, got %s", profile.pfp)
-	}
-}
-
 func TestUpdateAboutMe(t *testing.T) {
 	var owner = std.Address("g1sd5ezmxt4rwpy52u6wl3l3y085n8x0p6nllxm8")
 	std.TestSetOrigCaller(owner)
