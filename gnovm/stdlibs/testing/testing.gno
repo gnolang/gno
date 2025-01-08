@@ -339,7 +339,7 @@ func RunFuzz(fuzzName string, fuzzIters int, verbose bool, fuzz InternalFuzz) (r
 	}
 	if strings.HasPrefix(fuzz.Name, fuzzName) {
 
-		fmt.Fprintln(os.Stderr, "fuzz", fuzz.Name, ":", strconv.Itoa(int(fuzzIters)), "iterate")
+		fmt.Fprintf(os.Stderr, "fuzz %s : %s iterate\n", fuzz.Name, strconv.Itoa(int(fuzzIters)))
 		fRunner(fuzzer, fuzz.F)
 		report = Report{
 			Failed:  fuzzer.failed,
@@ -377,7 +377,7 @@ func fRunner(f *F, fn fuzzingFunc) {
 		recover()
 		dur := unixNano() - start
 		f.dur = formatDur(dur)
-		fmt.Fprintln(os.Stderr, "\n--- Elapsed "+f.dur+":")
+		fmt.Fprintf(os.Stderr, "\n--- Elapsed %s \n", f.dur)
 	}()
 	fn(f)
 }

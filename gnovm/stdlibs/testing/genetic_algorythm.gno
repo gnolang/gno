@@ -17,21 +17,21 @@ func evolve(seeds []seed, seedCount *uint, stringByteCandidates []int) []seed {
 	} else {
 		mutationStrength = MutationStrength[p1.gen-1]
 	}
-	MakingCount := [10]int{1920, 1440, 1200, 1024, 960, 720, 600, 480, 360, 240}
-	var makingCount int
-	if int(p1.gen) > len(MakingCount) {
-		makingCount = 240
+	CreatingCount := [10]int{1920, 1440, 1200, 1024, 960, 720, 600, 480, 360, 240}
+	var creatingCount int
+	if int(p1.gen) > len(CreatingCount) {
+		creatingCount = 240
 	} else {
-		makingCount = MakingCount[p1.gen-1]
+		creatingCount = CreatingCount[p1.gen-1]
 	}
 
-	loopCount := makingCount / 2
+	loopCount := creatingCount / 2
 
 	newGeneration := []seed{}
 
 	if len(seeds) == 1 {
 
-		for i := 0; i < int(makingCount); i++ {
+		for i := 0; i < int(creatingCount); i++ {
 			newContent := make([]interface{}, len(seeds[0].content))
 			for i, v := range seeds[0].content {
 				newContent[i] = v
@@ -239,7 +239,6 @@ func insertDelete(seed seed, p float64, mutationStrength int, stringByteCandidat
 		var newString string = string(bb)
 		seed.content[index] = newString
 	default:
-		println("maybe some nil string error:", v)
 		panic("internal logic error")
 	}
 	return seed

@@ -2,6 +2,8 @@ package testing
 
 import (
 	"errors"
+	"fmt"
+	"os"
 	"sort"
 	"strings"
 	"time"
@@ -66,16 +68,23 @@ func (sm *stateMachine) coordinateSeed(seed seed) endInfo {
 		sm.priority2HashNumberULL[oldPriority].delete(uint(hn))
 		sm.priority2HashNumberULL[updatedPriority].append(uint(hn))
 	}
+	sm.conditionallyLogProgress()
+	return sm.evaluateEndState(updatedPriority, hn)
+}
+
+func (sm *stateMachine) conditionallyLogProgress() {
 	if sm.verbose {
 		if sm.inputCount%2000 == 0 {
-			println(sm.inputCount, "times runned: inspecting", sm.inspectingHashNumbers, "coverages")
+			fmt.Fprintf(os.Stderr, "%d times runned: inspecting %d coverages\n", sm.inputCount, sm.inspectingHashNumbers)
 		}
 	} else {
 		if sm.inputCount%(sm.trials/5) == 0 {
-			println(sm.inputCount, "times runned: inspecting", sm.inspectingHashNumbers, "coverages")
+			fmt.Fprintf(os.Stderr, "%d times runned: inspecting %d coverages\n", sm.inputCount, sm.inspectingHashNumbers)
 		}
 	}
+}
 
+func (sm *stateMachine) evaluateEndState(updatedPriority uint, hn HashNumber) endInfo {
 	if sm.inputCount >= sm.trials {
 		return endInfo{
 			completeTrials: true,
@@ -109,40 +118,14 @@ func (sm *stateMachine) coordinateAbstraction(hn HashNumber, abstractNumber uint
 	sm.hashNumber2Priority[hn] = sm.hashNumber2Priority[hn] + abstractNumber
 	nextPriority := sm.hashNumber2Priority[hn]
 	nextHashNumber := hn
-	if sm.verbose {
-		if (sm.inputCount-abstractNumber)%2000 > sm.inputCount%2000 {
-			println(sm.inputCount, "times runned: inspecting", sm.inspectingHashNumbers, "coverages")
-		}
-	} else {
-		if (sm.inputCount-abstractNumber)%(sm.trials/5) > sm.inputCount%(sm.trials/5) {
-			println(sm.inputCount, "times runned: inspecting", sm.inspectingHashNumbers, "coverages")
-		}
-	}
-	if sm.inputCount >= sm.trials {
-		return endInfo{
-			completeTrials: true,
-			maxedCAPACITY:  false,
-		}
-	} else if uint64(nextPriority) >= (MaxCapacity-1) || uint64(nextHashNumber) >= (MaxCapacity-1) {
-		// Case 1: Priority reaches MAX (and protect overflow)
-		// Case 2 HashNumber reaches Max (and protect overflow)
-		return endInfo{
-			completeTrials: false,
-			maxedCAPACITY:  true,
-		}
-	} else {
-		return endInfo{
-			completeTrials: false,
-			maxedCAPACITY:  false,
-		}
-	}
+	sm.conditionallyLogProgress()
+	return sm.evaluateEndState(nextPriority, nextHashNumber)
 }
 
 func (sm *stateMachine) popSeeds() []seed {
 	var highestProrityHashNumber uint
 
 	for {
-
 		hn, isExist := sm.priority2HashNumberULL[sm.priorityCache].peek()
 		if !isExist {
 			sm.priorityCache++
@@ -337,19 +320,22 @@ func newStateMachine(trials uint, inputCount uint) *stateMachine {
 }
 
 // crash logger
-type crashLogger struct {
-	data []crashCase
-}
-type crashCase struct {
-	hashNumber   uint
-	input        string
-	rawContent   []interface{}
-	inputCount   uint
-	isPanic      bool
-	panicMessage string
-	errorMsg     string
-	timestamp    time.Time
-}
+type (
+	crashLogger struct {
+		data []crashCase
+	}
+	crashCase struct {
+		hashNumber   uint
+		input        string
+		rawContent   []interface{}
+		inputCount   uint
+		isPanic      bool
+		panicMessage string
+		errorMsg     string
+		timestamp    time.Time
+	}
+)
+
 type testResult struct {
 	panicOccurred bool
 	panicMessage  string
@@ -391,18 +377,20 @@ func newCrashLogger() *crashLogger {
 }
 
 // data structures
-type seedQueue struct {
-	data []seed
-}
-type seed struct {
-	pid           uint
-	id            uint
-	gen           uint
-	isCoordinated bool
-	hashNumber    HashNumber
-	content       []interface{}
-	result        interface{}
-}
+type (
+	seedQueue struct {
+		data []seed
+	}
+	seed struct {
+		pid           uint
+		id            uint
+		gen           uint
+		isCoordinated bool
+		hashNumber    HashNumber
+		content       []interface{}
+		result        interface{}
+	}
+)
 
 func newSeedQueue() *seedQueue {
 	return &seedQueue{
@@ -565,9 +553,7 @@ func (ll *uniquesLinkedList) deleteNode(node *node) {
 	}
 
 	parent := ll.parentMap[node]
-	if parent == nil {
-		return
-	}
+
 	parent.next = node.next
 
 	if node == ll.tail {
@@ -582,15 +568,6 @@ func (ll *uniquesLinkedList) deleteNode(node *node) {
 
 func (ll *uniquesLinkedList) searchNode(value uint) *node {
 	return ll.nodeMap[value]
-}
-
-func (ll *uniquesLinkedList) display() {
-	current := ll.head
-	for current != nil {
-		println("%d -> ", current.data)
-		current = current.next
-	}
-	println("nil")
 }
 
 func (ll *uniquesLinkedList) isEmpty() bool {

@@ -86,7 +86,6 @@ func getCoverageofrunner(t *T, content []interface{}) Coverage {
 	coverage = append(coverage, coveredLine{coName: "closure", coLine: 20})
 	if orig != s2 && u > 300 && u < 1000 {
 
-		// println("orig=", orig, "doublereverse", s2)
 		coverage = append(coverage, coveredLine{coName: "closure", coLine: 21})
 		return coverage
 	}

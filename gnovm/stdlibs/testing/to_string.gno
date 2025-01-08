@@ -76,69 +76,6 @@ func transEscapedString(s string) string {
 	return escaped
 }
 
-func uintToString(v uint) string {
-	return strconv.Itoa(int(v))
-}
-
-func boolToString(b bool) string {
-	if b {
-		return "true"
-	}
-	return "false"
-}
-
-func sliceToString(slice []uint) string {
-	if len(slice) == 0 {
-		return "[]"
-	}
-
-	var sb strings.Builder
-	sb.WriteString("[")
-	for i, val := range slice {
-		sb.WriteString(uintToString(val))
-		if i < len(slice)-1 {
-			sb.WriteString(", ")
-		}
-	}
-	sb.WriteString("]")
-	return sb.String()
-}
-
-func interfaceToString(i interface{}) string {
-	switch v := i.(type) {
-	case nil:
-		return "nil"
-	case string:
-		return strconv.Quote(v)
-	case int, int32, int64:
-		return strconv.FormatInt(int64(v.(int)), 10)
-	case uint, uint32, uint64:
-		return strconv.FormatUint(uint64(v.(uint)), 10)
-	case float32, float64:
-		return strconv.FormatFloat(v.(float64), 'f', -1, 64)
-	case bool:
-		if v {
-			return "true"
-		}
-		return "false"
-	default:
-		return "unknown"
-	}
-}
-
-func interfacesliceToString(slice []interface{}) string {
-	var sb strings.Builder
-	sb.WriteString("[")
-	for i, elem := range slice {
-		sb.WriteString(interfaceToString(elem))
-		if i < len(slice)-1 {
-			sb.WriteString(", ")
-		}
-	}
-	sb.WriteString("]")
-	return sb.String()
-}
-
 func coverageToString(coverage Coverage) string {
 	var sb strings.Builder
 	sb.WriteString("[")

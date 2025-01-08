@@ -1,5 +1,4 @@
 package testing
-
 import (
 	"crypto/sha256"
 	"strings"
@@ -18,6 +17,9 @@ type (
 		coName string
 		coLine int
 	}
+)
+
+type (
 	internalHash      uint64
 	HashNumber        uint64
 	hashNumberCounter struct {

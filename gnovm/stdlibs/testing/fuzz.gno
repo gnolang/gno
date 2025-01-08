@@ -2,6 +2,7 @@ package testing
 
 import (
 	"errors"
+	"fmt"
 	"strings"
 )
 
@@ -81,7 +82,7 @@ func (f *F) Add(args ...interface{}) {
 }
 
 func typeof(arg interface{}) (supportedType, error) {
-	switch v := arg.(type) {
+	switch arg.(type) {
 	case []byte:
 		return ByteArray, nil
 	case string:
@@ -119,7 +120,6 @@ func typeof(arg interface{}) (supportedType, error) {
 	case uint64:
 		return Uint64, nil
 	default:
-		println("unsupported type:", v)
 		return "", errors.New("unsupported type:")
 	}
 }
@@ -175,7 +175,7 @@ func (f *F) Fuzz(run Runner) {
 	}
 
 	f.fsm.stringByteCandidates = stringByteCandidates
-	println("Run trials...")
+	fmt.Println("Run trials...")
 
 	// format by init seeds
 	for i := 0; i < len(f.corpus); i++ {
@@ -274,22 +274,22 @@ func (f *F) Fail() {
 
 func (f *F) handleFail() {
 	f.Fail()
-	println("\n--- FAIL:")
+	fmt.Println("\n--- FAIL:")
 	log := f.fsm.crashLogger.data
 	crashCase := log[len(log)-1]
-	println("Found failing input", transEscapedString(crashCase.input), "at", f.fsm.inputCount, "trials")
+	fmt.Println("Found failing input", transEscapedString(crashCase.input), "at", f.fsm.inputCount, "trials")
 	f.minimazeAndLogInput(crashCase.rawContent)
 	log = f.fsm.crashLogger.data
 	minimaizedCase := log[len(log)-1]
-	println(crashCaseToString(minimaizedCase))
+	fmt.Println(crashCaseToString(minimaizedCase))
 	hn := minimaizedCase.hashNumber
 	coverage := f.fhm.hashNumber2Coverage(hn)
 	if f.verbose {
-		println("\n--- Trace:")
-		println(coverageToString(coverage))
+		fmt.Println("\n--- Trace:")
+		fmt.Println(coverageToString(coverage))
 	} else {
-		println("\n--- Trace:")
-		println("Last covered line: function \""+coverage[len(coverage)-1].coName+"\" in line", coverage[len(coverage)-1].coLine)
+		fmt.Println("\n--- Trace:")
+		fmt.Println("Last covered line: function \""+coverage[len(coverage)-1].coName+"\" in line", coverage[len(coverage)-1].coLine)
 	}
 	return
 }
@@ -325,7 +325,7 @@ func (f *F) minimazeAndLogInput(seedContent []interface{}) {
 	}
 	// re confirm error
 	f.simulateFF(sampleSeed)
-	println("\n--- Minimaized input:")
+	fmt.Println("\n--- Minimaized input:")
 }
 
 func (f *F) checkProgress(content []interface{}, minimazalbeIdXs []int) ([]interface{}, bool, int) {
@@ -415,13 +415,13 @@ func (f *F) checkPreserve(content []interface{}) PreserveFailing {
 }
 
 func (f *F) reportF() {
-	println("\n--- PASS")
-	println("Complete", f.fsm.inputCount, "Trials")
-	println("Found", (uint(f.fhm.hashNumberCounter.counter) + uint(1)), "coverage")
+	fmt.Println("\n--- PASS")
+	fmt.Println("Complete", f.fsm.inputCount, "Trials")
+	fmt.Println("Found", (uint(f.fhm.hashNumberCounter.counter) + uint(1)), "coverage")
 }
 
 func (f *F) migrateMachines() {
-	println("Machine capacity is full. Start migration...")
+	fmt.Println("Machine capacity is full. Start migration...")
 	// Abstract existing state_machine
 	summarizedSeeds := f.fsm.summarize()
 	oldHashNumbers := []HashNumber{}
@@ -454,7 +454,7 @@ func (f *F) migrateMachines() {
 	for _, seed := range summarizedSeeds {
 		f.fsm.coordinateSeed(seed)
 	}
-	println("Migration completed. Resume fuzzing...")
+	fmt.Println("Migration completed. Resume fuzzing...")
 }
 
 func (f *F) updateMachines(parentSeeds []seed) bool {
