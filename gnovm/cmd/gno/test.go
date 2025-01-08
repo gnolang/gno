@@ -173,12 +173,7 @@ func execTest(cfg *testCfg, args []string, io commands.IO) error {
 	}
 
 	pkgsMap := map[string]*packages.Package{}
-	for _, pkg := range pkgs {
-		if _, ok := pkgsMap[pkg.ImportPath]; ok {
-			continue
-		}
-		pkgsMap[pkg.ImportPath] = pkg
-	}
+	packages.Inject(pkgsMap, pkgs)
 
 	// Set up options to run tests.
 	stdout := goio.Discard
@@ -213,7 +208,6 @@ func execTest(cfg *testCfg, args []string, io commands.IO) error {
 		depsConf := *conf
 		depsConf.Deps = true
 		depsConf.Cache = pkgsMap
-
 		deps, loadDepsErr := packages.Load(&depsConf, pkg.Dir)
 		if loadDepsErr != nil {
 			io.ErrPrintfln("%s: load deps: %v", pkg.Dir, err)
@@ -223,14 +217,7 @@ func execTest(cfg *testCfg, args []string, io commands.IO) error {
 			buildErrCount++
 			continue
 		}
-
-		for _, dep := range deps {
-			if _, ok := pkgsMap[dep.ImportPath]; ok {
-				continue
-			}
-			pkgsMap[dep.ImportPath] = dep
-			continue
-		}
+		packages.Inject(pkgsMap, deps)
 
 		memPkg := gno.MustReadMemPackage(pkg.Dir, parentName)
 

@@ -139,9 +139,7 @@ func execTranspile(cfg *transpileCfg, args []string, io commands.IO) error {
 		return fmt.Errorf("load pkgs: %w", err)
 	}
 	pkgsMap := map[string]*packages.Package{}
-	for _, pkg := range pkgs {
-		pkgsMap[pkg.ImportPath] = pkg
-	}
+	packages.Inject(pkgsMap, pkgs)
 
 	// transpile .gno packages and files.
 	opts := newTranspileOptions(cfg, io)

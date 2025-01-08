@@ -36,3 +36,15 @@ func sortPaths(imports []string) {
 		return imports[i] < imports[j]
 	})
 }
+
+func Inject(pkgsMap map[string]*Package, pkgs []*Package) {
+	for _, pkg := range pkgs {
+		if pkg.ImportPath == "" {
+			continue
+		}
+		if _, ok := pkgsMap[pkg.ImportPath]; ok {
+			continue
+		}
+		pkgsMap[pkg.ImportPath] = pkg
+	}
+}
