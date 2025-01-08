@@ -40,12 +40,12 @@ func (u UserData) IsDeleted() bool {
 
 // RegisterUser adds a new user to the system.
 func RegisterUser(name string, address std.Address) error {
-	// Validate inputs
-	if err := validateInputs(name, address); err != nil {
+	if err := validateCall(); err != nil {
 		return err
 	}
 
-	if err := validateCall(); err != nil {
+	// Validate inputs
+	if err := validateInputs(name, address); err != nil {
 		return err
 	}
 
@@ -83,12 +83,12 @@ func RegisterUser(name string, address std.Address) error {
 
 // RegisterAlias adds an Alias pointing to an existing user.
 func RegisterAlias(alias string, address std.Address) error {
-	// Validate inputs
-	if err := validateInputs(alias, address); err != nil {
+	if err := validateCall(); err != nil {
 		return err
 	}
 
-	if err := validateCall(); err != nil {
+	// Validate inputs
+	if err := validateInputs(alias, address); err != nil {
 		return err
 	}
 
