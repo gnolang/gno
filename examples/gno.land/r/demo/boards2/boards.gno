@@ -36,6 +36,15 @@ func getBoard(id BoardID) (_ *Board, found bool) {
 	return v.(*Board), true
 }
 
+// mustGetBoardByName returns a board or panics when it's not found.
+func mustGetBoardByName(name string) *Board {
+	v, found := gBoardsByName.Get(name)
+	if !found {
+		panic("board does not exist with name: " + name)
+	}
+	return v.(*Board)
+}
+
 // mustGetBoard returns a board or panics when it's not found.
 func mustGetBoard(id BoardID) *Board {
 	board, found := getBoard(id)

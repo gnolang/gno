@@ -33,25 +33,26 @@ func CreateBoard(name string) BoardID {
 	return id
 }
 
-func RenameBoard(bid BoardID, name string) {
+func RenameBoard(name, newName string) {
 	assertIsUserCall()
 
-	name = strings.TrimSpace(name)
-	assertBoardNameIsNotEmpty(name)
-	assertBoardNameNotExists(name)
+	newName = strings.TrimSpace(newName)
+	assertBoardNameIsNotEmpty(newName)
+	assertBoardNameNotExists(newName)
 
-	board := mustGetBoard(bid)
+	board := mustGetBoardByName(name)
+	bid := board.GetID()
 	caller := std.GetOrigCaller()
-	args := Args{bid, name}
+	args := Args{bid, name, newName}
 	board.perms.WithPermission(caller, PermissionBoardRename, args, func(Args) {
-		assertBoardNameNotExists(name)
+		assertBoardNameNotExists(newName)
 
 		board := mustGetBoard(bid)
-		board.name = name
+		board.name = newName
 
 		// Index board for the new name keeping previous indexes for older names
 		// TODO: Keep track of all board names
-		gBoardsByName.Set(name, board)
+		gBoardsByName.Set(newName, board)
 	})
 }
 
