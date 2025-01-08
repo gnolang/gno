@@ -157,27 +157,6 @@ func Store(
 			return
 		}
 
-		/*
-			// if examples package...
-			examplePath := filepath.Join(rootDir, "examples", pkgPath)
-			if osm.DirExists(examplePath) {
-				memPkg := gno.MustReadMemPackage(examplePath, pkgPath)
-				if memPkg.IsEmpty() {
-					panic(fmt.Sprintf("found an empty package %q", pkgPath))
-				}
-
-				send := std.Coins{}
-				ctx := Context(pkgPath, send)
-				m2 := gno.NewMachineWithOptions(gno.MachineOptions{
-					PkgPath: "test",
-					Output:  stdout,
-					Store:   store,
-					Context: ctx,
-				})
-				pn, pv = m2.RunMemPackage(memPkg, true)
-				return
-			}
-		*/
 		return nil, nil
 	}
 	db := memdb.NewMemDB()

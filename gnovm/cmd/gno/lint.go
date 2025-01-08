@@ -75,8 +75,18 @@ type lintIssue struct {
 }
 
 func (i lintIssue) String() string {
+	location := i.Location
+	wd, err := os.Getwd()
+	if err == nil {
+		location, err = filepath.Rel(wd, i.Location)
+		if err != nil {
+			location = i.Location
+		} else {
+			location = fmt.Sprintf(".%c%s", filepath.Separator, filepath.Join(location))
+		}
+	}
 	// TODO: consider crafting a doc URL based on Code.
-	return fmt.Sprintf("%s: %s (code=%d)", i.Location, i.Msg, i.Code)
+	return fmt.Sprintf("%s: %s (code=%d)", location, i.Msg, i.Code)
 }
 
 func execLint(cfg *lintCfg, args []string, io commands.IO) error {
@@ -122,41 +132,16 @@ func execLint(cfg *lintCfg, args []string, io commands.IO) error {
 			io.ErrPrintln(logName)
 		}
 
-		for _, err := range pkg.Errors {
-			hasError = true
+		// Check if 'gno.mod' exists
+		if pkg.Root == "" {
 			issue := lintIssue{
 				Code:       lintGnoMod,
 				Confidence: 1,
 				Location:   pkg.Dir,
-				Msg:        err.Error(),
-			}
-			io.ErrPrintln(issue)
-		}
-		if len(pkg.Errors) != 0 {
-			continue
-		}
-
-		// Check if 'gno.mod' exists
-		if pkg.ModPath == "" {
-			hasError = true
-			wd, err := os.Getwd()
-			location := pkg.Dir
-			if err == nil {
-				location, err = filepath.Rel(wd, pkg.Dir)
-				if err != nil {
-					location = pkg.Dir
-				} else {
-					location = fmt.Sprintf(".%c%s", filepath.Separator, filepath.Join(location))
-				}
-
-			}
-			issue := lintIssue{
-				Code:       lintGnoMod,
-				Confidence: 1,
-				Location:   location,
 				Msg:        "gno.mod file not found in current or any parent directory",
 			}
 			io.ErrPrintln(issue)
+			hasError = true
 		}
 
 		// load deps
@@ -165,29 +150,33 @@ func execLint(cfg *lintCfg, args []string, io commands.IO) error {
 		loadDepsCfg.Cache = pkgsMap
 		deps, loadDepsErr := packages.Load(&loadDepsCfg, pkg.Dir)
 		if loadDepsErr != nil {
-			io.ErrPrintln(issueFromError(logName, err).String())
+			io.ErrPrintln(issueFromError(pkg.Dir, err).String())
 			hasError = true
 			continue
 		}
 		packages.Inject(pkgsMap, deps)
 
 		// read mempkg
-		memPkg, err := gno.ReadMemPackage(pkg.Dir, pkg.ImportPath)
+		memPkgPath := pkg.ImportPath
+		if memPkgPath == "" {
+			memPkgPath = pkg.Dir
+		}
+		memPkg, err := gno.ReadMemPackage(pkg.Dir, memPkgPath)
 		if err != nil {
-			io.ErrPrintln(issueFromError(logName, err).String())
+			io.ErrPrintln(issueFromError(pkg.Dir, err).String())
 			hasError = true
 			continue
 		}
 
 		// Perform imports using the parent store.
 		if err := test.LoadImports(ts, memPkg); err != nil {
-			io.ErrPrintln(issueFromError(logName, err).String())
+			io.ErrPrintln(issueFromError(pkg.Dir, err).String())
 			hasError = true
 			continue
 		}
 
 		// Handle runtime errors
-		hasRuntimeErr := catchRuntimeError(logName, io.Err(), func() {
+		hasRuntimeErr := catchRuntimeError(pkg.Dir, io.Err(), func() {
 			// Wrap in cache wrap so execution of the linter doesn't impact
 			// other packages.
 			cw := bs.CacheWrap()
@@ -195,7 +184,7 @@ func execLint(cfg *lintCfg, args []string, io commands.IO) error {
 
 			// Run type checking
 			if !pkg.Draft {
-				foundErr, err := lintTypeCheck(io, memPkg, gs)
+				foundErr, err := lintTypeCheck(io, pkg.Dir, memPkg, gs)
 				if err != nil {
 					io.ErrPrintln(err)
 					hasError = true
@@ -229,8 +218,8 @@ func execLint(cfg *lintCfg, args []string, io commands.IO) error {
 	return nil
 }
 
-func lintTypeCheck(io commands.IO, memPkg *gnovm.MemPackage, testStore gno.Store) (errorsFound bool, err error) {
-	tcErr := gno.TypeCheckMemPackageTest(memPkg, testStore)
+func lintTypeCheck(io commands.IO, pkgDir string, memPkg *gnovm.MemPackage, testStore gno.Store) (errorsFound bool, err error) {
+	tcErr := gno.TypeCheckMemPackageTest(pkgDir, memPkg, testStore)
 	if tcErr == nil {
 		return false, nil
 	}
