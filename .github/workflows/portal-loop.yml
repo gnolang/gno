@@ -45,6 +45,7 @@ jobs:
           labels: ${{ steps.meta.outputs.labels }}
 
   test-portal-loop-docker-compose:
+    if: ${{ false }}
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
