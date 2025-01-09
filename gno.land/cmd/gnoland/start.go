@@ -45,11 +45,8 @@ var startGraphic = strings.ReplaceAll(`
 /___/
 `, "'", "`")
 
-var (
-	// Keep in sync with contribs/gnogenesis/internal/txs/txs_add_packages.go
-	genesisDeployAddress = crypto.MustAddressFromString("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5") // test1
-	genesisDeployFee     = std.NewFee(50000, std.MustParseCoin(ugnot.ValueString(1000000)))
-)
+// Keep in sync with contribs/gnogenesis/internal/txs/txs_add_packages.go
+var genesisDeployFee = std.NewFee(50000, std.MustParseCoin(ugnot.ValueString(1000000)))
 
 type startCfg struct {
 	gnoRootDir            string // TODO: remove as part of https://github.com/gnolang/gno/issues/1952
@@ -86,7 +83,6 @@ func newStartCmd(io commands.IO) *commands.Command {
 func (c *startCfg) RegisterFlags(fs *flag.FlagSet) {
 	gnoroot := gnoenv.RootDir()
 	defaultGenesisBalancesFile := filepath.Join(gnoroot, "gno.land", "genesis", "genesis_balances.txt")
-	defaultGenesisTxsFile := filepath.Join(gnoroot, "gno.land", "genesis", "genesis_txs.jsonl")
 
 	fs.BoolVar(
 		&c.skipFailingGenesisTxs,
@@ -105,7 +101,7 @@ func (c *startCfg) RegisterFlags(fs *flag.FlagSet) {
 	fs.StringVar(
 		&c.genesisTxsFile,
 		"genesis-txs-file",
-		defaultGenesisTxsFile,
+		"",
 		"initial txs to replay",
 	)
 
@@ -368,7 +364,19 @@ func initializeLogger(io io.WriteCloser, logLevel, logFormat string) (*zap.Logge
 }
 
 func generateGenesisFile(genesisFile string, privKey crypto.PrivKey, c *startCfg) error {
-	pubKey := privKey.PubKey()
+	var (
+		pubKey = privKey.PubKey()
+		// There is an active constraint for gno.land transactions:
+		//
+		// All transaction messages' (MsgSend, MsgAddPkg...) "author" field,
+		// specific to the message type ("creator", "sender"...), must match
+		// the signature address contained in the transaction itself.
+		// This means that if MsgSend is originating from address A,
+		// the owner of the private key for address A needs to sign the transaction
+		// containing the message. Every message in a transaction needs to
+		// originate from the same account that signed the transaction
+		txSender = pubKey.Address()
+	)
 
 	gen := &bft.GenesisDoc{}
 	gen.GenesisTime = time.Now()
@@ -400,15 +408,19 @@ func generateGenesisFile(genesisFile string, privKey crypto.PrivKey, c *startCfg
 
 	// Load examples folder
 	examplesDir := filepath.Join(c.gnoRootDir, "examples")
-	pkgsTxs, err := gnoland.LoadPackagesFromDir(examplesDir, genesisDeployAddress, genesisDeployFee)
+	pkgsTxs, err := gnoland.LoadPackagesFromDir(examplesDir, txSender, genesisDeployFee)
 	if err != nil {
 		return fmt.Errorf("unable to load examples folder: %w", err)
 	}
 
 	// Load Genesis TXs
-	genesisTxs, err := gnoland.LoadGenesisTxsFile(c.genesisTxsFile, c.chainID, c.genesisRemote)
-	if err != nil {
-		return fmt.Errorf("unable to load genesis txs file: %w", err)
+	var genesisTxs []gnoland.TxWithMetadata
+
+	if c.genesisTxsFile != "" {
+		genesisTxs, err = gnoland.LoadGenesisTxsFile(c.genesisTxsFile, c.chainID, c.genesisRemote)
+		if err != nil {
+			return fmt.Errorf("unable to load genesis txs file: %w", err)
+		}
 	}
 
 	genesisTxs = append(pkgsTxs, genesisTxs...)
@@ -418,9 +430,21 @@ func generateGenesisFile(genesisFile string, privKey crypto.PrivKey, c *startCfg
 		return fmt.Errorf("unable to sign genesis txs: %w", err)
 	}
 
+	// Make sure the genesis transaction author has sufficient
+	// balance to cover transaction deployments in genesis.
+	//
+	// During the init-chainer process, the account that authors the
+	// genesis transactions needs to have a sufficient balance
+	// to cover outstanding transaction costs.
+	// Since the cost can't be estimated upfront at this point, the balance
+	// set is an arbitrary value based on a "best guess" basis.
+	// There should be a larger discussion if genesis transactions should consume gas, at all
+	deployerBalance := int64(len(genesisTxs)) * 10_000_000 // ~10 GNOT per tx
+	balances.Set(txSender, std.NewCoins(std.NewCoin("ugnot", deployerBalance)))
+
 	// Construct genesis AppState.
 	defaultGenState := gnoland.DefaultGenState()
-	defaultGenState.Balances = balances
+	defaultGenState.Balances = balances.List()
 	defaultGenState.Txs = genesisTxs
 	gen.AppState = defaultGenState
 
