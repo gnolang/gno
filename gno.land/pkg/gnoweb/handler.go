@@ -134,7 +134,6 @@ func (h *WebHandler) renderPage(body *bytes.Buffer, r *http.Request, indexData *
 		h.Logger.Debug("invalid path: path is neither a pure package or a realm")
 		return http.StatusBadRequest, components.RenderStatusComponent(body, "invalid path")
 	}
-
 }
 
 // GetPackagePage handles package pages.

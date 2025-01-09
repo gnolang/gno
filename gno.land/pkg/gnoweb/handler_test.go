@@ -107,7 +107,6 @@ func TestWebHandler_Get(t *testing.T) {
 			for _, contain := range tc.Contains {
 				assert.Containsf(t, rr.Body.String(), contain, "rendered body should contain: %q", contain)
 			}
-
 		})
 	}
 }
