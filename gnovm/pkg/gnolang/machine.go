@@ -2117,6 +2117,10 @@ func (m *Machine) Printf(format string, args ...interface{}) {
 }
 
 func (m *Machine) String() string {
+	if m == nil {
+		return "Machine:nil"
+	}
+
 	// Calculate some reasonable total length to avoid reallocation
 	// Assuming an average length of 32 characters per string
 	var (
