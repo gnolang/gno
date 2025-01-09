@@ -35,5 +35,6 @@ gnoland config set p2p.persistent_peers "${PERSISTENT_PEERS}"
 # reading and piping to the gnoland genesis commands
 exec gnoland start \
          --chainid="${CHAIN_ID}" \
+         --genesis-txs-file="/gnoroot/gno.land/genesis/genesis_txs.jsonl" \
          --lazy \
          --skip-failing-genesis-txs
