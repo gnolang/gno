@@ -13,8 +13,8 @@ gno transpile -v -output directory/hello $WORK
 ! stdout .+
 cmpenv stderr stderr2.golden
 
-! exists directory/hello$WORK/main.gno.gen.go
-exists directory/hello/main.gno.gen.go
+exists directory/hello$WORK/main.gno.gen.go
+! exists directory/hello/main.gno.gen.go
 rm directory
 
 # Try running in subdirectory, using a "relative non-local path." (ie. has "../")
@@ -30,7 +30,7 @@ exists hello$WORK/main.gno.gen.go
 -- stderr1.golden --
 .
 -- stderr2.golden --
-.
+$WORK
 -- stderr3.golden --
 ..
 -- main.gno --
