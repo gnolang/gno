@@ -2,7 +2,7 @@
 
 gno test
 
-gno test -v 
+gno test -v
 
 ! stdout .+
 stderr '=== RUN   TestRun/hello'
