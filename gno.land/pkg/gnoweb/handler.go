@@ -94,8 +94,8 @@ func (h *WebHandler) Get(w http.ResponseWriter, r *http.Request) {
 		indexData.HeadData.Title = "gno.land - " + gnourl.Path
 
 		// Header
-		indexData.HeaderData.RealmPath = gnourl.Path
-		indexData.HeaderData.Breadcrumb.Parts = generateBreadcrumbPaths(gnourl.Path)
+		indexData.HeaderData.RealmPath = gnourl.Encode(EncodePath | EncodeArgs | EncodeQuery | EncodeNoEscape)
+		indexData.HeaderData.Breadcrumb = generateBreadcrumbPaths(gnourl)
 		indexData.HeaderData.WebQuery = gnourl.WebQuery
 
 		// Render
@@ -339,21 +339,25 @@ func (h *WebHandler) highlightSource(fileName string, src []byte) ([]byte, error
 	return buff.Bytes(), nil
 }
 
-func generateBreadcrumbPaths(path string) []components.BreadcrumbPart {
-	split := strings.Split(path, "/")
-	parts := []components.BreadcrumbPart{}
+func generateBreadcrumbPaths(url *GnoURL) components.BreadcrumbData {
+	split := strings.Split(url.Path, "/")
 
+	var data components.BreadcrumbData
 	var name string
 	for i := range split {
 		if name = split[i]; name == "" {
 			continue
 		}
 
-		parts = append(parts, components.BreadcrumbPart{
+		data.Parts = append(data.Parts, components.BreadcrumbPart{
 			Name: name,
-			Path: strings.Join(split[:i+1], "/"),
+			URL:  strings.Join(split[:i+1], "/"),
 		})
 	}
 
-	return parts
+	if args := url.EncodeArgs(); args != "" {
+		data.Args = args
+	}
+
+	return data
 }

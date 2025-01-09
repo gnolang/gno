@@ -184,7 +184,7 @@ func processFile(ctx context.Context, io commands.IO, source, destination string
 				continue
 			}
 
-			if _, err = outputFile.WriteString(fmt.Sprintf("%s\n", string(marshaledData))); err != nil {
+			if _, err = fmt.Fprintf(outputFile, "%s\n", marshaledData); err != nil {
 				io.ErrPrintfln("unable to save to output file, %s", err)
 			}
 		}

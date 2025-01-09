@@ -70,7 +70,8 @@ func findDirs() (gitRoot string, relPath string, err error) {
 	}
 	p := wd
 	for {
-		if s, e := os.Stat(filepath.Join(p, ".git")); e == nil && s.IsDir() {
+		// .git is normally a directory, or a file in case of a git worktree.
+		if _, e := os.Stat(filepath.Join(p, ".git")); e == nil {
 			// make relPath relative to the git root
 			rp := strings.TrimPrefix(wd, p+string(filepath.Separator))
 			// normalize separator to /
