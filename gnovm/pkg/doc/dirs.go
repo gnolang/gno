@@ -105,11 +105,12 @@ func packageImportsRecursive(root string, pkgPath string) []string {
 		pkg = &gnovm.MemPackage{}
 	}
 
-	resRaw, err := packages.Imports(pkg, nil)
+	importsMap, err := packages.Imports(pkg, nil)
 	if err != nil {
 		// ignore packages with invalid imports
-		resRaw = nil
+		importsMap = nil
 	}
+	resRaw := importsMap.Merge(packages.FileKindPackageSource, packages.FileKindTest, packages.FileKindXTest)
 	res := make([]string, len(resRaw))
 	for idx, imp := range resRaw {
 		res[idx] = imp.PkgPath

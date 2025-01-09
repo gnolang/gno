@@ -61,8 +61,8 @@ func execLint(cfg *cfg, ctx context.Context) (string, error) {
 	}
 
 	// Main buffer to write to the end user after linting
-	var output bytes.Buffer
-	output.WriteString(fmt.Sprintf("Linting %s...\n", absPath))
+        var output bytes.Buffer
+	fmt.Fprintf(&output, "Linting %s...\n", absPath)
 
 	// Find docs files to lint
 	mdFiles, err := findFilePaths(cfg.docsPath)
