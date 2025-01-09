@@ -6,14 +6,13 @@
         {{- else }}
             <li>
         {{- end }}
-        <a class="hover:bg-green-600 hover:text-light bg-light inline-block rounded-sm px-1 py-px" href="{{ $part.URL }}">{{ $part.Name }}</a></li>
+        <a class="hover:bg-green-600 hover:text-light bg-light inline-block rounded-sm px-1 py-px" href="{{ $part.URL }}">{{ $part.Name }}</a>
+        </li>
     {{- end }}
-		{{- if .Args }}
+    {{- if .Args }}
         <li class="flex before:content-[':'] before:px-[0.18rem] before:text-gray-300">
-						<a class="text-light bg-gray-600 inline-block rounded-sm px-1 py-px">
-							{{ .Args }}
-						</a>
-				</li>
-		{{- end }}
+            <a class="text-light bg-gray-300 inline-block rounded-sm px-1 py-px">{{ .Args }}</a>
+        </li>
+    {{- end }}
 </ol>
 {{ end }}
