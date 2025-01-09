@@ -5,14 +5,13 @@ import (
 	"time"
 )
 
-// I deleted the existing fit, fitness.
-// As I tried to increase the speed by integrating into AFL, I decided that it was faster to manage it with just queue, stack, and unique linked list.
-// (Something gets uncomfortable if follow the AFL logic I've seen and maintain that fitness management.)
-// Fitness and selection logic have been replaced by f.manager.
+// Evolve replaces the existing fitness and selection logic with f.manager to increase speed by managing seeds using a queue,set, arrary instead of following AFL's fitness management logic.
+// It takes one or two parent seeds and returns evolved child seeds by performing crossover, mutate, and insertDelete operations.
 //
-// evolve takes one or two parent seeds and returns evolved child seeds by performing crossover, mutate, and insertDelete operations.
-// seeds is a slice of parent seeds. seedCount is a pointer to f.seedCount, used to measure the number of inputs during the fuzzing process.
-// stringByteCandidates is a slice of indices indicating which arguments in seed.Content are of type string or []byte, which need to be specially handled during insertDelete.
+// Parameters:
+// seeds: parent seeds.
+// seedCount: A pointer to f.seedCount, used to measure the number of inputs during the fuzzing process.
+// stringByteCandidates: A slice of indexes“ indicating which arguments in seed.Content are of type string or []byte, which need to be specially handled during insertDelete.
 func evolve(seeds []seed, seedCount *uint, stringByteCandidates []int) []seed {
 	p1 := seeds[0]
 	// Set the mutation strength.
@@ -361,8 +360,7 @@ func twoPointCrossoverByte(p1Bytes []byte, p2Bytes []byte) ([]byte, []byte) {
 }
 
 // factorizationCrossover implements the crossover by multiplying two numbers and then dividing them into two numbers.
-// and return these two numbers
-// It actually worked.
+// and return these two numbers. It actually worked.
 func factorizationCrossover(a interface{}, b interface{}) (interface{}, interface{}) {
 	switch v1 := a.(type) {
 	case int:

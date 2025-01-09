@@ -4,10 +4,6 @@ import (
 	"math/rand"
 )
 
-func ExUnixNano() int64 {
-	return unixNano()
-}
-
 // singleRand is the singleton instance of rand.Rand.
 // isCalled indicates whether the singleton has been initialized.
 var (
@@ -15,10 +11,15 @@ var (
 	isCalled   bool
 )
 
+func UnixNano() int64 {
+	return unixNano()
+}
+
 // CustomSource is a custom source for rand.Rand that uses a seed.
 type CustomSource struct {
 	seed uint64
 }
+
 func (cs *CustomSource) Uint64() uint64 {
 	cs.seed ^= cs.seed >> 12
 	cs.seed ^= cs.seed << 25

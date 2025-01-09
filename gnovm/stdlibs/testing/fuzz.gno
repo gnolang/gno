@@ -12,6 +12,7 @@ type supportedType string
 
 // supportedType is a list of argument types that the target function of f.Fuzz can accept.
 // In other words, the function passed to f.Fuzz cannot take complex structs as arguments.
+// For example, the target function can receive ([]byte, bool, int32) as args, but not ([][]byte, []int) as a factor.
 // The types are selected based on the supported types of Go's fuzzer (the same as Go's fuzzer).
 const (
 	ByteArray supportedType = "[]byte"
@@ -39,20 +40,20 @@ type (
 
 	// F is the structure used for fuzzing.
 	F struct {
-		manager   *fuzzManager // Manages seeds and coverage for fuzzing, sorting and organizing them to quickly find the next input candidate.
-		hasher    *fuzzHasher  // Assigns unique hashNumbers to coverage used in fuzzing.
-		logger    *fuzzLogger  // Logs and outputs crash cases found during fuzzing.
-		corpus    []seed       // "Real seeds" added through f.Add.
-		msgs      []string     // Stores log messages for reporting.
-		failed    bool         // Indicates whether the fuzzing has encountered a failure.
-		ff        Runner       // The target function for f.Fuzz.
-		isFuzzed  bool         // Monitors whether f.Fuzz has been called.
-		seedCount uint         // Counts the number of seeds attempted.
+		manager              *fuzzManager // Manages seeds and coverage for fuzzing, sorting and organizing them to quickly find the next input candidate.
+		hasher               *fuzzHasher  // Assigns unique hashNumbers to coverage used in fuzzing.
+		logger               *fuzzLogger  // Logs and outputs crash cases found during fuzzing.
+		corpus               []seed       // "Real seeds" added through f.Add.
+		msgs                 []string     // Stores log messages for reporting.
+		failed               bool         // Indicates whether the fuzzing has encountered a failure.
+		ff                   Runner       // The target function for f.Fuzz.
+		isFuzzed             bool         // Monitors whether f.Fuzz has been called.
+		seedCount            uint         // Counts the number of seeds attempted.
+		stringByteCandidates []int        // Records the indices of string and []byte arguments among Runner's args.
+		dur                  string       // Records the time taken for fuzzing.
 		// For command-line tests
-		verbose              bool   // Determines the frequency of logging based on CLI input.
-		trials               uint   // Number of iterations to run the fuzzing process.
-		dur                  string // Records the time taken for fuzzing.
-		stringByteCandidates []int  // Records the indices of string and []byte arguments among Runner's args.
+		verbose bool // Determines the frequency of logging based on CLI input.
+		trials  uint // Number of iterations to run the fuzzing process.
 	}
 )
 
@@ -149,9 +150,10 @@ func isSliceEqual(a, b []supportedType) bool {
 	return true
 }
 
-// Fuzz formats the manager using seeds received via f.Add and receives the target function to run via f.Fuzz.
-// It then repeatedly:
-// 1) Pops input from the manager
+// Fuzz formats the f.manager using seeds received via f.Add and receives the target function to run via f.Fuzz.
+//
+// f.Fuzz then repeatedly:
+// 1) Pops input from the f.manager
 // 2) Generates evolved input from the popped input
 // 3) Simulates and logs evolved input to the target function
 // 4) Coordinates input to the manager
@@ -188,7 +190,7 @@ func (f *F) Fuzz(run Runner) {
 	}
 
 	// Guidelines for evolving seeds.
-	// In mutate, insertDelete, and minimazeAndLogInput functions, string and []byte types are treated specially.
+	// In insertDelete, and minimazeAndLogInput functions, string and []byte types are treated specially.
 	stringByteCandidates := []int{}
 	for i, t := range f.manager.seedType {
 		if t == String || t == ByteArray {
@@ -349,6 +351,7 @@ func coverageToString(coverage Coverage) string {
 }
 
 // minimazeAndLogInput minimizes the input that caused a failure and logs it.
+// To be precise, it serves to reduce the length of the input string.
 func (f *F) minimazeAndLogInput(seedContent []interface{}) {
 	minimazalbeIdXs := []int{}
 	for i, t := range f.manager.seedType {
@@ -487,9 +490,9 @@ func (f *F) reportF() {
 	fmt.Fprintf(os.Stderr, "Inspected %d coverage\n", (uint(f.hasher.hashNumberCounter.counter) + uint(1)))
 }
 
-// migrateMachines abstracts the existing state_machine and relocates the fuzzManager.
+// migrateMachines abstracts the existing f.manager and relocates the f.manager.
 func (f *F) migrateMachines() {
-	// Abstract existing state_machine
+	// Abstract existing f.manager
 	summarizedSeeds := f.manager.summarize()
 	oldHashNumbers := []hashNumber{}
 	for _, seed := range summarizedSeeds {
@@ -522,9 +525,9 @@ func (f *F) migrateMachines() {
 }
 
 // updateMachines performs the following steps:
-// 1) Generates evolved input from the popped input
+// 1) Generates evolved input from it's argument(parentSeeds)
 // 2) Simulates and logs evolved input to the target function
-// 3) Coordinates input to the fuzzManager
+// 3) Coordinates input to the fuzzManager and Indicates whether fuzzing should be terminated.
 func (f *F) updateMachines(parentSeeds []seed) bool {
 	seedsMap := make(map[hashNumber]*[]seed)
 	// 1) Generate evolved input from the popped input
@@ -545,11 +548,6 @@ func (f *F) updateMachines(parentSeeds []seed) bool {
 		*seeds = append(*seeds, child)
 	}
 	// 3) Coordinate input to the fuzzManager
-	// To prevent excessive coordinating of seeds sharing the same hashNumber,
-	// only some seeds are concretely stored.
-	// When coordinating all seeds of a specific hashNumber,
-	// seeds that should naturally be selected are continuously deferred.
-	// Coordinate up to 2 seeds concretely, and abstractly coordinate the rest to only affect priority.
 	for hn, seeds := range seedsMap {
 		if len(*seeds) == 1 {
 			concreteEndInfo := f.manager.coordinateSeed((*seeds)[0])
@@ -570,6 +568,11 @@ func (f *F) updateMachines(parentSeeds []seed) bool {
 				return true
 			}
 		} else {
+			// To prevent excessive coordinating of seeds sharing the same hashNumber,
+			// only some seeds are concretely stored.
+			// When coordinating all seeds of a specific hashNumber,
+			// seeds that should naturally be selected are continuously deferred.
+			// Coordinate up to 2 seeds concretely, and abstractly coordinate the rest to only affect priority.
 			// If more than 2 seeds share the same hashNumber, randomly select 2 to coordinate
 			// and abstractly coordinate the rest to only affect priority.
 			seedArray := *(seeds)

@@ -171,7 +171,7 @@ func (fm *fuzzManager) coordinateAbstraction(hn hashNumber, abstractNumber uint)
 // You can also record what your most recent priorities were in the prioriCache to complete your selection in o(1) hours (average case).
 func (fm *fuzzManager) popSeeds() []seed {
 	var highestProrityHashNumber uint
-	// Finds the hash number with the highest priority, i.e., closest to 0.
+	// Finds the hash number with the highest priority, i.e., closest to o~o(k)
 	for {
 		hashNumberSet := fm.priority2HashNumSet[fm.priorityCache]
 		if hashNumberSet == nil {
