@@ -158,12 +158,20 @@ func (post *Post) AddRepostTo(creator std.Address, title, body string, dst *Boar
 		panic("cannot repost non-thread post")
 	}
 
+	if post.isHidden {
+		panic("thread has been flagged as inappropriate")
+	}
+
 	pid := dst.incGetPostID()
 	repost := newPost(dst, pid, creator, title, body, pid, post.id, post.board.id)
-	dst.threads.Set(pid.Key(), repost)
-	if !dst.IsPrivate() {
-		post.reposts.Set(dst.id.Key(), pid)
-	}
+
+	dst.perms.WithPermission(creator, PermissionThreadRepost, nil, func(_ Args) {
+		dst.threads.Set(pid.Key(), repost)
+		if !dst.IsPrivate() {
+			post.reposts.Set(dst.id.Key(), pid)
+		}
+	})
+
 	return repost
 }
 
