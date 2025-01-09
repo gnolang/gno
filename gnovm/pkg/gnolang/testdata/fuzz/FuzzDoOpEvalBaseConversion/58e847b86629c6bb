@@ -1,0 +1,2 @@
+go test fuzz v1
+[]byte("{\"Line\":0,\"Column\":0,\"Label\":\"\",\"Kind\":3,\"Value\":\"0/00001111\"}")
