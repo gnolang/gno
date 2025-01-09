@@ -77,8 +77,7 @@ func (pl *PkgsLoader) LoadPackages(creatorKey crypto.PrivKey, fee std.Fee, depos
 		}
 	}
 
-	err = SignTxs(txs, creatorKey, "tendermint_test")
-	if err != nil {
+	if err = gnoland.SignGenesisTxs(txs, creatorKey, "tendermint_test"); err != nil {
 		return nil, fmt.Errorf("unable to sign txs: %w", err)
 	}
 

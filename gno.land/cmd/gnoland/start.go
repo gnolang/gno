@@ -218,7 +218,7 @@ func execStart(ctx context.Context, c *startCfg, io commands.IO) error {
 		)
 
 		// Init a new genesis.json
-		if err := lazyInitGenesis(io, c, genesisPath, privateKey.GetPubKey()); err != nil {
+		if err := lazyInitGenesis(io, c, genesisPath, privateKey.Key.PrivKey); err != nil {
 			return fmt.Errorf("unable to initialize genesis.json, %w", err)
 		}
 	}
@@ -334,7 +334,7 @@ func lazyInitGenesis(
 	io commands.IO,
 	c *startCfg,
 	genesisPath string,
-	publicKey crypto.PubKey,
+	privateKey crypto.PrivKey,
 ) error {
 	// Check if the genesis.json is present
 	if osm.FileExists(genesisPath) {
@@ -342,7 +342,7 @@ func lazyInitGenesis(
 	}
 
 	// Generate the new genesis.json file
-	if err := generateGenesisFile(genesisPath, publicKey, c); err != nil {
+	if err := generateGenesisFile(genesisPath, privateKey, c); err != nil {
 		return fmt.Errorf("unable to generate genesis file, %w", err)
 	}
 
@@ -367,7 +367,9 @@ func initializeLogger(io io.WriteCloser, logLevel, logFormat string) (*zap.Logge
 	return log.GetZapLoggerFn(format)(io, level), nil
 }
 
-func generateGenesisFile(genesisFile string, pk crypto.PubKey, c *startCfg) error {
+func generateGenesisFile(genesisFile string, privKey crypto.PrivKey, c *startCfg) error {
+	pubKey := privKey.PubKey()
+
 	gen := &bft.GenesisDoc{}
 	gen.GenesisTime = time.Now()
 	gen.ChainID = c.chainID
@@ -383,8 +385,8 @@ func generateGenesisFile(genesisFile string, pk crypto.PubKey, c *startCfg) erro
 
 	gen.Validators = []bft.GenesisValidator{
 		{
-			Address: pk.Address(),
-			PubKey:  pk,
+			Address: pubKey.Address(),
+			PubKey:  pubKey,
 			Power:   10,
 			Name:    "testvalidator",
 		},
@@ -410,6 +412,11 @@ func generateGenesisFile(genesisFile string, pk crypto.PubKey, c *startCfg) erro
 	}
 
 	genesisTxs = append(pkgsTxs, genesisTxs...)
+
+	// Sign genesis transactions, with the default key (test1)
+	if err = gnoland.SignGenesisTxs(genesisTxs, privKey, c.chainID); err != nil {
+		return fmt.Errorf("unable to sign genesis txs: %w", err)
+	}
 
 	// Construct genesis AppState.
 	defaultGenState := gnoland.DefaultGenState()
