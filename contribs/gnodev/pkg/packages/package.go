@@ -131,23 +131,6 @@ func isDraftPackages(dir string, files []fs.DirEntry) (bool, error) {
 	return false, nil
 }
 
-func parseFile(fset *token.FileSet, fname string, body []byte) (*gnovm.MemFile, string, error) {
-	f, err := parser.ParseFile(fset, fname, body, parser.PackageClauseOnly)
-	if err != nil {
-		return nil, "", fmt.Errorf("unable to parse file %q: %w", fname, err)
-	}
-
-	pkgname := f.Name.Name
-	if isTestFile(fname) {
-		pkgname, _, _ = strings.Cut(pkgname, "_")
-	}
-
-	return &gnovm.MemFile{
-		Name: fname,
-		Body: string(body),
-	}, f.Name.Name, nil
-}
-
 func parseGnoFile(fset *token.FileSet, fname string, body []byte) (*gnovm.MemFile, string, error) {
 	f, err := parser.ParseFile(fset, fname, body, parser.PackageClauseOnly)
 	if err != nil {

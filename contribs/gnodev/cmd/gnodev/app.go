@@ -219,7 +219,7 @@ func (ds *App) setupHandlers(ctx context.Context) (http.Handler, error) {
 		}
 
 		ds.proxy.HandlePath(func(paths ...string) {
-			new := false
+			newPath := false
 			for _, path := range paths {
 				// Check if the path is an initial path.
 				if _, ok := initPaths[path]; ok {
@@ -243,10 +243,10 @@ func (ds *App) setupHandlers(ctx context.Context) (http.Handler, error) {
 				proxyLogger.Info("new monitored path",
 					"path", path)
 
-				new = true
+				newPath = true
 			}
 
-			if !new {
+			if !newPath {
 				return
 			}
 

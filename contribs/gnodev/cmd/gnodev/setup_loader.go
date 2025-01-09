@@ -54,10 +54,10 @@ func (va *varResolver) Set(value string) error {
 func setupPackagesResolver(logger *slog.Logger, cfg *devCfg, dirs ...string) (packages.Resolver, []string) {
 	// Add root resolvers
 	exampleRoot := filepath.Join(cfg.root, "examples")
+	localResolvers := make([]packages.Resolver, len(dirs))
 
-	var localResolvers []packages.Resolver
 	var paths []string
-	for _, dir := range dirs {
+	for i, dir := range dirs {
 		path := guessPath(cfg, dir)
 		resolver := packages.NewLocalResolver(path, dir)
 
@@ -68,7 +68,7 @@ func setupPackagesResolver(logger *slog.Logger, cfg *devCfg, dirs ...string) (pa
 			logger.Warn("invalid local path", "dir", dir)
 		}
 
-		localResolvers = append(localResolvers, resolver)
+		localResolvers[i] = resolver
 	}
 
 	resolver := packages.ChainResolvers(

@@ -19,8 +19,6 @@ type PackageModifier struct {
 type PackageMetaMap struct {
 	Creator crypto.Address
 	Deposit std.Coins
-
-	queries map[string]PackageModifier
 }
 
 func ResolvePackageModifierQuery(bk *address.Book, path string) (PackageModifier, error) {
