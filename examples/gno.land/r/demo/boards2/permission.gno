@@ -24,6 +24,7 @@ const (
 	RoleOwner     Role = "owner"
 	RoleAdmin          = "admin"
 	RoleModerator      = "moderator"
+	RoleGuest          = ""
 )
 
 type (

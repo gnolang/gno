@@ -35,6 +35,10 @@ func NewDefaultPermissions(dao *admindao.AdminDAO, options ...DefaultPermissions
 // Roles returns the list of roles.
 func (dp DefaultPermissions) Roles() []Role {
 	var roles []Role
+	if dp.superRole != "" {
+		roles = append(roles, dp.superRole)
+	}
+
 	dp.roles.Iterate("", "", func(name string, _ interface{}) bool {
 		roles = append(roles, Role(name))
 		return false
@@ -44,6 +48,10 @@ func (dp DefaultPermissions) Roles() []Role {
 
 // RoleExists checks if a role exists.
 func (dp DefaultPermissions) RoleExists(r Role) bool {
+	if dp.superRole != "" && r == dp.superRole {
+		return true
+	}
+
 	return dp.roles.Iterate("", "", func(name string, _ interface{}) bool {
 		return Role(name) == r
 	})
@@ -153,9 +161,9 @@ func (DefaultPermissions) handleBoardCreate(args Args, cb func(Args)) {
 }
 
 func (DefaultPermissions) handleBoardRename(args Args, cb func(Args)) {
-	name := args[0].(string)
-	assertBoardNameIsNotAddress(name)
-	assertBoardNameBelongsToCaller(name)
+	newName := args[2].(string)
+	assertBoardNameIsNotAddress(newName)
+	assertBoardNameBelongsToCaller(newName)
 
 	cb(args)
 }
