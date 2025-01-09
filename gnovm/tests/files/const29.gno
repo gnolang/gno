@@ -9,4 +9,4 @@ func main() {
 }
 
 // Error:
-// main/files/const29.gno:7:8: s (variable of type string) is not constant
+// main/files/const29.gno:7:8: s<VPBlock(1,0)> (variable of type string) is not constant

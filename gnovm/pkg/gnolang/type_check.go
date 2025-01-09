@@ -240,44 +240,20 @@ func assertValidConstExpr(store Store, last BlockNode, n *ValueDecl, expr Expr) 
 		panic(fmt.Sprintf("%s (variable of type %s) is not constant", expr, nt))
 	}
 
-	assertValidConstValue(store, last, expr, nil)
+	assertValidConstValue(store, last, expr)
 }
 
-func assertValidConstValue(store Store, last BlockNode, currExpr, parentExpr Expr) {
+func assertValidConstValue(store Store, last BlockNode, currExpr Expr) {
 Main:
 	switch currExpr := currExpr.(type) {
-	case *NameExpr:
-		t := evalStaticTypeOf(store, last, currExpr)
-		if _, ok := t.(*TypeType); ok {
-			t = evalStaticType(store, last, currExpr)
-		}
-		// special case for len, cap
-		if isParentCallExprWithArrayArg(t, parentExpr) {
-			break Main
-		}
-		panic(fmt.Sprintf("%s (variable of type %s) is not constant", currExpr.Name, t))
+	case *ConstExpr:
+	case *BasicLitExpr:
 	case *TypeAssertExpr:
 		ty := evalStaticTypeOf(store, last, currExpr)
 		if _, ok := ty.(*TypeType); ok {
 			ty = evalStaticType(store, last, currExpr)
 		}
-		// special case for len, cap
-		if isParentCallExprWithArrayArg(ty, parentExpr) {
-			break Main
-		}
 		panic(fmt.Sprintf("%s (comma, ok expression of type %s) is not constant", currExpr.String(), currExpr.Type))
-	case *IndexExpr:
-		ty := evalStaticTypeOf(store, last, currExpr)
-		if _, ok := ty.(*TypeType); ok {
-			ty = evalStaticType(store, last, currExpr)
-		}
-		// TODO: should add a test after the fix of https://github.com/gnolang/gno/issues/3409
-		// special case for len, cap
-		if isParentCallExprWithArrayArg(ty, parentExpr) {
-			break Main
-		}
-
-		panic(fmt.Sprintf("%s (variable of type %s) is not constant", currExpr.String(), currExpr.X))
 	case *CallExpr:
 		ift := evalStaticTypeOf(store, last, currExpr.Func)
 		switch baseOf(ift).(type) {
@@ -291,11 +267,19 @@ Main:
 						// TODO: should support min, max, real, imag
 						switch {
 						case fv.Name == "len":
-							assertValidConstValue(store, last, currExpr.Args[0], currExpr)
+							at := evalStaticTypeOf(store, last, currExpr.Args[0])
+							if _, ok := baseOf(at).(*ArrayType); ok {
+								// ok
+								break Main
+							}
+							assertValidConstValue(store, last, currExpr.Args[0])
 							break Main
 						case fv.Name == "cap":
-							assertValidConstValue(store, last, currExpr.Args[0], currExpr)
-							break Main
+							at := evalStaticTypeOf(store, last, currExpr.Args[0])
+							if _, ok := baseOf(at).(*ArrayType); ok {
+								// ok
+								break Main
+							}
 						}
 					}
 				}
@@ -311,7 +295,7 @@ Main:
 			}
 		case *TypeType:
 			for _, arg := range currExpr.Args {
-				assertValidConstValue(store, last, arg, currExpr)
+				assertValidConstValue(store, last, arg)
 			}
 		case *NativeType:
 			// Todo: should add a test after the fix of https://github.com/gnolang/gno/issues/3006
@@ -323,8 +307,8 @@ Main:
 				ift, reflect.TypeOf(ift)))
 		}
 	case *BinaryExpr:
-		assertValidConstValue(store, last, currExpr.Left, parentExpr)
-		assertValidConstValue(store, last, currExpr.Right, parentExpr)
+		assertValidConstValue(store, last, currExpr.Left)
+		assertValidConstValue(store, last, currExpr.Right)
 	case *SelectorExpr:
 		xt := evalStaticTypeOf(store, last, currExpr.X)
 		switch xt := xt.(type) {
@@ -352,27 +336,11 @@ Main:
 
 			tt := pv.GetBlock(store).Source.GetStaticTypeOf(store, currExpr.Sel)
 			panic(fmt.Sprintf("%s (variable of type %s) is not constant", currExpr.String(), tt))
-		case *PointerType, *DeclaredType, *StructType, *InterfaceType, *TypeType, *NativeType:
-			ty := evalStaticTypeOf(store, last, currExpr)
-			if _, ok := ty.(*TypeType); ok {
-				ty = evalStaticType(store, last, currExpr)
-			}
-
-			// special case for len, cap
-			if isParentCallExprWithArrayArg(ty, parentExpr) {
-				break Main
-			}
-			panic(fmt.Sprintf("%s (variable of type %s) is not constant", currExpr.String(), ty))
 		default:
 			panic(fmt.Sprintf(
 				"unexpected selector expression type %v",
 				reflect.TypeOf(xt)))
 		}
-
-	case *ConstExpr:
-	case *BasicLitExpr:
-	case *CompositeLitExpr:
-		assertValidConstValue(store, last, currExpr.Type, parentExpr)
 	default:
 		ift := evalStaticTypeOf(store, last, currExpr)
 		if _, ok := ift.(*TypeType); ok {
@@ -380,16 +348,6 @@ Main:
 		}
 		panic(fmt.Sprintf("%s (variable of type %s) is not constant", currExpr.String(), ift))
 	}
-}
-
-// isParentCallExprWithArrayArg checks if the parent expression is a call expression with an array argument.
-// This is used to determine whether to skip the constant value check.
-// This is because the  parent expression may be a call to the len or cap built-in functions.
-func isParentCallExprWithArrayArg(currType Type, parentExpr Expr) bool {
-	_, okArray := baseOf(currType).(*ArrayType)
-	_, okCallExpr := parentExpr.(*CallExpr)
-
-	return okArray && okCallExpr
 }
 
 // checkValDefineMismatch checks for mismatch between the number of variables and values in a ValueDecl or AssignStmt.

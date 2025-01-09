@@ -11,4 +11,4 @@ func main() {
 }
 
 // Error:
-// main/files/const45_b.gno:7:7: MyStruct<VPBlock(2,0)>{arr<VPField(0,0,arr)>: [](const-type int){(const (1 int)), (const (2 int))}}.arr (variable of type []int) is not constant
+// main/files/const45_b.gno:7:7: unexpected selector expression type *gnolang.DeclaredType

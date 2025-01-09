@@ -9,4 +9,4 @@ func main() {
 	println("ok")
 }
 // Error:
-// main/files/const33.gno:6:7: x (variable of type int) is not constant
+// main/files/const33.gno:6:7: x<VPBlock(2,0)> (variable of type int) is not constant
