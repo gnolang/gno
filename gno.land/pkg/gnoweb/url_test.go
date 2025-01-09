@@ -19,7 +19,7 @@ func TestParseGnoURL(t *testing.T) {
 			Name:     "malformed url",
 			Input:    "https://gno.land/r/dem)o:$?",
 			Expected: nil,
-			Err:      ErrURLMalformedPath,
+			Err:      ErrURLInvalidPath,
 		},
 
 		{
@@ -30,6 +30,30 @@ func TestParseGnoURL(t *testing.T) {
 				Path:     "/r/simple/test",
 				WebQuery: url.Values{},
 				Query:    url.Values{},
+			},
+		},
+
+		{
+			Name:  "file",
+			Input: "https://gno.land/r/simple/test/encode.gno",
+			Expected: &GnoURL{
+				Domain:   "gno.land",
+				Path:     "/r/simple/test",
+				WebQuery: url.Values{},
+				Query:    url.Values{},
+				File:     "encode.gno",
+			},
+		},
+
+		{
+			Name:  "complex file path",
+			Input: "https://gno.land/r/simple/test///...gno",
+			Expected: &GnoURL{
+				Domain:   "gno.land",
+				Path:     "/r/simple/test//",
+				WebQuery: url.Values{},
+				Query:    url.Values{},
+				File:     "...gno",
 			},
 		},
 
@@ -166,16 +190,16 @@ func TestParseGnoURL(t *testing.T) {
 
 		{
 			Name:  "webquery-args-webquery",
-			Input: "https://gno.land/r/demo/AAA$BBB:CCC&DDD$EEE",
-			Err:   ErrURLMalformedPath, // `/r/demo/AAA$BBB` is an invalid path
+			Input: "https://gno.land/r/demo/aaa$bbb:CCC&DDD$EEE",
+			Err:   ErrURLInvalidPath, // `/r/demo/aaa$bbb` is an invalid path
 		},
 
 		{
 			Name:  "args-webquery-args",
-			Input: "https://gno.land/r/demo/AAA:BBB$CCC&DDD:EEE",
+			Input: "https://gno.land/r/demo/aaa:BBB$CCC&DDD:EEE",
 			Expected: &GnoURL{
 				Domain: "gno.land",
-				Path:   "/r/demo/AAA",
+				Path:   "/r/demo/aaa",
 				Args:   "BBB",
 				WebQuery: url.Values{
 					"CCC":     []string{""},
@@ -198,6 +222,34 @@ func TestParseGnoURL(t *testing.T) {
 				Domain: "gno.land",
 			},
 		},
+
+		{
+			Name:  "file in path + args + query",
+			Input: "https://gno.land/r/demo/foo/render.gno:example$tz=Europe/Paris",
+			Expected: &GnoURL{
+				Path: "/r/demo/foo",
+				File: "render.gno",
+				Args: "example",
+				WebQuery: url.Values{
+					"tz": []string{"Europe/Paris"},
+				},
+				Query:  url.Values{},
+				Domain: "gno.land",
+			},
+		},
+
+		{
+			Name:  "no extension file",
+			Input: "https://gno.land/r/demo/lIcEnSe",
+			Expected: &GnoURL{
+				Path:     "/r/demo",
+				File:     "lIcEnSe",
+				Args:     "",
+				WebQuery: url.Values{},
+				Query:    url.Values{},
+				Domain:   "gno.land",
+			},
+		},
 	}
 
 	for _, tc := range testCases {
@@ -210,13 +262,200 @@ func TestParseGnoURL(t *testing.T) {
 			result, err := ParseGnoURL(u)
 			if tc.Err == nil {
 				require.NoError(t, err)
-				t.Logf("encoded path: %q", result.EncodePath())
-				t.Logf("encoded web path: %q", result.EncodeWebPath())
+				t.Logf("encoded web path: %q", result.EncodeWebURL())
 			} else {
 				require.Error(t, err)
 				require.ErrorIs(t, err, tc.Err)
 			}
 
+			assert.Equal(t, tc.Expected, result)
+		})
+	}
+}
+
+func TestEncode(t *testing.T) {
+	testCases := []struct {
+		Name        string
+		GnoURL      GnoURL
+		EncodeFlags EncodeFlag
+		Expected    string
+	}{
+		{
+			Name: "encode domain",
+			GnoURL: GnoURL{
+				Domain: "gno.land",
+				Path:   "/r/demo/foo",
+			},
+			EncodeFlags: EncodeDomain,
+			Expected:    "gno.land",
+		},
+
+		{
+			Name: "encode web query without escape",
+			GnoURL: GnoURL{
+				Domain: "gno.land",
+				Path:   "/r/demo/foo",
+				WebQuery: url.Values{
+					"help":  []string{""},
+					"fun$c": []string{"B$ ar"},
+				},
+			},
+			EncodeFlags: EncodeWebQuery | EncodeNoEscape,
+			Expected:    "$fun$c=B$ ar&help=",
+		},
+
+		{
+			Name: "encode domain and path",
+			GnoURL: GnoURL{
+				Domain: "gno.land",
+				Path:   "/r/demo/foo",
+			},
+			EncodeFlags: EncodeDomain | EncodePath,
+			Expected:    "gno.land/r/demo/foo",
+		},
+
+		{
+			Name: "Encode Path Only",
+			GnoURL: GnoURL{
+				Path: "/r/demo/foo",
+			},
+			EncodeFlags: EncodePath,
+			Expected:    "/r/demo/foo",
+		},
+
+		{
+			Name: "Encode Path and File",
+			GnoURL: GnoURL{
+				Path: "/r/demo/foo",
+				File: "render.gno",
+			},
+			EncodeFlags: EncodePath,
+			Expected:    "/r/demo/foo/render.gno",
+		},
+
+		{
+			Name: "Encode Path, File, and Args",
+			GnoURL: GnoURL{
+				Path: "/r/demo/foo",
+				File: "render.gno",
+				Args: "example",
+			},
+			EncodeFlags: EncodePath | EncodeArgs,
+			Expected:    "/r/demo/foo/render.gno:example",
+		},
+
+		{
+			Name: "Encode Path and Args",
+			GnoURL: GnoURL{
+				Path: "/r/demo/foo",
+				Args: "example",
+			},
+			EncodeFlags: EncodePath | EncodeArgs,
+			Expected:    "/r/demo/foo:example",
+		},
+
+		{
+			Name: "Encode Path, Args, and WebQuery",
+			GnoURL: GnoURL{
+				Path: "/r/demo/foo",
+				Args: "example",
+				WebQuery: url.Values{
+					"tz": []string{"Europe/Paris"},
+				},
+			},
+			EncodeFlags: EncodePath | EncodeArgs | EncodeWebQuery,
+			Expected:    "/r/demo/foo:example$tz=Europe%2FParis",
+		},
+
+		{
+			Name: "Encode Full URL",
+			GnoURL: GnoURL{
+				Path: "/r/demo/foo",
+				Args: "example",
+				WebQuery: url.Values{
+					"tz": []string{"Europe/Paris"},
+				},
+				Query: url.Values{
+					"hello": []string{"42"},
+				},
+			},
+			EncodeFlags: EncodePath | EncodeArgs | EncodeWebQuery | EncodeQuery,
+			Expected:    "/r/demo/foo:example$tz=Europe%2FParis?hello=42",
+		},
+
+		{
+			Name: "Encode Args and Query",
+			GnoURL: GnoURL{
+				Path: "/r/demo/foo",
+				Args: "hello Jo$ny",
+				Query: url.Values{
+					"hello": []string{"42"},
+				},
+			},
+			EncodeFlags: EncodeArgs | EncodeQuery,
+			Expected:    "hello%20Jo%24ny?hello=42",
+		},
+
+		{
+			Name: "Encode Args and Query (No Escape)",
+			GnoURL: GnoURL{
+				Path: "/r/demo/foo",
+				Args: "hello Jo$ny",
+				Query: url.Values{
+					"hello": []string{"42"},
+				},
+			},
+			EncodeFlags: EncodeArgs | EncodeQuery | EncodeNoEscape,
+			Expected:    "hello Jo$ny?hello=42",
+		},
+
+		{
+			Name: "Encode Args and Query",
+			GnoURL: GnoURL{
+				Path: "/r/demo/foo",
+				Args: "example",
+				Query: url.Values{
+					"hello": []string{"42"},
+				},
+			},
+			EncodeFlags: EncodeArgs | EncodeQuery,
+			Expected:    "example?hello=42",
+		},
+
+		{
+			Name: "Encode with Escaped Characters",
+			GnoURL: GnoURL{
+				Path: "/r/demo/foo",
+				Args: "example with spaces",
+				WebQuery: url.Values{
+					"tz": []string{"Europe/Paris"},
+				},
+				Query: url.Values{
+					"hello": []string{"42"},
+				},
+			},
+			EncodeFlags: EncodePath | EncodeArgs | EncodeWebQuery | EncodeQuery,
+			Expected:    "/r/demo/foo:example%20with%20spaces$tz=Europe%2FParis?hello=42",
+		},
+
+		{
+			Name: "Encode Path, Args, and Query",
+			GnoURL: GnoURL{
+				Path: "/r/demo/foo",
+				Args: "example",
+				Query: url.Values{
+					"hello": []string{"42"},
+				},
+			},
+			EncodeFlags: EncodePath | EncodeArgs | EncodeQuery,
+			Expected:    "/r/demo/foo:example?hello=42",
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.Name, func(t *testing.T) {
+			result := tc.GnoURL.Encode(tc.EncodeFlags)
+			require.True(t, tc.GnoURL.IsValid(), "gno url is not valid")
 			assert.Equal(t, tc.Expected, result)
 		})
 	}

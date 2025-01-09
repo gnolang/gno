@@ -132,6 +132,7 @@ func TestAnalytics(t *testing.T) {
 				response := httptest.NewRecorder()
 
 				router.ServeHTTP(response, request)
+
 				assert.Contains(t, response.Body.String(), "sa.gno.services")
 			})
 		}
@@ -150,6 +151,7 @@ func TestAnalytics(t *testing.T) {
 				response := httptest.NewRecorder()
 
 				router.ServeHTTP(response, request)
+
 				assert.NotContains(t, response.Body.String(), "sa.gno.services")
 			})
 		}

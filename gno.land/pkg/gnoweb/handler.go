@@ -120,21 +120,22 @@ func (h *WebHandler) renderPage(body *bytes.Buffer, r *http.Request, indexData *
 		return http.StatusNotFound, components.RenderStatusComponent(body, "invalid path")
 	}
 
-	breadcrumb := components.BreadcrumbData{Parts: generateBreadcrumbPaths(gnourl.Path)}
+	breadcrumb := generateBreadcrumbPaths(gnourl)
 	indexData.HeadData.Title = h.Static.Domain + " - " + gnourl.Path
 	indexData.HeaderData = components.HeaderData{
-		RealmPath:  gnourl.Path,
+		RealmPath:  gnourl.Encode(EncodePath | EncodeArgs | EncodeQuery | EncodeNoEscape),
 		Breadcrumb: breadcrumb,
 		WebQuery:   gnourl.WebQuery,
 	}
 
-	switch k := gnourl.Kind(); k {
-	case KindRealm, KindPure:
+	switch {
+	case gnourl.IsRealm(), gnourl.IsPure():
 		return h.GetPackagePage(body, gnourl)
 	default:
-		h.Logger.Debug("invalid path kind", "kind", k)
+		h.Logger.Debug("invalid path: path is neither a pure package or a realm")
 		return http.StatusBadRequest, components.RenderStatusComponent(body, "invalid path")
 	}
+
 }
 
 // GetPackagePage handles package pages.
@@ -142,40 +143,22 @@ func (h *WebHandler) GetPackagePage(w io.Writer, gnourl *GnoURL) (int, error) {
 	h.Logger.Info("component render", "path", gnourl.Path, "args", gnourl.Args)
 
 	// Handle Help page
-	if gnourl.Kind() == KindRealm && gnourl.WebQuery.Has("help") {
+	if gnourl.WebQuery.Has("help") {
 		return h.GetHelpPage(w, gnourl)
 	}
 
 	// Handle Source page
-	switch {
-	case gnourl.WebQuery.Has("source"):
-		return h.GetSource(w, gnourl)
-	case gnourl.Kind() == KindPure, gnourl.IsFile(), gnourl.IsDir():
-		return h.handleFilePage(w, gnourl)
+	if gnourl.WebQuery.Has("source") || gnourl.IsFile() {
+		return h.GetSourcePage(w, gnourl)
+	}
+
+	// Handle Source page
+	if gnourl.IsDir() || gnourl.IsPure() {
+		return h.GetDirectoryPage(w, gnourl)
 	}
 
 	// Ultimately render realm content
 	return h.renderRealmContent(w, gnourl)
-}
-
-// handleFilePage processes pages that involve file handling.
-func (h *WebHandler) handleFilePage(w io.Writer, gnourl *GnoURL) (int, error) {
-	i := strings.LastIndexByte(gnourl.Path, '/')
-	if i < 0 {
-		return http.StatusInternalServerError, fmt.Errorf("unable to get ending slash for %q", gnourl.Path)
-	}
-
-	gnourl.WebQuery.Set("source", "")
-
-	file := gnourl.Path[i+1:]
-	if file == "" {
-		return h.GetDirectoryPage(w, gnourl)
-	}
-
-	gnourl.WebQuery.Set("file", file)
-	gnourl.Path = gnourl.Path[:i]
-
-	return h.GetSource(w, gnourl)
 }
 
 // renderRealmContent renders the content of a realm.
@@ -183,7 +166,7 @@ func (h *WebHandler) renderRealmContent(w io.Writer, gnourl *GnoURL) (int, error
 	var content bytes.Buffer
 	meta, err := h.Client.RenderRealm(&content, gnourl.Path, gnourl.EncodeArgs())
 	if err != nil {
-		h.Logger.Error("unable to render realm", "err", err, "path", gnourl.EncodePath())
+		h.Logger.Error("unable to render realm", "err", err, "path", gnourl.EncodeArgs())
 		return renderClientErrorStatusPage(w, gnourl, err)
 	}
 
@@ -245,7 +228,7 @@ func (h *WebHandler) GetHelpPage(w io.Writer, gnourl *GnoURL) (int, error) {
 }
 
 // GetSource renders the source page.
-func (h *WebHandler) GetSource(w io.Writer, gnourl *GnoURL) (int, error) {
+func (h *WebHandler) GetSourcePage(w io.Writer, gnourl *GnoURL) (int, error) {
 	pkgPath := strings.TrimSuffix(gnourl.Path, "/")
 
 	files, err := h.Client.Sources(pkgPath)
@@ -334,22 +317,25 @@ func renderClientErrorStatusPage(w io.Writer, _ *GnoURL, err error) (int, error)
 	}
 }
 
-// generateBreadcrumbPaths creates breadcrumb paths from a given path.
-// XXX: This should probably be a template helper function.
-func generateBreadcrumbPaths(path string) []components.BreadcrumbPart {
-	split := strings.Split(path, "/")
-	parts := make([]components.BreadcrumbPart, 0, len(split))
+func generateBreadcrumbPaths(url *GnoURL) components.BreadcrumbData {
+	split := strings.Split(url.Path, "/")
 
-	for i, name := range split {
-		if name == "" {
+	var data components.BreadcrumbData
+	var name string
+	for i := range split {
+		if name = split[i]; name == "" {
 			continue
 		}
 
-		parts = append(parts, components.BreadcrumbPart{
+		data.Parts = append(data.Parts, components.BreadcrumbPart{
 			Name: name,
-			Path: strings.Join(split[:i+1], "/"),
+			URL:  strings.Join(split[:i+1], "/"),
 		})
 	}
 
-	return parts
+	if args := url.EncodeArgs(); args != "" {
+		data.Args = args
+	}
+
+	return data
 }
