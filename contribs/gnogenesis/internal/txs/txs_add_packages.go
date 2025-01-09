@@ -5,39 +5,56 @@ import (
 	"errors"
 	"flag"
 	"fmt"
-
-	"github.com/gnolang/gno/gnovm/pkg/packages"
-	"github.com/gnolang/gno/tm2/pkg/crypto"
+	"os"
 
 	"github.com/gnolang/gno/gno.land/pkg/gnoland"
 	"github.com/gnolang/gno/gno.land/pkg/gnoland/ugnot"
+	"github.com/gnolang/gno/gnovm/pkg/packages"
 	"github.com/gnolang/gno/tm2/pkg/bft/types"
 	"github.com/gnolang/gno/tm2/pkg/commands"
+	"github.com/gnolang/gno/tm2/pkg/crypto/keys"
 	"github.com/gnolang/gno/tm2/pkg/std"
 )
 
-var (
-	errInvalidPackageDir   = errors.New("invalid package directory")
-	errInvalidDeployerAddr = errors.New("invalid deployer address")
+const (
+	defaultAccount_Name      = "test1"
+	defaultAccount_Address   = "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"
+	defaultAccount_Seed      = "source bonus chronic canvas draft south burst lottery vacant surface solve popular case indicate oppose farm nothing bullet exhibit title speed wink action roast"
+	defaultAccount_publicKey = "gpub1pgfj7ard9eg82cjtv4u4xetrwqer2dntxyfzxz3pq0skzdkmzu0r9h6gny6eg8c9dc303xrrudee6z4he4y7cs5rnjwmyf40yaj"
 )
+
+var errInvalidPackageDir = errors.New("invalid package directory")
 
 // Keep in sync with gno.land/cmd/start.go
-var (
-	defaultCreator   = crypto.MustAddressFromString("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5") // test1
-	genesisDeployFee = std.NewFee(50000, std.MustParseCoin(ugnot.ValueString(1000000)))
-)
+var genesisDeployFee = std.NewFee(50000, std.MustParseCoin(ugnot.ValueString(1000000)))
 
 type addPkgCfg struct {
-	txsCfg          *txsCfg
-	deployerAddress string
+	txsCfg                *txsCfg
+	keyName               string
+	gnoHome               string // default GNOHOME env var, just here to ease testing with parallel tests
+	insecurePasswordStdin bool
 }
 
 func (c *addPkgCfg) RegisterFlags(fs *flag.FlagSet) {
 	fs.StringVar(
-		&c.deployerAddress,
-		"deployer-address",
-		defaultCreator.String(),
-		"the address that will be used to deploy the package",
+		&c.keyName,
+		"key-name",
+		"",
+		"The package deployer key name or address contained on gnokey",
+	)
+
+	fs.StringVar(
+		&c.gnoHome,
+		"gno-home",
+		os.Getenv("GNOHOME"),
+		"the gno home directory",
+	)
+
+	fs.BoolVar(
+		&c.insecurePasswordStdin,
+		"insecure-password-stdin",
+		false,
+		"the gno home directory",
 	)
 }
 
@@ -66,10 +83,15 @@ func execTxsAddPackages(
 	io commands.IO,
 	args []string,
 ) error {
+	var (
+		keyname = defaultAccount_Name
+		keybase keys.Keybase
+		pass    string
+	)
 	// Load the genesis
-	genesis, loadErr := types.GenesisDocFromFile(cfg.txsCfg.GenesisPath)
-	if loadErr != nil {
-		return fmt.Errorf("unable to load genesis, %w", loadErr)
+	genesis, err := types.GenesisDocFromFile(cfg.txsCfg.GenesisPath)
+	if err != nil {
+		return fmt.Errorf("unable to load genesis, %w", err)
 	}
 
 	// Make sure the package dir is set
@@ -77,19 +99,30 @@ func execTxsAddPackages(
 		return errInvalidPackageDir
 	}
 
-	var (
-		creator = defaultCreator
-		err     error
-	)
-
-	// Check if the deployer address is set
-	if cfg.deployerAddress != defaultCreator.String() {
-		creator, err = crypto.AddressFromString(cfg.deployerAddress)
+	if cfg.keyName != "" {
+		keyname = cfg.keyName
+		keybase, err = keys.NewKeyBaseFromDir(cfg.gnoHome)
 		if err != nil {
-			return fmt.Errorf("%w, %w", errInvalidDeployerAddr, err)
+			return fmt.Errorf("unable to load keybase: %w", err)
+		}
+		pass, err = io.GetPassword("Enter password.", cfg.insecurePasswordStdin)
+		if err != nil {
+			return fmt.Errorf("cannot read password: %w", err)
+		}
+	} else {
+		keybase = keys.NewInMemory()
+		_, err := keybase.CreateAccount(defaultAccount_Name, defaultAccount_Seed, "", "", 0, 0)
+		if err != nil {
+			return fmt.Errorf("unable to create account: %w", err)
 		}
 	}
 
+	info, err := keybase.GetByNameOrAddress(keyname)
+	if err != nil {
+		return fmt.Errorf("unable to find key in keybase: %w", err)
+	}
+
+	creator := info.GetAddress()
 	parsedTxs := make([]gnoland.TxWithMetadata, 0)
 	for _, path := range args {
 		// Generate transactions from the packages (recursively)
@@ -97,6 +130,10 @@ func execTxsAddPackages(
 		txs, err := gnoland.LoadPackagesFromDir(loadCfg, path, creator, genesisDeployFee)
 		if err != nil {
 			return fmt.Errorf("unable to load txs from directory, %w", err)
+		}
+
+		if err := signTxs(txs, keybase, genesis.ChainID, keyname, pass); err != nil {
+			return fmt.Errorf("unable to sign txs, %w", err)
 		}
 
 		parsedTxs = append(parsedTxs, txs...)
@@ -116,6 +153,28 @@ func execTxsAddPackages(
 		"Saved %d transactions to genesis.json",
 		len(parsedTxs),
 	)
+
+	return nil
+}
+
+func signTxs(txs []gnoland.TxWithMetadata, keybase keys.Keybase, chainID, keyname string, password string) error {
+	for index, tx := range txs {
+		// Here accountNumber and sequenceNumber are set to 0 because they are considered as 0 on genesis transactions.
+		signBytes, err := tx.Tx.GetSignBytes(chainID, 0, 0)
+		if err != nil {
+			return fmt.Errorf("unable to load txs from directory, %w", err)
+		}
+		signature, publicKey, err := keybase.Sign(keyname, password, signBytes)
+		if err != nil {
+			return fmt.Errorf("unable sign tx %w", err)
+		}
+		txs[index].Tx.Signatures = []std.Signature{
+			{
+				PubKey:    publicKey,
+				Signature: signature,
+			},
+		}
+	}
 
 	return nil
 }

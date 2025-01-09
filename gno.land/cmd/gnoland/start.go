@@ -375,10 +375,10 @@ func generateGenesisFile(io commands.IO, genesisFile string, pk crypto.PubKey, c
 	gen.ConsensusParams = abci.ConsensusParams{
 		Block: &abci.BlockParams{
 			// TODO: update limits.
-			MaxTxBytes:   1_000_000,   // 1MB,
-			MaxDataBytes: 2_000_000,   // 2MB,
-			MaxGas:       100_000_000, // 100M gas
-			TimeIotaMS:   100,         // 100ms
+			MaxTxBytes:   1_000_000,     // 1MB,
+			MaxDataBytes: 2_000_000,     // 2MB,
+			MaxGas:       3_000_000_000, // 3B gas
+			TimeIotaMS:   100,           // 100ms
 		},
 	}
 

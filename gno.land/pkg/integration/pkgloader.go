@@ -9,7 +9,7 @@ import (
 	"github.com/gnolang/gno/gno.land/pkg/sdk/vm"
 	"github.com/gnolang/gno/gnovm/pkg/gnolang"
 	"github.com/gnolang/gno/gnovm/pkg/packages"
-	bft "github.com/gnolang/gno/tm2/pkg/bft/types"
+	"github.com/gnolang/gno/tm2/pkg/crypto"
 	"github.com/gnolang/gno/tm2/pkg/std"
 )
 
@@ -38,7 +38,7 @@ func (pl *PkgsLoader) SetPatch(replace, with string) {
 	pl.patchs[replace] = with
 }
 
-func (pl *PkgsLoader) LoadPackages(creator bft.Address, fee std.Fee, deposit std.Coins) ([]gnoland.TxWithMetadata, error) {
+func (pl *PkgsLoader) LoadPackages(creatorKey crypto.PrivKey, fee std.Fee, deposit std.Coins) ([]gnoland.TxWithMetadata, error) {
 	pkgslist, err := pl.List().Sort() // sorts packages by their dependencies.
 	if err != nil {
 		return nil, fmt.Errorf("unable to sort packages: %w", err)
@@ -46,7 +46,7 @@ func (pl *PkgsLoader) LoadPackages(creator bft.Address, fee std.Fee, deposit std
 
 	txs := make([]gnoland.TxWithMetadata, len(pkgslist))
 	for i, pkg := range pkgslist {
-		tx, err := gnoland.LoadPackage(pkg, creator, fee, deposit)
+		tx, err := gnoland.LoadPackage(pkg, creatorKey.PubKey().Address(), fee, deposit)
 		if err != nil {
 			return nil, fmt.Errorf("unable to load pkg %q: %w", pkg.ImportPath, err)
 		}
@@ -74,6 +74,11 @@ func (pl *PkgsLoader) LoadPackages(creator bft.Address, fee std.Fee, deposit std
 		txs[i] = gnoland.TxWithMetadata{
 			Tx: tx,
 		}
+	}
+
+	err = SignTxs(txs, creatorKey, "tendermint_test")
+	if err != nil {
+		return nil, fmt.Errorf("unable to sign txs: %w", err)
 	}
 
 	return txs, nil

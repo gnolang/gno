@@ -496,6 +496,8 @@ func (n *Node) rebuildNode(ctx context.Context, genesis gnoland.GnoGenesisState)
 	// Speed up stdlib loading after first start (saves about 2-3 seconds on each reload).
 	nodeConfig.CacheStdlibLoad = true
 	nodeConfig.Genesis.ConsensusParams.Block.MaxGas = n.config.MaxGasPerBlock
+	// Genesis verification is always false with Gnodev
+	nodeConfig.SkipGenesisVerification = true
 
 	// recoverFromError handles panics and converts them to errors.
 	recoverFromError := func() {
