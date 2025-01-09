@@ -1,10 +1,11 @@
-name: dependabot validate
+name: Validate Dependabot Config
 
 on:
   pull_request:
     paths:
       - '.github/dependabot.yml'
       - '.github/workflows/dependabot-validate.yml'
+
 jobs:
   validate:
     runs-on: ubuntu-latest

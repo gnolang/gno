@@ -11,10 +11,11 @@ import (
 
 // Pager is a struct that holds the AVL tree and pagination parameters.
 type Pager struct {
-	Tree            *avl.Tree
+	Tree            avl.ITree
 	PageQueryParam  string
 	SizeQueryParam  string
 	DefaultPageSize int
+	Reversed        bool
 }
 
 // Page represents a single page of results.
@@ -36,12 +37,13 @@ type Item struct {
 }
 
 // NewPager creates a new Pager with default values.
-func NewPager(tree *avl.Tree, defaultPageSize int) *Pager {
+func NewPager(tree avl.ITree, defaultPageSize int, reversed bool) *Pager {
 	return &Pager{
 		Tree:            tree,
 		PageQueryParam:  "page",
 		SizeQueryParam:  "size",
 		DefaultPageSize: defaultPageSize,
+		Reversed:        reversed,
 	}
 }
 
@@ -86,10 +88,18 @@ func (p *Pager) GetPageWithSize(pageNumber, pageSize int) *Page {
 	}
 
 	items := []Item{}
-	p.Tree.ReverseIterateByOffset(startIndex, endIndex-startIndex, func(key string, value interface{}) bool {
-		items = append(items, Item{Key: key, Value: value})
-		return false
-	})
+
+	if p.Reversed {
+		p.Tree.ReverseIterateByOffset(startIndex, endIndex-startIndex, func(key string, value interface{}) bool {
+			items = append(items, Item{Key: key, Value: value})
+			return false
+		})
+	} else {
+		p.Tree.IterateByOffset(startIndex, endIndex-startIndex, func(key string, value interface{}) bool {
+			items = append(items, Item{Key: key, Value: value})
+			return false
+		})
+	}
 
 	page.Items = items
 	page.PageNumber = pageNumber
@@ -115,8 +125,8 @@ func (p *Pager) GetPageByPath(rawURL string) (*Page, error) {
 	return p.GetPageWithSize(pageNumber, pageSize), nil
 }
 
-// UI generates the Markdown UI for the page selector.
-func (p *Page) Selector() string {
+// Picker generates the Markdown UI for the page Picker
+func (p *Page) Picker() string {
 	pageNumber := p.PageNumber
 	pageNumber = max(pageNumber, 1)
 
