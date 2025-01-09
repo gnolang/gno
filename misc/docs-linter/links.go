@@ -80,7 +80,7 @@ func lintLocalLinks(filepathToLinks map[string][]string, docsPath string) (strin
 					found = true
 				}
 
-				output.WriteString(fmt.Sprintf(">>> %s (found in file: %s)\n", link, filePath))
+				fmt.Fprintf(&output, ">>> %s (found in file: %s)\n", link, filePath)
 			}
 		}
 	}
