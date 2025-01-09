@@ -57,7 +57,7 @@ func readCLAPkg(patterns []string, fset *token.FileSet) (*Package, error) {
 			return nil, fmt.Errorf("named files must all be in one directory; have %s and %s", pkg.Dir, dir)
 		}
 
-		files = append(files, filepath.Join(dir, base))
+		files = append(files, base)
 	}
 
 	return readPkgFiles(pkg, files, fset), nil
@@ -88,8 +88,7 @@ func readPkgDir(pkgDir string, importPath string, fset *token.FileSet) *Package 
 			continue
 		}
 
-		fpath := filepath.Join(pkgDir, base)
-		files = append(files, fpath)
+		files = append(files, base)
 	}
 
 	return readPkgFiles(pkg, files, fset)
@@ -102,8 +101,8 @@ func readPkgFiles(pkg *Package, files []string, fset *token.FileSet) *Package {
 
 	mempkg := gnovm.MemPackage{}
 
-	for _, fpath := range files {
-		base := filepath.Base(fpath)
+	for _, base := range files {
+		fpath := filepath.Join(pkg.Dir, base)
 
 		bodyBytes, err := os.ReadFile(fpath)
 		if err != nil {
