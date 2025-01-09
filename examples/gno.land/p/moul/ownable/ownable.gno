@@ -1,4 +1,4 @@
-// Package ownable propose an abstraction around the ownership which provides
+// Package ownable proposes an abstraction around the ownership which provides
 // various kind of owners and some composition options.
 package ownable
 
