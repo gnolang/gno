@@ -20,7 +20,8 @@ func NewQueryJSONCmd(rootCfg *client.BaseCfg, io commands.IO) *commands.Command 
 		commands.Metadata{
 			Name:       "jquery",
 			ShortUsage: "jquery [flags] <path>",
-			ShortHelp:  "makes an ABCI query expecting json reply",
+			ShortHelp:  "EXPERIMENTAL: makes an ABCI query and return a result in json",
+			LongHelp:   "EXPERIMENTAL: makes an ABCI query and return a result in json",
 		},
 		cfg,
 		func(_ context.Context, args []string) error {
@@ -55,7 +56,7 @@ func execQuery(cfg *client.QueryCfg, args []string, io commands.IO) error {
 		return fmt.Errorf("amino marshal json error: %w", err)
 	}
 
-	// XXX: this is to specific
+	// XXX: this is probably too specific
 	if cfg.Path == "vm/qeval/json" {
 		if len(qres.Response.Data) > 0 {
 			output.Returns = qres.Response.Data
