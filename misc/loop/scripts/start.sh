@@ -36,4 +36,5 @@ gnoland config set p2p.persistent_peers "${PERSISTENT_PEERS}"
 exec gnoland start \
          --chainid="${CHAIN_ID}" \
          --lazy \
-         --skip-failing-genesis-txs
+         --skip-failing-genesis-txs \
+         --skip-genesis-sig-verification
