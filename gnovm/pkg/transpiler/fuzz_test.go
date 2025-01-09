@@ -43,7 +43,6 @@ func FuzzTranspiling(f *testing.F) {
 
 	// 2. Run the fuzzers.
 	f.Fuzz(func(t *testing.T, gnoSourceCode []byte) {
-		fmt.Println(string(gnoSourceCode))
 		// 3. Add timings to ensure that if transpiling takes a long time
 		// to run, that we report this as problematic.
 		doneCh := make(chan bool, 1)
