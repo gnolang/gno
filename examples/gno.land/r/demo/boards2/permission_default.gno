@@ -35,6 +35,10 @@ func NewDefaultPermissions(dao *admindao.AdminDAO, options ...DefaultPermissions
 // Roles returns the list of roles.
 func (dp DefaultPermissions) Roles() []Role {
 	var roles []Role
+	if dp.superRole != "" {
+		roles = append(roles, dp.superRole)
+	}
+
 	dp.roles.Iterate("", "", func(name string, _ interface{}) bool {
 		roles = append(roles, Role(name))
 		return false
@@ -44,6 +48,10 @@ func (dp DefaultPermissions) Roles() []Role {
 
 // RoleExists checks if a role exists.
 func (dp DefaultPermissions) RoleExists(r Role) bool {
+	if dp.superRole != "" && r == dp.superRole {
+		return true
+	}
+
 	return dp.roles.Iterate("", "", func(name string, _ interface{}) bool {
 		return Role(name) == r
 	})
@@ -117,6 +125,12 @@ func (dp *DefaultPermissions) RemoveUser(user std.Address) bool {
 	return removed
 }
 
+// GetDAO returns the underlying DAO.
+// Returned value can be nil if the implementation doesn't have a DAO.
+func (dp DefaultPermissions) GetDAO() *admindao.AdminDAO {
+	return dp.dao
+}
+
 // WithPermission calls a callback when a user has a specific permission.
 // It panics on error or when a handler panics.
 // Callbacks are by default called when there is no handle registered for the permission.
@@ -128,6 +142,8 @@ func (dp *DefaultPermissions) WithPermission(user std.Address, perm Permission, 
 	switch perm {
 	case PermissionBoardCreate:
 		dp.handleBoardCreate(args, cb)
+	case PermissionBoardRename:
+		dp.handleBoardRename(args, cb)
 	case PermissionMemberInvite:
 		dp.handleMemberInvite(args, cb)
 	default:
@@ -136,26 +152,36 @@ func (dp *DefaultPermissions) WithPermission(user std.Address, perm Permission, 
 }
 
 func (DefaultPermissions) handleBoardCreate(args Args, cb func(Args)) {
-	// TODO: This way of dealing with arguments is delicate, ideally types should be used
-	name := args[0].(string)
-	if std.Address(name).IsValid() {
-		panic("addresses are not allowed as board name")
+	name, ok := args[0].(string)
+	if !ok {
+		panic("expected board name to be a string")
 	}
 
-	// When the board name is the name of a registered user
-	// check that caller is the owner of the name.
-	caller := std.GetOrigCaller()
-	user := users.GetUserByName(name)
-	if user != nil && user.Address != caller {
-		panic("board name is a user name registered to a different user")
+	assertBoardNameIsNotAddress(name)
+	assertBoardNameBelongsToCaller(name)
+
+	cb(args)
+}
+
+func (DefaultPermissions) handleBoardRename(args Args, cb func(Args)) {
+	newName, ok := args[2].(string)
+	if !ok {
+		panic("expected new board name to be a string")
 	}
+
+	assertBoardNameIsNotAddress(newName)
+	assertBoardNameBelongsToCaller(newName)
 
 	cb(args)
 }
 
 func (dp DefaultPermissions) handleMemberInvite(args Args, cb func(Args)) {
 	// Make sure that only owners invite other owners
-	role := args[1].(Role)
+	role, ok := args[1].(Role)
+	if !ok {
+		panic("expected a valid new member role")
+	}
+
 	if role == RoleOwner {
 		caller := std.GetOrigCaller()
 		if !dp.HasRole(caller, RoleOwner) {
@@ -177,4 +203,20 @@ func createDefaultPermissions(owner std.Address) *DefaultPermissions {
 		// WithRole(RoleModerator, permissions...),
 		WithUser(owner, RoleOwner),
 	)
+}
+
+func assertBoardNameIsNotAddress(s string) {
+	if std.Address(s).IsValid() {
+		panic("addresses are not allowed as board name")
+	}
+}
+
+func assertBoardNameBelongsToCaller(name string) {
+	// When the board name is the name of a registered user
+	// check that caller is the owner of the name.
+	caller := std.GetOrigCaller()
+	user := users.GetUserByName(name)
+	if user != nil && user.Address != caller {
+		panic("board name is a user name registered to a different user")
+	}
 }

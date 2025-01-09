@@ -1,9 +1,14 @@
 package boards2
 
-import "std"
+import (
+	"std"
+
+	"gno.land/p/demo/boards2/admindao"
+)
 
 const (
 	PermissionBoardCreate  Permission = "board:create"
+	PermissionBoardRename             = "board:rename"
 	PermissionThreadCreate            = "thread:create"
 	PermissionThreadEdit              = "thread:edit"
 	PermissionThreadDelete            = "thread:delete"
@@ -19,6 +24,7 @@ const (
 	RoleOwner     Role = "owner"
 	RoleAdmin          = "admin"
 	RoleModerator      = "moderator"
+	RoleGuest          = ""
 )
 
 type (
@@ -48,5 +54,9 @@ type (
 
 		// RemoveUser removes a user from the permissioner.
 		RemoveUser(std.Address) (removed bool)
+
+		// GetDAO returns the underlying DAO.
+		// Returned value can be nil if the implementation doesn't have a DAO.
+		GetDAO() *admindao.AdminDAO // TODO: should return an interface
 	}
 )
