@@ -86,9 +86,9 @@ func setupPackagesResolver(logger *slog.Logger, cfg *devCfg, dirs ...string) (pa
 		packages.CacheMiddleware(func(pkg *packages.Package) bool {
 			return pkg.Kind == packages.PackageKindRemote // Only cache remote package
 		}),
-		packages.FilterPathMiddleware("stdlib", isStdPath), // Filter stdlib package from resolving
-		packages.PackageCheckerMiddleware(logger),          // Pre-check syntax to avoid bothering the node reloading on invalid files
-		packages.LogMiddleware(logger),                     // Log request
+		packages.FilterStdlibs,                    // Filter stdlib package from resolving
+		packages.PackageCheckerMiddleware(logger), // Pre-check syntax to avoid bothering the node reloading on invalid files
+		packages.LogMiddleware(logger),            // Log request
 	), paths
 }
 
@@ -111,25 +111,3 @@ func guessPath(cfg *devCfg, dir string) (path string) {
 	rname := reInvalidChar.ReplaceAllString(filepath.Base(dir), "-")
 	return filepath.Join(cfg.chainDomain, "/r/dev/", rname)
 }
-
-func isStdPath(path string) bool {
-	if i := strings.IndexRune(path, '/'); i > 0 {
-		if j := strings.IndexRune(path[:i], '.'); j >= 0 {
-			return false
-		}
-	}
-
-	return true
-}
-
-// func guessPathFromRoots(dir string, roots ...string) (path string, ok bool) {
-// 	for _, root := range roots {
-// 		if !strings.HasPrefix(dir, root) {
-// 			continue
-// 		}
-
-// 		return strings.TrimPrefix(dir, root), true
-// 	}
-
-// 	return "", false
-// }

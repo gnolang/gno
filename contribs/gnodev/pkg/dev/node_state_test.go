@@ -1,193 +1,198 @@
 package dev
 
-// import (
-// emitter "github.com/gnolang/gno/contribs/gnodev/internal/mock"
-// "github.com/gnolang/gno/contribs/gnodev/pkg/events"
-// "github.com/gnolang/gno/gno.land/pkg/gnoland"
-// "github.com/gnolang/gno/gno.land/pkg/sdk/vm"
-// "github.com/stretchr/testify/assert"
-// "github.com/stretchr/testify/require"
-// )
+import (
+	"context"
+	"strconv"
+	"testing"
+	"time"
 
-// const testCounterRealm = "gno.land/r/dev/counter"
+	mock "github.com/gnolang/gno/contribs/gnodev/internal/mock"
+	"github.com/gnolang/gno/contribs/gnodev/pkg/events"
+	"github.com/gnolang/gno/gno.land/pkg/gnoland"
+	"github.com/gnolang/gno/gno.land/pkg/sdk/vm"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+)
 
-// func TestNodeMovePreviousTX(t *testing.T) {
-// 	const callInc = 5
+const testCounterRealm = "gno.land/r/dev/counter"
 
-// 	node, emitter := testingCounterRealm(t, callInc)
+func TestNodeMovePreviousTX(t *testing.T) {
+	const callInc = 5
 
-// 	t.Run("Prev TX", func(t *testing.T) {
-// 		ctx := testingContext(t)
-// 		err := node.MoveToPreviousTX(ctx)
-// 		require.NoError(t, err)
-// 		assert.Equal(t, events.EvtReload, emitter.NextEvent().Type())
+	node, emitter := testingCounterRealm(t, callInc)
 
-// 		// Check for correct render update
-// 		render, err := testingRenderRealm(t, node, testCounterRealm)
-// 		require.NoError(t, err)
-// 		require.Equal(t, render, "4")
-// 	})
+	t.Run("Prev TX", func(t *testing.T) {
+		ctx := testingContext(t)
+		err := node.MoveToPreviousTX(ctx)
+		require.NoError(t, err)
+		assert.Equal(t, events.EvtReload, emitter.NextEvent().Type())
 
-// 	t.Run("Next TX", func(t *testing.T) {
-// 		ctx := testingContext(t)
-// 		err := node.MoveToNextTX(ctx)
-// 		require.NoError(t, err)
-// 		assert.Equal(t, events.EvtReload, emitter.NextEvent().Type())
+		// Check for correct render update
+		render, err := testingRenderRealm(t, node, testCounterRealm)
+		require.NoError(t, err)
+		require.Equal(t, render, "4")
+	})
 
-// 		// Check for correct render update
-// 		render, err := testingRenderRealm(t, node, testCounterRealm)
-// 		require.NoError(t, err)
-// 		require.Equal(t, render, "5")
-// 	})
+	t.Run("Next TX", func(t *testing.T) {
+		ctx := testingContext(t)
+		err := node.MoveToNextTX(ctx)
+		require.NoError(t, err)
+		assert.Equal(t, events.EvtReload, emitter.NextEvent().Type())
 
-// 	t.Run("Multi Move TX", func(t *testing.T) {
-// 		ctx := testingContext(t)
-// 		moves := []struct {
-// 			Move           int
-// 			ExpectedResult string
-// 		}{
-// 			{-2, "3"},
-// 			{2, "5"},
-// 			{-5, "0"},
-// 			{5, "5"},
-// 			{-100, "0"},
-// 			{100, "5"},
-// 			{0, "5"},
-// 		}
+		// Check for correct render update
+		render, err := testingRenderRealm(t, node, testCounterRealm)
+		require.NoError(t, err)
+		require.Equal(t, render, "5")
+	})
 
-// 		t.Logf("initial state %d", callInc)
-// 		for _, tc := range moves {
-// 			t.Logf("moving from `%d`", tc.Move)
-// 			err := node.MoveBy(ctx, tc.Move)
-// 			require.NoError(t, err)
-// 			if tc.Move != 0 {
-// 				assert.Equal(t, events.EvtReload, emitter.NextEvent().Type())
-// 			}
+	t.Run("Multi Move TX", func(t *testing.T) {
+		ctx := testingContext(t)
+		moves := []struct {
+			Move           int
+			ExpectedResult string
+		}{
+			{-2, "3"},
+			{2, "5"},
+			{-5, "0"},
+			{5, "5"},
+			{-100, "0"},
+			{100, "5"},
+			{0, "5"},
+		}
 
-// 			// Check for correct render update
-// 			render, err := testingRenderRealm(t, node, testCounterRealm)
-// 			require.NoError(t, err)
-// 			require.Equal(t, render, tc.ExpectedResult)
-// 		}
-// 	})
-// }
+		t.Logf("initial state %d", callInc)
+		for _, tc := range moves {
+			t.Logf("moving from `%d`", tc.Move)
+			err := node.MoveBy(ctx, tc.Move)
+			require.NoError(t, err)
+			if tc.Move != 0 {
+				assert.Equal(t, events.EvtReload, emitter.NextEvent().Type())
+			}
 
-// func TestSaveCurrentState(t *testing.T) {
-// 	ctx := testingContext(t)
+			// Check for correct render update
+			render, err := testingRenderRealm(t, node, testCounterRealm)
+			require.NoError(t, err)
+			require.Equal(t, render, tc.ExpectedResult)
+		}
+	})
+}
 
-// 	node, emitter := testingCounterRealm(t, 2)
+func TestSaveCurrentState(t *testing.T) {
+	ctx := testingContext(t)
 
-// 	// Save current state
-// 	err := node.SaveCurrentState(ctx)
-// 	require.NoError(t, err)
+	node, emitter := testingCounterRealm(t, 2)
 
-// 	// Send a new tx
-// 	msg := vm.MsgCall{
-// 		PkgPath: testCounterRealm,
-// 		Func:    "Inc",
-// 		Args:    []string{"10"},
-// 	}
+	// Save current state
+	err := node.SaveCurrentState(ctx)
+	require.NoError(t, err)
 
-// 	res, err := testingCallRealm(t, node, msg)
-// 	require.NoError(t, err)
-// 	require.NoError(t, res.CheckTx.Error)
-// 	require.NoError(t, res.DeliverTx.Error)
-// 	assert.Equal(t, events.EvtTxResult, emitter.NextEvent().Type())
+	// Send a new tx
+	msg := vm.MsgCall{
+		PkgPath: testCounterRealm,
+		Func:    "Inc",
+		Args:    []string{"10"},
+	}
 
-// 	// Test render
-// 	render, err := testingRenderRealm(t, node, testCounterRealm)
-// 	require.NoError(t, err)
-// 	require.Equal(t, render, "12") // 2 + 10
+	res, err := testingCallRealm(t, node, msg)
+	require.NoError(t, err)
+	require.NoError(t, res.CheckTx.Error)
+	require.NoError(t, res.DeliverTx.Error)
+	assert.Equal(t, events.EvtTxResult, emitter.NextEvent().Type())
 
-// 	// Reset state
-// 	err = node.Reset(ctx)
-// 	require.NoError(t, err)
-// 	assert.Equal(t, events.EvtReset, emitter.NextEvent().Type())
+	// Test render
+	render, err := testingRenderRealm(t, node, testCounterRealm)
+	require.NoError(t, err)
+	require.Equal(t, render, "12") // 2 + 10
 
-// 	render, err = testingRenderRealm(t, node, testCounterRealm)
-// 	require.NoError(t, err)
-// 	require.Equal(t, render, "2") // Back to the original state
-// }
+	// Reset state
+	err = node.Reset(ctx)
+	require.NoError(t, err)
+	assert.Equal(t, events.EvtReset, emitter.NextEvent().Type())
 
-// func TestExportState(t *testing.T) {
-// 	node, _ := testingCounterRealm(t, 3)
+	render, err = testingRenderRealm(t, node, testCounterRealm)
+	require.NoError(t, err)
+	require.Equal(t, render, "2") // Back to the original state
+}
 
-// 	t.Run("export state", func(t *testing.T) {
-// 		ctx := testingContext(t)
-// 		state, err := node.ExportCurrentState(ctx)
-// 		require.NoError(t, err)
-// 		assert.Equal(t, 3, len(state))
-// 	})
+func TestExportState(t *testing.T) {
+	node, _ := testingCounterRealm(t, 3)
 
-// 	t.Run("export genesis doc", func(t *testing.T) {
-// 		ctx := testingContext(t)
-// 		doc, err := node.ExportStateAsGenesis(ctx)
-// 		require.NoError(t, err)
-// 		require.NotNil(t, doc.AppState)
+	t.Run("export state", func(t *testing.T) {
+		ctx := testingContext(t)
+		state, err := node.ExportCurrentState(ctx)
+		require.NoError(t, err)
+		assert.Equal(t, 3, len(state))
+	})
 
-// 		state, ok := doc.AppState.(gnoland.GnoGenesisState)
-// 		require.True(t, ok)
-// 		assert.Equal(t, 3, len(state.Txs))
-// 	})
-// }
+	t.Run("export genesis doc", func(t *testing.T) {
+		ctx := testingContext(t)
+		doc, err := node.ExportStateAsGenesis(ctx)
+		require.NoError(t, err)
+		require.NotNil(t, doc.AppState)
 
-// func testingCounterRealm(t *testing.T, inc int) (*Node, *emitter.ServerEmitter) {
-// 	t.Helper()
+		state, ok := doc.AppState.(gnoland.GnoGenesisState)
+		require.True(t, ok)
+		assert.Equal(t, 3, len(state.Txs))
+	})
+}
 
-// 	const (
-// 		// foo package
-// 		counterGnoMod = "module gno.land/r/dev/counter\n"
-// 		counterFile   = `package counter
-// import "strconv"
+func testingCounterRealm(t *testing.T, inc int) (*Node, *mock.ServerEmitter) {
+	t.Helper()
 
-// var value int = 0
-// func Inc(v int) { value += v } // method to increment value
-// func Render(_ string) string { return strconv.Itoa(value) }
-// `
-// 	)
+	const (
+		// foo package
+		counterPath = "gno.land/r/dev/counter"
+		counterFile = `
+package counter
 
-// 	// Generate package counter
-// 	counterPkg := generateTestingPackage(t,
-// 		"gno.mod", counterGnoMod,
-// 		"foo.gno", counterFile)
+import "strconv"
 
-// 	// Call NewDevNode with no package should work
-// 	node, emitter := newTestingDevNode(t, counterPkg)
-// 	assert.Len(t, node.ListPkgs(), 1)
+var value int = 0
+func Inc(v int) { value += v } // method to increment value
+func Render(_ string) string { return strconv.Itoa(value) }
+`
+	)
 
-// 	// Test rendering
-// 	render, err := testingRenderRealm(t, node, testCounterRealm)
-// 	require.NoError(t, err)
-// 	require.Equal(t, render, "0")
+	// Generate package counter
+	counterPkg := generateMemPackage(t, counterPath, "foo.gno", counterFile)
 
-// 	// Increment the counter 10 times
-// 	for i := 0; i < inc; i++ {
-// 		t.Logf("call %d", i)
-// 		// Craft `Inc` msg
-// 		msg := vm.MsgCall{
-// 			PkgPath: testCounterRealm,
-// 			Func:    "Inc",
-// 			Args:    []string{"1"},
-// 		}
+	// Call NewDevNode with no package should work
+	node, emitter := newTestingDevNode(t, &counterPkg)
+	assert.Len(t, node.ListPkgs(), 1)
 
-// 		res, err := testingCallRealm(t, node, msg)
-// 		require.NoError(t, err)
-// 		require.NoError(t, res.CheckTx.Error)
-// 		require.NoError(t, res.DeliverTx.Error)
-// 		assert.Equal(t, events.EvtTxResult, emitter.NextEvent().Type())
-// 	}
+	// Test rendering
+	render, err := testingRenderRealm(t, node, testCounterRealm)
+	require.NoError(t, err)
+	require.Equal(t, render, "0")
 
-// 	render, err = testingRenderRealm(t, node, testCounterRealm)
-// 	require.NoError(t, err)
-// 	require.Equal(t, render, strconv.Itoa(inc))
+	// Increment the counter 10 times
+	for i := 0; i < inc; i++ {
+		t.Logf("call %d", i)
+		// Craft `Inc` msg
+		msg := vm.MsgCall{
+			PkgPath: testCounterRealm,
+			Func:    "Inc",
+			Args:    []string{"1"},
+		}
 
-// 	return node, emitter
-// }
+		res, err := testingCallRealm(t, node, msg)
+		require.NoError(t, err)
+		require.NoError(t, res.CheckTx.Error)
+		require.NoError(t, res.DeliverTx.Error)
+		assert.Equal(t, events.EvtTxResult, emitter.NextEvent().Type())
+	}
 
-// func testingContext(t *testing.T) context.Context {
-// 	t.Helper()
+	render, err = testingRenderRealm(t, node, testCounterRealm)
+	require.NoError(t, err)
+	require.Equal(t, render, strconv.Itoa(inc))
 
-// 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*7)
-// 	t.Cleanup(cancel)
-// 	return ctx
-// }
+	return node, emitter
+}
+
+func testingContext(t *testing.T) context.Context {
+	t.Helper()
+
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*7)
+	t.Cleanup(cancel)
+	return ctx
+}

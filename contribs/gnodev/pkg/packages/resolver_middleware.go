@@ -7,6 +7,7 @@ import (
 	"go/scanner"
 	"go/token"
 	"log/slog"
+	"strings"
 	"time"
 )
 
@@ -115,6 +116,18 @@ func FilterPathMiddleware(name string, filter FilterPathHandler) MiddlewareHandl
 
 		return next.Resolve(fset, path)
 	}
+}
+
+var FilterStdlibs = FilterPathMiddleware("stdlibs", isStdPath)
+
+func isStdPath(path string) bool {
+	if i := strings.IndexRune(path, '/'); i > 0 {
+		if j := strings.IndexRune(path[:i], '.'); j >= 0 {
+			return false
+		}
+	}
+
+	return true
 }
 
 // PackageCheckerMiddleware creates a middleware handler for post-processing syntax.
