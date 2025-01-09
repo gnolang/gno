@@ -9,7 +9,7 @@ import (
 	"gno.land/r/demo/users"
 )
 
-const admin = std.Address("g1u7y667z64x2h7vc6fmpcprgey4ck233jaww9zq")
+const admin = std.Address("g1manfred47kzduec920z88wfr64ylksmdcedlf5")
 
 func main() {
 	caller := std.GetOrigCaller() // main
@@ -28,6 +28,8 @@ func main() {
 	users.Register(caller, "satoshi", "my other profile")
 	println(users.Render(""))
 	println("========================================")
+	println(users.Render("?page=2"))
+	println("========================================")
 	println(users.Render("gnouser"))
 	println("========================================")
 	println(users.Render("satoshi"))
@@ -36,7 +38,7 @@ func main() {
 }
 
 // Output:
-// * [archives](/r/demo/users:archives)
+//  * [archives](/r/demo/users:archives)
 //  * [demo](/r/demo/users:demo)
 //  * [gno](/r/demo/users:gno)
 //  * [gnoland](/r/demo/users:gnoland)
@@ -46,7 +48,12 @@ func main() {
 //  * [nt](/r/demo/users:nt)
 //  * [satoshi](/r/demo/users:satoshi)
 //  * [sys](/r/demo/users:sys)
+//  * [test1](/r/demo/users:test1)
 //  * [x](/r/demo/users:x)
+//
+//
+// ========================================
+//
 //
 // ========================================
 // ## user gnouser

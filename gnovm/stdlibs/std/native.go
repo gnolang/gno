@@ -27,6 +27,10 @@ func GetChainID(m *gno.Machine) string {
 	return GetContext(m).ChainID
 }
 
+func GetChainDomain(m *gno.Machine) string {
+	return GetContext(m).ChainDomain
+}
+
 func GetHeight(m *gno.Machine) int64 {
 	return GetContext(m).Height
 }
@@ -156,6 +160,13 @@ func X_decodeBech32(addr string) (prefix string, bytes [20]byte, ok bool) {
 		return "", [20]byte{}, false
 	}
 	return prefix, [20]byte(bz), true
+}
+
+func X_assertCallerIsRealm(m *gno.Machine) {
+	frame := m.Frames[m.NumFrames()-2]
+	if path := frame.LastPackage.PkgPath; !gno.IsRealmPath(path) {
+		m.Panic(typedString("caller is not a realm"))
+	}
 }
 
 func typedString(s string) gno.TypedValue {

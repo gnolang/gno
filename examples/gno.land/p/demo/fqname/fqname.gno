@@ -4,7 +4,9 @@
 // package-level declaration.
 package fqname
 
-import "strings"
+import (
+	"strings"
+)
 
 // Parse splits a fully qualified identifier into its package path and name
 // components. It handles cases with and without slashes in the package path.
@@ -43,9 +45,9 @@ func Parse(fqname string) (pkgpath, name string) {
 
 // Construct a qualified identifier.
 //
-//	fqName := fqname.Construct("gno.land/r/demo/foo20", "GRC20")
+//	fqName := fqname.Construct("gno.land/r/demo/foo20", "Token")
 //	fmt.Println("Fully Qualified Name:", fqName)
-//	// Output: gno.land/r/demo/foo20.GRC20
+//	// Output: gno.land/r/demo/foo20.Token
 func Construct(pkgpath, name string) string {
 	// TODO: ensure pkgpath is valid - and as such last part does not contain a dot.
 	if name == "" {
@@ -63,10 +65,13 @@ func RenderLink(pkgPath, slug string) string {
 		if slug != "" {
 			return "[" + pkgPath + "](" + pkgLink + ")." + slug
 		}
+
 		return "[" + pkgPath + "](" + pkgLink + ")"
 	}
+
 	if slug != "" {
 		return pkgPath + "." + slug
 	}
+
 	return pkgPath
 }

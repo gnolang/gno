@@ -8,6 +8,7 @@ import (
 	"os"
 
 	"github.com/gnolang/gno/gno.land/pkg/sdk/vm"
+	"github.com/gnolang/gno/gnovm"
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
 	"github.com/gnolang/gno/tm2/pkg/amino"
 	"github.com/gnolang/gno/tm2/pkg/commands"
@@ -73,13 +74,13 @@ func execMakeRun(cfg *MakeRunCfg, args []string, cmdio commands.IO) error {
 		return errors.Wrap(err, "parsing gas fee coin")
 	}
 
-	memPkg := &std.MemPackage{}
+	memPkg := &gnovm.MemPackage{}
 	if sourcePath == "-" { // stdin
 		data, err := io.ReadAll(cmdio.In())
 		if err != nil {
 			return fmt.Errorf("could not read stdin: %w", err)
 		}
-		memPkg.Files = []*std.MemFile{
+		memPkg.Files = []*gnovm.MemFile{
 			{
 				Name: "stdin.gno",
 				Body: string(data),
@@ -91,13 +92,13 @@ func execMakeRun(cfg *MakeRunCfg, args []string, cmdio commands.IO) error {
 			return fmt.Errorf("could not read source path: %q, %w", sourcePath, err)
 		}
 		if info.IsDir() {
-			memPkg = gno.ReadMemPackage(sourcePath, "")
+			memPkg = gno.MustReadMemPackage(sourcePath, "")
 		} else { // is file
 			b, err := os.ReadFile(sourcePath)
 			if err != nil {
 				return fmt.Errorf("could not read %q: %w", sourcePath, err)
 			}
-			memPkg.Files = []*std.MemFile{
+			memPkg.Files = []*gnovm.MemFile{
 				{
 					Name: info.Name(),
 					Body: string(b),

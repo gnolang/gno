@@ -1,15 +1,13 @@
-name: autocounterd
+name: Portal Loop - autocounterd
 
 on:
   push:
-    paths:
-      - misc/autocounterd
-      - .github/workflows/autocounterd.yml
     branches:
       - "master"
-      - "misc/autocounterd"
-    tags:
-      - "v*"
+    paths:
+      - misc/autocounterd
+      - misc/loop
+      - .github/workflows/autocounterd.yml
 
 permissions:
   contents: read
@@ -41,7 +39,6 @@ jobs:
       - name: Build and push
         uses: docker/build-push-action@v6
         with:
-          context: ./misc/autocounterd
           push: ${{ github.event_name != 'pull_request' }}
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}

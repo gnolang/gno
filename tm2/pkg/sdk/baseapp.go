@@ -179,7 +179,13 @@ func (app *BaseApp) initFromMainStore() error {
 	// Load the consensus params from the main store. If the consensus params are
 	// nil, it will be saved later during InitChain.
 	//
-	// TODO: assert that InitChain hasn't yet been called.
+	// assert that InitChain hasn't yet been called.
+	// the app.checkState will be set in InitChain.
+	// We assert that InitChain hasn't yet been called so
+	// we don't over write the consensus params in the app.
+	if app.checkState != nil {
+		panic("Consensus Params are already set in app, we should not overwrite it here")
+	}
 	consensusParamsBz := mainStore.Get(mainConsensusParamsKey)
 	if consensusParamsBz != nil {
 		consensusParams := &abci.ConsensusParams{}
@@ -262,7 +268,7 @@ func (app *BaseApp) setConsensusParams(consensusParams *abci.ConsensusParams) {
 	app.consensusParams = consensusParams
 }
 
-// setConsensusParams stores the consensus params to the main store.
+// storeConsensusParams stores the consensus params to the main store.
 func (app *BaseApp) storeConsensusParams(consensusParams *abci.ConsensusParams) {
 	consensusParamsBz, err := amino.Marshal(consensusParams)
 	if err != nil {
@@ -336,6 +342,7 @@ func (app *BaseApp) InitChain(req abci.RequestInitChain) (res abci.ResponseInitC
 	app.deliverState.ctx = app.deliverState.ctx.
 		WithBlockGasMeter(store.NewInfiniteGasMeter())
 
+	// Run the set chain initializer
 	res = app.initChainer(app.deliverState.ctx, req)
 
 	// sanity check
@@ -353,6 +360,12 @@ func (app *BaseApp) InitChain(req abci.RequestInitChain) (res abci.ResponseInitC
 			}
 		}
 	}
+	// In app.initChainer(), we set the initial parameter values in the params keeper.
+	// The params keeper store needs to be accessible in the CheckTx state so that
+	// the first CheckTx can verify the gas price set right after the chain is initialized
+	// with the genesis state.
+	app.checkState.ctx.ms = app.deliverState.ctx.ms
+	app.checkState.ms = app.deliverState.ms
 
 	// NOTE: We don't commit, but BeginBlock for block 1 starts from this
 	// deliverState.
@@ -392,10 +405,6 @@ func (app *BaseApp) Query(req abci.RequestQuery) (res abci.ResponseQuery) {
 	default:
 		return handleQueryCustom(app, path, req)
 	}
-
-	msg := "unknown query path " + req.Path
-	res.Error = ABCIError(std.ErrUnknownRequest(msg))
-	return
 }
 
 func handleQueryApp(app *BaseApp, path []string, req abci.RequestQuery) (res abci.ResponseQuery) {
@@ -412,8 +421,16 @@ func handleQueryApp(app *BaseApp, path []string, req abci.RequestQuery) (res abc
 			} else {
 				result = app.Simulate(txBytes, tx)
 			}
+
 			res.Height = req.Height
-			res.Value = amino.MustMarshal(result)
+
+			bytes, err := amino.Marshal(result)
+			if err != nil {
+				res.Error = ABCIError(std.ErrInternal(fmt.Sprintf("cannot encode to JSON: %s", err)))
+			} else {
+				res.Value = bytes
+			}
+
 			return res
 		case "version":
 			res.Height = req.Height
@@ -561,7 +578,9 @@ func (app *BaseApp) CheckTx(req abci.RequestCheckTx) (res abci.ResponseCheckTx) 
 		res.Error = ABCIError(std.ErrTxDecode(err.Error()))
 		return
 	} else {
-		result := app.runTx(RunTxModeCheck, req.Tx, tx)
+		ctx := app.getContextForTx(RunTxModeCheck, req.Tx)
+
+		result := app.runTx(ctx, tx)
 		res.ResponseBase = result.ResponseBase
 		res.GasWanted = result.GasWanted
 		res.GasUsed = result.GasUsed
@@ -577,7 +596,9 @@ func (app *BaseApp) DeliverTx(req abci.RequestDeliverTx) (res abci.ResponseDeliv
 		res.Error = ABCIError(std.ErrTxDecode(err.Error()))
 		return
 	} else {
-		result := app.runTx(RunTxModeDeliver, req.Tx, tx)
+		ctx := app.getContextForTx(RunTxModeDeliver, req.Tx)
+
+		result := app.runTx(ctx, tx)
 		res.ResponseBase = result.ResponseBase
 		res.GasWanted = result.GasWanted
 		res.GasUsed = result.GasUsed
@@ -705,14 +726,17 @@ func (app *BaseApp) cacheTxContext(ctx Context) (Context, store.MultiStore) {
 // anteHandler. The provided txBytes may be nil in some cases, eg. in tests. For
 // further details on transaction execution, reference the BaseApp SDK
 // documentation.
-func (app *BaseApp) runTx(mode RunTxMode, txBytes []byte, tx Tx) (result Result) {
-	// NOTE: GasWanted should be returned by the AnteHandler. GasUsed is
-	// determined by the GasMeter. We need access to the context to get the gas
-	// meter so we initialize upfront.
-	var gasWanted int64
+func (app *BaseApp) runTx(ctx Context, tx Tx) (result Result) {
+	var (
+		// NOTE: GasWanted should be returned by the AnteHandler. GasUsed is
+		// determined by the GasMeter. We need access to the context to get the gas
+		// meter so we initialize upfront.
+		gasWanted int64
 
-	ctx := app.getContextForTx(mode, txBytes)
-	ms := ctx.MultiStore()
+		ms   = ctx.MultiStore()
+		mode = ctx.Mode()
+	)
+
 	if mode == RunTxModeDeliver {
 		gasleft := ctx.BlockGasMeter().Remaining()
 		ctx = ctx.WithGasMeter(store.NewPassthroughGasMeter(
@@ -735,7 +759,7 @@ func (app *BaseApp) runTx(mode RunTxMode, txBytes []byte, tx Tx) (result Result)
 	defer func() {
 		if r := recover(); r != nil {
 			switch ex := r.(type) {
-			case store.OutOfGasException:
+			case store.OutOfGasError:
 				log := fmt.Sprintf(
 					"out of gas, gasWanted: %d, gasUsed: %d location: %v",
 					gasWanted,
@@ -856,7 +880,10 @@ func (app *BaseApp) runTx(mode RunTxMode, txBytes []byte, tx Tx) (result Result)
 // EndBlock implements the ABCI interface.
 func (app *BaseApp) EndBlock(req abci.RequestEndBlock) (res abci.ResponseEndBlock) {
 	if app.endBlocker != nil {
-		res = app.endBlocker(app.deliverState.ctx, req)
+		// we need to load consensusParams to the end blocker Context
+		// end blocker use consensusParams to calculat the gas price changes.
+		ctx := app.deliverState.ctx.WithConsensusParams(app.consensusParams)
+		res = app.endBlocker(ctx, req)
 	}
 
 	return
