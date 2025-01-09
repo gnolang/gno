@@ -27,6 +27,7 @@ require (
 	github.com/stretchr/testify v1.9.0
 	github.com/syndtr/goleveldb v1.0.1-0.20210819022825-2ae1ddf74ef7
 	github.com/yuin/goldmark v1.7.2
+	github.com/yuin/goldmark-highlighting/v2 v2.0.0-20230729083705-37449abec8cc
 	go.etcd.io/bbolt v1.3.11
 	go.opentelemetry.io/otel v1.29.0
 	go.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetricgrpc v1.29.0
