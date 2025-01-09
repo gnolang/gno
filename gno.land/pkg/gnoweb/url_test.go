@@ -281,6 +281,40 @@ func TestEncode(t *testing.T) {
 		Expected    string
 	}{
 		{
+			Name: "encode domain",
+			GnoURL: GnoURL{
+				Domain: "gno.land",
+				Path:   "/r/demo/foo",
+			},
+			EncodeFlags: EncodeDomain,
+			Expected:    "gno.land",
+		},
+
+		{
+			Name: "encode web query without escape",
+			GnoURL: GnoURL{
+				Domain: "gno.land",
+				Path:   "/r/demo/foo",
+				WebQuery: url.Values{
+					"help":  []string{""},
+					"fun$c": []string{"B$ ar"},
+				},
+			},
+			EncodeFlags: EncodeWebQuery | EncodeNoEscape,
+			Expected:    "$fun$c=B$ ar&help=",
+		},
+
+		{
+			Name: "encode domain and path",
+			GnoURL: GnoURL{
+				Domain: "gno.land",
+				Path:   "/r/demo/foo",
+			},
+			EncodeFlags: EncodeDomain | EncodePath,
+			Expected:    "gno.land/r/demo/foo",
+		},
+
+		{
 			Name: "Encode Path Only",
 			GnoURL: GnoURL{
 				Path: "/r/demo/foo",

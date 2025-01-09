@@ -13,6 +13,7 @@ input_css := frontend/css/input.css
 output_css := $(PUBLIC_DIR)/styles.css
 tw_version := 3.4.14
 tw_config_path := frontend/css/tx.config.js
+templates_files := $(shell find . -iname '*.gohtml')
 
 # static config
 src_dir_static := frontend/static
@@ -42,8 +43,8 @@ all: generate
 generate: css ts static
 
 css: $(output_css)
-$(output_css): $(input_css)
-	npx -y tailwindcss@$(tw_version) -c $(tw_config_path) -i $< -o $@ --minify # tailwind
+$(output_css): $(input_css) $(templates_files)
+	npx -y tailwindcss@$(tw_version) -c $(tw_config_path) -i $(input_css) -o $@ --minify # tailwind
 	touch $@
 
 ts: $(output_js)
