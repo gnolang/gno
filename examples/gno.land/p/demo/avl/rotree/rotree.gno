@@ -82,23 +82,8 @@ type ReadOnlyTree struct {
 	makeEntrySafeFn func(interface{}) interface{}
 }
 
-// IReadOnlyTree defines the read-only operations available on a tree.
-type IReadOnlyTree interface {
-	Size() int
-	Has(key string) bool
-	Get(key string) (interface{}, bool)
-	GetByIndex(index int) (string, interface{})
-	Iterate(start, end string, cb avl.IterCbFn) bool
-	ReverseIterate(start, end string, cb avl.IterCbFn) bool
-	IterateByOffset(offset int, count int, cb avl.IterCbFn) bool
-	ReverseIterateByOffset(offset int, count int, cb avl.IterCbFn) bool
-}
-
-// Verify that ReadOnlyTree implements both ITree and IReadOnlyTree
-var (
-	_ avl.ITree     = (*ReadOnlyTree)(nil)
-	_ IReadOnlyTree = (*ReadOnlyTree)(nil)
-)
+// Verify that ReadOnlyTree implements ITree
+var _ avl.ITree = (*ReadOnlyTree)(nil)
 
 // getSafeValue applies the makeEntrySafeFn if it exists, otherwise returns the original value
 func (roTree *ReadOnlyTree) getSafeValue(value interface{}) interface{} {
