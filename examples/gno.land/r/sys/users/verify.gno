@@ -48,8 +48,8 @@ func VerifyNameByUser(enable bool, address std.Address, name string) bool {
 
 // Enable this package.
 func AdminEnable() {
-	if err := owner.CallerIsOwner(); err != nil {
-		panic(err)
+	if !owner.CallerIsOwner() {
+		panic(ownable.ErrUnauthorized)
 	}
 
 	enabled = true
@@ -57,8 +57,8 @@ func AdminEnable() {
 
 // Disable this package.
 func AdminDisable() {
-	if err := owner.CallerIsOwner(); err != nil {
-		panic(err)
+	if !owner.CallerIsOwner() {
+		panic(ownable.ErrUnauthorized)
 	}
 
 	enabled = false
@@ -66,8 +66,8 @@ func AdminDisable() {
 
 // AdminUpdateVerifyCall updates the method that verifies the namespace.
 func AdminUpdateVerifyCall(check VerifyNameFunc) {
-	if err := owner.CallerIsOwner(); err != nil {
-		panic(err)
+	if !owner.CallerIsOwner() {
+		panic(ownable.ErrUnauthorized)
 	}
 
 	checkFunc = check
@@ -75,8 +75,8 @@ func AdminUpdateVerifyCall(check VerifyNameFunc) {
 
 // AdminTransferOwnership transfers the ownership to a new owner.
 func AdminTransferOwnership(newOwner std.Address) error {
-	if err := owner.CallerIsOwner(); err != nil {
-		panic(err)
+	if !owner.CallerIsOwner() {
+		panic(ownable.ErrUnauthorized)
 	}
 
 	return owner.TransferOwnership(newOwner)

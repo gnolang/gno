@@ -1,6 +1,18 @@
 name: Dependency License Scanning
 
 on:
+  push:
+    branches:
+      - master
+    paths:
+      - '**/*.go'
+      - 'go.mod'
+      - 'go.sum'
+  pull_request_target:
+    paths:
+      - '**/*.go'
+      - 'go.mod'
+      - 'go.sum'
   workflow_dispatch:
 
 permissions:

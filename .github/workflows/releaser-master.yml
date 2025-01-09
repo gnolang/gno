@@ -1,9 +1,9 @@
-name: Trigger master build
+name: Master Releases
 
 on:
   push:
     branches:
-      - "master"
+      - master
   workflow_dispatch:
 
 permissions:
