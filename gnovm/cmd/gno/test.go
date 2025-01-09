@@ -192,7 +192,7 @@ func execTest(cfg *testCfg, args []string, io commands.IO) error {
 
 	// Set up options to run tests.
 	stdout := goio.Discard
-	if cfg.verbose || cfg.fuzzName != "" {
+	if cfg.verbose {
 		stdout = io.Out()
 	}
 	opts := test.NewTestOptions(cfg.rootDir, io.In(), stdout, io.Err())
