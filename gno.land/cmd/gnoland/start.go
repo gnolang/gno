@@ -49,15 +49,16 @@ var startGraphic = strings.ReplaceAll(`
 var genesisDeployFee = std.NewFee(50000, std.MustParseCoin(ugnot.ValueString(1000000)))
 
 type startCfg struct {
-	gnoRootDir            string // TODO: remove as part of https://github.com/gnolang/gno/issues/1952
-	skipFailingGenesisTxs bool   // TODO: remove as part of https://github.com/gnolang/gno/issues/1952
-	genesisBalancesFile   string // TODO: remove as part of https://github.com/gnolang/gno/issues/1952
-	genesisTxsFile        string // TODO: remove as part of https://github.com/gnolang/gno/issues/1952
-	genesisRemote         string // TODO: remove as part of https://github.com/gnolang/gno/issues/1952
-	genesisFile           string
-	chainID               string
-	dataDir               string
-	lazyInit              bool
+	gnoRootDir                 string // TODO: remove as part of https://github.com/gnolang/gno/issues/1952
+	skipFailingGenesisTxs      bool   // TODO: remove as part of https://github.com/gnolang/gno/issues/1952
+	skipGenesisSigVerification bool   // TODO: remove as part of https://github.com/gnolang/gno/issues/1952
+	genesisBalancesFile        string // TODO: remove as part of https://github.com/gnolang/gno/issues/1952
+	genesisTxsFile             string // TODO: remove as part of https://github.com/gnolang/gno/issues/1952
+	genesisRemote              string // TODO: remove as part of https://github.com/gnolang/gno/issues/1952
+	genesisFile                string
+	chainID                    string
+	dataDir                    string
+	lazyInit                   bool
 
 	logLevel  string
 	logFormat string
@@ -89,6 +90,13 @@ func (c *startCfg) RegisterFlags(fs *flag.FlagSet) {
 		"skip-failing-genesis-txs",
 		false,
 		"don't panic when replaying invalid genesis txs",
+	)
+
+	fs.BoolVar(
+		&c.skipGenesisSigVerification,
+		"skip-genesis-sig-verification",
+		false,
+		"don't panic when replaying invalidly signed genesis txs",
 	)
 
 	fs.StringVar(
@@ -234,7 +242,16 @@ func execStart(ctx context.Context, c *startCfg, io commands.IO) error {
 	minGasPrices := cfg.Application.MinGasPrices
 
 	// Create application and node
-	cfg.LocalApp, err = gnoland.NewApp(nodeDir, c.skipFailingGenesisTxs, evsw, logger, minGasPrices)
+	cfg.LocalApp, err = gnoland.NewApp(
+		nodeDir,
+		gnoland.GenesisAppConfig{
+			SkipFailingTxs:      c.skipFailingGenesisTxs,
+			SkipSigVerification: c.skipGenesisSigVerification,
+		},
+		evsw,
+		logger,
+		minGasPrices,
+	)
 	if err != nil {
 		return fmt.Errorf("unable to create the Gnoland app, %w", err)
 	}
