@@ -73,7 +73,7 @@ func (pid PkgID) Bytes() []byte {
 }
 
 var (
-	pkgIDMu sync.Mutex // pkgIDMu protects the shared cache.
+	pkgIDFromPkgPathCacheMu sync.Mutex // protects the shared cache.
 	// TODO: later on switch this to an LRU if needed to ensure
 	// fixed memory caps. For now though it isn't a problem:
 	// https://github.com/gnolang/gno/pull/3424#issuecomment-2564571785
@@ -81,8 +81,8 @@ var (
 )
 
 func PkgIDFromPkgPath(path string) PkgID {
-	pkgIDMu.Lock()
-	defer pkgIDMu.Unlock()
+	pkgIDFromPkgPathCacheMu.Lock()
+	defer pkgIDFromPkgPathCacheMu.Unlock()
 
 	pkgID, ok := pkgIDFromPkgPathCache[path]
 	if !ok {
