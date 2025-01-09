@@ -94,7 +94,7 @@ func (h *WebHandler) Get(w http.ResponseWriter, r *http.Request) {
 		indexData.HeadData.Title = "gno.land - " + gnourl.Path
 
 		// Header
-		indexData.HeaderData.RealmPath = gnourl.Path
+		indexData.HeaderData.RealmPath = gnourl.Encode(EncodePath | EncodeArgs | EncodeQuery | EncodeNoEscape)
 		indexData.HeaderData.Breadcrumb = generateBreadcrumbPaths(gnourl)
 		indexData.HeaderData.WebQuery = gnourl.WebQuery
 
