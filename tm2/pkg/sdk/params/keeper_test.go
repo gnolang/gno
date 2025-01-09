@@ -78,11 +78,11 @@ func TestKeeper(t *testing.T) {
 	require.Equal(t, param5, []byte("bye"))
 
 	// invalid sets
-	require.PanicsWithValue(t, `key should be like "<name>.string"`, func() { keeper.SetString(ctx, "invalid.int64", "hello") })
-	require.PanicsWithValue(t, `key should be like "<name>.int64"`, func() { keeper.SetInt64(ctx, "invalid.string", int64(42)) })
-	require.PanicsWithValue(t, `key should be like "<name>.uint64"`, func() { keeper.SetUint64(ctx, "invalid.int64", uint64(42)) })
-	require.PanicsWithValue(t, `key should be like "<name>.bool"`, func() { keeper.SetBool(ctx, "invalid.int64", true) })
-	require.PanicsWithValue(t, `key should be like "<name>.bytes"`, func() { keeper.SetBytes(ctx, "invalid.int64", []byte("hello")) })
+	require.PanicsWithValue(t, `key should be like "<name>.string" (invalid.int64)`, func() { keeper.SetString(ctx, "invalid.int64", "hello") })
+	require.PanicsWithValue(t, `key should be like "<name>.int64" (invalid.string)`, func() { keeper.SetInt64(ctx, "invalid.string", int64(42)) })
+	require.PanicsWithValue(t, `key should be like "<name>.uint64" (invalid.int64)`, func() { keeper.SetUint64(ctx, "invalid.int64", uint64(42)) })
+	require.PanicsWithValue(t, `key should be like "<name>.bool" (invalid.int64)`, func() { keeper.SetBool(ctx, "invalid.int64", true) })
+	require.PanicsWithValue(t, `key should be like "<name>.bytes" (invalid.int64)`, func() { keeper.SetBytes(ctx, "invalid.int64", []byte("hello")) })
 }
 
 // adapted from TestKeeperSubspace from Cosmos SDK, but adapted to a subspace-less Keeper.
@@ -140,3 +140,24 @@ func TestKeeper_internal(t *testing.T) {
 type s struct{ I int }
 
 func indirect(ptr interface{}) interface{} { return reflect.ValueOf(ptr).Elem().Interface() }
+
+type Params struct {
+	p1 int
+	p2 string
+}
+
+func TestGetAndSetParams(t *testing.T) {
+	env := setupTestEnv()
+	ctx := env.ctx
+	keeper := env.keeper
+	// SetParams
+	a := Params{p1: 1, p2: "a"}
+	err := keeper.SetParams(ctx, ModuleName, a)
+	require.NoError(t, err)
+
+	// GetParams
+	a1 := Params{}
+	_, err1 := keeper.GetParams(ctx, ModuleName, &a1)
+	require.NoError(t, err1)
+	require.True(t, amino.DeepEqual(a, a1), "a and a1 should equal")
+}

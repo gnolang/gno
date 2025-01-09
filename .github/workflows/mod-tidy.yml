@@ -1,11 +1,19 @@
-name: Ensure go.mods are tidied
+name: go.mod Tidy Checker
 
 on:
   push:
     branches:
       - master
-  workflow_dispatch:
+    paths:
+      - '**/*.go'
+      - 'go.mod'
+      - 'go.sum'
   pull_request:
+    paths:
+      - '**/*.go'
+      - 'go.mod'
+      - 'go.sum'
+  workflow_dispatch:
 
 jobs:
   main:
@@ -23,4 +31,4 @@ jobs:
       - name: Check go.mod files are up to date
         working-directory: ${{ inputs.modulepath }}
         run: |
-          make tidy VERIFY_GO_SUMS=true
+          make tidy VERIFY_MOD_SUMS=true
