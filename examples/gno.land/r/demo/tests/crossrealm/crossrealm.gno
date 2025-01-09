@@ -27,3 +27,31 @@ func Make1() *p_crossrealm.Container {
 		B: local,
 	}
 }
+
+type Fooer interface{ Foo() }
+
+var fooer Fooer
+
+func SetFooer(f Fooer) Fooer {
+	fooer = f
+	return fooer
+}
+
+func GetFooer() Fooer { return fooer }
+
+func CallFooerFoo() { fooer.Foo() }
+
+type FooerGetter func() Fooer
+
+var fooerGetter FooerGetter
+
+func SetFooerGetter(fg FooerGetter) FooerGetter {
+	fooerGetter = fg
+	return fg
+}
+
+func GetFooerGetter() FooerGetter {
+	return fooerGetter
+}
+
+func CallFooerGetterFoo() { fooerGetter().Foo() }
