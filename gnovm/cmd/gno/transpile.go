@@ -15,6 +15,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/davecgh/go-spew/spew"
 	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
 	"github.com/gnolang/gno/gnovm/pkg/packages"
 	"github.com/gnolang/gno/gnovm/pkg/transpiler"
@@ -53,8 +54,8 @@ func (p *transpileOptions) getFlags() *transpileCfg {
 	return p.cfg
 }
 
-func (p *transpileOptions) isTranspiled(pkg string) bool {
-	_, transpiled := p.transpiled[pkg]
+func (p *transpileOptions) isTranspiled(path string) bool {
+	_, transpiled := p.transpiled[path]
 	return transpiled
 }
 
@@ -122,6 +123,23 @@ func (c *transpileCfg) RegisterFlags(fs *flag.FlagSet) {
 	)
 }
 
+type transpileTarget struct {
+	subPath string
+	pkg     *packages.Package
+}
+
+// REARCH:
+// - only allow files in the cwd or remote pkgs as params
+// - find output subpath
+//   - if file belongs to an identifiable pkg (pkg that has an import path) -> ./some.pkg/path/filename
+// 	 - else -> ./path/to/file
+// - if no-build -> transpile to output and exit
+// - else -> transpile to tmpdir
+// - create go.work in tmpdir including all packages
+// - create go.mod in tmpdir for pkg-less sources
+// - build
+// - copy to output without go.work and go.mod
+
 func execTranspile(cfg *transpileCfg, args []string, io commands.IO) error {
 	if len(args) < 1 {
 		return flag.ErrHelp
@@ -133,21 +151,50 @@ func execTranspile(cfg *transpileCfg, args []string, io commands.IO) error {
 	}
 
 	// load packages
-	conf := &packages.LoadConfig{IO: io, Fetcher: testPackageFetcher, Deps: true}
+	conf := &packages.LoadConfig{IO: io, Fetcher: testPackageFetcher, Deps: true, DepsPatterns: []string{"./..."}}
 	pkgs, err := packages.Load(conf, args...)
 	if err != nil {
-		return fmt.Errorf("load pkgs: %w", err)
+		return err
 	}
+
+	// find subpaths
+	targets := []transpileTarget{}
+	for _, pkg := range pkgs {
+		if pkg.ImportPath == "" || pkg.ImportPath == "command-line-arguments" {
+			rel, err := relativize(pkg.Dir)
+			if err != nil {
+				return fmt.Errorf("%s: can't relativize: %w", pkg.Dir, err)
+			}
+			if !filepath.IsLocal(rel) {
+				return fmt.Errorf("%s: is not a local path", rel)
+			}
+			targets = append(targets, transpileTarget{
+				subPath: rel,
+				pkg:     pkg,
+			})
+			continue
+		}
+
+		targets = append(targets, transpileTarget{
+			subPath: filepath.FromSlash(pkg.ImportPath),
+		})
+	}
+
+	fmt.Println("targets", targets)
+
 	pkgsMap := map[string]*packages.Package{}
 	packages.Inject(pkgsMap, pkgs)
+
+	// spew.Dump(pkgs)
 
 	// transpile .gno packages and files.
 	opts := newTranspileOptions(cfg, io)
 	var errlist scanner.ErrorList
 	for _, pkg := range pkgs {
-		// ignore deps
-		if len(pkg.Match) == 0 {
-			continue
+		spew.Dump(pkg)
+
+		if !pkg.Draft && pkg.Files.Size() == 0 {
+			return fmt.Errorf("no Gno files in %s", tryRelativize(pkg.Dir))
 		}
 
 		if err := transpilePkg(pkg, pkgsMap, opts); err != nil {
@@ -159,6 +206,9 @@ func execTranspile(cfg *transpileCfg, args []string, io commands.IO) error {
 			errlist = append(errlist, fileErrlist...)
 		}
 	}
+
+	dumpDir(".")
+	dumpDir("./directory/hello")
 
 	if errlist.Len() == 0 && cfg.gobuild {
 		for _, pkg := range pkgs {
@@ -179,7 +229,7 @@ func execTranspile(cfg *transpileCfg, args []string, io commands.IO) error {
 
 	if errlist.Len() > 0 {
 		for _, err := range errlist {
-			io.ErrPrintfln(err.Error())
+			io.ErrPrintfln(tryRelativize(err.Error()))
 		}
 		return fmt.Errorf("%d transpile error(s)", errlist.Len())
 	}
@@ -198,7 +248,7 @@ func transpilePkg(pkg *packages.Package, pkgs map[string]*packages.Package, opts
 
 	if pkg.Draft {
 		if opts.cfg.verbose {
-			opts.io.ErrPrintfln("%s (skipped, gno.mod marks module as draft)", filepath.Clean(dirPath))
+			opts.io.ErrPrintfln("%s (skipped, gno.mod marks module as draft)", tryRelativize(filepath.Clean(dirPath)))
 		}
 		opts.skipped = append(opts.skipped, dirPath)
 		return nil
@@ -208,11 +258,16 @@ func transpilePkg(pkg *packages.Package, pkgs map[string]*packages.Package, opts
 	// The transpiler doesn't currently support "test stdlibs", and even if it
 	// did all packages like "fmt" would have to exist as standard libraries to work.
 	// Easier to skip for now.
-	if opts.cfg.verbose {
-		opts.io.ErrPrintln(filepath.Clean(dirPath))
+	if opts.cfg.verbose && pkg.ImportPath != "command-line-arguments" {
+		label := tryRelativize(dirPath)
+		opts.io.ErrPrintln(filepath.Clean(label))
 	}
 	for _, file := range pkg.Files[packages.FileKindPackageSource] {
 		fpath := filepath.Join(pkg.Dir, file)
+		if opts.cfg.verbose && pkg.ImportPath == "command-line-arguments" {
+			label := tryRelativize(fpath)
+			opts.io.ErrPrintln(filepath.Clean(label))
+		}
 		if err := transpileFile(fpath, pkgs, opts); err != nil {
 			return fmt.Errorf("%s: %w", file, err)
 		}
@@ -288,14 +343,14 @@ func goBuildFileOrPkg(io commands.IO, fileOrPkg string, cfg *transpileCfg) error
 		io.ErrPrintfln("%s [build]", filepath.Clean(fileOrPkg))
 	}
 
-	return buildTranspiledPackage(fileOrPkg, goBinary)
+	return buildTranspiledPackage(fileOrPkg, goBinary, cfg)
 }
 
 // buildTranspiledPackage tries to run `go build` against the transpiled .go files.
 //
 // This method is the most efficient to detect errors but requires that
 // all the import are valid and available.
-func buildTranspiledPackage(fileOrPkg, goBinary string) error {
+func buildTranspiledPackage(fileOrPkg, goBinary string, cfg *transpileCfg) error {
 	// TODO: use cmd/compile instead of exec?
 	// TODO: find the nearest go.mod file, chdir in the same folder, trim prefix?
 	// TODO: temporarily create an in-memory go.mod or disable go modules for gno?
@@ -381,4 +436,12 @@ func parseGoBuildErrors(out string) error {
 	}
 
 	return errList.Err()
+}
+
+func dumpDir(dir string) {
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		fmt.Println("dumpDir error:", err)
+	}
+	spew.Dump(entries)
 }

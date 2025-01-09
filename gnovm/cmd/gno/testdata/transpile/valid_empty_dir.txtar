@@ -3,4 +3,4 @@
 ! gno transpile .
 
 ! stdout .+
-stderr 'no valid gno files'
+stderr 'no Gno files in '

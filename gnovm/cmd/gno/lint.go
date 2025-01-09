@@ -75,14 +75,7 @@ type lintIssue struct {
 }
 
 func (i lintIssue) String() string {
-	location := i.Location
-	wd, err := os.Getwd()
-	if err == nil {
-		location, err = filepath.Rel(wd, i.Location)
-		if err != nil {
-			location = i.Location
-		}
-	}
+	location := tryRelativize(i.Location)
 	// TODO: consider crafting a doc URL based on Code.
 	return fmt.Sprintf("%s: %s (code=%d)", location, i.Msg, i.Code)
 }

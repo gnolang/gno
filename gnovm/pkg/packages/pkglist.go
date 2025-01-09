@@ -96,3 +96,30 @@ func (sp SortedPkgList) GetNonDraftPkgs() SortedPkgList {
 	}
 	return res
 }
+
+type PackagesMap map[string]*Package
+
+func NewPackagesMap(pkgs ...*Package) PackagesMap {
+	pm := make(PackagesMap, len(pkgs))
+	pm.AddBulk(pkgs...)
+	return pm
+}
+
+func (pm PackagesMap) Add(pkg *Package) bool {
+	if pkg.ImportPath == "" {
+		return false
+	}
+
+	if _, ok := pm[pkg.ImportPath]; ok {
+		return false
+	}
+
+	pm[pkg.ImportPath] = pkg
+	return true
+}
+
+func (pm PackagesMap) AddBulk(pkgs ...*Package) {
+	for _, pkg := range pkgs {
+		_ = pm.Add(pkg)
+	}
+}

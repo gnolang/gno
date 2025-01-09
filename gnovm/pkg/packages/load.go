@@ -21,15 +21,17 @@ type LoadConfig struct {
 	IO            commands.IO
 	Fetcher       pkgdownload.PackageFetcher
 	Deps          bool
-	Cache         map[string]*Package
+	Cache         PackagesMap
 	SelfContained bool
+	AllowEmpty    bool
+	DepsPatterns  []string
 
 	GnorootExamples bool // allow loading packages from gnoroot examples if not found in the args set
 }
 
 func (conf *LoadConfig) applyDefaults() {
 	if conf.IO == nil {
-		conf.IO = commands.NewDefaultIO()
+		conf.IO = commands.NewTestIO()
 	}
 	if conf.Fetcher == nil {
 		conf.Fetcher = rpcpkgfetcher.New(nil)
@@ -54,50 +56,71 @@ func Load(conf *LoadConfig, patterns ...string) (PkgList, error) {
 		return nil, err
 	}
 
+	if !conf.AllowEmpty {
+		if len(pkgs) == 0 {
+			return nil, errors.New("no packages")
+		}
+	}
+
 	if !conf.Deps {
 		return pkgs, nil
 	}
 
-	byPkgPath := make(map[string]*Package)
-	index := func(pkg *Package) {
-		if pkg.ImportPath == "" {
-			return
-		}
-		if _, ok := byPkgPath[pkg.ImportPath]; ok {
-			return
-		}
-		byPkgPath[pkg.ImportPath] = pkg
+	extra, err := expandPatterns(conf, conf.DepsPatterns...)
+	if err != nil {
+		return nil, err
 	}
-	for _, pkg := range pkgs {
-		index(pkg)
+	for _, m := range extra {
+		m.Match = []string{}
 	}
+
+	extraPkgs, err := readPackages(extra, fset)
+	if err != nil {
+		return nil, err
+	}
+	extraMap := NewPackagesMap(extraPkgs...)
 
 	gnoroot := gnoenv.RootDir()
 
-	visited := map[string]struct{}{}
-	list := []*Package{}
-	pile := pkgs
-	pileDown := func(pkg *Package) {
-		index(pkg)
-		pile = append(pile, pkg)
+	toVisit := pkgs
+	queuedByPkgPath := NewPackagesMap(pkgs...)
+	markForVisit := func(pkg *Package) {
+		queuedByPkgPath.Add(pkg)
+		toVisit = append(toVisit, pkg)
 	}
-	for ; len(pile) > 0; pile = pile[1:] {
-		pkg := pile[0]
-		if _, ok := visited[pkg.ImportPath]; ok {
+
+	visited := map[string]struct{}{}
+	loaded := []*Package{}
+
+	for {
+		pkg, ok := fifoNext(&toVisit)
+		if !ok {
+			break
+		}
+
+		if added := setAdd(visited, pkg.Dir); !added {
 			continue
 		}
-		visited[pkg.ImportPath] = struct{}{}
 
 		for _, imp := range pkg.Imports.Merge(FileKindPackageSource, FileKindTest, FileKindXTest, FileKindFiletest) {
-			if _, ok := byPkgPath[imp]; ok {
+			// check if we already queued this dep
+			if _, ok := queuedByPkgPath[imp]; ok {
 				continue
 			}
 
+			// check if we have it in config cache
 			if cached, ok := conf.Cache[imp]; ok {
-				pileDown(cached)
+				markForVisit(cached)
 				continue
 			}
 
+			// check if we have it in extra deps patterns
+			if extra, ok := extraMap[imp]; ok {
+				markForVisit(extra)
+				continue
+			}
+
+			// check if this is a stdlib and queue it
 			if gnolang.IsStdlib(imp) {
 				dir := filepath.Join(gnoroot, "gnovm", "stdlibs", filepath.FromSlash(imp))
 				finfo, err := os.Stat(dir)
@@ -106,11 +129,11 @@ func Load(conf *LoadConfig, patterns ...string) (PkgList, error) {
 				}
 				if err != nil {
 					pkg.Errors = append(pkg.Errors, err)
-					byPkgPath[imp] = nil // stop trying to get this lib, we can't
+					delete(queuedByPkgPath, imp) // stop trying to get this lib, we can't
 					continue
 				}
 
-				pileDown(readPkgDir(dir, imp, fset))
+				markForVisit(readPkgDir(dir, imp, fset))
 				continue
 			}
 
@@ -118,38 +141,38 @@ func Load(conf *LoadConfig, patterns ...string) (PkgList, error) {
 				examplePkgDir := filepath.Join(gnoroot, "examples", filepath.FromSlash(imp))
 				finfo, err := os.Stat(examplePkgDir)
 				if err == nil && finfo.IsDir() {
-					pileDown(readPkgDir(examplePkgDir, imp, fset))
+					markForVisit(readPkgDir(examplePkgDir, imp, fset))
 					continue
 				}
 			}
 
 			if conf.SelfContained {
 				pkg.Errors = append(pkg.Errors, fmt.Errorf("self-contained: package %q not found", imp))
-				byPkgPath[imp] = nil // stop trying to get this lib, we can't
+				delete(queuedByPkgPath, imp) // stop trying to get this lib, we can't
 				continue
 			}
 
 			dir := gnomod.PackageDir("", module.Version{Path: imp})
 			if err := downloadPackage(conf, imp, dir); err != nil {
 				pkg.Errors = append(pkg.Errors, err)
-				byPkgPath[imp] = nil // stop trying to download pkg, we can't
+				delete(queuedByPkgPath, imp) // stop trying to get this lib, we can't
 				continue
 			}
-			pileDown(readPkgDir(dir, imp, fset))
+			markForVisit(readPkgDir(dir, imp, fset))
 		}
 
-		list = append(list, pkg)
+		loaded = append(loaded, pkg)
 	}
 
-	for _, pkg := range list {
+	for _, pkg := range loaded {
 		// TODO: this could be optimized
-		pkg.Deps, err = listDeps(pkg.ImportPath, byPkgPath)
+		pkg.Deps, err = listDeps(pkg.ImportPath, queuedByPkgPath)
 		if err != nil {
 			pkg.Errors = append(pkg.Errors, err)
 		}
 	}
 
-	return list, nil
+	return loaded, nil
 }
 
 func listDeps(target string, pkgs map[string]*Package) ([]string, error) {
@@ -199,4 +222,23 @@ func (p *Package) MemPkg() (*gnovm.MemPackage, error) {
 		Path:  p.ImportPath,
 		Files: files,
 	}, nil
+}
+
+func fifoNext[T any](slice *[]T) (T, bool) {
+	if len(*slice) == 0 {
+		return *new(T), false
+	}
+
+	elem := (*slice)[0]
+	*slice = (*slice)[1:]
+	return elem, true
+}
+
+func setAdd[T comparable](set map[T]struct{}, val T) bool {
+	if _, ok := set[val]; ok {
+		return false
+	}
+
+	set[val] = struct{}{}
+	return true
 }

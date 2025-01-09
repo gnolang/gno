@@ -2,13 +2,9 @@ package main
 
 import (
 	"context"
-	"errors"
 	"flag"
 	"fmt"
 	goio "io"
-	"os"
-	"path/filepath"
-	"slices"
 	"time"
 
 	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
@@ -155,23 +151,19 @@ func execTest(cfg *testCfg, args []string, io commands.IO) error {
 		cfg.rootDir = gnoenv.RootDir()
 	}
 
-	// inject cwd, we need this to pass some txtars
-	args = append(args, fmt.Sprintf(".%c...", filepath.Separator))
-
 	// Find targets for test.
-	conf := &packages.LoadConfig{IO: io, Fetcher: testPackageFetcher}
+	conf := &packages.LoadConfig{
+		IO:           io,
+		Fetcher:      testPackageFetcher,
+		DepsPatterns: []string{"./..."},
+	}
 	pkgs, err := packages.Load(conf, args...)
 	if err != nil {
-		return fmt.Errorf("list targets from patterns: %w", err)
+		return err
 	}
-	if len(pkgs) == 0 {
-		return errors.New("no packages to test")
-	}
-	for _, pkg := range pkgs {
-		if len(pkg.Match) != 0 && !slices.ContainsFunc(pkg.Match, func(s string) bool { return !packages.PatternIsLiteral(s) }) && pkg.Files.Size() == 0 {
-			return fmt.Errorf("no Gno files in %s", pkg.Dir)
-		}
-	}
+
+	pkgsMap := map[string]*packages.Package{}
+	packages.Inject(pkgsMap, pkgs)
 
 	if cfg.timeout > 0 {
 		go func() {
@@ -179,9 +171,6 @@ func execTest(cfg *testCfg, args []string, io commands.IO) error {
 			panic("test timed out after " + cfg.timeout.String())
 		}()
 	}
-
-	pkgsMap := map[string]*packages.Package{}
-	packages.Inject(pkgsMap, pkgs)
 
 	// Set up options to run tests.
 	stdout := goio.Discard
@@ -198,21 +187,20 @@ func execTest(cfg *testCfg, args []string, io commands.IO) error {
 	buildErrCount := 0
 	testErrCount := 0
 	for _, pkg := range pkgs {
-		// ignore side-loaded packages, mostly coming from siblings injection (TODO: explain siblings injection, why we chose it over go's forcing to have an arching context (go.mod, go.work))
+		// ignore deps
 		if len(pkg.Match) == 0 {
 			continue
+		}
+
+		if !pkg.Draft && pkg.Files.Size() == 0 {
+			return fmt.Errorf("no Gno files in %s", pkg.Dir)
 		}
 
 		label := pkg.ImportPath
 		if label == "" {
 			label = pkg.Dir
 		}
-		if cwd, err := os.Getwd(); err == nil {
-			relLogName, err := filepath.Rel(cwd, label)
-			if err == nil {
-				label = relLogName
-			}
-		}
+		label = tryRelativize(label)
 
 		if len(pkg.Files[packages.FileKindTest]) == 0 && len(pkg.Files[packages.FileKindXTest]) == 0 && len(pkg.Files[packages.FileKindFiletest]) == 0 {
 			io.ErrPrintfln("?       %s \t[no test files]", label)

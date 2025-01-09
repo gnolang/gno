@@ -8,4 +8,4 @@ stderr 'no Gno files in '
 ! gno test ./...
 
 ! stdout .+
-stderr 'gno: warning: "./..." matched no packages\nno packages to test'
+stderr 'gno: warning: "./..." matched no packages\nno packages'

@@ -158,8 +158,10 @@ func fmtDuration(d time.Duration) string {
 //
 // See related test for examples.
 func ResolvePath(output, dstPath string) (string, error) {
-	if filepath.IsAbs(dstPath) ||
-		filepath.IsLocal(dstPath) {
+	if filepath.IsAbs(dstPath) {
+		dstPath = tryRelativize(dstPath)
+	}
+	if filepath.IsLocal(dstPath) {
 		return filepath.Join(output, dstPath), nil
 	}
 	// Make dstPath absolute and join it with output.
@@ -251,4 +253,24 @@ func copyFile(src, dst string) error {
 	}
 
 	return nil
+}
+
+func tryRelativize(dirPath string) string {
+	rel, err := relativize(dirPath)
+	if err != nil {
+		return dirPath
+	}
+	return rel
+}
+
+func relativize(dirPath string) (string, error) {
+	wd, err := os.Getwd()
+	if err != nil {
+		return "", err
+	}
+	rel, err := filepath.Rel(wd, dirPath)
+	if err != nil {
+		return "", err
+	}
+	return rel, nil
 }
