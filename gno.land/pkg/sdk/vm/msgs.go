@@ -12,13 +12,14 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/std"
 )
 
-type ResultFormat string
+type Format string
 
 const (
-	ResultFormatMachine ResultFormat = "machine" // Default machine representation
-	ResultFormatString               = "string"  // Single string represnetation
-	ResultFormatJSON                 = "json"    // XXX: EXPERIMENTAL, only supports primitive types for now
-	ResultFormatDefault              = ResultFormatMachine
+	FormatMachine Format = "machine" // Default machine representation
+	FormatString         = "string"  // Single string represnetation
+	FormatJSON           = "json"    // XXX: EXPERIMENTAL, only supports primitive types for now
+
+	FormatDefault = FormatMachine
 )
 
 //----------------------------------------
@@ -93,24 +94,22 @@ func (msg MsgAddPackage) GetReceived() std.Coins {
 
 // MsgEval - eval a Gno Expr.
 type MsgEval struct {
-	PkgPath string `json:"pkg_path" yaml:"pkg_path"`
-	Expr    string `json:"expr" yaml:"expr"`
-
-	// Caller will be use for signing only
-	Caller crypto.Address `json:"caller" yaml:"caller"`
+	PkgPath string         `json:"pkg_path" yaml:"pkg_path"`
+	Expr    string         `json:"expr" yaml:"expr"`
+	Caller  crypto.Address `json:"caller" yaml:"caller"`
 
 	// XXX: This field is experimental, use with care as output is likely to change
 	// Default format is machine
-	ResultFormat ResultFormat `json:"format" yaml:"format"`
+	Format Format `json:"format" yaml:"format"`
 }
 
 var _ std.Msg = MsgEval{}
 
-func NewMsgEval(format ResultFormat, pkgPath, expr string) MsgEval {
+func NewMsgEval(format Format, pkgPath, expr string) MsgEval {
 	return MsgEval{
-		PkgPath:      pkgPath,
-		Expr:         expr,
-		ResultFormat: format,
+		PkgPath: pkgPath,
+		Expr:    expr,
+		Format:  format,
 	}
 }
 
@@ -155,14 +154,14 @@ type MsgCall struct {
 	Args    []string       `json:"args" yaml:"args"`
 
 	// XXX: This field is experimental, use with care as output is likely to change
-	Format ResultFormat `json:"format" yaml:"format"`
+	Format Format `json:"format" yaml:"format"`
 }
 
 var _ std.Msg = MsgCall{}
 
 func NewMsgCall(caller crypto.Address, send sdk.Coins, pkgPath, fnc string, args []string) MsgCall {
 	return MsgCall{
-		Format:  ResultFormatDefault,
+		Format:  FormatDefault,
 		Caller:  caller,
 		Send:    send,
 		PkgPath: pkgPath,

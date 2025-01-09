@@ -406,7 +406,7 @@ func EndBlocker(
 
 		// Run the VM to get the updates from the chain
 		expr := fmt.Sprintf("%s(%d)", valChangesFn, app.LastBlockHeight())
-		msgEval := vm.NewMsgEval(vm.ResultFormatMachine, valRealm, expr)
+		msgEval := vm.NewMsgEval(vm.FormatDefault, valRealm, expr)
 		response, err := vmk.Eval(ctx, msgEval)
 		if err != nil {
 			app.Logger().Error("unable to call VM during EndBlocker", "err", err)

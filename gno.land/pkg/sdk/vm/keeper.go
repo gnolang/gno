@@ -762,7 +762,7 @@ func (vm *VMKeeper) Eval(ctx sdk.Context, msg MsgEval) (res string, err error) {
 	defer doRecover(m, &err)
 
 	rtvs := m.Eval(xx)
-	res = stringifyResultValues(m, msg.ResultFormat, rtvs)
+	res = stringifyResultValues(m, msg.Format, rtvs)
 	return res, nil
 }
 
@@ -794,9 +794,9 @@ func (vm *VMKeeper) QueryFile(ctx sdk.Context, filepath string) (res string, err
 
 }
 
-func stringifyResultValues(m *gno.Machine, format ResultFormat, values []gnolang.TypedValue) string {
+func stringifyResultValues(m *gno.Machine, format Format, values []gnolang.TypedValue) string {
 	switch format {
-	case ResultFormatString:
+	case FormatString:
 		if len(values) != 1 {
 			panic(fmt.Errorf("expected 1 string result, got %d", len(values)))
 		}
@@ -816,9 +816,9 @@ func stringifyResultValues(m *gno.Machine, format ResultFormat, values []gnolang
 
 		panic(fmt.Errorf("expected 1 `string` or `Stringer` result, got %v", tv.T.Kind()))
 
-	case ResultFormatJSON:
+	case FormatJSON:
 		return JSONPrimitiveValues(m, values)
-	case ResultFormatDefault, "":
+	case FormatDefault, "":
 		var res strings.Builder
 
 		for i, v := range values {

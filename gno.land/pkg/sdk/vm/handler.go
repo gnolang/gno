@@ -143,7 +143,7 @@ func (vh vmHandler) queryRender(ctx sdk.Context, req abci.RequestQuery) (res abc
 
 	// Generate msg eval request
 	expr := fmt.Sprintf("Render(%q)", path)
-	msgEval := NewMsgEval(ResultFormatString, pkgPath, expr)
+	msgEval := NewMsgEval(FormatString, pkgPath, expr)
 
 	// Try evaluate `Render` function
 	result, err := vh.vm.Eval(ctx, msgEval)
@@ -169,12 +169,12 @@ func (vh vmHandler) queryFuncs(ctx sdk.Context, req abci.RequestQuery) (res abci
 
 // queryEval evaluates any expression in readonly mode and returns the results based on the given format.
 func (vh vmHandler) queryEval(ctx sdk.Context, req abci.RequestQuery) (res abci.ResponseQuery) {
-	var format ResultFormat
+	var format Format
 	switch ss := strings.Split(req.Path, "/"); len(ss) {
 	case 2:
-		format = ResultFormatDefault
+		format = FormatDefault
 	case 3:
-		format = ResultFormat(ss[2])
+		format = Format(ss[2])
 	default:
 		res = sdk.ABCIResponseQueryFromError(fmt.Errorf("invalid query"))
 		return
@@ -182,7 +182,7 @@ func (vh vmHandler) queryEval(ctx sdk.Context, req abci.RequestQuery) (res abci.
 	}
 
 	switch format {
-	case ResultFormatMachine, ResultFormatJSON, ResultFormatString:
+	case FormatMachine, FormatJSON, FormatString:
 	default:
 		err := fmt.Errorf("invalid query result format %q", format)
 		res = sdk.ABCIResponseQueryFromError(err)
@@ -210,7 +210,7 @@ func (vh vmHandler) queryEval(ctx sdk.Context, req abci.RequestQuery) (res abci.
 // queryEvalJSON evaluates any expression in readonly mode and returns the results in JSON format.
 func (vh vmHandler) queryEvalJSON(ctx sdk.Context, req abci.RequestQuery) (res abci.ResponseQuery) {
 	pkgath, expr := parseQueryEvalData(string(req.Data))
-	msgEval := NewMsgEval(ResultFormatJSON, pkgath, expr)
+	msgEval := NewMsgEval(FormatJSON, pkgath, expr)
 	result, err := vh.vm.Eval(ctx, msgEval)
 	if err != nil {
 		res = sdk.ABCIResponseQueryFromError(err)
