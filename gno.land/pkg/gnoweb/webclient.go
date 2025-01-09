@@ -9,7 +9,7 @@ import (
 )
 
 var (
-	ErrClientPathNotFound = errors.New("package path not found")
+	ErrClientPathNotFound = errors.New("package not found")
 	ErrClientBadRequest   = errors.New("bad request")
 	ErrClientResponse     = errors.New("node response error")
 )

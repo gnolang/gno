@@ -9,7 +9,6 @@ import (
 	"log/slog"
 	"net/http"
 	"path/filepath"
-	"slices"
 	"strings"
 	"time"
 
@@ -198,13 +197,16 @@ func (h *WebHandler) GetHelpPage(w io.Writer, gnourl *GnoURL) (int, error) {
 	selFn := gnourl.WebQuery.Get("func")
 	if selFn != "" {
 		for _, fn := range fsigs {
-			if selFn == fn.FuncName {
-				for _, param := range fn.Params {
-					selArgs[param.Name] = gnourl.WebQuery.Get(param.Name)
-				}
-				fsigs = []vm.FunctionSignature{fn}
-				break
+			if selFn != fn.FuncName {
+				continue
 			}
+
+			for _, param := range fn.Params {
+				selArgs[param.Name] = gnourl.WebQuery.Get(param.Name)
+			}
+
+			fsigs = []vm.FunctionSignature{fn}
+			break
 		}
 	}
 
@@ -229,8 +231,7 @@ func (h *WebHandler) GetHelpPage(w io.Writer, gnourl *GnoURL) (int, error) {
 
 // GetSource renders the source page.
 func (h *WebHandler) GetSourcePage(w io.Writer, gnourl *GnoURL) (int, error) {
-	pkgPath := strings.TrimSuffix(gnourl.Path, "/")
-
+	pkgPath := gnourl.Path
 	files, err := h.Client.Sources(pkgPath)
 	if err != nil {
 		h.Logger.Error("unable to list sources file", "path", gnourl.Path, "err", err)
@@ -242,9 +243,15 @@ func (h *WebHandler) GetSourcePage(w io.Writer, gnourl *GnoURL) (int, error) {
 		return http.StatusOK, components.RenderStatusComponent(w, "no files available")
 	}
 
-	fileName := gnourl.WebQuery.Get("file")
-	if fileName == "" || !slices.Contains(files, fileName) {
-		fileName = files[0]
+	var fileName string
+	if gnourl.IsFile() { // check path file from path first
+		fileName = gnourl.File
+	} else if file := gnourl.WebQuery.Get("file"); file != "" {
+		fileName = file
+	}
+
+	if fileName == "" {
+		fileName = files[0] // fallback on the first file if
 	}
 
 	var source bytes.Buffer

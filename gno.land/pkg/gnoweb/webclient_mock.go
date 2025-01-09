@@ -13,13 +13,13 @@ import (
 type MockPackage struct {
 	Path      string
 	Domain    string
-	Files     map[string] /* filename  */ string /* body */
+	Files     map[string]string // filename -> body
 	Functions []vm.FunctionSignature
 }
 
 // MockWebClient is a mock implementation of the Client interface.
 type MockWebClient struct {
-	Packages map[string] /* path */ *MockPackage /* package */
+	Packages map[string]*MockPackage // path -> package
 }
 
 func NewMockWebClient(pkgs ...*MockPackage) *MockWebClient {

@@ -30,6 +30,8 @@ func TestWebHandler_Get(t *testing.T) {
 		Path:   "/r/mock/path",
 		Files: map[string]string{
 			"render.gno": `package main; func Render(path string) { return "one more time" }`,
+			"gno.mod":    `module example.com/r/mock/path`,
+			"LicEnse":    `my super license`,
 		},
 		Functions: []vm.FunctionSignature{
 			{FuncName: "SuperRenderFunction", Params: []vm.NamedType{
@@ -48,25 +50,34 @@ func TestWebHandler_Get(t *testing.T) {
 
 	// Define test cases
 	cases := []struct {
-		Path   string
-		Status int
-		Body   string
+		Path     string
+		Status   int
+		Contain  string   // optional
+		Contains []string // optional
 	}{
 		// Found
-		{Path: "/r/mock/path", Status: http.StatusOK, Body: "[example.com]/r/mock/path"},
-		{Path: "/r/mock/path/", Status: http.StatusOK, Body: "render.gno"},
-		{Path: "/r/mock/path/render.gno", Status: http.StatusOK, Body: "one more time"},
-		{Path: "/r/mock/path$source&file=render.gno", Status: http.StatusOK, Body: "one more time"},
-		{Path: "/r/mock/path/$source", Status: http.StatusOK, Body: "one more time"}, // `render.gno` by default
-		{Path: "/r/mock/path$help", Status: http.StatusOK, Body: "SuperRenderFunction"},
-		{Path: "/r/mock/path$help", Status: http.StatusOK, Body: "my_super_arg"},
+		{Path: "/r/mock/path", Status: http.StatusOK, Contain: "[example.com]/r/mock/path"},
+
+		// Source page
+		{Path: "/r/mock/path/", Status: http.StatusOK, Contain: "Directory"},
+		{Path: "/r/mock/path/render.gno", Status: http.StatusOK, Contain: "one more time"},
+		{Path: "/r/mock/path/LicEnse", Status: http.StatusOK, Contain: "my super license"},
+		{Path: "/r/mock/path$source&file=render.gno", Status: http.StatusOK, Contain: "one more time"},
+		{Path: "/r/mock/path$source", Status: http.StatusOK, Contain: "module"}, // `gno.mod` by default
+		{Path: "/r/mock/path/license", Status: http.StatusNotFound},
+
+		// Help page
+		{Path: "/r/mock/path$help", Status: http.StatusOK, Contains: []string{
+			"my_super_arg",
+			"SuperRenderFunction",
+		}},
 
 		// Package not found
-		{Path: "/r/invalid/path", Status: http.StatusNotFound, Body: "not found"},
+		{Path: "/r/invalid/path", Status: http.StatusNotFound, Contain: "not found"},
 
 		// Invalid path
-		{Path: "/r", Status: http.StatusNotFound, Body: "invalid path"},
-		{Path: "/r/~!1337", Status: http.StatusNotFound, Body: "invalid path"},
+		{Path: "/r", Status: http.StatusBadRequest, Contain: "invalid path"},
+		{Path: "/r/~!1337", Status: http.StatusNotFound, Contain: "invalid path"},
 	}
 
 	for _, tc := range cases {
@@ -92,7 +103,11 @@ func TestWebHandler_Get(t *testing.T) {
 
 			// Assert result
 			assert.Equal(t, tc.Status, rr.Code)
-			assert.Containsf(t, rr.Body.String(), tc.Body, "rendered body should contain: %q", tc.Body)
+			assert.Containsf(t, rr.Body.String(), tc.Contain, "rendered body should contain: %q", tc.Contain)
+			for _, contain := range tc.Contains {
+				assert.Containsf(t, rr.Body.String(), contain, "rendered body should contain: %q", contain)
+			}
+
 		})
 	}
 }

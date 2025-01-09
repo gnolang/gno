@@ -141,7 +141,7 @@ func NewRouter(logger *slog.Logger, cfg *AppConfig) (http.Handler, error) {
 	}
 
 	// Handle Chroma CSS requests
-	// XXX: probably move this
+	// XXX: probably move this elsewhere
 	mux.Handle(chromaStylePath, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "text/css")
 		if err := chroma.WriteCSS(w, chromaDefaultStyle); err != nil {
@@ -151,6 +151,7 @@ func NewRouter(logger *slog.Logger, cfg *AppConfig) (http.Handler, error) {
 	}))
 
 	// Handle assets path
+	// XXX: add caching
 	assetsBase := "/" + strings.Trim(cfg.AssetsPath, "/") + "/"
 	if cfg.AssetsDir != "" {
 		logger.Debug("using assets dir instead of embedded assets", "dir", cfg.AssetsDir)
