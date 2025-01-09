@@ -1,8 +1,6 @@
 package vm
 
-import (
-	"github.com/gnolang/gno/tm2/pkg/amino"
-)
+import "github.com/gnolang/gno/tm2/pkg/amino"
 
 // Public facing function signatures.
 // See convertArgToGno() for supported types.

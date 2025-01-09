@@ -99,12 +99,12 @@ type Response interface {
 }
 
 type ResponseBase struct {
-	Error  Error   `json:"error"`
-	Data   []byte  `json:"data"`
-	Events []Event `json:"events"`
+	Error  Error
+	Data   []byte
+	Events []Event
 
-	Log  string `json:"log"`  // nondeterministic
-	Info string `json:"info"` // nondeterministic
+	Log  string // nondeterministic
+	Info string // nondeterministic
 }
 
 func (ResponseBase) AssertResponse() {}
