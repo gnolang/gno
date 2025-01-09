@@ -33,7 +33,10 @@ func parse(pattern string) (*Glob, string, error) {
 	for len(pattern) > 0 {
 		switch pattern[0] {
 		case '/':
-			pattern = pattern[1:]
+			// Skip consecutive slashes
+			for len(pattern) > 0 && pattern[0] == '/' {
+				pattern = pattern[1:]
+			}
 			g.elems = append(g.elems, slash{})
 
 		case '*':
@@ -110,10 +113,11 @@ func match(elems []element, input string) (ok bool) {
 		elem, elems = elems[0], elems[1:]
 		switch elem := elem.(type) {
 		case slash:
+			// Skip consecutive slashes in the input
 			if len(input) == 0 || input[0] != '/' {
 				return false
 			}
-			for input[0] == '/' {
+			for len(input) > 0 && input[0] == '/' {
 				input = input[1:]
 			}
 
