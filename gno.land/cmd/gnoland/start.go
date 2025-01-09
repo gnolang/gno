@@ -26,6 +26,7 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/crypto"
 	"github.com/gnolang/gno/tm2/pkg/events"
 	osm "github.com/gnolang/gno/tm2/pkg/os"
+
 	"github.com/gnolang/gno/tm2/pkg/std"
 	"github.com/gnolang/gno/tm2/pkg/telemetry"
 	"go.uber.org/zap"
@@ -234,9 +235,10 @@ func execStart(ctx context.Context, c *startCfg, io commands.IO) error {
 
 	// Create a top-level shared event switch
 	evsw := events.NewEventSwitch()
+	minGasPrices := cfg.Application.MinGasPrices
 
 	// Create application and node
-	cfg.LocalApp, err = gnoland.NewApp(nodeDir, c.skipFailingGenesisTxs, evsw, logger)
+	cfg.LocalApp, err = gnoland.NewApp(nodeDir, c.skipFailingGenesisTxs, evsw, logger, minGasPrices)
 	if err != nil {
 		return fmt.Errorf("unable to create the Gnoland app, %w", err)
 	}
@@ -372,10 +374,10 @@ func generateGenesisFile(genesisFile string, pk crypto.PubKey, c *startCfg) erro
 	gen.ConsensusParams = abci.ConsensusParams{
 		Block: &abci.BlockParams{
 			// TODO: update limits.
-			MaxTxBytes:   1_000_000,   // 1MB,
-			MaxDataBytes: 2_000_000,   // 2MB,
-			MaxGas:       100_000_000, // 100M gas
-			TimeIotaMS:   100,         // 100ms
+			MaxTxBytes:   1_000_000,     // 1MB,
+			MaxDataBytes: 2_000_000,     // 2MB,
+			MaxGas:       3_000_000_000, // 3B gas
+			TimeIotaMS:   100,           // 100ms
 		},
 	}
 
