@@ -6,6 +6,7 @@ import (
 	"net/url"
 	"path/filepath"
 	"regexp"
+	"slices"
 	"strings"
 )
 
@@ -31,7 +32,8 @@ type GnoURL struct {
 type EncodeFlag int
 
 const (
-	EncodePath     EncodeFlag = 1 << iota // Encode the path component
+	EncodeDomain   EncodeFlag = 1 << iota // Encode the domain component
+	EncodePath                            // Encode the path component
 	EncodeArgs                            // Encode the arguments component
 	EncodeWebQuery                        // Encode the web query component
 	EncodeQuery                           // Encode the query component
@@ -62,13 +64,15 @@ const (
 func (gnoURL GnoURL) Encode(encodeFlags EncodeFlag) string {
 	var urlstr strings.Builder
 
+	noEscape := encodeFlags.Has(EncodeNoEscape)
+
+	if encodeFlags.Has(EncodeDomain) {
+		urlstr.WriteString(gnoURL.Domain)
+	}
+
 	if encodeFlags.Has(EncodePath) {
 		path := gnoURL.Path
-		if !encodeFlags.Has(EncodeNoEscape) {
-			path = url.PathEscape(path)
-		}
-
-		urlstr.WriteString(gnoURL.Path)
+		urlstr.WriteString(path)
 	}
 
 	if len(gnoURL.File) > 0 {
@@ -84,7 +88,7 @@ func (gnoURL GnoURL) Encode(encodeFlags EncodeFlag) string {
 		// XXX: Arguments should ideally always be escaped,
 		// but this may require changes in some realms.
 		args := gnoURL.Args
-		if !encodeFlags.Has(EncodeNoEscape) {
+		if !noEscape {
 			args = escapeDollarSign(url.PathEscape(args))
 		}
 
@@ -93,12 +97,20 @@ func (gnoURL GnoURL) Encode(encodeFlags EncodeFlag) string {
 
 	if encodeFlags.Has(EncodeWebQuery) && len(gnoURL.WebQuery) > 0 {
 		urlstr.WriteRune('$')
-		urlstr.WriteString(gnoURL.WebQuery.Encode())
+		if noEscape {
+			urlstr.WriteString(NoEscapeQuery(gnoURL.WebQuery))
+		} else {
+			urlstr.WriteString(gnoURL.WebQuery.Encode())
+		}
 	}
 
 	if encodeFlags.Has(EncodeQuery) && len(gnoURL.Query) > 0 {
 		urlstr.WriteRune('?')
-		urlstr.WriteString(gnoURL.Query.Encode())
+		if noEscape {
+			urlstr.WriteString(NoEscapeQuery(gnoURL.Query))
+		} else {
+			urlstr.WriteString(gnoURL.Query.Encode())
+		}
 	}
 
 	return urlstr.String()
@@ -212,4 +224,33 @@ func ParseGnoURL(u *url.URL) (*GnoURL, error) {
 		Domain:   u.Hostname(),
 		File:     file,
 	}, nil
+}
+
+// NoEscapeQuery generates a URL-encoded query string from the given url.Values,
+// without escaping the keys and values. The query parameters are sorted by key.
+func NoEscapeQuery(v url.Values) string {
+	// Encode encodes the values into “URL encoded” form
+	// ("bar=baz&foo=quux") sorted by key.
+	if len(v) == 0 {
+		return ""
+	}
+	var buf strings.Builder
+	keys := make([]string, 0, len(v))
+	for k := range v {
+		keys = append(keys, k)
+	}
+	slices.Sort(keys)
+	for _, k := range keys {
+		vs := v[k]
+		keyEscaped := k
+		for _, v := range vs {
+			if buf.Len() > 0 {
+				buf.WriteByte('&')
+			}
+			buf.WriteString(keyEscaped)
+			buf.WriteByte('=')
+			buf.WriteString(v)
+		}
+	}
+	return buf.String()
 }
