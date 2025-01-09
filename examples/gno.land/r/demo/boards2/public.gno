@@ -123,6 +123,7 @@ func CreateRepost(bid BoardID, threadID PostID, title, body string, dstBoardID B
 
 	dst := mustGetBoard(dstBoardID)
 	thread := mustGetThread(board, threadID)
+
 	repost := thread.AddRepostTo(caller, title, body, dst)
 	return repost.id
 }
