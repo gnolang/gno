@@ -110,12 +110,3 @@ func sortImports(imports []FileImport) {
 		return imports[i].PkgPath < imports[j].PkgPath
 	})
 }
-
-func FilePackageName(filename string, src string) (string, error) {
-	fs := token.NewFileSet()
-	f, err := parser.ParseFile(fs, filename, src, parser.PackageClauseOnly)
-	if err != nil {
-		return "", err
-	}
-	return f.Name.Name, nil
-}
