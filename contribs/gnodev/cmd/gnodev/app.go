@@ -331,7 +331,9 @@ func (ds *App) RunServer(ctx context.Context, term *rawterm.RawTerm) error {
 			cancelWith(err)
 		}()
 
-		ds.logger.WithGroup(WebLogName).Info("gnoweb started", "lisn", fmt.Sprintf("http://%s", addr))
+		ds.logger.WithGroup(WebLogName).Info("gnoweb started",
+			"lisn", fmt.Sprintf("http://%s", addr))
+
 	}
 
 	if ds.cfg.interactive {

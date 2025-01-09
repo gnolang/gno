@@ -30,25 +30,25 @@ type PathInterceptor struct {
 	muHandlers sync.RWMutex
 }
 
-// NewPathInterceptor creates a proxy loader with a logger and target address.
+// NewPathInterceptor creates a path proxy interceptor.
 func NewPathInterceptor(logger *slog.Logger, target net.Addr) (*PathInterceptor, error) {
-	// Create a lisnener with target addr
-	porxyListener, err := net.Listen(target.Network(), target.String())
+	// Create a listener with the target address
+	proxyListener, err := net.Listen(target.Network(), target.String())
 	if err != nil {
 		return nil, fmt.Errorf("failed to listen on %s://%s", target.Network(), target.String())
 	}
 
 	// Find a new random port for the target
-	targertListener, err := net.Listen("tcp", "127.0.0.1:0")
+	targetListener, err := net.Listen("tcp", "127.0.0.1:0")
 	if err != nil {
-		return nil, fmt.Errorf("failed to listen on %s://%s", target.Network(), target.String())
+		return nil, fmt.Errorf("failed to listen on tcp://127.0.0.1:0")
 	}
-	proxyAddr := targertListener.Addr()
-	// Immedialty close this listener after proxy init
-	defer targertListener.Close()
+	proxyAddr := targetListener.Addr()
+	// Immediately close this listener after proxy init
+	defer targetListener.Close()
 
 	proxy := &PathInterceptor{
-		listener:   porxyListener,
+		listener:   proxyListener,
 		logger:     logger,
 		targetAddr: target,
 		proxyAddr:  proxyAddr,
@@ -71,7 +71,7 @@ func (proxy *PathInterceptor) ProxyAddress() string {
 	return fmt.Sprintf("%s://%s", proxy.proxyAddr.Network(), proxy.proxyAddr.String())
 }
 
-// ProxyAddress returns the network address of the proxy.
+// TargetAddress returns the network address of the target.
 func (proxy *PathInterceptor) TargetAddress() string {
 	return fmt.Sprintf("%s://%s", proxy.targetAddr.Network(), proxy.targetAddr.String())
 }
@@ -86,6 +86,8 @@ func (proxy *PathInterceptor) handleConnections() {
 			proxy.logger.Debug("failed to accept connection", "error", err)
 			continue
 		}
+
+		proxy.logger.Debug("new connection", "from", conn.RemoteAddr())
 		go proxy.handleConnection(conn)
 	}
 }
@@ -94,36 +96,6 @@ func (proxy *PathInterceptor) handleConnections() {
 func (proxy *PathInterceptor) handleConnection(inConn net.Conn) {
 	defer inConn.Close()
 
-	var buffer bytes.Buffer
-	teeReader := io.TeeReader(inConn, &buffer)
-
-	defer func() { proxy.forwardRequest(&buffer, inConn) }()
-
-	request, err := http.ReadRequest(bufio.NewReader(teeReader))
-	if err != nil {
-		proxy.logger.Debug("failed to read HTTP request", "error", err)
-		return
-	}
-
-	if request.Header.Get("Upgrade") == "websocket" {
-		proxy.logger.Debug("WebSocket connection detected, forwarding directly")
-		return
-	}
-
-	body, err := io.ReadAll(request.Body)
-	if err != nil {
-		proxy.logger.Warn("failed to read request body", "error", err)
-		return
-	}
-	defer request.Body.Close()
-
-	if err := proxy.handleRequest(body); err != nil {
-		proxy.logger.Debug("error handling request", "error", err)
-	}
-}
-
-// forwardRequest forwards the buffered request to the target address.
-func (proxy *PathInterceptor) forwardRequest(buffer *bytes.Buffer, inConn net.Conn) {
 	outConn, err := net.Dial(proxy.proxyAddr.Network(), proxy.proxyAddr.String())
 	if err != nil {
 		proxy.logger.Error("failed to connect to remote socket", "address", proxy.proxyAddr, "error", err)
@@ -131,22 +103,59 @@ func (proxy *PathInterceptor) forwardRequest(buffer *bytes.Buffer, inConn net.Co
 	}
 	defer outConn.Close()
 
-	if buffer.Len() > 0 {
+	// Redirect all the response directly to the incoming connection
+	go io.Copy(inConn, outConn)
+
+	var buffer bytes.Buffer
+	teeReader := io.TeeReader(inConn, &buffer)
+
+	defer func() {
+		io.Copy(outConn, inConn) // forward everything left
+		proxy.logger.Debug("connection ended", "from", inConn.RemoteAddr())
+	}()
+
+	for {
+		request, err := http.ReadRequest(bufio.NewReader(teeReader))
+		if err != nil {
+			proxy.logger.Debug("failed to read HTTP request", "error", err)
+			// not an actual HTTP request, forward connection directly
+			return
+		}
+
+		if request.Header.Get("Upgrade") == "websocket" {
+			proxy.logger.Debug("WebSocket connection detected, forwarding directly")
+			// WebSocket connection not supported (yet), forward connection directly
+			return
+		}
+
+		body, err := io.ReadAll(request.Body)
+		if err != nil {
+			proxy.logger.Warn("failed to read request body", "error", err)
+			return
+		}
+
+		if err := proxy.handleRequest(body); err != nil {
+			proxy.logger.Debug("error handling request", "error", err)
+		}
+
+		request.Body.Close()
+
 		if _, err := outConn.Write(buffer.Bytes()); err != nil {
+			// forward what we read to the outbound connection
 			proxy.logger.Error("unable to write to socket", "error", err)
 			return
 		}
-	}
 
-	go io.Copy(outConn, inConn)
-	io.Copy(inConn, outConn)
+		// Reset buffer
+		buffer.Reset()
+	}
 }
 
 // handleRequest parses and processes the RPC request body.
 func (proxy *PathInterceptor) handleRequest(body []byte) error {
 	paths, err := parseRPCRequest(body)
 	if err != nil {
-		return fmt.Errorf("unable to parse rpc request: %w", err)
+		return fmt.Errorf("unable to parse RPC request: %w", err)
 	}
 
 	if len(paths) == 0 {
@@ -178,11 +187,11 @@ type sDataQuery struct {
 func parseRPCRequest(body []byte) ([]string, error) {
 	var req rpctypes.RPCRequest
 	if err := json.Unmarshal(body, &req); err != nil {
-		return nil, fmt.Errorf("unable to unmarshal rpc request: %w", err)
+		return nil, fmt.Errorf("unable to unmarshal RPC request: %w", err)
 	}
 
 	if req.Method != "abci_query" {
-		return nil, fmt.Errorf("not an abci query")
+		return nil, fmt.Errorf("not an ABCI query")
 	}
 
 	var query sDataQuery
