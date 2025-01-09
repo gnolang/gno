@@ -152,8 +152,11 @@ func (dp *DefaultPermissions) WithPermission(user std.Address, perm Permission, 
 }
 
 func (DefaultPermissions) handleBoardCreate(args Args, cb func(Args)) {
-	// TODO: This way of dealing with arguments is delicate, ideally types should be used
-	name := args[0].(string)
+	name, ok := args[0].(string)
+	if !ok {
+		panic("expected board name to be a string")
+	}
+
 	assertBoardNameIsNotAddress(name)
 	assertBoardNameBelongsToCaller(name)
 
@@ -161,7 +164,11 @@ func (DefaultPermissions) handleBoardCreate(args Args, cb func(Args)) {
 }
 
 func (DefaultPermissions) handleBoardRename(args Args, cb func(Args)) {
-	newName := args[2].(string)
+	newName, ok := args[2].(string)
+	if !ok {
+		panic("expected new board name to be a string")
+	}
+
 	assertBoardNameIsNotAddress(newName)
 	assertBoardNameBelongsToCaller(newName)
 
@@ -170,7 +177,11 @@ func (DefaultPermissions) handleBoardRename(args Args, cb func(Args)) {
 
 func (dp DefaultPermissions) handleMemberInvite(args Args, cb func(Args)) {
 	// Make sure that only owners invite other owners
-	role := args[1].(Role)
+	role, ok := args[1].(Role)
+	if !ok {
+		panic("expected a valid new member role")
+	}
+
 	if role == RoleOwner {
 		caller := std.GetOrigCaller()
 		if !dp.HasRole(caller, RoleOwner) {
