@@ -4,6 +4,7 @@ import (
 	"reflect"
 	"testing"
 
+	"github.com/google/go-cmp/cmp"
 	"github.com/stretchr/testify/require"
 )
 
@@ -103,5 +104,28 @@ func TestNewParams(t *testing.T) {
 	// Check if the returned params struct matches the expected struct
 	if !reflect.DeepEqual(params, expectedParams) {
 		t.Errorf("NewParams() = %+v, want %+v", params, expectedParams)
+	}
+}
+
+func TestParamsString(t *testing.T) {
+	cases := []struct {
+		name   string
+		params Params
+		want   string
+	}{
+		{"blank params", Params{}, "Params: \nMaxMemoBytes: 0\nTxSigLimit: 0\nTxSizeCostPerByte: 0\nSigVerifyCostED25519: 0\nSigVerifyCostSecp256k1: 0\nGasPricesChangeCompressor: 0\nTargetGasRatio: 0\n"},
+		{"some values", Params{
+			MaxMemoBytes:      1_000_000,
+			TxSizeCostPerByte: 8192,
+		}, "Params: \nMaxMemoBytes: 1000000\nTxSigLimit: 0\nTxSizeCostPerByte: 8192\nSigVerifyCostED25519: 0\nSigVerifyCostSecp256k1: 0\nGasPricesChangeCompressor: 0\nTargetGasRatio: 0\n"},
+	}
+
+	for _, tt := range cases {
+		t.Run(tt.name, func(t *testing.T) {
+			got := tt.params.String()
+			if diff := cmp.Diff(got, tt.want); diff != "" {
+				t.Fatalf("Mismatch: got - want +\n%s", diff)
+			}
+		})
 	}
 }
