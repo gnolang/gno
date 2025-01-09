@@ -271,6 +271,29 @@ func (post *Post) RenderSummary() string {
 	return s
 }
 
+func (post *Post) renderSourcePost(indent string) (string, *Post) {
+	if post.repostBoardID == 0 {
+		return "", nil
+	}
+
+	// TODO: figure out a way to decouple posts from a global storage.
+	board, ok := getBoard(post.repostBoardID)
+	if !ok {
+		return indentBody(indent, "> Source post is not available\n\n"), nil
+	}
+
+	srcPost, ok := board.GetThread(post.parentID)
+	if !ok {
+		return indentBody(indent, "> Source post is not available\n\n"), nil
+	}
+
+	if srcPost.isHidden {
+		return indentBody(indent, "> Source post has been flagged as inappropriate\n\n"), nil
+	}
+
+	return indentBody(indent, srcPost.GetSummary()) + "\n", srcPost
+}
+
 func (post *Post) Render(indent string, levels int) string {
 	if post == nil {
 		return "nil post"
@@ -286,13 +309,23 @@ func (post *Post) Render(indent string, levels int) string {
 		s += indent + "\n"
 	}
 
+	srcContent, srcPost := post.renderSourcePost(indent)
+
 	s += indentBody(indent, post.body) + "\n" // TODO: indent body lines.
+	s += srcContent
 	s += indent + "\\- " + newUserLink(post.creator) + ", "
 	s += newLink(post.createdAt.Format(dateFormat), postURL)
+
+	if srcPost != nil {
+		s += " \\[" + newLink("see source post", srcPost.GetURL()) + "\\]"
+	}
+
 	s += " \\[" + newLink("reply", post.GetReplyFormURL()) + "]"
+
 	if post.IsThread() {
 		s += " \\[" + newLink("repost", post.GetRepostFormURL()) + "]"
 	}
+
 	s += " \\[" + newLink("x", post.GetDeleteFormURL()) + "]\n"
 
 	if levels > 0 {
