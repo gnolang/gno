@@ -1,4 +1,4 @@
-package transpiler
+package transpiler_test
 
 import (
 	"fmt"
@@ -6,10 +6,12 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
-	"runtime"
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
+	"github.com/gnolang/gno/gnovm/pkg/transpiler"
 )
 
 func FuzzTranspiling(f *testing.F) {
@@ -18,13 +20,7 @@ func FuzzTranspiling(f *testing.F) {
 	}
 
 	// 1. Derive the seeds from our seedGnoFiles.
-	breakRoot := filepath.Join("gnolang", "gno")
-	pc, thisFile, _, _ := runtime.Caller(0)
-	index := strings.Index(thisFile, breakRoot)
-	_ = pc // to silence the pedantic golangci linter.
-	rootPath := thisFile[:index+len(breakRoot)]
-	examplesDir := filepath.Join(rootPath, "examples")
-	ffs := os.DirFS(examplesDir)
+	ffs := os.DirFS(filepath.Join(gnoenv.RootDir(), "examples"))
 	fs.WalkDir(ffs, ".", func(path string, d fs.DirEntry, err error) error {
 		if err != nil {
 			panic(err)
@@ -47,6 +43,7 @@ func FuzzTranspiling(f *testing.F) {
 
 	// 2. Run the fuzzers.
 	f.Fuzz(func(t *testing.T, gnoSourceCode []byte) {
+		fmt.Println(string(gnoSourceCode))
 		// 3. Add timings to ensure that if transpiling takes a long time
 		// to run, that we report this as problematic.
 		doneCh := make(chan bool, 1)
@@ -65,7 +62,7 @@ func FuzzTranspiling(f *testing.F) {
 			}()
 			close(readyCh)
 			defer close(doneCh)
-			_, _ = Transpile(string(gnoSourceCode), "gno", "in.gno")
+			_, _ = transpiler.Transpile(string(gnoSourceCode), "gno", "in.gno")
 			doneCh <- true
 		}()
 
