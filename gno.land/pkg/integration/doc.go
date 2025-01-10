@@ -103,16 +103,16 @@
 //     set only if the node has started.
 //
 //   - xxx_user_seed:
-//     Where `xxx` is account name; Contains the seed for the test1 account.
+//     Where `xxx` is the account name; Contains the seed for the test1 account.
 //
 //   - xxx_user_addr:
-//     Where `xxx` is account name; Contains the address for the test1 account.
+//     Where `xxx` is the account name; Contains the address for the test1 account.
 //
 //   - xxx_account_num:
-//     Where `xxx` is account name; Contains the account number for the test1 account.
+//     Where `xxx` is the account name; Contains the account number for the test1 account.
 //
 //   - xxx_account_seq:
-//     Where `xxx` is account name; Contains the address for the test1 account.
+//     Where `xxx` is the account name; Contains the address for the test1 account.
 //
 //   - RPC_ADDR:
 //     Points to the gnoland node's remote address. It's set only if the node has started.

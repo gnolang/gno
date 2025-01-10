@@ -1,11 +1,14 @@
 package integration
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"flag"
 	"fmt"
 	"hash/crc32"
+	"os"
+	"os/exec"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -22,10 +25,13 @@ import (
 	ctypes "github.com/gnolang/gno/tm2/pkg/bft/rpc/core/types"
 	bft "github.com/gnolang/gno/tm2/pkg/bft/types"
 	"github.com/gnolang/gno/tm2/pkg/commands"
+	"github.com/gnolang/gno/tm2/pkg/crypto"
 	"github.com/gnolang/gno/tm2/pkg/crypto/bip39"
 	"github.com/gnolang/gno/tm2/pkg/crypto/ed25519"
+	"github.com/gnolang/gno/tm2/pkg/crypto/hd"
 	"github.com/gnolang/gno/tm2/pkg/crypto/keys"
 	"github.com/gnolang/gno/tm2/pkg/crypto/keys/client"
+	"github.com/gnolang/gno/tm2/pkg/crypto/secp256k1"
 	"github.com/gnolang/gno/tm2/pkg/std"
 	"github.com/rogpeppe/go-internal/testscript"
 	"github.com/stretchr/testify/require"
@@ -657,10 +663,6 @@ func setupNode(ts *testscript.TestScript, ctx context.Context, cfg *ProcessNodeC
 	return nil
 }
 
-type envSetter interface {
-	Setenv(key, value string)
-}
-
 // createAccount creates a new account with the given name and adds it to the keybase.
 func createAccount(ts *testscript.TestScript, kb keys.Keybase, accountName string) (gnoland.Balance, error) {
 	var balance gnoland.Balance
@@ -699,6 +701,67 @@ func createAccountFrom(ts *testscript.TestScript, kb keys.Keybase, accountName, 
 		Address: address,
 		Amount:  std.Coins{std.NewCoin(ugnot.Denom, 10e6)},
 	}, nil
+}
+
+func buildGnoland(t *testing.T, rootdir string) string {
+	t.Helper()
+
+	bin := filepath.Join(t.TempDir(), "gnoland-test")
+
+	t.Log("building gnoland integration binary...")
+
+	// Build a fresh gno binary in a temp directory
+	gnoArgsBuilder := []string{"build", "-o", bin}
+
+	os.Executable()
+
+	// Forward `-covermode` settings if set
+	if coverMode := testing.CoverMode(); coverMode != "" {
+		gnoArgsBuilder = append(gnoArgsBuilder,
+			"-covermode", coverMode,
+		)
+	}
+
+	// Append the path to the gno command source
+	gnoArgsBuilder = append(gnoArgsBuilder, filepath.Join(rootdir,
+		"gno.land", "pkg", "integration", "process"))
+
+	t.Logf("build command: %s", strings.Join(gnoArgsBuilder, " "))
+
+	cmd := exec.Command("go", gnoArgsBuilder...)
+
+	var buff bytes.Buffer
+	cmd.Stderr, cmd.Stdout = &buff, &buff
+	defer buff.Reset()
+
+	if err := cmd.Run(); err != nil {
+		require.FailNowf(t, "unable to build binary", "%q\n%s",
+			err.Error(), buff.String())
+	}
+
+	return bin
+}
+
+// GeneratePrivKeyFromMnemonic generates a crypto.PrivKey from a mnemonic.
+func GeneratePrivKeyFromMnemonic(mnemonic, bip39Passphrase string, account, index uint32) (crypto.PrivKey, error) {
+	// Generate Seed from Mnemonic
+	seed, err := bip39.NewSeedWithErrorChecking(mnemonic, bip39Passphrase)
+	if err != nil {
+		return nil, fmt.Errorf("failed to generate seed: %w", err)
+	}
+
+	// Derive Private Key
+	coinType := crypto.CoinType // ensure this is set correctly in your context
+	hdPath := hd.NewFundraiserParams(account, coinType, index)
+	masterPriv, ch := hd.ComputeMastersFromSeed(seed)
+	derivedPriv, err := hd.DerivePrivateKeyForPath(masterPriv, ch, hdPath.String())
+	if err != nil {
+		return nil, fmt.Errorf("failed to derive private key: %w", err)
+	}
+
+	// Convert to secp256k1 private key
+	privKey := secp256k1.PrivKeySecp256k1(derivedPriv)
+	return privKey, nil
 }
 
 func getNodeSID(ts *testscript.TestScript) string {
