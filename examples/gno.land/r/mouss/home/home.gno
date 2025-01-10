@@ -1,7 +1,6 @@
 package home
 
 import (
-	"bytes"
 	"std"
 	"strings"
 
@@ -120,7 +119,7 @@ func contains(slice []std.Address, item std.Address) bool {
 }
 
 func renderRecipes(res *mux.ResponseWriter, req *mux.Request) {
-	var b bytes.Buffer
+	var b strings.Builder
 	b.WriteString("## World Kitchen\n\n------\n\n")
 	writeRecipe(&b, margheritaPizza)
 
@@ -136,7 +135,7 @@ func renderRecipes(res *mux.ResponseWriter, req *mux.Request) {
 	res.Write(b.String())
 }
 
-func writeRecipe(b *bytes.Buffer, recipe *Recipe) {
+func writeRecipe(b *strings.Builder, recipe *Recipe) {
 	b.WriteString("## " + recipe.Name + "\n")
 	b.WriteString("**Author:** " + recipe.Author.String() + "\n\n")
 	b.WriteString("**Origin:** " + recipe.Origin + "\n\n")
@@ -152,13 +151,13 @@ func writeRecipe(b *bytes.Buffer, recipe *Recipe) {
 }
 
 func renderHomepage(res *mux.ResponseWriter, req *mux.Request) {
-	var b bytes.Buffer
+	var b strings.Builder
 	writeNavigation(&b)
 	writeProfile(&b)
 	res.Write(b.String())
 }
 
-func writeProfile(b *bytes.Buffer) {
+func writeProfile(b *strings.Builder) {
 	b.WriteString("# Welcome to my Homepage\n\n------\n\n")
 	writeGnoArt(b)
 	b.WriteString("------\n\n## About Me\n------\n\n")
@@ -172,7 +171,7 @@ func writeProfile(b *bytes.Buffer) {
 	b.WriteString(ufmt.Sprintf("👤 Followers: %d", len(profile.Followers)))
 }
 
-func writeNavigation(b *bytes.Buffer) {
+func writeNavigation(b *strings.Builder) {
 	b.WriteString(strings.Join([]string{
 		"[Home]()",
 		ufmt.Sprintf("[World Kitchen](%s)", Rec),
@@ -183,7 +182,7 @@ func writeNavigation(b *bytes.Buffer) {
 func Render(path string) string {
 	return router.Render(path)
 }
-func writeGnoArt(b *bytes.Buffer) {
+func writeGnoArt(b *strings.Builder) {
 	b.WriteString("```\n")
 	for _, line := range []string{
 		"              -==++.                                                                  ",
