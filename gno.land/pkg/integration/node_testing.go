@@ -56,6 +56,7 @@ func TestingInMemoryNode(t TestingTS, logger *slog.Logger, config *gnoland.InMem
 // It will return the default creator address of the loaded packages.
 func TestingNodeConfig(t TestingTS, gnoroot string, additionalTxs ...gnoland.TxWithMetadata) (*gnoland.InMemoryNodeConfig, bft.Address) {
 	cfg := TestingMinimalNodeConfig(gnoroot)
+	cfg.SkipGenesisVerification = true
 
 	creator := crypto.MustAddressFromString(DefaultAccount_Address) // test1
 
@@ -147,7 +148,7 @@ func LoadDefaultGenesisBalanceFile(t TestingTS, gnoroot string) []gnoland.Balanc
 	genesisBalances, err := gnoland.LoadGenesisBalancesFile(balanceFile)
 	require.NoError(t, err)
 
-	return genesisBalances
+	return genesisBalances.List()
 }
 
 // LoadDefaultGenesisParamFile loads the default genesis balance file for testing.
