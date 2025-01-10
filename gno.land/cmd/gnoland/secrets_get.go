@@ -12,7 +12,7 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/bft/privval"
 	"github.com/gnolang/gno/tm2/pkg/commands"
 	osm "github.com/gnolang/gno/tm2/pkg/os"
-	"github.com/gnolang/gno/tm2/pkg/p2p"
+	"github.com/gnolang/gno/tm2/pkg/p2p/types"
 )
 
 var errInvalidSecretsGetArgs = errors.New("invalid number of secrets get arguments provided")
@@ -169,7 +169,7 @@ func readValidatorState(path string) (*validatorStateInfo, error) {
 
 // readNodeID reads the node p2p info from the given path
 func readNodeID(path string) (*nodeIDInfo, error) {
-	nodeKey, err := readSecretData[p2p.NodeKey](path)
+	nodeKey, err := readSecretData[types.NodeKey](path)
 	if err != nil {
 		return nil, fmt.Errorf("unable to read node key, %w", err)
 	}
@@ -199,7 +199,7 @@ func readNodeID(path string) (*nodeIDInfo, error) {
 
 // constructP2PAddress constructs the P2P address other nodes can use
 // to connect directly
-func constructP2PAddress(nodeID p2p.ID, listenAddress string) string {
+func constructP2PAddress(nodeID types.ID, listenAddress string) string {
 	var (
 		address string
 		parts   = strings.SplitN(listenAddress, "://", 2)
