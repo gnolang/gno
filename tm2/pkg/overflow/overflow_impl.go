@@ -84,8 +84,9 @@ func Quotient8(a, b int8) (int8, int8, bool) {
 	}
 	c := a / b
 	status := (c < 0) == ((a < 0) != (b < 0)) || (c == 0) // no sign check for 0 quotient
-	return c, a % b, status
+	return c, a%b, status
 }
+
 
 // Add16 performs + operation on two int16 operands, returning a result and status.
 func Add16(a, b int16) (int16, bool) {
@@ -169,8 +170,9 @@ func Quotient16(a, b int16) (int16, int16, bool) {
 	}
 	c := a / b
 	status := (c < 0) == ((a < 0) != (b < 0)) || (c == 0) // no sign check for 0 quotient
-	return c, a % b, status
+	return c, a%b, status
 }
+
 
 // Add32 performs + operation on two int32 operands, returning a result and status.
 func Add32(a, b int32) (int32, bool) {
@@ -254,8 +256,9 @@ func Quotient32(a, b int32) (int32, int32, bool) {
 	}
 	c := a / b
 	status := (c < 0) == ((a < 0) != (b < 0)) || (c == 0) // no sign check for 0 quotient
-	return c, a % b, status
+	return c, a%b, status
 }
+
 
 // Add64 performs + operation on two int64 operands, returning a result and status.
 func Add64(a, b int64) (int64, bool) {
@@ -339,5 +342,6 @@ func Quotient64(a, b int64) (int64, int64, bool) {
 	}
 	c := a / b
 	status := (c < 0) == ((a < 0) != (b < 0)) || (c == 0) // no sign check for 0 quotient
-	return c, a % b, status
+	return c, a%b, status
 }
+
