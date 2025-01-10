@@ -12,15 +12,17 @@ import (
 	"gno.land/r/mouss/config"
 )
 
+// Profile represents my personal profile information.
 type Profile struct {
 	AboutMe   string
 	Avatar    string
 	Email     string
 	Github    string
 	LinkedIn  string
-	Followers addrset.Set
+	Followers addrset.Set // Set of followers addresses.
 }
 
+// Recipe represents a cooking recipe with its details.
 type Recipe struct {
 	Name         string
 	Origin       string
@@ -56,12 +58,13 @@ var (
 	}
 )
 
+// init initializes the router with the homepage and recipe routes.
 func init() {
 	router.HandleFunc("", renderHomepage)
 	router.HandleFunc("recipe/", renderRecipes)
-
 }
 
+// AddRecipe adds a new recipe in recipe page by users
 func AddRecipe(name, origin, ingredients, instructions, tips string) string {
 	if err := validateRecipe(name, ingredients, instructions); err != nil {
 		panic(err.Error())
@@ -79,6 +82,7 @@ func AddRecipe(name, origin, ingredients, instructions, tips string) string {
 	return "Recipe added successfully!"
 }
 
+// validateRecipe checks if the provided recipe details are valid.
 func validateRecipe(name, ingredients, instructions string) error {
 	if name == "" {
 		return ufmt.Errorf("recipe name cannot be empty")
@@ -91,6 +95,14 @@ func validateRecipe(name, ingredients, instructions string) error {
 	}
 	return nil
 }
+
+// Follow allows a users to follow my home page.
+// It checks if the caller is a valid user and if the address is already being followed.
+// If the caller is not authorized, it returns an error.
+// If the address is already being followed, it returns an error.
+// Otherwise, it adds the address to the list of followers and returns nil.
+//TODO:any user can follow and to be followed by any other user
+//TODO: add a function to unfollow
 
 func Follow(addr std.Address) error {
 	caller := std.PrevRealm().Addr()
@@ -109,15 +121,6 @@ func isUser(addr std.Address) bool {
 }
 func isAuthorized(addr std.Address) bool {
 	return addr == config.Address() || addr == config.Backup()
-}
-
-func contains(slice []std.Address, item std.Address) bool {
-	for _, s := range slice {
-		if s == item {
-			return true
-		}
-	}
-	return false
 }
 
 func renderRecipes(res *mux.ResponseWriter, req *mux.Request) {
