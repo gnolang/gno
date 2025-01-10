@@ -280,6 +280,8 @@ Main:
 								// ok
 								break Main
 							}
+							assertValidConstValue(store, last, currExpr.Args[0])
+							break Main
 						}
 					}
 				}
@@ -336,6 +338,12 @@ Main:
 
 			tt := pv.GetBlock(store).Source.GetStaticTypeOf(store, currExpr.Sel)
 			panic(fmt.Sprintf("%s (variable of type %s) is not constant", currExpr.String(), tt))
+		case *PointerType, *DeclaredType, *StructType, *InterfaceType, *TypeType, *NativeType:
+			ty := evalStaticTypeOf(store, last, currExpr)
+			if _, ok := ty.(*TypeType); ok {
+				ty = evalStaticType(store, last, currExpr)
+			}
+			panic(fmt.Sprintf("%s (variable of type %s) is not constant", currExpr.String(), ty))
 		default:
 			panic(fmt.Sprintf(
 				"unexpected selector expression type %v",
