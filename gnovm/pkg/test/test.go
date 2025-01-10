@@ -224,7 +224,6 @@ func Test(memPkg *gnovm.MemPackage, fsDir string, opts *TestOptions) error {
 				errs = multierr.Append(errs, err)
 			}
 		}
-
 	}
 
 	// Testing with *_filetest.gno.
