@@ -38,6 +38,7 @@ type Post struct {
 	threadID      PostID  // original Post.id
 	parentID      PostID  // parent Post.id (if reply or repost)
 	repostBoardID BoardID // original Board.id (if repost)
+	repostsCount  uint64
 	createdAt     time.Time
 	updatedAt     time.Time
 }
@@ -167,6 +168,7 @@ func (post *Post) AddRepostTo(creator std.Address, title, body string, dst *Boar
 
 	args := Args{creator, dst.id, pid}
 	dst.perms.WithPermission(creator, PermissionThreadRepost, args, func(_ Args) {
+		post.repostsCount++
 		dst.threads.Set(pid.Key(), repost)
 		if !dst.IsPrivate() {
 			post.reposts.Set(dst.id.Key(), pid)
@@ -324,6 +326,10 @@ func (post *Post) Render(indent string, levels int) string {
 	s += srcContent
 	s += indent + "\\- " + newUserLink(post.creator) + ", "
 	s += newLink(post.createdAt.Format(dateFormat), postURL)
+
+	if post.repostsCount > 0 {
+		s += ", " + strconv.FormatUint(post.repostsCount, 10) + " reposts"
+	}
 
 	if srcPost != nil {
 		s += " \\[" + newLink("see source post", srcPost.GetURL()) + "\\]"
