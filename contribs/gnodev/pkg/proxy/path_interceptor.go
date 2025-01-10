@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"log/slog"
@@ -83,8 +84,11 @@ func (proxy *PathInterceptor) handleConnections() {
 	for {
 		conn, err := proxy.listener.Accept()
 		if err != nil {
-			proxy.logger.Debug("failed to accept connection", "error", err)
-			continue
+			if !errors.Is(err, net.ErrClosed) {
+				proxy.logger.Debug("failed to accept connection", "error", err)
+			}
+
+			return
 		}
 
 		proxy.logger.Debug("new connection", "from", conn.RemoteAddr())
@@ -104,51 +108,67 @@ func (proxy *PathInterceptor) handleConnection(inConn net.Conn) {
 	defer outConn.Close()
 
 	// Redirect all the response directly to the incoming connection
-	go io.Copy(inConn, outConn)
+	go func() {
+		io.Copy(inConn, outConn)
+		proxy.logger.Debug("incoming connection is closing", "from", inConn.RemoteAddr())
+		inConn.Close()
+	}()
 
 	var buffer bytes.Buffer
 	teeReader := io.TeeReader(inConn, &buffer)
 
-	defer func() {
-		io.Copy(outConn, inConn) // forward everything left
-		proxy.logger.Debug("connection ended", "from", inConn.RemoteAddr())
-	}()
-
+	readerio := bufio.NewReader(teeReader)
 	for {
-		request, err := http.ReadRequest(bufio.NewReader(teeReader))
+		proxy.logger.Debug("reading request", "from", inConn.RemoteAddr())
+		request, err := http.ReadRequest(readerio)
 		if err != nil {
+			if errors.Is(err, net.ErrClosed) || errors.Is(err, io.EOF) {
+				proxy.logger.Debug("connection closed", "from", inConn.RemoteAddr())
+				return
+			}
+
 			proxy.logger.Debug("failed to read HTTP request", "error", err)
 			// not an actual HTTP request, forward connection directly
-			return
+			break
 		}
 
 		if request.Header.Get("Upgrade") == "websocket" {
 			proxy.logger.Debug("WebSocket connection detected, forwarding directly")
 			// WebSocket connection not supported (yet), forward connection directly
-			return
+			break
 		}
 
 		body, err := io.ReadAll(request.Body)
 		if err != nil {
 			proxy.logger.Warn("failed to read request body", "error", err)
-			return
+			break
 		}
 
 		if err := proxy.handleRequest(body); err != nil {
 			proxy.logger.Debug("error handling request", "error", err)
 		}
-
 		request.Body.Close()
 
+		proxy.logger.Debug("forwarding request", "from", inConn.RemoteAddr(), "to", outConn.RemoteAddr())
 		if _, err := outConn.Write(buffer.Bytes()); err != nil {
-			// forward what we read to the outbound connection
 			proxy.logger.Error("unable to write to socket", "error", err)
-			return
+			return // stoping here as we are not able to write to outgoing conn
 		}
 
 		// Reset buffer
 		buffer.Reset()
 	}
+
+	// Forward what we read to the outbound connection
+	proxy.logger.Debug("forwarding remaining connection", "from", inConn.RemoteAddr(), "to", outConn.RemoteAddr())
+	if _, err := outConn.Write(buffer.Bytes()); err != nil {
+		proxy.logger.Error("unable to write to socket", "error", err)
+	}
+
+	// Forward directly incoming conn to outgoing conn
+	io.Copy(outConn, inConn)
+
+	proxy.logger.Debug("connection ended", "from", inConn.RemoteAddr())
 }
 
 // handleRequest parses and processes the RPC request body.

@@ -228,6 +228,7 @@ func (ds *App) setupHandlers(ctx context.Context) (http.Handler, error) {
 
 				// Try to resolve the path first.
 				// If we are unable to resolve it, ignore and continue
+
 				if _, err := ds.loader.Resolve(path); err != nil {
 					proxyLogger.Debug("unable to resolve path",
 						"error", err,
@@ -260,6 +261,9 @@ func (ds *App) setupHandlers(ctx context.Context) (http.Handler, error) {
 			if err := ds.devNode.Reload(ctx); err != nil {
 				ds.logger.WithGroup(NodeLogName).Error("unable to reload node", "err", err)
 			}
+
+			// Update watcher list
+			ds.watcher.UpdatePackagesWatch(ds.devNode.ListPkgs()...)
 		})
 	}
 
