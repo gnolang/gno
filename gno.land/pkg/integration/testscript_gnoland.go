@@ -1,14 +1,11 @@
 package integration
 
 import (
-	"bytes"
 	"context"
 	"errors"
 	"flag"
 	"fmt"
 	"hash/crc32"
-	"os"
-	"os/exec"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -20,15 +17,15 @@ import (
 	"github.com/gnolang/gno/gno.land/pkg/gnoland/ugnot"
 	"github.com/gnolang/gno/gno.land/pkg/keyscli"
 	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
+	"github.com/gnolang/gno/tm2/pkg/amino"
+	rpcclient "github.com/gnolang/gno/tm2/pkg/bft/rpc/client"
+	ctypes "github.com/gnolang/gno/tm2/pkg/bft/rpc/core/types"
 	bft "github.com/gnolang/gno/tm2/pkg/bft/types"
 	"github.com/gnolang/gno/tm2/pkg/commands"
-	"github.com/gnolang/gno/tm2/pkg/crypto"
 	"github.com/gnolang/gno/tm2/pkg/crypto/bip39"
 	"github.com/gnolang/gno/tm2/pkg/crypto/ed25519"
-	"github.com/gnolang/gno/tm2/pkg/crypto/hd"
 	"github.com/gnolang/gno/tm2/pkg/crypto/keys"
 	"github.com/gnolang/gno/tm2/pkg/crypto/keys/client"
-	"github.com/gnolang/gno/tm2/pkg/crypto/secp256k1"
 	"github.com/gnolang/gno/tm2/pkg/std"
 	"github.com/rogpeppe/go-internal/testscript"
 	"github.com/stretchr/testify/require"
@@ -45,6 +42,7 @@ const (
 	envKeyPrivValKey
 	envKeyExecCommand
 	envKeyExecBin
+	envKeyBase
 )
 
 type commandkind int
@@ -158,12 +156,17 @@ func SetupGnolandTestscript(t *testing.T, p *testscript.Params) error {
 		}
 
 		kb.ImportPrivKey(DefaultAccount_Name, defaultPK, "")
-		env.Setenv("USER_SEED_"+DefaultAccount_Name, DefaultAccount_Seed)
-		env.Setenv("USER_ADDR_"+DefaultAccount_Name, DefaultAccount_Address)
+		env.Setenv(DefaultAccount_Name+"_user_seed", DefaultAccount_Seed)
+		env.Setenv(DefaultAccount_Name+"_user_addr", DefaultAccount_Address)
 
 		// New private key
 		env.Values[envKeyPrivValKey] = ed25519.GenPrivKey()
+
+		// Set gno dbdir
 		env.Setenv("GNO_DBDIR", dbdir)
+
+		// Setup account store
+		env.Values[envKeyBase] = kb
 
 		// Generate node short id
 		var sid string
@@ -215,6 +218,7 @@ func SetupGnolandTestscript(t *testing.T, p *testscript.Params) error {
 		"adduserfrom": adduserfromCmd(nodesManager),
 		"patchpkg":    patchpkgCmd(),
 		"loadpkg":     loadpkgCmd(gnoRootDir),
+		"scanf":       loadpkgCmd(gnoRootDir),
 	}
 
 	// Initialize cmds map if needed
@@ -305,8 +309,11 @@ func gnolandCmd(t *testing.T, nodesManager *NodesManager, gnoRootDir string) fun
 			})
 
 			nodesManager.Set(sid, &tNodeProcess{NodeProcess: nodep, cfg: cfg})
-
 			ts.Setenv("RPC_ADDR", nodep.Address())
+
+			// Load user infos
+			loadUserEnv(ts, nodep.Address())
+
 			fmt.Fprintln(ts.Stdout(), "node started successfully")
 
 		case "restart":
@@ -336,6 +343,9 @@ func gnolandCmd(t *testing.T, nodesManager *NodesManager, gnoRootDir string) fun
 
 			ts.Setenv("RPC_ADDR", nodep.Address())
 			nodesManager.Set(sid, &tNodeProcess{NodeProcess: nodep, cfg: node.cfg})
+
+			// Load user infos
+			loadUserEnv(ts, nodep.Address())
 
 			fmt.Fprintln(ts.Stdout(), "node restarted successfully")
 
@@ -534,6 +544,64 @@ func loadpkgCmd(gnoRootDir string) func(ts *testscript.TestScript, neg bool, arg
 	}
 }
 
+func loadUserEnv(ts *testscript.TestScript, remote string) error {
+	const path = "auth/accounts"
+
+	// List all accounts
+	kb := ts.Value(envKeyBase).(keys.Keybase)
+	accounts, err := kb.List()
+	if err != nil {
+		ts.Fatalf("query accounts: unable to list keys: %s", err)
+	}
+
+	cli, err := rpcclient.NewHTTPClient(remote)
+	if err != nil {
+		return fmt.Errorf("unable create rpc client %q: %w", remote, err)
+	}
+
+	batch := cli.NewBatch()
+	for _, account := range accounts {
+		accountPath := filepath.Join(path, account.GetAddress().String())
+		if err := batch.ABCIQuery(accountPath, []byte{}); err != nil {
+			return fmt.Errorf("unable to create query request: %w", err)
+		}
+	}
+
+	batchRes, err := batch.Send(context.Background())
+	if err != nil {
+		return fmt.Errorf("unable to query accounts: %w", err)
+	}
+
+	if len(batchRes) != len(accounts) {
+		ts.Fatalf("query accounts: len(res) != len(accounts)")
+	}
+
+	for i, res := range batchRes {
+		account := accounts[i]
+		name := account.GetName()
+		qres := res.(*ctypes.ResultABCIQuery)
+
+		if err := qres.Response.Error; err != nil {
+			ts.Fatalf("query account %q error: %s", account.GetName(), err.Error())
+		}
+
+		var qret struct{ BaseAccount std.BaseAccount }
+		if err = amino.UnmarshalJSON(qres.Response.Data, &qret); err != nil {
+			ts.Fatalf("query account %q unarmshal error: %s", account.GetName(), err.Error())
+		}
+
+		strAccountNumber := strconv.Itoa(int(qret.BaseAccount.GetAccountNumber()))
+		ts.Setenv(name+"_account_num", strAccountNumber)
+		ts.Logf("[%q] account number: %s", name, strAccountNumber)
+
+		strAccountSequence := strconv.Itoa(int(qret.BaseAccount.GetSequence()))
+		ts.Setenv(name+"_account_seq", strAccountSequence)
+		ts.Logf("[%q] account sequence: %s", name, strAccountNumber)
+	}
+
+	return nil
+}
+
 type tsLogWriter struct {
 	ts *testscript.TestScript
 }
@@ -594,7 +662,7 @@ type envSetter interface {
 }
 
 // createAccount creates a new account with the given name and adds it to the keybase.
-func createAccount(env envSetter, kb keys.Keybase, accountName string) (gnoland.Balance, error) {
+func createAccount(ts *testscript.TestScript, kb keys.Keybase, accountName string) (gnoland.Balance, error) {
 	var balance gnoland.Balance
 	entropy, err := bip39.NewEntropy(256)
 	if err != nil {
@@ -606,23 +674,11 @@ func createAccount(env envSetter, kb keys.Keybase, accountName string) (gnoland.
 		return balance, fmt.Errorf("error generating mnemonic: %w", err)
 	}
 
-	var keyInfo keys.Info
-	if keyInfo, err = kb.CreateAccount(accountName, mnemonic, "", "", 0, 0); err != nil {
-		return balance, fmt.Errorf("unable to create account: %w", err)
-	}
-
-	address := keyInfo.GetAddress()
-	env.Setenv("USER_SEED_"+accountName, mnemonic)
-	env.Setenv("USER_ADDR_"+accountName, address.String())
-
-	return gnoland.Balance{
-		Address: address,
-		Amount:  std.Coins{std.NewCoin(ugnot.Denom, 10e6)},
-	}, nil
+	return createAccountFrom(ts, kb, accountName, mnemonic, 0, 0)
 }
 
 // createAccountFrom creates a new account with the given metadata and adds it to the keybase.
-func createAccountFrom(env envSetter, kb keys.Keybase, accountName, mnemonic string, account, index uint32) (gnoland.Balance, error) {
+func createAccountFrom(ts *testscript.TestScript, kb keys.Keybase, accountName, mnemonic string, account, index uint32) (gnoland.Balance, error) {
 	var balance gnoland.Balance
 
 	// check if mnemonic is valid
@@ -636,8 +692,8 @@ func createAccountFrom(env envSetter, kb keys.Keybase, accountName, mnemonic str
 	}
 
 	address := keyInfo.GetAddress()
-	env.Setenv("USER_SEED_"+accountName, mnemonic)
-	env.Setenv("USER_ADDR_"+accountName, address.String())
+	ts.Setenv(accountName+"_user_seed", mnemonic)
+	ts.Setenv(accountName+"_user_addr", address.String())
 
 	return gnoland.Balance{
 		Address: address,
