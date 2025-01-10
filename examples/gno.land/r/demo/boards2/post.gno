@@ -165,7 +165,8 @@ func (post *Post) AddRepostTo(creator std.Address, title, body string, dst *Boar
 	pid := dst.incGetPostID()
 	repost := newPost(dst, pid, creator, title, body, pid, post.id, post.board.id)
 
-	dst.perms.WithPermission(creator, PermissionThreadRepost, nil, func(_ Args) {
+	args := Args{creator, dst.id, pid}
+	dst.perms.WithPermission(creator, PermissionThreadRepost, args, func(_ Args) {
 		dst.threads.Set(pid.Key(), repost)
 		if !dst.IsPrivate() {
 			post.reposts.Set(dst.id.Key(), pid)
