@@ -6,6 +6,7 @@ import (
 
 	"gno.land/p/demo/mux"
 	"gno.land/p/demo/ufmt"
+	"gno.land/p/moul/addrset"
 	"gno.land/r/mouss/config"
 )
 
@@ -15,7 +16,7 @@ type Profile struct {
 	Email     string
 	Github    string
 	LinkedIn  string
-	Followers []std.Address
+	Followers addrset.Set
 }
 
 type Recipe struct {
@@ -94,19 +95,18 @@ func Follow(addr std.Address) error {
 	if !isUser(caller) {
 		return config.ErrorUnauthorized
 	}
-	if contains(profile.Followers, addr) {
+	if profile.Followers.Has(addr) {
 		return ufmt.Errorf("address %s is already following", addr)
 	}
-	profile.Followers = append(profile.Followers, addr)
+	profile.Followers.Add(addr)
 	return nil
 }
 
+func isUser(addr std.Address) bool {
+	return !isAuthorized(addr) && !profile.Followers.Has(addr)
+}
 func isAuthorized(addr std.Address) bool {
 	return addr == config.Address() || addr == config.Backup()
-}
-
-func isUser(addr std.Address) bool {
-	return !isAuthorized(addr) && !contains(profile.Followers, addr)
 }
 
 func contains(slice []std.Address, item std.Address) bool {
@@ -168,7 +168,7 @@ func writeProfile(b *strings.Builder) {
 	b.WriteString(ufmt.Sprintf("- GitHub: [@mous1985](%s)\n", profile.Github))
 	b.WriteString(ufmt.Sprintf("- LinkedIn: [Mustapha](%s)\n", profile.LinkedIn))
 	b.WriteString("------\n\n")
-	b.WriteString(ufmt.Sprintf("👤 Followers: %d", len(profile.Followers)))
+	b.WriteString(ufmt.Sprintf("👤 Followers: %d", profile.Followers.Size()))
 }
 
 func writeNavigation(b *strings.Builder) {
