@@ -120,18 +120,7 @@ func Load(conf *LoadConfig, patterns ...string) (PkgList, error) {
 
 			// check if this is a stdlib and queue it
 			if gnolang.IsStdlib(imp) {
-				dir := filepath.Join(gnoroot, "gnovm", "stdlibs", filepath.FromSlash(imp))
-				dirInfo, err := os.Stat(dir)
-				if err == nil && !dirInfo.IsDir() {
-					err = fmt.Errorf("%q is not a directory", dir)
-				}
-				if err != nil {
-					pkg.Errors = append(pkg.Errors, err)
-					delete(queuedByPkgPath, imp) // stop trying to get this lib, we can't
-					continue
-				}
-
-				pkg := readPkgDir(dir, imp, fset)
+				pkg := readPkgDir(filepath.Join(gnoroot, "gnovm", "stdlibs", filepath.FromSlash(imp)), imp, fset)
 				markForVisit(pkg)
 				continue
 			}

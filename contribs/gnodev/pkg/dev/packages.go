@@ -98,10 +98,6 @@ func NewPackagesMap(cfg *packages.LoadConfig, ppaths []PackagePath) (PackagesMap
 				continue
 			}
 
-			if pkg.ImportPath != "" && gnolang.IsStdlib(pkg.ImportPath) {
-				continue
-			}
-
 			if _, ok := pkgs[pkg.Dir]; ok {
 				continue // skip
 			}
@@ -136,6 +132,10 @@ func (pm PackagesMap) Load(fee std.Fee, start time.Time) ([]gnoland.TxWithMetada
 
 	metatxs := make([]gnoland.TxWithMetadata, 0, len(nonDraft))
 	for _, modPkg := range nonDraft {
+		if modPkg.ImportPath == "" || gnolang.IsStdlib(modPkg.ImportPath) {
+			continue
+		}
+
 		pkg := pm[modPkg.Dir]
 		if pkg.Creator.IsZero() {
 			return nil, fmt.Errorf("no creator set for %q", pkg.Dir)

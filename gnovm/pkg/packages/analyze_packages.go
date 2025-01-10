@@ -73,14 +73,16 @@ func readPkgDir(pkgDir string, importPath string, fset *token.FileSet) *Package 
 		ImportPath: importPath,
 	}
 
-	stdlibsPath := filepath.Join(gnoenv.RootDir(), "gnovm", "stdlibs")
-	if strings.HasPrefix(filepath.Clean(pkg.Dir), stdlibsPath) {
-		libPath, err := filepath.Rel(stdlibsPath, pkg.Dir)
-		if err != nil {
-			pkg.Errors = append(pkg.Errors, err)
-			return pkg
+	if pkg.ImportPath == "" {
+		stdlibsPath := filepath.Join(gnoenv.RootDir(), "gnovm", "stdlibs")
+		if strings.HasPrefix(filepath.Clean(pkg.Dir), stdlibsPath) {
+			libPath, err := filepath.Rel(stdlibsPath, pkg.Dir)
+			if err != nil {
+				pkg.Errors = append(pkg.Errors, err)
+				return pkg
+			}
+			pkg.ImportPath = libPath
 		}
-		pkg.ImportPath = libPath
 	}
 
 	files := []string{}

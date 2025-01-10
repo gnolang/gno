@@ -125,7 +125,7 @@ func execTxsAddPackages(
 	parsedTxs := make([]gnoland.TxWithMetadata, 0)
 	for _, path := range args {
 		// Generate transactions from the packages (recursively)
-		loadCfg := &packages.LoadConfig{IO: io, SelfContained: true}
+		loadCfg := &packages.LoadConfig{IO: io, Deps: true}
 		txs, err := gnoland.LoadPackagesFromDir(loadCfg, path, creator, genesisDeployFee)
 		if err != nil {
 			return fmt.Errorf("unable to load txs from directory, %w", err)
