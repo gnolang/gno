@@ -3,28 +3,34 @@ package tokenhub
 import (
     "std"
     "errors"
-	"strings"
+    "strings"
     "gno.land/p/demo/avl"
-    "gno.land/p/demo/grc/grc20"
-	"gno.land/p/moul/md"
-	"gno.land/p/demo/ufmt"
+    "gno.land/p/demo/grc/grc721"
+    "gno.land/p/moul/md"
+    "gno.land/p/demo/ufmt"
 )
 
 var (
-    registeredTokens = avl.NewTree() // symbol -> *grc20.Token
+    registeredNFTs = avl.NewTree() // symbol -> NFTGetter
     
-    ErrTokenAlreadyRegistered = errors.New("token already registered")
-    ErrTokenNotFound = errors.New("token not found")
+    ErrNFTAlreadyRegistered = errors.New("NFT already registered")
+    ErrNFTNotFound = errors.New("NFT not found")
 )
 
-func RegisterToken(token *grc20.Token) error {
-    symbol := token.GetSymbol()
-    
-    if registeredTokens.Has(symbol) {
-        return ErrTokenAlreadyRegistered
+func RegisterNFT(nftGetter grc721.NFTGetter) error {
+    nft := nftGetter()
+    metadata, ok := nft.(grc721.IGRC721CollectionMetadata)
+    if !ok {
+        return errors.New("NFT must implement IGRC721CollectionMetadata")
     }
     
-    registeredTokens.Set(symbol, token)
+    symbol := metadata.Symbol()
+    
+    if registeredNFTs.Has(symbol) {
+        return ErrNFTAlreadyRegistered
+    }
+    
+    registeredNFTs.Set(symbol, nftGetter)
     return nil
 }
 
@@ -32,14 +38,15 @@ func getBalances(addr std.Address) string {
     balances := avl.NewTree()
     var sb strings.Builder
     
-    registeredTokens.Iterate("", "", func(key string, value interface{}) bool {
-        token := value.(*grc20.Token)
-        balance := token.BalanceOf(addr)
+    registeredNFTs.Iterate("", "", func(key string, value interface{}) bool {
+        nftGetter := value.(grc721.NFTGetter)
+        nft := nftGetter()
+        balance, _ := nft.BalanceOf(addr)
         balances.Set(key, balance)
         return false
     })
 
-    sb.WriteString("Balances: ")
+    sb.WriteString("NFT Balances: ")
     balances.Iterate("", "", func(key string, value interface{}) bool {
         balance := value.(uint64)
         sb.WriteString(ufmt.Sprintf("%s: %d ", key, balance))
@@ -56,25 +63,29 @@ func GetMyBalances() string {
 func Render(path string) string {
     var sb strings.Builder
 
-    sb.WriteString(md.H1("TokenHub"))
-    sb.WriteString(md.Paragraph("A central registry for GRC20 tokens on gno.land"))
+    sb.WriteString(md.H1("NFT Hub"))
+    sb.WriteString(md.Paragraph("A central registry for GRC721 NFTs on gno.land"))
 
-    sb.WriteString(md.H2("Registered Tokens"))
+    sb.WriteString(md.H2("Registered NFTs"))
     
-	var tokenItems []string
-    registeredTokens.Iterate("", "", func(key string, value interface{}) bool {
-        token := value.(*grc20.Token)
-        tokenItems = append(tokenItems, ufmt.Sprintf("%s (%s) - %d decimals", 
-            token.GetName(),
-            token.GetSymbol(), 
-            token.GetDecimals()))
+    var nftItems []string
+    registeredNFTs.Iterate("", "", func(key string, value interface{}) bool {
+        nftGetter := value.(grc721.NFTGetter)
+        nft := nftGetter()
+        metadata, ok := nft.(grc721.IGRC721CollectionMetadata)
+        if !ok {
+            return false
+        }
+        nftItems = append(nftItems, ufmt.Sprintf("%s (%s)", 
+            metadata.Name(),
+            metadata.Symbol()))
         return false
     })
 
-    if len(tokenItems) > 0 {
-        sb.WriteString(md.BulletList(tokenItems))
+    if len(nftItems) > 0 {
+        sb.WriteString(md.BulletList(nftItems))
     } else {
-        sb.WriteString(md.Italic("No tokens registered yet"))
+        sb.WriteString(md.Italic("No NFTs registered yet"))
         sb.WriteString("\n")
     }
 
