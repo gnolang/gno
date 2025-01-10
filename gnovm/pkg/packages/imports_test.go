@@ -59,12 +59,25 @@ func TestImports(t *testing.T) {
 			`,
 		},
 		{
+			name: "file2_test.gno",
+			data: `
+			package tmp_test
+
+			import (
+				"testing"
+
+				"gno.land/p/demo/testpkg"
+				"gno.land/p/demo/xtestdep"
+			)
+			`,
+		},
+		{
 			name: "z_0_filetest.gno",
 			data: `
 			package main
 
 			import (
-				"gno.land/p/demo/filetestpkg"
+				"gno.land/p/demo/filetestdep"
 			)
 			`,
 		},
@@ -95,17 +108,28 @@ func TestImports(t *testing.T) {
 		},
 	}
 
-	// Expected list of imports
+	// Expected lists of imports
 	// - ignore subdirs
 	// - ignore duplicate
-	// - ignore *_filetest.gno
 	// - should be sorted
-	expected := []string{
-		"gno.land/p/demo/pkg1",
-		"gno.land/p/demo/pkg2",
-		"gno.land/p/demo/testpkg",
-		"std",
-		"testing",
+	expected := map[FileKind][]string{
+		FileKindPackageSource: {
+			"gno.land/p/demo/pkg1",
+			"gno.land/p/demo/pkg2",
+			"std",
+		},
+		FileKindTest: {
+			"gno.land/p/demo/testpkg",
+			"testing",
+		},
+		FileKindXTest: {
+			"gno.land/p/demo/testpkg",
+			"gno.land/p/demo/xtestdep",
+			"testing",
+		},
+		FileKindFiletest: {
+			"gno.land/p/demo/filetestdep",
+		},
 	}
 
 	// Create subpkg dir
@@ -120,12 +144,19 @@ func TestImports(t *testing.T) {
 
 	pkg, err := gnolang.ReadMemPackage(tmpDir, "test")
 	require.NoError(t, err)
-	imports, err := Imports(pkg, nil)
+
+	importsMap, err := Imports(pkg, nil)
 	require.NoError(t, err)
-	importsStrings := make([]string, len(imports))
-	for idx, imp := range imports {
-		importsStrings[idx] = imp.PkgPath
+
+	// ignore specs
+	got := map[FileKind][]string{}
+	for key, vals := range importsMap {
+		stringVals := make([]string, len(vals))
+		for i, val := range vals {
+			stringVals[i] = val.PkgPath
+		}
+		got[key] = stringVals
 	}
 
-	require.Equal(t, expected, importsStrings)
+	require.Equal(t, expected, got)
 }

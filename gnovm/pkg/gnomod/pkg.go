@@ -121,11 +121,13 @@ func ListPkgs(root string) (PkgList, error) {
 			pkg = &gnovm.MemPackage{}
 		}
 
-		importsRaw, err := packages.Imports(pkg, nil)
+		importsMap, err := packages.Imports(pkg, nil)
 		if err != nil {
 			// ignore imports on error
-			importsRaw = nil
+			importsMap = nil
 		}
+		importsRaw := importsMap.Merge(packages.FileKindPackageSource, packages.FileKindTest, packages.FileKindXTest)
+
 		imports := make([]string, 0, len(importsRaw))
 		for _, imp := range importsRaw {
 			// remove self and standard libraries from imports

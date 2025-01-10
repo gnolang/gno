@@ -69,15 +69,16 @@ func DefaultParams() Params {
 
 // String implements the stringer interface.
 func (p Params) String() string {
-	var sb strings.Builder
+	var builder strings.Builder
+	sb := &builder // Pointer for use with fmt.Fprintf
 	sb.WriteString("Params: \n")
-	sb.WriteString(fmt.Sprintf("MaxMemoBytes: %d\n", p.MaxMemoBytes))
-	sb.WriteString(fmt.Sprintf("TxSigLimit: %d\n", p.TxSigLimit))
-	sb.WriteString(fmt.Sprintf("TxSizeCostPerByte: %d\n", p.TxSizeCostPerByte))
-	sb.WriteString(fmt.Sprintf("SigVerifyCostED25519: %d\n", p.SigVerifyCostED25519))
-	sb.WriteString(fmt.Sprintf("SigVerifyCostSecp256k1: %d\n", p.SigVerifyCostSecp256k1))
-	sb.WriteString(fmt.Sprintf("GasPricesChangeCompressor: %d\n", p.GasPricesChangeCompressor))
-	sb.WriteString(fmt.Sprintf("TargetGasRatio: %d\n", p.TargetGasRatio))
+	fmt.Fprintf(sb, "MaxMemoBytes: %d\n", p.MaxMemoBytes)
+	fmt.Fprintf(sb, "TxSigLimit: %d\n", p.TxSigLimit)
+	fmt.Fprintf(sb, "TxSizeCostPerByte: %d\n", p.TxSizeCostPerByte)
+	fmt.Fprintf(sb, "SigVerifyCostED25519: %d\n", p.SigVerifyCostED25519)
+	fmt.Fprintf(sb, "SigVerifyCostSecp256k1: %d\n", p.SigVerifyCostSecp256k1)
+	fmt.Fprintf(sb, "GasPricesChangeCompressor: %d\n", p.GasPricesChangeCompressor)
+	fmt.Fprintf(sb, "TargetGasRatio: %d\n", p.TargetGasRatio)
 	return sb.String()
 }
 

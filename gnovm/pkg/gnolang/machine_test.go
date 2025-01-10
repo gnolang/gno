@@ -9,6 +9,7 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/store/dbadapter"
 	"github.com/gnolang/gno/tm2/pkg/store/iavl"
 	stypes "github.com/gnolang/gno/tm2/pkg/store/types"
+	"github.com/google/go-cmp/cmp"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -55,4 +56,62 @@ func TestRunMemPackageWithOverrides_revertToOld(t *testing.T) {
 	assert.NotNil(t, v)
 	assert.Equal(t, StringKind, v.T.Kind())
 	assert.Equal(t, StringValue("1"), v.V)
+}
+
+func TestMachineString(t *testing.T) {
+	cases := []struct {
+		name string
+		in   *Machine
+		want string
+	}{
+		{
+			"nil Machine",
+			nil,
+			"Machine:nil",
+		},
+		{
+			"created with defaults",
+			NewMachineWithOptions(MachineOptions{}),
+			"Machine:\n    PreprocessorMode: false\n    Op: []\n    Values: (len: 0)\n    Exprs:\n    Stmts:\n    Blocks:\n    Blocks (other):\n    Frames:\n    Exceptions:\n",
+		},
+		{
+			"created with store and defaults",
+			func() *Machine {
+				db := memdb.NewMemDB()
+				baseStore := dbadapter.StoreConstructor(db, stypes.StoreOptions{})
+				iavlStore := iavl.StoreConstructor(db, stypes.StoreOptions{})
+				store := NewStore(nil, baseStore, iavlStore)
+				return NewMachine("std", store)
+			}(),
+			"Machine:\n    PreprocessorMode: false\n    Op: []\n    Values: (len: 0)\n    Exprs:\n    Stmts:\n    Blocks:\n    Blocks (other):\n    Frames:\n    Exceptions:\n",
+		},
+		{
+			"filled in",
+			func() *Machine {
+				db := memdb.NewMemDB()
+				baseStore := dbadapter.StoreConstructor(db, stypes.StoreOptions{})
+				iavlStore := iavl.StoreConstructor(db, stypes.StoreOptions{})
+				store := NewStore(nil, baseStore, iavlStore)
+				m := NewMachine("std", store)
+				m.PushOp(OpHalt)
+				m.PushExpr(&BasicLitExpr{
+					Kind:  INT,
+					Value: "100",
+				})
+				m.Blocks = make([]*Block, 1, 1)
+				m.PushStmts(S(Call(X("Redecl"), 11)))
+				return m
+			}(),
+			"Machine:\n    PreprocessorMode: false\n    Op: [OpHalt]\n    Values: (len: 0)\n    Exprs:\n          #0 100\n    Stmts:\n          #0 Redecl<VPUverse(0)>(11)\n    Blocks:\n    Blocks (other):\n    Frames:\n    Exceptions:\n",
+		},
+	}
+
+	for _, tt := range cases {
+		t.Run(tt.name, func(t *testing.T) {
+			got := tt.in.String()
+			if diff := cmp.Diff(got, tt.want); diff != "" {
+				t.Fatalf("Mismatch: got - want +\n%s", diff)
+			}
+		})
+	}
 }

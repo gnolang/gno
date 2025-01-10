@@ -50,7 +50,7 @@ func lintJSX(filepathToJSX map[string][]string) (string, error) {
 				found = true
 			}
 
-			output.WriteString(fmt.Sprintf(">>> %s (found in file: %s)\n", tag, filePath))
+			fmt.Fprintf(&output, ">>> %s (found in file: %s)\n", tag, filePath)
 		}
 	}
 
