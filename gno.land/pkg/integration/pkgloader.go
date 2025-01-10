@@ -7,6 +7,7 @@ import (
 
 	"github.com/gnolang/gno/gno.land/pkg/gnoland"
 	"github.com/gnolang/gno/gno.land/pkg/sdk/vm"
+	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
 	"github.com/gnolang/gno/gnovm/pkg/gnolang"
 	"github.com/gnolang/gno/gnovm/pkg/packages"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
@@ -102,7 +103,8 @@ func (pl *PkgsLoader) LoadAllPackagesFromDir(path string) error {
 }
 
 func (pl *PkgsLoader) LoadPackage(pkgDir string, name string) error {
-	cfg := &packages.LoadConfig{Deps: true, SelfContained: true, GnorootExamples: true}
+	examples := filepath.Join(gnoenv.RootDir(), "examples", "...")
+	cfg := &packages.LoadConfig{Deps: true, SelfContained: true, DepsPatterns: []string{examples}}
 	pkgs, err := packages.Load(cfg, pkgDir)
 	if err != nil {
 		return fmt.Errorf("%q: loading: %w", pkgDir, err)

@@ -25,8 +25,6 @@ type LoadConfig struct {
 	SelfContained bool
 	AllowEmpty    bool
 	DepsPatterns  []string
-
-	GnorootExamples bool // allow loading packages from gnoroot examples if not found in the args set
 }
 
 func (conf *LoadConfig) applyDefaults() {
@@ -123,9 +121,9 @@ func Load(conf *LoadConfig, patterns ...string) (PkgList, error) {
 			// check if this is a stdlib and queue it
 			if gnolang.IsStdlib(imp) {
 				dir := filepath.Join(gnoroot, "gnovm", "stdlibs", filepath.FromSlash(imp))
-				finfo, err := os.Stat(dir)
-				if err == nil && !finfo.IsDir() {
-					err = fmt.Errorf("stdlib %q not found", imp)
+				dirInfo, err := os.Stat(dir)
+				if err == nil && !dirInfo.IsDir() {
+					err = fmt.Errorf("%q is not a directory", dir)
 				}
 				if err != nil {
 					pkg.Errors = append(pkg.Errors, err)
@@ -133,17 +131,9 @@ func Load(conf *LoadConfig, patterns ...string) (PkgList, error) {
 					continue
 				}
 
-				markForVisit(readPkgDir(dir, imp, fset))
+				pkg := readPkgDir(dir, imp, fset)
+				markForVisit(pkg)
 				continue
-			}
-
-			if conf.GnorootExamples {
-				examplePkgDir := filepath.Join(gnoroot, "examples", filepath.FromSlash(imp))
-				finfo, err := os.Stat(examplePkgDir)
-				if err == nil && finfo.IsDir() {
-					markForVisit(readPkgDir(examplePkgDir, imp, fset))
-					continue
-				}
 			}
 
 			if conf.SelfContained {

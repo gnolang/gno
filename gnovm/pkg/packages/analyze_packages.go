@@ -7,9 +7,11 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"slices"
 	"strings"
 
 	"github.com/gnolang/gno/gnovm"
+	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
 	"github.com/gnolang/gno/gnovm/pkg/gnolang"
 	"github.com/gnolang/gno/gnovm/pkg/gnomod"
 )
@@ -69,6 +71,16 @@ func readPkgDir(pkgDir string, importPath string, fset *token.FileSet) *Package 
 		Files:      make(FilesMap),
 		Imports:    make(ImportsMap),
 		ImportPath: importPath,
+	}
+
+	stdlibsPath := filepath.Join(gnoenv.RootDir(), "gnovm", "stdlibs")
+	if strings.HasPrefix(filepath.Clean(pkg.Dir), stdlibsPath) {
+		libPath, err := filepath.Rel(stdlibsPath, pkg.Dir)
+		if err != nil {
+			pkg.Errors = append(pkg.Errors, err)
+			return pkg
+		}
+		pkg.ImportPath = libPath
 	}
 
 	files := []string{}
@@ -177,4 +189,17 @@ func readPkgFiles(pkg *Package, files []string, fset *token.FileSet) *Package {
 	pkg.ImportPath = path.Join(pkg.ModPath, filepath.ToSlash(subPath))
 
 	return pkg
+}
+
+// Contains reports whether v is present in s.
+func sliceContainsSequence[S ~[]E, E comparable](s S, seq ...E) bool {
+	if len(seq) == 0 || len(s) < len(seq) {
+		return false
+	}
+	for i := 0; i < len(s)-len(seq); i++ {
+		if slices.Equal(s[i:i+len(seq)], seq) {
+			return true
+		}
+	}
+	return false
 }

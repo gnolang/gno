@@ -95,7 +95,8 @@ func execLint(cfg *lintCfg, args []string, io commands.IO) error {
 
 	loadCfg := &packages.LoadConfig{IO: io, Fetcher: testPackageFetcher}
 	if cfg.rootExamples {
-		loadCfg.GnorootExamples = true
+		examples := filepath.Join(gnoenv.RootDir(), "examples", "...")
+		loadCfg.DepsPatterns = append(loadCfg.DepsPatterns, examples)
 	}
 
 	pkgs, err := packages.Load(loadCfg, args...)
