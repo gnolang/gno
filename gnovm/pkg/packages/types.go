@@ -28,11 +28,11 @@ func (fm FilesMap) Size() int {
 }
 
 // Merge merges imports, it removes duplicates and sorts the result
-func (imap FilesMap) Merge(kinds ...FileKind) []string {
+func (fm FilesMap) Merge(kinds ...FileKind) []string {
 	res := make([]string, 0, 16)
 
 	for _, kind := range kinds {
-		res = append(res, imap[kind]...)
+		res = append(res, fm[kind]...)
 	}
 
 	sortPaths(res)

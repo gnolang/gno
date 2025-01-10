@@ -7,7 +7,6 @@ import (
 	"os"
 	"path"
 	"path/filepath"
-	"slices"
 	"strings"
 
 	"github.com/gnolang/gno/gnovm"
@@ -191,17 +190,4 @@ func readPkgFiles(pkg *Package, files []string, fset *token.FileSet) *Package {
 	pkg.ImportPath = path.Join(pkg.ModPath, filepath.ToSlash(subPath))
 
 	return pkg
-}
-
-// Contains reports whether v is present in s.
-func sliceContainsSequence[S ~[]E, E comparable](s S, seq ...E) bool {
-	if len(seq) == 0 || len(s) < len(seq) {
-		return false
-	}
-	for i := 0; i < len(s)-len(seq); i++ {
-		if slices.Equal(s[i:i+len(seq)], seq) {
-			return true
-		}
-	}
-	return false
 }

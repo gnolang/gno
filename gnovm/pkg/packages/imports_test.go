@@ -1,4 +1,4 @@
-package packages_test
+package packages
 
 import (
 	"go/token"
@@ -7,8 +7,6 @@ import (
 	"testing"
 
 	"github.com/gnolang/gno/gnovm/pkg/gnolang"
-	"github.com/gnolang/gno/gnovm/pkg/packages"
-	. "github.com/gnolang/gno/gnovm/pkg/packages"
 	"github.com/stretchr/testify/require"
 )
 
@@ -115,7 +113,7 @@ func TestImports(t *testing.T) {
 	// - ignore subdirs
 	// - ignore duplicate
 	// - should be sorted
-	expected := packages.ImportsMap{
+	expected := ImportsMap{
 		FileKindPackageSource: {
 			"gno.land/p/demo/pkg1",
 			"gno.land/p/demo/pkg2",
