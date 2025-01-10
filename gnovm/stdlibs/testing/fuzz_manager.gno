@@ -8,9 +8,7 @@ import (
 )
 
 const (
-	// MaxCapacity is effective when path kinds (coverage) are in the range of 300,000~1,000,000
-	// and when iterations are less than 100,000,000.
-	// More than that is possible, but less effective.
+
 	// It represents the length of arrays internally managed by the fuzz manager.
 	// The maximum length of the array is limited to handle sorting between seeds, out, and in within O(1) time.
 	// (However, input can be received infinitely.)

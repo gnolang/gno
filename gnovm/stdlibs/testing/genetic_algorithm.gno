@@ -26,7 +26,7 @@ func evolve(seeds []seed, seedCount *uint, stringByteCandidates []int) []seed {
 	}
 	// Set the number of children to create.
 	// The lower the seed.Gen, the higher the number, meaning more children are generated.
-	CreatingCount := [10]int{1920, 1440, 1200, 1000, 960, 720, 600, 480, 360, 240}
+	CreatingCount := [10]int{1000, 840, 720, 600, 480, 400, 380, 360, 280, 240}
 	var creatingCount int
 	if int(p1.gen) > len(CreatingCount) {
 		creatingCount = 240

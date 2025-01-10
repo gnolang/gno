@@ -47,7 +47,3 @@ func FuzzAnother(f *testing.F) {
 		}
 	})
 }
-
-func TestMock(t *testing.T) {
-	t.Errorf("testing")
-}
