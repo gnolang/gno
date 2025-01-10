@@ -6,20 +6,22 @@ import (
 	"gno.land/p/demo/grc/grc721"
 	"gno.land/p/demo/ufmt"
 )
+
 var (
 	// Initialize basic NFTs using the public constructor
 	nftA = grc721.NewBasicNFT("Collection A", "NFTA")
 	nftB = grc721.NewBasicNFT("Collection B", "NFTB")
-	nftC = grc721.NewBasicNFT("Collection C", "NFTC")	
+	nftC = grc721.NewBasicNFT("Collection C", "NFTC")
 )
+
 func init() {
 
 	// Test address to receive NFTs
 	testAddr := std.Address("g1ej0qca5ptsw9kfr64ey8jvfy9eacga6mpj2z0y")
-	
+
 	// Mint test NFTs
 	MintTestNFTs(testAddr)
-	
+
 	// Register all NFT collections using the Getter method
 	RegisterNFT(func() grc721.IGRC721 { return nftA })
 	RegisterNFT(func() grc721.IGRC721 { return nftB })

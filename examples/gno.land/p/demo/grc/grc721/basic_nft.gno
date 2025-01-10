@@ -398,7 +398,7 @@ func (s *basicNFT) RenderHome() (str string) {
 
 // Then add the Getter method to your NFT types
 func (n *basicNFT) Getter() NFTGetter {
-    return func() IGRC721 {
-        return n
-    }
+	return func() IGRC721 {
+		return n
+	}
 }

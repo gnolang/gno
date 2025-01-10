@@ -28,4 +28,3 @@ const (
 )
 
 type NFTGetter func() IGRC721
-
