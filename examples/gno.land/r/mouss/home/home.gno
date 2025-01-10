@@ -2,11 +2,13 @@ package home
 
 import (
 	"std"
+	"strconv"
 	"strings"
 
 	"gno.land/p/demo/mux"
 	"gno.land/p/demo/ufmt"
 	"gno.land/p/moul/addrset"
+	"gno.land/p/moul/md"
 	"gno.land/r/mouss/config"
 )
 
@@ -136,18 +138,17 @@ func renderRecipes(res *mux.ResponseWriter, req *mux.Request) {
 }
 
 func writeRecipe(b *strings.Builder, recipe *Recipe) {
-	b.WriteString("## " + recipe.Name + "\n")
-	b.WriteString("**Author:** " + recipe.Author.String() + "\n\n")
-	b.WriteString("**Origin:** " + recipe.Origin + "\n\n")
-	b.WriteString("**Ingredients:** " + recipe.Ingredients + "\n\n")
-
-	b.WriteString("**Instructions:** " + recipe.Instructions + "\n\n")
+	b.WriteString(md.H2(recipe.Name))
+	b.WriteString(md.Bold("Author: ") + recipe.Author.String() + "\n\n")
+	b.WriteString(md.Bold("Origin: ") + recipe.Origin + "\n\n")
+	b.WriteString(md.Bold("Ingredients:") + "\n" + md.BulletList(strings.Split(recipe.Ingredients, "\n")) + "\n")
+	b.WriteString(md.Bold("Instructions:") + "\n" + md.OrderedList(strings.Split(recipe.Instructions, "\n")) + "\n")
 
 	if recipe.Tips != "" {
-		b.WriteString(ufmt.Sprintf("💡 **Tips**: %s\n\n", recipe.Tips))
+		b.WriteString(md.Italic("💡 Tips: "+recipe.Tips) + "\n\n")
 	}
-	b.WriteString("------\n\n")
-	b.WriteString("------\n\n")
+
+	b.WriteString(md.HorizontalRule() + "\n")
 }
 
 func renderHomepage(res *mux.ResponseWriter, req *mux.Request) {
@@ -158,27 +159,27 @@ func renderHomepage(res *mux.ResponseWriter, req *mux.Request) {
 }
 
 func writeProfile(b *strings.Builder) {
-	b.WriteString("# Welcome to my Homepage\n\n------\n\n")
+	b.WriteString(md.H1("Welcome to my Homepage") + "\n\n" + md.HorizontalRule() + "\n\n")
 	writeGnoArt(b)
-	b.WriteString("------\n\n## About Me\n------\n\n")
-	b.WriteString(ufmt.Sprintf("![avatar](%s)\n\n", profile.Avatar))
-	b.WriteString(profile.AboutMe + "\n\n------\n\n")
-	b.WriteString("### Contact\n\n")
-	b.WriteString(ufmt.Sprintf("- Email: %s\n", profile.Email))
-	b.WriteString(ufmt.Sprintf("- GitHub: [@mous1985](%s)\n", profile.Github))
-	b.WriteString(ufmt.Sprintf("- LinkedIn: [Mustapha](%s)\n", profile.LinkedIn))
-	b.WriteString("------\n\n")
-	b.WriteString(ufmt.Sprintf("👤 Followers: %d", profile.Followers.Size()))
+	b.WriteString(md.HorizontalRule() + "\n\n" + md.H2("About Me") + "\n\n")
+	b.WriteString(md.Image("avatar", profile.Avatar) + "\n\n")
+	b.WriteString(profile.AboutMe + "\n\n" + md.HorizontalRule() + "\n\n")
+	b.WriteString(md.H3("Contact") + "\n\n")
+	b.WriteString(md.BulletList([]string{
+		"Email: " + profile.Email,
+		"GitHub: " + md.Link("@mous1985", profile.Github),
+		"LinkedIn: " + md.Link("Mustapha", profile.LinkedIn),
+	}))
+	b.WriteString("\n\n" + md.Bold("👤 Followers: ") + strconv.Itoa(profile.Followers.Size()))
 }
-
 func writeNavigation(b *strings.Builder) {
-	b.WriteString(strings.Join([]string{
-		"[Home]()",
-		ufmt.Sprintf("[World Kitchen](%s)", Rec),
-		"[Hackerspace](https://github.com/gnolang/hackerspace/issues/86#issuecomment-2535795751)",
-	}, " | ") + "\n\n------\n\n")
+	navItems := []string{
+		md.Link("Home", ""),
+		md.Link("World Kitchen", Rec),
+		md.Link("Hackerspace", "https://github.com/gnolang/hackerspace/issues/86#issuecomment-2535795751"),
+	}
+	b.WriteString(strings.Join(navItems, " | ") + "\n\n" + md.HorizontalRule() + "\n\n")
 }
-
 func Render(path string) string {
 	return router.Render(path)
 }
