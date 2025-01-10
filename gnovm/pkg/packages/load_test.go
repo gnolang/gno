@@ -5,6 +5,7 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/gnolang/gno/gnovm/pkg/packages/pkgdownload/examplespkgfetcher"
 	"github.com/gnolang/gno/tm2/pkg/testutils"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -74,7 +75,7 @@ func TestListAndNonDraftPkgs(t *testing.T) {
 			}
 
 			// List packages
-			pkgs, err := Load(&LoadConfig{}, filepath.Join(dirPath, "..."))
+			pkgs, err := Load(&LoadConfig{AllowEmpty: true, Fetcher: examplespkgfetcher.New()}, filepath.Join(dirPath, "..."))
 			require.NoError(t, err)
 			assert.Equal(t, len(tc.outListPkgs), len(pkgs))
 			for _, p := range pkgs {

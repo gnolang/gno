@@ -9,9 +9,12 @@ import (
 	"regexp"
 	"strings"
 	"time"
-
-	"github.com/gnolang/gno/gnovm/pkg/gnofiles"
 )
+
+func isGnoFile(f fs.DirEntry) bool {
+	name := f.Name()
+	return !strings.HasPrefix(name, ".") && strings.HasSuffix(name, ".gno") && !f.IsDir()
+}
 
 func isFileExist(path string) bool {
 	_, err := os.Stat(path)
@@ -28,7 +31,7 @@ func gnoFilesFromArgs(args []string) ([]string, error) {
 		}
 
 		if !info.IsDir() {
-			if gnofiles.IsGnoFile(info.Name()) {
+			if isGnoFile(fs.FileInfoToDirEntry(info)) {
 				paths = append(paths, ensurePathPrefix(argPath))
 			}
 			continue
@@ -39,7 +42,7 @@ func gnoFilesFromArgs(args []string) ([]string, error) {
 			return nil, err
 		}
 		for _, f := range files {
-			if gnofiles.IsGnoFile(f.Name()) {
+			if isGnoFile(f) {
 				path := filepath.Join(argPath, f.Name())
 				paths = append(paths, ensurePathPrefix(path))
 			}
@@ -101,7 +104,7 @@ func targetsFromPatterns(patterns []string) ([]string, error) {
 				return fmt.Errorf("%s: walk dir: %w", dirToSearch, err)
 			}
 			// Skip directories and non ".gno" files.
-			if f.IsDir() || !gnofiles.IsGnoFile(f.Name()) {
+			if f.IsDir() || !isGnoFile(f) {
 				return nil
 			}
 
@@ -158,10 +161,8 @@ func fmtDuration(d time.Duration) string {
 //
 // See related test for examples.
 func ResolvePath(output, dstPath string) (string, error) {
-	if filepath.IsAbs(dstPath) {
-		dstPath = tryRelativize(dstPath)
-	}
-	if filepath.IsLocal(dstPath) {
+	if filepath.IsAbs(dstPath) ||
+		filepath.IsLocal(dstPath) {
 		return filepath.Join(output, dstPath), nil
 	}
 	// Make dstPath absolute and join it with output.

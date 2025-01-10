@@ -484,8 +484,3 @@ func walkDirForGnoFiles(root string, addPath func(path string)) error {
 
 	return filepath.WalkDir(root, walkFn)
 }
-
-func isGnoFile(f fs.DirEntry) bool {
-	name := f.Name()
-	return !strings.HasPrefix(name, ".") && strings.HasSuffix(name, ".gno") && !f.IsDir()
-}

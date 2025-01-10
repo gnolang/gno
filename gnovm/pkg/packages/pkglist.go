@@ -2,9 +2,6 @@ package packages
 
 import (
 	"fmt"
-	"slices"
-
-	"github.com/gnolang/gno/gnovm/pkg/gnolang"
 )
 
 type (
@@ -44,12 +41,6 @@ func visitPackage(pkg *Package, pkgs []*Package, visited, onStack map[string]boo
 
 	// Visit package's dependencies
 	for _, imp := range pkg.Imports.Merge(FileKindPackageSource) {
-		if gnolang.IsStdlib(imp) {
-			continue
-		}
-		if slices.Contains(injectedTestingLibs, imp) {
-			continue
-		}
 		found := false
 		for _, p := range pkgs {
 			if p.ImportPath != imp {
