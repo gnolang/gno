@@ -21,7 +21,7 @@ import (
 const initGasPrice = "1ugnot/1000gas"
 
 // LoadGenesisBalancesFile loads genesis balances from the provided file path.
-func LoadGenesisBalancesFile(path string) ([]Balance, error) {
+func LoadGenesisBalancesFile(path string) (Balances, error) {
 	// each balance is in the form: g1xxxxxxxxxxxxxxxx=100000ugnot
 	content, err := osm.ReadFile(path)
 	if err != nil {
@@ -29,7 +29,7 @@ func LoadGenesisBalancesFile(path string) ([]Balance, error) {
 	}
 	lines := strings.Split(string(content), "\n")
 
-	balances := make([]Balance, 0, len(lines))
+	balances := make(Balances, len(lines))
 	for _, line := range lines {
 		line = strings.TrimSpace(line)
 
@@ -57,10 +57,7 @@ func LoadGenesisBalancesFile(path string) ([]Balance, error) {
 			return nil, fmt.Errorf("invalid balance coins %s: %w", parts[1], err)
 		}
 
-		balances = append(balances, Balance{
-			Address: addr,
-			Amount:  coins,
-		})
+		balances.Set(addr, coins)
 	}
 
 	return balances, nil

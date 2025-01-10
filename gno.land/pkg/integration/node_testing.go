@@ -150,7 +150,7 @@ func LoadDefaultGenesisBalanceFile(t TestingTS, gnoroot string) []gnoland.Balanc
 	genesisBalances, err := gnoland.LoadGenesisBalancesFile(balanceFile)
 	require.NoError(t, err)
 
-	return genesisBalances
+	return genesisBalances.List()
 }
 
 // LoadDefaultGenesisParamFile loads the default genesis balance file for testing.
