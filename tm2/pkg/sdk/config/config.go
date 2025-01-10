@@ -24,7 +24,7 @@ func DefaultAppConfig() *AppConfig {
 // ValidateBasic performs basic validation, checking format and param bounds, etc., and
 // returns an error if any check fails.
 func (cfg *AppConfig) ValidateBasic() error {
-	if cfg.MinGasPrices == "" {
+	if cfg == nil || cfg.MinGasPrices == "" {
 		return nil
 	}
 	if _, err := std.ParseGasPrices(cfg.MinGasPrices); err != nil {
