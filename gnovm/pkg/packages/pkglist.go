@@ -25,8 +25,6 @@ func (pl PkgList) Sort() (SortedPkgList, error) {
 	return sortedPkgs, nil
 }
 
-var injectedTestingLibs = []string{"encoding/json", "fmt", "os", "crypto/sha256"}
-
 // visitNode visits a package's and its dependencies dependencies and adds them to the sorted list.
 func visitPackage(pkg *Package, pkgs []*Package, visited, onStack map[string]bool, sortedPkgs *[]*Package) error {
 	if onStack[pkg.ImportPath] {

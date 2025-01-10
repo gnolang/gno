@@ -39,6 +39,10 @@ func TestFiles(t *testing.T) {
 	rootDir, err := filepath.Abs("../../../")
 	require.NoError(t, err)
 
+	pkgs, err := packages.Load(&packages.LoadConfig{}, filepath.Join(rootDir, "examples", "...."))
+	require.NoError(t, err)
+	pkgsMap := packages.NewPackagesMap(pkgs...)
+
 	newOpts := func() *test.TestOptions {
 		o := &test.TestOptions{
 			RootDir: rootDir,
@@ -47,7 +51,7 @@ func TestFiles(t *testing.T) {
 			Sync:    *withSync,
 		}
 		o.BaseStore, o.TestStore = test.Store(
-			rootDir, make(map[string]*packages.Package), true,
+			rootDir, pkgsMap, true,
 			nopReader{}, o.WriterForStore(), io.Discard,
 		)
 		return o
