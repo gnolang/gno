@@ -6,7 +6,7 @@ loadpkg gno.land/r/registry $WORK/registry
 gnoland start
 
 # we call Transfer with foo20, before it's registered
-gnokey maketx call -pkgpath gno.land/r/registry -func TransferByName -args 'foo20' -args 'g123456789' -args '42' -gas-fee 1000000ugnot -gas-wanted 150000 -broadcast -chainid=tendermint_test test1
+gnokey maketx call -pkgpath gno.land/r/registry -func TransferByName -args 'foo20' -args 'g123456789' -args '42' -gas-fee 1000000ugnot -gas-wanted 1500000 -broadcast -chainid=tendermint_test test1
 stdout 'not found'
 
 # add foo20, and foo20wrapper
@@ -14,7 +14,7 @@ gnokey maketx addpkg -pkgdir $WORK/foo20 -pkgpath gno.land/r/foo20 -gas-fee 1000
 gnokey maketx addpkg -pkgdir $WORK/foo20wrapper -pkgpath gno.land/r/foo20wrapper -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test test1
 
 # we call Transfer with foo20, after it's registered
-gnokey maketx call -pkgpath gno.land/r/registry -func TransferByName -args 'foo20' -args 'g123456789' -args '42' -gas-fee 1000000ugnot -gas-wanted 800000 -broadcast -chainid=tendermint_test test1
+gnokey maketx call -pkgpath gno.land/r/registry -func TransferByName -args 'foo20' -args 'g123456789' -args '42' -gas-fee 1000000ugnot -gas-wanted 8000000 -broadcast -chainid=tendermint_test test1
 stdout 'same address, success!'
 
 -- registry/registry.gno --
@@ -34,7 +34,7 @@ func TransferByName(name string, to string, amount uint64) string {
 		if pair.name != name {
 			continue
 		}
-		if std.CurrentRealm().Addr().String() != pair.cb(std.Address(to), amount) {
+		if std.CurrentRealm().Address().String() != pair.cb(std.Address(to), amount) {
 			return "invalid address, ownership issue :("
 		}
 		return "same address, success!"
@@ -58,6 +58,6 @@ package foo20
 import "std"
 
 func Transfer(to std.Address, amount uint64) string {
-	println("transfer from=" + std.PrevRealm().Addr().String() + " to=" + to.String() + " some-amount")
-	return std.PrevRealm().Addr().String()
+	println("transfer from=" + std.PreviousRealm().Address().String() + " to=" + to.String() + " some-amount")
+	return std.PreviousRealm().Address().String()
 }

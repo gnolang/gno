@@ -4,18 +4,6 @@ id: chain
 
 # Chain-related
 
-## IsOriginCall
-```go
-func IsOriginCall() bool
-```
-Checks if the caller of the function is an EOA. Returns **true** if caller is an EOA, **false** otherwise.
-
-#### Usage
-```go
-if !std.IsOriginCall() {...}
-```
----
-
 ## AssertOriginCall
 ```go
 func AssertOriginCall()
@@ -53,63 +41,63 @@ std.Emit("MyEvent", "myKey1", "myValue1", "myKey2", "myValue2")
 ```
 ---
 
-## GetChainID
+## ChainID
 ```go
-func GetChainID() string
+func ChainID() string
 ```
 Returns the chain ID.
 
 #### Usage
 ```go
-chainID := std.GetChainID() // dev | test5 | main ...
+chainID := std.ChainID() // dev | test5 | main ...
 ```
 ---
 
-## GetHeight
+## ChainHeight
 ```go
-func GetHeight() int64
+func ChainHeight() int64
 ```
 Returns the current block number (height).
 
 #### Usage
 ```go
-height := std.GetHeight()
+height := std.ChainHeight()
 ```
 ---
 
-## GetOrigSend
+## OriginSend
 ```go
-func GetOrigSend() Coins
+func OriginSend() Coins
 ```
 Returns the `Coins` that were sent along with the calling transaction.
 
 #### Usage
 ```go
-coinsSent := std.GetOrigSend()
+coinsSent := std.OriginSend()
 ```
 ---
 
-## GetOrigCaller
+## OriginCaller
 ```go
-func GetOrigCaller() Address
+func OriginCaller() Address
 ```
 Returns the original signer of the transaction.
 
 #### Usage
 ```go
-caller := std.GetOrigCaller()
+caller := std.OriginCaller()
 ```
 ---
 
-## GetOrigPkgAddr
+## OriginPkgAddress
 ```go
-func GetOrigPkgAddr() string
+func OriginPkgAddress() string
 ```
 Returns the address of the first (entry point) realm/package in a sequence of realm/package calls.
 
 #### Usage
 ```go
-origPkgAddr := std.GetOrigPkgAddr()
+originPkgAddr := std.OriginPkgAddress()
 ```
 ---
 
@@ -125,30 +113,30 @@ currentRealm := std.CurrentRealm()
 ```
 ---
 
-## PrevRealm
+## PreviousRealm
 ```go
-func PrevRealm() Realm
+func PreviousRealm() Realm
 ```
 Returns the previous caller [realm](realm.md) (can be code or user realm). If caller is a
 user realm, `pkgpath` will be empty.
 
 #### Usage
 ```go
-prevRealm := std.PrevRealm()
+prevRealm := std.PreviousRealm()
 ```
 ---
 
-## GetCallerAt
+## CallerAt
 ```go
-func GetCallerAt(n int) Address
+func CallerAt(n int) Address
 ```
 Returns the n-th caller of the function, going back in the call trace.
 
 #### Usage
 ```go
-currentRealm := std.GetCallerAt(1)      // returns address of current realm
-previousRealm := std.GetCallerAt(2)     // returns address of previous realm/caller
-std.GetCallerAt(0)                      // error, n must be > 0
+currentRealm := std.CallerAt(1)      // returns address of current realm
+previousRealm := std.CallerAt(2)     // returns address of previous realm/caller
+std.CallerAt(0)                      // error, n must be > 0
 ```
 --- 
 

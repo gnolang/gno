@@ -108,9 +108,7 @@ const (
 	Float32Type
 	Float64Type
 	UntypedBigintType
-	BigintType
 	UntypedBigdecType
-	BigdecType
 	// UintptrType
 )
 
@@ -153,20 +151,16 @@ func (pt PrimitiveType) Specificity() int {
 		return 0
 	case Float64Type:
 		return 0
-	case BigintType:
-		return 1
-	case BigdecType:
-		return 2
 	case UntypedBigdecType:
-		return 3
+		return 1
 	case UntypedStringType:
-		return 4
+		return 2
 	case UntypedBigintType:
-		return 4
+		return 2
 	case UntypedRuneType:
-		return 5
+		return 3
 	case UntypedBoolType:
-		return 6
+		return 4
 	default:
 		panic(fmt.Sprintf("unexpected primitive type %v", pt))
 	}
@@ -204,9 +198,9 @@ func (pt PrimitiveType) Kind() Kind {
 		return Float32Kind
 	case Float64Type:
 		return Float64Kind
-	case BigintType, UntypedBigintType:
+	case UntypedBigintType:
 		return BigintKind
-	case BigdecType, UntypedBigdecType:
+	case UntypedBigdecType:
 		return BigdecKind
 	default:
 		panic(fmt.Sprintf("unexpected primitive type %v", pt))
@@ -256,12 +250,8 @@ func (pt PrimitiveType) TypeID() TypeID {
 		return typeid("float64")
 	case UntypedBigintType:
 		return typeid("<untyped> bigint")
-	case BigintType:
-		return typeid("bigint")
 	case UntypedBigdecType:
 		return typeid("<untyped> bigdec")
-	case BigdecType:
-		return typeid("bigdec")
 	default:
 		panic(fmt.Sprintf("unexpected primitive type %v", pt))
 	}
@@ -309,12 +299,8 @@ func (pt PrimitiveType) String() string {
 		return string("float64")
 	case UntypedBigintType:
 		return string("<untyped> bigint")
-	case BigintType:
-		return string("bigint")
 	case UntypedBigdecType:
 		return string("<untyped> bigdec")
-	case BigdecType:
-		return string("bigdec")
 	default:
 		panic(fmt.Sprintf("unexpected primitive type %d", pt))
 	}
@@ -698,7 +684,7 @@ func (pt *PointerType) FindEmbeddedFieldType(callerPath string, n Name, m map[Ty
 					case 1:
 						// *DeclaredType > *StructType.Field has depth 1 (& type VPField).
 						// *PointerType > *DeclaredType > *StructType.Field has depth 2.
-						trail[0].Depth = 2
+						trail[0].SetDepth(2)
 						/*
 							// If trail[-1].Type == VPPtrMethod, set VPDerefPtrMethod.
 							if len(trail) > 1 && trail[1].Type == VPPtrMethod {
@@ -1132,6 +1118,8 @@ type FuncType struct {
 
 	typeid TypeID
 	bound  *FuncType
+
+	IsClosure bool
 }
 
 // true for predefined func types that are not filled in yet.
@@ -1467,6 +1455,13 @@ func baseOf(t Type) Type {
 	}
 }
 
+func unwrapPointerType(t Type) Type {
+	if pt, ok := t.(*PointerType); ok {
+		return pt.Elem()
+	}
+	return t
+}
+
 // NOTE: it may be faster to switch on baseOf().
 func (dt *DeclaredType) Kind() Kind {
 	return dt.Base.Kind()
@@ -1593,7 +1588,7 @@ func (dt *DeclaredType) GetPathForName(n Name) ValuePath {
 	}
 	// Otherwise it is underlying.
 	path := dt.Base.(ValuePather).GetPathForName(n)
-	path.Depth += 1
+	path.SetDepth(path.Depth + 1)
 	return path
 }
 
@@ -1663,7 +1658,8 @@ func (dt *DeclaredType) FindEmbeddedFieldType(callerPath string, n Name, m map[T
 				panic("should not happen")
 			}
 		}
-		trail[0].Depth += 1
+
+		trail[0].SetDepth(trail[0].Depth + 1)
 		return trail, hasPtr, rcvr, ft, false
 	default:
 		panic("should not happen")
@@ -2197,9 +2193,9 @@ func KindOf(t Type) Kind {
 			return Float32Kind
 		case Float64Type:
 			return Float64Kind
-		case BigintType, UntypedBigintType:
+		case UntypedBigintType:
 			return BigintKind
-		case BigdecType, UntypedBigdecType:
+		case UntypedBigdecType:
 			return BigdecKind
 		default:
 			panic(fmt.Sprintf("unexpected primitive type %s", t.String()))
@@ -2392,12 +2388,6 @@ func fillEmbeddedName(ft *FieldType) {
 			ft.Name = Name("float32")
 		case Float64Type:
 			ft.Name = Name("float64")
-		case BigintType:
-			ft.Name = Name("bigint")
-		case BigdecType:
-			ft.Name = Name("bigdec")
-		default:
-			panic("should not happen")
 		}
 	case *NativeType:
 		panic("native type cannot be embedded")

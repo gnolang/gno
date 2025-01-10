@@ -26,6 +26,8 @@ type testCfg struct {
 	updateGoldenTests   bool
 	printRuntimeMetrics bool
 	printEvents         bool
+	debug               bool
+	debugAddr           string
 }
 
 func newTestCmd(io commands.IO) *commands.Command {
@@ -35,7 +37,7 @@ func newTestCmd(io commands.IO) *commands.Command {
 		commands.Metadata{
 			Name:       "test",
 			ShortUsage: "test [flags] <package> [<package>...]",
-			ShortHelp:  "runs the tests for the specified packages",
+			ShortHelp:  "test packages",
 			LongHelp: `Runs the tests for the specified packages.
 
 'gno test' recompiles each package along with any files with names matching the
@@ -143,11 +145,26 @@ func (c *testCfg) RegisterFlags(fs *flag.FlagSet) {
 		false,
 		"print emitted events",
 	)
+
+	fs.BoolVar(
+		&c.debug,
+		"debug",
+		false,
+		"enable interactive debugger using stdin and stdout",
+	)
+
+	fs.StringVar(
+		&c.debugAddr,
+		"debug-addr",
+		"",
+		"enable interactive debugger using tcp address in the form [host]:port",
+	)
 }
 
 func execTest(cfg *testCfg, args []string, io commands.IO) error {
-	if len(args) < 1 {
-		return flag.ErrHelp
+	// Default to current directory if no args provided
+	if len(args) == 0 {
+		args = []string{"."}
 	}
 
 	// guess opts.RootDir
@@ -159,6 +176,7 @@ func execTest(cfg *testCfg, args []string, io commands.IO) error {
 	if err != nil {
 		return fmt.Errorf("list targets from patterns: %w", err)
 	}
+
 	if len(paths) == 0 {
 		io.ErrPrintln("no packages to test")
 		return nil
@@ -187,6 +205,7 @@ func execTest(cfg *testCfg, args []string, io commands.IO) error {
 	opts.Verbose = cfg.verbose
 	opts.Metrics = cfg.printRuntimeMetrics
 	opts.Events = cfg.printEvents
+	opts.Debug = cfg.debug
 
 	buildErrCount := 0
 	testErrCount := 0

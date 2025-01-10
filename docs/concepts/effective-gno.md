@@ -115,7 +115,7 @@ that could lead to user frustration or the need to fork the code.
 import "std"
 
 func Foobar() {
-    caller := std.PrevRealm().Addr()
+    caller := std.PreviousRealm().Address()
     if caller != "g1xxxxx" {
         panic("permission denied")
     }
@@ -169,10 +169,10 @@ var (
 
 func init() {
     created = time.Now()
-    // std.GetOrigCaller in the context of realm initialisation is,
+    // std.OriginCaller in the context of realm initialisation is,
     // of course, the publisher of the realm :)
     // This can be better than hardcoding an admin address as a constant.
-    admin = std.GetOrigCaller()
+    admin = std.OriginCaller()
     // list is already initialized, so it will already contain "foo", "bar" and
     // the current time as existing items.
     list = append(list, admin.String())
@@ -297,7 +297,57 @@ main purpose in Gno is for discoverability. This shift towards user-centric
 documentation reflects the broader shift in Gno towards making code more
 accessible and understandable for all users, not just developers.
 
-TODO: `func ExampleXXX`.
+Here's an example from [grc20](https://gno.land/p/demo/grc/grc20$source&file=types.gno)
+to illustrate the concept:
+
+```go
+// Teller interface defines the methods that a GRC20 token must implement. It
+// extends the TokenMetadata interface to include methods for managing token
+// transfers, allowances, and querying balances.
+//
+// The Teller interface is designed to ensure that any token adhering to this
+// standard provides a consistent API for interacting with fungible tokens.
+type Teller interface {
+	exts.TokenMetadata
+
+	// Returns the amount of tokens in existence.
+	TotalSupply() uint64
+
+	// Returns the amount of tokens owned by `account`.
+	BalanceOf(account std.Address) uint64
+
+	// Moves `amount` tokens from the caller's account to `to`.
+	//
+	// Returns an error if the operation failed.
+	Transfer(to std.Address, amount uint64) error
+
+	// Returns the remaining number of tokens that `spender` will be
+	// allowed to spend on behalf of `owner` through {transferFrom}. This is
+	// zero by default.
+	//
+	// This value changes when {approve} or {transferFrom} are called.
+	Allowance(owner, spender std.Address) uint64
+
+	// Sets `amount` as the allowance of `spender` over the caller's tokens.
+	//
+	// Returns an error if the operation failed.
+	//
+	// IMPORTANT: Beware that changing an allowance with this method brings
+	// the risk that someone may use both the old and the new allowance by
+	// unfortunate transaction ordering. One possible solution to mitigate
+	// this race condition is to first reduce the spender's allowance to 0
+	// and set the desired value afterwards:
+	// https://github.com/ethereum/EIPs/issues/20#issuecomment-263524729
+	Approve(spender std.Address, amount uint64) error
+
+	// Moves `amount` tokens from `from` to `to` using the
+	// allowance mechanism. `amount` is then deducted from the caller's
+	// allowance.
+	//
+	// Returns an error if the operation failed.
+	TransferFrom(from, to std.Address, amount uint64) error
+}
+```
 
 ### Reflection is never clear
 
@@ -399,7 +449,7 @@ certain operations.
 import "std"
 
 func PublicMethod(nb int) {
-    caller := std.PrevRealm().Addr()
+    caller := std.PreviousRealm().Address()
     privateMethod(caller, nb)
 }
 
@@ -407,7 +457,7 @@ func privateMethod(caller std.Address, nb int) { /* ... */ }
 ```
 
 In this example, `PublicMethod` is a public function that can be called by other
-realms. It retrieves the caller's address using `std.PrevRealm().Addr()`, and
+realms. It retrieves the caller's address using `std.PreviousRealm().Address()`, and
 then passes it to `privateMethod`, which is a private function that performs the
 actual logic. This way, `privateMethod` can only be called from within the
 realm, and it can use the caller's address for authentication or authorization
@@ -440,11 +490,11 @@ import (
 var owner std.Address
 
 func init() {
-	owner = std.PrevRealm().Addr()
+	owner = std.PreviousRealm().Address()
 }
 
 func ChangeOwner(newOwner std.Address) {
-	caller := std.PrevRealm().Addr()
+	caller := std.PreviousRealm().Address()
 
 	if caller != owner {
 		panic("access denied")
@@ -494,14 +544,14 @@ whitelisted or not.
 
 Let's deep dive into the different access control mechanisms we can use:
 
-One strategy is to look at the caller with `std.PrevRealm()`, which could be the
+One strategy is to look at the caller with `std.PreviousRealm()`, which could be the
 EOA (Externally Owned Account), or the preceding realm in the call stack.
 
 Another approach is to look specifically at the EOA. For this, you should call
-`std.GetOrigCaller()`, which returns the public address of the account that
+`std.OriginCaller()`, which returns the public address of the account that
 signed the transaction.
 
-TODO: explain when to use `std.GetOrigCaller`.
+TODO: explain when to use `std.OriginCaller`.
 
 Internally, this call will look at the frame stack, which is basically the stack
 of callers including all the functions, anonymous functions, other realms, and
@@ -516,7 +566,7 @@ import "std"
 var admin std.Address = "g1xxxxx"
 
 func AdminOnlyFunction() {
-    caller := std.PrevRealm().Addr()
+    caller := std.PreviousRealm().Address()
     if caller != admin {
         panic("permission denied")
     }
@@ -527,7 +577,7 @@ func AdminOnlyFunction() {
 ```
 
 In this example, `AdminOnlyFunction` is a function that can only be called by
-the admin. It retrieves the caller's address using `std.PrevRealm().Addr()`,
+the admin. It retrieves the caller's address using `std.PreviousRealm().Address()`,
 this can be either another realm contract, or the calling user if there is no
 other intermediary realm. and then checks if the caller is the admin. If not, it
 panics and stops the execution.
@@ -543,7 +593,7 @@ Here's an example:
 import "std"
 
 func TransferTokens(to std.Address, amount int64) {
-    caller := std.PrevRealm().Addr()
+    caller := std.PreviousRealm().Address()
     if caller != admin {
         panic("permission denied")
     }
@@ -552,7 +602,7 @@ func TransferTokens(to std.Address, amount int64) {
 ```
 
 In this example, `TransferTokens` is a function that can only be called by the
-admin. It retrieves the caller's address using `std.PrevRealm().Addr()`, and
+admin. It retrieves the caller's address using `std.PreviousRealm().Address()`, and
 then checks if the caller is the admin. If not, the function panics and execution is stopped.
 
 By using these access control mechanisms, you can ensure that your contract's
@@ -631,7 +681,7 @@ type MySafeStruct {
 }
 
 func NewSafeStruct() *MySafeStruct {
-    caller := std.PrevRealm().Addr()
+    caller := std.PreviousRealm().Address()
     return &MySafeStruct{
         counter: 0,
         admin: caller,
@@ -640,7 +690,7 @@ func NewSafeStruct() *MySafeStruct {
 
 func (s *MySafeStruct) Counter() int { return s.counter }
 func (s *MySafeStruct) Inc() {
-    caller := std.PrevRealm().Addr()
+    caller := std.PreviousRealm().Address()
     if caller != s.admin {
         panic("permission denied")
     }
@@ -704,7 +754,7 @@ import "gno.land/p/demo/grc/grc20"
 var fooToken = grc20.NewBanker("Foo Token", "FOO", 4)
 
 func MyBalance() uint64 {
-	caller := std.PrevRealm().Addr()
+	caller := std.PreviousRealm().Address()
 	return fooToken.BalanceOf(caller)
 }
 ```

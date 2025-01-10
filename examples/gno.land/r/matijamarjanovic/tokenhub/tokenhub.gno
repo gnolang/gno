@@ -1,83 +1,86 @@
 package tokenhub
 
 import (
-    "std"
-    "errors"
-	"strings"
-    "gno.land/p/demo/avl"
-    "gno.land/p/demo/grc/grc20"
-	"gno.land/p/moul/md"
-	"gno.land/p/demo/ufmt"
+	"std"
+
+	"gno.land/p/demo/avl"
+	"gno.land/p/demo/fqname"
+	"gno.land/p/demo/grc/grc1155"
+	"gno.land/p/demo/grc/grc20"
+	"gno.land/p/demo/grc/grc721"
+	"gno.land/r/demo/grc20reg"
+	"gno.land/r/leon/hof"
 )
+
+type GRC1155TokenInfo struct {
+	Collection grc1155.MultiTokenGetter
+	TokenID    string
+}
 
 var (
-    registeredTokens = avl.NewTree() // symbol -> *grc20.Token
-    
-    ErrTokenAlreadyRegistered = errors.New("token already registered")
-    ErrTokenNotFound = errors.New("token not found")
+	registeredTokens = avl.NewTree() // rlmPath[.slug] -> grc20.TokenGetter
+	registeredNFTs   = avl.NewTree() // rlmPath[.slug] -> grc721.NFTGetter
+	registeredMTs    = avl.NewTree() // rlmPath[.slug] -> GRC1155TokenInfo
 )
 
-func RegisterToken(token *grc20.Token) error {
-    symbol := token.GetSymbol()
-    
-    if registeredTokens.Has(symbol) {
-        return ErrTokenAlreadyRegistered
-    }
-    
-    registeredTokens.Set(symbol, token)
-    return nil
+const pageSize = 10
+
+func init() {
+	hof.Register()
 }
 
-func getBalances(addr std.Address) string {
-    balances := avl.NewTree()
-    var sb strings.Builder
-    
-    registeredTokens.Iterate("", "", func(key string, value interface{}) bool {
-        token := value.(*grc20.Token)
-        balance := token.BalanceOf(addr)
-        balances.Set(key, balance)
-        return false
-    })
-
-    sb.WriteString("Balances: ")
-    balances.Iterate("", "", func(key string, value interface{}) bool {
-        balance := value.(uint64)
-        sb.WriteString(ufmt.Sprintf("%s: %d ", key, balance))
-        return false
-    })
-    
-    return sb.String()
+// RegisterToken is a function that uses gno.land/r/demo/grc20reg to register a token
+// It uses the slug to construct a key and then registers the token in the registry
+// The logic is the same as in grc20reg, but it's done here so the key path is callers pkgpath and not of this realm
+// After doing so, the token hub realm uses grc20reg's registry as a read-only avl.Tree
+func RegisterToken(tokenGetter grc20.TokenGetter, slug string) {
+	rlmPath := std.PreviousRealm().PkgPath()
+	key := fqname.Construct(rlmPath, slug)
+	grc20reg.RegisterWithTokenhub(tokenGetter, key)
 }
 
-func GetMyBalances() string {
-    return getBalances(std.GetOrigCaller())
+// RegisterNFT is a function that registers an NFT in an avl.Tree
+func RegisterNFT(nftGetter grc721.NFTGetter, collection string, tokenId string) error {
+	nft := nftGetter()
+	_, ok := nft.(grc721.IGRC721CollectionMetadata)
+	if !ok {
+		return ErrNFTNotMetadata
+	}
+
+	nftOwner, err := nft.OwnerOf(grc721.TokenID(tokenId))
+
+	if err != nil {
+		return err
+	}
+	if !nftOwner.IsValid() {
+		return ErrNFTtokIDNotExists
+	}
+
+	rlmPath := std.PreviousRealm().PkgPath()
+	key := rlmPath + "." + collection + "." + tokenId
+
+	if registeredNFTs.Has(key) {
+		return ErrNFTAlreadyRegistered
+	}
+
+	registeredNFTs.Set(key, nftGetter)
+	return nil
 }
 
-func Render(path string) string {
-    var sb strings.Builder
+// RegisterMultiToken is a function that registers a multi-token in an avl.Tree
+// The avl.Tree value is a struct defined in this realm. It contains not only the getter (like other token types) but also the tokenID
+func RegisterMultiToken(mtGetter grc1155.MultiTokenGetter, tokenID string) error {
+	rlmPath := std.PreviousRealm().PkgPath()
 
-    sb.WriteString(md.H1("TokenHub"))
-    sb.WriteString(md.Paragraph("A central registry for GRC20 tokens on gno.land"))
+	key := rlmPath + "." + tokenID
 
-    sb.WriteString(md.H2("Registered Tokens"))
-    
-	var tokenItems []string
-    registeredTokens.Iterate("", "", func(key string, value interface{}) bool {
-        token := value.(*grc20.Token)
-        tokenItems = append(tokenItems, ufmt.Sprintf("%s (%s) - %d decimals", 
-            token.GetName(),
-            token.GetSymbol(), 
-            token.GetDecimals()))
-        return false
-    })
+	if registeredMTs.Has(key) {
+		return ErrMTAlreadyRegistered
+	}
 
-    if len(tokenItems) > 0 {
-        sb.WriteString(md.BulletList(tokenItems))
-    } else {
-        sb.WriteString(md.Italic("No tokens registered yet"))
-        sb.WriteString("\n")
-    }
-
-    return sb.String()
+	registeredMTs.Set(key, GRC1155TokenInfo{
+		Collection: mtGetter,
+		TokenID:    tokenID,
+	})
+	return nil
 }
-
