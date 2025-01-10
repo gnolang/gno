@@ -41,12 +41,16 @@ func NewCustomCoinSwap(recipient std.Address, hashlock string, timelock time.Tim
 	sender := std.PrevRealm().Addr()
 	sent := std.GetOrigSend()
 	require(len(sent) != 0, "at least one coin needs to be sent")
+
+	// Create the swap
 	sendFn := func(to std.Address) {
 		banker := std.GetBanker(std.BankerTypeRealmSend)
-		banker.SendCoins(std.GetOrigPkgAddr(), to, sent)
+		pkgAddr := std.GetOrigPkgAddr()
+		banker.SendCoins(pkgAddr, to, sent)
 	}
 	amountStr := sent.String()
 	swap := newSwap(sender, recipient, hashlock, timelock, amountStr, sendFn)
+
 	counter++
 	id := strconv.Itoa(counter)
 	swaps.Set(id, swap)
