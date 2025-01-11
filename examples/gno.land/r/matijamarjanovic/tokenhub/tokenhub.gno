@@ -32,7 +32,7 @@ func RegisterToken(tokenGetter grc20.TokenGetter, slugs ...string) {
 
 func RegisterNFT(nftGetter grc721.NFTGetter, slugs ...string) error {
 	nft := nftGetter()
-	metadata, ok := nft.(grc721.IGRC721CollectionMetadata)
+	_, ok := nft.(grc721.IGRC721CollectionMetadata)
 	if !ok {
 		return errors.New("NFT must implement IGRC721CollectionMetadata")
 	}
@@ -74,7 +74,7 @@ func getBalances(addr std.Address) string {
 	})
 
 	sb.WriteString("Balances:")
-	balances.Iterate("", "", func(key string, value interface{}) bool {
+	balances.Iterate("", "", func(key string, value interface{}) bool { //should we display all even if the balance is 0?
 		if strings.HasPrefix(key, "nft:") {
 			balance := value.(uint64)
 			symbol := strings.TrimPrefix(key, "nft:")
