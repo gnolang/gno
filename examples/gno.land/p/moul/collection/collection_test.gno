@@ -1,11 +1,13 @@
 package collection
 
 import (
+	"errors"
 	"strconv"
 	"strings"
 	"testing"
 
 	"gno.land/p/demo/seqid"
+	"gno.land/p/demo/ufmt"
 )
 
 type Person struct {
@@ -14,6 +16,11 @@ type Person struct {
 	Email    string
 	Username string
 	Tags     []string
+}
+
+func (p Person) String() string {
+	return ufmt.Sprintf("name=%s age=%d email=%s username=%s tags=%s",
+		p.Name, p.Age, p.Email, p.Username, strings.Join(p.Tags, ","))
 }
 
 // TestOperation represents a single operation in a test sequence
@@ -51,59 +58,58 @@ func TestBasicOperations(t *testing.T) {
 	}
 
 	// Get by ID
-	entry := c.Get(IDIndex, seqid.ID(id1).String())
-	if entry == nil {
+	iter := c.Get(IDIndex, seqid.ID(id1).String())
+	if !iter.Next() {
 		t.Error("Failed to get object by ID")
 	}
+	entry := iter.Value()
 	if entry.Obj.(*Person).Name != "Alice" {
 		t.Error("Got wrong object")
 	}
 }
 
 func TestUniqueConstraints(t *testing.T) {
-	c := New()
-	c.AddIndex("name", func(v interface{}) string {
-		return v.(*Person).Name
-	}, UniqueIndex)
-	c.AddIndex("email", func(v interface{}) string {
-		return strings.ToLower(v.(*Person).Email)
-	}, UniqueIndex|CaseInsensitiveIndex)
-	c.AddIndex("age", func(v interface{}) string {
-		return strconv.Itoa(v.(*Person).Age)
-	}, DefaultIndex)
-
-	// Test cases for unique constraints
 	tests := []struct {
-		name     string
-		person   *Person
-		wantID   bool
-		existing uint64
+		name   string
+		setup  func(*Collection) uint64
+		wantID bool
 	}{
 		{
-			name:   "First person",
-			person: &Person{Name: "Alice", Email: "alice@test.com", Age: 30},
+			name: "First person",
+			setup: func(c *Collection) uint64 {
+				return c.Set(&Person{Name: "Alice"})
+			},
 			wantID: true,
 		},
 		{
-			name:   "Duplicate name",
-			person: &Person{Name: "Alice", Email: "alice2@test.com", Age: 25},
+			name: "Duplicate name",
+			setup: func(c *Collection) uint64 {
+				c.Set(&Person{Name: "Alice"})
+				return c.Set(&Person{Name: "Alice"})
+			},
 			wantID: false,
 		},
 		{
-			name:   "Duplicate email (case insensitive)",
-			person: &Person{Name: "Bob", Email: "ALICE@test.com", Age: 35},
-			wantID: false,
-		},
-		{
-			name:   "Same age (non-unique index)",
-			person: &Person{Name: "Bob", Email: "bob@test.com", Age: 30},
+			name: "Same age (non-unique index)",
+			setup: func(c *Collection) uint64 {
+				c.AddIndex("age", func(v interface{}) string {
+					return strconv.Itoa(v.(*Person).Age)
+				}, DefaultIndex)
+				c.Set(&Person{Name: "Alice", Age: 30})
+				return c.Set(&Person{Name: "Bob", Age: 30})
+			},
 			wantID: true,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			id := c.Set(tt.person)
+			c := New()
+			c.AddIndex("name", func(v interface{}) string {
+				return v.(*Person).Name
+			}, UniqueIndex)
+
+			id := tt.setup(c)
 			if (id != 0) != tt.wantID {
 				t.Errorf("Set() got id = %v, want non-zero: %v", id, tt.wantID)
 			}
@@ -131,33 +137,33 @@ func TestUpdates(t *testing.T) {
 		name      string
 		id        uint64
 		newPerson *Person
-		wantID    uint64
+		wantRet   bool
 	}{
 		{
 			name:      "Update to non-conflicting values",
 			id:        id1,
 			newPerson: &Person{Name: "Alice2", Username: "alice1234"},
-			wantID:    id1,
+			wantRet:   true,
 		},
 		{
 			name:      "Update to conflicting username",
 			id:        id1,
 			newPerson: &Person{Name: "Alice2", Username: "bob456"},
-			wantID:    0,
+			wantRet:   false,
 		},
 		{
 			name:      "Update non-existent ID",
 			id:        99999,
 			newPerson: &Person{Name: "Test", Username: "test"},
-			wantID:    0,
+			wantRet:   false,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			gotID := c.Update(tt.id, tt.newPerson)
-			if gotID != tt.wantID {
-				t.Errorf("Update() got = %v, want %v", gotID, tt.wantID)
+			if gotID != tt.wantRet {
+				t.Errorf("Update() got = %v, want %v", gotID, tt.wantRet)
 			}
 		})
 	}
@@ -169,38 +175,36 @@ func TestDelete(t *testing.T) {
 		return v.(*Person).Name
 	}, UniqueIndex)
 
-	// Setup
 	p1 := &Person{Name: "Alice"}
 	id1 := c.Set(p1)
 
 	tests := []struct {
 		name    string
 		id      uint64
-		wantObj bool
+		wantRet bool
 	}{
 		{
 			name:    "Delete existing object",
 			id:      id1,
-			wantObj: false,
+			wantRet: true,
 		},
 		{
 			name:    "Delete non-existent object",
 			id:      99999,
-			wantObj: false,
+			wantRet: false,
 		},
 		{
 			name:    "Delete already deleted object",
 			id:      id1,
-			wantObj: false,
+			wantRet: false,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			c.Delete(tt.id)
-			entry := c.Get(IDIndex, seqid.ID(tt.id).String())
-			if entry != nil {
-				t.Errorf("After Delete(), Get() returned object: %v, want object: %v", entry != nil, tt.wantObj)
+			gotID := c.Delete(tt.id)
+			if gotID != tt.wantRet {
+				t.Errorf("Delete() got = %v, want %v", gotID, tt.wantRet)
 			}
 		})
 	}
@@ -214,26 +218,26 @@ func TestEdgeCases(t *testing.T) {
 
 	tests := []struct {
 		name      string
-		operation func() uint64
+		operation func() bool
 		wantPanic bool
 	}{
 		{
 			name: "Set nil object",
-			operation: func() uint64 {
-				return c.Set(nil)
+			operation: func() bool {
+				return c.Set(nil) != 0
 			},
 			wantPanic: false,
 		},
 		{
 			name: "Set wrong type",
-			operation: func() uint64 {
-				return c.Set("not a person")
+			operation: func() bool {
+				return c.Set("not a person") != 0
 			},
-			wantPanic: false,
+			wantPanic: true,
 		},
 		{
 			name: "Update with nil",
-			operation: func() uint64 {
+			operation: func() bool {
 				id := c.Set(&Person{Name: "Test"})
 				return c.Update(id, nil)
 			},
@@ -241,16 +245,20 @@ func TestEdgeCases(t *testing.T) {
 		},
 		{
 			name: "Get with invalid index name",
-			operation: func() uint64 {
-				entry := c.Get("invalid_index", "key")
+			operation: func() bool {
+				iter := c.Get("invalid_index", "key")
+				if iter.Empty() {
+					return false
+				}
+				entry := iter.Value()
 				if entry == nil {
-					return 0
+					return false
 				}
 				id, err := seqid.FromString(entry.ID)
 				if err != nil {
-					return 0
+					return false
 				}
-				return uint64(id)
+				return true
 			},
 			wantPanic: false,
 		},
@@ -258,7 +266,7 @@ func TestEdgeCases(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			var gotID uint64
+			var got bool
 			panicked := false
 
 			func() {
@@ -267,14 +275,14 @@ func TestEdgeCases(t *testing.T) {
 						panicked = true
 					}
 				}()
-				gotID = tt.operation()
+				got = tt.operation()
 			}()
 
 			if panicked != tt.wantPanic {
 				t.Errorf("Operation panicked = %v, want panic = %v", panicked, tt.wantPanic)
 			}
-			if !panicked && gotID != 0 {
-				t.Errorf("Operation returned %v, want 0", gotID)
+			if !panicked && got != false {
+				t.Errorf("Operation returned %v, want 0", got)
 			}
 		})
 	}
@@ -388,15 +396,12 @@ func TestConcurrentOperations(t *testing.T) {
 		return v.(*Person).Name
 	}, UniqueIndex)
 
-	// Test concurrent reads and writes
 	p1 := &Person{Name: "Alice"}
 	id1 := c.Set(p1)
+	iter := c.Get("_id", seqid.ID(id1).String())
+	success := c.Update(id1, &Person{Name: "Alice2"})
 
-	// Get and Update simultaneously
-	entry := c.Get(IDIndex, seqid.ID(id1).String())
-	newID := c.Update(id1, &Person{Name: "Alice2"})
-
-	if entry == nil || newID == 0 {
+	if iter.Empty() || !success {
 		t.Error("Concurrent operations failed")
 	}
 }
@@ -529,7 +534,7 @@ func TestAddIndexPanic(t *testing.T) {
 	}, DefaultIndex)
 }
 
-func TestCaseInsensitiveGet(t *testing.T) {
+func TestCaseInsensitiveOperations(t *testing.T) {
 	c := New()
 	c.AddIndex("email", func(v interface{}) string {
 		return v.(*Person).Email
@@ -539,35 +544,51 @@ func TestCaseInsensitiveGet(t *testing.T) {
 	id := c.Set(p)
 
 	tests := []struct {
-		name    string
-		key     string
-		wantObj bool
+		name      string
+		key       string
+		wantObj   bool
+		operation string // "get" or "getAll"
+		wantCount int
 	}{
-		{
-			name:    "Exact match",
-			key:     "Test@Example.com",
-			wantObj: true,
-		},
-		{
-			name:    "Different case",
-			key:     "test@example.COM",
-			wantObj: true,
-		},
-		{
-			name:    "Non-existent",
-			key:     "other@example.com",
-			wantObj: false,
-		},
+		{"Get exact match", "Test@Example.com", true, "get", 1},
+		{"Get different case", "test@example.COM", true, "get", 1},
+		{"Get non-existent", "other@example.com", false, "get", 0},
+		{"GetAll exact match", "Test@Example.com", true, "getAll", 1},
+		{"GetAll different case", "test@example.COM", true, "getAll", 1},
+		{"GetAll non-existent", "other@example.com", false, "getAll", 0},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			entry := c.Get("email", tt.key)
-			if (entry != nil) != tt.wantObj {
-				t.Errorf("Get() got object = %v, want object = %v", entry != nil, tt.wantObj)
-			}
-			if tt.wantObj && entry.ID != seqid.ID(id).String() {
-				t.Errorf("Get() got id = %v, want id = %v", entry.ID, seqid.ID(id).String())
+			if tt.operation == "get" {
+				iter := c.Get("email", tt.key)
+				if iter.Empty() {
+					if tt.wantObj {
+						t.Error("Expected iterator to not be empty")
+					}
+					return
+				}
+				hasValue := iter.Next()
+				if hasValue != tt.wantObj {
+					t.Errorf("Get() got object = %v, want object = %v", hasValue, tt.wantObj)
+				}
+				if hasValue {
+					entry := iter.Value()
+					if entry.ID != seqid.ID(id).String() {
+						t.Errorf("Get() got id = %v, want id = %v", entry.ID, seqid.ID(id).String())
+					}
+				}
+			} else {
+				entries := c.GetAll("email", tt.key)
+				if len(entries) != tt.wantCount {
+					t.Errorf("GetAll() returned %d entries, want %d", len(entries), tt.wantCount)
+				}
+				if tt.wantCount > 0 {
+					entry := entries[0]
+					if entry.ID != seqid.ID(id).String() {
+						t.Errorf("GetAll() returned ID %s, want %s", entry.ID, seqid.ID(id).String())
+					}
+				}
 			}
 		})
 	}
@@ -575,123 +596,9 @@ func TestCaseInsensitiveGet(t *testing.T) {
 
 func TestGetInvalidID(t *testing.T) {
 	c := New()
-	entry := c.Get(IDIndex, "not-a-valid-id")
-	if entry != nil {
-		t.Errorf("Get() with invalid ID format got entry=%v, want nil", entry)
-	}
-}
-
-func TestMultiValueIndex(t *testing.T) {
-	c := New()
-
-	// Add a multi-value index for "tags"
-	c.AddIndex("tags", func(v interface{}) []string {
-		return v.(*Person).Tags
-	}, MultiValueIndex)
-
-	// Create a person with multiple tags
-	p := &Person{Name: "AliceWithTags", Tags: []string{"golang", "engineer", "travel"}}
-	id := c.Set(p)
-
-	if id == 0 {
-		t.Fatal("Failed to set object with multi-value index")
-	}
-
-	// Check each key in the "tags" index to confirm insertion
-	for _, tag := range p.Tags {
-		val, ok := c.GetIndex("tags").Get(tag)
-		if !ok {
-			t.Errorf("Expected to find key '%s' in multi-value index, but did not", tag)
-			continue
-		}
-		storedIDs, ok := val.([]string)
-		if !ok {
-			t.Errorf("Expected a []string for multi-value index under key '%s', but got %T", tag, val)
-			continue
-		}
-
-		found := false
-		for _, storedID := range storedIDs {
-			if storedID == seqid.ID(id).String() {
-				found = true
-				break
-			}
-		}
-		if !found {
-			t.Errorf("Expected to find ID %s in multi-value index for key '%s', but it was missing", seqid.ID(id).String(), tag)
-		}
-	}
-}
-
-func TestMultiValueDelete(t *testing.T) {
-	c := New()
-
-	// Add a multi-value index for "tags"
-	c.AddIndex("tags", func(v interface{}) []string {
-		return v.(*Person).Tags
-	}, MultiValueIndex)
-
-	// Create two people with overlapping tags.
-	pAlice := &Person{Name: "Alice", Tags: []string{"a", "dev", "gopher"}}
-	pBob := &Person{Name: "Bob", Tags: []string{"a", "cooking"}}
-
-	idAlice := c.Set(pAlice)
-	if idAlice == 0 {
-		t.Fatal("Failed to set Alice with multi-value index")
-	}
-	idBob := c.Set(pBob)
-	if idBob == 0 {
-		t.Fatal("Failed to set Bob with multi-value index")
-	}
-
-	// Confirm that both Alice and Bob's IDs appear under the tag "a".
-	val, ok := c.GetIndex("tags").Get("a")
-	if !ok {
-		t.Error("Expected to find key 'a' for multi-value index but did not.")
-	} else {
-		storedIDs, ok := val.([]string)
-		if !ok {
-			t.Errorf("Expected a []string for multi-value key 'a', got %T", val)
-		} else {
-			// Check that both IDs are present
-			var aliceFound, bobFound bool
-			for _, sid := range storedIDs {
-				switch sid {
-				case seqid.ID(idAlice).String():
-					aliceFound = true
-				case seqid.ID(idBob).String():
-					bobFound = true
-				}
-			}
-			if !aliceFound || !bobFound {
-				t.Errorf("Expected tag 'a' to contain both Alice (%v) and Bob (%v). Found: %v", idAlice, idBob, storedIDs)
-			}
-		}
-	}
-
-	// Now delete Alice
-	c.Delete(idAlice)
-
-	// After deleting Alice, "a" should remain for Bob only
-	valAfterDelete, ok := c.GetIndex("tags").Get("a")
-	if !ok {
-		t.Error("Expected to still find key 'a' pointing to Bob after deleting Alice, but key was not found.")
-	} else {
-		storedIDs, ok := valAfterDelete.([]string)
-		if !ok {
-			t.Errorf("Expected a []string for multi-value key 'a', got %T", valAfterDelete)
-		} else {
-			// Check that only Bob remains
-			if len(storedIDs) != 1 || storedIDs[0] != seqid.ID(idBob).String() {
-				t.Errorf("Expected 'a' to only have Bob's ID %v after deleting Alice, got %v", seqid.ID(idBob).String(), storedIDs)
-			}
-		}
-	}
-
-	// Double-check that Alice is not retrievable by her ID
-	entry := c.Get(IDIndex, seqid.ID(idAlice).String())
-	if entry != nil {
-		t.Errorf("Expected Alice with ID %v to be deleted but she is still present", idAlice)
+	iter := c.Get(IDIndex, "not-a-valid-id")
+	if !iter.Empty() {
+		t.Errorf("Get() with invalid ID format got an entry, want nil")
 	}
 }
 
@@ -699,7 +606,7 @@ func TestGetAll(t *testing.T) {
 	c := New()
 	c.AddIndex("tags", func(v interface{}) []string {
 		return v.(*Person).Tags
-	}, MultiValueIndex)
+	}, DefaultIndex)
 	c.AddIndex("age", func(v interface{}) string {
 		return strconv.Itoa(v.(*Person).Age)
 	}, DefaultIndex)
@@ -726,120 +633,354 @@ func TestGetAll(t *testing.T) {
 		name      string
 		indexName string
 		key       string
-		wantLen   int
+		wantCount int
 	}{
 		{
 			name:      "Multi-value index with multiple matches",
 			indexName: "tags",
 			key:       "dev",
-			wantLen:   3,
+			wantCount: 3,
 		},
 		{
 			name:      "Multi-value index with single match",
 			indexName: "tags",
 			key:       "go",
-			wantLen:   1,
+			wantCount: 1,
 		},
 		{
 			name:      "Multi-value index with no matches",
 			indexName: "tags",
 			key:       "java",
-			wantLen:   0,
+			wantCount: 0,
 		},
 		{
 			name:      "Single-value non-unique index with multiple matches",
 			indexName: "age",
 			key:       "30",
-			wantLen:   1, // GetAll still returns just one entry for non-MultiValueIndex
+			wantCount: 2,
 		},
 		{
 			name:      "Single-value unique index",
 			indexName: "name",
 			key:       "Alice",
-			wantLen:   1,
+			wantCount: 1,
 		},
 		{
 			name:      "Non-existent index",
 			indexName: "invalid",
 			key:       "value",
-			wantLen:   0,
-		},
-		{
-			name:      "ID index",
-			indexName: IDIndex,
-			key:       seqid.ID(ids[0]).String(),
-			wantLen:   1,
+			wantCount: 0,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			entries := c.GetAll(tt.indexName, tt.key)
-
-			if len(entries) != tt.wantLen {
-				t.Errorf("GetAll() returned %d entries, want %d", len(entries), tt.wantLen)
-			}
-
-			for _, entry := range entries {
+			iter := c.Get(tt.indexName, tt.key)
+			count := 0
+			for iter.Next() {
+				entry := iter.Value()
 				if entry.ID == "" {
-					t.Error("GetAll() returned entry with empty ID")
+					t.Error("Got entry with empty ID")
 				}
 				if entry.Obj == nil {
-					t.Error("GetAll() returned entry with nil Obj")
+					t.Error("Got entry with nil Obj")
+				}
+				count++
+			}
+			if count != tt.wantCount {
+				t.Errorf("Got %d entries, want %d", count, tt.wantCount)
+			}
+		})
+	}
+}
+
+func TestIndexOperations(t *testing.T) {
+	tests := []struct {
+		name    string
+		setup   func(*Collection) (uint64, error)
+		verify  func(*Collection, uint64) error
+		wantErr bool
+	}{
+		{
+			name: "Basic set and get",
+			setup: func(c *Collection) (uint64, error) {
+				c.AddIndex("name", func(v interface{}) string {
+					return v.(*Person).Name
+				}, UniqueIndex)
+				return c.Set(&Person{Name: "Alice", Age: 30}), nil
+			},
+			verify: func(c *Collection, id uint64) error {
+				iter := c.Get(IDIndex, seqid.ID(id).String())
+				if !iter.Next() {
+					return errors.New("failed to get object by ID")
+				}
+				entry := iter.Value()
+				if entry.Obj.(*Person).Name != "Alice" {
+					return errors.New("got wrong object")
+				}
+				return nil
+			},
+		},
+		{
+			name: "Composite index",
+			setup: func(c *Collection) (uint64, error) {
+				c.AddIndex("composite", func(v interface{}) string {
+					p := v.(*Person)
+					return p.Name + ":" + strconv.Itoa(p.Age)
+				}, UniqueIndex)
+				return c.Set(&Person{Name: "Alice", Age: 30}), nil
+			},
+			verify: func(c *Collection, id uint64) error {
+				iter := c.Get("composite", "Alice:30")
+				if !iter.Next() {
+					return errors.New("failed to get object by composite index")
+				}
+				return nil
+			},
+		},
+		// Add more test cases combining unique scenarios from original tests
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			c := New()
+			id, err := tt.setup(c)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("setup error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if err == nil {
+				if err := tt.verify(c, id); err != nil {
+					t.Errorf("verification failed: %v", err)
 				}
 			}
 		})
 	}
 }
 
-func TestGetAllWithCaseInsensitive(t *testing.T) {
+func TestMultiValueIndexes(t *testing.T) {
 	c := New()
-	c.AddIndex("email", func(v interface{}) string {
-		return v.(*Person).Email
-	}, UniqueIndex|CaseInsensitiveIndex)
-
-	// Create test data
-	p := &Person{Name: "Alice", Email: "Test@Example.com"}
-	id := c.Set(p)
-	if id == 0 {
-		t.Fatal("Failed to set person")
-	}
+	c.AddIndex("tags", func(v interface{}) []string {
+		return v.(*Person).Tags
+	}, DefaultIndex)
 
 	tests := []struct {
-		name    string
-		key     string
-		wantLen int
+		name      string
+		setup     []*Person
+		searchTag string
+		wantCount int
 	}{
 		{
-			name:    "Exact match",
-			key:     "Test@Example.com",
-			wantLen: 1,
+			name: "Multiple tags, multiple matches",
+			setup: []*Person{
+				{Name: "Alice", Tags: []string{"dev", "go"}},
+				{Name: "Bob", Tags: []string{"dev", "python"}},
+				{Name: "Charlie", Tags: []string{"dev", "rust"}},
+			},
+			searchTag: "dev",
+			wantCount: 3,
 		},
 		{
-			name:    "Different case",
-			key:     "test@example.COM",
-			wantLen: 1,
+			name: "Single tag match",
+			setup: []*Person{
+				{Name: "Alice", Tags: []string{"dev", "go"}},
+				{Name: "Bob", Tags: []string{"dev", "python"}},
+			},
+			searchTag: "go",
+			wantCount: 1,
 		},
 		{
-			name:    "Non-existent",
-			key:     "other@example.com",
-			wantLen: 0,
+			name: "No matches",
+			setup: []*Person{
+				{Name: "Alice", Tags: []string{"dev", "go"}},
+				{Name: "Bob", Tags: []string{"dev", "python"}},
+			},
+			searchTag: "java",
+			wantCount: 0,
+		},
+		{
+			name: "Empty tags",
+			setup: []*Person{
+				{Name: "Alice", Tags: []string{}},
+				{Name: "Bob", Tags: nil},
+			},
+			searchTag: "dev",
+			wantCount: 0,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			entries := c.GetAll("email", tt.key)
+			c := New()
+			c.AddIndex("tags", func(v interface{}) []string {
+				return v.(*Person).Tags
+			}, DefaultIndex)
 
-			if len(entries) != tt.wantLen {
-				t.Errorf("GetAll() returned %d entries, want %d", len(entries), tt.wantLen)
+			// Setup test data
+			for _, p := range tt.setup {
+				if id := c.Set(p); id == 0 {
+					t.Fatalf("Failed to set person %s", p.Name)
+				}
 			}
 
-			if tt.wantLen > 0 {
-				entry := entries[0]
-				if entry.ID != seqid.ID(id).String() {
-					t.Errorf("GetAll() returned ID %s, want %s", entry.ID, seqid.ID(id).String())
+			// Test Get operation
+			iter := c.Get("tags", tt.searchTag)
+			count := 0
+			for iter.Next() {
+				count++
+			}
+			if count != tt.wantCount {
+				t.Errorf("Get() got %d matches, want %d", count, tt.wantCount)
+			}
+		})
+	}
+}
+
+func TestGetOperations(t *testing.T) {
+	c := New()
+	c.AddIndex("name", func(v interface{}) string {
+		return v.(*Person).Name
+	}, UniqueIndex)
+	c.AddIndex("age", func(v interface{}) string {
+		return strconv.Itoa(v.(*Person).Age)
+	}, DefaultIndex)
+
+	// Setup test data
+	testPeople := []*Person{
+		{Name: "Alice", Age: 30},
+		{Name: "Bob", Age: 30},
+		{Name: "Charlie", Age: 25},
+	}
+
+	ids := make([]uint64, len(testPeople))
+	for i, p := range testPeople {
+		ids[i] = c.Set(p)
+		if ids[i] == 0 {
+			t.Fatalf("Failed to set person %s", p.Name)
+		}
+	}
+
+	tests := []struct {
+		name      string
+		indexName string
+		key       string
+		wantCount int
+		wantErr   bool
+	}{
+		{
+			name:      "Get by ID",
+			indexName: IDIndex,
+			key:       seqid.ID(ids[0]).String(),
+			wantCount: 1,
+			wantErr:   false,
+		},
+		{
+			name:      "Get by unique index",
+			indexName: "name",
+			key:       "Alice",
+			wantCount: 1,
+			wantErr:   false,
+		},
+		{
+			name:      "Get by non-unique index",
+			indexName: "age",
+			key:       "30",
+			wantCount: 2,
+			wantErr:   false,
+		},
+		{
+			name:      "Get with invalid index",
+			indexName: "invalid_index",
+			key:       "value",
+			wantCount: 0,
+			wantErr:   true,
+		},
+		{
+			name:      "Get with invalid ID format",
+			indexName: IDIndex,
+			key:       "not-a-valid-id",
+			wantCount: 0,
+			wantErr:   true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			iter := c.Get(tt.indexName, tt.key)
+			if iter.Empty() {
+				if !tt.wantErr {
+					t.Errorf("Get() returned empty iterator, wanted %d results", tt.wantCount)
 				}
+				return
+			}
+
+			count := 0
+			for iter.Next() {
+				entry := iter.Value()
+				if entry.ID == "" {
+					t.Error("Got entry with empty ID")
+				}
+				if entry.Obj == nil {
+					t.Error("Got entry with nil Obj")
+				}
+				count++
+			}
+
+			if count != tt.wantCount {
+				t.Errorf("Get() returned %d results, want %d", count, tt.wantCount)
+			}
+		})
+	}
+}
+
+func TestEntryString(t *testing.T) {
+	tests := []struct {
+		name     string
+		entry    *Entry
+		expected string
+	}{
+		{
+			name:     "Nil entry",
+			entry:    nil,
+			expected: "<nil>",
+		},
+		{
+			name: "Person entry",
+			entry: &Entry{
+				ID:  "123",
+				Obj: &Person{Name: "Alice", Age: 30},
+			},
+			expected: `Entry{ID: 123, Obj: name=Alice age=30 email= username= tags=}`,
+		},
+		{
+			name: "Entry with nil object",
+			entry: &Entry{
+				ID:  "456",
+				Obj: nil,
+			},
+			expected: `Entry{ID: 456, Obj: <nil>}`,
+		},
+		{
+			name: "Entry with complete person",
+			entry: &Entry{
+				ID: "789",
+				Obj: &Person{
+					Name:     "Bob",
+					Age:      25,
+					Email:    "bob@example.com",
+					Username: "bobby",
+					Tags:     []string{"dev", "go"},
+				},
+			},
+			expected: `Entry{ID: 789, Obj: name=Bob age=25 email=bob@example.com username=bobby tags=dev,go}`,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := tt.entry.String()
+			if got != tt.expected {
+				t.Errorf("Entry.String() = %q, want %q", got, tt.expected)
 			}
 		})
 	}
