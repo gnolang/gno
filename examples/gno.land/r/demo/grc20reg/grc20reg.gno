@@ -73,4 +73,11 @@ func Render(path string) string {
 	}
 }
 
+func Iterate(callback func(key string, token grc20.TokenGetter) bool) {
+	registry.Iterate("", "", func(key string, tokenI interface{}) bool {
+		tokenGetter := tokenI.(grc20.TokenGetter)
+		return callback(key, tokenGetter)
+	})
+}
+
 const registerEvent = "register"
