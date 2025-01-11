@@ -5,39 +5,43 @@ import (
 
 	"gno.land/p/demo/grc/grc20"
 	"gno.land/p/demo/grc/grc721"
+	"gno.land/p/demo/grc/grc1155"
 	"gno.land/p/demo/ufmt"
 )
 
 var (
-	// Initialize basic NFTs using the public constructor
 	nftA = grc721.NewBasicNFT("Collection A", "NFTA")
 	nftB = grc721.NewBasicNFT("Collection B", "NFTB")
 	nftC = grc721.NewBasicNFT("Collection C", "NFTC")
 
-	// Initialize GRC20 tokens
 	tokenA, tokenAAdmin = grc20.NewToken("Token A", "TOKA", 6)
 	tokenB, tokenBAdmin = grc20.NewToken("Token B", "TOKB", 6)
 	tokenC, tokenCAdmin = grc20.NewToken("Token C", "TOKC", 6)
+
+	mtGameItems   = grc1155.NewBasicGRC1155Token("https://game.example.com/items/{id}.json")
+	mtArtworks    = grc1155.NewBasicGRC1155Token("https://art.example.com/pieces/{id}.json")
+	mtCollectibles = grc1155.NewBasicGRC1155Token("https://collect.example.com/cards/{id}.json")
 )
 
 func init() {
-	// Test address to receive tokens
 	testAddr := std.Address("g1ej0qca5ptsw9kfr64ey8jvfy9eacga6mpj2z0y")
 
-	// Mint test NFTs
-	MintTestNFTs(testAddr)
-	// Mint test tokens
-	MintTestTokens(testAddr)
-
-	// Register all NFT collections using the Getter method
 	RegisterNFT(func() grc721.IGRC721 { return nftA }, "nft-a")
 	RegisterNFT(func() grc721.IGRC721 { return nftB }, "nft-b")
 	RegisterNFT(func() grc721.IGRC721 { return nftC }, "nft-c")
 
-	// Register all tokens using their Getter methods
 	RegisterToken(tokenA.Getter(), "token-a")
 	RegisterToken(tokenB.Getter(), "token-b")
 	RegisterToken(tokenC.Getter(), "token-c")
+
+	RegisterGRC1155Token(mtGameItems.Getter(), "sword", "game-sword")
+	RegisterGRC1155Token(mtGameItems.Getter(), "potion", "game-potion")
+	RegisterGRC1155Token(mtArtworks.Getter(), "artwork_1", "art-piece-1")
+	RegisterGRC1155Token(mtCollectibles.Getter(), "rare_card", "card-rare")
+
+	MintTestNFTs(testAddr)
+	MintTestTokens(testAddr)
+	MintTestMultiTokens(testAddr)
 }
 
 func MintTestNFTs(to std.Address) error {
@@ -45,9 +49,7 @@ func MintTestNFTs(to std.Address) error {
 		return grc721.ErrInvalidAddress
 	}
 
-	// Mint NFTs for each collection
 	for i := 1; i <= 2; i++ {
-		// Create TokenID for each NFT
 		tokenIDA := grc721.TokenID(ufmt.Sprintf("NFTA_%d", i))
 		if err := nftA.Mint(to, tokenIDA); err != nil {
 			return err
@@ -72,14 +74,34 @@ func MintTestTokens(to std.Address) error {
 		return grc20.ErrInvalidAddress
 	}
 
-	// Mint some test tokens to the address
-	if err := tokenAAdmin.Mint(to, 1000_000000); err != nil { // 1000 TOKA
+	if err := tokenAAdmin.Mint(to, 1000_000000); err != nil {
 		return err
 	}
-	if err := tokenBAdmin.Mint(to, 10000_000000); err != nil { // 10000 TOKB
+	if err := tokenBAdmin.Mint(to, 10000_000000); err != nil {
 		return err
 	}
-	if err := tokenCAdmin.Mint(to, 100_000000); err != nil { // 100 TOKC
+	if err := tokenCAdmin.Mint(to, 100_000000); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func MintTestMultiTokens(to std.Address) error {
+	if !to.IsValid() {
+		return grc1155.ErrInvalidAddress
+	}
+
+	if err := mtGameItems.SafeMint(to, "sword", 10); err != nil {
+		return err
+	}
+	if err := mtGameItems.SafeMint(to, "potion", 50); err != nil {
+		return err
+	}
+	if err := mtArtworks.SafeMint(to, "artwork_1", 1); err != nil {
+		return err
+	}
+	if err := mtCollectibles.SafeMint(to, "rare_card", 1); err != nil {
 		return err
 	}
 
