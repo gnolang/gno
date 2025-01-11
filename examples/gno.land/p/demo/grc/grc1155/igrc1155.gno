@@ -38,3 +38,5 @@ type ApprovalForAllEvent struct {
 type UpdateURIEvent struct {
 	URI string
 }
+
+type MultiTokenGetter func() IGRC1155
