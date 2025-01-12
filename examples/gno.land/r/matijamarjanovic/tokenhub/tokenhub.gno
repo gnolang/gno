@@ -31,7 +31,7 @@ var (
 	ErrMTNotFound         = errors.New("Multi-token not found")
 	ErrMTInfoNotFound     = errors.New("Multi-token info not found")
 
-	pageSize = 10 // tokens per page
+	pageSize = 1 // tokens per page
 )
 
 func RegisterToken(tokenGetter grc20.TokenGetter, slugs ...string) {
@@ -160,8 +160,8 @@ func Render(path string) string {
 		
 		links := []string{
 			md.Link("GRC20 Tokens", "http://localhost:8888/r/matijamarjanovic/tokenhub:token_1"),
-			md.Link("GRC721 NFTs", "http://localhost:8888/r/matijamarjanovic/tokenhub:nft"),
-			md.Link("GRC1155 Multi-Tokens", "http://localhost:8888/r/matijamarjanovic/tokenhub:mt"),
+			md.Link("GRC721 NFTs", "http://localhost:8888/r/matijamarjanovic/tokenhub:nft_1"),
+			md.Link("GRC1155 Multi-Tokens", "http://localhost:8888/r/matijamarjanovic/tokenhub:mt_1"),
 		}
 		sb.WriteString(md.BulletList(links))
 
@@ -217,21 +217,59 @@ func Render(path string) string {
 	case strings.HasPrefix(path, "nft"): // grc721 nfts
 		sb.WriteString(md.H1("GRC721 NFTs"))
 		var nftItems []string
+		
+		page := 1
+		if strings.HasPrefix(path, "nft_") {
+			pageStr := strings.TrimPrefix(path, "nft_")
+			if p, err := strconv.Atoi(pageStr); err == nil {
+				page = p
+			}
+		}
+
+		startIdx := (page - 1) * pageSize
+		count := 0
+		currentIdx := 0
+		
 		registeredNFTs.Iterate("", "", func(key string, value interface{}) bool {
+			if currentIdx < startIdx {
+				currentIdx++
+				return false
+			}
+			if count >= pageSize {
+				return true
+			}
+			
 			nftGetter := value.(grc721.NFTGetter)
 			nft := nftGetter()
 			metadata, ok := nft.(grc721.IGRC721CollectionMetadata)
 			if !ok {
 				return false
 			}
+			
 			nftItems = append(nftItems, ufmt.Sprintf("%s (%s)",
 				md.Bold(metadata.Name()),
 				md.InlineCode(metadata.Symbol())))
+			
+			count++
+			currentIdx++
 			return false
 		})
 
 		if len(nftItems) > 0 {
 			sb.WriteString(md.BulletList(nftItems))
+			sb.WriteString("\n")
+			sb.WriteString(md.HorizontalRule())
+			
+			if page > 1 {
+				prevPage := ufmt.Sprintf("http://localhost:8888/r/matijamarjanovic/tokenhub:nft_%d", page-1)
+				sb.WriteString(md.Link("Previous", prevPage))
+				sb.WriteString(" | ")
+			}
+			
+			if len(nftItems) == pageSize {
+				nextPage := ufmt.Sprintf("http://localhost:8888/r/matijamarjanovic/tokenhub:nft_%d", page+1)
+				sb.WriteString(md.Link("Next", nextPage))
+			}
 		} else {
 			sb.WriteString(md.Italic("No NFTs registered yet"))
 			sb.WriteString("\n")
