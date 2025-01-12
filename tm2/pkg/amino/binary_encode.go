@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"reflect"
+	"sync"
 )
 
 const beOptionByte = 0x01
@@ -209,6 +210,10 @@ func (cdc *Codec) encodeReflectBinary(w io.Writer, info *TypeInfo, rv reflect.Va
 	return err
 }
 
+var poolBytesBuffer = &sync.Pool{
+	New: func() any { return new(bytes.Buffer) },
+}
+
 func (cdc *Codec) encodeReflectBinaryInterface(w io.Writer, iinfo *TypeInfo, rv reflect.Value,
 	fopts FieldOptions, bare bool,
 ) (err error) {
@@ -250,7 +255,12 @@ func (cdc *Codec) encodeReflectBinaryInterface(w io.Writer, iinfo *TypeInfo, rv 
 
 	// For Proto3 compatibility, encode interfaces as google.protobuf.Any
 	// Write field #1, TypeURL
-	buf := bytes.NewBuffer(nil)
+	buf := poolBytesBuffer.Get().(*bytes.Buffer)
+	defer func() {
+		buf.Reset()
+		poolBytesBuffer.Put(buf)
+	}()
+
 	{
 		fnum := uint32(1)
 		err = encodeFieldNumberAndTyp3(buf, fnum, Typ3ByteLength)
@@ -269,7 +279,12 @@ func (cdc *Codec) encodeReflectBinaryInterface(w io.Writer, iinfo *TypeInfo, rv 
 	{
 		// google.protobuf.Any values must be a struct, or an unpacked list which
 		// is indistinguishable from a struct.
-		buf2 := bytes.NewBuffer(nil)
+		buf2 := poolBytesBuffer.Get().(*bytes.Buffer)
+		defer func() {
+			buf2.Reset()
+			poolBytesBuffer.Put(buf2)
+		}()
+
 		if !cinfo.IsStructOrUnpacked(fopts) {
 			writeEmpty := false
 			// Encode with an implicit struct, with a single field with number 1.
@@ -356,7 +371,11 @@ func (cdc *Codec) encodeReflectBinaryList(w io.Writer, info *TypeInfo, rv reflec
 
 	// Proto3 byte-length prefixing incurs alloc cost on the encoder.
 	// Here we incur it for unpacked form for ease of dev.
-	buf := bytes.NewBuffer(nil)
+	buf := poolBytesBuffer.Get().(*bytes.Buffer)
+	defer func() {
+		buf.Reset()
+		poolBytesBuffer.Put(buf)
+	}()
 
 	// If elem is not already a ByteLength type, write in packed form.
 	// This is a Proto wart due to Proto backwards compatibility issues.
@@ -431,9 +450,15 @@ func (cdc *Codec) encodeReflectBinaryList(w io.Writer, info *TypeInfo, rv reflec
 				// form) are represented as lists of implicit structs.
 				if writeImplicit {
 					// Write field key for Value field of implicit struct.
-					buf2 := new(bytes.Buffer)
+					buf2 := poolBytesBuffer.Get().(*bytes.Buffer)
+					buf2Done := func() {
+						buf2.Reset()
+						poolBytesBuffer.Put(buf2)
+					}
+
 					err = encodeFieldNumberAndTyp3(buf2, 1, Typ3ByteLength)
 					if err != nil {
+						buf2Done()
 						return
 					}
 					// Write field value of implicit struct to buf2.
@@ -441,10 +466,12 @@ func (cdc *Codec) encodeReflectBinaryList(w io.Writer, info *TypeInfo, rv reflec
 					efopts.BinFieldNum = 0 // dontcare
 					err = cdc.encodeReflectBinary(buf2, einfo, derv, efopts, false, 0)
 					if err != nil {
+						buf2Done()
 						return
 					}
 					// Write implicit struct to buf.
 					err = EncodeByteSlice(buf, buf2.Bytes())
+					buf2Done()
 					if err != nil {
 						return
 					}
@@ -497,7 +524,11 @@ func (cdc *Codec) encodeReflectBinaryStruct(w io.Writer, info *TypeInfo, rv refl
 
 	// Proto3 incurs a cost in writing non-root structs.
 	// Here we incur it for root structs as well for ease of dev.
-	buf := bytes.NewBuffer(nil)
+	buf := poolBytesBuffer.Get().(*bytes.Buffer)
+	defer func() {
+		buf.Reset()
+		poolBytesBuffer.Put(buf)
+	}()
 
 	for _, field := range info.Fields {
 		// Get type info for field.
