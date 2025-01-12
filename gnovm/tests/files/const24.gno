@@ -29,6 +29,7 @@ func main() {
 	const v = len(ars)
 	const w = cap(ars)
 	const x = time.Second
+	const y = +len("ay")
 
 	fmt.Println(a)
 	fmt.Println(b)
@@ -52,6 +53,7 @@ func main() {
 	fmt.Println(v)
 	fmt.Println(w)
 	println(x)
+	fmt.Println(y)
 }
 
 // Output:
@@ -77,3 +79,4 @@ func main() {
 // 10
 // 10
 // 1s
+// 2

@@ -248,6 +248,9 @@ Main:
 	switch currExpr := currExpr.(type) {
 	case *ConstExpr:
 	case *BasicLitExpr:
+	case *UnaryExpr:
+		// *, & is filter out previously since they are not primitive
+		assertValidConstValue(store, last, currExpr.X)
 	case *TypeAssertExpr:
 		ty := evalStaticTypeOf(store, last, currExpr)
 		if _, ok := ty.(*TypeType); ok {
