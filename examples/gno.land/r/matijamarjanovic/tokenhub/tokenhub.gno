@@ -278,7 +278,28 @@ func Render(path string) string {
 	case strings.HasPrefix(path, "mt"): // grc1155 multi-tokens
 		sb.WriteString(md.H1("GRC1155 Multi-Tokens"))
 		var mtItems []string
+		
+		page := 1
+		if strings.HasPrefix(path, "mt_") {
+			pageStr := strings.TrimPrefix(path, "mt_")
+			if p, err := strconv.Atoi(pageStr); err == nil {
+				page = p
+			}
+		}
+
+		startIdx := (page - 1) * pageSize
+		count := 0
+		currentIdx := 0
+		
 		registeredMTs.Iterate("", "", func(key string, value interface{}) bool {
+			if currentIdx < startIdx {
+				currentIdx++
+				return false
+			}
+			if count >= pageSize {
+				return true
+			}
+			
 			info := value.(GRC1155TokenInfo)
 			mtItems = append(mtItems, ufmt.Sprintf("%s: %s",
 				md.Bold("TokenID"),
@@ -286,11 +307,27 @@ func Render(path string) string {
 				" (Collection: " + 
 				md.InlineCode(strings.TrimPrefix(key, std.PrevRealm().PkgPath()+".")) + 
 				")"))
+			
+			count++
+			currentIdx++
 			return false
 		})
 
 		if len(mtItems) > 0 {
 			sb.WriteString(md.BulletList(mtItems))
+			sb.WriteString("\n")
+			sb.WriteString(md.HorizontalRule())
+			
+			if page > 1 {
+				prevPage := ufmt.Sprintf("http://localhost:8888/r/matijamarjanovic/tokenhub:mt_%d", page-1)
+				sb.WriteString(md.Link("Previous", prevPage))
+				sb.WriteString(" | ")
+			}
+			
+			if len(mtItems) == pageSize {
+				nextPage := ufmt.Sprintf("http://localhost:8888/r/matijamarjanovic/tokenhub:mt_%d", page+1)
+				sb.WriteString(md.Link("Next", nextPage))
+			}
 		} else {
 			sb.WriteString(md.Italic("No multi-tokens registered yet"))
 			sb.WriteString("\n")
@@ -302,7 +339,7 @@ func Render(path string) string {
 		sb.WriteString(md.Link("Back to home", "http://localhost:8888/r/matijamarjanovic/tokenhub"))
 	}
 
-	// Add navigation footer if not on home page
+	// navigation footer if not on home page
 	if path != "" {
 		sb.WriteString("\n")
 		sb.WriteString(md.HorizontalRule())
