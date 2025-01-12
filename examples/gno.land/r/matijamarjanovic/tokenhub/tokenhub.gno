@@ -83,70 +83,12 @@ func RegisterGRC1155Token(mtGetter grc1155.MultiTokenGetter, tokenID string, slu
 	return nil
 }
 
-func getBalances(addr std.Address) string {
-	balances := avl.NewTree()
-	var sb strings.Builder
-
-	// NFT balances
-	registeredNFTs.Iterate("", "", func(key string, value interface{}) bool {
-		nftGetter := value.(grc721.NFTGetter)
-		nft := nftGetter()
-		balance, _ := nft.BalanceOf(addr)
-		balances.Set("nft:"+key, balance)
-		return false
-	})
-
-	// GRC20 balances
-	grc20reg.Iterate(func(key string, tokenGetter grc20.TokenGetter) bool {
-		token := tokenGetter()
-		balance := token.BalanceOf(addr)
-		balances.Set("token:"+key, balance)
-		return false
-	})
-
-	// GRC1155 token balances
-	registeredMTs.Iterate("", "", func(key string, value interface{}) bool {
-		info := value.(GRC1155TokenInfo)
-		mt := info.Collection()
-		balance, err := mt.BalanceOf(addr, grc1155.TokenID(info.TokenID))
-		if err == nil {
-			balances.Set("mt:"+key, balance)
-		}
-		return false
-	})
-
-	sb.WriteString("Balances:")
-	balances.Iterate("", "", func(key string, value interface{}) bool { //should we display all even if the balance is 0?
-		switch {
-		case strings.HasPrefix(key, "nft:"):
-			balance := value.(uint64)
-			symbol := strings.TrimPrefix(key, "nft:")
-			sb.WriteString(ufmt.Sprintf("NFT %s: %d ", symbol, balance))
-		case strings.HasPrefix(key, "token:"):
-			balance := value.(uint64)
-			symbol := strings.TrimPrefix(key, "token:")
-			sb.WriteString(ufmt.Sprintf("Token %s: %d ", symbol, balance))
-		case strings.HasPrefix(key, "mt:"):
-			balance := value.(uint64)
-			symbol := strings.TrimPrefix(key, "mt:")
-			info, exists := registeredMTs.Get(strings.TrimPrefix(key, "mt:"))
-			if !exists {
-				panic("MT info not found")
-			}
-			collectionPath := strings.TrimPrefix(symbol, std.PrevRealm().PkgPath()+".")
-			sb.WriteString(ufmt.Sprintf("MultiToken %s.%s: %d ", 
-				collectionPath, 
-				info.(GRC1155TokenInfo).TokenID, 
-				balance))
-		}
-		return false
-	})
-
-	return sb.String()
+func GetMyBalancesAll() string {
+	return getBalances(std.GetOrigCaller())
 }
 
 func GetMyBalances() string {
-	return getBalances(std.GetOrigCaller())
+	return getNonZeroBalances(std.GetOrigCaller())
 }
 
 func Render(path string) string {
@@ -349,3 +291,131 @@ func Render(path string) string {
 	return sb.String()
 }
 
+
+func getBalances(addr std.Address) string {
+	balances := avl.NewTree()
+	var sb strings.Builder
+
+	// NFT balances
+	registeredNFTs.Iterate("", "", func(key string, value interface{}) bool {
+		nftGetter := value.(grc721.NFTGetter)
+		nft := nftGetter()
+		balance, _ := nft.BalanceOf(addr)
+		balances.Set("nft:"+key, balance)
+		return false
+	})
+
+	// GRC20 balances
+	grc20reg.Iterate(func(key string, tokenGetter grc20.TokenGetter) bool {
+		token := tokenGetter()
+		balance := token.BalanceOf(addr)
+		balances.Set("token:"+key, balance)
+		return false
+	})
+
+	// GRC1155 token balances
+	registeredMTs.Iterate("", "", func(key string, value interface{}) bool {
+		info := value.(GRC1155TokenInfo)
+		mt := info.Collection()
+		balance, err := mt.BalanceOf(addr, grc1155.TokenID(info.TokenID))
+		if err == nil {
+			balances.Set("mt:"+key, balance)
+		}
+		return false
+	})
+
+	sb.WriteString("Balances:")
+	balances.Iterate("", "", func(key string, value interface{}) bool {
+		switch {
+		case strings.HasPrefix(key, "nft:"):
+			balance := value.(uint64)
+			symbol := strings.TrimPrefix(key, "nft:")
+			sb.WriteString(ufmt.Sprintf("NFT %s: %d ", symbol, balance))
+		case strings.HasPrefix(key, "token:"):
+			balance := value.(uint64)
+			symbol := strings.TrimPrefix(key, "token:")
+			sb.WriteString(ufmt.Sprintf("Token %s: %d ", symbol, balance))
+		case strings.HasPrefix(key, "mt:"):
+			balance := value.(uint64)
+			symbol := strings.TrimPrefix(key, "mt:")
+			info, exists := registeredMTs.Get(strings.TrimPrefix(key, "mt:"))
+			if !exists {
+				panic("MT info not found")
+			}
+			collectionPath := strings.TrimPrefix(symbol, std.PrevRealm().PkgPath()+".")
+			sb.WriteString(ufmt.Sprintf("MultiToken %s.%s: %d ", 
+				collectionPath, 
+				info.(GRC1155TokenInfo).TokenID, 
+				balance))
+		}
+		return false
+	})
+
+	return sb.String()
+}
+
+func getNonZeroBalances(addr std.Address) string {
+	balances := avl.NewTree()
+	var sb strings.Builder
+
+	// NFT balances
+	registeredNFTs.Iterate("", "", func(key string, value interface{}) bool {
+		nftGetter := value.(grc721.NFTGetter)
+		nft := nftGetter()
+		balance, _ := nft.BalanceOf(addr)
+		if balance > 0 {
+			balances.Set("nft:"+key, balance)
+		}
+		return false
+	})
+
+	// GRC20 balances
+	grc20reg.Iterate(func(key string, tokenGetter grc20.TokenGetter) bool {
+		token := tokenGetter()
+		balance := token.BalanceOf(addr)
+		if balance > 0 {
+			balances.Set("token:"+key, balance)
+		}
+		return false
+	})
+
+	// GRC1155 token balances
+	registeredMTs.Iterate("", "", func(key string, value interface{}) bool {
+		info := value.(GRC1155TokenInfo)
+		mt := info.Collection()
+		balance, err := mt.BalanceOf(addr, grc1155.TokenID(info.TokenID))
+		if err == nil && balance > 0 {
+			balances.Set("mt:"+key, balance)
+		}
+		return false
+	})
+
+	sb.WriteString("Non-Zero Balances:")
+	balances.Iterate("", "", func(key string, value interface{}) bool {
+		switch {
+		case strings.HasPrefix(key, "nft:"):
+			balance := value.(uint64)
+			symbol := strings.TrimPrefix(key, "nft:")
+			sb.WriteString(ufmt.Sprintf("NFT %s: %d ", symbol, balance))
+		case strings.HasPrefix(key, "token:"):
+			balance := value.(uint64)
+			symbol := strings.TrimPrefix(key, "token:")
+			sb.WriteString(ufmt.Sprintf("Token %s: %d ", symbol, balance))
+		case strings.HasPrefix(key, "mt:"):
+			balance := value.(uint64)
+			symbol := strings.TrimPrefix(key, "mt:")
+			info, exists := registeredMTs.Get(strings.TrimPrefix(key, "mt:"))
+			if !exists {
+				panic("MT info not found")
+			}
+			collectionPath := strings.TrimPrefix(symbol, std.PrevRealm().PkgPath()+".")
+			sb.WriteString(ufmt.Sprintf("MultiToken %s.%s: %d ", 
+				collectionPath, 
+				info.(GRC1155TokenInfo).TokenID, 
+				balance))
+		}
+		return false
+	})
+
+	return sb.String()
+}
