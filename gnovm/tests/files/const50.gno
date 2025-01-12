@@ -1,9 +1,6 @@
 package main
 
-var (
-	x = "a"
-	y = "b"
-)
+var x = "a"
 
 const v = len(x)
 
