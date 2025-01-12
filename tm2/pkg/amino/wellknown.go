@@ -3,7 +3,6 @@ package amino
 // NOTE: We must not depend on protubuf libraries for serialization.
 
 import (
-	"bytes"
 	"fmt"
 	"io"
 	"reflect"
@@ -342,7 +341,12 @@ func encodeReflectBinaryWellKnown(w io.Writer, info *TypeInfo, rv reflect.Value,
 	}
 	// Maybe recurse with length-prefixing.
 	if !bare {
-		buf := bytes.NewBuffer(nil)
+		buf := poolBytesBuffer.Get()
+		defer func() {
+			buf.Reset()
+			poolBytesBuffer.Put(buf)
+		}()
+
 		ok, err = encodeReflectBinaryWellKnown(buf, info, rv, fopts, true)
 		if err != nil {
 			return false, err
