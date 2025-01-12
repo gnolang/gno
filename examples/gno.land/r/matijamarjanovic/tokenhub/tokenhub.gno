@@ -32,6 +32,7 @@ var (
 	ErrMTInfoNotFound     = errors.New("Multi-token info not found")
 
 	pageSize = 1 // tokens per page
+	test = ""
 )
 
 func RegisterToken(tokenGetter grc20.TokenGetter, slugs ...string) {
@@ -64,13 +65,12 @@ func RegisterNFT(nftGetter grc721.NFTGetter, slugs ...string) error {
 	return nil
 }
 
-func RegisterGRC1155Token(mtGetter grc1155.MultiTokenGetter, tokenID string, slugs ...string) error {
+// for grc1155 is a little bit different, since the one collection can have multiple tokens, this is why don't use slugs but tokenIDs,
+// and the collection is saved as a part of the :value in the node
+func RegisterGRC1155Token(mtGetter grc1155.MultiTokenGetter, tokenID string) error {
 	rlmPath := std.PrevRealm().PkgPath()
-	slug := ""
-	if len(slugs) > 0 {
-		slug = slugs[0]
-	}
-	key := fqname.Construct(rlmPath, slug)
+
+	key := fqname.Construct(rlmPath, tokenID)
 
 	if registeredMTs.Has(key) {
 		return ErrMTAlreadyRegistered
@@ -93,6 +93,7 @@ func GetMyBalances() string {
 
 func Render(path string) string {
 	var sb strings.Builder
+	sb.WriteString(test)
 
 	switch {
 	case path == "":
@@ -324,28 +325,23 @@ func getBalances(addr std.Address) string {
 		return false
 	})
 
-	sb.WriteString("Balances:")
+	sb.WriteString("Balances: ")
 	balances.Iterate("", "", func(key string, value interface{}) bool {
 		switch {
 		case strings.HasPrefix(key, "nft:"):
 			balance := value.(uint64)
 			symbol := strings.TrimPrefix(key, "nft:")
-			sb.WriteString(ufmt.Sprintf("NFT %s: %d ", symbol, balance))
+			sb.WriteString(ufmt.Sprintf("NFT:%s:%d,", symbol, balance))
+			sb.WriteString(ufmt.Sprintf("Token:%s:%d,", symbol, balance))
 		case strings.HasPrefix(key, "token:"):
 			balance := value.(uint64)
 			symbol := strings.TrimPrefix(key, "token:")
-			sb.WriteString(ufmt.Sprintf("Token %s: %d ", symbol, balance))
+			sb.WriteString(ufmt.Sprintf("Token:%s:%d,", symbol, balance))
 		case strings.HasPrefix(key, "mt:"):
 			balance := value.(uint64)
 			symbol := strings.TrimPrefix(key, "mt:")
-			info, exists := registeredMTs.Get(strings.TrimPrefix(key, "mt:"))
-			if !exists {
-				panic("MT info not found")
-			}
-			collectionPath := strings.TrimPrefix(symbol, std.PrevRealm().PkgPath()+".")
-			sb.WriteString(ufmt.Sprintf("MultiToken %s.%s: %d ", 
-				collectionPath, 
-				info.(GRC1155TokenInfo).TokenID, 
+			sb.WriteString(ufmt.Sprintf("MultiToken:%s:%d,", 
+				symbol, 
 				balance))
 		}
 		return false
@@ -390,28 +386,22 @@ func getNonZeroBalances(addr std.Address) string {
 		return false
 	})
 
-	sb.WriteString("Non-Zero Balances:")
+	sb.WriteString("Non-Zero Balances: ")
 	balances.Iterate("", "", func(key string, value interface{}) bool {
 		switch {
 		case strings.HasPrefix(key, "nft:"):
 			balance := value.(uint64)
 			symbol := strings.TrimPrefix(key, "nft:")
-			sb.WriteString(ufmt.Sprintf("NFT %s: %d ", symbol, balance))
+			sb.WriteString(ufmt.Sprintf("NFT:%s:%d,", symbol, balance))
 		case strings.HasPrefix(key, "token:"):
 			balance := value.(uint64)
 			symbol := strings.TrimPrefix(key, "token:")
-			sb.WriteString(ufmt.Sprintf("Token %s: %d ", symbol, balance))
+			sb.WriteString(ufmt.Sprintf("Token:%s:%d,", symbol, balance))
 		case strings.HasPrefix(key, "mt:"):
 			balance := value.(uint64)
 			symbol := strings.TrimPrefix(key, "mt:")
-			info, exists := registeredMTs.Get(strings.TrimPrefix(key, "mt:"))
-			if !exists {
-				panic("MT info not found")
-			}
-			collectionPath := strings.TrimPrefix(symbol, std.PrevRealm().PkgPath()+".")
-			sb.WriteString(ufmt.Sprintf("MultiToken %s.%s: %d ", 
-				collectionPath, 
-				info.(GRC1155TokenInfo).TokenID, 
+			sb.WriteString(ufmt.Sprintf("MultiToken:%s:%d,", 
+				symbol, 
 				balance))
 		}
 		return false

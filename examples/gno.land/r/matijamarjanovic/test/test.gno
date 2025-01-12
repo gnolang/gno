@@ -1,4 +1,4 @@
-package tokenhub
+package test
 
 import (
 	"std"
@@ -7,6 +7,7 @@ import (
 	"gno.land/p/demo/grc/grc721"
 	"gno.land/p/demo/grc/grc1155"
 	"gno.land/p/demo/ufmt"
+	"gno.land/r/matijamarjanovic/tokenhub"
 )
 
 var (
@@ -26,18 +27,18 @@ var (
 func init() {
 	testAddr := std.Address("g1ej0qca5ptsw9kfr64ey8jvfy9eacga6mpj2z0y")
 
-	RegisterNFT(func() grc721.IGRC721 { return nftA }, "nft-a")
-	RegisterNFT(func() grc721.IGRC721 { return nftB }, "nft-b")
-	RegisterNFT(func() grc721.IGRC721 { return nftC }, "nft-c")
+	tokenhub.RegisterNFT(func() grc721.IGRC721 { return nftA }, "nft-a")
+	tokenhub.RegisterNFT(func() grc721.IGRC721 { return nftB }, "nft-b")
+	tokenhub.RegisterNFT(func() grc721.IGRC721 { return nftC }, "nft-c")
 
-	RegisterToken(tokenA.Getter(), "token-a")
-	RegisterToken(tokenB.Getter(), "token-b")
-	RegisterToken(tokenC.Getter(), "token-c")
+	tokenhub.RegisterToken(tokenA.Getter(), "token-a")
+	tokenhub.RegisterToken(tokenB.Getter(), "token-b")
+	tokenhub.RegisterToken(tokenC.Getter(), "token-c")
 
-	RegisterGRC1155Token(mtGameItems.Getter(), "sword", "game-sword")
-	RegisterGRC1155Token(mtGameItems.Getter(), "potion", "game-potion")
-	RegisterGRC1155Token(mtArtworks.Getter(), "artwork_1", "art-piece-1")
-	RegisterGRC1155Token(mtCollectibles.Getter(), "rare_card", "card-rare")
+	tokenhub.RegisterGRC1155Token(mtGameItems.Getter(), "sword")
+	tokenhub.RegisterGRC1155Token(mtGameItems.Getter(), "potion")
+	tokenhub.RegisterGRC1155Token(mtArtworks.Getter(), "artwork_1")
+	tokenhub.RegisterGRC1155Token(mtCollectibles.Getter(), "rare_card")
 
 	MintTestNFTs(testAddr)
 	MintTestTokens(testAddr)
