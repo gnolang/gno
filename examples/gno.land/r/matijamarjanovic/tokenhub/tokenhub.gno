@@ -15,7 +15,6 @@ import (
 	"gno.land/p/moul/md"
 )
 
-// Add this struct to store GRC1155 token info
 type GRC1155TokenInfo struct {
 	Collection grc1155.MultiTokenGetter
 	TokenID    string
@@ -129,7 +128,7 @@ func getBalances(addr std.Address) string {
 			symbol := strings.TrimPrefix(key, "mt:")
 			info, exists := registeredMTs.Get(strings.TrimPrefix(key, "mt:"))
 			if !exists {
-				return errors.New(ErrMTInfoNotFound)
+				panic("MT info not found")
 			}
 			collectionPath := strings.TrimPrefix(symbol, std.PrevRealm().PkgPath()+".")
 			sb.WriteString(ufmt.Sprintf("MultiToken %s.%s: %d ", 
@@ -150,67 +149,95 @@ func GetMyBalances() string {
 func Render(path string) string {
 	var sb strings.Builder
 
-	sb.WriteString(md.H1("Token Hub"))
-	sb.WriteString(md.Paragraph("A central registry for GRC721 NFTs, GRC20 tokens, and GRC1155 multi-tokens on gno.land"))
-
-	// NFT section
-	sb.WriteString(md.H2("Registered NFTs"))
-	var nftItems []string
-	registeredNFTs.Iterate("", "", func(key string, value interface{}) bool {
-		nftGetter := value.(grc721.NFTGetter)
-		nft := nftGetter()
-		metadata, ok := nft.(grc721.IGRC721CollectionMetadata)
-		if !ok {
-			return false
+	switch path {
+	case "":
+		// home page
+		sb.WriteString(md.H1("Token Hub"))
+		sb.WriteString(md.Paragraph("A central registry for GRC721 NFTs, GRC20 tokens, and GRC1155 multi-tokens on gno.land"))
+		
+		links := []string{
+			md.Link("GRC20 Tokens", "http://localhost:8888/r/matijamarjanovic/tokenhub:token"),
+			md.Link("GRC721 NFTs", "http://localhost:8888/r/matijamarjanovic/tokenhub:nft"),
+			md.Link("GRC1155 Multi-Tokens", "http://localhost:8888/r/matijamarjanovic/tokenhub:mt"),
 		}
-		nftItems = append(nftItems, ufmt.Sprintf("%s (%s)",
-			metadata.Name(),
-			metadata.Symbol()))
-		return false
-	})
+		sb.WriteString(md.BulletList(links))
 
-	if len(nftItems) > 0 {
-		sb.WriteString(md.BulletList(nftItems))
-	} else {
-		sb.WriteString(md.Italic("No NFTs registered yet"))
-		sb.WriteString("\n")
+	case "token":
+		// GRC20 token section
+		sb.WriteString(md.H1("GRC20 Tokens"))
+		var tokenItems []string
+		grc20reg.Iterate(func(key string, tokenGetter grc20.TokenGetter) bool {
+			token := tokenGetter()
+			tokenItems = append(tokenItems, ufmt.Sprintf("%s (%s)",
+				md.Bold(token.GetName()),
+				md.InlineCode(token.GetSymbol())))
+			return false
+		})
+
+		if len(tokenItems) > 0 {
+			sb.WriteString(md.BulletList(tokenItems))
+		} else {
+			sb.WriteString(md.Italic("No tokens registered yet"))
+			sb.WriteString("\n")
+		}
+
+	case "nft":
+		// NFT section
+		sb.WriteString(md.H1("GRC721 NFTs"))
+		var nftItems []string
+		registeredNFTs.Iterate("", "", func(key string, value interface{}) bool {
+			nftGetter := value.(grc721.NFTGetter)
+			nft := nftGetter()
+			metadata, ok := nft.(grc721.IGRC721CollectionMetadata)
+			if !ok {
+				return false
+			}
+			nftItems = append(nftItems, ufmt.Sprintf("%s (%s)",
+				md.Bold(metadata.Name()),
+				md.InlineCode(metadata.Symbol())))
+			return false
+		})
+
+		if len(nftItems) > 0 {
+			sb.WriteString(md.BulletList(nftItems))
+		} else {
+			sb.WriteString(md.Italic("No NFTs registered yet"))
+			sb.WriteString("\n")
+		}
+
+	case "mt":
+		// GRC1155 section
+		sb.WriteString(md.H1("GRC1155 Multi-Tokens"))
+		var mtItems []string
+		registeredMTs.Iterate("", "", func(key string, value interface{}) bool {
+			info := value.(GRC1155TokenInfo)
+			mtItems = append(mtItems, ufmt.Sprintf("%s: %s",
+				md.Bold("TokenID"),
+				md.InlineCode(info.TokenID) + 
+				" (Collection: " + 
+				md.InlineCode(strings.TrimPrefix(key, std.PrevRealm().PkgPath()+".")) + 
+				")"))
+			return false
+		})
+
+		if len(mtItems) > 0 {
+			sb.WriteString(md.BulletList(mtItems))
+		} else {
+			sb.WriteString(md.Italic("No multi-tokens registered yet"))
+			sb.WriteString("\n")
+		}
+
+	default:
+		sb.WriteString(md.H1("404 Not Found"))
+		sb.WriteString(md.Paragraph("The requested page does not exist."))
+		sb.WriteString(md.Link("Back to home", "http://localhost:8888/r/matijamarjanovic/tokenhub"))
 	}
 
-	// GRC20 token section
-	sb.WriteString(md.H2("Registered Tokens"))
-	var tokenItems []string
-	grc20reg.Iterate(func(key string, tokenGetter grc20.TokenGetter) bool {
-		token := tokenGetter()
-		tokenItems = append(tokenItems, ufmt.Sprintf("%s (%s)",
-			token.GetName(),
-			token.GetSymbol()))
-		return false
-	})
-
-	if len(tokenItems) > 0 {
-		sb.WriteString(md.BulletList(tokenItems))
-	} else {
-		sb.WriteString(md.Italic("No tokens registered yet"))
+	// Add navigation footer if not on home page
+	if path != "" {
 		sb.WriteString("\n")
-	}
-
-	// GRC1155 section
-	sb.WriteString(md.H2("Registered Multi-Tokens"))
-	var mtItems []string
-	registeredMTs.Iterate("", "", func(key string, value interface{}) bool {
-		info := value.(GRC1155TokenInfo)
-		mtItems = append(mtItems, ufmt.Sprintf("TokenID: %s (Collection: %s)", 
-			info.TokenID, 
-			strings.TrimPrefix(key, std.PrevRealm().PkgPath()+"."),
-		))
-		return false
-	})
-
-	if len(mtItems) > 0 {
-		sb.WriteString(md.BulletList(mtItems))
-	} else {
-		sb.WriteString(md.Italic("No multi-tokens registered yet"))
-		sb.WriteString("\n")
+		sb.WriteString(md.HorizontalRule())
+		sb.WriteString(md.Link("Back to home", "http://localhost:8888/r/matijamarjanovic/tokenhub"))
 	}
 
 	return sb.String()
