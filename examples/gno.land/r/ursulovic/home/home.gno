@@ -3,6 +3,7 @@ package home
 import (
 	"std"
 	"strings"
+	"strconv"
 
 	"gno.land/p/moul/md"
 	"gno.land/r/leon/hof"
@@ -12,79 +13,136 @@ import (
 )
 
 var (
-	phrases    [10]string
-	aboutMe    string
-	pfp        string
-	pfpCaption string
-	owner *ownable.Ownable
+	aboutMe				string
+	selectedPicture		string
+	owner 				*ownable.Ownable
+
+	githubUrl			string
+	linkedinUrl			string
+	imageUpdatePrice int64 = 1000000
 )
 
 func init() {
 	owner = ownable.NewWithAddress(registry.MainAddress())
 
-	phrases[0] = "Why did the blockchain go to therapy? It had a lot of unprocessed transactions."
-	phrases[1] = "Why don’t blockchains ever tell secrets? They use smart contracts – always open and never closed!"
-	phrases[2] = "In Gnoland, we don’t worry about bugs – they’re just features waiting to be integrated!"
-	phrases[3] = "Why did the smart contract break up with traditional finance? It was a long-term contract – no longer sustainable."
-	phrases[4] = "Why do blockchains make great comedians? They always deliver the punchline at just the right time!"
-	phrases[5] = "Why did the blockchain apply for a job? It wanted to become the most reliable ledger around!"
-	phrases[6] = "Why did the blockchain file a police report? It had a case of identity theft – someone stole its private keys!"
-	phrases[7] = "In Gnoland, our smart contracts aren’t just written in code – they’re also written in poetry!"
-	phrases[8] = "Why did the blockchain join a gym? To get a better hash rate!"
-	phrases[9] = "Why did the blockchain break up with traditional finance? It was looking for a more transparent relationship."
+	aboutMe = "Hi, I'm Ivan Ursulovic, a computer engineering graduate, blockchain enthusiast, and backend developer specializing in ASP.NET. I love learning new things and taking on challenges."
+	selectedPicture = "https://i.ibb.co/W28NPkw/beograd.webp"
 
-	aboutMe = "Hi, I’m Ivan Ursulovic, a computer engineering graduate, blockchain enthusiast, and backend developer specializing in ASP.NET. I love learning new things and taking on challenges."
-	pfp = "https://i.ibb.co/W28NPkw/beograd.webp"
-	pfpCaption = "Belgrade, the city I come from"
+	githubUrl = "https://github.com/ursulovic"
+	linkedinUrl = "https://www.linkedin.com/in/ivan-ursulovic-953310190/"
+
 	hof.Register()
 }
 
-//Update
-func UpdatePfp(url string, caption string) {
-	owner.AssertCallerIsOwner()
-	pfp = url
-	pfpCaption = caption
+func Render(s string) string {
+	var sb strings.Builder
+	sb.WriteString(renderAboutMe())
+	sb.WriteString(renderSelectedImage())
+	sb.WriteString(renderContactsUrl())
+	return sb.String()
 }
 
-func UpdateAboutMe(abtMe string) {
-	owner.AssertCallerIsOwner()
-	aboutMe = abtMe
+func isValidURL(url string) bool {
+    if !strings.HasPrefix(url, "https://i.ibb.co/") {
+        return false
+    }
+
+    if !(strings.HasSuffix(url, ".jpg") || 
+         strings.HasSuffix(url, ".png") || 
+         strings.HasSuffix(url, ".gif") ||
+         strings.HasSuffix(url, ".webp")) { // Add webp since your current image uses it
+        return false
+    }
+
+    urlPath := strings.TrimPrefix(url, "https://i.ibb.co/")
+    parts := strings.Split(urlPath, "/")
+
+    if len(parts) != 2 || len(parts[0]) == 0 || len(parts[1]) == 0 {
+        return false
+    }
+
+    return true
 }
 
-func UpdatePhrase(index int, newPhrase string) {
-	owner.AssertCallerIsOwner()
-	if index < 0 || index >= len(phrases) {
-		panic("index out of boundaries")
+func UpdateSelectedPicture(url string) {
+	if !isValidURL(url) {
+		panic("Url is not valid!")
 	}
-	phrases[index] = newPhrase
+
+	sentCoins := std.GetOrigSend()
+	
+	if len(sentCoins) != 1 || sentCoins[0].Denom != "ugnot" || sentCoins[0].Amount != imageUpdatePrice {
+		panic("Please send exactly " + strconv.Itoa(int(imageUpdatePrice)) + " ugnot")
+	}
+
+	selectedPicture = url
 }
 
-
-//Rendering
-func Render(path string) string {
-	var out strings.Builder
-	out.WriteString(renderAboutMe())
-	out.WriteString(renderPhrase())
-	out.WriteString(md.Image(pfpCaption, pfp))
-	out.WriteString(md.Italic("Belgrade, the city I come from"))
-	return out.String()
+func renderSelectedImage() string {
+	var sb strings.Builder
+	
+	sb.WriteString(md.HorizontalRule())
+	sb.WriteString("\n")
+	
+	sb.WriteString(md.H2("📸 Featured Image"))
+	sb.WriteString("\n")
+	
+	sb.WriteString(md.Image("Belgrade Skyline", selectedPicture))
+	sb.WriteString("\n")
+	
+	sb.WriteString(md.H4("✨ " + md.Link("Change this picture for 1 GNOT", "https://www.google.com") + " ✨"))
+	
+	return sb.String()
 }
 
 func renderAboutMe() string {
-    var out strings.Builder
-    out.WriteString(md.H3("About me")) 
-    
-    out.WriteString(md.Paragraph(aboutMe))
-    
-    return out.String()
+	var sb strings.Builder
+	
+	sb.WriteString(md.H1("👋 Welcome to Ivan's Homepage!"))
+	sb.WriteString("\n")
+	
+	sb.WriteString(md.H2("👨‍💻 About Me"))
+	sb.WriteString("\n")
+	
+	sb.WriteString(md.Blockquote(aboutMe))
+	
+	return sb.String()
 }
 
+func renderContactsUrl() string {
+	var sb strings.Builder
+	
+	sb.WriteString(md.HorizontalRule())
+	sb.WriteString("\n")
+	
+	sb.WriteString(md.H2("🔗 Let's Connect"))
+	sb.WriteString("\n")
+	
+	items := []string{
+		"🐙 " + md.Link("GitHub", githubUrl),
+		"💼 " + md.Link("LinkedIn", linkedinUrl),
+	}
+	sb.WriteString(md.BulletList(items))
+	
+	return sb.String()
+}
 
-func renderPhrase() string {
-	var out strings.Builder
-	phrase := phrases[int(std.GetHeight())%len(phrases)]
+func UpdateGithubUrl(url string) {
+	owner.AssertCallerIsOwner()
+	githubUrl = url
+}
 
-	out.WriteString(md.H3(`Randomly selected blockchain wisdom:`) + md.Bold(phrase))
+func UpdateLinkedinUrl(url string) {
+	owner.AssertCallerIsOwner()
+	linkedinUrl = url
+}
 
-	return out.String()
+func UpdateAboutMe(text string) {
+	owner.AssertCallerIsOwner()
+	aboutMe = text
+}
+
+func UpdateImagePrice(newPrice int64) {
+	owner.AssertCallerIsOwner()
+	imageUpdatePrice = newPrice
 }
