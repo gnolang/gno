@@ -4,6 +4,7 @@ import (
 	"errors"
 	"std"
 	"strings"
+	"strconv"
 
 	"gno.land/p/demo/avl"
 	"gno.land/p/demo/grc/grc721"
@@ -29,6 +30,8 @@ var (
 	ErrMTAlreadyRegistered = errors.New("Multi-token already registered")
 	ErrMTNotFound         = errors.New("Multi-token not found")
 	ErrMTInfoNotFound     = errors.New("Multi-token info not found")
+
+	pageSize = 10 // tokens per page
 )
 
 func RegisterToken(tokenGetter grc20.TokenGetter, slugs ...string) {
@@ -149,24 +152,40 @@ func GetMyBalances() string {
 func Render(path string) string {
 	var sb strings.Builder
 
-	switch path {
-	case "":
+	switch {
+	case path == "":
 		// home page
 		sb.WriteString(md.H1("Token Hub"))
 		sb.WriteString(md.Paragraph("A central registry for GRC721 NFTs, GRC20 tokens, and GRC1155 multi-tokens on gno.land"))
 		
 		links := []string{
-			md.Link("GRC20 Tokens", "http://localhost:8888/r/matijamarjanovic/tokenhub:token"),
+			md.Link("GRC20 Tokens", "http://localhost:8888/r/matijamarjanovic/tokenhub:token_1"),
 			md.Link("GRC721 NFTs", "http://localhost:8888/r/matijamarjanovic/tokenhub:nft"),
 			md.Link("GRC1155 Multi-Tokens", "http://localhost:8888/r/matijamarjanovic/tokenhub:mt"),
 		}
 		sb.WriteString(md.BulletList(links))
 
-	case "token":
-		// GRC20 token section
+	case strings.HasPrefix(path, "token"): // grc20 tokens
 		sb.WriteString(md.H1("GRC20 Tokens"))
 		var tokenItems []string
-		grc20reg.Iterate(func(key string, tokenGetter grc20.TokenGetter) bool {
+		
+		page := 1
+		if strings.HasPrefix(path, "token_") { // get page number from path
+			pageStr := strings.TrimPrefix(path, "token_")
+			if p, err := strconv.Atoi(pageStr); err == nil {
+				page = p
+			}
+		}
+		
+		startKey := ""
+		if page > 1 {
+			lastKey := grc20reg.IterateN("", (page-1)*pageSize, func(key string, tokenGetter grc20.TokenGetter) bool { // start position
+				return false
+			})
+			startKey = lastKey
+		}
+		
+		lastKey := grc20reg.IterateN(startKey, pageSize, func(key string, tokenGetter grc20.TokenGetter) bool { // get current page tokens
 			token := tokenGetter()
 			tokenItems = append(tokenItems, ufmt.Sprintf("%s (%s)",
 				md.Bold(token.GetName()),
@@ -176,13 +195,26 @@ func Render(path string) string {
 
 		if len(tokenItems) > 0 {
 			sb.WriteString(md.BulletList(tokenItems))
+			
+			sb.WriteString("\n")
+			sb.WriteString(md.HorizontalRule())
+			
+			if page > 1 {
+				prevPage := ufmt.Sprintf("http://localhost:8888/r/matijamarjanovic/tokenhub:token_%d", page-1)
+				sb.WriteString(md.Link("Previous", prevPage))
+				sb.WriteString(" | ")
+			}
+			
+			if len(tokenItems) == pageSize && lastKey != "" {
+				nextPage := ufmt.Sprintf("http://localhost:8888/r/matijamarjanovic/tokenhub:token_%d", page+1)
+				sb.WriteString(md.Link("Next", nextPage))
+			}
 		} else {
 			sb.WriteString(md.Italic("No tokens registered yet"))
 			sb.WriteString("\n")
 		}
 
-	case "nft":
-		// NFT section
+	case strings.HasPrefix(path, "nft"): // grc721 nfts
 		sb.WriteString(md.H1("GRC721 NFTs"))
 		var nftItems []string
 		registeredNFTs.Iterate("", "", func(key string, value interface{}) bool {
@@ -205,8 +237,7 @@ func Render(path string) string {
 			sb.WriteString("\n")
 		}
 
-	case "mt":
-		// GRC1155 section
+	case strings.HasPrefix(path, "mt"): // grc1155 multi-tokens
 		sb.WriteString(md.H1("GRC1155 Multi-Tokens"))
 		var mtItems []string
 		registeredMTs.Iterate("", "", func(key string, value interface{}) bool {
