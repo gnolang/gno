@@ -43,6 +43,7 @@ func init() {
 	MintTestNFTs(testAddr)
 	MintTestTokens(testAddr)
 	MintTestMultiTokens(testAddr)
+
 }
 
 func MintTestNFTs(to std.Address) error {

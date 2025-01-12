@@ -91,6 +91,47 @@ func GetMyBalances() string {
 	return getNonZeroBalances(std.GetOrigCaller())
 }
 
+func GetGRC20(key string) grc20.TokenGetter {
+	return grc20reg.Get(key)
+}
+
+func MustGetGRC20(key string) grc20.TokenGetter {
+	return grc20reg.MustGet(key)
+}
+
+func GetGRC721(key string) grc721.NFTGetter {
+	nftGetter, ok := registeredNFTs.Get(key)
+	if !ok {
+		return nil
+	}
+	return nftGetter.(grc721.NFTGetter)
+}
+
+func MustGetGRC721(key string) grc721.NFTGetter {
+	nftGetter := GetGRC721(key)
+	if nftGetter == nil {
+		panic("unknown NFT: " + key)
+	}
+	return nftGetter
+}
+
+func GetGRC1155(key string) (GRC1155TokenInfo, bool) {
+	info, ok := registeredMTs.Get(key)
+	if !ok {
+		return GRC1155TokenInfo{}, false
+	}
+	return info.(GRC1155TokenInfo), true
+}
+
+func MustGetGRC1155(key string) GRC1155TokenInfo {
+	info, ok := GetGRC1155(key)
+	if !ok {
+		panic("unknown multi-token: " + key)
+	}
+	return info
+}
+
+
 func Render(path string) string {
 	var sb strings.Builder
 	sb.WriteString(test)
@@ -293,6 +334,8 @@ func Render(path string) string {
 }
 
 
+
+
 func getBalances(addr std.Address) string {
 	balances := avl.NewTree()
 	var sb strings.Builder
@@ -409,3 +452,4 @@ func getNonZeroBalances(addr std.Address) string {
 
 	return sb.String()
 }
+
