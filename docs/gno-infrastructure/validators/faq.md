@@ -125,7 +125,7 @@ the path or to overwrite the existing configurations.
 
 ### How do I get the current gno node configurations?
 
-To retrieve the specific values the current gno node configurations, use the `gnoland config get` command. Refer
+To retrieve the specific values of the current gno node configurations, use the `gnoland config get` command. Refer
 to [this section](../../gno-tooling/cli/gnoland.md#gnoland-config-get) for a flag that allows you to define the path to
 the configurations file.
 
