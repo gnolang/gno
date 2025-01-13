@@ -3,8 +3,12 @@ package gnoclient
 import (
 	"testing"
 
+	"github.com/gnolang/gno/tm2/pkg/amino"
+	abciErrors "github.com/gnolang/gno/tm2/pkg/bft/abci/example/errors"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"errors"
 
 	"github.com/gnolang/gno/gno.land/pkg/gnoland/ugnot"
 	"github.com/gnolang/gno/gno.land/pkg/sdk/vm"
@@ -1408,4 +1412,158 @@ func addPackageSigningSeparately(t *testing.T, client Client, cfg BaseTxCfg, msg
 	assert.NoError(t, err)
 	require.NotNil(t, res)
 	return res, nil
+}
+
+func TestClient_EstimateGas(t *testing.T) {
+	t.Parallel()
+
+	t.Run("RPC client not set", func(t *testing.T) {
+		t.Parallel()
+
+		c := &Client{
+			RPCClient: nil, // not set
+		}
+
+		estimate, err := c.EstimateGas(&std.Tx{})
+
+		assert.Zero(t, estimate)
+		assert.ErrorIs(t, err, ErrMissingRPCClient)
+	})
+
+	t.Run("unsuccessful query, rpc error", func(t *testing.T) {
+		t.Parallel()
+
+		var (
+			rpcErr        = errors.New("rpc error")
+			mockRPCClient = &mockRPCClient{
+				abciQuery: func(path string, data []byte) (*ctypes.ResultABCIQuery, error) {
+					require.Equal(t, simulatePath, path)
+
+					var tx std.Tx
+
+					require.NoError(t, amino.Unmarshal(data, &tx))
+
+					return nil, rpcErr
+				},
+			}
+		)
+
+		c := &Client{
+			RPCClient: mockRPCClient,
+		}
+
+		estimate, err := c.EstimateGas(&std.Tx{})
+
+		assert.Zero(t, estimate)
+		assert.ErrorIs(t, err, rpcErr)
+	})
+
+	t.Run("unsuccessful query, process error", func(t *testing.T) {
+		t.Parallel()
+
+		var (
+			response = &ctypes.ResultABCIQuery{
+				Response: abci.ResponseQuery{
+					ResponseBase: abci.ResponseBase{
+						Error: abciErrors.UnknownError{},
+					},
+				},
+			}
+			mockRPCClient = &mockRPCClient{
+				abciQuery: func(path string, data []byte) (*ctypes.ResultABCIQuery, error) {
+					require.Equal(t, simulatePath, path)
+
+					var tx std.Tx
+
+					require.NoError(t, amino.Unmarshal(data, &tx))
+
+					return response, nil
+				},
+			}
+		)
+
+		c := &Client{
+			RPCClient: mockRPCClient,
+		}
+
+		estimate, err := c.EstimateGas(&std.Tx{})
+
+		assert.Zero(t, estimate)
+		assert.ErrorIs(t, err, abciErrors.UnknownError{})
+	})
+
+	t.Run("invalid response format", func(t *testing.T) {
+		t.Parallel()
+
+		var (
+			response = &ctypes.ResultABCIQuery{
+				Response: abci.ResponseQuery{
+					Value: []byte("totally valid amino"),
+				},
+			}
+			mockRPCClient = &mockRPCClient{
+				abciQuery: func(path string, data []byte) (*ctypes.ResultABCIQuery, error) {
+					require.Equal(t, simulatePath, path)
+
+					var tx std.Tx
+
+					require.NoError(t, amino.Unmarshal(data, &tx))
+
+					return response, nil
+				},
+			}
+		)
+
+		c := &Client{
+			RPCClient: mockRPCClient,
+		}
+
+		estimate, err := c.EstimateGas(&std.Tx{})
+
+		assert.Zero(t, estimate)
+		assert.ErrorContains(t, err, "unable to unmarshal gas estimation response")
+	})
+
+	t.Run("valid gas estimation", func(t *testing.T) {
+		t.Parallel()
+
+		var (
+			gasUsed     = int64(100000)
+			deliverResp = &abci.ResponseDeliverTx{
+				GasUsed: gasUsed,
+			}
+		)
+
+		// Encode the response
+		encodedResp, err := amino.Marshal(deliverResp)
+		require.NoError(t, err)
+
+		var (
+			response = &ctypes.ResultABCIQuery{
+				Response: abci.ResponseQuery{
+					Value: encodedResp, // valid amino binary
+				},
+			}
+			mockRPCClient = &mockRPCClient{
+				abciQuery: func(path string, data []byte) (*ctypes.ResultABCIQuery, error) {
+					require.Equal(t, simulatePath, path)
+
+					var tx std.Tx
+
+					require.NoError(t, amino.Unmarshal(data, &tx))
+
+					return response, nil
+				},
+			}
+		)
+
+		c := &Client{
+			RPCClient: mockRPCClient,
+		}
+
+		estimate, err := c.EstimateGas(&std.Tx{})
+
+		require.NoError(t, err)
+		assert.Equal(t, gasUsed, estimate)
+	})
 }
