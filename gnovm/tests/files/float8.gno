@@ -17,16 +17,20 @@ func asVars() {
 	var u16 uint16 = 65535
 	var u32 uint32 = 4294967295
 	var u64 uint64 = 18446744073709551615
-	var f32 float32 = math.MaxFloat32
-	var f64 float64 = math.MaxFloat64
-	println(f32 / 2)
-	println(f64 / 2)
-	println((f32 - 1) + 1)
-	println((f64 - 1) + 1)
-	println((f32 / 2) * 2)
-	println((f64 / 2) * 2)
-	println(f32 - 1)
-	println(f64 - 1)
+	var f32Max float32 = math.MaxFloat32
+	var f64Max float64 = math.MaxFloat64
+	var f64Min float64 = math.SmallestNonzeroFloat64
+	var f32Min float32 = math.SmallestNonzeroFloat32
+	println(f32Max / 2)
+	println(f64Max / 2)
+	println((f32Max - 1) + 1)
+	println((f64Max - 1) + 1)
+	println((f32Max / 2) * 2)
+	println((f64Max / 2) * 2)
+	println(f32Max - 1)
+	println(f64Max - 1)
+	println(f64Min / 2)
+	println(f32Min / 2)
 	println(float32(i8))
 	println(float64(i8))
 	println(float32(i16))
@@ -45,10 +49,9 @@ func asVars() {
 	println(float64(u32))
 	println(float32(u64))
 	println(float64(u64))
-	println(float32(f32))
-	println(float64(f32))
-	println(float32(f64))
-	println(float64(f64))
+	println(float32(f32Max))
+	println(float64(f32Max))
+	println(float64(f64Max))
 }
 
 func asConsts() {
@@ -63,8 +66,8 @@ func asConsts() {
 	const u64 uint64 = 18446744073709551615
 	const f32Max float32 = math.MaxFloat32
 	const f64Max float64 = math.MaxFloat64
-	const f64Min = math.SmallestNonzeroFloat64
-	const f32Min = math.SmallestNonzeroFloat32
+	const f64Min float64 = math.SmallestNonzeroFloat64
+	const f32Min float32 = math.SmallestNonzeroFloat32
 	println(f32Max / 2)
 	println(f64Max / 2)
 	println((f32Max - 1) + 1)
@@ -108,7 +111,7 @@ func asConsts() {
 // 3.4028235e+38
 // 1.7976931348623157e+308
 // 0
-// 7.006492321624085e-46
+// 0
 // 127
 // 127
 // 32767
@@ -138,6 +141,8 @@ func asConsts() {
 // 1.7976931348623157e+308
 // 3.4028235e+38
 // 1.7976931348623157e+308
+// 0
+// 0
 // 127
 // 127
 // 32767
@@ -158,5 +163,4 @@ func asConsts() {
 // 1.8446744073709552e+19
 // 3.4028235e+38
 // 3.4028234663852886e+38
-// +Inf
 // 1.7976931348623157e+308
