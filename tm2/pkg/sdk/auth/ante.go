@@ -215,7 +215,7 @@ func processSig(
 	ctx sdk.Context, acc std.Account, sig std.Signature, signBytes []byte, simulate bool, params Params,
 	sigGasConsumer SignatureVerificationGasConsumer,
 ) (updatedAcc std.Account, res sdk.Result) {
-	pubKey, res := ProcessPubKey(acc, sig, simulate)
+	pubKey, res := ProcessPubKey(acc, sig)
 	if !res.IsOK() {
 		return nil, res
 	}
@@ -243,7 +243,7 @@ func processSig(
 // ProcessPubKey verifies that the given account address matches that of the
 // std.Signature. In addition, it will set the public key of the account if it
 // has not been set.
-func ProcessPubKey(acc std.Account, sig std.Signature, simulate bool) (crypto.PubKey, sdk.Result) {
+func ProcessPubKey(acc std.Account, sig std.Signature) (crypto.PubKey, sdk.Result) {
 	// If pubkey is not known for account, set it from the std.Signature.
 	pubKey := acc.GetPubKey()
 	if pubKey == nil {
@@ -271,7 +271,7 @@ func DefaultSigVerificationGasConsumer(
 	switch pubkey := pubkey.(type) {
 	case ed25519.PubKeyEd25519:
 		meter.ConsumeGas(params.SigVerifyCostED25519, "ante verify: ed25519")
-		return abciResult(std.ErrInvalidPubKey("ED25519 public keys are unsupported"))
+		return sdk.Result{}
 
 	case secp256k1.PubKeySecp256k1:
 		meter.ConsumeGas(params.SigVerifyCostSecp256k1, "ante verify: secp256k1")
@@ -419,16 +419,20 @@ func SetGasMeter(simulate bool, ctx sdk.Context, gasLimit int64) sdk.Context {
 // GetSignBytes returns a slice of bytes to sign over for a given transaction
 // and an account.
 func GetSignBytes(chainID string, tx std.Tx, acc std.Account, genesis bool) ([]byte, error) {
-	var accNum uint64
+	var (
+		accNum      uint64
+		accSequence uint64
+	)
 	if !genesis {
 		accNum = acc.GetAccountNumber()
+		accSequence = acc.GetSequence()
 	}
 
 	return std.GetSignaturePayload(
 		std.SignDoc{
 			ChainID:       chainID,
 			AccountNumber: accNum,
-			Sequence:      acc.GetSequence(),
+			Sequence:      accSequence,
 			Fee:           tx.Fee,
 			Msgs:          tx.Msgs,
 			Memo:          tx.Memo,
