@@ -10,7 +10,7 @@ not be distinguished from real random data, and in three decades of scrutiny,
 no practical attacks have been found.
 
 The default random number algorithm in gno was ported from Go's v2 rand
-implementatoon, which defaults to the PCG algorithm. This algorithm is
+implementation, which defaults to the PCG algorithm. This algorithm is
 commonly used in language PRNG implementations because it has modest seeding
 requirements, and generates statistically strong randomness.
 
@@ -64,7 +64,7 @@ type ISAAC struct {
 
 `func New(seeds ...uint32) *ISAAC`
     ISAAC requires a large, 256-element seed. This implementation will leverage
-    the entropy package combined with the the xorshiftr128plus PRNG to generate
+    the entropy package combined with the xorshiftr128plus PRNG to generate
     any missing seeds of fewer than the required number of arguments are
     provided.
 
