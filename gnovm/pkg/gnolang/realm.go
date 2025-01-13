@@ -198,11 +198,13 @@ func (rlm *Realm) DidUpdate(po, xo, co Object) {
 }
 
 // ref value is the derived value from co, like a slice.
-func (rlm *Realm) DidUpdate2(store Store, po, xo, co Object, refValue Value) {
+func (rlm *Realm) DidUpdate2(store Store, po, xo, co Object, originValue Value) {
 	debug2.Printf2("DidUpdate2, po: %v, type of po: %v\n", po, reflect.TypeOf(po))
+	debug2.Println2("po.GetIsReal: ", po.GetIsReal())
 	debug2.Printf2("xo: %v, type of xo: %v\n", xo, reflect.TypeOf(xo))
 	debug2.Printf2("co: %v, type of co: %v\n", co, reflect.TypeOf(co))
 	debug2.Println2("rlm.ID: ", rlm.ID)
+	debug2.Println2("originValue: ", originValue)
 	if co != nil {
 		debug2.Println2("co.GetOriginRealm: ", co.GetOriginRealm())
 	}
@@ -248,7 +250,7 @@ func (rlm *Realm) DidUpdate2(store Store, po, xo, co Object, refValue Value) {
 		// XXX, inc ref count everytime assignment happens
 		co.IncRefCount()
 		if co.GetRefCount() > 1 {
-			rlm.MarkNewEscapedCheckCrossRealm(store, co, refValue)
+			rlm.MarkNewEscapedCheckCrossRealm(store, co, originValue)
 		} else if co.GetIsReal() {
 			rlm.MarkDirty(co)
 		} else {
@@ -337,7 +339,7 @@ func checkCrossRealm(rlm *Realm, store Store, oo Object, refValue Value) {
 
 // MarkNewEscapedCheckCrossRealm mark new escaped object
 // and check cross realm
-func (rlm *Realm) MarkNewEscapedCheckCrossRealm(store Store, oo Object, refValue Value) {
+func (rlm *Realm) MarkNewEscapedCheckCrossRealm(store Store, oo Object, originValue Value) {
 	debug2.Println2("MarkNewEscapedCheckCrossRealm, oo: ", oo)
 	debug2.Println2("oo.GetOriginRealm(): ", oo.GetOriginRealm())
 	debug2.Println2("rlm.ID: ", rlm.ID)
@@ -348,8 +350,8 @@ func (rlm *Realm) MarkNewEscapedCheckCrossRealm(store Store, oo Object, refValue
 	}
 
 	if oo.GetOriginRealm() != rlm.ID { // crossing realm
-		if refValue != nil { // is reference object from external realm
-			checkCrossRealm(rlm, store, oo, refValue)
+		if originValue != nil { // is reference object from external realm
+			checkCrossRealm(rlm, store, oo, originValue)
 		} else {
 			panic("cannot attach objects by value from external realm")
 		}
@@ -473,13 +475,13 @@ func (rlm *Realm) FinalizeRealmTransaction(readonly bool, store Store) {
 	}
 	if readonly {
 		if true ||
-			len(rlm.newCreated) > 0 ||
-			len(rlm.newEscaped) > 0 ||
-			len(rlm.newDeleted) > 0 ||
-			len(rlm.created) > 0 ||
-			len(rlm.updated) > 0 ||
-			len(rlm.deleted) > 0 ||
-			len(rlm.escaped) > 0 {
+				len(rlm.newCreated) > 0 ||
+				len(rlm.newEscaped) > 0 ||
+				len(rlm.newDeleted) > 0 ||
+				len(rlm.created) > 0 ||
+				len(rlm.updated) > 0 ||
+				len(rlm.deleted) > 0 ||
+				len(rlm.escaped) > 0 {
 			panic("realm updates in readonly transaction")
 		}
 		return
@@ -494,9 +496,9 @@ func (rlm *Realm) FinalizeRealmTransaction(readonly bool, store Store) {
 		ensureUniq(rlm.newDeleted)
 		ensureUniq(rlm.updated)
 		if false ||
-			rlm.created != nil ||
-			rlm.deleted != nil ||
-			rlm.escaped != nil {
+				rlm.created != nil ||
+				rlm.deleted != nil ||
+				rlm.escaped != nil {
 			panic("realm should not have created, deleted, or escaped marks before beginning finalization")
 		}
 	}
@@ -579,6 +581,7 @@ func (rlm *Realm) incRefCreatedDescendants(store Store, oo Object) {
 	debug2.Println2("---oo.GetRefCount: ", oo.GetRefCount())
 	debug2.Println2("---rlm.ID: ", rlm.ID)
 	debug2.Println2("oo.GetIsRef: ", oo.GetIsRef())
+	debug2.Println2("oo.GetOriginValue: ", oo.GetOriginValue())
 
 	if debug {
 		if oo.GetIsDirty() {
@@ -596,6 +599,36 @@ func (rlm *Realm) incRefCreatedDescendants(store Store, oo Object) {
 			panic("cannot attach a reference to an unreal object from an external realm")
 		} else {
 			panic("cannot attach a value of a type defined by another realm")
+		}
+	}
+
+	if b, ok := oo.(*Block); ok {
+		//fmt.Println("block: ", b)
+		originValue := b.GetOriginValue()
+		//fmt.Println("originValue: ", originValue)
+
+		if fv, ok := originValue.(*FuncValue); ok {
+			//fmt.Println("fv:  ", fv)
+			//fmt.Println("fv...values: ", fv.Source.GetStaticBlock().Values)
+			for _, tv := range fv.Source.GetStaticBlock().Values {
+				//fmt.Println("tv:  ", tv)
+				//fmt.Println("tv.V:  ", tv.V, reflect.TypeOf(tv.V))
+				//fmt.Println("tv.T:  ", tv.T, reflect.TypeOf(tv.T))
+
+				if dt, ok := tv.T.(*DeclaredType); ok {
+					//debug2.Printf2("getPkgId, dt: %v, dt.Base: %v, type of base: %v \n", dt, dt.Base, reflect.TypeOf(dt.Base))
+					if st, ok := dt.Base.(*StructType); ok { // TODO: some other types?
+						//fmt.Println("st: ", st)
+						if IsRealmPath(st.GetPkgPath()) {
+							originPkg := PkgIDFromPkgPath(dt.Base.GetPkgPath())
+							if originPkg != rlm.ID {
+								panic("cannot attach function contains object from external realm")
+							}
+						}
+					}
+				}
+				// TODO: also check captures
+			}
 		}
 	}
 
@@ -638,6 +671,8 @@ func (rlm *Realm) incRefCreatedDescendants(store Store, oo Object) {
 				// NOTE: may already be marked for first gen
 				// newCreated or updated.
 				child.SetOwner(oo)
+				//child.SetIsRef(isRef2)
+				//child.SetOriginValue(originValue2)
 				rlm.incRefCreatedDescendants(store, child)
 				child.SetIsNewReal(true)
 			}
@@ -892,9 +927,9 @@ func (rlm *Realm) saveUnsavedObjectRecursively(store Store, oo Object) {
 		}
 		// deleted objects should not have gotten here.
 		if false ||
-			oo.GetRefCount() <= 0 ||
-			oo.GetIsNewDeleted() ||
-			oo.GetIsDeleted() {
+				oo.GetRefCount() <= 0 ||
+				oo.GetIsNewDeleted() ||
+				oo.GetIsDeleted() {
 			panic("cannot save deleted objects")
 		}
 	}
@@ -1006,6 +1041,7 @@ func (rlm *Realm) clearMarks() {
 // Value is either Object or RefValue.
 // Shallow; doesn't recurse into objects.
 func getSelfOrChildObjects(val Value, more []Value) []Value {
+	debug2.Println2("getSelfOrChildObjects: ", val)
 	if _, ok := val.(RefValue); ok {
 		return append(more, val)
 	} else if _, ok := val.(Object); ok {
@@ -1018,6 +1054,7 @@ func getSelfOrChildObjects(val Value, more []Value) []Value {
 // Gets child objects.
 // Shallow; doesn't recurse into objects.
 func getChildObjects(val Value, more []Value) []Value {
+	debug2.Println2("getChildObjects: ", val)
 	switch cv := val.(type) {
 	case nil:
 		return more
@@ -1045,15 +1082,16 @@ func getChildObjects(val Value, more []Value) []Value {
 		return more
 	case *StructValue:
 		for _, ctv := range cv.Fields {
-			// TODO: we have type infos here, so check check cross realm logic
 			more = getSelfOrChildObjects(ctv.V, more)
 		}
 		return more
 	case *FuncValue:
 		if bv, ok := cv.Closure.(*Block); ok {
+			debug2.Println2("bv: ", bv)
 			more = getSelfOrChildObjects(bv, more)
 		}
 		for _, c := range cv.Captures {
+			debug2.Println2("c: ", c)
 			more = getSelfOrChildObjects(c.V, more)
 		}
 		return more
@@ -1076,6 +1114,11 @@ func getChildObjects(val Value, more []Value) []Value {
 		}
 		return more
 	case *Block:
+		//fmt.Println("block, cv: ", cv)
+		//if _, ok := cv.Parent.(*Block); ok {
+		//	fmt.Println("block, cv.parent: ", cv.Parent)
+		//	fmt.Println("parent.Source: ", cv.Parent.(*Block).Source)
+		//}
 		for _, ctv := range cv.Values {
 			more = getSelfOrChildObjects(ctv.V, more)
 		}
@@ -1183,7 +1226,6 @@ func copyFieldsWithRefs(fields []FieldType) []FieldType {
 // Copies type but with references to dependant types;
 // the result is suitable for persistence bytes serialization.
 func copyTypeWithRefs(typ Type) Type {
-	debug2.Println2("copyTypeWithRefs, typ: ", typ)
 	switch ct := typ.(type) {
 	case nil:
 		panic("cannot copy nil types")
@@ -1274,7 +1316,6 @@ func copyTypeWithRefs(typ Type) Type {
 // Also checks for integrity of immediate children -- they must already be
 // persistent (real), and not dirty, or else this function panics.
 func copyValueWithRefs(val Value) Value {
-	debug2.Println2("-copyValueWithRefs, val: ", val)
 	switch cv := val.(type) {
 	case nil:
 		return nil
@@ -1668,12 +1709,10 @@ func toRefNode(bn BlockNode) RefNode {
 }
 
 func toRefValue(val Value) RefValue {
-	debug2.Println2("toRefValue, val: ", val)
 	// TODO use type switch stmt.
 	if ref, ok := val.(RefValue); ok {
 		return ref
 	} else if oo, ok := val.(Object); ok {
-		debug2.Println2("oo: ", oo)
 		if pv, ok := val.(*PackageValue); ok {
 			if pv.GetIsDirty() {
 				panic("unexpected dirty package " + pv.PkgPath)
@@ -1743,7 +1782,6 @@ func ensureUniq(oozz ...[]Object) {
 }
 
 func refOrCopyValue(tv TypedValue) TypedValue {
-	debug2.Println2("refOrCopyValue:", tv)
 	if tv.T != nil {
 		tv.T = refOrCopyType(tv.T)
 	}

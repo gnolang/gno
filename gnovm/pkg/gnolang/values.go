@@ -303,17 +303,18 @@ func (pv PointerValue) Assign2(alloc *Allocator, store Store, rlm *Realm, tv2 Ty
 		// refValue is needed for checking
 		// proper element in the base.
 		// e.g. refValue is a sliceValue
-		var refValue Value
+		var originValue Value
 		switch rv := pv.TV.V.(type) {
-		case *SliceValue, PointerValue:
-			refValue = rv
+		case *SliceValue, PointerValue, *FuncValue:
+			originValue = rv
 			oo2.SetIsRef(true)
+			oo2.SetOriginValue(rv)
 		}
 
 		if oo2 != nil && !originPkg.IsZero() {
 			oo2.SetOriginRealm(originPkg) // attach origin package info
 		}
-		rlm.DidUpdate2(store, pv.Base.(Object), oo1, oo2, refValue)
+		rlm.DidUpdate2(store, pv.Base.(Object), oo1, oo2, originValue)
 	} else {
 		pv.TV.Assign(alloc, tv2, cu)
 	}

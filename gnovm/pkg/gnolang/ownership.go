@@ -115,6 +115,8 @@ type Object interface {
 	SetIsNewReal(bool)
 	GetOriginRealm() PkgID
 	SetOriginRealm(pkgID PkgID)
+	GetOriginValue() Value
+	SetOriginValue(v Value)
 	GetIsRef() bool
 	SetIsRef(bool)
 	GetIsNewEscaped() bool
@@ -152,6 +154,7 @@ type ObjectInfo struct {
 	isNewEscaped bool
 	isNewDeleted bool
 	originRealm  PkgID // realm where object is from
+	originValue  Value // pointerValue, sliceValue, funcValue
 
 	// XXX huh?
 	owner Object // mem reference to owner.
@@ -325,6 +328,14 @@ func (oi *ObjectInfo) SetOriginRealm(pkgId PkgID) {
 	oi.originRealm = pkgId
 }
 
+func (oi *ObjectInfo) GetOriginValue() Value {
+	return oi.originValue
+}
+
+func (oi *ObjectInfo) SetOriginValue(v Value) {
+	oi.originValue = v
+}
+
 func (oi *ObjectInfo) GetIsRef() bool {
 	return oi.isRef
 }
@@ -365,6 +376,10 @@ func (tv *TypedValue) GetFirstObject(store Store) Object {
 	case *StructValue:
 		return cv
 	case *FuncValue:
+		//fmt.Println("fv: ", cv)
+		//fmt.Println("---fv.Closure: ", cv.GetClosure(store))
+		//fmt.Println("---fv.Capture: ", cv.Captures)
+		//fmt.Println("static block.Values: ", cv.Source.(BlockNode).GetStaticBlock().Values)
 		return cv.GetClosure(store)
 	case *MapValue:
 		return cv
@@ -430,7 +445,11 @@ func (tv *TypedValue) GetOriginPkg(store Store) (originPkg PkgID) {
 		}
 		return
 	case *Block:
-		originPkg = PkgIDFromPkgPath(cv.Source.GetLocation().PkgPath)
+		if _, ok := tv.V.(*FuncValue); !ok {
+			//fmt.Println("cv: ", cv)
+			//fmt.Println("cv.Source: ", cv.Source)
+			originPkg = PkgIDFromPkgPath(cv.Source.GetLocation().PkgPath)
+		}
 		return
 	case *HeapItemValue:
 		originPkg = getPkgId(cv.Value.T)
