@@ -9,7 +9,6 @@ import (
 
 func TestAddToWhitelist(t *testing.T) {
 	t.Run("invalid new address", func(t *testing.T) {
-		t.Parallel()
 		std.TestSetRealm(adminRealm)
 
 		uassert.Error(t, AddToWhitelist(std.Address("invalidaddress")), ErrInvalidAddress.Error())
@@ -18,14 +17,12 @@ func TestAddToWhitelist(t *testing.T) {
 	})
 
 	t.Run("already whitelisted", func(t *testing.T) {
-		t.Parallel()
 		std.TestSetRealm(adminRealm)
 
 		uassert.Error(t, AddToWhitelist(whitelistedCallerAddr), ErrAlreadyWhitelisted.Error())
 	})
 
 	t.Run("valid addition", func(t *testing.T) {
-		t.Parallel()
 		std.TestSetRealm(adminRealm)
 
 		uassert.NoError(t, AddToWhitelist("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"))
@@ -34,14 +31,12 @@ func TestAddToWhitelist(t *testing.T) {
 
 func TestDelFromWhitelist(t *testing.T) {
 	t.Run("not on whitelist", func(t *testing.T) {
-		t.Parallel()
 		std.TestSetRealm(adminRealm)
 
 		uassert.Error(t, DelFromWhitelist(std.Address("")), ErrNotWhitelisted.Error())
 	})
 
 	t.Run("valid deletion", func(t *testing.T) {
-		t.Parallel()
 		std.TestSetRealm(adminRealm)
 
 		uassert.NoError(t, DelFromWhitelist(whitelistedCallerAddr))
