@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"slices"
+	"time"
 
 	"dario.cat/mergo"
 	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
@@ -17,6 +18,7 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/errors"
 	osm "github.com/gnolang/gno/tm2/pkg/os"
 	p2p "github.com/gnolang/gno/tm2/pkg/p2p/config"
+	sdk "github.com/gnolang/gno/tm2/pkg/sdk/config"
 	telemetry "github.com/gnolang/gno/tm2/pkg/telemetry/config"
 )
 
@@ -54,6 +56,7 @@ type Config struct {
 	Consensus    *cns.ConsensusConfig `json:"consensus" toml:"consensus" comment:"##### consensus configuration options #####"`
 	TxEventStore *eventstore.Config   `json:"tx_event_store" toml:"tx_event_store" comment:"##### event store #####"`
 	Telemetry    *telemetry.Config    `json:"telemetry" toml:"telemetry" comment:"##### node telemetry #####"`
+	Application  *sdk.AppConfig       `json:"application" toml:"application" comment:"##### app settings #####"`
 }
 
 // DefaultConfig returns a default configuration for a Tendermint node
@@ -66,6 +69,7 @@ func DefaultConfig() *Config {
 		Consensus:    cns.DefaultConsensusConfig(),
 		TxEventStore: eventstore.DefaultEventStoreConfig(),
 		Telemetry:    telemetry.DefaultTelemetryConfig(),
+		Application:  sdk.DefaultAppConfig(),
 	}
 }
 
@@ -163,16 +167,26 @@ func LoadOrMakeConfigWithOptions(root string, opts ...Option) (*Config, error) {
 	return cfg, nil
 }
 
+// testP2PConfig returns a configuration for testing the peer-to-peer layer
+func testP2PConfig() *p2p.P2PConfig {
+	cfg := p2p.DefaultP2PConfig()
+	cfg.ListenAddress = "tcp://0.0.0.0:26656"
+	cfg.FlushThrottleTimeout = 10 * time.Millisecond
+
+	return cfg
+}
+
 // TestConfig returns a configuration that can be used for testing
 func TestConfig() *Config {
 	return &Config{
 		BaseConfig:   testBaseConfig(),
 		RPC:          rpc.TestRPCConfig(),
-		P2P:          p2p.TestP2PConfig(),
+		P2P:          testP2PConfig(),
 		Mempool:      mem.TestMempoolConfig(),
 		Consensus:    cns.TestConsensusConfig(),
 		TxEventStore: eventstore.DefaultEventStoreConfig(),
 		Telemetry:    telemetry.DefaultTelemetryConfig(),
+		Application:  sdk.DefaultAppConfig(),
 	}
 }
 
@@ -227,6 +241,9 @@ func (cfg *Config) ValidateBasic() error {
 	}
 	if err := cfg.Consensus.ValidateBasic(); err != nil {
 		return errors.Wrap(err, "Error in [consensus] section")
+	}
+	if err := cfg.Application.ValidateBasic(); err != nil {
+		return errors.Wrap(err, "Error in [application] section")
 	}
 	return nil
 }
@@ -318,10 +335,6 @@ type BaseConfig struct {
 
 	// TCP or UNIX socket address for the profiling server to listen on
 	ProfListenAddress string `toml:"prof_laddr" comment:"TCP or UNIX socket address for the profiling server to listen on"`
-
-	// If true, query the ABCI app on connecting to a new peer
-	// so the app can decide if we should keep the connection or not
-	FilterPeers bool `toml:"filter_peers" comment:"If true, query the ABCI app on connecting to a new peer\n so the app can decide if we should keep the connection or not"` // false
 }
 
 // DefaultBaseConfig returns a default base configuration for a Tendermint node
@@ -335,7 +348,6 @@ func DefaultBaseConfig() BaseConfig {
 		ABCI:               SocketABCI,
 		ProfListenAddress:  "",
 		FastSyncMode:       true,
-		FilterPeers:        false,
 		DBBackend:          db.GoLevelDBBackend.String(),
 		DBPath:             DefaultDBDir,
 	}
