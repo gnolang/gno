@@ -623,7 +623,7 @@ func TestProcessPubKey(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 
-			_, err := ProcessPubKey(tt.args.acc, tt.args.sig, tt.args.simulate)
+			_, err := ProcessPubKey(tt.args.acc, tt.args.sig)
 			require.Equal(t, tt.wantErr, !err.IsOK())
 		})
 	}
@@ -655,7 +655,7 @@ func TestConsumeSignatureVerificationGas(t *testing.T) {
 		gasConsumed int64
 		shouldErr   bool
 	}{
-		{"PubKeyEd25519", args{store.NewInfiniteGasMeter(), nil, ed25519.GenPrivKey().PubKey(), params}, DefaultSigVerifyCostED25519, true},
+		{"PubKeyEd25519", args{store.NewInfiniteGasMeter(), nil, ed25519.GenPrivKey().PubKey(), params}, DefaultSigVerifyCostED25519, false},
 		{"PubKeySecp256k1", args{store.NewInfiniteGasMeter(), nil, secp256k1.GenPrivKey().PubKey(), params}, DefaultSigVerifyCostSecp256k1, false},
 		{"Multisig", args{store.NewInfiniteGasMeter(), amino.MustMarshal(multisignature1), multisigKey1, params}, expectedCost1, false},
 		{"unknown key", args{store.NewInfiniteGasMeter(), nil, nil, params}, 0, true},
