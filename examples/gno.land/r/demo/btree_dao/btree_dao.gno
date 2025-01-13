@@ -57,7 +57,7 @@ func PlantSeed(message string) error {
 // Returns an error if any validation fails or if NFT minting fails.
 func plantImpl(userBTree *btree.BTree, seedMessage string) error {
 	// Get the caller's address
-	userAddress := std.GetOrigCaller()
+	userAddress := std.GetOriginCaller()
 
 	var nftID string
 	var regDetails *RegistrationDetails
