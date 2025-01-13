@@ -1,14 +1,13 @@
 package gnoclient
 
 import (
+	"errors"
 	"testing"
 
 	"github.com/gnolang/gno/tm2/pkg/amino"
 	abciErrors "github.com/gnolang/gno/tm2/pkg/bft/abci/example/errors"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-
-	"errors"
 
 	"github.com/gnolang/gno/gno.land/pkg/gnoland/ugnot"
 	"github.com/gnolang/gno/gno.land/pkg/sdk/vm"
