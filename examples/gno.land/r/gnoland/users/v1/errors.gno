@@ -1,4 +1,4 @@
-package users
+package v1
 
 import "errors"
 

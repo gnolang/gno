@@ -1,4 +1,4 @@
-package users
+package v1
 
 import (
 	"regexp"
@@ -20,7 +20,7 @@ const (
 )
 
 var (
-	Ownable    = ownable.NewWithAddress(adminAddr) // @moul // switch to dao managed down the line
+	Ownable    = ownable.NewWithAddress(adminAddr) // @moul - switch to dao managed in v2
 	Pausable   = pausable.NewFromOwnable(Ownable)  //
 	reUsername = regexp.MustCompile(reValidUsername)
 )
@@ -68,9 +68,8 @@ func RegisterAlias(alias string) error {
 	return nil
 }
 
-// Delete deletes the name and aliases associated with the PrevRealm() address.
+// DeleteUser deletes the name and aliases associated with the PrevRealm() address.
 // WARN: After deletion, the same address WILL NOT be able to register a new name or alias.
-// TODO SEE IF THIS is the way
 func DeleteUser() error {
 	std.AssertOriginCall()
 

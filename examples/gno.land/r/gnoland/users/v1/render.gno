@@ -1,4 +1,4 @@
-package users
+package v1
 
 import (
 	"github.com/gnolang/gno/examples/gno.land/p/demo/avl/pager"
