@@ -45,7 +45,7 @@ type PlayerInfo struct {
 }
 
 // GameState represents the current state of the FOMO3D game
-type GameState struct {
+type GameState struct { // TODO: Separate GameState and RoundState and save round history tree in GameState
 	StartBlock         int64       // Block when the game started
 	EndBlock           int64       // Block when the game will end
 	LastKeyBlock       int64       // Block of last key purchase
@@ -78,6 +78,7 @@ func StartGame() {
 		panic(ErrGameInProgress.Error())
 	}
 
+	gameState.CurrentRound++
 	gameState.StartBlock = std.GetHeight()
 	gameState.EndBlock = gameState.StartBlock + TIME_EXTENSION // Initial 24h window
 	gameState.LastKeyBlock = gameState.StartBlock
@@ -258,7 +259,6 @@ func EndGame() {
 	}
 
 	gameState.Ended = true
-	gameState.CurrentRound++
 
 	// Send jackpot to winner
 	banker := std.GetBanker(std.BankerTypeRealmSend)
@@ -274,9 +274,8 @@ func EndGame() {
 		gameState.Jackpot,
 	)
 
-	// Mint NFT for the round winner
-	err := GetNFT().MintRoundWinnerNFT(gameState.LastBuyer)
-	if err != nil {
+	// Mint NFT for the winner
+	if err := mintRoundWinnerNFT(gameState.LastBuyer, gameState.CurrentRound); err != nil {
 		panic(err.Error())
 	}
 }

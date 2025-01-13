@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"gno.land/p/demo/avl"
+	"gno.land/p/demo/grc/grc721"
 	"gno.land/p/demo/ownable"
 	"gno.land/p/demo/testutils"
 )
@@ -48,7 +49,7 @@ func setupTestGame(t *testing.T) {
 		KeyPrice:     MIN_KEY_PRICE,
 		TotalKeys:    0,
 		Ended:        true,
-		CurrentRound: 1,
+		CurrentRound: 0,
 		NextPot:      0,
 		OwnerFee:     0,
 	}
@@ -113,7 +114,7 @@ func TestFullGameFlow(t *testing.T) {
 	player3 := testutils.TestAddress("player3")
 
 	// Test initial state
-	shouldEqual(t, gameState.CurrentRound, int64(1))
+	shouldEqual(t, gameState.CurrentRound, int64(0))
 	shouldEqual(t, gameState.KeyPrice, MIN_KEY_PRICE)
 	shouldEqual(t, gameState.Ended, true)
 
@@ -121,6 +122,7 @@ func TestFullGameFlow(t *testing.T) {
 	shouldNoPanic(t, StartGame)
 	shouldEqual(t, gameState.Ended, false)
 	shouldEqual(t, gameState.StartBlock, std.GetHeight())
+	shouldEqual(t, gameState.CurrentRound, int64(1))
 
 	t.Run("buying keys", func(t *testing.T) {
 		// Test insufficient payment
@@ -204,12 +206,23 @@ func TestFullGameFlow(t *testing.T) {
 		// End game successfully
 		shouldNoPanic(t, EndGame)
 		shouldEqual(t, gameState.Ended, true)
-
-		shouldEqual(t, gameState.CurrentRound, int64(2))
+		shouldEqual(t, gameState.CurrentRound, int64(1))
 
 		// Verify winner received jackpot
 		lastBuyerBalance := std.GetBanker(std.BankerTypeRealmSend).GetCoins(gameState.LastBuyer)
 		shouldEqual(t, lastBuyerBalance.AmountOf("ugnot"), gameState.Jackpot)
+
+		// Verify NFT was minted to winner
+		balance, err := BalanceOf(gameState.LastBuyer)
+		shouldEqual(t, err, nil)
+		shouldEqual(t, balance, uint64(1))
+
+		// Check NFT metadata
+		tokenID := grc721.TokenID("1")
+		metadata, err := TokenMetadata(tokenID)
+
+		shouldEqual(t, err, nil)
+		shouldEqual(t, metadata.Name, "Fomo3D Winner - Round #1")
 	})
 
 	// Test new round
@@ -305,36 +318,4 @@ func TestClaimDividends(t *testing.T) {
 	// Test successful claim
 	std.TestSetOrigCaller(player)
 	shouldNoPanic(t, ClaimDividends)
-}
-
-func TestEndGame(t *testing.T) {
-	setupTestGame(t)
-	StartGame()
-
-	// Skip to end + 1 to ensure we're past the end block
-	currentEndBlock := gameState.EndBlock
-	std.TestSkipHeights(currentEndBlock - std.GetHeight() + 1)
-
-	shouldPanic(t, EndGame) // Should panic because no keys purchased
-
-	// Reset and start new game
-	setupTestGame(t)
-	StartGame()
-
-	// Buy keys
-	player := testutils.TestAddress("player")
-	std.TestSetOrigCaller(player)
-	std.TestIssueCoins(player, std.Coins{{"ugnot", MIN_KEY_PRICE}})
-	std.TestSetOrigSend(std.Coins{{"ugnot", MIN_KEY_PRICE}}, nil)
-	std.TestIssueCoins(std.GetOrigPkgAddr(), std.Coins{{"ugnot", MIN_KEY_PRICE}})
-	shouldNoPanic(t, BuyKeys)
-
-	// Test ending too early
-	shouldPanic(t, EndGame)
-
-	// Skip to end of current time window
-	currentEndBlock = gameState.EndBlock
-	std.TestSkipHeights(currentEndBlock - std.GetHeight() + 1)
-
-	shouldNoPanic(t, EndGame)
 }

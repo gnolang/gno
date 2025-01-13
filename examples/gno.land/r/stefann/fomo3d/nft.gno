@@ -4,211 +4,95 @@ import (
 	"std"
 	"strconv"
 
-	"gno.land/p/demo/avl"
 	"gno.land/p/demo/grc/grc721"
 )
 
-// Fomo3DNFT manages the NFTs for Fomo3D winners
-type Fomo3DNFT struct {
-	grc721.IGRC721         // implements the GRC721 interface
-	grc721.IGRC721Metadata // implements the metadata interface
+var (
+	fomo3dNFT = grc721.NewNFTWithMetadata("Fomo3D Winner", "FOMO")
+)
 
-	name         string
-	symbol       string
-	roundCounter int
-	owners       avl.Tree // tokenId -> OwnerAddress
-	balances     avl.Tree // OwnerAddress -> TokenCount
-	tokenURIs    avl.Tree // TokenId -> URIs
-	approvals    avl.Tree // TokenId -> ApprovedAddress
-	operators    avl.Tree // "OwnerAddress:OperatorAddress" -> bool
+// Public getters
+
+func Name() string {
+	return fomo3dNFT.Name()
 }
 
-// Global instance
-var gNFT = &Fomo3DNFT{
-	name:         "Fomo3D Winner",
-	symbol:       "FOMO",
-	roundCounter: 0,
-	owners:       avl.Tree{},
-	balances:     avl.Tree{},
-	tokenURIs:    avl.Tree{},
-	approvals:    avl.Tree{},
-	operators:    avl.Tree{},
+func Symbol() string {
+	return fomo3dNFT.Symbol()
 }
 
-// GetNFT returns the global NFT instance
-func GetNFT() *Fomo3DNFT {
-	return gNFT
+func BalanceOf(owner std.Address) (uint64, error) {
+	return fomo3dNFT.BalanceOf(owner)
 }
 
-// Name returns the name of the NFT collection
-func (f *Fomo3DNFT) Name() string {
-	return f.name
+func OwnerOf(tokenID grc721.TokenID) (std.Address, error) {
+	return fomo3dNFT.OwnerOf(tokenID)
 }
 
-// Symbol returns the symbol of the NFT collection
-func (f *Fomo3DNFT) Symbol() string {
-	return f.symbol
+func TokenMetadata(tokenID grc721.TokenID) (grc721.Metadata, error) {
+	return fomo3dNFT.TokenMetadata(tokenID)
 }
 
-// BalanceOf returns the number of NFTs owned by an address
-func (f *Fomo3DNFT) BalanceOf(owner std.Address) (uint64, error) {
-	if owner == "" {
-		panic("zero address")
-	}
+// Transfer and approval methods
 
-	balance, found := f.balances.Get(owner.String())
-	if !found {
-		return 0, nil
-	}
-	return balance.(uint64), nil
+func TransferFrom(from, to std.Address, tokenID grc721.TokenID) error {
+	return fomo3dNFT.TransferFrom(from, to, tokenID)
 }
 
-// OwnerOf returns the owner of a specific token
-func (f *Fomo3DNFT) OwnerOf(tid grc721.TokenID) (std.Address, error) {
-	owner, found := f.owners.Get(string(tid))
-	if !found {
-		panic("token not found")
-	}
-	return owner.(std.Address), nil
+func SafeTransferFrom(from, to std.Address, tokenID grc721.TokenID) error {
+	return fomo3dNFT.SafeTransferFrom(from, to, tokenID)
 }
 
-// TokenURI returns the URI for a specific token
-func (f *Fomo3DNFT) TokenURI(tid grc721.TokenID) (string, error) {
-	uri, found := f.tokenURIs.Get(string(tid))
-	if !found {
-		panic("token not found")
-	}
-	return uri.(string), nil
+func Approve(approved std.Address, tokenID grc721.TokenID) error {
+	return fomo3dNFT.Approve(approved, tokenID)
 }
 
-// SetTokenURI sets the URI for a specific token
-func (f *Fomo3DNFT) SetTokenURI(tid grc721.TokenID, uri grc721.TokenURI) (bool, error) {
-	if _, found := f.owners.Get(string(tid)); !found {
-		panic("token not found")
-	}
-	f.tokenURIs.Set(string(tid), string(uri))
-	return true, nil
+func GetApproved(tokenID grc721.TokenID) (std.Address, error) {
+	return fomo3dNFT.GetApproved(tokenID)
 }
 
-// SafeTransferFrom safely transfers a token
-func (f *Fomo3DNFT) SafeTransferFrom(from, to std.Address, tid grc721.TokenID) error {
-	return f.TransferFrom(from, to, tid)
+func SetApprovalForAll(operator std.Address, approved bool) error {
+	return fomo3dNFT.SetApprovalForAll(operator, approved)
 }
 
-// TransferFrom transfers a token
-func (f *Fomo3DNFT) TransferFrom(from, to std.Address, tid grc721.TokenID) error {
-	if to == "" {
-		panic("zero address")
-	}
-
-	owner, err := f.OwnerOf(tid)
-	if err != nil {
-		panic(err)
-	}
-
-	if owner != from {
-		panic("not owner")
-	}
-
-	caller := std.GetOrigCaller()
-	if caller != from && !f.IsApprovedForAll(from, caller) {
-		approved, _ := f.GetApproved(tid)
-		if approved != caller {
-			panic("not approved")
-		}
-	}
-
-	// Update balances
-	fromBalance, _ := f.BalanceOf(from)
-	f.balances.Set(from.String(), fromBalance-1)
-
-	toBalance, _ := f.BalanceOf(to)
-	f.balances.Set(to.String(), toBalance+1)
-
-	// Update owner
-	f.owners.Set(string(tid), to)
-
-	// Clear approval
-	f.approvals.Remove(string(tid))
-
-	return nil
+func IsApprovedForAll(owner, operator std.Address) bool {
+	return fomo3dNFT.IsApprovedForAll(owner, operator)
 }
 
-// Approve approves an address to transfer a token
-func (f *Fomo3DNFT) Approve(approved std.Address, tid grc721.TokenID) error {
-	owner, err := f.OwnerOf(tid)
-	if err != nil {
-		panic(err)
-	}
-
-	caller := std.GetOrigCaller()
-	if caller != owner && !f.IsApprovedForAll(owner, caller) {
-		panic("not approved")
-	}
-
-	f.approvals.Set(string(tid), approved)
-	return nil
-}
-
-// SetApprovalForAll approves an operator for all tokens
-func (f *Fomo3DNFT) SetApprovalForAll(operator std.Address, approved bool) error {
-	caller := std.GetOrigCaller()
-	if caller == operator {
-		panic("cannot approve self")
-	}
-
-	key := caller.String() + ":" + operator.String()
-	f.operators.Set(key, approved)
-	return nil
-}
-
-// GetApproved returns the approved address for a token
-func (f *Fomo3DNFT) GetApproved(tid grc721.TokenID) (std.Address, error) {
-	if _, err := f.OwnerOf(tid); err != nil {
-		panic(err)
-	}
-
-	approved, found := f.approvals.Get(string(tid))
-	if !found {
-		return "", nil
-	}
-	return approved.(std.Address), nil
-}
-
-// IsApprovedForAll checks if an operator is approved for all tokens
-func (f *Fomo3DNFT) IsApprovedForAll(owner, operator std.Address) bool {
-	key := owner.String() + ":" + operator.String()
-	approved, found := f.operators.Get(key)
-	if !found {
-		return false
-	}
-	return approved.(bool)
-}
-
-// MintRoundWinnerNFT mints a new NFT for the round winner
-func (f *Fomo3DNFT) MintRoundWinnerNFT(winner std.Address) error {
+// mintRoundWinnerNFT mints a new NFT for the round winner
+// Can only be called from within the fomo3d package
+func mintRoundWinnerNFT(winner std.Address, roundNumber int64) error {
 	if winner == "" {
-		panic("zero address")
+		return ErrZeroAddress
 	}
 
-	f.roundCounter++
-	tokenID := grc721.TokenID(strconv.Itoa(f.roundCounter))
+	roundStr := strconv.FormatInt(roundNumber, 10)
+	tokenID := grc721.TokenID(roundStr)
 
-	// Update balances
-	balance, _ := f.BalanceOf(winner)
-	f.balances.Set(winner.String(), balance+1)
+	// Create metadata
+	metadata := grc721.Metadata{
+		Name:        "Fomo3D Winner - Round #" + roundStr,
+		Description: "Winner of Fomo3D round #" + roundStr,
+		Image:       "ipfs://QmXYZ123..." + roundStr,                       // TODO: Add this image to IPFS
+		ExternalURL: "https://gno.land/r/stefann/fomo3d:round/" + roundStr, // TODO: Add this render in main realm that shows details of specific round
+		Attributes: []grc721.Trait{
+			{
+				TraitType: "Round",
+				Value:     roundStr,
+			},
+			{
+				TraitType: "Winner",
+				Value:     string(winner),
+			},
+		},
+		BackgroundColor: "2D2D2D", // Dark theme background
+	}
 
-	// Set owner
-	f.owners.Set(string(tokenID), winner)
+	if err := fomo3dNFT.Mint(winner, tokenID); err != nil {
+		return err
+	}
 
-	// Set token URI
-	uri := "Fomo3D Round " + strconv.Itoa(f.roundCounter) + " Winner"
-	f.tokenURIs.Set(string(tokenID), uri)
+	fomo3dNFT.SetTokenMetadata(tokenID, metadata)
 
 	return nil
-}
-
-// GetWinnerNFTs returns all NFTs owned by an address
-func (f *Fomo3DNFT) GetWinnerNFTs(owner std.Address) (uint64, error) {
-	return f.BalanceOf(owner)
 }

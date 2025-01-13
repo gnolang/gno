@@ -22,4 +22,8 @@ var (
 
 	// Resolution errors
 	ErrInvalidAddressOrName = errors.New("fomo3d: invalid address or unregistered username")
+
+	// NFT errors
+	ErrUnauthorizedMint = errors.New("fomo3d: only the Fomo3D game realm can mint winner NFTs")
+	ErrZeroAddress      = errors.New("fomo3d: zero address")
 )
