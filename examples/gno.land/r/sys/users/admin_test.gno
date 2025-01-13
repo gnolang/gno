@@ -25,7 +25,7 @@ func TestAddToWhitelist(t *testing.T) {
 	t.Run("valid addition", func(t *testing.T) {
 		std.TestSetRealm(adminRealm)
 
-		uassert.NoError(t, AddToWhitelist("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"))
+		uassert.NoError(t, AddToWhitelist(std.Address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5")))
 	})
 }
 
@@ -44,5 +44,5 @@ func TestDelFromWhitelist(t *testing.T) {
 
 	// FIXME: should not be needed. realm state should reset after
 	// 	each test, and init should happen before running a new one.
-	callerWhitelist.Set(std.DerivePkgAddr(gnolandUsers).String(), struct{}{})
+	callerWhitelist.Add(std.DerivePkgAddr(gnolandUsers))
 }

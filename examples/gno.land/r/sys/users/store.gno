@@ -10,8 +10,6 @@ import (
 )
 
 var (
-	callerWhitelist = avl.NewTree() // address > struct{}{}
-
 	nameStore    = avl.NewTree() // name/aliases > *UserData
 	addressStore = avl.NewTree() // address > *UserData - always points to the latest Alias
 
