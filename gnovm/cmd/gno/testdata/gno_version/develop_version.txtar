@@ -2,4 +2,4 @@
 gno version
 
 -- stdout.golden --
-gno version: master.387+e872fa
+gno version: develop
