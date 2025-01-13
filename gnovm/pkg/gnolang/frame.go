@@ -2,6 +2,7 @@ package gnolang
 
 import (
 	"fmt"
+	"math"
 	"strings"
 )
 
@@ -207,9 +208,9 @@ func toConstExpTrace(cte *ConstExpr) string {
 		case Uint64Type:
 			return fmt.Sprintf("%d", tv.GetUint64())
 		case Float32Type:
-			return fmt.Sprintf("%v", tv.GetFloat32())
+			return fmt.Sprintf("%v", math.Float32frombits(tv.GetFloat32()))
 		case Float64Type:
-			return fmt.Sprintf("%v", tv.GetFloat64())
+			return fmt.Sprintf("%v", math.Float64frombits(tv.GetFloat64()))
 		}
 	}
 

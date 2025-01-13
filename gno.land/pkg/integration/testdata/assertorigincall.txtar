@@ -43,7 +43,7 @@ gnokey maketx call -pkgpath gno.land/r/myrlm -func B -gas-fee 100000ugnot -gas-w
 stdout 'OK!'
 
 ## 3. MsgCall -> myrlm.C: PASS
-gnokey maketx call -pkgpath gno.land/r/myrlm -func C -gas-fee 100000ugnot -gas-wanted 700000 -broadcast -chainid tendermint_test test1
+gnokey maketx call -pkgpath gno.land/r/myrlm -func C -gas-fee 100000ugnot -gas-wanted 1500000 -broadcast -chainid tendermint_test test1
 stdout 'OK!'
 
 ## 4. MsgCall -> r/foo.A -> myrlm.A: PANIC

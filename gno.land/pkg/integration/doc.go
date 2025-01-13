@@ -76,13 +76,6 @@
 //
 // Input:
 //
-//   - LOG_LEVEL:
-//     The logging level to be used, which can be one of "error", "debug", "info", or an empty string.
-//     If empty, the log level defaults to "debug".
-//
-//   - LOG_DIR:
-//     If set, logs will be directed to the specified directory.
-//
 //   - TESTWORK:
 //     A boolean that, when enabled, retains working directories after tests for
 //     inspection. If enabled, gnoland logs will be persisted inside this
@@ -109,11 +102,17 @@
 //     The path where the gnoland node stores its configuration and data. It's
 //     set only if the node has started.
 //
-//   - USER_SEED_test1:
-//     Contains the seed for the test1 account.
+//   - xxx_user_seed:
+//     Where `xxx` is the account name; Contains the seed for the test1 account.
 //
-//   - USER_ADDR_test1:
-//     Contains the address for the test1 account.
+//   - xxx_user_addr:
+//     Where `xxx` is the account name; Contains the address for the test1 account.
+//
+//   - xxx_account_num:
+//     Where `xxx` is the account name; Contains the account number for the test1 account.
+//
+//   - xxx_account_seq:
+//     Where `xxx` is the account name; Contains the address for the test1 account.
 //
 //   - RPC_ADDR:
 //     Points to the gnoland node's remote address. It's set only if the node has started.
