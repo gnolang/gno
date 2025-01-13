@@ -1,4 +1,4 @@
-package main
+package packages
 
 import (
 	"bytes"
@@ -7,8 +7,8 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/gnolang/gno/gnovm/cmd/gno/internal/pkgdownload/examplespkgfetcher"
 	"github.com/gnolang/gno/gnovm/pkg/gnomod"
+	"github.com/gnolang/gno/gnovm/pkg/packages/pkgdownload/examplespkgfetcher"
 	"github.com/gnolang/gno/tm2/pkg/commands"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -115,8 +115,10 @@ func TestDownloadDeps(t *testing.T) {
 
 			fetcher := examplespkgfetcher.New()
 
+			conf := &LoadConfig{IO: io, Fetcher: fetcher}
+
 			// gno: downloading dependencies
-			err = downloadDeps(io, dirPath, &tc.modFile, fetcher)
+			err = DownloadDeps(conf, dirPath, &tc.modFile)
 			if tc.errorShouldContain != "" {
 				require.ErrorContains(t, err, tc.errorShouldContain)
 			} else {
@@ -142,7 +144,7 @@ func TestDownloadDeps(t *testing.T) {
 				mockErr.Reset()
 
 				// Try fetching again. Should be cached
-				downloadDeps(io, dirPath, &tc.modFile, fetcher)
+				DownloadDeps(conf, dirPath, &tc.modFile)
 				for _, c := range tc.ioErrContains {
 					assert.NotContains(t, mockErr.String(), c)
 				}

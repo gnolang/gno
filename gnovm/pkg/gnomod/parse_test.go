@@ -1,6 +1,7 @@
 package gnomod
 
 import (
+	"os"
 	"path/filepath"
 	"testing"
 
@@ -236,4 +237,17 @@ func TestParseGnoMod(t *testing.T) {
 			}
 		})
 	}
+}
+
+func createGnoModPkg(t *testing.T, dirPath, pkgName, modData string) {
+	t.Helper()
+
+	// Create package dir
+	pkgDirPath := filepath.Join(dirPath, pkgName)
+	err := os.MkdirAll(pkgDirPath, 0o755)
+	require.NoError(t, err)
+
+	// Create gno.mod
+	err = os.WriteFile(filepath.Join(pkgDirPath, "gno.mod"), []byte(modData), 0o644)
+	require.NoError(t, err)
 }

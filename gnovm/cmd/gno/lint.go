@@ -16,15 +16,16 @@ import (
 	"github.com/gnolang/gno/gnovm"
 	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
-	"github.com/gnolang/gno/gnovm/pkg/gnomod"
+	"github.com/gnolang/gno/gnovm/pkg/packages"
 	"github.com/gnolang/gno/gnovm/pkg/test"
 	"github.com/gnolang/gno/tm2/pkg/commands"
 	"go.uber.org/multierr"
 )
 
 type lintCfg struct {
-	verbose bool
-	rootDir string
+	verbose      bool
+	rootDir      string
+	rootExamples bool
 	// min_confidence: minimum confidence of a problem to print it (default 0.8)
 	// auto-fix: apply suggested fixes automatically.
 }
@@ -50,6 +51,7 @@ func (c *lintCfg) RegisterFlags(fs *flag.FlagSet) {
 
 	fs.BoolVar(&c.verbose, "v", false, "verbose output when lintning")
 	fs.StringVar(&c.rootDir, "root-dir", rootdir, "clone location of github.com/gnolang/gno (gno tries to guess it)")
+	fs.BoolVar(&c.rootExamples, "root-examples", false, "use the examples present in GNOROOT rather than downloading them")
 }
 
 type lintCode int
@@ -73,8 +75,9 @@ type lintIssue struct {
 }
 
 func (i lintIssue) String() string {
+	location := tryRelativize(i.Location)
 	// TODO: consider crafting a doc URL based on Code.
-	return fmt.Sprintf("%s: %s (code=%d)", i.Location, i.Msg, i.Code)
+	return fmt.Sprintf("%s: %s (code=%d)", location, i.Msg, i.Code)
 }
 
 func execLint(cfg *lintCfg, args []string, io commands.IO) error {
@@ -90,65 +93,90 @@ func execLint(cfg *lintCfg, args []string, io commands.IO) error {
 		rootDir = gnoenv.RootDir()
 	}
 
-	pkgPaths, err := gnoPackagesFromArgsRecursively(args)
+	loadCfg := &packages.LoadConfig{IO: io, Fetcher: testPackageFetcher}
+	if cfg.rootExamples {
+		examples := filepath.Join(gnoenv.RootDir(), "examples", "...")
+		loadCfg.DepsPatterns = append(loadCfg.DepsPatterns, examples)
+	}
+
+	pkgs, err := packages.Load(loadCfg, args...)
 	if err != nil {
 		return fmt.Errorf("list packages from args: %w", err)
 	}
 
+	pkgsMap := map[string]*packages.Package{}
+	packages.Inject(pkgsMap, pkgs)
+
 	hasError := false
 
 	bs, ts := test.Store(
-		rootDir, false,
+		rootDir, pkgsMap, false,
 		nopReader{}, goio.Discard, goio.Discard,
 	)
 
-	for _, pkgPath := range pkgPaths {
-		if verbose {
-			io.ErrPrintln(pkgPath)
+	for _, pkg := range pkgs {
+		logName := pkg.ImportPath
+		if logName == "" {
+			logName = pkg.Dir
 		}
 
-		info, err := os.Stat(pkgPath)
-		if err == nil && !info.IsDir() {
-			pkgPath = filepath.Dir(pkgPath)
+		if verbose {
+			io.ErrPrintln(logName)
 		}
 
 		// Check if 'gno.mod' exists
-		gmFile, err := gnomod.ParseAt(pkgPath)
-		if err != nil {
+		if pkg.Root == "" && pkg.ImportPath != "command-line-arguments" {
 			issue := lintIssue{
 				Code:       lintGnoMod,
 				Confidence: 1,
-				Location:   pkgPath,
-				Msg:        err.Error(),
+				Location:   pkg.Dir,
+				Msg:        "gno.mod file not found in current or any parent directory",
 			}
 			io.ErrPrintln(issue)
 			hasError = true
 		}
 
-		memPkg, err := gno.ReadMemPackage(pkgPath, pkgPath)
+		// load deps
+		loadDepsCfg := *loadCfg
+		loadDepsCfg.Deps = true
+		loadDepsCfg.Cache = pkgsMap
+		deps, loadDepsErr := packages.Load(&loadDepsCfg, pkg.Dir)
+		if loadDepsErr != nil {
+			io.ErrPrintln(issueFromError(pkg.Dir, err).String())
+			hasError = true
+			continue
+		}
+		packages.Inject(pkgsMap, deps)
+
+		// read mempkg
+		memPkgPath := pkg.ImportPath
+		if memPkgPath == "" || memPkgPath == "command-line-arguments" {
+			memPkgPath = pkg.Dir
+		}
+		memPkg, err := gno.ReadMemPackage(pkg.Dir, memPkgPath)
 		if err != nil {
-			io.ErrPrintln(issueFromError(pkgPath, err).String())
+			io.ErrPrintln(issueFromError(pkg.Dir, err).String())
 			hasError = true
 			continue
 		}
 
 		// Perform imports using the parent store.
 		if err := test.LoadImports(ts, memPkg); err != nil {
-			io.ErrPrintln(issueFromError(pkgPath, err).String())
+			io.ErrPrintln(issueFromError(pkg.Dir, err).String())
 			hasError = true
 			continue
 		}
 
 		// Handle runtime errors
-		hasRuntimeErr := catchRuntimeError(pkgPath, io.Err(), func() {
+		hasRuntimeErr := catchRuntimeError(pkg.Dir, io.Err(), func() {
 			// Wrap in cache wrap so execution of the linter doesn't impact
 			// other packages.
 			cw := bs.CacheWrap()
 			gs := ts.BeginTransaction(cw, cw, nil)
 
 			// Run type checking
-			if gmFile == nil || !gmFile.Draft {
-				foundErr, err := lintTypeCheck(io, memPkg, gs)
+			if !pkg.Draft {
+				foundErr, err := lintTypeCheck(io, pkg.Dir, memPkg, gs)
 				if err != nil {
 					io.ErrPrintln(err)
 					hasError = true
@@ -156,7 +184,7 @@ func execLint(cfg *lintCfg, args []string, io commands.IO) error {
 					hasError = true
 				}
 			} else if verbose {
-				io.ErrPrintfln("%s: module is draft, skipping type check", pkgPath)
+				io.ErrPrintfln("%s: module is draft, skipping type check", logName)
 			}
 
 			tm := test.Machine(gs, goio.Discard, memPkg.Path)
@@ -182,8 +210,8 @@ func execLint(cfg *lintCfg, args []string, io commands.IO) error {
 	return nil
 }
 
-func lintTypeCheck(io commands.IO, memPkg *gnovm.MemPackage, testStore gno.Store) (errorsFound bool, err error) {
-	tcErr := gno.TypeCheckMemPackageTest(memPkg, testStore)
+func lintTypeCheck(io commands.IO, pkgDir string, memPkg *gnovm.MemPackage, testStore gno.Store) (errorsFound bool, err error) {
+	tcErr := gno.TypeCheckMemPackageTest(pkgDir, memPkg, testStore)
 	if tcErr == nil {
 		return false, nil
 	}
@@ -242,12 +270,12 @@ func lintTestFiles(memPkg *gnovm.MemPackage) *gno.FileSet {
 	return testfiles
 }
 
-func guessSourcePath(pkg, source string) string {
-	if info, err := os.Stat(pkg); !os.IsNotExist(err) && !info.IsDir() {
-		pkg = filepath.Dir(pkg)
+func guessSourcePath(pkgDir, source string) string {
+	if info, err := os.Stat(pkgDir); !os.IsNotExist(err) && !info.IsDir() {
+		pkgDir = filepath.Dir(pkgDir)
 	}
 
-	sourceJoin := filepath.Join(pkg, source)
+	sourceJoin := filepath.Join(pkgDir, source)
 	if _, err := os.Stat(sourceJoin); !os.IsNotExist(err) {
 		return filepath.Clean(sourceJoin)
 	}
@@ -256,7 +284,7 @@ func guessSourcePath(pkg, source string) string {
 		return filepath.Clean(source)
 	}
 
-	return filepath.Clean(pkg)
+	return filepath.Clean(pkgDir)
 }
 
 // reParseRecover is a regex designed to parse error details from a string.
@@ -264,7 +292,7 @@ func guessSourcePath(pkg, source string) string {
 // XXX: Ideally, error handling should encapsulate location details within a dedicated error type.
 var reParseRecover = regexp.MustCompile(`^([^:]+)((?::(?:\d+)){1,2}):? *(.*)$`)
 
-func catchRuntimeError(pkgPath string, stderr goio.WriteCloser, action func()) (hasError bool) {
+func catchRuntimeError(pkgDir string, stderr goio.WriteCloser, action func()) (hasError bool) {
 	defer func() {
 		// Errors catched here mostly come from: gnovm/pkg/gnolang/preprocess.go
 		r := recover()
@@ -275,21 +303,21 @@ func catchRuntimeError(pkgPath string, stderr goio.WriteCloser, action func()) (
 		switch verr := r.(type) {
 		case *gno.PreprocessError:
 			err := verr.Unwrap()
-			fmt.Fprintln(stderr, issueFromError(pkgPath, err).String())
+			fmt.Fprintln(stderr, issueFromError(pkgDir, err).String())
 		case error:
 			errors := multierr.Errors(verr)
 			for _, err := range errors {
 				errList, ok := err.(scanner.ErrorList)
 				if ok {
 					for _, errorInList := range errList {
-						fmt.Fprintln(stderr, issueFromError(pkgPath, errorInList).String())
+						fmt.Fprintln(stderr, issueFromError(pkgDir, errorInList).String())
 					}
 				} else {
-					fmt.Fprintln(stderr, issueFromError(pkgPath, err).String())
+					fmt.Fprintln(stderr, issueFromError(pkgDir, err).String())
 				}
 			}
 		case string:
-			fmt.Fprintln(stderr, issueFromError(pkgPath, errors.New(verr)).String())
+			fmt.Fprintln(stderr, issueFromError(pkgDir, errors.New(verr)).String())
 		default:
 			panic(r)
 		}
@@ -299,21 +327,21 @@ func catchRuntimeError(pkgPath string, stderr goio.WriteCloser, action func()) (
 	return
 }
 
-func issueFromError(pkgPath string, err error) lintIssue {
+func issueFromError(pkgDir string, err error) lintIssue {
 	var issue lintIssue
 	issue.Confidence = 1
 	issue.Code = lintGnoError
 
 	parsedError := strings.TrimSpace(err.Error())
-	parsedError = strings.TrimPrefix(parsedError, pkgPath+"/")
+	parsedError = strings.TrimPrefix(parsedError, pkgDir+"/")
 
 	matches := reParseRecover.FindStringSubmatch(parsedError)
 	if len(matches) > 0 {
-		sourcepath := guessSourcePath(pkgPath, matches[1])
+		sourcepath := guessSourcePath(pkgDir, matches[1])
 		issue.Location = sourcepath + matches[2]
 		issue.Msg = strings.TrimSpace(matches[3])
 	} else {
-		issue.Location = fmt.Sprintf("%s:0", filepath.Clean(pkgPath))
+		issue.Location = fmt.Sprintf("%s:0", filepath.Clean(pkgDir))
 		issue.Msg = err.Error()
 	}
 	return issue

@@ -8,8 +8,8 @@ import (
 	"path/filepath"
 
 	"github.com/gnolang/gno/gnovm"
-	"github.com/gnolang/gno/gnovm/cmd/gno/internal/pkgdownload"
 	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
+	"github.com/gnolang/gno/gnovm/pkg/packages/pkgdownload"
 )
 
 type ExamplesPackageFetcher struct{}

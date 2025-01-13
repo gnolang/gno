@@ -1,10 +1,11 @@
-package gnomod
+package packages
 
 import (
 	"os"
 	"path/filepath"
 	"testing"
 
+	"github.com/gnolang/gno/gnovm/pkg/packages/pkgdownload/examplespkgfetcher"
 	"github.com/gnolang/gno/tm2/pkg/testutils"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -74,11 +75,11 @@ func TestListAndNonDraftPkgs(t *testing.T) {
 			}
 
 			// List packages
-			pkgs, err := ListPkgs(dirPath)
+			pkgs, err := Load(&LoadConfig{AllowEmpty: true, Fetcher: examplespkgfetcher.New()}, filepath.Join(dirPath, "..."))
 			require.NoError(t, err)
 			assert.Equal(t, len(tc.outListPkgs), len(pkgs))
 			for _, p := range pkgs {
-				assert.Contains(t, tc.outListPkgs, p.Name)
+				assert.Contains(t, tc.outListPkgs, p.ImportPath)
 			}
 
 			// Sort packages
@@ -89,7 +90,7 @@ func TestListAndNonDraftPkgs(t *testing.T) {
 			nonDraft := sorted.GetNonDraftPkgs()
 			assert.Equal(t, len(tc.outNonDraftPkgs), len(nonDraft))
 			for _, p := range nonDraft {
-				assert.Contains(t, tc.outNonDraftPkgs, p.Name)
+				assert.Contains(t, tc.outNonDraftPkgs, p.ImportPath)
 			}
 		})
 	}
@@ -117,35 +118,35 @@ func TestSortPkgs(t *testing.T) {
 	}{
 		{
 			desc:     "empty_input",
-			in:       []Pkg{},
+			in:       []*Package{},
 			expected: make([]string, 0),
 		}, {
 			desc: "no_dependencies",
-			in: []Pkg{
-				{Name: "pkg1", Dir: "/path/to/pkg1", Imports: []string{}},
-				{Name: "pkg2", Dir: "/path/to/pkg2", Imports: []string{}},
-				{Name: "pkg3", Dir: "/path/to/pkg3", Imports: []string{}},
+			in: []*Package{
+				{ImportPath: "pkg1", Dir: "/path/to/pkg1", Imports: ImportsMap{}},
+				{ImportPath: "pkg2", Dir: "/path/to/pkg2", Imports: ImportsMap{}},
+				{ImportPath: "pkg3", Dir: "/path/to/pkg3", Imports: ImportsMap{}},
 			},
 			expected: []string{"pkg1", "pkg2", "pkg3"},
 		}, {
 			desc: "circular_dependencies",
-			in: []Pkg{
-				{Name: "pkg1", Dir: "/path/to/pkg1", Imports: []string{"pkg2"}},
-				{Name: "pkg2", Dir: "/path/to/pkg2", Imports: []string{"pkg1"}},
+			in: []*Package{
+				{ImportPath: "pkg1", Dir: "/path/to/pkg1", Imports: ImportsMap{FileKindPackageSource: []string{"pkg2"}}},
+				{ImportPath: "pkg2", Dir: "/path/to/pkg2", Imports: ImportsMap{FileKindPackageSource: []string{"pkg1"}}},
 			},
 			shouldErr: true,
 		}, {
 			desc: "missing_dependencies",
-			in: []Pkg{
-				{Name: "pkg1", Dir: "/path/to/pkg1", Imports: []string{"pkg2"}},
+			in: []*Package{
+				{ImportPath: "pkg1", Dir: "/path/to/pkg1", Imports: ImportsMap{FileKindPackageSource: []string{"pkg2"}}},
 			},
 			shouldErr: true,
 		}, {
 			desc: "valid_dependencies",
-			in: []Pkg{
-				{Name: "pkg1", Dir: "/path/to/pkg1", Imports: []string{"pkg2"}},
-				{Name: "pkg2", Dir: "/path/to/pkg2", Imports: []string{"pkg3"}},
-				{Name: "pkg3", Dir: "/path/to/pkg3", Imports: []string{}},
+			in: []*Package{
+				{ImportPath: "pkg1", Dir: "/path/to/pkg1", Imports: ImportsMap{FileKindPackageSource: []string{"pkg2"}}},
+				{ImportPath: "pkg2", Dir: "/path/to/pkg2", Imports: ImportsMap{FileKindPackageSource: []string{"pkg3"}}},
+				{ImportPath: "pkg3", Dir: "/path/to/pkg3", Imports: ImportsMap{}},
 			},
 			expected: []string{"pkg3", "pkg2", "pkg1"},
 		},
@@ -157,7 +158,7 @@ func TestSortPkgs(t *testing.T) {
 			} else {
 				require.NoError(t, err)
 				for i := range tc.expected {
-					assert.Equal(t, tc.expected[i], sorted[i].Name)
+					assert.Equal(t, tc.expected[i], sorted[i].ImportPath)
 				}
 			}
 		})

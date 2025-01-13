@@ -10,6 +10,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime/debug"
+	"strconv"
 	"strings"
 	"time"
 
@@ -19,7 +20,6 @@ import (
 	teststdlibs "github.com/gnolang/gno/gnovm/tests/stdlibs"
 	teststd "github.com/gnolang/gno/gnovm/tests/stdlibs/std"
 	"github.com/gnolang/gno/tm2/pkg/db/memdb"
-	osm "github.com/gnolang/gno/tm2/pkg/os"
 	"github.com/gnolang/gno/tm2/pkg/std"
 	"github.com/gnolang/gno/tm2/pkg/store/dbadapter"
 	storetypes "github.com/gnolang/gno/tm2/pkg/store/types"
@@ -28,6 +28,7 @@ import (
 // NOTE: this isn't safe, should only be used for testing.
 func Store(
 	rootDir string,
+	pkgs map[string]*packages.Package,
 	withExtern bool,
 	stdin io.Reader,
 	stdout, stderr io.Writer,
@@ -36,6 +37,8 @@ func Store(
 	resStore gno.Store,
 ) {
 	getPackage := func(pkgPath string, store gno.Store) (pn *gno.PackageNode, pv *gno.PackageValue) {
+		// fmt.Println("getting pkg", pkgPath)
+
 		if pkgPath == "" {
 			panic(fmt.Sprintf("invalid zero package path in testStore().pkgGetter"))
 		}
@@ -134,13 +137,14 @@ func Store(
 			return
 		}
 
-		// if examples package...
-		examplePath := filepath.Join(rootDir, "examples", pkgPath)
-		if osm.DirExists(examplePath) {
-			memPkg := gno.MustReadMemPackage(examplePath, pkgPath)
+		// if known package
+		if pkg, ok := pkgs[pkgPath]; ok {
+			memPkg := gno.MustReadMemPackage(pkg.Dir, pkgPath)
 			if memPkg.IsEmpty() {
 				panic(fmt.Sprintf("found an empty package %q", pkgPath))
 			}
+
+			// fmt.Println("loading", pkgPath, "from", pkg.Dir, "err", pkg.Error)
 
 			send := std.Coins{}
 			ctx := Context(pkgPath, send)
@@ -153,6 +157,7 @@ func Store(
 			pn, pv = m2.RunMemPackage(memPkg, true)
 			return
 		}
+
 		return nil, nil
 	}
 	db := memdb.NewMemDB()
@@ -242,20 +247,26 @@ func LoadImports(store gno.Store, memPkg *gnovm.MemPackage) (err error) {
 	}()
 
 	fset := token.NewFileSet()
-	importsMap, err := packages.Imports(memPkg, fset)
+	importsMap, err := packages.ImportsSpecs(memPkg, fset)
 	if err != nil {
 		return err
 	}
 	imports := importsMap.Merge(packages.FileKindPackageSource, packages.FileKindTest, packages.FileKindXTest)
-	for _, imp := range imports {
-		if gno.IsRealmPath(imp.PkgPath) {
+	for _, im := range imports {
+		pkgPath, err := strconv.Unquote(im.Path.Value)
+		if err != nil {
+			// should not happen - parser.ParseFile should already ensure we get
+			// a valid string literal here.
+			panic(fmt.Errorf("%v: unexpected invalid import path: %v", fset.Position(im.Pos()).String(), im.Path.Value))
+		}
+		if gno.IsRealmPath(pkgPath) {
 			// Don't eagerly load realms.
 			// Realms persist state and can change the state of other realms in initialization.
 			continue
 		}
-		pkg := store.GetPackage(imp.PkgPath, true)
+		pkg := store.GetPackage(pkgPath, true)
 		if pkg == nil {
-			return fmt.Errorf("%v: unknown import path %v", fset.Position(imp.Spec.Pos()).String(), imp.PkgPath)
+			return fmt.Errorf("%s: unknown import path %s", fset.Position(im.Pos()).String(), pkgPath)
 		}
 	}
 	return nil

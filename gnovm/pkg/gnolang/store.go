@@ -3,6 +3,7 @@ package gnolang
 import (
 	"fmt"
 	"reflect"
+	dbg "runtime/debug"
 	"slices"
 	"strconv"
 	"strings"
@@ -711,6 +712,7 @@ func (ds *defaultStore) GetBlockNodeSafe(loc Location) BlockNode {
 func (ds *defaultStore) SetBlockNode(bn BlockNode) {
 	loc := bn.GetLocation()
 	if loc.IsZero() {
+		dbg.PrintStack()
 		panic("unexpected zero location in blocknode")
 	}
 	// save node to backend.

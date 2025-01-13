@@ -1,6 +1,7 @@
 package packages
 
 import (
+	"go/token"
 	"os"
 	"path/filepath"
 	"testing"
@@ -112,7 +113,7 @@ func TestImports(t *testing.T) {
 	// - ignore subdirs
 	// - ignore duplicate
 	// - should be sorted
-	expected := map[FileKind][]string{
+	expected := ImportsMap{
 		FileKindPackageSource: {
 			"gno.land/p/demo/pkg1",
 			"gno.land/p/demo/pkg2",
@@ -145,18 +146,13 @@ func TestImports(t *testing.T) {
 	pkg, err := gnolang.ReadMemPackage(tmpDir, "test")
 	require.NoError(t, err)
 
-	importsMap, err := Imports(pkg, nil)
+	fset := token.NewFileSet()
+
+	importsSpec, err := ImportsSpecs(pkg, nil)
 	require.NoError(t, err)
 
 	// ignore specs
-	got := map[FileKind][]string{}
-	for key, vals := range importsMap {
-		stringVals := make([]string, len(vals))
-		for i, val := range vals {
-			stringVals[i] = val.PkgPath
-		}
-		got[key] = stringVals
-	}
+	got := ImportsMapFromSpecs(importsSpec, fset)
 
 	require.Equal(t, expected, got)
 }

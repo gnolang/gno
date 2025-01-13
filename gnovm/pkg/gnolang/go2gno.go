@@ -500,19 +500,19 @@ type MemPackageGetter interface {
 //
 // If format is true, the code will be automatically updated with the
 // formatted source code.
-func TypeCheckMemPackage(mempkg *gnovm.MemPackage, getter MemPackageGetter, format bool) error {
-	return typeCheckMemPackage(mempkg, getter, false, format)
+func TypeCheckMemPackage(pkgDir string, mempkg *gnovm.MemPackage, getter MemPackageGetter, format bool) error {
+	return typeCheckMemPackage(pkgDir, mempkg, getter, false, format)
 }
 
 // TypeCheckMemPackageTest performs the same type checks as [TypeCheckMemPackage],
 // but allows re-declarations.
 //
 // Note: like TypeCheckMemPackage, this function ignores tests and filetests.
-func TypeCheckMemPackageTest(mempkg *gnovm.MemPackage, getter MemPackageGetter) error {
-	return typeCheckMemPackage(mempkg, getter, true, false)
+func TypeCheckMemPackageTest(pkgDir string, mempkg *gnovm.MemPackage, getter MemPackageGetter) error {
+	return typeCheckMemPackage(pkgDir, mempkg, getter, true, false)
 }
 
-func typeCheckMemPackage(mempkg *gnovm.MemPackage, getter MemPackageGetter, testing, format bool) error {
+func typeCheckMemPackage(pkgDir string, mempkg *gnovm.MemPackage, getter MemPackageGetter, testing, format bool) error {
 	var errs error
 	imp := &gnoImporter{
 		getter: getter,
@@ -526,7 +526,11 @@ func typeCheckMemPackage(mempkg *gnovm.MemPackage, getter MemPackageGetter, test
 	}
 	imp.cfg.Importer = imp
 
-	_, err := imp.parseCheckMemPackage(mempkg, format)
+	if pkgDir == "" {
+		pkgDir = mempkg.Path
+	}
+
+	_, err := imp.parseCheckMemPackage(pkgDir, mempkg, format)
 	// prefer to return errs instead of err:
 	// err will generally contain only the first error encountered.
 	if errs != nil {
@@ -571,12 +575,12 @@ func (g *gnoImporter) ImportFrom(path, _ string, _ types.ImportMode) (*types.Pac
 		return nil, err
 	}
 	fmt := false
-	result, err := g.parseCheckMemPackage(mpkg, fmt)
+	result, err := g.parseCheckMemPackage("", mpkg, fmt)
 	g.cache[path] = gnoImporterResult{pkg: result, err: err}
 	return result, err
 }
 
-func (g *gnoImporter) parseCheckMemPackage(mpkg *gnovm.MemPackage, fmt bool) (*types.Package, error) {
+func (g *gnoImporter) parseCheckMemPackage(pkgDir string, mpkg *gnovm.MemPackage, fmt bool) (*types.Package, error) {
 	// This map is used to allow for function re-definitions, which are allowed
 	// in Gno (testing context) but not in Go.
 	// This map links each function identifier with a closure to remove its
@@ -600,7 +604,7 @@ func (g *gnoImporter) parseCheckMemPackage(mpkg *gnovm.MemPackage, fmt bool) (*t
 		}
 
 		const parseOpts = parser.ParseComments | parser.DeclarationErrors | parser.SkipObjectResolution
-		f, err := parser.ParseFile(fset, path.Join(mpkg.Path, file.Name), file.Body, parseOpts)
+		f, err := parser.ParseFile(fset, path.Join(pkgDir, file.Name), file.Body, parseOpts)
 		if err != nil {
 			errs = multierr.Append(errs, err)
 			continue

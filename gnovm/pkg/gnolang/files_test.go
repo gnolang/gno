@@ -12,6 +12,7 @@ import (
 	"testing"
 
 	"github.com/gnolang/gno/gnovm/pkg/gnolang"
+	"github.com/gnolang/gno/gnovm/pkg/packages"
 	"github.com/gnolang/gno/gnovm/pkg/test"
 	"github.com/stretchr/testify/require"
 )
@@ -38,6 +39,10 @@ func TestFiles(t *testing.T) {
 	rootDir, err := filepath.Abs("../../../")
 	require.NoError(t, err)
 
+	pkgs, err := packages.Load(&packages.LoadConfig{}, filepath.Join(rootDir, "examples", "...."))
+	require.NoError(t, err)
+	pkgsMap := packages.NewPackagesMap(pkgs...)
+
 	newOpts := func() *test.TestOptions {
 		o := &test.TestOptions{
 			RootDir: rootDir,
@@ -46,7 +51,7 @@ func TestFiles(t *testing.T) {
 			Sync:    *withSync,
 		}
 		o.BaseStore, o.TestStore = test.Store(
-			rootDir, true,
+			rootDir, pkgsMap, true,
 			nopReader{}, o.WriterForStore(), io.Discard,
 		)
 		return o
@@ -121,7 +126,7 @@ func TestStdlibs(t *testing.T) {
 			capture = new(bytes.Buffer)
 			out = capture
 		}
-		opts = test.NewTestOptions(rootDir, nopReader{}, out, out)
+		opts = test.NewTestOptions(rootDir, make(map[string]*packages.Package), nopReader{}, out, out)
 		opts.Verbose = true
 		return
 	}
