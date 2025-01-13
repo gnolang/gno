@@ -19,7 +19,6 @@ func (m *Machine) doOpValueDecl() {
 	for i := 0; i < len(s.NameExprs); i++ {
 		var tv TypedValue
 		if rvs == nil {
-			debug2.Println2("rvs is nil, using default value")
 			// NOTE: Go/Gno wart.
 			// implicit interface casting could
 			// requiring the consideration of the typed-nil case.
@@ -28,6 +27,7 @@ func (m *Machine) doOpValueDecl() {
 			} else {
 				tv = TypedValue{T: nt, V: defaultValue(m.Alloc, nt)}
 			}
+			debug2.Println2("rvs is nil, using default value,: ", tv)
 		} else {
 			tv = rvs[i]
 		}
@@ -44,7 +44,7 @@ func (m *Machine) doOpValueDecl() {
 				} else {
 					if debug {
 						if nt.TypeID() != tv.T.TypeID() &&
-							baseOf(nt).TypeID() != tv.T.TypeID() {
+								baseOf(nt).TypeID() != tv.T.TypeID() {
 							panic(fmt.Sprintf(
 								"type mismatch: %s vs %s",
 								nt.TypeID(),

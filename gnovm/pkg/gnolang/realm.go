@@ -555,7 +555,7 @@ func (rlm *Realm) incRefCreatedDescendants(store Store, oo Object) {
 	debug2.Println2("---incRefCreatedDescendants from oo: ", oo)
 	debug2.Println2("---oo.GetOriginRealm: ", oo.GetOriginRealm())
 	debug2.Println2("---oo.GetRefCount: ", oo.GetRefCount())
-	debug2.Println2("---oo.GetObjectID: ", oo.GetObjectInfo())
+	debug2.Println2("---oo.GetObjectInfo: ", oo.GetObjectInfo())
 	debug2.Println2("oo.GetIsRef: ", oo.GetIsRef())
 
 	if debug {

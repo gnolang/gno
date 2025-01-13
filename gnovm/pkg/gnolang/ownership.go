@@ -160,13 +160,13 @@ type ObjectInfo struct {
 // Note that "owner" is nil.
 func (oi *ObjectInfo) Copy() ObjectInfo {
 	return ObjectInfo{
-		ID:          oi.ID,
-		Hash:        oi.Hash.Copy(),
-		OwnerID:     oi.OwnerID,
-		ModTime:     oi.ModTime,
-		RefCount:    oi.RefCount,
-		IsEscaped:   oi.IsEscaped,
-		originRealm: oi.originRealm,
+		ID:        oi.ID,
+		Hash:      oi.Hash.Copy(),
+		OwnerID:   oi.OwnerID,
+		ModTime:   oi.ModTime,
+		RefCount:  oi.RefCount,
+		IsEscaped: oi.IsEscaped,
+		//originRealm: oi.originRealm,
 		/*
 			// XXX do the following need copying too?
 			isDirty:          oi.isDirty,
@@ -396,55 +396,54 @@ func (tv *TypedValue) GetOriginPkg(store Store) (originPkg PkgID) {
 	debug2.Println2("obj: ", obj, reflect.TypeOf(obj))
 	if obj != nil {
 		originPkg = obj.GetOriginRealm()
-		if originPkg.IsZero() {
-			originPkg = obj.GetObjectID().PkgID
+		if !originPkg.IsZero() {
+			return
 		}
-		debug2.Println2("obj.GetObjectInfo(): ", obj.GetObjectInfo())
+		originPkg = obj.GetObjectID().PkgID
+		if !originPkg.IsZero() {
+			return
+		}
 	}
-	debug2.Println2("obj.originPkg: ", originPkg)
 
 	// get pkgId from type
 	getPkgId := func(t Type) (pkgId PkgID) {
-		defer debug2.Println2("getPkgId: ", pkgId)
 		if dt, ok := t.(*DeclaredType); ok {
-			debug2.Printf2("dt: %v, dt.Base: \n", dt, dt.Base)
-			if _, ok := dt.Base.(*FuncType); !ok {
-				debug2.Println2("---dt.base.PkgPath: ", dt.Base.GetPkgPath())
-				if IsRealmPath(dt.Base.GetPkgPath()) {
-					pkgId = PkgIDFromPkgPath(dt.Base.GetPkgPath())
-					return
-				}
+			debug2.Printf2("getPkgId, dt: %v, dt.Base: %v, dt.Base.PkgPath: %s \n", dt, dt.Base, dt.Base.GetPkgPath())
+			if IsRealmPath(dt.Base.GetPkgPath()) {
+				pkgId = PkgIDFromPkgPath(dt.Base.GetPkgPath())
+				return
 			}
 		}
 		return
 	}
 
 	// if still zero
-	if originPkg.IsZero() {
-		switch cv := obj.(type) {
-		case *ArrayValue:
-			if IsRealmPath(tv.T.Elem().GetPkgPath()) {
-				originPkg = PkgIDFromPkgPath(tv.T.Elem().GetPkgPath())
-			}
-			return
-		case *Block:
-			originPkg = PkgIDFromPkgPath(cv.Source.GetLocation().PkgPath)
-			return
-		case *HeapItemValue:
-			originPkg = getPkgId(cv.Value.T)
-			return
-		case *BoundMethodValue:
-			debug2.Println2("BoundMethodValue, recv: ", cv.Receiver)
-			if pv, ok := cv.Receiver.V.(PointerValue); ok {
-				originPkg = getPkgId(pv.TV.T)
-			}
-			return
-		case *MapValue, *StructValue:
-			originPkg = getPkgId(tv.T)
-			return
-		default:
-			// do nothing
+	switch cv := obj.(type) {
+	case *ArrayValue:
+		// if array is real, retrieved from objectID,
+		// otherwise, it's retrieved from elem type.
+		// it panics while attach this kind of slice/array value: `var fs []crossrealm.Fooer`,
+		if IsRealmPath(tv.T.Elem().GetPkgPath()) {
+			originPkg = PkgIDFromPkgPath(tv.T.Elem().GetPkgPath())
 		}
+		return
+	case *Block:
+		originPkg = PkgIDFromPkgPath(cv.Source.GetLocation().PkgPath)
+		return
+	case *HeapItemValue:
+		originPkg = getPkgId(cv.Value.T)
+		return
+	case *BoundMethodValue:
+		debug2.Println2("BoundMethodValue, recv: ", cv.Receiver)
+		if pv, ok := cv.Receiver.V.(PointerValue); ok {
+			originPkg = getPkgId(pv.TV.T)
+		}
+		return
+	case *MapValue, *StructValue:
+		originPkg = getPkgId(tv.T)
+		return
+	default:
+		// do nothing
 	}
 	return
 }

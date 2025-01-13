@@ -217,7 +217,6 @@ func (m *Machine) SetActivePackage(pv *PackageValue) {
 	}
 	m.Package = pv
 	m.Realm = pv.GetRealm()
-	//fmt.Println("---SetActivePackage, m.Realm", m.Realm)
 	m.Blocks = []*Block{
 		pv.GetBlock(m.Store),
 	}
@@ -325,9 +324,6 @@ func (m *Machine) runMemPackage(memPkg *std.MemPackage, save, overrides bool) (*
 		// store mempackage
 		m.Store.AddMemPackage(memPkg)
 		if throwaway != nil {
-			debug2.Println2("m.Realm: ", m.Realm)
-			debug2.Println2("m.Realm created: ", m.Realm.created)
-			debug2.Println2("m.Realm updated: ", m.Realm.updated)
 			m.Realm = nil
 		}
 	}
@@ -485,27 +481,25 @@ func (m *Machine) TestFunc(t *testing.T, tv TypedValue) {
 // Stacktrace returns the stack trace of the machine.
 // It collects the executions and frames from the machine's frames and statements.
 func (m *Machine) Stacktrace() (stacktrace Stacktrace) {
-	if len(m.Frames) == 0 {
+	if len(m.Frames) == 0 || len(m.Stmts) == 0 {
 		return
 	}
 
 	calls := make([]StacktraceCall, 0, len(m.Stmts))
 	var nextStmtIndex int
-	if len(m.Stmts) > 0 {
-		nextStmtIndex = len(m.Stmts) - 1
-		for i := len(m.Frames) - 1; i >= 0; i-- {
-			if m.Frames[i].IsCall() {
-				stm := m.Stmts[nextStmtIndex]
-				bs := stm.(*bodyStmt)
-				stm = bs.Body[bs.NextBodyIndex-1]
-				calls = append(calls, StacktraceCall{
-					Stmt:  stm,
-					Frame: m.Frames[i],
-				})
-			}
-			// if the frame is a call, the next statement is the last statement of the frame.
-			nextStmtIndex = m.Frames[i].NumStmts - 1
+	nextStmtIndex = len(m.Stmts) - 1
+	for i := len(m.Frames) - 1; i >= 0; i-- {
+		if m.Frames[i].IsCall() {
+			stm := m.Stmts[nextStmtIndex]
+			bs := stm.(*bodyStmt)
+			stm = bs.Body[bs.NextBodyIndex-1]
+			calls = append(calls, StacktraceCall{
+				Stmt:  stm,
+				Frame: m.Frames[i],
+			})
 		}
+		// if the frame is a call, the next statement is the last statement of the frame.
+		nextStmtIndex = m.Frames[i].NumStmts - 1
 	}
 
 	// if the stacktrace is too long, we trim it down to maxStacktraceSize
@@ -750,21 +744,19 @@ func (m *Machine) runInitFromUpdates(pv *PackageValue, updates []TypedValue) {
 // Save the machine's package using realm finalization deep crawl.
 // Also saves declared types.
 // This happens before any init calls.
-// Returns a throwaway realm package is not a realm,
+// Returns a throwaway realm package if not a realm,
 // such as stdlibs or /p/ packages.
 func (m *Machine) saveNewPackageValuesAndTypes() (throwaway *Realm) {
-	debug2.Println2("saveNewPackageValuesAndTypes")
 	// save package value and dependencies.
 	pv := m.Package
+	debug2.Println2("saveNewPackageValuesAndTypes, pv is realm? ", pv.IsRealm())
 	if pv.IsRealm() {
-		debug2.Println2("pv is realm")
 		rlm := pv.Realm
 		rlm.MarkNewReal(pv)
 		rlm.FinalizeRealmTransaction(m.ReadOnly, m.Store)
 		// save package realm info.
 		m.Store.SetPackageRealm(rlm)
 	} else { // use a throwaway realm.
-		debug2.Println2("pv not realm")
 		rlm := NewRealm(pv.PkgPath)
 		rlm.MarkNewReal(pv)
 		rlm.FinalizeRealmTransaction(m.ReadOnly, m.Store)
@@ -1855,8 +1847,7 @@ func (m *Machine) PushFrameBasic(s Stmt) {
 // ensure the counts are consistent, otherwise we mask
 // bugs with frame pops.
 func (m *Machine) PushFrameCall(cx *CallExpr, fv *FuncValue, recv TypedValue) {
-	debug2.Println2("PushFrameCall, cx: ", cx)
-	//fmt.Println("---fv: ", fv)
+	debug2.Println2("PushFrameCall, CallExpr: ", cx)
 	debug2.Println2("m.Realm: ", m.Realm)
 	fr := &Frame{
 		Source:      cx,
@@ -1898,10 +1889,7 @@ func (m *Machine) PushFrameCall(cx *CallExpr, fv *FuncValue, recv TypedValue) {
 			recvOID := obj.GetObjectInfo().ID
 			debug2.Println2("---recvOID is: ", recvOID)
 			if recvOID.IsZero() {
-				debug2.Println2("!!! recvOID is ZERO!!!")
 				debug2.Println2("---recv is ZERO, it's not owned, recv: ", recv)
-				debug2.Println2("---recv is ZERO, m.realm: ", m.Realm)
-
 				// receiver isn't owned yet.
 				// just continue with current package and realm.
 				// XXX is this reasonable?
@@ -1913,21 +1901,12 @@ func (m *Machine) PushFrameCall(cx *CallExpr, fv *FuncValue, recv TypedValue) {
 			}
 		}
 	} else {
-		//fmt.Println("---receiver not defined")
+		debug2.Println2("receiver not defined")
 		pv := fv.GetPackage(m.Store)
 		if pv == nil {
 			panic(fmt.Sprintf("package value missing in store: %s", fv.PkgPath))
 		}
-		//fmt.Println("---pv: ", pv)
-		//fmt.Println("---pv: ", pv.Realm)
-		//fmt.Println("---PkgPath: ", pv.PkgPath)
-
-		//fmt.Println("---1, m.Realm : ", m.Realm)
-		//if IsRealmPath(pv.PkgPath) {
-		//	println("---isRealmPath")
-		//}
 		m.setCurrentPackage(pv) // maybe new realm
-		//fmt.Println("---2, m.Realm : ", m.Realm)
 	}
 }
 

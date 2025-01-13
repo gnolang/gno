@@ -11,13 +11,13 @@ type foo struct {
 	name string
 }
 
-func (foo) Foo() { println("hello " + std.CurrentRealm().PkgPath()) }
+func (*foo) Foo() { println("hello " + std.CurrentRealm().PkgPath()) }
 
 // XXX, no attach, default value is nil for slice
 var fs []crossrealm.Fooer
 
 func init() {
-	r := append(fs, foo{name: "1"})
+	r := append(fs, &foo{name: "1"})
 	// while attaching underlying arrayValue(the object),
 	// it panics since the array type if from external realm
 	fs = r
