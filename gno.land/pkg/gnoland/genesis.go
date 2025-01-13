@@ -12,12 +12,15 @@ import (
 	bft "github.com/gnolang/gno/tm2/pkg/bft/types"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
 	osm "github.com/gnolang/gno/tm2/pkg/os"
+	"github.com/gnolang/gno/tm2/pkg/sdk/auth"
 	"github.com/gnolang/gno/tm2/pkg/std"
 	"github.com/pelletier/go-toml"
 )
 
+const initGasPrice = "1ugnot/1000gas"
+
 // LoadGenesisBalancesFile loads genesis balances from the provided file path.
-func LoadGenesisBalancesFile(path string) ([]Balance, error) {
+func LoadGenesisBalancesFile(path string) (Balances, error) {
 	// each balance is in the form: g1xxxxxxxxxxxxxxxx=100000ugnot
 	content, err := osm.ReadFile(path)
 	if err != nil {
@@ -25,7 +28,7 @@ func LoadGenesisBalancesFile(path string) ([]Balance, error) {
 	}
 	lines := strings.Split(string(content), "\n")
 
-	balances := make([]Balance, 0, len(lines))
+	balances := make(Balances, len(lines))
 	for _, line := range lines {
 		line = strings.TrimSpace(line)
 
@@ -53,10 +56,7 @@ func LoadGenesisBalancesFile(path string) ([]Balance, error) {
 			return nil, fmt.Errorf("invalid balance coins %s: %w", parts[1], err)
 		}
 
-		balances = append(balances, Balance{
-			Address: addr,
-			Amount:  coins,
-		})
+		balances.Set(addr, coins)
 	}
 
 	return balances, nil
@@ -168,7 +168,7 @@ func LoadPackage(pkg gnomod.Pkg, creator bft.Address, fee std.Fee, deposit std.C
 	var tx std.Tx
 
 	// Open files in directory as MemPackage.
-	memPkg := gno.ReadMemPackage(pkg.Dir, pkg.Name)
+	memPkg := gno.MustReadMemPackage(pkg.Dir, pkg.Name)
 	err := memPkg.Validate()
 	if err != nil {
 		return tx, fmt.Errorf("invalid package: %w", err)
@@ -186,4 +186,21 @@ func LoadPackage(pkg gnomod.Pkg, creator bft.Address, fee std.Fee, deposit std.C
 	tx.Signatures = make([]std.Signature, len(tx.GetSigners()))
 
 	return tx, nil
+}
+
+func DefaultGenState() GnoGenesisState {
+	authGen := auth.DefaultGenesisState()
+	gp, err := std.ParseGasPrice(initGasPrice)
+	if err != nil {
+		panic(err)
+	}
+	authGen.Params.InitialGasPrice = gp
+
+	gs := GnoGenesisState{
+		Balances: []Balance{},
+		Txs:      []TxWithMetadata{},
+		Auth:     authGen,
+	}
+
+	return gs
 }

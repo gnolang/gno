@@ -1,3 +1,4 @@
+# This workflow must be kept in sync to some extent with bot-proxy.yml
 name: GitHub Bot
 
 on:
@@ -13,6 +14,10 @@ on:
       - synchronize # PR head updated
       - converted_to_draft
       - ready_for_review
+
+  # Watch for changes on PR reviews
+  pull_request_review:
+    types: [submitted, edited, dismissed]
 
   # Watch for changes on PR comment
   issue_comment:
@@ -33,8 +38,14 @@ jobs:
   # handle the parallel processing of the pull-requests
   define-prs-matrix:
     name: Define PRs matrix
-    # Prevent bot from retriggering itself and ignore event emitted by codecov
-    if: ${{ github.actor != vars.GH_BOT_LOGIN && github.actor != 'codecov[bot]' }}
+    # Skip this workflow if:
+    #   - the bot is retriggering itself
+    #   - the event is emitted by codecov
+    #   - the event is a review on a pull request from a fork (see save-pr-number job below)
+    if: |
+      github.actor != vars.GH_BOT_LOGIN &&
+      github.actor != 'codecov[bot]' &&
+      (github.event_name != 'pull_request_review' || github.event.pull_request.base.repo.full_name == github.event.pull_request.head.repo.full_name)
     runs-on: ubuntu-latest
     permissions:
       pull-requests: read
@@ -57,13 +68,36 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: go run . matrix -matrix-key 'pr-numbers' -verbose
 
+  # This job is executed if an event with read-only permission has triggered this
+  # workflow (e.g 'pull_request_review' on a pull request opened from a fork).
+  # In this case, this job persists the PR number in an artifact so that the
+  # proxy workflow can use it to rerun the current workflow with write permission.
+  # See bot-proxy.yml for more info.
+  save-pr-number:
+    name: Persist PR number for proxy
+    # Run this job if the event is a review on a pull request opened from a fork
+    if: github.event_name == 'pull_request_review' && github.event.pull_request.base.repo.full_name != github.event.pull_request.head.repo.full_name
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Write PR number to a file
+        env:
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: echo $PR_NUMBER > pr-number
+
+      - name: Upload it as an artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: pr-number
+          path: pr-number
+
   # This job processes each pull request in the matrix individually while ensuring
   # that a same PR cannot be processed concurrently by mutliple runners
   process-pr:
     name: Process PR
     needs: define-prs-matrix
     # Just skip this job if PR numbers matrix is empty (prevent failed state)
-    if: ${{ needs.define-prs-matrix.outputs.pr-numbers != '[]' && needs.define-prs-matrix.outputs.pr-numbers != '' }}
+    if: needs.define-prs-matrix.outputs.pr-numbers != '[]' && needs.define-prs-matrix.outputs.pr-numbers != ''
     runs-on: ubuntu-latest
     strategy:
       matrix:
