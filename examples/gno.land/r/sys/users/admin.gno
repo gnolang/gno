@@ -14,10 +14,11 @@ const (
 )
 
 var (
+	callerWhitelist = addrset.Set{}
+
+	// Safe objects
 	Ownable  = ownable.NewWithAddress(adminAddr) // Until a DAO is formed to manage this contract
 	Pausable = pausable.NewFromOwnable(Ownable)
-
-	callerWhitelist = addrset.Set{}
 )
 
 func init() {
