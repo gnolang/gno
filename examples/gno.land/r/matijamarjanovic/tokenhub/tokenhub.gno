@@ -14,7 +14,7 @@ import (
 	"gno.land/p/demo/ufmt"
 	"gno.land/p/moul/md"
 	"gno.land/r/demo/grc20reg"
-	"gno.land/r/demo/users" 
+	"gno.land/r/demo/users"
 )
 
 type GRC1155TokenInfo struct {
@@ -132,6 +132,22 @@ func MustGetGRC1155(key string) GRC1155TokenInfo {
 	return info
 }
 
+func GetBalancesAll(input string) string {
+	addr := getAddressForUsername(input)
+	if addr == "" {
+		panic("invalid address or username: " + input)
+	}
+	return getBalances(addr)
+}
+
+func GetBalances(input string) string {
+	addr := getAddressForUsername(input)
+	if addr == "" {
+		panic("invalid address or username: " + input)
+	}
+	return getNonZeroBalances(addr)
+}
+
 func Render(path string) string {
 	var sb strings.Builder
 	sb.WriteString(test)
@@ -149,7 +165,7 @@ func Render(path string) string {
 		}
 		sb.WriteString(md.BulletList(links))
 
-	case strings.HasPrefix(path, "token"): // grc20 
+	case strings.HasPrefix(path, "token"): // grc20
 		sb.WriteString(md.H1("GRC20 Tokens"))
 		var tokenItems []string
 
@@ -198,7 +214,7 @@ func Render(path string) string {
 			sb.WriteString("\n")
 		}
 
-	case strings.HasPrefix(path, "nft"): // grc721 
+	case strings.HasPrefix(path, "nft"): // grc721
 		sb.WriteString(md.H1("GRC721 NFTs"))
 		var nftItems []string
 
@@ -259,7 +275,7 @@ func Render(path string) string {
 			sb.WriteString("\n")
 		}
 
-	case strings.HasPrefix(path, "mt"): // grc1155 
+	case strings.HasPrefix(path, "mt"): // grc1155
 		sb.WriteString(md.H1("GRC1155 Multi-Tokens"))
 		var mtItems []string
 
@@ -340,7 +356,7 @@ func getBalances(addr std.Address) string {
 	balances := avl.NewTree()
 	var sb strings.Builder
 
-	// GRC721 
+	// GRC721
 	registeredNFTs.Iterate("", "", func(key string, value interface{}) bool {
 		nftGetter := value.(grc721.NFTGetter)
 		nft := nftGetter()
@@ -349,7 +365,7 @@ func getBalances(addr std.Address) string {
 		return false
 	})
 
-	// GRC20 
+	// GRC20
 	grc20reg.Iterate(func(key string, tokenGetter grc20.TokenGetter) bool {
 		token := tokenGetter()
 		balance := token.BalanceOf(addr)
@@ -400,7 +416,7 @@ func getNonZeroBalances(addr std.Address) string {
 	balances := avl.NewTree()
 	var sb strings.Builder
 
-	// GRC721 
+	// GRC721
 	registeredNFTs.Iterate("", "", func(key string, value interface{}) bool {
 		nftGetter := value.(grc721.NFTGetter)
 		nft := nftGetter()
@@ -411,7 +427,7 @@ func getNonZeroBalances(addr std.Address) string {
 		return false
 	})
 
-	// GRC20 
+	// GRC20
 	grc20reg.Iterate(func(key string, tokenGetter grc20.TokenGetter) bool {
 		token := tokenGetter()
 		balance := token.BalanceOf(addr)
@@ -421,7 +437,7 @@ func getNonZeroBalances(addr std.Address) string {
 		return false
 	})
 
-	// GRC1155 
+	// GRC1155
 	registeredMTs.Iterate("", "", func(key string, value interface{}) bool {
 		info := value.(GRC1155TokenInfo)
 		mt := info.Collection()
@@ -456,24 +472,6 @@ func getNonZeroBalances(addr std.Address) string {
 	return sb.String()
 }
 
-
-// these are just for testing purposes right now
-func GetBalancesAll(input string) string {
-	addr := getAddressForUsername(input)
-	if addr == "" {
-		panic("invalid address or username: " + input)
-	}
-	return getBalances(addr)
-}
-
-func GetBalances(input string) string {
-	addr := getAddressForUsername(input)
-	if addr == "" {
-		panic("invalid address or username: " + input)
-	}
-	return getNonZeroBalances(addr)
-}
-
 func getAddressForUsername(addrOrName string) std.Address {
 	addr := std.Address(addrOrName)
 
@@ -486,4 +484,3 @@ func getAddressForUsername(addrOrName string) std.Address {
 
 	return ""
 }
-
