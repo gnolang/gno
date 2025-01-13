@@ -14,23 +14,23 @@ import (
 
 var (
 	aboutMe				string
-	selectedPicture		string
+	selectedImage		string
 	owner 				*ownable.Ownable
 
 	githubUrl			string
 	linkedinUrl			string
-	imageUpdatePrice int64 = 1000000
+	imageUpdatePrice 	int64
 )
 
 func init() {
 	owner = ownable.NewWithAddress(registry.MainAddress())
 
 	aboutMe = "Hi, I'm Ivan Ursulovic, a computer engineering graduate, blockchain enthusiast, and backend developer specializing in ASP.NET. I love learning new things and taking on challenges."
-	selectedPicture = "https://i.ibb.co/W28NPkw/beograd.webp"
+	selectedImage = "https://i.ibb.co/W28NPkw/beograd.webp"
 
 	githubUrl = "https://github.com/ursulovic"
 	linkedinUrl = "https://www.linkedin.com/in/ivan-ursulovic-953310190/"
-
+	imageUpdatePrice = 5000000
 	hof.Register()
 }
 
@@ -50,7 +50,7 @@ func isValidURL(url string) bool {
     if !(strings.HasSuffix(url, ".jpg") || 
          strings.HasSuffix(url, ".png") || 
          strings.HasSuffix(url, ".gif") ||
-         strings.HasSuffix(url, ".webp")) { // Add webp since your current image uses it
+         strings.HasSuffix(url, ".webp")) {
         return false
     }
 
@@ -64,7 +64,7 @@ func isValidURL(url string) bool {
     return true
 }
 
-func UpdateSelectedPicture(url string) {
+func UpdateSelectedImage(url string) {
 	if !isValidURL(url) {
 		panic("Url is not valid!")
 	}
@@ -75,7 +75,7 @@ func UpdateSelectedPicture(url string) {
 		panic("Please send exactly " + strconv.Itoa(int(imageUpdatePrice)) + " ugnot")
 	}
 
-	selectedPicture = url
+	selectedImage = url
 }
 
 func renderSelectedImage() string {
@@ -87,10 +87,10 @@ func renderSelectedImage() string {
 	sb.WriteString(md.H2("📸 Featured Image"))
 	sb.WriteString("\n")
 	
-	sb.WriteString(md.Image("Belgrade Skyline", selectedPicture))
+	sb.WriteString(md.Image("", selectedImage))
 	sb.WriteString("\n")
 	
-	sb.WriteString(md.H4("✨ " + md.Link("Change this picture for 1 GNOT", "https://www.google.com") + " ✨"))
+	sb.WriteString(md.H4("✨ " + md.Link("Change this image for "+strconv.Itoa(int(imageUpdatePrice/1000000))+" GNOT. To update, set a direct image URL from ImgBB.", "https://www.google.com") + " ✨"))
 	
 	return sb.String()
 }

@@ -2,48 +2,97 @@ package home
 
 import (
     "std"
-    "strings"
-    "testing"
+	"testing"
+	"gno.land/p/demo/testutils"
 )
 
-func TestUpdatePfp(t *testing.T) {
-    owner := std.Address("g1d24j8fwnc0w5q427fauyey4gdd30qgu69k6n0x")
-    std.TestSetOrigCaller(owner)
+func TestUpdateGithubUrl(t *testing.T) {
+    caller := std.Address("g1d24j8fwnc0w5q427fauyey4gdd30qgu69k6n0x")
+    std.TestSetOrigCaller(caller)
 
-    pfp = "abc"
+    newUrl := "https://github.com/example"
 
-    UpdatePfp("https://i.ibb.co/W28NPkw/beograd.webp", "Test caption")
+    UpdateGithubUrl(newUrl)
 
-    if pfp != "https://i.ibb.co/W28NPkw/beograd.webp" {
-        t.Fatalf("Expected result: https://i.ibb.co/W28NPkw/beograd.webp, got %s", pfp)
+    if githubUrl != newUrl {
+        t.Fatalf("GitHub url not updated properly!")
+    }
+}
+
+func TestUpdateLinkedinUrl(t *testing.T) {
+    caller := std.Address("g1d24j8fwnc0w5q427fauyey4gdd30qgu69k6n0x")
+    std.TestSetOrigCaller(caller)
+
+    newUrl := "https://www.linkedin.com/in/example"
+
+    UpdateGithubUrl(newUrl)
+
+    if githubUrl != newUrl {
+        t.Fatalf("LinkedIn url not updated properly!")
     }
 }
 
 func TestUpdateAboutMe(t *testing.T) {
-    owner := std.Address("g1d24j8fwnc0w5q427fauyey4gdd30qgu69k6n0x")
-    std.TestSetOrigCaller(owner)
+    caller := std.Address("g1d24j8fwnc0w5q427fauyey4gdd30qgu69k6n0x")
+    std.TestSetOrigCaller(caller)
 
-    aboutMe = ""
+    newAboutMe := "This is new description!"
 
-    excpected := "Testing about me..."
+    UpdateAboutMe(newAboutMe)
 
-    UpdateAboutMe(excpected)
-
-    if aboutMe != excpected {
-        t.Fatalf("Excpected about me to be %s, got %s", excpected, aboutMe)
+    if aboutMe != newAboutMe {
+        t.Fatalf("About mew not updated properly!")
     }
 }
 
-func TestUpdatePhrase(t *testing.T) {
-    owner := std.Address("g1d24j8fwnc0w5q427fauyey4gdd30qgu69k6n0x")
-    std.TestSetOrigCaller(owner)
 
-    index := 0
-    newPhrase := "New test phrase"
+func TestUpdateSelectedImage(t *testing.T) {
+    var user = testutils.TestAddress("user")
+    std.TestSetOrigCaller(user)
 
-    UpdatePhrase(index, newPhrase)
+    validImageUrl := "https://i.ibb.co/hLtmnX0/beautiful-rain-forest-ang-ka-nature-trail-doi-inthanon-national-park-thailand-36703721.webp"
 
-    if phrases[index] != newPhrase {
-        t.Fatalf("Expected phrase at index %d to be %s, got %s", index, newPhrase, phrases[index])
+    coinsSent := std.NewCoins(std.NewCoin("ugnot", 5000000)) // Update to match the price expected by your function
+    std.TestSetOrigSend(coinsSent, std.NewCoins())
+    
+    UpdateSelectedImage(validImageUrl)
+
+    if selectedImage != validImageUrl {
+        t.Fatalf("Valid image URL rejected!")
+    }
+
+    invalidImageUrl := "https://ibb.co/Kb3rQNn"
+
+    defer func() {
+        if r := recover(); r == nil {
+            t.Fatalf("Expected panic for invalid image URL, but got no panic")
+        }
+    }()
+
+    UpdateSelectedImage(invalidImageUrl)
+
+    invalidCoins := std.NewCoins(std.NewCoin("ugnot", 1000000)) 
+    std.TestSetOrigSend(invalidCoins, std.NewCoins())
+
+    defer func() {
+        if r := recover(); r == nil {
+            t.Fatalf("Expected panic for incorrect coin denomination or amount, but got no panic")
+        }
+    }()
+
+    UpdateSelectedImage(validImageUrl)
+}
+
+
+func TestUpdateImagePrice(t *testing.T) {
+    caller := std.Address("g1d24j8fwnc0w5q427fauyey4gdd30qgu69k6n0x")
+    std.TestSetOrigCaller(caller)
+
+    var newImageUpdatePrice int64 = 3000000
+
+    UpdateImagePrice(newImageUpdatePrice)
+
+    if imageUpdatePrice != newImageUpdatePrice {
+        t.Fatalf("Image update price not updated properly!")
     }
 }
