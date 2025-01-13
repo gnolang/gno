@@ -247,7 +247,6 @@ func assertValidConstValue(store Store, last BlockNode, currExpr Expr) {
 Main:
 	switch currExpr := currExpr.(type) {
 	case *ConstExpr:
-	case *BasicLitExpr:
 	case *UnaryExpr:
 		// *, & is filter out previously since they are not primitive
 		assertValidConstValue(store, last, currExpr.X)
