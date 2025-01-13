@@ -12,8 +12,8 @@ To install gnogenesis, clone the repository and build the tool:
 
 ```shell
 git clone https://github.com/gnoland/gno.git
-cd gno
-make install.gnogenesis
+cd gno/contribs/gnogenesis
+make install
 ```
 
 This will compile and install `gnogenesis` to your system path, allowing you to run commands directly.
@@ -168,6 +168,10 @@ To clear specific transactions, use the transaction hash:
 
 ```shell
 gnogenesis txs remove "5HuU9LN8WUa2NsjiNxp8Xii9n0zlSGXc9UqzLHB+DPs="
+```
+To specify a deployer address (package creator) on add packages command
+```shell
+gnogenesis txs add packages ./examples --deployer-address=SOME_ADDRESS
 ```
 
 The transaction hash is the base64 encoding of the Amino-Binary encoded `std.Tx` transaction hash.

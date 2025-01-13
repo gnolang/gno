@@ -29,7 +29,7 @@ VERIFY_MOD_SUMS ?= false
 ########################################
 # Dev tools
 .PHONY: install
-install: install.gnokey install.gno install.gnodev install.gnogenesis
+install: install.gnokey install.gno install.gnodev
 
 # shortcuts to frequently used commands from sub-components.
 .PHONY: install.gnokey
@@ -45,10 +45,6 @@ install.gno:
 install.gnodev:
 	$(MAKE) --no-print-directory -C ./contribs/gnodev install
 	@printf "\033[0;32m[+] 'gnodev' has been installed. Read more in ./contribs/gnodev/\033[0m\n"
-.PHONY: install.gnogenesis
-install.gnogenesis:
-	$(MAKE) --no-print-directory -C ./contribs/gnogenesis install
-	@printf "\033[0;32m[+] 'gnogenesis' has been installed. Read more in ./contribs/gnogenesis/\033[0m\n"
 
 
 # old aliases
@@ -58,7 +54,7 @@ install_gnokey: install.gnokey
 install_gno: install.gno
 
 .PHONY: test
-test: test.components test.docker
+test: test.components
 
 .PHONY: test.components
 test.components:
@@ -67,14 +63,6 @@ test.components:
 	$(MAKE) --no-print-directory -C gno.land test
 	$(MAKE) --no-print-directory -C examples test
 	$(MAKE) --no-print-directory -C misc     test
-
-.PHONY: test.docker
-test.docker:
-	@if hash docker 2>/dev/null; then \
-		go test --tags=docker -count=1 -v ./misc/docker-integration; \
-	else \
-		echo "[-] 'docker' is missing, skipping ./misc/docker-integration tests."; \
-	fi
 
 .PHONY: fmt
 fmt:

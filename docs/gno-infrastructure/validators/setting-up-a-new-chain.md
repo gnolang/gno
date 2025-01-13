@@ -30,7 +30,7 @@ Makefile to install the `gnoland` binary:
 
 ```bash
 cd gno.land
-make install.gnoland install.gnogenesis
+make install.gnoland && make -C contribs/gnogenesis install
 ```
 
 To verify that you've installed the binary properly and that you are able to use

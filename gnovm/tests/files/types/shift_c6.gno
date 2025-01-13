@@ -7,7 +7,7 @@ func main() {
 	var r float32
 	r = 1 << x // untyped rhs to float32
 	println(r)
-	fmt.Printf("%T \n", r)
+	fmt.Printf("%T\n", r)
 }
 
 // Error:

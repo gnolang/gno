@@ -97,7 +97,7 @@ func TestGenesis_Txs_Remove(t *testing.T) {
 		}
 		require.NoError(t, genesis.SaveAs(tempGenesis.Name()))
 
-		txHash, err := getTxHash(txs[0])
+		txHash, err := getTxHash(txs[0].Tx)
 		require.NoError(t, err)
 
 		// Create the command
@@ -124,7 +124,7 @@ func TestGenesis_Txs_Remove(t *testing.T) {
 		assert.Len(t, state.Txs, len(txs)-1)
 
 		for _, tx := range state.Txs {
-			genesisTxHash, err := getTxHash(tx)
+			genesisTxHash, err := getTxHash(tx.Tx)
 			require.NoError(t, err)
 
 			assert.NotEqual(t, txHash, genesisTxHash)

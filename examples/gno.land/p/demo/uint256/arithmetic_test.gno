@@ -26,7 +26,7 @@ func TestAdd(t *testing.T) {
 		got := new(Uint).Add(x, y)
 
 		if got.Neq(want) {
-			t.Errorf("Add(%s, %s) = %v, want %v", tt.x, tt.y, got.ToString(), want.ToString())
+			t.Errorf("Add(%s, %s) = %v, want %v", tt.x, tt.y, got.String(), want.String())
 		}
 	}
 }
@@ -56,7 +56,7 @@ func TestAddOverflow(t *testing.T) {
 
 		if got.Cmp(want) != 0 || overflow != tt.overflow {
 			t.Errorf("AddOverflow(%s, %s) = (%s, %v), want (%s, %v)",
-				tt.x, tt.y, got.ToString(), overflow, tt.want, tt.overflow)
+				tt.x, tt.y, got.String(), overflow, tt.want, tt.overflow)
 		}
 	}
 }
@@ -81,7 +81,7 @@ func TestSub(t *testing.T) {
 		if got.Neq(want) {
 			t.Errorf(
 				"Sub(%s, %s) = %v, want %v",
-				tc.x, tc.y, got.ToString(), want.ToString(),
+				tc.x, tc.y, got.String(), want.String(),
 			)
 		}
 	}
@@ -112,7 +112,7 @@ func TestSubOverflow(t *testing.T) {
 		if got.Cmp(want) != 0 || overflow != tc.overflow {
 			t.Errorf(
 				"SubOverflow(%s, %s) = (%s, %v), want (%s, %v)",
-				tc.x, tc.y, got.ToString(), overflow, tc.want, tc.overflow,
+				tc.x, tc.y, got.String(), overflow, tc.want, tc.overflow,
 			)
 		}
 	}
@@ -133,7 +133,7 @@ func TestMul(t *testing.T) {
 		got := new(Uint).Mul(x, y)
 
 		if got.Neq(want) {
-			t.Errorf("Mul(%s, %s) = %v, want %v", tt.x, tt.y, got.ToString(), want.ToString())
+			t.Errorf("Mul(%s, %s) = %v, want %v", tt.x, tt.y, got.String(), want.String())
 		}
 	}
 }
@@ -165,7 +165,7 @@ func TestMulOverflow(t *testing.T) {
 		if gotZ.Neq(wantZ) {
 			t.Errorf(
 				"MulOverflow(%s, %s) = %s, want %s",
-				tt.x, tt.y, gotZ.ToString(), wantZ.ToString(),
+				tt.x, tt.y, gotZ.String(), wantZ.String(),
 			)
 		}
 		if gotOver != tt.wantOver {
@@ -192,7 +192,7 @@ func TestDiv(t *testing.T) {
 		got := new(Uint).Div(x, y)
 
 		if got.Neq(want) {
-			t.Errorf("Div(%s, %s) = %v, want %v", tt.x, tt.y, got.ToString(), want.ToString())
+			t.Errorf("Div(%s, %s) = %v, want %v", tt.x, tt.y, got.String(), want.String())
 		}
 	}
 }
@@ -217,7 +217,7 @@ func TestMod(t *testing.T) {
 		got := new(Uint).Mod(x, y)
 
 		if got.Neq(want) {
-			t.Errorf("Mod(%s, %s) = %v, want %v", tt.x, tt.y, got.ToString(), want.ToString())
+			t.Errorf("Mod(%s, %s) = %v, want %v", tt.x, tt.y, got.String(), want.String())
 		}
 	}
 }
@@ -252,7 +252,7 @@ func TestMulMod(t *testing.T) {
 		if got.Neq(want) {
 			t.Errorf(
 				"MulMod(%s, %s, %s) = %s, want %s",
-				tt.x, tt.y, tt.m, got.ToString(), want.ToString(),
+				tt.x, tt.y, tt.m, got.String(), want.String(),
 			)
 		}
 	}
@@ -318,7 +318,7 @@ func TestNeg(t *testing.T) {
 		got := new(Uint).Neg(x)
 
 		if got.Neq(want) {
-			t.Errorf("Neg(%s) = %v, want %v", tt.x, got.ToString(), want.ToString())
+			t.Errorf("Neg(%s) = %v, want %v", tt.x, got.String(), want.String())
 		}
 	}
 }
@@ -346,7 +346,7 @@ func TestExp(t *testing.T) {
 		if got.Neq(want) {
 			t.Errorf(
 				"Exp(%s, %s) = %v, want %v",
-				tt.x, tt.y, got.ToString(), want.ToString(),
+				tt.x, tt.y, got.String(), want.String(),
 			)
 		}
 	}
@@ -384,7 +384,7 @@ func TestExp_LargeExponent(t *testing.T) {
 			if result.Neq(expected) {
 				t.Errorf(
 					"Test %s failed. Expected %s, got %s",
-					tt.name, expected.ToString(), result.ToString(),
+					tt.name, expected.String(), result.String(),
 				)
 			}
 		})

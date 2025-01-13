@@ -9,7 +9,6 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/bft/types"
 	"github.com/gnolang/gno/tm2/pkg/commands"
 	"github.com/gnolang/gno/tm2/pkg/crypto/mock"
-	"github.com/gnolang/gno/tm2/pkg/std"
 	"github.com/gnolang/gno/tm2/pkg/testutils"
 	"github.com/stretchr/testify/require"
 )
@@ -45,7 +44,7 @@ func TestGenesis_Verify(t *testing.T) {
 
 		g.AppState = gnoland.GnoGenesisState{
 			Balances: []gnoland.Balance{},
-			Txs: []std.Tx{
+			Txs: []gnoland.TxWithMetadata{
 				{},
 			},
 		}
@@ -76,7 +75,7 @@ func TestGenesis_Verify(t *testing.T) {
 			Balances: []gnoland.Balance{
 				{},
 			},
-			Txs: []std.Tx{},
+			Txs: []gnoland.TxWithMetadata{},
 		}
 
 		require.NoError(t, g.SaveAs(tempFile.Name()))
@@ -102,7 +101,7 @@ func TestGenesis_Verify(t *testing.T) {
 		g := getValidTestGenesis()
 		g.AppState = gnoland.GnoGenesisState{
 			Balances: []gnoland.Balance{},
-			Txs:      []std.Tx{},
+			Txs:      []gnoland.TxWithMetadata{},
 		}
 
 		require.NoError(t, g.SaveAs(tempFile.Name()))

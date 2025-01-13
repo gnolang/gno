@@ -16,7 +16,7 @@ var (
 	Accepted            ProposalStatus = "accepted"             // proposal gathered quorum
 	NotAccepted         ProposalStatus = "not accepted"         // proposal failed to gather quorum
 	ExecutionSuccessful ProposalStatus = "execution successful" // proposal is executed successfully
-	ExecutionFailed     ProposalStatus = "execution failed"     // proposal is failed during execution
+	ExecutionFailed     ProposalStatus = "execution failed"     // proposal has failed during execution
 )
 
 func (s ProposalStatus) String() string {
@@ -41,6 +41,9 @@ type PropStore interface {
 type Proposal interface {
 	// Author returns the author of the proposal
 	Author() std.Address
+
+	// Title returns the title of the proposal
+	Title() string
 
 	// Description returns the description of the proposal
 	Description() string

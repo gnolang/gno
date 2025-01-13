@@ -2,7 +2,7 @@
 id: connect-from-go
 ---
 
-# How to connect a Go app to gno.land 
+# How to connect a Go app to gno.land
 
 This guide will show you how to connect to a gno.land network from your Go application,
 using the [gnoclient](../reference/gnoclient/gnoclient.md) package.
@@ -46,7 +46,7 @@ go get github.com/gnolang/gno/gno.land/pkg/gnoclient
 
 ## Main components
 
-The `gnoclient` package exposes a `Client` struct containing a `Signer` and 
+The `gnoclient` package exposes a `Client` struct containing a `Signer` and
 `RPCClient` connector. `Client` exposes all available functionality for talking
 to a gno.land chain.
 
@@ -60,11 +60,11 @@ type Client struct {
 ### Signer
 
 The `Signer` provides functionality to sign transactions with a gno.land keypair.
-The keypair can be accessed from a local keybase, or it can be generated 
+The keypair can be accessed from a local keybase, or it can be generated
 in-memory from a BIP39 mnemonic.
 
 :::info
-The keybase directory path is set with the `gnokey --home` flag. 
+The keybase directory path is set with the `gnokey --home` flag.
 :::
 
 ### RPCClient
@@ -74,7 +74,7 @@ The `RPCCLient` provides connectivity to a gno.land network via HTTP or WebSocke
 
 ## Initialize the Signer
 
-For this example, we will initialize the `Signer` from a local keybase: 
+For this example, we will initialize the `Signer` from a local keybase:
 
 ```go
 package main
@@ -92,14 +92,14 @@ func main() {
 	signer := gnoclient.SignerFromKeybase{
 		Keybase:  keybase,
 		Account:  "<keypair_name>",     // Name of your keypair in keybase
-		Password: "<keypair_password>", // Password to decrypt your keypair 
+		Password: "<keypair_password>", // Password to decrypt your keypair
 		ChainID:  "<gno_chainID>",      // id of gno.land chain
 	}
 }
 ```
 
 A few things to note:
-- You can view keys in your local keybase by running `gnokey list`.  
+- You can view keys in your local keybase by running `gnokey list`.
 - You can get the password from a user input using the IO package.
 - `Signer` can also be initialized in-memory from a BIP39 mnemonic, using the
 [`SignerFromBip39`](https://gnolang.github.io/gno/github.com/gnolang/gno@v0.0.0/gno.land/pkg/gnoclient.html#SignerFromBip39)
@@ -116,10 +116,10 @@ if err != nil {
 }
 ```
 
-A list of gno.land network endpoints & chain IDs can be found in the 
+A list of gno.land network endpoints & chain IDs can be found in the
 [Gno RPC endpoints](../reference/network-config.md) page.
 
-With this, we can initialize the `gnoclient.Client` struct: 
+With this, we can initialize the `gnoclient.Client` struct:
 
 ```go
 package main
@@ -138,7 +138,7 @@ func main() {
 	signer := gnoclient.SignerFromKeybase{
 		Keybase:  keybase,
 		Account:  "<keypair_name>",     // Name of your keypair in keybase
-		Password: "<keypair_password>", // Password to decrypt your keypair 
+		Password: "<keypair_password>", // Password to decrypt your keypair
 		ChainID:  "<gno_chainID>",      // id of gno.land chain
 	}
 
@@ -147,7 +147,7 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
-	
+
 	// Initialize the gnoclient
 	client := gnoclient.Client{
 		Signer:    signer,
@@ -161,7 +161,7 @@ We can now communicate with the gno.land chain. Let's explore some of the functi
 
 ## Query account info from a chain
 
-To send transactions to the chain, we need to know the account number (ID) and 
+To send transactions to the chain, we need to know the account number (ID) and
 sequence (nonce). We can get this information by querying the chain with the
 `QueryAccount` function:
 
@@ -219,7 +219,7 @@ txCfg := gnoclient.BaseTxCfg{
 ```
 
 For calling an exported (public) function in a Gno realm, we can use the `MsgCall`
-message type. We will use the wrapped ugnot realm for this example, wrapping 
+message type. We will use the wrapped ugnot realm for this example, wrapping
 `1000000ugnot` (1 $GNOT) for demonstration purposes.
 
 ```go
@@ -250,11 +250,11 @@ if err != nil {
 }
 ```
 
-Before running your code, make sure your keypair has enough funds to send the 
-transaction. 
+Before running your code, make sure your keypair has enough funds to send the
+transaction.
 
-If everything went well, you've just sent a state-changing transaction to a 
-Gno.land chain!
+If everything went well, you've just sent a state-changing transaction to a
+gno.land chain!
 
 
 ## Reading on-chain state
@@ -288,9 +288,7 @@ Congratulations 🎉
 You've just built a small demo app in Go that connects to a gno.land chain
 to query account info, send a transaction, and read on-chain state.
 
-Check out the full example app code [here](https://github.com/leohhhn/connect-gno/blob/master/main.go). 
+Check out the full example app code [here](https://github.com/leohhhn/connect-gno/blob/master/main.go).
 
 To see a real-world example CLI tool use `gnoclient`,
 check out [gnoblog-cli](https://github.com/gnolang/blog/tree/main/cmd/gnoblog-cli).
-
-

@@ -11,8 +11,15 @@ import (
 
 const (
 	ModuleName = "params"
-	StoreKey   = ModuleName
+
+	StoreKey = ModuleName
+	// ValueStorePrevfix is "/pv/" for param value.
+	ValueStoreKeyPrefix = "/pv/"
 )
+
+func ValueStoreKey(key string) []byte {
+	return append([]byte(ValueStoreKeyPrefix), []byte(key)...)
+}
 
 type ParamsKeeperI interface {
 	GetString(ctx sdk.Context, key string, ptr *string)
@@ -49,7 +56,30 @@ func NewParamsKeeper(key store.StoreKey, prefix string) ParamsKeeper {
 	}
 }
 
-// Logger returns a module-specific logger.
+// GetParam gets a param value from the global param store.
+func (pk ParamsKeeper) GetParams(ctx sdk.Context, key string, target interface{}) (bool, error) {
+	stor := ctx.Store(pk.key)
+
+	bz := stor.Get(ValueStoreKey(key))
+	if bz == nil {
+		return false, nil
+	}
+
+	return true, amino.UnmarshalJSON(bz, target)
+}
+
+// SetParam sets a param value to the global param store.
+func (pk ParamsKeeper) SetParams(ctx sdk.Context, key string, param interface{}) error {
+	stor := ctx.Store(pk.key)
+	bz, err := amino.MarshalJSON(param)
+	if err != nil {
+		return err
+	}
+
+	stor.Set(ValueStoreKey(key), bz)
+	return nil
+}
+
 // XXX: why do we expose this?
 func (pk ParamsKeeper) Logger(ctx sdk.Context) *slog.Logger {
 	return ctx.Logger().With("module", ModuleName)
@@ -152,6 +182,6 @@ func checkSuffix(key, expectedSuffix string) {
 		// XXX: additional sanity checks?
 	)
 	if noSuffix || noName {
-		panic(`key should be like "<name>` + expectedSuffix + `"`)
+		panic(`key should be like "<name>` + expectedSuffix + `" (` + key + `)`)
 	}
 }

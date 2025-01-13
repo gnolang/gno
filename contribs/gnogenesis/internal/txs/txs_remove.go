@@ -59,7 +59,7 @@ func execTxsRemove(cfg *txsCfg, io commands.IO, args []string) error {
 
 		for indx, tx := range state.Txs {
 			// Find the hash of the transaction
-			hash, err := getTxHash(tx)
+			hash, err := getTxHash(tx.Tx)
 			if err != nil {
 				return fmt.Errorf("unable to generate tx hash, %w", err)
 			}

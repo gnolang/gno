@@ -39,9 +39,9 @@ func main() {
 }
 
 // Output:
-// main before: 200000000ugnot
+// main before:
 // Deposit(): returned!
-// main after: 255000000ugnot
+// main after: 55000000ugnot
 // ## recent activity
 //
 //  * g1tnpdmvrmtgql8fmxgsq9rwtst5hsxahk3f05dk 100000000ugnot sent, 55000000ugnot returned, at 2009-02-13 11:31pm UTC

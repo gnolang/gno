@@ -1,5 +1,23 @@
 package avl
 
+type ITree interface {
+	// read operations
+
+	Size() int
+	Has(key string) bool
+	Get(key string) (value interface{}, exists bool)
+	GetByIndex(index int) (key string, value interface{})
+	Iterate(start, end string, cb IterCbFn) bool
+	ReverseIterate(start, end string, cb IterCbFn) bool
+	IterateByOffset(offset int, count int, cb IterCbFn) bool
+	ReverseIterateByOffset(offset int, count int, cb IterCbFn) bool
+
+	// write operations
+
+	Set(key string, value interface{}) (updated bool)
+	Remove(key string) (value interface{}, removed bool)
+}
+
 type IterCbFn func(key string, value interface{}) bool
 
 //----------------------------------------
@@ -101,3 +119,6 @@ func (tree *Tree) ReverseIterateByOffset(offset int, count int, cb IterCbFn) boo
 		},
 	)
 }
+
+// Verify that Tree implements TreeInterface
+var _ ITree = (*Tree)(nil)

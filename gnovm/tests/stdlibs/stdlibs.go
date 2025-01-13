@@ -8,11 +8,11 @@ import (
 
 //go:generate go run github.com/gnolang/gno/misc/genstd
 
-func NativeStore(pkgPath string, name gno.Name) func(*gno.Machine) {
+func NativeResolver(pkgPath string, name gno.Name) func(*gno.Machine) {
 	for _, nf := range nativeFuncs {
 		if nf.gnoPkg == pkgPath && name == nf.gnoFunc {
 			return nf.f
 		}
 	}
-	return stdlibs.NativeStore(pkgPath, name)
+	return stdlibs.NativeResolver(pkgPath, name)
 }

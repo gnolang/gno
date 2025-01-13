@@ -3,6 +3,7 @@ package simpledao
 import (
 	"errors"
 	"std"
+	"strings"
 
 	"gno.land/p/demo/dao"
 	"gno.land/p/demo/seqid"
@@ -18,6 +19,7 @@ const maxRequestProposals = 10
 // proposal is the internal simpledao proposal implementation
 type proposal struct {
 	author      std.Address // initiator of the proposal
+	title       string      // title of the proposal
 	description string      // description of the proposal
 
 	executor dao.Executor       // executor for the proposal
@@ -29,6 +31,10 @@ type proposal struct {
 
 func (p *proposal) Author() std.Address {
 	return p.author
+}
+
+func (p *proposal) Title() string {
+	return p.title
 }
 
 func (p *proposal) Description() string {
@@ -63,15 +69,20 @@ func (p *proposal) Render() string {
 	// Fetch the voting stats
 	stats := p.Stats()
 
-	output := ""
-	output += ufmt.Sprintf("Author: %s", p.Author().String())
-	output += "\n\n"
-	output += p.Description()
-	output += "\n\n"
-	output += ufmt.Sprintf("Status: %s", p.Status().String())
-	output += "\n\n"
-	output += ufmt.Sprintf(
-		"Voting stats: YAY %d (%d%%), NAY %d (%d%%), ABSTAIN %d (%d%%), HAVEN'T VOTED %d (%d%%)",
+	var out string
+
+	out += "## Description\n\n"
+	if strings.TrimSpace(p.description) != "" {
+		out += ufmt.Sprintf("%s\n\n", p.description)
+	} else {
+		out += "No description provided.\n\n"
+	}
+
+	out += "## Proposal information\n\n"
+	out += ufmt.Sprintf("**Status: %s**\n\n", strings.ToUpper(p.Status().String()))
+
+	out += ufmt.Sprintf(
+		"**Voting stats:**\n- YES %d (%d%%)\n- NO %d (%d%%)\n- ABSTAIN %d (%d%%)\n- MISSING VOTES %d (%d%%)\n",
 		stats.YayVotes,
 		stats.YayPercent(),
 		stats.NayVotes,
@@ -81,10 +92,13 @@ func (p *proposal) Render() string {
 		stats.MissingVotes(),
 		stats.MissingVotesPercent(),
 	)
-	output += "\n\n"
-	output += ufmt.Sprintf("Threshold met: %t", stats.YayVotes > (2*stats.TotalVotingPower)/3)
 
-	return output
+	out += "\n\n"
+	thresholdOut := strings.ToUpper(ufmt.Sprintf("%t", stats.YayVotes > (2*stats.TotalVotingPower)/3))
+
+	out += ufmt.Sprintf("**Threshold met: %s**\n\n", thresholdOut)
+
+	return out
 }
 
 // addProposal adds a new simpledao proposal to the store

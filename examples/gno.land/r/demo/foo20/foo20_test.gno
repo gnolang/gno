@@ -12,7 +12,7 @@ import (
 
 func TestReadOnlyPublicMethods(t *testing.T) {
 	var (
-		admin = pusers.AddressOrName("g1u7y667z64x2h7vc6fmpcprgey4ck233jaww9zq")
+		admin = pusers.AddressOrName("g1manfred47kzduec920z88wfr64ylksmdcedlf5")
 		alice = pusers.AddressOrName(testutils.TestAddress("alice"))
 		bob   = pusers.AddressOrName(testutils.TestAddress("bob"))
 	)
@@ -60,7 +60,7 @@ func TestReadOnlyPublicMethods(t *testing.T) {
 
 func TestErrConditions(t *testing.T) {
 	var (
-		admin = pusers.AddressOrName("g1u7y667z64x2h7vc6fmpcprgey4ck233jaww9zq")
+		admin = pusers.AddressOrName("g1manfred47kzduec920z88wfr64ylksmdcedlf5")
 		alice = pusers.AddressOrName(testutils.TestAddress("alice"))
 		empty = pusers.AddressOrName("")
 	)
@@ -71,10 +71,18 @@ func TestErrConditions(t *testing.T) {
 		fn   func()
 	}
 
-	std.TestSetOrigCaller(users.Resolve(admin))
+	privateLedger.Mint(std.Address(admin), 10000)
 	{
 		tests := []test{
-			{"Transfer(admin, 1)", "cannot send transfer to self", func() { Transfer(admin, 1) }},
+			{"Transfer(admin, 1)", "cannot send transfer to self", func() {
+				// XXX: should replace with: Transfer(admin, 1)
+				// but there is currently a limitation in manipulating the frame stack and simulate
+				// calling this package from an outside point of view.
+				adminAddr := std.Address(admin)
+				if err := privateLedger.Transfer(adminAddr, adminAddr, 1); err != nil {
+					panic(err)
+				}
+			}},
 			{"Approve(empty, 1))", "invalid address", func() { Approve(empty, 1) }},
 		}
 		for _, tc := range tests {

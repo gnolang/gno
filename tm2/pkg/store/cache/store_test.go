@@ -359,12 +359,12 @@ func TestCacheKVMergeIteratorRandom(t *testing.T) {
 	truth := memdb.NewMemDB()
 
 	start, end := 25, 975
-	max := 1000
+	maxVal := 1000
 	setRange(st, truth, start, end)
 
 	// do an op, test the iterator
 	for i := 0; i < 2000; i++ {
-		doRandomOp(st, truth, max)
+		doRandomOp(st, truth, maxVal)
 		assertIterateDomainCompare(t, st, truth)
 	}
 }

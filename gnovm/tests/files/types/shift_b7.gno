@@ -6,7 +6,7 @@ func main() {
 	x := 2
 	r := float32(1<<x + 2)
 	println(r)
-	fmt.Printf("%T \n", r)
+	fmt.Printf("%T\n", r)
 }
 
 // Error:
