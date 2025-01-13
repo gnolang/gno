@@ -20,6 +20,8 @@ var (
 	githubUrl			string
 	linkedinUrl			string
 	imageUpdatePrice 	int64
+
+	isValidURL			func(string) bool
 )
 
 func init() {
@@ -31,6 +33,7 @@ func init() {
 	githubUrl = "https://github.com/ursulovic"
 	linkedinUrl = "https://www.linkedin.com/in/ivan-ursulovic-953310190/"
 	imageUpdatePrice = 5000000
+	initIsValidURL()
 	hof.Register()
 }
 
@@ -42,7 +45,8 @@ func Render(s string) string {
 	return sb.String()
 }
 
-func isValidURL(url string) bool {
+func initIsValidURL() {
+	isValidURL = func(url string) bool {
 	const urlPrefix string = "https://i.ibb.co/"
 
     if !strings.HasPrefix(url, urlPrefix) {
@@ -64,6 +68,7 @@ func isValidURL(url string) bool {
     }
 
     return true
+	}
 }
 
 func UpdateSelectedImage(url string) {
@@ -73,7 +78,7 @@ func UpdateSelectedImage(url string) {
 
 	sentCoins := std.GetOrigSend()
 	
-	if sentCoins.AmountOf("ugnot") == imageUpdatePrice && len(sentCoins) == 1 {
+	if len(sentCoins) != 1 && sentCoins.AmountOf("ugnot") == imageUpdatePrice {
 		panic("Please send exactly " + strconv.Itoa(int(imageUpdatePrice)) + " ugnot")
 	}
 
@@ -147,4 +152,9 @@ func UpdateAboutMe(text string) {
 func UpdateImagePrice(newPrice int64) {
 	owner.AssertCallerIsOwner()
 	imageUpdatePrice = newPrice
+}
+
+func UpdateIsValidURLFunction(f func(string) bool) {
+	owner.AssertCallerIsOwner()
+	isValidURL = f
 }
