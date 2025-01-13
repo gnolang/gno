@@ -43,7 +43,9 @@ func Render(s string) string {
 }
 
 func isValidURL(url string) bool {
-    if !strings.HasPrefix(url, "https://i.ibb.co/") {
+	const urlPrefix string = "https://i.ibb.co/"
+
+    if !strings.HasPrefix(url, urlPrefix) {
         return false
     }
 
@@ -71,7 +73,7 @@ func UpdateSelectedImage(url string) {
 
 	sentCoins := std.GetOrigSend()
 	
-	if len(sentCoins) != 1 || sentCoins[0].Denom != "ugnot" || sentCoins[0].Amount != imageUpdatePrice {
+	if sentCoins.AmountOf("ugnot") == imageUpdatePrice && len(sentCoins) == 1 {
 		panic("Please send exactly " + strconv.Itoa(int(imageUpdatePrice)) + " ugnot")
 	}
 
