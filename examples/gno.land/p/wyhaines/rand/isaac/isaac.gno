@@ -61,7 +61,7 @@ type ISAAC struct {
 }
 
 // ISAAC requires a large, 256-element seed. This implementation will leverage the entropy
-// package combined with the the xorshiftr128plus PRNG to generate any missing seeds of
+// package combined with the xorshiftr128plus PRNG to generate any missing seeds of
 // fewer than the required number of arguments are provided.
 func New(seeds ...uint32) *ISAAC {
 	isaac := &ISAAC{}
