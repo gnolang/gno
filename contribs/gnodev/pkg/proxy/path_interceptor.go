@@ -165,7 +165,7 @@ func (proxy *PathInterceptor) handleConnection(inConn net.Conn) {
 		proxy.logger.Error("unable to write to socket", "error", err)
 	}
 
-	// Forward directly incoming conn to outgoing conn
+	// Forward incoming conn to outgoing conn directly
 	io.Copy(outConn, inConn)
 
 	proxy.logger.Debug("connection ended", "from", inConn.RemoteAddr())
@@ -243,8 +243,8 @@ func handleQuery(query sDataQuery) ([]string, error) {
 		}
 		return paths, nil
 
-	case "vm/qrender", "vm/qfile":
-		path, _, _ := strings.Cut(string(query.Data), ":")
+	case "vm/qrender", "vm/qfile", "vm/qfuncs", "vm/qeval":
+		path, _, _ := strings.Cut(string(query.Data), ":") // cut arguments out
 		u, err := url.Parse(path)
 		if err != nil {
 			return nil, fmt.Errorf("unable to parse path: %w", err)
