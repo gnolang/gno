@@ -214,8 +214,8 @@ func (ds *App) setupHandlers(ctx context.Context) (http.Handler, error) {
 
 		// Generate initial paths
 		initPaths := map[string]struct{}{}
-		for _, path := range ds.paths {
-			initPaths[path] = struct{}{}
+		for _, pkg := range ds.devNode.ListPkgs() {
+			initPaths[pkg.Path] = struct{}{}
 		}
 
 		ds.proxy.HandlePath(func(paths ...string) {
