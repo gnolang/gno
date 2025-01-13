@@ -939,7 +939,7 @@ func writeListOfEndpoints(w http.ResponseWriter, r *http.Request, funcMap map[st
 
 	for _, name := range noArgNames {
 		link := fmt.Sprintf("//%s/%s", r.Host, name)
-		buf.WriteString(fmt.Sprintf("<a href=\"%s\">%s</a></br>", link, link))
+		fmt.Fprintf(buf, "<a href=\"%s\">%s</a></br>", link, link)
 	}
 
 	buf.WriteString("<br>Endpoints that require arguments:<br>")
@@ -952,7 +952,7 @@ func writeListOfEndpoints(w http.ResponseWriter, r *http.Request, funcMap map[st
 				link += "&"
 			}
 		}
-		buf.WriteString(fmt.Sprintf("<a href=\"%s\">%s</a></br>", link, link))
+		fmt.Fprintf(buf, "<a href=\"%s\">%s</a></br>", link, link)
 	}
 	buf.WriteString("</body></html>")
 	w.Header().Set("Content-Type", "text/html")

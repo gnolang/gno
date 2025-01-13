@@ -1,19 +1,22 @@
 # test basic gnokey integrations commands
 # golden files have been generated using UPDATE_SCRIPTS=true
 
+# add a random user
+adduser user1
+
 # start gnoland
 gnoland start
 
 ## test1 account should be available on default
-gnokey query auth/accounts/${USER_ADDR_test1}
+gnokey query auth/accounts/$user1_user_addr
 stdout 'height: 0'
 stdout 'data: {'
 stdout '  "BaseAccount": {'
-stdout '    "address": "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5",'
+stdout '    "address": "'${user1_user_addr}'",'
 stdout '    "coins": "[0-9]*ugnot",' # dynamic
 stdout '    "public_key": null,'
-stdout '    "account_number": "0",'
-stdout '    "sequence": "0"'
+stdout '    "account_number": "'${user1_account_num}'",'
+stdout '    "sequence": "'${user1_account_seq}'"'
 stdout '  }'
 stdout '}'
 ! stderr '.+' # empty
