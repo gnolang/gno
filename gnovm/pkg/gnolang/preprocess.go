@@ -2723,17 +2723,10 @@ func findGotoLoopDefines(ctx BlockNode, bn BlockNode) {
 								// Otherwise mark stmt as gotoloop.
 								case Stmt:
 									// we're done if we
-									// re-encounter origGotoStmtm.
+									// re-encounter origGotoStmt.
 									if n == origGoto {
-										n.SetAttribute(
-											ATTR_GOTOLOOP_STMT,
-											true)
 										return n, TRANS_EXIT // done
 									}
-									// otherwise set attribute.
-									n.SetAttribute(
-										ATTR_GOTOLOOP_STMT,
-										true)
 									return n, TRANS_CONTINUE
 								// Special case, maybe convert
 								// NameExprTypeDefine to
@@ -4804,9 +4797,6 @@ func setNodeLines(n Node) {
 // based on sparse expectations on block nodes, and ensures uniqueness of BlockNode.Locations.
 // Ensures uniqueness of BlockNode.Locations.
 func setNodeLocations(pkgPath string, fileName string, n Node) {
-	if n.GetAttribute(ATTR_LOCATIONED) == true {
-		return // locations already set (typically n is a filenode).
-	}
 	if pkgPath == "" || fileName == "" {
 		panic("missing package path or file name")
 	}
