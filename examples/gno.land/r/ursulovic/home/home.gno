@@ -13,15 +13,15 @@ import (
 )
 
 var (
-	aboutMe				string
+	aboutMe			string
 	selectedImage		string
-	owner 				*ownable.Ownable
+	owner 			*ownable.Ownable
 
-	githubUrl			string
-	linkedinUrl			string
+	githubUrl		string
+	linkedinUrl		string
 	imageUpdatePrice 	int64
 
-	isValidURL			func(string) bool
+	isValidURL		func(string) bool
 )
 
 func init() {
