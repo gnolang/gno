@@ -16,7 +16,6 @@ type IGRC721Metadata interface {
 type IGRC721MetadataOnchain interface {
 	IGRC721CollectionMetadata
 	TokenMetadata(tid TokenID) (Metadata, error)
-	SetTokenMetadata(tid TokenID, metadata Metadata) error
 }
 
 type Trait struct {
