@@ -3,7 +3,6 @@ package gnolang
 import (
 	"encoding/binary"
 	"fmt"
-	"math"
 	"math/big"
 	"reflect"
 	"strconv"
@@ -1121,13 +1120,13 @@ func (tv *TypedValue) PrimitiveBytes() (data []byte) {
 		return data
 	case Float32Type:
 		data = make([]byte, 4)
-		u32 := math.Float32bits(tv.GetFloat32())
+		u32 := tv.GetFloat32()
 		binary.LittleEndian.PutUint32(
 			data, u32)
 		return data
 	case Float64Type:
 		data = make([]byte, 8)
-		u64 := math.Float64bits(tv.GetFloat64())
+		u64 := tv.GetFloat64()
 		binary.LittleEndian.PutUint64(
 			data, u64)
 		return data
@@ -1450,7 +1449,7 @@ func (tv *TypedValue) GetUint64() uint64 {
 	return *(*uint64)(unsafe.Pointer(&tv.N))
 }
 
-func (tv *TypedValue) SetFloat32(n float32) {
+func (tv *TypedValue) SetFloat32(n uint32) {
 	if debug {
 		if tv.T.Kind() != Float32Kind || isNative(tv.T) {
 			panic(fmt.Sprintf(
@@ -1458,10 +1457,10 @@ func (tv *TypedValue) SetFloat32(n float32) {
 				tv.T.String()))
 		}
 	}
-	*(*float32)(unsafe.Pointer(&tv.N)) = n
+	*(*uint32)(unsafe.Pointer(&tv.N)) = n
 }
 
-func (tv *TypedValue) GetFloat32() float32 {
+func (tv *TypedValue) GetFloat32() uint32 {
 	if debug {
 		if tv.T != nil && tv.T.Kind() != Float32Kind {
 			panic(fmt.Sprintf(
@@ -1469,10 +1468,10 @@ func (tv *TypedValue) GetFloat32() float32 {
 				tv.T.String()))
 		}
 	}
-	return *(*float32)(unsafe.Pointer(&tv.N))
+	return *(*uint32)(unsafe.Pointer(&tv.N))
 }
 
-func (tv *TypedValue) SetFloat64(n float64) {
+func (tv *TypedValue) SetFloat64(n uint64) {
 	if debug {
 		if tv.T.Kind() != Float64Kind || isNative(tv.T) {
 			panic(fmt.Sprintf(
@@ -1480,10 +1479,10 @@ func (tv *TypedValue) SetFloat64(n float64) {
 				tv.T.String()))
 		}
 	}
-	*(*float64)(unsafe.Pointer(&tv.N)) = n
+	*(*uint64)(unsafe.Pointer(&tv.N)) = n
 }
 
-func (tv *TypedValue) GetFloat64() float64 {
+func (tv *TypedValue) GetFloat64() uint64 {
 	if debug {
 		if tv.T != nil && tv.T.Kind() != Float64Kind {
 			panic(fmt.Sprintf(
@@ -1491,7 +1490,7 @@ func (tv *TypedValue) GetFloat64() float64 {
 				tv.T.String()))
 		}
 	}
-	return *(*float64)(unsafe.Pointer(&tv.N))
+	return *(*uint64)(unsafe.Pointer(&tv.N))
 }
 
 func (tv *TypedValue) GetBigInt() *big.Int {
