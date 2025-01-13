@@ -2,14 +2,39 @@
 package crossrealm_test
 
 import (
-	crossrealm "gno.land/r/demo/tests/crossrealm/struct"
+	"std"
+
+	crossrealm "gno.land/r/demo/tests/crossrealm"
 )
 
-var b0 crossrealm.Bar // run declarations
+type fooer struct {
+	s string
+}
+
+func (f *fooer) Foo() {
+	f.s = "B"
+	println("hello " + f.s + " " + std.CurrentRealm().PkgPath())
+}
+
+var f *fooer
+
+func init() {
+	f = &fooer{s: "A"}
+	fg := func() crossrealm.Fooer { return f }
+	crossrealm.SetFooerGetter(fg)
+	crossrealm.CallFooerGetterFoo()
+	f.s = "C"
+	crossrealm.CallFooerGetterFoo()
+}
 
 func main() {
 	print(".")
 }
 
-// Error:
-// cannot attach a value of a type defined by another realm
+// Output:
+// hello B gno.land/r/crossrealm_test
+// hello B gno.land/r/crossrealm_test
+// .
+
+// Realm:
+// switchrealm["gno.land/r/crossrealm_test"]

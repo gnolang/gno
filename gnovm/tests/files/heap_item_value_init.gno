@@ -122,7 +122,7 @@ func main() {
 //                     "Escaped": true,
 //                     "ObjectID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:3"
 //                 },
-//                 "FileName": "main.gno",
+//                 "FileName": "files/heap_item_value_init.gno",
 //                 "IsMethod": false,
 //                 "Name": "init.3",
 //                 "NativeName": "",
@@ -133,7 +133,7 @@ func main() {
 //                     "BlockNode": null,
 //                     "Location": {
 //                         "Column": "1",
-//                         "File": "main.gno",
+//                         "File": "files/heap_item_value_init.gno",
 //                         "Line": "10",
 //                         "PkgPath": "gno.land/r/test"
 //                     }
@@ -158,7 +158,7 @@ func main() {
 //                     "Escaped": true,
 //                     "ObjectID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:3"
 //                 },
-//                 "FileName": "main.gno",
+//                 "FileName": "files/heap_item_value_init.gno",
 //                 "IsMethod": false,
 //                 "Name": "main",
 //                 "NativeName": "",
@@ -169,7 +169,7 @@ func main() {
 //                     "BlockNode": null,
 //                     "Location": {
 //                         "Column": "1",
-//                         "File": "main.gno",
+//                         "File": "files/heap_item_value_init.gno",
 //                         "Line": "16",
 //                         "PkgPath": "gno.land/r/test"
 //                     }

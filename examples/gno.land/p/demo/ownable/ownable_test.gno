@@ -6,6 +6,7 @@ import (
 
 	"gno.land/p/demo/testutils"
 	"gno.land/p/demo/uassert"
+	"gno.land/p/demo/urequire"
 )
 
 var (
@@ -19,27 +20,14 @@ func TestNew(t *testing.T) {
 
 	o := New()
 	got := o.Owner()
-	if alice != got {
-		t.Fatalf("Expected %s, got: %s", alice, got)
-	}
+	uassert.Equal(t, got, alice)
 }
 
 func TestNewWithAddress(t *testing.T) {
 	o := NewWithAddress(alice)
 
 	got := o.Owner()
-	if alice != got {
-		t.Fatalf("Expected %s, got: %s", alice, got)
-	}
-}
-
-func TestOwner(t *testing.T) {
-	std.TestSetRealm(std.NewUserRealm(alice))
-
-	o := New()
-	expected := alice
-	got := o.Owner()
-	uassert.Equal(t, expected, got)
+	uassert.Equal(t, got, alice)
 }
 
 func TestTransferOwnership(t *testing.T) {
@@ -48,14 +36,11 @@ func TestTransferOwnership(t *testing.T) {
 	o := New()
 
 	err := o.TransferOwnership(bob)
-	if err != nil {
-		t.Fatalf("TransferOwnership failed, %v", err)
-	}
+	urequire.NoError(t, err)
 
 	got := o.Owner()
-	if bob != got {
-		t.Fatalf("Expected: %s, got: %s", bob, got)
-	}
+
+	uassert.Equal(t, got, bob)
 }
 
 func TestCallerIsOwner(t *testing.T) {
@@ -67,8 +52,7 @@ func TestCallerIsOwner(t *testing.T) {
 	std.TestSetRealm(std.NewUserRealm(unauthorizedCaller))
 	std.TestSetOrigCaller(unauthorizedCaller) // TODO(bug): should not be needed
 
-	err := o.CallerIsOwner()
-	uassert.Error(t, err) // XXX: IsError(..., unauthorizedCaller)
+	uassert.False(t, o.CallerIsOwner())
 }
 
 func TestDropOwnership(t *testing.T) {
@@ -77,7 +61,7 @@ func TestDropOwnership(t *testing.T) {
 	o := New()
 
 	err := o.DropOwnership()
-	uassert.NoError(t, err, "DropOwnership failed")
+	urequire.NoError(t, err, "DropOwnership failed")
 
 	owner := o.Owner()
 	uassert.Empty(t, owner, "owner should be empty")
@@ -94,13 +78,8 @@ func TestErrUnauthorized(t *testing.T) {
 	std.TestSetRealm(std.NewUserRealm(bob))
 	std.TestSetOrigCaller(bob) // TODO(bug): should not be needed
 
-	err := o.TransferOwnership(alice)
-	if err != ErrUnauthorized {
-		t.Fatalf("Should've been ErrUnauthorized, was %v", err)
-	}
-
-	err = o.DropOwnership()
-	uassert.ErrorContains(t, err, ErrUnauthorized.Error())
+	uassert.ErrorContains(t, o.TransferOwnership(alice), ErrUnauthorized.Error())
+	uassert.ErrorContains(t, o.DropOwnership(), ErrUnauthorized.Error())
 }
 
 func TestErrInvalidAddress(t *testing.T) {

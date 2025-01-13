@@ -36,6 +36,8 @@ func setupMachine(b *testing.B, numValues, numStmts, numExprs, numBlocks, numFra
 
 func BenchmarkStringLargeData(b *testing.B) {
 	m := setupMachine(b, 10000, 5000, 5000, 2000, 3000, 1000)
+	b.ResetTimer()
+	b.ReportAllocs()
 
 	for i := 0; i < b.N; i++ {
 		_ = m.String()
@@ -129,6 +131,136 @@ func TestBuiltinIdentifiersShadowing(t *testing.T) {
 	}
 }
 
+func TestConvertTo(t *testing.T) {
+	t.Parallel()
+
+	testFunc := func(source, msg string) {
+		defer func() {
+			if len(msg) == 0 {
+				return
+			}
+
+			r := recover()
+
+			if r == nil {
+				t.Fail()
+			}
+
+			err := r.(*PreprocessError)
+			c := strings.Contains(err.Error(), msg)
+			if !c {
+				t.Fatalf(`expected "%s", got "%s"`, msg, r)
+			}
+		}()
+
+		m := NewMachine("test", nil)
+
+		n := MustParseFile("main.go", source)
+		m.RunFiles(n)
+		m.RunMain()
+	}
+
+	type cases struct {
+		source string
+		msg    string
+	}
+
+	tests := []cases{
+		{
+			`package test
+
+func main() {
+	const a int = -1
+    println(uint(a))
+}`,
+			`test/main.go:5:13: cannot convert constant of type IntKind to UintKind`,
+		},
+		{
+			`package test
+
+func main() {
+	const a int = -1
+    println(uint8(a))
+}`,
+			`test/main.go:5:13: cannot convert constant of type IntKind to Uint8Kind`,
+		},
+		{
+			`package test
+
+func main() {
+	const a int = -1
+    println(uint16(a))
+}`,
+			`test/main.go:5:13: cannot convert constant of type IntKind to Uint16Kind`,
+		},
+		{
+			`package test
+
+func main() {
+	const a int = -1
+    println(uint32(a))
+}`,
+			`test/main.go:5:13: cannot convert constant of type IntKind to Uint32Kind`,
+		},
+		{
+			`package test
+
+func main() {
+	const a int = -1
+    println(uint64(a))
+}`,
+			`test/main.go:5:13: cannot convert constant of type IntKind to Uint64Kind`,
+		},
+		{
+			`package test
+
+func main() {
+	const a float32 = 1.5
+    println(int32(a))
+}`,
+			`test/main.go:5:13: cannot convert constant of type Float32Kind to Int32Kind`,
+		},
+		{
+			`package test
+
+func main() {
+    println(int32(1.5))
+}`,
+			`test/main.go:4:13: cannot convert (const (1.5 <untyped> bigdec)) to integer type`,
+		},
+		{
+			`package test
+
+func main() {
+	const a float64 = 1.5
+    println(int64(a))
+}`,
+			`test/main.go:5:13: cannot convert constant of type Float64Kind to Int64Kind`,
+		},
+		{
+			`package test
+
+func main() {
+    println(int64(1.5))
+}`,
+			`test/main.go:4:13: cannot convert (const (1.5 <untyped> bigdec)) to integer type`,
+		},
+		{
+			`package test
+		
+		func main() {
+			const f = float64(1.0)
+		   println(int64(f))
+		}`,
+			``,
+		},
+	}
+
+	for _, tc := range tests {
+		testFunc(tc.source, tc.msg)
+	}
+}
+
 // run empty main().
 func TestRunEmptyMain(t *testing.T) {
 	t.Parallel()
@@ -179,6 +311,10 @@ func BenchmarkIfStatement(b *testing.B) {
 func main() {
 	for i:=0; i<10000; i++ {
 		if i > 10 {
+<<<<<<< HEAD
+=======
+
+>>>>>>> main/master
 		}
 	}
 }`
@@ -355,6 +491,7 @@ func BenchmarkPreprocess(b *testing.B) {
 			Inc("i"),
 		),
 	))
+	pn := NewPackageNode("hey", "gno.land/p/hey", nil)
 	copies := make([]*FuncDecl, b.N)
 	for i := 0; i < b.N; i++ {
 		copies[i] = main.Copy().(*FuncDecl)
@@ -362,6 +499,8 @@ func BenchmarkPreprocess(b *testing.B) {
 	b.ResetTimer()
 
 	for i := 0; i < b.N; i++ {
+		// initStaticBlocks is always performed before a Preprocess
+		initStaticBlocks(nil, pn, copies[i])
 		main = Preprocess(nil, pkg, copies[i]).(*FuncDecl)
 	}
 }
@@ -400,18 +539,6 @@ func BenchmarkBenchdata(b *testing.B) {
 				name += "_param:" + param
 			}
 			b.Run(name, func(b *testing.B) {
-				if strings.HasPrefix(name, "matrix.gno_param") {
-					// CGO_ENABLED=0 go test -bench . -benchmem ./... -short -run=^$ -cpu 1,2 -count=1 ./...
-					// That is not just exposing test and benchmark traces as output, but these benchmarks are failing
-					// making the output unparseable:
-					/*
-						BenchmarkBenchdata/matrix.gno_param:3           panic: runtime error: index out of range [31] with length 25 [recovered]
-						panic: runtime error: index out of range [31] with length 25:
-						...
-					*/
-					b.Skip("it panics causing an error when parsing benchmark results")
-				}
-
 				// Gen template with N and param.
 				var buf bytes.Buffer
 				require.NoError(b, tpl.Execute(&buf, bdataParams{

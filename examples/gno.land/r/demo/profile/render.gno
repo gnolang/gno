@@ -11,9 +11,9 @@ import (
 
 const (
 	BaseURL           = "/r/demo/profile"
-	SetStringFieldURL = BaseURL + "?help&__func=SetStringField&field=%s"
-	SetIntFieldURL    = BaseURL + "?help&__func=SetIntField&field=%s"
-	SetBoolFieldURL   = BaseURL + "?help&__func=SetBoolField&field=%s"
+	SetStringFieldURL = BaseURL + "$help&func=SetStringField&field=%s"
+	SetIntFieldURL    = BaseURL + "$help&func=SetIntField&field=%s"
+	SetBoolFieldURL   = BaseURL + "$help&func=SetBoolField&field=%s"
 	ViewAllFieldsURL  = BaseURL + ":u/%s"
 	ViewFieldURL      = BaseURL + ":f/%s/%s"
 )

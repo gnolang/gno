@@ -17,6 +17,11 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/errors"
 )
 
+var (
+	errCannotOverwrite = errors.New("cannot overwrite existing key")
+	errKeyNotAvailable = errors.New("private key not available")
+)
+
 var _ Keybase = dbKeybase{}
 
 // Language is a language to create the BIP 39 mnemonic in.
@@ -115,33 +120,32 @@ func (kb dbKeybase) CreateLedger(name string, algo SigningAlgo, hrp string, acco
 	pub := priv.PubKey()
 
 	// Note: Once Cosmos App v1.3.1 is compulsory, it could be possible to check that pubkey and addr match
-	return kb.writeLedgerKey(name, pub, *hdPath), nil
+	return kb.writeLedgerKey(name, pub, *hdPath)
 }
 
 // CreateOffline creates a new reference to an offline keypair. It returns the
 // created key info.
 func (kb dbKeybase) CreateOffline(name string, pub crypto.PubKey) (Info, error) {
-	return kb.writeOfflineKey(name, pub), nil
+	return kb.writeOfflineKey(name, pub)
 }
 
 // CreateMulti creates a new reference to a multisig (offline) keypair. It
 // returns the created key info.
 func (kb dbKeybase) CreateMulti(name string, pub crypto.PubKey) (Info, error) {
-	return kb.writeMultisigKey(name, pub), nil
+	return kb.writeMultisigKey(name, pub)
 }
 
-func (kb *dbKeybase) persistDerivedKey(seed []byte, passwd, name, fullHdPath string) (info Info, err error) {
+func (kb *dbKeybase) persistDerivedKey(seed []byte, passwd, name, fullHdPath string) (Info, error) {
 	// create master key and derive first key:
 	masterPriv, ch := hd.ComputeMastersFromSeed(seed)
 	derivedPriv, err := hd.DerivePrivateKeyForPath(masterPriv, ch, fullHdPath)
 	if err != nil {
-		return
+		return nil, err
 	}
 
 	// use possibly blank password to encrypt the private
 	// key and store it. User must enforce good passwords.
-	info = kb.writeLocalKey(name, secp256k1.PrivKeySecp256k1(derivedPriv), passwd)
-	return
+	return kb.writeLocalKey(name, secp256k1.PrivKeySecp256k1(derivedPriv), passwd)
 }
 
 // List returns the keys from storage in alphabetical order.
@@ -223,7 +227,7 @@ func (kb dbKeybase) Sign(nameOrBech32, passphrase string, msg []byte) (sig []byt
 	case localInfo:
 		linfo := info.(localInfo)
 		if linfo.PrivKeyArmor == "" {
-			err = fmt.Errorf("private key not available")
+			err = fmt.Errorf("%w: %s", errKeyNotAvailable, nameOrBech32)
 			return
 		}
 
@@ -269,7 +273,17 @@ func (kb dbKeybase) Verify(nameOrBech32 string, msg []byte, sig []byte) (err err
 	return nil
 }
 
-func (kb dbKeybase) ExportPrivateKeyObject(nameOrBech32 string, passphrase string) (crypto.PrivKey, error) {
+func (kb dbKeybase) ImportPrivKey(name string, key crypto.PrivKey, encryptPass string) error {
+	if _, err := kb.GetByNameOrAddress(name); err == nil {
+		return fmt.Errorf("%w: %s", errCannotOverwrite, name)
+	}
+
+	_, err := kb.writeLocalKey(name, key, encryptPass)
+
+	return err
+}
+
+func (kb dbKeybase) ExportPrivKey(nameOrBech32 string, passphrase string) (crypto.PrivKey, error) {
 	info, err := kb.GetByNameOrAddress(nameOrBech32)
 	if err != nil {
 		return nil, err
@@ -281,142 +295,18 @@ func (kb dbKeybase) ExportPrivateKeyObject(nameOrBech32 string, passphrase strin
 	case localInfo:
 		linfo := info.(localInfo)
 		if linfo.PrivKeyArmor == "" {
-			err = fmt.Errorf("private key not available")
-			return nil, err
+			return nil, fmt.Errorf("%w: %s", errKeyNotAvailable, nameOrBech32)
 		}
+
 		priv, err = armor.UnarmorDecryptPrivKey(linfo.PrivKeyArmor, passphrase)
 		if err != nil {
 			return nil, err
 		}
-
 	case ledgerInfo, offlineInfo, multiInfo:
 		return nil, errors.New("only works on local private keys")
 	}
 
 	return priv, nil
-}
-
-func (kb dbKeybase) Export(nameOrBech32 string) (astr string, err error) {
-	info, err := kb.GetByNameOrAddress(nameOrBech32)
-	if err != nil {
-		return "", errors.Wrap(err, "getting info for name %s", nameOrBech32)
-	}
-	bz := kb.db.Get(infoKey(info.GetName()))
-	if bz == nil {
-		return "", fmt.Errorf("no key to export with name %s", nameOrBech32)
-	}
-	return armor.ArmorInfoBytes(bz), nil
-}
-
-// ExportPubKey returns public keys in ASCII armored format.
-// Retrieve a Info object by its name and return the public key in
-// a portable format.
-func (kb dbKeybase) ExportPubKey(nameOrBech32 string) (astr string, err error) {
-	info, err := kb.GetByNameOrAddress(nameOrBech32)
-	if err != nil {
-		return "", errors.Wrap(err, "getting info for name %s", nameOrBech32)
-	}
-	return armor.ArmorPubKeyBytes(info.GetPubKey().Bytes()), nil
-}
-
-// ExportPrivKey returns a private key in ASCII armored format.
-// It returns an error if the key does not exist or a wrong encryption passphrase is supplied.
-func (kb dbKeybase) ExportPrivKey(
-	name,
-	decryptPassphrase,
-	encryptPassphrase string,
-) (astr string, err error) {
-	priv, err := kb.ExportPrivateKeyObject(name, decryptPassphrase)
-	if err != nil {
-		return "", err
-	}
-
-	return armor.EncryptArmorPrivKey(priv, encryptPassphrase), nil
-}
-
-// ExportPrivKeyUnsafe returns a private key in ASCII armored format.
-// The returned armor is unencrypted.
-// It returns an error if the key does not exist
-func (kb dbKeybase) ExportPrivKeyUnsafe(
-	name,
-	decryptPassphrase string,
-) (string, error) {
-	priv, err := kb.ExportPrivateKeyObject(name, decryptPassphrase)
-	if err != nil {
-		return "", err
-	}
-
-	return armor.ArmorPrivateKey(priv), nil
-}
-
-// ImportPrivKey imports a private key in ASCII armor format.
-// It returns an error if a key with the same name exists or a wrong encryption passphrase is
-// supplied.
-func (kb dbKeybase) ImportPrivKey(
-	name,
-	astr,
-	decryptPassphrase,
-	encryptPassphrase string,
-) error {
-	if _, err := kb.GetByNameOrAddress(name); err == nil {
-		return errors.New("Cannot overwrite key " + name)
-	}
-	privKey, err := armor.UnarmorDecryptPrivKey(astr, decryptPassphrase)
-	if err != nil {
-		return errors.Wrap(err, "couldn't import private key")
-	}
-
-	kb.writeLocalKey(name, privKey, encryptPassphrase)
-	return nil
-}
-
-func (kb dbKeybase) ImportPrivKeyUnsafe(
-	name,
-	armorStr,
-	encryptPassphrase string,
-) error {
-	if _, err := kb.GetByNameOrAddress(name); err == nil {
-		return fmt.Errorf("cannot overwrite key %s", name)
-	}
-
-	privKey, err := armor.UnarmorPrivateKey(armorStr)
-	if err != nil {
-		return errors.Wrap(err, "couldn't import private key")
-	}
-
-	kb.writeLocalKey(name, privKey, encryptPassphrase)
-	return nil
-}
-
-func (kb dbKeybase) Import(name, astr string) (err error) {
-	if _, err := kb.GetByNameOrAddress(name); err == nil {
-		return errors.New("Cannot overwrite key " + name)
-	}
-	infoBytes, err := armor.UnarmorInfoBytes(astr)
-	if err != nil {
-		return
-	}
-	kb.db.Set(infoKey(name), infoBytes)
-	return nil
-}
-
-// ImportPubKey imports ASCII-armored public keys.
-// Store a new Info object holding a public key only, i.e. it will
-// not be possible to sign with it as it lacks the secret key.
-func (kb dbKeybase) ImportPubKey(name, astr string) (err error) {
-	if _, err := kb.GetByNameOrAddress(name); err == nil {
-		return errors.New("Cannot overwrite data for name " + name)
-	}
-	pubBytes, err := armor.UnarmorPubKeyBytes(astr)
-	if err != nil {
-		return
-	}
-	pubKey, err := crypto.PubKeyFromBytes(pubBytes)
-	if err != nil {
-		return
-	}
-	kb.writeOfflineKey(name, pubKey)
-	return
 }
 
 // Delete removes key forever, but we must present the
@@ -441,13 +331,13 @@ func (kb dbKeybase) Delete(nameOrBech32, passphrase string, skipPass bool) error
 	return nil
 }
 
-// Update changes the passphrase with which an already stored key is
+// Rotate changes the passphrase with which an already stored key is
 // encrypted.
 //
 // oldpass must be the current passphrase used for encryption,
 // getNewpass is a function to get the passphrase to permanently replace
 // the current passphrase
-func (kb dbKeybase) Update(nameOrBech32, oldpass string, getNewpass func() (string, error)) error {
+func (kb dbKeybase) Rotate(nameOrBech32, oldpass string, getNewpass func() (string, error)) error {
 	info, err := kb.GetByNameOrAddress(nameOrBech32)
 	if err != nil {
 		return err
@@ -475,41 +365,67 @@ func (kb dbKeybase) CloseDB() {
 	kb.db.Close()
 }
 
-func (kb dbKeybase) writeLocalKey(name string, priv crypto.PrivKey, passphrase string) Info {
+func (kb dbKeybase) writeLocalKey(name string, priv crypto.PrivKey, passphrase string) (Info, error) {
 	// encrypt private key using passphrase
 	privArmor := armor.EncryptArmorPrivKey(priv, passphrase)
 	// make Info
 	pub := priv.PubKey()
 	info := newLocalInfo(name, pub, privArmor)
-	kb.writeInfo(name, info)
-	return info
+	if err := kb.writeInfo(name, info); err != nil {
+		return nil, err
+	}
+	return info, nil
 }
 
-func (kb dbKeybase) writeLedgerKey(name string, pub crypto.PubKey, path hd.BIP44Params) Info {
+func (kb dbKeybase) writeLedgerKey(name string, pub crypto.PubKey, path hd.BIP44Params) (Info, error) {
 	info := newLedgerInfo(name, pub, path)
-	kb.writeInfo(name, info)
-	return info
+	if err := kb.writeInfo(name, info); err != nil {
+		return nil, err
+	}
+	return info, nil
 }
 
-func (kb dbKeybase) writeOfflineKey(name string, pub crypto.PubKey) Info {
+func (kb dbKeybase) writeOfflineKey(name string, pub crypto.PubKey) (Info, error) {
 	info := newOfflineInfo(name, pub)
-	kb.writeInfo(name, info)
-	return info
+	if err := kb.writeInfo(name, info); err != nil {
+		return nil, err
+	}
+	return info, nil
 }
 
-func (kb dbKeybase) writeMultisigKey(name string, pub crypto.PubKey) Info {
+func (kb dbKeybase) writeMultisigKey(name string, pub crypto.PubKey) (Info, error) {
 	info := NewMultiInfo(name, pub)
-	kb.writeInfo(name, info)
-	return info
+	if err := kb.writeInfo(name, info); err != nil {
+		return nil, err
+	}
+	return info, nil
 }
 
-func (kb dbKeybase) writeInfo(name string, info Info) {
+func (kb dbKeybase) writeInfo(name string, info Info) error {
 	// write the info by key
 	key := infoKey(name)
+	oldInfob := kb.db.Get(key)
+	if len(oldInfob) > 0 {
+		// Enforce 1-to-1 name to address. Remove the lookup by the old address
+		oldInfo, err := readInfo(oldInfob)
+		if err != nil {
+			return err
+		}
+		kb.db.DeleteSync(addrKey(oldInfo.GetAddress()))
+	}
+
+	addressKey := addrKey(info.GetAddress())
+	nameKeyForAddress := kb.db.Get(addressKey)
+	if len(nameKeyForAddress) > 0 {
+		// Enforce 1-to-1 name to address. Remove the info by the old name with the same address
+		kb.db.DeleteSync(nameKeyForAddress)
+	}
+
 	serializedInfo := writeInfo(info)
 	kb.db.SetSync(key, serializedInfo)
 	// store a pointer to the infokey by address for fast lookup
-	kb.db.SetSync(addrKey(info.GetAddress()), key)
+	kb.db.SetSync(addressKey, key)
+	return nil
 }
 
 func addrKey(address crypto.Address) []byte {

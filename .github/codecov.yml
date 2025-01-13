@@ -4,7 +4,7 @@ codecov:
     wait_for_ci: true
 
 comment:
-  require_changes: false
+  require_changes: true
 
 coverage:
   round: down
@@ -13,7 +13,7 @@ coverage:
     project:
       default:
         target: auto
-        threshold: 10 # Let's decrease this later.
+        threshold: 5 # Let's decrease this later.
         base: parent
         if_no_uploads: error
         if_not_found: success
@@ -22,12 +22,12 @@ coverage:
     patch:
       default:
         target: auto
-        threshold: 10 # Let's decrease this later.
+        threshold: 5 # Let's decrease this later.
         base: auto
         if_no_uploads: error
         if_not_found: success
         if_ci_failed: error
-        only_pulls: false
+        only_pulls: true # Only check patch coverage on PRs
 
 flag_management:
   default_rules:
@@ -39,3 +39,8 @@ flag_management:
       - type: patch
         target: auto # Let's decrease this later.
         threshold: 10
+
+ignore:
+  - "gnovm/stdlibs/generated.go"
+  - "gnovm/tests/stdlibs/generated.go"
+  - "**/*.pb.go"

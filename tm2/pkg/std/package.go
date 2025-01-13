@@ -12,10 +12,10 @@ var Package = amino.RegisterPackage(amino.NewPackage(
 
 	// Account
 	&BaseAccount{}, "BaseAccount",
-
-	// MemFile/MemPackage
-	MemFile{}, "MemFile",
-	MemPackage{}, "MemPackage",
+	// Coin
+	&Coin{}, "Coin",
+	// GasPrice
+	&GasPrice{}, "GasPrice",
 
 	// Errors
 	InternalError{}, "InternalError",

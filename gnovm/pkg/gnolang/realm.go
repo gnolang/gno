@@ -6,6 +6,9 @@ import (
 	"fmt"
 	"reflect"
 	"strings"
+	"sync"
+
+	bm "github.com/gnolang/gno/gnovm/pkg/benchops"
 )
 
 /*
@@ -69,8 +72,25 @@ func (pid PkgID) Bytes() []byte {
 	return pid.Hashlet[:]
 }
 
+var (
+	pkgIDFromPkgPathCacheMu sync.Mutex // protects the shared cache.
+	// TODO: later on switch this to an LRU if needed to ensure
+	// fixed memory caps. For now though it isn't a problem:
+	// https://github.com/gnolang/gno/pull/3424#issuecomment-2564571785
+	pkgIDFromPkgPathCache = make(map[string]*PkgID, 100)
+)
+
 func PkgIDFromPkgPath(path string) PkgID {
-	return PkgID{HashBytes([]byte(path))}
+	pkgIDFromPkgPathCacheMu.Lock()
+	defer pkgIDFromPkgPathCacheMu.Unlock()
+
+	pkgID, ok := pkgIDFromPkgPathCache[path]
+	if !ok {
+		pkgID = new(PkgID)
+		*pkgID = PkgID{HashBytes([]byte(path))}
+		pkgIDFromPkgPathCache[path] = pkgID
+	}
+	return *pkgID
 }
 
 // Returns the ObjectID of the PackageValue associated with path.
@@ -134,6 +154,10 @@ func (rlm *Realm) String() string {
 // xo or co is nil if the element value is undefined or has no
 // associated object.
 func (rlm *Realm) DidUpdate(po, xo, co Object) {
+	if bm.OpsEnabled {
+		bm.PauseOpCode()
+		defer bm.ResumeOpCode()
+	}
 	if rlm == nil {
 		return
 	}
@@ -439,10 +463,17 @@ func (rlm *Realm) MarkNewEscaped(oo Object) {
 // to a realm gets attached here, which should panic.
 // OpReturn calls this when exiting a realm transaction.
 func (rlm *Realm) FinalizeRealmTransaction(readonly bool, store Store) {
+<<<<<<< HEAD
 	debug2.Println2("FinalizeRealmTransaction, rlm.ID: ", rlm.ID)
 	defer func() {
 		debug2.Println2("================done FinalizeRealmTransaction==================")
 	}()
+=======
+	if bm.OpsEnabled {
+		bm.PauseOpCode()
+		defer bm.ResumeOpCode()
+	}
+>>>>>>> main/master
 	if readonly {
 		if true ||
 			len(rlm.newCreated) > 0 ||
@@ -1027,6 +1058,9 @@ func getChildObjects(val Value, more []Value) []Value {
 		if bv, ok := cv.Closure.(*Block); ok {
 			more = getSelfOrChildObjects(bv, more)
 		}
+		for _, c := range cv.Captures {
+			more = getSelfOrChildObjects(c.V, more)
+		}
 		return more
 	case *BoundMethodValue:
 		more = getChildObjects(cv.Func, more) // *FuncValue not object
@@ -1314,7 +1348,7 @@ func copyValueWithRefs(val Value) Value {
 		if cv.Closure != nil {
 			closure = toRefValue(cv.Closure)
 		}
-		// nativeBody funcs which don't come from NativeStore (and thus don't
+		// nativeBody funcs which don't come from NativeResolver (and thus don't
 		// have NativePkg/Name) can't be persisted, and should not be able
 		// to get here anyway.
 		if cv.nativeBody != nil && cv.NativePkg == "" {
@@ -1327,6 +1361,7 @@ func copyValueWithRefs(val Value) Value {
 			Source:     source,
 			Name:       cv.Name,
 			Closure:    closure,
+			Captures:   cv.Captures,
 			FileName:   cv.FileName,
 			PkgPath:    cv.PkgPath,
 			NativePkg:  cv.NativePkg,
