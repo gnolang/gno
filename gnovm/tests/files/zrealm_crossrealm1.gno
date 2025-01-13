@@ -16,5 +16,5 @@ func main() {
 	println(somevalue)
 }
 
-// Output:
-// (struct{("test" string)} gno.land/r/demo/tests.TestRealmObject)
+// Error:
+// cannot attach a value of a type defined by another realm

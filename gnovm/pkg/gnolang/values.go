@@ -210,6 +210,10 @@ func (pv *PointerValue) GetBase(store Store) Object {
 // TODO: document as something that enables into-native assignment.
 // TODO: maybe consider this as entrypoint for DataByteValue too?
 func (pv PointerValue) Assign2(alloc *Allocator, store Store, rlm *Realm, tv2 TypedValue, cu bool) {
+	debug2.Println2("Assign2, pv: ", pv)
+	debug2.Println2("tv2: ", tv2)
+	debug2.Println2("rlm: ", rlm)
+
 	// Special cases.
 	if pv.Index == PointerIndexNative {
 		// Special case if extended object && native.
@@ -283,9 +287,32 @@ func (pv PointerValue) Assign2(alloc *Allocator, store Store, rlm *Realm, tv2 Ty
 	// General case
 	if rlm != nil && pv.Base != nil {
 		oo1 := pv.TV.GetFirstObject(store)
+		debug2.Println2("oo1: ", oo1)
+
+		// get origin pkgId, this should happen before assign,
+		// because assign will discard original object info
+		originPkg := tv2.GetOriginPkg(store)
+		debug2.Println2("originPkg: ", originPkg)
+
 		pv.TV.Assign(alloc, tv2, cu)
+
 		oo2 := pv.TV.GetFirstObject(store)
-		rlm.DidUpdate(pv.Base.(Object), oo1, oo2)
+		debug2.Println2("oo2: ", oo2)
+
+		// refValue is needed for checking
+		// proper element in the base.
+		// e.g. refValue is a sliceValue
+		var refValue Value
+		switch rv := pv.TV.V.(type) {
+		case *SliceValue, PointerValue:
+			refValue = rv
+			oo2.SetIsRef(true)
+		}
+
+		if oo2 != nil && !originPkg.IsZero() {
+			oo2.SetOriginRealm(originPkg) // attach origin package info
+		}
+		rlm.DidUpdate2(store, pv.Base.(Object), oo1, oo2, refValue)
 	} else {
 		pv.TV.Assign(alloc, tv2, cu)
 	}
@@ -383,6 +410,7 @@ func (av *ArrayValue) GetPointerAtIndexInt2(store Store, ii int, et Type) Pointe
 }
 
 func (av *ArrayValue) Copy(alloc *Allocator) *ArrayValue {
+	debug2.Println2("Array copy, av: ", av)
 	/* TODO: consider second ref count field.
 	if av.GetRefCount() == 0 {
 		return av
@@ -507,6 +535,7 @@ func (sv *StructValue) GetSubrefPointerTo(store Store, st *StructType, path Valu
 }
 
 func (sv *StructValue) Copy(alloc *Allocator) *StructValue {
+	debug2.Println2("StructValue copy, sv: ", sv)
 	/* TODO consider second refcount field
 	if sv.GetRefCount() == 0 {
 		return sv
@@ -522,7 +551,23 @@ func (sv *StructValue) Copy(alloc *Allocator) *StructValue {
 		fields[i] = field.Copy(alloc)
 	}
 
-	return alloc.NewStruct(fields)
+	nsv := alloc.NewStruct(fields)
+	//debug2.Println2("sv.GetOriginRealm: ", sv.GetOriginRealm())
+	//debug2.Println2("sv.GetObjectID(): ", sv.GetObjectID())
+	//debug2.Println2("sv.GetRefCount: ", sv.GetRefCount())
+	//debug2.Println2("sv...OwneID: ", sv.GetObjectInfo().OwnerID)
+	// append, unref copy...
+
+	// this copy is needed,
+	// copy origin realm is necessary here because, for example, if `sv` is an embedded struct,
+	// assigning the containing struct will also copy the embedded struct.
+	pkgId := sv.GetOriginRealm()
+	if pkgId.IsZero() {
+		pkgId = sv.GetObjectID().PkgID
+	}
+	nsv.SetOriginRealm(pkgId)
+	return nsv
+	//return alloc.NewStruct(fields)
 }
 
 // ----------------------------------------
@@ -1031,6 +1076,7 @@ func (tv *TypedValue) ClearNum() {
 }
 
 func (tv TypedValue) Copy(alloc *Allocator) (cp TypedValue) {
+	debug2.Println2("Copy, tv: ", tv, reflect.TypeOf(tv.V))
 	switch cv := tv.V.(type) {
 	case BigintValue:
 		cp.T = tv.T
@@ -1053,6 +1099,7 @@ func (tv TypedValue) Copy(alloc *Allocator) (cp TypedValue) {
 // unrefCopy makes a copy of the underlying value in the case of reference values.
 // It copies other values as expected using the normal Copy method.
 func (tv TypedValue) unrefCopy(alloc *Allocator, store Store) (cp TypedValue) {
+	debug2.Println2("UnrefCopy, tv: ", tv)
 	switch tv.V.(type) {
 	case RefValue:
 		cp.T = tv.T
@@ -1628,6 +1675,7 @@ func (tv *TypedValue) ComputeMapKey(store Store, omitType bool) MapKey {
 // cu: convert untyped after assignment. pass false
 // for const definitions, but true for all else.
 func (tv *TypedValue) Assign(alloc *Allocator, tv2 TypedValue, cu bool) {
+	debug2.Println2("Assign, tv2: ", tv2)
 	if debug {
 		if tv.T == DataByteType {
 			// assignment to data byte types should only
@@ -2677,6 +2725,7 @@ func typedString(s string) TypedValue {
 }
 
 func fillValueTV(store Store, tv *TypedValue) *TypedValue {
+	debug2.Println2("fillValueTV, tv: ", tv, reflect.TypeOf(tv.V))
 	switch cv := tv.V.(type) {
 	case RefValue:
 		if cv.PkgPath != "" { // load package

@@ -45,6 +45,18 @@ func init() {
 
 var enabled bool = true
 
+func (debugging) Println2(args ...interface{}) {
+	if debug2 {
+		fmt.Println(append([]interface{}{"DEBUG:"}, args...)...)
+	}
+}
+
+func (debugging) Printf2(format string, args ...interface{}) {
+	if debug2 {
+		fmt.Printf("DEBUG: "+format, args...)
+	}
+}
+
 func (debugging) Println(args ...interface{}) {
 	if debug {
 		if enabled {

@@ -24,4 +24,4 @@ func main() {
 }
 
 // Error:
-// new escaped mark has no object ID
+// cannot attach un-real object from external realm: struct{}

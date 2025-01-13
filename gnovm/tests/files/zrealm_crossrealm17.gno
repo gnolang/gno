@@ -24,4 +24,4 @@ func main() {
 }
 
 // Error:
-// new escaped mark has no object ID
+// cannot attach a reference to an unreal object from an external realm

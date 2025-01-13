@@ -3,6 +3,7 @@ package gnolang
 import (
 	"encoding/hex"
 	"fmt"
+	"reflect"
 	"strconv"
 	"strings"
 
@@ -112,6 +113,10 @@ type Object interface {
 	SetIsDeleted(bool, uint64)
 	GetIsNewReal() bool
 	SetIsNewReal(bool)
+	GetOriginRealm() PkgID
+	SetOriginRealm(pkgID PkgID)
+	GetIsRef() bool
+	SetIsRef(bool)
 	GetIsNewEscaped() bool
 	SetIsNewEscaped(bool)
 	GetIsNewDeleted() bool
@@ -143,28 +148,34 @@ type ObjectInfo struct {
 	isDirty      bool
 	isDeleted    bool
 	isNewReal    bool
+	isRef        bool
 	isNewEscaped bool
 	isNewDeleted bool
+	originRealm  PkgID // realm where object is from
 
 	// XXX huh?
 	owner Object // mem reference to owner.
 }
 
-// Copy used for serialization of objects.
 // Note that "owner" is nil.
 func (oi *ObjectInfo) Copy() ObjectInfo {
 	return ObjectInfo{
-		ID:           oi.ID,
-		Hash:         oi.Hash.Copy(),
-		OwnerID:      oi.OwnerID,
-		ModTime:      oi.ModTime,
-		RefCount:     oi.RefCount,
-		IsEscaped:    oi.IsEscaped,
-		isDirty:      oi.isDirty,
-		isDeleted:    oi.isDeleted,
-		isNewReal:    oi.isNewReal,
-		isNewEscaped: oi.isNewEscaped,
-		isNewDeleted: oi.isNewDeleted,
+		ID:        oi.ID,
+		Hash:      oi.Hash.Copy(),
+		OwnerID:   oi.OwnerID,
+		ModTime:   oi.ModTime,
+		RefCount:  oi.RefCount,
+		IsEscaped: oi.IsEscaped,
+		//originRealm: oi.originRealm,
+		/*
+			// XXX do the following need copying too?
+			isDirty:          oi.isDirty,
+			isDeleted:        oi.isDeleted,
+			isNewReal:        oi.isNewReal,
+			isNewEscaped:     oi.isNewEscaped,
+			isNewDeleted:     oi.isNewDeleted,
+			originRealm: oi.originRealm,
+		*/
 	}
 }
 
@@ -305,6 +316,23 @@ func (oi *ObjectInfo) SetIsNewReal(x bool) {
 	oi.isNewReal = x
 }
 
+func (oi *ObjectInfo) GetOriginRealm() PkgID {
+	return oi.originRealm
+}
+
+func (oi *ObjectInfo) SetOriginRealm(pkgId PkgID) {
+	debug2.Println2("SetOriginRealm: ", pkgId)
+	oi.originRealm = pkgId
+}
+
+func (oi *ObjectInfo) GetIsRef() bool {
+	return oi.isRef
+}
+
+func (oi *ObjectInfo) SetIsRef(isRef bool) {
+	oi.isRef = isRef
+}
+
 func (oi *ObjectInfo) GetIsNewEscaped() bool {
 	return oi.isNewEscaped
 }
@@ -325,6 +353,7 @@ func (oi *ObjectInfo) GetIsTransient() bool {
 	return false
 }
 
+// XXX, get first accessible object, maybe containing(parent) object, maybe itself.
 func (tv *TypedValue) GetFirstObject(store Store) Object {
 	switch cv := tv.V.(type) {
 	case PointerValue:
@@ -357,4 +386,66 @@ func (tv *TypedValue) GetFirstObject(store Store) Object {
 	default:
 		return nil
 	}
+}
+
+// GetOriginPkg get origin pkg for real or unreal object
+func (tv *TypedValue) GetOriginPkg(store Store) (originPkg PkgID) {
+	debug2.Println2("GetOriginPkg, tv: ", tv, reflect.TypeOf(tv.V))
+	// get first object
+	obj := tv.GetFirstObject(store)
+	debug2.Println2("obj: ", obj, reflect.TypeOf(obj))
+	if obj != nil {
+		// origin realm maybe set while association, even
+		// it's un-real.
+		originPkg = obj.GetOriginRealm()
+		if !originPkg.IsZero() {
+			return
+		}
+		originPkg = obj.GetObjectID().PkgID
+		if !originPkg.IsZero() {
+			return
+		}
+	}
+
+	// get pkgId from type
+	getPkgId := func(t Type) (pkgId PkgID) {
+		if dt, ok := t.(*DeclaredType); ok {
+			debug2.Printf2("getPkgId, dt: %v, dt.Base: %v, dt.Base.PkgPath: %s \n", dt, dt.Base, dt.Base.GetPkgPath())
+			if IsRealmPath(dt.Base.GetPkgPath()) {
+				pkgId = PkgIDFromPkgPath(dt.Base.GetPkgPath())
+				return
+			}
+		}
+		return
+	}
+
+	// if still zero
+	switch cv := obj.(type) {
+	case *ArrayValue:
+		// if array is real, retrieved from objectID,
+		// otherwise, it's retrieved from elem type.
+		// it panics while attach this kind of slice/array value: `var fs []crossrealm.Fooer`,
+		if IsRealmPath(tv.T.Elem().GetPkgPath()) {
+			originPkg = PkgIDFromPkgPath(tv.T.Elem().GetPkgPath())
+		}
+		return
+	case *Block:
+		originPkg = PkgIDFromPkgPath(cv.Source.GetLocation().PkgPath)
+		return
+	case *HeapItemValue:
+		originPkg = getPkgId(cv.Value.T)
+		return
+	case *BoundMethodValue:
+		debug2.Println2("BoundMethodValue, recv: ", cv.Receiver)
+		if pv, ok := cv.Receiver.V.(PointerValue); ok {
+			originPkg = getPkgId(pv.TV.T)
+		}
+		return
+	case *MapValue, *StructValue:
+		originPkg = getPkgId(tv.T)
+		return
+	default:
+		// do nothing
+	}
+	return
 }

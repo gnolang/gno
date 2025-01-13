@@ -162,6 +162,55 @@ func (rlm *Realm) DidUpdate(po, xo, co Object) {
 		return
 	}
 	if debug {
+		if po != nil && po.GetIsTransient() {
+			panic("cannot attach to a transient object")
+		}
+		if po != nil && po.GetIsDeleted() {
+			panic("cannot attach to a deleted object")
+		}
+	}
+
+	if po == nil || !po.GetIsReal() { // XXX, make sure po is real
+		return // do nothing.
+	}
+
+	if po.GetObjectID().PkgID != rlm.ID {
+		panic("cannot modify external-realm or non-realm object")
+	}
+	// XXX check if this boosts performance
+	// XXX with broad integration benchmarking.
+	// XXX if co == xo {
+	// XXX }
+
+	// From here on, po is real (not new-real).
+	// Updates to .newCreated/.newEscaped /.newDeleted made here. (first gen)
+	// More appends happen during FinalizeRealmTransactions(). (second+ gen)
+	rlm.MarkDirty(po)
+
+	if xo != nil {
+		xo.DecRefCount()
+		if xo.GetRefCount() == 0 {
+			if xo.GetIsReal() {
+				rlm.MarkNewDeleted(xo)
+			}
+		}
+	}
+}
+
+// ref value is the derived value from co, like a slice.
+func (rlm *Realm) DidUpdate2(store Store, po, xo, co Object, refValue Value) {
+	debug2.Printf2("DidUpdate2, po: %v, type of po: %v\n", po, reflect.TypeOf(po))
+	debug2.Printf2("xo: %v, type of xo: %v\n", xo, reflect.TypeOf(xo))
+	debug2.Printf2("co: %v, type of co: %v\n", co, reflect.TypeOf(co))
+	debug2.Println2("rlm.ID: ", rlm.ID)
+	if co != nil {
+		debug2.Println2("co.GetOriginRealm: ", co.GetOriginRealm())
+	}
+
+	if rlm == nil {
+		return
+	}
+	if debug {
 		if co != nil && co.GetIsDeleted() {
 			panic("cannot attach a deleted object")
 		}
@@ -172,9 +221,15 @@ func (rlm *Realm) DidUpdate(po, xo, co Object) {
 			panic("cannot attach to a deleted object")
 		}
 	}
-	if po == nil || !po.GetIsReal() {
+
+	if po == nil || !po.GetIsReal() { // XXX, make sure po is attached
+		debug2.Println2("po not real, do nothing!!!")
 		return // do nothing.
 	}
+
+	// TODO: check unreal external here, if po is real, association is invalid, panic
+	// else, defer to finalize???
+	debug2.Println2("po.GetObjectID().PkgID: ", po.GetObjectID().PkgID)
 	if po.GetObjectID().PkgID != rlm.ID {
 		panic("cannot modify external-realm or non-realm object")
 	}
@@ -190,13 +245,10 @@ func (rlm *Realm) DidUpdate(po, xo, co Object) {
 	rlm.MarkDirty(po)
 
 	if co != nil {
+		// XXX, inc ref count everytime assignment happens
 		co.IncRefCount()
 		if co.GetRefCount() > 1 {
-			if co.GetIsEscaped() {
-				// already escaped
-			} else {
-				rlm.MarkNewEscaped(co)
-			}
+			rlm.MarkNewEscapedCheckCrossRealm(store, co, refValue)
 		} else if co.GetIsReal() {
 			rlm.MarkDirty(co)
 		} else {
@@ -215,10 +267,101 @@ func (rlm *Realm) DidUpdate(po, xo, co Object) {
 	}
 }
 
+func checkCrossRealm2(rlm *Realm, store Store, tv *TypedValue) {
+	debug2.Printf2("checkCrossRealm2, tv: %v\n", tv, reflect.TypeOf(tv.V))
+	if fo, ok := tv.V.(Object); ok {
+		checkCrossRealm(rlm, store, fo, nil)
+	} else { // reference to object
+		switch rv := tv.V.(type) {
+		case *SliceValue, PointerValue: // if reference object from external realm
+			// XXX: consider pkgId here, A -> B - > A?...
+			reo := tv.GetFirstObject(store)
+			checkCrossRealm(rlm, store, reo, rv)
+		}
+	}
+	// else nothing to do
+}
+
+// checkCrossRealm performs a deep crawl to determine if cross-realm conditions exist.
+// refValue is required to handle cases where the value is a slice.
+// The `len` and `offset` are needed to validate proper elements the underlying array.
+func checkCrossRealm(rlm *Realm, store Store, oo Object, refValue Value) {
+	debug2.Println2("checkCrossRealm, oo: ", oo, reflect.TypeOf(oo))
+	debug2.Println2("refValue: ", refValue)
+	debug2.Println2("oo.GetRefCount: ", oo.GetRefCount())
+	debug2.Println2("oo.GetObjectInfo: ", oo.GetObjectInfo())
+
+	switch v := oo.(type) {
+	case *StructValue:
+		if !v.GetIsReal() { // it's possible that embedded in another container
+			if rlm.ID != oo.GetOriginRealm() { // it's ok for un-real object from same realm
+				panic(fmt.Sprintf("cannot attach un-real object from external realm: %v", v))
+			}
+		}
+		// check fields
+		for _, fv := range v.Fields {
+			rfv := fillValueTV(store, &fv)
+			checkCrossRealm2(rlm, store, rfv)
+		}
+	case *MapValue:
+	// TODO: complete this
+	case *BoundMethodValue:
+	// TODO: complete this
+	case *Block:
+		// XXX, can this happen?
+		if !v.GetIsRef() {
+			panic("should not happen, block is not real")
+		}
+	case *HeapItemValue:
+		// TODO: is it necessary?
+		// if heapItem, the embedded should be all real now???
+		fillValueTV(store, &v.Value)
+		checkCrossRealm2(rlm, store, &v.Value)
+	case *ArrayValue:
+		if sv, ok := refValue.(*SliceValue); ok {
+			// only check referenced elem
+			for i := sv.Offset; i < sv.Length; i++ {
+				e := fillValueTV(store, &v.List[i])
+				checkCrossRealm2(rlm, store, e)
+			}
+		} else {
+			panic("should be slice value")
+		}
+	default:
+		panic("should not happen, oo is not object")
+	}
+}
+
 //----------------------------------------
 // mark*
 
+// MarkNewEscapedCheckCrossRealm mark new escaped object
+// and check cross realm
+func (rlm *Realm) MarkNewEscapedCheckCrossRealm(store Store, oo Object, refValue Value) {
+	debug2.Println2("MarkNewEscapedCheckCrossRealm, oo: ", oo)
+	debug2.Println2("oo.GetOriginRealm(): ", oo.GetOriginRealm())
+	debug2.Println2("rlm.ID: ", rlm.ID)
+
+	if oo.GetOriginRealm() == rlm.ID {
+		// do nothing
+		return
+	}
+
+	if oo.GetOriginRealm() != rlm.ID { // crossing realm
+		if refValue != nil { // is reference object from external realm
+			checkCrossRealm(rlm, store, oo, refValue)
+		} else {
+			panic("cannot attach objects by value from external realm")
+		}
+	}
+	// mark escaped
+	if !oo.GetIsEscaped() {
+		rlm.MarkNewEscaped(oo)
+	}
+}
+
 func (rlm *Realm) MarkNewReal(oo Object) {
+	debug2.Println2("MarkNewReal, oo:", oo)
 	if debug {
 		if pv, ok := oo.(*PackageValue); ok {
 			// packages should have no owner.
@@ -249,6 +392,7 @@ func (rlm *Realm) MarkNewReal(oo Object) {
 	rlm.newCreated = append(rlm.newCreated, oo)
 }
 
+// mark dirty == updated
 func (rlm *Realm) MarkDirty(oo Object) {
 	if debug {
 		if !oo.GetIsReal() && !oo.GetIsNewReal() {
@@ -315,8 +459,14 @@ func (rlm *Realm) MarkNewEscaped(oo Object) {
 //----------------------------------------
 // transactions
 
+// TODO: check cross realm, that might be objects not attached
+// to a realm gets attached here, which should panic.
 // OpReturn calls this when exiting a realm transaction.
 func (rlm *Realm) FinalizeRealmTransaction(readonly bool, store Store) {
+	debug2.Println2("FinalizeRealmTransaction, rlm.ID: ", rlm.ID)
+	defer func() {
+		debug2.Println2("================done FinalizeRealmTransaction==================")
+	}()
 	if bm.OpsEnabled {
 		bm.PauseOpCode()
 		defer bm.ResumeOpCode()
@@ -386,8 +536,16 @@ func (rlm *Realm) FinalizeRealmTransaction(readonly bool, store Store) {
 // All newly created objects become appended to .created,
 // and get assigned ids.
 func (rlm *Realm) processNewCreatedMarks(store Store) {
+	debug2.Println2("processNewCreatedMarks")
+	//fmt.Println("---len of newCreated objects:", len(rlm.newCreated))
 	// Create new objects and their new descendants.
-	for _, oo := range rlm.newCreated {
+	//for _, oo := range rlm.newCreated {
+	for i := 0; i < len(rlm.newCreated); i++ {
+		oo := rlm.newCreated[i]
+		debug2.Printf2("---oo[%d] is %v:\n", i, oo)
+		//if _, ok := oo.(*BoundMethodValue); ok {
+		//	panic("should not happen persist bound method")
+		//}
 		if debug {
 			if oo.GetIsDirty() {
 				panic("new created mark cannot be dirty")
@@ -413,8 +571,15 @@ func (rlm *Realm) processNewCreatedMarks(store Store) {
 	}
 }
 
+// XXX, unreal oo check happens in here
 // oo must be marked new-real, and ref-count already incremented.
 func (rlm *Realm) incRefCreatedDescendants(store Store, oo Object) {
+	debug2.Println2("---incRefCreatedDescendants from oo: ", oo)
+	debug2.Println2("---oo.GetOriginRealm: ", oo.GetOriginRealm())
+	debug2.Println2("---oo.GetRefCount: ", oo.GetRefCount())
+	debug2.Println2("---rlm.ID: ", rlm.ID)
+	debug2.Println2("oo.GetIsRef: ", oo.GetIsRef())
+
 	if debug {
 		if oo.GetIsDirty() {
 			panic("cannot increase reference of descendants of dirty objects")
@@ -424,20 +589,32 @@ func (rlm *Realm) incRefCreatedDescendants(store Store, oo Object) {
 		}
 	}
 
+	// XXX, oo must be new real here, it's not escaped
+	// if it's reference, all right
+	if !oo.GetOriginRealm().IsZero() && oo.GetOriginRealm() != rlm.ID {
+		if oo.GetIsRef() {
+			panic("cannot attach a reference to an unreal object from an external realm")
+		} else {
+			panic("cannot attach a value of a type defined by another realm")
+		}
+	}
+
 	// RECURSE GUARD
 	// if id already set, skip.
 	// this happens when a node marked created was already
 	// visited via recursion from a prior marked created.
 	if !oo.GetObjectID().IsZero() {
+		debug2.Println2("not zero, do nothing, return")
 		return
 	}
 	rlm.assignNewObjectID(oo)
-	rlm.created = append(rlm.created, oo)
+	rlm.created = append(rlm.created, oo) // XXX, here it becomes real.
 	// RECURSE GUARD END
 
 	// recurse for children.
 	more := getChildObjects2(store, oo)
-	for _, child := range more {
+	for i, child := range more {
+		debug2.Printf2("---[%d]child: %v, type of child: %v \n", i, child, reflect.TypeOf(child))
 		if _, ok := child.(*PackageValue); ok {
 			if debug {
 				if child.GetRefCount() < 1 {
@@ -449,6 +626,7 @@ func (rlm *Realm) incRefCreatedDescendants(store Store, oo Object) {
 		}
 		child.IncRefCount()
 		rc := child.GetRefCount()
+		debug2.Println2("rc after inc: ", rc)
 		if rc == 1 {
 			if child.GetIsReal() {
 				// a deleted real became undeleted.
@@ -692,8 +870,6 @@ func (rlm *Realm) saveUnsavedObjects(store Store) {
 		}
 	}
 	for _, uo := range rlm.updated {
-		// for i := len(rlm.updated) - 1; i >= 0; i-- {
-		// uo := rlm.updated[i]
 		if !uo.GetIsDirty() {
 			// might have happened already as child
 			// of something else created/dirty.
@@ -760,7 +936,10 @@ func (rlm *Realm) saveUnsavedObjectRecursively(store Store, oo Object) {
 }
 
 func (rlm *Realm) saveObject(store Store, oo Object) {
+	debug2.Println2("saveObject: ", oo)
 	oid := oo.GetObjectID()
+	debug2.Println2("---oid: ", oid)
+	//debug2.Println2("---oo.GetRefCount: ", oo.GetRefCount())
 	if oid.IsZero() {
 		panic("unexpected zero object id")
 	}
@@ -866,6 +1045,7 @@ func getChildObjects(val Value, more []Value) []Value {
 		return more
 	case *StructValue:
 		for _, ctv := range cv.Fields {
+			// TODO: we have type infos here, so check check cross realm logic
 			more = getSelfOrChildObjects(ctv.V, more)
 		}
 		return more
@@ -979,6 +1159,7 @@ func copyMethods(methods []TypedValue) []TypedValue {
 }
 
 func refOrCopyType(typ Type) Type {
+	debug2.Println2("refOrCopyType, typ: ", typ)
 	if dt, ok := typ.(*DeclaredType); ok {
 		return RefType{ID: dt.TypeID()}
 	} else {
@@ -1002,6 +1183,7 @@ func copyFieldsWithRefs(fields []FieldType) []FieldType {
 // Copies type but with references to dependant types;
 // the result is suitable for persistence bytes serialization.
 func copyTypeWithRefs(typ Type) Type {
+	debug2.Println2("copyTypeWithRefs, typ: ", typ)
 	switch ct := typ.(type) {
 	case nil:
 		panic("cannot copy nil types")
@@ -1092,6 +1274,7 @@ func copyTypeWithRefs(typ Type) Type {
 // Also checks for integrity of immediate children -- they must already be
 // persistent (real), and not dirty, or else this function panics.
 func copyValueWithRefs(val Value) Value {
+	debug2.Println2("-copyValueWithRefs, val: ", val)
 	switch cv := val.(type) {
 	case nil:
 		return nil
@@ -1267,6 +1450,7 @@ func copyValueWithRefs(val Value) Value {
 
 // (fully) fills the type.
 func fillType(store Store, typ Type) Type {
+	debug2.Println2("fillType, typ: ", typ)
 	switch ct := typ.(type) {
 	case nil:
 		return nil
@@ -1350,6 +1534,7 @@ func fillType(store Store, typ Type) Type {
 }
 
 func fillTypesTV(store Store, tv *TypedValue) {
+	debug2.Println2("fillTypesTV, tv: ", tv)
 	tv.T = fillType(store, tv.T)
 	tv.V = fillTypesOfValue(store, tv.V)
 }
@@ -1357,6 +1542,8 @@ func fillTypesTV(store Store, tv *TypedValue) {
 // Partially fills loaded objects shallowly, similarly to
 // getUnsavedTypes. Replaces all RefTypes with corresponding types.
 func fillTypesOfValue(store Store, val Value) Value {
+	debug2.Println2("fillTypesOfValue, val: ", val)
+	debug2.Println2("type of val: ", reflect.TypeOf(val))
 	switch cv := val.(type) {
 	case nil: // do nothing
 		return cv
@@ -1387,6 +1574,9 @@ func fillTypesOfValue(store Store, val Value) Value {
 		fillTypesOfValue(store, cv.Base)
 		return cv
 	case *StructValue:
+		debug2.Println2("struct value")
+		debug2.Println2("cv.GetOriginRealm: ", cv.GetOriginRealm())
+		debug2.Println2("cv.GetObjectInfo: ", cv.GetObjectInfo())
 		for i := 0; i < len(cv.Fields); i++ {
 			ctv := &cv.Fields[i]
 			fillTypesTV(store, ctv)
@@ -1455,11 +1645,14 @@ func (rlm *Realm) nextObjectID() ObjectID {
 // Object gets its id set (panics if already set), and becomes
 // marked as new and real.
 func (rlm *Realm) assignNewObjectID(oo Object) ObjectID {
+	debug2.Printf2("assignNewObjectID, rlm: %v, oo: %v, oo: %p\n", rlm, oo, oo)
 	oid := oo.GetObjectID()
+	debug2.Println2("oid: ", oid)
 	if !oid.IsZero() {
 		panic("unexpected non-zero object id")
 	}
 	noid := rlm.nextObjectID()
+	debug2.Println2("noid: ", noid)
 	oo.SetObjectID(noid)
 	return noid
 }
@@ -1475,10 +1668,12 @@ func toRefNode(bn BlockNode) RefNode {
 }
 
 func toRefValue(val Value) RefValue {
+	debug2.Println2("toRefValue, val: ", val)
 	// TODO use type switch stmt.
 	if ref, ok := val.(RefValue); ok {
 		return ref
 	} else if oo, ok := val.(Object); ok {
+		debug2.Println2("oo: ", oo)
 		if pv, ok := val.(*PackageValue); ok {
 			if pv.GetIsDirty() {
 				panic("unexpected dirty package " + pv.PkgPath)
@@ -1548,6 +1743,7 @@ func ensureUniq(oozz ...[]Object) {
 }
 
 func refOrCopyValue(tv TypedValue) TypedValue {
+	debug2.Println2("refOrCopyValue:", tv)
 	if tv.T != nil {
 		tv.T = refOrCopyType(tv.T)
 	}

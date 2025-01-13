@@ -6,6 +6,10 @@ import (
 	psubtests "gno.land/p/demo/tests/subtests"
 )
 
+type Foo struct{ name string }
+
+var F = Foo{"p"}
+
 const World = "world"
 
 func CurrentRealmPath() string {
