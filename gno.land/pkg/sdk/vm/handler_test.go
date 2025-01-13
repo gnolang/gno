@@ -322,3 +322,79 @@ func TestVmHandlerQuery_File(t *testing.T) {
 		})
 	}
 }
+
+func TestVmHandlerQuery_Doc(t *testing.T) {
+	tt := []struct {
+		input              []byte
+		expectedResult     string
+		expectedErrorMatch string
+	}{
+		// valid queries
+		{input: []byte(`gno.land/r/hello`), expectedResult: `{"package_path":"gno.land/r/hello","package_line":"package hello // import \"hello\"","package_doc":"hello is a package for testing\n","values":[{"signature":"const ConstString = \"const string\"","doc":""},{"signature":"var PubString = \"public string\"","doc":""},{"signature":"var counter int = 42","doc":""},{"signature":"var myStructInst = myStruct{a: 1000}","doc":""},{"signature":"var pvString = \"private string\"","doc":""},{"signature":"var sl = []int{1, 2, 3, 4, 5}","doc":"sl is an int array\n"}],"funcs":[{"type":"","name":"Echo","signature":"func Echo(msg string) string","doc":""},{"type":"","name":"GetCounter","signature":"func GetCounter() int","doc":""},{"type":"","name":"Inc","signature":"func Inc() int","doc":""},{"type":"","name":"Panic","signature":"func Panic()","doc":"Panic is a func for testing\n"},{"type":"","name":"fn","signature":"func fn() func(string) string","doc":""},{"type":"","name":"pvEcho","signature":"func pvEcho(msg string) string","doc":""},{"type":"myStruct","name":"Foo","signature":"func (ms myStruct) Foo() string","doc":"Foo is a method for testing\n"}],"types":[{"name":"myStruct","signature":"type myStruct struct{ a int }","doc":"myStruct is a struct for testing\n"}]}`},
+		{input: []byte(`gno.land/r/doesnotexist`), expectedErrorMatch: `invalid package path`},
+	}
+
+	for _, tc := range tt {
+		name := string(tc.input)
+		t.Run(name, func(t *testing.T) {
+			env := setupTestEnv()
+			ctx := env.vmk.MakeGnoTransactionStore(env.ctx)
+			vmHandler := env.vmh
+
+			// Give "addr1" some gnots.
+			addr := crypto.AddressFromPreimage([]byte("addr1"))
+			acc := env.acck.NewAccountWithAddress(ctx, addr)
+			env.acck.SetAccount(ctx, acc)
+			env.bank.SetCoins(ctx, addr, std.MustParseCoins("10000000ugnot"))
+			assert.True(t, env.bank.GetCoins(ctx, addr).IsEqual(std.MustParseCoins("10000000ugnot")))
+
+			// Create test package.
+			files := []*gnovm.MemFile{
+				{Name: "hello.gno", Body: `
+// hello is a package for testing
+package hello
+
+// sl is an int array
+var sl = []int{1,2,3,4,5}
+func fn() func(string) string { return Echo }
+// myStruct is a struct for testing
+type myStruct struct{a int}
+var myStructInst = myStruct{a: 1000}
+// Foo is a method for testing
+func (ms myStruct) Foo() string { return "myStruct.Foo" }
+// Panic is a func for testing
+func Panic() { panic("foo") }
+var counter int = 42
+var pvString = "private string"
+var PubString = "public string"
+const ConstString = "const string"
+func Echo(msg string) string { return "echo:"+msg }
+func GetCounter() int { return counter }
+func Inc() int { counter += 1; return counter }
+func pvEcho(msg string) string { return "pvecho:"+msg }
+`},
+			}
+			pkgPath := "gno.land/r/hello"
+			msg1 := NewMsgAddPackage(addr, pkgPath, files)
+			err := env.vmk.AddPackage(ctx, msg1)
+			assert.NoError(t, err)
+
+			req := abci.RequestQuery{
+				Path: "vm/qdoc",
+				Data: tc.input,
+			}
+
+			res := vmHandler.Query(env.ctx, req)
+			if tc.expectedErrorMatch == "" {
+				assert.True(t, res.IsOK(), "should not have error")
+				if tc.expectedResult != "" {
+					assert.Equal(t, tc.expectedResult, string(res.Data))
+				}
+			} else {
+				assert.False(t, res.IsOK(), "should have an error")
+				errmsg := res.Error.Error()
+				assert.Regexp(t, tc.expectedErrorMatch, errmsg)
+			}
+		})
+	}
+}

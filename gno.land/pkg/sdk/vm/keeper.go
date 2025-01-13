@@ -16,6 +16,7 @@ import (
 	"time"
 
 	"github.com/gnolang/gno/gnovm"
+	"github.com/gnolang/gno/gnovm/pkg/doc"
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
 	"github.com/gnolang/gno/gnovm/stdlibs"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
@@ -841,6 +842,32 @@ func (vm *VMKeeper) QueryFile(ctx sdk.Context, filepath string) (res string, err
 		}
 		return res, nil
 	}
+}
+
+var rePkgPathAndSymbol = regexp.MustCompile(`^(.+)\.([a-zA-Z0-9_]+)$`)
+
+func (vm *VMKeeper) QueryDoc(ctx sdk.Context, input string) (*doc.JSONDocumentation, error) {
+	store := vm.newGnoTransactionStore(ctx) // throwaway (never committed)
+	pkgPath := input
+	symbol := ""
+	match := rePkgPathAndSymbol.FindStringSubmatch(input)
+	if len(match) == 3 {
+		// The input is <pkgpath>[.<symbol>
+		pkgPath = match[1]
+		symbol = match[2]
+	}
+
+	memPkg := store.GetMemPackage(pkgPath)
+	if memPkg == nil {
+		err := ErrInvalidPkgPath(fmt.Sprintf(
+			"package not found: %s", pkgPath))
+		return nil, err
+	}
+	d, err := doc.NewDocumentableFromMemPkg(memPkg, true, symbol, "")
+	if err != nil {
+		return nil, err
+	}
+	return d.WriteJSONDocumentation()
 }
 
 // logTelemetry logs the VM processing telemetry
