@@ -4,22 +4,31 @@ import (
 	"os"
 	"strings"
 	"testing"
+
+	"github.com/gnolang/gno/gnovm/pkg/version"
 )
 
-var testBuildVersion string
+var testVersionString string
 
 func init() {
 	if isTestTaggedVersion() {
-		testBuildVersion = "chain/test4.2"
+		testVersionString = "chain/test4.2"
+	} else if isTestDevelopVersion() {
+		testVersionString = "develop"
 	} else {
-		testBuildVersion = "master.387+e872fa"
+		testVersionString = "master.387+e872fa"
 	}
-	buildVersion = testBuildVersion
+	version.Version = testVersionString
 }
 
 func isTestTaggedVersion() bool {
 	testDir := os.Getenv("TEST_CASE_DIR")
 	return strings.Contains(testDir, "tagged_version")
+}
+
+func isTestDevelopVersion() bool {
+	testDir := os.Getenv("TEST_CASE_DIR")
+	return strings.Contains(testDir, "develop_version")
 }
 
 func TestVersionApp(t *testing.T) {
@@ -34,14 +43,21 @@ func TestVersionApp(t *testing.T) {
 			testDir:             "testdata/gno_version/tagged_version.txtar",
 			stdoutShouldContain: "gno version: chain/test4.2",
 		},
+		{
+			args:                []string{"version"},
+			testDir:             "testdata/gno_version/develop_version.txtar",
+			stdoutShouldContain: "gno version: develop",
+		},
 	}
 
 	for _, testCase := range testCases {
 		os.Setenv("TEST_CASE_DIR", testCase.testDir)
 		if isTestTaggedVersion() {
-			buildVersion = "chain/test4.2"
+			version.Version = "chain/test4.2"
+		} else if isTestDevelopVersion() {
+			version.Version = "develop"
 		} else {
-			buildVersion = "master.387+e872fa"
+			version.Version = "master.387+e872fa"
 		}
 		testMainCaseRun(t, []testMainCase{testCase})
 	}
