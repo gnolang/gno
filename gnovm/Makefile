@@ -27,7 +27,7 @@ GOTEST_FLAGS ?= -v -p 1 -timeout=30m
 GNOROOT_DIR ?= $(abspath $(lastword $(MAKEFILE_LIST))/../../)
 # We can't use '-trimpath' yet as amino use absolute path from call stack
 # to find some directory: see #1236
-GOBUILD_FLAGS ?= -ldflags "-X github.com/gnolang/gno/gnovm/pkg/gnoenv._GNOROOT=$(GNOROOT_DIR)"
+GOBUILD_FLAGS ?= -ldflags "-X github.com/gnolang/gno/gnovm/pkg/version.Version=$(VERSION) -X main.commitHash=$(VCS_REF) -X github.com/gnolang/gno/gnovm/pkg/gnoenv._GNOROOT=$(GNOROOT_DIR)"
 # file where to place cover profile; used for coverage commands which are
 # more complex than adding -coverprofile, like test.cmd.coverage.
 GOTEST_COVER_PROFILE ?= cmd-profile.out
@@ -40,11 +40,11 @@ VCS_REF ?= $(shell git rev-parse --short HEAD)
 # Dev tools
 .PHONY: build
 build:
-	go build -ldflags="-X main.buildVersion=$(VERSION) -X main.commitHash=$(VCS_REF) -X github.com/gnolang/gno/gnovm/pkg/gnoenv._GNOROOT=$(GNOROOT_DIR)" -o build/gno ./cmd/gno
+	go build $(GOBUILD_FLAGS) -o build/gno ./cmd/gno
 
 .PHONY: install
 install:
-	go install -ldflags="-X main.buildVersion=$(VERSION) -X main.commitHash=$(VCS_REF) -X github.com/gnolang/gno/gnovm/pkg/gnoenv._GNOROOT=$(GNOROOT_DIR)" ./cmd/gno
+	go install $(GOBUILD_FLAGS) ./cmd/gno
 
 .PHONY: clean
 clean:
