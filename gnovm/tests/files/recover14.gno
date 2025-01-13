@@ -12,4 +12,4 @@ func main() {
 }
 
 // Output:
-// recover: division by zero
+// recover: division by zero or overflow

@@ -6,11 +6,12 @@ import (
 
 type BreadcrumbPart struct {
 	Name string
-	Path string
+	URL  string
 }
 
 type BreadcrumbData struct {
 	Parts []BreadcrumbPart
+	Args  string
 }
 
 func RenderBreadcrumpComponent(w io.Writer, data BreadcrumbData) error {

@@ -1,7 +1,6 @@
 package grc20
 
 import (
-	"math/overflow"
 	"std"
 	"strconv"
 
@@ -63,6 +62,14 @@ func (tok *Token) RenderHome() string {
 	str += ufmt.Sprintf("* **Total supply**: %d\n", tok.ledger.totalSupply)
 	str += ufmt.Sprintf("* **Known accounts**: %d\n", tok.KnownAccounts())
 	return str
+}
+
+// Getter returns a TokenGetter function that returns this token. This allows
+// storing indirect pointers to a token in a remote realm.
+func (tok *Token) Getter() TokenGetter {
+	return func() *Token {
+		return tok
+	}
 }
 
 // SpendAllowance decreases the allowance of the specified owner and spender.
@@ -162,17 +169,24 @@ func (led *PrivateLedger) Approve(owner, spender std.Address, amount uint64) err
 }
 
 // Mint increases the total supply of the token and adds the specified amount to the specified address.
-func (led *PrivateLedger) Mint(address std.Address, amount uint64) error {
+func (led *PrivateLedger) Mint(address std.Address, amount uint64) (err error) {
 	if !address.IsValid() {
 		return ErrInvalidAddress
 	}
 
-	// XXX: math/overflow is not supporting uint64.
-	// This checks prevents overflow but makes the totalSupply limited to a uint63.
-	sum, ok := overflow.Add64(int64(led.totalSupply), int64(amount))
-	if !ok {
-		return ErrOverflow
-	}
+	defer func() {
+		if r := recover(); r != nil {
+			if r != "addition overflow" {
+				panic(r)
+			}
+			err = ErrOverflow
+		}
+	}()
+
+	// Convert amount and totalSupply to signed integers to enable
+	// overflow checking (not occuring on unsigned) when computing the sum.
+	// The maximum value for totalSupply is therefore 1<<63.
+	sum := int64(led.totalSupply) + int64(amount)
 
 	led.totalSupply = uint64(sum)
 	currentBalance := led.balanceOf(address)

@@ -19,8 +19,7 @@ const (
 )
 
 func init() {
-	getter := func() *grc20.Token { return Token }
-	grc20reg.Register(getter, "")
+	grc20reg.Register(Token.Getter(), "")
 }
 
 func Deposit() {

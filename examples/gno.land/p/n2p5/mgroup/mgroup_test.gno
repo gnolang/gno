@@ -297,13 +297,13 @@ func TestManagedGroup(t *testing.T) {
 		if len(owners) != 3 {
 			t.Errorf("expected 2, got %v", len(owners))
 		}
-		if owners[0] != u2.String() {
+		if owners[0] != u1.String() {
 			t.Errorf("expected %v, got %v", u2, owners[0])
 		}
 		if owners[1] != u3.String() {
 			t.Errorf("expected %v, got %v", u3, owners[1])
 		}
-		if owners[2] != u1.String() {
+		if owners[2] != u2.String() {
 			t.Errorf("expected %v, got %v", u3, owners[1])
 		}
 	})
@@ -317,13 +317,13 @@ func TestManagedGroup(t *testing.T) {
 		if len(members) != 3 {
 			t.Errorf("expected 2, got %v", len(members))
 		}
-		if members[0] != u2.String() {
+		if members[0] != u1.String() {
 			t.Errorf("expected %v, got %v", u2, members[0])
 		}
 		if members[1] != u3.String() {
 			t.Errorf("expected %v, got %v", u3, members[1])
 		}
-		if members[2] != u1.String() {
+		if members[2] != u2.String() {
 			t.Errorf("expected %v, got %v", u3, members[1])
 		}
 	})

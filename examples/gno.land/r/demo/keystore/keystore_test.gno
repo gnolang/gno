@@ -11,7 +11,11 @@ import (
 )
 
 func TestRender(t *testing.T) {
-	const (
+	// https://github.com/gnolang/gno/pull/3375 changed const -> var :
+	// For some reason non native functions fails on constants with
+	// constant overflows (code=2), this does not happens when using a variable
+	// TODO: check this issue after and if this PR is merged
+	var (
 		author1 std.Address = testutils.TestAddress("author1")
 		author2 std.Address = testutils.TestAddress("author2")
 	)

@@ -5,6 +5,8 @@ import (
 	"math/big"
 
 	"github.com/cockroachdb/apd/v3"
+	"github.com/gnolang/gno/gnovm/pkg/gnolang/internal/softfloat"
+	"github.com/gnolang/gno/tm2/pkg/overflow"
 )
 
 func (m *Machine) doOpInc() {
@@ -31,16 +33,18 @@ func (m *Machine) doOpInc() {
 	// because it could be a type alias
 	// type num int
 	switch baseOf(lv.T) {
+	// Signed integers may overflow, which triggers a panic.
 	case IntType:
-		lv.SetInt(lv.GetInt() + 1)
+		lv.SetInt(overflow.Addp(lv.GetInt(), 1))
 	case Int8Type:
-		lv.SetInt8(lv.GetInt8() + 1)
+		lv.SetInt8(overflow.Add8p(lv.GetInt8(), 1))
 	case Int16Type:
-		lv.SetInt16(lv.GetInt16() + 1)
+		lv.SetInt16(overflow.Add16p(lv.GetInt16(), 1))
 	case Int32Type:
-		lv.SetInt32(lv.GetInt32() + 1)
+		lv.SetInt32(overflow.Add32p(lv.GetInt32(), 1))
 	case Int64Type:
-		lv.SetInt64(lv.GetInt64() + 1)
+		lv.SetInt64(overflow.Add64p(lv.GetInt64(), 1))
+	// Unsigned integers do not overflow, they just wrap.
 	case UintType:
 		lv.SetUint(lv.GetUint() + 1)
 	case Uint8Type:
@@ -54,9 +58,9 @@ func (m *Machine) doOpInc() {
 	case Uint64Type:
 		lv.SetUint64(lv.GetUint64() + 1)
 	case Float32Type:
-		lv.SetFloat32(lv.GetFloat32() + 1)
+		lv.SetFloat32(softfloat.Fadd32(lv.GetFloat32(), softfloat.Fintto32(1)))
 	case Float64Type:
-		lv.SetFloat64(lv.GetFloat64() + 1)
+		lv.SetFloat64(softfloat.Fadd64(lv.GetFloat64(), softfloat.Fintto64(1)))
 	case BigintType, UntypedBigintType:
 		lb := lv.GetBigInt()
 		lb = big.NewInt(0).Add(lb, big.NewInt(1))
@@ -101,16 +105,18 @@ func (m *Machine) doOpDec() {
 		}
 	}
 	switch baseOf(lv.T) {
+	// Signed integers may overflow, which triggers a panic.
 	case IntType:
-		lv.SetInt(lv.GetInt() - 1)
+		lv.SetInt(overflow.Subp(lv.GetInt(), 1))
 	case Int8Type:
-		lv.SetInt8(lv.GetInt8() - 1)
+		lv.SetInt8(overflow.Sub8p(lv.GetInt8(), 1))
 	case Int16Type:
-		lv.SetInt16(lv.GetInt16() - 1)
+		lv.SetInt16(overflow.Sub16p(lv.GetInt16(), 1))
 	case Int32Type:
-		lv.SetInt32(lv.GetInt32() - 1)
+		lv.SetInt32(overflow.Sub32p(lv.GetInt32(), 1))
 	case Int64Type:
-		lv.SetInt64(lv.GetInt64() - 1)
+		lv.SetInt64(overflow.Sub64p(lv.GetInt64(), 1))
+	// Unsigned integers do not overflow, they just wrap.
 	case UintType:
 		lv.SetUint(lv.GetUint() - 1)
 	case Uint8Type:
@@ -124,9 +130,9 @@ func (m *Machine) doOpDec() {
 	case Uint64Type:
 		lv.SetUint64(lv.GetUint64() - 1)
 	case Float32Type:
-		lv.SetFloat32(lv.GetFloat32() - 1)
+		lv.SetFloat32(softfloat.Fsub32(lv.GetFloat32(), softfloat.Fintto32(1)))
 	case Float64Type:
-		lv.SetFloat64(lv.GetFloat64() - 1)
+		lv.SetFloat64(softfloat.Fsub64(lv.GetFloat64(), softfloat.Fintto64(1)))
 	case BigintType, UntypedBigintType:
 		lb := lv.GetBigInt()
 		lb = big.NewInt(0).Sub(lb, big.NewInt(1))

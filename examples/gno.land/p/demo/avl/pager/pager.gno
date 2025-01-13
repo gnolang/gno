@@ -90,12 +90,12 @@ func (p *Pager) GetPageWithSize(pageNumber, pageSize int) *Page {
 	items := []Item{}
 
 	if p.Reversed {
-		p.Tree.IterateByOffset(startIndex, endIndex-startIndex, func(key string, value interface{}) bool {
+		p.Tree.ReverseIterateByOffset(startIndex, endIndex-startIndex, func(key string, value interface{}) bool {
 			items = append(items, Item{Key: key, Value: value})
 			return false
 		})
 	} else {
-		p.Tree.ReverseIterateByOffset(startIndex, endIndex-startIndex, func(key string, value interface{}) bool {
+		p.Tree.IterateByOffset(startIndex, endIndex-startIndex, func(key string, value interface{}) bool {
 			items = append(items, Item{Key: key, Value: value})
 			return false
 		})
