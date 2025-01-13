@@ -6,6 +6,7 @@ import (
 	"math/big"
 
 	"github.com/cockroachdb/apd/v3"
+	"github.com/gnolang/gno/gnovm/pkg/gnolang/internal/softfloat"
 	"github.com/gnolang/gno/tm2/pkg/overflow"
 )
 
@@ -394,9 +395,9 @@ func isEql(store Store, lv, rv *TypedValue) bool {
 	case Uint64Kind:
 		return (lv.GetUint64() == rv.GetUint64())
 	case Float32Kind:
-		return (lv.GetFloat32() == rv.GetFloat32()) // XXX determinism?
+		return softfloat.Feq32(lv.GetFloat32(), rv.GetFloat32())
 	case Float64Kind:
-		return (lv.GetFloat64() == rv.GetFloat64()) // XXX determinism?
+		return softfloat.Feq64(lv.GetFloat64(), rv.GetFloat64())
 	case BigintKind:
 		lb := lv.V.(BigintValue).V
 		rb := rv.V.(BigintValue).V
@@ -535,9 +536,9 @@ func isLss(lv, rv *TypedValue) bool {
 	case Uint64Kind:
 		return (lv.GetUint64() < rv.GetUint64())
 	case Float32Kind:
-		return (lv.GetFloat32() < rv.GetFloat32()) // XXX determinism?
+		return softfloat.Flt32(lv.GetFloat32(), rv.GetFloat32())
 	case Float64Kind:
-		return (lv.GetFloat64() < rv.GetFloat64()) // XXX determinism?
+		return softfloat.Flt64(lv.GetFloat64(), rv.GetFloat64())
 	case BigintKind:
 		lb := lv.V.(BigintValue).V
 		rb := rv.V.(BigintValue).V
@@ -579,9 +580,9 @@ func isLeq(lv, rv *TypedValue) bool {
 	case Uint64Kind:
 		return (lv.GetUint64() <= rv.GetUint64())
 	case Float32Kind:
-		return (lv.GetFloat32() <= rv.GetFloat32()) // XXX determinism?
+		return softfloat.Fle32(lv.GetFloat32(), rv.GetFloat32())
 	case Float64Kind:
-		return (lv.GetFloat64() <= rv.GetFloat64()) // XXX determinism?
+		return softfloat.Fle64(lv.GetFloat64(), rv.GetFloat64())
 	case BigintKind:
 		lb := lv.V.(BigintValue).V
 		rb := rv.V.(BigintValue).V
@@ -623,9 +624,9 @@ func isGtr(lv, rv *TypedValue) bool {
 	case Uint64Kind:
 		return (lv.GetUint64() > rv.GetUint64())
 	case Float32Kind:
-		return (lv.GetFloat32() > rv.GetFloat32()) // XXX determinism?
+		return softfloat.Fgt32(lv.GetFloat32(), rv.GetFloat32())
 	case Float64Kind:
-		return (lv.GetFloat64() > rv.GetFloat64()) // XXX determinism?
+		return softfloat.Fgt64(lv.GetFloat64(), rv.GetFloat64())
 	case BigintKind:
 		lb := lv.V.(BigintValue).V
 		rb := rv.V.(BigintValue).V
@@ -667,9 +668,9 @@ func isGeq(lv, rv *TypedValue) bool {
 	case Uint64Kind:
 		return (lv.GetUint64() >= rv.GetUint64())
 	case Float32Kind:
-		return (lv.GetFloat32() >= rv.GetFloat32()) // XXX determinism?
+		return softfloat.Fge32(lv.GetFloat32(), rv.GetFloat32())
 	case Float64Kind:
-		return (lv.GetFloat64() >= rv.GetFloat64()) // XXX determinism?
+		return softfloat.Fge64(lv.GetFloat64(), rv.GetFloat64())
 	case BigintKind:
 		lb := lv.V.(BigintValue).V
 		rb := rv.V.(BigintValue).V
@@ -732,10 +733,10 @@ func addAssign(alloc *Allocator, lv, rv *TypedValue) *Exception {
 		lv.SetUint64(lv.GetUint64() + rv.GetUint64())
 	case Float32Type:
 		// NOTE: gno doesn't fuse *+.
-		lv.SetFloat32(lv.GetFloat32() + rv.GetFloat32()) // XXX determinism?
+		lv.SetFloat32(softfloat.Fadd32(lv.GetFloat32(), rv.GetFloat32()))
 	case Float64Type:
 		// NOTE: gno doesn't fuse *+.
-		lv.SetFloat64(lv.GetFloat64() + rv.GetFloat64()) // XXX determinism?
+		lv.SetFloat64(softfloat.Fadd64(lv.GetFloat64(), rv.GetFloat64()))
 	case BigintType, UntypedBigintType:
 		lb := lv.GetBigInt()
 		lb = big.NewInt(0).Add(lb, rv.GetBigInt())
@@ -807,10 +808,10 @@ func subAssign(lv, rv *TypedValue) *Exception {
 		lv.SetUint64(lv.GetUint64() - rv.GetUint64())
 	case Float32Type:
 		// NOTE: gno doesn't fuse *+.
-		lv.SetFloat32(lv.GetFloat32() - rv.GetFloat32()) // XXX determinism?
+		lv.SetFloat32(softfloat.Fsub32(lv.GetFloat32(), rv.GetFloat32()))
 	case Float64Type:
 		// NOTE: gno doesn't fuse *+.
-		lv.SetFloat64(lv.GetFloat64() - rv.GetFloat64()) // XXX determinism?
+		lv.SetFloat64(softfloat.Fsub64(lv.GetFloat64(), rv.GetFloat64()))
 	case BigintType, UntypedBigintType:
 		lb := lv.GetBigInt()
 		lb = big.NewInt(0).Sub(lb, rv.GetBigInt())
@@ -879,10 +880,10 @@ func mulAssign(lv, rv *TypedValue) *Exception {
 		lv.SetUint64(lv.GetUint64() * rv.GetUint64())
 	case Float32Type:
 		// NOTE: gno doesn't fuse *+.
-		lv.SetFloat32(lv.GetFloat32() * rv.GetFloat32()) // XXX determinism?
+		lv.SetFloat32(softfloat.Fmul32(lv.GetFloat32(), rv.GetFloat32()))
 	case Float64Type:
 		// NOTE: gno doesn't fuse *+.
-		lv.SetFloat64(lv.GetFloat64() * rv.GetFloat64()) // XXX determinism?
+		lv.SetFloat64(softfloat.Fmul64(lv.GetFloat64(), rv.GetFloat64()))
 	case BigintType, UntypedBigintType:
 		lb := lv.GetBigInt()
 		lb = big.NewInt(0).Mul(lb, rv.GetBigInt())
@@ -975,20 +976,17 @@ func quoAssign(lv, rv *TypedValue) *Exception {
 	// XXX Handling float overflows is more complex.
 	case Float32Type:
 		// NOTE: gno doesn't fuse *+.
-		y := rv.GetFloat32()
-		ok = y != 0
+		ok = !softfloat.Feq32(rv.GetFloat32(), softfloat.Fintto32(0))
+
 		if ok {
-			lv.SetFloat32(lv.GetFloat32() / y)
+			lv.SetFloat32(softfloat.Fdiv32(lv.GetFloat32(), rv.GetFloat32()))
 		}
-		// XXX FOR DETERMINISM, PANIC IF NAN.
 	case Float64Type:
 		// NOTE: gno doesn't fuse *+.
-		y := rv.GetFloat64()
-		ok = y != 0
+		ok = !softfloat.Feq64(rv.GetFloat64(), softfloat.Fintto64(0))
 		if ok {
-			lv.SetFloat64(lv.GetFloat64() / y)
+			lv.SetFloat64(softfloat.Fdiv64(lv.GetFloat64(), rv.GetFloat64()))
 		}
-		// XXX FOR DETERMINISM, PANIC IF NAN.
 	case BigintType, UntypedBigintType:
 		if rv.GetBigInt().Sign() == 0 {
 			ok = false
