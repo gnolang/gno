@@ -5,8 +5,8 @@ import (
 	"gno.land/r/demo/tests"
 )
 
-// NOTE: it is invalid to persist external realm types.
-var somevalue tests.TestRealmObject
+// NOTE: it is valid to persist external realm types.
+var somevalue *tests.TestRealmObject
 
 func init() {
 	somevalue = &tests.TestRealmObjectValue
@@ -19,4 +19,4 @@ func main() {
 }
 
 // Error:
-// cannot attach a value of a type defined by another realm
+// cannot modify external-realm or non-realm object

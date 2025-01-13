@@ -416,15 +416,9 @@ func makeUverseNode() {
 						return
 					} else {
 						// append(*SliceValue, *SliceValue) new list ---------
-<<<<<<< HEAD
-						debug2.Println2("new list")
-						list := make([]TypedValue, arg0Length+arg1Length)
-						if 0 < arg0Length {
-=======
 						arrayLen := arg0Length + arg1Length
 						arrayValue := m.Alloc.NewListArray(arrayLen)
 						if arg0Length > 0 {
->>>>>>> main/master
 							if arg0Base.Data == nil {
 								for i := 0; i < arg0Length; i++ {
 									arrayValue.List[i] = arg0Base.List[arg0Offset+i].unrefCopy(m.Alloc, m.Store)

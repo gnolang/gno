@@ -463,17 +463,14 @@ func (rlm *Realm) MarkNewEscaped(oo Object) {
 // to a realm gets attached here, which should panic.
 // OpReturn calls this when exiting a realm transaction.
 func (rlm *Realm) FinalizeRealmTransaction(readonly bool, store Store) {
-<<<<<<< HEAD
 	debug2.Println2("FinalizeRealmTransaction, rlm.ID: ", rlm.ID)
 	defer func() {
 		debug2.Println2("================done FinalizeRealmTransaction==================")
 	}()
-=======
 	if bm.OpsEnabled {
 		bm.PauseOpCode()
 		defer bm.ResumeOpCode()
 	}
->>>>>>> main/master
 	if readonly {
 		if true ||
 			len(rlm.newCreated) > 0 ||
@@ -580,7 +577,7 @@ func (rlm *Realm) incRefCreatedDescendants(store Store, oo Object) {
 	debug2.Println2("---incRefCreatedDescendants from oo: ", oo)
 	debug2.Println2("---oo.GetOriginRealm: ", oo.GetOriginRealm())
 	debug2.Println2("---oo.GetRefCount: ", oo.GetRefCount())
-	debug2.Println2("---oo.GetObjectInfo: ", oo.GetObjectInfo())
+	debug2.Println2("---rlm.ID: ", rlm.ID)
 	debug2.Println2("oo.GetIsRef: ", oo.GetIsRef())
 
 	if debug {
@@ -773,14 +770,12 @@ func (rlm *Realm) processNewEscapedMarks(store Store) {
 					// will be saved regardless.
 				} else {
 					// exists, mark dirty.
-					//fmt.Println("---exists, mark dirty, po: ", po)
 					rlm.MarkDirty(po)
 				}
 				if eo.GetObjectID().IsZero() {
 					panic("new escaped mark has no object ID")
 				}
 				// escaped has no owner.
-				//println("---escaped has no owner")
 				eo.SetOwner(nil)
 			}
 		}

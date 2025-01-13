@@ -430,9 +430,7 @@ func (ds *defaultStore) GetObjectSafe(oid ObjectID) Object {
 // loads and caches an object.
 // CONTRACT: object isn't already in the cache.
 func (ds *defaultStore) loadObjectSafe(oid ObjectID) Object {
-<<<<<<< HEAD
 	debug2.Println2("loadObjectSafe, oid: ", oid)
-=======
 	if bm.OpsEnabled {
 		bm.PauseOpCode()
 		defer bm.ResumeOpCode()
@@ -446,7 +444,6 @@ func (ds *defaultStore) loadObjectSafe(oid ObjectID) Object {
 			bm.StopStore(size)
 		}()
 	}
->>>>>>> main/master
 	key := backendObjectKey(oid)
 	hashbz := ds.baseStore.Get([]byte(key))
 	if hashbz != nil {
@@ -475,9 +472,7 @@ func (ds *defaultStore) loadObjectSafe(oid ObjectID) Object {
 // NOTE: unlike GetObject(), SetObject() is also used to persist updated
 // package values.
 func (ds *defaultStore) SetObject(oo Object) {
-<<<<<<< HEAD
 	debug2.Println2("SetObject: ", oo)
-=======
 	if bm.OpsEnabled {
 		bm.PauseOpCode()
 		defer bm.ResumeOpCode()
@@ -489,7 +484,6 @@ func (ds *defaultStore) SetObject(oo Object) {
 			bm.StopStore(size)
 		}()
 	}
->>>>>>> main/master
 	oid := oo.GetObjectID()
 	// replace children/fields with Ref.
 	o2 := copyValueWithRefs(oo)

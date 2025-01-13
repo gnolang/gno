@@ -81,7 +81,7 @@ func main() {
 //                     "Escaped": true,
 //                     "ObjectID": "f5a516808f8976c33939133293d598ce3bca4e8d:4"
 //                 },
-//                 "FileName": "main.gno",
+//                 "FileName": "files/zrealm_crossrealm23b.gno",
 //                 "IsMethod": false,
 //                 "Name": "main",
 //                 "NativeName": "",
@@ -92,7 +92,7 @@ func main() {
 //                     "BlockNode": null,
 //                     "Location": {
 //                         "Column": "1",
-//                         "File": "main.gno",
+//                         "File": "files/zrealm_crossrealm23b.gno",
 //                         "Line": "8",
 //                         "PkgPath": "gno.land/r/crossrealm_test"
 //                     }
