@@ -288,7 +288,7 @@ func (pv PointerValue) Assign2(alloc *Allocator, store Store, rlm *Realm, tv2 Ty
 	// General case
 	if rlm != nil && pv.Base != nil {
 		oo1 := pv.TV.GetFirstObject(store)
-		debug2.Println2("---oo1: ", oo1)
+		debug2.Println2("oo1: ", oo1)
 
 		// get origin pkgId, this should happen before assign,
 		// because assign will discard original object info
@@ -300,7 +300,9 @@ func (pv PointerValue) Assign2(alloc *Allocator, store Store, rlm *Realm, tv2 Ty
 		oo2 := pv.TV.GetFirstObject(store)
 		debug2.Println2("oo2: ", oo2)
 
-		// refValue checks for embedded values in the base
+		// refValue is needed for checking
+		// proper element in the base.
+		// e.g. refValue is a sliceValue
 		var refValue Value
 		switch rv := pv.TV.V.(type) {
 		case *SliceValue, PointerValue:
@@ -545,11 +547,15 @@ func (sv *StructValue) Copy(alloc *Allocator) *StructValue {
 	}
 
 	nsv := alloc.NewStruct(fields)
-	debug2.Println2("sv.GetOriginRealm: ", sv.GetOriginRealm())
-	debug2.Println2("sv.GetObjectID(): ", sv.GetObjectID())
-	debug2.Println2("sv.GetRefCount: ", sv.GetRefCount())
-	debug2.Println2("sv...OwneID: ", sv.GetObjectInfo().OwnerID)
+	//debug2.Println2("sv.GetOriginRealm: ", sv.GetOriginRealm())
+	//debug2.Println2("sv.GetObjectID(): ", sv.GetObjectID())
+	//debug2.Println2("sv.GetRefCount: ", sv.GetRefCount())
+	//debug2.Println2("sv...OwneID: ", sv.GetObjectInfo().OwnerID)
 	// append, unref copy...
+
+	// this copy is needed,
+	// copy origin realm is necessary here because, for example, if `sv` is an embedded struct,
+	// assigning the containing struct will also copy the embedded struct.
 	pkgId := sv.GetOriginRealm()
 	if pkgId.IsZero() {
 		pkgId = sv.GetObjectID().PkgID
@@ -1064,8 +1070,7 @@ func (tv *TypedValue) ClearNum() {
 }
 
 func (tv TypedValue) Copy(alloc *Allocator) (cp TypedValue) {
-	debug2.Println2("Copy, tv: ", tv)
-	debug2.Println2("Copy, type of tv.V: ", reflect.TypeOf(tv.V))
+	debug2.Println2("Copy, tv: ", tv, reflect.TypeOf(tv.V))
 	switch cv := tv.V.(type) {
 	case BigintValue:
 		cp.T = tv.T
@@ -1915,7 +1920,6 @@ func (tv *TypedValue) GetPointerTo(alloc *Allocator, store Store, path ValuePath
 		bmv := &BoundMethodValue{
 			Func:     mv,
 			Receiver: dtv2,
-			//Receiver: *dtv,
 		}
 		return PointerValue{
 			TV: &TypedValue{
@@ -2475,9 +2479,7 @@ func (b *Block) GetParent(store Store) *Block {
 }
 
 func (b *Block) GetPointerToInt(store Store, index int) PointerValue {
-	//fmt.Println("---GetPointerToInt")
 	vv := fillValueTV(store, &b.Values[index])
-	//fmt.Println("---vv: ", vv)
 	return PointerValue{
 		TV:    vv,
 		Base:  b,

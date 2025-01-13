@@ -29,6 +29,8 @@ var s6 = make([]*XYZ, 2)
 
 var s7 [2]XYZ
 
+var s10 []int
+
 func init() {
 	s1 = append(s1, XYZ{"1"})
 	s1 = append(s1, XYZ{"2"})
@@ -43,6 +45,7 @@ func init() {
 
 	s7[0] = XYZ{"7"}
 	s7[1] = XYZ{"7.1"} // should be real after this
+	s10 = append(s10, 1)
 }
 
 func GetSlice() []XYZ {
@@ -96,4 +99,17 @@ func GetSlice9(f p_crossrealm.Stringer) [1]p_crossrealm.Stringer {
 	var s9 [1]p_crossrealm.Stringer
 	s9[0] = f
 	return s9
+}
+
+// XXX, s10 under array is real, and owned by this realm.
+func GetSlice10() []int {
+	return s10
+}
+
+func GetSlice11(f func(s []int)) {
+	// XXX, this is valid cuz the type of
+	// array is not defined in current realm(or any other),
+	// and the underlying array is not owned by this realm.
+	s11 := []int{1}
+	f(s11)
 }

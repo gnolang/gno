@@ -1753,6 +1753,7 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 					}
 					pn := pv.GetPackageNode(store)
 					// ensure exposed or package path match.
+					fmt.Println("---n, n.Sel: ", n, n.Sel)
 					if !isUpper(string(n.Sel)) && lastpn.PkgPath != pv.PkgPath {
 						panic(fmt.Sprintf("cannot access %s.%s from %s",
 							pv.PkgPath, n.Sel, lastpn.PkgPath))

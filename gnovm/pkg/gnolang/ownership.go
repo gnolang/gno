@@ -395,6 +395,8 @@ func (tv *TypedValue) GetOriginPkg(store Store) (originPkg PkgID) {
 	obj := tv.GetFirstObject(store)
 	debug2.Println2("obj: ", obj, reflect.TypeOf(obj))
 	if obj != nil {
+		// origin realm maybe set while association, even
+		// it's un-real.
 		originPkg = obj.GetOriginRealm()
 		if !originPkg.IsZero() {
 			return

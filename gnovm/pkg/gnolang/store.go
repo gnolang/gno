@@ -400,9 +400,7 @@ func (ds *defaultStore) DelObject(oo Object) {
 // NOTE: The implementation matches that of GetObject() in anticipation of what
 // the persistent type system might work like.
 func (ds *defaultStore) GetType(tid TypeID) Type {
-	debug2.Println2("GetType: ", tid)
 	tt := ds.GetTypeSafe(tid)
-	debug2.Println2("tt: ", tt)
 	if tt == nil {
 		ds.Print()
 		panic(fmt.Sprintf("unexpected type with id %s", tid.String()))
@@ -411,7 +409,6 @@ func (ds *defaultStore) GetType(tid TypeID) Type {
 }
 
 func (ds *defaultStore) GetTypeSafe(tid TypeID) Type {
-	debug2.Println2("GetTypeSafe: ", tid)
 	// check cache.
 	if tt, exists := ds.cacheTypes[tid]; exists {
 		return tt

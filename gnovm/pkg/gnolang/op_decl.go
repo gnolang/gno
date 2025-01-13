@@ -44,7 +44,7 @@ func (m *Machine) doOpValueDecl() {
 				} else {
 					if debug {
 						if nt.TypeID() != tv.T.TypeID() &&
-								baseOf(nt).TypeID() != tv.T.TypeID() {
+							baseOf(nt).TypeID() != tv.T.TypeID() {
 							panic(fmt.Sprintf(
 								"type mismatch: %s vs %s",
 								nt.TypeID(),
