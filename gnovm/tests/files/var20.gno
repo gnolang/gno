@@ -9,4 +9,4 @@ func main() {
 }
 
 // Error:
-// main/files/var20.gno:8:6: assignment mismatch: 3 variable(s) but r<VPBlock(3,0)> returns 1 value(s)
+// main/files/var20.gno:8:6: assignment mismatch: 3 variable(s) but r<VPBlock(3,0)>() returns 1 value(s)

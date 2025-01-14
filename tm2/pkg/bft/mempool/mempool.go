@@ -30,7 +30,7 @@ type Mempool interface {
 	// ReapMaxTxs reaps up to max transactions from the mempool.
 	// If max is negative, there is no cap on the size of all returned
 	// transactions (~ all available transactions).
-	ReapMaxTxs(max int) types.Txs
+	ReapMaxTxs(maxVal int) types.Txs
 
 	// Lock locks the mempool. The consensus must be able to hold lock to safely update.
 	Lock()

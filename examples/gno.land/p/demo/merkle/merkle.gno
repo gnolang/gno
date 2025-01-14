@@ -19,6 +19,17 @@ type Node struct {
 	position uint8
 }
 
+func NewNode(hash []byte, position uint8) Node {
+	return Node{
+		hash:     hash,
+		position: position,
+	}
+}
+
+func (n Node) Position() uint8 {
+	return n.position
+}
+
 func (n Node) Hash() string {
 	return hex.EncodeToString(n.hash[:])
 }

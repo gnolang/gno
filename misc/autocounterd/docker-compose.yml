@@ -3,7 +3,8 @@ services:
   autocounterd:
     image: ghcr.io/gnolang/gno/autocounterd
     build:
-      context: .
+      context: ../..
+      target: autocounterd
     restart: unless-stopped
     environment:
       COUNTER_MNEMONIC: "source bonus chronic canvas draft south burst lottery vacant surface solve popular case indicate oppose farm nothing bullet exhibit title speed wink action roast"

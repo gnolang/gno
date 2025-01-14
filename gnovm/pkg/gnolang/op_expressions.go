@@ -78,7 +78,7 @@ func (m *Machine) doOpIndex2() {
 func (m *Machine) doOpSelector() {
 	sx := m.PopExpr().(*SelectorExpr)
 	xv := m.PeekValue(1)
-	res := xv.GetPointerTo(m.Alloc, m.Store, sx.Path).Deref()
+	res := xv.GetPointerToFromTV(m.Alloc, m.Store, sx.Path).Deref()
 	if debug {
 		m.Printf("-v[S] %v\n", xv)
 		m.Printf("+v[S] %v\n", res)
@@ -88,20 +88,20 @@ func (m *Machine) doOpSelector() {
 
 func (m *Machine) doOpSlice() {
 	sx := m.PopExpr().(*SliceExpr)
-	var low, high, max int = -1, -1, -1
+	var lowVal, highVal, maxVal int = -1, -1, -1
 	// max
 	if sx.Max != nil {
-		max = m.PopValue().ConvertGetInt()
+		maxVal = m.PopValue().ConvertGetInt()
 	}
 	// high
 	if sx.High != nil {
-		high = m.PopValue().ConvertGetInt()
+		highVal = m.PopValue().ConvertGetInt()
 	}
 	// low
 	if sx.Low != nil {
-		low = m.PopValue().ConvertGetInt()
+		lowVal = m.PopValue().ConvertGetInt()
 	} else {
-		low = 0
+		lowVal = 0
 	}
 	// slice base x
 	xv := m.PopValue()
@@ -114,14 +114,14 @@ func (m *Machine) doOpSlice() {
 	}
 	// fill default based on xv
 	if sx.High == nil {
-		high = xv.GetLength()
+		highVal = xv.GetLength()
 	}
 	// all low:high:max cases
-	if max == -1 {
-		sv := xv.GetSlice(m.Alloc, low, high)
+	if maxVal == -1 {
+		sv := xv.GetSlice(m.Alloc, lowVal, highVal)
 		m.PushValue(sv)
 	} else {
-		sv := xv.GetSlice2(m.Alloc, low, high, max)
+		sv := xv.GetSlice2(m.Alloc, lowVal, highVal, maxVal)
 		m.PushValue(sv)
 	}
 }
@@ -145,6 +145,10 @@ func (m *Machine) doOpStar() {
 	xv := m.PopValue()
 	switch bt := baseOf(xv.T).(type) {
 	case *PointerType:
+		if xv.V == nil {
+			panic(&Exception{Value: typedString("nil pointer dereference")})
+		}
+
 		pv := xv.V.(PointerValue)
 		if pv.TV.T == DataByteType {
 			tv := TypedValue{T: bt.Elt}
@@ -194,8 +198,13 @@ func (m *Machine) doOpRef() {
 			nv.Value = rv2
 		}
 	}
+	// when obtaining a pointer of the databyte type, use the ElemType of databyte
+	elt := xv.TV.T
+	if elt == DataByteType {
+		elt = xv.TV.V.(DataByteValue).ElemType
+	}
 	m.PushValue(TypedValue{
-		T: m.Alloc.NewType(&PointerType{Elt: xv.TV.T}),
+		T: m.Alloc.NewType(&PointerType{Elt: elt}),
 		V: xv,
 	})
 }
@@ -584,16 +593,16 @@ func (m *Machine) doOpSliceLit2() {
 	// peek slice type.
 	st := m.PeekValue(1).V.(TypeValue).Type
 	// calculate maximum index.
-	max := 0
+	maxVal := 0
 	for i := 0; i < el; i++ {
 		itv := tvs[i*2+0]
 		idx := itv.ConvertGetInt()
-		if idx > max {
-			max = idx
+		if idx > maxVal {
+			maxVal = idx
 		}
 	}
 	// construct element buf slice.
-	es := make([]TypedValue, max+1)
+	es := make([]TypedValue, maxVal+1)
 	for i := 0; i < el; i++ {
 		itv := tvs[i*2+0]
 		vtv := tvs[i*2+1]
@@ -753,6 +762,25 @@ func (m *Machine) doOpFuncLit() {
 	ft := m.PopValue().V.(TypeValue).Type.(*FuncType)
 	lb := m.LastBlock()
 	m.Alloc.AllocateFunc()
+
+	// First copy closure captured heap values
+	// to *FuncValue. Later during doOpCall a block
+	// will be created that copies these values for
+	// every invocation of the function.
+	captures := []TypedValue(nil)
+	for _, nx := range x.HeapCaptures {
+		ptr := lb.GetPointerTo(m.Store, nx.Path)
+		// check that ptr.TV is a heap item value.
+		// it must be in the form of:
+		// {T:heapItemType{},V:HeapItemValue{...}}
+		if _, ok := ptr.TV.T.(heapItemType); !ok {
+			panic("should not happen, should be heapItemType")
+		}
+		if _, ok := ptr.TV.V.(*HeapItemValue); !ok {
+			panic("should not happen, should be heapItemValue")
+		}
+		captures = append(captures, *ptr.TV)
+	}
 	m.PushValue(TypedValue{
 		T: ft,
 		V: &FuncValue{
@@ -761,6 +789,7 @@ func (m *Machine) doOpFuncLit() {
 			Source:     x,
 			Name:       "",
 			Closure:    lb,
+			Captures:   captures,
 			PkgPath:    m.Package.PkgPath,
 			body:       x.Body,
 			nativeBody: nil,
@@ -771,6 +800,6 @@ func (m *Machine) doOpFuncLit() {
 func (m *Machine) doOpConvert() {
 	xv := m.PopValue()
 	t := m.PopValue().GetType()
-	ConvertTo(m.Alloc, m.Store, xv, t)
+	ConvertTo(m.Alloc, m.Store, xv, t, false)
 	m.PushValue(*xv)
 }

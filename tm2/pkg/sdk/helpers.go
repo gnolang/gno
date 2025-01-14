@@ -10,16 +10,35 @@ import (
 var isAlphaNumeric = regexp.MustCompile(`^[a-zA-Z0-9]+$`).MatchString
 
 func (app *BaseApp) Check(tx Tx) (result Result) {
-	return app.runTx(RunTxModeCheck, nil, tx)
+	ctx := app.getContextForTx(RunTxModeCheck, nil)
+
+	return app.runTx(ctx, tx)
 }
 
 func (app *BaseApp) Simulate(txBytes []byte, tx Tx) (result Result) {
-	return app.runTx(RunTxModeSimulate, txBytes, tx)
+	ctx := app.getContextForTx(RunTxModeSimulate, txBytes)
+
+	return app.runTx(ctx, tx)
 }
 
-func (app *BaseApp) Deliver(tx Tx) (result Result) {
-	return app.runTx(RunTxModeDeliver, nil, tx)
+func (app *BaseApp) Deliver(tx Tx, ctxFns ...ContextFn) (result Result) {
+	ctx := app.getContextForTx(RunTxModeDeliver, nil)
+
+	for _, ctxFn := range ctxFns {
+		if ctxFn == nil {
+			continue
+		}
+
+		ctx = ctxFn(ctx)
+	}
+
+	return app.runTx(ctx, tx)
 }
+
+// ContextFn is the custom execution context builder.
+// It can be used to add custom metadata when replaying transactions
+// during InitChainer or in the context of a unit test.
+type ContextFn func(ctx Context) Context
 
 // Context with current {check, deliver}State of the app
 // used by tests

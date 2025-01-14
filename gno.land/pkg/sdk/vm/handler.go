@@ -1,17 +1,12 @@
 package vm
 
 import (
-	"context"
 	"fmt"
 	"strings"
 
 	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
 	"github.com/gnolang/gno/tm2/pkg/sdk"
 	"github.com/gnolang/gno/tm2/pkg/std"
-	"github.com/gnolang/gno/tm2/pkg/telemetry"
-	"github.com/gnolang/gno/tm2/pkg/telemetry/metrics"
-	"go.opentelemetry.io/otel/attribute"
-	"go.opentelemetry.io/otel/metric"
 )
 
 type vmHandler struct {
@@ -107,32 +102,7 @@ func (vh vmHandler) Query(ctx sdk.Context, req abci.RequestQuery) abci.ResponseQ
 				secondPart(req.Path), req.Path)))
 	}
 
-	// Log the telemetry
-	logQueryTelemetry(path, res.IsErr())
-
 	return res
-}
-
-// logQueryTelemetry logs the relevant VM query telemetry
-func logQueryTelemetry(path string, isErr bool) {
-	if !telemetry.MetricsEnabled() {
-		return
-	}
-
-	metrics.VMQueryCalls.Add(
-		context.Background(),
-		1,
-		metric.WithAttributes(
-			attribute.KeyValue{
-				Key:   "path",
-				Value: attribute.StringValue(path),
-			},
-		),
-	)
-
-	if isErr {
-		metrics.VMQueryErrors.Add(context.Background(), 1)
-	}
 }
 
 // queryPackage fetch a package's files.

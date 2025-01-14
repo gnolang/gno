@@ -1,60 +1,196 @@
 package main
 
 import (
+	"context"
 	"flag"
 	"fmt"
+	"net"
 	"net/http"
 	"os"
 	"time"
 
-	// for static files
 	"github.com/gnolang/gno/gno.land/pkg/gnoweb"
 	"github.com/gnolang/gno/gno.land/pkg/log"
+	"github.com/gnolang/gno/tm2/pkg/commands"
+	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
-	// for error types
-	// "github.com/gnolang/gno/tm2/pkg/sdk"               // for baseapp (info, status)
 )
 
-func main() {
-	err := runMain(os.Args[1:])
-	if err != nil {
-		_, _ = fmt.Fprintf(os.Stderr, "%+v\n", err)
-		os.Exit(1)
-	}
+type webCfg struct {
+	chainid    string
+	remote     string
+	remoteHelp string
+	bind       string
+	faucetURL  string
+	assetsDir  string
+	analytics  bool
+	json       bool
+	html       bool
+	verbose    bool
 }
 
-func runMain(args []string) error {
-	var (
-		fs          = flag.NewFlagSet("gnoweb", flag.ContinueOnError)
-		cfg         = gnoweb.NewDefaultConfig()
-		bindAddress string
-	)
-	fs.StringVar(&cfg.RemoteAddr, "remote", cfg.RemoteAddr, "remote gnoland node address")
-	fs.StringVar(&cfg.CaptchaSite, "captcha-site", cfg.CaptchaSite, "recaptcha site key (if empty, captcha are disabled)")
-	fs.StringVar(&cfg.FaucetURL, "faucet-url", cfg.FaucetURL, "faucet server URL")
-	fs.StringVar(&cfg.ViewsDir, "views-dir", cfg.ViewsDir, "views directory location") // XXX: replace with goembed
-	fs.StringVar(&cfg.HelpChainID, "help-chainid", cfg.HelpChainID, "help page's chainid")
-	fs.StringVar(&cfg.HelpRemote, "help-remote", cfg.HelpRemote, "help page's remote addr")
-	fs.BoolVar(&cfg.WithAnalytics, "with-analytics", cfg.WithAnalytics, "enable privacy-first analytics")
-	fs.StringVar(&bindAddress, "bind", "127.0.0.1:8888", "server listening address")
+var defaultWebOptions = webCfg{
+	chainid: "dev",
+	remote:  "127.0.0.1:26657",
+	bind:    ":8888",
+}
 
-	if err := fs.Parse(args); err != nil {
-		return err
+func main() {
+	var cfg webCfg
+
+	stdio := commands.NewDefaultIO()
+	cmd := commands.NewCommand(
+		commands.Metadata{
+			Name:       "gnoweb",
+			ShortUsage: "gnoweb [flags] [path ...]",
+			ShortHelp:  "runs gno.land web interface",
+			LongHelp:   `gnoweb web interface`,
+		},
+		&cfg,
+		func(ctx context.Context, args []string) error {
+			run, err := setupWeb(&cfg, args, stdio)
+			if err != nil {
+				return err
+			}
+
+			return run()
+		})
+
+	cmd.Execute(context.Background(), os.Args[1:])
+}
+
+func (c *webCfg) RegisterFlags(fs *flag.FlagSet) {
+	fs.StringVar(
+		&c.remote,
+		"remote",
+		defaultWebOptions.remote,
+		"remote gno.land node address",
+	)
+
+	fs.StringVar(
+		&c.remoteHelp,
+		"help-remote",
+		defaultWebOptions.remoteHelp,
+		"help page's remote address",
+	)
+
+	fs.StringVar(
+		&c.assetsDir,
+		"assets-dir",
+		defaultWebOptions.assetsDir,
+		"if not empty, will be use as assets directory",
+	)
+
+	fs.StringVar(
+		&c.chainid,
+		"help-chainid",
+		defaultWebOptions.chainid,
+		"Deprecated: use `chainid` instead",
+	)
+
+	fs.StringVar(
+		&c.chainid,
+		"chainid",
+		defaultWebOptions.chainid,
+		"target chain id",
+	)
+
+	fs.StringVar(
+		&c.bind,
+		"bind",
+		defaultWebOptions.bind,
+		"gnoweb listener",
+	)
+
+	fs.StringVar(
+		&c.faucetURL,
+		"faucet-url",
+		defaultWebOptions.faucetURL,
+		"The faucet URL will redirect the user when they access `/faucet`.",
+	)
+
+	fs.BoolVar(
+		&c.json,
+		"json",
+		defaultWebOptions.json,
+		"display log in json format",
+	)
+
+	fs.BoolVar(
+		&c.html,
+		"html",
+		defaultWebOptions.html,
+		"enable unsafe html",
+	)
+
+	fs.BoolVar(
+		&c.analytics,
+		"with-analytics",
+		defaultWebOptions.analytics,
+		"nable privacy-first analytics",
+	)
+
+	fs.BoolVar(
+		&c.verbose,
+		"v",
+		defaultWebOptions.verbose,
+		"verbose logging mode",
+	)
+}
+
+func setupWeb(cfg *webCfg, _ []string, io commands.IO) (func() error, error) {
+	// Setup logger
+	level := zapcore.InfoLevel
+	if cfg.verbose {
+		level = zapcore.DebugLevel
 	}
 
-	zapLogger := log.NewZapConsoleLogger(os.Stdout, zapcore.DebugLevel)
+	var zapLogger *zap.Logger
+	if cfg.json {
+		zapLogger = log.NewZapJSONLogger(io.Out(), level)
+	} else {
+		zapLogger = log.NewZapConsoleLogger(io.Out(), level)
+	}
+	defer zapLogger.Sync()
+
 	logger := log.ZapLoggerToSlog(zapLogger)
 
-	logger.Info("Running", "listener", "http://"+bindAddress)
+	appcfg := gnoweb.NewDefaultAppConfig()
+	appcfg.ChainID = cfg.chainid
+	appcfg.NodeRemote = cfg.remote
+	appcfg.RemoteHelp = cfg.remoteHelp
+	appcfg.Analytics = cfg.analytics
+	appcfg.UnsafeHTML = cfg.html
+	appcfg.FaucetURL = cfg.faucetURL
+	appcfg.AssetsDir = cfg.assetsDir
+	if appcfg.RemoteHelp == "" {
+		appcfg.RemoteHelp = appcfg.NodeRemote
+	}
+
+	app, err := gnoweb.NewRouter(logger, appcfg)
+	if err != nil {
+		return nil, fmt.Errorf("unable to start gnoweb app: %w", err)
+	}
+
+	bindaddr, err := net.ResolveTCPAddr("tcp", cfg.bind)
+	if err != nil {
+		return nil, fmt.Errorf("unable to resolve listener %q: %w", cfg.bind, err)
+	}
+
+	logger.Info("Running", "listener", bindaddr.String())
+
 	server := &http.Server{
-		Addr:              bindAddress,
+		Handler:           app,
+		Addr:              bindaddr.String(),
 		ReadHeaderTimeout: 60 * time.Second,
-		Handler:           gnoweb.MakeApp(logger, cfg).Router,
 	}
 
-	if err := server.ListenAndServe(); err != nil {
-		logger.Error("HTTP server stopped", " error:", err)
-	}
+	return func() error {
+		if err := server.ListenAndServe(); err != nil {
+			logger.Error("HTTP server stopped", " error:", err)
+			return commands.ExitCodeError(1)
+		}
 
-	return zapLogger.Sync()
+		return nil
+	}, nil
 }

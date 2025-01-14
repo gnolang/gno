@@ -1,23 +1,26 @@
-name: gnovm
+name: GnoVM
 
 on:
   push:
     branches:
       - master
-  workflow_dispatch:
   pull_request:
+    paths:
+      - gnovm/**
+      - tm2/** # GnoVM has a dependency on TM2 types
+  workflow_dispatch:
 
 jobs:
   main:
-    name: Run Main
+    name: Run GnoVM suite
     uses: ./.github/workflows/main_template.yml
     with:
       modulepath: "gnovm"
+      tests-extra-args: "-coverpkg=github.com/gnolang/gno/gnovm/..."
     secrets:
       codecov-token: ${{ secrets.CODECOV_TOKEN }}
   fmt:
-    name: Run Gno Fmt
+    name: Run gno fmt on stdlibs
     uses: ./.github/workflows/gnofmt_template.yml
     with:
       path: "gnovm/stdlibs/..."
-      go-version: "1.22.x"

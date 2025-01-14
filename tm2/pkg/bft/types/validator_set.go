@@ -162,17 +162,17 @@ func computeMaxMinPriorityDiff(vals *ValidatorSet) int64 {
 	if vals.IsNilOrEmpty() {
 		panic("empty validator set")
 	}
-	max := int64(math.MinInt64)
-	min := int64(math.MaxInt64)
+	maxVal := int64(math.MinInt64)
+	minVal := int64(math.MaxInt64)
 	for _, v := range vals.Validators {
-		if v.ProposerPriority < min {
-			min = v.ProposerPriority
+		if v.ProposerPriority < minVal {
+			minVal = v.ProposerPriority
 		}
-		if v.ProposerPriority > max {
-			max = v.ProposerPriority
+		if v.ProposerPriority > maxVal {
+			maxVal = v.ProposerPriority
 		}
 	}
-	diff := max - min
+	diff := maxVal - minVal
 	if diff < 0 {
 		return -1 * diff
 	} else {
