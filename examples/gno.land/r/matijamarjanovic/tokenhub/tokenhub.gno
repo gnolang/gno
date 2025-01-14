@@ -32,7 +32,7 @@ var (
 	ErrMTNotFound           = errors.New("Multi-token not found")
 	ErrMTInfoNotFound       = errors.New("Multi-token info not found")
 
-	pageSize = 2 // tokens per page
+	pageSize = 2 
 	test     = ""
 )
 
@@ -146,6 +146,40 @@ func GetBalances(input string) string {
 		panic("invalid address or username: " + input)
 	}
 	return getNonZeroBalances(addr)
+}
+
+func GetAllNFTs() string {
+	var sb strings.Builder
+	registeredNFTs.Iterate("", "", func(key string, value interface{}) bool {
+		sb.WriteString(ufmt.Sprintf("NFT:%s,", key))
+		return false
+	})
+	return sb.String()
+}
+
+func GetAllGRC20Tokens() string {
+	var sb strings.Builder
+	grc20reg.Iterate(func(key string, tokenGetter grc20.TokenGetter) bool {
+		sb.WriteString(ufmt.Sprintf("Token:%s,", key))
+		return false
+	})
+	return sb.String()
+}
+
+func GetAllMultiTokens() string {
+	var sb strings.Builder
+	registeredMTs.Iterate("", "", func(key string, value interface{}) bool {
+		sb.WriteString(ufmt.Sprintf("MultiToken:%s,", key))
+		return false
+	})
+	return sb.String()
+}
+
+func GetAllTokens() string {
+	return ufmt.Sprintf("%s%s%s",
+		GetAllNFTs(),
+		GetAllGRC20Tokens(),
+		GetAllMultiTokens())
 }
 
 func Render(path string) string {
@@ -351,12 +385,11 @@ func Render(path string) string {
 
 func getBalances(addr std.Address) string {
 	if addr == "" {
-		panic("invalid address")
+		panic("invalid address") 
 	}
 	balances := avl.NewTree()
 	var sb strings.Builder
 
-	// GRC721
 	registeredNFTs.Iterate("", "", func(key string, value interface{}) bool {
 		nftGetter := value.(grc721.NFTGetter)
 		nft := nftGetter()
@@ -365,7 +398,6 @@ func getBalances(addr std.Address) string {
 		return false
 	})
 
-	// GRC20
 	grc20reg.Iterate(func(key string, tokenGetter grc20.TokenGetter) bool {
 		token := tokenGetter()
 		balance := token.BalanceOf(addr)
@@ -373,7 +405,6 @@ func getBalances(addr std.Address) string {
 		return false
 	})
 
-	// GRC1155
 	registeredMTs.Iterate("", "", func(key string, value interface{}) bool {
 		info := value.(GRC1155TokenInfo)
 		mt := info.Collection()
@@ -416,7 +447,6 @@ func getNonZeroBalances(addr std.Address) string {
 	balances := avl.NewTree()
 	var sb strings.Builder
 
-	// GRC721
 	registeredNFTs.Iterate("", "", func(key string, value interface{}) bool {
 		nftGetter := value.(grc721.NFTGetter)
 		nft := nftGetter()
@@ -427,7 +457,6 @@ func getNonZeroBalances(addr std.Address) string {
 		return false
 	})
 
-	// GRC20
 	grc20reg.Iterate(func(key string, tokenGetter grc20.TokenGetter) bool {
 		token := tokenGetter()
 		balance := token.BalanceOf(addr)
@@ -437,7 +466,6 @@ func getNonZeroBalances(addr std.Address) string {
 		return false
 	})
 
-	// GRC1155
 	registeredMTs.Iterate("", "", func(key string, value interface{}) bool {
 		info := value.(GRC1155TokenInfo)
 		mt := info.Collection()
