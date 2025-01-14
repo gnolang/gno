@@ -3,3 +3,7 @@
 go.sum linguist-generated text
 gnovm/stdlibs/generated.go linguist-generated
 gnovm/tests/stdlibs/generated.go linguist-generated
+*.gen.gno linguist-generated
+*.gen_test.gno linguist-generated
+*.gen.go linguist-generated
+*.gen_test.go linguist-generated
