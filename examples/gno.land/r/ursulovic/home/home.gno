@@ -33,7 +33,7 @@ func init() {
 	githubUrl = "https://github.com/ursulovic"
 	linkedinUrl = "https://www.linkedin.com/in/ivan-ursulovic-953310190/"
 	imageUpdatePrice = 5000000
-	initIsValidURL()
+	isValidURL = defaultURLValidation
 	hof.Register()
 }
 
@@ -45,30 +45,28 @@ func Render(s string) string {
 	return sb.String()
 }
 
-func initIsValidURL() {
-	isValidURL = func(url string) bool {
-		const urlPrefix string = "https://i.ibb.co/"
+func defaultURLValidation(url string) bool {
+	const urlPrefix string = "https://i.ibb.co/"
 
-		if !strings.HasPrefix(url, urlPrefix) {
-			return false
-		}
-
-		if !(strings.HasSuffix(url, ".jpg") ||
-			strings.HasSuffix(url, ".png") ||
-			strings.HasSuffix(url, ".gif") ||
-			strings.HasSuffix(url, ".webp")) {
-			return false
-		}
-
-		urlPath := strings.TrimPrefix(url, "https://i.ibb.co/")
-		parts := strings.Split(urlPath, "/")
-
-		if len(parts) != 2 || len(parts[0]) == 0 || len(parts[1]) == 0 {
-			return false
-		}
-
-		return true
+	if !strings.HasPrefix(url, urlPrefix) {
+		return false
 	}
+
+	if !(strings.HasSuffix(url, ".jpg") ||
+		strings.HasSuffix(url, ".png") ||
+		strings.HasSuffix(url, ".gif") ||
+		strings.HasSuffix(url, ".webp")) {
+		return false
+	}
+
+	urlPath := strings.TrimPrefix(url, "https://i.ibb.co/")
+	parts := strings.Split(urlPath, "/")
+
+	if len(parts) != 2 || len(parts[0]) == 0 || len(parts[1]) == 0 {
+		return false
+	}
+
+	return true
 }
 
 func UpdateSelectedImage(url string) {
