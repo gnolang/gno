@@ -387,9 +387,10 @@ func EnsureSufficientMempoolFees(ctx sdk.Context, fee std.Fee) sdk.Result {
 				if prod1.Cmp(prod2) >= 0 {
 					return sdk.Result{}
 				} else {
+					fee := new(big.Int).Quo(prod2, gpg)
 					return abciResult(std.ErrInsufficientFee(
 						fmt.Sprintf(
-							"insufficient fees; got: {Gas-Wanted: %d, Gas-Fee %s}, fee required: %+v as minimum gas price set by the node", feeGasPrice.Gas, feeGasPrice.Price, gp,
+							"insufficient fees; got: {Gas-Wanted: %d, Gas-Fee %s}, fee required: %d with %+v as minimum gas price set by the node", feeGasPrice.Gas, feeGasPrice.Price, fee, gp,
 						),
 					))
 				}
@@ -418,16 +419,20 @@ func SetGasMeter(simulate bool, ctx sdk.Context, gasLimit int64) sdk.Context {
 // GetSignBytes returns a slice of bytes to sign over for a given transaction
 // and an account.
 func GetSignBytes(chainID string, tx std.Tx, acc std.Account, genesis bool) ([]byte, error) {
-	var accNum uint64
+	var (
+		accNum      uint64
+		accSequence uint64
+	)
 	if !genesis {
 		accNum = acc.GetAccountNumber()
+		accSequence = acc.GetSequence()
 	}
 
 	return std.GetSignaturePayload(
 		std.SignDoc{
 			ChainID:       chainID,
 			AccountNumber: accNum,
-			Sequence:      acc.GetSequence(),
+			Sequence:      accSequence,
 			Fee:           tx.Fee,
 			Msgs:          tx.Msgs,
 			Memo:          tx.Memo,

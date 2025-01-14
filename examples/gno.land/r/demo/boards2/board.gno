@@ -25,6 +25,7 @@ func (id BoardID) Key() string {
 type Board struct {
 	id        BoardID // only set for public boards.
 	name      string
+	aliases   []string
 	creator   std.Address
 	threads   avl.Tree // Post.id -> *Post
 	postsCtr  uint64   // increments Post.id
@@ -135,7 +136,7 @@ func createDefaultBoardPermissions(owner std.Address) *DefaultPermissions {
 	return NewDefaultPermissions(
 		admindao.New(admindao.WithMember(owner)),
 		WithSuperRole(RoleOwner),
-		WithRole(RoleAdmin, PermissionMemberInvite),
+		WithRole(RoleAdmin, PermissionMemberInvite, PermissionBoardRename),
 		// TODO: Finish assigning all roles and permissions
 		// WithRole(RoleModerator, permissions...),
 		WithUser(owner, RoleOwner),

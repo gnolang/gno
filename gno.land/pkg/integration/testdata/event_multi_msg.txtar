@@ -11,16 +11,19 @@ stdout 'data: {'
 stdout '  "BaseAccount": {'
 stdout '    "address": "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5",'
 stdout '    "coins": "[0-9]*ugnot",' # dynamic
-stdout '    "public_key": null,'
+stdout '    "public_key": {'
+stdout '      "@type": "/tm.PubKeySecp256k1",'
+stdout '      "value": "A\+FhNtsXHjLfSJk1lB8FbiL4mGPjc50Kt81J7EKDnJ2y"'
+stdout '    },'
 stdout '    "account_number": "0",'
-stdout '    "sequence": "0"'
+stdout '    "sequence": "1"'
 stdout '  }'
 stdout '}'
 ! stderr '.+' # empty
 
 
 ## sign
-gnokey sign -tx-path $WORK/multi/multi_msg.tx -chainid=tendermint_test -account-number 0 -account-sequence 0 test1
+gnokey sign -tx-path $WORK/multi/multi_msg.tx -chainid=tendermint_test -account-number 0 -account-sequence 1 test1
 stdout 'Tx successfully signed and saved to '
 
 ## broadcast

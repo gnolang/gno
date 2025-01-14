@@ -995,7 +995,6 @@ var initOrder = [...]string{
 	"hash",
 	"hash/adler32",
 	"html",
-	"math/overflow",
 	"math/rand",
 	"path",
 	"sort",
