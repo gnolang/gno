@@ -146,6 +146,11 @@ func (c *testCfg) RegisterFlags(fs *flag.FlagSet) {
 }
 
 func execTest(cfg *testCfg, args []string, io commands.IO) error {
+	// Default to current directory if no args provided
+	if len(args) == 0 {
+		args = []string{"."}
+	}
+
 	// guess opts.RootDir
 	if cfg.rootDir == "" {
 		cfg.rootDir = gnoenv.RootDir()
@@ -156,15 +161,9 @@ func execTest(cfg *testCfg, args []string, io commands.IO) error {
 		return fmt.Errorf("list targets from patterns: %w", err)
 	}
 
-	// Assume current directory if no paths are provided
 	if len(paths) == 0 {
-		for _, arg := range args {
-			if strings.Contains(arg, "/...") {
-				io.ErrPrintln("no packages to test")
-				return nil
-			}
-		}
-		paths = []string{"."}
+		io.ErrPrintln("no packages to test")
+		return nil
 	}
 
 	if cfg.timeout > 0 {
