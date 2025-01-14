@@ -87,7 +87,7 @@ func CreateThread(bid BoardID, title, body string) PostID {
 func CreateReply(bid BoardID, threadID, replyID PostID, body string) PostID {
 	assertIsUserCall()
 
-	// TODO: Assert that caller is a board member (when board type is invite only)
+	// TODO: Assert that caller is a board member when board type is invite only
 	caller := std.GetOrigCaller()
 	board := mustGetBoard(bid)
 	thread := mustGetThread(board, threadID)
@@ -168,8 +168,8 @@ func DeleteReply(bid BoardID, threadID, replyID PostID) {
 	thread := mustGetThread(board, threadID)
 	assertReplyExists(thread, replyID)
 
-	// TODO: Hide reply when the caller is the owner of the reply (remove WithPermission call for now)
-	// TODO: Support removing reply and children though proposals? (WithPermission)
+	// TODO: Hide reply when the caller is the owner of the reply without permission
+	// TODO: Support removing reply and children though proposals?
 
 	caller := std.GetOrigCaller()
 	args := Args{bid, threadID, replyID}
@@ -185,6 +185,8 @@ func EditThread(bid BoardID, threadID PostID, title, body string) {
 
 	board := mustGetBoard(bid)
 	assertThreadExists(board, threadID)
+
+	// TODO: Thread owners should be able to edit without permission?
 
 	caller := std.GetOrigCaller()
 	args := Args{bid, threadID, title, body}
