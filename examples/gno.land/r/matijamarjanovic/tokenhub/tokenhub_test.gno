@@ -12,12 +12,6 @@ import (
 	"gno.land/p/demo/urequire"
 )
 
-func setupTest() {
-	//std.TestSetOrigCaller(std.DerivePkgAddr("gno.land/r/matijamarjanovic/home"))
-    std.TestSetRealm(std.NewCodeRealm("gno.land/r/matijamarjanovic/home"))
-	std.TestSetOrigPkgAddr(std.DerivePkgAddr("gno.land/r/matijamarjanovic/home"))
-}
-
 func TestTokenRegistration(t *testing.T) {
 	std.TestSetRealm(std.NewCodeRealm("gno.land/r/matijamarjanovic/home"))
 	std.TestSetOrigPkgAddr(std.DerivePkgAddr("gno.land/r/matijamarjanovic/home"))
@@ -35,11 +29,9 @@ func TestTokenRegistration(t *testing.T) {
 }
 
 func TestNFTRegistration(t *testing.T) {
-	//ako probas da namestis realm koji je testiran sa settestrealm ne vraca se path
-    //std.TestSetRealm(std.NewCodeRealm("gno.land/r/matijamarjanovic/home"))
-    std.TestSetRealm(std.NewCodeRealm("gno.land/r/matijamarjanovic/home"))
+    std.TestSetRealm(std.NewCodeRealm("gno.land/r/matijamarjanovic/tokenhub"))
 	std.TestSetOrigPkgAddr(std.DerivePkgAddr("gno.land/r/matijamarjanovic/home"))
-
+	
 	nft := grc721.NewBasicNFT("Test NFT", "TNFT")
 	err := RegisterNFT(nft.Getter(), "test_nft")
 	urequire.NoError(t, err, "Should register NFT without error")
