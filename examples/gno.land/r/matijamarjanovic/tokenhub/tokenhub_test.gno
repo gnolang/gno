@@ -124,22 +124,22 @@ func TestTokenListingFunctions(t *testing.T) {
 	RegisterGRC1155Token(multiToken.Getter(), "listing_mt")
 
 	nftList := GetAllNFTs()
-	uassert.True(t, strings.Contains(nftList, "NFT:gno.land/r/matijamarjanovic/home.listing_nft"), 
+	uassert.True(t, strings.Contains(nftList, "NFT:gno.land/r/matijamarjanovic/home.listing_nft"),
 		"GetAllNFTs should list registered NFT")
 
 	grc20List := GetAllGRC20Tokens()
-	uassert.True(t, strings.Contains(grc20List, "Token:gno.land/r/matijamarjanovic/tokenhub.listing_token"), 
+	uassert.True(t, strings.Contains(grc20List, "Token:gno.land/r/matijamarjanovic/tokenhub.listing_token"),
 		"GetAllGRC20Tokens should list registered token")
 
 	grc1155List := GetAllMultiTokens()
-	uassert.True(t, strings.Contains(grc1155List, "MultiToken:gno.land/r/matijamarjanovic/home.listing_mt"), 
+	uassert.True(t, strings.Contains(grc1155List, "MultiToken:gno.land/r/matijamarjanovic/home.listing_mt"),
 		"GetAllMultiTokens should list registered multi-token")
 
 	completeList := GetAllTokens()
-	uassert.True(t, strings.Contains(completeList, "NFT:gno.land/r/matijamarjanovic/home.listing_nft"), 
+	uassert.True(t, strings.Contains(completeList, "NFT:gno.land/r/matijamarjanovic/home.listing_nft"),
 		"GetAllTokens should list NFTs")
-	uassert.True(t, strings.Contains(completeList, "Token:gno.land/r/matijamarjanovic/tokenhub.listing_token"), 
+	uassert.True(t, strings.Contains(completeList, "Token:gno.land/r/matijamarjanovic/tokenhub.listing_token"),
 		"GetAllTokens should list GRC20 tokens")
-	uassert.True(t, strings.Contains(completeList, "MultiToken:gno.land/r/matijamarjanovic/home.listing_mt"), 
+	uassert.True(t, strings.Contains(completeList, "MultiToken:gno.land/r/matijamarjanovic/home.listing_mt"),
 		"GetAllTokens should list multi-tokens")
 }

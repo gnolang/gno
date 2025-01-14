@@ -32,7 +32,7 @@ var (
 	ErrMTNotFound           = errors.New("Multi-token not found")
 	ErrMTInfoNotFound       = errors.New("Multi-token info not found")
 
-	pageSize = 2 
+	pageSize = 2
 	test     = ""
 )
 
@@ -385,7 +385,7 @@ func Render(path string) string {
 
 func getBalances(addr std.Address) string {
 	if addr == "" {
-		panic("invalid address") 
+		panic("invalid address")
 	}
 	balances := avl.NewTree()
 	var sb strings.Builder
