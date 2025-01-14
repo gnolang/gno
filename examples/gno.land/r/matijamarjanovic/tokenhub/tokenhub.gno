@@ -32,7 +32,7 @@ var (
 	ErrMTNotFound           = errors.New("Multi-token not found")
 	ErrMTInfoNotFound       = errors.New("Multi-token info not found")
 
-	pageSize = 1 // tokens per page
+	pageSize = 2 // tokens per page
 	test     = ""
 )
 
@@ -187,9 +187,10 @@ func Render(path string) string {
 
 		lastKey := grc20reg.IterateN(startKey, pageSize, func(key string, tokenGetter grc20.TokenGetter) bool { // get current page tokens
 			token := tokenGetter()
-			tokenItems = append(tokenItems, ufmt.Sprintf("%s (%s)",
+			tokenItems = append(tokenItems, ufmt.Sprintf("%s (%s) [%s]",
 				md.Bold(token.GetName()),
-				md.InlineCode(token.GetSymbol())))
+				md.InlineCode(token.GetSymbol()),
+				md.InlineCode(key)))
 			return false
 		})
 
@@ -246,9 +247,10 @@ func Render(path string) string {
 				return false
 			}
 
-			nftItems = append(nftItems, ufmt.Sprintf("%s (%s)",
+			nftItems = append(nftItems, ufmt.Sprintf("%s (%s) [%s]",
 				md.Bold(metadata.Name()),
-				md.InlineCode(metadata.Symbol())))
+				md.InlineCode(metadata.Symbol()),
+				md.InlineCode(key)))
 
 			count++
 			currentIdx++
@@ -301,12 +303,10 @@ func Render(path string) string {
 			}
 
 			info := value.(GRC1155TokenInfo)
-			mtItems = append(mtItems, ufmt.Sprintf("%s: %s",
+			mtItems = append(mtItems, ufmt.Sprintf("%s: %s [%s]",
 				md.Bold("TokenID"),
-				md.InlineCode(info.TokenID)+
-					" (Collection: "+
-					md.InlineCode(strings.TrimPrefix(key, std.PrevRealm().PkgPath()+"."))+
-					")"))
+				md.InlineCode(info.TokenID),
+				md.InlineCode(key)))
 
 			count++
 			currentIdx++
