@@ -35,7 +35,6 @@ func init() {
 	linkedinUrl = "https://www.linkedin.com/in/ivan-ursulovic-953310190/"
 	imageUpdatePrice = 5000000
 	isValidUrl = defaultURLValidation
-	connectUrl = "http://www.google.com"
 	hof.Register()
 }
 
@@ -97,7 +96,7 @@ func renderSelectedImage() string {
 	sb.WriteString(md.Image("", selectedImage))
 	sb.WriteString("\n")
 
-	sb.WriteString(md.H4("✨ " + md.Link("Change this image for "+strconv.Itoa(int(imageUpdatePrice/1000000))+" GNOT. To update, set a direct image URL from ImgBB.", connectUrl) + " ✨"))
+	sb.WriteString(md.H4("✨ " + md.Link("Change this image for "+strconv.Itoa(int(imageUpdatePrice/1000000))+" GNOT. To update, set a direct image URL from ImgBB.", "https://gno.studio/connect/view/gno.land/r/ursulovic/home?network=portal-loop") + " ✨"))
 
 	return sb.String()
 }
@@ -159,7 +158,3 @@ func UpdateIsValidUrlFunction(f func(string) bool) {
 	isValidUrl = f
 }
 
-func UpdateConnectUrl(url string) {
-	Ownable.AssertCallerIsOwner()
-	connectUrl = url
-}
