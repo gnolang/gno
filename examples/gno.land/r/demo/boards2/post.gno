@@ -166,14 +166,11 @@ func (post *Post) AddRepostTo(creator std.Address, title, body string, dst *Boar
 	pid := dst.incGetPostID()
 	repost := newPost(dst, pid, creator, title, body, pid, post.id, post.board.id)
 
-	args := Args{creator, dst.id, pid}
-	dst.perms.WithPermission(creator, PermissionThreadRepost, args, func(_ Args) {
-		post.repostsCount++
-		dst.threads.Set(pid.Key(), repost)
-		if !dst.IsPrivate() {
-			post.reposts.Set(dst.id.Key(), pid)
-		}
-	})
+	post.repostsCount++
+	dst.threads.Set(pid.Key(), repost)
+	if !dst.IsPrivate() {
+		post.reposts.Set(dst.id.Key(), pid)
+	}
 
 	return repost
 }
@@ -290,7 +287,7 @@ func (post *Post) renderSourcePost(indent string) (string, *Post) {
 	// TODO: figure out a way to decouple posts from a global storage.
 	board, ok := getBoard(post.repostBoardID)
 	if !ok {
-		return indentBody(indent, "> Source post is not available\n\n"), nil
+		return indentBody(indent, "> Source board is not available\n\n"), nil
 	}
 
 	srcPost, ok := board.GetThread(post.parentID)

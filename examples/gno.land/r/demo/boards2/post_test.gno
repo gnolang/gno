@@ -46,8 +46,6 @@ func TestPostSetVisible(t *testing.T) {
 }
 
 func TestPostAddRepostTo(t *testing.T) {
-	testAdminAddr := testutils.TestAddress("testAdmin")
-
 	cases := []struct {
 		name, title, body string
 		dstBoard          *Board
@@ -60,19 +58,8 @@ func TestPostAddRepostTo(t *testing.T) {
 			name:     "repost thread",
 			title:    "Repost Title",
 			body:     "Repost body",
-			dstBoard: newBoard(42, "dst123", testAdminAddr),
-			creator:  testAdminAddr,
-			setup: func() *Post {
-				return createTestThread(t)
-			},
-		},
-		{
-			name:     "should check permissions",
-			title:    "Repost Title",
-			body:     "Repost body",
 			dstBoard: newBoard(42, "dst123", testutils.TestAddress("creatorDstBoard")),
 			setup:    func() *Post { return createTestThread(t) },
-			err:      "unauthorized",
 		},
 		{
 			name:  "invalid repost from reply",
