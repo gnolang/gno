@@ -84,19 +84,19 @@ func Iterate(callback func(key string, token grc20.TokenGetter) bool) {
 func IterateN(startKey string, n int, callback func(key string, token grc20.TokenGetter) bool) string {
 	var lastKey string
 	count := 0
-	
+
 	registry.Iterate(startKey, "", func(key string, tokenI interface{}) bool {
 		if count >= n {
-			return true 
+			return true
 		}
-		
+
 		tokenGetter := tokenI.(grc20.TokenGetter)
 		lastKey = key
 		count++
-		
+
 		return callback(key, tokenGetter)
 	})
-	
+
 	return lastKey
 }
 
