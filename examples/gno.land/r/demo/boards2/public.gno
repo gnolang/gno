@@ -144,8 +144,15 @@ func CreateRepost(bid BoardID, threadID PostID, title, body string, dstBoardID B
 	dst := mustGetBoard(dstBoardID)
 	thread := mustGetThread(board, threadID)
 
-	repost := thread.AddRepostTo(caller, title, body, dst)
-	return repost.id
+	var repostId PostID
+
+	permArgs := Args{caller, board.GetID(), threadID, dst.GetID()}
+	dst.GetPermissions().WithPermission(caller, PermissionThreadRepost, permArgs, func(_ Args) {
+		repost := thread.AddRepostTo(caller, title, body, dst)
+		repostId = repost.GetPostID()
+	})
+
+	return repostId
 }
 
 func DeleteThread(bid BoardID, threadID PostID) {
