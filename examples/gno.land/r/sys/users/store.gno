@@ -6,12 +6,11 @@ import (
 	"strings"
 
 	"gno.land/p/demo/avl"
-	"gno.land/p/demo/pausable"
 )
 
 var (
 	nameStore    = avl.NewTree() // name/aliases > *UserData
-	addressStore = avl.NewTree() // address > *UserData - always points to the latest Alias
+	addressStore = avl.NewTree() // address > *UserData
 
 	reAddressLookalike = regexp.MustCompile(`^g1[a-z0-9]{20,38}$`)
 )
@@ -25,19 +24,26 @@ const (
 )
 
 type UserData struct {
-	Addr     std.Address
-	Username string
-	Alias    *UserData
-	Deleted  bool
+	addr     std.Address
+	username string // contains the latest name of a user
+	deleted  bool
+}
+
+func (u UserData) Name() string {
+	return u.username
+}
+
+func (u UserData) Addr() std.Address {
+	return u.addr
 }
 
 func (u UserData) IsDeleted() bool {
-	// No need to resolve, any UserData this is called upon will already be resolved
-	return u.Deleted
+	return u.deleted
 }
 
 // RegisterUser adds a new user to the system.
 func RegisterUser(name string, address std.Address) error {
+	// Validate caller
 	if err := validateCall(); err != nil {
 		return err
 	}
@@ -65,10 +71,9 @@ func RegisterUser(name string, address std.Address) error {
 
 	// Create UserData
 	data := &UserData{
-		Addr:     address,
-		Username: name,
-		Alias:    nil,
-		Deleted:  false,
+		addr:     address,
+		username: name,
+		deleted:  false,
 	}
 
 	// Set corresponding stores
@@ -81,6 +86,7 @@ func RegisterUser(name string, address std.Address) error {
 
 // RegisterAlias adds an Alias pointing to an existing user.
 func RegisterAlias(alias string, address std.Address) error {
+	// Validate caller
 	if err := validateCall(); err != nil {
 		return err
 	}
@@ -90,7 +96,7 @@ func RegisterAlias(alias string, address std.Address) error {
 		return err
 	}
 
-	// Check if requested Alias is already taken
+	// Check if the requested Alias is already taken
 	if nameStore.Has(alias) {
 		return ErrNameTaken
 	}
@@ -101,51 +107,37 @@ func RegisterAlias(alias string, address std.Address) error {
 		return ErrAliasBeforeName
 	}
 
-	if raw.(*UserData).IsDeleted() {
+	userData := raw.(*UserData)
+
+	if userData.IsDeleted() {
 		return ErrDeletedUser
 	}
 
-	// Create new Alias
-	newData := &UserData{
-		Addr:     address,
-		Username: alias,
-		Alias:    nil,
-		Deleted:  false,
-	}
-
-	oldData := raw.(*UserData)
-	// Point to new Alias
-	oldData.Alias = newData
-	oldData.Addr = ""
-
-	// Set latest Alias to stores
-	addressStore.Set(address.String(), newData)
-	nameStore.Set(alias, newData)
+	userData.username = alias
+	nameStore.Set(alias, userData)
 
 	std.Emit(RegisterAliasEvent, "Alias", alias, "address", address.String())
 	return nil
 }
 
-// Delete marks a user and all their aliases as Deleted.
+// Delete marks a user and all their aliases as deleted.
 func Delete(addr std.Address) error {
 	if err := validateCall(); err != nil {
 		return err
 	}
 
-	data, deleted := ResolveAddress(addr)
+	data := ResolveAddress(addr)
 	if data == nil {
 		return ErrUserNotExist
 	}
 
-	if deleted {
+	if data.deleted {
 		return ErrAlreadyDeleted
 	}
 
-	data.Deleted = true
-	// data.Addr = "" // I don't think we should do this, it will likely cause user errors
-	// data.Username = "ghost" // could cause issues with users named "ghost"
+	data.deleted = true
 
-	std.Emit(DeleteUserEvent, "address", data.Addr.String())
+	std.Emit(DeleteUserEvent, "address", data.addr.String())
 	return nil
 }
 
@@ -155,13 +147,13 @@ func validateCall() error {
 	}
 
 	if Pausable.IsPaused() {
-		return pausable.ErrPaused
+		panic("paused")
 	}
 
 	return nil
 }
 
-// Validate validates Username and address passed in
+// Validate validates username and address passed in
 func validateInputs(username string, address std.Address) error {
 	if !address.IsValid() {
 		return ErrInvalidAddress
@@ -175,7 +167,7 @@ func validateInputs(username string, address std.Address) error {
 		return ErrNameTooLong
 	}
 
-	// Check if the Username can be decoded or looks like a valid address
+	// Check if the username can be decoded or looks like a valid address
 	if _, _, ok := std.DecodeBech32(std.Address(username)); ok || reAddressLookalike.MatchString(username) {
 		return ErrNameLikeAddress
 	}

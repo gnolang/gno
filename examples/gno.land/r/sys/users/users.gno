@@ -1,52 +1,35 @@
 package users
 
 import (
+	"std"
+
 	"gno.land/p/demo/avl/rotree"
 	"gno.land/p/demo/avlhelpers"
-	"std"
 )
 
 // ResolveName returns the latest UserData of a specific user by name or Alias
-func ResolveName(name string) (data *UserData, deleted bool) {
+func ResolveName(name string) (data *UserData, isAlias bool) {
 	raw, ok := nameStore.Get(name)
 	if !ok {
 		return nil, false
 	}
 
 	data = raw.(*UserData)
-	for data.Alias != nil {
-		data = data.Alias
-	}
-
-	return data, data.Deleted
+	return data, name != data.username
 }
 
 // ResolveAddress returns the latest UserData of a specific user by address
-func ResolveAddress(addr std.Address) (data *UserData, deleted bool) {
+func ResolveAddress(addr std.Address) (data *UserData) {
 	raw, ok := addressStore.Get(addr.String())
 	if !ok {
-		return nil, false
+		return nil
 	}
 
 	data = raw.(*UserData)
-	for data.Alias != nil {
-		data = data.Alias
-	}
-
-	return data, data.Deleted
+	return data
 }
 
-// ResolveAddressOrName
-// Note: unlike ResolveName, input must be "@" prefixed for names
-//func ResolveAddressOrName(aon string) *UserData {
-//	if strings.HasPrefix(aon, "@") {
-//		return ResolveName(strings.TrimPrefix(aon, "@"))
-//	}
-//
-//	return ResolveAddress(std.Address(aon))
-//}
-
-// GetReadonlyStore exposes the Username store in readonly mode
+// GetReadonlyStore exposes the username store in readonly mode
 func GetReadonlyStore() *rotree.ReadOnlyTree {
 	return rotree.Wrap(nameStore, nil)
 }
