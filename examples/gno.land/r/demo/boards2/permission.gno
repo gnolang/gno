@@ -52,6 +52,9 @@ type (
 		// AddUser adds a new user to the permissioner.
 		AddUser(std.Address, ...Role) error
 
+		// SetUserRoles sets the roles of a user.
+		SetUserRoles(std.Address, ...Role) error
+
 		// RemoveUser removes a user from the permissioner.
 		RemoveUser(std.Address) (removed bool)
 

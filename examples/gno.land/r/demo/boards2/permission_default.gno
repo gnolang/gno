@@ -104,14 +104,19 @@ func (dp *DefaultPermissions) AddUser(user std.Address, roles ...Role) error {
 		return errors.New("user already exists")
 	}
 
+	if err := dp.dao.AddMember(user); err != nil {
+		return err
+	}
+
+	return dp.SetUserRoles(user, roles...)
+}
+
+// SetUserRoles sets the roles of a user.
+func (dp *DefaultPermissions) SetUserRoles(user std.Address, roles ...Role) error {
 	for _, r := range roles {
 		if !dp.RoleExists(r) {
 			return errors.New("invalid role: " + string(r))
 		}
-	}
-
-	if err := dp.dao.AddMember(user); err != nil {
-		return err
 	}
 
 	dp.users.Set(user.String(), append([]Role(nil), roles...))

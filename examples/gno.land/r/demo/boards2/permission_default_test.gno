@@ -360,6 +360,105 @@ func TestDefaultPermissionsAddUser(t *testing.T) {
 	}
 }
 
+func TestDefaultPermissionsSetUserRoles(t *testing.T) {
+	cases := []struct {
+		name  string
+		user  std.Address
+		roles []Role
+		setup func() *DefaultPermissions
+		err   string
+	}{
+		{
+			name:  "single role",
+			user:  std.Address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"),
+			roles: []Role{"b"},
+			setup: func() *DefaultPermissions {
+				return NewDefaultPermissions(
+					admindao.New(),
+					WithRole("a", "permission1"),
+					WithRole("b", "permission2"),
+					WithUser("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5", "a"),
+				)
+			},
+		},
+		{
+			name:  "multiple roles",
+			user:  std.Address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"),
+			roles: []Role{"b", "c"},
+			setup: func() *DefaultPermissions {
+				return NewDefaultPermissions(
+					admindao.New(),
+					WithRole("a", "permission1"),
+					WithRole("b", "permission2"),
+					WithRole("c", "permission2"),
+					WithUser("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5", "a"),
+				)
+			},
+		},
+		{
+			name:  "duplicated role",
+			user:  std.Address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"),
+			roles: []Role{"a", "c"},
+			setup: func() *DefaultPermissions {
+				return NewDefaultPermissions(
+					admindao.New(),
+					WithRole("a", "permission1"),
+					WithRole("b", "permission2"),
+					WithRole("c", "permission2"),
+					WithUser("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5", "a", "c"),
+				)
+			},
+		},
+		{
+			name: "remove roles",
+			user: std.Address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"),
+			setup: func() *DefaultPermissions {
+				return NewDefaultPermissions(
+					admindao.New(),
+					WithRole("a", "permission1"),
+					WithRole("b", "permission2"),
+					WithUser("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5", "a", "b"),
+				)
+			},
+		},
+		{
+			name:  "invalid role",
+			user:  std.Address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"),
+			roles: []Role{"x", "a"},
+			setup: func() *DefaultPermissions {
+				return NewDefaultPermissions(
+					admindao.New(),
+					WithRole("a", "permission1"),
+					WithUser("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5", "a"),
+				)
+			},
+			err: "invalid role: x",
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			perm := tc.setup()
+
+			err := perm.SetUserRoles(tc.user, tc.roles...)
+
+			if tc.err != "" {
+				urequire.True(t, err != nil, "expected an error")
+				uassert.Equal(t, tc.err, err.Error())
+				return
+			} else {
+				urequire.NoError(t, err)
+			}
+
+			roles := perm.GetUserRoles(tc.user)
+			uassert.Equal(t, len(tc.roles), len(roles))
+			for i, r := range roles {
+				urequire.Equal(t, string(tc.roles[i]), string(r))
+			}
+		})
+	}
+}
+
 func TestDefaultPermissionsRemoveUser(t *testing.T) {
 	cases := []struct {
 		name  string
