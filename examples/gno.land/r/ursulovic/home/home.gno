@@ -19,7 +19,7 @@ var (
 
 	githubUrl        string
 	linkedinUrl      string
-	studioConnectUrl string
+	connectUrl       string
 	imageUpdatePrice int64
 
 	isValidUrl func(string) bool
@@ -35,7 +35,7 @@ func init() {
 	linkedinUrl = "https://www.linkedin.com/in/ivan-ursulovic-953310190/"
 	imageUpdatePrice = 5000000
 	isValidUrl = defaultURLValidation
-	studioConnectUrl = "http://www.google.com"
+	connectUrl = "http://www.google.com"
 	hof.Register()
 }
 
@@ -97,7 +97,7 @@ func renderSelectedImage() string {
 	sb.WriteString(md.Image("", selectedImage))
 	sb.WriteString("\n")
 
-	sb.WriteString(md.H4("✨ " + md.Link("Change this image for "+strconv.Itoa(int(imageUpdatePrice/1000000))+" GNOT. To update, set a direct image URL from ImgBB.", studioConnectUrl) + " ✨"))
+	sb.WriteString(md.H4("✨ " + md.Link("Change this image for "+strconv.Itoa(int(imageUpdatePrice/1000000))+" GNOT. To update, set a direct image URL from ImgBB.", connectUrl) + " ✨"))
 
 	return sb.String()
 }
@@ -159,7 +159,7 @@ func UpdateIsValidUrlFunction(f func(string) bool) {
 	isValidUrl = f
 }
 
-func UpdateStudioConnectUrl(url string) {
+func UpdateConnectUrl(url string) {
 	Ownable.AssertCallerIsOwner()
-	studioConnectUrl = url
+	connectUrl = url
 }
