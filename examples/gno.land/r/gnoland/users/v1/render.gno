@@ -38,7 +38,7 @@ func Render(path string) string {
 	if std.Address(req.Path).IsValid() {
 		lookup = users.ResolveAddress(req.Path)
 	} else {
-		lookup = users.ResolveName(req.Path)
+		lookup, _ = users.ResolveName(req.Path)
 	}
 
 	if lookup == nil || lookup.IsDeleted() {
@@ -51,8 +51,8 @@ func Render(path string) string {
 }
 
 func renderUserPage(lookup *users.UserData) string {
-	out := ufmt.Sprintf("# User %s\n", lookup.Name)
-	out += profile.GetStringField(lookup.Addr, "Bio", "No bio defined.")
+	out := ufmt.Sprintf("# User %s\n", lookup.Name())
+	out += profile.GetStringField(lookup.Addr(), "Bio", "No bio defined.")
 
 	return out
 }
