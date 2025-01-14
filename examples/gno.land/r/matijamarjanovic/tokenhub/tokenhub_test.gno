@@ -19,7 +19,6 @@ func TestTokenRegistration(t *testing.T) {
 	token, _ := grc20.NewToken("Test Token", "TEST", 6)
 	RegisterToken(token.Getter(), "test_token")
 
-
 	getter := GetGRC20("gno.land/r/matijamarjanovic/tokenhub.test_token")
 	urequire.True(t, getter != nil, "Should retrieve registered token")
 
@@ -29,9 +28,9 @@ func TestTokenRegistration(t *testing.T) {
 }
 
 func TestNFTRegistration(t *testing.T) {
-    std.TestSetRealm(std.NewCodeRealm("gno.land/r/matijamarjanovic/tokenhub"))
+	std.TestSetRealm(std.NewCodeRealm("gno.land/r/matijamarjanovic/tokenhub"))
 	std.TestSetOrigPkgAddr(std.DerivePkgAddr("gno.land/r/matijamarjanovic/home"))
-	
+
 	nft := grc721.NewBasicNFT("Test NFT", "TNFT")
 	err := RegisterNFT(nft.Getter(), "test_nft")
 	urequire.NoError(t, err, "Should register NFT without error")
@@ -46,11 +45,11 @@ func TestNFTRegistration(t *testing.T) {
 	uassert.Equal(t, "TNFT", metadata.Symbol(), "NFT symbol should match")
 
 	err = RegisterNFT(nft.Getter(), "test_nft")
-	uassert.True(t, err!=nil, "Should not allow duplicate registration")
+	uassert.True(t, err != nil, "Should not allow duplicate registration")
 }
 
 func TestGRC1155Registration(t *testing.T) {
-    std.TestSetRealm(std.NewCodeRealm("gno.land/r/matijamarjanovic/home"))
+	std.TestSetRealm(std.NewCodeRealm("gno.land/r/matijamarjanovic/home"))
 	std.TestSetOrigPkgAddr(std.DerivePkgAddr("gno.land/r/matijamarjanovic/home"))
 
 	mt := grc1155.NewBasicGRC1155Token("test-uri")
@@ -63,13 +62,13 @@ func TestGRC1155Registration(t *testing.T) {
 	uassert.Equal(t, "1", info.TokenID, "Token ID should match")
 
 	err = RegisterGRC1155Token(mt.Getter(), "1")
-	uassert.True(t, err!=nil, "Should not allow duplicate registration")
+	uassert.True(t, err != nil, "Should not allow duplicate registration")
 }
 
 func TestBalanceRetrieval(t *testing.T) {
-    std.TestSetRealm(std.NewCodeRealm("gno.land/r/matijamarjanovic/home"))
+	std.TestSetRealm(std.NewCodeRealm("gno.land/r/matijamarjanovic/home"))
 	std.TestSetOrigPkgAddr(std.DerivePkgAddr("gno.land/r/matijamarjanovic/home"))
-	
+
 	addr := std.Address("g1ej0qca5ptsw9kfr64ey8jvfy9eacga6mpj2z0y")
 
 	token, ledger := grc20.NewToken("Test Token", "TEST", 6)
@@ -96,24 +95,22 @@ func TestBalanceRetrieval(t *testing.T) {
 func TestErrorCases(t *testing.T) {
 	std.TestSetRealm(std.NewCodeRealm("gno.land/r/matijamarjanovic/home"))
 	std.TestSetOrigPkgAddr(std.DerivePkgAddr("gno.land/r/matijamarjanovic/home"))
-	
+
 	nft := grc721.NewBasicNFT("Test NFT", "TNFT")
 	err := RegisterNFT(nft.Getter(), "test_nft")
-	uassert.True(t, err!=nil, "Should not allow duplicate registration")
+	uassert.True(t, err != nil, "Should not allow duplicate registration")
 
 	err = RegisterNFT(nft.Getter(), "test_nft")
-	uassert.True(t, err!=nil, "Should not allow duplicate registration")
+	uassert.True(t, err != nil, "Should not allow duplicate registration")
 
 	mt := grc1155.NewBasicGRC1155Token("test-uri")
 	err = RegisterGRC1155Token(mt.Getter(), "1")
-	uassert.True(t, err!=nil, "Should not allow duplicate registration")
+	uassert.True(t, err != nil, "Should not allow duplicate registration")
 
 	err = RegisterGRC1155Token(mt.Getter(), "1")
-	uassert.True(t, err!=nil, "Should not allow duplicate registration")
+	uassert.True(t, err != nil, "Should not allow duplicate registration")
 
 	uassert.PanicsWithMessage(t, "invalid address or username: invalid", func() {
 		GetBalances("invalid")
 	})
 }
-
-
