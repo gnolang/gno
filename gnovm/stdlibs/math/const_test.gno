@@ -31,76 +31,19 @@ func TestMaxUint(t *testing.T) {
 }
 
 func TestMaxInt(t *testing.T) {
-	defer func() {
-		if r := recover(); r != nil {
-			if r != "addition overflow" {
-				panic(r)
-			}
-		}
-	}()
-	v := int(math.MaxInt)
-	if v+1 == math.MinInt {
-		t.Errorf("int should overflow")
+	if v := int(math.MaxInt); v+1 != math.MinInt {
+		t.Errorf("MaxInt should wrap around to MinInt: %d", v+1)
 	}
-	t.Errorf("expected panic did not occur")
-}
-
-func TestMaxInt8(t *testing.T) {
-	defer func() {
-		if r := recover(); r != nil {
-			if r != "addition overflow" {
-				panic(r)
-			}
-		}
-	}()
-	v := int8(math.MaxInt8)
-	if v+1 == math.MinInt8 {
-		t.Errorf("int8 should overflow")
+	if v := int8(math.MaxInt8); v+1 != math.MinInt8 {
+		t.Errorf("MaxInt8 should wrap around to MinInt8: %d", v+1)
 	}
-	t.Errorf("expected panic did not occur")
-}
-
-func TestMaxInt16(t *testing.T) {
-	defer func() {
-		if r := recover(); r != nil {
-			if r != "addition overflow" {
-				panic(r)
-			}
-		}
-	}()
-	v := int16(math.MaxInt16)
-	if v+1 == math.MinInt16 {
-		t.Errorf("int16 should overflow")
+	if v := int16(math.MaxInt16); v+1 != math.MinInt16 {
+		t.Errorf("MaxInt16 should wrap around to MinInt16: %d", v+1)
 	}
-	t.Errorf("expected panic did not occur")
-}
-
-func TestMaxInt32(t *testing.T) {
-	defer func() {
-		if r := recover(); r != nil {
-			if r != "addition overflow" {
-				panic(r)
-			}
-		}
-	}()
-	v := int32(math.MaxInt32)
-	if v+1 == math.MinInt32 {
-		t.Errorf("int32 should overflow")
+	if v := int32(math.MaxInt32); v+1 != math.MinInt32 {
+		t.Errorf("MaxInt32 should wrap around to MinInt32: %d", v+1)
 	}
-	t.Errorf("expected panic did not occur")
-}
-
-func TestMaxInt64(t *testing.T) {
-	defer func() {
-		if r := recover(); r != nil {
-			if r != "addition overflow" {
-				panic(r)
-			}
-		}
-	}()
-	v := int64(math.MaxInt64)
-	if v+1 == math.MinInt64 {
-		t.Errorf("int64 should overflow")
+	if v := int64(math.MaxInt64); v+1 != math.MinInt64 {
+		t.Errorf("MaxInt64 should wrap around to MinInt64: %d", v+1)
 	}
-	t.Errorf("expected panic did not occur")
 }
