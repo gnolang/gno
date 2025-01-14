@@ -131,10 +131,13 @@ func MakeConnectedPeers(
 		multiplexSwitch.DialPeers(addrs...)
 
 		// Set up an exit timer
-		timer := time.NewTimer(5 * time.Second)
+		timer := time.NewTimer(1 * time.Minute)
 		defer timer.Stop()
 
-		connectedPeers := make(map[p2pTypes.ID]struct{})
+		var (
+			connectedPeers = make(map[p2pTypes.ID]struct{})
+			targetPeers    = cfg.Count - 1
+		)
 
 		for {
 			select {
@@ -143,7 +146,7 @@ func MakeConnectedPeers(
 
 				connectedPeers[ev.PeerID] = struct{}{}
 
-				if len(connectedPeers) == cfg.Count-1 {
+				if len(connectedPeers) == targetPeers {
 					return nil
 				}
 			case <-timer.C:
