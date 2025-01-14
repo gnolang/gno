@@ -15,7 +15,7 @@ import (
 var (
 	aboutMe       string
 	selectedImage string
-	owner         *ownable.Ownable
+	Ownable       *ownable.Ownable
 
 	githubUrl        string
 	linkedinUrl      string
@@ -26,7 +26,7 @@ var (
 )
 
 func init() {
-	owner = ownable.NewWithAddress(registry.MainAddress())
+	Ownable = ownable.NewWithAddress(registry.MainAddress())
 
 	aboutMe = "Hi, I'm Ivan Ursulovic, a computer engineering graduate, blockchain enthusiast, and backend developer specializing in ASP.NET. I love learning new things and taking on challenges."
 	selectedImage = "https://i.ibb.co/W28NPkw/beograd.webp"
@@ -135,31 +135,31 @@ func renderContactsUrl() string {
 }
 
 func UpdateGithubUrl(url string) {
-	owner.AssertCallerIsOwner()
+	Ownable.AssertCallerIsOwner()
 	githubUrl = url
 }
 
 func UpdateLinkedinUrl(url string) {
-	owner.AssertCallerIsOwner()
+	Ownable.AssertCallerIsOwner()
 	linkedinUrl = url
 }
 
 func UpdateAboutMe(text string) {
-	owner.AssertCallerIsOwner()
+	Ownable.AssertCallerIsOwner()
 	aboutMe = text
 }
 
 func UpdateImagePrice(newPrice int64) {
-	owner.AssertCallerIsOwner()
+	Ownable.AssertCallerIsOwner()
 	imageUpdatePrice = newPrice
 }
 
 func UpdateIsValidUrlFunction(f func(string) bool) {
-	owner.AssertCallerIsOwner()
+	Ownable.AssertCallerIsOwner()
 	isValidUrl = f
 }
 
 func UpdateStudioConnectUrl(url string) {
-	owner.AssertCallerIsOwner()
+	Ownable.AssertCallerIsOwner()
 	studioConnectUrl = url
 }
