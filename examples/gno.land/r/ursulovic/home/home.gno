@@ -2,26 +2,26 @@ package home
 
 import (
 	"std"
-	"strings"
 	"strconv"
+	"strings"
 
+	"gno.land/p/demo/ownable"
 	"gno.land/p/moul/md"
 	"gno.land/r/leon/hof"
-	"gno.land/p/demo/ownable"
 
 	"gno.land/r/ursulovic/registry"
 )
 
 var (
-	aboutMe			string
-	selectedImage		string
-	owner 			*ownable.Ownable
+	aboutMe       string
+	selectedImage string
+	owner         *ownable.Ownable
 
-	githubUrl		string
-	linkedinUrl		string
-	imageUpdatePrice 	int64
+	githubUrl        string
+	linkedinUrl      string
+	imageUpdatePrice int64
 
-	isValidURL		func(string) bool
+	isValidURL func(string) bool
 )
 
 func init() {
@@ -47,27 +47,27 @@ func Render(s string) string {
 
 func initIsValidURL() {
 	isValidURL = func(url string) bool {
-	const urlPrefix string = "https://i.ibb.co/"
+		const urlPrefix string = "https://i.ibb.co/"
 
-    if !strings.HasPrefix(url, urlPrefix) {
-        return false
-    }
+		if !strings.HasPrefix(url, urlPrefix) {
+			return false
+		}
 
-    if !(strings.HasSuffix(url, ".jpg") || 
-         strings.HasSuffix(url, ".png") || 
-         strings.HasSuffix(url, ".gif") ||
-         strings.HasSuffix(url, ".webp")) {
-        return false
-    }
+		if !(strings.HasSuffix(url, ".jpg") ||
+			strings.HasSuffix(url, ".png") ||
+			strings.HasSuffix(url, ".gif") ||
+			strings.HasSuffix(url, ".webp")) {
+			return false
+		}
 
-    urlPath := strings.TrimPrefix(url, "https://i.ibb.co/")
-    parts := strings.Split(urlPath, "/")
+		urlPath := strings.TrimPrefix(url, "https://i.ibb.co/")
+		parts := strings.Split(urlPath, "/")
 
-    if len(parts) != 2 || len(parts[0]) == 0 || len(parts[1]) == 0 {
-        return false
-    }
+		if len(parts) != 2 || len(parts[0]) == 0 || len(parts[1]) == 0 {
+			return false
+		}
 
-    return true
+		return true
 	}
 }
 
@@ -77,7 +77,7 @@ func UpdateSelectedImage(url string) {
 	}
 
 	sentCoins := std.GetOrigSend()
-	
+
 	if len(sentCoins) != 1 && sentCoins.AmountOf("ugnot") == imageUpdatePrice {
 		panic("Please send exactly " + strconv.Itoa(int(imageUpdatePrice)) + " ugnot")
 	}
@@ -87,50 +87,50 @@ func UpdateSelectedImage(url string) {
 
 func renderSelectedImage() string {
 	var sb strings.Builder
-	
+
 	sb.WriteString(md.HorizontalRule())
 	sb.WriteString("\n")
-	
+
 	sb.WriteString(md.H2("📸 Featured Image"))
 	sb.WriteString("\n")
-	
+
 	sb.WriteString(md.Image("", selectedImage))
 	sb.WriteString("\n")
-	
+
 	sb.WriteString(md.H4("✨ " + md.Link("Change this image for "+strconv.Itoa(int(imageUpdatePrice/1000000))+" GNOT. To update, set a direct image URL from ImgBB.", "https://www.google.com") + " ✨"))
-	
+
 	return sb.String()
 }
 
 func renderAboutMe() string {
 	var sb strings.Builder
-	
+
 	sb.WriteString(md.H1("👋 Welcome to Ivan's Homepage!"))
 	sb.WriteString("\n")
-	
+
 	sb.WriteString(md.H2("👨‍💻 About Me"))
 	sb.WriteString("\n")
-	
+
 	sb.WriteString(md.Blockquote(aboutMe))
-	
+
 	return sb.String()
 }
 
 func renderContactsUrl() string {
 	var sb strings.Builder
-	
+
 	sb.WriteString(md.HorizontalRule())
 	sb.WriteString("\n")
-	
+
 	sb.WriteString(md.H2("🔗 Let's Connect"))
 	sb.WriteString("\n")
-	
+
 	items := []string{
 		"🐙 " + md.Link("GitHub", githubUrl),
 		"💼 " + md.Link("LinkedIn", linkedinUrl),
 	}
 	sb.WriteString(md.BulletList(items))
-	
+
 	return sb.String()
 }
 

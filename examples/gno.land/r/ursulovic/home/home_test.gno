@@ -1,98 +1,97 @@
 package home
 
 import (
-    "std"
+	"std"
 	"testing"
+
 	"gno.land/p/demo/testutils"
 )
 
 func TestUpdateGithubUrl(t *testing.T) {
-    caller := std.Address("g1d24j8fwnc0w5q427fauyey4gdd30qgu69k6n0x")
-    std.TestSetOrigCaller(caller)
+	caller := std.Address("g1d24j8fwnc0w5q427fauyey4gdd30qgu69k6n0x")
+	std.TestSetOrigCaller(caller)
 
-    newUrl := "https://github.com/example"
+	newUrl := "https://github.com/example"
 
-    UpdateGithubUrl(newUrl)
+	UpdateGithubUrl(newUrl)
 
-    if githubUrl != newUrl {
-        t.Fatalf("GitHub url not updated properly!")
-    }
+	if githubUrl != newUrl {
+		t.Fatalf("GitHub url not updated properly!")
+	}
 }
 
 func TestUpdateLinkedinUrl(t *testing.T) {
-    caller := std.Address("g1d24j8fwnc0w5q427fauyey4gdd30qgu69k6n0x")
-    std.TestSetOrigCaller(caller)
+	caller := std.Address("g1d24j8fwnc0w5q427fauyey4gdd30qgu69k6n0x")
+	std.TestSetOrigCaller(caller)
 
-    newUrl := "https://www.linkedin.com/in/example"
+	newUrl := "https://www.linkedin.com/in/example"
 
-    UpdateGithubUrl(newUrl)
+	UpdateGithubUrl(newUrl)
 
-    if githubUrl != newUrl {
-        t.Fatalf("LinkedIn url not updated properly!")
-    }
+	if githubUrl != newUrl {
+		t.Fatalf("LinkedIn url not updated properly!")
+	}
 }
 
 func TestUpdateAboutMe(t *testing.T) {
-    caller := std.Address("g1d24j8fwnc0w5q427fauyey4gdd30qgu69k6n0x")
-    std.TestSetOrigCaller(caller)
+	caller := std.Address("g1d24j8fwnc0w5q427fauyey4gdd30qgu69k6n0x")
+	std.TestSetOrigCaller(caller)
 
-    newAboutMe := "This is new description!"
+	newAboutMe := "This is new description!"
 
-    UpdateAboutMe(newAboutMe)
+	UpdateAboutMe(newAboutMe)
 
-    if aboutMe != newAboutMe {
-        t.Fatalf("About mew not updated properly!")
-    }
+	if aboutMe != newAboutMe {
+		t.Fatalf("About mew not updated properly!")
+	}
 }
-
 
 func TestUpdateSelectedImage(t *testing.T) {
-    var user = testutils.TestAddress("user")
-    std.TestSetOrigCaller(user)
+	var user = testutils.TestAddress("user")
+	std.TestSetOrigCaller(user)
 
-    validImageUrl := "https://i.ibb.co/hLtmnX0/beautiful-rain-forest-ang-ka-nature-trail-doi-inthanon-national-park-thailand-36703721.webp"
+	validImageUrl := "https://i.ibb.co/hLtmnX0/beautiful-rain-forest-ang-ka-nature-trail-doi-inthanon-national-park-thailand-36703721.webp"
 
-    coinsSent := std.NewCoins(std.NewCoin("ugnot", 5000000)) // Update to match the price expected by your function
-    std.TestSetOrigSend(coinsSent, std.NewCoins())
-    
-    UpdateSelectedImage(validImageUrl)
+	coinsSent := std.NewCoins(std.NewCoin("ugnot", 5000000)) // Update to match the price expected by your function
+	std.TestSetOrigSend(coinsSent, std.NewCoins())
 
-    if selectedImage != validImageUrl {
-        t.Fatalf("Valid image URL rejected!")
-    }
+	UpdateSelectedImage(validImageUrl)
 
-    invalidImageUrl := "https://ibb.co/Kb3rQNn"
+	if selectedImage != validImageUrl {
+		t.Fatalf("Valid image URL rejected!")
+	}
 
-    defer func() {
-        if r := recover(); r == nil {
-            t.Fatalf("Expected panic for invalid image URL, but got no panic")
-        }
-    }()
+	invalidImageUrl := "https://ibb.co/Kb3rQNn"
 
-    UpdateSelectedImage(invalidImageUrl)
+	defer func() {
+		if r := recover(); r == nil {
+			t.Fatalf("Expected panic for invalid image URL, but got no panic")
+		}
+	}()
 
-    invalidCoins := std.NewCoins(std.NewCoin("ugnot", 1000000)) 
-    std.TestSetOrigSend(invalidCoins, std.NewCoins())
+	UpdateSelectedImage(invalidImageUrl)
 
-    defer func() {
-        if r := recover(); r == nil {
-            t.Fatalf("Expected panic for incorrect coin denomination or amount, but got no panic")
-        }
-    }()
+	invalidCoins := std.NewCoins(std.NewCoin("ugnot", 1000000))
+	std.TestSetOrigSend(invalidCoins, std.NewCoins())
 
-    UpdateSelectedImage(validImageUrl)
+	defer func() {
+		if r := recover(); r == nil {
+			t.Fatalf("Expected panic for incorrect coin denomination or amount, but got no panic")
+		}
+	}()
+
+	UpdateSelectedImage(validImageUrl)
 }
 
-
 func TestUpdateImagePrice(t *testing.T) {
-    caller := std.Address("g1d24j8fwnc0w5q427fauyey4gdd30qgu69k6n0x")
-    std.TestSetOrigCaller(caller)
+	caller := std.Address("g1d24j8fwnc0w5q427fauyey4gdd30qgu69k6n0x")
+	std.TestSetOrigCaller(caller)
 
-    var newImageUpdatePrice int64 = 3000000
+	var newImageUpdatePrice int64 = 3000000
 
-    UpdateImagePrice(newImageUpdatePrice)
+	UpdateImagePrice(newImageUpdatePrice)
 
-    if imageUpdatePrice != newImageUpdatePrice {
-        t.Fatalf("Image update price not updated properly!")
-    }
+	if imageUpdatePrice != newImageUpdatePrice {
+		t.Fatalf("Image update price not updated properly!")
+	}
 }

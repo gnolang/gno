@@ -18,7 +18,6 @@ func init() {
 	backupAddress = "g1mw2xft3eava9kfhqw3fjj3kkf3pkammty0mtv7"
 }
 
-
 func MainAddress() std.Address {
 	return mainAddress
 }
@@ -29,7 +28,7 @@ func BackupAddress() std.Address {
 
 func SetMainAddress(addr std.Address) error {
 	assertAuthorized()
-	
+
 	if !addr.IsValid() {
 		return ErrInvalidAddr
 	}
@@ -48,6 +47,7 @@ func SetBackupAddress(addr std.Address) error {
 	backupAddress = addr
 	return nil
 }
+
 // It will stay here for now, might be useful later
 func assertAuthorized() {
 	caller := std.PrevRealm().Addr()
