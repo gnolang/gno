@@ -157,4 +157,3 @@ func UpdateIsValidUrlFunction(f func(string) bool) {
 	Ownable.AssertCallerIsOwner()
 	isValidUrl = f
 }
-
