@@ -434,6 +434,14 @@ func TestDefaultPermissionsSetUserRoles(t *testing.T) {
 			},
 			err: "invalid role: x",
 		},
+		{
+			name: "user not found",
+			user: std.Address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"),
+			setup: func() *DefaultPermissions {
+				return NewDefaultPermissions(admindao.New())
+			},
+			err: "user not found",
+		},
 	}
 
 	for _, tc := range cases {

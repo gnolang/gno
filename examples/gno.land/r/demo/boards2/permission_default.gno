@@ -113,6 +113,10 @@ func (dp *DefaultPermissions) AddUser(user std.Address, roles ...Role) error {
 
 // SetUserRoles sets the roles of a user.
 func (dp *DefaultPermissions) SetUserRoles(user std.Address, roles ...Role) error {
+	if !dp.users.Has(user.String()) {
+		return errors.New("user not found")
+	}
+
 	for _, r := range roles {
 		if !dp.RoleExists(r) {
 			return errors.New("invalid role: " + string(r))
