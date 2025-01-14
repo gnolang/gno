@@ -28,8 +28,7 @@ func TestTokenRegistration(t *testing.T) {
 }
 
 func TestNFTRegistration(t *testing.T) {
-	std.TestSetRealm(std.NewCodeRealm("gno.land/r/matijamarjanovic/tokenhub"))
-	std.TestSetOrigPkgAddr(std.DerivePkgAddr("gno.land/r/matijamarjanovic/home"))
+	std.TestSetRealm(std.NewCodeRealm("gno.land/r/matijamarjanovic/home"))
 
 	nft := grc721.NewBasicNFT("Test NFT", "TNFT")
 	err := RegisterNFT(nft.Getter(), "test_nft")
@@ -50,7 +49,6 @@ func TestNFTRegistration(t *testing.T) {
 
 func TestGRC1155Registration(t *testing.T) {
 	std.TestSetRealm(std.NewCodeRealm("gno.land/r/matijamarjanovic/home"))
-	std.TestSetOrigPkgAddr(std.DerivePkgAddr("gno.land/r/matijamarjanovic/home"))
 
 	mt := grc1155.NewBasicGRC1155Token("test-uri")
 	err := RegisterGRC1155Token(mt.Getter(), "1")
@@ -67,7 +65,6 @@ func TestGRC1155Registration(t *testing.T) {
 
 func TestBalanceRetrieval(t *testing.T) {
 	std.TestSetRealm(std.NewCodeRealm("gno.land/r/matijamarjanovic/home"))
-	std.TestSetOrigPkgAddr(std.DerivePkgAddr("gno.land/r/matijamarjanovic/home"))
 
 	addr := std.Address("g1ej0qca5ptsw9kfr64ey8jvfy9eacga6mpj2z0y")
 
@@ -94,7 +91,6 @@ func TestBalanceRetrieval(t *testing.T) {
 
 func TestErrorCases(t *testing.T) {
 	std.TestSetRealm(std.NewCodeRealm("gno.land/r/matijamarjanovic/home"))
-	std.TestSetOrigPkgAddr(std.DerivePkgAddr("gno.land/r/matijamarjanovic/home"))
 
 	nft := grc721.NewBasicNFT("Test NFT", "TNFT")
 	err := RegisterNFT(nft.Getter(), "test_nft")
@@ -113,4 +109,37 @@ func TestErrorCases(t *testing.T) {
 	uassert.PanicsWithMessage(t, "invalid address or username: invalid", func() {
 		GetBalances("invalid")
 	})
+}
+
+func TestTokenListingFunctions(t *testing.T) {
+	std.TestSetRealm(std.NewCodeRealm("gno.land/r/matijamarjanovic/home"))
+
+	grc20Token, _ := grc20.NewToken("Test Token", "TEST", 6)
+	RegisterToken(grc20Token.Getter(), "listing_token")
+
+	nftToken := grc721.NewBasicNFT("Test NFT", "TNFT")
+	RegisterNFT(nftToken.Getter(), "listing_nft")
+
+	multiToken := grc1155.NewBasicGRC1155Token("test-uri")
+	RegisterGRC1155Token(multiToken.Getter(), "listing_mt")
+
+	nftList := GetAllNFTs()
+	uassert.True(t, strings.Contains(nftList, "NFT:gno.land/r/matijamarjanovic/home.listing_nft"), 
+		"GetAllNFTs should list registered NFT")
+
+	grc20List := GetAllGRC20Tokens()
+	uassert.True(t, strings.Contains(grc20List, "Token:gno.land/r/matijamarjanovic/tokenhub.listing_token"), 
+		"GetAllGRC20Tokens should list registered token")
+
+	grc1155List := GetAllMultiTokens()
+	uassert.True(t, strings.Contains(grc1155List, "MultiToken:gno.land/r/matijamarjanovic/home.listing_mt"), 
+		"GetAllMultiTokens should list registered multi-token")
+
+	completeList := GetAllTokens()
+	uassert.True(t, strings.Contains(completeList, "NFT:gno.land/r/matijamarjanovic/home.listing_nft"), 
+		"GetAllTokens should list NFTs")
+	uassert.True(t, strings.Contains(completeList, "Token:gno.land/r/matijamarjanovic/tokenhub.listing_token"), 
+		"GetAllTokens should list GRC20 tokens")
+	uassert.True(t, strings.Contains(completeList, "MultiToken:gno.land/r/matijamarjanovic/home.listing_mt"), 
+		"GetAllTokens should list multi-tokens")
 }
