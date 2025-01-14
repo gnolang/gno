@@ -107,8 +107,7 @@ func (dp *DefaultPermissions) AddUser(user std.Address, roles ...Role) error {
 	if err := dp.dao.AddMember(user); err != nil {
 		return err
 	}
-
-	return dp.SetUserRoles(user, roles...)
+	return dp.setUserRoles(user, roles...)
 }
 
 // SetUserRoles sets the roles of a user.
@@ -116,15 +115,7 @@ func (dp *DefaultPermissions) SetUserRoles(user std.Address, roles ...Role) erro
 	if !dp.users.Has(user.String()) {
 		return errors.New("user not found")
 	}
-
-	for _, r := range roles {
-		if !dp.RoleExists(r) {
-			return errors.New("invalid role: " + string(r))
-		}
-	}
-
-	dp.users.Set(user.String(), append([]Role(nil), roles...))
-	return nil
+	return dp.setUserRoles(user, roles...)
 }
 
 // RemoveUser removes a user from permissions.
@@ -132,6 +123,11 @@ func (dp *DefaultPermissions) RemoveUser(user std.Address) bool {
 	_, removed := dp.users.Remove(user.String())
 	dp.dao.RemoveMember(user)
 	return removed
+}
+
+// HasUser checks if a user exists.
+func (dp DefaultPermissions) HasUser(user std.Address) bool {
+	return dp.users.Has(user.String())
 }
 
 // GetDAO returns the underlying DAO.
@@ -155,9 +151,22 @@ func (dp *DefaultPermissions) WithPermission(user std.Address, perm Permission, 
 		dp.handleBoardRename(args, cb)
 	case PermissionMemberInvite:
 		dp.handleMemberInvite(args, cb)
+	case PermissionRoleChange:
+		dp.handleRoleChange(args, cb)
 	default:
 		cb(args)
 	}
+}
+
+func (dp *DefaultPermissions) setUserRoles(user std.Address, roles ...Role) error {
+	for _, r := range roles {
+		if !dp.RoleExists(r) {
+			return errors.New("invalid role: " + string(r))
+		}
+	}
+
+	dp.users.Set(user.String(), append([]Role(nil), roles...))
+	return nil
 }
 
 func (DefaultPermissions) handleBoardCreate(args Args, cb func(Args)) {
@@ -201,6 +210,33 @@ func (dp DefaultPermissions) handleMemberInvite(args Args, cb func(Args)) {
 	cb(args)
 }
 
+func (dp DefaultPermissions) handleRoleChange(args Args, cb func(Args)) {
+	// Owners and Admins can change roles.
+	// Admins should not be able to assign or remove the Owner role from members.
+	caller := std.GetOrigCaller()
+	if dp.HasRole(caller, RoleAdmin) {
+		role, ok := args[1].(Role)
+		if !ok {
+			panic("expected a valid member role")
+		}
+
+		if role == RoleOwner {
+			panic("admins are not allowed to promote members to Owner")
+		} else {
+			member, ok := args[0].(std.Address)
+			if !ok {
+				panic("expected a valid member address")
+			}
+
+			if dp.HasRole(member, RoleOwner) {
+				panic("admins are not allowed to remove the Owner role")
+			}
+		}
+	}
+
+	cb(args)
+}
+
 func createDefaultPermissions(owner std.Address) *DefaultPermissions {
 	return NewDefaultPermissions(
 		admindao.New(),
@@ -217,6 +253,7 @@ func createDefaultPermissions(owner std.Address) *DefaultPermissions {
 			PermissionThreadFlag,
 			PermissionReplyDelete,
 			PermissionReplyFlag,
+			PermissionRoleChange,
 		),
 		WithRole(
 			RoleModerator,

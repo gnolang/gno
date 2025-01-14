@@ -235,6 +235,19 @@ func RemoveMember(user std.Address) {
 	})
 }
 
+// TODO: Allow changing board user roles
+func ChangeMemberRole(member std.Address, role Role) {
+	assertIsUserCall()
+
+	caller := std.GetOrigCaller()
+	args := Args{member, role}
+	gPerm.WithPermission(caller, PermissionRoleChange, args, func(Args) {
+		if err := gPerm.SetUserRoles(member, role); err != nil {
+			panic(err)
+		}
+	})
+}
+
 func assertIsUserCall() {
 	if !(std.IsOriginCall() || std.PrevRealm().IsUser()) {
 		panic("invalid non-user call")

@@ -146,6 +146,7 @@ func createDefaultBoardPermissions(owner std.Address) *DefaultPermissions {
 			PermissionThreadFlag,
 			PermissionReplyDelete,
 			PermissionReplyFlag,
+			PermissionRoleChange,
 		),
 		WithRole(
 			RoleModerator,

@@ -18,6 +18,7 @@ const (
 	PermissionReplyFlag               = "reply:flag"
 	PermissionMemberInvite            = "member:invite"
 	PermissionMemberRemove            = "member:remove"
+	PermissionRoleChange              = "role:change"
 )
 
 const (
@@ -57,6 +58,9 @@ type (
 
 		// RemoveUser removes a user from the permissioner.
 		RemoveUser(std.Address) (removed bool)
+
+		// HasUser checks if a user exists.
+		HasUser(std.Address) bool
 
 		// GetDAO returns the underlying DAO.
 		// Returned value can be nil if the implementation doesn't have a DAO.
