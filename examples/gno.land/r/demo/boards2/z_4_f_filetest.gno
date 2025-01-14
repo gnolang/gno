@@ -14,12 +14,12 @@ const (
 
 func init() {
 	std.TestSetOrigCaller(owner)
+	boards2.InviteMember(bid, admin, boards2.RoleGuest)
 }
 
 func main() {
-	boards2.InviteMember(bid, admin, boards2.RoleAdmin)
-	println("ok")
+	boards2.ChangeMemberRole(bid, admin, boards2.Role("foo"))
 }
 
-// Output:
-// ok
+// Error:
+// invalid role: foo

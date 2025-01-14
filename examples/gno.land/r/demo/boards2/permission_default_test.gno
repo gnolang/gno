@@ -17,11 +17,6 @@ func TestNewDefaultPermissions(t *testing.T) {
 
 	perms := NewDefaultPermissions(dao, WithRole("a", "permission1"), WithRole("b", "permission2"))
 
-	urequire.Equal(t, len(roles), len(perms.Roles()), "roles")
-	for i, r := range perms.Roles() {
-		uassert.Equal(t, string(roles[i]), string(r))
-	}
-
 	for _, r := range roles {
 		uassert.True(t, perms.RoleExists(r))
 	}

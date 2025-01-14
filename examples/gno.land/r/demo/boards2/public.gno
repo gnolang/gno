@@ -212,37 +212,44 @@ func EditReply(bid BoardID, threadID, replyID PostID, title, body string) {
 	reply.Update(title, body)
 }
 
-func InviteMember(user std.Address, role Role) {
+func InviteMember(bid BoardID, user std.Address, role Role) {
 	assertIsUserCall()
 
+	perms := mustGetPermissions(bid)
 	caller := std.GetOrigCaller()
 	args := Args{user, role}
-	gPerm.WithPermission(caller, PermissionMemberInvite, args, func(Args) {
-		if err := gPerm.AddUser(user, role); err != nil {
+	perms.WithPermission(caller, PermissionMemberInvite, args, func(Args) {
+		if err := perms.AddUser(user, role); err != nil {
 			panic(err)
 		}
 	})
 }
 
-func RemoveMember(user std.Address) {
+func RemoveMember(bid BoardID, user std.Address) {
 	assertIsUserCall()
 
+	perms := mustGetPermissions(bid)
 	caller := std.GetOrigCaller()
-	gPerm.WithPermission(caller, PermissionMemberRemove, Args{user}, func(Args) {
-		if !gPerm.RemoveUser(user) {
+	perms.WithPermission(caller, PermissionMemberRemove, Args{user}, func(Args) {
+		if !perms.RemoveUser(user) {
 			panic("member not found")
 		}
 	})
 }
 
-// TODO: Allow changing board user roles
-func ChangeMemberRole(member std.Address, role Role) {
+func HasMemberRole(bid BoardID, member std.Address, role Role) bool {
+	perms := mustGetPermissions(bid)
+	return perms.HasRole(member, role)
+}
+
+func ChangeMemberRole(bid BoardID, member std.Address, role Role) {
 	assertIsUserCall()
 
+	perms := mustGetPermissions(bid)
 	caller := std.GetOrigCaller()
-	args := Args{member, role}
-	gPerm.WithPermission(caller, PermissionRoleChange, args, func(Args) {
-		if err := gPerm.SetUserRoles(member, role); err != nil {
+	args := Args{bid, member, role}
+	perms.WithPermission(caller, PermissionRoleChange, args, func(Args) {
+		if err := perms.SetUserRoles(member, role); err != nil {
 			panic(err)
 		}
 	})
@@ -306,4 +313,12 @@ func assertReplyVisible(thread *Post) {
 	if thread.IsHidden() {
 		panic("reply with ID: " + thread.GetPostID().String() + " was hidden")
 	}
+}
+
+func mustGetPermissions(bid BoardID) Permissions {
+	if bid != 0 {
+		board := mustGetBoard(bid)
+		return board.perms
+	}
+	return gPerm
 }

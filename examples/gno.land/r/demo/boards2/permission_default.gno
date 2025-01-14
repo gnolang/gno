@@ -32,20 +32,6 @@ func NewDefaultPermissions(dao *admindao.AdminDAO, options ...DefaultPermissions
 	return dp
 }
 
-// Roles returns the list of roles.
-func (dp DefaultPermissions) Roles() []Role {
-	var roles []Role
-	if dp.superRole != "" {
-		roles = append(roles, dp.superRole)
-	}
-
-	dp.roles.Iterate("", "", func(name string, _ interface{}) bool {
-		roles = append(roles, Role(name))
-		return false
-	})
-	return roles
-}
-
 // RoleExists checks if a role exists.
 func (dp DefaultPermissions) RoleExists(r Role) bool {
 	if dp.superRole != "" && r == dp.superRole {
@@ -215,7 +201,7 @@ func (dp DefaultPermissions) handleRoleChange(args Args, cb func(Args)) {
 	// Admins should not be able to assign or remove the Owner role from members.
 	caller := std.GetOrigCaller()
 	if dp.HasRole(caller, RoleAdmin) {
-		role, ok := args[1].(Role)
+		role, ok := args[2].(Role)
 		if !ok {
 			panic("expected a valid member role")
 		}
@@ -223,7 +209,7 @@ func (dp DefaultPermissions) handleRoleChange(args Args, cb func(Args)) {
 		if role == RoleOwner {
 			panic("admins are not allowed to promote members to Owner")
 		} else {
-			member, ok := args[0].(std.Address)
+			member, ok := args[1].(std.Address)
 			if !ok {
 				panic("expected a valid member address")
 			}
