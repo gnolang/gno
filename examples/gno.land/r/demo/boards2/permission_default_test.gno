@@ -42,7 +42,7 @@ func TestDefaultPermissionsWithPermission(t *testing.T) {
 			user:       "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5",
 			permission: "bar",
 			perms: NewDefaultPermissions(
-				admindao.New(admindao.WithMember("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5")),
+				admindao.New(),
 				WithUser("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5", "foo"),
 				WithRole("foo", "bar"),
 			),
@@ -54,7 +54,7 @@ func TestDefaultPermissionsWithPermission(t *testing.T) {
 			permission: "bar",
 			args:       Args{"a", "b"},
 			perms: NewDefaultPermissions(
-				admindao.New(admindao.WithMember("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5")),
+				admindao.New(),
 				WithUser("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5", "foo"),
 				WithRole("foo", "bar"),
 			),
@@ -65,7 +65,7 @@ func TestDefaultPermissionsWithPermission(t *testing.T) {
 			user:       "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5",
 			permission: "bar",
 			perms: NewDefaultPermissions(
-				admindao.New(admindao.WithMember("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5")),
+				admindao.New(),
 				WithUser("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"),
 				WithRole("foo", "bar"),
 			),
@@ -75,12 +75,8 @@ func TestDefaultPermissionsWithPermission(t *testing.T) {
 			name:       "is not a DAO member",
 			user:       "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5",
 			permission: "bar",
-			perms: NewDefaultPermissions(
-				admindao.New(),
-				WithUser("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5", "foo"),
-				WithRole("foo", "bar"),
-			),
-			err: "unauthorized",
+			perms:      NewDefaultPermissions(admindao.New()),
+			err:        "unauthorized",
 		},
 	}
 
@@ -314,7 +310,7 @@ func TestDefaultPermissionsAddUser(t *testing.T) {
 			user: std.Address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"),
 			setup: func() *DefaultPermissions {
 				return NewDefaultPermissions(
-					admindao.New(admindao.WithMember("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5")),
+					admindao.New(),
 					WithUser("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"),
 				)
 			},
@@ -376,7 +372,7 @@ func TestDefaultPermissionsRemoveUser(t *testing.T) {
 			user: std.Address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"),
 			setup: func() *DefaultPermissions {
 				return NewDefaultPermissions(
-					admindao.New(admindao.WithMember("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5")),
+					admindao.New(),
 					WithUser("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"),
 				)
 			},
