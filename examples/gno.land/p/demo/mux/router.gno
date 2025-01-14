@@ -5,7 +5,7 @@ import "strings"
 // Router handles the routing and rendering logic.
 type Router struct {
 	routes          []Handler
-	NotFoundHandler HandlerFunc
+	NotFoundHandler NotFoundHandler
 }
 
 // NewRouter creates a new Router instance.
@@ -68,7 +68,21 @@ func (r *Router) HandleFunc(pattern string, fn HandlerFunc) {
 	route := Handler{Pattern: pattern, Fn: fn}
 	r.routes = append(r.routes, route)
 }
+func (r *Router) HandleErrFunc(pattern string, fn ErrHandlerFunc) {
+	// Convert ErrHandlerFunc to regular HandlerFunc
+	handler := func(res *ResponseWriter, req *Request) {
+		if err := fn(res, req); err != nil {
+			res.Write("Error: " + err.Error())
+		}
+	}
 
+	r.HandleFunc(pattern, handler)
+}
+
+// SetNotFoundHandler sets custom messgae for 404 defaulNotFoundHandler.
+func (r *Router) SetNotFoundHandler(handler NotFoundHandler) {
+	r.NotFoundHandler = handler
+}
 func stripQueryString(reqPath string) string {
 	i := strings.Index(reqPath, "?")
 	if i == -1 {

@@ -17,25 +17,33 @@ type Request struct {
 }
 
 // GetVar retrieves a variable from the path based on routing rules.
-func (r *Request) GetVar(key string) string {
-	var (
-		handlerParts = strings.Split(r.HandlerPath, "/")
-		reqParts     = strings.Split(r.Path, "/")
-	)
 
-	for i := 0; i < len(handlerParts); i++ {
-		handlerPart := handlerParts[i]
+func (r *Request) GetVar(key string) string {
+	handlerParts := strings.Split(r.HandlerPath, "/")
+	reqParts := strings.Split(r.Path, "/")
+
+	reqIndex := 0
+	for handlerIndex := 0; handlerIndex < len(handlerParts); handlerIndex++ {
+		handlerPart := handlerParts[handlerIndex]
+
 		switch {
 		case handlerPart == "*":
-			// XXX: implement a/b/*/d/e
-			panic("not implemented")
+			// If a wildcard "*" is found, consume all remaining segments
+			wildcardParts := reqParts[reqIndex:]
+			reqIndex = len(reqParts)                // Consume all remaining segments
+			return strings.Join(wildcardParts, "/") // Return all remaining segments as a string
 		case strings.HasPrefix(handlerPart, "{") && strings.HasSuffix(handlerPart, "}"):
+			// If a variable of the form {param} is found we compare it with the key
 			parameter := handlerPart[1 : len(handlerPart)-1]
 			if parameter == key {
-				return reqParts[i]
+				return reqParts[reqIndex]
 			}
+			reqIndex++
 		default:
-			// continue
+			if handlerPart != reqParts[reqIndex] {
+				return ""
+			}
+			reqIndex++
 		}
 	}
 
