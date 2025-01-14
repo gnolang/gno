@@ -4,7 +4,7 @@ loadpkg gno.land/r/sys/users
 adduser admin
 adduser gui
 
-patchpkg "g1manfred47kzduec920z88wfr64ylksmdcedlf5" $USER_ADDR_admin # use our custom admin
+patchpkg "g1manfred47kzduec920z88wfr64ylksmdcedlf5" $admin_user_addr # use our custom admin
 
 gnoland start
 
@@ -20,7 +20,7 @@ stdout 'false'
 
 # Gui should be able to addpkg on test1 addr
 # gui addpkg -> gno.land/r/<addr_test1>/mysuperpkg
-gnokey maketx addpkg -pkgdir $WORK -pkgpath gno.land/r/$USER_ADDR_test1/mysuperpkg -gas-fee 1000000ugnot -gas-wanted 400000 -broadcast -chainid=tendermint_test gui
+gnokey maketx addpkg -pkgdir $WORK -pkgpath gno.land/r/$test1_user_addr/mysuperpkg -gas-fee 1000000ugnot -gas-wanted 400000 -broadcast -chainid=tendermint_test gui
 stdout 'OK!'
 
 # Gui should be able to addpkg on random name
@@ -43,12 +43,12 @@ stdout 'true'
 
 # Try to add a pkg an with unregistered user
 # gui addpkg -> gno.land/r/<addr_test1>/one
-! gnokey maketx addpkg -pkgdir $WORK -pkgpath gno.land/r/$USER_ADDR_test1/one -gas-fee 1000000ugnot -gas-wanted 1000000 -broadcast -chainid=tendermint_test gui
+! gnokey maketx addpkg -pkgdir $WORK -pkgpath gno.land/r/$test1_user_addr/one -gas-fee 1000000ugnot -gas-wanted 1000000 -broadcast -chainid=tendermint_test gui
 stderr 'unauthorized user'
 
 # Try to add a pkg with an unregistered user, on their own address as namespace
 # gui addpkg -> gno.land/r/<addr_gui>/one
-gnokey maketx addpkg -pkgdir $WORK -pkgpath gno.land/r/$USER_ADDR_gui/one -gas-fee 1000000ugnot -gas-wanted 1000000 -broadcast -chainid=tendermint_test gui
+gnokey maketx addpkg -pkgdir $WORK -pkgpath gno.land/r/$gui_user_addr/one -gas-fee 1000000ugnot -gas-wanted 1000000 -broadcast -chainid=tendermint_test gui
 stdout 'OK!'
 
 ## Test unregistered namespace
@@ -63,12 +63,12 @@ stderr 'unauthorized user'
 
 # Test admin invites gui
 # admin call -> demo/users.Invite
-gnokey maketx call -pkgpath gno.land/r/demo/users -func Invite -gas-fee 1000000ugnot -gas-wanted 2500000 -broadcast -chainid=tendermint_test -args $USER_ADDR_gui admin
+gnokey maketx call -pkgpath gno.land/r/demo/users -func Invite -gas-fee 1000000ugnot -gas-wanted 2500000 -broadcast -chainid=tendermint_test -args $gui_user_addr admin
 stdout 'OK!'
 
 # test gui register namespace
 # gui call -> demo/users.Register
-gnokey maketx call -pkgpath gno.land/r/demo/users -func Register -gas-fee 1000000ugnot -gas-wanted 2500000 -broadcast -chainid=tendermint_test -args $USER_ADDR_admin -args 'guiland' -args 'im gui' gui
+gnokey maketx call -pkgpath gno.land/r/demo/users -func Register -gas-fee 1000000ugnot -gas-wanted 2500000 -broadcast -chainid=tendermint_test -args $admin_user_addr -args 'guiland' -args 'im gui' gui
 stdout 'OK!'
 
 # Test gui publishing on guiland/one
