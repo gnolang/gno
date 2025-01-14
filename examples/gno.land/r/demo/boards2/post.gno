@@ -243,24 +243,6 @@ func (post *Post) GetDeleteFormURL() string {
 }
 
 func (post *Post) RenderSummary() string {
-	if post.repostBoardID != 0 {
-		dstBoard, found := getBoard(post.repostBoardID)
-		if !found {
-			panic("repost board does not exist")
-		}
-
-		thread, found := dstBoard.GetThread(PostID(post.parentID))
-		if !found {
-			return "reposted post does not exist"
-		}
-
-		if thread.isHidden {
-			return "reposted post was hidden"
-		}
-
-		return "Repost: " + post.GetSummary() + "\n" + thread.RenderSummary()
-	}
-
 	var (
 		s       string
 		postURL = post.GetURL()
@@ -271,9 +253,13 @@ func (post *Post) RenderSummary() string {
 	}
 
 	s += post.GetSummary() + "\n"
+
+	repostBody, _ := post.renderSourcePost("")
+	s += repostBody
+
 	s += "\\- " + newUserLink(post.creator) + ","
 	s += " " + newLink(post.createdAt.Format(dateFormat), postURL)
-	s += " \\[" + newLink("x", post.GetDeleteFormURL()) + "]"
+	s += " " + newButtonLink("x", post.GetDeleteFormURL())
 	s += " (" + strconv.Itoa(post.replies.Size()) + " replies)"
 	s += " (" + strconv.Itoa(post.reposts.Size()) + " reposts)" + "\n"
 	return s
@@ -284,19 +270,21 @@ func (post *Post) renderSourcePost(indent string) (string, *Post) {
 		return "", nil
 	}
 
+	indent += "> "
+
 	// TODO: figure out a way to decouple posts from a global storage.
 	board, ok := getBoard(post.repostBoardID)
 	if !ok {
-		return indentBody(indent, "> Source board is not available\n\n"), nil
+		return indentBody(indent, "*Source board is not available*\n\n"), nil
 	}
 
 	srcPost, ok := board.GetThread(post.parentID)
 	if !ok {
-		return indentBody(indent, "> Source post is not available\n\n"), nil
+		return indentBody(indent, "*Source post is not available*\n\n"), nil
 	}
 
 	if srcPost.isHidden {
-		return indentBody(indent, "> Source post has been flagged as inappropriate\n\n"), nil
+		return indentBody(indent, "*Source post has been flagged as inappropriate*\n\n"), nil
 	}
 
 	return indentBody(indent, srcPost.GetSummary()) + "\n", srcPost
@@ -329,16 +317,16 @@ func (post *Post) Render(indent string, levels int) string {
 	}
 
 	if srcPost != nil {
-		s += " \\[" + newLink("see source post", srcPost.GetURL()) + "\\]"
+		s += " " + newButtonLink("see source post", srcPost.GetURL())
 	}
 
-	s += " \\[" + newLink("reply", post.GetReplyFormURL()) + "]"
+	s += " " + newButtonLink("reply", post.GetReplyFormURL())
 
 	if post.IsThread() {
-		s += " \\[" + newLink("repost", post.GetRepostFormURL()) + "]"
+		s += " " + newLink("repost", post.GetRepostFormURL())
 	}
 
-	s += " \\[" + newLink("x", post.GetDeleteFormURL()) + "]\n"
+	s += " " + newLink("x", post.GetDeleteFormURL()) + "\n"
 
 	if levels > 0 {
 		if post.replies.Size() > 0 {
@@ -367,20 +355,28 @@ func (post *Post) RenderInner() string {
 	}
 
 	var (
-		parent    *Post
-		parentID  = post.parentID
 		threadID  = post.threadID
 		thread, _ = post.board.GetThread(threadID) // TODO: This seems redundant (post == thread)
 	)
 
-	if thread.id == parentID {
-		parent = thread
-	} else {
-		parent, _ = thread.GetReply(parentID)
+	s := "_" + newLink("see thread", post.board.GetURLFromThreadID(threadID)) + "_\n\n"
+
+	// Fully render parent if it's not a repost.
+	if post.repostBoardID == 0 {
+		var (
+			parent   *Post
+			parentID = post.parentID
+		)
+
+		if thread.id == parentID {
+			parent = thread
+		} else {
+			parent, _ = thread.GetReply(parentID)
+		}
+
+		s += parent.Render("", 0) + "\n"
 	}
 
-	s := "_" + newLink("see thread", post.board.GetURLFromThreadID(threadID)) + "_\n\n"
-	s += parent.Render("", 0) + "\n"
 	s += post.Render("> ", 5)
 	return s
 }
