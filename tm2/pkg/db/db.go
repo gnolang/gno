@@ -38,6 +38,9 @@ const (
 	// popular implementation)
 	//   - stable
 	GoLevelDBBackend BackendType = "goleveldb"
+
+	PebbleDBBackend BackendType = "pebbledb"
+
 	// MemDBBackend represents in-memory key value store, which is mostly used
 	// for testing.
 	MemDBBackend BackendType = "memdb"
