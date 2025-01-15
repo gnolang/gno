@@ -308,6 +308,7 @@ func (pv PointerValue) Assign2(alloc *Allocator, store Store, rlm *Realm, tv2 Ty
 			// other values in current realm.
 			if fv, ok := pv.TV.V.(*FuncValue); ok && oo2.GetObjectID().IsZero() {
 				//debug2.Println2("fv: ", fv)
+				// TODO: reuse this
 				b := NewBlock(fv.GetSource(store), fv.GetClosure(store))
 				//debug2.Println2("b for fv: ", b)
 				oo2 = b
