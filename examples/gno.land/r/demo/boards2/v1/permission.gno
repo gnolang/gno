@@ -18,6 +18,7 @@ const (
 	PermissionReplyFlag               = "reply:flag"
 	PermissionMemberInvite            = "member:invite"
 	PermissionMemberRemove            = "member:remove"
+	PermissionRealmFreeze             = "realm:freeze"
 )
 
 const (

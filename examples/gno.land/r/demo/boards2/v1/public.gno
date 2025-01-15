@@ -14,6 +14,7 @@ func GetBoardIDFromName(name string) (BoardID, bool) {
 }
 
 func CreateBoard(name string) BoardID {
+	assertRealmIsNotFrozen()
 	assertIsUserCall()
 
 	name = strings.TrimSpace(name)
@@ -34,6 +35,7 @@ func CreateBoard(name string) BoardID {
 }
 
 func RenameBoard(name, newName string) {
+	assertRealmIsNotFrozen()
 	assertIsUserCall()
 
 	newName = strings.TrimSpace(newName)
@@ -57,6 +59,8 @@ func RenameBoard(name, newName string) {
 }
 
 func FlagThread(bid BoardID, postID PostID, reason string) {
+	assertRealmIsNotFrozen()
+
 	caller := std.GetOrigCaller()
 	board := mustGetBoard(bid)
 	assertHasBoardPermission(board, caller, PermissionThreadFlag)
@@ -72,6 +76,7 @@ func FlagThread(bid BoardID, postID PostID, reason string) {
 }
 
 func CreateThread(bid BoardID, title, body string) PostID {
+	assertRealmIsNotFrozen()
 	assertIsUserCall()
 
 	// TODO: Assert that caller is a board member (when board type is invite only)
@@ -85,6 +90,7 @@ func CreateThread(bid BoardID, title, body string) PostID {
 }
 
 func CreateReply(bid BoardID, threadID, replyID PostID, body string) PostID {
+	assertRealmIsNotFrozen()
 	assertIsUserCall()
 
 	// TODO: Assert that caller is a board member (when board type is invite only)
@@ -111,6 +117,8 @@ func CreateReply(bid BoardID, threadID, replyID PostID, body string) PostID {
 }
 
 func FlagReply(bid BoardID, threadID, replyID PostID, reason string) {
+	assertRealmIsNotFrozen()
+
 	caller := std.GetOrigCaller()
 
 	board := mustGetBoard(bid)
@@ -125,6 +133,7 @@ func FlagReply(bid BoardID, threadID, replyID PostID, reason string) {
 }
 
 func CreateRepost(bid BoardID, threadID PostID, title, body string, dstBoardID BoardID) PostID {
+	assertRealmIsNotFrozen()
 	assertIsUserCall()
 
 	// TODO: Assert that caller is a board member (when board type is invite only)
@@ -148,6 +157,7 @@ func CreateRepost(bid BoardID, threadID PostID, title, body string, dstBoardID B
 }
 
 func DeleteThread(bid BoardID, threadID PostID) {
+	assertRealmIsNotFrozen()
 	assertIsUserCall()
 
 	board := mustGetBoard(bid)
@@ -162,6 +172,7 @@ func DeleteThread(bid BoardID, threadID PostID) {
 }
 
 func DeleteReply(bid BoardID, threadID, replyID PostID) {
+	assertRealmIsNotFrozen()
 	assertIsUserCall()
 
 	board := mustGetBoard(bid)
@@ -181,6 +192,7 @@ func DeleteReply(bid BoardID, threadID, replyID PostID) {
 }
 
 func EditThread(bid BoardID, threadID PostID, title, body string) {
+	assertRealmIsNotFrozen()
 	assertIsUserCall()
 
 	board := mustGetBoard(bid)
@@ -196,6 +208,7 @@ func EditThread(bid BoardID, threadID PostID, title, body string) {
 }
 
 func EditReply(bid BoardID, threadID, replyID PostID, title, body string) {
+	assertRealmIsNotFrozen()
 	assertIsUserCall()
 
 	board := mustGetBoard(bid)
@@ -211,6 +224,7 @@ func EditReply(bid BoardID, threadID, replyID PostID, title, body string) {
 }
 
 func InviteMember(user std.Address, role Role) {
+	assertRealmIsNotFrozen()
 	assertIsUserCall()
 
 	caller := std.GetOrigCaller()
@@ -223,6 +237,7 @@ func InviteMember(user std.Address, role Role) {
 }
 
 func RemoveMember(user std.Address) {
+	assertRealmIsNotFrozen()
 	assertIsUserCall()
 
 	caller := std.GetOrigCaller()
@@ -230,6 +245,16 @@ func RemoveMember(user std.Address) {
 		if !gPerm.RemoveUser(user) {
 			panic("member not found")
 		}
+	})
+}
+
+func FreezeRealm(frozen bool) {
+	assertIsUserCall()
+
+	// TODO: Use a proposal to freeze the realm
+	caller := std.GetOrigCaller()
+	gPerm.WithPermission(caller, PermissionRealmFreeze, nil, func(Args) {
+		gFrozen = frozen
 	})
 }
 

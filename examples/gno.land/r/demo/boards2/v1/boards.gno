@@ -11,6 +11,7 @@ var (
 	gLastBoardID  BoardID
 	gBoardsByID   avl.Tree // string(id) -> *Board
 	gBoardsByName avl.Tree // string(name) -> *Board
+	gFrozen       bool
 )
 
 func init() {
@@ -70,4 +71,10 @@ func mustGetReply(thread *Post, replyID PostID) *Post {
 		panic("reply does not exist with ID: " + replyID.String())
 	}
 	return reply
+}
+
+func assertRealmIsNotFrozen() {
+	if gFrozen {
+		panic("realm is read-only")
+	}
 }
