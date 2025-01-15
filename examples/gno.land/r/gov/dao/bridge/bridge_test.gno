@@ -60,9 +60,19 @@ func TestBridge_RegisterNewDAOImpl(t *testing.T) {
 	b.Ownable = ownable.NewWithAddress(addr)
 	AllowNewGovDAOVersion(newGovDAOPkgPath)
 
-	std.TestSetRealm(std.NewCodeRealm(newGovDAOPkgPath))
+	t.Run("invalid pkgpath", func(t *testing.T) {
+		std.TestSetRealm(std.NewCodeRealm("gno.land/r/invalid/path"))
 
-	uassert.NotPanics(t, func() {
-		RegisterNewDAOImpl(&mockDAO{})
+		uassert.PanicsWithMessage(t, ErrNotAllowlisted.Error(), func() {
+			RegisterNewDAOImpl(&mockDAO{})
+		})
+	})
+
+	t.Run("valid pkgpath", func(t *testing.T) {
+		std.TestSetRealm(std.NewCodeRealm(newGovDAOPkgPath))
+
+		uassert.NotPanics(t, func() {
+			RegisterNewDAOImpl(&mockDAO{})
+		})
 	})
 }

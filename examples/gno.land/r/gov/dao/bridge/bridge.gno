@@ -15,6 +15,7 @@ var (
 	allowedGovDAOPath = "gno.land/r/gov/dao/v2" // set as initial value
 
 	ErrInvalidGovDAOPkgPath = errors.New("invalid GovDAO package path")
+	ErrNotAllowlisted       = errors.New("caller not allowlisted")
 )
 
 // Bridge is the active GovDAO
@@ -49,7 +50,7 @@ func AllowNewGovDAOVersion(newGovDAOPath string) {
 // after it has been allowlisted by AllowNewGovDAOVersion
 func RegisterNewDAOImpl(d DAO) {
 	if std.PrevRealm().PkgPath() != allowedGovDAOPath {
-		panic("caller not allowlisted")
+		panic(ErrNotAllowlisted)
 	}
 
 	b.dao = d
