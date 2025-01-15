@@ -8,6 +8,7 @@ on:
     paths:
       - gnovm/**/*.gno
       - examples/**/*.gno
+      - examples/**/gno.mod
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.head_ref || github.run_id }}
@@ -70,11 +71,19 @@ jobs:
       - run: make lint -C ./examples
       # TODO: consider running lint on every other directories, maybe in "warning" mode?
     # TODO: track coverage
+
   fmt:
     name: Run gno fmt on examples
     uses: ./.github/workflows/gnofmt_template.yml
     with:
       path: "examples/..."
+
+  generate:
+    name: Check generated files are up to date
+    uses: ./.github/workflows/build_template.yml
+    with:
+      modulepath: "examples"
+      go-version: "1.22.x"
 
   mod-tidy:
     strategy:

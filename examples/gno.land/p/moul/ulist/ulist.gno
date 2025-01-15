@@ -5,6 +5,17 @@
 // determined by the binary representation of the index. This provides automatic balancing
 // for append operations without requiring any balancing logic.
 //
+// Unlike the AVL tree-based list implementation (p/demo/avl/list), ulist is specifically
+// designed for append-only operations and does not require rebalancing. This makes it more
+// efficient for sequential inserts but less flexible for general-purpose list operations.
+//
+// Key differences from AVL list:
+// * Append-only design (no arbitrary inserts)
+// * No tree rebalancing needed
+// * Simpler implementation
+// * More memory efficient for sequential operations
+// * Less flexible than AVL (no arbitrary inserts/reordering)
+//
 // Key characteristics:
 // * O(log n) append and access operations
 // * Perfect balance for power-of-2 sizes
@@ -16,8 +27,8 @@
 // * Offset-based iteration with count control
 package ulist
 
-// TODO: Make avl/pager compatible in some way. Explain the limitations (not always 10 items because of nil ones).
 // TODO: Use this ulist in moul/collection for the primary index.
+// TODO: Benchmarks.
 
 import (
 	"errors"
@@ -258,7 +269,31 @@ func abs(x int) int {
 	return x
 }
 
-// Add this helper method to the List struct
+// findNode locates or creates a node at the given index in the binary tree.
+// The tree is structured such that the path to a node is determined by the binary
+// representation of the index. For example, a tree with 15 elements would look like:
+//
+//	          0
+//	       /      \
+//	     1         2
+//	   /   \     /   \
+//	  3    4    5     6
+//	 / \  / \  / \   / \
+//	7  8 9 10 11 12 13 14
+//
+// To find index 13 (binary 1101):
+// 1. Start at root (0)
+// 2. Calculate bits needed (4 bits for index 13)
+// 3. Skip the highest bit position and start from bits-2
+// 4. Read bits from left to right:
+//   - 1 -> go right to 2
+//   - 1 -> go right to 6
+//   - 0 -> go left to 13
+//
+// Special cases:
+// - Index 0 always returns the root node
+// - For create=true, missing nodes are created along the path
+// - For create=false, returns nil if any node is missing
 func (l *List) findNode(index int, create bool) *treeNode {
 	// For read operations, check bounds strictly
 	if !create && (l == nil || index < 0 || index >= l.totalSize) {
@@ -361,11 +396,11 @@ func (l *List) GetRange(start, end int) []Entry {
 	return entries
 }
 
-// GetRangeByOffset returns a slice of Entry starting from offset for count elements.
+// GetByOffset returns a slice of Entry starting from offset for count elements.
 // If count is positive, returns elements forward; if negative, returns elements backward.
 // The operation stops after abs(count) elements or when reaching list bounds.
 // Deleted elements are skipped.
-func (l *List) GetRangeByOffset(offset int, count int) []Entry {
+func (l *List) GetByOffset(offset int, count int) []Entry {
 	var entries []Entry
 	l.IteratorByOffset(offset, count, func(index int, value interface{}) bool {
 		entries = append(entries, Entry{Index: index, Value: value})
@@ -374,8 +409,7 @@ func (l *List) GetRangeByOffset(offset int, count int) []Entry {
 	return entries
 }
 
-// IList defines the interface for list operations.
-// It provides methods for appending, accessing, deleting, and iterating over elements.
+// IList defines the interface for an ulist.List compatible structure.
 type IList interface {
 	// Basic operations
 	Append(values ...interface{})
@@ -392,7 +426,7 @@ type IList interface {
 
 	// Range operations
 	GetRange(start, end int) []Entry
-	GetRangeByOffset(offset int, count int) []Entry
+	GetByOffset(offset int, count int) []Entry
 
 	// Iterator operations
 	Iterator(start, end int, cb IterCbFn) bool

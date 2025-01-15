@@ -21,7 +21,7 @@ func createTestMConnection(t *testing.T, conn net.Conn) *MConnection {
 
 	onReceive := func(chID byte, msgBytes []byte) {
 	}
-	onError := func(r interface{}) {
+	onError := func(r error) {
 	}
 	c := createMConnectionWithCallbacks(t, conn, onReceive, onError)
 	c.SetLogger(log.NewTestingLogger(t))
@@ -32,7 +32,7 @@ func createMConnectionWithCallbacks(
 	t *testing.T,
 	conn net.Conn,
 	onReceive func(chID byte, msgBytes []byte),
-	onError func(r interface{}),
+	onError func(r error),
 ) *MConnection {
 	t.Helper()
 
@@ -137,7 +137,7 @@ func TestMConnectionReceive(t *testing.T) {
 	onReceive := func(chID byte, msgBytes []byte) {
 		receivedCh <- msgBytes
 	}
-	onError := func(r interface{}) {
+	onError := func(r error) {
 		errorsCh <- r
 	}
 	mconn1 := createMConnectionWithCallbacks(t, client, onReceive, onError)
@@ -192,7 +192,7 @@ func TestMConnectionPongTimeoutResultsInError(t *testing.T) {
 	onReceive := func(chID byte, msgBytes []byte) {
 		receivedCh <- msgBytes
 	}
-	onError := func(r interface{}) {
+	onError := func(r error) {
 		errorsCh <- r
 	}
 	mconn := createMConnectionWithCallbacks(t, client, onReceive, onError)
@@ -233,7 +233,7 @@ func TestMConnectionMultiplePongsInTheBeginning(t *testing.T) {
 	onReceive := func(chID byte, msgBytes []byte) {
 		receivedCh <- msgBytes
 	}
-	onError := func(r interface{}) {
+	onError := func(r error) {
 		errorsCh <- r
 	}
 	mconn := createMConnectionWithCallbacks(t, client, onReceive, onError)
@@ -288,7 +288,7 @@ func TestMConnectionMultiplePings(t *testing.T) {
 	onReceive := func(chID byte, msgBytes []byte) {
 		receivedCh <- msgBytes
 	}
-	onError := func(r interface{}) {
+	onError := func(r error) {
 		errorsCh <- r
 	}
 	mconn := createMConnectionWithCallbacks(t, client, onReceive, onError)
@@ -331,7 +331,7 @@ func TestMConnectionPingPongs(t *testing.T) {
 	onReceive := func(chID byte, msgBytes []byte) {
 		receivedCh <- msgBytes
 	}
-	onError := func(r interface{}) {
+	onError := func(r error) {
 		errorsCh <- r
 	}
 	mconn := createMConnectionWithCallbacks(t, client, onReceive, onError)
@@ -384,7 +384,7 @@ func TestMConnectionStopsAndReturnsError(t *testing.T) {
 	onReceive := func(chID byte, msgBytes []byte) {
 		receivedCh <- msgBytes
 	}
-	onError := func(r interface{}) {
+	onError := func(r error) {
 		errorsCh <- r
 	}
 	mconn := createMConnectionWithCallbacks(t, client, onReceive, onError)
@@ -413,7 +413,7 @@ func newClientAndServerConnsForReadErrors(t *testing.T, chOnErr chan struct{}) (
 	server, client := NetPipe()
 
 	onReceive := func(chID byte, msgBytes []byte) {}
-	onError := func(r interface{}) {}
+	onError := func(r error) {}
 
 	// create client conn with two channels
 	chDescs := []*ChannelDescriptor{
@@ -428,7 +428,7 @@ func newClientAndServerConnsForReadErrors(t *testing.T, chOnErr chan struct{}) (
 	// create server conn with 1 channel
 	// it fires on chOnErr when there's an error
 	serverLogger := log.NewNoopLogger().With("module", "server")
-	onError = func(r interface{}) {
+	onError = func(_ error) {
 		chOnErr <- struct{}{}
 	}
 	mconnServer := createMConnectionWithCallbacks(t, server, onReceive, onError)
