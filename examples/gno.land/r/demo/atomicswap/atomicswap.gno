@@ -1,3 +1,41 @@
+// Package atomicswap implements a hash time-locked contract (HTLC) for atomic swaps
+// between native coins (ugnot) or GRC20 tokens.
+//
+// An atomic swap allows two parties to exchange assets in a trustless way, where
+// either both transfers happen or neither does. The process works as follows:
+//
+//  1. Alice wants to swap with Bob. She generates a secret and creates a swap with
+//     Bob's address and the hash of the secret (hashlock).
+//
+//  2. Bob can claim the assets by providing the correct secret before the timelock expires.
+//     The secret proves Bob knows the preimage of the hashlock.
+//
+// 3. If Bob doesn't claim in time, Alice can refund the assets back to herself.
+//
+// Example usage for native coins:
+//
+//	// Alice creates a swap with 1000ugnot for Bob
+//	secret := "mysecret"
+//	hashlock := hex.EncodeToString(sha256.Sum256([]byte(secret)))
+//	id, _ := atomicswap.NewCoinSwap(bobAddr, hashlock) // -send 1000ugnot
+//
+//	// Bob claims the swap by providing the secret
+//	atomicswap.Claim(id, "mysecret")
+//
+// Example usage for GRC20 tokens:
+//
+//	// Alice approves the swap contract to spend her tokens
+//	token.Approve(swapAddr, 1000)
+//
+//	// Alice creates a swap with 1000 tokens for Bob
+//	id, _ := atomicswap.NewGRC20Swap(bobAddr, hashlock, "gno.land/r/demo/token")
+//
+//	// Bob claims the swap by providing the secret
+//	atomicswap.Claim(id, "mysecret")
+//
+// If Bob doesn't claim in time (default 1 week), Alice can refund:
+//
+//	atomicswap.Refund(id)
 package atomicswap
 
 import (
