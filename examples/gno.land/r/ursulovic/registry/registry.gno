@@ -50,7 +50,7 @@ func SetBackupAddress(addr std.Address) error {
 
 // It will stay here for now, might be useful later
 func assertAuthorized() {
-	caller := std.PreviousRealm().Addr()
+	caller := std.PreviousRealm().Address()
 	isAuthorized := caller == mainAddress || caller == backupAddress
 
 	if !isAuthorized {
