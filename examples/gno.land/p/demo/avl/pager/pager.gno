@@ -1,3 +1,31 @@
+// Package pager provides pagination functionality for AVL trees by implementing
+// the pageable.Pageable interface. It allows for:
+//
+//   - Forward and reverse pagination through AVL tree entries
+//   - Configurable page sizes
+//   - URL query parameter parsing for page navigation
+//   - Markdown-based pagination UI
+//
+// The package works by wrapping an avl.ITree instance to make it compatible with
+// the pageable interface. To use it:
+//
+//	tree := avl.NewTree()
+//	// ... add items to tree ...
+//
+//	// Create a new pager with default page size of 10, forward ordering
+//	pager := pager.NewPager(tree, 10, false)
+//
+//	// Get specific page
+//	page := pager.GetPage(1)
+//
+//	// Or get page from URL query parameters
+//	page = pager.MustGetPageByPath("/path?page=1&size=20")
+//
+//	// Generate pagination UI
+//	ui := page.Picker()
+//
+// This package is used in conjunction with gno.land/p/moul/pageable which provides
+// the core pagination functionality.
 package pager
 
 import (
