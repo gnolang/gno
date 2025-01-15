@@ -438,7 +438,7 @@ func testingCallRealm(t *testing.T, node *Node, msgs ...vm.MsgCall) (*core_types
 
 	txcfg := gnoclient.BaseTxCfg{
 		GasFee:    ugnot.ValueString(1000000), // Gas fee
-		GasWanted: 2_000_000,                  // Gas wanted
+		GasWanted: 3_000_000,                  // Gas wanted
 	}
 
 	// Set Caller in the msgs
