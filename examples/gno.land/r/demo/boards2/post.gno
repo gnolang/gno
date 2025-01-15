@@ -61,7 +61,8 @@ func newPost(board *Board, id PostID, creator std.Address, title, body string, t
 }
 
 func (post *Post) IsThread() bool {
-	return post.parentID == 0
+	// repost threads also have parent ID
+	return post.parentID == 0 || post.repostBoardID != 0
 }
 
 func (post *Post) GetBoard() *Board {
@@ -224,7 +225,7 @@ func (post *Post) GetReplyFormURL() string {
 func (post *Post) GetRepostFormURL() string {
 	return txlink.Call("CreateRepost",
 		"bid", post.board.id.String(),
-		"postID", post.id.String(),
+		"threadID", post.id.String(),
 	)
 }
 
@@ -287,7 +288,7 @@ func (post *Post) renderSourcePost(indent string) (string, *Post) {
 		return indentBody(indent, "*Source post has been flagged as inappropriate*\n\n"), nil
 	}
 
-	return indentBody(indent, srcPost.GetSummary()) + "\n", srcPost
+	return indentBody(indent, srcPost.GetSummary()) + "\n\n", srcPost
 }
 
 func (post *Post) Render(indent string, levels int) string {
@@ -307,8 +308,14 @@ func (post *Post) Render(indent string, levels int) string {
 
 	srcContent, srcPost := post.renderSourcePost(indent)
 
-	s += indentBody(indent, post.body) + "\n" // TODO: indent body lines.
 	s += srcContent
+	s += indentBody(indent, post.body) + "\n" // TODO: indent body lines.
+
+	if post.IsThread() {
+		// Split content and controls for threads.
+		s += "\n"
+	}
+
 	s += indent + "\\- " + newUserLink(post.creator) + ", "
 	s += newLink(post.createdAt.Format(dateFormat), postURL)
 
@@ -323,10 +330,10 @@ func (post *Post) Render(indent string, levels int) string {
 	s += " " + newButtonLink("reply", post.GetReplyFormURL())
 
 	if post.IsThread() {
-		s += " " + newLink("repost", post.GetRepostFormURL())
+		s += " " + newButtonLink("repost", post.GetRepostFormURL())
 	}
 
-	s += " " + newLink("x", post.GetDeleteFormURL()) + "\n"
+	s += " " + newButtonLink("x", post.GetDeleteFormURL()) + "\n"
 
 	if levels > 0 {
 		if post.replies.Size() > 0 {
