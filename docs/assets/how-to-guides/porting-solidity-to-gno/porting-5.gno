@@ -1,5 +1,5 @@
 func Bid() {
-	if std.Height() > auctionEndBlock {
+	if std.GetHeight() > auctionEndBlock {
 		panic("Exceeded auction end block")
 	}
 

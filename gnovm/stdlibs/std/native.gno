@@ -10,9 +10,9 @@ func AssertOriginCall() // injected
 // MsgRun.
 func IsOriginCall() bool // injected
 
-func ChainID() string     // injected
-func ChainDomain() string // injected
-func Height() int64       // injected
+func GetChainID() string     // injected
+func GetChainDomain() string // injected
+func GetHeight() int64       // injected
 
 func OriginSend() Coins {
 	den, amt := originSend()

@@ -22,15 +22,15 @@ func IsOriginCall(m *gno.Machine) bool {
 	return n <= 2 && isMsgCall
 }
 
-func ChainID(m *gno.Machine) string {
+func GetChainID(m *gno.Machine) string {
 	return GetContext(m).ChainID
 }
 
-func ChainDomain(m *gno.Machine) string {
+func GetChainDomain(m *gno.Machine) string {
 	return GetContext(m).ChainDomain
 }
 
-func Height(m *gno.Machine) int64 {
+func GetHeight(m *gno.Machine) int64 {
 	return GetContext(m).Height
 }
 

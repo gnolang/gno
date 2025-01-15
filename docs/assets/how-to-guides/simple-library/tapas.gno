@@ -28,9 +28,9 @@ var listOfTapas = []string{
 func GetTapaSuggestion(userInput string) string {
 
 	// Create a random number depending on the block height.
-	// We get the block height using std.Height(), which is from an imported Gno library, "std"
+	// We get the block height using std.GetHeight(), which is from an imported Gno library, "std"
 	// Note: this value is not fully random and is easily guessable
-	randomNumber := int(std.Height()) % len(listOfTapas)
+	randomNumber := int(std.GetHeight()) % len(listOfTapas)
 
 	// Return the random suggestion
 	return listOfTapas[randomNumber]

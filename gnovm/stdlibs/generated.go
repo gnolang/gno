@@ -457,7 +457,7 @@ var nativeFuncs = [...]NativeFunc{
 		},
 		true,
 		func(m *gno.Machine) {
-			r0 := libs_std.ChainID(
+			r0 := libs_std.GetChainID(
 				m,
 			)
 
@@ -477,7 +477,7 @@ var nativeFuncs = [...]NativeFunc{
 		},
 		true,
 		func(m *gno.Machine) {
-			r0 := libs_std.ChainDomain(
+			r0 := libs_std.GetChainDomain(
 				m,
 			)
 
@@ -497,7 +497,7 @@ var nativeFuncs = [...]NativeFunc{
 		},
 		true,
 		func(m *gno.Machine) {
-			r0 := libs_std.Height(
+			r0 := libs_std.GetHeight(
 				m,
 			)
 

@@ -30,7 +30,7 @@ func addValidator(validator validators.Validator) {
 
 	// Validator added, note the change
 	ch := change{
-		blockNum:  std.Height(),
+		blockNum:  std.GetHeight(),
 		validator: val,
 	}
 
@@ -50,7 +50,7 @@ func removeValidator(address std.Address) {
 
 	// Validator removed, note the change
 	ch := change{
-		blockNum: std.Height(),
+		blockNum: std.GetHeight(),
 		validator: validators.Validator{
 			Address:     val.Address,
 			PubKey:      val.PubKey,

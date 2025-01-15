@@ -28,15 +28,15 @@ std.AssertOriginCall()
 ```
 ---
 
-## ChainDomain
+## GetChainDomain
 ```go
-func ChainDomain() string
+func GetChainDomain() string
 ```
 Returns the chain domain. Currently only `gno.land` is supported.
 
 #### Usage
 ```go
-domain := std.ChainDomain() // gno.land
+domain := std.GetChainDomain() // gno.land
 ```
 ---
 
@@ -61,7 +61,7 @@ Returns the chain ID.
 
 #### Usage
 ```go
-chainID := std.ChainID() // dev | test5 | main ...
+chainID := std.GetChainID() // dev | test5 | main ...
 ```
 ---
 
@@ -73,7 +73,7 @@ Returns the current block number (height).
 
 #### Usage
 ```go
-height := std.Height()
+height := std.GetHeight()
 ```
 ---
 

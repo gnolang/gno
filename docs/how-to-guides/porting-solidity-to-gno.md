@@ -287,7 +287,7 @@ constructor(
 ```go
 var (
 	receiver        = std.Address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5")
-	auctionEndBlock = std.Height() + uint(300) // in blocks
+	auctionEndBlock = std.GetHeight() + uint(300) // in blocks
 	highestBidder   std.Address
 	highestBid      = uint(0)
 	pendingReturns  avl.Tree
@@ -349,7 +349,7 @@ function bid() external payable {
 [embedmd]:# (../assets/how-to-guides/porting-solidity-to-gno/porting-5.gno go)
 ```go
 func Bid() {
-	if std.Height() > auctionEndBlock {
+	if std.GetHeight() > auctionEndBlock {
 		panic("Exceeded auction end block")
 	}
 
@@ -553,7 +553,7 @@ function auctionEnd() external {
 [embedmd]:# (../assets/how-to-guides/porting-solidity-to-gno/porting-11.gno go)
 ```go
 func AuctionEnd() {
-	if std.Height() < auctionEndBlock {
+	if std.GetHeight() < auctionEndBlock {
 		panic("Auction hasn't ended")
 	}
 
