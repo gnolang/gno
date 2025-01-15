@@ -35,7 +35,7 @@ func NewTimestampCmd(io commands.IO) *commands.Command {
 	return commands.NewCommand(
 		commands.Metadata{
 			Name:       "timestamp",
-			ShortUsage: "[flags]",
+			ShortUsage: "gnohealth timestamp [flags]",
 			ShortHelp:  "check if block timestamps are drifting",
 			LongHelp:   "This command checks if block timestamps are drifting on a blockchain by connecting to a specified node via RPC.",
 		},
