@@ -27,11 +27,12 @@ func TestRegister(t *testing.T) {
 		t.Parallel()
 
 		urequire.NoError(t, RegisterUser(alice, aliceAddr))
-		//
-		res, _, _ := ResolveName(alice)
-		uassert.Equal(t, aliceAddr, res.Addr())
 
-		res, _ = ResolveAddress(aliceAddr)
+		res, isLatest := ResolveName(alice)
+		uassert.Equal(t, aliceAddr, res.Addr())
+		uassert.True(t, isLatest)
+
+		res = ResolveAddress(aliceAddr)
 		uassert.Equal(t, alice, res.Name())
 	})
 
@@ -184,7 +185,7 @@ func TestDelete(t *testing.T) {
 
 		urequire.NoError(t, Delete(aliceAddr))
 
-		uassert.ErrorContains(t, Delete(aliceAddr), ErrAlreadyDeleted.Error())
+		uassert.ErrorContains(t, Delete(aliceAddr), ErrUserNotExist.Error())
 	})
 
 	t.Run("valid_delete", func(t *testing.T) {
@@ -194,11 +195,8 @@ func TestDelete(t *testing.T) {
 		urequire.NoError(t, RegisterUser(alice, aliceAddr))
 		uassert.NoError(t, Delete(aliceAddr))
 
-		resolved, _, _ := ResolveName(alice)
-		uassert.NotEqual(t, nil, resolved)
-		uassert.Equal(t, alice, resolved.Name())
-		uassert.Equal(t, aliceAddr, resolved.Addr())
-		uassert.True(t, resolved.IsDeleted())
+		resolved, _ := ResolveName(alice)
+		uassert.Equal(t, nil, resolved)
 	})
 }
 

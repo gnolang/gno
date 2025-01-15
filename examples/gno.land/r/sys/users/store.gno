@@ -126,13 +126,9 @@ func Delete(addr std.Address) error {
 		return err
 	}
 
-	data, deleted := ResolveAddress(addr)
+	data := ResolveAddress(addr)
 	if data == nil {
 		return ErrUserNotExist
-	}
-
-	if deleted {
-		return ErrAlreadyDeleted
 	}
 
 	data.deleted = true

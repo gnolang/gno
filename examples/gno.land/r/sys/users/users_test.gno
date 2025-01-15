@@ -18,12 +18,10 @@ func TestResolveName(t *testing.T) {
 
 		urequire.NoError(t, RegisterUser(alice, aliceAddr))
 
-		res, deleted, isAlias := ResolveName(alice)
-
+		res, isLatest := ResolveName(alice)
 		uassert.Equal(t, aliceAddr, res.Addr())
 		uassert.Equal(t, alice, res.Name())
-		uassert.False(t, deleted)
-		uassert.False(t, isAlias)
+		uassert.True(t, isLatest)
 	})
 
 	t.Run("name+Alias", func(t *testing.T) {
@@ -33,13 +31,12 @@ func TestResolveName(t *testing.T) {
 		urequire.NoError(t, RegisterUser(alice, aliceAddr))
 		urequire.NoError(t, ChangeName("alice1", aliceAddr))
 
-		res, deleted, isAlias := ResolveName("alice1")
+		res, isLatest := ResolveName("alice1")
 		urequire.NotEqual(t, nil, res)
 
 		uassert.Equal(t, aliceAddr, res.Addr())
 		uassert.Equal(t, "alice1", res.Name())
-		uassert.False(t, deleted)
-		uassert.False(t, isAlias)
+		uassert.True(t, isLatest)
 	})
 
 	t.Run("multiple_aliases", func(t *testing.T) {
@@ -59,12 +56,11 @@ func TestResolveName(t *testing.T) {
 		}
 
 		for _, alias := range names {
-			res, deleted, isAlias := ResolveName(alias)
+			res, _ := ResolveName(alias)
 			urequire.NotEqual(t, nil, res)
 
 			uassert.Equal(t, aliceAddr, res.Addr())
 			uassert.Equal(t, "alice4", res.Name())
-			uassert.False(t, deleted)
 		}
 	})
 }
@@ -78,11 +74,10 @@ func TestResolveAddress(t *testing.T) {
 
 		urequire.NoError(t, RegisterUser(alice, aliceAddr))
 
-		res, deleted := ResolveAddress(aliceAddr)
+		res := ResolveAddress(aliceAddr)
 
 		uassert.Equal(t, aliceAddr, res.Addr())
 		uassert.Equal(t, alice, res.Name())
-		uassert.False(t, deleted)
 	})
 
 	t.Run("name+Alias", func(t *testing.T) {
@@ -92,12 +87,11 @@ func TestResolveAddress(t *testing.T) {
 		urequire.NoError(t, RegisterUser(alice, aliceAddr))
 		urequire.NoError(t, ChangeName("alice1", aliceAddr))
 
-		res, deleted := ResolveAddress(aliceAddr)
+		res := ResolveAddress(aliceAddr)
 		urequire.NotEqual(t, nil, res)
 
 		uassert.Equal(t, aliceAddr, res.Addr())
 		uassert.Equal(t, "alice1", res.Name())
-		uassert.False(t, deleted)
 	})
 
 	t.Run("multiple_aliases", func(t *testing.T) {
@@ -116,9 +110,8 @@ func TestResolveAddress(t *testing.T) {
 			urequire.NoError(t, ChangeName(alias, aliceAddr))
 		}
 
-		res, deleted := ResolveAddress(aliceAddr)
+		res := ResolveAddress(aliceAddr)
 		uassert.Equal(t, aliceAddr, res.Addr())
 		uassert.Equal(t, "alice4", res.Name())
-		uassert.False(t, deleted)
 	})
 }
