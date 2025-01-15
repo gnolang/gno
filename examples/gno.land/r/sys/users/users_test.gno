@@ -29,7 +29,7 @@ func TestResolveName(t *testing.T) {
 		cleanStore(t)
 
 		urequire.NoError(t, RegisterUser(alice, aliceAddr))
-		urequire.NoError(t, ChangeName("alice1", aliceAddr))
+		urequire.NoError(t, UpdateName("alice1", aliceAddr))
 
 		res, isLatest := ResolveName("alice1")
 		urequire.NotEqual(t, nil, res)
@@ -52,7 +52,7 @@ func TestResolveName(t *testing.T) {
 			alias := "alice" + strconv.Itoa(i)
 			names = append(names, alias)
 
-			urequire.NoError(t, ChangeName(alias, aliceAddr))
+			urequire.NoError(t, UpdateName(alias, aliceAddr))
 		}
 
 		for _, alias := range names {
@@ -85,7 +85,7 @@ func TestResolveAddress(t *testing.T) {
 		cleanStore(t)
 
 		urequire.NoError(t, RegisterUser(alice, aliceAddr))
-		urequire.NoError(t, ChangeName("alice1", aliceAddr))
+		urequire.NoError(t, UpdateName("alice1", aliceAddr))
 
 		res := ResolveAddress(aliceAddr)
 		urequire.NotEqual(t, nil, res)
@@ -107,7 +107,7 @@ func TestResolveAddress(t *testing.T) {
 		for i := 0; i < 5; i++ {
 			alias := "alice" + strconv.Itoa(i)
 			names = append(names, alias)
-			urequire.NoError(t, ChangeName(alias, aliceAddr))
+			urequire.NoError(t, UpdateName(alias, aliceAddr))
 		}
 
 		res := ResolveAddress(aliceAddr)

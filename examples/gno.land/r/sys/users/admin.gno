@@ -17,7 +17,7 @@ var (
 	callerWhitelist = addrset.Set{}
 
 	// Safe objects
-	Ownable  = ownable.NewWithAddress(adminAddr) // Callers to r/sys/users can be updated by the admin or by GovDAO
+	Ownable  = ownable.NewWithAddress(adminAddr) // will be switched out to govdao down the line, see PR#3523
 	Pausable = pausable.NewFromOwnable(Ownable)
 )
 

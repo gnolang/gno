@@ -93,14 +93,14 @@ func TestRegister(t *testing.T) {
 	})
 }
 
-func TestChangeName(t *testing.T) {
+func TestUpdateName(t *testing.T) {
 	std.TestSetOrigCaller(whitelistedCallerAddr)
 	t.Run("valid_direct_alias", func(t *testing.T) {
 		t.Parallel()
 		cleanStore(t)
 
 		urequire.NoError(t, RegisterUser(alice, aliceAddr))
-		uassert.NoError(t, ChangeName("alice1", aliceAddr))
+		uassert.NoError(t, UpdateName("alice1", aliceAddr))
 	})
 
 	t.Run("valid_double_alias", func(t *testing.T) {
@@ -108,8 +108,8 @@ func TestChangeName(t *testing.T) {
 		cleanStore(t)
 
 		urequire.NoError(t, RegisterUser(alice, aliceAddr))
-		uassert.NoError(t, ChangeName("alice1", aliceAddr))
-		uassert.NoError(t, ChangeName("alice2", aliceAddr))
+		uassert.NoError(t, UpdateName("alice1", aliceAddr))
+		uassert.NoError(t, UpdateName("alice2", aliceAddr))
 	})
 
 	t.Run("name_taken", func(t *testing.T) {
@@ -117,14 +117,14 @@ func TestChangeName(t *testing.T) {
 		cleanStore(t)
 
 		urequire.NoError(t, RegisterUser(alice, aliceAddr))
-		uassert.NoError(t, ChangeName("alice1", aliceAddr))
+		uassert.NoError(t, UpdateName("alice1", aliceAddr))
 	})
 
 	t.Run("alias_before_name", func(t *testing.T) {
 		t.Parallel()
 		cleanStore(t)
 
-		uassert.ErrorContains(t, ChangeName(alice, aliceAddr), ErrAliasBeforeName.Error())
+		uassert.ErrorContains(t, UpdateName(alice, aliceAddr), ErrAliasBeforeName.Error())
 	})
 
 	t.Run("alias_after_delete", func(t *testing.T) {
@@ -134,7 +134,7 @@ func TestChangeName(t *testing.T) {
 		urequire.NoError(t, RegisterUser(alice, aliceAddr))
 		urequire.NoError(t, Delete(aliceAddr))
 
-		uassert.ErrorContains(t, ChangeName("newalice", aliceAddr), ErrDeletedUser.Error())
+		uassert.ErrorContains(t, UpdateName("newalice", aliceAddr), ErrDeletedUser.Error())
 	})
 
 	t.Run("invalid_inputs", func(t *testing.T) {
@@ -143,14 +143,14 @@ func TestChangeName(t *testing.T) {
 
 		urequire.NoError(t, RegisterUser(alice, aliceAddr))
 
-		uassert.ErrorContains(t, ChangeName("   ", aliceAddr), ErrEmptyUsername.Error())
+		uassert.ErrorContains(t, UpdateName("   ", aliceAddr), ErrEmptyUsername.Error())
 		uassert.ErrorContains(t,
-			ChangeName("65letterusername65letterusername65letterusername65letterusername0",
+			UpdateName("65letterusername65letterusername65letterusername65letterusername0",
 				aliceAddr),
 			ErrNameTooLong.Error())
 
-		uassert.ErrorContains(t, ChangeName(alice, ""), ErrInvalidAddress.Error())
-		uassert.ErrorContains(t, ChangeName(alice, "invalidaddress"), ErrInvalidAddress.Error())
+		uassert.ErrorContains(t, UpdateName(alice, ""), ErrInvalidAddress.Error())
+		uassert.ErrorContains(t, UpdateName(alice, "invalidaddress"), ErrInvalidAddress.Error())
 	})
 
 	t.Run("address_lookalike", func(t *testing.T) {
@@ -160,10 +160,10 @@ func TestChangeName(t *testing.T) {
 		urequire.NoError(t, RegisterUser(alice, aliceAddr))
 
 		// Address as username
-		uassert.ErrorContains(t, ChangeName("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5", aliceAddr), ErrNameLikeAddress.Error())
+		uassert.ErrorContains(t, UpdateName("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5", aliceAddr), ErrNameLikeAddress.Error())
 		// Beginning of address as username
-		uassert.ErrorContains(t, ChangeName("g1jg8mtutu9khhfwc4nxmu", aliceAddr), ErrNameLikeAddress.Error())
-		uassert.NoError(t, ChangeName("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5longerthananaddress", aliceAddr))
+		uassert.ErrorContains(t, UpdateName("g1jg8mtutu9khhfwc4nxmu", aliceAddr), ErrNameLikeAddress.Error())
+		uassert.NoError(t, UpdateName("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5longerthananaddress", aliceAddr))
 	})
 }
 

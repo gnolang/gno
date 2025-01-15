@@ -84,8 +84,9 @@ func RegisterUser(name string, address std.Address) error {
 	return nil
 }
 
-// ChangeName adds an Alias pointing to an existing user.
-func ChangeName(newName string, address std.Address) error {
+// UpdateName adds a name that is associated with a specific address
+// All previous names are preserved and resolvable
+func UpdateName(newName string, address std.Address) error {
 	// Validate caller
 	if err := validateCall(); err != nil {
 		return err
