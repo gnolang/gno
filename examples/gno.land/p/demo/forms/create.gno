@@ -15,43 +15,18 @@ func CreateField(label string, fieldType string, required bool) Field {
 	}
 }
 
-type times struct {
-	openAt  *time.Time
-	closeAt *time.Time
-}
-
-func parseDates(openAt string, closeAt string) (times, error) {
-	var openAtTime, closeAtTime *time.Time
-
-	const dateFormat = "2006-01-02T15:04:05Z"
-
-	// Parse openAt if it's not empty
-	if openAt != "" {
-		res, err := time.Parse(dateFormat, openAt)
-		if err != nil {
-			return times{}, errInvalidDate
-		}
-		openAtTime = &res
-	}
-
-	// Parse closeAt if it's not empty
-	if closeAt != "" {
-		res, err := time.Parse(dateFormat, closeAt)
-		if err != nil {
-			return times{}, errInvalidDate
-		}
-		closeAtTime = &res
-	}
-
-	return times{openAtTime, closeAtTime}, nil
-}
-
 // CreateForm creates a new form with the given parameters
 func (db *FormDB) CreateForm(title string, description string, openAt string, closeAt string, data string) (string, error) {
-	// Parsing dates
-	times, err := parseDates(openAt, closeAt)
+	// Parsing the dates
+	const dateFormat = "2006-01-02T15:04:05Z"
+	
+	parsedOpenTime, err := time.Parse(dateFormat, openAt)
 	if err != nil {
-		return "", err
+		return "", errInvalidDate
+	}
+	parsedCloseTime, err := time.Parse(dateFormat, closeAt)
+	if err != nil {
+		return "", errInvalidDate
 	}
 
 	// Parsing the json submission
@@ -109,8 +84,8 @@ func (db *FormDB) CreateForm(title string, description string, openAt string, cl
 		Title:       title,
 		Description: description,
 		CreatedAt:   time.Now(),
-		openAt:      times.openAt,
-		closeAt:     times.closeAt,
+		openAt:      parsedOpenTime,
+		closeAt:     parsedCloseTime,
 		Fields:      fields,
 	}
 
