@@ -287,7 +287,7 @@ constructor(
 ```go
 var (
 	receiver        = std.Address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5")
-	auctionEndBlock = std.GetHeight() + uint(300) // in blocks
+	auctionEndBlock = std.Height() + uint(300) // in blocks
 	highestBidder   std.Address
 	highestBid      = uint(0)
 	pendingReturns  avl.Tree
@@ -349,7 +349,7 @@ function bid() external payable {
 [embedmd]:# (../assets/how-to-guides/porting-solidity-to-gno/porting-5.gno go)
 ```go
 func Bid() {
-	if std.GetHeight() > auctionEndBlock {
+	if std.Height() > auctionEndBlock {
 		panic("Exceeded auction end block")
 	}
 
@@ -473,8 +473,8 @@ func Withdraw() {
 		pendingReturns.Set(std.OriginCaller().String(), 0)
 
 		// Return the exceeded amount
-		banker := std.GetBanker(std.BankerTypeRealmSend)
-		pkgAddr := std.GetOriginPkgAddress()
+		banker := std.NewBanker(std.BankerTypeRealmSend)
+		pkgAddr := std.OriginPkgAddress()
 
 		banker.SendCoins(pkgAddr, std.OriginCaller(), std.Coins{{"ugnot", amount.(int64)}})
 	}
@@ -499,8 +499,8 @@ func TestWithdraw(t *testing.T) {
 	shouldEqual(t, pendingReturns.Size(), 1)
 	shouldEqual(t, pendingReturns.Has(returnAddr), true)
 
-	banker := std.GetBanker(std.BankerTypeRealmSend)
-	pkgAddr := std.GetOriginPkgAddress()
+	banker := std.NewBanker(std.BankerTypeRealmSend)
+	pkgAddr := std.OriginPkgAddress()
 	banker.SendCoins(pkgAddr, std.Address(returnAddr), std.Coins{{"ugnot", returnAmount}})
 	shouldEqual(t, banker.GetCoins(std.Address(returnAddr)).String(), "3ugnot")
 }
@@ -553,7 +553,7 @@ function auctionEnd() external {
 [embedmd]:# (../assets/how-to-guides/porting-solidity-to-gno/porting-11.gno go)
 ```go
 func AuctionEnd() {
-	if std.GetHeight() < auctionEndBlock {
+	if std.Height() < auctionEndBlock {
 		panic("Auction hasn't ended")
 	}
 
@@ -564,8 +564,8 @@ func AuctionEnd() {
 	ended = true
 
 	// Send the highest bid to the recipient
-	banker := std.GetBanker(std.BankerTypeRealmSend)
-	pkgAddr := std.GetOriginPkgAddress()
+	banker := std.NewBanker(std.BankerTypeRealmSend)
+	pkgAddr := std.OriginPkgAddress()
 
 	banker.SendCoins(pkgAddr, receiver, std.Coins{{"ugnot", int64(highestBid)}})
 }
@@ -586,7 +586,7 @@ func TestAuctionEnd(t *testing.T) {
 	shouldNoPanic(t, AuctionEnd)
 	shouldEqual(t, ended, true)
 
-	banker := std.GetBanker(std.BankerTypeRealmSend)
+	banker := std.NewBanker(std.BankerTypeRealmSend)
 	shouldEqual(t, banker.GetCoins(receiver).String(), "3ugnot")
 
 	// Auction has already ended
@@ -673,7 +673,7 @@ func TestFull(t *testing.T) {
 		shouldNoPanic(t, AuctionEnd)
 		shouldEqual(t, ended, true)
 
-		banker := std.GetBanker(std.BankerTypeRealmSend)
+		banker := std.NewBanker(std.BankerTypeRealmSend)
 		shouldEqual(t, banker.GetCoins(receiver).String(), "2ugnot")
 	}
 }

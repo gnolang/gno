@@ -15,7 +15,7 @@ var realmAddr = std.CurrentRealm().Address()
 func DisperseUgnot(addresses []std.Address, coins std.Coins) {
 	coinSent := std.OriginSend()
 	caller := std.PreviousRealm().Address()
-	banker := std.GetBanker(std.BankerTypeOriginSend)
+	banker := std.NewBanker(std.BankerTypeOriginSend)
 
 	if len(addresses) != len(coins) {
 		panic(ErrNumAddrValMismatch)

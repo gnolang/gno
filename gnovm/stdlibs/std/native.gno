@@ -37,7 +37,7 @@ func PreviousRealm() Realm {
 	return Realm{Address(addr), path}
 }
 
-func GetOriginPkgAddress() Address {
+func OriginPkgAddress() Address {
 	return Address(originPkgAddr())
 }
 

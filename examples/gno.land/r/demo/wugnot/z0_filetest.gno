@@ -41,7 +41,7 @@ func printBalances() {
 	printSingleBalance := func(name string, addr std.Address) {
 		wugnotBal := wugnot.BalanceOf(pusers.AddressOrName(addr))
 		std.TestSetOriginCaller(addr)
-		robanker := std.GetBanker(std.BankerTypeReadonly)
+		robanker := std.NewBanker(std.BankerTypeReadonly)
 		coins := robanker.GetCoins(addr).AmountOf("ugnot")
 		fmt.Printf("| %-13s | addr=%s | wugnot=%-5d | ugnot=%-9d |\n",
 			name, addr, wugnotBal, coins)

@@ -129,9 +129,9 @@ func init() {
 
 func Echo(msg string) string {
 	addr := std.OriginCaller()
-	pkgAddr := std.GetOriginPkgAddress()
+	pkgAddr := std.OriginPkgAddress()
 	send := std.OriginSend()
-	banker := std.GetBanker(std.BankerTypeOriginSend)
+	banker := std.NewBanker(std.BankerTypeOriginSend)
 	banker.SendCoins(pkgAddr, addr, send) // send back
 	return "echo:"+msg
 }`},
@@ -177,9 +177,9 @@ func init() {
 
 func Echo(msg string) string {
 	addr := std.OriginCaller()
-	pkgAddr := std.GetOriginPkgAddress()
+	pkgAddr := std.OriginPkgAddress()
 	send := std.OriginSend()
-	banker := std.GetBanker(std.BankerTypeOriginSend)
+	banker := std.NewBanker(std.BankerTypeOriginSend)
 	banker.SendCoins(pkgAddr, addr, send) // send back
 	return "echo:"+msg
 }
@@ -228,9 +228,9 @@ func init() {
 
 func Echo(msg string) string {
 	addr := std.OriginCaller()
-	pkgAddr := std.GetOriginPkgAddress()
+	pkgAddr := std.OriginPkgAddress()
 	send := std.Coins{{"ugnot", 10000000}}
-	banker := std.GetBanker(std.BankerTypeOriginSend)
+	banker := std.NewBanker(std.BankerTypeOriginSend)
 	banker.SendCoins(pkgAddr, addr, send) // send back
 	return "echo:"+msg
 }`},
@@ -272,9 +272,9 @@ func init() {
 
 func Echo(msg string) string {
 	addr := std.OriginCaller()
-	pkgAddr := std.GetOriginPkgAddress()
+	pkgAddr := std.OriginPkgAddress()
 	send := std.Coins{{"ugnot", 10000000}}
-	banker := std.GetBanker(std.BankerTypeRealmSend)
+	banker := std.NewBanker(std.BankerTypeRealmSend)
 	banker.SendCoins(pkgAddr, addr, send) // send back
 	return "echo:"+msg
 }`},
@@ -316,9 +316,9 @@ func init() {
 
 func Echo(msg string) string {
 	addr := std.OriginCaller()
-	pkgAddr := std.GetOriginPkgAddress()
+	pkgAddr := std.OriginPkgAddress()
 	send := std.Coins{{"ugnot", 10000000}}
-	banker := std.GetBanker(std.BankerTypeRealmSend)
+	banker := std.NewBanker(std.BankerTypeRealmSend)
 	banker.SendCoins(pkgAddr, addr, send) // send back
 	return "echo:"+msg
 }`},
@@ -417,9 +417,9 @@ func init() {
 
 func Echo(msg string) string {
 	addr := std.OriginCaller()
-	pkgAddr := std.GetOriginPkgAddress()
+	pkgAddr := std.OriginPkgAddress()
 	send := std.OriginSend()
-	banker := std.GetBanker(std.BankerTypeOriginSend)
+	banker := std.NewBanker(std.BankerTypeOriginSend)
 	banker.SendCoins(pkgAddr, addr, send) // send back
 	return "echo:"+msg
 }

@@ -41,7 +41,7 @@ func Withdraw(amount uint64) {
 	require(amount <= callerBal, ufmt.Sprintf("Insufficient balance: %d available, %d needed.", callerBal, amount))
 
 	// send swapped ugnots to qcaller
-	stdBanker := std.GetBanker(std.BankerTypeRealmSend)
+	stdBanker := std.NewBanker(std.BankerTypeRealmSend)
 	send := std.Coins{{"ugnot", int64(amount)}}
 	stdBanker.SendCoins(pkgaddr, caller, send)
 	checkErr(adm.Burn(caller, amount))

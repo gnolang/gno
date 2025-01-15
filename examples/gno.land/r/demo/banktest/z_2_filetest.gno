@@ -18,7 +18,7 @@ func main() {
 	mainaddr := std.DerivePkgAddr("gno.land/r/demo/bank1")
 	std.TestSetOriginCaller(mainaddr)
 
-	banker := std.GetBanker(std.BankerTypeReadonly)
+	banker := std.NewBanker(std.BankerTypeReadonly)
 	mainbal := banker.GetCoins(mainaddr)
 	println("main before:", mainbal) // plus OriginSend equals 300.
 

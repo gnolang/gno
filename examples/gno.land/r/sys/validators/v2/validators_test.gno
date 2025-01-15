@@ -67,7 +67,7 @@ func TestValidators_AddRemove(t *testing.T) {
 	}
 
 	// Save the beginning height for the removal
-	initialRemoveHeight := std.GetHeight()
+	initialRemoveHeight := std.Height()
 
 	// Clear any changes
 	changes = avl.NewTree()

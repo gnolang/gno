@@ -105,7 +105,7 @@ func assertNoErr(t *testing.T, err string) {
 
 func assertBalance(t *testing.T, addr std.Address, expectedBal int64) {
 	t.Helper()
-	banker := std.GetBanker(std.BankerTypeReadonly)
+	banker := std.NewBanker(std.BankerTypeReadonly)
 	coins := banker.GetCoins(addr)
 	got := coins.AmountOf("ugnot")
 

@@ -1,5 +1,5 @@
 func AuctionEnd() {
-	if std.GetHeight() < auctionEndBlock {
+	if std.Height() < auctionEndBlock {
 		panic("Auction hasn't ended")
 	}
 
@@ -10,8 +10,8 @@ func AuctionEnd() {
 	ended = true
 
 	// Send the highest bid to the recipient
-	banker := std.GetBanker(std.BankerTypeRealmSend)
-	pkgAddr := std.GetOriginPkgAddress()
+	banker := std.NewBanker(std.BankerTypeRealmSend)
+	pkgAddr := std.OriginPkgAddress()
 
 	banker.SendCoins(pkgAddr, receiver, std.Coins{{"ugnot", int64(highestBid)}})
 }

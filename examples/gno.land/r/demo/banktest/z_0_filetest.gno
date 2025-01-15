@@ -22,7 +22,7 @@ func main() {
 
 	// get and print balance of mainaddr.
 	// with the SEND, + 200 gnot given by the TestContext, main should have 300gnot.
-	banker := std.GetBanker(std.BankerTypeRealmSend)
+	banker := std.NewBanker(std.BankerTypeRealmSend)
 	mainbal := banker.GetCoins(mainaddr)
 	println("main before:", mainbal)
 

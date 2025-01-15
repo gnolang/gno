@@ -17,7 +17,7 @@ func main() {
 	// to convert the types to builtin go/gno identifiers).
 	f := node.(func() int64)
 	println(f())
-	node = std.GetChainID
+	node = std.ChainID
 	g := node.(func() string)
 	println(g())
 }

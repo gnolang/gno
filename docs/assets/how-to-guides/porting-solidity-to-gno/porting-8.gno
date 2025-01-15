@@ -7,8 +7,8 @@ func Withdraw() {
 		pendingReturns.Set(std.OriginCaller().String(), 0)
 
 		// Return the exceeded amount
-		banker := std.GetBanker(std.BankerTypeRealmSend)
-		pkgAddr := std.GetOriginPkgAddress()
+		banker := std.NewBanker(std.BankerTypeRealmSend)
+		pkgAddr := std.OriginPkgAddress()
 
 		banker.SendCoins(pkgAddr, std.OriginCaller(), std.Coins{{"ugnot", amount.(int64)}})
 	}

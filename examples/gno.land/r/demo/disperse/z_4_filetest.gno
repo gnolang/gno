@@ -20,7 +20,7 @@ func main() {
 	std.TestSetOriginPkgAddress(disperseAddr)
 	std.TestSetOriginCaller(mainaddr)
 
-	banker := std.GetBanker(std.BankerTypeRealmSend)
+	banker := std.NewBanker(std.BankerTypeRealmSend)
 
 	tokens.New("test1", "TEST1", 4, 0, 0)
 	tokens.Mint("TEST1", mainaddr, 200)

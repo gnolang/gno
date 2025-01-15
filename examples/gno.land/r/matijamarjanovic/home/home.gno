@@ -106,7 +106,7 @@ func updateCurrentTheme() {
 func CollectBalance() {
 	AssertAuthorized()
 
-	banker := std.GetBanker(std.BankerTypeRealmSend)
+	banker := std.NewBanker(std.BankerTypeRealmSend)
 	ownerAddr := Address()
 
 	banker.SendCoins(std.CurrentRealm().Address(), ownerAddr, banker.GetCoins(std.CurrentRealm().Address()))

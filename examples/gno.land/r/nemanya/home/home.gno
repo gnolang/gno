@@ -266,8 +266,8 @@ func Withdraw() string {
 		panic(config.ErrUnauthorized)
 	}
 
-	banker := std.GetBanker(std.BankerTypeRealmSend)
-	realmAddress := std.GetOriginPkgAddress()
+	banker := std.NewBanker(std.BankerTypeRealmSend)
+	realmAddress := std.OriginPkgAddress()
 	coins := banker.GetCoins(realmAddress)
 
 	if len(coins) == 0 {

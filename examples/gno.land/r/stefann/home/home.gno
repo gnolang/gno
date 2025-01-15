@@ -146,7 +146,7 @@ func Donate() {
 	travel.currentCityIndex++
 	sponsorship.DonationsCount++
 
-	banker := std.GetBanker(std.BankerTypeRealmSend)
+	banker := std.NewBanker(std.BankerTypeRealmSend)
 	ownerAddr := registry.MainAddr()
 	banker.SendCoins(std.CurrentRealm().Address(), ownerAddr, banker.GetCoins(std.CurrentRealm().Address()))
 }

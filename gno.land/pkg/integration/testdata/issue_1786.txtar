@@ -59,7 +59,7 @@ func ProxyWrap() {
 
 	// WRAP IT
 	wugnotAddr := std.DerivePkgAddr("gno.land/r/demo/wugnot")
-	banker := std.GetBanker(std.BankerTypeRealmSend)
+	banker := std.NewBanker(std.BankerTypeRealmSend)
 	banker.SendCoins(std.CurrentRealm().Address(), wugnotAddr, std.Coins{{"ugnot", int64(ugnotSent)}})
 	wugnot.Deposit() // `proxywugnot` has ugnot
 
@@ -79,6 +79,6 @@ func ProxyUnwrap(wugnotAmount uint64) {
 	wugnot.Withdraw(wugnotAmount)
 
 	// SEND GNOT: PROXY_WUGNOT -> USER
-	banker := std.GetBanker(std.BankerTypeRealmSend)
+	banker := std.NewBanker(std.BankerTypeRealmSend)
 	banker.SendCoins(std.CurrentRealm().Address(), std.OriginCaller(), std.Coins{{"ugnot", int64(wugnotAmount)}})
 }

@@ -149,7 +149,7 @@ func quoteOfTheBlock() ui.Element {
 		"Now, you Gno.",
 		"Come for the Go, Stay for the Gno.",
 	}
-	height := std.GetHeight()
+	height := std.Height()
 	idx := int(height) % len(quotes)
 	qotb := quotes[idx]
 

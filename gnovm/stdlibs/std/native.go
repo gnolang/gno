@@ -22,29 +22,29 @@ func IsOriginCall(m *gno.Machine) bool {
 	return n <= 2 && isMsgCall
 }
 
-func GetChainID(m *gno.Machine) string {
+func ChainID(m *gno.Machine) string {
 	return GetContext(m).ChainID
 }
 
-func GetChainDomain(m *gno.Machine) string {
+func ChainDomain(m *gno.Machine) string {
 	return GetContext(m).ChainDomain
 }
 
-func GetHeight(m *gno.Machine) int64 {
+func Height(m *gno.Machine) int64 {
 	return GetContext(m).Height
 }
 
-// getPrevFunctionNameFromTarget returns the last called function name (identifier) from the call stack.
-func getPrevFunctionNameFromTarget(m *gno.Machine, targetFunc string) string {
-	targetIndex := findTargetFuncIndex(m, targetFunc)
+// getPreviousFunctionNameFromTarget returns the last called function name (identifier) from the call stack.
+func getPreviousFunctionNameFromTarget(m *gno.Machine, targetFunc string) string {
+	targetIndex := findTargetFunctionIndex(m, targetFunc)
 	if targetIndex == -1 {
 		return ""
 	}
-	return findPrevFuncName(m, targetIndex)
+	return findPreviousFunctionName(m, targetIndex)
 }
 
-// findTargetFuncIndex finds and returns the index of the target function in the call stack.
-func findTargetFuncIndex(m *gno.Machine, targetFunc string) int {
+// findTargetFunctionIndex finds and returns the index of the target function in the call stack.
+func findTargetFunctionIndex(m *gno.Machine, targetFunc string) int {
 	for i := len(m.Frames) - 1; i >= 0; i-- {
 		currFunc := m.Frames[i].Func
 		if currFunc != nil && currFunc.Name == gno.Name(targetFunc) {
@@ -54,8 +54,8 @@ func findTargetFuncIndex(m *gno.Machine, targetFunc string) int {
 	return -1
 }
 
-// findPrevFuncName returns the function name before the given index in the call stack.
-func findPrevFuncName(m *gno.Machine, targetIndex int) string {
+// findPreviousFunctionName returns the function name before the given index in the call stack.
+func findPreviousFunctionName(m *gno.Machine, targetIndex int) string {
 	for i := targetIndex - 1; i >= 0; i-- {
 		currFunc := m.Frames[i].Func
 		if currFunc != nil {

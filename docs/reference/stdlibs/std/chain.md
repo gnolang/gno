@@ -61,7 +61,7 @@ Returns the chain ID.
 
 #### Usage
 ```go
-chainID := std.GetChainID() // dev | test5 | main ...
+chainID := std.ChainID() // dev | test5 | main ...
 ```
 ---
 
@@ -73,7 +73,7 @@ Returns the current block number (height).
 
 #### Usage
 ```go
-height := std.GetHeight()
+height := std.Height()
 ```
 ---
 
@@ -101,15 +101,15 @@ caller := std.OriginCaller()
 ```
 ---
 
-## GetOriginPkgAddress
+## OriginPkgAddress
 ```go
-func GetOriginPkgAddress() string
+func OriginPkgAddress() string
 ```
 Returns the address of the first (entry point) realm/package in a sequence of realm/package calls.
 
 #### Usage
 ```go
-originPkgAddr := std.GetOriginPkgAddress()
+originPkgAddr := std.OriginPkgAddress()
 ```
 ---
 

@@ -65,7 +65,7 @@ func (i *Instance) addEntropy() {
 
 	// height
 	{
-		height := std.GetHeight()
+		height := std.Height()
 		if height >= math.MaxUint32 {
 			height -= math.MaxUint32
 		}

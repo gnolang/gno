@@ -15,7 +15,7 @@ func main() {
 	mainaddr := std.DerivePkgAddr("gno.land/r/demo/bank1")
 	std.TestSetOriginCaller(mainaddr)
 
-	banker := std.GetBanker(std.BankerTypeRealmSend)
+	banker := std.NewBanker(std.BankerTypeRealmSend)
 	send := std.Coins{{"ugnot", 123}}
 	banker.SendCoins(banktestAddr, mainaddr, send)
 

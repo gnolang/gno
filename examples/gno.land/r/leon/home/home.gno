@@ -116,7 +116,7 @@ func renderArt() string {
 
 func renderGnoFace() string {
 	out := "<div>\n\n"
-	out += gnoface.Render(strconv.Itoa(int(std.GetHeight())))
+	out += gnoface.Render(strconv.Itoa(int(std.Height())))
 	out += "</div>\n\n"
 
 	return out
@@ -125,7 +125,7 @@ func renderGnoFace() string {
 func renderMillipede() string {
 	out := "<div>\n\n"
 	out += "Millipede\n\n"
-	out += "```\n" + millipede.Draw(int(std.GetHeight())%10+1) + "```\n"
+	out += "```\n" + millipede.Draw(int(std.Height())%10+1) + "```\n"
 	out += "</div>\n\n"
 
 	return out
