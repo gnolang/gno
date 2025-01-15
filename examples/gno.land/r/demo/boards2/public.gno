@@ -147,8 +147,8 @@ func CreateRepost(bid BoardID, threadID PostID, title, body string, dstBoardID B
 	repostId := dst.incGetPostID()
 	repost := newPost(dst, repostId, caller, title, body, repostId, thread.GetPostID(), thread.GetBoard().GetID())
 
-	permArgs := Args{caller, board.GetID(), threadID, dst.GetID()}
-	dst.GetPermissions().WithPermission(caller, PermissionThreadRepost, permArgs, func(_ Args) {
+	args := Args{caller, board.GetID(), threadID, dst.GetID()}
+	dst.GetPermissions().WithPermission(caller, PermissionThreadRepost, args, func(_ Args) {
 		thread.AddRepostTo(caller, repost, dst)
 	})
 
