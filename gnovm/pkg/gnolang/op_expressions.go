@@ -758,10 +758,12 @@ func (m *Machine) doOpStructLit() {
 }
 
 func (m *Machine) doOpFuncLit() {
+	debug2.Println2("doOpFuncLit")
 	x := m.PopExpr().(*FuncLitExpr)
 	ft := m.PopValue().V.(TypeValue).Type.(*FuncType)
 	lb := m.LastBlock()
 	m.Alloc.AllocateFunc()
+	debug2.Println2("lb: ", lb)
 
 	// First copy closure captured heap values
 	// to *FuncValue. Later during doOpCall a block

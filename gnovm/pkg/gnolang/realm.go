@@ -254,6 +254,7 @@ func (rlm *Realm) DidUpdate2(store Store, po, xo, co Object, originValue Value) 
 		} else if co.GetIsReal() {
 			rlm.MarkDirty(co)
 		} else {
+			debug2.Println2("set owner of co: ", co)
 			co.SetOwner(po)
 			rlm.MarkNewReal(co)
 		}
@@ -475,13 +476,13 @@ func (rlm *Realm) FinalizeRealmTransaction(readonly bool, store Store) {
 	}
 	if readonly {
 		if true ||
-				len(rlm.newCreated) > 0 ||
-				len(rlm.newEscaped) > 0 ||
-				len(rlm.newDeleted) > 0 ||
-				len(rlm.created) > 0 ||
-				len(rlm.updated) > 0 ||
-				len(rlm.deleted) > 0 ||
-				len(rlm.escaped) > 0 {
+			len(rlm.newCreated) > 0 ||
+			len(rlm.newEscaped) > 0 ||
+			len(rlm.newDeleted) > 0 ||
+			len(rlm.created) > 0 ||
+			len(rlm.updated) > 0 ||
+			len(rlm.deleted) > 0 ||
+			len(rlm.escaped) > 0 {
 			panic("realm updates in readonly transaction")
 		}
 		return
@@ -496,9 +497,9 @@ func (rlm *Realm) FinalizeRealmTransaction(readonly bool, store Store) {
 		ensureUniq(rlm.newDeleted)
 		ensureUniq(rlm.updated)
 		if false ||
-				rlm.created != nil ||
-				rlm.deleted != nil ||
-				rlm.escaped != nil {
+			rlm.created != nil ||
+			rlm.deleted != nil ||
+			rlm.escaped != nil {
 			panic("realm should not have created, deleted, or escaped marks before beginning finalization")
 		}
 	}
@@ -603,23 +604,23 @@ func (rlm *Realm) incRefCreatedDescendants(store Store, oo Object) {
 	}
 
 	if b, ok := oo.(*Block); ok {
-		//fmt.Println("block: ", b)
+		debug2.Println2("block: ", b)
 		originValue := b.GetOriginValue()
-		//fmt.Println("originValue: ", originValue)
+		debug2.Println2("originValue: ", originValue)
 
 		if fv, ok := originValue.(*FuncValue); ok {
-			//fmt.Println("fv:  ", fv)
-			//fmt.Println("fv...values: ", fv.Source.GetStaticBlock().Values)
+			debug2.Println2("fv:  ", fv)
+			debug2.Println2("fv...values: ", fv.Source.GetStaticBlock().Values)
 			for _, tv := range fv.Source.GetStaticBlock().Values {
-				//fmt.Println("tv:  ", tv)
-				//fmt.Println("tv.V:  ", tv.V, reflect.TypeOf(tv.V))
-				//fmt.Println("tv.T:  ", tv.T, reflect.TypeOf(tv.T))
+				debug2.Println2("tv:  ", tv)
+				debug2.Println2("tv.V:  ", tv.V, reflect.TypeOf(tv.V))
+				debug2.Println2("tv.T:  ", tv.T, reflect.TypeOf(tv.T))
 
 				if dt, ok := tv.T.(*DeclaredType); ok {
-					//debug2.Printf2("getPkgId, dt: %v, dt.Base: %v, type of base: %v \n", dt, dt.Base, reflect.TypeOf(dt.Base))
-					if st, ok := dt.Base.(*StructType); ok { // TODO: some other types?
-						//fmt.Println("st: ", st)
-						if IsRealmPath(st.GetPkgPath()) {
+					debug2.Printf2("getPkgId, dt: %v, dt.Base: %v, type of base: %v \n", dt, dt.Base, reflect.TypeOf(dt.Base))
+					switch tt := dt.Base.(type) {
+					case *StructType, *InterfaceType: // types with pkgpath
+						if IsRealmPath(tt.GetPkgPath()) {
 							originPkg := PkgIDFromPkgPath(dt.Base.GetPkgPath())
 							if originPkg != rlm.ID {
 								panic("cannot attach function contains object from external realm")
@@ -825,6 +826,7 @@ func (rlm *Realm) processNewEscapedMarks(store Store) {
 // (ancestors) must be marked as dirty to update the
 // hash tree.
 func (rlm *Realm) markDirtyAncestors(store Store) {
+	debug2.Println2("markDirtyAncestors")
 	markAncestorsOne := func(oo Object) {
 		for {
 			if pv, ok := oo.(*PackageValue); ok {
@@ -893,7 +895,9 @@ func (rlm *Realm) markDirtyAncestors(store Store) {
 
 // Saves .created and .updated objects.
 func (rlm *Realm) saveUnsavedObjects(store Store) {
+	debug2.Println2("saveUnsavedObjects")
 	for _, co := range rlm.created {
+		debug2.Println2("co: ", co)
 		// for i := len(rlm.created) - 1; i >= 0; i-- {
 		// co := rlm.created[i]
 		if !co.GetIsNewReal() {
@@ -905,6 +909,7 @@ func (rlm *Realm) saveUnsavedObjects(store Store) {
 		}
 	}
 	for _, uo := range rlm.updated {
+		debug2.Println2("uo: ", uo)
 		if !uo.GetIsDirty() {
 			// might have happened already as child
 			// of something else created/dirty.
@@ -917,6 +922,7 @@ func (rlm *Realm) saveUnsavedObjects(store Store) {
 
 // store unsaved children first.
 func (rlm *Realm) saveUnsavedObjectRecursively(store Store, oo Object) {
+	debug2.Println2("saveUnsavedObjectRecursively", oo)
 	if debug {
 		if !oo.GetIsNewReal() && !oo.GetIsDirty() {
 			panic("cannot save new real or non-dirty objects")
@@ -927,15 +933,17 @@ func (rlm *Realm) saveUnsavedObjectRecursively(store Store, oo Object) {
 		}
 		// deleted objects should not have gotten here.
 		if false ||
-				oo.GetRefCount() <= 0 ||
-				oo.GetIsNewDeleted() ||
-				oo.GetIsDeleted() {
+			oo.GetRefCount() <= 0 ||
+			oo.GetIsNewDeleted() ||
+			oo.GetIsDeleted() {
 			panic("cannot save deleted objects")
 		}
 	}
 	// first, save unsaved children.
 	unsaved := getUnsavedChildObjects(oo)
+	debug2.Println2("unsaved: ", unsaved)
 	for _, uch := range unsaved {
+		debug2.Println2("uch: ", uch)
 		if uch.GetIsEscaped() || uch.GetIsNewEscaped() {
 			// no need to save preemptively.
 		} else {
@@ -1054,7 +1062,7 @@ func getSelfOrChildObjects(val Value, more []Value) []Value {
 // Gets child objects.
 // Shallow; doesn't recurse into objects.
 func getChildObjects(val Value, more []Value) []Value {
-	debug2.Println2("getChildObjects: ", val)
+	debug2.Printf2("getChildObjects, val: %v, type of val: %v \n", val, reflect.TypeOf(val))
 	switch cv := val.(type) {
 	case nil:
 		return more
@@ -1125,6 +1133,7 @@ func getChildObjects(val Value, more []Value) []Value {
 		// Generally the parent block must also be persisted.
 		// Otherwise NamePath may not resolve when referencing
 		// a parent block.
+		debug2.Println2("block value, get parent recursively")
 		more = getSelfOrChildObjects(cv.Parent, more)
 		return more
 	case *HeapItemValue:

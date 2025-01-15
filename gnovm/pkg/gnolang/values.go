@@ -212,7 +212,7 @@ func (pv *PointerValue) GetBase(store Store) Object {
 // TODO: maybe consider this as entrypoint for DataByteValue too?
 func (pv PointerValue) Assign2(alloc *Allocator, store Store, rlm *Realm, tv2 TypedValue, cu bool) {
 	debug2.Println2("Assign2, pv: ", pv)
-	debug2.Println2("tv2: ", tv2)
+	debug2.Println2("tv2: ", tv2, reflect.TypeOf(tv2.V))
 	debug2.Println2("rlm: ", rlm)
 
 	// Special cases.
@@ -300,17 +300,35 @@ func (pv PointerValue) Assign2(alloc *Allocator, store Store, rlm *Realm, tv2 Ty
 		oo2 := pv.TV.GetFirstObject(store)
 		debug2.Println2("oo2: ", oo2)
 
+		// XXX, special case for floating func value
+
+		if originPkg != rlm.ID {
+			if fv, ok := pv.TV.V.(*FuncValue); ok {
+				if oo2.GetObjectID().IsZero() { // the funcValue has not attached
+					debug2.Println2("fv: ", fv)
+					clo := fv.GetClosure(store)
+					b := NewBlock(fv.GetSource(store), clo)
+					debug2.Println2("b for fv: ", b)
+					oo2 = b
+				}
+			}
+		}
+
 		// refValue is needed for checking
 		// proper element in the base.
 		// e.g. refValue is a sliceValue
 		var originValue Value
 		switch rv := pv.TV.V.(type) {
-		case *SliceValue, PointerValue, *FuncValue:
+		case *SliceValue, PointerValue:
 			originValue = rv
 			oo2.SetIsRef(true)
 			oo2.SetOriginValue(rv)
+		case *FuncValue:
+			//originValue = rv
+			oo2.SetOriginValue(rv)
 		}
 
+		debug2.Println2("pv: ", pv)
 		if oo2 != nil && !originPkg.IsZero() {
 			oo2.SetOriginRealm(originPkg) // attach origin package info
 		}
@@ -2404,6 +2422,7 @@ type Block struct {
 
 // NOTE: for allocation, use *Allocator.NewBlock.
 func NewBlock(source BlockNode, parent *Block) *Block {
+	//fmt.Println("parent: ", parent)
 	var values []TypedValue
 	if source != nil {
 		values = make([]TypedValue, source.GetNumNames())

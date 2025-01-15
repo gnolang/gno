@@ -13,16 +13,15 @@ import (
 // check type for param type?
 // see also 37a.gno
 
-type Foo struct{}
-
 func main() {
 	f := crossrealm_b.Fooer
 	crossrealm.SetFooerGetter(func() crossrealm.Fooer {
-		//f1 := Foo{}
 		return f
 	})
+	crossrealm.CallFooerGetterFoo()
 	println("ok")
 }
 
 // Output:
+// hello A cur=gno.land/r/demo/tests/crossrealm_b prev=gno.land/r/demo/tests/crossrealm
 // ok
