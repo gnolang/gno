@@ -121,7 +121,7 @@ func require(check bool, msg string) {
 	}
 }
 
-// mustGet retrieves a swap by its id or panic.
+// mustGet retrieves a swap by its id or panics.
 func mustGet(id int) *Swap {
 	key := strconv.Itoa(id)
 	swap, ok := swaps.Get(key)
