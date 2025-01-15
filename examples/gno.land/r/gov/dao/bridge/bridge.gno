@@ -30,7 +30,7 @@ type Bridge struct {
 func init() {
 	b = &Bridge{
 		Ownable: ownable.NewWithAddress(initialOwner),
-		dao:     nil, // set upon r/gov/dao/v2 init()
+		dao:     nil, // initially set upon init() in r/gov/dao/v2
 	}
 }
 
