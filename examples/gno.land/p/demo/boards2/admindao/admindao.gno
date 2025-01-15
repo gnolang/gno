@@ -5,6 +5,7 @@ import (
 	"std"
 
 	"gno.land/p/demo/avl"
+	"gno.land/p/demo/avl/rotree"
 	"gno.land/p/demo/seqid"
 )
 
@@ -81,12 +82,12 @@ func (dao AdminDAO) IsMember(user std.Address) bool {
 }
 
 // ActiveProposals returns all active DAO proposals.
-func (dao AdminDAO) ActiveProposals() IReadOnlyTree {
+func (dao AdminDAO) ActiveProposals() rotree.IReadOnlyTree {
 	return dao.active
 }
 
 // FinishedProposalsi returns all finished DAO proposals.
-func (dao AdminDAO) FinishedProposals() IReadOnlyTree {
+func (dao AdminDAO) FinishedProposals() rotree.IReadOnlyTree {
 	return dao.finished
 }
 

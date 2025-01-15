@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"gno.land/p/demo/avl"
+	"gno.land/p/demo/avl/rotree"
 	"gno.land/p/demo/seqid"
 )
 
@@ -70,7 +71,7 @@ func (p Proposal) CreatedAt() time.Time {
 	return p.createdAt
 }
 
-func (p Proposal) Votes() IReadOnlyTree {
+func (p Proposal) Votes() rotree.IReadOnlyTree {
 	return p.votes
 }
 
