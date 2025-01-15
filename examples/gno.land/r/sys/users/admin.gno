@@ -49,27 +49,6 @@ func IsOnWhitelist(addr std.Address) bool {
 	return callerWhitelist.Has(addr)
 }
 
-// GovDAO prop executors
-// FIXME: creates a cyclic dep between govdao & r/sys/users. see how to fix
-// 3rd package could be a solution but its ugly
-//// NewWhitelistedCallerExecutor allows a GovDAO proposal to add a whitelisted caller to r/sys/users
-//func NewWhitelistedCallerExecutor(newCaller std.Address) dao.Executor {
-//	callback := func() error {
-//		return addToWhitelist(newCaller)
-//	}
-//
-//	return bridge.GovDAO().NewGovDAOExecutor(callback)
-//}
-//
-//// NewDeleteCallerExecutor allows a GovDAO proposal to remove a whitelisted caller to r/sys/users
-//func NewDeleteCallerExecutor(newCaller std.Address) dao.Executor {
-//	callback := func() error {
-//		return deleteFromwhitelist(newCaller)
-//	}
-//
-//	return bridge.GovDAO().NewGovDAOExecutor(callback)
-//}
-
 // Helpers
 
 func deleteFromwhitelist(addr std.Address) error {
