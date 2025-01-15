@@ -16,8 +16,16 @@ func (m *MockPageable) Size() int {
 func (m *MockPageable) IterateByOffset(offset int, count int, cb func(index interface{}, value interface{}) bool) bool {
 	if count < 0 {
 		// Handle reversed iteration
-		start := offset + count + 1
-		for i := offset; i >= start; i-- {
+		count = -count // Make count positive
+		start := offset
+		if start >= len(m.items) {
+			start = len(m.items) - 1
+		}
+		end := start - count + 1
+		if end < 0 {
+			end = 0
+		}
+		for i := start; i >= end; i-- {
 			if cb(i, m.items[i]) {
 				return true
 			}
@@ -97,9 +105,9 @@ func TestPicker(t *testing.T) {
 		pageNum  int
 		want     string
 	}{
-		{"first page", 3, 1, "**1** | [2](?page=2) | [3](?page=3) | … | [4](?page=4)"},
-		{"middle page", 3, 2, "[1](?page=1) | [1](?page=1) | **2** | [3](?page=3) | [4](?page=4)"},
-		{"last page", 3, 4, "[1](?page=1) | … | [2](?page=2) | [3](?page=3) | **4**"},
+		{"first page", 3, 1, "**1** | [2](?page=2) | [3](?page=3) | [4](?page=4)"},
+		{"middle page", 3, 2, "[1](?page=1) | **2** | [3](?page=3) | [4](?page=4)"},
+		{"last page", 3, 4, "[1](?page=1) | [2](?page=2) | [3](?page=3) | **4**"},
 		{"single page", 10, 1, ""},
 	}
 

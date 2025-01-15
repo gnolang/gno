@@ -64,6 +64,17 @@ func (p *Pager) GetPage(pageNumber int) *Page {
 
 func (p *Pager) GetPageWithSize(pageNumber, pageSize int) *Page {
 	totalItems := p.Source.Size()
+
+	// Handle invalid page size
+	if pageSize <= 0 {
+		return &Page{
+			TotalItems: totalItems,
+			TotalPages: 0,
+			PageSize:   pageSize,
+			Pager:      p,
+		}
+	}
+
 	totalPages := int(math.Ceil(float64(totalItems) / float64(pageSize)))
 
 	page := &Page{
@@ -91,20 +102,27 @@ func (p *Pager) GetPageWithSize(pageNumber, pageSize int) *Page {
 		return page
 	}
 
-	startIndex := (pageNumber - 1) * pageSize
-	endIndex := startIndex + pageSize
-	if endIndex > totalItems {
-		endIndex = totalItems
-	}
-
-	items := []Item{}
-
-	count := endIndex - startIndex
+	// Calculate offset based on page number
+	offset := (pageNumber - 1) * pageSize
 	if p.Reversed {
-		count = -count
+		offset = totalItems - pageSize - offset
+		if offset < 0 {
+			pageSize += offset // Reduce pageSize if we're going past the start
+			offset = 0
+		}
 	}
-	p.Source.IterateByOffset(startIndex, count, func(index interface{}, value interface{}) bool {
-		items = append(items, Item{Index: index, Value: value})
+
+	// Collect items for the current page
+	var items []Item
+	iterCount := pageSize
+	if p.Reversed {
+		iterCount = -pageSize
+	}
+	p.Source.IterateByOffset(offset, iterCount, func(index interface{}, value interface{}) bool {
+		items = append(items, Item{
+			Index: index,
+			Value: value,
+		})
 		return false
 	})
 
