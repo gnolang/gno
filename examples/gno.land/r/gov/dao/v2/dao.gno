@@ -3,14 +3,17 @@ package govdao
 import (
 	"std"
 
+	"gno.land/r/gov/dao/bridge"
+
 	"gno.land/p/demo/dao"
 	"gno.land/p/demo/membstore"
 	"gno.land/p/demo/simpledao"
 )
 
 var (
-	d       *simpledao.SimpleDAO  // the current active DAO implementation
-	members membstore.MemberStore // the member store
+	d              *simpledao.SimpleDAO  // the current active DAO implementation
+	members        membstore.MemberStore // the member store
+	ExportableImpl *daoWrapper
 )
 
 const daoPkgPath = "gno.land/r/gov/dao/v2"
@@ -29,6 +32,8 @@ func init() {
 
 	// Set the DAO implementation
 	d = simpledao.New(members)
+
+	bridge.RegisterNewDAOImpl(ExportableImpl)
 }
 
 // Propose is designed to be called by another contract or with
