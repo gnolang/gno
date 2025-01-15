@@ -77,8 +77,7 @@ func (pl *PkgsLoader) LoadPackages(creatorKey crypto.PrivKey, fee std.Fee, depos
 		}
 	}
 
-	err = SignTxs(txs, creatorKey, "tendermint_test")
-	if err != nil {
+	if err = gnoland.SignGenesisTxs(txs, creatorKey, "tendermint_test"); err != nil {
 		return nil, fmt.Errorf("unable to sign txs: %w", err)
 	}
 
@@ -131,10 +130,11 @@ func (pl *PkgsLoader) LoadPackage(modroot string, path, name string) error {
 			if err != nil {
 				return fmt.Errorf("unable to read package at %q: %w", currentPkg.Dir, err)
 			}
-			imports, err := packages.Imports(pkg, nil)
+			importsMap, err := packages.Imports(pkg, nil)
 			if err != nil {
 				return fmt.Errorf("unable to load package imports in %q: %w", currentPkg.Dir, err)
 			}
+			imports := importsMap.Merge(packages.FileKindPackageSource, packages.FileKindTest, packages.FileKindFiletest)
 			for _, imp := range imports {
 				if imp.PkgPath == currentPkg.Name || gnolang.IsStdlib(imp.PkgPath) {
 					continue

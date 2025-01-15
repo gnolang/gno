@@ -182,10 +182,25 @@ func NewAppWithOptions(cfg *AppOptions) (abci.Application, error) {
 	return baseApp, nil
 }
 
+// GenesisAppConfig wraps the most important
+// genesis params relating to the App
+type GenesisAppConfig struct {
+	SkipFailingTxs      bool // does not stop the chain from starting if any tx fails
+	SkipSigVerification bool // does not verify the transaction signatures in genesis
+}
+
+// NewTestGenesisAppConfig returns a testing genesis app config
+func NewTestGenesisAppConfig() GenesisAppConfig {
+	return GenesisAppConfig{
+		SkipFailingTxs:      true,
+		SkipSigVerification: true,
+	}
+}
+
 // NewApp creates the gno.land application.
 func NewApp(
 	dataRootDir string,
-	skipFailingGenesisTxs bool,
+	genesisCfg GenesisAppConfig,
 	evsw events.EventSwitch,
 	logger *slog.Logger,
 	minGasPrices string,
@@ -199,9 +214,10 @@ func NewApp(
 			GenesisTxResultHandler: PanicOnFailingTxResultHandler,
 			StdlibDir:              filepath.Join(gnoenv.RootDir(), "gnovm", "stdlibs"),
 		},
-		MinGasPrices: minGasPrices,
+		MinGasPrices:            minGasPrices,
+		SkipGenesisVerification: genesisCfg.SkipSigVerification,
 	}
-	if skipFailingGenesisTxs {
+	if genesisCfg.SkipFailingTxs {
 		cfg.GenesisTxResultHandler = NoopGenesisTxResultHandler
 	}
 

@@ -11,7 +11,7 @@ import (
 )
 
 func TestRender(t *testing.T) {
-	const (
+	var (
 		author1 std.Address = testutils.TestAddress("author1")
 		author2 std.Address = testutils.TestAddress("author2")
 	)

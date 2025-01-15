@@ -1,3 +1,7 @@
+# add a random user
+adduserfrom user1 'bone make joy hospital hawk crew civil relief maple alter always frozen category emerge fun inflict room sphere casino vital scheme basket omit wrap'
+stdout 'g1lmgyf29g6zqgpln5pq05zzt7qkz2wga7xgagv4'
+
 # This txtar is a regression test for a bug, whereby a type is committed to
 # the defaultStore.cacheTypes map, but not to the underlying store (due to a
 # failing transaction).
@@ -5,15 +9,15 @@
 loadpkg gno.land/p/demo/avl
 gnoland start
 
-gnokey sign -tx-path $WORK/tx1.tx -chainid tendermint_test -account-sequence 1 test1
+gnokey sign -tx-path $WORK/tx1.tx -chainid tendermint_test -account-sequence 0 -account-number 57 user1
 ! gnokey broadcast $WORK/tx1.tx
 stderr 'out of gas'
 
-gnokey sign -tx-path $WORK/tx2.tx -chainid tendermint_test -account-sequence 2 test1
+gnokey sign -tx-path $WORK/tx2.tx -chainid tendermint_test -account-sequence 1 -account-number 57 user1
 gnokey broadcast $WORK/tx2.tx
 stdout 'OK!'
 
-gnokey sign -tx-path $WORK/tx3.tx -chainid tendermint_test -account-sequence 3 test1
+gnokey sign -tx-path $WORK/tx3.tx -chainid tendermint_test -account-sequence 2 -account-number 57 user1
 gnokey broadcast $WORK/tx3.tx
 stdout 'OK!'
 
@@ -24,7 +28,7 @@ gnoland restart
   "msg": [
     {
       "@type": "/vm.m_addpkg",
-      "creator": "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5",
+      "creator": "g1lmgyf29g6zqgpln5pq05zzt7qkz2wga7xgagv4",
       "package": {
         "name": "zentasktic",
         "path": "gno.land/p/g17ernafy6ctpcz6uepfsq2js8x2vz0wladh5yc3/zentasktic",
@@ -99,7 +103,7 @@ gnoland restart
   "msg": [
     {
       "@type": "/vm.m_addpkg",
-      "creator": "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5",
+      "creator": "g1lmgyf29g6zqgpln5pq05zzt7qkz2wga7xgagv4",
       "package": {
         "name": "zentasktic",
         "path": "gno.land/p/g17ernafy6ctpcz6uepfsq2js8x2vz0wladh5yc3/zentasktic",
@@ -174,7 +178,7 @@ gnoland restart
   "msg": [
     {
       "@type": "/vm.m_addpkg",
-      "creator": "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5",
+      "creator": "g1lmgyf29g6zqgpln5pq05zzt7qkz2wga7xgagv4",
       "package": {
         "name": "zentasktic_core",
         "path": "gno.land/r/g17ernafy6ctpcz6uepfsq2js8x2vz0wladh5yc3/zentasktic_core",
