@@ -34,7 +34,7 @@ func init() {
 	prop := dao.ProposalRequest{
 		Title:       title,
 		Description: description,
-		Executor:    govdao.NewMemberPropExecutor(memberFn),
+		Executor:    govdao.GovDAO.NewMemberPropExecutor(memberFn),
 	}
 
 	bridge.GovDAO().Propose(prop)
@@ -42,25 +42,25 @@ func init() {
 
 func main() {
 	println("--")
-	println(govdao.GetMembStore().Size())
+	println(govdao.GovDAO.GetMembStore().Size())
 	println("--")
 	println(govdao.Render(""))
 	println("--")
 	println(govdao.Render("0"))
 	println("--")
-	govdao.VoteOnProposal(0, "YES")
+	govdao.GovDAO.VoteOnProposal(0, "YES")
 	println("--")
 	println(govdao.Render("0"))
 	println("--")
 	println(govdao.Render(""))
 	println("--")
-	govdao.ExecuteProposal(0)
+	govdao.GovDAO.ExecuteProposal(0)
 	println("--")
 	println(govdao.Render("0"))
 	println("--")
 	println(govdao.Render(""))
 	println("--")
-	println(govdao.GetMembStore().Size())
+	println(govdao.GovDAO.GetMembStore().Size())
 }
 
 // Output:

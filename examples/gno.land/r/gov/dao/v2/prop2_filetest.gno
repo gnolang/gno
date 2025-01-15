@@ -28,7 +28,7 @@ func init() {
 		Executor:    ex,
 	}
 
-	govdao.Propose(prop)
+	govdao.GovDAO.Propose(prop)
 }
 
 func main() {
@@ -37,13 +37,13 @@ func main() {
 	println("--")
 	println(govdao.Render("0"))
 	println("--")
-	govdao.VoteOnProposal(0, "YES")
+	govdao.GovDAO.VoteOnProposal(0, "YES")
 	println("--")
 	println(govdao.Render("0"))
 	println("--")
 	println(gnoblog.Render(""))
 	println("--")
-	govdao.ExecuteProposal(0)
+	govdao.GovDAO.ExecuteProposal(0)
 	println("--")
 	println(govdao.Render("0"))
 	println("--")

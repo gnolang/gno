@@ -27,6 +27,47 @@ func TestBridge_DAO(t *testing.T) {
 	uassert.Equal(t, proposalID, GovDAO().Propose(dao.ProposalRequest{}))
 }
 
+func TestBridge_AllowNewGovDAOVersion(t *testing.T) {
+	var (
+		addr             = testutils.TestAddress("owner")
+		newGovDAOPkgPath = "gno.land/r/gov/dao/v3"
+	)
+
+	std.TestSetOrigCaller(addr)
+	b.Ownable = ownable.NewWithAddress(addr)
+
+	t.Run("invalid pkgpath", func(t *testing.T) {
+		// Attempt to set a new DAO implementation
+		uassert.PanicsWithMessage(t, ErrInvalidGovDAOPkgPath.Error(), func() {
+			AllowNewGovDAOVersion("invalidpkgpath")
+		})
+	})
+
+	t.Run("valid path", func(t *testing.T) {
+		// Attempt to set a new DAO implementation
+		uassert.NotPanics(t, func() {
+			AllowNewGovDAOVersion(newGovDAOPkgPath)
+		})
+	})
+}
+
+func TestBridge_RegisterNewDAOImpl(t *testing.T) {
+	var (
+		addr             = testutils.TestAddress("owner")
+		newGovDAOPkgPath = "gno.land/r/gov/dao/v3"
+	)
+
+	std.TestSetOrigCaller(addr)
+	b.Ownable = ownable.NewWithAddress(addr)
+	AllowNewGovDAOVersion(newGovDAOPkgPath)
+
+	std.TestSetRealm(std.NewCodeRealm(newGovDAOPkgPath))
+
+	uassert.NotPanics(t, func() {
+		RegisterNewDAOImpl(&mockDAO{})
+	})
+}
+
 func TestBridge_SetDAO(t *testing.T) {
 	t.Run("invalid owner", func(t *testing.T) {
 		// Attempt to set a new DAO implementation
