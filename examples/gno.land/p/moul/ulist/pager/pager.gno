@@ -6,24 +6,37 @@ import (
 )
 
 func NewPager(list ulist.IList, defaultPageSize int, reversed bool) *pageable.Pager {
-	wrappedList := NewUListWrapper(list)
+	wrappedList := NewWrapper(list)
 	return pageable.NewPager(wrappedList, defaultPageSize, reversed)
 }
 
-// UListWrapper adapts a ulist.IList to implement Pageable
-type UListWrapper struct {
+// Wrapper adapts a ulist.IList to implement Pageable
+type Wrapper struct {
 	list ulist.IList
 }
 
-func NewUListWrapper(list ulist.IList) *UListWrapper {
-	return &UListWrapper{list: list}
+func NewWrapper(list ulist.IList) *Wrapper {
+	return &Wrapper{list: list}
 }
 
-func (w *UListWrapper) Size() int {
+func (w *Wrapper) Size() int {
 	return w.list.TotalSize()
 }
 
-func (w *UListWrapper) IterateByOffset(offset int, count int, cb func(index interface{}, value interface{}) bool) bool {
+func (w *Wrapper) IterateByOffset(offset int, count int, cb func(index interface{}, value interface{}) bool) bool {
+	if count == 0 {
+		return false
+	}
+
+	size := w.list.TotalSize()
+	if size == 0 {
+		return false
+	}
+
+	if offset >= size {
+		return false
+	}
+
 	return w.list.IteratorByOffset(offset, count, func(index int, value interface{}) bool {
 		return cb(index, value)
 	})

@@ -3,60 +3,86 @@ package pager
 import (
 	"testing"
 
+	"gno.land/p/demo/uassert"
 	"gno.land/p/moul/pageable"
 	"gno.land/p/moul/ulist"
 )
 
-func TestNewPager(t *testing.T) {
-	// Create a list and add some items
+func TestPager_GetPage(t *testing.T) {
+	// Create a new list and populate it with values
 	list := ulist.New()
 	list.Append("a", "b", "c", "d", "e")
 
-	// Test forward paging
-	pager := NewPager(list, 2, false)
+	t.Run("normal ordering", func(t *testing.T) {
+		pager := NewPager(list, 10, false)
 
-	// First page
-	page := pager.GetPage(0)
-	assertPage(t, page, []string{"a", "b"}, "first page")
+		tests := []struct {
+			pageNumber int
+			pageSize   int
+			expected   []pageable.Item
+		}{
+			{1, 2, []pageable.Item{{Index: 0, Value: "a"}, {Index: 1, Value: "b"}}},
+			{2, 2, []pageable.Item{{Index: 2, Value: "c"}, {Index: 3, Value: "d"}}},
+			{3, 2, []pageable.Item{{Index: 4, Value: "e"}}},
+			{1, 3, []pageable.Item{{Index: 0, Value: "a"}, {Index: 1, Value: "b"}, {Index: 2, Value: "c"}}},
+			{2, 3, []pageable.Item{{Index: 3, Value: "d"}, {Index: 4, Value: "e"}}},
+			{1, 5, []pageable.Item{{Index: 0, Value: "a"}, {Index: 1, Value: "b"}, {Index: 2, Value: "c"}, {Index: 3, Value: "d"}, {Index: 4, Value: "e"}}},
+			{2, 5, []pageable.Item{}},
+		}
 
-	// Second page
-	page = pager.GetPage(1)
-	assertPage(t, page, []string{"c", "d"}, "second page")
+		for _, tt := range tests {
+			page := pager.GetPageWithSize(tt.pageNumber, tt.pageSize)
+			uassert.Equal(t, len(tt.expected), len(page.Items))
+			for i, item := range page.Items {
+				uassert.Equal(t, tt.expected[i].Index, item.Index)
+				uassert.Equal(t, tt.expected[i].Value, item.Value)
+			}
+		}
+	})
 
-	// Last page (partial)
-	page = pager.GetPage(2)
-	assertPage(t, page, []string{"e"}, "last page")
+	t.Run("reversed ordering", func(t *testing.T) {
+		pager := NewPager(list, 10, true)
 
-	// Test reverse paging
-	reversePager := NewPager(list, 2, true)
+		tests := []struct {
+			pageNumber int
+			pageSize   int
+			expected   []pageable.Item
+		}{
+			{1, 2, []pageable.Item{{Index: 4, Value: "e"}, {Index: 3, Value: "d"}}},
+			{2, 2, []pageable.Item{{Index: 2, Value: "c"}, {Index: 1, Value: "b"}}},
+			{3, 2, []pageable.Item{{Index: 0, Value: "a"}}},
+			{1, 3, []pageable.Item{{Index: 4, Value: "e"}, {Index: 3, Value: "d"}, {Index: 2, Value: "c"}}},
+			{2, 3, []pageable.Item{{Index: 1, Value: "b"}, {Index: 0, Value: "a"}}},
+			{1, 5, []pageable.Item{{Index: 4, Value: "e"}, {Index: 3, Value: "d"}, {Index: 2, Value: "c"}, {Index: 1, Value: "b"}, {Index: 0, Value: "a"}}},
+			{2, 5, []pageable.Item{}},
+		}
 
-	// First page (from end)
-	page = reversePager.GetPage(0)
-	assertPage(t, page, []string{"e", "d"}, "first reverse page")
-
-	// Second page
-	page = reversePager.GetPage(1)
-	assertPage(t, page, []string{"c", "b"}, "second reverse page")
-
-	// Last page (partial)
-	page = reversePager.GetPage(2)
-	assertPage(t, page, []string{"a"}, "last reverse page")
+		for _, tt := range tests {
+			page := pager.GetPageWithSize(tt.pageNumber, tt.pageSize)
+			uassert.Equal(t, len(tt.expected), len(page.Items))
+			for i, item := range page.Items {
+				uassert.Equal(t, tt.expected[i].Index, item.Index)
+				uassert.Equal(t, tt.expected[i].Value, item.Value)
+			}
+		}
+	})
 }
 
 func TestUListWrapperWithDeletedItems(t *testing.T) {
 	// Create a list with some deleted items
 	list := ulist.New()
 	list.Append("a", "b", "c", "d", "e")
-	list.Delete(1, 3) // Delete "b" and "d"
+	list.Delete(1) // Delete "b"
+	list.Delete(3) // Delete "d"
 
 	pager := NewPager(list, 2, false)
 
-	// First page should skip deleted items
-	page := pager.GetPage(0)
+	// First page should contain non-deleted items
+	page := pager.GetPage(1)
 	assertPage(t, page, []string{"a", "c"}, "first page with deleted items")
 
-	// Second page
-	page = pager.GetPage(1)
+	// Second page should contain remaining non-deleted item
+	page = pager.GetPage(2)
 	assertPage(t, page, []string{"e"}, "second page with deleted items")
 }
 
@@ -69,7 +95,7 @@ func assertPage(t *testing.T, got *pageable.Page, want []string, desc string) {
 
 	for i := 0; i < len(want); i++ {
 		if got.Items[i].Value.(string) != want[i] {
-			t.Errorf("%s: at index %d expected %q, got %q", desc, i, want[i], got.Items[i])
+			t.Errorf("%s: at index %d expected %q, got %q", desc, i, want[i], got.Items[i].Value)
 		}
 	}
 }

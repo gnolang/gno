@@ -77,18 +77,3 @@ func (w *Wrapper) IterateByOffset(offset int, count int, cb func(index interface
 		return cb(key, value)
 	})
 }
-
-// Helper functions
-func max(a, b int) int {
-	if a > b {
-		return a
-	}
-	return b
-}
-
-func min(a, b int) int {
-	if a < b {
-		return a
-	}
-	return b
-}
