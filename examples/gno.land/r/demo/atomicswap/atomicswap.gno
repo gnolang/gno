@@ -103,23 +103,23 @@ func NewCustomGRC20Swap(recipient std.Address, hashlock string, timelock time.Ti
 
 	allowance := token.Allowance(sender, curAddr)
 	require(allowance > 0, "no allowance")
-	
+
 	userTeller := token.CallerTeller()
 	err := userTeller.TransferFrom(sender, curAddr, allowance)
 	require(err == nil, "cannot retrieve tokens from allowance")
-	
+
 	amountStr := ufmt.Sprintf("%d%s", allowance, token.GetSymbol())
 	sendFn := func(to std.Address) {
 		err := userTeller.Transfer(to, allowance)
 		require(err == nil, "cannot transfer tokens")
 	}
-	
+
 	swap := newSwap(sender, recipient, hashlock, timelock, amountStr, sendFn)
-	
+
 	counter++
 	id := strconv.Itoa(counter)
 	swaps.Set(id, swap)
-	
+
 	return counter, swap
 }
 
