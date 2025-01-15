@@ -62,74 +62,92 @@ func (p *Pager) GetPage(pageNumber int) *Page {
 	return p.GetPageWithSize(pageNumber, p.DefaultPageSize)
 }
 
-func (p *Pager) GetPageWithSize(pageNumber, pageSize int) *Page {
+// Helper function to create a basic page
+func (p *Pager) newBasePage(pageSize int) *Page {
 	totalItems := p.Source.Size()
-
-	// Handle invalid page size
-	if pageSize <= 0 {
-		return &Page{
-			TotalItems: totalItems,
-			TotalPages: 0,
-			PageSize:   pageSize,
-			Pager:      p,
-		}
+	totalPages := 0
+	if pageSize > 0 {
+		totalPages = int(math.Ceil(float64(totalItems) / float64(pageSize)))
 	}
 
-	totalPages := int(math.Ceil(float64(totalItems) / float64(pageSize)))
-
-	page := &Page{
+	return &Page{
 		TotalItems: totalItems,
 		TotalPages: totalPages,
 		PageSize:   pageSize,
 		Pager:      p,
 	}
+}
 
-	// pages without content
-	if pageSize < 1 {
+func (p *Pager) GetPageWithSize(pageNumber, pageSize int) *Page {
+	// Handle invalid page size
+	if pageSize <= 0 {
+		return p.newBasePage(pageSize)
+	}
+
+	page := p.newBasePage(pageSize)
+
+	// For empty source, return empty page with no navigation
+	if page.TotalItems == 0 {
+		page.HasPrev = false
+		page.HasNext = false
 		return page
 	}
 
 	// page number provided is not available
 	if pageNumber < 1 {
-		page.HasNext = totalPages > 0
+		page.HasNext = page.TotalPages > 0
 		return page
 	}
 
 	// page number provided is outside the range of total pages
-	if pageNumber > totalPages {
+	if pageNumber > page.TotalPages {
 		page.PageNumber = pageNumber
-		page.HasPrev = pageNumber > 0
+		page.HasPrev = page.TotalPages > 0
 		return page
 	}
 
-	// Calculate offset based on page number
-	offset := (pageNumber - 1) * pageSize
+	// Calculate offset and size
+	var offset, iterCount int
 	if p.Reversed {
-		offset = totalItems - pageSize - offset
-		if offset < 0 {
-			pageSize += offset // Reduce pageSize if we're going past the start
-			offset = 0
-		}
+		// For reversed order, calculate from the end
+		iterCount = min(pageSize, page.TotalItems-((pageNumber-1)*pageSize))
+		offset = max(0, page.TotalItems-(pageNumber*pageSize))
+	} else {
+		offset = (pageNumber - 1) * pageSize
+		iterCount = pageSize
 	}
 
 	// Collect items for the current page
 	var items []Item
-	iterCount := pageSize
 	if p.Reversed {
-		iterCount = -pageSize
-	}
-	p.Source.IterateByOffset(offset, iterCount, func(index interface{}, value interface{}) bool {
-		items = append(items, Item{
-			Index: index,
-			Value: value,
+		// For reversed order, iterate from the end of the array
+		if offset == 0 && iterCount == 1 {
+			// Special case for last partial page
+			p.Source.IterateByOffset(0, 1, func(index interface{}, value interface{}) bool {
+				items = append(items, Item{Index: index, Value: value})
+				return true
+			})
+		} else {
+			startIndex := page.TotalItems - offset - 1
+			endIndex := startIndex - iterCount + 1
+			for i := startIndex; i >= endIndex && i >= 0; i-- {
+				p.Source.IterateByOffset(i, 1, func(index interface{}, value interface{}) bool {
+					items = append(items, Item{Index: index, Value: value})
+					return true
+				})
+			}
+		}
+	} else {
+		p.Source.IterateByOffset(offset, iterCount, func(index interface{}, value interface{}) bool {
+			items = append(items, Item{Index: index, Value: value})
+			return false
 		})
-		return false
-	})
+	}
 
 	page.Items = items
 	page.PageNumber = pageNumber
 	page.HasPrev = pageNumber > 1
-	page.HasNext = pageNumber < totalPages
+	page.HasNext = pageNumber < page.TotalPages
 	return page
 }
 
@@ -208,7 +226,18 @@ func (p *Page) Picker() string {
 	return md
 }
 
-// ParseQuery parses the URL to extract the page number and page size.
+// Helper to safely parse positive integers with a default value
+func parsePositiveIntOrDefault(str string, defaultValue int) int {
+	if str == "" {
+		return defaultValue
+	}
+	val, err := strconv.Atoi(str)
+	if err != nil || val < 1 {
+		return defaultValue
+	}
+	return val
+}
+
 func (p *Pager) ParseQuery(rawURL string) (int, int, error) {
 	u, err := url.Parse(rawURL)
 	if err != nil {
@@ -216,32 +245,21 @@ func (p *Pager) ParseQuery(rawURL string) (int, int, error) {
 	}
 
 	query := u.Query()
-	pageNumber := 1
-	pageSize := p.DefaultPageSize
-
-	if p.PageQueryParam != "" {
-		if pageStr := query.Get(p.PageQueryParam); pageStr != "" {
-			pageNumber, err = strconv.Atoi(pageStr)
-			if err != nil || pageNumber < 1 {
-				pageNumber = 1
-			}
-		}
-	}
-
-	if p.SizeQueryParam != "" {
-		if sizeStr := query.Get(p.SizeQueryParam); sizeStr != "" {
-			pageSize, err = strconv.Atoi(sizeStr)
-			if err != nil || pageSize < 1 {
-				pageSize = p.DefaultPageSize
-			}
-		}
-	}
+	pageNumber := parsePositiveIntOrDefault(query.Get(p.PageQueryParam), 1)
+	pageSize := parsePositiveIntOrDefault(query.Get(p.SizeQueryParam), p.DefaultPageSize)
 
 	return pageNumber, pageSize, nil
 }
 
 func max(a, b int) int {
 	if a > b {
+		return a
+	}
+	return b
+}
+
+func min(a, b int) int {
+	if a < b {
 		return a
 	}
 	return b

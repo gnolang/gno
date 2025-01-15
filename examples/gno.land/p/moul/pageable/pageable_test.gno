@@ -271,3 +271,110 @@ func TestInvalidInputs(t *testing.T) {
 		})
 	}
 }
+
+func TestEmptySource(t *testing.T) {
+	mock := &MockPageable{items: []int{}}
+	pager := NewPager(mock, 10, false)
+
+	page := pager.GetPage(1)
+	if page.TotalItems != 0 {
+		t.Errorf("got total items %d, want 0", page.TotalItems)
+	}
+	if page.TotalPages != 0 {
+		t.Errorf("got total pages %d, want 0", page.TotalPages)
+	}
+	if page.HasNext {
+		t.Error("got HasNext=true, want false")
+	}
+	if page.HasPrev {
+		t.Error("got HasPrev=true, want false")
+	}
+	if len(page.Items) != 0 {
+		t.Errorf("got %d items, want 0", len(page.Items))
+	}
+}
+
+func TestReversedPagerEdgeCases(t *testing.T) {
+	mock := &MockPageable{
+		items: []int{1, 2, 3, 4, 5},
+	}
+	pager := NewPager(mock, 2, true)
+
+	tests := []struct {
+		name     string
+		pageNum  int
+		pageSize int
+		want     []int
+	}{
+		{"last partial page", 3, 2, []int{1}},
+		{"oversized page", 1, 10, []int{5, 4, 3, 2, 1}},
+		{"empty result", 4, 2, nil},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			page := pager.GetPageWithSize(tt.pageNum, tt.pageSize)
+			got := make([]int, len(page.Items))
+			for i, item := range page.Items {
+				got[i] = item.Value.(int)
+			}
+
+			if len(got) != len(tt.want) {
+				t.Errorf("got length %d, want length %d", len(got), len(tt.want))
+				return
+			}
+
+			for i := 0; i < len(got); i++ {
+				if got[i] != tt.want[i] {
+					t.Errorf("at index %d: got %d, want %d", i, got[i], tt.want[i])
+				}
+			}
+		})
+	}
+}
+
+func TestCustomQueryParams(t *testing.T) {
+	mock := &MockPageable{items: []int{1, 2, 3}}
+	pager := NewPager(mock, 10, false)
+	pager.PageQueryParam = "p"
+	pager.SizeQueryParam = "s"
+
+	tests := []struct {
+		name     string
+		url      string
+		wantPage int
+		wantSize int
+	}{
+		{"custom params", "/?p=2&s=1", 2, 1},
+		{"old params ignored", "/?page=3&size=2", 1, 10},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			page, size, err := pager.ParseQuery(tt.url)
+			if err != nil {
+				t.Errorf("unexpected error: %v", err)
+			}
+			if page != tt.wantPage {
+				t.Errorf("got page=%d, want %d", page, tt.wantPage)
+			}
+			if size != tt.wantSize {
+				t.Errorf("got size=%d, want %d", size, tt.wantSize)
+			}
+		})
+	}
+}
+
+func TestMustGetPageByPath(t *testing.T) {
+	mock := &MockPageable{items: []int{1, 2, 3}}
+	pager := NewPager(mock, 10, false)
+
+	t.Run("panic on invalid url", func(t *testing.T) {
+		defer func() {
+			if r := recover(); r == nil {
+				t.Error("expected panic but got none")
+			}
+		}()
+		pager.MustGetPageByPath(":%invalid")
+	})
+}
