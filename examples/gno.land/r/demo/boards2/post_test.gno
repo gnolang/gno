@@ -116,7 +116,7 @@ func TestNewThread(t *testing.T) {
 		uint(threadID),
 	)
 	repostURL := ufmt.Sprintf(
-		"/r/demo/boards2$help&func=CreateRepost&bid=%d&postID=%d",
+		"/r/demo/boards2$help&func=CreateRepost&bid=%d&threadID=%d",
 		uint(boardID),
 		uint(threadID),
 	)
