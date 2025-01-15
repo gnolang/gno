@@ -1,7 +1,9 @@
-// PKGPATH: gno.land/r/demo/boards2_test
+// PKGPATH: gno.land/r/demo/boards2/v1_test
 package boards2_test
 
-import "gno.land/r/demo/boards2"
+import (
+	boards2 "gno.land/r/demo/boards2/v1"
+)
 
 func main() {
 	boards2.CreateBoard("foo")
