@@ -80,7 +80,7 @@ func (m *Machine) doOpInc() {
 
 	// Mark dirty in realm.
 	if m.Realm != nil && pv.Base != nil {
-		m.Realm.DidUpdate(pv.Base.(Object), nil, nil)
+		m.Realm.DidUpdate(m.Store, pv.Base.(Object), nil, nil)
 	}
 }
 
@@ -152,6 +152,6 @@ func (m *Machine) doOpDec() {
 
 	// Mark dirty in realm.
 	if m.Realm != nil && pv.Base != nil {
-		m.Realm.DidUpdate(pv.Base.(Object), nil, nil)
+		m.Realm.DidUpdate(m.Store, pv.Base.(Object), nil, nil)
 	}
 }

@@ -148,65 +148,16 @@ func (rlm *Realm) String() string {
 //----------------------------------------
 // ownership hooks
 
-// po's old elem value is xo, will become co.
-// po, xo, and co may each be nil.
-// if rlm or po is nil, do nothing.
-// xo or co is nil if the element value is undefined or has no
-// associated object.
-func (rlm *Realm) DidUpdate(po, xo, co Object) {
-	if bm.OpsEnabled {
-		bm.PauseOpCode()
-		defer bm.ResumeOpCode()
-	}
-	if rlm == nil {
-		return
-	}
-	if debug {
-		if po != nil && po.GetIsTransient() {
-			panic("cannot attach to a transient object")
-		}
-		if po != nil && po.GetIsDeleted() {
-			panic("cannot attach to a deleted object")
-		}
-	}
-
-	if po == nil || !po.GetIsReal() { // XXX, make sure po is real
-		return // do nothing.
-	}
-
-	if po.GetObjectID().PkgID != rlm.ID {
-		panic("cannot modify external-realm or non-realm object")
-	}
-	// XXX check if this boosts performance
-	// XXX with broad integration benchmarking.
-	// XXX if co == xo {
-	// XXX }
-
-	// From here on, po is real (not new-real).
-	// Updates to .newCreated/.newEscaped /.newDeleted made here. (first gen)
-	// More appends happen during FinalizeRealmTransactions(). (second+ gen)
-	rlm.MarkDirty(po)
-
-	if xo != nil {
-		xo.DecRefCount()
-		if xo.GetRefCount() == 0 {
-			if xo.GetIsReal() {
-				rlm.MarkNewDeleted(xo)
-			}
-		}
-	}
-}
-
 // ref value is the derived value from co, like a slice.
-func (rlm *Realm) DidUpdate2(store Store, po, xo, co Object, originValue Value) {
+func (rlm *Realm) DidUpdate(store Store, po, xo, co Object) {
 	debug2.Printf2("DidUpdate2, po: %v, type of po: %v\n", po, reflect.TypeOf(po))
 	debug2.Println2("po.GetIsReal: ", po.GetIsReal())
 	debug2.Printf2("xo: %v, type of xo: %v\n", xo, reflect.TypeOf(xo))
 	debug2.Printf2("co: %v, type of co: %v\n", co, reflect.TypeOf(co))
-	debug2.Println2("rlm.ID: ", rlm.ID)
-	debug2.Println2("originValue: ", originValue)
+	//debug2.Println2("rlm.ID: ", rlm.ID)
 	if co != nil {
 		debug2.Println2("co.GetOriginRealm: ", co.GetOriginRealm())
+		debug2.Println2("originValue: ", co.GetOriginValue())
 	}
 
 	if rlm == nil {
@@ -250,7 +201,7 @@ func (rlm *Realm) DidUpdate2(store Store, po, xo, co Object, originValue Value) 
 		// XXX, inc ref count everytime assignment happens
 		co.IncRefCount()
 		if co.GetRefCount() > 1 {
-			rlm.MarkNewEscapedCheckCrossRealm(store, co, originValue)
+			rlm.MarkNewEscapedCheckCrossRealm(store, co, co.GetOriginValue())
 		} else if co.GetIsReal() {
 			rlm.MarkDirty(co)
 		} else {
@@ -312,7 +263,9 @@ func checkCrossRealm(rlm *Realm, store Store, oo Object, refValue Value) {
 	// TODO: complete this
 	case *Block:
 		// XXX, can this happen?
-		if !v.GetIsRef() {
+		switch v.GetOriginValue().(type) {
+		case PointerValue, *SliceValue, *FuncValue:
+		default:
 			panic("should not happen, block is not real")
 		}
 	case *HeapItemValue:
@@ -343,6 +296,7 @@ func checkCrossRealm(rlm *Realm, store Store, oo Object, refValue Value) {
 func (rlm *Realm) MarkNewEscapedCheckCrossRealm(store Store, oo Object, originValue Value) {
 	debug2.Println2("MarkNewEscapedCheckCrossRealm, oo: ", oo)
 	debug2.Println2("oo.GetOriginRealm(): ", oo.GetOriginRealm())
+	debug2.Println2("originValue: ", originValue)
 	debug2.Println2("rlm.ID: ", rlm.ID)
 
 	if oo.GetOriginRealm() == rlm.ID {
@@ -350,7 +304,7 @@ func (rlm *Realm) MarkNewEscapedCheckCrossRealm(store Store, oo Object, originVa
 		return
 	}
 
-	if oo.GetOriginRealm() != rlm.ID { // crossing realm
+	if !oo.GetOriginRealm().IsZero() && oo.GetOriginRealm() != rlm.ID { // crossing realm
 		if originValue != nil { // is reference object from external realm
 			checkCrossRealm(rlm, store, oo, originValue)
 		} else {
@@ -581,7 +535,6 @@ func (rlm *Realm) incRefCreatedDescendants(store Store, oo Object) {
 	debug2.Println2("---oo.GetOriginRealm: ", oo.GetOriginRealm())
 	debug2.Println2("---oo.GetRefCount: ", oo.GetRefCount())
 	debug2.Println2("---rlm.ID: ", rlm.ID)
-	debug2.Println2("oo.GetIsRef: ", oo.GetIsRef())
 	debug2.Println2("oo.GetOriginValue: ", oo.GetOriginValue())
 
 	if debug {
@@ -596,40 +549,41 @@ func (rlm *Realm) incRefCreatedDescendants(store Store, oo Object) {
 	// XXX, oo must be new real here, it's not escaped
 	// if it's reference, all right
 	if !oo.GetOriginRealm().IsZero() && oo.GetOriginRealm() != rlm.ID {
-		if oo.GetIsRef() {
+		switch oo.GetOriginValue().(type) {
+		case PointerValue, *SliceValue: // ref
 			panic("cannot attach a reference to an unreal object from an external realm")
-		} else {
-			panic("cannot attach a value of a type defined by another realm")
-		}
-	}
+		case *FuncValue:
+			if b, ok := oo.(*Block); ok {
+				debug2.Println2("block: ", b)
+				originValue := b.GetOriginValue()
+				debug2.Println2("originValue: ", originValue)
 
-	if b, ok := oo.(*Block); ok {
-		debug2.Println2("block: ", b)
-		originValue := b.GetOriginValue()
-		debug2.Println2("originValue: ", originValue)
+				if fv, ok := originValue.(*FuncValue); ok {
+					debug2.Println2("fv:  ", fv)
+					debug2.Println2("fv...values: ", fv.Source.GetStaticBlock().Values)
+					for _, tv := range fv.Source.GetStaticBlock().Values {
+						debug2.Println2("tv:  ", tv)
+						debug2.Println2("tv.V:  ", tv.V, reflect.TypeOf(tv.V))
+						debug2.Println2("tv.T:  ", tv.T, reflect.TypeOf(tv.T))
 
-		if fv, ok := originValue.(*FuncValue); ok {
-			debug2.Println2("fv:  ", fv)
-			debug2.Println2("fv...values: ", fv.Source.GetStaticBlock().Values)
-			for _, tv := range fv.Source.GetStaticBlock().Values {
-				debug2.Println2("tv:  ", tv)
-				debug2.Println2("tv.V:  ", tv.V, reflect.TypeOf(tv.V))
-				debug2.Println2("tv.T:  ", tv.T, reflect.TypeOf(tv.T))
-
-				if dt, ok := tv.T.(*DeclaredType); ok {
-					debug2.Printf2("getPkgId, dt: %v, dt.Base: %v, type of base: %v \n", dt, dt.Base, reflect.TypeOf(dt.Base))
-					switch tt := dt.Base.(type) {
-					case *StructType, *InterfaceType: // types with pkgpath
-						if IsRealmPath(tt.GetPkgPath()) {
-							originPkg := PkgIDFromPkgPath(dt.Base.GetPkgPath())
-							if originPkg != rlm.ID {
-								panic("cannot attach function contains object from external realm")
+						if dt, ok := tv.T.(*DeclaredType); ok {
+							debug2.Printf2("getPkgId, dt: %v, dt.Base: %v, type of base: %v \n", dt, dt.Base, reflect.TypeOf(dt.Base))
+							switch tt := dt.Base.(type) {
+							case *StructType, *InterfaceType: // types with pkgpath
+								if IsRealmPath(tt.GetPkgPath()) {
+									originPkg := PkgIDFromPkgPath(dt.Base.GetPkgPath())
+									if originPkg != rlm.ID {
+										panic("cannot attach function contains object from external realm")
+									}
+								}
 							}
 						}
+						// TODO: also check captures
 					}
 				}
-				// TODO: also check captures
 			}
+		default:
+			panic("cannot attach a value of a type defined by another realm")
 		}
 	}
 
@@ -672,8 +626,6 @@ func (rlm *Realm) incRefCreatedDescendants(store Store, oo Object) {
 				// NOTE: may already be marked for first gen
 				// newCreated or updated.
 				child.SetOwner(oo)
-				//child.SetIsRef(isRef2)
-				//child.SetOriginValue(originValue2)
 				rlm.incRefCreatedDescendants(store, child)
 				child.SetIsNewReal(true)
 			}

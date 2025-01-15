@@ -117,8 +117,6 @@ type Object interface {
 	SetOriginRealm(pkgID PkgID)
 	GetOriginValue() Value
 	SetOriginValue(v Value)
-	GetIsRef() bool
-	SetIsRef(bool)
 	GetIsNewEscaped() bool
 	SetIsNewEscaped(bool)
 	GetIsNewDeleted() bool
@@ -150,7 +148,6 @@ type ObjectInfo struct {
 	isDirty      bool
 	isDeleted    bool
 	isNewReal    bool
-	isRef        bool
 	isNewEscaped bool
 	isNewDeleted bool
 	originRealm  PkgID // realm where object is from
@@ -169,7 +166,6 @@ func (oi *ObjectInfo) Copy() ObjectInfo {
 		ModTime:   oi.ModTime,
 		RefCount:  oi.RefCount,
 		IsEscaped: oi.IsEscaped,
-		//originRealm: oi.originRealm,
 		/*
 			// XXX do the following need copying too?
 			isDirty:          oi.isDirty,
@@ -334,14 +330,6 @@ func (oi *ObjectInfo) GetOriginValue() Value {
 
 func (oi *ObjectInfo) SetOriginValue(v Value) {
 	oi.originValue = v
-}
-
-func (oi *ObjectInfo) GetIsRef() bool {
-	return oi.isRef
-}
-
-func (oi *ObjectInfo) SetIsRef(isRef bool) {
-	oi.isRef = isRef
 }
 
 func (oi *ObjectInfo) GetIsNewEscaped() bool {

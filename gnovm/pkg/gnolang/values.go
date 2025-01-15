@@ -255,7 +255,7 @@ func (pv PointerValue) Assign2(alloc *Allocator, store Store, rlm *Realm, tv2 Ty
 								panic("should not happen")
 							}
 							if nv, ok := tv2.V.(*NativeValue); !ok ||
-								nv.Value.Kind() != reflect.Func {
+									nv.Value.Kind() != reflect.Func {
 								panic("should not happen")
 							}
 						}
@@ -301,38 +301,31 @@ func (pv PointerValue) Assign2(alloc *Allocator, store Store, rlm *Realm, tv2 Ty
 		debug2.Println2("oo2: ", oo2)
 
 		// XXX, special case for floating func value
-
 		if originPkg != rlm.ID {
-			if fv, ok := pv.TV.V.(*FuncValue); ok {
-				if oo2.GetObjectID().IsZero() { // the funcValue has not attached
-					debug2.Println2("fv: ", fv)
-					clo := fv.GetClosure(store)
-					b := NewBlock(fv.GetSource(store), clo)
-					debug2.Println2("b for fv: ", b)
-					oo2 = b
-				}
+			// the funcValue has not attached,
+			// it has the chance to be attached to
+			// external realm, if it does not reference
+			// other values in current realm.
+			if fv, ok := pv.TV.V.(*FuncValue); ok && oo2.GetObjectID().IsZero() {
+				//debug2.Println2("fv: ", fv)
+				b := NewBlock(fv.GetSource(store), fv.GetClosure(store))
+				//debug2.Println2("b for fv: ", b)
+				oo2 = b
 			}
 		}
 
-		// refValue is needed for checking
+		// originValue is needed for checking
 		// proper element in the base.
 		// e.g. refValue is a sliceValue
-		var originValue Value
 		switch rv := pv.TV.V.(type) {
-		case *SliceValue, PointerValue:
-			originValue = rv
-			oo2.SetIsRef(true)
-			oo2.SetOriginValue(rv)
-		case *FuncValue:
-			//originValue = rv
+		case *SliceValue, PointerValue, *FuncValue:
 			oo2.SetOriginValue(rv)
 		}
 
-		debug2.Println2("pv: ", pv)
 		if oo2 != nil && !originPkg.IsZero() {
 			oo2.SetOriginRealm(originPkg) // attach origin package info
 		}
-		rlm.DidUpdate2(store, pv.Base.(Object), oo1, oo2, originValue)
+		rlm.DidUpdate(store, pv.Base.(Object), oo1, oo2)
 	} else {
 		pv.TV.Assign(alloc, tv2, cu)
 	}
