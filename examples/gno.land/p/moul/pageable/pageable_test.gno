@@ -16,8 +16,8 @@ func (m *MockPageable) Size() int {
 func (m *MockPageable) IterateByOffset(offset int, count int, cb func(index interface{}, value interface{}) bool) bool {
 	if count < 0 {
 		// Handle reversed iteration
-		count = -count // Make count positive
-		start := offset
+		count = -count                     // Make count positive
+		start := len(m.items) - 1 - offset // Adjust start position from the end
 		if start >= len(m.items) {
 			start = len(m.items) - 1
 		}
