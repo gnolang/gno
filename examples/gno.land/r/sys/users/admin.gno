@@ -10,21 +10,19 @@ import (
 
 const (
 	adminAddr    = "g1u7y667z64x2h7vc6fmpcprgey4ck233jaww9zq" // @moul
-	gnolandUsers = "gno.land/r/gnoland/users"                 // preregistered with store write perms
+	gnolandUsers = "gno.land/r/gnoland/users/v1"              // preregistered with store write perms
 )
 
 var (
 	callerWhitelist = addrset.Set{}
 
 	// Safe objects
-	Ownable  = ownable.NewWithAddress(adminAddr) // Until a DAO is formed to manage this contract
+	Ownable  = ownable.NewWithAddress(adminAddr) // Callers to r/sys/users can be updated by the admin or by GovDAO
 	Pausable = pausable.NewFromOwnable(Ownable)
 )
 
 func init() {
-	// Set initial whitelisted caller
-	callerWhitelist.Add(std.DerivePkgAddr(gnolandUsers))
-
+	callerWhitelist.Add(std.DerivePkgAddr(gnolandUsers)) // initially whitelisted
 }
 
 // AddToWhitelist adds a new address to the caller whitelist
@@ -33,17 +31,7 @@ func AddToWhitelist(addr std.Address) error {
 		return ownable.ErrUnauthorized
 	}
 
-	if !addr.IsValid() {
-		return ErrInvalidAddress
-	}
-
-	if callerWhitelist.Has(addr) {
-		return ErrAlreadyWhitelisted
-	}
-
-	callerWhitelist.Add(addr)
-
-	return nil
+	return addToWhitelist(addr)
 }
 
 // DelFromWhitelist removes a caller from the whitelist
@@ -52,6 +40,39 @@ func DelFromWhitelist(addr std.Address) error {
 		return ownable.ErrUnauthorized
 	}
 
+	return deleteFromwhitelist(addr)
+}
+
+// IsOnWhitelist checks if the given address has
+// permission to write to the user store
+func IsOnWhitelist(addr std.Address) bool {
+	return callerWhitelist.Has(addr)
+}
+
+// GovDAO prop executors
+// FIXME: creates a cyclic dep between govdao & r/sys/users. see how to fix
+// 3rd package could be a solution but its ugly
+//// NewWhitelistedCallerExecutor allows a GovDAO proposal to add a whitelisted caller to r/sys/users
+//func NewWhitelistedCallerExecutor(newCaller std.Address) dao.Executor {
+//	callback := func() error {
+//		return addToWhitelist(newCaller)
+//	}
+//
+//	return bridge.GovDAO().NewGovDAOExecutor(callback)
+//}
+//
+//// NewDeleteCallerExecutor allows a GovDAO proposal to remove a whitelisted caller to r/sys/users
+//func NewDeleteCallerExecutor(newCaller std.Address) dao.Executor {
+//	callback := func() error {
+//		return deleteFromwhitelist(newCaller)
+//	}
+//
+//	return bridge.GovDAO().NewGovDAOExecutor(callback)
+//}
+
+// Helpers
+
+func deleteFromwhitelist(addr std.Address) error {
 	if !callerWhitelist.Has(addr) {
 		return ErrNotWhitelisted
 	}
@@ -63,8 +84,14 @@ func DelFromWhitelist(addr std.Address) error {
 	return nil
 }
 
-// IsOnWhitelist checks if the given address has
-// permission to write to the user store
-func IsOnWhitelist(addr std.Address) bool {
-	return callerWhitelist.Has(addr)
+func addToWhitelist(newCaller std.Address) error {
+	if !newCaller.IsValid() {
+		return ErrInvalidAddress
+	}
+	if callerWhitelist.Has(newCaller) {
+		return ErrAlreadyWhitelisted
+	}
+
+	callerWhitelist.Add(newCaller)
+	return nil
 }

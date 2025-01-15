@@ -84,20 +84,20 @@ func RegisterUser(name string, address std.Address) error {
 	return nil
 }
 
-// RegisterAlias adds an Alias pointing to an existing user.
-func RegisterAlias(alias string, address std.Address) error {
+// ChangeName adds an Alias pointing to an existing user.
+func ChangeName(newName string, address std.Address) error {
 	// Validate caller
 	if err := validateCall(); err != nil {
 		return err
 	}
 
 	// Validate inputs
-	if err := validateInputs(alias, address); err != nil {
+	if err := validateInputs(newName, address); err != nil {
 		return err
 	}
 
 	// Check if the requested Alias is already taken
-	if nameStore.Has(alias) {
+	if nameStore.Has(newName) {
 		return ErrNameTaken
 	}
 
@@ -113,10 +113,10 @@ func RegisterAlias(alias string, address std.Address) error {
 		return ErrDeletedUser
 	}
 
-	userData.username = alias
-	nameStore.Set(alias, userData)
+	userData.username = newName
+	nameStore.Set(newName, userData)
 
-	std.Emit(RegisterAliasEvent, "Alias", alias, "address", address.String())
+	std.Emit(RegisterAliasEvent, "Alias", newName, "address", address.String())
 	return nil
 }
 
@@ -126,12 +126,12 @@ func Delete(addr std.Address) error {
 		return err
 	}
 
-	data := ResolveAddress(addr)
+	data, deleted := ResolveAddress(addr)
 	if data == nil {
 		return ErrUserNotExist
 	}
 
-	if data.deleted {
+	if deleted {
 		return ErrAlreadyDeleted
 	}
 

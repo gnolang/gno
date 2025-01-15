@@ -7,7 +7,8 @@ import (
 	"gno.land/p/demo/dao"
 	"gno.land/p/demo/ufmt"
 	"gno.land/p/moul/txlink"
-	"gno.land/r/demo/users"
+
+	"gno.land/r/sys/users"
 )
 
 func Render(path string) string {
@@ -41,10 +42,10 @@ func Render(path string) string {
 			out += ufmt.Sprintf("## [Prop #%d - %s](/r/gov/dao/v2:%d)\n\n", propID, title, propID)
 			out += ufmt.Sprintf("**Status: %s**\n\n", strings.ToUpper(prop.Status().String()))
 
-			user := users.GetUserByAddress(prop.Author())
+			user := users.ResolveAddress(prop.Author())
 			authorDisplayText := prop.Author().String()
 			if user != nil {
-				authorDisplayText = ufmt.Sprintf("[%s](/r/demo/users:%s)", user.Name, user.Name)
+				authorDisplayText = ufmt.Sprintf("[%s](/r/demo/users:%s)", user.Name(), user.Name())
 			}
 
 			out += ufmt.Sprintf("**Author: %s**\n\n", authorDisplayText)
@@ -91,9 +92,9 @@ func renderAuthor(p dao.Proposal) string {
 	var out string
 
 	authorUsername := ""
-	user := users.GetUserByAddress(p.Author())
+	user := users.ResolveAddress(p.Author())
 	if user != nil {
-		authorUsername = user.Name
+		authorUsername = user.Name()
 	}
 
 	if authorUsername != "" {
