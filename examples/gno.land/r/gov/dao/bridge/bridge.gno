@@ -55,13 +55,6 @@ func RegisterNewDAOImpl(d DAO) {
 	b.dao = d
 }
 
-// SetDAO manually sets the currently active GovDAO implementation
-func SetDAO(dao DAO) {
-	b.AssertCallerIsOwner()
-
-	b.dao = dao
-}
-
 // GovDAO returns the current GovDAO implementation
 func GovDAO() DAO {
 	return b.dao
