@@ -19,14 +19,23 @@ func CreateField(label string, fieldType string, required bool) Field {
 func (db *FormDB) CreateForm(title string, description string, openAt string, closeAt string, data string) (string, error) {
 	// Parsing the dates
 	const dateFormat = "2006-01-02T15:04:05Z"
-	
-	parsedOpenTime, err := time.Parse(dateFormat, openAt)
-	if err != nil {
-		return "", errInvalidDate
+
+	var parsedOpenTime, parsedCloseTime time.Time
+
+	if openAt != "" {
+		var err error
+		parsedOpenTime, err = time.Parse(dateFormat, openAt)
+		if err != nil {
+			return "", errInvalidDate
+		}
 	}
-	parsedCloseTime, err := time.Parse(dateFormat, closeAt)
-	if err != nil {
-		return "", errInvalidDate
+
+	if closeAt != "" {
+		var err error
+		parsedCloseTime, err = time.Parse(dateFormat, closeAt)
+		if err != nil {
+			return "", errInvalidDate
+		}
 	}
 
 	// Parsing the json submission

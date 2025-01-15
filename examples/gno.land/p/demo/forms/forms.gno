@@ -26,8 +26,8 @@ type Form struct {
 	Description string
 	Fields      []Field
 	CreatedAt   time.Time
-	openAt      *time.Time
-	closeAt     *time.Time
+	openAt      time.Time
+	closeAt     time.Time
 }
 
 // Answers example :
@@ -82,20 +82,20 @@ func (form *Form) IsOpen() bool {
 
 // OpenAt returns the open date of the form if it exists
 func (form *Form) OpenAt() (time.Time, error) {
-	if form.openAt == nil {
+	if form.openAt.IsZero() {
 		return time.Time{}, errNoOpenDate
 	}
 
-	return *form.openAt, nil
+	return form.openAt, nil
 }
 
 // CloseAt returns the close date of the form if it exists
 func (form *Form) CloseAt() (time.Time, error) {
-	if form.closeAt == nil {
+	if form.closeAt.IsZero() {
 		return time.Time{}, errNoCloseDate
 	}
 
-	return *form.closeAt, nil
+	return form.closeAt, nil
 }
 
 // GetForm returns a form by its ID if it exists
