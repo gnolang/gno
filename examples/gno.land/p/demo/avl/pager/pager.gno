@@ -38,8 +38,13 @@ func (w *Wrapper) IterateByOffset(offset int, count int, cb func(index interface
 		return false
 	}
 
-	// Use the tree's IterateByOffset with the full count
-	// (positive for forward, negative for reverse)
+	// Use ReverseIterateByOffset for negative count
+	if count < 0 {
+		return w.tree.ReverseIterateByOffset(offset, -count, func(key string, value interface{}) bool {
+			return cb(key, value)
+		})
+	}
+
 	return w.tree.IterateByOffset(offset, count, func(key string, value interface{}) bool {
 		return cb(key, value)
 	})
