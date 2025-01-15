@@ -49,7 +49,7 @@ func AllowNewGovDAOVersion(newGovDAOPath string) {
 // after it has been allowlisted by AllowNewGovDAOVersion
 func RegisterNewDAOImpl(d DAO) {
 	if std.PrevRealm().PkgPath() != allowedGovDAOPath {
-		panic("caller needs to be an allowlisted GovDAO implementation")
+		panic("caller not allowlisted")
 	}
 
 	b.dao = d
