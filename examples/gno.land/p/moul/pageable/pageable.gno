@@ -1,4 +1,15 @@
-// Package pageable provides a generic pagination system
+// Package pageable implements a flexible pagination system that can be used with any data structure
+// that implements the Pageable interface. It provides functionality for:
+//
+//   - Paginating through collections of items
+//   - Configurable page sizes
+//   - Forward and reverse iteration
+//   - URL query parameter parsing
+//   - Markdown-based pagination UI
+//
+// This package is currently used by:
+//   - gno.land/p/demo/avl/pager: implementation for AVL trees.
+//   - gno.land/p/moul/ulist/pager: implementation for ulist
 package pageable
 
 import (
@@ -9,13 +20,26 @@ import (
 	"gno.land/p/demo/ufmt"
 )
 
-// Pageable defines the minimal interface required for pagination
+// Pageable defines the minimal interface required for pagination.
+// This interface is intentionally lightweight, requiring only two methods.
+// While some data structures (like AVL trees) might have separate methods for forward
+// and reverse iteration, this interface consolidates both directions into a single
+// IterateByOffset method. It's the responsibility of the implementing wrapper to
+// handle the direction logic internally based on the offset and count parameters.
 type Pageable interface {
 	// Size returns the total number of items
 	Size() int
 
-	// IterateByOffset performs iteration starting from offset for count elements
-	// The callback receives an index and a value, returns true to stop iteration
+	// IterateByOffset performs iteration starting from offset for count elements.
+	// The callback receives an index and a value, returns true to stop iteration.
+	//
+	// For reverse iteration, the implementation should handle the direction internally
+	// by adjusting how it interprets the offset and count parameters. For example:
+	// - In forward mode: offset 0, count 5 would return items [0,1,2,3,4]
+	// - In reverse mode: offset 0, count 5 would return items [4,3,2,1,0]
+	//
+	// This approach allows the interface to remain simple while supporting
+	// bidirectional iteration through the implementation layer.
 	IterateByOffset(offset int, count int, cb func(index interface{}, value interface{}) bool) bool
 }
 
@@ -120,23 +144,12 @@ func (p *Pager) GetPageWithSize(pageNumber, pageSize int) *Page {
 	// Collect items for the current page
 	var items []Item
 	if p.Reversed {
-		// For reversed order, iterate from the end of the array
-		if offset == 0 && iterCount == 1 {
-			// Special case for last partial page
-			p.Source.IterateByOffset(0, 1, func(index interface{}, value interface{}) bool {
-				items = append(items, Item{Index: index, Value: value})
-				return true
-			})
-		} else {
-			startIndex := page.TotalItems - offset - 1
-			endIndex := startIndex - iterCount + 1
-			for i := startIndex; i >= endIndex && i >= 0; i-- {
-				p.Source.IterateByOffset(i, 1, func(index interface{}, value interface{}) bool {
-					items = append(items, Item{Index: index, Value: value})
-					return true
-				})
-			}
-		}
+		// For reversed order, use negative count to indicate reverse iteration
+		offset = page.TotalItems - offset - iterCount
+		p.Source.IterateByOffset(offset, -iterCount, func(index interface{}, value interface{}) bool {
+			items = append(items, Item{Index: index, Value: value})
+			return false
+		})
 	} else {
 		p.Source.IterateByOffset(offset, iterCount, func(index interface{}, value interface{}) bool {
 			items = append(items, Item{Index: index, Value: value})

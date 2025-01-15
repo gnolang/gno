@@ -7,30 +7,55 @@ import (
 
 // NewPager creates a new Pager with default values.
 func NewPager(tree avl.ITree, defaultPageSize int, reversed bool) *pageable.Pager {
-	wrappedTree := NewAVLWrapper(tree)
+	wrappedTree := NewWrapper(tree)
 	return pageable.NewPager(wrappedTree, defaultPageSize, reversed)
 }
 
-// AVLWrapper adapts an avl.ITree to implement Pageable
-type AVLWrapper struct {
+// Wrapper adapts an avl.ITree to implement Pageable
+type Wrapper struct {
 	tree avl.ITree
 }
 
-func NewAVLWrapper(tree avl.ITree) *AVLWrapper {
-	return &AVLWrapper{tree: tree}
+func NewWrapper(tree avl.ITree) *Wrapper {
+	return &Wrapper{tree: tree}
 }
 
-func (w *AVLWrapper) Size() int {
+func (w *Wrapper) Size() int {
 	return w.tree.Size()
 }
 
-func (w *AVLWrapper) IterateByOffset(offset int, count int, cb func(index interface{}, value interface{}) bool) bool {
-	if count < 0 {
-		return w.tree.ReverseIterateByOffset(offset, count, func(key string, value interface{}) bool {
-			return cb(key, value)
-		})
+func (w *Wrapper) IterateByOffset(offset int, count int, cb func(index interface{}, value interface{}) bool) bool {
+	if count == 0 {
+		return false
 	}
+
+	size := w.tree.Size()
+	if size == 0 {
+		return false
+	}
+
+	if offset >= size {
+		return false
+	}
+
+	// Use the tree's IterateByOffset with the full count
+	// (positive for forward, negative for reverse)
 	return w.tree.IterateByOffset(offset, count, func(key string, value interface{}) bool {
 		return cb(key, value)
 	})
+}
+
+// Helper functions
+func max(a, b int) int {
+	if a > b {
+		return a
+	}
+	return b
+}
+
+func min(a, b int) int {
+	if a < b {
+		return a
+	}
+	return b
 }

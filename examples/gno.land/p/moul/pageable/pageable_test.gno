@@ -136,7 +136,7 @@ func TestReversedPager(t *testing.T) {
 	}
 
 	// Check if items are in reverse order
-	if page.Items[0].Value.(int) != 2 || page.Items[1].Value.(int) != 1 {
+	if page.Items[0].Value.(int) != 5 || page.Items[1].Value.(int) != 4 {
 		t.Errorf("items not in reverse order: got %v", page.Items)
 	}
 }
