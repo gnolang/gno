@@ -223,3 +223,57 @@ func TestPager_ParseQuery(t *testing.T) {
 		}
 	}
 }
+
+func TestWrapper_IterateByOffset(t *testing.T) {
+	tree := avl.NewTree()
+	tree.Set("a", 1)
+	tree.Set("b", 2)
+	wrapper := NewWrapper(tree)
+
+	t.Run("empty count", func(t *testing.T) {
+		result := wrapper.IterateByOffset(0, 0, func(k, v interface{}) bool { return true })
+		uassert.Equal(t, false, result)
+	})
+
+	t.Run("empty tree", func(t *testing.T) {
+		emptyWrapper := NewWrapper(avl.NewTree())
+		result := emptyWrapper.IterateByOffset(0, 1, func(k, v interface{}) bool { return true })
+		uassert.Equal(t, false, result)
+	})
+
+	t.Run("offset beyond size", func(t *testing.T) {
+		result := wrapper.IterateByOffset(3, 1, func(k, v interface{}) bool { return true })
+		uassert.Equal(t, false, result)
+	})
+}
+
+func TestPager_ReversedWithDifferentSizes(t *testing.T) {
+	tree := avl.NewTree()
+	for i := 0; i < 10; i++ {
+		tree.Set(ufmt.Sprintf("key%d", i), i)
+	}
+
+	pager := NewPager(tree, 3, true) // Default page size of 3, reversed order
+
+	tests := []struct {
+		pageNumber int
+		pageSize   int
+		wantFirst  string
+		wantLast   string
+	}{
+		{1, 4, "key9", "key6"},
+		{2, 4, "key5", "key2"},
+		{3, 4, "key1", "key0"},
+		{4, 4, "", ""}, // Empty page
+	}
+
+	for _, tt := range tests {
+		page := pager.GetPageWithSize(tt.pageNumber, tt.pageSize)
+		if len(page.Items) > 0 {
+			uassert.Equal(t, tt.wantFirst, page.Items[0].Index)
+			uassert.Equal(t, tt.wantLast, page.Items[len(page.Items)-1].Index)
+		} else {
+			uassert.Equal(t, 0, len(page.Items))
+		}
+	}
+}
