@@ -155,7 +155,7 @@ func (thread *Post) GetReply(pid PostID) (_ *Post, found bool) {
 	return v.(*Post), true
 }
 
-func (post *Post) AddRepostTo(creator std.Address, title, body string, dst *Board) *Post {
+func (post *Post) AddRepostTo(creator std.Address, repost *Post, dst *Board) {
 	if !post.IsThread() {
 		panic("cannot repost non-thread post")
 	}
@@ -164,16 +164,11 @@ func (post *Post) AddRepostTo(creator std.Address, title, body string, dst *Boar
 		panic("thread has been flagged as inappropriate")
 	}
 
-	pid := dst.incGetPostID()
-	repost := newPost(dst, pid, creator, title, body, pid, post.id, post.board.id)
-
 	post.repostsCount++
-	dst.threads.Set(pid.Key(), repost)
+	dst.threads.Set(repost.id.Key(), repost)
 	if !dst.IsPrivate() {
-		post.reposts.Set(dst.id.Key(), pid)
+		post.reposts.Set(dst.id.Key(), repost.id)
 	}
-
-	return repost
 }
 
 func (post *Post) DeleteReply(replyID PostID) error {
