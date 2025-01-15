@@ -1493,6 +1493,44 @@ func (tv *TypedValue) GetFloat64() uint64 {
 	return *(*uint64)(unsafe.Pointer(&tv.N))
 }
 
+func (tv *TypedValue) SetArray(alloc *Allocator, rv reflect.Value) {
+	if debug {
+		if tv.T.Kind() != ArrayKind || isNative(tv.T) {
+			panic(fmt.Sprintf(
+				"TypedValue.SetArray() on type %s",
+				tv.T.String()))
+		}
+	}
+
+	arrayValue := &ArrayValue{
+		List: []TypedValue{},
+		Data: []byte{},
+	}
+
+	// Iterate over the elements of the array
+	for i := 0; i < rv.Len(); i++ {
+		// Get each element in the array and convert it to a TypedValue
+		element := rv.Index(i)
+		typedValue := go2GnoValue(alloc, element)
+
+		// Append the TypedValue to the List
+		arrayValue.List = append(arrayValue.List, typedValue)
+	}
+
+	tv.V = arrayValue
+}
+
+func (tv *TypedValue) GetArray() *ArrayValue {
+	if debug {
+		if tv.T != nil && tv.T.Kind() != ArrayKind {
+			panic(fmt.Sprintf(
+				"TypedValue.GetArray() on type %s",
+				tv.T.String()))
+		}
+	}
+	return tv.V.(*ArrayValue)
+}
+
 func (tv *TypedValue) GetBigInt() *big.Int {
 	if debug {
 		if tv.T != nil && tv.T.Kind() != BigintKind {
