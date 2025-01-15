@@ -36,6 +36,8 @@ func setupMachine(b *testing.B, numValues, numStmts, numExprs, numBlocks, numFra
 
 func BenchmarkStringLargeData(b *testing.B) {
 	m := setupMachine(b, 10000, 5000, 5000, 2000, 3000, 1000)
+	b.ResetTimer()
+	b.ReportAllocs()
 
 	for i := 0; i < b.N; i++ {
 		_ = m.String()

@@ -18,7 +18,6 @@ import (
 
 const (
 	defaultAccount_Name      = "test1"
-	defaultAccount_Address   = "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"
 	defaultAccount_Seed      = "source bonus chronic canvas draft south burst lottery vacant surface solve popular case indicate oppose farm nothing bullet exhibit title speed wink action roast"
 	defaultAccount_publicKey = "gpub1pgfj7ard9eg82cjtv4u4xetrwqer2dntxyfzxz3pq0skzdkmzu0r9h6gny6eg8c9dc303xrrudee6z4he4y7cs5rnjwmyf40yaj"
 )

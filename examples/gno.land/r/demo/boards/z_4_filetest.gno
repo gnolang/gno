@@ -885,6 +885,25 @@ func main() {
 //         "RefCount": "1"
 //     }
 // }
+// u[f6dbf411da22e67d74cd7ddba6a76cd7e14a4822:84]={
+//     "ObjectInfo": {
+//         "ID": "f6dbf411da22e67d74cd7ddba6a76cd7e14a4822:84",
+//         "IsEscaped": true,
+//         "ModTime": "127",
+//         "RefCount": "6"
+//     },
+//     "Value": {
+//         "T": {
+//             "@type": "/gno.RefType",
+//             "ID": "gno.land/r/demo/boards.Board"
+//         },
+//         "V": {
+//             "@type": "/gno.RefValue",
+//             "Hash": "a88a9b837af217656ee27084309f7cd02cd94cb3",
+//             "ObjectID": "f6dbf411da22e67d74cd7ddba6a76cd7e14a4822:85"
+//         }
+//     }
+// }
 // switchrealm["gno.land/r/demo/boards"]
 // switchrealm["gno.land/r/demo/users"]
 // switchrealm["gno.land/r/demo/users"]
