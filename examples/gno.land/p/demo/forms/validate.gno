@@ -100,6 +100,22 @@ func validateChoiceField(node *json.Node, field Field) bool {
 	return true
 }
 
+func ValidateAnswer(answer *json.Node, field Field) bool {
+	if field.FieldType == "boolean" {
+		return validateBooleanField(answer, field)
+	} else if field.FieldType == "string" {
+		return validateStringField(answer, field)
+	} else if field.FieldType == "number" {
+		return validateNumberField(answer, field)
+	} else if strings.HasPrefix(field.FieldType, "{") && strings.HasSuffix(field.FieldType, "}") {
+		return validateMultiChoiceField(answer, field)
+	} else if strings.HasPrefix(field.FieldType, "[") && strings.HasSuffix(field.FieldType, "]") {
+		return validateChoiceField(answer, field)
+	}
+
+	return false
+}
+
 // ValidateAnswers checks if the given answers are valid for the given fields
 func ValidateAnswers(answers string, fields []Field) bool {
 	unmarshalled, err := json.Unmarshal([]byte(answers))
@@ -107,6 +123,7 @@ func ValidateAnswers(answers string, fields []Field) bool {
 		return false
 	}
 
+	// If the number of answers is different from the number of fields, it's invalid
 	if len(fields) != unmarshalled.Size() {
 		return false
 	}
@@ -117,31 +134,12 @@ func ValidateAnswers(answers string, fields []Field) bool {
 			return false
 		}
 
+		// If the answer is empty and the field is not required, it's valid
 		if answer.IsNull() && !field.Required {
 			return true
 		}
 
-		if field.FieldType == "boolean" {
-			if validateBooleanField(answer, field) == false {
-				return false
-			}
-		} else if field.FieldType == "string" {
-			if validateStringField(answer, field) == false {
-				return false
-			}
-		} else if field.FieldType == "number" {
-			if validateNumberField(answer, field) == false {
-				return false
-			}
-		} else if field.FieldType[0] == '{' && field.FieldType[len(field.FieldType)-1] == '}' {
-			if validateMultiChoiceField(answer, field) == false {
-				return false
-			}
-		} else if field.FieldType[0] == '[' && field.FieldType[len(field.FieldType)-1] == ']' {
-			if validateChoiceField(answer, field) == false {
-				return false
-			}
-		} else {
+		if !ValidateAnswer(answer, field) {
 			return false
 		}
 	}
