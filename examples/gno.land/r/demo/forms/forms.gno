@@ -23,11 +23,11 @@ func CreateForm(title string, description string, openAt string, closeAt string,
 }
 
 func GetForms() string {
-	builder := json.Builder()
+	builder := forms.FormNodeBuilder{json.Builder()}
 
-	builder.WriteArray("forms", func(builder *json.ArrayBuilder) {
+	builder.WriteArray("forms", func(builder *forms.FormArrayBuilder) {
 		for _, form := range db.Forms {
-			builder.WriteObject(func(builder *json.NodeBuilder) {
+			builder.WriteObject(func(builder *forms.FormNodeBuilder) {
 				builder.WriteForm("form", form)
 			})
 		}
@@ -47,10 +47,10 @@ func GetFormByID(id string) string {
 		panic(err)
 	}
 
-	builder := json.Builder()
+	builder := forms.FormNodeBuilder{json.Builder()}
 
 	builder.WriteForm("form", form).
-		WriteObject("submissions", func(builder *json.NodeBuilder) {
+		WriteObject("submissions", func(builder *forms.FormNodeBuilder) {
 			formSubmissions := db.GetSubmissionsByFormID(form.ID)
 			for _, submission := range formSubmissions {
 				builder.WriteFormSubmission(submission.Author.String(), submission)
