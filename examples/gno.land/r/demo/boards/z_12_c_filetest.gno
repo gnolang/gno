@@ -4,9 +4,10 @@ package boards_test
 // SEND: 200000000ugnot
 
 import (
+	"std"
+
 	"gno.land/r/demo/boards"
 	users "gno.land/r/gnoland/users/v1"
-	"std"
 )
 
 func main() {
