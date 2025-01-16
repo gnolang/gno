@@ -129,6 +129,7 @@ func PredefineFileSet(store Store, pn *PackageNode, fset *FileSet) {
 				continue
 			}
 
+			d.SetAttribute(ATTR_GLOBAL, true)
 			// recursively predefine dependencies.
 			d2, _ := predefineNow(store, fn, d)
 
@@ -4442,6 +4443,7 @@ func findUndefined2(store Store, last BlockNode, x Expr, t Type, skipPredefined 
 			return
 		}
 	case *CallExpr:
+		cx.Func.SetAttribute(ATTR_GLOBAL, cx.GetAttribute(ATTR_GLOBAL))
 		un = findUndefined2(store, last, cx.Func, nil, skipPredefined)
 		if un != "" {
 			return
@@ -4732,6 +4734,7 @@ func tryPredefine(store Store, last BlockNode, d Decl) (un Name) {
 			return
 		}
 		for _, vx := range d.Values {
+			vx.SetAttribute(ATTR_GLOBAL, d.GetAttribute(ATTR_GLOBAL))
 			un = findUndefined(store, last, vx)
 			if un != "" {
 				return
