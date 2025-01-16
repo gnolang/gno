@@ -32,20 +32,6 @@ func NewDefaultPermissions(dao *admindao.AdminDAO, options ...DefaultPermissions
 	return dp
 }
 
-// Roles returns the list of roles.
-func (dp DefaultPermissions) Roles() []Role {
-	var roles []Role
-	if dp.superRole != "" {
-		roles = append(roles, dp.superRole)
-	}
-
-	dp.roles.Iterate("", "", func(name string, _ interface{}) bool {
-		roles = append(roles, Role(name))
-		return false
-	})
-	return roles
-}
-
 // RoleExists checks if a role exists.
 func (dp DefaultPermissions) RoleExists(r Role) bool {
 	if dp.superRole != "" && r == dp.superRole {
@@ -104,18 +90,18 @@ func (dp *DefaultPermissions) AddUser(user std.Address, roles ...Role) error {
 		return errors.New("user already exists")
 	}
 
-	for _, r := range roles {
-		if !dp.RoleExists(r) {
-			return errors.New("invalid role: " + string(r))
-		}
-	}
-
 	if err := dp.dao.AddMember(user); err != nil {
 		return err
 	}
+	return dp.setUserRoles(user, roles...)
+}
 
-	dp.users.Set(user.String(), append([]Role(nil), roles...))
-	return nil
+// SetUserRoles sets the roles of a user.
+func (dp *DefaultPermissions) SetUserRoles(user std.Address, roles ...Role) error {
+	if !dp.users.Has(user.String()) {
+		return errors.New("user not found")
+	}
+	return dp.setUserRoles(user, roles...)
 }
 
 // RemoveUser removes a user from permissions.
@@ -123,6 +109,11 @@ func (dp *DefaultPermissions) RemoveUser(user std.Address) bool {
 	_, removed := dp.users.Remove(user.String())
 	dp.dao.RemoveMember(user)
 	return removed
+}
+
+// HasUser checks if a user exists.
+func (dp DefaultPermissions) HasUser(user std.Address) bool {
+	return dp.users.Has(user.String())
 }
 
 // GetDAO returns the underlying DAO.
@@ -146,9 +137,22 @@ func (dp *DefaultPermissions) WithPermission(user std.Address, perm Permission, 
 		dp.handleBoardRename(args, cb)
 	case PermissionMemberInvite:
 		dp.handleMemberInvite(args, cb)
+	case PermissionRoleChange:
+		dp.handleRoleChange(args, cb)
 	default:
 		cb(args)
 	}
+}
+
+func (dp *DefaultPermissions) setUserRoles(user std.Address, roles ...Role) error {
+	for _, r := range roles {
+		if !dp.RoleExists(r) {
+			return errors.New("invalid role: " + string(r))
+		}
+	}
+
+	dp.users.Set(user.String(), append([]Role(nil), roles...))
+	return nil
 }
 
 func (DefaultPermissions) handleBoardCreate(args Args, cb func(Args)) {
@@ -192,15 +196,63 @@ func (dp DefaultPermissions) handleMemberInvite(args Args, cb func(Args)) {
 	cb(args)
 }
 
+func (dp DefaultPermissions) handleRoleChange(args Args, cb func(Args)) {
+	// Owners and Admins can change roles.
+	// Admins should not be able to assign or remove the Owner role from members.
+	caller := std.GetOrigCaller()
+	if dp.HasRole(caller, RoleAdmin) {
+		role, ok := args[2].(Role)
+		if !ok {
+			panic("expected a valid member role")
+		}
+
+		if role == RoleOwner {
+			panic("admins are not allowed to promote members to Owner")
+		} else {
+			member, ok := args[1].(std.Address)
+			if !ok {
+				panic("expected a valid member address")
+			}
+
+			if dp.HasRole(member, RoleOwner) {
+				panic("admins are not allowed to remove the Owner role")
+			}
+		}
+	}
+
+	cb(args)
+}
+
 func createDefaultPermissions(owner std.Address) *DefaultPermissions {
-	// TODO: DAO should be a different realm or proposal and voting functions should be part of boards realm?
-	//       Permissions and DAO mechanics should be discussed and improved. Add `GetDAO()` to `Permissions`??
 	return NewDefaultPermissions(
-		admindao.New(admindao.WithMember(owner)),
+		admindao.New(),
 		WithSuperRole(RoleOwner),
-		WithRole(RoleAdmin, PermissionBoardCreate, PermissionMemberInvite),
-		// TODO: Finish assigning all roles and permissions
-		// WithRole(RoleModerator, permissions...),
+		WithRole(
+			RoleAdmin,
+			PermissionBoardCreate,
+			PermissionBoardRename,
+			PermissionMemberInvite,
+			PermissionMemberRemove,
+			PermissionThreadCreate,
+			PermissionThreadEdit,
+			PermissionThreadDelete,
+			PermissionThreadFlag,
+			PermissionReplyDelete,
+			PermissionReplyFlag,
+			PermissionRoleChange,
+		),
+		WithRole(
+			RoleModerator,
+			PermissionThreadCreate,
+			PermissionThreadEdit,
+			PermissionThreadFlag,
+			PermissionReplyFlag,
+		),
+		WithRole(
+			RoleGuest,
+			PermissionThreadCreate,
+			PermissionThreadRepost,
+		),
 		WithUser(owner, RoleOwner),
 	)
 }
