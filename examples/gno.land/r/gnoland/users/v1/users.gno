@@ -9,9 +9,6 @@ import (
 
 const (
 	reValidUsername = "^[a-z]{3}[_a-z0-9]{0,14}[0-9]{3}$"
-	RegisterEvent   = "Registered"
-	UpdateNameEvent = "NameUpdated"
-	DeleteUserEvent = "UserDeleted"
 )
 
 var reUsername = regexp.MustCompile(reValidUsername)
@@ -37,7 +34,6 @@ func Register(username string) error {
 		return err
 	}
 
-	std.Emit(RegisterEvent, "registrant", registrant.String(), "username", username)
 	return nil
 }
 
@@ -51,16 +47,19 @@ func UpdateName(newName string) error {
 		return ErrPaused
 	}
 
+	if matched := reUsername.MatchString(newName); !matched {
+		return ErrInvalidUsername
+	}
+
 	registrant := std.PrevRealm().Addr()
 	if err := users.UpdateName(newName, registrant); err != nil {
 		return err
 	}
 
-	std.Emit(UpdateNameEvent, "registrant", registrant.String(), "newName", newName)
 	return nil
 }
 
-// DeleteUser makes all names associated with the PrevRealm() address unresolvable.
+// DeleteUser makes all names associated with the `PrevRealm()` address unresolvable.
 // WARN: After deletion, the same address WILL NOT be able to register a new name.
 func DeleteUser() error {
 	std.AssertOriginCall()
@@ -74,6 +73,5 @@ func DeleteUser() error {
 		return err
 	}
 
-	std.Emit(DeleteUserEvent, "address", addr.String())
 	return nil
 }

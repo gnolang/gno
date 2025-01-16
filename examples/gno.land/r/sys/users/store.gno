@@ -16,9 +16,9 @@ var (
 )
 
 const (
-	RegisterUserEvent  = "UserRegistered"
-	RegisterAliasEvent = "AliasRegistered"
-	DeleteUserEvent    = "UserDeleted"
+	RegisterUserEvent = "Registered"
+	UpdateNameEvent   = "NameUpdated"
+	DeleteUserEvent   = "Deleted"
 
 	maxUsernameLen = 64
 )
@@ -117,7 +117,7 @@ func UpdateName(newName string, address std.Address) error {
 	userData.username = newName
 	nameStore.Set(newName, userData)
 
-	std.Emit(RegisterAliasEvent, "Alias", newName, "address", address.String())
+	std.Emit(UpdateNameEvent, "Alias", newName, "address", address.String())
 	return nil
 }
 

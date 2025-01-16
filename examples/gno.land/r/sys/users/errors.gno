@@ -17,7 +17,6 @@ var (
 
 	ErrAlreadyHasName  = errors.New(prefix + "username for this address already registered - try creating an Alias")
 	ErrDeletedUser     = errors.New(prefix + "cannot register a new username after deleting")
-	ErrAlreadyDeleted  = errors.New(prefix + "cannot delete same user twice")
 	ErrAliasBeforeName = errors.New(prefix + "cannot register Alias before a username")
 
 	ErrUserNotExist = errors.New(prefix + "this user has not been registered before")
