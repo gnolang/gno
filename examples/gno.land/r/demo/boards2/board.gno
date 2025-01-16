@@ -131,14 +131,35 @@ func (board *Board) GetPostFormURL() string {
 	return txlink.Call("CreateThread", "bid", board.id.String())
 }
 
-// TODO: This is a temporary implementation until the permissions and DAO mecahnics are defined
 func createDefaultBoardPermissions(owner std.Address) *DefaultPermissions {
 	return NewDefaultPermissions(
-		admindao.New(admindao.WithMember(owner)),
+		admindao.New(),
 		WithSuperRole(RoleOwner),
-		WithRole(RoleAdmin, PermissionMemberInvite, PermissionBoardRename),
-		// TODO: Finish assigning all roles and permissions
-		// WithRole(RoleModerator, permissions...),
+		WithRole(
+			RoleAdmin,
+			PermissionBoardRename,
+			PermissionMemberInvite,
+			PermissionMemberRemove,
+			PermissionThreadCreate,
+			PermissionThreadEdit,
+			PermissionThreadDelete,
+			PermissionThreadFlag,
+			PermissionReplyDelete,
+			PermissionReplyFlag,
+			PermissionRoleChange,
+		),
+		WithRole(
+			RoleModerator,
+			PermissionThreadCreate,
+			PermissionThreadEdit,
+			PermissionThreadFlag,
+			PermissionReplyFlag,
+		),
+		WithRole(
+			RoleGuest,
+			PermissionThreadCreate,
+			PermissionThreadRepost,
+		),
 		WithUser(owner, RoleOwner),
 	)
 }
