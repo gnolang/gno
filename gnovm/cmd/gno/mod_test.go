@@ -338,11 +338,11 @@ func TestValidateModulePath(t *testing.T) {
 			}
 
 			// using a regex due to avoid encoding issues.
-			matched, regexErr := regexp.MatchString(tt.wantErrRegex, err.Error())
+			re, regexErr := regexp.Compile(tt.wantErrRegex)
 			if regexErr != nil {
 				t.Fatalf("invalid regex pattern: %v", regexErr)
 			}
-			if !matched {
+			if !re.MatchString(err.Error()) {
 				t.Errorf("validateModulePath() error = %q, want error matching %q", err.Error(), tt.wantErrRegex)
 			}
 		})
