@@ -49,38 +49,13 @@ func (db *FormDB) CreateForm(title string, description string, openAt string, cl
 
 	// Parsing the json submission to create the gno data structures
 	for i := 0; i < fieldsCount; i++ {
-		field, err := node.GetIndex(i)
-		if err != nil {
-			return "", errInvalidJson
-		}
+		field := node.MustIndex(i)
 
-		labelNode, err := field.GetKey("label")
-		if err != nil {
-			return "", errInvalidJson
-		}
-		fieldTypeNode, err := field.GetKey("fieldType")
-		if err != nil {
-			return "", errInvalidJson
-		}
-		requiredNode, err := field.GetKey("required")
-		if err != nil {
-			return "", errInvalidJson
-		}
-
-		label, err := labelNode.GetString()
-		if err != nil {
-			return "", errInvalidJson
-		}
-		fieldType, err := fieldTypeNode.GetString()
-		if err != nil {
-			return "", errInvalidJson
-		}
-		required, err := requiredNode.GetBool()
-		if err != nil {
-			return "", errInvalidJson
-		}
-
-		fields[i] = CreateField(label, fieldType, required)
+		fields[i] = CreateField(
+			field.MustKey("label").MustString(),
+			field.MustKey("fieldType").MustString(),
+			field.MustKey("required").MustBool(),
+		)
 	}
 
 	// Generating the form ID
