@@ -2,7 +2,6 @@ package forms
 
 import (
 	"std"
-	"strings"
 
 	"gno.land/p/demo/forms"
 	"gno.land/p/demo/json"

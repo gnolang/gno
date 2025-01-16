@@ -1,11 +1,9 @@
 package forms
 
 import (
-	"std"
 	"strings"
 
 	"gno.land/p/demo/json"
-	"gno.land/p/demo/ufmt"
 )
 
 func (b *json.NodeBuilder) WriteFormFields(key string, fields []Field) *json.NodeBuilder {
