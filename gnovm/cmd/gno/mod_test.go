@@ -1,6 +1,7 @@
 package main
 
 import (
+	"regexp"
 	"testing"
 )
 
@@ -215,4 +216,135 @@ valid.gno
 	}
 
 	testMainCaseRun(t, tc)
+}
+
+func TestExecModInit(t *testing.T) {
+	tc := []testMainCase{
+		{
+			args:                 []string{"mod", "init", "gno.land/p/demo/foo"},
+			testDir:              "../../tests/integ/empty_dir",
+			simulateExternalRepo: true,
+		},
+		{
+			args:                 []string{"mod", "init", string([]byte{0xff, 0xfe, 0xfd}) + "xample.com/myproject"},
+			testDir:              "../../tests/integ/empty_dir",
+			simulateExternalRepo: true,
+			errShouldContain:     "invalid character",
+		},
+		{
+			args:                 []string{"mod", "init", "example com/myproject"},
+			testDir:              "../../tests/integ/empty_dir",
+			simulateExternalRepo: true,
+			errShouldContain:     "invalid character ' ' in module path",
+		},
+		{
+			args:                 []string{"mod", "init", "example?.com/myproject"},
+			testDir:              "../../tests/integ/empty_dir",
+			simulateExternalRepo: true,
+			errShouldContain:     "invalid character '?' in module path",
+		},
+		{
+			args:                 []string{"mod", "init", ""},
+			testDir:              "../../tests/integ/empty_dir",
+			simulateExternalRepo: true,
+			errShouldContain:     "module path cannot be empty",
+		},
+		{
+			args:                 []string{"mod", "init", "gno.land/p/demo/foo"},
+			testDir:              "../../tests/integ/empty_gnomod",
+			simulateExternalRepo: true,
+			errShouldContain:     "gno.mod file already exists",
+		},
+		{
+			args:                 []string{"mod", "init", "gno.land/p/demo/foo", "extra"},
+			testDir:              "../../tests/integ/empty_dir",
+			simulateExternalRepo: true,
+			errShouldContain:     "flag: help requested",
+		},
+	}
+
+	testMainCaseRun(t, tc)
+}
+
+func TestValidateModulePath(t *testing.T) {
+	tests := []struct {
+		name         string
+		path         string
+		wantErrRegex string
+	}{
+		{
+			name: "valid path",
+			path: "example.com/myproject",
+		},
+		{
+			name: "valid gno.land path",
+			path: "gno.land/p/demo/avl",
+		},
+		{
+			name:         "empty path",
+			path:         "",
+			wantErrRegex: `^module path cannot be empty$`,
+		},
+		{
+			name:         "invalid UTF8 character",
+			path:         string([]byte{0xFF, 0xFE, 0xFD}),
+			wantErrRegex: `^invalid character '.*' in module path at position 0$`,
+		},
+		{
+			name:         "space in path",
+			path:         "example com/myproject",
+			wantErrRegex: `^invalid character ' ' in module path at position 7$`,
+		},
+		{
+			name:         "question mark in path",
+			path:         "example?.com/myproject",
+			wantErrRegex: `^invalid character '\?' in module path at position 7$`,
+		},
+		{
+			name:         "asterisk in path",
+			path:         "example*.com/myproject",
+			wantErrRegex: `^invalid character '\*' in module path at position 7$`,
+		},
+		{
+			name:         "backslash in path",
+			path:         "example\\com/myproject",
+			wantErrRegex: `^invalid character '\\' in module path at position 7$`,
+		},
+		{
+			name:         "quote in path",
+			path:         "example\"com/myproject",
+			wantErrRegex: `^invalid character '"' in module path at position 7$`,
+		},
+		{
+			name:         "backtick in path",
+			path:         "example`com/myproject",
+			wantErrRegex: "^invalid character '`' in module path at position 7$",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := validateModulePath(tt.path)
+			if tt.wantErrRegex == "" {
+				if err != nil {
+					t.Errorf("validateModulePath() error = %v, expected no error", err)
+				}
+				return
+			}
+
+			if err == nil {
+				t.Errorf("validateModulePath() expected error matching %q, got nil", tt.wantErrRegex)
+				return
+			}
+
+			// using a regex due to avoid encoding issues.
+			matched, regexErr := regexp.MatchString(tt.wantErrRegex, err.Error())
+			if regexErr != nil {
+				t.Fatalf("invalid regex pattern: %v", regexErr)
+			}
+			if !matched {
+				t.Errorf("validateModulePath() error = %q, want error matching %q", err.Error(), tt.wantErrRegex)
+			}
+		})
+	}
 }
