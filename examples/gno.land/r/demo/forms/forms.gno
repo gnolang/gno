@@ -29,20 +29,7 @@ func GetForms() string {
 	builder.WriteArray("forms", func(builder *json.ArrayBuilder) {
 		for _, form := range db.Forms {
 			builder.WriteObject(func(builder *json.NodeBuilder) {
-				builder.WriteString("id", form.ID).
-					WriteString("owner", form.Owner.String()).
-					WriteString("title", form.Title).
-					WriteString("description", form.Description).
-					WriteString("createdAt", form.CreatedAt.Format("2006-01-02 15:04:05")).
-					WriteArray("fields", func(builder *json.ArrayBuilder) {
-						for _, field := range form.Fields {
-							builder.WriteObject(func(builder *json.NodeBuilder) {
-								builder.WriteString("label", field.Label).
-									WriteString("fieldType", field.FieldType).
-									WriteBool("required", field.Required)
-							})
-						}
-					})
+				builder.WriteForm("form", form)
 			})
 		}
 	})
@@ -63,24 +50,11 @@ func GetFormByID(id string) string {
 
 	builder := json.Builder()
 
-	builder.WriteString("id", form.ID).
-		WriteString("owner", form.Owner.String()).
-		WriteString("title", form.Title).
-		WriteString("description", form.Description).
-		WriteString("createdAt", form.CreatedAt.Format("2006-01-02 15:04:05")).
-		WriteArray("fields", func(builder *json.ArrayBuilder) {
-			for _, field := range form.Fields {
-				builder.WriteObject(func(builder *json.NodeBuilder) {
-					builder.WriteString("label", field.Label).WriteString("fieldType", field.FieldType).WriteBool("required", field.Required)
-				})
-			}
-		}).
+	builder.WriteForm("form", form).
 		WriteObject("submissions", func(builder *json.NodeBuilder) {
 			formSubmissions := db.GetSubmissionsByFormID(form.ID)
 			for _, submission := range formSubmissions {
-				builder.WriteObject(submission.Author.String(), func(builder *json.NodeBuilder) {
-					builder.WriteString("submittedAt", submission.SubmittedAt.Format("2006-01-02 15:04:05")).WriteString("answers", strings.ReplaceAll(submission.Answers, "\"", "'"))
-				})
+				builder.WriteFormSubmission(submission.Author.String(), submission)
 			}
 		})
 
