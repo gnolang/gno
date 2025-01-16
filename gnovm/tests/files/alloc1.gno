@@ -12,6 +12,17 @@ var m = map[string]int{"a": 1}
 
 type Foo struct{ name string }
 
+func xyz(args ...int) {
+	runtime.GC() // in this case, frame contains this one and main.
+}
+
+func xyz2() {
+	defer func(args ...int) {
+		//
+	}()
+	runtime.GC() // in this case, frame contains this one and main.
+}
+
 // after new block: 3483
 func bar() {
 	f := &Foo{"foo"} // + field 40 + struct 184 + pointer 24 + heapItem 72 + NewType: *main.Foo 232 = 4305
@@ -36,6 +47,8 @@ func main() {
 	}
 	f()
 	runtime.GC()
+	xyz(1, 2, 3)
+	xyz2()
 }
 
 // Output:
@@ -43,5 +56,5 @@ func main() {
 // &(struct{("foo" string)} main.Foo)
 // MemStats 2:  Allocator{maxBytes:10000000000, bytes:6019}
 // MemStats before GC:  Allocator{maxBytes:10000000000, bytes:7518}
-// MemStats after GC:  Allocator{maxBytes:10000000000, bytes:2901}
+// MemStats after GC:  Allocator{maxBytes:10000000000, bytes:2981}
 // func lit

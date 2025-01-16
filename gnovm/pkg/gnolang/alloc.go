@@ -128,14 +128,16 @@ func (alloc *Allocator) GC() {
 		}
 		// defer func
 		for _, dfr := range fr.Defers {
-			debug2.Println2("has defer")
 			fv := dfr.Func
 			ft := fv.GetType(alloc.m.Store)
-			numParams := len(ft.Params)
-			numArgs := len(dfr.Args)
-			nvar := numArgs - (numParams - 1)
-			throwaway.AllocateSlice()
-			throwaway.AllocateListArray(int64(nvar))
+			if ft.HasVarg() {
+				debug2.Println2("has defer, has varg")
+				numParams := len(ft.Params)
+				numArgs := len(dfr.Args)
+				nvar := numArgs - (numParams - 1)
+				throwaway.AllocateSlice()
+				throwaway.AllocateListArray(int64(nvar))
+			}
 		}
 	}
 
