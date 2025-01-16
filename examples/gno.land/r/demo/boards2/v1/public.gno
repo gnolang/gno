@@ -89,7 +89,7 @@ func CreateThread(bid BoardID, title, body string) PostID {
 func CreateReply(bid BoardID, threadID, replyID PostID, body string) PostID {
 	assertRealmIsNotFrozen()
 
-	// TODO: Assert that caller is a board member (when board type is invite only)
+	// TODO: Assert that caller is a board member when board type is invite only
 	caller := std.GetOrigCaller()
 	board := mustGetBoard(bid)
 	thread := mustGetThread(board, threadID)
@@ -147,8 +147,16 @@ func CreateRepost(bid BoardID, threadID PostID, title, body string, dstBoardID B
 
 	dst := mustGetBoard(dstBoardID)
 	thread := mustGetThread(board, threadID)
-	repost := thread.AddRepostTo(caller, title, body, dst)
-	return repost.id
+
+	repostId := dst.incGetPostID()
+	repost := newPost(dst, repostId, caller, title, body, repostId, thread.GetPostID(), thread.GetBoard().GetID())
+
+	args := Args{board.GetID(), threadID, dst.GetID()}
+	dst.GetPermissions().WithPermission(caller, PermissionThreadRepost, args, func(_ Args) {
+		thread.AddRepostTo(caller, repost, dst)
+	})
+
+	return repostId
 }
 
 func DeleteThread(bid BoardID, threadID PostID) {
@@ -172,8 +180,8 @@ func DeleteReply(bid BoardID, threadID, replyID PostID) {
 	thread := mustGetThread(board, threadID)
 	assertReplyExists(thread, replyID)
 
-	// TODO: Hide reply when the caller is the owner of the reply (remove WithPermission call for now)
-	// TODO: Support removing reply and children though proposals? (WithPermission)
+	// TODO: Hide reply when the caller is the owner of the reply without permission
+	// TODO: Support removing reply and children though proposals?
 
 	caller := std.GetOrigCaller()
 	args := Args{bid, threadID, replyID}
@@ -189,6 +197,8 @@ func EditThread(bid BoardID, threadID PostID, title, body string) {
 
 	board := mustGetBoard(bid)
 	assertThreadExists(board, threadID)
+
+	// TODO: Thread owners should be able to edit without permission?
 
 	caller := std.GetOrigCaller()
 	args := Args{bid, threadID, title, body}
@@ -214,24 +224,26 @@ func EditReply(bid BoardID, threadID, replyID PostID, title, body string) {
 	reply.Update(title, body)
 }
 
-func InviteMember(user std.Address, role Role) {
+func InviteMember(bid BoardID, user std.Address, role Role) {
 	assertRealmIsNotFrozen()
 
+	perms := mustGetPermissions(bid)
 	caller := std.GetOrigCaller()
 	args := Args{user, role}
-	gPerm.WithPermission(caller, PermissionMemberInvite, args, func(Args) {
-		if err := gPerm.AddUser(user, role); err != nil {
+	perms.WithPermission(caller, PermissionMemberInvite, args, func(Args) {
+		if err := perms.AddUser(user, role); err != nil {
 			panic(err)
 		}
 	})
 }
 
-func RemoveMember(user std.Address) {
+func RemoveMember(bid BoardID, user std.Address) {
 	assertRealmIsNotFrozen()
 
+	perms := mustGetPermissions(bid)
 	caller := std.GetOrigCaller()
-	gPerm.WithPermission(caller, PermissionMemberRemove, Args{user}, func(Args) {
-		if !gPerm.RemoveUser(user) {
+	perms.WithPermission(caller, PermissionMemberRemove, Args{user}, func(Args) {
+		if !perms.RemoveUser(user) {
 			panic("member not found")
 		}
 	})
@@ -242,6 +254,24 @@ func FreezeRealm(frozen bool) {
 	caller := std.GetOrigCaller()
 	gPerm.WithPermission(caller, PermissionRealmFreeze, nil, func(Args) {
 		gFrozen = frozen
+	})
+}
+
+func HasMemberRole(bid BoardID, member std.Address, role Role) bool {
+	perms := mustGetPermissions(bid)
+	return perms.HasRole(member, role)
+}
+
+func ChangeMemberRole(bid BoardID, member std.Address, role Role) {
+	assertRealmIsNotFrozen()
+
+	perms := mustGetPermissions(bid)
+	caller := std.GetOrigCaller()
+	args := Args{bid, member, role}
+	perms.WithPermission(caller, PermissionRoleChange, args, func(Args) {
+		if err := perms.SetUserRoles(member, role); err != nil {
+			panic(err)
+		}
 	})
 }
 
@@ -297,4 +327,12 @@ func assertReplyVisible(thread *Post) {
 	if thread.IsHidden() {
 		panic("reply with ID: " + thread.GetPostID().String() + " was hidden")
 	}
+}
+
+func mustGetPermissions(bid BoardID) Permissions {
+	if bid != 0 {
+		board := mustGetBoard(bid)
+		return board.perms
+	}
+	return gPerm
 }

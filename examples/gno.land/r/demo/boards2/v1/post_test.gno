@@ -75,7 +75,13 @@ func TestPostAddRepostTo(t *testing.T) {
 			)
 
 			createRepost := func() {
-				repost = thread.AddRepostTo(creator, tc.title, tc.body, tc.dstBoard)
+				var repostId PostID
+				if tc.dstBoard != nil {
+					repostId = tc.dstBoard.incGetPostID()
+				}
+
+				repost = newPost(tc.dstBoard, repostId, creator, tc.title, tc.body, repostId, thread.GetPostID(), thread.GetBoard().GetID())
+				thread.AddRepostTo(creator, repost, tc.dstBoard)
 			}
 
 			if tc.err != "" {
@@ -116,7 +122,7 @@ func TestNewThread(t *testing.T) {
 		uint(threadID),
 	)
 	repostURL := ufmt.Sprintf(
-		"/r/demo/boards2/v1$help&func=CreateRepost&bid=%d&postID=%d",
+		"/r/demo/boards2/v1$help&func=CreateRepost&bid=%d&threadID=%d",
 		uint(boardID),
 		uint(threadID),
 	)

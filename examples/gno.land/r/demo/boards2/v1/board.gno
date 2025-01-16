@@ -139,9 +139,31 @@ func createDefaultBoardPermissions(name string, owner std.Address) *DefaultPermi
 	return NewDefaultPermissions(
 		dao,
 		WithSuperRole(RoleOwner),
-		WithRole(RoleAdmin, PermissionMemberInvite, PermissionBoardRename),
-		// TODO: Finish assigning all roles and permissions
-		// WithRole(RoleModerator, permissions...),
+		WithRole(
+			RoleAdmin,
+			PermissionBoardRename,
+			PermissionMemberInvite,
+			PermissionMemberRemove,
+			PermissionThreadCreate,
+			PermissionThreadEdit,
+			PermissionThreadDelete,
+			PermissionThreadFlag,
+			PermissionReplyDelete,
+			PermissionReplyFlag,
+			PermissionRoleChange,
+		),
+		WithRole(
+			RoleModerator,
+			PermissionThreadCreate,
+			PermissionThreadEdit,
+			PermissionThreadFlag,
+			PermissionReplyFlag,
+		),
+		WithRole(
+			RoleGuest,
+			PermissionThreadCreate,
+			PermissionThreadRepost,
+		),
 		WithUser(owner, RoleOwner),
 	)
 }
