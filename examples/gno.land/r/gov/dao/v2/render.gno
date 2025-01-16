@@ -98,7 +98,7 @@ func renderAuthor(p dao.Proposal) string {
 	}
 
 	if authorUsername != "" {
-		out += ufmt.Sprintf("**Author: [%s](/r/demo/users:%s)**\n\n", authorUsername, authorUsername)
+		out += ufmt.Sprintf("**Author: [%s](/r/gnoland/users/v1:%s)**\n\n", authorUsername, authorUsername)
 	} else {
 		out += ufmt.Sprintf("**Author: %s**\n\n", p.Author().String())
 	}
