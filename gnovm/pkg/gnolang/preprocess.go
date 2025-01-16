@@ -4575,8 +4575,12 @@ func predefineNow2(store Store, last BlockNode, d Decl, stack *[]Name) (Decl, bo
 			if !file.IsInitialized() {
 				panic("all types from files in file-set should have already been predefined")
 			}
+
+			declaration := *decl
+			declaration.SetAttribute(ATTR_GLOBAL, true)
+
 			// predefine dependency (recursive).
-			*decl, _ = predefineNow2(store, file, *decl, stack)
+			*decl, _ = predefineNow2(store, file, declaration, stack)
 		} else {
 			break
 		}
