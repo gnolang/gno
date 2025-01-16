@@ -37,9 +37,9 @@ func ResolveAddress(addr std.Address) (data *UserData) {
 	return data
 }
 
-// GetReadonlyNameStore exposes the username store in readonly mode
-func GetReadonlyNameStore() *rotree.ReadOnlyTree {
-	return rotree.Wrap(nameStore, nil)
+// GetReadonlyAddrStore exposes the address store in readonly mode
+func GetReadonlyAddrStore() *rotree.ReadOnlyTree {
+	return rotree.Wrap(addressStore, nil)
 }
 
 // UsersByPrefix gets a slice of usernames starting from the given prefix. Limits the

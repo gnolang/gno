@@ -6,6 +6,7 @@ import (
 
 	"gno.land/p/demo/avl/pager"
 	"gno.land/p/demo/ufmt"
+	"gno.land/p/moul/md"
 	"gno.land/p/moul/realmpath"
 
 	"gno.land/r/demo/profile"
@@ -18,14 +19,15 @@ func Render(path string) string {
 
 	// Render home page
 	if req.Path == "" {
-		p := pager.NewPager(users.GetReadonlyNameStore(), 50, false)
+		p := pager.NewPager(users.GetReadonlyAddrStore(), 50, false)
 		page := p.MustGetPageByPath(path)
 
 		out += "# gno.land user registry\n"
 
 		for _, item := range page.Items {
-			if !item.Value.(*users.UserData).IsDeleted() {
-				out += ufmt.Sprintf("- User [**%s**](/r/gnoland/users/v1:%s)\n", item.Key, item.Key)
+			data := item.Value.(*users.UserData)
+			if !data.IsDeleted() {
+				out += ufmt.Sprintf("- User [**%s**](/r/gnoland/users/v1:%s)\n", data.Name(), data.Name())
 			}
 		}
 
@@ -38,25 +40,28 @@ func Render(path string) string {
 	}
 
 	// Render specific user page
-	var lookup *users.UserData
+	var data *users.UserData
 	if std.Address(req.Path).IsValid() {
-		lookup = users.ResolveAddress(std.Address(req.Path))
+		data = users.ResolveAddress(std.Address(req.Path))
 	} else {
-		lookup, _ = users.ResolveName(req.Path)
+		data, _ = users.ResolveName(req.Path)
 	}
 
-	if lookup == nil {
-		out += "This user has been deleted or does not exist.\n"
+	if data == nil {
+		out += "This user does not exist or has been deleted.\n"
 	} else {
-		out += renderUserPage(lookup)
+		out += renderUserPage(data)
 	}
 
 	return out
 }
 
 func renderUserPage(lookup *users.UserData) string {
-	out := ufmt.Sprintf("# User %s\n", lookup.Name())
+	out := md.H1("User " + lookup.Name())
+	out += ufmt.Sprintf("Address: %s\n\n", lookup.Addr().String())
+	out += md.H2("Bio")
 	out += profile.GetStringField(lookup.Addr(), "Bio", "No bio defined.")
+	out += "\n\n"
 
 	return out
 }
