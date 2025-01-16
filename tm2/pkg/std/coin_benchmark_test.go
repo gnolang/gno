@@ -2,12 +2,10 @@ package std
 
 import (
 	"fmt"
-	"strconv"
 	"testing"
 )
 
 func BenchmarkCoinsAdditionIntersect(b *testing.B) {
-	b.Skip("TODO: panicking benchmark")
 	benchmarkingFunc := func(numCoinsA int, numCoinsB int) func(b *testing.B) {
 		return func(b *testing.B) {
 			b.Helper()
@@ -15,11 +13,16 @@ func BenchmarkCoinsAdditionIntersect(b *testing.B) {
 			coinsA := Coins(make([]Coin, numCoinsA))
 			coinsB := Coins(make([]Coin, numCoinsB))
 
+			maxCoins := max(numCoinsA, numCoinsB)
+			denomLength := len(fmt.Sprint(maxCoins))
+
 			for i := 0; i < numCoinsA; i++ {
-				coinsA[i] = NewCoin("COINZ_"+strconv.Itoa(i), (int64(i)))
+				denom := fmt.Sprintf("coinz_%0*d", denomLength, i)
+				coinsA[i] = NewCoin(denom, int64(i+1))
 			}
 			for i := 0; i < numCoinsB; i++ {
-				coinsB[i] = NewCoin("COINZ_"+strconv.Itoa(i), (int64(i)))
+				denom := fmt.Sprintf("coinz_%0*d", denomLength, i)
+				coinsB[i] = NewCoin(denom, int64(i+1))
 			}
 
 			b.ResetTimer()
@@ -39,7 +42,6 @@ func BenchmarkCoinsAdditionIntersect(b *testing.B) {
 }
 
 func BenchmarkCoinsAdditionNoIntersect(b *testing.B) {
-	b.Skip("TODO: panicking benchmark")
 	benchmarkingFunc := func(numCoinsA int, numCoinsB int) func(b *testing.B) {
 		return func(b *testing.B) {
 			b.Helper()
@@ -47,11 +49,16 @@ func BenchmarkCoinsAdditionNoIntersect(b *testing.B) {
 			coinsA := Coins(make([]Coin, numCoinsA))
 			coinsB := Coins(make([]Coin, numCoinsB))
 
+			maxCoins := max(numCoinsA, numCoinsB)
+			denomLength := len(fmt.Sprint(maxCoins))
+
 			for i := 0; i < numCoinsA; i++ {
-				coinsA[i] = NewCoin("COINZ_"+strconv.Itoa(numCoinsB+i), (int64(i)))
+				denom := fmt.Sprintf("coinz_%0*d", denomLength, i)
+				coinsA[i] = NewCoin(denom, int64(i+1))
 			}
 			for i := 0; i < numCoinsB; i++ {
-				coinsB[i] = NewCoin("COINZ_"+strconv.Itoa(i), (int64(i)))
+				denom := fmt.Sprintf("coinz_%0*d", denomLength, i)
+				coinsB[i] = NewCoin(denom, int64(i+1))
 			}
 
 			b.ResetTimer()

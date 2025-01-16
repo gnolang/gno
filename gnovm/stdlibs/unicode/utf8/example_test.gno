@@ -49,6 +49,7 @@ func ExampleDecodeLastRuneInString() {
 	// l 1
 	// e 1
 	// H 1
+
 }
 
 func ExampleDecodeRune() {
@@ -212,4 +213,14 @@ func ExampleValidString() {
 	// Output:
 	// true
 	// false
+}
+
+func ExampleAppendRune() {
+	buf1 := utf8.AppendRune(nil, 0x10000)
+	buf2 := utf8.AppendRune([]byte("init"), 0x10000)
+	fmt.Println(string(buf1))
+	fmt.Println(string(buf2))
+	// Output:
+	// 𐀀
+	// init𐀀
 }

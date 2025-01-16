@@ -1,0 +1,21 @@
+# Test Realm instruction correct
+
+gno test -v .
+
+! stdout .+ # stdout should be empty
+stderr '=== RUN   file/x_filetest.gno'
+stderr '--- PASS: file/x_filetest.gno \(\d\.\d\ds\)'
+stderr 'ok      \. 	\d\.\d\ds'
+
+-- x_filetest.gno --
+// PKGPATH: gno.land/r/xx
+package xx
+
+var x int
+
+func main() {
+	x = 1
+}
+
+// Realm:
+// switchrealm["gno.land/r/xx"]

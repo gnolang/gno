@@ -120,7 +120,7 @@ func _testCodec(t *testing.T, rt reflect.Type, codecType string) {
 		case "binary":
 			bz, err = cdc.Marshal(ptr)
 		case "json":
-			bz, err = cdc.MarshalJSON(ptr)
+			bz, err = cdc.JSONMarshal(ptr)
 		default:
 			panic("should not happen")
 		}
@@ -133,7 +133,7 @@ func _testCodec(t *testing.T, rt reflect.Type, codecType string) {
 		case "binary":
 			err = cdc.Unmarshal(bz, ptr2)
 		case "json":
-			err = cdc.UnmarshalJSON(bz, ptr2)
+			err = cdc.JSONUnmarshal(bz, ptr2)
 		default:
 			panic("should not happen")
 		}
@@ -427,7 +427,7 @@ func TestCodecJSONRoundtripNonNilRegisteredTypeDef(t *testing.T) {
 		"ConcreteTypeDef incorrectly serialized")
 
 	var i1 tests.Interface1
-	err = cdc.UnmarshalJSON(bz, &i1)
+	err = cdc.JSONUnmarshal(bz, &i1)
 	assert.Nil(t, err)
 	assert.Equal(t, c3, i1)
 }

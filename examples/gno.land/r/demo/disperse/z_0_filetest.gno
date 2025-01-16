@@ -1,3 +1,5 @@
+// PKGPATH: gno.land/r/demo/main
+
 // SEND: 200ugnot
 
 package main
@@ -10,7 +12,7 @@ import (
 
 func main() {
 	disperseAddr := std.DerivePkgAddr("gno.land/r/demo/disperse")
-	mainaddr := std.DerivePkgAddr("main")
+	mainaddr := std.DerivePkgAddr("gno.land/r/demo/main")
 
 	std.TestSetOrigPkgAddr(disperseAddr)
 	std.TestSetOrigCaller(mainaddr)
@@ -28,5 +30,5 @@ func main() {
 }
 
 // Output:
-// main before: 200000200ugnot
-// main after: 200000000ugnot
+// main before: 200ugnot
+// main after:
