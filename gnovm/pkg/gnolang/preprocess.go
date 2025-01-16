@@ -516,6 +516,17 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 					if cd, ok := d.(*ValueDecl); ok {
 						checkValDefineMismatch(cd)
 					}
+
+					isGlobal := true
+
+					for i := len(ns) - 1; i > 0; i-- {
+						if _, ok := ns[i].(*FuncDecl); ok {
+							isGlobal = false
+						}
+					}
+
+					d.SetAttribute(ATTR_GLOBAL, isGlobal)
+
 					// recursively predefine dependencies.
 					d2, ppd := predefineNow(store, last, d)
 					if ppd {
@@ -4364,13 +4375,16 @@ func findUndefined2(store Store, last BlockNode, x Expr, t Type, skipPredefined 
 				ct.String()))
 		}
 	case *FuncLitExpr:
-		for _, stmt := range cx.Body {
-			un = findUndefinedStmt(store, cx, stmt, t)
+		if cx.GetAttribute(ATTR_GLOBAL) == true {
+			for _, stmt := range cx.Body {
+				un = findUndefinedStmt(store, cx, stmt, t)
 
-			if un != "" {
-				return
+				if un != "" {
+					return
+				}
 			}
 		}
+
 		return findUndefined2(store, last, &cx.Type, nil, skipPredefined)
 	case *FieldTypeExpr:
 		return findUndefined2(store, last, cx.Type, nil, skipPredefined)
