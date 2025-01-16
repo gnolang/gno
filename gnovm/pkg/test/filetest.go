@@ -184,6 +184,7 @@ type runResult struct {
 }
 
 func (opts *TestOptions) runTest(m *gno.Machine, pkgPath, filename string, content []byte) (rr runResult) {
+	fmt.Println("runTest")
 	pkgName := gno.Name(pkgPath[strings.LastIndexByte(pkgPath, '/')+1:])
 
 	// Eagerly load imports.
@@ -236,7 +237,7 @@ func (opts *TestOptions) runTest(m *gno.Machine, pkgPath, filename string, conte
 		m.SetActivePackage(pv)
 		n := gno.MustParseFile(filename, string(content))
 		m.RunFiles(n)
-		//fmt.Println("---after RunFiles, m: ", m)
+		fmt.Println("======after RunFiles, m.Alloc.Memstats: ", m.Alloc.MemStats())
 
 		m.RunStatement(gno.S(gno.Call(gno.X("main"))))
 	} else {

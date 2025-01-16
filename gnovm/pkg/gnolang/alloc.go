@@ -105,11 +105,11 @@ func (alloc *Allocator) Fork() *Allocator {
 }
 
 func (alloc *Allocator) MemStats() string {
-	return fmt.Sprintf("Allocator{maxBytes:%d,bytes,bytes:%d}", alloc.maxBytes, alloc.bytes)
+	return fmt.Sprintf("Allocator{maxBytes:%d, bytes:%d}", alloc.maxBytes, alloc.bytes)
 }
 
 func (alloc *Allocator) GC() {
-	println("---gc")
+	debug2.Println2("---gc")
 	// a throwaway allocator
 	throwaway := NewAllocator(3000, nil)
 	debug2.Println2("m: ", alloc.m)
@@ -151,7 +151,7 @@ func (alloc *Allocator) GC() {
 	debug2.Println2("---throwaway.bytes: ", throwaway.bytes)
 	debug2.Println2("---before reset, alloc.bytes: ", alloc.bytes)
 	alloc.bytes = throwaway.bytes
-	println("---after reset, alloc.bytes: ", alloc.bytes)
+	debug2.Println2("---after reset, alloc.bytes: ", alloc.bytes)
 }
 
 func (throwaway *Allocator) allocate2(v Value) {
@@ -165,7 +165,16 @@ func (throwaway *Allocator) allocate2(v Value) {
 			throwaway.allocate2(field.V)
 		}
 	case *FuncValue:
-		throwaway.AllocateFunc()
+		// TODO: is this right?
+		// if closure if fileNode, no allocate,
+		// cuz it's already done in compile stage.
+		debug2.Println2("funcValue, vv: ", vv)
+		debug2.Println2("clo: ", vv.Closure)
+		debug2.Println2("clo...Source: ", vv.Closure.(*Block).Source, reflect.TypeOf(vv.Closure.(*Block).Source))
+		if _, ok := vv.Closure.(*Block).Source.(*FileNode); !ok {
+			debug2.Println2("not a FileNode, alloc func")
+			throwaway.AllocateFunc()
+		}
 	case PointerValue:
 		throwaway.AllocatePointer()
 		throwaway.allocate2(vv.Base)
@@ -213,14 +222,14 @@ func (alloc *Allocator) Allocate(size int64) {
 
 	debug2.Println2("new allocated: ", size)
 	alloc.bytes += size
-	debug2.Println2("bytes after allocated: ", alloc.bytes)
+	debug2.Println2("===========bytes after allocated============: ", alloc.bytes)
 	if alloc.bytes > alloc.maxBytes {
 		panic("allocation limit exceeded")
 	}
 }
 
 func (alloc *Allocator) AllocateString(size int64) {
-	debug2.Println2("AllocateString")
+	debug2.Println2("AllocateString, size: ", size)
 	alloc.Allocate(allocString + allocStringByte*size)
 }
 
@@ -317,7 +326,7 @@ func (alloc *Allocator) AllocateHeapItem() {
 // constructor utilities.
 
 func (alloc *Allocator) NewString(s string) StringValue {
-	debug2.Println2("NewString: ", s)
+	debug2.Printf2("NewString, s: \"%s\" \n", s)
 	alloc.AllocateString(int64(len(s)))
 	return StringValue(s)
 }

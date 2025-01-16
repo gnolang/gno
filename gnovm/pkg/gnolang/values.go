@@ -570,6 +570,13 @@ func (fv *FuncValue) IsNative() bool {
 func (fv *FuncValue) Copy(alloc *Allocator) *FuncValue {
 	debug2.Println2("Copy, fv: ", fv)
 	debug2.Println2("allocator: ", alloc)
+	debug2.Println2("fv.clo: ", fv.Closure)
+	if b, ok := fv.Closure.(*Block); ok {
+		debug2.Println2("containing block of fv is: ", b)
+		if b != nil {
+			debug2.Println2("fv...source, type of source", b.Source, reflect.TypeOf(b.Source))
+		}
+	}
 	alloc.AllocateFunc()
 	return &FuncValue{
 		Type:       fv.Type,

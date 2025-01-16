@@ -204,6 +204,7 @@ func (m *Machine) doOpRef() {
 	if elt == DataByteType {
 		elt = xv.TV.V.(DataByteValue).ElemType
 	}
+	debug2.Println2("doOpRef, new type")
 	m.PushValue(TypedValue{
 		T: m.Alloc.NewType(&PointerType{Elt: elt}),
 		V: xv,

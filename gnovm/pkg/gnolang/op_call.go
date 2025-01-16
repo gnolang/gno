@@ -153,8 +153,9 @@ func (m *Machine) doOpCall() {
 			}
 		} else {
 			list := m.PopCopyValues(nvar)
+			debug2.Println2("list: ", list)
 			vart := pts[numParams-1].Type.(*SliceType)
-			debug2.Println2("varg")
+			debug2.Println2("has varg")
 			varg := m.Alloc.NewSliceFromList(list)
 			m.PushValue(TypedValue{
 				T: vart,

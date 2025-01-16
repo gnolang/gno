@@ -270,6 +270,7 @@ func (opts *TestOptions) runTestFiles(
 	files *gno.FileSet,
 	cw storetypes.Store, gs gno.TransactionStore,
 ) (errs error) {
+	fmt.Println("runTestFiles")
 	var m *gno.Machine
 	defer func() {
 		if r := recover(); r != nil {

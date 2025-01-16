@@ -266,6 +266,8 @@ func (ds *defaultStore) SetPackageGetter(pg PackageGetter) {
 
 // Gets package from cache, or loads it from baseStore, or gets it from package getter.
 func (ds *defaultStore) GetPackage(pkgPath string, isImport bool) *PackageValue {
+	debug2.Println2("GetPackage, pkgPath: ", pkgPath)
+	debug2.Println("ds.Alloc: ", ds.alloc)
 	// helper to detect circular imports
 	if isImport {
 		if slices.Contains(ds.current, pkgPath) {
@@ -430,6 +432,7 @@ func (ds *defaultStore) GetObjectSafe(oid ObjectID) Object {
 // loads and caches an object.
 // CONTRACT: object isn't already in the cache.
 func (ds *defaultStore) loadObjectSafe(oid ObjectID) Object {
+	debug2.Println2("loadObjectSafe", oid)
 	if bm.OpsEnabled {
 		bm.PauseOpCode()
 		defer bm.ResumeOpCode()
