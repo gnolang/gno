@@ -19,8 +19,8 @@ var reUsername = regexp.MustCompile(reValidUsername)
 // Register registers a new username for the caller
 // A valid username must start with a minimum of 3 letters,
 // end with a minimum of 3 numbers, and be less than 20 chars long.
-// All letters must be lowercase, and the only valid special char is `_`
-// Only calls from EOAs are supported
+// All letters must be lowercase, and the only valid special char is `_`.
+// Only calls from EOAs are supported.
 func Register(username string) error {
 	std.AssertOriginCall()
 
@@ -41,6 +41,9 @@ func Register(username string) error {
 	return nil
 }
 
+// UpdateName allows a user to update their name.
+// The associated address and all previous names of a user that changes a name
+// are preserved, and all resolve to the new name.
 func UpdateName(newName string) error {
 	std.AssertOriginCall()
 
