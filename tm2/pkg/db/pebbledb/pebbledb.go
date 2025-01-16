@@ -105,7 +105,6 @@ func (db *PebbleDB) Close() {
 
 // Implements DB.
 func (db *PebbleDB) Print() {
-
 }
 
 // Implements DB.
