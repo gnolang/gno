@@ -15,6 +15,7 @@ import (
 	"github.com/gnolang/gno/gno.land/pkg/gnoweb/components"
 	"github.com/gnolang/gno/tm2/pkg/bft/rpc/client"
 	"github.com/yuin/goldmark"
+	"github.com/yuin/goldmark/extension"
 	mdhtml "github.com/yuin/goldmark/renderer/html"
 )
 
@@ -77,6 +78,7 @@ func NewRouter(logger *slog.Logger, cfg *AppConfig) (http.Handler, error) {
 			markdown.NewHighlighting(
 				markdown.WithFormatOptions(chromaOptions...),
 			),
+			extension.Table,
 		),
 	}
 	if cfg.UnsafeHTML {
