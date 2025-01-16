@@ -9,7 +9,7 @@ import (
 	"gno.land/p/demo/avl"
 	"gno.land/p/moul/txlink"
 
-	"gno.land/p/demo/boards2/admindao"
+	"gno.land/r/demo/boards2/admindao"
 )
 
 type BoardID uint64
@@ -42,7 +42,7 @@ func newBoard(id BoardID, name string, creator std.Address) *Board {
 		threads:   avl.Tree{},
 		createdAt: time.Now(),
 		deleted:   avl.Tree{},
-		perms:     createDefaultBoardPermissions(creator),
+		perms:     createDefaultBoardPermissions(name, creator),
 	}
 }
 
@@ -132,9 +132,12 @@ func (board *Board) GetPostFormURL() string {
 }
 
 // TODO: This is a temporary implementation until the permissions and DAO mecahnics are defined
-func createDefaultBoardPermissions(owner std.Address) *DefaultPermissions {
+func createDefaultBoardPermissions(name string, owner std.Address) *DefaultPermissions {
+	dao := admindao.New(name)
+	dao.AddMember(owner)
+
 	return NewDefaultPermissions(
-		admindao.New(admindao.WithMember(owner)),
+		dao,
 		WithSuperRole(RoleOwner),
 		WithRole(RoleAdmin, PermissionMemberInvite, PermissionBoardRename),
 		// TODO: Finish assigning all roles and permissions

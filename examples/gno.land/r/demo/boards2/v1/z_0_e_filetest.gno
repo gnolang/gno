@@ -13,8 +13,8 @@ func init() {
 }
 
 func main() {
-	boards2.CreateBoard("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5")
+	boards2.CreateBoard("gnoland")
 }
 
 // Error:
-// addresses are not allowed as board name
+// board name is a user name registered to a different user

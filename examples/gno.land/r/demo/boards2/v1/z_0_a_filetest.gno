@@ -1,4 +1,5 @@
-package main
+// PKGPATH: gno.land/r/demo/boards2/test
+package test
 
 import (
 	"std"

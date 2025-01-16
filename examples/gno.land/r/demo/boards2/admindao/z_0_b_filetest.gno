@@ -1,9 +1,9 @@
-package main
+package main // <-- Caller realm is main instead of a realm within admindao parent namespace
 
 import (
 	"std"
 
-	boards2 "gno.land/r/demo/boards2/v1"
+	"gno.land/r/demo/boards2/admindao"
 )
 
 const owner = std.Address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5") // @test1
@@ -13,8 +13,8 @@ func init() {
 }
 
 func main() {
-	boards2.CreateBoard("gnoland")
+	admindao.New("foo")
 }
 
 // Error:
-// board name is a user name registered to a different user
+// unauthorized

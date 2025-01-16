@@ -5,22 +5,23 @@ import (
 	"std"
 
 	"gno.land/p/demo/avl"
-	"gno.land/p/demo/boards2/admindao"
+	padmindao "gno.land/p/demo/boards2/admindao"
 
+	// "gno.land/r/demo/boards2/admindao"
 	"gno.land/r/demo/users"
 )
 
 // DefaultPermissions manages users, roles and permissions.
 type DefaultPermissions struct {
 	superRole Role
-	dao       *admindao.AdminDAO
+	dao       *padmindao.AdminDAO
 	users     *avl.Tree // string(std.Address) -> []Role
 	roles     *avl.Tree // string(role) -> []Permission
 }
 
 // NewDefaultPermissions creates a new permissions type.
 // This type is a default implementation to handle users, roles and permissions.
-func NewDefaultPermissions(dao *admindao.AdminDAO, options ...DefaultPermissionsOption) *DefaultPermissions {
+func NewDefaultPermissions(dao *padmindao.AdminDAO, options ...DefaultPermissionsOption) *DefaultPermissions {
 	dp := &DefaultPermissions{
 		dao:   dao,
 		roles: avl.NewTree(),
@@ -127,7 +128,7 @@ func (dp *DefaultPermissions) RemoveUser(user std.Address) bool {
 
 // GetDAO returns the underlying DAO.
 // Returned value can be nil if the implementation doesn't have a DAO.
-func (dp DefaultPermissions) GetDAO() *admindao.AdminDAO {
+func (dp DefaultPermissions) GetDAO() *padmindao.AdminDAO {
 	return dp.dao
 }
 
@@ -193,10 +194,14 @@ func (dp DefaultPermissions) handleMemberInvite(args Args, cb func(Args)) {
 }
 
 func createDefaultPermissions(owner std.Address) *DefaultPermissions {
-	// TODO: DAO should be a different realm or proposal and voting functions should be part of boards realm?
-	//       Permissions and DAO mechanics should be discussed and improved. Add `GetDAO()` to `Permissions`??
+	// TODO: Creating the boards DAO makes following calls to New (avl.Tree.Set()) fail
+	// dao := admindao.New("boards")
+	// dao.AddMember(owner)
+	dao := padmindao.New()
+	dao.AddMember(owner)
+
 	return NewDefaultPermissions(
-		admindao.New(admindao.WithMember(owner)),
+		dao,
 		WithSuperRole(RoleOwner),
 		WithRole(RoleAdmin, PermissionBoardCreate, PermissionMemberInvite),
 		// TODO: Finish assigning all roles and permissions
