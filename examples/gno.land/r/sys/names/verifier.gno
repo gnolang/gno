@@ -38,8 +38,8 @@ func defaultVerifier(address std.Address, name string) bool {
 	}
 
 	// Can be a registered name or an alias
-	userData := users.ResolveName(name)
-	if userData == nil || userData.IsDeleted() {
+	userData, _ := users.ResolveName(name)
+	if userData == nil {
 		return false
 	}
 

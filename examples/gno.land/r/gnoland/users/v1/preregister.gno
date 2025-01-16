@@ -29,7 +29,7 @@ var preRegisteredUsers = []struct {
 func init() {
 	// add pre-registered users
 	for _, res := range preRegisteredUsers {
-		if err := users.WriteUser(res.Name, res.Address); err != nil {
+		if err := users.RegisterUser(res.Name, res.Address); err != nil {
 			panic(err)
 		}
 	}

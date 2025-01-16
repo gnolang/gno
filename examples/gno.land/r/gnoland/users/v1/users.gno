@@ -4,26 +4,17 @@ import (
 	"regexp"
 	"std"
 
-	"gno.land/p/demo/ownable"
-	"gno.land/p/demo/pausable"
-
 	"gno.land/r/sys/users"
 )
 
 const (
-	adminAddr = "g1manfred47kzduec920z88wfr64ylksmdcedlf5" // @moul
-
-	reValidUsername    = "^[a-z]{3}[_a-z0-9]{0,14}[0-9]{3}$"
-	RegisterEvent      = "Registered"
-	RegisterAliasEvent = "AliasRegistered"
-	DeleteUserEvent    = "UserDeleted"
+	reValidUsername = "^[a-z]{3}[_a-z0-9]{0,14}[0-9]{3}$"
+	RegisterEvent   = "Registered"
+	UpdateNameEvent = "NameUpdated"
+	DeleteUserEvent = "UserDeleted"
 )
 
-var (
-	Ownable    = ownable.NewWithAddress(adminAddr) // @moul - switch to dao managed in v2
-	Pausable   = pausable.NewFromOwnable(Ownable)  //
-	reUsername = regexp.MustCompile(reValidUsername)
-)
+var reUsername = regexp.MustCompile(reValidUsername)
 
 // Register registers a new username for the caller
 // A valid username must start with a minimum of 3 letters,
@@ -33,8 +24,8 @@ var (
 func Register(username string) error {
 	std.AssertOriginCall()
 
-	if Pausable.IsPaused() {
-		return pausable.ErrPaused
+	if paused {
+		return ErrPaused
 	}
 
 	if matched := reUsername.MatchString(username); !matched {
@@ -42,8 +33,7 @@ func Register(username string) error {
 	}
 
 	registrant := std.PrevRealm().Addr()
-
-	if err := users.Register(username, registrant); err != nil {
+	if err := users.RegisterUser(username, registrant); err != nil {
 		return err
 	}
 
@@ -51,30 +41,29 @@ func Register(username string) error {
 	return nil
 }
 
-func RegisterAlias(alias string) error {
+func UpdateName(newName string) error {
 	std.AssertOriginCall()
 
-	if Pausable.IsPaused() {
-		return pausable.ErrPaused
+	if paused {
+		return ErrPaused
 	}
 
 	registrant := std.PrevRealm().Addr()
-
-	if err := users.RegisterAlias(username, registrant); err != nil {
+	if err := users.UpdateName(newName, registrant); err != nil {
 		return err
 	}
 
-	std.Emit(RegisterAliasEvent, "registrant", registrant.String(), "alias", alias)
+	std.Emit(UpdateNameEvent, "registrant", registrant.String(), "newName", newName)
 	return nil
 }
 
-// DeleteUser deletes the name and aliases associated with the PrevRealm() address.
-// WARN: After deletion, the same address WILL NOT be able to register a new name or alias.
+// DeleteUser makes all names associated with the PrevRealm() address unresolvable.
+// WARN: After deletion, the same address WILL NOT be able to register a new name.
 func DeleteUser() error {
 	std.AssertOriginCall()
 
-	if Pausable.IsPaused() {
-		return pausable.ErrPaused
+	if paused {
+		return ErrPaused
 	}
 
 	addr := std.PrevRealm().Addr()
@@ -82,6 +71,6 @@ func DeleteUser() error {
 		return err
 	}
 
-	std.Emit(DeleteUserEvent, "address", registrant.String())
+	std.Emit(DeleteUserEvent, "address", addr.String())
 	return nil
 }

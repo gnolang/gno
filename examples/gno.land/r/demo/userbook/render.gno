@@ -4,14 +4,14 @@ package userbook
 import (
 	"strconv"
 
-	"gno.land/r/demo/users"
+	"gno.land/r/sys/users"
 
 	"gno.land/p/demo/avl/pager"
 	"gno.land/p/demo/ufmt"
 	"gno.land/p/moul/txlink"
 )
 
-const usersLink = "/r/demo/users"
+const usersLink = "/r/sys/users"
 
 func Render(path string) string {
 	p := pager.NewPager(signupsTree, 20, true)
@@ -26,8 +26,8 @@ func Render(path string) string {
 		signup := item.Value.(*Signup)
 		user := signup.address.String()
 
-		if data := users.GetUserByAddress(signup.address); data != nil {
-			user = ufmt.Sprintf("[%s](%s:%s)", data.Name, usersLink, data.Name)
+		if data := users.ResolveAddress(signup.address); data != nil {
+			user = ufmt.Sprintf("[%s](%s:%s)", data.Name(), usersLink, data.Name())
 		}
 
 		out += ufmt.Sprintf("- **User #%d - %s - signed up on %s**\n\n", signup.ordinal, user, signup.timestamp.Format("January 2 2006, 03:04:04 PM"))

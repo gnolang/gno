@@ -1,19 +1,19 @@
 package foo721
 
 import (
+	"std"
 	"testing"
 
 	"gno.land/p/demo/grc/grc721"
-	"gno.land/r/demo/users"
 
-	pusers "gno.land/p/demo/users"
+	"gno.land/r/sys/users"
 )
 
 func TestFoo721(t *testing.T) {
-	admin := pusers.AddressOrName("g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj")
-	hariom := pusers.AddressOrName("g1var589z07ppjsjd24ukm4uguzwdt0tw7g47cgm")
+	admin := std.Address("g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj")
+	hariom := std.Address("g1var589z07ppjsjd24ukm4uguzwdt0tw7g47cgm")
 
-	for i, tc := range []struct {
+	for _, tc := range []struct {
 		name     string
 		expected interface{}
 		fn       func() interface{}

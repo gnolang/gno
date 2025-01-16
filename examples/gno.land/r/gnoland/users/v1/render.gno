@@ -1,13 +1,15 @@
 package v1
 
 import (
-	"github.com/gnolang/gno/examples/gno.land/p/demo/avl/pager"
-	"github.com/gnolang/gno/examples/gno.land/p/demo/ufmt"
-	"github.com/gnolang/gno/examples/gno.land/p/moul/realmpath"
-	"github.com/gnolang/gno/examples/gno.land/r/demo/profile"
-	"github.com/gnolang/gno/examples/gno.land/r/sys/users"
-	"github.com/gnolang/gno/gnovm/stdlibs/std"
+	"std"
 	"strconv"
+
+	"gno.land/p/demo/avl/pager"
+	"gno.land/p/demo/ufmt"
+	"gno.land/p/moul/realmpath"
+
+	"gno.land/r/demo/profile"
+	"gno.land/r/sys/users"
 )
 
 func Render(path string) string {
@@ -16,13 +18,15 @@ func Render(path string) string {
 
 	// Render home page
 	if req.Path == "" {
-		p := pager.NewPager(users.GetReadonlyStore(), 5, false)
+		p := pager.NewPager(users.GetReadonlyNameStore(), 50, false)
 		page := p.MustGetPageByPath(path)
 
 		out += "# gno.land user registry\n"
 
 		for _, item := range page.Items {
-			out += ufmt.Sprintf("- User [**%s**](/r/gnoland/users:%s)\n", item.Key, item.Key)
+			if !item.Value.(*users.UserData).IsDeleted() {
+				out += ufmt.Sprintf("- User [**%s**](/r/gnoland/users/v1:%s)\n", item.Key, item.Key)
+			}
 		}
 
 		out += "\n"
@@ -36,12 +40,12 @@ func Render(path string) string {
 	// Render specific user page
 	var lookup *users.UserData
 	if std.Address(req.Path).IsValid() {
-		lookup = users.ResolveAddress(req.Path)
+		lookup = users.ResolveAddress(std.Address(req.Path))
 	} else {
 		lookup, _ = users.ResolveName(req.Path)
 	}
 
-	if lookup == nil || lookup.IsDeleted() {
+	if lookup == nil {
 		out += "This user has been deleted or does not exist.\n"
 	} else {
 		out += renderUserPage(lookup)
