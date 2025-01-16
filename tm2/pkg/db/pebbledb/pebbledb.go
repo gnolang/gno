@@ -118,45 +118,44 @@ func (db *PebbleDB) Stats() map[string]string {
 
 // Implements DB.
 func (db *PebbleDB) NewBatch() db.Batch {
-	return &goLevelDBBatch{db, db.db.NewBatch()}
+	return &pebbleDBBatch{db, db.db.NewBatch()}
 }
 
-type goLevelDBBatch struct {
+type pebbleDBBatch struct {
 	db    *PebbleDB
 	batch *pebble.Batch
 }
 
 // Implements Batch.
-func (mBatch *goLevelDBBatch) Set(key, value []byte) {
+func (mBatch *pebbleDBBatch) Set(key, value []byte) {
 	if err := mBatch.batch.Set(key, value, pebble.NoSync); err != nil {
 		panic(err)
 	}
 }
 
 // Implements Batch.
-func (mBatch *goLevelDBBatch) Delete(key []byte) {
+func (mBatch *pebbleDBBatch) Delete(key []byte) {
 	if err := mBatch.batch.Delete(key, pebble.NoSync); err != nil {
 		panic(err)
 	}
 }
 
 // Implements Batch.
-func (mBatch *goLevelDBBatch) Write() {
+func (mBatch *pebbleDBBatch) Write() {
 	if err := mBatch.batch.Commit(pebble.NoSync); err != nil {
 		panic(err)
 	}
 }
 
 // Implements Batch.
-func (mBatch *goLevelDBBatch) WriteSync() {
+func (mBatch *pebbleDBBatch) WriteSync() {
 	if err := mBatch.batch.Commit(pebble.Sync); err != nil {
 		panic(err)
 	}
 }
 
 // Implements Batch.
-// Close is no-op for goLevelDBBatch.
-func (mBatch *goLevelDBBatch) Close() {
+func (mBatch *pebbleDBBatch) Close() {
 	mBatch.batch.Close()
 }
 
