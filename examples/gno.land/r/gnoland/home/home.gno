@@ -262,6 +262,13 @@ func discoverLinks() ui.Element {
 
 <div class="column">
 
+| Country | Region       | Minimum Nos. | Probably Nos. | Speculative Nos. |
+|:--------|:-------------|-------------:|--------------:|-----------------:|
+| India   | Northern     |          750 |           875 |            1,000 |
+| India   | Northeastern |        7,200 |         9,250 |           11,300 |
+| Nepal   |              |           41 |            50 |               60 |
+
+
 ## Build with Gno
 
 - [Write Gno in the browser](https://play.gno.land)
