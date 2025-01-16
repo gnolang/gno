@@ -48,6 +48,7 @@ func Render(path string) string {
 	}
 
 	if data == nil {
+		out += md.H1("404")
 		out += "This user does not exist or has been deleted.\n"
 	} else {
 		out += renderUserPage(data)
