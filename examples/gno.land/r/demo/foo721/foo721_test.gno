@@ -5,8 +5,6 @@ import (
 	"testing"
 
 	"gno.land/p/demo/grc/grc721"
-
-	"gno.land/r/sys/users"
 )
 
 func TestFoo721(t *testing.T) {
@@ -20,7 +18,7 @@ func TestFoo721(t *testing.T) {
 	}{
 		{"BalanceOf(admin)", uint64(10), func() interface{} { return BalanceOf(admin) }},
 		{"BalanceOf(hariom)", uint64(5), func() interface{} { return BalanceOf(hariom) }},
-		{"OwnerOf(0)", users.Resolve(admin), func() interface{} { return OwnerOf(grc721.TokenID("0")) }},
+		{"OwnerOf(0)", admin, func() interface{} { return OwnerOf(grc721.TokenID("0")) }},
 		{"IsApprovedForAll(admin, hariom)", false, func() interface{} { return IsApprovedForAll(admin, hariom) }},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
