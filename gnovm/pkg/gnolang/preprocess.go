@@ -10,7 +10,6 @@ import (
 	"sync/atomic"
 
 	"github.com/gnolang/gno/tm2/pkg/errors"
-	tmstore "github.com/gnolang/gno/tm2/pkg/store"
 )
 
 const (
@@ -366,12 +365,6 @@ func initStaticBlocks(store Store, ctx BlockNode, bn BlockNode) {
 
 func doRecover(stack []BlockNode, n Node) {
 	if r := recover(); r != nil {
-		// Catch the out-of-gas exception and throw it
-		if exp, ok := r.(tmstore.OutOfGasException); ok {
-			exp.Descriptor = fmt.Sprintf("in preprocess: %v", r)
-			panic(exp)
-		}
-
 		if _, ok := r.(*PreprocessError); ok {
 			// re-panic directly if this is a PreprocessError already.
 			panic(r)
@@ -388,10 +381,8 @@ func doRecover(stack []BlockNode, n Node) {
 		var err error
 		rerr, ok := r.(error)
 		if ok {
-			// NOTE: gotuna/gorilla expects error exceptions.
 			err = errors.Wrap(rerr, loc.String())
 		} else {
-			// NOTE: gotuna/gorilla expects error exceptions.
 			err = fmt.Errorf("%s: %v", loc.String(), r)
 		}
 
@@ -592,6 +583,10 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 				// define key/value.
 				n.X = Preprocess(store, last, n.X).(Expr)
 				xt := evalStaticTypeOf(store, last, n.X)
+				if xt == nil {
+					panic("cannot range over nil")
+				}
+
 				switch xt.Kind() {
 				case MapKind:
 					n.IsMap = true
@@ -2299,6 +2294,7 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 					// NOTE: may or may not be a *ConstExpr,
 					// but if not, make one now.
 					for i, vx := range n.Values {
+						assertValidConstExpr(store, last, n, vx)
 						n.Values[i] = evalConst(store, last, vx)
 					}
 				} else {
@@ -2728,17 +2724,10 @@ func findGotoLoopDefines(ctx BlockNode, bn BlockNode) {
 								// Otherwise mark stmt as gotoloop.
 								case Stmt:
 									// we're done if we
-									// re-encounter origGotoStmtm.
+									// re-encounter origGotoStmt.
 									if n == origGoto {
-										n.SetAttribute(
-											ATTR_GOTOLOOP_STMT,
-											true)
 										return n, TRANS_EXIT // done
 									}
-									// otherwise set attribute.
-									n.SetAttribute(
-										ATTR_GOTOLOOP_STMT,
-										true)
 									return n, TRANS_CONTINUE
 								// Special case, maybe convert
 								// NameExprTypeDefine to
@@ -3125,7 +3114,7 @@ func evalStaticType(store Store, last BlockNode, x Expr) Type {
 	// See comment in evalStaticTypeOfRaw.
 	if store != nil && pn.PkgPath != uversePkgPath {
 		pv := pn.NewPackage() // temporary
-		store = store.BeginTransaction(nil, nil)
+		store = store.BeginTransaction(nil, nil, nil)
 		store.SetCachePackage(pv)
 	}
 	m := NewMachine(pn.PkgPath, store)
@@ -3193,7 +3182,7 @@ func evalStaticTypeOfRaw(store Store, last BlockNode, x Expr) (t Type) {
 		// yet predefined this time around.
 		if store != nil && pn.PkgPath != uversePkgPath {
 			pv := pn.NewPackage() // temporary
-			store = store.BeginTransaction(nil, nil)
+			store = store.BeginTransaction(nil, nil, nil)
 			store.SetCachePackage(pv)
 		}
 		m := NewMachine(pn.PkgPath, store)
@@ -4400,7 +4389,7 @@ func tryPredefine(store Store, last BlockNode, d Decl) (un Name) {
 			if fv.body == nil && store != nil {
 				fv.nativeBody = store.GetNative(pkg.PkgPath, d.Name)
 				if fv.nativeBody == nil {
-					panic(fmt.Sprintf("function %s does not have a body but is not natively defined", d.Name))
+					panic(fmt.Sprintf("function %s does not have a body but is not natively defined (did you build after pulling from the repository?)", d.Name))
 				}
 				fv.NativePkg = pkg.PkgPath
 				fv.NativeName = d.Name
@@ -4809,9 +4798,6 @@ func setNodeLines(n Node) {
 // based on sparse expectations on block nodes, and ensures uniqueness of BlockNode.Locations.
 // Ensures uniqueness of BlockNode.Locations.
 func setNodeLocations(pkgPath string, fileName string, n Node) {
-	if n.GetAttribute(ATTR_LOCATIONED) == true {
-		return // locations already set (typically n is a filenode).
-	}
 	if pkgPath == "" || fileName == "" {
 		panic("missing package path or file name")
 	}

@@ -384,7 +384,7 @@ func (node *Node) TraverseInRange(start, end string, ascending bool, leavesOnly 
 
 // TraverseByOffset traverses all nodes, including inner nodes.
 // A limit of math.MaxInt means no limit.
-func (node *Node) TraverseByOffset(offset, limit int, descending bool, leavesOnly bool, cb func(*Node) bool) bool {
+func (node *Node) TraverseByOffset(offset, limit int, ascending bool, leavesOnly bool, cb func(*Node) bool) bool {
 	if node == nil {
 		return false
 	}
@@ -401,21 +401,21 @@ func (node *Node) TraverseByOffset(offset, limit int, descending bool, leavesOnl
 	}
 
 	// go to the actual recursive function.
-	return node.traverseByOffset(offset, limit, descending, leavesOnly, cb)
+	return node.traverseByOffset(offset, limit, ascending, leavesOnly, cb)
 }
 
 // TraverseByOffset traverses the subtree rooted at the node by offset and limit,
 // in either ascending or descending order, and applies the callback function to each traversed node.
 // If leavesOnly is true, only leaf nodes are visited.
-func (node *Node) traverseByOffset(offset, limit int, descending bool, leavesOnly bool, cb func(*Node) bool) bool {
+func (node *Node) traverseByOffset(offset, limit int, ascending bool, leavesOnly bool, cb func(*Node) bool) bool {
 	// caller guarantees: offset < node.size; limit > 0.
 	if !leavesOnly {
 		if cb(node) {
-			return true
+			return true // Stop traversal if callback returns true
 		}
 	}
 	first, second := node.getLeftNode(), node.getRightNode()
-	if descending {
+	if !ascending {
 		first, second = second, first
 	}
 	if first.IsLeaf() {
@@ -423,10 +423,12 @@ func (node *Node) traverseByOffset(offset, limit int, descending bool, leavesOnl
 		if offset > 0 {
 			offset--
 		} else {
-			cb(first)
+			if cb(first) {
+				return true // Stop traversal if callback returns true
+			}
 			limit--
 			if limit <= 0 {
-				return false
+				return true // Stop traversal when limit is reached
 			}
 		}
 	} else {
@@ -437,7 +439,7 @@ func (node *Node) traverseByOffset(offset, limit int, descending bool, leavesOnl
 		if offset >= first.size {
 			offset -= first.size // 1
 		} else {
-			if first.traverseByOffset(offset, limit, descending, leavesOnly, cb) {
+			if first.traverseByOffset(offset, limit, ascending, leavesOnly, cb) {
 				return true
 			}
 			// number of leaves which could actually be called from inside
@@ -460,7 +462,7 @@ func (node *Node) traverseByOffset(offset, limit int, descending bool, leavesOnl
 	}
 	// => if it is not a leaf, it will still be enough to recursively call this
 	// function with the updated offset and limit
-	return second.traverseByOffset(offset, limit, descending, leavesOnly, cb)
+	return second.traverseByOffset(offset, limit, ascending, leavesOnly, cb)
 }
 
 // Only used in testing...

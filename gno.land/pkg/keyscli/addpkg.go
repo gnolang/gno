@@ -71,6 +71,12 @@ func execMakeAddPkg(cfg *MakeAddPkgCfg, args []string, io commands.IO) error {
 	if cfg.PkgDir == "" {
 		return errors.New("pkgdir not specified")
 	}
+	if cfg.RootCfg.GasWanted == 0 {
+		return errors.New("gas-wanted not specified")
+	}
+	if cfg.RootCfg.GasFee == "" {
+		return errors.New("gas-fee not specified")
+	}
 
 	if len(args) != 1 {
 		return flag.ErrHelp
