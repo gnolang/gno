@@ -54,6 +54,19 @@ func Config(gh *client.GitHub) ([]AutomaticCheck, []ManualCheck) {
 			If:          c.Label("don't merge"),
 			Then:        r.Never(),
 		},
+		{
+			Description: "Pending initial approval by a review team member (and label matches review triage state)",
+			If:          c.Not(c.AuthorAssociationIs("MEMBER")),
+			Then: r.
+				If(r.ReviewByOrgMembers(gh, 1)).
+				// Either there was a first approval from a member, and we
+				// assert that the label for triage-pending is removed...
+				Then(r.Not(r.Label(gh, "review/triage-pending", r.LabelRemove))).
+				// Or there was not, and we apply the triage pending label.
+				// The requirement should always fail, to mark the PR is not
+				// ready to be merged.
+				Else(r.And(r.Label(gh, "review/triage-pending", r.LabelApply), r.Never())),
+		},
 	}
 
 	manual := []ManualCheck{
