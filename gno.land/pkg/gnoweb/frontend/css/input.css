@@ -147,12 +147,12 @@
   }
 
   .realm-content table {
-    @apply w-full border-collapse my-8;
+    @apply border-collapse my-8 block w-full max-w-full overflow-x-auto border-collapse;
   }
 
   .realm-content th,
   .realm-content td {
-    @apply border border-gray-300 px-4 py-2;
+    @apply border px-4 py-2 break-words whitespace-normal;
   }
 
   .realm-content th {
@@ -188,16 +188,6 @@
 
   .realm-content ol {
     @apply list-decimal;
-  }
-
-  .realm-content table th:first-child,
-  .realm-content td:first-child {
-    @apply pl-0;
-  }
-
-  .realm-content table th:last-child,
-  .realm-content td:last-child {
-    @apply pr-0;
   }
 
   .realm-content abbr[title] {
