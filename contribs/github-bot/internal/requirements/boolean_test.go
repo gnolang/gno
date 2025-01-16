@@ -117,8 +117,9 @@ func TestIfCond(t *testing.T) {
 			actual := testCase.req.IsSatisfied(pr, details)
 			assert.Equal(t, testCase.isSatisfied, actual,
 				"requirement should have a satisfied status: %t", testCase.isSatisfied)
-			//assert.True(t, utils.TestLastNodeStatus(t, testCase.isSatisfied, details), fmt.Sprintf("requirement details should have a status: %t", testCase.isSatisfied))
-			t.Log(details.String())
+			assert.True(t,
+				utils.TestNodeStatus(t, testCase.isSatisfied, details.(*treeprint.Node).Nodes[0]),
+				"requirement details should have a status: %t", testCase.isSatisfied)
 		})
 	}
 }
