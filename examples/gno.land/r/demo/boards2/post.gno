@@ -38,6 +38,7 @@ type Post struct {
 	threadID      PostID  // original Post.id
 	parentID      PostID  // parent Post.id (if reply or repost)
 	repostBoardID BoardID // original Board.id (if repost)
+	repostsCount  uint64
 	createdAt     time.Time
 	updatedAt     time.Time
 }
@@ -60,7 +61,8 @@ func newPost(board *Board, id PostID, creator std.Address, title, body string, t
 }
 
 func (post *Post) IsThread() bool {
-	return post.parentID == 0
+	// repost threads also have parent ID
+	return post.parentID == 0 || post.repostBoardID != 0
 }
 
 func (post *Post) GetBoard() *Board {
@@ -153,18 +155,20 @@ func (thread *Post) GetReply(pid PostID) (_ *Post, found bool) {
 	return v.(*Post), true
 }
 
-func (post *Post) AddRepostTo(creator std.Address, title, body string, dst *Board) *Post {
+func (post *Post) AddRepostTo(creator std.Address, repost *Post, dst *Board) {
 	if !post.IsThread() {
 		panic("cannot repost non-thread post")
 	}
 
-	pid := dst.incGetPostID()
-	repost := newPost(dst, pid, creator, title, body, pid, post.id, post.board.id)
-	dst.threads.Set(pid.Key(), repost)
-	if !dst.IsPrivate() {
-		post.reposts.Set(dst.id.Key(), pid)
+	if post.isHidden {
+		panic("thread has been flagged as inappropriate")
 	}
-	return repost
+
+	post.repostsCount++
+	dst.threads.Set(repost.id.Key(), repost)
+	if !dst.IsPrivate() {
+		post.reposts.Set(dst.id.Key(), repost.id)
+	}
 }
 
 func (post *Post) DeleteReply(replyID PostID) error {
@@ -216,7 +220,7 @@ func (post *Post) GetReplyFormURL() string {
 func (post *Post) GetRepostFormURL() string {
 	return txlink.Call("CreateRepost",
 		"bid", post.board.id.String(),
-		"postID", post.id.String(),
+		"threadID", post.id.String(),
 	)
 }
 
@@ -235,24 +239,6 @@ func (post *Post) GetDeleteFormURL() string {
 }
 
 func (post *Post) RenderSummary() string {
-	if post.repostBoardID != 0 {
-		dstBoard, found := getBoard(post.repostBoardID)
-		if !found {
-			panic("repost board does not exist")
-		}
-
-		thread, found := dstBoard.GetThread(PostID(post.parentID))
-		if !found {
-			return "reposted post does not exist"
-		}
-
-		if thread.isHidden {
-			return "reposted post was hidden"
-		}
-
-		return "Repost: " + post.GetSummary() + "\n" + thread.RenderSummary()
-	}
-
 	var (
 		s       string
 		postURL = post.GetURL()
@@ -263,12 +249,41 @@ func (post *Post) RenderSummary() string {
 	}
 
 	s += post.GetSummary() + "\n"
+
+	repostBody, _ := post.renderSourcePost("")
+	s += repostBody
+
 	s += "\\- " + newUserLink(post.creator) + ","
 	s += " " + newLink(post.createdAt.Format(dateFormat), postURL)
-	s += " \\[" + newLink("x", post.GetDeleteFormURL()) + "]"
+	s += " " + newButtonLink("x", post.GetDeleteFormURL())
 	s += " (" + strconv.Itoa(post.replies.Size()) + " replies)"
 	s += " (" + strconv.Itoa(post.reposts.Size()) + " reposts)" + "\n"
 	return s
+}
+
+func (post *Post) renderSourcePost(indent string) (string, *Post) {
+	if post.repostBoardID == 0 {
+		return "", nil
+	}
+
+	indent += "> "
+
+	// TODO: figure out a way to decouple posts from a global storage.
+	board, ok := getBoard(post.repostBoardID)
+	if !ok {
+		return indentBody(indent, "*Source board is not available*\n\n"), nil
+	}
+
+	srcPost, ok := board.GetThread(post.parentID)
+	if !ok {
+		return indentBody(indent, "*Source post is not available*\n\n"), nil
+	}
+
+	if srcPost.isHidden {
+		return indentBody(indent, "*Source post has been flagged as inappropriate*\n\n"), nil
+	}
+
+	return indentBody(indent, srcPost.GetSummary()) + "\n\n", srcPost
 }
 
 func (post *Post) Render(indent string, levels int) string {
@@ -286,14 +301,34 @@ func (post *Post) Render(indent string, levels int) string {
 		s += indent + "\n"
 	}
 
+	srcContent, srcPost := post.renderSourcePost(indent)
+
+	s += srcContent
 	s += indentBody(indent, post.body) + "\n" // TODO: indent body lines.
+
+	if post.IsThread() {
+		// Split content and controls for threads.
+		s += "\n"
+	}
+
 	s += indent + "\\- " + newUserLink(post.creator) + ", "
 	s += newLink(post.createdAt.Format(dateFormat), postURL)
-	s += " \\[" + newLink("reply", post.GetReplyFormURL()) + "]"
-	if post.IsThread() {
-		s += " \\[" + newLink("repost", post.GetRepostFormURL()) + "]"
+
+	if post.repostsCount > 0 {
+		s += ", " + strconv.FormatUint(post.repostsCount, 10) + " reposts"
 	}
-	s += " \\[" + newLink("x", post.GetDeleteFormURL()) + "]\n"
+
+	if srcPost != nil {
+		s += " " + newButtonLink("see source post", srcPost.GetURL())
+	}
+
+	s += " " + newButtonLink("reply", post.GetReplyFormURL())
+
+	if post.IsThread() {
+		s += " " + newButtonLink("repost", post.GetRepostFormURL())
+	}
+
+	s += " " + newButtonLink("x", post.GetDeleteFormURL()) + "\n"
 
 	if levels > 0 {
 		if post.replies.Size() > 0 {
@@ -322,20 +357,28 @@ func (post *Post) RenderInner() string {
 	}
 
 	var (
-		parent    *Post
-		parentID  = post.parentID
 		threadID  = post.threadID
 		thread, _ = post.board.GetThread(threadID) // TODO: This seems redundant (post == thread)
 	)
 
-	if thread.id == parentID {
-		parent = thread
-	} else {
-		parent, _ = thread.GetReply(parentID)
+	s := "_" + newLink("see thread", post.board.GetURLFromThreadID(threadID)) + "_\n\n"
+
+	// Fully render parent if it's not a repost.
+	if post.repostBoardID == 0 {
+		var (
+			parent   *Post
+			parentID = post.parentID
+		)
+
+		if thread.id == parentID {
+			parent = thread
+		} else {
+			parent, _ = thread.GetReply(parentID)
+		}
+
+		s += parent.Render("", 0) + "\n"
 	}
 
-	s := "_" + newLink("see thread", post.board.GetURLFromThreadID(threadID)) + "_\n\n"
-	s += parent.Render("", 0) + "\n"
 	s += post.Render("> ", 5)
 	return s
 }
