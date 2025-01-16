@@ -1,9 +1,10 @@
-name: genesis-verify
+name: Deployment genesis.json Verification
 
 on:
-  pull_request:
+  push:
     branches:
       - master
+  pull_request:
     paths:
       - "misc/deployments/**/genesis.json"
       - ".github/workflows/genesis-verify.yml"
@@ -13,7 +14,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        testnet: ["test5.gno.land"]
+        testnet: [ "test5.gno.land" ]
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code

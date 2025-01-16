@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"go/token"
 	"io"
 	"math/big"
 	"os"
@@ -12,6 +13,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/gnolang/gno/gnovm"
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
 	"github.com/gnolang/gno/gnovm/pkg/packages"
 	teststdlibs "github.com/gnolang/gno/gnovm/tests/stdlibs"
@@ -214,13 +216,13 @@ func (e *stackWrappedError) String() string {
 	return fmt.Sprintf("%v\nstack:\n%v", e.err, string(e.stack))
 }
 
-// LoadImports parses the given file and attempts to retrieve all pure packages
+// LoadImports parses the given MemPackage and attempts to retrieve all pure packages
 // from the store. This is mostly useful for "eager import loading", whereby all
 // imports are pre-loaded in a permanent store, so that the tests can use
 // ephemeral transaction stores.
-func LoadImports(store gno.Store, filename string, content []byte) (err error) {
+func LoadImports(store gno.Store, memPkg *gnovm.MemPackage) (err error) {
 	defer func() {
-		// This is slightly different from the handling below; we do not have a
+		// This is slightly different from other similar error handling; we do not have a
 		// machine to work with, as this comes from an import; so we need
 		// "machine-less" alternatives. (like v.String instead of v.Sprint)
 		if r := recover(); r != nil {
@@ -239,14 +241,13 @@ func LoadImports(store gno.Store, filename string, content []byte) (err error) {
 		}
 	}()
 
-	imports, fset, err := packages.FileImports(filename, string(content))
+	fset := token.NewFileSet()
+	importsMap, err := packages.Imports(memPkg, fset)
 	if err != nil {
 		return err
 	}
+	imports := importsMap.Merge(packages.FileKindPackageSource, packages.FileKindTest, packages.FileKindXTest)
 	for _, imp := range imports {
-		if imp.Error != nil {
-			return imp.Error
-		}
 		if gno.IsRealmPath(imp.PkgPath) {
 			// Don't eagerly load realms.
 			// Realms persist state and can change the state of other realms in initialization.

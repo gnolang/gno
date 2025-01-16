@@ -7,7 +7,7 @@ import (
 	"fmt"
 	"go/scanner"
 	"go/types"
-	"io"
+	goio "io"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -97,6 +97,11 @@ func execLint(cfg *lintCfg, args []string, io commands.IO) error {
 
 	hasError := false
 
+	bs, ts := test.Store(
+		rootDir, false,
+		nopReader{}, goio.Discard, goio.Discard,
+	)
+
 	for _, pkgPath := range pkgPaths {
 		if verbose {
 			io.ErrPrintln(pkgPath)
@@ -120,12 +125,6 @@ func execLint(cfg *lintCfg, args []string, io commands.IO) error {
 			hasError = true
 		}
 
-		stdout, stdin, stderr := io.Out(), io.In(), io.Err()
-		_, testStore := test.Store(
-			rootDir, false,
-			stdin, stdout, stderr,
-		)
-
 		memPkg, err := gno.ReadMemPackage(pkgPath, pkgPath)
 		if err != nil {
 			io.ErrPrintln(issueFromError(pkgPath, err).String())
@@ -133,22 +132,34 @@ func execLint(cfg *lintCfg, args []string, io commands.IO) error {
 			continue
 		}
 
-		// Run type checking
-		if gmFile == nil || !gmFile.Draft {
-			foundErr, err := lintTypeCheck(io, memPkg, testStore)
-			if err != nil {
-				io.ErrPrintln(err)
-				hasError = true
-			} else if foundErr {
-				hasError = true
-			}
-		} else if verbose {
-			io.ErrPrintfln("%s: module is draft, skipping type check", pkgPath)
+		// Perform imports using the parent store.
+		if err := test.LoadImports(ts, memPkg); err != nil {
+			io.ErrPrintln(issueFromError(pkgPath, err).String())
+			hasError = true
+			continue
 		}
 
 		// Handle runtime errors
 		hasRuntimeErr := catchRuntimeError(pkgPath, io.Err(), func() {
-			tm := test.Machine(testStore, stdout, memPkg.Path)
+			// Wrap in cache wrap so execution of the linter doesn't impact
+			// other packages.
+			cw := bs.CacheWrap()
+			gs := ts.BeginTransaction(cw, cw, nil)
+
+			// Run type checking
+			if gmFile == nil || !gmFile.Draft {
+				foundErr, err := lintTypeCheck(io, memPkg, gs)
+				if err != nil {
+					io.ErrPrintln(err)
+					hasError = true
+				} else if foundErr {
+					hasError = true
+				}
+			} else if verbose {
+				io.ErrPrintfln("%s: module is draft, skipping type check", pkgPath)
+			}
+
+			tm := test.Machine(gs, goio.Discard, memPkg.Path)
 			defer tm.Release()
 
 			// Check package
@@ -253,7 +264,7 @@ func guessSourcePath(pkg, source string) string {
 // XXX: Ideally, error handling should encapsulate location details within a dedicated error type.
 var reParseRecover = regexp.MustCompile(`^([^:]+)((?::(?:\d+)){1,2}):? *(.*)$`)
 
-func catchRuntimeError(pkgPath string, stderr io.WriteCloser, action func()) (hasError bool) {
+func catchRuntimeError(pkgPath string, stderr goio.WriteCloser, action func()) (hasError bool) {
 	defer func() {
 		// Errors catched here mostly come from: gnovm/pkg/gnolang/preprocess.go
 		r := recover()
@@ -307,3 +318,7 @@ func issueFromError(pkgPath string, err error) lintIssue {
 	}
 	return issue
 }
+
+type nopReader struct{}
+
+func (nopReader) Read(p []byte) (int, error) { return 0, goio.EOF }
