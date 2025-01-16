@@ -24,30 +24,30 @@ func CreateForm(title string, description string, openAt string, closeAt string,
 }
 
 func GetForms() string {
-	formsJson := json.ArrayNode("", []*json.Node{})
-	for _, form := range db.Forms {
-		fieldsJson := json.ArrayNode("", []*json.Node{})
-		for _, field := range form.Fields {
-			fieldJson := json.ObjectNode("", map[string]*json.Node{
-				"label":     json.StringNode("label", field.Label),
-				"fieldType": json.StringNode("fieldType", field.FieldType),
-				"required":  json.BoolNode("required", field.Required),
+	builder := json.Builder()
+
+	builder.WriteArray("forms", func(builder *json.ArrayBuilder) {
+		for _, form := range db.Forms {
+			builder.WriteObject(func(builder *json.NodeBuilder) {
+				builder.WriteString("id", form.ID).
+					WriteString("owner", form.Owner.String()).
+					WriteString("title", form.Title).
+					WriteString("description", form.Description).
+					WriteString("createdAt", form.CreatedAt.Format("2006-01-02 15:04:05")).
+					WriteArray("fields", func(builder *json.ArrayBuilder) {
+						for _, field := range form.Fields {
+							builder.WriteObject(func(builder *json.NodeBuilder) {
+								builder.WriteString("label", field.Label).
+									WriteString("fieldType", field.FieldType).
+									WriteBool("required", field.Required)
+							})
+						}
+					})
 			})
-			fieldsJson.AppendArray(fieldJson)
 		}
+	})
 
-		formJson := json.ObjectNode("", map[string]*json.Node{
-			"id":          json.StringNode("id", form.ID),
-			"owner":       json.StringNode("owner", form.Owner.String()),
-			"title":       json.StringNode("title", form.Title),
-			"description": json.StringNode("description", form.Description),
-			"createdAt":   json.StringNode("createdAt", form.CreatedAt.String()),
-			"fields":      fieldsJson,
-		})
-		formsJson.AppendArray(formJson)
-	}
-
-	encoded, err := json.Marshal(formsJson)
+	encoded, err := json.Marshal(builder.Node())
 	if err != nil {
 		panic(err)
 	}
@@ -61,46 +61,39 @@ func GetFormByID(id string) string {
 		panic(err)
 	}
 
-	fieldsJson := json.ArrayNode("", []*json.Node{})
-	for _, field := range form.Fields {
-		fieldJson := json.ObjectNode("", map[string]*json.Node{
-			"label":     json.StringNode("label", field.Label),
-			"fieldType": json.StringNode("fieldType", field.FieldType),
-			"required":  json.BoolNode("required", field.Required),
-		})
-		fieldsJson.AppendArray(fieldJson)
-	}
+	builder := json.Builder()
 
-	formSubmissions := db.GetSubmissionsByFormID(form.ID)
-	submissionsJson := json.ObjectNode("", map[string]*json.Node{})
-	for _, submission := range formSubmissions {
-		submissionJson := json.ObjectNode("", map[string]*json.Node{
-			"submittedAt": json.StringNode("submittedAt", submission.SubmittedAt.Format("2006-01-02 15:04:05")),
-			"answers":     json.StringNode("answers", strings.ReplaceAll(submission.Answers, "\"", "'")),
+	builder.WriteString("id", form.ID).
+		WriteString("owner", form.Owner.String()).
+		WriteString("title", form.Title).
+		WriteString("description", form.Description).
+		WriteString("createdAt", form.CreatedAt.Format("2006-01-02 15:04:05")).
+		WriteArray("fields", func(builder *json.ArrayBuilder) {
+			for _, field := range form.Fields {
+				builder.WriteObject(func(builder *json.NodeBuilder) {
+					builder.WriteString("label", field.Label).WriteString("fieldType", field.FieldType).WriteBool("required", field.Required)
+				})
+			}
+		}).
+		WriteObject("submissions", func(builder *json.NodeBuilder) {
+			formSubmissions := db.GetSubmissionsByFormID(form.ID)
+			for _, submission := range formSubmissions {
+				builder.WriteObject(submission.Author.String(), func(builder *json.NodeBuilder) {
+					builder.WriteString("submittedAt", submission.SubmittedAt.Format("2006-01-02 15:04:05")).WriteString("answers", strings.ReplaceAll(submission.Answers, "\"", "'"))
+				})
+			}
 		})
-		submissionsJson.AppendObject(submission.Author.String(), submissionJson)
-	}
-
-	jsonRes := json.ObjectNode("", map[string]*json.Node{
-		"id":          json.StringNode("id", form.ID),
-		"owner":       json.StringNode("owner", form.Owner.String()),
-		"title":       json.StringNode("title", form.Title),
-		"description": json.StringNode("description", form.Description),
-		"createdAt":   json.StringNode("createdAt", form.CreatedAt.Format("2006-01-02 15:04:05")),
-		"submissions": submissionsJson,
-		"fields":      fieldsJson,
-	})
 
 	openAt, err := form.OpenAt()
 	if err == nil {
-		jsonRes.AppendObject("openAt", json.StringNode("openAt", openAt.Format("2006-01-02 15:04:05")))
+		builder.WriteString("openAt", openAt.Format("2006-01-02 15:04:05"))
 	}
 	closeAt, err := form.CloseAt()
 	if err == nil {
-		jsonRes.AppendObject("closeAt", json.StringNode("closeAt", closeAt.Format("2006-01-02 15:04:05")))
+		builder.WriteString("closeAt", closeAt.Format("2006-01-02 15:04:05"))
 	}
 
-	encoded, err := json.Marshal(jsonRes)
+	encoded, err := json.Marshal(builder.Node())
 	if err != nil {
 		panic(err)
 	}
