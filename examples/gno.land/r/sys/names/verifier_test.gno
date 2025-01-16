@@ -24,8 +24,8 @@ func TestDefaultVerifier(t *testing.T) {
 	uassert.False(t, defaultVerifier(std.Address(""), ""))
 
 	//Register proper username
-	std.TestSetRealm(std.NewCodeRealm("gno.land/r/gnoland/users")) // authorized write
-	std.TestSetOrigCaller(std.DerivePkgAddr("gno.land/r/gnoland/users"))
+	std.TestSetRealm(std.NewCodeRealm("gno.land/r/gnoland/users/v1")) // authorized write
+	std.TestSetOrigCaller(std.DerivePkgAddr("gno.land/r/gnoland/users/v1"))
 	urequire.NoError(t, users.RegisterUser("alice", alice))
 
 	// Proper namespace
