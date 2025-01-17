@@ -66,7 +66,7 @@ func (c Context) ConsensusParams() *abci.ConsensusParams {
 
 // create a new context
 func NewContext(mode RunTxMode, ms store.MultiStore, header abci.Header, logger *slog.Logger) Context {
-	if header.ChainID() == "" {
+	if header.GetChainID() == "" {
 		panic("header chain id cannot be empty")
 	}
 	return Context{
@@ -74,7 +74,7 @@ func NewContext(mode RunTxMode, ms store.MultiStore, header abci.Header, logger 
 		mode:         mode,
 		ms:           ms,
 		header:       header,
-		chainID:      header.ChainID(),
+		chainID:      header.GetChainID(),
 		logger:       logger,
 		gasMeter:     store.NewInfiniteGasMeter(),
 		minGasPrices: nil,
