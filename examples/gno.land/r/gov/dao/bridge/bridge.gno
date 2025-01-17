@@ -1,58 +1,59 @@
 package bridge
 
 import (
-	"errors"
 	"std"
-	"strings"
 
+	"gno.land/p/demo/dao"
 	"gno.land/p/demo/ownable"
 )
 
-const initialOwner = std.Address("g1u7y667z64x2h7vc6fmpcprgey4ck233jaww9zq") // @moul
+const (
+	initialOwner = std.Address("g1u7y667z64x2h7vc6fmpcprgey4ck233jaww9zq") // @moul
+	loader       = "gno.land/r/gov/dao/loader"
+)
 
 var (
-	b                 *Bridge
-	allowedGovDAOPath = "gno.land/r/gov/dao/v2" // set as initial value
-
-	ErrInvalidGovDAOPkgPath = errors.New("invalid GovDAO package path")
-	ErrNotAllowlisted       = errors.New("caller not allowlisted")
+	b       *Bridge
+	Ownable = ownable.NewWithAddress(initialOwner)
 )
 
 // Bridge is the active GovDAO
 // implementation bridge
 type Bridge struct {
-	*ownable.Ownable
-
 	dao DAO
 }
 
 // init constructs the initial GovDAO implementation
 func init() {
 	b = &Bridge{
-		Ownable: ownable.NewWithAddress(initialOwner),
-		dao:     nil, // initially set upon init() in r/gov/dao/v2
+		dao: nil, // initially set via r/gov/dao/loader
 	}
 }
 
-// AllowNewGovDAOVersion allowlists the new GovDAO version
-// This allows the GovDAO contract to call RegisterNewDAOImpl inside init()
-func AllowNewGovDAOVersion(newGovDAOPath string) {
-	b.AssertCallerIsOwner()
-
-	if !strings.HasPrefix(newGovDAOPath, "gno.land/r/gov/dao/") {
-		panic(ErrInvalidGovDAOPkgPath)
+// LoadGovDAO loads the initial version of GovDAO into the bridge
+// All changes to b.dao need to be done via GovDAO proposals after
+func LoadGovDAO(d DAO) {
+	if std.PrevRealm().PkgPath() != loader {
+		panic("unauthorized")
 	}
 
-	allowedGovDAOPath = newGovDAOPath
+	b.dao = d
 }
 
-// RegisterNewDAOImpl allows a GovDAO realm to register itself to the bridge
-// after it has been allowlisted by AllowNewGovDAOVersion
-func RegisterNewDAOImpl(d DAO) {
-	if std.PrevRealm().PkgPath() != allowedGovDAOPath {
-		panic(ErrNotAllowlisted)
+// NewGovDAOImplChangeExecutor allows creating a GovDAO proposal
+// Which will upgrade the GovDAO version inside the bridge
+func NewGovDAOImplChangeExecutor(newImpl DAO) dao.Executor {
+	callback := func() error {
+		b.dao = newImpl
+		return nil
 	}
 
+	return b.dao.NewGovDAOExecutor(callback)
+}
+
+// SetGovDAO allows the admin to set the GovDAO version manually
+func SetGovDAO(d DAO) {
+	Ownable.AssertCallerIsOwner()
 	b.dao = d
 }
 
