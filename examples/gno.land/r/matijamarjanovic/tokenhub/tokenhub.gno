@@ -400,15 +400,15 @@ func getBalances(addr std.Address) string {
 		nftGetter := value.(grc721.NFTGetter)
 		nft := nftGetter()
 		key_parts := strings.Split(key, ".")
-		if addr == nft.OwnerOf(grc721.TokenID(key_parts[len(key_parts)-1])) { // show only the nfts owner owns
-			balances.Set("nft:"+key)
+		owner, err := nft.OwnerOf(grc721.TokenID(key_parts[len(key_parts)-1]))
+		if err == nil && addr == owner { // show only the nfts owner owns
+			balances.Set("nft:"+key, 1)
 		}
 		return false
 	})
 
 	grc20reg.Iterate(func(key string, tokenGetter grc20.TokenGetter) bool {
 		token := tokenGetter()
-		balance := token.BalanceOf(addr)
 		balance := token.BalanceOf(addr)
 		if balance > 0 {
 			balances.Set("token:"+key, balance)
@@ -430,9 +430,8 @@ func getBalances(addr std.Address) string {
 	balances.Iterate("", "", func(key string, value interface{}) bool {
 		switch {
 		case strings.HasPrefix(key, "nft:"):
-			balance := value.(uint64)
 			symbol := strings.TrimPrefix(key, "nft:")
-			sb.WriteString(ufmt.Sprintf("NFT:%s:%d,", symbol, balance))
+			sb.WriteString(ufmt.Sprintf("NFT:%s,", symbol))
 		case strings.HasPrefix(key, "token:"):
 			balance := value.(uint64)
 			symbol := strings.TrimPrefix(key, "token:")
@@ -461,8 +460,9 @@ func getNonZeroBalances(addr std.Address) string {
 		nftGetter := value.(grc721.NFTGetter)
 		nft := nftGetter()
 		key_parts := strings.Split(key, ".")
-		if addr == nft.OwnerOf(grc721.TokenID(key_parts[len(key_parts)-1])) { // show only the nfts owner owns
-			balances.Set("nft:"+key)
+		owner, err := nft.OwnerOf(grc721.TokenID(key_parts[len(key_parts)-1]))
+		if err == nil && addr == owner { // show only the nfts owner owns
+			balances.Set("nft:"+key, 1)
 		}
 		return false
 	})
@@ -490,9 +490,8 @@ func getNonZeroBalances(addr std.Address) string {
 	balances.Iterate("", "", func(key string, value interface{}) bool {
 		switch {
 		case strings.HasPrefix(key, "nft:"):
-			balance := value.(uint64)
 			symbol := strings.TrimPrefix(key, "nft:")
-			sb.WriteString(ufmt.Sprintf("NFT:%s:%d,", symbol, balance))
+			sb.WriteString(ufmt.Sprintf("NFT:%s,", symbol))
 		case strings.HasPrefix(key, "token:"):
 			balance := value.(uint64)
 			symbol := strings.TrimPrefix(key, "token:")
