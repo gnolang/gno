@@ -44,7 +44,8 @@ func RegisterToken(tokenGetter grc20.TokenGetter, slugs ...string) {
 	grc20reg.Register(tokenGetter, slug)
 }
 
-func RegisterNFT(nftGetter grc721.NFTGetter, slugs ...string) error {
+// TokenId is mandatory for NFTs
+func RegisterNFT(nftGetter grc721.NFTGetter, tokenId string) error {
 	nft := nftGetter()
 	_, ok := nft.(grc721.IGRC721CollectionMetadata)
 	if !ok {
@@ -52,11 +53,7 @@ func RegisterNFT(nftGetter grc721.NFTGetter, slugs ...string) error {
 	}
 
 	rlmPath := std.PrevRealm().PkgPath()
-	slug := ""
-	if len(slugs) > 0 {
-		slug = slugs[0]
-	}
-	key := fqname.Construct(rlmPath, slug)
+	key := fqname.Construct(rlmPath, tokenId)
 
 	if registeredNFTs.Has(key) {
 		return ErrNFTAlreadyRegistered
