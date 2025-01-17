@@ -112,7 +112,9 @@ func (alloc *Allocator) GC() {
 	debug2.Println2("---gc")
 	// a throwaway allocator
 	throwaway := NewAllocator(3000, nil)
-	debug2.Println2("m: ", alloc.m)
+	//debug2.Println2("m: ", alloc.m)
+
+	// scan frames
 	for i, fr := range alloc.m.Frames {
 		debug2.Printf2("frames[%d]: %v \n", i, fr)
 
@@ -141,12 +143,58 @@ func (alloc *Allocator) GC() {
 		}
 	}
 
+	// scan blocks
 	for i, b := range alloc.m.Blocks {
-		debug2.Printf2("blocks[%d]: %v \n", i, b)
+		debug2.Printf2("allocate blocks[%d]: %v \n", i, b)
 		throwaway.allocate2(b)
-		for i, v := range b.Values {
-			debug2.Printf2("values[%d]: %v, %v\n", i, v, reflect.TypeOf(v.V))
-			throwaway.allocate2(v.V)
+
+		// scan body for assignStmt,
+		// check for allocation
+		for i, s := range b.bodyStmt.Body {
+			debug2.Printf2("body[%d]: %v, type of s: %v\n", i, s, reflect.TypeOf(s))
+			if as, ok := s.(*AssignStmt); ok {
+				debug2.Printf2("assignStmt: %v \n", as)
+				for i, rx := range as.Rhs {
+					debug2.Printf2("Rhs[%d]: %v \n", i, rx)
+
+					// find index by name
+					ln := as.Lhs[i].(*NameExpr).Name
+					//debug2.Println2("left name: ", ln)
+
+					// FindIndex returns the index of the first element matching the value or -1 if not found
+					index := -1
+					for i, n := range b.Source.GetBlockNames() {
+						if ln == n {
+							index = i
+						}
+					}
+					if index == -1 {
+						panic("should not happen, name not found")
+					}
+					debug2.Println2("values: ", b.Values)
+					debug2.Println2("index:", index)
+
+					// TODO: move these check to preprocess
+					switch rx.(type) {
+					case *NameExpr:
+						debug2.Println2("rx is name expr")
+						debug2.Printf2("b.Values[%d]: %v, type of V is: %v\n", i, b.Values[index], reflect.TypeOf(b.Values[index].V))
+						// if copy reference, do nothing, like slice
+						// if copy value, still allocate, like array
+						switch b.Values[index].V.(type) {
+						// TODO: bigint?
+						case *ArrayValue, *StructValue, *NativeValue:
+							// allocate2
+							throwaway.allocate2(b.Values[index].V)
+						default:
+							debug2.Printf2("do nothing, type of V: %v \n", reflect.TypeOf(b.Values[index].V))
+							// do nothing, like slice value
+						}
+					case *CompositeLitExpr:
+						throwaway.allocate2(b.Values[index].V)
+					}
+				}
+			}
 		}
 	}
 
@@ -445,7 +493,7 @@ func (alloc *Allocator) NewMap(size int) *MapValue {
 }
 
 func (alloc *Allocator) NewBlock(source BlockNode, parent *Block) *Block {
-	debug2.Println2("NewBlock, source: ", source)
+	debug2.Printf2("NewBlock, source: %v, source...Names: %v\n", source, source.GetBlockNames())
 	alloc.AllocateBlock(int64(source.GetNumNames()))
 	return NewBlock(source, parent)
 }

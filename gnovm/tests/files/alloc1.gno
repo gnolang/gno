@@ -36,25 +36,37 @@ func bar() {
 // + new block: 536
 func main() {
 	a := 1
-	println("MemStats 1: ", runtime.MemStats())         // + 536 + 536 + NewString: 67 + (list)72 + 288 = 2867
-	bar()                                               // +616
-	println("MemStats before GC: ", runtime.MemStats()) // 6046 + 536 + 72 + 288 + ... 7478(the moment memstas result generated)
+	println("MemStats 1: ", runtime.MemStats())          // + 536 + 536 + NewString: 67 + (list)72 + 288 = 2867
+	bar()                                                // +616
+	println("MemStats before GC1: ", runtime.MemStats()) // 6046 + 536 + 72 + 288 + ... 7478(the moment memstas result generated)
 	runtime.GC()
-	println("MemStats after GC: ", runtime.MemStats())
+	println("MemStats after GC1: ", runtime.MemStats())
 
+	// -----------------------------
 	f := func() {
 		println("func lit")
 	}
 	f()
+	println("MemStats before GC2: ", runtime.MemStats())
 	runtime.GC()
+	println("MemStats after GC2: ", runtime.MemStats())
+
+	// -----------------------------
+	println("MemStats before GC3: ", runtime.MemStats())
 	xyz(1, 2, 3)
 	xyz2()
+	runtime.GC()
+	println("MemStats after GC3: ", runtime.MemStats())
 }
 
 // Output:
 // MemStats 1:  Allocator{maxBytes:10000000000, bytes:1944}
 // &(struct{("foo" string)} main.Foo)
 // MemStats 2:  Allocator{maxBytes:10000000000, bytes:6019}
-// MemStats before GC:  Allocator{maxBytes:10000000000, bytes:7518}
-// MemStats after GC:  Allocator{maxBytes:10000000000, bytes:2981}
+// MemStats before GC1:  Allocator{maxBytes:10000000000, bytes:7518}
+// MemStats after GC1:  Allocator{maxBytes:10000000000, bytes:2424}
 // func lit
+// MemStats before GC2:  Allocator{maxBytes:10000000000, bytes:5443}
+// MemStats after GC2:  Allocator{maxBytes:10000000000, bytes:2424}
+// MemStats before GC3:  Allocator{maxBytes:10000000000, bytes:3923}
+// MemStats after GC3:  Allocator{maxBytes:10000000000, bytes:2424}

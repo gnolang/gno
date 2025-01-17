@@ -99,6 +99,7 @@ func (bv *BigintValue) UnmarshalAmino(s string) error {
 }
 
 func (bv BigintValue) Copy(alloc *Allocator) BigintValue {
+	// TODO: allocate?
 	return BigintValue{V: big.NewInt(0).Set(bv.V)}
 }
 
@@ -1042,6 +1043,7 @@ func (tv *TypedValue) ClearNum() {
 }
 
 func (tv TypedValue) Copy(alloc *Allocator) (cp TypedValue) {
+	debug2.Println2("Copy, alloc: ", alloc, reflect.TypeOf(tv.V))
 	switch cv := tv.V.(type) {
 	case BigintValue:
 		cp.T = tv.T
