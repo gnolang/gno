@@ -4,7 +4,6 @@ import (
 	"std"
 
 	"gno.land/p/demo/avl/rotree"
-	"gno.land/p/demo/avlhelpers"
 )
 
 // ResolveName returns the latest UserData of a specific user by name or alias
@@ -45,12 +44,4 @@ func GetReadonlyAddrStore() *rotree.ReadOnlyTree {
 // GetReadOnlyNameStore exposes the name store in readonly mode
 func GetReadOnlyNameStore() *rotree.ReadOnlyTree {
 	return rotree.Wrap(nameStore, nil)
-}
-
-// UsersByPrefix gets a slice of usernames starting from the given prefix. Limits the
-// number of results to maxResults. (This can be used for a name search tool.)
-func UsersByPrefix(prefix string, maxResults int) []string {
-	// XXX: most likely moved to r/gnoland/users to keep this package minimal.
-	// in that case, should we get a value copy of the uStore available to whitelisted callers?
-	return avlhelpers.ListByteStringKeysByPrefix(nameStore, prefix, maxResults)
 }
