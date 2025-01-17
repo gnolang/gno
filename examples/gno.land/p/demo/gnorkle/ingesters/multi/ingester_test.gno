@@ -30,8 +30,8 @@ func TestValueIngester(t *testing.T) {
 	uassert.NoError(t, err)
 
 	ingestValue2 := "value2"
-	autocommit, err := valueIngester.Ingest(ingestValue2, "gno11112")
-	uassert.False(t, autocommit, "multi value ingester should return autocommit false")
+	autocommit2, err := valueIngester.Ingest(ingestValue2, "gno11112")
+	uassert.False(t, autocommit2, "multi value ingester should return autocommit false")
 	uassert.NoError(t, err)
 
 	err = valueIngester.CommitValue(storage, "gno11111")
