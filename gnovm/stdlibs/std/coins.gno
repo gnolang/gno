@@ -1,6 +1,9 @@
 package std
 
-import "strconv"
+import (
+	"math/overflow"
+	"strconv"
+)
 
 // NOTE: this is selectively copied over from tm2/pkgs/std/coin.go
 
@@ -53,7 +56,13 @@ func (c Coin) IsEqual(other Coin) bool {
 // An invalid result panics.
 func (c Coin) Add(other Coin) Coin {
 	mustMatchDenominations(c.Denom, other.Denom)
-	c.Amount += other.Amount
+
+	sum, ok := overflow.Add64(c.Amount, other.Amount)
+	if !ok {
+		panic("coin add overflow/underflow: " + strconv.Itoa(int(c.Amount)) + " +/- " + strconv.Itoa(int(other.Amount)))
+	}
+
+	c.Amount = sum
 	return c
 }
 
@@ -63,7 +72,13 @@ func (c Coin) Add(other Coin) Coin {
 // An invalid result panics.
 func (c Coin) Sub(other Coin) Coin {
 	mustMatchDenominations(c.Denom, other.Denom)
-	c.Amount -= other.Amount
+
+	dff, ok := overflow.Sub64(c.Amount, other.Amount)
+	if !ok {
+		panic("coin sub overflow/underflow: " + strconv.Itoa(int(c.Amount)) + " +/- " + strconv.Itoa(int(other.Amount)))
+	}
+	c.Amount = dff
+
 	return c
 }
 
@@ -98,7 +113,10 @@ func NewCoins(coins ...Coin) Coins {
 
 	for _, coin := range coins {
 		if currentAmount, exists := coinMap[coin.Denom]; exists {
-			coinMap[coin.Denom] = currentAmount + coin.Amount
+			var ok bool
+			if coinMap[coin.Denom], ok = overflow.Add64(currentAmount, coin.Amount); !ok {
+				panic("coin sub overflow/underflow: " + strconv.Itoa(int(currentAmount)) + " +/- " + strconv.Itoa(int(coin.Amount)))
+			}
 		} else {
 			coinMap[coin.Denom] = coin.Amount
 		}

@@ -25,7 +25,7 @@ stdout ""
 stderr 'invalid ingest id: a'
 
 # the agent publishes their response to the task and the verification is complete
-gnokey maketx call -pkgpath gno.land/r/gnoland/ghverify -func GnorkleEntrypoint -args 'ingest,g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5,OK' -gas-fee 1000000ugnot -gas-wanted 5000000 -broadcast -chainid=tendermint_test test1
+gnokey maketx call -pkgpath gno.land/r/gnoland/ghverify -func GnorkleEntrypoint -args 'ingest,g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5,OK' -gas-fee 1000000ugnot -gas-wanted 6000000 -broadcast -chainid=tendermint_test test1
 stdout OK!
 
 # get verified github handle by gno address
