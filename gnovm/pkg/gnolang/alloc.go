@@ -111,7 +111,7 @@ func (alloc *Allocator) MemStats() string {
 func (alloc *Allocator) GC() {
 	debug2.Println2("---gc")
 	// a throwaway allocator
-	throwaway := NewAllocator(3000, nil)
+	throwaway := NewAllocator(3000, alloc.m)
 	//debug2.Println2("m: ", alloc.m)
 
 	// scan frames
@@ -196,8 +196,17 @@ func (alloc *Allocator) GC() {
 				}
 			}
 		}
+
+		// package block
+		if len(b.bodyStmt.Body) == 0 {
+			debug2.Println2("b.Values: ", b.Values)
+			for _, v := range b.Values {
+				alloc.allocate2(v.V)
+			}
+		}
 	}
 
+	// reset allocator
 	debug2.Println2("---throwaway.bytes: ", throwaway.bytes)
 	debug2.Println2("---before reset, alloc.bytes: ", alloc.bytes)
 	alloc.bytes = throwaway.bytes
@@ -214,16 +223,33 @@ func (throwaway *Allocator) allocate2(v Value) {
 		for _, field := range vv.Fields {
 			throwaway.allocate2(field.V)
 		}
+		// if ref value, allocate amino
+		if oid := vv.GetObjectID(); !oid.IsZero() {
+			debug2.Println2("oid: ", oid)
+			debug2.Println2("vv: ", vv)
+			key := backendObjectKey(oid)
+
+			// TODO: improve this
+			hashbz := throwaway.m.Store.(transactionStore).baseStore.Get([]byte(key))
+			if hashbz != nil {
+				bz := hashbz[HashSize:]
+				throwaway.AllocateAmino(int64(len(bz)))
+			}
+		} else {
+			debug2.Println2("oid: ", oid)
+		}
+
 	case *FuncValue:
 		// TODO: is this right?
 		// if closure if fileNode, no allocate,
 		// cuz it's already done in compile stage.
 		debug2.Println2("funcValue, vv: ", vv)
-		debug2.Println2("clo: ", vv.Closure)
-		debug2.Println2("clo...Source: ", vv.Closure.(*Block).Source, reflect.TypeOf(vv.Closure.(*Block).Source))
-		if _, ok := vv.Closure.(*Block).Source.(*FileNode); !ok {
+		debug2.Println2("clo...Source: ", vv.Closure.(*Block).GetSource(throwaway.m.Store), reflect.TypeOf(vv.Closure.(*Block).GetSource(throwaway.m.Store)))
+		if _, ok := vv.Closure.(*Block).GetSource(throwaway.m.Store).(*FileNode); !ok { // TODO: also RefNode
 			debug2.Println2("not a FileNode, alloc func")
 			throwaway.AllocateFunc()
+		} else {
+			debug2.Println2("alloc func")
 		}
 	case PointerValue:
 		throwaway.AllocatePointer()

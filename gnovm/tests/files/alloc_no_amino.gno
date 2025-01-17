@@ -1,8 +1,6 @@
 // MAXALLOC: 25000
 // max total allocation of 100 mb.
-
-// PKGPATH: gno.land/r/test
-package test
+package main
 
 import "runtime"
 
