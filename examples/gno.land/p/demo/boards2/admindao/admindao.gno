@@ -9,8 +9,6 @@ import (
 	"gno.land/p/demo/seqid"
 )
 
-// TODO: Add support for events
-
 var (
 	ErrInvalidAddress             = errors.New("invalid address")
 	ErrInvalidVoteChoice          = errors.New("invalid vote choice")
@@ -132,10 +130,6 @@ func (dao AdminDAO) GetFinishedProposal(proposalID uint64) (_ *Proposal, found b
 	}
 	return nil, false
 }
-
-// TODO: Who can vote? All DAO members? Boards should have users and DAO members? (there are no roles here)
-// TODO: Do we need to introduce member weight to calculate votes?
-// TODO: Default to use majority 20%?
 
 // Vote submits a new vote for a proposal.
 func (dao *AdminDAO) Vote(member std.Address, proposalID uint64, c VoteChoice) error {
