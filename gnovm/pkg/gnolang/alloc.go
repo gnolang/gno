@@ -223,6 +223,7 @@ func (throwaway *Allocator) allocate2(v Value) {
 		for _, field := range vv.Fields {
 			throwaway.allocate2(field.V)
 		}
+		// TODO: for other objects
 		// if ref value, allocate amino
 		if oid := vv.GetObjectID(); !oid.IsZero() {
 			debug2.Println2("oid: ", oid)
@@ -230,6 +231,9 @@ func (throwaway *Allocator) allocate2(v Value) {
 			key := backendObjectKey(oid)
 
 			// TODO: improve this
+			// cuz this consume store gas too.
+			// maybe set while loadObject.
+			// XXX, amino also consider load type from store?
 			hashbz := throwaway.m.Store.(transactionStore).baseStore.Get([]byte(key))
 			if hashbz != nil {
 				bz := hashbz[HashSize:]
