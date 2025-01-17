@@ -3,6 +3,7 @@ package main
 import (
 	"gno.land/p/demo/dao"
 	"gno.land/r/gov/dao/bridge"
+	_ "gno.land/r/gov/dao/loader"
 	govdaov2 "gno.land/r/gov/dao/v2"
 	"gno.land/r/sys/params"
 )

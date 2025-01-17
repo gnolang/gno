@@ -1,6 +1,9 @@
 package params
 
-import "testing"
+import (
+	_ "gno.land/r/gov/dao/loader"
+	"testing"
+)
 
 // Testing this package is limited because it only contains an `std.Set` method
 // without a corresponding `std.Get` method. For comprehensive testing, refer to
