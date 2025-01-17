@@ -122,6 +122,8 @@ func renderUserPage(path string) string {
 	out += md.H2("Bio")
 	out += profile.GetStringField(data.Addr(), "Bio", "No bio defined.")
 	out += "\n\n"
+	out += ufmt.Sprintf("[Update bio](%s)", txlink.Realm("gno.land/r/demo/profile").Call("SetStringField", "field", "Bio"))
+	out += "\n\n"
 
 	return out
 }
