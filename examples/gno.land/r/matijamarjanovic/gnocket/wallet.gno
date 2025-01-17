@@ -31,23 +31,3 @@ func GetAllBalances() string {
 
 	return tokenhub.GetMyBalancesAll()
 }
-
-func Transfer(tokenPath string, to std.Address, amount uint64) string {
-	assertOwnership()
-	
-	// Get the token getter from tokenhub
-	tokenGetter := tokenhub.MustGetGRC20(tokenPath)
-	token := tokenGetter()
-	
-	// Create an impersonation teller for the wallet owner
-	//caller := std.GetOrigCaller()
-	teller := token.CallerTeller()
-	
-	// Perform the transfer
-	err := teller.Transfer(to, amount)
-	if err != nil {
-		panic(err)
-	}
-
-	return "Transfer successful"
-}
