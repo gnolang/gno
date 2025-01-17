@@ -1,5 +1,5 @@
 func AuctionEnd() {
-	if std.GetHeight() < auctionEndBlock {
+	if std.ChainHeight() < auctionEndBlock {
 		panic("Auction hasn't ended")
 	}
 

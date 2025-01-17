@@ -71,7 +71,7 @@ func Register() {
 	i := &Item{
 		id:       id,
 		pkgpath:  pkgpath,
-		blockNum: std.GetHeight(),
+		blockNum: std.ChainHeight(),
 		upvote:   avl.NewTree(),
 		downvote: avl.NewTree(),
 	}

@@ -22,7 +22,7 @@ func init() {
 // NewPoll - Creates a new Poll instance
 func NewPoll(title, description string, deadline int64) string {
 	// get block height
-	if deadline <= std.GetHeight() {
+	if deadline <= std.ChainHeight() {
 		panic("deadline has to be in the future")
 	}
 
@@ -57,7 +57,7 @@ func Vote(id string, vote bool) string {
 		panic("you've already voted!")
 	}
 
-	if poll.Deadline() <= std.GetHeight() {
+	if poll.Deadline() <= std.ChainHeight() {
 		panic("voting for this poll is closed")
 	}
 
