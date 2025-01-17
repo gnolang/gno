@@ -45,6 +45,11 @@ func renderHomePage(path string) string {
 	for _, item := range page.Items {
 		data := item.Value.(*users.UserData)
 
+		// Skip previous names
+		if item.Key != data.Name() {
+			continue
+		}
+
 		var displayKey string
 		if data.IsDeleted() {
 			displayKey = md.Strikethrough(item.Key)
@@ -52,12 +57,7 @@ func renderHomePage(path string) string {
 			displayKey = ufmt.Sprintf("**%s**", item.Key)
 		}
 
-		var extra string
-		if !data.IsDeleted() && item.Key != data.Name() {
-			extra = ufmt.Sprintf("  (prev. for [**%s**](/r/gnoland/users/v1:%s))", data.Name(), data.Name())
-		}
-
-		out += ufmt.Sprintf("- User [%s](/r/gnoland/users/v1:%s)%s\n", displayKey, item.Key, extra)
+		out += ufmt.Sprintf("- User [%s](/r/gnoland/users/v1:%s)\n", displayKey, item.Key)
 	}
 
 	//p := pager.NewPager(users.GetReadonlyAddrStore(), 20, false)
@@ -129,30 +129,26 @@ func renderUserPage(path string) string {
 	// Render single user page
 	data, isLatest, isName := resolveUser(path)
 	if data == nil {
-		return render404()
+		out += md.H1("User not found.")
+		out += "This user does not exist or has been deleted.\n"
+		return out
 	}
 
 	out += md.H1("User - " + md.InlineCode(data.Name()))
-	out += ufmt.Sprintf("Address: %s\n\n", data.Addr().String())
 
 	if isName && !isLatest {
 		out += md.Paragraph(ufmt.Sprintf(
-			"Note: `%s` is a previous name of `%s`.",
-			path, data.Name()))
+			"Note: You searched for `%s`, which is a previous name of [`%s`](/r/gnoland/users/v1:%s).",
+			path, data.Name(), data.Name()))
+	} else {
+		out += ufmt.Sprintf("Address: %s\n\n", data.Addr().String())
+
+		out += md.H2("Bio")
+		out += profile.GetStringField(data.Addr(), "Bio", "No bio defined.")
+		out += "\n\n"
+		out += ufmt.Sprintf("[Update bio](%s)", txlink.Realm("gno.land/r/demo/profile").Call("SetStringField", "field", "Bio"))
+		out += "\n\n"
 	}
 
-	out += md.H2("Bio")
-	out += profile.GetStringField(data.Addr(), "Bio", "No bio defined.")
-	out += "\n\n"
-	out += ufmt.Sprintf("[Update bio](%s)", txlink.Realm("gno.land/r/demo/profile").Call("SetStringField", "field", "Bio"))
-	out += "\n\n"
-
-	return out
-}
-
-// render404 generates a 404 error page
-func render404() (out string) {
-	out += md.H1("404")
-	out += "This user does not exist or has been deleted.\n"
 	return out
 }
