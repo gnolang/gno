@@ -115,6 +115,10 @@ func (led *PrivateLedger) Transfer(from, to std.Address, amount uint64) error {
 		fromBalance = led.balanceOf(from)
 	)
 
+	println("from", from.String())
+	println("fromBalance", fromBalance)
+	println("amount", amount)
+
 	if fromBalance < amount {
 		return ErrInsufficientBalance
 	}
