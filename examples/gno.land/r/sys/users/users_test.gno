@@ -13,7 +13,6 @@ func TestResolveName(t *testing.T) {
 	std.TestSetOrigCaller(whitelistedCallerAddr)
 
 	t.Run("single_name", func(t *testing.T) {
-		t.Parallel()
 		cleanStore(t)
 
 		urequire.NoError(t, RegisterUser(alice, aliceAddr))
@@ -25,7 +24,6 @@ func TestResolveName(t *testing.T) {
 	})
 
 	t.Run("name+Alias", func(t *testing.T) {
-		t.Parallel()
 		cleanStore(t)
 
 		urequire.NoError(t, RegisterUser(alice, aliceAddr))
@@ -40,7 +38,6 @@ func TestResolveName(t *testing.T) {
 	})
 
 	t.Run("multiple_aliases", func(t *testing.T) {
-		t.Parallel()
 		cleanStore(t)
 
 		urequire.NoError(t, RegisterUser(alice, aliceAddr))
@@ -69,7 +66,6 @@ func TestResolveAddress(t *testing.T) {
 	std.TestSetOrigCaller(whitelistedCallerAddr)
 
 	t.Run("single_name", func(t *testing.T) {
-		t.Parallel()
 		cleanStore(t)
 
 		urequire.NoError(t, RegisterUser(alice, aliceAddr))
@@ -81,7 +77,6 @@ func TestResolveAddress(t *testing.T) {
 	})
 
 	t.Run("name+Alias", func(t *testing.T) {
-		t.Parallel()
 		cleanStore(t)
 
 		urequire.NoError(t, RegisterUser(alice, aliceAddr))
@@ -95,7 +90,6 @@ func TestResolveAddress(t *testing.T) {
 	})
 
 	t.Run("multiple_aliases", func(t *testing.T) {
-		t.Parallel()
 		cleanStore(t)
 
 		urequire.NoError(t, RegisterUser(alice, aliceAddr))

@@ -24,8 +24,6 @@ func TestRegister(t *testing.T) {
 	std.TestSetOrigCaller(whitelistedCallerAddr)
 
 	t.Run("valid_registration", func(t *testing.T) {
-		t.Parallel()
-
 		urequire.NoError(t, RegisterUser(alice, aliceAddr))
 
 		res, isLatest := ResolveName(alice)
@@ -37,7 +35,6 @@ func TestRegister(t *testing.T) {
 	})
 
 	t.Run("invalid_inputs", func(t *testing.T) {
-		t.Parallel()
 		cleanStore(t)
 
 		uassert.ErrorContains(t, RegisterUser("   ", aliceAddr), ErrEmptyUsername.Error())
@@ -51,7 +48,6 @@ func TestRegister(t *testing.T) {
 	})
 
 	t.Run("addr_already_registered", func(t *testing.T) {
-		t.Parallel()
 		cleanStore(t)
 
 		urequire.NoError(t, RegisterUser(alice, aliceAddr))
@@ -61,7 +57,6 @@ func TestRegister(t *testing.T) {
 	})
 
 	t.Run("name_taken", func(t *testing.T) {
-		t.Parallel()
 		cleanStore(t)
 
 		urequire.NoError(t, RegisterUser(alice, aliceAddr))
@@ -71,7 +66,6 @@ func TestRegister(t *testing.T) {
 	})
 
 	t.Run("user_deleted", func(t *testing.T) {
-		t.Parallel()
 		cleanStore(t)
 
 		urequire.NoError(t, RegisterUser(alice, aliceAddr))
@@ -82,7 +76,6 @@ func TestRegister(t *testing.T) {
 	})
 
 	t.Run("address_lookalike", func(t *testing.T) {
-		t.Parallel()
 		cleanStore(t)
 
 		// Address as username
@@ -96,7 +89,6 @@ func TestRegister(t *testing.T) {
 func TestUpdateName(t *testing.T) {
 	std.TestSetOrigCaller(whitelistedCallerAddr)
 	t.Run("valid_direct_alias", func(t *testing.T) {
-		t.Parallel()
 		cleanStore(t)
 
 		urequire.NoError(t, RegisterUser(alice, aliceAddr))
@@ -104,7 +96,6 @@ func TestUpdateName(t *testing.T) {
 	})
 
 	t.Run("valid_double_alias", func(t *testing.T) {
-		t.Parallel()
 		cleanStore(t)
 
 		urequire.NoError(t, RegisterUser(alice, aliceAddr))
@@ -113,7 +104,6 @@ func TestUpdateName(t *testing.T) {
 	})
 
 	t.Run("name_taken", func(t *testing.T) {
-		t.Parallel()
 		cleanStore(t)
 
 		urequire.NoError(t, RegisterUser(alice, aliceAddr))
@@ -121,14 +111,12 @@ func TestUpdateName(t *testing.T) {
 	})
 
 	t.Run("alias_before_name", func(t *testing.T) {
-		t.Parallel()
 		cleanStore(t)
 
 		uassert.ErrorContains(t, UpdateName(alice, aliceAddr), ErrAliasBeforeName.Error())
 	})
 
 	t.Run("alias_after_delete", func(t *testing.T) {
-		t.Parallel()
 		cleanStore(t)
 
 		urequire.NoError(t, RegisterUser(alice, aliceAddr))
@@ -138,7 +126,6 @@ func TestUpdateName(t *testing.T) {
 	})
 
 	t.Run("invalid_inputs", func(t *testing.T) {
-		t.Parallel()
 		cleanStore(t)
 
 		urequire.NoError(t, RegisterUser(alice, aliceAddr))
@@ -154,7 +141,6 @@ func TestUpdateName(t *testing.T) {
 	})
 
 	t.Run("address_lookalike", func(t *testing.T) {
-		t.Parallel()
 		cleanStore(t)
 
 		urequire.NoError(t, RegisterUser(alice, aliceAddr))
@@ -171,14 +157,12 @@ func TestDelete(t *testing.T) {
 	std.TestSetOrigCaller(whitelistedCallerAddr)
 
 	t.Run("non_existent_user", func(t *testing.T) {
-		t.Parallel()
 		cleanStore(t)
 
 		uassert.ErrorContains(t, Delete(testutils.TestAddress("unregistered")), ErrUserNotExist.Error())
 	})
 
 	t.Run("double_delete", func(t *testing.T) {
-		t.Parallel()
 		cleanStore(t)
 
 		urequire.NoError(t, RegisterUser(alice, aliceAddr))
@@ -189,7 +173,6 @@ func TestDelete(t *testing.T) {
 	})
 
 	t.Run("valid_delete", func(t *testing.T) {
-		t.Parallel()
 		cleanStore(t)
 
 		urequire.NoError(t, RegisterUser(alice, aliceAddr))
