@@ -6,7 +6,7 @@
 # These are not necessary, but they "alleviate" add_feeds.tx from the
 # responsibility of loading standard libraries, thus not making it exceed
 # the --gas-wanted.
-loadpkg gno.land/r/demo/users
+loadpkg gno.land/r/gnoland/users/v1
 loadpkg gno.land/r/demo/boards
 
 gnoland start
