@@ -23,7 +23,7 @@ type GRC1155TokenInfo struct {
 }
 
 var (
-	registeredNFTs = avl.NewTree() // rlmPath[.slug] -> NFTGetter
+	registeredNFTs = avl.NewTree() // rlmPath[.slug] -> NFTInfo
 	registeredMTs  = avl.NewTree() // rlmPath[.slug] -> GRC1155TokenInfo
 
 	ErrNFTAlreadyRegistered = errors.New("NFT already registered")
@@ -31,6 +31,8 @@ var (
 	ErrMTAlreadyRegistered  = errors.New("Multi-token already registered")
 	ErrMTNotFound           = errors.New("Multi-token not found")
 	ErrMTInfoNotFound       = errors.New("Multi-token info not found")
+	ErrNFTtokIDNotExists    = errors.New("NFT token ID does not exists")
+	ErrNFTNotMetadata       = errors.New("NFT must implement IGRC721CollectionMetadata")
 
 	pageSize = 2
 	test     = ""
@@ -44,16 +46,23 @@ func RegisterToken(tokenGetter grc20.TokenGetter, slugs ...string) {
 	grc20reg.Register(tokenGetter, slug)
 }
 
-// TokenId is mandatory for NFTs
-func RegisterNFT(nftGetter grc721.NFTGetter, tokenId string) error {
+// registering a collection of NFTs
+func RegisterNFT(nftGetter grc721.NFTGetter, collection string, tokenId string) error {
+
 	nft := nftGetter()
 	_, ok := nft.(grc721.IGRC721CollectionMetadata)
 	if !ok {
-		return errors.New("NFT must implement IGRC721CollectionMetadata")
+		return ErrNFTNotMetadata
+	}
+
+	nftOwner, err := nft.OwnerOf(grc721.TokenID(tokenId))
+	if string(nftOwner) == "" || err != nil {
+		return ErrNFTtokIDNotExists
 	}
 
 	rlmPath := std.PrevRealm().PkgPath()
-	key := fqname.Construct(rlmPath, tokenId)
+	k := ufmt.Sprintf("%s.%s", collection, tokenId)
+	key := fqname.Construct(rlmPath, k)
 
 	if registeredNFTs.Has(key) {
 		return ErrNFTAlreadyRegistered
@@ -419,7 +428,6 @@ func getBalances(addr std.Address) string {
 			balance := value.(uint64)
 			symbol := strings.TrimPrefix(key, "nft:")
 			sb.WriteString(ufmt.Sprintf("NFT:%s:%d,", symbol, balance))
-			sb.WriteString(ufmt.Sprintf("Token:%s:%d,", symbol, balance))
 		case strings.HasPrefix(key, "token:"):
 			balance := value.(uint64)
 			symbol := strings.TrimPrefix(key, "token:")
