@@ -65,7 +65,7 @@ func execTxsRemove(cfg *txsCfg, io commands.IO, args []string) error {
 			}
 
 			// Check if the hashes match
-			if strings.ToLower(hash) == strings.ToLower(inputHash) {
+			if strings.EqualFold(hash, inputHash) {
 				index = indx
 
 				break
