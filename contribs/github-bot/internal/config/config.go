@@ -38,16 +38,21 @@ func Config(gh *client.GitHub) ([]AutomaticCheck, []ManualCheck) {
 		{
 			Description: "Changes to 'docs' folder must be reviewed/authored by at least one devrel and one tech-staff",
 			If:          c.FileChanged(gh, "^docs/"),
-			Then: r.Or(
-				r.And(
-					r.AuthorInTeam(gh, "devrels"),
+			Then: r.And(
+				r.Or(
+					r.AuthorInTeam(gh, "tech-staff"),
 					r.ReviewByTeamMembers(gh, "tech-staff", 1),
 				),
-				r.And(
-					r.AuthorInTeam(gh, "tech-staff"),
+				r.Or(
+					r.AuthorInTeam(gh, "devrels"),
 					r.ReviewByTeamMembers(gh, "devrels", 1),
 				),
 			),
+		},
+		{
+			Description: "Must not contain the \"don't merge\" label",
+			If:          c.Label("don't merge"),
+			Then:        r.Never(),
 		},
 	}
 
@@ -59,8 +64,11 @@ func Config(gh *client.GitHub) ([]AutomaticCheck, []ManualCheck) {
 		},
 		{
 			Description: "The pull request description provides enough details",
-			If:          c.Not(c.AuthorInTeam(gh, "core-contributors")),
-			Teams:       Teams{"core-contributors"},
+			If: c.And(
+				c.Not(c.AuthorInTeam(gh, "core-contributors")),
+				c.Not(c.Author("dependabot[bot]")),
+			),
+			Teams: Teams{"core-contributors"},
 		},
 		{
 			Description: "Determine if infra needs to be updated before merging",
