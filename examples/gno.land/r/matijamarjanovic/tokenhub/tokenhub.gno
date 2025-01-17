@@ -399,15 +399,20 @@ func getBalances(addr std.Address) string {
 	registeredNFTs.Iterate("", "", func(key string, value interface{}) bool {
 		nftGetter := value.(grc721.NFTGetter)
 		nft := nftGetter()
-		balance, _ := nft.BalanceOf(addr)
-		balances.Set("nft:"+key, balance)
+		key_parts := strings.Split(key, ".")
+		if addr == nft.OwnerOf(grc721.TokenID(key_parts[len(key_parts)-1])) { // show only the nfts owner owns
+			balances.Set("nft:"+key)
+		}
 		return false
 	})
 
 	grc20reg.Iterate(func(key string, tokenGetter grc20.TokenGetter) bool {
 		token := tokenGetter()
 		balance := token.BalanceOf(addr)
-		balances.Set("token:"+key, balance)
+		balance := token.BalanceOf(addr)
+		if balance > 0 {
+			balances.Set("token:"+key, balance)
+		}
 		return false
 	})
 
@@ -455,9 +460,9 @@ func getNonZeroBalances(addr std.Address) string {
 	registeredNFTs.Iterate("", "", func(key string, value interface{}) bool {
 		nftGetter := value.(grc721.NFTGetter)
 		nft := nftGetter()
-		balance, _ := nft.BalanceOf(addr)
-		if balance > 0 {
-			balances.Set("nft:"+key, balance)
+		key_parts := strings.Split(key, ".")
+		if addr == nft.OwnerOf(grc721.TokenID(key_parts[len(key_parts)-1])) { // show only the nfts owner owns
+			balances.Set("nft:"+key)
 		}
 		return false
 	})
