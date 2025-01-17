@@ -1,8 +1,9 @@
 package params
 
 import (
-	_ "gno.land/r/gov/dao/loader"
 	"testing"
+
+	_ "gno.land/r/gov/dao/loader"
 )
 
 // Testing this package is limited because it only contains an `std.Set` method
