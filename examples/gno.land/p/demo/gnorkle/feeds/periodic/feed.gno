@@ -107,7 +107,8 @@ func (f *Feed) Ingest(funcType message.FuncType, msg, providerAddress string) er
 // Value returns the feed's latest value, it's data type, and whether or not it can
 // be safely consumed. In this case it can be consumed because it's a periodic feed.
 func (f Feed) Value() (feed.Value, string, bool) {
-	return f.storage.GetLatest(), f.valueDataType, false
+	lastValue := f.storage.GetLatest()
+	return lastValue, f.valueDataType, lastValue == feed.Value{}
 }
 
 // MarshalJSON marshals the components of the feed that are needed for
