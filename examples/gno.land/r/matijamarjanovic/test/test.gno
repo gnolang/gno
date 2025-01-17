@@ -26,10 +26,17 @@ var (
 
 func init() {
 	testAddr := std.Address("g1ej0qca5ptsw9kfr64ey8jvfy9eacga6mpj2z0y")
+	MintTestNFTs(testAddr)
+	MintTestTokens(testAddr)
+	MintTestMultiTokens(testAddr)
 
-	tokenhub.RegisterNFT(func() grc721.IGRC721 { return nftA }, "nft-a")
-	tokenhub.RegisterNFT(func() grc721.IGRC721 { return nftB }, "nft-b")
-	tokenhub.RegisterNFT(func() grc721.IGRC721 { return nftC }, "nft-c")
+
+	tokenhub.RegisterNFT(func() grc721.IGRC721 { return nftA }, "nft-a", "NFTA_1")
+	tokenhub.RegisterNFT(func() grc721.IGRC721 { return nftB }, "nft-b", "NFTB_1")
+	tokenhub.RegisterNFT(func() grc721.IGRC721 { return nftC }, "nft-c", "NFTC_1")
+	tokenhub.RegisterNFT(func() grc721.IGRC721 { return nftA }, "nft-a", "NFTA_2")
+	tokenhub.RegisterNFT(func() grc721.IGRC721 { return nftB }, "nft-b", "NFTB_2")
+	tokenhub.RegisterNFT(func() grc721.IGRC721 { return nftC }, "nft-c", "NFTC_2")
 
 	tokenhub.RegisterToken(tokenA.Getter(), "token-a")
 	tokenhub.RegisterToken(tokenB.Getter(), "token-b")
@@ -39,10 +46,6 @@ func init() {
 	tokenhub.RegisterGRC1155Token(mtGameItems.Getter(), "potion")
 	tokenhub.RegisterGRC1155Token(mtArtworks.Getter(), "artwork_1")
 	tokenhub.RegisterGRC1155Token(mtCollectibles.Getter(), "rare_card")
-
-	MintTestNFTs(testAddr)
-	MintTestTokens(testAddr)
-	MintTestMultiTokens(testAddr)
 
 }
 
