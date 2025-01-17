@@ -308,7 +308,7 @@ func (post *Post) renderPostContent(sb *strings.Builder, indent string) {
 	// Flagged comment should be hidden, but replies still visible (see: #3480)
 	// Flagged threads will be hidden by render function caller.
 	if post.isHidden {
-		sb.WriteString(indentBody(indent, "*Reply has been flagged as inappropriate and hidden*"))
+		sb.WriteString(indentBody(indent, "_Reply is hidden as it has been flagged as inappropriate_"))
 		sb.WriteString("\n")
 		return
 	}
