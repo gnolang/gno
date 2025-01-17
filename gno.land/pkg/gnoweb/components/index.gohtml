@@ -3,7 +3,7 @@
 <html lang="en">
     {{ template "head" .HeadData }}
     <body class="min-h-screen flex flex-col">
-        {{ template "spritesvg" }}
+        {{ template "partials/icons" }}
 
         <!-- header -->
         {{ template "header" .HeaderData }}
@@ -74,7 +74,7 @@
             <form id="header-searchbar" class="relative overflow-scroll no-scrollbar flex items-center bg-gray-100 has-[:focus-within]:border-gray-300 border h-full border-gray-100 p-1.5 rounded w-full">
                 <input data-role="header-input-search" type="text" value="{{ .RealmPath }}" class="peer absolute w-full top-0 left-0 h-full bg-transparent p-1.5 text-200 outline-none text-gray-600 font-medium" />
 
-                {{ template "breadcrumb" .Breadcrumb }}
+                {{ template "partials/breadcrumb" .Breadcrumb }}
             </form>
         </div>
 
@@ -122,7 +122,7 @@
     <nav class="max-w-screen-max mx-auto px-4 md:px-10 mb-8 md:mb-0 grid grid-cols-1 md:grid-cols-4 justify-between items-start xl:items-center gap-2 xl:gap-20 pt-2 xl:pt-0">
         <!-- Footer Navigation -->
         <div class="col-span-1 pb-8 md:pb-0">
-            <a class="block h-6 md:h-4" href="">{{ template "logosvg" }}</a>
+            <a class="block h-6 md:h-4" href="">{{ template "partials/logo" }}</a>
         </div>
         <div class="flex justify-between md:col-span-3">
             <ul aria-label="Footer navigation" class="flex flex-col xl:flex-row gap-4 xl:gap-6">
