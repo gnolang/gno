@@ -3,8 +3,6 @@ package govdao
 import (
 	"std"
 
-	"gno.land/r/gov/dao/bridge"
-
 	"gno.land/p/demo/dao"
 	"gno.land/p/demo/membstore"
 	"gno.land/p/demo/simpledao"
@@ -40,8 +38,6 @@ func init() {
 
 	// Set the DAO implementation
 	d = simpledao.New(members)
-
-	bridge.RegisterNewDAOImpl(GovDAO)
 }
 
 // Propose is designed to be called by another contract or with
