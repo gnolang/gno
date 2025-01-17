@@ -9,6 +9,7 @@ import (
 	"gno.land/r/matijamarjanovic/tokenhub"	
 	"gno.land/p/demo/ufmt"
 	"gno.land/p/demo/grc/grc1155"
+	"gno.land/p/demo/grc/grc721"
 )
 
 var (
@@ -73,10 +74,12 @@ func useWallet() {
 			println("token_id", token_id, "token_balance", token_balance)
 
 		} else if token_type == "NFT" {
+			key_parts := strings.Split(token_key, ".")
+			token_id := key_parts[len(key_parts)-1]
 			tokenGetter := tokenhub.MustGetGRC721(token_key)
 			nft_token := tokenGetter()
-			nft_token.SafeTransferFrom(caller, std.CurrentRealm().Addr(), "") // TODO: token_id
-			println("token_id", token_id, "token_balance", token_balance)
+			nft_token.SafeTransferFrom(caller, std.CurrentRealm().Addr(), grc721.TokenID(token_id))
+			println("token_id", token_id)
 
 		}
 		return true
