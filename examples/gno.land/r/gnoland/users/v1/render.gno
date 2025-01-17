@@ -100,8 +100,8 @@ will gain permission to deploy packages and realms to package paths with the pat
 	out += md.H2("Actions\n\n")
 
 	items = []string{
-		"Register: " + ufmt.Sprintf("[gnokey](%s) - [Connect](%s)\n\n", txlink.Call("Register"), connectRegisterUrl),
-		"Update Name: " + ufmt.Sprintf("[gnokey](%s) - [Connect](%s)\n\n", txlink.Call("UpdateName"), connectUpdateNameUrl),
+		"Register: " + ufmt.Sprintf(" [Connect](%s) - [gnokey](%s)\n\n", connectRegisterUrl, txlink.Call("Register")),
+		"Update Name: " + ufmt.Sprintf(" [Connect](%s) - [gnokey](%s)\n\n", connectUpdateNameUrl, txlink.Call("UpdateName")),
 	}
 
 	out += md.BulletList(items)
