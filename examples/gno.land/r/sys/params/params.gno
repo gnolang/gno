@@ -50,6 +50,5 @@ func newPropExecutor(key string, fn func()) dao.Executor {
 		std.Emit("set", "k", key)
 		return nil
 	}
-
 	return bridge.GovDAO().NewGovDAOExecutor(callback)
 }
