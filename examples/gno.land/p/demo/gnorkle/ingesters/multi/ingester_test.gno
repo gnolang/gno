@@ -38,5 +38,5 @@ func TestValueIngester(t *testing.T) {
 	uassert.NoError(t, err)
 
 	latestValue := storage.GetLatest()
-	uassert.Equal(t, ingestValue.concat(",", ingestvalue2), latestValue.String)
+	uassert.Equal(t, latestValue.String, strings.Join([]string{ingestValue, ingestValue2}, ","))
 }
