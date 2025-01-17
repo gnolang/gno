@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	emitter "github.com/gnolang/gno/contribs/gnodev/internal/mock"
+	mock "github.com/gnolang/gno/contribs/gnodev/internal/mock"
 	"github.com/gnolang/gno/contribs/gnodev/pkg/events"
 	"github.com/gnolang/gno/gno.land/pkg/gnoland"
 	"github.com/gnolang/gno/gno.land/pkg/sdk/vm"
@@ -136,13 +136,15 @@ func TestExportState(t *testing.T) {
 	})
 }
 
-func testingCounterRealm(t *testing.T, inc int) (*Node, *emitter.ServerEmitter) {
+func testingCounterRealm(t *testing.T, inc int) (*Node, *mock.ServerEmitter) {
 	t.Helper()
 
 	const (
 		// foo package
-		counterGnoMod = "module gno.land/r/dev/counter\n"
-		counterFile   = `package counter
+		counterPath = "gno.land/r/dev/counter"
+		counterFile = `
+package counter
+
 import "strconv"
 
 var value int = 0
@@ -152,12 +154,10 @@ func Render(_ string) string { return strconv.Itoa(value) }
 	)
 
 	// Generate package counter
-	counterPkg := generateTestingPackage(t,
-		"gno.mod", counterGnoMod,
-		"foo.gno", counterFile)
+	counterPkg := generateMemPackage(t, counterPath, "foo.gno", counterFile)
 
 	// Call NewDevNode with no package should work
-	node, emitter := newTestingDevNode(t, counterPkg)
+	node, emitter := newTestingDevNode(t, &counterPkg)
 	assert.Len(t, node.ListPkgs(), 1)
 
 	// Test rendering

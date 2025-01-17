@@ -3,32 +3,27 @@ package dev
 import (
 	"context"
 	"encoding/json"
-	"os"
 	"path/filepath"
 	"testing"
 	"time"
 
 	mock "github.com/gnolang/gno/contribs/gnodev/internal/mock"
-
 	"github.com/gnolang/gno/contribs/gnodev/pkg/events"
+	"github.com/gnolang/gno/contribs/gnodev/pkg/packages"
 	"github.com/gnolang/gno/gno.land/pkg/gnoclient"
 	"github.com/gnolang/gno/gno.land/pkg/gnoland/ugnot"
 	"github.com/gnolang/gno/gno.land/pkg/integration"
 	"github.com/gnolang/gno/gno.land/pkg/sdk/vm"
+	"github.com/gnolang/gno/gnovm"
 	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
 	core_types "github.com/gnolang/gno/tm2/pkg/bft/rpc/core/types"
 	"github.com/gnolang/gno/tm2/pkg/bft/types"
-	"github.com/gnolang/gno/tm2/pkg/crypto"
 	"github.com/gnolang/gno/tm2/pkg/crypto/keys"
 	tm2events "github.com/gnolang/gno/tm2/pkg/events"
 	"github.com/gnolang/gno/tm2/pkg/log"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
-
-// XXX: We should probably use txtar to test this package.
-
-var nodeTestingAddress = crypto.MustAddressFromString("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5")
 
 // TestNewNode_NoPackages tests the NewDevNode method with no package.
 func TestNewNode_NoPackages(t *testing.T) {
@@ -49,32 +44,32 @@ func TestNewNode_NoPackages(t *testing.T) {
 }
 
 // TestNewNode_WithPackage tests the NewDevNode with a single package.
-func TestNewNode_WithPackage(t *testing.T) {
+func TestNewNode_WithLoader(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
 	const (
+		path = "gno.land/r/dev/foobar"
 		// foobar package
-		testGnoMod = "module gno.land/r/dev/foobar\n"
-		testFile   = `package foobar
+		testFile = `package foobar
 func Render(_ string) string { return "foo" }
 `
 	)
 
 	// Generate package
-	pkgpath := generateTestingPackage(t, "gno.mod", testGnoMod, "foobar.gno", testFile)
+	pkg := generateMemPackage(t, path, "foobar.gno", testFile)
 	logger := log.NewTestingLogger(t)
 
-	// Call NewDevNode with no package should work
 	cfg := DefaultNodeConfig(gnoenv.RootDir(), "gno.land")
-	cfg.PackagesPathList = []PackagePath{pkgpath}
+	cfg.Loader = packages.NewLoader(packages.NewMockResolver(&pkg))
 	cfg.Logger = logger
-	node, err := NewDevNode(ctx, cfg)
+
+	node, err := NewDevNode(ctx, cfg, path)
 	require.NoError(t, err)
 	assert.Len(t, node.ListPkgs(), 1)
 
 	// Test rendering
-	render, err := testingRenderRealm(t, node, "gno.land/r/dev/foobar")
+	render, err := testingRenderRealm(t, node, path)
 	require.NoError(t, err)
 	assert.Equal(t, render, "foo")
 
@@ -85,22 +80,24 @@ func TestNodeAddPackage(t *testing.T) {
 	// Setup a Node instance
 	const (
 		// foo package
-		fooGnoMod = "module gno.land/r/dev/foo\n"
-		fooFile   = `package foo
+		fooPath = "gno.land/r/dev/foo"
+		fooFile = `package foo
 func Render(_ string) string { return "foo" }
 `
 		// bar package
-		barGnoMod = "module gno.land/r/dev/bar\n"
-		barFile   = `package bar
+		barPath = "gno.land/r/dev/bar"
+		barFile = `package bar
 func Render(_ string) string { return "bar" }
 `
 	)
 
 	// Generate package foo
-	foopkg := generateTestingPackage(t, "gno.mod", fooGnoMod, "foo.gno", fooFile)
+	fooPkg := generateMemPackage(t, fooPath, "foo.gno", fooFile)
+	barPkg := generateMemPackage(t, barPath, "bar.gno", barFile)
+	cfg := newTestingNodeConfig(&fooPkg, &barPkg)
 
 	// Call NewDevNode with no package should work
-	node, emitter := newTestingDevNode(t, foopkg)
+	node, emitter := newTestingDevNodeWithConfig(t, cfg, fooPath)
 	assert.Len(t, node.ListPkgs(), 1)
 
 	// Test render
@@ -108,15 +105,12 @@ func Render(_ string) string { return "bar" }
 	require.NoError(t, err)
 	require.Equal(t, render, "foo")
 
-	// Generate package bar
-	barpkg := generateTestingPackage(t, "gno.mod", barGnoMod, "bar.gno", barFile)
-	err = node.UpdatePackages(barpkg.Path)
-	require.NoError(t, err)
-	assert.Len(t, node.ListPkgs(), 2)
-
 	// Render should fail as the node hasn't reloaded
 	render, err = testingRenderRealm(t, node, "gno.land/r/dev/bar")
 	require.Error(t, err)
+
+	// Add bar package
+	node.AddPackagePaths(barPath)
 
 	err = node.Reload(context.Background())
 	require.NoError(t, err)
@@ -132,30 +126,29 @@ func TestNodeUpdatePackage(t *testing.T) {
 	// Setup a Node instance
 	const (
 		// foo package
-		foobarGnoMod = "module gno.land/r/dev/foobar\n"
-		fooFile      = `package foobar
-func Render(_ string) string { return "foo" }
-`
+		foobarPath = "gno.land/r/dev/foobar"
+		fooFile    = `package foobar
+func Render(_ string) string { return "foo" }`
 		barFile = `package foobar
 func Render(_ string) string { return "bar" }
 `
 	)
 
 	// Generate package foo
-	foopkg := generateTestingPackage(t, "gno.mod", foobarGnoMod, "foo.gno", fooFile)
+	fooPkg := generateMemPackage(t, foobarPath, "foo.gno", fooFile)
 
 	// Call NewDevNode with no package should work
-	node, emitter := newTestingDevNode(t, foopkg)
+	node, emitter := newTestingDevNode(t, &fooPkg)
 	assert.Len(t, node.ListPkgs(), 1)
 
 	// Test that render is correct
-	render, err := testingRenderRealm(t, node, "gno.land/r/dev/foobar")
+	render, err := testingRenderRealm(t, node, foobarPath)
 	require.NoError(t, err)
 	require.Equal(t, render, "foo")
 
-	// Override `foo.gno` file with bar content
-	err = os.WriteFile(filepath.Join(foopkg.Path, "foo.gno"), []byte(barFile), 0o700)
-	require.NoError(t, err)
+	// Update foo content with bar content
+	barPkg := generateMemPackage(t, foobarPath, "bar.gno", barFile)
+	fooPkg.Files = barPkg.Files
 
 	err = node.Reload(context.Background())
 	require.NoError(t, err)
@@ -164,7 +157,7 @@ func Render(_ string) string { return "bar" }
 	assert.Equal(t, events.EvtReload, emitter.NextEvent().Type())
 
 	// After a reload, render should succeed
-	render, err = testingRenderRealm(t, node, "gno.land/r/dev/foobar")
+	render, err = testingRenderRealm(t, node, foobarPath)
 	require.NoError(t, err)
 	require.Equal(t, render, "bar")
 
@@ -174,8 +167,8 @@ func Render(_ string) string { return "bar" }
 func TestNodeReset(t *testing.T) {
 	const (
 		// foo package
-		foobarGnoMod = "module gno.land/r/dev/foo\n"
-		fooFile      = `package foo
+		foobarPath = "gno.land/r/dev/foo"
+		fooFile    = `package foo
 var str string = "foo"
 func UpdateStr(newStr string) { str = newStr } // method to update 'str' variable
 func Render(_ string) string { return str }
@@ -183,20 +176,20 @@ func Render(_ string) string { return str }
 	)
 
 	// Generate package foo
-	foopkg := generateTestingPackage(t, "gno.mod", foobarGnoMod, "foo.gno", fooFile)
+	foopkg := generateMemPackage(t, foobarPath, "foo.gno", fooFile)
 
 	// Call NewDevNode with no package should work
-	node, emitter := newTestingDevNode(t, foopkg)
+	node, emitter := newTestingDevNode(t, &foopkg)
 	assert.Len(t, node.ListPkgs(), 1)
 
 	// Test rendering
-	render, err := testingRenderRealm(t, node, "gno.land/r/dev/foo")
+	render, err := testingRenderRealm(t, node, foobarPath)
 	require.NoError(t, err)
 	require.Equal(t, render, "foo")
 
 	// Call `UpdateStr` to update `str` value with "bar"
 	msg := vm.MsgCall{
-		PkgPath: "gno.land/r/dev/foo",
+		PkgPath: foobarPath,
 		Func:    "UpdateStr",
 		Args:    []string{"bar"},
 		Send:    nil,
@@ -208,7 +201,7 @@ func Render(_ string) string { return str }
 	assert.Equal(t, emitter.NextEvent().Type(), events.EvtTxResult)
 
 	// Check for correct render update
-	render, err = testingRenderRealm(t, node, "gno.land/r/dev/foo")
+	render, err = testingRenderRealm(t, node, foobarPath)
 	require.NoError(t, err)
 	require.Equal(t, render, "bar")
 
@@ -218,7 +211,7 @@ func Render(_ string) string { return str }
 	assert.Equal(t, emitter.NextEvent().Type(), events.EvtReset)
 
 	// Test rendering should return initial `str` value
-	render, err = testingRenderRealm(t, node, "gno.land/r/dev/foo")
+	render, err = testingRenderRealm(t, node, foobarPath)
 	require.NoError(t, err)
 	require.Equal(t, render, "foo")
 
@@ -228,8 +221,10 @@ func Render(_ string) string { return str }
 func TestTxTimestampRecover(t *testing.T) {
 	const (
 		// foo package
-		foobarGnoMod = "module gno.land/r/dev/foo\n"
-		fooFile      = `package foo
+		foobarPath = "gno.land/r/dev/foo"
+		fooFile    = `
+package foo
+
 import (
 	"strconv"
 	"strings"
@@ -265,6 +260,23 @@ func Render(_ string) string {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*20)
 	defer cancel()
 
+	// Generate package foo
+	foopkg := generateMemPackage(t, foobarPath, "foo.gno", fooFile)
+
+	// XXX(gfanton): Setting this to `false` somehow makes the time block
+	// drift from the time spanned by the VM.
+	cfg := newTestingNodeConfig(&foopkg)
+	cfg.TMConfig.Consensus.SkipTimeoutCommit = false
+	cfg.TMConfig.Consensus.TimeoutCommit = 500 * time.Millisecond
+	cfg.TMConfig.Consensus.TimeoutPropose = 100 * time.Millisecond
+	cfg.TMConfig.Consensus.CreateEmptyBlocks = true
+
+	node, emitter := newTestingDevNodeWithConfig(t, cfg, foopkg.Path)
+
+	render, err := testingRenderRealm(t, node, foobarPath)
+	require.NoError(t, err)
+	require.NotEmpty(t, render)
+
 	parseJSONTimesList := func(t *testing.T, render string) []time.Time {
 		t.Helper()
 
@@ -281,21 +293,6 @@ func Render(_ string) string {
 
 		return times
 	}
-
-	// Generate package foo
-	foopkg := generateTestingPackage(t, "gno.mod", foobarGnoMod, "foo.gno", fooFile)
-
-	// Call NewDevNode with no package should work
-	cfg := createDefaultTestingNodeConfig(foopkg)
-
-	// XXX(gfanton): Setting this to `false` somehow makes the time block
-	// drift from the time spanned by the VM.
-	cfg.TMConfig.Consensus.SkipTimeoutCommit = false
-	cfg.TMConfig.Consensus.TimeoutCommit = 500 * time.Millisecond
-	cfg.TMConfig.Consensus.TimeoutPropose = 100 * time.Millisecond
-	cfg.TMConfig.Consensus.CreateEmptyBlocks = true
-
-	node, emitter := newTestingDevNodeWithConfig(t, cfg)
 
 	// We need to make sure that blocks are separated by at least 1 second
 	// (minimal time between blocks). We can ensure this by listening for
@@ -329,7 +326,7 @@ func Render(_ string) string {
 
 	// Span multiple time
 	for i := 0; i < nevents; i++ {
-		t.Logf("waiting for a bock greater than height(%d) and unix(%d)", refHeight, refTimestamp)
+		t.Logf("waiting for a block greater than height(%d) and unix(%d)", refHeight, refTimestamp)
 		for {
 			var block types.EventNewBlock
 			select {
@@ -357,7 +354,7 @@ func Render(_ string) string {
 
 		// Span a new time
 		msg := vm.MsgCall{
-			PkgPath: "gno.land/r/dev/foo",
+			PkgPath: foobarPath,
 			Func:    "SpanTime",
 		}
 
@@ -373,7 +370,7 @@ func Render(_ string) string {
 	}
 
 	// Render JSON times list
-	render, err := testingRenderRealm(t, node, "gno.land/r/dev/foo")
+	render, err = testingRenderRealm(t, node, foobarPath)
 	require.NoError(t, err)
 
 	// Parse times list
@@ -396,12 +393,12 @@ func Render(_ string) string {
 	assert.Equal(t, emitter.NextEvent().Type(), events.EvtReload)
 
 	// Fetch time list again from render
-	render, err = testingRenderRealm(t, node, "gno.land/r/dev/foo")
+	render, err = testingRenderRealm(t, node, foobarPath)
 	require.NoError(t, err)
 
 	timesList2 := parseJSONTimesList(t, render)
 
-	// Times list should be identical from the orignal list
+	// Times list should be identical from the original list
 	require.Len(t, timesList2, len(timesList1))
 	for i := 0; i < len(timesList1); i++ {
 		t1nsec, t2nsec := timesList1[i].UnixNano(), timesList2[i].UnixNano()
@@ -452,42 +449,57 @@ func testingCallRealm(t *testing.T, node *Node, msgs ...vm.MsgCall) (*core_types
 	return cli.Call(txcfg, vmMsgs...)
 }
 
-func generateTestingPackage(t *testing.T, nameFile ...string) PackagePath {
+func generateMemPackage(t *testing.T, path string, pairNameFile ...string) gnovm.MemPackage {
 	t.Helper()
-	workdir := t.TempDir()
 
-	if len(nameFile)%2 != 0 {
+	if len(pairNameFile)%2 != 0 {
 		require.FailNow(t, "Generate testing packages require paired arguments.")
 	}
 
-	for i := 0; i < len(nameFile); i += 2 {
-		name := nameFile[i]
-		content := nameFile[i+1]
+	// Guess the name based on dir
+	// Don't bother parsing files to actually guess the name of the package
+	name := filepath.Base(path)
 
-		err := os.WriteFile(filepath.Join(workdir, name), []byte(content), 0o700)
-		require.NoError(t, err)
+	files := make([]*gnovm.MemFile, 0, len(pairNameFile)/2)
+	for i := 0; i < len(pairNameFile); i += 2 {
+		name := pairNameFile[i]
+		content := pairNameFile[i+1]
+		files = append(files, &gnovm.MemFile{
+			Name: name,
+			Body: content,
+		})
 	}
 
-	return PackagePath{
-		Path:    workdir,
-		Creator: nodeTestingAddress,
+	return gnovm.MemPackage{
+		Name:  name,
+		Path:  path,
+		Files: files,
 	}
 }
 
-func createDefaultTestingNodeConfig(pkgslist ...PackagePath) *NodeConfig {
+func newTestingNodeConfig(pkgs ...*gnovm.MemPackage) *NodeConfig {
+	var loader packages.BaseLoader
+	loader.Resolver = packages.MiddlewareResolver(
+		packages.NewMockResolver(pkgs...),
+		packages.FilterStdlibs)
 	cfg := DefaultNodeConfig(gnoenv.RootDir(), "gno.land")
-	cfg.PackagesPathList = pkgslist
+	cfg.Loader = &loader
 	return cfg
 }
 
-func newTestingDevNode(t *testing.T, pkgslist ...PackagePath) (*Node, *mock.ServerEmitter) {
+func newTestingDevNode(t *testing.T, pkgs ...*gnovm.MemPackage) (*Node, *mock.ServerEmitter) {
 	t.Helper()
 
-	cfg := createDefaultTestingNodeConfig(pkgslist...)
-	return newTestingDevNodeWithConfig(t, cfg)
+	cfg := newTestingNodeConfig(pkgs...)
+	paths := make([]string, len(pkgs))
+	for i, pkg := range pkgs {
+		paths[i] = pkg.Path
+	}
+
+	return newTestingDevNodeWithConfig(t, cfg, paths...)
 }
 
-func newTestingDevNodeWithConfig(t *testing.T, cfg *NodeConfig) (*Node, *mock.ServerEmitter) {
+func newTestingDevNodeWithConfig(t *testing.T, cfg *NodeConfig, pkgpaths ...string) (*Node, *mock.ServerEmitter) {
 	t.Helper()
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -497,9 +509,9 @@ func newTestingDevNodeWithConfig(t *testing.T, cfg *NodeConfig) (*Node, *mock.Se
 	cfg.Emitter = emitter
 	cfg.Logger = logger
 
-	node, err := NewDevNode(ctx, cfg)
+	node, err := NewDevNode(ctx, cfg, pkgpaths...)
 	require.NoError(t, err)
-	assert.Len(t, node.ListPkgs(), len(cfg.PackagesPathList))
+	require.Equal(t, emitter.NextEvent().Type(), events.EvtReset)
 
 	t.Cleanup(func() {
 		node.Close()
