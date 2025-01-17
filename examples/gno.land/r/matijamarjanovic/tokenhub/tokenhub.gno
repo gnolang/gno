@@ -91,11 +91,11 @@ func RegisterGRC1155Token(mtGetter grc1155.MultiTokenGetter, tokenID string) err
 }
 
 func GetMyBalancesAll() string {
-	return getBalances(std.GetOrigCaller())
+	return getBalances(string(std.PrevRealm().Addr()))
 }
 
 func GetMyBalances() string {
-	return getNonZeroBalances(std.GetOrigCaller())
+	return getNonZeroBalances(string(std.PrevRealm().Addr()))
 }
 
 func GetGRC20(key string) grc20.TokenGetter {
@@ -138,22 +138,6 @@ func MustGetGRC1155(key string) GRC1155TokenInfo {
 	return info
 }
 
-func GetBalancesAll(input string) string {
-	addr := getAddressForUsername(input)
-	if addr == "" {
-		panic("invalid address or username: " + input)
-	}
-	return getBalances(addr)
-}
-
-func GetBalances(input string) string {
-	addr := getAddressForUsername(input)
-	if addr == "" {
-		panic("invalid address or username: " + input)
-	}
-	return getNonZeroBalances(addr)
-}
-
 func GetAllNFTs() string {
 	var sb strings.Builder
 	registeredNFTs.Iterate("", "", func(key string, value interface{}) bool {
@@ -184,6 +168,12 @@ func GetAllMultiTokens() string {
 func GetAllTokens() string {
 	return ufmt.Sprintf("%s%s%s",
 		GetAllNFTs(),
+		GetAllGRC20Tokens(),
+		GetAllMultiTokens())
+}
+
+func GetAllTokensNoNFTs() string {
+	return ufmt.Sprintf("%s%s",
 		GetAllGRC20Tokens(),
 		GetAllMultiTokens())
 }
@@ -389,10 +379,13 @@ func Render(path string) string {
 	return sb.String()
 }
 
-func getBalances(addr std.Address) string {
+func getBalances(input string) string {
+
+	addr := getAddressForUsername(input)
 	if addr == "" {
-		panic("invalid address")
+		panic("invalid address or username: " + input)
 	}
+
 	balances := avl.NewTree()
 	var sb strings.Builder
 
@@ -449,10 +442,12 @@ func getBalances(addr std.Address) string {
 	return sb.String()
 }
 
-func getNonZeroBalances(addr std.Address) string {
+func getNonZeroBalances(input string) string {
+	addr := getAddressForUsername(input)
 	if addr == "" {
-		panic("invalid address")
+		panic("invalid address or username: " + input)
 	}
+
 	balances := avl.NewTree()
 	var sb strings.Builder
 

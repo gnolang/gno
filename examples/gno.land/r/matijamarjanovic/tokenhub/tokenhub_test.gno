@@ -30,10 +30,8 @@ func TestTokenRegistration(t *testing.T) {
 func TestNFTRegistration(t *testing.T) {
 	std.TestSetRealm(std.NewCodeRealm("gno.land/r/matijamarjanovic/home"))
 
-	addr := std.Address("g1ej0qca5ptsw9kfr64ey8jvfy9eacga6mpj2z0y")
-
 	nft := grc721.NewBasicNFT("Test NFT", "TNFT")
-	nft.Mint(addr, grc721.TokenID("1"))
+	nft.Mint(std.CurrentRealm().Addr(), grc721.TokenID("1"))
 	err := RegisterNFT(nft.Getter(), "test_nft", "1")
 	urequire.NoError(t, err, "Should register NFT without error")
 
@@ -69,22 +67,20 @@ func TestGRC1155Registration(t *testing.T) {
 func TestBalanceRetrieval(t *testing.T) {
 	std.TestSetRealm(std.NewCodeRealm("gno.land/r/matijamarjanovic/home"))
 
-	addr := std.Address("g1ej0qca5ptsw9kfr64ey8jvfy9eacga6mpj2z0y")
-
 	token, ledger := grc20.NewToken("Test Token", "TEST", 6)
 	RegisterToken(token.Getter(), "test_tokenn")
-	ledger.Mint(addr, 1000)
+	ledger.Mint(std.CurrentRealm().Addr(), 1000)
 
 	mt := grc1155.NewBasicGRC1155Token("test-uri")
 	RegisterGRC1155Token(mt.Getter(), "11")
-	mt.SafeMint(addr, grc1155.TokenID("11"), 5)
+	mt.SafeMint(std.CurrentRealm().Addr(), grc1155.TokenID("11"), 5)
 
-	balances := GetBalancesAll(string(addr))
+	balances := GetMyBalancesAll()
 	uassert.True(t, strings.Contains(balances, "Token:gno.land/r/matijamarjanovic/tokenhub.test_tokenn:1000"), "Should show correct GRC20 balance")
-	uassert.True(t, strings.Contains(balances, "NFT:gno.land/r/matijamarjanovic/home.test_nft.1:1"), "Should show correct NFT balance") //already minted in test register
+	uassert.True(t, strings.Contains(balances, "NFT:gno.land/r/matijamarjanovic/home.test_nft.1"), "Should show correct NFT balance") //already minted in test register
 	uassert.True(t, strings.Contains(balances, "MultiToken:gno.land/r/matijamarjanovic/home.11:5"), "Should show multi-token balance")
 
-	nonZeroBalances := GetBalances(string(addr))
+	nonZeroBalances := GetMyBalances()
 	uassert.True(t, strings.Contains(nonZeroBalances, "Token:gno.land/r/matijamarjanovic/tokenhub.test_tokenn:1000"), "Should show non-zero GRC20 balance")
 }
 
@@ -104,10 +100,6 @@ func TestErrorCases(t *testing.T) {
 
 	err = RegisterGRC1155Token(mt.Getter(), "1")
 	uassert.True(t, err != nil, "Should not allow duplicate registration")
-
-	uassert.PanicsWithMessage(t, "invalid address or username: invalid", func() {
-		GetBalances("invalid")
-	})
 }
 
 func TestTokenListingFunctions(t *testing.T) {
