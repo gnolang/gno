@@ -1,0 +1,5 @@
+-- input --
+gno version
+
+-- stdout.golden --
+gno version: develop
