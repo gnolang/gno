@@ -161,6 +161,7 @@ func (DefaultPermissions) handleBoardCreate(args Args, cb func(Args)) {
 		panic("expected board name to be a string")
 	}
 
+	assertValidBoardNameLength(name)
 	assertBoardNameIsNotAddress(name)
 	assertBoardNameBelongsToCaller(name)
 
@@ -173,6 +174,7 @@ func (DefaultPermissions) handleBoardRename(args Args, cb func(Args)) {
 		panic("expected new board name to be a string")
 	}
 
+	assertValidBoardNameLength(newName)
 	assertBoardNameIsNotAddress(newName)
 	assertBoardNameBelongsToCaller(newName)
 
@@ -260,6 +262,12 @@ func createDefaultPermissions(owner std.Address) *DefaultPermissions {
 func assertBoardNameIsNotAddress(s string) {
 	if std.Address(s).IsValid() {
 		panic("addresses are not allowed as board name")
+	}
+}
+
+func assertValidBoardNameLength(name string) {
+	if len(name) < 6 {
+		panic("the minimum allowed board name length is 6 characters")
 	}
 }
 
