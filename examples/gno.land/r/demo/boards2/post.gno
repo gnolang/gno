@@ -214,7 +214,7 @@ func (post *Post) GetReplyFormURL() string {
 	return txlink.Call("CreateReply",
 		"bid", post.board.id.String(),
 		"threadID", post.threadID.String(),
-		"postID", post.id.String(),
+		"replyID", post.id.String(),
 	)
 }
 
