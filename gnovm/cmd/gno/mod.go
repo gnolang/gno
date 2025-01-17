@@ -7,7 +7,6 @@ import (
 	"go/token"
 	"os"
 	"path/filepath"
-	"strconv"
 	"strings"
 
 	"github.com/gnolang/gno/gnovm/pkg/gnomod"
@@ -371,19 +370,13 @@ func getImportToFilesMap(pkg *packages.Package) (map[string][]string, error) {
 		if err != nil {
 			return nil, err
 		}
-		imports, err := packages.FileImportsSpecs(filename, string(data), fset)
+		imports, err := packages.FileImports(filename, string(data), fset)
 		if err != nil {
 			return nil, err
 		}
 
 		for _, imp := range imports {
-			pkgPath, err := strconv.Unquote(imp.Path.Value)
-			if err != nil {
-				// should not happen - parser.ParseFile should already ensure we get
-				// a valid string literal here.
-				panic(fmt.Errorf("%v: unexpected invalid import path: %v", fset.Position(imp.Pos()).String(), imp.Path.Value))
-			}
-			m[pkgPath] = append(m[pkgPath], filename)
+			m[imp.PkgPath] = append(m[imp.PkgPath], filename)
 		}
 	}
 	return m, nil

@@ -6,6 +6,7 @@ import (
 	"go/token"
 	"os"
 	"path/filepath"
+	"slices"
 
 	"github.com/gnolang/gno/gnovm"
 	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
@@ -25,6 +26,13 @@ type LoadConfig struct {
 	SelfContained bool
 	AllowEmpty    bool
 	DepsPatterns  []string
+	Fset          *token.FileSet
+}
+
+var injectedTestingLibs = []string{"encoding/json", "fmt", "internal/os_test", "os"}
+
+func IsInjectedTestingStdlib(pkgPath string) bool {
+	return slices.Contains(injectedTestingLibs, pkgPath)
 }
 
 func (conf *LoadConfig) applyDefaults() {
@@ -37,19 +45,23 @@ func (conf *LoadConfig) applyDefaults() {
 	if conf.Cache == nil {
 		conf.Cache = map[string]*Package{}
 	}
+	if conf.Fset == nil {
+		conf.Fset = token.NewFileSet()
+	}
 }
 
 func Load(conf *LoadConfig, patterns ...string) (PkgList, error) {
+	if conf == nil {
+		conf = &LoadConfig{}
+	}
 	conf.applyDefaults()
-
-	fset := token.NewFileSet()
 
 	expanded, err := expandPatterns(conf, patterns...)
 	if err != nil {
 		return nil, err
 	}
 
-	pkgs, err := readPackages(expanded, fset)
+	pkgs, err := readPackages(expanded, conf.Fset)
 	if err != nil {
 		return nil, err
 	}
@@ -72,13 +84,11 @@ func Load(conf *LoadConfig, patterns ...string) (PkgList, error) {
 		m.Match = []string{}
 	}
 
-	extraPkgs, err := readPackages(extra, fset)
+	extraPkgs, err := readPackages(extra, conf.Fset)
 	if err != nil {
 		return nil, err
 	}
 	extraMap := NewPackagesMap(extraPkgs...)
-
-	gnoroot := gnoenv.RootDir()
 
 	toVisit := pkgs
 	queuedByPkgPath := NewPackagesMap(pkgs...)
@@ -100,44 +110,60 @@ func Load(conf *LoadConfig, patterns ...string) (PkgList, error) {
 			continue
 		}
 
-		for _, imp := range pkg.Imports.Merge(FileKindPackageSource, FileKindTest, FileKindXTest, FileKindFiletest) {
+		for _, imp := range pkg.ImportsSpecs.Merge(FileKindPackageSource, FileKindTest, FileKindXTest, FileKindFiletest) {
+			if IsInjectedTestingStdlib(imp.PkgPath) {
+				continue
+			}
+
 			// check if we already queued this dep
-			if _, ok := queuedByPkgPath[imp]; ok {
+			if _, ok := queuedByPkgPath[imp.PkgPath]; ok {
 				continue
 			}
 
 			// check if we have it in config cache
-			if cached, ok := conf.Cache[imp]; ok {
+			if cached, ok := conf.Cache[imp.PkgPath]; ok {
 				markForVisit(cached)
 				continue
 			}
 
 			// check if we have it in extra deps patterns
-			if extra, ok := extraMap[imp]; ok {
+			if extra, ok := extraMap[imp.PkgPath]; ok {
 				markForVisit(extra)
 				continue
 			}
 
-			// check if this is a stdlib and queue it
-			if gnolang.IsStdlib(imp) {
-				pkg := readPkgDir(filepath.Join(gnoroot, "gnovm", "stdlibs", filepath.FromSlash(imp)), imp, fset)
-				markForVisit(pkg)
+			// check if this is a stdlib and load it from gnoroot if available
+			if gnolang.IsStdlib(imp.PkgPath) {
+				dir := filepath.Join(gnoenv.RootDir(), "gnovm", "stdlibs", filepath.FromSlash(imp.PkgPath))
+				dirInfo, err := os.Stat(dir)
+				if err != nil || !dirInfo.IsDir() {
+					err := &Error{
+						Pos: filepath.Join(filepath.FromSlash(pkg.Dir), conf.Fset.Position(imp.Spec.Pos()).String()),
+						Msg: fmt.Sprintf("package %s is not in std (%s)", imp.PkgPath, dir),
+					}
+					pkg.Errors = append(pkg.Errors, err)
+				}
+				markForVisit(readPkgDir(dir, imp.PkgPath, conf.Fset))
 				continue
 			}
 
 			if conf.SelfContained {
-				pkg.Errors = append(pkg.Errors, fmt.Errorf("self-contained: package %q not found", imp))
-				delete(queuedByPkgPath, imp) // stop trying to get this lib, we can't
+				pkg.Errors = append(pkg.Errors, &Error{
+					Pos: pkg.Dir,
+					Msg: fmt.Sprintf("package %q not found (self-contained)", imp.PkgPath),
+				})
 				continue
 			}
 
-			dir := gnomod.PackageDir("", module.Version{Path: imp})
-			if err := downloadPackage(conf, imp, dir); err != nil {
-				pkg.Errors = append(pkg.Errors, err)
-				delete(queuedByPkgPath, imp) // stop trying to get this lib, we can't
+			dir := gnomod.PackageDir("", module.Version{Path: imp.PkgPath})
+			if err := downloadPackage(conf, imp.PkgPath, dir); err != nil {
+				pkg.Errors = append(pkg.Errors, &Error{
+					Pos: pkg.Dir,
+					Msg: fmt.Sprintf("download %q: %v", imp.PkgPath, err),
+				})
 				continue
 			}
-			markForVisit(readPkgDir(dir, imp, fset))
+			markForVisit(readPkgDir(dir, imp.PkgPath, conf.Fset))
 		}
 
 		loaded = append(loaded, pkg)
@@ -145,41 +171,44 @@ func Load(conf *LoadConfig, patterns ...string) (PkgList, error) {
 
 	for _, pkg := range loaded {
 		// TODO: this could be optimized
-		pkg.Deps, err = listDeps(pkg.ImportPath, queuedByPkgPath)
-		if err != nil {
-			pkg.Errors = append(pkg.Errors, err)
-		}
+		var errs []*Error
+		pkg.Deps, errs = listDeps(pkg, queuedByPkgPath)
+		pkg.Errors = append(pkg.Errors, errs...)
 	}
 
 	return loaded, nil
 }
 
-func listDeps(target string, pkgs map[string]*Package) ([]string, error) {
+func listDeps(target *Package, pkgs PackagesMap) ([]string, []*Error) {
 	deps := []string{}
 	err := listDepsRecursive(target, target, pkgs, &deps, make(map[string]struct{}))
 	return deps, err
 }
 
-func listDepsRecursive(rootTarget string, target string, pkgs map[string]*Package, deps *[]string, visited map[string]struct{}) error {
-	if _, ok := visited[target]; ok {
+func listDepsRecursive(rootTarget *Package, target *Package, pkgs PackagesMap, deps *[]string, visited map[string]struct{}) []*Error {
+	if _, ok := visited[target.ImportPath]; ok {
 		return nil
 	}
-	pkg := pkgs[target]
-	if pkg == nil {
-		return fmt.Errorf("package %s not found", target)
-	}
-	visited[target] = struct{}{}
-	var outErr error
-	for _, imp := range pkg.Imports.Merge(FileKindPackageSource, FileKindTest, FileKindXTest, FileKindFiletest) {
-		err := listDepsRecursive(rootTarget, imp, pkgs, deps, visited)
-		if err != nil {
-			outErr = errors.Join(outErr, err)
+	visited[target.ImportPath] = struct{}{}
+	var outErrs []*Error
+	for _, imp := range target.ImportsSpecs.Merge(FileKindPackageSource, FileKindTest, FileKindXTest, FileKindFiletest) {
+		if IsInjectedTestingStdlib(imp.PkgPath) {
+			continue
 		}
+		dep := pkgs[imp.PkgPath]
+		if dep == nil {
+			return []*Error{{
+				Pos: rootTarget.Dir,
+				Msg: fmt.Sprintf("package %q not found", imp.PkgPath),
+			}}
+		}
+		errs := listDepsRecursive(rootTarget, dep, pkgs, deps, visited)
+		outErrs = append(outErrs, errs...)
 	}
 	if target != rootTarget {
-		(*deps) = append(*deps, target)
+		(*deps) = append(*deps, target.ImportPath)
 	}
-	return outErr
+	return outErrs
 }
 
 func (p *Package) MemPkg() (*gnovm.MemPackage, error) {

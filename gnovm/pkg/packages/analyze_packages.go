@@ -39,9 +39,10 @@ func readPackages(matches []*pkgMatch, fset *token.FileSet) ([]*Package, error) 
 
 func readCLAPkg(patterns []string, fset *token.FileSet) (*Package, error) {
 	pkg := &Package{
-		ImportPath: "command-line-arguments",
-		Files:      make(FilesMap),
-		Imports:    make(ImportsMap),
+		ImportPath:   "command-line-arguments",
+		Files:        FilesMap{},
+		Imports:      map[FileKind][]string{},
+		ImportsSpecs: ImportsMap{},
 	}
 	var err error
 
@@ -66,10 +67,11 @@ func readCLAPkg(patterns []string, fset *token.FileSet) (*Package, error) {
 
 func readPkgDir(pkgDir string, importPath string, fset *token.FileSet) *Package {
 	pkg := &Package{
-		Dir:        pkgDir,
-		Files:      make(FilesMap),
-		Imports:    make(ImportsMap),
-		ImportPath: importPath,
+		Dir:          pkgDir,
+		Files:        FilesMap{},
+		Imports:      map[FileKind][]string{},
+		ImportsSpecs: ImportsMap{},
+		ImportPath:   importPath,
 	}
 
 	if pkg.ImportPath == "" {
@@ -77,7 +79,10 @@ func readPkgDir(pkgDir string, importPath string, fset *token.FileSet) *Package 
 		if strings.HasPrefix(filepath.Clean(pkg.Dir), stdlibsPath) {
 			libPath, err := filepath.Rel(stdlibsPath, pkg.Dir)
 			if err != nil {
-				pkg.Errors = append(pkg.Errors, err)
+				pkg.Errors = append(pkg.Errors, &Error{
+					Pos: pkg.Dir,
+					Msg: err.Error(),
+				})
 				return pkg
 			}
 			pkg.ImportPath = libPath
@@ -87,7 +92,10 @@ func readPkgDir(pkgDir string, importPath string, fset *token.FileSet) *Package 
 	files := []string{}
 	entries, err := os.ReadDir(pkgDir)
 	if err != nil {
-		pkg.Errors = append(pkg.Errors, err)
+		pkg.Errors = append(pkg.Errors, &Error{
+			Pos: pkg.Dir,
+			Msg: err.Error(),
+		})
 		return pkg
 	}
 	for _, entry := range entries {
@@ -119,14 +127,17 @@ func readPkgFiles(pkg *Package, files []string, fset *token.FileSet) *Package {
 
 		bodyBytes, err := os.ReadFile(fpath)
 		if err != nil {
-			pkg.Errors = append(pkg.Errors, err)
+			pkg.Errors = append(pkg.Errors, &Error{
+				Pos: fpath,
+				Msg: err.Error(),
+			})
 			continue
 		}
 		body := string(bodyBytes)
 
 		fileKind, err := GetFileKind(base, body, fset)
 		if err != nil {
-			pkg.Errors = append(pkg.Errors, err)
+			pkg.Errors = append(pkg.Errors, FromErr(err, fset, fpath, false)...)
 			continue
 		}
 
@@ -135,20 +146,22 @@ func readPkgFiles(pkg *Package, files []string, fset *token.FileSet) *Package {
 	}
 
 	var err error
-	pkg.Imports, err = Imports(&mempkg, fset)
+	pkg.ImportsSpecs, err = Imports(&mempkg, fset)
 	if err != nil {
-		pkg.Errors = append(pkg.Errors, err)
+		pkg.Errors = append(pkg.Errors, FromErr(err, fset, pkg.Dir, true)...)
 	}
+	pkg.Imports = pkg.ImportsSpecs.ToStrings()
 
 	// we use the ReadMemPkg utils to get the package name because we want name resolution like the vm
-	nameFiles := pkg.Files.Merge(FileKindPackageSource, FileKindTest, FileKindXTest)
+	nameFiles := pkg.Files.Merge(FileKindPackageSource, FileKindTest, FileKindXTest, FileKindFiletest)
 	absFiles := make([]string, 0, len(nameFiles))
 	for _, f := range nameFiles {
 		absFiles = append(absFiles, filepath.Join(pkg.Dir, f))
 	}
-	minMempkg, err := gnolang.ReadMemPackageFromList(absFiles, "")
+
+	minMempkg, err := gnolang.ReadMemPackageFromList(absFiles, "", fset)
 	if err != nil {
-		pkg.Errors = append(pkg.Errors, err)
+		pkg.Errors = append(pkg.Errors, FromErr(err, fset, pkg.Dir, true)...)
 	} else {
 		pkg.Name = minMempkg.Name
 	}
@@ -164,13 +177,17 @@ func readPkgFiles(pkg *Package, files []string, fset *token.FileSet) *Package {
 		return pkg
 	}
 	if err != nil {
-		pkg.Errors = append(pkg.Errors, err)
+		pkg.Errors = append(pkg.Errors, &Error{
+			Pos: pkg.Dir,
+			Msg: err.Error(),
+		})
 		return pkg
 	}
 
-	mod, err := gnomod.ParseGnoMod(filepath.Join(pkg.Root, "gno.mod"))
+	modFpath := filepath.Join(pkg.Root, "gno.mod")
+	mod, err := gnomod.ParseGnoMod(modFpath)
 	if err != nil {
-		pkg.Errors = append(pkg.Errors, err)
+		pkg.Errors = append(pkg.Errors, FromErr(err, fset, modFpath, false)...)
 		return pkg
 	}
 
@@ -183,11 +200,29 @@ func readPkgFiles(pkg *Package, files []string, fset *token.FileSet) *Package {
 	pkg.ModPath = mod.Module.Mod.Path
 	subPath, err := filepath.Rel(pkg.Root, pkg.Dir)
 	if err != nil {
-		pkg.Errors = append(pkg.Errors, err)
+		pkg.Errors = append(pkg.Errors, FromErr(err, fset, pkg.Dir, false)...)
 		return pkg
 	}
 
 	pkg.ImportPath = path.Join(pkg.ModPath, filepath.ToSlash(subPath))
 
+	pkg.Errors = cleanErrors(pkg.Errors)
+
 	return pkg
+}
+
+func cleanErrors(s []*Error) []*Error {
+	seen := map[Error]struct{}{}
+	res := []*Error{}
+	for _, elem := range s {
+		if elem == nil {
+			continue
+		}
+		if _, ok := seen[*elem]; ok {
+			continue
+		}
+		res = append(res, elem)
+		seen[*elem] = struct{}{}
+	}
+	return res
 }

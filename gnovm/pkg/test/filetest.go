@@ -188,7 +188,7 @@ func (opts *TestOptions) runTest(m *gno.Machine, pkgPath, filename string, conte
 		Files: []*gnovm.MemFile{
 			{Name: filename, Body: string(content)},
 		},
-	}); err != nil {
+	}, nil); err != nil {
 		// NOTE: we perform this here, so we can capture the runResult.
 		return runResult{Error: err.Error()}
 	}

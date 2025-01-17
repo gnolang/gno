@@ -198,9 +198,8 @@ func execTest(cfg *testCfg, args []string, io commands.IO) error {
 
 		label := pkg.ImportPath
 		if label == "" {
-			label = pkg.Dir
+			label = tryRelativize(pkg.Dir)
 		}
-		label = tryRelativize(label)
 
 		if len(pkg.Files[packages.FileKindTest]) == 0 && len(pkg.Files[packages.FileKindXTest]) == 0 && len(pkg.Files[packages.FileKindFiletest]) == 0 {
 			io.ErrPrintfln("?       %s \t[no test files]", label)
@@ -218,7 +217,7 @@ func execTest(cfg *testCfg, args []string, io commands.IO) error {
 		}
 		packages.Inject(pkgsMap, deps)
 
-		memPkg, err := gno.ReadMemPackage(pkg.Dir, label)
+		memPkg, err := gno.ReadMemPackage(pkg.Dir, label, conf.Fset)
 		if err != nil {
 			io.ErrPrintln(err)
 			buildErrCount++

@@ -38,10 +38,10 @@ func visitPackage(pkg *Package, pkgs []*Package, visited, onStack map[string]boo
 	onStack[pkg.ImportPath] = true
 
 	// Visit package's dependencies
-	for _, imp := range pkg.Imports.Merge(FileKindPackageSource) {
+	for _, imp := range pkg.ImportsSpecs.Merge(FileKindPackageSource) {
 		found := false
 		for _, p := range pkgs {
-			if p.ImportPath != imp {
+			if p.ImportPath != imp.PkgPath {
 				continue
 			}
 			if err := visitPackage(p, pkgs, visited, onStack, sortedPkgs); err != nil {
@@ -51,7 +51,7 @@ func visitPackage(pkg *Package, pkgs []*Package, visited, onStack map[string]boo
 			break
 		}
 		if !found {
-			return fmt.Errorf("missing dependency '%s' for package '%s'", imp, pkg.ImportPath)
+			return fmt.Errorf("missing dependency '%s' for package '%s'", imp.PkgPath, pkg.ImportPath)
 		}
 	}
 
@@ -72,8 +72,8 @@ func (sp SortedPkgList) GetNonDraftPkgs() SortedPkgList {
 			continue
 		}
 		dependsOnDraft := false
-		for _, req := range pkg.Imports.Merge(FileKindPackageSource) {
-			if draft[req] {
+		for _, req := range pkg.ImportsSpecs.Merge(FileKindPackageSource) {
+			if draft[req.PkgPath] {
 				dependsOnDraft = true
 				draft[pkg.ImportPath] = true
 				break

@@ -5,6 +5,7 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/gnolang/gno/gnovm/pkg/packages/pkgdownload"
 	"github.com/gnolang/gno/gnovm/pkg/packages/pkgdownload/examplespkgfetcher"
 	"github.com/gnolang/gno/tm2/pkg/testutils"
 	"github.com/stretchr/testify/assert"
@@ -123,30 +124,30 @@ func TestSortPkgs(t *testing.T) {
 		}, {
 			desc: "no_dependencies",
 			in: []*Package{
-				{ImportPath: "pkg1", Dir: "/path/to/pkg1", Imports: ImportsMap{}},
-				{ImportPath: "pkg2", Dir: "/path/to/pkg2", Imports: ImportsMap{}},
-				{ImportPath: "pkg3", Dir: "/path/to/pkg3", Imports: ImportsMap{}},
+				{ImportPath: "pkg1", Dir: "/path/to/pkg1", Imports: map[FileKind][]string{}},
+				{ImportPath: "pkg2", Dir: "/path/to/pkg2", Imports: map[FileKind][]string{}},
+				{ImportPath: "pkg3", Dir: "/path/to/pkg3", Imports: map[FileKind][]string{}},
 			},
 			expected: []string{"pkg1", "pkg2", "pkg3"},
 		}, {
 			desc: "circular_dependencies",
 			in: []*Package{
-				{ImportPath: "pkg1", Dir: "/path/to/pkg1", Imports: ImportsMap{FileKindPackageSource: []string{"pkg2"}}},
-				{ImportPath: "pkg2", Dir: "/path/to/pkg2", Imports: ImportsMap{FileKindPackageSource: []string{"pkg1"}}},
+				{ImportPath: "pkg1", Dir: "/path/to/pkg1", Imports: map[FileKind][]string{FileKindPackageSource: {"pkg2"}}},
+				{ImportPath: "pkg2", Dir: "/path/to/pkg2", Imports: map[FileKind][]string{FileKindPackageSource: {"pkg1"}}},
 			},
 			shouldErr: true,
 		}, {
 			desc: "missing_dependencies",
 			in: []*Package{
-				{ImportPath: "pkg1", Dir: "/path/to/pkg1", Imports: ImportsMap{FileKindPackageSource: []string{"pkg2"}}},
+				{ImportPath: "pkg1", Dir: "/path/to/pkg1", Imports: map[FileKind][]string{FileKindPackageSource: {"pkg2"}}},
 			},
 			shouldErr: true,
 		}, {
 			desc: "valid_dependencies",
 			in: []*Package{
-				{ImportPath: "pkg1", Dir: "/path/to/pkg1", Imports: ImportsMap{FileKindPackageSource: []string{"pkg2"}}},
-				{ImportPath: "pkg2", Dir: "/path/to/pkg2", Imports: ImportsMap{FileKindPackageSource: []string{"pkg3"}}},
-				{ImportPath: "pkg3", Dir: "/path/to/pkg3", Imports: ImportsMap{}},
+				{ImportPath: "pkg1", Dir: "/path/to/pkg1", Imports: map[FileKind][]string{FileKindPackageSource: {"pkg2"}}},
+				{ImportPath: "pkg2", Dir: "/path/to/pkg2", Imports: map[FileKind][]string{FileKindPackageSource: {"pkg3"}}},
+				{ImportPath: "pkg3", Dir: "/path/to/pkg3", Imports: map[FileKind][]string{}},
 			},
 			expected: []string{"pkg3", "pkg2", "pkg1"},
 		},
@@ -162,5 +163,24 @@ func TestSortPkgs(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+func TestLoadNonDraftExamples(t *testing.T) {
+	examples := filepath.Join("..", "..", "..", "examples", "...")
+	conf := LoadConfig{
+		Deps:          true,
+		Fetcher:       pkgdownload.NewNoopFetcher(),
+		SelfContained: true,
+	}
+
+	pkgs, err := Load(&conf, examples)
+	require.NoError(t, err)
+
+	for _, pkg := range pkgs {
+		if pkg.Draft {
+			continue
+		}
+		require.Empty(t, pkg.Errors)
 	}
 }

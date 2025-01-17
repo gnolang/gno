@@ -50,22 +50,22 @@ func ParseAt(dir string) (*File, error) {
 func ParseGnoMod(fname string) (*File, error) {
 	file, err := os.Stat(fname)
 	if err != nil {
-		return nil, fmt.Errorf("could not read gno.mod file: %w", err)
+		return nil, fmt.Errorf("%s: stat: %w", fname, err)
 	}
 	if file.IsDir() {
-		return nil, fmt.Errorf("invalid gno.mod at %q: is a directory", fname)
+		return nil, fmt.Errorf("%s: gno.mod is a directory", fname)
 	}
 
 	b, err := os.ReadFile(fname)
 	if err != nil {
-		return nil, fmt.Errorf("could not read gno.mod file: %w", err)
+		return nil, fmt.Errorf("%s: read: %w", fname, err)
 	}
 	gm, err := Parse(fname, b)
 	if err != nil {
-		return nil, fmt.Errorf("error parsing gno.mod file at %q: %w", fname, err)
+		return nil, err
 	}
 	if err := gm.Validate(); err != nil {
-		return nil, fmt.Errorf("error validating gno.mod file at %q: %w", fname, err)
+		return nil, fmt.Errorf("%s: validate: %w", fname, err)
 	}
 	return gm, nil
 }

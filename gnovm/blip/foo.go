@@ -1,0 +1,5 @@
+package bloup
+
+import (
+  "whatever"
+)

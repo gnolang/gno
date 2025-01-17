@@ -185,7 +185,7 @@ func Test(memPkg *gnovm.MemPackage, fsDir string, opts *TestOptions) error {
 	// fmt.Println("loading imports for", memPkg.Path, fsDir)
 
 	// Eagerly load imports.
-	if err := LoadImports(opts.TestStore, memPkg); err != nil {
+	if err := LoadImports(opts.TestStore, memPkg, nil); err != nil {
 		return err
 	}
 

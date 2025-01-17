@@ -57,12 +57,19 @@ func execList(cfg *listCfg, args []string, io commands.IO) error {
 		conf.Deps = true
 	}
 
+	pkgs, err := packages.Load(conf, args...)
+	if err != nil {
+		fmt.Println(err)
+		os.Exit(1)
+	}
+
+	// try sort
+	sorted, err := pkgs.Sort()
+	if err == nil {
+		pkgs = packages.PkgList(sorted)
+	}
+
 	if !cfg.json {
-		pkgs, err := packages.Load(conf, args...)
-		if err != nil {
-			fmt.Println(err)
-			os.Exit(1)
-		}
 		pkgPaths := make([]string, len(pkgs))
 		for i, pkg := range pkgs {
 			pkgPaths[i] = pkg.ImportPath
@@ -71,11 +78,6 @@ func execList(cfg *listCfg, args []string, io commands.IO) error {
 		return nil
 	}
 
-	pkgs, err := packages.Load(conf, args...)
-	if err != nil {
-		fmt.Println(err)
-		os.Exit(1)
-	}
 	for _, pkg := range pkgs {
 		pkgBytes, err := json.MarshalIndent(pkg, "", "\t")
 		if err != nil {

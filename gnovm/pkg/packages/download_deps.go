@@ -19,7 +19,7 @@ func DownloadDeps(conf *LoadConfig, pkgDir string, gnoMod *gnomod.File) error {
 		return errors.New("fetcher is nil")
 	}
 
-	pkg, err := gnolang.ReadMemPackage(pkgDir, gnoMod.Module.Mod.Path)
+	pkg, err := gnolang.ReadMemPackage(pkgDir, gnoMod.Module.Mod.Path, nil)
 	if err != nil {
 		return fmt.Errorf("read package at %q: %w", pkgDir, err)
 	}
@@ -29,8 +29,8 @@ func DownloadDeps(conf *LoadConfig, pkgDir string, gnoMod *gnomod.File) error {
 	}
 	imports := importsMap.Merge(FileKindPackageSource, FileKindTest, FileKindXTest)
 
-	for _, pkgPath := range imports {
-		resolved := gnoMod.Resolve(module.Version{Path: pkgPath})
+	for _, imp := range imports {
+		resolved := gnoMod.Resolve(module.Version{Path: imp.PkgPath})
 		resolvedPkgPath := resolved.Path
 
 		if !isRemotePkgPath(resolvedPkgPath) {

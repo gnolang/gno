@@ -42,11 +42,12 @@ func TestLintApp(t *testing.T) {
 			args: []string{"lint", "../../tests/integ/minimalist_gnomod/"},
 			// TODO: raise an error because there is a gno.mod, but no .gno files
 		}, {
-			args: []string{"lint", "../../tests/integ/invalid_module_name/"},
-			// TODO: raise an error because gno.mod is invalid
+			args:                []string{"lint", "../../tests/integ/invalid_module_name/"},
+			stderrShouldContain: "../../tests/integ/invalid_module_name/gno.mod:1: usage: module module/path",
+			errShouldBe:         "exit code: 1",
 		}, {
 			args:                []string{"lint", "../../tests/integ/invalid_gno_file/"},
-			stderrShouldContain: "../../tests/integ/invalid_gno_file/invalid.gno:1:1: expected 'package', found packag (code=2)",
+			stderrShouldContain: "../../tests/integ/invalid_gno_file/invalid.gno:1:1: expected 'package', found packag",
 			errShouldBe:         "exit code: 1",
 		}, {
 			args:                []string{"lint", "../../tests/integ/typecheck_missing_return/"},

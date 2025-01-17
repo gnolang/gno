@@ -9,15 +9,11 @@ import (
 	"os"
 	"path"
 	"path/filepath"
-	"slices"
 	"sort"
 	"strings"
 
-	"github.com/gnolang/gno/gnovm"
-	"github.com/gnolang/gno/gnovm/pkg/gnolang"
 	"github.com/gnolang/gno/gnovm/pkg/gnomod"
 	"github.com/gnolang/gno/gnovm/pkg/packages"
-	"golang.org/x/mod/module"
 )
 
 // A bfsDir describes a directory holding code by specifying
@@ -65,77 +61,29 @@ func newDirs(dirs []string, modDirs []string) *bfsDirs {
 			dir:        mdir,
 			importPath: gm.Module.Mod.Path,
 		})
-		roots = append(roots, getGnoModDirs(gm, mdir)...)
+		roots = append(roots, getGnoModDirs(mdir)...)
 	}
 
 	go d.walk(roots)
 	return d
 }
 
-func getGnoModDirs(gm *gnomod.File, root string) []bfsDir {
-	// cmd/go makes use of the go list command, we don't have that here.
+func getGnoModDirs(root string) []bfsDir {
+	pkgs, err := packages.Load(&packages.LoadConfig{Deps: true}, filepath.Join(root, "..."))
+	if err != nil {
+		log.Println("open source directories from import:", err)
+		return nil
+	}
 
-	imports := packageImportsRecursive(root, gm.Module.Mod.Path)
-
-	dirs := make([]bfsDir, 0, len(imports))
-	for _, r := range imports {
-		mv := gm.Resolve(module.Version{Path: r})
-		path := gnomod.PackageDir("", mv)
-		if _, err := os.Stat(path); err != nil {
-			// only give directories which actually exist and don't give
-			// an error when accessing
-			if !os.IsNotExist(err) {
-				log.Println("open source directories from import:", err)
-			}
-			continue
-		}
+	dirs := make([]bfsDir, 0, len(pkgs))
+	for _, pkg := range pkgs {
 		dirs = append(dirs, bfsDir{
-			importPath: mv.Path,
-			dir:        path,
+			importPath: pkg.ImportPath,
+			dir:        pkg.Dir,
 		})
 	}
 
 	return dirs
-}
-
-func packageImportsRecursive(root string, pkgPath string) []string {
-	pkg, err := gnolang.ReadMemPackage(root, pkgPath)
-	if err != nil {
-		// ignore invalid packages
-		pkg = &gnovm.MemPackage{}
-	}
-
-	importsMap, err := packages.Imports(pkg, nil)
-	if err != nil {
-		// ignore packages with invalid imports
-		importsMap = nil
-	}
-	res := importsMap.Merge(packages.FileKindPackageSource, packages.FileKindTest, packages.FileKindXTest)
-
-	entries, err := os.ReadDir(root)
-	if err != nil {
-		// ignore unreadable dirs
-		entries = nil
-	}
-
-	for _, entry := range entries {
-		if !entry.IsDir() {
-			continue
-		}
-
-		dirName := entry.Name()
-		sub := packageImportsRecursive(filepath.Join(root, dirName), path.Join(pkgPath, dirName))
-
-		for _, imp := range sub {
-			if !slices.Contains(res, imp) {
-				res = append(res, imp)
-			}
-		}
-	}
-
-	sort.Strings(res)
-
-	return res
 }
 
 // Reset puts the scan back at the beginning.

@@ -93,7 +93,7 @@ func execLint(cfg *lintCfg, args []string, io commands.IO) error {
 		rootDir = gnoenv.RootDir()
 	}
 
-	loadCfg := &packages.LoadConfig{IO: io, Fetcher: testPackageFetcher}
+	loadCfg := &packages.LoadConfig{IO: io, Fetcher: testPackageFetcher, Deps: true}
 	if cfg.rootExamples {
 		examples := filepath.Join(gnoenv.RootDir(), "examples", "...")
 		loadCfg.DepsPatterns = append(loadCfg.DepsPatterns, examples)
@@ -115,6 +115,11 @@ func execLint(cfg *lintCfg, args []string, io commands.IO) error {
 	)
 
 	for _, pkg := range pkgs {
+		// ignore dep
+		if len(pkg.Match) == 0 {
+			continue
+		}
+
 		logName := pkg.ImportPath
 		if logName == "" {
 			logName = pkg.Dir
@@ -122,6 +127,14 @@ func execLint(cfg *lintCfg, args []string, io commands.IO) error {
 
 		if verbose {
 			io.ErrPrintln(logName)
+		}
+
+		for _, err := range pkg.Errors {
+			io.ErrPrintln(tryRelativize(err.Error()))
+			hasError = true
+		}
+		if hasError {
+			continue
 		}
 
 		// Check if 'gno.mod' exists
@@ -153,7 +166,7 @@ func execLint(cfg *lintCfg, args []string, io commands.IO) error {
 		if memPkgPath == "" || memPkgPath == "command-line-arguments" {
 			memPkgPath = pkg.Dir
 		}
-		memPkg, err := gno.ReadMemPackage(pkg.Dir, memPkgPath)
+		memPkg, err := gno.ReadMemPackage(pkg.Dir, memPkgPath, loadCfg.Fset)
 		if err != nil {
 			io.ErrPrintln(issueFromError(pkg.Dir, err).String())
 			hasError = true
@@ -161,7 +174,7 @@ func execLint(cfg *lintCfg, args []string, io commands.IO) error {
 		}
 
 		// Perform imports using the parent store.
-		if err := test.LoadImports(ts, memPkg); err != nil {
+		if err := test.LoadImports(ts, memPkg, loadCfg.Fset); err != nil {
 			io.ErrPrintln(issueFromError(pkg.Dir, err).String())
 			hasError = true
 			continue

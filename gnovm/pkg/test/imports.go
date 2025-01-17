@@ -10,7 +10,6 @@ import (
 	"os"
 	"path/filepath"
 	"runtime/debug"
-	"strconv"
 	"strings"
 	"time"
 
@@ -40,7 +39,7 @@ func Store(
 		// fmt.Println("getting pkg", pkgPath)
 
 		if pkgPath == "" {
-			panic(fmt.Sprintf("invalid zero package path in testStore().pkgGetter"))
+			panic(errors.New("invalid zero package path in testStore().pkgGetter"))
 		}
 
 		if withExtern {
@@ -48,7 +47,7 @@ func Store(
 			const testPath = "github.com/gnolang/gno/_test/"
 			if strings.HasPrefix(pkgPath, testPath) {
 				baseDir := filepath.Join(rootDir, "gnovm", "tests", "files", "extern", pkgPath[len(testPath):])
-				memPkg := gno.MustReadMemPackage(baseDir, pkgPath)
+				memPkg := gno.MustReadMemPackage(baseDir, pkgPath, nil)
 				send := std.Coins{}
 				ctx := Context(pkgPath, send)
 				m2 := gno.NewMachineWithOptions(gno.MachineOptions{
@@ -139,7 +138,7 @@ func Store(
 
 		// if known package
 		if pkg, ok := pkgs[pkgPath]; ok {
-			memPkg := gno.MustReadMemPackage(pkg.Dir, pkgPath)
+			memPkg := gno.MustReadMemPackage(pkg.Dir, pkgPath, nil)
 			if memPkg.IsEmpty() {
 				panic(fmt.Sprintf("found an empty package %q", pkgPath))
 			}
@@ -198,7 +197,7 @@ func loadStdlib(rootDir, pkgPath string, store gno.Store, stdout io.Writer) (*gn
 		return nil, nil
 	}
 
-	memPkg := gno.MustReadMemPackageFromList(files, pkgPath)
+	memPkg := gno.MustReadMemPackageFromList(files, pkgPath, nil)
 	m2 := gno.NewMachineWithOptions(gno.MachineOptions{
 		// NOTE: see also pkgs/sdk/vm/builtins.go
 		// Needs PkgPath != its name because TestStore.getPackage is the package
@@ -225,7 +224,7 @@ func (e *stackWrappedError) String() string {
 // from the store. This is mostly useful for "eager import loading", whereby all
 // imports are pre-loaded in a permanent store, so that the tests can use
 // ephemeral transaction stores.
-func LoadImports(store gno.Store, memPkg *gnovm.MemPackage) (err error) {
+func LoadImports(store gno.Store, memPkg *gnovm.MemPackage, fset *token.FileSet) (err error) {
 	defer func() {
 		// This is slightly different from other similar error handling; we do not have a
 		// machine to work with, as this comes from an import; so we need
@@ -246,27 +245,24 @@ func LoadImports(store gno.Store, memPkg *gnovm.MemPackage) (err error) {
 		}
 	}()
 
-	fset := token.NewFileSet()
-	importsMap, err := packages.ImportsSpecs(memPkg, fset)
+	if fset == nil {
+		fset = token.NewFileSet()
+	}
+
+	importsMap, err := packages.Imports(memPkg, fset)
 	if err != nil {
 		return err
 	}
 	imports := importsMap.Merge(packages.FileKindPackageSource, packages.FileKindTest, packages.FileKindXTest)
 	for _, im := range imports {
-		pkgPath, err := strconv.Unquote(im.Path.Value)
-		if err != nil {
-			// should not happen - parser.ParseFile should already ensure we get
-			// a valid string literal here.
-			panic(fmt.Errorf("%v: unexpected invalid import path: %v", fset.Position(im.Pos()).String(), im.Path.Value))
-		}
-		if gno.IsRealmPath(pkgPath) {
+		if gno.IsRealmPath(im.PkgPath) {
 			// Don't eagerly load realms.
 			// Realms persist state and can change the state of other realms in initialization.
 			continue
 		}
-		pkg := store.GetPackage(pkgPath, true)
+		pkg := store.GetPackage(im.PkgPath, true)
 		if pkg == nil {
-			return fmt.Errorf("%s: unknown import path %s", fset.Position(im.Pos()).String(), pkgPath)
+			return fmt.Errorf("%s: unknown import path %s", fset.Position(im.Spec.Pos()).String(), im.PkgPath)
 		}
 	}
 	return nil
