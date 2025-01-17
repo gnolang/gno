@@ -9,5 +9,5 @@ import (
 )
 
 func init() {
-	bridge.LoadInitialGovDAO(govdao.GovDAO)
+	bridge.LoadGovDAO(govdao.GovDAO)
 }
