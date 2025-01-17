@@ -239,6 +239,21 @@ func (post *Post) GetDeleteFormURL() string {
 	)
 }
 
+func (post *Post) GetFlagFormURL() string {
+	if post.IsThread() {
+		return txlink.Call("FlagThread",
+			"bid", post.board.id.String(),
+			"postID", post.threadID.String(),
+		)
+	}
+
+	return txlink.Call("FlagReply",
+		"bid", post.board.id.String(),
+		"threadID", post.threadID.String(),
+		"replyID", post.id.String(),
+	)
+}
+
 func (post *Post) RenderSummary() string {
 	var (
 		s       string
@@ -335,6 +350,9 @@ func (post *Post) renderPostContent(sb *strings.Builder, indent string) {
 		sb.WriteString(" ")
 		sb.WriteString(newButtonLink("repost", post.GetRepostFormURL()))
 	}
+
+	sb.WriteString(" ")
+	sb.WriteString(newButtonLink("flag", post.GetFlagFormURL()))
 
 	sb.WriteString(" ")
 	sb.WriteString(newButtonLink("x", post.GetDeleteFormURL()))
