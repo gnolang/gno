@@ -40,14 +40,36 @@ func renderHomePage(path string) string {
 
 	out += md.H2("User list")
 
-	p := pager.NewPager(users.GetReadonlyAddrStore(), 20, false)
+	p := pager.NewPager(users.GetReadOnlyNameStore(), 20, false)
 	page := p.MustGetPageByPath(path)
 	for _, item := range page.Items {
 		data := item.Value.(*users.UserData)
-		if !data.IsDeleted() {
-			out += ufmt.Sprintf("- User [**%s**](/r/gnoland/users/v1:%s)\n", data.Name(), data.Name())
+
+		var displayKey string
+		if data.IsDeleted() {
+			displayKey = md.Strikethrough(item.Key)
+		} else {
+			displayKey = ufmt.Sprintf("**%s**", item.Key)
 		}
+
+		var extra string
+		if !data.IsDeleted() && item.Key != data.Name() {
+			extra = ufmt.Sprintf("  (prev. for [**%s**](/r/gnoland/users/v1:%s))", data.Name(), data.Name())
+		}
+
+		out += ufmt.Sprintf("- User [%s](/r/gnoland/users/v1:%s)%s\n", displayKey, item.Key, extra)
 	}
+
+	//p := pager.NewPager(users.GetReadonlyAddrStore(), 20, false)
+	//page := p.MustGetPageByPath(path)
+	//for _, item := range page.Items {
+	//	data := item.Value.(*users.UserData)
+	//	if data.IsDeleted() {
+	//		out += ufmt.Sprintf("- User [%s](/r/gnoland/users/v1:%s)\n", md.Strikethrough(item.Key), item.Key)
+	//	} else {
+	//		out += ufmt.Sprintf("- User [**%s**](/r/gnoland/users/v1:%s)\n", item.Key, item.Key)
+	//	}
+	//}
 
 	out += "\n"
 	out += page.Picker()
