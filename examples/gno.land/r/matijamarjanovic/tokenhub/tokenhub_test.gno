@@ -30,11 +30,14 @@ func TestTokenRegistration(t *testing.T) {
 func TestNFTRegistration(t *testing.T) {
 	std.TestSetRealm(std.NewCodeRealm("gno.land/r/matijamarjanovic/home"))
 
+	addr := std.Address("g1ej0qca5ptsw9kfr64ey8jvfy9eacga6mpj2z0y")
+
 	nft := grc721.NewBasicNFT("Test NFT", "TNFT")
-	err := RegisterNFT(nft.Getter(), "test_nft")
+	nft.Mint(addr, grc721.TokenID("1"))
+	err := RegisterNFT(nft.Getter(), "test_nft", "1")
 	urequire.NoError(t, err, "Should register NFT without error")
 
-	getter := GetGRC721("gno.land/r/matijamarjanovic/home.test_nft")
+	getter := GetGRC721("gno.land/r/matijamarjanovic/home.test_nft.1")
 	urequire.True(t, getter != nil, "Should retrieve registered NFT")
 
 	retrievedNFT := getter()
@@ -43,7 +46,7 @@ func TestNFTRegistration(t *testing.T) {
 	uassert.Equal(t, "Test NFT", metadata.Name(), "NFT name should match")
 	uassert.Equal(t, "TNFT", metadata.Symbol(), "NFT symbol should match")
 
-	err = RegisterNFT(nft.Getter(), "test_nft")
+	err = RegisterNFT(nft.Getter(), "test_nft", "1")
 	uassert.True(t, err != nil, "Should not allow duplicate registration")
 }
 
@@ -72,17 +75,13 @@ func TestBalanceRetrieval(t *testing.T) {
 	RegisterToken(token.Getter(), "test_tokenn")
 	ledger.Mint(addr, 1000)
 
-	nft := grc721.NewBasicNFT("Test NFT", "TNFT")
-	RegisterNFT(nft.Getter(), "test_nftt")
-	nft.Mint(addr, grc721.TokenID("str"))
-
 	mt := grc1155.NewBasicGRC1155Token("test-uri")
 	RegisterGRC1155Token(mt.Getter(), "11")
 	mt.SafeMint(addr, grc1155.TokenID("11"), 5)
 
 	balances := GetBalancesAll(string(addr))
 	uassert.True(t, strings.Contains(balances, "Token:gno.land/r/matijamarjanovic/tokenhub.test_tokenn:1000"), "Should show correct GRC20 balance")
-	uassert.True(t, strings.Contains(balances, "NFT:gno.land/r/matijamarjanovic/home.test_nftt:1"), "Should show correct NFT balance")
+	uassert.True(t, strings.Contains(balances, "NFT:gno.land/r/matijamarjanovic/home.test_nft.1:1"), "Should show correct NFT balance") //already minted in test register
 	uassert.True(t, strings.Contains(balances, "MultiToken:gno.land/r/matijamarjanovic/home.11:5"), "Should show multi-token balance")
 
 	nonZeroBalances := GetBalances(string(addr))
@@ -93,10 +92,10 @@ func TestErrorCases(t *testing.T) {
 	std.TestSetRealm(std.NewCodeRealm("gno.land/r/matijamarjanovic/home"))
 
 	nft := grc721.NewBasicNFT("Test NFT", "TNFT")
-	err := RegisterNFT(nft.Getter(), "test_nft")
+	err := RegisterNFT(nft.Getter(), "test_nft", "1")
 	uassert.True(t, err != nil, "Should not allow duplicate registration")
 
-	err = RegisterNFT(nft.Getter(), "test_nft")
+	err = RegisterNFT(nft.Getter(), "test_nft", "1")
 	uassert.True(t, err != nil, "Should not allow duplicate registration")
 
 	mt := grc1155.NewBasicGRC1155Token("test-uri")
@@ -117,14 +116,15 @@ func TestTokenListingFunctions(t *testing.T) {
 	grc20Token, _ := grc20.NewToken("Test Token", "TEST", 6)
 	RegisterToken(grc20Token.Getter(), "listing_token")
 
-	nftToken := grc721.NewBasicNFT("Test NFT", "TNFT")
-	RegisterNFT(nftToken.Getter(), "listing_nft")
+	nftToken := grc721.NewBasicNFT("Listing NFT", "LNFT")
+	nftToken.Mint(std.Address("g1ej0qca5ptsw9kfr64ey8jvfy9eacga6mpj2z0y"), grc721.TokenID("1"))
+	RegisterNFT(nftToken.Getter(), "listing_nft", "1")
 
 	multiToken := grc1155.NewBasicGRC1155Token("test-uri")
 	RegisterGRC1155Token(multiToken.Getter(), "listing_mt")
 
 	nftList := GetAllNFTs()
-	uassert.True(t, strings.Contains(nftList, "NFT:gno.land/r/matijamarjanovic/home.listing_nft"),
+	uassert.True(t, strings.Contains(nftList, "NFT:gno.land/r/matijamarjanovic/home.listing_nft.1"),
 		"GetAllNFTs should list registered NFT")
 
 	grc20List := GetAllGRC20Tokens()
@@ -136,7 +136,7 @@ func TestTokenListingFunctions(t *testing.T) {
 		"GetAllMultiTokens should list registered multi-token")
 
 	completeList := GetAllTokens()
-	uassert.True(t, strings.Contains(completeList, "NFT:gno.land/r/matijamarjanovic/home.listing_nft"),
+	uassert.True(t, strings.Contains(completeList, "NFT:gno.land/r/matijamarjanovic/home.listing_nft.1"),
 		"GetAllTokens should list NFTs")
 	uassert.True(t, strings.Contains(completeList, "Token:gno.land/r/matijamarjanovic/tokenhub.listing_token"),
 		"GetAllTokens should list GRC20 tokens")
