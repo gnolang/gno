@@ -4,6 +4,7 @@ import (
 	"errors"
 	"std"
 	"strconv"
+	"strings"
 	"time"
 
 	"gno.land/p/demo/avl"
@@ -286,69 +287,100 @@ func (post *Post) renderSourcePost(indent string) (string, *Post) {
 	return indentBody(indent, srcPost.GetSummary()) + "\n\n", srcPost
 }
 
+// renderPostContent renders post text content (including repost body).
+// Function will dump a predefined message instead of a body if post is hidden.
+func (post *Post) renderPostContent(sb *strings.Builder, indent string) {
+	// Flagged comment should be hidden, but replies still visible (see: #3480)
+	// Flagged threads will be hidden by render function caller.
+	if post.isHidden {
+		sb.WriteString(indentBody(indent, "*Reply has been flagged as inappropriate and hidden*"))
+		sb.WriteString("\n")
+		return
+	}
+
+	srcContent, srcPost := post.renderSourcePost(indent)
+	sb.WriteString(srcContent)
+	sb.WriteString(indentBody(indent, post.body))
+	sb.WriteString("\n")
+
+	if post.IsThread() {
+		// Split content and controls for threads.
+		sb.WriteString("\n")
+	}
+
+	postURL := post.GetURL()
+
+	// Buttons & counters
+	sb.WriteString(indent)
+	sb.WriteString(`\- `)
+	sb.WriteString(newUserLink(post.creator))
+	sb.WriteString(", ")
+	sb.WriteString(newLink(post.createdAt.Format(dateFormat), postURL))
+
+	if post.repostsCount > 0 {
+		sb.WriteString(", ")
+		sb.WriteString(strconv.FormatUint(post.repostsCount, 10))
+		sb.WriteString(" reposts")
+	}
+
+	if srcPost != nil {
+		sb.WriteString(" ")
+		sb.WriteString(newButtonLink("see source post", srcPost.GetURL()))
+	}
+
+	sb.WriteString(" ")
+	sb.WriteString(newButtonLink("reply", post.GetReplyFormURL()))
+
+	if post.IsThread() {
+		sb.WriteString(" ")
+		sb.WriteString(newButtonLink("repost", post.GetRepostFormURL()))
+	}
+
+	sb.WriteString(" ")
+	sb.WriteString(newButtonLink("x", post.GetDeleteFormURL()))
+	sb.WriteString("\n")
+}
+
 func (post *Post) Render(indent string, levels int) string {
 	if post == nil {
 		return "nil post"
 	}
 
-	var (
-		s       string
-		postURL = post.GetURL()
-	)
+	// TODO: pass a builder as arg into Render.
+	sb := &strings.Builder{}
 
 	if post.title != "" {
-		s += indent + "# " + post.title + "\n"
-		s += indent + "\n"
+		sb.WriteString(indent)
+		sb.WriteString("# ")
+		sb.WriteString(post.title)
+		sb.WriteString("\n")
+		sb.WriteString(indent)
+		sb.WriteString("\n")
 	}
 
-	srcContent, srcPost := post.renderSourcePost(indent)
+	post.renderPostContent(sb, indent)
 
-	s += srcContent
-	s += indentBody(indent, post.body) + "\n" // TODO: indent body lines.
+	if post.replies.Size() > 0 {
+		if levels > 0 {
+			commentsIndent := indent + "> "
 
-	if post.IsThread() {
-		// Split content and controls for threads.
-		s += "\n"
-	}
-
-	s += indent + "\\- " + newUserLink(post.creator) + ", "
-	s += newLink(post.createdAt.Format(dateFormat), postURL)
-
-	if post.repostsCount > 0 {
-		s += ", " + strconv.FormatUint(post.repostsCount, 10) + " reposts"
-	}
-
-	if srcPost != nil {
-		s += " " + newButtonLink("see source post", srcPost.GetURL())
-	}
-
-	s += " " + newButtonLink("reply", post.GetReplyFormURL())
-
-	if post.IsThread() {
-		s += " " + newButtonLink("repost", post.GetRepostFormURL())
-	}
-
-	s += " " + newButtonLink("x", post.GetDeleteFormURL()) + "\n"
-
-	if levels > 0 {
-		if post.replies.Size() > 0 {
 			post.replies.Iterate("", "", func(_ string, value interface{}) bool {
 				reply := value.(*Post)
-				if reply.isHidden {
-					// TODO: change this in case of pagination
-					return false
-				}
 
-				s += indent + "\n"
-				s += reply.Render(indent+"> ", levels-1)
+				sb.WriteString(indent + "\n")
+				sb.WriteString(reply.Render(commentsIndent, levels-1))
 				return false
 			})
+		} else {
+			sb.WriteString(indent + "\n")
+			sb.WriteString(indent)
+			sb.WriteString("_")
+			sb.WriteString(newLink("see all "+strconv.Itoa(post.replies.Size())+" replies", post.GetURL()))
+			sb.WriteString("_\n")
 		}
-	} else if post.replies.Size() > 0 {
-		s += indent + "\n"
-		s += indent + "_" + newLink("see all "+strconv.Itoa(post.replies.Size())+" replies", postURL) + "_\n"
 	}
-	return s
+
+	return sb.String()
 }
 
 func (post *Post) RenderInner() string {
