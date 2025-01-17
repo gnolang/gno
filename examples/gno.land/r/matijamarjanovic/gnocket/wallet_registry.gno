@@ -72,6 +72,12 @@ func useWallet() {
 			grc1155_token.SafeTransferFrom(caller, std.CurrentRealm().Addr(), grc1155.TokenID(token_id), uint64(token_balance))
 			println("token_id", token_id, "token_balance", token_balance)
 
+		} else if token_type == "NFT" {
+			tokenGetter := tokenhub.MustGetGRC721(token_key)
+			nft_token := tokenGetter()
+			nft_token.SafeTransferFrom(caller, std.CurrentRealm().Addr(), "") // TODO: token_id
+			println("token_id", token_id, "token_balance", token_balance)
+
 		}
 		return true
 	})
