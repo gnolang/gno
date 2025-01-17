@@ -52,6 +52,8 @@ func NewGovDAOImplChangeExecutor(newImpl DAO) dao.Executor {
 }
 
 // SetGovDAO allows the admin to set the GovDAO version manually
+// This functionality can be fully disabled by Ownable.DropOwnership(),
+// making this realm fully managed by GovDAO.
 func SetGovDAO(d DAO) {
 	Ownable.AssertCallerIsOwner()
 	b.dao = d
