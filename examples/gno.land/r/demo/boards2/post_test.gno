@@ -116,7 +116,7 @@ func TestNewThread(t *testing.T) {
 		uint(threadID),
 	)
 	replyURL := ufmt.Sprintf(
-		"/r/demo/boards2$help&func=CreateReply&bid=%d&threadID=%d&postID=%d",
+		"/r/demo/boards2$help&func=CreateReply&bid=%d&threadID=%d&replyID=%d",
 		uint(boardID),
 		uint(threadID),
 		uint(threadID),
@@ -279,7 +279,7 @@ func TestNewReply(t *testing.T) {
 		uint(replyID),
 	)
 	replyURL := ufmt.Sprintf(
-		"/r/demo/boards2$help&func=CreateReply&bid=%d&threadID=%d&postID=%d",
+		"/r/demo/boards2$help&func=CreateReply&bid=%d&threadID=%d&replyID=%d",
 		uint(boardID),
 		uint(threadID),
 		uint(replyID),
