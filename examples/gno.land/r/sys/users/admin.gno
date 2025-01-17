@@ -9,7 +9,7 @@ import (
 )
 
 const (
-	adminAddr    = "g1u7y667z64x2h7vc6fmpcprgey4ck233jaww9zq" // @moul
+	adminAddr    = "g1u7y667z64x2h7vc6fmpcprgey4ck233jaww9zq" // @moul > will be GovDAO managed soon, see PR#3523
 	gnolandUsers = "gno.land/r/gnoland/users/v1"              // preregistered with store write perms
 )
 
@@ -17,7 +17,7 @@ var (
 	callerWhitelist = addrset.Set{}
 
 	// Safe objects
-	Ownable  = ownable.NewWithAddress(adminAddr) // will be switched out to govdao down the line, see PR#3523
+	Ownable  = ownable.NewWithAddress(adminAddr)
 	Pausable = pausable.NewFromOwnable(Ownable)
 )
 
