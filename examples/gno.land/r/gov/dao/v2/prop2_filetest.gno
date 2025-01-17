@@ -5,7 +5,7 @@ import (
 
 	"gno.land/p/demo/dao"
 	gnoblog "gno.land/r/gnoland/blog"
-	_ "gno.land/r/gov/dao/loader"
+	_ "gno.land/r/gov/dao/loader" // so that loader.init is executed
 	govdao "gno.land/r/gov/dao/v2"
 )
 

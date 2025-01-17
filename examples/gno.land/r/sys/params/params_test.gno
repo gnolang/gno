@@ -3,7 +3,7 @@ package params
 import (
 	"testing"
 
-	_ "gno.land/r/gov/dao/loader"
+	_ "gno.land/r/gov/dao/loader" // so that loader.init is executed
 )
 
 // Testing this package is limited because it only contains an `std.Set` method

@@ -6,7 +6,7 @@ import (
 	"gno.land/p/demo/dao"
 	"gno.land/p/demo/membstore"
 	"gno.land/r/gov/dao/bridge"
-	_ "gno.land/r/gov/dao/loader"
+	_ "gno.land/r/gov/dao/loader" // so that loader.init is executed
 	govdao "gno.land/r/gov/dao/v2"
 )
 

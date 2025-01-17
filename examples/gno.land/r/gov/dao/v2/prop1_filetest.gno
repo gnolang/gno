@@ -12,7 +12,7 @@ import (
 
 	"gno.land/p/demo/dao"
 	pVals "gno.land/p/sys/validators"
-	_ "gno.land/r/gov/dao/loader"
+	_ "gno.land/r/gov/dao/loader" // so that loader.init is executed
 	govdao "gno.land/r/gov/dao/v2"
 	validators "gno.land/r/sys/validators/v2"
 )
