@@ -16,6 +16,7 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/bft/rpc/client"
 	"github.com/yuin/goldmark"
 	"github.com/yuin/goldmark/extension"
+	"github.com/yuin/goldmark/parser"
 	mdhtml "github.com/yuin/goldmark/renderer/html"
 )
 
@@ -84,6 +85,9 @@ func NewRouter(logger *slog.Logger, cfg *AppConfig) (http.Handler, error) {
 
 	// Configure Goldmark markdown parser
 	mdopts := []goldmark.Option{
+		goldmark.WithParserOptions(
+			parser.WithAutoHeadingID(),
+		),
 		goldmark.WithExtensions(
 			markdown.NewHighlighting(
 				markdown.WithFormatOptions(chromaOptions...),

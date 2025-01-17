@@ -13,7 +13,6 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/amino"
 	"github.com/gnolang/gno/tm2/pkg/bft/rpc/client"
 	"github.com/yuin/goldmark"
-	"github.com/yuin/goldmark/parser"
 	"github.com/yuin/goldmark/text"
 )
 
@@ -23,18 +22,6 @@ type HTMLWebClientConfig struct {
 	RPCClient   *client.RPCClient
 	Highlighter FormatSource
 	Markdown    goldmark.Markdown
-}
-
-// NewDefaultHTMLWebClientConfig initializes a WebClientConfig with default settings.
-// It sets up goldmark Markdown parsing options and default domain and highlighter.
-func NewDefaultHTMLWebClientConfig(client *client.RPCClient) *HTMLWebClientConfig {
-	mdopts := []goldmark.Option{goldmark.WithParserOptions(parser.WithAutoHeadingID())}
-	return &HTMLWebClientConfig{
-		Domain:      "gno.land",
-		Highlighter: &noopFormat{},
-		Markdown:    goldmark.New(mdopts...),
-		RPCClient:   client,
-	}
 }
 
 type HTMLWebClient struct {
