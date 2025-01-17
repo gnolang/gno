@@ -3,13 +3,12 @@ package gnocket
 import (
 	"std"
 	"strings"
-	"strconv"
+	//"strconv"
 	"gno.land/p/demo/ownable"
 	"gno.land/p/demo/avl"
 	"gno.land/r/matijamarjanovic/tokenhub"	
-	"gno.land/p/demo/ufmt"
-	"gno.land/p/demo/grc/grc1155"
-	"gno.land/p/demo/grc/grc721"
+	//"gno.land/p/demo/ufmt"
+
 )
 
 var (
@@ -25,9 +24,15 @@ func NewWallet() *Wallet {
 
 	wallet := &Wallet{
 		Ownable: ownable.NewWithAddress(caller),
+		tokenBalances: avl.NewTree(),
 	}
-	
+
 	wallets.Set(string(caller), wallet)
+
+	braw := GetAllBalancesRaw()
+	println(braw)
+
+
 	return wallet
 }
 
@@ -35,15 +40,16 @@ func GetAllTokens() string {
 	return tokenhub.GetAllTokens()
 }
 
-func GetBalancesForRender() string {
-	return tokenhub.GetBalancesAll("g1ej0qca5ptsw9kfr64ey8jvfy9eacga6mpj2z0y")
+func GetAllTokensNoNFTs() string {
+	return tokenhub.GetAllTokensNoNFTs()
 }
+
 
 func Render(path string) string {
 
 
 	sb := strings.Builder{}
-	sb.WriteString(GetBalancesForRender())
+	sb.WriteString("")
 
 	return sb.String()
 }

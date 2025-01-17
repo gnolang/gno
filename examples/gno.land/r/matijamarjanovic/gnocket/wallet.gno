@@ -4,12 +4,13 @@ import (
 	"std"
 //	"strings"
 	"gno.land/p/demo/ownable"
-//	"gno.land/p/demo/avl"
+	"gno.land/p/demo/avl"
 	"gno.land/r/matijamarjanovic/tokenhub"
 )
 
 type Wallet struct {
 	*ownable.Ownable
+	tokenBalances *avl.Tree // string -> uint64
 }
 
 func assertOwnership() {
@@ -21,13 +22,14 @@ func assertOwnership() {
 	w.(*Wallet).AssertCallerIsOwner()
 }
 
-func GetBalances() string {
+func GetBalancesRaw() string {
 	assertOwnership()
 	return tokenhub.GetMyBalances()
 }
 
-func GetAllBalances() string {
+func GetAllBalancesRaw() string {
 	assertOwnership()
-
 	return tokenhub.GetMyBalancesAll()
 }
+
+
