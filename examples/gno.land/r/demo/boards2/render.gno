@@ -99,9 +99,11 @@ func renderReply(res *mux.ResponseWriter, req *mux.Request) {
 	reply, found := thread.GetReply(PostID(rID))
 	if !found {
 		res.Write("Reply does not exist with ID: " + rawID)
-	} else if reply.IsHidden() {
-		res.Write("Reply with ID: " + rawID + " was hidden")
-	} else {
-		res.Write(reply.RenderInner())
+		return
 	}
+
+	// Call render even for hidden replies to display children.
+	// Original comment content will be hidden under the hood.
+	// See: #3480
+	res.Write(reply.RenderInner())
 }

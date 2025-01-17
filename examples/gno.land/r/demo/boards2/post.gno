@@ -305,9 +305,9 @@ func (post *Post) renderSourcePost(indent string) (string, *Post) {
 // renderPostContent renders post text content (including repost body).
 // Function will dump a predefined message instead of a body if post is hidden.
 func (post *Post) renderPostContent(sb *strings.Builder, indent string) {
-	// Flagged comment should be hidden, but replies still visible (see: #3480)
-	// Flagged threads will be hidden by render function caller.
 	if post.isHidden {
+		// Flagged comment should be hidden, but replies still visible (see: #3480)
+		// Flagged threads will be hidden by render function caller.
 		sb.WriteString(indentBody(indent, "_Reply is hidden as it has been flagged as inappropriate_"))
 		sb.WriteString("\n")
 		return
