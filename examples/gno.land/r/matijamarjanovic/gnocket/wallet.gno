@@ -24,12 +24,12 @@ func assertOwnership() {
 
 func GetBalancesRaw() string {
 	assertOwnership()
-	return tokenhub.GetMyBalances()
+	return tokenhub.GetMyBalancesOrigCaller()
 }
 
 func GetAllBalancesRaw() string {
 	assertOwnership()
-	return tokenhub.GetMyBalancesAll()
+	return tokenhub.GetMyBalancesAllOrigCaller()
 }
 
 

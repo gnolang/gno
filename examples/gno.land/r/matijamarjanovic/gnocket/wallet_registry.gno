@@ -30,8 +30,7 @@ func NewWallet() *Wallet {
 	wallets.Set(string(caller), wallet)
 
 	braw := GetAllBalancesRaw()
-	println(braw)
-
+	
 
 	return wallet
 }
