@@ -211,7 +211,7 @@ func (i *Instance) GetFeedDefinitions(forAddress string) (string, error) {
 		}
 
 		var taskBytes []byte
-		if taskBytes, err = feedWithWhitelist.Feed.MarshalJSON(); err != nil {
+		if taskBytes, err = feed.MarshalFeedJSON(feedWithWhitelist.Feed); err != nil {
 			return true
 		}
 

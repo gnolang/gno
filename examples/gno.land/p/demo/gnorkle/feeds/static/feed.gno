@@ -10,7 +10,6 @@ import (
 	"gno.land/p/demo/gnorkle/ingesters/single"
 	"gno.land/p/demo/gnorkle/message"
 	"gno.land/p/demo/gnorkle/storage/simple"
-	"gno.land/p/demo/ufmt"
 )
 
 // Feed is a static feed.
@@ -111,40 +110,6 @@ func (f *Feed) Ingest(funcType message.FuncType, msg, providerAddress string) er
 // and there is a valid, non-empty value to consume.
 func (f Feed) Value() (feed.Value, string, bool) {
 	return f.storage.GetLatest(), f.valueDataType, f.isLocked
-}
-
-// MarshalJSON marshals the components of the feed that are needed for
-// an agent to execute tasks and send values for ingestion.
-func (f Feed) MarshalJSON() ([]byte, error) {
-	buf := new(bytes.Buffer)
-	w := bufio.NewWriter(buf)
-
-	w.Write([]byte(
-		`{"id":"` + f.id +
-			`","type":"` + ufmt.Sprintf("%d", int(f.Type())) +
-			`","value_type":"` + f.valueDataType +
-			`","tasks":[`),
-	)
-
-	first := true
-	for _, task := range f.tasks {
-		if !first {
-			w.WriteString(",")
-		}
-
-		taskJSON, err := task.MarshalJSON()
-		if err != nil {
-			return nil, err
-		}
-
-		w.Write(taskJSON)
-		first = false
-	}
-
-	w.Write([]byte("]}"))
-	w.Flush()
-
-	return buf.Bytes(), nil
 }
 
 // Tasks returns the feed's tasks. This allows task consumers to extract task
