@@ -46,6 +46,8 @@ func NewWallet() *Wallet {
 		wallet.tokenBalances.Set(tokenKey, tokenBalance)
 	}
 
+	// TODO: research std.Emit (use it to listen for events and update the wallet balances)
+
 	return wallet
 }
 
