@@ -2,32 +2,59 @@ package multi_sig
 
 import (
 	"std"
+
+	"gno.land/p/demo/avl"
+	"gno.land/p/demo/ufmt"
 )
-
-type Function interface{}
-type Parameters interface{}
-
-type FunctionProposal struct {
-	id        int
-	function  Function
-	params    Parameters
-	approvals int
-}
 
 var (
-	owners    []std.Address
-	proposals []FunctionProposal
+	owners            avl.Tree
+	newOwnerApprovals avl.Tree
 )
 
-func AddProposal(f Function, p Parameters) {
-
+func init() {
 }
 
-func isOwner(caller std.Address) bool {
-	for _, owner := range owners {
-		if caller == owner {
-			return true
-		}
+func InitOwners(addresses []string) {
+	if owners.Size() != 0 {
+		panic("Owners list has already been initiated!")
 	}
-	return false
+
+	for _, v := range addresses {
+		addr := std.Address(v)
+		if !addr.IsValid() {
+			panic(ufmt.Sprintf("Entry %s is not a valid address!", v))
+		}
+		owners.Set(v, true)
+	}
+}
+
+func AddNewOwner(address string) {
+	caller := std.GetOrigCaller()
+    
+	if owners.Has(address) {
+		panic("Proposed address is already an owner!")
+	}
+
+	if !owners.Has(caller.String()) {
+		panic("Only owners can suggest new owners!")
+	}
+
+	v, exists := newOwnerApprovals.Get(address)
+	if !exists {
+        v = avl.NewTree()
+		newOwnerApprovals.Set(address, v)
+	}
+
+	addressApprovals := v.(*avl.Tree)
+    if addressApprovals.Has(caller.String()) {
+        panic("You have already approved this new owner proposal address!")
+    }
+	addressApprovals.Set(caller.String(), true) 
+
+	if addressApprovals.Size() == owners.Size() {
+		newOwnerApprovals.Remove(address)
+		owners.Set(address, true)
+	}
+
 }
