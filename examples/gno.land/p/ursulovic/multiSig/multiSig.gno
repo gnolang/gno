@@ -31,7 +31,7 @@ func InitOwners(addresses []string) {
 
 func AddNewOwner(address string) {
 	caller := std.GetOrigCaller()
-    
+
 	if owners.Has(address) {
 		panic("Proposed address is already an owner!")
 	}
@@ -42,15 +42,15 @@ func AddNewOwner(address string) {
 
 	v, exists := newOwnerApprovals.Get(address)
 	if !exists {
-        v = avl.NewTree()
+		v = avl.NewTree()
 		newOwnerApprovals.Set(address, v)
 	}
 
 	addressApprovals := v.(*avl.Tree)
-    if addressApprovals.Has(caller.String()) {
-        panic("You have already approved this new owner proposal address!")
-    }
-	addressApprovals.Set(caller.String(), true) 
+	if addressApprovals.Has(caller.String()) {
+		panic("You have already approved this new owner proposal address!")
+	}
+	addressApprovals.Set(caller.String(), true)
 
 	if addressApprovals.Size() == owners.Size() {
 		newOwnerApprovals.Remove(address)
