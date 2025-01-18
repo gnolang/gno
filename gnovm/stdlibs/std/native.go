@@ -14,6 +14,15 @@ func GetChainDomain(m *gno.Machine) string {
 	return GetContext(m).ChainDomain
 }
 
+func X_isMsgRun(m *gno.Machine) bool {
+	n := m.NumFrames()
+	if n == 0 {
+		return false
+	}
+
+	return m.Frames[0].LastPackage.PkgPath != "main"
+}
+
 func GetHeight(m *gno.Machine) int64 {
 	return GetContext(m).Height
 }

@@ -622,6 +622,26 @@ var nativeFuncs = [...]NativeFunc{
 	},
 	{
 		"std",
+		"isMsgRun",
+		[]gno.FieldTypeExpr{},
+		[]gno.FieldTypeExpr{
+			{Name: gno.N("r0"), Type: gno.X("bool")},
+		},
+		true,
+		func(m *gno.Machine) {
+			r0 := libs_std.X_isMsgRun(
+				m,
+			)
+
+			m.PushValue(gno.Go2GnoValue(
+				m.Alloc,
+				m.Store,
+				reflect.ValueOf(&r0).Elem(),
+			))
+		},
+	},
+	{
+		"std",
 		"setParamString",
 		[]gno.FieldTypeExpr{
 			{Name: gno.N("p0"), Type: gno.X("string")},

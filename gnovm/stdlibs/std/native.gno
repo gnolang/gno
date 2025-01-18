@@ -6,11 +6,10 @@ package std
 // It also panic every time when the transaction is broadcasted via
 // MsgRun.
 func AssertOriginCall() {
-	if !PrevRealm().IsUser() {
+	if !PrevRealm().IsUser() || isMsgRun() {
 		panic("invalid non-origin call")
 	}
 }
-
 func GetChainID() string     // injected
 func GetChainDomain() string // injected
 func GetHeight() int64       // injected
@@ -53,3 +52,4 @@ func origPkgAddr() string
 func callerAt(n int) string
 func getRealm(height int) (address string, pkgPath string)
 func assertCallerIsRealm()
+func isMsgRun() bool
