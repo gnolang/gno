@@ -11,6 +11,7 @@ import (
 type Wallet struct {
 	*ownable.Ownable
 	tokenBalances *avl.Tree // string -> uint64
+	public bool
 }
 
 func assertOwnership() {

@@ -15,7 +15,8 @@ var (
 	wallets = avl.NewTree()        // std.Address -> *Wallet
 )
 
-func NewWallet() *Wallet {
+// creates a new wallet for the caller but also updates the wallet balances
+func NewWallet() *Wallet { 
 	caller := std.PrevRealm().Addr()
 	
 	if wallet, exists := wallets.Get(string(caller)); exists {
@@ -25,12 +26,25 @@ func NewWallet() *Wallet {
 	wallet := &Wallet{
 		Ownable: ownable.NewWithAddress(caller),
 		tokenBalances: avl.NewTree(),
+		public: true,
 	}
 
 	wallets.Set(string(caller), wallet)
 
 	braw := GetAllBalancesRaw()
-	
+	braw = strings.TrimPrefix(braw, "Balances: ")
+
+	allTokens := strings.Split(braw, ",")
+	for _, token := range allTokens[:len(allTokens)-1] {
+		tokenParts := strings.Split(token, ":")
+		tokenType := tokenParts[0]
+		tokenKey := tokenParts[1]
+		tokenBalance := ""
+		if tokenType != "NFT" {
+			tokenBalance = tokenParts[2]
+		}
+		wallet.tokenBalances.Set(tokenKey, tokenBalance)
+	}
 
 	return wallet
 }
