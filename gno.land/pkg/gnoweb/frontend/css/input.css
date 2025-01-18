@@ -305,7 +305,7 @@
 
 @layer utilities {
   .italic-subtle {
-    font-style: oblique 10deg;
+    font-style: oblique 14deg;
   }
 
   .quotes {
