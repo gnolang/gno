@@ -4,21 +4,21 @@ import (
 	"bufio"
 	"bytes"
 	"errors"
+	"time"
 
 	"gno.land/p/demo/gnorkle/feed"
 	"gno.land/p/demo/gnorkle/gnorkle"
 	"gno.land/p/demo/gnorkle/ingesters/multi"
 	"gno.land/p/demo/gnorkle/message"
 	"gno.land/p/demo/gnorkle/storage/simple"
-	"gno.land/p/demo/ufmt"
 )
 
 // Feed is a periodic feed.
 type Feed struct {
 	id                string
 	valueDataType     string
-	timeBetweenCommit uint
-	lastCommitTime    uint
+	timeBetweenCommit int64
+	lastCommitTime    int64
 	ingester          gnorkle.Ingester
 	storage           gnorkle.Storage
 	tasks             []feed.Task
@@ -28,7 +28,7 @@ type Feed struct {
 func NewFeed(
 	id string,
 	valueDataType string,
-	timeBetweenCommit uint,
+	timeBetweenCommit int64,
 	ingester gnorkle.Ingester,
 	storage gnorkle.Storage,
 	tasks ...feed.Task,
@@ -48,7 +48,7 @@ func NewFeed(
 func NewMultiValueFeed(
 	id string,
 	valueDataType string,
-	timeBetweenCommit uint,
+	timeBetweenCommit int64,
 	tasks ...feed.Task,
 ) *Feed {
 	return NewFeed(
@@ -86,8 +86,9 @@ func (f *Feed) Ingest(funcType message.FuncType, msg, providerAddress string) er
 		}
 
 	case message.FuncTypeCommit:
-		// Commits the value to the storage only after x times has passed since last commit.
-		if f.lastCommitTime+f.timeBetweenCommit > f.storage.GetTime() {
+		// Commits the value to the storage only after x times has passed since last commit exception for first commit.
+		currentTs := time.Now().Unix()
+		if (f.storage.GetLatest() != feed.Value{} && f.lastCommitTime + f.timeBetweenCommit > currentTs) {
 			return errors.New("time between commit not reached")
 		}
 
@@ -95,8 +96,7 @@ func (f *Feed) Ingest(funcType message.FuncType, msg, providerAddress string) er
 			return err
 		}
 
-		f.lastCommitTime = f.storage.GetTime()
-
+		f.lastCommitTime = currentTs
 	default:
 		return errors.New("invalid message function " + string(funcType))
 	}
@@ -109,40 +109,6 @@ func (f *Feed) Ingest(funcType message.FuncType, msg, providerAddress string) er
 func (f Feed) Value() (feed.Value, string, bool) {
 	lastValue := f.storage.GetLatest()
 	return lastValue, f.valueDataType, lastValue == feed.Value{}
-}
-
-// MarshalJSON marshals the components of the feed that are needed for
-// an agent to execute tasks and send values for ingestion.
-func (f Feed) MarshalJSON() ([]byte, error) {
-	buf := new(bytes.Buffer)
-	w := bufio.NewWriter(buf)
-
-	w.Write([]byte(
-		`{"id":"` + f.id +
-			`","type":"` + ufmt.Sprintf("%d", int(f.Type())) +
-			`","value_type":"` + f.valueDataType +
-			`","tasks":[`),
-	)
-
-	first := true
-	for _, task := range f.tasks {
-		if !first {
-			w.WriteString(",")
-		}
-
-		taskJSON, err := task.MarshalJSON()
-		if err != nil {
-			return nil, err
-		}
-
-		w.Write(taskJSON)
-		first = false
-	}
-
-	w.Write([]byte("]}"))
-	w.Flush()
-
-	return buf.Bytes(), nil
 }
 
 // Tasks returns the feed's tasks. This allows task consumers to extract task

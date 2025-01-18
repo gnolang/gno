@@ -1,5 +1,4 @@
-package periodic
-
+package periodic_test
 
 import (
 	"errors"
@@ -7,7 +6,6 @@ import (
     "strings"
     "std"
     "time"
-    "fmt"
 
 	"gno.land/p/demo/gnorkle/feed"
 	"gno.land/p/demo/gnorkle/feeds/periodic"
@@ -50,14 +48,14 @@ func (i *mockIngester) CommitValue(storage gnorkle.Storage, providerAddress stri
 }
 
 func TestNewMultiValueFeed(t *testing.T) {
-	periodicFeed := NewMultiValueFeed("1", "", 100)
+	periodicFeed := periodic.NewMultiValueFeed("1", "", 100)
 
 	uassert.Equal(t, "1", periodicFeed.ID())
 	uassert.Equal(t, int(feed.TypePeriodic), int(periodicFeed.Type()))
 }
 
 func TestFeed_Ingest(t *testing.T) {
-	var undefinedFeed *Feed
+	var undefinedFeed *periodic.Feed
 	err := undefinedFeed.Ingest("", "", "")
 	uassert.ErrorIs(t, err, feed.ErrUndefined)
 
@@ -127,7 +125,7 @@ func TestFeed_Ingest(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			periodicFeed := NewFeed(
+			periodicFeed := periodic.NewFeed(
 				"1",
 				"string",
                 100,
@@ -223,7 +221,7 @@ func TestFeed_Tasks(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			periodicFeed := NewMultiValueFeed(
+			periodicFeed := periodic.NewMultiValueFeed(
 				id,
 				valueDataType,
                 100,
@@ -233,7 +231,7 @@ func TestFeed_Tasks(t *testing.T) {
 			urequire.Equal(t, len(tt.tasks), len(periodicFeed.Tasks()))
 
 			var errText string
-			json, err := periodicFeed.MarshalJSON()
+			json, err := feed.MarshalFeedJSON(periodicFeed)
 			if err != nil {
 				errText = err.Error()
 			}
