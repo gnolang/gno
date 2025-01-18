@@ -51,6 +51,10 @@ func NewWallet() *Wallet {
 	return wallet
 }
 
+// TODO: Add GetMyBalances() for user to get their balance 
+
+// TODO: Add SetPublic() for user to set their wallet public
+
 func GetAllTokens() string {
 	return tokenhub.GetAllTokens()
 }
@@ -61,10 +65,35 @@ func GetAllTokensNoNFTs() string {
 
 
 func Render(path string) string {
-
+	userToDisplay := getAddressForUsername(path)
+	RenderUserPage(userToDisplay)
 
 	sb := strings.Builder{}
 	sb.WriteString("")
 
 	return sb.String()
+}
+
+func RenderUserPage(userToDisplay std.Address) string {
+	
+	wallet := wallets.Get(string(userToDisplay))
+	if wallet.public {
+		//TODO : render wallet content for the public
+	}
+
+	return ""
+}
+
+
+func getAddressForUsername(addrOrName string) std.Address {
+	addr := std.Address(addrOrName)
+
+	if addr.IsValid() {
+		return addr
+	}
+	if user := users.GetUserByName(addrOrName); user != nil {
+		return user.Address
+	}
+
+	return ""
 }
