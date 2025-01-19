@@ -7,6 +7,7 @@ import (
 )
 
 func (m *Machine) doOpPrecall() {
+	debug2.Println2("doOpPrecall()")
 	cx := m.PopExpr().(*CallExpr)
 	v := m.PeekValue(1 + cx.NumArgs).V
 	if debug {
@@ -17,6 +18,7 @@ func (m *Machine) doOpPrecall() {
 			panic("should not happen")
 		}
 	}
+	debug2.Println2("fv, type of fv: ", v, reflect.TypeOf(v))
 	switch fv := v.(type) {
 	case *FuncValue:
 		m.PushFrameCall(cx, fv, TypedValue{})
@@ -51,6 +53,7 @@ func (m *Machine) doOpPrecall() {
 var gReturnStmt = &ReturnStmt{}
 
 func (m *Machine) doOpCall() {
+	debug2.Println2("doOpCall()")
 	// NOTE: Frame won't be popped until the statement is complete, to
 	// discard the correct number of results for func calls in ExprStmts.
 	fr := m.LastFrame()
@@ -150,7 +153,9 @@ func (m *Machine) doOpCall() {
 			}
 		} else {
 			list := m.PopCopyValues(nvar)
+			debug2.Println2("list: ", list)
 			vart := pts[numParams-1].Type.(*SliceType)
+			debug2.Println2("has varg")
 			varg := m.Alloc.NewSliceFromList(list)
 			m.PushValue(TypedValue{
 				T: vart,
@@ -349,6 +354,7 @@ func (m *Machine) doOpReturnCallDefers() {
 				vart := pts[len(pts)-1].Type.(*SliceType)
 				vargs := make([]TypedValue, nvar)
 				copy(vargs, dfr.Args[numArgs-nvar:numArgs])
+				debug2.Println2("---defer")
 				varg := m.Alloc.NewSliceFromList(vargs)
 				dfr.Args = dfr.Args[:numArgs-nvar]
 				dfr.Args = append(dfr.Args, TypedValue{

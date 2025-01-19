@@ -98,6 +98,7 @@ func (bv *BigintValue) UnmarshalAmino(s string) error {
 }
 
 func (bv BigintValue) Copy(alloc *Allocator) BigintValue {
+	// TODO: allocate?
 	return BigintValue{V: big.NewInt(0).Set(bv.V)}
 }
 
@@ -567,6 +568,15 @@ func (fv *FuncValue) IsNative() bool {
 }
 
 func (fv *FuncValue) Copy(alloc *Allocator) *FuncValue {
+	debug2.Println2("Copy, fv: ", fv)
+	debug2.Println2("allocator: ", alloc)
+	debug2.Println2("fv.clo: ", fv.Closure)
+	if b, ok := fv.Closure.(*Block); ok {
+		debug2.Println2("containing block of fv is: ", b)
+		if b != nil {
+			debug2.Println2("fv...source, type of source", b.Source, reflect.TypeOf(b.Source))
+		}
+	}
 	alloc.AllocateFunc()
 	return &FuncValue{
 		Type:       fv.Type,
@@ -720,6 +730,7 @@ func (ml *MapList) UnmarshalAmino(mlimg MapListImage) error {
 
 // NOTE: Value is undefined until assigned.
 func (ml *MapList) Append(alloc *Allocator, key TypedValue) *MapListItem {
+	debug2.Println2("MapList, Append, key: ", key)
 	alloc.AllocateMapItem()
 	item := &MapListItem{
 		Prev: ml.Tail,
@@ -1031,6 +1042,7 @@ func (tv *TypedValue) ClearNum() {
 }
 
 func (tv TypedValue) Copy(alloc *Allocator) (cp TypedValue) {
+	debug2.Println2("Copy, alloc: ", alloc, reflect.TypeOf(tv.V))
 	switch cv := tv.V.(type) {
 	case BigintValue:
 		cp.T = tv.T

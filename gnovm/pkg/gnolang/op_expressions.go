@@ -183,6 +183,7 @@ func (m *Machine) doOpStar() {
 
 // XXX this is wrong, for var i interface{}; &i is *interface{}.
 func (m *Machine) doOpRef() {
+	debug2.Println2("doOpRef")
 	rx := m.PopExpr().(*RefExpr)
 	m.Alloc.AllocatePointer()
 	xv := m.PopAsPointer(rx.X)
@@ -203,6 +204,7 @@ func (m *Machine) doOpRef() {
 	if elt == DataByteType {
 		elt = xv.TV.V.(DataByteValue).ElemType
 	}
+	debug2.Println2("doOpRef, new type")
 	m.PushValue(TypedValue{
 		T: m.Alloc.NewType(&PointerType{Elt: elt}),
 		V: xv,
@@ -637,6 +639,7 @@ func (m *Machine) doOpSliceLit2() {
 
 func (m *Machine) doOpMapLit() {
 	x := m.PopExpr().(*CompositeLitExpr)
+	debug2.Println2("doOpMapLit, x: ", x)
 	ne := len(x.Elts)
 	// peek map type.
 	mt := m.PeekValue(1 + ne*2).V.(TypeValue).Type
@@ -761,6 +764,7 @@ func (m *Machine) doOpFuncLit() {
 	x := m.PopExpr().(*FuncLitExpr)
 	ft := m.PopValue().V.(TypeValue).Type.(*FuncType)
 	lb := m.LastBlock()
+	debug2.Println2("doOpFuncLit, x: ", x)
 	m.Alloc.AllocateFunc()
 
 	// First copy closure captured heap values

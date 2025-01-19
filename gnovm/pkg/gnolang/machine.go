@@ -134,6 +134,7 @@ var machinePool = sync.Pool{
 // Machines initialized through this constructor must be finalized with
 // [Machine.Release].
 func NewMachineWithOptions(opts MachineOptions) *Machine {
+	debug2.Println2("NewMachineWithOptions start")
 	preprocessorMode := opts.PreprocessorMode
 	readOnly := opts.ReadOnly
 	maxCycles := opts.MaxCycles
@@ -145,7 +146,7 @@ func NewMachineWithOptions(opts MachineOptions) *Machine {
 	}
 	alloc := opts.Alloc
 	if alloc == nil {
-		alloc = NewAllocator(opts.MaxAllocBytes)
+		alloc = NewAllocator(opts.MaxAllocBytes, nil)
 	}
 	store := opts.Store
 	if store == nil {
@@ -167,6 +168,9 @@ func NewMachineWithOptions(opts MachineOptions) *Machine {
 	mm := machinePool.Get().(*Machine)
 	mm.Package = pv
 	mm.Alloc = alloc
+	if mm.Alloc != nil {
+		mm.Alloc.m = mm
+	}
 	mm.PreprocessorMode = preprocessorMode
 	mm.ReadOnly = readOnly
 	mm.MaxCycles = maxCycles
@@ -181,6 +185,7 @@ func NewMachineWithOptions(opts MachineOptions) *Machine {
 	if pv != nil {
 		mm.SetActivePackage(pv)
 	}
+	debug2.Println2("NewMachineWithOptions end, Memstats: ", mm.Alloc.MemStats())
 	return mm
 }
 
@@ -230,6 +235,8 @@ func (m *Machine) SetActivePackage(pv *PackageValue) {
 // NOTE: package paths not beginning with gno.land will be allowed to override,
 // to support cases of stdlibs processed through [RunMemPackagesWithOverrides].
 func (m *Machine) PreprocessAllFilesAndSaveBlockNodes() {
+	debug2.Println2("=======PreprocessAllFilesAndSaveBlockNodes")
+	defer debug2.Println2("=========Done PreprocessAllFilesAndSaveBlockNodes")
 	ch := m.Store.IterMemPackage()
 	for memPkg := range ch {
 		fset := ParseMemPackage(memPkg)
@@ -446,6 +453,7 @@ func (m *Machine) Stacktrace() (stacktrace Stacktrace) {
 // must happen after persistence and realm finalization,
 // then changes from init persisted again.
 func (m *Machine) RunFiles(fns ...*FileNode) {
+	debug2.Println2("RunFiles, m: ", m)
 	pv := m.Package
 	if pv == nil {
 		panic("RunFiles requires Machine.Package")
@@ -458,6 +466,9 @@ func (m *Machine) RunFiles(fns ...*FileNode) {
 // This will also run each init function encountered.
 // Returns the updated typed values of package.
 func (m *Machine) runFileDecls(fns ...*FileNode) []TypedValue {
+	debug2.Println2("===runFileDecls, fns: ", fns)
+	debug2.Println2("Memstats: ", m.Alloc.MemStats())
+	defer debug2.Println2("=======Done runFileDecls========")
 	// Files' package names must match the machine's active one.
 	// if there is one.
 	for _, fn := range fns {
@@ -509,6 +520,8 @@ func (m *Machine) runFileDecls(fns ...*FileNode) []TypedValue {
 		// Each file for each *PackageValue gets its own file *Block,
 		// with values copied over from each file's
 		// *FileNode.StaticBlock.
+		debug2.Println2("============machine, runFileDecls, count from here===============")
+		debug2.Println2("Memstats: ", m.Alloc.MemStats())
 		fb := m.Alloc.NewBlock(fn, pb)
 		fb.Values = make([]TypedValue, len(fn.StaticBlock.Values))
 		copy(fb.Values, fn.StaticBlock.Values)
@@ -523,6 +536,7 @@ func (m *Machine) runFileDecls(fns ...*FileNode) []TypedValue {
 	// recursive function for var declarations.
 	var runDeclarationFor func(fn *FileNode, decl Decl)
 	runDeclarationFor = func(fn *FileNode, decl Decl) {
+		debug2.Println2("runDeclarationFor, decl: ", decl)
 		// get fileblock of fn.
 		// fb := pv.GetFileBlock(nil, fn.Name)
 		// get dependencies of decl.
@@ -662,6 +676,7 @@ func (m *Machine) resavePackageValues(rlm *Realm) {
 }
 
 func (m *Machine) RunFunc(fn Name) {
+	debug2.Println2("Running func", fn)
 	defer func() {
 		if r := recover(); r != nil {
 			switch r := r.(type) {
@@ -679,6 +694,7 @@ func (m *Machine) RunFunc(fn Name) {
 }
 
 func (m *Machine) RunMain() {
+	debug2.Println2("Running main")
 	defer func() {
 		r := recover()
 
@@ -807,6 +823,9 @@ func (m *Machine) EvalStaticTypeOf(last BlockNode, x Expr) Type {
 func (m *Machine) RunStatement(s Stmt) {
 	sn := m.LastBlock().GetSource(m.Store)
 	s = Preprocess(m.Store, sn, s).(Stmt)
+	debug2.Println2("==========Machine.RunStatement, s: ", s)
+	debug2.Println2("memstats: ", m.Alloc.MemStats())
+	//debug2.Println2("current machine: ", m)
 	m.PushOp(OpHalt)
 	m.PushStmt(s)
 	m.PushOp(OpExec)
@@ -845,6 +864,7 @@ func (m *Machine) RunDeclaration(d Decl) {
 // package level, for which evaluations happen during
 // preprocessing).
 func (m *Machine) runDeclaration(d Decl) {
+	debug2.Println2("runDeclaration: ", d)
 	switch d := d.(type) {
 	case *FuncDecl:
 		// nothing to do.
@@ -1650,6 +1670,7 @@ func (m *Machine) PushValue(tv TypedValue) {
 	if debug {
 		m.Printf("+v %v\n", tv)
 	}
+	debug2.Printf2("+v %v\n", tv)
 	if len(m.Values) == m.NumValues {
 		// TODO tune. also see PushOp().
 		newValues := make([]TypedValue, len(m.Values)*2)
@@ -1721,6 +1742,7 @@ func (m *Machine) PushBlock(b *Block) {
 	if debug {
 		m.Println("+B")
 	}
+	m.Println("+B")
 	m.Blocks = append(m.Blocks, b)
 }
 
@@ -1728,6 +1750,7 @@ func (m *Machine) PopBlock() (b *Block) {
 	if debug {
 		m.Println("-B")
 	}
+	m.Println("-B")
 	numBlocks := len(m.Blocks)
 	b = m.Blocks[numBlocks-1]
 	m.Blocks = m.Blocks[:numBlocks-1]
@@ -1762,6 +1785,7 @@ func (m *Machine) PushFrameBasic(s Stmt) {
 // ensure the counts are consistent, otherwise we mask
 // bugs with frame pops.
 func (m *Machine) PushFrameCall(cx *CallExpr, fv *FuncValue, recv TypedValue) {
+	debug2.Println2("PushFrameCall, cx: ", cx)
 	fr := &Frame{
 		Source:      cx,
 		NumOps:      m.NumOps,
@@ -1778,6 +1802,7 @@ func (m *Machine) PushFrameCall(cx *CallExpr, fv *FuncValue, recv TypedValue) {
 		LastPackage: m.Package,
 		LastRealm:   m.Realm,
 	}
+	debug2.Println2("fr: ", fr)
 	if debug {
 		if m.Package == nil {
 			panic("should not happen")
@@ -1844,12 +1869,14 @@ func (m *Machine) PopFrame() Frame {
 	if debug {
 		m.Printf("-F %#v\n", f)
 	}
+	debug2.Printf2("-F %#v\n", f)
 	m.Frames = m.Frames[:numFrames-1]
 
 	return *f
 }
 
 func (m *Machine) PopFrameAndReset() {
+	debug2.Println2("PopFrameAndReset")
 	fr := m.PopFrame()
 	fr.Popped = true
 	m.NumOps = fr.NumOps

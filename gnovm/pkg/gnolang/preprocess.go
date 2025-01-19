@@ -21,6 +21,7 @@ const (
 // Anything predefined or preprocessed here get skipped during the Preprocess
 // phase.
 func PredefineFileSet(store Store, pn *PackageNode, fset *FileSet) {
+	debug2.Println2("PredefineFileSet")
 	// First, initialize all file nodes and connect to package node.
 	// This will also reserve names on BlockNode.StaticBlock by
 	// calling StaticBlock.Predefine().
