@@ -1,4 +1,4 @@
-package conditions
+package requirements
 
 import (
 	"github.com/gnolang/gno/contribs/github-bot/internal/utils"
@@ -10,12 +10,12 @@ import (
 // Draft Condition.
 type draft struct{}
 
-var _ Condition = &draft{}
+var _ Requirement = &draft{}
 
-func (*draft) IsMet(pr *github.PullRequest, details treeprint.Tree) bool {
+func (*draft) IsSatisfied(pr *github.PullRequest, details treeprint.Tree) bool {
 	return utils.AddStatusNode(pr.GetDraft(), "This pull request is a draft", details)
 }
 
-func Draft() Condition {
+func Draft() Requirement {
 	return &draft{}
 }

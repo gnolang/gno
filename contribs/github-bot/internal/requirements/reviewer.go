@@ -16,6 +16,8 @@ type reviewByUser struct {
 	user string
 }
 
+const approvedState = "APPROVED"
+
 var _ Requirement = &reviewByUser{}
 
 func (r *reviewByUser) IsSatisfied(pr *github.PullRequest, details treeprint.Tree) bool {
@@ -65,7 +67,7 @@ func (r *reviewByUser) IsSatisfied(pr *github.PullRequest, details treeprint.Tre
 	for _, review := range reviews {
 		if review.GetUser().GetLogin() == r.user {
 			r.gh.Logger.Debugf("User %s already reviewed PR %d with state %s", r.user, pr.GetNumber(), review.GetState())
-			return utils.AddStatusNode(review.GetState() == "APPROVED", detail, details)
+			return utils.AddStatusNode(review.GetState() == approvedState, detail, details)
 		}
 	}
 	r.gh.Logger.Debugf("User %s has not reviewed PR %d yet", r.user, pr.GetNumber())
@@ -131,16 +133,16 @@ func (r *reviewByTeamMembers) IsSatisfied(pr *github.PullRequest, details treepr
 		return utils.AddStatusNode(false, detail, details)
 	}
 
-	for _, review := range reviews {
-		teamMembers, err := r.gh.ListTeamMembers(r.team)
-		if err != nil {
-			r.gh.Logger.Errorf(err.Error())
-			continue
-		}
+	teamMembers, err := r.gh.ListTeamMembers(r.team)
+	if err != nil {
+		r.gh.Logger.Errorf(err.Error())
+		return utils.AddStatusNode(false, detail, details)
+	}
 
+	for _, review := range reviews {
 		for _, member := range teamMembers {
 			if review.GetUser().GetLogin() == member.GetLogin() {
-				if review.GetState() == "APPROVED" {
+				if review.GetState() == approvedState {
 					approved += 1
 				}
 				r.gh.Logger.Debugf("Member %s from team %s already reviewed PR %d with state %s (%d/%d required approval(s))", member.GetLogin(), r.team, pr.GetNumber(), review.GetState(), approved, r.count)
@@ -153,4 +155,42 @@ func (r *reviewByTeamMembers) IsSatisfied(pr *github.PullRequest, details treepr
 
 func ReviewByTeamMembers(gh *client.GitHub, team string, count uint) Requirement {
 	return &reviewByTeamMembers{gh, team, count}
+}
+
+type reviewByOrgMembers struct {
+	gh    *client.GitHub
+	count uint
+}
+
+var _ Requirement = &reviewByOrgMembers{}
+
+func (r *reviewByOrgMembers) IsSatisfied(pr *github.PullRequest, details treeprint.Tree) bool {
+	detail := fmt.Sprintf("At least %d user(s) of the organization approved the pull request", r.count)
+
+	// Check how many members of this team already approved this PR.
+	approved := uint(0)
+	reviews, err := r.gh.ListPRReviews(pr.GetNumber())
+	if err != nil {
+		r.gh.Logger.Errorf("unable to check number of reviews on this PR: %v", err)
+		return utils.AddStatusNode(false, detail, details)
+	}
+
+	for _, review := range reviews {
+		if review.GetAuthorAssociation() == "MEMBER" {
+			if review.GetState() == approvedState {
+				approved++
+			}
+			r.gh.Logger.Debugf(
+				"Member %s already reviewed PR %d with state %s (%d/%d required approval(s))",
+				review.GetUser().GetLogin(), pr.GetNumber(), review.GetState(),
+				approved, r.count,
+			)
+		}
+	}
+
+	return utils.AddStatusNode(approved >= r.count, detail, details)
+}
+
+func ReviewByOrgMembers(gh *client.GitHub, count uint) Requirement {
+	return &reviewByOrgMembers{gh, count}
 }
