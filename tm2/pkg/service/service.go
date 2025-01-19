@@ -129,24 +129,26 @@ func (bs *BaseService) SetLogger(l *slog.Logger) {
 // returned if the service is already running or stopped. Not to start the
 // stopped service, you need to call Reset.
 func (bs *BaseService) Start() error {
-	if atomic.CompareAndSwapUint32(&bs.started, 0, 1) {
-		if atomic.LoadUint32(&bs.stopped) == 1 {
-			bs.Logger.Error(fmt.Sprintf("Not starting %v -- already stopped", bs.name), "impl", bs.impl)
-			// revert flag
-			atomic.StoreUint32(&bs.started, 0)
-			return ErrAlreadyStopped
-		}
-		bs.Logger.Info(fmt.Sprintf("Starting %v", bs.name), "impl", bs.impl)
-		err := bs.impl.OnStart()
-		if err != nil {
-			// revert flag
-			atomic.StoreUint32(&bs.started, 0)
-			return err
-		}
-		return nil
+	if !atomic.CompareAndSwapUint32(&bs.started, 0, 1) {
+		bs.Logger.Debug(fmt.Sprintf("Not starting %v -- already started", bs.name), "impl", bs.impl)
+		return ErrAlreadyStarted
 	}
-	bs.Logger.Debug(fmt.Sprintf("Not starting %v -- already started", bs.name), "impl", bs.impl)
-	return ErrAlreadyStarted
+
+	if atomic.LoadUint32(&bs.stopped) == 1 {
+		bs.Logger.Error(fmt.Sprintf("Not starting %v -- already stopped", bs.name), "impl", bs.impl)
+		// revert flag
+		atomic.StoreUint32(&bs.started, 0)
+		return ErrAlreadyStopped
+	}
+
+	bs.Logger.Info(fmt.Sprintf("Starting %v", bs.name), "impl", bs.impl)
+	err := bs.impl.OnStart()
+	if err != nil {
+		// revert flag
+		atomic.StoreUint32(&bs.started, 0)
+		return err
+	}
+	return nil
 }
 
 // OnStart implements Service by doing nothing.
@@ -157,20 +159,22 @@ func (bs *BaseService) OnStart() error { return nil }
 // Stop implements Service by calling OnStop (if defined) and closing quit
 // channel. An error will be returned if the service is already stopped.
 func (bs *BaseService) Stop() error {
-	if atomic.CompareAndSwapUint32(&bs.stopped, 0, 1) {
-		if atomic.LoadUint32(&bs.started) == 0 {
-			bs.Logger.Error(fmt.Sprintf("Not stopping %v -- have not been started yet", bs.name), "impl", bs.impl)
-			// revert flag
-			atomic.StoreUint32(&bs.stopped, 0)
-			return ErrNotStarted
-		}
-		bs.Logger.Info(fmt.Sprintf("Stopping %v", bs.name), "impl", bs.impl)
-		bs.impl.OnStop()
-		close(bs.quit)
-		return nil
+	if !atomic.CompareAndSwapUint32(&bs.stopped, 0, 1) {
+		bs.Logger.Debug(fmt.Sprintf("Stopping %v (ignoring: already stopped)", bs.name), "impl", bs.impl)
+		return ErrAlreadyStopped
 	}
-	bs.Logger.Debug(fmt.Sprintf("Stopping %v (ignoring: already stopped)", bs.name), "impl", bs.impl)
-	return ErrAlreadyStopped
+
+	if atomic.LoadUint32(&bs.started) == 0 {
+		bs.Logger.Error(fmt.Sprintf("Not stopping %v -- have not been started yet", bs.name), "impl", bs.impl)
+		// revert flag
+		atomic.StoreUint32(&bs.stopped, 0)
+		return ErrNotStarted
+	}
+
+	bs.Logger.Info(fmt.Sprintf("Stopping %v", bs.name), "impl", bs.impl)
+	bs.impl.OnStop()
+	close(bs.quit)
+	return nil
 }
 
 // OnStop implements Service by doing nothing.
