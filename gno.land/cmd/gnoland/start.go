@@ -5,7 +5,6 @@ import (
 	"errors"
 	"flag"
 	"fmt"
-	"io"
 	"os"
 	"os/signal"
 	"path/filepath"
@@ -29,7 +28,6 @@ import (
 
 	"github.com/gnolang/gno/tm2/pkg/std"
 	"github.com/gnolang/gno/tm2/pkg/telemetry"
-	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 )
 
@@ -184,7 +182,7 @@ func execStart(ctx context.Context, c *startCfg, io commands.IO) error {
 	}
 
 	// Initialize the logger
-	zapLogger, err := initializeLogger(io.Out(), c.logLevel, c.logFormat)
+	zapLogger, err := log.InitializeLogger(io.Out(), c.logLevel, c.logFormat)
 	if err != nil {
 		return fmt.Errorf("unable to initialize zap logger, %w", err)
 	}
@@ -362,22 +360,6 @@ func lazyInitGenesis(
 	io.Printfln("WARN: Initialized genesis.json at %q", genesisPath)
 
 	return nil
-}
-
-// initializeLogger initializes the zap logger using the given format and log level,
-// outputting to the given IO
-func initializeLogger(io io.WriteCloser, logLevel, logFormat string) (*zap.Logger, error) {
-	// Initialize the log level
-	level, err := zapcore.ParseLevel(logLevel)
-	if err != nil {
-		return nil, fmt.Errorf("unable to parse log level, %w", err)
-	}
-
-	// Initialize the log format
-	format := log.Format(strings.ToLower(logFormat))
-
-	// Initialize the zap logger
-	return log.GetZapLoggerFn(format)(io, level), nil
 }
 
 func generateGenesisFile(genesisFile string, privKey crypto.PrivKey, c *startCfg) error {
