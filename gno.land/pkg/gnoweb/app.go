@@ -33,10 +33,12 @@ type AppConfig struct {
 	ChainID string
 	// AssetsPath is the base path to the gnoweb assets.
 	AssetsPath string
-	// AssetDir, if set, will be used for assets instead of the embedded public directory
+	// AssetDir, if set, will be used for assets instead of the embedded public directory.
 	AssetsDir string
 	// FaucetURL, if specified, will be the URL to which `/faucet` redirects.
 	FaucetURL string
+	// Domain is the domain used by the node.
+	Domain string
 }
 
 // NewDefaultAppConfig returns a new default [AppConfig]. The default sets
@@ -44,17 +46,16 @@ type AppConfig struct {
 // to be served on /public/.
 func NewDefaultAppConfig() *AppConfig {
 	const defaultRemote = "127.0.0.1:26657"
-
 	return &AppConfig{
-		// same as Remote by default
 		NodeRemote: defaultRemote,
 		RemoteHelp: defaultRemote,
 		ChainID:    "dev",
 		AssetsPath: "/public/",
+		Domain:     "gno.land",
 	}
 }
 
-var chromaStyle = mustGetStyle("friendly")
+var chromaDefaultStyle = mustGetStyle("friendly")
 
 func mustGetStyle(name string) *chroma.Style {
 	s := styles.Get(name)
@@ -64,15 +65,24 @@ func mustGetStyle(name string) *chroma.Style {
 	return s
 }
 
-// NewRouter initializes the gnoweb router, with the given logger and config.
+// NewRouter initializes the gnoweb router with the specified logger and configuration.
 func NewRouter(logger *slog.Logger, cfg *AppConfig) (http.Handler, error) {
+	// Initialize RPC Client
+	client, err := client.NewHTTPClient(cfg.NodeRemote)
+	if err != nil {
+		return nil, fmt.Errorf("unable to create HTTP client: %w", err)
+	}
+
+	// Configure Chroma highlighter
 	chromaOptions := []chromahtml.Option{
 		chromahtml.WithLineNumbers(true),
 		chromahtml.WithLinkableLineNumbers(true, "L"),
 		chromahtml.WithClasses(true),
 		chromahtml.ClassPrefix("chroma-"),
 	}
+	chroma := chromahtml.New(chromaOptions...)
 
+	// Configure Goldmark markdown parser
 	mdopts := []goldmark.Option{
 		goldmark.WithExtensions(
 			markdown.NewHighlighting(
@@ -84,36 +94,41 @@ func NewRouter(logger *slog.Logger, cfg *AppConfig) (http.Handler, error) {
 	if cfg.UnsafeHTML {
 		mdopts = append(mdopts, goldmark.WithRendererOptions(mdhtml.WithXHTML(), mdhtml.WithUnsafe()))
 	}
-
 	md := goldmark.New(mdopts...)
 
-	client, err := client.NewHTTPClient(cfg.NodeRemote)
-	if err != nil {
-		return nil, fmt.Errorf("unable to create http client: %w", err)
+	// Configure WebClient
+	webcfg := HTMLWebClientConfig{
+		Markdown:    md,
+		Highlighter: NewChromaSourceHighlighter(chroma, chromaDefaultStyle),
+		Domain:      cfg.Domain,
+		UnsafeHTML:  cfg.UnsafeHTML,
+		RPCClient:   client,
 	}
-	webcli := NewWebClient(logger, client, md)
 
-	formatter := chromahtml.New(chromaOptions...)
+	webcli := NewHTMLClient(logger, &webcfg)
 	chromaStylePath := path.Join(cfg.AssetsPath, "_chroma", "style.css")
 
-	var webConfig WebHandlerConfig
+	// Setup StaticMetadata
+	staticMeta := StaticMetadata{
+		Domain:     cfg.Domain,
+		AssetsPath: cfg.AssetsPath,
+		ChromaPath: chromaStylePath,
+		RemoteHelp: cfg.RemoteHelp,
+		ChainId:    cfg.ChainID,
+		Analytics:  cfg.Analytics,
+	}
 
-	webConfig.RenderClient = webcli
-	webConfig.Formatter = newFormatterWithStyle(formatter, chromaStyle)
+	// Configure WebHandler
+	webConfig := WebHandlerConfig{WebClient: webcli, Meta: staticMeta}
+	webhandler, err := NewWebHandler(logger, webConfig)
+	if err != nil {
+		return nil, fmt.Errorf("unable to create web handler: %w", err)
+	}
 
-	// Static meta
-	webConfig.Meta.AssetsPath = cfg.AssetsPath
-	webConfig.Meta.ChromaPath = chromaStylePath
-	webConfig.Meta.RemoteHelp = cfg.RemoteHelp
-	webConfig.Meta.ChainId = cfg.ChainID
-	webConfig.Meta.Analytics = cfg.Analytics
-
-	// Setup main handler
-	webhandler := NewWebHandler(logger, webConfig)
-
+	// Setup HTTP muxer
 	mux := http.NewServeMux()
 
-	// Setup Webahndler along Alias Middleware
+	// Handle web handler with alias middleware
 	mux.Handle("/", AliasAndRedirectMiddleware(webhandler, cfg.Analytics))
 
 	// Register faucet URL to `/faucet` if specified
@@ -127,22 +142,21 @@ func NewRouter(logger *slog.Logger, cfg *AppConfig) (http.Handler, error) {
 		}))
 	}
 
-	// setup assets
+	// Handle Chroma CSS requests
+	// XXX: probably move this elsewhere
 	mux.Handle(chromaStylePath, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		// Setup Formatter
 		w.Header().Set("Content-Type", "text/css")
-		if err := formatter.WriteCSS(w, chromaStyle); err != nil {
-			logger.Error("unable to write css", "err", err)
+		if err := chroma.WriteCSS(w, chromaDefaultStyle); err != nil {
+			logger.Error("unable to write CSS", "err", err)
 			http.NotFound(w, r)
 		}
 	}))
 
-	// Normalize assets path
-	assetsBase := "/" + strings.Trim(cfg.AssetsPath, "/") + "/"
-
 	// Handle assets path
+	// XXX: add caching
+	assetsBase := "/" + strings.Trim(cfg.AssetsPath, "/") + "/"
 	if cfg.AssetsDir != "" {
-		logger.Debug("using assets dir instead of embed assets", "dir", cfg.AssetsDir)
+		logger.Debug("using assets dir instead of embedded assets", "dir", cfg.AssetsDir)
 		mux.Handle(assetsBase, DevAssetHandler(assetsBase, cfg.AssetsDir))
 	} else {
 		mux.Handle(assetsBase, AssetHandler())
