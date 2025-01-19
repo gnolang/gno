@@ -9,7 +9,7 @@ import (
 )
 
 const (
-	adminAddr    = "g1u7y667z64x2h7vc6fmpcprgey4ck233jaww9zq" // @moul > will be GovDAO managed soon, see PR#3523
+	adminAddr    = "g1u7y667z64x2h7vc6fmpcprgey4ck233jaww9zq" // @moul > will be GovDAO managed soon, see #3523 & #3546
 	gnolandUsers = "gno.land/r/gnoland/users/v1"              // preregistered with store write perms
 )
 
