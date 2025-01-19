@@ -8,11 +8,6 @@ import (
 )
 
 func TestLociStore(t *testing.T) {
-	t.Parallel()
-
-	u1 := testutils.TestAddress("u1")
-	u2 := testutils.TestAddress("u1")
-
 	t.Run("TestSet", func(t *testing.T) {
 		t.Parallel()
 		store := New()

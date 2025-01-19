@@ -128,7 +128,7 @@ func TestPlayBeyondGameEnd(t *testing.T) {
 	Play(gameID)
 
 	// Check if the game is over
-	g, err := getGame(gameID)
+	_, err := getGame(gameID)
 	urequire.NoError(t, err)
 
 	// Attempt to play more should fail

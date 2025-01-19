@@ -278,10 +278,6 @@ func TestIsZero(t *testing.T) {
 }
 
 func TestToInterfaceSlice(t *testing.T) {
-	now := time.Now()
-	addr := std.Address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5")
-	str := testStringer{value: "hello"}
-
 	tests := []struct {
 		name     string
 		input    interface{}

@@ -61,7 +61,6 @@ func TestReadOnlyPublicMethods(t *testing.T) {
 func TestErrConditions(t *testing.T) {
 	var (
 		admin = pusers.AddressOrName("g1manfred47kzduec920z88wfr64ylksmdcedlf5")
-		alice = pusers.AddressOrName(testutils.TestAddress("alice"))
 		empty = pusers.AddressOrName("")
 	)
 

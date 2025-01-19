@@ -11,7 +11,7 @@ type dummyImpl struct{}
 var _ IGRC777 = (*dummyImpl)(nil)
 
 func TestInterface(t *testing.T) {
-	var dummy IGRC777 = &dummyImpl{}
+	var _ IGRC777 = &dummyImpl{}
 }
 
 func (impl *dummyImpl) GetName() string                        { panic("not implemented") }
