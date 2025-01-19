@@ -11,8 +11,9 @@ import (
 const (
 	cpuAddress   = std.Address("CPU")
 	humanAddress = std.Address("HUMAN")
-	prng         = rand.New(rand.NewPCG(uint64(3), uint64(7)))
 )
+
+var prng = rand.New(rand.NewPCG(uint64(3), uint64(7)))
 
 func TestRand(t *testing.T) {
 	n0 := prng.IntN(10)
