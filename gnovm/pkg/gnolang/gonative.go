@@ -65,7 +65,7 @@ func go2GnoBaseType(rt reflect.Type) Type {
 	case reflect.Array:
 		return &ArrayType{Len: rt.Len(), Vrd: false, Elt: go2GnoType(rt.Elem())} //Vrd: array are not variadic on Go
 	case reflect.Slice:
-		return &NativeType{Type: rt}
+		return &SliceType{Vrd: false, Elt: go2GnoType(rt.Elem())}
 	case reflect.Chan:
 		return &NativeType{Type: rt}
 	case reflect.Func:
@@ -338,7 +338,7 @@ func go2GnoValue(alloc *Allocator, rv reflect.Value) (tv TypedValue) {
 	case reflect.Array:
 		tv.SetArray(alloc, rv)
 	case reflect.Slice:
-		tv.V = alloc.NewNative(rv)
+		tv.SetSlice(alloc, rv)
 	case reflect.Chan:
 		tv.V = alloc.NewNative(rv)
 	case reflect.Func:

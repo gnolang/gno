@@ -1531,6 +1531,24 @@ func (tv *TypedValue) GetArray() *ArrayValue {
 	return tv.V.(*ArrayValue)
 }
 
+func (tv *TypedValue) SetSlice(alloc *Allocator, rv reflect.Value) {
+	if debug {
+		if tv.T.Kind() != SliceKind || isNative(tv.T) {
+			panic(fmt.Sprintf(
+				"TypedValue.SetArray() on type %s",
+				tv.T.String()))
+		}
+	}
+
+	rvl := rv.Len()
+	rvc := rv.Cap()
+	list := make([]TypedValue, rvl, rvc)
+	for i := 0; i < rvl; i++ {
+		list[i] = go2GnoValue(alloc, rv.Index(i))
+	}
+	tv.V = alloc.NewSliceFromList(list)
+}
+
 func (tv *TypedValue) GetBigInt() *big.Int {
 	if debug {
 		if tv.T != nil && tv.T.Kind() != BigintKind {
