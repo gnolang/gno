@@ -113,7 +113,12 @@ func (info *TypeInfo) String() string {
 		// before it's fully populated.
 		return "<new TypeInfo>"
 	}
-	buf := new(bytes.Buffer)
+	buf := poolBytesBuffer.Get().(*bytes.Buffer)
+	defer func() {
+		buf.Reset()
+		poolBytesBuffer.Put(buf)
+	}()
+
 	buf.Write([]byte("TypeInfo{"))
 	buf.Write([]byte(fmt.Sprintf("Type:%v,", info.Type)))
 	if info.ConcreteInfo.Registered {
