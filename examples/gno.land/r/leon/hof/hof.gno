@@ -54,7 +54,7 @@ func Register() {
 		return
 	}
 
-	submission := std.PrevRealm()
+	submission := std.PreviousRealm()
 	pkgpath := submission.PkgPath()
 
 	// Must be called from code
@@ -71,7 +71,7 @@ func Register() {
 	i := &Item{
 		id:       id,
 		pkgpath:  pkgpath,
-		blockNum: std.GetHeight(),
+		blockNum: std.ChainHeight(),
 		upvote:   avl.NewTree(),
 		downvote: avl.NewTree(),
 	}
@@ -89,7 +89,7 @@ func Upvote(pkgpath string) {
 	}
 
 	item := rawItem.(*Item)
-	caller := std.PrevRealm().Addr().String()
+	caller := std.PreviousRealm().Address().String()
 
 	if item.upvote.Has(caller) {
 		panic(ErrDoubleUpvote.Error())
@@ -105,7 +105,7 @@ func Downvote(pkgpath string) {
 	}
 
 	item := rawItem.(*Item)
-	caller := std.PrevRealm().Addr().String()
+	caller := std.PreviousRealm().Address().String()
 
 	if item.downvote.Has(caller) {
 		panic(ErrDoubleDownvote.Error())

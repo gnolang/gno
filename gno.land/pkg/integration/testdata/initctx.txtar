@@ -18,8 +18,8 @@ var orig = std.Address("orig")
 var prev = std.Address("prev")
 
 func init() {
-    orig = std.GetOrigCaller()
-    prev = std.PrevRealm().Addr()
+    orig = std.OriginCaller()
+    prev = std.PreviousRealm().Address()
 }
 
 func Render(addr string) string {

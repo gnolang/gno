@@ -39,7 +39,7 @@ TODO import r/gh
 }
 
 func UpdatePFP(url, caption string) {
-	if !isAuthorized(std.PrevRealm().Addr()) {
+	if !isAuthorized(std.PreviousRealm().Address()) {
 		panic(config.ErrUnauthorized)
 	}
 
@@ -48,7 +48,7 @@ func UpdatePFP(url, caption string) {
 }
 
 func UpdateAboutMe(col1, col2 string) {
-	if !isAuthorized(std.PrevRealm().Addr()) {
+	if !isAuthorized(std.PreviousRealm().Address()) {
 		panic(config.ErrUnauthorized)
 	}
 
@@ -116,7 +116,7 @@ func renderArt() string {
 
 func renderGnoFace() string {
 	out := "<div>\n\n"
-	out += gnoface.Render(strconv.Itoa(int(std.GetHeight())))
+	out += gnoface.Render(strconv.Itoa(int(std.ChainHeight())))
 	out += "</div>\n\n"
 
 	return out
@@ -125,7 +125,7 @@ func renderGnoFace() string {
 func renderMillipede() string {
 	out := "<div>\n\n"
 	out += "Millipede\n\n"
-	out += "```\n" + millipede.Draw(int(std.GetHeight())%10+1) + "```\n"
+	out += "```\n" + millipede.Draw(int(std.ChainHeight())%10+1) + "```\n"
 	out += "</div>\n\n"
 
 	return out

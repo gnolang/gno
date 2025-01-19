@@ -11,7 +11,7 @@ import (
 func TestPackage(t *testing.T) {
 	alice := testutils.TestAddress("alice")
 	std.TestSetRealm(std.NewUserRealm(alice))
-	std.TestSetOrigCaller(alice) // XXX: should not need this
+	std.TestSetOriginCaller(alice) // XXX: should not need this
 
 	urequire.Equal(t, UserTeller.BalanceOf(alice), uint64(0))
 	urequire.Equal(t, Faucet(), "OK")

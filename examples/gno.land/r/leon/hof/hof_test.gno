@@ -103,7 +103,7 @@ func TestDownvote(t *testing.T) {
 func TestDelete(t *testing.T) {
 	userRealm := std.NewUserRealm(admin)
 	std.TestSetRealm(userRealm)
-	std.TestSetOrigCaller(admin)
+	std.TestSetOriginCaller(admin)
 
 	uassert.PanicsWithMessage(t, ErrNoSuchItem.Error(), func() {
 		Delete("nonexistentpkgpath")

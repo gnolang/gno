@@ -17,18 +17,18 @@ func main() {
 	// set up main address and banktest addr.
 	banktestAddr := std.DerivePkgAddr("gno.land/r/demo/banktest")
 	mainaddr := std.DerivePkgAddr("gno.land/r/demo/bank1")
-	std.TestSetOrigCaller(mainaddr)
-	std.TestSetOrigPkgAddr(banktestAddr)
+	std.TestSetOriginCaller(mainaddr)
+	std.TestSetOriginPkgAddress(banktestAddr)
 
 	// get and print balance of mainaddr.
 	// with the SEND, + 200 gnot given by the TestContext, main should have 300gnot.
-	banker := std.GetBanker(std.BankerTypeRealmSend)
+	banker := std.NewBanker(std.BankerTypeRealmSend)
 	mainbal := banker.GetCoins(mainaddr)
 	println("main before:", mainbal)
 
-	// simulate a Deposit call. use Send + OrigSend to simulate -send.
+	// simulate a Deposit call. use Send + OriginSend to simulate -send.
 	banker.SendCoins(mainaddr, banktestAddr, std.Coins{{"ugnot", 100_000_000}})
-	std.TestSetOrigSend(std.Coins{{"ugnot", 100_000_000}}, nil)
+	std.TestSetOriginSend(std.Coins{{"ugnot", 100_000_000}}, nil)
 	res := banktest.Deposit("ugnot", 50_000_000)
 	println("Deposit():", res)
 

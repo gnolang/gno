@@ -137,7 +137,7 @@ func renderProjects(projectsMap map[string]Project, title string) string {
 }
 
 func UpdateLink(name, newURL string) {
-	if !isAuthorized(std.PrevRealm().Addr()) {
+	if !isAuthorized(std.PreviousRealm().Address()) {
 		panic(config.ErrUnauthorized)
 	}
 
@@ -152,7 +152,7 @@ func UpdateLink(name, newURL string) {
 }
 
 func UpdateAboutMe(text string) {
-	if !isAuthorized(std.PrevRealm().Addr()) {
+	if !isAuthorized(std.PreviousRealm().Address()) {
 		panic(config.ErrUnauthorized)
 	}
 
@@ -160,7 +160,7 @@ func UpdateAboutMe(text string) {
 }
 
 func AddGnoProject(name, description, url, imageURL string) {
-	if !isAuthorized(std.PrevRealm().Addr()) {
+	if !isAuthorized(std.PreviousRealm().Address()) {
 		panic(config.ErrUnauthorized)
 	}
 	project := Project{
@@ -174,7 +174,7 @@ func AddGnoProject(name, description, url, imageURL string) {
 }
 
 func DeleteGnoProject(projectName string) {
-	if !isAuthorized(std.PrevRealm().Addr()) {
+	if !isAuthorized(std.PreviousRealm().Address()) {
 		panic(config.ErrUnauthorized)
 	}
 
@@ -186,7 +186,7 @@ func DeleteGnoProject(projectName string) {
 }
 
 func AddOtherProject(name, description, url, imageURL string) {
-	if !isAuthorized(std.PrevRealm().Addr()) {
+	if !isAuthorized(std.PreviousRealm().Address()) {
 		panic(config.ErrUnauthorized)
 	}
 	project := Project{
@@ -200,7 +200,7 @@ func AddOtherProject(name, description, url, imageURL string) {
 }
 
 func RemoveOtherProject(projectName string) {
-	if !isAuthorized(std.PrevRealm().Addr()) {
+	if !isAuthorized(std.PreviousRealm().Address()) {
 		panic(config.ErrUnauthorized)
 	}
 
@@ -216,8 +216,8 @@ func isAuthorized(addr std.Address) bool {
 }
 
 func SponsorGnoProject(projectName string) {
-	address := std.GetOrigCaller()
-	amount := std.GetOrigSend()
+	address := std.OriginCaller()
+	amount := std.OriginSend()
 
 	if amount.AmountOf("ugnot") == 0 {
 		panic("Donation must include GNOT")
@@ -239,8 +239,8 @@ func SponsorGnoProject(projectName string) {
 }
 
 func SponsorOtherProject(projectName string) {
-	address := std.GetOrigCaller()
-	amount := std.GetOrigSend()
+	address := std.OriginCaller()
+	amount := std.OriginSend()
 
 	if amount.AmountOf("ugnot") == 0 {
 		panic("Donation must include GNOT")
@@ -262,12 +262,12 @@ func SponsorOtherProject(projectName string) {
 }
 
 func Withdraw() string {
-	if !isAuthorized(std.PrevRealm().Addr()) {
+	if !isAuthorized(std.PreviousRealm().Address()) {
 		panic(config.ErrUnauthorized)
 	}
 
-	banker := std.GetBanker(std.BankerTypeRealmSend)
-	realmAddress := std.GetOrigPkgAddr()
+	banker := std.NewBanker(std.BankerTypeRealmSend)
+	realmAddress := std.OriginPkgAddress()
 	coins := banker.GetCoins(realmAddress)
 
 	if len(coins) == 0 {
