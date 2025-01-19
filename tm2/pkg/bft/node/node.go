@@ -16,6 +16,7 @@ import (
 
 	"github.com/gnolang/gno/tm2/pkg/bft/appconn"
 	"github.com/gnolang/gno/tm2/pkg/bft/state/eventstore/file"
+	"github.com/gnolang/gno/tm2/pkg/crypto/ed25519"
 	"github.com/gnolang/gno/tm2/pkg/p2p/conn"
 	"github.com/gnolang/gno/tm2/pkg/p2p/discovery"
 	p2pTypes "github.com/gnolang/gno/tm2/pkg/p2p/types"
@@ -975,12 +976,13 @@ func createAndStartPrivValidatorSocketClient(
 	listenAddr string,
 	logger *slog.Logger,
 ) (types.PrivValidator, error) {
-	pve, err := privval.NewSignerListener(listenAddr, logger)
+  // TODO: pass in the mutual auth keys
+	listener, err := privval.NewListener(listenAddr, ed25519.GenPrivKey(), nil)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to start private validator")
 	}
 
-	pvsc, err := privval.NewSignerClient(pve)
+	pvsc, err := privval.NewSignerClient(privval.NewSignerListenerEndpoint(logger, listener))
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to start private validator")
 	}

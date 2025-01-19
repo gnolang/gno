@@ -18,9 +18,14 @@ var (
 // SocketDialer dials a remote address and returns a net.Conn or an error.
 type SocketDialer func() (net.Conn, error)
 
-// DialTCPFn dials the given tcp addr, using the given timeoutReadWrite and
-// privKey for the authenticated encryption handshake.
-func DialTCPFn(addr string, timeoutReadWrite time.Duration, privKey ed25519.PrivKeyEd25519) SocketDialer {
+// DialTCPFn dials the given tcp addr, using the given timeoutReadWrite, dialerKey
+// and authorizedKeys for the authenticated encrypted connection.
+func DialTCPFn(
+	addr string,
+	timeoutReadWrite time.Duration,
+	dialerKey ed25519.PrivKeyEd25519,
+	authorizedKeys []ed25519.PubKeyEd25519,
+) SocketDialer {
 	return func() (net.Conn, error) {
 		conn, err := osm.Connect(addr)
 		if err != nil {
@@ -32,7 +37,18 @@ func DialTCPFn(addr string, timeoutReadWrite time.Duration, privKey ed25519.Priv
 			return nil, err
 		}
 
-		return p2pconn.MakeSecretConnection(conn, privKey)
+		secretConn, err := p2pconn.MakeSecretConnection(conn, dialerKey)
+		if err != nil {
+			return nil, err
+		}
+
+		// Check the public key of the remote peer against the authorized keys.
+		if err := checkAuthorizedKeys(secretConn.RemotePubKey(), authorizedKeys); err != nil {
+			secretConn.Close()
+			return nil, err
+		}
+
+		return secretConn, nil
 	}
 }
 

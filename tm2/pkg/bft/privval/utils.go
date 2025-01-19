@@ -2,10 +2,10 @@ package privval
 
 import (
 	"fmt"
-	"log/slog"
 	"net"
 	"time"
 
+	"github.com/gnolang/gno/tm2/pkg/crypto"
 	"github.com/gnolang/gno/tm2/pkg/crypto/ed25519"
 	"github.com/gnolang/gno/tm2/pkg/errors"
 	osm "github.com/gnolang/gno/tm2/pkg/os"
@@ -25,8 +25,13 @@ func IsConnTimeout(err error) bool {
 	}
 }
 
-// NewSignerListener creates a new SignerListenerEndpoint using the corresponding listen address.
-func NewSignerListener(listenAddr string, logger *slog.Logger) (*SignerListenerEndpoint, error) {
+// NewListener creates an UNIX or TCP listener using the corresponding listen address.
+// TCP connection can be one-way or two-way authenticated using the listenerKey and authorizedKeys.
+func NewListener(
+	listenAddr string,
+	listenerKey ed25519.PrivKeyEd25519,
+	authorizedKeys []ed25519.PubKeyEd25519,
+) (net.Listener, error) {
 	var listener net.Listener
 
 	protocol, address := osm.ProtocolAndAddress(listenAddr)
@@ -38,8 +43,7 @@ func NewSignerListener(listenAddr string, logger *slog.Logger) (*SignerListenerE
 	case "unix":
 		listener = NewUnixListener(ln)
 	case "tcp":
-		// TODO: persist this key so external signer can actually authenticate us
-		listener = NewTCPListener(ln, ed25519.GenPrivKey())
+		listener = NewTCPListener(ln, listenerKey, authorizedKeys)
 	default:
 		return nil, fmt.Errorf(
 			"wrong listen address: expected either 'tcp' or 'unix' protocols, got %s",
@@ -47,13 +51,17 @@ func NewSignerListener(listenAddr string, logger *slog.Logger) (*SignerListenerE
 		)
 	}
 
-	pvle := NewSignerListenerEndpoint(logger.With("module", "privval"), listener)
-
-	return pvle, nil
+	return listener, nil
 }
 
-// NewSignerDialer creates a new SignerDialerEndpoint using the corresponding dial address.
-func NewSignerDialer(dialAddr string, tcpTimeout time.Duration, logger *slog.Logger) (*SignerDialerEndpoint, error) {
+// NewDialer creates an UNIX or TCP dialer using the corresponding dialer address.
+// TCP connection can be one-way or two-way authenticated using the dialerKey and authorizedKeys.
+func NewDialer(
+	dialAddr string,
+	tcpTimeout time.Duration,
+	dialerKey ed25519.PrivKeyEd25519,
+	authorizedKeys []ed25519.PubKeyEd25519,
+) (SocketDialer, error) {
 	var dialer SocketDialer
 
 	protocol, address := osm.ProtocolAndAddress(dialAddr)
@@ -61,7 +69,7 @@ func NewSignerDialer(dialAddr string, tcpTimeout time.Duration, logger *slog.Log
 	case "unix":
 		dialer = DialUnixFn(address)
 	case "tcp":
-		dialer = DialTCPFn(address, tcpTimeout, ed25519.GenPrivKey())
+		dialer = DialTCPFn(address, tcpTimeout, dialerKey, authorizedKeys)
 	default:
 		return nil, fmt.Errorf(
 			"wrong listen address: expected either 'tcp' or 'unix' protocols, got %s",
@@ -69,7 +77,23 @@ func NewSignerDialer(dialAddr string, tcpTimeout time.Duration, logger *slog.Log
 		)
 	}
 
-	pvde := NewSignerDialerEndpoint(logger.With("module", "privval"), dialer)
+	return dialer, nil
+}
 
-	return pvde, nil
+// checkAuthorizedKeys checks if the public key of the remote peer is authorized.
+func checkAuthorizedKeys(remotePubKey crypto.PubKey, authorizedKeys []ed25519.PubKeyEd25519) error {
+	// If the whitelist is empty, skip the check
+	if len(authorizedKeys) == 0 {
+		return nil
+	}
+
+	// Check if the public key of the remote peer is authorized
+	for _, key := range authorizedKeys {
+		if remotePubKey.Equals(key) {
+			return nil
+		}
+	}
+
+	// If the public key was not found in the whitelist, return an error
+	return errors.New("unauthorized public key")
 }

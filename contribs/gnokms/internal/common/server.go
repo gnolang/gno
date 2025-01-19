@@ -7,6 +7,7 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/bft/privval"
 	"github.com/gnolang/gno/tm2/pkg/bft/types"
 	"github.com/gnolang/gno/tm2/pkg/commands"
+	"github.com/gnolang/gno/tm2/pkg/crypto/ed25519"
 )
 
 // Used to flush the logger.
@@ -34,14 +35,24 @@ func NewSignerServer(
 	// Wrap the zap logger with a slog logger.
 	logger := log.ZapLoggerToSlog(zapLogger)
 
-	// Initialize the signer dialer with the connection parameters.
-	dialer, err := privval.NewSignerDialer(commonFlags.NodeAddr, commonFlags.DialTimeout, logger)
+	// Initialize the signer dialer with the mutual auth keys.
+	dialer, err := privval.NewDialer(
+		commonFlags.NodeAddr,
+		commonFlags.DialTimeout,
+		// TODO: pass in the mutual auth keys
+		ed25519.GenPrivKey(),
+		nil,
+	)
 	if err != nil {
 		return nil, nil, err
 	}
 
 	// Initialize the remote signer server with the dialer and the gnokey private validator.
-	server := privval.NewSignerServer(dialer, commonFlags.ChainID, privVal)
+	server := privval.NewSignerServer(
+		privval.NewSignerDialerEndpoint(logger, dialer),
+		commonFlags.ChainID,
+		privVal,
+	)
 
 	return server, flush, nil
 }

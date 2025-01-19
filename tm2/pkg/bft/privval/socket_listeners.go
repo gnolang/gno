@@ -45,18 +45,24 @@ var _ net.Listener = (*tcpListener)(nil)
 type tcpListener struct {
 	*net.TCPListener
 
-	secretConnKey ed25519.PrivKeyEd25519
+	listenerKey    ed25519.PrivKeyEd25519
+	authorizedKeys []ed25519.PubKeyEd25519
 
 	timeoutAccept    time.Duration
 	timeoutReadWrite time.Duration
 }
 
 // NewTCPListener returns a listener that accepts authenticated encrypted connections
-// using the given secretConnKey and the default timeout values.
-func NewTCPListener(ln net.Listener, secretConnKey ed25519.PrivKeyEd25519) *tcpListener {
+// using the given listenerKey, authorizedKeys and the default timeout values.
+func NewTCPListener(
+	ln net.Listener,
+	listenerKey ed25519.PrivKeyEd25519,
+	authorizedKeys []ed25519.PubKeyEd25519,
+) *tcpListener {
 	return &tcpListener{
 		TCPListener:      ln.(*net.TCPListener),
-		secretConnKey:    secretConnKey,
+		listenerKey:      listenerKey,
+		authorizedKeys:   authorizedKeys,
 		timeoutAccept:    time.Second * defaultTimeoutAcceptSeconds,
 		timeoutReadWrite: time.Second * defaultTimeoutReadWriteSeconds,
 	}
@@ -75,10 +81,16 @@ func (ln *tcpListener) Accept() (net.Conn, error) {
 		return nil, err
 	}
 
-	// Wrap the conn in our timeout and encryption wrappers
+	// Wrap the conn in our timeout and encryption wrappers.
 	timeoutConn := newTimeoutConn(tc, ln.timeoutReadWrite)
-	secretConn, err := p2pconn.MakeSecretConnection(timeoutConn, ln.secretConnKey)
+	secretConn, err := p2pconn.MakeSecretConnection(timeoutConn, ln.listenerKey)
 	if err != nil {
+		return nil, err
+	}
+
+	// Check the public key of the remote peer against the authorized keys.
+	if err := checkAuthorizedKeys(secretConn.RemotePubKey(), ln.authorizedKeys); err != nil {
+		secretConn.Close()
 		return nil, err
 	}
 

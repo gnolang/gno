@@ -10,13 +10,6 @@ import (
 )
 
 // -------------------------------------------
-// helper funcs
-
-func newPrivKey() ed25519.PrivKeyEd25519 {
-	return ed25519.GenPrivKey()
-}
-
-// -------------------------------------------
 // tests
 
 type listenerTestCase struct {
@@ -38,7 +31,10 @@ func testUnixAddr() (string, error) {
 	return addr, nil
 }
 
-func tcpListenerTestCase(t *testing.T, timeoutAccept, timeoutReadWrite time.Duration) listenerTestCase {
+func tcpListenerTestCase(
+	t *testing.T,
+	timeoutAccept, timeoutReadWrite time.Duration,
+) listenerTestCase {
 	t.Helper()
 
 	ln, err := net.Listen("tcp", "127.0.0.1:0")
@@ -46,17 +42,32 @@ func tcpListenerTestCase(t *testing.T, timeoutAccept, timeoutReadWrite time.Dura
 		t.Fatal(err)
 	}
 
-	tcpLn := NewTCPListener(ln, newPrivKey())
+	listnerKey := ed25519.GenPrivKey()
+	dialerKey := ed25519.GenPrivKey()
+
+	tcpLn := NewTCPListener(
+		ln,
+		listnerKey,
+		[]ed25519.PubKeyEd25519{dialerKey.PubKey().(ed25519.PubKeyEd25519)},
+	)
 	TCPListenerTimeoutAccept(timeoutAccept)(tcpLn)
 	TCPListenerTimeoutReadWrite(timeoutReadWrite)(tcpLn)
 	return listenerTestCase{
 		description: "TCP",
 		listener:    tcpLn,
-		dialer:      DialTCPFn(ln.Addr().String(), testTimeoutReadWrite, newPrivKey()),
+		dialer: DialTCPFn(
+			ln.Addr().String(),
+			testTimeoutReadWrite,
+			dialerKey,
+			[]ed25519.PubKeyEd25519{listnerKey.PubKey().(ed25519.PubKeyEd25519)},
+		),
 	}
 }
 
-func unixListenerTestCase(t *testing.T, timeoutAccept, timeoutReadWrite time.Duration) listenerTestCase {
+func unixListenerTestCase(
+	t *testing.T,
+	timeoutAccept, timeoutReadWrite time.Duration,
+) listenerTestCase {
 	t.Helper()
 
 	addr, err := testUnixAddr()
@@ -78,7 +89,10 @@ func unixListenerTestCase(t *testing.T, timeoutAccept, timeoutReadWrite time.Dur
 	}
 }
 
-func listenerTestCases(t *testing.T, timeoutAccept, timeoutReadWrite time.Duration) []listenerTestCase {
+func listenerTestCases(
+	t *testing.T,
+	timeoutAccept, timeoutReadWrite time.Duration,
+) []listenerTestCase {
 	t.Helper()
 
 	return []listenerTestCase{
@@ -138,7 +152,11 @@ func TestListenerTimeoutReadWrite(t *testing.T) {
 		}
 
 		if !opErr.Timeout() {
-			t.Errorf("for %s listener, got unexpected error: have %v, want Timeout error", tc.description, opErr)
+			t.Errorf(
+				"for %s listener, got unexpected error: have %v, want Timeout error",
+				tc.description,
+				opErr,
+			)
 		}
 	}
 }
