@@ -55,6 +55,34 @@ stdout 'OK!'
 ! gnokey maketx addpkg -pkgdir $WORK -pkgpath gno.land/r/guigui123/two -gas-fee 1000000ugnot -gas-wanted 1 -broadcast -chainid=tendermint_test admin
 stderr 'unauthorized user'
 
+## Test gui alias
+
+# test gui change name
+# gui call -> gnoland/users/v1.UpdateName
+gnokey maketx call -pkgpath gno.land/r/gnoland/users/v1 -func UpdateName -gas-fee 1000000ugnot -gas-wanted 90000000 -broadcast -chainid=tendermint_test -args 'newguigui123' gui
+stdout 'OK!'
+
+## Old name should still work
+gnokey maketx addpkg -pkgdir $WORK -pkgpath gno.land/r/guigui123/new/one -gas-fee 1000000ugnot -gas-wanted 27000000 -broadcast -chainid=tendermint_test gui
+stdout 'OK!'
+
+## New name should work
+gnokey maketx addpkg -pkgdir $WORK -pkgpath gno.land/r/newguigui123/newnew/one -gas-fee 1000000ugnot -gas-wanted 27000000 -broadcast -chainid=tendermint_test gui
+stdout 'OK!'
+
+## Test deleted gui
+## Delete guigui123
+gnokey maketx call -pkgpath gno.land/r/gnoland/users/v1 -func DeleteUser -gas-fee 1000000ugnot -gas-wanted 90000000 -broadcast -chainid=tendermint_test gui
+stdout 'OK!'
+
+## Latest name should fail
+! gnokey maketx addpkg -pkgdir $WORK -pkgpath gno.land/r/newguigui123/deleted/one -gas-fee 1000000ugnot -gas-wanted 27000000 -broadcast -chainid=tendermint_test gui
+stderr 'unauthorized user'
+
+## Old name should fail
+! gnokey maketx addpkg -pkgdir $WORK -pkgpath gno.land/r/newguigui123/deleted/one -gas-fee 1000000ugnot -gas-wanted 27000000 -broadcast -chainid=tendermint_test gui
+stderr 'unauthorized user'
+
 -- one.gno --
 package one
 
