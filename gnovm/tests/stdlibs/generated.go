@@ -33,38 +33,6 @@ func (n *NativeFunc) HasMachineParam() bool {
 var nativeFuncs = [...]NativeFunc{
 	{
 		"std",
-		"AssertOriginCall",
-		[]gno.FieldTypeExpr{},
-		[]gno.FieldTypeExpr{},
-		true,
-		func(m *gno.Machine) {
-			testlibs_std.AssertOriginCall(
-				m,
-			)
-		},
-	},
-	{
-		"std",
-		"IsOriginCall",
-		[]gno.FieldTypeExpr{},
-		[]gno.FieldTypeExpr{
-			{Name: gno.N("r0"), Type: gno.X("bool")},
-		},
-		true,
-		func(m *gno.Machine) {
-			r0 := testlibs_std.IsOriginCall(
-				m,
-			)
-
-			m.PushValue(gno.Go2GnoValue(
-				m.Alloc,
-				m.Store,
-				reflect.ValueOf(&r0).Elem(),
-			))
-		},
-	},
-	{
-		"std",
 		"TestSkipHeights",
 		[]gno.FieldTypeExpr{
 			{Name: gno.N("p0"), Type: gno.X("int64")},

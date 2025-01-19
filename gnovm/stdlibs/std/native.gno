@@ -1,15 +1,15 @@
 package std
 
-// AssertOriginCall panics if [IsOriginCall] returns false.
-func AssertOriginCall() // injected
-
-// IsOriginCall returns true only if the calling method is invoked via a direct
-// MsgCall. It returns false for all other cases, like if the calling method
+// AssertOriginCall panics if the calling method is not invoked via a direct
+// MsgCall. It doesn't panic for any other cases, like if the calling method
 // is invoked by another method (even from the same realm or package).
-// It also returns false every time when the transaction is broadcasted via
+// It also panic every time when the transaction is broadcasted via
 // MsgRun.
-func IsOriginCall() bool // injected
-
+func AssertOriginCall() {
+	if !PrevRealm().IsUser() || isMsgRun() {
+		panic("invalid non-origin call")
+	}
+}
 func GetChainID() string     // injected
 func GetChainDomain() string // injected
 func GetHeight() int64       // injected
@@ -52,3 +52,4 @@ func origPkgAddr() string
 func callerAt(n int) string
 func getRealm(height int) (address string, pkgPath string)
 func assertCallerIsRealm()
+func isMsgRun() bool

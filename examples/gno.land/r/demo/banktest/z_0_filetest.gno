@@ -10,6 +10,7 @@ package bank1
 import (
 	"std"
 
+	"gno.land/p/demo/testutils"
 	"gno.land/r/demo/banktest"
 )
 
@@ -29,6 +30,8 @@ func main() {
 	// simulate a Deposit call. use Send + OrigSend to simulate -send.
 	banker.SendCoins(mainaddr, banktestAddr, std.Coins{{"ugnot", 100_000_000}})
 	std.TestSetOrigSend(std.Coins{{"ugnot", 100_000_000}}, nil)
+	caller := testutils.TestAddress("caller")
+	std.TestSetRealm(std.NewUserRealm(caller))
 	res := banktest.Deposit("ugnot", 50_000_000)
 	println("Deposit():", res)
 
