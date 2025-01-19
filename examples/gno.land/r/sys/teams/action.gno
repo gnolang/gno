@@ -1,143 +1,69 @@
 package teams
 
-import "std"
+type ActionFunc func(t *Team) Msg
 
-type ActionMsg interface{}
-
-type AddMemberMsg struct {
-	Member std.Address
+type Action interface {
+	call(t *Team) Msg
 }
 
-type RemoveMemberMsg struct {
-	Member std.Address
+type action struct {
+	actionFunc ActionFunc
 }
 
-type AddPackageMsg struct {
-	Path string
+func (a action) call(t *Team) Msg {
+	return a.actionFunc(t)
 }
 
-// Core actions
-const (
-	AddMember           ActionName = "add_member"
-	RemoveMember                   = "remove_member"
-	AddPackage                     = "add_pkg"
-	SetActionVisibility            = "set_action_status"
-	AddAction                      = "add_action"    // Allowed ?
-	UpdateAccessControl            = "update_implem" // Allowed ?
-)
-
-func (a ActionName) String() string {
-	return string(a)
-}
-
-type ActionHandler func(t *Team, msg ActionMsg)
-
-type ActionDescription struct {
-	Action      ActionName
-	Description string
-	Private     bool
-	Deprecated  bool
-	handler     ActionHandler
-}
-
-var actionDescriptions = []ActionDescription{
-	{
-		Action:      AddMember,
-		Description: "Adds a new member to the team.",
-		handler:     handlerAddMember,
-	},
-	{
-		Action:      RemoveMember,
-		Description: "Removes an existing member from the team.",
-		handler:     handlerRemoveMember,
-	},
-	{
-		Action:      AddPackage,
-		Description: "Adds a new package to the team's resources.",
-		handler:     nil, // XXX
-	},
-	{
-		Action:      AddAction,
-		Description: "Registers a new action for the team.",
-		handler:     handlerRegisterAction,
-	},
-	{
-		Action:      UpdateAccessControl,
-		Description: "Updates the access control interface of a team action.",
-		handler:     nil, // XXX
-	},
-}
-
-type SetActionVisibilityMsg struct {
-	ActionName
-	Private bool
-}
-
-func handlerSetActionVisibility(team *Team, msg ActionMsg) {
-	param, ok := msg.(SetActionVisibilityMsg)
-	if !ok {
-		panic("invalid arguments")
+func ActionableMsg(msg ...Msg) Action {
+	switch len(msg) {
+	case 0:
+		return nil
+	case 1:
+		return Actionable(func(_ *Team) Msg {
+			return msg[0]
+		})
+	default:
 	}
 
-	action, ok := team.getAction(param.ActionName)
-	if !ok {
-		panic("action doesn't exsit")
+	fns := make([]ActionFunc, len(msg))
+	for i, m := range msg {
+		fns[i] = func(_ *Team) Msg {
+			return m
+		}
 	}
-
-	// Set new status
-	action.Private = param.Private
-	team.actions.Set(string(action.Action), action)
+	return Actionable(fns...)
 }
 
-func handlerRegisterAction(team *Team, msg ActionMsg) {
-	action, ok := msg.(ActionDescription)
-	if !ok {
-		panic("invalid arguments")
+func Actionable(fn ...ActionFunc) Action {
+	switch len(fn) {
+	case 0:
+		return nil
+	case 1:
+		return &action{actionFunc: fn[0]}
+	default:
 	}
 
-	if team.actions.Has(string(action.Action)) {
-		panic(ErrAleadyExist)
+	actions := make([]Action, len(fn))
+	for i, f := range fn {
+		actions[i] = &action{actionFunc: f}
 	}
-
-	team.actions.Set(string(action.Action), action)
+	return ChainActions(actions...)
 }
 
-func handlerUpdateImplementation(team *Team, msg ActionMsg) {
-	action, ok := msg.(ActionDescription)
-	if ok {
-		panic("invalid arguments")
+func ChainActions(actions ...Action) Action {
+	switch len(actions) {
+	case 0:
+		return nil
+	case 1:
+		return actions[0]
+	default:
 	}
 
-	if team.actions.Has(string(action.Action)) {
-		panic(ErrAleadyExist)
-	}
-
-	team.actions.Set(string(action.Action), action)
-}
-
-func handlerAddMember(team *Team, msg ActionMsg) {
-	member, ok := msg.(std.Address)
-	if !ok {
-		panic("invalid arguments")
-	}
-
-	if team.members.Has(member.String()) {
-		panic(ErrAleadyExist)
-	}
-	team.members.Set(member.String(), struct{}{})
-}
-
-// func handlerAddPackage(team *Team, msg ActionMsg) {}
-
-func handlerRemoveMember(team *Team, msg ActionMsg) {
-	member, ok := msg.(std.Address)
-	if !ok {
-		panic("invalid arguments")
-	}
-
-	if !team.members.Has(member.String()) {
-		panic(ErrDoesNotExist)
-	}
-
-	team.members.Remove(member.String())
+	return Actionable(func(t *Team) Msg {
+		msgs := make([]Msg, len(actions))
+		for i, action := range actions {
+			msgs[i] = action.call(t)
+		}
+		return msgs
+	})
 }
