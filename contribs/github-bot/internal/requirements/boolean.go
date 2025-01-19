@@ -107,9 +107,9 @@ type IfCondition struct {
 
 var _ Requirement = &IfCondition{}
 
-func (n *IfCondition) IsSatisfied(pr *github.PullRequest, details treeprint.Tree) bool {
-	if n.then == nil {
-		n.then = Always()
+func (i *IfCondition) IsSatisfied(pr *github.PullRequest, details treeprint.Tree) bool {
+	if i.then == nil {
+		i.then = Always()
 	}
 	ifBranch := details.AddBranch("")
 	condBranch := ifBranch.AddBranch("")
@@ -119,12 +119,12 @@ func (n *IfCondition) IsSatisfied(pr *github.PullRequest, details treeprint.Tree
 		targetName string
 	)
 
-	if n.cond.IsSatisfied(pr, condBranch) {
+	if i.cond.IsSatisfied(pr, condBranch) {
 		condBranch.SetValue(fmt.Sprintf("%s Condition", utils.Success))
-		target, targetName = n.then, "Then"
+		target, targetName = i.then, "Then"
 	} else {
 		condBranch.SetValue(fmt.Sprintf("%s Condition", utils.Fail))
-		target, targetName = n.els, "Else"
+		target, targetName = i.els, "Else"
 	}
 
 	targBranch := ifBranch.AddBranch("")

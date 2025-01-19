@@ -96,6 +96,8 @@ func TestNot(t *testing.T) {
 }
 
 func TestIfCond(t *testing.T) {
+	t.Parallel()
+
 	for _, testCase := range []struct {
 		name        string
 		req         Requirement
