@@ -2,14 +2,23 @@ package multi_sig
 
 import (
 	"std"
+	"strconv"
 
 	"gno.land/p/demo/avl"
 	"gno.land/p/demo/ufmt"
 )
 
+type WithdrawProposal struct {
+	id        int
+	coin      std.Coin
+	recipient std.Address
+	approvals *avl.Tree
+}
+
 var (
 	owners            avl.Tree
 	newOwnerApprovals avl.Tree
+	withdrawProposals avl.Tree
 )
 
 func init() {
@@ -30,14 +39,12 @@ func InitOwners(addresses []string) {
 }
 
 func AddNewOwner(address string) {
+	assertOwnersInitialized()
 	caller := std.GetOrigCaller()
+	assertIsOwner(caller.String())
 
 	if owners.Has(address) {
 		panic("Proposed address is already an owner!")
-	}
-
-	if !owners.Has(caller.String()) {
-		panic("Only owners can suggest new owners!")
 	}
 
 	v, exists := newOwnerApprovals.Get(address)
@@ -56,5 +63,69 @@ func AddNewOwner(address string) {
 		newOwnerApprovals.Remove(address)
 		owners.Set(address, true)
 	}
+
+}
+
+func GiveUpOwnership() {
+	caller := std.GetOrigCaller()
+	assertOwnersInitialized()
+	assertIsOwner(caller.String())
+
+	if owners.Size() == 1 {
+		panic("You cannot give up ownership because there must be atleast one owner!")
+	}
+
+	owners.Remove(caller.String())
+
+}
+
+func assertOwnersInitialized() {
+	if owners.Size() == 0 {
+		panic("Owners must be initialised first!")
+	}
+}
+
+func assertIsOwner(address string) {
+	if !owners.Has(address) {
+		panic("You are not the owner!")
+	}
+}
+
+//Coins part
+
+func DepositCoins() {
+	assertOwnersInitialized()
+	assertIsOwner(std.GetOrigCaller().String())
+}
+
+func ProposeWithdraw(amount int64, denom string, recipient string) {
+	assertOwnersInitialized()
+	assertIsOwner(std.GetOrigCaller().String())
+	recipientAddr := std.Address(recipient)
+
+	if denom == "" {
+		panic("Denom cannot be empty!")
+	}
+	if amount <= 0 {
+		panic("Amount must greater than 0!")
+	}
+	if !recipientAddr.IsValid() {
+		panic("Recipient address not valid")
+	}
+
+	coin := std.Coin{
+		Denom:  denom,
+		Amount: amount,
+	}
+
+	id := withdrawProposals.Size()
+	proposal := WithdrawProposal{
+		id:        id,
+		coin:      coin,
+		recipient: recipientAddr,
+		approvals: avl.NewTree(),
+	}
+	proposal.approvals.Set(std.GetOrigCaller().String(), true)
+	withdrawProposals.Set(strconv.Itoa(id), proposal)
 
 }
