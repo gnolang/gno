@@ -6,8 +6,10 @@ import (
 	"std"
 	"strings"
 
+	"gno.land/p/demo/dao"
 	"gno.land/p/demo/ownable"
 
+	"gno.land/r/gov/dao/bridge"
 	"gno.land/r/sys/users"
 )
 
@@ -70,15 +72,14 @@ func defaultVerifier(enabled bool, address std.Address, name string) bool {
 	return userData.Addr() == address
 }
 
-// FIXME: Blocked by https://github.com/gnolang/gno/issues/3546
-//// NewVerifyCallExecutor allows updating the verifier function via a GovDAO proposal
-//func NewVerifyCallExecutor(newVerifyCall func(enabled bool, address std.Address, name string) bool) dao.Executor {
-//	callback := func() error {
-//		checkFunc = newVerifyCall
-//
-//		std.Emit(VerifyFuncUpdatedEvent)
-//		return nil
-//	}
-//
-//	return bridge.GovDAO().NewGovDAOExecutor(callback)
-//}
+// NewVerifyCallExecutor allows updating the verifier function via a GovDAO proposal
+func NewVerifyCallExecutor(newVerifyCall func(enabled bool, address std.Address, name string) bool) dao.Executor {
+	callback := func() error {
+		checkFunc = newVerifyCall
+
+		std.Emit(VerifyFuncUpdatedEvent)
+		return nil
+	}
+
+	return bridge.GovDAO().NewGovDAOExecutor(callback)
+}
