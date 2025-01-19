@@ -14,21 +14,21 @@ type OwnableAccessController struct {
 	DisableAddPackage  bool
 }
 
-func NewOwnableTeam(ownable *ownable.Ownable) *OwnableAccessController {
+func NewOwnableAccessController(ownable *ownable.Ownable) *OwnableAccessController {
 	return &OwnableAccessController{Ownable: ownable}
 }
 
-func (o *OwnableAccessController) CanPerform(member std.Address, msg Msg) bool {
-	switch msg.(type) {
-	case AddMemberMsg:
+func (o *OwnableAccessController) CanRun(member std.Address, cmd Cmd) bool {
+	switch cmd.(type) {
+	case AddMemberCmd:
 		if o.EnableAddMember {
 			return true
 		}
-	case RemoveMemberMsg:
+	case RemoveMemberCmd:
 		if o.EnableRemoveMember {
 			return true
 		}
-	case AddPackageMsg:
+	case AddPackageCmd:
 		if o.DisableAddPackage {
 			return false
 		}

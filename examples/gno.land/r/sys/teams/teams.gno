@@ -1,26 +1,19 @@
 package teams
 
 import (
-	"errors"
 	"regexp"
 	"std"
 
 	"gno.land/p/demo/avl"
 )
 
-var (
-	ErrUnauthorized = errors.New("unauthorized")
-	ErrAleadyExist  = errors.New("already exist")
-	ErrDoesNotExist = errors.New("does not exist")
-)
-
 type AccessController interface {
-	CanPerform(member std.Address, msg Msg) bool
+	CanRun(member std.Address, cmd Cmd) bool
 }
 
 type Lifecycle interface {
-	Init() Action
-	Update(team *Team, msg Msg) Action
+	Init() Task
+	ApplyUpdate(team *Team, cmd Cmd) Task
 }
 
 type ITeam interface {
@@ -38,102 +31,43 @@ type Team struct {
 	members avl.Tree // std.Address -> void
 }
 
-func (team *Team) Perform(msgs ...Msg) {
+func (team *Team) Run(cmds ...Cmd) {
 	caller := std.GetOrigCaller()
 	if !team.IsMember(caller) {
-		panic("only member can perform action on team")
+		panic("only member can perform command on team")
 	}
 
-	// get actions for the given msgs
-	actions := team.getActionsForMsg(msgs...)
-	team.performActions(actions...)
+	// get actions for the given cmds
+	actions := team.getTasksForCmds(cmds...)
+	team.performTasks(actions...)
+}
+
+func (team *Team) CanAddPackage(member std.Address, path string) bool {
+	return team.CanRun(member, AddPackageCmd{Path: path})
 }
 
 func (team *Team) AddMember(member std.Address) {
-	team.Perform(AddMemberMsg{
-		Member: member,
-	})
+	team.Run(AddMemberCmd{Member: member})
+}
+
+func (team *Team) CanAddMember(member, target std.Address) bool {
+	return team.CanRun(member, AddMemberCmd{Member: member})
 }
 
 func (team *Team) RemoveMember(member std.Address) {
-	team.Perform(RemoveMemberMsg{
-		Member: member,
-	})
+	team.Run(RemoveMemberCmd{Member: member})
+}
+
+func (team *Team) CanRemoveMember(member, target std.Address) bool {
+	return team.CanRun(member, RemoveMemberCmd{Member: target})
 }
 
 func (team *Team) HasMember(member std.Address) bool {
 	return team.members.Has(member.String())
 }
 
-type assertPerformDefaultMsg struct{ assert bool }
-
-func (team *Team) assertPerformDefault() {
-	action := team.Lifecycle.Update(team, assertPerformDefaultMsg{})
-	msg := action.call(team)
-	if assertMsg, ok := msg.(assertPerformDefaultMsg); ok {
-		if assertMsg.assert {
-			return
-		}
-	}
-
-	panic(`make sure that team implementation handle team update fallback`)
-}
-
-func (team *Team) PerformDefault(msg Msg) Action {
-	switch typ := msg.(type) {
-	case AddMemberMsg:
-		return AddMemberAction(typ.Member)
-	case RemoveMemberMsg:
-		return RemoveMemberAction(typ.Member)
-	case AddPackageMsg: // Do nothing
-
-	case assertPerformDefaultMsg:
-		typ.assert = true
-		return ActionableMsg(typ)
-	}
-
-	return nil
-}
-
-func (team *Team) performActions(actions ...Action) {
-	var action Action
-	for len(actions) > 0 {
-		action, actions = actions[0], actions[1:] // shift action
-		if action == nil {
-
-			continue // skip empty action
-		}
-
-		if msg := action.call(team); msg != nil {
-			nextActions := team.getActionsForMsg(msg)
-			actions = append(nextActions, actions...)
-		}
-	}
-}
-
-func (team *Team) getActionsForMsg(msgs ...Msg) []Action {
-	caller := std.GetOrigCaller()
-	actions := make([]Action, 0, len(msgs))
-	for _, msg := range msgs {
-		if msg == nil {
-			continue // skip empty msg
-		}
-
-		switch typ := msg.(type) {
-		case []Msg:
-			subActions := team.getActionsForMsg(typ...)
-			actions = append(actions, subActions...)
-		default:
-			// Assert caller can perform action
-			if !team.IsTeamAddress(caller) && !team.AccessController.CanPerform(caller, msg) {
-				panic("unauthorized: " + caller.String())
-			}
-
-			// Prepare action
-			actions = append(actions, team.Lifecycle.Update(team, msg))
-		}
-	}
-	return actions
+func (team *Team) CanRun(caller std.Address, cmd Cmd) bool {
+	return !team.IsTeamAddress(caller) && !team.AccessController.CanRun(caller, cmd)
 }
 
 func (team *Team) IsTeamAddress(teamAddr std.Address) bool {
@@ -144,9 +78,65 @@ func (team *Team) IsMember(member std.Address) bool {
 	return member == team.address || team.members.Has(member.String())
 }
 
+func (team *Team) ApplyDefault(cmd Cmd) Task {
+	switch typ := cmd.(type) {
+	case AddMemberCmd:
+		return AddMemberTask(typ.Member)
+	case RemoveMemberCmd:
+		return RemoveMemberTask(typ.Member)
+	case AddPackageCmd: // Do nothing
+
+	case assertRunDefaultCmd:
+		typ.assert = true
+		return CreateTaskCmd(typ)
+	}
+
+	return nil
+}
+
+func (team *Team) performTasks(tasks ...Task) {
+	var task Task
+	for len(tasks) > 0 {
+		task, tasks = tasks[0], tasks[1:] // shift task
+		if task == nil {
+			continue // skip empty task
+		}
+
+		if cmd := task.call(team); cmd != nil {
+			nextTasks := team.getTasksForCmds(cmd)
+			tasks = append(nextTasks, tasks...)
+		}
+	}
+}
+
+func (team *Team) getTasksForCmds(cmds ...Cmd) []Task {
+	caller := std.GetOrigCaller()
+	tasks := make([]Task, 0, len(cmds))
+	for _, cmd := range cmds {
+		if cmd == nil {
+			continue // skip empty cmd
+		}
+
+		switch typ := cmd.(type) {
+		case []Cmd:
+			subTasks := team.getTasksForCmds(typ...)
+			tasks = append(tasks, subTasks...)
+		default:
+			// Assert caller can perform task
+			if team.CanRun(caller, cmd) {
+				panic("unauthorized")
+			}
+
+			// Prepare task
+			tasks = append(tasks, team.Lifecycle.ApplyUpdate(team, cmd))
+		}
+	}
+	return tasks
+}
+
 type unlimitedAC struct{}
 
-func (unlimitedAC) CanPerform(member std.Address, msg Msg) bool {
+func (unlimitedAC) CanRun(member std.Address, cmd Cmd) bool {
 	return true
 }
 
@@ -155,17 +145,19 @@ var reHomeRealm = regexp.MustCompile(`^([a-zA-Z0-9-]+\.)*[a-zA-Z0-9-]+\.[a-zA-Z]
 
 func Register(iteam ITeam) *Team {
 	caller := std.GetOrigCaller()
-	println(caller)
 	realm := std.PrevRealm()
 
 	// First lets check the realm is valid
+	if iteam == nil {
+		panic("team cannot be nil")
+	}
 
-	// check if origin caller is an home path
+	// Check if origin caller is an home path
 	if !reHomeRealm.MatchString(realm.PkgPath()) {
 		panic("cannot register a team outside an home realm")
 	}
 
-	// check if caller is not already registerer as a team
+	// Check if caller is not already registerer as a team
 	if teams.Has(caller.String()) {
 		panic("team already registered: " + caller)
 	}
@@ -176,15 +168,15 @@ func Register(iteam ITeam) *Team {
 	// Assert that team implementation correctly use fallback
 	// XXX: do we want this ?
 	// > it  assert that caller have a minimal implementation of his team
-	team.assertPerformDefault()
+	team.assertRunDefault()
 
-	if initAction := iteam.Init(); initAction != nil {
+	if initTask := iteam.Init(); initTask != nil {
 		// init is performed using an unlimited ac
 		team.AccessController = unlimitedAC{}
-		team.performActions(initAction)
+		team.performTasks(initTask)
 	}
 
-	// once done, apply the provided implementation ac
+	// Once done, apply the provided implementation ac
 	team.AccessController = iteam
 	teams.Set(caller.String(), team)
 	return team
@@ -192,4 +184,18 @@ func Register(iteam ITeam) *Team {
 
 func IsRegister(teamAddr std.Address) bool {
 	return teams.Has(teamAddr.String())
+}
+
+type assertRunDefaultCmd struct{ assert bool }
+
+func (team *Team) assertRunDefault() {
+	task := team.Lifecycle.ApplyUpdate(team, assertRunDefaultCmd{})
+	cmd := task.call(team)
+	if assertCmd, ok := cmd.(assertRunDefaultCmd); ok {
+		if assertCmd.assert {
+			return
+		}
+	}
+
+	panic(`make sure that team implementation handle team update fallback`)
 }

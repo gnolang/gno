@@ -1963,7 +1963,7 @@ func (tv *TypedValue) GetPointerToFromTV(alloc *Allocator, store Store, path Val
 			"native type %s has no method or field %s",
 			dtv.T.String(), path.Name))
 	default:
-		panic("should not happen")
+		panic("should not happen: " + fmt.Sprintf("path: %#v", path))
 	}
 }
 

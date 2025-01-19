@@ -27,17 +27,17 @@ type MyTeam struct {
 	levels  avl.Tree // std.Address -> Level
 }
 
-func (m *MyTeam) Init() teams.Action {
+func (m *MyTeam) Init() teams.Task {
 	caller := std.GetOrigCaller()
-	return teams.ActionableMsg(
+	return teams.CreateTaskCmd(
 		// Add caller as member
-		teams.AddMemberMsg{caller},
+		teams.AddMemberCmd{caller},
 		// Promote caller to level4
-		SetLevelMsg{caller, Level4},
+		SetLevelCmd{caller, Level4},
 	)
 }
 
-func (m *MyTeam) CanPerform(member std.Address, msg teams.Msg) bool {
+func (m *MyTeam) CanRun(member std.Address, cmd teams.Cmd) bool {
 	var level Level
 	if mLevel, ok := m.levels.Get(member.String()); ok {
 		level = mLevel.(Level)
@@ -47,45 +47,45 @@ func (m *MyTeam) CanPerform(member std.Address, msg teams.Msg) bool {
 		return level >= target
 	}
 
-	// Base action
-	switch msg.(type) {
-	case SetLevelMsg:
+	// Team action
+	switch cmd.(type) {
+	case SetLevelCmd:
 		return shouldLevelMinimum(Level4)
-	case teams.RemoveMemberMsg:
+	case teams.RemoveMemberCmd:
 		return shouldLevelMinimum(Level3)
-	case teams.AddMemberMsg:
+	case teams.AddMemberCmd:
 		return shouldLevelMinimum(Level2)
-	case teams.AddPackageMsg:
+	case teams.AddPackageCmd:
 		return shouldLevelMinimum(Level1)
 	}
 
 	return false
 }
 
-func (m *MyTeam) Update(team *teams.Team, msg teams.Msg) teams.Action {
-	switch typ := msg.(type) {
-	case SetLevelMsg:
-		return teams.Actionable(func(_ *teams.Team) teams.Msg {
+func (m *MyTeam) ApplyUpdate(team *teams.Team, cmd teams.Cmd) teams.Task {
+	switch typ := cmd.(type) {
+	case SetLevelCmd:
+		return teams.CreateTask(func(_ *teams.Team) teams.Cmd {
 			mkey := typ.Member.String()
 			m.levels.Set(mkey, typ.Level)
 			return nil
 		})
-	case teams.AddMemberMsg:
-		return teams.ChainActions(
+	case teams.AddMemberCmd:
+		return teams.ChainTasks(
 			// Add a new member
-			teams.AddMemberAction(typ.Member),
+			teams.AddMemberTask(typ.Member),
 			// Promote it to level 1
-			teams.ActionableMsg(SetLevelMsg{
+			teams.CreateTaskCmd(SetLevelCmd{
 				Member: typ.Member,
 				Level:  Level1,
 			}),
 		)
 	}
 
-	return team.PerformDefault(msg)
+	return team.ApplyDefault(cmd)
 }
 
-type SetLevelMsg struct {
+type SetLevelCmd struct {
 	Member std.Address
 	Level
 }
@@ -98,7 +98,7 @@ func (m *MyTeam) GetLevel(member std.Address) Level {
 }
 
 func (m *MyTeam) SetLevel(member std.Address, level Level) {
-	m.Team.Perform(SetLevelMsg{
+	m.Team.Run(SetLevelCmd{
 		Member: member,
 		Level:  level,
 	})
@@ -111,58 +111,38 @@ func init() {
 }
 
 func main() {
+	// // Setup team address
+	// alice := testutils.TestAddress("alice")
+
 	// Setup user for test
 	alice := testutils.TestAddress("alice")
 	bob := testutils.TestAddress("bob")
 
-	println("myteam can add a package:", myteam.CanPerform(alice, teams.AddPackageMsg{}))
+	println("myteam can add a package:", myteam.CanAddPackage(alice, ""))
 
 	// Register alice to the team
 	myteam.AddMember(alice)
-	println("alice is member: ", myteam.HasMember(alice))
-	println("alice is level 1: ", myteam.GetLevel(alice) == Level1)
+	println("alice is member:", myteam.HasMember(alice))
+	println("alice is level_1:", myteam.GetLevel(alice) == Level1)
+	println("alice can add package:", myteam.CanAddPackage(alice, ""))
+	println("bob cannot add package:", myteam.CanAddPackage(bob, ""))
 
-	// Should be able to add a package on level1
-	println("alice can add package:", myteam.CanPerform(alice, teams.AddPackageMsg{}))
-	// Should be able to add a package on level1
-	println("bob cannot add package:", myteam.CanPerform(bob, teams.AddPackageMsg{}))
-
-	// Should not be able to add a member on level1
-	println("alice cannot add bob as member:",
-		myteam.CanPerform(alice, teams.AddMemberMsg{
-			Member: bob,
-		}))
+	// Alice should not be able to add a member on level1
+	println("as level_1, alice cannot add bob as member:", myteam.CanAddMember(alice, bob))
 
 	// Update alice to Level4
 	myteam.SetLevel(alice, Level4)
-	println("alice is level 4: ", myteam.GetLevel(alice) == Level4)
-	println("alice can add bob as member:",
-		myteam.CanPerform(alice, teams.AddMemberMsg{
-			Member: bob,
-		}))
+	println("alice is level_4:", myteam.GetLevel(alice) == Level4)
+	println("alice can add bob as member:", myteam.CanAddMember(alice, bob))
 
 	// Set caller to alice
 	std.TestSetOrigCaller(alice)
 
 	// alice add member bob
-	println("adding bob")
+	println("alice add bob as member")
 	myteam.AddMember(bob)
-	println("bob is member: ", myteam.HasMember(alice))
-	println("bob is level 1: ", myteam.GetLevel(alice) == Level1)
 
-	// Check if alice can perform add package
-	// println(teams.CanPerform(myTeamUser, alice, teams.AddPackageMsg{}))
-
-	// Set alice as caller
-	// std.TestSetOrigCaller(alice)
-	// Try to perform add package
-
-	// println(teams.CanPerform(myTeamUser, alice, teams.AddPackageMsg{}))
-
-	// bob := testutils.TestAddress("bob")
-
-	// println(teams.IsRegister(myteam.address))
-	// myteam.address = teams.Register(&myteam)
-	// println(teams.IsRegister(myteam.address))
+	println("bob is member:", myteam.HasMember(alice))
+	println("bob is level_1:", myteam.GetLevel(alice) == Level1)
 
 }
