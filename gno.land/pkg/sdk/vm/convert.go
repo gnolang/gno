@@ -193,6 +193,99 @@ func convertArgToGno(arg string, argT gno.Type) (tv gno.TypedValue) {
 	}
 }
 
+func JSONPrimitiveValues(m *gno.Machine, tvs []gno.TypedValue) string {
+	var str strings.Builder
+
+	str.WriteRune('[')
+	for i, tv := range tvs {
+		if i > 0 {
+			str.WriteRune(',')
+		}
+		str.WriteString(JSONPrimitiveValue(m, tv))
+	}
+	str.WriteRune(']')
+
+	return str.String()
+}
+
+func JSONPrimitiveValue(m *gno.Machine, tv gno.TypedValue) string {
+	if tv.T == nil {
+		return "null"
+	}
+
+	switch bt := gno.BaseOf(tv.T).(type) {
+	case gno.PrimitiveType:
+		switch bt {
+		case gno.IntType:
+			return fmt.Sprintf("%d", tv.GetInt())
+		case gno.Int8Type:
+			return fmt.Sprintf("%d", tv.GetInt8())
+		case gno.Int16Type:
+			return fmt.Sprintf("%d", tv.GetInt16())
+		case gno.UntypedRuneType, gno.Int32Type:
+			return fmt.Sprintf("%d", tv.GetInt32())
+		case gno.Int64Type:
+			return fmt.Sprintf("%d", tv.GetInt64())
+		case gno.UintType:
+			return fmt.Sprintf("%d", tv.GetUint())
+		case gno.Uint8Type:
+			return fmt.Sprintf("%d", tv.GetUint8())
+		case gno.DataByteType:
+			return fmt.Sprintf("%d", tv.GetDataByte())
+		case gno.Uint16Type:
+			return fmt.Sprintf("%d", tv.GetUint16())
+		case gno.Uint32Type:
+			return fmt.Sprintf("%d", tv.GetUint32())
+		case gno.Uint64Type:
+			return fmt.Sprintf("%d", tv.GetUint64())
+		case gno.Float32Type:
+			return fmt.Sprintf("%f", tv.GetFloat32())
+		case gno.Float64Type:
+			return fmt.Sprintf("%f", tv.GetFloat64())
+		case gno.UntypedBigintType, gno.BigintType:
+			return tv.V.(gno.BigintValue).V.String()
+		case gno.UntypedBigdecType, gno.BigdecType:
+			return tv.V.(gno.BigdecValue).V.String()
+		case gno.UntypedBoolType, gno.BoolType:
+			return fmt.Sprintf("%t", tv.GetBool())
+		case gno.UntypedStringType, gno.StringType:
+			return strconv.Quote(tv.GetString())
+		default:
+			panic("invalid primitive type - should not happen")
+		}
+	case *gno.PointerType:
+		// Check if Pointer we type implement Error
+		// If implements .Error(), return it.
+		if tv.IsError() {
+			res := m.Eval(gno.Call(gno.Sel(&gno.ConstExpr{TypedValue: tv}, "Error")))
+			return strconv.Quote(res[0].GetString())
+		}
+	default:
+		// Check if pointer wraped value can implement Error
+		ptv := gno.TypedValue{
+			T: &gno.PointerType{Elt: tv.T},
+			V: gno.PointerValue{TV: &tv, Base: tv.V},
+		}
+
+		// If implements .Error(), return it.
+		if ptv.IsError() {
+			res := m.Eval(gno.Call(gno.Sel(&gno.ConstExpr{TypedValue: ptv}, "Error")))
+			return strconv.Quote(res[0].GetString())
+		}
+	}
+
+	if tv.V == nil {
+		return "null"
+	}
+
+	var id string
+	if pv, ok := tv.V.(gno.PointerValue); ok {
+		id = pv.GetBase(m.Store).GetObjectID().String()
+	}
+
+	return strconv.Quote(fmt.Sprintf(`<%s:%s>`, tv.T.String(), id))
+}
+
 func convertFloat(value string, precision int) float64 {
 	assertNoPlusPrefix(value)
 	dec, _, err := apd.NewFromString(value)
