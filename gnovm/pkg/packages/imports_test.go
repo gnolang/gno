@@ -1,4 +1,4 @@
-package packages
+package packages_test
 
 import (
 	"os"
@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/gnolang/gno/gnovm/pkg/gnolang"
+	. "github.com/gnolang/gno/gnovm/pkg/packages"
 	"github.com/stretchr/testify/require"
 )
 
