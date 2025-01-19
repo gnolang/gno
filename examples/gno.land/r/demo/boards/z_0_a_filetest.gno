@@ -1,5 +1,5 @@
 // PKGPATH: gno.land/r/demo/boards_test
-package boards_test
+package boards
 
 import (
 	"gno.land/r/demo/boards"
@@ -19,4 +19,4 @@ func main() {
 }
 
 // Error:
-// unauthorized
+// expected package name [boards_test] but got [boards]

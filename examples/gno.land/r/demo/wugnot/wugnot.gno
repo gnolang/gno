@@ -6,9 +6,7 @@ import (
 
 	"gno.land/p/demo/grc/grc20"
 	"gno.land/p/demo/ufmt"
-	pusers "gno.land/p/demo/users"
 	"gno.land/r/demo/grc20reg"
-	"gno.land/r/demo/users"
 )
 
 var Token, adm = grc20.NewToken("wrapped GNOT", "wugnot", 0)
@@ -65,34 +63,27 @@ func Render(path string) string {
 
 func TotalSupply() uint64 { return Token.TotalSupply() }
 
-func BalanceOf(owner pusers.AddressOrName) uint64 {
-	ownerAddr := users.Resolve(owner)
-	return Token.BalanceOf(ownerAddr)
+func BalanceOf(owner std.Address) uint64 {
+	return Token.BalanceOf(owner)
 }
 
-func Allowance(owner, spender pusers.AddressOrName) uint64 {
-	ownerAddr := users.Resolve(owner)
-	spenderAddr := users.Resolve(spender)
-	return Token.Allowance(ownerAddr, spenderAddr)
+func Allowance(owner, spender std.Address) uint64 {
+	return Token.Allowance(owner, spender)
 }
 
-func Transfer(to pusers.AddressOrName, amount uint64) {
-	toAddr := users.Resolve(to)
+func Transfer(to std.Address, amount uint64) {
 	userTeller := Token.CallerTeller()
-	checkErr(userTeller.Transfer(toAddr, amount))
+	checkErr(userTeller.Transfer(to, amount))
 }
 
-func Approve(spender pusers.AddressOrName, amount uint64) {
-	spenderAddr := users.Resolve(spender)
+func Approve(spender std.Address, amount uint64) {
 	userTeller := Token.CallerTeller()
-	checkErr(userTeller.Approve(spenderAddr, amount))
+	checkErr(userTeller.Approve(spender, amount))
 }
 
-func TransferFrom(from, to pusers.AddressOrName, amount uint64) {
-	fromAddr := users.Resolve(from)
-	toAddr := users.Resolve(to)
+func TransferFrom(from, to std.Address, amount uint64) {
 	userTeller := Token.CallerTeller()
-	checkErr(userTeller.TransferFrom(fromAddr, toAddr, amount))
+	checkErr(userTeller.TransferFrom(from, to, amount))
 }
 
 func require(condition bool, msg string) {

@@ -8,8 +8,8 @@ import (
 	"gno.land/p/demo/avl"
 	"gno.land/p/demo/ownable"
 	"gno.land/p/demo/ufmt"
-	"gno.land/r/demo/users"
 	"gno.land/r/leon/hof"
+	"gno.land/r/sys/users"
 
 	"gno.land/r/stefann/registry"
 )
@@ -231,8 +231,8 @@ func formatAddress(address string) string {
 }
 
 func getDisplayName(addr std.Address) string {
-	if user := users.GetUserByAddress(addr); user != nil {
-		return user.Name
+	if user := users.ResolveAddress(addr); user != nil {
+		return user.Name()
 	}
 	return formatAddress(addr.String())
 }

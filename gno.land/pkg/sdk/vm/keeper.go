@@ -234,8 +234,8 @@ var reNamespace = regexp.MustCompile(`^[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/(?:r|p)/([\.
 
 // checkNamespacePermission check if the user as given has correct permssion to on the given pkg path
 func (vm *VMKeeper) checkNamespacePermission(ctx sdk.Context, creator crypto.Address, pkgPath string) error {
-	sysUsersPkg := vm.getSysUsersPkgParam(ctx)
-	if sysUsersPkg == "" {
+	sysNamesPkg := vm.getSysNamesPkgParam(ctx)
+	if sysNamesPkg == "" {
 		return nil
 	}
 	chainDomain := vm.getChainDomainParam(ctx)
@@ -257,7 +257,7 @@ func (vm *VMKeeper) checkNamespacePermission(ctx sdk.Context, creator crypto.Add
 	username := match[1]
 
 	// if `sysUsersPkg` does not exist -> skip validation.
-	usersPkg := store.GetPackage(sysUsersPkg, false)
+	usersPkg := store.GetPackage(sysNamesPkg, false)
 	if usersPkg == nil {
 		return nil
 	}
@@ -289,13 +289,13 @@ func (vm *VMKeeper) checkNamespacePermission(ctx sdk.Context, creator crypto.Add
 		})
 	defer m.Release()
 
-	// call $sysUsersPkg.IsAuthorizedAddressForName("<user>")
-	// We only need to check by name here, as address have already been check
+	// call sysNamesPkg.IsAuthorizedAddressForName("<user>")
+	// We only need to check by name here, as addresses have already been checked
 	mpv := gno.NewPackageNode("main", "main", nil).NewPackage()
 	m.SetActivePackage(mpv)
-	m.RunDeclaration(gno.ImportD("users", sysUsersPkg))
+	m.RunDeclaration(gno.ImportD("names", sysNamesPkg))
 	x := gno.Call(
-		gno.Sel(gno.Nx("users"), "IsAuthorizedAddressForName"),
+		gno.Sel(gno.Nx("names"), "IsAuthorizedAddressForName"),
 		gno.Str(creator.String()),
 		gno.Str(username),
 	)
