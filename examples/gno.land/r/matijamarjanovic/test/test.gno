@@ -3,9 +3,9 @@ package test
 import (
 	"std"
 
+	"gno.land/p/demo/grc/grc1155"
 	"gno.land/p/demo/grc/grc20"
 	"gno.land/p/demo/grc/grc721"
-	"gno.land/p/demo/grc/grc1155"
 	"gno.land/p/demo/ufmt"
 	"gno.land/r/matijamarjanovic/tokenhub"
 )
@@ -19,8 +19,8 @@ var (
 	tokenB, tokenBAdmin = grc20.NewToken("Token B", "TOKB", 6)
 	tokenC, tokenCAdmin = grc20.NewToken("Token C", "TOKC", 6)
 
-	mtGameItems   = grc1155.NewBasicGRC1155Token("https://game.example.com/items/{id}.json")
-	mtArtworks    = grc1155.NewBasicGRC1155Token("https://art.example.com/pieces/{id}.json")
+	mtGameItems    = grc1155.NewBasicGRC1155Token("https://game.example.com/items/{id}.json")
+	mtArtworks     = grc1155.NewBasicGRC1155Token("https://art.example.com/pieces/{id}.json")
 	mtCollectibles = grc1155.NewBasicGRC1155Token("https://collect.example.com/cards/{id}.json")
 )
 
@@ -29,7 +29,6 @@ func init() {
 	MintTestNFTs(testAddr)
 	MintTestTokens(testAddr)
 	MintTestMultiTokens(testAddr)
-
 
 	tokenhub.RegisterNFT(func() grc721.IGRC721 { return nftA }, "nft-a", "NFTA_1")
 	tokenhub.RegisterNFT(func() grc721.IGRC721 { return nftB }, "nft-b", "NFTB_1")
@@ -112,4 +111,3 @@ func MintTestMultiTokens(to std.Address) error {
 
 	return nil
 }
-
