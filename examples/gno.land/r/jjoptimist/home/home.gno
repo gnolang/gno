@@ -1,13 +1,15 @@
 package home
 
 import (
-    "time"
     "std"
     "strconv"
+    "time"
+
+    "gno.land/p/demo/ownable"
+    "gno.land/r/leon/hof"
 )
 
-var (
-    creation time.Time
+const (
     gnomeArt1 = `   /\
   /  \
  ,,,,,
@@ -37,43 +39,46 @@ var (
  -"-`
 )
 
+var (
+    creation time.Time
+)
+
 func getGnomeArt(height int64) string {
     var art string
-    if height%7 == 0 {
+    switch {
+    case height%7 == 0:
         art = gnomeArt4  // winking gnome
-    } else if height%5 == 0 {
+    case height%5 == 0:
         art = gnomeArt3  // starry-eyed gnome
-    } else if height%3 == 0 {
+    case height%3 == 0:
         art = gnomeArt2  // happy gnome
-    } else if height%2 == 0 {
+    default:
         art = gnomeArt1  // regular gnome
-    } else {
-        art = gnomeArt1  // default
     }
     return "```\n" + art + "\n```\n"
 }
 
 func init() {
     creation = time.Now()
+    hof.Register() 
 }
 
 func Render(path string) string {
-    cfg := GetConfig()
     height := std.GetHeight()
     
-    output := "# " + cfg.title + "\n\n"
+    output := "# " + config.Title + "\n\n"
     
     output += "## About Me\n"
     output += "- 👋 Hi, I'm JJOptimist\n"
     output += getGnomeArt(height)
-    output += "- 🌱 " + cfg.description + "\n"
+    output += "- 🌱 " + config.Description + "\n"
     
     output += "## Contact\n"
-    output += "- 📫 GitHub: [" + cfg.github + "](https://github.com/" + cfg.github + ")\n"
+    output += "- 📫 GitHub: [" + config.Github + "](https://github.com/" + config.Github + ")\n"
     
     output += "\n---\n"
     output += "_Realm created: " + creation.Format("2006-01-02 15:04:05 UTC") + "_\n"
-    output += "_Owner: " + GetOwner().String() + "_\n"
+    output += "_Owner: " + Ownable.Owner().String() + "_\n"
     output += "_Current Block Height: " + strconv.Itoa(int(height)) + "_"
     
     return output

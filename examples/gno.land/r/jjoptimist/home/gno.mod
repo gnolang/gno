@@ -1,5 +1,5 @@
 module gno.land/r/jjoptimist
 
-require (
+dependencies (
     gno.land/p/demo/ownable v0.0.0
 ) 
