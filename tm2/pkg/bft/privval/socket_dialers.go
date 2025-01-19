@@ -23,14 +23,16 @@ type SocketDialer func() (net.Conn, error)
 func DialTCPFn(addr string, timeoutReadWrite time.Duration, privKey ed25519.PrivKeyEd25519) SocketDialer {
 	return func() (net.Conn, error) {
 		conn, err := osm.Connect(addr)
-		if err == nil {
-			deadline := time.Now().Add(timeoutReadWrite)
-			err = conn.SetDeadline(deadline)
+		if err != nil {
+			return nil, err
 		}
-		if err == nil {
-			conn, err = p2pconn.MakeSecretConnection(conn, privKey)
+
+		deadline := time.Now().Add(timeoutReadWrite)
+		if err = conn.SetDeadline(deadline); err != nil {
+			return nil, err
 		}
-		return conn, err
+
+		return p2pconn.MakeSecretConnection(conn, privKey)
 	}
 }
 

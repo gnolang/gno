@@ -97,6 +97,8 @@ func (ss *SignerServer) serviceLoop() {
 		default:
 			err := ss.endpoint.ensureConnection()
 			if err != nil {
+				ss.Logger.Error("SignerServer: Connection failed", "err", err)
+				ss.Stop()
 				return
 			}
 			ss.servicePendingRequest()
