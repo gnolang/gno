@@ -35,11 +35,11 @@ func NewSignerListenerEndpoint(
 ) *SignerListenerEndpoint {
 	sc := &SignerListenerEndpoint{
 		listener:      listener,
-		timeoutAccept: defaultTimeoutAcceptSeconds * time.Second,
+		timeoutAccept: DefaultTimeoutAcceptSeconds * time.Second,
 	}
 
 	sc.BaseService = *service.NewBaseService(logger, "SignerListenerEndpoint", sc)
-	sc.signerEndpoint.timeoutReadWrite = defaultTimeoutReadWriteSeconds * time.Second
+	sc.signerEndpoint.readWriteTimeout = DefaultReadWriteTimeoutSeconds * time.Second
 	return sc
 }
 
@@ -48,7 +48,7 @@ func (sl *SignerListenerEndpoint) OnStart() error {
 	sl.connectRequestCh = make(chan struct{})
 	sl.connectionAvailableCh = make(chan net.Conn)
 
-	sl.pingTimer = time.NewTicker(defaultPingPeriodMilliseconds * time.Millisecond)
+	sl.pingTimer = time.NewTicker(DefaultPingPeriodMilliseconds * time.Millisecond)
 
 	go sl.serviceLoop()
 	go sl.pingLoop()

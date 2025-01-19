@@ -8,33 +8,40 @@ import (
 )
 
 const (
-	defaultMaxDialRetries        = 10
-	defaultRetryWaitMilliseconds = 100
+	DefaultMaxDialRetries      = 10
+	DefaultDialRetryIntervalMS = 100
 )
 
 // SignerServiceEndpointOption sets an optional parameter on the SignerDialerEndpoint.
 type SignerServiceEndpointOption func(*SignerDialerEndpoint)
 
-// SignerDialerEndpointTimeoutReadWrite sets the read and write timeout for connections
-// from external signing processes.
-func SignerDialerEndpointTimeoutReadWrite(timeout time.Duration) SignerServiceEndpointOption {
-	return func(ss *SignerDialerEndpoint) { ss.timeoutReadWrite = timeout }
+// SignerDialerEndpointReadWriteTimeout sets the read and write timeout for
+// connections from client processes.
+func SignerDialerEndpointReadWriteTimeout(timeout time.Duration) SignerServiceEndpointOption {
+	return func(ss *SignerDialerEndpoint) { ss.readWriteTimeout = timeout }
 }
 
-// SignerDialerEndpointConnRetries sets the amount of attempted retries to acceptNewConnection.
-func SignerDialerEndpointConnRetries(retries int) SignerServiceEndpointOption {
-	return func(ss *SignerDialerEndpoint) { ss.maxConnRetries = retries }
+// SignerDialerEndpointMaxDialRetries sets the amount of attempted retries to
+// acceptNewConnection.
+func SignerDialerEndpointMaxDialRetries(retries uint) SignerServiceEndpointOption {
+	return func(ss *SignerDialerEndpoint) { ss.maxDialRetries = retries }
 }
 
-// SignerDialerEndpoint dials using its dialer and responds to any
-// signature requests using its privVal.
+// SignerDialerEndpointDialRetryInterval sets the retry wait interval to a
+// custom value.
+func SignerDialerEndpointDialRetryInterval(interval time.Duration) SignerServiceEndpointOption {
+	return func(ss *SignerDialerEndpoint) { ss.dialRetryInterval = interval }
+}
+
+// SignerDialerEndpoint dials using its dialer and responds to any signature
+// requests using its privVal.
 type SignerDialerEndpoint struct {
 	signerEndpoint
 
 	dialer SocketDialer
 
-	retryWait      time.Duration
-	maxConnRetries int
+	maxDialRetries    uint
+	dialRetryInterval time.Duration
 }
 
 // NewSignerDialerEndpoint returns a SignerDialerEndpoint that will dial using the given
@@ -43,15 +50,20 @@ type SignerDialerEndpoint struct {
 func NewSignerDialerEndpoint(
 	logger *slog.Logger,
 	dialer SocketDialer,
+	options ...SignerServiceEndpointOption,
 ) *SignerDialerEndpoint {
 	sd := &SignerDialerEndpoint{
-		dialer:         dialer,
-		retryWait:      defaultRetryWaitMilliseconds * time.Millisecond,
-		maxConnRetries: defaultMaxDialRetries,
+		dialer:            dialer,
+		dialRetryInterval: DefaultDialRetryIntervalMS * time.Millisecond,
+		maxDialRetries:    DefaultMaxDialRetries,
 	}
 
 	sd.BaseService = *service.NewBaseService(logger, "SignerDialerEndpoint", sd)
-	sd.signerEndpoint.timeoutReadWrite = defaultTimeoutReadWriteSeconds * time.Second
+	sd.signerEndpoint.readWriteTimeout = DefaultReadWriteTimeoutSeconds * time.Second
+
+	for _, option := range options {
+		option(sd)
+	}
 
 	return sd
 }
@@ -61,15 +73,23 @@ func (sd *SignerDialerEndpoint) ensureConnection() error {
 		return nil
 	}
 
-	retries := 0
-	for retries < sd.maxConnRetries {
+	retries := uint(0)
+	for retries < sd.maxDialRetries {
 		conn, err := sd.dialer()
 
 		if err != nil {
 			retries++
-			sd.Logger.Debug("SignerDialer: Reconnection failed", "retries", retries, "max", sd.maxConnRetries, "err", err)
+			sd.Logger.Debug(
+				"SignerDialer: Reconnection failed",
+				"retries",
+				retries,
+				"max",
+				sd.maxDialRetries,
+				"err",
+				err,
+			)
 			// Wait between retries
-			time.Sleep(sd.retryWait)
+			time.Sleep(sd.dialRetryInterval)
 		} else {
 			sd.SetConnection(conn)
 			sd.Logger.Debug("SignerDialer: Connection Ready")
@@ -77,7 +97,13 @@ func (sd *SignerDialerEndpoint) ensureConnection() error {
 		}
 	}
 
-	sd.Logger.Debug("SignerDialer: Max retries exceeded", "retries", retries, "max", sd.maxConnRetries)
+	sd.Logger.Debug(
+		"SignerDialer: Max retries exceeded",
+		"retries",
+		retries,
+		"max",
+		sd.maxDialRetries,
+	)
 
 	return ErrNoConnection
 }

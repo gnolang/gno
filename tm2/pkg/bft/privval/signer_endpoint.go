@@ -12,7 +12,7 @@ import (
 )
 
 const (
-	defaultTimeoutReadWriteSeconds = 3
+	DefaultReadWriteTimeoutSeconds = 3
 )
 
 type signerEndpoint struct {
@@ -21,7 +21,7 @@ type signerEndpoint struct {
 	connMtx sync.Mutex
 	conn    net.Conn
 
-	timeoutReadWrite time.Duration
+	readWriteTimeout time.Duration
 }
 
 // Close closes the underlying net.Conn.
@@ -89,7 +89,7 @@ func (se *signerEndpoint) ReadMessage() (msg SignerMessage, err error) {
 	}
 
 	// Reset read deadline
-	deadline := time.Now().Add(se.timeoutReadWrite)
+	deadline := time.Now().Add(se.readWriteTimeout)
 
 	err = se.conn.SetReadDeadline(deadline)
 	if err != nil {
@@ -121,7 +121,7 @@ func (se *signerEndpoint) WriteMessage(msg SignerMessage) (err error) {
 	}
 
 	// Reset read deadline
-	deadline := time.Now().Add(se.timeoutReadWrite)
+	deadline := time.Now().Add(se.readWriteTimeout)
 	se.Logger.Debug("Write::Error Resetting deadline", "obj", se)
 
 	err = se.conn.SetWriteDeadline(deadline)

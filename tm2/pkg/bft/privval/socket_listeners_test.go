@@ -31,10 +31,7 @@ func testUnixAddr() (string, error) {
 	return addr, nil
 }
 
-func tcpListenerTestCase(
-	t *testing.T,
-	timeoutAccept, timeoutReadWrite time.Duration,
-) listenerTestCase {
+func tcpListenerTestCase(t *testing.T, timeoutAccept, timeoutReadWrite time.Duration) listenerTestCase {
 	t.Helper()
 
 	ln, err := net.Listen("tcp", "127.0.0.1:0")
@@ -64,10 +61,7 @@ func tcpListenerTestCase(
 	}
 }
 
-func unixListenerTestCase(
-	t *testing.T,
-	timeoutAccept, timeoutReadWrite time.Duration,
-) listenerTestCase {
+func unixListenerTestCase(t *testing.T, timeoutAccept, timeoutReadWrite time.Duration) listenerTestCase {
 	t.Helper()
 
 	addr, err := testUnixAddr()
@@ -89,10 +83,7 @@ func unixListenerTestCase(
 	}
 }
 
-func listenerTestCases(
-	t *testing.T,
-	timeoutAccept, timeoutReadWrite time.Duration,
-) []listenerTestCase {
+func listenerTestCases(t *testing.T, timeoutAccept, timeoutReadWrite time.Duration) []listenerTestCase {
 	t.Helper()
 
 	return []listenerTestCase{
@@ -152,11 +143,7 @@ func TestListenerTimeoutReadWrite(t *testing.T) {
 		}
 
 		if !opErr.Timeout() {
-			t.Errorf(
-				"for %s listener, got unexpected error: have %v, want Timeout error",
-				tc.description,
-				opErr,
-			)
+			t.Errorf("for %s listener, got unexpected error: have %v, want Timeout error", tc.description, opErr)
 		}
 	}
 }

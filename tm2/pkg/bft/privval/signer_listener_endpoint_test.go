@@ -16,7 +16,7 @@ import (
 )
 
 var (
-	testTimeoutAccept = defaultTimeoutAcceptSeconds * time.Second
+	testTimeoutAccept = DefaultTimeoutAcceptSeconds * time.Second
 
 	testTimeoutReadWrite    = 100 * time.Millisecond
 	testTimeoutReadWrite2o3 = 60 * time.Millisecond // 2/3 of the other one
@@ -36,16 +36,16 @@ func TestSignerRemoteRetryTCPOnly(t *testing.T) {
 	t.Parallel()
 
 	var (
-		attemptCh = make(chan int)
-		retries   = 10
+		attemptCh = make(chan uint)
+		retries   = uint(10)
 	)
 
 	ln, err := net.Listen("tcp", "127.0.0.1:0")
 	require.NoError(t, err)
 
 	// Continuously Accept connection and close {attempts} times
-	go func(ln net.Listener, attemptCh chan<- int) {
-		attempts := 0
+	go func(ln net.Listener, attemptCh chan<- uint) {
+		attempts := uint(0)
 		for {
 			conn, err := ln.Accept()
 			require.NoError(t, err)
@@ -66,8 +66,8 @@ func TestSignerRemoteRetryTCPOnly(t *testing.T) {
 		log.NewTestingLogger(t),
 		DialTCPFn(ln.Addr().String(), testTimeoutReadWrite, ed25519.GenPrivKey(), nil),
 	)
-	SignerDialerEndpointTimeoutReadWrite(time.Millisecond)(dialerEndpoint)
-	SignerDialerEndpointConnRetries(retries)(dialerEndpoint)
+	SignerDialerEndpointReadWriteTimeout(time.Millisecond)(dialerEndpoint)
+	SignerDialerEndpointMaxDialRetries(retries)(dialerEndpoint)
 
 	chainID := random.RandStr(12)
 	mockPV := types.NewMockPV()
@@ -102,8 +102,8 @@ func TestRetryConnToRemoteSigner(t *testing.T) {
 			logger,
 			tc.dialer,
 		)
-		SignerDialerEndpointTimeoutReadWrite(testTimeoutReadWrite)(dialerEndpoint)
-		SignerDialerEndpointConnRetries(10)(dialerEndpoint)
+		SignerDialerEndpointReadWriteTimeout(testTimeoutReadWrite)(dialerEndpoint)
+		SignerDialerEndpointMaxDialRetries(10)(dialerEndpoint)
 
 		signerServer := NewSignerServer(dialerEndpoint, chainID, mockPV)
 
@@ -184,8 +184,8 @@ func getMockEndpoints(
 		listenerEndpoint = newSignerListenerEndpoint(logger, l, testTimeoutReadWrite)
 	)
 
-	SignerDialerEndpointTimeoutReadWrite(testTimeoutReadWrite)(dialerEndpoint)
-	SignerDialerEndpointConnRetries(1e6)(dialerEndpoint)
+	SignerDialerEndpointReadWriteTimeout(testTimeoutReadWrite)(dialerEndpoint)
+	SignerDialerEndpointMaxDialRetries(1e6)(dialerEndpoint)
 
 	startListenerEndpointAsync(t, listenerEndpoint, endpointIsOpenCh)
 

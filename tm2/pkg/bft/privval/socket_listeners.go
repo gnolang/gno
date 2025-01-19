@@ -9,8 +9,8 @@ import (
 )
 
 const (
-	defaultTimeoutAcceptSeconds   = 3
-	defaultPingPeriodMilliseconds = 100
+	DefaultTimeoutAcceptSeconds   = 3
+	DefaultPingPeriodMilliseconds = 100
 )
 
 // timeoutError can be used to check if an error returned from the netp package
@@ -63,8 +63,8 @@ func NewTCPListener(
 		TCPListener:      ln.(*net.TCPListener),
 		listenerKey:      listenerKey,
 		authorizedKeys:   authorizedKeys,
-		timeoutAccept:    time.Second * defaultTimeoutAcceptSeconds,
-		timeoutReadWrite: time.Second * defaultTimeoutReadWriteSeconds,
+		timeoutAccept:    time.Second * DefaultTimeoutAcceptSeconds,
+		timeoutReadWrite: time.Second * DefaultReadWriteTimeoutSeconds,
 	}
 }
 
@@ -131,8 +131,8 @@ type unixListener struct {
 func NewUnixListener(ln net.Listener) *unixListener {
 	return &unixListener{
 		UnixListener:     ln.(*net.UnixListener),
-		timeoutAccept:    time.Second * defaultTimeoutAcceptSeconds,
-		timeoutReadWrite: time.Second * defaultTimeoutReadWriteSeconds,
+		timeoutAccept:    time.Second * DefaultTimeoutAcceptSeconds,
+		timeoutReadWrite: time.Second * DefaultReadWriteTimeoutSeconds,
 	}
 }
 

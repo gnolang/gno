@@ -47,12 +47,16 @@ func NewSignerServer(
 		return nil, nil, err
 	}
 
-	// Initialize the remote signer server with the dialer and the gnokey private validator.
-	server := privval.NewSignerServer(
-		privval.NewSignerDialerEndpoint(logger, dialer),
-		commonFlags.ChainID,
-		privVal,
+	endpoint := privval.NewSignerDialerEndpoint(
+		logger,
+		dialer,
+		privval.SignerDialerEndpointMaxDialRetries(commonFlags.DialMaxRetries),
+		privval.SignerDialerEndpointDialRetryInterval(commonFlags.DialRetryInterval),
+		privval.SignerDialerEndpointReadWriteTimeout(commonFlags.ReadWriteTimeout),
 	)
+
+	// Initialize the remote signer server with the dialer and the gnokey private validator.
+	server := privval.NewSignerServer(endpoint, commonFlags.ChainID, privVal)
 
 	return server, flush, nil
 }
