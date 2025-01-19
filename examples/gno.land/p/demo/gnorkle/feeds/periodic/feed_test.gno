@@ -1,11 +1,14 @@
-package static_test
+package periodic_test
 
 import (
 	"errors"
 	"testing"
+    "strings"
+    "std"
+    "time"
 
 	"gno.land/p/demo/gnorkle/feed"
-	"gno.land/p/demo/gnorkle/feeds/static"
+	"gno.land/p/demo/gnorkle/feeds/periodic"
 	"gno.land/p/demo/gnorkle/gnorkle"
 	"gno.land/p/demo/gnorkle/ingester"
 	"gno.land/p/demo/gnorkle/message"
@@ -18,7 +21,7 @@ type mockIngester struct {
 	canAutoCommit   bool
 	ingestErr       error
 	commitErr       error
-	value           string
+	values          []string
 	providerAddress string
 }
 
@@ -31,7 +34,7 @@ func (i *mockIngester) Ingest(value, providerAddress string) (bool, error) {
 		return false, i.ingestErr
 	}
 
-	i.value = value
+	i.values = append(i.values, value)
 	i.providerAddress = providerAddress
 	return i.canAutoCommit, nil
 }
@@ -41,18 +44,18 @@ func (i *mockIngester) CommitValue(storage gnorkle.Storage, providerAddress stri
 		return i.commitErr
 	}
 
-	return storage.Put(i.value)
+	return storage.Put(strings.Join(i.values, ","))
 }
 
-func TestNewSingleValueFeed(t *testing.T) {
-	staticFeed := static.NewSingleValueFeed("1", "")
+func TestNewMultiValueFeed(t *testing.T) {
+	periodicFeed := periodic.NewMultiValueFeed("1", "", 100)
 
-	uassert.Equal(t, "1", staticFeed.ID())
-	uassert.Equal(t, int(feed.TypeStatic), int(staticFeed.Type()))
+	uassert.Equal(t, "1", periodicFeed.ID())
+	uassert.Equal(t, int(feed.TypePeriodic), int(periodicFeed.Type()))
 }
 
 func TestFeed_Ingest(t *testing.T) {
-	var undefinedFeed *static.Feed
+	var undefinedFeed *periodic.Feed
 	err := undefinedFeed.Ingest("", "", "")
 	uassert.ErrorIs(t, err, feed.ErrUndefined)
 
@@ -61,122 +64,106 @@ func TestFeed_Ingest(t *testing.T) {
 		ingester           *mockIngester
 		verifyIsLocked     bool
 		doCommit           bool
+        timeAfterIngest    int64
 		funcType           message.FuncType
 		msg                string
 		providerAddress    string
 		expFeedValueString string
 		expErrText         string
-		expIsActive        bool
+        expCommitErrText   string
+        firstCommit        bool
 	}{
 		{
 			name:        "func invalid error",
 			ingester:    &mockIngester{},
 			funcType:    message.FuncType("derp"),
 			expErrText:  "invalid message function derp",
-			expIsActive: true,
+            verifyIsLocked: true,
 		},
-		{
-			name: "func ingest ingest error",
-			ingester: &mockIngester{
-				ingestErr: errors.New("ingest error"),
-			},
-			funcType:    message.FuncTypeIngest,
-			expErrText:  "ingest error",
-			expIsActive: true,
-		},
-		{
-			name: "func ingest commit error",
-			ingester: &mockIngester{
-				commitErr:     errors.New("commit error"),
-				canAutoCommit: true,
-			},
-			funcType:    message.FuncTypeIngest,
-			expErrText:  "commit error",
-			expIsActive: true,
-		},
-		{
-			name: "func commit commit error",
-			ingester: &mockIngester{
-				commitErr:     errors.New("commit error"),
-				canAutoCommit: true,
-			},
-			funcType:    message.FuncTypeCommit,
-			expErrText:  "commit error",
-			expIsActive: true,
-		},
-		{
+        {
 			name:            "only ingest",
 			ingester:        &mockIngester{},
 			funcType:        message.FuncTypeIngest,
 			msg:             "still active feed",
 			providerAddress: "gno1234",
-			expIsActive:     true,
+            verifyIsLocked: true,
 		},
-		{
-			name:               "ingest autocommit",
-			ingester:           &mockIngester{canAutoCommit: true},
-			funcType:           message.FuncTypeIngest,
-			msg:                "still active feed",
-			providerAddress:    "gno1234",
-			expFeedValueString: "still active feed",
-			verifyIsLocked:     true,
+        {
+			name:            "ingest and commit first value",
+			ingester:        &mockIngester{},
+			funcType:        message.FuncTypeIngest,
+			msg:             "blahblah",
+			providerAddress: "gno1234",
+            verifyIsLocked: false,
+            expFeedValueString: "blahblah",
+            doCommit: true,
 		},
-		{
-			name:           "commit no value",
-			ingester:       &mockIngester{},
-			funcType:       message.FuncTypeCommit,
-			msg:            "shouldn't be stored",
-			verifyIsLocked: true,
+        {
+			name:            "ingest and commit with enough time passed",
+			ingester:        &mockIngester{},
+			funcType:        message.FuncTypeIngest,
+			msg:             "blahblah",
+			providerAddress: "gno1234",
+            verifyIsLocked: false,
+            expFeedValueString: "blahblah",
+            timeAfterIngest: 101,
+            doCommit: true,
+            firstCommit: true,
 		},
-		{
-			name:               "ingest then commmit",
-			ingester:           &mockIngester{},
-			funcType:           message.FuncTypeIngest,
-			msg:                "blahblah",
-			doCommit:           true,
-			expFeedValueString: "blahblah",
-			verifyIsLocked:     true,
+        {
+			name:            "ingest and commit without time passed",
+			ingester:        &mockIngester{},
+			funcType:        message.FuncTypeIngest,
+			msg:             "still active feed",
+			providerAddress: "gno1234",
+            verifyIsLocked: false,
+            doCommit: true,
+            expCommitErrText: "time between commit not reached",
+            firstCommit: true,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			staticFeed := static.NewFeed(
+			periodicFeed := periodic.NewFeed(
 				"1",
 				"string",
+                100,
 				tt.ingester,
 				simple.NewStorage(1),
 				nil,
 			)
 
-			var errText string
-			if err := staticFeed.Ingest(tt.funcType, tt.msg, tt.providerAddress); err != nil {
-				errText = err.Error()
-			}
+            if (tt.firstCommit) {
+                periodicFeed.storage.Put("")
+                periodicFeed.lastCommitTime = time.Now().Unix()
+            }
 
+			var errText string
+			if err := periodicFeed.Ingest(tt.funcType, tt.msg, tt.providerAddress); err != nil {
+                errText = err.Error()
+			}
 			urequire.Equal(t, tt.expErrText, errText)
 
+            if tt.timeAfterIngest > 0 {
+                std.TestSkipHeights(tt.timeAfterIngest)
+            }
+
 			if tt.doCommit {
-				err := staticFeed.Ingest(message.FuncTypeCommit, "", "")
-				urequire.NoError(t, err, "follow up commit failed")
-			}
-
-			if tt.verifyIsLocked {
-				errText = ""
-				if err := staticFeed.Ingest(tt.funcType, tt.msg, tt.providerAddress); err != nil {
-					errText = err.Error()
-				}
-
-				urequire.Equal(t, "feed locked", errText)
+                var errText string
+				if err := periodicFeed.Ingest(message.FuncTypeCommit, "", ""); err != nil {
+                    errText = err.Error()
+                }
+                urequire.Equal(t, errText, tt.expCommitErrText)
 			}
 
 			uassert.Equal(t, tt.providerAddress, tt.ingester.providerAddress)
 
-			feedValue, dataType, isLocked := staticFeed.Value()
+			feedValue, dataType, isLocked := periodicFeed.Value()
 			uassert.Equal(t, tt.expFeedValueString, feedValue.String)
 			uassert.Equal(t, "string", dataType)
 			uassert.Equal(t, tt.verifyIsLocked, isLocked)
-			uassert.Equal(t, tt.expIsActive, staticFeed.IsActive())
+			uassert.Equal(t, true, periodicFeed.IsActive())
 		})
 	}
 }
@@ -206,7 +193,7 @@ func TestFeed_Tasks(t *testing.T) {
 	}{
 		{
 			name:    "no tasks",
-			expJSON: `{"id":"99","type":"0","value_type":"int","tasks":[]}`,
+			expJSON: `{"id":"99","type":"2","value_type":"int","tasks":[]}`,
 		},
 		{
 			name: "marshal error",
@@ -220,7 +207,7 @@ func TestFeed_Tasks(t *testing.T) {
 			tasks: []feed.Task{
 				mockTask{value: "single"},
 			},
-			expJSON: `{"id":"99","type":"0","value_type":"int","tasks":[{"value":"single"}]}`,
+			expJSON: `{"id":"99","type":"2","value_type":"int","tasks":[{"value":"single"}]}`,
 		},
 		{
 			name: "two tasks",
@@ -228,22 +215,23 @@ func TestFeed_Tasks(t *testing.T) {
 				mockTask{value: "first"},
 				mockTask{value: "second"},
 			},
-			expJSON: `{"id":"99","type":"0","value_type":"int","tasks":[{"value":"first"},{"value":"second"}]}`,
+			expJSON: `{"id":"99","type":"2","value_type":"int","tasks":[{"value":"first"},{"value":"second"}]}`,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			staticFeed := static.NewSingleValueFeed(
+			periodicFeed := periodic.NewMultiValueFeed(
 				id,
 				valueDataType,
+                100,
 				tt.tasks...,
 			)
 
-			urequire.Equal(t, len(tt.tasks), len(staticFeed.Tasks()))
+			urequire.Equal(t, len(tt.tasks), len(periodicFeed.Tasks()))
 
 			var errText string
-			json, err := feed.MarshalFeedJSON(staticFeed)
+			json, err := feed.MarshalFeedJSON(periodicFeed)
 			if err != nil {
 				errText = err.Error()
 			}
