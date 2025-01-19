@@ -209,8 +209,8 @@ func TestAnteHandlerAccountNumbersAtBlockHeightZero(t *testing.T) {
 	tx = tu.NewTestTx(t, ctx.ChainID(), msgs, privs, []uint64{1}, seqs, fee)
 	checkInvalidTx(t, anteHandler, ctx, tx, false, std.UnauthorizedError{})
 
-	// from correct account number
-	seqs = []uint64{1}
+	// At genesis account number is zero
+	seqs = []uint64{0}
 	tx = tu.NewTestTx(t, ctx.ChainID(), msgs, privs, []uint64{0}, seqs, fee)
 	checkValidTx(t, anteHandler, ctx, tx, false)
 
@@ -223,7 +223,7 @@ func TestAnteHandlerAccountNumbersAtBlockHeightZero(t *testing.T) {
 	checkInvalidTx(t, anteHandler, ctx, tx, false, std.UnauthorizedError{})
 
 	// correct account numbers
-	privs, accnums, seqs = []crypto.PrivKey{priv1, priv2}, []uint64{0, 0}, []uint64{2, 0}
+	privs, accnums, seqs = []crypto.PrivKey{priv1, priv2}, []uint64{0, 0}, []uint64{0, 0}
 	tx = tu.NewTestTx(t, ctx.ChainID(), msgs, privs, accnums, seqs, fee)
 	checkValidTx(t, anteHandler, ctx, tx, false)
 }
@@ -623,7 +623,7 @@ func TestProcessPubKey(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 
-			_, err := ProcessPubKey(tt.args.acc, tt.args.sig, tt.args.simulate)
+			_, err := ProcessPubKey(tt.args.acc, tt.args.sig)
 			require.Equal(t, tt.wantErr, !err.IsOK())
 		})
 	}
@@ -655,7 +655,7 @@ func TestConsumeSignatureVerificationGas(t *testing.T) {
 		gasConsumed int64
 		shouldErr   bool
 	}{
-		{"PubKeyEd25519", args{store.NewInfiniteGasMeter(), nil, ed25519.GenPrivKey().PubKey(), params}, DefaultSigVerifyCostED25519, true},
+		{"PubKeyEd25519", args{store.NewInfiniteGasMeter(), nil, ed25519.GenPrivKey().PubKey(), params}, DefaultSigVerifyCostED25519, false},
 		{"PubKeySecp256k1", args{store.NewInfiniteGasMeter(), nil, secp256k1.GenPrivKey().PubKey(), params}, DefaultSigVerifyCostSecp256k1, false},
 		{"Multisig", args{store.NewInfiniteGasMeter(), amino.MustMarshal(multisignature1), multisigKey1, params}, expectedCost1, false},
 		{"unknown key", args{store.NewInfiniteGasMeter(), nil, nil, params}, 0, true},
