@@ -2,6 +2,7 @@ package gnolang
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"io"
 	"os"
@@ -10,6 +11,7 @@ import (
 	"strings"
 	"testing"
 	"text/template"
+	"time"
 	"unsafe"
 
 	// "github.com/davecgh/go-spew/spew"
@@ -289,6 +291,31 @@ func main() {
 	n := MustParseFile("main.go", c)
 	m.RunFiles(n)
 	m.RunMain()
+}
+
+func TestRunMemoryAllocationBuster(t *testing.T) {
+	t.Parallel()
+
+	m := NewMachine("test", nil)
+	c := `package test
+func main() {
+    var x interface{}    
+    for i := 0; i < 10000; i++ {
+        x = [1]interface{}{x}    
+    }
+    for i := 0; i < 10000; i++ {
+        println(x)   
+    }
+}
+`
+	n := MustParseFile("main.go", c)
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	m.SetRunContext(ctx)
+
+	m.RunFiles(n)
+	m.RunMain()
+
 }
 
 func BenchmarkPreprocessForLoop(b *testing.B) {
