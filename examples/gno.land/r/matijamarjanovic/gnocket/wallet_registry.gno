@@ -37,8 +37,10 @@ func NewWallet() *Wallet {
 	braw := GetAllBalancesRaw()
 	braw = strings.TrimPrefix(braw, "Balances: ")
 
+
+	//todo remove implementation of avltree for user balances
 	allTokens := strings.Split(braw, ",")
-	for _, token := range allTokens[:len(allTokens)-1] {
+	for _, token := range allTokens[:len(allTokens)-1] { 
 		tokenParts := strings.Split(token, ":")
 		tokenType := tokenParts[0]
 		tokenKey := tokenParts[1]
