@@ -12,9 +12,7 @@ import (
 const admin = std.Address("g1manfred47kzduec920z88wfr64ylksmdcedlf5")
 
 func main() {
-	caller := testutils.TestAddress("caller")
-	std.TestSetRealm(std.NewUserRealm(caller))
-	std.TestSetOrigCaller(caller)
+	caller := std.GetOrigCaller() // main
 	users.Register("", "gnouser", "my profile")
 	// as admin, grant invites to gnouser
 	std.TestSetOrigCaller(admin)
@@ -63,7 +61,7 @@ func main() {
 // ========================================
 // ## user gnouser
 //
-//  * address = g1vdskcmr9wf047h6lta047h6lta047h6lq5m7fe
+//  * address = g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm
 //  * 9 invites
 //
 // my profile
@@ -73,7 +71,7 @@ func main() {
 //
 //  * address = g1w3jhxap3ta047h6lta047h6lta047h6l4mfnm7
 //  * 0 invites
-//  * invited by g1vdskcmr9wf047h6lta047h6lta047h6lq5m7fe
+//  * invited by g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm
 //
 // my other profile
 //

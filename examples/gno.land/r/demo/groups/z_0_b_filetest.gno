@@ -2,9 +2,6 @@
 package groups_test
 
 import (
-	"std"
-
-	"gno.land/p/demo/testutils"
 	"gno.land/r/demo/groups"
 	"gno.land/r/demo/users"
 )
@@ -12,8 +9,6 @@ import (
 var gid groups.GroupID
 
 func main() {
-	test := testutils.TestAddress("test")
-	std.TestSetRealm(std.NewUserRealm(test))
 	users.Register("", "gnouser", "my profile")
 	gid = groups.CreateGroup("test_group")
 	println(gid)

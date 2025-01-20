@@ -11,9 +11,7 @@ import (
 const admin = std.Address("g1manfred47kzduec920z88wfr64ylksmdcedlf5")
 
 func init() {
-	caller := testutils.TestAddress("caller")
-	std.TestSetRealm(std.NewUserRealm(caller))
-	std.TestSetOrigCaller(caller)
+	caller := std.GetOrigCaller() // main
 	test2 := testutils.TestAddress("test2")
 	// as admin, invite gnouser and test2
 	std.TestSetOrigCaller(admin)
@@ -26,7 +24,6 @@ func init() {
 func main() {
 	// register as test2
 	test2 := testutils.TestAddress("test2")
-	std.TestSetRealm(std.NewUserRealm(test2))
 	std.TestSetOrigCaller(test2)
 	users.Register(admin, "test222", "my profile 2")
 	println("done")

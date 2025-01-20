@@ -14,13 +14,20 @@ func GetChainDomain(m *gno.Machine) string {
 	return GetContext(m).ChainDomain
 }
 
-func X_isMsgRun(m *gno.Machine) bool {
+func AssertOriginCall(m *gno.Machine) {
+	if !isOriginCall(m) {
+		m.Panic(typedString("invalid non-origin call"))
+	}
+}
+
+func isOriginCall(m *gno.Machine) bool {
 	n := m.NumFrames()
 	if n == 0 {
 		return false
 	}
-
-	return m.Frames[0].LastPackage.PkgPath != "main"
+	firstPkg := m.Frames[0].LastPackage
+	isMsgCall := firstPkg != nil && firstPkg.PkgPath == "main"
+	return n <= 2 && isMsgCall
 }
 
 func GetHeight(m *gno.Machine) int64 {

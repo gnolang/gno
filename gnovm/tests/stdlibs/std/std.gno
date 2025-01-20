@@ -1,15 +1,10 @@
 package std
 
+func AssertOriginCall()           // injected
 func TestSkipHeights(count int64) // injected
 
 func TestSetOrigCaller(addr Address)  { testSetOrigCaller(string(addr)) }
 func TestSetOrigPkgAddr(addr Address) { testSetOrigPkgAddr(string(addr)) }
-
-func AssertOriginCall() {
-	if !PrevRealm().IsUser() {
-		panic("invalid non-origin call")
-	}
-}
 
 // TestSetRealm sets the realm for the current frame.
 // After calling TestSetRealm, calling CurrentRealm() in the test function will yield the value of
