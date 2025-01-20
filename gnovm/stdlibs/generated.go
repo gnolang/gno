@@ -450,7 +450,7 @@ var nativeFuncs = [...]NativeFunc{
 	},
 	{
 		"std",
-		"GetChainID",
+		"ChainID",
 		[]gno.FieldTypeExpr{},
 		[]gno.FieldTypeExpr{
 			{Name: gno.N("r0"), Type: gno.X("string")},
@@ -470,7 +470,7 @@ var nativeFuncs = [...]NativeFunc{
 	},
 	{
 		"std",
-		"GetChainDomain",
+		"ChainDomain",
 		[]gno.FieldTypeExpr{},
 		[]gno.FieldTypeExpr{
 			{Name: gno.N("r0"), Type: gno.X("string")},
@@ -490,7 +490,7 @@ var nativeFuncs = [...]NativeFunc{
 	},
 	{
 		"std",
-		"GetHeight",
+		"ChainHeight",
 		[]gno.FieldTypeExpr{},
 		[]gno.FieldTypeExpr{
 			{Name: gno.N("r0"), Type: gno.X("int64")},
