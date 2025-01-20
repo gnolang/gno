@@ -27,7 +27,7 @@ builds:
     goarm:
       - "6"
       - "7"
-      - id: gnoland
+  - id: gnoland
     main: ./gno.land/cmd/gnoland
     binary: gnoland
     env:
