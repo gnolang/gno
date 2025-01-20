@@ -72,6 +72,8 @@ func RemoveMemberTask(member std.Address) Task {
 	})
 }
 
+// The command bellow should be use with precaution
+
 // UpdateAccessControllerCmd represents a command to update the team's access controller.
 type UpdateAccessControllerCmd struct {
 	AccessController
@@ -83,6 +85,21 @@ func (cmd UpdateAccessControllerCmd) Name() string { return "UpdateAccessControl
 func UpdateAccessControllerTask(ac AccessController) Task {
 	return CreateTask(func(t *Team) Cmd {
 		t.AccessController = ac
+		return nil
+	})
+}
+
+// UpdateLifecycleCmd represents a command to update the team's access controller.
+type UpdateLifecycleCmd struct {
+	Lifecycle
+}
+
+func (cmd UpdateLifecycleCmd) Name() string { return "UpdateLifecycle" }
+
+// UpdateLifecycleTask creates a task to update the team's access controller.
+func UpdateLifecycleTask(ac Lifecycle) Task {
+	return CreateTask(func(t *Team) Cmd {
+		t.Lifecycle = ac
 		return nil
 	})
 }

@@ -41,6 +41,7 @@ func NewOwnableAccessController(ownable *ownable.Ownable) *OwnableAccessControll
 }
 
 func (o *OwnableAccessController) CanRun(member std.Address, cmd Cmd) bool {
+
 	if o.Ownable.Owner() == member { // All mighty owner
 		return true
 	}

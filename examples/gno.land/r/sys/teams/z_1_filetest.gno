@@ -22,7 +22,7 @@ func main() {
 	// Setup team user address
 	println("team address is team address:", myteam.IsTeamAddress(teamAddress))
 	println("team address is not member:", !myteam.HasMember(teamAddress))
-	println("team address can add package:", myteam.CanAddPackage(teamAddress, ""))
+	println("team address can add package:", myteam.CanAddPackage(teamAddress))
 	println("team address can add member alice:", myteam.CanAddMember(teamAddress, alice))
 
 	println("alice is not member:", !myteam.HasMember(alice))

@@ -5,6 +5,7 @@ import (
 
 	"gno.land/p/demo/ownable"
 	"gno.land/r/demo/users"
+	"gno.land/r/sys/teams"
 )
 
 const admin = "g1manfred47kzduec920z88wfr64ylksmdcedlf5" // @moul
@@ -38,6 +39,12 @@ func VerifyNameByUser(enable bool, address std.Address, name string) bool {
 	}
 
 	if user := users.GetUserByName(name); user != nil {
+		// Check if team exist first
+		// XXX: for now a team is still user
+		if team := teams.Get(user.Address); team != nil {
+			return team.CanAddPackage(address)
+		}
+
 		return user.Address == address
 	}
 
