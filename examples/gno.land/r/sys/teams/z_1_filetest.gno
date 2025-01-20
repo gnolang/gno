@@ -24,9 +24,19 @@ func main() {
 	println("team address is not member:", !myteam.HasMember(teamAddress))
 	println("team address can add package:", myteam.CanAddPackage(teamAddress))
 	println("team address can add member alice:", myteam.CanAddMember(teamAddress, alice))
-
 	println("alice is not member:", !myteam.HasMember(alice))
+
 	println(" -> adding alice as member")
 	myteam.AddMember(alice)
+
 	println("alice is now a member:", myteam.HasMember(alice))
 }
+
+// Output:
+// team address is team address: true
+// team address is not member: true
+// team address can add package: true
+// team address can add member alice: true
+// alice is not member: true
+//  -> adding alice as member
+// alice is now a member: true

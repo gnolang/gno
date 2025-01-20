@@ -118,8 +118,7 @@ func init() {
 }
 
 func main() {
-	println(" -> register myteam")
-
+	println("* registered myteam")
 	myteamUser := myteam.Address()
 
 	// Setup team user address
@@ -137,22 +136,25 @@ func main() {
 	// Register alice to the team
 	println(" -> adding alice as a member")
 	myteam.AddMember(alice)
+
 	println("alice is member:", myteam.HasMember(alice))
 	println("alice is level_1:", myteam.GetLevel(alice) == Level1)
 	println("alice can add package:", myteam.CanAddPackage(alice))
 	println("bob cannot add package:", !myteam.CanAddPackage(bob))
-
 	// Alice should not be able to add a member on level1
 	println("as level_1, alice cannot add bob as member:", !myteam.CanAddMember(alice, bob))
 
 	// Update alice to Level4
 	println(" -> setting alice to level 4")
 	myteam.SetLevel(alice, Level4)
+
 	println("alice is level_4:", myteam.GetLevel(alice) == Level4)
 	println("alice can add bob as member:", myteam.CanAddMember(alice, bob))
 
+	// Burn team address
 	println(" -> burn team address")
 	myteam.BurnTeamAddress()
+
 	println("myteamUser is not member:", !myteam.HasMember(myteamUser))
 	println("myteamUser is level_Unknown:", myteam.GetLevel(myteamUser) == LevelUnknown)
 	println("myteamUser cannot add package:", !myteam.CanAddPackage(myteamUser))
@@ -179,7 +181,7 @@ func main() {
 }
 
 // Output:
-//  -> register myteam
+// * registered myteam
 // myteamUser is team address: true
 // myteamUser is not member: true
 // myteamUser has not level: true
