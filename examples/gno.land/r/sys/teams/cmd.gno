@@ -6,6 +6,7 @@ import (
 )
 
 var ErrAlreadyExist = errors.New("already exist")
+var ErrDoesNotExist = errors.New("does not exist")
 
 type Cmd interface{}
 
@@ -29,8 +30,8 @@ type RemoveMemberCmd struct {
 
 func RemoveMemberTask(member std.Address) Task {
 	return CreateTask(func(t *Team) Cmd {
-		if t.members.Has(member.String()) {
-			panic(ErrAlreadyExist)
+		if !t.members.Has(member.String()) {
+			panic(ErrDoesNotExist)
 		}
 		t.members.Set(member.String(), struct{}{})
 		return nil

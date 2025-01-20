@@ -33,7 +33,7 @@ type Team struct {
 
 func (team *Team) Run(cmds ...Cmd) {
 	caller := std.GetOrigCaller()
-	if !team.IsMember(caller) {
+	if !team.HasMember(caller) {
 		panic("only member can perform command on team")
 	}
 
@@ -63,19 +63,15 @@ func (team *Team) CanRemoveMember(member, target std.Address) bool {
 }
 
 func (team *Team) HasMember(member std.Address) bool {
-	return team.members.Has(member.String())
+	return member == team.address || team.members.Has(member.String())
 }
 
 func (team *Team) CanRun(caller std.Address, cmd Cmd) bool {
-	return !team.IsTeamAddress(caller) && !team.AccessController.CanRun(caller, cmd)
+	return team.IsTeamAddress(caller) || team.AccessController.CanRun(caller, cmd)
 }
 
 func (team *Team) IsTeamAddress(teamAddr std.Address) bool {
 	return teamAddr == team.address
-}
-
-func (team *Team) IsMember(member std.Address) bool {
-	return member == team.address || team.members.Has(member.String())
 }
 
 func (team *Team) ApplyDefault(cmd Cmd) Task {
@@ -123,7 +119,7 @@ func (team *Team) getTasksForCmds(cmds ...Cmd) []Task {
 			tasks = append(tasks, subTasks...)
 		default:
 			// Assert caller can perform task
-			if team.CanRun(caller, cmd) {
+			if !team.CanRun(caller, cmd) {
 				panic("unauthorized")
 			}
 

@@ -38,25 +38,21 @@ func (m *MyTeam) Init() teams.Task {
 }
 
 func (m *MyTeam) CanRun(member std.Address, cmd teams.Cmd) bool {
-	var level Level
-	if mLevel, ok := m.levels.Get(member.String()); ok {
-		level = mLevel.(Level)
-	}
-
-	shouldLevelMinimum := func(target Level) bool {
+	level := m.GetLevel(member)
+	shouldBeLevelMinimum := func(target Level) bool {
 		return level >= target
 	}
 
 	// Team action
 	switch cmd.(type) {
 	case SetLevelCmd:
-		return shouldLevelMinimum(Level4)
+		return shouldBeLevelMinimum(Level4)
 	case teams.RemoveMemberCmd:
-		return shouldLevelMinimum(Level3)
+		return shouldBeLevelMinimum(Level3)
 	case teams.AddMemberCmd:
-		return shouldLevelMinimum(Level2)
+		return shouldBeLevelMinimum(Level2)
 	case teams.AddPackageCmd:
-		return shouldLevelMinimum(Level1)
+		return shouldBeLevelMinimum(Level1)
 	}
 
 	return false
@@ -106,43 +102,54 @@ func (m *MyTeam) SetLevel(member std.Address, level Level) {
 
 var myteam MyTeam
 
-func init() {
-	myteam.Team = teams.Register(&myteam)
-}
-
 func main() {
-	// // Setup team address
-	// alice := testutils.TestAddress("alice")
+	// Setup team user address
+	myteamUser := testutils.TestAddress("myteamUser")
+	std.TestSetOrigCaller(myteamUser)
 
-	// Setup user for test
+	println(" -> register team")
+	myteam.Team = teams.Register(&myteam)
+	println("myteamUser is member:", myteam.HasMember(myteamUser))
+	println("myteamUser is level_4:", myteam.GetLevel(myteamUser) == Level4)
+	println("myteamUser can add package:", myteam.CanAddPackage(myteamUser, ""))
+
+	// Setup test users
 	alice := testutils.TestAddress("alice")
 	bob := testutils.TestAddress("bob")
 
-	println("myteam can add a package:", myteam.CanAddPackage(alice, ""))
+	println("alice cannot add a package:", !myteam.CanAddPackage(alice, ""))
 
 	// Register alice to the team
+	println(" -> adding alice as a member")
 	myteam.AddMember(alice)
 	println("alice is member:", myteam.HasMember(alice))
 	println("alice is level_1:", myteam.GetLevel(alice) == Level1)
 	println("alice can add package:", myteam.CanAddPackage(alice, ""))
-	println("bob cannot add package:", myteam.CanAddPackage(bob, ""))
+	println("bob cannot add package:", !myteam.CanAddPackage(bob, ""))
 
 	// Alice should not be able to add a member on level1
-	println("as level_1, alice cannot add bob as member:", myteam.CanAddMember(alice, bob))
+	println("as level_1, alice cannot add bob as member:", !myteam.CanAddMember(alice, bob))
 
 	// Update alice to Level4
+	println(" -> setting alice to level 4")
 	myteam.SetLevel(alice, Level4)
 	println("alice is level_4:", myteam.GetLevel(alice) == Level4)
 	println("alice can add bob as member:", myteam.CanAddMember(alice, bob))
 
 	// Set caller to alice
+	println(" -> setting alice as origin caller")
 	std.TestSetOrigCaller(alice)
 
 	// alice add member bob
-	println("alice add bob as member")
+	println(" -> alice add bob as member")
 	myteam.AddMember(bob)
 
-	println("bob is member:", myteam.HasMember(alice))
-	println("bob is level_1:", myteam.GetLevel(alice) == Level1)
+	println("bob is member:", myteam.HasMember(bob))
+	println("bob is level_1:", myteam.GetLevel(bob) == Level1)
+	println("bob can add package:", myteam.CanAddPackage(bob, ""))
+
+	println(" -> removing bob")
+	myteam.RemoveMember(bob)
+	println("bob is not member:", !myteam.HasMember(bob))
 
 }
