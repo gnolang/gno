@@ -117,16 +117,7 @@ func (dao *AdminDAO) Propose(creator std.Address, d ProposalDefinition) (*Propos
 		return nil, ErrOverflow
 	}
 
-	now := time.Now()
-	return &Proposal{
-		id:             id,
-		status:         StatusActive,
-		definition:     d,
-		creator:        creator,
-		record:         &VotingRecord{},
-		votingDeadline: now.Add(d.VotingPeriod()),
-		createdAt:      now,
-	}, nil
+	return NewProposal(uint64(id), creator, d), nil
 }
 
 // GetActiveProposal returns an active proposal.
@@ -177,7 +168,7 @@ func (dao *AdminDAO) Tally(p *Proposal) Stats {
 
 	// Check quorum before tallying
 	quorum := p.Definition().Quorum()
-	if quorum < 0 || quorum > 1 {
+	if quorum <= 0 || quorum > 1 {
 		quorum = DefaultQuorum
 	}
 
@@ -237,7 +228,7 @@ func (dao *AdminDAO) Execute(proposalID uint64) error {
 
 	// Whichever the outcome of the validation, tallying
 	// and execution consider the proposal finished.
-	key := p.id.String()
+	key := makeProposalKey(p.id)
 	dao.active.Remove(key)
 	dao.finished.Set(key, p)
 	return err

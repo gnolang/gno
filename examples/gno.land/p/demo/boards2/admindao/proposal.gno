@@ -3,8 +3,6 @@ package admindao
 import (
 	"std"
 	"time"
-
-	"gno.land/p/demo/seqid"
 )
 
 const (
@@ -29,7 +27,7 @@ type (
 
 	// Proposal defines a DAO proposal.
 	Proposal struct {
-		id             seqid.ID
+		id             uint64
 		status         ProposalStatus
 		definition     ProposalDefinition
 		creator        std.Address
@@ -71,9 +69,22 @@ type (
 	}
 )
 
+func NewProposal(id uint64, creator std.Address, d ProposalDefinition) *Proposal {
+	now := time.Now()
+	return &Proposal{
+		id:             id,
+		status:         StatusActive,
+		definition:     d,
+		creator:        creator,
+		record:         &VotingRecord{},
+		votingDeadline: now.Add(d.VotingPeriod()),
+		createdAt:      now,
+	}
+}
+
 // ID returns the unique proposal identifies.
 func (p Proposal) ID() uint64 {
-	return uint64(p.id)
+	return p.id
 }
 
 // Definition returns the proposal definition.

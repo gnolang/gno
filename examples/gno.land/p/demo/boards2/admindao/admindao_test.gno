@@ -3,6 +3,7 @@ package admindao
 import (
 	"std"
 	"testing"
+	"time"
 
 	"gno.land/p/demo/uassert"
 	"gno.land/p/demo/urequire"
@@ -110,3 +111,93 @@ func TestAdminDAOIsMember(t *testing.T) {
 		})
 	}
 }
+
+func TestAdminDAOTally(t *testing.T) {
+	cases := []struct {
+		name         string
+		dao          *AdminDAO
+		votes        []Vote
+		status       ProposalStatus
+		statusReason string
+		stats        Stats
+	}{
+		{
+			name: "pass",
+			dao: New(
+				WithMember("g1w4ek2u33ta047h6lta047h6lta047h6ldvdwpn"),
+				WithMember("g1w4ek2u3jta047h6lta047h6lta047h6l9huexc"),
+				WithMember("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"),
+			),
+			votes: []Vote{
+				{Address: "g1w4ek2u33ta047h6lta047h6lta047h6ldvdwpn", Choice: ChoiceYes},
+				{Address: "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5", Choice: ChoiceYes},
+			},
+			status: StatusActive,
+			stats:  Stats{YayVotes: 2, Abstained: 1},
+		},
+		{
+			name:         "no votes",
+			dao:          New(),
+			status:       StatusFailed,
+			statusReason: "low participation",
+		},
+		{
+			name: "no quorum",
+			dao: New(
+				WithMember("g1w4ek2u33ta047h6lta047h6lta047h6ldvdwpn"),
+				WithMember("g1w4ek2u3jta047h6lta047h6lta047h6l9huexc"),
+				WithMember("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"),
+			),
+			votes: []Vote{
+				{Address: "g1w4ek2u33ta047h6lta047h6lta047h6ldvdwpn", Choice: ChoiceYes},
+			},
+			status:       StatusFailed,
+			statusReason: "low participation",
+			stats:        Stats{YayVotes: 1, Abstained: 2},
+		},
+		{
+			name: "majority not met",
+			dao: New(
+				WithMember("g1w4ek2u33ta047h6lta047h6lta047h6ldvdwpn"),
+				WithMember("g1w4ek2u3jta047h6lta047h6lta047h6l9huexc"),
+				WithMember("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"),
+			),
+			votes: []Vote{
+				{Address: "g1w4ek2u33ta047h6lta047h6lta047h6ldvdwpn", Choice: ChoiceYes},
+				{Address: "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5", Choice: ChoiceNo},
+			},
+			status:       StatusFailed,
+			statusReason: "majority not met",
+			stats:        Stats{YayVotes: 1, NayVotes: 1, Abstained: 1},
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			p := NewProposal(1, "", testPropDef{})
+			for _, v := range tc.votes {
+				p.record.AddVote(v.Address, v.Choice)
+			}
+
+			stats := tc.dao.Tally(p)
+
+			uassert.Equal(t, string(p.Status()), string(tc.status))
+			uassert.Equal(t, p.StatusReason(), tc.statusReason)
+			uassert.Equal(t, stats.YayVotes, tc.stats.YayVotes)
+			uassert.Equal(t, stats.NayVotes, tc.stats.NayVotes)
+			uassert.Equal(t, stats.Abstained, tc.stats.Abstained)
+		})
+	}
+}
+
+type testPropDef struct {
+	votingPeriod time.Duration
+	quorum       float64
+}
+
+func (d testPropDef) Title() string               { return "" }
+func (d testPropDef) Body() string                { return "" }
+func (d testPropDef) VotingPeriod() time.Duration { return 0 }
+func (d testPropDef) Quorum() float64             { return 0 }
+func (d testPropDef) Validate() error             { return nil }
+func (d testPropDef) Execute() error              { return nil }
