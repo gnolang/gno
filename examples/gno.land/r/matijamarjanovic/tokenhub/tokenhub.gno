@@ -108,6 +108,14 @@ func GetMyBalancesOrigCaller() string {
 	return getNonZeroBalances(string(std.GetOrigCaller()))
 }
 
+func GetUserBalancesAll(userNameOrAddress string) string {
+	return getBalances(userNameOrAddress)
+}
+
+func GetUserBalances(userNameOrAddress string) string {
+	return getNonZeroBalances(userNameOrAddress)
+}
+
 func GetGRC20(key string) grc20.TokenGetter {
 	return grc20reg.Get(key)
 }
@@ -413,9 +421,7 @@ func getBalances(input string) string {
 	grc20reg.Iterate(func(key string, tokenGetter grc20.TokenGetter) bool {
 		token := tokenGetter()
 		balance := token.BalanceOf(addr)
-		if balance > 0 {
-			balances.Set("token:"+key, balance)
-		}
+		balances.Set("token:"+key, balance)
 		return false
 	})
 
