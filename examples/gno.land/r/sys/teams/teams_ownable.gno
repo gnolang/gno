@@ -19,7 +19,7 @@ func NewOwnableTeam(owner *ownable.Ownable) ITeam {
 func (o *OwnableTeam) Init() Task {
 	return ChainTasks(
 		AddMemberTask(o.Owner()),
-		// burn team address, so only owner can control the team
+		// Burn team address, so only owner can control the team
 		BurnTeamAddressTask,
 	)
 }
@@ -33,7 +33,7 @@ type OwnableAccessController struct {
 
 	EnableAddMember    bool
 	EnableRemoveMember bool
-	DisableAddPackage  bool
+	EnableAddPackage   bool
 }
 
 func NewOwnableAccessController(ownable *ownable.Ownable) *OwnableAccessController {
@@ -52,7 +52,7 @@ func (o *OwnableAccessController) CanRun(member std.Address, cmd Cmd) bool {
 	case RemoveMemberCmd:
 		return o.EnableRemoveMember
 	case AddPackageCmd:
-		return !o.DisableAddPackage
+		return o.EnableAddPackage
 	}
 
 	return false

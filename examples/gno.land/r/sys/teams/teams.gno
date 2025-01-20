@@ -29,8 +29,9 @@ type Lifecycle interface {
 	// Example:
 	//   func (m *MyTeam) Init() teams.Task {
 	//       return teams.CreateTaskCmd(
-	//           teams.AddMemberCmd{myteam.MyUser}, // Add MyUser as a member
-	//           SetLevelCmd{myteam.MyUser, Level4}, // Set MyUser's level to Level4
+	//           AddMemberTask(m.Owner()), // Add Owner as Member
+	//           SetLevelTask(m.Owner(), Level4), // Set Owner's level to Level4
+	//           BurnTeamAddressTask, // Make team address unusable
 	//       )
 	//   }
 	Init() Task
@@ -68,23 +69,24 @@ type ITeam interface {
 	Lifecycle
 }
 
-var teams avl.Tree // std.Address ->  *Team
+var teams avl.Tree // std.Address -> *Team
 
-// Realm of the form `xxx.xx/r/<myteam>/home`
+// reHomeRealm  validate thehome realm path format `xxx.xx/r/<myteam>/home`.
+// XXX: Use somthing simpler
 var reHomeRealm = regexp.MustCompile(`^([a-zA-Z0-9-]+\.)*[a-zA-Z0-9-]+\.[a-zA-Z]{2,}/r/[a-z0-9_]+/home$`)
 
 // Register creates and registers a new team in the `r/sys/teams` realm, allowing a registered
 // user to transform into a team by publishing a contract that registers members in a registry.
 //
 // The `Register` function verifies that the caller is a valid home path (`r/<handle>/home`),
-// using `<handle>` as the team name, and ensures that the caller is not already registered as a team.
+// using `<handle>` as the team name.
 func Register(iteam ITeam) *Team {
 	caller := std.GetOrigCaller()
 	realm := std.PrevRealm()
 
 	// Check if caller is not already registered as a team
 	if teams.Has(caller.String()) {
-		panic("team already registered: " + caller)
+		panic("team already registered: " + caller.String())
 	}
 
 	// Check if origin caller is a home path
@@ -92,7 +94,7 @@ func Register(iteam ITeam) *Team {
 		panic("cannot register a team outside a home realm")
 	}
 
-	// Then initilize the team
+	// Initialize the team
 	team := &Team{
 		address:          caller,
 		Lifecycle:        iteam,
@@ -100,7 +102,7 @@ func Register(iteam ITeam) *Team {
 	}
 	// Assert that team implementation correctly uses fallback
 	// XXX: do we want this?
-	// It asserts that caller has a minimal implementation of its team
+	// It asserts that caller has a minimal implementation of Update
 	assertDefaultUpdate(team)
 
 	if initTask := team.Init(); initTask != nil {
@@ -112,14 +114,15 @@ func Register(iteam ITeam) *Team {
 	return team
 }
 
+// Get retrieves a registered team by address.
 func Get(teamAddr std.Address) *Team {
 	if t, ok := teams.Get(teamAddr.String()); ok {
 		return t.(*Team)
 	}
-
 	return nil
 }
 
+// IsRegister checks if a team is already registered by address.
 func IsRegister(teamAddr std.Address) bool {
 	return teams.Has(teamAddr.String())
 }

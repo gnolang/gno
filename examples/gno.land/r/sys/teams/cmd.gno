@@ -6,11 +6,11 @@ import (
 	"strings"
 )
 
+// XXX: Improve errors
 var ErrAlreadyExist = errors.New("already exists")
 var ErrDoesNotExist = errors.New("does not exist")
 
 // Cmd represents a command that can be executed on a team.
-// Each command should implement the Name method to provide a string identifier.
 type Cmd interface {
 	Name() string
 }

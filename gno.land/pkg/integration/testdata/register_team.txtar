@@ -60,7 +60,7 @@ stderr 'unauthorized user'
 # Bob try to add himself as member
 # bob call -> alice/home.AddMember(bob)
 ! gnokey maketx call -pkgpath gno.land/r/alice/home -func AddMember -gas-fee 1000000ugnot -gas-wanted 2500000 -broadcast -chainid=tendermint_test -args $bob_user_addr bob
-stderr 'only members / team address can perform commands on the team'
+stderr 'only members or team address can perform commands on the team'
 
 # Alice add bob as member
 # alice call -> alice/home.AddMember(bob)
