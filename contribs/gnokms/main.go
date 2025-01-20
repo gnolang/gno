@@ -17,7 +17,7 @@ func main() {
 
 	cmd := commands.NewCommand(
 		commands.Metadata{
-			ShortUsage: "gnokms <subcommand> [flags]",
+			ShortUsage: "<subcommand> [flags] [<arg>...]",
 			LongHelp:   "Gno Key Management System used to securely manage and control cryptographic keys.",
 		},
 		commonFlags,

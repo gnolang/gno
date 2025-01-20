@@ -11,6 +11,12 @@ import (
 	osm "github.com/gnolang/gno/tm2/pkg/os"
 )
 
+// Protocols supported by the privval package.
+const (
+	unix = "unix"
+	tcp  = "tcp"
+)
+
 // IsConnTimeout returns a boolean indicating whether the error is known to
 // report that a connection timeout occurred. This detects both fundamental
 // network timeouts, as well as ErrConnTimeout errors.
@@ -40,13 +46,15 @@ func NewListener(
 		return nil, err
 	}
 	switch protocol {
-	case "unix":
+	case unix:
 		listener = NewUnixListener(ln)
-	case "tcp":
+	case tcp:
 		listener = NewTCPListener(ln, listenerKey, authorizedKeys)
 	default:
 		return nil, fmt.Errorf(
-			"wrong listen address: expected either 'tcp' or 'unix' protocols, got %s",
+			"wrong listen address: expected either '%s' or '%s' protocols, got %s",
+			unix,
+			tcp,
 			protocol,
 		)
 	}
@@ -66,13 +74,15 @@ func NewDialer(
 
 	protocol, address := osm.ProtocolAndAddress(dialAddr)
 	switch protocol {
-	case "unix":
+	case unix:
 		dialer = DialUnixFn(address)
-	case "tcp":
+	case tcp:
 		dialer = DialTCPFn(address, tcpTimeout, dialerKey, authorizedKeys)
 	default:
 		return nil, fmt.Errorf(
-			"wrong listen address: expected either 'tcp' or 'unix' protocols, got %s",
+			"wrong dialer address: expected either '%s' or '%s' protocols, got %s",
+			unix,
+			tcp,
 			protocol,
 		)
 	}

@@ -28,7 +28,7 @@ func (gk *gnokeyPrivVal) SignProposal(chainID string, proposal *types.Proposal) 
 	// Sign the proposal.
 	sig, _, err := gk.keyBase.Sign(gk.keyInfo.GetName(), gk.password, proposal.SignBytes(chainID))
 	if err != nil {
-		return fmt.Errorf("unable to sign proposal bytes, %w", err)
+		return fmt.Errorf("unable to sign proposal bytes: %w", err)
 	}
 
 	// Save the signature (the proposal will be returned to the client).
@@ -42,7 +42,7 @@ func (gk *gnokeyPrivVal) SignVote(chainID string, vote *types.Vote) error {
 	// Sign the vote.
 	sig, _, err := gk.keyBase.Sign(gk.keyInfo.GetName(), gk.password, vote.SignBytes(chainID))
 	if err != nil {
-		return fmt.Errorf("unable to sign vote bytes, %w", err)
+		return fmt.Errorf("unable to sign vote bytes: %w", err)
 	}
 
 	// Save the vote (the vote will be returned to the client).
@@ -83,7 +83,7 @@ func newGnokeyPrivVal(
 				gnFlags.insecurePasswordStdin,
 			)
 			if err != nil {
-				return nil, fmt.Errorf("unable to get decryption key, %w", err)
+				return nil, fmt.Errorf("unable to get decryption key: %w", err)
 			}
 
 			// Check if the password is correct.
@@ -95,7 +95,7 @@ func newGnokeyPrivVal(
 			break
 		}
 	default: // Offline and Multi types are not supported.
-		return nil, fmt.Errorf("unsupported key type, %s", info.GetType())
+		return nil, fmt.Errorf("unsupported key type: %s", info.GetType())
 	}
 
 	return &gnokeyPrivVal{

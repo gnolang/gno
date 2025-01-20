@@ -976,7 +976,7 @@ func createAndStartPrivValidatorSocketClient(
 	listenAddr string,
 	logger *slog.Logger,
 ) (types.PrivValidator, error) {
-  // TODO: pass in the mutual auth keys
+	// TODO: pass in the mutual auth keys
 	listener, err := privval.NewListener(listenAddr, ed25519.GenPrivKey(), nil)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to start private validator")

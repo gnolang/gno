@@ -14,9 +14,9 @@ func NewGnokeyCmd(io commands.IO, commonFlags *common.Flags) *commands.Command {
 	return commands.NewCommand(
 		commands.Metadata{
 			Name:       "gnokey",
-			ShortUsage: "gnokms gnokey <key-name> [flags]",
+			ShortUsage: "gnokey [flags] <key-name or address>",
 			ShortHelp:  "use gnokey as a remote signer",
-			LongHelp:   "This tool allows to use gnokey as a remote signer for gnokms.",
+			LongHelp:   "Run a gnokms remote signer server using gnokey as a private validator.",
 		},
 		gnFlags,
 		func(_ context.Context, args []string) error {

@@ -26,7 +26,7 @@ func NewSignerServer(
 		commonFlags.LogFormat,
 	)
 	if err != nil {
-		return nil, nil, fmt.Errorf("unable to initialize zap logger, %w", err)
+		return nil, nil, fmt.Errorf("unable to initialize zap logger: %w", err)
 	}
 
 	// Keep a reference to the zap logger flush function.
@@ -47,16 +47,18 @@ func NewSignerServer(
 		return nil, nil, err
 	}
 
-	endpoint := privval.NewSignerDialerEndpoint(
-		logger,
-		dialer,
-		privval.SignerDialerEndpointMaxDialRetries(commonFlags.DialMaxRetries),
-		privval.SignerDialerEndpointDialRetryInterval(commonFlags.DialRetryInterval),
-		privval.SignerDialerEndpointReadWriteTimeout(commonFlags.ReadWriteTimeout),
+	// Initialize the server with the dialer, the connection parameters and the private validator.
+	server := privval.NewSignerServer(
+		privval.NewSignerDialerEndpoint(
+			logger,
+			dialer,
+			privval.SignerDialerEndpointMaxDialRetries(commonFlags.DialMaxRetries),
+			privval.SignerDialerEndpointDialRetryInterval(commonFlags.DialRetryInterval),
+			privval.SignerDialerEndpointReadWriteTimeout(commonFlags.ReadWriteTimeout),
+		),
+		commonFlags.ChainID,
+		privVal,
 	)
-
-	// Initialize the remote signer server with the dialer and the gnokey private validator.
-	server := privval.NewSignerServer(endpoint, commonFlags.ChainID, privVal)
 
 	return server, flush, nil
 }
@@ -64,7 +66,7 @@ func NewSignerServer(
 // RunSignerServer initializes and start a remote signer server with the given private validator.
 // It then waits for the server to finish.
 func RunSignerServer(io commands.IO, commonFlags *Flags, privVal types.PrivValidator) error {
-	// Initialize the remote signer server with the gnokey private validator.
+	// Initialize the remote signer server with the private validator.
 	server, flush, err := NewSignerServer(io, commonFlags, privVal)
 	if err != nil {
 		return err
