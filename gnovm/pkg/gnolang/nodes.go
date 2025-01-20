@@ -157,6 +157,7 @@ const (
 	ATTR_LOOP_USES       GnoAttribute = "ATTR_LOOP_USES"    // []Name loop defines actually used.
 	ATTR_SHIFT_RHS       GnoAttribute = "ATTR_SHIFT_RHS"
 	ATTR_LAST_BLOCK_STMT GnoAttribute = "ATTR_LAST_BLOCK_STMT"
+	ATTR_GLOBAL          GnoAttribute = "ATTR_GLOBAL"
 )
 
 type Attributes struct {
