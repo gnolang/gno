@@ -58,8 +58,8 @@ func TestReadOnlyPublicMethods(t *testing.T) {
 
 func TestErrConditions(t *testing.T) {
 	var (
-		admin = std.Address("g1manfred47kzduec920z88wfr64ylksmdcedlf5")
-		empty = std.Address("")
+		admin = pusers.AddressOrName("g1manfred47kzduec920z88wfr64ylksmdcedlf5")
+		empty = pusers.AddressOrName("")
 	)
 
 	type test struct {
