@@ -1,0 +1,22 @@
+{{ define "index" }}
+<!DOCTYPE html>
+<html lang="en">
+    {{ template "head" .HeadData }}
+    <body class="min-h-screen flex flex-col">
+        {{ template "ui/icons" }}
+
+        <!-- header -->
+        {{ template "header" .HeaderData }}
+
+        <!-- main -->
+        {{ template "main" .Body }}
+
+        <!-- footer -->
+        {{ template "footer" .FooterData }}
+    </body>
+</html>
+{{ end }}
+
+{{ define "main" }}
+    {{ . }}
+{{ end }}

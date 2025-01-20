@@ -4,7 +4,6 @@ import (
 	"context"
 	"html/template"
 	"io"
-	"net/url"
 )
 
 type HeadData struct {
@@ -18,22 +17,17 @@ type HeadData struct {
 	Analytics   bool
 }
 
-type HeaderData struct {
-	RealmPath  string
-	Breadcrumb BreadcrumbData
-	WebQuery   url.Values
-}
-
-type FooterData struct {
-	Analytics  bool
-	AssetsPath string
-}
-
 type IndexData struct {
 	HeadData
 	HeaderData
 	FooterData
 	Body template.HTML
+}
+
+func GenerateIndexData(indexData IndexData) IndexData {
+	indexData.FooterData = EnrichFooterData(indexData.FooterData)
+	indexData.HeaderData = EnrichHeaderData(indexData.HeaderData)
+	return indexData
 }
 
 func IndexComponent(data IndexData) Component {
@@ -43,5 +37,6 @@ func IndexComponent(data IndexData) Component {
 }
 
 func RenderIndexComponent(w io.Writer, data IndexData) error {
+	data = GenerateIndexData(data)
 	return tmpl.ExecuteTemplate(w, "index", data)
 }

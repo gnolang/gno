@@ -9,7 +9,7 @@ import (
 	"net/url"
 )
 
-//go:embed *.gohtml partials/*.gohtml
+//go:embed ui/*.gohtml views/*.gohtml layouts/*.gohtml
 var gohtml embed.FS
 
 var funcMap = template.FuncMap{
@@ -37,7 +37,7 @@ func init() {
 	tmpl.Funcs(funcMap)
 
 	var err error
-	tmpl, err = tmpl.ParseFS(gohtml, "*.gohtml", "partials/*.gohtml")
+	tmpl, err = tmpl.ParseFS(gohtml, "layouts/*.gohtml", "ui/*.gohtml", "views/*.gohtml")
 	if err != nil {
 		panic("unable to parse embed tempalates: " + err.Error())
 	}
