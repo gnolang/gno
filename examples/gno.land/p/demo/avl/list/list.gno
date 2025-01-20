@@ -41,6 +41,22 @@ import (
 	"gno.land/p/demo/seqid"
 )
 
+// IList defines the interface for list operations
+type IList interface {
+	Len() int
+	Append(values ...interface{})
+	Get(index int) interface{}
+	Set(index int, value interface{}) bool
+	Delete(index int) (interface{}, bool)
+	Slice(startIndex, endIndex int) []interface{}
+	ForEach(fn func(index int, value interface{}) bool)
+	Clone() *List
+	DeleteRange(startIndex, endIndex int) int
+}
+
+// Verify List implements IList interface
+var _ IList = (*List)(nil)
+
 // List represents an ordered sequence of items backed by an AVL tree
 type List struct {
 	tree  avl.Tree
