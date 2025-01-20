@@ -27,11 +27,7 @@ builds:
     goarm:
       - "6"
       - "7"
-    ldflags:
-      - -X github.com/gnolang/gno/gnovm/pkg/version.Version={{.Version}}
-      - -X main.commitHash={{.ShortCommit}}
-      - -X github.com/gnolang/gno/gnovm/pkg/gnoenv._GNOROOT={{.Env.GNOROOT}}
-  - id: gnoland
+      - id: gnoland
     main: ./gno.land/cmd/gnoland
     binary: gnoland
     env:
