@@ -157,8 +157,7 @@ func (alloc *Allocator) GC() {
 				debug2.Printf2("values[%d] is %v, v.Alloc: %t \n", i, v, v.Alloc)
 				throwaway.allocate2(v.V)
 			}
-		} else {
-			// func block
+		} else { // other block
 			for i, v := range b.Values {
 				debug2.Printf2("values[%d] is %v, v.Alloc: %t \n", i, v, v.Alloc)
 				if v.Alloc {
