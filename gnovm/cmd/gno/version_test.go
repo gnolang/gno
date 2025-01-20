@@ -2,34 +2,10 @@ package main
 
 import (
 	"os"
-	"strings"
 	"testing"
 
 	"github.com/gnolang/gno/gnovm/pkg/version"
 )
-
-var testVersionString string
-
-func init() {
-	if isTestTaggedVersion() {
-		testVersionString = "chain/test4.2"
-	} else if isTestDevelopVersion() {
-		testVersionString = "develop"
-	} else {
-		testVersionString = "master.387+e872fa"
-	}
-	version.Version = testVersionString
-}
-
-func isTestTaggedVersion() bool {
-	testDir := os.Getenv("TEST_CASE_DIR")
-	return strings.Contains(testDir, "tagged_version")
-}
-
-func isTestDevelopVersion() bool {
-	testDir := os.Getenv("TEST_CASE_DIR")
-	return strings.Contains(testDir, "develop_version")
-}
 
 func TestVersionApp(t *testing.T) {
 	testCases := []testMainCase{
