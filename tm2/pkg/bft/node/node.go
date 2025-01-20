@@ -604,12 +604,10 @@ func (n *Node) OnStart() error {
 	}
 
 	// Start the transport.
-	lAddr := n.config.P2P.ExternalAddress
-	if lAddr == "" {
-		lAddr = n.config.P2P.ListenAddress
-	}
+	// The listen address for the transport needs to be an address within reach of the machine NIC
+	listenAddress := p2pTypes.NetAddressString(n.nodeKey.ID(), n.config.P2P.ListenAddress)
 
-	addr, err := p2pTypes.NewNetAddressFromString(p2pTypes.NetAddressString(n.nodeKey.ID(), lAddr))
+	addr, err := p2pTypes.NewNetAddressFromString(listenAddress)
 	if err != nil {
 		return fmt.Errorf("unable to parse network address, %w", err)
 	}
