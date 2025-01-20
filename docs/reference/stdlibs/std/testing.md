@@ -108,7 +108,7 @@ Should be used in combination with [`NewUserRealm`](#newuserrealm) &
 addr := std.Address("g1ecely4gjy0yl6s9kt409ll330q9hk2lj9ls3ec")
 std.TestSetRealm(std.NewUserRealm(addr))
 // or 
-std.TestSetRealm(std.NewCodeRealm("gno.land/r/demo/users"))
+std.TestSetRealm(std.NewCodeRealm("gno.land/r/gnoland/users/v1"))
 ```
 
 ---

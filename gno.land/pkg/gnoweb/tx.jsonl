@@ -1,0 +1,1 @@
+{"msg":[{"@type":"/vm.m_call","caller":"g125em6arxsnj49vx35f0n0z34putv5ty3376fg5","send":"","pkg_path":"gno.land/r/gnoland/users/v1","func":"Register","args":["leon123"]}],"fee":{"gas_wanted":"2000000","gas_fee":"1000000ugnot"},"signatures":null,"memo":""}
