@@ -12,8 +12,6 @@
 {{ end }}
 
 {{ define "renderRealm" }}
-    <main class="w-full grow-[2] bg-light">
-        <section class="max-w-screen-max mx-auto px-4 md:px-10 grid grid-cols-1 lg:grid-cols-10 xl:grid-cols-10 grid-flow-dense gap-x-20 xxl:gap-x-32 items-start">
             <aside class="lg:col-span-3 lg:order-2 relative h-full" aria-label="Table of Contents">
                 <div class="sticky top-14 lg:pt-2 has-[ul:empty]:hidden">
                     <div id="sidebar-summary" class="max-h-screen overflow-scroll no-scrollbar bg-gray-50 lg:bg-transparent rounded-sm mt-8 lg:mt-0">
@@ -32,10 +30,8 @@
                     </div>
                 </div>
             </aside>
-            <article class="realm-content lg:col-span-7 pb-24">
-                <!-- Realm Content -->
-                {{ .Content }}
-            </article>
-        </section>
-    </main>
+                
+            <!-- Realm Content -->
+            {{ template "layout/article" . }}
+ 
 {{ end }}

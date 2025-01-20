@@ -1,22 +1,22 @@
 {{ define "index" }}
 <!DOCTYPE html>
 <html lang="en">
-    {{ template "head" .HeadData }}
+    {{ template "layouts/head" .HeadData }}
     <body class="min-h-screen flex flex-col">
         {{ template "ui/icons" }}
 
         <!-- header -->
-        {{ template "header" .HeaderData }}
+        {{ template "layouts/header" .HeaderData }}
 
         <!-- main -->
-        {{ template "main" .Body }}
+         <main class="w-full grow-[2] {{ if .ContentData.IsDevmodView }}bg-gray-50{{ else }}bg-light{{end}}">
+            <section class="max-w-screen-max mx-auto grid grid-flow-dense items-start {{ if eq .ContentData.Layout "sidebar" }}px-4 md:px-10 grid-cols-1 lg:grid-cols-10 xl:grid-cols-10 gap-x-20 xxl:gap-x-32{{ else }} px-10 grid-cols-10 gap-8 xxl:gap-20{{ end }}">
+                {{ .Body }}
+            </section>
+        </main>
 
         <!-- footer -->
-        {{ template "footer" .FooterData }}
+        {{ template "layouts/footer" .FooterData }}
     </body>
 </html>
-{{ end }}
-
-{{ define "main" }}
-    {{ . }}
 {{ end }}

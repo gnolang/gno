@@ -17,10 +17,16 @@ type HeadData struct {
 	Analytics   bool
 }
 
+type ContentData struct {
+	IsDevmodView bool
+	Layout       string
+}
+
 type IndexData struct {
 	HeadData
 	HeaderData
 	FooterData
+	ContentData
 	Body template.HTML
 }
 

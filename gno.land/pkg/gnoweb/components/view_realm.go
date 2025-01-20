@@ -23,10 +23,12 @@ func RenderRealmTOCComponent(w io.Writer, data *RealmTOCData) error {
 }
 
 type RealmData struct {
-	Content  template.HTML
-	TocItems *RealmTOCData
+	Content     template.HTML
+	TocItems    *RealmTOCData
+	ShowFeature bool
 }
 
 func RenderRealmComponent(w io.Writer, data RealmData) error {
+	data.ShowFeature = false
 	return tmpl.ExecuteTemplate(w, "renderRealm", data)
 }

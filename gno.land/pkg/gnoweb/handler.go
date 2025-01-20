@@ -92,13 +92,20 @@ func (h *WebHandler) Get(w http.ResponseWriter, r *http.Request) {
 			Analytics:  h.Static.Analytics,
 			AssetsPath: h.Static.AssetsPath,
 		},
+		ContentData: components.ContentData{
+			IsDevmodView: false,
+			Layout:       "full",
+		},
 	}
 
-	status, err := h.renderPage(&body, r, &indexData)
+	status, isDevmodView, layout, err := h.renderPage(&body, r, &indexData)
 	if err != nil {
 		http.Error(w, "internal server error", http.StatusInternalServerError)
 		return
 	}
+
+	indexData.ContentData.IsDevmodView = isDevmodView
+	indexData.ContentData.Layout = layout // Mise à jour du layout
 
 	w.WriteHeader(status)
 
@@ -112,11 +119,11 @@ func (h *WebHandler) Get(w http.ResponseWriter, r *http.Request) {
 }
 
 // renderPage renders the page into the given buffer and prepares the index data.
-func (h *WebHandler) renderPage(body *bytes.Buffer, r *http.Request, indexData *components.IndexData) (int, error) {
+func (h *WebHandler) renderPage(body *bytes.Buffer, r *http.Request, indexData *components.IndexData) (int, bool, string, error) {
 	gnourl, err := ParseGnoURL(r.URL)
 	if err != nil {
 		h.Logger.Warn("unable to parse url path", "path", r.URL.Path, "err", err)
-		return http.StatusNotFound, components.RenderStatusComponent(body, "invalid path")
+		return http.StatusNotFound, false, "full", components.RenderStatusComponent(body, "invalid path")
 	}
 
 	breadcrumb := generateBreadcrumbPaths(gnourl)
@@ -132,40 +139,50 @@ func (h *WebHandler) renderPage(body *bytes.Buffer, r *http.Request, indexData *
 		return h.GetPackagePage(body, gnourl)
 	default:
 		h.Logger.Debug("invalid path: path is neither a pure package or a realm")
-		return http.StatusBadRequest, components.RenderStatusComponent(body, "invalid path")
+		return http.StatusBadRequest, false, "full", components.RenderStatusComponent(body, "invalid path")
 	}
 }
 
 // GetPackagePage handles package pages.
-func (h *WebHandler) GetPackagePage(w io.Writer, gnourl *GnoURL) (int, error) {
+func (h *WebHandler) GetPackagePage(w io.Writer, gnourl *GnoURL) (int, bool, string, error) {
 	h.Logger.Info("component render", "path", gnourl.Path, "args", gnourl.Args)
+
+	isDevmodView := true
 
 	// Handle Help page
 	if gnourl.WebQuery.Has("help") {
-		return h.GetHelpPage(w, gnourl)
+		status, layout, err := h.GetHelpPage(w, gnourl)
+		return status, true, layout, err
 	}
 
 	// Handle Source page
 	if gnourl.WebQuery.Has("source") || gnourl.IsFile() {
-		return h.GetSourcePage(w, gnourl)
+		status, layout, err := h.GetSourcePage(w, gnourl)
+		return status, true, layout, err
 	}
 
 	// Handle Source page
 	if gnourl.IsDir() || gnourl.IsPure() {
-		return h.GetDirectoryPage(w, gnourl)
+		status, layout, err := h.GetDirectoryPage(w, gnourl)
+		return status, true, layout, err
 	}
 
 	// Ultimately render realm content
-	return h.renderRealmContent(w, gnourl)
+	isDevmodView = false
+	status, layout, err := h.renderRealmContent(w, gnourl)
+	return status, isDevmodView, layout, err
 }
 
 // renderRealmContent renders the content of a realm.
-func (h *WebHandler) renderRealmContent(w io.Writer, gnourl *GnoURL) (int, error) {
+func (h *WebHandler) renderRealmContent(w io.Writer, gnourl *GnoURL) (int, string, error) {
 	var content bytes.Buffer
+	layout := "sidebar"
+
 	meta, err := h.Client.RenderRealm(&content, gnourl.Path, gnourl.EncodeArgs())
 	if err != nil {
 		h.Logger.Error("unable to render realm", "err", err, "path", gnourl.EncodeArgs())
-		return renderClientErrorStatusPage(w, gnourl, err)
+		status, err := renderClientErrorStatusPage(w, gnourl, err)
+		return status, "full", err
 	}
 
 	err = components.RenderRealmComponent(w, components.RealmData{
@@ -178,18 +195,19 @@ func (h *WebHandler) renderRealmContent(w io.Writer, gnourl *GnoURL) (int, error
 	})
 	if err != nil {
 		h.Logger.Error("unable to render template", "err", err)
-		return http.StatusInternalServerError, components.RenderStatusComponent(w, "internal error")
+		return http.StatusInternalServerError, "full", components.RenderStatusComponent(w, "internal error")
 	}
 
-	return http.StatusOK, nil
+	return http.StatusOK, layout, nil
 }
 
 // GetHelpPage renders the help page.
-func (h *WebHandler) GetHelpPage(w io.Writer, gnourl *GnoURL) (int, error) {
+func (h *WebHandler) GetHelpPage(w io.Writer, gnourl *GnoURL) (int, string, error) {
 	fsigs, err := h.Client.Functions(gnourl.Path)
 	if err != nil {
 		h.Logger.Error("unable to fetch path functions", "err", err)
-		return renderClientErrorStatusPage(w, gnourl, err)
+		status, err := renderClientErrorStatusPage(w, gnourl, err)
+		return status, "full", err
 	}
 
 	selArgs := make(map[string]string)
@@ -209,6 +227,7 @@ func (h *WebHandler) GetHelpPage(w io.Writer, gnourl *GnoURL) (int, error) {
 		}
 	}
 
+	layout := "sidebar"
 	realmName := filepath.Base(gnourl.Path)
 	err = components.RenderHelpComponent(w, components.HelpData{
 		SelectedFunc: selFn,
@@ -222,24 +241,26 @@ func (h *WebHandler) GetHelpPage(w io.Writer, gnourl *GnoURL) (int, error) {
 	})
 	if err != nil {
 		h.Logger.Error("unable to render helper", "err", err)
-		return http.StatusInternalServerError, components.RenderStatusComponent(w, "internal error")
+		return http.StatusInternalServerError, "full", components.RenderStatusComponent(w, "internal error")
 	}
 
-	return http.StatusOK, nil
+	return http.StatusOK, layout, nil
 }
 
 // GetSource renders the source page.
-func (h *WebHandler) GetSourcePage(w io.Writer, gnourl *GnoURL) (int, error) {
+func (h *WebHandler) GetSourcePage(w io.Writer, gnourl *GnoURL) (int, string, error) {
+	layout := "sidebar"
 	pkgPath := gnourl.Path
 	files, err := h.Client.Sources(pkgPath)
 	if err != nil {
 		h.Logger.Error("unable to list sources file", "path", gnourl.Path, "err", err)
-		return renderClientErrorStatusPage(w, gnourl, err)
+		status, renderErr := renderClientErrorStatusPage(w, gnourl, err)
+		return status, "full", renderErr
 	}
 
 	if len(files) == 0 {
 		h.Logger.Debug("no files available", "path", gnourl.Path)
-		return http.StatusOK, components.RenderStatusComponent(w, "no files available")
+		return http.StatusOK, "full", components.RenderStatusComponent(w, "no files available")
 	}
 
 	var fileName string
@@ -257,7 +278,8 @@ func (h *WebHandler) GetSourcePage(w io.Writer, gnourl *GnoURL) (int, error) {
 	meta, err := h.Client.SourceFile(&source, pkgPath, fileName)
 	if err != nil {
 		h.Logger.Error("unable to get source file", "file", fileName, "err", err)
-		return renderClientErrorStatusPage(w, gnourl, err)
+		status, renderErr := renderClientErrorStatusPage(w, gnourl, err)
+		return status, "full", renderErr
 	}
 
 	fileSizeStr := fmt.Sprintf("%.2f Kb", meta.SizeKb)
@@ -272,25 +294,26 @@ func (h *WebHandler) GetSourcePage(w io.Writer, gnourl *GnoURL) (int, error) {
 	})
 	if err != nil {
 		h.Logger.Error("unable to render helper", "err", err)
-		return http.StatusInternalServerError, components.RenderStatusComponent(w, "internal error")
+		return http.StatusInternalServerError, "full", components.RenderStatusComponent(w, "internal error")
 	}
 
-	return http.StatusOK, nil
+	return http.StatusOK, layout, nil
 }
 
 // GetDirectoryPage renders the directory page.
-func (h *WebHandler) GetDirectoryPage(w io.Writer, gnourl *GnoURL) (int, error) {
+func (h *WebHandler) GetDirectoryPage(w io.Writer, gnourl *GnoURL) (int, string, error) {
 	pkgPath := strings.TrimSuffix(gnourl.Path, "/")
-
+	layout := "sidebar"
 	files, err := h.Client.Sources(pkgPath)
 	if err != nil {
 		h.Logger.Error("unable to list sources file", "path", gnourl.Path, "err", err)
-		return renderClientErrorStatusPage(w, gnourl, err)
+		status, renderErr := renderClientErrorStatusPage(w, gnourl, err)
+		return status, "full", renderErr
 	}
 
 	if len(files) == 0 {
 		h.Logger.Debug("no files available", "path", gnourl.Path)
-		return http.StatusOK, components.RenderStatusComponent(w, "no files available")
+		return http.StatusOK, "full", components.RenderStatusComponent(w, "no files available")
 	}
 
 	err = components.RenderDirectoryComponent(w, components.DirData{
@@ -300,10 +323,10 @@ func (h *WebHandler) GetDirectoryPage(w io.Writer, gnourl *GnoURL) (int, error) 
 	})
 	if err != nil {
 		h.Logger.Error("unable to render directory", "err", err)
-		return http.StatusInternalServerError, components.RenderStatusComponent(w, "not found")
+		return http.StatusInternalServerError, "full", components.RenderStatusComponent(w, "not found")
 	}
 
-	return http.StatusOK, nil
+	return http.StatusOK, layout, nil
 }
 
 func renderClientErrorStatusPage(w io.Writer, _ *GnoURL, err error) (int, error) {
