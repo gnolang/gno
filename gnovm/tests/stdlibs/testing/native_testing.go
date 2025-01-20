@@ -10,17 +10,9 @@ func X_unixNano() int64 {
 }
 
 func X_matchString(pat, str string) (result bool, err error) {
-	if matchRe == nil || matchPat != pat {
-		matchPat = pat
-		matchRe, err = regexp.Compile(matchPat)
-		if err != nil {
-			return
-		}
+	var matchRe *regexp.Regexp
+	if matchRe, err = regexp.Compile(pat); err != nil {
+		return
 	}
 	return matchRe.MatchString(str), nil
 }
-
-var (
-	matchPat string
-	matchRe  *regexp.Regexp
-)
