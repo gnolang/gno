@@ -17,6 +17,8 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+// XXX: move this into `gno lint`
+
 var injectedTestingLibs = []string{"encoding/json", "fmt", "os", "internal/os_test"}
 
 // TestNoCycles checks that there is no import cycles in stdlibs and non-draft examples
