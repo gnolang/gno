@@ -1652,7 +1652,7 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 				case StringKind, ArrayKind, SliceKind:
 					// Replace const index with int *ConstExpr,
 					// or if not const, assert integer type..
-					checkOrConvertIntegerKind(store, last, n.Index)
+					checkOrConvertIntegerKind(store, last, n, n.Index)
 
 					// Addressability of this index expression can only be known for slice and
 					// strings, explanations below in the respective blocks. If this is an index
@@ -1668,7 +1668,7 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 					}
 				case MapKind:
 					mt := baseOf(gnoTypeOf(store, dt)).(*MapType)
-					checkOrConvertType(store, last, &n.Index, mt.Key, false)
+					checkOrConvertType(store, last, n, &n.Index, mt.Key, false)
 					n.Addressability = addressabilityStatusUnsatisfied
 				default:
 					panic(fmt.Sprintf(
