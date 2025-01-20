@@ -1,7 +1,16 @@
 package teams
 
+// TaskFunc defines a function type that takes a Team and returns a Cmd.
+// It represents the executable logic that can be performed on a team.
 type TaskFunc func(t *Team) Cmd
 
+// Task represents a unit of work that can be executed to apply a command.
+// Tasks encapsulate the execution logic of commands, ensuring that operations
+// are performed with the correct permissions and in a specified order.
+//
+// Tasks are used to execute commands that modify the team's state, ensuring
+// that these modifications adhere to the permissions set by the access control
+// mechanisms and are executed in a controlled sequence.
 type Task interface {
 	call(t *Team) Cmd
 }
@@ -14,6 +23,7 @@ func (a task) call(t *Team) Cmd {
 	return a.actionFunc(t)
 }
 
+// CreateTaskCmd creates a Task from one or more commands.
 func CreateTaskCmd(cmd ...Cmd) Task {
 	switch len(cmd) {
 	case 0:
@@ -23,6 +33,7 @@ func CreateTaskCmd(cmd ...Cmd) Task {
 			return cmd[0]
 		})
 	default:
+		// Handle multiple commands
 	}
 
 	fns := make([]TaskFunc, len(cmd))
@@ -34,6 +45,7 @@ func CreateTaskCmd(cmd ...Cmd) Task {
 	return CreateTask(fns...)
 }
 
+// CreateTask creates a Task from one or more TaskFuncs.
 func CreateTask(fn ...TaskFunc) Task {
 	switch len(fn) {
 	case 0:
@@ -41,6 +53,7 @@ func CreateTask(fn ...TaskFunc) Task {
 	case 1:
 		return &task{actionFunc: fn[0]}
 	default:
+		// Handle multiple functions
 	}
 
 	actions := make([]Task, len(fn))
@@ -50,6 +63,8 @@ func CreateTask(fn ...TaskFunc) Task {
 	return ChainTasks(actions...)
 }
 
+// ChainTasks creates a single Task that executes a series of tasks in sequence.
+// It combines multiple tasks into one.
 func ChainTasks(actions ...Task) Task {
 	switch len(actions) {
 	case 0:
@@ -57,6 +72,7 @@ func ChainTasks(actions ...Task) Task {
 	case 1:
 		return actions[0]
 	default:
+		// Handle chaining of multiple tasks
 	}
 
 	return CreateTask(func(t *Team) Cmd {
@@ -64,6 +80,6 @@ func ChainTasks(actions ...Task) Task {
 		for i, action := range actions {
 			cmds[i] = action.call(t)
 		}
-		return cmds
+		return Cmds(cmds)
 	})
 }

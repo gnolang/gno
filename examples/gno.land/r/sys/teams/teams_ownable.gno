@@ -6,6 +6,28 @@ import (
 	"gno.land/p/demo/ownable"
 )
 
+type OwnableTeam struct {
+	*OwnableAccessController
+}
+
+func NewOwnableTeam(owner *ownable.Ownable) ITeam {
+	return &OwnableTeam{
+		OwnableAccessController: NewOwnableAccessController(owner),
+	}
+}
+
+func (o *OwnableTeam) Init() Task {
+	return ChainTasks(
+		AddMemberTask(o.Owner()),
+		// burn team address, so only owner can control the team
+		BurnTeamAddressTask,
+	)
+}
+
+func (o *OwnableTeam) ApplyUpdate(cmd Cmd) Task {
+	return ApplyDefault(cmd)
+}
+
 type OwnableAccessController struct {
 	*ownable.Ownable
 
@@ -19,20 +41,18 @@ func NewOwnableAccessController(ownable *ownable.Ownable) *OwnableAccessControll
 }
 
 func (o *OwnableAccessController) CanRun(member std.Address, cmd Cmd) bool {
-	switch cmd.(type) {
-	case AddMemberCmd:
-		if o.EnableAddMember {
-			return true
-		}
-	case RemoveMemberCmd:
-		if o.EnableRemoveMember {
-			return true
-		}
-	case AddPackageCmd:
-		if o.DisableAddPackage {
-			return false
-		}
+	if o.Ownable.Owner() == member { // All mighty owner
+		return true
 	}
 
-	return o.Ownable.Owner() == member
+	switch cmd.(type) {
+	case AddMemberCmd:
+		return o.EnableAddMember
+	case RemoveMemberCmd:
+		return o.EnableRemoveMember
+	case AddPackageCmd:
+		return !o.DisableAddPackage
+	}
+
+	return false
 }
