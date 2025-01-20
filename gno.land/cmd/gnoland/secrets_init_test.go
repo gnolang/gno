@@ -7,7 +7,7 @@ import (
 
 	"github.com/gnolang/gno/tm2/pkg/bft/privval"
 	"github.com/gnolang/gno/tm2/pkg/commands"
-	"github.com/gnolang/gno/tm2/pkg/p2p"
+	"github.com/gnolang/gno/tm2/pkg/p2p/types"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -37,7 +37,7 @@ func verifyValidatorState(t *testing.T, path string) {
 func verifyNodeKey(t *testing.T, path string) {
 	t.Helper()
 
-	nodeKey, err := readSecretData[p2p.NodeKey](path)
+	nodeKey, err := readSecretData[types.NodeKey](path)
 	require.NoError(t, err)
 
 	assert.NoError(t, validateNodeKey(nodeKey))

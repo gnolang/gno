@@ -5,7 +5,7 @@
 // flexible arguments, allowing users to build dynamic links that integrate
 // seamlessly with various Gno clients.
 //
-// The primary function, URL, is designed to produce markdown links for
+// The primary function, Call, is designed to produce markdown links for
 // transaction functions in the current "relative realm". By specifying a custom
 // Realm, you can generate links that either use the current realm path or a
 // fully qualified path for another realm.
@@ -21,10 +21,10 @@ import (
 
 const chainDomain = "gno.land" // XXX: std.ChainDomain (#2911)
 
-// URL returns a URL for the specified function with optional key-value
+// Call returns a URL for the specified function with optional key-value
 // arguments, for the current realm.
-func URL(fn string, args ...string) string {
-	return Realm("").URL(fn, args...)
+func Call(fn string, args ...string) string {
+	return Realm("").Call(fn, args...)
 }
 
 // Realm represents a specific realm for generating tx links.
@@ -48,9 +48,9 @@ func (r Realm) prefix() string {
 	return "https://" + string(r)
 }
 
-// URL returns a URL for the specified function with optional key-value
+// Call returns a URL for the specified function with optional key-value
 // arguments.
-func (r Realm) URL(fn string, args ...string) string {
+func (r Realm) Call(fn string, args ...string) string {
 	// Start with the base query
 	url := r.prefix() + "$help&func=" + fn
 

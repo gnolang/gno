@@ -16,7 +16,7 @@ func main() {
 	}
 
 	// Create a new pager.
-	pager := pager.NewPager(tree, 7)
+	pager := pager.NewPager(tree, 7, false)
 
 	for pn := -1; pn < 8; pn++ {
 		page := pager.GetPage(pn)
@@ -25,7 +25,7 @@ func main() {
 		for idx, item := range page.Items {
 			println(ufmt.Sprintf("- idx=%d key=%s value=%d", idx, item.Key, item.Value))
 		}
-		println(page.Selector())
+		println(page.Picker())
 		println()
 	}
 }

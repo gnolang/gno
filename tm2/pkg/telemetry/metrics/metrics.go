@@ -16,12 +16,10 @@ import (
 )
 
 const (
-	broadcastTxTimerKey = "broadcast_tx_hist"
-	buildBlockTimerKey  = "build_block_hist"
+	buildBlockTimerKey = "build_block_hist"
 
 	inboundPeersKey  = "inbound_peers_gauge"
 	outboundPeersKey = "outbound_peers_gauge"
-	dialingPeersKey  = "dialing_peers_gauge"
 
 	numMempoolTxsKey = "num_mempool_txs_hist"
 	numCachedTxsKey  = "num_cached_txs_hist"
@@ -35,17 +33,13 @@ const (
 	blockIntervalKey        = "block_interval_hist"
 	blockTxsKey             = "block_txs_hist"
 	blockSizeKey            = "block_size_hist"
+	gasPriceKey             = "block_gas_price_hist"
 
 	httpRequestTimeKey = "http_request_time_hist"
 	wsRequestTimeKey   = "ws_request_time_hist"
 )
 
 var (
-	// Misc //
-
-	// BroadcastTxTimer measures the transaction broadcast duration
-	BroadcastTxTimer metric.Int64Histogram
-
 	// Networking //
 
 	// InboundPeers measures the active number of inbound peers
@@ -53,9 +47,6 @@ var (
 
 	// OutboundPeers measures the active number of outbound peers
 	OutboundPeers metric.Int64Gauge
-
-	// DialingPeers measures the active number of peers in the dialing state
-	DialingPeers metric.Int64Gauge
 
 	// Mempool //
 
@@ -95,6 +86,9 @@ var (
 
 	// BlockSizeBytes measures the size of the latest block in bytes
 	BlockSizeBytes metric.Int64Histogram
+
+	// BlockGasPriceAmount measures the block gas price of the last block
+	BlockGasPriceAmount metric.Int64Histogram
 
 	// RPC //
 
@@ -152,14 +146,6 @@ func Init(config config.Config) error {
 	otel.SetMeterProvider(provider)
 	meter := provider.Meter(config.MeterName)
 
-	if BroadcastTxTimer, err = meter.Int64Histogram(
-		broadcastTxTimerKey,
-		metric.WithDescription("broadcast tx duration"),
-		metric.WithUnit("ms"),
-	); err != nil {
-		return fmt.Errorf("unable to create histogram, %w", err)
-	}
-
 	if BuildBlockTimer, err = meter.Int64Histogram(
 		buildBlockTimerKey,
 		metric.WithDescription("block build duration"),
@@ -184,17 +170,9 @@ func Init(config config.Config) error {
 	); err != nil {
 		return fmt.Errorf("unable to create histogram, %w", err)
 	}
+
 	// Initialize OutboundPeers Gauge
 	OutboundPeers.Record(ctx, 0)
-
-	if DialingPeers, err = meter.Int64Gauge(
-		dialingPeersKey,
-		metric.WithDescription("dialing peer count"),
-	); err != nil {
-		return fmt.Errorf("unable to create histogram, %w", err)
-	}
-	// Initialize DialingPeers Gauge
-	DialingPeers.Record(ctx, 0)
 
 	// Mempool //
 	if NumMempoolTxs, err = meter.Int64Histogram(
@@ -271,6 +249,13 @@ func Init(config config.Config) error {
 		return fmt.Errorf("unable to create histogram, %w", err)
 	}
 
+	if BlockGasPriceAmount, err = meter.Int64Histogram(
+		gasPriceKey,
+		metric.WithDescription("block gas price"),
+		metric.WithUnit("token"),
+	); err != nil {
+		return fmt.Errorf("unable to create histogram, %w", err)
+	}
 	// RPC //
 
 	if HTTPRequestTime, err = meter.Int64Histogram(

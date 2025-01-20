@@ -146,8 +146,9 @@ func (c *testCfg) RegisterFlags(fs *flag.FlagSet) {
 }
 
 func execTest(cfg *testCfg, args []string, io commands.IO) error {
-	if len(args) < 1 {
-		return flag.ErrHelp
+	// Default to current directory if no args provided
+	if len(args) == 0 {
+		args = []string{"."}
 	}
 
 	// guess opts.RootDir
@@ -159,6 +160,7 @@ func execTest(cfg *testCfg, args []string, io commands.IO) error {
 	if err != nil {
 		return fmt.Errorf("list targets from patterns: %w", err)
 	}
+
 	if len(paths) == 0 {
 		io.ErrPrintln("no packages to test")
 		return nil
@@ -205,11 +207,11 @@ func execTest(cfg *testCfg, args []string, io commands.IO) error {
 			if gnoPkgPath == "" {
 				// unable to read pkgPath from gno.mod, generate a random realm path
 				io.ErrPrintfln("--- WARNING: unable to read package path from gno.mod or gno root directory; try creating a gno.mod file")
-				gnoPkgPath = gno.RealmPathPrefix + strings.ToLower(random.RandStr(8))
+				gnoPkgPath = "gno.land/r/" + strings.ToLower(random.RandStr(8)) // XXX: gno.land hardcoded for convenience.
 			}
 		}
 
-		memPkg := gno.ReadMemPackage(pkg.Dir, gnoPkgPath)
+		memPkg := gno.MustReadMemPackage(pkg.Dir, gnoPkgPath)
 
 		startedAt := time.Now()
 		hasError := catchRuntimeError(gnoPkgPath, io.Err(), func() {

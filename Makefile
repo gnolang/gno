@@ -54,7 +54,7 @@ install_gnokey: install.gnokey
 install_gno: install.gno
 
 .PHONY: test
-test: test.components test.docker
+test: test.components
 
 .PHONY: test.components
 test.components:
@@ -63,14 +63,6 @@ test.components:
 	$(MAKE) --no-print-directory -C gno.land test
 	$(MAKE) --no-print-directory -C examples test
 	$(MAKE) --no-print-directory -C misc     test
-
-.PHONY: test.docker
-test.docker:
-	@if hash docker 2>/dev/null; then \
-		go test --tags=docker -count=1 -v ./misc/docker-integration; \
-	else \
-		echo "[-] 'docker' is missing, skipping ./misc/docker-integration tests."; \
-	fi
 
 .PHONY: fmt
 fmt:

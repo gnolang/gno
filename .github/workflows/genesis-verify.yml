@@ -1,18 +1,20 @@
-name: genesis-verify
+name: Deployment genesis.json Verification
 
 on:
-  pull_request:
+  push:
     branches:
       - master
+  pull_request:
     paths:
       - "misc/deployments/**/genesis.json"
+      - ".github/workflows/genesis-verify.yml"
 
 jobs:
   verify:
     strategy:
       fail-fast: false
       matrix:
-        testnet: ["test5.gno.land"]
+        testnet: [ "test5.gno.land" ]
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
@@ -20,14 +22,14 @@ jobs:
 
       - name: Get changed files
         id: changed-files
-        uses: tj-actions/changed-files@v41
+        uses: tj-actions/changed-files@v45
         with:
           files: "misc/deployments/${{ matrix.testnet }}/genesis.json"
 
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
-          go-version: "1.22"
+          go-version-file: contribs/gnogenesis/go.mod
 
       - name: Build gnogenesis
         run: make -C contribs/gnogenesis

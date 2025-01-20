@@ -22,19 +22,19 @@ func init() {
 // Render paginated content based on the given URL path.
 // URL format: `...?page=<page>&size=<size>` (default is page 1 and size 10).
 func Render(path string) string {
-	p := pager.NewPager(tree, 10) // Default page size is 10
+	p := pager.NewPager(tree, 10, false) // Default page size is 10
 	page := p.MustGetPageByPath(path)
 
 	// Header and pagination info
 	result := "# Paginated Items\n"
 	result += "Page " + strconv.Itoa(page.PageNumber) + " of " + strconv.Itoa(page.TotalPages) + "\n\n"
-	result += page.Selector() + "\n\n"
+	result += page.Picker() + "\n\n"
 
 	// Display items on the current page
 	for _, item := range page.Items {
 		result += "- " + item.Key + ": " + item.Value.(string) + "\n"
 	}
 
-	result += "\n" + page.Selector() // Repeat selector for ease of navigation
+	result += "\n" + page.Picker() // Repeat page picker for ease of navigation
 	return result
 }

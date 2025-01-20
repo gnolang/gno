@@ -9,7 +9,7 @@ The initial `genesis.json` validator set is consisted of 6 entities (17 validato
 - Gno Core - the gno core team (**6 validators**)
 - Gno DevX - the gno devX team (**4 validators**)
 - AiB - the AiB DevOps team (**3 validators**)
-- Onbloc - the [Onbloc](https://onbloc.xyz/) team (**2 validator**)
+- Onbloc - the [Onbloc](https://onbloc.xyz/) team (**2 validators**)
 - Teritori - the [Teritori](https://teritori.com/) team (**1 validator**)
 - Berty - the [Berty](https://berty.tech/) team (**1 validator**)
 

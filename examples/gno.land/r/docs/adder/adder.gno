@@ -27,7 +27,7 @@ func Render(path string) string {
 	result += "Last Updated: " + formatTimestamp(lastUpdate) + "\n\n"
 
 	// Generate a transaction link to call Add with 42 as the default parameter
-	txLink := txlink.URL("Add", "n", "42")
+	txLink := txlink.Call("Add", "n", "42")
 	result += "[Increase Number](" + txLink + ")\n"
 
 	return result
