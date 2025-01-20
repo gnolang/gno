@@ -408,7 +408,8 @@ type NameExpr struct {
 	// TODO rename .Path's to .ValuePaths.
 	Path ValuePath // set by preprocessor.
 	Name
-	Type NameExprType
+	Type  NameExprType
+	Alloc bool
 }
 
 type NameExprs []NameExpr

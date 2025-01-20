@@ -436,6 +436,7 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 		findGotoLoopDefines(ctx, bn)
 		findLoopUses1(ctx, bn)
 		findLoopUses2(ctx, bn)
+		findBlockAlloc(store, ctx, bn)
 	}
 	return n
 }
@@ -1018,8 +1019,8 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 						cx := evalConst(store, last, n)
 						// built-in functions must be called.
 						if !cx.IsUndefined() &&
-							cx.T.Kind() == FuncKind &&
-							ftype != TRANS_CALL_FUNC {
+								cx.T.Kind() == FuncKind &&
+								ftype != TRANS_CALL_FUNC {
 							panic(fmt.Sprintf(
 								"use of builtin %s not in function call",
 								n.Name))
@@ -1836,8 +1837,8 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 					// Case 1: If receiver is pointer type but n.X is
 					// not:
 					if rcvr != nil &&
-						rcvr.Kind() == PointerKind &&
-						nxt2.Kind() != PointerKind {
+							rcvr.Kind() == PointerKind &&
+							nxt2.Kind() != PointerKind {
 						// Go spec: "If x is addressable and &x's
 						// method set contains m, x.m() is shorthand
 						// for (&x).m()"
@@ -1869,8 +1870,8 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 							))
 						}
 					} else if len(tr) > 0 &&
-						tr[len(tr)-1].IsDerefType() &&
-						nxt2.Kind() != PointerKind {
+							tr[len(tr)-1].IsDerefType() &&
+							nxt2.Kind() != PointerKind {
 						// Case 2: If tr[0] is deref type, but xt
 						// is not pointer type, replace n.X with
 						// &RefExpr{X: n.X}.
@@ -2384,13 +2385,13 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 
 // defineOrDecl merges the code logic from op define (:=) and declare (var/const).
 func defineOrDecl(
-	store Store,
-	bn BlockNode,
-	n Node,
-	isConst bool,
-	nameExprs []NameExpr,
-	typeExpr Expr,
-	valueExprs []Expr,
+		store Store,
+		bn BlockNode,
+		n Node,
+		isConst bool,
+		nameExprs []NameExpr,
+		typeExpr Expr,
+		valueExprs []Expr,
 ) {
 	numNames := len(nameExprs)
 	numVals := len(valueExprs)
@@ -2424,15 +2425,15 @@ func defineOrDecl(
 // parseAssignFromExprList parses assignment to multiple variables from a list of expressions.
 // This function will alter the value of sts, tvs.
 func parseAssignFromExprList(
-	store Store,
-	bn BlockNode,
-	n Node,
-	sts []Type,
-	tvs []TypedValue,
-	isConst bool,
-	nameExprs []NameExpr,
-	typeExpr Expr,
-	valueExprs []Expr,
+		store Store,
+		bn BlockNode,
+		n Node,
+		sts []Type,
+		tvs []TypedValue,
+		isConst bool,
+		nameExprs []NameExpr,
+		typeExpr Expr,
+		valueExprs []Expr,
 ) {
 	numNames := len(nameExprs)
 
@@ -2483,7 +2484,7 @@ func parseAssignFromExprList(
 		if len(valueExprs) > 0 {
 			vx := valueExprs[i]
 			if cx, ok := vx.(*ConstExpr); ok &&
-				!cx.TypedValue.IsUndefined() {
+					!cx.TypedValue.IsUndefined() {
 				if isConst {
 					// const _ = <const_expr>: static block should contain value
 					tvs[i] = cx.TypedValue
@@ -2511,14 +2512,14 @@ func parseAssignFromExprList(
 // - a, b := n.(T)
 // - a, b := n[i], where n is a map
 func parseMultipleAssignFromOneExpr(
-	store Store,
-	bn BlockNode,
-	n Node,
-	sts []Type,
-	tvs []TypedValue,
-	nameExprs []NameExpr,
-	typeExpr Expr,
-	valueExpr Expr,
+		store Store,
+		bn BlockNode,
+		n Node,
+		sts []Type,
+		tvs []TypedValue,
+		nameExprs []NameExpr,
+		typeExpr Expr,
+		valueExpr Expr,
 ) {
 	var tuple *tupleType
 	numNames := len(nameExprs)
@@ -2833,6 +2834,79 @@ func findLoopUses1(ctx BlockNode, bn BlockNode) {
 				}
 			}
 			return n, TRANS_CONTINUE
+
+		// ----------------------------------------
+		case TRANS_LEAVE:
+			// Pop block from stack.
+			// NOTE: DO NOT USE TRANS_SKIP WITHIN BLOCK
+			// NODES, AS TRANS_LEAVE WILL BE SKIPPED; OR
+			// POP BLOCK YOURSELF.
+			switch n.(type) {
+			case BlockNode:
+				stack = stack[:len(stack)-1]
+				last = stack[len(stack)-1]
+			}
+
+			return n, TRANS_CONTINUE
+		}
+		return n, TRANS_CONTINUE
+	})
+}
+
+func findBlockAlloc(store Store, ctx BlockNode, bn BlockNode) {
+	// create stack of BlockNodes.
+	var stack []BlockNode = make([]BlockNode, 0, 32)
+	var last BlockNode = ctx
+	stack = append(stack, last)
+
+	// Iterate over all nodes recursively.
+	_ = Transcribe(bn, func(ns []Node, ftype TransField, index int, n Node, stage TransStage) (Node, TransCtrl) {
+		defer doRecover(stack, n)
+
+		if debug {
+			debug.Printf("findBlockAlloc %s (%v) stage:%v\n", n.String(), reflect.TypeOf(n), stage)
+		}
+		debug2.Printf2("findBlockAlloc %s (%v) stage:%v\n", n.String(), reflect.TypeOf(n), stage)
+
+		switch stage {
+		// ----------------------------------------
+		case TRANS_BLOCK:
+			pushInitBlock(n.(BlockNode), &last, &stack)
+
+		// ----------------------------------------
+		case TRANS_ENTER:
+			switch n := n.(type) {
+			case *AssignStmt:
+				if n.Op == DEFINE {
+					debug2.Println2("AssignStmt, define")
+					for _, lx := range n.Lhs {
+						nx := lx.(*NameExpr)
+						ln := nx.Name
+						if ln == blankIdentifier {
+							continue
+						}
+						if isLocallyDefined2(last, ln) {
+							debug2.Println2("---not locally defined")
+							// set alloc annotation
+							for i, rx := range n.Rhs {
+								debug2.Printf2("n.Rhs[%d] is %v \n", i, rx)
+								switch rx.(type) {
+								case *NameExpr:
+									rt := evalStaticTypeOf(store, last, nx)
+									debug2.Println2("===rt: ", rt, reflect.TypeOf(rt))
+									switch rt.(type) {
+									case *StructType, *ArrayType, *NativeType: // TODO: bigint type?
+										// value copy, alloc
+										nx.Alloc = true
+									}
+								case *CompositeLitExpr:
+									nx.Alloc = true
+								}
+							}
+						}
+					}
+				}
+			}
 
 		// ----------------------------------------
 		case TRANS_LEAVE:
@@ -3376,7 +3450,7 @@ func findContinuableNode(last BlockNode, store Store) {
 }
 
 func findBranchLabel(last BlockNode, label Name) (
-	bn BlockNode, depth uint8, bodyIdx int,
+		bn BlockNode, depth uint8, bodyIdx int,
 ) {
 	for {
 		switch cbn := last.(type) {
@@ -3416,7 +3490,7 @@ func findBranchLabel(last BlockNode, label Name) (
 }
 
 func findGotoLabel(last BlockNode, label Name) (
-	bn BlockNode, depth uint8, bodyIdx int,
+		bn BlockNode, depth uint8, bodyIdx int,
 ) {
 	for {
 		switch cbn := last.(type) {
@@ -3660,7 +3734,7 @@ func isNamedConversion(xt, t Type) bool {
 		// covert right to the type of left if one side is unnamed type and the other side is not
 
 		if t.IsNamed() && !xt.IsNamed() ||
-			!t.IsNamed() && xt.IsNamed() {
+				!t.IsNamed() && xt.IsNamed() {
 			return true
 		}
 	}
@@ -4776,6 +4850,7 @@ func isLocallyDefined(bn BlockNode, n Name) bool {
 // r := 0
 // r, ok := 1, true
 func isLocallyDefined2(bn BlockNode, n Name) bool {
+	debug2.Println2("isLocallyDefined2, n: ", n)
 	_, isLocal := bn.GetLocalIndex(n)
 	return isLocal
 }

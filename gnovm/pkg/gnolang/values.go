@@ -973,9 +973,10 @@ func (nv *NativeValue) Copy(alloc *Allocator) *NativeValue {
 // TypedValue (is not a value, but a tuple)
 
 type TypedValue struct {
-	T Type    `json:",omitempty"` // never nil
-	V Value   `json:",omitempty"` // an untyped value
-	N [8]byte `json:",omitempty"` // numeric bytes
+	T     Type    `json:",omitempty"` // never nil
+	V     Value   `json:",omitempty"` // an untyped value
+	N     [8]byte `json:",omitempty"` // numeric bytes
+	Alloc bool    `json:",omitempty"`
 }
 
 func (tv *TypedValue) IsDefined() bool {
@@ -1043,7 +1044,7 @@ func (tv *TypedValue) ClearNum() {
 }
 
 func (tv TypedValue) Copy(alloc *Allocator) (cp TypedValue) {
-	debug2.Println2("Copy, alloc: ", alloc, reflect.TypeOf(tv.V))
+	debug2.Printf2("Copy, allocator: %v, TV: %v, type of TV: %v \n", alloc, tv, reflect.TypeOf(tv.V))
 	switch cv := tv.V.(type) {
 	case BigintValue:
 		cp.T = tv.T

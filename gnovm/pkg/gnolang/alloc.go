@@ -146,62 +146,24 @@ func (alloc *Allocator) GC() {
 	// scan blocks
 	for i, b := range alloc.m.Blocks {
 		debug2.Printf2("allocate blocks[%d]: %v \n", i, b)
+		debug2.Println2("type of block: ", reflect.TypeOf(b), reflect.TypeOf(b.Source))
+		debug2.Println2("block.externs: ", b.Source.GetExternNames())
+		debug2.Println2("block.names: ", b.Source.GetBlockNames())
 		throwaway.allocate2(b)
 
-		// scan body for assignStmt,
-		// check for allocation
-		for i, s := range b.bodyStmt.Body {
-			debug2.Printf2("body[%d]: %v, type of s: %v\n", i, s, reflect.TypeOf(s))
-			if as, ok := s.(*AssignStmt); ok {
-				debug2.Printf2("assignStmt: %v \n", as)
-				for i, rx := range as.Rhs {
-					debug2.Printf2("Rhs[%d]: %v \n", i, rx)
-
-					// find index by name
-					ln := as.Lhs[i].(*NameExpr).Name
-					//debug2.Println2("left name: ", ln)
-
-					// FindIndex returns the index of the first element matching the value or -1 if not found
-					index := -1
-					for i, n := range b.Source.GetBlockNames() {
-						if ln == n {
-							index = i
-						}
-					}
-					if index == -1 {
-						panic("should not happen, name not found")
-					}
-					debug2.Println2("values: ", b.Values)
-					debug2.Println2("index:", index)
-
-					// TODO: move these check to preprocess
-					switch rx.(type) {
-					case *NameExpr:
-						debug2.Println2("rx is name expr")
-						debug2.Printf2("b.Values[%d]: %v, type of V is: %v\n", i, b.Values[index], reflect.TypeOf(b.Values[index].V))
-						// if copy reference, do nothing, like slice
-						// if copy value, still allocate, like array
-						switch b.Values[index].V.(type) {
-						// TODO: bigint?
-						case *ArrayValue, *StructValue, *NativeValue:
-							// allocate2
-							throwaway.allocate2(b.Values[index].V)
-						default:
-							debug2.Printf2("do nothing, type of V: %v \n", reflect.TypeOf(b.Values[index].V))
-							// do nothing, like slice value
-						}
-					case *CompositeLitExpr:
-						throwaway.allocate2(b.Values[index].V)
-					}
-				}
-			}
-		}
-
 		// package block
-		if len(b.bodyStmt.Body) == 0 {
-			debug2.Println2("b.Values: ", b.Values)
-			for _, v := range b.Values {
-				alloc.allocate2(v.V)
+		if _, ok := b.Source.(*PackageNode); ok {
+			for i, v := range b.Values {
+				debug2.Printf2("values[%d] is %v, v.Alloc: %t \n", i, v, v.Alloc)
+				throwaway.allocate2(v.V)
+			}
+		} else {
+			// func block
+			for i, v := range b.Values {
+				debug2.Printf2("values[%d] is %v, v.Alloc: %t \n", i, v, v.Alloc)
+				if v.Alloc {
+					throwaway.allocate2(v.V)
+				}
 			}
 		}
 	}
@@ -253,7 +215,7 @@ func (throwaway *Allocator) allocate2(v Value) {
 			debug2.Println2("not a FileNode, alloc func")
 			throwaway.AllocateFunc()
 		} else {
-			debug2.Println2("alloc func")
+			//debug2.Println2("alloc func")
 		}
 	case PointerValue:
 		throwaway.AllocatePointer()
