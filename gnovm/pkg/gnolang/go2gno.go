@@ -231,6 +231,8 @@ func Go2Gno(fs *token.FileSet, gon ast.Node) (n Node) {
 		}
 	case *ast.FuncLit:
 		type_ := Go2Gno(fs, gon.Type).(*FuncTypeExpr)
+		type_.IsClosure = true
+
 		return &FuncLitExpr{
 			Type: *type_,
 			Body: toBody(fs, gon.Body),

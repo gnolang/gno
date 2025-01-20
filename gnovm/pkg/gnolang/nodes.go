@@ -747,8 +747,9 @@ func (x *ChanTypeExpr) addressability() addressabilityStatus {
 
 type FuncTypeExpr struct {
 	Attributes
-	Params  FieldTypeExprs // (incoming) parameters, if any.
-	Results FieldTypeExprs // (outgoing) results, if any.
+	Params    FieldTypeExprs // (incoming) parameters, if any.
+	Results   FieldTypeExprs // (outgoing) results, if any.
+	IsClosure bool
 }
 
 func (x *FuncTypeExpr) addressability() addressabilityStatus {
@@ -1805,28 +1806,8 @@ func (sb *StaticBlock) GetIsConst(store Store, n Name) bool {
 	}
 }
 
-func (sb *StaticBlock) getAt(store Store, path ValuePath) *StaticBlock {
-	if debug {
-		if path.Type != VPBlock {
-			panic("expected block type value path but got " + path.Type.String())
-		}
-		if path.Depth == 0 {
-			panic("should not happen")
-		}
-	}
-
-	for {
-		if path.Depth == 1 {
-			return sb
-		} else {
-			sb = sb.GetParentNode(store).GetStaticBlock()
-			path.Depth -= 1
-		}
-	}
-}
-
 func (sb *StaticBlock) GetIsConstAt(store Store, path ValuePath) bool {
-	return sb.getAt(store, path).getLocalIsConst(path.Name)
+	return sb.GetBlockNodeForPath(store, path).GetStaticBlock().getLocalIsConst(path.Name)
 }
 
 // Returns true iff n is a local const defined name.

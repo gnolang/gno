@@ -2433,7 +2433,9 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 				// &(&value). The resulting pointer value of the first reference is not
 				// addressable. Otherwise fall back to the target expression's addressability.
 				_, xIsRef := n.X.(*RefExpr)
-				if xIsRef || n.X.addressability() == addressabilityStatusUnsatisfied {
+				tt := evalStaticTypeOf(store, last, n.X)
+
+				if ft, is_func := tt.(*FuncType); (is_func && !ft.IsClosure) || xIsRef || n.X.addressability() == addressabilityStatusUnsatisfied {
 					panic(fmt.Sprintf("cannot take address of %s", n.X.String()))
 				}
 			}
