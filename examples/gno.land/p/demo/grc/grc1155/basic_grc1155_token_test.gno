@@ -30,7 +30,7 @@ func TestBalanceOf(t *testing.T) {
 	tid1 := TokenID("1")
 	tid2 := TokenID("2")
 
-	balanceZeroAddressOfToken1, err := dummy.BalanceOf(zeroAddress, tid1)
+	_, err := dummy.BalanceOf(zeroAddress, tid1)
 	uassert.Error(t, err, "should result in error")
 
 	balanceAddr1OfToken1, err := dummy.BalanceOf(addr1, tid1)
