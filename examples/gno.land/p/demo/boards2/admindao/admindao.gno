@@ -3,11 +3,15 @@ package admindao
 import (
 	"errors"
 	"std"
+	"time"
 
 	"gno.land/p/demo/avl"
 	"gno.land/p/demo/avl/rotree"
 	"gno.land/p/demo/seqid"
 )
+
+// DefaultQuorum defines the default quorum required to tally proposal votes.
+const DefaultQuorum = 0.51 // 51%
 
 var (
 	ErrInvalidAddress             = errors.New("invalid address")
@@ -18,17 +22,26 @@ var (
 	ErrProposalDefinitionRequired = errors.New("proposal definition is required")
 	ErrProposalNotFound           = errors.New("proposal not found")
 	ErrStatusIsNotActive          = errors.New("proposal status is not active")
-	ErrVoteExists                 = errors.New("member already voted")
+	ErrVotingDeadlineNotMet       = errors.New("voting deadline not met")
 )
 
-// AdminDAO defines a Boards administration DAO.
-type AdminDAO struct {
-	parent   *AdminDAO
-	members  *avl.Tree // string(std.Address) -> struct{}
-	genID    seqid.ID
-	active   *avl.Tree // string(proposal ID) -> *Proposal
-	finished *avl.Tree // string(proposal ID) -> *Proposal
-}
+type (
+	// AdminDAO defines a Boards administration DAO.
+	AdminDAO struct {
+		parent   *AdminDAO
+		members  *avl.Tree // string(std.Address) -> struct{}
+		genID    seqid.ID
+		active   *avl.Tree // string(proposal ID) -> *Proposal
+		finished *avl.Tree // string(proposal ID) -> *Proposal
+	}
+
+	// Stats contains proposal voting stats.
+	Stats struct {
+		YayVotes  int
+		NayVotes  int
+		Abstained int
+	}
+)
 
 // New creates a new admin DAO.
 func New(options ...Option) *AdminDAO {
@@ -104,12 +117,15 @@ func (dao *AdminDAO) Propose(creator std.Address, d ProposalDefinition) (*Propos
 		return nil, ErrOverflow
 	}
 
+	now := time.Now()
 	return &Proposal{
-		id:         id,
-		status:     StatusActive,
-		definition: d,
-		creator:    creator,
-		votes:      avl.NewTree(),
+		id:             id,
+		status:         StatusActive,
+		definition:     d,
+		creator:        creator,
+		record:         &VotingRecord{},
+		votingDeadline: now.Add(d.VotingPeriod()),
+		createdAt:      now,
 	}, nil
 }
 
@@ -133,7 +149,7 @@ func (dao AdminDAO) GetFinishedProposal(proposalID uint64) (_ *Proposal, found b
 
 // Vote submits a new vote for a proposal.
 func (dao *AdminDAO) Vote(member std.Address, proposalID uint64, c VoteChoice) error {
-	if c != ChoiceYes && c != ChoiceNo {
+	if c != ChoiceYes && c != ChoiceNo && c != ChoiceAbstain {
 		return ErrInvalidVoteChoice
 	}
 
@@ -145,14 +161,41 @@ func (dao *AdminDAO) Vote(member std.Address, proposalID uint64, c VoteChoice) e
 	if !found {
 		return ErrProposalNotFound
 	}
+	return p.record.AddVote(member, c)
+}
 
-	key := member.String()
-	if p.votes.Has(key) {
-		return ErrVoteExists
+func (dao *AdminDAO) Tally(p *Proposal) Stats {
+	// Initialize stats considering only yes/no votes
+	record := p.VotingRecord()
+	votesCount := record.VoteCount(ChoiceYes) + record.VoteCount(ChoiceNo)
+	membersCount := len(dao.Members())
+	stats := Stats{
+		YayVotes:  record.VoteCount(ChoiceYes),
+		NayVotes:  record.VoteCount(ChoiceNo),
+		Abstained: membersCount - votesCount,
 	}
 
-	p.votes.Set(key, c)
-	return nil
+	// Check quorum before tallying
+	quorum := p.Definition().Quorum()
+	if quorum < 0 || quorum > 1 {
+		quorum = DefaultQuorum
+	}
+
+	percentage := float64(votesCount) / float64(membersCount)
+	if percentage < quorum {
+		p.status = StatusFailed
+		p.statusReason = "low participation"
+		return stats
+	}
+
+	// Tally by majority requiring more than 50% of yes/no votes to win
+	// TODO: Confirm this way of tallying is enough for now. Keeping it minimal.
+	choice := record.GetProvableMajorityChoice()
+	if record.VoteCount(choice) <= int(votesCount/2) {
+		p.status = StatusFailed
+		p.statusReason = "majority not met"
+	}
+	return stats
 }
 
 // Execute executes a proposal.
@@ -166,21 +209,34 @@ func (dao *AdminDAO) Execute(proposalID uint64) error {
 		return ErrStatusIsNotActive
 	}
 
-	// TODO: check quorum and tally
+	if time.Now().Before(p.VotingDeadline()) {
+		return ErrVotingDeadlineNotMet
+	}
 
+	// Validate proposal before executing it
 	def := p.Definition()
 	err := def.Validate()
-	if err == nil {
-		err = def.Execute()
-	}
-
 	if err != nil {
 		p.status = StatusFailed
-		p.failReason = err.Error()
+		p.statusReason = err.Error()
 	} else {
-		p.status = StatusExecuted
+		// Tally votes and update proposal status
+		dao.Tally(p)
+
+		// Execute proposal only when the majority vote wins
+		if p.Status() != StatusFailed {
+			err = def.Execute()
+			if err != nil {
+				p.status = StatusFailed
+				p.statusReason = err.Error()
+			} else {
+				p.status = StatusExecuted
+			}
+		}
 	}
 
+	// Whichever the outcome of the validation, tallying
+	// and execution consider the proposal finished.
 	key := p.id.String()
 	dao.active.Remove(key)
 	dao.finished.Set(key, p)
