@@ -4,8 +4,6 @@ import (
 	"std"
 	"time"
 
-	"gno.land/p/demo/avl"
-	"gno.land/p/demo/avl/rotree"
 	"gno.land/p/demo/seqid"
 )
 
