@@ -11,7 +11,7 @@ import (
 func main() {
 	cmd := commands.NewCommand(
 		commands.Metadata{
-			ShortUsage: "gnohealth <subcommand> [flags]",
+			ShortUsage: "<subcommand> [flags]",
 			LongHelp:   "Gno health check suite, to verify that different parts of Gno are working correctly",
 		},
 		commands.NewEmptyConfig(),
