@@ -13,18 +13,18 @@ gnokey query auth/accounts/g1c0j899h88nwyvnzvh5jagpq6fkkyuj76nld6t0
 stdout 'height: 0'
 stdout 'data: {'
 stdout '  "BaseAccount": {'
-stdout '    "address": "g1c0j899h88nwyvnzvh5jagpq6fkkyuj76nld6t0",'
+stdout '    "address": "'${user1_user_addr}'",'
 stdout '    "coins": "[0-9]*ugnot",' # dynamic
 stdout '    "public_key": null,'
-stdout '    "account_number": "57",'
-stdout '    "sequence": "0"'
+stdout '    "account_number": "'${user1_account_num}'",'
+stdout '    "sequence": "'${user1_account_seq}'"'
 stdout '  }'
 stdout '}'
 ! stderr '.+' # empty
 
 
 ## sign
-gnokey sign -tx-path $WORK/multi/multi_msg.tx -chainid=tendermint_test -account-number 57 -account-sequence 0 user1
+gnokey sign -tx-path $WORK/multi/multi_msg.tx -chainid=tendermint_test -account-number $user1_account_num -account-sequence $user1_account_seq user1
 stdout 'Tx successfully signed and saved to '
 
 ## broadcast
@@ -51,4 +51,3 @@ func Event(value string) {
 
 -- multi/multi_msg.tx --
 {"msg":[{"@type":"/vm.m_call","caller":"g1c0j899h88nwyvnzvh5jagpq6fkkyuj76nld6t0","send":"","pkg_path":"gno.land/r/demo/simple_event","func":"Event","args":["value11"]},{"@type":"/vm.m_call","caller":"g1c0j899h88nwyvnzvh5jagpq6fkkyuj76nld6t0","send":"","pkg_path":"gno.land/r/demo/simple_event","func":"Event","args":["value22"]}],"fee":{"gas_wanted":"2000000","gas_fee":"1000000ugnot"},"signatures":null,"memo":""}
-
