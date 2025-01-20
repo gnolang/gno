@@ -122,13 +122,19 @@ func (ak AccountKeeper) SetParams(ctx sdk.Context, params Params) error {
 func (ak AccountKeeper) GetParams(ctx sdk.Context) Params {
 	params := &Params{}
 
-	ok, err := ak.paramk.GetParams(ctx, ModuleName, paramsKey, params)
-
-	if !ok {
-		panic("params key " + ModuleName + " does not exist")
-	}
+	_, err := ak.paramk.GetParams(ctx, ModuleName, paramsKey, params)
 	if err != nil {
 		panic(err.Error())
 	}
+
 	return *params
+}
+
+func (ak AccountKeeper) GetParamfulKey() string {
+	return ModuleName
+}
+
+// WillSetParam checks if the key contains the module's parameter key prefix and updates the module parameter accordingly.
+func (ak AccountKeeper) WillSetParam(ctx sdk.Context, key string, value interface{}) {
+	// TODO: add parameter settings here.
 }

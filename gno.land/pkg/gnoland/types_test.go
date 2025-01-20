@@ -129,3 +129,95 @@ func TestReadGenesisTxs(t *testing.T) {
 		}
 	})
 }
+
+func TestGnoAccountRestriction(t *testing.T) {
+	testEnv := setupTestEnv()
+	ctx, acckpr, bankpr := testEnv.ctx, testEnv.acck, testEnv.bank
+
+	fromAddress := crypto.AddressFromPreimage([]byte("from"))
+	toAddress := crypto.AddressFromPreimage([]byte("to"))
+	fromAccount := acckpr.NewAccountWithAddress(ctx, fromAddress)
+	toAccount := acckpr.NewAccountWithAddress(ctx, toAddress)
+
+	// Unrestrict Account
+	fromAccount.(AccountRestricter).SetUnrestricted()
+	assert.False(t, fromAccount.(AccountRestricter).IsRestricted())
+
+	// Persisted unrestricted state
+	acckpr.SetAccount(ctx, fromAccount)
+	fromAccount = acckpr.GetAccount(ctx, fromAddress)
+	assert.False(t, fromAccount.(AccountRestricter).IsRestricted())
+
+	// Restrict Account
+	fromAccount.(AccountRestricter).SetRestricted()
+	assert.True(t, fromAccount.(AccountRestricter).IsRestricted())
+
+	// Persisted restricted state
+	acckpr.SetAccount(ctx, fromAccount)
+	fromAccount = acckpr.GetAccount(ctx, fromAddress)
+	assert.True(t, fromAccount.(AccountRestricter).IsRestricted())
+
+	// Send Unrestricted
+	fromAccount.SetCoins(std.NewCoins(std.NewCoin("foocoin", 10)))
+	acckpr.SetAccount(ctx, fromAccount)
+	acckpr.SetAccount(ctx, toAccount)
+
+	err := bankpr.SendCoins(ctx, fromAddress, toAddress, std.NewCoins(std.NewCoin("foocoin", 3)))
+	require.NoError(t, err)
+	balance := acckpr.GetAccount(ctx, toAddress).GetCoins()
+	assert.Equal(t, balance.String(), "3foocoin")
+
+	// Send Restricted
+	bankpr.AddRestrictedDenoms(ctx, "foocoin")
+	err = bankpr.SendCoins(ctx, fromAddress, toAddress, std.NewCoins(std.NewCoin("foocoin", 3)))
+	require.Error(t, err)
+	assert.Equal(t, "restricted token transfer error", err.Error())
+}
+
+func TestGnoAccountSendRestrictions(t *testing.T) {
+	testEnv := setupTestEnv()
+	ctx, acckpr, bankpr := testEnv.ctx, testEnv.acck, testEnv.bank
+
+	bankpr.AddRestrictedDenoms(ctx, "foocoin")
+	addr := crypto.AddressFromPreimage([]byte("addr1"))
+	addr2 := crypto.AddressFromPreimage([]byte("addr2"))
+	acc := acckpr.NewAccountWithAddress(ctx, addr)
+
+	// All accounts are restricted by default when the transfer restriction is applied.
+
+	// Test GetCoins/SetCoins
+	acckpr.SetAccount(ctx, acc)
+	require.True(t, bankpr.GetCoins(ctx, addr).IsEqual(std.NewCoins()))
+
+	bankpr.SetCoins(ctx, addr, std.NewCoins(std.NewCoin("foocoin", 10)))
+	require.True(t, bankpr.GetCoins(ctx, addr).IsEqual(std.NewCoins(std.NewCoin("foocoin", 10))))
+
+	// Test HasCoins
+	require.True(t, bankpr.HasCoins(ctx, addr, std.NewCoins(std.NewCoin("foocoin", 10))))
+	require.True(t, bankpr.HasCoins(ctx, addr, std.NewCoins(std.NewCoin("foocoin", 5))))
+	require.False(t, bankpr.HasCoins(ctx, addr, std.NewCoins(std.NewCoin("foocoin", 15))))
+	require.False(t, bankpr.HasCoins(ctx, addr, std.NewCoins(std.NewCoin("barcoin", 5))))
+
+	bankpr.SetCoins(ctx, addr, std.NewCoins(std.NewCoin("foocoin", 15)))
+
+	// Test sending coins restricted to locked accounts.
+	err := bankpr.SendCoins(ctx, addr, addr2, std.NewCoins(std.NewCoin("foocoin", 5)))
+	require.ErrorIs(t, err, std.RestrictedTransferError{}, "expected restricted transfer error, got %v", err)
+	require.True(t, bankpr.GetCoins(ctx, addr).IsEqual(std.NewCoins(std.NewCoin("foocoin", 15))))
+	require.True(t, bankpr.GetCoins(ctx, addr2).IsEqual(std.NewCoins(std.NewCoin("foocoin", 0))))
+
+	// Test sending coins unrestricted to locked accounts.
+	bankpr.AddCoins(ctx, addr, std.NewCoins(std.NewCoin("barcoin", 30)))
+	err = bankpr.SendCoins(ctx, addr, addr2, std.NewCoins(std.NewCoin("barcoin", 10)))
+	require.NoError(t, err)
+	require.True(t, bankpr.GetCoins(ctx, addr).IsEqual(std.NewCoins(std.NewCoin("barcoin", 20), std.NewCoin("foocoin", 15))))
+	require.True(t, bankpr.GetCoins(ctx, addr2).IsEqual(std.NewCoins(std.NewCoin("barcoin", 10))))
+
+	// Remove the restrictions
+	bankpr.DelAllRestrictedDenoms(ctx)
+	// Test sending coins restricted to locked accounts.
+	err = bankpr.SendCoins(ctx, addr, addr2, std.NewCoins(std.NewCoin("foocoin", 5)))
+	require.NoError(t, err)
+	require.True(t, bankpr.GetCoins(ctx, addr).IsEqual(std.NewCoins(std.NewCoin("barcoin", 20), std.NewCoin("foocoin", 10))))
+	require.True(t, bankpr.GetCoins(ctx, addr2).IsEqual(std.NewCoins(std.NewCoin("barcoin", 10), std.NewCoin("foocoin", 5))))
+}

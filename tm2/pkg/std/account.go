@@ -19,6 +19,7 @@ import (
 //
 // Many complex conditions can be used in the concrete struct which implements Account.
 type Account interface {
+	AccountRestricter
 	GetAddress() crypto.Address
 	SetAddress(crypto.Address) error // errors if already set.
 
@@ -33,9 +34,6 @@ type Account interface {
 
 	GetCoins() Coins
 	SetCoins(Coins) error
-
-	IsRestricted() bool
-	SetUnrestricted(bool)
 
 	// Ensure that account implements stringer
 	String() string
@@ -52,7 +50,6 @@ type BaseAccount struct {
 	PubKey        crypto.PubKey  `json:"public_key" yaml:"public_key"`
 	AccountNumber uint64         `json:"account_number" yaml:"account_number"`
 	Sequence      uint64         `json:"sequence" yaml:"sequence"`
-	Unrestricted  bool           `json:"unrestricted" yaml:"unrestricted"`
 }
 
 // NewBaseAccount creates a new BaseAccount object
@@ -156,11 +153,10 @@ func (acc *BaseAccount) SetSequence(seq uint64) error {
 	return nil
 }
 
-func (acc *BaseAccount) IsRestricted() bool {
-	return !acc.Unrestricted
+type AccountRestricter interface {
+	IsRestricted() bool
 }
 
-// IsLocked returns true if the account is locked.
-func (acc *BaseAccount) SetUnrestricted(unrestricted bool) {
-	acc.Unrestricted = unrestricted
+func (acc *BaseAccount) IsRestricted() bool {
+	return false
 }

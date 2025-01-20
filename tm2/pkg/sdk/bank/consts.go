@@ -2,5 +2,6 @@ package bank
 
 const (
 	ModuleName      = "bank"
-	ParamsPrefixKey = ModuleName
+	ParamsKeyPrefix = ModuleName
+	lockSendKey     = "lockSend.bool"
 )

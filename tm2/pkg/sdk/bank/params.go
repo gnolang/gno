@@ -54,7 +54,6 @@ func (bank BankKeeper) SetParams(ctx sdk.Context, params Params) error {
 	if err := params.Validate(); err != nil {
 		return err
 	}
-	bank.params = params
 	err := bank.paramk.SetParams(ctx, ModuleName, paramsKey, params)
 
 	return err
@@ -62,14 +61,30 @@ func (bank BankKeeper) SetParams(ctx sdk.Context, params Params) error {
 
 func (bank BankKeeper) GetParams(ctx sdk.Context) Params {
 	params := &Params{}
-
-	ok, err := bank.paramk.GetParams(ctx, ModuleName, paramsKey, params)
-
-	if !ok {
-		panic("params module key " + ModuleName + " does not exist")
-	}
+	_, err := bank.paramk.GetParams(ctx, ModuleName, paramsKey, params)
 	if err != nil {
 		panic(err.Error())
 	}
 	return *params
+}
+
+type ParamfulKeeper interface {
+	GetParamfulKey() string
+	WillSetParam(ctx sdk.Context, key string, value interface{})
+}
+
+func (bank BankKeeper) GetParamfulKey() string {
+	return ModuleName
+}
+
+// WillSetParam checks if the key contains the module's parameter key prefix and updates the module parameter accordingly.
+func (bank BankKeeper) WillSetParam(ctx sdk.Context, key string, value interface{}) {
+	paramKey, ok := strings.CutPrefix(key, ParamsKeyPrefix)
+	if ok && (paramKey == lockSendKey) {
+		if value == true { // lock sending ugnot
+			bank.AddRestrictedDenoms(ctx, value.(string))
+		} else { // unlock sending ugnot
+			bank.DelRestrictedDenoms(ctx, value.(string))
+		}
+	}
 }

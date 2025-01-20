@@ -8,13 +8,15 @@ import (
 )
 
 const (
-	lockSendKey     = "lockSend.bool"
+	//lockSendKey     = "bank.lockSend.string"
+	lockSendKey     = "bank.lockSend.bool"
 	UnlockSendTitle = "Proposal to unlock the sending functionality for ugnot."
 	LockSendTitle   = "Proposal to lock the sending functionality for ugnot."
 )
 
 func ProposeUnlockSend() uint64 {
 	callback := func() error {
+		// std.SetParamString(lockSendKey, "ugnot")
 		std.SetParamBool(lockSendKey, false)
 		return nil
 	}
@@ -23,6 +25,7 @@ func ProposeUnlockSend() uint64 {
 
 func ProposeLockSend() uint64 {
 	callback := func() error {
+		//std.SetParamString(lockSendKey, "ugnot")
 		std.SetParamBool(lockSendKey, true)
 		return nil
 	}

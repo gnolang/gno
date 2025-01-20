@@ -19,7 +19,6 @@ type ParamsInterface interface {
 	SetInt64(key string, val int64)
 	SetUint64(key string, val uint64)
 	SetBytes(key string, val []byte)
-	SetCurRealmPath(curRealmPath string)
 }
 
 func X_setParamString(m *gno.Machine, key, val string) {
@@ -68,7 +67,6 @@ func pkey(m *gno.Machine, key string, kind string) string {
 	}
 
 	_, rlmPath := currentRealm(m)
-	GetContext(m).Params.SetCurRealmPath(rlmPath)
 	// decorate key with realm and type.
 	return fmt.Sprintf("%s.%s", rlmPath, key)
 }

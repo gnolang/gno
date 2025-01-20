@@ -22,6 +22,7 @@ type BankKeeperI interface {
 	SubtractCoins(ctx sdk.Context, addr crypto.Address, amt std.Coins) (std.Coins, error)
 	AddCoins(ctx sdk.Context, addr crypto.Address, amt std.Coins) (std.Coins, error)
 	SetCoins(ctx sdk.Context, addr crypto.Address, amt std.Coins) error
+	SendCoinsUnrestricted(ctx sdk.Context, fromAddr crypto.Address, toAddr crypto.Address, amt std.Coins) error
 
 	InitGenesis(ctx sdk.Context, data GenesisState)
 	GetParams(ctx sdk.Context) Params
@@ -36,74 +37,83 @@ type BankKeeper struct {
 
 	acck auth.AccountKeeper
 	// The keeper used to store parameters
-	paramk           params.ParamsKeeper
-	params           Params
-	restrictedDenoms map[string]struct{}
+	paramk params.ParamsKeeper
 }
 
 // NewBankKeeper returns a new BankKeeper.
-func NewBankKeeper(acck auth.AccountKeeper, pk params.ParamsKeeper) *BankKeeper {
-	rdm := map[string]struct{}{}
-
-	params := DefaultParams()
-	for _, denom := range params.RestrictedDenoms {
-		rdm[denom] = struct{}{}
-	}
-	return &BankKeeper{
+func NewBankKeeper(acck auth.AccountKeeper, pk params.ParamsKeeper) BankKeeper {
+	return BankKeeper{
 		ViewKeeper: NewViewKeeper(acck),
 		acck:       acck,
 		paramk:     pk,
-		params:     params,
+		//	params:     params,
 		// Store restricted denoms in a map's keys for fast
 		// comparison when filtering out restricted denoms from a send message.
-		restrictedDenoms: rdm,
+		// restrictedDenoms: rdm,
 	}
 }
 
-func (bank *BankKeeper) AddRestrictedDenoms(ctx sdk.Context, restrictedDenoms ...string) {
+func (bank BankKeeper) AddRestrictedDenoms(ctx sdk.Context, restrictedDenoms ...string) {
 	if len(restrictedDenoms) == 0 {
 		return
 	}
-	for _, denom := range restrictedDenoms {
-		bank.restrictedDenoms[denom] = struct{}{}
-	}
-	if len(bank.params.RestrictedDenoms) == 0 {
-		bank.params.RestrictedDenoms = restrictedDenoms
-		if err := bank.SetParams(ctx, bank.params); err != nil {
-			panic(err)
-		}
-	}
-	bank.updateParams(ctx)
-}
-
-func (bank *BankKeeper) DelRestrictedDenoms(ctx sdk.Context, restrictedDenoms ...string) {
-	for denom := range bank.restrictedDenoms {
-		delete(bank.restrictedDenoms, denom)
-	}
-	bank.updateParams(ctx)
-}
-
-func (bank *BankKeeper) DelAllRestrictedDenoms(ctx sdk.Context) {
-	bank.restrictedDenoms = map[string]struct{}{}
-	bank.updateParams(ctx)
-}
-
-func (bank *BankKeeper) RestrictedDenoms(ctx sdk.Context) []string {
-	// covert restricted denoms map into a slice
-	denoms := make([]string, 0, len(bank.restrictedDenoms))
-	for d := range bank.restrictedDenoms {
-		denoms = append(denoms, d)
-	}
-	return denoms
-}
-
-func (bank *BankKeeper) updateParams(ctx sdk.Context) {
 	params := bank.GetParams(ctx)
-	params.RestrictedDenoms = bank.RestrictedDenoms(ctx)
-	bank.params = params
+	rdSet := toSet(params.RestrictedDenoms)
+	for _, denom := range restrictedDenoms {
+		rdSet[denom] = struct{}{}
+	}
+
+	ds := make([]string, 0, len(rdSet))
+	for d := range rdSet {
+		ds = append(ds, d)
+	}
+	params.RestrictedDenoms = ds
 	if err := bank.SetParams(ctx, params); err != nil {
 		panic(err)
 	}
+}
+
+func (bank BankKeeper) DelRestrictedDenoms(ctx sdk.Context, restrictedDenoms ...string) {
+	params := bank.GetParams(ctx)
+
+	rdSet := toSet(params.RestrictedDenoms)
+	for _, denom := range restrictedDenoms {
+		delete(rdSet, denom)
+	}
+	ds := make([]string, 0, len(rdSet))
+	for d := range rdSet {
+		ds = append(ds, d)
+	}
+
+	if err := bank.SetParams(ctx, params); err != nil {
+		panic(err)
+	}
+}
+
+func (bank BankKeeper) DelAllRestrictedDenoms(ctx sdk.Context) {
+	params := bank.GetParams(ctx)
+	params.RestrictedDenoms = []string{}
+
+	err := bank.paramk.SetParams(ctx, ModuleName, paramsKey, params)
+	if err != nil {
+		panic(err)
+	}
+}
+
+func (bank BankKeeper) RestrictedDenoms(ctx sdk.Context) []string {
+	params := bank.GetParams(ctx)
+	return params.RestrictedDenoms
+}
+
+type stringSet map[string]struct{}
+
+func toSet(str []string) stringSet {
+	ss := stringSet{}
+
+	for _, key := range str {
+		ss[key] = struct{}{}
+	}
+	return ss
 }
 
 // InputOutputCoins handles a list of inputs and outputs
@@ -154,12 +164,15 @@ func (bank BankKeeper) InputOutputCoins(ctx sdk.Context, inputs []Input, outputs
 
 // canSendCoins returns true if the coins can be sent without violating any restriction.
 func (bank BankKeeper) canSendCoins(ctx sdk.Context, addr crypto.Address, amt std.Coins) bool {
-	if len(bank.restrictedDenoms) == 0 {
+	rds := bank.RestrictedDenoms(ctx)
+	if len(rds) == 0 {
 		// No restrictions.
 		return true
 	}
-	if amt.ContainOneOfDenom(bank.restrictedDenoms) {
-		if acc := bank.acck.GetAccount(ctx, addr); acc != nil && acc.IsRestricted() {
+	if amt.ContainOneOfDenom(toSet(rds)) {
+		acc := bank.acck.GetAccount(ctx, addr)
+		accr := acc.(std.AccountRestricter)
+		if acc != nil && accr.IsRestricted() {
 			return false
 		}
 	}

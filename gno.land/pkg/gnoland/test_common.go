@@ -1,4 +1,4 @@
-package params
+package gnoland
 
 import (
 	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
@@ -6,30 +6,36 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/db/memdb"
 	"github.com/gnolang/gno/tm2/pkg/log"
 	"github.com/gnolang/gno/tm2/pkg/sdk"
+	"github.com/gnolang/gno/tm2/pkg/sdk/auth"
+	"github.com/gnolang/gno/tm2/pkg/sdk/bank"
+	"github.com/gnolang/gno/tm2/pkg/sdk/params"
 
 	"github.com/gnolang/gno/tm2/pkg/store"
 	"github.com/gnolang/gno/tm2/pkg/store/iavl"
 )
 
 type testEnv struct {
-	ctx    sdk.Context
-	store  store.Store
-	keeper ParamsKeeper
+	ctx  sdk.Context
+	acck auth.AccountKeeper
+	bank bank.BankKeeper
 }
 
 func setupTestEnv() testEnv {
 	db := memdb.NewMemDB()
-	paramsCapKey := store.NewStoreKey("paramsCapKey")
-	ms := store.NewCommitMultiStore(db)
-	ms.MountStoreWithDB(paramsCapKey, iavl.StoreConstructor, db)
-	ms.LoadLatestVersion()
 
-	paramk := NewParamsKeeper(paramsCapKey)
-	dk := NewDummyKeeper()
-	paramk.Register(dk.GetParamfulKey(), dk)
+	authCapKey := store.NewStoreKey("authCapKey")
+
+	ms := store.NewCommitMultiStore(db)
+	ms.MountStoreWithDB(authCapKey, iavl.StoreConstructor, db)
+	ms.LoadLatestVersion()
+	paramk := params.NewParamsKeeper(authCapKey)
+	acck := auth.NewAccountKeeper(authCapKey, paramk, ProtoGnoAccount)
+	bank := bank.NewBankKeeper(acck, paramk)
+	paramk.Register(acck.GetParamfulKey(), acck)
+	paramk.Register(bank.GetParamfulKey(), bank)
 
 	ctx := sdk.NewContext(sdk.RunTxModeDeliver, ms, &bft.Header{Height: 1, ChainID: "test-chain-id"}, log.NewNoopLogger())
-	// XXX: context key?
+
 	ctx = ctx.WithConsensusParams(&abci.ConsensusParams{
 		Block: &abci.BlockParams{
 			MaxTxBytes:    1024,
@@ -43,24 +49,5 @@ func setupTestEnv() testEnv {
 		},
 	})
 
-	stor := ctx.Store(paramsCapKey)
-	return testEnv{ctx: ctx, store: stor, keeper: paramk}
+	return testEnv{ctx: ctx, acck: acck, bank: bank}
 }
-
-const DummyModuleName = "params_test"
-
-type ParamfulKeeper interface {
-	GetParamfulKey() string
-	WillSetParam(ctx sdk.Context, key string, value interface{})
-}
-
-type DummyKeeper struct{}
-
-func NewDummyKeeper() DummyKeeper {
-	return DummyKeeper{}
-}
-
-func (dk DummyKeeper) GetParamfulKey() string {
-	return DummyModuleName
-}
-func (dk DummyKeeper) WillSetParam(ctx sdk.Context, key string, value interface{}) {}

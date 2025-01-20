@@ -27,19 +27,14 @@ func ValidateGenesis(data GenesisState) error {
 }
 
 // InitGenesis - Init store state from genesis data
-func (bank *BankKeeper) InitGenesis(ctx sdk.Context, data GenesisState) {
+func (bank BankKeeper) InitGenesis(ctx sdk.Context, data GenesisState) {
 	if amino.DeepEqual(data, GenesisState{}) {
-		return
+		if err := bank.SetParams(ctx, DefaultParams()); err != nil {
+			panic(err)
+		}
 	}
 	if err := ValidateGenesis(data); err != nil {
 		panic(err)
-	}
-
-	bank.restrictedDenoms = map[string]struct{}{}
-
-	params := data.Params
-	for _, denom := range params.RestrictedDenoms {
-		bank.restrictedDenoms[denom] = struct{}{}
 	}
 
 	if err := bank.SetParams(ctx, data.Params); err != nil {
@@ -48,7 +43,7 @@ func (bank *BankKeeper) InitGenesis(ctx sdk.Context, data GenesisState) {
 }
 
 // ExportGenesis returns a GenesisState for a given context and keeper
-func (bank *BankKeeper) ExportGenesis(ctx sdk.Context) GenesisState {
+func (bank BankKeeper) ExportGenesis(ctx sdk.Context) GenesisState {
 	params := bank.GetParams(ctx)
 
 	return NewGenesisState(params)

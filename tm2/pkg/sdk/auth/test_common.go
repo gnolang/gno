@@ -28,12 +28,14 @@ func setupTestEnv() testEnv {
 	ms := store.NewCommitMultiStore(db)
 	ms.MountStoreWithDB(authCapKey, iavl.StoreConstructor, db)
 	ms.LoadLatestVersion()
-	km := params.NewPrefixKeyMapper()
-	km.RegisterPrefix(ParamsPrefixKey)
-	paramk := params.NewParamsKeeper(authCapKey, km)
+	paramk := params.NewParamsKeeper(authCapKey)
+
 	acck := NewAccountKeeper(authCapKey, paramk, std.ProtoBaseAccount)
 	bank := NewDummyBankKeeper(acck)
 	gk := NewGasPriceKeeper(authCapKey)
+
+	paramk.Register(acck.GetParamfulKey(), acck)
+	paramk.Register(bank.GetParamfulKey(), bank)
 
 	ctx := sdk.NewContext(sdk.RunTxModeDeliver, ms, &bft.Header{Height: 1, ChainID: "test-chain-id"}, log.NewNoopLogger())
 	ctx = ctx.WithValue(AuthParamsContextKey{}, DefaultParams())
@@ -92,3 +94,10 @@ func (bank DummyBankKeeper) SendCoins(ctx sdk.Context, fromAddr crypto.Address, 
 
 	return nil
 }
+
+func (bank DummyBankKeeper) GetParamfulKey() string {
+	return "dummy_bank"
+}
+
+// WillSetParam checks if the key contains the module's parameter key prefix and updates the module parameter accordingly.
+func (bank DummyBankKeeper) WillSetParam(ctx sdk.Context, key string, value interface{}) { return }

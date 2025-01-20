@@ -25,7 +25,7 @@ const (
 	GlobalAccountNumberKey = "globalAccountNumber"
 
 	// param
-	ParamsPrefixKey = ModuleName
+	ParamsKeyPrefix = ModuleName
 )
 
 // AddressStoreKey turn an address to key used to get it from the account store

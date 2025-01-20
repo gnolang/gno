@@ -827,18 +827,15 @@ func newGasPriceTestApp(t *testing.T) abci.Application {
 	baseApp.MountStoreWithDB(mainKey, iavl.StoreConstructor, cfg.DB)
 	baseApp.MountStoreWithDB(baseKey, dbadapter.StoreConstructor, cfg.DB)
 
-	km := params.NewPrefixKeyMapper()
-	km.RegisterPrefix(auth.ParamsPrefixKey)
-	km.RegisterPrefix(bank.ParamsPrefixKey)
-	km.RegisterPrefix(vm.ParamsPrefixKey)
-
 	// Construct keepers.
-	paramsKpr := params.NewParamsKeeper(mainKey, km)
+	paramsKpr := params.NewParamsKeeper(mainKey)
 	acctKpr := auth.NewAccountKeeper(mainKey, paramsKpr, ProtoGnoAccount)
 	gpKpr := auth.NewGasPriceKeeper(mainKey)
 	bankKpr := bank.NewBankKeeper(acctKpr, paramsKpr)
 	vmk := vm.NewVMKeeper(baseKey, mainKey, acctKpr, bankKpr, paramsKpr)
-
+	paramsKpr.Register(acctKpr.GetParamfulKey(), acctKpr)
+	paramsKpr.Register(bankKpr.GetParamfulKey(), bankKpr)
+	paramsKpr.Register(vmk.GetParamfulKey(), vmk)
 	// Set InitChainer
 	icc := cfg.InitChainerConfig
 	icc.baseApp = baseApp

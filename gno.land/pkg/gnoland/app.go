@@ -90,16 +90,16 @@ func NewAppWithOptions(cfg *AppOptions) (abci.Application, error) {
 
 	// Construct keepers.
 
-	km := params.NewPrefixKeyMapper()
-	km.RegisterPrefix(auth.ParamsPrefixKey)
-	km.RegisterPrefix(bank.ParamsPrefixKey)
-	km.RegisterPrefix(vm.ParamsPrefixKey)
-	paramsKpr := params.NewParamsKeeper(mainKey, km)
+	paramsKpr := params.NewParamsKeeper(mainKey)
 	acctKpr := auth.NewAccountKeeper(mainKey, paramsKpr, ProtoGnoAccount)
 	bankKpr := bank.NewBankKeeper(acctKpr, paramsKpr)
 	gpKpr := auth.NewGasPriceKeeper(mainKey)
 	vmk := vm.NewVMKeeper(baseKey, mainKey, acctKpr, bankKpr, paramsKpr)
 	vmk.Output = cfg.VMOutput
+
+	paramsKpr.Register(acctKpr.GetParamfulKey(), acctKpr)
+	paramsKpr.Register(bankKpr.GetParamfulKey(), bankKpr)
+	paramsKpr.Register(vmk.GetParamfulKey(), vmk)
 
 	// Set InitChainer
 	icc := cfg.InitChainerConfig
@@ -322,6 +322,17 @@ func (cfg InitChainerConfig) loadAppState(ctx sdk.Context, appState any) ([]abci
 	// The account keeper's initial genesis state must be set after genesis
 	// accounts are created in account keeeper with genesis balances
 	cfg.acctKpr.InitGenesis(ctx, state.Auth)
+
+	// The unrestricted address must have been created as one of the genesis accounts.
+	// Otherwise, we cannot verify the unrestricted address in the genesis state.
+
+	for _, addr := range state.Auth.Params.UnrestrictedAddrs {
+		acc := cfg.acctKpr.GetAccount(ctx, addr)
+		accr := acc.(AccountRestricter)
+		accr.SetUnrestricted()
+		cfg.acctKpr.SetAccount(ctx, acc)
+	}
+
 	cfg.vmKpr.InitGenesis(ctx, state.VM)
 
 	params := cfg.acctKpr.GetParams(ctx)

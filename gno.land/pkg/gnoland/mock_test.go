@@ -132,6 +132,10 @@ func (m *mockBankKeeper) SendCoins(ctx sdk.Context, fromAddr crypto.Address, toA
 	return nil
 }
 
+func (m *mockBankKeeper) SendCoinsUnrestricted(ctx sdk.Context, fromAddr crypto.Address, toAddr crypto.Address, amt std.Coins) error {
+	return nil
+}
+
 func (m *mockBankKeeper) SubtractCoins(ctx sdk.Context, addr crypto.Address, amt std.Coins) (std.Coins, error) {
 	return nil, nil
 }
@@ -140,13 +144,13 @@ func (m *mockBankKeeper) AddCoins(ctx sdk.Context, addr crypto.Address, amt std.
 	return nil, nil
 }
 
+func (m *mockBankKeeper) InitGenesis(ctx sdk.Context, data bank.GenesisState)     {}
+func (m *mockBankKeeper) GetParams(ctx sdk.Context) bank.Params                   { return bank.Params{} }
+func (m *mockBankKeeper) GetCoins(ctx sdk.Context, addr crypto.Address) std.Coins { return nil }
 func (m *mockBankKeeper) SetCoins(ctx sdk.Context, addr crypto.Address, amt std.Coins) error {
 	return nil
 }
 
-func (m *mockBankKeeper) InitGenesis(ctx sdk.Context, data bank.GenesisState)     {}
-func (m *mockBankKeeper) GetParams(ctx sdk.Context) bank.Params                   { return bank.Params{} }
-func (m *mockBankKeeper) GetCoins(ctx sdk.Context, addr crypto.Address) std.Coins { return nil }
 func (m *mockBankKeeper) HasCoins(ctx sdk.Context, addr crypto.Address, amt std.Coins) bool {
 	return true
 }

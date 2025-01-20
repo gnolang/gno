@@ -37,7 +37,9 @@ func TestExeUnlockSend(t *testing.T) {
 	urequire.True(t, dao.Active == p.Status())
 
 	govdao.VoteOnProposal(id, dao.YesVote)
+
 	urequire.True(t, dao.Accepted == p.Status())
+
 	urequire.NotPanics(
 		t,
 		func() {
@@ -46,4 +48,5 @@ func TestExeUnlockSend(t *testing.T) {
 	)
 
 	urequire.True(t, dao.ExecutionSuccessful == p.Status())
+
 }

@@ -2,17 +2,16 @@ package vm
 
 import (
 	"fmt"
-	"regexp"
 	"strings"
 
+	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
 	"github.com/gnolang/gno/tm2/pkg/amino"
 	"github.com/gnolang/gno/tm2/pkg/sdk"
 )
 
 const (
 	sysUsersPkgDefault = "gno.land/r/sys/users"
-
-	paramsKey = "p"
+	paramsKey          = "p"
 )
 
 // Params defines the parameters for the bank module.
@@ -41,10 +40,8 @@ func (p Params) String() string {
 }
 
 func (p Params) Validate() error {
-	// XXX: This line is copied from gnovm/memfile.go. Should we instead export rePkgOrRlmPath with a getter method from gnovm?
-	rePkgOrRlmPath := regexp.MustCompile(`^gno\.land\/(?:p|r)(?:\/_?[a-z]+[a-z0-9_]*)+$`)
-	if !rePkgOrRlmPath.MatchString(p.SysUsersPkg) {
-		return fmt.Errorf("invalid package/realm path %q, failed to match %q", p.SysUsersPkg, rePkgOrRlmPath)
+	if !gno.ReRealmPath.MatchString(p.SysUsersPkg) {
+		return fmt.Errorf("invalid package/realm path %q, failed to match %q", p.SysUsersPkg, gno.ReRealmPath)
 	}
 	return nil
 }
@@ -61,7 +58,6 @@ func (vm *VMKeeper) SetParams(ctx sdk.Context, params Params) error {
 	if err := params.Validate(); err != nil {
 		return err
 	}
-	vm.params = params
 	err := vm.prmk.SetParams(ctx, ModuleName, paramsKey, params)
 	return err
 }
@@ -69,14 +65,11 @@ func (vm *VMKeeper) SetParams(ctx sdk.Context, params Params) error {
 func (vm *VMKeeper) GetParams(ctx sdk.Context) Params {
 	params := &Params{}
 
-	ok, err := vm.prmk.GetParams(ctx, ModuleName, paramsKey, params)
-
-	if !ok {
-		panic("params key " + ModuleName + " does not exist")
-	}
+	_, err := vm.prmk.GetParams(ctx, ModuleName, paramsKey, params)
 	if err != nil {
 		panic(err.Error())
 	}
+
 	return *params
 }
 
@@ -95,4 +88,18 @@ func (vm *VMKeeper) getSysUsersPkgParam(ctx sdk.Context) string {
 	var sysUsersPkg string
 	vm.prmk.GetString(ctx, sysUsersPkgParamPath, &sysUsersPkg)
 	return sysUsersPkg
+}
+
+type ParamfulKeeper interface {
+	GetParamfulKey() string
+	WillSetParam(ctx sdk.Context, key string, value interface{})
+}
+
+func (vm *VMKeeper) GetParamfulKey() string {
+	return ModuleName
+}
+
+// WillSetParam checks if the key contains the module's parameter key prefix and updates the module parameter accordingly.
+func (vm *VMKeeper) WillSetParam(ctx sdk.Context, key string, value interface{}) {
+	// TODO: move parameters here.
 }

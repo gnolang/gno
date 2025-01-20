@@ -2,10 +2,12 @@ package vm
 
 import (
 	"fmt"
+	"strings"
 
-	"github.com/gnolang/gno/gno.land/pkg/gnoland/ugnot"
+	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
 	"github.com/gnolang/gno/tm2/pkg/sdk"
+	"github.com/gnolang/gno/tm2/pkg/sdk/params"
 	"github.com/gnolang/gno/tm2/pkg/std"
 )
 
@@ -63,61 +65,90 @@ func (bnk *SDKBanker) RemoveCoin(b32addr crypto.Bech32Address, denom string, amo
 // SDKParams
 
 type SDKParams struct {
-	vmk *VMKeeper
+	pmk *params.ParamsKeeper
 	ctx sdk.Context
-	// The curRealmPath is used to track the current realm accessing the SDKParams from the VM.
-	// It serves as a safeguard to control access from the VM.
-	curRealmPath string
 }
 
-// These are the native function implementations bound with standard libraries in Gno.
-// All methods of this struct are not supposed to be called from outside vm/stdlibs/std.
-func NewSDKParams(vmk *VMKeeper, ctx sdk.Context) *SDKParams {
+// These are the native function implementations bound to standard libraries in Gno.
+// All methods of this struct are not intended to be called from outside vm/stdlibs/std.
+//
+// The key has the format <realm>.<paramname>.<type>:
+// realm: A realm path indicating where Set methods are called from.
+// paramname: The parameter key. If it contains a prefix that matches the module's paramkey
+// prefix (which by default is the module name), it indicates an attempt to set the module's
+// parameters for the chain. Otherwise, it is treated as an arbitrary parameter.
+// type: The primitive type of the parameter value.
+
+func NewSDKParams(pmk *params.ParamsKeeper, ctx sdk.Context) *SDKParams {
 	return &SDKParams{
-		vmk: vmk,
+		pmk: pmk,
 		ctx: ctx,
 	}
 }
 
 func (prm *SDKParams) SetString(key, value string) {
-	prm.assertRealmAccess()
-	prm.vmk.prmk.SetString(prm.ctx, key, value)
+	prm.assertRealmAccess(key)
+	prm.setParamfulKeeper(prm.ctx, key, value)
+	prm.pmk.SetString(prm.ctx, key, value)
 }
 
+// Set a boolean parameter in the format of realmPath.parameter.bool
 func (prm *SDKParams) SetBool(key string, value bool) {
-	prm.assertRealmAccess()
-	realmParamKey := fmt.Sprintf("%s.%s", prm.curRealmPath, lockSendKey)
-	if key == realmParamKey {
-		if value == true { // lock sending ugnot
-			prm.vmk.bank.AddRestrictedDenoms(prm.ctx, ugnot.Denom)
-		} else { // unlock sending ugnot
-			prm.vmk.bank.DelRestrictedDenoms(prm.ctx, ugnot.Denom)
-		}
-	}
-	prm.vmk.prmk.SetBool(prm.ctx, key, value)
+	prm.assertRealmAccess(key)
+	prm.setParamfulKeeper(prm.ctx, key, value)
+	prm.pmk.SetBool(prm.ctx, key, value)
 }
 
 func (prm *SDKParams) SetInt64(key string, value int64) {
-	prm.assertRealmAccess()
-	prm.vmk.prmk.SetInt64(prm.ctx, key, value)
+	prm.assertRealmAccess(key)
+	prm.setParamfulKeeper(prm.ctx, key, value)
+	prm.pmk.SetInt64(prm.ctx, key, value)
 }
 
 func (prm *SDKParams) SetUint64(key string, value uint64) {
-	prm.assertRealmAccess()
-	prm.vmk.prmk.SetUint64(prm.ctx, key, value)
+	prm.assertRealmAccess(key)
+	prm.setParamfulKeeper(prm.ctx, key, value)
+	prm.pmk.SetUint64(prm.ctx, key, value)
 }
 
 func (prm *SDKParams) SetBytes(key string, value []byte) {
-	prm.assertRealmAccess()
-	prm.vmk.prmk.SetBytes(prm.ctx, key, value)
+	prm.assertRealmAccess(key)
+	prm.setParamfulKeeper(prm.ctx, key, value)
+	prm.pmk.SetBytes(prm.ctx, key, value)
 }
 
-func (prm *SDKParams) SetCurRealmPath(realmPath string) {
-	prm.curRealmPath = realmPath
+func (prm *SDKParams) setParamfulKeeper(ctx sdk.Context, key string, value interface{}) {
+	kpr := prm.getRegisteredKeeper(key)
+	if kpr != nil {
+		kpr.WillSetParam(prm.ctx, key, value)
+	}
 }
 
-func (prm *SDKParams) assertRealmAccess() {
-	if prm.curRealmPath != ParamsRealmPath {
-		panic(fmt.Sprintf("Set parameters can only be accessed from: %s", ParamsRealmPath))
+func (prm *SDKParams) getRegisteredKeeper(key string) ParamfulKeeper {
+	// key is in the format of realm.keeperkey.keyname.type
+	realmPrefix := gno.ReRealmPath.FindString(key)
+	if realmPrefix == "" {
+		panic(fmt.Sprintf("Set parameter %s must be accessed from a realm.", key))
+	}
+
+	if realmPrefix != SysParamsRealmPath {
+		return nil
+	}
+
+	k, ok := strings.CutPrefix(key, realmPrefix)
+	if !ok {
+		return nil
+	}
+
+	parts := strings.SplitN(k, ".", 3)
+	keeperKey := parts[1]
+
+	return prm.pmk.GetRegisteredKeeper(keeperKey)
+}
+
+func (prm *SDKParams) assertRealmAccess(key string) {
+	realm := gno.ReRealmPath.FindString(key)
+	if realm == "" {
+		panic(fmt.Sprintf("Set parameters must be accessed from a realm"))
 	}
 }

@@ -367,7 +367,7 @@ func Do() string {
 	return "XXX" // return std.GetConfig("gno.land/r/test.foo"), if we want to expose std.GetConfig, maybe as a std.TestGetConfig
 }`},
 	}
-	pkgPath := ParamsRealmPath
+	pkgPath := SysParamsRealmPath
 	msg1 := NewMsgAddPackage(addr, pkgPath, files)
 	err := env.vmk.AddPackage(ctx, msg1)
 	assert.NoError(t, err)

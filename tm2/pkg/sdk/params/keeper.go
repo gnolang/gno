@@ -1,6 +1,7 @@
 package params
 
 import (
+	"fmt"
 	"log/slog"
 	"strings"
 
@@ -47,17 +48,38 @@ var _ ParamsKeeperI = ParamsKeeper{}
 
 // global paramstore Keeper.
 type ParamsKeeper struct {
-	key store.StoreKey
-	//	prefix          string
-	prefixKeyMapper PrefixKeyMapper
+	key  store.StoreKey
+	kprs map[string]ParamfulKeeper // Register a prefix for module parameter keys.
 }
 
 // NewParamsKeeper returns a new ParamsKeeper.
-func NewParamsKeeper(key store.StoreKey, pkm PrefixKeyMapper) ParamsKeeper {
+func NewParamsKeeper(key store.StoreKey) ParamsKeeper {
 	return ParamsKeeper{
-		key:             key,
-		prefixKeyMapper: pkm,
+		key:  key,
+		kprs: map[string]ParamfulKeeper{},
 	}
+}
+
+func (pk ParamsKeeper) GetRegisteredKeeper(keeperKey string) ParamfulKeeper {
+	rk, ok := pk.kprs[keeperKey]
+
+	if !ok {
+		panic("keeper key " + keeperKey + " does not exist")
+	}
+	return rk
+}
+
+func (pk ParamsKeeper) Register(keeperKey string, pmk ParamfulKeeper) {
+	pk.kprs[keeperKey] = pmk
+}
+
+func (pk ParamsKeeper) isRegistered(keeperKey string) bool {
+	_, ok := pk.kprs[keeperKey]
+	return ok
+}
+
+func (pk ParamsKeeper) PrefixExists(prefix string) bool {
+	return pk.isRegistered(prefix)
 }
 
 // XXX: why do we expose this?
@@ -126,14 +148,17 @@ func (pk ParamsKeeper) SetBytes(ctx sdk.Context, key string, value []byte) {
 }
 
 // GetParam gets a param value from the global param store.
-func (pk ParamsKeeper) GetParams(ctx sdk.Context, prefixKey string, key string, target interface{}) (bool, error) {
-	vk, err := pk.valueStoreKey(prefixKey, key)
-	if err != nil {
-		return false, err
+func (pk ParamsKeeper) GetParams(ctx sdk.Context, moduleKey string, key string, target interface{}) (bool, error) {
+	if moduleKey != "" {
+		if pk.isRegistered(moduleKey) {
+			key = moduleKey + "." + key
+		} else {
+			return false, fmt.Errorf("params module key %q does not exisit", moduleKey)
+		}
 	}
 
 	stor := ctx.Store(pk.key)
-
+	vk := ValueStoreKey(key)
 	bz := stor.Get(vk)
 	if bz == nil {
 		return false, nil
@@ -143,10 +168,13 @@ func (pk ParamsKeeper) GetParams(ctx sdk.Context, prefixKey string, key string, 
 }
 
 // SetParam sets a param value to the global param store.
-func (pk ParamsKeeper) SetParams(ctx sdk.Context, prefixKey string, key string, param interface{}) error {
-	vk, err := pk.valueStoreKey(prefixKey, key)
-	if err != nil {
-		return err
+func (pk ParamsKeeper) SetParams(ctx sdk.Context, moduleKey string, key string, param interface{}) error {
+	if moduleKey != "" {
+		if pk.isRegistered(moduleKey) {
+			key = moduleKey + "." + key
+		} else {
+			return fmt.Errorf("params module key %q does not exisit", moduleKey)
+		}
 	}
 
 	bz, err := amino.MarshalJSON(param)
@@ -155,25 +183,9 @@ func (pk ParamsKeeper) SetParams(ctx sdk.Context, prefixKey string, key string, 
 	}
 
 	stor := ctx.Store(pk.key)
-
+	vk := ValueStoreKey(key)
 	stor.Set(vk, bz)
 	return nil
-}
-
-func (pk ParamsKeeper) valueStoreKey(prefix string, key string) ([]byte, error) {
-	prefix, err := pk.prefixKeyMapper.Map(prefix)
-	if err != nil {
-		return nil, err
-	}
-	return append([]byte(prefix), []byte(key)...), nil
-}
-
-func (pk ParamsKeeper) PrefixExists(prefix string) bool {
-	_, err := pk.prefixKeyMapper.Map(prefix)
-	if err != nil {
-		return false
-	}
-	return true
 }
 
 func (pk ParamsKeeper) getIfExists(ctx sdk.Context, key string, ptr interface{}) {

@@ -39,15 +39,6 @@ func (ak AccountKeeper) InitGenesis(ctx sdk.Context, data GenesisState) {
 		panic(err)
 	}
 
-	// The unrestricted address must have been created as one of the genesis accounts.
-	// Otherwise, we cannot verify the unrestricted address in the genesis state.
-
-	for _, addr := range data.Params.UnrestrictedAddrs {
-		acc := ak.GetAccount(ctx, addr)
-		acc.SetUnrestricted(true)
-		ak.SetAccount(ctx, acc)
-	}
-
 	if err := ak.SetParams(ctx, data.Params); err != nil {
 		panic(err)
 	}

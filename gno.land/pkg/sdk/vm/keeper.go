@@ -65,9 +65,8 @@ type VMKeeper struct {
 	baseKey store.StoreKey
 	iavlKey store.StoreKey
 	acck    auth.AccountKeeper
-	bank    *bank.BankKeeper
+	bank    bank.BankKeeper
 	prmk    params.ParamsKeeper
-	params  Params
 
 	// cached, the DeliverTx persistent state.
 	gnoStore gno.Store
@@ -78,7 +77,7 @@ func NewVMKeeper(
 	baseKey store.StoreKey,
 	iavlKey store.StoreKey,
 	acck auth.AccountKeeper,
-	bank *bank.BankKeeper,
+	bank bank.BankKeeper,
 	prmk params.ParamsKeeper,
 ) *VMKeeper {
 	vmk := &VMKeeper{
@@ -276,7 +275,7 @@ func (vm *VMKeeper) checkNamespacePermission(ctx sdk.Context, creator crypto.Add
 		OrigPkgAddr:   pkgAddr.Bech32(),
 		// XXX: should we remove the banker ?
 		Banker:      NewSDKBanker(vm, ctx),
-		Params:      NewSDKParams(vm, ctx),
+		Params:      NewSDKParams(&vm.prmk, ctx),
 		EventLogger: ctx.EventLogger(),
 	}
 
@@ -381,7 +380,7 @@ func (vm *VMKeeper) AddPackage(ctx sdk.Context, msg MsgAddPackage) (err error) {
 		OrigSendSpent: new(std.Coins),
 		OrigPkgAddr:   pkgAddr.Bech32(),
 		Banker:        NewSDKBanker(vm, ctx),
-		Params:        NewSDKParams(vm, ctx),
+		Params:        NewSDKParams(&vm.prmk, ctx),
 		EventLogger:   ctx.EventLogger(),
 	}
 	// Parse and run the files, construct *PV.
@@ -472,7 +471,7 @@ func (vm *VMKeeper) Call(ctx sdk.Context, msg MsgCall) (res string, err error) {
 		OrigSendSpent: new(std.Coins),
 		OrigPkgAddr:   pkgAddr.Bech32(),
 		Banker:        NewSDKBanker(vm, ctx),
-		Params:        NewSDKParams(vm, ctx),
+		Params:        NewSDKParams(&vm.prmk, ctx),
 		EventLogger:   ctx.EventLogger(),
 	}
 	// Construct machine and evaluate.
@@ -587,7 +586,7 @@ func (vm *VMKeeper) Run(ctx sdk.Context, msg MsgRun) (res string, err error) {
 		OrigSendSpent: new(std.Coins),
 		OrigPkgAddr:   pkgAddr.Bech32(),
 		Banker:        NewSDKBanker(vm, ctx),
-		Params:        NewSDKParams(vm, ctx),
+		Params:        NewSDKParams(&vm.prmk, ctx),
 		EventLogger:   ctx.EventLogger(),
 	}
 
@@ -740,7 +739,7 @@ func (vm *VMKeeper) QueryEval(ctx sdk.Context, pkgPath string, expr string) (res
 		// OrigSendSpent: nil,
 		OrigPkgAddr: pkgAddr.Bech32(),
 		Banker:      NewSDKBanker(vm, ctx), // safe as long as ctx is a fork to be discarded.
-		Params:      NewSDKParams(vm, ctx),
+		Params:      NewSDKParams(&vm.prmk, ctx),
 		EventLogger: ctx.EventLogger(),
 	}
 	m := gno.NewMachineWithOptions(
@@ -797,7 +796,7 @@ func (vm *VMKeeper) QueryEvalString(ctx sdk.Context, pkgPath string, expr string
 		// OrigSendSpent: nil,
 		OrigPkgAddr: pkgAddr.Bech32(),
 		Banker:      NewSDKBanker(vm, ctx), // safe as long as ctx is a fork to be discarded.
-		Params:      NewSDKParams(vm, ctx),
+		Params:      NewSDKParams(&vm.prmk, ctx),
 		EventLogger: ctx.EventLogger(),
 	}
 	m := gno.NewMachineWithOptions(

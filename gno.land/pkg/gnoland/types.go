@@ -19,12 +19,47 @@ var (
 	ErrBalanceEmptyAmount  = errors.New("balance amount is empty")
 )
 
+const (
+	Default          uint64 = 0
+	Unrestricted     uint64 = 1 << iota // 00000001: Not restricted
+	ValidatorAccount                    // 00000010: Identify the realm at the account level
+	RealmAccount                        // 00000100: Identify the validator at the account level
+)
+
 type GnoAccount struct {
 	std.BaseAccount
+	Attributes uint64 `json:"attributes" yaml:"attributes"`
+}
+
+// By default, the account is restricted when global transfer locking is applied
+func (ga *GnoAccount) IsRestricted() bool {
+	return ga.Attributes&Unrestricted == 0
+}
+
+func (ga *GnoAccount) SetUnrestricted() {
+	ga.Attributes |= Unrestricted
+}
+
+func (ga *GnoAccount) SetRestricted() {
+	ga.Attributes &= ^Unrestricted
+}
+
+// String implements fmt.Stringer
+func (ga *GnoAccount) String() string {
+	return fmt.Sprintf("%s\n  Attributes:	 %d",
+		ga.BaseAccount.String(),
+		ga.Attributes,
+	)
 }
 
 func ProtoGnoAccount() std.Account {
 	return &GnoAccount{}
+}
+
+type AccountRestricter interface {
+	IsRestricted() bool
+	SetUnrestricted()
+	SetRestricted()
 }
 
 type GnoGenesisState struct {
