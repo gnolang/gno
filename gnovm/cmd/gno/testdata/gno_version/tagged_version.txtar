@@ -1,5 +1,0 @@
--- input --
-gno version
-
--- stdout.golden --
-gno version: chain/test4.2
