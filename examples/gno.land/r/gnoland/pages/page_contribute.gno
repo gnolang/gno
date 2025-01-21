@@ -19,9 +19,7 @@ A good place where to start are the issues tagged ["good first issue"](https://g
 
 ## Gno Bounties
 
-Additionally, you can look out to help on specific issues labeled as bounties. All contributions will then concur to form your profile for Game of Realms.
-
-The Gno bounty program is a good way to find interesting challenges in Gno, and get rewarded for helping us advance the project. We will maintain open and rewardable bounties in the gnolang/gno repository, and you can search all available bounties by using the ["bounty" label](https://github.com/gnolang/gno/labels/bounty).
+Additionally, you can look out to help on specific issues labeled as bounties. The Gno bounty program is a good way to find interesting challenges in Gno, and get rewarded for helping us advance the project. We will maintain open and rewardable bounties in the gnolang/gno repository, and you can search all available bounties by using the ["bounty" label](https://github.com/gnolang/gno/labels/bounty). For more detals on the categories and types of bounties, we have a [bounties README](https://github.com/gnolang/bounties).  
 
 Recommendations on participating in the gno.land Bounty Program:
 
