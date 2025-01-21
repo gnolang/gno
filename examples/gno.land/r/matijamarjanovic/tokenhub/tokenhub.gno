@@ -32,7 +32,10 @@ var (
 	ErrNFTNotMetadata       = errors.New("NFT must implement IGRC721CollectionMetadata")
 )
 
-const pageSize = 2
+const pageSize = 5
+const token = "token" // grc20
+const nft = "nft" // grc721
+const mt = "mt" // grc1155
 
 func RegisterToken(tokenGetter grc20.TokenGetter, slug string) {
 	grc20reg.Register(tokenGetter, slug)

@@ -10,85 +10,118 @@ import (
 	"gno.land/p/demo/grc/grc721"
 )
 
-
-
 func Render(path string) string {
-	var sb strings.Builder
+	var out string
 
 	switch {
 	case path == "":
-		// home page
-		sb.WriteString(md.H1("Token Hub"))
-		sb.WriteString(md.Paragraph("A central registry for GRC721 NFTs, GRC20 tokens, and GRC1155 multi-tokens on gno.land"))
+		out = RenderHome()
 
-		links := []string{
-			md.Link("GRC20 Tokens", "http://localhost:8888/r/matijamarjanovic/tokenhub:token_1"),
-			md.Link("GRC721 NFTs", "http://localhost:8888/r/matijamarjanovic/tokenhub:nft_1"),
-			md.Link("GRC1155 Multi-Tokens", "http://localhost:8888/r/matijamarjanovic/tokenhub:mt_1"),
+	case strings.HasPrefix(path, token): 
+		out = RenderToken(path)
+
+	case strings.HasPrefix(path, nft): 
+		out = RenderNFT(path)
+
+	case strings.HasPrefix(path, mt): 
+		out = RenderMT(path)
+
+	default:
+		out = md.H1("404 Not Found")
+		out += md.Paragraph("The requested page does not exist.")
+		out += md.Link("Back to home", "http://localhost:8888/r/matijamarjanovic/tokenhub")
+	}
+	
+
+	// navigation footer if not on home page
+	if path != "" {
+		out += "\n"
+		out += md.HorizontalRule()
+		out += md.Link("Back to home", "http://localhost:8888/r/matijamarjanovic/tokenhub")
+	}
+
+	return out
+}
+
+func RenderHome() string {
+	out := md.H1("Token Hub")
+	out += md.Paragraph("A central registry for GRC721 NFTs, GRC20 tokens, and GRC1155 multi-tokens on gno.land")
+
+	links := []string{
+		md.Link("GRC20 Tokens", "http://localhost:8888/r/matijamarjanovic/tokenhub:token_1"),
+		md.Link("GRC721 NFTs", "http://localhost:8888/r/matijamarjanovic/tokenhub:nft_1"),
+		md.Link("GRC1155 Multi-Tokens", "http://localhost:8888/r/matijamarjanovic/tokenhub:mt_1"),
+	}
+	out +=md.BulletList(links)
+
+	return out
+}
+
+func RenderToken(path string) string {
+	out := md.H1("GRC20 Tokens")
+	var tokenItems []string
+
+	page := 1
+	if strings.HasPrefix(path, token + "_") { // get page number from path
+		pageStr := strings.TrimPrefix(path, token + "_")
+		if p, err := strconv.Atoi(pageStr); err == nil {
+			page = p
 		}
-		sb.WriteString(md.BulletList(links))
+	}
 
-	case strings.HasPrefix(path, "token"): // grc20
-		sb.WriteString(md.H1("GRC20 Tokens"))
-		var tokenItems []string
-
-		page := 1
-		if strings.HasPrefix(path, "token_") { // get page number from path
-			pageStr := strings.TrimPrefix(path, "token_")
-			if p, err := strconv.Atoi(pageStr); err == nil {
-				page = p
-			}
-		}
-
-		startKey := ""
-		if page > 1 {
-			lastKey := grc20reg.IterateN("", (page-1)*pageSize, func(key string, tokenGetter grc20.TokenGetter) bool { // start position
-				return false
-			})
-			startKey = lastKey
-		}
-
-		lastKey := grc20reg.IterateN(startKey, pageSize, func(key string, tokenGetter grc20.TokenGetter) bool { // get current page tokens
-			token := tokenGetter()
-			tokenItems = append(tokenItems, ufmt.Sprintf("%s (%s) [%s]",
-				md.Bold(token.GetName()),
-				md.InlineCode(token.GetSymbol()),
-				md.InlineCode(key)))
+	startKey := ""
+	if page > 1 {
+		lastKey := grc20reg.IterateN("", (page-1)*pageSize, func(key string, tokenGetter grc20.TokenGetter) bool { // start position
 			return false
 		})
+		startKey = lastKey
+	}
 
-		if len(tokenItems) > 0 {
-			sb.WriteString(md.BulletList(tokenItems))
+	lastKey := grc20reg.IterateN(startKey, pageSize, func(key string, tokenGetter grc20.TokenGetter) bool { // get current page tokens
+		token := tokenGetter()
+		tokenItems = append(tokenItems, ufmt.Sprintf("%s (%s) [%s]",
+			md.Bold(token.GetName()),
+			md.InlineCode(token.GetSymbol()),
+			md.InlineCode(key)))
+		return false
+	})
 
-			sb.WriteString("\n")
-			sb.WriteString(md.HorizontalRule())
+	if len(tokenItems) > 0 {
+		out += md.BulletList(tokenItems)
 
-			if page > 1 {
-				prevPage := ufmt.Sprintf("http://localhost:8888/r/matijamarjanovic/tokenhub:token_%d", page-1)
-				sb.WriteString(md.Link("Previous", prevPage))
-				sb.WriteString(" | ")
-			}
+		out += "\n"
 
-			if len(tokenItems) == pageSize && lastKey != "" {
-				nextPage := ufmt.Sprintf("http://localhost:8888/r/matijamarjanovic/tokenhub:token_%d", page+1)
-				sb.WriteString(md.Link("Next", nextPage))
-			}
-		} else {
-			sb.WriteString(md.Italic("No tokens registered yet"))
-			sb.WriteString("\n")
+		if page > 1 {
+			out += md.HorizontalRule()
+			prevPage := ufmt.Sprintf("http://localhost:8888/r/matijamarjanovic/tokenhub:token_%d", page-1)
+			out += md.Link("Previous", prevPage)
+			out += " | "
 		}
 
-	case strings.HasPrefix(path, "nft"): // grc721
-		sb.WriteString(md.H1("GRC721 NFTs"))
-		var nftItems []string
-
-		page := 1
-		if strings.HasPrefix(path, "nft_") {
-			pageStr := strings.TrimPrefix(path, "nft_")
-			if p, err := strconv.Atoi(pageStr); err == nil {
-				page = p
-			}
+		if len(tokenItems) == pageSize && lastKey != "" {
+			nextPage := ufmt.Sprintf("http://localhost:8888/r/matijamarjanovic/tokenhub:token_%d", page+1)
+			out += md.Link("Next", nextPage)
 		}
+	} else {
+		out += md.Italic("No tokens registered yet")
+		out += "\n"
+	}
+
+	return out
+}
+
+func RenderNFT(path string) string {
+	var out string
+	out = md.H1("GRC721 NFTs")
+	var nftItems []string
+
+	page := 1
+	if strings.HasPrefix(path, nft + "_") {
+		pageStr := strings.TrimPrefix(path, nft + "_")
+		if p, err := strconv.Atoi(pageStr); err == nil {
+			page = p
+		}
+	}
 
 		startIdx := (page - 1) * pageSize
 		count := 0
@@ -121,32 +154,36 @@ func Render(path string) string {
 		})
 
 		if len(nftItems) > 0 {
-			sb.WriteString(md.BulletList(nftItems))
-			sb.WriteString("\n")
-			sb.WriteString(md.HorizontalRule())
+			out += md.BulletList(nftItems)
+			out += "\n"
+			out += md.HorizontalRule()
 
 			if page > 1 {
 				prevPage := ufmt.Sprintf("http://localhost:8888/r/matijamarjanovic/tokenhub:nft_%d", page-1)
-				sb.WriteString(md.Link("Previous", prevPage))
-				sb.WriteString(" | ")
+				out += md.Link("Previous", prevPage)
+				out += " | "
 			}
 
 			if len(nftItems) == pageSize {
 				nextPage := ufmt.Sprintf("http://localhost:8888/r/matijamarjanovic/tokenhub:nft_%d", page+1)
-				sb.WriteString(md.Link("Next", nextPage))
+				out += md.Link("Next", nextPage)
 			}
 		} else {
-			sb.WriteString(md.Italic("No NFTs registered yet"))
-			sb.WriteString("\n")
+			out += md.Italic("No NFTs registered yet")
+			out += "\n"
 		}
 
-	case strings.HasPrefix(path, "mt"): // grc1155
-		sb.WriteString(md.H1("GRC1155 Multi-Tokens"))
-		var mtItems []string
+		return out
+}
+
+func RenderMT(path string) string {
+	var out string
+	out = md.H1("GRC1155 Multi-Tokens")
+	var mtItems []string
 
 		page := 1
-		if strings.HasPrefix(path, "mt_") {
-			pageStr := strings.TrimPrefix(path, "mt_")
+		if strings.HasPrefix(path, mt + "_") {
+			pageStr := strings.TrimPrefix(path, mt + "_")
 			if p, err := strconv.Atoi(pageStr); err == nil {
 				page = p
 			}
@@ -177,37 +214,24 @@ func Render(path string) string {
 		})
 
 		if len(mtItems) > 0 {
-			sb.WriteString(md.BulletList(mtItems))
-			sb.WriteString("\n")
-			sb.WriteString(md.HorizontalRule())
+			out += md.BulletList(mtItems)
+			out += "\n"
+			out += md.HorizontalRule()
 
 			if page > 1 {
 				prevPage := ufmt.Sprintf("http://localhost:8888/r/matijamarjanovic/tokenhub:mt_%d", page-1)
-				sb.WriteString(md.Link("Previous", prevPage))
-				sb.WriteString(" | ")
+				out += md.Link("Previous", prevPage)
+				out += " | "
 			}
 
 			if len(mtItems) == pageSize {
 				nextPage := ufmt.Sprintf("http://localhost:8888/r/matijamarjanovic/tokenhub:mt_%d", page+1)
-				sb.WriteString(md.Link("Next", nextPage))
+				out += md.Link("Next", nextPage)
 			}
 		} else {
-			sb.WriteString(md.Italic("No multi-tokens registered yet"))
-			sb.WriteString("\n")
-		}
-
-	default:
-		sb.WriteString(md.H1("404 Not Found"))
-		sb.WriteString(md.Paragraph("The requested page does not exist."))
-		sb.WriteString(md.Link("Back to home", "http://localhost:8888/r/matijamarjanovic/tokenhub"))
+		out += md.Italic("No multi-tokens registered yet")
+		out += "\n"
 	}
 
-	// navigation footer if not on home page
-	if path != "" {
-		sb.WriteString("\n")
-		sb.WriteString(md.HorizontalRule())
-		sb.WriteString(md.Link("Back to home", "http://localhost:8888/r/matijamarjanovic/tokenhub"))
-	}
-
-	return sb.String()
+	return out
 }
