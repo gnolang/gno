@@ -59,6 +59,7 @@ func RegisterNFT(nftGetter grc721.NFTGetter, collection string, tokenId string) 
 	registeredNFTs.Set(key, nftGetter)
 	return nil
 }
+
 // RegisterMultiToken is a function that registers a multi-token in an avl.Tree
 // The avl.Tree value is a struct defined in this realm. It contains not only the getter (like other token types) but also the tokenID
 func RegisterMultiToken(mtGetter grc1155.MultiTokenGetter, tokenID string) error {

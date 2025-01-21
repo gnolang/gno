@@ -58,8 +58,7 @@ func GetNFT(key string) grc721.IGRC721 {
 	if !ok {
 		return nil
 	}
-	nft := nftGetter.(grc721.IGRC721)
-	return nft
+	return (nftGetter.(grc721.NFTGetter))()
 }
 
 // MustGetNFT returns an NFT instance for a given key, panics if the NFT is not found
