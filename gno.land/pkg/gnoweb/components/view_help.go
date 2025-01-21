@@ -102,7 +102,7 @@ func RenderHelpComponent(w io.Writer, data HelpData) error {
 		HelpData: data,
 		Article: ArticleData{
 			Content: template.HTML(contentBuf.String()),
-			Classes: "js-help-content",
+			Classes: "",
 		},
 		TOC: template.HTML(tocBuf.String()),
 	}

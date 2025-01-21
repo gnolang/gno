@@ -1,4 +1,8 @@
 {{ define "renderSource" }}
+
+    <!-- Source ToC -->
+    {{ template "layout/aside" .TOC }}
+
     <!-- Source Info -->
     <header class="mt-10 lg:row-start-1 row-span-1 col-span-1 lg:col-span-7 flex flex-col xl:flex-row justify-between mb-4">
         <div class="flex items-center">
@@ -13,8 +17,6 @@
         </div>
     </header>
 
-    <!-- Source ToC -->
-    {{ template "layout/aside" .TOC }}
 
     <!-- Source Content -->
     {{ template "layout/article" .Article }}
