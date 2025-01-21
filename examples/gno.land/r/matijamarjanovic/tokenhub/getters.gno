@@ -12,36 +12,47 @@ import (
 	"gno.land/r/demo/users"
 )
 
+// GetUserTokenBalances returns a string of all the grc20 tokens the user owns
 func GetUserTokenBalances(userNameOrAddress string) string {
 	return getTokenBalances(userNameOrAddress, false)
 }
 
+// GetUserTokenBalancesNonZero returns a string of all the grc20 tokens the user owns, but only the ones that have a balance greater than 0
 func GetUserTokenBalancesNonZero(userNameOrAddress string) string {
 	return getTokenBalances(userNameOrAddress, true)
 }
 
+// GetUserNFTBalances returns a string of all the NFTs the user owns
 func GetUserNFTBalances(userNameOrAddress string) string {
 	return getNFTBalances(userNameOrAddress)
 }
 
+// GetUserMultiTokenBalances returns a string of all the multi-tokens the user owns
 func GetUserMultiTokenBalances(userNameOrAddress string) string {
 	return getMultiTokenBalances(userNameOrAddress, false)
 }
 
+// GetUserMultiTokenBalancesNonZero returns a string of all the multi-tokens the user owns, but only the ones that have a balance greater than 0
 func GetUserMultiTokenBalancesNonZero(userNameOrAddress string) string {
 	return getMultiTokenBalances(userNameOrAddress, true)
 }
 
+// GetToken returns a token instance for a given key
 func GetToken(key string) *grc20.Token {
 	getter := grc20reg.Get(key)
 	return getter()
 }
 
+// MustGetToken returns a token instance for a given key, panics if the token is not found
 func MustGetToken(key string) *grc20.Token {
 	getter := grc20reg.MustGet(key)
+	if getter == nil {
+		panic("unknown token: " + key)
+	}
 	return getter()
 }
 
+// GetNFT returns an NFT instance for a given key
 func GetNFT(key string) grc721.IGRC721 {
 	nftGetter, ok := registeredNFTs.Get(key)
 	if !ok {
@@ -51,6 +62,7 @@ func GetNFT(key string) grc721.IGRC721 {
 	return nft
 }
 
+// MustGetNFT returns an NFT instance for a given key, panics if the NFT is not found
 func MustGetNFT(key string) grc721.IGRC721 {
 	nftGetter := GetNFT(key)
 	if nftGetter == nil {
@@ -59,6 +71,7 @@ func MustGetNFT(key string) grc721.IGRC721 {
 	return nftGetter
 }
 
+// GetMultiToken returns a multi-token instance for a given key
 func GetMultiToken(key string) grc1155.IGRC1155 {
 	info, ok := registeredMTs.Get(key)
 	if !ok {
@@ -68,6 +81,7 @@ func GetMultiToken(key string) grc1155.IGRC1155 {
 	return mt()
 }
 
+// MustGetMultiToken returns a multi-token instance for a given key, panics if the multi-token is not found
 func MustGetMultiToken(key string) grc1155.IGRC1155 {
 	info := GetMultiToken(key)
 	if info == nil {
@@ -76,6 +90,7 @@ func MustGetMultiToken(key string) grc1155.IGRC1155 {
 	return info
 }
 
+// GetAllNFTs returns a string of all the NFTs registered
 func GetAllNFTs() string {
 	var out string
 	registeredNFTs.Iterate("", "", func(key string, value interface{}) bool {
@@ -85,28 +100,32 @@ func GetAllNFTs() string {
 	return out
 }
 
+// GetAllTokens returns a string of all the tokens registered
 func GetAllTokens() string {
 	var out string
 	grc20reg.GetRegistry().Iterate("", "", func(key string, value interface{}) bool {
-		out += ufmt.Sprintf("Token:%s,", key)
+		out += "Token:" + key + ","
 		return false
 	})
 	return out
 }
 
+// GetAllMultiTokens returns a string of all the multi-tokens registered
 func GetAllMultiTokens() string {
 	var out string
 	registeredMTs.Iterate("", "", func(key string, value interface{}) bool {
-		out += ufmt.Sprintf("MultiToken:%s,", key)
+		out += "MultiToken:" + key + ","
 		return false
 	})
 	return out
 }
 
+// GetAllRegistered returns a string of all the registered tokens, NFTs and multi-tokens
 func GetAllRegistered() string {
 	return GetAllNFTs() + GetAllTokens() + GetAllMultiTokens()
 }
 
+// getNFTBalances returns a string of all the NFTs the user owns
 func getNFTBalances(input string) string {
 	addr := getAddressForUsername(input)
 	if !addr.IsValid() {
@@ -128,6 +147,7 @@ func getNFTBalances(input string) string {
 	return out
 }
 
+// getTokenBalances returns a string of all the tokens the user owns
 func getTokenBalances(input string, nonZero bool) string {
 	addr := getAddressForUsername(input)
 	if !addr.IsValid() {
@@ -149,6 +169,7 @@ func getTokenBalances(input string, nonZero bool) string {
 	return out
 }
 
+// getMultiTokenBalances returns a string of all the multi-tokens the user owns
 func getMultiTokenBalances(input string, nonZero bool) string {
 	addr := getAddressForUsername(input)
 	if !addr.IsValid() {
@@ -173,6 +194,7 @@ func getMultiTokenBalances(input string, nonZero bool) string {
 	return out
 }
 
+// getAddressForUsername returns an address for a given username or address
 func getAddressForUsername(addrOrName string) std.Address {
 	addr := std.Address(addrOrName)
 

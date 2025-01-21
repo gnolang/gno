@@ -26,11 +26,13 @@ const token = "token" // grc20
 const nft = "nft"     // grc721
 const mt = "mt"       // grc1155
 
+// RegisterToken is a function that uses gno.land/r/demo/grc20reg to register a token
+// After doing so, the token hub realm uses grc20reg's registry as a read-only avl.Tree
 func RegisterToken(tokenGetter grc20.TokenGetter, slug string) {
 	grc20reg.Register(tokenGetter, slug)
 }
 
-// registering a collection of NFTs
+// RegisterNFT is a function that registers an NFT in an avl.Tree
 func RegisterNFT(nftGetter grc721.NFTGetter, collection string, tokenId string) error {
 	nft := nftGetter()
 	_, ok := nft.(grc721.IGRC721CollectionMetadata)
@@ -57,9 +59,8 @@ func RegisterNFT(nftGetter grc721.NFTGetter, collection string, tokenId string) 
 	registeredNFTs.Set(key, nftGetter)
 	return nil
 }
-
-// for grc1155 is a little bit different, since the one collection can have multiple tokens, this is why don't use slugs but tokenIDs,
-// and the collection is saved as a part of the :value in the node
+// RegisterMultiToken is a function that registers a multi-token in an avl.Tree
+// The avl.Tree value is a struct defined in this realm. It contains not only the getter (like other token types) but also the tokenID
 func RegisterMultiToken(mtGetter grc1155.MultiTokenGetter, tokenID string) error {
 	rlmPath := std.PrevRealm().PkgPath()
 
