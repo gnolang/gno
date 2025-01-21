@@ -51,11 +51,11 @@ const (
 )
 
 var (
-	router          = mux.NewRouter()
-	recipes         []*Recipe
-	
+	router  = mux.NewRouter()
+	recipes []*Recipe
+
 	profile = Profile{
-	AboutMe:   "👋 I'm Mustapha, a contributor to gno.land project from France. I'm passionate about coding, exploring new technologies, and contributing to open-source projects. Besides my tech journey, I'm also a pizzaiolo 🍕 who loves cooking and savoring good food.",
+		AboutMe:   "👋 I'm Mustapha, a contributor to gno.land project from France. I'm passionate about coding, exploring new technologies, and contributing to open-source projects. Besides my tech journey, I'm also a pizzaiolo 🍕 who loves cooking and savoring good food.",
 		Avatar:    "https://github.com/mous1985/assets/blob/master/avatar.png?raw=true",
 		Email:     "mustapha.benazzouz@outlook.fr",
 		Github:    "https://github.com/mous1985",
@@ -200,6 +200,7 @@ func (p Profile) Render() string {
 
 	return out
 }
+
 func writeNavigation(out *string) {
 	navItems := []string{
 		md.Link("Home", ""),
@@ -208,6 +209,7 @@ func writeNavigation(out *string) {
 	}
 	*out += strings.Join(navItems, " | ") + "\n\n" + md.HorizontalRule() + "\n\n"
 }
+
 func Render(path string) string {
 	return router.Render(path)
 }

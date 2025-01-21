@@ -24,6 +24,7 @@ func Address() std.Address {
 func Backup() std.Address {
 	return backup
 }
+
 func SetBackup(newAddress std.Address) error {
 	if !newAddress.IsValid() {
 		return ErrorInvalidAddr
