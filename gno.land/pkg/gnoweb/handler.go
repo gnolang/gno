@@ -117,8 +117,10 @@ func (h *WebHandler) Get(w http.ResponseWriter, r *http.Request) {
 
 	w.WriteHeader(status)
 
+	// NOTE: HTML escaping should have already been done by markdown rendering package
 	indexData.Body = template.HTML(body.String()) //nolint:gosec
 
+	// Render the final page with the rendered body
 	if err = components.RenderIndexComponent(w, indexData); err != nil {
 		h.Logger.Error("failed to render index component", "err", err)
 	}
@@ -151,18 +153,22 @@ func (h *WebHandler) renderPage(body *bytes.Buffer, r *http.Request, indexData *
 
 // GetPackagePage handles package pages.
 func (h *WebHandler) GetPackagePage(w io.Writer, gnourl *GnoURL) (int, PageData, error) {
+	// Handle Help page
 	if gnourl.WebQuery.Has("help") {
 		return h.GetHelpPage(w, gnourl)
 	}
 
+	// Handle Source page
 	if gnourl.WebQuery.Has("source") || gnourl.IsFile() {
 		return h.GetSourcePage(w, gnourl)
 	}
 
+	// Handle Source page
 	if gnourl.IsDir() || gnourl.IsPure() {
 		return h.GetDirectoryPage(w, gnourl)
 	}
 
+	// Ultimately render realm content
 	return h.renderRealmContent(w, gnourl)
 }
 
@@ -186,6 +192,9 @@ func (h *WebHandler) renderRealmContent(w io.Writer, gnourl *GnoURL) (int, PageD
 		TocItems: &components.RealmTOCData{
 			Items: meta.Toc.Items,
 		},
+
+		// NOTE: `RenderRealm` should ensure that HTML content is
+		// sanitized before rendering
 		Content: template.HTML(content.String()), //nolint:gosec
 	})
 	if err != nil {
@@ -268,14 +277,14 @@ func (h *WebHandler) GetSourcePage(w io.Writer, gnourl *GnoURL) (int, PageData, 
 	}
 
 	var fileName string
-	if gnourl.IsFile() {
+	if gnourl.IsFile() { // check path file from path first
 		fileName = gnourl.File
 	} else if file := gnourl.WebQuery.Get("file"); file != "" {
 		fileName = file
 	}
 
 	if fileName == "" {
-		fileName = files[0]
+		fileName = files[0] // fallback on the first file if
 	}
 
 	var source bytes.Buffer
