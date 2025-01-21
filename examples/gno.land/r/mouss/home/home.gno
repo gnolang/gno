@@ -133,6 +133,7 @@ func Follow(addr std.Address) error {
 func isUser(addr std.Address) bool {
 	return !isAuthorized(addr)
 }
+
 func isAuthorized(addr std.Address) bool {
 	return addr == config.Address() || addr == config.Backup()
 }
