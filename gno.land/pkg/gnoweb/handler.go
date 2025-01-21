@@ -242,10 +242,11 @@ func (h *WebHandler) GetHelpPage(w io.Writer, gnourl *GnoURL) (int, PageData, er
 		SelectedFunc: selFn,
 		SelectedArgs: selArgs,
 		RealmName:    realmName,
-		ChainId:      h.Static.ChainId,
-		PkgPath:      filepath.Join(h.Static.Domain, gnourl.Path),
-		Remote:       h.Static.RemoteHelp,
-		Functions:    fsigs,
+		// TODO: get chain domain and use that.
+		ChainId:   h.Static.ChainId,
+		PkgPath:   filepath.Join(h.Static.Domain, gnourl.Path),
+		Remote:    h.Static.RemoteHelp,
+		Functions: fsigs,
 	})
 	if err != nil {
 		h.Logger.Error("unable to render helper", "err", err)
