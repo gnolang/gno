@@ -37,11 +37,7 @@ var (
 
 const pageSize = 2
 
-func RegisterToken(tokenGetter grc20.TokenGetter, slugs ...string) {
-	slug := ""
-	if len(slugs) > 0 {
-		slug = slugs[0]
-	}
+func RegisterToken(tokenGetter grc20.TokenGetter, slug string) {
 	grc20reg.Register(tokenGetter, slug)
 }
 
@@ -54,7 +50,11 @@ func RegisterNFT(nftGetter grc721.NFTGetter, collection string, tokenId string) 
 	}
 
 	nftOwner, err := nft.OwnerOf(grc721.TokenID(tokenId))
-	if string(nftOwner) == "" || err != nil {
+
+	if err != nil {
+		return err
+	}
+	if !nftOwner.IsValid() {
 		return ErrNFTtokIDNotExists
 	}
 
