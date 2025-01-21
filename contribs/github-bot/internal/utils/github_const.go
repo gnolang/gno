@@ -12,4 +12,7 @@ const (
 	// Pull Request States.
 	PRStateOpen   = "open"
 	PRStateClosed = "closed"
+
+	// PR Review state.
+	ReviewStateApproved = "APPROVED"
 )
