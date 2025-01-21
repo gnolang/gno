@@ -18,8 +18,8 @@ type GRC1155TokenInfo struct {
 
 var (
 	registeredTokens = avl.NewTree() // rlmPath[.slug] -> grc20.TokenGetter
-	registeredNFTs = avl.NewTree() // rlmPath[.slug] -> grc721.NFTGetter
-	registeredMTs  = avl.NewTree() // rlmPath[.slug] -> GRC1155TokenInfo
+	registeredNFTs   = avl.NewTree() // rlmPath[.slug] -> grc721.NFTGetter
+	registeredMTs    = avl.NewTree() // rlmPath[.slug] -> GRC1155TokenInfo
 
 	ErrNFTAlreadyRegistered = errors.New("NFT already registered")
 	ErrNFTNotFound          = errors.New("NFT not found")
@@ -30,10 +30,10 @@ var (
 	ErrNFTNotMetadata       = errors.New("NFT must implement IGRC721CollectionMetadata")
 )
 
-const pageSize = 1	
+const pageSize = 1
 const token = "token" // grc20
-const nft = "nft" // grc721
-const mt = "mt" // grc1155
+const nft = "nft"     // grc721
+const mt = "mt"       // grc1155
 
 func RegisterToken(tokenGetter grc20.TokenGetter, slug string) {
 	grc20reg.Register(tokenGetter, slug)

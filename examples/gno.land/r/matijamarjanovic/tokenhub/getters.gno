@@ -4,14 +4,12 @@ import (
 	"std"
 	"strings"
 
-	"gno.land/p/demo/avl"
+	"gno.land/p/demo/grc/grc1155"
 	"gno.land/p/demo/grc/grc20"
 	"gno.land/p/demo/grc/grc721"
-	"gno.land/p/demo/grc/grc1155"
-	"gno.land/r/demo/grc20reg"
 	"gno.land/p/demo/ufmt"
+	"gno.land/r/demo/grc20reg"
 	"gno.land/r/demo/users"
-
 )
 
 func GetUserTokenBalances(userNameOrAddress string) string {
@@ -89,7 +87,7 @@ func GetAllNFTs() string {
 
 func GetAllTokens() string {
 	var out string
-	grc20reg.GetRegistry().Iterate("", "", func(key string, value interface{}) bool{
+	grc20reg.GetRegistry().Iterate("", "", func(key string, value interface{}) bool {
 		out += ufmt.Sprintf("Token:%s,", key)
 		return false
 	})
@@ -141,9 +139,9 @@ func getTokenBalances(input string, nonZero bool) string {
 		token := tokenGetter()
 		balance := token.BalanceOf(addr)
 		if nonZero && balance > 0 {
-			out += "Token:" + key + ":" + balance + ","
+			out += ufmt.Sprintf("Token:%s:%d,", key, balance)
 		} else if !nonZero {
-			out += "Token:" + key + ":" + balance + ","
+			out += ufmt.Sprintf("Token:%s:%d,", key, balance)
 		}
 		return false
 	})
@@ -164,9 +162,9 @@ func getMultiTokenBalances(input string, nonZero bool) string {
 		balance, err := mt.BalanceOf(addr, grc1155.TokenID(info.TokenID))
 		if err == nil {
 			if nonZero && balance > 0 {
-				out += "MultiToken:" + key + ":" + balance + ","
+				out += ufmt.Sprintf("MultiToken:%s:%d,", key, balance)
 			} else if !nonZero {
-				out += "MultiToken:" + key + ":" + balance + ","
+				out += ufmt.Sprintf("MultiToken:%s:%d,", key, balance)
 			}
 		}
 		return false

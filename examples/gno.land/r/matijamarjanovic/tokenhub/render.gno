@@ -2,12 +2,13 @@ package tokenhub
 
 import (
 	"strings"
+
+	"gno.land/p/demo/avl/pager"
+	"gno.land/p/demo/grc/grc20"
+	"gno.land/p/demo/grc/grc721"
 	"gno.land/p/demo/ufmt"
 	"gno.land/p/moul/md"
 	"gno.land/r/demo/grc20reg"
-	"gno.land/p/demo/grc/grc20"
-	"gno.land/p/demo/grc/grc721"
-	"gno.land/p/demo/avl/pager"
 )
 
 func Render(path string) string {
@@ -17,13 +18,13 @@ func Render(path string) string {
 	case path == "":
 		out = RenderHome()
 
-	case strings.HasPrefix(path, token): 
+	case strings.HasPrefix(path, token):
 		out = RenderToken(path)
 
-	case strings.HasPrefix(path, nft): 
+	case strings.HasPrefix(path, nft):
 		out = RenderNFT(path)
 
-	case strings.HasPrefix(path, mt): 
+	case strings.HasPrefix(path, mt):
 		out = RenderMT(path)
 
 	default:
@@ -31,7 +32,6 @@ func Render(path string) string {
 		out += md.Paragraph("The requested page does not exist.")
 		out += md.Link("Back to home", "http://localhost:8888/r/matijamarjanovic/tokenhub")
 	}
-	
 
 	// navigation footer if not on home page
 	if path != "" {
@@ -51,7 +51,7 @@ func RenderHome() string {
 		md.Link("GRC721 NFTs", "http://localhost:8888/r/matijamarjanovic/tokenhub:nfts"),
 		md.Link("GRC1155 Multi-Tokens", "http://localhost:8888/r/matijamarjanovic/tokenhub:mts"),
 	}
-	out +=md.BulletList(links)
+	out += md.BulletList(links)
 
 	return out
 }
@@ -76,11 +76,11 @@ func RenderToken(path string) string {
 	if len(tokenItems) > 0 {
 		out += md.BulletList(tokenItems)
 		out += "\n"
-		
+
 		if picker := page.Picker(); picker != "" {
 			out += md.HorizontalRule()
 			out += md.Paragraph(picker)
-		}else{
+		} else {
 			out += md.HorizontalRule()
 		}
 	} else {
@@ -116,11 +116,11 @@ func RenderNFT(path string) string {
 	if len(nftItems) > 0 {
 		out += md.BulletList(nftItems)
 		out += "\n"
-		
+
 		if picker := page.Picker(); picker != "" {
 			out += md.HorizontalRule()
 			out += md.Paragraph(picker)
-		}else{
+		} else {
 			out += md.HorizontalRule()
 		}
 	} else {
@@ -150,11 +150,11 @@ func RenderMT(path string) string {
 	if len(mtItems) > 0 {
 		out += md.BulletList(mtItems)
 		out += "\n"
-		
+
 		if picker := page.Picker(); picker != "" {
 			out += md.HorizontalRule()
 			out += md.Paragraph(picker)
-		}else{
+		} else {
 			out += md.HorizontalRule()
 		}
 	} else {
