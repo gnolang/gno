@@ -1,7 +1,7 @@
 package components
 
 import (
-	"context"
+	"bytes"
 	"html/template"
 	"io"
 
@@ -12,23 +12,34 @@ type RealmTOCData struct {
 	Items []*markdown.TocItem
 }
 
-func RealmTOCComponent(data *RealmTOCData) Component {
-	return func(ctx context.Context, tmpl *template.Template, w io.Writer) error {
-		return tmpl.ExecuteTemplate(w, "renderRealmToc", data)
-	}
-}
-
-func RenderRealmTOCComponent(w io.Writer, data *RealmTOCData) error {
-	return tmpl.ExecuteTemplate(w, "renderRealmToc", data)
-}
-
 type RealmData struct {
-	Content     template.HTML
-	TocItems    *RealmTOCData
-	ShowFeature bool
+	Content  template.HTML
+	TocItems *RealmTOCData
+}
+
+type ArticleData struct {
+	Content template.HTML
+	Classes string
+}
+
+type RealmViewData struct {
+	Article ArticleData
+	TOC     template.HTML
 }
 
 func RenderRealmComponent(w io.Writer, data RealmData) error {
-	data.ShowFeature = false
-	return tmpl.ExecuteTemplate(w, "renderRealm", data)
+	var tocBuf bytes.Buffer
+	if err := tmpl.ExecuteTemplate(&tocBuf, "renderRealmToc", data.TocItems); err != nil {
+		return err
+	}
+
+	viewData := RealmViewData{
+		Article: ArticleData{
+			Content: data.Content,
+			Classes: "realm-content lg:row-start-1",
+		},
+		TOC: template.HTML(tocBuf.String()),
+	}
+
+	return tmpl.ExecuteTemplate(w, "renderRealm", viewData)
 }

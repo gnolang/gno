@@ -1,6 +1,7 @@
 package components
 
 import (
+	"bytes"
 	"html/template"
 	"io"
 	"strings"
@@ -18,6 +19,12 @@ type HelpData struct {
 	ChainId   string
 	Remote    string
 	PkgPath   string
+}
+
+type HelpViewData struct {
+	HelpData
+	Article ArticleData
+	TOC     template.HTML
 }
 
 func registerHelpFuncs(funcs template.FuncMap) {
@@ -47,5 +54,26 @@ func registerHelpFuncs(funcs template.FuncMap) {
 }
 
 func RenderHelpComponent(w io.Writer, data HelpData) error {
-	return tmpl.ExecuteTemplate(w, "renderHelp", data)
+	var contentBuf, tocBuf bytes.Buffer
+
+	// Generate the content
+	if err := tmpl.ExecuteTemplate(&contentBuf, "renderHelpContent", data); err != nil {
+		return err
+	}
+
+	// Generate the ToC
+	if err := tmpl.ExecuteTemplate(&tocBuf, "renderHelpToc", data); err != nil {
+		return err
+	}
+
+	viewData := HelpViewData{
+		HelpData: data,
+		Article: ArticleData{
+			Content: template.HTML(contentBuf.String()),
+			Classes: "help-content",
+		},
+		TOC: template.HTML(tocBuf.String()),
+	}
+
+	return tmpl.ExecuteTemplate(w, "renderHelp", viewData)
 }

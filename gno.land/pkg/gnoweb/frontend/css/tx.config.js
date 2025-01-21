@@ -68,5 +68,6 @@ export default {
       900: `${pxToRem(42)}rem`,
     },
   },
+  safelist: ["realm-content", { pattern: /^realm-content/ }],
   plugins: [],
 };

@@ -1,6 +1,7 @@
 package components
 
 import (
+	"bytes"
 	"html/template"
 	"io"
 )
@@ -15,6 +16,42 @@ type SourceData struct {
 	FileSource  template.HTML
 }
 
+type SourceViewData struct {
+	Article     ArticleData
+	Files       []string
+	FileName    string
+	FileSize    string
+	FileLines   int
+	FileCounter int
+	PkgPath     string
+	TOC         template.HTML
+}
+
 func RenderSourceComponent(w io.Writer, data SourceData) error {
-	return tmpl.ExecuteTemplate(w, "renderSource", data)
+	var tocBuf, contentBuf bytes.Buffer
+
+	// Générer le ToC
+	if err := tmpl.ExecuteTemplate(&tocBuf, "renderSourceToc", data); err != nil {
+		return err
+	}
+
+	// Générer le contenu avec wrapper
+	if err := tmpl.ExecuteTemplate(&contentBuf, "renderSourceContent", data.FileSource); err != nil {
+		return err
+	}
+
+	viewData := SourceViewData{
+		Article: ArticleData{
+			Content: template.HTML(contentBuf.String()),
+			Classes: "source-content col-span-1 lg:col-span-7 lg:row-start-2 pb-24 text-gray-900",
+		},
+		TOC:         template.HTML(tocBuf.String()),
+		Files:       data.Files,
+		FileName:    data.FileName,
+		FileSize:    data.FileSize,
+		FileLines:   data.FileLines,
+		FileCounter: data.FileCounter,
+		PkgPath:     data.PkgPath,
+	}
+	return tmpl.ExecuteTemplate(w, "renderSource", viewData)
 }
