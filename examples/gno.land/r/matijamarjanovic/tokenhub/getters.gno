@@ -196,10 +196,10 @@ func getMultiTokenBalances(input string, nonZero bool) string {
 // getAddressForUsername returns an address for a given username or address
 func getAddressForUsername(addrOrName string) std.Address {
 	addr := std.Address(addrOrName)
-
 	if addr.IsValid() {
 		return addr
 	}
+	
 	if user := users.GetUserByName(addrOrName); user != nil {
 		return user.Address
 	}
