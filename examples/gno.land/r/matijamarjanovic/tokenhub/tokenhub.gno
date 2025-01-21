@@ -7,7 +7,6 @@ import (
 	"strings"
 
 	"gno.land/p/demo/avl"
-	"gno.land/p/demo/fqname"
 	"gno.land/p/demo/grc/grc1155"
 	"gno.land/p/demo/grc/grc20"
 	"gno.land/p/demo/grc/grc721"
@@ -59,8 +58,7 @@ func RegisterNFT(nftGetter grc721.NFTGetter, collection string, tokenId string) 
 	}
 
 	rlmPath := std.PrevRealm().PkgPath()
-	k := ufmt.Sprintf("%s.%s", collection, tokenId)
-	key := fqname.Construct(rlmPath, k)
+	key := rlmPath + "." + collection + "." + tokenId
 
 	if registeredNFTs.Has(key) {
 		return ErrNFTAlreadyRegistered
@@ -75,7 +73,7 @@ func RegisterNFT(nftGetter grc721.NFTGetter, collection string, tokenId string) 
 func RegisterMultiToken(mtGetter grc1155.MultiTokenGetter, tokenID string) error {
 	rlmPath := std.PrevRealm().PkgPath()
 
-	key := fqname.Construct(rlmPath, tokenID)
+	key := rlmPath + "." + tokenID
 
 	if registeredMTs.Has(key) {
 		return ErrMTAlreadyRegistered
