@@ -13,7 +13,7 @@ input_css := frontend/css/input.css
 output_css := $(PUBLIC_DIR)/styles.css
 tw_version := 3.4.14
 tw_config_path := frontend/css/tx.config.js
-templates_files := $(shell find . -iname '*.gohtml')
+templates_files := $(shell find . -iname '*.html')
 
 # static config
 src_dir_static := frontend/static

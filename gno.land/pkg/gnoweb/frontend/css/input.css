@@ -147,7 +147,7 @@
   }
 
   .realm-content table {
-    @apply border-collapse my-8 block w-full max-w-full overflow-x-auto border-collapse;
+    @apply my-8 block w-full max-w-full overflow-x-auto border-collapse;
   }
 
   .realm-content th,

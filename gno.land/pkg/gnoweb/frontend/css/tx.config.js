@@ -1,7 +1,7 @@
 const pxToRem = (px) => px / 16;
 
 export default {
-  content: ["./components/**/*.{gohtml,ts}"],
+  content: ["./components/**/*.{html,ts}"],
   theme: {
     screens: {
       xs: `${pxToRem(360)}rem`,
