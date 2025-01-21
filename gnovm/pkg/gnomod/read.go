@@ -770,12 +770,6 @@ func parseReplace(filename string, line *modfile.Line, verb string, args []strin
 	}
 	nv := ""
 	if len(args) == arrow+2 {
-		if !modfile.IsDirectoryPath(ns) {
-			if strings.Contains(ns, "@") {
-				return nil, errorf("replacement module must match format 'path version', not 'path@version'")
-			}
-			return nil, errorf("replacement module without version must be directory path (rooted or starting with . or ..)")
-		}
 		if filepath.Separator == '/' && strings.Contains(ns, `\`) {
 			return nil, errorf("replacement directory appears to be Windows path (on a non-windows system)")
 		}
@@ -860,60 +854,6 @@ func updateLine(line *modfile.Line, tokens ...string) {
 		tokens = tokens[1:]
 	}
 	line.Token = tokens
-}
-
-// setIndirect sets line to have (or not have) a "// indirect" comment.
-func setIndirect(r *modfile.Require, indirect bool) {
-	r.Indirect = indirect
-	line := r.Syntax
-	if isIndirect(line) == indirect {
-		return
-	}
-	if indirect {
-		// Adding comment.
-		if len(line.Suffix) == 0 {
-			// New comment.
-			line.Suffix = []modfile.Comment{{Token: "// indirect", Suffix: true}}
-			return
-		}
-
-		com := &line.Suffix[0]
-		text := strings.TrimSpace(strings.TrimPrefix(com.Token, string(slashSlash)))
-		if text == "" {
-			// Empty comment.
-			com.Token = "// indirect"
-			return
-		}
-
-		// Insert at beginning of existing comment.
-		com.Token = "// indirect; " + text
-		return
-	}
-
-	// Removing comment.
-	f := strings.TrimSpace(strings.TrimPrefix(line.Suffix[0].Token, string(slashSlash)))
-	if f == "indirect" {
-		// Remove whole comment.
-		line.Suffix = nil
-		return
-	}
-
-	// Remove comment prefix.
-	com := &line.Suffix[0]
-	i := strings.Index(com.Token, "indirect;")
-	com.Token = "//" + com.Token[i+len("indirect;"):]
-}
-
-// isIndirect reports whether line has a "// indirect" comment,
-// meaning it is in go.mod only for its effect on indirect dependencies,
-// so that it can be dropped entirely once the effective version of the
-// indirect dependency reaches the given minimum version.
-func isIndirect(line *modfile.Line) bool {
-	if len(line.Suffix) == 0 {
-		return false
-	}
-	f := strings.Fields(strings.TrimPrefix(line.Suffix[0].Token, string(slashSlash)))
-	return (len(f) == 1 && f[0] == "indirect" || len(f) > 1 && f[0] == "indirect;")
 }
 
 // addLine adds a line containing the given tokens to the file.

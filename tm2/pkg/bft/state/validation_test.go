@@ -142,7 +142,7 @@ func TestValidateBlockHeader(t *testing.T) {
 		for _, tc := range testCases {
 			block, _ := state.MakeBlock(height, makeTxs(height), lastCommit, proposerAddr)
 			tc.malleateBlock(block)
-			err := blockExec.ValidateBlock(state, block)
+			err := state.ValidateBlock(block)
 			assert.ErrorContains(t, err, tc.expectedError, tc.name)
 		}
 
@@ -179,7 +179,7 @@ func TestValidateBlockCommit(t *testing.T) {
 			require.NoError(t, err, "height %d", height)
 			wrongHeightCommit := types.NewCommit(state.LastBlockID, []*types.CommitSig{wrongHeightVote.CommitSig()})
 			block, _ := state.MakeBlock(height, makeTxs(height), wrongHeightCommit, proposerAddr)
-			err = blockExec.ValidateBlock(state, block)
+			err = state.ValidateBlock(block)
 			_, isErrInvalidCommitHeight := err.(types.InvalidCommitHeightError)
 			require.True(t, isErrInvalidCommitHeight, "expected InvalidCommitHeightError at height %d but got: %v", height, err)
 
@@ -187,7 +187,7 @@ func TestValidateBlockCommit(t *testing.T) {
 				#2589: test len(block.LastCommit.Precommits) == state.LastValidators.Size()
 			*/
 			block, _ = state.MakeBlock(height, makeTxs(height), wrongPrecommitsCommit, proposerAddr)
-			err = blockExec.ValidateBlock(state, block)
+			err = state.ValidateBlock(block)
 			_, isErrInvalidCommitPrecommits := err.(types.InvalidCommitPrecommitsError)
 			require.True(t, isErrInvalidCommitPrecommits, "expected InvalidCommitPrecommitsError at height %d but got: %v", height, err)
 		}

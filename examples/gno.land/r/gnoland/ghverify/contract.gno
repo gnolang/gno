@@ -83,6 +83,11 @@ func RequestVerification(githubHandle string) {
 	); err != nil {
 		panic(err)
 	}
+	std.Emit(
+		"verification_requested",
+		"from", gnoAddress,
+		"handle", githubHandle,
+	)
 }
 
 // GnorkleEntrypoint is the entrypoint to the gnorkle oracle handler.

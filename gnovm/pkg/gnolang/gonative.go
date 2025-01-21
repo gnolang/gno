@@ -2,7 +2,10 @@ package gnolang
 
 import (
 	"fmt"
+	"math"
 	"reflect"
+
+	"github.com/gnolang/gno/gnovm/pkg/gnolang/internal/softfloat"
 )
 
 // NOTE
@@ -84,11 +87,6 @@ func go2GnoBaseType(rt reflect.Type) Type {
 }
 
 // Implements Store.
-func (ds *defaultStore) SetStrictGo2GnoMapping(strict bool) {
-	ds.go2gnoStrict = strict
-}
-
-// Implements Store.
 // See go2GnoValue2(). Like go2GnoType() but also converts any
 // top-level complex types (or pointers to them).  The result gets
 // memoized in *NativeType.GnoType() for type inference in the
@@ -109,54 +107,9 @@ func (ds *defaultStore) Go2GnoType(rt reflect.Type) (t Type) {
 		// wrap t with declared type.
 		pkgPath := rt.PkgPath()
 		if pkgPath != "" {
-			// mappings have been removed, so for any non-builtin type in strict mode,
-			// this will panic.
-			if ds.go2gnoStrict {
-				// mapping failed and strict: error.
-				gokey := pkgPath + "." + rt.Name()
-				panic(fmt.Sprintf("native type does not exist for %s", gokey))
-			}
-
-			// generate a new gno type for testing.
-			mtvs := []TypedValue(nil)
-			if t.Kind() == InterfaceKind {
-				// methods already set on t.Methods.
-				// *DT.Methods not used in Go for interfaces.
-			} else {
-				prt := rt
-				if rt.Kind() != reflect.Ptr {
-					// NOTE: go reflect requires ptr kind
-					// for methods with ptr receivers,
-					// whereas gno methods are all
-					// declared on the *DeclaredType.
-					prt = reflect.PointerTo(rt)
-				}
-				nm := prt.NumMethod()
-				mtvs = make([]TypedValue, nm)
-				for i := 0; i < nm; i++ {
-					mthd := prt.Method(i)
-					ft := ds.go2GnoFuncType(mthd.Type)
-					fv := &FuncValue{
-						Type:       ft,
-						IsMethod:   true,
-						Source:     nil,
-						Name:       Name(mthd.Name),
-						Closure:    nil,
-						PkgPath:    pkgPath,
-						body:       nil, // XXX
-						nativeBody: nil,
-					}
-					mtvs[i] = TypedValue{T: ft, V: fv}
-				}
-			}
-			dt := &DeclaredType{
-				PkgPath: pkgPath,
-				Name:    Name(rt.Name()),
-				Base:    t,
-				Methods: mtvs,
-			}
-			dt.Seal()
-			t = dt
+			// mappings have been removed, so this should never happen.
+			gokey := pkgPath + "." + rt.Name()
+			panic(fmt.Sprintf("native type does not exist for %s", gokey))
 		}
 		// memoize t to cache.
 		if debug {
@@ -379,9 +332,9 @@ func go2GnoValue(alloc *Allocator, rv reflect.Value) (tv TypedValue) {
 	case reflect.Uint64:
 		tv.SetUint64(rv.Uint())
 	case reflect.Float32:
-		tv.SetFloat32(float32(rv.Float()))
+		tv.SetFloat32(softfloat.F64to32(math.Float64bits(rv.Float())))
 	case reflect.Float64:
-		tv.SetFloat64(rv.Float())
+		tv.SetFloat64(math.Float64bits(rv.Float()))
 	case reflect.Array:
 		tv.V = alloc.NewNative(rv)
 	case reflect.Slice:
@@ -478,11 +431,11 @@ func go2GnoValueUpdate(alloc *Allocator, rlm *Realm, lvl int, tv *TypedValue, rv
 		}
 	case Float32Kind:
 		if lvl != 0 {
-			tv.SetFloat32(float32(rv.Float()))
+			tv.SetFloat32(softfloat.F64to32(math.Float64bits(rv.Float())))
 		}
 	case Float64Kind:
 		if lvl != 0 {
-			tv.SetFloat64(rv.Float())
+			tv.SetFloat64(math.Float64bits(rv.Float()))
 		}
 	case BigintKind:
 		panic("not yet implemented")
@@ -694,9 +647,9 @@ func go2GnoValue2(alloc *Allocator, store Store, rv reflect.Value, recursive boo
 	case reflect.Uint64:
 		tv.SetUint64(rv.Uint())
 	case reflect.Float32:
-		tv.SetFloat32(float32(rv.Float()))
+		tv.SetFloat32(softfloat.F64to32(math.Float64bits(rv.Float())))
 	case reflect.Float64:
-		tv.SetFloat64(rv.Float())
+		tv.SetFloat64(math.Float64bits(rv.Float()))
 	case reflect.Array:
 		rvl := rv.Len()
 		if rv.Type().Elem().Kind() == reflect.Uint8 {
@@ -1099,9 +1052,9 @@ func gno2GoValue(tv *TypedValue, rv reflect.Value) (ret reflect.Value) {
 		case Uint64Type:
 			rv.SetUint(tv.GetUint64())
 		case Float32Type:
-			rv.SetFloat(float64(tv.GetFloat32()))
+			rv.SetFloat(math.Float64frombits(softfloat.F32to64(tv.GetFloat32())))
 		case Float64Type:
-			rv.SetFloat(tv.GetFloat64())
+			rv.SetFloat(math.Float64frombits(tv.GetFloat64()))
 		default:
 			panic(fmt.Sprintf(
 				"unexpected type %s",
@@ -1229,34 +1182,6 @@ func gno2GoValue(tv *TypedValue, rv reflect.Value) (ret reflect.Value) {
 
 // ----------------------------------------
 // PackageNode methods
-
-func (x *PackageNode) DefineGoNativeType(rt reflect.Type) {
-	if debug {
-		debug.Printf("*PackageNode.DefineGoNativeType(%s)\n", rt.String())
-	}
-	pkgp := rt.PkgPath()
-	if pkgp == "" {
-		// DefineGoNativeType can only work with defined exported types.
-		// Unexported types should be composed, and primitive types
-		// should just use Gno types.
-		panic(fmt.Sprintf(
-			"reflect.Type %s has no package path",
-			rt.String()))
-	}
-	name := rt.Name()
-	if name == "" {
-		panic(fmt.Sprintf(
-			"reflect.Type %s is not named",
-			rt.String()))
-	}
-	if rt.PkgPath() == "" {
-		panic(fmt.Sprintf(
-			"reflect.Type %s is not defined/exported",
-			rt.String()))
-	}
-	nt := &NativeType{Type: rt}
-	x.Define(Name(name), asValue(nt))
-}
 
 func (x *PackageNode) DefineGoNativeValue(name Name, nv interface{}) {
 	x.defineGoNativeValue(false, name, nv)

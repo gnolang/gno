@@ -9,7 +9,6 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
 	"github.com/gnolang/gno/gnovm/pkg/gnomod"
 	"github.com/gnolang/gno/tm2/pkg/commands"
 )
@@ -55,13 +54,26 @@ func (c *cleanCfg) RegisterFlags(fs *flag.FlagSet) {
 		&c.modCache,
 		"modcache",
 		false,
-		"remove the entire module download cache",
+		"remove the entire module download cache and exit",
 	)
 }
 
 func execClean(cfg *cleanCfg, args []string, io commands.IO) error {
 	if len(args) > 0 {
 		return flag.ErrHelp
+	}
+
+	if cfg.modCache {
+		modCacheDir := gnomod.ModCachePath()
+		if !cfg.dryRun {
+			if err := os.RemoveAll(modCacheDir); err != nil {
+				return err
+			}
+		}
+		if cfg.dryRun || cfg.verbose {
+			io.Println("rm -rf", modCacheDir)
+		}
+		return nil
 	}
 
 	path, err := os.Getwd()
@@ -81,17 +93,6 @@ func execClean(cfg *cleanCfg, args []string, io commands.IO) error {
 		return err
 	}
 
-	if cfg.modCache {
-		modCacheDir := filepath.Join(gnoenv.HomeDir(), "pkg", "mod")
-		if !cfg.dryRun {
-			if err := os.RemoveAll(modCacheDir); err != nil {
-				return err
-			}
-		}
-		if cfg.dryRun || cfg.verbose {
-			io.Println("rm -rf", modCacheDir)
-		}
-	}
 	return nil
 }
 

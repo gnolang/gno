@@ -28,6 +28,18 @@ std.AssertOriginCall()
 ```
 ---
 
+## ChainDomain
+```go
+func ChainDomain() string
+```
+Returns the chain domain. Currently only `gno.land` is supported.
+
+#### Usage
+```go
+domain := std.ChainDomain() // gno.land
+```
+---
+
 ## Emit
 ```go
 func Emit(typ string, attrs ...string)
@@ -49,7 +61,7 @@ Returns the chain ID.
 
 #### Usage
 ```go
-chainID := std.GetChainID() // dev | test3 | main ...
+chainID := std.GetChainID() // dev | test5 | main ...
 ```
 ---
 
@@ -149,4 +161,20 @@ Derives the Realm address from its `pkgpath` parameter.
 #### Usage
 ```go
 realmAddr := std.DerivePkgAddr("gno.land/r/demo/tamagotchi") //  g1a3tu874agjlkrpzt9x90xv3uzncapcn959yte4
+```
+---
+
+## CoinDenom
+```go
+func CoinDenom(pkgPath, coinName string) string
+```
+Composes a qualified denomination string from the realm's `pkgPath` and the provided coin name, e.g. `/gno.land/r/demo/blog:blgcoin`. This method should be used to get fully qualified denominations of coins when interacting with the `Banker` module. It can also be used as a method of the `Realm` object, Read more[here](./realm.md#coindenom).
+
+#### Parameters
+- `pkgPath` **string** - package path of the realm
+- `coinName` **string** - The coin name used to build the qualified denomination.  Must start with a lowercase letter, followed by 2–15 lowercase letters or digits.
+
+#### Usage
+```go
+denom := std.CoinDenom("gno.land/r/demo/blog", "blgcoin") // /gno.land/r/demo/blog:blgcoin
 ```

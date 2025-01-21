@@ -2,7 +2,6 @@ package std
 
 import (
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
-	"github.com/gnolang/gno/tm2/pkg/bech32"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
 	"github.com/gnolang/gno/tm2/pkg/std"
 )
@@ -25,6 +24,10 @@ func IsOriginCall(m *gno.Machine) bool {
 
 func GetChainID(m *gno.Machine) string {
 	return GetContext(m).ChainID
+}
+
+func GetChainDomain(m *gno.Machine) string {
+	return GetContext(m).ChainDomain
 }
 
 func GetHeight(m *gno.Machine) int64 {
@@ -138,24 +141,11 @@ func currentRealm(m *gno.Machine) (address, pkgPath string) {
 	return X_getRealm(m, 0)
 }
 
-func X_derivePkgAddr(pkgPath string) string {
-	return string(gno.DerivePkgAddr(pkgPath).Bech32())
-}
-
-func X_encodeBech32(prefix string, bytes [20]byte) string {
-	b32, err := bech32.ConvertAndEncode(prefix, bytes[:])
-	if err != nil {
-		panic(err) // should not happen
+func X_assertCallerIsRealm(m *gno.Machine) {
+	frame := m.Frames[m.NumFrames()-2]
+	if path := frame.LastPackage.PkgPath; !gno.IsRealmPath(path) {
+		m.Panic(typedString("caller is not a realm"))
 	}
-	return b32
-}
-
-func X_decodeBech32(addr string) (prefix string, bytes [20]byte, ok bool) {
-	prefix, bz, err := bech32.Decode(addr)
-	if err != nil || len(bz) != 20 {
-		return "", [20]byte{}, false
-	}
-	return prefix, [20]byte(bz), true
 }
 
 func typedString(s string) gno.TypedValue {

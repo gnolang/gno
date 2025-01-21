@@ -1,6 +1,7 @@
 ---
 name: Bug Report Template
 about: Create a bug report
+labels: "🐞 bug"
 # NOTE: keep in sync with gnovm/cmd/gno/bug.go
 ---
 
