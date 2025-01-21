@@ -125,7 +125,7 @@ _test.filetest:;
 # TODO: move _dev.stringer to go:generate instructions, simplify generate
 #       to just go generate.
 .PHONY: generate
-generate: _dev.stringer _dev.generate
+generate: _dev.stringer _dev.generate fmt imports
 
 stringer_cmd=$(rundep) golang.org/x/tools/cmd/stringer
 .PHONY: _dev.stringer

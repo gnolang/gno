@@ -23,7 +23,8 @@ jobs:
           - name: Check generated files are up to date
             working-directory: ${{ inputs.modulepath }}
             run: |
-              go generate -x ./...
+              make generate
+
               if [ "$(git status -s)" != "" ]; then
                 echo "command 'go generate' creates file that differ from git tree, please run 'go generate' and commit:"
                 git status -s

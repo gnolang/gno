@@ -10,7 +10,7 @@ cat > runtime_softfloat64.go << EOF
 
 EOF
 cat "$GOROOT/src/runtime/softfloat64.go" >> ./runtime_softfloat64.go
-sed -i 's/^package runtime$/package softfloat/' runtime_softfloat64.go
+sed -i '' 's/^package runtime$/package softfloat/' runtime_softfloat64.go
 
 # softfloat64_test.go:
 # - add header
@@ -25,7 +25,7 @@ cat > runtime_softfloat64_test.go << EOF
 
 EOF
 cat "$GOROOT/src/runtime/softfloat64_test.go" >> ./runtime_softfloat64_test.go
-sed -i 's/^package runtime_test$/package softfloat_test/
+sed -i '' 's/^package runtime_test$/package softfloat_test/
 s#^\t\. "runtime"$#\t. "github.com/gnolang/gno/gnovm/pkg/gnolang/internal/softfloat"#
 s/GOARCH/runtime.GOARCH/g
 16a\
