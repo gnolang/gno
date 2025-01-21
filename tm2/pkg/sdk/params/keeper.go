@@ -173,7 +173,7 @@ func (pk ParamsKeeper) SetParams(ctx sdk.Context, moduleKey string, key string, 
 		if pk.IsRegistered(moduleKey) {
 			key = moduleKey + "_" + key
 		} else {
-			return fmt.Errorf("Parameter module key %q does not exist", moduleKey)
+			return fmt.Errorf("parameter module key %q does not exist", moduleKey)
 		}
 	}
 
