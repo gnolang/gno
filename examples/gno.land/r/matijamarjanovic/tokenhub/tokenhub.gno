@@ -47,7 +47,6 @@ func RegisterToken(tokenGetter grc20.TokenGetter, slugs ...string) {
 
 // registering a collection of NFTs
 func RegisterNFT(nftGetter grc721.NFTGetter, collection string, tokenId string) error {
-
 	nft := nftGetter()
 	_, ok := nft.(grc721.IGRC721CollectionMetadata)
 	if !ok {
@@ -396,7 +395,6 @@ func Render(path string) string {
 }
 
 func getBalances(input string) string {
-
 	addr := getAddressForUsername(input)
 	if addr == "" {
 		panic("invalid address or username: " + input)
