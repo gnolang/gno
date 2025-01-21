@@ -88,19 +88,11 @@ func RegisterGRC1155Token(mtGetter grc1155.MultiTokenGetter, tokenID string) err
 	return nil
 }
 
-func GetMyBalancesAll() string {
-	return getBalances(string(std.PrevRealm().Addr()))
-}
-
-func GetMyBalances() string {
-	return getNonZeroBalances(string(std.PrevRealm().Addr()))
-}
-
-func GetUserBalancesAll(userNameOrAddress string) string {
+func GetUserBalances(userNameOrAddress string) string {
 	return getBalances(userNameOrAddress)
 }
 
-func GetUserBalances(userNameOrAddress string) string {
+func GetUserBalancesWithoutZeros(userNameOrAddress string) string {
 	return getNonZeroBalances(userNameOrAddress)
 }
 
