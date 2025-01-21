@@ -213,3 +213,68 @@ func TestReviewByTeamMembers(t *testing.T) {
 		})
 	}
 }
+
+func TestReviewByOrgMembers(t *testing.T) {
+	t.Parallel()
+
+	reviews := []*github.PullRequestReview{
+		{
+			User:              &github.User{Login: github.String("user1")},
+			State:             github.String("APPROVED"),
+			AuthorAssociation: github.String("MEMBER"),
+		}, {
+			User:              &github.User{Login: github.String("user2")},
+			State:             github.String("APPROVED"),
+			AuthorAssociation: github.String("COLLABORATOR"),
+		}, {
+			User:              &github.User{Login: github.String("user3")},
+			State:             github.String("APPROVED"),
+			AuthorAssociation: github.String("MEMBER"),
+		}, {
+			User:              &github.User{Login: github.String("user4")},
+			State:             github.String("REQUEST_CHANGES"),
+			AuthorAssociation: github.String("MEMBER"),
+		}, {
+			User:              &github.User{Login: github.String("user5")},
+			State:             github.String("REQUEST_CHANGES"),
+			AuthorAssociation: github.String("NONE"),
+		},
+	}
+
+	for _, testCase := range []struct {
+		name        string
+		count       uint
+		isSatisfied bool
+	}{
+		{"2/3 org members approved", 3, false},
+		{"2/2 org members approved", 2, true},
+		{"2/1 org members approved", 1, true},
+	} {
+		t.Run(testCase.name, func(t *testing.T) {
+			t.Parallel()
+
+			mockedHTTPClient := mock.NewMockedHTTPClient(
+				mock.WithRequestMatchPages(
+					mock.EndpointPattern{
+						Pattern: "/repos/pulls/0/reviews",
+						Method:  "GET",
+					},
+					reviews,
+				),
+			)
+
+			gh := &client.GitHub{
+				Client: github.NewClient(mockedHTTPClient),
+				Ctx:    context.Background(),
+				Logger: logger.NewNoopLogger(),
+			}
+
+			pr := &github.PullRequest{}
+			details := treeprint.New()
+			requirement := ReviewByOrgMembers(gh, testCase.count)
+
+			assert.Equal(t, requirement.IsSatisfied(pr, details), testCase.isSatisfied, fmt.Sprintf("requirement should have a satisfied status: %t", testCase.isSatisfied))
+			assert.True(t, utils.TestLastNodeStatus(t, testCase.isSatisfied, details), fmt.Sprintf("requirement details should have a status: %t", testCase.isSatisfied))
+		})
+	}
+}
