@@ -79,7 +79,7 @@ dev:
 
 # Go server in development mode
 dev.gnoweb: generate
-	$(run_reflex) -s -r '.*\.go(html)?' -- \
+	$(run_reflex) -s -r '.*\.(go|html)' -- \
 		go run ../../cmd/gnoweb -assets-dir=${PUBLIC_DIR} -chainid=${CHAIN_ID} -remote=${DEV_REMOTE} \
 		2>&1 | $(run_logname) gnoweb
 
