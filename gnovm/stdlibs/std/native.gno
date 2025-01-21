@@ -1,7 +1,7 @@
 package std
 
 // AssertOriginCall panics if the calling method is not invoked via a direct
-// MsgCall. It doesn't panic for any other cases, like if the calling method
+// MsgCall. It panics for for other cases, like if the calling method
 // is invoked by another method (even from the same realm or package).
 // It also panic every time when the transaction is broadcasted via
 // MsgRun.
