@@ -16,6 +16,7 @@ var (
 func init() {
 	main = "g1hrfvdh7jdvnlxpk2y20tp3scj9jqal3zzu7wjz"
 }
+
 func Address() std.Address {
 	return main
 }
