@@ -77,5 +77,5 @@ func Render(path string) string {
 const registerEvent = "register"
 
 func GetRegistry() *rotree.ReadOnlyTree {
-	return rotree.Wrap(registry, nil) 
+	return rotree.Wrap(registry, nil)
 }
