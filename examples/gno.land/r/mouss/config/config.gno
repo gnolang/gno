@@ -24,8 +24,8 @@ func Address() std.Address {
 func Backup() std.Address {
 	return backup
 }
-func SetBack(buAddress std.Address) error {
-	if !buAddress.IsValid() {
+func SetBackup(newAddress std.Address) error {
+	if !newAddress.IsValid() {
 		return ErrorInvalidAddr
 	}
 
@@ -33,7 +33,7 @@ func SetBack(buAddress std.Address) error {
 		return err
 	}
 
-	backup = buAddress
+	backup = newAddress
 	return nil
 }
 
