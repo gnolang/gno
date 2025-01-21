@@ -72,7 +72,7 @@ func RegisterNFT(nftGetter grc721.NFTGetter, collection string, tokenId string) 
 
 // for grc1155 is a little bit different, since the one collection can have multiple tokens, this is why don't use slugs but tokenIDs,
 // and the collection is saved as a part of the :value in the node
-func RegisterGRC1155Token(mtGetter grc1155.MultiTokenGetter, tokenID string) error {
+func RegisterMultiToken(mtGetter grc1155.MultiTokenGetter, tokenID string) error {
 	rlmPath := std.PrevRealm().PkgPath()
 
 	key := fqname.Construct(rlmPath, tokenID)
@@ -96,17 +96,17 @@ func GetUserBalances(userNameOrAddress string) string {
 	return getNonZeroBalances(userNameOrAddress)
 }
 
-func GetGRC20(key string) *grc20.Token {
+func GetToken(key string) *grc20.Token {
 	getter := grc20reg.Get(key)
 	return getter()
 }
 
-func MustGetGRC20(key string) *grc20.Token {
+func MustGetToken(key string) *grc20.Token {
 	getter := grc20reg.MustGet(key)
 	return getter()
 }
 
-func GetGRC721(key string) grc721.IGRC721 {
+func GetNFT(key string) grc721.IGRC721 {
 	nftGetter, ok := registeredNFTs.Get(key)
 	if !ok {
 		return nil
@@ -115,15 +115,15 @@ func GetGRC721(key string) grc721.IGRC721 {
 	return nft
 }
 
-func MustGetGRC721(key string) grc721.IGRC721 {
-	nftGetter := GetGRC721(key)
+func MustGetNFT(key string) grc721.IGRC721 {
+	nftGetter := GetNFT(key)
 	if nftGetter == nil {
 		panic("unknown NFT: " + key)
 	}
 	return nftGetter
 }
 
-func GetGRC1155(key string) grc1155.IGRC1155 {
+func GetMultiToken(key string) grc1155.IGRC1155 {
 	info, ok := registeredMTs.Get(key)
 	if !ok {
 		return nil
@@ -132,8 +132,8 @@ func GetGRC1155(key string) grc1155.IGRC1155 {
 	return mt()
 }
 
-func MustGetGRC1155(key string) grc1155.IGRC1155 {
-	info := GetGRC1155(key)
+func MustGetMultiToken(key string) grc1155.IGRC1155 {
+	info := GetMultiToken(key)
 	if info == nil {
 		panic("unknown multi-token: " + key)
 	}
@@ -149,7 +149,7 @@ func GetAllNFTs() string {
 	return sb.String()
 }
 
-func GetAllGRC20Tokens() string {
+func GetAllTokens() string {
 	var sb strings.Builder
 	grc20reg.Iterate(func(key string, tokenGetter grc20.TokenGetter) bool {
 		sb.WriteString(ufmt.Sprintf("Token:%s,", key))
@@ -167,17 +167,8 @@ func GetAllMultiTokens() string {
 	return sb.String()
 }
 
-func GetAllTokens() string {
-	return ufmt.Sprintf("%s%s%s",
-		GetAllNFTs(),
-		GetAllGRC20Tokens(),
-		GetAllMultiTokens())
-}
-
-func GetAllTokensNoNFTs() string {
-	return ufmt.Sprintf("%s%s",
-		GetAllGRC20Tokens(),
-		GetAllMultiTokens())
+func GetAllRegistered() string {
+	return GetAllNFTs() + GetAllTokens() + GetAllMultiTokens()
 }
 
 func Render(path string) string {
