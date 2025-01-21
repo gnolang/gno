@@ -33,10 +33,9 @@ var (
 	ErrMTInfoNotFound       = errors.New("Multi-token info not found")
 	ErrNFTtokIDNotExists    = errors.New("NFT token ID does not exists")
 	ErrNFTNotMetadata       = errors.New("NFT must implement IGRC721CollectionMetadata")
-
-	pageSize = 2
-	test     = ""
 )
+
+const pageSize = 2
 
 func RegisterToken(tokenGetter grc20.TokenGetter, slugs ...string) {
 	slug := ""
@@ -198,7 +197,6 @@ func GetAllTokensNoNFTs() string {
 
 func Render(path string) string {
 	var sb strings.Builder
-	sb.WriteString(test)
 
 	switch {
 	case path == "":
