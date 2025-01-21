@@ -22,7 +22,6 @@ type IndexData struct {
 	HeaderData
 	FooterData
 	BodyView *View
-	// Body          template.HTML
 }
 
 type indexLayoutParams struct {

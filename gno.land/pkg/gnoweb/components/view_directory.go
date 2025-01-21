@@ -8,6 +8,6 @@ type DirData struct {
 	FileCounter int
 }
 
-func RenderDirectoryView(data DirData) *View {
+func DirectoryView(data DirData) *View {
 	return NewTemplateView(DirectoryViewType, "renderDir", data)
 }

@@ -112,7 +112,7 @@ func (h *WebHandler) prepareIndexBodyView(r *http.Request, indexData *components
 	gnourl, err := ParseGnoURL(r.URL)
 	if err != nil {
 		h.Logger.Warn("unable to parse url path", "path", r.URL.Path, "error", err)
-		return http.StatusNotFound, components.RenderStatusComponent("invalid path")
+		return http.StatusNotFound, components.StatusComponent("invalid path")
 	}
 
 	breadcrumb := generateBreadcrumbPaths(gnourl)
@@ -128,7 +128,7 @@ func (h *WebHandler) prepareIndexBodyView(r *http.Request, indexData *components
 		return h.GetPackageView(gnourl)
 	default:
 		h.Logger.Debug("invalid path: path is neither a pure package or a realm")
-		return http.StatusBadRequest, components.RenderStatusComponent("invalid path")
+		return http.StatusBadRequest, components.StatusComponent("invalid path")
 	}
 }
 
@@ -162,7 +162,7 @@ func (h *WebHandler) GetRealmView(gnourl *GnoURL) (int, *components.View) {
 		return GetClientErrorStatusPage(gnourl, err)
 	}
 
-	return http.StatusOK, components.GetRealmView(components.RealmData{
+	return http.StatusOK, components.RealmView(components.RealmData{
 		TocItems: &components.RealmTOCData{
 			Items: meta.Toc.Items,
 		},
@@ -199,7 +199,7 @@ func (h *WebHandler) GetHelpView(gnourl *GnoURL) (int, *components.View) {
 	}
 
 	realmName := filepath.Base(gnourl.Path)
-	return http.StatusOK, components.RenderHelpView(components.HelpData{
+	return http.StatusOK, components.HelpView(components.HelpData{
 		SelectedFunc: selFn,
 		SelectedArgs: selArgs,
 		RealmName:    realmName,
@@ -221,7 +221,7 @@ func (h *WebHandler) GetSourceView(gnourl *GnoURL) (int, *components.View) {
 
 	if len(files) == 0 {
 		h.Logger.Debug("no files available", "path", gnourl.Path)
-		return http.StatusOK, components.RenderStatusComponent("no files available")
+		return http.StatusOK, components.StatusComponent("no files available")
 	}
 
 	var fileName string
@@ -243,7 +243,7 @@ func (h *WebHandler) GetSourceView(gnourl *GnoURL) (int, *components.View) {
 	}
 
 	fileSizeStr := fmt.Sprintf("%.2f Kb", meta.SizeKb)
-	return http.StatusOK, components.RenderSourceView(components.SourceData{
+	return http.StatusOK, components.SourceView(components.SourceData{
 		PkgPath:     gnourl.Path,
 		Files:       files,
 		FileName:    fileName,
@@ -264,10 +264,10 @@ func (h *WebHandler) GetDirectoryView(gnourl *GnoURL) (int, *components.View) {
 
 	if len(files) == 0 {
 		h.Logger.Debug("no files available", "path", gnourl.Path)
-		return http.StatusOK, components.RenderStatusComponent("no files available")
+		return http.StatusOK, components.StatusComponent("no files available")
 	}
 
-	return http.StatusOK, components.RenderDirectoryView(components.DirData{
+	return http.StatusOK, components.DirectoryView(components.DirData{
 		PkgPath:     gnourl.Path,
 		Files:       files,
 		FileCounter: len(files),
@@ -281,13 +281,13 @@ func GetClientErrorStatusPage(_ *GnoURL, err error) (int, *components.View) {
 
 	switch {
 	case errors.Is(err, ErrClientPathNotFound):
-		return http.StatusNotFound, components.RenderStatusComponent(err.Error())
+		return http.StatusNotFound, components.StatusComponent(err.Error())
 	case errors.Is(err, ErrClientBadRequest):
-		return http.StatusInternalServerError, components.RenderStatusComponent("bad request")
+		return http.StatusInternalServerError, components.StatusComponent("bad request")
 	case errors.Is(err, ErrClientResponse):
 		fallthrough // XXX: for now fallback as internal error
 	default:
-		return http.StatusInternalServerError, components.RenderStatusComponent("internal error")
+		return http.StatusInternalServerError, components.StatusComponent("internal error")
 	}
 }
 

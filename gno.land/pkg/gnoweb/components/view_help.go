@@ -46,7 +46,7 @@ func registerHelpFuncs(funcs template.FuncMap) {
 	}
 }
 
-func RenderHelpView(data HelpData) *View {
+func HelpView(data HelpData) *View {
 	tocData := HelpTocData{
 		Icon:  "code",
 		Items: make([]HelpTocItem, len(data.Functions)),

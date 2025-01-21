@@ -39,7 +39,7 @@ func AliasAndRedirectMiddleware(next http.Handler, analytics bool) http.Handler 
 		// Check if the request path matches a redirect
 		if newPath, ok := Redirects[r.URL.Path]; ok {
 			http.Redirect(w, r, newPath, http.StatusFound)
-			components.RenderRedirectView(components.RedirectData{
+			components.RedirectView(components.RedirectData{
 				To:            newPath,
 				WithAnalytics: analytics,
 			}).Render(w)

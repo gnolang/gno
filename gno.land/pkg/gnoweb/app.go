@@ -135,7 +135,7 @@ func NewRouter(logger *slog.Logger, cfg *AppConfig) (http.Handler, error) {
 	if cfg.FaucetURL != "" {
 		mux.Handle("/faucet", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			http.Redirect(w, r, cfg.FaucetURL, http.StatusFound)
-			components.RenderRedirectView(components.RedirectData{
+			components.RedirectView(components.RedirectData{
 				To:            cfg.FaucetURL,
 				WithAnalytics: cfg.Analytics,
 			}).Render(w)

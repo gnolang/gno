@@ -7,6 +7,6 @@ type RedirectData struct {
 	WithAnalytics bool
 }
 
-func RenderRedirectView(data RedirectData) *View {
+func RedirectView(data RedirectData) *View {
 	return NewTemplateView(RedirectViewType, "renderRedirect", data)
 }

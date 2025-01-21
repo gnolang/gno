@@ -33,7 +33,7 @@ type sourceViewParams struct {
 	ComponentTOC Component
 }
 
-func RenderSourceView(data SourceData) *View {
+func SourceView(data SourceData) *View {
 	tocData := SourceTocData{
 		Icon:  "file",
 		Items: make([]SourceTocItem, len(data.Files)),

@@ -25,7 +25,7 @@ type realmViewParams struct {
 	ComponentTOC Component
 }
 
-func GetRealmView(data RealmData) *View {
+func RealmView(data RealmData) *View {
 	viewData := realmViewParams{
 		Article: ArticleData{
 			ComponentContent: data.ComponentContent,
