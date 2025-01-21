@@ -3,6 +3,7 @@ package mux
 import (
     "fmt"
     "testing"
+    "gno.land/p/demo/uassert"
 )
 
 func TestRequest_GetVar(t *testing.T) {
@@ -43,10 +44,9 @@ func TestRequest_GetVar(t *testing.T) {
             }
 
             output := req.GetVar(tt.getVarKey)
-            if output != tt.expectedOutput {
-                t.Errorf("GetVar(%q) = %q, want %q (handler: %q, path: %q)", 
-                    tt.getVarKey, output, tt.expectedOutput, tt.handlerPath, tt.reqPath)
-            }
+            uassert.Equal(t, tt.expectedOutput, output,
+                "handler: %q, path: %q, key: %q",
+                tt.handlerPath, tt.reqPath, tt.getVarKey)
         })
     }
 }
