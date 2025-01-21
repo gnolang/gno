@@ -2,22 +2,21 @@
 # golden files have been generated using UPDATE_SCRIPTS=true
 
 # add a random user
-adduserfrom user1 'alpha ability feed thrive color fee grace message chief helmet laundry inmate index brave luxury toddler spawn vague index able zone shoe collect escape'
-stdout 'g16v6rp3f4vehjspcu0g0xwz9xvehdkac9kslk5m'
+adduser user1
 
 # start gnoland
 gnoland start
 
 ## test1 account should be available on default
-gnokey query auth/accounts/g16v6rp3f4vehjspcu0g0xwz9xvehdkac9kslk5m
+gnokey query auth/accounts/$user1_user_addr
 stdout 'height: 0'
 stdout 'data: {'
 stdout '  "BaseAccount": {'
-stdout '    "address": "g16v6rp3f4vehjspcu0g0xwz9xvehdkac9kslk5m",'
+stdout '    "address": "'${user1_user_addr}'",'
 stdout '    "coins": "[0-9]*ugnot",' # dynamic
 stdout '    "public_key": null,'
-stdout '    "account_number": "57",'
-stdout '    "sequence": "0"'
+stdout '    "account_number": "'${user1_account_num}'",'
+stdout '    "sequence": "'${user1_account_seq}'"'
 stdout '  }'
 stdout '}'
 ! stderr '.+' # empty
