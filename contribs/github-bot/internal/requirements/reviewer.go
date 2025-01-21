@@ -16,8 +16,6 @@ type reviewByUser struct {
 	user string
 }
 
-const approvedState = "APPROVED"
-
 var _ Requirement = &reviewByUser{}
 
 func (r *reviewByUser) IsSatisfied(pr *github.PullRequest, details treeprint.Tree) bool {
@@ -67,7 +65,7 @@ func (r *reviewByUser) IsSatisfied(pr *github.PullRequest, details treeprint.Tre
 	for _, review := range reviews {
 		if review.GetUser().GetLogin() == r.user {
 			r.gh.Logger.Debugf("User %s already reviewed PR %d with state %s", r.user, pr.GetNumber(), review.GetState())
-			return utils.AddStatusNode(review.GetState() == approvedState, detail, details)
+			return utils.AddStatusNode(review.GetState() == utils.ReviewStateApproved, detail, details)
 		}
 	}
 	r.gh.Logger.Debugf("User %s has not reviewed PR %d yet", r.user, pr.GetNumber())
@@ -143,7 +141,7 @@ func (r *reviewByTeamMembers) IsSatisfied(pr *github.PullRequest, details treepr
 	for _, review := range reviews {
 		for _, member := range teamMembers {
 			if review.GetUser().GetLogin() == member.GetLogin() {
-				if review.GetState() == approvedState {
+				if review.GetState() == utils.ReviewStateApproved {
 					approved += 1
 				}
 				r.gh.Logger.Debugf("Member %s from team %s already reviewed PR %d with state %s (%d/%d required approval(s))", member.GetLogin(), r.team, pr.GetNumber(), review.GetState(), approved, r.count)
@@ -159,7 +157,7 @@ func ReviewByTeamMembers(gh *client.GitHub, team string, count uint) Requirement
 		gh:           gh,
 		team:         team,
 		count:        1,
-		desiredState: approvedState,
+		desiredState: utils.ReviewStateApproved,
 	}
 }
 
@@ -183,7 +181,7 @@ func (r *reviewByOrgMembers) IsSatisfied(pr *github.PullRequest, details treepri
 
 	for _, review := range reviews {
 		if review.GetAuthorAssociation() == "MEMBER" {
-			if review.GetState() == approvedState {
+			if review.GetState() == utils.ReviewStateApproved {
 				approved++
 			}
 			r.gh.Logger.Debugf(
