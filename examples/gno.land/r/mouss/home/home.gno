@@ -36,6 +36,18 @@ type Recipe struct {
 const (
 	RealmURL = "/r/mouss/home"
 	Rec      = RealmURL + ":recipe/"
+	gnoArt   = `
+        -==++.                                                                  
+	     *@@@@=                                     @-                          -@
+	    #@@@@@:       -==-.-- :-::===:   .-++-.     @-   .===:.- .-.-==-   .===:=@
+       #@@@@@@@:    -@@%**%@@ #@@#*#@@- *@@**@@*    @-  +%=::-*@ +@=-:-@* +%=::-*@
+      +@%#**#%@@    %@+   :@@ *@+   #@=+@%    %@+   @= :@:    -@ +%    +%.@:    -@
+      -:       -    *@%:..+@@ *@+   #@=-@@:  :@@=   @- .@=    =@ +@    *%.@=    =@
+      --:==+=-:=.    =%@%#*@@ *@+   #@+ =%@%%@%= #* %#=.:%*===*@ +%    +% -%*===*@
+      -++++=++++.    =-:::*@#  .     .    .::.   ..  ::   .::  .  .         .::  .
+       .-=+++=:     .*###%#=                                                      
+	      ::                                                                      
+`
 )
 
 var (
@@ -144,72 +156,56 @@ func renderRecipes(res *mux.ResponseWriter, req *mux.Request) {
 }
 
 func (r Recipe) Render() string {
-	var b strings.Builder
-	b.WriteString(md.H2(r.Name))
-	b.WriteString(md.Bold("Author:") + "\n" + r.Author.String() + "\n\n")
-	b.WriteString(md.Bold("Origin:") + "\n" + r.Origin + "\n\n")
-	b.WriteString(md.Bold("Ingredients:") + "\n" + md.BulletList(strings.Split(r.Ingredients, "\n")) + "\n\n")
-	b.WriteString(md.Bold("Instructions:") + "\n" + md.OrderedList(strings.Split(r.Instructions, "\n")) + "\n\n")
+	var out string
+	out += md.H2(r.Name)
+	out += md.Bold("Author:") + "\n" + r.Author.String() + "\n\n"
+	out += md.Bold("Origin:") + "\n" + r.Origin + "\n\n"
+	out += md.Bold("Ingredients:") + "\n" + md.BulletList(strings.Split(r.Ingredients, "\n")) + "\n\n"
+	out += md.Bold("Instructions:") + "\n" + md.OrderedList(strings.Split(r.Instructions, "\n")) + "\n\n"
 
 	if r.Tips != "" {
-		b.WriteString(md.Italic("💡 Tips:"+"\n"+r.Tips) + "\n\n")
+		out += md.Italic("💡 Tips:"+"\n"+r.Tips) + "\n\n"
 	}
 
-	b.WriteString(md.HorizontalRule() + "\n")
-	return b.String()
+	out += md.HorizontalRule() + "\n"
+	return out
 }
 
 func renderHomepage(res *mux.ResponseWriter, req *mux.Request) {
-	var b strings.Builder
-	writeNavigation(&b)
-	b.WriteString(profile.Render())
-	res.Write(b.String())
+	var out string
+	writeNavigation(&out)
+	out += profile.Render()
+	res.Write(out)
 }
 
 func (p Profile) Render() string {
-	var b strings.Builder
+	var out string
 
-	b.WriteString(md.H1("Welcome to my Homepage") + "\n\n" + md.HorizontalRule() + "\n\n")
-	writeGnoArt(&b)
-	b.WriteString(md.HorizontalRule() + "\n\n" + md.H2("About Me") + "\n\n")
-	b.WriteString(md.Image("avatar", p.Avatar) + "\n\n")
-	b.WriteString(p.AboutMe + "\n\n" + md.HorizontalRule() + "\n\n")
-	b.WriteString(md.H3("Contact") + "\n\n")
-	b.WriteString(md.BulletList([]string{
+	out += md.H1("Welcome to my Homepage") + "\n\n" + md.HorizontalRule() + "\n\n"
+	out += "```\n"
+	out += gnoArt
+	out += "```\n------"
+	out += md.HorizontalRule() + "\n\n" + md.H2("About Me") + "\n\n"
+	out += md.Image("avatar", p.Avatar) + "\n\n"
+	out += p.AboutMe + "\n\n" + md.HorizontalRule() + "\n\n"
+	out += md.H3("Contact") + "\n\n"
+	out += md.BulletList([]string{
 		"Email: " + p.Email,
 		"GitHub: " + md.Link("@mous1985", p.Github),
 		"LinkedIn: " + md.Link("Mustapha", p.LinkedIn),
-	}))
-	b.WriteString("\n\n" + md.Bold("👤 Followers: ") + strconv.Itoa(p.Followers.Size()))
+	})
+	out += "\n\n" + md.Bold("👤 Followers: ") + strconv.Itoa(p.Followers.Size())
 
-	return b.String()
+	return out
 }
-func writeNavigation(b *strings.Builder) {
+func writeNavigation(out *string) {
 	navItems := []string{
 		md.Link("Home", ""),
 		md.Link("World Kitchen", Rec),
 		md.Link("Hackerspace", "https://github.com/gnolang/hackerspace/issues/86#issuecomment-2535795751"),
 	}
-	b.WriteString(strings.Join(navItems, " | ") + "\n\n" + md.HorizontalRule() + "\n\n")
+	*out += strings.Join(navItems, " | ") + "\n\n" + md.HorizontalRule() + "\n\n"
 }
 func Render(path string) string {
 	return router.Render(path)
-}
-func writeGnoArt(b *strings.Builder) {
-	b.WriteString("```\n")
-	for _, line := range []string{
-		"      -==++.                                                                  ",
-		"     *@@@@=                                     @-                          -@",
-		"    #@@@@@:       -==-.-- :-::===:   .-++-.     @-   .===:.- .-.-==-   .===:=@",
-		"   #@@@@@@@:    -@@%**%@@ #@@#*#@@- *@@**@@*    @-  +%=::-*@ +@=-:-@* +%=::-*@",
-		"  +@%#**#%@@    %@+   :@@ *@+   #@=+@%    %@+   @= :@:    -@ +%    +%.@:    -@",
-		"  -:       -    *@%:..+@@ *@+   #@=-@@:  :@@=   @- .@=    =@ +@    *%.@=    =@",
-		"  --:==+=-:=.    =%@%#*@@ *@+   #@+ =%@%%@%= #* %#=.:%*===*@ +%    +% -%*===*@",
-		"  -++++=++++.    =-:::*@#  .     .    .::.   ..  ::   .::  .  .         .::  .",
-		"   .-=+++=:     .*###%#=                                                      ",
-		"      ::                                                                      ",
-	} {
-		b.WriteString(line + "\n")
-	}
-	b.WriteString("```\n------")
 }
