@@ -1,4 +1,4 @@
-module gno.land/p/demo/tictactoe
+module gno.land/p/grepsuzette/games/tictactoe
 
 // require (
 // 	gno.land/p/demo/testutils v0.0.0-latest

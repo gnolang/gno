@@ -8,8 +8,8 @@ import (
 	"std"
 	"strings"
 
-	"gno.land/p/demo/tictactoe"
 	"gno.land/p/demo/ufmt"
+	"gno.land/p/grepsuzette/games/tictactoe"
 )
 
 // 1P-VS-CPU is a tictactoe game

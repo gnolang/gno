@@ -3,7 +3,7 @@ package tictactoe1p
 import (
 	"errors"
 
-	"gno.land/p/demo/tictactoe"
+	"gno.land/p/grepsuzette/games/tictactoe"
 )
 
 // the default move picker.
