@@ -88,11 +88,11 @@ func RegisterGRC1155Token(mtGetter grc1155.MultiTokenGetter, tokenID string) err
 	return nil
 }
 
-func GetUserBalances(userNameOrAddress string) string {
+func GetUserBalancesWithZeros(userNameOrAddress string) string {
 	return getBalances(userNameOrAddress)
 }
 
-func GetUserBalancesWithoutZeros(userNameOrAddress string) string {
+func GetUserBalances(userNameOrAddress string) string {
 	return getNonZeroBalances(userNameOrAddress)
 }
 
