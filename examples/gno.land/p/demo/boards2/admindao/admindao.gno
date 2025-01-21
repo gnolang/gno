@@ -11,7 +11,7 @@ import (
 )
 
 // DefaultQuorum defines the default quorum required to tally proposal votes.
-const DefaultQuorum = 0.51 // 51%
+const DefaultQuorum = 0.34 // 34%
 
 var (
 	ErrInvalidAddress             = errors.New("invalid address")
