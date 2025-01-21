@@ -36,7 +36,7 @@ func TestReviewByUser(t *testing.T) {
 			State: github.String("APPROVED"),
 		}, {
 			User:  &github.User{Login: github.String("anotherOne")},
-			State: github.String("REQUEST_CHANGES"),
+			State: github.String("CHANGES_REQUESTED"),
 		},
 	}
 
@@ -87,7 +87,7 @@ func TestReviewByUser(t *testing.T) {
 
 			pr := &github.PullRequest{}
 			details := treeprint.New()
-			requirement := ReviewByUser(gh, testCase.user)
+			requirement := ApprovalByUser(gh, testCase.user)
 
 			assert.Equal(t, requirement.IsSatisfied(pr, details), testCase.isSatisfied, fmt.Sprintf("requirement should have a satisfied status: %t", testCase.isSatisfied))
 			assert.True(t, utils.TestLastNodeStatus(t, testCase.isSatisfied, details), fmt.Sprintf("requirement details should have a status: %t", testCase.isSatisfied))
@@ -99,13 +99,25 @@ func TestReviewByUser(t *testing.T) {
 func TestReviewByTeamMembers(t *testing.T) {
 	t.Parallel()
 
-	reviewers := github.Reviewers{
-		Teams: []*github.Team{
-			{Slug: github.String("team1")},
-			{Slug: github.String("team2")},
-			{Slug: github.String("team3")},
-		},
-	}
+	var (
+		reviewers = github.Reviewers{
+			Teams: []*github.Team{
+				{Slug: github.String("team1")},
+				{Slug: github.String("team2")},
+				{Slug: github.String("team3")},
+			},
+		}
+		noReviewers   = github.Reviewers{}
+		userReviewers = github.Reviewers{
+			Users: []*github.User{
+				{Login: github.String("user1")},
+				{Login: github.String("user2")},
+				{Login: github.String("user3")},
+				{Login: github.String("user4")},
+				{Login: github.String("user5")},
+			},
+		}
+	)
 
 	members := map[string][]*github.User{
 		"team1": {
@@ -136,26 +148,37 @@ func TestReviewByTeamMembers(t *testing.T) {
 			State: github.String("APPROVED"),
 		}, {
 			User:  &github.User{Login: github.String("user4")},
-			State: github.String("REQUEST_CHANGES"),
+			State: github.String("CHANGES_REQUESTED"),
 		}, {
 			User:  &github.User{Login: github.String("user5")},
-			State: github.String("REQUEST_CHANGES"),
+			State: github.String("CHANGES_REQUESTED"),
 		},
 	}
 
+	const (
+		notSatisfied = 0
+		satisfied    = 1
+		withRequest  = 2
+	)
+
 	for _, testCase := range []struct {
-		name        string
-		team        string
-		count       uint
-		isSatisfied bool
-		testRequest bool
+		name           string
+		team           string
+		count          uint
+		state          string
+		reviewers      github.Reviewers
+		expectedResult byte
 	}{
-		{"3/3 team members approved;", "team1", 3, true, false},
-		{"1/1 team member approved", "team2", 1, true, false},
-		{"1/2 team member approved", "team2", 2, false, false},
-		{"0/1 team member approved", "team3", 1, false, false},
-		{"0/1 team member approved with request", "team3", 1, false, true},
-		{"team doesn't exist with request", "team4", 1, false, true},
+		{"3/3 team members approved", "team1", 3, utils.ReviewStateApproved, reviewers, satisfied},
+		{"3/3 team members approved (with user reviewers)", "team1", 3, utils.ReviewStateApproved, userReviewers, satisfied},
+		{"1/1 team member approved", "team2", 1, utils.ReviewStateApproved, reviewers, satisfied},
+		{"1/2 team member approved", "team2", 2, utils.ReviewStateApproved, reviewers, notSatisfied},
+		{"0/1 team member approved", "team3", 1, utils.ReviewStateApproved, reviewers, notSatisfied},
+		{"0/1 team member approved with request", "team3", 1, utils.ReviewStateApproved, noReviewers, notSatisfied | withRequest},
+		{"team doesn't exist with request", "team4", 1, utils.ReviewStateApproved, noReviewers, notSatisfied | withRequest},
+		{"3/3 team members reviewed", "team2", 3, "", reviewers, satisfied},
+		{"2/2 team members rejected", "team2", 2, utils.ReviewStateChangesRequested, reviewers, satisfied},
+		{"1/3 team members approved", "team2", 3, utils.ReviewStateApproved, reviewers, notSatisfied},
 	} {
 		t.Run(testCase.name, func(t *testing.T) {
 			t.Parallel()
@@ -170,11 +193,7 @@ func TestReviewByTeamMembers(t *testing.T) {
 					},
 					http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 						if firstRequest {
-							if testCase.testRequest {
-								w.Write(mock.MustMarshal(github.Reviewers{}))
-							} else {
-								w.Write(mock.MustMarshal(reviewers))
-							}
+							w.Write(mock.MustMarshal(testCase.reviewers))
 							firstRequest = false
 						} else {
 							requested = true
@@ -205,11 +224,18 @@ func TestReviewByTeamMembers(t *testing.T) {
 
 			pr := &github.PullRequest{}
 			details := treeprint.New()
-			requirement := ReviewByTeamMembers(gh, testCase.team, testCase.count)
+			requirement := ReviewByTeamMembers(gh, testCase.team).
+				WithCount(testCase.count).
+				WithDesiredState(testCase.state)
 
-			assert.Equal(t, requirement.IsSatisfied(pr, details), testCase.isSatisfied, fmt.Sprintf("requirement should have a satisfied status: %t", testCase.isSatisfied))
-			assert.True(t, utils.TestLastNodeStatus(t, testCase.isSatisfied, details), fmt.Sprintf("requirement details should have a status: %t", testCase.isSatisfied))
-			assert.Equal(t, testCase.testRequest, requested, fmt.Sprintf("requirement should have requested to create item: %t", testCase.testRequest))
+			expSatisfied := testCase.expectedResult&satisfied != 0
+			expRequested := testCase.expectedResult&withRequest > 0
+			assert.Equal(t, expSatisfied, requirement.IsSatisfied(pr, details),
+				"requirement should have a satisfied status: %t", expSatisfied)
+			assert.True(t, utils.TestLastNodeStatus(t, expSatisfied, details),
+				"requirement details should have a status: %t", expSatisfied)
+			assert.Equal(t, expRequested, requested,
+				"requirement should have requested to create item: %t", expRequested)
 		})
 	}
 }
@@ -232,11 +258,11 @@ func TestReviewByOrgMembers(t *testing.T) {
 			AuthorAssociation: github.String("MEMBER"),
 		}, {
 			User:              &github.User{Login: github.String("user4")},
-			State:             github.String("REQUEST_CHANGES"),
+			State:             github.String("CHANGES_REQUESTED"),
 			AuthorAssociation: github.String("MEMBER"),
 		}, {
 			User:              &github.User{Login: github.String("user5")},
-			State:             github.String("REQUEST_CHANGES"),
+			State:             github.String("CHANGES_REQUESTED"),
 			AuthorAssociation: github.String("NONE"),
 		},
 	}
@@ -271,7 +297,7 @@ func TestReviewByOrgMembers(t *testing.T) {
 
 			pr := &github.PullRequest{}
 			details := treeprint.New()
-			requirement := ReviewByOrgMembers(gh, testCase.count)
+			requirement := ApprovalByOrgMembers(gh, testCase.count)
 
 			assert.Equal(t, requirement.IsSatisfied(pr, details), testCase.isSatisfied, fmt.Sprintf("requirement should have a satisfied status: %t", testCase.isSatisfied))
 			assert.True(t, utils.TestLastNodeStatus(t, testCase.isSatisfied, details), fmt.Sprintf("requirement details should have a status: %t", testCase.isSatisfied))

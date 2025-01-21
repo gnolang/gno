@@ -14,5 +14,8 @@ const (
 	PRStateClosed = "closed"
 
 	// PR Review state.
-	ReviewStateApproved = "APPROVED"
+	// https://docs.github.com/en/graphql/reference/enums#pullrequestreviewstate
+	ReviewStateApproved         = "APPROVED"
+	ReviewStateChangesRequested = "CHANGES_REQUESTED"
+	ReviewStateCommented        = "COMMENTED"
 )

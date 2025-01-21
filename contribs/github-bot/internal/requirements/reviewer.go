@@ -2,6 +2,7 @@ package requirements
 
 import (
 	"fmt"
+	"slices"
 
 	"github.com/gnolang/gno/contribs/github-bot/internal/client"
 	"github.com/gnolang/gno/contribs/github-bot/internal/utils"
@@ -11,14 +12,14 @@ import (
 )
 
 // Reviewer Requirement.
-type reviewByUser struct {
+type approvalByUser struct {
 	gh   *client.GitHub
 	user string
 }
 
-var _ Requirement = &reviewByUser{}
+var _ Requirement = &approvalByUser{}
 
-func (r *reviewByUser) IsSatisfied(pr *github.PullRequest, details treeprint.Tree) bool {
+func (r *approvalByUser) IsSatisfied(pr *github.PullRequest, details treeprint.Tree) bool {
 	detail := fmt.Sprintf("This user approved pull request: %s", r.user)
 
 	// If not a dry run, make the user a reviewer if he's not already.
@@ -73,26 +74,38 @@ func (r *reviewByUser) IsSatisfied(pr *github.PullRequest, details treeprint.Tre
 	return utils.AddStatusNode(false, detail, details)
 }
 
-func ReviewByUser(gh *client.GitHub, user string) Requirement {
-	return &reviewByUser{gh, user}
+func ApprovalByUser(gh *client.GitHub, user string) Requirement {
+	return &approvalByUser{gh, user}
 }
 
 // Reviewer Requirement.
-type reviewByTeamMembers struct {
+type ReviewByTeamMembersRequirement struct {
 	gh           *client.GitHub
 	team         string
 	count        uint
 	desiredState string
 }
 
-var _ Requirement = &reviewByTeamMembers{}
+var _ Requirement = &ReviewByTeamMembersRequirement{}
 
-func (r *reviewByTeamMembers) IsSatisfied(pr *github.PullRequest, details treeprint.Tree) bool {
-	detail := fmt.Sprintf("At least %d user(s) of the team %s approved pull request", r.count, r.team)
+func (r *ReviewByTeamMembersRequirement) IsSatisfied(pr *github.PullRequest, details treeprint.Tree) bool {
+	detail := fmt.Sprintf("At least %d user(s) of the team %s reviewed pull request", r.count, r.team)
+	if r.desiredState != "" {
+		detail += fmt.Sprintf("(with state %q)", r.desiredState)
+	}
 
-	// If not a dry run, make the user a reviewer if he's not already.
+	teamMembers, err := r.gh.ListTeamMembers(r.team)
+	if err != nil {
+		r.gh.Logger.Errorf(err.Error())
+		return utils.AddStatusNode(false, detail, details)
+	}
+
+	// If not a dry run, request a team review if no member has reviewed yet,
+	// and the team review has not been requested.
 	if !r.gh.DryRun {
-		requested := false
+		var teamRequested bool
+		var usersRequested []string
+
 		reviewers, err := r.gh.ListPRReviewers(pr.GetNumber())
 		if err != nil {
 			r.gh.Logger.Errorf("unable to check if team %s review is already requested: %v", r.team, err)
@@ -101,14 +114,28 @@ func (r *reviewByTeamMembers) IsSatisfied(pr *github.PullRequest, details treepr
 
 		for _, team := range reviewers.Teams {
 			if team.GetSlug() == r.team {
-				requested = true
+				teamRequested = true
 				break
 			}
 		}
 
-		if requested {
+		if !teamRequested {
+			for _, user := range reviewers.Users {
+				if slices.ContainsFunc(teamMembers, func(memb *github.User) bool {
+					return memb.GetID() == user.GetID()
+				}) {
+					usersRequested = append(usersRequested, user.GetLogin())
+				}
+			}
+		}
+
+		switch {
+		case teamRequested:
 			r.gh.Logger.Debugf("Review of team %s already requested on PR %d", r.team, pr.GetNumber())
-		} else {
+		case len(usersRequested) > 0:
+			r.gh.Logger.Debugf("Members %v of team %s already requested on (or reviewed) PR %d",
+				usersRequested, r.team, pr.GetNumber())
+		default:
 			r.gh.Logger.Debugf("Requesting review from team %s on PR %d", r.team, pr.GetNumber())
 			if _, _, err := r.gh.Client.PullRequests.RequestReviewers(
 				r.gh.Ctx,
@@ -124,51 +151,74 @@ func (r *reviewByTeamMembers) IsSatisfied(pr *github.PullRequest, details treepr
 		}
 	}
 
-	// Check how many members of this team already approved this PR.
-	approved := uint(0)
+	// Check how many members of this team already reviewed this PR.
+	reviewCount := uint(0)
 	reviews, err := r.gh.ListPRReviews(pr.GetNumber())
 	if err != nil {
-		r.gh.Logger.Errorf("unable to check if a member of team %s already approved this PR: %v", r.team, err)
+		r.gh.Logger.Errorf("unable to check if a member of team %s already reviewed this PR: %v", r.team, err)
 		return utils.AddStatusNode(false, detail, details)
 	}
 
-	teamMembers, err := r.gh.ListTeamMembers(r.team)
-	if err != nil {
-		r.gh.Logger.Errorf(err.Error())
-		return utils.AddStatusNode(false, detail, details)
+	stateStr := ""
+	if r.desiredState != "" {
+		stateStr = fmt.Sprintf("%q ", r.desiredState)
 	}
-
 	for _, review := range reviews {
 		for _, member := range teamMembers {
 			if review.GetUser().GetLogin() == member.GetLogin() {
-				if review.GetState() == utils.ReviewStateApproved {
-					approved += 1
+				if desired := r.desiredState; desired == "" || desired == review.GetState() {
+					reviewCount += 1
 				}
-				r.gh.Logger.Debugf("Member %s from team %s already reviewed PR %d with state %s (%d/%d required approval(s))", member.GetLogin(), r.team, pr.GetNumber(), review.GetState(), approved, r.count)
+				r.gh.Logger.Debugf(
+					"Member %s from team %s already reviewed PR %d with state %s (%d/%d required %sreview(s))",
+					member.GetLogin(), r.team, pr.GetNumber(), review.GetState(), reviewCount, r.count, stateStr,
+				)
 			}
 		}
 	}
 
-	return utils.AddStatusNode(approved >= r.count, detail, details)
+	return utils.AddStatusNode(reviewCount >= r.count, detail, details)
 }
 
-func ReviewByTeamMembers(gh *client.GitHub, team string, count uint) Requirement {
-	return &reviewByTeamMembers{
-		gh:           gh,
-		team:         team,
-		count:        1,
-		desiredState: utils.ReviewStateApproved,
+// WithCount specifies the number of required reviews.
+// By default, this is 1.
+func (r *ReviewByTeamMembersRequirement) WithCount(n uint) *ReviewByTeamMembersRequirement {
+	if n < 1 {
+		panic("number of required reviews should be at least 1")
+	}
+	r.count = n
+	return r
+}
+
+// WithDesiredState specifies the desired state of the PR reviews.
+//
+// If an empty string is passed, then all reviews are counted. This is the default.
+func (r *ReviewByTeamMembersRequirement) WithDesiredState(state string) *ReviewByTeamMembersRequirement {
+	r.desiredState = state
+	return r
+}
+
+// ReviewByTeamMembers specifies that the given pull request should receive at
+// least one review from a member of the given team.
+//
+// The number of required reviews, or the state of the reviews (e.g., to filter
+// only for approval reviews) can be modified using WithCount and WithDesiredState.
+func ReviewByTeamMembers(gh *client.GitHub, team string) *ReviewByTeamMembersRequirement {
+	return &ReviewByTeamMembersRequirement{
+		gh:    gh,
+		team:  team,
+		count: 1,
 	}
 }
 
-type reviewByOrgMembers struct {
+type approvalByOrgMembers struct {
 	gh    *client.GitHub
 	count uint
 }
 
-var _ Requirement = &reviewByOrgMembers{}
+var _ Requirement = &approvalByOrgMembers{}
 
-func (r *reviewByOrgMembers) IsSatisfied(pr *github.PullRequest, details treeprint.Tree) bool {
+func (r *approvalByOrgMembers) IsSatisfied(pr *github.PullRequest, details treeprint.Tree) bool {
 	detail := fmt.Sprintf("At least %d user(s) of the organization approved the pull request", r.count)
 
 	// Check how many members of this team already approved this PR.
@@ -195,6 +245,6 @@ func (r *reviewByOrgMembers) IsSatisfied(pr *github.PullRequest, details treepri
 	return utils.AddStatusNode(approved >= r.count, detail, details)
 }
 
-func ReviewByOrgMembers(gh *client.GitHub, count uint) Requirement {
-	return &reviewByOrgMembers{gh, count}
+func ApprovalByOrgMembers(gh *client.GitHub, count uint) Requirement {
+	return &approvalByOrgMembers{gh, count}
 }
