@@ -51,16 +51,17 @@ const (
 )
 
 var (
+	router          = mux.NewRouter()
+	recipes         []*Recipe
+	
 	profile = Profile{
-		AboutMe:   "👋 I'm Mustapha, a contributor to gno.land project from France. I'm passionate about coding, exploring new technologies, and contributing to open-source projects. Besides my tech journey, I'm also a pizzaiolo 🍕 who loves cooking and savoring good food.",
+	AboutMe:   "👋 I'm Mustapha, a contributor to gno.land project from France. I'm passionate about coding, exploring new technologies, and contributing to open-source projects. Besides my tech journey, I'm also a pizzaiolo 🍕 who loves cooking and savoring good food.",
 		Avatar:    "https://github.com/mous1985/assets/blob/master/avatar.png?raw=true",
 		Email:     "mustapha.benazzouz@outlook.fr",
 		Github:    "https://github.com/mous1985",
 		LinkedIn:  "https://www.linkedin.com/in/mustapha-benazzouz-88646887/",
 		Followers: addrset.Set{},
 	}
-	router          = mux.NewRouter()
-	recipes         []*Recipe
 	margheritaPizza = &Recipe{
 		Name:         "Authentic Margherita Pizza 🤌",
 		Origin:       "Naples, 🇮🇹",
