@@ -25,13 +25,10 @@ class Help {
       cmdModeSelect: null,
     };
 
-    console.log("in");
-
     this.funcList = [];
 
     if (this.DOM.el) {
       this.init();
-      console.log("in");
     } else {
       console.warn("Help: Main container not found.");
     }
