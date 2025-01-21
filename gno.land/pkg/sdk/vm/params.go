@@ -90,11 +90,6 @@ func (vm *VMKeeper) getSysUsersPkgParam(ctx sdk.Context) string {
 	return sysUsersPkg
 }
 
-type ParamfulKeeper interface {
-	GetParamfulKey() string
-	WillSetParam(ctx sdk.Context, key string, value interface{})
-}
-
 func (vm *VMKeeper) GetParamfulKey() string {
 	return ModuleName
 }

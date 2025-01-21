@@ -123,44 +123,41 @@ func (prm *SDKParams) SetBytes(key string, value []byte) {
 // The "keeperKeyPrefix_" is optional. If keeperKeyPrefix is presented in the key,
 // it must match the keeper names; otherwise it will panic and revert the transaction.
 func (prm *SDKParams) willSetKeeperParams(ctx sdk.Context, key string, value interface{}) {
-	kpr := prm.getRegisteredKeeper(key)
-	if kpr != nil {
-		kpr.WillSetParam(prm.ctx, key, value)
-	}
-}
-
-func (prm *SDKParams) getRegisteredKeeper(key string) ParamfulKeeper {
-	// key is in the format of realm.keeperkey.keyname.type
+	// key is in the format of realm.keeperkey_keyname.type
 	realmPrefix := gno.ReRealmPath.FindString(key)
 	if realmPrefix == "" {
-		panic(fmt.Sprintf("Set parameter %s must be accessed from a realm.", key))
+		panic(fmt.Sprintf("set parameter %s must be accessed from a realm.", key))
 	}
-
+	// ParamfulKeeper can be accessed from SysParamsRealmPath only
 	if realmPrefix != SysParamsRealmPath {
-		return nil
+		return
 	}
 
 	k, ok := strings.CutPrefix(key, realmPrefix)
 	if !ok {
-		return nil
+		return
 	}
 
-	parts := strings.SplitN(k, ".", 3)
-	k = parts[1]
-	parts = strings.SplitN(k, "_", 2)
-	keeperKey := ""
+	parts := strings.SplitN(k, ".", 2)
+	paramKey := parts[1]
+	parts = strings.SplitN(paramKey, "_", 2)
+	keeperKeyPrefix := ""
+
 	if len(parts) == 2 {
-		keeperKey = parts[0]
+		keeperKeyPrefix = parts[0]
+		paramKey = parts[1]
 	} else {
 		// no keeperKeyPrefix
-		return nil
+		return
 	}
 
-	if !prm.pmk.IsRegistered(keeperKey) {
-		panic(fmt.Sprintf("keeper key <%s> does not exist", keeperKey))
+	if !prm.pmk.IsRegistered(keeperKeyPrefix) {
+		panic(fmt.Sprintf("keeper key <%s> does not exist", keeperKeyPrefix))
 	}
-
-	return prm.pmk.GetRegisteredKeeper(keeperKey)
+	kpr := prm.pmk.GetRegisteredKeeper(keeperKeyPrefix)
+	if kpr != nil {
+		kpr.WillSetParam(prm.ctx, paramKey, value)
+	}
 }
 
 func (prm *SDKParams) assertRealmAccess(key string) {

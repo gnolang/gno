@@ -68,23 +68,17 @@ func (bank BankKeeper) GetParams(ctx sdk.Context) Params {
 	return *params
 }
 
-type ParamfulKeeper interface {
-	GetParamfulKey() string
-	WillSetParam(ctx sdk.Context, key string, value interface{})
-}
-
 func (bank BankKeeper) GetParamfulKey() string {
 	return ModuleName
 }
 
-// WillSetParam checks if the key contains the module's parameter key prefix and updates the module parameter accordingly.
+// WillSetParam checks if the key contains the module's parameter key and updates the module parameter accordingly.
 func (bank BankKeeper) WillSetParam(ctx sdk.Context, key string, value interface{}) {
-	paramKey, ok := strings.CutPrefix(key, ParamsKeyPrefix)
-	if ok && (paramKey == lockSendKey) {
-		if value == true { // lock sending ugnot
+	if key == lockSendKey {
+		if value != "" { // lock sending denoms
 			bank.AddRestrictedDenoms(ctx, value.(string))
 		} else { // unlock sending ugnot
-			bank.DelRestrictedDenoms(ctx, value.(string))
+			bank.DelAllRestrictedDenoms(ctx)
 		}
 	}
 }

@@ -49,11 +49,6 @@ func setupTestEnv() testEnv {
 
 const DummyModuleName = "params_test"
 
-type ParamfulKeeper interface {
-	GetParamfulKey() string
-	WillSetParam(ctx sdk.Context, key string, value interface{})
-}
-
 type DummyKeeper struct{}
 
 func NewDummyKeeper() DummyKeeper {

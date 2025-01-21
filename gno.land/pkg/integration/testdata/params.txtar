@@ -3,11 +3,11 @@
 gnoland start
 
 # query before adding the package
-gnokey query params/gno.land/r/sys/params.foo.string
+gnokey query params/vm/gno.land/r/sys/params.foo.string
 stdout 'data: $'
-gnokey query params/gno.land/r/sys/params.bar.bool
+gnokey query params/vm/gno.land/r/sys/params.bar.bool
 stdout 'data: $'
-gnokey query params/gno.land/r/sys/params.baz.int64
+gnokey query params/vm/gno.land/r/sys/params.baz.int64
 stdout 'data: $'
 
 gnokey maketx addpkg -pkgdir $WORK/params -pkgpath gno.land/r/sys/params -gas-fee 1000000ugnot -gas-wanted 100000000 -broadcast -chainid=tendermint_test test1
@@ -57,9 +57,8 @@ stdout 'data: "31337"'
 # set parameters in module vm gno.land/r/sys/params.vm.
 
 gnokey maketx call -pkgpath gno.land/r/sys/params -func SetLockSend -args ugnot -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test test1
-gnokey query params/vm/gno.land/r/sys/params.bank.locksend.string
-gnokey query params/bank/locksend.string
-stdout 'data: "ugno"'
+gnokey query params/vm/gno.land/r/sys/params.bank_lockSend.string
+stdout 'data: "ugnot"'
 
 -- params/setter.gno --
 package setter
@@ -71,6 +70,5 @@ import (
 func SetFoo(newFoo string) { std.SetParamString("foo.string", newFoo) }
 func SetBar(newBar bool)   { std.SetParamBool("bar.bool", newBar) }
 func SetBaz(newBaz int64)  { std.SetParamInt64("baz.int64", newBaz) }
-func SetBaz(newBaz int64)  { std.SetParamInt64("baz.int64", newBaz) }
 
-func SetLockSend(denom string)  { std.SetParamString("bank.locksend.string", denom) }
+func SetLockSend(denom string)  { std.SetParamString("bank_lockSend.string", "ugnot") }

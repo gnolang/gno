@@ -15,7 +15,7 @@ const (
 
 func ProposeUnlockSend() uint64 {
 	callback := func() error {
-		std.SetParamString(lockSendKey, "ugnot")
+		std.SetParamString(lockSendKey, "")
 		return nil
 	}
 	return propose(callback, UnlockSendTitle, "")

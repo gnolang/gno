@@ -43,6 +43,10 @@ type ParamsKeeperI interface {
 
 	// XXX: ListKeys?
 }
+type ParamfulKeeper interface {
+	GetParamfulKey() string
+	WillSetParam(ctx sdk.Context, key string, value interface{})
+}
 
 var _ ParamsKeeperI = ParamsKeeper{}
 

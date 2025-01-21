@@ -46,10 +46,6 @@ func NewBankKeeper(acck auth.AccountKeeper, pk params.ParamsKeeper) BankKeeper {
 		ViewKeeper: NewViewKeeper(acck),
 		acck:       acck,
 		paramk:     pk,
-		//	params:     params,
-		// Store restricted denoms in a map's keys for fast
-		// comparison when filtering out restricted denoms from a send message.
-		// restrictedDenoms: rdm,
 	}
 }
 
