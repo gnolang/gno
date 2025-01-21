@@ -26,7 +26,7 @@ func TestRecurringSubscription(t *testing.T) {
 	err = rs.HasValidSubscription(std.PreviousRealm().Address())
 	uassert.NoError(t, err, "Expected Alice to have access")
 
-	expiration, err := rs.GetExpiration(std.PreviousRealm().Address())
+	_, err = rs.GetExpiration(std.PreviousRealm().Address())
 	uassert.NoError(t, err, "Expected to get expiration for Alice")
 }
 

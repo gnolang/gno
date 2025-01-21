@@ -56,7 +56,7 @@ func TestRender(t *testing.T) {
 		p := ""
 		if len(tc.ps) > 0 {
 			p = tc.owner.String()
-			for i, psv := range tc.ps {
+			for _, psv := range tc.ps {
 				p += ":" + psv
 			}
 		}

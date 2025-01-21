@@ -19,7 +19,6 @@ var (
 
 	githubUrl        string
 	linkedinUrl      string
-	connectUrl       string
 	imageUpdatePrice int64
 
 	isValidUrl func(string) bool

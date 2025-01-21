@@ -128,7 +128,7 @@ func TestGetApproved(t *testing.T) {
 	dummy := NewBasicNFT(dummyNFTName, dummyNFTSymbol)
 	uassert.True(t, dummy != nil, "should not be nil")
 
-	approvedAddr, err := dummy.GetApproved(TokenID("invalid"))
+	_, err := dummy.GetApproved(TokenID("invalid"))
 	uassert.Error(t, err, "should result in error")
 }
 
@@ -247,7 +247,7 @@ func TestBurn(t *testing.T) {
 	uassert.NoError(t, err, "should not result in error")
 
 	// Check Owner of Token id
-	owner, err := dummy.OwnerOf(TokenID("1"))
+	_, err = dummy.OwnerOf(TokenID("1"))
 	uassert.Error(t, err, "should result in error")
 }
 

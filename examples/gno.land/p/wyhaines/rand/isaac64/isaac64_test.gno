@@ -14,7 +14,7 @@ type OpenISAAC struct {
 }
 
 func TestISAACSeeding(t *testing.T) {
-	isaac := New()
+	_ = New()
 }
 
 func TestISAACRand(t *testing.T) {
