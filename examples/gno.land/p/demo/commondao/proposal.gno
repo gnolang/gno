@@ -69,6 +69,7 @@ type (
 	}
 )
 
+// NewProposal creates a new DAO proposal.
 func NewProposal(id uint64, creator std.Address, d ProposalDefinition) *Proposal {
 	now := time.Now()
 	return &Proposal{
