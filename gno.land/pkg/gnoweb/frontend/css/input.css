@@ -301,6 +301,16 @@
   main :is(.realm-content, .source-code) > pre .chroma-ln {
     @apply scroll-mt-24;
   }
+
+  .dev-mode .toc-expend-btn {
+    @apply bg-gray-100 hover:bg-gray-50 cursor-pointer border lg:border-none lg:bg-transparent;
+  }
+  .dev-mode #sidebar-summary {
+    @apply bg-light lg:bg-transparent;
+  }
+  .dev-mode .toc-nav {
+    @apply font-mono;
+  }
 }
 
 @layer utilities {
