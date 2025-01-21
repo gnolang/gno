@@ -20,6 +20,7 @@ func renderGames() string {
 		desc        string
 	}{
 		{"tictactoe", "games/tictactoe", []string{"grepsuzette", "moul"}, "CPU vs Human tictactoe, no need for a wallet"},
+		{"underwater minesweeper", "games/minesweeper", []string{"grepsuzette"}, "A classic productivity tool"},
 	} {
 		b.WriteString(ufmt.Sprintf(
 			"* [%s](%s): %s by %s\n",
