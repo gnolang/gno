@@ -6,14 +6,6 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/std"
 )
 
-func GetChainID(m *gno.Machine) string {
-	return GetContext(m).ChainID
-}
-
-func GetChainDomain(m *gno.Machine) string {
-	return GetContext(m).ChainDomain
-}
-
 func AssertOriginCall(m *gno.Machine) {
 	if !isOriginCall(m) {
 		m.Panic(typedString("invalid non-origin call"))
@@ -28,6 +20,14 @@ func isOriginCall(m *gno.Machine) bool {
 	firstPkg := m.Frames[0].LastPackage
 	isMsgCall := firstPkg != nil && firstPkg.PkgPath == "main"
 	return n <= 2 && isMsgCall
+}
+
+func GetChainID(m *gno.Machine) string {
+	return GetContext(m).ChainID
+}
+
+func GetChainDomain(m *gno.Machine) string {
+	return GetContext(m).ChainDomain
 }
 
 func GetHeight(m *gno.Machine) int64 {
