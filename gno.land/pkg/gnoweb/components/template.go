@@ -24,6 +24,16 @@ func registerCommonFuncs(funcs template.FuncMap) {
 	funcs["noescape_bytes"] = func(in []byte) template.HTML {
 		return template.HTML(in) //nolint:gosec
 	}
+	// NOTE: this method does NOT escape HTML, use with caution
+	// Render Component element into raw html element
+	funcs["render"] = func(comp Component) (template.HTML, error) {
+		var buf bytes.Buffer
+		if err := comp.Render(&buf); err != nil {
+			return "", fmt.Errorf("unable to render component: %w", err)
+		}
+
+		return template.HTML(buf.String()), nil //nolint:gosec
+	}
 	funcs["queryHas"] = func(vals url.Values, key string) bool {
 		if vals == nil {
 			return false
@@ -31,24 +41,15 @@ func registerCommonFuncs(funcs template.FuncMap) {
 
 		return vals.Has(key)
 	}
-	// Render component
-	funcs["render"] = func(comp Component) (template.HTML, error) {
-		var buf bytes.Buffer
-		if err := comp.Render(&buf); err != nil {
-			return "", fmt.Errorf("unable to render component: %w", err)
-		}
-
-		return template.HTML(buf.String()), nil
-	}
 }
 
 func init() {
 	// Register templates functions
 	registerCommonFuncs(funcMap)
 	registerHelpFuncs(funcMap)
-	registerIndexFuncs(funcMap)
 	tmpl.Funcs(funcMap)
 
+	// Parse templates
 	var err error
 	tmpl, err = tmpl.ParseFS(html, "layouts/*.html", "ui/*.html", "views/*.html")
 	if err != nil {

@@ -11,27 +11,27 @@ type RealmTOCData struct {
 }
 
 type RealmData struct {
-	Content  Component
-	TocItems *RealmTOCData
+	ComponentContent Component
+	TocItems         *RealmTOCData
 }
 
 type ArticleData struct {
-	Content Component
-	Classes string
+	ComponentContent Component
+	Classes          string
 }
 
-type RealmViewData struct {
-	Article ArticleData
-	TOC     Component
+type realmViewParams struct {
+	Article      ArticleData
+	ComponentTOC Component
 }
 
-func RenderRealmView(data RealmData) *View {
-	viewData := RealmViewData{
+func GetRealmView(data RealmData) *View {
+	viewData := realmViewParams{
 		Article: ArticleData{
-			Content: data.Content, // XXX:
-			Classes: "realm-view lg:row-start-1",
+			ComponentContent: data.ComponentContent,
+			Classes:          "realm-view lg:row-start-1",
 		},
-		TOC: NewTemplateComponent("renderRealmToc", data.TocItems),
+		ComponentTOC: NewTemplateComponent("renderRealmToc", data.TocItems),
 	}
 
 	return NewTemplateView(RealmViewType, "renderRealm", viewData)

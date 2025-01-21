@@ -1,10 +1,6 @@
 package components
 
-import (
-	"html/template"
-)
-
-const SourceViewType ViewType = "source"
+const SourceViewType ViewType = "source-view"
 
 type SourceData struct {
 	PkgPath     string
@@ -13,18 +9,7 @@ type SourceData struct {
 	FileSize    string
 	FileLines   int
 	FileCounter int
-	FileSource  template.HTML
-}
-
-type SourceViewData struct {
-	Article     ArticleData
-	Files       []string
-	FileName    string
-	FileSize    string
-	FileLines   int
-	FileCounter int
-	PkgPath     string
-	TOC         Component
+	FileSource  Component
 }
 
 type SourceTocData struct {
@@ -35,6 +20,17 @@ type SourceTocData struct {
 type SourceTocItem struct {
 	Link string
 	Text string
+}
+
+type sourceViewParams struct {
+	Article      ArticleData
+	Files        []string
+	FileName     string
+	FileSize     string
+	FileLines    int
+	FileCounter  int
+	PkgPath      string
+	ComponentTOC Component
 }
 
 func RenderSourceView(data SourceData) *View {
@@ -52,18 +48,18 @@ func RenderSourceView(data SourceData) *View {
 
 	toc := NewTemplateComponent("layout/toc_list", tocData)
 	content := NewTemplateComponent("renderSourceContent", data.FileSource)
-	viewData := SourceViewData{
+	viewData := sourceViewParams{
 		Article: ArticleData{
-			Content: content,
-			Classes: "source-view col-span-1 lg:col-span-7 lg:row-start-2 pb-24 text-gray-900",
+			ComponentContent: content,
+			Classes:          "source-view col-span-1 lg:col-span-7 lg:row-start-2 pb-24 text-gray-900",
 		},
-		TOC:         toc,
-		Files:       data.Files,
-		FileName:    data.FileName,
-		FileSize:    data.FileSize,
-		FileLines:   data.FileLines,
-		FileCounter: data.FileCounter,
-		PkgPath:     data.PkgPath,
+		ComponentTOC: toc,
+		Files:        data.Files,
+		FileName:     data.FileName,
+		FileSize:     data.FileSize,
+		FileLines:    data.FileLines,
+		FileCounter:  data.FileCounter,
+		PkgPath:      data.PkgPath,
 	}
 
 	return NewTemplateView(SourceViewType, "renderSource", viewData)

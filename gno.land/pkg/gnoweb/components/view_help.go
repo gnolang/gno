@@ -2,7 +2,6 @@ package components
 
 import (
 	"html/template"
-	"strings"
 
 	"github.com/gnolang/gno/gno.land/pkg/sdk/vm" // for error types
 )
@@ -21,12 +20,6 @@ type HelpData struct {
 	PkgPath   string
 }
 
-type HelpViewData struct {
-	HelpData
-	Article ArticleData
-	TOC     Component
-}
-
 type HelpTocData struct {
 	Icon  string
 	Items []HelpTocItem
@@ -37,23 +30,13 @@ type HelpTocItem struct {
 	Text string
 }
 
+type helpViewParams struct {
+	HelpData
+	Article      ArticleData
+	ComponentTOC Component
+}
+
 func registerHelpFuncs(funcs template.FuncMap) {
-	funcs["helpFuncSignature"] = func(fsig vm.FunctionSignature) (string, error) {
-		var fsigStr strings.Builder
-
-		fsigStr.WriteString(fsig.FuncName)
-		fsigStr.WriteRune('(')
-		for i, param := range fsig.Params {
-			if i > 0 {
-				fsigStr.WriteString(", ")
-			}
-			fsigStr.WriteString(param.Name)
-		}
-		fsigStr.WriteRune(')')
-
-		return fsigStr.String(), nil
-	}
-
 	funcs["getSelectedArgValue"] = func(data HelpData, param vm.NamedType) (string, error) {
 		if data.SelectedArgs == nil {
 			return "", nil
@@ -64,9 +47,6 @@ func registerHelpFuncs(funcs template.FuncMap) {
 }
 
 func RenderHelpView(data HelpData) *View {
-	funcMap := template.FuncMap{}
-	registerHelpFuncs(funcMap)
-
 	tocData := HelpTocData{
 		Icon:  "code",
 		Items: make([]HelpTocItem, len(data.Functions)),
@@ -90,13 +70,13 @@ func RenderHelpView(data HelpData) *View {
 
 	toc := NewTemplateComponent("layout/toc_list", tocData)
 	content := NewTemplateComponent("renderHelpContent", data)
-	viewData := HelpViewData{
+	viewData := helpViewParams{
 		HelpData: data,
 		Article: ArticleData{
-			Content: content,
-			Classes: "",
+			ComponentContent: content,
+			Classes:          "",
 		},
-		TOC: toc,
+		ComponentTOC: toc,
 	}
 
 	return NewTemplateView(HelpViewType, "renderHelp", viewData)

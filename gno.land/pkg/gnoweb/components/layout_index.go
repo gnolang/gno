@@ -1,10 +1,5 @@
 package components
 
-import (
-	"html/template"
-	"io"
-)
-
 // Layout
 const (
 	SidebarLayout = "sidebar"
@@ -26,41 +21,48 @@ type IndexData struct {
 	HeadData
 	HeaderData
 	FooterData
-	*View
+	BodyView *View
 	// Body          template.HTML
 }
 
-func registerIndexFuncs(funcs template.FuncMap) {
-	funcs["IndexGetLayout"] = func(i IndexData) string {
-		switch i.View.Type {
-		case RealmViewType, HelpViewType, SourceViewType, DirectoryViewType:
-			return SidebarLayout
-		default:
-			return FullLayout
-		}
-	}
+type indexLayoutParams struct {
+	IndexData
 
-	funcs["IndexIsDevmodView"] = func(i IndexData) bool {
-		switch i.View.Type {
-		case SourceViewType, HelpViewType, DirectoryViewType, StatusViewType:
-			return true
-		default:
-			return false
-		}
-	}
-}
-
-func GenerateIndexData(indexData IndexData) IndexData {
-	return indexData
+	// Additional data
+	IsDevmodView bool
+	Layout       string
+	ViewType     string
 }
 
 func IndexLayout(data IndexData) Component {
 	data.FooterData = EnrichFooterData(data.FooterData)
 	data.HeaderData = EnrichHeaderData(data.HeaderData)
 
-	return NewTemplateComponent("index", data)
-}
+	dataLayout := indexLayoutParams{
+		IndexData: data,
+		// Set default value
+		Layout:   FullLayout,
+		ViewType: data.BodyView.String(),
+	}
 
-func RenderIndexLayout(w io.Writer, data IndexData) error {
-	return IndexLayout(data).Render(w)
+	switch data.BodyView.Type {
+	case RealmViewType:
+		dataLayout.Layout = SidebarLayout
+
+	case HelpViewType:
+		dataLayout.IsDevmodView = true
+		dataLayout.Layout = SidebarLayout
+
+	case SourceViewType:
+		dataLayout.IsDevmodView = true
+		dataLayout.Layout = SidebarLayout
+
+	case DirectoryViewType:
+		dataLayout.IsDevmodView = true
+
+	case StatusViewType:
+		dataLayout.IsDevmodView = true
+	}
+
+	return NewTemplateComponent("index", dataLayout)
 }
