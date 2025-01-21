@@ -20,6 +20,7 @@ type HeadData struct {
 type ContentData struct {
 	IsDevmodView bool
 	Layout       string
+	View         string
 }
 
 type IndexData struct {

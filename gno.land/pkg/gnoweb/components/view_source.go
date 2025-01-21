@@ -27,11 +27,32 @@ type SourceViewData struct {
 	TOC         template.HTML
 }
 
+type SourceTocData struct {
+	Icon  string
+	Items []SourceTocItem
+}
+
+type SourceTocItem struct {
+	Link string
+	Text string
+}
+
 func RenderSourceComponent(w io.Writer, data SourceData) error {
 	var tocBuf, contentBuf bytes.Buffer
 
-	// Générer le ToC
-	if err := tmpl.ExecuteTemplate(&tocBuf, "renderSourceToc", data); err != nil {
+	tocData := SourceTocData{
+		Icon:  "file",
+		Items: make([]SourceTocItem, len(data.Files)),
+	}
+
+	for i, file := range data.Files {
+		tocData.Items[i] = SourceTocItem{
+			Link: data.PkgPath + "$source&file=" + file,
+			Text: file,
+		}
+	}
+
+	if err := tmpl.ExecuteTemplate(&tocBuf, "layout/toc_list", tocData); err != nil {
 		return err
 	}
 

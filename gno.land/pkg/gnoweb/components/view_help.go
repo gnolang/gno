@@ -27,6 +27,16 @@ type HelpViewData struct {
 	TOC     template.HTML
 }
 
+type HelpTocData struct {
+	Icon  string
+	Items []HelpTocItem
+}
+
+type HelpTocItem struct {
+	Link string
+	Text string
+}
+
 func registerHelpFuncs(funcs template.FuncMap) {
 	funcs["helpFuncSignature"] = func(fsig vm.FunctionSignature) (string, error) {
 		var fsigStr strings.Builder
@@ -55,14 +65,36 @@ func registerHelpFuncs(funcs template.FuncMap) {
 
 func RenderHelpComponent(w io.Writer, data HelpData) error {
 	var contentBuf, tocBuf bytes.Buffer
+	funcMap := template.FuncMap{}
+	registerHelpFuncs(funcMap)
 
-	// Generate the content
-	if err := tmpl.ExecuteTemplate(&contentBuf, "renderHelpContent", data); err != nil {
+	tocData := HelpTocData{
+		Icon:  "code",
+		Items: make([]HelpTocItem, len(data.Functions)),
+	}
+
+	for i, fn := range data.Functions {
+		sig := fn.FuncName + "("
+		for j, param := range fn.Params {
+			if j > 0 {
+				sig += ", "
+			}
+			sig += param.Name
+		}
+		sig += ")"
+
+		tocData.Items[i] = HelpTocItem{
+			Link: "#func-" + fn.FuncName,
+			Text: sig,
+		}
+	}
+
+	if err := tmpl.ExecuteTemplate(&tocBuf, "layout/toc_list", tocData); err != nil {
 		return err
 	}
 
-	// Generate the ToC
-	if err := tmpl.ExecuteTemplate(&tocBuf, "renderHelpToc", data); err != nil {
+	// Generate the content
+	if err := tmpl.ExecuteTemplate(&contentBuf, "renderHelpContent", data); err != nil {
 		return err
 	}
 
@@ -70,7 +102,7 @@ func RenderHelpComponent(w io.Writer, data HelpData) error {
 		HelpData: data,
 		Article: ArticleData{
 			Content: template.HTML(contentBuf.String()),
-			Classes: "help-content",
+			Classes: "js-help-content",
 		},
 		TOC: template.HTML(tocBuf.String()),
 	}
