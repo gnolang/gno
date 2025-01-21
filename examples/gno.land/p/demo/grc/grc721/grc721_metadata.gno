@@ -29,16 +29,6 @@ func NewNFTWithMetadata(name string, symbol string) *metadataNFT {
 
 // SetTokenMetadata sets metadata for a given token ID.
 func (s *metadataNFT) SetTokenMetadata(tid TokenID, metadata Metadata) error {
-	// Check if the caller is the owner of the token
-	owner, err := s.basicNFT.OwnerOf(tid)
-	if err != nil {
-		return err
-	}
-	caller := std.PrevRealm().Addr()
-	if caller != owner {
-		return ErrCallerIsNotOwner
-	}
-
 	// Set the metadata for the token ID in the extensions AVL tree
 	s.extensions.Set(string(tid), metadata)
 	return nil
@@ -55,44 +45,72 @@ func (s *metadataNFT) TokenMetadata(tid TokenID) (Metadata, error) {
 	return metadata.(Metadata), nil
 }
 
-// mint mints a new token and assigns it to the specified address.
-func (s *metadataNFT) mint(to std.Address, tid TokenID) error {
-	// Check if the address is valid
-	if err := isValidAddress(to); err != nil {
-		return err
-	}
+// Basic NFT methods forwarded to embedded basicNFT
 
-	// Check if the token ID already exists
-	if s.basicNFT.exists(tid) {
-		return ErrTokenIdAlreadyExists
-	}
+func (s *metadataNFT) Name() string {
+	return s.basicNFT.Name()
+}
 
-	s.basicNFT.beforeTokenTransfer(zeroAddress, to, tid, 1)
+func (s *metadataNFT) Symbol() string {
+	return s.basicNFT.Symbol()
+}
 
-	// Check if the token ID was minted by beforeTokenTransfer
-	if s.basicNFT.exists(tid) {
-		return ErrTokenIdAlreadyExists
-	}
+func (s *metadataNFT) TokenCount() uint64 {
+	return s.basicNFT.TokenCount()
+}
 
-	// Increment balance of the recipient address
-	toBalance, err := s.basicNFT.BalanceOf(to)
-	if err != nil {
-		return err
-	}
-	toBalance += 1
-	s.basicNFT.balances.Set(to.String(), toBalance)
+func (s *metadataNFT) BalanceOf(addr std.Address) (uint64, error) {
+	return s.basicNFT.BalanceOf(addr)
+}
 
-	// Set owner of the token ID to the recipient address
-	s.basicNFT.owners.Set(string(tid), to)
+func (s *metadataNFT) OwnerOf(tid TokenID) (std.Address, error) {
+	return s.basicNFT.OwnerOf(tid)
+}
 
-	std.Emit(
-		TransferEvent,
-		"from", string(zeroAddress),
-		"to", string(to),
-		"tokenId", string(tid),
-	)
+func (s *metadataNFT) TokenURI(tid TokenID) (string, error) {
+	return s.basicNFT.TokenURI(tid)
+}
 
-	s.basicNFT.afterTokenTransfer(zeroAddress, to, tid, 1)
+func (s *metadataNFT) SetTokenURI(tid TokenID, tURI TokenURI) (bool, error) {
+	return s.basicNFT.SetTokenURI(tid, tURI)
+}
 
-	return nil
+func (s *metadataNFT) IsApprovedForAll(owner, operator std.Address) bool {
+	return s.basicNFT.IsApprovedForAll(owner, operator)
+}
+
+func (s *metadataNFT) Approve(to std.Address, tid TokenID) error {
+	return s.basicNFT.Approve(to, tid)
+}
+
+func (s *metadataNFT) GetApproved(tid TokenID) (std.Address, error) {
+	return s.basicNFT.GetApproved(tid)
+}
+
+func (s *metadataNFT) SetApprovalForAll(operator std.Address, approved bool) error {
+	return s.basicNFT.SetApprovalForAll(operator, approved)
+}
+
+func (s *metadataNFT) SafeTransferFrom(from, to std.Address, tid TokenID) error {
+	return s.basicNFT.SafeTransferFrom(from, to, tid)
+}
+
+func (s *metadataNFT) TransferFrom(from, to std.Address, tid TokenID) error {
+	return s.basicNFT.TransferFrom(from, to, tid)
+}
+
+func (s *metadataNFT) Mint(to std.Address, tid TokenID) error {
+	return s.basicNFT.Mint(to, tid)
+}
+
+func (s *metadataNFT) SafeMint(to std.Address, tid TokenID) error {
+	return s.basicNFT.SafeMint(to, tid)
+}
+
+func (s *metadataNFT) Burn(tid TokenID) error {
+	return s.basicNFT.Burn(tid)
+}
+
+func (s *metadataNFT) RenderHome() string {
+	return s.basicNFT.RenderHome()
 }
