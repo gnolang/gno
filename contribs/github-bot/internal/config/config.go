@@ -58,7 +58,11 @@ func Config(gh *client.GitHub) ([]AutomaticCheck, []ManualCheck) {
 			Description: "Pending initial approval by a review team member (and label matches review triage state)",
 			If:          c.Not(c.AuthorInTeam(gh, "tech-staff")),
 			Then: r.
-				If(r.Or(r.ReviewByOrgMembers(gh, 1), r.Draft())).
+				If(r.Or(
+					r.ReviewByOrgMembers(gh, 1),
+					r.Draft(),
+					r.ReviewByTeamMembers(gh, "tech-staff", 1),
+				)).
 				// Either there was a first approval from a member, and we
 				// assert that the label for triage-pending is removed...
 				Then(r.Not(r.Label(gh, "review/triage-pending", r.LabelRemove))).

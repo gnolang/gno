@@ -81,9 +81,10 @@ func ReviewByUser(gh *client.GitHub, user string) Requirement {
 
 // Reviewer Requirement.
 type reviewByTeamMembers struct {
-	gh    *client.GitHub
-	team  string
-	count uint
+	gh           *client.GitHub
+	team         string
+	count        uint
+	desiredState string
 }
 
 var _ Requirement = &reviewByTeamMembers{}
@@ -154,7 +155,12 @@ func (r *reviewByTeamMembers) IsSatisfied(pr *github.PullRequest, details treepr
 }
 
 func ReviewByTeamMembers(gh *client.GitHub, team string, count uint) Requirement {
-	return &reviewByTeamMembers{gh, team, count}
+	return &reviewByTeamMembers{
+		gh:           gh,
+		team:         team,
+		count:        1,
+		desiredState: approvedState,
+	}
 }
 
 type reviewByOrgMembers struct {
