@@ -9,7 +9,9 @@
 </ul>
 {{ end }} {{ define "renderRealm" }}
 <!-- Aside Content - ToC -->
-{{ template "layout/aside" .TOC}}
+{{ with render .ComponentTOC }}
+{{ template "layout/aside" .}}
+{{ end }}
 
 <!-- Realm Content -->
 {{ template "layout/article" .Article}} {{ end }}

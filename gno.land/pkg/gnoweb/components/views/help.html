@@ -28,7 +28,9 @@
 </header>
 
 <!-- Help ToC -->
-{{ template "layout/aside" .TOC}}
+{{ with render .ComponentTOC }}
+{{ template "layout/aside" .}}
+{{ end }}
 
 <!-- Help Content List -->
 {{ template "layout/article" .Article}} {{ end }} {{ define "renderHelpContent" }} {{ $data := . }} {{ range .Functions }}

@@ -10,7 +10,7 @@
       path: "/public/js/copy.js",
     },
     help: {
-      selector: ".js-help-content",
+      selector: ".js-help-view",
       path: "/public/js/realmhelp.js",
     },
     searchBar: {
