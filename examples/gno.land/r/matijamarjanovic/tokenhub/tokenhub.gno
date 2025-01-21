@@ -123,17 +123,18 @@ func MustGetGRC721(key string) grc721.IGRC721 {
 	return nftGetter
 }
 
-func GetGRC1155(key string) (GRC1155TokenInfo, bool) {
+func GetGRC1155(key string) grc1155.IGRC1155 {
 	info, ok := registeredMTs.Get(key)
 	if !ok {
-		return GRC1155TokenInfo{}, false
+		return nil
 	}
-	return info.(GRC1155TokenInfo), true
+	mt := info.(GRC1155TokenInfo).Collection
+	return mt()
 }
 
-func MustGetGRC1155(key string) GRC1155TokenInfo {
-	info, ok := GetGRC1155(key)
-	if !ok {
+func MustGetGRC1155(key string) grc1155.IGRC1155 {
+	info := GetGRC1155(key)
+	if info == nil {
 		panic("unknown multi-token: " + key)
 	}
 	return info
