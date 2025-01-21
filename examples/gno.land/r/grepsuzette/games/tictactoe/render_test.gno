@@ -27,7 +27,9 @@ func TestParsePath(t *testing.T) {
 		{"move=c1&debug", "---------", 2, 0, true},
 		{"&", "---------", -1, -1},
 		{"state=-X--OX-O-&move=b2", "-X--OX-O-", 1, 1},
+		{"move=b2?state=-X--OX-O-", "-X--OX-O-", 1, 1},
 		{"state=XOXX-O-O-&move=c1", "XOXX-O-O-", 2, 0},
+		{"move=c1?state=XOXX-O-O-", "XOXX-O-O-", 2, 0},
 		{"debug", "---------", -1, -1, true},
 	} {
 		g, x, y, debug := parsePath(v.path)
@@ -40,24 +42,5 @@ func TestParsePath(t *testing.T) {
 				x, y, repr,
 			)
 		}
-	}
-}
-
-func TestBreakToMap(t *testing.T) {
-	m, e := BreakToMap("a=b&=&&&c=d&e")
-	{
-		a, has := m["a"]
-		uassert.True(t, has)
-		uassert.Equal(t, a, "b")
-	}
-	{
-		c, has := m["c"]
-		uassert.True(t, has)
-		uassert.Equal(t, c, "d")
-	}
-	{
-		e, has := m["e"]
-		uassert.True(t, has)
-		uassert.Equal(t, e, "")
 	}
 }

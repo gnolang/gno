@@ -11,6 +11,7 @@ import (
 
 	"gno.land/p/demo/ufmt"
 	"gno.land/p/grepsuzette/games/tictactoe/tictactoe1p"
+	"gno.land/p/grepsuzette/querystring"
 	"gno.land/p/grepsuzette/ternary"
 )
 
@@ -53,15 +54,17 @@ func Render(path string) string {
 }
 
 // Lower-case render is simply called by Render.
-// Note the <form> (below) could be a <div>. If some day
+// Note the <form> (below) could be a <div>.
+//
+// TODO REMOVE NOW CHANGING THIS If some day
 // realms can access GET and POST variables, then regular
 // <button> can be used. <form> is kept to remember that.
 func render(game tictactoe1p.Game, cpuX, cpuY int) string {
 	status, class := statusAndClass(game)
 	repr := game.ToRepr()
 	output := css()
-	output += `<form id="board" class="` + class + `">` + "\n"
-	// output += "\t" + `<input type="hidden" name="state" value="` + repr + `">` + "\n"
+	output += `<form id="board" method="GET" class="` + class + `">` + "\n"
+	output += "\t" + `<input type="hidden" name="state" value="` + repr + `">` + "\n"
 	output += `<div id="left"><img src="` + urlParrot + `" id="parrot" width="120" height="120" align="left" /></div>` + "\n"
 	output += `<div id="right">`
 
@@ -100,8 +103,7 @@ func render(game tictactoe1p.Game, cpuX, cpuY int) string {
 
 func button(x, y int, char string, occupied, highlighted bool, repr string) string {
 	return ufmt.Sprintf(
-		`<a href="/r/grepsuzette/games/tictactoe:state=%s&move=%c%d" class="button tile %s %s">%s</a>`,
-		repr,
+		`<button name="move" value="%c%d" class="button tile %s %s">%s</button>`,
 		rune('a'+x), y+1,
 		ternary.String(occupied, "disabled", ""),
 		ternary.String(highlighted, "highlighted", ""),
@@ -129,7 +131,7 @@ func statusAndClass(game tictactoe1p.Game) (status string, classes string) {
 }
 
 // Decompose path, into valid game and played coordinates (or -1,-1)
-// The path is like "state=O--X-----&move=c3"
+// The path is like "move=c3?state=O--X-----"
 //
 //   - state is empty or 9 characters,
 //     imagine the following but without the \n: "-OX\nO--\n---".
@@ -139,7 +141,7 @@ func statusAndClass(game tictactoe1p.Game) (status string, classes string) {
 //
 //   - debug &debug enables printing of a debug line.
 func parsePath(path string) (game *tictactoe1p.Game, x, y int, debug bool) {
-	h, e := BreakToMap(path)
+	h, e := querystring.ToMap(path)
 	if e != nil {
 		panic(e)
 	}
@@ -262,22 +264,4 @@ func css() string {
     }
 </style>
 `
-}
-
-// Break down a string of url parameters to map[string]string.
-// E.g. "foo=a&bar=b" -> (map[string]string{foo:"a", bar:"b"}, nil)
-func BreakToMap(querystring string) (map[string]string, error) {
-	m := make(map[string]string)
-	for _, s := range strings.Split(querystring, "&") {
-		if len(strings.TrimSpace(s)) == 0 {
-			continue
-		}
-		idx := strings.Index(s, "=")
-		if idx > -1 {
-			m[s[:idx]] = s[idx+1:]
-		} else {
-			m[s] = ""
-		}
-	}
-	return m, nil
 }
