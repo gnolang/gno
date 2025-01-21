@@ -23,7 +23,7 @@ type Banker interface {
 }
 ```
 
-## GetBanker
+## NewBanker
 Returns `Banker` of the specified type.
 
 #### Parameters
