@@ -117,7 +117,10 @@ func (dao *AdminDAO) Propose(creator std.Address, d ProposalDefinition) (*Propos
 		return nil, ErrOverflow
 	}
 
-	return NewProposal(uint64(id), creator, d), nil
+	p := NewProposal(uint64(id), creator, d)
+	key := makeProposalKey(p.ID())
+	dao.active.Set(key, p)
+	return p, nil
 }
 
 // GetActiveProposal returns an active proposal.
