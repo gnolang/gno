@@ -20,7 +20,8 @@ type GRC1155TokenInfo struct {
 }
 
 var (
-	registeredNFTs = avl.NewTree() // rlmPath[.slug] -> NFTInfo
+	registeredTokens = avl.NewTree() // rlmPath[.slug] -> grc20.TokenGetter
+	registeredNFTs = avl.NewTree() // rlmPath[.slug] -> grc721.NFTGetter
 	registeredMTs  = avl.NewTree() // rlmPath[.slug] -> GRC1155TokenInfo
 
 	ErrNFTAlreadyRegistered = errors.New("NFT already registered")
@@ -32,7 +33,7 @@ var (
 	ErrNFTNotMetadata       = errors.New("NFT must implement IGRC721CollectionMetadata")
 )
 
-const pageSize = 5
+const pageSize = 1	
 const token = "token" // grc20
 const nft = "nft" // grc721
 const mt = "mt" // grc1155
@@ -107,7 +108,8 @@ func getBalances(input string) string {
 		return false
 	})
 
-	grc20reg.Iterate(func(key string, tokenGetter grc20.TokenGetter) bool {
+	grc20reg.GetRegistry().Iterate("", "", func(key string, value interface{}) bool {
+		tokenGetter := value.(grc20.TokenGetter)
 		token := tokenGetter()
 		balance := token.BalanceOf(addr)
 		balances.Set("token:"+key, balance)
@@ -167,7 +169,8 @@ func getNonZeroBalances(input string) string {
 		return false
 	})
 
-	grc20reg.Iterate(func(key string, tokenGetter grc20.TokenGetter) bool {
+	grc20reg.GetRegistry().Iterate("", "", func(key string, value interface{}) bool {
+		tokenGetter := value.(grc20.TokenGetter)
 		token := tokenGetter()
 		balance := token.BalanceOf(addr)
 		if balance > 0 {

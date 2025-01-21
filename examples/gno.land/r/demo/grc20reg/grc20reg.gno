@@ -4,6 +4,7 @@ import (
 	"std"
 
 	"gno.land/p/demo/avl"
+	"gno.land/p/demo/avl/rotree"
 	"gno.land/p/demo/fqname"
 	"gno.land/p/demo/grc/grc20"
 	"gno.land/p/demo/ufmt"
@@ -73,31 +74,8 @@ func Render(path string) string {
 	}
 }
 
-func Iterate(callback func(key string, token grc20.TokenGetter) bool) {
-	registry.Iterate("", "", func(key string, tokenI interface{}) bool {
-		tokenGetter := tokenI.(grc20.TokenGetter)
-		return callback(key, tokenGetter)
-	})
-}
-
-// iterate through n items starting from the startKey (pagination)
-func IterateN(startKey string, n int, callback func(key string, token grc20.TokenGetter) bool) string {
-	var lastKey string
-	count := 0
-
-	registry.Iterate(startKey, "", func(key string, tokenI interface{}) bool {
-		if count >= n {
-			return true
-		}
-
-		tokenGetter := tokenI.(grc20.TokenGetter)
-		lastKey = key
-		count++
-
-		return callback(key, tokenGetter)
-	})
-
-	return lastKey
-}
-
 const registerEvent = "register"
+
+func GetRegistry() *rotree.ReadOnlyTree {
+	return rotree.Wrap(registry, nil) 
+}

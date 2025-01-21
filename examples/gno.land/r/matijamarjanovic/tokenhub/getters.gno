@@ -2,7 +2,7 @@ package tokenhub
 
 import (
 	//"std"
-	"strings"
+	//"strings"
 	"gno.land/p/demo/grc/grc20"
 	"gno.land/p/demo/grc/grc721"
 	"gno.land/p/demo/grc/grc1155"
@@ -63,30 +63,30 @@ func MustGetMultiToken(key string) grc1155.IGRC1155 {
 }
 
 func GetAllNFTs() string {
-	var sb strings.Builder
+	var out string
 	registeredNFTs.Iterate("", "", func(key string, value interface{}) bool {
-		sb.WriteString(ufmt.Sprintf("NFT:%s,", key))
+		out += ufmt.Sprintf("NFT:%s,", key)
 		return false
 	})
-	return sb.String()
+	return out
 }
 
 func GetAllTokens() string {
-	var sb strings.Builder
-	grc20reg.Iterate(func(key string, tokenGetter grc20.TokenGetter) bool {
-		sb.WriteString(ufmt.Sprintf("Token:%s,", key))
+	var out string
+	grc20reg.GetRegistry().Iterate("", "", func(key string, value interface{}) bool{
+		out += ufmt.Sprintf("Token:%s,", key)
 		return false
 	})
-	return sb.String()
+	return out
 }
 
 func GetAllMultiTokens() string {
-	var sb strings.Builder
+	var out string
 	registeredMTs.Iterate("", "", func(key string, value interface{}) bool {
-		sb.WriteString(ufmt.Sprintf("MultiToken:%s,", key))
+		out += ufmt.Sprintf("MultiToken:%s,", key)
 		return false
 	})
-	return sb.String()
+	return out
 }
 
 func GetAllRegistered() string {
