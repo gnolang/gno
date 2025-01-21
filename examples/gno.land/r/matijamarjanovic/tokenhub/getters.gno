@@ -199,7 +199,7 @@ func getAddressForUsername(addrOrName string) std.Address {
 	if addr.IsValid() {
 		return addr
 	}
-	
+
 	if user := users.GetUserByName(addrOrName); user != nil {
 		return user.Address
 	}
