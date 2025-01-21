@@ -18,12 +18,20 @@ func GetUserTokenBalances(userNameOrAddress string) string {
 	return getTokenBalances(userNameOrAddress, false)
 }
 
+func GetUserTokenBalancesNonZero(userNameOrAddress string) string {
+	return getTokenBalances(userNameOrAddress, true)
+}
+
 func GetUserNFTBalances(userNameOrAddress string) string {
 	return getNFTBalances(userNameOrAddress)
 }
 
 func GetUserMultiTokenBalances(userNameOrAddress string) string {
 	return getMultiTokenBalances(userNameOrAddress, false)
+}
+
+func GetUserMultiTokenBalancesNonZero(userNameOrAddress string) string {
+	return getMultiTokenBalances(userNameOrAddress, true)
 }
 
 func GetToken(key string) *grc20.Token {
