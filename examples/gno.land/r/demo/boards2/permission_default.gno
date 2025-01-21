@@ -5,7 +5,7 @@ import (
 	"std"
 
 	"gno.land/p/demo/avl"
-	"gno.land/p/demo/boards2/admindao"
+	"gno.land/p/demo/commondao"
 
 	"gno.land/r/demo/users"
 )
@@ -13,14 +13,14 @@ import (
 // DefaultPermissions manages users, roles and permissions.
 type DefaultPermissions struct {
 	superRole Role
-	dao       *admindao.AdminDAO
+	dao       *commondao.CommonDAO
 	users     *avl.Tree // string(std.Address) -> []Role
 	roles     *avl.Tree // string(role) -> []Permission
 }
 
 // NewDefaultPermissions creates a new permissions type.
 // This type is a default implementation to handle users, roles and permissions.
-func NewDefaultPermissions(dao *admindao.AdminDAO, options ...DefaultPermissionsOption) *DefaultPermissions {
+func NewDefaultPermissions(dao *commondao.CommonDAO, options ...DefaultPermissionsOption) *DefaultPermissions {
 	dp := &DefaultPermissions{
 		dao:   dao,
 		roles: avl.NewTree(),
@@ -118,7 +118,7 @@ func (dp DefaultPermissions) HasUser(user std.Address) bool {
 
 // GetDAO returns the underlying DAO.
 // Returned value can be nil if the implementation doesn't have a DAO.
-func (dp DefaultPermissions) GetDAO() *admindao.AdminDAO {
+func (dp DefaultPermissions) GetDAO() *commondao.CommonDAO {
 	return dp.dao
 }
 
@@ -227,7 +227,7 @@ func (dp DefaultPermissions) handleRoleChange(args Args, cb func(Args)) {
 
 func createDefaultPermissions(owner std.Address) *DefaultPermissions {
 	return NewDefaultPermissions(
-		admindao.New(),
+		commondao.New(),
 		WithSuperRole(RoleOwner),
 		WithRole(
 			RoleAdmin,
