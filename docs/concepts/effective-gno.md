@@ -297,8 +297,36 @@ main purpose in Gno is for discoverability. This shift towards user-centric
 documentation reflects the broader shift in Gno towards making code more
 accessible and understandable for all users, not just developers.
 
-TODO: `func ExampleXXX`.
+```go
+// Package md provides helper functions for generating Markdown content programmatically.
+//
+// It includes utilities for text formatting, creating lists, blockquotes, code blocks,
+// links, images, and more.
+//
+// Highlights:
+// - Supports basic Markdown syntax such as bold, italic, strikethrough, headers, and lists.
+// - Manages multiline support in lists (e.g., bullet, ordered, and todo lists).
+// - Includes advanced helpers like inline images with links and nested list prefixes.
+package md
 
+import (
+	"strconv"
+	"strings"
+)
+
+// Bold returns bold text for markdown.
+// Example: Bold("foo") => "**foo**"
+func Bold(text string) string {
+	return "**" + text + "**"
+}
+
+// Italic returns italicized text for markdown.
+// Example: Italic("foo") => "*foo*"
+func Italic(text string) string {
+	return "*" + text + "*"
+}
+
+```
 ### Reflection is never clear
 
 In Go, there's a well-known saying by Rob Pike: ["Reflection is never
