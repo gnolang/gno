@@ -6,6 +6,8 @@ import (
 
 	"gno.land/p/demo/avl"
 	"gno.land/p/demo/ownable"
+	"gno.land/p/demo/ufmt"
+
 	"gno.land/r/demo/users"
 	"gno.land/r/leon/hof"
 )
@@ -58,6 +60,7 @@ type GameState struct { // TODO: Separate GameState and RoundState and save roun
 	OwnerFee           int64       // Accumulated owner fees
 	BuyKeysLink        string      // Link to BuyKeys function
 	ClaimDividendsLink string      // Link to ClaimDividends function
+	StartGameLink      string      // Link to StartGame function
 }
 
 var (
@@ -68,6 +71,8 @@ var (
 
 func init() {
 	Ownable = ownable.New()
+	players = avl.NewTree()
+	gameState.Ended = true
 	hof.Register()
 }
 
@@ -314,27 +319,26 @@ func stringToAddress(input string) std.Address {
 	return ""
 }
 
+func isPlayerInGame(addr std.Address) bool {
+	_, exists := players.Get(addr.String())
+	return exists
+}
+
 // GetPlayerInfo returns a player's keys and dividends
-func GetPlayerInfo(addrOrName interface{}) (int64, int64) {
-	var addr std.Address
+func GetPlayerInfo(addrOrName string) (int64, int64) {
+	addr := stringToAddress(addrOrName)
 
-	switch v := addrOrName.(type) {
-	case std.Address:
-		addr = v
-	case string:
-		addr = stringToAddress(v)
-		if addr == "" {
-			panic(ErrInvalidAddressOrName.Error())
-		}
-	default:
-		return 0, 0
+	if addr == "" {
+		panic(ErrInvalidAddressOrName.Error())
 	}
 
-	if info, exists := players.Get(addr.String()); exists {
-		playerInfo := info.(PlayerInfo)
-		return playerInfo.Keys, playerInfo.Dividends
+	if !isPlayerInGame(addr) {
+		panic(ErrPlayerNotInGame.Error())
 	}
-	return 0, 0
+
+	info, _ := players.Get(addr.String())
+	playerInfo := info.(PlayerInfo)
+	return playerInfo.Keys, playerInfo.Dividends
 }
 
 // Render handles the rendering of game state
@@ -346,11 +350,14 @@ func Render(path string) string {
 	case path == "":
 		return RenderHome()
 	case c == 2 && parts[0] == "player":
+		if gameState.Ended {
+			return ufmt.Sprintf("🔴 Game has not started yet.\n\n Call [`StartGame()`](%s) to start a new round.\n\n", gameState.StartGameLink)
+		}
 		addr := stringToAddress(parts[1])
 		if addr == "" {
 			return "Invalid address or unregistered username. Please use a valid Gno address or registered username.\n\n"
 		}
-		keys, dividends := GetPlayerInfo(addr)
+		keys, dividends := GetPlayerInfo(parts[1])
 		return RenderPlayer(addr, keys, dividends)
 	default:
 		return "404: Invalid path\n\n"

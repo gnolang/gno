@@ -118,7 +118,7 @@ func TestFullGameFlow(t *testing.T) {
 		urequire.Equal(t, currentBlock+TIME_EXTENSION, endBlock)
 
 		// Verify player state
-		keys, dividends := GetPlayerInfo(player1)
+		keys, dividends := GetPlayerInfo(player1.String())
 
 		urequire.Equal(t, int64(3), keys)
 		urequire.Equal(t, int64(0), dividends)
@@ -146,7 +146,7 @@ func TestFullGameFlow(t *testing.T) {
 		urequire.NotPanics(t, BuyKeys)
 
 		// Check player1 received dividends
-		keys1, dividends1 := GetPlayerInfo(player1)
+		keys1, dividends1 := GetPlayerInfo(player1.String())
 
 		urequire.Equal(t, int64(3), keys1)
 		expectedDividends := payment * DIVIDENDS_PERCENT / 100 * 3 / gameState.TotalKeys
@@ -160,7 +160,7 @@ func TestFullGameFlow(t *testing.T) {
 			urequire.NotPanics(t, ClaimDividends)
 
 			// Verify dividends were claimed
-			_, dividendsAfter := GetPlayerInfo(player1)
+			_, dividendsAfter := GetPlayerInfo(player1.String())
 			urequire.Equal(t, int64(0), dividendsAfter)
 
 			lastBuyerBalance := std.GetBanker(std.BankerTypeRealmSend).GetCoins(player1)

@@ -9,6 +9,7 @@ var (
 	ErrGameEnded         = errors.New("fomo3d: game has ended")
 	ErrGameTimeExpired   = errors.New("fomo3d: game time expired")
 	ErrNoKeysPurchased   = errors.New("fomo3d: no keys purchased")
+	ErrPlayerNotInGame   = errors.New("fomo3d: player is not in the game")
 
 	// Payment errors
 	ErrInvalidPayment      = errors.New("fomo3d: must send ugnot only")

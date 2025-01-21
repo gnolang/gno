@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"gno.land/p/demo/ufmt"
+
 	"gno.land/r/demo/users"
 )
 
@@ -35,7 +36,7 @@ func RenderHome() string {
 	builder.WriteString(ufmt.Sprintf("2. **Collect Dividends** - Call [`ClaimDividends()`](%s) to collect your earnings\n", gameState.ClaimDividendsLink))
 	builder.WriteString("3. **Check Your Stats** - Append `:player/` followed by your address or namespace to the current URL to view your keys and dividends\n")
 	if gameState.Ended {
-		builder.WriteString("4. **Start New Round** - Call `StartGame()` to begin a new round\n")
+		builder.WriteString(ufmt.Sprintf("4. **Start New Round** - Call [`StartGame()`](%s) to begin a new round\n", gameState.StartGameLink))
 	}
 	builder.WriteString("\n")
 
@@ -90,7 +91,7 @@ func RenderPlayer(addr std.Address, keys int64, dividends int64) string {
 	builder.WriteString(ufmt.Sprintf("💰 **Unclaimed Dividends:** %d ugnot\n\n", dividends))
 
 	builder.WriteString("## Actions\n\n")
-	builder.WriteString("* To buy more keys, send GNOT to this realm with `BuyKeys()`\n")
+	builder.WriteString(ufmt.Sprintf("* To buy more keys, send GNOT to this realm with [`BuyKeys()`](%s)\n", gameState.BuyKeysLink))
 	if dividends > 0 {
 		builder.WriteString("* You have unclaimed dividends! Call `ClaimDividends()` to collect them\n")
 	}
@@ -107,8 +108,9 @@ func getDisplayName(addr std.Address) string {
 }
 
 // UpdateFunctionLinks updates the links for game functions
-func UpdateFunctionLinks(buyKeysLink string, claimDividendsLink string) {
+func UpdateFunctionLinks(buyKeysLink string, claimDividendsLink string, startGameLink string) {
 	Ownable.AssertCallerIsOwner()
 	gameState.BuyKeysLink = buyKeysLink
 	gameState.ClaimDividendsLink = claimDividendsLink
+	gameState.StartGameLink = startGameLink
 }
