@@ -7,7 +7,6 @@ import (
 
 const (
 	StatusActive   ProposalStatus = "active"
-	StatusPassed                  = "passed"
 	StatusFailed                  = "failed"
 	StatusExecuted                = "executed"
 )
