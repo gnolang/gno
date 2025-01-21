@@ -73,13 +73,13 @@ func (pk ParamsKeeper) Register(keeperKey string, pmk ParamfulKeeper) {
 	pk.kprs[keeperKey] = pmk
 }
 
-func (pk ParamsKeeper) isRegistered(keeperKey string) bool {
+func (pk ParamsKeeper) IsRegistered(keeperKey string) bool {
 	_, ok := pk.kprs[keeperKey]
 	return ok
 }
 
 func (pk ParamsKeeper) PrefixExists(prefix string) bool {
-	return pk.isRegistered(prefix)
+	return pk.IsRegistered(prefix)
 }
 
 // XXX: why do we expose this?
@@ -150,8 +150,8 @@ func (pk ParamsKeeper) SetBytes(ctx sdk.Context, key string, value []byte) {
 // GetParam gets a param value from the global param store.
 func (pk ParamsKeeper) GetParams(ctx sdk.Context, moduleKey string, key string, target interface{}) (bool, error) {
 	if moduleKey != "" {
-		if pk.isRegistered(moduleKey) {
-			key = moduleKey + "." + key
+		if pk.IsRegistered(moduleKey) {
+			key = moduleKey + "_" + key
 		} else {
 			return false, fmt.Errorf("params module key %q does not exisit", moduleKey)
 		}
@@ -170,10 +170,10 @@ func (pk ParamsKeeper) GetParams(ctx sdk.Context, moduleKey string, key string, 
 // SetParam sets a param value to the global param store.
 func (pk ParamsKeeper) SetParams(ctx sdk.Context, moduleKey string, key string, param interface{}) error {
 	if moduleKey != "" {
-		if pk.isRegistered(moduleKey) {
-			key = moduleKey + "." + key
+		if pk.IsRegistered(moduleKey) {
+			key = moduleKey + "_" + key
 		} else {
-			return fmt.Errorf("params module key %q does not exisit", moduleKey)
+			return fmt.Errorf("Parameter module key %q does not exist", moduleKey)
 		}
 	}
 

@@ -88,36 +88,41 @@ func NewSDKParams(pmk *params.ParamsKeeper, ctx sdk.Context) *SDKParams {
 
 func (prm *SDKParams) SetString(key, value string) {
 	prm.assertRealmAccess(key)
-	prm.setParamfulKeeper(prm.ctx, key, value)
+	prm.willSetKeeperParams(prm.ctx, key, value)
 	prm.pmk.SetString(prm.ctx, key, value)
 }
 
 // Set a boolean parameter in the format of realmPath.parameter.bool
 func (prm *SDKParams) SetBool(key string, value bool) {
 	prm.assertRealmAccess(key)
-	prm.setParamfulKeeper(prm.ctx, key, value)
+	prm.willSetKeeperParams(prm.ctx, key, value)
 	prm.pmk.SetBool(prm.ctx, key, value)
 }
 
 func (prm *SDKParams) SetInt64(key string, value int64) {
 	prm.assertRealmAccess(key)
-	prm.setParamfulKeeper(prm.ctx, key, value)
+	prm.willSetKeeperParams(prm.ctx, key, value)
 	prm.pmk.SetInt64(prm.ctx, key, value)
 }
 
 func (prm *SDKParams) SetUint64(key string, value uint64) {
 	prm.assertRealmAccess(key)
-	prm.setParamfulKeeper(prm.ctx, key, value)
+	prm.willSetKeeperParams(prm.ctx, key, value)
 	prm.pmk.SetUint64(prm.ctx, key, value)
 }
 
 func (prm *SDKParams) SetBytes(key string, value []byte) {
 	prm.assertRealmAccess(key)
-	prm.setParamfulKeeper(prm.ctx, key, value)
+	prm.willSetKeeperParams(prm.ctx, key, value)
 	prm.pmk.SetBytes(prm.ctx, key, value)
 }
 
-func (prm *SDKParams) setParamfulKeeper(ctx sdk.Context, key string, value interface{}) {
+// willSetKeeperParams parses the parameter key and sets the keeper it matches the keeper key
+// The format is sysParamsRealm.[keeperKeyPrefix_]keyName.keyType
+// Ex. gno.lang/r/sys/params.bank_lockSend.string
+// The "keeperKeyPrefix_" is optional. If keeperKeyPrefix is presented in the key,
+// it must match the keeper names; otherwise it will panic and revert the transaction.
+func (prm *SDKParams) willSetKeeperParams(ctx sdk.Context, key string, value interface{}) {
 	kpr := prm.getRegisteredKeeper(key)
 	if kpr != nil {
 		kpr.WillSetParam(prm.ctx, key, value)
@@ -141,7 +146,19 @@ func (prm *SDKParams) getRegisteredKeeper(key string) ParamfulKeeper {
 	}
 
 	parts := strings.SplitN(k, ".", 3)
-	keeperKey := parts[1]
+	k = parts[1]
+	parts = strings.SplitN(k, "_", 2)
+	keeperKey := ""
+	if len(parts) == 2 {
+		keeperKey = parts[0]
+	} else {
+		// no keeperKeyPrefix
+		return nil
+	}
+
+	if !prm.pmk.IsRegistered(keeperKey) {
+		panic(fmt.Sprintf("keeper key <%s> does not exist", keeperKey))
+	}
 
 	return prm.pmk.GetRegisteredKeeper(keeperKey)
 }
