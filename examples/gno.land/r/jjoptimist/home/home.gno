@@ -39,9 +39,7 @@ const (
  -"-`
 )
 
-var (
-    creation time.Time
-)
+var creation time.Time
 
 func getGnomeArt(height int64) string {
     var art string
