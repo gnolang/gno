@@ -96,23 +96,26 @@ func GetUserBalances(userNameOrAddress string) string {
 	return getNonZeroBalances(userNameOrAddress)
 }
 
-func GetGRC20(key string) grc20.TokenGetter {
-	return grc20reg.Get(key)
+func GetGRC20(key string) *grc20.Token {
+	getter := grc20reg.Get(key)
+	return getter()
 }
 
-func MustGetGRC20(key string) grc20.TokenGetter {
-	return grc20reg.MustGet(key)
+func MustGetGRC20(key string) *grc20.Token {
+	getter := grc20reg.MustGet(key)
+	return getter()
 }
 
-func GetGRC721(key string) grc721.NFTGetter {
+func GetGRC721(key string) grc721.IGRC721 {
 	nftGetter, ok := registeredNFTs.Get(key)
 	if !ok {
 		return nil
 	}
-	return nftGetter.(grc721.NFTGetter)
+	nft := nftGetter.(grc721.IGRC721)
+	return nft
 }
 
-func MustGetGRC721(key string) grc721.NFTGetter {
+func MustGetGRC721(key string) grc721.IGRC721 {
 	nftGetter := GetGRC721(key)
 	if nftGetter == nil {
 		panic("unknown NFT: " + key)
