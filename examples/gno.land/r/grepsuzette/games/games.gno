@@ -7,7 +7,7 @@ import (
 )
 
 func Render(path string) string {
-	return "#### r/demo/games\n\n" +
+	return "#### r/grepsuzette/games\n\n" +
 		"A collection of small games written in the Gno language:\n\n" +
 		renderGames() + "\n\n"
 }
@@ -19,7 +19,6 @@ func renderGames() string {
 		authors     []string
 		desc        string
 	}{
-		{"shifumi", "games/shifumi", []string{"mvertes"}, "a very simple rock, paper, scissors game"},
 		{"tictactoe", "games/tictactoe", []string{"grepsuzette", "moul"}, "CPU vs Human tictactoe, no need for a wallet"},
 	} {
 		b.WriteString(ufmt.Sprintf(

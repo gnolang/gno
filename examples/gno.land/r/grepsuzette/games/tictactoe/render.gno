@@ -9,9 +9,9 @@ import (
 	"std"
 	"strings"
 
-	"gno.land/p/demo/ternary"
-	"gno.land/p/demo/tictactoe/tictactoe1p"
-	"gno.land/p/demo/ufmt"
+	"gno.land/p/grepsuzette/ternary"
+	"gno.land/p/grepsuzette/tictactoe/tictactoe1p"
+	"gno.land/p/grepsuzette/ufmt"
 )
 
 const (
@@ -89,18 +89,18 @@ func render(game tictactoe1p.Game, cpuX, cpuY int) string {
 		output += ufmt.Sprintf(
 			"\n%s [ %s | %s ]\n",
 			status,
-			"[New game](/r/demo/games/tictactoe)",
-			"[Back to demo/games](/r/demo/games)",
+			"[New game](/r/grepsuzette/games/tictactoe)",
+			"[Back to grepsuzette/games](/r/grepsuzette/games)",
 		)
 	} else {
-		output += "\n[Okay country roads, take me home](/r/demo/games)"
+		output += "\n[Okay country roads, take me home](/r/grepsuzette/games)"
 	}
 	return output
 }
 
 func button(x, y int, char string, occupied, highlighted bool, repr string) string {
 	return ufmt.Sprintf(
-		`<a href="/r/demo/games/tictactoe:state=%s&move=%c%d" class="button tile %s %s">%s</a>`,
+		`<a href="/r/grepsuzette/games/tictactoe:state=%s&move=%c%d" class="button tile %s %s">%s</a>`,
 		repr,
 		rune('a'+x), y+1,
 		ternary.String(occupied, "disabled", ""),

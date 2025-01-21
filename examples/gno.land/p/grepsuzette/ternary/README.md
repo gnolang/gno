@@ -11,7 +11,7 @@ Markdown,
 
 ## Usage
 ```go
-import "p/demo/ternary"
+import "p/grepsuzette/ternary"
 
 func Render(path string) string {
     // display appropriate greeting
