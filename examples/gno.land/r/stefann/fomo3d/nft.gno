@@ -60,7 +60,6 @@ func IsApprovedForAll(owner, operator std.Address) bool {
 }
 
 // mintRoundWinnerNFT mints a new NFT for the round winner
-// Can only be called from within the fomo3d package
 func mintRoundWinnerNFT(winner std.Address, roundNumber int64) error {
 	if winner == "" {
 		return ErrZeroAddress
