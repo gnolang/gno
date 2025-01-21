@@ -2,7 +2,6 @@ package tokenhub
 
 import (
 	"strings"
-	//"strconv"
 	"gno.land/p/demo/ufmt"
 	"gno.land/p/moul/md"
 	"gno.land/r/demo/grc20reg"
