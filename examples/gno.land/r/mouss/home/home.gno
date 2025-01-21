@@ -10,6 +10,7 @@ import (
 
 	"gno.land/p/moul/addrset"
 	"gno.land/p/moul/md"
+	"gno.land/r/leon/hof"
 	"gno.land/r/mouss/config"
 )
 
@@ -20,7 +21,7 @@ type Profile struct {
 	Email     string
 	Github    string
 	LinkedIn  string
-	Followers addrset.Set // Set of followers addresses.
+	Followers *addrset.Set // Set of followers addresses.
 }
 
 // Recipe represents a cooking recipe with its details.
@@ -51,8 +52,17 @@ const (
 )
 
 var (
-	router  = mux.NewRouter()
-	recipes []*Recipe
+	router          = mux.NewRouter()
+	profile         Profile
+	recipes         []*Recipe
+	margheritaPizza *Recipe
+)
+
+// init initializes the router with the homepage and recipe routes.
+func init() {
+
+	router.HandleFunc("", renderHomepage)
+	router.HandleFunc("recipe/", renderRecipes)
 
 	profile = Profile{
 		AboutMe:   "👋 I'm Mustapha, a contributor to gno.land project from France. I'm passionate about coding, exploring new technologies, and contributing to open-source projects. Besides my tech journey, I'm also a pizzaiolo 🍕 who loves cooking and savoring good food.",
@@ -60,8 +70,9 @@ var (
 		Email:     "mustapha.benazzouz@outlook.fr",
 		Github:    "https://github.com/mous1985",
 		LinkedIn:  "https://www.linkedin.com/in/mustapha-benazzouz-88646887/",
-		Followers: addrset.Set{},
+		Followers: &addrset.Set{},
 	}
+
 	margheritaPizza = &Recipe{
 		Name:         "Authentic Margherita Pizza 🤌",
 		Origin:       "Naples, 🇮🇹",
@@ -70,12 +81,8 @@ var (
 		Instructions: " Mix flour and water until incorporated\n Add yeast and salt, knead for 20 minutes\n Let rise for 2 hours at room temperature\n Divide into 250g balls\n Cold ferment for 24-48 hours\n Shape by hand, being gentle with the dough\n Top with crushed tomatoes, torn mozzarella, and basil\n Cook at 450°C for 60-90 seconds",
 		Tips:         "Use a pizza steel or stone preheated for at least 1 hour. The dough should be soft and extensible. For best results, cook in a wood-fired oven.",
 	}
-)
 
-// init initializes the router with the homepage and recipe routes.
-func init() {
-	router.HandleFunc("", renderHomepage)
-	router.HandleFunc("recipe/", renderRecipes)
+	hof.Register()
 }
 
 // AddRecipe adds a new recipe in recipe page by users
