@@ -1,13 +1,13 @@
 package components
 
 import (
-	"bytes"
 	"html/template"
-	"io"
 	"strings"
 
 	"github.com/gnolang/gno/gno.land/pkg/sdk/vm" // for error types
 )
+
+const HelpViewType ViewType = "help-view"
 
 type HelpData struct {
 	// Selected function
@@ -24,7 +24,7 @@ type HelpData struct {
 type HelpViewData struct {
 	HelpData
 	Article ArticleData
-	TOC     template.HTML
+	TOC     Component
 }
 
 type HelpTocData struct {
@@ -63,8 +63,7 @@ func registerHelpFuncs(funcs template.FuncMap) {
 	}
 }
 
-func RenderHelpComponent(w io.Writer, data HelpData) error {
-	var contentBuf, tocBuf bytes.Buffer
+func RenderHelpView(data HelpData) *View {
 	funcMap := template.FuncMap{}
 	registerHelpFuncs(funcMap)
 
@@ -89,23 +88,16 @@ func RenderHelpComponent(w io.Writer, data HelpData) error {
 		}
 	}
 
-	if err := tmpl.ExecuteTemplate(&tocBuf, "layout/toc_list", tocData); err != nil {
-		return err
-	}
-
-	// Generate the content
-	if err := tmpl.ExecuteTemplate(&contentBuf, "renderHelpContent", data); err != nil {
-		return err
-	}
-
+	toc := NewTemplateComponent("layout/toc_list", tocData)
+	content := NewTemplateComponent("renderHelpContent", data)
 	viewData := HelpViewData{
 		HelpData: data,
 		Article: ArticleData{
-			Content: template.HTML(contentBuf.String()), //nolint:gosec
+			Content: content,
 			Classes: "",
 		},
-		TOC: template.HTML(tocBuf.String()), //nolint:gosec
+		TOC: toc,
 	}
 
-	return tmpl.ExecuteTemplate(w, "renderHelp", viewData)
+	return NewTemplateView(HelpViewType, "renderHelp", viewData)
 }

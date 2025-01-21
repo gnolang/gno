@@ -1,45 +1,38 @@
 package components
 
 import (
-	"bytes"
-	"html/template"
-	"io"
-
 	"github.com/gnolang/gno/gno.land/pkg/gnoweb/markdown"
 )
+
+const RealmViewType ViewType = "realm-view"
 
 type RealmTOCData struct {
 	Items []*markdown.TocItem
 }
 
 type RealmData struct {
-	Content  template.HTML
+	Content  Component
 	TocItems *RealmTOCData
 }
 
 type ArticleData struct {
-	Content template.HTML
+	Content Component
 	Classes string
 }
 
 type RealmViewData struct {
 	Article ArticleData
-	TOC     template.HTML
+	TOC     Component
 }
 
-func RenderRealmComponent(w io.Writer, data RealmData) error {
-	var tocBuf bytes.Buffer
-	if err := tmpl.ExecuteTemplate(&tocBuf, "renderRealmToc", data.TocItems); err != nil {
-		return err
-	}
-
+func RenderRealmView(data RealmData) *View {
 	viewData := RealmViewData{
 		Article: ArticleData{
-			Content: data.Content,
-			Classes: "realm-content lg:row-start-1",
+			Content: data.Content, // XXX:
+			Classes: "realm-view lg:row-start-1",
 		},
-		TOC: template.HTML(tocBuf.String()), //nolint:gosec
+		TOC: NewTemplateComponent("renderRealmToc", data.TocItems),
 	}
 
-	return tmpl.ExecuteTemplate(w, "renderRealm", viewData)
+	return NewTemplateView(RealmViewType, "renderRealm", viewData)
 }

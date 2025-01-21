@@ -1,8 +1,6 @@
 package components
 
-import (
-	"io"
-)
+const DirectoryViewType ViewType = "dir-view"
 
 type DirData struct {
 	PkgPath     string
@@ -10,6 +8,6 @@ type DirData struct {
 	FileCounter int
 }
 
-func RenderDirectoryComponent(w io.Writer, data DirData) error {
-	return tmpl.ExecuteTemplate(w, "renderDir", data)
+func RenderDirectoryView(data DirData) *View {
+	return NewTemplateView(DirectoryViewType, "renderDir", data)
 }

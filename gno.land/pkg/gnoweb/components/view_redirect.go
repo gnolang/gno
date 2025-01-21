@@ -1,12 +1,12 @@
 package components
 
-import "io"
+const RedirectViewType = "redirect-view"
 
 type RedirectData struct {
 	To            string
 	WithAnalytics bool
 }
 
-func RenderRedirectComponent(w io.Writer, data RedirectData) error {
-	return tmpl.ExecuteTemplate(w, "renderRedirect", data)
+func RenderRedirectView(data RedirectData) *View {
+	return NewTemplateView(RedirectViewType, "renderRedirect", data)
 }

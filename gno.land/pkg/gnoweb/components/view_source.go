@@ -1,10 +1,10 @@
 package components
 
 import (
-	"bytes"
 	"html/template"
-	"io"
 )
+
+const SourceViewType ViewType = "source"
 
 type SourceData struct {
 	PkgPath     string
@@ -24,7 +24,7 @@ type SourceViewData struct {
 	FileLines   int
 	FileCounter int
 	PkgPath     string
-	TOC         template.HTML
+	TOC         Component
 }
 
 type SourceTocData struct {
@@ -37,9 +37,7 @@ type SourceTocItem struct {
 	Text string
 }
 
-func RenderSourceComponent(w io.Writer, data SourceData) error {
-	var tocBuf, contentBuf bytes.Buffer
-
+func RenderSourceView(data SourceData) *View {
 	tocData := SourceTocData{
 		Icon:  "file",
 		Items: make([]SourceTocItem, len(data.Files)),
@@ -52,21 +50,14 @@ func RenderSourceComponent(w io.Writer, data SourceData) error {
 		}
 	}
 
-	if err := tmpl.ExecuteTemplate(&tocBuf, "layout/toc_list", tocData); err != nil {
-		return err
-	}
-
-	// Générer le contenu avec wrapper
-	if err := tmpl.ExecuteTemplate(&contentBuf, "renderSourceContent", data.FileSource); err != nil {
-		return err
-	}
-
+	toc := NewTemplateComponent("layout/toc_list", tocData)
+	content := NewTemplateComponent("renderSourceContent", data.FileSource)
 	viewData := SourceViewData{
 		Article: ArticleData{
-			Content: template.HTML(contentBuf.String()), //nolint:gosec
-			Classes: "source-content col-span-1 lg:col-span-7 lg:row-start-2 pb-24 text-gray-900",
+			Content: content,
+			Classes: "source-view col-span-1 lg:col-span-7 lg:row-start-2 pb-24 text-gray-900",
 		},
-		TOC:         template.HTML(tocBuf.String()), //nolint:gosec
+		TOC:         toc,
 		Files:       data.Files,
 		FileName:    data.FileName,
 		FileSize:    data.FileSize,
@@ -74,5 +65,6 @@ func RenderSourceComponent(w io.Writer, data SourceData) error {
 		FileCounter: data.FileCounter,
 		PkgPath:     data.PkgPath,
 	}
-	return tmpl.ExecuteTemplate(w, "renderSource", viewData)
+
+	return NewTemplateView(SourceViewType, "renderSource", viewData)
 }
