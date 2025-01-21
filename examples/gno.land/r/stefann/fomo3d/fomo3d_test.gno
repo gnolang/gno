@@ -8,35 +8,8 @@ import (
 	"gno.land/p/demo/grc/grc721"
 	"gno.land/p/demo/ownable"
 	"gno.land/p/demo/testutils"
+	"gno.land/p/demo/urequire"
 )
-
-// Test helpers
-func shouldEqual(t *testing.T, got interface{}, expected interface{}) {
-	t.Helper()
-	if got != expected {
-		t.Errorf("expected %v(%T), got %v(%T)", expected, expected, got, got)
-	}
-}
-
-func shouldPanic(t *testing.T, f func()) {
-	t.Helper()
-	defer func() {
-		if r := recover(); r == nil {
-			t.Errorf("expected panic")
-		}
-	}()
-	f()
-}
-
-func shouldNoPanic(t *testing.T, f func()) {
-	t.Helper()
-	defer func() {
-		if r := recover(); r != nil {
-			t.Errorf("unexpected panic: %v", r)
-		}
-	}()
-	f()
-}
 
 // Reset game state
 func setupTestGame(t *testing.T) {
@@ -69,7 +42,7 @@ func TestOwnership(t *testing.T) {
 
 	// Transfer ownership to nonOwner first to test ownership functions
 	std.TestSetOrigCaller(owner)
-	shouldNoPanic(t, func() {
+	urequire.NotPanics(t, func() {
 		TransferOwnership(nonOwner)
 	})
 
@@ -85,24 +58,24 @@ func TestOwnership(t *testing.T) {
 	// Verify fee accumulation
 	_, fees := GetOwnerInfo()
 	expectedFees := payment * OWNER_FEE_PERCENT / 100
-	shouldEqual(t, fees, expectedFees)
+	urequire.Equal(t, expectedFees, fees)
 
 	// Test unauthorized fee claim (using old owner)
 	std.TestSetOrigCaller(owner)
-	shouldPanic(t, ClaimOwnerFee)
+	urequire.PanicsWithMessage(t, "ownable: caller is not owner", ClaimOwnerFee)
 
 	// Test authorized fee claim (using new owner)
 	std.TestSetOrigCaller(nonOwner)
 	initialBalance := std.GetBanker(std.BankerTypeRealmSend).GetCoins(nonOwner)
 	std.TestIssueCoins(std.CurrentRealm().Addr(), std.Coins{{"ugnot", expectedFees}})
-	shouldNoPanic(t, ClaimOwnerFee)
+	urequire.NotPanics(t, ClaimOwnerFee)
 
 	// Verify fees were claimed
 	_, feesAfter := GetOwnerInfo()
-	shouldEqual(t, feesAfter, int64(0))
+	urequire.Equal(t, int64(0), feesAfter)
 
 	finalBalance := std.GetBanker(std.BankerTypeRealmSend).GetCoins(nonOwner)
-	shouldEqual(t, finalBalance.AmountOf("ugnot"), initialBalance.AmountOf("ugnot")+expectedFees)
+	urequire.Equal(t, initialBalance.AmountOf("ugnot")+expectedFees, finalBalance.AmountOf("ugnot"))
 }
 
 // Test full game flow
@@ -114,15 +87,15 @@ func TestFullGameFlow(t *testing.T) {
 	player3 := testutils.TestAddress("player3")
 
 	// Test initial state
-	shouldEqual(t, gameState.CurrentRound, int64(0))
-	shouldEqual(t, gameState.KeyPrice, MIN_KEY_PRICE)
-	shouldEqual(t, gameState.Ended, true)
+	urequire.Equal(t, int64(0), gameState.CurrentRound)
+	urequire.Equal(t, MIN_KEY_PRICE, gameState.KeyPrice)
+	urequire.Equal(t, true, gameState.Ended)
 
 	// Start game
-	shouldNoPanic(t, StartGame)
-	shouldEqual(t, gameState.Ended, false)
-	shouldEqual(t, gameState.StartBlock, std.GetHeight())
-	shouldEqual(t, gameState.CurrentRound, int64(1))
+	urequire.NotPanics(t, StartGame)
+	urequire.Equal(t, false, gameState.Ended)
+	urequire.Equal(t, std.GetHeight(), gameState.StartBlock)
+	urequire.Equal(t, int64(1), gameState.CurrentRound)
 
 	t.Run("buying keys", func(t *testing.T) {
 		// Test insufficient payment
@@ -130,7 +103,7 @@ func TestFullGameFlow(t *testing.T) {
 		std.TestIssueCoins(player1, std.Coins{{"ugnot", MIN_KEY_PRICE - 1}})
 		std.TestSetOrigSend(std.Coins{{"ugnot", MIN_KEY_PRICE - 1}}, nil)
 		std.TestIssueCoins(std.GetOrigPkgAddr(), std.Coins{{"ugnot", MIN_KEY_PRICE - 1}})
-		shouldPanic(t, BuyKeys)
+		urequire.PanicsWithMessage(t, ErrInsufficientPayment.Error(), BuyKeys)
 
 		// Test successful key purchase
 		payment := MIN_KEY_PRICE * 3
@@ -138,30 +111,30 @@ func TestFullGameFlow(t *testing.T) {
 		std.TestIssueCoins(std.GetOrigPkgAddr(), std.Coins{{"ugnot", payment}})
 
 		currentBlock := std.GetHeight()
-		shouldNoPanic(t, BuyKeys)
+		urequire.NotPanics(t, BuyKeys)
 
 		// Verify time extension
 		_, endBlock, _, _, _, _, _, _, _, _ := GetGameState()
-		shouldEqual(t, endBlock, currentBlock+TIME_EXTENSION)
+		urequire.Equal(t, currentBlock+TIME_EXTENSION, endBlock)
 
 		// Verify player state
 		keys, dividends := GetPlayerInfo(player1)
 
-		shouldEqual(t, keys, int64(3))
-		shouldEqual(t, dividends, int64(0))
-		shouldEqual(t, gameState.LastBuyer, player1)
+		urequire.Equal(t, int64(3), keys)
+		urequire.Equal(t, int64(0), dividends)
+		urequire.Equal(t, player1, gameState.LastBuyer)
 
 		// Verify game state
 		_, endBlock, _, buyer, pot, price, keys, isEnded, nextPot, round := GetGameState()
-		shouldEqual(t, buyer, player1)
-		shouldEqual(t, keys, int64(3))
-		shouldEqual(t, isEnded, false)
+		urequire.Equal(t, player1, buyer)
+		urequire.Equal(t, int64(3), keys)
+		urequire.Equal(t, false, isEnded)
 
-		shouldEqual(t, pot, payment*JACKPOT_PERCENT/100)
+		urequire.Equal(t, payment*JACKPOT_PERCENT/100, pot)
 
 		// Verify owner fee
 		_, ownerFees := GetOwnerInfo()
-		shouldEqual(t, ownerFees, payment*OWNER_FEE_PERCENT/100)
+		urequire.Equal(t, payment*OWNER_FEE_PERCENT/100, ownerFees)
 	})
 
 	t.Run("dividend distribution and claiming", func(t *testing.T) {
@@ -170,59 +143,59 @@ func TestFullGameFlow(t *testing.T) {
 		payment := gameState.KeyPrice * 2 // Buy 2 keys using current keyPrice
 		std.TestSetOrigSend(std.Coins{{"ugnot", payment}}, nil)
 		std.TestIssueCoins(std.GetOrigPkgAddr(), std.Coins{{"ugnot", payment}})
-		shouldNoPanic(t, BuyKeys)
+		urequire.NotPanics(t, BuyKeys)
 
 		// Check player1 received dividends
 		keys1, dividends1 := GetPlayerInfo(player1)
 
-		shouldEqual(t, keys1, int64(3))
+		urequire.Equal(t, int64(3), keys1)
 		expectedDividends := payment * DIVIDENDS_PERCENT / 100 * 3 / gameState.TotalKeys
-		shouldEqual(t, dividends1, expectedDividends)
+		urequire.Equal(t, expectedDividends, dividends1)
 
 		// Test claiming dividends
 		{
 			// Player1 claims dividends
 			std.TestSetOrigCaller(player1)
 			initialBalance := std.GetBanker(std.BankerTypeRealmSend).GetCoins(player1)
-			shouldNoPanic(t, ClaimDividends)
+			urequire.NotPanics(t, ClaimDividends)
 
 			// Verify dividends were claimed
 			_, dividendsAfter := GetPlayerInfo(player1)
-			shouldEqual(t, dividendsAfter, int64(0))
+			urequire.Equal(t, int64(0), dividendsAfter)
 
 			lastBuyerBalance := std.GetBanker(std.BankerTypeRealmSend).GetCoins(player1)
-			shouldEqual(t, lastBuyerBalance.AmountOf("ugnot"), initialBalance.AmountOf("ugnot")+expectedDividends)
+			urequire.Equal(t, initialBalance.AmountOf("ugnot")+expectedDividends, lastBuyerBalance.AmountOf("ugnot"))
 		}
 	})
 
 	t.Run("game ending", func(t *testing.T) {
 		// Try ending too early
-		shouldPanic(t, EndGame)
+		urequire.PanicsWithMessage(t, ErrGameNotInProgress.Error(), EndGame)
 
 		// Skip to end of current time window
 		currentEndBlock := gameState.EndBlock
 		std.TestSkipHeights(currentEndBlock - std.GetHeight() + 1)
 
 		// End game successfully
-		shouldNoPanic(t, EndGame)
-		shouldEqual(t, gameState.Ended, true)
-		shouldEqual(t, gameState.CurrentRound, int64(1))
+		urequire.NotPanics(t, EndGame)
+		urequire.Equal(t, true, gameState.Ended)
+		urequire.Equal(t, int64(1), gameState.CurrentRound)
 
 		// Verify winner received jackpot
 		lastBuyerBalance := std.GetBanker(std.BankerTypeRealmSend).GetCoins(gameState.LastBuyer)
-		shouldEqual(t, lastBuyerBalance.AmountOf("ugnot"), gameState.Jackpot)
+		urequire.Equal(t, gameState.Jackpot, lastBuyerBalance.AmountOf("ugnot"))
 
 		// Verify NFT was minted to winner
 		balance, err := BalanceOf(gameState.LastBuyer)
-		shouldEqual(t, err, nil)
-		shouldEqual(t, balance, uint64(1))
+		urequire.NoError(t, err)
+		urequire.Equal(t, uint64(1), balance)
 
 		// Check NFT metadata
 		tokenID := grc721.TokenID("1")
 		metadata, err := TokenMetadata(tokenID)
 
-		shouldEqual(t, err, nil)
-		shouldEqual(t, metadata.Name, "Fomo3D Winner - Round #1")
+		urequire.NoError(t, err)
+		urequire.Equal(t, "Fomo3D Winner - Round #1", metadata.Name)
 	})
 
 	// Test new round
@@ -235,14 +208,14 @@ func TestFullGameFlow(t *testing.T) {
 		expectedNextPot := (payment1 * NEXT_ROUND_POT / 100) + (payment2 * NEXT_ROUND_POT / 100)
 
 		// Start new round
-		shouldNoPanic(t, StartGame)
-		shouldEqual(t, gameState.Ended, false)
-		shouldEqual(t, gameState.CurrentRound, int64(2))
+		urequire.NotPanics(t, StartGame)
+		urequire.Equal(t, false, gameState.Ended)
+		urequire.Equal(t, int64(2), gameState.CurrentRound)
 
 		start, end, last, buyer, pot, price, keys, isEnded, nextPot, round := GetGameState()
-		shouldEqual(t, round, int64(2))
-		shouldEqual(t, pot, expectedNextPot)
-		shouldEqual(t, nextPot, int64(0))
+		urequire.Equal(t, int64(2), round)
+		urequire.Equal(t, expectedNextPot, pot)
+		urequire.Equal(t, int64(0), nextPot)
 	})
 }
 
@@ -251,12 +224,12 @@ func TestStartGame(t *testing.T) {
 	setupTestGame(t)
 
 	// Test starting first game
-	shouldNoPanic(t, StartGame)
-	shouldEqual(t, gameState.Ended, false)
-	shouldEqual(t, gameState.StartBlock, std.GetHeight())
+	urequire.NotPanics(t, StartGame)
+	urequire.Equal(t, false, gameState.Ended)
+	urequire.Equal(t, std.GetHeight(), gameState.StartBlock)
 
 	// Test cannot start while game in progress
-	shouldPanic(t, StartGame)
+	urequire.PanicsWithMessage(t, ErrGameInProgress.Error(), StartGame)
 }
 
 func TestBuyKeys(t *testing.T) {
@@ -270,25 +243,25 @@ func TestBuyKeys(t *testing.T) {
 	std.TestIssueCoins(player, std.Coins{{"invalid", MIN_KEY_PRICE}})
 	std.TestSetOrigSend(std.Coins{{"invalid", MIN_KEY_PRICE}}, nil)
 	std.TestIssueCoins(std.GetOrigPkgAddr(), std.Coins{{"invalid", MIN_KEY_PRICE}})
-	shouldPanic(t, BuyKeys)
+	urequire.PanicsWithMessage(t, ErrInvalidPayment.Error(), BuyKeys)
 
 	// Test multiple coin types
 	std.TestIssueCoins(player, std.Coins{{"ugnot", MIN_KEY_PRICE}, {"other", 100}})
 	std.TestSetOrigSend(std.Coins{{"ugnot", MIN_KEY_PRICE}, {"other", 100}}, nil)
 	std.TestIssueCoins(std.GetOrigPkgAddr(), std.Coins{{"ugnot", MIN_KEY_PRICE}, {"other", 100}})
-	shouldPanic(t, BuyKeys)
+	urequire.PanicsWithMessage(t, ErrInvalidPayment.Error(), BuyKeys)
 
 	// Test insufficient payment
 	std.TestIssueCoins(player, std.Coins{{"ugnot", MIN_KEY_PRICE - 1}})
 	std.TestSetOrigSend(std.Coins{{"ugnot", MIN_KEY_PRICE - 1}}, nil)
 	std.TestIssueCoins(std.GetOrigPkgAddr(), std.Coins{{"ugnot", MIN_KEY_PRICE - 1}})
-	shouldPanic(t, BuyKeys)
+	urequire.PanicsWithMessage(t, ErrInsufficientPayment.Error(), BuyKeys)
 
 	// Test successful purchase
 	std.TestIssueCoins(player, std.Coins{{"ugnot", MIN_KEY_PRICE * 2}})
 	std.TestSetOrigSend(std.Coins{{"ugnot", MIN_KEY_PRICE * 2}}, nil)
 	std.TestIssueCoins(std.GetOrigPkgAddr(), std.Coins{{"ugnot", MIN_KEY_PRICE * 2}})
-	shouldNoPanic(t, BuyKeys)
+	urequire.NotPanics(t, BuyKeys)
 }
 
 func TestClaimDividends(t *testing.T) {
@@ -299,7 +272,7 @@ func TestClaimDividends(t *testing.T) {
 	std.TestSetOrigCaller(player)
 
 	// Test claiming with no dividends
-	shouldPanic(t, ClaimDividends)
+	urequire.PanicsWithMessage(t, ErrNoDividendsToClaim.Error(), ClaimDividends)
 
 	// Setup player with dividends
 	std.TestIssueCoins(player, std.Coins{{"ugnot", MIN_KEY_PRICE}})
@@ -317,5 +290,5 @@ func TestClaimDividends(t *testing.T) {
 
 	// Test successful claim
 	std.TestSetOrigCaller(player)
-	shouldNoPanic(t, ClaimDividends)
+	urequire.NotPanics(t, ClaimDividends)
 }
