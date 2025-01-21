@@ -9,9 +9,9 @@ import (
 	"std"
 	"strings"
 
+	"gno.land/p/demo/ufmt"
+	"gno.land/p/grepsuzette/games/tictactoe/tictactoe1p"
 	"gno.land/p/grepsuzette/ternary"
-	"gno.land/p/grepsuzette/tictactoe/tictactoe1p"
-	"gno.land/p/grepsuzette/ufmt"
 )
 
 const (

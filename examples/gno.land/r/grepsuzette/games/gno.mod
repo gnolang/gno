@@ -1,1 +1,1 @@
-module gno.land/r/grepsuette/games
+module gno.land/r/grepsuzette/games
