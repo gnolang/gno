@@ -1,4 +1,4 @@
-package admindao
+package commondao
 
 import (
 	"errors"
@@ -14,7 +14,7 @@ import (
 func TestNew(t *testing.T) {
 	cases := []struct {
 		name    string
-		parent  *AdminDAO
+		parent  *CommonDAO
 		members []std.Address
 	}{
 		{
@@ -62,7 +62,7 @@ func TestNew(t *testing.T) {
 	}
 }
 
-func TestAdminDAOAddMember(t *testing.T) {
+func TestCommonDAOAddMember(t *testing.T) {
 	member := std.Address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5")
 	dao := New(WithMember("g1w4ek2u33ta047h6lta047h6lta047h6ldvdwpn"))
 
@@ -75,7 +75,7 @@ func TestAdminDAOAddMember(t *testing.T) {
 	uassert.ErrorIs(t, err, ErrMemberExists)
 }
 
-func TestAdminDAORemoveMember(t *testing.T) {
+func TestCommonDAORemoveMember(t *testing.T) {
 	member := std.Address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5")
 	dao := New(WithMember(member))
 
@@ -86,11 +86,11 @@ func TestAdminDAORemoveMember(t *testing.T) {
 	urequire.False(t, removed)
 }
 
-func TestAdminDAOIsMember(t *testing.T) {
+func TestCommonDAOIsMember(t *testing.T) {
 	cases := []struct {
 		name   string
 		member std.Address
-		dao    *AdminDAO
+		dao    *CommonDAO
 		want   bool
 	}{
 		{
@@ -114,34 +114,34 @@ func TestAdminDAOIsMember(t *testing.T) {
 	}
 }
 
-func TestAdminDAOPropose(t *testing.T) {
+func TestCommonDAOPropose(t *testing.T) {
 	cases := []struct {
 		name    string
-		setup   func() *AdminDAO
+		setup   func() *CommonDAO
 		creator std.Address
 		def     ProposalDefinition
 		err     error
 	}{
 		{
 			name:    "ok",
-			setup:   func() *AdminDAO { return New() },
+			setup:   func() *CommonDAO { return New() },
 			creator: "g1w4ek2u33ta047h6lta047h6lta047h6ldvdwpn",
 			def:     &testPropDef{},
 		},
 		{
 			name:  "nil definition",
-			setup: func() *AdminDAO { return New() },
+			setup: func() *CommonDAO { return New() },
 			err:   ErrProposalDefinitionRequired,
 		},
 		{
 			name:  "invalid address",
-			setup: func() *AdminDAO { return New() },
+			setup: func() *CommonDAO { return New() },
 			def:   &testPropDef{},
 			err:   ErrInvalidAddress,
 		},
 		{
 			name: "proposal ID overflow",
-			setup: func() *AdminDAO {
+			setup: func() *CommonDAO {
 				dao := New()
 				dao.genID = seqid.ID(1<<64 - 1)
 				return dao
@@ -172,10 +172,10 @@ func TestAdminDAOPropose(t *testing.T) {
 	}
 }
 
-func TestAdminDAOVote(t *testing.T) {
+func TestCommonDAOVote(t *testing.T) {
 	cases := []struct {
 		name       string
-		setup      func() *AdminDAO
+		setup      func() *CommonDAO
 		member     std.Address
 		choice     VoteChoice
 		proposalID uint64
@@ -183,7 +183,7 @@ func TestAdminDAOVote(t *testing.T) {
 	}{
 		{
 			name: "ok",
-			setup: func() *AdminDAO {
+			setup: func() *CommonDAO {
 				member := std.Address("g1w4ek2u33ta047h6lta047h6lta047h6ldvdwpn")
 				dao := New(WithMember(member))
 				dao.Propose(member, &testPropDef{})
@@ -195,19 +195,19 @@ func TestAdminDAOVote(t *testing.T) {
 		},
 		{
 			name:   "invalid vote choice",
-			setup:  func() *AdminDAO { return New() },
+			setup:  func() *CommonDAO { return New() },
 			choice: VoteChoice("invalid"),
 			err:    ErrInvalidVoteChoice,
 		},
 		{
 			name:   "not a member",
-			setup:  func() *AdminDAO { return New() },
+			setup:  func() *CommonDAO { return New() },
 			member: "g1w4ek2u33ta047h6lta047h6lta047h6ldvdwpn",
 			err:    ErrNotMember,
 		},
 		{
 			name: "proposal not found",
-			setup: func() *AdminDAO {
+			setup: func() *CommonDAO {
 				return New(WithMember("g1w4ek2u33ta047h6lta047h6lta047h6ldvdwpn"))
 			},
 			member:     "g1w4ek2u33ta047h6lta047h6lta047h6ldvdwpn",
@@ -239,10 +239,10 @@ func TestAdminDAOVote(t *testing.T) {
 	}
 }
 
-func TestAdminDAOTally(t *testing.T) {
+func TestCommonDAOTally(t *testing.T) {
 	cases := []struct {
 		name         string
-		dao          *AdminDAO
+		dao          *CommonDAO
 		votes        []Vote
 		status       ProposalStatus
 		statusReason string
@@ -317,12 +317,12 @@ func TestAdminDAOTally(t *testing.T) {
 	}
 }
 
-func TestAdminDAOExecute(t *testing.T) {
+func TestCommonDAOExecute(t *testing.T) {
 	errValidation := errors.New("validation error")
 	errExecution := errors.New("execution error")
 	cases := []struct {
 		name         string
-		setup        func() *AdminDAO
+		setup        func() *CommonDAO
 		proposalID   uint64
 		status       ProposalStatus
 		statusReason string
@@ -330,7 +330,7 @@ func TestAdminDAOExecute(t *testing.T) {
 	}{
 		{
 			name: "ok",
-			setup: func() *AdminDAO {
+			setup: func() *CommonDAO {
 				members := []std.Address{
 					"g1w4ek2u33ta047h6lta047h6lta047h6ldvdwpn",
 					"g1w4ek2u3jta047h6lta047h6lta047h6l9huexc",
@@ -347,13 +347,13 @@ func TestAdminDAOExecute(t *testing.T) {
 		},
 		{
 			name:       "proposal not found",
-			setup:      func() *AdminDAO { return New() },
+			setup:      func() *CommonDAO { return New() },
 			proposalID: 1,
 			err:        ErrProposalNotFound,
 		},
 		{
 			name: "proposal not active",
-			setup: func() *AdminDAO {
+			setup: func() *CommonDAO {
 				member := std.Address("g1w4ek2u33ta047h6lta047h6lta047h6ldvdwpn")
 				dao := New(WithMember(member))
 				p, _ := dao.Propose(member, &testPropDef{})
@@ -365,7 +365,7 @@ func TestAdminDAOExecute(t *testing.T) {
 		},
 		{
 			name: "voting deadline not met",
-			setup: func() *AdminDAO {
+			setup: func() *CommonDAO {
 				member := std.Address("g1w4ek2u33ta047h6lta047h6lta047h6ldvdwpn")
 				dao := New(WithMember(member))
 				dao.Propose(member, &testPropDef{votingPeriod: time.Minute * 5})
@@ -376,7 +376,7 @@ func TestAdminDAOExecute(t *testing.T) {
 		},
 		{
 			name: "validation error",
-			setup: func() *AdminDAO {
+			setup: func() *CommonDAO {
 				member := std.Address("g1w4ek2u33ta047h6lta047h6lta047h6ldvdwpn")
 				dao := New(WithMember(member))
 				dao.Propose(member, &testPropDef{validationErr: errValidation})
@@ -389,7 +389,7 @@ func TestAdminDAOExecute(t *testing.T) {
 		},
 		{
 			name: "execution error",
-			setup: func() *AdminDAO {
+			setup: func() *CommonDAO {
 				members := []std.Address{
 					"g1w4ek2u33ta047h6lta047h6lta047h6ldvdwpn",
 					"g1w4ek2u3jta047h6lta047h6lta047h6l9huexc",

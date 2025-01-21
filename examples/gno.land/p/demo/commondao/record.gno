@@ -1,4 +1,4 @@
-package admindao
+package commondao
 
 import (
 	"errors"

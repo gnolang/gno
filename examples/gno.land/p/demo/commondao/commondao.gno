@@ -1,4 +1,4 @@
-package admindao
+package commondao
 
 import (
 	"errors"
@@ -26,9 +26,9 @@ var (
 )
 
 type (
-	// AdminDAO defines a Boards administration DAO.
-	AdminDAO struct {
-		parent   *AdminDAO
+	// CommonDAO defines a DAO.
+	CommonDAO struct {
+		parent   *CommonDAO
 		members  *avl.Tree // string(std.Address) -> struct{}
 		genID    seqid.ID
 		active   *avl.Tree // string(proposal ID) -> *Proposal
@@ -43,9 +43,9 @@ type (
 	}
 )
 
-// New creates a new admin DAO.
-func New(options ...Option) *AdminDAO {
-	dao := &AdminDAO{
+// New creates a new common DAO.
+func New(options ...Option) *CommonDAO {
+	dao := &CommonDAO{
 		members:  avl.NewTree(),
 		active:   avl.NewTree(),
 		finished: avl.NewTree(),
@@ -58,12 +58,12 @@ func New(options ...Option) *AdminDAO {
 
 // Parent returns the parent DAO.
 // Null can be returned when DAO has no parent assigned.
-func (dao AdminDAO) Parent() *AdminDAO {
+func (dao CommonDAO) Parent() *CommonDAO {
 	return dao.parent
 }
 
 // Members returns the list of DAO members.
-func (dao AdminDAO) Members() []std.Address {
+func (dao CommonDAO) Members() []std.Address {
 	var members []std.Address
 	dao.members.Iterate("", "", func(key string, _ interface{}) bool {
 		members = append(members, std.Address(key))
@@ -73,7 +73,7 @@ func (dao AdminDAO) Members() []std.Address {
 }
 
 // AddMember adds a new member to the DAO.
-func (dao *AdminDAO) AddMember(user std.Address) error {
+func (dao *CommonDAO) AddMember(user std.Address) error {
 	if dao.IsMember(user) {
 		return ErrMemberExists
 	}
@@ -82,28 +82,28 @@ func (dao *AdminDAO) AddMember(user std.Address) error {
 }
 
 // RemoveMember removes a member from the DAO.
-func (dao *AdminDAO) RemoveMember(user std.Address) (removed bool) {
+func (dao *CommonDAO) RemoveMember(user std.Address) (removed bool) {
 	_, removed = dao.members.Remove(user.String())
 	return removed
 }
 
 // IsMember checks if a user is a member of the DAO.
-func (dao AdminDAO) IsMember(user std.Address) bool {
+func (dao CommonDAO) IsMember(user std.Address) bool {
 	return dao.members.Has(user.String())
 }
 
 // ActiveProposals returns all active DAO proposals.
-func (dao AdminDAO) ActiveProposals() rotree.IReadOnlyTree {
+func (dao CommonDAO) ActiveProposals() rotree.IReadOnlyTree {
 	return dao.active
 }
 
 // FinishedProposalsi returns all finished DAO proposals.
-func (dao AdminDAO) FinishedProposals() rotree.IReadOnlyTree {
+func (dao CommonDAO) FinishedProposals() rotree.IReadOnlyTree {
 	return dao.finished
 }
 
 // Propose creates a new DAO proposal.
-func (dao *AdminDAO) Propose(creator std.Address, d ProposalDefinition) (*Proposal, error) {
+func (dao *CommonDAO) Propose(creator std.Address, d ProposalDefinition) (*Proposal, error) {
 	if d == nil {
 		return nil, ErrProposalDefinitionRequired
 	}
@@ -124,7 +124,7 @@ func (dao *AdminDAO) Propose(creator std.Address, d ProposalDefinition) (*Propos
 }
 
 // GetActiveProposal returns an active proposal.
-func (dao AdminDAO) GetActiveProposal(proposalID uint64) (_ *Proposal, found bool) {
+func (dao CommonDAO) GetActiveProposal(proposalID uint64) (_ *Proposal, found bool) {
 	key := makeProposalKey(proposalID)
 	if v, ok := dao.active.Get(key); ok {
 		return v.(*Proposal), true
@@ -133,7 +133,7 @@ func (dao AdminDAO) GetActiveProposal(proposalID uint64) (_ *Proposal, found boo
 }
 
 // GetFinishedProposal returns a finished proposal.
-func (dao AdminDAO) GetFinishedProposal(proposalID uint64) (_ *Proposal, found bool) {
+func (dao CommonDAO) GetFinishedProposal(proposalID uint64) (_ *Proposal, found bool) {
 	key := makeProposalKey(proposalID)
 	if v, ok := dao.finished.Get(key); ok {
 		return v.(*Proposal), true
@@ -142,7 +142,7 @@ func (dao AdminDAO) GetFinishedProposal(proposalID uint64) (_ *Proposal, found b
 }
 
 // Vote submits a new vote for a proposal.
-func (dao *AdminDAO) Vote(member std.Address, proposalID uint64, c VoteChoice) error {
+func (dao *CommonDAO) Vote(member std.Address, proposalID uint64, c VoteChoice) error {
 	if c != ChoiceYes && c != ChoiceNo && c != ChoiceAbstain {
 		return ErrInvalidVoteChoice
 	}
@@ -158,7 +158,7 @@ func (dao *AdminDAO) Vote(member std.Address, proposalID uint64, c VoteChoice) e
 	return p.record.AddVote(member, c)
 }
 
-func (dao *AdminDAO) Tally(p *Proposal) Stats {
+func (dao *CommonDAO) Tally(p *Proposal) Stats {
 	// Initialize stats considering only yes/no votes
 	record := p.VotingRecord()
 	votesCount := record.VoteCount(ChoiceYes) + record.VoteCount(ChoiceNo)
@@ -193,7 +193,7 @@ func (dao *AdminDAO) Tally(p *Proposal) Stats {
 }
 
 // Execute executes a proposal.
-func (dao *AdminDAO) Execute(proposalID uint64) error {
+func (dao *CommonDAO) Execute(proposalID uint64) error {
 	p, found := dao.GetActiveProposal(proposalID)
 	if !found {
 		return ErrProposalNotFound

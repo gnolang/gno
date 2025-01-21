@@ -1,1 +1,1 @@
-module gno.land/p/demo/boards2/admindao
+module gno.land/p/demo/commondao
