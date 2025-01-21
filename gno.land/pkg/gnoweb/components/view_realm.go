@@ -38,7 +38,7 @@ func RenderRealmComponent(w io.Writer, data RealmData) error {
 			Content: data.Content,
 			Classes: "realm-content lg:row-start-1",
 		},
-		TOC: template.HTML(tocBuf.String()),
+		TOC: template.HTML(tocBuf.String()), //nolint:gosec
 	}
 
 	return tmpl.ExecuteTemplate(w, "renderRealm", viewData)

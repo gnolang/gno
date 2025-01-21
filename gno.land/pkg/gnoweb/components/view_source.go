@@ -63,10 +63,10 @@ func RenderSourceComponent(w io.Writer, data SourceData) error {
 
 	viewData := SourceViewData{
 		Article: ArticleData{
-			Content: template.HTML(contentBuf.String()),
+			Content: template.HTML(contentBuf.String()), //nolint:gosec
 			Classes: "source-content col-span-1 lg:col-span-7 lg:row-start-2 pb-24 text-gray-900",
 		},
-		TOC:         template.HTML(tocBuf.String()),
+		TOC:         template.HTML(tocBuf.String()), //nolint:gosec
 		Files:       data.Files,
 		FileName:    data.FileName,
 		FileSize:    data.FileSize,

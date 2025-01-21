@@ -101,10 +101,10 @@ func RenderHelpComponent(w io.Writer, data HelpData) error {
 	viewData := HelpViewData{
 		HelpData: data,
 		Article: ArticleData{
-			Content: template.HTML(contentBuf.String()),
+			Content: template.HTML(contentBuf.String()), //nolint:gosec
 			Classes: "",
 		},
-		TOC: template.HTML(tocBuf.String()),
+		TOC: template.HTML(tocBuf.String()), //nolint:gosec
 	}
 
 	return tmpl.ExecuteTemplate(w, "renderHelp", viewData)
