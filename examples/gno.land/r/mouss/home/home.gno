@@ -81,7 +81,7 @@ func init() {
 // AddRecipe adds a new recipe in recipe page by users
 func AddRecipe(name, origin, ingredients, instructions, tips string) string {
 	if err := validateRecipe(name, ingredients, instructions); err != nil {
-		panic(err.Error())
+		panic(err)
 	}
 
 	recipe := &Recipe{
