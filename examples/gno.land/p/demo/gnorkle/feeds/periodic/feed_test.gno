@@ -135,8 +135,7 @@ func TestFeed_Ingest(t *testing.T) {
 			)
 
 			if tt.firstCommit {
-				periodicFeed.storage.Put("")
-				periodicFeed.lastCommitTime = time.Now().Unix()
+				periodicFeed.Ingest(message.FuncTypeCommit, "", "")
 			}
 
 			var errText string
