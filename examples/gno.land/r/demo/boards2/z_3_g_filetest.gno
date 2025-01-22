@@ -14,7 +14,7 @@ const (
 	member  = std.Address("g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj") // @test2
 	member2 = std.Address("g1vh7krmmzfua5xjmkatvmx09z37w34lsvd2mxa5")
 	bid     = boards2.BoardID(0) // Operate on realm DAO members instead of individual boards
-	name    = "foo"
+	name    = "foo123"
 	newName = "barbaz"
 )
 

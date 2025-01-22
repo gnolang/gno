@@ -13,7 +13,7 @@ func init() {
 }
 
 func main() {
-	bid := boards2.CreateBoard("test1")
+	bid := boards2.CreateBoard("test123")
 	pid := boards2.CreateThread(bid, "thread", "thread")
 	boards2.FlagThread(bid, pid, "reason")
 	_ = boards2.CreateReply(bid, pid, pid, "reply")

@@ -4,7 +4,7 @@ package boards2_test
 import "gno.land/r/demo/boards2"
 
 func main() {
-	boards2.CreateBoard("foo")
+	boards2.CreateBoard("foo123")
 }
 
 // Error:

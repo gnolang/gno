@@ -8,7 +8,7 @@ import (
 
 const (
 	owner     = std.Address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5") // @test1
-	boardName = "test1"
+	boardName = "test123"
 )
 
 func init() {

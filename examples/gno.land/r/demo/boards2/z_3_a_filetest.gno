@@ -8,7 +8,7 @@ import (
 
 const (
 	owner = std.Address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5") // @test1
-	name  = "foo"
+	name  = "foo123"
 )
 
 func init() {
@@ -17,7 +17,7 @@ func init() {
 }
 
 func main() {
-	newName := "bar"
+	newName := "bar123"
 	_, exists := boards2.GetBoardIDFromName(newName)
 	println("Exists =", exists)
 

@@ -7,9 +7,8 @@ import (
 	"time"
 
 	"gno.land/p/demo/avl"
+	"gno.land/p/demo/commondao"
 	"gno.land/p/moul/txlink"
-
-	"gno.land/p/demo/boards2/admindao"
 )
 
 type BoardID uint64
@@ -133,7 +132,7 @@ func (board *Board) GetPostFormURL() string {
 
 func createDefaultBoardPermissions(owner std.Address) *DefaultPermissions {
 	return NewDefaultPermissions(
-		admindao.New(),
+		commondao.New(),
 		WithSuperRole(RoleOwner),
 		WithRole(
 			RoleAdmin,

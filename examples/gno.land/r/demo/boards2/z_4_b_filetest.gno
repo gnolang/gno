@@ -17,7 +17,7 @@ var bid boards2.BoardID
 
 func init() {
 	std.TestSetOrigCaller(owner)
-	bid = boards2.CreateBoard("foo") // Operate on board DAO members
+	bid = boards2.CreateBoard("foo123") // Operate on board DAO members
 	boards2.InviteMember(bid, member, boards2.RoleGuest)
 }
 
