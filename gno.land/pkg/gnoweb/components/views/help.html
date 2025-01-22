@@ -1,4 +1,5 @@
-{{ define "renderHelp" }} {{ $data := . }}
+{{ define "renderHelp" }} 
+{{ $data := . }}
 <!-- Help Settings-->
 <header class="mt-10 row-span-1 lg:row-start-1 lg:col-span-7 flex flex-col xl:flex-row gap-3 lg:justify-between xl:items-center mb-8 lg:mb-4">
   <div class="flex items-center gap-8">
@@ -33,4 +34,5 @@
 {{ end }}
 
 <!-- Help Content List -->
-{{ template "layout/article" .Article}} {{ end }} 
+{{ template "layout/article" .Article}} 
+{{ end }} 
