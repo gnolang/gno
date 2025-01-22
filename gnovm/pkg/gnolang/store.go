@@ -432,7 +432,7 @@ func (ds *defaultStore) GetObjectSafe(oid ObjectID) Object {
 // loads and caches an object.
 // CONTRACT: object isn't already in the cache.
 func (ds *defaultStore) loadObjectSafe(oid ObjectID) Object {
-	debug2.Println2("loadObjectSafe", oid)
+	debug2.Println2("loadObjectSafe: ", oid)
 	if bm.OpsEnabled {
 		bm.PauseOpCode()
 		defer bm.ResumeOpCode()
@@ -447,6 +447,7 @@ func (ds *defaultStore) loadObjectSafe(oid ObjectID) Object {
 		}()
 	}
 	key := backendObjectKey(oid)
+	debug2.Println2("key: ", key)
 	hashbz := ds.baseStore.Get([]byte(key))
 	if hashbz != nil {
 		size = len(hashbz)
@@ -465,6 +466,7 @@ func (ds *defaultStore) loadObjectSafe(oid ObjectID) Object {
 		}
 		debug2.Println2("oo: ", oo)
 		oo.SetHash(ValueHash{NewHashlet(hash)})
+		oo.SetByteSize(len(bz))
 		ds.cacheObjects[oid] = oo
 		_ = fillTypesOfValue(ds, oo)
 		return oo

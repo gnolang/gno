@@ -182,6 +182,17 @@ func (alloc *Allocator) GC() {
 
 func (throwaway *Allocator) allocate2(v Value) {
 	debug2.Println2("allocate2: ", v, reflect.TypeOf(v))
+	// alloc amino
+	// if ref value, allocate amino
+	if oo, ok := v.(Object); ok {
+		if oid := oo.GetObjectID(); !oid.IsZero() {
+			debug2.Println2("oid: ", oid)
+			debug2.Println2("oo: ", oo)
+			throwaway.AllocateAmino(int64(oo.GetByteSize()))
+		} else {
+			debug2.Println2("oid: ", oid)
+		}
+	}
 	switch vv := v.(type) {
 	case TypeValue:
 		debug2.Println2("TypeVal, vv.Type: ", vv.Type, reflect.TypeOf(vv.Type))
@@ -194,26 +205,6 @@ func (throwaway *Allocator) allocate2(v Value) {
 		for _, field := range vv.Fields {
 			throwaway.allocate2(field.V)
 		}
-		// TODO: for other objects
-		// if ref value, allocate amino
-		if oid := vv.GetObjectID(); !oid.IsZero() {
-			debug2.Println2("oid: ", oid)
-			debug2.Println2("vv: ", vv)
-			key := backendObjectKey(oid)
-
-			// TODO: improve this
-			// cuz this consume store gas too.
-			// maybe set while loadObject.
-			// XXX, amino also consider load type from store?
-			hashbz := throwaway.m.Store.(transactionStore).baseStore.Get([]byte(key))
-			if hashbz != nil {
-				bz := hashbz[HashSize:]
-				throwaway.AllocateAmino(int64(len(bz)))
-			}
-		} else {
-			debug2.Println2("oid: ", oid)
-		}
-
 	case *FuncValue:
 		// TODO: is this right?
 		// if closure if fileNode, no allocate,

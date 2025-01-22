@@ -20,8 +20,9 @@ func bar(n int) int {
 	S2 := []string{"d", "e", "f"} // allocate2
 	var SS []string
 	SS = []string{"o", "p", "q"}
+	println("memstats in bar before GC: ", runtime.MemStats())
 	runtime.GC()
-	println(runtime.MemStats())
+	println("memstats in bar after GC: ", runtime.MemStats())
 
 	// this should not count
 	S3 := []string{"l", "m", "n"}
@@ -33,7 +34,13 @@ func bar(n int) int {
 func main() {
 	type XYZ struct{ name string } // const-type
 	bar(1)
+	println("memstats in main before GC: ", runtime.MemStats())
+	runtime.GC()
+	println("memstats in main after GC: ", runtime.MemStats())
 }
 
 // Output:
-// Allocator{maxBytes:9223372036854775807, bytes:4760}
+// memstats in bar before GC:  Allocator{maxBytes:9223372036854775807, bytes:4776}
+// memstats in bar after GC:  Allocator{maxBytes:9223372036854775807, bytes:4760}
+// memstats in main before GC:  Allocator{maxBytes:9223372036854775807, bytes:7771}
+// memstats in main after GC:  Allocator{maxBytes:9223372036854775807, bytes:2664}
