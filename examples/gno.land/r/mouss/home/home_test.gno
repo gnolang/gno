@@ -66,7 +66,7 @@ func TestFollow(t *testing.T) {
 }
 
 func TestUnfollow(t *testing.T) {
-	// user1 is already follower 
+	// user1 is already follower
 	// Test successful unfollow
 	err := Unfollow(user1)
 	uassert.NoError(t, err)

@@ -135,10 +135,10 @@ func Follow(addr std.Address) error {
 func Unfollow(addr std.Address) error {
     caller := std.PrevRealm().Addr()
     if !isUser(caller) {
-        return config.ErrorUnauthorized
+    	return config.ErrorUnauthorized
     }
     if !profile.Followers.Has(addr) {
-        return ufmt.Errorf("address %s is not following", addr)
+    	return ufmt.Errorf("address %s is not following", addr)
     }
     profile.Followers.Remove(addr)
     return nil
