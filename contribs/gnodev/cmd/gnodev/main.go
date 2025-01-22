@@ -191,7 +191,7 @@ func (c *devCfg) registerFlagsWithDefault(defaultCfg devCfg, fs *flag.FlagSet) {
 	fs.Var(
 		&c.resolvers,
 		"resolver",
-		"list of additional resolvers, will be executed in the given order",
+		"list of additional resolvers (`root`, `local` or `remote`), will be executed in the given order",
 	)
 
 	fs.StringVar(

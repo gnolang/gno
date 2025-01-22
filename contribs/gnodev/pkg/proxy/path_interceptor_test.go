@@ -28,11 +28,11 @@ func generateTestinGenesisState(creator crypto.PrivKey, paths ...string) gnoland
 			Name: "foo",
 			Path: path,
 			Files: []*gnovm.MemFile{
-				&gnovm.MemFile{
+				{
 					Name: "foo.gno",
 					Body: `package foo; func Render(_ string) string { return "bar" }`,
 				},
-				&gnovm.MemFile{Name: "gno.mod", Body: `module ` + path},
+				{Name: "gno.mod", Body: `module ` + path},
 			},
 		}
 
