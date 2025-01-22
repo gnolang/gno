@@ -141,15 +141,11 @@ func CreateRepost(bid BoardID, threadID PostID, title, body string, dstBoardID B
 func DeleteThread(bid BoardID, threadID PostID) {
 	assertIsUserCall()
 
-	board := mustGetBoard(bid)
-	assertThreadExists(board, threadID)
-
 	caller := std.GetOrigCaller()
-	args := Args{bid, threadID}
-	gPerm.WithPermission(caller, PermissionThreadDelete, args, func(Args) {
-		board := mustGetBoard(bid)
-		board.DeleteThread(threadID)
-	})
+	board := mustGetBoard(bid)
+	assertHasBoardPermission(board, caller, PermissionThreadDelete)
+
+	board.DeleteThread(threadID)
 }
 
 func DeleteReply(bid BoardID, threadID, replyID PostID) {
