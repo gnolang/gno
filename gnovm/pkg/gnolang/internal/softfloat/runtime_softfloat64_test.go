@@ -7,14 +7,13 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package softfloat_test
+package runtime_test
 
 import (
 	"math"
 	"math/rand"
-	. "github.com/gnolang/gno/gnovm/pkg/gnolang/internal/softfloat"
+	. "runtime"
 	"testing"
-    "runtime"
 )
 
 // turn uint64 op into float64 op
@@ -84,7 +83,7 @@ func TestFloat64(t *testing.T) {
 
 	test(t, "+", add, fop(Fadd64), all)
 	test(t, "-", sub, fop(Fsub64), all)
-	if runtime.GOARCH != "386" { // 386 is not precise!
+	if GOARCH != "386" { // 386 is not precise!
 		test(t, "*", mul, fop(Fmul64), all)
 		test(t, "/", div, fop(Fdiv64), all)
 	}
