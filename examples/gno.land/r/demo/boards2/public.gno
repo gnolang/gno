@@ -66,7 +66,7 @@ func FlagThread(bid BoardID, postID PostID, reason string) {
 		panic("post doesn't exist")
 	}
 
-	if flagItem(t, NewFlag(caller, reason)) {
+	if hide := flagItem(t, NewFlag(caller, reason)); hide {
 		t.SetVisible(false)
 	}
 }
