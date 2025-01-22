@@ -133,15 +133,15 @@ func Follow(addr std.Address) error {
 
 // Unfollow allows a user to unfollow my home page.
 func Unfollow(addr std.Address) error {
-    caller := std.PrevRealm().Addr()
-    if !isUser(caller) {
-    	return config.ErrorUnauthorized
-    }
-    if !profile.Followers.Has(addr) {
-    	return ufmt.Errorf("address %s is not following", addr)
-    }
-    profile.Followers.Remove(addr)
-    return nil
+	caller := std.PrevRealm().Addr()
+	if !isUser(caller) {
+		return config.ErrorUnauthorized
+	}
+	if !profile.Followers.Has(addr) {
+		return ufmt.Errorf("address %s is not following", addr)
+	}
+	profile.Followers.Remove(addr)
+	return nil
 }
 
 func isUser(addr std.Address) bool {
