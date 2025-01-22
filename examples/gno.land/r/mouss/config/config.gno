@@ -43,6 +43,5 @@ func checkAuthorized() error {
 	if caller != main && caller != backup {
 		return ErrorUnauthorized
 	}
-
 	return nil
 }
