@@ -16,7 +16,7 @@ func init() {
 
 func main() {
 	boards2.FreezeRealm(true)
-	boards2.CreateBoard("foo")
+	boards2.CreateBoard("foo123")
 }
 
 // Error:

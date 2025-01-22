@@ -18,7 +18,7 @@ func init() {
 func main() {
 	boards2.FreezeRealm(false)
 
-	bid := boards2.CreateBoard("foo")
+	bid := boards2.CreateBoard("foo123")
 	if bid > 0 {
 		println("ok")
 	}
