@@ -119,9 +119,6 @@ func validateRecipe(name, ingredients, instructions string) error {
 // If the caller is not authorized, it returns an error.
 // If the address is already being followed, it returns an error.
 // Otherwise, it adds the address to the list of followers and returns nil.
-// TODO:any user can follow and to be followed by any other user
-// TODO: add a function to unfollow
-
 func Follow(addr std.Address) error {
 	caller := std.PrevRealm().Addr()
 	if !isUser(caller) {
@@ -132,6 +129,19 @@ func Follow(addr std.Address) error {
 	}
 	profile.Followers.Add(addr) //can't add the same address twice
 	return nil
+}
+
+// Unfollow allows a user to unfollow my home page.
+func Unfollow(addr std.Address) error {
+    caller := std.PrevRealm().Addr()
+    if !isUser(caller) {
+        return config.ErrorUnauthorized
+    }
+    if !profile.Followers.Has(addr) {
+        return ufmt.Errorf("address %s is not following", addr)
+    }
+    profile.Followers.Remove(addr)
+    return nil
 }
 
 func isUser(addr std.Address) bool {

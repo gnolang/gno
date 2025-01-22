@@ -65,6 +65,23 @@ func TestFollow(t *testing.T) {
 	uassert.NoError(t, err, "another user should be able to follow admin's profile")
 }
 
+func TestUnfollow(t *testing.T) {
+	// user1 is already follower 
+	//Test successful unfollow
+	err := Unfollow(user1)
+	uassert.NoError(t, err)
+	uassert.False(t, profile.Followers.Has(user1))
+
+	// Test unfollowing when not following
+	err = Unfollow(user1)
+	uassert.Error(t, err)
+
+	// Test unauthorized unfollow
+	std.TestSetOrigCaller(mainAddr)
+	err = Unfollow(user1)
+	uassert.ErrorIs(t, err, config.ErrorUnauthorized)
+}
+
 func TestIsUser(t *testing.T) {
 	uassert.True(t, isUser(user1), "should recognize normal user")
 	uassert.False(t, isUser(mainAddr), "should not recognize admin as normal user")
