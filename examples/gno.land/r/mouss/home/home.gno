@@ -58,12 +58,12 @@ var (
 	margheritaPizza *Recipe
 )
 
-// init initializes the router with the homepage and recipe routes.
+// init initializes the router with the home page and recipe routes
+//sets up my profile information, and my recipe
+// and registers the home page in the hall of fame.
 func init() {
-
 	router.HandleFunc("", renderHomepage)
 	router.HandleFunc("recipe/", renderRecipes)
-
 	profile = Profile{
 		AboutMe:   "👋 I'm Mustapha, a contributor to gno.land project from France. I'm passionate about coding, exploring new technologies, and contributing to open-source projects. Besides my tech journey, I'm also a pizzaiolo 🍕 who loves cooking and savoring good food.",
 		Avatar:    "https://github.com/mous1985/assets/blob/master/avatar.png?raw=true",
@@ -72,7 +72,6 @@ func init() {
 		LinkedIn:  "https://www.linkedin.com/in/mustapha-benazzouz-88646887/",
 		Followers: &addrset.Set{},
 	}
-
 	margheritaPizza = &Recipe{
 		Name:         "Authentic Margherita Pizza 🤌",
 		Origin:       "Naples, 🇮🇹",
@@ -81,7 +80,6 @@ func init() {
 		Instructions: " Mix flour and water until incorporated\n Add yeast and salt, knead for 20 minutes\n Let rise for 2 hours at room temperature\n Divide into 250g balls\n Cold ferment for 24-48 hours\n Shape by hand, being gentle with the dough\n Top with crushed tomatoes, torn mozzarella, and basil\n Cook at 450°C for 60-90 seconds",
 		Tips:         "Use a pizza steel or stone preheated for at least 1 hour. The dough should be soft and extensible. For best results, cook in a wood-fired oven.",
 	}
-
 	hof.Register()
 }
 
@@ -90,7 +88,6 @@ func AddRecipe(name, origin, ingredients, instructions, tips string) string {
 	if err := validateRecipe(name, ingredients, instructions); err != nil {
 		panic(err)
 	}
-
 	recipe := &Recipe{
 		Name:         name,
 		Origin:       origin,
@@ -148,19 +145,15 @@ func isAuthorized(addr std.Address) bool {
 func renderRecipes(res *mux.ResponseWriter, req *mux.Request) {
 	var b strings.Builder
 	b.WriteString("## World Kitchen\n\n------\n\n")
-
 	b.WriteString(margheritaPizza.Render())
-
 	if len(recipes) == 0 {
 		b.WriteString("No recipes yet. Be the first to add one!\n")
 		res.Write(b.String())
 		return
 	}
-
 	for _, recipe := range recipes {
 		b.WriteString(recipe.Render())
 	}
-
 	res.Write(b.String())
 }
 
@@ -171,11 +164,9 @@ func (r Recipe) Render() string {
 	out += md.Bold("Origin:") + "\n" + r.Origin + "\n\n"
 	out += md.Bold("Ingredients:") + "\n" + md.BulletList(strings.Split(r.Ingredients, "\n")) + "\n\n"
 	out += md.Bold("Instructions:") + "\n" + md.OrderedList(strings.Split(r.Instructions, "\n")) + "\n\n"
-
 	if r.Tips != "" {
 		out += md.Italic("💡 Tips:"+"\n"+r.Tips) + "\n\n"
 	}
-
 	out += md.HorizontalRule() + "\n"
 	return out
 }
@@ -189,7 +180,6 @@ func renderHomepage(res *mux.ResponseWriter, req *mux.Request) {
 
 func (p Profile) Render() string {
 	var out string
-
 	out += md.H1("Welcome to my Homepage") + "\n\n" + md.HorizontalRule() + "\n\n"
 	out += "```\n"
 	out += gnoArt
@@ -204,7 +194,6 @@ func (p Profile) Render() string {
 		"LinkedIn: " + md.Link("Mustapha", p.LinkedIn),
 	})
 	out += "\n\n" + md.Bold("👤 Followers: ") + strconv.Itoa(p.Followers.Size())
-
 	return out
 }
 
