@@ -188,7 +188,7 @@ func (post *Post) DeleteReply(replyID PostID) error {
 		return errors.New("reply not found in thread")
 	}
 
-	// TODO: Remove child replies too!
+	// TODO: Shouldn't reply be hidden instead of deleted? Maybe replace reply by a deleted message.
 	reply := v.(*Post)
 	if reply.parentID != post.id {
 		parent, _ := post.GetReply(reply.parentID)

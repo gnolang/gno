@@ -66,7 +66,8 @@ func FlagThread(bid BoardID, postID PostID, reason string) {
 		panic("post doesn't exist")
 	}
 
-	if hide := flagItem(t, NewFlag(caller, reason)); hide {
+	hide := flagItem(t, NewFlag(caller, reason))
+	if hide {
 		t.SetVisible(false)
 	}
 }
@@ -114,7 +115,8 @@ func FlagReply(bid BoardID, threadID, replyID PostID, reason string) {
 	thread := mustGetThread(board, threadID)
 	reply := mustGetReply(thread, replyID)
 
-	if hide := flagItem(reply, NewFlag(caller, reason)); hide {
+	hide := flagItem(reply, NewFlag(caller, reason))
+	if hide {
 		reply.SetVisible(false)
 	}
 }
@@ -143,7 +145,10 @@ func DeleteThread(bid BoardID, threadID PostID) {
 
 	caller := std.GetOrigCaller()
 	board := mustGetBoard(bid)
-	assertHasBoardPermission(board, caller, PermissionThreadDelete)
+	thread := mustGetThread(board, threadID)
+	if caller != thread.GetCreator() {
+		assertHasBoardPermission(board, caller, PermissionThreadDelete)
+	}
 
 	board.DeleteThread(threadID)
 }
@@ -153,35 +158,26 @@ func DeleteReply(bid BoardID, threadID, replyID PostID) {
 
 	board := mustGetBoard(bid)
 	thread := mustGetThread(board, threadID)
-	assertReplyExists(thread, replyID)
-
-	// TODO: Hide reply when the caller is the owner of the reply without permission
-	// TODO: Support removing reply and children though proposals?
-
+	reply := mustGetReply(thread, replyID)
 	caller := std.GetOrigCaller()
-	args := Args{bid, threadID, replyID}
-	gPerm.WithPermission(caller, PermissionReplyDelete, args, func(a Args) {
-		board := mustGetBoard(bid)
-		thread := mustGetThread(board, threadID)
-		thread.DeleteReply(replyID)
-	})
+	if caller != reply.GetCreator() {
+		assertHasBoardPermission(board, caller, PermissionReplyDelete)
+	}
+
+	thread.DeleteReply(replyID)
 }
 
 func EditThread(bid BoardID, threadID PostID, title, body string) {
 	assertIsUserCall()
 
 	board := mustGetBoard(bid)
-	assertThreadExists(board, threadID)
-
-	// TODO: Thread owners should be able to edit without permission?
-
+	thread := mustGetThread(board, threadID)
 	caller := std.GetOrigCaller()
-	args := Args{bid, threadID, title, body}
-	gPerm.WithPermission(caller, PermissionThreadEdit, args, func(Args) {
-		board := mustGetBoard(bid)
-		thread := mustGetThread(board, threadID)
-		thread.Update(title, body)
-	})
+	if caller != thread.GetCreator() {
+		assertHasBoardPermission(board, caller, PermissionThreadEdit)
+	}
+
+	thread.Update(title, body)
 }
 
 func EditReply(bid BoardID, threadID, replyID PostID, title, body string) {
@@ -195,7 +191,6 @@ func EditReply(bid BoardID, threadID, replyID PostID, title, body string) {
 		panic("only the reply creator is allowed to edit it")
 	}
 
-	// TODO: Should we have a history of previous reply contents?
 	reply.Update(title, body)
 }
 
