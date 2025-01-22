@@ -46,7 +46,7 @@ func SourceView(data SourceData) *View {
 		}
 	}
 
-	toc := NewTemplateComponent("layout/toc_list", tocData)
+	toc := NewTemplateComponent("ui/toc_list", tocData)
 	content := NewTemplateComponent("renderSourceContent", data.FileSource)
 	viewData := sourceViewParams{
 		Article: ArticleData{
