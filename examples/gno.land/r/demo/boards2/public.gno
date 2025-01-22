@@ -74,12 +74,10 @@ func FlagThread(bid BoardID, postID PostID, reason string) {
 func CreateThread(bid BoardID, title, body string) PostID {
 	assertIsUserCall()
 
-	// TODO: Assert that caller is a board member (when board type is invite only)
 	caller := std.GetOrigCaller()
-	assertHasPermission(caller, PermissionThreadCreate) // TODO: Who can create threads?
-	assertBoardExists(bid)
-
 	board := mustGetBoard(bid)
+	assertHasBoardPermission(board, caller, PermissionThreadCreate)
+
 	thread := board.AddThread(caller, title, body)
 	return thread.id
 }
