@@ -61,6 +61,13 @@ func (m *Machine) doOpValueDecl() {
 		nx := &s.NameExprs[i]
 		ptr := lb.GetPointerToMaybeHeapDefine(m.Store, nx)
 		ptr.Assign2(m.Alloc, m.Store, m.Realm, tv, false)
+
+		debug2.Println2("doOpValueDecl(), ptr.TV.T: ", ptr.TV.T)
+		switch ptr.TV.T.(type) {
+		case PrimitiveType:
+		default:
+			ptr.TV.SetNeedsValueAllocation(true)
+		}
 	}
 }
 
@@ -70,5 +77,8 @@ func (m *Machine) doOpTypeDecl() {
 	tv := asValue(t)
 	last := m.LastBlock()
 	ptr := last.GetPointerTo(m.Store, s.Path)
+	debug2.Println2(", doOpTypeDecl, tv: ", tv)
 	ptr.Assign2(m.Alloc, m.Store, m.Realm, tv, false)
+	// this is only for initialization
+	// so can all be set to no alloc type
 }

@@ -3,20 +3,14 @@
 package main
 
 import "runtime"
-import "strconv"
 
-var S = []string{"a", "b", "c"}
+var a = 1
+var S = []string{"a", "b", "c"} // const type
 
 type Foo struct{ name string }
 
-func xyz() {
-	for i := 0; i < 10; i++ {
-		S = append(S, strconv.Itoa(i))
-	}
-}
-
 func bar(n int) int {
-	xyz() // this is gc'd
+	ii := new(int)
 	// defined within block
 	// rhs is struct, array, bigInt, native..
 	S1 := S                       // no allocate2
@@ -32,8 +26,9 @@ func bar(n int) int {
 }
 
 func main() {
+	type XYZ struct{ name string } // const-type
 	bar(1)
 }
 
 // Output:
-// Allocator{maxBytes:9223372036854775807, bytes:4432}
+// Allocator{maxBytes:9223372036854775807, bytes:4112}

@@ -467,6 +467,7 @@ func (m *Machine) RunFiles(fns ...*FileNode) {
 // Returns the updated typed values of package.
 func (m *Machine) runFileDecls(fns ...*FileNode) []TypedValue {
 	debug2.Println2("===runFileDecls, fns: ", fns)
+	debug2.Println2("===machine: ", m)
 	debug2.Println2("Memstats: ", m.Alloc.MemStats())
 	defer debug2.Println2("=======Done runFileDecls========")
 	// Files' package names must match the machine's active one.
@@ -1765,6 +1766,7 @@ func (m *Machine) LastBlock() *Block {
 
 // Pushes a frame with one less statement.
 func (m *Machine) PushFrameBasic(s Stmt) {
+	debug2.Println2("PushFrameBasic: ", s)
 	label := s.GetLabel()
 	fr := &Frame{
 		Label:     label,

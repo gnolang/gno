@@ -23,7 +23,7 @@ func (m *Machine) doOpDefine() {
 		}
 		ptr.Assign2(m.Alloc, m.Store, m.Realm, rvs[i], true)
 		debug2.Println2("doOpDefine, nx:  ", nx, nx.Alloc)
-		ptr.TV.Alloc = nx.Alloc
+		ptr.TV.SetNeedsValueAllocation(nx.Alloc)
 	}
 }
 

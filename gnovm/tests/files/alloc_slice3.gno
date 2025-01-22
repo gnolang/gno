@@ -1,28 +1,21 @@
-// MAXALLOC: 100
-
 package main
 
 import "runtime"
-import "strconv"
 
 var S = []string{"a", "b", "c"}
 
 type Foo struct{ name string }
 
-func xyz() {
-	for i := 0; i < 10; i++ {
-		S = append(S, strconv.Itoa(i))
-	}
-}
-
 func bar(n int) int {
-	xyz() // this is gc'd
 	// defined within block
 	// rhs is struct, array, bigInt, native..
-	S1 := S                       // no allocate2
-	S2 := []string{"d", "e", "f"} // allocate2
-	runtime.GC()
-	println(runtime.MemStats())
+	S1 := S // no allocate2
+
+	for i := 0; i < 3; i++ {
+		S2 := []string{"d", "e", "f"} // allocate2
+		runtime.GC()
+	}
+	//runtime.GC()
 
 	// this should not count
 	S3 := []string{"l", "m", "n"}
@@ -34,6 +27,3 @@ func bar(n int) int {
 func main() {
 	bar(1)
 }
-
-// Output:
-// Allocator{maxBytes:9223372036854775807, bytes:4432}

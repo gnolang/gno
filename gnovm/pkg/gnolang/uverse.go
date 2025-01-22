@@ -187,13 +187,16 @@ func makeUverseNode() {
 				// so the modification here is only local.
 				newArrayValue := m.Alloc.NewDataArray(len(arg1String))
 				copy(newArrayValue.Data, []byte(arg1String))
-				arg1.TV = &TypedValue{
+				tv := &TypedValue{
 					T: m.Alloc.NewType(&SliceType{ // TODO: reuse
 						Elt: Uint8Type,
 						Vrd: true,
 					}),
-					V: m.Alloc.NewSlice(newArrayValue, 0, len(arg1String), len(arg1String)), // TODO: pool?
+					V:         m.Alloc.NewSlice(newArrayValue, 0, len(arg1String), len(arg1String)), // TODO: pool?
+					AllocFlag: AllocTypeFlag,
 				}
+				tv.SetNeedsTypeAllocation(true)
+				arg1.TV = tv
 			}
 			arg0Type := arg0.TV.T
 			arg1Type := arg1.TV.T
@@ -964,7 +967,7 @@ func makeUverseNode() {
 				T: tt,
 				V: vv,
 			})
-			m.PushValue(TypedValue{
+			tv := TypedValue{
 				T: m.Alloc.NewType(&PointerType{
 					Elt: tt,
 				}),
@@ -973,7 +976,9 @@ func makeUverseNode() {
 					Base:  hi,
 					Index: 0,
 				},
-			})
+			}
+			tv.SetNeedsTypeAllocation(true)
+			m.PushValue(tv)
 			return
 		},
 	)

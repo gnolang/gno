@@ -973,10 +973,43 @@ func (nv *NativeValue) Copy(alloc *Allocator) *NativeValue {
 // TypedValue (is not a value, but a tuple)
 
 type TypedValue struct {
-	T     Type    `json:",omitempty"` // never nil
-	V     Value   `json:",omitempty"` // an untyped value
-	N     [8]byte `json:",omitempty"` // numeric bytes
-	Alloc bool    `json:",omitempty"`
+	T         Type    `json:",omitempty"` // never nil
+	V         Value   `json:",omitempty"` // an untyped value
+	N         [8]byte `json:",omitempty"` // numeric bytes
+	AllocFlag uint8   `json:",omitempty"` // bitfield for flags
+}
+
+const (
+	AllocValueFlag uint8 = 1 << iota // 0b00000001
+	AllocTypeFlag                    // 0b00000010
+)
+
+// Setter for AllocType flag
+func (tv *TypedValue) SetNeedsTypeAllocation(needsAlloc bool) {
+	if needsAlloc {
+		tv.AllocFlag |= AllocTypeFlag
+	} else {
+		tv.AllocFlag &^= AllocTypeFlag
+	}
+}
+
+// Getter for AllocType flag
+func (tv *TypedValue) NeedsTypeAllocation() bool {
+	return tv.AllocFlag&AllocTypeFlag != 0
+}
+
+// Setter for AllocValue flag
+func (tv *TypedValue) SetNeedsValueAllocation(needsAlloc bool) {
+	if needsAlloc {
+		tv.AllocFlag |= AllocValueFlag
+	} else {
+		tv.AllocFlag &^= AllocValueFlag
+	}
+}
+
+// Getter for AllocValue flag
+func (tv *TypedValue) NeedsValueAllocation() bool {
+	return tv.AllocFlag&AllocValueFlag != 0
 }
 
 func (tv *TypedValue) IsDefined() bool {
@@ -1660,6 +1693,7 @@ func (tv *TypedValue) Assign(alloc *Allocator, tv2 TypedValue, cu bool) {
 	}
 }
 
+// TODO: new type
 // NOTE: Allocation for PointerValue is not immediate,
 // as usually PointerValues are temporary for assignment
 // or binary operations. When a pointer is to be
@@ -1935,7 +1969,7 @@ func (tv *TypedValue) GetPointerToFromTV(alloc *Allocator, store Store, path Val
 		mv := rv.MethodByName(string(path.Name))
 		if mv.IsValid() {
 			mt := mv.Type()
-			return PointerValue{
+			pv := PointerValue{
 				TV: &TypedValue{ // heap alloc
 					T: alloc.NewType(&NativeType{Type: mt}),
 					V: alloc.NewNative(mv),
@@ -1947,6 +1981,8 @@ func (tv *TypedValue) GetPointerToFromTV(alloc *Allocator, store Store, path Val
 					Key: pathValue{path},
 				*/
 			}
+			pv.TV.SetNeedsTypeAllocation(true)
+			return pv
 		} else {
 			// Always try to get method from pointer type.
 			if !rv.CanAddr() {
@@ -1959,10 +1995,11 @@ func (tv *TypedValue) GetPointerToFromTV(alloc *Allocator, store Store, path Val
 			mv := rv.Addr().MethodByName(string(path.Name))
 			if mv.IsValid() {
 				mt := mv.Type()
-				return PointerValue{
+				pv := PointerValue{
 					TV: &TypedValue{ // heap alloc
-						T: alloc.NewType(&NativeType{Type: mt}),
-						V: alloc.NewNative(mv),
+						T:         alloc.NewType(&NativeType{Type: mt}),
+						V:         alloc.NewNative(mv),
+						AllocFlag: AllocTypeFlag,
 					},
 					// TODO consider if needed for persistence:
 					/*
@@ -1971,6 +2008,8 @@ func (tv *TypedValue) GetPointerToFromTV(alloc *Allocator, store Store, path Val
 						Key: pathValue{path},
 					*/
 				}
+				pv.TV.SetNeedsTypeAllocation(true)
+				return pv
 			}
 		}
 		panic(fmt.Sprintf(
@@ -1981,6 +2020,7 @@ func (tv *TypedValue) GetPointerToFromTV(alloc *Allocator, store Store, path Val
 	}
 }
 
+// TODO: new type
 // Convenience for GetPointerAtIndex().  Slow.
 func (tv *TypedValue) GetPointerAtIndexInt(store Store, ii int) PointerValue {
 	iv := TypedValue{T: IntType}
@@ -2061,15 +2101,18 @@ func (tv *TypedValue) GetPointerAtIndex(alloc *Allocator, store Store, iv *Typed
 			krv := gno2GoValue(iv, reflect.Value{})
 			vrv := rv.MapIndex(krv)
 			etv := go2GnoValue(alloc, vrv) // NOTE: lazy, often native.
-			return PointerValue{
+			pv := PointerValue{
 				TV:    &etv, // TODO not needed for assignment.
 				Base:  nv,
 				Index: PointerIndexNative,
 				Key: &TypedValue{
-					T: alloc.NewType(&NativeType{Type: krv.Type()}),
-					V: alloc.NewNative(krv),
+					T:         alloc.NewType(&NativeType{Type: krv.Type()}),
+					V:         alloc.NewNative(krv),
+					AllocFlag: AllocTypeFlag,
 				},
 			}
+			pv.TV.SetNeedsTypeAllocation(true)
+			return pv
 		default:
 			panic("should not happen")
 		}
@@ -2177,6 +2220,7 @@ func (tv *TypedValue) GetCapacity() int {
 	}
 }
 
+// New type
 func (tv *TypedValue) GetSlice(alloc *Allocator, low, high int) TypedValue {
 	if low < 0 {
 		panic(&Exception{Value: typedString(fmt.Sprintf(
@@ -2220,7 +2264,7 @@ func (tv *TypedValue) GetSlice(alloc *Allocator, low, high int) TypedValue {
 			Elt: t.Elt,
 			Vrd: false,
 		})
-		return TypedValue{
+		tv := TypedValue{
 			T: st,
 			V: alloc.NewSlice(
 				av,                   // base
@@ -2229,6 +2273,8 @@ func (tv *TypedValue) GetSlice(alloc *Allocator, low, high int) TypedValue {
 				av.GetCapacity()-low, // maxcap
 			),
 		}
+		tv.SetNeedsTypeAllocation(true)
+		return tv
 	case *SliceType:
 		if tv.GetCapacity() < high {
 			panic(&Exception{Value: typedString(fmt.Sprintf(
@@ -2261,6 +2307,7 @@ func (tv *TypedValue) GetSlice(alloc *Allocator, low, high int) TypedValue {
 	}
 }
 
+// TODO: new type
 func (tv *TypedValue) GetSlice2(alloc *Allocator, lowVal, highVal, maxVal int) TypedValue {
 	if lowVal < 0 {
 		panic(fmt.Sprintf(
@@ -2304,7 +2351,7 @@ func (tv *TypedValue) GetSlice2(alloc *Allocator, lowVal, highVal, maxVal int) T
 			Elt: bt.Elt,
 			Vrd: false,
 		})
-		return TypedValue{
+		tv := TypedValue{
 			T: st,
 			V: alloc.NewSlice(
 				av,             // base
@@ -2313,6 +2360,8 @@ func (tv *TypedValue) GetSlice2(alloc *Allocator, lowVal, highVal, maxVal int) T
 				maxVal-lowVal,  // maxcap
 			),
 		}
+		tv.SetNeedsTypeAllocation(true)
+		return tv
 	case *SliceType:
 		if tv.V == nil {
 			if lowVal != 0 || highVal != 0 || maxVal != 0 {

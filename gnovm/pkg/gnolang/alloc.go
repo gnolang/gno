@@ -10,9 +10,10 @@ import (
 // (optionally?) condensed (objects to be GC'd will be discarded),
 // but for now, allocations strictly increment across the whole tx.
 type Allocator struct {
-	m        *Machine
-	maxBytes int64
-	bytes    int64
+	m         *Machine
+	maxBytes  int64
+	bytes     int64
+	throwAway bool
 }
 
 // for gonative, which doesn't consider the allocator.
@@ -71,14 +72,13 @@ const (
 
 func NewAllocator(maxBytes int64, m *Machine) *Allocator {
 	debug2.Println2("NewAllocator(), maxBytes:", maxBytes)
-	//debug2.Println2("m:", m)
-	//if maxBytes == 0 {
-	//	return nil
-	//}
+	if maxBytes == 0 {
+		return nil
+	}
 	return &Allocator{
-		//maxBytes: maxBytes,
-		maxBytes: 10000000000,
-		m:        m,
+		maxBytes: maxBytes,
+		//maxBytes: 50000,
+		m: m,
 	}
 }
 
@@ -105,28 +105,38 @@ func (alloc *Allocator) Fork() *Allocator {
 }
 
 func (alloc *Allocator) MemStats() string {
-	return fmt.Sprintf("Allocator{maxBytes:%d, bytes:%d}", alloc.maxBytes, alloc.bytes)
+	if alloc == nil {
+		return "nil allocator"
+	} else {
+		return fmt.Sprintf("Allocator{maxBytes:%d, bytes:%d}", alloc.maxBytes, alloc.bytes)
+	}
 }
 
 func (alloc *Allocator) GC() {
-	debug2.Println2("---gc")
+	debug2.Println2("---gc, MemStats:", alloc.MemStats())
 	// a throwaway allocator
-	throwaway := NewAllocator(3000, alloc.m)
-	//debug2.Println2("m: ", alloc.m)
+	throwaway := NewAllocator(alloc.maxBytes, alloc.m)
+	throwaway.throwAway = true
+	debug2.Println2("m: ", alloc.m)
+	debug2.Println2("=====================================================================")
 
 	// scan frames
 	for i, fr := range alloc.m.Frames {
 		debug2.Printf2("frames[%d]: %v \n", i, fr)
 
-		ft := fr.Func.GetType(alloc.m.Store)
-		if ft.HasVarg() {
-			debug2.Println2("has varg")
-			pts := ft.Params
-			numParams := len(pts)
-			isMethod := 0 // 1 if true
-			nvar := fr.NumArgs - (numParams - 1 - isMethod)
-			throwaway.AllocateSlice()
-			throwaway.AllocateListArray(int64(nvar))
+		fv := fr.Func
+		debug2.Println2("fv: ", fv)
+		if fv != nil {
+			ft := fv.GetType(alloc.m.Store)
+			if ft.HasVarg() {
+				debug2.Println2("has varg")
+				pts := ft.Params
+				numParams := len(pts)
+				isMethod := 0 // 1 if true
+				nvar := fr.NumArgs - (numParams - 1 - isMethod)
+				throwaway.AllocateSlice()
+				throwaway.AllocateListArray(int64(nvar))
+			}
 		}
 		// defer func
 		for _, dfr := range fr.Defers {
@@ -151,18 +161,14 @@ func (alloc *Allocator) GC() {
 		debug2.Println2("block.names: ", b.Source.GetBlockNames())
 		throwaway.allocate2(b)
 
-		// package block
-		if _, ok := b.Source.(*PackageNode); ok {
-			for i, v := range b.Values {
-				debug2.Printf2("values[%d] is %v, v.Alloc: %t \n", i, v, v.Alloc)
-				throwaway.allocate2(v.V)
+		for i, v := range b.Values {
+			debug2.Printf2("values[%d] is %v, v.NeedValueAllocation: %t, v.NeedTypeAllocation: %t \n", i, v, v.NeedsValueAllocation(), v.NeedsTypeAllocation())
+			if v.NeedsTypeAllocation() {
+				debug2.Println2("allocate type: ", v.T)
+				throwaway.AllocateType()
 			}
-		} else { // other block
-			for i, v := range b.Values {
-				debug2.Printf2("values[%d] is %v, v.Alloc: %t \n", i, v, v.Alloc)
-				if v.Alloc {
-					throwaway.allocate2(v.V)
-				}
+			if v.NeedsValueAllocation() {
+				throwaway.allocate2(v.V)
 			}
 		}
 	}
@@ -178,6 +184,10 @@ func (throwaway *Allocator) allocate2(v Value) {
 	debug2.Println2("allocate2: ", v, reflect.TypeOf(v))
 	switch vv := v.(type) {
 	case TypeValue:
+		debug2.Println2("TypeVal, vv.Type: ", vv.Type, reflect.TypeOf(vv.Type))
+		if dt, ok := vv.Type.(*DeclaredType); ok {
+			debug2.Println2("TypeVal.Type.(*DeclaredType): ", dt, dt.Base, reflect.TypeOf(dt.Base))
+		}
 		throwaway.AllocateType()
 	case *StructValue:
 		throwaway.AllocateStruct()
@@ -210,11 +220,11 @@ func (throwaway *Allocator) allocate2(v Value) {
 		// cuz it's already done in compile stage.
 		debug2.Println2("funcValue, vv: ", vv)
 		debug2.Println2("clo...Source: ", vv.Closure.(*Block).GetSource(throwaway.m.Store), reflect.TypeOf(vv.Closure.(*Block).GetSource(throwaway.m.Store)))
-		if _, ok := vv.Closure.(*Block).GetSource(throwaway.m.Store).(*FileNode); !ok { // TODO: also RefNode
-			debug2.Println2("not a FileNode, alloc func")
+		if _, ok := vv.Closure.(*Block).GetSource(throwaway.m.Store).(*FileNode); !ok {
+			debug2.Println2("not global, alloc func")
 			throwaway.AllocateFunc()
 		} else {
-			//debug2.Println2("alloc func")
+			debug2.Println2("global function, NO alloc for it")
 		}
 	case PointerValue:
 		throwaway.AllocatePointer()
@@ -252,20 +262,19 @@ func (alloc *Allocator) Allocate(size int64) {
 		return
 	}
 
-	//debug2.Println2("allocator: ", alloc)
-	//if alloc.m != nil {
-	//	//fmt.Println("num of blocks in machine: ", len(alloc.m.Blocks))
-	//	if alloc.bytes > 3000 {
-	//		debug2.Println2("---exceed memory size............")
-	//		alloc.GC()
-	//	}
-	//}
+	if alloc.throwAway {
+		if alloc.bytes > alloc.maxBytes {
+			debug2.Println2("---exceed memory size............")
+		}
+	}
 
 	debug2.Println2("new allocated: ", size)
 	alloc.bytes += size
 	debug2.Println2("===========bytes after allocated============: ", alloc.bytes)
-	if alloc.bytes > alloc.maxBytes {
-		panic("allocation limit exceeded")
+
+	if !alloc.throwAway && alloc.bytes > alloc.maxBytes {
+		alloc.GC()
+		//panic("allocation limit exceeded")
 	}
 }
 
@@ -497,6 +506,8 @@ func (alloc *Allocator) NewNative(rv reflect.Value) *NativeValue {
 	}
 }
 
+// TODO: where there's a new type
+// there should be a count while GC
 func (alloc *Allocator) NewType(t Type) Type {
 	debug2.Println2("NewType:", t)
 	alloc.AllocateType()

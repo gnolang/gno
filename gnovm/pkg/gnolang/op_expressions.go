@@ -205,10 +205,12 @@ func (m *Machine) doOpRef() {
 		elt = xv.TV.V.(DataByteValue).ElemType
 	}
 	debug2.Println2("doOpRef, new type")
-	m.PushValue(TypedValue{
+	tv := TypedValue{
 		T: m.Alloc.NewType(&PointerType{Elt: elt}),
 		V: xv,
-	})
+	}
+	tv.SetNeedsTypeAllocation(true)
+	m.PushValue(tv)
 }
 
 // NOTE: keep in sync with doOpTypeAssert2.
@@ -562,6 +564,7 @@ func (m *Machine) doOpArrayLit() {
 }
 
 func (m *Machine) doOpSliceLit() {
+	debug2.Println2("doOpSliceLit")
 	// assess performance TODO
 	x := m.PopExpr().(*CompositeLitExpr)
 	el := len(x.Elts)
@@ -581,6 +584,7 @@ func (m *Machine) doOpSliceLit() {
 		m.PopValue()
 	}
 	sv := m.Alloc.NewSliceFromList(es)
+	debug2.Printf2("addr of sv: %p \n", sv)
 	m.PushValue(TypedValue{
 		T: st,
 		V: sv,

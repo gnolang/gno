@@ -2906,6 +2906,12 @@ func findBlockAlloc(store Store, ctx BlockNode, bn BlockNode) {
 						}
 					}
 				}
+				//case *TypeDecl:
+				//	debug2.Println2("typeDecl, n.Name: ", n.NameExpr)
+				//	debug2.Println2("n.Type: ", n.Type, reflect.TypeOf(n.Type))
+				//	if _, ok := n.Type.(*constTypeExpr); ok { // otherwise alloc in runtime
+				//		n.NoAllocType = true
+				//	}
 			}
 
 		// ----------------------------------------

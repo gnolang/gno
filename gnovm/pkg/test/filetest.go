@@ -57,6 +57,7 @@ func (opts *TestOptions) runFiletest(filename string, source []byte) (string, er
 	if err != nil {
 		return "", fmt.Errorf("could not parse MAXALLOC directive: %w", err)
 	}
+	fmt.Printf("maxAlloc: %s\n", maxAlloc)
 
 	// Create machine for execution and run test
 	cw := opts.BaseStore.CacheWrap()
