@@ -2,11 +2,15 @@ package querystring
 
 import "strings"
 
-// Break down a string of url parameters to map[string]string.
-// Since #2876, uri such as /r/test:a=1&b=2?c=3&d=4 are possible.
-// In case of a redefined value, the querystring has priority over the path.
-// E.g.
-// "a=1&b=2?c=3&b=4" -> (map[string]string{a:"1", b:"4", c:"3"}, nil)
+// Break down path and querystring into a map[string]string.
+// Since #2876, realm paths include the querystring,
+// as in `/r/test:a?c=3` (question mark introduces the querystring).
+//
+// In case of a name defined several times, the last value wins.
+//
+// "a=1"             -> {a:"1"}, nil
+// "?a=1"            -> {a:"1"}, nil
+// "a=1&b=2?c=3&b=4" -> {a:"1", b:"4", c:"3"}, nil
 func ToMap(querystring string) (map[string]string, error) {
 	m := make(map[string]string)
 	t := strings.Replace(querystring, "?", "&", 1)

@@ -8,21 +8,21 @@ import (
 
 func TestToMap(t *testing.T) {
 	{
-		m, e := ToMap("a=b&=&&&c=d&e")
+		m, e := ToMap("city=london&=&&&place=bigben&nuggets")
 		{
-			a, has := m["a"]
+			city, has := m["city"]
 			uassert.True(t, has)
-			uassert.Equal(t, a, "b")
+			uassert.Equal(t, city, "london")
 		}
 		{
-			c, has := m["c"]
+			place, has := m["place"]
 			uassert.True(t, has)
-			uassert.Equal(t, c, "d")
+			uassert.Equal(t, place, "bigben")
 		}
 		{
-			e, has := m["e"]
+			nuggets, has := m["nuggets"]
 			uassert.True(t, has)
-			uassert.Equal(t, e, "")
+			uassert.Equal(t, nuggets, "")
 		}
 	}
 	{
@@ -68,6 +68,14 @@ func TestToMap(t *testing.T) {
 			a, has := m["a"]
 			uassert.True(t, has)
 			uassert.Equal(t, a, "c=d")
+		}
+	}
+	{
+		m, e := ToMap("?abc")
+		{
+			abc, has := m["abc"]
+			uassert.True(t, has)
+			uassert.Equal(t, abc, "")
 		}
 	}
 }

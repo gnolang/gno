@@ -59,7 +59,7 @@ func TestRecoverGame(t *testing.T) {
 		{"---------", ""},
 		{"XX-------", "error"},
 		{"OO-------", "error"},
-		{"XO-X-----", "error"}, // O is first
+		{"XO-X-----", "error"}, // O plays first
 		{"XO-O-----", ""},      // valid from there on
 		{"XOXO-----", ""},
 		{"XOXOO----", ""},

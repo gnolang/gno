@@ -54,11 +54,6 @@ func Render(path string) string {
 }
 
 // Lower-case render is simply called by Render.
-// Note the <form> (below) could be a <div>.
-//
-// TODO REMOVE NOW CHANGING THIS If some day
-// realms can access GET and POST variables, then regular
-// <button> can be used. <form> is kept to remember that.
 func render(game tictactoe1p.Game, cpuX, cpuY int) string {
 	status, class := statusAndClass(game)
 	repr := game.ToRepr()
@@ -103,7 +98,7 @@ func render(game tictactoe1p.Game, cpuX, cpuY int) string {
 
 func button(x, y int, char string, occupied, highlighted bool, repr string) string {
 	return ufmt.Sprintf(
-		`<button name="move" value="%c%d" class="button tile %s %s">%s</button>`,
+		`<button name="move" value="%c%d" %s class="button tile %s">%s</button>`,
 		rune('a'+x), y+1,
 		ternary.String(occupied, "disabled", ""),
 		ternary.String(highlighted, "highlighted", ""),
@@ -245,7 +240,7 @@ func css() string {
 	#board.won button, #board.won a.tile.button  { box-shadow: aquamarine 1px 1px 12px 6px; }
 	#board.lost button, #board.lost a.tile.button  { box-shadow: rgb(255, 200, 190) 0px 1px 34px 2px; }
 	#board.draw button , #board.draw a.tile.button { box-shadow: rgb(200, 200, 200) 0px 1px 30px 8px; }
-	#board button , #board a.tile.button { color: #888; }
+	#board button, #board a.tile.button { color: #888; }
 	#board button:not([disabled]):hover, #board a.tile.button:not(.disabled):hover { 
         border-style: ridge; 
         box-shadow: inset -10px -10px 15px rgba(255, 255, 255, 0.5), 
