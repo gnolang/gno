@@ -7,7 +7,6 @@ import (
 	"time"
 
 	"gno.land/p/demo/avl"
-	"gno.land/p/demo/commondao"
 	"gno.land/p/moul/txlink"
 
 	"gno.land/r/demo/boards2/admindao"
@@ -132,7 +131,6 @@ func (board *Board) GetPostFormURL() string {
 	return txlink.Call("CreateThread", "bid", board.id.String())
 }
 
-// TODO: This is a temporary implementation until the permissions and DAO mecahnics are defined
 func createDefaultBoardPermissions(name string, owner std.Address) *DefaultPermissions {
 	dao := admindao.New(name)
 	dao.AddMember(owner)
