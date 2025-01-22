@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"std"
 	"strconv"
 	"strings"
 )
@@ -203,6 +204,32 @@ func (t *T) TempDir() string {
 func (t *T) Helper() {
 }
 
+func expandNative(coins std.Coins) (denoms []string, amounts []int64) {
+	denoms = make([]string, len(coins))
+	amounts = make([]int64, len(coins))
+
+	for i, coin := range coins {
+		denoms[i] = coin.Denom
+		amounts[i] = coin.Amount
+	}
+	return denoms, amounts
+}
+
+func (t *T) SetContext(ctx Context) {
+	originSentDenom, originSentAmount := expandNative(ctx.OrigSend)
+	testSetContext(
+		ctx.IsOrigin,
+		ctx.OriginCaller.String(),
+		ctx.OriginPkgAddress,
+		originSentDenom, originSentAmount,
+		ctx.ChainID,
+		ctx.Height,
+		ctx.Time.Unix(), ctx.Time.UnixNano(),
+		ctx.Banker, // TODO
+		ctx.Logger, // TODO
+	)
+}
+
 func (t *T) log(s string) {
 	if t.verbose {
 		// verbose, print immediately
@@ -360,3 +387,15 @@ func tRunner(t *T, fn testingFunc, verbose bool) {
 
 	fn(t)
 }
+
+func testSetContext(
+	isOrigin bool,
+	originCaller string,
+	originPkgAddress string,
+	origSendDenoms []string, origSendAmounts []int64,
+	chainID string,
+	height int64,
+	timeUnix int64, timeNano int64,
+	banker bool, // TODO
+	logger bool, // TODO
+)

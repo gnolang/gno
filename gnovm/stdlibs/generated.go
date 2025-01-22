@@ -801,6 +801,68 @@ var nativeFuncs = [...]NativeFunc{
 		},
 	},
 	{
+		"testing",
+		"testSetContext",
+		[]gno.FieldTypeExpr{
+			{Name: gno.N("p0"), Type: gno.X("bool")},
+			{Name: gno.N("p1"), Type: gno.X("string")},
+			{Name: gno.N("p2"), Type: gno.X("string")},
+			{Name: gno.N("p3"), Type: gno.X("[]string")},
+			{Name: gno.N("p4"), Type: gno.X("[]int64")},
+			{Name: gno.N("p5"), Type: gno.X("string")},
+			{Name: gno.N("p6"), Type: gno.X("int64")},
+			{Name: gno.N("p7"), Type: gno.X("int64")},
+			{Name: gno.N("p8"), Type: gno.X("int64")},
+			{Name: gno.N("p9"), Type: gno.X("bool")},
+			{Name: gno.N("p10"), Type: gno.X("bool")},
+		},
+		[]gno.FieldTypeExpr{},
+		true,
+		func(m *gno.Machine) {
+			b := m.LastBlock()
+			var (
+				p0   bool
+				rp0  = reflect.ValueOf(&p0).Elem()
+				p1   string
+				rp1  = reflect.ValueOf(&p1).Elem()
+				p2   string
+				rp2  = reflect.ValueOf(&p2).Elem()
+				p3   []string
+				rp3  = reflect.ValueOf(&p3).Elem()
+				p4   []int64
+				rp4  = reflect.ValueOf(&p4).Elem()
+				p5   string
+				rp5  = reflect.ValueOf(&p5).Elem()
+				p6   int64
+				rp6  = reflect.ValueOf(&p6).Elem()
+				p7   int64
+				rp7  = reflect.ValueOf(&p7).Elem()
+				p8   int64
+				rp8  = reflect.ValueOf(&p8).Elem()
+				p9   bool
+				rp9  = reflect.ValueOf(&p9).Elem()
+				p10  bool
+				rp10 = reflect.ValueOf(&p10).Elem()
+			)
+
+			gno.Gno2GoValue(b.GetPointerTo(nil, gno.NewValuePathBlock(1, 0, "")).TV, rp0)
+			gno.Gno2GoValue(b.GetPointerTo(nil, gno.NewValuePathBlock(1, 1, "")).TV, rp1)
+			gno.Gno2GoValue(b.GetPointerTo(nil, gno.NewValuePathBlock(1, 2, "")).TV, rp2)
+			gno.Gno2GoValue(b.GetPointerTo(nil, gno.NewValuePathBlock(1, 3, "")).TV, rp3)
+			gno.Gno2GoValue(b.GetPointerTo(nil, gno.NewValuePathBlock(1, 4, "")).TV, rp4)
+			gno.Gno2GoValue(b.GetPointerTo(nil, gno.NewValuePathBlock(1, 5, "")).TV, rp5)
+			gno.Gno2GoValue(b.GetPointerTo(nil, gno.NewValuePathBlock(1, 6, "")).TV, rp6)
+			gno.Gno2GoValue(b.GetPointerTo(nil, gno.NewValuePathBlock(1, 7, "")).TV, rp7)
+			gno.Gno2GoValue(b.GetPointerTo(nil, gno.NewValuePathBlock(1, 8, "")).TV, rp8)
+			gno.Gno2GoValue(b.GetPointerTo(nil, gno.NewValuePathBlock(1, 9, "")).TV, rp9)
+			gno.Gno2GoValue(b.GetPointerTo(nil, gno.NewValuePathBlock(1, 10, "")).TV, rp10)
+
+			libs_testing.X_testSetContext(
+				m,
+				p0, p1, p2, p3, p4, p5, p6, p7, p8, p9, p10)
+		},
+	},
+	{
 		"time",
 		"now",
 		[]gno.FieldTypeExpr{},
@@ -904,8 +966,8 @@ var initOrder = [...]string{
 	"regexp/syntax",
 	"regexp",
 	"std",
-	"testing",
 	"time",
+	"testing",
 	"unicode/utf16",
 }
 
