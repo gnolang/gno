@@ -108,7 +108,6 @@ func CreateReply(bid BoardID, threadID, replyID PostID, body string) PostID {
 
 func FlagReply(bid BoardID, threadID, replyID PostID, reason string) {
 	caller := std.GetOrigCaller()
-
 	board := mustGetBoard(bid)
 	assertHasBoardPermission(board, caller, PermissionThreadFlag)
 
@@ -123,31 +122,19 @@ func FlagReply(bid BoardID, threadID, replyID PostID, reason string) {
 func CreateRepost(bid BoardID, threadID PostID, title, body string, dstBoardID BoardID) PostID {
 	assertIsUserCall()
 
-	// TODO: Assert that caller is a board member (when board type is invite only)
 	caller := std.GetOrigCaller()
-	assertBoardExists(dstBoardID)
+	dst := mustGetBoard(dstBoardID)
+	assertHasBoardPermission(dst, caller, PermissionThreadRepost)
 
 	board := mustGetBoard(bid)
 	if board.IsPrivate() {
 		panic("cannot repost from a private board")
 	}
 
-	// TODO: Assert that board allows reposts?
-	// TODO: Assert that caller is member of both boards (when board types are invite only)
-
-	assertThreadExists(board, threadID)
-
-	dst := mustGetBoard(dstBoardID)
 	thread := mustGetThread(board, threadID)
-
 	repostId := dst.incGetPostID()
 	repost := newPost(dst, repostId, caller, title, body, repostId, thread.GetPostID(), thread.GetBoard().GetID())
-
-	args := Args{board.GetID(), threadID, dst.GetID()}
-	dst.GetPermissions().WithPermission(caller, PermissionThreadRepost, args, func(_ Args) {
-		thread.AddRepostTo(caller, repost, dst)
-	})
-
+	thread.AddRepostTo(caller, repost, dst)
 	return repostId
 }
 
