@@ -158,7 +158,7 @@ func (h *WebHandler) GetRealmView(gnourl *GnoURL) (int, *components.View) {
 
 	meta, err := h.Client.RenderRealm(&content, gnourl.Path, gnourl.EncodeArgs())
 	if err != nil {
-		h.Logger.Error("unable to render realm", "error", err, "path", gnourl.EncodeArgs())
+		h.Logger.Error("unable to render realm", "error", err, "path", gnourl.EncodeURL())
 		return GetClientErrorStatusPage(gnourl, err)
 	}
 
