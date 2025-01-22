@@ -59,7 +59,7 @@ var (
 )
 
 // init initializes the router with the home page and recipe routes
-//sets up my profile information, and my recipe
+// sets up my profile information, and my recipe
 // and registers the home page in the hall of fame.
 func init() {
 	router.HandleFunc("", renderHomepage)
