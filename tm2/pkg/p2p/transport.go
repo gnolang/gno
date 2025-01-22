@@ -147,18 +147,23 @@ func (mt *MultiplexTransport) Close() error {
 }
 
 // Listen starts an active process of listening for incoming connections [NON-BLOCKING]
-func (mt *MultiplexTransport) Listen(addr types.NetAddress) (rerr error) {
+func (mt *MultiplexTransport) Listen(addr types.NetAddress) error {
+	var (
+		ln  net.Listener
+		err error
+	)
+
+	defer func() {
+		if err != nil && ln != nil {
+			_ = ln.Close()
+		}
+	}()
+
 	// Reserve a port, and start listening
-	ln, err := net.Listen("tcp", addr.DialString())
+	ln, err = net.Listen("tcp", addr.DialString())
 	if err != nil {
 		return fmt.Errorf("unable to listen on address, %w", err)
 	}
-
-	defer func() {
-		if rerr != nil {
-			ln.Close()
-		}
-	}()
 
 	if addr.Port == 0 {
 		// net.Listen on port 0 means the kernel will auto-allocate a port

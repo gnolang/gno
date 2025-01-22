@@ -207,7 +207,8 @@ func (r *Reactor) handleDiscoveryRequest(peer p2p.PeerConn) error {
 	}
 
 	for _, p := range localPeers {
-		peers = append(peers, p.SocketAddr())
+		// Make sure only routable peers are shared
+		peers = append(peers, p.NodeInfo().DialAddress())
 	}
 
 	// Create the response, and marshal
