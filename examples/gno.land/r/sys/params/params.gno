@@ -52,3 +52,13 @@ func newPropExecutor(key string, fn func()) dao.Executor {
 	}
 	return bridge.GovDAO().NewGovDAOExecutor(callback)
 }
+func propose(exec dao.Executor, title, desc string) uint64 {
+	// The executor's callback function is executed only after the proposal has been voted on
+	// and approved by the GovDAO.
+	prop := dao.ProposalRequest{
+		Title:       title,
+		Description: desc,
+		Executor:    exec,
+	}
+	return bridge.GovDAO().Propose(prop)
+}
