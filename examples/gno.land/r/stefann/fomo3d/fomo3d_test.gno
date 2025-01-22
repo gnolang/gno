@@ -43,7 +43,7 @@ func TestOwnership(t *testing.T) {
 	// Transfer ownership to nonOwner first to test ownership functions
 	std.TestSetOrigCaller(owner)
 	urequire.NotPanics(t, func() {
-		TransferOwnership(nonOwner)
+		Ownable.TransferOwnership(nonOwner)
 	})
 
 	// Test fee accumulation

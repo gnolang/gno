@@ -17,8 +17,7 @@ const (
 	DividendsClaimedEvent = "DividendsClaimed"
 
 	// Admin events
-	OwnerFeeClaimedEvent      = "OwnerFeeClaimed"
-	OwnershipTransferredEvent = "OwnershipTransferred"
+	OwnerFeeClaimedEvent = "OwnerFeeClaimed"
 )
 
 // Event keys
@@ -91,13 +90,5 @@ func EmitOwnerFeeClaimed(owner std.Address, amount int64) {
 		OwnerFeeClaimedEvent,
 		EventOwnerKey, owner.String(),
 		EventAmountKey, ufmt.Sprintf("%d", amount),
-	)
-}
-
-func EmitOwnershipTransferred(previousOwner, newOwner std.Address) {
-	std.Emit(
-		OwnershipTransferredEvent,
-		EventPreviousOwnerKey, previousOwner.String(),
-		EventNewOwnerKey, newOwner.String(),
 	)
 }

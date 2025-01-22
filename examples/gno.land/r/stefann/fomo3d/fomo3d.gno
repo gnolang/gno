@@ -156,7 +156,7 @@ func BuyKeys() {
 		banker.SendCoins(
 			std.CurrentRealm().Addr(),
 			buyer,
-			std.Coins{{"ugnot", excess}},
+			std.NewCoins(std.NewCoin("ugnot", excess)),
 		)
 	}
 
@@ -213,7 +213,7 @@ func ClaimDividends() {
 	banker.SendCoins(
 		std.CurrentRealm().Addr(),
 		caller,
-		std.Coins{{"ugnot", amount}},
+		std.NewCoins(std.NewCoin("ugnot", amount)),
 	)
 
 	EmitDividendsClaimed(caller, amount)
@@ -234,17 +234,10 @@ func ClaimOwnerFee() {
 	banker.SendCoins(
 		std.CurrentRealm().Addr(),
 		Ownable.Owner(),
-		std.Coins{{"ugnot", amount}},
+		std.NewCoins(std.NewCoin("ugnot", amount)),
 	)
 
 	EmitOwnerFeeClaimed(Ownable.Owner(), amount)
-}
-
-// TransferOwnership allows the current owner to transfer ownership to a new address
-func TransferOwnership(newOwner std.Address) {
-	Ownable.AssertCallerIsOwner()
-	Ownable.TransferOwnership(newOwner)
-	EmitOwnershipTransferred(Ownable.Owner(), newOwner)
 }
 
 // EndGame ends the current round and distributes the jackpot
@@ -269,7 +262,7 @@ func EndGame() {
 	banker.SendCoins(
 		std.CurrentRealm().Addr(),
 		gameState.LastBuyer,
-		std.Coins{{"ugnot", gameState.Jackpot}},
+		std.NewCoins(std.NewCoin("ugnot", gameState.Jackpot)),
 	)
 
 	EmitGameEnded(
