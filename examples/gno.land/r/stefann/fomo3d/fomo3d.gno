@@ -120,7 +120,7 @@ func BuyKeys() {
 		panic(ErrInvalidPayment.Error())
 	}
 
-	payment := sent[0].Amount
+	payment := sent.AmountOf("ugnot")
 	if payment < gameState.KeyPrice {
 		panic(ErrInsufficientPayment.Error())
 	}
@@ -131,11 +131,12 @@ func BuyKeys() {
 	excess := payment - actualCost
 
 	// Update buyer's info
-	buyer := std.GetOrigCaller()
+	buyer := std.PrevRealm().Addr()
 	var buyerInfo PlayerInfo
 	if info, exists := players.Get(buyer.String()); exists {
 		buyerInfo = info.(PlayerInfo)
 	}
+
 	buyerInfo.Keys += numKeys
 	gameState.TotalKeys += numKeys
 
