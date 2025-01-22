@@ -143,6 +143,7 @@ func createDefaultBoardPermissions(owner std.Address) *DefaultPermissions {
 			PermissionThreadEdit,
 			PermissionThreadDelete,
 			PermissionThreadFlag,
+			PermissionReplyCreate,
 			PermissionReplyDelete,
 			PermissionReplyFlag,
 			PermissionRoleChange,
@@ -152,12 +153,14 @@ func createDefaultBoardPermissions(owner std.Address) *DefaultPermissions {
 			PermissionThreadCreate,
 			PermissionThreadEdit,
 			PermissionThreadFlag,
+			PermissionReplyCreate,
 			PermissionReplyFlag,
 		),
 		WithRole(
 			RoleGuest,
 			PermissionThreadCreate,
 			PermissionThreadRepost,
+			PermissionReplyCreate,
 		),
 		WithUser(owner, RoleOwner),
 	)

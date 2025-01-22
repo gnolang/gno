@@ -87,15 +87,13 @@ func CreateThread(bid BoardID, title, body string) PostID {
 func CreateReply(bid BoardID, threadID, replyID PostID, body string) PostID {
 	assertIsUserCall()
 
-	// TODO: Assert that caller is a board member when board type is invite only
 	caller := std.GetOrigCaller()
 	board := mustGetBoard(bid)
-	thread := mustGetThread(board, threadID)
+	assertHasBoardPermission(board, caller, PermissionReplyCreate)
 
+	thread := mustGetThread(board, threadID)
 	assertThreadVisible(thread)
 
-	// TODO: Assert thread is not locked
-	// TODO: Assert that caller is a board member (when board type is invite only)
 	var reply *Post
 	if replyID == threadID {
 		// When the parent reply is the thread just add reply to thread

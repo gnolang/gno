@@ -14,6 +14,7 @@ const (
 	PermissionThreadDelete            = "thread:delete"
 	PermissionThreadFlag              = "thread:flag"
 	PermissionThreadRepost            = "thread:repost"
+	PermissionReplyCreate             = "reply:create"
 	PermissionReplyDelete             = "reply:delete"
 	PermissionReplyFlag               = "reply:flag"
 	PermissionMemberInvite            = "member:invite"
