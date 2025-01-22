@@ -1,13 +1,12 @@
 package components
 
 import (
-	"bytes"
 	"html/template"
-	"io"
-	"strings"
 
 	"github.com/gnolang/gno/gno.land/pkg/sdk/vm" // for error types
 )
+
+const HelpViewType ViewType = "help-view"
 
 type HelpData struct {
 	// Selected function
@@ -21,12 +20,6 @@ type HelpData struct {
 	PkgPath   string
 }
 
-type HelpViewData struct {
-	HelpData
-	Article ArticleData
-	TOC     template.HTML
-}
-
 type HelpTocData struct {
 	Icon  string
 	Items []HelpTocItem
@@ -37,23 +30,13 @@ type HelpTocItem struct {
 	Text string
 }
 
+type helpViewParams struct {
+	HelpData
+	Article      ArticleData
+	ComponentTOC Component
+}
+
 func registerHelpFuncs(funcs template.FuncMap) {
-	funcs["helpFuncSignature"] = func(fsig vm.FunctionSignature) (string, error) {
-		var fsigStr strings.Builder
-
-		fsigStr.WriteString(fsig.FuncName)
-		fsigStr.WriteRune('(')
-		for i, param := range fsig.Params {
-			if i > 0 {
-				fsigStr.WriteString(", ")
-			}
-			fsigStr.WriteString(param.Name)
-		}
-		fsigStr.WriteRune(')')
-
-		return fsigStr.String(), nil
-	}
-
 	funcs["getSelectedArgValue"] = func(data HelpData, param vm.NamedType) (string, error) {
 		if data.SelectedArgs == nil {
 			return "", nil
@@ -63,11 +46,7 @@ func registerHelpFuncs(funcs template.FuncMap) {
 	}
 }
 
-func RenderHelpComponent(w io.Writer, data HelpData) error {
-	var contentBuf, tocBuf bytes.Buffer
-	funcMap := template.FuncMap{}
-	registerHelpFuncs(funcMap)
-
+func HelpView(data HelpData) *View {
 	tocData := HelpTocData{
 		Icon:  "code",
 		Items: make([]HelpTocItem, len(data.Functions)),
@@ -89,23 +68,16 @@ func RenderHelpComponent(w io.Writer, data HelpData) error {
 		}
 	}
 
-	if err := tmpl.ExecuteTemplate(&tocBuf, "layout/toc_list", tocData); err != nil {
-		return err
-	}
-
-	// Generate the content
-	if err := tmpl.ExecuteTemplate(&contentBuf, "renderHelpContent", data); err != nil {
-		return err
-	}
-
-	viewData := HelpViewData{
+	toc := NewTemplateComponent("layout/toc_list", tocData)
+	content := NewTemplateComponent("renderHelpContent", data)
+	viewData := helpViewParams{
 		HelpData: data,
 		Article: ArticleData{
-			Content: template.HTML(contentBuf.String()), //nolint:gosec
-			Classes: "",
+			ComponentContent: content,
+			Classes:          "",
 		},
-		TOC: template.HTML(tocBuf.String()), //nolint:gosec
+		ComponentTOC: toc,
 	}
 
-	return tmpl.ExecuteTemplate(w, "renderHelp", viewData)
+	return NewTemplateView(HelpViewType, "renderHelp", viewData)
 }

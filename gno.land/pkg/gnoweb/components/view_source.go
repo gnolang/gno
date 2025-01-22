@@ -1,10 +1,6 @@
 package components
 
-import (
-	"bytes"
-	"html/template"
-	"io"
-)
+const SourceViewType ViewType = "source-view"
 
 type SourceData struct {
 	PkgPath     string
@@ -13,18 +9,7 @@ type SourceData struct {
 	FileSize    string
 	FileLines   int
 	FileCounter int
-	FileSource  template.HTML
-}
-
-type SourceViewData struct {
-	Article     ArticleData
-	Files       []string
-	FileName    string
-	FileSize    string
-	FileLines   int
-	FileCounter int
-	PkgPath     string
-	TOC         template.HTML
+	FileSource  Component
 }
 
 type SourceTocData struct {
@@ -37,9 +22,18 @@ type SourceTocItem struct {
 	Text string
 }
 
-func RenderSourceComponent(w io.Writer, data SourceData) error {
-	var tocBuf, contentBuf bytes.Buffer
+type sourceViewParams struct {
+	Article      ArticleData
+	Files        []string
+	FileName     string
+	FileSize     string
+	FileLines    int
+	FileCounter  int
+	PkgPath      string
+	ComponentTOC Component
+}
 
+func SourceView(data SourceData) *View {
 	tocData := SourceTocData{
 		Icon:  "file",
 		Items: make([]SourceTocItem, len(data.Files)),
@@ -52,27 +46,21 @@ func RenderSourceComponent(w io.Writer, data SourceData) error {
 		}
 	}
 
-	if err := tmpl.ExecuteTemplate(&tocBuf, "layout/toc_list", tocData); err != nil {
-		return err
-	}
-
-	// Générer le contenu avec wrapper
-	if err := tmpl.ExecuteTemplate(&contentBuf, "renderSourceContent", data.FileSource); err != nil {
-		return err
-	}
-
-	viewData := SourceViewData{
+	toc := NewTemplateComponent("layout/toc_list", tocData)
+	content := NewTemplateComponent("renderSourceContent", data.FileSource)
+	viewData := sourceViewParams{
 		Article: ArticleData{
-			Content: template.HTML(contentBuf.String()), //nolint:gosec
-			Classes: "source-content col-span-1 lg:col-span-7 lg:row-start-2 pb-24 text-gray-900",
+			ComponentContent: content,
+			Classes:          "source-view col-span-1 lg:col-span-7 lg:row-start-2 pb-24 text-gray-900",
 		},
-		TOC:         template.HTML(tocBuf.String()), //nolint:gosec
-		Files:       data.Files,
-		FileName:    data.FileName,
-		FileSize:    data.FileSize,
-		FileLines:   data.FileLines,
-		FileCounter: data.FileCounter,
-		PkgPath:     data.PkgPath,
+		ComponentTOC: toc,
+		Files:        data.Files,
+		FileName:     data.FileName,
+		FileSize:     data.FileSize,
+		FileLines:    data.FileLines,
+		FileCounter:  data.FileCounter,
+		PkgPath:      data.PkgPath,
 	}
-	return tmpl.ExecuteTemplate(w, "renderSource", viewData)
+
+	return NewTemplateView(SourceViewType, "renderSource", viewData)
 }
