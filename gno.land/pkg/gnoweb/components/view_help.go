@@ -68,8 +68,8 @@ func HelpView(data HelpData) *View {
 		}
 	}
 
-	toc := NewTemplateComponent("ui/toc_list", tocData)
-	content := NewTemplateComponent("renderHelpContent", data)
+	toc := NewTemplateComponent("ui/toc_generic", tocData)
+	content := NewTemplateComponent("ui/help_function", data)
 	viewData := helpViewParams{
 		HelpData: data,
 		Article: ArticleData{

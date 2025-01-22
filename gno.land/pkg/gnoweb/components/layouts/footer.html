@@ -20,10 +20,4 @@
 <!-- javascript module src -->
 <script type="module" src="{{ .AssetsPath }}js/index.js"></script>
 
-{{- if .Analytics -}} {{- template "analytics" }} {{- end -}} {{ end }} {{- define "analytics" -}}
-<!-- 100% privacy-first analytics -->
-<script async="" defer="" src="https://sa.gno.services/latest.js"></script>
-<noscript>
-  <img src="https://sa.gno.services/noscript.gif" alt="" referrerpolicy="no-referrer-when-downgrade" />
-</noscript>
-{{- end -}}
+{{- if .Analytics -}} {{- template "layout/analytics" }}{{- end -}} {{ end }} 

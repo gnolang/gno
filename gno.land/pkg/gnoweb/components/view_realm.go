@@ -31,7 +31,7 @@ func RealmView(data RealmData) *View {
 			ComponentContent: data.ComponentContent,
 			Classes:          "realm-view lg:row-start-1",
 		},
-		ComponentTOC: NewTemplateComponent("renderRealmToc", data.TocItems),
+		ComponentTOC: NewTemplateComponent("ui/toc_realm", data.TocItems),
 	}
 
 	return NewTemplateView(RealmViewType, "renderRealm", viewData)
