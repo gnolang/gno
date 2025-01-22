@@ -2,8 +2,6 @@ package tictactoe
 
 import (
 	"testing"
-
-	"gno.land/p/demo/uassert"
 )
 
 func TestParsePath(t *testing.T) {
