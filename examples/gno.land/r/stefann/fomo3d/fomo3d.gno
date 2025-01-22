@@ -192,7 +192,7 @@ func BuyKeys() {
 
 // ClaimDividends allows players to withdraw their earned dividends
 func ClaimDividends() {
-	caller := std.GetOrigCaller()
+	caller := std.PrevRealm().Addr()
 
 	info, exists := players.Get(caller.String())
 	if !exists {
