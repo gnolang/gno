@@ -1,8 +1,6 @@
 package static
 
 import (
-	"bufio"
-	"bytes"
 	"errors"
 
 	"gno.land/p/demo/gnorkle/feed"

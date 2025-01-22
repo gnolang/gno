@@ -1,8 +1,6 @@
 package periodic
 
 import (
-	"bufio"
-	"bytes"
 	"errors"
 	"time"
 

@@ -243,7 +243,7 @@ func TestFeed_Tasks(t *testing.T) {
 			urequire.Equal(t, len(tt.tasks), len(staticFeed.Tasks()))
 
 			var errText string
-			json, err := feed.MarshalFeedJSON(staticFeed)
+			json, err := gnorkle.MarshalFeedJSON(staticFeed)
 			if err != nil {
 				errText = err.Error()
 			}
