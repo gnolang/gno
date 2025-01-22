@@ -6,11 +6,11 @@ import (
 	"strings"
 
 	"gno.land/p/demo/avl"
-	"gno.land/p/demo/boards2/admindao"
+	"gno.land/p/demo/commondao"
 )
 
 var (
-	daos     avl.Tree // string(name) -> *AdminDAO
+	daos     avl.Tree // string(name) -> *CommonDAO
 	boardsNS string
 )
 
@@ -18,22 +18,22 @@ func init() {
 	boardsNS = path.Dir(std.CurrentRealm().PkgPath()) + "/"
 }
 
-func New(name string, options ...admindao.Option) *admindao.AdminDAO {
+func New(name string, options ...commondao.Option) *commondao.CommonDAO {
 	assertCallerIsBoardsRealm()
 
-	dao := admindao.New(options...)
+	dao := commondao.New(options...)
 	daos.Set(name, dao)
 	return dao
 }
 
-func Get(name string) (_ *admindao.AdminDAO, found bool) {
+func Get(name string) (_ *commondao.CommonDAO, found bool) {
 	assertCallerIsBoardsRealm()
 
 	v, found := daos.Get(name)
 	if !found {
 		return nil, false
 	}
-	return v.(*admindao.AdminDAO), true
+	return v.(*commondao.CommonDAO), true
 }
 
 func Exists(name string) bool {
