@@ -21,7 +21,7 @@ var (
 	registeredMTs    = avl.NewTree() // rlmPath[.slug] -> GRC1155TokenInfo
 )
 
-const pageSize = 1
+const pageSize = 10
 const token = "token" // grc20
 const nft = "nft"     // grc721
 const mt = "mt"       // grc1155
