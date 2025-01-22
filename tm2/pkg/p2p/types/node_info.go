@@ -14,7 +14,6 @@ const (
 )
 
 var (
-	ErrInvalidPeerID        = errors.New("invalid peer ID")
 	ErrInvalidVersion       = errors.New("invalid node version")
 	ErrInvalidMoniker       = errors.New("invalid node moniker")
 	ErrInvalidRPCAddress    = errors.New("invalid node RPC address")
