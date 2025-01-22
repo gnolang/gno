@@ -164,10 +164,9 @@ func BuyKeys() {
 	if players.Size() > 0 && gameState.TotalKeys > 0 {
 		dividendPerKey := dividendShare / gameState.TotalKeys
 		players.Iterate("", "", func(key string, value interface{}) bool {
-			addr := std.Address(key)
 			playerInfo := value.(PlayerInfo)
 			playerInfo.Dividends += playerInfo.Keys * dividendPerKey
-			players.Set(addr.String(), playerInfo)
+			players.Set(key, playerInfo)
 			return false
 		})
 	}
