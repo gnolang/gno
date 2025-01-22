@@ -1,7 +1,7 @@
 const pxToRem = (px) => px / 16;
 
 export default {
-  content: ["./components/**/*.{gohtml,ts}"],
+  content: ["./components/**/*.{html,ts}"],
   theme: {
     screens: {
       xs: `${pxToRem(360)}rem`,
@@ -68,5 +68,6 @@ export default {
       900: `${pxToRem(42)}rem`,
     },
   },
+  safelist: ["realm-view", { pattern: /^realm-view/ }],
   plugins: [],
 };
