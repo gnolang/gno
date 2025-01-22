@@ -14,7 +14,7 @@ func init() {
 
 func main() {
 	// ensure that nested replies denied if root thread is hidden.
-	bid := boards2.CreateBoard("test1")
+	bid := boards2.CreateBoard("test123")
 	pid := boards2.CreateThread(bid, "thread", "thread")
 	rid := boards2.CreateReply(bid, pid, pid, "reply1")
 

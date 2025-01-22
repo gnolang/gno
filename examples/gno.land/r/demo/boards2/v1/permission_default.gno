@@ -5,7 +5,7 @@ import (
 	"std"
 
 	"gno.land/p/demo/avl"
-	padmindao "gno.land/p/demo/boards2/admindao"
+	"gno.land/p/demo/commondao"
 
 	// "gno.land/r/demo/boards2/admindao"
 	"gno.land/r/demo/users"
@@ -14,14 +14,14 @@ import (
 // DefaultPermissions manages users, roles and permissions.
 type DefaultPermissions struct {
 	superRole Role
-	dao       *padmindao.AdminDAO
+	dao       *commondao.CommonDAO
 	users     *avl.Tree // string(std.Address) -> []Role
 	roles     *avl.Tree // string(role) -> []Permission
 }
 
 // NewDefaultPermissions creates a new permissions type.
 // This type is a default implementation to handle users, roles and permissions.
-func NewDefaultPermissions(dao *padmindao.AdminDAO, options ...DefaultPermissionsOption) *DefaultPermissions {
+func NewDefaultPermissions(dao *commondao.CommonDAO, options ...DefaultPermissionsOption) *DefaultPermissions {
 	dp := &DefaultPermissions{
 		dao:   dao,
 		roles: avl.NewTree(),
@@ -119,7 +119,7 @@ func (dp DefaultPermissions) HasUser(user std.Address) bool {
 
 // GetDAO returns the underlying DAO.
 // Returned value can be nil if the implementation doesn't have a DAO.
-func (dp DefaultPermissions) GetDAO() *padmindao.AdminDAO {
+func (dp DefaultPermissions) GetDAO() *commondao.CommonDAO {
 	return dp.dao
 }
 
@@ -162,6 +162,7 @@ func (DefaultPermissions) handleBoardCreate(args Args, cb func(Args)) {
 		panic("expected board name to be a string")
 	}
 
+	assertValidBoardNameLength(name)
 	assertBoardNameIsNotAddress(name)
 	assertBoardNameBelongsToCaller(name)
 
@@ -174,6 +175,7 @@ func (DefaultPermissions) handleBoardRename(args Args, cb func(Args)) {
 		panic("expected new board name to be a string")
 	}
 
+	assertValidBoardNameLength(newName)
 	assertBoardNameIsNotAddress(newName)
 	assertBoardNameBelongsToCaller(newName)
 
@@ -228,7 +230,7 @@ func createDefaultPermissions(owner std.Address) *DefaultPermissions {
 	// TODO: Creating the boards DAO makes following calls to New (avl.Tree.Set()) fail
 	// dao := admindao.New("boards")
 	// dao.AddMember(owner)
-	dao := padmindao.New()
+	dao := commondao.New()
 	dao.AddMember(owner)
 
 	return NewDefaultPermissions(
@@ -267,6 +269,12 @@ func createDefaultPermissions(owner std.Address) *DefaultPermissions {
 func assertBoardNameIsNotAddress(s string) {
 	if std.Address(s).IsValid() {
 		panic("addresses are not allowed as board name")
+	}
+}
+
+func assertValidBoardNameLength(name string) {
+	if len(name) < 6 {
+		panic("the minimum allowed board name length is 6 characters")
 	}
 }
 

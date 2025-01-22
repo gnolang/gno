@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"gno.land/p/demo/avl"
+	"gno.land/p/demo/commondao"
 	"gno.land/p/moul/txlink"
 
 	"gno.land/r/demo/boards2/admindao"

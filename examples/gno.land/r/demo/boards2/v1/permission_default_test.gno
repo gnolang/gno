@@ -4,7 +4,7 @@ import (
 	"std"
 	"testing"
 
-	"gno.land/p/demo/boards2/admindao"
+	"gno.land/p/demo/commondao"
 	"gno.land/p/demo/uassert"
 	"gno.land/p/demo/urequire"
 )
@@ -13,7 +13,7 @@ var _ Permissions = (*DefaultPermissions)(nil)
 
 func TestNewDefaultPermissions(t *testing.T) {
 	roles := []Role{"a", "b"}
-	dao := admindao.New()
+	dao := commondao.New()
 
 	perms := NewDefaultPermissions(dao, WithRole("a", "permission1"), WithRole("b", "permission2"))
 
@@ -37,7 +37,7 @@ func TestDefaultPermissionsWithPermission(t *testing.T) {
 			user:       "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5",
 			permission: "bar",
 			perms: NewDefaultPermissions(
-				admindao.New(),
+				commondao.New(),
 				WithUser("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5", "foo"),
 				WithRole("foo", "bar"),
 			),
@@ -49,7 +49,7 @@ func TestDefaultPermissionsWithPermission(t *testing.T) {
 			permission: "bar",
 			args:       Args{"a", "b"},
 			perms: NewDefaultPermissions(
-				admindao.New(),
+				commondao.New(),
 				WithUser("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5", "foo"),
 				WithRole("foo", "bar"),
 			),
@@ -60,7 +60,7 @@ func TestDefaultPermissionsWithPermission(t *testing.T) {
 			user:       "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5",
 			permission: "bar",
 			perms: NewDefaultPermissions(
-				admindao.New(),
+				commondao.New(),
 				WithUser("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"),
 				WithRole("foo", "bar"),
 			),
@@ -70,7 +70,7 @@ func TestDefaultPermissionsWithPermission(t *testing.T) {
 			name:       "is not a DAO member",
 			user:       "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5",
 			permission: "bar",
-			perms:      NewDefaultPermissions(admindao.New()),
+			perms:      NewDefaultPermissions(commondao.New()),
 			err:        "unauthorized",
 		},
 	}
@@ -118,30 +118,30 @@ func TestDefaultPermissionsGetUserRoles(t *testing.T) {
 			name:  "single role",
 			user:  "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5",
 			roles: []string{"admin"},
-			perms: NewDefaultPermissions(admindao.New(), WithUser("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5", "admin")),
+			perms: NewDefaultPermissions(commondao.New(), WithUser("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5", "admin")),
 		},
 		{
 			name:  "multiple roles",
 			user:  "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5",
 			roles: []string{"admin", "foo", "bar"},
-			perms: NewDefaultPermissions(admindao.New(), WithUser("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5", "admin", "foo", "bar")),
+			perms: NewDefaultPermissions(commondao.New(), WithUser("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5", "admin", "foo", "bar")),
 		},
 		{
 			name:  "without roles",
 			user:  "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5",
-			perms: NewDefaultPermissions(admindao.New(), WithUser("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5")),
+			perms: NewDefaultPermissions(commondao.New(), WithUser("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5")),
 		},
 		{
 			name:  "not a user",
 			user:  "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5",
-			perms: NewDefaultPermissions(admindao.New()),
+			perms: NewDefaultPermissions(commondao.New()),
 		},
 		{
 			name:  "multiple users",
 			user:  "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5",
 			roles: []string{"admin"},
 			perms: NewDefaultPermissions(
-				admindao.New(),
+				commondao.New(),
 				WithUser("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5", "admin"),
 				WithUser("g1w4ek2u33ta047h6lta047h6lta047h6ldvdwpn", "admin"),
 				WithUser("g1w4ek2u3jta047h6lta047h6lta047h6l9huexc", "admin", "bar"),
@@ -173,26 +173,26 @@ func TestDefaultPermissionsHasRole(t *testing.T) {
 			name:  "ok",
 			user:  "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5",
 			role:  "admin",
-			perms: NewDefaultPermissions(admindao.New(), WithUser("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5", "admin")),
+			perms: NewDefaultPermissions(commondao.New(), WithUser("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5", "admin")),
 			want:  true,
 		},
 		{
 			name:  "ok with multiple roles",
 			user:  "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5",
 			role:  "foo",
-			perms: NewDefaultPermissions(admindao.New(), WithUser("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5", "admin", "foo")),
+			perms: NewDefaultPermissions(commondao.New(), WithUser("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5", "admin", "foo")),
 			want:  true,
 		},
 		{
 			name:  "user without roles",
 			user:  "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5",
-			perms: NewDefaultPermissions(admindao.New(), WithUser("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5")),
+			perms: NewDefaultPermissions(commondao.New(), WithUser("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5")),
 		},
 		{
 			name:  "has no role",
 			user:  "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5",
 			role:  "bar",
-			perms: NewDefaultPermissions(admindao.New(), WithUser("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5", "foo")),
+			perms: NewDefaultPermissions(commondao.New(), WithUser("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5", "foo")),
 		},
 	}
 
@@ -217,7 +217,7 @@ func TestDefaultPermissionsHasPermission(t *testing.T) {
 			user:       "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5",
 			permission: "bar",
 			perms: NewDefaultPermissions(
-				admindao.New(),
+				commondao.New(),
 				WithUser("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5", "foo"),
 				WithRole("foo", "bar"),
 			),
@@ -228,7 +228,7 @@ func TestDefaultPermissionsHasPermission(t *testing.T) {
 			user:       "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5",
 			permission: "bar",
 			perms: NewDefaultPermissions(
-				admindao.New(),
+				commondao.New(),
 				WithUser("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5", "foo"),
 				WithUser("g1w4ek2u33ta047h6lta047h6lta047h6ldvdwpn", "foo"),
 				WithRole("foo", "bar"),
@@ -240,7 +240,7 @@ func TestDefaultPermissionsHasPermission(t *testing.T) {
 			user:       "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5",
 			permission: "other",
 			perms: NewDefaultPermissions(
-				admindao.New(),
+				commondao.New(),
 				WithUser("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5", "foo", "baz"),
 				WithRole("foo", "bar"),
 				WithRole("baz", "other"),
@@ -252,7 +252,7 @@ func TestDefaultPermissionsHasPermission(t *testing.T) {
 			user:       "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5",
 			permission: "other",
 			perms: NewDefaultPermissions(
-				admindao.New(),
+				commondao.New(),
 				WithUser("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5", "foo"),
 				WithRole("foo", "bar"),
 			),
@@ -281,7 +281,7 @@ func TestDefaultPermissionsAddUser(t *testing.T) {
 			roles: []Role{"a", "b"},
 			setup: func() *DefaultPermissions {
 				return NewDefaultPermissions(
-					admindao.New(),
+					commondao.New(),
 					WithRole("a", "permission1"),
 					WithRole("b", "permission2"),
 				)
@@ -293,7 +293,7 @@ func TestDefaultPermissionsAddUser(t *testing.T) {
 			roles: []Role{"a"},
 			setup: func() *DefaultPermissions {
 				return NewDefaultPermissions(
-					admindao.New(),
+					commondao.New(),
 					WithRole("a", "permission1"),
 					WithUser("g1w4ek2u33ta047h6lta047h6lta047h6ldvdwpn", "a"),
 					WithUser("g1w4ek2u3jta047h6lta047h6lta047h6l9huexc"),
@@ -305,7 +305,7 @@ func TestDefaultPermissionsAddUser(t *testing.T) {
 			user: std.Address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"),
 			setup: func() *DefaultPermissions {
 				return NewDefaultPermissions(
-					admindao.New(),
+					commondao.New(),
 					WithUser("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"),
 				)
 			},
@@ -316,7 +316,7 @@ func TestDefaultPermissionsAddUser(t *testing.T) {
 			user:  std.Address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"),
 			roles: []Role{"a", "foo"},
 			setup: func() *DefaultPermissions {
-				return NewDefaultPermissions(admindao.New(), WithRole("a", "permission1"))
+				return NewDefaultPermissions(commondao.New(), WithRole("a", "permission1"))
 			},
 			err: "invalid role: foo",
 		},
@@ -325,7 +325,7 @@ func TestDefaultPermissionsAddUser(t *testing.T) {
 			user: std.Address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"),
 			setup: func() *DefaultPermissions {
 				return NewDefaultPermissions(
-					admindao.New(admindao.WithMember("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5")),
+					commondao.New(commondao.WithMember("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5")),
 				)
 			},
 			err: "member already exist",
@@ -369,7 +369,7 @@ func TestDefaultPermissionsSetUserRoles(t *testing.T) {
 			roles: []Role{"b"},
 			setup: func() *DefaultPermissions {
 				return NewDefaultPermissions(
-					admindao.New(),
+					commondao.New(),
 					WithRole("a", "permission1"),
 					WithRole("b", "permission2"),
 					WithUser("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5", "a"),
@@ -382,7 +382,7 @@ func TestDefaultPermissionsSetUserRoles(t *testing.T) {
 			roles: []Role{"b", "c"},
 			setup: func() *DefaultPermissions {
 				return NewDefaultPermissions(
-					admindao.New(),
+					commondao.New(),
 					WithRole("a", "permission1"),
 					WithRole("b", "permission2"),
 					WithRole("c", "permission2"),
@@ -396,7 +396,7 @@ func TestDefaultPermissionsSetUserRoles(t *testing.T) {
 			roles: []Role{"a", "c"},
 			setup: func() *DefaultPermissions {
 				return NewDefaultPermissions(
-					admindao.New(),
+					commondao.New(),
 					WithRole("a", "permission1"),
 					WithRole("b", "permission2"),
 					WithRole("c", "permission2"),
@@ -409,7 +409,7 @@ func TestDefaultPermissionsSetUserRoles(t *testing.T) {
 			user: std.Address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"),
 			setup: func() *DefaultPermissions {
 				return NewDefaultPermissions(
-					admindao.New(),
+					commondao.New(),
 					WithRole("a", "permission1"),
 					WithRole("b", "permission2"),
 					WithUser("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5", "a", "b"),
@@ -422,7 +422,7 @@ func TestDefaultPermissionsSetUserRoles(t *testing.T) {
 			roles: []Role{"x", "a"},
 			setup: func() *DefaultPermissions {
 				return NewDefaultPermissions(
-					admindao.New(),
+					commondao.New(),
 					WithRole("a", "permission1"),
 					WithUser("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5", "a"),
 				)
@@ -433,7 +433,7 @@ func TestDefaultPermissionsSetUserRoles(t *testing.T) {
 			name: "user not found",
 			user: std.Address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"),
 			setup: func() *DefaultPermissions {
-				return NewDefaultPermissions(admindao.New())
+				return NewDefaultPermissions(commondao.New())
 			},
 			err: "user not found",
 		},
@@ -474,7 +474,7 @@ func TestDefaultPermissionsRemoveUser(t *testing.T) {
 			user: std.Address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"),
 			setup: func() *DefaultPermissions {
 				return NewDefaultPermissions(
-					admindao.New(),
+					commondao.New(),
 					WithUser("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"),
 				)
 			},
@@ -484,7 +484,7 @@ func TestDefaultPermissionsRemoveUser(t *testing.T) {
 			name: "user not found",
 			user: std.Address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"),
 			setup: func() *DefaultPermissions {
-				return NewDefaultPermissions(admindao.New())
+				return NewDefaultPermissions(commondao.New())
 			},
 		},
 	}

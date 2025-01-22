@@ -3,7 +3,7 @@ package boards2
 import (
 	"std"
 
-	"gno.land/p/demo/boards2/admindao"
+	"gno.land/p/demo/commondao"
 )
 
 const (
@@ -65,6 +65,6 @@ type (
 
 		// GetDAO returns the underlying DAO.
 		// Returned value can be nil if the implementation doesn't have a DAO.
-		GetDAO() *admindao.AdminDAO // TODO: should return an interface
+		GetDAO() *commondao.CommonDAO // TODO: should return an interface
 	}
 )

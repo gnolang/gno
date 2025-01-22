@@ -14,7 +14,7 @@ func init() {
 
 func main() {
 	// Only single user per flag can't be tested atm, as flagThreshold = 1.
-	bid := boards2.CreateBoard("test1")
+	bid := boards2.CreateBoard("test123")
 	pid := boards2.CreateThread(bid, "thread", "thread")
 
 	boards2.FlagThread(bid, pid, "reason1")
