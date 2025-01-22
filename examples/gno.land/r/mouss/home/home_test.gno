@@ -16,7 +16,6 @@ var (
 )
 
 func TestProfile(t *testing.T) {
-
 	uassert.NotEmpty(t, profile.AboutMe, "AboutMe should not be empty")
 	uassert.NotEmpty(t, profile.Avatar, "Avatar should not be empty")
 	uassert.NotEmpty(t, profile.Email, "Email should not be empty")
@@ -25,9 +24,7 @@ func TestProfile(t *testing.T) {
 }
 
 func TestAddRecipe(t *testing.T) {
-
 	std.TestSetOrigCaller(user1)
-
 	name := "Test Recipe"
 	origin := "Test Origin"
 	ingredients := "Ingredient 1\nIngredient 2"
@@ -47,7 +44,6 @@ func TestAddRecipe(t *testing.T) {
 }
 
 func TestFollow(t *testing.T) {
-
 	// Test user following admin's profile
 	std.TestSetOrigCaller(user1)
 	err := Follow(user1)
@@ -70,18 +66,13 @@ func TestFollow(t *testing.T) {
 }
 
 func TestIsUser(t *testing.T) {
-
 	uassert.True(t, isUser(user1), "should recognize normal user")
-
 	uassert.False(t, isUser(mainAddr), "should not recognize admin as normal user")
 }
 
 func TestIsAuthorized(t *testing.T) {
-
 	uassert.True(t, isAuthorized(mainAddr), "should recognize main address as authorized")
-
 	uassert.False(t, isAuthorized(user1), "should not recognize normal user as authorized")
-
 	std.TestSetOrigCaller(mainAddr)
 	backupAddr := testutils.TestAddress("backup")
 	config.SetBackup(backupAddr)
