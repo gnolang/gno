@@ -23,9 +23,15 @@ import (
 )
 
 type App struct {
-	cfg           *devCfg
-	io            commands.IO
-	logger        *slog.Logger
+	io          commands.IO
+	start       time.Time // Time when the server started
+	cfg         *devCfg
+	logger      *slog.Logger
+	pathManager *pathManager
+	// Contains all the deferred functions of the app.
+	// Will be triggered on close for cleanup.
+	deferred func()
+
 	webHomePath   string
 	paths         []string
 	devNode       *gnodev.Node
@@ -35,11 +41,6 @@ type App struct {
 	book          *address.Book
 	exportPath    string
 	proxy         *proxy.PathInterceptor
-	pathManager   *pathManager
-
-	// Contains all the deferred functions of the app.
-	// Will be triggered on close for cleanup.
-	deferred func()
 
 	// XXX: move this
 	exported uint
@@ -93,6 +94,7 @@ func runApp(cfg *devCfg, cio commands.IO, dirs ...string) (err error) {
 
 func NewApp(logger *slog.Logger, cfg *devCfg, io commands.IO) *App {
 	return &App{
+		start:       time.Now(),
 		deferred:    func() {},
 		logger:      logger,
 		cfg:         cfg,
@@ -340,9 +342,9 @@ func (ds *App) RunServer(ctx context.Context, term *rawterm.RawTerm) error {
 	}
 
 	if ds.cfg.interactive {
-		ds.logger.WithGroup("--- READY").Info("for commands and help, press `h`")
+		ds.logger.WithGroup("--- READY").Info("for commands and help, press `h`", "took", time.Since(ds.start))
 	} else {
-		ds.logger.Info("node is ready")
+		ds.logger.Info("node is ready", "took", time.Since(ds.start))
 	}
 
 	for {
