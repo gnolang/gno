@@ -297,36 +297,58 @@ main purpose in Gno is for discoverability. This shift towards user-centric
 documentation reflects the broader shift in Gno towards making code more
 accessible and understandable for all users, not just developers.
 
+Here's an example from [grc20](https://gno.land/p/demo/grc/grc20$source&file=types.gno)
+to illustrate the concept:
+
 ```go
-// Package md provides helper functions for generating Markdown content programmatically.
+// Teller interface defines the methods that a GRC20 token must implement. It
+// extends the TokenMetadata interface to include methods for managing token
+// transfers, allowances, and querying balances.
 //
-// It includes utilities for text formatting, creating lists, blockquotes, code blocks,
-// links, images, and more.
-//
-// Highlights:
-// - Supports basic Markdown syntax such as bold, italic, strikethrough, headers, and lists.
-// - Manages multiline support in lists (e.g., bullet, ordered, and todo lists).
-// - Includes advanced helpers like inline images with links and nested list prefixes.
-package md
+// The Teller interface is designed to ensure that any token adhering to this
+// standard provides a consistent API for interacting with fungible tokens.
+type Teller interface {
+	exts.TokenMetadata
 
-import (
-	"strconv"
-	"strings"
-)
+	// Returns the amount of tokens in existence.
+	TotalSupply() uint64
 
-// Bold returns bold text for markdown.
-// Example: Bold("foo") => "**foo**"
-func Bold(text string) string {
-	return "**" + text + "**"
+	// Returns the amount of tokens owned by `account`.
+	BalanceOf(account std.Address) uint64
+
+	// Moves `amount` tokens from the caller's account to `to`.
+	//
+	// Returns an error if the operation failed.
+	Transfer(to std.Address, amount uint64) error
+
+	// Returns the remaining number of tokens that `spender` will be
+	// allowed to spend on behalf of `owner` through {transferFrom}. This is
+	// zero by default.
+	//
+	// This value changes when {approve} or {transferFrom} are called.
+	Allowance(owner, spender std.Address) uint64
+
+	// Sets `amount` as the allowance of `spender` over the caller's tokens.
+	//
+	// Returns an error if the operation failed.
+	//
+	// IMPORTANT: Beware that changing an allowance with this method brings
+	// the risk that someone may use both the old and the new allowance by
+	// unfortunate transaction ordering. One possible solution to mitigate
+	// this race condition is to first reduce the spender's allowance to 0
+	// and set the desired value afterwards:
+	// https://github.com/ethereum/EIPs/issues/20#issuecomment-263524729
+	Approve(spender std.Address, amount uint64) error
+
+	// Moves `amount` tokens from `from` to `to` using the
+	// allowance mechanism. `amount` is then deducted from the caller's
+	// allowance.
+	//
+	// Returns an error if the operation failed.
+	TransferFrom(from, to std.Address, amount uint64) error
 }
-
-// Italic returns italicized text for markdown.
-// Example: Italic("foo") => "*foo*"
-func Italic(text string) string {
-	return "*" + text + "*"
-}
-
 ```
+
 ### Reflection is never clear
 
 In Go, there's a well-known saying by Rob Pike: ["Reflection is never
