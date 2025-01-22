@@ -29,7 +29,7 @@ type FeedWithWhitelist struct {
 // MarshalJSON marshals the components of the feed that are needed for
 // an agent to execute tasks and send values for ingestion.
 func MarshalFeedJSON(feed Feed) ([]byte, error) {
-    buf := new(bytes.Buffer)
+	buf := new(bytes.Buffer)
 	w := bufio.NewWriter(buf)
 
 	_, dataType, _ := feed.Value()

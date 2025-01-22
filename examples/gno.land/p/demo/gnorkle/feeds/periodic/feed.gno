@@ -86,7 +86,7 @@ func (f *Feed) Ingest(funcType message.FuncType, msg, providerAddress string) er
 	case message.FuncTypeCommit:
 		// Commits the value to the storage only after x times has passed since last commit exception for first commit.
 		currentTs := time.Now().Unix()
-		if (f.storage.GetLatest() != feed.Value{} && f.lastCommitTime + f.timeBetweenCommit > currentTs) {
+		if (f.storage.GetLatest() != feed.Value{} && f.lastCommitTime+f.timeBetweenCommit > currentTs) {
 			return errors.New("time between commit not reached")
 		}
 
