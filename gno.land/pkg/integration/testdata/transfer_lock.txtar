@@ -1,6 +1,6 @@
 ## It tests locking token transfers while allowing the payment of gas fees.
 
-## locking transfer applies to regular acocunts
+## locking transfer applies to regular accounts
 adduser regular1
 
 
@@ -14,7 +14,7 @@ loadpkg gno.land/r/demo/echo
 gnoland start -lock-transfer
 
 ## User test1 is an unrestricted account specified in the genesis state
-gnokey maketx send -send "9999999ugnot" -to $USER_ADDR_regular1 -gas-fee 1ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test test1
+gnokey maketx send -send "9999999ugnot" -to $regular1_user_addr -gas-fee 1ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test test1
 
 stdout 'OK!'
 
@@ -32,11 +32,11 @@ stderr 'restricted token transfer error'
 stderr 'restricted token transfer error'
 
 ## paying gas fees to add a package is acceptable.
-gnokey maketx addpkg -pkgdir $WORK -pkgpath gno.land/r/bank -gas-fee 1000000ugnot -gas-wanted 9500000 -broadcast -chainid=tendermint_test regular1
+gnokey maketx addpkg -pkgdir $WORK -pkgpath gno.land/r/bank -gas-fee 1000000ugnot -gas-wanted 12500000 -broadcast -chainid=tendermint_test regular1
 stdout 'OK!'
 
 ## paying gas fees to call a realm function is acceptable.
-gnokey maketx call -pkgpath gno.land/r/demo/echo -func Render -args "Hello!" -gas-fee 1000000ugnot -gas-wanted 9500000 -broadcast -chainid=tendermint_test regular1
+gnokey maketx call -pkgpath gno.land/r/demo/echo -func Render -args "Hello!" -gas-fee 1000000ugnot -gas-wanted 12500000 -broadcast -chainid=tendermint_test regular1
 stdout 'Hello!'
 
 -- bank.gno --

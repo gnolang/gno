@@ -11,6 +11,7 @@ import (
 	"github.com/gnolang/gno/gno.land/pkg/gnoland/ugnot"
 	"github.com/gnolang/gno/tm2/pkg/amino"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
+	"github.com/gnolang/gno/tm2/pkg/crypto/secp256k1"
 	"github.com/gnolang/gno/tm2/pkg/sdk/bank"
 	"github.com/gnolang/gno/tm2/pkg/std"
 	"github.com/stretchr/testify/assert"
@@ -220,4 +221,30 @@ func TestGnoAccountSendRestrictions(t *testing.T) {
 	require.NoError(t, err)
 	require.True(t, bankpr.GetCoins(ctx, addr).IsEqual(std.NewCoins(std.NewCoin("barcoin", 20), std.NewCoin("foocoin", 10))))
 	require.True(t, bankpr.GetCoins(ctx, addr2).IsEqual(std.NewCoins(std.NewCoin("barcoin", 10), std.NewCoin("foocoin", 5))))
+}
+
+func TestSignGenesisTx(t *testing.T) {
+	t.Parallel()
+
+	var (
+		txs     = generateTxs(t, 100)
+		privKey = secp256k1.GenPrivKey()
+		pubKey  = privKey.PubKey()
+		chainID = "testing"
+	)
+
+	// Make sure the transactions are properly signed
+	require.NoError(t, SignGenesisTxs(txs, privKey, chainID))
+
+	// Make sure the signatures are valid
+	for _, tx := range txs {
+		payload, err := tx.Tx.GetSignBytes(chainID, 0, 0)
+		require.NoError(t, err)
+
+		sigs := tx.Tx.GetSignatures()
+		require.Len(t, sigs, 1)
+
+		assert.True(t, pubKey.Equals(sigs[0].PubKey))
+		assert.True(t, pubKey.VerifyBytes(payload, sigs[0].Signature))
+	}
 }

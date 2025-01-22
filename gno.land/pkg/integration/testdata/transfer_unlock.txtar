@@ -10,7 +10,7 @@ adduser regular1
 gnoland start -lock-transfer
 
 ## User test1 is an unrestricted account specified in the genesis state
-gnokey maketx send -send "9999999ugnot" -to $USER_ADDR_regular1 -gas-fee 1ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test test1
+gnokey maketx send -send "9999999ugnot" -to $regular1_user_addr -gas-fee 1ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test test1
 
 stdout 'OK!'
 
