@@ -288,6 +288,7 @@ func gnolandCmd(t *testing.T, nodesManager *NodesManager, gnoRootDir string) fun
 			genesis := cfg.Genesis.AppState.(gnoland.GnoGenesisState)
 			genesis.Txs = append(genesis.Txs, append(pkgsTxs, tsGenesis.Txs...)...)
 			genesis.Balances = append(genesis.Balances, tsGenesis.Balances...)
+			genesis.Params = append(genesis.Params, tsGenesis.Params...)
 			if *lockTransfer {
 				genesis.Bank.Params.RestrictedDenoms = []string{"ugnot"}
 			}
