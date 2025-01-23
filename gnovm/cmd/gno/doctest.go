@@ -10,6 +10,7 @@ import (
 
 	dt "github.com/gnolang/gno/gnovm/pkg/doctest"
 	"github.com/gnolang/gno/tm2/pkg/commands"
+	"golang.org/x/sync/errgroup"
 )
 
 type doctestCfg struct {
@@ -68,32 +69,32 @@ func execDoctest(cfg *doctestCfg, _ []string, io commands.IO) error {
 	ctx, cancel := context.WithTimeout(context.Background(), cfg.timeout)
 	defer cancel()
 
-	resultChan := make(chan []string)
-	errChan := make(chan error)
+	g, gctx := errgroup.WithContext(ctx)
 
-	go func() {
-		results, err := dt.ExecuteMatchingCodeBlock(ctx, content, cfg.runPattern)
+	var results []string
+	g.Go(func() error {
+		res, err := dt.ExecuteMatchingCodeBlock(gctx, content, cfg.runPattern)
 		if err != nil {
-			errChan <- err
-		} else {
-			resultChan <- results
+			return err
 		}
-	}()
+		results = res
+		return nil
+	})
 
-	select {
-	case results := <-resultChan:
-		if len(results) == 0 {
-			io.Println("No code blocks matched the pattern")
-			return nil
+	if err := g.Wait(); err != nil {
+		if ctx.Err() == context.DeadlineExceeded {
+			return fmt.Errorf("execution timed out after %v", cfg.timeout)
 		}
-		io.Println("Execution Result:")
-		io.Println(strings.Join(results, "\n\n"))
-	case err := <-errChan:
 		return fmt.Errorf("failed to execute code block: %w", err)
-	case <-ctx.Done():
-		return fmt.Errorf("execution timed out after %v", cfg.timeout)
 	}
 
+	if len(results) == 0 {
+		io.Println("No code blocks matched the pattern")
+		return nil
+	}
+
+	io.Println("Execution Result:")
+	io.Println(strings.Join(results, "\n\n"))
 	return nil
 }
 

@@ -13,7 +13,7 @@ import (
 	"github.com/gnolang/gno/gno.land/pkg/sdk/vm"
 	"github.com/gnolang/gno/gnovm"
 	bft "github.com/gnolang/gno/tm2/pkg/bft/types"
-	"github.com/gnolang/gno/tm2/pkg/crypto"
+	"github.com/gnolang/gno/tm2/pkg/crypto/ed25519"
 	"github.com/gnolang/gno/tm2/pkg/db/memdb"
 	"github.com/gnolang/gno/tm2/pkg/log"
 	"github.com/gnolang/gno/tm2/pkg/sdk"
@@ -38,7 +38,7 @@ var (
 	cache      = newCache(maxCacheSize)
 	regexCache = make(map[string]*regexp.Regexp)
 
-	addrRegex = regexp.MustCompile(`gno\.land/r/g[a-z0-9]+/[a-z.]+`)
+	addrRegex = regexp.MustCompile(`gno\.land/r/[a-z0-9]+/[a-z_/.]+`)
 )
 
 // ExecuteCodeBlock executes a parsed code block and executes it in a gno VM.
@@ -66,7 +66,9 @@ func ExecuteCodeBlock(c codeBlock, stdlibDir string) (string, error) {
 		{Name: fmt.Sprintf("%d.%s", c.index, lang), Body: c.content},
 	}
 
-	addr := crypto.AddressFromPreimage([]byte("addr1"))
+	// create a freash account for the code block
+	privKey := ed25519.GenPrivKey()
+	addr := privKey.PubKey().Address()
 	acc := acck.NewAccountWithAddress(ctx, addr)
 	acck.SetAccount(ctx, acc)
 
@@ -128,6 +130,11 @@ func ExecuteMatchingCodeBlock(
 	return results, nil
 }
 
+// setupEnv creates and initializes the execution environment for running extracted code blocks.
+// It sets up necessary keepers (account, bank, VM), initializes a test chain context,
+// and loads standard libraries. The function returns the context, keepers, and stdlib context
+// needed for code execution.
+//
 // ref: gno.land/pkg/sdk/vm/common_test.go
 func setupEnv() (
 	sdk.Context,
@@ -155,14 +162,14 @@ func setupEnv() (
 	prmk := paramsm.NewParamsKeeper(iavlKey, "params")
 	acck := authm.NewAccountKeeper(iavlKey, prmk, std.ProtoBaseAccount)
 	bank := bankm.NewBankKeeper(acck)
-	stdlibsDir := GetStdlibsDir()
-	vmk := vm.NewVMKeeper(baseKey, iavlKey, acck, bank, prmk)
 
 	mcw := ms.MultiCacheWrap()
 
+	vmk := vm.NewVMKeeper(baseKey, iavlKey, acck, bank, prmk)
 	vmk.Initialize(log.NewNoopLogger(), mcw)
 
 	stdlibCtx := vmk.MakeGnoTransactionStore(ctx.WithMultiStore(mcw))
+	stdlibsDir := GetStdlibsDir()
 	vmk.LoadStdlib(stdlibCtx, stdlibsDir)
 	vmk.CommitGnoTransactionStore(stdlibCtx)
 

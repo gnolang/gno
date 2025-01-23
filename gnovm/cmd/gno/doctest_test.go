@@ -88,8 +88,8 @@ func main() {
 			stdoutShouldContain: "=== StringReversal ===\n\n!oG ,olleH",
 		},
 		{
-			args:                []string{"doctest", "-path", mdFilePath, "-run", "StdPackage"},
-			stdoutShouldContain: "=== StdPackage ===\n\ng14ch5q26mhx3jk5cxl88t278nper264ces4m8nt",
+			args:              []string{"doctest", "-path", mdFilePath, "-run", "StdPackage"},
+			stdoutShouldMatch: `g[a-z0-9]+\n`,
 		},
 	}
 
