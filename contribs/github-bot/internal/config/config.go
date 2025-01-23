@@ -4,6 +4,7 @@ import (
 	"github.com/gnolang/gno/contribs/github-bot/internal/client"
 	c "github.com/gnolang/gno/contribs/github-bot/internal/conditions"
 	r "github.com/gnolang/gno/contribs/github-bot/internal/requirements"
+	"github.com/gnolang/gno/contribs/github-bot/internal/utils"
 )
 
 type Teams []string
@@ -41,11 +42,11 @@ func Config(gh *client.GitHub) ([]AutomaticCheck, []ManualCheck) {
 			Then: r.And(
 				r.Or(
 					r.AuthorInTeam(gh, "tech-staff"),
-					r.ReviewByTeamMembers(gh, "tech-staff", 1),
+					r.ReviewByTeamMembers(gh, "tech-staff").WithDesiredState(utils.ReviewStateApproved),
 				),
 				r.Or(
 					r.AuthorInTeam(gh, "devrels"),
-					r.ReviewByTeamMembers(gh, "devrels", 1),
+					r.ReviewByTeamMembers(gh, "devrels").WithDesiredState(utils.ReviewStateApproved),
 				),
 			),
 		},
@@ -55,10 +56,14 @@ func Config(gh *client.GitHub) ([]AutomaticCheck, []ManualCheck) {
 			Then:        r.Never(),
 		},
 		{
-			Description: "Pending initial approval by a review team member (and label matches review triage state)",
+			Description: "Pending initial approval by a review team member, or review from tech-staff",
 			If:          c.Not(c.AuthorInTeam(gh, "tech-staff")),
 			Then: r.
-				If(r.Or(r.ReviewByOrgMembers(gh, 1), r.Draft())).
+				If(r.Or(
+					r.ReviewByOrgMembers(gh).WithDesiredState(utils.ReviewStateApproved),
+					r.ReviewByTeamMembers(gh, "tech-staff"),
+					r.Draft(),
+				)).
 				// Either there was a first approval from a member, and we
 				// assert that the label for triage-pending is removed...
 				Then(r.Not(r.Label(gh, "review/triage-pending", r.LabelRemove))).
