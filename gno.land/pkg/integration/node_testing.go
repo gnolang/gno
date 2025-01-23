@@ -218,7 +218,6 @@ func GenerateMemPackage(path string, pairNameFile ...string) gnovm.MemPackage {
 func GenerateTestinGenesisState(creator crypto.PrivKey, pkgs ...gnovm.MemPackage) gnoland.GnoGenesisState {
 	txs := make([]gnoland.TxWithMetadata, len(pkgs))
 	for i, pkg := range pkgs {
-
 		// Create transaction
 		var tx std.Tx
 		tx.Fee = std.Fee{GasWanted: 1e6, GasFee: std.Coin{Amount: 1e6, Denom: "ugnot"}}
