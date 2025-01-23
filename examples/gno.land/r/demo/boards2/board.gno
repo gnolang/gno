@@ -69,6 +69,13 @@ func (board *Board) GetURL() string {
 	return strings.TrimPrefix(std.CurrentRealm().PkgPath(), "gno.land") + ":" + url.PathEscape(board.name)
 }
 
+// GetURL returns relative board path relative.
+//
+// Note: returned result is not escaped. Use GetURL to get URL-encoded path.
+func (board *Board) GetPath() string {
+	return strings.TrimPrefix(std.CurrentRealm().PkgPath(), "gno.land") + ":" + board.name
+}
+
 func (board *Board) GetPermissions() Permissions {
 	return board.perms
 }

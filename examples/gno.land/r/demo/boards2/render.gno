@@ -31,8 +31,9 @@ func renderBoardsList(res *mux.ResponseWriter, req *mux.Request) {
 	p := mustGetPagination(req, boardsPageSize)
 	page := p.Iterate(&gBoardsByID, func(_ string, value interface{}) bool {
 		board := value.(*Board)
+		path := board.GetPath()
 		url := board.GetURL()
-		res.Write(" * " + newLink(url, url) + "\n")
+		res.Write(" * " + newLink(path, url) + "\n")
 		return false
 	})
 
