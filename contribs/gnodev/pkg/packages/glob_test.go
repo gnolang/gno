@@ -10,6 +10,8 @@ import (
 )
 
 func TestMatch(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		pattern, input string
 		want           bool
@@ -64,6 +66,8 @@ func TestMatch(t *testing.T) {
 }
 
 func TestBaseFreeStar(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		pattern, baseFree string
 	}{

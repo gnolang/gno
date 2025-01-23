@@ -9,9 +9,12 @@ import (
 )
 
 func TestResolverFS_Resolve(t *testing.T) {
-	fsResolver := NewFSResolver("./testdata")
+	t.Parallel()
 
+	fsResolver := NewFSResolver("./testdata")
 	t.Run("valid packages", func(t *testing.T) {
+		t.Parallel()
+
 		for _, tpkg := range []string{TestdataPkgA, TestdataPkgB, TestdataPkgC} {
 			t.Run(tpkg, func(t *testing.T) {
 				pkg, err := fsResolver.Resolve(token.NewFileSet(), tpkg)
@@ -24,9 +27,11 @@ func TestResolverFS_Resolve(t *testing.T) {
 	})
 
 	t.Run("invalid packages", func(t *testing.T) {
+		t.Parallel()
+
 		pkg, err := fsResolver.Resolve(token.NewFileSet(), "abc.xy/wrong/package")
 		require.Nil(t, pkg)
 		require.Error(t, err)
-		require.ErrorAs(t, err, &ErrResolverPackageNotFound)
+		require.ErrorIs(t, err, ErrResolverPackageNotFound)
 	})
 }

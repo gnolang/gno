@@ -9,6 +9,8 @@ import (
 )
 
 func TestLoader_LoadWithDeps(t *testing.T) {
+	t.Parallel()
+
 	fsresolver := NewFSResolver("./testdata")
 	loader := NewLoader(fsresolver)
 
@@ -22,6 +24,8 @@ func TestLoader_LoadWithDeps(t *testing.T) {
 }
 
 func TestLoader_ResolverPriority(t *testing.T) {
+	t.Parallel()
+
 	const commonPath = "abc.yz/pkg/a"
 
 	pkgA := gnovm.MemPackage{Name: "pkga", Path: commonPath}
@@ -31,6 +35,8 @@ func TestLoader_ResolverPriority(t *testing.T) {
 	resolverB := NewMockResolver(&pkgB)
 
 	t.Run("pkgA then pkgB", func(t *testing.T) {
+		t.Parallel()
+
 		loader := NewLoader(resolverA, resolverB)
 		pkg, err := loader.Resolve(commonPath)
 		require.NoError(t, err)
@@ -39,6 +45,8 @@ func TestLoader_ResolverPriority(t *testing.T) {
 	})
 
 	t.Run("pkgB then pkgA", func(t *testing.T) {
+		t.Parallel()
+
 		loader := NewLoader(resolverB, resolverA)
 		pkg, err := loader.Resolve(commonPath)
 		require.NoError(t, err)

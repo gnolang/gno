@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"go/token"
 	"path/filepath"
+	"strings"
 
 	"github.com/gnolang/gno/gno.land/pkg/sdk/vm"
 	"github.com/gnolang/gno/gnovm"
@@ -14,13 +15,11 @@ import (
 
 type remoteResolver struct {
 	*client.RPCClient // Root folder
-	fset              *token.FileSet
 }
 
 func NewRemoteResolver(cl *client.RPCClient) Resolver {
 	return &remoteResolver{
 		RPCClient: cl,
-		fset:      token.NewFileSet(),
 	}
 }
 
@@ -39,7 +38,8 @@ func (res *remoteResolver) Resolve(fset *token.FileSet, path string) (*Package, 
 	}
 
 	if err := qres.Response.Error; err != nil {
-		if errors.Is(err, vm.InvalidPkgPathError{}) {
+		if errors.Is(err, vm.InvalidPkgPathError{}) ||
+			strings.HasSuffix(err.Error(), "is not available") { // XXX: find a better to check this
 			return nil, ErrResolverPackageNotFound
 		}
 

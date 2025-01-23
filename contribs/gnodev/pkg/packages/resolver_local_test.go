@@ -9,10 +9,14 @@ import (
 )
 
 func TestResolverLocal_Resolve(t *testing.T) {
+	t.Parallel()
+
 	const anotherPath = "abc.xy/another/path"
 	localResolver := NewLocalResolver(anotherPath, filepath.Join("./testdata", TestdataPkgA))
 
 	t.Run("valid package", func(t *testing.T) {
+		t.Parallel()
+
 		pkg, err := localResolver.Resolve(token.NewFileSet(), anotherPath)
 		require.NoError(t, err)
 		require.NotNil(t, pkg)
@@ -20,9 +24,11 @@ func TestResolverLocal_Resolve(t *testing.T) {
 	})
 
 	t.Run("invalid package", func(t *testing.T) {
+		t.Parallel()
+
 		pkg, err := localResolver.Resolve(token.NewFileSet(), "abc.xy/wrong/package")
 		require.Nil(t, pkg)
 		require.Error(t, err)
-		require.ErrorAs(t, err, &ErrResolverPackageNotFound)
+		require.ErrorIs(t, err, ErrResolverPackageNotFound)
 	})
 }

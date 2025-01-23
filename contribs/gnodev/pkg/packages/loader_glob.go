@@ -30,7 +30,6 @@ func (l GlobLoader) MatchPaths(globs ...string) ([]string, error) {
 	mpaths := []string{}
 	for _, input := range globs {
 		cleanInput := filepath.Clean(input)
-		fmt.Println("clean", cleanInput)
 		gpath, err := Parse(cleanInput)
 		if err != nil {
 			return nil, fmt.Errorf("invalid glob path %q: %w", input, err)
@@ -44,7 +43,6 @@ func (l GlobLoader) MatchPaths(globs ...string) ([]string, error) {
 
 		// root := filepath.Join(l.Root, base)
 		root := l.Root
-		fmt.Println("root", root)
 		err = filepath.WalkDir(root, func(dirpath string, d fs.DirEntry, err error) error {
 			if err != nil {
 				return err
@@ -64,7 +62,6 @@ func (l GlobLoader) MatchPaths(globs ...string) ([]string, error) {
 			}
 
 			if gpath.Match(relPath) {
-				fmt.Println(cleanInput, "match", relPath)
 				mpaths = append(mpaths, relPath)
 			}
 

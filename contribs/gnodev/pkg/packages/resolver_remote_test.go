@@ -50,9 +50,9 @@ func TestResolver_ResolveRemote(t *testing.T) {
 	})
 
 	t.Run("invalid package", func(t *testing.T) {
-		pkg, err := remoteResolver.Resolve(token.NewFileSet(), "gno.land/r/invalid/package")
+		pkg, err := remoteResolver.Resolve(token.NewFileSet(), "gno.land/r/not/a/valid/package")
 		require.Nil(t, pkg)
 		require.Error(t, err)
-		require.ErrorAs(t, err, &ErrResolverPackageNotFound)
+		require.ErrorIs(t, err, ErrResolverPackageNotFound)
 	})
 }
