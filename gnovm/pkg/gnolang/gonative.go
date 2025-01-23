@@ -493,7 +493,7 @@ func go2GnoValueUpdate(alloc *Allocator, rlm *Realm, lvl int, tv *TypedValue, rv
 			et := st.Elt
 			for i := 0; i < rvl; i++ {
 				erv := rv.Index(i)
-				etv := &sv.GetBase(nil).List[int(svo)+i] // XXX: svo may overflow on 32 bits platform.
+				etv := &sv.GetBase(nil).List[svo+i]
 				// XXX use Assign and Realm?
 				if etv.T == nil && et.Kind() != InterfaceKind {
 					etv.T = et
@@ -506,7 +506,7 @@ func go2GnoValueUpdate(alloc *Allocator, rlm *Realm, lvl int, tv *TypedValue, rv
 		} else {
 			for i := 0; i < rvl; i++ {
 				erv := rv.Index(i)
-				sv.GetBase(nil).Data[int(svo)+i] = uint8(erv.Uint()) // XXX: svo may overflow on 32 bits platform.
+				sv.GetBase(nil).Data[svo+i] = uint8(erv.Uint())
 			}
 		}
 	case PointerKind:
@@ -780,7 +780,7 @@ func gno2GoType(t Type) reflect.Type {
 		et := gno2GoType(ct.Elem())
 		return reflect.PointerTo(et)
 	case *ArrayType:
-		ne := int(ct.Len) // XXX: may overflow on 32 bits platforms.
+		ne := ct.Len
 		et := gno2GoType(ct.Elem())
 		return reflect.ArrayOf(ne, et)
 	case *SliceType:
@@ -1032,7 +1032,7 @@ func gno2GoValue(tv *TypedValue, rv reflect.Value) (ret reflect.Value) {
 		case StringType, UntypedStringType:
 			rv.SetString(tv.GetString())
 		case IntType:
-			rv.SetInt(int64(tv.GetInt()))
+			rv.SetInt(tv.GetInt())
 		case Int8Type:
 			rv.SetInt(int64(tv.GetInt8()))
 		case Int16Type:
@@ -1042,7 +1042,7 @@ func gno2GoValue(tv *TypedValue, rv reflect.Value) (ret reflect.Value) {
 		case Int64Type:
 			rv.SetInt(tv.GetInt64())
 		case UintType:
-			rv.SetUint(uint64(tv.GetUint()))
+			rv.SetUint(tv.GetUint())
 		case Uint8Type:
 			rv.SetUint(uint64(tv.GetUint8()))
 		case Uint16Type:
@@ -1082,7 +1082,7 @@ func gno2GoValue(tv *TypedValue, rv reflect.Value) (ret reflect.Value) {
 		// General case.
 		av := tv.V.(*ArrayValue)
 		if av.Data == nil {
-			for i := 0; i < int(ct.Len); i++ {
+			for i := 0; i < ct.Len; i++ {
 				etv := &av.List[i]
 				if etv.IsUndefined() {
 					continue
@@ -1090,7 +1090,7 @@ func gno2GoValue(tv *TypedValue, rv reflect.Value) (ret reflect.Value) {
 				gno2GoValue(etv, rv.Index(i))
 			}
 		} else {
-			for i := 0; i < int(ct.Len); i++ {
+			for i := 0; i < ct.Len; i++ {
 				val := av.Data[i]
 				erv := rv.Index(i)
 				erv.SetUint(uint64(val))
@@ -1108,9 +1108,9 @@ func gno2GoValue(tv *TypedValue, rv reflect.Value) (ret reflect.Value) {
 		svl := sv.Length
 		svc := sv.Maxcap
 		if sv.GetBase(nil).Data == nil {
-			rv.Set(reflect.MakeSlice(st, int(svl), int(svc))) // XXX: svl and svc may overflow on 32 bits platforms.
-			for i := 0; i < int(svl); i++ {
-				etv := &(sv.GetBase(nil).List[int(svo)+i]) // XXX: svo may overflow on 32 bits platforms.
+			rv.Set(reflect.MakeSlice(st, svl, svc))
+			for i := 0; i < svl; i++ {
+				etv := &(sv.GetBase(nil).List[svo+i])
 				if etv.IsUndefined() {
 					continue
 				}

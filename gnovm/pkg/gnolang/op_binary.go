@@ -1211,7 +1211,7 @@ func shlAssign(m *Machine, lv, rv *TypedValue) {
 	switch baseOf(lv.T) {
 	case IntType:
 		checkOverflow(func() bool {
-			l := big.NewInt(int64(lv.GetInt()))
+			l := big.NewInt(lv.GetInt())
 			r := big.NewInt(0).Lsh(l, uint(rv.GetUint()))
 
 			return r.Cmp(big.NewInt(math.MaxInt)) != 1
@@ -1256,7 +1256,7 @@ func shlAssign(m *Machine, lv, rv *TypedValue) {
 		lv.SetInt64(lv.GetInt64() << rv.GetUint())
 	case UintType:
 		checkOverflow(func() bool {
-			l := big.NewInt(0).SetUint64(uint64(lv.GetUint()))
+			l := big.NewInt(0).SetUint64(lv.GetUint())
 			r := big.NewInt(0).Lsh(l, uint(rv.GetUint()))
 
 			return r.Cmp(big.NewInt(0).SetUint64(math.MaxUint)) != 1
@@ -1335,7 +1335,7 @@ func shrAssign(m *Machine, lv, rv *TypedValue) {
 	switch baseOf(lv.T) {
 	case IntType:
 		checkOverflow(func() bool {
-			l := big.NewInt(int64(lv.GetInt()))
+			l := big.NewInt(lv.GetInt())
 			r := big.NewInt(0).Rsh(l, uint(rv.GetUint()))
 
 			return r.Cmp(big.NewInt(math.MaxInt)) != 1
@@ -1380,7 +1380,7 @@ func shrAssign(m *Machine, lv, rv *TypedValue) {
 		lv.SetInt64(lv.GetInt64() >> rv.GetUint())
 	case UintType:
 		checkOverflow(func() bool {
-			l := big.NewInt(0).SetUint64(uint64(lv.GetUint()))
+			l := big.NewInt(0).SetUint64(lv.GetUint())
 			r := big.NewInt(0).Rsh(l, uint(rv.GetUint()))
 
 			return r.Cmp(big.NewInt(0).SetUint64(math.MaxUint)) != 1

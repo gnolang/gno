@@ -1116,7 +1116,7 @@ func (tv *TypedValue) PrimitiveBytes() (data []byte) {
 	case UintType, Uint64Type:
 		data = make([]byte, 8)
 		binary.LittleEndian.PutUint64(
-			data, uint64(tv.GetUint()))
+			data, tv.GetUint())
 		return data
 	case Float32Type:
 		data = make([]byte, 4)

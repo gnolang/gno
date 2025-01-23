@@ -986,7 +986,7 @@ func makeUverseNode() {
 		func(m *Machine) {
 			arg0 := m.LastBlock().GetParams1()
 			xv := arg0
-			xvl := int(xv.TV.GetLength())
+			xvl := xv.TV.GetLength()
 			ss := make([]string, xvl)
 			for i := 0; i < xvl; i++ {
 				ev := xv.TV.GetPointerAtIndexInt(m.Store, i).Deref()
@@ -1007,7 +1007,7 @@ func makeUverseNode() {
 		func(m *Machine) {
 			arg0 := m.LastBlock().GetParams1()
 			xv := arg0
-			xvl := int(xv.TV.GetLength())
+			xvl := xv.TV.GetLength()
 			ss := make([]string, xvl)
 			for i := 0; i < xvl; i++ {
 				ev := xv.TV.GetPointerAtIndexInt(m.Store, i).Deref()
