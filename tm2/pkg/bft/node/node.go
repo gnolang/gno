@@ -265,7 +265,11 @@ func onlyValidatorIsUs(state sm.State, privVal types.PrivValidator) bool {
 		return false
 	}
 	addr, _ := state.Validators.GetByIndex(0)
-	return privVal.GetPubKey().Address() == addr
+	pubKey, err := privVal.GetPubKey()
+	if err != nil {
+		return false
+	}
+	return pubKey.Address() == addr
 }
 
 func createMempoolAndMempoolReactor(config *cfg.Config, proxyApp appconn.AppConns,
@@ -411,9 +415,8 @@ func NewNode(config *cfg.Config,
 		}
 	}
 
-	pubKey := privValidator.GetPubKey()
-	if pubKey == nil {
-		// TODO: GetPubKey should return errors - https://github.com/gnolang/gno/tm2/pkg/bft/issues/3602
+	pubKey, err := privValidator.GetPubKey()
+	if err != nil {
 		return nil, errors.New("could not retrieve public key from private validator")
 	}
 
@@ -704,7 +707,10 @@ func (n *Node) configureRPC() {
 	rpccore.SetMempool(n.mempool)
 	rpccore.SetP2PPeers(n.sw)
 	rpccore.SetP2PTransport(n)
-	pubKey := n.privValidator.GetPubKey()
+	pubKey, err := n.privValidator.GetPubKey()
+	if err != nil {
+		panic(err)
+	}
 	rpccore.SetPubKey(pubKey)
 	rpccore.SetGenesisDoc(n.genesisDoc)
 	rpccore.SetProxyAppQuery(n.proxyApp.Query())

@@ -19,8 +19,8 @@ type gnokeyPrivVal struct {
 var _ types.PrivValidator = (*gnokeyPrivVal)(nil)
 
 // GetPubKey implements types.PrivValidator.
-func (gk *gnokeyPrivVal) GetPubKey() crypto.PubKey {
-	return gk.keyInfo.GetPubKey()
+func (gk *gnokeyPrivVal) GetPubKey() (crypto.PubKey, error) {
+	return gk.keyInfo.GetPubKey(), nil
 }
 
 // SignProposal implements types.PrivValidator.

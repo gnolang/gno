@@ -1,6 +1,7 @@
 package privval
 
 import (
+	"fmt"
 	"time"
 
 	"github.com/gnolang/gno/tm2/pkg/bft/types"
@@ -64,25 +65,25 @@ func (sc *SignerClient) Ping() error {
 }
 
 // GetPubKey retrieves a public key from a remote signer
-func (sc *SignerClient) GetPubKey() crypto.PubKey {
+func (sc *SignerClient) GetPubKey() (crypto.PubKey, error) {
 	response, err := sc.endpoint.SendRequest(&PubKeyRequest{})
 	if err != nil {
 		sc.endpoint.Logger.Error("SignerClient::GetPubKey", "err", err)
-		return nil
+		return nil, fmt.Errorf("send request failed: %w", err)
 	}
 
 	pubKeyResp, ok := response.(*PubKeyResponse)
 	if !ok {
 		sc.endpoint.Logger.Error("SignerClient::GetPubKey", "err", "response != PubKeyResponse")
-		return nil
+		return nil, fmt.Errorf("wrong response type: %T", response)
 	}
 
 	if pubKeyResp.Error != nil {
 		sc.endpoint.Logger.Error("failed to get private validator's public key", "err", pubKeyResp.Error)
-		return nil
+		return nil, fmt.Errorf("response contains error: %w", err)
 	}
 
-	return pubKeyResp.PubKey
+	return pubKeyResp.PubKey, nil
 }
 
 // SignVote requests a remote signer to sign a vote

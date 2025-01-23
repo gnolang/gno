@@ -83,13 +83,19 @@ func TestSignerGetPubKey(t *testing.T) {
 		defer tc.signerServer.Stop()
 		defer tc.signerClient.Close()
 
-		pubKey := tc.signerClient.GetPubKey()
-		expectedPubKey := tc.mockPV.GetPubKey()
+		pubKey, err := tc.signerClient.GetPubKey()
+		if err != nil {
+			t.Fatalf("unable to get pubKey: %v", err)
+		}
+		expectedPubKey, err := tc.mockPV.GetPubKey()
+		if err != nil {
+			t.Fatalf("unable to get expectedPubKey: %v", err)
+		}
 
 		assert.Equal(t, expectedPubKey, pubKey)
 
-		addr := tc.signerClient.GetPubKey().Address()
-		expectedAddr := tc.mockPV.GetPubKey().Address()
+		addr := pubKey.Address()
+		expectedAddr := expectedPubKey.Address()
 
 		assert.Equal(t, expectedAddr, addr)
 	}

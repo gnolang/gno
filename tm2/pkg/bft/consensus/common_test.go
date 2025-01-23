@@ -78,7 +78,11 @@ func NewValidatorStub(privValidator types.PrivValidator, valIndex int) *validato
 }
 
 func (vs *validatorStub) signVote(voteType types.SignedMsgType, hash []byte, header types.PartSetHeader) (*types.Vote, error) {
-	addr := vs.PrivValidator.GetPubKey().Address()
+	pk, err := vs.PrivValidator.GetPubKey()
+	if err != nil {
+		return nil, err
+	}
+	addr := pk.Address()
 	vote := &types.Vote{
 		ValidatorIndex:   vs.Index,
 		ValidatorAddress: addr,
@@ -88,7 +92,7 @@ func (vs *validatorStub) signVote(voteType types.SignedMsgType, hash []byte, hea
 		Type:             voteType,
 		BlockID:          types.BlockID{Hash: hash, PartsHeader: header},
 	}
-	err := vs.PrivValidator.SignVote(config.ChainID(), vote)
+	err = vs.PrivValidator.SignVote(config.ChainID(), vote)
 	return vote, err
 }
 
@@ -128,7 +132,16 @@ func (vss ValidatorStubsByAddress) Len() int {
 }
 
 func (vss ValidatorStubsByAddress) Less(i, j int) bool {
-	return vss[i].GetPubKey().Address().Compare(vss[j].GetPubKey().Address()) == -1
+	pvi, err := vss[i].GetPubKey()
+	if err != nil {
+		panic(err)
+	}
+	pvj, err := vss[j].GetPubKey()
+	if err != nil {
+		panic(err)
+	}
+
+	return pvi.Address().Compare(pvj.Address()) == -1
 }
 
 func (vss ValidatorStubsByAddress) Swap(i, j int) {
@@ -181,7 +194,11 @@ func signAddVotes(to *ConsensusState, voteType types.SignedMsgType, hash []byte,
 
 func validatePrevote(cs *ConsensusState, round int, privVal *validatorStub, blockHash []byte) {
 	prevotes := cs.Votes.Prevotes(round)
-	address := privVal.GetPubKey().Address()
+	pvPubKey, err := privVal.GetPubKey()
+	if err != nil {
+		panic(err)
+	}
+	address := pvPubKey.Address()
 	var vote *types.Vote
 	if vote = prevotes.GetByAddress(address); vote == nil {
 		panic("Failed to find prevote from validator")
@@ -199,7 +216,11 @@ func validatePrevote(cs *ConsensusState, round int, privVal *validatorStub, bloc
 
 func validateLastPrecommit(cs *ConsensusState, privVal *validatorStub, blockHash []byte) {
 	votes := cs.LastCommit
-	address := privVal.GetPubKey().Address()
+	pvPubKey, err := privVal.GetPubKey()
+	if err != nil {
+		panic(err)
+	}
+	address := pvPubKey.Address()
 	var vote *types.Vote
 	if vote = votes.GetByAddress(address); vote == nil {
 		panic("Failed to find precommit from validator")
@@ -211,7 +232,11 @@ func validateLastPrecommit(cs *ConsensusState, privVal *validatorStub, blockHash
 
 func validatePrecommit(_ *testing.T, cs *ConsensusState, thisRound, lockRound int, privVal *validatorStub, votedBlockHash, lockedBlockHash []byte) {
 	precommits := cs.Votes.Precommits(thisRound)
-	address := privVal.GetPubKey().Address()
+	pvPubKey, err := privVal.GetPubKey()
+	if err != nil {
+		panic(err)
+	}
+	address := pvPubKey.Address()
 	var vote *types.Vote
 	if vote = precommits.GetByAddress(address); vote == nil {
 		panic("Failed to find precommit from validator")
