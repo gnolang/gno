@@ -87,7 +87,7 @@ func TestReviewByUser(t *testing.T) {
 
 			pr := &github.PullRequest{}
 			details := treeprint.New()
-			requirement := ApprovalByUser(gh, testCase.user)
+			requirement := ReviewByUser(gh, testCase.user).WithDesiredState(utils.ReviewStateApproved)
 
 			assert.Equal(t, requirement.IsSatisfied(pr, details), testCase.isSatisfied, fmt.Sprintf("requirement should have a satisfied status: %t", testCase.isSatisfied))
 			assert.True(t, utils.TestLastNodeStatus(t, testCase.isSatisfied, details), fmt.Sprintf("requirement details should have a status: %t", testCase.isSatisfied))
@@ -165,7 +165,7 @@ func TestReviewByTeamMembers(t *testing.T) {
 		name           string
 		team           string
 		count          uint
-		state          string
+		state          utils.ReviewState
 		reviewers      github.Reviewers
 		expectedResult byte
 	}{
@@ -268,13 +268,16 @@ func TestReviewByOrgMembers(t *testing.T) {
 	}
 
 	for _, testCase := range []struct {
-		name        string
-		count       uint
-		isSatisfied bool
+		name         string
+		count        uint
+		desiredState utils.ReviewState
+		isSatisfied  bool
 	}{
-		{"2/3 org members approved", 3, false},
-		{"2/2 org members approved", 2, true},
-		{"2/1 org members approved", 1, true},
+		{"2/3 org members approved", 3, utils.ReviewStateApproved, false},
+		{"2/2 org members approved", 2, utils.ReviewStateApproved, true},
+		{"2/1 org members approved", 1, utils.ReviewStateApproved, true},
+		{"3/3 org members reviewed", 3, "", true},
+		{"3/4 org members reviewed", 4, "", false},
 	} {
 		t.Run(testCase.name, func(t *testing.T) {
 			t.Parallel()
@@ -297,7 +300,9 @@ func TestReviewByOrgMembers(t *testing.T) {
 
 			pr := &github.PullRequest{}
 			details := treeprint.New()
-			requirement := ApprovalByOrgMembers(gh, testCase.count)
+			requirement := ReviewByOrgMembers(gh).
+				WithCount(testCase.count).
+				WithDesiredState(testCase.desiredState)
 
 			assert.Equal(t, requirement.IsSatisfied(pr, details), testCase.isSatisfied, fmt.Sprintf("requirement should have a satisfied status: %t", testCase.isSatisfied))
 			assert.True(t, utils.TestLastNodeStatus(t, testCase.isSatisfied, details), fmt.Sprintf("requirement details should have a status: %t", testCase.isSatisfied))

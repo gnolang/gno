@@ -60,7 +60,7 @@ func Config(gh *client.GitHub) ([]AutomaticCheck, []ManualCheck) {
 			If:          c.Not(c.AuthorInTeam(gh, "tech-staff")),
 			Then: r.
 				If(r.Or(
-					r.ApprovalByOrgMembers(gh, 1),
+					r.ReviewByOrgMembers(gh).WithDesiredState(utils.ReviewStateApproved),
 					r.ReviewByTeamMembers(gh, "tech-staff"),
 					r.Draft(),
 				)).
