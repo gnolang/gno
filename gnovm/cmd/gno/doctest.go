@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"flag"
 	"fmt"
 	"os"
@@ -58,7 +59,7 @@ func (c *doctestCfg) RegisterFlags(fs *flag.FlagSet) {
 
 func execDoctest(cfg *doctestCfg, _ []string, io commands.IO) error {
 	if cfg.markdownPath == "" {
-		return fmt.Errorf("markdown file path is required")
+		return errors.New("markdown file path is required")
 	}
 
 	content, err := fetchMarkdown(cfg.markdownPath)
