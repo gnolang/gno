@@ -454,6 +454,20 @@ func (m *Machine) RunFiles(fns ...*FileNode) {
 	m.runInitFromUpdates(pv, updates)
 }
 
+// PreprocessFiles runs Preprocess on the given files, without saving
+// them to the store. It is used to detect compile-time errors in the package.
+func (m *Machine) PreprocessFiles(pkgName, pkgPath string, fset *FileSet) {
+	if err := checkDuplicates(fset); err != nil {
+		panic(fmt.Errorf("running package %q: %w", pkgName, err))
+	}
+	pn := NewPackageNode(Name(pkgName), pkgPath, fset)
+	m.Store.SetBlockNode(pn)
+	PredefineFileSet(m.Store, pn, fset)
+	for _, fn := range fset.Files {
+		fn = Preprocess(m.Store, pn, fn).(*FileNode)
+	}
+}
+
 // Add files to the package's *FileSet and run decls in them.
 // This will also run each init function encountered.
 // Returns the updated typed values of package.

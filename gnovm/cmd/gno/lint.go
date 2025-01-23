@@ -162,13 +162,10 @@ func execLint(cfg *lintCfg, args []string, io commands.IO) error {
 			tm := test.Machine(gs, goio.Discard, memPkg.Path)
 			defer tm.Release()
 
-			// Check package
-			tm.RunMemPackage(memPkg, true)
-
 			// Check test files
-			testFiles := lintTestFiles(memPkg)
+			packageFiles := sourceAndTestFileset(memPkg)
 
-			tm.RunFiles(testFiles.Files...)
+			tm.PreprocessFiles(memPkg.Name, memPkg.Path, packageFiles)
 		})
 		if hasRuntimeErr {
 			hasError = true
@@ -221,7 +218,7 @@ func lintTypeCheck(io commands.IO, memPkg *gnovm.MemPackage, testStore gno.Store
 	return true, nil
 }
 
-func lintTestFiles(memPkg *gnovm.MemPackage) *gno.FileSet {
+func sourceAndTestFileset(memPkg *gnovm.MemPackage) *gno.FileSet {
 	testfiles := &gno.FileSet{}
 	for _, mfile := range memPkg.Files {
 		if !strings.HasSuffix(mfile.Name, ".gno") {
@@ -234,7 +231,8 @@ func lintTestFiles(memPkg *gnovm.MemPackage) *gno.FileSet {
 		}
 
 		// XXX: package ending with `_test` is not supported yet
-		if strings.HasSuffix(mfile.Name, "_test.gno") && !strings.HasSuffix(string(n.PkgName), "_test") {
+		if !strings.HasSuffix(mfile.Name, "_filetest.gno") &&
+			!strings.HasSuffix(string(n.PkgName), "_test") {
 			// Keep only test files
 			testfiles.AddFiles(n)
 		}
