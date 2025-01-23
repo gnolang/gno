@@ -433,7 +433,7 @@ EXEC_SWITCH:
 	if debug {
 		debug.Printf("EXEC: %v\n", s)
 	}
-	debug2.Printf2("EXEC: %v\n", s)
+	debug2.Printf2("EXEC: %v, type of s: %v \n", s, reflect.TypeOf(s))
 	switch cs := s.(type) {
 	case *AssignStmt:
 		switch cs.Op {

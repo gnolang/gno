@@ -253,9 +253,12 @@ func (alloc *Allocator) Allocate(size int64) {
 		return
 	}
 
+	// if alloc on throwaway still exceeds memory,
+	// means GC does not work, panic.
 	if alloc.throwAway {
 		if alloc.bytes > alloc.maxBytes {
 			debug2.Println2("---exceed memory size............")
+			panic("exceed memory size")
 		}
 	}
 

@@ -54,6 +54,7 @@ func (m *Machine) doOpAssign() {
 
 func (m *Machine) doOpAddAssign() {
 	s := m.PopStmt().(*AssignStmt)
+	debug2.Println2("doOpAddAssign, s: ", s)
 	rv := m.PopValue() // only one.
 	lv := m.PopAsPointer(s.Lhs[0])
 	if debug {

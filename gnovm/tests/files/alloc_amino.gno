@@ -9,8 +9,9 @@ import "runtime"
 type Foo struct{ name string }
 
 var f = Foo{name: "foo"}
+var m = map[string]Foo{"a": f}
 
 func main() {
-	println(f) // here should alloc amino for f
+	println(f, m) // here should alloc amino for f
 	runtime.GC()
 }

@@ -60,13 +60,13 @@ func main() {
 }
 
 // Output:
-// MemStats 1:  Allocator{maxBytes:10000000000, bytes:1944}
+// MemStats 1:  Allocator{maxBytes:9223372036854775807, bytes:1944}
 // &(struct{("foo" string)} main.Foo)
-// MemStats 2:  Allocator{maxBytes:10000000000, bytes:6019}
-// MemStats before GC1:  Allocator{maxBytes:10000000000, bytes:7518}
-// MemStats after GC1:  Allocator{maxBytes:10000000000, bytes:2424}
+// MemStats 2:  Allocator{maxBytes:9223372036854775807, bytes:6027}
+// MemStats before GC1:  Allocator{maxBytes:9223372036854775807, bytes:7534}
+// MemStats after GC1:  Allocator{maxBytes:9223372036854775807, bytes:2720}
 // func lit
-// MemStats before GC2:  Allocator{maxBytes:10000000000, bytes:5443}
-// MemStats after GC2:  Allocator{maxBytes:10000000000, bytes:2424}
-// MemStats before GC3:  Allocator{maxBytes:10000000000, bytes:3923}
-// MemStats after GC3:  Allocator{maxBytes:10000000000, bytes:2424}
+// MemStats before GC2:  Allocator{maxBytes:9223372036854775807, bytes:5747}
+// MemStats after GC2:  Allocator{maxBytes:9223372036854775807, bytes:2888}
+// MemStats before GC3:  Allocator{maxBytes:9223372036854775807, bytes:4395}
+// MemStats after GC3:  Allocator{maxBytes:9223372036854775807, bytes:2888}
