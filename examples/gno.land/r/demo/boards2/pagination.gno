@@ -6,8 +6,8 @@ import (
 )
 
 type PaginationOpts struct {
-	Pager      pager.Pager
-	PageNumber int
+	pager      pager.Pager
+	pageNumber int
 }
 
 // Iterate loops over an a page.
@@ -19,8 +19,8 @@ func (opts *PaginationOpts) Iterate(tree *avl.Tree, cb func(k string, val interf
 		return nil
 	}
 
-	opts.Pager.Tree = tree
-	page := opts.Pager.GetPage(opts.PageNumber)
+	opts.pager.Tree = tree
+	page := opts.pager.GetPage(opts.pageNumber)
 	for _, item := range page.Items {
 		if cb(item.Key, item.Value) {
 			break
@@ -42,7 +42,7 @@ func mustGetPagination(rawPath string, pageSize int) *PaginationOpts {
 	}
 
 	return &PaginationOpts{
-		Pager:      p,
-		PageNumber: pageNumber,
+		pager:      p,
+		pageNumber: pageNumber,
 	}
 }
