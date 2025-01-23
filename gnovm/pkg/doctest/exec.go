@@ -11,6 +11,7 @@ import (
 	"strings"
 
 	"github.com/gnolang/gno/gno.land/pkg/sdk/vm"
+	"github.com/gnolang/gno/gnovm"
 	bft "github.com/gnolang/gno/tm2/pkg/bft/types"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
 	"github.com/gnolang/gno/tm2/pkg/db/memdb"
@@ -18,6 +19,7 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/sdk"
 	authm "github.com/gnolang/gno/tm2/pkg/sdk/auth"
 	bankm "github.com/gnolang/gno/tm2/pkg/sdk/bank"
+	paramsm "github.com/gnolang/gno/tm2/pkg/sdk/params"
 	"github.com/gnolang/gno/tm2/pkg/std"
 	"github.com/gnolang/gno/tm2/pkg/store"
 	"github.com/gnolang/gno/tm2/pkg/store/dbadapter"
@@ -60,7 +62,7 @@ func ExecuteCodeBlock(c codeBlock, stdlibDir string) (string, error) {
 
 	ctx, acck, _, vmk, stdlibCtx := setupEnv()
 
-	files := []*std.MemFile{
+	files := []*gnovm.MemFile{
 		{Name: fmt.Sprintf("%d.%s", c.index, lang), Body: c.content},
 	}
 
@@ -150,10 +152,11 @@ func setupEnv() (
 		&bft.Header{ChainID: "test-chain-id"},
 		log.NewNoopLogger(),
 	)
-	acck := authm.NewAccountKeeper(iavlKey, std.ProtoBaseAccount)
+	prmk := paramsm.NewParamsKeeper(iavlKey, "params")
+	acck := authm.NewAccountKeeper(iavlKey, prmk, std.ProtoBaseAccount)
 	bank := bankm.NewBankKeeper(acck)
 	stdlibsDir := GetStdlibsDir()
-	vmk := vm.NewVMKeeper(baseKey, iavlKey, acck, bank, 100_000_000)
+	vmk := vm.NewVMKeeper(baseKey, iavlKey, acck, bank, prmk)
 
 	mcw := ms.MultiCacheWrap()
 

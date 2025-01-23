@@ -75,7 +75,8 @@ func TestReadMemPackage(t *testing.T) {
 	}
 
 	// Test Case 1: Valid Package Directory
-	memPkg := ReadMemPackage(tempDir, "testpkg")
+	memPkg, err := ReadMemPackage(tempDir, "testpkg")
+	require.NoError(t, err)
 	require.NotNil(t, memPkg)
 	assert.Len(t, memPkg.Files, len(validFiles), "MemPackage should contain only valid files")
 
