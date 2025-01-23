@@ -2871,6 +2871,21 @@ func findBlockAllocation(store Store, ctx BlockNode, bn BlockNode) {
 		debug2.Println2("last...BlockNames: ", last.GetBlockNames())
 		debug2.Println2("last...Externs: ", last.GetExternNames())
 
+		isStringConcatenation := func(bx *BinaryExpr) bool {
+			if bx.Op == ADD {
+				lt := evalStaticTypeOf(store, last, bx.Left)
+				rt := evalStaticTypeOf(store, last, bx.Right)
+				debug2.Printf2("lt: %v, rt: %v: \n", lt, rt)
+				_, ok1 := lt.(PrimitiveType)
+				_, ok2 := rt.(PrimitiveType)
+				// 	s := "hello" + "world"
+				if ok1 && lt.Kind() == StringKind && ok2 && rt.Kind() == StringKind {
+					return true
+				}
+			}
+			return false
+		}
+
 		switch stage {
 		// ----------------------------------------
 		case TRANS_BLOCK:
@@ -2904,18 +2919,11 @@ func findBlockAllocation(store Store, ctx BlockNode, bn BlockNode) {
 							case *ConstExpr:
 								if bx, ok := rxx.Source.(*BinaryExpr); ok {
 									debug2.Println2("BinaryExpr: ", bx)
-									if bx.Op == ADD {
-										lt := evalStaticTypeOf(store, last, bx.Left)
-										rt := evalStaticTypeOf(store, last, bx.Right)
-										debug2.Printf2("lt: %v, rt: %v: \n", lt, rt)
-										_, ok1 := lt.(PrimitiveType)
-										_, ok2 := rt.(PrimitiveType)
-										// 	s := "hello" + "world"
-										if ok1 && lt.Kind() == StringKind && ok2 && rt.Kind() == StringKind {
-											nx.Alloc = true
-										}
-									}
+									nx.Alloc = isStringConcatenation(bx)
 								}
+							case *BinaryExpr:
+								debug2.Println2("BinaryExpr: ", rxx)
+								nx.Alloc = isStringConcatenation(rxx)
 							case *CompositeLitExpr, *FuncLitExpr: // TODO: more ...
 								nx.Alloc = true
 							}
