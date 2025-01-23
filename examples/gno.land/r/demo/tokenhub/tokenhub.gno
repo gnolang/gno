@@ -4,6 +4,7 @@ import (
 	"std"
 
 	"gno.land/p/demo/avl"
+	"gno.land/p/demo/fqname"
 	"gno.land/p/demo/grc/grc1155"
 	"gno.land/p/demo/grc/grc20"
 	"gno.land/p/demo/grc/grc721"
@@ -27,9 +28,13 @@ const nft = "nft"     // grc721
 const mt = "mt"       // grc1155
 
 // RegisterToken is a function that uses gno.land/r/demo/grc20reg to register a token
+// It uses the slug to construct a key and then registers the token in the registry
+// The logic is the same as in grc20reg, but it's done here so the key path is callers pkgpath and not of this realm
 // After doing so, the token hub realm uses grc20reg's registry as a read-only avl.Tree
 func RegisterToken(tokenGetter grc20.TokenGetter, slug string) {
-	grc20reg.Register(tokenGetter, slug)
+	rlmPath := std.PrevRealm().PkgPath()
+	key := fqname.Construct(rlmPath, slug)
+	grc20reg.RegisterWithTokenhub(tokenGetter, key)
 }
 
 // RegisterNFT is a function that registers an NFT in an avl.Tree

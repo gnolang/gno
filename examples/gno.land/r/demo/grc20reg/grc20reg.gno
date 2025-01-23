@@ -23,6 +23,22 @@ func Register(tokenGetter grc20.TokenGetter, slug string) {
 	)
 }
 
+func RegisterWithTokenhub(tokenGetter grc20.TokenGetter, key string) {
+	prevRealmPath := std.PrevRealm().PkgPath()
+	if prevRealmPath != "gno.land/r/demo/tokenhub" {
+		return
+	}
+
+	registry.Set(key, tokenGetter)
+
+	rlmPath, slug := fqname.Parse(key)
+	std.Emit(
+		registerEvent,
+		"pkgpath", rlmPath,
+		"slug", slug,
+	)
+}
+
 func Get(key string) grc20.TokenGetter {
 	tokenGetter, ok := registry.Get(key)
 	if !ok {

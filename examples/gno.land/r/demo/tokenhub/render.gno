@@ -30,13 +30,13 @@ func Render(path string) string {
 	default:
 		out = md.H1("404 Not Found")
 		out += md.Paragraph("The requested page does not exist.")
-		out += md.Link("Back to home", "http://localhost:8888/r/matijamarjanovic/tokenhub")
+		out += md.Link("Back to home", "http://localhost:8888/r/demo/tokenhub")
 	}
 
 	// navigation footer if not on home page
 	if path != "" {
 		out += "\n"
-		out += md.Link("Back to home", "http://localhost:8888/r/matijamarjanovic/tokenhub")
+		out += md.Link("Back to home", "http://localhost:8888/r/demo/tokenhub")
 	}
 
 	return out
@@ -47,9 +47,9 @@ func RenderHome() string {
 	out += md.Paragraph("A central registry for GRC721 NFTs, GRC20 tokens, and GRC1155 multi-tokens on gno.land")
 
 	links := []string{
-		md.Link("GRC20 Tokens", "http://localhost:8888/r/matijamarjanovic/tokenhub:tokens"),
-		md.Link("GRC721 NFTs", "http://localhost:8888/r/matijamarjanovic/tokenhub:nfts"),
-		md.Link("GRC1155 Multi-Tokens", "http://localhost:8888/r/matijamarjanovic/tokenhub:mts"),
+		md.Link("GRC20 Tokens", "http://localhost:8888/r/demo/tokenhub:tokens"),
+		md.Link("GRC721 NFTs", "http://localhost:8888/r/demo/tokenhub:nfts"),
+		md.Link("GRC1155 Multi-Tokens", "http://localhost:8888/r/demo/tokenhub:mts"),
 	}
 	out += md.BulletList(links)
 
