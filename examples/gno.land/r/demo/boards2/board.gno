@@ -114,6 +114,7 @@ func (board *Board) Render(p *PaginationOpts) string {
 	sb.WriteString("\n\n")
 
 	if board.threads.Size() == 0 {
+		sb.WriteString("*This board doesn't have any threads.*")
 		return sb.String()
 	}
 
