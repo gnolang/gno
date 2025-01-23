@@ -16,15 +16,16 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/db"
 	"github.com/gnolang/gno/tm2/pkg/db/memdb"
 	"github.com/gnolang/gno/tm2/pkg/events"
-	"github.com/gnolang/gno/tm2/pkg/p2p"
+	"github.com/gnolang/gno/tm2/pkg/p2p/types"
 )
 
 type InMemoryNodeConfig struct {
-	PrivValidator bft.PrivValidator // identity of the validator
-	Genesis       *bft.GenesisDoc
-	TMConfig      *tmcfg.Config
-	DB            *memdb.MemDB // will be initialized if nil
-	VMOutput      io.Writer    // optional
+	PrivValidator           bft.PrivValidator // identity of the validator
+	Genesis                 *bft.GenesisDoc
+	TMConfig                *tmcfg.Config
+	DB                      db.DB     // will be initialized if nil
+	VMOutput                io.Writer // optional
+	SkipGenesisVerification bool
 
 	// If StdlibDir not set, then it's filepath.Join(TMConfig.RootDir, "gnovm", "stdlibs")
 	InitChainerConfig
@@ -112,11 +113,12 @@ func NewInMemoryNode(logger *slog.Logger, cfg *InMemoryNodeConfig) (*node.Node, 
 
 	// Initialize the application with the provided options
 	gnoApp, err := NewAppWithOptions(&AppOptions{
-		Logger:            logger,
-		DB:                cfg.DB,
-		EventSwitch:       evsw,
-		InitChainerConfig: cfg.InitChainerConfig,
-		VMOutput:          cfg.VMOutput,
+		Logger:                  logger,
+		DB:                      cfg.DB,
+		EventSwitch:             evsw,
+		InitChainerConfig:       cfg.InitChainerConfig,
+		VMOutput:                cfg.VMOutput,
+		SkipGenesisVerification: cfg.SkipGenesisVerification,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("error initializing new app: %w", err)
@@ -138,7 +140,7 @@ func NewInMemoryNode(logger *slog.Logger, cfg *InMemoryNodeConfig) (*node.Node, 
 	dbProvider := func(*node.DBContext) (db.DB, error) { return cfg.DB, nil }
 
 	// Generate p2p node identity
-	nodekey := &p2p.NodeKey{PrivKey: ed25519.GenPrivKey()}
+	nodekey := &types.NodeKey{PrivKey: ed25519.GenPrivKey()}
 
 	// Create and return the in-memory node instance
 	return node.NewNode(cfg.TMConfig,

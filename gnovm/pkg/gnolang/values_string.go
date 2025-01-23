@@ -2,6 +2,7 @@ package gnolang
 
 import (
 	"fmt"
+	"math"
 	"reflect"
 	"strconv"
 	"strings"
@@ -339,9 +340,9 @@ func (tv *TypedValue) ProtectedSprint(seen *seenValues, considerDeclaredType boo
 		case Uint64Type:
 			return fmt.Sprintf("%d", tv.GetUint64())
 		case Float32Type:
-			return fmt.Sprintf("%v", tv.GetFloat32())
+			return fmt.Sprintf("%v", math.Float32frombits(tv.GetFloat32()))
 		case Float64Type:
-			return fmt.Sprintf("%v", tv.GetFloat64())
+			return fmt.Sprintf("%v", math.Float64frombits(tv.GetFloat64()))
 		case UntypedBigintType, BigintType:
 			return tv.V.(BigintValue).V.String()
 		case UntypedBigdecType, BigdecType:
@@ -447,9 +448,9 @@ func (tv TypedValue) ProtectedString(seen *seenValues) string {
 		case Uint64Type:
 			vs = fmt.Sprintf("%d", tv.GetUint64())
 		case Float32Type:
-			vs = fmt.Sprintf("%v", tv.GetFloat32())
+			vs = fmt.Sprintf("%v", math.Float32frombits(tv.GetFloat32()))
 		case Float64Type:
-			vs = fmt.Sprintf("%v", tv.GetFloat64())
+			vs = fmt.Sprintf("%v", math.Float64frombits(tv.GetFloat64()))
 		// Complex types that require recusion protection.
 		default:
 			vs = nilStr

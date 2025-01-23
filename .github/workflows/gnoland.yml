@@ -11,6 +11,9 @@ on:
       # since there are integration suites that cover the gnovm / tm2
       - gnovm/**
       - tm2/**
+      # Changes to examples/ can create failures in gno.land, eg. txtars,
+      # see: https://github.com/gnolang/gno/pull/3590
+      - examples/**
   workflow_dispatch:
 
 jobs:
