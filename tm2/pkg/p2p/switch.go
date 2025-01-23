@@ -569,7 +569,7 @@ func (sw *MultiplexSwitch) DialPeers(peerAddrs ...*types.NetAddress) {
 		}
 
 		sw.dialQueue.Push(item)
-		sw.notifyAddPeer()
+		sw.notifyAddPeerToDial()
 	}
 }
 
@@ -593,7 +593,7 @@ func (sw *MultiplexSwitch) dialItems(dialItems ...dial.Item) {
 		}
 
 		sw.dialQueue.Push(dialItem)
-		sw.notifyAddPeer()
+		sw.notifyAddPeerToDial()
 	}
 }
 
@@ -704,7 +704,7 @@ func (sw *MultiplexSwitch) addPeer(p PeerConn) error {
 	return nil
 }
 
-func (sw *MultiplexSwitch) notifyAddPeer() {
+func (sw *MultiplexSwitch) notifyAddPeerToDial() {
 	select {
 	case sw.dialNotify <- struct{}{}:
 	default:
