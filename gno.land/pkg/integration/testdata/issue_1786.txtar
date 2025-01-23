@@ -43,42 +43,41 @@ module gno.land/r/demo/proxywugnot
 package proxywugnot
 
 import (
-	"std"
+    "std"
 
-	"gno.land/r/demo/wugnot"
-	pusers "gno.land/p/demo/users"
+    "gno.land/r/demo/wugnot"
 )
 
 func ProxyWrap() {
-	sent := std.GetOrigSend()
-	ugnotSent := uint64(sent.AmountOf("ugnot"))
+    sent := std.GetOrigSend()
+    ugnotSent := uint64(sent.AmountOf("ugnot"))
 
-	if ugnotSent == 0 {
-		return
-	}
+    if ugnotSent == 0 {
+       return
+    }
 
-	// WRAP IT
-	wugnotAddr := std.DerivePkgAddr("gno.land/r/demo/wugnot")
-	banker := std.GetBanker(std.BankerTypeRealmSend)
-	banker.SendCoins(std.CurrentRealm().Addr(), wugnotAddr, std.Coins{{"ugnot", int64(ugnotSent)}})
-	wugnot.Deposit() // `proxywugnot` has ugnot
+    // WRAP IT
+    wugnotAddr := std.DerivePkgAddr("gno.land/r/demo/wugnot")
+    banker := std.GetBanker(std.BankerTypeRealmSend)
+    banker.SendCoins(std.CurrentRealm().Addr(), wugnotAddr, std.Coins{{"ugnot", int64(ugnotSent)}})
+    wugnot.Deposit() // `proxywugnot` has ugnot
 
-	// SEND WUGNOT: PROXY_WUGNOT -> USER
-	wugnot.Transfer(pusers.AddressOrName(std.GetOrigCaller()), ugnotSent)
+    // SEND WUGNOT: PROXY_WUGNOT -> USER
+    wugnot.Transfer(std.GetOrigCaller(), ugnotSent)
 }
 
 func ProxyUnwrap(wugnotAmount uint64) {
-	if wugnotAmount == 0 {
-		return
-	}
+    if wugnotAmount == 0 {
+       return
+    }
 
-	// SEND WUGNOT: USER -> PROXY_WUGNOT
-	wugnot.TransferFrom(pusers.AddressOrName(std.GetOrigCaller()), pusers.AddressOrName(std.CurrentRealm().Addr()), wugnotAmount)
+    // SEND WUGNOT: USER -> PROXY_WUGNOT
+    wugnot.TransferFrom(std.GetOrigCaller(), std.CurrentRealm().Addr(), wugnotAmount)
 
-	// UNWRAP IT
-	wugnot.Withdraw(wugnotAmount)
+    // UNWRAP IT
+    wugnot.Withdraw(wugnotAmount)
 
-	// SEND GNOT: PROXY_WUGNOT -> USER
-	banker := std.GetBanker(std.BankerTypeRealmSend)
-	banker.SendCoins(std.CurrentRealm().Addr(), std.GetOrigCaller(), std.Coins{{"ugnot", int64(wugnotAmount)}})
+    // SEND GNOT: PROXY_WUGNOT -> USER
+    banker := std.GetBanker(std.BankerTypeRealmSend)
+    banker.SendCoins(std.CurrentRealm().Addr(), std.GetOrigCaller(), std.Coins{{"ugnot", int64(wugnotAmount)}})
 }
