@@ -216,18 +216,30 @@ func expandNative(coins std.Coins) (denoms []string, amounts []int64) {
 }
 
 func (t *T) SetContext(ctx Context) {
-	originSentDenom, originSentAmount := expandNative(ctx.OrigSend)
+	originSendDenom, originSendAmount := expandNative(ctx.OriginSend)
+	originSpendDenom, originSpendAmount := expandNative(ctx.OriginSpend)
+
 	testSetContext(
 		ctx.IsOrigin,
-		ctx.OriginCaller.String(),
+		ctx.PreviousRealm.Addr().String(),
+		ctx.PreviousRealm.PkgPath(),
 		ctx.OriginPkgAddress,
-		originSentDenom, originSentAmount,
+		originSendDenom, originSendAmount,
+		originSpendDenom, originSpendAmount,
 		ctx.ChainID,
 		ctx.Height,
 		ctx.Time.Unix(), ctx.Time.UnixNano(),
 		ctx.Banker, // TODO
 		ctx.Logger, // TODO
 	)
+}
+
+func (t *T) SetPreviousRealm(prevRealm std.Realm) {
+	t.SetContext(Context{PreviousRealm: prevRealm})
+}
+
+func (t *T) SetOriginSend(sent std.Coins) {
+	t.SetContext(Context{OriginSend: sent})
 }
 
 func (t *T) log(s string) {
@@ -390,9 +402,11 @@ func tRunner(t *T, fn testingFunc, verbose bool) {
 
 func testSetContext(
 	isOrigin bool,
-	originCaller string,
+	prevRealmAddr string,
+	prevRealmPath string,
 	originPkgAddress string,
 	origSendDenoms []string, origSendAmounts []int64,
+	origSpendDenoms []string, origSpendAmounts []int64,
 	chainID string,
 	height int64,
 	timeUnix int64, timeNano int64,

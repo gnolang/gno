@@ -15,9 +15,11 @@ func X_unixNano() int64 {
 func X_testSetContext(
 	m *gno.Machine,
 	isOrigin bool,
-	originCaller string,
+	prevRealmAddr string,
+	prevRealmPath string,
 	originPkgAddress string,
 	origSendDenoms []string, origSendAmounts []int64,
+	origSpendDenoms []string, origSpendAmounts []int64,
 	chainID string,
 	height int64,
 	timeUnix int64, timeNano int64,
@@ -42,8 +44,8 @@ func X_testSetContext(
 		ctx.TimestampNano = timeNano
 	}
 
-	if originCaller != "" {
-		ctx.OrigCaller = crypto.Bech32Address(originCaller)
+	if prevRealmAddr != "" {
+		ctx.OrigCaller = crypto.Bech32Address(prevRealmAddr)
 	}
 
 	if originPkgAddress != "" {
@@ -52,6 +54,11 @@ func X_testSetContext(
 
 	if origSendDenoms != nil && origSendAmounts != nil && len(origSendDenoms) == len(origSendAmounts) {
 		ctx.OrigSend = std.CompactCoins(origSendDenoms, origSendAmounts)
+	}
+
+	if origSpendDenoms != nil && origSpendAmounts != nil && len(origSpendDenoms) == len(origSpendAmounts) {
+		coins := std.CompactCoins(origSpendDenoms, origSpendAmounts)
+		ctx.OrigSendSpent = &coins
 	}
 
 	m.Context = ctx

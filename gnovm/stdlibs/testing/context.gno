@@ -7,9 +7,10 @@ import (
 
 type Context struct {
 	IsOrigin         bool
-	OriginCaller     std.Address
+	PreviousRealm    std.Realm
 	OriginPkgAddress string
-	OrigSend         std.Coins
+	OriginSend       std.Coins
+	OriginSpend      std.Coins
 	ChainID          string
 	Height           int64
 	Time             time.Time
