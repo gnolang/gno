@@ -272,7 +272,7 @@ func (sw *MultiplexSwitch) runDialLoop(ctx context.Context) {
 			if item == nil {
 				// Nothing to dial, wait until something is
 				// added to the queue
-				sw.waitForAddPeer(ctx)
+				sw.waitForPeersToDial(ctx)
 				continue
 			}
 
@@ -711,7 +711,7 @@ func (sw *MultiplexSwitch) notifyAddPeerToDial() {
 	}
 }
 
-func (sw *MultiplexSwitch) waitForAddPeer(ctx context.Context) {
+func (sw *MultiplexSwitch) waitForPeersToDial(ctx context.Context) {
 	select {
 	case <-ctx.Done():
 	case <-sw.dialNotify:
