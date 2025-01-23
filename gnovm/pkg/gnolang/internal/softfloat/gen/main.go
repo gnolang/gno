@@ -82,7 +82,7 @@ func processSoftFloat64TestFile() {
 }
 
 func gofumpt() {
-	cmd := exec.Command("go", "run", "mvdan.cc/gofumpt@latest", "-w", ".")
+	cmd := exec.Command("go", "run", "-modfile", "../../../../../misc/devdeps/go.mod", "mvdan.cc/gofumpt", "-w", ".")
 	_, err := cmd.Output()
 	if err != nil {
 		log.Fatal("error gofumpt:", err)
