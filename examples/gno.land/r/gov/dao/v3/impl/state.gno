@@ -5,15 +5,15 @@ import (
 
 	"gno.land/p/demo/avl"
 	"gno.land/p/demo/ufmt"
+	"gno.land/r/gov/dao/v3/types"
 )
 
-var theLaw *Law
-var members MembersByTier
+var theLaw *types.Law
+var members types.MembersByTier
 
 func init() {
-	theLaw = &Law{
+	theLaw = &types.Law{
 		VotingPercentageNeeded: 66,
-		Payment:                90000,
 	}
 
 	theLaw.CheckMemberAddProposal = memberAddChecker
@@ -21,30 +21,34 @@ func init() {
 	theLaw.CheckMemberWithdrawnProposal = memberWithdrawnChecker
 	theLaw.CheckProposalWithdrawn = proposalWithdrawnCheker
 
-	theLaw.Tiers = TiersByName{avl.NewTree()}
-	theLaw.Tiers.Set(T1, Tier{
-		MinSize: func(membersByTier MembersByTier, tiersByName TiersByName) int {
+	theLaw.Tiers = types.TiersByName{avl.NewTree()}
+	theLaw.Tiers.Set(T1, types.Tier{
+		InvitationPoints: 3,
+		Payment: 90000,
+		MinSize: func(membersByTier types.MembersByTier, tiersByName types.TiersByName) int {
 			return 70
 		},
-		MaxSize: func(membersByTier MembersByTier, tiersByName TiersByName) int {
+		MaxSize: func(membersByTier types.MembersByTier, tiersByName types.TiersByName) int {
 			return 0
 		},
 		BasePower: 3,
-		PowerHandler: func(membersByTier MembersByTier, tiersByName TiersByName) float64 {
+		PowerHandler: func(membersByTier types.MembersByTier, tiersByName types.TiersByName) float64 {
 			t, _ := tiersByName.GetTier(T1)
 			return t.BasePower
 		},
 	})
 
-	theLaw.Tiers.Set(T2, Tier{
-		MaxSize: func(membersByTier MembersByTier, tiersByName TiersByName) int {
+	theLaw.Tiers.Set(T2, types.Tier{
+		InvitationPoints: 2,
+		Payment: 90000,
+		MaxSize: func(membersByTier types.MembersByTier, tiersByName types.TiersByName) int {
 			return membersByTier.GetTierSize(T1) * 4
 		},
-		MinSize: func(membersByTier MembersByTier, tiersByName TiersByName) int {
+		MinSize: func(membersByTier types.MembersByTier, tiersByName types.TiersByName) int {
 			return membersByTier.GetTierSize(T1) / 4
 		},
 		BasePower: 2,
-		PowerHandler: func(membersByTier MembersByTier, tiersByName TiersByName) float64 {
+		PowerHandler: func(membersByTier types.MembersByTier, tiersByName types.TiersByName) float64 {
 			t1ms := float64(membersByTier.GetTierSize(T1))
 			t1, _ := tiersByName.GetTier(T1)
 			t2ms := float64(membersByTier.GetTierSize(T2))
@@ -63,15 +67,17 @@ func init() {
 		},
 	})
 
-	theLaw.Tiers.Set(T3, Tier{
-		MaxSize: func(membersByTier MembersByTier, tiersByName TiersByName) int {
+	theLaw.Tiers.Set(T3, types.Tier{
+		InvitationPoints: 1,
+		Payment: 0,
+		MaxSize: func(membersByTier types.MembersByTier, tiersByName types.TiersByName) int {
 			return 0
 		},
-		MinSize: func(membersByTier MembersByTier, tiersByName TiersByName) int {
+		MinSize: func(membersByTier types.MembersByTier, tiersByName types.TiersByName) int {
 			return 0
 		},
 		BasePower: 1,
-		PowerHandler: func(membersByTier MembersByTier, tiersByName TiersByName) float64 {
+		PowerHandler: func(membersByTier types.MembersByTier, tiersByName types.TiersByName) float64 {
 			t1ms := float64(membersByTier.GetTierSize(T1))
 			t1, _ := tiersByName.GetTier(T1)
 			t3ms := float64(membersByTier.GetTierSize(T3))
@@ -90,11 +96,11 @@ func init() {
 		},
 	})
 
-	members = NewMembersByTier()
-	members.SetMember(T1, moul, &Member{})
+	members = types.NewMembersByTier()
+	members.SetMember(T1, moul, &types.Member{})
 }
 
-func memberAddChecker(membersByTier MembersByTier, proposer std.Address, proposedTier string, proposedAddr std.Address) error {
+func memberAddChecker(membersByTier types.MembersByTier, proposer std.Address, proposedTier string, proposedAddr std.Address) error {
 	// TODO: implement logic to check add member proposals
 	_, proposerTier := membersByTier.GetMember(proposer)
 	// TODO: check invitation points
@@ -117,7 +123,7 @@ func memberAddChecker(membersByTier MembersByTier, proposer std.Address, propose
 	return nil
 }
 
-func memberPromoteChecker(membersByTier MembersByTier, proposer std.Address, proposedTier string, proposedAddr std.Address) error {
+func memberPromoteChecker(membersByTier types.MembersByTier, proposer std.Address, proposedTier string, proposedAddr std.Address) error {
 	// TODO: implement logic to check promote member proposals
 	//TODO check if the proposed member is on a lower tier
 
@@ -143,27 +149,29 @@ func memberPromoteChecker(membersByTier MembersByTier, proposer std.Address, pro
 	return nil
 }
 
-func memberWithdrawnChecker(membersByTier MembersByTier, proposer std.Address, proposedAddr std.Address) error {
+func memberWithdrawnChecker(membersByTier types.MembersByTier, proposer std.Address, proposedAddr std.Address) error {
 	return nil // anyone can create a withdraw member proposal
 }
 
-func proposalWithdrawnCheker(membersByTier MembersByTier, proposer std.Address) error {
+func proposalWithdrawnCheker(membersByTier types.MembersByTier, proposer std.Address) error {
 	// TODO: implement logic to check withdraw proposals
 	return nil
 }
 
-var lawStringifier func(law *Law, allMembers MembersByTier) string = func(law *Law, allMembers MembersByTier) string {
-	out := "Law Definition:\n\n"
+var lawStringifier func(law *types.Law, allMembers types.MembersByTier) string = func(law *types.Law, allMembers types.MembersByTier) string {
+	out := "## Law Definition:\n\n"
 	out += ufmt.Sprintf("The total voting power needed to accept a proposal is %d%%.\n\n", law.VotingPercentageNeeded)
+
 	out += ufmt.Sprintf("The law defines the existence of %d tiers:\n", law.Tiers.Size())
 	law.Tiers.Iterate("", "", func(tn string, value interface{}) bool {
-		t := value.(Tier)
+		t := value.(types.Tier)
 		capped := t.PowerHandler(allMembers, law.Tiers)
-		out += ufmt.Sprintf("- %s with a base power per member of %v.\n", tn, t.BasePower)
-		out += ufmt.Sprintf("\tThe actual capped power for this tier taking into account actual members is %v.\n", capped)
+		out += ufmt.Sprintf("### %s with a base power per member of %v.\n\n", tn, t.BasePower)
+		out += ufmt.Sprintf("The actual capped power for this tier taking into account actual members is %v.\n\n", capped)
+		out += ufmt.Sprintf("The actual payment defined for members is %v.\n\n", t.Payment)
 
 		tierSize := allMembers.GetTierSize(tn)
-		out += ufmt.Sprintf("\tDesired max amount of member is %d and the desired min is %d. There are today %d members on that tier.\n",
+		out += ufmt.Sprintf("Desired max amount of member is %d and the desired min is %d. There are today %d members on that tier.\n\n",
 			t.MaxSize(allMembers, law.Tiers), t.MinSize(allMembers, law.Tiers), tierSize)
 
 		return false

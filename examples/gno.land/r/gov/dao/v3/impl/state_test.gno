@@ -8,16 +8,18 @@ import (
 
 	"gno.land/p/demo/avl"
 	"gno.land/p/demo/testutils"
+	"gno.land/r/gov/dao/ruler"
+	"gno.land/r/gov/dao/v3/types"
 )
 
 func TestPowerDefinedInLaw(t *testing.T) {
-	ms := NewMembersByTier()
+	ms := types.NewMembersByTier()
 	addMembers(ms, 100, T1)
 	addMembers(ms, 100, T2)
 	addMembers(ms, 100, T3)
 
 	theLaw.Tiers.Iterate("", "", func(key string, value interface{}) bool {
-		po := value.(Tier).PowerHandler(ms, theLaw.Tiers)
+		po := value.(types.Tier).PowerHandler(ms, theLaw.Tiers)
 		if key == T1 && po != 3.0 {
 			t.Fatal("wrong value for T1")
 		}
@@ -31,13 +33,13 @@ func TestPowerDefinedInLaw(t *testing.T) {
 		return false
 	})
 
-	ms = NewMembersByTier()
+	ms = types.NewMembersByTier()
 	addMembers(ms, 100, T1)
 	addMembers(ms, 50, T2)
 	addMembers(ms, 10, T3)
 
 	theLaw.Tiers.Iterate("", "", func(key string, value interface{}) bool {
-		po := value.(Tier).PowerHandler(ms, theLaw.Tiers)
+		po := value.(types.Tier).PowerHandler(ms, theLaw.Tiers)
 		if key == T1 && po != 3.0 {
 			t.Fatal("wrong value for T1")
 		}
@@ -51,13 +53,13 @@ func TestPowerDefinedInLaw(t *testing.T) {
 		return false
 	})
 
-	ms = NewMembersByTier()
+	ms = types.NewMembersByTier()
 	addMembers(ms, 100, T1)
 	addMembers(ms, 200, T2)
 	addMembers(ms, 100, T3)
 
 	theLaw.Tiers.Iterate("", "", func(key string, value interface{}) bool {
-		po := value.(Tier).PowerHandler(ms, theLaw.Tiers)
+		po := value.(types.Tier).PowerHandler(ms, theLaw.Tiers)
 		if key == T1 && po != 3.0 {
 			t.Fatal("wrong value for T1")
 		}
@@ -71,13 +73,13 @@ func TestPowerDefinedInLaw(t *testing.T) {
 		return false
 	})
 
-	ms = NewMembersByTier()
+	ms = types.NewMembersByTier()
 	addMembers(ms, 100, T1)
 	addMembers(ms, 200, T2)
 	addMembers(ms, 1000, T3)
 
 	theLaw.Tiers.Iterate("", "", func(key string, value interface{}) bool {
-		po := value.(Tier).PowerHandler(ms, theLaw.Tiers)
+		po := value.(types.Tier).PowerHandler(ms, theLaw.Tiers)
 		if key == T1 && po != 3.0 {
 			t.Fatal("wrong value for T1")
 		}
@@ -93,7 +95,7 @@ func TestPowerDefinedInLaw(t *testing.T) {
 }
 
 func TestLawString(t *testing.T) {
-	ms := NewMembersByTier()
+	ms := types.NewMembersByTier()
 	addMembers(ms, 10, T1)
 	addMembers(ms, 20, T2)
 	addMembers(ms, 100, T3)
@@ -114,19 +116,21 @@ func TestProposeRunSeveralProposals(t *testing.T) {
 		t.Fatal("wrong proposal number", pn)
 	}
 
-	pn = NewProposal(&Proposal{
-		Author:      std.Address("U1"),
+	pn = NewProposal(&types.Proposal{
 		Title:       "Custom Proposal",
 		Description: "This is a custom proposal",
-		Executor: NewExecutor(func(m Metadata) error {
-			// This will be executed by the proposal
-			// Check that the one executing that was the correct realm!!
+		Executor: types.NewExecutor(func(m types.Metadata) error {
+			if ruler.CurrentDAO != std.PrevRealm().PkgPath() {
+				panic("trying to execute with the wrong realm!: " + std.PrevRealm().PkgPath())
+			}
 			return nil
 		}, &propMetadata{}),
 	})
 	if pn != 2 {
 		t.Fatal("wrong proposal number", pn)
 	}
+
+	std.TestSetRealm(std.NewUserRealm(moul))
 
 	Vote(0, "YES")
 	Vote(1, "NO")
@@ -142,11 +146,11 @@ func (m *propMetadata) String() string {
 	return "proposal metadata!"
 }
 
-func addMembers(ms MembersByTier, c int, tier string) {
+func addMembers(ms types.MembersByTier, c int, tier string) {
 	mt := avl.NewTree()
 	for i := 0; i < c; i++ {
 		addr := std.Address(strconv.Itoa(i))
-		mt.Set(string(addr), &Member{})
+		mt.Set(string(addr), &types.Member{})
 	}
 
 	ms.Set(tier, mt)

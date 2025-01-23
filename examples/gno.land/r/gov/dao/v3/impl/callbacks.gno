@@ -5,11 +5,12 @@ import (
 	"std"
 
 	"gno.land/p/demo/ufmt"
+	"gno.land/r/gov/dao/v3/types"
 )
 
 // changeTheLawCallback implements the function needed for an executor,
 // making possible to create a proposal for changing the DAO's law.
-func changeTheLawCallback(m Metadata) error {
+func changeTheLawCallback(m types.Metadata) error {
 	mm, ok := m.(*lawMetadata)
 	if !ok {
 		return errors.New("wrong metadata type for changing the law")
@@ -21,20 +22,20 @@ func changeTheLawCallback(m Metadata) error {
 }
 
 type lawMetadata struct {
-	NewLaw *Law
+	NewLaw *types.Law
 }
 
 func (a *lawMetadata) IsMetadata()    {}
 func (a *lawMetadata) String() string { return lawStringifier(a.NewLaw, members) }
 
 type lawStringMetadata struct {
-	newStringTemplate func(law *Law, allMembers MembersByTier) string
+	newStringTemplate func(law *types.Law, allMembers types.MembersByTier) string
 }
 
 func (a *lawStringMetadata) IsMetadata()    {}
 func (a *lawStringMetadata) String() string { return a.newStringTemplate(theLaw, members) }
 
-func changeTheLawStringCallback(m Metadata) error {
+func changeTheLawStringCallback(m types.Metadata) error {
 	mm, ok := m.(*lawStringMetadata)
 	if !ok {
 		return errors.New("wrong metadata type for changing the law string template")
@@ -47,7 +48,7 @@ func changeTheLawStringCallback(m Metadata) error {
 
 // addNewMemberCallback implements the function needed for an executor,
 // making possible to create a proposal for adding new members to the DAO
-func addNewMemberCallback(m Metadata) error {
+func addNewMemberCallback(m types.Metadata) error {
 	// TODO:
 	/*
 		T1 criteria includes expertise in categories, significant contributions, and demonstration of value alignment. T2 criteria includes expertise in categories, continuing contributions. T3 criteria includes expertise in categories, continuing contributions.
@@ -68,7 +69,7 @@ func addNewMemberCallback(m Metadata) error {
 }
 
 type addMemberMetadata struct {
-	Member *Member
+	Member *types.Member
 	Tier   string
 	Addr   std.Address
 }
@@ -78,7 +79,7 @@ func (a *addMemberMetadata) String() string {
 	return ufmt.Sprintf("A new member with address %v is proposed to be on tier %v.", a.Addr, a.Tier)
 }
 
-func promoteNewMemberCallback(m Metadata) error {
+func promoteNewMemberCallback(m types.Metadata) error {
 	mm, ok := m.(*addMemberMetadata)
 	if !ok {
 		return errors.New("wrong metadata type for adding or modifying a new member")
