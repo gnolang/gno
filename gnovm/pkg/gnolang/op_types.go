@@ -85,8 +85,9 @@ func (m *Machine) doOpFuncType() {
 	}
 	// Push func type.
 	ft := &FuncType{
-		Params:  params,
-		Results: results,
+		Params:    params,
+		Results:   results,
+		IsClosure: x.IsClosure,
 	}
 	m.PushValue(TypedValue{
 		T: gTypeType,

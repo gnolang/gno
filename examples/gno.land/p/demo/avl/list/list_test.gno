@@ -2,6 +2,8 @@ package list
 
 import (
 	"testing"
+
+	"gno.land/p/demo/ufmt"
 )
 
 func TestList_Basic(t *testing.T) {
@@ -392,6 +394,68 @@ func TestList_IndexConsistency(t *testing.T) {
 		if idx != i {
 			t.Errorf("ForEach index %d = %d; want %d", i, idx, i)
 		}
+	}
+}
+
+func TestList_RecursiveSafety(t *testing.T) {
+	// Create a new list
+	l := &List{}
+
+	// Add some initial values
+	l.Append("id1")
+	l.Append("id2")
+	l.Append("id3")
+
+	// Test deep list traversal
+	found := false
+	l.ForEach(func(i int, v interface{}) bool {
+		if str, ok := v.(string); ok {
+			if str == "id2" {
+				found = true
+				return true // stop iteration
+			}
+		}
+		return false // continue iteration
+	})
+
+	if !found {
+		t.Error("Failed to find expected value in list")
+	}
+
+	short := testing.Short()
+
+	// Test recursive safety by performing multiple operations
+	for i := 0; i < 1000; i++ {
+		// Add new value
+		l.Append(ufmt.Sprintf("id%d", i+4))
+
+		if !short {
+			// Search for a value
+			var lastFound bool
+			l.ForEach(func(j int, v interface{}) bool {
+				if str, ok := v.(string); ok {
+					if str == ufmt.Sprintf("id%d", i+3) {
+						lastFound = true
+						return true
+					}
+				}
+				return false
+			})
+
+			if !lastFound {
+				t.Errorf("Failed to find value id%d after insertion", i+3)
+			}
+		}
+	}
+
+	// Verify final length
+	expectedLen := 1003 // 3 initial + 1000 added
+	if l.Len() != expectedLen {
+		t.Errorf("Expected length %d, got %d", expectedLen, l.Len())
+	}
+
+	if short {
+		t.Skip("skipping extended recursive safety test in short mode")
 	}
 }
 
