@@ -26,8 +26,7 @@ func processSoftFloat64File() {
 	// Read source file
 	content, err := os.ReadFile(fmt.Sprintf("%s/src/runtime/softfloat64.go", runtime.GOROOT()))
 	if err != nil {
-		fmt.Println("Error reading source file:", err)
-		return
+		log.Fatal("Error reading source file:", err)
 	}
 
 	// Prepare header
@@ -54,8 +53,7 @@ func processSoftFloat64TestFile() {
 	// Read source test file
 	content, err := os.ReadFile(fmt.Sprintf("%s/src/runtime/softfloat64_test.go", runtime.GOROOT()))
 	if err != nil {
-		fmt.Println("Error reading source test file:", err)
-		return
+		log.Fatal("Error reading source test file:", err)
 	}
 
 	// Prepare header
