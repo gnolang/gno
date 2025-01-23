@@ -7,15 +7,9 @@ import (
 	"path"
 	"strings"
 
-	markdown "github.com/yuin/goldmark-highlighting/v2"
-
-	"github.com/alecthomas/chroma/v2"
-	chromahtml "github.com/alecthomas/chroma/v2/formatters/html"
-	"github.com/alecthomas/chroma/v2/styles"
 	"github.com/gnolang/gno/gno.land/pkg/gnoweb/components"
 	"github.com/gnolang/gno/tm2/pkg/bft/rpc/client"
 	"github.com/yuin/goldmark"
-	"github.com/yuin/goldmark/extension"
 	mdhtml "github.com/yuin/goldmark/renderer/html"
 )
 
@@ -55,16 +49,6 @@ func NewDefaultAppConfig() *AppConfig {
 	}
 }
 
-var chromaDefaultStyle = mustGetStyle("friendly")
-
-func mustGetStyle(name string) *chroma.Style {
-	s := styles.Get(name)
-	if s == nil {
-		panic("unable to get chroma style")
-	}
-	return s
-}
-
 // NewRouter initializes the gnoweb router with the specified logger and configuration.
 func NewRouter(logger *slog.Logger, cfg *AppConfig) (http.Handler, error) {
 	// Initialize RPC Client
@@ -73,42 +57,18 @@ func NewRouter(logger *slog.Logger, cfg *AppConfig) (http.Handler, error) {
 		return nil, fmt.Errorf("unable to create HTTP client: %w", err)
 	}
 
-	// Configure Chroma highlighter
-	chromaOptions := []chromahtml.Option{
-		chromahtml.WithLineNumbers(true),
-		chromahtml.WithLinkableLineNumbers(true, "L"),
-		chromahtml.WithClasses(true),
-		chromahtml.ClassPrefix("chroma-"),
-	}
-	chroma := chromahtml.New(chromaOptions...)
-
-	// Configure Goldmark markdown parser
-	mdopts := []goldmark.Option{
-		goldmark.WithExtensions(
-			markdown.NewHighlighting(
-				markdown.WithFormatOptions(chromaOptions...),
-			),
-			extension.Table,
-		),
-	}
+	// Setup web client HTML
+	webcfg := NewDefaultHTMLWebClientConfig(client)
+	webcfg.Domain = cfg.Domain
 	if cfg.UnsafeHTML {
-		mdopts = append(mdopts, goldmark.WithRendererOptions(mdhtml.WithXHTML(), mdhtml.WithUnsafe()))
+		webcfg.GoldmarkOptions = append(webcfg.GoldmarkOptions, goldmark.WithRendererOptions(
+			mdhtml.WithXHTML(), mdhtml.WithUnsafe(),
+		))
 	}
-	md := goldmark.New(mdopts...)
-
-	// Configure WebClient
-	webcfg := HTMLWebClientConfig{
-		Markdown:    md,
-		Highlighter: NewChromaSourceHighlighter(chroma, chromaDefaultStyle),
-		Domain:      cfg.Domain,
-		UnsafeHTML:  cfg.UnsafeHTML,
-		RPCClient:   client,
-	}
-
-	webcli := NewHTMLClient(logger, &webcfg)
-	chromaStylePath := path.Join(cfg.AssetsPath, "_chroma", "style.css")
+	webcli := NewHTMLClient(logger, webcfg)
 
 	// Setup StaticMetadata
+	chromaStylePath := path.Join(cfg.AssetsPath, "_chroma", "style.css")
 	staticMeta := StaticMetadata{
 		Domain:     cfg.Domain,
 		AssetsPath: cfg.AssetsPath,
@@ -135,10 +95,10 @@ func NewRouter(logger *slog.Logger, cfg *AppConfig) (http.Handler, error) {
 	if cfg.FaucetURL != "" {
 		mux.Handle("/faucet", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			http.Redirect(w, r, cfg.FaucetURL, http.StatusFound)
-			components.RenderRedirectComponent(w, components.RedirectData{
+			components.RedirectView(components.RedirectData{
 				To:            cfg.FaucetURL,
 				WithAnalytics: cfg.Analytics,
-			})
+			}).Render(w)
 		}))
 	}
 
@@ -146,7 +106,7 @@ func NewRouter(logger *slog.Logger, cfg *AppConfig) (http.Handler, error) {
 	// XXX: probably move this elsewhere
 	mux.Handle(chromaStylePath, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "text/css")
-		if err := chroma.WriteCSS(w, chromaDefaultStyle); err != nil {
+		if err := webcli.WriteFormatterCSS(w); err != nil {
 			logger.Error("unable to write CSS", "err", err)
 			http.NotFound(w, r)
 		}

@@ -10,7 +10,7 @@ import (
 // Draft Condition.
 type draft struct{}
 
-var _ Condition = &baseBranch{}
+var _ Condition = &draft{}
 
 func (*draft) IsMet(pr *github.PullRequest, details treeprint.Tree) bool {
 	return utils.AddStatusNode(pr.GetDraft(), "This pull request is a draft", details)
