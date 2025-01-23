@@ -422,78 +422,38 @@ func TestParseInt64Base(t *testing.T) {
 }
 
 func TestParseUint(t *testing.T) {
-	switch IntSize {
-	case 32:
-		for i := range parseUint32Tests {
-			test := &parseUint32Tests[i]
-			out, err := ParseUint(test.in, 10, 0)
-			if uint64(test.out) != out || !errEqual(test.err, err) {
-				t.Errorf("ParseUint(%q, 10, 0) = %v, %v want %v, %v",
-					test.in, out, err, test.out, test.err)
-			}
-		}
-	case 64:
-		for i := range parseUint64Tests {
-			test := &parseUint64Tests[i]
-			out, err := ParseUint(test.in, 10, 0)
-			if test.out != out || !errEqual(test.err, err) {
-				t.Errorf("ParseUint(%q, 10, 0) = %v, %v want %v, %v",
-					test.in, out, err, test.out, test.err)
-			}
+	for i := range parseUint64Tests {
+		test := &parseUint64Tests[i]
+		out, err := ParseUint(test.in, 10, 0)
+		if test.out != out || !errEqual(test.err, err) {
+			t.Errorf("ParseUint(%q, 10, 0) = %v, %v want %v, %v",
+				test.in, out, err, test.out, test.err)
 		}
 	}
 }
 
 func TestParseInt(t *testing.T) {
-	switch IntSize {
-	case 32:
-		for i := range parseInt32Tests {
-			test := &parseInt32Tests[i]
-			out, err := ParseInt(test.in, 10, 0)
-			if int64(test.out) != out || !errEqual(test.err, err) {
-				t.Errorf("ParseInt(%q, 10, 0) = %v, %v want %v, %v",
-					test.in, out, err, test.out, test.err)
-			}
-		}
-	case 64:
-		for i := range parseInt64Tests {
-			test := &parseInt64Tests[i]
-			out, err := ParseInt(test.in, 10, 0)
-			if test.out != out || !errEqual(test.err, err) {
-				t.Errorf("ParseInt(%q, 10, 0) = %v, %v want %v, %v",
-					test.in, out, err, test.out, test.err)
-			}
+	for i := range parseInt64Tests {
+		test := &parseInt64Tests[i]
+		out, err := ParseInt(test.in, 10, 0)
+		if test.out != out || !errEqual(test.err, err) {
+			t.Errorf("ParseInt(%q, 10, 0) = %v, %v want %v, %v",
+				test.in, out, err, test.out, test.err)
 		}
 	}
 }
 
 func TestAtoi(t *testing.T) {
-	switch IntSize {
-	case 32:
-		for i := range parseInt32Tests {
-			test := &parseInt32Tests[i]
-			out, err := Atoi(test.in)
-			var testErr error
-			if test.err != nil {
-				testErr = &NumError{"Atoi", test.in, test.err.(*NumError).Err}
-			}
-			if int(test.out) != out || !errEqual(testErr, err) {
-				t.Errorf("Atoi(%q) = %v, %v want %v, %v",
-					test.in, out, err, test.out, testErr)
-			}
+	for i := range parseInt64Tests {
+		test := &parseInt64Tests[i]
+		out, err := Atoi(test.in)
+		var testErr error
+		if test.err != nil {
+			testErr = &NumError{"Atoi", test.in, test.err.(*NumError).Err}
 		}
-	case 64:
-		for i := range parseInt64Tests {
-			test := &parseInt64Tests[i]
-			out, err := Atoi(test.in)
-			var testErr error
-			if test.err != nil {
-				testErr = &NumError{"Atoi", test.in, test.err.(*NumError).Err}
-			}
-			if test.out != int64(out) || !errEqual(testErr, err) {
-				t.Errorf("Atoi(%q) = %v, %v want %v, %v",
-					test.in, out, err, test.out, testErr)
-			}
+		if test.out != int64(out) || !errEqual(testErr, err) {
+			t.Errorf("Atoi(%q) = %v, %v want %v, %v",
+				test.in, out, err, test.out, testErr)
 		}
 	}
 }

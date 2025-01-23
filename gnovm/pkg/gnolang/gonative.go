@@ -312,7 +312,7 @@ func go2GnoValue(alloc *Allocator, rv reflect.Value) (tv TypedValue) {
 	case reflect.String:
 		tv.V = alloc.NewString(rv.String())
 	case reflect.Int:
-		tv.SetInt(int(rv.Int()))
+		tv.SetInt(rv.Int())
 	case reflect.Int8:
 		tv.SetInt8(int8(rv.Int()))
 	case reflect.Int16:
@@ -322,7 +322,7 @@ func go2GnoValue(alloc *Allocator, rv reflect.Value) (tv TypedValue) {
 	case reflect.Int64:
 		tv.SetInt64(rv.Int())
 	case reflect.Uint:
-		tv.SetUint(uint(rv.Uint()))
+		tv.SetUint(rv.Uint())
 	case reflect.Uint8:
 		tv.SetUint8(uint8(rv.Uint()))
 	case reflect.Uint16:
@@ -391,7 +391,7 @@ func go2GnoValueUpdate(alloc *Allocator, rlm *Realm, lvl int, tv *TypedValue, rv
 		}
 	case IntKind:
 		if lvl != 0 {
-			tv.SetInt(int(rv.Int()))
+			tv.SetInt(rv.Int())
 		}
 	case Int8Kind:
 		if lvl != 0 {
@@ -411,7 +411,7 @@ func go2GnoValueUpdate(alloc *Allocator, rlm *Realm, lvl int, tv *TypedValue, rv
 		}
 	case UintKind:
 		if lvl != 0 {
-			tv.SetUint(uint(rv.Uint()))
+			tv.SetUint(rv.Uint())
 		}
 	case Uint8Kind:
 		if lvl != 0 {
@@ -493,7 +493,7 @@ func go2GnoValueUpdate(alloc *Allocator, rlm *Realm, lvl int, tv *TypedValue, rv
 			et := st.Elt
 			for i := 0; i < rvl; i++ {
 				erv := rv.Index(i)
-				etv := &sv.GetBase(nil).List[svo+i]
+				etv := &sv.GetBase(nil).List[int(svo)+i] // XXX: svo may overflow on 32 bits platform.
 				// XXX use Assign and Realm?
 				if etv.T == nil && et.Kind() != InterfaceKind {
 					etv.T = et
@@ -506,7 +506,7 @@ func go2GnoValueUpdate(alloc *Allocator, rlm *Realm, lvl int, tv *TypedValue, rv
 		} else {
 			for i := 0; i < rvl; i++ {
 				erv := rv.Index(i)
-				sv.GetBase(nil).Data[svo+i] = uint8(erv.Uint())
+				sv.GetBase(nil).Data[int(svo)+i] = uint8(erv.Uint()) // XXX: svo may overflow on 32 bits platform.
 			}
 		}
 	case PointerKind:
@@ -627,7 +627,7 @@ func go2GnoValue2(alloc *Allocator, store Store, rv reflect.Value, recursive boo
 	case reflect.String:
 		tv.V = alloc.NewString(rv.String())
 	case reflect.Int:
-		tv.SetInt(int(rv.Int()))
+		tv.SetInt(rv.Int())
 	case reflect.Int8:
 		tv.SetInt8(int8(rv.Int()))
 	case reflect.Int16:
@@ -637,7 +637,7 @@ func go2GnoValue2(alloc *Allocator, store Store, rv reflect.Value, recursive boo
 	case reflect.Int64:
 		tv.SetInt64(rv.Int())
 	case reflect.Uint:
-		tv.SetUint(uint(rv.Uint()))
+		tv.SetUint(rv.Uint())
 	case reflect.Uint8:
 		tv.SetUint8(uint8(rv.Uint()))
 	case reflect.Uint16:
@@ -780,7 +780,7 @@ func gno2GoType(t Type) reflect.Type {
 		et := gno2GoType(ct.Elem())
 		return reflect.PointerTo(et)
 	case *ArrayType:
-		ne := ct.Len
+		ne := int(ct.Len) // XXX: may overflow on 32 bits platforms.
 		et := gno2GoType(ct.Elem())
 		return reflect.ArrayOf(ne, et)
 	case *SliceType:
@@ -1082,7 +1082,7 @@ func gno2GoValue(tv *TypedValue, rv reflect.Value) (ret reflect.Value) {
 		// General case.
 		av := tv.V.(*ArrayValue)
 		if av.Data == nil {
-			for i := 0; i < ct.Len; i++ {
+			for i := 0; i < int(ct.Len); i++ {
 				etv := &av.List[i]
 				if etv.IsUndefined() {
 					continue
@@ -1090,7 +1090,7 @@ func gno2GoValue(tv *TypedValue, rv reflect.Value) (ret reflect.Value) {
 				gno2GoValue(etv, rv.Index(i))
 			}
 		} else {
-			for i := 0; i < ct.Len; i++ {
+			for i := 0; i < int(ct.Len); i++ {
 				val := av.Data[i]
 				erv := rv.Index(i)
 				erv.SetUint(uint64(val))
@@ -1108,9 +1108,9 @@ func gno2GoValue(tv *TypedValue, rv reflect.Value) (ret reflect.Value) {
 		svl := sv.Length
 		svc := sv.Maxcap
 		if sv.GetBase(nil).Data == nil {
-			rv.Set(reflect.MakeSlice(st, svl, svc))
-			for i := 0; i < svl; i++ {
-				etv := &(sv.GetBase(nil).List[svo+i])
+			rv.Set(reflect.MakeSlice(st, int(svl), int(svc))) // XXX: svl and svc may overflow on 32 bits platforms.
+			for i := 0; i < int(svl); i++ {
+				etv := &(sv.GetBase(nil).List[int(svo)+i]) // XXX: svo may overflow on 32 bits platforms.
 				if etv.IsUndefined() {
 					continue
 				}
@@ -1222,7 +1222,7 @@ func (m *Machine) doOpArrayLitGoNative() {
 			if kx := x.Elts[i].Key; kx != nil {
 				// XXX why convert? (also see doOpArrayLit())
 				k := kx.(*ConstExpr).ConvertGetInt()
-				rf := rv.Index(k)
+				rf := rv.Index(int(k)) // XXX: k may overflow on 32 bits plaforms.
 				gno2GoValue(&itvs[i], rf)
 			} else {
 				rf := rv.Index(i)
@@ -1261,7 +1261,7 @@ func (m *Machine) doOpSliceLitGoNative() {
 			if kx := x.Elts[i].Key; kx != nil {
 				// XXX why convert? (also see doOpArrayLit())
 				k := kx.(*ConstExpr).ConvertGetInt()
-				rf := rv.Index(k)
+				rf := rv.Index(int(k)) // XXX: k may overflow on 32 bits plaforms.
 				gno2GoValue(&itvs[i], rf)
 			} else {
 				rf := rv.Index(i)

@@ -1814,7 +1814,7 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 							if elt.Key == nil {
 								idx++
 							} else {
-								k := evalConst(store, last, elt.Key).ConvertGetInt()
+								k := int(evalConst(store, last, elt.Key).ConvertGetInt())
 								if idx <= k {
 									idx = k + 1
 								} else {
@@ -1827,7 +1827,7 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 						// at.Vrd = false
 						at.Len = idx
 						// update node
-						cx := constInt(n, idx)
+						cx := constInt(n, int64(idx))
 						n.Type.(*ArrayTypeExpr).Len = cx
 					}
 				}
@@ -4986,7 +4986,7 @@ func tryPredefine(store Store, last BlockNode, d Decl) (un Name) {
 	return ""
 }
 
-func constInt(source Expr, i int) *ConstExpr {
+func constInt(source Expr, i int64) *ConstExpr {
 	cx := &ConstExpr{Source: source}
 	cx.T = IntType
 	cx.SetInt(i)

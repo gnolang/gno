@@ -765,15 +765,9 @@ func TestEncodedLen(t *testing.T) {
 		{rawStdEncoding, 7, 12},
 		{rawStdEncoding, 10, 16},
 		{rawStdEncoding, 11, 18},
-	}
-	// check overflow
-	switch strconv.IntSize {
-	case 32:
-		tests = append(tests, test{rawStdEncoding, (math.MaxInt-4)/8 + 1, 429496730})
-		tests = append(tests, test{rawStdEncoding, math.MaxInt/8*5 + 4, math.MaxInt})
-	case 64:
-		tests = append(tests, test{rawStdEncoding, (math.MaxInt-4)/8 + 1, 1844674407370955162})
-		tests = append(tests, test{rawStdEncoding, math.MaxInt/8*5 + 4, math.MaxInt})
+		// check overflow
+		{rawStdEncoding, (math.MaxInt-4)/8 + 1, 1844674407370955162},
+		{rawStdEncoding, math.MaxInt/8*5 + 4, math.MaxInt},
 	}
 	for _, tt := range tests {
 		if got := tt.enc.EncodedLen(tt.n); int64(got) != tt.want {
@@ -804,15 +798,9 @@ func TestDecodedLen(t *testing.T) {
 		{rawStdEncoding, 12, 7},
 		{rawStdEncoding, 16, 10},
 		{rawStdEncoding, 18, 11},
-	}
-	// check overflow
-	switch strconv.IntSize {
-	case 32:
-		tests = append(tests, test{rawStdEncoding, math.MaxInt/5 + 1, 268435456})
-		tests = append(tests, test{rawStdEncoding, math.MaxInt, 1342177279})
-	case 64:
-		tests = append(tests, test{rawStdEncoding, math.MaxInt/5 + 1, 1152921504606846976})
-		tests = append(tests, test{rawStdEncoding, math.MaxInt, 5764607523034234879})
+		// check overflow
+		{rawStdEncoding, math.MaxInt/5 + 1, 1152921504606846976},
+		{rawStdEncoding, math.MaxInt, 5764607523034234879},
 	}
 	for _, tt := range tests {
 		if got := tt.enc.DecodedLen(tt.n); int64(got) != tt.want {
