@@ -16,7 +16,7 @@ func main() {
 	// Process softfloat64_test.go file
 	processSoftFloat64TestFile()
 
-	// Run mvdan.cc/gofump
+	// Run mvdan.cc/gofumpt
 	gofumpt()
 
 	fmt.Println("Files processed successfully.")
