@@ -10,10 +10,13 @@ import (
 
 	"github.com/gnolang/gno/gnovm/cmd/gno/internal/pkgdownload"
 	"github.com/gnolang/gno/gnovm/cmd/gno/internal/pkgdownload/rpcpkgfetcher"
+	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
+	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
 	"github.com/gnolang/gno/gnovm/pkg/gnomod"
 	"github.com/gnolang/gno/gnovm/pkg/packages"
 	"github.com/gnolang/gno/tm2/pkg/commands"
 	"github.com/gnolang/gno/tm2/pkg/errors"
+	"github.com/gnolang/gno/tm2/pkg/random"
 	"go.uber.org/multierr"
 )
 
@@ -34,7 +37,7 @@ func newModCmd(io commands.IO) *commands.Command {
 	cmd.AddSubCommands(
 		newModDownloadCmd(io),
 		// edit
-		// graph
+		newModGraphCmd(io),
 		newModInitCmd(),
 		newModTidy(io),
 		// vendor
@@ -57,6 +60,21 @@ func newModDownloadCmd(io commands.IO) *commands.Command {
 		cfg,
 		func(_ context.Context, args []string) error {
 			return execModDownload(cfg, args, io)
+		},
+	)
+}
+
+func newModGraphCmd(io commands.IO) *commands.Command {
+	cfg := &modGraphCfg{}
+	return commands.NewCommand(
+		commands.Metadata{
+			Name:       "graph",
+			ShortUsage: "graph",
+			ShortHelp:  "print module requirement graph",
+		},
+		cfg,
+		func(_ context.Context, args []string) error {
+			return execModGraph(cfg, args, io)
 		},
 	)
 }
@@ -142,6 +160,75 @@ func (c *modDownloadCfg) RegisterFlags(fs *flag.FlagSet) {
 		"",
 		"chain-domain=rpc-url comma-separated list",
 	)
+}
+
+type modGraphCfg struct {
+	rootDir string
+}
+
+func (c *modGraphCfg) RegisterFlags(fs *flag.FlagSet) {
+	fs.StringVar(
+		&c.rootDir,
+		"root-dir",
+		"",
+		"clone location of github.com/gnolang/gno (gno tries to guess it)",
+	)
+	// /out std
+	// /out remote
+	// ...
+}
+
+func execModGraph(cfg *modGraphCfg, args []string, io commands.IO) error {
+	// default to current directory if no args provided
+	if len(args) == 0 {
+		args = []string{"."}
+	}
+
+	// guess cfg.RootDir
+	if cfg.rootDir == "" {
+		cfg.rootDir = gnoenv.RootDir()
+	}
+
+	paths, err := targetsFromPatterns(args)
+	if err != nil {
+		return fmt.Errorf("list targets from patterns: %w", err)
+	}
+
+	if len(paths) == 0 {
+		io.ErrPrintln("no packages to test")
+		return nil
+	}
+
+	subPkgs, err := gnomod.SubPkgsFromPaths(paths)
+	if err != nil {
+		return fmt.Errorf("list sub packages: %w", err)
+	}
+
+	stdout := io.Out()
+
+	for _, pkg := range subPkgs {
+		println("---", pkg)
+		var gnoPkgPath string
+		modfile, err := gnomod.ParseAt(pkg.Dir)
+		if err == nil {
+			gnoPkgPath = modfile.Module.Mod.Path
+		} else {
+			gnoPkgPath = pkgPathFromRootDir(pkg.Dir, cfg.rootDir)
+			if gnoPkgPath == "" {
+				// unable to read pkgPath from gno.mod, generate a random realm path
+				io.ErrPrintfln("--- WARNING: unable to read package path from gno.mod or gno root directory; try creating a gno.mod file")
+				gnoPkgPath = "gno.land/r/" + strings.ToLower(random.RandStr(8)) // XXX: gno.land hardcoded for convenience.
+			}
+		}
+		println("  - ", gnoPkgPath)
+
+		memPkg := gno.MustReadMemPackage(pkg.Dir, gnoPkgPath)
+		println("  - ", memPkg)
+	}
+
+	stdout.Write([]byte("DONE"))
+
+	return nil
 }
 
 func execModDownload(cfg *modDownloadCfg, args []string, io commands.IO) error {
