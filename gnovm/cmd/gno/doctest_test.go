@@ -12,7 +12,7 @@ func TestDoctest(t *testing.T) {
 	}
 	defer os.RemoveAll(tempDir)
 
-	markdownContent := `# Go Code Examples
+	markdownContent := `# Gno Code Examples
 
 This document contains two simple examples written in Go.
 
@@ -20,7 +20,7 @@ This document contains two simple examples written in Go.
 
 The first example prints the first 10 numbers of the Fibonacci sequence.
 
-` + "```go" + `
+` + "```gno" + `
 // @test: Fibonacci
 package main
 
@@ -37,7 +37,7 @@ func main() {
 
 The second example reverses a given string and prints it.
 
-` + "```go" + `
+` + "```gno" + `
 // @test: StringReversal
 package main
 
@@ -54,7 +54,7 @@ func main() {
 These two examples demonstrate basic Go functionality without using concurrency, generics, or reflect.
 
 ` + "## std Package" + `
-` + "```go" + `
+` + "```gno" + `
 // @test: StdPackage
 package main
 
