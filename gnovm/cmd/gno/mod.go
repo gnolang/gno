@@ -165,6 +165,7 @@ type modGraphCfg struct {
 func (c *modGraphCfg) RegisterFlags(fs *flag.FlagSet) {
 	// /out std
 	// /out remote
+	// /out _test processing
 	// ...
 }
 
