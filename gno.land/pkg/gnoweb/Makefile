@@ -13,6 +13,7 @@ input_css := frontend/css/input.css
 output_css := $(PUBLIC_DIR)/styles.css
 tw_version := 3.4.14
 tw_config_path := frontend/css/tx.config.js
+templates_files := $(shell find . -iname '*.html')
 
 # static config
 src_dir_static := frontend/static
@@ -38,12 +39,15 @@ cache_dir := .cache
 # Install dependencies
 all: generate
 
+test:
+	go test -v ./...
+
 # Generate process
 generate: css ts static
 
 css: $(output_css)
-$(output_css): $(input_css)
-	npx -y tailwindcss@$(tw_version) -c $(tw_config_path) -i $< -o $@ --minify # tailwind
+$(output_css): $(input_css) $(templates_files)
+	npx -y tailwindcss@$(tw_version) -c $(tw_config_path) -i $(input_css) -o $@ --minify # tailwind
 	touch $@
 
 ts: $(output_js)
@@ -75,7 +79,7 @@ dev:
 
 # Go server in development mode
 dev.gnoweb: generate
-	$(run_reflex) -s -r '.*\.go(html)?' -- \
+	$(run_reflex) -s -r '.*\.(go|html)' -- \
 		go run ../../cmd/gnoweb -assets-dir=${PUBLIC_DIR} -chainid=${CHAIN_ID} -remote=${DEV_REMOTE} \
 		2>&1 | $(run_logname) gnoweb
 

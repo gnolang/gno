@@ -38,7 +38,7 @@ func TestAddPkgDeliverTxInsuffGas(t *testing.T) {
 	defer func() {
 		if r := recover(); r != nil {
 			switch r.(type) {
-			case store.OutOfGasException:
+			case store.OutOfGasError:
 				res.Error = sdk.ABCIError(std.ErrOutOfGas(""))
 				abort = true
 			default:
@@ -74,8 +74,8 @@ func TestAddPkgDeliverTx(t *testing.T) {
 
 	assert.True(t, res.IsOK())
 
-	// NOTE: let's try to keep this bellow 100_000 :)
-	assert.Equal(t, int64(135365), gasDeliver)
+	// NOTE: let's try to keep this bellow 150_000 :)
+	assert.Equal(t, int64(143845), gasDeliver)
 }
 
 // Enough gas for a failed transaction.
@@ -117,7 +117,7 @@ func TestAddPkgDeliverTxFailedNoGas(t *testing.T) {
 	defer func() {
 		if r := recover(); r != nil {
 			switch r.(type) {
-			case store.OutOfGasException:
+			case store.OutOfGasError:
 				res.Error = sdk.ABCIError(std.ErrOutOfGas(""))
 				abort = true
 			default:

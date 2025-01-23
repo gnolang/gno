@@ -10,7 +10,6 @@ import (
 	"sync/atomic"
 
 	"github.com/gnolang/gno/tm2/pkg/errors"
-	tmstore "github.com/gnolang/gno/tm2/pkg/store"
 )
 
 const (
@@ -130,6 +129,7 @@ func PredefineFileSet(store Store, pn *PackageNode, fset *FileSet) {
 				continue
 			}
 
+			d.SetAttribute(ATTR_GLOBAL, true)
 			// recursively predefine dependencies.
 			d2, _ := predefineNow(store, fn, d)
 
@@ -234,6 +234,7 @@ func initStaticBlocks(store Store, ctx BlockNode, bn BlockNode) {
 					nx := &n.NameExpr
 					nx.Type = NameExprTypeDefine
 					pkg.Predefine(false, n.Name)
+					pkg.UnassignableNames = append(pkg.UnassignableNames, n.Name)
 				}
 			case *FuncTypeExpr:
 				for i := range n.Params {
@@ -366,12 +367,6 @@ func initStaticBlocks(store Store, ctx BlockNode, bn BlockNode) {
 
 func doRecover(stack []BlockNode, n Node) {
 	if r := recover(); r != nil {
-		// Catch the out-of-gas exception and throw it
-		if exp, ok := r.(tmstore.OutOfGasException); ok {
-			exp.Descriptor = fmt.Sprintf("in preprocess: %v", r)
-			panic(exp)
-		}
-
 		if _, ok := r.(*PreprocessError); ok {
 			// re-panic directly if this is a PreprocessError already.
 			panic(r)
@@ -388,10 +383,8 @@ func doRecover(stack []BlockNode, n Node) {
 		var err error
 		rerr, ok := r.(error)
 		if ok {
-			// NOTE: gotuna/gorilla expects error exceptions.
 			err = errors.Wrap(rerr, loc.String())
 		} else {
-			// NOTE: gotuna/gorilla expects error exceptions.
 			err = fmt.Errorf("%s: %v", loc.String(), r)
 		}
 
@@ -525,6 +518,17 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 					if cd, ok := d.(*ValueDecl); ok {
 						checkValDefineMismatch(cd)
 					}
+
+					isGlobal := true
+
+					for i := len(ns) - 1; i > 0; i-- {
+						if _, ok := ns[i].(*FuncDecl); ok {
+							isGlobal = false
+						}
+					}
+
+					d.SetAttribute(ATTR_GLOBAL, isGlobal)
+
 					// recursively predefine dependencies.
 					d2, ppd := predefineNow(store, last, d)
 					if ppd {
@@ -1439,6 +1443,8 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 				if cx, ok := n.Func.(*ConstExpr); ok {
 					fv := cx.GetFunc()
 					if fv.PkgPath == uversePkgPath && fv.Name == "append" {
+						// append returns a slice and slices are always addressable.
+						n.Addressability = addressabilityStatusSatisfied
 						if n.Varg && len(n.Args) == 2 {
 							// If the second argument is a string,
 							// convert to byteslice.
@@ -1485,7 +1491,21 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 								n.Args[1] = args1
 							}
 						}
+					} else if fv.PkgPath == uversePkgPath && fv.Name == "new" {
+						// The pointer value returned is not addressable, but maybe some selector
+						// will make it addressable. For now mark it as not addressable.
+						n.Addressability = addressabilityStatusUnsatisfied
 					}
+				}
+
+				// If addressability is not satisfied at this point and the function call returns only one
+				// result, then mark addressability as unsatisfied. Otherwise, this expression has already
+				// been explicitly marked as satisfied, or the function returns multiple results, rendering
+				// addressability NotApplicable for this situation -- it should fallback to the error produced
+				// when trying to take a reference or slice the result of a call expression that returns
+				// multiple values.
+				if n.Addressability != addressabilityStatusSatisfied && len(ft.Results) == 1 {
+					n.Addressability = addressabilityStatusUnsatisfied
 				}
 
 				// Continue with general case.
@@ -1633,9 +1653,23 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 					// Replace const index with int *ConstExpr,
 					// or if not const, assert integer type..
 					checkOrConvertIntegerKind(store, last, n, n.Index)
+
+					// Addressability of this index expression can only be known for slice and
+					// strings, explanations below in the respective blocks. If this is an index
+					// on an array, do nothing. This will defer to the array's addresability when
+					// the `addressability` method is called on this index expression.
+					if dt.Kind() == SliceKind {
+						// A value at a slice index is always addressable because the underlying
+						// array is addressable.
+						n.Addressability = addressabilityStatusSatisfied
+					} else if dt.Kind() == StringKind {
+						// Special case; string indexes are never addressable.
+						n.Addressability = addressabilityStatusUnsatisfied
+					}
 				case MapKind:
 					mt := baseOf(gnoTypeOf(store, dt)).(*MapType)
 					checkOrConvertType(store, last, n, &n.Index, mt.Key, false)
+					n.Addressability = addressabilityStatusUnsatisfied
 				default:
 					panic(fmt.Sprintf(
 						"unexpected index base kind for type %s",
@@ -1650,8 +1684,14 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 				checkOrConvertIntegerKind(store, last, n, n.High)
 				checkOrConvertIntegerKind(store, last, n, n.Max)
 
-				// if n.X is untyped, convert to corresponding type
 				t := evalStaticTypeOf(store, last, n.X)
+				if t.Kind() == ArrayKind {
+					if n.X.addressability() == addressabilityStatusUnsatisfied {
+						panic(fmt.Sprintf("cannot take address of %s", n.X.String()))
+					}
+				}
+
+				// if n.X is untyped, convert to corresponding type
 				if isUntyped(t) {
 					dt := defaultTypeOf(t)
 					checkOrConvertType(store, last, n, &n.X, dt, false)
@@ -1689,8 +1729,6 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 						),
 					)
 				}
-
-				evalStaticType(store, last, n.Type)
 
 			// TRANS_LEAVE -----------------------
 			case *UnaryExpr:
@@ -1751,6 +1789,10 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 						convertType(store, last, n, &n.Elts[i].Key, IntType)
 						checkOrConvertType(store, last, n, &n.Elts[i].Value, cclt.Elt, false)
 					}
+
+					// Slices are always addressable because the underlying array
+					// is added to the heap during initialization.
+					n.IsAddressable = true
 				case *MapType:
 					for i := 0; i < len(n.Elts); i++ {
 						checkOrConvertType(store, last, n, &n.Elts[i].Key, cclt.Key, false)
@@ -1790,6 +1832,16 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 					}
 				}
 
+				// If ftype is TRANS_REF_X, then this composite literal being created looks
+				// something like this in the code: `&MyStruct{}`. It is marked as addressable here
+				// because on TRANS_LEAVE for a RefExpr, it defers to the addressability of the
+				// expression it is referencing. When a composite literal is created with a preceding
+				// '&', it means the value is assigned to an address and that address is returned,
+				// so the value is addressable.
+				if ftype == TRANS_REF_X {
+					n.IsAddressable = true
+				}
+
 			// TRANS_LEAVE -----------------------
 			case *KeyValueExpr:
 				// NOTE: For simplicity we just
@@ -1806,6 +1858,9 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 			// TRANS_LEAVE -----------------------
 			case *SelectorExpr:
 				xt := evalStaticTypeOf(store, last, n.X)
+				if xt.Kind() == PointerKind {
+					n.IsAddressable = true
+				}
 
 				// Set selector path based on xt's type.
 				switch cxt := xt.(type) {
@@ -1818,6 +1873,7 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 						panic(fmt.Sprintf("missing field %s in %s",
 							n.Sel, cxt.String()))
 					}
+
 					if len(tr) > 1 {
 						// (the last vp, tr[len(tr)-1], is for n.Sel)
 						if debug {
@@ -1920,10 +1976,13 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 					// packages may contain constant vars,
 					// so check and evaluate if so.
 					tt := pn.GetStaticTypeOfAt(store, n.Path)
-					if isUntyped(tt) {
+
+					// Produce a constant expression for both typed and untyped constants.
+					if isUntyped(tt) || pn.GetIsConstAt(store, n.Path) {
 						cx := evalConst(store, last, n)
 						return cx, TRANS_CONTINUE
 					}
+
 				case *TypeType:
 					// unbound method
 					xt := evalStaticType(store, last, n.X)
@@ -1998,6 +2057,15 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 			// TRANS_LEAVE -----------------------
 			case *AssignStmt:
 				n.AssertCompatible(store, last)
+				if n.Op == ASSIGN {
+					for _, lh := range n.Lhs {
+						if ne, ok := lh.(*NameExpr); ok {
+							if !last.GetStaticBlock().IsAssignable(store, ne.Name) {
+								panic("not assignable")
+							}
+						}
+					}
+				}
 
 				// NOTE: keep DEFINE and ASSIGN in sync.
 				if n.Op == DEFINE {
@@ -2303,6 +2371,7 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 					// NOTE: may or may not be a *ConstExpr,
 					// but if not, make one now.
 					for i, vx := range n.Values {
+						assertValidConstExpr(store, last, n, vx)
 						n.Values[i] = evalConst(store, last, vx)
 					}
 				} else {
@@ -2374,9 +2443,20 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 				// We need to replace all references of the new
 				// Type with old Type, including in attributes.
 				n.Type.SetAttribute(ATTR_TYPE_VALUE, dst)
-				// Replace the type with *constTypeExpr{},
+				// Replace the type with *{},
 				// otherwise methods would be un at runtime.
 				n.Type = constType(n.Type, dst)
+
+			case *RefExpr:
+				// If n.X is a RefExpr, then this expression is something like:
+				// &(&value). The resulting pointer value of the first reference is not
+				// addressable. Otherwise fall back to the target expression's addressability.
+				_, xIsRef := n.X.(*RefExpr)
+				tt := evalStaticTypeOf(store, last, n.X)
+
+				if ft, is_func := tt.(*FuncType); (is_func && !ft.IsClosure) || xIsRef || n.X.addressability() == addressabilityStatusUnsatisfied {
+					panic(fmt.Sprintf("cannot take address of %s", n.X.String()))
+				}
 			}
 			// end type switch statement
 			// END TRANS_LEAVE -----------------------
@@ -2732,17 +2812,10 @@ func findGotoLoopDefines(ctx BlockNode, bn BlockNode) {
 								// Otherwise mark stmt as gotoloop.
 								case Stmt:
 									// we're done if we
-									// re-encounter origGotoStmtm.
+									// re-encounter origGotoStmt.
 									if n == origGoto {
-										n.SetAttribute(
-											ATTR_GOTOLOOP_STMT,
-											true)
 										return n, TRANS_EXIT // done
 									}
-									// otherwise set attribute.
-									n.SetAttribute(
-										ATTR_GOTOLOOP_STMT,
-										true)
 									return n, TRANS_CONTINUE
 								// Special case, maybe convert
 								// NameExprTypeDefine to
@@ -3794,73 +3867,336 @@ func assertTypeDeclNoCycle2(store Store, last BlockNode, x Expr, stack *[]Name, 
 // type expressions, which must get preprocessed for inner
 // composite type eliding to work.
 func findUndefined(store Store, last BlockNode, x Expr) (un Name) {
-	return findUndefined2(store, last, x, nil)
+	return findUndefined2(store, last, x, nil, true)
 }
 
-func findUndefined2(store Store, last BlockNode, x Expr, t Type) (un Name) {
+// finds the next undefined identifier and returns it if it is global
+func findUndefined2SkipLocals(store Store, last BlockNode, x Expr, t Type) Name {
+	name := findUndefinedGlobal(store, last, x, t)
+
+	if name == "" {
+		return ""
+	}
+
+	existsLocal := func(name Name, bn BlockNode) bool {
+		curr := bn
+		for {
+			currNames := curr.GetBlockNames()
+
+			for _, currName := range currNames {
+				if currName == name {
+					return true
+				}
+			}
+
+			newcurr := bn.GetStaticBlock().GetParentNode(store)
+
+			if curr == newcurr {
+				return false
+			}
+
+			curr = newcurr
+
+			if curr == nil {
+				return false
+			}
+
+			_, isFile := curr.(*FileNode)
+
+			if isFile {
+				return false
+			}
+		}
+	}
+
+	pkg := packageOf(last)
+
+	if _, _, ok := pkg.FileSet.GetDeclForSafe(name); !ok {
+		return ""
+	}
+
+	isLocal := existsLocal(name, last)
+
+	if isLocal {
+		return ""
+	}
+
+	return name
+}
+
+func findUndefinedStmt(store Store, last BlockNode, stmt Stmt, t Type) Name {
+	switch s := stmt.(type) {
+	case *TypeDecl:
+		un := findUndefined2SkipLocals(store, last, s.Type, t)
+
+		if un != "" {
+			return un
+		}
+	case *ValueDecl:
+		un := findUndefined2SkipLocals(store, last, s.Type, t)
+
+		if un != "" {
+			return un
+		}
+		for _, rh := range s.Values {
+			un := findUndefined2SkipLocals(store, last, rh, t)
+
+			if un != "" {
+				return un
+			}
+		}
+	case *DeclStmt:
+		for _, rh := range s.Body {
+			un := findUndefinedStmt(store, last, rh, t)
+
+			if un != "" {
+				return un
+			}
+		}
+	case *IncDecStmt:
+		un := findUndefined2SkipLocals(store, last, s.X, t)
+
+		if un != "" {
+			return un
+		}
+	case *PanicStmt:
+		un := findUndefined2SkipLocals(store, last, s.Exception, t)
+
+		if un != "" {
+			return un
+		}
+	case *BlockStmt:
+		for _, rh := range s.Body {
+			un := findUndefinedStmt(store, s, rh, t)
+
+			if un != "" {
+				return un
+			}
+		}
+	case *DeferStmt:
+		un := findUndefined2SkipLocals(store, last, s.Call.Func, t)
+
+		if un != "" {
+			return un
+		}
+
+		for _, rh := range s.Call.Args {
+			un = findUndefined2SkipLocals(store, last, rh, t)
+
+			if un != "" {
+				return un
+			}
+		}
+	case *SwitchStmt:
+		un := findUndefined2SkipLocals(store, last, s.X, t)
+		if un != "" {
+			return un
+		}
+
+		un = findUndefinedStmt(store, last, s.Init, t)
+		if un != "" {
+			return un
+		}
+
+		for _, b := range s.Clauses {
+			b := b
+			un = findUndefinedStmt(store, s, &b, t)
+
+			if un != "" {
+				return un
+			}
+		}
+	case *SwitchClauseStmt:
+		for _, rh := range s.Cases {
+			un := findUndefined2SkipLocals(store, last, rh, t)
+
+			if un != "" {
+				return un
+			}
+		}
+
+		for _, b := range s.Body {
+			un := findUndefinedStmt(store, last, b, t)
+
+			if un != "" {
+				return un
+			}
+		}
+
+	case *ExprStmt:
+		return findUndefined2SkipLocals(store, last, s.X, t)
+	case *AssignStmt:
+		for _, rh := range s.Rhs {
+			un := findUndefined2SkipLocals(store, last, rh, t)
+
+			if un != "" {
+				return un
+			}
+		}
+	case *IfStmt:
+		un := findUndefinedStmt(store, last, s.Init, t)
+		if un != "" {
+			return un
+		}
+
+		un = findUndefined2SkipLocals(store, last, s.Cond, t)
+		if un != "" {
+			return un
+		}
+
+		un = findUndefinedStmt(store, last, &s.Else, t)
+		if un != "" {
+			return un
+		}
+
+		un = findUndefinedStmt(store, last, &s.Then, t)
+		if un != "" {
+			return un
+		}
+	case *IfCaseStmt:
+		for _, b := range s.Body {
+			un := findUndefinedStmt(store, last, b, t)
+
+			if un != "" {
+				return un
+			}
+		}
+	case *ReturnStmt:
+		for _, b := range s.Results {
+			un := findUndefined2SkipLocals(store, last, b, t)
+			if un != "" {
+				return un
+			}
+		}
+	case *RangeStmt:
+		un := findUndefined2SkipLocals(store, last, s.X, t)
+		if un != "" {
+			return un
+		}
+
+		for _, b := range s.Body {
+			un := findUndefinedStmt(store, last, b, t)
+			if un != "" {
+				return un
+			}
+		}
+	case *ForStmt:
+		un := findUndefinedStmt(store, s, s.Init, t)
+		if un != "" {
+			return un
+		}
+
+		un = findUndefined2SkipLocals(store, s, s.Cond, t)
+		if un != "" {
+			return un
+		}
+
+		un = findUndefinedStmt(store, s, s.Post, t)
+		if un != "" {
+			return un
+		}
+
+		for _, b := range s.Body {
+			un := findUndefinedStmt(store, last, b, t)
+			if un != "" {
+				return un
+			}
+		}
+	case *BranchStmt:
+	case nil:
+		return ""
+	default:
+		panic(fmt.Sprintf("findUndefinedStmt: %T not supported", s))
+	}
+	return ""
+}
+
+func getGlobalValueRef(sb BlockNode, store Store, n Name) *TypedValue {
+	sbb := sb.GetStaticBlock()
+	idx, ok := sb.GetLocalIndex(n)
+	bb := &sb.GetStaticBlock().Block
+	bp := sb.GetParentNode(store)
+
+	for {
+		if ok && sbb.Types[idx] != nil && (bp == nil || bp.GetParentNode(store) == nil) {
+			return bb.GetPointerToInt(store, int(idx)).TV
+		} else if bp != nil {
+			idx, ok = bp.GetLocalIndex(n)
+			sbb = bp.GetStaticBlock()
+			bb = sbb.GetBlock()
+			bp = bp.GetParentNode(store)
+		} else {
+			return nil
+		}
+	}
+}
+
+func findUndefinedGlobal(store Store, last BlockNode, x Expr, t Type) (un Name) {
 	if x == nil {
 		return
 	}
 	switch cx := x.(type) {
 	case *NameExpr:
-		if tv := last.GetValueRef(store, cx.Name, true); tv != nil {
+		if tv := getGlobalValueRef(last, store, cx.Name); tv != nil {
 			return
 		}
+
 		if _, ok := UverseNode().GetLocalIndex(cx.Name); ok {
 			// XXX NOTE even if the name is shadowed by a file
 			// level declaration, it is fine to return here as it
 			// will be predefined later.
 			return
 		}
+
 		return cx.Name
 	case *BasicLitExpr:
 		return
 	case *BinaryExpr:
-		un = findUndefined(store, last, cx.Left)
+		un = findUndefinedGlobal(store, last, cx.Left, nil)
 		if un != "" {
 			return
 		}
-		un = findUndefined(store, last, cx.Right)
+		un = findUndefinedGlobal(store, last, cx.Right, nil)
 		if un != "" {
 			return
 		}
 	case *SelectorExpr:
-		return findUndefined(store, last, cx.X)
+		return findUndefinedGlobal(store, last, cx.X, nil)
 	case *SliceExpr:
-		un = findUndefined(store, last, cx.X)
+		un = findUndefinedGlobal(store, last, cx.X, nil)
 		if un != "" {
 			return
 		}
 		if cx.Low != nil {
-			un = findUndefined(store, last, cx.Low)
+			un = findUndefinedGlobal(store, last, cx.Low, nil)
 			if un != "" {
 				return
 			}
 		}
 		if cx.High != nil {
-			un = findUndefined(store, last, cx.High)
+			un = findUndefinedGlobal(store, last, cx.High, nil)
 			if un != "" {
 				return
 			}
 		}
 		if cx.Max != nil {
-			un = findUndefined(store, last, cx.Max)
+			un = findUndefinedGlobal(store, last, cx.Max, nil)
 			if un != "" {
 				return
 			}
 		}
 	case *StarExpr:
-		return findUndefined(store, last, cx.X)
+		return findUndefinedGlobal(store, last, cx.X, nil)
 	case *RefExpr:
-		return findUndefined(store, last, cx.X)
+		return findUndefinedGlobal(store, last, cx.X, nil)
 	case *TypeAssertExpr:
-		un = findUndefined(store, last, cx.X)
+		un = findUndefinedGlobal(store, last, cx.X, nil)
 		if un != "" {
 			return
 		}
-		return findUndefined(store, last, cx.Type)
+		return findUndefinedGlobal(store, last, cx.Type, nil)
 	case *UnaryExpr:
-		return findUndefined(store, last, cx.X)
+		return findUndefinedGlobal(store, last, cx.X, nil)
 	case *CompositeLitExpr:
 		var ct Type
 		if cx.Type == nil {
@@ -3870,7 +4206,7 @@ func findUndefined2(store Store, last BlockNode, x Expr, t Type) (un Name) {
 			ct = t
 			cx.Type = constType(cx, t)
 		} else {
-			un = findUndefined(store, last, cx.Type)
+			un = findUndefinedGlobal(store, last, cx.Type, nil)
 			if un != "" {
 				return
 			}
@@ -3887,18 +4223,18 @@ func findUndefined2(store Store, last BlockNode, x Expr, t Type) (un Name) {
 		switch ct.Kind() {
 		case ArrayKind, SliceKind, MapKind:
 			for _, kvx := range cx.Elts {
-				un = findUndefined(store, last, kvx.Key)
+				un = findUndefinedGlobal(store, last, kvx.Key, nil)
 				if un != "" {
 					return
 				}
-				un = findUndefined2(store, last, kvx.Value, ct.Elem())
+				un = findUndefinedGlobal(store, last, kvx.Value, ct.Elem())
 				if un != "" {
 					return
 				}
 			}
 		case StructKind:
 			for _, kvx := range cx.Elts {
-				un = findUndefined(store, last, kvx.Value)
+				un = findUndefinedGlobal(store, last, kvx.Value, nil)
 				if un != "" {
 					return
 				}
@@ -3909,43 +4245,260 @@ func findUndefined2(store Store, last BlockNode, x Expr, t Type) (un Name) {
 				ct.String()))
 		}
 	case *FuncLitExpr:
-		return findUndefined(store, last, &cx.Type)
-	case *FieldTypeExpr:
-		return findUndefined(store, last, cx.Type)
-	case *ArrayTypeExpr:
-		if cx.Len != nil {
-			un = findUndefined(store, last, cx.Len)
+		for _, stmt := range cx.Body {
+			un = findUndefinedStmt(store, cx, stmt, t)
+
 			if un != "" {
 				return
 			}
 		}
-		return findUndefined(store, last, cx.Elt)
+		return findUndefinedGlobal(store, last, &cx.Type, nil)
+	case *FieldTypeExpr:
+		return findUndefinedGlobal(store, last, cx.Type, nil)
+	case *ArrayTypeExpr:
+		if cx.Len != nil {
+			un = findUndefinedGlobal(store, last, cx.Len, nil)
+			if un != "" {
+				return
+			}
+		}
+		return findUndefinedGlobal(store, last, cx.Elt, nil)
 	case *SliceTypeExpr:
-		return findUndefined(store, last, cx.Elt)
+		return findUndefinedGlobal(store, last, cx.Elt, nil)
 	case *InterfaceTypeExpr:
 		for i := range cx.Methods {
-			un = findUndefined(store, last, &cx.Methods[i])
+			un = findUndefinedGlobal(store, last, &cx.Methods[i], nil)
 			if un != "" {
 				return
 			}
 		}
 	case *ChanTypeExpr:
-		return findUndefined(store, last, cx.Value)
+		return findUndefinedGlobal(store, last, cx.Value, nil)
 	case *FuncTypeExpr:
 		for i := range cx.Params {
-			un = findUndefined(store, last, &cx.Params[i])
+			un = findUndefinedGlobal(store, last, &cx.Params[i], nil)
 			if un != "" {
 				return
 			}
 		}
 		for i := range cx.Results {
-			un = findUndefined(store, last, &cx.Results[i])
+			un = findUndefinedGlobal(store, last, &cx.Results[i], nil)
 			if un != "" {
 				return
 			}
 		}
 	case *MapTypeExpr:
-		un = findUndefined(store, last, cx.Key)
+		un = findUndefinedGlobal(store, last, cx.Key, nil)
+		if un != "" {
+			return
+		}
+		un = findUndefinedGlobal(store, last, cx.Value, nil)
+		if un != "" {
+			return
+		}
+	case *StructTypeExpr:
+		for i := range cx.Fields {
+			un = findUndefinedGlobal(store, last, &cx.Fields[i], nil)
+			if un != "" {
+				return
+			}
+		}
+	case *MaybeNativeTypeExpr:
+		un = findUndefinedGlobal(store, last, cx.Type, nil)
+		if un != "" {
+			return
+		}
+	case *CallExpr:
+		un = findUndefinedGlobal(store, last, cx.Func, nil)
+		if un != "" {
+			return
+		}
+		for i := range cx.Args {
+			un = findUndefinedGlobal(store, last, cx.Args[i], nil)
+			if un != "" {
+				return
+			}
+		}
+	case *IndexExpr:
+		un = findUndefinedGlobal(store, last, cx.X, nil)
+		if un != "" {
+			return
+		}
+		un = findUndefinedGlobal(store, last, cx.Index, nil)
+		if un != "" {
+			return
+		}
+	case *constTypeExpr:
+		return
+	case *ConstExpr:
+		return
+	default:
+		panic(fmt.Sprintf(
+			"unexpected expr: %v (%v)",
+			x, reflect.TypeOf(x)))
+	}
+	return
+}
+
+func findUndefined2(store Store, last BlockNode, x Expr, t Type, skipPredefined bool) (un Name) {
+	if x == nil {
+		return
+	}
+	switch cx := x.(type) {
+	case *NameExpr:
+		if tv := last.GetValueRef(store, cx.Name, skipPredefined); tv != nil {
+			return
+		}
+		if _, ok := UverseNode().GetLocalIndex(cx.Name); ok {
+			// XXX NOTE even if the name is shadowed by a file
+			// level declaration, it is fine to return here as it
+			// will be predefined later.
+			return
+		}
+		return cx.Name
+	case *BasicLitExpr:
+		return
+	case *BinaryExpr:
+		un = findUndefined2(store, last, cx.Left, nil, skipPredefined)
+		if un != "" {
+			return
+		}
+		un = findUndefined2(store, last, cx.Right, nil, skipPredefined)
+		if un != "" {
+			return
+		}
+	case *SelectorExpr:
+		return findUndefined2(store, last, cx.X, nil, skipPredefined)
+	case *SliceExpr:
+		un = findUndefined2(store, last, cx.X, nil, skipPredefined)
+		if un != "" {
+			return
+		}
+		if cx.Low != nil {
+			un = findUndefined2(store, last, cx.Low, nil, skipPredefined)
+			if un != "" {
+				return
+			}
+		}
+		if cx.High != nil {
+			un = findUndefined2(store, last, cx.High, nil, skipPredefined)
+			if un != "" {
+				return
+			}
+		}
+		if cx.Max != nil {
+			un = findUndefined2(store, last, cx.Max, nil, skipPredefined)
+			if un != "" {
+				return
+			}
+		}
+	case *StarExpr:
+		return findUndefined2(store, last, cx.X, nil, skipPredefined)
+	case *RefExpr:
+		return findUndefined2(store, last, cx.X, nil, skipPredefined)
+	case *TypeAssertExpr:
+		un = findUndefined2(store, last, cx.X, nil, skipPredefined)
+		if un != "" {
+			return
+		}
+		return findUndefined2(store, last, cx.Type, nil, skipPredefined)
+	case *UnaryExpr:
+		return findUndefined2(store, last, cx.X, nil, skipPredefined)
+	case *CompositeLitExpr:
+		var ct Type
+		if cx.Type == nil {
+			if t == nil {
+				panic("cannot elide unknown composite type")
+			}
+			ct = t
+			cx.Type = constType(cx, t)
+		} else {
+			un = findUndefined2(store, last, cx.Type, nil, skipPredefined)
+			if un != "" {
+				return
+			}
+			// preprocess now for eliding purposes.
+			// TODO recursive preprocessing here is hacky, find a better
+			// way.  This cannot be done asynchronously, cuz undefined
+			// names ought to be returned immediately to let the caller
+			// predefine it.
+			cx.Type = Preprocess(store, last, cx.Type).(Expr) // recursive
+			ct = evalStaticType(store, last, cx.Type)
+			// elide composite lit element (nested) composite types.
+			elideCompositeElements(cx, ct)
+		}
+		switch ct.Kind() {
+		case ArrayKind, SliceKind, MapKind:
+			for _, kvx := range cx.Elts {
+				un = findUndefined2(store, last, kvx.Key, nil, skipPredefined)
+				if un != "" {
+					return
+				}
+				un = findUndefined2(store, last, kvx.Value, ct.Elem(), skipPredefined)
+				if un != "" {
+					return
+				}
+			}
+		case StructKind:
+			for _, kvx := range cx.Elts {
+				un = findUndefined2(store, last, kvx.Value, nil, skipPredefined)
+				if un != "" {
+					return
+				}
+			}
+		default:
+			panic(fmt.Sprintf(
+				"unexpected composite lit type %s",
+				ct.String()))
+		}
+	case *FuncLitExpr:
+		if cx.GetAttribute(ATTR_GLOBAL) == true {
+			for _, stmt := range cx.Body {
+				un = findUndefinedStmt(store, cx, stmt, t)
+
+				if un != "" {
+					return
+				}
+			}
+		}
+
+		return findUndefined2(store, last, &cx.Type, nil, skipPredefined)
+	case *FieldTypeExpr:
+		return findUndefined2(store, last, cx.Type, nil, skipPredefined)
+	case *ArrayTypeExpr:
+		if cx.Len != nil {
+			un = findUndefined2(store, last, cx.Len, nil, skipPredefined)
+			if un != "" {
+				return
+			}
+		}
+		return findUndefined2(store, last, cx.Elt, nil, skipPredefined)
+	case *SliceTypeExpr:
+		return findUndefined2(store, last, cx.Elt, nil, skipPredefined)
+	case *InterfaceTypeExpr:
+		for i := range cx.Methods {
+			un = findUndefined2(store, last, &cx.Methods[i], nil, skipPredefined)
+			if un != "" {
+				return
+			}
+		}
+	case *ChanTypeExpr:
+		return findUndefined2(store, last, cx.Value, nil, skipPredefined)
+	case *FuncTypeExpr:
+		for i := range cx.Params {
+			un = findUndefined2(store, last, &cx.Params[i], nil, skipPredefined)
+			if un != "" {
+				return
+			}
+		}
+		for i := range cx.Results {
+			un = findUndefined2(store, last, &cx.Results[i], nil, skipPredefined)
+			if un != "" {
+				return
+			}
+		}
+	case *MapTypeExpr:
+		un = findUndefined2(store, last, cx.Key, nil, skipPredefined)
 		if un != "" {
 			return
 		}
@@ -3955,33 +4508,34 @@ func findUndefined2(store Store, last BlockNode, x Expr, t Type) (un Name) {
 		}
 	case *StructTypeExpr:
 		for i := range cx.Fields {
-			un = findUndefined(store, last, &cx.Fields[i])
+			un = findUndefined2(store, last, &cx.Fields[i], nil, skipPredefined)
 			if un != "" {
 				return
 			}
 		}
 	case *MaybeNativeTypeExpr:
-		un = findUndefined(store, last, cx.Type)
+		un = findUndefined2(store, last, cx.Type, nil, skipPredefined)
 		if un != "" {
 			return
 		}
 	case *CallExpr:
-		un = findUndefined(store, last, cx.Func)
+		cx.Func.SetAttribute(ATTR_GLOBAL, cx.GetAttribute(ATTR_GLOBAL))
+		un = findUndefined2(store, last, cx.Func, nil, skipPredefined)
 		if un != "" {
 			return
 		}
 		for i := range cx.Args {
-			un = findUndefined(store, last, cx.Args[i])
+			un = findUndefined2(store, last, cx.Args[i], nil, skipPredefined)
 			if un != "" {
 				return
 			}
 		}
 	case *IndexExpr:
-		un = findUndefined(store, last, cx.X)
+		un = findUndefined2(store, last, cx.X, nil, skipPredefined)
 		if un != "" {
 			return
 		}
-		un = findUndefined(store, last, cx.Index)
+		un = findUndefined2(store, last, cx.Index, nil, skipPredefined)
 		if un != "" {
 			return
 		}
@@ -4097,8 +4651,12 @@ func predefineNow2(store Store, last BlockNode, d Decl, stack *[]Name) (Decl, bo
 			if !file.IsInitialized() {
 				panic("all types from files in file-set should have already been predefined")
 			}
+
+			declaration := *decl
+			declaration.SetAttribute(ATTR_GLOBAL, true)
+
 			// predefine dependency (recursive).
-			*decl, _ = predefineNow2(store, file, *decl, stack)
+			*decl, _ = predefineNow2(store, file, declaration, stack)
 		} else {
 			break
 		}
@@ -4256,6 +4814,7 @@ func tryPredefine(store Store, last BlockNode, d Decl) (un Name) {
 			return
 		}
 		for _, vx := range d.Values {
+			vx.SetAttribute(ATTR_GLOBAL, d.GetAttribute(ATTR_GLOBAL))
 			un = findUndefined(store, last, vx)
 			if un != "" {
 				return
@@ -4813,9 +5372,6 @@ func setNodeLines(n Node) {
 // based on sparse expectations on block nodes, and ensures uniqueness of BlockNode.Locations.
 // Ensures uniqueness of BlockNode.Locations.
 func setNodeLocations(pkgPath string, fileName string, n Node) {
-	if n.GetAttribute(ATTR_LOCATIONED) == true {
-		return // locations already set (typically n is a filenode).
-	}
 	if pkgPath == "" || fileName == "" {
 		panic("missing package path or file name")
 	}

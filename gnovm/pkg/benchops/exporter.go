@@ -33,7 +33,7 @@ type exporter struct {
 // byte 2: StoreCode
 // byte 3-6: Duration
 // byte 7-10: Size
-func (e *exporter) export(code Code, elapsedTime time.Duration, size int) {
+func (e *exporter) export(code Code, elapsedTime time.Duration, size int64) {
 	// the MaxUint32 is 4294967295. It represents 4.29 seconds in duration or 4G bytes.
 	// It panics not only for overflow protection, but also for abnormal measurements.
 	if elapsedTime > math.MaxUint32 {
@@ -74,7 +74,7 @@ func FinishStore() {
 		fileWriter.export(
 			code,
 			measure.storeAccumDur[i]/time.Duration(count),
-			int(measure.storeAccumSize[i]/count),
+			measure.storeAccumSize[i]/count,
 		)
 	}
 }
