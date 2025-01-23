@@ -97,9 +97,9 @@ func execLint(cfg *lintCfg, args []string, io commands.IO) error {
 
 	hasError := false
 
-	bs, ts := test.Store(
-		rootDir, false,
-		nopReader{}, goio.Discard, goio.Discard,
+	bs, ts := test.StoreWithOptions(
+		rootDir, nopReader{}, goio.Discard, goio.Discard,
+		test.StoreOptions{PreprocessOnly: true},
 	)
 
 	for _, pkgPath := range pkgPaths {

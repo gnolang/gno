@@ -456,7 +456,7 @@ func (m *Machine) RunFiles(fns ...*FileNode) {
 
 // PreprocessFiles runs Preprocess on the given files, without saving
 // them to the store. It is used to detect compile-time errors in the package.
-func (m *Machine) PreprocessFiles(pkgName, pkgPath string, fset *FileSet) {
+func (m *Machine) PreprocessFiles(pkgName, pkgPath string, fset *FileSet) (*PackageNode, *PackageValue) {
 	if err := checkDuplicates(fset); err != nil {
 		panic(fmt.Errorf("running package %q: %w", pkgName, err))
 	}
@@ -466,6 +466,7 @@ func (m *Machine) PreprocessFiles(pkgName, pkgPath string, fset *FileSet) {
 	for _, fn := range fset.Files {
 		fn = Preprocess(m.Store, pn, fn).(*FileNode)
 	}
+	return pn, pn.NewPackage()
 }
 
 // Add files to the package's *FileSet and run decls in them.
