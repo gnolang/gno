@@ -685,13 +685,16 @@ func isGeq(lv, rv *TypedValue) bool {
 
 // for doOpAdd and doOpAddAssign.
 func addAssign(alloc *Allocator, lv, rv *TypedValue) {
-	debug2.Println2("addAssign, lv: ", lv)
+	debug2.Println2("addAssign, lv, alloc: ", lv, alloc)
 	// set the result in lv.
 	// NOTE this block is replicated in op_assign.go
 	switch baseOf(lv.T) {
 	case StringType, UntypedStringType:
 		lv.V = alloc.NewString(lv.GetString() + rv.GetString())
-		lv.SetNeedsValueAllocation(true)
+		//if !alloc.m.PreprocessorMode {
+		if alloc != nil { // preprocess
+			lv.SetNeedsValueAllocation(true)
+		}
 	case IntType:
 		lv.SetInt(lv.GetInt() + rv.GetInt())
 	case Int8Type:

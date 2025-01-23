@@ -42,7 +42,7 @@ func (m *Machine) doOpValueDecl() {
 				} else {
 					if debug {
 						if nt.TypeID() != tv.T.TypeID() &&
-							baseOf(nt).TypeID() != tv.T.TypeID() {
+								baseOf(nt).TypeID() != tv.T.TypeID() {
 							panic(fmt.Sprintf(
 								"type mismatch: %s vs %s",
 								nt.TypeID(),
@@ -62,12 +62,8 @@ func (m *Machine) doOpValueDecl() {
 		ptr := lb.GetPointerToMaybeHeapDefine(m.Store, nx)
 		ptr.Assign2(m.Alloc, m.Store, m.Realm, tv, false)
 
-		debug2.Println2("doOpValueDecl(), ptr.TV.T: ", ptr.TV.T)
-		switch ptr.TV.T.(type) {
-		case PrimitiveType:
-		default:
-			ptr.TV.SetNeedsValueAllocation(true)
-		}
+		debug2.Println2("doOpValueDecl(), nx,  nx.Alloc: ", nx, nx.Alloc)
+		ptr.TV.SetNeedsValueAllocation(nx.Alloc)
 	}
 }
 

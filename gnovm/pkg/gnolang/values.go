@@ -1000,6 +1000,7 @@ func (tv *TypedValue) NeedsTypeAllocation() bool {
 
 // Setter for AllocValue flag
 func (tv *TypedValue) SetNeedsValueAllocation(needsAlloc bool) {
+	debug2.Println2("SetNeedsValueAllocation, tv: ", tv)
 	if needsAlloc {
 		tv.AllocFlag |= AllocValueFlag
 	} else {

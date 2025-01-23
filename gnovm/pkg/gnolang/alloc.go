@@ -72,6 +72,7 @@ const (
 
 func NewAllocator(maxBytes int64, m *Machine) *Allocator {
 	debug2.Println2("NewAllocator(), maxBytes:", maxBytes)
+	// XXX, never nil, m is necessary, se op_binary.go
 	if maxBytes == 0 {
 		return nil
 	}
@@ -194,7 +195,7 @@ func (throwaway *Allocator) allocate2(v Value) {
 		}
 	}
 	switch vv := v.(type) {
-	case TypeValue:
+	case TypeValue: // for newType, not for const type
 		debug2.Println2("TypeVal, vv.Type: ", vv.Type, reflect.TypeOf(vv.Type))
 		if dt, ok := vv.Type.(*DeclaredType); ok {
 			debug2.Println2("TypeVal.Type.(*DeclaredType): ", dt, dt.Base, reflect.TypeOf(dt.Base))
@@ -502,6 +503,7 @@ func (alloc *Allocator) NewNative(rv reflect.Value) *NativeValue {
 
 // TODO: where there's a new type
 // there should be a count while GC
+// TODO: check if it happens in preproess
 func (alloc *Allocator) NewType(t Type) Type {
 	debug2.Println2("NewType:", t)
 	alloc.AllocateType()
