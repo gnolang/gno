@@ -359,7 +359,7 @@ func (post *Post) renderPostContent(sb *strings.Builder, indent string) {
 	sb.WriteString("\n")
 }
 
-func (post *Post) Render(indent string, levels int) string {
+func (post *Post) Render(p *PaginationOpts, indent string, levels int) string {
 	if post == nil {
 		return "nil post"
 	}
@@ -378,24 +378,32 @@ func (post *Post) Render(indent string, levels int) string {
 
 	post.renderPostContent(sb, indent)
 
-	if post.replies.Size() > 0 {
-		if levels > 0 {
-			commentsIndent := indent + "> "
+	if post.replies.Size() == 0 {
+		return sb.String()
+	}
 
-			post.replies.Iterate("", "", func(_ string, value interface{}) bool {
-				reply := value.(*Post)
+	if levels == 0 {
+		sb.WriteString(indent + "\n")
+		sb.WriteString(indent)
+		sb.WriteString("_")
+		sb.WriteString(newLink("see all "+strconv.Itoa(post.replies.Size())+" replies", post.GetURL()))
+		sb.WriteString("_\n")
+		return sb.String()
+	}
 
-				sb.WriteString(indent + "\n")
-				sb.WriteString(reply.Render(commentsIndent, levels-1))
-				return false
-			})
-		} else {
-			sb.WriteString(indent + "\n")
-			sb.WriteString(indent)
-			sb.WriteString("_")
-			sb.WriteString(newLink("see all "+strconv.Itoa(post.replies.Size())+" replies", post.GetURL()))
-			sb.WriteString("_\n")
-		}
+	commentsIndent := indent + "> "
+	page := p.Iterate(&post.replies, func(_ string, value interface{}) bool {
+		reply := value.(*Post)
+
+		sb.WriteString(indent)
+		sb.WriteString("\n")
+		sb.WriteString(reply.Render(nil, commentsIndent, levels-1))
+		return false
+	})
+
+	if page != nil {
+		sb.WriteString("\n---\n")
+		sb.WriteString(page.Picker())
 	}
 
 	return sb.String()
@@ -426,9 +434,9 @@ func (post *Post) RenderInner() string {
 			parent, _ = thread.GetReply(parentID)
 		}
 
-		s += parent.Render("", 0) + "\n"
+		s += parent.Render(nil, "", 0) + "\n"
 	}
 
-	s += post.Render("> ", 5)
+	s += post.Render(nil, "> ", 5)
 	return s
 }

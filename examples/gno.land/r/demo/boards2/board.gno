@@ -96,21 +96,37 @@ func (board *Board) DeleteThread(pid PostID) {
 	}
 }
 
-func (board *Board) Render() string {
-	s := "\\[" + newLink("post", board.GetPostFormURL()) + "]\n\n"
-	if board.threads.Size() > 0 {
-		board.threads.Iterate("", "", func(_ string, v interface{}) bool {
-			post := v.(*Post)
-			if post.isHidden {
-				return false
-			}
+// Render renders a board into Markdown.
+//
+// Pager is used for pagination if it's not nil.
+func (board *Board) Render(p *PaginationOpts) string {
+	sb := &strings.Builder{}
 
-			s += "----------------------------------------\n"
-			s += post.RenderSummary() + "\n"
-			return false
-		})
+	sb.WriteString(newButtonLink("post", board.GetPostFormURL()))
+	sb.WriteString("\n\n")
+
+	if board.threads.Size() == 0 {
+		return sb.String()
 	}
-	return s
+
+	page := p.Iterate(&board.threads, func(_ string, v interface{}) bool {
+		p := v.(*Post)
+		if p.isHidden {
+			return false
+		}
+
+		sb.WriteString("----------------------------------------\n")
+		sb.WriteString(p.RenderSummary())
+		sb.WriteString("\n")
+		return false
+	})
+
+	if page != nil {
+		sb.WriteString("\n---\n")
+		sb.WriteString(page.Picker())
+	}
+
+	return sb.String()
 }
 
 func (board *Board) incGetPostID() PostID {
