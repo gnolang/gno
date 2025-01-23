@@ -36,3 +36,4 @@ coverage.out
 *.bak
 
 .tmp/
+wal/
