@@ -3,7 +3,6 @@ package boards2
 import (
 	"gno.land/p/demo/avl"
 	"gno.land/p/demo/avl/pager"
-	"gno.land/p/demo/mux"
 )
 
 type PaginationOpts struct {
@@ -31,13 +30,13 @@ func (opts *PaginationOpts) Iterate(tree *avl.Tree, cb func(k string, val interf
 	return page
 }
 
-func mustGetPagination(req *mux.Request, pageSize int) *PaginationOpts {
+func mustGetPagination(rawPath string, pageSize int) *PaginationOpts {
 	p := pager.Pager{
 		PageQueryParam:  "page",
 		DefaultPageSize: pageSize,
 	}
 
-	pageNumber, _, err := p.ParseQuery(req.RawPath)
+	pageNumber, _, err := p.ParseQuery(rawPath)
 	if err != nil {
 		panic(err)
 	}

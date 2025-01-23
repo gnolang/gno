@@ -28,7 +28,7 @@ func Render(path string) string {
 
 func renderBoardsList(res *mux.ResponseWriter, req *mux.Request) {
 	res.Write("These are all the boards of this realm:\n\n")
-	p := mustGetPagination(req, boardsPageSize)
+	p := mustGetPagination(req.RawPath, boardsPageSize)
 	page := p.Iterate(&gBoardsByID, func(_ string, value interface{}) bool {
 		board := value.(*Board)
 		path := board.GetPath()
@@ -52,7 +52,7 @@ func renderBoard(res *mux.ResponseWriter, req *mux.Request) {
 	}
 
 	board := v.(*Board)
-	p := mustGetPagination(req, threadsPageSize)
+	p := mustGetPagination(req.RawPath, threadsPageSize)
 	res.Write(board.Render(p))
 }
 
@@ -78,7 +78,7 @@ func renderThread(res *mux.ResponseWriter, req *mux.Request) {
 	} else if thread.IsHidden() {
 		res.Write("Thread with ID: " + rawID + " has been flagged as inappropriate")
 	} else {
-		p := mustGetPagination(req, repliesPageSize)
+		p := mustGetPagination(req.RawPath, repliesPageSize)
 		res.Write(thread.Render(p, "", 5))
 	}
 }
