@@ -1,17 +1,14 @@
 package govdao
 
 import (
-	"errors"
 	"std"
 	"strings"
 
 	"gno.land/p/demo/avl"
 	"gno.land/p/demo/mux"
 	"gno.land/p/demo/ufmt"
+	"gno.land/r/gov/dao/v3/types"
 )
-
-var DAOPath = "gno.land/r/demo/govdao"
-var ErrInvalidRealm = errors.New("this can be only executed by govDAO realm")
 
 var router *mux.Router
 
@@ -36,7 +33,7 @@ func init() {
 func renderActiveProposals() string {
 	out := "## Active Propoposals:\n"
 	proposals.Iterate("", "", func(key string, valueProposal interface{}) bool {
-		p, _ := valueProposal.(*Proposal)
+		p, _ := valueProposal.(*types.Proposal)
 		ps := proposalsStatuses.GetStatus(key)
 		if ps.Inactive {
 			return false
@@ -111,14 +108,21 @@ func Vote(pid int, vote string) {
 	}
 }
 
-func WithdrawPrpoposal(pid int) {
+func WithdrawPrpoposal(pid int, reason string) {
 	caller := std.GetOrigCaller()
 	err := theLaw.CheckProposalWithdrawn(members, caller)
 	if err != nil {
 		panic(err)
 	}
 
-	// TODO: withdraw proposal by ID
+	pids := ufmt.Sprintf("%v", pid)
+	ps := proposalsStatuses.GetStatus(pids)
+	if ps == nil {
+		panic(ufmt.Sprintf("proposal with pid %v not found", pids))
+	}
+
+	ps.Denied = true
+	ps.DeniedReason = reason
 }
 
 func MemberProposalAdd(addr std.Address, tier string) int {
@@ -127,13 +131,13 @@ func MemberProposalAdd(addr std.Address, tier string) int {
 	if err != nil {
 		panic(err)
 	}
-	exec := NewExecutor(addNewMemberCallback, &addMemberMetadata{
+	exec := types.NewExecutor(addNewMemberCallback, &addMemberMetadata{
 		Tier:   tier,
 		Addr:   addr,
-		Member: &Member{},
+		Member: &types.Member{},
 	})
 
-	prop := &Proposal{
+	prop := &types.Proposal{
 		Author:      caller,
 		Title:       "New Member porposal",
 		Description: "This prpoposal is looking to add a new member to the board.",
@@ -143,7 +147,7 @@ func MemberProposalAdd(addr std.Address, tier string) int {
 	return newProposal(prop)
 }
 
-func MemberProposalPromote(addr std.Address, tier string) int {
+func MemberProposalPromote(addr std.Address, tier string) int { // TODO add markdown with all data for a promotion
 	caller := std.GetOrigCaller()
 
 	err := theLaw.CheckMemberPromoteProposal(members, caller, tier, addr)
@@ -156,13 +160,13 @@ func MemberProposalPromote(addr std.Address, tier string) int {
 		panic("proposed address is not a member")
 	}
 
-	exec := NewExecutor(promoteNewMemberCallback, &promoteMemberMetadata{
+	exec := types.NewExecutor(promoteNewMemberCallback, &promoteMemberMetadata{
 		FromTier: tn,
 		ToTier:   tier,
 		Addr:     addr,
 	})
 
-	prop := &Proposal{
+	prop := &types.Proposal{
 		Author:      caller,
 		Title:       "Promote Member porposal",
 		Description: "This prpoposal is looking to promote a member to a new tier.",
@@ -185,29 +189,32 @@ func MemberProposalWithdrawn(addr std.Address) int {
 	return 0
 }
 
-func LawProposalChange(law *Law) int {
+func LawProposalChange(law *types.Law) int {
 	caller := std.GetOrigCaller()
 
-	exec := NewExecutor(changeTheLawCallback, &lawMetadata{
+	exec := types.NewExecutor(changeTheLawCallback, &lawMetadata{
 		NewLaw: law,
 	})
 
-	prop := &Proposal{
+	prop := &types.Proposal{
 		Author:      caller,
 		Title:       "New Law proposal",
-		Description: "This prpoposal will change the implementation of the law. Read carefully the source code and the metadata string representation to verify that everything is as expected.",
+		Description: `This prpoposal will change the implementation of the law.
+		Read carefully the source code and the metadata string representation to verify that everything is as expected.`,
 		Executor:    exec,
 	}
 
 	return newProposal(prop)
 }
 
-func NewProposal(p *Proposal) int {
+// TODO add a method to change the law's stringifier
+
+func NewProposal(p *types.Proposal) int {
 	p.Author = std.GetOrigCaller()
 	return newProposal(p)
 }
 
-func newProposal(p *Proposal) int {
+func newProposal(p *types.Proposal) int {
 	pid := proposalIDSeq
 	pids := ufmt.Sprintf("%v", pid)
 	proposals.Set(pids, p)
@@ -215,4 +222,13 @@ func newProposal(p *Proposal) int {
 	proposalIDSeq = proposalIDSeq + 1
 
 	return pid
+}
+
+// TODO 
+func GetProposals() []Proposal {
+	// TODO: filter by ruler.CurrentDAO
+	if ruler.CurrentDAO != std.PrevRealm().PkgName() {
+		panic("denied")
+	}
+	return all info
 }
