@@ -3369,15 +3369,36 @@ func getResultTypedValues(cx *CallExpr) []TypedValue {
 func evalConst(store Store, last BlockNode, x Expr) *ConstExpr {
 	// TODO: some check or verification for ensuring x
 	// is constant?  From the machine?
-	m := NewMachine(".dontcare", store)
-	m.PreprocessorMode = true
+	var cx *ConstExpr
+	if clx, ok := x.(*CallExpr); ok {
+		t := evalStaticTypeOf(store, last, clx.Args[0])
+		if ar, ok := unwrapPointerType(baseOf(t)).(*ArrayType); ok {
+			fv := clx.Func.(*ConstExpr).V.(*FuncValue)
+			switch {
+			case fv.Name == "cap":
+				fallthrough
+			case fv.Name == "len":
+				tv := TypedValue{T: IntType}
+				tv.SetInt(ar.Len)
+				cx = &ConstExpr{
+					Source:     x,
+					TypedValue: tv,
+				}
+			default:
+				panic(fmt.Sprintf("unexpected const func %s", fv.Name))
+			}
+		}
+	}
 
-	cv := m.EvalStatic(last, x)
-	m.PreprocessorMode = false
-	m.Release()
-	cx := &ConstExpr{
-		Source:     x,
-		TypedValue: cv,
+	if cx == nil {
+		m := NewMachine(".dontcare", store)
+		cv := m.EvalStatic(last, x)
+		m.PreprocessorMode = false
+		m.Release()
+		cx = &ConstExpr{
+			Source:     x,
+			TypedValue: cv,
+		}
 	}
 	cx.SetLine(x.GetLine())
 	cx.SetAttribute(ATTR_PREPROCESSED, true)
