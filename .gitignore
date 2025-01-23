@@ -34,3 +34,5 @@ coverage.out
 *.swp
 *.swo
 *.bak
+
+.tmp/

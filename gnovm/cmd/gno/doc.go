@@ -29,7 +29,8 @@ func newDocCmd(io commands.IO) *commands.Command {
 		commands.Metadata{
 			Name:       "doc",
 			ShortUsage: "doc [flags] <pkgsym>",
-			ShortHelp:  "get documentation for the specified package or symbol (type, function, method, or variable/constant)",
+			ShortHelp: "show documentation for package or symbol", 
+			LongHelp: "get documentation for the specified package or symbol (type, function, method, or variable/constant)",
 		},
 		c,
 		func(_ context.Context, args []string) error {

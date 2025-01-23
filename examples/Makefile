@@ -33,11 +33,11 @@ OFFICIAL_PACKAGES += ./gno.land/r/gov
 # Dev tools
 .PHONY: transpile
 transpile:
-	go run ../gnovm/cmd/gno transpile -v .
+	go run ../gnovm/cmd/gno tool transpile -v .
 
 .PHONY: build
 build:
-	go run ../gnovm/cmd/gno transpile -v --gobuild .
+	go run ../gnovm/cmd/gno tool transpile -v --gobuild .
 
 .PHONY: test
 test:
@@ -45,7 +45,7 @@ test:
 
 .PHONY: lint
 lint:
-	go run ../gnovm/cmd/gno lint -v $(OFFICIAL_PACKAGES)
+	go run ../gnovm/cmd/gno tool lint -v $(OFFICIAL_PACKAGES)
 
 .PHONY: test.sync
 test.sync:
