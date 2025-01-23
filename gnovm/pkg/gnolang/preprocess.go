@@ -3366,9 +3366,13 @@ func getResultTypedValues(cx *CallExpr) []TypedValue {
 // NOTE: Generally, conversion happens in a separate step while leaving
 // composite exprs/nodes that contain constant expression nodes (e.g. const
 // exprs in the rhs of AssignStmts).
+//
+// Array-related expressions like `len` and `cap` are manually evaluated
+// as constants, even if the array itself is not a constant. This evaluation
+// is handled independently of the rest of the constant evaluation process,
+// bypassing machine.EvalStatic.
 func evalConst(store Store, last BlockNode, x Expr) *ConstExpr {
 	// TODO: some check or verification for ensuring x
-	// is constant?  From the machine?
 	var cx *ConstExpr
 	if clx, ok := x.(*CallExpr); ok {
 		t := evalStaticTypeOf(store, last, clx.Args[0])
@@ -3391,6 +3395,7 @@ func evalConst(store Store, last BlockNode, x Expr) *ConstExpr {
 	}
 
 	if cx == nil {
+		// is constant?  From the machine?
 		m := NewMachine(".dontcare", store)
 		cv := m.EvalStatic(last, x)
 		m.PreprocessorMode = false
