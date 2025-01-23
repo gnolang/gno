@@ -1,6 +1,7 @@
 package boards2
 
 import (
+	"net/url"
 	"std"
 	"strconv"
 	"strings"
@@ -65,7 +66,7 @@ func (board *Board) GetID() BoardID {
 
 // GetURL returns the relative URL of the board.
 func (board *Board) GetURL() string {
-	return strings.TrimPrefix(std.CurrentRealm().PkgPath(), "gno.land") + ":" + board.name
+	return strings.TrimPrefix(std.CurrentRealm().PkgPath(), "gno.land") + ":" + url.PathEscape(board.name)
 }
 
 func (board *Board) GetPermissions() Permissions {
