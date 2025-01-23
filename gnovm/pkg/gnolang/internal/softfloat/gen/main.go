@@ -5,6 +5,7 @@ import (
 	"log"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"runtime"
 	"strings"
 )
@@ -82,8 +83,13 @@ func processSoftFloat64TestFile() {
 }
 
 func gofumpt() {
-	cmd := exec.Command("go", "run", "-modfile", "../../../../../misc/devdeps/go.mod", "mvdan.cc/gofumpt", "-w", ".")
-	_, err := cmd.Output()
+	rootPath, err := exec.Command("git", "rev-parse", "--show-toplevel").Output()
+	if err != nil {
+		log.Fatal("error git rev-parse:", err)
+	}
+
+	cmd := exec.Command("go", "run", "-modfile", filepath.Join(strings.TrimSpace(string(rootPath)), "misc/devdeps/go.mod"), "mvdan.cc/gofumpt", "-w", ".")
+	_, err = cmd.Output()
 	if err != nil {
 		log.Fatal("error gofumpt:", err)
 	}
