@@ -24,27 +24,35 @@ func (l GlobLoader) MatchPaths(globs ...string) ([]string, error) {
 	}
 
 	if _, err := os.Stat(l.Root); err != nil {
-		return nil, fmt.Errorf("unable to stats: %w", err)
+		return nil, fmt.Errorf("unable to stat root: %w", err)
 	}
 
 	mpaths := []string{}
 	for _, input := range globs {
-		cleanInputs := filepath.Clean(input)
-		gpath, err := Parse(cleanInputs)
+		cleanInput := filepath.Clean(input)
+		fmt.Println("clean", cleanInput)
+		gpath, err := Parse(cleanInput)
 		if err != nil {
 			return nil, fmt.Errorf("invalid glob path %q: %w", input, err)
 		}
 
 		base := gpath.StarFreeBase()
-		if base == cleanInputs {
+		if base == cleanInput {
 			mpaths = append(mpaths, base)
 			continue
 		}
 
-		root := filepath.Join(l.Root, base)
+		// root := filepath.Join(l.Root, base)
+		root := l.Root
+		fmt.Println("root", root)
 		err = filepath.WalkDir(root, func(dirpath string, d fs.DirEntry, err error) error {
 			if err != nil {
 				return err
+			}
+
+			relPath, relErr := filepath.Rel(root, dirpath)
+			if relErr != nil {
+				return relErr
 			}
 
 			if !d.IsDir() {
@@ -55,14 +63,16 @@ func (l GlobLoader) MatchPaths(globs ...string) ([]string, error) {
 				return fs.SkipDir
 			}
 
-			path := strings.TrimPrefix(dirpath, l.Root+"/")
-			if gpath.Match(path) {
-				mpaths = append(mpaths, path)
-				return nil
+			if gpath.Match(relPath) {
+				fmt.Println(cleanInput, "match", relPath)
+				mpaths = append(mpaths, relPath)
 			}
 
 			return nil
 		})
+		if err != nil {
+			return nil, fmt.Errorf("walking directory %q: %w", root, err)
+		}
 	}
 
 	return mpaths, nil

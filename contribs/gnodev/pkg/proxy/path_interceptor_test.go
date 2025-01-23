@@ -6,62 +6,30 @@ import (
 	"testing"
 
 	"github.com/gnolang/gno/contribs/gnodev/pkg/proxy"
-	"github.com/gnolang/gno/gno.land/pkg/gnoland"
-	"github.com/gnolang/gno/gno.land/pkg/gnoland/ugnot"
 	"github.com/gnolang/gno/gno.land/pkg/integration"
-	vmm "github.com/gnolang/gno/gno.land/pkg/sdk/vm"
 	"github.com/gnolang/gno/gnovm"
 	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
 	"github.com/gnolang/gno/tm2/pkg/bft/rpc/client"
-	"github.com/gnolang/gno/tm2/pkg/crypto"
 	"github.com/gnolang/gno/tm2/pkg/crypto/secp256k1"
 	"github.com/gnolang/gno/tm2/pkg/log"
-	"github.com/gnolang/gno/tm2/pkg/std"
 	"github.com/stretchr/testify/require"
 )
 
-func generateTestinGenesisState(creator crypto.PrivKey, paths ...string) gnoland.GnoGenesisState {
-	txs := make([]gnoland.TxWithMetadata, len(paths))
-	// creator := privKey.PubKey().Address()
-	for i, path := range paths {
-		pkg := gnovm.MemPackage{
-			Name: "foo",
-			Path: path,
-			Files: []*gnovm.MemFile{
-				{
-					Name: "foo.gno",
-					Body: `package foo; func Render(_ string) string { return "bar" }`,
-				},
-				{Name: "gno.mod", Body: `module ` + path},
-			},
-		}
-
-		// Create transaction
-		var tx std.Tx
-		tx.Fee = std.Fee{GasWanted: 1e6, GasFee: std.Coin{Amount: 1e6, Denom: "ugnot"}}
-		tx.Msgs = []std.Msg{
-			vmm.MsgAddPackage{
-				Creator: creator.PubKey().Address(),
-				Package: &pkg,
-			},
-		}
-
-		tx.Signatures = make([]std.Signature, len(tx.GetSigners()))
-		txs[i] = gnoland.TxWithMetadata{Tx: tx}
-	}
-
-	gnoland.SignGenesisTxs(txs, creator, "tendermint_test")
-
-	return gnoland.GnoGenesisState{
-		Txs: txs,
-		Balances: []gnoland.Balance{{
-			Address: creator.PubKey().Address(),
-			Amount:  std.MustParseCoins(ugnot.ValueString(10_000_000_000_000)),
-		}},
-	}
-}
-
 func TestProxy(t *testing.T) {
+	const targetPath = "gno.land/r/target/path"
+
+	pkg := gnovm.MemPackage{
+		Name: "foo",
+		Path: targetPath,
+		Files: []*gnovm.MemFile{
+			{
+				Name: "foo.gno",
+				Body: `package foo; func Render(_ string) string { return "bar" }`,
+			},
+			{Name: "gno.mod", Body: `module ` + targetPath},
+		},
+	}
+
 	rootdir := gnoenv.RootDir()
 	cfg := integration.TestingMinimalNodeConfig(rootdir)
 	logger := log.NewTestingLogger(t)
@@ -78,11 +46,9 @@ func TestProxy(t *testing.T) {
 	require.NoError(t, err)
 	cfg.TMConfig.RPC.ListenAddress = path_interceptor.ProxyAddress()
 
-	const targetPath = "gno.land/r/target/path"
-
 	// Setup genesis state
 	privKey := secp256k1.GenPrivKey()
-	cfg.Genesis.AppState = generateTestinGenesisState(privKey, targetPath)
+	cfg.Genesis.AppState = integration.GenerateTestinGenesisState(privKey, pkg)
 
 	integration.TestingInMemoryNode(t, logger, cfg)
 

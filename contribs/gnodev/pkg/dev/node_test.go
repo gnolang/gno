@@ -3,7 +3,6 @@ package dev
 import (
 	"context"
 	"encoding/json"
-	"path/filepath"
 	"testing"
 	"time"
 
@@ -57,7 +56,7 @@ func Render(_ string) string { return "foo" }
 	)
 
 	// Generate package
-	pkg := generateMemPackage(t, path, "foobar.gno", testFile)
+	pkg := integration.GenerateMemPackage(path, "foobar.gno", testFile)
 	logger := log.NewTestingLogger(t)
 
 	cfg := DefaultNodeConfig(gnoenv.RootDir(), "gno.land")
@@ -92,8 +91,8 @@ func Render(_ string) string { return "bar" }
 	)
 
 	// Generate package foo
-	fooPkg := generateMemPackage(t, fooPath, "foo.gno", fooFile)
-	barPkg := generateMemPackage(t, barPath, "bar.gno", barFile)
+	fooPkg := integration.GenerateMemPackage(fooPath, "foo.gno", fooFile)
+	barPkg := integration.GenerateMemPackage(barPath, "bar.gno", barFile)
 	cfg := newTestingNodeConfig(&fooPkg, &barPkg)
 
 	// Call NewDevNode with no package should work
@@ -135,7 +134,7 @@ func Render(_ string) string { return "bar" }
 	)
 
 	// Generate package foo
-	fooPkg := generateMemPackage(t, foobarPath, "foo.gno", fooFile)
+	fooPkg := integration.GenerateMemPackage(foobarPath, "foo.gno", fooFile)
 
 	// Call NewDevNode with no package should work
 	node, emitter := newTestingDevNode(t, &fooPkg)
@@ -147,7 +146,7 @@ func Render(_ string) string { return "bar" }
 	require.Equal(t, render, "foo")
 
 	// Update foo content with bar content
-	barPkg := generateMemPackage(t, foobarPath, "bar.gno", barFile)
+	barPkg := integration.GenerateMemPackage(foobarPath, "bar.gno", barFile)
 	fooPkg.Files = barPkg.Files
 
 	err = node.Reload(context.Background())
@@ -176,7 +175,7 @@ func Render(_ string) string { return str }
 	)
 
 	// Generate package foo
-	foopkg := generateMemPackage(t, foobarPath, "foo.gno", fooFile)
+	foopkg := integration.GenerateMemPackage(foobarPath, "foo.gno", fooFile)
 
 	// Call NewDevNode with no package should work
 	node, emitter := newTestingDevNode(t, &foopkg)
@@ -209,7 +208,7 @@ func Render(_ string) string { return str }
 	err = node.Reset(context.Background())
 	require.NoError(t, err)
 	assert.Equal(t, emitter.NextEvent().Type(), events.EvtReset)
-
+3A3A3A3A
 	// Test rendering should return initial `str` value
 	render, err = testingRenderRealm(t, node, foobarPath)
 	require.NoError(t, err)
@@ -261,7 +260,7 @@ func Render(_ string) string {
 	defer cancel()
 
 	// Generate package foo
-	foopkg := generateMemPackage(t, foobarPath, "foo.gno", fooFile)
+	foopkg := integration.GenerateMemPackage(foobarPath, "foo.gno", fooFile)
 
 	// XXX(gfanton): Setting this to `false` somehow makes the time block
 	// drift from the time spanned by the VM.
@@ -447,34 +446,6 @@ func testingCallRealm(t *testing.T, node *Node, msgs ...vm.MsgCall) (*core_types
 	}
 
 	return cli.Call(txcfg, vmMsgs...)
-}
-
-func generateMemPackage(t *testing.T, path string, pairNameFile ...string) gnovm.MemPackage {
-	t.Helper()
-
-	if len(pairNameFile)%2 != 0 {
-		require.FailNow(t, "Generate testing packages require paired arguments.")
-	}
-
-	// Guess the name based on dir
-	// Don't bother parsing files to actually guess the name of the package
-	name := filepath.Base(path)
-
-	files := make([]*gnovm.MemFile, 0, len(pairNameFile)/2)
-	for i := 0; i < len(pairNameFile); i += 2 {
-		name := pairNameFile[i]
-		content := pairNameFile[i+1]
-		files = append(files, &gnovm.MemFile{
-			Name: name,
-			Body: content,
-		})
-	}
-
-	return gnovm.MemPackage{
-		Name:  name,
-		Path:  path,
-		Files: files,
-	}
 }
 
 func newTestingNodeConfig(pkgs ...*gnovm.MemPackage) *NodeConfig {

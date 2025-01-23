@@ -45,6 +45,7 @@ func TestMatch(t *testing.T) {
 		{"path/*/1/*/3/*/5*/foo", "path/to/1/2/3/4/522/bar", false},
 		{"path/*/foo", "path/to/to/foo", false},
 		{"path/**/foo", "path/to/to/foo", true},
+		{"path/**/foo", "path/to/to/bar", false},
 		{"path/**/foo", "path/foo", true},
 		{"**/abc/**", "foo/r/x/abc/bar", true},
 

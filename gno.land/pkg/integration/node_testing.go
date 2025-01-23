@@ -8,6 +8,8 @@ import (
 
 	"github.com/gnolang/gno/gno.land/pkg/gnoland"
 	"github.com/gnolang/gno/gno.land/pkg/gnoland/ugnot"
+	vmm "github.com/gnolang/gno/gno.land/pkg/sdk/vm"
+	"github.com/gnolang/gno/gnovm"
 	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
 	tmcfg "github.com/gnolang/gno/tm2/pkg/bft/config"
 	"github.com/gnolang/gno/tm2/pkg/bft/node"
@@ -185,4 +187,58 @@ func DefaultTestingTMConfig(gnoroot string) *tmcfg.Config {
 	tmconfig.RPC.ListenAddress = defaultListner
 	tmconfig.P2P.ListenAddress = defaultListner
 	return tmconfig
+}
+
+func GenerateMemPackage(path string, pairNameFile ...string) gnovm.MemPackage {
+	if len(pairNameFile)%2 != 0 {
+		panic("Generate testing packages require paired arguments.")
+	}
+
+	// Guess the name based on dir
+	// Don't bother parsing files to actually guess the name of the package
+	name := filepath.Base(path)
+
+	files := make([]*gnovm.MemFile, 0, len(pairNameFile)/2)
+	for i := 0; i < len(pairNameFile); i += 2 {
+		name := pairNameFile[i]
+		content := pairNameFile[i+1]
+		files = append(files, &gnovm.MemFile{
+			Name: name,
+			Body: content,
+		})
+	}
+
+	return gnovm.MemPackage{
+		Name:  name,
+		Path:  path,
+		Files: files,
+	}
+}
+
+func GenerateTestinGenesisState(creator crypto.PrivKey, pkgs ...gnovm.MemPackage) gnoland.GnoGenesisState {
+	txs := make([]gnoland.TxWithMetadata, len(pkgs))
+	for i, pkg := range pkgs {
+
+		// Create transaction
+		var tx std.Tx
+		tx.Fee = std.Fee{GasWanted: 1e6, GasFee: std.Coin{Amount: 1e6, Denom: "ugnot"}}
+		tx.Msgs = []std.Msg{
+			vmm.MsgAddPackage{
+				Creator: creator.PubKey().Address(),
+				Package: &pkg,
+			},
+		}
+
+		tx.Signatures = make([]std.Signature, len(tx.GetSigners()))
+		txs[i] = gnoland.TxWithMetadata{Tx: tx}
+	}
+
+	gnoland.SignGenesisTxs(txs, creator, "tendermint_test")
+	return gnoland.GnoGenesisState{
+		Txs: txs,
+		Balances: []gnoland.Balance{{
+			Address: creator.PubKey().Address(),
+			Amount:  std.MustParseCoins(ugnot.ValueString(10_000_000_000_000)),
+		}},
+	}
 }
