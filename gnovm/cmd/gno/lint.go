@@ -165,7 +165,7 @@ func execLint(cfg *lintCfg, args []string, io commands.IO) error {
 			// Check test files
 			packageFiles := sourceAndTestFileset(memPkg)
 
-			tm.PreprocessFiles(memPkg.Name, memPkg.Path, packageFiles)
+			tm.PreprocessFiles(memPkg.Name, memPkg.Path, packageFiles, false, false)
 		})
 		if hasRuntimeErr {
 			hasError = true
@@ -225,7 +225,7 @@ func sourceAndTestFileset(memPkg *gnovm.MemPackage) *gno.FileSet {
 			continue // Skip non-GNO files
 		}
 
-		n, _ := gno.ParseFile(mfile.Name, mfile.Body)
+		n := gno.MustParseFile(mfile.Name, mfile.Body)
 		if n == nil {
 			continue // Skip empty files
 		}
