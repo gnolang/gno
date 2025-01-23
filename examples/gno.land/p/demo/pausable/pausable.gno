@@ -1,6 +1,10 @@
 package pausable
 
-import "gno.land/p/demo/ownable"
+import (
+	"std"
+
+	"gno.land/p/demo/ownable"
+)
 
 type Pausable struct {
 	*ownable.Ownable
@@ -30,20 +34,24 @@ func (p Pausable) IsPaused() bool {
 
 // Pause sets the state of Pausable to true, meaning all pausable functions are paused
 func (p *Pausable) Pause() error {
-	if err := p.CallerIsOwner(); err != nil {
-		return err
+	if !p.CallerIsOwner() {
+		return ownable.ErrUnauthorized
 	}
 
 	p.paused = true
+	std.Emit("Paused", "account", p.Owner().String())
+
 	return nil
 }
 
 // Unpause sets the state of Pausable to false, meaning all pausable functions are resumed
 func (p *Pausable) Unpause() error {
-	if err := p.CallerIsOwner(); err != nil {
-		return err
+	if !p.CallerIsOwner() {
+		return ownable.ErrUnauthorized
 	}
 
 	p.paused = false
+	std.Emit("Unpaused", "account", p.Owner().String())
+
 	return nil
 }

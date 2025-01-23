@@ -1,12 +1,7 @@
 package main
 
 import (
-	"os"
-	"path/filepath"
 	"testing"
-
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 )
 
 func TestModApp(t *testing.T) {
@@ -44,24 +39,19 @@ func TestModApp(t *testing.T) {
 			args:                 []string{"mod", "download"},
 			testDir:              "../../tests/integ/require_remote_module",
 			simulateExternalRepo: true,
+			stderrShouldContain:  "gno: downloading gno.land/p/demo/avl",
 		},
 		{
 			args:                 []string{"mod", "download"},
 			testDir:              "../../tests/integ/require_invalid_module",
 			simulateExternalRepo: true,
-			errShouldContain:     "fetch: writepackage: querychain",
+			stderrShouldContain:  "gno: downloading gno.land/p/demo/notexists",
+			errShouldContain:     "query files list for pkg \"gno.land/p/demo/notexists\": package \"gno.land/p/demo/notexists\" is not available",
 		},
 		{
 			args:                 []string{"mod", "download"},
-			testDir:              "../../tests/integ/invalid_module_version1",
+			testDir:              "../../tests/integ/require_std_lib",
 			simulateExternalRepo: true,
-			errShouldContain:     "usage: require module/path v1.2.3",
-		},
-		{
-			args:                 []string{"mod", "download"},
-			testDir:              "../../tests/integ/invalid_module_version2",
-			simulateExternalRepo: true,
-			errShouldContain:     "invalid: must be of the form v1.2.3",
 		},
 		{
 			args:                 []string{"mod", "download"},
@@ -72,12 +62,14 @@ func TestModApp(t *testing.T) {
 			args:                 []string{"mod", "download"},
 			testDir:              "../../tests/integ/replace_with_module",
 			simulateExternalRepo: true,
+			stderrShouldContain:  "gno: downloading gno.land/p/demo/users",
 		},
 		{
 			args:                 []string{"mod", "download"},
 			testDir:              "../../tests/integ/replace_with_invalid_module",
 			simulateExternalRepo: true,
-			errShouldContain:     "fetch: writepackage: querychain",
+			stderrShouldContain:  "gno: downloading gno.land/p/demo/notexists",
+			errShouldContain:     "query files list for pkg \"gno.land/p/demo/notexists\": package \"gno.land/p/demo/notexists\" is not available",
 		},
 
 		// test `gno mod init` with no module name
@@ -160,12 +152,6 @@ func TestModApp(t *testing.T) {
 		},
 		{
 			args:                 []string{"mod", "tidy"},
-			testDir:              "../../tests/integ/invalid_module_version1",
-			simulateExternalRepo: true,
-			errShouldContain:     "error parsing gno.mod file at",
-		},
-		{
-			args:                 []string{"mod", "tidy"},
 			testDir:              "../../tests/integ/minimalist_gnomod",
 			simulateExternalRepo: true,
 		},
@@ -178,12 +164,6 @@ func TestModApp(t *testing.T) {
 			args:                 []string{"mod", "tidy"},
 			testDir:              "../../tests/integ/valid2",
 			simulateExternalRepo: true,
-		},
-		{
-			args:                 []string{"mod", "tidy"},
-			testDir:              "../../tests/integ/invalid_gno_file",
-			simulateExternalRepo: true,
-			errShouldContain:     "expected 'package', found packag",
 		},
 
 		// test `gno mod why`
@@ -198,12 +178,6 @@ func TestModApp(t *testing.T) {
 			testDir:              "../../tests/integ/empty_dir",
 			simulateExternalRepo: true,
 			errShouldContain:     "could not read gno.mod file",
-		},
-		{
-			args:                 []string{"mod", "why", "std"},
-			testDir:              "../../tests/integ/invalid_module_version1",
-			simulateExternalRepo: true,
-			errShouldContain:     "error parsing gno.mod file at",
 		},
 		{
 			args:                 []string{"mod", "why", "std"},
@@ -239,122 +213,6 @@ valid.gno
 `,
 		},
 	}
+
 	testMainCaseRun(t, tc)
-}
-
-func TestGetGnoImports(t *testing.T) {
-	workingDir, err := os.Getwd()
-	require.NoError(t, err)
-
-	// create external dir
-	tmpDir, cleanUpFn := createTmpDir(t)
-	defer cleanUpFn()
-
-	// cd to tmp directory
-	os.Chdir(tmpDir)
-	defer os.Chdir(workingDir)
-
-	files := []struct {
-		name, data string
-	}{
-		{
-			name: "file1.gno",
-			data: `
-			package tmp
-
-			import (
-				"std"
-
-				"gno.land/p/demo/pkg1"
-			)
-			`,
-		},
-		{
-			name: "file2.gno",
-			data: `
-			package tmp
-
-			import (
-				"gno.land/p/demo/pkg1"
-				"gno.land/p/demo/pkg2"
-			)
-			`,
-		},
-		{
-			name: "file1_test.gno",
-			data: `
-			package tmp
-
-			import (
-				"testing"
-
-				"gno.land/p/demo/testpkg"
-			)
-			`,
-		},
-		{
-			name: "z_0_filetest.gno",
-			data: `
-			package main
-
-			import (
-				"gno.land/p/demo/filetestpkg"
-			)
-			`,
-		},
-
-		// subpkg files
-		{
-			name: filepath.Join("subtmp", "file1.gno"),
-			data: `
-			package subtmp
-
-			import (
-				"std"
-
-				"gno.land/p/demo/subpkg1"
-			)
-			`,
-		},
-		{
-			name: filepath.Join("subtmp", "file2.gno"),
-			data: `
-			package subtmp
-
-			import (
-				"gno.land/p/demo/subpkg1"
-				"gno.land/p/demo/subpkg2"
-			)
-			`,
-		},
-	}
-
-	// Expected list of imports
-	// - ignore subdirs
-	// - ignore duplicate
-	// - ignore *_filetest.gno
-	// - should be sorted
-	expected := []string{
-		"gno.land/p/demo/pkg1",
-		"gno.land/p/demo/pkg2",
-		"gno.land/p/demo/testpkg",
-	}
-
-	// Create subpkg dir
-	err = os.Mkdir("subtmp", 0o700)
-	require.NoError(t, err)
-
-	// Create files
-	for _, f := range files {
-		err = os.WriteFile(f.name, []byte(f.data), 0o644)
-		require.NoError(t, err)
-	}
-
-	imports, err := getGnoPackageImports(tmpDir)
-	require.NoError(t, err)
-
-	require.Equal(t, len(expected), len(imports))
-	for i := range imports {
-		assert.Equal(t, expected[i], imports[i])
-	}
 }

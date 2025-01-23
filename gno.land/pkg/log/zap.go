@@ -71,5 +71,5 @@ func NewZapLogger(enc zapcore.Encoder, w io.Writer, level zapcore.Level, opts ..
 
 // ZapLoggerToSlog wraps the given zap logger to an log/slog Logger
 func ZapLoggerToSlog(logger *zap.Logger) *slog.Logger {
-	return slog.New(zapslog.NewHandler(logger.Core(), nil))
+	return slog.New(zapslog.NewHandler(logger.Core()))
 }

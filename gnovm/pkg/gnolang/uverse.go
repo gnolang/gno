@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"reflect"
 	"strings"
+
+	bm "github.com/gnolang/gno/gnovm/pkg/benchops"
 )
 
 // ----------------------------------------
@@ -61,26 +63,58 @@ var gStringerType = &DeclaredType{
 var (
 	uverseNode  *PackageNode
 	uverseValue *PackageValue
+	uverseInit  = uverseUninitialized
 )
+
+const (
+	uverseUninitialized = iota
+	uverseInitializing
+	uverseInitialized
+)
+
+func init() {
+	// Skip Uverse init during benchmarking to load stdlibs in the benchmark main function.
+	if !(bm.OpsEnabled || bm.StorageEnabled) {
+		// Call Uverse() so we initialize the Uverse node ahead of any calls to the package.
+		Uverse()
+	}
+}
 
 const uversePkgPath = ".uverse"
 
-// Always returns a new copy from the latest state of source.
+// UverseNode returns the uverse PackageValue.
+// If called while initializing the UverseNode itself, it will return an empty
+// PackageValue.
 func Uverse() *PackageValue {
-	if uverseValue == nil {
-		pn := UverseNode()
-		uverseValue = pn.NewPackage()
+	switch uverseInit {
+	case uverseUninitialized:
+		uverseInit = uverseInitializing
+		makeUverseNode()
+		uverseInit = uverseInitialized
+	case uverseInitializing:
+		return &PackageValue{}
 	}
+
 	return uverseValue
 }
 
-// Always returns the same instance with possibly differing completeness.
+// UverseNode returns the uverse PackageNode.
+// If called while initializing the UverseNode itself, it will return an empty
+// PackageNode.
 func UverseNode() *PackageNode {
-	// Global is singleton.
-	if uverseNode != nil {
-		return uverseNode
+	switch uverseInit {
+	case uverseUninitialized:
+		uverseInit = uverseInitializing
+		makeUverseNode()
+		uverseInit = uverseInitialized
+	case uverseInitializing:
+		return &PackageNode{}
 	}
 
+	return uverseNode
+}
+
+func makeUverseNode() {
 	// NOTE: uverse node is hidden, thus the leading dot in pkgPath=".uverse".
 	uverseNode = NewPackageNode("uverse", uversePkgPath, nil)
 
@@ -809,6 +843,11 @@ func UverseNode() *PackageNode {
 					li := lv.ConvertGetInt()
 					cv := vargs.TV.GetPointerAtIndexInt(m.Store, 1).Deref()
 					ci := cv.ConvertGetInt()
+
+					if ci < li {
+						panic(&Exception{Value: typedString(`makeslice: cap out of range`)})
+					}
+
 					if et.Kind() == Uint8Kind {
 						arrayValue := m.Alloc.NewDataArray(ci)
 						m.PushValue(TypedValue{
@@ -1017,7 +1056,7 @@ func UverseNode() *PackageNode {
 			m.Exceptions = nil
 		},
 	)
-	return uverseNode
+	uverseValue = uverseNode.NewPackage()
 }
 
 func copyDataToList(dst []TypedValue, data []byte, et Type) {

@@ -36,13 +36,14 @@ func _() {
 	_ = x[MapKind-25]
 	_ = x[TypeKind-26]
 	_ = x[BlockKind-27]
-	_ = x[TupleKind-28]
-	_ = x[RefTypeKind-29]
+	_ = x[HeapItemKind-28]
+	_ = x[TupleKind-29]
+	_ = x[RefTypeKind-30]
 }
 
-const _Kind_name = "InvalidKindBoolKindStringKindIntKindInt8KindInt16KindInt32KindInt64KindUintKindUint8KindUint16KindUint32KindUint64KindFloat32KindFloat64KindBigintKindBigdecKindArrayKindSliceKindPointerKindStructKindPackageKindInterfaceKindChanKindFuncKindMapKindTypeKindBlockKindTupleKindRefTypeKind"
+const _Kind_name = "InvalidKindBoolKindStringKindIntKindInt8KindInt16KindInt32KindInt64KindUintKindUint8KindUint16KindUint32KindUint64KindFloat32KindFloat64KindBigintKindBigdecKindArrayKindSliceKindPointerKindStructKindPackageKindInterfaceKindChanKindFuncKindMapKindTypeKindBlockKindHeapItemKindTupleKindRefTypeKind"
 
-var _Kind_index = [...]uint16{0, 11, 19, 29, 36, 44, 53, 62, 71, 79, 88, 98, 108, 118, 129, 140, 150, 160, 169, 178, 189, 199, 210, 223, 231, 239, 246, 254, 263, 272, 283}
+var _Kind_index = [...]uint16{0, 11, 19, 29, 36, 44, 53, 62, 71, 79, 88, 98, 108, 118, 129, 140, 150, 160, 169, 178, 189, 199, 210, 223, 231, 239, 246, 254, 263, 275, 284, 295}
 
 func (i Kind) String() string {
 	if i >= Kind(len(_Kind_index)-1) {

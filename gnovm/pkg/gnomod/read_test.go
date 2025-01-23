@@ -210,85 +210,6 @@ comments before "// e"
 	}
 }
 
-var addRequireTests = []struct {
-	desc string
-	in   string
-	path string
-	vers string
-	out  string
-}{
-	{
-		`existing`,
-		`
-		module m
-		require x.y/z v1.2.3
-		`,
-		"x.y/z", "v1.5.6",
-		`
-		module m
-		require x.y/z v1.5.6
-		`,
-	},
-	{
-		`existing2`,
-		`
-		module m
-		require (
-			x.y/z v1.2.3 // first
-			x.z/a v0.1.0 // first-a
-		)
-		require x.y/z v1.4.5 // second
-		require (
-			x.y/z v1.6.7 // third
-			x.z/a v0.2.0 // third-a
-		)
-		`,
-		"x.y/z", "v1.8.9",
-		`
-		module m
-
-		require (
-			x.y/z v1.8.9 // first
-			x.z/a v0.1.0 // first-a
-		)
-
-		require x.z/a v0.2.0 // third-a
-		`,
-	},
-	{
-		`new`,
-		`
-		module m
-		require x.y/z v1.2.3
-		`,
-		"x.y/w", "v1.5.6",
-		`
-		module m
-		require (
-			x.y/z v1.2.3
-			x.y/w v1.5.6
-		)
-		`,
-	},
-	{
-		`new2`,
-		`
-		module m
-		require x.y/z v1.2.3
-		require x.y/q/v2 v2.3.4
-		`,
-		"x.y/w", "v1.5.6",
-		`
-		module m
-		require x.y/z v1.2.3
-		require (
-			x.y/q/v2 v2.3.4
-			x.y/w v1.5.6
-		)
-		`,
-	},
-}
-
 var addModuleStmtTests = []struct {
 	desc string
 	in   string
@@ -299,12 +220,10 @@ var addModuleStmtTests = []struct {
 		`existing`,
 		`
 		module m
-		require x.y/z v1.2.3
 		`,
 		"n",
 		`
 		module n
-		require x.y/z v1.2.3
 		`,
 	},
 	{
@@ -330,7 +249,6 @@ var addReplaceTests = []struct {
 		`replace_with_module`,
 		`
 		module m
-		require x.y/z v1.2.3
 		`,
 		"x.y/z",
 		"v1.5.6",
@@ -338,7 +256,6 @@ var addReplaceTests = []struct {
 		"v1.5.6",
 		`
 		module m
-		require x.y/z v1.2.3
 		replace x.y/z v1.5.6 => a.b/c v1.5.6
 		`,
 	},
@@ -346,7 +263,6 @@ var addReplaceTests = []struct {
 		`replace_with_dir`,
 		`
 		module m
-		require x.y/z v1.2.3
 		`,
 		"x.y/z",
 		"v1.5.6",
@@ -354,62 +270,7 @@ var addReplaceTests = []struct {
 		"",
 		`
 		module m
-		require x.y/z v1.2.3
 		replace x.y/z v1.5.6 => /path/to/dir
-		`,
-	},
-}
-
-var dropRequireTests = []struct {
-	desc string
-	in   string
-	path string
-	out  string
-}{
-	{
-		`existing`,
-		`
-		module m
-		require x.y/z v1.2.3
-		`,
-		"x.y/z",
-		`
-		module m
-		`,
-	},
-	{
-		`existing2`,
-		`
-		module m
-		require (
-			x.y/z v1.2.3 // first
-			x.z/a v0.1.0 // first-a
-		)
-		require x.y/z v1.4.5 // second
-		require (
-			x.y/z v1.6.7 // third
-			x.z/a v0.2.0 // third-a
-		)
-		`,
-		"x.y/z",
-		`
-		module m
-
-		require x.z/a v0.1.0 // first-a
-
-		require x.z/a v0.2.0 // third-a
-		`,
-	},
-	{
-		`not_exists`,
-		`
-		module m
-		require x.y/z v1.2.3
-		`,
-		"a.b/c",
-		`
-		module m
-		require x.y/z v1.2.3
 		`,
 	},
 }
@@ -425,7 +286,6 @@ var dropReplaceTests = []struct {
 		`existing`,
 		`
 		module m
-		require x.y/z v1.2.3
 
 		replace x.y/z v1.2.3 => a.b/c v1.5.6
 		`,
@@ -433,14 +293,12 @@ var dropReplaceTests = []struct {
 		"v1.2.3",
 		`
 		module m
-		require x.y/z v1.2.3
 		`,
 	},
 	{
 		`not_exists`,
 		`
 		module m
-		require x.y/z v1.2.3
 
 		replace x.y/z v1.2.3 => a.b/c v1.5.6
 		`,
@@ -448,23 +306,10 @@ var dropReplaceTests = []struct {
 		"v3.2.1",
 		`
 		module m
-		require x.y/z v1.2.3
 
 		replace x.y/z v1.2.3 => a.b/c v1.5.6
 		`,
 	},
-}
-
-func TestAddRequire(t *testing.T) {
-	for _, tt := range addRequireTests {
-		t.Run(tt.desc, func(t *testing.T) {
-			testEdit(t, tt.in, tt.out, func(f *File) error {
-				err := f.AddRequire(tt.path, tt.vers)
-				f.Syntax.Cleanup()
-				return err
-			})
-		})
-	}
 }
 
 func TestAddModuleStmt(t *testing.T) {
@@ -486,18 +331,6 @@ func TestAddReplace(t *testing.T) {
 				f.AddReplace(tt.oldPath, tt.oldVers, tt.newPath, tt.newVers)
 				f.Syntax.Cleanup()
 				return nil
-			})
-		})
-	}
-}
-
-func TestDropRequire(t *testing.T) {
-	for _, tt := range dropRequireTests {
-		t.Run(tt.desc, func(t *testing.T) {
-			testEdit(t, tt.in, tt.out, func(f *File) error {
-				err := f.DropRequire(tt.path)
-				f.Syntax.Cleanup()
-				return err
 			})
 		})
 	}

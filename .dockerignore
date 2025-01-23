@@ -1,7 +1,9 @@
 .dockerignore
 build/
 Dockerfile
-misc/
+misc/*
+!misc/loop/
+!misc/autocounterd/
 docker-compose.yml
 tests/docker-integration/
 

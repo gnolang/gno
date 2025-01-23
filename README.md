@@ -53,7 +53,7 @@ repository offers more resources to dig into. We are eager to see your first PR!
 
 * [examples](./examples) - Smart-contract examples and guides for new Gno developers.
 * [gnovm](./gnovm) - GnoVM and Gnolang.
-* [gno.land](./gno.land) - Gno.land blockchain and tools.
+* [gno.land](./gno.land) - gno.land blockchain and tools.
 * [tm2](./tm2) - Tendermint2.
 * [docs](./docs) - Official documentation, deployed under [docs.gno.land](https://docs.gno.land).
 * [contribs](./contribs) - Collection of enhanced tools for Gno.

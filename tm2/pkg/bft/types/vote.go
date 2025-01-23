@@ -141,12 +141,6 @@ func (vote *Vote) ValidateBasic() error {
 	if !vote.BlockID.IsZero() && !vote.BlockID.IsComplete() {
 		return fmt.Errorf("BlockID must be either empty or complete, got: %v", vote.BlockID)
 	}
-	if len(vote.ValidatorAddress) != crypto.AddressSize {
-		return fmt.Errorf("expected ValidatorAddress size to be %d bytes, got %d bytes",
-			crypto.AddressSize,
-			len(vote.ValidatorAddress),
-		)
-	}
 	if vote.ValidatorAddress.IsZero() {
 		return fmt.Errorf("expected ValidatorAddress to be non-zero")
 	}

@@ -2,15 +2,16 @@ package main
 
 import (
 	"fmt"
-	"image"
 )
 
+type Point struct{ X, Y int }
+
 func main() {
-	v := []image.Point{
+	v := []Point{
 		{X: 3, Y: 2},
 	}
 	fmt.Println(v)
 }
 
 // Output:
-// [(3,2)]
+// [{3 2}]

@@ -28,7 +28,7 @@ Here's a breakdown of the structure of a package path:
     - `p/`: [Package](packages.md)
     - `r/`: [Realm](realms.md)
 - Namespace: A namespace can be included after the type (e.g., user or organization name). Namespaces are a
-  way to group related packages or realms, but currently ownership cannot be claimed. (see 
+  way to group related packages or realms, but currently ownership cannot be claimed. (see
   [Issue#1107](https://github.com/gnolang/gno/issues/1107) for more info)
 - Remaining Path: The remaining part of the path.
     - Can only contain alphanumeric characters (letters and numbers) and underscores.
@@ -74,8 +74,8 @@ After successful registration, you can add a package under the registered namesp
 
 ## Anonymous Namespace
 
-Gno.land offers the ability to add a package without having a registered namespace. 
-You can do this by using your own address as a namespace. This is formatted as `{p,r}/{std.Address}/**`. 
+gno.land offers the ability to add a package without having a registered namespace.
+You can do this by using your own address as a namespace. This is formatted as `{p,r}/{std.Address}/**`.
 
 > ex:  with `test1` user adding a package `microblog` using his own address as namespace
 ```bash

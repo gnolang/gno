@@ -11,6 +11,7 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/sdk"
 	authm "github.com/gnolang/gno/tm2/pkg/sdk/auth"
 	bankm "github.com/gnolang/gno/tm2/pkg/sdk/bank"
+	paramsm "github.com/gnolang/gno/tm2/pkg/sdk/params"
 	"github.com/gnolang/gno/tm2/pkg/std"
 	"github.com/gnolang/gno/tm2/pkg/store"
 	"github.com/gnolang/gno/tm2/pkg/store/dbadapter"
@@ -22,6 +23,7 @@ type testEnv struct {
 	vmk  *VMKeeper
 	bank bankm.BankKeeper
 	acck authm.AccountKeeper
+	vmh  vmHandler
 }
 
 func setupTestEnv() testEnv {
@@ -45,9 +47,11 @@ func _setupTestEnv(cacheStdlibs bool) testEnv {
 	ms.LoadLatestVersion()
 
 	ctx := sdk.NewContext(sdk.RunTxModeDeliver, ms, &bft.Header{ChainID: "test-chain-id"}, log.NewNoopLogger())
-	acck := authm.NewAccountKeeper(iavlCapKey, std.ProtoBaseAccount)
+	prmk := paramsm.NewParamsKeeper(iavlCapKey, "params")
+	acck := authm.NewAccountKeeper(iavlCapKey, prmk, std.ProtoBaseAccount)
 	bank := bankm.NewBankKeeper(acck)
-	vmk := NewVMKeeper(baseCapKey, iavlCapKey, acck, bank, 100_000_000)
+
+	vmk := NewVMKeeper(baseCapKey, iavlCapKey, acck, bank, prmk)
 
 	mcw := ms.MultiCacheWrap()
 	vmk.Initialize(log.NewNoopLogger(), mcw)
@@ -60,6 +64,7 @@ func _setupTestEnv(cacheStdlibs bool) testEnv {
 	}
 	vmk.CommitGnoTransactionStore(stdlibCtx)
 	mcw.MultiWrite()
+	vmh := NewHandler(vmk)
 
-	return testEnv{ctx: ctx, vmk: vmk, bank: bank, acck: acck}
+	return testEnv{ctx: ctx, vmk: vmk, bank: bank, acck: acck, vmh: vmh}
 }

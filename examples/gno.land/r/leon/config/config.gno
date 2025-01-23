@@ -8,6 +8,9 @@ import (
 var (
 	main   std.Address // leon's main address
 	backup std.Address // backup address
+
+	ErrInvalidAddr  = errors.New("leon's config: invalid address")
+	ErrUnauthorized = errors.New("leon's config: unauthorized")
 )
 
 func init() {
@@ -24,7 +27,7 @@ func Backup() std.Address {
 
 func SetAddress(a std.Address) error {
 	if !a.IsValid() {
-		return errors.New("config: invalid address")
+		return ErrInvalidAddr
 	}
 
 	if err := checkAuthorized(); err != nil {
@@ -37,7 +40,7 @@ func SetAddress(a std.Address) error {
 
 func SetBackup(a std.Address) error {
 	if !a.IsValid() {
-		return errors.New("config: invalid address")
+		return ErrInvalidAddr
 	}
 
 	if err := checkAuthorized(); err != nil {
@@ -50,16 +53,11 @@ func SetBackup(a std.Address) error {
 
 func checkAuthorized() error {
 	caller := std.PrevRealm().Addr()
-	if caller != main || caller != backup {
-		return errors.New("config: unauthorized")
+	isAuthorized := caller == main || caller == backup
+
+	if !isAuthorized {
+		return ErrUnauthorized
 	}
 
 	return nil
-}
-
-func AssertAuthorized() {
-	caller := std.PrevRealm().Addr()
-	if caller != main || caller != backup {
-		panic("config: unauthorized")
-	}
 }
