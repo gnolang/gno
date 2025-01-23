@@ -9,6 +9,7 @@ import (
 	mock "github.com/gnolang/gno/contribs/gnodev/internal/mock"
 	"github.com/gnolang/gno/contribs/gnodev/pkg/events"
 	"github.com/gnolang/gno/gno.land/pkg/gnoland"
+	"github.com/gnolang/gno/gno.land/pkg/integration"
 	"github.com/gnolang/gno/gno.land/pkg/sdk/vm"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -154,7 +155,7 @@ func Render(_ string) string { return strconv.Itoa(value) }
 	)
 
 	// Generate package counter
-	counterPkg := generateMemPackage(t, counterPath, "foo.gno", counterFile)
+	counterPkg := integration.GenerateMemPackage(counterPath, "foo.gno", counterFile)
 
 	// Call NewDevNode with no package should work
 	node, emitter := newTestingDevNode(t, &counterPkg)

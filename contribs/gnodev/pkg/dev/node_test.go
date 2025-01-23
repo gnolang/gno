@@ -208,7 +208,7 @@ func Render(_ string) string { return str }
 	err = node.Reset(context.Background())
 	require.NoError(t, err)
 	assert.Equal(t, emitter.NextEvent().Type(), events.EvtReset)
-3A3A3A3A
+
 	// Test rendering should return initial `str` value
 	render, err = testingRenderRealm(t, node, foobarPath)
 	require.NoError(t, err)

@@ -55,5 +55,4 @@ func TestResolver_ResolveRemote(t *testing.T) {
 		require.Error(t, err)
 		require.ErrorAs(t, err, &ErrResolverPackageNotFound)
 	})
-
 }

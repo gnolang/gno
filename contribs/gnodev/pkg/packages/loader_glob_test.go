@@ -9,7 +9,7 @@ import (
 
 func TestLoader_Glob(t *testing.T) {
 	const root = "./testdata"
-	var cases = []struct {
+	cases := []struct {
 		GlobPath   string
 		PkgResults []string
 	}{
@@ -32,5 +32,4 @@ func TestLoader_Glob(t *testing.T) {
 			}
 		})
 	}
-
 }
