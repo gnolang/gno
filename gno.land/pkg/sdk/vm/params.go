@@ -52,9 +52,6 @@ func (p Params) Equals(p2 Params) bool {
 }
 
 func (vm *VMKeeper) SetParams(ctx sdk.Context, params Params) error {
-	if params.Equals(Params{}) {
-		return nil
-	}
 	if err := params.Validate(); err != nil {
 		return err
 	}
