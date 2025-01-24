@@ -5,6 +5,7 @@ package groups_test
 
 import (
 	"std"
+	"testing"
 
 	"gno.land/p/demo/testutils"
 	"gno.land/r/demo/groups"
@@ -19,40 +20,40 @@ func main() {
 	caller := std.GetOrigCaller() // main
 	users.Register("", "gnouser0", "my profile 1")
 
-	std.TestSetOrigCaller(admin)
+	testing.SetPreviousRealm(std.NewUserRealm(admin))
 	users.GrantInvites(caller.String() + ":1")
 	// switch back to caller
-	std.TestSetOrigCaller(caller)
+	testing.SetPreviousRealm(std.NewUserRealm(caller))
 	// invite another addr
 	test1 := testutils.TestAddress("gnouser1")
 	users.Invite(test1.String())
 	// switch to test1
-	std.TestSetOrigCaller(test1)
+	testing.SetPreviousRealm(std.NewUserRealm(test1))
 	users.Register(caller, "gnouser1", "my other profile 1")
 
-	std.TestSetOrigCaller(admin)
+	testing.SetPreviousRealm(std.NewUserRealm(admin))
 	users.GrantInvites(caller.String() + ":1")
 	// switch back to caller
-	std.TestSetOrigCaller(caller)
+	testing.SetPreviousRealm(std.NewUserRealm(caller))
 	// invite another addr
 	test2 := testutils.TestAddress("gnouser2")
 	users.Invite(test2.String())
 	// switch to test1
-	std.TestSetOrigCaller(test2)
+	testing.SetPreviousRealm(std.NewUserRealm(test2))
 	users.Register(caller, "gnouser2", "my other profile 2")
 
-	std.TestSetOrigCaller(admin)
+	testing.SetPreviousRealm(std.NewUserRealm(admin))
 	users.GrantInvites(caller.String() + ":1")
 	// switch back to caller
-	std.TestSetOrigCaller(caller)
+	testing.SetPreviousRealm(std.NewUserRealm(caller))
 	// invite another addr
 	test3 := testutils.TestAddress("gnouser3")
 	users.Invite(test3.String())
 	// switch to test1
-	std.TestSetOrigCaller(test3)
+	testing.SetPreviousRealm(std.NewUserRealm(test3))
 	users.Register(caller, "gnouser3", "my other profile 3")
 
-	std.TestSetOrigCaller(caller)
+	testing.SetPreviousRealm(std.NewUserRealm(caller))
 
 	gid = groups.CreateGroup("test_group")
 	println(gid)

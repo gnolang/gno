@@ -5,6 +5,7 @@ package main
 import (
 	"std"
 	"strconv"
+	"testing"
 
 	"gno.land/p/demo/testutils"
 	"gno.land/r/demo/boards"
@@ -21,7 +22,7 @@ func main() {
 
 	// create reply via anon user
 	test2 := testutils.TestAddress("test2")
-	std.TestSetOrigCaller(test2)
+	testing.SetPreviousRealm(std.NewUserRealm(test2))
 	std.TestSetOrigSend(std.Coins{{"ugnot", 9000000}}, nil)
 	boards.CreateReply(bid, pid, pid, "Reply of the first post")
 

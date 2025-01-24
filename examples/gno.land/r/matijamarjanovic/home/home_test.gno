@@ -11,7 +11,7 @@ import (
 
 // Helper function to set up test environment
 func setupTest() {
-	std.TestSetOrigCaller(std.Address("g1ej0qca5ptsw9kfr64ey8jvfy9eacga6mpj2z0y"))
+	testing.SetPreviousRealm(std.NewUserRealm(std.Address("g1ej0qca5ptsw9kfr64ey8jvfy9eacga6mpj2z0y")))
 }
 
 func TestUpdatePFP(t *testing.T) {

@@ -1,9 +1,8 @@
 package bridge
 
 import (
-	"testing"
-
 	"std"
+	"testing"
 
 	"gno.land/p/demo/dao"
 	"gno.land/p/demo/ownable"
@@ -47,7 +46,7 @@ func TestBridge_SetDAO(t *testing.T) {
 			}
 		)
 
-		std.TestSetOrigCaller(addr)
+		t.SetPreviousRealm(std.NewUserRealm(addr))
 
 		b.Ownable = ownable.NewWithAddress(addr)
 

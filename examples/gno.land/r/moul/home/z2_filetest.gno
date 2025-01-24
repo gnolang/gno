@@ -2,12 +2,13 @@ package main
 
 import (
 	"std"
+	"testing"
 
 	"gno.land/r/moul/home"
 )
 
 func main() {
-	std.TestSetOrigCaller("g1manfred47kzduec920z88wfr64ylksmdcedlf5")
+	testing.SetPreviousRealm(std.NewUserRealm(std.Address("g1manfred47kzduec920z88wfr64ylksmdcedlf5")))
 	home.AddTodo("aaa")
 	home.AddTodo("bbb")
 	home.AddTodo("ccc")

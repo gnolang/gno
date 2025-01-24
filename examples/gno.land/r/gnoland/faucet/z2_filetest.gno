@@ -2,6 +2,7 @@ package main
 
 import (
 	"std"
+	"testing"
 
 	"gno.land/p/demo/testutils"
 	"gno.land/r/gnoland/faucet"
@@ -20,7 +21,7 @@ func main() {
 		controlleraddr1 = testutils.TestAddress("controller1")
 		controlleraddr2 = testutils.TestAddress("controller2")
 	)
-	std.TestSetOrigCaller(adminaddr)
+	testing.SetPreviousRealm(std.NewUserRealm(adminaddr))
 	err := faucet.AdminAddController(controlleraddr1)
 	if err != "" {
 		panic(err)

@@ -1,9 +1,8 @@
 package membstore
 
 import (
-	"testing"
-
 	"std"
+	"testing"
 
 	"gno.land/p/demo/testutils"
 	"gno.land/p/demo/uassert"

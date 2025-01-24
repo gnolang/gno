@@ -7,6 +7,7 @@ package bank1
 
 import (
 	"std"
+	"testing"
 
 	"gno.land/r/demo/banktest"
 )
@@ -16,7 +17,7 @@ func main() {
 
 	// print main balance before.
 	mainaddr := std.DerivePkgAddr("gno.land/r/demo/bank1")
-	std.TestSetOrigCaller(mainaddr)
+	testing.SetPreviousRealm(std.NewUserRealm(mainaddr))
 
 	banker := std.GetBanker(std.BankerTypeReadonly)
 	mainbal := banker.GetCoins(mainaddr)

@@ -2,6 +2,7 @@ package main
 
 import (
 	"std"
+	"testing"
 
 	"gno.land/p/demo/testutils"
 	"gno.land/r/demo/users"
@@ -13,13 +14,13 @@ func main() {
 	caller := std.GetOrigCaller() // main
 	test2 := testutils.TestAddress("test2")
 	// as admin, invite gnouser and test2
-	std.TestSetOrigCaller(admin)
+	testing.SetPreviousRealm(std.NewUserRealm(admin))
 	users.Invite(caller.String() + "\n" + test2.String())
 	// register as caller
-	std.TestSetOrigCaller(caller)
+	testing.SetPreviousRealm(std.NewUserRealm(caller))
 	users.Register(admin, "gnouser", "my profile")
 	// register as test2
-	std.TestSetOrigCaller(test2)
+	testing.SetPreviousRealm(std.NewUserRealm(test2))
 	users.Register(admin, "test222", "my profile 2")
 	println("done")
 }
