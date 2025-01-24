@@ -182,9 +182,13 @@ func DeleteReply(bid BoardID, threadID, replyID PostID) {
 		assertHasBoardPermission(board, caller, PermissionReplyDelete)
 	}
 
-	// Soft delete the reply by changing its body
-	// TODO: Should replies be had deleted? If so how do we deal with sub-replies?
-	reply.Update(reply.GetTitle(), "this reply has been deleted")
+	// Soft delete reply by changing its body when it contains
+	// sub-replies, otherwise hard delete it.
+	if reply.HasReplies() {
+		reply.Update(reply.GetTitle(), "this reply has been deleted")
+	} else {
+		thread.DeleteReply(replyID)
+	}
 }
 
 func EditThread(bid BoardID, threadID PostID, title, body string) {
