@@ -118,31 +118,30 @@ func LogMiddleware(logger *slog.Logger) MiddlewareHandler {
 		switch {
 		case err == nil:
 			logger.Debug("path resolved",
+				"resolver", next.Name(),
 				"path", path,
 				"name", pkg.Name,
 				"took", time.Since(start).String(),
 				"location", pkg.Location,
-				"resolver", next.Name(),
 			)
 		case errors.Is(err, ErrResolverPackageSkip):
 			logger.Debug(err.Error(),
+				"resolver", next.Name(),
 				"path", path,
 				"took", time.Since(start).String(),
-				"resolver", next.Name(),
 			)
 
 		case errors.Is(err, ErrResolverPackageNotFound):
 			logger.Warn(err.Error(),
+				"resolver", next.Name(),
 				"path", path,
-				"took", time.Since(start).String(),
-				"resolver", next.Name())
+				"took", time.Since(start).String())
 
 		default:
 			logger.Error(err.Error(),
-				"path", path,
-				"took", time.Since(start).String(),
 				"resolver", next.Name(),
-				"err", err)
+				"path", path,
+				"took", time.Since(start).String())
 		}
 
 		return pkg, err
@@ -231,7 +230,7 @@ func PackageCheckerMiddleware(logger *slog.Logger) MiddlewareHandler {
 				}
 			}
 
-			return nil, fmt.Errorf("unable to parse %q: %w", file.Name, err)
+			return nil, fmt.Errorf("file %q have error(s)", file.Name)
 		}
 
 		return pkg, nil

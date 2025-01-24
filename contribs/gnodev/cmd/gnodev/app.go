@@ -166,10 +166,8 @@ func (ds *App) Setup(ctx context.Context, dirs ...string) (err error) {
 		return fmt.Errorf("unable to resolve paths %v: %w", paths, err)
 	}
 
-	fmt.Printf("PATHS: %v %v\r\n", modifiers, paths)
-
 	// Add the user's paths to the pre-loaded paths
-	// Modifiers will be added later bellow to the node config
+	// Modifiers will be added later to the node config bellow
 	ds.paths = append(localPaths, paths...)
 
 	balances, err := generateBalances(ds.book, ds.cfg)
