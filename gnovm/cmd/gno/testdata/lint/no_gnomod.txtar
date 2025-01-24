@@ -1,6 +1,6 @@
-# gno lint: no gnomod
+# gno tool lint: no gnomod
 
-! gno lint .
+! gno tool lint .
 
 cmp stdout stdout.golden
 cmp stderr stderr.golden
