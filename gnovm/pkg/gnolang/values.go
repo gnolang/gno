@@ -1982,7 +1982,9 @@ func (tv *TypedValue) GetPointerToFromTV(alloc *Allocator, store Store, path Val
 					Key: pathValue{path},
 				*/
 			}
-			pv.TV.SetNeedsTypeAllocation(true)
+			if alloc != nil {
+				pv.TV.SetNeedsTypeAllocation(true)
+			}
 			return pv
 		} else {
 			// Always try to get method from pointer type.
@@ -2009,7 +2011,9 @@ func (tv *TypedValue) GetPointerToFromTV(alloc *Allocator, store Store, path Val
 						Key: pathValue{path},
 					*/
 				}
-				pv.TV.SetNeedsTypeAllocation(true)
+				if alloc != nil {
+					pv.TV.SetNeedsTypeAllocation(true)
+				}
 				return pv
 			}
 		}
@@ -2112,7 +2116,9 @@ func (tv *TypedValue) GetPointerAtIndex(alloc *Allocator, store Store, iv *Typed
 					AllocFlag: AllocTypeFlag,
 				},
 			}
-			pv.TV.SetNeedsTypeAllocation(true)
+			if alloc != nil {
+				pv.TV.SetNeedsTypeAllocation(true)
+			}
 			return pv
 		default:
 			panic("should not happen")
@@ -2274,7 +2280,9 @@ func (tv *TypedValue) GetSlice(alloc *Allocator, low, high int) TypedValue {
 				av.GetCapacity()-low, // maxcap
 			),
 		}
-		tv.SetNeedsTypeAllocation(true)
+		if alloc != nil {
+			tv.SetNeedsTypeAllocation(true)
+		}
 		return tv
 	case *SliceType:
 		if tv.GetCapacity() < high {
@@ -2361,7 +2369,9 @@ func (tv *TypedValue) GetSlice2(alloc *Allocator, lowVal, highVal, maxVal int) T
 				maxVal-lowVal,  // maxcap
 			),
 		}
-		tv.SetNeedsTypeAllocation(true)
+		if alloc != nil {
+			tv.SetNeedsTypeAllocation(true)
+		}
 		return tv
 	case *SliceType:
 		if tv.V == nil {

@@ -209,7 +209,9 @@ func (m *Machine) doOpRef() {
 		T: m.Alloc.NewType(&PointerType{Elt: elt}),
 		V: xv,
 	}
-	tv.SetNeedsTypeAllocation(true)
+	if m.Alloc != nil {
+		tv.SetNeedsTypeAllocation(true)
+	}
 	m.PushValue(tv)
 }
 

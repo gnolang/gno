@@ -195,7 +195,9 @@ func makeUverseNode() {
 					V:         m.Alloc.NewSlice(newArrayValue, 0, len(arg1String), len(arg1String)), // TODO: pool?
 					AllocFlag: AllocTypeFlag,
 				}
-				tv.SetNeedsTypeAllocation(true)
+				if m.Alloc != nil {
+					tv.SetNeedsTypeAllocation(true)
+				}
 				arg1.TV = tv
 			}
 			arg0Type := arg0.TV.T
@@ -977,7 +979,9 @@ func makeUverseNode() {
 					Index: 0,
 				},
 			}
-			tv.SetNeedsTypeAllocation(true)
+			if m.Alloc != nil {
+				tv.SetNeedsTypeAllocation(true)
+			}
 			m.PushValue(tv)
 			return
 		},

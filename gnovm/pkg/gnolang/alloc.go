@@ -160,7 +160,7 @@ func (alloc *Allocator) GC() {
 		debug2.Println2("type of block: ", reflect.TypeOf(b), reflect.TypeOf(b.Source))
 		debug2.Println2("block.externs: ", b.Source.GetExternNames())
 		debug2.Println2("block.names: ", b.Source.GetBlockNames())
-		throwaway.allocate2(b)
+		throwaway.allocateValue(b)
 
 		for i, v := range b.Values {
 			debug2.Printf2("values[%d] is %v, v.NeedValueAllocation: %t, v.NeedTypeAllocation: %t \n", i, v, v.NeedsValueAllocation(), v.NeedsTypeAllocation())
@@ -169,7 +169,7 @@ func (alloc *Allocator) GC() {
 				throwaway.AllocateType()
 			}
 			if v.NeedsValueAllocation() {
-				throwaway.allocate2(v.V)
+				throwaway.allocateValue(v.V)
 			}
 		}
 	}
@@ -181,8 +181,8 @@ func (alloc *Allocator) GC() {
 	debug2.Println2("---after reset, alloc.bytes: ", alloc.bytes)
 }
 
-func (throwaway *Allocator) allocate2(v Value) {
-	debug2.Println2("allocate2: ", v, reflect.TypeOf(v))
+func (throwaway *Allocator) allocateValue(v Value) {
+	debug2.Println2("allocateValue: ", v, reflect.TypeOf(v))
 	// alloc amino
 	// if ref value, allocate amino
 	if oo, ok := v.(Object); ok {
@@ -204,29 +204,30 @@ func (throwaway *Allocator) allocate2(v Value) {
 	case *StructValue:
 		throwaway.AllocateStruct()
 		for _, field := range vv.Fields {
-			throwaway.allocate2(field.V)
+			throwaway.allocateValue(field.V)
 		}
 	case *FuncValue:
-		// TODO: is this right?
-		// if closure if fileNode, no allocate,
-		// cuz it's already done in compile stage.
-		debug2.Println2("funcValue, vv: ", vv)
-		debug2.Println2("clo...Source: ", vv.Closure.(*Block).GetSource(throwaway.m.Store), reflect.TypeOf(vv.Closure.(*Block).GetSource(throwaway.m.Store)))
-		if _, ok := vv.Closure.(*Block).GetSource(throwaway.m.Store).(*FileNode); !ok {
-			debug2.Println2("not global, alloc func")
-			throwaway.AllocateFunc()
-		} else {
-			debug2.Println2("global function, NO alloc for it")
-		}
+		throwaway.AllocateFunc()
+		//// TODO: is this right?
+		//// if closure if fileNode, no allocate,
+		//// cuz it's already done in compile stage.
+		//debug2.Println2("funcValue, vv: ", vv)
+		////debug2.Println2("clo...Source: ", vv.Closure.(*Block).GetSource(throwaway.m.Store), reflect.TypeOf(vv.Closure.(*Block).GetSource(throwaway.m.Store)))
+		//if _, ok := vv.Closure.(*Block).GetSource(throwaway.m.Store).(*FileNode); !ok {
+		//	debug2.Println2("not global, alloc func")
+		//	throwaway.AllocateFunc()
+		//} else {
+		//	debug2.Println2("global function, NO alloc for it")
+		//}
 	case PointerValue:
 		throwaway.AllocatePointer()
-		throwaway.allocate2(vv.Base)
+		throwaway.allocateValue(vv.Base)
 	case *HeapItemValue:
 		throwaway.AllocateHeapItem()
-		throwaway.allocate2(vv.Value.V)
+		throwaway.allocateValue(vv.Value.V)
 	case *SliceValue:
 		throwaway.AllocateSlice()
-		throwaway.allocate2(vv.Base)
+		throwaway.allocateValue(vv.Base)
 	case *ArrayValue:
 		// TODO: data array
 		throwaway.AllocateListArray(int64(len(vv.List)))
@@ -240,9 +241,8 @@ func (throwaway *Allocator) allocate2(v Value) {
 		throwaway.AllocateBoundMethod()
 	case *NativeValue:
 		throwaway.AllocateNative()
-	//case *amino.Type:
 	default:
-		debug2.Println2("---default, do nothing: ", vv)
+		//debug2.Println2("---default, do nothing: ", vv)
 	}
 }
 
@@ -501,9 +501,6 @@ func (alloc *Allocator) NewNative(rv reflect.Value) *NativeValue {
 	}
 }
 
-// TODO: where there's a new type
-// there should be a count while GC
-// TODO: check if it happens in preproess
 func (alloc *Allocator) NewType(t Type) Type {
 	debug2.Println2("NewType:", t)
 	alloc.AllocateType()

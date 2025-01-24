@@ -42,7 +42,7 @@ func (m *Machine) doOpValueDecl() {
 				} else {
 					if debug {
 						if nt.TypeID() != tv.T.TypeID() &&
-								baseOf(nt).TypeID() != tv.T.TypeID() {
+							baseOf(nt).TypeID() != tv.T.TypeID() {
 							panic(fmt.Sprintf(
 								"type mismatch: %s vs %s",
 								nt.TypeID(),
@@ -73,6 +73,5 @@ func (m *Machine) doOpTypeDecl() {
 	tv := asValue(t)
 	last := m.LastBlock()
 	ptr := last.GetPointerTo(m.Store, s.Path)
-	debug2.Println2(", doOpTypeDecl, tv: ", tv)
 	ptr.Assign2(m.Alloc, m.Store, m.Realm, tv, false)
 }
