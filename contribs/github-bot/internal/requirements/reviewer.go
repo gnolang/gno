@@ -2,6 +2,7 @@ package requirements
 
 import (
 	"fmt"
+	"slices"
 
 	"github.com/gnolang/gno/contribs/github-bot/internal/client"
 	"github.com/gnolang/gno/contribs/github-bot/internal/utils"
@@ -10,18 +11,22 @@ import (
 	"github.com/xlab/treeprint"
 )
 
-// Reviewer Requirement.
-type reviewByUser struct {
-	gh   *client.GitHub
-	user string
+// ReviewByUserRequirement asserts that there is a review by the given user,
+// and if given that the review matches the desiredState.
+type ReviewByUserRequirement struct {
+	gh           *client.GitHub
+	user         string
+	desiredState string
 }
 
-const approvedState = "APPROVED"
+var _ Requirement = &ReviewByUserRequirement{}
 
-var _ Requirement = &reviewByUser{}
-
-func (r *reviewByUser) IsSatisfied(pr *github.PullRequest, details treeprint.Tree) bool {
-	detail := fmt.Sprintf("This user approved pull request: %s", r.user)
+// IsSatisfied implements [Requirement].
+func (r *ReviewByUserRequirement) IsSatisfied(pr *github.PullRequest, details treeprint.Tree) bool {
+	detail := fmt.Sprintf("This user reviewed pull request: %s", r.user)
+	if r.desiredState != "" {
+		detail += fmt.Sprintf(" (with state %q)", r.desiredState)
+	}
 
 	// If not a dry run, make the user a reviewer if he's not already.
 	if !r.gh.DryRun {
@@ -67,7 +72,8 @@ func (r *reviewByUser) IsSatisfied(pr *github.PullRequest, details treeprint.Tre
 	for _, review := range reviews {
 		if review.GetUser().GetLogin() == r.user {
 			r.gh.Logger.Debugf("User %s already reviewed PR %d with state %s", r.user, pr.GetNumber(), review.GetState())
-			return utils.AddStatusNode(review.GetState() == approvedState, detail, details)
+			result := r.desiredState == "" || review.GetState() == r.desiredState
+			return utils.AddStatusNode(result, detail, details)
 		}
 	}
 	r.gh.Logger.Debugf("User %s has not reviewed PR %d yet", r.user, pr.GetNumber())
@@ -75,25 +81,54 @@ func (r *reviewByUser) IsSatisfied(pr *github.PullRequest, details treeprint.Tre
 	return utils.AddStatusNode(false, detail, details)
 }
 
-func ReviewByUser(gh *client.GitHub, user string) Requirement {
-	return &reviewByUser{gh, user}
+// WithDesiredState asserts that the review by the given user should also be
+// of the given ReviewState.
+//
+// If an empty string is passed, then all reviews are counted. This is the default.
+func (r *ReviewByUserRequirement) WithDesiredState(s utils.ReviewState) *ReviewByUserRequirement {
+	if s != "" && !s.Valid() {
+		panic(fmt.Sprintf("invalid state: %q", s))
+	}
+	r.desiredState = string(s)
+	return r
 }
 
-// Reviewer Requirement.
-type reviewByTeamMembers struct {
-	gh    *client.GitHub
-	team  string
-	count uint
+// ReviewByUser asserts that the PR has been reviewed by the given user.
+func ReviewByUser(gh *client.GitHub, user string) *ReviewByUserRequirement {
+	return &ReviewByUserRequirement{gh: gh, user: user}
 }
 
-var _ Requirement = &reviewByTeamMembers{}
+// ReviewByTeamMembersRequirement asserts that count members of the given team
+// have reviewed the PR. Additionally, using desiredState, it may be required
+// that the PR reviews be of that state.
+type ReviewByTeamMembersRequirement struct {
+	gh           *client.GitHub
+	team         string
+	count        uint
+	desiredState string
+}
 
-func (r *reviewByTeamMembers) IsSatisfied(pr *github.PullRequest, details treeprint.Tree) bool {
-	detail := fmt.Sprintf("At least %d user(s) of the team %s approved pull request", r.count, r.team)
+var _ Requirement = &ReviewByTeamMembersRequirement{}
 
-	// If not a dry run, make the user a reviewer if he's not already.
+// IsSatisfied implements [Requirement].
+func (r *ReviewByTeamMembersRequirement) IsSatisfied(pr *github.PullRequest, details treeprint.Tree) bool {
+	detail := fmt.Sprintf("At least %d user(s) of the team %s reviewed pull request", r.count, r.team)
+	if r.desiredState != "" {
+		detail += fmt.Sprintf("(with state %q)", r.desiredState)
+	}
+
+	teamMembers, err := r.gh.ListTeamMembers(r.team)
+	if err != nil {
+		r.gh.Logger.Errorf(err.Error())
+		return utils.AddStatusNode(false, detail, details)
+	}
+
+	// If not a dry run, request a team review if no member has reviewed yet,
+	// and the team review has not been requested.
 	if !r.gh.DryRun {
-		requested := false
+		var teamRequested bool
+		var usersRequested []string
+
 		reviewers, err := r.gh.ListPRReviewers(pr.GetNumber())
 		if err != nil {
 			r.gh.Logger.Errorf("unable to check if team %s review is already requested: %v", r.team, err)
@@ -102,14 +137,28 @@ func (r *reviewByTeamMembers) IsSatisfied(pr *github.PullRequest, details treepr
 
 		for _, team := range reviewers.Teams {
 			if team.GetSlug() == r.team {
-				requested = true
+				teamRequested = true
 				break
 			}
 		}
 
-		if requested {
+		if !teamRequested {
+			for _, user := range reviewers.Users {
+				if slices.ContainsFunc(teamMembers, func(memb *github.User) bool {
+					return memb.GetID() == user.GetID()
+				}) {
+					usersRequested = append(usersRequested, user.GetLogin())
+				}
+			}
+		}
+
+		switch {
+		case teamRequested:
 			r.gh.Logger.Debugf("Review of team %s already requested on PR %d", r.team, pr.GetNumber())
-		} else {
+		case len(usersRequested) > 0:
+			r.gh.Logger.Debugf("Members %v of team %s already requested on (or reviewed) PR %d",
+				usersRequested, r.team, pr.GetNumber())
+		default:
 			r.gh.Logger.Debugf("Requesting review from team %s on PR %d", r.team, pr.GetNumber())
 			if _, _, err := r.gh.Client.PullRequests.RequestReviewers(
 				r.gh.Ctx,
@@ -125,72 +174,138 @@ func (r *reviewByTeamMembers) IsSatisfied(pr *github.PullRequest, details treepr
 		}
 	}
 
-	// Check how many members of this team already approved this PR.
-	approved := uint(0)
+	// Check how many members of this team already reviewed this PR.
+	reviewCount := uint(0)
 	reviews, err := r.gh.ListPRReviews(pr.GetNumber())
 	if err != nil {
-		r.gh.Logger.Errorf("unable to check if a member of team %s already approved this PR: %v", r.team, err)
+		r.gh.Logger.Errorf("unable to check if a member of team %s already reviewed this PR: %v", r.team, err)
 		return utils.AddStatusNode(false, detail, details)
 	}
 
-	teamMembers, err := r.gh.ListTeamMembers(r.team)
-	if err != nil {
-		r.gh.Logger.Errorf(err.Error())
-		return utils.AddStatusNode(false, detail, details)
+	stateStr := ""
+	if r.desiredState != "" {
+		stateStr = fmt.Sprintf("%q ", r.desiredState)
 	}
-
 	for _, review := range reviews {
 		for _, member := range teamMembers {
 			if review.GetUser().GetLogin() == member.GetLogin() {
-				if review.GetState() == approvedState {
-					approved += 1
+				if desired := r.desiredState; desired == "" || desired == review.GetState() {
+					reviewCount += 1
 				}
-				r.gh.Logger.Debugf("Member %s from team %s already reviewed PR %d with state %s (%d/%d required approval(s))", member.GetLogin(), r.team, pr.GetNumber(), review.GetState(), approved, r.count)
+				r.gh.Logger.Debugf(
+					"Member %s from team %s already reviewed PR %d with state %s (%d/%d required %sreview(s))",
+					member.GetLogin(), r.team, pr.GetNumber(), review.GetState(), reviewCount, r.count, stateStr,
+				)
 			}
 		}
 	}
 
-	return utils.AddStatusNode(approved >= r.count, detail, details)
+	return utils.AddStatusNode(reviewCount >= r.count, detail, details)
 }
 
-func ReviewByTeamMembers(gh *client.GitHub, team string, count uint) Requirement {
-	return &reviewByTeamMembers{gh, team, count}
+// WithCount specifies the number of required reviews.
+// By default, this is 1.
+func (r *ReviewByTeamMembersRequirement) WithCount(n uint) *ReviewByTeamMembersRequirement {
+	if n < 1 {
+		panic("number of required reviews should be at least 1")
+	}
+	r.count = n
+	return r
 }
 
-type reviewByOrgMembers struct {
-	gh    *client.GitHub
-	count uint
+// WithDesiredState asserts that the reviews should also be of the given ReviewState.
+//
+// If an empty string is passed, then all reviews are counted. This is the default.
+func (r *ReviewByTeamMembersRequirement) WithDesiredState(s utils.ReviewState) *ReviewByTeamMembersRequirement {
+	if s != "" && !s.Valid() {
+		panic(fmt.Sprintf("invalid state: %q", s))
+	}
+	r.desiredState = string(s)
+	return r
 }
 
-var _ Requirement = &reviewByOrgMembers{}
+// ReviewByTeamMembers specifies that the given pull request should receive at
+// least one review from a member of the given team.
+//
+// The number of required reviews, or the state of the reviews (e.g., to filter
+// only for approval reviews) can be modified using WithCount and WithDesiredState.
+func ReviewByTeamMembers(gh *client.GitHub, team string) *ReviewByTeamMembersRequirement {
+	return &ReviewByTeamMembersRequirement{
+		gh:    gh,
+		team:  team,
+		count: 1,
+	}
+}
 
-func (r *reviewByOrgMembers) IsSatisfied(pr *github.PullRequest, details treeprint.Tree) bool {
-	detail := fmt.Sprintf("At least %d user(s) of the organization approved the pull request", r.count)
+// ReviewByOrgMembersRequirement asserts that the given PR has been reviewed by
+// at least count members of the given organization, filtering for PR reviews
+// with state desiredState.
+type ReviewByOrgMembersRequirement struct {
+	gh           *client.GitHub
+	count        uint
+	desiredState string
+}
 
-	// Check how many members of this team already approved this PR.
-	approved := uint(0)
+var _ Requirement = &ReviewByOrgMembersRequirement{}
+
+// IsSatisfied implements [Requirement].
+func (r *ReviewByOrgMembersRequirement) IsSatisfied(pr *github.PullRequest, details treeprint.Tree) bool {
+	detail := fmt.Sprintf("At least %d user(s) of the organization reviewed the pull request", r.count)
+	if r.desiredState != "" {
+		detail += fmt.Sprintf(" (with state %q)", r.desiredState)
+	}
+
+	// Check how many members of this team already reviewed this PR.
+	reviewed := uint(0)
 	reviews, err := r.gh.ListPRReviews(pr.GetNumber())
 	if err != nil {
 		r.gh.Logger.Errorf("unable to check number of reviews on this PR: %v", err)
 		return utils.AddStatusNode(false, detail, details)
 	}
 
+	stateStr := ""
+	if r.desiredState != "" {
+		stateStr = fmt.Sprintf("%q ", r.desiredState)
+	}
 	for _, review := range reviews {
 		if review.GetAuthorAssociation() == "MEMBER" {
-			if review.GetState() == approvedState {
-				approved++
+			if r.desiredState == "" || review.GetState() == r.desiredState {
+				reviewed++
 			}
 			r.gh.Logger.Debugf(
-				"Member %s already reviewed PR %d with state %s (%d/%d required approval(s))",
+				"Member %s already reviewed PR %d with state %s (%d/%d required %sreviews)",
 				review.GetUser().GetLogin(), pr.GetNumber(), review.GetState(),
-				approved, r.count,
+				reviewed, r.count, stateStr,
 			)
 		}
 	}
 
-	return utils.AddStatusNode(approved >= r.count, detail, details)
+	return utils.AddStatusNode(reviewed >= r.count, detail, details)
 }
 
-func ReviewByOrgMembers(gh *client.GitHub, count uint) Requirement {
-	return &reviewByOrgMembers{gh, count}
+// WithCount specifies the number of required reviews.
+// By default, this is 1.
+func (r *ReviewByOrgMembersRequirement) WithCount(n uint) *ReviewByOrgMembersRequirement {
+	if n < 1 {
+		panic("number of required reviews should be at least 1")
+	}
+	r.count = n
+	return r
+}
+
+// WithDesiredState asserts that the reviews should also be of the given ReviewState.
+//
+// If an empty string is passed, then all reviews are counted. This is the default.
+func (r *ReviewByOrgMembersRequirement) WithDesiredState(s utils.ReviewState) *ReviewByOrgMembersRequirement {
+	if s != "" && !s.Valid() {
+		panic(fmt.Sprintf("invalid state: %q", s))
+	}
+	r.desiredState = string(s)
+	return r
+}
+
+// ReviewByOrgMembers asserts that at least 1 member of the organization
+// reviewed this PR.
+func ReviewByOrgMembers(gh *client.GitHub) *ReviewByOrgMembersRequirement {
+	return &ReviewByOrgMembersRequirement{gh: gh, count: 1}
 }
