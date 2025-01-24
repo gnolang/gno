@@ -159,8 +159,7 @@ func (c *modDownloadCfg) RegisterFlags(fs *flag.FlagSet) {
 	)
 }
 
-type modGraphCfg struct {
-}
+type modGraphCfg struct{}
 
 func (c *modGraphCfg) RegisterFlags(fs *flag.FlagSet) {
 	// /out std
@@ -178,10 +177,9 @@ func execModGraph(cfg *modGraphCfg, args []string, io commands.IO) error {
 		return flag.ErrHelp
 	}
 
-
 	stdout := io.Out()
 
-	pkgs,err := gnomod.ListPkgs(args[0])
+	pkgs, err := gnomod.ListPkgs(args[0])
 	if err != nil {
 		return err
 	}
