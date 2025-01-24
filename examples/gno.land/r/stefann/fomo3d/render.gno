@@ -96,7 +96,6 @@ func RenderPlayer(addr std.Address, keys int64, dividends int64) string {
 	nftBalance, err := BalanceOf(addr)
 	if err == nil && nftBalance > 0 {
 		builder.WriteString("## Your Victory NFTs 🏆\n\n")
-		builder.WriteString("You've won the following rounds:\n\n")
 
 		// Iterate through all rounds up to current round to find player's NFTs
 		for i := int64(1); i <= gameState.CurrentRound; i++ {
