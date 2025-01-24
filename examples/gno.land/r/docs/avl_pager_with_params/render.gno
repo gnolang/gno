@@ -35,7 +35,7 @@ func Render(path string) string {
 		return renderHome(path)
 	}
 
-	// 3) If a route *is* provided (e.g. /SomeKey),
+	// 3) If a route *is* provided (e.g. :SomeKey),
 	//    we will interpret it as a request for a specific page.
 	return renderConfigItem(req.Path)
 }
