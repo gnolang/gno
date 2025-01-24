@@ -60,17 +60,6 @@ func renderHomePage(path string) string {
 		out += ufmt.Sprintf("- User [%s](/r/gnoland/users/v1:%s)\n", displayKey, item.Key)
 	}
 
-	//p := pager.NewPager(users.GetReadonlyAddrStore(), 20, false)
-	//page := p.MustGetPageByPath(path)
-	//for _, item := range page.Items {
-	//	data := item.Value.(*users.UserData)
-	//	if data.IsDeleted() {
-	//		out += ufmt.Sprintf("- User [%s](/r/gnoland/users/v1:%s)\n", md.Strikethrough(item.Key), item.Key)
-	//	} else {
-	//		out += ufmt.Sprintf("- User [**%s**](/r/gnoland/users/v1:%s)\n", item.Key, item.Key)
-	//	}
-	//}
-
 	out += "\n"
 	out += page.Picker()
 	out += "\n\n"
