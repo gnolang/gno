@@ -3,8 +3,10 @@ package fomo3d
 import (
 	"std"
 	"strings"
+	"strconv"
 
 	"gno.land/p/demo/ufmt"
+	"gno.land/p/demo/grc/grc721"
 
 	"gno.land/r/demo/users"
 )
@@ -41,7 +43,7 @@ func RenderHome() string {
 	builder.WriteString("\n")
 
 	// Game Status section
-	builder.WriteString("## Current Game Status\n\n")
+	builder.WriteString("## Game Status\n\n")
 	if gameState.StartBlock == 0 {
 		builder.WriteString("🔴 Game has not started yet.\n\n")
 	} else {
@@ -50,14 +52,14 @@ func RenderHome() string {
 			builder.WriteString(ufmt.Sprintf("🏆 **Winner:** %s\n\n", gameState.LastBuyer))
 		} else {
 			builder.WriteString("🟢 **Game Status:** Active\n\n")
+			builder.WriteString(ufmt.Sprintf("🔄 **Round:** %d\n\n", gameState.CurrentRound))
 			builder.WriteString(ufmt.Sprintf("⏱️ **Time Remaining:** %d blocks\n\n", gameState.EndBlock-std.GetHeight()))
 		}
-		builder.WriteString(ufmt.Sprintf("💰 **Current Jackpot:** %d ugnot\n\n", gameState.Jackpot))
-		builder.WriteString(ufmt.Sprintf("🔑 **Current Key Price:** %d ugnot\n\n", gameState.KeyPrice))
+		builder.WriteString(ufmt.Sprintf("💰 **Jackpot:** %d ugnot\n\n", gameState.Jackpot))
+		builder.WriteString(ufmt.Sprintf("🔑 **Key Price:** %d ugnot\n\n", gameState.KeyPrice))
 		builder.WriteString(ufmt.Sprintf("📊 **Total Keys:** %d\n\n", gameState.TotalKeys))
 		builder.WriteString(ufmt.Sprintf("👤 **Last Buyer:** %s\n\n", getDisplayName(gameState.LastBuyer)))
 		builder.WriteString(ufmt.Sprintf("🎮 **Next Round Pot:** %d ugnot\n\n", gameState.NextPot))
-		builder.WriteString(ufmt.Sprintf("🔄 **Current Round:** %d\n\n", gameState.CurrentRound))
 	}
 
 	// Separator before less important sections
@@ -89,6 +91,27 @@ func RenderPlayer(addr std.Address, keys int64, dividends int64) string {
 	builder.WriteString("## Your Holdings\n\n")
 	builder.WriteString(ufmt.Sprintf("🔑 **Keys Owned:** %d\n\n", keys))
 	builder.WriteString(ufmt.Sprintf("💰 **Unclaimed Dividends:** %d ugnot\n\n", dividends))
+
+	// Check if player has any NFTs
+	nftBalance, err := BalanceOf(addr)
+	if err == nil && nftBalance > 0 {
+		builder.WriteString("## Your Victory NFTs 🏆\n\n")
+		builder.WriteString("You've won the following rounds:\n\n")
+
+		// Iterate through all rounds up to current round to find player's NFTs
+		for i := int64(1); i <= gameState.CurrentRound; i++ {
+			tokenID := grc721.TokenID(strconv.FormatInt(i, 10))
+			owner, err := OwnerOf(tokenID)
+			if err == nil && owner == addr {
+				metadata, err := TokenMetadata(tokenID)
+				if err == nil {
+					builder.WriteString(ufmt.Sprintf("### Round #%d Winner\n", i))
+					builder.WriteString(ufmt.Sprintf("![NFT](%s)\n\n", metadata.Image))
+					builder.WriteString("---\n\n")
+				}
+			}
+		}
+	}
 
 	builder.WriteString("## Actions\n\n")
 	builder.WriteString(ufmt.Sprintf("* To buy more keys, send GNOT to this realm with [`BuyKeys()`](%s)\n", gameState.BuyKeysLink))

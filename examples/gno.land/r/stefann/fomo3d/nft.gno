@@ -59,7 +59,7 @@ func IsApprovedForAll(owner, operator std.Address) bool {
 	return fomo3dNFT.IsApprovedForAll(owner, operator)
 }
 
-// mintRoundWinnerNFT mints a new NFT for the round winner
+// Mints a new NFT for the round winner
 func mintRoundWinnerNFT(winner std.Address, roundNumber int64) error {
 	if winner == "" {
 		return ErrZeroAddress
@@ -72,18 +72,9 @@ func mintRoundWinnerNFT(winner std.Address, roundNumber int64) error {
 	metadata := grc721.Metadata{
 		Name:        "Fomo3D Winner - Round #" + roundStr,
 		Description: "Winner of Fomo3D round #" + roundStr,
-		Image:       "ipfs://QmXYZ123..." + roundStr,                       // TODO: Add this image to IPFS
+		Image:       "https://ipfs.io/ipfs/bafybeidayyli6bpewkhgtwqpgubmo77kmgjn4r5zq2i7usoyadcmvynhhq",                       // TODO: Add this image to IPFS
 		ExternalURL: "https://gno.land/r/stefann/fomo3d:round/" + roundStr, // TODO: Add this render in main realm that shows details of specific round
-		Attributes: []grc721.Trait{
-			{
-				TraitType: "Round",
-				Value:     roundStr,
-			},
-			{
-				TraitType: "Winner",
-				Value:     string(winner),
-			},
-		},
+		Attributes: []grc721.Trait{},
 		BackgroundColor: "2D2D2D", // Dark theme background
 	}
 

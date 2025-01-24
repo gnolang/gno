@@ -47,7 +47,7 @@ const (
 	EventNewOwnerKey      = "newOwner"
 )
 
-func EmitGameStarted(round, startBlock, endBlock, startingPot int64) {
+func emitGameStarted(round, startBlock, endBlock, startingPot int64) {
 	std.Emit(
 		GameStartedEvent,
 		EventRoundKey, ufmt.Sprintf("%d", round),
@@ -57,7 +57,7 @@ func EmitGameStarted(round, startBlock, endBlock, startingPot int64) {
 	)
 }
 
-func EmitGameEnded(round int64, winner std.Address, jackpot int64) {
+func emitGameEnded(round int64, winner std.Address, jackpot int64) {
 	std.Emit(
 		GameEndedEvent,
 		EventRoundKey, ufmt.Sprintf("%d", round),
@@ -66,7 +66,7 @@ func EmitGameEnded(round int64, winner std.Address, jackpot int64) {
 	)
 }
 
-func EmitKeysPurchased(buyer std.Address, numKeys, price, jackpotShare, dividendShare int64) {
+func emitKeysPurchased(buyer std.Address, numKeys, price, jackpotShare, dividendShare int64) {
 	std.Emit(
 		KeysPurchasedEvent,
 		EventBuyerKey, buyer.String(),
@@ -77,7 +77,7 @@ func EmitKeysPurchased(buyer std.Address, numKeys, price, jackpotShare, dividend
 	)
 }
 
-func EmitDividendsClaimed(claimer std.Address, amount int64) {
+func emitDividendsClaimed(claimer std.Address, amount int64) {
 	std.Emit(
 		DividendsClaimedEvent,
 		EventClaimerKey, claimer.String(),
@@ -85,7 +85,7 @@ func EmitDividendsClaimed(claimer std.Address, amount int64) {
 	)
 }
 
-func EmitOwnerFeeClaimed(owner std.Address, amount int64) {
+func emitOwnerFeeClaimed(owner std.Address, amount int64) {
 	std.Emit(
 		OwnerFeeClaimedEvent,
 		EventOwnerKey, owner.String(),

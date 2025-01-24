@@ -95,7 +95,7 @@ func StartGame() {
 	// Clear previous round's player data
 	players = avl.NewTree()
 
-	EmitGameStarted(
+	emitGameStarted(
 		gameState.CurrentRound,
 		gameState.StartBlock,
 		gameState.EndBlock,
@@ -181,7 +181,7 @@ func BuyKeys() {
 	// Save buyer's updated info
 	players.Set(buyer.String(), buyerInfo)
 
-	EmitKeysPurchased(
+	emitKeysPurchased(
 		buyer,
 		numKeys,
 		gameState.KeyPrice,
@@ -216,7 +216,7 @@ func ClaimDividends() {
 		std.NewCoins(std.NewCoin("ugnot", amount)),
 	)
 
-	EmitDividendsClaimed(caller, amount)
+	emitDividendsClaimed(caller, amount)
 }
 
 // ClaimOwnerFee allows the owner to withdraw accumulated fees
@@ -237,7 +237,7 @@ func ClaimOwnerFee() {
 		std.NewCoins(std.NewCoin("ugnot", amount)),
 	)
 
-	EmitOwnerFeeClaimed(Ownable.Owner(), amount)
+	emitOwnerFeeClaimed(Ownable.Owner(), amount)
 }
 
 // EndGame ends the current round and distributes the jackpot
@@ -265,7 +265,7 @@ func EndGame() {
 		std.NewCoins(std.NewCoin("ugnot", gameState.Jackpot)),
 	)
 
-	EmitGameEnded(
+	emitGameEnded(
 		gameState.CurrentRound,
 		gameState.LastBuyer,
 		gameState.Jackpot,
@@ -347,8 +347,8 @@ func Render(path string) string {
 			return ufmt.Sprintf("🔴 Game has not started yet.\n\n Call [`StartGame()`](%s) to start a new round.\n\n", gameState.StartGameLink)
 		}
 		addr := stringToAddress(parts[1])
-		if addr == "" {
-			return "Invalid address or unregistered username. Please use a valid Gno address or registered username.\n\n"
+		if addr == "" || !isPlayerInGame(addr) {
+			return "Address not found in game. You need to buy keys first to view your stats.\n\n"
 		}
 		keys, dividends := GetPlayerInfo(parts[1])
 		return RenderPlayer(addr, keys, dividends)
