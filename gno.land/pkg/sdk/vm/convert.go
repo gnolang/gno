@@ -3,6 +3,7 @@ package vm
 import (
 	"encoding/base64"
 	"fmt"
+	"math"
 	"strconv"
 	"strings"
 
@@ -143,11 +144,11 @@ func convertArgToGno(arg string, argT gno.Type) (tv gno.TypedValue) {
 			return
 		case gno.Float32Type:
 			value := convertFloat(arg, 32)
-			tv.SetFloat32(float32(value))
+			tv.SetFloat32(math.Float32bits(float32(value)))
 			return
 		case gno.Float64Type:
 			value := convertFloat(arg, 64)
-			tv.SetFloat64(value)
+			tv.SetFloat64(math.Float64bits(value))
 			return
 		default:
 			panic(fmt.Sprintf("unexpected primitive type %s", bt.String()))

@@ -1132,6 +1132,8 @@ type FuncType struct {
 
 	typeid TypeID
 	bound  *FuncType
+
+	IsClosure bool
 }
 
 // true for predefined func types that are not filled in yet.

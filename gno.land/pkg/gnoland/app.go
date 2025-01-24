@@ -34,11 +34,13 @@ import (
 
 // AppOptions contains the options to create the gno.land ABCI application.
 type AppOptions struct {
-	DB                dbm.DB             // required
-	Logger            *slog.Logger       // required
-	EventSwitch       events.EventSwitch // required
-	VMOutput          io.Writer          // optional
-	InitChainerConfig                    // options related to InitChainer
+	DB                      dbm.DB             // required
+	Logger                  *slog.Logger       // required
+	EventSwitch             events.EventSwitch // required
+	VMOutput                io.Writer          // optional
+	SkipGenesisVerification bool               // default to verify genesis transactions
+	InitChainerConfig                          // options related to InitChainer
+	MinGasPrices            string             // optional
 }
 
 // TestAppOptions provides a "ready" default [AppOptions] for use with
@@ -53,6 +55,7 @@ func TestAppOptions(db dbm.DB) *AppOptions {
 			StdlibDir:              filepath.Join(gnoenv.RootDir(), "gnovm", "stdlibs"),
 			CacheStdlibLoad:        true,
 		},
+		SkipGenesisVerification: true,
 	}
 }
 
@@ -79,9 +82,13 @@ func NewAppWithOptions(cfg *AppOptions) (abci.Application, error) {
 	mainKey := store.NewStoreKey("main")
 	baseKey := store.NewStoreKey("base")
 
+	//  set sdk app options
+	var appOpts []func(*sdk.BaseApp)
+	if cfg.MinGasPrices != "" {
+		appOpts = append(appOpts, sdk.SetMinGasPrices(cfg.MinGasPrices))
+	}
 	// Create BaseApp.
-	// TODO: Add a consensus based min gas prices for the node, by default it does not check
-	baseApp := sdk.NewBaseApp("gnoland", cfg.Logger, cfg.DB, baseKey, mainKey)
+	baseApp := sdk.NewBaseApp("gnoland", cfg.Logger, cfg.DB, baseKey, mainKey, appOpts...)
 	baseApp.SetAppVersion("dev")
 
 	// Set mounts for BaseApp's MultiStore.
@@ -105,7 +112,7 @@ func NewAppWithOptions(cfg *AppOptions) (abci.Application, error) {
 
 	// Set AnteHandler
 	authOptions := auth.AnteOptions{
-		VerifyGenesisSignatures: false, // for development
+		VerifyGenesisSignatures: !cfg.SkipGenesisVerification,
 	}
 	authAnteHandler := auth.NewAnteHandler(
 		acctKpr, bankKpr, auth.DefaultSigVerificationGasConsumer, authOptions)
@@ -175,12 +182,28 @@ func NewAppWithOptions(cfg *AppOptions) (abci.Application, error) {
 	return baseApp, nil
 }
 
+// GenesisAppConfig wraps the most important
+// genesis params relating to the App
+type GenesisAppConfig struct {
+	SkipFailingTxs      bool // does not stop the chain from starting if any tx fails
+	SkipSigVerification bool // does not verify the transaction signatures in genesis
+}
+
+// NewTestGenesisAppConfig returns a testing genesis app config
+func NewTestGenesisAppConfig() GenesisAppConfig {
+	return GenesisAppConfig{
+		SkipFailingTxs:      true,
+		SkipSigVerification: true,
+	}
+}
+
 // NewApp creates the gno.land application.
 func NewApp(
 	dataRootDir string,
-	skipFailingGenesisTxs bool,
+	genesisCfg GenesisAppConfig,
 	evsw events.EventSwitch,
 	logger *slog.Logger,
+	minGasPrices string,
 ) (abci.Application, error) {
 	var err error
 
@@ -191,8 +214,10 @@ func NewApp(
 			GenesisTxResultHandler: PanicOnFailingTxResultHandler,
 			StdlibDir:              filepath.Join(gnoenv.RootDir(), "gnovm", "stdlibs"),
 		},
+		MinGasPrices:            minGasPrices,
+		SkipGenesisVerification: genesisCfg.SkipSigVerification,
 	}
-	if skipFailingGenesisTxs {
+	if genesisCfg.SkipFailingTxs {
 		cfg.GenesisTxResultHandler = NoopGenesisTxResultHandler
 	}
 

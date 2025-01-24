@@ -29,7 +29,7 @@ jobs:
         with:
           go-version: ${{ matrix.goversion }}
       - run: go install -v ./gnovm/cmd/gno
-      - run: go run ./gnovm/cmd/gno transpile -v --gobuild ./examples
+      - run: go run ./gnovm/cmd/gno tool transpile -v --gobuild ./examples
   test:
     strategy:
       fail-fast: false
@@ -71,11 +71,19 @@ jobs:
       - run: make lint -C ./examples
       # TODO: consider running lint on every other directories, maybe in "warning" mode?
     # TODO: track coverage
+
   fmt:
     name: Run gno fmt on examples
     uses: ./.github/workflows/gnofmt_template.yml
     with:
       path: "examples/..."
+
+  generate:
+    name: Check generated files are up to date
+    uses: ./.github/workflows/build_template.yml
+    with:
+      modulepath: "examples"
+      go-version: "1.22.x"
 
   mod-tidy:
     strategy:
