@@ -4,6 +4,7 @@ import (
 	"errors"
 	"std"
 	"strconv"
+	"strings"
 	"time"
 
 	"gno.land/p/demo/avl"
@@ -18,10 +19,11 @@ var (
 	configs = avl.NewTree()
 	pager   = p.NewPager(configs, 10, false)
 	banner  = "---\n[[Leon's Home page]](/r/leon/home) | [[GitHub: @leohhhn]](https://github.com/leohhhn)\n\n---"
+	absPath = strings.TrimPrefix(std.CurrentRealm().PkgPath(), std.GetChainDomain())
 
 	// SafeObjects
 	OwnableMain   = ownable.NewWithAddress("g125em6arxsnj49vx35f0n0z34putv5ty3376fg5")
-	OwnableBackup = ownable.NewWithAddress("g125em6arxsnj49vx35f0n0z34putv5ty3376fg5")
+	OwnableBackup = ownable.NewWithAddress("g1lavlav7zwsjqlzzl3qdl3nl242qtf638vnhdjh")
 
 	ErrUnauthorized = errors.New("leon's config: unauthorized")
 )
@@ -84,7 +86,7 @@ func Render(path string) (out string) {
 
 		page := pager.MustGetPageByPath(path)
 		for _, item := range page.Items {
-			out += ufmt.Sprintf("- [%s](/r/leon/config:%s)\n\n", item.Key, item.Key)
+			out += ufmt.Sprintf("- [%s](%s:%s)\n\n", item.Key, absPath, item.Key)
 		}
 
 		out += page.Picker()
