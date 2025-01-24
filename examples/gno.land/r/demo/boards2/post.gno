@@ -1,3 +1,4 @@
+// Soft delete the reply by changing its body
 package boards2
 
 import (
@@ -146,6 +147,10 @@ func (post *Post) Update(title string, body string) {
 	post.title = title
 	post.body = body
 	post.updatedAt = time.Now()
+}
+
+func (post *Post) HasReplies() bool {
+	return post.replies.Size() > 0
 }
 
 func (thread *Post) GetReply(pid PostID) (_ *Post, found bool) {
