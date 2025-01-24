@@ -36,9 +36,14 @@ jobs:
       - run: |
           cp -r misc/gendocs/godoc/* pages_output/
           cp -r misc/stdlib_diff/stdlib_diff/* pages_output/stdlib_diff/
+      
+      # These two last steps will be skipped on pull requests
       - uses: actions/configure-pages@v5
         id: pages
+        if: github.event_name != 'pull_request'
+
       - uses: actions/upload-pages-artifact@v3
+        if: github.event_name != 'pull_request'
         with:
           path: ./pages_output
 
