@@ -6,13 +6,25 @@
 
 `gno <command> [arguments]`
 
-## Commands
+## Usage
 
-* `gno run` - run a Gno file
-* `gno transpile` - transpile .gno to .go
-* `gno test` - test a gno package
-* `gno mod` - manages dependencies
-* `gno repl` start a GnoVM REPL
+[embedmd]:#(../../.tmp/gno-help.txt)
+```txt
+USAGE
+  gno <command> [arguments]
+
+SUBCOMMANDS
+  bug    start a bug report
+  clean  remove generated and cached data
+  doc    show documentation for package or symbol
+  env    print gno environment information
+  fmt    gnofmt (reformat) package sources
+  mod    module maintenance
+  run    run gno packages
+  test   test packages
+  tool   run specified gno tool
+
+```
 
 ## Install
 
