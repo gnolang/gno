@@ -2,11 +2,11 @@ package fomo3d
 
 import (
 	"std"
-	"strings"
 	"strconv"
+	"strings"
 
-	"gno.land/p/demo/ufmt"
 	"gno.land/p/demo/grc/grc721"
+	"gno.land/p/demo/ufmt"
 
 	"gno.land/r/demo/users"
 )
