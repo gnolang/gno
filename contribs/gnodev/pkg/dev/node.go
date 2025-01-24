@@ -52,7 +52,7 @@ type NodeConfig struct {
 	BalancesList []gnoland.Balance
 
 	// PackagesModifier allows modifications to be applied to packages during initialization.
-	PackagesModifier []PackageModifier
+	PackagesModifier []QueryPath
 
 	// Emitter is used to emit events for various node operations. It can be set to a noop emitter if no
 	// event emission is required.
@@ -119,13 +119,14 @@ type Node struct {
 	*node.Node
 	muNode sync.RWMutex
 
-	config  *NodeConfig
-	emitter emitter.Emitter
-	client  client.Client
-	logger  *slog.Logger
-	loader  packages.Loader
-	pkgs    []packages.Package
-	paths   []string
+	config       *NodeConfig
+	emitter      emitter.Emitter
+	client       client.Client
+	logger       *slog.Logger
+	loader       packages.Loader
+	pkgs         []packages.Package
+	pkgsModifier map[string]QueryPath // path -> QueryPath
+	paths        []string
 
 	// keep track of number of loaded package to be able to skip them on restore
 	loadedPackages int
@@ -143,6 +144,11 @@ var DefaultFee = std.NewFee(50000, std.MustParseCoin(ugnot.ValueString(1000000))
 func NewDevNode(ctx context.Context, cfg *NodeConfig, pkgpaths ...string) (*Node, error) {
 	startTime := time.Now()
 
+	pkgsModifier := make(map[string]QueryPath, len(cfg.PackagesModifier))
+	for _, qpath := range cfg.PackagesModifier {
+		pkgsModifier[qpath.Path] = qpath
+	}
+
 	devnode := &Node{
 		loader:            cfg.Loader,
 		config:            cfg,
@@ -154,7 +160,7 @@ func NewDevNode(ctx context.Context, cfg *NodeConfig, pkgpaths ...string) (*Node
 		initialState:      cfg.InitialTxs,
 		currentStateIndex: len(cfg.InitialTxs),
 		paths:             pkgpaths,
-		// pkgsModifier:      pkgsModifier,
+		pkgsModifier:      pkgsModifier,
 	}
 
 	// XXX: MOVE THIS, passing context here can be confusing
@@ -379,16 +385,21 @@ func (n *Node) generateTxs(fee std.Fee, pkgs []packages.Package) []gnoland.TxWit
 			Package: &pkg.MemPackage,
 		}
 
-		// XXX:
-		// if m, ok := n.pkgsModifier[pkg.Path]; ok {
-		// 	if !m.Creator.IsZero() {
-		// 		msg.Creator = m.Creator
-		// 	}
+		if m, ok := n.pkgsModifier[pkg.Path]; ok {
+			if !m.Creator.IsZero() {
+				msg.Creator = m.Creator
+			}
 
-		// 	if m.Deposit != nil {
-		// 		msg.Deposit = m.Deposit
-		// 	}
-		// }
+			if m.Deposit != nil {
+				msg.Deposit = m.Deposit
+			}
+
+			n.logger.Debug("applying pkgs modifier",
+				"path", pkg.Path,
+				"creator", msg.Creator,
+				"deposit", msg.Deposit,
+			)
+		}
 
 		// Create transaction
 		tx := std.Tx{Fee: fee, Msgs: []std.Msg{msg}}

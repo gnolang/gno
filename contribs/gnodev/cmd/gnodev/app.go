@@ -150,15 +150,27 @@ func (ds *App) Setup(ctx context.Context, dirs ...string) (err error) {
 		ds.webHomePath = webHome
 	}
 
-	// Generate paths
-	paths := strings.Split(ds.cfg.paths, ",")
-	ds.paths = append(localPaths, paths...)
-
 	accountLogger := ds.logger.WithGroup(AccountsLogName)
 	ds.book, err = setupAddressBook(accountLogger, ds.cfg)
 	if err != nil {
 		return fmt.Errorf("unable to load keybase: %w", err)
 	}
+
+	// Generate user's paths using a comma as the delimiter
+	qpaths := strings.Split(ds.cfg.paths, ",")
+
+	// Set up the packages modifier and extract paths from queries
+	// XXX: This should probably be moved into the setup node configuration
+	modifiers, paths, err := resolvePackagesModifier(ds.cfg, ds.book, qpaths)
+	if err != nil {
+		return fmt.Errorf("unable to resolve paths %v: %w", paths, err)
+	}
+
+	fmt.Printf("PATHS: %v %v\r\n", modifiers, paths)
+
+	// Add the user's paths to the pre-loaded paths
+	// Modifiers will be added later bellow to the node config
+	ds.paths = append(localPaths, paths...)
 
 	balances, err := generateBalances(ds.book, ds.cfg)
 	if err != nil {
@@ -168,6 +180,7 @@ func (ds *App) Setup(ctx context.Context, dirs ...string) (err error) {
 
 	nodeLogger := ds.logger.WithGroup(NodeLogName)
 	nodeCfg := setupDevNodeConfig(ds.cfg, nodeLogger, ds.emitterServer, balances, ds.loader)
+	nodeCfg.PackagesModifier = modifiers // add modifiers
 
 	address := resolveUnixOrTCPAddr(nodeCfg.TMConfig.RPC.ListenAddress)
 
@@ -476,6 +489,37 @@ func (ds *App) handleKeyPress(ctx context.Context, key rawterm.KeyPress) {
 		}
 	default:
 	}
+}
+
+// XXX: packages modifier does not support glob yet
+func resolvePackagesModifier(cfg *devCfg, bk *address.Book, qpaths []string) ([]gnodev.QueryPath, []string, error) {
+	if cfg.deployKey == "" {
+		return nil, nil, fmt.Errorf("default deploy key cannot be empty")
+	}
+
+	defaultKey, _, ok := bk.GetFromNameOrAddress(cfg.deployKey)
+	if !ok {
+		return nil, nil, fmt.Errorf("unable to get deploy key %q", cfg.deployKey)
+	}
+
+	modifiers := make([]gnodev.QueryPath, 0, len(qpaths))
+	paths := make([]string, 0, len(qpaths))
+	for _, path := range qpaths {
+		qpath, err := gnodev.ResolveQueryPath(bk, path)
+		if err != nil {
+			return nil, nil, fmt.Errorf("invalid package path/query %q: %w", path, err)
+		}
+
+		// Assign a default creator if user haven't specified it.
+		if qpath.Creator.IsZero() {
+			qpath.Creator = defaultKey
+		}
+
+		modifiers = append(modifiers, qpath)
+		paths = append(paths, qpath.Path)
+	}
+
+	return modifiers, paths, nil
 }
 
 func listenForKeyPress(logger *slog.Logger, rt *rawterm.RawTerm) <-chan rawterm.KeyPress {
