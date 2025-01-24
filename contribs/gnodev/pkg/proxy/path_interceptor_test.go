@@ -9,9 +9,12 @@ import (
 	"github.com/gnolang/gno/gno.land/pkg/integration"
 	"github.com/gnolang/gno/gnovm"
 	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
+	"github.com/gnolang/gno/tm2/pkg/amino"
 	"github.com/gnolang/gno/tm2/pkg/bft/rpc/client"
 	"github.com/gnolang/gno/tm2/pkg/crypto/secp256k1"
 	"github.com/gnolang/gno/tm2/pkg/log"
+	"github.com/gnolang/gno/tm2/pkg/std"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
@@ -48,10 +51,10 @@ func TestProxy(t *testing.T) {
 
 	// Setup genesis state
 	privKey := secp256k1.GenPrivKey()
+	creator := privKey.PubKey().Address()
 	cfg.Genesis.AppState = integration.GenerateTestinGenesisState(privKey, pkg)
 
 	integration.TestingInMemoryNode(t, logger, cfg)
-
 	cc := make(chan []string, 1)
 	path_interceptor.HandlePath(func(paths ...string) {
 		cc <- paths
@@ -87,6 +90,31 @@ func TestProxy(t *testing.T) {
 		res, err := cli.ABCIQuery(wrongQuery, []byte(targetPath+":\n"))
 		require.NoError(t, err)
 		require.Error(t, res.Response.Error)
+
+		select {
+		case <-cc:
+			require.FailNow(t, "should not catch a path")
+		default:
+		}
+	})
+
+	t.Run("http/not_supported_query", func(t *testing.T) {
+		// Making a valid call but not supported by the proxy
+		// should succeed
+		query := "auth/accounts/" + creator.String()
+
+		cli, err := client.NewHTTPClient(path_interceptor.TargetAddress())
+		require.NoError(t, err)
+		defer cli.Close()
+
+		res, err := cli.ABCIQuery(query, []byte{})
+		require.NoError(t, err)
+		require.NoError(t, res.Response.Error)
+
+		var qret struct{ BaseAccount std.BaseAccount }
+		err = amino.UnmarshalJSON(res.Response.Data, &qret)
+		require.NoError(t, err)
+		assert.Equal(t, qret.BaseAccount.Address, creator)
 
 		select {
 		case <-cc:
