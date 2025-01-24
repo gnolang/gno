@@ -39,7 +39,7 @@ TODO import r/gh
 }
 
 func UpdatePFP(url, caption string) {
-	if !isAuthorized(std.PrevRealm().Addr()) {
+	if !config.IsAuthorized(std.PrevRealm().Addr()) {
 		panic(config.ErrUnauthorized)
 	}
 
@@ -48,7 +48,7 @@ func UpdatePFP(url, caption string) {
 }
 
 func UpdateAboutMe(col1, col2 string) {
-	if !isAuthorized(std.PrevRealm().Addr()) {
+	if !config.IsAuthorized(std.PrevRealm().Addr()) {
 		panic(config.ErrUnauthorized)
 	}
 
@@ -129,8 +129,4 @@ func renderMillipede() string {
 	out += "</div>\n\n"
 
 	return out
-}
-
-func isAuthorized(addr std.Address) bool {
-	return addr == config.Address() || addr == config.Backup()
 }
