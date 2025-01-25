@@ -166,7 +166,7 @@ func TestPackageCheckerMiddleware(t *testing.T) {
 
 		_, err := resolver.Resolve(token.NewFileSet(), invalidPkg.Path)
 		require.Error(t, err)
-		require.Contains(t, err.Error(), "unable to parse")
+		require.Contains(t, err.Error(), `file "invalid.gno" have error(s)`)
 	})
 
 	t.Run("ignores non-gno files", func(t *testing.T) {
