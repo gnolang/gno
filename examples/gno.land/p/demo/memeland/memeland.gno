@@ -1,7 +1,6 @@
 package memeland
 
 import (
-	"fmt"
 	"sort"
 	"std"
 	"strconv"
