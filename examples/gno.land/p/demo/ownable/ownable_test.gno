@@ -30,7 +30,7 @@ func TestNewWithAddress(t *testing.T) {
 }
 
 func TestTransferOwnership(t *testing.T) {
-	t.TestSetRealm(std.NewUserRealm(alice))
+	t.SetPreviousRealm(std.NewUserRealm(alice))
 
 	o := New()
 
