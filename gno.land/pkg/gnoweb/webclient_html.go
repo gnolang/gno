@@ -177,6 +177,7 @@ func (s *HTMLWebClient) RenderRealm(w io.Writer, pkgPath string, args string) (*
 
 	pkgPath = strings.Trim(pkgPath, "/")
 	data := fmt.Sprintf("%s/%s:%s", s.domain, pkgPath, args)
+
 	rawres, err := s.query(qpath, []byte(data))
 	if err != nil {
 		return nil, err
@@ -211,6 +212,10 @@ func (s *HTMLWebClient) query(qpath string, data []byte) ([]byte, error) {
 	if err = qres.Response.Error; err != nil {
 		if errors.Is(err, vm.InvalidPkgPathError{}) {
 			return nil, ErrClientPathNotFound
+		}
+
+		if strings.Contains(err.Error(), "Render not declared") {
+			return nil, ErrRenderNotDeclared
 		}
 
 		s.logger.Error("response error", "path", qpath, "log", qres.Response.Log)

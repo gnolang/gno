@@ -10,6 +10,7 @@ import (
 
 var (
 	ErrClientPathNotFound = errors.New("package not found")
+	ErrRenderNotDeclared  = errors.New("realm has no Render function defined")
 	ErrClientBadRequest   = errors.New("bad request")
 	ErrClientResponse     = errors.New("node response error")
 )
