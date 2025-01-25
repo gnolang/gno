@@ -248,3 +248,27 @@ func TestSignGenesisTx(t *testing.T) {
 		assert.True(t, pubKey.VerifyBytes(payload, sigs[0].Signature))
 	}
 }
+
+func TestSetFlag(t *testing.T) {
+	account := &GnoAccount{}
+
+	// Test setting a valid flag
+	account.setFlag(unrestricted)
+	assert.True(t, account.hasFlag(unrestricted), "Expected unrestricted flag to be set")
+
+	// Test setting an invalid flag
+	assert.Panics(t, func() {
+		account.setFlag(BitSet(0x1000)) // Invalid flag
+	}, "Expected panic for invalid flag")
+}
+
+func TestClearFlag(t *testing.T) {
+	account := &GnoAccount{}
+
+	// Set and then clear the flag
+	account.setFlag(unrestricted)
+	assert.True(t, account.hasFlag(unrestricted), "Expected unrestricted flag to be set before clearing")
+
+	account.clearFlag(unrestricted)
+	assert.False(t, account.hasFlag(unrestricted), "Expected unrestricted flag to be cleared")
+}
