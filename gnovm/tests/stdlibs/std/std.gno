@@ -4,7 +4,6 @@ func AssertOriginCall()           // injected
 func IsOriginCall() bool          // injected
 func TestSkipHeights(count int64) // injected
 
-func TestSetOrigCaller(addr Address)  { testSetOrigCaller(string(addr)) }
 func TestSetOrigPkgAddr(addr Address) { testSetOrigPkgAddr(string(addr)) }
 
 // TestSetRealm sets the realm for the current frame.
@@ -29,7 +28,6 @@ func TestIssueCoins(addr Address, coins Coins) {
 func callerAt(n int) string
 
 // native bindings
-func testSetOrigCaller(s string)
 func testSetOrigPkgAddr(s string)
 func testSetRealm(addr, pkgPath string)
 func testSetOrigSend(

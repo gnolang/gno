@@ -32,16 +32,16 @@ std.TestSkipHeights(100)
 ```
 ---
 
-## SetPreviousRealm
+## TestSetOrigCaller
 
 ```go
-func SetPreviousRealm(rlm Realm)
+func TestSetOrigCaller(addr Address)
 ```
-Sets the current caller of the transaction to **rlm**.
+Sets the current caller of the transaction to **addr**.
 
 #### Usage
 ```go
-testing.SetPreviousRealm(std.NewUserRealm(std.Address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5")))
+std.TestSetOrigCaller(std.Address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"))
 ```
 ---
 
