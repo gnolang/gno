@@ -14,7 +14,7 @@ type BankParamsContextKey struct{}
 
 // Params defines the parameters for the bank module.
 type Params struct {
-	RestrictedDenoms []string `json:"restriced_denoms" yaml:"restriced_denoms"`
+	RestrictedDenoms []string `json:"restricted_denoms" yaml:"restricted_denoms"`
 }
 
 // NewParams creates a new Params object
