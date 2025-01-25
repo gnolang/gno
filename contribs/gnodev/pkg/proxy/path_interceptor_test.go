@@ -2,12 +2,14 @@ package proxy_test
 
 import (
 	"net"
+	"net/http"
 	"path/filepath"
 	"testing"
 
 	"github.com/gnolang/gno/contribs/gnodev/pkg/proxy"
+	"github.com/gnolang/gno/gno.land/pkg/gnoland/ugnot"
 	"github.com/gnolang/gno/gno.land/pkg/integration"
-	"github.com/gnolang/gno/gnovm"
+	"github.com/gnolang/gno/gno.land/pkg/sdk/vm"
 	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
 	"github.com/gnolang/gno/tm2/pkg/amino"
 	"github.com/gnolang/gno/tm2/pkg/bft/rpc/client"
@@ -19,91 +21,118 @@ import (
 )
 
 func TestProxy(t *testing.T) {
-	const targetPath = "gno.land/r/target/path"
+	const targetPath = "gno.land/r/target/foo"
 
-	pkg := gnovm.MemPackage{
-		Name: "foo",
-		Path: targetPath,
-		Files: []*gnovm.MemFile{
-			{
-				Name: "foo.gno",
-				Body: `package foo; func Render(_ string) string { return "bar" }`,
-			},
-			{Name: "gno.mod", Body: `module ` + targetPath},
-		},
-	}
+	pkg := integration.GenerateMemPackage(targetPath,
+		"foo.gno", `package foo; func Render(_ string) string { return "bar" }`,
+		"gno.mod", `module `+targetPath,
+	)
 
 	rootdir := gnoenv.RootDir()
 	cfg := integration.TestingMinimalNodeConfig(rootdir)
 	logger := log.NewTestingLogger(t)
 
-	// Create temporary place for unix sock
 	tmp := t.TempDir()
 	sock := filepath.Join(tmp, "node.sock")
 	addr, err := net.ResolveUnixAddr("unix", sock)
 	require.NoError(t, err)
 
 	// Create proxy
-	path_interceptor, err := proxy.NewPathInterceptor(logger, addr)
-	defer path_interceptor.Close()
+	interceptor, err := proxy.NewPathInterceptor(logger, addr)
 	require.NoError(t, err)
-	cfg.TMConfig.RPC.ListenAddress = path_interceptor.ProxyAddress()
+	defer interceptor.Close()
+	cfg.TMConfig.RPC.ListenAddress = interceptor.ProxyAddress()
+	cfg.SkipGenesisVerification = true
 
-	// Setup genesis state
+	// Setup genesis
 	privKey := secp256k1.GenPrivKey()
-	creator := privKey.PubKey().Address()
 	cfg.Genesis.AppState = integration.GenerateTestinGenesisState(privKey, pkg)
+	creator := privKey.PubKey().Address()
 
 	integration.TestingInMemoryNode(t, logger, cfg)
-	cc := make(chan []string, 1)
-	path_interceptor.HandlePath(func(paths ...string) {
-		cc <- paths
+	pathChan := make(chan []string, 1)
+	interceptor.HandlePath(func(paths ...string) {
+		pathChan <- paths
 	})
 
-	t.Run("http/valid_query", func(t *testing.T) {
-		const qrender = "vm/qrender"
+	// ---- Test Cases ----
 
-		cli, err := client.NewHTTPClient(path_interceptor.TargetAddress())
+	t.Run("valid_vm_query", func(t *testing.T) {
+		cli, err := client.NewHTTPClient(interceptor.TargetAddress())
 		require.NoError(t, err)
-		defer cli.Close()
 
-		res, err := cli.ABCIQuery(qrender, []byte(targetPath+":\n"))
+		res, err := cli.ABCIQuery("vm/qrender", []byte(targetPath+":\n"))
 		require.NoError(t, err)
-		require.NoError(t, res.Response.Error)
+		assert.Nil(t, res.Response.Error)
 
 		select {
-		case paths := <-cc:
+		case paths := <-pathChan:
 			require.Len(t, paths, 1)
-			require.Equal(t, targetPath, paths[0])
+			assert.Equal(t, []string{targetPath}, paths)
 		default:
-			require.FailNow(t, "path should have been catch")
+			t.Fatal("paths not captured")
 		}
 	})
 
-	t.Run("http/invalid_query", func(t *testing.T) {
-		const wrongQuery = "does_not_exist_query"
+	t.Run("simulate_tx_paths", func(t *testing.T) {
+		// Build transaction with multiple messages
+		var tx std.Tx
+		send := std.MustParseCoins(ugnot.ValueString(10_000_000))
+		tx.Fee = std.Fee{GasWanted: 1e6, GasFee: std.Coin{Amount: 1e6, Denom: "ugnot"}}
+		tx.Msgs = []std.Msg{
+			vm.NewMsgCall(creator, send, targetPath, "Render", []string{""}),
+			vm.NewMsgCall(creator, send, targetPath, "Render", []string{""}),
+			vm.NewMsgCall(creator, send, targetPath, "Render", []string{""}),
+		}
 
-		cli, err := client.NewHTTPClient(path_interceptor.TargetAddress())
+		bytes, err := tx.GetSignBytes(cfg.Genesis.ChainID, 0, 0)
 		require.NoError(t, err)
-		defer cli.Close()
+		signature, err := privKey.Sign(bytes)
+		require.NoError(t, err)
+		tx.Signatures = []std.Signature{{PubKey: privKey.PubKey(), Signature: signature}}
 
-		res, err := cli.ABCIQuery(wrongQuery, []byte(targetPath+":\n"))
+		bz, err := amino.Marshal(tx)
 		require.NoError(t, err)
-		require.Error(t, res.Response.Error)
+
+		cli, err := client.NewHTTPClient(interceptor.TargetAddress())
+		require.NoError(t, err)
+
+		res, err := cli.BroadcastTxCommit(bz)
+		require.NoError(t, err)
+		assert.NoError(t, res.CheckTx.Error)
+		assert.NoError(t, res.DeliverTx.Error)
 
 		select {
-		case <-cc:
-			require.FailNow(t, "should not catch a path")
+		case paths := <-pathChan:
+			require.Len(t, paths, 1)
+			assert.Equal(t, []string{targetPath}, paths)
 		default:
+			t.Fatal("paths not captured")
 		}
 	})
 
-	t.Run("http/not_supported_query", func(t *testing.T) {
+	t.Run("websocket_forward", func(t *testing.T) {
+		// For now simply try to connect and upgrade the connection
+		// XXX: fully support ws
+
+		conn, err := net.Dial(addr.Network(), addr.String())
+		require.NoError(t, err)
+		defer conn.Close()
+
+		// Send WebSocket handshake
+		req, _ := http.NewRequest("GET", "http://"+interceptor.TargetAddress(), nil)
+		req.Header.Set("Upgrade", "websocket")
+		req.Header.Set("Connection", "Upgrade")
+		err = req.Write(conn)
+		require.NoError(t, err)
+	})
+
+	t.Run("invalid_query_data", func(t *testing.T) {
 		// Making a valid call but not supported by the proxy
 		// should succeed
 		query := "auth/accounts/" + creator.String()
 
-		cli, err := client.NewHTTPClient(path_interceptor.TargetAddress())
+		cli, err := client.NewHTTPClient(interceptor.TargetAddress())
 		require.NoError(t, err)
 		defer cli.Close()
 
@@ -117,16 +146,9 @@ func TestProxy(t *testing.T) {
 		assert.Equal(t, qret.BaseAccount.Address, creator)
 
 		select {
-		case <-cc:
-			require.FailNow(t, "should not catch a path")
+		case paths := <-pathChan:
+			require.FailNowf(t, "should not catch a path", "catched: %+v", paths)
 		default:
 		}
 	})
-
-	t.Run("ws/not_supported", func(t *testing.T) {
-		// XXX:
-	})
-
-	err = path_interceptor.Close()
-	require.NoError(t, err)
 }

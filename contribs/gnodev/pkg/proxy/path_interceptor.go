@@ -31,21 +31,21 @@ type PathInterceptor struct {
 	muHandlers sync.RWMutex
 }
 
-// NewPathInterceptor creates a path proxy interceptor.
+// NewPathInterceptor creates a new path proxy interceptor.
 func NewPathInterceptor(logger *slog.Logger, target net.Addr) (*PathInterceptor, error) {
-	// Create a listener with the target address
+	// Create a listener on the target address
 	proxyListener, err := net.Listen(target.Network(), target.String())
 	if err != nil {
 		return nil, fmt.Errorf("failed to listen on %s://%s", target.Network(), target.String())
 	}
 
-	// Find a new random port for the target
+	// Find on a new random port for the target
 	targetListener, err := net.Listen("tcp", "127.0.0.1:0")
 	if err != nil {
 		return nil, fmt.Errorf("failed to listen on tcp://127.0.0.1:0")
 	}
 	proxyAddr := targetListener.Addr()
-	// Immediately close this listener after proxy init
+	// Immediately close this listener after proxy initialization
 	defer targetListener.Close()
 
 	proxy := &PathInterceptor{
@@ -91,96 +91,149 @@ func (proxy *PathInterceptor) handleConnections() {
 			return
 		}
 
-		proxy.logger.Debug("new connection", "from", conn.RemoteAddr())
+		proxy.logger.Debug("new connection", "remote", conn.RemoteAddr())
 		go proxy.handleConnection(conn)
 	}
 }
 
-// handleConnection processes a single connection.
+// handleConnection processes a single connection between client and target.
 func (proxy *PathInterceptor) handleConnection(inConn net.Conn) {
-	defer inConn.Close()
+	logger := proxy.logger.With(slog.String("in", inConn.RemoteAddr().String()))
 
+	// Establish a connection to the target
 	outConn, err := net.Dial(proxy.proxyAddr.Network(), proxy.proxyAddr.String())
 	if err != nil {
-		proxy.logger.Error("failed to connect to remote socket", "address", proxy.proxyAddr, "error", err)
+		logger.Error("target connection failed", "target", proxy.proxyAddr.String(), "error", err)
+		inConn.Close()
 		return
 	}
-	defer outConn.Close()
+	logger = logger.With(slog.String("out", outConn.RemoteAddr().String()))
 
-	// Redirect all the response directly to the incoming connection
-	go func() {
-		io.Copy(inConn, outConn)
-		proxy.logger.Debug("incoming connection is closing", "from", inConn.RemoteAddr())
+	// Coordinate connection closure
+	var closeOnce sync.Once
+	closeConnections := func() {
 		inConn.Close()
+		outConn.Close()
+	}
+
+	// Setup bidirectional copying
+	var wg sync.WaitGroup
+	wg.Add(2)
+
+	// Response path (target -> client)
+	go func() {
+		defer wg.Done()
+		defer closeOnce.Do(closeConnections)
+
+		_, err := io.Copy(inConn, outConn)
+		if err == nil || errors.Is(err, net.ErrClosed) || errors.Is(err, io.EOF) {
+			return // Connection has been closed
+		}
+
+		logger.Debug("response copy error", "error", err)
 	}()
 
-	var buffer bytes.Buffer
-	teeReader := io.TeeReader(inConn, &buffer)
+	// Request path (client -> target)
+	go func() {
+		defer wg.Done()
+		defer closeOnce.Do(closeConnections)
 
-	readerio := bufio.NewReader(teeReader)
-	for {
-		proxy.logger.Debug("reading request", "from", inConn.RemoteAddr())
-		request, err := http.ReadRequest(readerio)
-		if err != nil {
+		var buffer bytes.Buffer
+		tee := io.TeeReader(inConn, &buffer)
+		reader := bufio.NewReader(tee)
+
+		// Process HTTP requests
+		if err := proxy.processHTTPRequests(reader, &buffer, outConn); err != nil {
 			if errors.Is(err, net.ErrClosed) || errors.Is(err, io.EOF) {
-				proxy.logger.Debug("connection closed", "from", inConn.RemoteAddr())
+				return // Connection has been closed
+			}
+
+			if _, isNetError := err.(net.Error); isNetError {
+				logger.Debug("request processing error", "error", err)
 				return
 			}
 
-			proxy.logger.Debug("failed to read HTTP request", "error", err)
-			// not an actual HTTP request, forward connection directly
-			break
+			// Continue processing the connection if not a network error
 		}
 
-		if request.Header.Get("Upgrade") == "websocket" {
-			proxy.logger.Debug("WebSocket connection detected, forwarding directly")
-			// WebSocket connection not supported (yet), forward connection directly
-			break
+		// Forward remaining data after HTTP processing
+		if buffer.Len() > 0 {
+			if _, err := outConn.Write(buffer.Bytes()); err != nil {
+				logger.Debug("buffer flush failed", "error", err)
+			}
 		}
 
-		body, err := io.ReadAll(request.Body)
+		// Directly pipe remaining traffic
+		if _, err := io.Copy(outConn, inConn); err != nil && !errors.Is(err, net.ErrClosed) {
+			logger.Debug("raw copy failed", "error", err)
+		}
+	}()
+
+	wg.Wait()
+	logger.Debug("connection closed")
+}
+
+// processHTTPRequests handles the HTTP request/response cycle.
+func (proxy *PathInterceptor) processHTTPRequests(reader *bufio.Reader, buffer *bytes.Buffer, outConn net.Conn) error {
+	for {
+		request, err := http.ReadRequest(reader)
 		if err != nil {
-			proxy.logger.Warn("failed to read request body", "error", err)
-			break
+			return fmt.Errorf("read request failed: %w", err)
+		}
+
+		// Check for websocket upgrade
+		if isWebSocket(request) {
+			return errors.New("websocket upgrade requested")
+		}
+
+		// Read and process the request body
+		body, err := io.ReadAll(request.Body)
+		request.Body.Close()
+		if err != nil {
+			return fmt.Errorf("body read failed: %w", err)
 		}
 
 		if err := proxy.handleRequest(body); err != nil {
-			proxy.logger.Debug("error handling request", "error", err)
+			proxy.logger.Debug("request handler warning", "error", err)
 		}
-		request.Body.Close()
 
-		proxy.logger.Debug("forwarding request", "from", inConn.RemoteAddr(), "to", outConn.RemoteAddr())
+		// Forward the original request bytes
 		if _, err := outConn.Write(buffer.Bytes()); err != nil {
-			proxy.logger.Error("unable to write to socket", "error", err)
-			return // stoping here as we are not able to write to outgoing conn
+			return fmt.Errorf("request forward failed: %w", err)
 		}
 
-		// Reset buffer
-		buffer.Reset()
+		buffer.Reset() // Prepare for the next request
 	}
-
-	// Forward what we read to the outbound connection
-	proxy.logger.Debug("forwarding remaining connection", "from", inConn.RemoteAddr(), "to", outConn.RemoteAddr())
-	if _, err := outConn.Write(buffer.Bytes()); err != nil {
-		proxy.logger.Error("unable to write to socket", "error", err)
-	}
-
-	// Forward incoming conn to outgoing conn directly
-	io.Copy(outConn, inConn)
-
-	proxy.logger.Debug("connection ended", "from", inConn.RemoteAddr())
 }
+
+func isWebSocket(req *http.Request) bool {
+	return strings.EqualFold(req.Header.Get("Upgrade"), "websocket")
+}
+
+type uniqPaths map[string]struct{}
+
+func (upaths uniqPaths) list() []string {
+	paths := make([]string, 0, len(upaths))
+	for p := range upaths {
+		paths = append(paths, p)
+	}
+	return paths
+}
+
+func (upaths uniqPaths) add(path string) { upaths[path] = struct{}{} }
 
 // handleRequest parses and processes the RPC request body.
 func (proxy *PathInterceptor) handleRequest(body []byte) error {
-	paths, err := parseRPCRequest(body)
-	if err != nil {
+	ps := make(uniqPaths)
+	if err := parseRPCRequest(body, ps); err != nil {
 		return fmt.Errorf("unable to parse RPC request: %w", err)
 	}
 
+	paths := ps.list()
 	if len(paths) == 0 {
 		return nil
 	}
+
 	proxy.logger.Debug("parsed request paths", "paths", paths)
 
 	proxy.muHandlers.RLock()
@@ -198,61 +251,76 @@ func (proxy *PathInterceptor) Close() error {
 	return proxy.listener.Close()
 }
 
-type sDataQuery struct {
-	Path string `json:"path"`
-	Data []byte `json:"data,omitempty"`
-}
-
 // parseRPCRequest unmarshals and processes RPC requests, returning paths.
-func parseRPCRequest(body []byte) ([]string, error) {
+func parseRPCRequest(body []byte, upaths uniqPaths) error {
 	var req rpctypes.RPCRequest
 	if err := json.Unmarshal(body, &req); err != nil {
-		return nil, fmt.Errorf("unable to unmarshal RPC request: %w", err)
+		return fmt.Errorf("unable to unmarshal RPC request: %w", err)
 	}
 
-	if req.Method != "abci_query" {
-		return nil, fmt.Errorf("not an ABCI query")
+	switch req.Method {
+	case "abci_query":
+		var squery struct {
+			Path string `json:"path"`
+			Data []byte `json:"data,omitempty"`
+		}
+		if err := json.Unmarshal(req.Params, &squery); err != nil {
+			return fmt.Errorf("unable to unmarshal params: %w", err)
+		}
+
+		return handleQuery(squery.Path, squery.Data, upaths)
+
+	case "broadcast_tx_commit":
+		var stx struct {
+			Tx []byte `json:"tx"`
+		}
+		if err := json.Unmarshal(req.Params, &stx); err != nil {
+			return fmt.Errorf("unable to unmarshal params: %w", err)
+		}
+
+		return handleTx(stx.Tx, upaths)
 	}
 
-	var query sDataQuery
-	if err := json.Unmarshal(req.Params, &query); err != nil {
-		return nil, fmt.Errorf("unable to unmarshal params: %w", err)
+	return fmt.Errorf("unhandled method: %q", req.Method)
+}
+
+// handleTx processes the transaction and returns relevant paths.
+func handleTx(bz []byte, upaths uniqPaths) error {
+	var tx std.Tx
+	if err := amino.Unmarshal(bz, &tx); err != nil {
+		return fmt.Errorf("unable to unmarshal tx: %w", err)
 	}
 
-	return handleQuery(query)
+	for _, msg := range tx.Msgs {
+		switch msg := msg.(type) {
+		case vm.MsgAddPackage: // MsgAddPackage should not be handled
+		case vm.MsgCall:
+			upaths.add(msg.PkgPath)
+		case vm.MsgRun:
+			upaths.add(msg.Package.Path)
+		}
+	}
+
+	return nil
 }
 
 // handleQuery processes the query and returns relevant paths.
-func handleQuery(query sDataQuery) ([]string, error) {
-	var paths []string
-
-	switch query.Path {
+func handleQuery(path string, data []byte, upaths uniqPaths) error {
+	switch path {
 	case ".app/simulate":
-		var tx std.Tx
-		if err := amino.Unmarshal(query.Data, &tx); err != nil {
-			return nil, fmt.Errorf("unable to unmarshal tx: %w", err)
-		}
-
-		for _, msg := range tx.Msgs {
-			switch msg := msg.(type) {
-			case vm.MsgCall:
-				paths = append(paths, msg.PkgPath)
-			case vm.MsgRun:
-				paths = append(paths, msg.Package.Path)
-			}
-		}
-		return paths, nil
+		return handleTx(data, upaths)
 
 	case "vm/qrender", "vm/qfile", "vm/qfuncs", "vm/qeval":
-		path, _, _ := strings.Cut(string(query.Data), ":") // cut arguments out
+		path, _, _ := strings.Cut(string(data), ":") // Cut arguments out
 		u, err := url.Parse(path)
 		if err != nil {
-			return nil, fmt.Errorf("unable to parse path: %w", err)
+			return fmt.Errorf("unable to parse path: %w", err)
 		}
-		return []string{strings.TrimSpace(u.Path)}, nil
+		upaths.add(strings.TrimSpace(u.Path))
+		return nil
 
 	default:
-		return nil, fmt.Errorf("unhandled: %q", query.Path)
+		return fmt.Errorf("unhandled: %q", path)
 	}
 
 	// XXX: handle more cases
