@@ -16,7 +16,7 @@ func main() {
 	banktestAddr := std.DerivePkgAddr("gno.land/r/demo/banktest")
 
 	// simulate a Deposit call.
-	std.TestSetOrigPkgAddr(banktestAddr)
+	testing.SetOriginPkgAddress(banktestAddr)
 	std.TestIssueCoins(banktestAddr, std.Coins{{"ugnot", 100000000}})
 	testing.SetOriginSend(std.Coins{{"ugnot", 100000000}}, nil)
 	res := banktest.Deposit("ugnot", 101000000)

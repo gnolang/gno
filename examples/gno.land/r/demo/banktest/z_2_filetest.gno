@@ -24,7 +24,7 @@ func main() {
 	println("main before:", mainbal) // plus OrigSend equals 300.
 
 	// simulate a Deposit call.
-	std.TestSetOrigPkgAddr(banktestAddr)
+	testing.SetOriginPkgAddress(banktestAddr)
 	std.TestIssueCoins(banktestAddr, std.Coins{{"ugnot", 100000000}})
 	testing.SetOriginSend(std.Coins{{"ugnot", 100000000}}, nil)
 	res := banktest.Deposit("ugnot", 55000000)

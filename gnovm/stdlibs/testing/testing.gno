@@ -227,6 +227,10 @@ func (t *T) SetOriginSend(send std.Coins, spend std.Coins) {
 	t.SetContext(Context{OriginSend: send, OriginSpend: spend})
 }
 
+func (t *T) SetOriginPkgAddress(addr std.Address) {
+	t.SetContext(Context{OriginPkgAddress: addr})
+}
+
 func (t *T) log(s string) {
 	if t.verbose {
 		// verbose, print immediately
@@ -417,7 +421,7 @@ func TestSetContext(ctx Context) {
 		ctx.IsOrigin,
 		ctx.PreviousRealm.Addr().String(),
 		ctx.PreviousRealm.PkgPath(),
-		ctx.OriginPkgAddress,
+		ctx.OriginPkgAddress.String(),
 		originSendDenom, originSendAmount,
 		originSpendDenom, originSpendAmount,
 		ctx.ChainID,
@@ -434,4 +438,8 @@ func SetPreviousRealm(prevRealm std.Realm) {
 
 func SetOriginSend(send std.Coins, spend std.Coins) {
 	TestSetContext(Context{OriginSend: send, OriginSpend: spend})
+}
+
+func SetOriginPkgAddress(addr std.Address) {
+	TestSetContext(Context{OriginPkgAddress: addr})
 }

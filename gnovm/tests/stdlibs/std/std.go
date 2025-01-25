@@ -91,12 +91,6 @@ func X_callerAt(m *gno.Machine, n int) string {
 	return string(m.MustLastCallFrame(n).LastPackage.GetPkgAddr().Bech32())
 }
 
-func X_testSetOrigPkgAddr(m *gno.Machine, addr string) {
-	ctx := m.Context.(*TestExecContext)
-	ctx.OrigPkgAddr = crypto.Bech32Address(addr)
-	m.Context = ctx
-}
-
 func X_testSetRealm(m *gno.Machine, addr, pkgPath string) {
 	// Associate the given Realm with the caller's frame.
 	var frame *gno.Frame

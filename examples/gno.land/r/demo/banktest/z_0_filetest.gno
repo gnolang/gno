@@ -19,7 +19,7 @@ func main() {
 	banktestAddr := std.DerivePkgAddr("gno.land/r/demo/banktest")
 	mainaddr := std.DerivePkgAddr("gno.land/r/demo/bank1")
 	testing.SetPreviousRealm(std.NewUserRealm(mainaddr))
-	std.TestSetOrigPkgAddr(banktestAddr)
+	testing.SetOriginPkgAddress(banktestAddr)
 
 	// get and print balance of mainaddr.
 	// with the SEND, + 200 gnot given by the TestContext, main should have 300gnot.
