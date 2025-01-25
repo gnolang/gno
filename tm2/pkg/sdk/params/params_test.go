@@ -1,9 +1,9 @@
-package main
+package params
 
 import (
-	"fmt"
 	"testing"
 
+	"github.com/gnolang/gno/tm2/pkg/amino"
 	"github.com/stretchr/testify/require"
 )
 
@@ -24,6 +24,7 @@ func NewOldModuleParams(tokens []string) OldModuleParams {
 		LimitedTokens: tokens,
 	}
 }
+
 func TestBackwardCompatibility(t *testing.T) {
 	oldParams := NewOldModuleParams([]string{"token1", "token2"})
 
@@ -31,7 +32,7 @@ func TestBackwardCompatibility(t *testing.T) {
 	bz, err := amino.MarshalJSON(oldParams)
 	require.NoError(t, err, "Failed to marshal OldModuleParams")
 
-	fmt.Printf("Serialized OldModuleParams: %s\n", bz)
+	t.Logf("Serialized OldModuleParams: %s\n", bz)
 
 	// Deserialize JSON into NewModuleParams
 	newParams := &NewModuleParams{}
@@ -50,7 +51,7 @@ func TestForwardCompatibility(t *testing.T) {
 	bz, err := amino.MarshalJSON(newParams)
 	require.NoError(t, err, "Failed to marshal NewModuleParams")
 
-	fmt.Printf("Serialized NewModuleParams: %s\n", bz)
+	t.Logf("Serialized NewModuleParams: %s\n", bz)
 
 	// Deserialize JSON into OldModuleParams
 	oldParams := &OldModuleParams{}
