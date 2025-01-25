@@ -16,8 +16,8 @@ func StatusErrorComponent(message string) *View {
 		StatusViewType,
 		"status",
 		StatusData{
-			Title:      "Error",
-			Body:       message,
+			Title:      "Error: " + message,
+			Body:       "Something went wrong.",
 			ButtonURL:  "/",
 			ButtonText: "Go Back Home",
 		},
@@ -31,7 +31,7 @@ func StatusNoRenderComponent(pkgPath string) *View {
 		"status",
 		StatusData{
 			Title:      "No Render",
-			Body:       "The developer of this realm did not create a Render() function.",
+			Body:       "This realm does not implement a Render() function.",
 			ButtonURL:  pkgPath + "$source",
 			ButtonText: "View Realm Source",
 		},
