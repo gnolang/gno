@@ -162,17 +162,6 @@ func X_isRealm(m *gno.Machine, pkgPath string) bool {
 	return gno.IsRealmPath(pkgPath)
 }
 
-func X_testSetOrigSend(m *gno.Machine,
-	sentDenom []string, sentAmt []int64,
-	spentDenom []string, spentAmt []int64,
-) {
-	ctx := m.Context.(*TestExecContext)
-	ctx.OrigSend = std.CompactCoins(sentDenom, sentAmt)
-	spent := std.CompactCoins(spentDenom, spentAmt)
-	ctx.OrigSendSpent = &spent
-	m.Context = ctx
-}
-
 // TestBanker is a banker that can be used as a mock banker in test contexts.
 type TestBanker struct {
 	CoinTable map[crypto.Bech32Address]tm2std.Coins

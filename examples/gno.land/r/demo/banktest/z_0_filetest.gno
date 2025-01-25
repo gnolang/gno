@@ -29,7 +29,7 @@ func main() {
 
 	// simulate a Deposit call. use Send + OrigSend to simulate -send.
 	banker.SendCoins(mainaddr, banktestAddr, std.Coins{{"ugnot", 100_000_000}})
-	std.TestSetOrigSend(std.Coins{{"ugnot", 100_000_000}}, nil)
+	testing.SetOriginSend(std.Coins{{"ugnot", 100_000_000}}, nil)
 	res := banktest.Deposit("ugnot", 50_000_000)
 	println("Deposit():", res)
 

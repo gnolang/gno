@@ -223,8 +223,8 @@ func (t *T) SetPreviousRealm(prevRealm std.Realm) {
 	t.SetContext(Context{PreviousRealm: prevRealm})
 }
 
-func (t *T) SetOriginSend(sent std.Coins) {
-	t.SetContext(Context{OriginSend: sent})
+func (t *T) SetOriginSend(send std.Coins, spend std.Coins) {
+	t.SetContext(Context{OriginSend: send, OriginSpend: spend})
 }
 
 func (t *T) log(s string) {
@@ -430,4 +430,8 @@ func TestSetContext(ctx Context) {
 
 func SetPreviousRealm(prevRealm std.Realm) {
 	TestSetContext(Context{PreviousRealm: prevRealm})
+}
+
+func SetOriginSend(send std.Coins, spend std.Coins) {
+	TestSetContext(Context{OriginSend: send, OriginSpend: spend})
 }

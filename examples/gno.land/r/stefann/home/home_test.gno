@@ -148,7 +148,7 @@ func TestDonate(t *testing.T) {
 	travel.currentCityIndex = 0
 
 	coinsSent := std.NewCoins(std.NewCoin("ugnot", 500))
-	std.TestSetOrigSend(coinsSent, std.NewCoins())
+	t.SetOriginSend(coinsSent, std.NewCoins())
 	Donate()
 
 	existingAmount, exists := sponsorship.sponsors.Get(string(user))
@@ -173,7 +173,7 @@ func TestDonate(t *testing.T) {
 	}
 
 	coinsSent = std.NewCoins(std.NewCoin("ugnot", 300))
-	std.TestSetOrigSend(coinsSent, std.NewCoins())
+	t.SetOriginSend(coinsSent, std.NewCoins())
 	Donate()
 
 	existingAmount, exists = sponsorship.sponsors.Get(string(user))

@@ -25,7 +25,7 @@ func main() {
 	users.Invite(test1.String())
 	// switch to test1
 	testing.SetPreviousRealm(std.NewUserRealm(test1))
-	std.TestSetOrigSend(std.Coins{{"dontcare", 1}}, nil)
+	testing.SetOriginSend(std.Coins{{"dontcare", 1}}, nil)
 	users.Register(caller, "satoshi", "my other profile")
 	// as admin, grant invites to gnouser(again) and nonexistent user.
 	testing.SetPreviousRealm(std.NewUserRealm(admin))

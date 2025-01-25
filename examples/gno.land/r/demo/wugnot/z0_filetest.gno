@@ -29,7 +29,7 @@ func main() {
 	// println("A -", wugnot.Render(""))
 
 	testing.SetPreviousRealm(std.NewUserRealm(addr1))
-	std.TestSetOrigSend(std.Coins{{"ugnot", 123_400}}, nil)
+	testing.SetOriginSend(std.Coins{{"ugnot", 123_400}}, nil)
 	wugnot.Deposit()
 	printBalances()
 	wugnot.Withdraw(4242)

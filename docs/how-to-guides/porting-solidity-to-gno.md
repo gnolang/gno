@@ -389,17 +389,17 @@ func TestBidCoins(t *testing.T) {
 	// Sending two types of coins
     t.SetPreviousRealm(std.NewUserRealm(bidder01))
     
-	std.TestSetOrigSend(std.Coins{{"ugnot", 0}, {"test", 1}}, nil)
+	t.SetOriginSend(std.Coins{{"ugnot", 0}, {"test", 1}}, nil)
 	shouldPanic(t, Bid)
 
 	// Sending lower amount than the current highest bid
 	t.SetPreviousRealm(std.NewUserRealm(bidder01))
-	std.TestSetOrigSend(std.Coins{{"ugnot", 0}}, nil)
+	t.SetOriginSend(std.Coins{{"ugnot", 0}}, nil)
 	shouldPanic(t, Bid)
 
 	// Sending more amount than the current highest bid (exceeded)
 	t.SetPreviousRealm(std.NewUserRealm(bidder01))
-	std.TestSetOrigSend(std.Coins{{"ugnot", 1}}, nil)
+	t.SetOriginSend(std.Coins{{"ugnot", 1}}, nil)
 	shouldNoPanic(t, Bid)
 }
 
@@ -407,7 +407,7 @@ func TestBidCoins(t *testing.T) {
 func TestBidCoins(t *testing.T) {
 	// bidder01 bidding with 1 coin
 	t.SetPreviousRealm(std.NewUserRealm(bidder01))
-	std.TestSetOrigSend(std.Coins{{"ugnot", 1}}, nil)
+	t.SetOriginSend(std.Coins{{"ugnot", 1}}, nil)
 	shouldNoPanic(t, Bid)
 	shouldEqual(t, highestBid, 1)
 	shouldEqual(t, highestBidder, bidder01)
@@ -415,12 +415,12 @@ func TestBidCoins(t *testing.T) {
 
 	// bidder02 bidding with 1 coin
 	t.SetPreviousRealm(std.NewUserRealm(bidder02))
-	std.TestSetOrigSend(std.Coins{{"ugnot", 1}}, nil)
+	t.SetOriginSend(std.Coins{{"ugnot", 1}}, nil)
 	shouldPanic(t, Bid)
 
 	// bidder02 bidding with 2 coins
 	t.SetPreviousRealm(std.NewUserRealm(bidder02))
-	std.TestSetOrigSend(std.Coins{{"ugnot", 2}}, nil)
+	t.SetOriginSend(std.Coins{{"ugnot", 2}}, nil)
 	shouldNoPanic(t, Bid)
 	shouldEqual(t, highestBid, 2)
 	shouldEqual(t, highestBidder, bidder02)
@@ -622,21 +622,21 @@ func TestFull(t *testing.T) {
 	// Send two or more types of coins
 	{
         t.SetPreviousRealm(std.NewUserRealm(bidder01))
-		std.TestSetOrigSend(std.Coins{{"ugnot", 0}, {"test", 1}}, nil)
+		t.SetOriginSend(std.Coins{{"ugnot", 0}, {"test", 1}}, nil)
 		shouldPanic(t, Bid)
 	}
 
 	// Send less than the highest bid
 	{
 		t.SetPreviousRealm(std.NewUserRealm(bidder01))
-		std.TestSetOrigSend(std.Coins{{"ugnot", 0}}, nil)
+		t.SetOriginSend(std.Coins{{"ugnot", 0}}, nil)
 		shouldPanic(t, Bid)
 	}
 
 	// Send more than the highest bid
 	{
 		t.SetPreviousRealm(std.NewUserRealm(bidder01))
-        std.TestSetOrigSend(std.Coins{{"ugnot", 1}}, nil)
+        t.SetOriginSend(std.Coins{{"ugnot", 1}}, nil)
 		shouldNoPanic(t, Bid)
 
 		shouldEqual(t, pendingReturns.Size(), 0)
@@ -649,12 +649,12 @@ func TestFull(t *testing.T) {
 
 		// Send less amount than the current highest bid (current: 1)
 		t.SetPreviousRealm(std.NewUserRealm(bidder02))
-		std.TestSetOrigSend(std.Coins{{"ugnot", 1}}, nil)
+		t.SetOriginSend(std.Coins{{"ugnot", 1}}, nil)
 		shouldPanic(t, Bid)
 
 		// Send more amount than the current highest bid (exceeded)
 		t.SetPreviousRealm(std.NewUserRealm(bidder02))
-		std.TestSetOrigSend(std.Coins{{"ugnot", 2}}, nil)
+		t.SetOriginSend(std.Coins{{"ugnot", 2}}, nil)
 		shouldNoPanic(t, Bid)
 
 		shouldEqual(t, highestBid, 2)

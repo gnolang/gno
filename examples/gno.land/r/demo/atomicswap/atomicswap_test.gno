@@ -29,7 +29,7 @@ func TestNewCustomCoinSwap_Claim(t *testing.T) {
 
 	// Create a new swap
 	std.TestSetRealm(std.NewUserRealm(sender))
-	std.TestSetOrigSend(amount, nil)
+	t.SetOriginSend(amount, nil)
 	id, swap := NewCustomCoinSwap(recipient, hashlockHex, timelock)
 	uassert.Equal(t, 1, id)
 
@@ -86,7 +86,7 @@ func TestNewCustomCoinSwap_Refund(t *testing.T) {
 
 	// Create a new swap
 	std.TestSetRealm(std.NewUserRealm(sender))
-	std.TestSetOrigSend(amount, nil)
+	t.SetOriginSend(amount, nil)
 	id, swap := NewCustomCoinSwap(recipient, hashlockHex, timelock) // Create a new swap
 	uassert.Equal(t, 1, id)
 

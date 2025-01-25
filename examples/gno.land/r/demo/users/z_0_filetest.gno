@@ -2,12 +2,13 @@ package main
 
 import (
 	"std"
+	"testing"
 
 	"gno.land/r/demo/users"
 )
 
 func main() {
-	std.TestSetOrigSend(std.Coins{std.NewCoin("dontcare", 1)}, nil)
+	testing.SetOriginSend(std.Coins{std.NewCoin("dontcare", 1)}, nil)
 	users.Register("", "gnouser", "my profile")
 	println("done")
 }

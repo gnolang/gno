@@ -26,7 +26,7 @@ func main() {
 	users.Invite(test1.String())
 	// switch to test2 (not test1)
 	testing.SetPreviousRealm(std.NewUserRealm(test2))
-	std.TestSetOrigSend(std.Coins{{"dontcare", 1}}, nil)
+	testing.SetOriginSend(std.Coins{{"dontcare", 1}}, nil)
 	users.Register(caller, "satoshi", "my other profile")
 	println("done")
 }

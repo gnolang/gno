@@ -20,7 +20,7 @@ func main() {
 	// add member via anon user
 	test2 := testutils.TestAddress("test2")
 	testing.SetPreviousRealm(std.NewUserRealm(test2))
-	std.TestSetOrigSend(std.Coins{{"ugnot", 9000000}}, nil)
+	testing.SetOriginSend(std.Coins{{"ugnot", 9000000}}, nil)
 
 	groups.AddMember(gid, test2.String(), 42, "metadata3")
 }
