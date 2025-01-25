@@ -54,11 +54,11 @@ func X_testSetContext(
 		ctx.OrigPkgAddr = crypto.Bech32Address(originPkgAddress)
 	}
 
-	if origSendDenoms != nil && origSendAmounts != nil && len(origSendDenoms) == len(origSendAmounts) {
+	if len(origSendDenoms) > 0 && len(origSendDenoms) == len(origSendAmounts) {
 		ctx.OrigSend = std.CompactCoins(origSendDenoms, origSendAmounts)
 	}
 
-	if origSpendDenoms != nil && origSpendAmounts != nil && len(origSpendDenoms) == len(origSpendAmounts) {
+	if len(origSpendDenoms) > 0 && len(origSpendDenoms) == len(origSpendAmounts) {
 		coins := std.CompactCoins(origSpendDenoms, origSpendAmounts)
 		ctx.OrigSendSpent = &coins
 	}

@@ -6,6 +6,7 @@ package main
 
 import (
 	"std"
+	"testing"
 
 	"gno.land/r/demo/disperse"
 	tokens "gno.land/r/demo/grc20factory"
@@ -18,7 +19,7 @@ func main() {
 	beneficiary2 := std.Address("g1akeqsvhucjt8gf5yupyzjxsjd29wv8fayng37c")
 
 	std.TestSetOrigPkgAddr(disperseAddr)
-	std.TestSetOrigCaller(mainaddr)
+	testing.SetPreviousRealm(std.NewUserRealm(mainaddr))
 
 	banker := std.GetBanker(std.BankerTypeRealmSend)
 

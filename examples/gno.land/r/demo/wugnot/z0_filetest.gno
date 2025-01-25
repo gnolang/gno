@@ -4,6 +4,7 @@ package wugnot_test
 import (
 	"fmt"
 	"std"
+	"testing"
 
 	"gno.land/p/demo/testutils"
 	"gno.land/r/demo/wugnot"
@@ -27,7 +28,7 @@ func main() {
 	// println(wugnot.Render("queues"))
 	// println("A -", wugnot.Render(""))
 
-	std.TestSetOrigCaller(addr1)
+	testing.SetPreviousRealm(std.NewUserRealm(addr1))
 	std.TestSetOrigSend(std.Coins{{"ugnot", 123_400}}, nil)
 	wugnot.Deposit()
 	printBalances()
@@ -38,7 +39,7 @@ func main() {
 func printBalances() {
 	printSingleBalance := func(name string, addr std.Address) {
 		wugnotBal := wugnot.BalanceOf(addr)
-		std.TestSetOrigCaller(addr)
+		testing.SetPreviousRealm(std.NewUserRealm(addr))
 		robanker := std.GetBanker(std.BankerTypeReadonly)
 		coins := robanker.GetCoins(addr).AmountOf("ugnot")
 		fmt.Printf("| %-13s | addr=%s | wugnot=%-5d | ugnot=%-9d |\n",
