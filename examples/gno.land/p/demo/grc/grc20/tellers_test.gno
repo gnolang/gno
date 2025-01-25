@@ -120,7 +120,7 @@ func TestCallerTeller(t *testing.T) {
 	checkBalances(1000, 0, 0)
 	checkAllowances(600, 0, 0, 0, 0, 0)
 
-	t.SetPreviousRealm(std.NewUserRealm((alice)))
+	t.SetPreviousRealm(std.NewUserRealm((bob)))
 	urequire.Error(t, teller.TransferFrom(alice, carl, 700))
 	checkBalances(1000, 0, 0)
 	checkAllowances(600, 0, 0, 0, 0, 0)
