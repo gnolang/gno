@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"time"
 
@@ -502,7 +503,12 @@ func resolvePackagesModifier(cfg *devCfg, bk *address.Book, qpaths []string) ([]
 
 	modifiers := make([]gnodev.QueryPath, 0, len(qpaths))
 	paths := make([]string, 0, len(qpaths))
+
 	for _, path := range qpaths {
+		if path == "" {
+			continue
+		}
+
 		qpath, err := gnodev.ResolveQueryPath(bk, path)
 		if err != nil {
 			return nil, nil, fmt.Errorf("invalid package path/query %q: %w", path, err)
@@ -517,7 +523,7 @@ func resolvePackagesModifier(cfg *devCfg, bk *address.Book, qpaths []string) ([]
 		paths = append(paths, qpath.Path)
 	}
 
-	return modifiers, paths, nil
+	return slices.Clip(modifiers), slices.Clip(paths), nil
 }
 
 func listenForKeyPress(logger *slog.Logger, rt *rawterm.RawTerm) <-chan rawterm.KeyPress {
