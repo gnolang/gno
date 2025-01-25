@@ -1,6 +1,8 @@
 package testing
 
 import (
+	"errors"
+
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
 	"github.com/gnolang/gno/gnovm/stdlibs/std"
 	teststd "github.com/gnolang/gno/gnovm/tests/stdlibs/std"
@@ -62,4 +64,8 @@ func X_testSetContext(
 	}
 
 	m.Context = ctx
+}
+
+func X_matchString(pat, str string) (result bool, err error) {
+	return false, errors.New("only implemented in testing stdlibs")
 }
