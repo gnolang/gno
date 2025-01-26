@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"log"
 	"os"
@@ -82,13 +83,32 @@ func processSoftFloat64TestFile() {
 	}
 }
 
-func gofumpt() {
-	rootPath, err := exec.Command("git", "rev-parse", "--show-toplevel").Output()
+func gitRoot() (string, error) {
+	wd, err := os.Getwd()
 	if err != nil {
-		log.Fatal("error git rev-parse:", err)
+		return "", err
+	}
+	p := wd
+	for {
+		if s, e := os.Stat(filepath.Join(p, ".git")); e == nil && s.IsDir() {
+			return p, nil
+		}
+
+		if strings.HasSuffix(p, string(filepath.Separator)) {
+			return "", errors.New("root git not found")
+		}
+
+		p = filepath.Dir(p)
+	}
+}
+
+func gofumpt() {
+	rootPath, err := gitRoot()
+	if err != nil {
+		log.Fatal("error finding git root:", err)
 	}
 
-	cmd := exec.Command("go", "run", "-modfile", filepath.Join(strings.TrimSpace(string(rootPath)), "misc/devdeps/go.mod"), "mvdan.cc/gofumpt", "-w", ".")
+	cmd := exec.Command("go", "run", "-modfile", filepath.Join(strings.TrimSpace(rootPath), "misc/devdeps/go.mod"), "mvdan.cc/gofumpt", "-w", ".")
 	_, err = cmd.Output()
 	if err != nil {
 		log.Fatal("error gofumpt:", err)
