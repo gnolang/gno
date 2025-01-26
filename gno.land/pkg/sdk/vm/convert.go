@@ -279,7 +279,14 @@ func JSONPrimitiveValue(m *gno.Machine, tv gno.TypedValue) string {
 		return res
 	}
 
-	return strconv.Quote(fmt.Sprintf(`<%s>`, tv.T.String()))
+	// Fallback on generic object handler
+	if pv, ok := tv.V.(gno.PointerValue); ok {
+		if obj := pv.GetBase(m.Store).GetObjectID(); !obj.IsZero() {
+			return strconv.Quote(fmt.Sprintf(`<obj:%s:%s>`, tv.T.String(), obj))
+		}
+	}
+
+	return strconv.Quote(fmt.Sprintf(`<obj:%s:0>`, tv.T.String()))
 }
 
 func getSignedIntValue(bt gno.PrimitiveType, tv gno.TypedValue) int64 {

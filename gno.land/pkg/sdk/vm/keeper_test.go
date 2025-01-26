@@ -550,7 +550,7 @@ func StringerReturnPointer() (*TStructA, *TStructB, *TStructC) {
 	err := env.vmk.AddPackage(ctx, msg1)
 	assert.NoError(t, err)
 
-	const expected = `["<*gno.land/r/test.TStructA>","E:This Is B","<*gno.land/r/test.TStructC>"]`
+	const expected = `["<obj:*gno.land/r/test.TStructA:a8ada09dee16d791fd406d629fe29bb0ed084a30:3>","E:This Is B","<obj:*gno.land/r/test.TStructC:a8ada09dee16d791fd406d629fe29bb0ed084a30:7>"]`
 
 	// Run GetAdmin()
 	coins := std.MustParseCoins("")
@@ -596,7 +596,7 @@ func StringerReturn() (TStructA, TStructB, TStructC) {
 	err := env.vmk.AddPackage(ctx, msg1)
 	require.NoError(t, err)
 
-	const expected = `["<gno.land/r/test.TStructA>","E:This Is B","<gno.land/r/test.TStructC>"]`
+	const expected = `["<obj:gno.land/r/test.TStructA:0>","E:This Is B","<obj:gno.land/r/test.TStructC:0>"]`
 
 	coins := std.MustParseCoins("")
 	msg3 := NewMsgCallJSON(addr, coins, pkgPath, "StringerReturn", []string{})

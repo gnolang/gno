@@ -197,7 +197,7 @@ func TestConvertJSONValuesList(t *testing.T) {
 		},
 		{
 			[]string{"42", `"hello world"`, "[]int{42}"},
-			`[42,"hello world","<[]int>"]`,
+			`[42,"hello world","<obj:[]int:0>"]`,
 		},
 	}
 
