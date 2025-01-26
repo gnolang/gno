@@ -16,10 +16,9 @@ type Format string
 
 const (
 	FormatMachine Format = "machine" // Default machine representation
-	FormatString         = "string"  // Single string represnetation
+	FormatString         = "string"  // Single string representation
 	FormatJSON           = "json"    // XXX: EXPERIMENTAL, only supports primitive types for now
-
-	FormatDefault = FormatMachine
+	FormatDefault        = FormatMachine
 )
 
 //----------------------------------------
@@ -168,6 +167,12 @@ func NewMsgCall(caller crypto.Address, send sdk.Coins, pkgPath, fnc string, args
 		Func:    fnc,
 		Args:    args,
 	}
+}
+
+func NewMsgCallJSON(caller crypto.Address, send sdk.Coins, pkgPath, fnc string, args []string) MsgCall {
+	msg := NewMsgCall(caller, send, pkgPath, fnc, args)
+	msg.Format = FormatJSON
+	return msg
 }
 
 // Implements Msg.

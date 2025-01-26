@@ -17,7 +17,6 @@ import (
 	"time"
 
 	"github.com/gnolang/gno/gnovm"
-	"github.com/gnolang/gno/gnovm/pkg/gnolang"
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
 	"github.com/gnolang/gno/gnovm/stdlibs"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
@@ -500,6 +499,12 @@ func (vm *VMKeeper) Call(ctx sdk.Context, msg MsgCall) (res string, err error) {
 	rtvs := m.Eval(xn)
 	res = stringifyResultValues(m, msg.Format, rtvs)
 
+	switch msg.Format {
+	case FormatMachine, "":
+		// Use `\n\n` as separator to separate results for single tx with multi msgs
+		res += "\n\n"
+	}
+
 	// Log the telemetry
 	logTelemetry(
 		m.GasMeter.GasConsumed(),
@@ -742,7 +747,7 @@ func (vm *VMKeeper) Eval(ctx sdk.Context, msg MsgEval) (res string, err error) {
 		Height:      ctx.BlockHeight(),
 		Timestamp:   ctx.BlockTime().Unix(),
 		// Msg:           msg,
-		// OrigCaller:    caller,
+		// OrigCaller: caller,
 		// OrigSend:      send,
 		// OrigSendSpent: nil,
 		OrigPkgAddr: pkgAddr.Bech32(),
@@ -763,7 +768,6 @@ func (vm *VMKeeper) Eval(ctx sdk.Context, msg MsgEval) (res string, err error) {
 
 	defer m.Release()
 	defer doRecover(m, &err)
-
 	rtvs := m.Eval(xx)
 	res = stringifyResultValues(m, msg.Format, rtvs)
 	return res, nil
@@ -794,10 +798,9 @@ func (vm *VMKeeper) QueryFile(ctx sdk.Context, filepath string) (res string, err
 	}
 
 	return res, nil
-
 }
 
-func stringifyResultValues(m *gno.Machine, format Format, values []gnolang.TypedValue) string {
+func stringifyResultValues(m *gno.Machine, format Format, values []gno.TypedValue) string {
 	switch format {
 	case FormatString:
 		if len(values) != 1 {

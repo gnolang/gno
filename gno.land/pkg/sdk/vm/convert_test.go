@@ -70,6 +70,21 @@ func TestConvertJSONValuePrimtive(t *testing.T) {
 
 		// String type
 		{`"hello world"`, `"hello world"`},
+
+		// UntypedRuneType
+		{`'A'`, `65`},
+
+		// DataByteType (assuming DataByte is an alias for uint8)
+		{"uint8(42)", `42`},
+
+		// Byte slice
+		{`[]byte("AB")`, `"QUI="`},
+
+		// Byte array
+		{`[2]byte{0x41, 0x42}`, `"QUI="`},
+
+		// XXX: BigInt
+		// XXX: BigDec
 	}
 
 	for _, tc := range cases {
@@ -168,14 +183,22 @@ func TestConvertJSONValuesList(t *testing.T) {
 		ValueRep []string // Go representation
 		Expected string   // string representation
 	}{
-		{[]string{},
-			"[]"},
-		{[]string{"42"},
-			"[42]"},
-		{[]string{"42", `"hello world"`},
-			`[42,"hello world"]`},
-		{[]string{"42", `"hello world"`, "[]int{42}"},
-			`[42,"hello world","<[]int>"]`},
+		{
+			[]string{},
+			"[]",
+		},
+		{
+			[]string{"42"},
+			"[42]",
+		},
+		{
+			[]string{"42", `"hello world"`},
+			`[42,"hello world"]`,
+		},
+		{
+			[]string{"42", `"hello world"`, "[]int{42}"},
+			`[42,"hello world","<[]int>"]`,
+		},
 	}
 
 	for _, tc := range cases {

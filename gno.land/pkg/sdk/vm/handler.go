@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
+	"github.com/gnolang/gno/tm2/pkg/errors"
 	"github.com/gnolang/gno/tm2/pkg/sdk"
 	"github.com/gnolang/gno/tm2/pkg/std"
 )
@@ -176,8 +177,7 @@ func (vh vmHandler) queryEval(ctx sdk.Context, req abci.RequestQuery) (res abci.
 	case 3:
 		format = Format(ss[2])
 	default:
-		return sdk.ABCIResponseQueryFromError(fmt.Errorf("invalid query path"))
-
+		return sdk.ABCIResponseQueryFromError(errors.New("invalid query path"))
 	}
 
 	// Validate format
@@ -200,19 +200,6 @@ func (vh vmHandler) queryEval(ctx sdk.Context, req abci.RequestQuery) (res abci.
 
 	res.Data = []byte(result)
 	return res
-}
-
-// queryEvalJSON evaluates any expression in readonly mode and returns the results in JSON format.
-func (vh vmHandler) queryEvalJSON(ctx sdk.Context, req abci.RequestQuery) (res abci.ResponseQuery) {
-	pkgath, expr := parseQueryEvalData(string(req.Data))
-	msgEval := NewMsgEval(FormatJSON, pkgath, expr)
-	result, err := vh.vm.Eval(ctx, msgEval)
-	if err != nil {
-		res = sdk.ABCIResponseQueryFromError(err)
-		return
-	}
-	res.Data = []byte(result)
-	return
 }
 
 // parseQueryEval parses the input string of vm/qeval. It takes the first dot
