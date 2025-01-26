@@ -47,9 +47,6 @@ func TestConvertJSONValuePrimtive(t *testing.T) {
 		Expected string // string representation
 	}{
 		// Boolean
-		{"nil", "null"},
-
-		// Boolean
 		{"true", "true"},
 		{"false", "false"},
 
@@ -68,8 +65,8 @@ func TestConvertJSONValuePrimtive(t *testing.T) {
 		{"uint64(42)", `42`},
 
 		// Float types
-		{"float32(3.14)", "3.14"},
-		{"float64(3.14)", "3.14"},
+		{"float32(3.14)", "3.140000"},
+		{"float64(3.14)", "3.140000"},
 
 		// String type
 		{`"hello world"`, `"hello world"`},
@@ -110,11 +107,10 @@ func (e *E) Error() string { return e.S }
 		m := gnolang.NewMachine("testdata", nil)
 		defer m.Release()
 
-		const expected = "Hello World"
+		const expected = "null"
 		nn := gnolang.MustParseFile("struct.gno", StructsFile)
 		m.RunFiles(nn)
-		nn = gnolang.MustParseFile("testdata.gno",
-			fmt.Sprintf(`package testdata; var Value *E = nil`, expected))
+		nn = gnolang.MustParseFile("testdata.gno", `package testdata; var Value *E = nil`)
 		m.RunFiles(nn)
 		m.RunDeclaration(gnolang.ImportD("testdata", "testdata"))
 
@@ -123,7 +119,7 @@ func (e *E) Error() string { return e.S }
 
 		tv := tps[0]
 		rep := JSONPrimitiveValue(m, tv)
-		require.Equal(t, strconv.Quote(expected), rep)
+		require.Equal(t, expected, rep)
 	})
 
 	t.Run("without pointer", func(t *testing.T) {
@@ -172,11 +168,14 @@ func TestConvertJSONValuesList(t *testing.T) {
 		ValueRep []string // Go representation
 		Expected string   // string representation
 	}{
-		// Boolean
-		{[]string{}, "[]"},
-		{[]string{"42"}, "[42]"},
-		{[]string{"42", `"hello world"`}, `[42,"hello world"]`},
-		{[]string{"42", `"hello world"`, "[]int{42}"}, `[42,"hello world"]`},
+		{[]string{},
+			"[]"},
+		{[]string{"42"},
+			"[42]"},
+		{[]string{"42", `"hello world"`},
+			`[42,"hello world"]`},
+		{[]string{"42", `"hello world"`, "[]int{42}"},
+			`[42,"hello world","<[]int>"]`},
 	}
 
 	for _, tc := range cases {

@@ -723,9 +723,9 @@ func (vm *VMKeeper) Eval(ctx sdk.Context, msg MsgEval) (res string, err error) {
 	// Get Package.
 	pv := gnostore.GetPackage(msg.PkgPath, false)
 	if pv == nil {
-		err = ErrInvalidPkgPath(fmt.Sprintf(
-			"package not found: %s", msg.PkgPath))
-		return "", err
+		return "", ErrInvalidPkgPath(
+			fmt.Sprintf("package not found: %s", msg.PkgPath),
+		)
 	}
 
 	// Parse expression.
@@ -735,10 +735,12 @@ func (vm *VMKeeper) Eval(ctx sdk.Context, msg MsgEval) (res string, err error) {
 	}
 
 	// Construct new machine.
+	chainDomain := vm.getChainDomainParam(ctx)
 	msgCtx := stdlibs.ExecContext{
-		ChainID:   ctx.ChainID(),
-		Height:    ctx.BlockHeight(),
-		Timestamp: ctx.BlockTime().Unix(),
+		ChainID:     ctx.ChainID(),
+		ChainDomain: chainDomain,
+		Height:      ctx.BlockHeight(),
+		Timestamp:   ctx.BlockTime().Unix(),
 		// Msg:           msg,
 		// OrigCaller:    caller,
 		// OrigSend:      send,
@@ -748,6 +750,7 @@ func (vm *VMKeeper) Eval(ctx sdk.Context, msg MsgEval) (res string, err error) {
 		Params:      NewSDKParams(vm, ctx),
 		EventLogger: ctx.EventLogger(),
 	}
+
 	m := gno.NewMachineWithOptions(
 		gno.MachineOptions{
 			PkgPath:  msg.PkgPath,

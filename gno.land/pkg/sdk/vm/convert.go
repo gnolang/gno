@@ -143,11 +143,11 @@ func convertArgToGno(arg string, argT gno.Type) (tv gno.TypedValue) {
 			tv.SetUint64(u64)
 			return
 		case gno.Float32Type:
-			value := convertFloat(arg, 32)
+			value := convertStringToFloat(arg, 32)
 			tv.SetFloat32(math.Float32bits(float32(value)))
 			return
 		case gno.Float64Type:
-			value := convertFloat(arg, 64)
+			value := convertStringToFloat(arg, 64)
 			tv.SetFloat64(math.Float64bits(value))
 			return
 		default:
@@ -193,6 +193,21 @@ func convertArgToGno(arg string, argT gno.Type) (tv gno.TypedValue) {
 	}
 }
 
+func convertStringToFloat(value string, precision int) float64 {
+	assertNoPlusPrefix(value)
+	dec, _, err := apd.NewFromString(value)
+	if err != nil {
+		panic(fmt.Sprintf("error parsing float%d %q: %v", precision, value, err))
+	}
+
+	f64, err := strconv.ParseFloat(dec.String(), precision)
+	if err != nil {
+		panic(fmt.Sprintf("error value exceeds float%d precision %q: %v", precision, value, err))
+	}
+
+	return f64
+}
+
 func JSONPrimitiveValues(m *gno.Machine, tvs []gno.TypedValue) string {
 	var str strings.Builder
 
@@ -213,8 +228,8 @@ func JSONPrimitiveValue(m *gno.Machine, tv gno.TypedValue) string {
 		return "null"
 	}
 
-	switch bt := gno.BaseOf(tv.T).(type) {
-	case gno.PrimitiveType:
+	bt := gno.BaseOf(tv.T)
+	if _, ok := bt.(gno.PrimitiveType); ok {
 		switch bt {
 		case gno.IntType:
 			return fmt.Sprintf("%d", tv.GetInt())
@@ -239,9 +254,11 @@ func JSONPrimitiveValue(m *gno.Machine, tv gno.TypedValue) string {
 		case gno.Uint64Type:
 			return fmt.Sprintf("%d", tv.GetUint64())
 		case gno.Float32Type:
-			return fmt.Sprintf("%f", tv.GetFloat32())
+			f32 := math.Float32frombits(tv.GetFloat32())
+			return fmt.Sprintf("%f", f32)
 		case gno.Float64Type:
-			return fmt.Sprintf("%f", tv.GetFloat64())
+			f64 := math.Float64frombits(tv.GetFloat64())
+			return fmt.Sprintf("%f", f64)
 		case gno.UntypedBigintType, gno.BigintType:
 			return tv.V.(gno.BigintValue).V.String()
 		case gno.UntypedBigdecType, gno.BigdecType:
@@ -251,52 +268,42 @@ func JSONPrimitiveValue(m *gno.Machine, tv gno.TypedValue) string {
 		case gno.UntypedStringType, gno.StringType:
 			return strconv.Quote(tv.GetString())
 		default:
-			panic("invalid primitive type - should not happen")
-		}
-	case *gno.PointerType:
-		// Check if Pointer we type implement Error
-		// If implements .Error(), return it.
-		if tv.IsError() {
-			res := m.Eval(gno.Call(gno.Sel(&gno.ConstExpr{TypedValue: tv}, "Error")))
-			return strconv.Quote(res[0].GetString())
-		}
-	default:
-		// Check if pointer wraped value can implement Error
-		ptv := gno.TypedValue{
-			T: &gno.PointerType{Elt: tv.T},
-			V: gno.PointerValue{TV: &tv, Base: tv.V},
 		}
 
-		// If implements .Error(), return it.
-		if ptv.IsError() {
-			res := m.Eval(gno.Call(gno.Sel(&gno.ConstExpr{TypedValue: ptv}, "Error")))
-			return strconv.Quote(res[0].GetString())
-		}
+		panic("invalid primitive type - should not happen")
 	}
 
+	// If not a primitive check for `nil` case
 	if tv.V == nil {
 		return "null"
 	}
 
-	var id string
-	if pv, ok := tv.V.(gno.PointerValue); ok {
-		id = pv.GetBase(m.Store).GetObjectID().String()
+	// Check if type implement Error
+	if res, ok := tryGetError(m, tv); ok {
+		return res
 	}
 
-	return strconv.Quote(fmt.Sprintf(`<%s:%s>`, tv.T.String(), id))
+	return strconv.Quote(fmt.Sprintf(`<%s>`, tv.T.String()))
 }
 
-func convertFloat(value string, precision int) float64 {
-	assertNoPlusPrefix(value)
-	dec, _, err := apd.NewFromString(value)
-	if err != nil {
-		panic(fmt.Sprintf("error parsing float%d %q: %v", precision, value, err))
+func tryGetError(m *gno.Machine, tv gno.TypedValue) (string, bool) {
+	bt := gno.BaseOf(tv.T)
+
+	// Check if type implement Error
+	ptv := tv
+	if _, ok := bt.(*gno.PointerType); !ok {
+		// Try wrapping the valye
+		ptv = gno.TypedValue{
+			T: &gno.PointerType{Elt: tv.T},
+			V: gno.PointerValue{TV: &tv, Base: tv.V},
+		}
 	}
 
-	f64, err := strconv.ParseFloat(dec.String(), precision)
-	if err != nil {
-		panic(fmt.Sprintf("error value exceeds float%d precision %q: %v", precision, value, err))
+	// If implements .Error(), return it.
+	if ptv.IsError() {
+		res := m.Eval(gno.Call(gno.Sel(&gno.ConstExpr{TypedValue: ptv}, "Error")))
+		return strconv.Quote(res[0].GetString()), true
 	}
 
-	return f64
+	return "", false
 }

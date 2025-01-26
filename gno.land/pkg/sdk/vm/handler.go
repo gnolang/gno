@@ -176,35 +176,30 @@ func (vh vmHandler) queryEval(ctx sdk.Context, req abci.RequestQuery) (res abci.
 	case 3:
 		format = Format(ss[2])
 	default:
-		res = sdk.ABCIResponseQueryFromError(fmt.Errorf("invalid query"))
-		return
+		return sdk.ABCIResponseQueryFromError(fmt.Errorf("invalid query path"))
 
 	}
 
+	// Validate format
 	switch format {
 	case FormatMachine, FormatJSON, FormatString:
 	default:
-		err := fmt.Errorf("invalid query result format %q", format)
-		res = sdk.ABCIResponseQueryFromError(err)
-		return
+		return sdk.ABCIResponseQueryFromError(fmt.Errorf("invalid query result format %q", format))
 	}
 
 	pkgpath, expr := parseQueryEvalData(string(req.Data))
-	fmt.Printf("-> %q %q %q\r\n", format, pkgpath, expr)
 	msgEval := NewMsgEval(format, pkgpath, expr)
 	if expr == "" {
-		res = sdk.ABCIResponseQueryFromError(fmt.Errorf("expr cannot be empty"))
-		return
+		return sdk.ABCIResponseQueryFromError(fmt.Errorf("expr cannot be empty"))
 	}
 
 	result, err := vh.vm.Eval(ctx, msgEval)
 	if err != nil {
-		res = sdk.ABCIResponseQueryFromError(err)
-		return
+		return sdk.ABCIResponseQueryFromError(err)
 	}
 
 	res.Data = []byte(result)
-	return
+	return res
 }
 
 // queryEvalJSON evaluates any expression in readonly mode and returns the results in JSON format.

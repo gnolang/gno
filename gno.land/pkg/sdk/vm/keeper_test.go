@@ -456,7 +456,7 @@ func TestVMKeeperCallReturnPointerValues(t *testing.T) {
 	assert.True(t, env.bank.GetCoins(ctx, addr).IsEqual(std.MustParseCoins(coinsString)))
 
 	// Create test package.
-	files := []*std.MemFile{
+	files := []*gnovm.MemFile{
 		{"init.gno", `
 package test
 
@@ -504,7 +504,7 @@ func TestVMKeeperCallReturnValues(t *testing.T) {
 	assert.True(t, env.bank.GetCoins(ctx, addr).IsEqual(std.MustParseCoins(coinsString)))
 
 	// Create test package.
-	files := []*std.MemFile{
+	files := []*gnovm.MemFile{
 		{"init.gno", `
 package test
 
