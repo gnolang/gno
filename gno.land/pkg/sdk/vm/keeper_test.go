@@ -336,36 +336,6 @@ func Echo(msg string) string {
 	assert.Error(t, err)
 }
 
-// func TestVMKeeperEvalJSONFormatting(t *testing.T) {
-// 	env := setupTestEnv()
-// 	ctx := env.vmk.MakeGnoTransactionStore(env.ctx)
-
-// 	addr := crypto.AddressFromPreimage([]byte("addr1"))
-// 	acc := env.acck.NewAccountWithAddress(ctx, addr)
-// 	env.acck.SetAccount(ctx, acc)
-// 	env.bank.SetCoins(ctx, addr, std.MustParseCoins(coinsString))
-
-// 	for _, tc := range tests {
-// 		pkgBody := fmt.Sprintf("package hello\n%s", tc.pkgBody)
-// 		pkgPath := fmt.Sprintf("gno.land/r/hello")
-// 		t.Run(tc.name, func(t *testing.T) {
-// 			t.Logf("path: %q", pkgPath)
-// 			t.Log("\n" + pkgBody)
-
-// 			files := []*gnovm.MemFile{{Name: "hello.gno", Body: pkgBody}}
-// 			msgAdd := NewMsgAddPackage(addr, pkgPath, files)
-// 			err := env.vmk.AddPackage(ctx, msgAdd)
-// 			require.NoError(t, err)
-// 			env.vmk.MakeGnoTransactionStore(ctx)
-
-// 			msgEval := NewMsgEval(FormatJSON, pkgPath, tc.expr)
-// 			res, err := env.vmk.Eval(env.ctx, msgEval)
-// 			require.NoError(t, err)
-// 			assert.Equal(t, tc.expected, res)
-// 		})
-// 	}
-// }
-
 func TestVMKeeperEvalJSONFormatting2(t *testing.T) {
 	env := setupTestEnv()
 	ctx := env.vmk.MakeGnoTransactionStore(env.ctx)
