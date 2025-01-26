@@ -25,7 +25,7 @@ func newModCmd(io commands.IO) *commands.Command {
 		commands.Metadata{
 			Name:       "mod",
 			ShortUsage: "mod <command>",
-			ShortHelp:  "manage gno.mod",
+			ShortHelp:  "module maintenance",
 		},
 		commands.NewEmptyConfig(),
 		commands.HelpExec,
@@ -33,8 +33,12 @@ func newModCmd(io commands.IO) *commands.Command {
 
 	cmd.AddSubCommands(
 		newModDownloadCmd(io),
+		// edit
+		// graph
 		newModInitCmd(),
 		newModTidy(io),
+		// vendor
+		// verify
 		newModWhy(io),
 	)
 
