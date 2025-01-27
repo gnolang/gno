@@ -115,6 +115,7 @@ func main() {
 // ### [r/sys](https://github.com/gnolang/gno/tree/master/examples/gno.land/r/sys)
 //
 // - [r/sys/names](r/sys/names)
+// - [r/sys/users](r/sys/users)
 // - [r/sys/rewards](r/sys/rewards)
 // - [/r/sys/validators/v2](/r/sys/validators/v2)
 //
@@ -124,7 +125,6 @@ func main() {
 // ### [r/demo](https://github.com/gnolang/gno/tree/master/examples/gno.land/r/demo)
 //
 // - [r/demo/boards](r/demo/boards)
-// - [r/sys/users](r/sys/users)
 // - [r/demo/banktest](r/demo/banktest)
 // - [r/demo/foo20](r/demo/foo20)
 // - [r/demo/foo721](r/demo/foo721)

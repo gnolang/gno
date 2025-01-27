@@ -202,6 +202,7 @@ func packageStaffPicks() ui.Element {
 					ui.H3("[r/sys](https://github.com/gnolang/gno/tree/master/examples/gno.land/r/sys)"),
 					ui.BulletList{
 						ui.Link{URL: "r/sys/names"},
+						ui.Link{URL: "r/sys/users"},
 						ui.Link{URL: "r/sys/rewards"},
 						ui.Link{URL: "/r/sys/validators/v2"},
 					},
@@ -209,7 +210,7 @@ func packageStaffPicks() ui.Element {
 					ui.H3("[r/demo](https://github.com/gnolang/gno/tree/master/examples/gno.land/r/demo)"),
 					ui.BulletList{
 						ui.Link{URL: "r/demo/boards"},
-						ui.Link{URL: "r/sys/users"},
+
 						ui.Link{URL: "r/demo/banktest"},
 						ui.Link{URL: "r/demo/foo20"},
 						ui.Link{URL: "r/demo/foo721"},
