@@ -6,15 +6,13 @@ import (
 
 	"gno.land/p/demo/testutils"
 	"gno.land/p/demo/uassert"
-	pusers "gno.land/p/demo/users"
-	"gno.land/r/demo/users"
 )
 
 func TestReadOnlyPublicMethods(t *testing.T) {
 	var (
-		admin = pusers.AddressOrName("g1manfred47kzduec920z88wfr64ylksmdcedlf5")
-		alice = pusers.AddressOrName(testutils.TestAddress("alice"))
-		bob   = pusers.AddressOrName(testutils.TestAddress("bob"))
+		admin = std.Address("g1manfred47kzduec920z88wfr64ylksmdcedlf5")
+		alice = testutils.TestAddress("alice")
+		bob   = testutils.TestAddress("bob")
 	)
 
 	type test struct {
@@ -39,7 +37,7 @@ func TestReadOnlyPublicMethods(t *testing.T) {
 	}
 
 	// bob uses the faucet.
-	std.TestSetOriginCaller(users.Resolve(bob))
+	std.TestSetOriginCaller(bob)
 	Faucet()
 
 	// check balances #2.
@@ -60,8 +58,8 @@ func TestReadOnlyPublicMethods(t *testing.T) {
 
 func TestErrConditions(t *testing.T) {
 	var (
-		admin = pusers.AddressOrName("g1manfred47kzduec920z88wfr64ylksmdcedlf5")
-		empty = pusers.AddressOrName("")
+		admin = std.Address("g1manfred47kzduec920z88wfr64ylksmdcedlf5")
+		empty = std.Address("")
 	)
 
 	type test struct {

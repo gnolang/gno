@@ -7,8 +7,6 @@ import (
 
 	"gno.land/p/demo/testutils"
 	"gno.land/r/demo/wugnot"
-
-	pusers "gno.land/p/demo/users"
 )
 
 var (
@@ -39,7 +37,7 @@ func main() {
 
 func printBalances() {
 	printSingleBalance := func(name string, addr std.Address) {
-		wugnotBal := wugnot.BalanceOf(pusers.AddressOrName(addr))
+		wugnotBal := wugnot.BalanceOf(addr)
 		std.TestSetOriginCaller(addr)
 		robanker := std.NewBanker(std.BankerTypeReadonly)
 		coins := robanker.GetCoins(addr).AmountOf("ugnot")
