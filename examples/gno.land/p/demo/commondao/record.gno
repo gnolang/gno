@@ -117,7 +117,10 @@ func (r VotingRecord) GetProvableMajorityChoice() VoteChoice {
 // Absolute majority considers abstentions when counting votes.
 func SelectChoiceByAbsoluteMajority(r ReadOnlyVotingRecord, memberCount int) (VoteChoice, bool) {
 	choice := r.GetProvableMajorityChoice()
-	return choice, r.VoteCount(choice) > int(memberCount/2)
+	if r.VoteCount(choice) > int(memberCount/2) {
+		return choice, true
+	}
+	return "", false
 }
 
 // SelectChoiceBySuperMajority select the vote choice by super majority using a 2/3s threshold.
@@ -130,8 +133,15 @@ func SelectChoiceBySuperMajority(r ReadOnlyVotingRecord) (VoteChoice, bool) {
 		}
 	}
 
+	if count < 3 {
+		return "", false
+	}
+
 	choice := r.GetProvableMajorityChoice()
-	return choice, r.VoteCount(choice) > int((2*count)/3)
+	if r.VoteCount(choice) >= int((2*count)/3) {
+		return choice, true
+	}
+	return "", false
 }
 
 // SelectChoiceByPlurality selects the vote choice by plurality.
@@ -158,5 +168,9 @@ func SelectChoiceByPlurality(r ReadOnlyVotingRecord) (VoteChoice, bool) {
 			isMajority = false
 		}
 	}
-	return choice, isMajority
+
+	if isMajority {
+		return choice, true
+	}
+	return "", false
 }
