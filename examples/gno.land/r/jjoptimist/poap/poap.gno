@@ -3,6 +3,7 @@ package poap
 import (
     "std"
     "time"
+    "strconv"
     
     "gno.land/p/demo/avl"
     "gno.land/p/demo/grc/grc721"
@@ -25,4 +26,32 @@ var (
 
 func init() {
     poaps = avl.NewTree()
+}
+
+func CreatePOAP(name, description string, date time.Time, maxMints int) uint64 {
+    if maxMints <= 0 {
+        panic("Maximum mints must be greater than 0")
+    }
+    
+    poapCount++
+    poap := POAP{
+        id:          poapCount,
+        name:        name,
+        description: description,
+        date:        date,
+        maxMints:    maxMints,
+        mintCount:   0,
+    }
+    
+    poaps.Set(strconv.FormatUint(poapCount, 10), poap)
+    return poapCount
+}
+
+// retrieve POAP by ID
+func GetPOAP(id uint64) (POAP, bool) {
+    value, exists := poaps.Get(strconv.FormatUint(id, 10))
+    if !exists {
+        return POAP{}, false
+    }
+    return value.(POAP), true
 } 
