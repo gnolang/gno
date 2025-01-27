@@ -408,8 +408,16 @@ type NameExpr struct {
 	// TODO rename .Path's to .ValuePaths.
 	Path ValuePath // set by preprocessor.
 	Name
-	Type  NameExprType
-	Alloc bool
+	Type           NameExprType
+	AllocationFlag bool
+}
+
+func (x *NameExpr) SetAllocationFlag(flag bool) {
+	x.AllocationFlag = flag
+}
+
+func (x *NameExpr) GetAllocationFlag() bool {
+	return x.AllocationFlag
 }
 
 type NameExprs []NameExpr
@@ -440,16 +448,34 @@ type CallExpr struct { // Func(Args<Varg?...>)
 
 type IndexExpr struct { // X[Index]
 	Attributes
-	X     Expr // expression
-	Index Expr // index expression
-	HasOK bool // if true, is form: `value, ok := <X>[<Key>]`
+	X              Expr // expression
+	Index          Expr // index expression
+	HasOK          bool // if true, is form: `value, ok := <X>[<Key>]`
+	AllocationFlag bool
+}
+
+func (x *IndexExpr) SetAllocationFlag(flag bool) {
+	x.AllocationFlag = flag
+}
+
+func (x *IndexExpr) GetAllocationFlag() bool {
+	return x.AllocationFlag
 }
 
 type SelectorExpr struct { // X.Sel
 	Attributes
-	X    Expr      // expression
-	Path ValuePath // set by preprocessor.
-	Sel  Name      // field selector
+	X              Expr      // expression
+	Path           ValuePath // set by preprocessor.
+	Sel            Name      // field selector
+	AllocationFlag bool
+}
+
+func (x *SelectorExpr) SetAllocationFlag(flag bool) {
+	x.AllocationFlag = flag
+}
+
+func (x *SelectorExpr) GetAllocationFlag() bool {
+	return x.AllocationFlag
 }
 
 type SliceExpr struct { // X[Low:High:Max]
@@ -465,7 +491,16 @@ type SliceExpr struct { // X[Low:High:Max]
 // expression, or a pointer type.
 type StarExpr struct { // *X
 	Attributes
-	X Expr // operand
+	X              Expr // operand
+	AllocationFlag bool
+}
+
+func (x *StarExpr) SetAllocationFlag(flag bool) {
+	x.AllocationFlag = flag
+}
+
+func (x *StarExpr) GetAllocationFlag() bool {
+	return x.AllocationFlag
 }
 
 type RefExpr struct { // &X
@@ -2190,4 +2225,9 @@ func isHiddenResultVariable(name string) bool {
 		return true
 	}
 	return false
+}
+
+type Allocatable interface {
+	SetAllocationFlag(bool)
+	GetAllocationFlag() bool
 }

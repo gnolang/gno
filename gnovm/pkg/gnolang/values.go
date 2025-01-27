@@ -509,6 +509,7 @@ func (sv *StructValue) GetSubrefPointerTo(store Store, st *StructType, path Valu
 }
 
 func (sv *StructValue) Copy(alloc *Allocator) *StructValue {
+	debug2.Println2("StructValue.Copy: ", sv)
 	/* TODO consider second refcount field
 	if sv.GetRefCount() == 0 {
 		return sv
@@ -1000,7 +1001,7 @@ func (tv *TypedValue) NeedsTypeAllocation() bool {
 
 // Setter for AllocValue flag
 func (tv *TypedValue) SetNeedsValueAllocation(needsAlloc bool) {
-	debug2.Println2("SetNeedsValueAllocation, tv: ", tv)
+	debug2.Println2("SetNeedsValueAllocation, tv, flag: ", tv, needsAlloc)
 	if needsAlloc {
 		tv.AllocFlag |= AllocValueFlag
 	} else {
@@ -2659,6 +2660,7 @@ type HeapItemValue struct {
 // ----------------------------------------
 
 func defaultStructFields(alloc *Allocator, st *StructType) []TypedValue {
+	debug2.Println2("defaultStructFields, st: ", st)
 	tvs := alloc.NewStructFields(len(st.Fields))
 	for i, ft := range st.Fields {
 		if ft.Type.Kind() != InterfaceKind {

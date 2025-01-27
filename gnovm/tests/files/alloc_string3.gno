@@ -6,6 +6,6 @@ package main
 import "runtime"
 
 func main() {
-	s := "hello" + "world" // const
+	s := "hello" + "world" // const, no alloc runtime
 	runtime.GC()
 }

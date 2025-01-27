@@ -1,0 +1,49 @@
+loadpkg gno.land/r/alloc $WORK
+
+gnoland start
+
+! gnokey maketx call -pkgpath gno.land/r/alloc -func DoAlloc -gas-fee 1000000ugnot -gas-wanted 2000000 -broadcast -chainid=tendermint_test test1
+
+-- alloc.gno --
+package alloc
+
+import "io"
+
+func infiniteReader() io.Reader {
+	return &infiniteData{}
+}
+
+type infiniteData struct{}
+
+func (d *infiniteData) Read(p []byte) (n int, err error) {
+	// This simulates an "infinite" stream of data by always filling the buffer
+	for i := range p {
+		p[i] = 'a' // Fill with the character 'a'
+	}
+	return len(p), nil
+}
+
+type memoryWriter struct {
+	data []byte // Store the written data here
+}
+
+func (w *memoryWriter) Write(p []byte) (n int, err error) {
+	// Append the incoming data to the internal memory slice
+	w.data = append(w.data, p...)
+	return len(p), nil
+}
+
+
+func DoAlloc() {
+	// Creating an infinite source of data using the infiniteReader function
+	src := infiniteReader()
+
+	// Create a memory writer that will hold onto the data
+	dst := &memoryWriter{data: []byte{}}
+
+	// Start copying from the infiniteReader to memoryWriter
+	_, err := io.Copy(dst, src)
+	if err != nil {
+		//fmt.Println("Error during copy:", err)
+	}
+}

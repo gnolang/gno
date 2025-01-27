@@ -22,8 +22,8 @@ func (m *Machine) doOpDefine() {
 			}
 		}
 		ptr.Assign2(m.Alloc, m.Store, m.Realm, rvs[i], true)
-		debug2.Println2("doOpDefine, nx:  ", nx, nx.Alloc)
-		ptr.TV.SetNeedsValueAllocation(nx.Alloc)
+		debug2.Println2("doOpDefine, nx:  ", nx, nx.GetAllocationFlag())
+		ptr.TV.SetNeedsValueAllocation(nx.GetAllocationFlag())
 	}
 }
 
@@ -36,7 +36,6 @@ func (m *Machine) doOpAssign() {
 	rvs := m.PopValues(len(s.Lhs))
 	for i := len(s.Lhs) - 1; 0 <= i; i-- {
 		// Pop lhs value and desired type.
-		nx := s.Lhs[i].(*NameExpr)
 		lv := m.PopAsPointer(s.Lhs[i])
 		// XXX HACK (until value persistence impl'd)
 		if m.ReadOnly {
@@ -46,9 +45,12 @@ func (m *Machine) doOpAssign() {
 				}
 			}
 		}
+
 		lv.Assign2(m.Alloc, m.Store, m.Realm, rvs[i], true)
-		debug2.Println2("doOpAssign, nx:  ", nx, nx.Alloc)
-		lv.TV.SetNeedsValueAllocation(nx.Alloc)
+		if allocatable, ok := s.Lhs[i].(Allocatable); ok {
+			debug2.Println2("doOpAssign, allocatable, allocationFlag:  ", allocatable, allocatable.GetAllocationFlag())
+			lv.TV.SetNeedsValueAllocation(allocatable.GetAllocationFlag())
+		}
 	}
 }
 

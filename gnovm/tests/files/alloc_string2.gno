@@ -6,7 +6,7 @@ package main
 import "runtime"
 
 func main() {
-	var s = "hello"
+	var s = "hello" // const
 	s += "world"
 	runtime.GC()
 }

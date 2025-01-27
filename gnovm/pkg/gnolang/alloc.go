@@ -114,7 +114,15 @@ func (alloc *Allocator) MemStats() string {
 }
 
 func (alloc *Allocator) GC() {
-	debug2.Println2("---gc, MemStats:", alloc.MemStats())
+	//gasCPU := overflow.Mul64p(16, GasFactorCPU)
+	//alloc.m.GasMeter.ConsumeGas(gasCPU, "GC")
+	//debug2.Println2("---gc, MemStats:", alloc.MemStats())
+	fmt.Println("---gc, MemStats:", alloc.MemStats())
+	defer func() {
+		fmt.Println("------------after gc, memStats:", alloc.MemStats())
+	}()
+	// TODO: why this matters, think this defer is not gc'd
+	//defer fmt.Println("------------after gc, memStats:", alloc.MemStats())
 	// a throwaway allocator
 	throwaway := NewAllocator(alloc.maxBytes, alloc.m)
 	throwaway.throwAway = true
@@ -202,9 +210,17 @@ func (throwaway *Allocator) allocateValue(v Value) {
 		}
 		throwaway.AllocateType()
 	case *StructValue:
+		// TODO: alloc struct fields first, num of items
+		// see var s = S{name: "foo"}
+		// the struct lit is allocated first,
+		// then with copy, it is allocated again.
 		throwaway.AllocateStruct()
 		for _, field := range vv.Fields {
-			throwaway.allocateValue(field.V)
+			debug2.Println2("field: ", field)
+			debug2.Println2("field.NeedsValueAllocation: ", field.NeedsValueAllocation())
+			if field.NeedsValueAllocation() {
+				throwaway.allocateValue(field.V)
+			}
 		}
 	case *FuncValue:
 		throwaway.AllocateFunc()
@@ -257,6 +273,7 @@ func (alloc *Allocator) Allocate(size int64) {
 	// if alloc on throwaway still exceeds memory,
 	// means GC does not work, panic.
 	if alloc.throwAway {
+		//fmt.Println("throwaway, Allocate, memStats: ", alloc.MemStats())
 		if alloc.bytes > alloc.maxBytes {
 			debug2.Println2("---exceed memory size............")
 			panic("exceed memory size")

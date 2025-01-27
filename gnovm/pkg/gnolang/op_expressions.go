@@ -685,6 +685,7 @@ func (m *Machine) doOpMapLit() {
 func (m *Machine) doOpStructLit() {
 	// assess performance TODO
 	x := m.PopExpr().(*CompositeLitExpr)
+	debug2.Println2("doOpStructLit, x: ", x)
 	el := len(x.Elts) // may be incomplete
 	// peek struct type.
 	xt := m.PeekValue(1 + el).V.(TypeValue).Type
