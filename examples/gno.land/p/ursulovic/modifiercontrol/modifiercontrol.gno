@@ -1,4 +1,4 @@
-package multisig
+package functionmodifiers
 
 import (
 	"std"
@@ -18,7 +18,7 @@ type OwnershipProposalDetails struct {
 	OwnerProposals     *avl.Tree
 }
 
-type MultiSig struct {
+type ModiferRegistry struct {
 	Owners    *avl.Tree
 	Modifiers *avl.Tree
 	Proposals *OwnershipProposalDetails
@@ -27,37 +27,37 @@ type MultiSig struct {
 func init() {
 }
 
-func (multiSig *MultiSig) InitializeOwners(owners []string, newOwnerPercentage float64) {
+func (registry *ModiferRegistry) InitializeOwners(owners []string, newOwnerPercentage float64) {
 	if len(owners) == 0 {
 		panic("You must provide atleast one owner address!")
 	}
-	multiSig.initMultiSigVariables(newOwnerPercentage)
+	registry.initMultiSigVariables(newOwnerPercentage)
 
 	for _, addr := range owners {
 		address := std.Address(addr)
 		if !address.IsValid() {
 			panic(ufmt.Sprintf("Address %s is not valid!", addr))
 		}
-		multiSig.Owners.Set(addr, true)
+		registry.Owners.Set(addr, true)
 	}
 }
 
-func (multiSig *MultiSig) ProposeNewOwner(address string) {
+func (registry *ModiferRegistry) ProposeNewOwner(address string) {
 	addr := std.Address(address)
 	caller := std.GetOrigCaller()
 
-	multiSig.assertIsOwner(caller)
-	multiSig.assertOwnersInitialised()
+	registry.AssertIsOwner(caller)
+	registry.AssertOwnersInitialised()
 
 	if !addr.IsValid() {
 		panic(ufmt.Sprintf("Address %s is not valid!", addr))
 	}
 
-	v, exists := multiSig.Proposals.OwnerProposals.Get(addr.String())
+	v, exists := registry.Proposals.OwnerProposals.Get(addr.String())
 
 	if !exists {
 		v = avl.NewTree()
-		multiSig.Proposals.OwnerProposals.Set(addr.String(), v)
+		registry.Proposals.OwnerProposals.Set(addr.String(), v)
 	}
 
 	addressApprovals := v.(*avl.Tree)
@@ -68,37 +68,37 @@ func (multiSig *MultiSig) ProposeNewOwner(address string) {
 
 	addressApprovals.Set(caller.String(), true)
 
-	approvalsNeeded := multiSig.Proposals.NewOwnerPercentage * float64(multiSig.Owners.Size())
+	approvalsNeeded := registry.Proposals.NewOwnerPercentage * float64(registry.Owners.Size())
 
 	if float64(addressApprovals.Size()) >= approvalsNeeded {
-		multiSig.Proposals.OwnerProposals.Remove(addr.String())
-		multiSig.Owners.Set(addr.String(), true)
+		registry.Proposals.OwnerProposals.Remove(addr.String())
+		registry.Owners.Set(addr.String(), true)
 	}
 }
 
-func (multiSig *MultiSig) ResignOwnership() {
+func (registry *ModiferRegistry) ResignOwnership() {
 	caller := std.GetOrigCaller()
 
-	multiSig.assertIsOwner(caller)
-	multiSig.assertOwnersInitialised()
+	registry.AssertIsOwner(caller)
+	registry.AssertOwnersInitialised()
 
-	if multiSig.Owners.Size() == 1 {
+	if registry.Owners.Size() == 1 {
 		panic("You cannot give up ownership because there must be atleast one owner!")
 	}
 
-	multiSig.Owners.Remove(caller.String())
+	registry.Owners.Remove(caller.String())
 }
 
-func (multiSig *MultiSig) RegisterModifier(name string, approvalPercentage float64) {
+func (registry *ModiferRegistry) RegisterModifier(name string, approvalPercentage float64) {
 	caller := std.GetOrigCaller()
 
-	multiSig.assertIsOwner(caller)
-	multiSig.assertOwnersInitialised()
+	registry.AssertIsOwner(caller)
+	registry.AssertOwnersInitialised()
 
 	if name == "" {
 		panic("Must provide a non-empty name")
 	}
-	if multiSig.Modifiers.Has(name) {
+	if registry.Modifiers.Has(name) {
 		panic("Modifier with provided name already exists!")
 	}
 	if approvalPercentage <= 0 || approvalPercentage > 1 {
@@ -109,20 +109,20 @@ func (multiSig *MultiSig) RegisterModifier(name string, approvalPercentage float
 		ApprovalPercentage: approvalPercentage,
 		Approvers:          avl.NewTree(),
 	}
-	multiSig.Modifiers.Set(name, modifier)
+	registry.Modifiers.Set(name, modifier)
 }
 
-func (multiSig *MultiSig) DisableModifier(name string) {
+func (registry *ModiferRegistry) DisableModifier(name string) {
 	caller := std.GetOrigCaller()
 
-	multiSig.assertIsOwner(caller)
-	multiSig.assertOwnersInitialised()
+	registry.AssertIsOwner(caller)
+	registry.AssertOwnersInitialised()
 
 	if name == "" {
 		panic("Must provide a non-empty name")
 	}
 
-	v, exists := multiSig.Modifiers.Get(name)
+	v, exists := registry.Modifiers.Get(name)
 	if !exists {
 		panic("Modifier with provided name doesn't exist!")
 	}
@@ -130,20 +130,20 @@ func (multiSig *MultiSig) DisableModifier(name string) {
 	modifier := v.(*Modifier)
 	modifier.ApprovalPercentage = 0
 
-	multiSig.Modifiers.Set(name, *modifier)
+	registry.Modifiers.Set(name, *modifier)
 }
 
-func (multiSig *MultiSig) ApproveModifier(name string) {
+func (registry *ModiferRegistry) ApproveModifier(name string) {
 	if name == "" {
 		panic("Name of the modifier cannot be empty!")
 	}
 
 	caller := std.GetOrigCaller()
 
-	multiSig.assertIsOwner(caller)
-	multiSig.assertOwnersInitialised()
+	registry.AssertIsOwner(caller)
+	registry.AssertOwnersInitialised()
 
-	v, exists := multiSig.Modifiers.Get(name)
+	v, exists := registry.Modifiers.Get(name)
 
 	if !exists {
 		panic("Modifer with provided name doesn't exist!")
@@ -158,19 +158,19 @@ func (multiSig *MultiSig) ApproveModifier(name string) {
 	modifier.Approvers.Set(caller.String(), true)
 }
 
-func (multiSig *MultiSig) AssertIsApproved(name string) {
+func (registry *ModiferRegistry) AssertIsApproved(name string) {
 	caller := std.GetOrigCaller()
 
-	multiSig.assertIsOwner(caller)
-	multiSig.assertOwnersInitialised()
+	registry.AssertIsOwner(caller)
+	registry.AssertOwnersInitialised()
 
-	v, exists := multiSig.Modifiers.Get(name)
+	v, exists := registry.Modifiers.Get(name)
 	if !exists {
 		panic("Modifier with provided name doesn't exist!")
 	}
 
 	modifier := v.(*Modifier)
-	totalOwners := multiSig.Owners.Size()
+	totalOwners := registry.Owners.Size()
 
 	approvalsPercentage := float64(modifier.Approvers.Size()) / float64(totalOwners)
 
@@ -179,23 +179,23 @@ func (multiSig *MultiSig) AssertIsApproved(name string) {
 	}
 }
 
-func (multiSig *MultiSig) initMultiSigVariables(newOwnerPercentage float64) {
-	multiSig.Owners = avl.NewTree()
-	multiSig.Modifiers = avl.NewTree()
-	multiSig.Proposals = &OwnershipProposalDetails{
+func (registry *ModiferRegistry) initMultiSigVariables(newOwnerPercentage float64) {
+	registry.Owners = avl.NewTree()
+	registry.Modifiers = avl.NewTree()
+	registry.Proposals = &OwnershipProposalDetails{
 		NewOwnerPercentage: newOwnerPercentage,
 		OwnerProposals:     avl.NewTree(),
 	}
 }
 
-func (multiSig *MultiSig) assertIsOwner(address std.Address) {
-	if !multiSig.Owners.Has(address.String()) {
+func (registry *ModiferRegistry) AssertIsOwner(address std.Address) {
+	if !registry.Owners.Has(address.String()) {
 		panic("You are not the owner!")
 	}
 }
 
-func (multiSig *MultiSig) assertOwnersInitialised() {
-	if multiSig.Owners.Size() == 0 {
+func (registry *ModiferRegistry) AssertOwnersInitialised() {
+	if registry.Owners.Size() == 0 {
 		panic("Owners must be initialised before making any action!")
 	}
 }
