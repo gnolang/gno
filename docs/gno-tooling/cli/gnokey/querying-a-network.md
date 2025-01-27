@@ -152,28 +152,7 @@ gnokey query vm/qfile -data "gno.land/r/demo/wugnot/wugnot.gno" -remote https://
 Output: 
 ```bash
 height: 0
-data: package wugnot
-
-import (
-        "std"
-        "strings"
-
-        "gno.land/p/demo/grc/grc20"
-        "gno.land/p/demo/ufmt"
-        pusers "gno.land/p/demo/users"
-        "gno.land/r/demo/users"
-)
-
-var (
-        banker *grc20.Banker = grc20.NewBanker("wrapped GNOT", "wugnot", 0)
-        Token                = banker.Token()
-)
-
-const (
-        ugnotMinDeposit  uint64 = 1000
-        wugnotMinDeposit uint64 = 1
-)
-...
+data: // package code
 ```
 
 ## `vm/qeval`

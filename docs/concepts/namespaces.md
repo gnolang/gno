@@ -7,12 +7,6 @@ id: namespaces
 Namespaces provide users with the exclusive capability to publish contracts under their designated namespaces,
 similar to GitHub's user and organization model.
 
-:::warning Not enabled
-
-This feature isn't enabled by default on the portal loop chain and is currently available only on test4.gno.land.
-
-:::
-
 # Package Path
 
 A package path is a unique identifier for each package/realm. It specifies the location of the package source
@@ -45,30 +39,27 @@ Examples:
 ## Registration Process
 
 The registration process is contract-based. The `AddPkg` command references
-`sys/users` for filtering, which in turn is based on `r/demo/users`.
+`r/sys/names` for filtering, which in turn is based on `r/sys/users`.
 
-When `sys/users` is enabled, you need to register a name using `r/demo/users`. You can call the
-`r/demo/users.Register` function to register the name for the caller's address.
+To obtain a namespace, you need to register a name using `r/gnoland/users/v1`.
+Visit [the realm](https://gno.land/r/gnoland/users/v1) for more information.
 
-> ex: `test1` user registering as `patrick`
+> ex: address `test1` registering as `patrick123`
 ```bash
-$ gnokey maketx call -pkgpath gno.land/r/demo/users \
+$ gnokey maketx call -pkgpath gno.land/r/gnoland/users/v1 \
     -func Register \
     -gas-fee 1000000ugnot -gas-wanted 2000000 \
     -broadcast \
-    -chainid=test4 \
-    -send=20000000ugnot \
-    -args '' \
-    -args 'patrick' \
-    -args 'My Profile Quote' test1
+    -chainid=portal-loop \
+    -remote="https://gno.land/r/gnoland/users/v1" \
+    -args 'patrick123' \
+    test1
 ```
 
 :::note Chain-ID
 
-Do not forget to update chain id, adequate to the network you're interacting with
-
+Depending on the network you're usiing, the 
 :::
-
 
 After successful registration, you can add a package under the registered namespace.
 
