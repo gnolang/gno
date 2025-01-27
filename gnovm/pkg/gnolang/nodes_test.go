@@ -1,7 +1,6 @@
 package gnolang_test
 
 import (
-	"fmt"
 	"math"
 	"testing"
 
@@ -46,19 +45,20 @@ func TestStaticBlock_Define2_MaxNames(t *testing.T) {
 
 func TestAttributesSetGetDel(t *testing.T) {
 	attrs := new(gnolang.Attributes)
-	if got, want := attrs.GetAttribute("a"), (any)(nil); got != want {
+	key := gnolang.ATTR_IOTA
+	if got, want := attrs.GetAttribute(key), (any)(nil); got != want {
 		t.Errorf(".Get returned an unexpected value=%v, want=%v", got, want)
 	}
-	attrs.SetAttribute("a", 10)
-	if got, want := attrs.GetAttribute("a"), 10; got != want {
+	attrs.SetAttribute(key, 10)
+	if got, want := attrs.GetAttribute(key), 10; got != want {
 		t.Errorf(".Get returned an unexpected value=%v, want=%v", got, want)
 	}
-	attrs.SetAttribute("a", 20)
-	if got, want := attrs.GetAttribute("a"), 20; got != want {
+	attrs.SetAttribute(key, 20)
+	if got, want := attrs.GetAttribute(key), 20; got != want {
 		t.Errorf(".Get returned an unexpected value=%v, want=%v", got, want)
 	}
-	attrs.DelAttribute("a")
-	if got, want := attrs.GetAttribute("a"), (any)(nil); got != want {
+	attrs.DelAttribute(key)
+	if got, want := attrs.GetAttribute(key), (any)(nil); got != want {
 		t.Errorf(".Get returned an unexpected value=%v, want=%v", got, want)
 	}
 }
@@ -69,8 +69,10 @@ func BenchmarkAttributesSetGetDel(b *testing.B) {
 	n := 100
 	keys := make([]gnolang.GnoAttribute, 0, n)
 	for i := 0; i < n; i++ {
-		keys = append(keys, gnolang.GnoAttribute(fmt.Sprintf("%d", i)))
+		keys = append(keys, gnolang.GnoAttribute(i))
 	}
+
+	attrCommon := gnolang.ATTR_TYPEOF_VALUE
 
 	b.ReportAllocs()
 	b.ResetTimer()
@@ -78,11 +80,11 @@ func BenchmarkAttributesSetGetDel(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		attrs := new(gnolang.Attributes)
 		for j := 0; j < 100; j++ {
-			sink = attrs.GetAttribute("a")
+			sink = attrs.GetAttribute(attrCommon)
 		}
 		for j := 0; j < 100; j++ {
-			attrs.SetAttribute("a", j)
-			sink = attrs.GetAttribute("a")
+			attrs.SetAttribute(attrCommon, j)
+			sink = attrs.GetAttribute(attrCommon)
 		}
 
 		for j, key := range keys {
