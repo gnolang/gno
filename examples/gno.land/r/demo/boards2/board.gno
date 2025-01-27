@@ -1,6 +1,7 @@
 package boards2
 
 import (
+	"net/url"
 	"std"
 	"strconv"
 	"strings"
@@ -65,6 +66,13 @@ func (board *Board) GetID() BoardID {
 
 // GetURL returns the relative URL of the board.
 func (board *Board) GetURL() string {
+	return strings.TrimPrefix(std.CurrentRealm().PkgPath(), "gno.land") + ":" + url.PathEscape(board.name)
+}
+
+// GetURL returns relative board path relative.
+//
+// Note: returned result is not escaped. Use GetURL to get URL-encoded path.
+func (board *Board) GetPath() string {
 	return strings.TrimPrefix(std.CurrentRealm().PkgPath(), "gno.land") + ":" + board.name
 }
 
@@ -96,21 +104,38 @@ func (board *Board) DeleteThread(pid PostID) {
 	}
 }
 
-func (board *Board) Render() string {
-	s := "\\[" + newLink("post", board.GetPostFormURL()) + "]\n\n"
-	if board.threads.Size() > 0 {
-		board.threads.Iterate("", "", func(_ string, v interface{}) bool {
-			post := v.(*Post)
-			if post.isHidden {
-				return false
-			}
+// Render renders a board into Markdown.
+//
+// Pager is used for pagination if it's not nil.
+func (board *Board) Render(p *PaginationOpts) string {
+	sb := &strings.Builder{}
 
-			s += "----------------------------------------\n"
-			s += post.RenderSummary() + "\n"
-			return false
-		})
+	sb.WriteString(newButtonLink("post", board.GetPostFormURL()))
+	sb.WriteString("\n\n")
+
+	if board.threads.Size() == 0 {
+		sb.WriteString("*This board doesn't have any threads.*")
+		return sb.String()
 	}
-	return s
+
+	page := p.Iterate(&board.threads, func(_ string, v interface{}) bool {
+		p := v.(*Post)
+		if p.isHidden {
+			return false
+		}
+
+		sb.WriteString("----------------------------------------\n")
+		sb.WriteString(p.RenderSummary())
+		sb.WriteString("\n")
+		return false
+	})
+
+	if page != nil {
+		sb.WriteString("\n---\n")
+		sb.WriteString(page.Picker())
+	}
+
+	return sb.String()
 }
 
 func (board *Board) incGetPostID() PostID {
