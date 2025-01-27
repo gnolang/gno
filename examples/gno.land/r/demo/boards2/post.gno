@@ -148,6 +148,10 @@ func (post *Post) Update(title string, body string) {
 	post.updatedAt = time.Now()
 }
 
+func (post *Post) HasReplies() bool {
+	return post.replies.Size() > 0
+}
+
 func (thread *Post) GetReply(pid PostID) (_ *Post, found bool) {
 	v, found := thread.repliesAll.Get(pid.Key())
 	if !found {

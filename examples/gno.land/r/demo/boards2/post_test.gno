@@ -140,6 +140,7 @@ func TestNewThread(t *testing.T) {
 	uassert.True(t, thread.GetUpdatedAt().IsZero())
 	uassert.Equal(t, title, thread.GetTitle())
 	uassert.Equal(t, body[:77]+"...", thread.GetSummary())
+	uassert.False(t, thread.HasReplies())
 	uassert.Equal(t, url, thread.GetURL())
 	uassert.Equal(t, replyURL, thread.GetReplyFormURL())
 	uassert.Equal(t, repostURL, thread.GetRepostFormURL())
@@ -160,6 +161,7 @@ func TestThreadAddReply(t *testing.T) {
 	uassert.Equal(t, threadID+1, uint(reply.GetPostID()))
 	uassert.Equal(t, reply.GetCreator(), replier)
 	uassert.Equal(t, reply.GetBody(), body)
+	uassert.True(t, thread.HasReplies())
 }
 
 func TestThreadGetReply(t *testing.T) {
@@ -297,6 +299,7 @@ func TestNewReply(t *testing.T) {
 	uassert.Equal(t, uint(replyID), uint(reply.GetPostID()))
 	uassert.False(t, reply.GetCreatedAt().IsZero())
 	uassert.True(t, reply.GetUpdatedAt().IsZero())
+	uassert.False(t, reply.HasReplies())
 	uassert.Equal(t, body[:77]+"...", reply.GetSummary())
 	uassert.Equal(t, url, reply.GetURL())
 	uassert.Equal(t, replyURL, reply.GetReplyFormURL())
@@ -320,6 +323,8 @@ func TestReplyAddReply(t *testing.T) {
 	uassert.Equal(t, parentReplyID+1, uint(reply.GetPostID()))
 	uassert.Equal(t, reply.GetCreator(), replier)
 	uassert.Equal(t, reply.GetBody(), body)
+	uassert.False(t, reply.HasReplies())
+	uassert.True(t, parentReply.HasReplies())
 }
 
 func TestReplyGetReply(t *testing.T) {
