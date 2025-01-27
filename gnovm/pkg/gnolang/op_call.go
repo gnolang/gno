@@ -38,9 +38,6 @@ func (m *Machine) doOpPrecall() {
 				panic("conversion expressions only take 1 argument")
 			}
 		}
-	case *NativeValue:
-		m.PushFrameGoNative(cx, fv)
-		m.PushOp(OpCallGoNative)
 	default:
 		panic(fmt.Sprintf(
 			"unexpected function value type %s",
@@ -358,7 +355,7 @@ func (m *Machine) doOpReturnCallDefers() {
 			}
 		}
 		copy(b.Values, dfr.Args)
-	} else if dfr.GoFunc != nil {
+		/*} else if dfr.GoFunc != nil {
 		fv := dfr.GoFunc
 		ptvs := dfr.Args
 		prvs := make([]reflect.Value, len(ptvs))
@@ -371,6 +368,7 @@ func (m *Machine) doOpReturnCallDefers() {
 		fv.Value.Call(prvs)
 		// Cleanup.
 		m.NumResults = 0
+		*/
 	} else {
 		panic("should not happen")
 	}
@@ -415,14 +413,6 @@ func (m *Machine) doOpDefer() {
 		cfr.PushDefer(Defer{
 			Func:       cv.Func,
 			Args:       args2,
-			Source:     ds,
-			Parent:     lb,
-			PanicScope: m.PanicScope,
-		})
-	case *NativeValue:
-		cfr.PushDefer(Defer{
-			GoFunc:     cv,
-			Args:       args,
 			Source:     ds,
 			Parent:     lb,
 			PanicScope: m.PanicScope,

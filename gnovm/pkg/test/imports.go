@@ -1,23 +1,19 @@
 package test
 
 import (
-	"encoding/json"
 	"errors"
 	"fmt"
 	"go/token"
 	"io"
-	"math/big"
 	"os"
 	"path/filepath"
 	"runtime/debug"
 	"strings"
-	"time"
 
 	"github.com/gnolang/gno/gnovm"
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
 	"github.com/gnolang/gno/gnovm/pkg/packages"
 	teststdlibs "github.com/gnolang/gno/gnovm/tests/stdlibs"
-	teststd "github.com/gnolang/gno/gnovm/tests/stdlibs/std"
 	"github.com/gnolang/gno/tm2/pkg/db/memdb"
 	osm "github.com/gnolang/gno/tm2/pkg/os"
 	"github.com/gnolang/gno/tm2/pkg/std"
@@ -60,7 +56,7 @@ func Store(
 
 		// gonative exceptions.
 		// These are values available using gonative; eventually they should all be removed.
-		switch pkgPath {
+		/*switch pkgPath {
 		case "os":
 			pkg := gno.NewPackageNode("os", pkgPath, nil)
 			pkg.DefineGoNativeValue("Stdin", stdin)
@@ -126,7 +122,7 @@ func Store(
 			pkg := gno.NewPackageNode("big", pkgPath, nil)
 			pkg.DefineGoNativeValue("NewInt", big.NewInt)
 			return pkg, pkg.NewPackage()
-		}
+		}*/
 
 		// Load normal stdlib.
 		pn, pv = loadStdlib(rootDir, pkgPath, store, stdout)

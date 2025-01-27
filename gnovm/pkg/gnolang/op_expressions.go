@@ -2,7 +2,6 @@ package gnolang
 
 import (
 	"fmt"
-	"reflect"
 )
 
 // OpBinary1 defined in op_binary.go
@@ -67,9 +66,6 @@ func (m *Machine) doOpIndex2() {
 				*iv = untypedBool(false) // reuse as result
 			}
 		}
-	case *NativeType:
-		// TODO: see doOpIndex1()
-		panic("not yet implemented")
 	default:
 		panic("should not happen")
 	}
@@ -165,15 +161,9 @@ func (m *Machine) doOpStar() {
 		}
 	case *TypeType:
 		t := xv.GetType()
-		var pt Type
-		if nt, ok := t.(*NativeType); ok {
-			pt = &NativeType{Type: reflect.PointerTo(nt.Type)}
-		} else {
-			pt = &PointerType{Elt: t}
-		}
+		pt := &PointerType{Elt: t}
+
 		m.PushValue(asValue(pt))
-	case *NativeType:
-		panic("not yet implemented")
 	default:
 		panic(fmt.Sprintf(
 			"illegal star expression x type %s",
@@ -186,18 +176,6 @@ func (m *Machine) doOpRef() {
 	rx := m.PopExpr().(*RefExpr)
 	m.Alloc.AllocatePointer()
 	xv := m.PopAsPointer(rx.X)
-	if nv, ok := xv.TV.V.(*NativeValue); ok {
-		// If a native pointer, ensure it is addressable.  This
-		// way, PointerValue{*NativeValue{rv}} can be converted
-		// to/from *NativeValue{rv.Addr()}.
-		if !nv.Value.CanAddr() {
-			rv := nv.Value
-			rt := rv.Type()
-			rv2 := reflect.New(rt).Elem()
-			rv2.Set(rv)
-			nv.Value = rv2
-		}
-	}
 	// when obtaining a pointer of the databyte type, use the ElemType of databyte
 	elt := xv.TV.T
 	if elt == DataByteType {
@@ -260,32 +238,6 @@ func (m *Machine) doOpTypeAssert1() {
 			}
 			// NOTE: consider ability to push an
 			// interface-restricted form
-			// *xv = *xv
-		} else if nt, ok := baseOf(t).(*NativeType); ok {
-			// t is Go interface.
-			// assert that x implements type.
-			errPrefix := "non-concrete "
-			var impl bool
-			if nxt, ok := xt.(*NativeType); ok {
-				// If the underlying native type is reflect.Interface kind, then this has no
-				// concrete value and should fail.
-				if nxt.Type.Kind() != reflect.Interface {
-					impl = nxt.Type.Implements(nt.Type)
-					errPrefix = ""
-				}
-			}
-
-			if !impl {
-				// TODO: default panic type?
-				ex := fmt.Sprintf(
-					"%s%s doesn't implement %s",
-					errPrefix,
-					xt.String(),
-					nt.String())
-				m.Panic(typedString(ex))
-				return
-			}
-			// keep xv as is.
 			// *xv = *xv
 		} else {
 			panic("should not happen")
@@ -360,26 +312,6 @@ func (m *Machine) doOpTypeAssert2() {
 				*xv = TypedValue{}
 				*tv = untypedBool(false)
 			}
-		} else if nt, ok := baseOf(t).(*NativeType); ok {
-			// If the value being asserted on is nil, it can't implement an interface.
-			// t is Go interface.
-			// assert that x implements type.
-			var impl bool
-			if nxt, ok := xt.(*NativeType); ok {
-				// If the underlying native type is reflect.Interface kind, then this has no
-				// concrete value and should fail.
-				if nxt.Type.Kind() != reflect.Interface {
-					impl = nxt.Type.Implements(nt.Type)
-				}
-			}
-
-			if impl {
-				// *xv = *xv
-				*tv = untypedBool(true)
-			} else {
-				*xv = TypedValue{}
-				*tv = untypedBool(false)
-			}
 		} else {
 			panic("should not happen")
 		}
@@ -417,7 +349,7 @@ func (m *Machine) doOpCompositeLit() {
 	// composite type
 	t := m.PeekValue(1).V.(TypeValue).Type
 	// push elements
-	switch bt := baseOf(t).(type) {
+	switch baseOf(t).(type) {
 	case *ArrayType:
 		m.PushOp(OpArrayLit)
 		// evaluate item values
@@ -466,34 +398,6 @@ func (m *Machine) doOpCompositeLit() {
 		for i := len(x.Elts) - 1; 0 <= i; i-- {
 			m.PushExpr(x.Elts[i].Value)
 			m.PushOp(OpEval)
-		}
-	case *NativeType:
-		switch bt.Type.Kind() {
-		case reflect.Array:
-			m.PushOp(OpArrayLitGoNative)
-			// evaluate item values
-			for i := len(x.Elts) - 1; 0 <= i; i-- {
-				m.PushExpr(x.Elts[i].Value)
-				m.PushOp(OpEval)
-			}
-		case reflect.Slice:
-			m.PushOp(OpSliceLitGoNative)
-			// evaluate item values
-			for i := len(x.Elts) - 1; 0 <= i; i-- {
-				m.PushExpr(x.Elts[i].Value)
-				m.PushOp(OpEval)
-			}
-		case reflect.Struct:
-			m.PushOp(OpStructLitGoNative)
-			// evaluate field values
-			for i := len(x.Elts) - 1; 0 <= i; i-- {
-				m.PushExpr(x.Elts[i].Value)
-				m.PushOp(OpEval)
-			}
-		default:
-			panic(fmt.Sprintf(
-				"composite lit for native %v kind not yet supported",
-				bt.Type.Kind()))
 		}
 	default:
 		panic("not yet implemented")
