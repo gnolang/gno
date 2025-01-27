@@ -174,18 +174,21 @@ func DeleteReply(bid BoardID, threadID, replyID PostID) {
 
 	board := mustGetBoard(bid)
 	thread := mustGetThread(board, threadID)
-	assertReplyExists(thread, replyID)
-
-	// TODO: Hide reply when the caller is the owner of the reply without permission
-	// TODO: Support removing reply and children though proposals?
+	reply := mustGetReply(thread, replyID)
+	assertReplyVisible(reply)
 
 	caller := std.GetOrigCaller()
-	args := Args{bid, threadID, replyID}
-	gPerm.WithPermission(caller, PermissionReplyDelete, args, func(a Args) {
-		board := mustGetBoard(bid)
-		thread := mustGetThread(board, threadID)
+	if caller != reply.GetCreator() {
+		assertHasBoardPermission(board, caller, PermissionReplyDelete)
+	}
+
+	// Soft delete reply by changing its body when it contains
+	// sub-replies, otherwise hard delete it.
+	if reply.HasReplies() {
+		reply.Update(reply.GetTitle(), "this reply has been deleted")
+	} else {
 		thread.DeleteReply(replyID)
-	})
+	}
 }
 
 func EditThread(bid BoardID, threadID PostID, title, body string) {
