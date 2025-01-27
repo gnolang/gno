@@ -10,7 +10,7 @@
 // Only referred to (and thus linked in) by softfloat targets
 // and by tests in this directory.
 
-package runtime
+package softfloat
 
 const (
 	mantbits64 uint = 52
