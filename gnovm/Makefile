@@ -54,8 +54,8 @@ lint:
 
 .PHONY: fmt
 fmt:
-	go run ./cmd/gno fmt $(GNOFMT_FLAGS) ./stdlibs/... ./tests/stdlibs/...
 	$(rundep) mvdan.cc/gofumpt $(GOFMT_FLAGS) .
+	go run ./cmd/gno fmt $(GNOFMT_FLAGS) ./stdlibs/... ./tests/stdlibs/...
 
 .PHONY: imports
 imports:
@@ -123,7 +123,16 @@ _test.filetest:;
 ########################################
 # Code gen
 .PHONY: generate
-generate:
+generate: _dev.generate _dev.docs
+
+.PHONY: _dev.docs
+_dev.docs:
+	mkdir -p .tmp
+	(go run ./cmd/gno -h 2>&1 || true) | grep -v "exit status 1" > .tmp/gno-help.txt
+	$(rundep) github.com/campoy/embedmd -w `find . -name "*.md"`
+
+.PHONY: _dev.generate
+_dev.generate:
 	go generate -x ./...
 
 # genproto:
