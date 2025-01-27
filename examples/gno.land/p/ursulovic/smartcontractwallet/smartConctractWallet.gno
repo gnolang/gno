@@ -51,7 +51,6 @@ func ProposeWithdraw(recipient string, amount int64, denom string, approvalPerce
 
 	modifiers.RegisterModifier(formatProposalKey(id), approvalPercentage)
 
-	// Use FormatInt for converting int64 to string
 	withdrawProposals.Set(strconv.FormatInt(id, 10), withdrawProposal)
 }
 
