@@ -35,9 +35,6 @@ import (
 
 // See go2GnoValue(); this is lazy.
 func go2GnoType(rt reflect.Type) Type {
-	if rt.PkgPath() != "" {
-		return &NativeType{Type: rt}
-	}
 	return go2GnoBaseType(rt)
 }
 
@@ -75,22 +72,38 @@ func go2GnoBaseType(rt reflect.Type) Type {
 		return Float32Type
 	case reflect.Float64:
 		return Float64Type
-	case reflect.Array:
-		return &NativeType{Type: rt}
+		//case reflect.Array:
 	case reflect.Slice:
-		return &NativeType{Type: rt}
-	case reflect.Chan:
-		return &NativeType{Type: rt}
+		return &SliceType{
+			Elt: go2GnoType(rt.Elem()),
+			Vrd: false,
+		}
+		//	return &NativeType{Type: rt}
+	//case reflect.Chan:
+	//	return &NativeType{Type: rt}
 	case reflect.Func:
-		return &NativeType{Type: rt}
+		return getFuncType(rt)
 	case reflect.Interface:
-		return &NativeType{Type: rt}
-	case reflect.Map:
-		return &NativeType{Type: rt}
-	case reflect.Ptr:
-		return &NativeType{Type: rt}
-	case reflect.Struct:
-		return &NativeType{Type: rt}
+		it := &InterfaceType{}
+		nm := rt.NumMethod()
+		fs := make([]FieldType, nm)
+		for i := 0; i < nm; i++ {
+			mthd := rt.Method(i)
+			fs[i] = FieldType{
+				Name: Name(mthd.Name),
+				Type: go2GnoBaseType(mthd.Type), // recursive
+			}
+		}
+		it.PkgPath = rt.PkgPath()
+		it.Methods = fs
+		fmt.Println("here")
+		return it
+	//case reflect.Map:
+	//	return &NativeType{Type: rt}
+	//case reflect.Ptr:
+	//	return &NativeType{Type: rt}
+	//case reflect.Struct:
+	//	return &NativeType{Type: rt}
 	case reflect.UnsafePointer:
 		panic("not yet implemented")
 	default:
@@ -247,8 +260,14 @@ func (ds *defaultStore) Go2GnoType(rt reflect.Type) (t Type) {
 // to gno types, (to preserve the original native types).
 func (ds *defaultStore) go2GnoFuncType(rt reflect.Type) *FuncType {
 	// predefine func type
-	ft := &FuncType{}
+	ft := getFuncType(rt)
 	ds.cacheNativeTypes[rt] = ft
+
+	return ft
+}
+func getFuncType(rt reflect.Type) *FuncType {
+	// predefine func type
+	ft := &FuncType{}
 	// define func type
 	hasVargs := rt.IsVariadic()
 	ins := make([]FieldType, rt.NumIn())
@@ -313,12 +332,12 @@ func go2GnoValue(alloc *Allocator, rv reflect.Value) (tv TypedValue) {
 			rv = rv.Elem()
 		}
 	}
-	if rv.Type().PkgPath() != "" {
-		rt := rv.Type()
-		tv.T = alloc.NewType(&NativeType{Type: rt})
-		tv.V = alloc.NewNative(rv)
-		return
-	}
+	//if rv.Type().PkgPath() != "" {
+	//	rt := rv.Type()
+	//	tv.T = alloc.NewType(&NativeType{Type: rt})
+	//	tv.V = alloc.NewNative(rv)
+	//	return
+	//}
 	tv.T = alloc.NewType(go2GnoType(rv.Type()))
 	switch rk := rv.Kind(); rk {
 	case reflect.Bool:
@@ -349,22 +368,8 @@ func go2GnoValue(alloc *Allocator, rv reflect.Value) (tv TypedValue) {
 		tv.SetFloat32(softfloat.F64to32(math.Float64bits(rv.Float())))
 	case reflect.Float64:
 		tv.SetFloat64(math.Float64bits(rv.Float()))
-	case reflect.Array:
-		tv.V = alloc.NewNative(rv)
-	case reflect.Slice:
-		tv.V = alloc.NewNative(rv)
-	case reflect.Chan:
-		tv.V = alloc.NewNative(rv)
 	case reflect.Func:
-		tv.V = alloc.NewNative(rv)
-	case reflect.Interface:
-		panic("should not happen")
-	case reflect.Map:
-		tv.V = alloc.NewNative(rv)
-	case reflect.Ptr:
-		tv.V = alloc.NewNative(rv)
-	case reflect.Struct:
-		tv.V = alloc.NewNative(rv)
+		panic("New function")
 	case reflect.UnsafePointer:
 		panic("not yet implemented")
 	default:
@@ -388,10 +393,6 @@ func go2GnoValue(alloc *Allocator, rv reflect.Value) (tv TypedValue) {
 func go2GnoValueUpdate(alloc *Allocator, rlm *Realm, lvl int, tv *TypedValue, rv reflect.Value) {
 	// Special case if nil:
 	if tv.IsUndefined() {
-		return // do nothing
-	}
-	// Special case if native type:
-	if _, ok := tv.T.(*NativeType); ok {
 		return // do nothing
 	}
 	// De-interface if interface.
@@ -708,18 +709,18 @@ func go2GnoValue2(alloc *Allocator, store Store, rv reflect.Value, recursive boo
 		// *FuncType or *DeclaredType.  The value may still be a
 		// *NativeValue though, and the function can be called
 		// regardless.
-		tv.V = alloc.NewNative(rv)
+		//tv.V = alloc.New(rv)
 	case reflect.Interface:
 		// special case for errors, which are very often used especially in
 		// native bindings
-		if rv.Type() == tError {
-			tv.T = gErrorType
-			if !rv.IsNil() {
-				tv.V = alloc.NewNative(rv.Elem())
-			}
-			return
-		}
-		panic("not yet implemented")
+		//if rv.Type() == tError {
+		//	tv.T = gErrorType
+		//	if !rv.IsNil() {
+		//		tv.V = alloc.NewNative(rv.Elem())
+		//	}
+		//	return
+		//}
+		panic(rv.Type())
 	case reflect.Map:
 		panic("not yet implemented")
 	case reflect.Ptr:
@@ -854,8 +855,6 @@ func gno2GoType(t Type) reflect.Type {
 		panic("should not happen")
 	case *PackageType:
 		panic("should not happen")
-	case *NativeType:
-		return ct.Type
 	default:
 		panic(fmt.Sprintf("unexpected type %v with base %v", t, baseOf(t)))
 	}
@@ -1000,8 +999,6 @@ func gno2GoTypeMatches(t Type, rt reflect.Type) (result bool) {
 		panic("should not happen")
 	case *PackageType:
 		panic("should not happen")
-	case *NativeType:
-		return ct.Type.AssignableTo(rt)
 	default:
 		panic(fmt.Sprintf("unexpected type %v with base %v", t, baseOf(t)))
 	}
@@ -1189,13 +1186,6 @@ func gno2GoValue(tv *TypedValue, rv reflect.Value) (ret reflect.Value) {
 			}
 			head = head.Next
 		}
-	case *NativeType:
-		// If uninitialized native type, leave rv uninitialized.
-		if tv.V == nil {
-			return
-		}
-		// General case.
-		rv.Set(tv.V.(*NativeValue).Value)
 	case *DeclaredType:
 		// See corresponding note on gno2GoType().
 		panic("should not happen") // we switch on baseOf().
@@ -1215,6 +1205,7 @@ func gno2GoValue(tv *TypedValue, rv reflect.Value) (ret reflect.Value) {
 // PackageNode methods
 
 func (x *PackageNode) DefineGoNativeValue(name Name, nv interface{}) {
+	fmt.Println("DefineGoNativeValue", name, nv)
 	x.defineGoNativeValue(false, name, nv)
 }
 
@@ -1238,127 +1229,9 @@ func (x *PackageNode) defineGoNativeValue(isConst bool, n Name, nv interface{}) 
 // ----------------------------------------
 // Machine methods
 
-func (m *Machine) doOpArrayLitGoNative() {
-	// assess performance TODO
-	x := m.PopExpr().(*CompositeLitExpr)
-	el := len(x.Elts) // may be incomplete
-	// peek array type.
-	xt := m.PeekValue(1 + el).V.(TypeValue).Type
-	nt := xt.(*NativeType)
-	rv := reflect.New(nt.Type).Elem()
-	// construct array value.
-	if 0 < el {
-		itvs := m.PopValues(el)
-		for i := 0; i < el; i++ {
-			if kx := x.Elts[i].Key; kx != nil {
-				// XXX why convert? (also see doOpArrayLit())
-				k := kx.(*ConstExpr).ConvertGetInt()
-				rf := rv.Index(int(k)) // XXX: k may overflow on 32 bits plaforms.
-				gno2GoValue(&itvs[i], rf)
-			} else {
-				rf := rv.Index(i)
-				gno2GoValue(&itvs[i], rf)
-			}
-		}
-	}
-	// construct and push value.
-	if debug {
-		if m.PopValue().V.(TypeValue).Type != nt {
-			panic("should not happen")
-		}
-	} else {
-		m.PopValue()
-	}
-	nv := m.Alloc.NewNative(rv)
-	m.PushValue(TypedValue{
-		T: nt,
-		V: nv,
-	})
-}
-
-func (m *Machine) doOpSliceLitGoNative() {
-	// assess performance TODO
-	x := m.PopExpr().(*CompositeLitExpr)
-	el := len(x.Elts) // may be incomplete
-	// peek slice type.
-	xt := m.PeekValue(1 + el).V.(TypeValue).Type
-	nt := xt.(*NativeType)
-	at := reflect.ArrayOf(el, nt.Type.Elem())
-	rv := reflect.New(at).Elem()
-	// construct array value.
-	if 0 < el {
-		itvs := m.PopValues(el)
-		for i := 0; i < el; i++ {
-			if kx := x.Elts[i].Key; kx != nil {
-				// XXX why convert? (also see doOpArrayLit())
-				k := kx.(*ConstExpr).ConvertGetInt()
-				rf := rv.Index(int(k)) // XXX: k may overflow on 32 bits plaforms.
-				gno2GoValue(&itvs[i], rf)
-			} else {
-				rf := rv.Index(i)
-				gno2GoValue(&itvs[i], rf)
-			}
-		}
-	}
-	// construct and push value.
-	if debug {
-		if m.PopValue().V.(TypeValue).Type != nt {
-			panic("should not happen")
-		}
-	} else {
-		m.PopValue()
-	}
-	nv := m.Alloc.NewNative(rv.Slice(0, el))
-	m.PushValue(TypedValue{
-		T: nt,
-		V: nv,
-	})
-}
-
-func (m *Machine) doOpStructLitGoNative() {
-	// assess performance TODO
-	x := m.PopExpr().(*CompositeLitExpr)
-	el := len(x.Elts) // may be incomplete
-	// peek struct type.
-	xt := m.PeekValue(1 + el).V.(TypeValue).Type
-	nt := xt.(*NativeType)
-	rv := reflect.New(nt.Type).Elem()
-	// whether composite lit had field names or not...
-	if el == 0 {
-		// zero struct with no fields set.
-	} else if x.Elts[0].Key == nil {
-		// field values are in order.
-		ftvs := m.PopValues(el)
-		for i := 0; i < el; i++ {
-			rf := rv.Field(i)
-			gno2GoValue(&ftvs[i], rf)
-		}
-	} else {
-		// field values are by name and may be out of order.
-		ftvs := m.PopValues(el)
-		for i := 0; i < el; i++ {
-			fnx := x.Elts[i].Key.(*NameExpr)
-			rf := rv.FieldByName(string(fnx.Name))
-			gno2GoValue(&ftvs[i], rf)
-		}
-	}
-	// construct and push value.
-	if debug {
-		if m.PopValue().V.(TypeValue).Type != nt {
-			panic("should not happen")
-		}
-	} else {
-		m.PopValue()
-	}
-	m.PushValue(TypedValue{
-		T: nt,
-		V: m.Alloc.NewNative(rv),
-	})
-}
-
 // NOTE: Unlike doOpCall(), doOpCallGoNative() also handles
 // conversions, similarly to doOpConvert().
-func (m *Machine) doOpCallGoNative() {
+/*func (m *Machine) doOpCallGoNative() {
 	fr := m.LastFrame()
 	fv := fr.GoFunc
 	ft := fv.Value.Type()
@@ -1406,7 +1279,7 @@ func (m *Machine) doOpCallGoNative() {
 	// cleanup
 	m.NumResults = fv.Value.Type().NumOut()
 	m.PopFrame()
-}
+}*/
 
 // ----------------------------------------
 // misc

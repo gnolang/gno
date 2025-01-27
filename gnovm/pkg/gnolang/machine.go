@@ -1401,18 +1401,9 @@ func (m *Machine) Run() {
 			m.incrCPU(OpCPUConvert)
 			m.doOpConvert()
 		/* GoNative Operators */
-		case OpArrayLitGoNative:
-			m.incrCPU(OpCPUArrayLitGoNative)
-			m.doOpArrayLitGoNative()
-		case OpSliceLitGoNative:
-			m.incrCPU(OpCPUSliceLitGoNative)
-			m.doOpSliceLitGoNative()
-		case OpStructLitGoNative:
-			m.incrCPU(OpCPUStructLitGoNative)
-			m.doOpStructLitGoNative()
-		case OpCallGoNative:
-			m.incrCPU(OpCPUCallGoNative)
-			m.doOpCallGoNative()
+		//case OpCallGoNative:
+		//	m.incrCPU(OpCPUCallGoNative)
+		//	m.doOpCallGoNative()
 		/* Type operators */
 		case OpFieldType:
 			m.incrCPU(OpCPUFieldType)
@@ -1785,7 +1776,6 @@ func (m *Machine) PushFrameCall(cx *CallExpr, fv *FuncValue, recv TypedValue) {
 		NumStmts:    len(m.Stmts),
 		NumBlocks:   len(m.Blocks),
 		Func:        fv,
-		GoFunc:      nil,
 		Receiver:    recv,
 		NumArgs:     cx.NumArgs,
 		IsVarg:      cx.Varg,
@@ -1826,30 +1816,6 @@ func (m *Machine) PushFrameCall(cx *CallExpr, fv *FuncValue, recv TypedValue) {
 	if rlm != nil && m.Realm != rlm {
 		m.Realm = rlm // enter new realm
 	}
-}
-
-func (m *Machine) PushFrameGoNative(cx *CallExpr, fv *NativeValue) {
-	fr := &Frame{
-		Source:      cx,
-		NumOps:      m.NumOps,
-		NumValues:   m.NumValues - cx.NumArgs - 1,
-		NumExprs:    len(m.Exprs),
-		NumStmts:    len(m.Stmts),
-		NumBlocks:   len(m.Blocks),
-		Func:        nil,
-		GoFunc:      fv,
-		Receiver:    TypedValue{},
-		NumArgs:     cx.NumArgs,
-		IsVarg:      cx.Varg,
-		Defers:      nil,
-		LastPackage: m.Package,
-		LastRealm:   m.Realm,
-	}
-	if debug {
-		m.Printf("+F %#v\n", fr)
-	}
-	m.Frames = append(m.Frames, fr)
-	// keep m.Package the same.
 }
 
 func (m *Machine) PopFrame() Frame {

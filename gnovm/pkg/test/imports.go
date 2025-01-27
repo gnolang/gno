@@ -1,23 +1,19 @@
 package test
 
 import (
-	"encoding/json"
 	"errors"
 	"fmt"
 	"go/token"
 	"io"
-	"math/big"
 	"os"
 	"path/filepath"
 	"runtime/debug"
 	"strings"
-	"time"
 
 	"github.com/gnolang/gno/gnovm"
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
 	"github.com/gnolang/gno/gnovm/pkg/packages"
 	teststdlibs "github.com/gnolang/gno/gnovm/tests/stdlibs"
-	teststd "github.com/gnolang/gno/gnovm/tests/stdlibs/std"
 	"github.com/gnolang/gno/tm2/pkg/db/memdb"
 	osm "github.com/gnolang/gno/tm2/pkg/os"
 	"github.com/gnolang/gno/tm2/pkg/std"
@@ -92,7 +88,38 @@ func StoreWithOptions(
 
 		// gonative exceptions.
 		// These are values available using gonative; eventually they should all be removed.
-		switch pkgPath {
+		/*switch pkgPath {
+		case "os":
+			pkg := gno.NewPackageNode("os", pkgPath, nil)
+			pkg.DefineGoNativeValue("Stdin", stdin)
+			pkg.DefineGoNativeValue("Stdout", stdout)
+			pkg.DefineGoNativeValue("Stderr", stderr)
+			return pkg, pkg.NewPackage()
+		case "fmt":
+			pkg := gno.NewPackageNode("fmt", pkgPath, nil)
+			pkg.DefineGoNativeValue("Println", func(a ...interface{}) (n int, err error) {
+				// NOTE: uncomment to debug long running tests
+				// fmt.Println(a...)
+				res := fmt.Sprintln(a...)
+				return stdout.Write([]byte(res))
+			})
+			pkg.DefineGoNativeValue("Printf", func(format string, a ...interface{}) (n int, err error) {
+				res := fmt.Sprintf(format, a...)
+				return stdout.Write([]byte(res))
+			})
+			pkg.DefineGoNativeValue("Print", func(a ...interface{}) (n int, err error) {
+				res := fmt.Sprint(a...)
+				return stdout.Write([]byte(res))
+			})
+			pkg.DefineGoNativeValue("Sprint", fmt.Sprint)
+			pkg.DefineGoNativeValue("Sprintf", fmt.Sprintf)
+			pkg.DefineGoNativeValue("Sprintln", fmt.Sprintln)
+			pkg.DefineGoNativeValue("Sscanf", fmt.Sscanf)
+			pkg.DefineGoNativeValue("Errorf", fmt.Errorf)
+			pkg.DefineGoNativeValue("Fprintln", fmt.Fprintln)
+			pkg.DefineGoNativeValue("Fprintf", fmt.Fprintf)
+			pkg.DefineGoNativeValue("Fprint", fmt.Fprint)
+			return pkg, pkg.NewPackage()
 		case "encoding/json":
 			pkg := gno.NewPackageNode("json", pkgPath, nil)
 			pkg.DefineGoNativeValue("Unmarshal", json.Unmarshal)
@@ -127,7 +154,7 @@ func StoreWithOptions(
 			pkg := gno.NewPackageNode("big", pkgPath, nil)
 			pkg.DefineGoNativeValue("NewInt", big.NewInt)
 			return pkg, pkg.NewPackage()
-		}
+		}*/
 
 		// Load normal stdlib.
 		pn, pv = loadStdlib(rootDir, pkgPath, store, output, opts.PreprocessOnly)

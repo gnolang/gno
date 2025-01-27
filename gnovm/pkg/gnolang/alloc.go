@@ -1,7 +1,5 @@
 package gnolang
 
-import "reflect"
-
 // Keeps track of in-memory allocations.
 // In the future, allocations within realm boundaries will be
 // (optionally?) condensed (objects to be GC'd will be discarded),
@@ -297,13 +295,6 @@ func (alloc *Allocator) NewMap(size int) *MapValue {
 func (alloc *Allocator) NewBlock(source BlockNode, parent *Block) *Block {
 	alloc.AllocateBlock(int64(source.GetNumNames()))
 	return NewBlock(source, parent)
-}
-
-func (alloc *Allocator) NewNative(rv reflect.Value) *NativeValue {
-	alloc.AllocateNative()
-	return &NativeValue{
-		Value: rv,
-	}
 }
 
 func (alloc *Allocator) NewType(t Type) Type {

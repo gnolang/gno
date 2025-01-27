@@ -22,8 +22,8 @@ type Frame struct {
 	NumBlocks int  // number of blocks in stack
 
 	// call frame
-	Func        *FuncValue    // function value
-	GoFunc      *NativeValue  // go function value
+	Func *FuncValue // function value
+	//GoFunc      *NativeValue  // go function value
 	Receiver    TypedValue    // if bound method
 	NumArgs     int           // number of arguments in call
 	IsVarg      bool          // is form fncall(???, vargs...)
@@ -47,7 +47,7 @@ func (fr Frame) String() string {
 			fr.NumBlocks,
 			fr.LastPackage.PkgPath,
 			fr.LastRealm)
-	} else if fr.GoFunc != nil {
+		/*} else if fr.GoFunc != nil {
 		return fmt.Sprintf("[FRAME GOFUNC:%v RECV:%s (%d args) %d/%d/%d/%d/%d]",
 			fr.GoFunc.Value,
 			fr.Receiver,
@@ -57,6 +57,7 @@ func (fr Frame) String() string {
 			fr.NumExprs,
 			fr.NumStmts,
 			fr.NumBlocks)
+		*/
 	} else {
 		return fmt.Sprintf("[FRAME LABEL: %s %d/%d/%d/%d/%d]",
 			fr.Label,
@@ -69,7 +70,7 @@ func (fr Frame) String() string {
 }
 
 func (fr *Frame) IsCall() bool {
-	return fr.Func != nil || fr.GoFunc != nil
+	return fr.Func != nil //|| fr.GoFunc != nil
 }
 
 func (fr *Frame) PushDefer(dfr Defer) {
@@ -89,8 +90,8 @@ func (fr *Frame) PopDefer() (res Defer, ok bool) {
 // Defer
 
 type Defer struct {
-	Func   *FuncValue   // function value
-	GoFunc *NativeValue // go function value
+	Func *FuncValue // function value
+	//GoFunc *NativeValue // go function value
 	Args   []TypedValue // arguments
 	Source *DeferStmt   // source
 	Parent *Block
@@ -132,10 +133,10 @@ func (s Stacktrace) String() string {
 			fmt.Fprintf(&builder, "    gonative:%s.%s\n", call.Frame.Func.NativePkg, call.Frame.Func.NativeName)
 		case call.Frame.Func != nil:
 			fmt.Fprintf(&builder, "%s\n", toExprTrace(cx))
-			fmt.Fprintf(&builder, "    %s/%s:%d\n", call.Frame.Func.PkgPath, call.Frame.Func.FileName, line)
-		case call.Frame.GoFunc != nil:
-			fmt.Fprintf(&builder, "%s\n", toExprTrace(cx))
-			fmt.Fprintf(&builder, "    gofunction:%s\n", call.Frame.GoFunc.Value.Type())
+			fmt.Fprintf(&builder, "    %s/%s:%d\n", call.Frame.Func.PkgPath, call.Frame.Func.FileName, call.Stmt.GetLine())
+		//case call.Frame.GoFunc != nil:
+		//	fmt.Fprintf(&builder, "%s\n", toExprTrace(cx))
+		//	fmt.Fprintf(&builder, "    gofunction:%s\n", call.Frame.GoFunc.Value.Type())
 		default:
 			panic("StacktraceCall has a non-call Frame")
 		}
