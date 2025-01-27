@@ -41,7 +41,7 @@ stderr 'unauthorized user'
 
 # test gui register namespace
 # gui call -> gnoland/users/v1.Register
-gnokey maketx call -pkgpath gno.land/r/gnoland/users/v1 -func Register -gas-fee 1000000ugnot -gas-wanted 9000000 -broadcast -chainid=tendermint_test -args 'guigui123' gui
+gnokey maketx call -pkgpath gno.land/r/gnoland/users/v1 -func Register -gas-fee 1000000ugnot -gas-wanted 9500000 -broadcast -chainid=tendermint_test -args 'guigui123' gui
 stdout 'OK!'
 
 # Test gui publishing on guigui123/one
