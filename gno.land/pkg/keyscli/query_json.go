@@ -1,6 +1,7 @@
 package keyscli
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"flag"
@@ -65,12 +66,19 @@ func execQuery(cfg *client.QueryCfg, args []string, io commands.IO) error {
 		}
 	}
 
-	res, err := json.MarshalIndent(output, "", "  ")
-	if err != nil {
-		io.ErrPrintfln("Unable to marshal output %+v\n", qres)
+	var buff bytes.Buffer
+	jqueryEnc := json.NewEncoder(&buff)
+	jqueryEnc.SetEscapeHTML(false) // disable HTML escaping, as we want to correctly display `<`, `>`
+	jqueryEnc.SetIndent("", "  ")
+
+	if err := jqueryEnc.Encode(output); err != nil {
+		io.ErrPrintfln("Unable to marshal\n Response: %+v\n Returns: %+v\n",
+			string(output.Response),
+			string(output.Returns),
+		)
 		return fmt.Errorf("marshal json error: %w", err)
 	}
 
-	io.Println(string(res))
+	io.Println(buff.String())
 	return nil
 }
