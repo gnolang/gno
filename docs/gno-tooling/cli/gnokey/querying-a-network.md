@@ -24,6 +24,7 @@ Below is a list of queries a user can make with `gnokey`:
 - `bank/balances/{ADDRESS}` - returns balances of an account
 - `vm/qfuncs` - returns the exported functions for a given pkgpath
 - `vm/qfile` - returns package contents for a given pkgpath
+- `vm/qdoc` - Returns JSON of the doc for a given pkgpath, suitable for printing
 - `vm/qeval` - evaluates an expression in read-only mode on and returns the results
 - `vm/qrender` - shorthand for evaluating `vm/qeval Render("")` for a given pkgpath
 
@@ -174,6 +175,57 @@ const (
         wugnotMinDeposit uint64 = 1
 )
 ...
+```
+
+
+## `vm/qdoc`
+
+Using the `vm/qdoc` query, we can fetch the docs, for functions, types and variables from a specific
+package path. To specify the path we want to query, we can use the `-data` flag:
+
+```bash
+gnokey query vm/qdoc --data "gno.land/r/gnoland/valopers/v2" -remote https://rpc.gno.land:443
+```
+
+The output is a JSON string containing doc strings of the package, functions, etc., including comments for `valopers` realm:
+
+```json
+height: 0
+data: {
+  "package_path": "gno.land/r/gnoland/valopers/v2",
+  "package_line": "package valopers // import \"valopers\"",
+  "package_doc": "Package valopers is designed around the permissionless lifecycle of valoper profiles. It also includes parts designed for govdao to propose valset changes based on registered valopers.\n",
+  "values": [
+    {
+      "signature": "var valopers *avl.Tree // Address -\u003e Valoper\n",
+      "doc": "valopers keeps track of all the active validator operators\n"
+    }
+    // other values
+  ],
+  "funcs": [
+    {
+      "type": "",
+      "name": "GovDAOProposal",
+      "signature": "func GovDAOProposal(address std.Address)",
+      "doc": "GovDAOProposal creates a proposal to the GovDAO for adding the given valoper to the validator set. This function is meant to serve as a helper for generating the govdao proposal\n"
+    }
+    // other funcs
+    {
+      "type": "Valoper",
+      "name": "Render",
+      "signature": "func (v Valoper) Render() string",
+      "doc": "Render renders a single valoper with their information\n"
+    }
+    // other methods (in this case of the Valoper type)
+  ],
+  "types": [
+    {
+      "name": "Valoper",
+      "signature": "type Valoper struct {\n\tName        string // the display name of the valoper\n\tMoniker     string // the moniker of the valoper\n\tDescription string // the description of the valoper\n\n\tAddress      std.Address // The bech32 gno address of the validator\n\tPubKey       string      // the bech32 public key of the validator\n\tP2PAddresses []string    // the publicly reachable P2P addresses of the validator\n\tActive       bool        // flag indicating if the valoper is active\n}",
+      "doc": "Valoper represents a validator operator profile\n"
+    }
+  ]
+}
 ```
 
 ## `vm/qeval`
