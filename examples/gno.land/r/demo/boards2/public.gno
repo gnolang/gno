@@ -66,7 +66,8 @@ func FlagThread(bid BoardID, postID PostID, reason string) {
 		panic("post doesn't exist")
 	}
 
-	if flagItem(t, NewFlag(caller, reason)) {
+	hide := flagItem(t, NewFlag(caller, reason))
+	if hide {
 		t.SetVisible(false)
 	}
 }
@@ -74,12 +75,10 @@ func FlagThread(bid BoardID, postID PostID, reason string) {
 func CreateThread(bid BoardID, title, body string) PostID {
 	assertIsUserCall()
 
-	// TODO: Assert that caller is a board member (when board type is invite only)
 	caller := std.GetOrigCaller()
-	assertHasPermission(caller, PermissionThreadCreate) // TODO: Who can create threads?
-	assertBoardExists(bid)
-
 	board := mustGetBoard(bid)
+	assertHasBoardPermission(board, caller, PermissionThreadCreate)
+
 	thread := board.AddThread(caller, title, body)
 	return thread.id
 }
@@ -87,15 +86,13 @@ func CreateThread(bid BoardID, title, body string) PostID {
 func CreateReply(bid BoardID, threadID, replyID PostID, body string) PostID {
 	assertIsUserCall()
 
-	// TODO: Assert that caller is a board member when board type is invite only
 	caller := std.GetOrigCaller()
 	board := mustGetBoard(bid)
-	thread := mustGetThread(board, threadID)
+	assertHasBoardPermission(board, caller, PermissionReplyCreate)
 
+	thread := mustGetThread(board, threadID)
 	assertThreadVisible(thread)
 
-	// TODO: Assert thread is not locked
-	// TODO: Assert that caller is a board member (when board type is invite only)
 	var reply *Post
 	if replyID == threadID {
 		// When the parent reply is the thread just add reply to thread
@@ -112,14 +109,14 @@ func CreateReply(bid BoardID, threadID, replyID PostID, body string) PostID {
 
 func FlagReply(bid BoardID, threadID, replyID PostID, reason string) {
 	caller := std.GetOrigCaller()
-
 	board := mustGetBoard(bid)
 	assertHasBoardPermission(board, caller, PermissionThreadFlag)
 
 	thread := mustGetThread(board, threadID)
 	reply := mustGetReply(thread, replyID)
 
-	if hide := flagItem(reply, NewFlag(caller, reason)); hide {
+	hide := flagItem(reply, NewFlag(caller, reason))
+	if hide {
 		reply.SetVisible(false)
 	}
 }
@@ -127,46 +124,33 @@ func FlagReply(bid BoardID, threadID, replyID PostID, reason string) {
 func CreateRepost(bid BoardID, threadID PostID, title, body string, dstBoardID BoardID) PostID {
 	assertIsUserCall()
 
-	// TODO: Assert that caller is a board member (when board type is invite only)
 	caller := std.GetOrigCaller()
-	assertBoardExists(dstBoardID)
+	dst := mustGetBoard(dstBoardID)
+	assertHasBoardPermission(dst, caller, PermissionThreadRepost)
 
 	board := mustGetBoard(bid)
 	if board.IsPrivate() {
 		panic("cannot repost from a private board")
 	}
 
-	// TODO: Assert that board allows reposts?
-	// TODO: Assert that caller is member of both boards (when board types are invite only)
-
-	assertThreadExists(board, threadID)
-
-	dst := mustGetBoard(dstBoardID)
 	thread := mustGetThread(board, threadID)
-
 	repostId := dst.incGetPostID()
 	repost := newPost(dst, repostId, caller, title, body, repostId, thread.GetPostID(), thread.GetBoard().GetID())
-
-	args := Args{board.GetID(), threadID, dst.GetID()}
-	dst.GetPermissions().WithPermission(caller, PermissionThreadRepost, args, func(_ Args) {
-		thread.AddRepostTo(caller, repost, dst)
-	})
-
+	thread.AddRepostTo(caller, repost, dst)
 	return repostId
 }
 
 func DeleteThread(bid BoardID, threadID PostID) {
 	assertIsUserCall()
 
-	board := mustGetBoard(bid)
-	assertThreadExists(board, threadID)
-
 	caller := std.GetOrigCaller()
-	args := Args{bid, threadID}
-	gPerm.WithPermission(caller, PermissionThreadDelete, args, func(Args) {
-		board := mustGetBoard(bid)
-		board.DeleteThread(threadID)
-	})
+	board := mustGetBoard(bid)
+	thread := mustGetThread(board, threadID)
+	if caller != thread.GetCreator() {
+		assertHasBoardPermission(board, caller, PermissionThreadDelete)
+	}
+
+	board.DeleteThread(threadID)
 }
 
 func DeleteReply(bid BoardID, threadID, replyID PostID) {
@@ -195,17 +179,13 @@ func EditThread(bid BoardID, threadID PostID, title, body string) {
 	assertIsUserCall()
 
 	board := mustGetBoard(bid)
-	assertThreadExists(board, threadID)
-
-	// TODO: Thread owners should be able to edit without permission?
-
+	thread := mustGetThread(board, threadID)
 	caller := std.GetOrigCaller()
-	args := Args{bid, threadID, title, body}
-	gPerm.WithPermission(caller, PermissionThreadEdit, args, func(Args) {
-		board := mustGetBoard(bid)
-		thread := mustGetThread(board, threadID)
-		thread.Update(title, body)
-	})
+	if caller != thread.GetCreator() {
+		assertHasBoardPermission(board, caller, PermissionThreadEdit)
+	}
+
+	thread.Update(title, body)
 }
 
 func EditReply(bid BoardID, threadID, replyID PostID, title, body string) {
@@ -219,7 +199,6 @@ func EditReply(bid BoardID, threadID, replyID PostID, title, body string) {
 		panic("only the reply creator is allowed to edit it")
 	}
 
-	// TODO: Should we have a history of previous reply contents?
 	reply.Update(title, body)
 }
 

@@ -64,7 +64,6 @@ func (dp DefaultPermissions) HasRole(user std.Address, r Role) bool {
 
 // HasPermission checks if a user has a specific permission.
 func (dp DefaultPermissions) HasPermission(user std.Address, perm Permission) bool {
-	// TODO: Should we check that the user belongs to the DAO?
 	for _, r := range dp.GetUserRoles(user) {
 		if dp.superRole == r {
 			return true
@@ -239,6 +238,7 @@ func createDefaultPermissions(owner std.Address) *DefaultPermissions {
 			PermissionThreadEdit,
 			PermissionThreadDelete,
 			PermissionThreadFlag,
+			PermissionReplyCreate,
 			PermissionReplyDelete,
 			PermissionReplyFlag,
 			PermissionRoleChange,
@@ -248,12 +248,14 @@ func createDefaultPermissions(owner std.Address) *DefaultPermissions {
 			PermissionThreadCreate,
 			PermissionThreadEdit,
 			PermissionThreadFlag,
+			PermissionReplyCreate,
 			PermissionReplyFlag,
 		),
 		WithRole(
 			RoleGuest,
 			PermissionThreadCreate,
 			PermissionThreadRepost,
+			PermissionReplyCreate,
 		),
 		WithUser(owner, RoleOwner),
 	)
