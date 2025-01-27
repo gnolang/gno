@@ -1,3 +1,6 @@
+// Package pausable provides a mechanism to programmatically pause and unpause
+// functionality. This package allows an owner, defined via an Ownable object,
+// to restrict operations or methods when the contract is in a "paused" state.
 package pausable
 
 import (
