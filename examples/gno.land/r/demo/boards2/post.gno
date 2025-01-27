@@ -1,4 +1,3 @@
-// Soft delete the reply by changing its body
 package boards2
 
 import (
