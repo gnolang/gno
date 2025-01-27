@@ -126,7 +126,7 @@ func TestCommonDAOPropose(t *testing.T) {
 			name:    "ok",
 			setup:   func() *CommonDAO { return New() },
 			creator: "g1w4ek2u33ta047h6lta047h6lta047h6ldvdwpn",
-			def:     &testPropDef{},
+			def:     testPropDef{},
 		},
 		{
 			name:  "nil definition",
@@ -134,10 +134,10 @@ func TestCommonDAOPropose(t *testing.T) {
 			err:   ErrProposalDefinitionRequired,
 		},
 		{
-			name:  "invalid address",
+			name:  "invalid creator address",
 			setup: func() *CommonDAO { return New() },
-			def:   &testPropDef{},
-			err:   ErrInvalidAddress,
+			def:   testPropDef{},
+			err:   ErrInvalidCreatorAddress,
 		},
 		{
 			name: "proposal ID overflow",
@@ -147,7 +147,7 @@ func TestCommonDAOPropose(t *testing.T) {
 				return dao
 			},
 			creator: "g1w4ek2u33ta047h6lta047h6lta047h6ldvdwpn",
-			def:     &testPropDef{},
+			def:     testPropDef{},
 			err:     ErrOverflow,
 		},
 	}
@@ -186,7 +186,7 @@ func TestCommonDAOVote(t *testing.T) {
 			setup: func() *CommonDAO {
 				member := std.Address("g1w4ek2u33ta047h6lta047h6lta047h6ldvdwpn")
 				dao := New(WithMember(member))
-				dao.Propose(member, &testPropDef{})
+				dao.Propose(member, testPropDef{})
 				return dao
 			},
 			member:     "g1w4ek2u33ta047h6lta047h6lta047h6ldvdwpn",
@@ -283,7 +283,7 @@ func TestCommonDAOTally(t *testing.T) {
 			stats:        Stats{YayVotes: 1, Abstained: 2},
 		},
 		{
-			name: "majority not met",
+			name: "no consensus",
 			dao: New(
 				WithMember("g1w4ek2u33ta047h6lta047h6lta047h6ldvdwpn"),
 				WithMember("g1w4ek2u3jta047h6lta047h6lta047h6l9huexc"),
@@ -294,14 +294,14 @@ func TestCommonDAOTally(t *testing.T) {
 				{Address: "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5", Choice: ChoiceNo},
 			},
 			status:       StatusFailed,
-			statusReason: "majority not met",
+			statusReason: "no consensus",
 			stats:        Stats{YayVotes: 1, NayVotes: 1, Abstained: 1},
 		},
 	}
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			p := NewProposal(1, "", testPropDef{})
+			p, _ := NewProposal(1, "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5", majorityPropDef{})
 			for _, v := range tc.votes {
 				p.record.AddVote(v.Address, v.Choice)
 			}
@@ -337,7 +337,7 @@ func TestCommonDAOExecute(t *testing.T) {
 					"g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5",
 				}
 				dao := New(WithMember(members[0]), WithMember(members[1]), WithMember(members[2]))
-				p, _ := dao.Propose(members[0], &testPropDef{})
+				p, _ := dao.Propose(members[0], testPropDef{tallyResult: true})
 				p.record.AddVote(members[0], ChoiceYes)
 				p.record.AddVote(members[1], ChoiceYes)
 				return dao
@@ -356,7 +356,7 @@ func TestCommonDAOExecute(t *testing.T) {
 			setup: func() *CommonDAO {
 				member := std.Address("g1w4ek2u33ta047h6lta047h6lta047h6ldvdwpn")
 				dao := New(WithMember(member))
-				p, _ := dao.Propose(member, &testPropDef{})
+				p, _ := dao.Propose(member, testPropDef{})
 				p.status = StatusExecuted
 				return dao
 			},
@@ -368,7 +368,7 @@ func TestCommonDAOExecute(t *testing.T) {
 			setup: func() *CommonDAO {
 				member := std.Address("g1w4ek2u33ta047h6lta047h6lta047h6ldvdwpn")
 				dao := New(WithMember(member))
-				dao.Propose(member, &testPropDef{votingPeriod: time.Minute * 5})
+				dao.Propose(member, testPropDef{votingPeriod: time.Minute * 5})
 				return dao
 			},
 			proposalID: 1,
@@ -379,7 +379,7 @@ func TestCommonDAOExecute(t *testing.T) {
 			setup: func() *CommonDAO {
 				member := std.Address("g1w4ek2u33ta047h6lta047h6lta047h6ldvdwpn")
 				dao := New(WithMember(member))
-				dao.Propose(member, &testPropDef{validationErr: errValidation})
+				dao.Propose(member, testPropDef{validationErr: errValidation})
 				return dao
 			},
 			proposalID:   1,
@@ -396,7 +396,10 @@ func TestCommonDAOExecute(t *testing.T) {
 					"g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5",
 				}
 				dao := New(WithMember(members[0]), WithMember(members[1]), WithMember(members[2]))
-				p, _ := dao.Propose(members[0], &testPropDef{executionErr: errExecution})
+				p, _ := dao.Propose(members[0], testPropDef{
+					tallyResult:  true,
+					executionErr: errExecution,
+				})
 				p.record.AddVote(members[0], ChoiceYes)
 				p.record.AddVote(members[1], ChoiceYes)
 				return dao
@@ -432,14 +435,9 @@ func TestCommonDAOExecute(t *testing.T) {
 	}
 }
 
-type testPropDef struct {
-	votingPeriod                time.Duration
-	validationErr, executionErr error
-}
+type majorityPropDef struct{ testPropDef }
 
-func (testPropDef) Title() string                 { return "" }
-func (testPropDef) Body() string                  { return "" }
-func (testPropDef) Quorum() float64               { return 0 }
-func (d testPropDef) VotingPeriod() time.Duration { return d.votingPeriod }
-func (d testPropDef) Validate() error             { return d.validationErr }
-func (d testPropDef) Execute() error              { return d.executionErr }
+func (majorityPropDef) Tally(r ReadOnlyVotingRecord, membersCount int) bool {
+	_, success := SelectChoiceByAbsoluteMajority(r, membersCount)
+	return success
+}

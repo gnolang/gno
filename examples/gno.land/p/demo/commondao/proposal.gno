@@ -1,9 +1,13 @@
 package commondao
 
 import (
+	"errors"
 	"std"
 	"time"
 )
+
+// DefaultQuorum defines the default quorum required to tally proposal votes.
+const DefaultQuorum = 0.34 // 34%
 
 const (
 	StatusActive   ProposalStatus = "active"
@@ -15,6 +19,11 @@ const (
 	ChoiceAbstain VoteChoice = ""
 	ChoiceYes                = "yes"
 	ChoiceNo                 = "no"
+)
+
+var (
+	ErrInvalidCreatorAddress      = errors.New("invalid proposal creator address")
+	ErrProposalDefinitionRequired = errors.New("proposal definition is required")
 )
 
 type (
@@ -61,6 +70,10 @@ type (
 		// Validations are optional and allow the validation of the current state before proposal execution.
 		Validate() error
 
+		// Tally counts the number of votes and verifies that there is consensus.
+		// Tally fails when none of the vote choices wins over the others.
+		Tally(r ReadOnlyVotingRecord, memberCount int) (success bool)
+
 		// Execute executes the proposal.
 		// Once proposal are executed they are archived and considered finished.
 		// Execution allows changing the state after a proposal passes.
@@ -69,7 +82,15 @@ type (
 )
 
 // NewProposal creates a new DAO proposal.
-func NewProposal(id uint64, creator std.Address, d ProposalDefinition) *Proposal {
+func NewProposal(id uint64, creator std.Address, d ProposalDefinition) (*Proposal, error) {
+	if d == nil {
+		return nil, ErrProposalDefinitionRequired
+	}
+
+	if !creator.IsValid() {
+		return nil, ErrInvalidCreatorAddress
+	}
+
 	now := time.Now()
 	return &Proposal{
 		id:             id,
@@ -79,7 +100,7 @@ func NewProposal(id uint64, creator std.Address, d ProposalDefinition) *Proposal
 		record:         &VotingRecord{},
 		votingDeadline: now.Add(d.VotingPeriod()),
 		createdAt:      now,
-	}
+	}, nil
 }
 
 // ID returns the unique proposal identifies.
@@ -91,6 +112,15 @@ func (p Proposal) ID() uint64 {
 // Proposal definitions define proposal content and behavior.
 func (p Proposal) Definition() ProposalDefinition {
 	return p.definition
+}
+
+// Quorum returns the percentage of members that must vote to be able to pass a proposal.
+func (p Proposal) Quorum() float64 {
+	quorum := p.definition.Quorum()
+	if quorum <= 0 || quorum > 1 {
+		quorum = DefaultQuorum
+	}
+	return quorum
 }
 
 // Status returns the current proposal status.

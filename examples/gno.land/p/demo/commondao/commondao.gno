@@ -10,19 +10,14 @@ import (
 	"gno.land/p/demo/seqid"
 )
 
-// DefaultQuorum defines the default quorum required to tally proposal votes.
-const DefaultQuorum = 0.34 // 34%
-
 var (
-	ErrInvalidAddress             = errors.New("invalid address")
-	ErrInvalidVoteChoice          = errors.New("invalid vote choice")
-	ErrMemberExists               = errors.New("member already exist")
-	ErrNotMember                  = errors.New("account is not a member of the DAO")
-	ErrOverflow                   = errors.New("next ID overflows uint64")
-	ErrProposalDefinitionRequired = errors.New("proposal definition is required")
-	ErrProposalNotFound           = errors.New("proposal not found")
-	ErrStatusIsNotActive          = errors.New("proposal status is not active")
-	ErrVotingDeadlineNotMet       = errors.New("voting deadline not met")
+	ErrInvalidVoteChoice    = errors.New("invalid vote choice")
+	ErrMemberExists         = errors.New("member already exist")
+	ErrNotMember            = errors.New("account is not a member of the DAO")
+	ErrOverflow             = errors.New("next ID overflows uint64")
+	ErrProposalNotFound     = errors.New("proposal not found")
+	ErrStatusIsNotActive    = errors.New("proposal status is not active")
+	ErrVotingDeadlineNotMet = errors.New("voting deadline not met")
 )
 
 type (
@@ -104,20 +99,16 @@ func (dao CommonDAO) FinishedProposals() rotree.IReadOnlyTree {
 
 // Propose creates a new DAO proposal.
 func (dao *CommonDAO) Propose(creator std.Address, d ProposalDefinition) (*Proposal, error) {
-	if d == nil {
-		return nil, ErrProposalDefinitionRequired
-	}
-
-	if !creator.IsValid() {
-		return nil, ErrInvalidAddress
-	}
-
 	id, ok := dao.genID.TryNext()
 	if !ok {
 		return nil, ErrOverflow
 	}
 
-	p := NewProposal(uint64(id), creator, d)
+	p, err := NewProposal(uint64(id), creator, d)
+	if err != nil {
+		return nil, err
+	}
+
 	key := makeProposalKey(p.ID())
 	dao.active.Set(key, p)
 	return p, nil
@@ -161,34 +152,26 @@ func (dao *CommonDAO) Vote(member std.Address, proposalID uint64, c VoteChoice) 
 func (dao *CommonDAO) Tally(p *Proposal) Stats {
 	// Initialize stats considering only yes/no votes
 	record := p.VotingRecord()
-	votesCount := record.VoteCount(ChoiceYes) + record.VoteCount(ChoiceNo)
-	membersCount := len(dao.Members())
 	stats := Stats{
-		YayVotes:  record.VoteCount(ChoiceYes),
-		NayVotes:  record.VoteCount(ChoiceNo),
-		Abstained: membersCount - votesCount,
+		YayVotes: record.VoteCount(ChoiceYes),
+		NayVotes: record.VoteCount(ChoiceNo),
 	}
-
-	// Check quorum before tallying
-	quorum := p.Definition().Quorum()
-	if quorum <= 0 || quorum > 1 {
-		quorum = DefaultQuorum
-	}
+	votesCount := stats.YayVotes + stats.NayVotes
+	membersCount := len(dao.Members())
+	stats.Abstained = membersCount - votesCount
 
 	percentage := float64(votesCount) / float64(membersCount)
-	if percentage < quorum {
+	if percentage < p.Quorum() {
 		p.status = StatusFailed
 		p.statusReason = "low participation"
 		return stats
 	}
 
-	// Tally by majority requiring more than 50% of yes/no votes to win
-	// TODO: Confirm this way of tallying is enough for now. Keeping it minimal.
-	choice := record.GetProvableMajorityChoice()
-	if record.VoteCount(choice) <= int(votesCount/2) {
+	if !p.Definition().Tally(record, membersCount) {
 		p.status = StatusFailed
-		p.statusReason = "majority not met"
+		p.statusReason = "no consensus"
 	}
+
 	return stats
 }
 

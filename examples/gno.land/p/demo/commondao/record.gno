@@ -17,12 +17,42 @@ type (
 		Choice  VoteChoice
 	}
 
-	// VotingRecord stores accounts that voted and vote choices.
-	VotingRecord struct {
-		votes avl.Tree // string(address) -> VoteChoice
-		count avl.Tree // string(choice) -> int
+	// ReadOnlyVotingRecord defines an interface for read only voting records.
+	ReadOnlyVotingRecord interface {
+		// VoteChoices returns the voting choices that has been voted.
+		VoteChoices() []VoteChoice
+
+		// Votes returns the list of all votes.
+		Votes() []Vote
+
+		// VoteCount returns the number of votes for a single voting choice.
+		VoteCount(VoteChoice) int
+
+		// HasVoted checks if an account already voted.
+		HasVoted(std.Address) bool
+
+		// GetProvableMajorityChoice returns the choice voted by the majority.
+		// The result is only valid if there is a majority.
+		// Caller must validate that the returned choice represents a majority.
+		GetProvableMajorityChoice() VoteChoice
 	}
 )
+
+// VotingRecord stores accounts that voted and vote choices.
+type VotingRecord struct {
+	votes avl.Tree // string(address) -> VoteChoice
+	count avl.Tree // string(choice) -> int
+}
+
+// VoteChoices returns the voting choices that has been voted.
+func (r VotingRecord) VoteChoices() []VoteChoice {
+	var choices []VoteChoice
+	r.count.Iterate("", "", func(k string, v interface{}) bool {
+		choices = append(choices, VoteChoice(k))
+		return false
+	})
+	return choices
+}
 
 // Votes returns the list of all votes.
 func (r VotingRecord) Votes() []Vote {
@@ -80,4 +110,53 @@ func (r VotingRecord) GetProvableMajorityChoice() VoteChoice {
 		return false
 	})
 	return choice
+}
+
+// SelectChoiceByAbsoluteMajority select the vote choice by absolute majority.
+// Vote choice is a majority when chosen by more than half of the votes.
+// Absolute majority considers abstentions when counting votes.
+func SelectChoiceByAbsoluteMajority(r ReadOnlyVotingRecord, memberCount int) (VoteChoice, bool) {
+	choice := r.GetProvableMajorityChoice()
+	return choice, r.VoteCount(choice) > int(memberCount/2)
+}
+
+// SelectChoiceBySuperMajority select the vote choice by super majority using a 2/3s threshold.
+// Abstentions are not considered when calculating the super majority choice.
+func SelectChoiceBySuperMajority(r ReadOnlyVotingRecord) (VoteChoice, bool) {
+	var count int
+	for _, v := range r.Votes() {
+		if v.Choice != ChoiceAbstain {
+			count++
+		}
+	}
+
+	choice := r.GetProvableMajorityChoice()
+	return choice, r.VoteCount(choice) > int((2*count)/3)
+}
+
+// SelectChoiceByPlurality selects the vote choice by plurality.
+// The choice will be considered a majority if it has votes and if there is no other
+// choice with the same number of votes. A tie won't be considered majority.
+func SelectChoiceByPlurality(r ReadOnlyVotingRecord) (VoteChoice, bool) {
+	var (
+		choice       VoteChoice
+		currentCount int
+		isMajority   bool
+	)
+
+	for _, c := range r.VoteChoices() {
+		if c == ChoiceAbstain {
+			continue
+		}
+
+		count := r.VoteCount(c)
+		if currentCount < count {
+			choice = c
+			currentCount = count
+			isMajority = true
+		} else if currentCount == count {
+			isMajority = false
+		}
+	}
+	return choice, isMajority
 }
