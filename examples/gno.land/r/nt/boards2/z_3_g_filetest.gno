@@ -35,13 +35,7 @@ func init() {
 }
 
 func main() {
-	_, exists := boards2.GetBoardIDFromName(newName)
-	println("Exists =", exists)
-
 	boards2.RenameBoard(name, newName)
-
-	bid, _ := boards2.GetBoardIDFromName(newName)
-	println("ID =", bid)
 }
 
 // Error:
