@@ -9,7 +9,7 @@ var (
 )
 
 func init() {
-	owners := []string {
+	owners := []string{
 		"g1d24j8fwnc0w5q427fauyey4gdd30qgu69k6n0x",
 		"g1mw2xft3eava9kfhqw3fjj3kkf3pkammty0mtv7",
 		"g1sz9vzfgthtu370l8w3gyl2rg4qmz8txn2tw5vp",
