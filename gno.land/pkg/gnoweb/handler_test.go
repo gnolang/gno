@@ -38,8 +38,10 @@ func TestWebHandler_Get(t *testing.T) {
 			{FuncName: "SuperRenderFunction", Params: []vm.NamedType{
 				{Name: "my_super_arg", Type: "string"},
 			}},
-			{FuncName: "Render", Params: []vm.NamedType{{Name: "path", Type: "string"}},
-				Results: []vm.NamedType{{Name: "", Type: "string"}}},
+			{
+				FuncName: "Render", Params: []vm.NamedType{{Name: "path", Type: "string"}},
+				Results: []vm.NamedType{{Name: "", Type: "string"}},
+			},
 		},
 	}
 
@@ -85,6 +87,7 @@ func TestWebHandler_Get(t *testing.T) {
 
 	for _, tc := range cases {
 		t.Run(strings.TrimPrefix(tc.Path, "/"), func(t *testing.T) {
+			t.Parallel()
 			t.Logf("input: %+v", tc)
 
 			// Initialize testing logger
