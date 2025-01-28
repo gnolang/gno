@@ -125,11 +125,6 @@ func TestWebHandler_NoRender(t *testing.T) {
 			"gno.mod":    `module example.com/r/mock/path`,
 			"LicEnse":    `my super license`,
 		},
-		Functions: []vm.FunctionSignature{
-			{FuncName: "SuperCoolFunction", Params: []vm.NamedType{
-				{Name: "my_super_arg", Type: "string"},
-			}},
-		},
 	}
 
 	webclient := gnoweb.NewMockWebClient(mockPackage)
