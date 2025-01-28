@@ -1,8 +1,6 @@
 # stdlibs_diff
 
-stdlibs_diff is a tool that generates an html report indicating differences between gno standard libraries and go standard libraries. 
-
-⚠️ When using goenv to set the src or the destination, the Go version will be the one from the toolchain on go.mod.
+stdlibs_diff is a tool that generates an html report indicating differences between gno standard libraries and go standard libraries.
 
 ## Usage
 
