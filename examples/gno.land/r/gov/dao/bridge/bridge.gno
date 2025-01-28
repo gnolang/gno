@@ -3,7 +3,7 @@ package bridge
 import (
 	"std"
 
-	"gno.land/p/demo/ownable"
+	"gno.land/p/nt/ownable"
 )
 
 const initialOwner = std.Address("g1u7y667z64x2h7vc6fmpcprgey4ck233jaww9zq") // @moul

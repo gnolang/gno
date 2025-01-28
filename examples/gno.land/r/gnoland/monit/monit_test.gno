@@ -3,7 +3,7 @@ package monit
 import (
 	"testing"
 
-	"gno.land/p/demo/uassert"
+	"gno.land/p/nt/uassert"
 )
 
 func TestPackage(t *testing.T) {

@@ -5,7 +5,7 @@ import (
 
 	"gno.land/p/demo/tests"
 
-	"gno.land/p/demo/uassert"
+	"gno.land/p/nt/uassert"
 )
 
 var World = "WORLD"

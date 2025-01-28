@@ -3,8 +3,8 @@ package daoweb
 import (
 	"std"
 
-	"gno.land/p/demo/dao"
 	"gno.land/p/demo/json"
+	"gno.land/p/nt/dao"
 	"gno.land/r/gov/dao/bridge"
 )
 

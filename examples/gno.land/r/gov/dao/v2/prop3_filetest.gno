@@ -3,8 +3,8 @@ package main
 import (
 	"std"
 
-	"gno.land/p/demo/dao"
 	"gno.land/p/demo/membstore"
+	"gno.land/p/nt/dao"
 	"gno.land/r/gov/dao/bridge"
 	govdao "gno.land/r/gov/dao/v2"
 )

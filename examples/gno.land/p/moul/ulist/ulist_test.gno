@@ -3,9 +3,9 @@ package ulist
 import (
 	"testing"
 
-	"gno.land/p/demo/uassert"
 	"gno.land/p/demo/ufmt"
 	"gno.land/p/moul/typeutil"
+	"gno.land/p/nt/uassert"
 )
 
 func TestNew(t *testing.T) {

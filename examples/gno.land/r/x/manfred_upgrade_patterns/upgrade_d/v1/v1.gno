@@ -3,7 +3,7 @@ package v1
 import (
 	"strconv"
 
-	"gno.land/p/demo/avl"
+	"gno.land/p/nt/avl"
 )
 
 var myTree avl.Tree

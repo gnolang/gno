@@ -4,10 +4,10 @@ import (
 	"errors"
 	"std"
 
-	"gno.land/p/demo/combinederr"
-	"gno.land/p/demo/dao"
 	"gno.land/p/demo/membstore"
 	"gno.land/p/gov/executor"
+	"gno.land/p/nt/combinederr"
+	"gno.land/p/nt/dao"
 )
 
 var errNoChangesProposed = errors.New("no set changes proposed")

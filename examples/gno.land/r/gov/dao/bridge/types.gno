@@ -1,8 +1,8 @@
 package bridge
 
 import (
-	"gno.land/p/demo/dao"
 	"gno.land/p/demo/membstore"
+	"gno.land/p/nt/dao"
 )
 
 // DAO abstracts the commonly used DAO interface

@@ -1,5 +1,5 @@
 # Reproducible Test for https://github.com/gnolang/gno/issues/1167
-loadpkg gno.land/p/demo/avl
+loadpkg gno.land/p/nt/avl
 
 gnoland start
 
@@ -35,7 +35,7 @@ stdout '1,1,1;2,2,2;3,3,3;" string'
 module gno.land/r/demo/xx
 
 require (
-	gno.land/p/demo/avl v0.0.0-latest
+	gno.land/p/nt/avl v0.0.0-latest
 )
 
 -- realm.gno --
@@ -44,7 +44,7 @@ package xx
 import (
 	"strconv"
 
-	"gno.land/p/demo/avl"
+	"gno.land/p/nt/avl"
 )
 
 type Move struct {

@@ -1,8 +1,8 @@
 package bridge
 
 import (
-	"gno.land/p/demo/dao"
 	"gno.land/p/demo/membstore"
+	"gno.land/p/nt/dao"
 )
 
 type (

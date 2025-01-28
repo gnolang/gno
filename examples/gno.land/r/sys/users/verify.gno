@@ -3,7 +3,7 @@ package users
 import (
 	"std"
 
-	"gno.land/p/demo/ownable"
+	"gno.land/p/nt/ownable"
 	"gno.land/r/demo/users"
 )
 

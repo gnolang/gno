@@ -5,8 +5,8 @@ import (
 	"strconv"
 	"strings"
 
-	"gno.land/p/demo/ownable"
 	"gno.land/p/moul/md"
+	"gno.land/p/nt/ownable"
 	"gno.land/r/leon/hof"
 
 	"gno.land/r/ursulovic/registry"

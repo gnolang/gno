@@ -6,10 +6,10 @@ import (
 	"strconv"
 	"strings"
 
-	"gno.land/p/demo/avl"
-	"gno.land/p/demo/avl/pager"
 	"gno.land/p/demo/avlhelpers"
 	"gno.land/p/demo/users"
+	"gno.land/p/nt/avl"
+	"gno.land/p/nt/avl/pager"
 )
 
 //----------------------------------------

@@ -6,9 +6,9 @@ import (
 	"strings"
 	"time"
 
-	"gno.land/p/demo/avl"
 	"gno.land/p/demo/mux"
 	"gno.land/p/demo/ufmt"
+	"gno.land/p/nt/avl"
 )
 
 type Blog struct {

@@ -3,9 +3,9 @@ package home
 import (
 	"std"
 
-	"gno.land/p/demo/ownable"
 	"gno.land/p/demo/ufmt"
 	"gno.land/p/demo/ui"
+	"gno.land/p/nt/ownable"
 	blog "gno.land/r/gnoland/blog"
 	events "gno.land/r/gnoland/events"
 	"gno.land/r/leon/hof"

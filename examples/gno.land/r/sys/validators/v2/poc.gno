@@ -3,7 +3,7 @@ package validators
 import (
 	"std"
 
-	"gno.land/p/demo/dao"
+	"gno.land/p/nt/dao"
 	"gno.land/p/sys/validators"
 	"gno.land/r/gov/dao/bridge"
 )

@@ -4,9 +4,9 @@ import (
 	"strconv"
 	"strings"
 
-	"gno.land/p/demo/dao"
 	"gno.land/p/demo/ufmt"
 	"gno.land/p/moul/txlink"
+	"gno.land/p/nt/dao"
 	"gno.land/r/demo/users"
 )
 

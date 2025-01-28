@@ -6,9 +6,9 @@ import (
 	"std"
 
 	"gno.land/p/demo/testutils"
-	"gno.land/p/demo/uassert"
 	"gno.land/p/demo/ufmt"
-	"gno.land/p/demo/urequire"
+	"gno.land/p/nt/uassert"
+	"gno.land/p/nt/urequire"
 )
 
 // generateMembers generates dummy govdao members
