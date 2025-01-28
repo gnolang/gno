@@ -23,6 +23,7 @@ type webCfg struct {
 	bind       string
 	faucetURL  string
 	assetsDir  string
+	timeout    time.Duration
 	analytics  bool
 	json       bool
 	html       bool
@@ -34,6 +35,7 @@ var defaultWebOptions = webCfg{
 	chainid: "dev",
 	remote:  "127.0.0.1:26657",
 	bind:    ":8888",
+	timeout: time.Minute,
 }
 
 func main() {
@@ -144,6 +146,13 @@ func (c *webCfg) RegisterFlags(fs *flag.FlagSet) {
 		defaultWebOptions.verbose,
 		"verbose logging mode",
 	)
+
+	fs.DurationVar(
+		&c.timeout,
+		"timeout",
+		defaultWebOptions.timeout,
+		"set read/write/idle timeout for server connections",
+	)
 }
 
 func setupWeb(cfg *webCfg, _ []string, io commands.IO) (func() error, error) {
@@ -194,7 +203,10 @@ func setupWeb(cfg *webCfg, _ []string, io commands.IO) (func() error, error) {
 	server := &http.Server{
 		Handler:           secureHandler,
 		Addr:              bindaddr.String(),
-		ReadHeaderTimeout: 60 * time.Second,
+		ReadTimeout:       cfg.timeout, // Time to read the request
+		WriteTimeout:      cfg.timeout, // Time to write the entire response
+		IdleTimeout:       cfg.timeout, // Time to keep idle connections open
+		ReadHeaderTimeout: time.Minute, // Time to read request headers
 	}
 
 	return func() error {
