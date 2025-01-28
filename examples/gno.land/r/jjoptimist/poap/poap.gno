@@ -1,7 +1,6 @@
 package poap
 
 import (
-    "std"
     "time"
     "strconv"
     
