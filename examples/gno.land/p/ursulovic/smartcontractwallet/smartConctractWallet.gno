@@ -22,7 +22,8 @@ type WithdrawProposal struct {
 func init() {
 }
 
-func (wallet *Wallet) initOwners(owners []string, newOwnerPercentage float64) {
+func (wallet *Wallet) InitOwners(owners []string, newOwnerPercentage float64) {
+	wallet.withdrawProposals = avl.NewTree()
 	wallet.modifiers.InitializeOwners(owners, newOwnerPercentage)
 }
 
