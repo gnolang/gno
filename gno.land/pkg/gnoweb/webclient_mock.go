@@ -38,13 +38,7 @@ func (m *MockWebClient) RenderRealm(w io.Writer, path string, args string) (*Rea
 		return nil, ErrClientPathNotFound
 	}
 
-	noRender := true
-	for _, fn := range pkg.Functions {
-		if fn.FuncName == "Render" {
-			noRender = false
-		}
-	}
-	if noRender {
+	if !pkgHasRender(pkg) {
 		return nil, ErrRenderNotDeclared
 	}
 
@@ -98,4 +92,22 @@ func (m *MockWebClient) Sources(path string) ([]string, error) {
 	sort.Strings(fileNames)
 
 	return fileNames, nil
+}
+
+func pkgHasRender(pkg *MockPackage) bool {
+	if len(pkg.Functions) == 0 {
+		return false
+	}
+
+	for _, fn := range pkg.Functions {
+		if fn.FuncName == "Render" &&
+			len(fn.Params) == 1 &&
+			len(fn.Results) == 1 &&
+			fn.Params[0].Type == "string" &&
+			fn.Results[0].Type == "string" {
+			return true
+		}
+	}
+
+	return false
 }

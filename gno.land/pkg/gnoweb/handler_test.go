@@ -24,12 +24,13 @@ func (t *testingLogger) Write(b []byte) (n int, err error) {
 
 // TestWebHandler_Get tests the Get method of WebHandler using table-driven tests.
 func TestWebHandler_Get(t *testing.T) {
+	t.Parallel()
 	// Set up a mock package with some files and functions
 	mockPackage := &gnoweb.MockPackage{
 		Domain: "example.com",
 		Path:   "/r/mock/path",
 		Files: map[string]string{
-			"render.gno": `package main; func Render(path string) (res string) { return "one more time" }`,
+			"render.gno": `package main; func Render(path string) string { return "one more time" }`,
 			"gno.mod":    `module example.com/r/mock/path`,
 			"LicEnse":    `my super license`,
 		},
@@ -38,7 +39,7 @@ func TestWebHandler_Get(t *testing.T) {
 				{Name: "my_super_arg", Type: "string"},
 			}},
 			{FuncName: "Render", Params: []vm.NamedType{{Name: "path", Type: "string"}},
-				Results: []vm.NamedType{{Name: "res", Type: "string"}}},
+				Results: []vm.NamedType{{Name: "", Type: "string"}}},
 		},
 	}
 
