@@ -130,7 +130,7 @@ func (c *webCfg) RegisterFlags(fs *flag.FlagSet) {
 		&c.analytics,
 		"with-analytics",
 		defaultWebOptions.analytics,
-		"nable privacy-first analytics",
+		"enable privacy-first analytics",
 	)
 
 	fs.BoolVar(
