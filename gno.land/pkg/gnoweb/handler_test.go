@@ -110,3 +110,43 @@ func TestWebHandler_Get(t *testing.T) {
 		})
 	}
 }
+
+// TestWebHandler_NoRender checks if gnoweb displays the `No Render` page properly.
+// This happens when the render being queried does not have a Render function declared.
+func TestWebHandler_NoRender(t *testing.T) {
+	t.Parallel()
+
+	mockPath := "/r/mock/path"
+	mockPackage := &gnoweb.MockPackage{
+		Domain: "example.com",
+		Path:   "/r/mock/path",
+		Files: map[string]string{
+			"render.gno": `package main; func init() {}`,
+			"gno.mod":    `module example.com/r/mock/path`,
+			"LicEnse":    `my super license`,
+		},
+		Functions: []vm.FunctionSignature{
+			{FuncName: "SuperCoolFunction", Params: []vm.NamedType{
+				{Name: "my_super_arg", Type: "string"},
+			}},
+		},
+	}
+
+	webclient := gnoweb.NewMockWebClient(mockPackage)
+	config := gnoweb.WebHandlerConfig{
+		WebClient: webclient,
+	}
+
+	logger := slog.New(slog.NewTextHandler(&testingLogger{t}, &slog.HandlerOptions{}))
+	handler, err := gnoweb.NewWebHandler(logger, config)
+	require.NoError(t, err, "failed to create WebHandler")
+
+	req, err := http.NewRequest(http.MethodGet, mockPath, nil)
+	require.NoError(t, err, "failed to create HTTP request")
+
+	rr := httptest.NewRecorder()
+	handler.ServeHTTP(rr, req)
+
+	assert.Equal(t, http.StatusOK, rr.Code, "unexpected status code")
+	assert.Containsf(t, rr.Body.String(), "", "rendered body should contain: %q", "No Render")
+}
