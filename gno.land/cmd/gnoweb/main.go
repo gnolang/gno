@@ -234,7 +234,7 @@ func SecureHeadersMiddleware(next http.Handler, strict bool) http.Handler {
 		// enhances privacy and prevents leakage of sensitive URLs.
 		w.Header().Set("Referrer-Policy", "no-referrer")
 
-		// In `strict` mode, prevent cross-site ressources and enforce https
+		// In `strict` mode, prevent cross-site ressources forgery and enforce https
 		if strict {
 			// Define a Content Security Policy (CSP) to restrict the sources of
 			// scripts, styles, images, and other resources. This helps prevent
