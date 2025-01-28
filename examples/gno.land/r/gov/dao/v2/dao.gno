@@ -3,9 +3,9 @@ package govdao
 import (
 	"std"
 
-	"gno.land/p/demo/dao"
 	"gno.land/p/demo/membstore"
-	"gno.land/p/demo/simpledao"
+	"gno.land/p/nt/dao"
+	"gno.land/p/nt/simpledao"
 )
 
 var (

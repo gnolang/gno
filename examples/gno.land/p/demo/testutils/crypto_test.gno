@@ -3,7 +3,7 @@ package testutils
 import (
 	"testing"
 
-	"gno.land/p/demo/uassert"
+	"gno.land/p/nt/uassert"
 )
 
 func TestTestAddress(t *testing.T) {

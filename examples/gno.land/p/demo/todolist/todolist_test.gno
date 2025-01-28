@@ -4,7 +4,7 @@ import (
 	"std"
 	"testing"
 
-	"gno.land/p/demo/uassert"
+	"gno.land/p/nt/uassert"
 )
 
 func TestNewTodoList(t *testing.T) {

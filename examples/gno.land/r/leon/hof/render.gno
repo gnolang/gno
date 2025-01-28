@@ -3,11 +3,11 @@ package hof
 import (
 	"strings"
 
-	"gno.land/p/demo/fqname"
-	"gno.land/p/demo/seqid"
 	"gno.land/p/demo/ufmt"
 	"gno.land/p/moul/txlink"
 	"gno.land/p/nt/avl/pager"
+	"gno.land/p/nt/fqname"
+	"gno.land/p/nt/seqid"
 )
 
 const (

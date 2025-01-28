@@ -2,7 +2,7 @@ package dao
 
 // NOTE:
 // This voting pods will be removed in a future version of the
-// p/demo/dao package. A DAO shouldn't have to comply with or define how the voting mechanism works internally;
+// p/nt/dao package. A DAO shouldn't have to comply with or define how the voting mechanism works internally;
 // it should be viewed as an entity that makes decisions
 //
 // The extent of "votes being enforced" in this implementation is just in the context

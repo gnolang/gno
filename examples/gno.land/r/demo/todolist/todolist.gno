@@ -4,10 +4,10 @@ import (
 	"bytes"
 	"strconv"
 
-	"gno.land/p/demo/seqid"
 	"gno.land/p/demo/todolist"
 	"gno.land/p/demo/ufmt"
 	"gno.land/p/nt/avl"
+	"gno.land/p/nt/seqid"
 )
 
 // State variables

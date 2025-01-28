@@ -4,8 +4,8 @@ import (
 	"std"
 	"testing"
 
-	"gno.land/p/demo/urequire"
 	"gno.land/p/nt/ownable"
+	"gno.land/p/nt/urequire"
 )
 
 var (

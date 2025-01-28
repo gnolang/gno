@@ -3,7 +3,7 @@ package helplink
 import (
 	"testing"
 
-	"gno.land/p/demo/urequire"
+	"gno.land/p/nt/urequire"
 )
 
 func TestFunc(t *testing.T) {

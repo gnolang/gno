@@ -2,7 +2,7 @@
 // XXX: codegen the package.
 package urequire
 
-import "gno.land/p/demo/uassert"
+import "gno.land/p/nt/uassert"
 
 // type TestingT = uassert.TestingT // XXX: bug, should work
 

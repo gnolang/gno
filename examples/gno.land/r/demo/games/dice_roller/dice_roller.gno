@@ -9,9 +9,9 @@ import (
 	"strings"
 
 	"gno.land/p/demo/entropy"
-	"gno.land/p/demo/seqid"
 	"gno.land/p/demo/ufmt"
 	"gno.land/p/nt/avl"
+	"gno.land/p/nt/seqid"
 	"gno.land/r/demo/users"
 )
 

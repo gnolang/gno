@@ -3,7 +3,7 @@ package txlink
 import (
 	"testing"
 
-	"gno.land/p/demo/urequire"
+	"gno.land/p/nt/urequire"
 )
 
 func TestCall(t *testing.T) {

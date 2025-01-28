@@ -4,10 +4,10 @@ import (
 	"std"
 	"testing"
 
-	"gno.land/p/demo/seqid"
 	"gno.land/p/demo/testutils"
-	"gno.land/p/demo/urequire"
 	"gno.land/p/nt/avl"
+	"gno.land/p/nt/seqid"
+	"gno.land/p/nt/urequire"
 )
 
 var (

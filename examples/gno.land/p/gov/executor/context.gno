@@ -4,7 +4,7 @@ import (
 	"errors"
 	"std"
 
-	"gno.land/p/demo/context"
+	"gno.land/p/nt/context"
 )
 
 type propContextKey string

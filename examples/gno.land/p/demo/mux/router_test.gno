@@ -3,7 +3,7 @@ package mux
 import (
 	"testing"
 
-	"gno.land/p/demo/uassert"
+	"gno.land/p/nt/uassert"
 )
 
 func TestRouter_Render(t *testing.T) {

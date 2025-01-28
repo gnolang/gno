@@ -3,10 +3,10 @@ package grc20reg
 import (
 	"std"
 
-	"gno.land/p/demo/fqname"
 	"gno.land/p/demo/grc/grc20"
 	"gno.land/p/demo/ufmt"
 	"gno.land/p/nt/avl"
+	"gno.land/p/nt/fqname"
 )
 
 var registry = avl.NewTree() // rlmPath[.slug] -> TokenGetter (slug is optional)

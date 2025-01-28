@@ -6,8 +6,8 @@ import (
 	"strings"
 	"testing"
 
-	"gno.land/p/demo/seqid"
 	"gno.land/p/demo/ufmt"
+	"gno.land/p/nt/seqid"
 )
 
 type Person struct {

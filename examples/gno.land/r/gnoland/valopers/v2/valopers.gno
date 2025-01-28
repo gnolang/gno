@@ -5,9 +5,9 @@ package valopers
 import (
 	"std"
 
-	"gno.land/p/demo/dao"
 	"gno.land/p/demo/ufmt"
 	"gno.land/p/nt/avl"
+	"gno.land/p/nt/dao"
 	pVals "gno.land/p/sys/validators"
 	"gno.land/r/gov/dao/bridge"
 	validators "gno.land/r/sys/validators/v2"

@@ -5,9 +5,9 @@ import (
 	"std"
 	"testing"
 
-	"gno.land/p/demo/context"
-	"gno.land/p/demo/uassert"
-	"gno.land/p/demo/urequire"
+	"gno.land/p/nt/context"
+	"gno.land/p/nt/uassert"
+	"gno.land/p/nt/urequire"
 )
 
 func TestExecutor_Callback(t *testing.T) {

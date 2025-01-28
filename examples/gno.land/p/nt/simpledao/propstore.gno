@@ -5,9 +5,9 @@ import (
 	"std"
 	"strings"
 
-	"gno.land/p/demo/dao"
-	"gno.land/p/demo/seqid"
 	"gno.land/p/demo/ufmt"
+	"gno.land/p/nt/dao"
+	"gno.land/p/nt/seqid"
 )
 
 var ErrMissingProposal = errors.New("proposal is missing")
