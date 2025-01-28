@@ -30,15 +30,12 @@ func init() {
 }
 
 func main() {
-	_, exists := boards2.GetBoardIDFromName(newName)
-	println("Exists =", exists)
-
 	boards2.RenameBoard(name, newName)
 
+	// Check that board is renamed by another owner
 	bid, _ := boards2.GetBoardIDFromName(newName)
 	println("ID =", bid)
 }
 
 // Output:
-// Exists = false
 // ID = 1

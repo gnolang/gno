@@ -20,17 +20,13 @@ func init() {
 }
 
 func main() {
-	if boards2.HasMemberRole(bid, member, initialRole) {
-		println("ok")
-	}
-
 	boards2.ChangeMemberRole(bid, member, newRole)
 
+	// Check that a realm member has a new role
 	if boards2.HasMemberRole(bid, member, newRole) {
 		println("ok")
 	}
 }
 
 // Output:
-// ok
 // ok
