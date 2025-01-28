@@ -5,7 +5,6 @@ import (
     "strconv"
     "time"
 
-    "gno.land/p/demo/ownable"
     "gno.land/r/leon/hof"
 )
 
