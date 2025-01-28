@@ -51,8 +51,9 @@ jobs:
           path: ./pages_output
 
   deploy:
-    if: github.repository == 'gnolang/gno' && \
-      github.ref == 'refs/heads/master' && \
+    if: >
+      github.repository == 'gnolang/gno' &&
+      github.ref == 'refs/heads/master' &&
       github.event_name == 'push'
     runs-on: ubuntu-latest
     environment:
