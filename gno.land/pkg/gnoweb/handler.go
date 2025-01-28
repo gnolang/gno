@@ -90,6 +90,8 @@ func (h *WebHandler) Get(w http.ResponseWriter, r *http.Request) {
 		HeadData: components.HeadData{
 			AssetsPath: h.Static.AssetsPath,
 			ChromaPath: h.Static.ChromaPath,
+			ChainId:    h.Static.ChainId,
+			Remote:     h.Static.RemoteHelp,
 		},
 		FooterData: components.FooterData{
 			Analytics:  h.Static.Analytics,
