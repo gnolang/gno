@@ -43,7 +43,7 @@ func (wallet *Wallet) ProposeWithdraw(recipient string, amount int64, denom stri
 	coin := std.NewCoin(denom, amount)
 
 	id := int64(wallet.withdrawProposals.Size())
-	withdrawProposal := WithdrawProposal{
+	withdrawProposal := &WithdrawProposal{
 		id:        id,
 		recipient: caller,
 		coin:      coin,
