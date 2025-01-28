@@ -1,1 +1,1 @@
-module gno.land/r/demo/boards2
+module gno.land/r/nt/boards2
