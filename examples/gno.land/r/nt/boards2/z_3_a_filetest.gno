@@ -12,18 +12,20 @@ const (
 	newName = "bar123"
 )
 
+var bid boards2.BoardID // Operate on board DAO
+
 func init() {
 	std.TestSetOrigCaller(owner)
-	boards2.CreateBoard(name)
+	bid = boards2.CreateBoard(name)
 }
 
 func main() {
 	boards2.RenameBoard(name, newName)
 
 	// Ensure board is renamed by the default board owner
-	bid, _ := boards2.GetBoardIDFromName(newName)
-	println("ID =", bid)
+	bid2, _ := boards2.GetBoardIDFromName(newName)
+	println("IDs match =", bid == bid2)
 }
 
 // Output:
-// ID = 1
+// IDs match = true
