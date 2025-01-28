@@ -24,7 +24,7 @@ type RealmMeta struct {
 	Toc md.Toc
 }
 
-// WebClient is an interface for interacting with package and node ressources.
+// WebClient is an interface for interacting with package and node resources.
 type WebClient interface {
 	// RenderRealm renders the content of a realm from a given path and
 	// arguments into the giver `writer`. The method should ensures the rendered

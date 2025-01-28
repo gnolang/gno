@@ -31,11 +31,21 @@ func NewMockWebClient(pkgs ...*MockPackage) *MockWebClient {
 	return &MockWebClient{Packages: mpkgs}
 }
 
-// Render simulates rendering a package by writing its content to the writer.
+// RenderRealm simulates rendering a package by writing its content to the writer.
 func (m *MockWebClient) RenderRealm(w io.Writer, path string, args string) (*RealmMeta, error) {
 	pkg, exists := m.Packages[path]
 	if !exists {
 		return nil, ErrClientPathNotFound
+	}
+
+	noRender := true
+	for _, fn := range pkg.Functions {
+		if fn.FuncName == "Render" {
+			noRender = false
+		}
+	}
+	if noRender {
+		return nil, ErrRenderNotDeclared
 	}
 
 	fmt.Fprintf(w, "[%s]%s:", pkg.Domain, pkg.Path)

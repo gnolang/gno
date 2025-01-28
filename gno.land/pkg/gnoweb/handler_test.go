@@ -118,12 +118,11 @@ func TestWebHandler_NoRender(t *testing.T) {
 
 	mockPath := "/r/mock/path"
 	mockPackage := &gnoweb.MockPackage{
-		Domain: "example.com",
+		Domain: "gno.land",
 		Path:   "/r/mock/path",
 		Files: map[string]string{
 			"render.gno": `package main; func init() {}`,
-			"gno.mod":    `module example.com/r/mock/path`,
-			"LicEnse":    `my super license`,
+			"gno.mod":    `module gno.land/r/mock/path`,
 		},
 	}
 
@@ -142,7 +141,7 @@ func TestWebHandler_NoRender(t *testing.T) {
 	rr := httptest.NewRecorder()
 	handler.ServeHTTP(rr, req)
 
-	assert.Equal(t, http.StatusOK, rr.Code, "unexpected status code")
+	assert.Equal(t, http.StatusNoContent, rr.Code, "unexpected status code")
 	assert.Containsf(t, rr.Body.String(), "", "rendered body should contain: %q", "No Render")
 	assert.Containsf(t, rr.Body.String(), "", "rendered body should contain: %q", "This realm does not implement a Render() function.")
 }

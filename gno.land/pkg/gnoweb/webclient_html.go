@@ -214,7 +214,7 @@ func (s *HTMLWebClient) query(qpath string, data []byte) ([]byte, error) {
 			return nil, ErrClientPathNotFound
 		}
 
-		if strings.Contains(err.Error(), "Render not declared") { /// XXX shoud this be a vm error?
+		if errors.Is(err, vm.NoRenderDeclError{}) {
 			return nil, ErrRenderNotDeclared
 		}
 
