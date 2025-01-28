@@ -5,9 +5,9 @@ import (
 	"strings"
 
 	"gno.land/p/demo/grc/grc20"
-	"gno.land/p/demo/ownable"
 	"gno.land/p/demo/ufmt"
 	"gno.land/p/nt/avl"
+	"gno.land/p/nt/ownable"
 	"gno.land/r/demo/grc20reg"
 )
 

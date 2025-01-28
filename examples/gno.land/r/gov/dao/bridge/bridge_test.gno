@@ -6,10 +6,10 @@ import (
 	"std"
 
 	"gno.land/p/demo/dao"
-	"gno.land/p/demo/ownable"
 	"gno.land/p/demo/testutils"
 	"gno.land/p/demo/uassert"
 	"gno.land/p/demo/urequire"
+	"gno.land/p/nt/ownable"
 )
 
 func TestBridge_DAO(t *testing.T) {

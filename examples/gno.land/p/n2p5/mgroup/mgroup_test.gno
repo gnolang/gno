@@ -4,9 +4,9 @@ import (
 	"std"
 	"testing"
 
-	"gno.land/p/demo/ownable"
 	"gno.land/p/demo/testutils"
 	"gno.land/p/nt/avl"
+	"gno.land/p/nt/ownable"
 )
 
 func TestManagedGroup(t *testing.T) {

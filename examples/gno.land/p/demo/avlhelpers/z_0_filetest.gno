@@ -1,5 +1,5 @@
 // PKGPATH: gno.land/r/test
-package avlhelpers
+package test
 
 import (
 	"encoding/hex"
