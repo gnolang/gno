@@ -166,3 +166,183 @@ func TestVotingRecordGetProvableMajorityChoice(t *testing.T) {
 		})
 	}
 }
+
+func TestSelectChoiceByAbsoluteMajority(t *testing.T) {
+	memberCount := 3
+	cases := []struct {
+		name    string
+		setup   func(*VotingRecord)
+		choice  VoteChoice
+		success bool
+	}{
+		{
+			name:    "no votes",
+			choice:  "",
+			success: false,
+		},
+		{
+			name: "majority",
+			setup: func(r *VotingRecord) {
+				r.AddVote("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5", ChoiceYes)
+				r.AddVote("g12chzmwxw8sezcxe9h2csp0tck76r4ptwdlyyqk", ChoiceYes)
+				r.AddVote("g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj", ChoiceNo)
+			},
+			choice:  ChoiceYes,
+			success: true,
+		},
+		{
+			name: "no majority",
+			setup: func(r *VotingRecord) {
+				r.AddVote("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5", ChoiceYes)
+				r.AddVote("g12chzmwxw8sezcxe9h2csp0tck76r4ptwdlyyqk", ChoiceNo)
+			},
+			choice:  "",
+			success: false,
+		},
+		{
+			name: "majority with abstain vote",
+			setup: func(r *VotingRecord) {
+				r.AddVote("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5", ChoiceYes)
+				r.AddVote("g12chzmwxw8sezcxe9h2csp0tck76r4ptwdlyyqk", ChoiceYes)
+				r.AddVote("g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj", ChoiceAbstain)
+			},
+			choice:  ChoiceYes,
+			success: true,
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			var record VotingRecord
+
+			if tc.setup != nil {
+				tc.setup(&record)
+			}
+
+			choice, success := SelectChoiceByAbsoluteMajority(record, memberCount)
+
+			uassert.Equal(t, string(tc.choice), string(choice), "choice")
+			uassert.Equal(t, tc.success, success, "success")
+		})
+	}
+}
+
+func TestSelectChoiceBySuperMajority(t *testing.T) {
+	cases := []struct {
+		name    string
+		setup   func(*VotingRecord)
+		choice  VoteChoice
+		success bool
+	}{
+		{
+			name:    "no votes",
+			choice:  "",
+			success: false,
+		},
+		{
+			name: "majority",
+			setup: func(r *VotingRecord) {
+				r.AddVote("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5", ChoiceYes)
+				r.AddVote("g12chzmwxw8sezcxe9h2csp0tck76r4ptwdlyyqk", ChoiceYes)
+				r.AddVote("g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj", ChoiceNo)
+			},
+			choice:  ChoiceYes,
+			success: true,
+		},
+		{
+			name: "no majority",
+			setup: func(r *VotingRecord) {
+				r.AddVote("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5", ChoiceYes)
+				r.AddVote("g12chzmwxw8sezcxe9h2csp0tck76r4ptwdlyyqk", ChoiceNo)
+			},
+			choice:  "",
+			success: false,
+		},
+		{
+			name: "majority with abstain vote",
+			setup: func(r *VotingRecord) {
+				r.AddVote("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5", ChoiceYes)
+				r.AddVote("g12chzmwxw8sezcxe9h2csp0tck76r4ptwdlyyqk", ChoiceYes)
+				r.AddVote("g1vh7krmmzfua5xjmkatvmx09z37w34lsvd2mxa5", ChoiceNo)
+				r.AddVote("g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj", ChoiceAbstain)
+			},
+			choice:  ChoiceYes,
+			success: true,
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			var record VotingRecord
+
+			if tc.setup != nil {
+				tc.setup(&record)
+			}
+
+			choice, success := SelectChoiceBySuperMajority(record)
+
+			uassert.Equal(t, string(tc.choice), string(choice), "choice")
+			uassert.Equal(t, tc.success, success, "success")
+		})
+	}
+}
+
+func TestSelectChoiceByPlurality(t *testing.T) {
+	cases := []struct {
+		name    string
+		setup   func(*VotingRecord)
+		choice  VoteChoice
+		success bool
+	}{
+		{
+			name:    "no votes",
+			choice:  ChoiceAbstain,
+			success: false,
+		},
+		{
+			name: "plurality",
+			setup: func(r *VotingRecord) {
+				r.AddVote("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5", ChoiceYes)
+				r.AddVote("g12chzmwxw8sezcxe9h2csp0tck76r4ptwdlyyqk", ChoiceYes)
+				r.AddVote("g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj", ChoiceNo)
+			},
+			choice:  ChoiceYes,
+			success: true,
+		},
+		{
+			name: "no plurality",
+			setup: func(r *VotingRecord) {
+				r.AddVote("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5", ChoiceYes)
+				r.AddVote("g12chzmwxw8sezcxe9h2csp0tck76r4ptwdlyyqk", ChoiceNo)
+			},
+			choice:  "",
+			success: false,
+		},
+		{
+			name: "plurality with abstain vote",
+			setup: func(r *VotingRecord) {
+				r.AddVote("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5", ChoiceYes)
+				r.AddVote("g12chzmwxw8sezcxe9h2csp0tck76r4ptwdlyyqk", ChoiceYes)
+				r.AddVote("g1vh7krmmzfua5xjmkatvmx09z37w34lsvd2mxa5", ChoiceNo)
+				r.AddVote("g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj", ChoiceAbstain)
+			},
+			choice:  ChoiceYes,
+			success: true,
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			var record VotingRecord
+
+			if tc.setup != nil {
+				tc.setup(&record)
+			}
+
+			choice, success := SelectChoiceByPlurality(record)
+
+			uassert.Equal(t, string(tc.choice), string(choice), "choice")
+			uassert.Equal(t, tc.success, success, "success")
+		})
+	}
+}
