@@ -5,8 +5,8 @@ package main
 import (
 	"std"
 
-	"gno.land/r/nt/boards2"
 	"gno.land/r/demo/users"
+	"gno.land/r/nt/boards2"
 )
 
 const (
