@@ -13,7 +13,7 @@ input_css := frontend/css/input.css
 output_css := $(PUBLIC_DIR)/styles.css
 tw_version := 3.4.14
 tw_config_path := frontend/css/tx.config.js
-templates_files := $(shell find . -iname '*.gohtml')
+templates_files := $(shell find . -iname '*.html')
 
 # static config
 src_dir_static := frontend/static
@@ -79,7 +79,7 @@ dev:
 
 # Go server in development mode
 dev.gnoweb: generate
-	$(run_reflex) -s -r '.*\.go(html)?' -- \
+	$(run_reflex) -s -r '.*\.(go|html)' -- \
 		go run ../../cmd/gnoweb -assets-dir=${PUBLIC_DIR} -chainid=${CHAIN_ID} -remote=${DEV_REMOTE} \
 		2>&1 | $(run_logname) gnoweb
 
