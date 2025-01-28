@@ -43,7 +43,7 @@
 package rotree
 
 import (
-	"gno.land/p/demo/avl"
+	"gno.land/p/nt/avl"
 )
 
 // Wrap creates a new ReadOnlyTree from an existing avl.Tree and a safety transformation function.

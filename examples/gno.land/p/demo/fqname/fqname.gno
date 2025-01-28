@@ -11,9 +11,9 @@ import (
 // Parse splits a fully qualified identifier into its package path and name
 // components. It handles cases with and without slashes in the package path.
 //
-//	pkgpath, name := fqname.Parse("gno.land/p/demo/avl.Tree")
+//	pkgpath, name := fqname.Parse("gno.land/p/nt/avl.Tree")
 //	ufmt.Sprintf("Package: %s, Name: %s\n", id.Package, id.Name)
-//	// Output: Package: gno.land/p/demo/avl, Name: Tree
+//	// Output: Package: gno.land/p/nt/avl, Name: Tree
 func Parse(fqname string) (pkgpath, name string) {
 	// Find the index of the last slash.
 	lastSlashIndex := strings.LastIndex(fqname, "/")

@@ -3,7 +3,7 @@ package grc721
 import (
 	"std"
 
-	"gno.land/p/demo/avl"
+	"gno.land/p/nt/avl"
 )
 
 // metadataNFT represents an NFT with metadata extensions.

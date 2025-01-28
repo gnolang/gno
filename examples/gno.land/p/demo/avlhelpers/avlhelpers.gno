@@ -1,7 +1,7 @@
 package avlhelpers
 
 import (
-	"gno.land/p/demo/avl"
+	"gno.land/p/nt/avl"
 )
 
 // Iterate the keys in-order starting from the given prefix.

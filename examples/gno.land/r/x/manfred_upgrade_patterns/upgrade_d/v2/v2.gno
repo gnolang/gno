@@ -1,7 +1,7 @@
 package v2
 
 import (
-	"gno.land/p/demo/avl"
+	"gno.land/p/nt/avl"
 	"gno.land/p/demo/ufmt"
 	"gno.land/r/x/manfred_upgrade_patterns/upgrade_d/v1"
 )

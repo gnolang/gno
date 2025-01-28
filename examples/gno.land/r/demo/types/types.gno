@@ -5,7 +5,7 @@ import (
 	"errors"
 	"time"
 
-	"gno.land/p/demo/avl"
+	"gno.land/p/nt/avl"
 )
 
 var (

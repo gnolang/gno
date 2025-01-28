@@ -7,7 +7,7 @@ package dom
 import (
 	"strconv"
 
-	"gno.land/p/demo/avl"
+	"gno.land/p/nt/avl"
 )
 
 type Plot struct {

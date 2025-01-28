@@ -1,6 +1,6 @@
 package datasource
 
-import "gno.land/p/demo/avl"
+import "gno.land/p/nt/avl"
 
 // DefaultQueryRecords defines the default number of records returned by queries.
 const DefaultQueryRecords = 50

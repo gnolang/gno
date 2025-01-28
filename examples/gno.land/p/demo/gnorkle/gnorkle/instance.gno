@@ -5,7 +5,7 @@ import (
 	"std"
 	"strings"
 
-	"gno.land/p/demo/avl"
+	"gno.land/p/nt/avl"
 	"gno.land/p/demo/gnorkle/agent"
 	"gno.land/p/demo/gnorkle/feed"
 	"gno.land/p/demo/gnorkle/message"

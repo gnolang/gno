@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"strconv"
 
-	"gno.land/p/demo/avl"
+	"gno.land/p/nt/avl"
 	"gno.land/p/demo/seqid"
 	"gno.land/p/demo/todolist"
 	"gno.land/p/demo/ufmt"

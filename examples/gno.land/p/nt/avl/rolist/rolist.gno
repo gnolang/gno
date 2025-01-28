@@ -43,7 +43,7 @@
 package rolist
 
 import (
-	"gno.land/p/demo/avl/list"
+	"gno.land/p/nt/avl/list"
 )
 
 // IReadOnlyList defines the read-only operations available on a list.

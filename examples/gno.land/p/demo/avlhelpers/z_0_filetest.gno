@@ -1,12 +1,12 @@
 // PKGPATH: gno.land/r/test
-package test
+package avlhelpers
 
 import (
 	"encoding/hex"
 
-	"gno.land/p/demo/avl"
 	"gno.land/p/demo/avlhelpers"
 	"gno.land/p/demo/ufmt"
+	"gno.land/p/nt/avl"
 )
 
 func main() {
