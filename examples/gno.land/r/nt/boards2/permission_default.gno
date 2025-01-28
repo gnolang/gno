@@ -5,7 +5,7 @@ import (
 	"std"
 
 	"gno.land/p/demo/avl"
-	"gno.land/p/demo/commondao"
+	"gno.land/p/nt/commondao"
 
 	"gno.land/r/demo/users"
 )

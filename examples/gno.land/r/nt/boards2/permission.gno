@@ -3,7 +3,7 @@ package boards2
 import (
 	"std"
 
-	"gno.land/p/demo/commondao"
+	"gno.land/p/nt/commondao"
 )
 
 const (

@@ -5,7 +5,7 @@ package main
 import (
 	"std"
 
-	"gno.land/r/demo/boards2"
+	"gno.land/r/nt/boards2"
 	"gno.land/r/demo/users"
 )
 
