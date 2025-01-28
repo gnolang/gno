@@ -128,7 +128,6 @@ func (vh vmHandler) queryRender(ctx sdk.Context, req abci.RequestQuery) (res abc
 	pkgPath, path := reqData[:dot], reqData[dot+1:]
 	expr := fmt.Sprintf("Render(%q)", path)
 	result, err := vh.vm.QueryEvalString(ctx, pkgPath, expr)
-
 	if err != nil {
 		if strings.Contains(err.Error(), "Render not declared") {
 			err = NoRenderDeclError{}
