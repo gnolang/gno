@@ -8,56 +8,55 @@ import (
 	"gno.land/p/ursulovic/functionmodifiers"
 )
 
+type Wallet struct {
+	modifiers         functionmodifiers.ModiferRegistry
+	withdrawProposals *avl.Tree
+}
+
 type WithdrawProposal struct {
 	id        int64
 	recipient std.Address
 	coin      std.Coin
 }
 
-var (
-	modifiers         functionmodifiers.ModiferRegistry
-	withdrawProposals *avl.Tree
-)
-
 func init() {
-	withdrawProposals = avl.NewTree()
 }
 
-func initOwners(owners []string, newOwnerPercentage float64) {
-	modifiers.InitializeOwners(owners, newOwnerPercentage)
+func (wallet *Wallet) initOwners(owners []string, newOwnerPercentage float64) {
+	wallet.modifiers.InitializeOwners(owners, newOwnerPercentage)
 }
 
-func DepositCoins() {
+func (wallet *Wallet) DepositCoins() {
 	caller := std.GetOrigCaller()
 
-	modifiers.AssertIsOwner(caller)
-	modifiers.AssertOwnersInitialised()
+	wallet.modifiers.AssertIsOwner(caller)
+	wallet.modifiers.AssertOwnersInitialised()
 }
 
-func ProposeWithdraw(recipient string, amount int64, denom string, approvalPercentage float64) {
+func (wallet *Wallet) ProposeWithdraw(recipient string, amount int64, denom string, approvalPercentage float64) {
 	caller := std.GetOrigCaller()
 
-	modifiers.AssertIsOwner(caller)
-	modifiers.AssertOwnersInitialised()
+	wallet.modifiers.AssertIsOwner(caller)
+	wallet.modifiers.AssertOwnersInitialised()
 
 	coin := std.NewCoin(denom, amount)
 
-	id := int64(withdrawProposals.Size())
+	id := int64(wallet.withdrawProposals.Size())
 	withdrawProposal := WithdrawProposal{
 		id:        id,
 		recipient: caller,
 		coin:      coin,
 	}
 
-	modifiers.RegisterModifier(formatProposalKey(id), approvalPercentage)
+	wallet.modifiers.RegisterModifier(formatProposalKey(id), approvalPercentage)
 
-	withdrawProposals.Set(strconv.FormatInt(id, 10), withdrawProposal)
+	wallet.withdrawProposals.Set(strconv.FormatInt(id, 10), withdrawProposal)
 }
 
-func ExecuteWithdraw(id int64) {
-	modifiers.AssertIsApproved(formatProposalKey(id))
+func (wallet *Wallet) ExecuteWithdraw(id int64) {
+	wallet.modifiers.AssertIsApproved(formatProposalKey(id))
 
-	v, exists := withdrawProposals.Get(strconv.FormatInt(id, 10))
+	v, exists := wallet.withdrawProposals.Get(strconv.FormatInt(id, 10))
 
 	if !exists {
 		panic("Withdraw proposal with provided id doesn't exist!")
@@ -70,8 +69,14 @@ func ExecuteWithdraw(id int64) {
 	banker := std.GetBanker(std.BankerTypeRealmSend)
 
 	banker.SendCoins(std.CurrentRealm().Addr(), withdrawProposal.recipient, coins)
+
+	wallet.withdrawProposals.Remove(formatProposalKey(id))
+}
+
+func (wallet *Wallet) ApproveWithdraw(id int64) {
+	wallet.modifiers.ApproveModifier(formatProposalKey(id))
 }
 
 func formatProposalKey(id int64) string {
-	return "WITHDRAW-" + strconv.FormatInt(id, 10)
+	return "WITHDRAW-COIN" + strconv.FormatInt(id, 10)
 }

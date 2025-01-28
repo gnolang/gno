@@ -31,7 +31,7 @@ func (registry *ModiferRegistry) InitializeOwners(owners []string, newOwnerPerce
 	if len(owners) == 0 {
 		panic("You must provide atleast one owner address!")
 	}
-	registry.initMultiSigVariables(newOwnerPercentage)
+	registry.initVariables(newOwnerPercentage)
 
 	for _, addr := range owners {
 		address := std.Address(addr)
@@ -104,7 +104,7 @@ func (registry *ModiferRegistry) RegisterModifier(name string, approvalPercentag
 	if approvalPercentage <= 0 || approvalPercentage > 1 {
 		panic("Approval must be between 0 and 1")
 	}
-	modifier := Modifier{
+	modifier := &Modifier{
 		Name:               name,
 		ApprovalPercentage: approvalPercentage,
 		Approvers:          avl.NewTree(),
@@ -112,7 +112,7 @@ func (registry *ModiferRegistry) RegisterModifier(name string, approvalPercentag
 	registry.Modifiers.Set(name, modifier)
 }
 
-func (registry *ModiferRegistry) DisableModifier(name string) {
+func (registry *ModiferRegistry) EditModifierApprovalPercentage(name string, newApprovalPercentage float64) {
 	caller := std.GetOrigCaller()
 
 	registry.AssertIsOwner(caller)
@@ -128,9 +128,9 @@ func (registry *ModiferRegistry) DisableModifier(name string) {
 	}
 
 	modifier := v.(*Modifier)
-	modifier.ApprovalPercentage = 0
+	modifier.ApprovalPercentage = newApprovalPercentage
 
-	registry.Modifiers.Set(name, *modifier)
+	registry.Modifiers.Set(name, modifier)
 }
 
 func (registry *ModiferRegistry) ApproveModifier(name string) {
@@ -175,11 +175,11 @@ func (registry *ModiferRegistry) AssertIsApproved(name string) {
 	approvalsPercentage := float64(modifier.Approvers.Size()) / float64(totalOwners)
 
 	if approvalsPercentage < modifier.ApprovalPercentage {
-		panic(ufmt.Sprintf("Required approval percentage: %.2f, required : %.2f", modifier.ApprovalPercentage, approvalsPercentage))
+		panic(ufmt.Sprintf("Required approval percentage: %f, achieved: %f", modifier.ApprovalPercentage, approvalsPercentage))
 	}
 }
 
-func (registry *ModiferRegistry) initMultiSigVariables(newOwnerPercentage float64) {
+func (registry *ModiferRegistry) initVariables(newOwnerPercentage float64) {
 	registry.Owners = avl.NewTree()
 	registry.Modifiers = avl.NewTree()
 	registry.Proposals = &OwnershipProposalDetails{
