@@ -26,6 +26,7 @@ type webCfg struct {
 	analytics  bool
 	json       bool
 	html       bool
+	noStrict   bool
 	verbose    bool
 }
 
@@ -131,6 +132,13 @@ func (c *webCfg) RegisterFlags(fs *flag.FlagSet) {
 	)
 
 	fs.BoolVar(
+		&c.noStrict,
+		"no-strict",
+		defaultWebOptions.noStrict,
+		"allow cross-site resource forgery and disable https enforcement",
+	)
+
+	fs.BoolVar(
 		&c.verbose,
 		"v",
 		defaultWebOptions.verbose,
@@ -179,9 +187,12 @@ func setupWeb(cfg *webCfg, _ []string, io commands.IO) (func() error, error) {
 
 	logger.Info("Running", "listener", bindaddr.String())
 
+	// Setup security headers
+	secureHandler := SecureHeadersMiddleware(app, !cfg.noStrict)
+
 	// Setup server
 	server := &http.Server{
-		Handler:           app,
+		Handler:           secureHandler,
 		Addr:              bindaddr.String(),
 		ReadHeaderTimeout: 60 * time.Second,
 	}
@@ -191,6 +202,41 @@ func setupWeb(cfg *webCfg, _ []string, io commands.IO) (func() error, error) {
 			logger.Error("HTTP server stopped", "error", err)
 			return commands.ExitCodeError(1)
 		}
+
 		return nil
 	}, nil
+}
+
+func SecureHeadersMiddleware(next http.Handler, strict bool) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// Prevent MIME type sniffing by browsers. This ensures that the browser
+		// does not interpret files as a different MIME type than declared.
+		w.Header().Set("X-Content-Type-Options", "nosniff")
+
+		// Prevent the page from being embedded in an iframe. This mitigates
+		// clickjacking attacks by ensuring the page cannot be loaded in a frame.
+		w.Header().Set("X-Frame-Options", "DENY")
+
+		// Control the amount of referrer information sent in the Referer header.
+		// 'no-referrer' ensures that no referrer information is sent, which
+		// enhances privacy and prevents leakage of sensitive URLs.
+		w.Header().Set("Referrer-Policy", "no-referrer")
+
+		// In `strict` mode, prevent cross-site ressources and enforce https
+		if strict {
+			// Define a Content Security Policy (CSP) to restrict the sources of
+			// scripts, styles, images, and other resources. This helps prevent
+			// cross-site scripting (XSS) and other code injection attacks.
+			// - 'self' allows resources from the same origin.
+			// - 'data:' allows inline images (e.g., base64-encoded images).
+			w.Header().Set("Content-Security-Policy", "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; font-src 'self'")
+
+			// Enforce HTTPS by telling browsers to only access the site over HTTPS
+			// for a specified duration (1 year in this case). This also applies to
+			// subdomains and allows preloading into the browser's HSTS list.
+			w.Header().Set("Strict-Transport-Security", "max-age=31536000; includeSubDomains; preload")
+		}
+
+		next.ServeHTTP(w, r)
+	})
 }
