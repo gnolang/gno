@@ -5,8 +5,8 @@ import (
 	"strings"
 	"testing"
 
-	"gno.land/p/nt/avl"
 	"gno.land/p/demo/ownable"
+	"gno.land/p/nt/avl"
 )
 
 func TestSign(t *testing.T) {

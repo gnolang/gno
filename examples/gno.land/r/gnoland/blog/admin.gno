@@ -4,8 +4,8 @@ import (
 	"std"
 	"strings"
 
-	"gno.land/p/nt/avl"
 	"gno.land/p/demo/dao"
+	"gno.land/p/nt/avl"
 	"gno.land/r/gov/dao/bridge"
 )
 

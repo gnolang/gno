@@ -6,10 +6,10 @@ package hof
 import (
 	"std"
 
-	"gno.land/p/nt/avl"
 	"gno.land/p/demo/ownable"
 	"gno.land/p/demo/pausable"
 	"gno.land/p/demo/seqid"
+	"gno.land/p/nt/avl"
 )
 
 var (

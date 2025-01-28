@@ -5,8 +5,8 @@ import (
 	"strings"
 	"testing"
 
-	"gno.land/p/nt/avl"
 	"gno.land/p/demo/testutils"
+	"gno.land/p/nt/avl"
 )
 
 func TestUpdateAboutMe(t *testing.T) {

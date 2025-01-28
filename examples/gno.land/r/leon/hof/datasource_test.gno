@@ -3,10 +3,10 @@ package hof
 import (
 	"testing"
 
-	"gno.land/p/nt/avl"
 	"gno.land/p/demo/uassert"
 	"gno.land/p/demo/urequire"
 	"gno.land/p/jeronimoalbi/datasource"
+	"gno.land/p/nt/avl"
 )
 
 var (

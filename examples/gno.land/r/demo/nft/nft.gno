@@ -4,8 +4,8 @@ import (
 	"std"
 	"strconv"
 
-	"gno.land/p/nt/avl"
 	"gno.land/p/demo/grc/grc721"
+	"gno.land/p/nt/avl"
 )
 
 type token struct {

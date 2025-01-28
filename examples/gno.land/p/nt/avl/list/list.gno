@@ -37,8 +37,8 @@
 package list
 
 import (
-	"gno.land/p/nt/avl"
 	"gno.land/p/demo/seqid"
+	"gno.land/p/nt/avl"
 )
 
 // IList defines the interface for list operations

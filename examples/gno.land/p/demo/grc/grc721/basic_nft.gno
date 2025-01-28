@@ -4,8 +4,8 @@ import (
 	"std"
 	"strconv"
 
-	"gno.land/p/nt/avl"
 	"gno.land/p/demo/ufmt"
+	"gno.land/p/nt/avl"
 )
 
 type basicNFT struct {

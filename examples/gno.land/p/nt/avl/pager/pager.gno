@@ -5,8 +5,8 @@ import (
 	"net/url"
 	"strconv"
 
-	"gno.land/p/nt/avl"
 	"gno.land/p/demo/ufmt"
+	"gno.land/p/nt/avl"
 )
 
 // Pager is a struct that holds the AVL tree and pagination parameters.

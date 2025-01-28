@@ -7,9 +7,9 @@ import (
 	"testing"
 	"time"
 
-	"gno.land/p/nt/avl"
 	"gno.land/p/demo/testutils"
 	"gno.land/p/demo/uassert"
+	"gno.land/p/nt/avl"
 	"gno.land/r/demo/tests/test20"
 )
 

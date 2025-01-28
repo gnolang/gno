@@ -9,8 +9,8 @@ import (
 	"time"
 	"unicode"
 
-	"gno.land/p/nt/avl"
 	"gno.land/p/demo/seqid"
+	"gno.land/p/nt/avl"
 )
 
 // Signature is a single entry in the guestbook.

@@ -5,9 +5,9 @@ import (
 	"std"
 	"time"
 
-	"gno.land/p/nt/avl"
 	"gno.land/p/demo/seqid"
 	"gno.land/p/demo/ufmt"
+	"gno.land/p/nt/avl"
 )
 
 type Signup struct {

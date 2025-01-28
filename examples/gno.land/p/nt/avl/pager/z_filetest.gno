@@ -1,10 +1,10 @@
 package main
 
 import (
-	"gno.land/p/nt/avl"
-	"gno.land/p/nt/avl/pager"
 	"gno.land/p/demo/seqid"
 	"gno.land/p/demo/ufmt"
+	"gno.land/p/nt/avl"
+	"gno.land/p/nt/avl/pager"
 )
 
 func main() {

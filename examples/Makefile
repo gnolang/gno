@@ -29,7 +29,6 @@ OFFICIAL_PACKAGES += ./gno.land/r/demo
 OFFICIAL_PACKAGES += ./gno.land/r/gnoland
 OFFICIAL_PACKAGES += ./gno.land/r/sys
 OFFICIAL_PACKAGES += ./gno.land/r/gov
-OFFICIAL_PACKAGES += ./gno.land/r/nt
 
 ########################################
 # Dev tools
