@@ -11,7 +11,7 @@ class Help {
   private funcList: HelpFunc[];
 
   private static SELECTORS = {
-    container: "#help",
+    container: ".js-help-view",
     func: "[data-func]",
     addressInput: "[data-role='help-input-addr']",
     cmdModeSelect: "[data-role='help-select-mode']",
