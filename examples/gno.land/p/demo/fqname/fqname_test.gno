@@ -58,8 +58,8 @@ func TestRenderLink(t *testing.T) {
 		slug     string
 		expected string
 	}{
-		{"gno.land/p/nt/avl", "Tree", "[gno.land/p/nt/avl](/p/demo/avl).Tree"},
-		{"gno.land/p/nt/avl", "", "[gno.land/p/nt/avl](/p/demo/avl)"},
+		{"gno.land/p/nt/avl", "Tree", "[gno.land/p/nt/avl](/p/nt/avl).Tree"},
+		{"gno.land/p/nt/avl", "", "[gno.land/p/nt/avl](/p/nt/avl)"},
 		{"github.com/a/b", "C", "github.com/a/b.C"},
 		{"example.com/pkg", "Func", "example.com/pkg.Func"},
 		{"gno.land/r/demo/foo20", "Token", "[gno.land/r/demo/foo20](/r/demo/foo20).Token"},
