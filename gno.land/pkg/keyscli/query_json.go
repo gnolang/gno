@@ -12,7 +12,7 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/crypto/keys/client"
 )
 
-func NewQueryJSONCmd(rootCfg *client.BaseCfg, io commands.IO) *commands.Command {
+func NewJSONQueryCmd(rootCfg *client.BaseCfg, io commands.IO) *commands.Command {
 	cfg := &client.QueryCfg{
 		RootCfg: rootCfg,
 	}
@@ -26,12 +26,12 @@ func NewQueryJSONCmd(rootCfg *client.BaseCfg, io commands.IO) *commands.Command 
 		},
 		cfg,
 		func(_ context.Context, args []string) error {
-			return execQuery(cfg, args, io)
+			return execJSONQuery(cfg, args, io)
 		},
 	)
 }
 
-func execQuery(cfg *client.QueryCfg, args []string, io commands.IO) error {
+func execJSONQuery(cfg *client.QueryCfg, args []string, io commands.IO) error {
 	if len(args) != 1 {
 		return flag.ErrHelp
 	}
