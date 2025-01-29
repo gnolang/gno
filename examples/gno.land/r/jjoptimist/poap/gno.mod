@@ -1,1 +1,1 @@
-module gno.land/r/jjoptimist/poap 
+module gno.land/r/jjoptimist/poap
