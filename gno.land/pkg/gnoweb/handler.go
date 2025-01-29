@@ -114,7 +114,7 @@ func (h *WebHandler) prepareIndexBodyView(r *http.Request, indexData *components
 	gnourl, err := ParseGnoURL(r.URL)
 	if err != nil {
 		h.Logger.Warn("unable to parse url path", "path", r.URL.Path, "error", err)
-		return http.StatusNotFound, components.StatusComponent("invalid path")
+		return http.StatusNotFound, components.StatusErrorComponent("invalid path")
 	}
 
 	breadcrumb := generateBreadcrumbPaths(gnourl)
@@ -130,7 +130,7 @@ func (h *WebHandler) prepareIndexBodyView(r *http.Request, indexData *components
 		return h.GetPackageView(gnourl)
 	default:
 		h.Logger.Debug("invalid path: path is neither a pure package or a realm")
-		return http.StatusBadRequest, components.StatusComponent("invalid path")
+		return http.StatusBadRequest, components.StatusErrorComponent("invalid path")
 	}
 }
 
@@ -160,6 +160,10 @@ func (h *WebHandler) GetRealmView(gnourl *GnoURL) (int, *components.View) {
 
 	meta, err := h.Client.RenderRealm(&content, gnourl.Path, gnourl.EncodeArgs())
 	if err != nil {
+		if errors.Is(err, ErrRenderNotDeclared) {
+			return http.StatusNoContent, components.StatusNoRenderComponent(gnourl.Path)
+		}
+
 		h.Logger.Error("unable to render realm", "error", err, "path", gnourl.EncodeURL())
 		return GetClientErrorStatusPage(gnourl, err)
 	}
@@ -223,7 +227,7 @@ func (h *WebHandler) GetSourceView(gnourl *GnoURL) (int, *components.View) {
 
 	if len(files) == 0 {
 		h.Logger.Debug("no files available", "path", gnourl.Path)
-		return http.StatusOK, components.StatusComponent("no files available")
+		return http.StatusOK, components.StatusErrorComponent("no files available")
 	}
 
 	var fileName string
@@ -266,7 +270,7 @@ func (h *WebHandler) GetDirectoryView(gnourl *GnoURL) (int, *components.View) {
 
 	if len(files) == 0 {
 		h.Logger.Debug("no files available", "path", gnourl.Path)
-		return http.StatusOK, components.StatusComponent("no files available")
+		return http.StatusOK, components.StatusErrorComponent("no files available")
 	}
 
 	return http.StatusOK, components.DirectoryView(components.DirData{
@@ -283,13 +287,13 @@ func GetClientErrorStatusPage(_ *GnoURL, err error) (int, *components.View) {
 
 	switch {
 	case errors.Is(err, ErrClientPathNotFound):
-		return http.StatusNotFound, components.StatusComponent(err.Error())
+		return http.StatusNotFound, components.StatusErrorComponent(err.Error())
 	case errors.Is(err, ErrClientBadRequest):
-		return http.StatusInternalServerError, components.StatusComponent("bad request")
+		return http.StatusInternalServerError, components.StatusErrorComponent("bad request")
 	case errors.Is(err, ErrClientResponse):
 		fallthrough // XXX: for now fallback as internal error
 	default:
-		return http.StatusInternalServerError, components.StatusComponent("internal error")
+		return http.StatusInternalServerError, components.StatusErrorComponent("internal error")
 	}
 }
 

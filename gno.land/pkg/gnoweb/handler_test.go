@@ -24,12 +24,13 @@ func (t *testingLogger) Write(b []byte) (n int, err error) {
 
 // TestWebHandler_Get tests the Get method of WebHandler using table-driven tests.
 func TestWebHandler_Get(t *testing.T) {
+	t.Parallel()
 	// Set up a mock package with some files and functions
 	mockPackage := &gnoweb.MockPackage{
 		Domain: "example.com",
 		Path:   "/r/mock/path",
 		Files: map[string]string{
-			"render.gno": `package main; func Render(path string) { return "one more time" }`,
+			"render.gno": `package main; func Render(path string) string { return "one more time" }`,
 			"gno.mod":    `module example.com/r/mock/path`,
 			"LicEnse":    `my super license`,
 		},
@@ -37,6 +38,10 @@ func TestWebHandler_Get(t *testing.T) {
 			{FuncName: "SuperRenderFunction", Params: []vm.NamedType{
 				{Name: "my_super_arg", Type: "string"},
 			}},
+			{
+				FuncName: "Render", Params: []vm.NamedType{{Name: "path", Type: "string"}},
+				Results: []vm.NamedType{{Name: "", Type: "string"}},
+			},
 		},
 	}
 
@@ -82,6 +87,7 @@ func TestWebHandler_Get(t *testing.T) {
 
 	for _, tc := range cases {
 		t.Run(strings.TrimPrefix(tc.Path, "/"), func(t *testing.T) {
+			t.Parallel()
 			t.Logf("input: %+v", tc)
 
 			// Initialize testing logger
@@ -109,4 +115,39 @@ func TestWebHandler_Get(t *testing.T) {
 			}
 		})
 	}
+}
+
+// TestWebHandler_NoRender checks if gnoweb displays the `No Render` page properly.
+// This happens when the render being queried does not have a Render function declared.
+func TestWebHandler_NoRender(t *testing.T) {
+	t.Parallel()
+
+	mockPath := "/r/mock/path"
+	mockPackage := &gnoweb.MockPackage{
+		Domain: "gno.land",
+		Path:   "/r/mock/path",
+		Files: map[string]string{
+			"render.gno": `package main; func init() {}`,
+			"gno.mod":    `module gno.land/r/mock/path`,
+		},
+	}
+
+	webclient := gnoweb.NewMockWebClient(mockPackage)
+	config := gnoweb.WebHandlerConfig{
+		WebClient: webclient,
+	}
+
+	logger := slog.New(slog.NewTextHandler(&testingLogger{t}, &slog.HandlerOptions{}))
+	handler, err := gnoweb.NewWebHandler(logger, config)
+	require.NoError(t, err, "failed to create WebHandler")
+
+	req, err := http.NewRequest(http.MethodGet, mockPath, nil)
+	require.NoError(t, err, "failed to create HTTP request")
+
+	rr := httptest.NewRecorder()
+	handler.ServeHTTP(rr, req)
+
+	assert.Equal(t, http.StatusNoContent, rr.Code, "unexpected status code")
+	assert.Containsf(t, rr.Body.String(), "", "rendered body should contain: %q", "No Render")
+	assert.Containsf(t, rr.Body.String(), "", "rendered body should contain: %q", "This realm does not implement a Render() function.")
 }
