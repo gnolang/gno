@@ -61,7 +61,7 @@ func newBugCmd(io commands.IO) *commands.Command {
 		commands.Metadata{
 			Name:       "bug",
 			ShortUsage: "bug",
-			ShortHelp:  "Start a bug report",
+			ShortHelp:  "start a bug report",
 			LongHelp: `opens https://github.com/gnolang/gno/issues in a browser. 
 
 The new issue body is prefilled for you with the following information:
