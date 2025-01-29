@@ -5,7 +5,6 @@ import (
 	"std"
 	"strings"
 	"testing"
-	"time"
 
 	"gno.land/p/demo/gnorkle/feed"
 	"gno.land/p/demo/gnorkle/feeds/periodic"
