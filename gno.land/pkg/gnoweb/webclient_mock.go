@@ -42,8 +42,6 @@ func (m *MockWebClient) RenderRealm(w io.Writer, path string, args string) (*Rea
 		return nil, ErrRenderNotDeclared
 	}
 
-	fmt.Fprintf(w, "[%s]%s:", pkg.Domain, pkg.Path)
-
 	// Return a dummy RealmMeta for simplicity
 	return &RealmMeta{}, nil
 }
