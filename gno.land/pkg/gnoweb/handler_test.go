@@ -147,7 +147,7 @@ func TestWebHandler_NoRender(t *testing.T) {
 	rr := httptest.NewRecorder()
 	handler.ServeHTTP(rr, req)
 
-	assert.Equal(t, http.StatusNoContent, rr.Code, "unexpected status code")
-	assert.Containsf(t, rr.Body.String(), "", "rendered body should contain: %q", "No Render")
-	assert.Containsf(t, rr.Body.String(), "", "rendered body should contain: %q", "This realm does not implement a Render() function.")
+	assert.Equal(t, http.StatusOK, rr.Code, "unexpected status code")
+	expectedBody := "This realm does not implement a Render() function."
+	assert.Contains(t, rr.Body.String(), expectedBody, "rendered body should contain: %q", expectedBody)
 }
