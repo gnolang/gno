@@ -384,8 +384,8 @@ func Do() string {
 
 	var foo string
 	var bar int64
-	env.vmk.prmk.GetString(ctx, "gno.land/r/test.foo.string", &foo)
-	env.vmk.prmk.GetInt64(ctx, "gno.land/r/test.bar.int64", &bar)
+	env.vmk.sdkprms.prmk.GetString(ctx, "gno.land/r/test.foo.string", &foo)
+	env.vmk.sdkprms.prmk.GetInt64(ctx, "gno.land/r/test.bar.int64", &bar)
 	assert.Equal(t, "foo2", foo)
 	assert.Equal(t, int64(1337), bar)
 }

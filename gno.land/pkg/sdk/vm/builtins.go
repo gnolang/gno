@@ -3,6 +3,7 @@ package vm
 import (
 	"github.com/gnolang/gno/tm2/pkg/crypto"
 	"github.com/gnolang/gno/tm2/pkg/sdk"
+	"github.com/gnolang/gno/tm2/pkg/sdk/params"
 	"github.com/gnolang/gno/tm2/pkg/std"
 )
 
@@ -60,21 +61,27 @@ func (bnk *SDKBanker) RemoveCoin(b32addr crypto.Bech32Address, denom string, amo
 // SDKParams
 
 type SDKParams struct {
-	vmk *VMKeeper
-	ctx sdk.Context
+	prmk params.ParamsKeeper
 }
 
-func NewSDKParams(vmk *VMKeeper, ctx sdk.Context) *SDKParams {
-	return &SDKParams{
-		vmk: vmk,
-		ctx: ctx,
+func NewSDKParams(prmk params.ParamsKeeper) SDKParams {
+	return SDKParams{
+		prmk: prmk,
 	}
 }
 
-func (prm *SDKParams) SetString(key, value string)      { prm.vmk.prmk.SetString(prm.ctx, key, value) }
-func (prm *SDKParams) SetBool(key string, value bool)   { prm.vmk.prmk.SetBool(prm.ctx, key, value) }
-func (prm *SDKParams) SetInt64(key string, value int64) { prm.vmk.prmk.SetInt64(prm.ctx, key, value) }
-func (prm *SDKParams) SetUint64(key string, value uint64) {
-	prm.vmk.prmk.SetUint64(prm.ctx, key, value)
+func (prm SDKParams) SetString(ctx sdk.Context, key, value string) {
+	prm.prmk.SetString(ctx, key, value)
 }
-func (prm *SDKParams) SetBytes(key string, value []byte) { prm.vmk.prmk.SetBytes(prm.ctx, key, value) }
+func (prm SDKParams) SetBool(ctx sdk.Context, key string, value bool) {
+	prm.prmk.SetBool(ctx, key, value)
+}
+func (prm SDKParams) SetInt64(ctx sdk.Context, key string, value int64) {
+	prm.prmk.SetInt64(ctx, key, value)
+}
+func (prm SDKParams) SetUint64(ctx sdk.Context, key string, value uint64) {
+	prm.prmk.SetUint64(ctx, key, value)
+}
+func (prm SDKParams) SetBytes(ctx sdk.Context, key string, value []byte) {
+	prm.prmk.SetBytes(ctx, key, value)
+}

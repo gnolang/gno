@@ -9,12 +9,12 @@ const (
 
 func (vm *VMKeeper) getChainDomainParam(ctx sdk.Context) string {
 	chainDomain := "gno.land" // default
-	vm.prmk.GetString(ctx, chainDomainParamPath, &chainDomain)
+	vm.sdkprms.prmk.GetString(ctx, chainDomainParamPath, &chainDomain)
 	return chainDomain
 }
 
 func (vm *VMKeeper) getSysUsersPkgParam(ctx sdk.Context) string {
 	var sysUsersPkg string
-	vm.prmk.GetString(ctx, sysUsersPkgParamPath, &sysUsersPkg)
+	vm.sdkprms.prmk.GetString(ctx, sysUsersPkgParamPath, &sysUsersPkg)
 	return sysUsersPkg
 }
