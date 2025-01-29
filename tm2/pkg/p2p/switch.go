@@ -357,7 +357,7 @@ func (sw *MultiplexSwitch) runRedialLoop(ctx context.Context) {
 
 	type backoffItem struct {
 		lastDialTime time.Time
-		attempts     int
+		attempts     uint
 	}
 
 	var (
@@ -487,7 +487,7 @@ func (sw *MultiplexSwitch) runRedialLoop(ctx context.Context) {
 // by the number of attempts. The returned interval is capped at maxInterval and has a
 // jitter factor applied to it (+/- 10% of interval, max 10 sec).
 func calculateBackoff(
-	attempts int,
+	attempts uint,
 	baseInterval time.Duration,
 	maxInterval time.Duration,
 ) time.Duration {
