@@ -48,7 +48,7 @@ func (p *Pausable) Unpause() error {
 	return nil
 }
 
-// Owner returns the underlying owner of the pausable object
-func (p *Pausable) Owner() std.Address {
-	return p.o.Owner()
+// Ownable returns the underlying ownable
+func (p *Pausable) Ownable() *ownable.Ownable {
+	return p.o
 }

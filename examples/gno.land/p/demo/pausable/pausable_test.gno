@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"gno.land/p/demo/ownable"
+	"gno.land/p/demo/uassert"
 	"gno.land/p/demo/urequire"
 )
 
@@ -17,7 +18,7 @@ func TestNewFromOwnable(t *testing.T) {
 	std.TestSetOrigCaller(firstCaller)
 
 	result := NewFromOwnable(o)
-	urequire.Equal(t, firstCaller.String(), result.Owner().String())
+	urequire.Equal(t, firstCaller.String(), result.Ownable().Owner().String())
 }
 
 func TestSetUnpaused(t *testing.T) {
@@ -25,7 +26,7 @@ func TestSetUnpaused(t *testing.T) {
 	result := NewFromOwnable(o)
 
 	result.Unpause()
-	urequire.False(t, result.IsPaused(), "Expected result to be unpaused")
+	uassert.False(t, result.IsPaused(), "Expected result to be unpaused")
 }
 
 func TestSetPaused(t *testing.T) {
@@ -33,7 +34,7 @@ func TestSetPaused(t *testing.T) {
 	result := NewFromOwnable(o)
 
 	result.Pause()
-	urequire.True(t, result.IsPaused(), "Expected result to be paused")
+	uassert.True(t, result.IsPaused(), "Expected result to be paused")
 }
 
 func TestIsPaused(t *testing.T) {
@@ -42,5 +43,11 @@ func TestIsPaused(t *testing.T) {
 
 	std.TestSetOrigCaller(firstCaller)
 	result.Pause()
-	urequire.True(t, result.IsPaused(), "Expected result to be paused")
+	uassert.True(t, result.IsPaused(), "Expected result to be paused")
+}
+
+func TestOwnable(t *testing.T) {
+	result := NewFromOwnable(o)
+
+	uassert.Equal(t, result.Ownable().Owner(), o.Owner())
 }
