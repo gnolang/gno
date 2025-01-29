@@ -15,6 +15,8 @@ type HeadData struct {
 	ChromaPath  string
 	AssetsPath  string
 	Analytics   bool
+	Remote      string
+	ChainId     string
 }
 
 type IndexData struct {
