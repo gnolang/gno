@@ -73,15 +73,19 @@ func NewSDKParams(prmk params.ParamsKeeper) SDKParams {
 func (prm SDKParams) SetString(ctx sdk.Context, key, value string) {
 	prm.prmk.SetString(ctx, key, value)
 }
+
 func (prm SDKParams) SetBool(ctx sdk.Context, key string, value bool) {
 	prm.prmk.SetBool(ctx, key, value)
 }
+
 func (prm SDKParams) SetInt64(ctx sdk.Context, key string, value int64) {
 	prm.prmk.SetInt64(ctx, key, value)
 }
+
 func (prm SDKParams) SetUint64(ctx sdk.Context, key string, value uint64) {
 	prm.prmk.SetUint64(ctx, key, value)
 }
+
 func (prm SDKParams) SetBytes(ctx sdk.Context, key string, value []byte) {
 	prm.prmk.SetBytes(ctx, key, value)
 }
