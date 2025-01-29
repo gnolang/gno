@@ -21,8 +21,8 @@ func DepositCoins() {
 	wallet.DepositCoins()
 }
 
-func ProposeWithdraw(recipient string, amount int64, denom string, approvalPercentage float64) {
-	wallet.ProposeWithdraw(recipient, amount, denom, approvalPercentage)
+func ProposeWithdraw(recipient string, amount int64, denom string, approvalPercentage float64) int64 {
+	return wallet.ProposeWithdraw(recipient, amount, denom, approvalPercentage)
 }
 
 func ExecuteWithdraw(id int64) {
