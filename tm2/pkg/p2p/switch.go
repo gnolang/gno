@@ -517,8 +517,7 @@ func calculateBackoff(
 	// Below is the code to add a jitter factor to the interval.
 	// Read random bytes into an 8 bytes buffer (size of an int64).
 	var randBytes [8]byte
-	_, err := rand.Read(randBytes[:])
-	if err != nil {
+	if _, err := rand.Read(randBytes[:]); err != nil {
 		return interval
 	}
 
