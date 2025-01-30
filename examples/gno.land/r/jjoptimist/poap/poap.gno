@@ -3,6 +3,7 @@ package poap
 import (
 	"strconv"
 	"time"
+	"std"
 
 	"gno.land/p/demo/avl"
 	"gno.land/p/demo/grc/grc721"
@@ -53,4 +54,22 @@ func GetPOAP(id uint64) (POAP, bool) {
 		return POAP{}, false
 	}
 	return value.(POAP), true
+}
+
+func MintPOAP(poapId uint64) {
+	poap, exists := GetPOAP(poapId)
+	if !exists {
+		panic("POAP does not exist")
+	}
+	
+	if poap.mintCount >= poap.maxMints {
+		panic("POAP minting limit reached")
+	}
+	
+	caller := std.PrevRealm().Addr()
+	tokenId := grc721.TokenID(strconv.FormatUint(poapId, 10) + "-" + strconv.Itoa(poap.mintCount+1))
+	nftTokens.Mint(caller, tokenId)
+	
+	poap.mintCount++
+	poaps.Set(strconv.FormatUint(poapId, 10), poap)
 }
