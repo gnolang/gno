@@ -150,6 +150,7 @@ func DeleteThread(bid BoardID, threadID PostID) {
 		assertHasBoardPermission(board, caller, PermissionThreadDelete)
 	}
 
+	// TODO: Discuss how to deal with thread deletion
 	board.DeleteThread(threadID)
 }
 
