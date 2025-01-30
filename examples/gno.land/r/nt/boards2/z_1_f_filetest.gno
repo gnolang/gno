@@ -15,14 +15,12 @@ const (
 
 func init() {
 	std.TestSetOrigCaller(owner)
+	boards2.InviteMember(bid, user, role)
 }
 
 func main() {
 	boards2.InviteMember(bid, user, role)
-
-	// Check that user is invited
-	println(boards2.HasMemberRole(bid, user, role))
 }
 
-// Output:
-// true
+// Error:
+// user already exists
