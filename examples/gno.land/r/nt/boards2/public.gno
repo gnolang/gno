@@ -17,7 +17,7 @@ func CreateBoard(name string) BoardID {
 	assertIsUserCall()
 
 	name = strings.TrimSpace(name)
-	assertBoardNameIsNotEmpty(name)
+	assertNameIsNotEmpty(name)
 	assertBoardNameNotExists(name)
 
 	caller := std.GetOrigCaller()
@@ -37,7 +37,7 @@ func RenameBoard(name, newName string) {
 	assertIsUserCall()
 
 	newName = strings.TrimSpace(newName)
-	assertBoardNameIsNotEmpty(newName)
+	assertNameIsNotEmpty(newName)
 	assertBoardNameNotExists(newName)
 
 	board := mustGetBoardByName(name)
@@ -74,6 +74,12 @@ func FlagThread(bid BoardID, postID PostID, reason string) {
 
 func CreateThread(bid BoardID, title, body string) PostID {
 	assertIsUserCall()
+
+	title = strings.TrimSpace(title)
+	assertTitleIsNotEmpty(title)
+
+	body = strings.TrimSpace(body)
+	assertBodyIsNotEmpty(body)
 
 	caller := std.GetOrigCaller()
 	board := mustGetBoard(bid)
@@ -178,6 +184,12 @@ func DeleteReply(bid BoardID, threadID, replyID PostID) {
 func EditThread(bid BoardID, threadID PostID, title, body string) {
 	assertIsUserCall()
 
+	title = strings.TrimSpace(title)
+	assertTitleIsNotEmpty(title)
+
+	body = strings.TrimSpace(body)
+	assertBodyIsNotEmpty(body)
+
 	board := mustGetBoard(bid)
 	thread := mustGetThread(board, threadID)
 	caller := std.GetOrigCaller()
@@ -274,9 +286,21 @@ func assertBoardExists(id BoardID) {
 	}
 }
 
-func assertBoardNameIsNotEmpty(name string) {
+func assertNameIsNotEmpty(name string) {
 	if name == "" {
-		panic("board name is empty")
+		panic("name is empty")
+	}
+}
+
+func assertTitleIsNotEmpty(title string) {
+	if title == "" {
+		panic("title is empty")
+	}
+}
+
+func assertBodyIsNotEmpty(body string) {
+	if body == "" {
+		panic("body is empty")
 	}
 }
 

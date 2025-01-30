@@ -13,8 +13,8 @@ func init() {
 }
 
 func main() {
-	boards2.CreateBoard("")
+	boards2.CreateThread(404, "Foo", "bar")
 }
 
 // Error:
-// name is empty
+// board does not exist with ID: 404
