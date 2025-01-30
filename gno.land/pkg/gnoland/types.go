@@ -40,6 +40,8 @@ func (bs BitSet) String() string {
 	return fmt.Sprintf("%016b", bs) // Show all 16 bits
 }
 
+var _ std.AccountRestricter = &GnoAccount{}
+
 type GnoAccount struct {
 	std.BaseAccount
 	Attributes BitSet `json:"attributes" yaml:"attributes"`
@@ -102,12 +104,6 @@ func (ga *GnoAccount) String() string {
 
 func ProtoGnoAccount() std.Account {
 	return &GnoAccount{}
-}
-
-type AccountRestricter interface {
-	IsRestricted() bool
-	SetUnrestricted()
-	SetRestricted()
 }
 
 type GnoGenesisState struct {

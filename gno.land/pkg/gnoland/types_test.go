@@ -141,22 +141,22 @@ func TestGnoAccountRestriction(t *testing.T) {
 	toAccount := acckpr.NewAccountWithAddress(ctx, toAddress)
 
 	// Unrestrict Account
-	fromAccount.(AccountRestricter).SetUnrestricted()
-	assert.False(t, fromAccount.(AccountRestricter).IsRestricted())
+	fromAccount.(*GnoAccount).SetUnrestricted()
+	assert.False(t, fromAccount.(*GnoAccount).IsRestricted())
 
 	// Persisted unrestricted state
 	acckpr.SetAccount(ctx, fromAccount)
 	fromAccount = acckpr.GetAccount(ctx, fromAddress)
-	assert.False(t, fromAccount.(AccountRestricter).IsRestricted())
+	assert.False(t, fromAccount.(*GnoAccount).IsRestricted())
 
 	// Restrict Account
-	fromAccount.(AccountRestricter).SetRestricted()
-	assert.True(t, fromAccount.(AccountRestricter).IsRestricted())
+	fromAccount.(*GnoAccount).SetRestricted()
+	assert.True(t, fromAccount.(*GnoAccount).IsRestricted())
 
 	// Persisted restricted state
 	acckpr.SetAccount(ctx, fromAccount)
 	fromAccount = acckpr.GetAccount(ctx, fromAddress)
-	assert.True(t, fromAccount.(AccountRestricter).IsRestricted())
+	assert.True(t, fromAccount.(*GnoAccount).IsRestricted())
 
 	// Send Unrestricted
 	fromAccount.SetCoins(std.NewCoins(std.NewCoin("foocoin", 10)))

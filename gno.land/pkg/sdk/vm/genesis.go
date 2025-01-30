@@ -29,6 +29,9 @@ func ValidateGenesis(data GenesisState) error {
 // InitGenesis - Init store state from genesis data
 func (vm *VMKeeper) InitGenesis(ctx sdk.Context, data GenesisState) {
 	if amino.DeepEqual(data, GenesisState{}) {
+		if err := vm.SetParams(ctx, DefaultParams()); err != nil {
+			panic(err)
+		}
 		return
 	}
 

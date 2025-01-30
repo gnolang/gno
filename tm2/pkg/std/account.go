@@ -19,7 +19,6 @@ import (
 //
 // Many complex conditions can be used in the concrete struct which implements Account.
 type Account interface {
-	AccountRestricter
 	GetAddress() crypto.Address
 	SetAddress(crypto.Address) error // errors if already set.
 
@@ -37,6 +36,10 @@ type Account interface {
 
 	// Ensure that account implements stringer
 	String() string
+}
+
+type AccountRestricter interface {
+	IsRestricted() bool
 }
 
 //----------------------------------------
@@ -151,12 +154,4 @@ func (acc *BaseAccount) GetSequence() uint64 {
 func (acc *BaseAccount) SetSequence(seq uint64) error {
 	acc.Sequence = seq
 	return nil
-}
-
-type AccountRestricter interface {
-	IsRestricted() bool
-}
-
-func (acc *BaseAccount) IsRestricted() bool {
-	return false
 }

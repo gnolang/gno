@@ -353,7 +353,7 @@ func (cfg InitChainerConfig) loadAppState(ctx sdk.Context, appState any) ([]abci
 
 	for _, addr := range state.Auth.Params.UnrestrictedAddrs {
 		acc := cfg.acctKpr.GetAccount(ctx, addr)
-		accr := acc.(AccountRestricter)
+		accr := acc.(*GnoAccount)
 		accr.SetUnrestricted()
 		cfg.acctKpr.SetAccount(ctx, acc)
 	}
