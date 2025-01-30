@@ -427,6 +427,11 @@ func transcribe(t Transform, ns []Node, ftype TransField, index int, n Node, nc 
 			return
 		}
 	case *ForStmt:
+		// infinite loop
+		if cnn.Cond == nil && len(cnn.Body) == 0 {
+			panic(fmt.Sprintf("infite loop: %+v\n", cnn))
+		}
+
 		cnn2, c2 := t(ns, ftype, index, cnn, TRANS_BLOCK)
 		if isStopOrSkip(nc, c2) {
 			nn = cnn2
