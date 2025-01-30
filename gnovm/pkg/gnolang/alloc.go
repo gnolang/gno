@@ -168,17 +168,10 @@ func (alloc *Allocator) GC() {
 		debug2.Println2("type of block: ", reflect.TypeOf(b), reflect.TypeOf(b.Source))
 		debug2.Println2("block.externs: ", b.Source.GetExternNames())
 		debug2.Println2("block.names: ", b.Source.GetBlockNames())
-		throwaway.allocateValue(b)
+		throwaway.allocateValue(b, 1)
 
-		for i, v := range b.Values {
-			debug2.Printf2("values[%d] is %v, v.NeedValueAllocation: %t, v.NeedTypeAllocation: %t \n", i, v, v.NeedsValueAllocation(), v.NeedsTypeAllocation())
-			if v.NeedsTypeAllocation() {
-				debug2.Println2("allocate type: ", v.T)
-				throwaway.AllocateType()
-			}
-			if v.NeedsValueAllocation() {
-				throwaway.allocateValue(v.V)
-			}
+		for _, tv := range b.Values {
+			throwaway.allocateTV(tv)
 		}
 	}
 
@@ -189,7 +182,40 @@ func (alloc *Allocator) GC() {
 	debug2.Println2("---after reset, alloc.bytes: ", alloc.bytes)
 }
 
-func (throwaway *Allocator) allocateValue(v Value) {
+func (throwaway *Allocator) allocateTV(tv TypedValue) {
+	debug2.Println2("allocateTV, tv: ", tv)
+
+	debug2.Println2("allocInfo: ", tv.AllocationInfo.String())
+
+	// allocate type
+	if tv.HasTypeAlloc {
+		throwaway.AllocateType()
+	}
+
+	// allocate value
+	switch tv.ValueAllocType {
+	case AllocNone: // no allocation value
+		// do nothing
+	case AllocDefault:
+		throwaway.allocateValue(tv.V, tv.RefCount)
+	case AllocSliceOnly: // only slice
+		throwaway.AllocateSlice()
+	}
+}
+
+func (throwaway *Allocator) allocZeroTV(tv *TypedValue) {
+	debug2.Println2("allocZeroTV, tv: ", tv, reflect.TypeOf(tv.T))
+	switch t := baseOf(tv.T).(type) {
+	case *StructType:
+		throwaway.AllocateStructFields(int64(len(t.Fields)))
+		throwaway.AllocateStruct()
+	case *ArrayType:
+	case *NativeType:
+	case *SliceType: // TODO: ???
+	}
+}
+
+func (throwaway *Allocator) allocateValue(v Value, times int) {
 	debug2.Println2("allocateValue: ", v, reflect.TypeOf(v))
 	// alloc amino
 	// if ref value, allocate amino
@@ -211,16 +237,26 @@ func (throwaway *Allocator) allocateValue(v Value) {
 		throwaway.AllocateType()
 	case *StructValue:
 		// TODO: alloc struct fields first, num of items
+
+		// alloc zero value, first alloc outer struct
 		// see var s = S{name: "foo"}
 		// the struct lit is allocated first,
 		// then with copy, it is allocated again.
-		throwaway.AllocateStruct()
+		for i := 0; i < times; i++ {
+			throwaway.AllocateStructFields(int64(len(vv.Fields)))
+			throwaway.AllocateStruct()
+		}
+
+		// then allocate zero value for embedded value once
+		for _, f := range vv.Fields {
+			debug2.Println2("field: ", f, reflect.TypeOf(f))
+			throwaway.allocZeroTV(&f)
+		}
+
+		// last, alloc fields recursively
 		for _, field := range vv.Fields {
 			debug2.Println2("field: ", field)
-			debug2.Println2("field.NeedsValueAllocation: ", field.NeedsValueAllocation())
-			if field.NeedsValueAllocation() {
-				throwaway.allocateValue(field.V)
-			}
+			throwaway.allocateTV(field)
 		}
 	case *FuncValue:
 		throwaway.AllocateFunc()
@@ -237,13 +273,13 @@ func (throwaway *Allocator) allocateValue(v Value) {
 		//}
 	case PointerValue:
 		throwaway.AllocatePointer()
-		throwaway.allocateValue(vv.Base)
+		throwaway.allocateValue(vv.Base, times)
 	case *HeapItemValue:
 		throwaway.AllocateHeapItem()
-		throwaway.allocateValue(vv.Value.V)
+		throwaway.allocateValue(vv.Value.V, times)
 	case *SliceValue:
 		throwaway.AllocateSlice()
-		throwaway.allocateValue(vv.Base)
+		throwaway.allocateValue(vv.Base, times)
 	case *ArrayValue:
 		// TODO: data array
 		throwaway.AllocateListArray(int64(len(vv.List)))
@@ -475,7 +511,7 @@ func (alloc *Allocator) NewSliceFromData(data []byte) *SliceValue {
 
 // NOTE: fields must be allocated (e.g. from NewStructFields)
 func (alloc *Allocator) NewStruct(fields []TypedValue) *StructValue {
-	debug2.Println2("NewStruct", fields)
+	debug2.Println2("NewStruct: ", fields)
 	alloc.AllocateStruct()
 	return &StructValue{
 		Fields: fields,
@@ -528,4 +564,60 @@ func (alloc *Allocator) NewHeapItem(tv TypedValue) *HeapItemValue {
 	debug2.Println2("NewHeapItem", tv)
 	alloc.AllocateHeapItem()
 	return &HeapItemValue{Value: tv}
+}
+
+// ========================================================
+type AllocationType int
+
+const (
+	AllocNone    AllocationType = 0
+	AllocDefault AllocationType = 1 << iota // 1 << 0 = 1 (bit 0)
+	AllocSliceOnly
+)
+
+func (a AllocationType) String() string {
+	switch a {
+	case AllocNone:
+		return "AllocNone"
+	case AllocDefault:
+		return "AllocDefault"
+	case AllocSliceOnly:
+		return "AllocSliceOnly"
+	}
+	return "Unknown"
+}
+
+type AllocationInfo struct {
+	HasTypeAlloc   bool
+	ValueAllocType AllocationType
+	RefCount       int
+	// var f5 = Foo{xxx}, after declaration,
+	// it's sealed, then alloc only once for non-reference value.
+	// no alloc for reference value.
+	//
+	Sealed bool
+}
+
+func (ai *AllocationInfo) String() string {
+	return fmt.Sprintf(
+		"AllocationInfo{hasTypeAlloc: %t, allocationType: %s, RefCount: %d}",
+		ai.HasTypeAlloc, ai.ValueAllocType, ai.RefCount,
+	)
+}
+
+func (ai *AllocationInfo) SetValueAlloc(valueAllocType AllocationType) {
+	(*ai).ValueAllocType = valueAllocType
+	(*ai).RefCount = 1
+}
+
+func (ai *AllocationInfo) SetTypeAlloc() {
+	ai.HasTypeAlloc = true
+}
+
+func (ai *AllocationInfo) IncRefCount() {
+	ai.RefCount++
+}
+
+func (ai *AllocationInfo) GetRefCount() int {
+	return ai.RefCount
 }

@@ -133,9 +133,9 @@ func (loc Location) String() string {
 
 func (loc Location) IsZero() bool {
 	return loc.PkgPath == "" &&
-		loc.File == "" &&
-		loc.Line == 0 &&
-		loc.Column == 0
+			loc.File == "" &&
+			loc.Line == 0 &&
+			loc.Column == 0
 }
 
 // ----------------------------------------
@@ -408,16 +408,7 @@ type NameExpr struct {
 	// TODO rename .Path's to .ValuePaths.
 	Path ValuePath // set by preprocessor.
 	Name
-	Type           NameExprType
-	AllocationFlag bool
-}
-
-func (x *NameExpr) SetAllocationFlag(flag bool) {
-	x.AllocationFlag = flag
-}
-
-func (x *NameExpr) GetAllocationFlag() bool {
-	return x.AllocationFlag
+	Type NameExprType
 }
 
 type NameExprs []NameExpr
@@ -448,34 +439,16 @@ type CallExpr struct { // Func(Args<Varg?...>)
 
 type IndexExpr struct { // X[Index]
 	Attributes
-	X              Expr // expression
-	Index          Expr // index expression
-	HasOK          bool // if true, is form: `value, ok := <X>[<Key>]`
-	AllocationFlag bool
-}
-
-func (x *IndexExpr) SetAllocationFlag(flag bool) {
-	x.AllocationFlag = flag
-}
-
-func (x *IndexExpr) GetAllocationFlag() bool {
-	return x.AllocationFlag
+	X     Expr // expression
+	Index Expr // index expression
+	HasOK bool // if true, is form: `value, ok := <X>[<Key>]`
 }
 
 type SelectorExpr struct { // X.Sel
 	Attributes
-	X              Expr      // expression
-	Path           ValuePath // set by preprocessor.
-	Sel            Name      // field selector
-	AllocationFlag bool
-}
-
-func (x *SelectorExpr) SetAllocationFlag(flag bool) {
-	x.AllocationFlag = flag
-}
-
-func (x *SelectorExpr) GetAllocationFlag() bool {
-	return x.AllocationFlag
+	X    Expr      // expression
+	Path ValuePath // set by preprocessor.
+	Sel  Name      // field selector
 }
 
 type SliceExpr struct { // X[Low:High:Max]
@@ -491,16 +464,7 @@ type SliceExpr struct { // X[Low:High:Max]
 // expression, or a pointer type.
 type StarExpr struct { // *X
 	Attributes
-	X              Expr // operand
-	AllocationFlag bool
-}
-
-func (x *StarExpr) SetAllocationFlag(flag bool) {
-	x.AllocationFlag = flag
-}
-
-func (x *StarExpr) GetAllocationFlag() bool {
-	return x.AllocationFlag
+	X Expr // operand
 }
 
 type RefExpr struct { // &X
@@ -1221,9 +1185,9 @@ func ReadMemPackage(dir string, pkgPath string) (*gnovm.MemPackage, error) {
 	list := make([]string, 0, len(files))
 	for _, file := range files {
 		if file.IsDir() ||
-			strings.HasPrefix(file.Name(), ".") ||
-			(!endsWith(file.Name(), allowedFileExtensions) && !contains(allowedFiles, file.Name())) ||
-			endsWith(file.Name(), rejectedFileExtensions) {
+				strings.HasPrefix(file.Name(), ".") ||
+				(!endsWith(file.Name(), allowedFileExtensions) && !contains(allowedFiles, file.Name())) ||
+				endsWith(file.Name(), rejectedFileExtensions) {
 			continue
 		}
 		list = append(list, filepath.Join(dir, file.Name()))
@@ -1302,7 +1266,7 @@ func ParseMemPackage(memPkg *gnovm.MemPackage) (fset *FileSet) {
 	var errs error
 	for _, mfile := range memPkg.Files {
 		if !strings.HasSuffix(mfile.Name, ".gno") ||
-			endsWith(mfile.Name, []string{"_test.gno", "_filetest.gno"}) {
+				endsWith(mfile.Name, []string{"_test.gno", "_filetest.gno"}) {
 			continue // skip spurious or test file.
 		}
 		n, err := ParseFile(mfile.Name, mfile.Body)
@@ -2225,9 +2189,4 @@ func isHiddenResultVariable(name string) bool {
 		return true
 	}
 	return false
-}
-
-type Allocatable interface {
-	SetAllocationFlag(bool)
-	GetAllocationFlag() bool
 }

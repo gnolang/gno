@@ -192,11 +192,12 @@ func makeUverseNode() {
 						Elt: Uint8Type,
 						Vrd: true,
 					}),
-					V:         m.Alloc.NewSlice(newArrayValue, 0, len(arg1String), len(arg1String)), // TODO: pool?
-					AllocFlag: AllocTypeFlag,
+					V: m.Alloc.NewSlice(newArrayValue, 0, len(arg1String), len(arg1String)), // TODO: pool?
+					//AllocFlag: AllocTypeFlag,
 				}
 				if m.Alloc != nil {
-					tv.SetNeedsTypeAllocation(true)
+					tv.SetTypeAlloc()
+					tv.SetValueAllocType(AllocSliceOnly)
 				}
 				arg1.TV = tv
 			}
@@ -980,7 +981,7 @@ func makeUverseNode() {
 				},
 			}
 			if m.Alloc != nil {
-				tv.SetNeedsTypeAllocation(true)
+				tv.SetTypeAlloc()
 			}
 			m.PushValue(tv)
 			return

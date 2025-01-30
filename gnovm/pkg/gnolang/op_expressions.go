@@ -210,7 +210,7 @@ func (m *Machine) doOpRef() {
 		V: xv,
 	}
 	if m.Alloc != nil {
-		tv.SetNeedsTypeAllocation(true)
+		tv.SetTypeAlloc()
 	}
 	m.PushValue(tv)
 }
@@ -587,13 +587,16 @@ func (m *Machine) doOpSliceLit() {
 	}
 	sv := m.Alloc.NewSliceFromList(es)
 	debug2.Printf2("addr of sv: %p \n", sv)
-	m.PushValue(TypedValue{
+	tv := TypedValue{
 		T: st,
 		V: sv,
-	})
+	}
+	tv.SetValueAllocType(AllocDefault)
+	m.PushValue(tv)
 }
 
 func (m *Machine) doOpSliceLit2() {
+	debug2.Println2("doOpSliceLit2")
 	// assess performance TODO
 	x := m.PopExpr().(*CompositeLitExpr)
 	el := len(x.Elts)
@@ -761,10 +764,13 @@ func (m *Machine) doOpStructLit() {
 	// construct and push value.
 	m.PopValue() // baseOf() is st
 	sv := m.Alloc.NewStruct(fs)
-	m.PushValue(TypedValue{
+	tv := TypedValue{
 		T: xt,
 		V: sv,
-	})
+	}
+
+	tv.SetValueAllocType(AllocDefault)
+	m.PushValue(tv)
 }
 
 func (m *Machine) doOpFuncLit() {

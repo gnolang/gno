@@ -212,6 +212,8 @@ func (pv *PointerValue) GetBase(store Store) Object {
 // TODO: document as something that enables into-native assignment.
 // TODO: maybe consider this as entrypoint for DataByteValue too?
 func (pv PointerValue) Assign2(alloc *Allocator, store Store, rlm *Realm, tv2 TypedValue, cu bool) {
+	debug2.Println2("Assign2, pv: ", pv)
+	debug2.Println2("Assign2, tv2: ", tv2)
 	// Special cases.
 	if pv.Index == PointerIndexNative {
 		// Special case if extended object && native.
@@ -974,44 +976,19 @@ func (nv *NativeValue) Copy(alloc *Allocator) *NativeValue {
 // TypedValue (is not a value, but a tuple)
 
 type TypedValue struct {
-	T         Type    `json:",omitempty"` // never nil
-	V         Value   `json:",omitempty"` // an untyped value
-	N         [8]byte `json:",omitempty"` // numeric bytes
-	AllocFlag uint8   `json:",omitempty"` // bitfield for flags
+	T              Type    `json:",omitempty"` // never nil
+	V              Value   `json:",omitempty"` // an untyped value
+	N              [8]byte `json:",omitempty"` // numeric bytes
+	AllocationInfo `json:",omitempty"`
 }
 
-const (
-	AllocValueFlag uint8 = 1 << iota // 0b00000001
-	AllocTypeFlag                    // 0b00000010
-)
-
-// Setter for AllocType flag
-func (tv *TypedValue) SetNeedsTypeAllocation(needsAlloc bool) {
-	if needsAlloc {
-		tv.AllocFlag |= AllocTypeFlag
-	} else {
-		tv.AllocFlag &^= AllocTypeFlag
-	}
+func (n *TypedValue) SetValueAllocType(valueAllocType AllocationType) {
+	debug2.Println2("SetValueAllocType: ", valueAllocType)
+	(&n.AllocationInfo).SetValueAlloc(valueAllocType)
+	debug2.Printf2("===After SetValueAllocType, n: %v, ai: %v \n", n, n.AllocationInfo)
 }
-
-// Getter for AllocType flag
-func (tv *TypedValue) NeedsTypeAllocation() bool {
-	return tv.AllocFlag&AllocTypeFlag != 0
-}
-
-// Setter for AllocValue flag
-func (tv *TypedValue) SetNeedsValueAllocation(needsAlloc bool) {
-	debug2.Println2("SetNeedsValueAllocation, tv, flag: ", tv, needsAlloc)
-	if needsAlloc {
-		tv.AllocFlag |= AllocValueFlag
-	} else {
-		tv.AllocFlag &^= AllocValueFlag
-	}
-}
-
-// Getter for AllocValue flag
-func (tv *TypedValue) NeedsValueAllocation() bool {
-	return tv.AllocFlag&AllocValueFlag != 0
+func (n *TypedValue) SetTypeAlloc() {
+	n.AllocationInfo.SetTypeAlloc()
 }
 
 func (tv *TypedValue) IsDefined() bool {
@@ -1096,6 +1073,21 @@ func (tv TypedValue) Copy(alloc *Allocator) (cp TypedValue) {
 	default:
 		cp = tv
 	}
+
+	// alloc info copy
+	sealed := tv.Sealed // already sealed
+	// copy alloc info
+	cp.AllocationInfo = tv.AllocationInfo
+
+	// if not sealed, inc refCount
+	// if sealed, refCount will be reset and always be 1
+	if !sealed {
+		cp.AllocationInfo.IncRefCount()
+		if cp.AllocationInfo.GetRefCount() == 2 {
+			cp.AllocationInfo.Sealed = true
+		}
+	}
+	debug2.Printf2("===After copy, cp: %v cp.AllocationInfo: %v\n", cp, cp.AllocationInfo)
 	return
 }
 
@@ -1984,7 +1976,8 @@ func (tv *TypedValue) GetPointerToFromTV(alloc *Allocator, store Store, path Val
 				*/
 			}
 			if alloc != nil {
-				pv.TV.SetNeedsTypeAllocation(true)
+				pv.TV.SetTypeAlloc()
+				pv.TV.SetValueAllocType(AllocDefault)
 			}
 			return pv
 		} else {
@@ -2001,9 +1994,8 @@ func (tv *TypedValue) GetPointerToFromTV(alloc *Allocator, store Store, path Val
 				mt := mv.Type()
 				pv := PointerValue{
 					TV: &TypedValue{ // heap alloc
-						T:         alloc.NewType(&NativeType{Type: mt}),
-						V:         alloc.NewNative(mv),
-						AllocFlag: AllocTypeFlag,
+						T: alloc.NewType(&NativeType{Type: mt}),
+						V: alloc.NewNative(mv),
 					},
 					// TODO consider if needed for persistence:
 					/*
@@ -2013,7 +2005,8 @@ func (tv *TypedValue) GetPointerToFromTV(alloc *Allocator, store Store, path Val
 					*/
 				}
 				if alloc != nil {
-					pv.TV.SetNeedsTypeAllocation(true)
+					pv.TV.SetTypeAlloc()
+					pv.TV.SetValueAllocType(AllocDefault)
 				}
 				return pv
 			}
@@ -2112,13 +2105,13 @@ func (tv *TypedValue) GetPointerAtIndex(alloc *Allocator, store Store, iv *Typed
 				Base:  nv,
 				Index: PointerIndexNative,
 				Key: &TypedValue{
-					T:         alloc.NewType(&NativeType{Type: krv.Type()}),
-					V:         alloc.NewNative(krv),
-					AllocFlag: AllocTypeFlag,
+					T: alloc.NewType(&NativeType{Type: krv.Type()}),
+					V: alloc.NewNative(krv),
 				},
 			}
 			if alloc != nil {
-				pv.TV.SetNeedsTypeAllocation(true)
+				pv.TV.SetTypeAlloc()
+				pv.TV.SetValueAllocType(AllocDefault)
 			}
 			return pv
 		default:
@@ -2230,6 +2223,7 @@ func (tv *TypedValue) GetCapacity() int {
 
 // New type
 func (tv *TypedValue) GetSlice(alloc *Allocator, low, high int) TypedValue {
+	debug2.Println2("GetSlice, low, high: ", low, high)
 	if low < 0 {
 		panic(&Exception{Value: typedString(fmt.Sprintf(
 			"invalid slice index %d (index must be non-negative)",
@@ -2282,7 +2276,7 @@ func (tv *TypedValue) GetSlice(alloc *Allocator, low, high int) TypedValue {
 			),
 		}
 		if alloc != nil {
-			tv.SetNeedsTypeAllocation(true)
+			tv.SetValueAllocType(AllocSliceOnly)
 		}
 		return tv
 	case *SliceType:
@@ -2319,6 +2313,8 @@ func (tv *TypedValue) GetSlice(alloc *Allocator, low, high int) TypedValue {
 
 // TODO: new type
 func (tv *TypedValue) GetSlice2(alloc *Allocator, lowVal, highVal, maxVal int) TypedValue {
+	debug2.Println2("GetSlice2, lowVal, highVal: ", lowVal, highVal)
+
 	if lowVal < 0 {
 		panic(fmt.Sprintf(
 			"invalid slice index %d (index must be non-negative)",
@@ -2371,7 +2367,8 @@ func (tv *TypedValue) GetSlice2(alloc *Allocator, lowVal, highVal, maxVal int) T
 			),
 		}
 		if alloc != nil {
-			tv.SetNeedsTypeAllocation(true)
+			tv.SetTypeAlloc()
+			tv.SetValueAllocType(AllocSliceOnly)
 		}
 		return tv
 	case *SliceType:
@@ -2693,6 +2690,7 @@ func defaultArrayValue(alloc *Allocator, at *ArrayType) *ArrayValue {
 }
 
 func defaultValue(alloc *Allocator, t Type) Value {
+	debug2.Println2("defaultValue, t: ", t)
 	switch ct := baseOf(t).(type) {
 	case nil:
 		panic("unexpected nil type")
