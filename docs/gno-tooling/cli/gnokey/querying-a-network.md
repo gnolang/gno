@@ -24,7 +24,7 @@ Below is a list of queries a user can make with `gnokey`:
 - `bank/balances/{ADDRESS}` - returns balances of an account
 - `vm/qfuncs` - returns the exported functions for a given pkgpath
 - `vm/qfile` - returns package contents for a given pkgpath
-- `vm/qdoc` - Returns JSON of the doc for a given pkgpath, suitable for printing
+- `vm/qdoc` - Returns the JSON of the doc for a given pkgpath, suitable for printing
 - `vm/qeval` - evaluates an expression in read-only mode on and returns the results
 - `vm/qrender` - shorthand for evaluating `vm/qeval Render("")` for a given pkgpath
 
