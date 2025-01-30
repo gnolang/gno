@@ -122,6 +122,14 @@ func (registry *ModiferRegistry) EditModifierApprovalPercentage(name string, new
 		panic("Must provide a non-empty name")
 	}
 
+	if newApprovalPercentage <= 0 {
+		panic("Approval percentage must be grater than 0!")
+	}
+
+	if newApprovalPercentage > 1 {
+		panic("Approval percentage must be lower or equal than1!")
+	}
+
 	v, exists := registry.Modifiers.Get(name)
 	if !exists {
 		panic("Modifier with provided name doesn't exist!")
