@@ -10,11 +10,14 @@ import (
 	"io"
 	"net"
 	"os"
+	"path"
 	"path/filepath"
 	"sort"
 	"strconv"
 	"strings"
 	"unicode"
+
+	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
 )
 
 // DebugState is the state of the machine debugger, defined by a finite state
@@ -52,6 +55,7 @@ type Debugger struct {
 	call        []Location                  // for function tracking, ideally should be provided by machine frame
 	frameLevel  int                         // frame level of the current machine instruction
 	getSrc      func(string, string) string // helper to access source from repl or others
+	rootDir     string
 }
 
 // Enable makes the debugger d active, using in as input reader, out as output writer and f as a source helper.
@@ -61,6 +65,7 @@ func (d *Debugger) Enable(in io.Reader, out io.Writer, f func(string, string) st
 	d.enabled = true
 	d.state = DebugAtInit
 	d.getSrc = f
+	d.rootDir = gnoenv.RootDir()
 }
 
 // Disable makes the debugger d inactive.
@@ -317,7 +322,12 @@ func parseLocSpec(m *Machine, arg string) (loc Location, err error) {
 			if loc.File, err = filepath.Abs(strs[0]); err != nil {
 				return loc, err
 			}
-			loc.File = filepath.Clean(loc.File)
+			loc.File = path.Clean(loc.File)
+			loc.File = strings.TrimPrefix(loc.File, m.Debugger.rootDir+"/gnovm/stdlibs/")
+			loc.File = strings.TrimPrefix(loc.File, m.Debugger.rootDir+"/examples/")
+			loc.File = strings.TrimPrefix(loc.File, m.Debugger.rootDir+"/")
+			loc.PkgPath = path.Dir(loc.File)
+			loc.File = path.Base(loc.File)
 		}
 		if line, err = strconv.Atoi(strs[1]); err != nil {
 			return loc, err
