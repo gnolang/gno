@@ -1,0 +1,21 @@
+package main
+
+import (
+	"std"
+	"strings"
+
+	"gno.land/r/nt/boards2"
+)
+
+const owner = std.Address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5") // @test1
+
+func init() {
+	std.TestSetOrigCaller(owner)
+}
+
+func main() {
+	boards2.EditThread(404, 1, "Foo", "bar")
+}
+
+// Error:
+// board does not exist with ID: 404
