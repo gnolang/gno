@@ -227,6 +227,11 @@ func RemoveMember(bid BoardID, user std.Address) {
 	})
 }
 
+func IsMember(bid BoardID, member std.Address) bool {
+	perms := mustGetPermissions(bid)
+	return perms.HasUser(member)
+}
+
 func HasMemberRole(bid BoardID, member std.Address, role Role) bool {
 	perms := mustGetPermissions(bid)
 	return perms.HasRole(member, role)
