@@ -39,6 +39,7 @@ import (
 const (
 	maxAllocTx    = 500_000_000
 	maxAllocQuery = 1_500_000_000 // higher limit for queries
+	maxGasQuery   = 3_000_000_000 // same as max block gas
 )
 
 // vm.VMKeeperI defines a module interface that supports Gno
@@ -708,9 +709,39 @@ func (vm *VMKeeper) QueryFuncs(ctx sdk.Context, pkgPath string) (fsigs FunctionS
 }
 
 // QueryEval evaluates a gno expression (readonly, for ABCI queries).
-// TODO: modify query protocol to allow MsgEval.
-// TODO: then, rename to "Eval".
 func (vm *VMKeeper) QueryEval(ctx sdk.Context, pkgPath string, expr string) (res string, err error) {
+	rtvs, err := vm.queryEvalInternal(ctx, pkgPath, expr)
+	if err != nil {
+		return "", err
+	}
+	res = ""
+	for i, rtv := range rtvs {
+		res += rtv.String()
+		if i < len(rtvs)-1 {
+			res += "\n"
+		}
+	}
+	return res, nil
+}
+
+// QueryEvalString evaluates a gno expression (readonly, for ABCI queries).
+// The result is expected to be a single string (not a tuple).
+func (vm *VMKeeper) QueryEvalString(ctx sdk.Context, pkgPath string, expr string) (res string, err error) {
+	rtvs, err := vm.queryEvalInternal(ctx, pkgPath, expr)
+	if err != nil {
+		return "", err
+	}
+	if len(rtvs) != 1 {
+		return "", errors.New("expected 1 string result, got %d", len(rtvs))
+	} else if rtvs[0].T.Kind() != gno.StringKind {
+		return "", errors.New("expected 1 string result, got %v", rtvs[0].T.Kind())
+	}
+	res = rtvs[0].GetString()
+	return res, nil
+}
+
+func (vm *VMKeeper) queryEvalInternal(ctx sdk.Context, pkgPath string, expr string) (rtvs []gno.TypedValue, err error) {
+	ctx = ctx.WithGasMeter(store.NewGasMeter(maxGasQuery))
 	alloc := gno.NewAllocator(maxAllocQuery)
 	gnostore := vm.newGnoTransactionStore(ctx) // throwaway (never committed)
 	pkgAddr := gno.DerivePkgAddr(pkgPath)
@@ -719,12 +750,12 @@ func (vm *VMKeeper) QueryEval(ctx sdk.Context, pkgPath string, expr string) (res
 	if pv == nil {
 		err = ErrInvalidPkgPath(fmt.Sprintf(
 			"package not found: %s", pkgPath))
-		return "", err
+		return nil, err
 	}
 	// Parse expression.
 	xx, err := gno.ParseExpr(expr)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 	// Construct new machine.
 	chainDomain := vm.getChainDomainParam(ctx)
@@ -752,71 +783,7 @@ func (vm *VMKeeper) QueryEval(ctx sdk.Context, pkgPath string, expr string) (res
 		})
 	defer m.Release()
 	defer doRecover(m, &err)
-	rtvs := m.Eval(xx)
-	res = ""
-	for i, rtv := range rtvs {
-		res += rtv.String()
-		if i < len(rtvs)-1 {
-			res += "\n"
-		}
-	}
-	return res, nil
-}
-
-// QueryEvalString evaluates a gno expression (readonly, for ABCI queries).
-// The result is expected to be a single string (not a tuple).
-// TODO: modify query protocol to allow MsgEval.
-// TODO: then, rename to "EvalString".
-func (vm *VMKeeper) QueryEvalString(ctx sdk.Context, pkgPath string, expr string) (res string, err error) {
-	alloc := gno.NewAllocator(maxAllocQuery)
-	gnostore := vm.newGnoTransactionStore(ctx) // throwaway (never committed)
-	pkgAddr := gno.DerivePkgAddr(pkgPath)
-	// Get Package.
-	pv := gnostore.GetPackage(pkgPath, false)
-	if pv == nil {
-		err = ErrInvalidPkgPath(fmt.Sprintf(
-			"package not found: %s", pkgPath))
-		return "", err
-	}
-	// Parse expression.
-	xx, err := gno.ParseExpr(expr)
-	if err != nil {
-		return "", err
-	}
-	// Construct new machine.
-	chainDomain := vm.getChainDomainParam(ctx)
-	msgCtx := stdlibs.ExecContext{
-		ChainID:     ctx.ChainID(),
-		ChainDomain: chainDomain,
-		Height:      ctx.BlockHeight(),
-		Timestamp:   ctx.BlockTime().Unix(),
-		// OrigCaller:    caller,
-		// OrigSend:      jsend,
-		// OrigSendSpent: nil,
-		OrigPkgAddr: pkgAddr.Bech32(),
-		Banker:      NewSDKBanker(vm, ctx), // safe as long as ctx is a fork to be discarded.
-		Params:      NewSDKParams(vm, ctx),
-		EventLogger: ctx.EventLogger(),
-	}
-	m := gno.NewMachineWithOptions(
-		gno.MachineOptions{
-			PkgPath:  pkgPath,
-			Output:   vm.Output,
-			Store:    gnostore,
-			Context:  msgCtx,
-			Alloc:    alloc,
-			GasMeter: ctx.GasMeter(),
-		})
-	defer m.Release()
-	defer doRecover(m, &err)
-	rtvs := m.Eval(xx)
-	if len(rtvs) != 1 {
-		return "", errors.New("expected 1 string result, got %d", len(rtvs))
-	} else if rtvs[0].T.Kind() != gno.StringKind {
-		return "", errors.New("expected 1 string result, got %v", rtvs[0].T.Kind())
-	}
-	res = rtvs[0].GetString()
-	return res, nil
+	return m.Eval(xx), err
 }
 
 func (vm *VMKeeper) QueryFile(ctx sdk.Context, filepath string) (res string, err error) {
