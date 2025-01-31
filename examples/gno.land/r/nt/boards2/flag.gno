@@ -5,6 +5,7 @@ import (
 	"strconv"
 )
 
+// TODO: We should allow changing the threshold, also support value per board
 const flagThreshold = 1
 
 type Flag struct {
