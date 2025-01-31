@@ -3,7 +3,6 @@ package ownable2step
 import (
 	"std"
 	"testing"
-	"fmt"
 
 	"gno.land/p/demo/testutils"
 	"gno.land/p/demo/uassert"

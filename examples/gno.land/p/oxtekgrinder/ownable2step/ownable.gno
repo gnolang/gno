@@ -2,7 +2,6 @@ package ownable2step
 
 import (
 	"std"
-	"fmt"
 )
 
 const OwnershipTransferEvent = "OwnershipTransfer"
@@ -15,7 +14,6 @@ type Ownable2Step struct {
 }
 
 func New() *Ownable2Step {
-	fmt.Println("std.PrevRealm().Addr()", std.PrevRealm().Addr())
 	return &Ownable2Step{
 		owner:        std.PrevRealm().Addr(),
 		pendingOwner: "",
