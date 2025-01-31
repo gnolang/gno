@@ -103,18 +103,52 @@ func (dp *DefaultPermissions) SetUserRoles(user std.Address, roles ...Role) erro
 	return dp.setUserRoles(user, roles...)
 }
 
-// SetRolePermissions sets permissions for a given role.
-func (dp *DefaultPermissions) SetRolePermissions(role Role, newPerms ...Permission) error {
-	if !dp.RoleExists(role) {
-		return errors.New("invalid role: " + string(role))
-	}
+// AddRolePermissions grants permissions to a given role.
+func (dp *DefaultPermissions) AddRolePermissions(role Role, perms ...Permission) error {
+	return dp.updateRolePermissions(role, func(oldPerms []Permission) []Permission {
+		if len(oldPerms) == 0 {
+			return perms
+		}
 
-	if dp.isRoleProtected(role) {
-		return errors.New("permissions of a role " + string(role) + " cannot be modified")
-	}
+		// avoid duplicate permissions
+		duplicates := make(map[Permission]struct{})
+		for _, p := range oldPerms {
+			duplicates[p] = struct{}{}
+		}
 
-	dp.roles.Set(string(role), newPerms)
-	return nil
+		newPerms := make([]Permission, 0, len(oldPerms)+len(perms))
+		newPerms = append(newPerms, oldPerms...)
+		for _, p := range perms {
+			if _, ok := duplicates[p]; !ok {
+				newPerms = append(newPerms, p)
+			}
+		}
+
+		return newPerms
+	})
+}
+
+// RemoveRolePermissions revokes permissions from a given role.
+func (dp *DefaultPermissions) RemoveRolePermissions(role Role, perms ...Permission) error {
+	return dp.updateRolePermissions(role, func(oldPerms []Permission) []Permission {
+		if len(oldPerms) == 0 {
+			return oldPerms
+		}
+
+		itemsToRemove := make(map[Permission]struct{})
+		for _, p := range perms {
+			itemsToRemove[p] = struct{}{}
+		}
+
+		newPerms := make([]Permission, 0, len(oldPerms))
+		for _, p := range oldPerms {
+			if _, ok := itemsToRemove[p]; !ok {
+				newPerms = append(newPerms, p)
+			}
+		}
+
+		return newPerms
+	})
 }
 
 // RemoveUser removes a user from permissions.
@@ -157,6 +191,21 @@ func (dp *DefaultPermissions) WithPermission(user std.Address, perm Permission, 
 	default:
 		cb(args)
 	}
+}
+
+func (dp *DefaultPermissions) updateRolePermissions(role Role, updater func([]Permission) []Permission) error {
+	if !dp.RoleExists(role) {
+		return errors.New("invalid role: " + string(role))
+	}
+
+	if dp.isRoleProtected(role) {
+		return errors.New("permissions of a role " + string(role) + " cannot be modified")
+	}
+
+	oldPerms, _ := dp.roles.Get(string(role))
+	newPerms := updater(oldPerms.([]Permission))
+	dp.roles.Set(string(role), newPerms)
+	return nil
 }
 
 func (dp *DefaultPermissions) setUserRoles(user std.Address, roles ...Role) error {
@@ -219,6 +268,7 @@ func (dp DefaultPermissions) handleMemberInvite(args Args, cb func(Args)) {
 }
 
 func (dp DefaultPermissions) handleRoleEdit(args Args, cb func(Args)) {
+	// args: [boardId, role, permissionsArgs, isPermissionAdd]
 	role, ok := args[1].(Role)
 	if !ok {
 		panic("expected a valid member role")

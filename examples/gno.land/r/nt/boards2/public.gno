@@ -266,14 +266,29 @@ func ChangeMemberRole(bid BoardID, member std.Address, role Role) {
 	})
 }
 
-func SetRolePermissions(bid BoardID, role Role, newPermissions []Permission) {
+func AddRolePermissions(bid BoardID, role Role, permissions ...Permission) {
 	assertIsUserCall()
+	assertPermissionsListNotEmpty(permissions)
 
 	perms := mustGetPermissions(bid)
 	caller := std.GetOrigCaller()
-	args := Args{bid, role, newPermissions}
+	args := Args{bid, role, permissions, true}
 	perms.WithPermission(caller, PermissionRoleEdit, args, func(Args) {
-		if err := perms.SetRolePermissions(role, newPermissions...); err != nil {
+		if err := perms.AddRolePermissions(role, permissions...); err != nil {
+			panic(err)
+		}
+	})
+}
+
+func RemoveRolePermissions(bid BoardID, role Role, permissions ...Permission) {
+	assertIsUserCall()
+	assertPermissionsListNotEmpty(permissions)
+
+	perms := mustGetPermissions(bid)
+	caller := std.GetOrigCaller()
+	args := Args{bid, role, permissions, true}
+	perms.WithPermission(caller, PermissionRoleEdit, args, func(Args) {
+		if err := perms.RemoveRolePermissions(role, permissions...); err != nil {
 			panic(err)
 		}
 	})
@@ -342,6 +357,12 @@ func assertThreadVisible(thread *Post) {
 func assertReplyVisible(thread *Post) {
 	if thread.IsHidden() {
 		panic("reply with ID: " + thread.GetPostID().String() + " was hidden")
+	}
+}
+
+func assertPermissionsListNotEmpty(list []Permission) {
+	if len(list) == 0 {
+		panic("empty permissions list")
 	}
 }
 

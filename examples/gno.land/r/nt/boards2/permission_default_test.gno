@@ -355,13 +355,14 @@ func TestDefaultPermissionsAddUser(t *testing.T) {
 	}
 }
 
-func TestDefaultPermissionsSetRolePermissions(t *testing.T) {
+func TestDefaultPermissionsAddRolePermissions(t *testing.T) {
 	cases := []struct {
-		name        string
-		role        Role
-		permissions []Permission
-		setup       func() *DefaultPermissions
-		err         string
+		name   string
+		role   Role
+		input  []Permission
+		expect []Permission
+		setup  func() *DefaultPermissions
+		err    string
 	}{
 		{
 			name: "role should exist",
@@ -399,16 +400,20 @@ func TestDefaultPermissionsSetRolePermissions(t *testing.T) {
 			},
 		},
 		{
-			name: "non-protected roles can be modified",
+			name: "should ignore duplicates",
 			role: RoleModerator,
-			permissions: []Permission{
+			input: []Permission{
+				"fizz",
+				"buzz",
+			},
+			expect: []Permission{
 				"fizz",
 				"buzz",
 			},
 			setup: func() *DefaultPermissions {
 				return NewDefaultPermissions(
 					commondao.New(),
-					WithRole(RoleModerator, "foo"),
+					WithRole(RoleModerator, "fizz"),
 					WithRole(RoleAdmin, "permission1"),
 					WithRole(RoleOwner, "permission1"),
 				)
@@ -420,7 +425,7 @@ func TestDefaultPermissionsSetRolePermissions(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			perm := tc.setup()
 
-			err := perm.SetRolePermissions(tc.role, tc.permissions...)
+			err := perm.AddRolePermissions(tc.role, tc.input...)
 			if tc.err != "" {
 				urequire.True(t, err != nil, "expected an error")
 				uassert.Equal(t, tc.err, err.Error())
@@ -432,8 +437,98 @@ func TestDefaultPermissionsSetRolePermissions(t *testing.T) {
 			urequire.True(t, ok, "modified role not found")
 
 			newPerms := v.([]Permission)
-			uassert.Equal(t, len(tc.permissions), len(newPerms))
-			for i, p := range tc.permissions {
+			urequire.Equal(t, len(tc.expect), len(newPerms))
+			for i, p := range tc.expect {
+				urequire.Equal(t, string(p), string(newPerms[i]))
+			}
+		})
+	}
+}
+
+func TestDefaultPermissionsRemoveRolePermissions(t *testing.T) {
+	cases := []struct {
+		name   string
+		role   Role
+		input  []Permission
+		expect []Permission
+		setup  func() *DefaultPermissions
+		err    string
+	}{
+		{
+			name: "role should exist",
+			role: "foobar",
+			err:  "invalid role: foobar",
+			setup: func() *DefaultPermissions {
+				return NewDefaultPermissions(
+					commondao.New(),
+					WithRole("bar", "permission1"),
+				)
+			},
+		},
+		{
+			name: "admin role cannot be modified",
+			role: RoleAdmin,
+			err:  "permissions of a role " + string(RoleAdmin) + " cannot be modified",
+			setup: func() *DefaultPermissions {
+				return NewDefaultPermissions(
+					commondao.New(),
+					WithRole(RoleAdmin, "permission1"),
+					WithRole(RoleOwner, "permission1"),
+				)
+			},
+		},
+		{
+			name: "owner role cannot be modified",
+			role: RoleOwner,
+			err:  "permissions of a role " + string(RoleOwner) + " cannot be modified",
+			setup: func() *DefaultPermissions {
+				return NewDefaultPermissions(
+					commondao.New(),
+					WithRole(RoleAdmin, "permission1"),
+					WithRole(RoleOwner, "permission1"),
+				)
+			},
+		},
+		{
+			name: "should remove existing permissions",
+			role: RoleModerator,
+			input: []Permission{
+				"foo",
+				"bar",
+				"fizz",
+			},
+			expect: []Permission{
+				"buzz",
+			},
+			setup: func() *DefaultPermissions {
+				return NewDefaultPermissions(
+					commondao.New(),
+					WithRole(RoleModerator, "foo", "fizz", "buzz"),
+					WithRole(RoleAdmin, "permission1"),
+					WithRole(RoleOwner, "permission1"),
+				)
+			},
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			perm := tc.setup()
+
+			err := perm.RemoveRolePermissions(tc.role, tc.input...)
+			if tc.err != "" {
+				urequire.True(t, err != nil, "expected an error")
+				uassert.Equal(t, tc.err, err.Error())
+				return
+			}
+
+			urequire.NoError(t, err)
+			v, ok := perm.roles.Get(string(tc.role))
+			urequire.True(t, ok, "modified role not found")
+
+			newPerms := v.([]Permission)
+			urequire.Equal(t, len(tc.expect), len(newPerms))
+			for i, p := range tc.expect {
 				urequire.Equal(t, string(p), string(newPerms[i]))
 			}
 		})

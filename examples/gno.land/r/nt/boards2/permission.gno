@@ -58,8 +58,11 @@ type (
 		// SetUserRoles sets the roles of a user.
 		SetUserRoles(std.Address, ...Role) error
 
-		// SetRolePermissions sets list of permissions for a given role.
-		SetRolePermissions(Role, ...Permission) error
+		// AddRolePermissions grants permissions to a given role.
+		AddRolePermissions(role Role, perms ...Permission) error
+
+		// RemoveRolePermissions revokes permissions from a given role.
+		RemoveRolePermissions(role Role, perms ...Permission) error
 
 		// RemoveUser removes a user from the permissioner.
 		RemoveUser(std.Address) (removed bool)
