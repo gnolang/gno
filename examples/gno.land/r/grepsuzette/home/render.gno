@@ -1,11 +1,14 @@
 package home
 
 func Render(path string) string {
-    switch path {
-        case "3": return r3()
-        case "2": return r2()
-        default: return r1()
-    }
+	switch path {
+	case "3":
+		return r3()
+	case "2":
+		return r2()
+	default:
+		return r1()
+	}
 }
 
 const tripleBackquote = "```"
@@ -30,8 +33,8 @@ const art = `
 `
 
 func r1() string {
-    return "# greps' (gn)home" +
-`
+	return "# greps' (gn)home" +
+		`
 You've reached the terrestrial realms of Grepsuzette on gno.land. 
 
 ` + tripleBackquote + art + tripleBackquote + `
@@ -47,7 +50,7 @@ I am often on my [GNO asteroid](https://greps.gnAsteroid.com) too.
 }
 
 func r2() string {
-    return `A manual index, until there's an automated way:
+	return `A manual index, until there's an automated way:
 
 * [home](home/): greps' home on gno.land
 * [games](games/): series of games
@@ -57,4 +60,3 @@ I'm often on my [GNO asteroid][1] too.
 [1]: https://greps.gnAsteroid.com
 `
 }
-
