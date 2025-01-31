@@ -196,8 +196,8 @@ func makeUverseNode() {
 					//AllocFlag: AllocTypeFlag,
 				}
 				if m.Alloc != nil {
-					tv.SetTypeAlloc()
-					tv.SetValueAllocType(AllocSliceOnly)
+					tv.SetAllocType(true)
+					tv.SetAllocValue(true)
 				}
 				arg1.TV = tv
 			}
@@ -981,7 +981,7 @@ func makeUverseNode() {
 				},
 			}
 			if m.Alloc != nil {
-				tv.SetTypeAlloc()
+				tv.SetAllocType(true)
 			}
 			m.PushValue(tv)
 			return

@@ -982,13 +982,11 @@ type TypedValue struct {
 	AllocationInfo `json:",omitempty"`
 }
 
-func (n *TypedValue) SetValueAllocType(valueAllocType AllocationType) {
-	debug2.Println2("SetValueAllocType: ", valueAllocType)
-	(&n.AllocationInfo).SetValueAlloc(valueAllocType)
-	debug2.Printf2("===After SetValueAllocType, n: %v, ai: %v \n", n, n.AllocationInfo)
+func (n *TypedValue) SetAllocValue(shouldAllocate bool) {
+	(&n.AllocationInfo).SetAllocValue(shouldAllocate)
 }
-func (n *TypedValue) SetTypeAlloc() {
-	n.AllocationInfo.SetTypeAlloc()
+func (n *TypedValue) SetAllocType(shouldAllocate bool) {
+	n.AllocationInfo.SetAllocType(shouldAllocate)
 }
 
 func (tv *TypedValue) IsDefined() bool {
@@ -1076,8 +1074,10 @@ func (tv TypedValue) Copy(alloc *Allocator) (cp TypedValue) {
 	case *SliceValue:
 		cp = tv
 		cp.IncRefCount()
-	case *PointerValue:
-		// TODO: xxx
+	case PointerValue:
+		debug2.Println2("pointer value")
+		cp = tv
+		cp.IncRefCount()
 	default:
 		cp = tv
 	}
@@ -1970,8 +1970,8 @@ func (tv *TypedValue) GetPointerToFromTV(alloc *Allocator, store Store, path Val
 				*/
 			}
 			if alloc != nil {
-				pv.TV.SetTypeAlloc()
-				pv.TV.SetValueAllocType(AllocDefault)
+				pv.TV.SetAllocType(true)
+				pv.TV.SetAllocValue(true)
 			}
 			return pv
 		} else {
@@ -1999,8 +1999,8 @@ func (tv *TypedValue) GetPointerToFromTV(alloc *Allocator, store Store, path Val
 					*/
 				}
 				if alloc != nil {
-					pv.TV.SetTypeAlloc()
-					pv.TV.SetValueAllocType(AllocDefault)
+					pv.TV.SetAllocType(true)
+					pv.TV.SetAllocValue(true)
 				}
 				return pv
 			}
@@ -2104,8 +2104,8 @@ func (tv *TypedValue) GetPointerAtIndex(alloc *Allocator, store Store, iv *Typed
 				},
 			}
 			if alloc != nil {
-				pv.TV.SetTypeAlloc()
-				pv.TV.SetValueAllocType(AllocDefault)
+				pv.TV.SetAllocType(true)
+				pv.TV.SetAllocValue(true)
 			}
 			return pv
 		default:
@@ -2270,7 +2270,8 @@ func (tv *TypedValue) GetSlice(alloc *Allocator, low, high int) TypedValue {
 			),
 		}
 		if alloc != nil {
-			tv.SetValueAllocType(AllocSliceOnly)
+			tv.SetAllocType(true)
+			tv.SetAllocValue(true)
 		}
 		return tv
 	case *SliceType:
@@ -2361,8 +2362,8 @@ func (tv *TypedValue) GetSlice2(alloc *Allocator, lowVal, highVal, maxVal int) T
 			),
 		}
 		if alloc != nil {
-			tv.SetTypeAlloc()
-			tv.SetValueAllocType(AllocSliceOnly)
+			tv.SetAllocType(true)
+			tv.SetAllocValue(true)
 		}
 		return tv
 	case *SliceType:
@@ -2657,7 +2658,7 @@ func defaultStructFields(alloc *Allocator, st *StructType) []TypedValue {
 		if ft.Type.Kind() != InterfaceKind {
 			tvs[i].T = ft.Type
 			tvs[i].V = defaultValue(alloc, ft.Type)
-			tvs[i].SetValueAlloc(AllocDefault)
+			tvs[i].SetAllocValue(true)
 		}
 	}
 	return tvs

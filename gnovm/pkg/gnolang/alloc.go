@@ -184,31 +184,18 @@ func (alloc *Allocator) GC() {
 
 func (throwaway *Allocator) allocateTV(tv TypedValue) {
 	debug2.Println2("allocateTV, tv: ", tv)
-
 	debug2.Println2("allocInfo: ", tv.AllocationInfo.String())
 
-	// allocate type
-	if tv.HasTypeAlloc {
-		throwaway.AllocateType()
-	}
-
-	// allocate value
-	switch tv.ValueAllocType {
-	case AllocNone: // no allocation value
-		// do nothing
-	case AllocDefault:
-		// if refCount > 1, it's escaped
-		//  no allocation
-		debug2.Println2("alloc default, tv.T: ", tv.T)
-		if _, ok := tv.T.(*SliceType); ok {
-			debug2.Println2("slice type, refCount: ", tv.GetRefCount())
-			if tv.GetRefCount() > 1 {
-				break
-			}
+	if tv.GetRefCount() < 2 {
+		// allocate type
+		if tv.AllocType {
+			throwaway.AllocateType()
 		}
-		throwaway.allocateValue(tv.V)
-	case AllocSliceOnly: // only slice
-		throwaway.AllocateSlice()
+		if tv.AllocValue {
+			throwaway.allocateValue(tv.V)
+		}
+	} else {
+		debug2.Println2("escaped, do nothing, allocInfo: ", tv.AllocationInfo.String())
 	}
 }
 
@@ -556,45 +543,25 @@ func (alloc *Allocator) NewHeapItem(tv TypedValue) *HeapItemValue {
 }
 
 // ========================================================
-type AllocationType int
-
-const (
-	AllocNone    AllocationType = 0
-	AllocDefault AllocationType = 1 << iota // 1 << 0 = 1 (bit 0)
-	AllocSliceOnly
-)
-
-func (a AllocationType) String() string {
-	switch a {
-	case AllocNone:
-		return "AllocNone"
-	case AllocDefault:
-		return "AllocDefault"
-	case AllocSliceOnly:
-		return "AllocSliceOnly"
-	}
-	return "Unknown"
-}
-
 type AllocationInfo struct {
-	HasTypeAlloc   bool
-	ValueAllocType AllocationType
-	RefCount       int
+	AllocType  bool
+	AllocValue bool
+	RefCount   int
 }
 
 func (ai *AllocationInfo) String() string {
 	return fmt.Sprintf(
-		"AllocationInfo{hasTypeAlloc: %t, allocationType: %s, RefCount: %d}",
-		ai.HasTypeAlloc, ai.ValueAllocType, ai.RefCount,
+		"AllocationInfo{AllocType: %t, AllocValue: %t, RefCount: %d}",
+		ai.AllocType, ai.AllocValue, ai.RefCount,
 	)
 }
 
-func (ai *AllocationInfo) SetValueAlloc(valueAllocType AllocationType) {
-	(*ai).ValueAllocType = valueAllocType
+func (ai *AllocationInfo) SetAllocValue(allocValue bool) {
+	(*ai).AllocValue = allocValue
 }
 
-func (ai *AllocationInfo) SetTypeAlloc() {
-	ai.HasTypeAlloc = true
+func (ai *AllocationInfo) SetAllocType(allocType bool) {
+	ai.AllocType = allocType
 }
 
 func (ai *AllocationInfo) IncRefCount() {

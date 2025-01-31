@@ -119,9 +119,15 @@ func (m *Machine) doOpSlice() {
 	// all low:high:max cases
 	if maxVal == -1 {
 		sv := xv.GetSlice(m.Alloc, lowVal, highVal)
+		debug2.Println2("doOpSlice, xv.AllocationInfo, 1: ", xv.AllocationInfo)
+		sv.AllocationInfo = xv.AllocationInfo
+		//sv.IncRefCount()
 		m.PushValue(sv)
 	} else {
 		sv := xv.GetSlice2(m.Alloc, lowVal, highVal, maxVal)
+		debug2.Println2("doOpSlice, xv.AllocationInfo, 2: ", xv.AllocationInfo)
+		sv.AllocationInfo = xv.AllocationInfo
+		//sv.IncRefCount()
 		m.PushValue(sv)
 	}
 }
@@ -183,8 +189,8 @@ func (m *Machine) doOpStar() {
 
 // XXX this is wrong, for var i interface{}; &i is *interface{}.
 func (m *Machine) doOpRef() {
-	debug2.Println2("doOpRef")
 	rx := m.PopExpr().(*RefExpr)
+	debug2.Println2("doOpRef, rx: ", rx)
 	m.Alloc.AllocatePointer()
 	xv := m.PopAsPointer(rx.X)
 	if nv, ok := xv.TV.V.(*NativeValue); ok {
@@ -210,7 +216,8 @@ func (m *Machine) doOpRef() {
 		V: xv,
 	}
 	if m.Alloc != nil {
-		tv.SetTypeAlloc()
+		tv.SetAllocType(true)
+		tv.SetAllocValue(true)
 	}
 	m.PushValue(tv)
 }
@@ -591,7 +598,7 @@ func (m *Machine) doOpSliceLit() {
 		T: st,
 		V: sv,
 	}
-	tv.SetValueAllocType(AllocDefault)
+	tv.SetAllocValue(true)
 	m.PushValue(tv)
 }
 
@@ -769,7 +776,7 @@ func (m *Machine) doOpStructLit() {
 		V: sv,
 	}
 
-	tv.SetValueAllocType(AllocDefault)
+	tv.SetAllocValue(true)
 	m.PushValue(tv)
 }
 

@@ -494,9 +494,7 @@ func isEql(store Store, lv, rv *TypedValue) bool {
 			lpv := lv.V.(PointerValue)
 			rpv := rv.V.(PointerValue)
 			if lpv.TV.T == DataByteType && rpv.TV.T == DataByteType {
-				//return *(lpv.TV) == *(rpv.TV) && lpv.Base == rpv.Base && lpv.Index == rpv.Index && lpv.Key == rpv.Key
-				return (*lpv.TV).T == (*rpv.TV).T && (*lpv.TV).V == (*rpv.TV).V && (*lpv.TV).N == (*rpv.TV).N &&
-					lpv.Base == rpv.Base && lpv.Index == rpv.Index && lpv.Key == rpv.Key
+				return *(lpv.TV) == *(rpv.TV) && lpv.Base == rpv.Base && lpv.Index == rpv.Index && lpv.Key == rpv.Key
 			}
 		}
 		return lv.V == rv.V
@@ -695,7 +693,7 @@ func addAssign(alloc *Allocator, lv, rv *TypedValue) {
 		lv.V = alloc.NewString(lv.GetString() + rv.GetString())
 		//if !alloc.m.PreprocessorMode {
 		if alloc != nil { // preprocess
-			lv.SetValueAllocType(AllocDefault)
+			lv.SetAllocValue(true)
 		}
 	case IntType:
 		lv.SetInt(lv.GetInt() + rv.GetInt())

@@ -28,8 +28,12 @@ type Foo struct {
 // alloc secondely while value copy
 //var f2 = Foo{name: "f2"}
 
-var s1 = []int{1, 2, 3}
-var s2 = s1
+var s1 = []int{1, 2, 3} // allocate
+// var s2 = s1 // no allocate
+var s3 = s1[1:]
+
+//var f3 = &Foo{name: "ref"}
+//var f33 = f3
 
 func main() {
 	runtime.GC()

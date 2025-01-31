@@ -2039,6 +2039,7 @@ func (m *Machine) PushForPointer(lx Expr) {
 }
 
 func (m *Machine) PopAsPointer(lx Expr) PointerValue {
+	debug2.Println2("PopAsPointer", lx, reflect.TypeOf(lx))
 	switch lx := lx.(type) {
 	case *NameExpr:
 		switch lx.Type {

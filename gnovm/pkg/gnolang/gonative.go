@@ -302,15 +302,15 @@ func go2GnoValue(alloc *Allocator, rv reflect.Value) (tv TypedValue) {
 		tv.T = alloc.NewType(&NativeType{Type: rt})
 		tv.V = alloc.NewNative(rv)
 		if alloc != nil {
-			tv.SetTypeAlloc()
-			tv.SetValueAlloc(AllocDefault)
+			tv.SetAllocType(true)
+			tv.SetAllocValue(true)
 		}
 		return
 	}
 	tv.T = alloc.NewType(go2GnoType(rv.Type()))
 	// alloc type
 	if alloc != nil {
-		tv.SetTypeAlloc()
+		tv.SetAllocType(true)
 	}
 	switch rk := rv.Kind(); rk {
 	case reflect.Bool:
@@ -318,7 +318,7 @@ func go2GnoValue(alloc *Allocator, rv reflect.Value) (tv TypedValue) {
 	case reflect.String:
 		tv.V = alloc.NewString(rv.String())
 		if alloc != nil {
-			tv.SetValueAlloc(AllocDefault)
+			tv.SetAllocValue(true)
 		}
 	case reflect.Int:
 		tv.SetInt(int(rv.Int()))
@@ -347,39 +347,39 @@ func go2GnoValue(alloc *Allocator, rv reflect.Value) (tv TypedValue) {
 	case reflect.Array:
 		tv.V = alloc.NewNative(rv)
 		if alloc != nil {
-			tv.SetValueAlloc(AllocDefault)
+			tv.SetAllocValue(true)
 		}
 	case reflect.Slice:
 		tv.V = alloc.NewNative(rv)
 		if alloc != nil {
-			tv.SetValueAlloc(AllocDefault)
+			tv.SetAllocValue(true)
 		}
 	case reflect.Chan:
 		tv.V = alloc.NewNative(rv)
 		if alloc != nil {
-			tv.SetValueAlloc(AllocDefault)
+			tv.SetAllocValue(true)
 		}
 	case reflect.Func:
 		tv.V = alloc.NewNative(rv)
 		if alloc != nil {
-			tv.SetValueAlloc(AllocDefault)
+			tv.SetAllocValue(true)
 		}
 	case reflect.Interface:
 		panic("should not happen")
 	case reflect.Map:
 		tv.V = alloc.NewNative(rv)
 		if alloc != nil {
-			tv.SetValueAlloc(AllocDefault)
+			tv.SetAllocValue(true)
 		}
 	case reflect.Ptr:
 		tv.V = alloc.NewNative(rv)
 		if alloc != nil {
-			tv.SetValueAlloc(AllocDefault)
+			tv.SetAllocValue(true)
 		}
 	case reflect.Struct:
 		tv.V = alloc.NewNative(rv)
 		if alloc != nil {
-			tv.SetValueAlloc(AllocDefault)
+			tv.SetAllocValue(true)
 		}
 	case reflect.UnsafePointer:
 		panic("not yet implemented")
