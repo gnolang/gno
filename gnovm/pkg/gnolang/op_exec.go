@@ -904,7 +904,7 @@ func (m *Machine) doOpSwitchClause() {
 	// caiv := m.PeekValue(2) // switch clause case index (reuse)
 	cliv := m.PeekValue(3) // switch clause index (reuse)
 	idx := cliv.GetInt()
-	if int(idx) >= len(ss.Clauses) { // XXX: idx may overflow on 32 bits platforms.
+	if int(idx) >= len(ss.Clauses) {
 		// no clauses matched: do nothing.
 		m.PopStmt()  // pop switch stmt
 		m.PopValue() // pop switch tag value
