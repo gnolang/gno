@@ -1,416 +1,8 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1738355113629,
+  "lastUpdate": 1738355907911,
   "repoUrl": "https://github.com/gnolang/gno",
   "entries": {
     "Go Benchmarks": [
-      {
-        "commit": {
-          "author": {
-            "email": "112360739+jinoosss@users.noreply.github.com",
-            "name": "jinoosss",
-            "username": "jinoosss"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "2496db78df18d66bad11942312b46ee9016659f3",
-          "message": "fix: Modify `app` path method to simulate for ABCI query (#3207)\n\n<!-- please provide a detailed description of the changes made in this\npull request. -->\n## Descriptions\n\nTo simulate transactions, utilize the `.app/simulate` method for ABCI\nQuery.\n\n### Changes\n1. change the path of ABCI Query's `.app` to the result data storage\nlocation.\n- You can receive the query result data as\n`RequestQuery.ResponseData.Data` instead of `RequestQuery.Value`.\n- Provide it in a common form with other ABCI Queries.\n2. remove the gas-consume logic of mocking signature data that is\nexecuted when simulating transactions\n([/tm2/pkg/sdk/auth/ante.go#L231-L237](https://github.com/gnolang/gno/blob/master/tm2/pkg/sdk/auth/ante.go#L231-L237))\n- We will get the correct value when simulating a real transaction.\n- We want transactions to run without signatures, but we already have\nchecks in place to see if a signature exists.\n([tm2/pkg/sdk/auth/ante.go#L104-L106](https://github.com/gnolang/gno/blob/master/tm2/pkg/sdk/auth/ante.go#L104-L106))\n\n### Example\n#### [Request Simulate]\n```curl\ncurl --location 'http://localhost:26657' \\\n--header 'Content-Type: application/json' \\\n--data '{\n  \"id\": 1,\n  \"jsonrpc\": \"2.0\",\n  \"method\": \"abci_query\",\n  \"params\": [\n    \".app/simulate\",\n    \"CnMKDS9iYW5rLk1zZ1NlbmQSYgooZzFqZzhtdHV0dTlraGhmd2M0bnhtdWhjcGZ0ZjBwYWpkaGZ2c3FmNRIoZzFmZnp4aGE1N2RoMHFndjltYTV2MzkzdXIwemV4ZnZwNmxzanBhZRoMNTAwMDAwMHVnbm90Eg4IgIl6EggzMDB1Z25vdBp+CjoKEy90bS5QdWJLZXlTZWNwMjU2azESIwohA+FhNtsXHjLfSJk1lB8FbiL4mGPjc50Kt81J7EKDnJ2yEkCrIOTBt7YcDGcQ6Ohfv1r3nftAPaTATAtPfYD5zLQf7WDf1KPvWARe//CANtLLtIzcPVl7P/HnHxmfCYEwfGogIgUxMjMxMw==\", \n    \"0\", \n    false\n  ]\n}'\n```\n\n#### [Response]\n```curl\n{\n  \"jsonrpc\": \"2.0\",\n  \"id\": 1,\n  \"result\": {\n    \"response\": {\n      \"ResponseBase\": {\n        \"Error\": null,\n        \"Data\": \"eyJFcnJvciI6bnVsbCwiRGF0YSI6IiIsIkV2ZW50cyI6W10sIkxvZyI6Im1zZzowLHN1Y2Nlc3M6dHJ1ZSxsb2c6LGV2ZW50czpbXSIsIkluZm8iOiIiLCJHYXNXYW50ZWQiOjEwMDAwMDAsIkdhc1VzZWQiOjQ0NjI5fQ==\",\n        \"Events\": null,\n        \"Log\": \"\",\n        \"Info\": \"\"\n      },\n      \"Key\": null,\n      \"Value\": null,\n      \"Proof\": null,\n      \"Height\": \"0\"\n    }\n  }\n}\n```\n\n### Related Issue\n- https://github.com/gnolang/gno/issues/1826\n\n<details><summary>Contributors' checklist...</summary>\n\n- [x] Added new tests, or not needed, or not feasible\n- [ ] Provided an example (e.g. screenshot) to aid review or the PR is\nself-explanatory\n- [ ] Updated the official documentation or not needed\n- [ ] No breaking changes were made, or a `BREAKING CHANGE: xxx` message\nwas included in the description\n- [x] Added references to related issues and PRs\n- [x] Provided any useful hints for running manual tests\n</details>\n\n---------\n\nCo-authored-by: n3wbie <r3v4@onbloc.xyz>\nCo-authored-by: Miloš Živković <milos.zivkovic@tendermint.com>",
-          "timestamp": "2024-12-04T14:32:01+01:00",
-          "tree_id": "222b0e9540fc7a8e391aae25e7e919f413772e8e",
-          "url": "https://github.com/gnolang/gno/commit/2496db78df18d66bad11942312b46ee9016659f3"
-        },
-        "date": 1733319166133,
-        "tool": "go",
-        "benches": [
-          {
-            "name": "BenchmarkBenchdata/fib.gno_param:4",
-            "value": 12083,
-            "unit": "ns/op\t   11088 B/op\t      36 allocs/op",
-            "extra": "99248 times"
-          },
-          {
-            "name": "BenchmarkBenchdata/fib.gno_param:4 - ns/op",
-            "value": 12083,
-            "unit": "ns/op",
-            "extra": "99248 times"
-          },
-          {
-            "name": "BenchmarkBenchdata/fib.gno_param:4 - B/op",
-            "value": 11088,
-            "unit": "B/op",
-            "extra": "99248 times"
-          },
-          {
-            "name": "BenchmarkBenchdata/fib.gno_param:4 - allocs/op",
-            "value": 36,
-            "unit": "allocs/op",
-            "extra": "99248 times"
-          },
-          {
-            "name": "BenchmarkBenchdata/fib.gno_param:4",
-            "value": 9298,
-            "unit": "ns/op\t   11088 B/op\t      36 allocs/op",
-            "extra": "118773 times\n2 procs"
-          },
-          {
-            "name": "BenchmarkBenchdata/fib.gno_param:4 - ns/op",
-            "value": 9298,
-            "unit": "ns/op",
-            "extra": "118773 times\n2 procs"
-          },
-          {
-            "name": "BenchmarkBenchdata/fib.gno_param:4 - B/op",
-            "value": 11088,
-            "unit": "B/op",
-            "extra": "118773 times\n2 procs"
-          },
-          {
-            "name": "BenchmarkBenchdata/fib.gno_param:4 - allocs/op",
-            "value": 36,
-            "unit": "allocs/op",
-            "extra": "118773 times\n2 procs"
-          },
-          {
-            "name": "BenchmarkBenchdata/fib.gno_param:8",
-            "value": 89574,
-            "unit": "ns/op\t   82547 B/op\t     268 allocs/op",
-            "extra": "13532 times"
-          },
-          {
-            "name": "BenchmarkBenchdata/fib.gno_param:8 - ns/op",
-            "value": 89574,
-            "unit": "ns/op",
-            "extra": "13532 times"
-          },
-          {
-            "name": "BenchmarkBenchdata/fib.gno_param:8 - B/op",
-            "value": 82547,
-            "unit": "B/op",
-            "extra": "13532 times"
-          },
-          {
-            "name": "BenchmarkBenchdata/fib.gno_param:8 - allocs/op",
-            "value": 268,
-            "unit": "allocs/op",
-            "extra": "13532 times"
-          },
-          {
-            "name": "BenchmarkBenchdata/fib.gno_param:8",
-            "value": 68783,
-            "unit": "ns/op\t   82546 B/op\t     268 allocs/op",
-            "extra": "17426 times\n2 procs"
-          },
-          {
-            "name": "BenchmarkBenchdata/fib.gno_param:8 - ns/op",
-            "value": 68783,
-            "unit": "ns/op",
-            "extra": "17426 times\n2 procs"
-          },
-          {
-            "name": "BenchmarkBenchdata/fib.gno_param:8 - B/op",
-            "value": 82546,
-            "unit": "B/op",
-            "extra": "17426 times\n2 procs"
-          },
-          {
-            "name": "BenchmarkBenchdata/fib.gno_param:8 - allocs/op",
-            "value": 268,
-            "unit": "allocs/op",
-            "extra": "17426 times\n2 procs"
-          },
-          {
-            "name": "BenchmarkBenchdata/fib.gno_param:16",
-            "value": 4248032,
-            "unit": "ns/op\t 3933945 B/op\t   12772 allocs/op",
-            "extra": "280 times"
-          },
-          {
-            "name": "BenchmarkBenchdata/fib.gno_param:16 - ns/op",
-            "value": 4248032,
-            "unit": "ns/op",
-            "extra": "280 times"
-          },
-          {
-            "name": "BenchmarkBenchdata/fib.gno_param:16 - B/op",
-            "value": 3933945,
-            "unit": "B/op",
-            "extra": "280 times"
-          },
-          {
-            "name": "BenchmarkBenchdata/fib.gno_param:16 - allocs/op",
-            "value": 12772,
-            "unit": "allocs/op",
-            "extra": "280 times"
-          },
-          {
-            "name": "BenchmarkBenchdata/fib.gno_param:16",
-            "value": 3280806,
-            "unit": "ns/op\t 3933907 B/op\t   12772 allocs/op",
-            "extra": "362 times\n2 procs"
-          },
-          {
-            "name": "BenchmarkBenchdata/fib.gno_param:16 - ns/op",
-            "value": 3280806,
-            "unit": "ns/op",
-            "extra": "362 times\n2 procs"
-          },
-          {
-            "name": "BenchmarkBenchdata/fib.gno_param:16 - B/op",
-            "value": 3933907,
-            "unit": "B/op",
-            "extra": "362 times\n2 procs"
-          },
-          {
-            "name": "BenchmarkBenchdata/fib.gno_param:16 - allocs/op",
-            "value": 12772,
-            "unit": "allocs/op",
-            "extra": "362 times\n2 procs"
-          },
-          {
-            "name": "BenchmarkBenchdata/loop.gno",
-            "value": 93.73,
-            "unit": "ns/op\t       0 B/op\t       0 allocs/op",
-            "extra": "13086459 times"
-          },
-          {
-            "name": "BenchmarkBenchdata/loop.gno - ns/op",
-            "value": 93.73,
-            "unit": "ns/op",
-            "extra": "13086459 times"
-          },
-          {
-            "name": "BenchmarkBenchdata/loop.gno - B/op",
-            "value": 0,
-            "unit": "B/op",
-            "extra": "13086459 times"
-          },
-          {
-            "name": "BenchmarkBenchdata/loop.gno - allocs/op",
-            "value": 0,
-            "unit": "allocs/op",
-            "extra": "13086459 times"
-          },
-          {
-            "name": "BenchmarkBenchdata/loop.gno",
-            "value": 91.44,
-            "unit": "ns/op\t       0 B/op\t       0 allocs/op",
-            "extra": "13096641 times\n2 procs"
-          },
-          {
-            "name": "BenchmarkBenchdata/loop.gno - ns/op",
-            "value": 91.44,
-            "unit": "ns/op",
-            "extra": "13096641 times\n2 procs"
-          },
-          {
-            "name": "BenchmarkBenchdata/loop.gno - B/op",
-            "value": 0,
-            "unit": "B/op",
-            "extra": "13096641 times\n2 procs"
-          },
-          {
-            "name": "BenchmarkBenchdata/loop.gno - allocs/op",
-            "value": 0,
-            "unit": "allocs/op",
-            "extra": "13096641 times\n2 procs"
-          },
-          {
-            "name": "BenchmarkBenchdata/matrix.gno_param:3",
-            "value": 247075,
-            "unit": "ns/op\t  108415 B/op\t     632 allocs/op",
-            "extra": "4840 times"
-          },
-          {
-            "name": "BenchmarkBenchdata/matrix.gno_param:3 - ns/op",
-            "value": 247075,
-            "unit": "ns/op",
-            "extra": "4840 times"
-          },
-          {
-            "name": "BenchmarkBenchdata/matrix.gno_param:3 - B/op",
-            "value": 108415,
-            "unit": "B/op",
-            "extra": "4840 times"
-          },
-          {
-            "name": "BenchmarkBenchdata/matrix.gno_param:3 - allocs/op",
-            "value": 632,
-            "unit": "allocs/op",
-            "extra": "4840 times"
-          },
-          {
-            "name": "BenchmarkBenchdata/matrix.gno_param:3",
-            "value": 198201,
-            "unit": "ns/op\t  108427 B/op\t     632 allocs/op",
-            "extra": "5782 times\n2 procs"
-          },
-          {
-            "name": "BenchmarkBenchdata/matrix.gno_param:3 - ns/op",
-            "value": 198201,
-            "unit": "ns/op",
-            "extra": "5782 times\n2 procs"
-          },
-          {
-            "name": "BenchmarkBenchdata/matrix.gno_param:3 - B/op",
-            "value": 108427,
-            "unit": "B/op",
-            "extra": "5782 times\n2 procs"
-          },
-          {
-            "name": "BenchmarkBenchdata/matrix.gno_param:3 - allocs/op",
-            "value": 632,
-            "unit": "allocs/op",
-            "extra": "5782 times\n2 procs"
-          },
-          {
-            "name": "BenchmarkBenchdata/matrix.gno_param:4",
-            "value": 664935,
-            "unit": "ns/op\t  280556 B/op\t    1603 allocs/op",
-            "extra": "1783 times"
-          },
-          {
-            "name": "BenchmarkBenchdata/matrix.gno_param:4 - ns/op",
-            "value": 664935,
-            "unit": "ns/op",
-            "extra": "1783 times"
-          },
-          {
-            "name": "BenchmarkBenchdata/matrix.gno_param:4 - B/op",
-            "value": 280556,
-            "unit": "B/op",
-            "extra": "1783 times"
-          },
-          {
-            "name": "BenchmarkBenchdata/matrix.gno_param:4 - allocs/op",
-            "value": 1603,
-            "unit": "allocs/op",
-            "extra": "1783 times"
-          },
-          {
-            "name": "BenchmarkBenchdata/matrix.gno_param:4",
-            "value": 537673,
-            "unit": "ns/op\t  280583 B/op\t    1603 allocs/op",
-            "extra": "2204 times\n2 procs"
-          },
-          {
-            "name": "BenchmarkBenchdata/matrix.gno_param:4 - ns/op",
-            "value": 537673,
-            "unit": "ns/op",
-            "extra": "2204 times\n2 procs"
-          },
-          {
-            "name": "BenchmarkBenchdata/matrix.gno_param:4 - B/op",
-            "value": 280583,
-            "unit": "B/op",
-            "extra": "2204 times\n2 procs"
-          },
-          {
-            "name": "BenchmarkBenchdata/matrix.gno_param:4 - allocs/op",
-            "value": 1603,
-            "unit": "allocs/op",
-            "extra": "2204 times\n2 procs"
-          },
-          {
-            "name": "BenchmarkBenchdata/matrix.gno_param:5",
-            "value": 2463442,
-            "unit": "ns/op\t 1094722 B/op\t    6299 allocs/op",
-            "extra": "483 times"
-          },
-          {
-            "name": "BenchmarkBenchdata/matrix.gno_param:5 - ns/op",
-            "value": 2463442,
-            "unit": "ns/op",
-            "extra": "483 times"
-          },
-          {
-            "name": "BenchmarkBenchdata/matrix.gno_param:5 - B/op",
-            "value": 1094722,
-            "unit": "B/op",
-            "extra": "483 times"
-          },
-          {
-            "name": "BenchmarkBenchdata/matrix.gno_param:5 - allocs/op",
-            "value": 6299,
-            "unit": "allocs/op",
-            "extra": "483 times"
-          },
-          {
-            "name": "BenchmarkBenchdata/matrix.gno_param:5",
-            "value": 2011495,
-            "unit": "ns/op\t 1094823 B/op\t    6299 allocs/op",
-            "extra": "601 times\n2 procs"
-          },
-          {
-            "name": "BenchmarkBenchdata/matrix.gno_param:5 - ns/op",
-            "value": 2011495,
-            "unit": "ns/op",
-            "extra": "601 times\n2 procs"
-          },
-          {
-            "name": "BenchmarkBenchdata/matrix.gno_param:5 - B/op",
-            "value": 1094823,
-            "unit": "B/op",
-            "extra": "601 times\n2 procs"
-          },
-          {
-            "name": "BenchmarkBenchdata/matrix.gno_param:5 - allocs/op",
-            "value": 6299,
-            "unit": "allocs/op",
-            "extra": "601 times\n2 procs"
-          },
-          {
-            "name": "BenchmarkBenchdata/matrix.gno_param:6",
-            "value": 12612961,
-            "unit": "ns/op\t 6032603 B/op\t   35014 allocs/op",
-            "extra": "100 times"
-          },
-          {
-            "name": "BenchmarkBenchdata/matrix.gno_param:6 - ns/op",
-            "value": 12612961,
-            "unit": "ns/op",
-            "extra": "100 times"
-          },
-          {
-            "name": "BenchmarkBenchdata/matrix.gno_param:6 - B/op",
-            "value": 6032603,
-            "unit": "B/op",
-            "extra": "100 times"
-          },
-          {
-            "name": "BenchmarkBenchdata/matrix.gno_param:6 - allocs/op",
-            "value": 35014,
-            "unit": "allocs/op",
-            "extra": "100 times"
-          },
-          {
-            "name": "BenchmarkBenchdata/matrix.gno_param:6",
-            "value": 10276036,
-            "unit": "ns/op\t 6033200 B/op\t   35016 allocs/op",
-            "extra": "100 times\n2 procs"
-          },
-          {
-            "name": "BenchmarkBenchdata/matrix.gno_param:6 - ns/op",
-            "value": 10276036,
-            "unit": "ns/op",
-            "extra": "100 times\n2 procs"
-          },
-          {
-            "name": "BenchmarkBenchdata/matrix.gno_param:6 - B/op",
-            "value": 6033200,
-            "unit": "B/op",
-            "extra": "100 times\n2 procs"
-          },
-          {
-            "name": "BenchmarkBenchdata/matrix.gno_param:6 - allocs/op",
-            "value": 35016,
-            "unit": "allocs/op",
-            "extra": "100 times\n2 procs"
-          }
-        ]
-      },
       {
         "commit": {
           "author": {
@@ -40786,6 +40378,414 @@ window.BENCHMARK_DATA = {
           {
             "name": "BenchmarkBenchdata/matrix.gno_param:6 - ns/op",
             "value": 9340307,
+            "unit": "ns/op",
+            "extra": "127 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkBenchdata/matrix.gno_param:6 - B/op",
+            "value": 5997223,
+            "unit": "B/op",
+            "extra": "127 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkBenchdata/matrix.gno_param:6 - allocs/op",
+            "value": 24183,
+            "unit": "allocs/op",
+            "extra": "127 times\n2 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "emmanuel@orijtech.com",
+            "name": "Emmanuel T Odeke",
+            "username": "odeke-em"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "c24f69fdae397cb9c7e833bf9a2d74c95edd4a78",
+          "message": "test(tm2/pkg/cmap): add benchmarks to show true impact of contention (#3540)\n\nThe Go standard library's sync.Map is touted as great for cases with\r\nhigh load and is commonly known knowledge but the benchmark that I am\r\ncommitting shows otherwise that for this library's usage, it is so much\r\nmore expensive hence this benchmark will avoid someone committing\r\nsync.Map without seeing the true implications.\r\n\r\n```shell\r\n$ benchstat map_w_mutex.txt stdlib_sync_map.txt\r\nname                               old time/op    new time/op    delta\r\nCMapConcurrentInsertsDeletesHas-8     1.72s ±11%     1.92s ± 3%   +11.66%  (p=0.000 n=10+9)\r\nCMapHas-8                             109ns ± 9%     118ns ± 3%    +8.26%  (p=0.002 n=10+8)\r\n\r\nname                               old alloc/op   new alloc/op   delta\r\nCMapConcurrentInsertsDeletesHas-8    1.18GB ± 2%    3.21GB ± 3%  +172.09%  (p=0.000 n=10+10)\r\nCMapHas-8                             16.0B ± 0%     16.0B ± 0%      ~     (all equal)\r\n\r\nname                               old allocs/op  new allocs/op  delta\r\nCMapConcurrentInsertsDeletesHas-8      824k ± 0%     4433k ± 0%  +437.89%  (p=0.000 n=10+10)\r\nCMapHas-8                              2.00 ± 0%      1.60 ±38%      ~     (p=0.065 n=9+10)\r\n```\r\n\r\nUpdates #3505",
+          "timestamp": "2025-01-31T13:37:43-07:00",
+          "tree_id": "cd81e1bbcd1c4338c37620176f9ee76c892e16e2",
+          "url": "https://github.com/gnolang/gno/commit/c24f69fdae397cb9c7e833bf9a2d74c95edd4a78"
+        },
+        "date": 1738355907331,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkBenchdata/fib.gno_param:4",
+            "value": 11479,
+            "unit": "ns/op\t   11088 B/op\t      36 allocs/op",
+            "extra": "103507 times"
+          },
+          {
+            "name": "BenchmarkBenchdata/fib.gno_param:4 - ns/op",
+            "value": 11479,
+            "unit": "ns/op",
+            "extra": "103507 times"
+          },
+          {
+            "name": "BenchmarkBenchdata/fib.gno_param:4 - B/op",
+            "value": 11088,
+            "unit": "B/op",
+            "extra": "103507 times"
+          },
+          {
+            "name": "BenchmarkBenchdata/fib.gno_param:4 - allocs/op",
+            "value": 36,
+            "unit": "allocs/op",
+            "extra": "103507 times"
+          },
+          {
+            "name": "BenchmarkBenchdata/fib.gno_param:4",
+            "value": 8855,
+            "unit": "ns/op\t   11088 B/op\t      36 allocs/op",
+            "extra": "133590 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkBenchdata/fib.gno_param:4 - ns/op",
+            "value": 8855,
+            "unit": "ns/op",
+            "extra": "133590 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkBenchdata/fib.gno_param:4 - B/op",
+            "value": 11088,
+            "unit": "B/op",
+            "extra": "133590 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkBenchdata/fib.gno_param:4 - allocs/op",
+            "value": 36,
+            "unit": "allocs/op",
+            "extra": "133590 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkBenchdata/fib.gno_param:8",
+            "value": 85061,
+            "unit": "ns/op\t   82544 B/op\t     268 allocs/op",
+            "extra": "14301 times"
+          },
+          {
+            "name": "BenchmarkBenchdata/fib.gno_param:8 - ns/op",
+            "value": 85061,
+            "unit": "ns/op",
+            "extra": "14301 times"
+          },
+          {
+            "name": "BenchmarkBenchdata/fib.gno_param:8 - B/op",
+            "value": 82544,
+            "unit": "B/op",
+            "extra": "14301 times"
+          },
+          {
+            "name": "BenchmarkBenchdata/fib.gno_param:8 - allocs/op",
+            "value": 268,
+            "unit": "allocs/op",
+            "extra": "14301 times"
+          },
+          {
+            "name": "BenchmarkBenchdata/fib.gno_param:8",
+            "value": 65515,
+            "unit": "ns/op\t   82544 B/op\t     268 allocs/op",
+            "extra": "18222 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkBenchdata/fib.gno_param:8 - ns/op",
+            "value": 65515,
+            "unit": "ns/op",
+            "extra": "18222 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkBenchdata/fib.gno_param:8 - B/op",
+            "value": 82544,
+            "unit": "B/op",
+            "extra": "18222 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkBenchdata/fib.gno_param:8 - allocs/op",
+            "value": 268,
+            "unit": "allocs/op",
+            "extra": "18222 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkBenchdata/fib.gno_param:16",
+            "value": 3989418,
+            "unit": "ns/op\t 3933810 B/op\t   12772 allocs/op",
+            "extra": "294 times"
+          },
+          {
+            "name": "BenchmarkBenchdata/fib.gno_param:16 - ns/op",
+            "value": 3989418,
+            "unit": "ns/op",
+            "extra": "294 times"
+          },
+          {
+            "name": "BenchmarkBenchdata/fib.gno_param:16 - B/op",
+            "value": 3933810,
+            "unit": "B/op",
+            "extra": "294 times"
+          },
+          {
+            "name": "BenchmarkBenchdata/fib.gno_param:16 - allocs/op",
+            "value": 12772,
+            "unit": "allocs/op",
+            "extra": "294 times"
+          },
+          {
+            "name": "BenchmarkBenchdata/fib.gno_param:16",
+            "value": 3080179,
+            "unit": "ns/op\t 3933802 B/op\t   12772 allocs/op",
+            "extra": "392 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkBenchdata/fib.gno_param:16 - ns/op",
+            "value": 3080179,
+            "unit": "ns/op",
+            "extra": "392 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkBenchdata/fib.gno_param:16 - B/op",
+            "value": 3933802,
+            "unit": "B/op",
+            "extra": "392 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkBenchdata/fib.gno_param:16 - allocs/op",
+            "value": 12772,
+            "unit": "allocs/op",
+            "extra": "392 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkBenchdata/loop.gno",
+            "value": 98.53,
+            "unit": "ns/op\t       0 B/op\t       0 allocs/op",
+            "extra": "12342228 times"
+          },
+          {
+            "name": "BenchmarkBenchdata/loop.gno - ns/op",
+            "value": 98.53,
+            "unit": "ns/op",
+            "extra": "12342228 times"
+          },
+          {
+            "name": "BenchmarkBenchdata/loop.gno - B/op",
+            "value": 0,
+            "unit": "B/op",
+            "extra": "12342228 times"
+          },
+          {
+            "name": "BenchmarkBenchdata/loop.gno - allocs/op",
+            "value": 0,
+            "unit": "allocs/op",
+            "extra": "12342228 times"
+          },
+          {
+            "name": "BenchmarkBenchdata/loop.gno",
+            "value": 99.82,
+            "unit": "ns/op\t       0 B/op\t       0 allocs/op",
+            "extra": "12933804 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkBenchdata/loop.gno - ns/op",
+            "value": 99.82,
+            "unit": "ns/op",
+            "extra": "12933804 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkBenchdata/loop.gno - B/op",
+            "value": 0,
+            "unit": "B/op",
+            "extra": "12933804 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkBenchdata/loop.gno - allocs/op",
+            "value": 0,
+            "unit": "allocs/op",
+            "extra": "12933804 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkBenchdata/matrix.gno_param:3",
+            "value": 237216,
+            "unit": "ns/op\t  108241 B/op\t     582 allocs/op",
+            "extra": "4785 times"
+          },
+          {
+            "name": "BenchmarkBenchdata/matrix.gno_param:3 - ns/op",
+            "value": 237216,
+            "unit": "ns/op",
+            "extra": "4785 times"
+          },
+          {
+            "name": "BenchmarkBenchdata/matrix.gno_param:3 - B/op",
+            "value": 108241,
+            "unit": "B/op",
+            "extra": "4785 times"
+          },
+          {
+            "name": "BenchmarkBenchdata/matrix.gno_param:3 - allocs/op",
+            "value": 582,
+            "unit": "allocs/op",
+            "extra": "4785 times"
+          },
+          {
+            "name": "BenchmarkBenchdata/matrix.gno_param:3",
+            "value": 188495,
+            "unit": "ns/op\t  108241 B/op\t     582 allocs/op",
+            "extra": "6130 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkBenchdata/matrix.gno_param:3 - ns/op",
+            "value": 188495,
+            "unit": "ns/op",
+            "extra": "6130 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkBenchdata/matrix.gno_param:3 - B/op",
+            "value": 108241,
+            "unit": "B/op",
+            "extra": "6130 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkBenchdata/matrix.gno_param:3 - allocs/op",
+            "value": 582,
+            "unit": "allocs/op",
+            "extra": "6130 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkBenchdata/matrix.gno_param:4",
+            "value": 629851,
+            "unit": "ns/op\t  279540 B/op\t    1297 allocs/op",
+            "extra": "1917 times"
+          },
+          {
+            "name": "BenchmarkBenchdata/matrix.gno_param:4 - ns/op",
+            "value": 629851,
+            "unit": "ns/op",
+            "extra": "1917 times"
+          },
+          {
+            "name": "BenchmarkBenchdata/matrix.gno_param:4 - B/op",
+            "value": 279540,
+            "unit": "B/op",
+            "extra": "1917 times"
+          },
+          {
+            "name": "BenchmarkBenchdata/matrix.gno_param:4 - allocs/op",
+            "value": 1297,
+            "unit": "allocs/op",
+            "extra": "1917 times"
+          },
+          {
+            "name": "BenchmarkBenchdata/matrix.gno_param:4",
+            "value": 509057,
+            "unit": "ns/op\t  279539 B/op\t    1297 allocs/op",
+            "extra": "2317 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkBenchdata/matrix.gno_param:4 - ns/op",
+            "value": 509057,
+            "unit": "ns/op",
+            "extra": "2317 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkBenchdata/matrix.gno_param:4 - B/op",
+            "value": 279539,
+            "unit": "B/op",
+            "extra": "2317 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkBenchdata/matrix.gno_param:4 - allocs/op",
+            "value": 1297,
+            "unit": "allocs/op",
+            "extra": "2317 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkBenchdata/matrix.gno_param:5",
+            "value": 2241072,
+            "unit": "ns/op\t 1089008 B/op\t    4556 allocs/op",
+            "extra": "535 times"
+          },
+          {
+            "name": "BenchmarkBenchdata/matrix.gno_param:5 - ns/op",
+            "value": 2241072,
+            "unit": "ns/op",
+            "extra": "535 times"
+          },
+          {
+            "name": "BenchmarkBenchdata/matrix.gno_param:5 - B/op",
+            "value": 1089008,
+            "unit": "B/op",
+            "extra": "535 times"
+          },
+          {
+            "name": "BenchmarkBenchdata/matrix.gno_param:5 - allocs/op",
+            "value": 4556,
+            "unit": "allocs/op",
+            "extra": "535 times"
+          },
+          {
+            "name": "BenchmarkBenchdata/matrix.gno_param:5",
+            "value": 1831123,
+            "unit": "ns/op\t 1089006 B/op\t    4556 allocs/op",
+            "extra": "634 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkBenchdata/matrix.gno_param:5 - ns/op",
+            "value": 1831123,
+            "unit": "ns/op",
+            "extra": "634 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkBenchdata/matrix.gno_param:5 - B/op",
+            "value": 1089006,
+            "unit": "B/op",
+            "extra": "634 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkBenchdata/matrix.gno_param:5 - allocs/op",
+            "value": 4556,
+            "unit": "allocs/op",
+            "extra": "634 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkBenchdata/matrix.gno_param:6",
+            "value": 11486895,
+            "unit": "ns/op\t 5997242 B/op\t   24183 allocs/op",
+            "extra": "100 times"
+          },
+          {
+            "name": "BenchmarkBenchdata/matrix.gno_param:6 - ns/op",
+            "value": 11486895,
+            "unit": "ns/op",
+            "extra": "100 times"
+          },
+          {
+            "name": "BenchmarkBenchdata/matrix.gno_param:6 - B/op",
+            "value": 5997242,
+            "unit": "B/op",
+            "extra": "100 times"
+          },
+          {
+            "name": "BenchmarkBenchdata/matrix.gno_param:6 - allocs/op",
+            "value": 24183,
+            "unit": "allocs/op",
+            "extra": "100 times"
+          },
+          {
+            "name": "BenchmarkBenchdata/matrix.gno_param:6",
+            "value": 9448287,
+            "unit": "ns/op\t 5997223 B/op\t   24183 allocs/op",
+            "extra": "127 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkBenchdata/matrix.gno_param:6 - ns/op",
+            "value": 9448287,
             "unit": "ns/op",
             "extra": "127 times\n2 procs"
           },
