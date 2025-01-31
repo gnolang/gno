@@ -100,7 +100,7 @@ func CreateReply(bid BoardID, threadID, replyID PostID, body string) PostID {
 	assertThreadVisible(thread)
 
 	var reply *Post
-	if replyID == threadID {
+	if replyID == 0 {
 		// When the parent reply is the thread just add reply to thread
 		reply = thread.AddReply(caller, body)
 	} else {
