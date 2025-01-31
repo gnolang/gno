@@ -425,7 +425,7 @@ func TestParseInt64Base(t *testing.T) {
 func TestParseUint(t *testing.T) {
 	for i := range parseUint64Tests {
 		test := &parseUint64Tests[i]
-		out, err := ParseUint(test.in, 10, 0)
+		out, err := strconv.ParseUint(test.in, 10, 0)
 		if test.out != out || !errEqual(test.err, err) {
 			t.Errorf("ParseUint(%q, 10, 0) = %v, %v want %v, %v",
 				test.in, out, err, test.out, test.err)
@@ -436,7 +436,7 @@ func TestParseUint(t *testing.T) {
 func TestParseInt(t *testing.T) {
 	for i := range parseInt64Tests {
 		test := &parseInt64Tests[i]
-		out, err := ParseInt(test.in, 10, 0)
+		out, err := strconv.ParseInt(test.in, 10, 0)
 		if test.out != out || !errEqual(test.err, err) {
 			t.Errorf("ParseInt(%q, 10, 0) = %v, %v want %v, %v",
 				test.in, out, err, test.out, test.err)
