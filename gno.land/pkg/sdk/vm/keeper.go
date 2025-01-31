@@ -513,14 +513,32 @@ func (vm *VMKeeper) Call(ctx sdk.Context, msg MsgCall) (res string, err error) {
 
 func doRecover(m *gno.Machine, e *error) {
 	r := recover()
+
+	// On normal transaction execution, out of gas panics are handled in the
+	// BaseApp, so repanic here.
+	const repanicOutOfGas = true
+	doRecoverInternal(m, e, r, repanicOutOfGas)
+}
+
+func doRecoverQuery(m *gno.Machine, e *error) {
+	r := recover()
+	const repanicOutOfGas = false
+	doRecoverInternal(m, e, r, repanicOutOfGas)
+}
+
+func doRecoverInternal(m *gno.Machine, e *error, r any, repanicOutOfGas bool) {
 	if r == nil {
 		return
 	}
 	if err, ok := r.(error); ok {
 		var oog types.OutOfGasError
 		if goerrors.As(err, &oog) {
-			// Re-panic and don't wrap.
-			panic(oog)
+			if repanicOutOfGas {
+				panic(oog)
+			} else {
+				*e = oog
+			}
+			return
 		}
 		var up gno.UnhandledPanicError
 		if goerrors.As(err, &up) {
@@ -782,7 +800,7 @@ func (vm *VMKeeper) queryEvalInternal(ctx sdk.Context, pkgPath string, expr stri
 			GasMeter: ctx.GasMeter(),
 		})
 	defer m.Release()
-	defer doRecover(m, &err)
+	defer doRecoverQuery(m, &err)
 	return m.Eval(xx), err
 }
 
