@@ -25,23 +25,20 @@ func TestRequest_GetVar(t *testing.T) {
 		{"*", "users/123", "*", "users/123"},
 		{"*", "users/123/posts/456", "*", "users/123/posts/456"},
 		{"*", "users/123/posts/456/comments/789", "*", "users/123/posts/456/comments/789"},
-
 		{"users/*", "users/john/posts", "*", "john/posts"},
 		{"users/*/comments", "users/jane/comments", "*", "jane/comments"},
 		{"api/*/posts/*", "api/v1/posts/123", "*", "v1/posts/123"},
 
-		// Mixed wildcards and parameters
+		// wildcards and parameters
 		{"api/{version}/*", "api/v1/user/settings", "version", "v1"},
 	}
-
 	for _, tt := range cases {
-		name := ufmt.Sprintf("%s-%s-%s", tt.handlerPath, tt.reqPath, tt.getVarKey)
+		name := ufmt.Sprintf("%s-%s", tt.handlerPath, tt.reqPath)
 		t.Run(name, func(t *testing.T) {
 			req := &Request{
 				HandlerPath: tt.handlerPath,
 				Path:        tt.reqPath,
 			}
-
 			output := req.GetVar(tt.getVarKey)
 			uassert.Equal(t, tt.expectedOutput, output,
 				"handler: %q, path: %q, key: %q",

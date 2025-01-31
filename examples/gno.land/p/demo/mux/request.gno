@@ -17,15 +17,12 @@ type Request struct {
 }
 
 // GetVar retrieves a variable from the path based on routing rules.
-
 func (r *Request) GetVar(key string) string {
 	handlerParts := strings.Split(r.HandlerPath, "/")
 	reqParts := strings.Split(r.Path, "/")
-
 	reqIndex := 0
 	for handlerIndex := 0; handlerIndex < len(handlerParts); handlerIndex++ {
 		handlerPart := handlerParts[handlerIndex]
-
 		switch {
 		case handlerPart == "*":
 			// If a wildcard "*" is found, consume all remaining segments
@@ -40,7 +37,7 @@ func (r *Request) GetVar(key string) string {
 			}
 			reqIndex++
 		default:
-			if handlerPart != reqParts[reqIndex] {
+			if reqIndex >= len(reqParts) || handlerPart != reqParts[reqIndex] {
 				return ""
 			}
 			reqIndex++
