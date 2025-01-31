@@ -179,7 +179,7 @@ func DeleteReply(bid BoardID, threadID, replyID PostID) {
 	// Soft delete reply by changing its body when it contains
 	// sub-replies, otherwise hard delete it.
 	if reply.HasReplies() {
-		reply.Update(reply.GetTitle(), "this reply has been deleted")
+		reply.Update(reply.GetTitle(), "This reply has been deleted")
 	} else {
 		thread.DeleteReply(replyID)
 	}
