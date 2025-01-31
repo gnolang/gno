@@ -15,13 +15,16 @@ var (
 
 func init() {
 	std.TestSetOrigCaller(owner)
-	bid = boards2.CreateBoard("test-board")
+	bid = boards2.CreateBoard("test123")
 	tid = boards2.CreateThread(bid, "Foo", "bar")
+
+	// Hide thread by flagging it so reply can't be submitted
+	boards2.FlagThread(bid, tid, "reason")
 }
 
 func main() {
-	boards2.CreateReply(bid, tid, 404, "comment")
+	boards2.CreateReply(bid, tid, 0, "Test reply")
 }
 
 // Error:
-// reply does not exist with ID: 404
+// thread with ID: 1 was hidden
