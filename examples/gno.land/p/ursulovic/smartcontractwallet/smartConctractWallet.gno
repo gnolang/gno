@@ -9,7 +9,7 @@ import (
 )
 
 type Wallet struct {
-	modifiers         functionmodifiers.ModiferRegistry
+	modifiers         functionmodifiers.ModifierRegistry
 	withdrawProposals *avl.Tree
 }
 
@@ -31,14 +31,14 @@ func (wallet *Wallet) DepositCoins() {
 	caller := std.GetOrigCaller()
 
 	wallet.modifiers.AssertIsOwner(caller)
-	wallet.modifiers.AssertOwnersInitialised()
+	wallet.modifiers.AssertOwnersInitialized()
 }
 
 func (wallet *Wallet) ProposeWithdraw(recipient string, amount int64, denom string, approvalPercentage float64) int64 {
 	caller := std.GetOrigCaller()
 
 	wallet.modifiers.AssertIsOwner(caller)
-	wallet.modifiers.AssertOwnersInitialised()
+	wallet.modifiers.AssertOwnersInitialized()
 
 	coin := std.NewCoin(denom, amount)
 

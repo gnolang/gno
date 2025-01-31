@@ -18,7 +18,7 @@ type OwnershipProposalDetails struct {
 	OwnerProposals     *avl.Tree
 }
 
-type ModiferRegistry struct {
+type ModifierRegistry struct {
 	Owners    *avl.Tree
 	Modifiers *avl.Tree
 	Proposals *OwnershipProposalDetails
@@ -27,9 +27,9 @@ type ModiferRegistry struct {
 func init() {
 }
 
-func (registry *ModiferRegistry) InitializeOwners(owners []string, newOwnerPercentage float64) {
+func (registry *ModifierRegistry) InitializeOwners(owners []string, newOwnerPercentage float64) {
 	if len(owners) == 0 {
-		panic("You must provide atleast one owner address!")
+		panic("You must provide at least one owner address!")
 	}
 	registry.initVariables(newOwnerPercentage)
 
@@ -42,12 +42,12 @@ func (registry *ModiferRegistry) InitializeOwners(owners []string, newOwnerPerce
 	}
 }
 
-func (registry *ModiferRegistry) ProposeNewOwner(address string) {
+func (registry *ModifierRegistry) ProposeNewOwner(address string) {
 	addr := std.Address(address)
 	caller := std.GetOrigCaller()
 
 	registry.AssertIsOwner(caller)
-	registry.AssertOwnersInitialised()
+	registry.AssertOwnersInitialized()
 
 	if !addr.IsValid() {
 		panic(ufmt.Sprintf("Address %s is not valid!", addr))
@@ -76,24 +76,24 @@ func (registry *ModiferRegistry) ProposeNewOwner(address string) {
 	}
 }
 
-func (registry *ModiferRegistry) ResignOwnership() {
+func (registry *ModifierRegistry) ResignOwnership() {
 	caller := std.GetOrigCaller()
 
 	registry.AssertIsOwner(caller)
-	registry.AssertOwnersInitialised()
+	registry.AssertOwnersInitialized()
 
 	if registry.Owners.Size() == 1 {
-		panic("You cannot give up ownership because there must be atleast one owner!")
+		panic("You cannot give up ownership because there must be at least one owner!")
 	}
 
 	registry.Owners.Remove(caller.String())
 }
 
-func (registry *ModiferRegistry) RegisterModifier(name string, approvalPercentage float64) {
+func (registry *ModifierRegistry) RegisterModifier(name string, approvalPercentage float64) {
 	caller := std.GetOrigCaller()
 
 	registry.AssertIsOwner(caller)
-	registry.AssertOwnersInitialised()
+	registry.AssertOwnersInitialized()
 
 	if name == "" {
 		panic("Must provide a non-empty name")
@@ -112,22 +112,22 @@ func (registry *ModiferRegistry) RegisterModifier(name string, approvalPercentag
 	registry.Modifiers.Set(name, modifier)
 }
 
-func (registry *ModiferRegistry) EditModifierApprovalPercentage(name string, newApprovalPercentage float64) {
+func (registry *ModifierRegistry) EditModifierApprovalPercentage(name string, newApprovalPercentage float64) {
 	caller := std.GetOrigCaller()
 
 	registry.AssertIsOwner(caller)
-	registry.AssertOwnersInitialised()
+	registry.AssertOwnersInitialized()
 
 	if name == "" {
 		panic("Must provide a non-empty name")
 	}
 
 	if newApprovalPercentage <= 0 {
-		panic("Approval percentage must be grater than 0!")
+		panic("Approval percentage must be greater than 0!")
 	}
 
 	if newApprovalPercentage > 1 {
-		panic("Approval percentage must be lower or equal than1!")
+		panic("Approval percentage must be lower or equal to 1!")
 	}
 
 	v, exists := registry.Modifiers.Get(name)
@@ -141,7 +141,7 @@ func (registry *ModiferRegistry) EditModifierApprovalPercentage(name string, new
 	registry.Modifiers.Set(name, modifier)
 }
 
-func (registry *ModiferRegistry) ApproveModifier(name string) {
+func (registry *ModifierRegistry) ApproveModifier(name string) {
 	if name == "" {
 		panic("Name of the modifier cannot be empty!")
 	}
@@ -149,12 +149,12 @@ func (registry *ModiferRegistry) ApproveModifier(name string) {
 	caller := std.GetOrigCaller()
 
 	registry.AssertIsOwner(caller)
-	registry.AssertOwnersInitialised()
+	registry.AssertOwnersInitialized()
 
 	v, exists := registry.Modifiers.Get(name)
 
 	if !exists {
-		panic("Modifer with provided name doesn't exist!")
+		panic("Modifier with provided name doesn't exist!")
 	}
 
 	modifier := v.(*Modifier)
@@ -166,11 +166,11 @@ func (registry *ModiferRegistry) ApproveModifier(name string) {
 	modifier.Approvers.Set(caller.String(), true)
 }
 
-func (registry *ModiferRegistry) AssertIsApproved(name string) {
+func (registry *ModifierRegistry) AssertIsApproved(name string) {
 	caller := std.GetOrigCaller()
 
 	registry.AssertIsOwner(caller)
-	registry.AssertOwnersInitialised()
+	registry.AssertOwnersInitialized()
 
 	v, exists := registry.Modifiers.Get(name)
 	if !exists {
@@ -187,7 +187,7 @@ func (registry *ModiferRegistry) AssertIsApproved(name string) {
 	}
 }
 
-func (registry *ModiferRegistry) initVariables(newOwnerPercentage float64) {
+func (registry *ModifierRegistry) initVariables(newOwnerPercentage float64) {
 	registry.Owners = avl.NewTree()
 	registry.Modifiers = avl.NewTree()
 	registry.Proposals = &OwnershipProposalDetails{
@@ -196,14 +196,14 @@ func (registry *ModiferRegistry) initVariables(newOwnerPercentage float64) {
 	}
 }
 
-func (registry *ModiferRegistry) AssertIsOwner(address std.Address) {
+func (registry *ModifierRegistry) AssertIsOwner(address std.Address) {
 	if !registry.Owners.Has(address.String()) {
 		panic("You are not the owner!")
 	}
 }
 
-func (registry *ModiferRegistry) AssertOwnersInitialised() {
+func (registry *ModifierRegistry) AssertOwnersInitialized() {
 	if registry.Owners.Size() == 0 {
-		panic("Owners must be initialised before making any action!")
+		panic("Owners must be initialized before making any action!")
 	}
 }

@@ -5,7 +5,7 @@ import (
 )
 
 var (
-	modifiers functionmodifiers.ModiferRegistry
+	modifiers functionmodifiers.ModifierRegistry
 )
 
 func init() {
