@@ -1,6 +1,6 @@
-# Run gno transpile with -gobuild flag
+# Run gno tool transpile with -gobuild flag
 
-gno transpile -gobuild -v .
+gno tool transpile -gobuild -v .
 
 ! stdout .+
 cmp stderr stderr.golden
@@ -12,7 +12,7 @@ cmp sub/sub.gno.gen.go sub/sub.gno.gen.go.golden
 rm mai.gno.gen.gosub/sub.gno.gen.go
 
 # Re-try, but use an absolute path.
-gno transpile -gobuild -v $WORK
+gno tool transpile -gobuild -v $WORK
 
 ! stdout .+
 cmpenv stderr stderr2.golden
