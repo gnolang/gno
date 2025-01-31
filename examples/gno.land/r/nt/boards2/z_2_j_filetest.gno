@@ -10,29 +10,30 @@ import (
 const (
 	owner   = std.Address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5") // @test1
 	path    = "test-board/1/2"
-	comment = "Test comment"
+	comment = "Second comment"
 )
 
 var (
-	bid boards2.BoardID
-	tid boards2.PostID
+	bid      boards2.BoardID
+	tid, rid boards2.PostID
 )
 
 func init() {
 	std.TestSetOrigCaller(owner)
 	bid = boards2.CreateBoard("test-board")
 	tid = boards2.CreateThread(bid, "Foo", "bar")
+	rid = boards2.CreateReply(bid, tid, 0, "First comment")
 }
 
 func main() {
-	rid := boards2.CreateReply(bid, tid, 0, comment)
+	rid2 := boards2.CreateReply(bid, tid, rid, comment)
 
 	// Ensure that returned ID is right
-	println(rid == 2)
+	println(rid2 == 3)
 
-	// Render content must contain the reply
+	// Render content must contain the sub-reply
 	content := boards2.Render(path)
-	println(strings.Contains(content, "\n> "+comment+"\n"))
+	println(strings.Contains(content, "\n> > "+comment+"\n"))
 }
 
 // Output:

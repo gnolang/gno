@@ -8,16 +8,20 @@ import (
 
 const owner = std.Address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5") // @test1
 
-var bid boards2.BoardID
+var (
+	bid boards2.BoardID
+	tid boards2.PostID
+)
 
 func init() {
 	std.TestSetOrigCaller(owner)
-	bid = boards2.CreateBoard("test123")
+	bid = boards2.CreateBoard("test-board")
+	tid = boards2.CreateThread(bid, "Foo", "bar")
 }
 
 func main() {
-	boards2.CreateReply(bid, 404, 0, "comment")
+	boards2.CreateReply(bid, tid, 0, "")
 }
 
 // Error:
-// thread does not exist with ID: 404
+// body is empty
