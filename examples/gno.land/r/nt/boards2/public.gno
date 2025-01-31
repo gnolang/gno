@@ -210,6 +210,8 @@ func EditReply(bid BoardID, threadID, replyID PostID, body string) {
 	board := mustGetBoard(bid)
 	thread := mustGetThread(board, threadID)
 	reply := mustGetReply(thread, replyID)
+	assertReplyVisible(reply)
+
 	if std.GetOrigCaller() != reply.GetCreator() {
 		panic("only the reply creator is allowed to edit it")
 	}
