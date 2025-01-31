@@ -14,6 +14,14 @@ func init() {
 	modifiers.InitializeOwners(owners, newOwnerPercentage)
 }
 
+func ProposeNewOwner(address string) {
+	modifiers.ProposeNewOwner(address)
+}
+
+func ResignOwnership() {
+	modifiers.ResignOwnership()
+}
+
 func RegisterModifier(name string, approvalPercentage float64) {
 	modifiers.RegisterModifier(name, approvalPercentage)
 }

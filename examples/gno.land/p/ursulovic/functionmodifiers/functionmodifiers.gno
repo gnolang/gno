@@ -2,15 +2,17 @@ package functionmodifiers
 
 import (
 	"std"
+	"strconv"
 
 	"gno.land/p/demo/avl"
 	"gno.land/p/demo/ufmt"
 )
 
 type Modifier struct {
-	Name               string
-	ApprovalPercentage float64
-	Approvers          *avl.Tree
+	Name                            string
+	ApprovalPercentage              float64
+	Approvers                       *avl.Tree
+	EditApprovalPercentageProposals *avl.Tree
 }
 
 type OwnershipProposalDetails struct {
@@ -105,9 +107,10 @@ func (registry *ModifierRegistry) RegisterModifier(name string, approvalPercenta
 		panic("Approval must be between 0 and 1")
 	}
 	modifier := &Modifier{
-		Name:               name,
-		ApprovalPercentage: approvalPercentage,
-		Approvers:          avl.NewTree(),
+		Name:                            name,
+		ApprovalPercentage:              approvalPercentage,
+		Approvers:                       avl.NewTree(),
+		EditApprovalPercentageProposals: avl.NewTree(),
 	}
 	registry.Modifiers.Set(name, modifier)
 }
@@ -122,12 +125,8 @@ func (registry *ModifierRegistry) EditModifierApprovalPercentage(name string, ne
 		panic("Must provide a non-empty name")
 	}
 
-	if newApprovalPercentage <= 0 {
-		panic("Approval percentage must be greater than 0!")
-	}
-
-	if newApprovalPercentage > 1 {
-		panic("Approval percentage must be lower or equal to 1!")
+	if newApprovalPercentage <= 0 || newApprovalPercentage > 1 {
+		panic("New approval percentage value must be greater than 0 and less or equal to 1!")
 	}
 
 	v, exists := registry.Modifiers.Get(name)
@@ -136,7 +135,24 @@ func (registry *ModifierRegistry) EditModifierApprovalPercentage(name string, ne
 	}
 
 	modifier := v.(*Modifier)
-	modifier.ApprovalPercentage = newApprovalPercentage
+
+	approvals, exists := modifier.EditApprovalPercentageProposals.Get(strconv.FormatFloat(newApprovalPercentage, 'f', -1, 64))
+	if !exists {
+		approvals = avl.NewTree()
+	}
+
+	approvalsTree := approvals.(*avl.Tree)
+	approvalsTree.Set(caller.String(), true)
+
+	modifier.EditApprovalPercentageProposals.Set(strconv.FormatFloat(newApprovalPercentage, 'f', -1, 64), approvalsTree)
+
+	totalOwners := registry.Owners.Size()
+	approvalsNeeded := modifier.ApprovalPercentage * float64(totalOwners)
+
+	if float64(approvalsTree.Size()) >= approvalsNeeded {
+		modifier.ApprovalPercentage = newApprovalPercentage
+		modifier.EditApprovalPercentageProposals.Remove(strconv.FormatFloat(newApprovalPercentage, 'f', -1, 64))
+	}
 
 	registry.Modifiers.Set(name, modifier)
 }

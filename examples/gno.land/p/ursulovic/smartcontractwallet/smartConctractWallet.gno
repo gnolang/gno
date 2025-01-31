@@ -9,7 +9,7 @@ import (
 )
 
 type Wallet struct {
-	modifiers         functionmodifiers.ModifierRegistry
+	Modifiers         functionmodifiers.ModifierRegistry
 	withdrawProposals *avl.Tree
 }
 
@@ -24,21 +24,21 @@ func init() {
 
 func (wallet *Wallet) InitOwners(owners []string, newOwnerPercentage float64) {
 	wallet.withdrawProposals = avl.NewTree()
-	wallet.modifiers.InitializeOwners(owners, newOwnerPercentage)
+	wallet.Modifiers.InitializeOwners(owners, newOwnerPercentage)
 }
 
 func (wallet *Wallet) DepositCoins() {
 	caller := std.GetOrigCaller()
 
-	wallet.modifiers.AssertIsOwner(caller)
-	wallet.modifiers.AssertOwnersInitialized()
+	wallet.Modifiers.AssertIsOwner(caller)
+	wallet.Modifiers.AssertOwnersInitialized()
 }
 
 func (wallet *Wallet) ProposeWithdraw(recipient string, amount int64, denom string, approvalPercentage float64) int64 {
 	caller := std.GetOrigCaller()
 
-	wallet.modifiers.AssertIsOwner(caller)
-	wallet.modifiers.AssertOwnersInitialized()
+	wallet.Modifiers.AssertIsOwner(caller)
+	wallet.Modifiers.AssertOwnersInitialized()
 
 	coin := std.NewCoin(denom, amount)
 
@@ -49,14 +49,14 @@ func (wallet *Wallet) ProposeWithdraw(recipient string, amount int64, denom stri
 		coin:      coin,
 	}
 
-	wallet.modifiers.RegisterModifier(formatProposalKey(id), approvalPercentage)
+	wallet.Modifiers.RegisterModifier(formatProposalKey(id), approvalPercentage)
 
 	wallet.withdrawProposals.Set(strconv.FormatInt(id, 10), withdrawProposal)
 	return id
 }
 
 func (wallet *Wallet) ExecuteWithdraw(id int64) {
-	wallet.modifiers.AssertIsApproved(formatProposalKey(id))
+	wallet.Modifiers.AssertIsApproved(formatProposalKey(id))
 
 	v, exists := wallet.withdrawProposals.Get(strconv.FormatInt(id, 10))
 
@@ -76,7 +76,7 @@ func (wallet *Wallet) ExecuteWithdraw(id int64) {
 }
 
 func (wallet *Wallet) ApproveWithdraw(id int64) {
-	wallet.modifiers.ApproveModifier(formatProposalKey(id))
+	wallet.Modifiers.ApproveModifier(formatProposalKey(id))
 }
 
 func formatProposalKey(id int64) string {
