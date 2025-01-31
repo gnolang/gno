@@ -22,11 +22,14 @@ type Foo struct {
 
 //var f5 = Foo{name: "foo4", b: Bar{name: "bar"}, s: []Bar{{"c"}, {"d"}}}
 
-var f1 = Foo{b: Bar{text: "bar"}}
+//var f1 = Foo{b: Bar{text: "bar"}}
 
 // alloc firstly while initialization
 // alloc secondely while value copy
 //var f2 = Foo{name: "f2"}
+
+var s1 = []int{1, 2, 3}
+var s2 = s1
 
 func main() {
 	runtime.GC()

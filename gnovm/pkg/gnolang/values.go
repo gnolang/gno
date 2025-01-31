@@ -1057,6 +1057,9 @@ func (tv *TypedValue) ClearNum() {
 
 func (tv TypedValue) Copy(alloc *Allocator) (cp TypedValue) {
 	debug2.Printf2("Copy, allocator: %v, TV: %v, type of TV: %v \n", alloc, tv, reflect.TypeOf(tv.V))
+	// copy alloc info
+	cp.AllocationInfo = tv.AllocationInfo
+
 	switch cv := tv.V.(type) {
 	case BigintValue:
 		cp.T = tv.T
@@ -1070,22 +1073,13 @@ func (tv TypedValue) Copy(alloc *Allocator) (cp TypedValue) {
 	case *NativeValue:
 		cp.T = tv.T
 		cp.V = cv.Copy(alloc)
+	case *SliceValue:
+		cp = tv
+		cp.IncRefCount()
+	case *PointerValue:
+		// TODO: xxx
 	default:
 		cp = tv
-	}
-
-	// alloc info copy
-	sealed := tv.Sealed // already sealed
-	// copy alloc info
-	cp.AllocationInfo = tv.AllocationInfo
-
-	// if not sealed, inc refCount
-	// if sealed, refCount will be reset and always be 1
-	if !sealed {
-		cp.AllocationInfo.IncRefCount()
-		if cp.AllocationInfo.GetRefCount() == 2 {
-			cp.AllocationInfo.Sealed = true
-		}
 	}
 	debug2.Printf2("===After copy, cp: %v cp.AllocationInfo: %v\n", cp, cp.AllocationInfo)
 	return
@@ -2663,6 +2657,7 @@ func defaultStructFields(alloc *Allocator, st *StructType) []TypedValue {
 		if ft.Type.Kind() != InterfaceKind {
 			tvs[i].T = ft.Type
 			tvs[i].V = defaultValue(alloc, ft.Type)
+			tvs[i].SetValueAlloc(AllocDefault)
 		}
 	}
 	return tvs

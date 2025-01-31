@@ -168,7 +168,7 @@ func (alloc *Allocator) GC() {
 		debug2.Println2("type of block: ", reflect.TypeOf(b), reflect.TypeOf(b.Source))
 		debug2.Println2("block.externs: ", b.Source.GetExternNames())
 		debug2.Println2("block.names: ", b.Source.GetBlockNames())
-		throwaway.allocateValue(b, 1)
+		throwaway.allocateValue(b)
 
 		for _, tv := range b.Values {
 			throwaway.allocateTV(tv)
@@ -197,25 +197,22 @@ func (throwaway *Allocator) allocateTV(tv TypedValue) {
 	case AllocNone: // no allocation value
 		// do nothing
 	case AllocDefault:
-		throwaway.allocateValue(tv.V, tv.RefCount)
+		// if refCount > 1, it's escaped
+		//  no allocation
+		debug2.Println2("alloc default, tv.T: ", tv.T)
+		if _, ok := tv.T.(*SliceType); ok {
+			debug2.Println2("slice type, refCount: ", tv.GetRefCount())
+			if tv.GetRefCount() > 1 {
+				break
+			}
+		}
+		throwaway.allocateValue(tv.V)
 	case AllocSliceOnly: // only slice
 		throwaway.AllocateSlice()
 	}
 }
 
-func (throwaway *Allocator) allocZeroTV(tv *TypedValue) {
-	debug2.Println2("allocZeroTV, tv: ", tv, reflect.TypeOf(tv.T))
-	switch t := baseOf(tv.T).(type) {
-	case *StructType:
-		throwaway.AllocateStructFields(int64(len(t.Fields)))
-		throwaway.AllocateStruct()
-	case *ArrayType:
-	case *NativeType:
-	case *SliceType: // TODO: ???
-	}
-}
-
-func (throwaway *Allocator) allocateValue(v Value, times int) {
+func (throwaway *Allocator) allocateValue(v Value) {
 	debug2.Println2("allocateValue: ", v, reflect.TypeOf(v))
 	// alloc amino
 	// if ref value, allocate amino
@@ -242,20 +239,12 @@ func (throwaway *Allocator) allocateValue(v Value, times int) {
 		// see var s = S{name: "foo"}
 		// the struct lit is allocated first,
 		// then with copy, it is allocated again.
-		for i := 0; i < times; i++ {
-			throwaway.AllocateStructFields(int64(len(vv.Fields)))
-			throwaway.AllocateStruct()
-		}
-
-		// then allocate zero value for embedded value once
-		for _, f := range vv.Fields {
-			debug2.Println2("field: ", f, reflect.TypeOf(f))
-			throwaway.allocZeroTV(&f)
-		}
+		throwaway.AllocateStructFields(int64(len(vv.Fields)))
+		throwaway.AllocateStruct()
 
 		// last, alloc fields recursively
 		for _, field := range vv.Fields {
-			debug2.Println2("field: ", field)
+			debug2.Println2("alloc field: ", field)
 			throwaway.allocateTV(field)
 		}
 	case *FuncValue:
@@ -273,13 +262,13 @@ func (throwaway *Allocator) allocateValue(v Value, times int) {
 		//}
 	case PointerValue:
 		throwaway.AllocatePointer()
-		throwaway.allocateValue(vv.Base, times)
+		throwaway.allocateValue(vv.Base)
 	case *HeapItemValue:
 		throwaway.AllocateHeapItem()
-		throwaway.allocateValue(vv.Value.V, times)
+		throwaway.allocateValue(vv.Value.V)
 	case *SliceValue:
 		throwaway.AllocateSlice()
-		throwaway.allocateValue(vv.Base, times)
+		throwaway.allocateValue(vv.Base)
 	case *ArrayValue:
 		// TODO: data array
 		throwaway.AllocateListArray(int64(len(vv.List)))
@@ -591,11 +580,6 @@ type AllocationInfo struct {
 	HasTypeAlloc   bool
 	ValueAllocType AllocationType
 	RefCount       int
-	// var f5 = Foo{xxx}, after declaration,
-	// it's sealed, then alloc only once for non-reference value.
-	// no alloc for reference value.
-	//
-	Sealed bool
 }
 
 func (ai *AllocationInfo) String() string {
@@ -607,7 +591,6 @@ func (ai *AllocationInfo) String() string {
 
 func (ai *AllocationInfo) SetValueAlloc(valueAllocType AllocationType) {
 	(*ai).ValueAllocType = valueAllocType
-	(*ai).RefCount = 1
 }
 
 func (ai *AllocationInfo) SetTypeAlloc() {
