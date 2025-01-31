@@ -94,3 +94,80 @@ func TestNot(t *testing.T) {
 		})
 	}
 }
+
+func TestIfCond(t *testing.T) {
+	t.Parallel()
+
+	for _, testCase := range []struct {
+		name        string
+		req         Requirement
+		isSatisfied bool
+	}{
+		{"if always", If(Always()), true},
+		{"if never", If(Never()), true},
+		{"if always then always", If(Always()).Then(Always()), true},
+		{"if never else always", If(Never()).Else(Always()), true},
+		{"if always then never", If(Always()).Then(Never()), false},
+		{"if never else never", If(Never()).Else(Never()), false},
+	} {
+		t.Run(testCase.name, func(t *testing.T) {
+			t.Parallel()
+
+			pr := &github.PullRequest{}
+			details := treeprint.New()
+
+			actual := testCase.req.IsSatisfied(pr, details)
+			assert.Equal(t, testCase.isSatisfied, actual,
+				"requirement should have a satisfied status: %t", testCase.isSatisfied)
+			assert.True(t,
+				utils.TestNodeStatus(t, testCase.isSatisfied, details.(*treeprint.Node).Nodes[0]),
+				"requirement details should have a status: %t", testCase.isSatisfied)
+		})
+	}
+}
+
+type reqFunc func(*github.PullRequest, treeprint.Tree) bool
+
+func (r reqFunc) IsSatisfied(gh *github.PullRequest, details treeprint.Tree) bool {
+	return r(gh, details)
+}
+
+func TestIfCond_ConditionalExecution(t *testing.T) {
+	t.Run("executeThen", func(t *testing.T) {
+		thenExec, elseExec := 0, 0
+		If(Always()).
+			Then(reqFunc(func(*github.PullRequest, treeprint.Tree) bool {
+				thenExec++
+				return true
+			})).
+			Else(reqFunc(func(*github.PullRequest, treeprint.Tree) bool {
+				elseExec++
+				return true
+			})).IsSatisfied(nil, treeprint.New())
+		assert.Equal(t, 1, thenExec, "Then should be executed 1 time")
+		assert.Equal(t, 0, elseExec, "Else should be executed 0 time")
+	})
+	t.Run("executeElse", func(t *testing.T) {
+		thenExec, elseExec := 0, 0
+		If(Never()).
+			Then(reqFunc(func(*github.PullRequest, treeprint.Tree) bool {
+				thenExec++
+				return true
+			})).
+			Else(reqFunc(func(*github.PullRequest, treeprint.Tree) bool {
+				elseExec++
+				return true
+			})).IsSatisfied(nil, treeprint.New())
+		assert.Equal(t, 0, thenExec, "Then should be executed 0 time")
+		assert.Equal(t, 1, elseExec, "Else should be executed 1 time")
+	})
+}
+
+func TestIfCond_NoRepeats(t *testing.T) {
+	assert.Panics(t, func() {
+		If(Always()).Then(Always()).Then(Always())
+	}, "two Then should panic")
+	assert.Panics(t, func() {
+		If(Always()).Else(Always()).Else(Always())
+	}, "two Else should panic")
+}

@@ -1,6 +1,6 @@
-# Run gno transpile with -gobuild flag on an individual file
+# Run gno tool transpile with -gobuild flag on an individual file
 
-gno transpile -gobuild -v main.gno
+gno tool transpile -gobuild -v main.gno
 
 ! stdout .+
 cmp stderr stderr.golden

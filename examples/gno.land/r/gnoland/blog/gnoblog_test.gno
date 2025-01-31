@@ -8,9 +8,6 @@ import (
 
 func TestPackage(t *testing.T) {
 	std.TestSetOrigCaller(std.Address("g1manfred47kzduec920z88wfr64ylksmdcedlf5"))
-
-	author := std.GetOrigCaller()
-
 	// by default, no posts.
 	{
 		got := Render("")
