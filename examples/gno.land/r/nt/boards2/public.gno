@@ -92,6 +92,9 @@ func CreateThread(bid BoardID, title, body string) PostID {
 func CreateReply(bid BoardID, threadID, replyID PostID, body string) PostID {
 	assertIsUserCall()
 
+	body = strings.TrimSpace(body)
+	assertBodyIsNotEmpty(body)
+
 	caller := std.GetOrigCaller()
 	board := mustGetBoard(bid)
 	assertHasBoardPermission(board, caller, PermissionReplyCreate)
