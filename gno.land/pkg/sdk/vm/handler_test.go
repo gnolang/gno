@@ -93,13 +93,13 @@ func TestVmHandlerQuery_Eval(t *testing.T) {
 
 		// panics
 		{input: []byte(`gno.land/r/hello`), expectedPanicMatch: `expected <pkgpath>.<expression> syntax in query input data`},
-		{input: []byte(`gno.land/r/hello.func(){ for {} }()`), expectedPanicMatch: `out of gas in location: CPUCycles`},
 
 		// errors
 		{input: []byte(`gno.land/r/hello.doesnotexist`), expectedErrorMatch: `^/:0:0: name doesnotexist not declared:`}, // multiline error
 		{input: []byte(`gno.land/r/doesnotexist.Foo`), expectedErrorMatch: `^invalid package path$`},
 		{input: []byte(`gno.land/r/hello.Panic()`), expectedErrorMatch: `^foo$`},
 		{input: []byte(`gno.land/r/hello.sl[6]`), expectedErrorMatch: `^slice index out of bounds: 6 \(len=5\)$`},
+		{input: []byte(`gno.land/r/hello.func(){ for {} }()`), expectedErrorMatch: `out of gas in location: CPUCycles`},
 	}
 
 	for _, tc := range tt {
