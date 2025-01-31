@@ -109,7 +109,7 @@ func (v *Validator) ABCIValidatorUpdate() abci.ValidatorUpdate {
 // RandValidator returns a randomized validator, useful for testing.
 // UNSTABLE
 func RandValidator(randPower bool, minPower int64) (*Validator, PrivValidator) {
-	privVal := NewMockPV()
+	privVal := NewMockSigner()
 	votePower := minPower
 	if randPower {
 		votePower += int64(random.RandUint32())
