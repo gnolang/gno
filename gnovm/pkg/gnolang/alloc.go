@@ -165,12 +165,11 @@ func (alloc *Allocator) GC() {
 	// scan blocks
 	for i, b := range alloc.m.Blocks {
 		debug2.Printf2("allocate blocks[%d]: %v \n", i, b)
-		debug2.Println2("type of block: ", reflect.TypeOf(b), reflect.TypeOf(b.Source))
-		debug2.Println2("block.externs: ", b.Source.GetExternNames())
-		debug2.Println2("block.names: ", b.Source.GetBlockNames())
 		throwaway.allocateValue(b)
 
+		// TODO: move this to allocateValue
 		for _, tv := range b.Values {
+			debug2.Println2("allocate values of block")
 			throwaway.allocateTV(tv)
 		}
 	}

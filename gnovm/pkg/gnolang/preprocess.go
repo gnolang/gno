@@ -436,7 +436,6 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 		findGotoLoopDefines(ctx, bn)
 		findLoopUses1(ctx, bn)
 		findLoopUses2(ctx, bn)
-		//findBlockAllocation(store, ctx, bn)
 	}
 	return n
 }
@@ -2853,110 +2852,6 @@ func findLoopUses1(ctx BlockNode, bn BlockNode) {
 		return n, TRANS_CONTINUE
 	})
 }
-
-//func setAllocFlag(store Store, last BlockNode, allocatable Allocatable, rx Expr) {
-//	debug2.Printf2("setAllocFlag, rx is: %v, type of rx: %v \n", rx, reflect.TypeOf(rx))
-//	debug2.Println2("allocatable: ", allocatable, reflect.TypeOf(allocatable))
-//	switch rx := rx.(type) {
-//	case *NameExpr, *IndexExpr, *SelectorExpr, *StarExpr, *CallExpr: // TODO: check this
-//		rt := evalStaticTypeOf(store, last, rx)
-//		debug2.Println2("===rt: ", rt, reflect.TypeOf(baseOf(rt)))
-//		switch baseOf(rt).(type) {
-//		// NOTE: the copy will be allocated again, x2?
-//		case *StructType, *ArrayType, *NativeType: // TODO: bigint type?
-//			// value copy, alloc
-//			allocatable.SetAllocInfoWithType(AllocDefault)
-//		}
-//	case *CompositeLitExpr, *FuncLitExpr: // TODO: more ...
-//		allocatable.SetAllocInfoWithType(AllocDefault)
-//	case *RefExpr:
-//		debug2.Printf2("RHS RefExpr, rx: %v, rx.X: %v \n", rx, rx.X)
-//		setAllocFlag(store, last, allocatable, rx.X)
-//	case *SliceExpr: // ???
-//		// TODO: only slice, no array, fix it
-//		allocatable.SetAllocInfoWithType(AllocSlice)
-//		//case *TypeAssertExpr:
-//	}
-//}
-//
-//func findBlockAllocation(store Store, ctx BlockNode, bn BlockNode) {
-//	// create stack of BlockNodes.
-//	var stack []BlockNode = make([]BlockNode, 0, 32)
-//	var last BlockNode = ctx
-//	stack = append(stack, last)
-//
-//	// Iterate over all nodes recursively.
-//	_ = Transcribe(bn, func(ns []Node, ftype TransField, index int, n Node, stage TransStage) (Node, TransCtrl) {
-//		defer doRecover(stack, n)
-//
-//		if debug {
-//			debug.Printf("findBlockAlloc %s (%v) stage:%v\n", n.String(), reflect.TypeOf(n), stage)
-//		}
-//		debug2.Printf2("findBlockAlloc %s (%v) stage:%v\n", n.String(), reflect.TypeOf(n), stage)
-//		debug2.Println2("last: ", last)
-//		debug2.Println2("last...BlockNames: ", last.GetBlockNames())
-//		debug2.Println2("last...Externs: ", last.GetExternNames())
-//
-//		switch stage {
-//		// ----------------------------------------
-//		case TRANS_BLOCK:
-//			pushInitBlock(n.(BlockNode), &last, &stack)
-//
-//			// ----------------------------------------
-//		case TRANS_ENTER:
-//			switch n := n.(type) {
-//			case *ValueDecl: // global vars
-//				debug2.Println2("ValueDecl, n: ", n)
-//				for i, v := range n.Values {
-//					debug2.Printf2("values[%d] is %v, type of v: %v \n", i, v, reflect.TypeOf(v))
-//					nx := &n.NameExprs[i]
-//					debug2.Println2("nx: ", nx)
-//
-//					setAllocFlag(store, last, nx, v)
-//				}
-//
-//			// ----------------------------------------
-//			case *AssignStmt: // assignStmt in inner blocks
-//				debug2.Println2("AssignStmt, n: ", n)
-//				for i, lx := range n.Lhs {
-//					var ln Name
-//
-//					switch lx2 := lx.(type) {
-//					case *NameExpr:
-//						ln = lx2.Name
-//						if ln == blankIdentifier {
-//							continue
-//						}
-//					case *SelectorExpr, *StarExpr, *IndexExpr:
-//					default:
-//						continue
-//					}
-//
-//					// TODO: check left len > right len
-//					allocatable, _ := lx.(Allocatable)
-//					// check type of RHS, set alloc flag
-//					setAllocFlag(store, last, allocatable, n.Rhs[i])
-//				}
-//				// NOTE, *TypeDecl in preprocess are all constTypeExpr
-//			}
-//
-//		// ----------------------------------------
-//		case TRANS_LEAVE:
-//			// Pop block from stack.
-//			// NOTE: DO NOT USE TRANS_SKIP WITHIN BLOCK
-//			// NODES, AS TRANS_LEAVE WILL BE SKIPPED; OR
-//			// POP BLOCK YOURSELF.
-//			switch n.(type) {
-//			case BlockNode:
-//				stack = stack[:len(stack)-1]
-//				last = stack[len(stack)-1]
-//			}
-//
-//			return n, TRANS_CONTINUE
-//		}
-//		return n, TRANS_CONTINUE
-//	})
-//}
 
 func assertNotHasName(names []Name, name Name) {
 	if slices.Contains(names, name) {

@@ -1075,7 +1075,12 @@ func (tv TypedValue) Copy(alloc *Allocator) (cp TypedValue) {
 		cp = tv
 		cp.IncRefCount()
 	case PointerValue:
-		debug2.Println2("pointer value")
+		cp = tv
+		cp.IncRefCount()
+	case *MapValue:
+		cp = tv
+		cp.IncRefCount()
+	case *FuncValue:
 		cp = tv
 		cp.IncRefCount()
 	default:

@@ -330,6 +330,7 @@ func makeUverseNode() {
 					arg1Offset := arg1Value.Offset
 					arg1Base := arg1Value.GetBase(m.Store)
 					if arg0Length+arg1Length <= arg0Capacity {
+						debug2.Println2("append, w/i capacity")
 						// append(*SliceValue, *SliceValue) w/i capacity -----
 						if 0 < arg1Length { // implies 0 < xvc
 							if arg0Base.Data == nil {
@@ -415,13 +416,16 @@ func makeUverseNode() {
 						return
 					} else {
 						// append(*SliceValue, *SliceValue) new list ---------
+						debug2.Println2("append, exceed capacity")
 						arrayLen := arg0Length + arg1Length
 						arrayValue := m.Alloc.NewListArray(arrayLen)
 						if arg0Length > 0 {
 							if arg0Base.Data == nil {
+								debug2.Printf2("arg0.TV: %v allocation info: %v \n", arg0.TV, arg0.TV.AllocationInfo)
 								for i := 0; i < arg0Length; i++ {
 									arrayValue.List[i] = arg0Base.List[arg0Offset+i].unrefCopy(m.Alloc, m.Store)
 								}
+
 							} else {
 								panic("should not happen")
 							}
@@ -440,10 +444,12 @@ func makeUverseNode() {
 								)
 							}
 						}
-						m.PushValue(TypedValue{
+						sv := TypedValue{
 							T: arg0Type,
 							V: m.Alloc.NewSlice(arrayValue, 0, arrayLen, arrayLen),
-						})
+						}
+						sv.SetAllocValue(true)
+						m.PushValue(sv)
 						return
 					}
 

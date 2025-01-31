@@ -216,8 +216,10 @@ func (m *Machine) doOpRef() {
 		V: xv,
 	}
 	if m.Alloc != nil {
-		tv.SetAllocType(true)
-		tv.SetAllocValue(true)
+		tv.SetAllocType(true) // only for type alloc
+		if _, ok := rx.X.(*CompositeLitExpr); ok {
+			tv.SetAllocValue(true) // only alloc value for &CompositeLit
+		}
 	}
 	m.PushValue(tv)
 }
@@ -565,17 +567,19 @@ func (m *Machine) doOpArrayLit() {
 	} else {
 		m.PopValue()
 	}
-	// push value
-	m.PushValue(TypedValue{
+	tv := TypedValue{
 		T: at,
 		V: av,
-	})
+	}
+	tv.SetAllocValue(true)
+	// push value
+	m.PushValue(tv)
 }
 
 func (m *Machine) doOpSliceLit() {
-	debug2.Println2("doOpSliceLit")
 	// assess performance TODO
 	x := m.PopExpr().(*CompositeLitExpr)
+	debug2.Println2("doOpSliceLit, x: ", x)
 	el := len(x.Elts)
 	// peek slice type.
 	st := m.PeekValue(1 + el).V.(TypeValue).Type
@@ -685,11 +689,13 @@ func (m *Machine) doOpMapLit() {
 	} else {
 		m.PopValue()
 	}
-	// push value
-	m.PushValue(TypedValue{
+	tv := TypedValue{
 		T: mt,
 		V: mv,
-	})
+	}
+	tv.SetAllocValue(true)
+	// push value
+	m.PushValue(tv)
 }
 
 func (m *Machine) doOpStructLit() {
@@ -805,7 +811,8 @@ func (m *Machine) doOpFuncLit() {
 		}
 		captures = append(captures, *ptr.TV)
 	}
-	m.PushValue(TypedValue{
+
+	fv := TypedValue{
 		T: ft,
 		V: &FuncValue{
 			Type:       ft,
@@ -818,7 +825,9 @@ func (m *Machine) doOpFuncLit() {
 			body:       x.Body,
 			nativeBody: nil,
 		},
-	})
+	}
+	fv.SetAllocValue(true)
+	m.PushValue(fv)
 }
 
 func (m *Machine) doOpConvert() {

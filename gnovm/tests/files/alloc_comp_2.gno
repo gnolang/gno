@@ -13,11 +13,12 @@ func bar(n int) int {
 	clo := func() {
 		println("this if funcLit")
 	}
+	clo2 := clo // no allocation
 	ii := new(int)
 	// defined within block
 	// rhs is struct, array, bigInt, native..
-	S1 := S                       // no allocate2
-	S2 := []string{"d", "e", "f"} // allocate2
+	S1 := S                       // no allocate
+	S2 := []string{"d", "e", "f"} // allocate
 	var SS []string
 	SS = []string{"o", "p", "q"}
 	println("memstats in bar before GC: ", runtime.MemStats())
@@ -40,7 +41,7 @@ func main() {
 }
 
 // Output:
-// memstats in bar before GC:  Allocator{maxBytes:9223372036854775807, bytes:4776}
-// memstats in bar after GC:  Allocator{maxBytes:9223372036854775807, bytes:4760}
-// memstats in main before GC:  Allocator{maxBytes:9223372036854775807, bytes:7771}
+// memstats in bar before GC:  Allocator{maxBytes:9223372036854775807, bytes:4816}
+// memstats in bar after GC:  Allocator{maxBytes:9223372036854775807, bytes:4800}
+// memstats in main before GC:  Allocator{maxBytes:9223372036854775807, bytes:7811}
 // memstats in main after GC:  Allocator{maxBytes:9223372036854775807, bytes:2664}
