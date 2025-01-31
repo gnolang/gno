@@ -9,19 +9,22 @@ import (
 const owner = std.Address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5") // @test1
 
 var (
-	bid boards2.BoardID
-	tid boards2.PostID
+	bid      boards2.BoardID
+	tid, rid boards2.PostID
 )
 
 func init() {
 	std.TestSetOrigCaller(owner)
 	bid = boards2.CreateBoard("test123")
 	tid = boards2.CreateThread(bid, "Foo", "bar")
-	boards2.FlagThread(bid, tid, "")
+	rid = boards2.CreateReply(bid, tid, 0, "reply1")
+
+	// Hide thread by flagging it so reply of a reply can't be submitted
+	boards2.FlagThread(bid, tid, "reason")
 }
 
 func main() {
-	boards2.CreateReply(bid, tid, 0, "Test reply")
+	boards2.CreateReply(bid, tid, rid, "reply1.1")
 }
 
 // Error:

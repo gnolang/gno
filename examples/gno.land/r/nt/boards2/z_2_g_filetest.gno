@@ -18,6 +18,8 @@ func init() {
 	bid = boards2.CreateBoard("test123")
 	tid = boards2.CreateThread(bid, "thread", "thread")
 	rid = boards2.CreateReply(bid, tid, 0, "reply1")
+
+	// Hide reply by flagging it so sub reply can't be submitted
 	boards2.FlagReply(bid, tid, rid, "reason")
 }
 
