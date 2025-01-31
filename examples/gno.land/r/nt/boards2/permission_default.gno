@@ -103,6 +103,20 @@ func (dp *DefaultPermissions) SetUserRoles(user std.Address, roles ...Role) erro
 	return dp.setUserRoles(user, roles...)
 }
 
+// SetRolePermissions sets permissions for a given role.
+func (dp *DefaultPermissions) SetRolePermissions(role Role, newPerms ...Permission) error {
+	if !dp.RoleExists(role) {
+		return errors.New("invalid role: " + string(role))
+	}
+
+	if dp.isRoleProtected(role) {
+		return errors.New("permissions of a role " + string(role) + " cannot be modified")
+	}
+
+	dp.roles.Set(string(role), newPerms)
+	return nil
+}
+
 // RemoveUser removes a user from permissions.
 func (dp *DefaultPermissions) RemoveUser(user std.Address) bool {
 	_, removed := dp.users.Remove(user.String())
@@ -138,6 +152,8 @@ func (dp *DefaultPermissions) WithPermission(user std.Address, perm Permission, 
 		dp.handleMemberInvite(args, cb)
 	case PermissionRoleChange:
 		dp.handleRoleChange(args, cb)
+	case PermissionRoleEdit:
+		dp.handleRoleChange(args, cb)
 	default:
 		cb(args)
 	}
@@ -152,6 +168,11 @@ func (dp *DefaultPermissions) setUserRoles(user std.Address, roles ...Role) erro
 
 	dp.users.Set(user.String(), append([]Role(nil), roles...))
 	return nil
+}
+
+func (dp *DefaultPermissions) isRoleProtected(role Role) bool {
+	// Prevent softlocks caused by accidentally breaking sudo permissions.
+	return role == RoleAdmin || role == RoleOwner
 }
 
 func (DefaultPermissions) handleBoardCreate(args Args, cb func(Args)) {
@@ -192,6 +213,19 @@ func (dp DefaultPermissions) handleMemberInvite(args Args, cb func(Args)) {
 		if !dp.HasRole(caller, RoleOwner) {
 			panic("only owners are allowed to invite other owners")
 		}
+	}
+
+	cb(args)
+}
+
+func (dp DefaultPermissions) handleRoleEdit(args Args, cb func(Args)) {
+	role, ok := args[1].(Role)
+	if !ok {
+		panic("expected a valid member role")
+	}
+
+	if dp.isRoleProtected(role) {
+		panic("permissions for a role " + string(role) + " cannot be changed")
 	}
 
 	cb(args)
@@ -242,6 +276,7 @@ func createDefaultPermissions(owner std.Address) *DefaultPermissions {
 			PermissionReplyDelete,
 			PermissionReplyFlag,
 			PermissionRoleChange,
+			PermissionRoleEdit,
 		),
 		WithRole(
 			RoleModerator,

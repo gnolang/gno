@@ -266,6 +266,19 @@ func ChangeMemberRole(bid BoardID, member std.Address, role Role) {
 	})
 }
 
+func SetRolePermissions(bid BoardID, role Role, newPermissions []Permission) {
+	assertIsUserCall()
+
+	perms := mustGetPermissions(bid)
+	caller := std.GetOrigCaller()
+	args := Args{bid, role, newPermissions}
+	perms.WithPermission(caller, PermissionRoleEdit, args, func(Args) {
+		if err := perms.SetRolePermissions(role, newPermissions...); err != nil {
+			panic(err)
+		}
+	})
+}
+
 func assertIsUserCall() {
 	if !(std.IsOriginCall() || std.PrevRealm().IsUser()) {
 		panic("invalid non-user call")

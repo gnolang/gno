@@ -355,6 +355,91 @@ func TestDefaultPermissionsAddUser(t *testing.T) {
 	}
 }
 
+func TestDefaultPermissionsSetRolePermissions(t *testing.T) {
+	cases := []struct {
+		name        string
+		role        Role
+		permissions []Permission
+		setup       func() *DefaultPermissions
+		err         string
+	}{
+		{
+			name: "role should exist",
+			role: "foobar",
+			err:  "invalid role: foobar",
+			setup: func() *DefaultPermissions {
+				return NewDefaultPermissions(
+					commondao.New(),
+					WithRole("bar", "permission1"),
+				)
+			},
+		},
+		{
+			name: "admin role cannot be modified",
+			role: RoleAdmin,
+			err:  "permissions of a role " + string(RoleAdmin) + " cannot be modified",
+			setup: func() *DefaultPermissions {
+				return NewDefaultPermissions(
+					commondao.New(),
+					WithRole(RoleAdmin, "permission1"),
+					WithRole(RoleOwner, "permission1"),
+				)
+			},
+		},
+		{
+			name: "owner role cannot be modified",
+			role: RoleOwner,
+			err:  "permissions of a role " + string(RoleOwner) + " cannot be modified",
+			setup: func() *DefaultPermissions {
+				return NewDefaultPermissions(
+					commondao.New(),
+					WithRole(RoleAdmin, "permission1"),
+					WithRole(RoleOwner, "permission1"),
+				)
+			},
+		},
+		{
+			name: "non-protected roles can be modified",
+			role: RoleModerator,
+			permissions: []Permission{
+				"fizz",
+				"buzz",
+			},
+			setup: func() *DefaultPermissions {
+				return NewDefaultPermissions(
+					commondao.New(),
+					WithRole(RoleModerator, "foo"),
+					WithRole(RoleAdmin, "permission1"),
+					WithRole(RoleOwner, "permission1"),
+				)
+			},
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			perm := tc.setup()
+
+			err := perm.SetRolePermissions(tc.role, tc.permissions...)
+			if tc.err != "" {
+				urequire.True(t, err != nil, "expected an error")
+				uassert.Equal(t, tc.err, err.Error())
+				return
+			}
+
+			urequire.NoError(t, err)
+			v, ok := perm.roles.Get(string(tc.role))
+			urequire.True(t, ok, "modified role not found")
+
+			newPerms := v.([]Permission)
+			uassert.Equal(t, len(tc.permissions), len(newPerms))
+			for i, p := range tc.permissions {
+				urequire.Equal(t, string(p), string(newPerms[i]))
+			}
+		})
+	}
+}
+
 func TestDefaultPermissionsSetUserRoles(t *testing.T) {
 	cases := []struct {
 		name  string

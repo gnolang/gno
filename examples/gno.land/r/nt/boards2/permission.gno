@@ -20,6 +20,7 @@ const (
 	PermissionMemberInvite            = "member:invite"
 	PermissionMemberRemove            = "member:remove"
 	PermissionRoleChange              = "role:change"
+	PermissionRoleEdit                = "role:edit"
 )
 
 const (
@@ -56,6 +57,9 @@ type (
 
 		// SetUserRoles sets the roles of a user.
 		SetUserRoles(std.Address, ...Role) error
+
+		// SetRolePermissions sets list of permissions for a given role.
+		SetRolePermissions(Role, ...Permission) error
 
 		// RemoveUser removes a user from the permissioner.
 		RemoveUser(std.Address) (removed bool)
