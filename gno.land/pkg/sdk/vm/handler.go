@@ -132,9 +132,13 @@ func (vh vmHandler) queryRender(ctx sdk.Context, req abci.RequestQuery) (res abc
 	expr := fmt.Sprintf("Render(%q)", path)
 	result, err := vh.vm.QueryEvalString(ctx, pkgPath, expr)
 	if err != nil {
+		if strings.Contains(err.Error(), "Render not declared") {
+			err = NoRenderDeclError{}
+		}
 		res = sdk.ABCIResponseQueryFromError(err)
 		return
 	}
+
 	res.Data = []byte(result)
 	return
 }
