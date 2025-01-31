@@ -269,12 +269,6 @@ func assertIsUserCall() {
 	}
 }
 
-func assertHasPermission(user std.Address, p Permission) {
-	if !gPerm.HasPermission(user, p) {
-		panic("unauthorized")
-	}
-}
-
 func assertHasBoardPermission(b *Board, user std.Address, p Permission) {
 	if !b.perms.HasPermission(user, p) {
 		panic("unauthorized")
