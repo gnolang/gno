@@ -86,8 +86,10 @@ func TestVmHandlerQuery_Eval(t *testing.T) {
 		{input: []byte(`gno.land/r/hello.sl`), expectedResultMatch: `(slice[ref(.*)] []int)`},    // XXX: should return the actual value
 		{input: []byte(`gno.land/r/hello.sl[1]`), expectedResultMatch: `(slice[ref(.*)] []int)`}, // XXX: should return the actual value
 		{input: []byte(`gno.land/r/hello.println(1234)`), expectedResultMatch: `^$`},             // XXX: compare stdout?
-		{input: []byte(`gno.land/r/hello.func() string { return "hello123" + pvString }()`),
-			expectedResult: `("hello123private string" string)`},
+		{
+			input:          []byte(`gno.land/r/hello.func() string { return "hello123" + pvString }()`),
+			expectedResult: `("hello123private string" string)`,
+		},
 
 		// panics
 		{input: []byte(`gno.land/r/hello`), expectedPanicMatch: `expected <pkgpath>.<expression> syntax in query input data`},
