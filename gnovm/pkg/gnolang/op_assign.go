@@ -22,8 +22,6 @@ func (m *Machine) doOpDefine() {
 			}
 		}
 		ptr.Assign2(m.Alloc, m.Store, m.Realm, rvs[i], true)
-		//debug2.Println2("doOpDefine, nx:  ", nx, nx.GetAllocInfo())
-		//ptr.TV.SetAllocInfo(nx.GetAllocInfo())
 	}
 }
 
@@ -47,10 +45,6 @@ func (m *Machine) doOpAssign() {
 		}
 
 		lv.Assign2(m.Alloc, m.Store, m.Realm, rvs[i], true)
-		//if allocatable, ok := s.Lhs[i].(Allocatable); ok {
-		//	debug2.Println2("doOpAssign, allocatable, allocInfo:  ", allocatable, allocatable.GetAllocInfo())
-		//	lv.TV.SetAllocInfo(allocatable.GetAllocInfo())
-		//}
 	}
 }
 

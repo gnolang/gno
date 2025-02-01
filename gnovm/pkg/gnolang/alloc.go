@@ -12,10 +12,11 @@ import (
 // (optionally?) condensed (objects to be GC'd will be discarded),
 // but for now, allocations strictly increment across the whole tx.
 type Allocator struct {
-	m         *Machine
-	maxBytes  int64
-	bytes     int64
-	throwAway bool
+	m            *Machine
+	maxBytes     int64
+	bytes        int64
+	throwAway    bool
+	StagingBytes int64
 }
 
 // for gonative, which doesn't consider the allocator.
@@ -74,14 +75,12 @@ const (
 
 func NewAllocator(maxBytes int64, m *Machine) *Allocator {
 	debug2.Println2("NewAllocator(), maxBytes:", maxBytes)
-	// XXX, never nil, m is necessary, se op_binary.go
 	if maxBytes == 0 {
 		return nil
 	}
 	return &Allocator{
 		maxBytes: maxBytes,
-		//maxBytes: 50000,
-		m: m,
+		m:        m,
 	}
 }
 
@@ -122,6 +121,7 @@ func (alloc *Allocator) GC() {
 		alloc.m.GasMeter.ConsumeGas(gasCPU, "GC")
 	}
 	fmt.Println("---gc, MemStats:", alloc.MemStats())
+	fmt.Println("StagingBytes: ", alloc.StagingBytes)
 	defer func() {
 		fmt.Println("------------after gc, memStats:", alloc.MemStats())
 	}()
@@ -181,7 +181,7 @@ func (alloc *Allocator) GC() {
 	// reset allocator
 	debug2.Println2("---throwaway.bytes: ", throwaway.bytes)
 	debug2.Println2("---before reset, alloc.bytes: ", alloc.bytes)
-	alloc.bytes = throwaway.bytes
+	alloc.bytes = throwaway.bytes + alloc.StagingBytes
 	debug2.Println2("---after reset, alloc.bytes: ", alloc.bytes)
 }
 
@@ -289,13 +289,16 @@ func (alloc *Allocator) Allocate(size int64) {
 		return
 	}
 
+	debug2.Println2("alloc.StagingBytes: ", alloc.StagingBytes)
+	alloc.StagingBytes += size
+
 	// if alloc on throwaway still exceeds memory,
 	// means GC does not work, panic.
 	if alloc.throwAway {
 		//fmt.Println("throwaway, Allocate, memStats: ", alloc.MemStats())
 		if alloc.bytes > alloc.maxBytes {
 			debug2.Println2("---exceed memory size............")
-			panic("exceed memory size")
+			panic("Memory size limit exceeded")
 		}
 	}
 
@@ -426,7 +429,7 @@ func (alloc *Allocator) NewListArray(n int) *ArrayValue {
 
 func (alloc *Allocator) NewDataArray(n int) *ArrayValue {
 	debug2.Println2("NewDataArray: ", n)
-	//alloc.m.LastBlock()
+	alloc.m.LastBlock()
 	if n < 0 {
 		panic(&Exception{Value: typedString("len out of range")})
 	}
@@ -556,7 +559,6 @@ type AllocationInfo struct {
 	AllocType  bool
 	AllocValue bool
 	RefCount   int
-	//BlockBytes []int64 // temp allocation within a block
 }
 
 func (ai *AllocationInfo) String() string {

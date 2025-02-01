@@ -61,9 +61,6 @@ func (m *Machine) doOpValueDecl() {
 		nx := &s.NameExprs[i]
 		ptr := lb.GetPointerToMaybeHeapDefine(m.Store, nx)
 		ptr.Assign2(m.Alloc, m.Store, m.Realm, tv, false)
-
-		//debug2.Println2("doOpValueDecl(), nx,  nx.Alloc: ", nx, nx.GetAllocInfo())
-		//ptr.TV.SetAllocInfo(nx.GetAllocInfo())
 	}
 }
 
