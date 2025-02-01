@@ -1,8 +1,7 @@
 package std
 
-func AssertOriginCall()           // injected
-func IsOriginCall() bool          // injected
-func TestSkipHeights(count int64) // injected
+func AssertOriginCall()  // injected
+func IsOriginCall() bool // injected
 
 // TestSetRealm sets the realm for the current frame.
 // After calling TestSetRealm, calling CurrentRealm() in the test function will yield the value of

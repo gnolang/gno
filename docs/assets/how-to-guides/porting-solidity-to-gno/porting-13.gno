@@ -61,11 +61,11 @@ func TestFull(t *testing.T) {
 
 	// Auction ends
 	{
-		std.TestSkipHeights(150)
+		t.SkipHeights(150)
 		shouldPanic(t, AuctionEnd)
 		shouldEqual(t, ended, false)
 
-		std.TestSkipHeights(301)
+		t.SkipHeights(301)
 		shouldNoPanic(t, AuctionEnd)
 		shouldEqual(t, ended, true)
 

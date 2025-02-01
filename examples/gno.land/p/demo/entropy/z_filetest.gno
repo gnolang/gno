@@ -2,6 +2,7 @@ package main
 
 import (
 	"std"
+	"testing"
 
 	"gno.land/p/demo/entropy"
 )
@@ -27,7 +28,7 @@ func main() {
 	println(r.Value())
 	println(r.Value64())
 
-	std.TestSkipHeights(1)
+	testing.SkipHeights(1)
 	println("---")
 	r = entropy.New()
 	println(r.Value())

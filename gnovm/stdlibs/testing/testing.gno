@@ -8,6 +8,7 @@ import (
 	"std"
 	"strconv"
 	"strings"
+	"time"
 )
 
 // ----------------------------------------
@@ -220,15 +221,19 @@ func (t *T) SetContext(ctx Context) {
 }
 
 func (t *T) SetPreviousRealm(prevRealm std.Realm) {
-	t.SetContext(Context{PreviousRealm: prevRealm})
+	SetPreviousRealm(prevRealm)
 }
 
 func (t *T) SetOriginSend(send std.Coins, spend std.Coins) {
-	t.SetContext(Context{OriginSend: send, OriginSpend: spend})
+	SetOriginSend(send, spend)
 }
 
 func (t *T) SetOriginPkgAddress(addr std.Address) {
-	t.SetContext(Context{OriginPkgAddress: addr})
+	SetOriginPkgAddress(addr)
+}
+
+func (t *T) SkipHeights(count int64) {
+	SkipHeights(count)
 }
 
 func (t *T) log(s string) {
@@ -414,7 +419,7 @@ func TestSetContext(ctx Context) {
 
 	if !ctx.Time.IsZero() {
 		timestamp = ctx.Time.Unix()
-		timestampNano = ctx.Time.UnixNano()
+		timestampNano = 0
 	}
 
 	testSetContext(
@@ -442,4 +447,10 @@ func SetOriginSend(send std.Coins, spend std.Coins) {
 
 func SetOriginPkgAddress(addr std.Address) {
 	TestSetContext(Context{OriginPkgAddress: addr})
+}
+
+func SkipHeights(count int64) {
+	toHeight := std.GetHeight() + count
+	toTime := time.Now().Unix() + (count * 5)
+	TestSetContext(Context{Height: toHeight, Time: time.Unix(toTime, 0)})
 }

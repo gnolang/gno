@@ -5,7 +5,7 @@ func TestAuctionEnd(t *testing.T) {
 
 	// Auction ends
 	highestBid = 3
-	std.TestSkipHeights(500)
+	t.SkipHeights(500)
 	shouldNoPanic(t, AuctionEnd)
 	shouldEqual(t, ended, true)
 

@@ -62,13 +62,6 @@ func IsOriginCall(m *gno.Machine) bool {
 	panic("unable to determine if test is a _test or a _filetest")
 }
 
-func TestSkipHeights(m *gno.Machine, count int64) {
-	ctx := m.Context.(*TestExecContext)
-	ctx.Height += count
-	ctx.Timestamp += (count * 5)
-	m.Context = ctx
-}
-
 func X_callerAt(m *gno.Machine, n int) string {
 	if n <= 0 {
 		m.Panic(typedString("GetCallerAt requires positive arg"))
