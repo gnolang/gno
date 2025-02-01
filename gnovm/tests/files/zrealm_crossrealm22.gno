@@ -63,6 +63,11 @@ func main() {
 //     },
 //     "Values": [
 //         {
+//             "AllocationInfo": {
+//                 "AllocType": false,
+//                 "AllocValue": false,
+//                 "RefCount": "2"
+//             },
 //             "T": {
 //                 "@type": "/gno.PointerType",
 //                 "Elt": {
@@ -212,6 +217,11 @@ func main() {
 //             }
 //         },
 //         {
+//             "AllocationInfo": {
+//                 "AllocType": false,
+//                 "AllocValue": false,
+//                 "RefCount": "1"
+//             },
 //             "T": {
 //                 "@type": "/gno.PointerType",
 //                 "Elt": {
@@ -223,7 +233,7 @@ func main() {
 //                 "@type": "/gno.PointerValue",
 //                 "Base": {
 //                     "@type": "/gno.RefValue",
-//                     "Hash": "a75fdb389fedfcbbaa7f446d528c1e149726347c",
+//                     "Hash": "9d5481db0f394ee3a0842b15ae05a1cc15b4e328",
 //                     "ObjectID": "1712ac7adcfdc8e58a67e5615e20fb312394c4df:4"
 //                 },
 //                 "Index": "0",
@@ -563,6 +573,11 @@ func main() {
 //             }
 //         },
 //         {
+//             "AllocationInfo": {
+//                 "AllocType": false,
+//                 "AllocValue": true,
+//                 "RefCount": "2"
+//             },
 //             "T": {
 //                 "@type": "/gno.RefType",
 //                 "ID": "gno.land/r/demo/tests/crossrealm.FooerGetter"
@@ -571,7 +586,7 @@ func main() {
 //                 "@type": "/gno.FuncValue",
 //                 "Closure": {
 //                     "@type": "/gno.RefValue",
-//                     "Hash": "23de97a577d573252d00394ce9b71c24b0646546",
+//                     "Hash": "1336c9f62a19b06c6da7cfcb4dd1d78e361eefcd",
 //                     "ObjectID": "1712ac7adcfdc8e58a67e5615e20fb312394c4df:6"
 //                 },
 //                 "FileName": "",
@@ -955,6 +970,11 @@ func main() {
 //             }
 //         },
 //         {
+//             "AllocationInfo": {
+//                 "AllocType": false,
+//                 "AllocValue": false,
+//                 "RefCount": "1"
+//             },
 //             "T": {
 //                 "@type": "/gno.PointerType",
 //                 "Elt": {
@@ -966,7 +986,7 @@ func main() {
 //                 "@type": "/gno.PointerValue",
 //                 "Base": {
 //                     "@type": "/gno.RefValue",
-//                     "Hash": "a75fdb389fedfcbbaa7f446d528c1e149726347c",
+//                     "Hash": "9d5481db0f394ee3a0842b15ae05a1cc15b4e328",
 //                     "ObjectID": "1712ac7adcfdc8e58a67e5615e20fb312394c4df:4"
 //                 },
 //                 "Index": "0",
@@ -1306,6 +1326,11 @@ func main() {
 //             }
 //         },
 //         {
+//             "AllocationInfo": {
+//                 "AllocType": false,
+//                 "AllocValue": true,
+//                 "RefCount": "3"
+//             },
 //             "T": {
 //                 "@type": "/gno.RefType",
 //                 "ID": "gno.land/r/demo/tests/crossrealm.FooerGetter"
@@ -1708,6 +1733,11 @@ func main() {
 //             }
 //         },
 //         {
+//             "AllocationInfo": {
+//                 "AllocType": false,
+//                 "AllocValue": false,
+//                 "RefCount": "1"
+//             },
 //             "T": {
 //                 "@type": "/gno.PointerType",
 //                 "Elt": {
@@ -1719,7 +1749,7 @@ func main() {
 //                 "@type": "/gno.PointerValue",
 //                 "Base": {
 //                     "@type": "/gno.RefValue",
-//                     "Hash": "a75fdb389fedfcbbaa7f446d528c1e149726347c",
+//                     "Hash": "9d5481db0f394ee3a0842b15ae05a1cc15b4e328",
 //                     "ObjectID": "1712ac7adcfdc8e58a67e5615e20fb312394c4df:4"
 //                 },
 //                 "Index": "0",
@@ -2059,6 +2089,11 @@ func main() {
 //             }
 //         },
 //         {
+//             "AllocationInfo": {
+//                 "AllocType": false,
+//                 "AllocValue": true,
+//                 "RefCount": "2"
+//             },
 //             "T": {
 //                 "@type": "/gno.RefType",
 //                 "ID": "gno.land/r/demo/tests/crossrealm.FooerGetter"

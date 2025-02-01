@@ -71,6 +71,11 @@ func main() {
 //     },
 //     "Values": [
 //         {
+//             "AllocationInfo": {
+//                 "AllocType": false,
+//                 "AllocValue": true,
+//                 "RefCount": "0"
+//             },
 //             "T": {
 //                 "@type": "/gno.RefType",
 //                 "ID": "gno.land/r/test.InnerNode"

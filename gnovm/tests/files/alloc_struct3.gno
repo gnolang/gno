@@ -1,3 +1,4 @@
+// MAXALLOC: 50000
 package main
 
 import "runtime"

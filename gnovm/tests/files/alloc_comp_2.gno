@@ -1,4 +1,4 @@
-// MAXALLOC: 100
+// MAXALLOC: 50000
 
 package main
 
@@ -41,7 +41,7 @@ func main() {
 }
 
 // Output:
-// memstats in bar before GC:  Allocator{maxBytes:9223372036854775807, bytes:4816}
-// memstats in bar after GC:  Allocator{maxBytes:9223372036854775807, bytes:4800}
-// memstats in main before GC:  Allocator{maxBytes:9223372036854775807, bytes:7811}
-// memstats in main after GC:  Allocator{maxBytes:9223372036854775807, bytes:2664}
+// memstats in bar before GC:  Allocator{maxBytes:50000, bytes:4816}
+// memstats in bar after GC:  Allocator{maxBytes:50000, bytes:4800}
+// memstats in main before GC:  Allocator{maxBytes:50000, bytes:7797}
+// memstats in main after GC:  Allocator{maxBytes:50000, bytes:2664}

@@ -1,5 +1,4 @@
-// MAXALLOC: 25000
-// max total allocation of 100 mb.
+// MAXALLOC: 50000
 package main
 
 import "runtime"
@@ -60,13 +59,13 @@ func main() {
 }
 
 // Output:
-// MemStats 1:  Allocator{maxBytes:9223372036854775807, bytes:1944}
+// MemStats 1:  Allocator{maxBytes:50000, bytes:1944}
 // &(struct{("foo" string)} main.Foo)
-// MemStats 2:  Allocator{maxBytes:9223372036854775807, bytes:6027}
-// MemStats before GC1:  Allocator{maxBytes:9223372036854775807, bytes:7534}
-// MemStats after GC1:  Allocator{maxBytes:9223372036854775807, bytes:2424}
+// MemStats 2:  Allocator{maxBytes:50000, bytes:6013}
+// MemStats before GC1:  Allocator{maxBytes:50000, bytes:7506}
+// MemStats after GC1:  Allocator{maxBytes:50000, bytes:2720}
 // func lit
-// MemStats before GC2:  Allocator{maxBytes:9223372036854775807, bytes:5451}
-// MemStats after GC2:  Allocator{maxBytes:9223372036854775807, bytes:2424}
-// MemStats before GC3:  Allocator{maxBytes:9223372036854775807, bytes:3931}
-// MemStats after GC3:  Allocator{maxBytes:9223372036854775807, bytes:2424}
+// MemStats before GC2:  Allocator{maxBytes:50000, bytes:5733}
+// MemStats after GC2:  Allocator{maxBytes:50000, bytes:2888}
+// MemStats before GC3:  Allocator{maxBytes:50000, bytes:4381}
+// MemStats after GC3:  Allocator{maxBytes:50000, bytes:2888}

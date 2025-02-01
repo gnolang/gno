@@ -1,5 +1,4 @@
-// MAXALLOC: 100
-
+// MAXALLOC: 50000
 package main
 
 import "runtime"
@@ -35,5 +34,5 @@ func main() {
 }
 
 // Output:
-// MemStats before GC:  Allocator{maxBytes:9223372036854775807, bytes:339856}
-// MemStats after GC:  Allocator{maxBytes:9223372036854775807, bytes:3360}
+// MemStats before GC:  Allocator{maxBytes:50000, bytes:25112}
+// MemStats after GC:  Allocator{maxBytes:50000, bytes:3360}

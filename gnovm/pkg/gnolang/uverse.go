@@ -817,6 +817,7 @@ func makeUverseNode() {
 			"", GenT("T", nil),
 		),
 		func(m *Machine) {
+			debug2.Println2("make")
 			arg0, arg1 := m.LastBlock().GetParams2()
 			vargs := arg1
 			vargsl := vargs.TV.GetLength()
@@ -829,10 +830,13 @@ func makeUverseNode() {
 					li := lv.ConvertGetInt()
 					if et.Kind() == Uint8Kind {
 						arrayValue := m.Alloc.NewDataArray(li)
-						m.PushValue(TypedValue{
+						debug2.Println2("after NewDataArray")
+						tv := TypedValue{
 							T: tt,
 							V: m.Alloc.NewSlice(arrayValue, 0, li, li),
-						})
+						}
+						tv.SetAllocValue(true)
+						m.PushValue(tv)
 						return
 					} else {
 						arrayValue := m.Alloc.NewListArray(li)
@@ -988,6 +992,7 @@ func makeUverseNode() {
 			}
 			if m.Alloc != nil {
 				tv.SetAllocType(true)
+				tv.SetAllocValue(true)
 			}
 			m.PushValue(tv)
 			return

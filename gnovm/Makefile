@@ -119,6 +119,9 @@ _test.stdlibs:
 _test.filetest:;
 	go test pkg/gnolang/files_test.go -test.short -run 'TestFiles$$/' $(GOTEST_FLAGS)
 
+_test.filetest.sync:;
+	go test pkg/gnolang/files_test.go -update-golden-tests -test.short -run 'TestFiles$$/' $(GOTEST_FLAGS)
+
 ########################################
 # Code gen
 # TODO: move _dev.stringer to go:generate instructions, simplify generate

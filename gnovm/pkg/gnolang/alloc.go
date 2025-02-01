@@ -3,6 +3,8 @@ package gnolang
 import (
 	"fmt"
 	"reflect"
+
+	"github.com/gnolang/gno/tm2/pkg/overflow"
 )
 
 // Keeps track of in-memory allocations.
@@ -114,9 +116,11 @@ func (alloc *Allocator) MemStats() string {
 }
 
 func (alloc *Allocator) GC() {
-	//gasCPU := overflow.Mul64p(16, GasFactorCPU)
-	//alloc.m.GasMeter.ConsumeGas(gasCPU, "GC")
-	//debug2.Println2("---gc, MemStats:", alloc.MemStats())
+	gasCPU := overflow.Mul64p(16, GasFactorCPU)
+	if alloc.m.GasMeter != nil { //  no gas meter for test
+		debug2.Println2("Consuming gas for GC")
+		alloc.m.GasMeter.ConsumeGas(gasCPU, "GC")
+	}
 	fmt.Println("---gc, MemStats:", alloc.MemStats())
 	defer func() {
 		fmt.Println("------------after gc, memStats:", alloc.MemStats())
@@ -257,7 +261,11 @@ func (throwaway *Allocator) allocateValue(v Value) {
 		throwaway.allocateValue(vv.Base)
 	case *ArrayValue:
 		// TODO: data array
-		throwaway.AllocateListArray(int64(len(vv.List)))
+		if len(vv.List) != 0 {
+			throwaway.AllocateListArray(int64(len(vv.List)))
+		} else {
+			throwaway.AllocateDataArray(int64(len(vv.Data)))
+		}
 	case *Block:
 		throwaway.AllocateBlock(int64(vv.Source.GetNumNames()))
 	case StringValue:
@@ -296,6 +304,7 @@ func (alloc *Allocator) Allocate(size int64) {
 	debug2.Println2("===========bytes after allocated============: ", alloc.bytes)
 
 	if !alloc.throwAway && alloc.bytes > alloc.maxBytes {
+		debug2.Println2("---exceed memory size, GC")
 		alloc.GC()
 		//panic("allocation limit exceeded")
 	}
@@ -417,6 +426,7 @@ func (alloc *Allocator) NewListArray(n int) *ArrayValue {
 
 func (alloc *Allocator) NewDataArray(n int) *ArrayValue {
 	debug2.Println2("NewDataArray: ", n)
+	//alloc.m.LastBlock()
 	if n < 0 {
 		panic(&Exception{Value: typedString("len out of range")})
 	}
@@ -546,6 +556,7 @@ type AllocationInfo struct {
 	AllocType  bool
 	AllocValue bool
 	RefCount   int
+	//BlockBytes []int64 // temp allocation within a block
 }
 
 func (ai *AllocationInfo) String() string {

@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"math"
 	"regexp"
 	"runtime/debug"
 	"strconv"
@@ -57,7 +56,7 @@ func (opts *TestOptions) runFiletest(filename string, source []byte) (string, er
 	if err != nil {
 		return "", fmt.Errorf("could not parse MAXALLOC directive: %w", err)
 	}
-	fmt.Printf("maxAlloc: %s\n", maxAlloc)
+	fmt.Printf("maxAlloc: %d\n", maxAlloc)
 
 	// Create machine for execution and run test
 	cw := opts.BaseStore.CacheWrap()
@@ -67,12 +66,6 @@ func (opts *TestOptions) runFiletest(filename string, source []byte) (string, er
 		Context:       ctx,
 		MaxAllocBytes: maxAlloc,
 	})
-	//fmt.Println("---m: ", m)
-	m.Alloc = gno.NewAllocator(math.MaxInt64, m)
-
-	maxBytes, bytes := m.Alloc.Status()
-	//fmt.Println("m.Alloc: ", m.Alloc)
-	fmt.Println("m.Alloc, maxBytes, bytes: ", maxBytes, bytes)
 
 	defer m.Release()
 	result := opts.runTest(m, pkgPath, filename, source)

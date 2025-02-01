@@ -1,5 +1,4 @@
-// MAXALLOC: 25000
-// max total allocation of 100 mb.
+// MAXALLOC: 50000
 
 // PKGPATH: gno.land/r/test
 package test
