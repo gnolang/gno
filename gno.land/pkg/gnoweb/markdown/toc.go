@@ -45,7 +45,7 @@ type TocOptions struct {
 	MinDepth, MaxDepth int
 }
 
-func TocInspect(n ast.Node, src []byte, opts TocOptions) (*Toc, error) {
+func TocInspect(n ast.Node, src []byte, opts TocOptions) (Toc, error) {
 	// Appends an empty subitem to the given node
 	// and returns a reference to it.
 	appendChild := func(n *TocItem) *TocItem {
@@ -114,7 +114,7 @@ func TocInspect(n ast.Node, src []byte, opts TocOptions) (*Toc, error) {
 
 	root.Items = compactItems(root.Items)
 
-	return &Toc{Items: root.Items}, err
+	return Toc{Items: root.Items}, err
 }
 
 // compactItems removes items with no titles

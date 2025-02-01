@@ -21,8 +21,8 @@ type Package struct {
 	Errors     []*Error `json:",omitempty"` // error loading this package (not dependencies)
 	Draft      bool
 	Files      FilesMap
-	Imports    map[FileKind][]string `json:",omitempty"` // import paths used by this package
-	Deps       []string              `json:",omitempty"` // all (recursively) imported dependencies
+	Imports    ImportsMap `json:",omitempty"` // import paths used by this package
+	Deps       []string   `json:",omitempty"` // all (recursively) imported dependencies
 
 	ImportsSpecs ImportsMap `json:"-"`
 }

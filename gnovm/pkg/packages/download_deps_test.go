@@ -46,9 +46,10 @@ func TestDownloadDeps(t *testing.T) {
 					},
 				},
 			},
-			requirements: []string{"avl"},
+			requirements: []string{"avl", "ufmt"},
 			ioErrContains: []string{
 				"gno: downloading gno.land/p/demo/avl",
+				"gno: downloading gno.land/p/demo/ufmt",
 			},
 		}, {
 			desc:    "fetch_gno.land/p/demo/blog6",
@@ -80,9 +81,10 @@ func TestDownloadDeps(t *testing.T) {
 					New: module.Version{Path: "gno.land/p/demo/avl"},
 				}},
 			},
-			requirements: []string{"avl"},
+			requirements: []string{"avl", "ufmt"},
 			ioErrContains: []string{
 				"gno: downloading gno.land/p/demo/avl",
+				"gno: downloading gno.land/p/demo/ufmt",
 			},
 		}, {
 			desc:    "fetch_replace_local",

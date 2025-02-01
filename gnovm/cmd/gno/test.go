@@ -31,7 +31,7 @@ func newTestCmd(io commands.IO) *commands.Command {
 		commands.Metadata{
 			Name:       "test",
 			ShortUsage: "test [flags] <package> [<package>...]",
-			ShortHelp:  "runs the tests for the specified packages",
+			ShortHelp:  "test packages",
 			LongHelp: `Runs the tests for the specified packages.
 
 'gno test' recompiles each package along with any files with names matching the
@@ -142,8 +142,9 @@ func (c *testCfg) RegisterFlags(fs *flag.FlagSet) {
 }
 
 func execTest(cfg *testCfg, args []string, io commands.IO) error {
-	if len(args) < 1 {
-		return flag.ErrHelp
+	// Default to current directory if no args provided
+	if len(args) == 0 {
+		args = []string{"."}
 	}
 
 	// guess opts.RootDir
@@ -159,7 +160,12 @@ func execTest(cfg *testCfg, args []string, io commands.IO) error {
 	}
 	pkgs, err := packages.Load(conf, args...)
 	if err != nil {
-		return err
+		return fmt.Errorf("list targets from patterns: %w", err)
+	}
+
+	if len(pkgs) == 0 {
+		io.ErrPrintln("no packages to test")
+		return nil
 	}
 
 	pkgsMap := map[string]*packages.Package{}

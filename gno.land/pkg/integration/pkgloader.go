@@ -14,6 +14,8 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/std"
 )
 
+// XXX: fully replace with loader
+
 type PkgsLoader struct {
 	pkgs    []*packages.Package
 	visited map[string]struct{}
@@ -115,6 +117,9 @@ func (pl *PkgsLoader) LoadPackage(pkgDir string, name string) error {
 		}
 		if gnolang.IsStdlib(pkg.ImportPath) {
 			continue
+		}
+		if pkg.Draft {
+			continue // Skip draft package
 		}
 		if pl.exist(pkg) {
 			continue

@@ -9,6 +9,15 @@ type (
 	SortedPkgList []*Package
 )
 
+func (pl PkgList) Get(pkgPath string) *Package {
+	for _, p := range pl {
+		if p.ImportPath == pkgPath {
+			return p
+		}
+	}
+	return nil
+}
+
 // sortPkgs sorts the given packages by their dependencies.
 func (pl PkgList) Sort() (SortedPkgList, error) {
 	visited := make(map[string]bool)

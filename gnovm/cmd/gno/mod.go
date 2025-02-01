@@ -26,7 +26,7 @@ func newModCmd(io commands.IO) *commands.Command {
 		commands.Metadata{
 			Name:       "mod",
 			ShortUsage: "mod <command>",
-			ShortHelp:  "manage gno.mod",
+			ShortHelp:  "module maintenance",
 		},
 		commands.NewEmptyConfig(),
 		commands.HelpExec,
@@ -34,8 +34,12 @@ func newModCmd(io commands.IO) *commands.Command {
 
 	cmd.AddSubCommands(
 		newModDownloadCmd(io),
+		// edit
+		newModGraphCmd(io),
 		newModInitCmd(),
 		newModTidy(io),
+		// vendor
+		// verify
 		newModWhy(io),
 	)
 
@@ -54,6 +58,21 @@ func newModDownloadCmd(io commands.IO) *commands.Command {
 		cfg,
 		func(_ context.Context, args []string) error {
 			return execModDownload(cfg, args, io)
+		},
+	)
+}
+
+func newModGraphCmd(io commands.IO) *commands.Command {
+	cfg := &modGraphCfg{}
+	return commands.NewCommand(
+		commands.Metadata{
+			Name:       "graph",
+			ShortUsage: "graph [path]",
+			ShortHelp:  "print module requirement graph",
+		},
+		cfg,
+		func(_ context.Context, args []string) error {
+			return execModGraph(cfg, args, io)
 		},
 	)
 }
@@ -139,6 +158,38 @@ func (c *modDownloadCfg) RegisterFlags(fs *flag.FlagSet) {
 		"",
 		"chain-domain=rpc-url comma-separated list",
 	)
+}
+
+type modGraphCfg struct{}
+
+func (c *modGraphCfg) RegisterFlags(fs *flag.FlagSet) {
+	// /out std
+	// /out remote
+	// /out _test processing
+	// ...
+}
+
+func execModGraph(cfg *modGraphCfg, args []string, io commands.IO) error {
+	// default to current directory if no args provided
+	if len(args) == 0 {
+		args = []string{"."}
+	}
+	if len(args) > 1 {
+		return flag.ErrHelp
+	}
+
+	stdout := io.Out()
+
+	pkgs, err := gnomod.ListPkgs(args[0])
+	if err != nil {
+		return err
+	}
+	for _, pkg := range pkgs {
+		for _, dep := range pkg.Imports {
+			fmt.Fprintf(stdout, "%s %s\n", pkg.Name, dep)
+		}
+	}
+	return nil
 }
 
 func execModDownload(cfg *modDownloadCfg, args []string, io commands.IO) error {

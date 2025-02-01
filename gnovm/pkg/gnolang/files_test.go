@@ -143,7 +143,7 @@ func TestStdlibs(t *testing.T) {
 		}
 
 		fp := filepath.Join(dir, path)
-		memPkg := gnolang.MustReadMemPackage(fp, path)
+		memPkg := gnolang.MustReadMemPackage(fp, path, nil)
 		t.Run(strings.ReplaceAll(memPkg.Path, "/", "-"), func(t *testing.T) {
 			capture, opts := sharedCapture, sharedOpts
 			switch memPkg.Path {
