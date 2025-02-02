@@ -2,12 +2,19 @@ package packages
 
 import (
 	"fmt"
+	"os"
+
+	"github.com/davecgh/go-spew/spew"
+	"github.com/gnolang/gno/gnovm"
+	"github.com/gnolang/gno/gnovm/pkg/gnolang"
 )
 
 type (
 	PkgList       []*Package
 	SortedPkgList []*Package
 )
+
+var _ gnolang.MemPackageGetter = (*PkgList)(nil)
 
 func (pl PkgList) Get(pkgPath string) *Package {
 	for _, p := range pl {
@@ -16,6 +23,19 @@ func (pl PkgList) Get(pkgPath string) *Package {
 		}
 	}
 	return nil
+}
+
+func (pl PkgList) GetMemPackage(pkgPath string) *gnovm.MemPackage {
+	pkg := pl.Get(pkgPath)
+	if pkg == nil {
+		return nil
+	}
+	memPkg, err := pkg.MemPkg()
+	if err != nil {
+		spew.Fdump(os.Stderr, "get err", err)
+		panic(err)
+	}
+	return memPkg
 }
 
 // sortPkgs sorts the given packages by their dependencies.

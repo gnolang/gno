@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/davecgh/go-spew/spew"
 	"github.com/gnolang/gno/gnovm"
 	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
 	"github.com/gnolang/gno/gnovm/pkg/gnolang"
@@ -187,6 +188,7 @@ func readPkgFiles(pkg *Package, files []string, fset *token.FileSet) *Package {
 	modFpath := filepath.Join(pkg.Root, "gno.mod")
 	mod, err := gnomod.ParseGnoMod(modFpath)
 	if err != nil {
+		spew.Dump(err)
 		pkg.Errors = append(pkg.Errors, FromErr(err, fset, modFpath, false)...)
 		return pkg
 	}

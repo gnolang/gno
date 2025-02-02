@@ -124,30 +124,30 @@ func TestSortPkgs(t *testing.T) {
 		}, {
 			desc: "no_dependencies",
 			in: []*Package{
-				{ImportPath: "pkg1", Dir: "/path/to/pkg1", Imports: ImportsMap{}},
-				{ImportPath: "pkg2", Dir: "/path/to/pkg2", Imports: ImportsMap{}},
-				{ImportPath: "pkg3", Dir: "/path/to/pkg3", Imports: ImportsMap{}},
+				{ImportPath: "pkg1", Dir: "/path/to/pkg1", Imports: map[FileKind][]string{}},
+				{ImportPath: "pkg2", Dir: "/path/to/pkg2", Imports: map[FileKind][]string{}},
+				{ImportPath: "pkg3", Dir: "/path/to/pkg3", Imports: map[FileKind][]string{}},
 			},
 			expected: []string{"pkg1", "pkg2", "pkg3"},
 		}, {
 			desc: "circular_dependencies",
 			in: []*Package{
-				{ImportPath: "pkg1", Dir: "/path/to/pkg1", Imports: ImportsMap{FileKindPackageSource: {{PkgPath: "pkg2"}}}},
-				{ImportPath: "pkg2", Dir: "/path/to/pkg2", Imports: ImportsMap{FileKindPackageSource: {{PkgPath: "pkg1"}}}},
+				{ImportPath: "pkg1", Dir: "/path/to/pkg1", Imports: map[FileKind][]string{FileKindPackageSource: {"pkg2"}}},
+				{ImportPath: "pkg2", Dir: "/path/to/pkg2", Imports: map[FileKind][]string{FileKindPackageSource: {"pkg1"}}},
 			},
 			shouldErr: true,
 		}, {
 			desc: "missing_dependencies",
 			in: []*Package{
-				{ImportPath: "pkg1", Dir: "/path/to/pkg1", Imports: ImportsMap{FileKindPackageSource: {{PkgPath: "pkg2"}}}},
+				{ImportPath: "pkg1", Dir: "/path/to/pkg1", Imports: map[FileKind][]string{FileKindPackageSource: {"pkg2"}}},
 			},
 			shouldErr: true,
 		}, {
 			desc: "valid_dependencies",
 			in: []*Package{
-				{ImportPath: "pkg1", Dir: "/path/to/pkg1", Imports: ImportsMap{FileKindPackageSource: {{PkgPath: "pkg2"}}}},
-				{ImportPath: "pkg2", Dir: "/path/to/pkg2", Imports: ImportsMap{FileKindPackageSource: {{PkgPath: "pkg3"}}}},
-				{ImportPath: "pkg3", Dir: "/path/to/pkg3", Imports: ImportsMap{}},
+				{ImportPath: "pkg1", Dir: "/path/to/pkg1", Imports: map[FileKind][]string{FileKindPackageSource: {"pkg2"}}},
+				{ImportPath: "pkg2", Dir: "/path/to/pkg2", Imports: map[FileKind][]string{FileKindPackageSource: {"pkg3"}}},
+				{ImportPath: "pkg3", Dir: "/path/to/pkg3", Imports: map[FileKind][]string{}},
 			},
 			expected: []string{"pkg3", "pkg2", "pkg1"},
 		},

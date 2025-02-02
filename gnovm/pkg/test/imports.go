@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/gnolang/gno/gnovm"
+	"github.com/gnolang/gno/gnovm/pkg/gnolang"
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
 	"github.com/gnolang/gno/gnovm/pkg/packages"
 	teststdlibs "github.com/gnolang/gno/gnovm/tests/stdlibs"
@@ -27,7 +28,7 @@ import (
 // NOTE: this isn't safe, should only be used for testing.
 func Store(
 	rootDir string,
-	pkgs map[string]*packages.Package,
+	getter gnolang.MemPackageGetter,
 	withExtern bool,
 	stdin io.Reader,
 	stdout, stderr io.Writer,
@@ -137,8 +138,7 @@ func Store(
 		}
 
 		// if known package
-		if pkg, ok := pkgs[pkgPath]; ok {
-			memPkg := gno.MustReadMemPackage(pkg.Dir, pkgPath, nil)
+		if memPkg := getter.GetMemPackage(pkgPath); memPkg != nil {
 			if memPkg.IsEmpty() {
 				panic(fmt.Sprintf("found an empty package %q", pkgPath))
 			}

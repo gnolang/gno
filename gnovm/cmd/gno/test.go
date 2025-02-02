@@ -183,7 +183,7 @@ func execTest(cfg *testCfg, args []string, io commands.IO) error {
 	if cfg.verbose {
 		stdout = io.Out()
 	}
-	opts := test.NewTestOptions(cfg.rootDir, pkgsMap, io.In(), stdout, io.Err())
+	opts := test.NewTestOptions(cfg.rootDir, pkgs, io.In(), stdout, io.Err())
 	opts.RunFlag = cfg.run
 	opts.Sync = cfg.updateGoldenTests
 	opts.Verbose = cfg.verbose

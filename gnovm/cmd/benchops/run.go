@@ -103,7 +103,7 @@ func addPackage(gstore gno.Store, dir string, pkgPath string) *gno.PackageValue 
 		})
 	defer m.Release()
 
-	memPkg := gno.MustReadMemPackage(dir, pkgPath)
+	memPkg := gno.MustReadMemPackage(dir, pkgPath, nil)
 
 	// pare the file, create pn, pv and save the values in m.store
 	_, pv := m.RunMemPackage(memPkg, true)
@@ -122,7 +122,7 @@ func loadStdlibs(bstore BenchStore) {
 			return nil, nil
 		}
 
-		memPkg := gno.MustReadMemPackage(stdlibPath, pkgPath)
+		memPkg := gno.MustReadMemPackage(stdlibPath, pkgPath, nil)
 		if memPkg.IsEmpty() {
 			// no gno files are present, skip this package
 			return nil, nil

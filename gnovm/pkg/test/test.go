@@ -16,8 +16,8 @@ import (
 	"time"
 
 	"github.com/gnolang/gno/gnovm"
+	"github.com/gnolang/gno/gnovm/pkg/gnolang"
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
-	"github.com/gnolang/gno/gnovm/pkg/packages"
 	"github.com/gnolang/gno/gnovm/stdlibs"
 	teststd "github.com/gnolang/gno/gnovm/tests/stdlibs/std"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
@@ -134,14 +134,14 @@ func (opts *TestOptions) WriterForStore() io.Writer {
 }
 
 // NewTestOptions sets up TestOptions, filling out all "required" parameters.
-func NewTestOptions(rootDir string, pkgs map[string]*packages.Package, stdin io.Reader, stdout, stderr io.Writer) *TestOptions {
+func NewTestOptions(rootDir string, getter gnolang.MemPackageGetter, stdin io.Reader, stdout, stderr io.Writer) *TestOptions {
 	opts := &TestOptions{
 		RootDir: rootDir,
 		Output:  stdout,
 		Error:   stderr,
 	}
 	opts.BaseStore, opts.TestStore = Store(
-		rootDir, pkgs, false,
+		rootDir, getter, false,
 		stdin, opts.WriterForStore(), stderr,
 	)
 	return opts

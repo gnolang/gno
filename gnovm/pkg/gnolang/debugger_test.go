@@ -27,7 +27,7 @@ type writeNopCloser struct{ io.Writer }
 func (writeNopCloser) Close() error { return nil }
 
 // TODO (Marc): move evalTest to gnovm/tests package and remove code duplicates
-func evalTest(debugAddr, in, file string, pkgs packages.PackagesMap) (out, err string) {
+func evalTest(debugAddr, in, file string, getter gnolang.MemPackageGetter) (out, err string) {
 	bout := bytes.NewBufferString("")
 	berr := bytes.NewBufferString("")
 	stdin := bytes.NewBufferString(in)
@@ -42,7 +42,7 @@ func evalTest(debugAddr, in, file string, pkgs packages.PackagesMap) (out, err s
 		err = strings.TrimSpace(strings.ReplaceAll(err, "../../tests/files/", "files/"))
 	}()
 
-	_, testStore := test.Store(gnoenv.RootDir(), pkgs, false, stdin, stdout, stderr)
+	_, testStore := test.Store(gnoenv.RootDir(), getter, false, stdin, stdout, stderr)
 
 	f := gnolang.MustReadFile(file)
 
@@ -71,12 +71,12 @@ func evalTest(debugAddr, in, file string, pkgs packages.PackagesMap) (out, err s
 	return
 }
 
-func runDebugTest(t *testing.T, targetPath string, tests []dtest, pkgs packages.PackagesMap) {
+func runDebugTest(t *testing.T, targetPath string, tests []dtest, getter gnolang.MemPackageGetter) {
 	t.Helper()
 
 	for _, test := range tests {
 		t.Run("", func(t *testing.T) {
-			out, err := evalTest("", test.in, targetPath, pkgs)
+			out, err := evalTest("", test.in, targetPath, getter)
 			t.Log("in:", test.in, "out:", out, "err:", err)
 			if !strings.Contains(out, test.out) {
 				t.Errorf("unexpected output\nwant\"%s\"\n  got \"%s\"", test.out, out)
@@ -92,7 +92,6 @@ func TestDebug(t *testing.T) {
 
 	pkgs, err := packages.Load(&packages.LoadConfig{}, filepath.FromSlash("../../../examples/..."))
 	require.NoError(t, err)
-	pkgsMap := packages.NewPackagesMap(pkgs...)
 
 	runDebugTest(t, debugTarget, []dtest{
 		{in: "\n", out: "Welcome to the Gnovm debugger. Type 'help' for list of commands."},
@@ -150,18 +149,18 @@ func TestDebug(t *testing.T) {
 		{in: "b 27\nc\np b\n", out: `("!zero" string)`},
 		{in: "b 22\nc\np t.A[3]\n", out: "Command failed: &{(\"slice index out of bounds: 3 (len=3)\" string) <nil> }"},
 		{in: "b 43\nc\nc\nc\np i\ndetach\n", out: "(1 int)"},
-	}, pkgsMap)
+	}, pkgs)
 
 	runDebugTest(t, "../../tests/files/a1.gno", []dtest{
 		{in: "l\n", out: "unknown source file"},
 		{in: "b 5\n", out: "unknown source file"},
-	}, pkgsMap)
+	}, pkgs)
 
 	runDebugTest(t, "../../tests/integ/debugger/sample2.gno", []dtest{
 		{in: "s\np tests\n", out: "(package(tests gno.land/p/demo/tests) package{})"},
 		{in: "s\np tests.World\n", out: `("world" <untyped> string)`},
 		{in: "s\np tests.xxx\n", out: "Command failed: invalid selector: xxx"},
-	}, pkgsMap)
+	}, pkgs)
 }
 
 const debugAddress = "localhost:17358"

@@ -13,6 +13,7 @@ import (
 	"regexp"
 	"strings"
 
+	"github.com/davecgh/go-spew/spew"
 	"github.com/gnolang/gno/gnovm"
 	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
@@ -62,6 +63,7 @@ const (
 	lintGnoError
 	lintParserError
 	lintTypeCheckError
+	lintLoadPkgs
 
 	// TODO: add new linter codes here.
 )
@@ -110,7 +112,7 @@ func execLint(cfg *lintCfg, args []string, io commands.IO) error {
 	hasError := false
 
 	bs, ts := test.Store(
-		rootDir, pkgsMap, false,
+		rootDir, pkgs, false,
 		nopReader{}, goio.Discard, goio.Discard,
 	)
 
@@ -130,7 +132,12 @@ func execLint(cfg *lintCfg, args []string, io commands.IO) error {
 		}
 
 		for _, err := range pkg.Errors {
-			io.ErrPrintln(tryRelativize(err.Error()))
+			io.ErrPrintln(lintIssue{
+				Code:       lintLoadPkgs,
+				Confidence: 1,
+				Location:   err.Pos,
+				Msg:        err.Msg,
+			})
 			hasError = true
 		}
 		if hasError {
@@ -162,16 +169,15 @@ func execLint(cfg *lintCfg, args []string, io commands.IO) error {
 		packages.Inject(pkgsMap, deps)
 
 		// read mempkg
-		memPkgPath := pkg.ImportPath
-		if memPkgPath == "" || memPkgPath == "command-line-arguments" {
-			memPkgPath = pkg.Dir
-		}
-		memPkg, err := gno.ReadMemPackage(pkg.Dir, memPkgPath, loadCfg.Fset)
+		memPkg, err := pkg.MemPkg()
 		if err != nil {
+			spew.Fdump(os.Stderr, loadDepsErr)
 			io.ErrPrintln(issueFromError(pkg.Dir, err).String())
 			hasError = true
 			continue
 		}
+		// override memPkg path for pretty errors
+		memPkg.Path = pkg.Dir
 
 		// Perform imports using the parent store.
 		if err := test.LoadImports(ts, memPkg, loadCfg.Fset); err != nil {
@@ -189,7 +195,7 @@ func execLint(cfg *lintCfg, args []string, io commands.IO) error {
 
 			// Run type checking
 			if !pkg.Draft {
-				foundErr, err := lintTypeCheck(io, pkg.Dir, memPkg, gs)
+				foundErr, err := lintTypeCheck(io, memPkg, pkgs)
 				if err != nil {
 					io.ErrPrintln(err)
 					hasError = true
@@ -198,6 +204,9 @@ func execLint(cfg *lintCfg, args []string, io commands.IO) error {
 				}
 			} else if verbose {
 				io.ErrPrintfln("%s: module is draft, skipping type check", logName)
+			}
+			if hasError {
+				return
 			}
 
 			tm := test.Machine(gs, goio.Discard, memPkg.Path)
@@ -211,6 +220,7 @@ func execLint(cfg *lintCfg, args []string, io commands.IO) error {
 
 			tm.RunFiles(testFiles.Files...)
 		})
+
 		if hasRuntimeErr {
 			hasError = true
 		}
@@ -223,8 +233,8 @@ func execLint(cfg *lintCfg, args []string, io commands.IO) error {
 	return nil
 }
 
-func lintTypeCheck(io commands.IO, pkgDir string, memPkg *gnovm.MemPackage, testStore gno.Store) (errorsFound bool, err error) {
-	tcErr := gno.TypeCheckMemPackageTest(pkgDir, memPkg, testStore)
+func lintTypeCheck(io commands.IO, memPkg *gnovm.MemPackage, getter gno.MemPackageGetter) (errorsFound bool, err error) {
+	tcErr := gno.TypeCheckMemPackageTest(memPkg, getter)
 	if tcErr == nil {
 		return false, nil
 	}

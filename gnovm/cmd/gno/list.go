@@ -59,7 +59,7 @@ func execList(cfg *listCfg, args []string, io commands.IO) error {
 
 	pkgs, err := packages.Load(conf, args...)
 	if err != nil {
-		fmt.Println(err)
+		io.ErrPrintln(err)
 		os.Exit(1)
 	}
 

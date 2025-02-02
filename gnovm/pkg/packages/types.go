@@ -1,13 +1,14 @@
 package packages
 
 import (
+	"fmt"
 	"go/scanner"
 	"go/token"
 	"path/filepath"
 	"sort"
 	"strings"
 
-	"github.com/davecgh/go-spew/spew"
+	"golang.org/x/mod/modfile"
 )
 
 // ported from https://cs.opensource.google/go/go/+/refs/tags/go1.23.2:src/cmd/go/internal/load/pkg.go
@@ -21,8 +22,8 @@ type Package struct {
 	Errors     []*Error `json:",omitempty"` // error loading this package (not dependencies)
 	Draft      bool
 	Files      FilesMap
-	Imports    ImportsMap `json:",omitempty"` // import paths used by this package
-	Deps       []string   `json:",omitempty"` // all (recursively) imported dependencies
+	Imports    map[FileKind][]string `json:",omitempty"` // import paths used by this package
+	Deps       []string              `json:",omitempty"` // all (recursively) imported dependencies
 
 	ImportsSpecs ImportsMap `json:"-"`
 }
@@ -45,7 +46,6 @@ func (err Error) Error() string {
 }
 
 func FromErr(err error, fset *token.FileSet, root string, prependRoot bool) []*Error {
-	spew.Dump(err)
 	switch err := err.(type) {
 	case scanner.ErrorList:
 		res := make([]*Error, 0, len(err))
@@ -55,6 +55,30 @@ func FromErr(err error, fset *token.FileSet, root string, prependRoot bool) []*E
 				pos = filepath.Join(root, pos)
 			}
 			res = append(res, &Error{Msg: e.Msg, Pos: pos})
+		}
+		return res
+	case modfile.ErrorList:
+		res := make([]*Error, 0, len(err))
+		for _, e := range err {
+			var pos string
+			if e.Pos.LineRune > 1 {
+				// Don't print LineRune if it's 1 (beginning of line).
+				// It's always 1 except in scanner errors, which are rare.
+				pos = fmt.Sprintf("%s:%d:%d", e.Filename, e.Pos.Line, e.Pos.LineRune)
+			} else if e.Pos.Line > 0 {
+				pos = fmt.Sprintf("%s:%d", e.Filename, e.Pos.Line)
+			} else if e.Filename != "" {
+				pos = e.Filename
+			}
+
+			var directive string
+			if e.ModPath != "" {
+				directive = fmt.Sprintf("%s %s: ", e.Verb, e.ModPath)
+			} else if e.Verb != "" {
+				directive = fmt.Sprintf("%s: ", e.Verb)
+			}
+
+			res = append(res, &Error{Msg: directive + e.Err.Error(), Pos: pos})
 		}
 		return res
 	default:

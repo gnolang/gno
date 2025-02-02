@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"slices"
+	"strings"
 
 	"github.com/gnolang/gno/gnovm"
 	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
@@ -215,6 +216,9 @@ func (p *Package) MemPkg() (*gnovm.MemPackage, error) {
 	files := []*gnovm.MemFile{}
 	for _, cat := range p.Files {
 		for _, f := range cat {
+			if !strings.HasSuffix(f, ".gno") {
+				continue
+			}
 			body, err := os.ReadFile(filepath.Join(p.Dir, f))
 			if err != nil {
 				return nil, err

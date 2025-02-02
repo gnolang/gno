@@ -12,7 +12,7 @@ func TestLintApp(t *testing.T) {
 			errShouldBe: "flag: help requested",
 		}, {
 			args:                []string{"tool", "lint", "../../tests/integ/run_main/"},
-			stderrShouldContain: "./../../tests/integ/run_main: gno.mod file not found in current or any parent directory (code=1)",
+			stderrShouldContain: "../../tests/integ/run_main: gno.mod file not found in current or any parent directory (code=1)",
 			errShouldBe:         "exit code: 1",
 		}, {
 			args:                []string{"tool", "lint", "../../tests/integ/undefined_variable_test/undefined_variables_test.gno"},
@@ -20,12 +20,12 @@ func TestLintApp(t *testing.T) {
 			errShouldBe:         "exit code: 1",
 		}, {
 			args:                []string{"tool", "lint", "../../tests/integ/package_not_declared/main.gno"},
-			stderrShouldContain: "main.gno:4:2: name fmt not declared (code=2)",
+			stderrShouldContain: "../../tests/integ/package_not_declared/main.gno:4:2: undefined: fmt (code=4)\n",
 			errShouldBe:         "exit code: 1",
 		}, {
-			args:                []string{"tool", "lint", "../../tests/integ/several-lint-errors/main.gno"},
-			stderrShouldContain: "../../tests/integ/several-lint-errors/main.gno:5:5: expected ';', found example (code=2)\n../../tests/integ/several-lint-errors/main.gno:6",
-			errShouldBe:         "exit code: 1",
+			args:           []string{"tool", "lint", "../../tests/integ/several-lint-errors/main.gno"},
+			stderrShouldBe: "../../tests/integ/several-lint-errors/main.gno:5:5: expected ';', found example (code=3)\n../../tests/integ/several-lint-errors/main.gno:6:2: expected '}', found 'EOF' (code=3)\n",
+			errShouldBe:    "exit code: 1",
 		}, {
 			args: []string{"tool", "lint", "../../tests/integ/several-files-multiple-errors/main.gno"},
 			stderrShouldContain: func() string {
@@ -42,16 +42,17 @@ func TestLintApp(t *testing.T) {
 			args: []string{"tool", "lint", "../../tests/integ/minimalist_gnomod/"},
 			// TODO: raise an error because there is a gno.mod, but no .gno files
 		}, {
-			args: []string{"tool", "lint", "../../tests/integ/invalid_module_name/"},
-			// TODO: raise an error because gno.mod is invalid
+			args:           []string{"tool", "lint", "../../tests/integ/invalid_module_name/"},
+			stderrShouldBe: "../../tests/integ/invalid_module_name/gno.mod:1: usage: module module/path (code=5)\n",
+			errShouldBe:    "exit code: 1",
 		}, {
-			args:                []string{"tool", "lint", "../../tests/integ/invalid_gno_file/"},
-			stderrShouldContain: "../../tests/integ/invalid_gno_file/invalid.gno:1:1: expected 'package', found packag (code=2)",
-			errShouldBe:         "exit code: 1",
+			args:           []string{"tool", "lint", "../../tests/integ/invalid_gno_file/"},
+			stderrShouldBe: "../../tests/integ/invalid_gno_file/invalid.gno:1:1: expected 'package', found packag (code=5)\n",
+			errShouldBe:    "exit code: 1",
 		}, {
-			args:                []string{"tool", "lint", "../../tests/integ/typecheck_missing_return/"},
-			stderrShouldContain: "../../tests/integ/typecheck_missing_return/main.gno:5:1: missing return (code=4)",
-			errShouldBe:         "exit code: 1",
+			args:           []string{"tool", "lint", "../../tests/integ/typecheck_missing_return/"},
+			stderrShouldBe: "../../tests/integ/typecheck_missing_return/main.gno:5:1: missing return (code=4)\n",
+			errShouldBe:    "exit code: 1",
 		},
 
 		// TODO: 'gno mod' is valid?

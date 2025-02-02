@@ -41,7 +41,6 @@ func TestFiles(t *testing.T) {
 
 	pkgs, err := packages.Load(&packages.LoadConfig{}, filepath.Join(rootDir, "examples", "...."))
 	require.NoError(t, err)
-	pkgsMap := packages.NewPackagesMap(pkgs...)
 
 	newOpts := func() *test.TestOptions {
 		o := &test.TestOptions{
@@ -51,7 +50,7 @@ func TestFiles(t *testing.T) {
 			Sync:    *withSync,
 		}
 		o.BaseStore, o.TestStore = test.Store(
-			rootDir, pkgsMap, true,
+			rootDir, pkgs, true,
 			nopReader{}, o.WriterForStore(), io.Discard,
 		)
 		return o
@@ -126,7 +125,7 @@ func TestStdlibs(t *testing.T) {
 			capture = new(bytes.Buffer)
 			out = capture
 		}
-		opts = test.NewTestOptions(rootDir, make(map[string]*packages.Package), nopReader{}, out, out)
+		opts = test.NewTestOptions(rootDir, nil, nopReader{}, out, out)
 		opts.Verbose = true
 		return
 	}

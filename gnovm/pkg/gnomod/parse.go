@@ -50,7 +50,7 @@ func ParseAt(dir string) (*File, error) {
 func ParseGnoMod(fname string) (*File, error) {
 	file, err := os.Stat(fname)
 	if err != nil {
-		return nil, fmt.Errorf("%s: stat: %w", fname, err)
+		return nil, fmt.Errorf("%s: could not read gno.mod file", fname)
 	}
 	if file.IsDir() {
 		return nil, fmt.Errorf("%s: gno.mod is a directory", fname)

@@ -172,7 +172,7 @@ func (c *modGraphCfg) RegisterFlags(fs *flag.FlagSet) {
 func execModGraph(cfg *modGraphCfg, args []string, io commands.IO) error {
 	// default to current directory if no args provided
 	if len(args) == 0 {
-		args = []string{"."}
+		args = []string{"./..."}
 	}
 	if len(args) > 1 {
 		return flag.ErrHelp
@@ -180,13 +180,13 @@ func execModGraph(cfg *modGraphCfg, args []string, io commands.IO) error {
 
 	stdout := io.Out()
 
-	pkgs, err := gnomod.ListPkgs(args[0])
+	pkgs, err := packages.Load(&packages.LoadConfig{}, args...)
 	if err != nil {
 		return err
 	}
 	for _, pkg := range pkgs {
-		for _, dep := range pkg.Imports {
-			fmt.Fprintf(stdout, "%s %s\n", pkg.Name, dep)
+		for _, dep := range pkg.ImportsSpecs.Merge(packages.FileKindPackageSource) {
+			fmt.Fprintf(stdout, "%s %s\n", pkg.ImportPath, dep.PkgPath)
 		}
 	}
 	return nil
