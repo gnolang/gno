@@ -3,11 +3,13 @@ package present
 import (
 	"net/url"
 	"std"
+	"strconv"
 	"strings"
 	"time"
 
 	"gno.land/p/demo/avl/pager"
 	"gno.land/p/demo/ownable"
+	"gno.land/p/demo/seqid"
 	"gno.land/p/demo/ufmt"
 	"gno.land/p/moul/collection"
 	"gno.land/p/moul/md"
@@ -111,7 +113,13 @@ func Delete(id string) string {
 		return "401: unauthorized - only the uploader can delete their presentations"
 	}
 
-	presentations.Delete(id)
+	// Convert the entry's ID from string to uint64 and delete
+	numericID, err := seqid.FromString(entry.ID)
+	if err != nil {
+		return "500: invalid entry ID format"
+	}
+
+	presentations.Delete(uint64(numericID))
 	return "presentation deleted successfully"
 }
 
@@ -120,10 +128,10 @@ func renderList(req *realmpath.Request) string {
 	out.WriteString(md.H1("Presentations"))
 
 	// Setup pager
-	p := pager.NewPager(presentations.GetIndex(getSortField(req)), 10, isSortReversed(req))
+	pgr := pager.NewPager(presentations.GetIndex(getSortField(req)), 10, isSortReversed(req))
 
 	// Get current page
-	page := p.MustGetPageByPath(req.Query.Encode())
+	page := pgr.MustGetPageByPath(req.Query.Encode())
 
 	// Create table
 	table := mdtable.Table{
@@ -141,7 +149,13 @@ func renderList(req *realmpath.Request) string {
 
 	// Add rows from current page
 	for _, item := range page.Items {
-		p := item.Value.(*Presentation)
+		// Get the actual presentation using the ID from the index
+		entry := presentations.GetFirst("id", item.Key)
+		if entry == nil {
+			continue
+		}
+		p := entry.Obj.(*Presentation)
+
 		query := make(url.Values)
 		query.Set("view", p.ID)
 		table.Append([]string{
@@ -231,7 +245,11 @@ func renderSlides(req *realmpath.Request) string {
 	p := entry.Obj.(*Presentation)
 	currentPage := 1
 	if page := req.Query.Get("page"); page != "" {
-		currentPage = std.MustAtoi(page)
+		var err error
+		currentPage, err = strconv.Atoi(page)
+		if err != nil {
+			return "400: invalid page number"
+		}
 	}
 
 	slides := strings.Split(p.Content, "\n## ")
