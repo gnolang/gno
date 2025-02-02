@@ -22,7 +22,6 @@ const defaultHandshakeTimeout = 3 * time.Second
 
 var (
 	errTransportClosed        = errors.New("transport is closed")
-	errTransportInactive      = errors.New("transport is inactive")
 	errDuplicateConnection    = errors.New("duplicate peer connection")
 	errPeerIDNodeInfoMismatch = errors.New("connection ID does not match node info ID")
 	errPeerIDDialMismatch     = errors.New("connection ID does not match dialed ID")
@@ -92,12 +91,6 @@ func (mt *MultiplexTransport) NetAddress() types.NetAddress {
 
 // Accept waits for a verified inbound Peer to connect, and returns it [BLOCKING]
 func (mt *MultiplexTransport) Accept(ctx context.Context, behavior PeerBehavior) (PeerConn, error) {
-	// Sanity check, no need to wait
-	// on an inactive transport
-	if mt.listener == nil {
-		return nil, errTransportInactive
-	}
-
 	select {
 	case <-ctx.Done():
 		return nil, ctx.Err()
