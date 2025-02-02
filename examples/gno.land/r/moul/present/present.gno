@@ -1,6 +1,7 @@
 package present
 
 import (
+	"net/url"
 	"std"
 	"strings"
 	"time"
@@ -12,13 +13,15 @@ import (
 	"gno.land/p/moul/md"
 	"gno.land/p/moul/mdtable"
 	"gno.land/p/moul/realmpath"
+	"gno.land/p/moul/txlink"
 )
 
 type Presentation struct {
 	ID        string
 	Title     string
 	Event     string
-	Author    std.Address
+	Author    string
+	Uploader  std.Address
 	Date      time.Time
 	Content   string
 	EditDate  time.Time
@@ -27,7 +30,7 @@ type Presentation struct {
 
 var (
 	presentations *collection.Collection
-	owner         *ownable.Ownable
+	Ownable       *ownable.Ownable
 )
 
 func init() {
@@ -38,14 +41,14 @@ func init() {
 	presentations.AddIndex("date", func(v interface{}) string {
 		return v.(*Presentation).Date.String()
 	}, collection.DefaultIndex)
-	presentations.AddIndex("author", func(v interface{}) string {
-		return v.(*Presentation).Author.String()
+	presentations.AddIndex("uploader", func(v interface{}) string {
+		return v.(*Presentation).Uploader.String()
 	}, collection.DefaultIndex)
 	presentations.AddIndex("event", func(v interface{}) string {
 		return v.(*Presentation).Event
 	}, collection.DefaultIndex)
 
-	owner = ownable.New()
+	Ownable = ownable.New()
 }
 
 // Render handles the realm's rendering logic
@@ -58,13 +61,58 @@ func Render(path string) string {
 		return renderView(req)
 	case "slides":
 		return renderSlides(req)
-	case "set":
-		return renderSet(req)
-	case "delete":
-		return renderDelete(req)
 	default:
 		return "404: not found"
 	}
+}
+
+// Set adds or updates a presentation
+func Set(id, title, event, author, date, content string) string {
+	Ownable.AssertCallerIsOwner()
+
+	parsedDate, err := time.Parse("2006-01-02", date)
+	if err != nil {
+		return "400: invalid date format (expected: YYYY-MM-DD)"
+	}
+
+	numSlides := 1 // Count intro slide
+	for _, line := range strings.Split(content, "\n") {
+		if strings.HasPrefix(line, "## ") {
+			numSlides++
+		}
+	}
+
+	p := &Presentation{
+		ID:        id,
+		Title:     title,
+		Event:     event,
+		Author:    author,
+		Uploader:  std.PrevRealm().Addr(),
+		Date:      parsedDate,
+		Content:   content,
+		EditDate:  time.Now(),
+		NumSlides: numSlides,
+	}
+
+	presentations.Set(p)
+	return "presentation saved successfully"
+}
+
+// Delete removes a presentation
+func Delete(id string) string {
+	Ownable.AssertCallerIsOwner()
+
+	entry := presentations.GetFirst("id", id)
+	if entry == nil {
+		return "404: presentation not found"
+	}
+
+	if entry.Obj.(*Presentation).Uploader != std.PrevRealm().Addr() {
+		return "401: unauthorized - only the uploader can delete their presentations"
+	}
+
+	presentations.Delete(id)
+	return "presentation deleted successfully"
 }
 
 func renderList(req *realmpath.Request) string {
@@ -86,7 +134,7 @@ func renderList(req *realmpath.Request) string {
 	out.WriteString("Sort by: ")
 	out.WriteString(renderSortLink(req, "date", "Date"))
 	out.WriteString(" | ")
-	out.WriteString(renderSortLink(req, "author", "Author"))
+	out.WriteString(renderSortLink(req, "uploader", "Uploader"))
 	out.WriteString(" | ")
 	out.WriteString(renderSortLink(req, "event", "Event"))
 	out.WriteString("\n\n")
@@ -94,9 +142,11 @@ func renderList(req *realmpath.Request) string {
 	// Add rows from current page
 	for _, item := range page.Items {
 		p := item.Value.(*Presentation)
+		query := make(url.Values)
+		query.Set("view", p.ID)
 		table.Append([]string{
-			ufmt.Sprintf("[%s](?view=%s)", p.Title, p.ID),
-			p.Author.String(),
+			ufmt.Sprintf("[%s](%s)", p.Title, localPath("view", query)),
+			p.Author,
 			p.Event,
 			p.Date.Format("2006-01-02"),
 			ufmt.Sprintf("%d", p.NumSlides),
@@ -128,7 +178,11 @@ func renderView(req *realmpath.Request) string {
 	out.WriteString(ufmt.Sprintf("Event: %s\n\n", p.Event))
 	out.WriteString(ufmt.Sprintf("Author: %s\n\n", p.Author))
 	out.WriteString(ufmt.Sprintf("Date: %s\n\n", p.Date.Format("2006-01-02")))
-	out.WriteString(ufmt.Sprintf("[View as slides](?slides=%s)\n\n", p.ID))
+
+	// Slide mode link
+	query := make(url.Values)
+	query.Set("slides", p.ID)
+	out.WriteString(ufmt.Sprintf("[View as slides](%s)\n\n", localPath("slides", query)))
 	out.WriteString(md.HorizontalRule())
 
 	// Content
@@ -139,7 +193,26 @@ func renderView(req *realmpath.Request) string {
 	out.WriteString(md.HorizontalRule())
 	out.WriteString(ufmt.Sprintf("Last edited: %s\n\n", p.EditDate.Format("2006-01-02 15:04:05")))
 	out.WriteString(ufmt.Sprintf("ID: `%s`\n\n", p.ID))
+	out.WriteString(ufmt.Sprintf("Uploader: `%s`\n\n", p.Uploader))
 	out.WriteString(ufmt.Sprintf("Number of slides: %d\n\n", p.NumSlides))
+
+	// Admin actions
+	if p.Uploader == std.PrevRealm().Addr() {
+		out.WriteString("\n\n")
+		out.WriteString("Admin actions:\n\n")
+		// Edit link
+		editLink := txlink.Call("Set",
+			"id", p.ID,
+			"title", p.Title,
+			"event", p.Event,
+			"date", p.Date.Format("2006-01-02"),
+		)
+		out.WriteString(ufmt.Sprintf("- [Edit presentation](%s)\n", editLink))
+
+		// Delete link
+		deleteLink := txlink.Call("Delete", "id", p.ID)
+		out.WriteString(ufmt.Sprintf("- [Delete presentation](%s)\n", deleteLink))
+	}
 
 	return out.String()
 }
@@ -192,90 +265,11 @@ func renderSlides(req *realmpath.Request) string {
 	return out.String()
 }
 
-// Set adds or updates a presentation
-func Set(id, title, event, date, content string) string {
-	owner.AssertCallerIsOwner()
-
-	parsedDate, err := time.Parse("2006-01-02", date)
-	if err != nil {
-		return "400: invalid date format (expected: YYYY-MM-DD)"
-	}
-
-	numSlides := 1 // Count intro slide
-	for _, line := range strings.Split(content, "\n") {
-		if strings.HasPrefix(line, "## ") {
-			numSlides++
-		}
-	}
-
-	p := &Presentation{
-		ID:        id,
-		Title:     title,
-		Event:     event,
-		Author:    std.PrevRealm().Addr(),
-		Date:      parsedDate,
-		Content:   content,
-		EditDate:  time.Now(),
-		NumSlides: numSlides,
-	}
-
-	presentations.Set(p)
-	return "presentation saved successfully"
-}
-
-func renderSet(req *realmpath.Request) string {
-	if !owner.CallerIsOwner() {
-		return "401: unauthorized"
-	}
-
-	id := req.Query.Get("set")
-	if id == "" {
-		return "400: missing presentation ID"
-	}
-
-	entry := presentations.GetFirst("id", id)
-	if entry == nil {
-		return "404: presentation not found"
-	}
-
-	p := entry.Obj.(*Presentation)
-	return ufmt.Sprintf("Current presentation:\nID: %s\nTitle: %s\nEvent: %s\nDate: %s\nContent:\n%s",
-		p.ID, p.Title, p.Event, p.Date.Format("2006-01-02"), p.Content)
-}
-
-// Delete removes a presentation
-func Delete(id string) string {
-	if !owner.CallerIsOwner() {
-		return "401: unauthorized"
-	}
-
-	entry := presentations.GetFirst("id", id)
-	if entry == nil {
-		return "404: presentation not found"
-	}
-
-	presentations.Delete(id)
-	return "presentation deleted successfully"
-}
-
-func renderDelete(req *realmpath.Request) string {
-	if !owner.CallerIsOwner() {
-		return "401: unauthorized"
-	}
-
-	id := req.Query.Get("delete")
-	if id == "" {
-		return "400: missing presentation ID"
-	}
-
-	return Delete(id)
-}
-
 // Helper functions for sorting and pagination
 func getSortField(req *realmpath.Request) string {
 	field := req.Query.Get("sort")
 	switch field {
-	case "date", "author", "event":
+	case "date", "uploader", "event":
 		return field
 	default:
 		return "date"
@@ -308,4 +302,13 @@ func renderSortLink(req *realmpath.Request, field, label string) string {
 	}
 
 	return ufmt.Sprintf("[%s](?%s)", label, query.Encode())
+}
+
+// helper to create local realm links
+func localPath(path string, query url.Values) string {
+	req := &realmpath.Request{
+		Path:  path,
+		Query: query,
+	}
+	return req.String()
 }

@@ -1,10 +1,17 @@
 package present
 
+import "time"
+
 func init() {
-	path := "miami23"
-	title := "Portal Loop Demo (Miami 2023)"
-	body := `
-Rendered by Gno.
+	date, _ := time.Parse("2006-01-02", "2023-10-15")
+
+	_ = Set(
+		"miami23",                       // id
+		"Portal Loop Demo (Miami 2023)", // title
+		"Miami Gno Tech Retreat 2023",   // event
+		"@moul",                         // author
+		"2023-10-15",                    // date
+		`Rendered by Gno.
 
 [Source (WIP)](https://github.com/gnolang/gno/pull/1176)
 
@@ -36,7 +43,6 @@ Rendered by Gno.
 - Consider dApp development.
 - Explore new topics [here](https://github.com/orgs/gnolang/projects/15/).
 - Engage in workshops.
-- Connect and have fun with colleagues.
-`
-	_ = b.NewPost(adminAddr, path, title, body, "2023-10-15T13:17:24Z", []string{"moul"}, []string{"demo", "portal-loop", "miami"})
+- Connect and have fun with colleagues.`,
+	)
 }
