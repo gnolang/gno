@@ -163,6 +163,7 @@ func TestMyersDiff(t *testing.T) {
 			expected: "[-" + strings.Repeat("a", 1000) + "][+" + strings.Repeat("b", 1000) + "]",
 		},
 		//{ // disabled for testing performance
+		// XXX: consider adding a flag to run such tests, not like `-short`, or switching to a `-bench`, maybe.
 		//	name:     "Very long strings",
 		//	old:      strings.Repeat("a", 10000) + "b" + strings.Repeat("a", 10000),
 		//	new:      strings.Repeat("a", 10000) + "c" + strings.Repeat("a", 10000),
