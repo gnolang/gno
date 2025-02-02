@@ -22,12 +22,11 @@ import (
 const defaultHandshakeTimeout = 3 * time.Second
 
 var (
-	errTransportClosed           = errors.New("transport is closed")
-	errTransportAlreadyListening = errors.New("transport already listening")
-	errDuplicateConnection       = errors.New("duplicate peer connection")
-	errPeerIDNodeInfoMismatch    = errors.New("connection ID does not match node info ID")
-	errPeerIDDialMismatch        = errors.New("connection ID does not match dialed ID")
-	errIncompatibleNodeInfo      = errors.New("incompatible node info")
+	errTransportClosed        = errors.New("transport is closed")
+	errDuplicateConnection    = errors.New("duplicate peer connection")
+	errPeerIDNodeInfoMismatch = errors.New("connection ID does not match node info ID")
+	errPeerIDDialMismatch     = errors.New("connection ID does not match dialed ID")
+	errIncompatibleNodeInfo   = errors.New("incompatible node info")
 )
 
 type connUpgradeFn func(io.ReadWriteCloser, crypto.PrivKey) (*conn.SecretConnection, error)
@@ -145,10 +144,6 @@ func (mt *MultiplexTransport) Close() error {
 
 // Listen starts an active process of listening for incoming connections [NON-BLOCKING]
 func (mt *MultiplexTransport) Listen(addr types.NetAddress) error {
-	if mt.listener != nil {
-		return errTransportAlreadyListening
-	}
-
 	// Reserve a port, and start listening
 	ln, err := net.Listen("tcp", addr.DialString())
 	if err != nil {
