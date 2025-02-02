@@ -32,8 +32,6 @@ import (
 	"strings"
 )
 
-const chainDomain = "gno.land" // XXX: std.ChainDomain (#2911)
-
 // Request represents a parsed request.
 type Request struct {
 	Path  string     // The path of the request
@@ -81,6 +79,7 @@ func (r *Request) String() string {
 	}
 
 	// Rebuild the path using the realm and path parts
+	chainDomain := std.GetChainDomain()
 	relativePkgPath := strings.TrimPrefix(r.Realm, chainDomain) // Trim the chain domain prefix
 	reconstructedPath := relativePkgPath + ":" + strings.Join(r.PathParts(), "/")
 
