@@ -214,9 +214,6 @@ func (pv *PointerValue) GetBase(store Store) Object {
 func (pv PointerValue) Assign2(alloc *Allocator, store Store, rlm *Realm, tv2 TypedValue, cu bool) {
 	debug2.Println2("Assign2, pv: ", pv)
 	debug2.Println2("Assign2, tv2: ", tv2)
-	defer func() {
-		alloc.StagingBytes = 0 // after assign, staging allocation are freed.
-	}()
 	// Special cases.
 	if pv.Index == PointerIndexNative {
 		// Special case if extended object && native.

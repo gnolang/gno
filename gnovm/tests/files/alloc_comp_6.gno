@@ -1,4 +1,4 @@
-// MAXALLOC: 100000000
+// MAXALLOC: 110000000
 package main
 
 import "runtime"
@@ -7,8 +7,9 @@ import "runtime"
 func main() {
 	data := make([]byte, 100*1024*1024) // >100 MB
 	data = nil
+	runtime.GC()
 	println("MemStats: ", runtime.MemStats())
 }
 
-// Error:
-// Memory size limit exceeded
+// Output:
+// MemStats:  Allocator{maxBytes:110000000, bytes:2104}

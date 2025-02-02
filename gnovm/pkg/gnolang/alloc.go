@@ -12,11 +12,10 @@ import (
 // (optionally?) condensed (objects to be GC'd will be discarded),
 // but for now, allocations strictly increment across the whole tx.
 type Allocator struct {
-	m            *Machine
-	maxBytes     int64
-	bytes        int64
-	throwAway    bool
-	StagingBytes int64
+	m         *Machine
+	maxBytes  int64
+	bytes     int64
+	throwAway bool
 }
 
 // for gonative, which doesn't consider the allocator.
@@ -121,7 +120,6 @@ func (alloc *Allocator) GC() {
 		alloc.m.GasMeter.ConsumeGas(gasCPU, "GC")
 	}
 	fmt.Println("---gc, MemStats:", alloc.MemStats())
-	fmt.Println("StagingBytes: ", alloc.StagingBytes)
 	defer func() {
 		fmt.Println("------------after gc, memStats:", alloc.MemStats())
 	}()
@@ -181,7 +179,7 @@ func (alloc *Allocator) GC() {
 	// reset allocator
 	debug2.Println2("---throwaway.bytes: ", throwaway.bytes)
 	debug2.Println2("---before reset, alloc.bytes: ", alloc.bytes)
-	alloc.bytes = throwaway.bytes + alloc.StagingBytes
+	alloc.bytes = throwaway.bytes
 	debug2.Println2("---after reset, alloc.bytes: ", alloc.bytes)
 }
 
@@ -283,33 +281,34 @@ func (throwaway *Allocator) allocateValue(v Value) {
 
 func (alloc *Allocator) Allocate(size int64) {
 	debug2.Println2("Allocate, size: ", size)
+	debug2.Println2("MemStats: ", alloc.MemStats())
 	if alloc == nil {
 		debug2.Println2("allocator is nil, do nothing")
 		// this can happen for map items just prior to assignment.
 		return
 	}
 
-	debug2.Println2("alloc.StagingBytes: ", alloc.StagingBytes)
-	alloc.StagingBytes += size
-
 	// if alloc on throwaway still exceeds memory,
 	// means GC does not work, panic.
 	if alloc.throwAway {
+		alloc.bytes += size
 		//fmt.Println("throwaway, Allocate, memStats: ", alloc.MemStats())
 		if alloc.bytes > alloc.maxBytes {
-			debug2.Println2("---exceed memory size............")
-			panic("Memory size limit exceeded")
+			panic("should not happen")
 		}
+		debug2.Println2("throwaway, After allocating, size is: ", alloc.bytes)
 	}
 
-	debug2.Println2("new allocated: ", size)
-	alloc.bytes += size
-	debug2.Println2("===========bytes after allocated============: ", alloc.bytes)
-
-	if !alloc.throwAway && alloc.bytes > alloc.maxBytes {
-		debug2.Println2("---exceed memory size, GC")
-		alloc.GC()
-		//panic("allocation limit exceeded")
+	if !alloc.throwAway {
+		if alloc.bytes+size > alloc.maxBytes {
+			debug2.Printf2("%d exceeds memory size, GC \n", alloc.bytes+size)
+			alloc.GC()
+		}
+		alloc.bytes += size
+		if alloc.bytes > alloc.maxBytes {
+			panic("Memory size limit exceeded")
+		}
+		debug2.Println2("=== After allocating, size is: ", alloc.bytes)
 	}
 }
 

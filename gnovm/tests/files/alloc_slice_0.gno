@@ -34,5 +34,5 @@ func main() {
 }
 
 // Output:
-// MemStats before GC:  Allocator{maxBytes:50000, bytes:25072}
+// MemStats before GC:  Allocator{maxBytes:50000, bytes:49584}
 // MemStats after GC:  Allocator{maxBytes:50000, bytes:7800}
