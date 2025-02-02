@@ -22,11 +22,12 @@ import (
 const defaultHandshakeTimeout = 3 * time.Second
 
 var (
-	errTransportClosed        = errors.New("transport is closed")
-	errDuplicateConnection    = errors.New("duplicate peer connection")
-	errPeerIDNodeInfoMismatch = errors.New("connection ID does not match node info ID")
-	errPeerIDDialMismatch     = errors.New("connection ID does not match dialed ID")
-	errIncompatibleNodeInfo   = errors.New("incompatible node info")
+	errTransportClosed           = errors.New("transport is closed")
+	errTransportAlreadyListening = errors.New("transport already listening")
+	errDuplicateConnection       = errors.New("duplicate peer connection")
+	errPeerIDNodeInfoMismatch    = errors.New("connection ID does not match node info ID")
+	errPeerIDDialMismatch        = errors.New("connection ID does not match dialed ID")
+	errIncompatibleNodeInfo      = errors.New("incompatible node info")
 )
 
 type connUpgradeFn func(io.ReadWriteCloser, crypto.PrivKey) (*conn.SecretConnection, error)
@@ -75,7 +76,10 @@ func NewMultiplexTransport(
 	mConfig conn.MConnConfig,
 	logger *slog.Logger,
 ) *MultiplexTransport {
+	ctx, cancel := context.WithCancel(context.Background())
 	return &MultiplexTransport{
+		ctx:           ctx,
+		cancelFn:      cancel,
 		peerCh:        make(chan peerInfo, 1),
 		mConfig:       mConfig,
 		nodeInfo:      nodeInfo,
@@ -136,37 +140,32 @@ func (mt *MultiplexTransport) Close() error {
 	}
 
 	mt.cancelFn()
-
 	return mt.listener.Close()
 }
 
 // Listen starts an active process of listening for incoming connections [NON-BLOCKING]
-func (mt *MultiplexTransport) Listen(addr types.NetAddress) (rerr error) {
+func (mt *MultiplexTransport) Listen(addr types.NetAddress) error {
+	if mt.listener != nil {
+		return errTransportAlreadyListening
+	}
+
 	// Reserve a port, and start listening
 	ln, err := net.Listen("tcp", addr.DialString())
 	if err != nil {
 		return fmt.Errorf("unable to listen on address, %w", err)
 	}
 
-	defer func() {
-		if rerr != nil {
-			ln.Close()
-		}
-	}()
-
 	if addr.Port == 0 {
 		// net.Listen on port 0 means the kernel will auto-allocate a port
 		// - find out which one has been given to us.
 		tcpAddr, ok := ln.Addr().(*net.TCPAddr)
 		if !ok {
+			ln.Close()
 			return fmt.Errorf("error finding port (after listening on port 0): %w", err)
 		}
 
 		addr.Port = uint16(tcpAddr.Port)
 	}
-
-	// Set up the context
-	mt.ctx, mt.cancelFn = context.WithCancel(context.Background())
 
 	mt.netAddr = addr
 	mt.listener = ln
@@ -184,67 +183,57 @@ func (mt *MultiplexTransport) Listen(addr types.NetAddress) (rerr error) {
 // 2. filtered
 // 3. upgraded (handshaked + verified)
 func (mt *MultiplexTransport) runAcceptLoop(ctx context.Context) {
-	ctx, cancel := context.WithCancel(ctx)
-	defer cancel()
-
 	var wg sync.WaitGroup
 	defer func() {
 		wg.Wait() // Wait for all process routines
-
 		close(mt.peerCh)
 	}()
 
+	ctx, cancel := context.WithCancel(ctx)
+	defer cancel() // cancel sub-connection process
+
 	for {
-		select {
-		case <-ctx.Done():
-			mt.logger.Debug("transport accept context closed")
-			return
+		// Accept an incoming peer connection
+		c, err := mt.listener.Accept()
 
+		switch {
+		case err == nil: // ok
+		case goerrors.Is(err, net.ErrClosed):
+			// Listener has been closed, this is not recoverable.
+			mt.logger.Debug("listener has been closed")
+			return // exit
 		default:
-			// Accept an incoming peer connection
-			c, err := mt.listener.Accept()
-			if err != nil {
-				switch {
-				case goerrors.Is(err, context.Canceled), goerrors.Is(err, context.DeadlineExceeded):
-					// Context has been canceled or deadline exceeded, exit loop
-				case goerrors.Is(err, net.ErrClosed):
-					// Listener has been closed, this is not recoverable.
-					cancel() // stop accepting connections and exit loop
-				default:
-					// An error occurred during accept, report and continue
-					mt.logger.Error("accept p2p connection error", "err", err)
-				}
+			// An error occurred during accept, report and continue
+			mt.logger.Error("accept p2p connection error", "err", err)
+			continue
+		}
 
-				continue
+		// Process the new connection asynchronously
+		wg.Add(1)
+
+		go func(c net.Conn) {
+			defer wg.Done()
+
+			info, err := mt.processConn(c, "")
+			if err != nil {
+				mt.logger.Error(
+					"unable to process p2p connection",
+					"err", err,
+				)
+
+				// Close the connection
+				_ = c.Close()
+
+				return
 			}
 
-			// Process the new connection asynchronously
-			wg.Add(1)
-
-			go func(c net.Conn) {
-				defer wg.Done()
-
-				info, err := mt.processConn(c, "")
-				if err != nil {
-					mt.logger.Error(
-						"unable to process p2p connection",
-						"err", err,
-					)
-
-					// Close the connection
-					_ = c.Close()
-
-					return
-				}
-
-				select {
-				case mt.peerCh <- info:
-				case <-ctx.Done():
-					// Give up if the transport was closed.
-					_ = c.Close()
-				}
-			}(c)
-		}
+			select {
+			case mt.peerCh <- info:
+			case <-ctx.Done():
+				// Give up if the transport was closed.
+				_ = c.Close()
+			}
+		}(c)
 	}
 }
 

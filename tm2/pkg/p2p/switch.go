@@ -622,63 +622,51 @@ func (sw *MultiplexSwitch) isPrivatePeer(id types.ID) bool {
 // for accepting incoming peer connections, filtering them,
 // and persisting them
 func (sw *MultiplexSwitch) runAcceptLoop(ctx context.Context) {
-	ctx, cancel := context.WithCancel(ctx)
-	defer cancel()
-
 	for {
-		select {
-		case <-ctx.Done():
+		p, err := sw.transport.Accept(ctx, sw.peerBehavior)
+
+		switch {
+		case err == nil: // ok
+		case errors.Is(err, context.Canceled), errors.Is(err, context.DeadlineExceeded):
+			// Upper context as been canceled/timeout
 			sw.Logger.Debug("switch context close received")
-			return
-
+			return // exit
+		case errors.As(err, &errTransportClosed):
+			// Underlaying transport as been closed
+			sw.Logger.Warn("cannot accept connection on closed transport, exiting")
+			return // exit
 		default:
-			p, err := sw.transport.Accept(ctx, sw.peerBehavior)
-			if err != nil {
-				switch {
-				case errors.Is(err, context.Canceled), errors.Is(err, context.DeadlineExceeded):
-					// Upper context has been canceled, break the loop
-				case errors.As(err, &errTransportClosed):
-					// Transport has been closed, this is not recoverable.
-					cancel() // stop accepting connections and exit loop
-				default:
-					// An error occurred during accept, report and continue
-					sw.Logger.Error(
-						"error encountered during peer connection accept",
-						"err", err,
-					)
-				}
+			// An error occurred during accept, report and continue
+			sw.Logger.Error("error encountered during peer connection accept", "err", err)
+			continue
+		}
 
-				continue
+		// Ignore connection if we already have enough peers.
+		if in := sw.Peers().NumInbound(); in >= sw.maxInboundPeers {
+			sw.Logger.Info(
+				"Ignoring inbound connection: already have enough inbound peers",
+				"address", p.SocketAddr(),
+				"have", in,
+				"max", sw.maxInboundPeers,
+			)
+
+			sw.transport.Remove(p)
+			continue
+		}
+
+		// There are open peer slots, add peers
+		if err := sw.addPeer(p); err != nil {
+			sw.transport.Remove(p)
+
+			if p.IsRunning() {
+				_ = p.Stop()
 			}
 
-			// Ignore connection if we already have enough peers.
-			if in := sw.Peers().NumInbound(); in >= sw.maxInboundPeers {
-				sw.Logger.Info(
-					"Ignoring inbound connection: already have enough inbound peers",
-					"address", p.SocketAddr(),
-					"have", in,
-					"max", sw.maxInboundPeers,
-				)
-
-				sw.transport.Remove(p)
-
-				continue
-			}
-
-			// There are open peer slots, add peers
-			if err := sw.addPeer(p); err != nil {
-				sw.transport.Remove(p)
-
-				if p.IsRunning() {
-					_ = p.Stop()
-				}
-
-				sw.Logger.Info(
-					"Ignoring inbound connection: error while adding peer",
-					"err", err,
-					"id", p.ID(),
-				)
-			}
+			sw.Logger.Info(
+				"Ignoring inbound connection: error while adding peer",
+				"err", err,
+				"id", p.ID(),
+			)
 		}
 	}
 }
