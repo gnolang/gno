@@ -515,3 +515,25 @@ func TestMultiplexTransport_Accept(t *testing.T) {
 		peers[0].Remove(p)
 	})
 }
+
+func TestTransportListenTwice(t *testing.T) {
+	t.Parallel()
+
+	var (
+		ni     = types.NodeInfo{}
+		nk     = types.NodeKey{}
+		mCfg   = conn.DefaultMConnConfig()
+		logger = log.NewNoopLogger()
+		addr   = generateNetAddr(t, 1)[0]
+	)
+
+	transport := NewMultiplexTransport(ni, nk, mCfg, logger)
+
+	// First listen should succeed
+	require.NoError(t, transport.Listen(*addr))
+	defer transport.Close()
+
+	// Second listen should fail
+	err := transport.Listen(*addr)
+	assert.ErrorIs(t, err, errTransportAlreadyListening)
+}

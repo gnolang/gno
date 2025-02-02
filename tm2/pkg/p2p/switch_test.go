@@ -890,3 +890,36 @@ func TestCalculateBackoff(t *testing.T) {
 		}
 	})
 }
+
+func TestSwitchAcceptLoopTransportClosed(t *testing.T) {
+	t.Parallel()
+
+	var transportClosed bool
+
+	ccAccept := make(chan struct{})
+	mockTransport := &mockTransport{
+		acceptFn: func(context.Context, PeerBehavior) (PeerConn, error) {
+			if !transportClosed {
+				transportClosed = true
+				return nil, errTransportClosed
+			}
+
+			ccAccept <- struct{}{}
+			return nil, errors.New("shouldn't reach here")
+		},
+	}
+
+	sw := NewMultiplexSwitch(mockTransport)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	// Run the accept loop
+	go sw.runAcceptLoop(ctx)
+
+	select {
+	case <-time.After(time.Millisecond * 500): // wait enough time
+	case <-ccAccept:
+		require.FailNow(t, "unexpected accept received")
+	}
+}
