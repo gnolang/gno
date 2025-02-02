@@ -5,6 +5,7 @@ import (
 	"context"
 	"crypto/rand"
 	"encoding/binary"
+	"errors"
 	"fmt"
 	"math"
 	"sync"
@@ -621,19 +622,31 @@ func (sw *MultiplexSwitch) isPrivatePeer(id types.ID) bool {
 // for accepting incoming peer connections, filtering them,
 // and persisting them
 func (sw *MultiplexSwitch) runAcceptLoop(ctx context.Context) {
+	ctx, cancel := context.WithCancel(ctx)
+	defer cancel()
+
 	for {
 		select {
 		case <-ctx.Done():
 			sw.Logger.Debug("switch context close received")
-
 			return
+
 		default:
 			p, err := sw.transport.Accept(ctx, sw.peerBehavior)
 			if err != nil {
-				sw.Logger.Error(
-					"error encountered during peer connection accept",
-					"err", err,
-				)
+				switch {
+				case errors.Is(err, context.Canceled), errors.Is(err, context.DeadlineExceeded):
+					// Upper context has been canceled, break the loop
+				case errors.As(err, &errTransportClosed):
+					// Transport has been closed, this is not recoverable.
+					cancel() // stop accepting connections and exit loop
+				default:
+					// An error occurred during accept, report and continue
+					sw.Logger.Error(
+						"error encountered during peer connection accept",
+						"err", err,
+					)
+				}
 
 				continue
 			}

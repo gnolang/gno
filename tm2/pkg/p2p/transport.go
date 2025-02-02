@@ -2,6 +2,7 @@ package p2p
 
 import (
 	"context"
+	goerrors "errors"
 	"fmt"
 	"io"
 	"log/slog"
@@ -172,7 +173,7 @@ func (mt *MultiplexTransport) Listen(addr types.NetAddress) (rerr error) {
 
 	// Run the routine for accepting
 	// incoming peer connections
-	go mt.runAcceptLoop()
+	go mt.runAcceptLoop(mt.ctx)
 
 	return nil
 }
@@ -182,9 +183,11 @@ func (mt *MultiplexTransport) Listen(addr types.NetAddress) (rerr error) {
 // 1. accepted by the transport
 // 2. filtered
 // 3. upgraded (handshaked + verified)
-func (mt *MultiplexTransport) runAcceptLoop() {
-	var wg sync.WaitGroup
+func (mt *MultiplexTransport) runAcceptLoop(ctx context.Context) {
+	ctx, cancel := context.WithCancel(ctx)
+	defer cancel()
 
+	var wg sync.WaitGroup
 	defer func() {
 		wg.Wait() // Wait for all process routines
 
@@ -193,18 +196,24 @@ func (mt *MultiplexTransport) runAcceptLoop() {
 
 	for {
 		select {
-		case <-mt.ctx.Done():
+		case <-ctx.Done():
 			mt.logger.Debug("transport accept context closed")
-
 			return
+
 		default:
 			// Accept an incoming peer connection
 			c, err := mt.listener.Accept()
 			if err != nil {
-				mt.logger.Error(
-					"unable to accept p2p connection",
-					"err", err,
-				)
+				switch {
+				case goerrors.Is(err, context.Canceled), goerrors.Is(err, context.DeadlineExceeded):
+					// Context has been canceled or deadline exceeded, exit loop
+				case goerrors.Is(err, net.ErrClosed):
+					// Listener has been closed, this is not recoverable.
+					cancel() // stop accepting connections and exit loop
+				default:
+					// An error occurred during accept, report and continue
+					mt.logger.Error("accept p2p connection error", "err", err)
+				}
 
 				continue
 			}
@@ -230,7 +239,7 @@ func (mt *MultiplexTransport) runAcceptLoop() {
 
 				select {
 				case mt.peerCh <- info:
-				case <-mt.ctx.Done():
+				case <-ctx.Done():
 					// Give up if the transport was closed.
 					_ = c.Close()
 				}
