@@ -123,7 +123,7 @@ func (pm PackagesMap) toList() packages.PkgList {
 func (pm PackagesMap) Load(fee std.Fee, start time.Time) ([]gnoland.TxWithMetadata, error) {
 	pkgs := pm.toList()
 
-	sorted, err := pkgs.Sort()
+	sorted, err := pkgs.Sort(true)
 	if err != nil {
 		return nil, fmt.Errorf("unable to sort pkgs: %w", err)
 	}
@@ -142,7 +142,7 @@ func (pm PackagesMap) Load(fee std.Fee, start time.Time) ([]gnoland.TxWithMetada
 		}
 
 		// Open files in directory as MemPackage.
-		memPkg := gnolang.MustReadMemPackage(modPkg.Dir, modPkg.ImportPath)
+		memPkg := gnolang.MustReadMemPackage(modPkg.Dir, modPkg.ImportPath, nil)
 		if err := memPkg.Validate(); err != nil {
 			return nil, fmt.Errorf("invalid package: %w", err)
 		}
