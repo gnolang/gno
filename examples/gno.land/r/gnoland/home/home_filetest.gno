@@ -111,6 +111,7 @@ func main() {
 // - [r/gnoland/faucet](r/gnoland/faucet)
 // - [r/gnoland/home](r/gnoland/home)
 // - [r/gnoland/pages](r/gnoland/pages)
+// - [r/gnoland/users](r/gnoland/users)
 //
 // ### [r/sys](https://github.com/gnolang/gno/tree/master/examples/gno.land/r/sys)
 //
