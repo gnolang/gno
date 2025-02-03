@@ -33,7 +33,7 @@ func TestRoutes(t *testing.T) {
 		{"/r/gnoland/blog$help&func=Render", ok, "Render(path)"},
 		{"/r/gnoland/blog$help&func=Render&path=foo/bar", ok, `value="foo/bar"`},
 		// {"/r/gnoland/blog$help&func=NonExisting", ok, "NonExisting not found"}, // XXX(TODO)
-		{"/r/gnoland/users/v1", ok, "address"},
+		{"/r/gnoland/users/v1:archives", ok, "Address"},
 		{"/r/gnoland/users/v1", ok, "registry"},
 		{"/r/gnoland/users/v1/users.gno", ok, "reValidUsername"},
 		{"/r/demo/deep/very/deep", ok, "it works!"},
