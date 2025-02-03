@@ -17,3 +17,10 @@ func WithBatchSize(size uint) Option {
 		s.batchSize = size
 	}
 }
+
+// WithSkipFailedTxs specifies if failed txs should be backed up
+func WithSkipFailedTxs(skip bool) Option {
+	return func(s *Service) {
+		s.skipFailedTxs = skip
+	}
+}

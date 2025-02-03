@@ -23,6 +23,7 @@ type Service struct {
 
 	batchSize     uint
 	watchInterval time.Duration // interval for the watch routine
+	skipFailedTxs bool
 }
 
 // NewService creates a new backup service
@@ -105,9 +106,9 @@ func (s *Service) ExecuteBackup(ctx context.Context, cfg Config) error {
 			)
 
 			// Fetch current batch
-			blocks, txErr := s.client.GetBlocks(ctx, batchStart, batchStop)
-			if txErr != nil {
-				return fmt.Errorf("unable to fetch block transactions, %w", txErr)
+			blocks, err := s.client.GetBlocks(ctx, batchStart, batchStop)
+			if err != nil {
+				return fmt.Errorf("unable to fetch blocks, %w", err)
 			}
 
 			// Keep track of the number of fetched blocks & those containing transactions
@@ -122,7 +123,35 @@ func (s *Service) ExecuteBackup(ctx context.Context, cfg Config) error {
 
 			// Iterate over the list of blocks containing transactions
 			for _, block := range blocks {
+				// Fetch current batch tx results, if any
+				txResults, err := s.client.GetTxResults(block.Height)
+				if err != nil {
+					return fmt.Errorf("unable to fetch tx results, %w", err)
+				}
+
+				// Sanity check
+				if len(txResults) != len(block.Txs) {
+					return fmt.Errorf(
+						"invalid txs results fetched %d, expected %d",
+						len(txResults),
+						len(block.Txs),
+					)
+				}
+
 				for i, tx := range block.Txs {
+					txResult := txResults[i]
+
+					if !txResult.IsOK() && s.skipFailedTxs {
+						// Skip saving failed transaction
+						s.logger.Debug(
+							"Skipping failed tx",
+							"height", block.Height,
+							"index", i,
+						)
+
+						continue
+					}
+
 					// Write the tx data to the file
 					txData := &gnoland.TxWithMetadata{
 						Tx: tx,

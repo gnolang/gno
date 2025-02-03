@@ -8,6 +8,7 @@ import (
 
 	_ "github.com/gnolang/gno/gno.land/pkg/sdk/vm"
 	"github.com/gnolang/gno/tm2/pkg/amino"
+	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
 	rpcClient "github.com/gnolang/gno/tm2/pkg/bft/rpc/client"
 	ctypes "github.com/gnolang/gno/tm2/pkg/bft/rpc/core/types"
 	"github.com/gnolang/gno/tm2/pkg/std"
@@ -121,7 +122,7 @@ func (c *Client) GetBlocks(ctx context.Context, from, to uint64) ([]*client.Bloc
 
 			// Add block including transactions, timestamp and block height to slice
 			blocks = append(blocks, &client.Block{
-				Timestamp: blockRes.Block.Time.UnixMilli(),
+				Timestamp: blockRes.Block.Time.Unix(),
 				Height:    uint64(blockRes.Block.Height),
 				Txs:       txs,
 			})
@@ -129,4 +130,21 @@ func (c *Client) GetBlocks(ctx context.Context, from, to uint64) ([]*client.Bloc
 	}
 
 	return blocks, nil
+}
+
+func (c *Client) GetTxResults(block uint64) ([]*abci.ResponseDeliverTx, error) {
+	block64 := int64(block)
+
+	results, err := c.client.BlockResults(&block64)
+	if err != nil {
+		return nil, fmt.Errorf("unable to fetch block results, %w", err)
+	}
+
+	txResults := make([]*abci.ResponseDeliverTx, 0)
+
+	for txIndex, tx := range results.Results.DeliverTxs {
+		txResults[txIndex] = &tx
+	}
+
+	return txResults, nil
 }

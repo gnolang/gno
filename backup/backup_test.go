@@ -11,6 +11,7 @@ import (
 
 	"github.com/gnolang/gno/gno.land/pkg/gnoland"
 	"github.com/gnolang/gno/tm2/pkg/amino"
+	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
 	"github.com/gnolang/gno/tm2/pkg/std"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -173,6 +174,19 @@ func TestBackup_ExecuteBackup_FixedRange(t *testing.T) {
 
 						return generateBlocks(t, from, to, tCase.txsPerBlock), nil
 					},
+					getTxResultsFn: func(_ uint64) ([]*abci.ResponseDeliverTx, error) {
+						txs := make([]*abci.ResponseDeliverTx, 0, tCase.txsPerBlock)
+
+						for range tCase.txsPerBlock {
+							txs = append(txs, &abci.ResponseDeliverTx{
+								ResponseBase: abci.ResponseBase{
+									Error: nil,
+								},
+							})
+						}
+
+						return txs, nil
+					},
 				}
 			)
 
@@ -285,6 +299,19 @@ func TestBackup_ExecuteBackup_Watch(t *testing.T) {
 						}
 
 						return generateBlocks(t, from, to, tCase.txsPerBlock), nil
+					},
+					getTxResultsFn: func(_ uint64) ([]*abci.ResponseDeliverTx, error) {
+						txs := make([]*abci.ResponseDeliverTx, 0, tCase.txsPerBlock)
+
+						for range tCase.txsPerBlock {
+							txs = append(txs, &abci.ResponseDeliverTx{
+								ResponseBase: abci.ResponseBase{
+									Error: nil,
+								},
+							})
+						}
+
+						return txs, nil
 					},
 				}
 			)

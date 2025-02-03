@@ -41,11 +41,12 @@ type backupCfg struct {
 	fromBlock uint64
 	batchSize uint
 
-	ws        bool
-	overwrite bool
-	legacy    bool
-	watch     bool
-	verbose   bool
+	ws            bool
+	overwrite     bool
+	legacy        bool
+	watch         bool
+	verbose       bool
+	skipFailedTxs bool
 }
 
 // newBackupCmd creates the backup command
@@ -135,6 +136,13 @@ func (c *backupCfg) registerFlags(fs *flag.FlagSet) {
 		false,
 		"flag indicating if the log verbosity should be set to debug level",
 	)
+
+	fs.BoolVar(
+		&c.skipFailedTxs,
+		"skip-failed-txs",
+		false,
+		"flag indicating if failed txs should be skipped",
+	)
 }
 
 // exec executes the backup command
@@ -159,6 +167,7 @@ func (c *backupCfg) exec(ctx context.Context, _ []string) error {
 	cfg := backup.DefaultConfig()
 	cfg.FromBlock = c.fromBlock
 	cfg.Watch = c.watch
+	cfg.SkipFailedTx = c.skipFailedTxs
 
 	if c.toBlock >= 0 {
 		to64 := uint64(c.toBlock)
@@ -240,6 +249,7 @@ func (c *backupCfg) exec(ctx context.Context, _ []string) error {
 		w,
 		backup.WithLogger(logger),
 		backup.WithBatchSize(c.batchSize),
+		backup.WithSkipFailedTxs(c.skipFailedTxs),
 	)
 
 	// Run the backup service

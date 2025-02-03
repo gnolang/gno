@@ -1,6 +1,7 @@
 package client
 
 import (
+	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
 	"github.com/gnolang/gno/tm2/pkg/std"
 	"golang.org/x/net/context"
 )
@@ -14,6 +15,9 @@ type Client interface {
 	// timestamp in milliseconds - in the requested range only if they contain
 	// transactions
 	GetBlocks(ctx context.Context, from, to uint64) ([]*Block, error)
+
+	// GetTxResults returns the block transaction results (if any)
+	GetTxResults(block uint64) ([]*abci.ResponseDeliverTx, error)
 }
 
 type Block struct {
