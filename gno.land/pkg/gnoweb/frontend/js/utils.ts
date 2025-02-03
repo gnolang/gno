@@ -10,3 +10,7 @@ export function debounce<T extends (...args: any[]) => void>(func: T, delay: num
     }, delay);
   };
 }
+
+export function escapeShellContent(arg: string): string {
+  return arg.replace(/([$`"\\!|&;<>*?{}()])/g, "\\$1");
+}
