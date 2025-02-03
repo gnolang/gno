@@ -2,6 +2,7 @@ package components
 
 import (
 	"net/url"
+	"strings"
 )
 
 type HeaderLink struct {
@@ -18,23 +19,33 @@ type HeaderData struct {
 	Links      []HeaderLink
 }
 
+func HeaderURL(realmPath string, webquery string) string {
+	if webquery == "" {
+		return realmPath
+	}
+	if pos := strings.IndexByte(realmPath, '?'); pos != -1 {
+		return realmPath[:pos] + webquery + realmPath[pos:]
+	}
+	return realmPath + webquery
+}
+
 func StaticHeaderLinks(realmPath string, webQuery url.Values) []HeaderLink {
 	return []HeaderLink{
 		{
 			Label:    "Content",
-			URL:      realmPath,
+			URL:      HeaderURL(realmPath, ""),
 			Icon:     "ico-info",
 			IsActive: isActive(webQuery, "Content"),
 		},
 		{
 			Label:    "Source",
-			URL:      realmPath + "$source",
+			URL:      HeaderURL(realmPath, "$source"),
 			Icon:     "ico-code",
 			IsActive: isActive(webQuery, "Source"),
 		},
 		{
 			Label:    "Docs",
-			URL:      realmPath + "$help",
+			URL:      HeaderURL(realmPath, "$help"),
 			Icon:     "ico-docs",
 			IsActive: isActive(webQuery, "Docs"),
 		},
