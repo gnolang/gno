@@ -59,30 +59,30 @@ func init() {
 // Render handles the realm's rendering logic
 func Render(path string) string {
 	req := realmpath.Parse(path)
-	switch req.PathPart(0) {
-	case "":
+
+	// Get slug from path
+	slug := req.PathPart(0)
+
+	// List view (home)
+	if slug == "" {
 		return renderList(req)
-	case "view":
-		if slug := req.PathPart(1); slug != "" {
-			return renderView(slug)
-		}
-		return "400: missing presentation slug"
-	case "slides":
-		if slug := req.PathPart(1); slug != "" {
-			page := 1
-			if pageStr := req.Query.Get("page"); pageStr != "" {
-				var err error
-				page, err = strconv.Atoi(pageStr)
-				if err != nil {
-					return "400: invalid page number"
-				}
-			}
-			return renderSlides(slug, page)
-		}
-		return "400: missing presentation slug"
-	default:
-		return "404: not found"
 	}
+
+	// Slides view
+	if req.PathPart(1) == "slides" {
+		page := 1
+		if pageStr := req.Query.Get("page"); pageStr != "" {
+			var err error
+			page, err = strconv.Atoi(pageStr)
+			if err != nil {
+				return "400: invalid page number"
+			}
+		}
+		return renderSlides(slug, page)
+	}
+
+	// Regular view
+	return renderView(slug)
 }
 
 // Set adds or updates a presentation
@@ -100,6 +100,7 @@ func Set(slug, title, event, author, date, content string) string {
 			numSlides++
 		}
 	}
+	numSlides++ // Count thank you slide
 
 	p := &Presentation{
 		Slug:      slug,
@@ -126,9 +127,10 @@ func Delete(slug string) string {
 		return "404: presentation not found"
 	}
 
-	if entry.Obj.(*Presentation).Uploader != std.PrevRealm().Addr() {
-		return "401: unauthorized - only the uploader can delete their presentations"
-	}
+	// XXX: consider this:
+	// if entry.Obj.(*Presentation).Uploader != std.PrevRealm().Addr() {
+	// 	return "401: unauthorized - only the uploader can delete their presentations"
+	// }
 
 	// Convert the entry's ID from string to uint64 and delete
 	numericID, err := seqid.FromString(entry.ID)
@@ -182,7 +184,7 @@ func renderList(req *realmpath.Request) string {
 			p := entry.Obj.(*Presentation)
 
 			table.Append([]string{
-				ufmt.Sprintf("[%s](%s)", p.Title, localPath("view/"+p.Slug, nil)),
+				md.Link(p.Title, localPath(p.Slug, nil)),
 				p.Author,
 				p.Event,
 				p.Date.Format("2006-01-02"),
@@ -193,6 +195,26 @@ func renderList(req *realmpath.Request) string {
 
 	out.WriteString(table.String())
 	out.WriteString(page.Picker()) // XXX: picker is not preserving the previous flags, should take "req" as argument.
+	return out.String()
+}
+
+func (p *Presentation) FirstSlide() string {
+	var out strings.Builder
+	out.WriteString(md.H1(p.Title))
+	out.WriteString(ufmt.Sprintf("Event: %s\n\n", p.Event))
+	out.WriteString(ufmt.Sprintf("Author: %s\n\n", p.Author))
+	out.WriteString(ufmt.Sprintf("Date: %s\n\n", p.Date.Format("2006-01-02")))
+	return out.String()
+}
+
+func (p *Presentation) LastSlide() string {
+	var out strings.Builder
+	out.WriteString(md.H1("Thank You!"))
+	out.WriteString("\n\n")
+	out.WriteString(ufmt.Sprintf("Presentation: %s\n\n", p.Title))
+	out.WriteString(ufmt.Sprintf("Author: %s\n\n", p.Author))
+	out.WriteString(ufmt.Sprintf("Event: %s\n\n", p.Event))
+	out.WriteString(md.Link("View full presentation", localPath(p.Slug, nil)) + "\n")
 	return out.String()
 }
 
@@ -209,44 +231,30 @@ func renderView(slug string) string {
 	p := entry.Obj.(*Presentation)
 	var out strings.Builder
 
-	// Header
-	out.WriteString(md.H1(p.Title))
-	out.WriteString(ufmt.Sprintf("Event: %s\n\n", p.Event))
-	out.WriteString(ufmt.Sprintf("Author: %s\n\n", p.Author))
-	out.WriteString(ufmt.Sprintf("Date: %s\n\n", p.Date.Format("2006-01-02")))
+	// Header using FirstSlide helper
+	out.WriteString(p.FirstSlide())
 
 	// Slide mode link
-	out.WriteString(ufmt.Sprintf("[View as slides](%s)\n\n", localPath("slides/"+p.Slug, nil)))
+	out.WriteString(md.Link("View as slides", localPath(p.Slug+"/slides", nil)) + "\n\n")
 	out.WriteString(md.HorizontalRule())
-
-	// Content
-	out.WriteString(p.Content)
+	out.WriteString(md.Paragraph(p.Content))
 
 	// Metadata footer
-	out.WriteString("\n\n")
 	out.WriteString(md.HorizontalRule())
 	out.WriteString(ufmt.Sprintf("Last edited: %s\n\n", p.EditDate.Format("2006-01-02 15:04:05")))
-	out.WriteString(ufmt.Sprintf("Slug: `%s`\n\n", p.Slug))
 	out.WriteString(ufmt.Sprintf("Uploader: `%s`\n\n", p.Uploader))
 	out.WriteString(ufmt.Sprintf("Number of slides: %d\n\n", p.NumSlides))
 
 	// Admin actions
-	if p.Uploader == std.PrevRealm().Addr() {
-		out.WriteString("\n\n")
-		out.WriteString("Admin actions:\n\n")
-		// Edit link
-		editLink := txlink.Call("Set",
-			"slug", p.Slug,
-			"title", p.Title,
-			"event", p.Event,
-			"date", p.Date.Format("2006-01-02"),
-		)
-		out.WriteString(ufmt.Sprintf("- [Edit presentation](%s)\n", editLink))
-
-		// Delete link
-		deleteLink := txlink.Call("Delete", "slug", p.Slug)
-		out.WriteString(ufmt.Sprintf("- [Delete presentation](%s)\n", deleteLink))
-	}
+	// XXX: consider a dynamic toggle for admin actions
+	editLink := txlink.Call("Set",
+		"slug", p.Slug,
+		"title", p.Title,
+		"event", p.Event,
+		"date", p.Date.Format("2006-01-02"),
+	)
+	deleteLink := txlink.Call("Delete", "slug", p.Slug)
+	out.WriteString(md.Paragraph(md.Link("Edit", editLink) + " | " + md.Link("Delete", deleteLink)))
 
 	return out.String()
 }
@@ -263,7 +271,7 @@ func renderSlides(slug string, currentPage int) string {
 
 	p := entry.Obj.(*Presentation)
 	slides := strings.Split(p.Content, "\n## ")
-	if currentPage < 1 || currentPage > len(slides) {
+	if currentPage < 1 || currentPage > p.NumSlides {
 		return "404: invalid slide number"
 	}
 
@@ -271,23 +279,23 @@ func renderSlides(slug string, currentPage int) string {
 
 	// Display current slide
 	if currentPage == 1 {
-		// Auto-generated intro slide
-		out.WriteString(md.H1(p.Title))
-		out.WriteString(ufmt.Sprintf("Event: %s\n\n", p.Event))
-		out.WriteString(ufmt.Sprintf("Author: %s\n\n", p.Author))
-		out.WriteString(ufmt.Sprintf("Date: %s\n\n", p.Date.Format("2006-01-02")))
+		out.WriteString(p.FirstSlide())
+	} else if currentPage == p.NumSlides {
+		out.WriteString(p.LastSlide())
 	} else {
-		out.WriteString("## " + slides[currentPage-1])
+		out.WriteString("## " + slides[currentPage-2])
 	}
 
 	// Navigation
 	out.WriteString("\n\n---\n\n")
 	if currentPage > 1 {
-		out.WriteString(ufmt.Sprintf("[← Prev](%s) ", localPath(ufmt.Sprintf("slides/%s", slug), url.Values{"page": {ufmt.Sprintf("%d", currentPage-1)}})))
+		prevLink := localPath(slug+"/slides", url.Values{"page": {ufmt.Sprintf("%d", currentPage-1)}})
+		out.WriteString(md.Link("← Prev", prevLink) + " ")
 	}
 	out.WriteString(ufmt.Sprintf("| %d/%d |", currentPage, p.NumSlides))
 	if currentPage < p.NumSlides {
-		out.WriteString(ufmt.Sprintf(" [Next →](%s)", localPath(ufmt.Sprintf("slides/%s", slug), url.Values{"page": {ufmt.Sprintf("%d", currentPage+1)}})))
+		nextLink := localPath(slug+"/slides", url.Values{"page": {ufmt.Sprintf("%d", currentPage+1)}})
+		out.WriteString(" " + md.Link("Next →", nextLink))
 	}
 
 	return out.String()
@@ -328,7 +336,7 @@ func renderSortLink(req *realmpath.Request, field, label string) string {
 		}
 	}
 
-	return ufmt.Sprintf("[%s](?%s)", label, query.Encode())
+	return md.Link(label, "?"+query.Encode())
 }
 
 // helper to create local realm links
