@@ -21,7 +21,7 @@ func main() {
 		controlleraddr1 = testutils.TestAddress("controller1")
 		controlleraddr2 = testutils.TestAddress("controller2")
 	)
-	testing.SetPreviousRealm(std.NewUserRealm(adminaddr))
+	testing.SetOriginCaller(std.NewUserRealm(adminaddr))
 	err := faucet.AdminAddController(controlleraddr1)
 	if err != "" {
 		panic(err)

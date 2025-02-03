@@ -19,7 +19,7 @@ func main() {
 	beneficiary2 := std.Address("g1akeqsvhucjt8gf5yupyzjxsjd29wv8fayng37c")
 
 	testing.SetOriginPkgAddress(disperseAddr)
-	testing.SetPreviousRealm(std.NewUserRealm(mainaddr))
+	testing.SetOriginCaller(mainaddr)
 
 	banker := std.GetBanker(std.BankerTypeRealmSend)
 

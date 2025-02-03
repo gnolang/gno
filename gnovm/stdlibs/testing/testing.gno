@@ -220,8 +220,8 @@ func (t *T) SetContext(ctx Context) {
 	TestSetContext(ctx)
 }
 
-func (t *T) SetPreviousRealm(prevRealm std.Realm) {
-	SetPreviousRealm(prevRealm)
+func (t *T) SetOriginCaller(prevRealm std.Realm) {
+	SetOriginCaller(prevRealm)
 }
 
 func (t *T) SetOriginSend(send std.Coins, spend std.Coins) {
@@ -399,8 +399,7 @@ func tRunner(t *T, fn testingFunc, verbose bool) {
 
 func testSetContext(
 	isOrigin bool,
-	prevRealmAddr string,
-	prevRealmPath string,
+	originCaller string,
 	originPkgAddress string,
 	origSendDenoms []string, origSendAmounts []int64,
 	origSpendDenoms []string, origSpendAmounts []int64,
@@ -424,8 +423,7 @@ func TestSetContext(ctx Context) {
 
 	testSetContext(
 		ctx.IsOrigin,
-		ctx.PreviousRealm.Addr().String(),
-		ctx.PreviousRealm.PkgPath(),
+		ctx.OriginCaller.String(),
 		ctx.OriginPkgAddress.String(),
 		originSendDenom, originSendAmount,
 		originSpendDenom, originSpendAmount,
@@ -437,7 +435,7 @@ func TestSetContext(ctx Context) {
 	)
 }
 
-func SetPreviousRealm(prevRealm std.Realm) {
+func SetOriginCaller(prevRealm std.Realm) {
 	TestSetContext(Context{PreviousRealm: prevRealm})
 }
 
@@ -447,6 +445,10 @@ func SetOriginSend(send std.Coins, spend std.Coins) {
 
 func SetOriginPkgAddress(addr std.Address) {
 	TestSetContext(Context{OriginPkgAddress: addr})
+}
+
+func SetHeight(height int64) {
+	TestSetContext(Context{Height: height})
 }
 
 func SkipHeights(count int64) {

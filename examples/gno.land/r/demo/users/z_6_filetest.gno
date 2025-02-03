@@ -12,7 +12,7 @@ const admin = std.Address("g1manfred47kzduec920z88wfr64ylksmdcedlf5")
 func main() {
 	caller := std.GetOrigCaller()
 	// as admin, grant invites to unregistered user.
-	testing.SetPreviousRealm(std.NewUserRealm(admin))
+	testing.SetOriginCaller(std.NewUserRealm(admin))
 	users.GrantInvites(caller.String() + ":1")
 	println("done")
 }

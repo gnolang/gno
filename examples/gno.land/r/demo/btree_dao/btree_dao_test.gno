@@ -12,7 +12,7 @@ import (
 )
 
 func setupTest() {
-	testing.SetPreviousRealm(std.NewUserRealm(std.Address("g1ej0qca5ptsw9kfr64ey8jvfy9eacga6mpj2z0y")))
+	testing.SetOriginCaller(std.Address("g1ej0qca5ptsw9kfr64ey8jvfy9eacga6mpj2z0y"))
 	members = btree.New()
 }
 

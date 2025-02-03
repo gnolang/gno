@@ -10,7 +10,7 @@ import (
 
 func TestPackage(t *testing.T) {
 	alice := testutils.TestAddress("alice")
-	t.SetPreviousRealm(std.NewUserRealm(alice))
+	t.SetOriginCaller(alice)
 
 	urequire.Equal(t, UserTeller.BalanceOf(alice), uint64(0))
 	urequire.Equal(t, Faucet(), "OK")

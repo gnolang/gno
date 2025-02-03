@@ -8,7 +8,7 @@ import (
 )
 
 func main() {
-	testing.SetPreviousRealm(std.NewUserRealm(std.Address("g1manfred47kzduec920z88wfr64ylksmdcedlf5")))
+	testing.SetOriginCaller(std.Address("g1manfred47kzduec920z88wfr64ylksmdcedlf5"))
 	home.AddTodo("aaa")
 	home.AddTodo("bbb")
 	home.AddTodo("ccc")

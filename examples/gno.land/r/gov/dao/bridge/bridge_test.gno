@@ -46,7 +46,7 @@ func TestBridge_SetDAO(t *testing.T) {
 			}
 		)
 
-		t.SetPreviousRealm(std.NewUserRealm(addr))
+		t.SetOriginCaller(addr)
 
 		b.Ownable = ownable.NewWithAddress(addr)
 

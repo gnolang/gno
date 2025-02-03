@@ -37,7 +37,7 @@ func TestReadOnlyPublicMethods(t *testing.T) {
 	}
 
 	// bob uses the faucet.
-	t.SetPreviousRealm(std.NewUserRealm(bob))
+	t.SetOriginCaller(bob)
 	Faucet()
 
 	// check balances #2.

@@ -11,7 +11,7 @@ import (
 
 func TestUpdateAboutMe(t *testing.T) {
 	owner := std.Address("g1sd5ezmxt4rwpy52u6wl3l3y085n8x0p6nllxm8")
-	t.SetPreviousRealm(std.NewUserRealm(owner))
+	t.SetOriginCaller(std.NewUserRealm(owner))
 
 	profile.aboutMe = []string{}
 
@@ -32,7 +32,7 @@ func TestUpdateAboutMe(t *testing.T) {
 
 func TestUpdateCities(t *testing.T) {
 	owner := std.Address("g1sd5ezmxt4rwpy52u6wl3l3y085n8x0p6nllxm8")
-	t.SetPreviousRealm(std.NewUserRealm(owner))
+	t.SetOriginCaller(std.NewUserRealm(owner))
 
 	travel.cities = []City{}
 
@@ -54,7 +54,7 @@ func TestUpdateCities(t *testing.T) {
 
 func TestUpdateJarLink(t *testing.T) {
 	owner := std.Address("g1sd5ezmxt4rwpy52u6wl3l3y085n8x0p6nllxm8")
-	t.SetPreviousRealm(std.NewUserRealm(owner))
+	t.SetOriginCaller(std.NewUserRealm(owner))
 
 	travel.jarLink = ""
 
@@ -67,7 +67,7 @@ func TestUpdateJarLink(t *testing.T) {
 
 func TestUpdateMaxSponsors(t *testing.T) {
 	owner := std.Address("g1sd5ezmxt4rwpy52u6wl3l3y085n8x0p6nllxm8")
-	t.SetPreviousRealm(std.NewUserRealm(owner))
+	t.SetOriginCaller(std.NewUserRealm(owner))
 
 	sponsorship.maxSponsors = 0
 
@@ -87,7 +87,7 @@ func TestUpdateMaxSponsors(t *testing.T) {
 
 func TestAddCities(t *testing.T) {
 	owner := std.Address("g1sd5ezmxt4rwpy52u6wl3l3y085n8x0p6nllxm8")
-	t.SetPreviousRealm(std.NewUserRealm(owner))
+	t.SetOriginCaller(std.NewUserRealm(owner))
 
 	travel.cities = []City{}
 
@@ -115,7 +115,7 @@ func TestAddCities(t *testing.T) {
 
 func TestAddAboutMeRows(t *testing.T) {
 	owner := std.Address("g1sd5ezmxt4rwpy52u6wl3l3y085n8x0p6nllxm8")
-	t.SetPreviousRealm(std.NewUserRealm(owner))
+	t.SetOriginCaller(std.NewUserRealm(owner))
 
 	profile.aboutMe = []string{}
 
@@ -140,7 +140,7 @@ func TestAddAboutMeRows(t *testing.T) {
 
 func TestDonate(t *testing.T) {
 	user := testutils.TestAddress("user")
-	t.SetPreviousRealm(std.NewUserRealm(user))
+	t.SetOriginCaller(std.NewUserRealm(user))
 
 	sponsorship.sponsors = avl.NewTree()
 	sponsorship.DonationsCount = 0
@@ -196,7 +196,7 @@ func TestDonate(t *testing.T) {
 
 func TestGetTopSponsors(t *testing.T) {
 	user := testutils.TestAddress("user")
-	t.SetPreviousRealm(std.NewUserRealm(user))
+	t.SetOriginCaller(std.NewUserRealm(user))
 
 	sponsorship.sponsors = avl.NewTree()
 	sponsorship.sponsorsCount = 0
@@ -227,7 +227,7 @@ func TestGetTopSponsors(t *testing.T) {
 
 func TestGetTotalDonations(t *testing.T) {
 	user := testutils.TestAddress("user")
-	t.SetPreviousRealm(std.NewUserRealm(user))
+	t.SetOriginCaller(std.NewUserRealm(user))
 
 	sponsorship.sponsors = avl.NewTree()
 	sponsorship.sponsorsCount = 0

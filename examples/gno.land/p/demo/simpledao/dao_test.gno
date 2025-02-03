@@ -172,7 +172,7 @@ func TestSimpleDAO_Propose(t *testing.T) {
 		// Set the sent coins to be enough
 		// to cover the fee
 		t.SetOriginSend(sentCoins, std.Coins{})
-		t.SetPreviousRealm(std.NewUserRealm(proposer))
+		t.SetOriginCaller(proposer)
 
 		// Make sure the proposal was added
 		id, err := s.Propose(dao.ProposalRequest{
@@ -221,7 +221,7 @@ func TestSimpleDAO_VoteOnProposal(t *testing.T) {
 			s = New(ms)
 		)
 
-		t.SetPreviousRealm(std.NewUserRealm(voter))
+		t.SetOriginCaller(voter)
 
 		// Attempt to vote on the proposal
 		uassert.ErrorContains(
@@ -251,7 +251,7 @@ func TestSimpleDAO_VoteOnProposal(t *testing.T) {
 			s = New(ms)
 		)
 
-		t.SetPreviousRealm(std.NewUserRealm(voter))
+		t.SetOriginCaller(voter)
 
 		// Attempt to vote on the proposal
 		uassert.ErrorContains(
@@ -285,7 +285,7 @@ func TestSimpleDAO_VoteOnProposal(t *testing.T) {
 			}
 		)
 
-		t.SetPreviousRealm(std.NewUserRealm(voter))
+		t.SetOriginCaller(voter)
 
 		// Add an initial proposal
 		id, err := s.addProposal(prop)
@@ -327,7 +327,7 @@ func TestSimpleDAO_VoteOnProposal(t *testing.T) {
 			}
 		)
 
-		t.SetPreviousRealm(std.NewUserRealm(voter))
+		t.SetOriginCaller(voter)
 
 		// Cast the initial vote
 		urequire.NoError(t, prop.tally.castVote(member, dao.YesVote))
@@ -386,7 +386,7 @@ func TestSimpleDAO_VoteOnProposal(t *testing.T) {
 
 		majorityIndex := (len(members)*2)/3 + 1 // 2/3+
 		for _, m := range members[:majorityIndex] {
-			t.SetPreviousRealm(std.NewUserRealm(m.Address))
+			t.SetOriginCaller(m.Address)
 
 			// Attempt to vote on the proposal
 			urequire.NoError(
@@ -441,7 +441,7 @@ func TestSimpleDAO_VoteOnProposal(t *testing.T) {
 
 		majorityIndex := (len(members)*2)/3 + 1 // 2/3+
 		for _, m := range members[:majorityIndex] {
-			t.SetPreviousRealm(std.NewUserRealm(m.Address))
+			t.SetOriginCaller(m.Address)
 
 			// Attempt to vote on the proposal
 			urequire.NoError(
@@ -496,7 +496,7 @@ func TestSimpleDAO_VoteOnProposal(t *testing.T) {
 
 		majorityIndex := (len(members)*2)/3 + 1 // 2/3+
 		for _, m := range members[:majorityIndex] {
-			t.SetPreviousRealm(std.NewUserRealm(m.Address))
+			t.SetOriginCaller(m.Address)
 
 			// Attempt to vote on the proposal
 			urequire.NoError(
@@ -551,7 +551,7 @@ func TestSimpleDAO_VoteOnProposal(t *testing.T) {
 
 		// The first half votes yes
 		for _, m := range members[:len(members)/2] {
-			t.SetPreviousRealm(std.NewUserRealm(m.Address))
+			t.SetOriginCaller(m.Address)
 
 			// Attempt to vote on the proposal
 			urequire.NoError(
@@ -562,7 +562,7 @@ func TestSimpleDAO_VoteOnProposal(t *testing.T) {
 
 		// The other half votes no
 		for _, m := range members[len(members)/2:] {
-			t.SetPreviousRealm(std.NewUserRealm(m.Address))
+			t.SetOriginCaller(m.Address)
 
 			// Attempt to vote on the proposal
 			urequire.NoError(
@@ -618,7 +618,7 @@ func TestSimpleDAO_VoteOnProposal(t *testing.T) {
 
 		// The first quarter votes yes
 		for _, m := range members[:len(members)/4] {
-			t.SetPreviousRealm(std.NewUserRealm(m.Address))
+			t.SetOriginCaller(m.Address)
 
 			// Attempt to vote on the proposal
 			urequire.NoError(
@@ -629,7 +629,7 @@ func TestSimpleDAO_VoteOnProposal(t *testing.T) {
 
 		// The second quarter votes no
 		for _, m := range members[len(members)/4 : len(members)/2] {
-			t.SetPreviousRealm(std.NewUserRealm(m.Address))
+			t.SetOriginCaller(m.Address)
 
 			// Attempt to vote on the proposal
 			urequire.NoError(
@@ -726,7 +726,7 @@ func TestSimpleDAO_ExecuteProposal(t *testing.T) {
 			}
 		)
 
-		t.SetPreviousRealm(std.NewUserRealm(voter))
+		t.SetOriginCaller(voter)
 
 		// Add an initial proposal
 		id, err := s.addProposal(prop)
@@ -776,7 +776,7 @@ func TestSimpleDAO_ExecuteProposal(t *testing.T) {
 					}
 				)
 
-				t.SetPreviousRealm(std.NewUserRealm(voter))
+				t.SetOriginCaller(voter)
 
 				// Add an initial proposal
 				id, err := s.addProposal(prop)
@@ -820,7 +820,7 @@ func TestSimpleDAO_ExecuteProposal(t *testing.T) {
 			}
 		)
 
-		t.SetPreviousRealm(std.NewUserRealm(voter))
+		t.SetOriginCaller(voter)
 
 		// Add an initial proposal
 		id, err := s.addProposal(prop)
@@ -864,7 +864,7 @@ func TestSimpleDAO_ExecuteProposal(t *testing.T) {
 			}
 		)
 
-		t.SetPreviousRealm(std.NewUserRealm(voter))
+		t.SetOriginCaller(voter)
 
 		// Add an initial proposal
 		id, err := s.addProposal(prop)

@@ -17,8 +17,7 @@ func X_unixNano() int64 {
 func X_testSetContext(
 	m *gno.Machine,
 	isOrigin bool,
-	prevRealmAddr string,
-	prevRealmPath string,
+	originCaller string,
 	originPkgAddress string,
 	origSendDenoms []string, origSendAmounts []int64,
 	origSpendDenoms []string, origSpendAmounts []int64,
@@ -46,8 +45,8 @@ func X_testSetContext(
 		ctx.TimestampNano = timeNano
 	}
 
-	if prevRealmAddr != "" {
-		ctx.OrigCaller = crypto.Bech32Address(prevRealmAddr)
+	if originCaller != "" {
+		ctx.OrigCaller = crypto.Bech32Address(originCaller)
 	}
 
 	if originPkgAddress != "" {

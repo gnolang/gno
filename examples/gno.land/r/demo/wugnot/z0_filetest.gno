@@ -28,7 +28,7 @@ func main() {
 	// println(wugnot.Render("queues"))
 	// println("A -", wugnot.Render(""))
 
-	testing.SetPreviousRealm(std.NewUserRealm(addr1))
+	testing.SetOriginCaller(addr1)
 	testing.SetOriginSend(std.Coins{{"ugnot", 123_400}}, nil)
 	wugnot.Deposit()
 	printBalances()
@@ -39,7 +39,7 @@ func main() {
 func printBalances() {
 	printSingleBalance := func(name string, addr std.Address) {
 		wugnotBal := wugnot.BalanceOf(addr)
-		testing.SetPreviousRealm(std.NewUserRealm(addr))
+		testing.SetOriginCaller(std.NewUserRealm(addr))
 		robanker := std.GetBanker(std.BankerTypeReadonly)
 		coins := robanker.GetCoins(addr).AmountOf("ugnot")
 		fmt.Printf("| %-13s | addr=%s | wugnot=%-5d | ugnot=%-9d |\n",

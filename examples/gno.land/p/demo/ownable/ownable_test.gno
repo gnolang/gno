@@ -15,7 +15,7 @@ var (
 )
 
 func TestNew(t *testing.T) {
-	t.SetPreviousRealm(std.NewUserRealm(alice))
+	t.SetOriginCaller(alice)
 
 	o := New()
 	got := o.Owner()
@@ -30,7 +30,7 @@ func TestNewWithAddress(t *testing.T) {
 }
 
 func TestTransferOwnership(t *testing.T) {
-	t.SetPreviousRealm(std.NewUserRealm(alice))
+	t.SetOriginCaller(alice)
 
 	o := New()
 
@@ -48,7 +48,7 @@ func TestCallerIsOwner(t *testing.T) {
 	o := New()
 	unauthorizedCaller := bob
 
-	t.SetPreviousRealm(std.NewUserRealm(unauthorizedCaller))
+	t.SetOriginCaller(unauthorizedCaller)
 
 	uassert.False(t, o.CallerIsOwner())
 }
@@ -68,18 +68,18 @@ func TestDropOwnership(t *testing.T) {
 // Errors
 
 func TestErrUnauthorized(t *testing.T) {
-	t.SetPreviousRealm(std.NewUserRealm(alice))
+	t.SetOriginCaller(alice)
 
 	o := New()
 
-	t.SetPreviousRealm(std.NewUserRealm(bob))
+	t.SetOriginCaller(bob)
 
 	uassert.ErrorContains(t, o.TransferOwnership(alice), ErrUnauthorized.Error())
 	uassert.ErrorContains(t, o.DropOwnership(), ErrUnauthorized.Error())
 }
 
 func TestErrInvalidAddress(t *testing.T) {
-	t.SetPreviousRealm(std.NewUserRealm(alice))
+	t.SetOriginCaller(alice)
 
 	o := New()
 

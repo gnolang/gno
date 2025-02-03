@@ -64,19 +64,19 @@ func TestRecurringSubscriptionExpiration(t *testing.T) {
 }
 
 func TestUpdateAmountAuthorization(t *testing.T) {
-	t.SetPreviousRealm(std.NewUserRealm(alice))
+	t.SetOriginCaller(alice)
 	rs := NewRecurringSubscription(time.Hour*24, 1000)
 
 	err := rs.UpdateAmount(2000)
 	uassert.NoError(t, err, "Expected Alice to succeed in updating amount")
 
-	t.SetPreviousRealm(std.NewUserRealm(bob))
+	t.SetOriginCaller(bob)
 	err = rs.UpdateAmount(3000)
 	uassert.Error(t, err, "Expected Bob to fail when updating amount")
 }
 
 func TestGetAmount(t *testing.T) {
-	t.SetPreviousRealm(std.NewUserRealm(alice))
+	t.SetOriginCaller(alice)
 	rs := NewRecurringSubscription(time.Hour*24, 1000)
 
 	amount := rs.GetAmount()
@@ -90,7 +90,7 @@ func TestGetAmount(t *testing.T) {
 }
 
 func TestIncorrectPaymentAmount(t *testing.T) {
-	t.SetPreviousRealm(std.NewUserRealm(alice))
+	t.SetOriginCaller(alice)
 	rs := NewRecurringSubscription(time.Hour*24, 1000)
 
 	t.SetOriginSend([]std.Coin{{Denom: "ugnot", Amount: 500}}, nil)
@@ -99,7 +99,7 @@ func TestIncorrectPaymentAmount(t *testing.T) {
 }
 
 func TestMultiplePaymentsForSameUser(t *testing.T) {
-	t.SetPreviousRealm(std.NewUserRealm(alice))
+	t.SetOriginCaller(alice)
 	rs := NewRecurringSubscription(time.Hour*24, 1000)
 
 	t.SetOriginSend([]std.Coin{{Denom: "ugnot", Amount: 1000}}, nil)
@@ -112,7 +112,7 @@ func TestMultiplePaymentsForSameUser(t *testing.T) {
 }
 
 func TestRecurringSubscriptionWithMultiplePayments(t *testing.T) {
-	t.SetPreviousRealm(std.NewUserRealm(alice))
+	t.SetOriginCaller(alice)
 	rs := NewRecurringSubscription(time.Hour, 1000)
 
 	t.SetOriginSend([]std.Coin{{Denom: "ugnot", Amount: 1000}}, nil)

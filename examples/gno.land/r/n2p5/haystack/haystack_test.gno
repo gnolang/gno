@@ -31,14 +31,14 @@ func TestHaystack(t *testing.T) {
 		n2, _ := genNeedleHex(2)
 		n3, _ := genNeedleHex(3)
 
-		t.SetPreviousRealm(std.NewUserRealm(u1))
+		t.SetOriginCaller(std.NewUserRealm(u1))
 		urequire.NotPanics(t, func() { Add(n1) })
 		urequire.PanicsWithMessage(t,
 			haystack.ErrorDuplicateNeedle.Error(),
 			func() {
 				Add(n1)
 			})
-		t.SetPreviousRealm(std.NewUserRealm(u2))
+		t.SetOriginCaller(std.NewUserRealm(u2))
 		urequire.NotPanics(t, func() { Add(n2) })
 		urequire.NotPanics(t, func() { Add(n3) })
 	})
@@ -49,14 +49,14 @@ func TestHaystack(t *testing.T) {
 		n1, h1 := genNeedleHex(4)
 		_, h2 := genNeedleHex(5)
 
-		t.SetPreviousRealm(std.NewUserRealm(u1))
+		t.SetOriginCaller(std.NewUserRealm(u1))
 		urequire.NotPanics(t, func() { Add(n1) })
 		urequire.NotPanics(t, func() {
 			result := Get(h1)
 			urequire.Equal(t, n1, result)
 		})
 
-		t.SetPreviousRealm(std.NewUserRealm(u2))
+		t.SetOriginCaller(std.NewUserRealm(u2))
 		urequire.NotPanics(t, func() {
 			result := Get(h1)
 			urequire.Equal(t, n1, result)

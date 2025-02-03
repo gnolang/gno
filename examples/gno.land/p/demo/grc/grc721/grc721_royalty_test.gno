@@ -21,7 +21,7 @@ func TestSetTokenRoyalty(t *testing.T) {
 	salePrice := uint64(1000)
 	expectRoyaltyAmount := uint64(100)
 
-	t.SetPreviousRealm(std.NewUserRealm(addr1)) // addr1
+	t.SetOriginCaller(addr1) // addr1
 
 	dummy.mint(addr1, TokenID("1"))
 
@@ -38,7 +38,7 @@ func TestSetTokenRoyalty(t *testing.T) {
 	})
 	uassert.ErrorIs(t, derr, ErrInvalidTokenId)
 
-	t.SetPreviousRealm(std.NewUserRealm(addr2)) // addr2
+	t.SetOriginCaller(addr2) // addr2
 
 	cerr := dummy.SetTokenRoyalty(TokenID("1"), RoyaltyInfo{
 		PaymentAddress: paymentAddress,
@@ -61,7 +61,7 @@ func TestSetTokenRoyalty(t *testing.T) {
 	uassert.ErrorIs(t, perr, ErrInvalidRoyaltyPercentage)
 
 	// Test case: Retrieving Royalty Info
-	t.SetPreviousRealm(std.NewUserRealm(addr1)) // addr1
+	t.SetOriginCaller(addr1) // addr1
 
 	dummyPaymentAddress, dummyRoyaltyAmount, rerr := dummy.RoyaltyInfo(TokenID("1"), salePrice)
 	uassert.NoError(t, rerr, "RoyaltyInfo error")

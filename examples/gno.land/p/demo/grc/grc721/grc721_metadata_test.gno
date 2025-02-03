@@ -31,7 +31,7 @@ func TestSetMetadata(t *testing.T) {
 	youtubeURL := "test"
 
 	// Set the original caller to addr1
-	t.SetPreviousRealm(std.NewUserRealm(addr1)) // addr1
+	t.SetOriginCaller(addr1) // addr1
 
 	// Mint a new token for addr1
 	dummy.mint(addr1, TokenID("1"))
@@ -69,7 +69,7 @@ func TestSetMetadata(t *testing.T) {
 	uassert.ErrorIs(t, err, ErrInvalidTokenId)
 
 	// Set the original caller to addr2
-	t.SetPreviousRealm(std.NewUserRealm(addr2)) // addr2
+	t.SetOriginCaller(addr2) // addr2
 
 	// Try to set metadata for token 1 from addr2 (should fail)
 	cerr := dummy.SetTokenMetadata(TokenID("1"), Metadata{
@@ -88,7 +88,7 @@ func TestSetMetadata(t *testing.T) {
 	uassert.ErrorIs(t, cerr, ErrCallerIsNotOwner)
 
 	// Set the original caller back to addr1
-	t.SetPreviousRealm(std.NewUserRealm(addr1)) // addr1
+	t.SetOriginCaller(addr1) // addr1
 
 	// Retrieve metadata for token 1
 	dummyMetadata, err := dummy.TokenMetadata(TokenID("1"))

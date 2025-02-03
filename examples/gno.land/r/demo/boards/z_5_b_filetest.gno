@@ -21,7 +21,7 @@ func main() {
 
 	// create post via anon user
 	test2 := testutils.TestAddress("test2")
-	testing.SetPreviousRealm(std.NewUserRealm(test2))
+	testing.SetOriginCaller(test2)
 	testing.SetOriginSend(std.Coins{{"ugnot", 9000000}}, nil)
 
 	pid := boards.CreateThread(bid, "First Post (title)", "Body of the first post. (body)")

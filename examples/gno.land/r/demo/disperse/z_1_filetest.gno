@@ -16,7 +16,7 @@ func main() {
 	mainaddr := std.DerivePkgAddr("gno.land/r/demo/main")
 
 	testing.SetOriginPkgAddress(disperseAddr)
-	testing.SetPreviousRealm(std.NewUserRealm(mainaddr))
+	testing.SetOriginCaller(mainaddr)
 
 	banker := std.GetBanker(std.BankerTypeRealmSend)
 

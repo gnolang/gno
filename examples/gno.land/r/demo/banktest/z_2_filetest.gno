@@ -17,7 +17,7 @@ func main() {
 
 	// print main balance before.
 	mainaddr := std.DerivePkgAddr("gno.land/r/demo/bank1")
-	testing.SetPreviousRealm(std.NewUserRealm(mainaddr))
+	testing.SetOriginCaller(mainaddr)
 
 	banker := std.GetBanker(std.BankerTypeReadonly)
 	mainbal := banker.GetCoins(mainaddr)

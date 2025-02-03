@@ -16,19 +16,19 @@ func main() {
 	caller := std.GetOrigCaller() // main
 	users.Register("", "gnouser", "my profile")
 	// as admin, grant invites to gnouser
-	testing.SetPreviousRealm(std.NewUserRealm(admin))
+	testing.SetOriginCaller(std.NewUserRealm(admin))
 	users.GrantInvites(caller.String() + ":1")
 	// switch back to caller
-	testing.SetPreviousRealm(std.NewUserRealm(caller))
+	testing.SetOriginCaller(std.NewUserRealm(caller))
 	// invite another addr
 	test1 := testutils.TestAddress("test1")
 	users.Invite(test1.String())
 	// switch to test1
-	testing.SetPreviousRealm(std.NewUserRealm(test1))
+	testing.SetOriginCaller(std.NewUserRealm(test1))
 	testing.SetOriginSend(std.Coins{{"dontcare", 1}}, nil)
 	users.Register(caller, "satoshi", "my other profile")
 	// as admin, grant invites to gnouser(again) and satoshi.
-	testing.SetPreviousRealm(std.NewUserRealm(admin))
+	testing.SetOriginCaller(std.NewUserRealm(admin))
 	users.GrantInvites(caller.String() + ":1\n" + test1.String() + ":1")
 	println("done")
 }

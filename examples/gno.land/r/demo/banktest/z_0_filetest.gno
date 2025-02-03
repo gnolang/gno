@@ -18,7 +18,7 @@ func main() {
 	// set up main address and banktest addr.
 	banktestAddr := std.DerivePkgAddr("gno.land/r/demo/banktest")
 	mainaddr := std.DerivePkgAddr("gno.land/r/demo/bank1")
-	testing.SetPreviousRealm(std.NewUserRealm(mainaddr))
+	testing.SetOriginCaller(mainaddr)
 	testing.SetOriginPkgAddress(banktestAddr)
 
 	// get and print balance of mainaddr.
