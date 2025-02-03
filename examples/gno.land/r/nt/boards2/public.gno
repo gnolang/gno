@@ -204,18 +204,22 @@ func EditThread(bid BoardID, threadID PostID, title, body string) {
 	thread.Update(title, body)
 }
 
-func EditReply(bid BoardID, threadID, replyID PostID, title, body string) {
+func EditReply(bid BoardID, threadID, replyID PostID, body string) {
 	assertIsUserCall()
+
+	body = strings.TrimSpace(body)
+	assertBodyIsNotEmpty(body)
 
 	board := mustGetBoard(bid)
 	thread := mustGetThread(board, threadID)
 	reply := mustGetReply(thread, replyID)
-	caller := std.GetOrigCaller()
-	if caller != reply.GetCreator() {
+	assertReplyVisible(reply)
+
+	if std.GetOrigCaller() != reply.GetCreator() {
 		panic("only the reply creator is allowed to edit it")
 	}
 
-	reply.Update(title, body)
+	reply.Update("", body)
 }
 
 func InviteMember(bid BoardID, user std.Address, role Role) {
