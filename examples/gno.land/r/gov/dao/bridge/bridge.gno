@@ -9,7 +9,7 @@ import (
 
 const (
 	initialOwner = std.Address("g1manfred47kzduec920z88wfr64ylksmdcedlf5") // @moul
-	loader       = "gno.land/r/gov/dao/loader"
+	loader       = "gno.land/r/gov/dao/init"
 )
 
 var (
