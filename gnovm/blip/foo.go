@@ -1,5 +1,0 @@
-package bloup
-
-import (
-  "whatever"
-)
