@@ -3,7 +3,7 @@
 ! gno tool lint ./bad_file.gno
 
 cmp stdout stdout.golden
-cmp stderr stderr.golden
+stderr 'bad_file\.gno:3:8: package python is not in std \(.+\) \(code=5\)'
 
 -- bad_file.gno --
 package main
@@ -18,5 +18,3 @@ func main() {
 module gno.land/p/test
 
 -- stdout.golden --
--- stderr.golden --
-bad_file.gno:3:8: package python is not in std (/Users/norman/Code/gno/gnovm/stdlibs/python) (code=5)
