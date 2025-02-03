@@ -140,7 +140,7 @@ func (c *Client) GetTxResults(block uint64) ([]*abci.ResponseDeliverTx, error) {
 		return nil, fmt.Errorf("unable to fetch block results, %w", err)
 	}
 
-	txResults := make([]*abci.ResponseDeliverTx, 0)
+	txResults := make([]*abci.ResponseDeliverTx, len(results.Results.DeliverTxs))
 
 	for txIndex, tx := range results.Results.DeliverTxs {
 		txResults[txIndex] = &tx
