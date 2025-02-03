@@ -150,27 +150,37 @@ func renderList(req *realmpath.Request) string {
 	for _, item := range page.Items {
 		// Get the actual presentation using the ID from the index
 		// XXX: improve p/moul/collection to make this more convenient.
-		id := item.Value.(string)
-		entry := presentations.GetFirst(collection.IDIndex, id)
-		if entry == nil {
-			continue
+		//   - no need to make per-id lookup.
+		//   - transparently support multi-values.
+		//   - integrate a sortable pager?
+		var ids []string
+		if ids_, ok := item.Value.([]string); ok {
+			ids = ids_
+		} else if id, ok := item.Value.(string); ok {
+			ids = []string{id}
 		}
-		p := entry.Obj.(*Presentation)
 
-		query := make(url.Values)
-		query.Set("view", p.Slug)
-		table.Append([]string{
-			ufmt.Sprintf("[%s](%s)", p.Title, localPath("view", query)),
-			p.Author,
-			p.Event,
-			p.Date.Format("2006-01-02"),
-			ufmt.Sprintf("%d", p.NumSlides),
-		})
+		for _, id := range ids {
+			entry := presentations.GetFirst(collection.IDIndex, id)
+			if entry == nil {
+				continue
+			}
+			p := entry.Obj.(*Presentation)
+
+			query := make(url.Values)
+			query.Set("view", p.Slug)
+			table.Append([]string{
+				ufmt.Sprintf("[%s](%s)", p.Title, localPath("view", query)),
+				p.Author,
+				p.Event,
+				p.Date.Format("2006-01-02"),
+				ufmt.Sprintf("%d", p.NumSlides),
+			})
+		}
 	}
 
 	out.WriteString(table.String())
-	out.WriteString("\n\n")
-	out.WriteString(page.Picker())
+	out.WriteString(page.Picker()) // XXX: picker is not preserving the previous flags, should take "req" as argument.
 	return out.String()
 }
 
