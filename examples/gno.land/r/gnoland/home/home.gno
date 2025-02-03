@@ -198,6 +198,7 @@ func packageStaffPicks() ui.Element {
 						ui.Link{URL: "r/gnoland/faucet"},
 						ui.Link{URL: "r/gnoland/home"},
 						ui.Link{URL: "r/gnoland/pages"},
+						ui.Link{URL: "r/gnoland/users"},
 					},
 					ui.H3("[r/sys](https://github.com/gnolang/gno/tree/master/examples/gno.land/r/sys)"),
 					ui.BulletList{
