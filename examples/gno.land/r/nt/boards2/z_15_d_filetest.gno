@@ -2,7 +2,9 @@ package main
 
 import (
 	"std"
+	"strings"
 
+	"gno.land/p/demo/ufmt"
 	"gno.land/r/nt/boards2"
 )
 
@@ -19,10 +21,21 @@ func init() {
 	srcBid = boards2.CreateBoard("src-board")
 	dstBid = boards2.CreateBoard("dst-board")
 
-	srcTid = boards2.CreateThread(srcBid, "Foo", "bar")
+	srcTid = boards2.CreateThread(srcBid, "original title", "original text")
 }
 
 func main() {
 	// Success case
-	_ = boards2.CreateRepost(srcBid, srcTid, "foo", "bar", dstBid)
+	tid := boards2.CreateRepost(srcBid, srcTid, "repost title", "repost text", dstBid)
+	p := ufmt.Sprintf("dst-board/%s", tid)
+	out := boards2.Render(p)
+
+	println(strings.Contains(out, "original text"))
+	println(strings.Contains(out, "repost title"))
+	println(strings.Contains(out, "repost text"))
 }
+
+// Output:
+// true
+// true
+// true
