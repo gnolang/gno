@@ -2,7 +2,6 @@ package main
 
 import (
 	"std"
-	"strings"
 
 	"gno.land/r/nt/boards2"
 )
