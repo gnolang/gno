@@ -1,4 +1,4 @@
-package ownable
+package ownable2step
 
 import (
 	"std"
@@ -16,41 +16,79 @@ var (
 
 func TestNew(t *testing.T) {
 	std.TestSetRealm(std.NewUserRealm(alice))
-	std.TestSetOrigCaller(alice) // TODO(bug): should not be needed
+	std.TestSetOrigCaller(alice)
 
 	o := New()
 	got := o.Owner()
+	pendingOwner := o.PendingOwner()
+
 	uassert.Equal(t, got, alice)
+	uassert.Equal(t, pendingOwner.String(), "")
 }
 
 func TestNewWithAddress(t *testing.T) {
 	o := NewWithAddress(alice)
 
 	got := o.Owner()
+	pendingOwner := o.PendingOwner()
+
 	uassert.Equal(t, got, alice)
+	uassert.Equal(t, pendingOwner.String(), "")
 }
 
-func TestTransferOwnership(t *testing.T) {
+func TestInitiateTransferOwnership(t *testing.T) {
 	std.TestSetRealm(std.NewUserRealm(alice))
+	std.TestSetOrigCaller(alice)
 
 	o := New()
 
 	err := o.TransferOwnership(bob)
 	urequire.NoError(t, err)
 
-	got := o.Owner()
+	owner := o.Owner()
+	pendingOwner := o.PendingOwner()
 
-	uassert.Equal(t, got, bob)
+	uassert.Equal(t, owner, alice)
+	uassert.Equal(t, pendingOwner, bob)
+}
+
+func TestTransferOwnership(t *testing.T) {
+	std.TestSetRealm(std.NewUserRealm(alice))
+	std.TestSetOrigCaller(alice)
+
+	o := New()
+
+	err := o.TransferOwnership(bob)
+	urequire.NoError(t, err)
+
+	owner := o.Owner()
+	pendingOwner := o.PendingOwner()
+
+	uassert.Equal(t, owner, alice)
+	uassert.Equal(t, pendingOwner, bob)
+
+	std.TestSetRealm(std.NewUserRealm(bob))
+	std.TestSetOrigCaller(bob)
+
+	err = o.AcceptOwnership()
+	urequire.NoError(t, err)
+
+	owner = o.Owner()
+	pendingOwner = o.PendingOwner()
+
+	uassert.Equal(t, owner, bob)
+	uassert.Equal(t, pendingOwner.String(), "")
 }
 
 func TestCallerIsOwner(t *testing.T) {
 	std.TestSetRealm(std.NewUserRealm(alice))
+	std.TestSetOrigCaller(alice)
 
 	o := New()
 	unauthorizedCaller := bob
 
 	std.TestSetRealm(std.NewUserRealm(unauthorizedCaller))
-	std.TestSetOrigCaller(unauthorizedCaller) // TODO(bug): should not be needed
+	std.TestSetOrigCaller(unauthorizedCaller)
 
 	uassert.False(t, o.CallerIsOwner())
 }
@@ -71,12 +109,12 @@ func TestDropOwnership(t *testing.T) {
 
 func TestErrUnauthorized(t *testing.T) {
 	std.TestSetRealm(std.NewUserRealm(alice))
-	std.TestSetOrigCaller(alice) // TODO(bug): should not be needed
+	std.TestSetOrigCaller(alice)
 
 	o := New()
 
 	std.TestSetRealm(std.NewUserRealm(bob))
-	std.TestSetOrigCaller(bob) // TODO(bug): should not be needed
+	std.TestSetOrigCaller(bob)
 
 	uassert.ErrorContains(t, o.TransferOwnership(alice), ErrUnauthorized.Error())
 	uassert.ErrorContains(t, o.DropOwnership(), ErrUnauthorized.Error())
@@ -94,50 +132,25 @@ func TestErrInvalidAddress(t *testing.T) {
 	uassert.ErrorContains(t, err, ErrInvalidAddress.Error())
 }
 
-func TestAssertCallerIsOwner(t *testing.T) {
+func TestErrNoPendingOwner(t *testing.T) {
 	std.TestSetRealm(std.NewUserRealm(alice))
-	std.TestSetOrigCaller(alice)
 
 	o := New()
 
-	// Should not panic when caller is owner
-	o.AssertCallerIsOwner()
-
-	// Should panic when caller is not owner
-	std.TestSetRealm(std.NewUserRealm(bob))
-	std.TestSetOrigCaller(bob)
-
-	defer func() {
-		r := recover()
-		if r == nil {
-			t.Error("expected panic but got none")
-		}
-		if r != ErrUnauthorized {
-			t.Errorf("expected ErrUnauthorized but got %v", r)
-		}
-	}()
-	o.AssertCallerIsOwner()
+	err := o.AcceptOwnership()
+	uassert.ErrorContains(t, err, ErrNoPendingOwner.Error())
 }
 
-func TestNilReceiver(t *testing.T) {
-	var o *Ownable
+func TestErrPendingUnauthorized(t *testing.T) {
+	std.TestSetRealm(std.NewUserRealm(alice))
 
-	owner := o.Owner()
-	if owner != std.Address("") {
-		t.Errorf("expected empty address but got %v", owner)
-	}
+	o := New()
 
-	isOwner := o.CallerIsOwner()
-	uassert.False(t, isOwner)
+	err := o.TransferOwnership(bob)
+	urequire.NoError(t, err)
 
-	defer func() {
-		r := recover()
-		if r == nil {
-			t.Error("expected panic but got none")
-		}
-		if r != ErrUnauthorized {
-			t.Errorf("expected ErrUnauthorized but got %v", r)
-		}
-	}()
-	o.AssertCallerIsOwner()
+	std.TestSetRealm(std.NewUserRealm(alice))
+
+	err = o.AcceptOwnership()
+	uassert.ErrorContains(t, err, ErrPendingUnauthorized.Error())
 }
