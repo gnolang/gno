@@ -52,12 +52,12 @@ func renderHomePage(path string) string {
 
 		var displayKey string
 		if data.IsDeleted() {
-			displayKey = md.Strikethrough(item.Key)
+			displayKey = md.Bold(md.Strikethrough(item.Key))
 		} else {
-			displayKey = ufmt.Sprintf("**%s**", item.Key)
+			displayKey = md.Bold(item.Key)
 		}
 
-		out += ufmt.Sprintf("- User [%s](/r/gnoland/users/v1:%s)\n", displayKey, item.Key)
+		out += ufmt.Sprintf("- User [%s](/u/:%s)\n", displayKey, item.Key)
 	}
 
 	out += "\n"
