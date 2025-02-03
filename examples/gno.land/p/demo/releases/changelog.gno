@@ -39,8 +39,13 @@ func (c *changelog) NewRelease(version, url, notes string) {
 
 func (c changelog) RenderAsTable(max int) string {
 	out := md.H1(c.name)
-	out += ufmt.Sprintf("See the %s changelog below.\n\n", c.name)
 
+	if len(c.releases) == 0 {
+		out += "No releases."
+		return out
+	}
+
+	out += ufmt.Sprintf("See the %s changelog below.\n\n", c.name)
 	table := mdtable.Table{
 		Headers: []string{"Version", "Link", "Notes"},
 	}
@@ -49,7 +54,7 @@ func (c changelog) RenderAsTable(max int) string {
 		max = len(c.releases)
 	}
 
-	for i := len(c.releases) - 1; i > len(c.releases)-1-max; i-- {
+	for i := len(c.releases) - 1; i >= len(c.releases)-max; i-- {
 		r := c.releases[i]
 		table.Append([]string{r.version, r.Link(), r.notes})
 	}
