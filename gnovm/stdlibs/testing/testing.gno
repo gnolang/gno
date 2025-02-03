@@ -435,8 +435,8 @@ func TestSetContext(ctx Context) {
 	)
 }
 
-func SetOriginCaller(prevRealm std.Realm) {
-	TestSetContext(Context{PreviousRealm: prevRealm})
+func SetOriginCaller(origCaller std.Address) {
+	TestSetContext(Context{OriginCaller: origCaller})
 }
 
 func SetOriginSend(send std.Coins, spend std.Coins) {
