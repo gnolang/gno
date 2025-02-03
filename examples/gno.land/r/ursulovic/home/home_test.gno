@@ -53,7 +53,7 @@ func TestUpdateSelectedImage(t *testing.T) {
 	validImageUrl := "https://i.ibb.co/hLtmnX0/beautiful-rain-forest-ang-ka-nature-trail-doi-inthanon-national-park-thailand-36703721.webp"
 
 	coinsSent := std.NewCoins(std.NewCoin("ugnot", 5000000)) // Update to match the price expected by your function
-	t.SetOriginSend(coinsSent)
+	t.SetOriginSend(coinsSent, nil)
 
 	UpdateSelectedImage(validImageUrl)
 
@@ -72,7 +72,7 @@ func TestUpdateSelectedImage(t *testing.T) {
 	UpdateSelectedImage(invalidImageUrl)
 
 	invalidCoins := std.NewCoins(std.NewCoin("ugnot", 1000000))
-	t.SetOriginSend(invalidCoins)
+	t.SetOriginSend(invalidCoins, nil)
 
 	defer func() {
 		if r := recover(); r == nil {
