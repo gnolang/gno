@@ -142,7 +142,7 @@ func LoadPackagesFromDir(cfg *packages.LoadConfig, dir string, creator bft.Addre
 	}
 
 	// Sort packages by dependencies.
-	sortedPkgs, err := pkgs.Sort()
+	sortedPkgs, err := pkgs.Sort(false)
 	if err != nil {
 		return nil, fmt.Errorf("sorting packages: %w", err)
 	}

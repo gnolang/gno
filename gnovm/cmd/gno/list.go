@@ -64,7 +64,7 @@ func execList(cfg *listCfg, args []string, io commands.IO) error {
 	}
 
 	// try sort
-	sorted, err := pkgs.Sort()
+	sorted, err := pkgs.Sort(false)
 	if err == nil {
 		pkgs = packages.PkgList(sorted)
 	}

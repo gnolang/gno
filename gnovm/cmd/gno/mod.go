@@ -180,7 +180,7 @@ func execModGraph(cfg *modGraphCfg, args []string, io commands.IO) error {
 
 	stdout := io.Out()
 
-	pkgs, err := packages.Load(&packages.LoadConfig{Fetcher: testPackageFetcher}, args...)
+	pkgs, err := packages.Load(&packages.LoadConfig{Fetcher: testPackageFetcher, Deps: true}, args...)
 	if err != nil {
 		return err
 	}

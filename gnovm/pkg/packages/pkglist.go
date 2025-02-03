@@ -144,14 +144,14 @@ func (pl PkgList) GetMemPackage(pkgPath string) *gnovm.MemPackage {
 }
 
 // sortPkgs sorts the given packages by their dependencies.
-func (pl PkgList) Sort() (SortedPkgList, error) {
+func (pl PkgList) Sort(ignoreStdlibs bool) (SortedPkgList, error) {
 	visited := make(map[string]bool)
 	onStack := make(map[string]bool)
 	sortedPkgs := make([]*Package, 0, len(pl))
 
 	// Visit all packages
 	for _, p := range pl {
-		if err := visitPackage(p, pl, visited, onStack, &sortedPkgs); err != nil {
+		if err := visitPackage(ignoreStdlibs, p, pl, visited, onStack, &sortedPkgs); err != nil {
 			return nil, err
 		}
 	}
@@ -160,7 +160,7 @@ func (pl PkgList) Sort() (SortedPkgList, error) {
 }
 
 // visitNode visits a package's and its dependencies dependencies and adds them to the sorted list.
-func visitPackage(pkg *Package, pkgs []*Package, visited, onStack map[string]bool, sortedPkgs *[]*Package) error {
+func visitPackage(ignoreStdlibs bool, pkg *Package, pkgs []*Package, visited, onStack map[string]bool, sortedPkgs *[]*Package) error {
 	if onStack[pkg.ImportPath] {
 		return fmt.Errorf("cycle detected: %s", pkg.ImportPath)
 	}
@@ -173,12 +173,16 @@ func visitPackage(pkg *Package, pkgs []*Package, visited, onStack map[string]boo
 
 	// Visit package's dependencies
 	for _, imp := range pkg.Imports[FileKindPackageSource] {
+		if gnolang.IsStdlib(imp) && ignoreStdlibs {
+			continue
+		}
+
 		found := false
 		for _, p := range pkgs {
 			if p.ImportPath != imp {
 				continue
 			}
-			if err := visitPackage(p, pkgs, visited, onStack, sortedPkgs); err != nil {
+			if err := visitPackage(ignoreStdlibs, p, pkgs, visited, onStack, sortedPkgs); err != nil {
 				return err
 			}
 			found = true

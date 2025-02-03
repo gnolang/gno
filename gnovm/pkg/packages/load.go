@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"slices"
+	"sort"
 	"strings"
 
 	"github.com/gnolang/gno/gnovm"
@@ -240,6 +241,9 @@ func (p *Package) MemPkg() (*gnovm.MemPackage, error) {
 			})
 		}
 	}
+	sort.Slice(files, func(i int, j int) bool {
+		return files[i].Name < files[j].Name
+	})
 	return &gnovm.MemPackage{
 		Name:  p.Name,
 		Path:  p.ImportPath,

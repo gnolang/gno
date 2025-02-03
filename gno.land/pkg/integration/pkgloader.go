@@ -42,7 +42,7 @@ func (pl *PkgsLoader) SetPatch(replace, with string) {
 }
 
 func (pl *PkgsLoader) LoadPackages(creatorKey crypto.PrivKey, fee std.Fee, deposit std.Coins) ([]gnoland.TxWithMetadata, error) {
-	pkgslist, err := pl.List().Sort() // sorts packages by their dependencies.
+	pkgslist, err := pl.List().Sort(true) // sorts packages by their dependencies.
 	if err != nil {
 		return nil, fmt.Errorf("unable to sort packages: %w", err)
 	}
