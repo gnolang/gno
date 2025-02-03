@@ -19,7 +19,7 @@ import (
 )
 
 type Presentation struct {
-	ID        string
+	Slug      string
 	Title     string
 	Event     string
 	Author    string
@@ -37,17 +37,20 @@ var (
 
 func init() {
 	presentations = collection.New()
-	presentations.AddIndex("id", func(v interface{}) string {
-		return v.(*Presentation).ID
+	// for /view and /slides
+	presentations.AddIndex("slug", func(v interface{}) string {
+		return v.(*Presentation).Slug
 	}, collection.UniqueIndex)
+
+	// for table sorting
 	presentations.AddIndex("date", func(v interface{}) string {
 		return v.(*Presentation).Date.String()
 	}, collection.DefaultIndex)
-	presentations.AddIndex("uploader", func(v interface{}) string {
-		return v.(*Presentation).Uploader.String()
+	presentations.AddIndex("author", func(v interface{}) string {
+		return v.(*Presentation).Author
 	}, collection.DefaultIndex)
-	presentations.AddIndex("event", func(v interface{}) string {
-		return v.(*Presentation).Event
+	presentations.AddIndex("title", func(v interface{}) string {
+		return v.(*Presentation).Title
 	}, collection.DefaultIndex)
 
 	Ownable = ownable.New()
@@ -69,7 +72,7 @@ func Render(path string) string {
 }
 
 // Set adds or updates a presentation
-func Set(id, title, event, author, date, content string) string {
+func Set(slug, title, event, author, date, content string) string {
 	Ownable.AssertCallerIsOwner()
 
 	parsedDate, err := time.Parse("2006-01-02", date)
@@ -85,7 +88,7 @@ func Set(id, title, event, author, date, content string) string {
 	}
 
 	p := &Presentation{
-		ID:        id,
+		Slug:      slug,
 		Title:     title,
 		Event:     event,
 		Author:    author,
@@ -101,10 +104,10 @@ func Set(id, title, event, author, date, content string) string {
 }
 
 // Delete removes a presentation
-func Delete(id string) string {
+func Delete(slug string) string {
 	Ownable.AssertCallerIsOwner()
 
-	entry := presentations.GetFirst("id", id)
+	entry := presentations.GetFirst("slug", slug)
 	if entry == nil {
 		return "404: presentation not found"
 	}
@@ -128,36 +131,34 @@ func renderList(req *realmpath.Request) string {
 	out.WriteString(md.H1("Presentations"))
 
 	// Setup pager
-	pgr := pager.NewPager(presentations.GetIndex(getSortField(req)), 10, isSortReversed(req))
+	index := presentations.GetIndex(getSortField(req))
+	pgr := pager.NewPager(index, 10, isSortReversed(req))
 
 	// Get current page
-	page := pgr.MustGetPageByPath(req.Query.Encode())
+	//page := pgr.MustGetPageByPath(req.Query.Encode())
+	page := pgr.MustGetPageByPath(req.String())
 
 	// Create table
+	titleColumn := renderSortLink(req, "title", "Title")
+	dateColumn := renderSortLink(req, "date", "Date")
+	authorColumn := renderSortLink(req, "author", "Author")
 	table := mdtable.Table{
-		Headers: []string{"Title", "Author", "Event", "Date", "Slides"},
+		Headers: []string{dateColumn, titleColumn, "Event", authorColumn, "Slides"},
 	}
-
-	// Add sort options
-	out.WriteString("Sort by: ")
-	out.WriteString(renderSortLink(req, "date", "Date"))
-	out.WriteString(" | ")
-	out.WriteString(renderSortLink(req, "uploader", "Uploader"))
-	out.WriteString(" | ")
-	out.WriteString(renderSortLink(req, "event", "Event"))
-	out.WriteString("\n\n")
 
 	// Add rows from current page
 	for _, item := range page.Items {
 		// Get the actual presentation using the ID from the index
-		entry := presentations.GetFirst("id", item.Key)
+		// XXX: improve p/moul/collection to make this more convenient.
+		id := item.Value.(string)
+		entry := presentations.GetFirst(collection.IDIndex, id)
 		if entry == nil {
 			continue
 		}
 		p := entry.Obj.(*Presentation)
 
 		query := make(url.Values)
-		query.Set("view", p.ID)
+		query.Set("view", p.Slug)
 		table.Append([]string{
 			ufmt.Sprintf("[%s](%s)", p.Title, localPath("view", query)),
 			p.Author,
@@ -174,12 +175,12 @@ func renderList(req *realmpath.Request) string {
 }
 
 func renderView(req *realmpath.Request) string {
-	id := req.Query.Get("view")
-	if id == "" {
-		return "400: missing presentation ID"
+	slug := req.Query.Get("view")
+	if slug == "" {
+		return "400: missing presentation slug"
 	}
 
-	entry := presentations.GetFirst("id", id)
+	entry := presentations.GetFirst("slug", slug)
 	if entry == nil {
 		return "404: presentation not found"
 	}
@@ -195,7 +196,7 @@ func renderView(req *realmpath.Request) string {
 
 	// Slide mode link
 	query := make(url.Values)
-	query.Set("slides", p.ID)
+	query.Set("slides", p.Slug)
 	out.WriteString(ufmt.Sprintf("[View as slides](%s)\n\n", localPath("slides", query)))
 	out.WriteString(md.HorizontalRule())
 
@@ -206,7 +207,7 @@ func renderView(req *realmpath.Request) string {
 	out.WriteString("\n\n")
 	out.WriteString(md.HorizontalRule())
 	out.WriteString(ufmt.Sprintf("Last edited: %s\n\n", p.EditDate.Format("2006-01-02 15:04:05")))
-	out.WriteString(ufmt.Sprintf("ID: `%s`\n\n", p.ID))
+	out.WriteString(ufmt.Sprintf("Slug: `%s`\n\n", p.Slug))
 	out.WriteString(ufmt.Sprintf("Uploader: `%s`\n\n", p.Uploader))
 	out.WriteString(ufmt.Sprintf("Number of slides: %d\n\n", p.NumSlides))
 
@@ -216,7 +217,7 @@ func renderView(req *realmpath.Request) string {
 		out.WriteString("Admin actions:\n\n")
 		// Edit link
 		editLink := txlink.Call("Set",
-			"id", p.ID,
+			"slug", p.Slug,
 			"title", p.Title,
 			"event", p.Event,
 			"date", p.Date.Format("2006-01-02"),
@@ -224,7 +225,7 @@ func renderView(req *realmpath.Request) string {
 		out.WriteString(ufmt.Sprintf("- [Edit presentation](%s)\n", editLink))
 
 		// Delete link
-		deleteLink := txlink.Call("Delete", "id", p.ID)
+		deleteLink := txlink.Call("Delete", "slug", p.Slug)
 		out.WriteString(ufmt.Sprintf("- [Delete presentation](%s)\n", deleteLink))
 	}
 
@@ -232,12 +233,12 @@ func renderView(req *realmpath.Request) string {
 }
 
 func renderSlides(req *realmpath.Request) string {
-	id := req.Query.Get("slides")
-	if id == "" {
+	slug := req.Query.Get("slides")
+	if slug == "" {
 		return "400: missing presentation ID"
 	}
 
-	entry := presentations.GetFirst("id", id)
+	entry := presentations.GetFirst("slug", slug)
 	if entry == nil {
 		return "404: presentation not found"
 	}
@@ -273,11 +274,11 @@ func renderSlides(req *realmpath.Request) string {
 	// Navigation
 	out.WriteString("\n\n---\n\n")
 	if currentPage > 1 {
-		out.WriteString(ufmt.Sprintf("[← Prev](?slides=%s&page=%d) ", id, currentPage-1))
+		out.WriteString(ufmt.Sprintf("[← Prev](?slides=%s&page=%d) ", slug, currentPage-1))
 	}
 	out.WriteString(ufmt.Sprintf("| %d/%d |", currentPage, p.NumSlides))
 	if currentPage < p.NumSlides {
-		out.WriteString(ufmt.Sprintf(" [Next →](?slides=%s&page=%d)", id, currentPage+1))
+		out.WriteString(ufmt.Sprintf(" [Next →](?slides=%s&page=%d)", slug, currentPage+1))
 	}
 
 	return out.String()
@@ -287,11 +288,10 @@ func renderSlides(req *realmpath.Request) string {
 func getSortField(req *realmpath.Request) string {
 	field := req.Query.Get("sort")
 	switch field {
-	case "date", "uploader", "event":
+	case "date", "slug", "author", "title":
 		return field
-	default:
-		return "date"
 	}
+	return "date"
 }
 
 func isSortReversed(req *realmpath.Request) bool {
