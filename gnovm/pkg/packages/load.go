@@ -20,6 +20,8 @@ import (
 	"golang.org/x/mod/module"
 )
 
+// FIXME: should not include pkgs imported in test except for matches and only when Test flag is set
+
 type LoadConfig struct {
 	IO            commands.IO
 	Fetcher       pkgdownload.PackageFetcher
