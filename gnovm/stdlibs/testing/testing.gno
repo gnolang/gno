@@ -220,8 +220,17 @@ func (t *T) SetContext(ctx Context) {
 	TestSetContext(ctx)
 }
 
-func (t *T) SetOriginCaller(prevRealm std.Realm) {
-	SetOriginCaller(prevRealm)
+// SetRealm sets the realm for the current frame.
+// After calling SetRealm, calling CurrentRealm() in the test function will yield the value of
+// rlm, while if a realm function is called, using PrevRealm() will yield rlm.
+func (t *T) SetRealm(rlm std.Realm) {
+	// NODE: We should not call SetRealm like other methods because it changes the frames stack
+	// so for this method we have to use TestSetContext instead.
+	TestSetContext(Context{CurrentRealm: rlm})
+}
+
+func (t *T) SetOriginCaller(addr std.Address) {
+	SetOriginCaller(addr)
 }
 
 func (t *T) SetOriginSend(send std.Coins, spend std.Coins) {
@@ -401,6 +410,7 @@ func testSetContext(
 	isOrigin bool,
 	originCaller string,
 	originPkgAddress string,
+	currRealmAddr string, currRealmPkgPath string,
 	origSendDenoms []string, origSendAmounts []int64,
 	origSpendDenoms []string, origSpendAmounts []int64,
 	chainID string,
@@ -425,6 +435,7 @@ func TestSetContext(ctx Context) {
 		ctx.IsOrigin,
 		ctx.OriginCaller.String(),
 		ctx.OriginPkgAddress.String(),
+		ctx.CurrentRealm.Addr().String(), ctx.CurrentRealm.PkgPath(),
 		originSendDenom, originSendAmount,
 		originSpendDenom, originSpendAmount,
 		ctx.ChainID,
@@ -449,6 +460,13 @@ func SetOriginPkgAddress(addr std.Address) {
 
 func SetHeight(height int64) {
 	TestSetContext(Context{Height: height})
+}
+
+// SetRealm sets the realm for the current frame.
+// After calling SetRealm, calling CurrentRealm() in the test function will yield the value of
+// rlm, while if a realm function is called, using PrevRealm() will yield rlm.
+func SetRealm(rlm std.Realm) {
+	TestSetContext(Context{CurrentRealm: rlm})
 }
 
 func SkipHeights(count int64) {

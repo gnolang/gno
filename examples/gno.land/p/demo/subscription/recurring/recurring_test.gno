@@ -16,7 +16,7 @@ var (
 )
 
 func TestRecurringSubscription(t *testing.T) {
-	std.TestSetRealm(std.NewUserRealm(alice))
+	t.SetRealm(std.NewUserRealm(alice))
 	rs := NewRecurringSubscription(time.Hour*24, 1000)
 
 	t.SetOriginSend([]std.Coin{{Denom: "ugnot", Amount: 1000}}, nil)
@@ -31,7 +31,7 @@ func TestRecurringSubscription(t *testing.T) {
 }
 
 func TestRecurringSubscriptionGift(t *testing.T) {
-	std.TestSetRealm(std.NewUserRealm(alice))
+	t.SetRealm(std.NewUserRealm(alice))
 	rs := NewRecurringSubscription(time.Hour*24, 1000)
 
 	t.SetOriginSend([]std.Coin{{Denom: "ugnot", Amount: 1000}}, nil)
@@ -46,7 +46,7 @@ func TestRecurringSubscriptionGift(t *testing.T) {
 }
 
 func TestRecurringSubscriptionExpiration(t *testing.T) {
-	std.TestSetRealm(std.NewUserRealm(alice))
+	t.SetRealm(std.NewUserRealm(alice))
 	rs := NewRecurringSubscription(time.Hour, 1000)
 
 	t.SetOriginSend([]std.Coin{{Denom: "ugnot", Amount: 1000}}, nil)

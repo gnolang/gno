@@ -15,7 +15,7 @@ var (
 )
 
 func TestLifetimeSubscription(t *testing.T) {
-	std.TestSetRealm(std.NewUserRealm(alice))
+	t.SetRealm(std.NewUserRealm(alice))
 	ls := NewLifetimeSubscription(1000)
 
 	t.SetOriginSend([]std.Coin{{Denom: "ugnot", Amount: 1000}}, nil)
@@ -27,7 +27,7 @@ func TestLifetimeSubscription(t *testing.T) {
 }
 
 func TestLifetimeSubscriptionGift(t *testing.T) {
-	std.TestSetRealm(std.NewUserRealm(alice))
+	t.SetRealm(std.NewUserRealm(alice))
 	ls := NewLifetimeSubscription(1000)
 
 	t.SetOriginSend([]std.Coin{{Denom: "ugnot", Amount: 1000}}, nil)

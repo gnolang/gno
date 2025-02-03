@@ -43,7 +43,7 @@ func TestTransferOwnership(t *testing.T) {
 }
 
 func TestCallerIsOwner(t *testing.T) {
-	std.TestSetRealm(std.NewUserRealm(alice))
+	t.SetRealm(std.NewUserRealm(alice))
 
 	o := New()
 	unauthorizedCaller := bob
@@ -54,7 +54,7 @@ func TestCallerIsOwner(t *testing.T) {
 }
 
 func TestDropOwnership(t *testing.T) {
-	std.TestSetRealm(std.NewUserRealm(alice))
+	t.SetRealm(std.NewUserRealm(alice))
 
 	o := New()
 
@@ -91,8 +91,8 @@ func TestErrInvalidAddress(t *testing.T) {
 }
 
 func TestAssertCallerIsOwner(t *testing.T) {
-	std.TestSetRealm(std.NewUserRealm(alice))
-	std.TestSetOrigCaller(alice)
+	t.SetRealm(std.NewUserRealm(alice))
+	t.SetOriginCaller(alice)
 
 	o := New()
 
@@ -100,8 +100,8 @@ func TestAssertCallerIsOwner(t *testing.T) {
 	o.AssertCallerIsOwner()
 
 	// Should panic when caller is not owner
-	std.TestSetRealm(std.NewUserRealm(bob))
-	std.TestSetOrigCaller(bob)
+	t.SetRealm(std.NewUserRealm(bob))
+	t.SetOriginCaller(bob)
 
 	defer func() {
 		r := recover()

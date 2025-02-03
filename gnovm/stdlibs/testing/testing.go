@@ -19,6 +19,7 @@ func X_testSetContext(
 	isOrigin bool,
 	originCaller string,
 	originPkgAddress string,
+	currRealmAddr string, currRealmPkgPath string,
 	origSendDenoms []string, origSendAmounts []int64,
 	origSpendDenoms []string, origSpendAmounts []int64,
 	chainID string,
@@ -51,6 +52,30 @@ func X_testSetContext(
 
 	if originPkgAddress != "" {
 		ctx.OrigPkgAddr = crypto.Bech32Address(originPkgAddress)
+	}
+
+	if currRealmAddr != "" {
+		// Associate the given Realm with the caller's frame.
+		var frame *gno.Frame
+		// NOTE: the frames are different from when calling std.TestSetRealm (has been refactored to this code)
+		//
+		// When calling this function from Gno, the 3 top frames are the following:
+		// #7: [FRAME FUNC:testSetContext RECV:(undefined) (15 args) 11/3/0/6/4 LASTPKG:testing ...]
+		// #6: [FRAME FUNC:TestSetContext RECV:(undefined) (1 args) 8/2/0/4/3 LASTPKG:testing ...]
+		// #5: [FRAME FUNC:SetRealm RECV:(undefined) (1 args) 5/1/0/2/2 LASTPKG:gno.land/r/demo/groups ...]
+		// We want to set the Realm of the frame where t/testing.SetRealm is being called, hence -4.
+		for i := m.NumFrames() - 4; i >= 0; i-- {
+			// Must be a frame from calling a function.
+			if fr := m.Frames[i]; fr.Func != nil {
+				frame = fr
+				break
+			}
+		}
+
+		ctx.RealmFrames[frame] = teststd.RealmOverride{
+			Addr:    crypto.Bech32Address(currRealmAddr),
+			PkgPath: currRealmPkgPath,
+		}
 	}
 
 	if len(origSendDenoms) > 0 && len(origSendDenoms) == len(origSendAmounts) {

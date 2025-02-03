@@ -20,27 +20,27 @@ var (
 func TestRegister(t *testing.T) {
 	// Test user realm register
 	aliceRealm := std.NewUserRealm(alice)
-	std.TestSetRealm(aliceRealm)
+	t.SetRealm(aliceRealm)
 
 	Register()
 	uassert.False(t, itemExists(t, rlmPath))
 
 	// Test register while paused
-	std.TestSetRealm(adminRealm)
+	t.SetRealm(adminRealm)
 	Pausable.Pause()
 
 	// Set legitimate caller
-	std.TestSetRealm(std.NewCodeRealm(rlmPath))
+	t.SetRealm(std.NewCodeRealm(rlmPath))
 
 	Register()
 	uassert.False(t, itemExists(t, rlmPath))
 
 	// Unpause
-	std.TestSetRealm(adminRealm)
+	t.SetRealm(adminRealm)
 	Pausable.Unpause()
 
 	// Set legitimate caller
-	std.TestSetRealm(std.NewCodeRealm(rlmPath))
+	t.SetRealm(std.NewCodeRealm(rlmPath))
 	Register()
 
 	// Find registered items
@@ -57,7 +57,7 @@ func TestUpvote(t *testing.T) {
 	// 0 upvotes by default
 	urequire.Equal(t, item.upvote.Size(), 0)
 
-	std.TestSetRealm(adminRealm)
+	t.SetRealm(adminRealm)
 
 	urequire.NotPanics(t, func() {
 		Upvote(rlmPath)
@@ -84,7 +84,7 @@ func TestDownvote(t *testing.T) {
 	urequire.Equal(t, item.downvote.Size(), 0)
 
 	userRealm := std.NewUserRealm(alice)
-	std.TestSetRealm(userRealm)
+	t.SetRealm(userRealm)
 
 	urequire.NotPanics(t, func() {
 		Downvote(rlmPath)
@@ -102,7 +102,8 @@ func TestDownvote(t *testing.T) {
 
 func TestDelete(t *testing.T) {
 	userRealm := std.NewUserRealm(admin)
-	t.SetOriginCaller(userRealm)
+	t.SetRealm(userRealm)
+	t.SetOriginCaller(admin)
 
 	uassert.PanicsWithMessage(t, ErrNoSuchItem.Error(), func() {
 		Delete("nonexistentpkgpath")

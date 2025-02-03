@@ -84,28 +84,6 @@ func X_callerAt(m *gno.Machine, n int) string {
 	return string(m.MustLastCallFrame(n).LastPackage.GetPkgAddr().Bech32())
 }
 
-func X_testSetRealm(m *gno.Machine, addr, pkgPath string) {
-	// Associate the given Realm with the caller's frame.
-	var frame *gno.Frame
-	// When calling this function from Gno, the two top frames are the following:
-	// #6 [FRAME FUNC:testSetRealm RECV:(undefined) (2 args) 17/6/0/10/8 LASTPKG:std ...]
-	// #5 [FRAME FUNC:TestSetRealm RECV:(undefined) (1 args) 14/5/0/8/7 LASTPKG:gno.land/r/tyZ1Vcsta ...]
-	// We want to set the Realm of the frame where TestSetRealm is being called, hence -3.
-	for i := m.NumFrames() - 3; i >= 0; i-- {
-		// Must be a frame from calling a function.
-		if fr := m.Frames[i]; fr.Func != nil {
-			frame = fr
-			break
-		}
-	}
-
-	ctx := m.Context.(*TestExecContext)
-	ctx.RealmFrames[frame] = RealmOverride{
-		Addr:    crypto.Bech32Address(addr),
-		PkgPath: pkgPath,
-	}
-}
-
 func X_getRealm(m *gno.Machine, height int) (address string, pkgPath string) {
 	// NOTE: keep in sync with stdlibs/std.getRealm
 
