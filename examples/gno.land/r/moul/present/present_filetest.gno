@@ -54,79 +54,83 @@ func main() {
 	println(present.Render("?order=asc&sort=title&page=2")) // second page
 
 	// Test view
-	println(present.Render("view?view=test5")) // view by slug
+	println(present.Render("view/test5")) // view by slug
+
+	// Test slides
+	println(present.Render("slides/test5"))        // slides by slug
+	println(present.Render("slides/test5?page=2")) // slides by slug, second page
 }
 
 // Output:
 // # Presentations
 // | [Date](?order=desc&sort=date) | [Title](?order=desc&sort=title) | Event | [Author](?order=desc&sort=author) | Slides |
 // | --- | --- | --- | --- | --- |
-// | [title7](/r/moul/present:view?view=test7) | author4 | event1 | 2024-03-15 | 2 |
-// | [title10](/r/moul/present:view?view=test10) | author1 | event1 | 2024-03-10 | 2 |
-// | [title13](/r/moul/present:view?view=test13) | author3 | event1 | 2024-03-05 | 2 |
-// | [title5](/r/moul/present:view?view=test5) | author2 | event3 | 2024-03-01 | 2 |
-// | [title15](/r/moul/present:view?view=test15) | author4 | event2 | 2024-02-25 | 2 |
-// | [title9](/r/moul/present:view?view=test9) | author3 | event2 | 2024-02-20 | 2 |
-// | [title6](/r/moul/present:view?view=test6) | author1 | event2 | 2024-02-15 | 2 |
-// | [title12](/r/moul/present:view?view=test12) | author2 | event2 | 2024-02-10 | 2 |
-// | [title3](/r/moul/present:view?view=test3) | author1 | event2 | 2024-02-01 | 2 |
-// | [title14](/r/moul/present:view?view=test14) | author1 | event3 | 2024-01-25 | 2 |
+// | [title7](/r/moul/present:view/test7) | author4 | event1 | 2024-03-15 | 2 |
+// | [title10](/r/moul/present:view/test10) | author1 | event1 | 2024-03-10 | 2 |
+// | [title13](/r/moul/present:view/test13) | author3 | event1 | 2024-03-05 | 2 |
+// | [title5](/r/moul/present:view/test5) | author2 | event3 | 2024-03-01 | 2 |
+// | [title15](/r/moul/present:view/test15) | author4 | event2 | 2024-02-25 | 2 |
+// | [title9](/r/moul/present:view/test9) | author3 | event2 | 2024-02-20 | 2 |
+// | [title6](/r/moul/present:view/test6) | author1 | event2 | 2024-02-15 | 2 |
+// | [title12](/r/moul/present:view/test12) | author2 | event2 | 2024-02-10 | 2 |
+// | [title3](/r/moul/present:view/test3) | author1 | event2 | 2024-02-01 | 2 |
+// | [title14](/r/moul/present:view/test14) | author1 | event3 | 2024-01-25 | 2 |
 // **1** | [2](?page=2)
 // # Presentations
 // | [Date](?order=desc&sort=date) | [Title](?order=desc&sort=title) | Event | [Author](?order=desc&sort=author) | Slides |
 // | --- | --- | --- | --- | --- |
-// | [title1](/r/moul/present:view?view=test1) | author1 | event3 | 2024-01-01 | 2 |
-// | [title11](/r/moul/present:view?view=test11) | author4 | event3 | 2024-01-05 | 2 |
-// | [title8](/r/moul/present:view?view=test8) | author2 | event3 | 2024-01-10 | 2 |
-// | [title2](/r/moul/present:view?view=test2) | author2 | event1 | 2024-01-15 | 2 |
-// | [title4](/r/moul/present:view?view=test4) | author3 | event1 | 2024-01-20 | 2 |
-// | [title14](/r/moul/present:view?view=test14) | author1 | event3 | 2024-01-25 | 2 |
-// | [title3](/r/moul/present:view?view=test3) | author1 | event2 | 2024-02-01 | 2 |
-// | [title12](/r/moul/present:view?view=test12) | author2 | event2 | 2024-02-10 | 2 |
-// | [title6](/r/moul/present:view?view=test6) | author1 | event2 | 2024-02-15 | 2 |
-// | [title9](/r/moul/present:view?view=test9) | author3 | event2 | 2024-02-20 | 2 |
+// | [title1](/r/moul/present:view/test1) | author1 | event3 | 2024-01-01 | 2 |
+// | [title11](/r/moul/present:view/test11) | author4 | event3 | 2024-01-05 | 2 |
+// | [title8](/r/moul/present:view/test8) | author2 | event3 | 2024-01-10 | 2 |
+// | [title2](/r/moul/present:view/test2) | author2 | event1 | 2024-01-15 | 2 |
+// | [title4](/r/moul/present:view/test4) | author3 | event1 | 2024-01-20 | 2 |
+// | [title14](/r/moul/present:view/test14) | author1 | event3 | 2024-01-25 | 2 |
+// | [title3](/r/moul/present:view/test3) | author1 | event2 | 2024-02-01 | 2 |
+// | [title12](/r/moul/present:view/test12) | author2 | event2 | 2024-02-10 | 2 |
+// | [title6](/r/moul/present:view/test6) | author1 | event2 | 2024-02-15 | 2 |
+// | [title9](/r/moul/present:view/test9) | author3 | event2 | 2024-02-20 | 2 |
 // **1** | [2](?page=2)
 // # Presentations
 // | [Date](?order=desc&sort=date) | [Title ↓](?order=desc&sort=title) | Event | [Author](?order=desc&sort=author) | Slides |
 // | --- | --- | --- | --- | --- |
-// | [title1](/r/moul/present:view?view=test1) | author1 | event3 | 2024-01-01 | 2 |
-// | [title10](/r/moul/present:view?view=test10) | author1 | event1 | 2024-03-10 | 2 |
-// | [title11](/r/moul/present:view?view=test11) | author4 | event3 | 2024-01-05 | 2 |
-// | [title12](/r/moul/present:view?view=test12) | author2 | event2 | 2024-02-10 | 2 |
-// | [title13](/r/moul/present:view?view=test13) | author3 | event1 | 2024-03-05 | 2 |
-// | [title14](/r/moul/present:view?view=test14) | author1 | event3 | 2024-01-25 | 2 |
-// | [title15](/r/moul/present:view?view=test15) | author4 | event2 | 2024-02-25 | 2 |
-// | [title2](/r/moul/present:view?view=test2) | author2 | event1 | 2024-01-15 | 2 |
-// | [title3](/r/moul/present:view?view=test3) | author1 | event2 | 2024-02-01 | 2 |
-// | [title4](/r/moul/present:view?view=test4) | author3 | event1 | 2024-01-20 | 2 |
+// | [title1](/r/moul/present:view/test1) | author1 | event3 | 2024-01-01 | 2 |
+// | [title10](/r/moul/present:view/test10) | author1 | event1 | 2024-03-10 | 2 |
+// | [title11](/r/moul/present:view/test11) | author4 | event3 | 2024-01-05 | 2 |
+// | [title12](/r/moul/present:view/test12) | author2 | event2 | 2024-02-10 | 2 |
+// | [title13](/r/moul/present:view/test13) | author3 | event1 | 2024-03-05 | 2 |
+// | [title14](/r/moul/present:view/test14) | author1 | event3 | 2024-01-25 | 2 |
+// | [title15](/r/moul/present:view/test15) | author4 | event2 | 2024-02-25 | 2 |
+// | [title2](/r/moul/present:view/test2) | author2 | event1 | 2024-01-15 | 2 |
+// | [title3](/r/moul/present:view/test3) | author1 | event2 | 2024-02-01 | 2 |
+// | [title4](/r/moul/present:view/test4) | author3 | event1 | 2024-01-20 | 2 |
 // **1** | [2](?page=2)
 // # Presentations
 // | [Date](?order=desc&sort=date) | [Title](?order=desc&sort=title) | Event | [Author](?order=desc&sort=author) | Slides |
 // | --- | --- | --- | --- | --- |
-// | [title1](/r/moul/present:view?view=test1) | author1 | event3 | 2024-01-01 | 2 |
-// | [title3](/r/moul/present:view?view=test3) | author1 | event2 | 2024-02-01 | 2 |
-// | [title6](/r/moul/present:view?view=test6) | author1 | event2 | 2024-02-15 | 2 |
-// | [title10](/r/moul/present:view?view=test10) | author1 | event1 | 2024-03-10 | 2 |
-// | [title14](/r/moul/present:view?view=test14) | author1 | event3 | 2024-01-25 | 2 |
-// | [title2](/r/moul/present:view?view=test2) | author2 | event1 | 2024-01-15 | 2 |
-// | [title5](/r/moul/present:view?view=test5) | author2 | event3 | 2024-03-01 | 2 |
-// | [title8](/r/moul/present:view?view=test8) | author2 | event3 | 2024-01-10 | 2 |
-// | [title12](/r/moul/present:view?view=test12) | author2 | event2 | 2024-02-10 | 2 |
-// | [title4](/r/moul/present:view?view=test4) | author3 | event1 | 2024-01-20 | 2 |
-// | [title9](/r/moul/present:view?view=test9) | author3 | event2 | 2024-02-20 | 2 |
-// | [title13](/r/moul/present:view?view=test13) | author3 | event1 | 2024-03-05 | 2 |
-// | [title7](/r/moul/present:view?view=test7) | author4 | event1 | 2024-03-15 | 2 |
-// | [title11](/r/moul/present:view?view=test11) | author4 | event3 | 2024-01-05 | 2 |
-// | [title15](/r/moul/present:view?view=test15) | author4 | event2 | 2024-02-25 | 2 |
+// | [title1](/r/moul/present:view/test1) | author1 | event3 | 2024-01-01 | 2 |
+// | [title3](/r/moul/present:view/test3) | author1 | event2 | 2024-02-01 | 2 |
+// | [title6](/r/moul/present:view/test6) | author1 | event2 | 2024-02-15 | 2 |
+// | [title10](/r/moul/present:view/test10) | author1 | event1 | 2024-03-10 | 2 |
+// | [title14](/r/moul/present:view/test14) | author1 | event3 | 2024-01-25 | 2 |
+// | [title2](/r/moul/present:view/test2) | author2 | event1 | 2024-01-15 | 2 |
+// | [title5](/r/moul/present:view/test5) | author2 | event3 | 2024-03-01 | 2 |
+// | [title8](/r/moul/present:view/test8) | author2 | event3 | 2024-01-10 | 2 |
+// | [title12](/r/moul/present:view/test12) | author2 | event2 | 2024-02-10 | 2 |
+// | [title4](/r/moul/present:view/test4) | author3 | event1 | 2024-01-20 | 2 |
+// | [title9](/r/moul/present:view/test9) | author3 | event2 | 2024-02-20 | 2 |
+// | [title13](/r/moul/present:view/test13) | author3 | event1 | 2024-03-05 | 2 |
+// | [title7](/r/moul/present:view/test7) | author4 | event1 | 2024-03-15 | 2 |
+// | [title11](/r/moul/present:view/test11) | author4 | event3 | 2024-01-05 | 2 |
+// | [title15](/r/moul/present:view/test15) | author4 | event2 | 2024-02-25 | 2 |
 //
 // # Presentations
 // | [Date](?order=desc&page=2&sort=date) | [Title ↓](?order=desc&page=2&sort=title) | Event | [Author](?order=desc&page=2&sort=author) | Slides |
 // | --- | --- | --- | --- | --- |
-// | [title5](/r/moul/present:view?view=test5) | author2 | event3 | 2024-03-01 | 2 |
-// | [title6](/r/moul/present:view?view=test6) | author1 | event2 | 2024-02-15 | 2 |
-// | [title7](/r/moul/present:view?view=test7) | author4 | event1 | 2024-03-15 | 2 |
-// | [title8](/r/moul/present:view?view=test8) | author2 | event3 | 2024-01-10 | 2 |
-// | [title9](/r/moul/present:view?view=test9) | author3 | event2 | 2024-02-20 | 2 |
+// | [title5](/r/moul/present:view/test5) | author2 | event3 | 2024-03-01 | 2 |
+// | [title6](/r/moul/present:view/test6) | author1 | event2 | 2024-02-15 | 2 |
+// | [title7](/r/moul/present:view/test7) | author4 | event1 | 2024-03-15 | 2 |
+// | [title8](/r/moul/present:view/test8) | author2 | event3 | 2024-01-10 | 2 |
+// | [title9](/r/moul/present:view/test9) | author3 | event2 | 2024-02-20 | 2 |
 // [1](?page=1) | **2**
 // # title5
 // Event: event3
@@ -135,7 +139,7 @@ func main() {
 //
 // Date: 2024-03-01
 //
-// [View as slides](/r/moul/present:slides?slides=test5)
+// [View as slides](/r/moul/present:slides/test5)
 //
 // ---
 // # c5
@@ -157,3 +161,20 @@ func main() {
 // - [Edit presentation](/r/moul/present$help&func=Set&slug=test5&title=title5&event=event3&date=2024-03-01)
 // - [Delete presentation](/r/moul/present$help&func=Delete&slug=test5)
 //
+// # title5
+// Event: event3
+//
+// Author: author2
+//
+// Date: 2024-03-01
+//
+//
+//
+// ---
+//
+// | 1/2 | [Next →](/r/moul/present:slides/test5?page=2)
+// ## s5
+//
+// ---
+//
+// [← Prev](/r/moul/present:slides/test5?page=1) | 2/2 |

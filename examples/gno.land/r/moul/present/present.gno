@@ -63,9 +63,23 @@ func Render(path string) string {
 	case "":
 		return renderList(req)
 	case "view":
-		return renderView(req)
+		if slug := req.PathPart(1); slug != "" {
+			return renderView(slug)
+		}
+		return "400: missing presentation slug"
 	case "slides":
-		return renderSlides(req)
+		if slug := req.PathPart(1); slug != "" {
+			page := 1
+			if pageStr := req.Query.Get("page"); pageStr != "" {
+				var err error
+				page, err = strconv.Atoi(pageStr)
+				if err != nil {
+					return "400: invalid page number"
+				}
+			}
+			return renderSlides(slug, page)
+		}
+		return "400: missing presentation slug"
 	default:
 		return "404: not found"
 	}
@@ -167,10 +181,8 @@ func renderList(req *realmpath.Request) string {
 			}
 			p := entry.Obj.(*Presentation)
 
-			query := make(url.Values)
-			query.Set("view", p.Slug)
 			table.Append([]string{
-				ufmt.Sprintf("[%s](%s)", p.Title, localPath("view", query)),
+				ufmt.Sprintf("[%s](%s)", p.Title, localPath("view/"+p.Slug, nil)),
 				p.Author,
 				p.Event,
 				p.Date.Format("2006-01-02"),
@@ -184,8 +196,7 @@ func renderList(req *realmpath.Request) string {
 	return out.String()
 }
 
-func renderView(req *realmpath.Request) string {
-	slug := req.Query.Get("view")
+func renderView(slug string) string {
 	if slug == "" {
 		return "400: missing presentation slug"
 	}
@@ -205,9 +216,7 @@ func renderView(req *realmpath.Request) string {
 	out.WriteString(ufmt.Sprintf("Date: %s\n\n", p.Date.Format("2006-01-02")))
 
 	// Slide mode link
-	query := make(url.Values)
-	query.Set("slides", p.Slug)
-	out.WriteString(ufmt.Sprintf("[View as slides](%s)\n\n", localPath("slides", query)))
+	out.WriteString(ufmt.Sprintf("[View as slides](%s)\n\n", localPath("slides/"+p.Slug, nil)))
 	out.WriteString(md.HorizontalRule())
 
 	// Content
@@ -242,8 +251,7 @@ func renderView(req *realmpath.Request) string {
 	return out.String()
 }
 
-func renderSlides(req *realmpath.Request) string {
-	slug := req.Query.Get("slides")
+func renderSlides(slug string, currentPage int) string {
 	if slug == "" {
 		return "400: missing presentation ID"
 	}
@@ -254,15 +262,6 @@ func renderSlides(req *realmpath.Request) string {
 	}
 
 	p := entry.Obj.(*Presentation)
-	currentPage := 1
-	if page := req.Query.Get("page"); page != "" {
-		var err error
-		currentPage, err = strconv.Atoi(page)
-		if err != nil {
-			return "400: invalid page number"
-		}
-	}
-
 	slides := strings.Split(p.Content, "\n## ")
 	if currentPage < 1 || currentPage > len(slides) {
 		return "404: invalid slide number"
@@ -284,11 +283,11 @@ func renderSlides(req *realmpath.Request) string {
 	// Navigation
 	out.WriteString("\n\n---\n\n")
 	if currentPage > 1 {
-		out.WriteString(ufmt.Sprintf("[← Prev](?slides=%s&page=%d) ", slug, currentPage-1))
+		out.WriteString(ufmt.Sprintf("[← Prev](%s) ", localPath(ufmt.Sprintf("slides/%s", slug), url.Values{"page": {ufmt.Sprintf("%d", currentPage-1)}})))
 	}
 	out.WriteString(ufmt.Sprintf("| %d/%d |", currentPage, p.NumSlides))
 	if currentPage < p.NumSlides {
-		out.WriteString(ufmt.Sprintf(" [Next →](?slides=%s&page=%d)", slug, currentPage+1))
+		out.WriteString(ufmt.Sprintf(" [Next →](%s)", localPath(ufmt.Sprintf("slides/%s", slug), url.Values{"page": {ufmt.Sprintf("%d", currentPage+1)}})))
 	}
 
 	return out.String()
