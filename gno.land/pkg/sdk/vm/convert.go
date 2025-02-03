@@ -279,11 +279,16 @@ func JSONPrimitiveValue(m *gno.Machine, tv gno.TypedValue) string {
 		return res
 	}
 
-	// Fallback on generic object handler
-	if pv, ok := tv.V.(gno.PointerValue); ok {
-		if obj := pv.GetBase(m.Store).GetObjectID(); !obj.IsZero() {
-			return strconv.Quote(fmt.Sprintf(`<obj:%s:%s>`, tv.T.String(), obj))
-		}
+	var oid gno.ObjectID
+	switch v := tv.V.(type) {
+	case gno.PointerValue:
+		oid = v.GetBase(m.Store).GetObjectID()
+	case gno.Object:
+		oid = v.GetObjectID()
+	}
+
+	if !oid.IsZero() {
+		return strconv.Quote(fmt.Sprintf(`<obj:%s:%s>`, tv.T.String(), oid))
 	}
 
 	return strconv.Quote(fmt.Sprintf(`<obj:%s:0>`, tv.T.String()))
