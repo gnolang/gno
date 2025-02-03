@@ -155,8 +155,8 @@ func renderList(req *realmpath.Request) string {
 	page := pgr.MustGetPageByPath(req.String())
 
 	// Create table
-	titleColumn := renderSortLink(req, "title", "Title")
 	dateColumn := renderSortLink(req, "date", "Date")
+	titleColumn := renderSortLink(req, "title", "Title")
 	authorColumn := renderSortLink(req, "author", "Author")
 	table := mdtable.Table{
 		Headers: []string{dateColumn, titleColumn, "Event", authorColumn, "Slides"},
@@ -184,10 +184,10 @@ func renderList(req *realmpath.Request) string {
 			p := entry.Obj.(*Presentation)
 
 			table.Append([]string{
-				md.Link(p.Title, localPath(p.Slug, nil)),
-				p.Author,
-				p.Event,
 				p.Date.Format("2006-01-02"),
+				md.Link(p.Title, localPath(p.Slug, nil)),
+				p.Event,
+				p.Author,
 				ufmt.Sprintf("%d", p.NumSlides),
 			})
 		}
@@ -201,20 +201,20 @@ func renderList(req *realmpath.Request) string {
 func (p *Presentation) FirstSlide() string {
 	var out strings.Builder
 	out.WriteString(md.H1(p.Title))
-	out.WriteString(ufmt.Sprintf("Event: %s\n\n", p.Event))
-	out.WriteString(ufmt.Sprintf("Author: %s\n\n", p.Author))
-	out.WriteString(ufmt.Sprintf("Date: %s\n\n", p.Date.Format("2006-01-02")))
+
+	out.WriteString(md.Paragraph(md.Bold(p.Event) + ", " + p.Date.Format("2 Jan 2006")))
+	out.WriteString(md.Paragraph("by " + md.Bold(p.Author))) // XXX: link to u/?
 	return out.String()
 }
 
 func (p *Presentation) LastSlide() string {
 	var out strings.Builder
-	out.WriteString(md.H1("Thank You!"))
-	out.WriteString("\n\n")
-	out.WriteString(ufmt.Sprintf("Presentation: %s\n\n", p.Title))
-	out.WriteString(ufmt.Sprintf("Author: %s\n\n", p.Author))
-	out.WriteString(ufmt.Sprintf("Event: %s\n\n", p.Event))
-	out.WriteString(md.Link("View full presentation", localPath(p.Slug, nil)) + "\n")
+	out.WriteString(md.H1(p.Title))
+	out.WriteString(md.H2("Thank You!"))
+	out.WriteString(md.Paragraph(p.Author))
+	fullPath := "https://" + std.GetChainDomain() + localPath(p.Slug, nil)
+	out.WriteString(md.Paragraph("🔗 " + md.Link(fullPath, fullPath)))
+	// XXX: QRCode
 	return out.String()
 }
 
@@ -271,7 +271,7 @@ func renderSlides(slug string, currentPage int) string {
 	}
 
 	p := entry.Obj.(*Presentation)
-	slides := strings.Split(p.Content, "\n## ")
+	slides := strings.Split("\n"+p.Content, "\n## ")
 	if currentPage < 1 || currentPage > p.NumSlides {
 		return "404: invalid slide number"
 	}
@@ -284,7 +284,8 @@ func renderSlides(slug string, currentPage int) string {
 	} else if currentPage == p.NumSlides {
 		out.WriteString(p.LastSlide())
 	} else {
-		out.WriteString("## " + slides[currentPage-2])
+		out.WriteString(md.H1(p.Title))
+		out.WriteString("## " + slides[currentPage-1]) // XXX: more readable by splitting slide into title and content.
 	}
 
 	// Navigation

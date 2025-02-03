@@ -72,54 +72,54 @@ func printRender(path string) {
 // | PATH:
 // | RESULT:
 // # Presentations
-// | [Date](?order=desc&sort=date) | [Title](?order=desc&sort=title) | Event | [Author](?order=desc&sort=author) | Slides |
+// | [Date ↑](?order=asc&sort=date) | [Title](?order=desc&sort=title) | Event | [Author](?order=desc&sort=author) | Slides |
 // | --- | --- | --- | --- | --- |
-// | [title16](/r/moul/present:s16) | author4 | event1 | 2024-03-15 | 4 |
-// | [title19](/r/moul/present:s19) | author1 | event1 | 2024-03-10 | 4 |
-// | [title14](/r/moul/present:s14) | author2 | event3 | 2024-03-01 | 4 |
-// | [title18](/r/moul/present:s18) | author3 | event2 | 2024-02-20 | 4 |
-// | [title15](/r/moul/present:s15) | author1 | event2 | 2024-02-15 | 5 |
-// | [title12](/r/moul/present:s12) | author1 | event2 | 2024-02-01 | 4 |
-// | [title13](/r/moul/present:s13) | author3 | event1 | 2024-01-20 | 4 |
-// | [title11](/r/moul/present:s11) | author2 | event1 | 2024-01-15 | 4 |
-// | [title17](/r/moul/present:s17) | author2 | event3 | 2024-01-10 | 4 |
-// | [title20](/r/moul/present:s20) | author4 | event3 | 2024-01-05 | 4 |
+// | 2024-03-15 | [title16](/r/moul/present:s16) | event1 | author4 | 4 |
+// | 2024-03-10 | [title19](/r/moul/present:s19) | event1 | author1 | 4 |
+// | 2024-03-01 | [title14](/r/moul/present:s14) | event3 | author2 | 4 |
+// | 2024-02-20 | [title18](/r/moul/present:s18) | event2 | author3 | 4 |
+// | 2024-02-15 | [title15](/r/moul/present:s15) | event2 | author1 | 5 |
+// | 2024-02-01 | [title12](/r/moul/present:s12) | event2 | author1 | 4 |
+// | 2024-01-20 | [title13](/r/moul/present:s13) | event1 | author3 | 4 |
+// | 2024-01-15 | [title11](/r/moul/present:s11) | event1 | author2 | 4 |
+// | 2024-01-10 | [title17](/r/moul/present:s17) | event3 | author2 | 4 |
+// | 2024-01-05 | [title20](/r/moul/present:s20) | event3 | author4 | 4 |
 // **1** | [2](?page=2)
 //
 // +-------------------------------
 // | PATH: ?order=asc&sort=date
 // | RESULT:
 // # Presentations
-// | [Date](?order=desc&sort=date) | [Title](?order=desc&sort=title) | Event | [Author](?order=desc&sort=author) | Slides |
+// | [Date ↓](?order=desc&sort=date) | [Title](?order=desc&sort=title) | Event | [Author](?order=desc&sort=author) | Slides |
 // | --- | --- | --- | --- | --- |
-// | [title10](/r/moul/present:s10) | author1 | event3 | 2024-01-01 | 4 |
-// | [title20](/r/moul/present:s20) | author4 | event3 | 2024-01-05 | 4 |
-// | [title17](/r/moul/present:s17) | author2 | event3 | 2024-01-10 | 4 |
-// | [title11](/r/moul/present:s11) | author2 | event1 | 2024-01-15 | 4 |
-// | [title13](/r/moul/present:s13) | author3 | event1 | 2024-01-20 | 4 |
-// | [title12](/r/moul/present:s12) | author1 | event2 | 2024-02-01 | 4 |
-// | [title15](/r/moul/present:s15) | author1 | event2 | 2024-02-15 | 5 |
-// | [title18](/r/moul/present:s18) | author3 | event2 | 2024-02-20 | 4 |
-// | [title14](/r/moul/present:s14) | author2 | event3 | 2024-03-01 | 4 |
-// | [title19](/r/moul/present:s19) | author1 | event1 | 2024-03-10 | 4 |
+// | 2024-01-01 | [title10](/r/moul/present:s10) | event3 | author1 | 4 |
+// | 2024-01-05 | [title20](/r/moul/present:s20) | event3 | author4 | 4 |
+// | 2024-01-10 | [title17](/r/moul/present:s17) | event3 | author2 | 4 |
+// | 2024-01-15 | [title11](/r/moul/present:s11) | event1 | author2 | 4 |
+// | 2024-01-20 | [title13](/r/moul/present:s13) | event1 | author3 | 4 |
+// | 2024-02-01 | [title12](/r/moul/present:s12) | event2 | author1 | 4 |
+// | 2024-02-15 | [title15](/r/moul/present:s15) | event2 | author1 | 5 |
+// | 2024-02-20 | [title18](/r/moul/present:s18) | event2 | author3 | 4 |
+// | 2024-03-01 | [title14](/r/moul/present:s14) | event3 | author2 | 4 |
+// | 2024-03-10 | [title19](/r/moul/present:s19) | event1 | author1 | 4 |
 // **1** | [2](?page=2)
 //
 // +-------------------------------
 // | PATH: ?order=asc&sort=title
 // | RESULT:
 // # Presentations
-// | [Date](?order=desc&sort=date) | [Title ↓](?order=desc&sort=title) | Event | [Author](?order=desc&sort=author) | Slides |
+// | [Date](?order=desc&sort=date) | [Title](?order=desc&sort=title) | Event | [Author](?order=desc&sort=author) | Slides |
 // | --- | --- | --- | --- | --- |
-// | [title10](/r/moul/present:s10) | author1 | event3 | 2024-01-01 | 4 |
-// | [title11](/r/moul/present:s11) | author2 | event1 | 2024-01-15 | 4 |
-// | [title12](/r/moul/present:s12) | author1 | event2 | 2024-02-01 | 4 |
-// | [title13](/r/moul/present:s13) | author3 | event1 | 2024-01-20 | 4 |
-// | [title14](/r/moul/present:s14) | author2 | event3 | 2024-03-01 | 4 |
-// | [title15](/r/moul/present:s15) | author1 | event2 | 2024-02-15 | 5 |
-// | [title16](/r/moul/present:s16) | author4 | event1 | 2024-03-15 | 4 |
-// | [title17](/r/moul/present:s17) | author2 | event3 | 2024-01-10 | 4 |
-// | [title18](/r/moul/present:s18) | author3 | event2 | 2024-02-20 | 4 |
-// | [title19](/r/moul/present:s19) | author1 | event1 | 2024-03-10 | 4 |
+// | 2024-01-01 | [title10](/r/moul/present:s10) | event3 | author1 | 4 |
+// | 2024-01-15 | [title11](/r/moul/present:s11) | event1 | author2 | 4 |
+// | 2024-02-01 | [title12](/r/moul/present:s12) | event2 | author1 | 4 |
+// | 2024-01-20 | [title13](/r/moul/present:s13) | event1 | author3 | 4 |
+// | 2024-03-01 | [title14](/r/moul/present:s14) | event3 | author2 | 4 |
+// | 2024-02-15 | [title15](/r/moul/present:s15) | event2 | author1 | 5 |
+// | 2024-03-15 | [title16](/r/moul/present:s16) | event1 | author4 | 4 |
+// | 2024-01-10 | [title17](/r/moul/present:s17) | event3 | author2 | 4 |
+// | 2024-02-20 | [title18](/r/moul/present:s18) | event2 | author3 | 4 |
+// | 2024-03-10 | [title19](/r/moul/present:s19) | event1 | author1 | 4 |
 // **1** | [2](?page=2)
 //
 // +-------------------------------
@@ -128,37 +128,35 @@ func printRender(path string) {
 // # Presentations
 // | [Date](?order=desc&sort=date) | [Title](?order=desc&sort=title) | Event | [Author](?order=desc&sort=author) | Slides |
 // | --- | --- | --- | --- | --- |
-// | [title10](/r/moul/present:s10) | author1 | event3 | 2024-01-01 | 4 |
-// | [title12](/r/moul/present:s12) | author1 | event2 | 2024-02-01 | 4 |
-// | [title15](/r/moul/present:s15) | author1 | event2 | 2024-02-15 | 5 |
-// | [title19](/r/moul/present:s19) | author1 | event1 | 2024-03-10 | 4 |
-// | [title11](/r/moul/present:s11) | author2 | event1 | 2024-01-15 | 4 |
-// | [title14](/r/moul/present:s14) | author2 | event3 | 2024-03-01 | 4 |
-// | [title17](/r/moul/present:s17) | author2 | event3 | 2024-01-10 | 4 |
-// | [title13](/r/moul/present:s13) | author3 | event1 | 2024-01-20 | 4 |
-// | [title18](/r/moul/present:s18) | author3 | event2 | 2024-02-20 | 4 |
-// | [title16](/r/moul/present:s16) | author4 | event1 | 2024-03-15 | 4 |
-// | [title20](/r/moul/present:s20) | author4 | event3 | 2024-01-05 | 4 |
+// | 2024-01-01 | [title10](/r/moul/present:s10) | event3 | author1 | 4 |
+// | 2024-02-01 | [title12](/r/moul/present:s12) | event2 | author1 | 4 |
+// | 2024-02-15 | [title15](/r/moul/present:s15) | event2 | author1 | 5 |
+// | 2024-03-10 | [title19](/r/moul/present:s19) | event1 | author1 | 4 |
+// | 2024-01-15 | [title11](/r/moul/present:s11) | event1 | author2 | 4 |
+// | 2024-03-01 | [title14](/r/moul/present:s14) | event3 | author2 | 4 |
+// | 2024-01-10 | [title17](/r/moul/present:s17) | event3 | author2 | 4 |
+// | 2024-01-20 | [title13](/r/moul/present:s13) | event1 | author3 | 4 |
+// | 2024-02-20 | [title18](/r/moul/present:s18) | event2 | author3 | 4 |
+// | 2024-03-15 | [title16](/r/moul/present:s16) | event1 | author4 | 4 |
+// | 2024-01-05 | [title20](/r/moul/present:s20) | event3 | author4 | 4 |
 //
 //
 // +-------------------------------
 // | PATH: ?order=asc&sort=title&page=2
 // | RESULT:
 // # Presentations
-// | [Date](?order=desc&page=2&sort=date) | [Title ↓](?order=desc&page=2&sort=title) | Event | [Author](?order=desc&page=2&sort=author) | Slides |
+// | [Date](?order=desc&page=2&sort=date) | [Title](?order=desc&page=2&sort=title) | Event | [Author](?order=desc&page=2&sort=author) | Slides |
 // | --- | --- | --- | --- | --- |
-// | [title20](/r/moul/present:s20) | author4 | event3 | 2024-01-05 | 4 |
+// | 2024-01-05 | [title20](/r/moul/present:s20) | event3 | author4 | 4 |
 // [1](?page=1) | **2**
 //
 // +-------------------------------
 // | PATH: s15
 // | RESULT:
 // # title15
-// Event: event2
+// **event2**, 15 Feb 2024
 //
-// Author: author1
-//
-// Date: 2024-02-15
+// by **author1**
 //
 // [View as slides](/r/moul/present:s15/slides)
 //
@@ -174,7 +172,7 @@ func printRender(path string) {
 //
 // Number of slides: 5
 //
-// [Edit](/r/moul/present$help&func=Set&slug=s15&title=title15&event=event2&date=2024-02-15) | [Delete](/r/moul/present$help&func=Delete&slug=s15)
+// [Edit](/r/moul/present$help&func=Set&author=author1&date=2024-02-15&event=event2&slug=s15&title=title15) | [Delete](/r/moul/present$help&func=Delete&slug=s15)
 //
 //
 //
@@ -182,11 +180,9 @@ func printRender(path string) {
 // | PATH: s15/slides
 // | RESULT:
 // # title15
-// Event: event2
+// **event2**, 15 Feb 2024
 //
-// Author: author1
-//
-// Date: 2024-02-15
+// by **author1**
 //
 //
 //
@@ -197,7 +193,8 @@ func printRender(path string) {
 // +-------------------------------
 // | PATH: s15/slides?page=2
 // | RESULT:
-// ## ## s15.0
+// # title15
+// ## s15.0
 //
 // ---
 //
@@ -206,6 +203,7 @@ func printRender(path string) {
 // +-------------------------------
 // | PATH: s15/slides?page=3
 // | RESULT:
+// # title15
 // ## s15.1
 //
 // ---
@@ -215,6 +213,7 @@ func printRender(path string) {
 // +-------------------------------
 // | PATH: s15/slides?page=4
 // | RESULT:
+// # title15
 // ## s15.2
 //
 // ---
@@ -224,16 +223,12 @@ func printRender(path string) {
 // +-------------------------------
 // | PATH: s15/slides?page=5
 // | RESULT:
-// # Thank You!
+// # title15
+// ## Thank You!
+// author1
 //
+// 🔗 [https://tests\.gno\.land/r/moul/present:s15](https://tests.gno.land/r/moul/present:s15)
 //
-// Presentation: title15
-//
-// Author: author1
-//
-// Event: event2
-//
-// [View full presentation](/r/moul/present:s15)
 //
 //
 // ---

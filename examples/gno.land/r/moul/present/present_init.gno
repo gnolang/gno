@@ -7,9 +7,7 @@ func init() {
 		"Demo Event",  // event
 		"@demo",       // author
 		"2025-02-02",  // date
-		`# Demo Title
-
-## Slide One
+		`## Slide One
 - Point A
 - Point B
 - Point C
