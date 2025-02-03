@@ -8,7 +8,6 @@ import (
 	"path/filepath"
 	"slices"
 	"sort"
-	"strings"
 
 	"github.com/gnolang/gno/gnovm"
 	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
@@ -227,12 +226,11 @@ func listDepsRecursive(rootTarget *Package, target *Package, pkgs PackagesMap, d
 }
 
 func (p *Package) MemPkg() (*gnovm.MemPackage, error) {
+	// XXX: use gnolang.ReadMemPackageFromList
+
 	files := []*gnovm.MemFile{}
 	for _, cat := range p.Files {
 		for _, f := range cat {
-			if !strings.HasSuffix(f, ".gno") {
-				continue
-			}
 			body, err := os.ReadFile(filepath.Join(p.Dir, f))
 			if err != nil {
 				return nil, err

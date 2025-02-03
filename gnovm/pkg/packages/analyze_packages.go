@@ -107,7 +107,7 @@ func readPkgDir(pkgDir string, importPath string, fset *token.FileSet) *Package 
 
 		base := entry.Name()
 
-		if !strings.HasSuffix(base, ".gno") {
+		if !strings.HasSuffix(base, ".gno") && base != "LICENSE" && base != "README.md" {
 			continue
 		}
 

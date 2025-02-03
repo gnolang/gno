@@ -18,10 +18,10 @@ type Package struct {
 	Name       string `json:",omitempty"` // package name
 	Root       string `json:",omitempty"` // Gno root, Gno path dir, or module root dir containing this package
 	ModPath    string
-	Match      []string `json:",omitempty"` // command-line patterns matching this package
-	Errors     []*Error `json:",omitempty"` // error loading this package (not dependencies)
-	Draft      bool
-	Files      FilesMap
+	Match      []string              `json:",omitempty"` // command-line patterns matching this package
+	Errors     []*Error              `json:",omitempty"` // error loading this package (not dependencies)
+	Draft      bool                  `json:",omitempty"`
+	Files      FilesMap              `json:",omitempty"`
 	Imports    map[FileKind][]string `json:",omitempty"` // import paths used by this package
 	Deps       []string              `json:",omitempty"` // all (recursively) imported dependencies
 

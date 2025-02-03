@@ -3,10 +3,8 @@ package packages
 import (
 	"errors"
 	"fmt"
-	"os"
 	"slices"
 
-	"github.com/davecgh/go-spew/spew"
 	"github.com/gnolang/gno/gnovm"
 	"github.com/gnolang/gno/gnovm/pkg/gnolang"
 )
@@ -137,7 +135,6 @@ func (pl PkgList) GetMemPackage(pkgPath string) *gnovm.MemPackage {
 	}
 	memPkg, err := pkg.MemPkg()
 	if err != nil {
-		spew.Fdump(os.Stderr, "get err", err)
 		panic(err)
 	}
 	return memPkg
