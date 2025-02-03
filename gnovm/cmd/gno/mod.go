@@ -172,7 +172,7 @@ func (c *modGraphCfg) RegisterFlags(fs *flag.FlagSet) {
 func execModGraph(cfg *modGraphCfg, args []string, io commands.IO) error {
 	// default to current directory if no args provided
 	if len(args) == 0 {
-		args = []string{"./..."}
+		args = []string{"."}
 	}
 	if len(args) > 1 {
 		return flag.ErrHelp
@@ -180,16 +180,18 @@ func execModGraph(cfg *modGraphCfg, args []string, io commands.IO) error {
 
 	stdout := io.Out()
 
-	pkgs, err := packages.Load(&packages.LoadConfig{}, args...)
+	pkgs, err := packages.Load(&packages.LoadConfig{Fetcher: testPackageFetcher}, args...)
 	if err != nil {
 		return err
 	}
-	for _, pkg := range pkgs {
-		for _, imp := range pkg.Imports[packages.FileKindPackageSource] {
-			fmt.Fprintf(stdout, "%s %s\n", pkg.ImportPath, imp)
+
+	return pkgs.Explore(pkgs.Matches().PkgPaths(), func(p *packages.Package) ([]string, error) {
+		imports := p.Imports[packages.FileKindPackageSource]
+		for _, imp := range imports {
+			fmt.Fprintf(stdout, "%s %s\n", p.ImportPath, imp)
 		}
-	}
-	return nil
+		return imports, nil
+	})
 }
 
 func execModDownload(cfg *modDownloadCfg, args []string, io commands.IO) error {
