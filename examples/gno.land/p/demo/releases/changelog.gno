@@ -1,6 +1,7 @@
 package releases
 
 import (
+	"gno.land/p/demo/ufmt"
 	"gno.land/p/moul/md"
 	"gno.land/p/moul/mdtable"
 )
@@ -38,9 +39,14 @@ func (c *changelog) NewRelease(version, url, notes string) {
 
 func (c changelog) RenderAsTable(max int) string {
 	out := md.H1(c.name)
+	out += ufmt.Sprintf("See the %s changelog below.\n\n", c.name)
 
 	table := mdtable.Table{
 		Headers: []string{"Version", "Link", "Notes"},
+	}
+
+	if max > len(c.releases) {
+		max = len(c.releases)
 	}
 
 	for i := len(c.releases) - 1; i > len(c.releases)-1-max; i-- {

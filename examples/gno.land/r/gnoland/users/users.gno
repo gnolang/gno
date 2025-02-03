@@ -1,17 +1,13 @@
 package users
 
 import (
-	"strconv"
-
 	"gno.land/p/demo/releases"
 )
 
 var changelog = releases.NewChangelog("r/gnoland/users")
 
 func init() {
-	for i := 1; i < 11; i++ {
-		changelog.NewRelease("v"+strconv.Itoa(i), "/r/gnoland/users/v1", "Version 1 of the gno.land user registration system.")
-	}
+	changelog.NewRelease("v1", "/r/gnoland/users/v1", "[Original PR](https://github.com/gnolang/gno/pull/3166)")
 }
 
 func Render(_ string) string {
