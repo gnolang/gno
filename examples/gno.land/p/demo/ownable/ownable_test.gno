@@ -89,3 +89,51 @@ func TestErrInvalidAddress(t *testing.T) {
 	err = o.TransferOwnership("10000000001000000000100000000010000000001000000000")
 	uassert.ErrorContains(t, err, ErrInvalidAddress.Error())
 }
+
+func TestAssertCallerIsOwner(t *testing.T) {
+	std.TestSetRealm(std.NewUserRealm(alice))
+	std.TestSetOrigCaller(alice)
+
+	o := New()
+
+	// Should not panic when caller is owner
+	o.AssertCallerIsOwner()
+
+	// Should panic when caller is not owner
+	std.TestSetRealm(std.NewUserRealm(bob))
+	std.TestSetOrigCaller(bob)
+
+	defer func() {
+		r := recover()
+		if r == nil {
+			t.Error("expected panic but got none")
+		}
+		if r != ErrUnauthorized {
+			t.Errorf("expected ErrUnauthorized but got %v", r)
+		}
+	}()
+	o.AssertCallerIsOwner()
+}
+
+func TestNilReceiver(t *testing.T) {
+	var o *Ownable
+
+	owner := o.Owner()
+	if owner != std.Address("") {
+		t.Errorf("expected empty address but got %v", owner)
+	}
+
+	isOwner := o.CallerIsOwner()
+	uassert.False(t, isOwner)
+
+	defer func() {
+		r := recover()
+		if r == nil {
+			t.Error("expected panic but got none")
+		}
+		if r != ErrUnauthorized {
+			t.Errorf("expected ErrUnauthorized but got %v", r)
+		}
+	}()
+	o.AssertCallerIsOwner()
+}

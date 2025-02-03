@@ -5,59 +5,49 @@ import (
 	"testing"
 
 	"gno.land/p/demo/ownable"
+	"gno.land/p/demo/uassert"
 	"gno.land/p/demo/urequire"
 )
 
 var (
-	firstCaller  = std.Address("g1l9aypkr8xfvs82zeux486ddzec88ty69lue9de")
-	secondCaller = std.Address("g127jydsh6cms3lrtdenydxsckh23a8d6emqcvfa")
+	firstCaller = std.Address("g1l9aypkr8xfvs82zeux486ddzec88ty69lue9de")
+	o           = ownable.NewWithAddress(firstCaller)
 )
-
-func TestNew(t *testing.T) {
-	t.SetPreviousRealm(std.NewUserRealm(firstCaller))
-
-	result := New()
-
-	urequire.False(t, result.paused, "Expected result to be unpaused")
-	urequire.Equal(t, firstCaller.String(), result.Owner().String())
-}
 
 func TestNewFromOwnable(t *testing.T) {
 	t.SetPreviousRealm(std.NewUserRealm(firstCaller))
-
-	o := ownable.New()
-
-	t.SetPreviousRealm(std.NewUserRealm(secondCaller))
-
 	result := NewFromOwnable(o)
 
-	urequire.Equal(t, firstCaller.String(), result.Owner().String())
+	urequire.Equal(t, firstCaller.String(), result.Ownable().Owner().String())
 }
 
 func TestSetUnpaused(t *testing.T) {
 	t.SetPreviousRealm(std.NewUserRealm(firstCaller))
+	result := NewFromOwnable(o)
 
-	result := New()
 	result.Unpause()
-
-	urequire.False(t, result.IsPaused(), "Expected result to be unpaused")
+	uassert.False(t, result.IsPaused(), "Expected result to be unpaused")
 }
 
 func TestSetPaused(t *testing.T) {
 	t.SetPreviousRealm(std.NewUserRealm(firstCaller))
+	result := NewFromOwnable(o)
 
-	result := New()
 	result.Pause()
-
-	urequire.True(t, result.IsPaused(), "Expected result to be paused")
+	uassert.True(t, result.IsPaused(), "Expected result to be paused")
 }
 
 func TestIsPaused(t *testing.T) {
-	t.SetPreviousRealm(std.NewUserRealm(firstCaller))
-
-	result := New()
+	result := NewFromOwnable(o)
 	urequire.False(t, result.IsPaused(), "Expected result to be unpaused")
 
+	t.SetPreviousRealm(std.NewUserRealm(firstCaller))
 	result.Pause()
-	urequire.True(t, result.IsPaused(), "Expected result to be paused")
+	uassert.True(t, result.IsPaused(), "Expected result to be paused")
+}
+
+func TestOwnable(t *testing.T) {
+	result := NewFromOwnable(o)
+
+	uassert.Equal(t, result.Ownable().Owner(), o.Owner())
 }
