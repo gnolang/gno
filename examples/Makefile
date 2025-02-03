@@ -33,11 +33,11 @@ OFFICIAL_PACKAGES += ./gno.land/r/gov/...
 # Dev tools
 .PHONY: transpile
 transpile:
-	go run ../gnovm/cmd/gno tool transpile -v ./...
+	go run ../gnovm/cmd/gno tool transpile -v .
 
 .PHONY: build
 build:
-	go run ../gnovm/cmd/gno tool transpile -v --gobuild ./...
+	go run ../gnovm/cmd/gno tool transpile -v --gobuild .
 
 .PHONY: test
 test:
