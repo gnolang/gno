@@ -28,7 +28,6 @@ func init() {
 }
 
 func main() {
-	// Repost should fail if source thread is flagged
 	_ = boards2.CreateRepost(srcBid, srcTid, "foo", "bar", dstBid)
 }
 
