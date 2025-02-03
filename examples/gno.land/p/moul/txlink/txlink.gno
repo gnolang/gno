@@ -52,13 +52,13 @@ func (r Realm) prefix() string {
 // Call returns a URL for the specified function with optional key-value
 // arguments.
 func (r Realm) Call(fn string, args ...string) string {
-	// Create url.Values to properly encode parameters.
-	// But manage &func=fn as a special case to keep it as the first argument.
-	values := url.Values{}
-
 	if len(args) == 0 {
 		return r.prefix() + "$help&func=" + fn
 	}
+
+	// Create url.Values to properly encode parameters.
+	// But manage &func=fn as a special case to keep it as the first argument.
+	values := url.Values{}
 
 	// Check if args length is even
 	if len(args)%2 != 0 {

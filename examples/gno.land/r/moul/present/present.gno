@@ -151,7 +151,6 @@ func renderList(req *realmpath.Request) string {
 	pgr := pager.NewPager(index, 10, isSortReversed(req))
 
 	// Get current page
-	//page := pgr.MustGetPageByPath(req.Query.Encode())
 	page := pgr.MustGetPageByPath(req.String())
 
 	// Create table
