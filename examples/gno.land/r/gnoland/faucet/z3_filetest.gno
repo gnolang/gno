@@ -23,7 +23,7 @@ func main() {
 		testaddr1       = testutils.TestAddress("test1")
 		testaddr2       = testutils.TestAddress("test2")
 	)
-	testing.SetOriginCaller(std.NewUserRealm(adminaddr))
+	testing.SetOriginCaller(adminaddr)
 	err := faucet.AdminAddController(controlleraddr1)
 	if err != "" {
 		panic(err)
@@ -32,12 +32,12 @@ func main() {
 	if err != "" {
 		panic(err)
 	}
-	testing.SetOriginCaller(std.NewUserRealm(controlleraddr1))
+	testing.SetOriginCaller(controlleraddr1)
 	err = faucet.Transfer(testaddr1, 1000000)
 	if err != "" {
 		panic(err)
 	}
-	testing.SetOriginCaller(std.NewUserRealm(controlleraddr2))
+	testing.SetOriginCaller(controlleraddr2)
 	err = faucet.Transfer(testaddr1, 2000000)
 	if err != "" {
 		panic(err)

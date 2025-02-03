@@ -19,7 +19,7 @@ func TestVerificationLifecycle(t *testing.T) {
 	}
 
 	// Make a verification request with the created user.
-	t.SetOriginCaller(std.NewUserRealm(user1Address))
+	t.SetOriginCaller(user1Address)
 	RequestVerification("deelawn")
 
 	// A subsequent request from the same address should panic because there is
@@ -44,13 +44,13 @@ func TestVerificationLifecycle(t *testing.T) {
 	}
 
 	// Make a verification request with the created user.
-	t.SetOriginCaller(std.NewUserRealm(user2Address))
+	t.SetOriginCaller(user2Address)
 	RequestVerification("omarsy")
 
 	// Set the caller back to the whitelisted user and verify that the feed data
 	// returned matches what should have been created by the `RequestVerification`
 	// invocation.
-	t.SetOriginCaller(std.NewUserRealm(defaultAddress))
+	t.SetOriginCaller(defaultAddress)
 	result = GnorkleEntrypoint("request")
 	expResult := `[{"id":"` + string(user1Address) + `","type":"0","value_type":"string","tasks":[{"gno_address":"` +
 		string(user1Address) + `","github_handle":"deelawn"}]},` +
@@ -61,7 +61,7 @@ func TestVerificationLifecycle(t *testing.T) {
 	}
 
 	// Try to trigger feed ingestion from the non-authorized user.
-	t.SetOriginCaller(std.NewUserRealm(user1Address))
+	t.SetOriginCaller(user1Address)
 	func() {
 		defer func() {
 			if r := recover(); r != nil {
@@ -75,7 +75,7 @@ func TestVerificationLifecycle(t *testing.T) {
 	}
 
 	// Set the caller back to the whitelisted user and transfer contract ownership.
-	t.SetOriginCaller(std.NewUserRealm(defaultAddress))
+	t.SetOriginCaller(defaultAddress)
 	SetOwner(defaultAddress)
 
 	// Now trigger the feed ingestion from the user and new owner and only whitelisted address.

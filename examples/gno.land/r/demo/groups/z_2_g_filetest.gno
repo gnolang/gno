@@ -21,7 +21,7 @@ func main() {
 
 	// delete group via anon user
 	test2 := testutils.TestAddress("test2")
-	testing.SetOriginCaller(std.NewUserRealm(test2))
+	testing.SetOriginCaller(test2)
 	testing.SetOriginSend(std.Coins{{"ugnot", 9000000}}, nil)
 
 	groups.DeleteGroup(gid)

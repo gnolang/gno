@@ -36,7 +36,7 @@ func TestReadOnlyPublicMethods(t *testing.T) {
 	}
 
 	// admin creates FOO and BAR.
-	t.SetOriginCaller(std.NewUserRealm(admin))
+	t.SetOriginCaller(admin)
 	NewWithAdmin("Foo", "FOO", 3, 1_111_111_000, 5_555, admin)
 	NewWithAdmin("Bar", "BAR", 3, 2_222_000, 6_666, admin)
 	checkBalances("step1", 1_111_111_000, 1_111_111_000, 0, 0, 0)
@@ -46,12 +46,12 @@ func TestReadOnlyPublicMethods(t *testing.T) {
 	checkBalances("step2", 1_444_444_000, 1_111_111_000, 333_333_000, 0, 0)
 
 	// carl uses the faucet.
-	t.SetOriginCaller(std.NewUserRealm(carl))
+	t.SetOriginCaller(carl)
 	Faucet("FOO")
 	checkBalances("step3", 1_444_449_555, 1_111_111_000, 333_333_000, 0, 5_555)
 
 	// admin gives to bob some allowance.
-	t.SetOriginCaller(std.NewUserRealm(admin))
+	t.SetOriginCaller(admin)
 	Approve("FOO", bob, 1_000_000)
 	checkBalances("step4", 1_444_449_555, 1_111_111_000, 333_333_000, 1_000_000, 5_555)
 

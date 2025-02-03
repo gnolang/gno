@@ -9,7 +9,7 @@ import (
 
 func TestUpdateGithubUrl(t *testing.T) {
 	caller := std.Address("g1d24j8fwnc0w5q427fauyey4gdd30qgu69k6n0x")
-	t.SetOriginCaller(std.NewUserRealm(caller))
+	t.SetOriginCaller(caller)
 
 	newUrl := "https://github.com/example"
 
@@ -22,7 +22,7 @@ func TestUpdateGithubUrl(t *testing.T) {
 
 func TestUpdateLinkedinUrl(t *testing.T) {
 	caller := std.Address("g1d24j8fwnc0w5q427fauyey4gdd30qgu69k6n0x")
-	t.SetOriginCaller(std.NewUserRealm(caller))
+	t.SetOriginCaller(caller)
 
 	newUrl := "https://www.linkedin.com/in/example"
 
@@ -35,7 +35,7 @@ func TestUpdateLinkedinUrl(t *testing.T) {
 
 func TestUpdateAboutMe(t *testing.T) {
 	caller := std.Address("g1d24j8fwnc0w5q427fauyey4gdd30qgu69k6n0x")
-	t.SetOriginCaller(std.NewUserRealm(caller))
+	t.SetOriginCaller(caller)
 
 	newAboutMe := "This is new description!"
 
@@ -48,7 +48,7 @@ func TestUpdateAboutMe(t *testing.T) {
 
 func TestUpdateSelectedImage(t *testing.T) {
 	user := testutils.TestAddress("user")
-	t.SetOriginCaller(std.NewUserRealm(user))
+	t.SetOriginCaller(user)
 
 	validImageUrl := "https://i.ibb.co/hLtmnX0/beautiful-rain-forest-ang-ka-nature-trail-doi-inthanon-national-park-thailand-36703721.webp"
 
@@ -85,7 +85,7 @@ func TestUpdateSelectedImage(t *testing.T) {
 
 func TestUpdateImagePrice(t *testing.T) {
 	caller := std.Address("g1d24j8fwnc0w5q427fauyey4gdd30qgu69k6n0x")
-	t.SetOriginCaller(std.NewUserRealm(caller))
+	t.SetOriginCaller(caller)
 
 	var newImageUpdatePrice int64 = 3000000
 
