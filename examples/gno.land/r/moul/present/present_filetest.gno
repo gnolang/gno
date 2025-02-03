@@ -45,23 +45,33 @@ func main() {
 	}
 
 	// Test different sorting scenarios
-	println(present.Render(""))                       // default
-	println(present.Render("?order=asc&sort=date"))   // by date ascending
-	println(present.Render("?order=asc&sort=title"))  // by title ascending
-	println(present.Render("?order=asc&sort=author")) // by author ascending (multiple entries per author)
+	printRender("")                       // default
+	printRender("?order=asc&sort=date")   // by date ascending
+	printRender("?order=asc&sort=title")  // by title ascending
+	printRender("?order=asc&sort=author") // by author ascending (multiple entries per author)
 
 	// Test pagination
-	println(present.Render("?order=asc&sort=title&page=2")) // second page
+	printRender("?order=asc&sort=title&page=2") // second page
 
 	// Test view
-	println(present.Render("view/test5")) // view by slug
+	printRender("view/test5") // view by slug
 
 	// Test slides
-	println(present.Render("slides/test5"))        // slides by slug
-	println(present.Render("slides/test5?page=2")) // slides by slug, second page
+	printRender("slides/test5")        // slides by slug
+	printRender("slides/test5?page=2") // slides by slug, second page
+}
+
+// Helper function to print path and render result
+func printRender(path string) {
+	println("+-------------------------------")
+	println("| PATH:", path)
+	println("| RESULT:\n" + present.Render(path) + "\n")
 }
 
 // Output:
+// +-------------------------------
+// | PATH:
+// | RESULT:
 // # Presentations
 // | [Date](?order=desc&sort=date) | [Title](?order=desc&sort=title) | Event | [Author](?order=desc&sort=author) | Slides |
 // | --- | --- | --- | --- | --- |
@@ -76,6 +86,10 @@ func main() {
 // | [title3](/r/moul/present:view/test3) | author1 | event2 | 2024-02-01 | 2 |
 // | [title14](/r/moul/present:view/test14) | author1 | event3 | 2024-01-25 | 2 |
 // **1** | [2](?page=2)
+//
+// +-------------------------------
+// | PATH: ?order=asc&sort=date
+// | RESULT:
 // # Presentations
 // | [Date](?order=desc&sort=date) | [Title](?order=desc&sort=title) | Event | [Author](?order=desc&sort=author) | Slides |
 // | --- | --- | --- | --- | --- |
@@ -90,6 +104,10 @@ func main() {
 // | [title6](/r/moul/present:view/test6) | author1 | event2 | 2024-02-15 | 2 |
 // | [title9](/r/moul/present:view/test9) | author3 | event2 | 2024-02-20 | 2 |
 // **1** | [2](?page=2)
+//
+// +-------------------------------
+// | PATH: ?order=asc&sort=title
+// | RESULT:
 // # Presentations
 // | [Date](?order=desc&sort=date) | [Title ↓](?order=desc&sort=title) | Event | [Author](?order=desc&sort=author) | Slides |
 // | --- | --- | --- | --- | --- |
@@ -104,6 +122,10 @@ func main() {
 // | [title3](/r/moul/present:view/test3) | author1 | event2 | 2024-02-01 | 2 |
 // | [title4](/r/moul/present:view/test4) | author3 | event1 | 2024-01-20 | 2 |
 // **1** | [2](?page=2)
+//
+// +-------------------------------
+// | PATH: ?order=asc&sort=author
+// | RESULT:
 // # Presentations
 // | [Date](?order=desc&sort=date) | [Title](?order=desc&sort=title) | Event | [Author](?order=desc&sort=author) | Slides |
 // | --- | --- | --- | --- | --- |
@@ -123,6 +145,10 @@ func main() {
 // | [title11](/r/moul/present:view/test11) | author4 | event3 | 2024-01-05 | 2 |
 // | [title15](/r/moul/present:view/test15) | author4 | event2 | 2024-02-25 | 2 |
 //
+//
+// +-------------------------------
+// | PATH: ?order=asc&sort=title&page=2
+// | RESULT:
 // # Presentations
 // | [Date](?order=desc&page=2&sort=date) | [Title ↓](?order=desc&page=2&sort=title) | Event | [Author](?order=desc&page=2&sort=author) | Slides |
 // | --- | --- | --- | --- | --- |
@@ -132,6 +158,10 @@ func main() {
 // | [title8](/r/moul/present:view/test8) | author2 | event3 | 2024-01-10 | 2 |
 // | [title9](/r/moul/present:view/test9) | author3 | event2 | 2024-02-20 | 2 |
 // [1](?page=1) | **2**
+//
+// +-------------------------------
+// | PATH: view/test5
+// | RESULT:
 // # title5
 // Event: event3
 //
@@ -161,6 +191,10 @@ func main() {
 // - [Edit presentation](/r/moul/present$help&func=Set&slug=test5&title=title5&event=event3&date=2024-03-01)
 // - [Delete presentation](/r/moul/present$help&func=Delete&slug=test5)
 //
+//
+// +-------------------------------
+// | PATH: slides/test5
+// | RESULT:
 // # title5
 // Event: event3
 //
@@ -173,8 +207,13 @@ func main() {
 // ---
 //
 // | 1/2 | [Next →](/r/moul/present:slides/test5?page=2)
+//
+// +-------------------------------
+// | PATH: slides/test5?page=2
+// | RESULT:
 // ## s5
 //
 // ---
 //
 // [← Prev](/r/moul/present:slides/test5?page=1) | 2/2 |
+//
