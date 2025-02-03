@@ -82,9 +82,9 @@ type FileImport struct {
 
 type ImportsMap map[FileKind][]*FileImport
 
-func (im ImportsMap) ToStrings() map[FileKind][]string {
-	res := make(map[FileKind][]string, len(im))
-	for k, v := range im {
+func (imap ImportsMap) ToStrings() map[FileKind][]string {
+	res := make(map[FileKind][]string, len(imap))
+	for k, v := range imap {
 		c := make([]string, 0, len(v))
 		for _, x := range v {
 			c = append(c, x.PkgPath)

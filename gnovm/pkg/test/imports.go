@@ -14,7 +14,6 @@ import (
 	"time"
 
 	"github.com/gnolang/gno/gnovm"
-	"github.com/gnolang/gno/gnovm/pkg/gnolang"
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
 	"github.com/gnolang/gno/gnovm/pkg/packages"
 	teststdlibs "github.com/gnolang/gno/gnovm/tests/stdlibs"
@@ -28,7 +27,7 @@ import (
 // NOTE: this isn't safe, should only be used for testing.
 func Store(
 	rootDir string,
-	getter gnolang.MemPackageGetter,
+	getter gno.MemPackageGetter,
 	withExtern bool,
 	stdin io.Reader,
 	stdout, stderr io.Writer,
