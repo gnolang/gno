@@ -250,6 +250,7 @@ func renderView(slug string) string {
 	editLink := txlink.Call("Set",
 		"slug", p.Slug,
 		"title", p.Title,
+		"author", p.Author,
 		"event", p.Event,
 		"date", p.Date.Format("2006-01-02"),
 	)
