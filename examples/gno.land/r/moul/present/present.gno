@@ -299,7 +299,7 @@ func renderSlides(slug string, currentPage int) string {
 		out.WriteString(p.LastSlide())
 	} else {
 		out.WriteString(md.H1(p.Title))
-		out.WriteString("## " + slides[currentPage-1] + "\n")
+		out.WriteString("## " + slides[currentPage-1] + "\n\n")
 	}
 
 	out.WriteString(renderSlidesNavigation(slug, currentPage, p.NumSlides))

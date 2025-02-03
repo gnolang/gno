@@ -193,6 +193,7 @@ func printRender(path string) {
 // | RESULT:
 // # title15
 // ## s15.0
+//
 // [← Prev](/r/moul/present:s15/slides?page=1) | 2/5 | [Next →](/r/moul/present:s15/slides?page=3)
 //
 //
@@ -202,6 +203,7 @@ func printRender(path string) {
 // | RESULT:
 // # title15
 // ## s15.1
+//
 // [← Prev](/r/moul/present:s15/slides?page=2) | 3/5 | [Next →](/r/moul/present:s15/slides?page=4)
 //
 //
@@ -211,6 +213,7 @@ func printRender(path string) {
 // | RESULT:
 // # title15
 // ## s15.2
+//
 // [← Prev](/r/moul/present:s15/slides?page=3) | 4/5 | [Next →](/r/moul/present:s15/slides?page=5)
 //
 //
