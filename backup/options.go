@@ -10,3 +10,10 @@ func WithLogger(l log.Logger) Option {
 		s.logger = l
 	}
 }
+
+// WithBatchSize specifies the number of requests to batch
+func WithBatchSize(size uint) Option {
+	return func(s *Service) {
+		s.batchSize = size
+	}
+}

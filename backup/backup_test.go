@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"context"
 	"errors"
+	"fmt"
 	"os"
 	"testing"
 	"time"
@@ -83,197 +84,274 @@ func TestBackup_DetermineRightBound(t *testing.T) {
 	})
 }
 
+func generateMemo(blockNum, txNum uint64) string {
+	return fmt.Sprintf("example transaction %d:%d", blockNum, txNum)
+}
+
+var blockTime = time.Date(1987, 0o6, 24, 6, 32, 11, 0, time.FixedZone("Europe/Madrid", 0))
+
+func generateBlocks(t *testing.T, from, to, nTxs uint64) []*client.Block {
+	t.Helper()
+
+	// generateBlocks return only blocks containing transaction
+	if nTxs == 0 {
+		return nil
+	}
+
+	blocks := make([]*client.Block, to-from+1)
+
+	for i := range blocks {
+		txs := make([]std.Tx, nTxs)
+		blockNum := from + uint64(i)
+
+		for j := range txs {
+			txs[j].Memo = generateMemo(blockNum, uint64(j))
+		}
+
+		blocks[i] = &client.Block{
+			Height:    blockNum,
+			Timestamp: blockTime.Add(time.Duration(blockNum) * time.Minute).UnixMilli(),
+			Txs:       txs,
+		}
+	}
+
+	return blocks
+}
+
+type testCase struct {
+	name        string
+	batchSize   uint
+	fromBlock   uint64
+	toBlock     uint64
+	txsPerBlock uint64
+}
+
+var testCases = []testCase{
+	// Batch 0 (should be forced to fetch by 1 by config)
+	{name: "batch 0/10 blocks/3 txs", batchSize: 0, fromBlock: 1, toBlock: 10, txsPerBlock: 3},
+	{name: "batch 0/10 blocks/1 tx", batchSize: 0, fromBlock: 1, toBlock: 10, txsPerBlock: 1},
+	{name: "batch 0/10 blocks/0 tx", batchSize: 0, fromBlock: 1, toBlock: 10, txsPerBlock: 0},
+	// Batch 1 (fetch 1 by 1)
+	{name: "batch 1/10 blocks/3 txs", batchSize: 1, fromBlock: 1, toBlock: 10, txsPerBlock: 3},
+	{name: "batch 1/10 blocks/1 tx", batchSize: 1, fromBlock: 1, toBlock: 10, txsPerBlock: 1},
+	{name: "batch 1/10 blocks/0 tx", batchSize: 1, fromBlock: 1, toBlock: 10, txsPerBlock: 0},
+	// Batch 6 (first fetch 6, then 4)
+	{name: "batch 6/10 blocks/3 txs", batchSize: 6, fromBlock: 1, toBlock: 10, txsPerBlock: 3},
+	{name: "batch 6/10 blocks/1 tx", batchSize: 6, fromBlock: 1, toBlock: 10, txsPerBlock: 1},
+	{name: "batch 6/10 blocks/0 tx", batchSize: 6, fromBlock: 1, toBlock: 10, txsPerBlock: 0},
+	// Batch 10 (fetch all blocks in 1 batch)
+	{name: "batch 10/10 blocks/3 txs", batchSize: 10, fromBlock: 1, toBlock: 10, txsPerBlock: 3},
+	{name: "batch 10/10 blocks/1 tx", batchSize: 10, fromBlock: 1, toBlock: 10, txsPerBlock: 1},
+	{name: "batch 10/10 blocks/0 tx", batchSize: 10, fromBlock: 1, toBlock: 10, txsPerBlock: 0},
+	// Batch 11 (batch size (11) bigger than block count within range (10))
+	{name: "batch 11/10 blocks/3 txs", batchSize: 11, fromBlock: 1, toBlock: 10, txsPerBlock: 3},
+	{name: "batch 11/10 blocks/1 tx", batchSize: 11, fromBlock: 1, toBlock: 10, txsPerBlock: 1},
+	{name: "batch 11/10 blocks/0 tx", batchSize: 11, fromBlock: 1, toBlock: 10, txsPerBlock: 0},
+}
+
 func TestBackup_ExecuteBackup_FixedRange(t *testing.T) {
 	t.Parallel()
 
-	var (
-		tempFile = createTempFile(t)
+	//nolint:thelper,gocritic
+	testFunc := func(t *testing.T, tCase testCase) {
+		t.Run(tCase.name, func(t *testing.T) {
+			t.Parallel()
 
-		fromBlock uint64 = 10
-		toBlock          = fromBlock + 10
+			var (
+				tempFile = createTempFile(t)
+				cfg      = DefaultConfig()
 
-		exampleTx = std.Tx{
-			Memo: "example transaction",
-		}
+				mockClient = &mockClient{
+					getLatestBlockNumberFn: func() (uint64, error) {
+						return tCase.toBlock, nil
+					},
+					getBlocksFn: func(_ context.Context, from, to uint64) ([]*client.Block, error) {
+						// Sanity check
+						if from > to {
+							t.Fatal("invalid block number requested")
+						}
 
-		cfg = DefaultConfig()
+						return generateBlocks(t, from, to, tCase.txsPerBlock), nil
+					},
+				}
+			)
 
-		blockTime = time.Date(1987, 0o6, 24, 6, 32, 11, 0, time.FixedZone("Europe/Madrid", 0))
+			// Temp file cleanup
+			t.Cleanup(func() {
+				require.NoError(t, tempFile.Close())
+				require.NoError(t, os.Remove(tempFile.Name()))
+			})
 
-		mockClient = &mockClient{
-			getLatestBlockNumberFn: func() (uint64, error) {
-				return toBlock, nil
-			},
-			getBlockFn: func(blockNum uint64) (*client.Block, error) {
-				// Sanity check
-				if blockNum < fromBlock && blockNum > toBlock {
-					t.Fatal("invalid block number requested")
+			// Set the config
+			cfg.FromBlock = tCase.fromBlock
+			cfg.ToBlock = &tCase.toBlock
+
+			s := NewService(mockClient, standard.NewWriter(tempFile), WithLogger(noop.New()), WithBatchSize(tCase.batchSize))
+
+			// Run the backup procedure
+			require.NoError(
+				t,
+				s.ExecuteBackup(
+					context.Background(),
+					cfg,
+				),
+			)
+
+			// Read the output file
+			fileRaw, err := os.Open(tempFile.Name())
+			require.NoError(t, err)
+
+			// Set up a line-by-line scanner
+			scanner := bufio.NewScanner(fileRaw)
+			lineCount := uint64(0)
+
+			// Iterate over each line in the file
+			for ; scanner.Scan(); lineCount++ {
+				var txData gnoland.TxWithMetadata
+
+				// Unmarshal the JSON data into the Person struct
+				if err := amino.UnmarshalJSON(scanner.Bytes(), &txData); err != nil {
+					t.Fatalf("unable to unmarshal JSON line, %v", err)
 				}
 
-				return &client.Block{
-					Height:    blockNum,
-					Timestamp: blockTime.Add(time.Duration(blockNum) * time.Minute).Unix(),
-					Txs:       []std.Tx{exampleTx},
-				}, nil // 1 tx per block
-			},
-		}
-	)
+				expectedBlock := tCase.fromBlock + lineCount/tCase.txsPerBlock
+				expectedTx := lineCount % tCase.txsPerBlock
+				expectedTxMemo := generateMemo(expectedBlock, expectedTx)
+				assert.Equal(t, expectedTxMemo, txData.Tx.Memo)
+				assert.Equal(
+					t,
+					blockTime.Add(time.Duration(expectedBlock)*time.Minute).Local(),
+					time.UnixMilli(txData.Metadata.Timestamp),
+				)
+			}
 
-	// Temp file cleanup
-	t.Cleanup(func() {
-		require.NoError(t, tempFile.Close())
-		require.NoError(t, os.Remove(tempFile.Name()))
-	})
+			// Check for errors during scanning
+			if err := scanner.Err(); err != nil {
+				t.Fatalf("error encountered during scan, %v", err)
+			}
 
-	// Set the config
-	cfg.FromBlock = fromBlock
-	cfg.ToBlock = &toBlock
-
-	s := NewService(mockClient, standard.NewWriter(tempFile), WithLogger(noop.New()))
-
-	// Run the backup procedure
-	require.NoError(
-		t,
-		s.ExecuteBackup(
-			context.Background(),
-			cfg,
-		),
-	)
-
-	// Read the output file
-	fileRaw, err := os.Open(tempFile.Name())
-	require.NoError(t, err)
-
-	// Set up a line-by-line scanner
-	scanner := bufio.NewScanner(fileRaw)
-
-	expectedBlock := fromBlock
-
-	// Iterate over each line in the file
-	for scanner.Scan() {
-		var txData gnoland.TxWithMetadata
-
-		// Unmarshal the JSON data into the Person struct
-		if err := amino.UnmarshalJSON(scanner.Bytes(), &txData); err != nil {
-			t.Fatalf("unable to unmarshal JSON line, %v", err)
-		}
-
-		assert.Equal(t, exampleTx, txData.Tx)
-		assert.Equal(
-			t,
-			blockTime.Add(time.Duration(expectedBlock)*time.Minute).Unix(),
-			txData.Metadata.Timestamp,
-		)
-
-		expectedBlock++
+			// Ensure we found 1 line by expected transaction
+			expectedTxCount := (tCase.toBlock - tCase.fromBlock + 1) * tCase.txsPerBlock
+			assert.Equal(t, expectedTxCount, lineCount)
+		})
 	}
 
-	// Check for errors during scanning
-	if err := scanner.Err(); err != nil {
-		t.Fatalf("error encountered during scan, %v", err)
+	for _, tCase := range testCases {
+		testFunc(t, tCase)
 	}
 }
 
 func TestBackup_ExecuteBackup_Watch(t *testing.T) {
 	t.Parallel()
 
-	// Set up the context that is controlled by the test
-	ctx, cancelFn := context.WithCancel(context.Background())
-	defer cancelFn()
+	//nolint:thelper,gocritic
+	testFunc := func(t *testing.T, tCase testCase) {
+		t.Run(tCase.name, func(t *testing.T) {
+			t.Parallel()
 
-	var (
-		tempFile = createTempFile(t)
+			// Set up the context that is controlled by the test
+			ctx, cancelFn := context.WithCancel(context.Background())
+			defer cancelFn()
 
-		fromBlock uint64 = 10
-		toBlock          = fromBlock + 10
+			var (
+				tempFile   = createTempFile(t)
+				cfg        = DefaultConfig()
+				watchStart = tCase.toBlock / 2
+				latest     = watchStart
 
-		requestToBlock = toBlock / 2
+				mockClient = &mockClient{
+					getLatestBlockNumberFn: func() (uint64, error) {
+						if latest == tCase.toBlock { // Simulate last block incrementing while in watch mode
+							cancelFn()
+						} else {
+							latest++
+						}
 
-		exampleTx = std.Tx{
-			Memo: "example transaction",
-		}
+						return latest, nil
+					},
+					getBlocksFn: func(_ context.Context, from, to uint64) ([]*client.Block, error) {
+						// Sanity check
+						if from > to {
+							t.Fatal("invalid block number requested")
+						}
 
-		cfg = DefaultConfig()
+						switch {
+						case from > tCase.toBlock:
+							return nil, nil
+						case from > watchStart: // Watch mode, return blocks 1 by 1
+							return generateBlocks(t, from, from, tCase.txsPerBlock), nil
+						case to > latest:
+							return generateBlocks(t, from, latest, tCase.txsPerBlock), nil
+						}
 
-		blockTime = time.Date(1987, 0o6, 24, 6, 32, 11, 0, time.FixedZone("Europe/Madrid", 0))
+						return generateBlocks(t, from, to, tCase.txsPerBlock), nil
+					},
+				}
+			)
 
-		mockClient = &mockClient{
-			getLatestBlockNumberFn: func() (uint64, error) {
-				return toBlock, nil
-			},
-			getBlockFn: func(blockNum uint64) (*client.Block, error) {
-				// Sanity check
-				if blockNum < fromBlock && blockNum > toBlock {
-					t.Fatal("invalid block number requested")
+			// Temp file cleanup
+			t.Cleanup(func() {
+				require.NoError(t, tempFile.Close())
+				require.NoError(t, os.Remove(tempFile.Name()))
+			})
+
+			// Set the config
+			cfg.FromBlock = tCase.fromBlock
+			cfg.ToBlock = &tCase.toBlock
+			cfg.Watch = true
+
+			s := NewService(mockClient, standard.NewWriter(tempFile), WithLogger(noop.New()), WithBatchSize(tCase.batchSize))
+			s.watchInterval = 10 * time.Millisecond // make the interval almost instant for the test
+
+			// Run the backup procedure
+			require.NoError(
+				t,
+				s.ExecuteBackup(
+					ctx,
+					cfg,
+				),
+			)
+
+			// Read the output file
+			fileRaw, err := os.Open(tempFile.Name())
+			require.NoError(t, err)
+
+			// Set up a line-by-line scanner
+			scanner := bufio.NewScanner(fileRaw)
+			lineCount := uint64(0)
+
+			// Iterate over each line in the file
+			for ; scanner.Scan(); lineCount++ {
+				var txData gnoland.TxWithMetadata
+
+				// Unmarshal the JSON data into the Person struct
+				if err := amino.UnmarshalJSON(scanner.Bytes(), &txData); err != nil {
+					t.Fatalf("unable to unmarshal JSON line, %v", err)
 				}
 
-				if blockNum == toBlock {
-					// End of the road, close the watch process
-					cancelFn()
-				}
+				expectedBlock := tCase.fromBlock + lineCount/tCase.txsPerBlock
+				expectedTx := lineCount % tCase.txsPerBlock
+				expectedTxMemo := generateMemo(expectedBlock, expectedTx)
+				assert.Equal(t, expectedTxMemo, txData.Tx.Memo)
+				assert.Equal(
+					t,
+					blockTime.Add(time.Duration(expectedBlock)*time.Minute).Local(),
+					time.UnixMilli(txData.Metadata.Timestamp),
+				)
+			}
 
-				return &client.Block{
-					Height:    blockNum,
-					Timestamp: blockTime.Add(time.Duration(blockNum) * time.Minute).Unix(),
-					Txs:       []std.Tx{exampleTx},
-				}, nil // 1 tx per block
-			},
-		}
-	)
+			// Check for errors during scanning
+			if err := scanner.Err(); err != nil {
+				t.Fatalf("error encountered during scan, %v", err)
+			}
 
-	// Temp file cleanup
-	t.Cleanup(func() {
-		require.NoError(t, tempFile.Close())
-		require.NoError(t, os.Remove(tempFile.Name()))
-	})
-
-	// Set the config
-	cfg.FromBlock = fromBlock
-	cfg.ToBlock = &requestToBlock
-	cfg.Watch = true
-
-	s := NewService(mockClient, standard.NewWriter(tempFile), WithLogger(noop.New()))
-	s.watchInterval = 10 * time.Millisecond // make the interval almost instant for the test
-
-	// Run the backup procedure
-	require.NoError(
-		t,
-		s.ExecuteBackup(
-			ctx,
-			cfg,
-		),
-	)
-
-	// Read the output file
-	fileRaw, err := os.Open(tempFile.Name())
-	require.NoError(t, err)
-
-	// Set up a line-by-line scanner
-	scanner := bufio.NewScanner(fileRaw)
-
-	expectedBlock := fromBlock
-
-	// Iterate over each line in the file
-	for scanner.Scan() {
-		var txData gnoland.TxWithMetadata
-
-		// Unmarshal the JSON data into the Person struct
-		if err := amino.UnmarshalJSON(scanner.Bytes(), &txData); err != nil {
-			t.Fatalf("unable to unmarshal JSON line, %v", err)
-		}
-
-		assert.Equal(t, exampleTx, txData.Tx)
-		assert.Equal(
-			t,
-			blockTime.Add(time.Duration(expectedBlock)*time.Minute).Local(),
-			time.Unix(txData.Metadata.Timestamp, 0),
-		)
-
-		expectedBlock++
+			// Ensure we found 1 line by expected transaction
+			expectedTxCount := (tCase.toBlock - tCase.fromBlock + 1) * tCase.txsPerBlock
+			assert.Equal(t, expectedTxCount, lineCount)
+		})
 	}
 
-	// Check for errors during scanning
-	if err := scanner.Err(); err != nil {
-		t.Fatalf("error encountered during scan, %v", err)
+	for _, tCase := range testCases {
+		testFunc(t, tCase)
 	}
 }

@@ -1,17 +1,19 @@
 package backup
 
 import (
+	"context"
+
 	"github.com/gnolang/tx-archive/backup/client"
 )
 
 type (
 	getLatestBlockNumberDelegate func() (uint64, error)
-	getBlockDelegate             func(uint64) (*client.Block, error)
+	getBlocksDelegate            func(context.Context, uint64, uint64) ([]*client.Block, error)
 )
 
 type mockClient struct {
 	getLatestBlockNumberFn getLatestBlockNumberDelegate
-	getBlockFn             getBlockDelegate
+	getBlocksFn            getBlocksDelegate
 }
 
 func (m *mockClient) GetLatestBlockNumber() (uint64, error) {
@@ -22,9 +24,9 @@ func (m *mockClient) GetLatestBlockNumber() (uint64, error) {
 	return 0, nil
 }
 
-func (m *mockClient) GetBlock(blockNum uint64) (*client.Block, error) {
-	if m.getBlockFn != nil {
-		return m.getBlockFn(blockNum)
+func (m *mockClient) GetBlocks(ctx context.Context, from, to uint64) ([]*client.Block, error) {
+	if m.getBlocksFn != nil {
+		return m.getBlocksFn(ctx, from, to)
 	}
 
 	return nil, nil

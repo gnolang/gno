@@ -8,18 +8,20 @@ import (
 	"os"
 
 	"github.com/gnolang/tx-archive/backup"
-	"github.com/gnolang/tx-archive/backup/client/http"
+	"github.com/gnolang/tx-archive/backup/client/rpc"
 	"github.com/gnolang/tx-archive/backup/writer"
 	"github.com/gnolang/tx-archive/backup/writer/legacy"
 	"github.com/gnolang/tx-archive/backup/writer/standard"
 	"github.com/peterbourgon/ff/v3/ffcli"
 	"go.uber.org/zap"
+	"go.uber.org/zap/zapcore"
 )
 
 const (
 	defaultOutputPath = "./backup.jsonl"
 	defaultFromBlock  = 1
 	defaultToBlock    = -1 // no limit
+	defaultBatchSize  = 1  // no batch / fetch one by one
 
 	defaultRemoteAddress = "http://127.0.0.1:26657"
 )
@@ -37,10 +39,13 @@ type backupCfg struct {
 
 	toBlock   int64 // < 0 means there is no right bound
 	fromBlock uint64
+	batchSize uint
 
+	ws        bool
 	overwrite bool
 	legacy    bool
 	watch     bool
+	verbose   bool
 }
 
 // newBackupCmd creates the backup command
@@ -75,6 +80,13 @@ func (c *backupCfg) registerFlags(fs *flag.FlagSet) {
 		"the JSON-RPC URL of the chain to be backed up",
 	)
 
+	fs.BoolVar(
+		&c.ws,
+		"ws",
+		false,
+		"flag indicating if the WebSocket protocol should be used for RPC",
+	)
+
 	fs.Int64Var(
 		&c.toBlock,
 		"to-block",
@@ -87,6 +99,13 @@ func (c *backupCfg) registerFlags(fs *flag.FlagSet) {
 		"from-block",
 		defaultFromBlock,
 		"the starting block number for the backup (inclusive)",
+	)
+
+	fs.UintVar(
+		&c.batchSize,
+		"batch",
+		defaultBatchSize,
+		"the number of RPC requests to batch. If <2, requests will not be batched",
 	)
 
 	fs.BoolVar(
@@ -108,6 +127,13 @@ func (c *backupCfg) registerFlags(fs *flag.FlagSet) {
 		"watch",
 		false,
 		"flag indicating if the backup should append incoming tx data",
+	)
+
+	fs.BoolVar(
+		&c.verbose,
+		"verbose",
+		false,
+		"flag indicating if the log verbosity should be set to debug level",
 	)
 }
 
@@ -135,18 +161,33 @@ func (c *backupCfg) exec(ctx context.Context, _ []string) error {
 	cfg.Watch = c.watch
 
 	if c.toBlock >= 0 {
-		to64 := uint64(c.toBlock) //nolint:gosec // This insanity is a necessary evil
+		to64 := uint64(c.toBlock)
 		cfg.ToBlock = &to64
 	}
 
-	// Set up the client
-	client, err := http.NewClient(c.remote)
-	if err != nil {
-		return fmt.Errorf("could not create a gno client, %w", err)
+	// Set up the RPC client
+	var (
+		client    *rpc.Client
+		clientErr error
+	)
+
+	if c.ws {
+		client, clientErr = rpc.NewWSClient(c.remote)
+	} else {
+		client, clientErr = rpc.NewHTTPClient(c.remote)
+	}
+
+	if clientErr != nil {
+		return fmt.Errorf("could not create a gno client, %w", clientErr)
 	}
 
 	// Set up the logger
-	zapLogger, loggerErr := zap.NewDevelopment()
+	var logOpts []zap.Option
+	if !c.verbose {
+		logOpts = append(logOpts, zap.IncreaseLevel(zapcore.InfoLevel)) // Info instead Debug level
+	}
+
+	zapLogger, loggerErr := zap.NewDevelopment(logOpts...)
 	if loggerErr != nil {
 		return fmt.Errorf("unable to create logger, %w", loggerErr)
 	}
@@ -198,6 +239,7 @@ func (c *backupCfg) exec(ctx context.Context, _ []string) error {
 		client,
 		w,
 		backup.WithLogger(logger),
+		backup.WithBatchSize(c.batchSize),
 	)
 
 	// Run the backup service

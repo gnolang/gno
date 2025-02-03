@@ -14,6 +14,7 @@ import (
 	"github.com/gnolang/tx-archive/restore/source/standard"
 	"github.com/peterbourgon/ff/v3/ffcli"
 	"go.uber.org/zap"
+	"go.uber.org/zap/zapcore"
 )
 
 var (
@@ -28,6 +29,7 @@ type restoreCfg struct {
 
 	legacyBackup bool
 	watch        bool
+	verbose      bool
 }
 
 // newRestoreCmd creates the restore command
@@ -75,6 +77,13 @@ func (c *restoreCfg) registerFlags(fs *flag.FlagSet) {
 		false,
 		"flag indicating if the restore should watch incoming tx data",
 	)
+
+	fs.BoolVar(
+		&c.verbose,
+		"verbose",
+		false,
+		"flag indicating if the log verbosity should be set to debug level",
+	)
 }
 
 // exec executes the restore command
@@ -102,7 +111,12 @@ func (c *restoreCfg) exec(ctx context.Context, _ []string) error {
 	}
 
 	// Set up the logger
-	zapLogger, loggerErr := zap.NewDevelopment()
+	var logOpts []zap.Option
+	if !c.verbose {
+		logOpts = append(logOpts, zap.IncreaseLevel(zapcore.InfoLevel)) // Info instead Debug level
+	}
+
+	zapLogger, loggerErr := zap.NewDevelopment(logOpts...)
 	if loggerErr != nil {
 		return fmt.Errorf("unable to create logger, %w", loggerErr)
 	}

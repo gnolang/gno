@@ -21,6 +21,7 @@ type Service struct {
 	writer writer.Writer
 	logger log.Logger
 
+	batchSize     uint
 	watchInterval time.Duration // interval for the watch routine
 }
 
@@ -35,6 +36,11 @@ func NewService(client client.Client, writer writer.Writer, opts ...Option) *Ser
 
 	for _, opt := range opts {
 		opt(s)
+	}
+
+	// Batch size needs to be at least 1
+	if s.batchSize == 0 {
+		s.batchSize = 1
 	}
 
 	return s
@@ -53,62 +59,117 @@ func (s *Service) ExecuteBackup(ctx context.Context, cfg Config) error {
 		return fmt.Errorf("unable to determine right bound, %w", boundErr)
 	}
 
-	// Keep track of total txs backed up
-	totalTxs := uint64(0)
+	// Log info about what will be backed up
+	s.logger.Info(
+		"Existing blocks to backup",
+		"from block", cfg.FromBlock,
+		"to block", toBlock,
+		"total", toBlock-cfg.FromBlock+1,
+	)
 
-	fetchAndWrite := func(height uint64) error {
-		block, txErr := s.client.GetBlock(height)
-		if txErr != nil {
-			return fmt.Errorf("unable to fetch block transactions, %w", txErr)
-		}
+	// Keep track of what has been backed up
+	var results struct {
+		blocksFetched uint64
+		blocksWithTxs uint64
+		txsBackedUp   uint64
+	}
 
-		// Skip empty blocks
-		if len(block.Txs) == 0 {
-			return nil
-		}
+	// Log results on exit
+	defer func() {
+		s.logger.Info(
+			"Total data backed up",
+			"blocks fetched", results.blocksFetched,
+			"blocks with transactions", results.blocksWithTxs,
+			"transactions written", results.txsBackedUp,
+		)
+	}()
 
-		// Save the block transaction data, if any
-		for _, tx := range block.Txs {
-			data := &gnoland.TxWithMetadata{
-				Tx: tx,
-				Metadata: &gnoland.GnoTxMetadata{
-					Timestamp: block.Timestamp,
-				},
+	// Internal function that fetches and writes a range of blocks
+	fetchAndWrite := func(fromBlock, toBlock uint64) error {
+		// Fetch by batches
+		for batchStart := fromBlock; batchStart <= toBlock; {
+			// Determine batch stop block
+			batchStop := batchStart + uint64(s.batchSize) - 1
+			if batchStop > toBlock {
+				batchStop = toBlock
 			}
 
-			// Write the tx data to the file
-			if writeErr := s.writer.WriteTxData(data); writeErr != nil {
-				return fmt.Errorf("unable to write tx data, %w", writeErr)
-			}
+			batchSize := batchStop - batchStart + 1
 
-			totalTxs++
-
-			// Log the progress
-			s.logger.Info(
-				"Transaction backed up",
-				"total", totalTxs,
+			// Verbose log for blocks to be fetched
+			s.logger.Debug(
+				"Fetching batch of blocks",
+				"from", batchStart,
+				"to", batchStop,
+				"size", batchSize,
 			)
+
+			// Fetch current batch
+			blocks, txErr := s.client.GetBlocks(ctx, batchStart, batchStop)
+			if txErr != nil {
+				return fmt.Errorf("unable to fetch block transactions, %w", txErr)
+			}
+
+			// Keep track of the number of fetched blocks & those containing transactions
+			results.blocksFetched += batchSize
+			results.blocksWithTxs += uint64(len(blocks))
+
+			// Verbose log for blocks containing transactions
+			s.logger.Debug(
+				"Batch fetched successfully",
+				"blocks with transactions", fmt.Sprintf("%d/%d", len(blocks), batchSize),
+			)
+
+			// Iterate over the list of blocks containing transactions
+			for _, block := range blocks {
+				for i, tx := range block.Txs {
+					// Write the tx data to the file
+					txData := &gnoland.TxWithMetadata{
+						Tx: tx,
+						Metadata: &gnoland.GnoTxMetadata{
+							Timestamp: block.Timestamp,
+						},
+					}
+
+					if writeErr := s.writer.WriteTxData(txData); writeErr != nil {
+						return fmt.Errorf("unable to write tx data, %w", writeErr)
+					}
+
+					// Keep track of the number of backed up transactions
+					results.txsBackedUp++
+
+					// Verbose log for each transaction written
+					s.logger.Debug(
+						"Transaction backed up",
+						"blockNum", block.Height,
+						"tx count (block)", i+1,
+						"tx count (total)", results.txsBackedUp,
+					)
+				}
+			}
+
+			batchStart = batchStop + 1
 		}
 
 		return nil
 	}
 
-	// Gather the chain data from the node
-	for block := cfg.FromBlock; block <= toBlock; block++ {
-		select {
-		case <-ctx.Done():
-			s.logger.Info("backup procedure stopped")
-
-			return nil
-		default:
-			if fetchErr := fetchAndWrite(block); fetchErr != nil {
-				return fetchErr
-			}
-		}
+	// Backup the existing transactions
+	if fetchErr := fetchAndWrite(cfg.FromBlock, toBlock); fetchErr != nil {
+		return fetchErr
 	}
 
 	// Check if there needs to be a watcher setup
 	if cfg.Watch {
+		s.logger.Info(
+			"Existing blocks backup complete",
+			"blocks fetched", results.blocksFetched,
+			"blocks with transactions", results.blocksWithTxs,
+			"transactions written", results.txsBackedUp,
+		)
+
+		s.logger.Info("Watch for new blocks to backup")
+
 		ticker := time.NewTicker(s.watchInterval)
 		defer ticker.Stop()
 
@@ -117,7 +178,7 @@ func (s *Service) ExecuteBackup(ctx context.Context, cfg Config) error {
 		for {
 			select {
 			case <-ctx.Done():
-				s.logger.Info("export procedure stopped")
+				s.logger.Info("Stop watching for new blocks to backup")
 
 				return nil
 			case <-ticker.C:
@@ -133,10 +194,8 @@ func (s *Service) ExecuteBackup(ctx context.Context, cfg Config) error {
 				}
 
 				// Catch up to the latest block
-				for block := lastBlock + 1; block <= latest; block++ {
-					if fetchErr := fetchAndWrite(block); fetchErr != nil {
-						return fetchErr
-					}
+				if fetchErr := fetchAndWrite(lastBlock+1, latest); fetchErr != nil {
+					return fetchErr
 				}
 
 				// Update the last exported block
@@ -144,8 +203,6 @@ func (s *Service) ExecuteBackup(ctx context.Context, cfg Config) error {
 			}
 		}
 	}
-
-	s.logger.Info("Backup complete")
 
 	return nil
 }

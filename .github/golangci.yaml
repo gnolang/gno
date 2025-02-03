@@ -122,3 +122,6 @@ linters-settings:
       rules:
         json: goCamel
         yaml: goCamel
+  gosec:
+    excludes:
+      - G115 # Potential integer overflow when converting between integer types
