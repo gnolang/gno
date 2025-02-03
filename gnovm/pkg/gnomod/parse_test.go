@@ -181,7 +181,7 @@ func TestParseGnoMod(t *testing.T) {
 			desc:             "file not exists",
 			modData:          `module foo`,
 			modPath:          filepath.Join(pkgDir, "mod.gno"),
-			errShouldContain: "could not read gno.mod file:",
+			errShouldContain: "mod.gno: could not read gno.mod file",
 		},
 		{
 			desc:             "file path is dir",
@@ -204,7 +204,7 @@ func TestParseGnoMod(t *testing.T) {
 			desc:             "error bad module directive",
 			modData:          `module foo v0.0.0`,
 			modPath:          filepath.Join(pkgDir, "gno.mod"),
-			errShouldContain: "error parsing gno.mod file at",
+			errShouldContain: "gno.mod:1: usage: module module/path",
 		},
 		{
 			desc:             "error gno.mod without module",

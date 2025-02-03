@@ -185,8 +185,8 @@ func execModGraph(cfg *modGraphCfg, args []string, io commands.IO) error {
 		return err
 	}
 	for _, pkg := range pkgs {
-		for _, dep := range pkg.ImportsSpecs.Merge(packages.FileKindPackageSource) {
-			fmt.Fprintf(stdout, "%s %s\n", pkg.ImportPath, dep.PkgPath)
+		for _, imp := range pkg.Imports[packages.FileKindPackageSource] {
+			fmt.Fprintf(stdout, "%s %s\n", pkg.ImportPath, imp)
 		}
 	}
 	return nil

@@ -23,7 +23,7 @@ type LoadConfig struct {
 	IO            commands.IO
 	Fetcher       pkgdownload.PackageFetcher
 	Deps          bool
-	Cache         PackagesMap
+	Cache         PkgList
 	SelfContained bool
 	AllowEmpty    bool
 	DepsPatterns  []string
@@ -43,12 +43,23 @@ func (conf *LoadConfig) applyDefaults() {
 	if conf.Fetcher == nil {
 		conf.Fetcher = rpcpkgfetcher.New(nil)
 	}
-	if conf.Cache == nil {
-		conf.Cache = map[string]*Package{}
-	}
 	if conf.Fset == nil {
 		conf.Fset = token.NewFileSet()
 	}
+}
+
+func LoadWorkspace(conf *LoadConfig, dir string) (PkgList, error) {
+	absDir, err := filepath.Abs(dir)
+	if err != nil {
+		return nil, err
+	}
+
+	workRoot, err := gnomod.FindRootDir(absDir)
+	if err != nil {
+		return nil, err
+	}
+
+	return Load(conf, filepath.Join(workRoot, "..."))
 }
 
 func Load(conf *LoadConfig, patterns ...string) (PkgList, error) {
@@ -62,7 +73,7 @@ func Load(conf *LoadConfig, patterns ...string) (PkgList, error) {
 		return nil, err
 	}
 
-	pkgs, err := readPackages(expanded, conf.Fset)
+	pkgs, err := readPackages(expanded, nil, conf.Fset)
 	if err != nil {
 		return nil, err
 	}
@@ -85,13 +96,13 @@ func Load(conf *LoadConfig, patterns ...string) (PkgList, error) {
 		m.Match = []string{}
 	}
 
-	extraPkgs, err := readPackages(extra, conf.Fset)
+	extraPkgs, err := readPackages(extra, pkgs, conf.Fset)
 	if err != nil {
 		return nil, err
 	}
 	extraMap := NewPackagesMap(extraPkgs...)
 
-	toVisit := pkgs
+	toVisit := []*Package(pkgs)
 	queuedByPkgPath := NewPackagesMap(pkgs...)
 	markForVisit := func(pkg *Package) {
 		queuedByPkgPath.Add(pkg)
@@ -122,7 +133,7 @@ func Load(conf *LoadConfig, patterns ...string) (PkgList, error) {
 			}
 
 			// check if we have it in config cache
-			if cached, ok := conf.Cache[imp.PkgPath]; ok {
+			if cached := conf.Cache.Get(imp.PkgPath); cached != nil {
 				markForVisit(cached)
 				continue
 			}

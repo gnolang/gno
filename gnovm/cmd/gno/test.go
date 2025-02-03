@@ -157,19 +157,12 @@ func execTest(cfg *testCfg, args []string, io commands.IO) error {
 		IO:           io,
 		Fetcher:      testPackageFetcher,
 		DepsPatterns: []string{"./..."},
+		Deps:         true,
 	}
 	pkgs, err := packages.Load(conf, args...)
 	if err != nil {
-		return fmt.Errorf("list targets from patterns: %w", err)
+		return err
 	}
-
-	if len(pkgs) == 0 {
-		io.ErrPrintln("no packages to test")
-		return nil
-	}
-
-	pkgsMap := map[string]*packages.Package{}
-	packages.Inject(pkgsMap, pkgs)
 
 	if cfg.timeout > 0 {
 		go func() {
@@ -198,6 +191,14 @@ func execTest(cfg *testCfg, args []string, io commands.IO) error {
 			continue
 		}
 
+		if len(pkg.Errors) != 0 {
+			for _, err := range pkg.Errors {
+				io.ErrPrintln(err)
+				buildErrCount++
+			}
+			continue
+		}
+
 		if !pkg.Draft && pkg.Files.Size() == 0 {
 			return fmt.Errorf("no Gno files in %s", pkg.Dir)
 		}
@@ -211,17 +212,6 @@ func execTest(cfg *testCfg, args []string, io commands.IO) error {
 			io.ErrPrintfln("?       %s \t[no test files]", label)
 			continue
 		}
-
-		depsConf := *conf
-		depsConf.Deps = true
-		depsConf.Cache = pkgsMap
-		deps, loadDepsErr := packages.Load(&depsConf, pkg.Dir)
-		if loadDepsErr != nil {
-			io.ErrPrintfln("%s: load deps: %v", label, err)
-			buildErrCount++
-			continue
-		}
-		packages.Inject(pkgsMap, deps)
 
 		memPkg, err := gno.ReadMemPackage(pkg.Dir, label, conf.Fset)
 		if err != nil {

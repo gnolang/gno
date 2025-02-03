@@ -41,7 +41,7 @@ func TestNewDirs_nonExisting(t *testing.T) {
 	assert.Empty(t, d.hist, "hist should be empty")
 	assert.Equal(t, strings.Count(buf.String(), "\n"), 2, "output should contain 2 lines")
 	assert.Contains(t, buf.String(), "non/existing/dir: no such file or directory")
-	assert.Contains(t, buf.String(), "this/one/neither/gno.mod: no such file or directory")
+	assert.Contains(t, buf.String(), "this/one/neither/gno.mod: could not read gno.mod file")
 	assert.NotContains(t, buf.String(), "dirsempty: no such file or directory")
 }
 
@@ -57,7 +57,7 @@ func TestNewDirs_invalidModDir(t *testing.T) {
 	log.Default().SetOutput(old)
 	assert.Empty(t, d.hist, "hist should be len 0 (testdata/dirs is not a valid mod dir)")
 	assert.Equal(t, strings.Count(buf.String(), "\n"), 1, "output should contain 1 line")
-	assert.Contains(t, buf.String(), "gno.mod: no such file or directory")
+	assert.Contains(t, buf.String(), "gno.mod: could not read gno.mod file")
 }
 
 func tNewDirs(t *testing.T) (string, *bfsDirs) {

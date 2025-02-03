@@ -36,10 +36,10 @@ func (nopReader) Read(p []byte) (int, error) { return 0, io.EOF }
 func TestFiles(t *testing.T) {
 	t.Parallel()
 
-	rootDir, err := filepath.Abs("../../../")
+	rootDir, err := filepath.Abs(filepath.FromSlash("../../.."))
 	require.NoError(t, err)
 
-	pkgs, err := packages.Load(&packages.LoadConfig{}, filepath.Join(rootDir, "examples", "...."))
+	pkgs, err := packages.Load(&packages.LoadConfig{}, filepath.Join(rootDir, "examples", "..."))
 	require.NoError(t, err)
 
 	newOpts := func() *test.TestOptions {

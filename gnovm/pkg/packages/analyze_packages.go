@@ -9,14 +9,13 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/davecgh/go-spew/spew"
 	"github.com/gnolang/gno/gnovm"
 	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
 	"github.com/gnolang/gno/gnovm/pkg/gnolang"
 	"github.com/gnolang/gno/gnovm/pkg/gnomod"
 )
 
-func readPackages(matches []*pkgMatch, fset *token.FileSet) ([]*Package, error) {
+func readPackages(matches []*pkgMatch, known PkgList, fset *token.FileSet) (PkgList, error) {
 	if fset == nil {
 		fset = token.NewFileSet()
 	}
@@ -29,6 +28,8 @@ func readPackages(matches []*pkgMatch, fset *token.FileSet) ([]*Package, error) 
 			if err != nil {
 				return nil, err
 			}
+		} else if known.GetByDir(pkgMatch.Dir) != nil {
+			continue
 		} else {
 			pkg = readPkgDir(pkgMatch.Dir, "", fset)
 		}
@@ -146,13 +147,6 @@ func readPkgFiles(pkg *Package, files []string, fset *token.FileSet) *Package {
 		pkg.Files[fileKind] = append(pkg.Files[fileKind], base)
 	}
 
-	var err error
-	pkg.ImportsSpecs, err = Imports(&mempkg, fset)
-	if err != nil {
-		pkg.Errors = append(pkg.Errors, FromErr(err, fset, pkg.Dir, true)...)
-	}
-	pkg.Imports = pkg.ImportsSpecs.ToStrings()
-
 	// we use the ReadMemPkg utils to get the package name because we want name resolution like the vm
 	nameFiles := pkg.Files.Merge(FileKindPackageSource, FileKindTest, FileKindXTest, FileKindFiletest)
 	absFiles := make([]string, 0, len(nameFiles))
@@ -163,9 +157,16 @@ func readPkgFiles(pkg *Package, files []string, fset *token.FileSet) *Package {
 	minMempkg, err := gnolang.ReadMemPackageFromList(absFiles, "", fset)
 	if err != nil {
 		pkg.Errors = append(pkg.Errors, FromErr(err, fset, pkg.Dir, true)...)
+		return pkg
 	} else {
 		pkg.Name = minMempkg.Name
 	}
+
+	pkg.ImportsSpecs, err = Imports(&mempkg, fset)
+	if err != nil {
+		pkg.Errors = append(pkg.Errors, FromErr(err, fset, pkg.Dir, true)...)
+	}
+	pkg.Imports = pkg.ImportsSpecs.ToStrings()
 
 	// TODO: check if stdlib
 
@@ -188,7 +189,6 @@ func readPkgFiles(pkg *Package, files []string, fset *token.FileSet) *Package {
 	modFpath := filepath.Join(pkg.Root, "gno.mod")
 	mod, err := gnomod.ParseGnoMod(modFpath)
 	if err != nil {
-		spew.Dump(err)
 		pkg.Errors = append(pkg.Errors, FromErr(err, fset, modFpath, false)...)
 		return pkg
 	}

@@ -36,6 +36,9 @@ func Store(
 	baseStore storetypes.CommitStore,
 	resStore gno.Store,
 ) {
+	if getter == nil {
+		getter = packages.PkgList{}
+	}
 	getPackage := func(pkgPath string, store gno.Store) (pn *gno.PackageNode, pv *gno.PackageValue) {
 		// fmt.Println("getting pkg", pkgPath)
 
@@ -140,6 +143,7 @@ func Store(
 		// if known package
 		if memPkg := getter.GetMemPackage(pkgPath); memPkg != nil {
 			if memPkg.IsEmpty() {
+				fmt.Fprintln(os.Stderr, string(debug.Stack()))
 				panic(fmt.Sprintf("found an empty package %q", pkgPath))
 			}
 

@@ -13,7 +13,6 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/davecgh/go-spew/spew"
 	"github.com/gnolang/gno/gnovm"
 	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
@@ -106,9 +105,6 @@ func execLint(cfg *lintCfg, args []string, io commands.IO) error {
 		return fmt.Errorf("list packages from args: %w", err)
 	}
 
-	pkgsMap := map[string]*packages.Package{}
-	packages.Inject(pkgsMap, pkgs)
-
 	hasError := false
 
 	bs, ts := test.Store(
@@ -156,22 +152,9 @@ func execLint(cfg *lintCfg, args []string, io commands.IO) error {
 			hasError = true
 		}
 
-		// load deps
-		loadDepsCfg := *loadCfg
-		loadDepsCfg.Deps = true
-		loadDepsCfg.Cache = pkgsMap
-		deps, loadDepsErr := packages.Load(&loadDepsCfg, pkg.Dir)
-		if loadDepsErr != nil {
-			io.ErrPrintln(issueFromError(pkg.Dir, err).String())
-			hasError = true
-			continue
-		}
-		packages.Inject(pkgsMap, deps)
-
 		// read mempkg
 		memPkg, err := pkg.MemPkg()
 		if err != nil {
-			spew.Fdump(os.Stderr, loadDepsErr)
 			io.ErrPrintln(issueFromError(pkg.Dir, err).String())
 			hasError = true
 			continue
@@ -195,7 +178,7 @@ func execLint(cfg *lintCfg, args []string, io commands.IO) error {
 
 			// Run type checking
 			if !pkg.Draft {
-				foundErr, err := lintTypeCheck(io, memPkg, pkgs)
+				foundErr, err := lintTypeCheck(io, memPkg, ts)
 				if err != nil {
 					io.ErrPrintln(err)
 					hasError = true

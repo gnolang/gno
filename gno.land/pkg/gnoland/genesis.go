@@ -173,9 +173,12 @@ func LoadPackage(pkg *packages.Package, creator bft.Address, fee std.Fee, deposi
 	var tx std.Tx
 
 	// Open files in directory as MemPackage.
-	memPkg := gnolang.MustReadMemPackage(pkg.Dir, pkg.ImportPath)
-	err := memPkg.Validate()
+	memPkg, err := pkg.MemPkg()
 	if err != nil {
+		return tx, fmt.Errorf("read package: %w", err)
+	}
+
+	if err := memPkg.Validate(); err != nil {
 		return tx, fmt.Errorf("invalid package: %w", err)
 	}
 

@@ -27,13 +27,13 @@ func TestLintApp(t *testing.T) {
 			stderrShouldBe: "../../tests/integ/several-lint-errors/main.gno:5:5: expected ';', found example (code=3)\n../../tests/integ/several-lint-errors/main.gno:6:2: expected '}', found 'EOF' (code=3)\n",
 			errShouldBe:    "exit code: 1",
 		}, {
-			args: []string{"tool", "lint", "../../tests/integ/several-files-multiple-errors/main.gno"},
+			args: []string{"tool", "lint", "../../tests/integ/several-files-multiple-errors"},
 			stderrShouldContain: func() string {
 				lines := []string{
-					"../../tests/integ/several-files-multiple-errors/file2.gno:3:5: expected 'IDENT', found '{' (code=2)",
-					"../../tests/integ/several-files-multiple-errors/file2.gno:5:1: expected type, found '}' (code=2)",
-					"../../tests/integ/several-files-multiple-errors/main.gno:5:5: expected ';', found example (code=2)",
-					"../../tests/integ/several-files-multiple-errors/main.gno:6:2: expected '}', found 'EOF' (code=2)",
+					"../../tests/integ/several-files-multiple-errors/file2.gno:3:5: expected 'IDENT', found '{' (code=3)",
+					"../../tests/integ/several-files-multiple-errors/file2.gno:5:1: expected type, found '}' (code=3)",
+					"../../tests/integ/several-files-multiple-errors/main.gno:5:5: expected ';', found example (code=3)",
+					"../../tests/integ/several-files-multiple-errors/main.gno:6:2: expected '}', found 'EOF' (code=3)",
 				}
 				return strings.Join(lines, "\n") + "\n"
 			}(),

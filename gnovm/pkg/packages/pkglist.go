@@ -25,6 +25,26 @@ func (pl PkgList) Get(pkgPath string) *Package {
 	return nil
 }
 
+func (pl PkgList) GetByDir(dir string) *Package {
+	for _, p := range pl {
+		if p.Dir == dir {
+			return p
+		}
+	}
+	return nil
+}
+
+func (pl PkgList) Roots() PkgList {
+	res := PkgList{}
+	for _, p := range pl {
+		if len(p.Match) == 0 {
+			continue
+		}
+		res = append(res, p)
+	}
+	return res
+}
+
 func (pl PkgList) GetMemPackage(pkgPath string) *gnovm.MemPackage {
 	pkg := pl.Get(pkgPath)
 	if pkg == nil {
@@ -67,10 +87,10 @@ func visitPackage(pkg *Package, pkgs []*Package, visited, onStack map[string]boo
 	onStack[pkg.ImportPath] = true
 
 	// Visit package's dependencies
-	for _, imp := range pkg.ImportsSpecs.Merge(FileKindPackageSource) {
+	for _, imp := range pkg.Imports[FileKindPackageSource] {
 		found := false
 		for _, p := range pkgs {
-			if p.ImportPath != imp.PkgPath {
+			if p.ImportPath != imp {
 				continue
 			}
 			if err := visitPackage(p, pkgs, visited, onStack, sortedPkgs); err != nil {
@@ -80,7 +100,7 @@ func visitPackage(pkg *Package, pkgs []*Package, visited, onStack map[string]boo
 			break
 		}
 		if !found {
-			return fmt.Errorf("missing dependency '%s' for package '%s'", imp.PkgPath, pkg.ImportPath)
+			return fmt.Errorf("missing dependency '%s' for package '%s'", imp, pkg.ImportPath)
 		}
 	}
 

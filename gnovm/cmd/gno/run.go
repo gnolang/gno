@@ -10,6 +10,7 @@ import (
 	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
 	"github.com/gnolang/gno/gnovm/pkg/gnofiles"
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
+	"github.com/gnolang/gno/gnovm/pkg/packages"
 	"github.com/gnolang/gno/gnovm/pkg/test"
 	"github.com/gnolang/gno/tm2/pkg/commands"
 	"github.com/gnolang/gno/tm2/pkg/std"
@@ -89,16 +90,21 @@ func execRun(cfg *runCfg, args []string, io commands.IO) error {
 	stdout := io.Out()
 	stderr := io.Err()
 
+	if len(args) == 0 {
+		args = []string{"./..."}
+	}
+
+	pkgs, err := packages.Load(&packages.LoadConfig{Fetcher: testPackageFetcher, Deps: true}, args...)
+	if err != nil {
+		return err
+	}
+
 	// init store and machine
 	_, testStore := test.Store(
-		cfg.rootDir, nil, false,
+		cfg.rootDir, pkgs, false,
 		stdin, stdout, stderr)
 	if cfg.verbose {
 		testStore.SetLogStoreOps(true)
-	}
-
-	if len(args) == 0 {
-		args = []string{"."}
 	}
 
 	// read files
