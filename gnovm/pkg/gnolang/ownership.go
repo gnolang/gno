@@ -394,6 +394,8 @@ func (tv *TypedValue) GetFirstObject(store Store) Object {
 }
 
 // GetOriginPkg get origin pkg for real or unreal object
+// if the object is real, it's retrieved from objectID,
+// otherwise, it's inference from its type.
 func (tv *TypedValue) GetOriginPkg(store Store) (originPkg PkgID) {
 	debug2.Println2("GetOriginPkg, tv: ", tv, reflect.TypeOf(tv.V))
 	// get first object

@@ -546,12 +546,19 @@ func (rlm *Realm) incRefCreatedDescendants(store Store, oo Object) {
 		}
 	}
 
+	// TODO: un-real object from external realm,
+	// can be with declared type, or just a literal,
+	// regarding the former one, check the origin pkg,
+	// and panic, for the latter one, check its element
+	// for map, func, array, slice, etc.
+
 	// XXX, oo must be new real here, it's not escaped
 	// if it's reference, all right
 	if !oo.GetOriginRealm().IsZero() && oo.GetOriginRealm() != rlm.ID {
 		switch oo.GetOriginValue().(type) {
 		case PointerValue, *SliceValue: // ref
 			panic("cannot attach a reference to an unreal object from an external realm")
+			// TODO: ignore this now.
 		case *FuncValue:
 			if b, ok := oo.(*Block); ok {
 				debug2.Println2("block: ", b)
