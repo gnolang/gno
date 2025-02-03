@@ -1,8 +1,10 @@
 package packages
 
 import (
+	"errors"
 	"fmt"
 	"os"
+	"slices"
 
 	"github.com/davecgh/go-spew/spew"
 	"github.com/gnolang/gno/gnovm"
@@ -25,6 +27,89 @@ func (pl PkgList) Get(pkgPath string) *Package {
 	return nil
 }
 
+func (pl PkgList) PkgPaths() []string {
+	res := make([]string, 0, len(pl))
+	for _, pkg := range pl {
+		res = append(res, pkg.ImportPath)
+	}
+	return res
+}
+
+func (pl PkgList) Traverse(roots []string, filekinds []FileKind, cb func(p *Package) error) error {
+	visited := []string{}
+
+	for _, root := range roots {
+		if err := pl.traverseVisit(&visited, root, filekinds, cb); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func (pl PkgList) traverseVisit(visited *[]string, pkgPath string, filekinds []FileKind, cb func(p *Package) error) error {
+	if slices.Contains(*visited, pkgPath) {
+		return nil
+	}
+	*visited = append(*visited, pkgPath)
+
+	pkg := pl.Get(pkgPath)
+	if pkg == nil {
+		return fmt.Errorf("%s: %w", pkgPath, ErrPackageNotFound)
+	}
+
+	if err := cb(pkg); err != nil {
+		return err
+	}
+
+	for _, imp := range pkg.ImportsSpecs.Merge(filekinds...) {
+		if err := pl.traverseVisit(visited, imp.PkgPath, filekinds, cb); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func (pl PkgList) Explore(roots []string, cb func(p *Package) ([]string, error)) error {
+	visited := []string{}
+
+	for _, root := range roots {
+		if err := pl.exploreVisit(&visited, root, cb); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func (pl PkgList) exploreVisit(visited *[]string, pkgPath string, cb func(p *Package) ([]string, error)) error {
+	if slices.Contains(*visited, pkgPath) {
+		return nil
+	}
+	*visited = append(*visited, pkgPath)
+
+	pkg := pl.Get(pkgPath)
+	if pkg == nil {
+		return fmt.Errorf("%s: %w", pkgPath, ErrPackageNotFound)
+	}
+
+	next, err := cb(pkg)
+	if err != nil {
+		return err
+	}
+
+	for _, imp := range next {
+		if err := pl.exploreVisit(visited, imp, cb); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+var ErrPackageNotFound = errors.New("package not found")
+
 func (pl PkgList) GetByDir(dir string) *Package {
 	for _, p := range pl {
 		if p.Dir == dir {
@@ -34,7 +119,7 @@ func (pl PkgList) GetByDir(dir string) *Package {
 	return nil
 }
 
-func (pl PkgList) Roots() PkgList {
+func (pl PkgList) Matches() PkgList {
 	res := PkgList{}
 	for _, p := range pl {
 		if len(p.Match) == 0 {
