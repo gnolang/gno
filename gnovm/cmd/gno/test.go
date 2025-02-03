@@ -5,10 +5,13 @@ import (
 	"flag"
 	"fmt"
 	goio "io"
+	"os"
+	"path/filepath"
 	"time"
 
 	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
+	"github.com/gnolang/gno/gnovm/pkg/gnomod"
 	"github.com/gnolang/gno/gnovm/pkg/packages"
 	"github.com/gnolang/gno/gnovm/pkg/test"
 	"github.com/gnolang/gno/tm2/pkg/commands"
@@ -152,11 +155,24 @@ func execTest(cfg *testCfg, args []string, io commands.IO) error {
 		cfg.rootDir = gnoenv.RootDir()
 	}
 
+	depsPatterns := []string{}
+
+	// include local modules
+	workspaceDir := "."
+	cwd, err := os.Getwd()
+	if err == nil {
+		workspaceDir, err = gnomod.FindRootDir(cwd)
+		if err != nil {
+			workspaceDir = "."
+		}
+	}
+	depsPatterns = append(depsPatterns, filepath.Join(workspaceDir, "..."))
+
 	// Find targets for test.
 	conf := &packages.LoadConfig{
 		IO:           io,
 		Fetcher:      testPackageFetcher,
-		DepsPatterns: []string{"./..."},
+		DepsPatterns: depsPatterns,
 		Deps:         true,
 	}
 	pkgs, err := packages.Load(conf, args...)
