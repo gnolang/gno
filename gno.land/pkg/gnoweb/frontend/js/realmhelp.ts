@@ -1,4 +1,4 @@
-import { debounce, escapeShellContent } from "./utils";
+import { debounce, escapeShellSpecialChars } from "./utils";
 
 class Help {
   private DOM: {
@@ -143,7 +143,7 @@ class HelpFunc {
   }
 
   public updateArg(paramName: string, paramValue: string): void {
-    const escapedValue = escapeShellContent(paramValue);
+    const escapedValue = escapeShellSpecialChars(paramValue);
     this.DOM.args
       .filter((arg) => arg.dataset.arg === paramName)
       .forEach((arg) => {

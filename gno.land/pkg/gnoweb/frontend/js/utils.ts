@@ -11,6 +11,6 @@ export function debounce<T extends (...args: any[]) => void>(func: T, delay: num
   };
 }
 
-export function escapeShellContent(arg: string): string {
+export function escapeShellSpecialChars(arg: string): string {
   return arg.replace(/([$`"\\!|&;<>*?{}()])/g, "\\$1");
 }
