@@ -85,7 +85,7 @@ func detectCycles(root *packages.Package, pkgs packages.PkgList, visited map[str
 
 // visitImports resolves and visits imports by kinds
 func visitImports(kinds []packages.FileKind, root *packages.Package, pkgs packages.PkgList, visited map[string]bool, stack []string) error {
-	for _, imp := range root.Imports.Merge(kinds...) {
+	for _, imp := range root.ImportsSpecs.Merge(kinds...) {
 		if slices.Contains(injectedTestingLibs, imp.PkgPath) {
 			continue
 		}
