@@ -1,5 +1,10 @@
 package releases
 
+import (
+	"gno.land/p/moul/md"
+	"gno.land/p/moul/mdtable"
+)
+
 type changelog struct {
 	name     string
 	releases []release
@@ -29,6 +34,22 @@ func (c *changelog) NewRelease(version, url, notes string) {
 	}
 
 	c.releases = append(c.releases, release)
+}
+
+func (c changelog) RenderAsTable(max int) string {
+	out := md.H1(c.name)
+
+	table := mdtable.Table{
+		Headers: []string{"Version", "Link", "Notes"},
+	}
+
+	for i := len(c.releases) - 1; i > len(c.releases)-1-max; i-- {
+		r := c.releases[i]
+		table.Append([]string{r.version, r.Link(), r.notes})
+	}
+
+	out += table.String()
+	return out
 }
 
 func (c *changelog) Render(path string) string {
