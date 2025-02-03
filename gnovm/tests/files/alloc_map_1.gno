@@ -3,25 +3,27 @@ package main
 
 import "runtime"
 
-var m = map[string]int{"a": 1}
+type Foo struct{ name string }
 
-type S struct {
-	name string
-	mm   map[string]int
+var M = map[string]Foo{
+	"a": {name: "a"},
+	"b": {name: "b"},
+	"c": {name: "c"},
 }
 
-func bar() {
-	var s = S{name: "foo"}
-	s.mm = m
-	println("MemStats before GC: ", runtime.MemStats())
+func xyz() {
+	M["d"] = Foo{"d"}
+	M["e"] = Foo{"e"}
+	M["f"] = Foo{"f"}
+	println("memstats in xyz before GC: ", runtime.MemStats())
 }
-
 func main() {
-	bar()
+	xyz()
+	m := M // no allocation
 	runtime.GC()
-	println("MemStats after GC: ", runtime.MemStats())
+	println("memstats in main after GC: ", runtime.MemStats())
 }
 
 // Output:
-// MemStats before GC:  Allocator{maxBytes:50000, bytes:2928}
-// MemStats after GC:  Allocator{maxBytes:50000, bytes:2480}
+// memstats in xyz before GC:  Allocator{maxBytes:50000, bytes:5016}
+// memstats in main after GC:  Allocator{maxBytes:50000, bytes:4464}

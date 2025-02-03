@@ -73,7 +73,6 @@ const (
 )
 
 func NewAllocator(maxBytes int64, m *Machine) *Allocator {
-	debug2.Println2("NewAllocator(), maxBytes:", maxBytes)
 	if maxBytes == 0 {
 		return nil
 	}
@@ -123,9 +122,11 @@ func (alloc *Allocator) GC() {
 	defer func() {
 		fmt.Println("------------after gc, memStats:", alloc.MemStats())
 	}()
+
 	// TODO: why this matters, think this defer is not gc'd
 	//defer fmt.Println("------------after gc, memStats:", alloc.MemStats())
-	// a throwaway allocator
+
+	// throwaway allocator
 	throwaway := NewAllocator(alloc.maxBytes, alloc.m)
 	throwaway.throwAway = true
 	debug2.Println2("m: ", alloc.m)
@@ -168,12 +169,6 @@ func (alloc *Allocator) GC() {
 	for i, b := range alloc.m.Blocks {
 		debug2.Printf2("allocate blocks[%d]: %v \n", i, b)
 		throwaway.allocateValue(b)
-
-		// TODO: move this to allocateValue
-		for _, tv := range b.Values {
-			debug2.Println2("allocate values of block")
-			throwaway.allocateTV(tv)
-		}
 	}
 
 	// reset allocator
@@ -188,7 +183,6 @@ func (throwaway *Allocator) allocateTV(tv TypedValue) {
 	debug2.Println2("allocInfo: ", tv.AllocationInfo.String())
 
 	if tv.GetRefCount() < 2 {
-		// allocate type
 		if tv.AllocType {
 			throwaway.AllocateType()
 		}
@@ -207,47 +201,25 @@ func (throwaway *Allocator) allocateValue(v Value) {
 	if oo, ok := v.(Object); ok {
 		if oid := oo.GetObjectID(); !oid.IsZero() {
 			debug2.Println2("oid: ", oid)
-			debug2.Println2("oo: ", oo)
+			debug2.Printf2("oo: %v \n", oo)
+			debug2.Println2("byteSize of oo: ", oo.GetByteSize())
 			throwaway.AllocateAmino(int64(oo.GetByteSize()))
 		} else {
 			debug2.Println2("oid: ", oid)
 		}
 	}
 	switch vv := v.(type) {
-	case TypeValue: // for newType, not for const type
-		debug2.Println2("TypeVal, vv.Type: ", vv.Type, reflect.TypeOf(vv.Type))
-		if dt, ok := vv.Type.(*DeclaredType); ok {
-			debug2.Println2("TypeVal.Type.(*DeclaredType): ", dt, dt.Base, reflect.TypeOf(dt.Base))
-		}
-		throwaway.AllocateType()
 	case *StructValue:
-		// TODO: alloc struct fields first, num of items
-
-		// alloc zero value, first alloc outer struct
-		// see var s = S{name: "foo"}
-		// the struct lit is allocated first,
-		// then with copy, it is allocated again.
 		throwaway.AllocateStructFields(int64(len(vv.Fields)))
 		throwaway.AllocateStruct()
 
-		// last, alloc fields recursively
+		// alloc fields
 		for _, field := range vv.Fields {
 			debug2.Println2("alloc field: ", field)
 			throwaway.allocateTV(field)
 		}
 	case *FuncValue:
 		throwaway.AllocateFunc()
-		//// TODO: is this right?
-		//// if closure if fileNode, no allocate,
-		//// cuz it's already done in compile stage.
-		//debug2.Println2("funcValue, vv: ", vv)
-		////debug2.Println2("clo...Source: ", vv.Closure.(*Block).GetSource(throwaway.m.Store), reflect.TypeOf(vv.Closure.(*Block).GetSource(throwaway.m.Store)))
-		//if _, ok := vv.Closure.(*Block).GetSource(throwaway.m.Store).(*FileNode); !ok {
-		//	debug2.Println2("not global, alloc func")
-		//	throwaway.AllocateFunc()
-		//} else {
-		//	debug2.Println2("global function, NO alloc for it")
-		//}
 	case PointerValue:
 		throwaway.AllocatePointer()
 		throwaway.allocateValue(vv.Base)
@@ -258,20 +230,33 @@ func (throwaway *Allocator) allocateValue(v Value) {
 		throwaway.AllocateSlice()
 		throwaway.allocateValue(vv.Base)
 	case *ArrayValue:
-		// TODO: data array
-		if len(vv.List) != 0 {
+		if vv.Data == nil {
 			throwaway.AllocateListArray(int64(len(vv.List)))
+			for _, elem := range vv.List {
+				throwaway.allocateTV(elem)
+			}
 		} else {
 			throwaway.AllocateDataArray(int64(len(vv.Data)))
 		}
 	case *Block:
 		throwaway.AllocateBlock(int64(vv.Source.GetNumNames()))
+		for _, tv := range vv.Values {
+			debug2.Println2("allocate values of block")
+			throwaway.allocateTV(tv)
+		}
 	case StringValue:
 		throwaway.AllocateString(int64(len(vv)))
 	case *MapValue:
 		throwaway.AllocateMap(int64(vv.List.Size))
+		for cur := vv.List.Head; cur != nil; cur = cur.Next {
+			throwaway.allocateTV(cur.Key)
+			throwaway.allocateTV(cur.Value)
+		}
 	case *BoundMethodValue:
 		throwaway.AllocateBoundMethod()
+		// TODO: tests for this
+		throwaway.allocateValue(vv.Func)
+		throwaway.allocateTV(vv.Receiver)
 	case *NativeValue:
 		throwaway.AllocateNative()
 	default:
@@ -283,23 +268,18 @@ func (alloc *Allocator) Allocate(size int64) {
 	debug2.Println2("Allocate, size: ", size)
 	debug2.Println2("MemStats: ", alloc.MemStats())
 	if alloc == nil {
-		debug2.Println2("allocator is nil, do nothing")
 		// this can happen for map items just prior to assignment.
 		return
 	}
 
-	// if alloc on throwaway still exceeds memory,
-	// means GC does not work, panic.
+	// measure current memory usage
 	if alloc.throwAway {
 		alloc.bytes += size
-		//fmt.Println("throwaway, Allocate, memStats: ", alloc.MemStats())
 		if alloc.bytes > alloc.maxBytes {
 			panic("should not happen")
 		}
 		debug2.Println2("throwaway, After allocating, size is: ", alloc.bytes)
-	}
-
-	if !alloc.throwAway {
+	} else {
 		if alloc.bytes+size > alloc.maxBytes {
 			debug2.Printf2("%d exceeds memory size, GC \n", alloc.bytes+size)
 			alloc.GC()
@@ -428,7 +408,6 @@ func (alloc *Allocator) NewListArray(n int) *ArrayValue {
 
 func (alloc *Allocator) NewDataArray(n int) *ArrayValue {
 	debug2.Println2("NewDataArray: ", n)
-	alloc.m.LastBlock()
 	if n < 0 {
 		panic(&Exception{Value: typedString("len out of range")})
 	}
@@ -568,7 +547,7 @@ func (ai *AllocationInfo) String() string {
 }
 
 func (ai *AllocationInfo) SetAllocValue(allocValue bool) {
-	(*ai).AllocValue = allocValue
+	ai.AllocValue = allocValue
 }
 
 func (ai *AllocationInfo) SetAllocType(allocType bool) {

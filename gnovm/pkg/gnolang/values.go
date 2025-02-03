@@ -1071,16 +1071,7 @@ func (tv TypedValue) Copy(alloc *Allocator) (cp TypedValue) {
 	case *NativeValue:
 		cp.T = tv.T
 		cp.V = cv.Copy(alloc)
-	case *SliceValue:
-		cp = tv
-		cp.IncRefCount()
-	case PointerValue:
-		cp = tv
-		cp.IncRefCount()
-	case *MapValue:
-		cp = tv
-		cp.IncRefCount()
-	case *FuncValue:
+	case *SliceValue, PointerValue, *MapValue, *FuncValue:
 		cp = tv
 		cp.IncRefCount()
 	default:

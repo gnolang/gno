@@ -56,6 +56,7 @@ type Store interface {
 	// UNSTABLE
 	Go2GnoType(rt reflect.Type) Type
 	GetAllocator() *Allocator
+	SetAllocator(alloc *Allocator)
 	NumMemPackages() int64
 	// Upon restart, all packages will be re-preprocessed; This
 	// loads BlockNodes and Types onto the store for persistence
@@ -149,6 +150,8 @@ type defaultStore struct {
 	gasMeter  store.GasMeter
 	gasConfig GasConfig
 }
+
+var _ Store = (*defaultStore)(nil) // or simply MyStruct{}
 
 func NewStore(alloc *Allocator, baseStore, iavlStore store.Store) *defaultStore {
 	ds := &defaultStore{
@@ -258,6 +261,10 @@ func CopyFromCachedStore(destStore, cachedStore Store, cachedBase, cachedIavl st
 
 func (ds *defaultStore) GetAllocator() *Allocator {
 	return ds.alloc
+}
+
+func (ds *defaultStore) SetAllocator(alloc *Allocator) {
+	ds.alloc = alloc
 }
 
 func (ds *defaultStore) SetPackageGetter(pg PackageGetter) {
@@ -433,6 +440,7 @@ func (ds *defaultStore) GetObjectSafe(oid ObjectID) Object {
 // CONTRACT: object isn't already in the cache.
 func (ds *defaultStore) loadObjectSafe(oid ObjectID) Object {
 	debug2.Println2("loadObjectSafe: ", oid)
+	debug2.Println2("loadObjectSafe, ds.Alloc: ", ds.alloc)
 	if bm.OpsEnabled {
 		bm.PauseOpCode()
 		defer bm.ResumeOpCode()

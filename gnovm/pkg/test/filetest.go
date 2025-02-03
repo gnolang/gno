@@ -258,10 +258,16 @@ func (opts *TestOptions) runTest(m *gno.Machine, pkgPath, filename string, conte
 		// Run decls and init functions.
 		m.RunMemPackage(memPkg, true)
 		fmt.Println("---after RunMemPackage, m: ", m)
+		fmt.Println("---after RunMemPackage, m.Alloc: ", m.Alloc)
+		fmt.Println("---after RunMemPackage, m.Store.Alloc: ", m.Store.GetAllocator())
 		// Clear store cache and reconstruct machine from committed info
 		// (mimicking on-chain behaviour).
 		tx.Write()
 		m.Store = orig
+
+		// set allocator for test
+		// allocating for restore objects
+		m.Store.SetAllocator(m.Alloc)
 
 		pv2 := m.Store.GetPackage(pkgPath, false)
 		m.SetActivePackage(pv2)
