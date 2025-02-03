@@ -1,7 +1,6 @@
 package authorizable
 
 import (
-	"std"
 	"testing"
 
 	"gno.land/p/demo/testutils"

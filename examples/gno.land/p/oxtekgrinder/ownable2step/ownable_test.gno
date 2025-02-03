@@ -1,7 +1,6 @@
 package ownable2step
 
 import (
-	"std"
 	"testing"
 
 	"gno.land/p/demo/testutils"

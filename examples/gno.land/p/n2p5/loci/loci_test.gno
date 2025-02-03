@@ -1,7 +1,6 @@
 package loci
 
 import (
-	"std"
 	"testing"
 
 	"gno.land/p/demo/testutils"

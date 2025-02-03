@@ -1,7 +1,6 @@
 package dice_roller
 
 import (
-	"std"
 	"testing"
 
 	"gno.land/p/demo/avl"

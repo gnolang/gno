@@ -1,7 +1,6 @@
 package memeland
 
 import (
-	"std"
 	"strings"
 	"testing"
 	"time"

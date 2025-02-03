@@ -1,7 +1,6 @@
 package grc721
 
 import (
-	"std"
 	"testing"
 
 	"gno.land/p/demo/testutils"

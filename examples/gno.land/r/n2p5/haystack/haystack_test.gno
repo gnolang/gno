@@ -2,7 +2,6 @@ package haystack
 
 import (
 	"encoding/hex"
-	"std"
 	"testing"
 
 	"gno.land/p/demo/testutils"

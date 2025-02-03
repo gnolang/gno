@@ -1,7 +1,6 @@
 package foo20
 
 import (
-	"std"
 	"testing"
 
 	"gno.land/p/demo/testutils"

@@ -1,7 +1,6 @@
 package bridge
 
 import (
-	"std"
 	"testing"
 
 	"gno.land/p/demo/dao"

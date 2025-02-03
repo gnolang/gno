@@ -1,7 +1,6 @@
 package entropy
 
 import (
-	"std"
 	"strconv"
 	"testing"
 )

@@ -1,7 +1,6 @@
 package memo
 
 import (
-	"std"
 	"testing"
 	"time"
 )

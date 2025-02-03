@@ -1,7 +1,6 @@
 package main
 
 import (
-	"std"
 	"testing"
 
 	"gno.land/p/demo/entropy"
