@@ -5,7 +5,7 @@ go 1.22
 require (
 	github.com/gnolang/gno v0.0.0-20241209101605-1bd64192a170
 	github.com/peterbourgon/ff/v3 v3.4.0
-	github.com/stretchr/testify v1.9.0
+	github.com/stretchr/testify v1.10.0
 	go.uber.org/zap v1.27.0
 )
 
