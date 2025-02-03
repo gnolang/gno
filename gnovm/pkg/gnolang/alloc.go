@@ -118,9 +118,9 @@ func (alloc *Allocator) GC() {
 		debug2.Println2("Consuming gas for GC")
 		alloc.m.GasMeter.ConsumeGas(gasCPU, "GC")
 	}
-	fmt.Println("---gc, MemStats:", alloc.MemStats())
+	debug2.Println2("---gc, MemStats:", alloc.MemStats())
 	defer func() {
-		fmt.Println("------------after gc, memStats:", alloc.MemStats())
+		debug2.Println2("------------after gc, memStats:", alloc.MemStats())
 	}()
 
 	// TODO: why this matters, think this defer is not gc'd
@@ -286,7 +286,7 @@ func (alloc *Allocator) Allocate(size int64) {
 		}
 		alloc.bytes += size
 		if alloc.bytes > alloc.maxBytes {
-			panic("Memory size limit exceeded")
+			panic("allocation limit exceeded")
 		}
 		debug2.Println2("=== After allocating, size is: ", alloc.bytes)
 	}

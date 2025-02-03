@@ -10,4 +10,4 @@ func main() {
 }
 
 // Error:
-// Memory size limit exceeded
+// allocation limit exceeded
