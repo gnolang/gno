@@ -224,35 +224,58 @@ func (m *Machine) SetActivePackage(pv *PackageValue) {
 //----------------------------------------
 // top level Run* methods.
 
-// Upon restart, preprocess all MemPackage and save blocknodes.
-// This is a temporary measure until we optimize/make-lazy.
+// PreprocessAllFilesAndSaveBlockNodes prepares the store for lazy loading
+// by registering packages in the store but not fully preprocessing them.
 //
 // NOTE: package paths not beginning with gno.land will be allowed to override,
 // to support cases of stdlibs processed through [RunMemPackagesWithOverrides].
 func (m *Machine) PreprocessAllFilesAndSaveBlockNodes() {
-	ch := m.Store.IterMemPackage()
-	for memPkg := range ch {
+	// Set up a PackageGetter that will do the actual preprocessing when needed
+	pkgGetter := func(pkgPath string, store Store) (*PackageNode, *PackageValue) {
+		// Get the original MemPackage
+		memPkg := store.GetMemPackage(pkgPath)
+		if memPkg == nil {
+			return nil, nil
+		}
+
+		// Do the actual preprocessing when package is requested
 		fset := ParseMemPackage(memPkg)
 		pn := NewPackageNode(Name(memPkg.Name), memPkg.Path, fset)
-		m.Store.SetBlockNode(pn)
-		PredefineFileSet(m.Store, pn, fset)
+		store.SetBlockNode(pn)
+		PredefineFileSet(store, pn, fset)
+
 		for _, fn := range fset.Files {
-			// Save Types to m.Store (while preprocessing).
-			fn = Preprocess(m.Store, pn, fn).(*FileNode)
-			// Save BlockNodes to m.Store.
-			SaveBlockNodes(m.Store, fn)
+			// Save Types to store (while preprocessing)
+			fn = Preprocess(store, pn, fn).(*FileNode)
+			// Save BlockNodes to store
+			SaveBlockNodes(store, fn)
 		}
+
 		// Normally, the fileset would be added onto the
 		// package node only after runFiles(), but we cannot
 		// run files upon restart (only preprocess them).
 		// So, add them here instead.
 		// TODO: is this right?
+
 		if pn.FileSet == nil {
 			pn.FileSet = fset
 		} else {
 			// This happens for non-realm file tests.
 			// TODO ensure the files are the same.
 		}
+
+		pv := pn.NewPackage()
+		return pn, pv
+	}
+
+	// Register the PackageGetter with the store
+	m.Store.SetPackageGetter(pkgGetter)
+
+	// Register unprocessed packages in store
+	ch := m.Store.IterMemPackage()
+	for memPkg := range ch {
+		// Just add the package to the store without preprocessing
+		m.Store.AddMemPackage(memPkg)
 	}
 }
 
