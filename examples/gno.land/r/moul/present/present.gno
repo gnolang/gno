@@ -201,7 +201,6 @@ func renderList(req *realmpath.Request) string {
 func (p *Presentation) FirstSlide() string {
 	var out strings.Builder
 	out.WriteString(md.H1(p.Title))
-
 	out.WriteString(md.Paragraph(md.Bold(p.Event) + ", " + p.Date.Format("2 Jan 2006")))
 	out.WriteString(md.Paragraph("by " + md.Bold(p.Author))) // XXX: link to u/?
 	return out.String()
@@ -260,6 +259,21 @@ func renderView(slug string) string {
 	return out.String()
 }
 
+// renderSlidesNavigation returns the navigation bar for slides
+func renderSlidesNavigation(slug string, currentPage, totalSlides int) string {
+	var out strings.Builder
+	if currentPage > 1 {
+		prevLink := localPath(slug+"/slides", url.Values{"page": {ufmt.Sprintf("%d", currentPage-1)}})
+		out.WriteString(md.Link("← Prev", prevLink) + " ")
+	}
+	out.WriteString(ufmt.Sprintf("| %d/%d |", currentPage, totalSlides))
+	if currentPage < totalSlides {
+		nextLink := localPath(slug+"/slides", url.Values{"page": {ufmt.Sprintf("%d", currentPage+1)}})
+		out.WriteString(" " + md.Link("Next →", nextLink))
+	}
+	return md.Paragraph(out.String())
+}
+
 func renderSlides(slug string, currentPage int) string {
 	if slug == "" {
 		return "400: missing presentation ID"
@@ -285,21 +299,10 @@ func renderSlides(slug string, currentPage int) string {
 		out.WriteString(p.LastSlide())
 	} else {
 		out.WriteString(md.H1(p.Title))
-		out.WriteString("## " + slides[currentPage-1]) // XXX: more readable by splitting slide into title and content.
+		out.WriteString("## " + slides[currentPage-1] + "\n")
 	}
 
-	// Navigation
-	out.WriteString("\n\n---\n\n")
-	if currentPage > 1 {
-		prevLink := localPath(slug+"/slides", url.Values{"page": {ufmt.Sprintf("%d", currentPage-1)}})
-		out.WriteString(md.Link("← Prev", prevLink) + " ")
-	}
-	out.WriteString(ufmt.Sprintf("| %d/%d |", currentPage, p.NumSlides))
-	if currentPage < p.NumSlides {
-		nextLink := localPath(slug+"/slides", url.Values{"page": {ufmt.Sprintf("%d", currentPage+1)}})
-		out.WriteString(" " + md.Link("Next →", nextLink))
-	}
-
+	out.WriteString(renderSlidesNavigation(slug, currentPage, p.NumSlides))
 	return out.String()
 }
 

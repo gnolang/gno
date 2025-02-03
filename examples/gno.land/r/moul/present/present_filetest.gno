@@ -184,41 +184,36 @@ func printRender(path string) {
 //
 // by **author1**
 //
-//
-//
-// ---
-//
 // | 1/5 | [Next →](/r/moul/present:s15/slides?page=2)
+//
+//
 //
 // +-------------------------------
 // | PATH: s15/slides?page=2
 // | RESULT:
 // # title15
 // ## s15.0
-//
-// ---
-//
 // [← Prev](/r/moul/present:s15/slides?page=1) | 2/5 | [Next →](/r/moul/present:s15/slides?page=3)
+//
+//
 //
 // +-------------------------------
 // | PATH: s15/slides?page=3
 // | RESULT:
 // # title15
 // ## s15.1
-//
-// ---
-//
 // [← Prev](/r/moul/present:s15/slides?page=2) | 3/5 | [Next →](/r/moul/present:s15/slides?page=4)
+//
+//
 //
 // +-------------------------------
 // | PATH: s15/slides?page=4
 // | RESULT:
 // # title15
 // ## s15.2
-//
-// ---
-//
 // [← Prev](/r/moul/present:s15/slides?page=3) | 4/5 | [Next →](/r/moul/present:s15/slides?page=5)
+//
+//
 //
 // +-------------------------------
 // | PATH: s15/slides?page=5
@@ -229,9 +224,7 @@ func printRender(path string) {
 //
 // 🔗 [https://tests\.gno\.land/r/moul/present:s15](https://tests.gno.land/r/moul/present:s15)
 //
-//
-//
-// ---
-//
 // [← Prev](/r/moul/present:s15/slides?page=4) | 5/5 |
+//
+//
 //
