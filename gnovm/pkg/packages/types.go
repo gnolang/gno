@@ -97,7 +97,7 @@ type FilesMap map[FileKind][]string
 
 func (fm FilesMap) Size() int {
 	total := 0
-	for _, kind := range AllFileKinds() {
+	for _, kind := range GnoFileKinds() {
 		total += len(fm[kind])
 	}
 	return total

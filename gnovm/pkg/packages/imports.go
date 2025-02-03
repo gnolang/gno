@@ -97,7 +97,7 @@ func (imap ImportsMap) ToStrings() map[FileKind][]string {
 // Merge merges imports, it removes duplicates and sorts the result
 func (imap ImportsMap) Merge(kinds ...FileKind) []*FileImport {
 	if len(kinds) == 0 {
-		kinds = AllFileKinds()
+		kinds = GnoFileKinds()
 	}
 
 	res := make([]*FileImport, 0, 16)
