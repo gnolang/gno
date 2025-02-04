@@ -3,6 +3,8 @@ package uint256
 import (
 	"strings"
 	"testing"
+
+	"gno.land/p/demo/uassert"
 )
 
 func TestSign(t *testing.T) {
@@ -31,9 +33,7 @@ func TestSign(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.input.String(), func(t *testing.T) {
 			result := tt.input.Sign()
-			if result != tt.expected {
-				t.Errorf("Sign() = %d; want %d", result, tt.expected)
-			}
+			uassert.Equal(t, result, tt.expected)
 		})
 	}
 }
@@ -56,10 +56,7 @@ func TestCmp(t *testing.T) {
 		x := MustFromDecimal(tc.x)
 		y := MustFromDecimal(tc.y)
 
-		got := x.Cmp(y)
-		if got != tc.want {
-			t.Errorf("Cmp(%s, %s) = %v, want %v", tc.x, tc.y, got, tc.want)
-		}
+		uassert.Equal(t, x.Cmp(y), tc.want)
 	}
 }
 
@@ -75,11 +72,7 @@ func TestIsZero(t *testing.T) {
 
 	for _, tt := range tests {
 		x := MustFromDecimal(tt.x)
-
-		got := x.IsZero()
-		if got != tt.want {
-			t.Errorf("IsZero(%s) = %v, want %v", tt.x, got, tt.want)
-		}
+		uassert.Equal(t, x.IsZero(), tt.want)
 	}
 }
 
@@ -98,11 +91,7 @@ func TestLtUint64(t *testing.T) {
 
 	for _, tc := range tests {
 		x := parseTestString(t, tc.x)
-
-		got := x.LtUint64(tc.y)
-		if got != tc.want {
-			t.Errorf("LtUint64(%s, %d) = %v, want %v", tc.x, tc.y, got, tc.want)
-		}
+		uassert.Equal(t, x.LtUint64(tc.y), tc.want)
 	}
 }
 
@@ -136,10 +125,7 @@ func TestUint_GtUint64(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			z := MustFromDecimal(tt.z)
-
-			if got := z.GtUint64(tt.n); got != tt.want {
-				t.Errorf("Uint.GtUint64() = %v, want %v", got, tt.want)
-			}
+			uassert.Equal(t, z.GtUint64(tt.n), tt.want)
 		})
 	}
 }
@@ -147,17 +133,11 @@ func TestUint_GtUint64(t *testing.T) {
 func TestSGT(t *testing.T) {
 	x := MustFromHex("0xfffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffe")
 	y := MustFromHex("0x0")
-	actual := x.Sgt(y)
-	if actual {
-		t.Fatalf("Expected %v false", actual)
-	}
+	uassert.False(t, x.Sgt(y))
 
 	x = MustFromHex("0x0")
 	y = MustFromHex("0xfffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffe")
-	actual = x.Sgt(y)
-	if !actual {
-		t.Fatalf("Expected %v true", actual)
-	}
+	uassert.True(t, x.Sgt(y))
 }
 
 func TestEq(t *testing.T) {
@@ -181,11 +161,7 @@ func TestEq(t *testing.T) {
 			continue
 		}
 
-		got := x.Eq(y)
-
-		if got != tt.want {
-			t.Errorf("Eq(%s, %s) = %v, want %v", tt.x, tt.y, got, tt.want)
-		}
+		uassert.Equal(t, x.Eq(y), tt.want)
 	}
 }
 
@@ -202,18 +178,12 @@ func TestUint_Lte(t *testing.T) {
 
 	for _, tt := range tests {
 		z, err := FromDecimal(tt.z)
-		if err != nil {
-			t.Error(err)
-			continue
-		}
+		uassert.NoError(t, err)
+
 		x, err := FromDecimal(tt.x)
-		if err != nil {
-			t.Error(err)
-			continue
-		}
-		if got := z.Lte(x); got != tt.want {
-			t.Errorf("Uint.Lte(%v, %v) = %v, want %v", tt.z, tt.x, got, tt.want)
-		}
+		uassert.NoError(t, err)
+
+		uassert.Equal(t, z.Lte(x), tt.want)
 	}
 }
 
@@ -232,13 +202,12 @@ func TestUint_Gte(t *testing.T) {
 		z := parseTestString(t, tt.z)
 		x := parseTestString(t, tt.x)
 
-		if got := z.Gte(x); got != tt.want {
-			t.Errorf("Uint.Gte(%v, %v) = %v, want %v", tt.z, tt.x, got, tt.want)
-		}
+		uassert.Equal(t, z.Gte(x), tt.want)
 	}
 }
 
-func parseTestString(_ *testing.T, s string) *Uint {
+func parseTestString(t *testing.T, s string) *Uint {
+	t.Helper()
 	var x *Uint
 
 	if strings.HasPrefix(s, "0x") {

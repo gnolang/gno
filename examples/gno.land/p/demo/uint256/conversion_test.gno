@@ -1,6 +1,10 @@
 package uint256
 
-import "testing"
+import (
+	"testing"
+
+	"gno.land/p/demo/uassert"
+)
 
 func TestIsUint64(t *testing.T) {
 	tests := []struct {
@@ -16,11 +20,7 @@ func TestIsUint64(t *testing.T) {
 
 	for _, tt := range tests {
 		x := MustFromHex(tt.x)
-		got := x.IsUint64()
-
-		if got != tt.want {
-			t.Errorf("IsUint64(%s) = %v, want %v", tt.x, got, tt.want)
-		}
+		uassert.Equal(t, x.IsUint64(), tt.want)
 	}
 }
 
@@ -50,9 +50,7 @@ func TestDec(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			result := tt.z.Dec()
-			if result != tt.want {
-				t.Errorf("Dec(%v) = %s, want %s", tt.z, result, tt.want)
-			}
+			uassert.Equal(t, result, tt.want)
 		})
 	}
 }
@@ -107,16 +105,10 @@ func TestUint_Scan(t *testing.T) {
 			err := z.Scan(tt.input)
 
 			if tt.wantErr {
-				if err == nil {
-					t.Errorf("Scan() error = %v, wantErr %v", err, tt.wantErr)
-				}
+				uassert.Error(t, err)
 			} else {
-				if err != nil {
-					t.Errorf("Scan() error = %v, wantErr %v", err, tt.wantErr)
-				}
-				if !z.Eq(tt.want) {
-					t.Errorf("Scan() = %v, want %v", z, tt.want)
-				}
+				uassert.NoError(t, err)
+				uassert.Equal(t, z.String(), tt.want.String())
 			}
 		})
 	}
@@ -168,8 +160,6 @@ func TestSetBytes(t *testing.T) {
 		z := new(Uint)
 		z.SetBytes(test.input)
 		expected := MustFromDecimal(test.expected)
-		if z.Cmp(expected) != 0 {
-			t.Errorf("SetBytes(%x) = %s, expected %s", test.input, z.String(), test.expected)
-		}
+		uassert.Equal(t, z.String(), expected.String())
 	}
 }

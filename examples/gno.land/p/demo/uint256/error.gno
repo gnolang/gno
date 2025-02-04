@@ -16,6 +16,7 @@ var (
 	ErrBadEncodedLength = errors.New("bad ssz encoded length")
 	ErrInvalidBase      = errors.New("invalid base")
 	ErrInvalidBitSize   = errors.New("invalid bit size")
+	ErrDivisionByZero   = errors.New("division by zero")
 )
 
 type u256Error struct {
