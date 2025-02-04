@@ -7,9 +7,9 @@ gnoland start
 gnokey maketx addpkg -pkgdir $WORK/foo -pkgpath gno.land/r/foo -gas-fee 1000000ugnot -gas-wanted 220000 -broadcast -chainid=tendermint_test test1
 
 
-# add bar package - out of gas at store.GetPackage() with gas 60000
+# add bar package - out of gas at store.GetPackage() with gas 70000
 
-! gnokey maketx addpkg -pkgdir $WORK/bar -pkgpath gno.land/r/bar -gas-fee 1000000ugnot -gas-wanted 60000 -broadcast -chainid=tendermint_test test1
+! gnokey maketx addpkg -pkgdir $WORK/bar -pkgpath gno.land/r/bar -gas-fee 1000000ugnot -gas-wanted 70000 -broadcast -chainid=tendermint_test test1
 
 stderr '--= Error =--'
 stderr 'Data: out of gas error'
@@ -17,9 +17,9 @@ stderr '--= /Error =--'
 
 
 
-# out of gas at store.store.GetTypeSafe()  with gas 63000
+# out of gas at store.store.GetTypeSafe()  with gas 73000
 
-! gnokey maketx addpkg -pkgdir $WORK/bar -pkgpath gno.land/r/bar -gas-fee 1000000ugnot -gas-wanted 63000 -broadcast -chainid=tendermint_test test1
+! gnokey maketx addpkg -pkgdir $WORK/bar -pkgpath gno.land/r/bar -gas-fee 1000000ugnot -gas-wanted 73000 -broadcast -chainid=tendermint_test test1
 
 stderr '--= Error =--'
 stderr 'Data: out of gas error'
