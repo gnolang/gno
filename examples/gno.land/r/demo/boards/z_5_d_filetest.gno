@@ -23,7 +23,7 @@ func main() {
 	// create reply via anon user
 	test2 := testutils.TestAddress("test2")
 	testing.SetOriginCaller(test2)
-	testing.SetOriginSend(std.Coins{{"ugnot", 9000000}}, nil)
+	testing.SetOriginSend(std.Coins{{"ugnot", 9000000}})
 	boards.CreateReply(bid, pid, pid, "Reply of the first post")
 
 	println(boards.Render("test_board/" + strconv.Itoa(int(pid))))

@@ -29,7 +29,7 @@ func main() {
 	// println("A -", wugnot.Render(""))
 
 	testing.SetOriginCaller(addr1)
-	testing.SetOriginSend(std.Coins{{"ugnot", 123_400}}, nil)
+	testing.SetOriginSend(std.Coins{{"ugnot", 123_400}})
 	wugnot.Deposit()
 	printBalances()
 	wugnot.Withdraw(4242)

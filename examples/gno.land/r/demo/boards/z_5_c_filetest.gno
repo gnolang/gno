@@ -22,7 +22,7 @@ func main() {
 	// create post via anon user
 	test2 := testutils.TestAddress("test2")
 	testing.SetOriginCaller(test2)
-	testing.SetOriginSend(std.Coins{{"ugnot", 101000000}}, nil)
+	testing.SetOriginSend(std.Coins{{"ugnot", 101000000}})
 
 	pid := boards.CreateThread(bid, "First Post (title)", "Body of the first post. (body)")
 	boards.CreateReply(bid, pid, pid, "Reply of the first post")

@@ -22,7 +22,7 @@ func main() {
 	// delete member via anon user
 	test2 := testutils.TestAddress("test2")
 	testing.SetOriginCaller(test2)
-	testing.SetOriginSend(std.Coins{{"ugnot", 9000000}}, nil)
+	testing.SetOriginSend(std.Coins{{"ugnot", 9000000}})
 
 	groups.DeleteMember(gid, 0)
 	println(groups.Render(""))

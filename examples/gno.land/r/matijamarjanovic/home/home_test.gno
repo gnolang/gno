@@ -41,7 +41,8 @@ func TestVoteModern(t *testing.T) {
 	coinsSent := std.NewCoins(std.NewCoin("ugnot", 75000000))
 	coinsSpent := std.NewCoins(std.NewCoin("ugnot", 1))
 
-	t.SetOriginSend(coinsSent, coinsSpent)
+	t.SetOriginSend(coinsSent)
+	t.SetOriginSpend(coinsSpent)
 	VoteModern()
 
 	uassert.Equal(t, int64(75000000), modernVotes, "Modern votes should be calculated correctly")
@@ -55,7 +56,8 @@ func TestVoteClassic(t *testing.T) {
 	coinsSent := std.NewCoins(std.NewCoin("ugnot", 75000000))
 	coinsSpent := std.NewCoins(std.NewCoin("ugnot", 1))
 
-	t.SetOriginSend(coinsSent, coinsSpent)
+	t.SetOriginSend(coinsSent)
+	t.SetOriginSpend(coinsSpent)
 	VoteClassic()
 
 	uassert.Equal(t, int64(75000000), classicVotes, "Classic votes should be calculated correctly")
@@ -69,7 +71,8 @@ func TestVoteMinimal(t *testing.T) {
 	coinsSent := std.NewCoins(std.NewCoin("ugnot", 75000000))
 	coinsSpent := std.NewCoins(std.NewCoin("ugnot", 1))
 
-	t.SetOriginSend(coinsSent, coinsSpent)
+	t.SetOriginSend(coinsSent)
+	t.SetOriginSpend(coinsSpent)
 	VoteMinimal()
 
 	uassert.Equal(t, int64(75000000), minimalVotes, "Minimal votes should be calculated correctly")

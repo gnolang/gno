@@ -25,7 +25,7 @@ func main() {
 	users.Invite(test1.String())
 	// switch to test1
 	testing.SetOriginCaller(test1)
-	testing.SetOriginSend(std.Coins{{"dontcare", 1}}, nil)
+	testing.SetOriginSend(std.Coins{{"dontcare", 1}})
 	users.Register(caller, "satoshi", "my other profile")
 	println(users.Render(""))
 	println("========================================")

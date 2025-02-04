@@ -50,7 +50,7 @@ func TestOwnership(t *testing.T) {
 	StartGame()
 	payment := MIN_KEY_PRICE * 10
 	t.SetOriginCaller(owner)
-	t.SetOriginSend(std.Coins{{"ugnot", payment}}, nil)
+	t.SetOriginSend(std.Coins{{"ugnot", payment}})
 	std.TestIssueCoins(owner, std.Coins{{"ugnot", payment}})
 	std.TestIssueCoins(std.GetOrigPkgAddr(), std.Coins{{"ugnot", payment}})
 	BuyKeys()
@@ -101,13 +101,13 @@ func TestFullGameFlow(t *testing.T) {
 		// Test insufficient payment
 		t.SetOriginCaller(player1)
 		std.TestIssueCoins(player1, std.Coins{{"ugnot", MIN_KEY_PRICE - 1}})
-		t.SetOriginSend(std.Coins{{"ugnot", MIN_KEY_PRICE - 1}}, nil)
+		t.SetOriginSend(std.Coins{{"ugnot", MIN_KEY_PRICE - 1}})
 		std.TestIssueCoins(std.GetOrigPkgAddr(), std.Coins{{"ugnot", MIN_KEY_PRICE - 1}})
 		urequire.PanicsWithMessage(t, ErrInsufficientPayment.Error(), BuyKeys)
 
 		// Test successful key purchase
 		payment := MIN_KEY_PRICE * 3
-		t.SetOriginSend(std.Coins{{"ugnot", payment}}, nil)
+		t.SetOriginSend(std.Coins{{"ugnot", payment}})
 		std.TestIssueCoins(std.GetOrigPkgAddr(), std.Coins{{"ugnot", payment}})
 
 		currentBlock := std.GetHeight()
@@ -141,7 +141,7 @@ func TestFullGameFlow(t *testing.T) {
 		// Player 2 buys keys
 		t.SetOriginCaller(player2)
 		payment := gameState.KeyPrice * 2 // Buy 2 keys using current keyPrice
-		t.SetOriginSend(std.Coins{{"ugnot", payment}}, nil)
+		t.SetOriginSend(std.Coins{{"ugnot", payment}})
 		std.TestIssueCoins(std.GetOrigPkgAddr(), std.Coins{{"ugnot", payment}})
 		urequire.NotPanics(t, BuyKeys)
 
@@ -241,25 +241,25 @@ func TestBuyKeys(t *testing.T) {
 
 	// Test invalid coin denomination
 	std.TestIssueCoins(player, std.Coins{{"invalid", MIN_KEY_PRICE}})
-	t.SetOriginSend(std.Coins{{"invalid", MIN_KEY_PRICE}}, nil)
+	t.SetOriginSend(std.Coins{{"invalid", MIN_KEY_PRICE}})
 	std.TestIssueCoins(std.GetOrigPkgAddr(), std.Coins{{"invalid", MIN_KEY_PRICE}})
 	urequire.PanicsWithMessage(t, ErrInvalidPayment.Error(), BuyKeys)
 
 	// Test multiple coin types
 	std.TestIssueCoins(player, std.Coins{{"ugnot", MIN_KEY_PRICE}, {"other", 100}})
-	t.SetOriginSend(std.Coins{{"ugnot", MIN_KEY_PRICE}, {"other", 100}}, nil)
+	t.SetOriginSend(std.Coins{{"ugnot", MIN_KEY_PRICE}, {"other", 100}})
 	std.TestIssueCoins(std.GetOrigPkgAddr(), std.Coins{{"ugnot", MIN_KEY_PRICE}, {"other", 100}})
 	urequire.PanicsWithMessage(t, ErrInvalidPayment.Error(), BuyKeys)
 
 	// Test insufficient payment
 	std.TestIssueCoins(player, std.Coins{{"ugnot", MIN_KEY_PRICE - 1}})
-	t.SetOriginSend(std.Coins{{"ugnot", MIN_KEY_PRICE - 1}}, nil)
+	t.SetOriginSend(std.Coins{{"ugnot", MIN_KEY_PRICE - 1}})
 	std.TestIssueCoins(std.GetOrigPkgAddr(), std.Coins{{"ugnot", MIN_KEY_PRICE - 1}})
 	urequire.PanicsWithMessage(t, ErrInsufficientPayment.Error(), BuyKeys)
 
 	// Test successful purchase
 	std.TestIssueCoins(player, std.Coins{{"ugnot", MIN_KEY_PRICE * 2}})
-	t.SetOriginSend(std.Coins{{"ugnot", MIN_KEY_PRICE * 2}}, nil)
+	t.SetOriginSend(std.Coins{{"ugnot", MIN_KEY_PRICE * 2}})
 	std.TestIssueCoins(std.GetOrigPkgAddr(), std.Coins{{"ugnot", MIN_KEY_PRICE * 2}})
 	urequire.NotPanics(t, BuyKeys)
 }
@@ -276,7 +276,7 @@ func TestClaimDividends(t *testing.T) {
 
 	// Setup player with dividends
 	std.TestIssueCoins(player, std.Coins{{"ugnot", MIN_KEY_PRICE}})
-	t.SetOriginSend(std.Coins{{"ugnot", MIN_KEY_PRICE}}, nil)
+	t.SetOriginSend(std.Coins{{"ugnot", MIN_KEY_PRICE}})
 	std.TestIssueCoins(std.GetOrigPkgAddr(), std.Coins{{"ugnot", MIN_KEY_PRICE}})
 	BuyKeys()
 
@@ -284,7 +284,7 @@ func TestClaimDividends(t *testing.T) {
 	player2 := testutils.TestAddress("player2")
 	t.SetOriginCaller(player2)
 	std.TestIssueCoins(player2, std.Coins{{"ugnot", MIN_KEY_PRICE * 2}})
-	t.SetOriginSend(std.Coins{{"ugnot", MIN_KEY_PRICE * 2}}, nil)
+	t.SetOriginSend(std.Coins{{"ugnot", MIN_KEY_PRICE * 2}})
 	std.TestIssueCoins(std.GetOrigPkgAddr(), std.Coins{{"ugnot", MIN_KEY_PRICE * 2}})
 	BuyKeys()
 

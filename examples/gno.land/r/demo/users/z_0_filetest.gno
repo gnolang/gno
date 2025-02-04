@@ -8,7 +8,7 @@ import (
 )
 
 func main() {
-	testing.SetOriginSend(std.Coins{std.NewCoin("dontcare", 1)}, nil)
+	testing.SetOriginSend(std.Coins{std.NewCoin("dontcare", 1)})
 	users.Register("", "gnouser", "my profile")
 	println("done")
 }

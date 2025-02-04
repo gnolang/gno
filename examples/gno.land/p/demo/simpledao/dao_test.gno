@@ -74,7 +74,7 @@ func TestSimpleDAO_Propose(t *testing.T) {
 			s = New(ms)
 		)
 
-		t.SetOriginSend(sentCoins, std.Coins{})
+		t.SetOriginSend(sentCoins)
 
 		_, err := s.Propose(dao.ProposalRequest{
 			Executor: ex,
@@ -121,7 +121,7 @@ func TestSimpleDAO_Propose(t *testing.T) {
 
 		// Set the sent coins to be lower
 		// than the proposal fee
-		t.SetOriginSend(sentCoins, std.Coins{})
+		t.SetOriginSend(sentCoins)
 
 		_, err := s.Propose(dao.ProposalRequest{
 			Executor: ex,
@@ -171,7 +171,7 @@ func TestSimpleDAO_Propose(t *testing.T) {
 
 		// Set the sent coins to be enough
 		// to cover the fee
-		t.SetOriginSend(sentCoins, std.Coins{})
+		t.SetOriginSend(sentCoins)
 		t.SetOriginCaller(proposer)
 
 		// Make sure the proposal was added
@@ -668,7 +668,7 @@ func TestSimpleDAO_ExecuteProposal(t *testing.T) {
 
 		// Set the sent coins to be lower
 		// than the execute fee
-		t.SetOriginSend(sentCoins, std.Coins{})
+		t.SetOriginSend(sentCoins)
 
 		uassert.ErrorIs(
 			t,
@@ -699,7 +699,7 @@ func TestSimpleDAO_ExecuteProposal(t *testing.T) {
 
 		// Set the sent coins to be enough
 		// so the execution can take place
-		t.SetOriginSend(sentCoins, std.Coins{})
+		t.SetOriginSend(sentCoins)
 
 		uassert.ErrorContains(
 			t,

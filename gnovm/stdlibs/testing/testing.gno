@@ -233,8 +233,12 @@ func (t *T) SetOriginCaller(addr std.Address) {
 	SetOriginCaller(addr)
 }
 
-func (t *T) SetOriginSend(send std.Coins, spend std.Coins) {
-	SetOriginSend(send, spend)
+func (t *T) SetOriginSend(send std.Coins) {
+	SetOriginSend(send)
+}
+
+func (t *T) SetOriginSpend(spend std.Coins) {
+	SetOriginSpend(spend)
 }
 
 func (t *T) SetOriginPkgAddress(addr std.Address) {
@@ -450,8 +454,12 @@ func SetOriginCaller(origCaller std.Address) {
 	TestSetContext(Context{OriginCaller: origCaller})
 }
 
-func SetOriginSend(send std.Coins, spend std.Coins) {
-	TestSetContext(Context{OriginSend: send, OriginSpend: spend})
+func SetOriginSend(send std.Coins) {
+	TestSetContext(Context{OriginSend: send})
+}
+
+func SetOriginSpend(spend std.Coins) {
+	TestSetContext(Context{OriginSpend: spend})
 }
 
 func SetOriginPkgAddress(addr std.Address) {
