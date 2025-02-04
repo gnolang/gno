@@ -1,12 +1,21 @@
 // PKGPATH: gno.land/r/crossrealm_test
 package crossrealm_test
 
+import (
+	crossrealm "gno.land/r/demo/tests/crossrealm/func"
+)
+
+var f = func() bool {
+	println("callback")
+	return true
+}
+
 func main() {
-	a := func() { // in this case, not attached.
-		println("func lit")
-	}
+	crossrealm.SetCallback(f)
+	crossrealm.ExecuteCallback()
 	println("ok")
 }
 
 // Output:
+// callback
 // ok

@@ -258,7 +258,7 @@ func checkCrossRealm(rlm *Realm, store Store, oo Object, refValue Value) {
 	debug2.Println2("checkCrossRealm, oo: ", oo, reflect.TypeOf(oo))
 	debug2.Println2("refValue: ", refValue)
 	debug2.Println2("oo.GetRefCount: ", oo.GetRefCount())
-	debug2.Println2("oo.GetObjectID: ", oo.GetObjectID())
+	//debug2.Println2("oo.GetObjectID: ", oo.GetObjectID())
 	debug2.Println2("oo.GetOriginRealm: ", oo.GetOriginRealm())
 
 	// if oo.OriginRealm is zero, either from current realm, or a compositeLit from
@@ -310,12 +310,17 @@ func checkCrossRealm(rlm *Realm, store Store, oo Object, refValue Value) {
 	case *BoundMethodValue:
 	// TODO: complete this
 	case *Block:
-		// XXX, can this happen?
-		switch v.GetOriginValue().(type) {
-		case PointerValue, *SliceValue, *FuncValue:
-		default:
-			panic("should not happen, block is not real")
+		debug2.Println2("BlockValue, v: ", v)
+		// XXX, also captures?
+		for _, tv := range v.Values {
+			checkCrossRealm2(rlm, store, &tv)
 		}
+		//// XXX, can this happen?
+		//switch v.GetOriginValue().(type) {
+		//case PointerValue, *SliceValue, *FuncValue:
+		//default:
+		//	panic("should not happen, block is not real")
+		//}
 	case *HeapItemValue:
 		// TODO: is it necessary?
 		// if heapItem, the embedded should be all real now???
@@ -481,13 +486,13 @@ func (rlm *Realm) FinalizeRealmTransaction(readonly bool, store Store) {
 	}
 	if readonly {
 		if true ||
-				len(rlm.newCreated) > 0 ||
-				len(rlm.newEscaped) > 0 ||
-				len(rlm.newDeleted) > 0 ||
-				len(rlm.created) > 0 ||
-				len(rlm.updated) > 0 ||
-				len(rlm.deleted) > 0 ||
-				len(rlm.escaped) > 0 {
+			len(rlm.newCreated) > 0 ||
+			len(rlm.newEscaped) > 0 ||
+			len(rlm.newDeleted) > 0 ||
+			len(rlm.created) > 0 ||
+			len(rlm.updated) > 0 ||
+			len(rlm.deleted) > 0 ||
+			len(rlm.escaped) > 0 {
 			panic("realm updates in readonly transaction")
 		}
 		return
@@ -502,9 +507,9 @@ func (rlm *Realm) FinalizeRealmTransaction(readonly bool, store Store) {
 		ensureUniq(rlm.newDeleted)
 		ensureUniq(rlm.updated)
 		if false ||
-				rlm.created != nil ||
-				rlm.deleted != nil ||
-				rlm.escaped != nil {
+			rlm.created != nil ||
+			rlm.deleted != nil ||
+			rlm.escaped != nil {
 			panic("realm should not have created, deleted, or escaped marks before beginning finalization")
 		}
 	}
@@ -904,9 +909,9 @@ func (rlm *Realm) saveUnsavedObjectRecursively(store Store, oo Object) {
 		}
 		// deleted objects should not have gotten here.
 		if false ||
-				oo.GetRefCount() <= 0 ||
-				oo.GetIsNewDeleted() ||
-				oo.GetIsDeleted() {
+			oo.GetRefCount() <= 0 ||
+			oo.GetIsNewDeleted() ||
+			oo.GetIsDeleted() {
 			panic("cannot save deleted objects")
 		}
 	}

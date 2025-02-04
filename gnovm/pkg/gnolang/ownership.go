@@ -428,18 +428,8 @@ func (tv *TypedValue) GetOriginPkg(store Store) (originPkg PkgID) {
 	}
 
 	switch cv := obj.(type) {
-	//case *ArrayValue:
-	//	// if array is real, retrieved from objectID,
-	//	// otherwise, it's retrieved from elem type.
-	//	// it panics while attach this kind of slice/array value: `var fs []crossrealm.Fooer`,
-	//	if IsRealmPath(tv.T.Elem().GetPkgPath()) {
-	//		originPkg = PkgIDFromPkgPath(tv.T.Elem().GetPkgPath())
-	//	}
-	//	return
 	case *Block:
 		if _, ok := tv.V.(*FuncValue); !ok {
-			//fmt.Println("cv: ", cv)
-			//fmt.Println("cv.Source: ", cv.Source)
 			originPkg = PkgIDFromPkgPath(cv.Source.GetLocation().PkgPath)
 		}
 		return

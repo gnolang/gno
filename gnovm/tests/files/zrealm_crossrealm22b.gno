@@ -2,20 +2,24 @@
 package crossrealm_test
 
 import (
-	"std"
-
-	"gno.land/r/demo/tests/crossrealm"
-	"gno.land/r/demo/tests/crossrealm_b"
+	crossrealm "gno.land/r/demo/tests/crossrealm/func"
 )
 
-var f = func() crossrealm.Fooer {
-	return crossrealm_b.Fooer
+var b = 1
+
+type Local_S struct {
+	name string
 }
 
 func main() {
-	crossrealm.SetFooerGetter(f)
+	var ls Local_S
+	f := func() bool {
+		c := b
+		return true
+	}
+	crossrealm.SetCallback(f)
 	println("ok")
 }
 
 // Error:
-// cannot attach objects by value from external realm
+// cannot attach a value of a type defined by another realm

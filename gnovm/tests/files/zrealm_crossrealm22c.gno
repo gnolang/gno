@@ -1,12 +1,23 @@
 // PKGPATH: gno.land/r/crossrealm_test
 package crossrealm_test
 
-var root interface{}
+import (
+	crossrealm "gno.land/r/demo/tests/crossrealm/func"
+)
+
+var b = 1
+
+type Local_S struct {
+	name string
+}
 
 func main() {
-	root = func() { // in this, case, block(main) is attached in the tree
-		println("func lit")
+	f := func() bool {
+		c := b
+		var ls *Local_S
+		return true
 	}
+	crossrealm.SetCallback(f)
 	println("ok")
 }
 
