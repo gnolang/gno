@@ -1,1 +1,1 @@
-module gno.land/r/jjoptimist/home 
+module gno.land/r/jjoptimist/home
