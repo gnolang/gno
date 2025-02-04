@@ -3379,9 +3379,7 @@ func evalConst(store Store, last BlockNode, x Expr) *ConstExpr {
 		if ar, ok := unwrapPointerType(baseOf(t)).(*ArrayType); ok {
 			fv := clx.Func.(*ConstExpr).V.(*FuncValue)
 			switch fv.Name {
-			case "cap":
-				fallthrough
-			case "len":
+			case "cap", "len":
 				tv := TypedValue{T: IntType}
 				tv.SetInt(ar.Len)
 				cx = &ConstExpr{
