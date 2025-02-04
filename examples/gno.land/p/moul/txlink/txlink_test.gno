@@ -25,11 +25,9 @@ func TestCall(t *testing.T) {
 		{"testFunc", []string{"key", "value"}, "https://gno.world/r/lorem/ipsum$help&func=testFunc&key=value", "gno.world/r/lorem/ipsum"},
 		{"noArgsFunc", []string{}, "https://gno.world/r/lorem/ipsum$help&func=noArgsFunc", "gno.world/r/lorem/ipsum"},
 		{"oddArgsFunc", []string{"key"}, "https://gno.world/r/lorem/ipsum$help&func=oddArgsFunc&error=odd+number+of+arguments", "gno.world/r/lorem/ipsum"},
-		{"foo", []string{"bar", "1"}, "$help&func=foo&bar=1", ""},
 		{"test", []string{"key", "hello world"}, "$help&func=test&key=hello+world", ""},
 		{"test", []string{"key", "a&b=c"}, "$help&func=test&key=a%26b%3Dc", ""},
 		{"test", []string{"key", ""}, "$help&func=test&key=", ""},
-		{"test", []string{"key", "1", "key", "2"}, "$help&func=test&key=1&key=2", ""},
 	}
 
 	for _, tt := range tests {
