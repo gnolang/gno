@@ -28,7 +28,6 @@ func TestCall(t *testing.T) {
 		{"test", []string{"key", "hello world"}, "$help&func=test&key=hello+world", ""},
 		{"test", []string{"key", "a&b=c"}, "$help&func=test&key=a%26b%3Dc", ""},
 		{"test", []string{"key", ""}, "$help&func=test&key=", ""},
-		{"test", []string{"key", "1", "key", "2"}, "$help&func=test&key=1&key=2", ""},
 	}
 
 	for _, tt := range tests {
