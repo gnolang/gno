@@ -16,14 +16,17 @@ func main() {
 	users.Register("", "gnouser", "my profile")
 	// as admin, grant invites to gnouser
 	std.TestSetOriginCaller(admin)
+	std.TestSetRealm(std.NewUserRealm(admin))
 	users.GrantInvites(caller.String() + ":1")
 	// switch back to caller
 	std.TestSetOriginCaller(caller)
+	std.TestSetRealm(std.NewUserRealm(caller))
 	// invite another addr
 	test1 := testutils.TestAddress("test1")
 	users.Invite(test1.String())
 	// switch to test1
 	std.TestSetOriginCaller(test1)
+	std.TestSetRealm(std.NewUserRealm(test1))
 	std.TestSetOriginSend(std.Coins{{"dontcare", 1}}, nil)
 	users.Register(caller, "satoshi", "my other profile")
 	println(users.Render(""))

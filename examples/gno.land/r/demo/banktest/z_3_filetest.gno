@@ -18,7 +18,6 @@ func main() {
 	banker := std.NewBanker(std.BankerTypeRealmSend)
 	send := std.Coins{{"ugnot", 123}}
 	banker.SendCoins(banktestAddr, mainaddr, send)
-
 }
 
 // Error:

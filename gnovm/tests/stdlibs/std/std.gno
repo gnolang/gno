@@ -1,7 +1,6 @@
 package std
 
 func AssertOriginCall()           // injected
-func IsOriginCall() bool          // injected
 func TestSkipHeights(count int64) // injected
 
 func TestSetOriginCaller(addr Address)  { testSetOriginCaller(string(addr)) }
