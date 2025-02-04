@@ -1,0 +1,25 @@
+package main
+
+import (
+	"std"
+
+	"gno.land/r/nt/boards2"
+)
+
+const (
+	owner = std.Address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5") // @test1
+	admin = std.Address("g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj") // @test2
+	bid   = boards2.BoardID(0)                                      // Operate on realm DAO members instead of individual boards
+)
+
+func init() {
+	std.TestSetOrigCaller(owner)
+	boards2.InviteMember(bid, admin, boards2.RoleGuest)
+}
+
+func main() {
+	boards2.ChangeMemberRole(bid, admin, boards2.Role("foo"))
+}
+
+// Error:
+// invalid role: foo
