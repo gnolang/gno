@@ -11,6 +11,12 @@ on:
       # since there are integration suites that cover the gnovm / tm2
       - gnovm/**
       - tm2/**
+      # Changes to examples/ can create failures in gno.land, eg. txtars,
+      # see: https://github.com/gnolang/gno/pull/3590
+      - examples/**
+      # We trigger the testing workflow for changes to the main go.mod,
+      # since this can affect test results
+      - go.mod
   workflow_dispatch:
 
 jobs:

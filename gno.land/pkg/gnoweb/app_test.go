@@ -47,6 +47,7 @@ func TestRoutes(t *testing.T) {
 		{"/game-of-realms", found, "/contribute"},
 		{"/gor", found, "/contribute"},
 		{"/blog", found, "/r/gnoland/blog"},
+		{"/r/docs/optional_render", http.StatusOK, "No Render"},
 		{"/r/not/found/", notFound, ""},
 		{"/404/not/found", notFound, ""},
 		{"/아스키문자가아닌경로", notFound, ""},
@@ -59,6 +60,8 @@ func TestRoutes(t *testing.T) {
 		{"/public/js/index.js", ok, ""},
 		{"/public/_chroma/style.css", ok, ""},
 		{"/public/imgs/gnoland.svg", ok, ""},
+		// Test Toc
+		{"/", ok, `href="#learn-about-gnoland"`},
 	}
 
 	rootdir := gnoenv.RootDir()
