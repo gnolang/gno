@@ -96,7 +96,7 @@ func TestErrInvalidAddress(t *testing.T) {
 
 func TestAssertCallerIsOwner(t *testing.T) {
 	std.TestSetRealm(std.NewUserRealm(alice))
-	std.TestSetOrigCaller(alice)
+	std.TestSetOriginCaller(alice)
 
 	o := New()
 
@@ -105,7 +105,7 @@ func TestAssertCallerIsOwner(t *testing.T) {
 
 	// Should panic when caller is not owner
 	std.TestSetRealm(std.NewUserRealm(bob))
-	std.TestSetOrigCaller(bob)
+	std.TestSetOriginCaller(bob)
 
 	defer func() {
 		r := recover()

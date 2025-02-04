@@ -19,7 +19,7 @@ var (
 	configs = avl.NewTree()
 	pager   = p.NewPager(configs, 10, false)
 	banner  = "---\n[[Leon's Home page]](/r/leon/home) | [[GitHub: @leohhhn]](https://github.com/leohhhn)\n\n---"
-	absPath = strings.TrimPrefix(std.CurrentRealm().PkgPath(), std.GetChainDomain())
+	absPath = strings.TrimPrefix(std.CurrentRealm().PkgPath(), std.ChainDomain())
 
 	// SafeObjects
 	OwnableMain   = ownable.NewWithAddress("g125em6arxsnj49vx35f0n0z34putv5ty3376fg5")
@@ -34,7 +34,7 @@ type Config struct {
 }
 
 func AddConfig(name, lines string) {
-	if !IsAuthorized(std.PrevRealm().Addr()) {
+	if !IsAuthorized(std.PreviousRealm().Address()) {
 		panic(ErrUnauthorized)
 	}
 
@@ -45,7 +45,7 @@ func AddConfig(name, lines string) {
 }
 
 func RemoveConfig(name string) {
-	if !IsAuthorized(std.PrevRealm().Addr()) {
+	if !IsAuthorized(std.PreviousRealm().Address()) {
 		panic(ErrUnauthorized)
 	}
 
@@ -55,7 +55,7 @@ func RemoveConfig(name string) {
 }
 
 func UpdateBanner(newBanner string) {
-	if !IsAuthorized(std.PrevRealm().Addr()) {
+	if !IsAuthorized(std.PreviousRealm().Address()) {
 		panic(ErrUnauthorized)
 	}
 
