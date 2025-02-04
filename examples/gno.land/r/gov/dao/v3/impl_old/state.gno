@@ -8,8 +8,9 @@ import (
 	"gno.land/r/gov/dao/v3/types"
 )
 
+var tiers memberstore.TiersByName
+
 var theLaw *types.Law
-var members types.MembersByTier
 
 func init() {
 	theLaw = &types.Law{

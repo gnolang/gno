@@ -5,18 +5,18 @@ import "std"
 // dao is the actual govDAO implementation, having all the needed business logic
 var dao DAO
 
-// allowedDAOs contains realms that can be used to update the actual govDAO implementation,
+// AllowedDAOs contains realms that can be used to update the actual govDAO implementation,
 // and validate Proposals.
 // This is like that to be able to rollback using a previous govDAO implementation in case
 // the latest implementation has a breaking bug. After a test period, a proposal can be
 // executed to remove all previous govDAOs implementations and leave the last one.
-var allowedDAOs []string
+var AllowedDAOs []string
 
 // proposals contains all the proposals in history.
 var proposals []*Proposal
 
 func init() {
-	allowedDAOs = []string{"gno.land/r/gov/dao/v3"}
+	AllowedDAOs = []string{"gno.land/r/gov/dao/v3"}
 }
 
 // Render calls directly to Render's DAO implementation. 
@@ -49,7 +49,7 @@ func CreateProposal(r ProposalRequest) (ProposalID, error) {
 		Title: r.Title,
 		Description: r.Description,
 		Executor: newExecutor(r.Callback, r.Metadata),
-		AllowedDAOs: allowedDAOs,
+		AllowedDAOs: AllowedDAOs,
 	}
 
 	pid := ProposalID(len(proposals))
@@ -118,7 +118,7 @@ func UpdateImpl(r UpdateRequest) {
 	}
 
 	if r.AllowedDAOs != nil {
-		allowedDAOs = r.AllowedDAOs
+		AllowedDAOs = r.AllowedDAOs
 	}
 	
 	if r.DAO != nil {
@@ -126,8 +126,12 @@ func UpdateImpl(r UpdateRequest) {
 	}
 }
 
+func InAllowedDAOsIndex(pkg string) int {
+	return index(pkg)
+}
+
 func index(pkg string) int {
-	for i, d := range allowedDAOs {
+	for i, d := range AllowedDAOs {
 		if pkg == d {
 			return i
 		}	
