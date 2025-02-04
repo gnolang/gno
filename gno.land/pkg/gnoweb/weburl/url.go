@@ -98,13 +98,11 @@ func (gnoURL GnoURL) Encode(encodeFlags EncodeFlag) string {
 	if encodeFlags.Has(EncodeWebQuery) && len(gnoURL.WebQuery) > 0 {
 		urlstr.WriteRune('$')
 		urlstr.WriteString(BuildQueryString(gnoURL.WebQuery, !noEscape))
-
 	}
 
 	if encodeFlags.Has(EncodeQuery) && len(gnoURL.Query) > 0 {
 		urlstr.WriteRune('?')
 		urlstr.WriteString(BuildQueryString(gnoURL.Query, !noEscape))
-
 	}
 
 	return urlstr.String()
