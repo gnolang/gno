@@ -9,6 +9,7 @@ import (
 	"gno.land/p/demo/grc/grc20"
 	"gno.land/p/demo/grc/grc721"
 	"gno.land/r/demo/grc20reg"
+	"gno.land/r/leon/hof"
 )
 
 type GRC1155TokenInfo struct {
@@ -26,6 +27,10 @@ const pageSize = 10
 const token = "token" // grc20
 const nft = "nft"     // grc721
 const mt = "mt"       // grc1155
+
+func init() {
+	hof.Register()
+}
 
 // RegisterToken is a function that uses gno.land/r/demo/grc20reg to register a token
 // It uses the slug to construct a key and then registers the token in the registry
