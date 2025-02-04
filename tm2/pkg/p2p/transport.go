@@ -199,7 +199,7 @@ func (mt *MultiplexTransport) runAcceptLoop(ctx context.Context) {
 			return // exit
 		default:
 			// An error occurred during accept, report and continue
-			mt.logger.Error("accept p2p connection error", "err", err)
+			mt.logger.Warn("accept p2p connection error", "err", err)
 			continue
 		}
 
