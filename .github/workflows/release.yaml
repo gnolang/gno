@@ -26,7 +26,7 @@ jobs:
           cache: true
     
       - uses: sigstore/cosign-installer@v3.7.0
-      - uses: anchore/sbom-action/download-syft@v0.17.9
+      - uses: anchore/sbom-action/download-syft@v0.18.0
 
       - uses: docker/login-action@v3
         with:
