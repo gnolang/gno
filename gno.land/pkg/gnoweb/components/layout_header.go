@@ -16,6 +16,7 @@ type HeaderData struct {
 	Breadcrumb BreadcrumbData
 	WebQuery   url.Values
 	Links      []HeaderLink
+	ChainId    string
 }
 
 func StaticHeaderLinks(realmPath string, webQuery url.Values) []HeaderLink {
