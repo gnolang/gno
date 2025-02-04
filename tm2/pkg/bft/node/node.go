@@ -709,7 +709,17 @@ func (n *Node) configureRPC() {
 	rpccore.SetConfig(*n.config.RPC)
 }
 
-func (n *Node) startRPC() ([]net.Listener, error) {
+func (n *Node) startRPC() (listeners []net.Listener, err error) {
+	defer func() {
+		if err != nil {
+			// Close all the created listeners on any error, instead of
+			// leaking them: https://github.com/gnolang/gno/issues/3639
+			for _, ln := range listeners {
+				ln.Close()
+			}
+		}
+	}()
+
 	listenAddrs := splitAndTrimEmpty(n.config.RPC.ListenAddress, ",", " ")
 
 	config := rpcserver.DefaultConfig()
@@ -725,8 +735,8 @@ func (n *Node) startRPC() ([]net.Listener, error) {
 
 	// we may expose the rpc over both a unix and tcp socket
 	var rebuildAddresses bool
-	listeners := make([]net.Listener, len(listenAddrs))
-	for i, listenAddr := range listenAddrs {
+	listeners = make([]net.Listener, 0, len(listenAddrs))
+	for _, listenAddr := range listenAddrs {
 		mux := http.NewServeMux()
 		rpcLogger := n.Logger.With("module", "rpc-server")
 		wmLogger := rpcLogger.With("protocol", "websocket")
@@ -778,7 +788,7 @@ func (n *Node) startRPC() ([]net.Listener, error) {
 			)
 		}
 
-		listeners[i] = listener
+		listeners = append(listeners, listener)
 	}
 	if rebuildAddresses {
 		n.config.RPC.ListenAddress = joinListenerAddresses(listeners)

@@ -8,7 +8,7 @@ class SearchBar {
   private baseUrl: string;
 
   private static SELECTORS = {
-    container: "#header-searchbar",
+    container: ".js-header-searchbar",
     inputSearch: "[data-role='header-input-search']",
     breadcrumb: "[data-role='header-breadcrumb-search']",
   };
