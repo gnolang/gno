@@ -105,8 +105,14 @@ type DAO interface {
 	// to the actual govDAO implementation
 	VoteOnProposal(r VoteRequest) error
 
-
+	// PreGetProposal is called when someone is trying to get a proposal by ID.
+	// Is intended to be used to validate who can query proposals, just in case
+	// the actual govDAO implementation wants to limit the access.
 	PreGetProposal(pid ProposalID) error
+
+	// PostGetProposal is called after the proposal has been obtained. Intended to be
+	// used by govDAO implementations if they need to check Proposal data to know if 
+	// the caller is allowed to get that kind of Proposal or not.
 	PostGetProposal(pid ProposalID, p *Proposal) error
 
 	// Render will return a human-readable string in markdown format that 

@@ -8,26 +8,6 @@ import (
 	"gno.land/r/gov/dao/v3/types"
 )
 
-// changeTheLawCallback implements the function needed for an executor,
-// making possible to create a proposal for changing the DAO's law.
-func changeTheLawCallback(m types.Metadata) error {
-	mm, ok := m.(*lawMetadata)
-	if !ok {
-		return errors.New("wrong metadata type for changing the law")
-	}
-
-	theLaw = mm.NewLaw
-
-	return nil
-}
-
-type lawMetadata struct {
-	NewLaw *types.Law
-}
-
-func (a *lawMetadata) IsMetadata()    {}
-func (a *lawMetadata) String() string { return lawStringifier(a.NewLaw, members) }
-
 type lawStringMetadata struct {
 	newStringTemplate func(law *types.Law, allMembers types.MembersByTier) string
 }
