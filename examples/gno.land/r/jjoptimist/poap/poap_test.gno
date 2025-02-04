@@ -1,8 +1,11 @@
 package poap
 
 import (
+	"std"
 	"testing"
 	"time"
+
+	"gno.land/p/demo/grc/grc721"
 )
 
 func TestPOAPStructure(t *testing.T) {
@@ -87,7 +90,7 @@ func TestMintPOAP(t *testing.T) {
 	}
 	
 	// Verify NFT ownership
-	tokenId := grc721.TokenID("1-1")  
+	tokenId := grc721.TokenID("2-1")  // poapId is 2, first mint
 	owner, err := nftTokens.OwnerOf(tokenId)
 	if err != nil {
 		t.Errorf("Error getting token owner: %v", err)
