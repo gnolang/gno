@@ -265,6 +265,10 @@ func (m *Machine) PreprocessAllFilesAndSaveBlockNodes() {
 		}
 
 		pv := pn.NewPackage()
+		store.SetObject(pv)
+		store.SetCachePackage(pv)
+		store.SetBlockNode(pn)
+
 		return pn, pv
 	}
 
@@ -274,6 +278,9 @@ func (m *Machine) PreprocessAllFilesAndSaveBlockNodes() {
 	// Register unprocessed packages in store
 	ch := m.Store.IterMemPackage()
 	for memPkg := range ch {
+		if memPkg == nil {
+			continue
+		}
 		// Just add the package to the store without preprocessing
 		m.Store.AddMemPackage(memPkg)
 	}
