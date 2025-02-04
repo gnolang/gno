@@ -12,7 +12,7 @@ func init() {
 }
 
 func main() {
-	// NOTE: this test uses GetHeight and GetChainID, which are "pure"
+	// NOTE: this test uses ChainHeight and ChainID, which are "pure"
 	// natively bound functions (ie. not indirections through a wrapper fn,
 	// to convert the types to builtin go/gno identifiers).
 	f := node.(func() int64)

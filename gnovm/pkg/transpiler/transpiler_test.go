@@ -344,13 +344,13 @@ func Float32bits(i float32) uint32
 
 func testfunc() {
 	println(Float32bits(3.14159))
-	std.GetChainID()
+	std.ChainID()
 }
 
 func otherFunc() {
 	std := 1
 	// This is (incorrectly) changed for now.
-	std.GetChainID()
+	std.ChainID()
 }
 `,
 			expectedOutput: `
@@ -363,13 +363,13 @@ import "github.com/gnolang/gno/gnovm/stdlibs/std"
 
 func testfunc() {
 	println(Float32bits(3.14159))
-	std.GetChainID(nil)
+	std.ChainID(nil)
 }
 
 func otherFunc() {
 	std := 1
 	// This is (incorrectly) changed for now.
-	std.GetChainID(nil)
+	std.ChainID(nil)
 }
 `,
 			expectedImports: []*ast.ImportSpec{
@@ -388,11 +388,11 @@ func otherFunc() {
 			source: `
 package std
 
-func GetChainID()
+func ChainID()
 func originCaller() string
 
 func testfunc() {
-	GetChainID()
+	ChainID()
 	println(originCaller())
 }
 `,
@@ -403,7 +403,7 @@ func testfunc() {
 package std
 
 func testfunc() {
-	GetChainID(nil)
+	ChainID(nil)
 	println(X_originCaller(nil))
 }
 `,
