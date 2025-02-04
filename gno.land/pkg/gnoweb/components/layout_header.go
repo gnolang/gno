@@ -23,7 +23,7 @@ type HeaderData struct {
 func StaticHeaderLinks(u weburl.GnoURL) []HeaderLink {
 	contentURL, sourceURL, helpURL := u, u, u
 	contentURL.WebQuery = url.Values{}
-	sourceURL.WebQuery = url.Values{"source": {"bla"}}
+	sourceURL.WebQuery = url.Values{"source": {""}}
 	helpURL.WebQuery = url.Values{"help": {""}}
 
 	return []HeaderLink{
