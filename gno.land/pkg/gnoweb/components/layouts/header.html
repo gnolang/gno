@@ -16,7 +16,26 @@
 
         {{ template "ui/breadcrumb" .Breadcrumb }}
 
-        <div class="absolute z-max right-2 rounded-full px-2 py-0.5 bg-gray-300 text-50 text-light">{{ .ChainId }}</div>
+        <!-- <div class="absolute z-max right-2 0 text-50 before:absolute before:block before:w-px before:h-full before:-left-2.5 before:bg-gray-200">{{ .ChainId }}</div> -->
+        <!-- <a href="#popup" class="absolute z-max right-2 text-50">{{ .ChainId }}</a> -->
+
+        <label for="popup-toggle" class="absolute z-max right-2 text-50">Ouvrir la popin</label>
+
+        <input type="checkbox" id="popup-toggle" class="hidden peer" />
+        <label
+          for="popup-toggle"
+          class="fixed z-max inset-0 flex items-center justify-center opacity-0 invisible transition-opacity duration-300 peer-checked:opacity-100 peer-checked:visible"
+        ></label>
+
+        <div class="z-max fixed top-0 right-0 bg-light flex items-center justify-center opacity-0 invisible transition-opacity duration-300 peer-checked:opacity-100 peer-checked:visible">
+          <div class="bg-white p-6 pt-8 rounded shadow-lg w-56 relative">
+            <label for="popup-toggle" class="absolute top-2 right-2 text-2xl text-gray-500 hover:text-black cursor-pointer">&times;</label>
+            <div class="w-full flex justify-between items-center">
+              <span>Chain ID</span>
+              <span>{{ .ChainId }}</span>
+            </div>
+          </div>
+        </div>
       </form>
     </div>
 
