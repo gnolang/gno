@@ -6,7 +6,7 @@ import (
 	"net/url"
 	"path/filepath"
 	"regexp"
-	"sort"
+	"slices"
 	"strings"
 )
 
@@ -227,29 +227,37 @@ func ParseGnoURL(u *url.URL) (*GnoURL, error) {
 }
 
 // NoEscapeQuery generates a URL-encoded query string from the given url.Values,
+// This function is a modified version of Go's `url.Values.Encode()`: https://pkg.go.dev/net/url#Values.Encode
 // without escaping the keys and values. The query parameters are sorted by key.
+// We remove the `=` sign for empty string values (`?key` instead of `?key=`).
+
 func NoEscapeQuery(v url.Values) string {
+	// Encode encodes the values into “URL encoded” form
+	// ("bar=baz&foo=quux") sorted by key.
 	if len(v) == 0 {
 		return ""
 	}
-
+	var buf strings.Builder
 	keys := make([]string, 0, len(v))
 	for k := range v {
 		keys = append(keys, k)
 	}
-	sort.Strings(keys)
-
-	var pairs []string
+	slices.Sort(keys)
 	for _, k := range keys {
 		vs := v[k]
-		if len(vs) == 0 {
-			pairs = append(pairs, k)
-		} else {
-			for _, val := range vs {
-				pairs = append(pairs, k+"="+val)
+		keyEscaped := k
+		for _, v := range vs {
+			if buf.Len() > 0 {
+				buf.WriteByte('&')
+			}
+			buf.WriteString(keyEscaped)
+
+			// Remove the `=` sign for empty string values
+			if len(v) > 0 {
+				buf.WriteByte('=')
+				buf.WriteString(v)
 			}
 		}
 	}
-
-	return strings.Join(pairs, "&")
+	return buf.String()
 }

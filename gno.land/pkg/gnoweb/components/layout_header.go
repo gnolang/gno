@@ -3,7 +3,7 @@ package components
 import (
 	"net/url"
 
-	weburl "github.com/gnolang/gno/gno.land/pkg/gnoweb/url"
+	"github.com/gnolang/gno/gno.land/pkg/gnoweb/weburl"
 )
 
 type HeaderLink struct {
@@ -23,8 +23,8 @@ type HeaderData struct {
 func StaticHeaderLinks(u weburl.GnoURL) []HeaderLink {
 	contentURL, sourceURL, helpURL := u, u, u
 	contentURL.WebQuery = url.Values{}
-	sourceURL.WebQuery = url.Values{"source": nil}
-	helpURL.WebQuery = url.Values{"help": nil}
+	sourceURL.WebQuery = url.Values{"source": {"bla"}}
+	helpURL.WebQuery = url.Values{"help": {""}}
 
 	return []HeaderLink{
 		{

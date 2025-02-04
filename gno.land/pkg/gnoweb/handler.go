@@ -11,7 +11,7 @@ import (
 	"time"
 
 	"github.com/gnolang/gno/gno.land/pkg/gnoweb/components"
-	weburl "github.com/gnolang/gno/gno.land/pkg/gnoweb/url"
+	"github.com/gnolang/gno/gno.land/pkg/gnoweb/weburl"
 	"github.com/gnolang/gno/gno.land/pkg/sdk/vm" // For error types
 )
 
