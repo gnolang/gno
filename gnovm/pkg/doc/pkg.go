@@ -64,9 +64,9 @@ func newPkgDataFromMemPkg(memPkg *gnovm.MemPackage, unexported bool) (*pkgData, 
 			strings.HasSuffix(n, "_filetest.gno") {
 			continue
 		}
-		fullPath := filepath.Join(memPkg.Path, n)
 		err := pkg.parseFile(n, file.Body, unexported)
 		if err != nil {
+			fullPath := filepath.Join(memPkg.Path, n)
 			return nil, fmt.Errorf("commands/doc: parse file %q: %w", fullPath, err)
 		}
 	}
