@@ -2,14 +2,12 @@
 package crossrealm_test
 
 import (
-	"std"
-
 	crossrealm "gno.land/r/demo/tests/crossrealm"
 )
 
 type fooer struct{}
 
-func (fooer) Foo() { println("hello " + std.CurrentRealm().PkgPath()) }
+func (fooer) Foo() { println("hello") }
 
 var f *fooer
 
@@ -24,4 +22,4 @@ func main() {
 }
 
 // Error:
-// cannot attach un-real object from external realm: struct{}
+// cannot attach un-real object from external realm: heapitem((struct{} gno.land/r/crossrealm_test.fooer))

@@ -1,5 +1,9 @@
 package crossrealm_map
 
+type Foo struct{}
+
+var f = Foo{}
+
 var m map[string]int
 
 func init() {
@@ -14,6 +18,11 @@ func GetMap() map[string]int {
 func GetMap2(f func(map[string]int)) {
 	m1 := map[string]int{"a": 1}
 	f(m1)
+}
+
+func GetMap4() map[string]Foo {
+	var m1 = map[string]Foo{"foo": f}
+	return m1
 }
 
 // --------------------------------------

@@ -414,7 +414,7 @@ func (tv *TypedValue) GetOriginPkg(store Store) (originPkg PkgID) {
 		}
 	}
 
-	// get pkgId from type
+	// infer pkgId from declared type
 	getPkgId := func(t Type) (pkgId PkgID) {
 		if dt, ok := t.(*DeclaredType); ok {
 			debug2.Printf2("getPkgId, dt: %v, dt.Base: %v, dt.Base.PkgPath: %s \n", dt, dt.Base, dt.Base.GetPkgPath())
@@ -452,6 +452,7 @@ func (tv *TypedValue) GetOriginPkg(store Store) (originPkg PkgID) {
 			originPkg = getPkgId(pv.TV.T)
 		}
 		return
+		// TODO: this is not correct, CompositeLit has no pkgPath
 	case *MapValue, *StructValue:
 		originPkg = getPkgId(tv.T)
 		return

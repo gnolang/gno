@@ -180,7 +180,15 @@ func (rlm *Realm) DidUpdate(store Store, po, xo, co Object) {
 		return // do nothing.
 	}
 
+	debug2.Println2("po is real, assert association valid")
+	// is po is real, the check defers to finalization, incRefCreatedDescendants
+	if _, ok := co.(*MapValue); ok {
+		debug2.Println2("association, object is realmless, check elem...")
+		checkCrossRealm(rlm, store, co, nil)
+	}
+
 	// TODO: check unreal external here, if po is real, association is invalid, panic
+
 	// else, defer to finalize???
 	debug2.Println2("po.GetObjectID().PkgID: ", po.GetObjectID().PkgID)
 	if po.GetObjectID().PkgID != rlm.ID {
@@ -222,8 +230,9 @@ func (rlm *Realm) DidUpdate(store Store, po, xo, co Object) {
 }
 
 func checkCrossRealm2(rlm *Realm, store Store, tv *TypedValue) {
-	debug2.Printf2("checkCrossRealm2, tv: %v\n", tv, reflect.TypeOf(tv.V))
-	if fo, ok := tv.V.(Object); ok {
+	debug2.Println2("checkCrossRealm2, tv: ", tv, reflect.TypeOf(tv.V))
+	tv2 := fillValueTV(store, tv)
+	if fo, ok := tv2.V.(Object); ok {
 		checkCrossRealm(rlm, store, fo, nil)
 	} else { // reference to object
 		switch rv := tv.V.(type) {
@@ -238,27 +247,40 @@ func checkCrossRealm2(rlm *Realm, store Store, tv *TypedValue) {
 
 // checkCrossRealm performs a deep crawl to determine if cross-realm conditions exist.
 // refValue is required to handle cases where the value is a slice.
-// The `len` and `offset` are needed to validate proper elements the underlying array.
+// The `len` and `offset` are needed to validate proper elements of the underlying array.
 func checkCrossRealm(rlm *Realm, store Store, oo Object, refValue Value) {
 	debug2.Println2("checkCrossRealm, oo: ", oo, reflect.TypeOf(oo))
 	debug2.Println2("refValue: ", refValue)
 	debug2.Println2("oo.GetRefCount: ", oo.GetRefCount())
-	debug2.Println2("oo.GetObjectInfo: ", oo.GetObjectInfo())
+	debug2.Println2("oo.GetObjectID: ", oo.GetObjectID())
+
+	// if oo.OriginRealm is zero, either from current realm, or a compositeLit from
+	// external realm, for the former one. both can be unreal.
+	// if composite value with pkgId inferred from declared type, it should be real.
+	// So, check if zero, real...
+
+	if rlm.ID != oo.GetOriginRealm() {
+		if oo.GetOriginRealm().IsZero() {
+			// A zero value indicates that it is a realmless composite literal.
+		} else { // with pkgID, it must be real
+			if !oo.GetIsReal() { // it's possible that embedded in another container, or a pointer
+				panic(fmt.Sprintf("cannot attach un-real object from external realm: %v", oo))
+			}
+		}
+	}
 
 	switch v := oo.(type) {
 	case *StructValue:
-		if !v.GetIsReal() { // it's possible that embedded in another container
-			if rlm.ID != oo.GetOriginRealm() { // it's ok for un-real object from same realm
-				panic(fmt.Sprintf("cannot attach un-real object from external realm: %v", v))
-			}
-		}
 		// check fields
 		for _, fv := range v.Fields {
-			rfv := fillValueTV(store, &fv)
-			checkCrossRealm2(rlm, store, rfv)
+			checkCrossRealm2(rlm, store, &fv)
 		}
 	case *MapValue:
-	// TODO: complete this
+		debug2.Println2("MapValue, v: ", v)
+		for cur := v.List.Head; cur != nil; cur = cur.Next {
+			checkCrossRealm2(rlm, store, &cur.Key)
+			checkCrossRealm2(rlm, store, &cur.Value)
+		}
 	case *BoundMethodValue:
 	// TODO: complete this
 	case *Block:
@@ -271,17 +293,15 @@ func checkCrossRealm(rlm *Realm, store Store, oo Object, refValue Value) {
 	case *HeapItemValue:
 		// TODO: is it necessary?
 		// if heapItem, the embedded should be all real now???
-		fillValueTV(store, &v.Value)
 		checkCrossRealm2(rlm, store, &v.Value)
 	case *ArrayValue:
 		if sv, ok := refValue.(*SliceValue); ok {
 			// only check referenced elem
 			for i := sv.Offset; i < sv.Length; i++ {
-				e := fillValueTV(store, &v.List[i])
-				checkCrossRealm2(rlm, store, e)
+				checkCrossRealm2(rlm, store, &v.List[i])
 			}
 		} else {
-			panic("should be slice value")
+			debug2.Println2("TODO, check elems of ArrayValue, v: ", v)
 		}
 	default:
 		panic("should not happen, oo is not object")
@@ -531,7 +551,7 @@ func (rlm *Realm) processNewCreatedMarks(store Store) {
 // XXX, unreal oo check happens in here
 // oo must be marked new-real, and ref-count already incremented.
 func (rlm *Realm) incRefCreatedDescendants(store Store, oo Object) {
-	debug2.Println2("---incRefCreatedDescendants from oo: ", oo)
+	debug2.Println2("---incRefCreatedDescendants from oo: ", oo, reflect.TypeOf(oo))
 	debug2.Println2("---oo.GetOriginRealm: ", oo.GetOriginRealm())
 	debug2.Println2("---oo.GetRefCount: ", oo.GetRefCount())
 	debug2.Println2("---rlm.ID: ", rlm.ID)
@@ -546,52 +566,13 @@ func (rlm *Realm) incRefCreatedDescendants(store Store, oo Object) {
 		}
 	}
 
-	// TODO: un-real object from external realm,
-	// can be with declared type, or just a literal,
-	// regarding the former one, check the origin pkg,
-	// and panic, for the latter one, check its element
-	// for map, func, array, slice, etc.
-
-	// XXX, oo must be new real here, it's not escaped
-	// if it's reference, all right
-	if !oo.GetOriginRealm().IsZero() && oo.GetOriginRealm() != rlm.ID {
-		switch oo.GetOriginValue().(type) {
-		case PointerValue, *SliceValue: // ref
-			panic("cannot attach a reference to an unreal object from an external realm")
-			// TODO: ignore this now.
-		case *FuncValue:
-			if b, ok := oo.(*Block); ok {
-				debug2.Println2("block: ", b)
-				originValue := b.GetOriginValue()
-				debug2.Println2("originValue: ", originValue)
-
-				if fv, ok := originValue.(*FuncValue); ok {
-					debug2.Println2("fv:  ", fv)
-					debug2.Println2("fv...values: ", fv.Source.GetStaticBlock().Values)
-					for _, tv := range fv.Source.GetStaticBlock().Values {
-						debug2.Println2("tv:  ", tv)
-						debug2.Println2("tv.V:  ", tv.V, reflect.TypeOf(tv.V))
-						debug2.Println2("tv.T:  ", tv.T, reflect.TypeOf(tv.T))
-
-						if dt, ok := tv.T.(*DeclaredType); ok {
-							debug2.Printf2("getPkgId, dt: %v, dt.Base: %v, type of base: %v \n", dt, dt.Base, reflect.TypeOf(dt.Base))
-							switch tt := dt.Base.(type) {
-							case *StructType, *InterfaceType: // types with pkgpath
-								if IsRealmPath(tt.GetPkgPath()) {
-									originPkg := PkgIDFromPkgPath(dt.Base.GetPkgPath())
-									if originPkg != rlm.ID {
-										panic("cannot attach function contains object from external realm")
-									}
-								}
-							}
-						}
-						// TODO: also check captures
-					}
-				}
-			}
-		default:
-			panic("cannot attach a value of a type defined by another realm")
-		}
+	// while associating, if po is unreal, the check
+	// defers to here.
+	// TODO: correct this
+	_, ok1 := oo.(*PackageValue)
+	_, ok2 := oo.(*Block) // package block
+	if !ok1 && !ok2 {
+		checkCrossRealm(rlm, store, oo, oo.GetOriginValue())
 	}
 
 	// RECURSE GUARD
