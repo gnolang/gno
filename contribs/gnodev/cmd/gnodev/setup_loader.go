@@ -64,7 +64,7 @@ func setupPackagesResolver(logger *slog.Logger, cfg *devCfg, dirs ...string) (pa
 			logger.Info("guessing directory path", "path", path, "dir", dir)
 			paths = append(paths, path) // append local path
 		} else {
-			logger.Warn("no gno pacakge found", "dir", dir)
+			logger.Warn("no gno package found", "dir", dir)
 		}
 
 		localResolvers[i] = resolver
