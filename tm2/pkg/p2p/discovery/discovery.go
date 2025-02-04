@@ -160,7 +160,7 @@ func (r *Reactor) Receive(chID byte, peer p2p.PeerConn, msgBytes []byte) {
 
 	// Validate the message
 	if err := msg.ValidateBasic(); err != nil {
-		r.Logger.Error("unable to validate discovery message", "err", err)
+		r.Logger.Warn("unable to validate discovery message", "err", err)
 
 		return
 	}
@@ -168,7 +168,7 @@ func (r *Reactor) Receive(chID byte, peer p2p.PeerConn, msgBytes []byte) {
 	switch msg := msg.(type) {
 	case *Request:
 		if err := r.handleDiscoveryRequest(peer); err != nil {
-			r.Logger.Error("unable to handle discovery request", "err", err)
+			r.Logger.Warn("unable to handle discovery request", "err", err)
 		}
 	case *Response:
 		// Make the peers available for dialing on the switch

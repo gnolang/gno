@@ -406,57 +406,76 @@ func (sw *MultiplexSwitch) runRedialLoop(ctx context.Context) {
 			peersToDial = make([]*types.NetAddress, 0)
 		)
 
+		// Gather addresses of persistent peers that are missing or
+		// not already in the dial queue
 		sw.persistentPeers.Range(func(key, value any) bool {
 			var (
 				id   = key.(types.ID)
 				addr = value.(*types.NetAddress)
 			)
 
-			// Check if the peer is part of the peer set
-			// or is scheduled for dialing
-			if peers.Has(id) || sw.dialQueue.Has(addr) {
-				return true
+			if !peers.Has(id) && !sw.dialQueue.Has(addr) {
+				peersToDial = append(peersToDial, addr)
 			}
-
-			peersToDial = append(peersToDial, addr)
 
 			return true
 		})
 
 		if len(peersToDial) == 0 {
-			// No persistent peers are missing
+			// No persistent peers need dialing
 			return
 		}
 
-		// Calculate the dial items
+		// Prepare dial items with the appropriate backoff
 		dialItems := make([]dial.Item, 0, len(peersToDial))
-		for _, p := range peersToDial {
-			item := getBackoffItem(p.ID)
-			if item == nil {
-				dialItem := dial.Item{
-					Time:    time.Now(),
-					Address: p,
-				}
+		for _, addr := range peersToDial {
+			item := getBackoffItem(addr.ID)
 
-				dialItems = append(dialItems, dialItem)
-				setBackoffItem(p.ID, &backoffItem{dialItem.Time, 0})
+			if item == nil {
+				// First attempt
+				now := time.Now()
+
+				dialItems = append(dialItems,
+					dial.Item{
+						Time:    now,
+						Address: addr,
+					},
+				)
+
+				setBackoffItem(addr.ID, &backoffItem{
+					lastDialTime: now,
+					attempts:     0,
+				})
 
 				continue
 			}
 
-			setBackoffItem(p.ID, &backoffItem{
-				lastDialTime: time.Now().Add(
+			// Subsequent attempt: apply backoff
+			var (
+				attempts = item.attempts + 1
+				dialTime = time.Now().Add(
 					calculateBackoff(
 						item.attempts,
 						time.Second,
 						10*time.Minute,
 					),
-				),
-				attempts: item.attempts + 1,
+				)
+			)
+
+			dialItems = append(dialItems,
+				dial.Item{
+					Time:    dialTime,
+					Address: addr,
+				},
+			)
+
+			setBackoffItem(addr.ID, &backoffItem{
+				lastDialTime: dialTime,
+				attempts:     attempts,
 			})
 		}
 
-		// Add the peers to the dial queue
+		// Add these items to the dial queue
 		sw.dialItems(dialItems...)
 	}
 
