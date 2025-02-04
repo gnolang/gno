@@ -4,6 +4,9 @@ package boards_test
 // SEND: 20000000ugnot
 
 import (
+	"std"
+
+	"gno.land/p/demo/testutils"
 	"gno.land/r/demo/boards"
 	"gno.land/r/demo/users"
 )
@@ -11,6 +14,8 @@ import (
 var bid boards.BoardID
 
 func init() {
+	caller := testutils.TestAddress("caller")
+	std.TestSetRealm(std.NewUserRealm(caller))
 	users.Register("", "gnouser", "my profile")
 
 	bid = boards.CreateBoard("test_board")
