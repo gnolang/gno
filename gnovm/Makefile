@@ -54,8 +54,8 @@ lint:
 
 .PHONY: fmt
 fmt:
-	go run ./cmd/gno fmt $(GNOFMT_FLAGS) ./stdlibs/... ./tests/stdlibs/...
 	$(rundep) mvdan.cc/gofumpt $(GOFMT_FLAGS) .
+	go run ./cmd/gno fmt $(GNOFMT_FLAGS) ./stdlibs/... ./tests/stdlibs/...
 
 .PHONY: imports
 imports:
@@ -125,7 +125,13 @@ _test.filetest:;
 # TODO: move _dev.stringer to go:generate instructions, simplify generate
 #       to just go generate.
 .PHONY: generate
-generate: _dev.stringer _dev.generate
+generate: _dev.stringer _dev.generate _dev.docs
+
+.PHONY: _dev.docs
+_dev.docs:
+	mkdir -p .tmp
+	(go run ./cmd/gno -h 2>&1 || true) | grep -v "exit status 1" > .tmp/gno-help.txt
+	$(rundep) github.com/campoy/embedmd -w `find . -name "*.md"`
 
 stringer_cmd=$(rundep) golang.org/x/tools/cmd/stringer
 .PHONY: _dev.stringer

@@ -16,33 +16,32 @@ func main() {
 func newGnocliCmd(io commands.IO) *commands.Command {
 	cmd := commands.NewCommand(
 		commands.Metadata{
-			ShortUsage: "<subcommand> [flags] [<arg>...]",
-			LongHelp:   "Runs the gno development toolkit",
+			ShortUsage: "gno <command> [arguments]",
 		},
 		commands.NewEmptyConfig(),
 		commands.HelpExec,
 	)
 
 	cmd.AddSubCommands(
-		newModCmd(io),
-		newTestCmd(io),
-		newLintCmd(io),
-		newRunCmd(io),
-		newTranspileCmd(io),
+		newBugCmd(io),
+		// build
 		newCleanCmd(io),
-		newReplCmd(),
 		newDocCmd(io),
 		newEnvCmd(io),
-		newBugCmd(io),
+		// fix
 		newFmtCmd(io),
-		// graph
-		// vendor -- download deps from the chain in vendor/
-		// list -- list packages
-		// render -- call render()?
-		// publish/release
 		// generate
-		// "vm" -- starts an in-memory chain that can be interacted with?
+		// get
+		// install
+		// list -- list packages
+		newModCmd(io),
+		// work
+		newRunCmd(io),
+		// telemetry
+		newTestCmd(io),
+		newToolCmd(io),
 		// version -- show cmd/gno, golang versions
+		// vet
 	)
 
 	return cmd
