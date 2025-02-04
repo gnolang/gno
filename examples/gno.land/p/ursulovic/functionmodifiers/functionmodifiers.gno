@@ -33,6 +33,9 @@ func (registry *ModifierRegistry) InitializeOwners(owners []string, newOwnerPerc
 	if len(owners) == 0 {
 		panic("You must provide at least one owner address!")
 	}
+	if newOwnerPercentage <= 0 || newOwnerPercentage > 1 {
+		panic("New owner percentage must be greater than 0 and less or equal to 1!")
+	}
 	registry.initVariables(newOwnerPercentage)
 
 	for _, addr := range owners {
@@ -52,14 +55,18 @@ func (registry *ModifierRegistry) ProposeNewOwner(address string) {
 	registry.AssertOwnersInitialized()
 
 	if !addr.IsValid() {
-		panic(ufmt.Sprintf("Address %s is not valid!", addr))
+		panic("Address " + address + " is not valid!")
 	}
 
-	v, exists := registry.Proposals.OwnerProposals.Get(addr.String())
+	if registry.Owners.Has(address) {
+		panic("Address is already an owner!")
+	}
+
+	v, exists := registry.Proposals.OwnerProposals.Get(address)
 
 	if !exists {
 		v = avl.NewTree()
-		registry.Proposals.OwnerProposals.Set(addr.String(), v)
+		registry.Proposals.OwnerProposals.Set(address, v)
 	}
 
 	addressApprovals := v.(*avl.Tree)
@@ -73,8 +80,8 @@ func (registry *ModifierRegistry) ProposeNewOwner(address string) {
 	approvalsNeeded := registry.Proposals.NewOwnerPercentage * float64(registry.Owners.Size())
 
 	if float64(addressApprovals.Size()) >= approvalsNeeded {
-		registry.Proposals.OwnerProposals.Remove(addr.String())
-		registry.Owners.Set(addr.String(), true)
+		registry.Proposals.OwnerProposals.Remove(address)
+		registry.Owners.Set(address, true)
 	}
 }
 
