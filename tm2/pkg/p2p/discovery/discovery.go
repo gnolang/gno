@@ -186,9 +186,21 @@ func (r *Reactor) handleDiscoveryRequest(peer p2p.PeerConn) error {
 		peers      = make([]*types.NetAddress, 0, len(localPeers))
 	)
 
-	// Exclude the private peers from being shared
+	// Exclude the private peers from being shared,
+	// as well as peers who are not dialable
 	localPeers = slices.DeleteFunc(localPeers, func(p p2p.PeerConn) bool {
-		return p.IsPrivate()
+		var (
+			// Private peers are peers whose information is kept private to the node
+			privatePeer = p.IsPrivate()
+			// The reason we don't validate the net address with .Routable()
+			// is because of legacy logic that supports local loopbacks as advertised
+			// peer addresses. Introducing a .Routable() constraint will filter all
+			// local loopback addresses shared by peers, and will cause local deployments
+			// (and unit test deployments) to break and require additional setup
+			invalidDialAddress = p.NodeInfo().DialAddress().Validate() != nil
+		)
+
+		return privatePeer || invalidDialAddress
 	})
 
 	// Check if there is anything to share,
