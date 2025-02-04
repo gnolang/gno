@@ -4,7 +4,7 @@ import (
 	"std"
 	"strings"
 
-	"gno.land/r/nt/boards2"
+	boards2 "gno.land/r/nt/boards2/v1"
 )
 
 const (
