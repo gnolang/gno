@@ -6,9 +6,9 @@ import crossrealm "gno.land/r/demo/tests/crossrealm/map"
 var root interface{}
 
 func main() {
-	root = crossrealm.GetMap4() // XXX, root is real, so check should happen in DidUpdate, namely, association panic
+	root = crossrealm.GetMap4()
 	println("ok")
 }
 
 // Error:
-// cannot attach object by value from external realm: struct{}
+// cannot attach a value of a type defined by another realm

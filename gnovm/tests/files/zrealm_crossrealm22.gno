@@ -34,12 +34,12 @@ func main() {
 
 // Realm:
 // switchrealm["gno.land/r/demo/tests/crossrealm"]
-// c[1712ac7adcfdc8e58a67e5615e20fb312394c4df:7]={
+// c[1712ac7adcfdc8e58a67e5615e20fb312394c4df:6]={
 //     "Blank": {},
 //     "ObjectInfo": {
-//         "ID": "1712ac7adcfdc8e58a67e5615e20fb312394c4df:7",
+//         "ID": "1712ac7adcfdc8e58a67e5615e20fb312394c4df:6",
 //         "ModTime": "0",
-//         "OwnerID": "1712ac7adcfdc8e58a67e5615e20fb312394c4df:6",
+//         "OwnerID": "1712ac7adcfdc8e58a67e5615e20fb312394c4df:2",
 //         "RefCount": "1"
 //     },
 //     "Parent": {
@@ -77,33 +77,6 @@ func main() {
 //                 "TV": null
 //             }
 //         }
-//     ]
-// }
-// c[1712ac7adcfdc8e58a67e5615e20fb312394c4df:6]={
-//     "Blank": {},
-//     "ObjectInfo": {
-//         "ID": "1712ac7adcfdc8e58a67e5615e20fb312394c4df:6",
-//         "ModTime": "0",
-//         "OwnerID": "1712ac7adcfdc8e58a67e5615e20fb312394c4df:2",
-//         "RefCount": "1"
-//     },
-//     "Parent": {
-//         "@type": "/gno.RefValue",
-//         "Hash": "47f9df1dd7beb8ae6c59db94bf51bad6beaf4fd7",
-//         "ObjectID": "1712ac7adcfdc8e58a67e5615e20fb312394c4df:7"
-//     },
-//     "Source": {
-//         "@type": "/gno.RefNode",
-//         "BlockNode": null,
-//         "Location": {
-//             "Column": "28",
-//             "File": "files/zrealm_crossrealm22.gno",
-//             "Line": "13",
-//             "PkgPath": "gno.land/r/crossrealm_test"
-//         }
-//     },
-//     "Values": [
-//         {}
 //     ]
 // }
 // u[1712ac7adcfdc8e58a67e5615e20fb312394c4df:2]={
@@ -594,8 +567,8 @@ func main() {
 //                 "@type": "/gno.FuncValue",
 //                 "Closure": {
 //                     "@type": "/gno.RefValue",
-//                     "Hash": "47f9df1dd7beb8ae6c59db94bf51bad6beaf4fd7",
-//                     "ObjectID": "1712ac7adcfdc8e58a67e5615e20fb312394c4df:7"
+//                     "Hash": "23de97a577d573252d00394ce9b71c24b0646546",
+//                     "ObjectID": "1712ac7adcfdc8e58a67e5615e20fb312394c4df:6"
 //                 },
 //                 "FileName": "",
 //                 "IsMethod": false,

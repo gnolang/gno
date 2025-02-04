@@ -2,15 +2,13 @@
 package crossrealm_test
 
 import (
-	"std"
-
-	crossrealm "gno.land/r/demo/tests/crossrealm/slice"
+	crossrealm "gno.land/r/demo/tests/crossrealm/array"
 )
 
-var SS []crossrealm.XYZ
+var root interface{}
 
 func main() {
-	SS = crossrealm.GetSlice2()
+	root = crossrealm.GetArray()
 	println(".")
 }
 

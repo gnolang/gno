@@ -398,7 +398,8 @@ func (tv *TypedValue) GetFirstObject(store Store) Object {
 // otherwise, it's inference from its type.
 func (tv *TypedValue) GetOriginPkg(store Store) (originPkg PkgID) {
 	debug2.Println2("GetOriginPkg, tv: ", tv, reflect.TypeOf(tv.V))
-	// get first object
+
+	// attempting to retrieve the original package using the ObjectID
 	obj := tv.GetFirstObject(store)
 	debug2.Println2("obj: ", obj, reflect.TypeOf(obj))
 	if obj != nil {
@@ -414,7 +415,7 @@ func (tv *TypedValue) GetOriginPkg(store Store) (originPkg PkgID) {
 		}
 	}
 
-	// infer pkgId from declared type
+	// attempting to infer original package using declared type
 	getPkgId := func(t Type) (pkgId PkgID) {
 		if dt, ok := t.(*DeclaredType); ok {
 			debug2.Printf2("getPkgId, dt: %v, dt.Base: %v, dt.Base.PkgPath: %s \n", dt, dt.Base, dt.Base.GetPkgPath())
@@ -426,16 +427,15 @@ func (tv *TypedValue) GetOriginPkg(store Store) (originPkg PkgID) {
 		return
 	}
 
-	// if still zero
 	switch cv := obj.(type) {
-	case *ArrayValue:
-		// if array is real, retrieved from objectID,
-		// otherwise, it's retrieved from elem type.
-		// it panics while attach this kind of slice/array value: `var fs []crossrealm.Fooer`,
-		if IsRealmPath(tv.T.Elem().GetPkgPath()) {
-			originPkg = PkgIDFromPkgPath(tv.T.Elem().GetPkgPath())
-		}
-		return
+	//case *ArrayValue:
+	//	// if array is real, retrieved from objectID,
+	//	// otherwise, it's retrieved from elem type.
+	//	// it panics while attach this kind of slice/array value: `var fs []crossrealm.Fooer`,
+	//	if IsRealmPath(tv.T.Elem().GetPkgPath()) {
+	//		originPkg = PkgIDFromPkgPath(tv.T.Elem().GetPkgPath())
+	//	}
+	//	return
 	case *Block:
 		if _, ok := tv.V.(*FuncValue); !ok {
 			//fmt.Println("cv: ", cv)
@@ -452,9 +452,8 @@ func (tv *TypedValue) GetOriginPkg(store Store) (originPkg PkgID) {
 			originPkg = getPkgId(pv.TV.T)
 		}
 		return
-		// TODO: this is not correct, CompositeLit has no pkgPath
-	case *MapValue, *StructValue:
-		originPkg = getPkgId(tv.T)
+	case *MapValue, *StructValue, *ArrayValue:
+		originPkg = getPkgId(tv.T) // if it's declared type, otherwise zero
 		return
 	default:
 		// do nothing

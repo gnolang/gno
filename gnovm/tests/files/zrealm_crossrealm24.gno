@@ -26,7 +26,7 @@ func main() {
 }
 
 // Output:
-// &(struct{(22 int)} gno.land/r/demo/tests/crossrealm/struct.Bar)
+// &(ref(5965ae851c02ab677bc8394b408535c1db9b2635:4) gno.land/r/demo/tests/crossrealm/struct.Bar)
 // &(struct{(23 int)} gno.land/r/demo/tests/crossrealm/struct.Bar)
 // &(struct{(23 int)} gno.land/r/demo/tests/crossrealm/struct.Bar)
 

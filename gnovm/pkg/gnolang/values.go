@@ -300,23 +300,6 @@ func (pv PointerValue) Assign2(alloc *Allocator, store Store, rlm *Realm, tv2 Ty
 		oo2 := pv.TV.GetFirstObject(store)
 		debug2.Println2("oo2: ", oo2)
 
-		// TODO: defer this...
-		// XXX, considering this
-		// special case for un-real func value
-		if originPkg != rlm.ID {
-			// the funcValue has not attached,
-			// it has the chance to be attached to
-			// external realm, if it does not reference
-			// other values in current realm.
-			if fv, ok := pv.TV.V.(*FuncValue); ok && oo2.GetObjectID().IsZero() {
-				//debug2.Println2("fv: ", fv)
-				// XXX, maybe is closure is good, real or unreal
-				b := NewBlock(fv.GetSource(store), fv.GetClosure(store))
-				//debug2.Println2("b for fv: ", b)
-				oo2 = b
-			}
-		}
-
 		// originValue is needed for checking
 		// proper element in the base.
 		// e.g. refValue is a sliceValue
