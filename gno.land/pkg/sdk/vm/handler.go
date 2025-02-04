@@ -204,9 +204,7 @@ func (vh vmHandler) queryFile(ctx sdk.Context, req abci.RequestQuery) (res abci.
 	return
 }
 
-// queryDoc returns the file bytes, or list of files if directory.
-// if file, res.Value is []byte("file").
-// if dir, res.Value is []byte("dir").
+// queryDoc returns the JSON of the doc for a given pkgpath, suitable for printing
 func (vh vmHandler) queryDoc(ctx sdk.Context, req abci.RequestQuery) (res abci.ResponseQuery) {
 	filepath := string(req.Data)
 	jsonDoc, err := vh.vm.QueryDoc(ctx, filepath)
