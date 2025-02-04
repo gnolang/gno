@@ -26,7 +26,7 @@ type Bridge struct {
 // init constructs the initial GovDAO implementation
 func init() {
 	b = &Bridge{
-		dao: nil, // initially set via r/gov/dao/loader
+		dao: nil, // initially set via r/gov/dao/init
 	}
 }
 
