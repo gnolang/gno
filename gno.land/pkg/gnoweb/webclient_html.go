@@ -8,52 +8,84 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/alecthomas/chroma/v2"
+	chromahtml "github.com/alecthomas/chroma/v2/formatters/html"
+	"github.com/alecthomas/chroma/v2/lexers"
+	"github.com/alecthomas/chroma/v2/styles"
 	md "github.com/gnolang/gno/gno.land/pkg/gnoweb/markdown"
 	"github.com/gnolang/gno/gno.land/pkg/sdk/vm" // for error types
 	"github.com/gnolang/gno/tm2/pkg/amino"
 	"github.com/gnolang/gno/tm2/pkg/bft/rpc/client"
 	"github.com/yuin/goldmark"
+	markdown "github.com/yuin/goldmark-highlighting/v2"
+	"github.com/yuin/goldmark/extension"
 	"github.com/yuin/goldmark/parser"
 	"github.com/yuin/goldmark/text"
 )
 
+var chromaDefaultStyle = styles.Get("friendly")
+
 type HTMLWebClientConfig struct {
-	Domain      string
-	UnsafeHTML  bool
-	RPCClient   *client.RPCClient
-	Highlighter FormatSource
-	Markdown    goldmark.Markdown
+	Domain            string
+	RPCClient         *client.RPCClient
+	ChromaStyle       *chroma.Style
+	ChromaHTMLOptions []chromahtml.Option
+	GoldmarkOptions   []goldmark.Option
 }
 
 // NewDefaultHTMLWebClientConfig initializes a WebClientConfig with default settings.
 // It sets up goldmark Markdown parsing options and default domain and highlighter.
 func NewDefaultHTMLWebClientConfig(client *client.RPCClient) *HTMLWebClientConfig {
-	mdopts := []goldmark.Option{goldmark.WithParserOptions(parser.WithAutoHeadingID())}
+	chromaOptions := []chromahtml.Option{
+		chromahtml.WithLineNumbers(true),
+		chromahtml.WithLinkableLineNumbers(true, "L"),
+		chromahtml.WithClasses(true),
+		chromahtml.ClassPrefix("chroma-"),
+	}
+
+	goldmarkOptions := []goldmark.Option{
+		goldmark.WithParserOptions(parser.WithAutoHeadingID()),
+		goldmark.WithExtensions(
+			markdown.NewHighlighting(
+				markdown.WithFormatOptions(chromaOptions...),
+			),
+			extension.Strikethrough,
+			extension.Table,
+		),
+	}
+
 	return &HTMLWebClientConfig{
-		Domain:      "gno.land",
-		Highlighter: &noopFormat{},
-		Markdown:    goldmark.New(mdopts...),
-		RPCClient:   client,
+		Domain:            "gno.land",
+		GoldmarkOptions:   goldmarkOptions,
+		ChromaHTMLOptions: chromaOptions,
+		ChromaStyle:       chromaDefaultStyle,
+		RPCClient:         client,
 	}
 }
 
 type HTMLWebClient struct {
+	Markdown  goldmark.Markdown
+	Formatter *chromahtml.Formatter
+
 	domain      string
 	logger      *slog.Logger
 	client      *client.RPCClient
-	md          goldmark.Markdown
-	highlighter FormatSource
+	chromaStyle *chroma.Style
 }
 
 // NewHTMLClient creates a new instance of WebClient.
 // It requires a configured logger and WebClientConfig.
 func NewHTMLClient(log *slog.Logger, cfg *HTMLWebClientConfig) *HTMLWebClient {
 	return &HTMLWebClient{
+		// XXX: Possibly consider exporting this in a single interface logic.
+		// For now it's easier to manager all this in one place
+		Markdown:  goldmark.New(cfg.GoldmarkOptions...),
+		Formatter: chromahtml.New(cfg.ChromaHTMLOptions...),
+
 		logger:      log,
 		domain:      cfg.Domain,
 		client:      cfg.RPCClient,
-		md:          cfg.Markdown,
-		highlighter: cfg.Highlighter,
+		chromaStyle: cfg.ChromaStyle,
 	}
 }
 
@@ -108,7 +140,7 @@ func (s *HTMLWebClient) SourceFile(w io.Writer, path, fileName string) (*FileMet
 	}
 
 	// Use Chroma for syntax highlighting
-	if err := s.highlighter.Format(w, fileName, source); err != nil {
+	if err := s.FormatSource(w, fileName, source); err != nil {
 		return nil, err
 	}
 
@@ -146,14 +178,15 @@ func (s *HTMLWebClient) RenderRealm(w io.Writer, pkgPath string, args string) (*
 
 	pkgPath = strings.Trim(pkgPath, "/")
 	data := fmt.Sprintf("%s/%s:%s", s.domain, pkgPath, args)
+
 	rawres, err := s.query(qpath, []byte(data))
 	if err != nil {
 		return nil, err
 	}
 
 	// Use Goldmark for Markdown parsing
-	doc := s.md.Parser().Parse(text.NewReader(rawres))
-	if err := s.md.Renderer().Render(w, rawres, doc); err != nil {
+	doc := s.Markdown.Parser().Parse(text.NewReader(rawres))
+	if err := s.Markdown.Renderer().Render(w, rawres, doc); err != nil {
 		return nil, fmt.Errorf("unable to render realm %q: %w", data, err)
 	}
 
@@ -182,9 +215,48 @@ func (s *HTMLWebClient) query(qpath string, data []byte) ([]byte, error) {
 			return nil, ErrClientPathNotFound
 		}
 
+		if errors.Is(err, vm.NoRenderDeclError{}) {
+			return nil, ErrRenderNotDeclared
+		}
+
 		s.logger.Error("response error", "path", qpath, "log", qres.Response.Log)
 		return nil, fmt.Errorf("%w: %s", ErrClientResponse, err.Error())
 	}
 
 	return qres.Response.Data, nil
+}
+
+func (s *HTMLWebClient) FormatSource(w io.Writer, fileName string, src []byte) error {
+	var lexer chroma.Lexer
+
+	// Determine the lexer to be used based on the file extension.
+	switch strings.ToLower(filepath.Ext(fileName)) {
+	case ".gno":
+		lexer = lexers.Get("go")
+	case ".md":
+		lexer = lexers.Get("markdown")
+	case ".mod":
+		lexer = lexers.Get("gomod")
+	default:
+		lexer = lexers.Get("txt") // Unsupported file type, default to plain text.
+	}
+
+	if lexer == nil {
+		return fmt.Errorf("unsupported lexer for file %q", fileName)
+	}
+
+	iterator, err := lexer.Tokenise(nil, string(src))
+	if err != nil {
+		return fmt.Errorf("unable to tokenise %q: %w", fileName, err)
+	}
+
+	if err := s.Formatter.Format(w, s.chromaStyle, iterator); err != nil {
+		return fmt.Errorf("unable to format source file %q: %w", fileName, err)
+	}
+
+	return nil
+}
+
+func (s *HTMLWebClient) WriteFormatterCSS(w io.Writer) error {
+	return s.Formatter.WriteCSS(w, s.chromaStyle)
 }
