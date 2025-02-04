@@ -13,7 +13,7 @@ func newGnoVersionCmd(io commands.IO) *commands.Command {
 		commands.Metadata{
 			Name:       "version",
 			ShortUsage: "version",
-			ShortHelp:  "Display installed gno version",
+			ShortHelp:  "display installed gno version",
 		},
 		nil,
 		func(_ context.Context, args []string) error {
