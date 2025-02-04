@@ -41,7 +41,7 @@ func newGnocliCmd(io commands.IO) *commands.Command {
 		newTestCmd(io),
 		newToolCmd(io),
 		// version -- show cmd/gno, golang versions
-    newGnoVersionCmd(io),
+		newGnoVersionCmd(io),
 		// vet
 	)
 
