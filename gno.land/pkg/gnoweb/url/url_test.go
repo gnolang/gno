@@ -1,4 +1,4 @@
-package gnoweb
+package weburl
 
 import (
 	"net/url"

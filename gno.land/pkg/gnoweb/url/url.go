@@ -1,4 +1,4 @@
-package gnoweb
+package weburl
 
 import (
 	"errors"
@@ -6,7 +6,7 @@ import (
 	"net/url"
 	"path/filepath"
 	"regexp"
-	"slices"
+	"sort"
 	"strings"
 )
 
@@ -140,7 +140,7 @@ func (gnoURL GnoURL) EncodeURL() string {
 // EncodeWebURL encodes the path, package arguments, web query, and query into a string.
 // This function provides the full representation of the URL.
 func (gnoURL GnoURL) EncodeWebURL() string {
-	return gnoURL.Encode(EncodePath | EncodeArgs | EncodeWebQuery | EncodeQuery)
+	return gnoURL.Encode(EncodePath | EncodeArgs | EncodeWebQuery | EncodeQuery | EncodeNoEscape)
 }
 
 // IsPure checks if the URL path represents a pure path.
@@ -229,28 +229,27 @@ func ParseGnoURL(u *url.URL) (*GnoURL, error) {
 // NoEscapeQuery generates a URL-encoded query string from the given url.Values,
 // without escaping the keys and values. The query parameters are sorted by key.
 func NoEscapeQuery(v url.Values) string {
-	// Encode encodes the values into “URL encoded” form
-	// ("bar=baz&foo=quux") sorted by key.
 	if len(v) == 0 {
 		return ""
 	}
-	var buf strings.Builder
+
 	keys := make([]string, 0, len(v))
 	for k := range v {
 		keys = append(keys, k)
 	}
-	slices.Sort(keys)
+	sort.Strings(keys)
+
+	var pairs []string
 	for _, k := range keys {
 		vs := v[k]
-		keyEscaped := k
-		for _, v := range vs {
-			if buf.Len() > 0 {
-				buf.WriteByte('&')
+		if len(vs) == 0 {
+			pairs = append(pairs, k)
+		} else {
+			for _, val := range vs {
+				pairs = append(pairs, k+"="+val)
 			}
-			buf.WriteString(keyEscaped)
-			buf.WriteByte('=')
-			buf.WriteString(v)
 		}
 	}
-	return buf.String()
+
+	return strings.Join(pairs, "&")
 }

@@ -2,7 +2,8 @@ package components
 
 import (
 	"net/url"
-	"strings"
+
+	weburl "github.com/gnolang/gno/gno.land/pkg/gnoweb/url"
 )
 
 type HeaderLink struct {
@@ -14,46 +15,42 @@ type HeaderLink struct {
 
 type HeaderData struct {
 	RealmPath  string
+	RealmURL   weburl.GnoURL
 	Breadcrumb BreadcrumbData
-	WebQuery   url.Values
 	Links      []HeaderLink
 }
 
-func HeaderURL(realmPath string, webquery string) string {
-	if webquery == "" {
-		return realmPath
-	}
-	if pos := strings.IndexByte(realmPath, '?'); pos != -1 {
-		return realmPath[:pos] + webquery + realmPath[pos:]
-	}
-	return realmPath + webquery
-}
+func StaticHeaderLinks(u weburl.GnoURL) []HeaderLink {
+	contentURL, sourceURL, helpURL := u, u, u
+	contentURL.WebQuery = url.Values{}
+	sourceURL.WebQuery = url.Values{"source": nil}
+	helpURL.WebQuery = url.Values{"help": nil}
 
-func StaticHeaderLinks(realmPath string, webQuery url.Values) []HeaderLink {
 	return []HeaderLink{
 		{
 			Label:    "Content",
-			URL:      HeaderURL(realmPath, ""),
+			URL:      contentURL.EncodeWebURL(),
 			Icon:     "ico-info",
-			IsActive: isActive(webQuery, "Content"),
+			IsActive: isActive(u.WebQuery, "Content"),
 		},
 		{
 			Label:    "Source",
-			URL:      HeaderURL(realmPath, "$source"),
+			URL:      sourceURL.EncodeWebURL(),
 			Icon:     "ico-code",
-			IsActive: isActive(webQuery, "Source"),
+			IsActive: isActive(u.WebQuery, "Source"),
 		},
 		{
 			Label:    "Docs",
-			URL:      HeaderURL(realmPath, "$help"),
+			URL:      helpURL.EncodeWebURL(),
 			Icon:     "ico-docs",
-			IsActive: isActive(webQuery, "Docs"),
+			IsActive: isActive(u.WebQuery, "Docs"),
 		},
 	}
 }
 
 func EnrichHeaderData(data HeaderData) HeaderData {
-	data.Links = StaticHeaderLinks(data.RealmPath, data.WebQuery)
+	data.RealmPath = data.RealmURL.EncodeURL()
+	data.Links = StaticHeaderLinks(data.RealmURL)
 	return data
 }
 
