@@ -45,7 +45,7 @@ func setupDevNode(ctx context.Context, cfg *devCfg, nodeConfig *gnodev.NodeConfi
 
 	logger.Info("packages", "paths", paths)
 	if len(paths) == 0 {
-		logger.Warn("no path to load")
+		logger.Debug("no path to load")
 	}
 
 	return gnodev.NewDevNode(ctx, nodeConfig, paths...)

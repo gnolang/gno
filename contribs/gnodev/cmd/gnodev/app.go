@@ -140,17 +140,7 @@ func (ds *App) Setup(ctx context.Context, dirs ...string) (err error) {
 	resolver, localPaths := setupPackagesResolver(loaderLogger, ds.cfg, dirs...)
 	ds.loader = packages.NewGlobLoader(examplesDir, resolver)
 
-	// Setup default web home realm, fallback on first local path
-	switch webHome := ds.cfg.webHome; webHome {
-	case "":
-		if len(localPaths) > 0 {
-			ds.webHomePath = strings.TrimPrefix(localPaths[0], ds.cfg.chainDomain)
-		}
-	case "/", ":none:": // skip
-	default:
-		ds.webHomePath = webHome
-	}
-
+	// Get user's address book from local keybase
 	accountLogger := ds.logger.WithGroup(AccountsLogName)
 	ds.book, err = setupAddressBook(accountLogger, ds.cfg)
 	if err != nil {
@@ -169,7 +159,19 @@ func (ds *App) Setup(ctx context.Context, dirs ...string) (err error) {
 
 	// Add the user's paths to the pre-loaded paths
 	// Modifiers will be added later to the node config bellow
-	ds.paths = append(localPaths, paths...)
+	ds.paths = append(paths, localPaths...)
+
+	// Setup default web home realm, fallback on first local path
+	switch webHome := ds.cfg.webHome; webHome {
+	case "":
+		if len(ds.paths) > 0 {
+			ds.webHomePath = strings.TrimPrefix(ds.paths[0], ds.cfg.chainDomain)
+			ds.logger.Info("using default package", "path", ds.paths[0])
+		}
+	case "/", ":none:": // skip
+	default:
+		ds.webHomePath = webHome
+	}
 
 	balances, err := generateBalances(ds.book, ds.cfg)
 	if err != nil {

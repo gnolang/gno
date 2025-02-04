@@ -36,7 +36,7 @@ func (va *varResolver) Set(value string) error {
 		res = packages.NewRemoteResolver(rpc)
 	case "root":
 		res = packages.NewFSResolver(location)
-	case "pkgdir":
+	case "dir":
 		path, ok := guessPathGnoMod(location)
 		if !ok {
 			return fmt.Errorf("unable to read module path from gno.mod in %q", location)
@@ -53,7 +53,6 @@ func (va *varResolver) Set(value string) error {
 
 func setupPackagesResolver(logger *slog.Logger, cfg *devCfg, dirs ...string) (packages.Resolver, []string) {
 	// Add root resolvers
-	exampleRoot := filepath.Join(cfg.root, "examples")
 	localResolvers := make([]packages.Resolver, len(dirs))
 
 	var paths []string
@@ -65,7 +64,7 @@ func setupPackagesResolver(logger *slog.Logger, cfg *devCfg, dirs ...string) (pa
 			logger.Info("guessing directory path", "path", path, "dir", dir)
 			paths = append(paths, path) // append local path
 		} else {
-			logger.Warn("invalid local path", "dir", dir)
+			logger.Warn("no gno pacakge found", "dir", dir)
 		}
 
 		localResolvers[i] = resolver
@@ -75,11 +74,6 @@ func setupPackagesResolver(logger *slog.Logger, cfg *devCfg, dirs ...string) (pa
 		packages.ChainResolvers(localResolvers...), // Resolve local directories
 		packages.ChainResolvers(cfg.resolvers...),  // Use user's custom resolvers
 	)
-
-	// If not resolvers are provided, fallback on example folder
-	if len(cfg.resolvers) == 0 {
-		resolver = packages.ChainResolvers(resolver, packages.NewFSResolver(exampleRoot))
-	}
 
 	// Enrich resolver with middleware
 	return packages.MiddlewareResolver(resolver,

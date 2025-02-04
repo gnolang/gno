@@ -5,6 +5,7 @@ import (
 	"flag"
 	"path/filepath"
 
+	"github.com/gnolang/gno/contribs/gnodev/pkg/packages"
 	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
 	"github.com/gnolang/gno/tm2/pkg/commands"
 )
@@ -58,5 +59,16 @@ func (c *stagingCfg) RegisterFlags(fs *flag.FlagSet) {
 }
 
 func execStagingCmd(cfg *stagingCfg, args []string, io commands.IO) error {
+	// If no resolvers is defined, use gno example as root resolver
+	if len(cfg.dev.resolvers) == 0 {
+		gnoroot, err := gnoenv.GuessRootDir()
+		if err != nil {
+			return err
+		}
+
+		exampleRoot := filepath.Join(gnoroot, "examples")
+		cfg.dev.resolvers = append(cfg.dev.resolvers, packages.NewFSResolver(exampleRoot))
+	}
+
 	return runApp(&cfg.dev, io, args...)
 }

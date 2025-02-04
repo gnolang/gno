@@ -6,7 +6,9 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"path/filepath"
 
+	"github.com/gnolang/gno/contribs/gnodev/pkg/packages"
 	"github.com/gnolang/gno/gno.land/pkg/integration"
 	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
 	"github.com/gnolang/gno/tm2/pkg/commands"
@@ -191,7 +193,7 @@ func (c *devCfg) registerFlagsWithDefault(defaultCfg devCfg, fs *flag.FlagSet) {
 	fs.Var(
 		&c.resolvers,
 		"resolver",
-		"list of additional resolvers (`root`, `local` or `remote`), will be executed in the given order",
+		"list of additional resolvers (`root`, `dir` or `remote`), will be executed in the given order",
 	)
 
 	fs.StringVar(
@@ -341,5 +343,30 @@ func execDev(cfg *devCfg, args []string, cio commands.IO) error {
 		return fmt.Errorf("unable to guess current dir: %w", err)
 	}
 
-	return runApp(cfg, cio, dir)
+	// If no resolvers is defined, use gno example as root resolver
+	var baseResolvers []packages.Resolver
+	if len(cfg.resolvers) == 0 {
+		gnoroot, err := gnoenv.GuessRootDir()
+		if err != nil {
+			return err
+		}
+
+		exampleRoot := filepath.Join(gnoroot, "examples")
+		baseResolvers = append(baseResolvers, packages.NewFSResolver(exampleRoot))
+	}
+
+	// Check if current directory is a valid gno package
+	path := guessPath(cfg, dir)
+	resolver := packages.NewLocalResolver(path, dir)
+	if resolver.IsValid() {
+		// Add current directory as local resolver
+		baseResolvers = append(baseResolvers, resolver)
+		if len(cfg.paths) > 0 {
+			cfg.paths += ","
+		}
+		cfg.paths += resolver.Path
+	}
+	cfg.resolvers = append(baseResolvers, cfg.resolvers...)
+
+	return runApp(cfg, cio) // else run app without any dir
 }
