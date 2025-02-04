@@ -25,8 +25,6 @@ func X_testSetContext(
 	chainID string,
 	height int64,
 	timeUnix int64, timeNano int64,
-	banker bool, // TODO
-	logger bool, // TODO
 ) {
 	ctx := m.Context.(*teststd.TestExecContext)
 
@@ -88,6 +86,14 @@ func X_testSetContext(
 	}
 
 	m.Context = ctx
+}
+
+func X_testIssueCoins(m *gno.Machine, addr string, denom []string, amt []int64) {
+	ctx := m.Context.(*teststd.TestExecContext)
+	banker := ctx.Banker
+	for i := range denom {
+		banker.IssueCoin(crypto.Bech32Address(addr), denom[i], amt[i])
+	}
 }
 
 func X_matchString(pat, str string) (result bool, err error) {

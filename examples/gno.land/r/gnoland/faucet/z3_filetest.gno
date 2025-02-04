@@ -11,7 +11,7 @@ import (
 // mints coints to current realm
 func init() {
 	facuetaddr := std.DerivePkgAddr("gno.land/r/gnoland/faucet")
-	std.TestIssueCoins(facuetaddr, std.Coins{{"ugnot", 200000000}})
+	testing.IssueCoins(facuetaddr, std.Coins{{"ugnot", 200000000}})
 }
 
 // assert render with 2 controllers and 2 transfers

@@ -249,6 +249,10 @@ func (t *T) SkipHeights(count int64) {
 	SkipHeights(count)
 }
 
+func (t *T) IssueCoins(addr std.Address, coins std.Coins) {
+	IssueCoins(addr, coins)
+}
+
 func (t *T) log(s string) {
 	if t.verbose {
 		// verbose, print immediately
@@ -420,9 +424,9 @@ func testSetContext(
 	chainID string,
 	height int64,
 	timeUnix int64, timeNano int64,
-	banker bool, // TODO
-	logger bool, // TODO
 )
+
+func testIssueCoins(addr string, denom []string, amt []int64)
 
 func TestSetContext(ctx Context) {
 	originSendDenom, originSendAmount := expandNative(ctx.OriginSend)
@@ -445,8 +449,6 @@ func TestSetContext(ctx Context) {
 		ctx.ChainID,
 		ctx.Height,
 		timestamp, timestampNano,
-		ctx.Banker, // TODO
-		ctx.Logger, // TODO
 	)
 }
 
@@ -481,4 +483,9 @@ func SkipHeights(count int64) {
 	toHeight := std.GetHeight() + count
 	toTime := time.Now().Unix() + (count * 5)
 	TestSetContext(Context{Height: toHeight, Time: time.Unix(toTime, 0)})
+}
+
+func IssueCoins(addr std.Address, coins std.Coins) {
+	denom, amt := expandNative(coins)
+	testIssueCoins(addr.String(), denom, amt)
 }

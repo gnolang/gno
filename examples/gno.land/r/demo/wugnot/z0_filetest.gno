@@ -18,10 +18,10 @@ var (
 
 func main() {
 	testing.SetOriginPkgAddress(addrc)
-	std.TestIssueCoins(addrc, std.Coins{{"ugnot", 100000001}}) // TODO: remove this
+	testing.IssueCoins(addrc, std.Coins{{"ugnot", 100000001}}) // TODO: remove this
 
 	// issue ugnots
-	std.TestIssueCoins(addr1, std.Coins{{"ugnot", 100000001}})
+	testing.IssueCoins(addr1, std.Coins{{"ugnot", 100000001}})
 
 	// print initial state
 	printBalances()

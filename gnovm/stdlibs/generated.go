@@ -855,8 +855,6 @@ var nativeFuncs = [...]NativeFunc{
 			{Name: gno.N("p10"), Type: gno.X("int64")},
 			{Name: gno.N("p11"), Type: gno.X("int64")},
 			{Name: gno.N("p12"), Type: gno.X("int64")},
-			{Name: gno.N("p13"), Type: gno.X("bool")},
-			{Name: gno.N("p14"), Type: gno.X("bool")},
 		},
 		[]gno.FieldTypeExpr{},
 		true,
@@ -889,10 +887,6 @@ var nativeFuncs = [...]NativeFunc{
 				rp11 = reflect.ValueOf(&p11).Elem()
 				p12  int64
 				rp12 = reflect.ValueOf(&p12).Elem()
-				p13  bool
-				rp13 = reflect.ValueOf(&p13).Elem()
-				p14  bool
-				rp14 = reflect.ValueOf(&p14).Elem()
 			)
 
 			gno.Gno2GoValue(b.GetPointerTo(nil, gno.NewValuePathBlock(1, 0, "")).TV, rp0)
@@ -908,12 +902,40 @@ var nativeFuncs = [...]NativeFunc{
 			gno.Gno2GoValue(b.GetPointerTo(nil, gno.NewValuePathBlock(1, 10, "")).TV, rp10)
 			gno.Gno2GoValue(b.GetPointerTo(nil, gno.NewValuePathBlock(1, 11, "")).TV, rp11)
 			gno.Gno2GoValue(b.GetPointerTo(nil, gno.NewValuePathBlock(1, 12, "")).TV, rp12)
-			gno.Gno2GoValue(b.GetPointerTo(nil, gno.NewValuePathBlock(1, 13, "")).TV, rp13)
-			gno.Gno2GoValue(b.GetPointerTo(nil, gno.NewValuePathBlock(1, 14, "")).TV, rp14)
 
 			libs_testing.X_testSetContext(
 				m,
-				p0, p1, p2, p3, p4, p5, p6, p7, p8, p9, p10, p11, p12, p13, p14)
+				p0, p1, p2, p3, p4, p5, p6, p7, p8, p9, p10, p11, p12)
+		},
+	},
+	{
+		"testing",
+		"testIssueCoins",
+		[]gno.FieldTypeExpr{
+			{Name: gno.N("p0"), Type: gno.X("string")},
+			{Name: gno.N("p1"), Type: gno.X("[]string")},
+			{Name: gno.N("p2"), Type: gno.X("[]int64")},
+		},
+		[]gno.FieldTypeExpr{},
+		true,
+		func(m *gno.Machine) {
+			b := m.LastBlock()
+			var (
+				p0  string
+				rp0 = reflect.ValueOf(&p0).Elem()
+				p1  []string
+				rp1 = reflect.ValueOf(&p1).Elem()
+				p2  []int64
+				rp2 = reflect.ValueOf(&p2).Elem()
+			)
+
+			gno.Gno2GoValue(b.GetPointerTo(nil, gno.NewValuePathBlock(1, 0, "")).TV, rp0)
+			gno.Gno2GoValue(b.GetPointerTo(nil, gno.NewValuePathBlock(1, 1, "")).TV, rp1)
+			gno.Gno2GoValue(b.GetPointerTo(nil, gno.NewValuePathBlock(1, 2, "")).TV, rp2)
+
+			libs_testing.X_testIssueCoins(
+				m,
+				p0, p1, p2)
 		},
 	},
 	{
