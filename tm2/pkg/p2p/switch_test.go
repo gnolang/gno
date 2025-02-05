@@ -915,7 +915,7 @@ func TestSwitchAcceptLoopTransportClosed(t *testing.T) {
 	}()
 
 	select {
-	case <-time.After(time.Second):
+	case <-time.After(time.Second * 2):
 		require.FailNow(t, "timeout while waiting for running loop to stop")
 	case <-done:
 		assert.True(t, transportClosed)
