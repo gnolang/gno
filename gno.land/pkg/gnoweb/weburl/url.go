@@ -218,7 +218,7 @@ func ParseGnoURL(u *url.URL) (*GnoURL, error) {
 	}, nil
 }
 
-// EncodeQuery generates a URL-encoded query string from the given url.Values.
+// EncodeValues generates a URL-encoded query string from the given url.Values.
 // This function is a modified version of Go's `url.Values.Encode()`: https://pkg.go.dev/net/url#Values.Encode
 // It takes an additional `escape` boolean argument that disables escaping on keys and values.
 // Additionally, if an empty string value is passed, it omits the `=` sign, resulting in `?key` instead of `?key=` to enhance URL readability.
