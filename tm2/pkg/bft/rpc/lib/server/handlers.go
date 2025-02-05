@@ -146,7 +146,9 @@ func makeJSONRPCHandler(funcMap map[string]*RPCFunc, logger *slog.Logger) http.H
 			responses types.RPCResponses
 		)
 
-		isRPCRequests := true
+		// isRPCRequestArray is used to determine if the incoming payload is an array of requests.
+		// This flag helps decide whether to return an array of responses (for batch requests) or a single response.
+		isRPCRequestArray := true
 
 		if err := json.Unmarshal(b, &requests); err != nil {
 			// next, try to unmarshal as a single request
@@ -156,7 +158,7 @@ func makeJSONRPCHandler(funcMap map[string]*RPCFunc, logger *slog.Logger) http.H
 				return
 			}
 			requests = []types.RPCRequest{request}
-			isRPCRequests = false
+			isRPCRequestArray = false
 		}
 
 		for _, request := range requests {
@@ -199,7 +201,7 @@ func makeJSONRPCHandler(funcMap map[string]*RPCFunc, logger *slog.Logger) http.H
 			return
 		}
 
-		if isRPCRequests {
+		if isRPCRequestArray {
 			WriteRPCResponseArrayHTTP(w, responses)
 			return
 		}
