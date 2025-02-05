@@ -4,6 +4,7 @@ import (
 	"github.com/gnolang/gno/contribs/github-bot/internal/client"
 	c "github.com/gnolang/gno/contribs/github-bot/internal/conditions"
 	r "github.com/gnolang/gno/contribs/github-bot/internal/requirements"
+	"github.com/gnolang/gno/contribs/github-bot/internal/utils"
 )
 
 type Teams []string
@@ -32,20 +33,26 @@ func Config(gh *client.GitHub) ([]AutomaticCheck, []ManualCheck) {
 	auto := []AutomaticCheck{
 		{
 			Description: "Maintainers must be able to edit this pull request ([more info](https://docs.github.com/en/pull-requests/collaborating-with-pull-requests/working-with-forks/allowing-changes-to-a-pull-request-branch-created-from-a-fork))",
-			If:          c.CreatedFromFork(),
-			Then:        r.MaintainerCanModify(),
+			If: c.And(
+				c.BaseBranch("^master$"),
+				c.CreatedFromFork(),
+			),
+			Then: r.MaintainerCanModify(),
 		},
 		{
 			Description: "Changes to 'docs' folder must be reviewed/authored by at least one devrel and one tech-staff",
-			If:          c.FileChanged(gh, "^docs/"),
+			If: c.And(
+				c.BaseBranch("^master$"),
+				c.FileChanged(gh, "^docs/"),
+			),
 			Then: r.And(
 				r.Or(
 					r.AuthorInTeam(gh, "tech-staff"),
-					r.ReviewByTeamMembers(gh, "tech-staff", 1),
+					r.ReviewByTeamMembers(gh, "tech-staff").WithDesiredState(utils.ReviewStateApproved),
 				),
 				r.Or(
 					r.AuthorInTeam(gh, "devrels"),
-					r.ReviewByTeamMembers(gh, "devrels", 1),
+					r.ReviewByTeamMembers(gh, "devrels").WithDesiredState(utils.ReviewStateApproved),
 				),
 			),
 		},
@@ -55,10 +62,17 @@ func Config(gh *client.GitHub) ([]AutomaticCheck, []ManualCheck) {
 			Then:        r.Never(),
 		},
 		{
-			Description: "Pending initial approval by a review team member (and label matches review triage state)",
-			If:          c.Not(c.AuthorInTeam(gh, "tech-staff")),
+			Description: "Pending initial approval by a review team member, or review from tech-staff",
+			If: c.And(
+				c.BaseBranch("^master$"),
+				c.Not(c.AuthorInTeam(gh, "tech-staff")),
+			),
 			Then: r.
-				If(r.Or(r.ReviewByOrgMembers(gh, 1), r.Draft())).
+				If(r.Or(
+					r.ReviewByOrgMembers(gh).WithDesiredState(utils.ReviewStateApproved),
+					r.ReviewByTeamMembers(gh, "tech-staff"),
+					r.Draft(),
+				)).
 				// Either there was a first approval from a member, and we
 				// assert that the label for triage-pending is removed...
 				Then(r.Not(r.Label(gh, "review/triage-pending", r.LabelRemove))).
@@ -86,7 +100,7 @@ func Config(gh *client.GitHub) ([]AutomaticCheck, []ManualCheck) {
 		{
 			Description: "Determine if infra needs to be updated before merging",
 			If: c.And(
-				c.BaseBranch("master"),
+				c.BaseBranch("^master$"),
 				c.Or(
 					c.FileChanged(gh, `Dockerfile`),
 					c.FileChanged(gh, `^misc/deployments`),
