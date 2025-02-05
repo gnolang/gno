@@ -19,6 +19,18 @@ import (
 // before calling debug.Println or debug.Printf.
 
 type debugging bool
+type Debugging struct {
+	debugging
+}
+
+func NewDebugging(b bool) Debugging {
+	return Debugging{debugging: debugging(b)}
+}
+
+// Getter: Debugging의 debugging 값을 bool로 반환
+func (d Debugging) IsEnabled() bool {
+	return bool(d.debugging) // debugging 값을 bool로 변환하여 반환
+}
 
 // using a const is probably faster.
 // const debug debugging = true // or flip
@@ -44,6 +56,7 @@ func init() {
 // runtime debugging flag.
 
 var enabled bool = true
+var Enabled *bool = &enabled
 
 func (debugging) Println(args ...interface{}) {
 	if debug {

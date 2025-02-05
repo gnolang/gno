@@ -75,11 +75,31 @@ type T struct {
 	dur       string
 }
 
+// FuzzingInfo represents the information passed internally to the fuzzer.
+type FuzzingInfo struct {
+	Failed bool
+	Output []byte
+	Dur    string
+}
+
+// GetResult returns the fuzzing information to the fuzzer.
+func (t *T) GetResult() FuzzingInfo {
+	info := FuzzingInfo{
+		Failed: t.failed,
+		Output: t.output,
+		Dur:    t.dur,
+	}
+	return info
+}
+
 func NewT(name string) *T {
 	return &T{name: name}
 }
 
-type testingFunc func(*T)
+type (
+	testingFunc func(*T)
+	fuzzingFunc func(*F)
+)
 
 // Not yet implemented:
 // func (t *T) Cleanup(f func()) {
@@ -264,7 +284,6 @@ func (b *B) TempDir() string                           { panic("not yet implemen
 // ----------------------------------------
 // PB
 // TODO: actually implement
-
 type PB struct{}
 
 func (pb *PB) Next() bool { panic("not yet implemented") }
@@ -272,6 +291,10 @@ func (pb *PB) Next() bool { panic("not yet implemented") }
 type InternalTest struct {
 	Name string
 	F    testingFunc
+}
+type InternalFuzz struct {
+	Name string
+	F    fuzzingFunc
 }
 
 func (t *T) shouldRun(name string) bool {
@@ -290,7 +313,6 @@ func RunTest(runFlag string, verbose bool, test InternalTest) (ret string) {
 		name:    test.Name,
 		verbose: verbose,
 	}
-
 	if runFlag != "" {
 		t.runFilter = splitRegexp(runFlag)
 	}
@@ -307,6 +329,38 @@ func RunTest(runFlag string, verbose bool, test InternalTest) (ret string) {
 	return string(out)
 }
 
+func RunFuzz(fuzzName string, fuzzIters int, verbose bool, internalFuzz InternalFuzz) (ret string) {
+	var report Report
+	if fuzzIters < 0 {
+		panic("fuzz iters is minus")
+	}
+	fuzzer := NewF(verbose, uint(fuzzIters))
+	if fuzzName == "" {
+		out, _ := json.Marshal(Report{
+			Failed:  false,
+			Skipped: true,
+		})
+		return string(out)
+	}
+	// If type fuzzName as fuzz=fuzzXX in the CLI,  functions fuzzXXA, fuzzXXB starting with fuzzXX within the _test.gno file will run
+	if strings.HasPrefix(internalFuzz.Name, fuzzName) {
+		fmt.Fprintf(os.Stderr, "--- Fuzz %s:\nSet %s iterate\n", internalFuzz.Name, strconv.Itoa(int(fuzzIters)))
+		fRunner(fuzzer, internalFuzz.F)
+		report = Report{
+			Failed:  fuzzer.failed,
+			Skipped: true,
+		}
+	} else {
+		report = Report{
+			Failed:  false,
+			Skipped: true,
+		}
+	}
+
+	out, _ := json.Marshal(report)
+	return string(out)
+}
+
 func formatDur(dur int64) string {
 	// XXX switch to FormatFloat after it's been added
 	// 1 sec = 1e9 nsec
@@ -319,11 +373,26 @@ func formatDur(dur int64) string {
 	return dstr[:len(dstr)-2] + "." + dstr[len(dstr)-2:] + "s"
 }
 
+// used to filter tests, we can't directly use regexp here due to a cyclic import; only present in testing stdlibs
+
+func matchString(pat, str string) (result bool, err error)
+
 // used to calculate execution times; only present in testing stdlibs
 func unixNano() int64
 
-// used to filter tests, we can't directly use regexp here due to a cyclic import; only present in testing stdlibs
-func matchString(pat, str string) (result bool, err error)
+func fRunner(f *F, fn fuzzingFunc) {
+	start := unixNano()
+	defer func() {
+		if r := recover(); r != nil {
+			// panic 발생 시, panic 메시지와 스택 트레이스 출력
+			fmt.Fprintf(os.Stderr, "\n--- Panic occurred(Fuzzer Internal Error): \"%v\"\n", r)
+		}
+		dur := unixNano() - start
+		f.dur = formatDur(dur)
+		fmt.Fprintf(os.Stderr, "\n--- Elapsed %s \n", f.dur)
+	}()
+	fn(f)
+}
 
 func tRunner(t *T, fn testingFunc, verbose bool) {
 	if !t.shouldRun(t.name) {

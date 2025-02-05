@@ -26,6 +26,8 @@ type testCfg struct {
 	updateGoldenTests   bool
 	printRuntimeMetrics bool
 	printEvents         bool
+	fuzzName            string
+	fuzzIters           int
 }
 
 func newTestCmd(io commands.IO) *commands.Command {
@@ -60,27 +62,27 @@ specific directives that can be added using code comments.
 
 These single-line directives can set "input parameters" for the machine used
 to perform the test:
-	- "PKGPATH:" is a single line directive that can be used to define the
-	package used to interact with the tested package. If not specified, "main" is
-	used.
-	- "MAXALLOC:" is a single line directive that can be used to define a limit
-	to the VM allocator. If this limit is exceeded, the VM will panic. Default to
-	0, no limit.
-	- "SEND:" is a single line directive that can be used to send an amount of
-	token along with the transaction. The format is for example "1000000ugnot".
-	Default is empty.
+        - "PKGPATH:" is a single line directive that can be used to define the
+        package used to interact with the tested package. If not specified, "main" is
+        used.
+        - "MAXALLOC:" is a single line directive that can be used to define a limit
+        to the VM allocator. If this limit is exceeded, the VM will panic. Default to
+        0, no limit.
+        - "SEND:" is a single line directive that can be used to send an amount of
+        token along with the transaction. The format is for example "1000000ugnot".
+        Default is empty.
 
 These directives, instead, match the comment that follows with the result
 of the GnoVM, acting as a "golden test":
-	- "Output:" tests the following comment with the standard output of the
-	filetest.
-	- "Error:" tests the following comment with any panic, or other kind of
-	error that the filetest generates (like a parsing or preprocessing error).
-	- "Realm:" tests the following comment against the store log, which can show
-	what realm information is stored.
-	- "Stacktrace:" can be used to verify the following lines against the
-	stacktrace of the error.
-	- "Events:" can be used to verify the emitted events against a JSON.
+        - "Output:" tests the following comment with the standard output of the
+        filetest.
+        - "Error:" tests the following comment with any panic, or other kind of
+        error that the filetest generates (like a parsing or preprocessing error).
+        - "Realm:" tests the following comment against the store log, which can show
+        what realm information is stored.
+        - "Stacktrace:" can be used to verify the following lines against the
+        stacktrace of the error.
+        - "Events:" can be used to verify the emitted events against a JSON.
 
 To speed up execution, imports of pure packages are processed separately from
 the execution of the tests. This makes testing faster, but means that the
@@ -143,6 +145,18 @@ func (c *testCfg) RegisterFlags(fs *flag.FlagSet) {
 		false,
 		"print emitted events",
 	)
+	fs.StringVar(
+		&c.fuzzName,
+		"fuzz",
+		"",
+		"specify fuzz target name (e.g. FuzzXXX) or 'Fuzz' for all fuzz tests",
+	)
+	fs.IntVar(
+		&c.fuzzIters,
+		"i",
+		50000,
+		"number of fuzz iterations to run",
+	)
 }
 
 func execTest(cfg *testCfg, args []string, io commands.IO) error {
@@ -182,14 +196,18 @@ func execTest(cfg *testCfg, args []string, io commands.IO) error {
 	stdout := goio.Discard
 	if cfg.verbose {
 		stdout = io.Out()
+
 	}
+	//Set up options to run tests.
+
 	opts := test.NewTestOptions(cfg.rootDir, io.In(), stdout, io.Err())
 	opts.RunFlag = cfg.run
 	opts.Sync = cfg.updateGoldenTests
 	opts.Verbose = cfg.verbose
 	opts.Metrics = cfg.printRuntimeMetrics
 	opts.Events = cfg.printEvents
-
+	opts.FuzzName = cfg.fuzzName
+	opts.FuzzIters = cfg.fuzzIters
 	buildErrCount := 0
 	testErrCount := 0
 	for _, pkg := range subPkgs {
@@ -218,9 +236,15 @@ func execTest(cfg *testCfg, args []string, io commands.IO) error {
 			err = test.Test(memPkg, pkg.Dir, opts)
 		})
 
+		if cfg.fuzzName != "" {
+			if testErrCount > 0 || buildErrCount > 0 {
+				return fmt.Errorf("   --- %d build errors, %d test errors", buildErrCount, testErrCount)
+			} else {
+				return nil
+			}
+		}
 		duration := time.Since(startedAt)
 		dstr := fmtDuration(duration)
-
 		if hasError || err != nil {
 			if err != nil {
 				io.ErrPrintfln("%s: test pkg: %v", pkg.Dir, err)

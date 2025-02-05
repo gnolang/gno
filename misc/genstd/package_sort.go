@@ -37,11 +37,15 @@ func sortPackages(pkgs []*pkgData) []string {
 			if slices.Contains(res, imp) {
 				continue
 			}
-			if pkg.importPath == "testing" &&
+			// if pkg.importPath == "testing" &&
+			// 	slices.Contains(nativeInjections, imp) {
+			// 	continue
+			// }
+			//TODO: 이건 좀 위험한 방식. 머지 전 적당히 검증 추가!
+			if strings.Contains(pkg.importPath, "testing") &&
 				slices.Contains(nativeInjections, imp) {
 				continue
 			}
-
 			// import does not exist; find it in pkg and process it.
 			idx := slices.IndexFunc(pkgs, func(p *pkgData) bool { return p.importPath == imp })
 			if idx == -1 {

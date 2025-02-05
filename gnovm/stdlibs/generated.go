@@ -12,6 +12,7 @@ import (
 	libs_math "github.com/gnolang/gno/gnovm/stdlibs/math"
 	libs_std "github.com/gnolang/gno/gnovm/stdlibs/std"
 	libs_testing "github.com/gnolang/gno/gnovm/stdlibs/testing"
+	libs_testing_fuzzing "github.com/gnolang/gno/gnovm/stdlibs/testing/fuzzing"
 	libs_time "github.com/gnolang/gno/gnovm/stdlibs/time"
 )
 
@@ -764,24 +765,6 @@ var nativeFuncs = [...]NativeFunc{
 	},
 	{
 		"testing",
-		"unixNano",
-		[]gno.FieldTypeExpr{},
-		[]gno.FieldTypeExpr{
-			{Name: gno.N("r0"), Type: gno.X("int64")},
-		},
-		false,
-		func(m *gno.Machine) {
-			r0 := libs_testing.X_unixNano()
-
-			m.PushValue(gno.Go2GnoValue(
-				m.Alloc,
-				m.Store,
-				reflect.ValueOf(&r0).Elem(),
-			))
-		},
-	},
-	{
-		"testing",
 		"matchString",
 		[]gno.FieldTypeExpr{
 			{Name: gno.N("p0"), Type: gno.X("string")},
@@ -815,6 +798,74 @@ var nativeFuncs = [...]NativeFunc{
 				m.Alloc,
 				m.Store,
 				reflect.ValueOf(&r1).Elem(),
+			))
+		},
+	},
+	{
+		"testing",
+		"unixNano",
+		[]gno.FieldTypeExpr{},
+		[]gno.FieldTypeExpr{
+			{Name: gno.N("r0"), Type: gno.X("int64")},
+		},
+		false,
+		func(m *gno.Machine) {
+			r0 := libs_testing.X_unixNano()
+
+			m.PushValue(gno.Go2GnoValue(
+				m.Alloc,
+				m.Store,
+				reflect.ValueOf(&r0).Elem(),
+			))
+		},
+	},
+	{
+		"testing/fuzzing",
+		"xxh64Sum",
+		[]gno.FieldTypeExpr{
+			{Name: gno.N("p0"), Type: gno.X("[]byte")},
+			{Name: gno.N("p1"), Type: gno.X("uint64")},
+		},
+		[]gno.FieldTypeExpr{
+			{Name: gno.N("r0"), Type: gno.X("uint64")},
+		},
+		false,
+		func(m *gno.Machine) {
+			b := m.LastBlock()
+			var (
+				p0  []byte
+				rp0 = reflect.ValueOf(&p0).Elem()
+				p1  uint64
+				rp1 = reflect.ValueOf(&p1).Elem()
+			)
+
+			gno.Gno2GoValue(b.GetPointerTo(nil, gno.NewValuePathBlock(1, 0, "")).TV, rp0)
+			gno.Gno2GoValue(b.GetPointerTo(nil, gno.NewValuePathBlock(1, 1, "")).TV, rp1)
+
+			r0 := libs_testing_fuzzing.X_xxh64Sum(p0, p1)
+
+			m.PushValue(gno.Go2GnoValue(
+				m.Alloc,
+				m.Store,
+				reflect.ValueOf(&r0).Elem(),
+			))
+		},
+	},
+	{
+		"testing/fuzzing",
+		"unixNano",
+		[]gno.FieldTypeExpr{},
+		[]gno.FieldTypeExpr{
+			{Name: gno.N("r0"), Type: gno.X("int64")},
+		},
+		false,
+		func(m *gno.Machine) {
+			r0 := libs_testing_fuzzing.X_unixNano()
+
+			m.PushValue(gno.Go2GnoValue(
+				m.Alloc,
+				m.Store,
+				reflect.ValueOf(&r0).Elem(),
 			))
 		},
 	},
@@ -922,6 +973,7 @@ var initOrder = [...]string{
 	"regexp/syntax",
 	"regexp",
 	"std",
+	"testing/fuzzing",
 	"testing",
 	"time",
 	"unicode/utf16",

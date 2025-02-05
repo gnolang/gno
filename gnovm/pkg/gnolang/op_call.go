@@ -47,6 +47,359 @@ func (m *Machine) doOpPrecall() {
 			reflect.TypeOf(v).String()))
 	}
 }
+func (m *Machine) DoOpPrecall() {
+	m.doOpPrecall()
+}
+func (m *Machine) DoOpCall() {
+	m.DoOpCall()
+}
+func (m *Machine) DoOpCallNativeBody() {
+	m.doOpCallNativeBody()
+
+}
+func (m *Machine) DoOpReturn() {
+	m.doOpReturn()
+
+}
+func (m *Machine) DoOpReturnFromBlock() {
+	m.doOpReturnFromBlock()
+
+}
+func (m *Machine) DoOpReturnToBlock() {
+	m.doOpReturnToBlock()
+
+}
+func (m *Machine) DoOpDefer() {
+	m.doOpDefer()
+
+}
+func (m *Machine) DoOpPanic1() {
+	m.doOpPanic1()
+
+}
+func (m *Machine) DoOpPanic2() {
+	m.doOpPanic2()
+
+}
+func (m *Machine) DoOpCallDeferNativeBody() {
+	m.doOpCallDeferNativeBody()
+
+}
+func (m *Machine) DoOpSwitchClause() {
+	m.doOpSwitchClause()
+
+}
+func (m *Machine) DoOpSwitchClauseCase() {
+	m.doOpSwitchClauseCase()
+
+}
+func (m *Machine) DoOpTypeSwitch() {
+	m.doOpTypeSwitch()
+
+}
+
+// TODO: 여기에 계측 삽입해보기
+// TODO 비트맵 전용. (조건, 분기, 반복)
+func (m *Machine) DoOpIfCond() {
+	m.doOpIfCond()
+
+}
+func (m *Machine) DoOpUpos() {
+	m.doOpUpos()
+
+}
+func (m *Machine) DoOpUneg() {
+	m.doOpUneg()
+
+}
+func (m *Machine) DoOpUnot() {
+	m.doOpUnot()
+
+}
+func (m *Machine) DoOpUxor() {
+	m.doOpUxor()
+
+}
+func (m *Machine) DoOpUrecv() {
+	m.doOpUrecv()
+
+}
+func (m *Machine) DoOpLor() {
+	m.doOpLor()
+
+}
+func (m *Machine) DoOpLand() {
+	m.doOpLand()
+}
+
+func (m *Machine) DoOpEql() {
+	m.doOpEql()
+}
+
+func (m *Machine) DoOpNeq() {
+	m.doOpNeq()
+}
+
+func (m *Machine) DoOpLss() {
+	m.doOpLss()
+}
+
+func (m *Machine) DoOpLeq() {
+	m.doOpLeq()
+}
+
+func (m *Machine) DoOpGtr() {
+	m.doOpGtr()
+}
+
+func (m *Machine) DoOpGeq() {
+	m.doOpGeq()
+}
+
+func (m *Machine) DoOpAdd() {
+	m.doOpAdd()
+}
+
+func (m *Machine) DoOpSub() {
+	m.doOpSub()
+}
+
+func (m *Machine) DoOpBor() {
+	m.doOpBor()
+}
+
+func (m *Machine) DoOpXor() {
+	m.doOpXor()
+}
+
+func (m *Machine) DoOpMul() {
+	m.doOpMul()
+}
+
+func (m *Machine) DoOpQuo() {
+	m.doOpQuo()
+}
+
+func (m *Machine) DoOpRem() {
+	m.doOpRem()
+}
+
+func (m *Machine) DoOpShl() {
+	m.doOpShl()
+}
+
+func (m *Machine) DoOpShr() {
+	m.doOpShr()
+}
+
+func (m *Machine) DoOpBand() {
+	m.doOpBand()
+}
+
+func (m *Machine) DoOpBandn() {
+	m.doOpBandn()
+}
+
+func (m *Machine) DoOpEval() {
+	m.doOpEval()
+}
+
+func (m *Machine) DoOpBinary1() {
+	m.doOpBinary1()
+}
+
+func (m *Machine) DoOpIndex1() {
+	m.doOpIndex1()
+}
+
+func (m *Machine) DoOpIndex2() {
+	m.doOpIndex2()
+}
+
+func (m *Machine) DoOpSelector() {
+	m.doOpSelector()
+}
+
+func (m *Machine) DoOpSlice() {
+	m.doOpSlice()
+}
+
+func (m *Machine) DoOpStar() {
+	m.doOpStar()
+}
+
+func (m *Machine) DoOpRef() {
+	m.doOpRef()
+}
+
+func (m *Machine) DoOpTypeAssert1() {
+	m.doOpTypeAssert1()
+}
+
+func (m *Machine) DoOpTypeAssert2() {
+	m.doOpTypeAssert2()
+}
+
+func (m *Machine) DoOpStaticTypeOf() {
+	m.doOpStaticTypeOf()
+}
+
+func (m *Machine) DoOpCompositeLit() {
+	m.doOpCompositeLit()
+}
+
+func (m *Machine) DoOpArrayLit() {
+	m.doOpArrayLit()
+}
+
+func (m *Machine) DoOpSliceLit() {
+	m.doOpSliceLit()
+}
+
+func (m *Machine) DoOpSliceLit2() {
+	m.doOpSliceLit2()
+}
+
+func (m *Machine) DoOpFuncLit() {
+	m.doOpFuncLit()
+}
+
+func (m *Machine) DoOpMapLit() {
+	m.doOpMapLit()
+}
+
+func (m *Machine) DoOpStructLit() {
+	m.doOpStructLit()
+}
+
+func (m *Machine) DoOpConvert() {
+	m.doOpConvert()
+}
+
+func (m *Machine) DoOpArrayLitGoNative() {
+	m.doOpArrayLitGoNative()
+}
+
+func (m *Machine) DoOpSliceLitGoNative() {
+	m.doOpSliceLitGoNative()
+}
+
+func (m *Machine) DoOpStructLitGoNative() {
+	m.doOpStructLitGoNative()
+}
+
+func (m *Machine) DoOpCallGoNative() {
+	m.doOpCallGoNative()
+}
+
+func (m *Machine) DoOpFieldType() {
+	m.doOpFieldType()
+}
+
+func (m *Machine) DoOpArrayType() {
+	m.doOpArrayType()
+}
+
+func (m *Machine) DoOpSliceType() {
+	m.doOpSliceType()
+}
+
+func (m *Machine) DoOpChanType() {
+	m.doOpChanType()
+}
+
+func (m *Machine) DoOpFuncType() {
+	m.doOpFuncType()
+}
+
+func (m *Machine) DoOpMapType() {
+	m.doOpMapType()
+}
+
+func (m *Machine) DoOpStructType() {
+	m.doOpStructType()
+}
+
+func (m *Machine) DoOpInterfaceType() {
+	m.doOpInterfaceType()
+}
+
+func (m *Machine) DoOpMaybeNativeType() {
+	m.doOpMaybeNativeType()
+}
+
+func (m *Machine) DoOpAssign() {
+	m.doOpAssign()
+}
+
+func (m *Machine) DoOpAddAssign() {
+	m.doOpAddAssign()
+}
+
+func (m *Machine) DoOpSubAssign() {
+	m.doOpSubAssign()
+}
+
+func (m *Machine) DoOpMulAssign() {
+	m.doOpMulAssign()
+}
+
+func (m *Machine) DoOpQuoAssign() {
+	m.doOpQuoAssign()
+}
+
+func (m *Machine) DoOpRemAssign() {
+	m.doOpRemAssign()
+}
+
+func (m *Machine) DoOpBandAssign() {
+	m.doOpBandAssign()
+}
+
+func (m *Machine) DoOpBandnAssign() {
+	m.doOpBandnAssign()
+}
+
+func (m *Machine) DoOpBorAssign() {
+	m.doOpBorAssign()
+}
+
+func (m *Machine) DoOpXorAssign() {
+	m.doOpXorAssign()
+}
+
+func (m *Machine) DoOpShlAssign() {
+	m.doOpShlAssign()
+}
+
+func (m *Machine) DoOpShrAssign() {
+	m.doOpShrAssign()
+}
+
+func (m *Machine) DoOpDefine() {
+	m.doOpDefine()
+}
+
+func (m *Machine) DoOpInc() {
+	m.doOpInc()
+}
+
+func (m *Machine) DoOpDec() {
+	m.doOpDec()
+}
+
+func (m *Machine) DoOpValueDecl() {
+	m.doOpValueDecl()
+}
+
+func (m *Machine) DoOpTypeDecl() {
+	m.doOpTypeDecl()
+}
+
+func (m *Machine) DoOpReturnCallDefers() {
+	m.doOpReturnCallDefers()
+
+}
 
 var gReturnStmt = &ReturnStmt{}
 
