@@ -54,6 +54,13 @@ type executor struct {
 	callbackFn func(m Metadata) error
 }
 
+func newExecutor(fn func(m Metadata) error, metadata Metadata) *executor {
+	return &executor{
+		metadata:   metadata,
+		callbackFn: securityWrapper(fn),
+	}
+}
+
 func (e *executor) String() string {
 	if e.metadata == nil {
 		return "No metadata available."
@@ -62,11 +69,8 @@ func (e *executor) String() string {
 	return e.metadata.String()
 }
 
-func newExecutor(fn func(m Metadata) error, metadata Metadata) *executor {
-	return &executor{
-		metadata:   metadata,
-		callbackFn: securityWrapper(fn),
-	}
+func (e *executor) Execute() error {
+	return e.callbackFn(e.metadata)
 }
 
 func securityWrapper(fn func(m Metadata) error) func(m Metadata) error {

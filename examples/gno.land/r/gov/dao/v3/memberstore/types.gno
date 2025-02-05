@@ -18,6 +18,14 @@ type Member struct {
 	InvitationPoints int
 }
 
+func (m *Member) RemoveInvitationPoint() {
+	if m.InvitationPoints <= 0 {
+		panic("not enough invitation points")
+	}
+
+	m.InvitationPoints = m.InvitationPoints -1
+}
+
 // MembersByTier contains all `Member`s indexed by their Address.
 type MembersByTier struct {
 	*avl.Tree // *avl.Tree[string]*avl.Tree[std.Address]*Member
@@ -106,16 +114,16 @@ func (mbt MembersByTier) RemoveMember(addr std.Address) (t string) {
 }
 
 // GetTotalPower obtains the total voting power from all the specified tiers.
-func (mbt MembersByTier) GetTotalPower(tbn TiersByName) float64 {
+func (mbt MembersByTier) GetTotalPower() float64 {
 	var out float64
 	mbt.Iterate("", "", func(tn string, msv interface{}) bool {
-		tier, ok := tbn.GetTier(tn)
+		tier, ok := Tiers.GetTier(tn)
 		if !ok {
 			// tier does not exists, so we cannot count power from this tier
 			return false
 		}
 
-		out = out + tier.PowerHandler(mbt, tbn)
+		out = out + (tier.PowerHandler(mbt, Tiers) * float64(mbt.GetTierSize(tn)))
 
 		return false
 	})
