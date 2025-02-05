@@ -245,14 +245,15 @@ func EncodeValues(v url.Values, escape bool) string {
 			}
 			buf.WriteString(keyEncoded)
 
-			// Remove `=` for empty values
-			if len(v) > 0 {
-				buf.WriteByte('=')
-				if escape {
-					buf.WriteString(url.QueryEscape(v))
-				} else {
-					buf.WriteString(v)
-				}
+			if len(v) == 0 {
+				continue 	// Skip `=` for empty values
+			}
+			
+			buf.WriteByte('=')
+			if escape {
+				buf.WriteString(url.QueryEscape(v))
+			} else {
+				buf.WriteString(v)
 			}
 		}
 	}
