@@ -17,6 +17,7 @@ var config = Config{
 	Description: "Exploring Gno and building on-chain",
 	Github:      "jjoptimist",
 }
+
 var Ownable = ownable.NewWithAddress(std.Address("g16vfw3r7zuz43fhky3xfsuc2hdv9tnhvlkyn0nj"))
 
 func GetConfig() Config {
