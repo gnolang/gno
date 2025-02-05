@@ -97,12 +97,12 @@ func (gnoURL GnoURL) Encode(encodeFlags EncodeFlag) string {
 
 	if encodeFlags.Has(EncodeWebQuery) && len(gnoURL.WebQuery) > 0 {
 		urlstr.WriteRune('$')
-		urlstr.WriteString(BuildQueryString(gnoURL.WebQuery, !noEscape))
+		urlstr.WriteString(EncodeValues(gnoURL.WebQuery, !noEscape))
 	}
 
 	if encodeFlags.Has(EncodeQuery) && len(gnoURL.Query) > 0 {
 		urlstr.WriteRune('?')
-		urlstr.WriteString(BuildQueryString(gnoURL.Query, !noEscape))
+		urlstr.WriteString(EncodeValues(gnoURL.Query, !noEscape))
 	}
 
 	return urlstr.String()
@@ -218,11 +218,11 @@ func ParseGnoURL(u *url.URL) (*GnoURL, error) {
 	}, nil
 }
 
-// EncodeQuery generates a URL-encoded query string from the given url.Values.  
-// This function is a modified version of Go's `url.Values.Encode()`: https://pkg.go.dev/net/url#Values.Encode  
-// It takes an additional `escape` boolean argument that disables escaping on keys and values.  
+// EncodeQuery generates a URL-encoded query string from the given url.Values.
+// This function is a modified version of Go's `url.Values.Encode()`: https://pkg.go.dev/net/url#Values.Encode
+// It takes an additional `escape` boolean argument that disables escaping on keys and values.
 // Additionally, if an empty string value is passed, it omits the `=` sign, resulting in `?key` instead of `?key=` to enhance URL readability.
-func EncodeQuery(v url.Values, escape bool) string {
+func EncodeValues(v url.Values, escape bool) string {
 	if len(v) == 0 {
 		return ""
 	}
