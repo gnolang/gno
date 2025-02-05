@@ -16,7 +16,7 @@ var AllowedDAOs []string
 var proposals []*Proposal
 
 func init() {
-	AllowedDAOs = []string{"gno.land/r/gov/dao/v3"}
+	AllowedDAOs = []string{"gno.land/r/gov/dao/v3/impl"}
 }
 
 // Render calls directly to Render's DAO implementation. 
@@ -25,7 +25,7 @@ func Render(p string) string {
 	return dao.Render(p)
 }
 
-// MistCreateProposal is an utility method that does the same as CreateProposal,
+// MustCreateProposal is an utility method that does the same as CreateProposal,
 // but instead of erroing if something happens, it panics.
 func MustCreateProposal(r ProposalRequest) ProposalID {
 	pid, err := CreateProposal(r)
@@ -39,6 +39,7 @@ func MustCreateProposal(r ProposalRequest) ProposalID {
 // CreateProposal will try to create a new proposal, that will be validated by the actual
 // govDAO implementation. If the proposal cannot be created, an error will be returned.
 func CreateProposal(r ProposalRequest) (ProposalID, error) {
+	//TODO: get prev realm here and remove the author coming from the govDAO impl
 	author, err := dao.PreCreateProposal(r)
 	if err != nil{
 		return -1, err
