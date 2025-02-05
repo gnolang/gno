@@ -15,7 +15,7 @@ type stagingCfg struct {
 }
 
 var defaultStagingOptions = devCfg{
-	chainId:             "staging",
+	chainId:             "dev",
 	chainDomain:         DefaultDomain,
 	logFormat:           "json",
 	maxGas:              10_000_000_000,
