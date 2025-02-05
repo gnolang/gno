@@ -7,7 +7,7 @@ import (
 	"gno.land/p/demo/urequire"
 )
 
-func TestSchemaDefaults(t *testing.T) {
+func TestSchemaNew(t *testing.T) {
 	cases := []struct {
 		name    string
 		options []SchemaOption
