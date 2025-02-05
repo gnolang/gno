@@ -5386,6 +5386,7 @@ func setNodeLocations(pkgPath string, fileName string, n Node) {
 				File:    fileName,
 				Line:    bn.GetLine(),
 				Column:  bn.GetColumn(),
+				// TODO FilePath:
 			}
 			bn.SetLocation(loc)
 		}
