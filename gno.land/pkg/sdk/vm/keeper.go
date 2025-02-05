@@ -844,18 +844,8 @@ func (vm *VMKeeper) QueryFile(ctx sdk.Context, filepath string) (res string, err
 	}
 }
 
-var rePkgPathAndSymbol = regexp.MustCompile(`^(.+)\.([a-zA-Z0-9_]+)$`)
-
-func (vm *VMKeeper) QueryDoc(ctx sdk.Context, input string) (*doc.JSONDocumentation, error) {
+func (vm *VMKeeper) QueryDoc(ctx sdk.Context, pkgPath string) (*doc.JSONDocumentation, error) {
 	store := vm.newGnoTransactionStore(ctx) // throwaway (never committed)
-	pkgPath := input
-	symbol := ""
-	match := rePkgPathAndSymbol.FindStringSubmatch(input)
-	if len(match) == 3 {
-		// The input is <pkgpath>[.<symbol>
-		pkgPath = match[1]
-		symbol = match[2]
-	}
 
 	memPkg := store.GetMemPackage(pkgPath)
 	if memPkg == nil {
@@ -863,7 +853,7 @@ func (vm *VMKeeper) QueryDoc(ctx sdk.Context, input string) (*doc.JSONDocumentat
 			"package not found: %s", pkgPath))
 		return nil, err
 	}
-	d, err := doc.NewDocumentableFromMemPkg(memPkg, true, symbol, "")
+	d, err := doc.NewDocumentableFromMemPkg(memPkg, true, "", "")
 	if err != nil {
 		return nil, err
 	}
