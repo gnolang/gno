@@ -49,6 +49,7 @@ func NewDefaultHTMLWebClientConfig(client *client.RPCClient) *HTMLWebClientConfi
 			markdown.NewHighlighting(
 				markdown.WithFormatOptions(chromaOptions...),
 			),
+			extension.Strikethrough,
 			extension.Table,
 		),
 	}
