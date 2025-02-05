@@ -17,6 +17,7 @@ type HeaderData struct {
 	WebQuery   url.Values
 	Links      []HeaderLink
 	ChainId    string
+	Remote     string
 }
 
 func StaticHeaderLinks(realmPath string, webQuery url.Values) []HeaderLink {
