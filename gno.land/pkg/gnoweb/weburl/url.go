@@ -218,12 +218,11 @@ func ParseGnoURL(u *url.URL) (*GnoURL, error) {
 	}, nil
 }
 
-// BuildQueryString generates a URL-encoded query string from the given url.Values.
-// This function is a modified version of Go's `url.Values.Encode()`: https://pkg.go.dev/net/url#Values.Encode
-// - If `escapeKey` is `true`, keys and values are escaped using `QueryEscape()` (same as `Values.Encode()`).
-// - If `escapeKey` is `false`, keys and values are **not escaped** (similar to `NoEscapeQuery()`).
-// - Empty string values do not get an `=` sign (`?key` instead of `?key=`).
-func BuildQueryString(v url.Values, escape bool) string {
+// EncodeQuery generates a URL-encoded query string from the given url.Values.  
+// This function is a modified version of Go's `url.Values.Encode()`: https://pkg.go.dev/net/url#Values.Encode  
+// It takes an additional `escape` boolean argument that disables escaping on keys and values.  
+// Additionally, if an empty string value is passed, it omits the `=` sign, resulting in `?key` instead of `?key=` to enhance URL readability.
+func EncodeQuery(v url.Values, escape bool) string {
 	if len(v) == 0 {
 		return ""
 	}
