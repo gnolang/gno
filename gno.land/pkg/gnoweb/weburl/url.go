@@ -246,9 +246,9 @@ func EncodeValues(v url.Values, escape bool) string {
 			buf.WriteString(keyEncoded)
 
 			if len(v) == 0 {
-				continue 	// Skip `=` for empty values
+				continue // Skip `=` for empty values
 			}
-			
+
 			buf.WriteByte('=')
 			if escape {
 				buf.WriteString(url.QueryEscape(v))
