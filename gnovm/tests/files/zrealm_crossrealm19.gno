@@ -19,7 +19,7 @@ func (f *fooer) Foo() {
 var f *fooer
 
 func init() {
-	f = &fooer{s: "A"}
+	f = &fooer{s: "A"} // this is unreal
 	crossrealm.SetFooer(f)
 	crossrealm.CallFooerFoo()
 }

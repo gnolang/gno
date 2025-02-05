@@ -93,8 +93,10 @@ func (opts *TestOptions) runFiletest(filename string, source []byte) (string, er
 
 	// First, check if we have an error, whether we're supposed to get it.
 	if result.Error != "" {
+		//fmt.Println("result.Error NOT empty:", result.Error)
 		// Ensure this error was supposed to happen.
 		errDirective := dirs.First(DirectiveError)
+		//fmt.Println("errDirective:", errDirective)
 		if errDirective == nil {
 			return "", fmt.Errorf("unexpected panic: %s\noutput:\n%s\nstack:\n%v",
 				result.Error, result.Output, string(result.GoPanicStack))
@@ -104,6 +106,12 @@ func (opts *TestOptions) runFiletest(filename string, source []byte) (string, er
 		// which is not in the output - so add it there.
 		match(errDirective, result.Error+"\n")
 	} else {
+		//fmt.Println("result.Error is empty:", result.Error)
+		outputDirective := dirs.First(DirectiveOutput)
+		//fmt.Println("outputDirective:", outputDirective)
+		if outputDirective == nil {
+			return "", fmt.Errorf("unexpected output: \n%s", result.Output)
+		}
 		err = m.CheckEmpty()
 		if err != nil {
 			return "", fmt.Errorf("machine not empty after main: %w", err)

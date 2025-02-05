@@ -16,7 +16,7 @@ func SetSlice(fs []Fooer) {
 // -------------------------------------
 type XYZ struct{ name string }
 
-var s1 []XYZ
+var s1 []XYZ // underlying array is real after decl
 var s3 []XYZ
 
 // var s4 []XYZ
@@ -49,7 +49,7 @@ func init() {
 }
 
 func GetSlice() []XYZ {
-	return s1[1:]
+	return s1[:]
 }
 
 // -------------------------------------------------------

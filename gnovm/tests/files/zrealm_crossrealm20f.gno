@@ -2,20 +2,18 @@
 package crossrealm_test
 
 import (
+	"fmt"
 	crossrealm "gno.land/r/demo/tests/crossrealm/struct"
 )
 
-// TODO:
-// type XX crossrealm.Bar
+type Dt *crossrealm.Bar
 
-var b1 *crossrealm.Bar // this is valid decl, NOT attach
-
-func init() {
-}
+var b Dt
 
 func main() {
-	b1 = &crossrealm.Bar{A: 22} // this should panic
-	println(b1)
+	b = &crossrealm.Bar{A: 22} // this should panic
+	//println(b)
+	fmt.Println(b)
 }
 
 // Error:

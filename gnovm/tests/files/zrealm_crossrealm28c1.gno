@@ -11,15 +11,11 @@ type foo struct {
 
 func (foo) Foo() { println("hello from crossrealm_test") }
 
-var local_S []int
-
-func init() {
-	local_S = crossrealm.GetSlice10()
-}
+// should panic, underlying array with external type is unreal
+var arr = []crossrealm.Fooer{foo{name: "1"}, foo{name: "2"}, foo{name: "3"}}
 
 func main() {
-	println("ok")
 }
 
-// Output:
-// ok
+// Error:
+// cannot attach a reference to an unreal object from an external realm

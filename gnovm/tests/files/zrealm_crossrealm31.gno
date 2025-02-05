@@ -2,8 +2,6 @@
 package crossrealm_test
 
 import (
-	"std"
-
 	crossrealm "gno.land/r/demo/tests/crossrealm/slice"
 )
 

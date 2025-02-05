@@ -2,7 +2,7 @@
 package crossrealm_test
 
 import (
-	crossrealm "gno.land/r/demo/tests/crossrealm/slice"
+	crossrealm "gno.land/r/demo/tests/crossrealm/iface"
 )
 
 type foo struct {
@@ -11,15 +11,11 @@ type foo struct {
 
 func (foo) Foo() { println("hello from crossrealm_test") }
 
-var local_S []int
-
-func init() {
-	local_S = crossrealm.GetSlice10()
-}
+var arr [2]crossrealm.Foo2 // object attaching is zero value of struct, panic
 
 func main() {
 	println("ok")
 }
 
-// Output:
-// ok
+// Error:
+// cannot attach a value of a type defined by another realm

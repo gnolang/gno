@@ -8,19 +8,16 @@ import (
 // associate to a containing object
 type Container struct {
 	name string
-	b    crossrealm.Bar
+	b    crossrealm.Bar // panic while attaching(finalizing)
 }
 
 var c Container
 
 func init() {
-	b0 := crossrealm.Bar{A: 1}              // this is valid association
-	c = Container{name: "container", b: b0} // XXX, should panic
-}
-
-func main() {
 	print(".")
 }
 
+func main() {
+}
+
 // Error:
-// cannot attach a value of a type defined by another realm

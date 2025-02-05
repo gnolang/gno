@@ -14,10 +14,13 @@ type fooer struct {
 func (fooer) Foo() { println("hello " + std.CurrentRealm().PkgPath()) }
 
 func main() {
-	f := fooer{name: "local_fooer"} // f is "new real" cuz it's parent object is new real
-	crossrealm.SetContainer2(&f)    // attach new real from external realm, panic
+	// object attaching to external is main block,
+	// f is a value defined w/i this block,
+	// and invalid to attach to external, panic.
+	f := fooer{name: "local_fooer"}
+	crossrealm.SetContainer2(&f)
 	print(".")
 }
 
 // Error:
-// cannot attach a reference to an unreal object from an external realm
+// cannot attach a value of a type defined by another realm

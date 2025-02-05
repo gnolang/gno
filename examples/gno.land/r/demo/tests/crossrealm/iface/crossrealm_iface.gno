@@ -1,5 +1,7 @@
 package iface
 
+type Foo2 struct{}
+
 // XXX, how about not interface
 type Fooer interface{ Foo() }
 
@@ -20,6 +22,9 @@ type Container struct {
 
 var container Container // attached
 
+func RunF() {
+	container.f.Foo()
+}
 func SetContainer(f Fooer) {
 	container.f = f // update
 }

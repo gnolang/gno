@@ -2,8 +2,6 @@
 package crossrealm_test
 
 import (
-	"std"
-
 	crossrealm "gno.land/r/demo/tests/crossrealm/iface"
 )
 
@@ -11,19 +9,20 @@ type foo struct {
 	name string
 }
 
-func (foo) Foo() { println("hello " + std.CurrentRealm().PkgPath()) }
+func (foo) Foo() { println("hello from crossrealm_test") }
 
-// XXX, no attach, default value is nil for slice
 var fs []crossrealm.Fooer
 
+// the attachment works cuz
+// the object being attached
+// is foo{name: "1"}
 func init() {
 	r := append(fs, foo{name: "1"})
-	// while attaching underlying arrayValue(the object),
-	// it panics since the array type if from external realm
-	fs = r
+	fs = r // the array is from external realm and unreal
 }
 
 func main() {
+	println("ok")
 }
 
 // Error:

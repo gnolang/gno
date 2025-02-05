@@ -354,10 +354,10 @@ func (oi *ObjectInfo) GetIsTransient() bool {
 
 // XXX, get first accessible object, maybe containing(parent) object, maybe itself.
 func (tv *TypedValue) GetFirstObject(store Store) Object {
-	debug2.Println2("GetFirstObject, tv, type ot tv.V: ", tv, reflect.TypeOf(tv.V))
+	//debug2.Println2("GetFirstObject, tv, type ot tv.V: ", tv, reflect.TypeOf(tv.V))
 	switch cv := tv.V.(type) {
 	case PointerValue:
-		debug2.Println2("pointer value, base: ", cv.Base)
+		//debug2.Println2("pointer value, base: ", cv.Base)
 		return cv.GetBase(store)
 	case *ArrayValue:
 		return cv
@@ -399,6 +399,11 @@ func (tv *TypedValue) GetFirstObject(store Store) Object {
 func (tv *TypedValue) GetOriginPkg(store Store) (originPkg PkgID) {
 	debug2.Println2("GetOriginPkg, tv: ", tv, reflect.TypeOf(tv.V))
 
+	// special case for func value
+	if _, ok := tv.V.(*FuncValue); ok {
+		return
+	}
+
 	// attempting to retrieve the original package using the ObjectID
 	obj := tv.GetFirstObject(store)
 	debug2.Println2("obj: ", obj, reflect.TypeOf(obj))
@@ -407,10 +412,12 @@ func (tv *TypedValue) GetOriginPkg(store Store) (originPkg PkgID) {
 		// it's un-real.
 		originPkg = obj.GetOriginRealm()
 		if !originPkg.IsZero() {
+			debug2.Println2("got originPkg from object: ", originPkg)
 			return
 		}
 		originPkg = obj.GetObjectID().PkgID
 		if !originPkg.IsZero() {
+			debug2.Println2("got originPkg from object: ", originPkg)
 			return
 		}
 	}
@@ -428,11 +435,9 @@ func (tv *TypedValue) GetOriginPkg(store Store) (originPkg PkgID) {
 	}
 
 	switch cv := obj.(type) {
-	case *Block:
-		if _, ok := tv.V.(*FuncValue); !ok {
-			originPkg = PkgIDFromPkgPath(cv.Source.GetLocation().PkgPath)
-		}
-		return
+	//case *Block:
+	//	originPkg = PkgIDFromPkgPath(cv.Source.GetLocation().PkgPath)
+	//	return
 	case *HeapItemValue:
 		originPkg = getPkgId(cv.Value.T)
 		return
@@ -442,8 +447,11 @@ func (tv *TypedValue) GetOriginPkg(store Store) (originPkg PkgID) {
 			originPkg = getPkgId(pv.TV.T)
 		}
 		return
-	case *MapValue, *StructValue, *ArrayValue:
+	case *MapValue, *StructValue:
 		originPkg = getPkgId(tv.T) // if it's declared type, otherwise zero
+		return
+	case *ArrayValue:
+		originPkg = getPkgId(tv.T.Elem())
 		return
 	default:
 		// do nothing

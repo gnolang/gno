@@ -11,11 +11,11 @@ type Container struct {
 	b    *crossrealm.Bar
 }
 
-var c Container
+var c = Container{name: "local_container"}
 
 func init() {
-	b0 := &crossrealm.Bar{A: 1}             // this is valid association
-	c = Container{name: "container", b: b0} // XXX, should panic
+	b0 := &crossrealm.Bar{A: 1} // this is valid association
+	c.b = b0                    // c is real, so panic while association, for b0 is unreal
 }
 
 func main() {

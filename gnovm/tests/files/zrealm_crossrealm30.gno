@@ -2,15 +2,13 @@
 package crossrealm_test
 
 import (
-	"std"
-
 	crossrealm "gno.land/r/demo/tests/crossrealm/slice"
 )
 
 var SS []crossrealm.XYZ
 
 func main() {
-	SS = crossrealm.GetSlice() // this is valid if elem are all attached in origin realm
+	SS = crossrealm.GetSlice() // attaching xxx.XYZ zero value, panic
 	println(".")
 }
 

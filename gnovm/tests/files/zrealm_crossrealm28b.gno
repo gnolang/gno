@@ -2,8 +2,6 @@
 package crossrealm_test
 
 import (
-	"std"
-
 	crossrealm "gno.land/r/demo/tests/crossrealm/iface"
 )
 
@@ -11,11 +9,12 @@ type foo struct {
 	name string
 }
 
-func (foo) Foo() { println("hello " + std.CurrentRealm().PkgPath()) }
+func (foo) Foo() { println("hello from crossrealm_test") }
 
-var arr [2]crossrealm.Fooer // panic while attach zero value
+var arr [2]crossrealm.Fooer // the element attaching is nil, so it's ok
 
 func main() {
+	println("ok")
 }
 
 // Error:

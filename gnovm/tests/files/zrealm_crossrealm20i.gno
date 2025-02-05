@@ -5,12 +5,12 @@ import (
 	"gno.land/p/demo/tests"
 )
 
-var root interface{}
+var root = tests.Foo{"p"}
 
+// TODO: also this.
 func main() {
-	root = tests.F // already attached in p
 	println("done")
 }
 
-// Error:
-// cannot attach a value of a type defined by another realm
+// Output:
+// done

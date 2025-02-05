@@ -2,8 +2,6 @@
 package crossrealm_test
 
 import (
-	"std"
-
 	crossrealm "gno.land/r/demo/tests/crossrealm/slice"
 )
 
@@ -11,10 +9,10 @@ type foo struct {
 	name string
 }
 
-func (*foo) Foo() { println("hello " + std.CurrentRealm().PkgPath()) }
+func (foo) Foo() { println("hello from crossrealm_test") }
 
 func main() {
-	var Local_S []crossrealm.Fooer // XXX, the array object should be in current realm
+	var Local_S []crossrealm.Fooer
 	Local_S = append(Local_S, &foo{name: "1"})
 	Local_S = append(Local_S, &foo{name: "2"})
 	Local_S = append(Local_S, &foo{name: "3"})
@@ -24,5 +22,7 @@ func main() {
 	println("ok")
 }
 
-// Error:
-// cannot attach a reference to an unreal object from an external realm
+// Output:
+// &(struct{("2" string)} gno.land/r/crossrealm_test.foo)
+// &(struct{("3" string)} gno.land/r/crossrealm_test.foo)
+// ok

@@ -150,7 +150,7 @@ func (rlm *Realm) String() string {
 
 // ref value is the derived value from co, like a slice.
 func (rlm *Realm) DidUpdate(store Store, po, xo, co Object) {
-	debug2.Printf2("DidUpdate2, po: %v, type of po: %v\n", po, reflect.TypeOf(po))
+	debug2.Printf2("DidUpdate, po: %v, type of po: %v\n", po, reflect.TypeOf(po))
 	debug2.Println2("po.GetIsReal: ", po.GetIsReal())
 	debug2.Printf2("xo: %v, type of xo: %v\n", xo, reflect.TypeOf(xo))
 	debug2.Printf2("co: %v, type of co: %v\n", co, reflect.TypeOf(co))
@@ -250,6 +250,71 @@ func checkCrossRealm2(rlm *Realm, store Store, tv *TypedValue) {
 	// else nothing to do
 }
 
+func assertRealObject2(rlm *Realm, store Store, tv *TypedValue) {
+	debug2.Println2("assertRealObject2, tv: ", tv, reflect.TypeOf(tv.V))
+	tv2 := fillValueTV(store, tv)
+	if oo, ok := tv2.V.(Object); ok {
+		debug2.Println2("is object")
+		assertRealObjectCrossRealm(rlm, store, oo, nil)
+	} else { // reference to object
+		switch rv := tv.V.(type) {
+		case *SliceValue, PointerValue:
+			reo := tv.GetFirstObject(store)
+			debug2.Println2("is reference to object, reo: ", reo)
+			assertRealObjectCrossRealm(rlm, store, reo, rv)
+		}
+	}
+}
+
+// assertRealObject checks if object is real recursively
+func assertRealObjectCrossRealm(rlm *Realm, store Store, oo Object, refValue Value) {
+	debug2.Println2("assertRealObjectCrossRealm, oo: ", oo)
+	debug2.Println2("refValue: ", refValue)
+	if !oo.GetIsReal() {
+		panic(fmt.Sprintf("cannot attach a reference to an unreal object from an external realm"))
+	}
+	switch v := oo.(type) {
+	case *StructValue:
+		// check fields
+		for _, fv := range v.Fields {
+			assertRealObject2(rlm, store, &fv)
+		}
+	case *MapValue:
+		debug2.Println2("MapValue, v: ", v)
+		for cur := v.List.Head; cur != nil; cur = cur.Next {
+			assertRealObject2(rlm, store, &cur.Key)
+			assertRealObject2(rlm, store, &cur.Value)
+		}
+	case *BoundMethodValue:
+	// TODO: complete this, check receiver, and?
+	case *Block:
+		debug2.Println2("BlockValue, v: ", v)
+		// XXX, also captures?
+		for _, tv := range v.Values {
+			assertRealObject2(rlm, store, &tv)
+		}
+	case *HeapItemValue:
+		assertRealObject2(rlm, store, &v.Value)
+	case *ArrayValue:
+		if sv, ok := refValue.(*SliceValue); ok {
+			debug2.Println2("1, slice, check elems of ArrayValue, sv: ", sv, sv.Offset, sv.Length)
+			// only check referenced elem
+			for i := sv.Offset; i < sv.Length; i++ {
+				assertRealObject2(rlm, store, &v.List[i])
+			}
+		} else {
+			debug2.Println2("2, check elems of ArrayValue, v: ", v)
+			if v.Data == nil {
+				for _, e := range v.List {
+					assertRealObject2(rlm, store, &e)
+				}
+			}
+		}
+	default:
+		panic("should not happen, oo is not object")
+	}
+}
+
 // checkCrossRealm performs a deep crawl to determine if cross-realm conditions exist.
 // refValue is required to handle cases where the value is a slice.
 // The `len` and `offset` are needed to validate proper elements of the underlying array.
@@ -274,25 +339,36 @@ func checkCrossRealm(rlm *Realm, store Store, oo Object, refValue Value) {
 		} else {
 			debug2.Println2("refValue: ", refValue)
 			debug2.Println2("oo.GetRefCount: ", oo.GetRefCount())
-			debug2.Println2("oo.GetIsEscaped: ", oo.GetRefCount())
+			debug2.Println2("oo.GetIsEscaped: ", oo.GetIsEscaped())
+			debug2.Println2("oo.GetIsReal: ", oo.GetIsReal())
 			// if its real object crossing, must be reference type
 			if refValue != nil { // reference value
-				//if oo.GetIsEscaped() {
-				//if oo.GetRefCount() > 1 {
-				//	debug2.Println2("reference to escaped object, do nothing")
-				//	return
+				assertRealObjectCrossRealm(rlm, store, oo, refValue)
+				//if oo.GetIsReal() {
+				//	if oo.GetIsEscaped() { // Note, oo not set escaped until now, would be after this check
+				//		debug2.Println2("oo escaped, do nothing")
+				//		return
+				//	} else {
+				//		debug2.Println2("oo NOT escaped, if HeapItemValue, check recursively, otherwise do nothing")
+				//		if _, ok := oo.(*HeapItemValue); ok {
+				//			// check elem
+				//			debug2.Println2("oo is heapItemValue, it's a real base for pointer value, check recursively for elem")
+				//		} else {
+				//			debug2.Println2("not heapItemValue, do nothing")
+				//			return
+				//		}
+				//	}
 				//}
-				if oo.GetIsReal() {
-					return
-				}
-				if !oo.GetIsReal() {
-					//panic(fmt.Sprintf("cannot attach unreal object by value from external realm: %v", oo))
-					panic(fmt.Sprintf("cannot attach a reference to an unreal object from an external realm"))
-				}
+				//if !oo.GetIsReal() {
+				//	panic(fmt.Sprintf("cannot attach a reference to an unreal object from an external realm"))
+				//}
 			} else {
 				panic(fmt.Sprintf("cannot attach a value of a type defined by another realm"))
 			}
 		}
+	} else {
+		debug2.Println2("Not crossing realm")
+		return
 	}
 
 	switch v := oo.(type) {
@@ -322,17 +398,19 @@ func checkCrossRealm(rlm *Realm, store Store, oo Object, refValue Value) {
 		//	panic("should not happen, block is not real")
 		//}
 	case *HeapItemValue:
-		// TODO: is it necessary?
-		// if heapItem, the embedded should be all real now???
-		checkCrossRealm2(rlm, store, &v.Value)
+		// unwrap to check recursively
+		if o2, ok := v.Value.V.(Object); ok {
+			checkCrossRealm(rlm, store, o2, refValue)
+		}
 	case *ArrayValue:
 		if sv, ok := refValue.(*SliceValue); ok {
+			debug2.Println2("1, slice, check elems of ArrayValue, sv: ", sv, sv.Offset, sv.Length)
 			// only check referenced elem
 			for i := sv.Offset; i < sv.Length; i++ {
 				checkCrossRealm2(rlm, store, &v.List[i])
 			}
 		} else {
-			debug2.Println2("TODO, check elems of ArrayValue, v: ", v)
+			debug2.Println2("2, check elems of ArrayValue, v: ", v)
 			if v.Data == nil {
 				for _, e := range v.List {
 					checkCrossRealm2(rlm, store, &e)
@@ -362,7 +440,8 @@ func (rlm *Realm) MarkNewEscapedCheckCrossRealm(store Store, oo Object, originVa
 
 	if !oo.GetOriginRealm().IsZero() && oo.GetOriginRealm() != rlm.ID { // crossing realm
 		if originValue != nil { // must be reference
-			checkCrossRealm(rlm, store, oo, originValue)
+			//checkCrossRealm(rlm, store, oo, originValue)
+			assertRealObjectCrossRealm(rlm, store, oo, originValue)
 		} else {
 			panic("cannot attach objects by value from external realm")
 		}
@@ -604,10 +683,14 @@ func (rlm *Realm) incRefCreatedDescendants(store Store, oo Object) {
 
 	// while associating, if po is unreal, the check
 	// defers to here.
+	// TODO: add test, associate to a container, just associate to global,
+	// package block not real now.
 	// TODO: correct this
+	// TODO: avoid duplicate check with DidUpdate...
 	_, ok1 := oo.(*PackageValue)
 	_, ok2 := oo.(*Block) // package block
 	if !ok1 && !ok2 {
+		debug2.Println2("===incRefCreatedDescendants, checkCrossRealm")
 		checkCrossRealm(rlm, store, oo, oo.GetOriginValue())
 	}
 
@@ -955,9 +1038,9 @@ func (rlm *Realm) saveUnsavedObjectRecursively(store Store, oo Object) {
 }
 
 func (rlm *Realm) saveObject(store Store, oo Object) {
-	debug2.Println2("saveObject: ", oo)
+	//debug2.Println2("saveObject: ", oo)
 	oid := oo.GetObjectID()
-	debug2.Println2("---oid: ", oid)
+	//debug2.Println2("---oid: ", oid)
 	//debug2.Println2("---oo.GetRefCount: ", oo.GetRefCount())
 	if oid.IsZero() {
 		panic("unexpected zero object id")
@@ -1025,7 +1108,6 @@ func (rlm *Realm) clearMarks() {
 // Value is either Object or RefValue.
 // Shallow; doesn't recurse into objects.
 func getSelfOrChildObjects(val Value, more []Value) []Value {
-	debug2.Println2("getSelfOrChildObjects: ", val)
 	if _, ok := val.(RefValue); ok {
 		return append(more, val)
 	} else if _, ok := val.(Object); ok {
@@ -1038,7 +1120,6 @@ func getSelfOrChildObjects(val Value, more []Value) []Value {
 // Gets child objects.
 // Shallow; doesn't recurse into objects.
 func getChildObjects(val Value, more []Value) []Value {
-	debug2.Printf2("getChildObjects, val: %v, type of val: %v \n", val, reflect.TypeOf(val))
 	switch cv := val.(type) {
 	case nil:
 		return more
@@ -1071,11 +1152,9 @@ func getChildObjects(val Value, more []Value) []Value {
 		return more
 	case *FuncValue:
 		if bv, ok := cv.Closure.(*Block); ok {
-			debug2.Println2("bv: ", bv)
 			more = getSelfOrChildObjects(bv, more)
 		}
 		for _, c := range cv.Captures {
-			debug2.Println2("c: ", c)
 			more = getSelfOrChildObjects(c.V, more)
 		}
 		return more
@@ -1187,7 +1266,6 @@ func copyMethods(methods []TypedValue) []TypedValue {
 }
 
 func refOrCopyType(typ Type) Type {
-	debug2.Println2("refOrCopyType, typ: ", typ)
 	if dt, ok := typ.(*DeclaredType); ok {
 		return RefType{ID: dt.TypeID()}
 	} else {
@@ -1476,7 +1554,6 @@ func copyValueWithRefs(val Value) Value {
 
 // (fully) fills the type.
 func fillType(store Store, typ Type) Type {
-	debug2.Println2("fillType, typ: ", typ)
 	switch ct := typ.(type) {
 	case nil:
 		return nil
@@ -1568,8 +1645,6 @@ func fillTypesTV(store Store, tv *TypedValue) {
 // Partially fills loaded objects shallowly, similarly to
 // getUnsavedTypes. Replaces all RefTypes with corresponding types.
 func fillTypesOfValue(store Store, val Value) Value {
-	debug2.Println2("fillTypesOfValue, val: ", val)
-	debug2.Println2("type of val: ", reflect.TypeOf(val))
 	switch cv := val.(type) {
 	case nil: // do nothing
 		return cv
@@ -1600,9 +1675,6 @@ func fillTypesOfValue(store Store, val Value) Value {
 		fillTypesOfValue(store, cv.Base)
 		return cv
 	case *StructValue:
-		debug2.Println2("struct value")
-		debug2.Println2("cv.GetOriginRealm: ", cv.GetOriginRealm())
-		debug2.Println2("cv.GetObjectInfo: ", cv.GetObjectInfo())
 		for i := 0; i < len(cv.Fields); i++ {
 			ctv := &cv.Fields[i]
 			fillTypesTV(store, ctv)

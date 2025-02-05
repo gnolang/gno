@@ -534,7 +534,7 @@ func (sv *StructValue) GetSubrefPointerTo(store Store, st *StructType, path Valu
 }
 
 func (sv *StructValue) Copy(alloc *Allocator) *StructValue {
-	debug2.Println2("StructValue copy, sv: ", sv)
+	//debug2.Println2("StructValue copy, sv: ", sv)
 	/* TODO consider second refcount field
 	if sv.GetRefCount() == 0 {
 		return sv
@@ -1075,7 +1075,6 @@ func (tv *TypedValue) ClearNum() {
 }
 
 func (tv TypedValue) Copy(alloc *Allocator) (cp TypedValue) {
-	debug2.Println2("Copy, tv: ", tv, reflect.TypeOf(tv.V))
 	switch cv := tv.V.(type) {
 	case BigintValue:
 		cp.T = tv.T
@@ -2725,7 +2724,6 @@ func typedString(s string) TypedValue {
 }
 
 func fillValueTV(store Store, tv *TypedValue) *TypedValue {
-	debug2.Println2("fillValueTV, tv: ", tv, reflect.TypeOf(tv.V))
 	switch cv := tv.V.(type) {
 	case RefValue:
 		if cv.PkgPath != "" { // load package

@@ -2,8 +2,6 @@
 package crossrealm_test
 
 import (
-	"std"
-
 	crossrealm "gno.land/r/demo/tests/crossrealm/slice"
 )
 
@@ -11,20 +9,20 @@ type foo struct {
 	name string
 }
 
-func (*foo) Foo() { println("hello " + std.CurrentRealm().PkgPath()) }
+func (foo) Foo() { println("hello from crossrealm_test") }
 
 var f1 = &foo{name: "1"}
 var f2 = &foo{name: "2"}
 var f3 = &foo{name: "3"}
 
 func main() {
-	var Local_S []crossrealm.Fooer // XXX, the array object should be in current realm
+	var Local_S []crossrealm.Fooer
 	Local_S = append(Local_S, f1)
-	Local_S = append(Local_S, f2)
+	Local_S = append(Local_S, f2) // reference real object, good
 	Local_S = append(Local_S, f3)
 
 	fs := Local_S[1:]
-	crossrealm.SetSlice(fs)
+	crossrealm.SetSlice(fs) // not crossing realm
 	println("ok")
 }
 
