@@ -13,6 +13,7 @@ import (
 	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
 	"github.com/gnolang/gno/tm2/pkg/commands"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
+	"github.com/mattn/go-isatty"
 )
 
 const DefaultDomain = "gno.land"
@@ -90,7 +91,7 @@ var defaultDevOptions = devCfg{
 	deployKey:           defaultDeployerAddress.String(),
 	home:                gnoenv.HomeDir(),
 	root:                gnoenv.RootDir(),
-	interactive:         true,
+	interactive:         isatty.IsTerminal(os.Stdout.Fd()),
 	unsafeAPI:           true,
 	lazyLoader:          true,
 
@@ -215,13 +216,6 @@ func (c *devCfg) registerFlagsWithDefault(defaultCfg devCfg, fs *flag.FlagSet) {
 		"balance-file",
 		defaultCfg.balancesFile,
 		"load the provided balance file (refer to the documentation for format)",
-	)
-
-	fs.StringVar(
-		&c.balancesFile,
-		"load-path",
-		defaultCfg.balancesFile,
-		"load given dir (glob supported)",
 	)
 
 	fs.StringVar(
