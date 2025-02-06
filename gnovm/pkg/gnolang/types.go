@@ -1469,6 +1469,13 @@ func baseOf(t Type) Type {
 	}
 }
 
+func unwrapPointerType(t Type) Type {
+	if pt, ok := t.(*PointerType); ok {
+		return pt.Elem()
+	}
+	return t
+}
+
 // NOTE: it may be faster to switch on baseOf().
 func (dt *DeclaredType) Kind() Kind {
 	return dt.Base.Kind()
