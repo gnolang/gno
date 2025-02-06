@@ -273,13 +273,27 @@ func (ds *App) setupHandlers(ctx context.Context) (http.Handler, error) {
 			ds.devNode.SetPackagePaths(ds.paths...)
 			ds.devNode.AddPackagePaths(ds.pathManager.List()...)
 
-			// Reload node on new path
-			if err := ds.devNode.Reload(ctx); err != nil {
-				ds.logger.WithGroup(NodeLogName).Error("unable to reload node", "err", err)
+			// Check if the node needs to be reloaded
+			for _, path := range paths {
+				if ds.devNode.HasPackageLoaded(path) {
+					continue
+				}
+
+				ds.logger.WithGroup(NodeLogName).Debug("some paths aren't loaded yet", "path", path)
+
+				// If the package isn't loaded, attempt to reload the node
+				if err := ds.devNode.Reload(ctx); err != nil {
+					ds.logger.WithGroup(NodeLogName).Error("unable to reload node", "err", err)
+				}
+
+				// Update the watcher list with the currently loaded packages
+				ds.watcher.UpdatePackagesWatch(ds.devNode.ListPkgs()...)
+
+				// Reloading the node once is sufficient, so exit the loop
+				return
 			}
 
-			// Update watcher list
-			ds.watcher.UpdatePackagesWatch(ds.devNode.ListPkgs()...)
+			ds.logger.WithGroup(NodeLogName).Debug("paths already loaded, skipping reload", "paths", paths)
 		})
 	}
 

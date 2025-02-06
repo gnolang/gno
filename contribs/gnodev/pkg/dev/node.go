@@ -211,6 +211,21 @@ func (n *Node) SetPackagePaths(paths ...string) {
 	n.paths = paths
 }
 
+// HasPackageLoaded returns true if the specified package has already been loaded.
+// NOTE: This only checks if the package was loaded at the genesis level.
+func (n *Node) HasPackageLoaded(path string) bool {
+	n.muNode.RLock()
+	defer n.muNode.RUnlock()
+
+	for _, pkg := range n.pkgs {
+		if pkg.MemPackage.Path == path {
+			return true
+		}
+	}
+
+	return false
+}
+
 // GetBlockTransactions returns the transactions contained
 // within the specified block, if any.
 func (n *Node) GetBlockTransactions(blockNum uint64) ([]gnoland.TxWithMetadata, error) {
