@@ -123,6 +123,8 @@ func (h *WebHandler) prepareIndexBodyView(r *http.Request, indexData *components
 		RealmPath:  gnourl.Encode(EncodePath | EncodeArgs | EncodeQuery | EncodeNoEscape),
 		Breadcrumb: breadcrumb,
 		WebQuery:   gnourl.WebQuery,
+		ChainId:    h.Static.ChainId,
+		Remote:     h.Static.RemoteHelp,
 	}
 
 	switch {
