@@ -104,6 +104,10 @@ func (opts *TestOptions) runFiletest(filename string, source []byte) (string, er
 		// which is not in the output - so add it there.
 		match(errDirective, result.Error+"\n")
 	} else {
+		outputDirective := dirs.First(DirectiveOutput)
+		if outputDirective == nil {
+			return "", fmt.Errorf("unexpected output: \n%s", result.Output)
+		}
 		err = m.CheckEmpty()
 		if err != nil {
 			return "", fmt.Errorf("machine not empty after main: %w", err)
