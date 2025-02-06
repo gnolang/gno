@@ -133,3 +133,64 @@ func TestTokenListingFunctions(t *testing.T) {
 	uassert.True(t, strings.Contains(completeList, "MultiToken:gno.land/r/matijamarjanovic/home.listing_mt"),
 		"GetAllTokens should list multi-tokens")
 }
+
+func TestMustGetFunctions(t *testing.T) {
+	std.TestSetRealm(std.NewCodeRealm("gno.land/r/matijamarjanovic/home"))
+
+	token, _ := grc20.NewToken("Must Token", "MUST", 6)
+	RegisterToken(token.Getter(), "must_token")
+	
+	retrievedToken := MustGetToken("gno.land/r/matijamarjanovic/home.must_token")
+	uassert.Equal(t, "Must Token", retrievedToken.GetName(), "Token name should match")
+
+	defer func() {
+		r := recover()
+		uassert.True(t, r != nil, "MustGetToken should panic for non-existent token")
+		uassert.True(t, strings.Contains(r.(string), "unknown token"), "Panic message should mention unknown token")
+	}()
+	MustGetToken("non_existent_token")
+
+	nft := grc721.NewBasicNFT("Must NFT", "MNFT")
+	nft.Mint(std.CurrentRealm().Addr(), grc721.TokenID("1"))
+	RegisterNFT(nft.Getter(), "must_nft", "1")
+
+	retrievedNFT := MustGetNFT("gno.land/r/matijamarjanovic/home.must_nft.1")
+	metadata, ok := retrievedNFT.(grc721.IGRC721CollectionMetadata)
+	urequire.True(t, ok, "NFT should implement IGRC721CollectionMetadata")
+	uassert.Equal(t, "Must NFT", metadata.Name(), "NFT name should match")
+
+	defer func() {
+		r := recover()
+		uassert.True(t, r != nil, "MustGetNFT should panic for non-existent NFT")
+		uassert.True(t, strings.Contains(r.(string), "unknown NFT"), "Panic message should mention unknown NFT")
+	}()
+	MustGetNFT("non_existent_nft")
+
+	mt := grc1155.NewBasicGRC1155Token("must-uri")
+	RegisterMultiToken(mt.Getter(), "must_mt")
+
+	retrievedMT := MustGetMultiToken("gno.land/r/matijamarjanovic/home.must_mt")
+	_, ok = retrievedMT.(grc1155.IGRC1155)
+	urequire.True(t, ok, "Retrieved multi-token should implement IGRC1155")
+
+	defer func() {
+		r := recover()
+		uassert.True(t, r != nil, "MustGetMultiToken should panic for non-existent multi-token")
+		uassert.True(t, strings.Contains(r.(string), "unknown multi-token"), "Panic message should mention unknown multi-token")
+	}()
+	MustGetMultiToken("non_existent_mt")
+}
+
+func TestGetAddressForUsername(t *testing.T) {
+	std.TestSetRealm(std.NewCodeRealm("gno.land/r/matijamarjanovic/home"))
+
+	validAddr := "g1ej0qca5ptsw9kfr64ey8jvfy9eacga6mpj2z0y"
+	addr := getAddressForUsername(validAddr)
+	uassert.Equal(t, validAddr, addr.String(), "Should return same address for valid address input")
+
+	invalidInput := "invalid_input"
+	addr = getAddressForUsername(invalidInput)
+	uassert.Equal(t, "", addr.String(), "Should return empty address for invalid input")
+}
+
+
