@@ -22,7 +22,7 @@ var defaultStagingOptions = devCfg{
 	webHome:             ":none:",
 	webListenerAddr:     "127.0.0.1:8888",
 	nodeRPCListenerAddr: "127.0.0.1:26657",
-	deployKey:           DefaultDeployerAddress.String(),
+	deployKey:           defaultDeployerAddress.String(),
 	home:                gnoenv.HomeDir(),
 	root:                gnoenv.RootDir(),
 	interactive:         false,

@@ -17,11 +17,12 @@ import (
 
 const DefaultDomain = "gno.land"
 
-var (
-	DefaultDeployerName    = integration.DefaultAccount_Name
-	DefaultDeployerAddress = crypto.MustAddressFromString(integration.DefaultAccount_Address)
-	DefaultDeployerSeed    = integration.DefaultAccount_Seed
+const (
+	DefaultDeployerName = integration.DefaultAccount_Name
+	DefaultDeployerSeed = integration.DefaultAccount_Seed
 )
+
+var defaultDeployerAddress = crypto.MustAddressFromString(integration.DefaultAccount_Address)
 
 const (
 	NodeLogName        = "Node"
@@ -86,7 +87,7 @@ var defaultDevOptions = devCfg{
 	maxGas:              10_000_000_000,
 	webListenerAddr:     "127.0.0.1:8888",
 	nodeRPCListenerAddr: "127.0.0.1:26657",
-	deployKey:           DefaultDeployerAddress.String(),
+	deployKey:           defaultDeployerAddress.String(),
 	home:                gnoenv.HomeDir(),
 	root:                gnoenv.RootDir(),
 	interactive:         true,
