@@ -114,7 +114,6 @@ func sendRequestCommon[T requestType, R responseType](
 	request T,
 ) (R, error) {
 	// Marshal the request
-	fmt.Printf("#### HOW OFTEN DOES THIS HAPPEN +++++####\n")
 	requestBytes, err := json.Marshal(request)
 	if err != nil {
 		var zero R
