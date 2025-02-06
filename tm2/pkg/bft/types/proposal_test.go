@@ -52,7 +52,7 @@ func TestProposalString(t *testing.T) {
 func TestProposalVerifySignature(t *testing.T) {
 	t.Parallel()
 
-	privVal := NewMockPV()
+	privVal := NewMockSigner()
 	pubKey, err := privVal.GetPubKey()
 	require.NoError(t, err)
 
@@ -90,7 +90,7 @@ func BenchmarkProposalWriteSignBytes(b *testing.B) {
 }
 
 func BenchmarkProposalSign(b *testing.B) {
-	privVal := NewMockPV()
+	privVal := NewMockSigner()
 	for i := 0; i < b.N; i++ {
 		err := privVal.SignProposal("test_chain_id", testProposal)
 		if err != nil {
@@ -100,7 +100,7 @@ func BenchmarkProposalSign(b *testing.B) {
 }
 
 func BenchmarkProposalVerifySignature(b *testing.B) {
-	privVal := NewMockPV()
+	privVal := NewMockSigner()
 	err := privVal.SignProposal("test_chain_id", testProposal)
 	require.Nil(b, err)
 	pubKey, err := privVal.GetPubKey()
@@ -114,7 +114,7 @@ func BenchmarkProposalVerifySignature(b *testing.B) {
 func TestProposalValidateBasic(t *testing.T) {
 	t.Parallel()
 
-	privVal := NewMockPV()
+	privVal := NewMockSigner()
 	testCases := []struct {
 		testName         string
 		malleateProposal func(*Proposal)

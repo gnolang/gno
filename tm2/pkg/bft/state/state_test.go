@@ -384,7 +384,7 @@ func TestProposerFrequency(t *testing.T) {
 			// make sure votePower > 0
 			votePower := int64(random.RandInt()%maxPower) + 1
 			totalVotePower += votePower
-			privVal := types.NewMockPV()
+			privVal := types.NewMockSigner()
 			pubKey, err := privVal.GetPubKey()
 			if err != nil {
 				t.Fatalf("failed to get the validator public key: %v", err)

@@ -1,4 +1,4 @@
-package privval
+package remote
 
 import (
 	"fmt"

@@ -166,7 +166,7 @@ func TestValidateBlockCommit(t *testing.T) {
 	blockExec := sm.NewBlockExecutor(stateDB, log.NewTestingLogger(t), proxyApp.Consensus(), mock.Mempool{})
 	lastCommit := types.NewCommit(types.BlockID{}, nil)
 	wrongPrecommitsCommit := types.NewCommit(types.BlockID{}, nil)
-	badPrivVal := types.NewMockPV()
+	badPrivVal := types.NewMockSigner()
 
 	for height := int64(1); height < validationTestsStopHeight; height++ {
 		proposerAddr := state.Validators.GetProposer().Address
