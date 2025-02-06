@@ -430,26 +430,6 @@ var nativeFuncs = [...]NativeFunc{
 	},
 	{
 		"std",
-		"IsOriginCall",
-		[]gno.FieldTypeExpr{},
-		[]gno.FieldTypeExpr{
-			{Name: gno.N("r0"), Type: gno.X("bool")},
-		},
-		true,
-		func(m *gno.Machine) {
-			r0 := libs_std.IsOriginCall(
-				m,
-			)
-
-			m.PushValue(gno.Go2GnoValue(
-				m.Alloc,
-				m.Store,
-				reflect.ValueOf(&r0).Elem(),
-			))
-		},
-	},
-	{
-		"std",
 		"GetChainID",
 		[]gno.FieldTypeExpr{},
 		[]gno.FieldTypeExpr{

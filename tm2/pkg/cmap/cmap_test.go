@@ -2,7 +2,9 @@ package cmap
 
 import (
 	"fmt"
+	"runtime"
 	"strings"
+	"sync"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -54,6 +56,61 @@ func TestContains(t *testing.T) {
 	// Test for unknown values
 	assert.False(t, cmap.Has("key2"))
 	assert.Nil(t, cmap.Get("key2"))
+}
+
+var sink any = nil
+
+func BenchmarkCMapConcurrentInsertsDeletesHas(b *testing.B) {
+	cm := NewCMap()
+	keys := make([]string, 100000)
+	for i := range keys {
+		keys[i] = fmt.Sprintf("key%d", i)
+	}
+	b.ResetTimer()
+
+	for i := 0; i < b.N; i++ {
+		var wg sync.WaitGroup
+		semaCh := make(chan bool)
+		nCPU := runtime.NumCPU()
+		for j := 0; j < nCPU; j++ {
+			wg.Add(1)
+			go func() {
+				defer wg.Done()
+
+				// Make sure that all the goroutines run at the
+				// exact same time for true concurrent tests.
+				<-semaCh
+
+				for i, key := range keys {
+					if (j+i)%2 == 0 {
+						cm.Has(key)
+					} else {
+						cm.Set(key, j)
+					}
+					_ = cm.Size()
+					if (i+1)%3 == 0 {
+						cm.Delete(key)
+					}
+
+					if (i+1)%327 == 0 {
+						cm.Clear()
+					}
+					_ = cm.Size()
+					_ = cm.Keys()
+				}
+				_ = cm.Values()
+			}()
+		}
+		close(semaCh)
+		wg.Wait()
+
+		sink = semaCh
+	}
+
+	if sink == nil {
+		b.Fatal("Benchmark did not run!")
+	}
+	sink = nil
 }
 
 func BenchmarkCMapHas(b *testing.B) {
