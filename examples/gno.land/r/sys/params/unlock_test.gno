@@ -9,17 +9,17 @@ import (
 	"gno.land/r/gov/dao/bridge"
 )
 
-func TestProUnlockSend(t *testing.T) {
+func TestProUnlockTransfer(t *testing.T) {
 	govdao := bridge.GovDAO()
-	id := ProposeUnlockSend()
+	id := ProposeUnlockTransfer()
 	p, err := govdao.GetPropStore().ProposalByID(id)
 	urequire.NoError(t, err)
-	urequire.Equal(t, UnlockSendTitle, p.Title())
+	urequire.Equal(t, UnlockTransferTitle, p.Title())
 }
 
-func TestFailUnlockSend(t *testing.T) {
+func TestFailUnlockTransfer(t *testing.T) {
 	govdao := bridge.GovDAO()
-	id := ProposeUnlockSend()
+	id := ProposeUnlockTransfer()
 	urequire.PanicsWithMessage(
 		t,
 		simpledao.ErrProposalNotAccepted.Error(),
@@ -29,9 +29,9 @@ func TestFailUnlockSend(t *testing.T) {
 	)
 }
 
-func TestExeUnlockSend(t *testing.T) {
+func TestExeUnlockTransfer(t *testing.T) {
 	govdao := bridge.GovDAO()
-	id := ProposeUnlockSend()
+	id := ProposeUnlockTransfer()
 	p, err := govdao.GetPropStore().ProposalByID(id)
 	urequire.NoError(t, err)
 	urequire.True(t, dao.Active == p.Status())

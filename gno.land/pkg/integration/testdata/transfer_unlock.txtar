@@ -21,7 +21,7 @@ stderr 'restricted token transfer error'
 
 ## Submit a proposal to unlock the transfer. When token transfer is locked, only the predefined unrestricted account test1 in the genesis state can
 ## pay the fee and submit a proposal to unlock the transfer.
-gnokey maketx call -pkgpath gno.land/r/sys/params -func ProposeUnlockSend -send 250000000ugnot -gas-fee 1ugnot -gas-wanted 9500000 -broadcast -chainid=tendermint_test test1
+gnokey maketx call -pkgpath gno.land/r/sys/params -func ProposeUnlockTransfer -send 250000000ugnot -gas-fee 1ugnot -gas-wanted 9500000 -broadcast -chainid=tendermint_test test1
 
 stdout '(0 uint64)'
 

@@ -1,7 +1,6 @@
 package bank
 
 import (
-	"github.com/gnolang/gno/tm2/pkg/amino"
 	"github.com/gnolang/gno/tm2/pkg/sdk"
 )
 
@@ -28,11 +27,6 @@ func ValidateGenesis(data GenesisState) error {
 
 // InitGenesis - Init store state from genesis data
 func (bank BankKeeper) InitGenesis(ctx sdk.Context, data GenesisState) {
-	if amino.DeepEqual(data, GenesisState{}) {
-		if err := bank.SetParams(ctx, DefaultParams()); err != nil {
-			panic(err)
-		}
-	}
 	if err := ValidateGenesis(data); err != nil {
 		panic(err)
 	}

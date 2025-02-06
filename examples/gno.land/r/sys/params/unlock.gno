@@ -1,17 +1,18 @@
 package params
 
 const (
-	lockSendKey     = "bank_lockSend.string"
-	UnlockSendTitle = "Proposal to unlock the sending functionality for ugnot."
-	LockSendTitle   = "Proposal to lock the sending functionality for ugnot."
+	bankkeeperPrefix    = "bank"
+	lockTransferKey     = "lockTransfer.string"
+	UnlockTransferTitle = "Proposal to unlock the transfer of ugnot."
+	LockTransferTitle   = "Proposal to lock the transfer of ugnot."
 )
 
-func ProposeUnlockSend() uint64 {
-	exe := NewStringPropExecutor(lockSendKey, "")
-	return propose(exe, UnlockSendTitle, "")
+func ProposeUnlockTransfer() uint64 {
+	exe := NewPrefixedStringPropExecutor(bankkeeperPrefix, lockTransferKey, "")
+	return propose(exe, UnlockTransferTitle, "")
 }
 
-func ProposeLockSend() uint64 {
-	exe := NewStringPropExecutor(lockSendKey, "ugnot")
-	return propose(exe, LockSendTitle, "")
+func ProposeLockTransfer() uint64 {
+	exe := NewPrefixedStringPropExecutor(bankkeeperPrefix, lockTransferKey, "ugnot")
+	return propose(exe, LockTransferTitle, "")
 }

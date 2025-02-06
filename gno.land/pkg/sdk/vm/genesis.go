@@ -1,6 +1,8 @@
 package vm
 
 import (
+	"fmt"
+
 	"github.com/gnolang/gno/tm2/pkg/amino"
 	"github.com/gnolang/gno/tm2/pkg/sdk"
 )
@@ -23,18 +25,14 @@ func DefaultGenesisState() GenesisState {
 // ValidateGenesis performs basic validation of genesis data returning an
 // error for any failed validation criteria.
 func ValidateGenesis(data GenesisState) error {
+	if amino.DeepEqual(data, GenesisState{}) {
+		return fmt.Errorf("vm genesis state cannot be empty")
+	}
 	return data.Params.Validate()
 }
 
 // InitGenesis - Init store state from genesis data
 func (vm *VMKeeper) InitGenesis(ctx sdk.Context, data GenesisState) {
-	if amino.DeepEqual(data, GenesisState{}) {
-		if err := vm.SetParams(ctx, DefaultParams()); err != nil {
-			panic(err)
-		}
-		return
-	}
-
 	if err := ValidateGenesis(data); err != nil {
 		panic(err)
 	}
@@ -46,6 +44,5 @@ func (vm *VMKeeper) InitGenesis(ctx sdk.Context, data GenesisState) {
 // ExportGenesis returns a GenesisState for a given context and keeper
 func (vm *VMKeeper) ExportGenesis(ctx sdk.Context) GenesisState {
 	params := vm.GetParams(ctx)
-
 	return NewGenesisState(params)
 }

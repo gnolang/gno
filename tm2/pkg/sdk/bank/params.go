@@ -74,7 +74,7 @@ func (bank BankKeeper) GetParamfulKey() string {
 
 // WillSetParam checks if the key contains the module's parameter key and updates the module parameter accordingly.
 func (bank BankKeeper) WillSetParam(ctx sdk.Context, key string, value interface{}) {
-	if key == lockSendKey {
+	if key == lockTransferKey {
 		if value != "" { // lock sending denoms
 			bank.AddRestrictedDenoms(ctx, value.(string))
 		} else { // unlock sending ugnot

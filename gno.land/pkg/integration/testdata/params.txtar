@@ -56,8 +56,8 @@ stdout 'data: "31337"'
 
 # set parameters in module vm gno.land/r/sys/params.vm.
 
-gnokey maketx call -pkgpath gno.land/r/sys/params -func SetLockSend -args ugnot -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test test1
-gnokey query params/vm/gno.land/r/sys/params.bank_lockSend.string
+gnokey maketx call -pkgpath gno.land/r/sys/params -func SetTransfer -args ugnot -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test test1
+gnokey query params/vm/gno.land/r/sys/params.bank_Transfer.string
 stdout 'data: "ugnot"'
 
 -- params/setter.gno --
@@ -71,4 +71,4 @@ func SetFoo(newFoo string) { std.SetParamString("foo.string", newFoo) }
 func SetBar(newBar bool)   { std.SetParamBool("bar.bool", newBar) }
 func SetBaz(newBaz int64)  { std.SetParamInt64("baz.int64", newBaz) }
 
-func SetLockSend(denom string)  { std.SetParamString("bank_lockSend.string", "ugnot") }
+func SetTransfer(denom string)  { std.SetParamString("bank_Transfer.string", "ugnot") }

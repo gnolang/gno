@@ -19,6 +19,7 @@ package params
 
 import (
 	"std"
+	prms "sys/params"
 
 	"gno.land/p/demo/dao"
 	"gno.land/r/gov/dao/bridge"
@@ -42,6 +43,26 @@ func NewBoolPropExecutor(key string, value bool) dao.Executor {
 
 func NewBytesPropExecutor(key string, value []byte) dao.Executor {
 	return newPropExecutor(key, func() { std.SetParamBytes(key, value) })
+}
+
+func NewPrefixedStringPropExecutor(keeperPrefix, key string, value string) dao.Executor {
+	return newPropExecutor(key, func() { prms.SetPrefixedString(keeperPrefix, key, value) })
+}
+
+func NewPrefixedInt64PropExecutor(keeperPrefix, key string, value int64) dao.Executor {
+	return newPropExecutor(key, func() { prms.SetPrefixedInt64(keeperPrefix, key, value) })
+}
+
+func NewPrefixedUint64PropExecutor(keeperPrefix, key string, value uint64) dao.Executor {
+	return newPropExecutor(key, func() { prms.SetPrefixedUint64(keeperPrefix, key, value) })
+}
+
+func NewPrefixedBoolPropExecutor(keeperPrefix, key string, value bool) dao.Executor {
+	return newPropExecutor(key, func() { prms.SetPrefixedBool(keeperPrefix, key, value) })
+}
+
+func NewPrefixedBytesPropExecutor(keeperPrefix, key string, value []byte) dao.Executor {
+	return newPropExecutor(keeperPrefix+key, func() { prms.SetPrefixedBytes(keeperPrefix, key, value) })
 }
 
 func newPropExecutor(key string, fn func()) dao.Executor {

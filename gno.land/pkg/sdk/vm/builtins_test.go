@@ -71,35 +71,35 @@ func TestParamsKeeper(t *testing.T) {
 		{
 			name: "SetString should panic",
 			setFunc: func() {
-				params.SetString("gno.land/r/sys/params.foo_name.string", "foo")
+				params.SetString("gno.land/r/sys/params.foo:name.string", "foo")
 			},
 			expectedMsg: `keeper key <foo> does not exist`,
 		},
 		{
 			name: "SetBool should panic",
 			setFunc: func() {
-				params.SetBool("gno.land/r/sys/params.foo_isFoo.bool", true)
+				params.SetBool("gno.land/r/sys/params.foo:isFoo.bool", true)
 			},
 			expectedMsg: `keeper key <foo> does not exist`,
 		},
 		{
 			name: "SetInt64 should panic",
 			setFunc: func() {
-				params.SetInt64("gno.land/r/sys/params.foo_nummber.int64", -100)
+				params.SetInt64("gno.land/r/sys/params.foo:nummber.int64", -100)
 			},
 			expectedMsg: `keeper key <foo> does not exist`,
 		},
 		{
 			name: "SetUint64 should panic",
 			setFunc: func() {
-				params.SetUint64("gno.land/r/sys/params.foo_nummber.uint64", 100)
+				params.SetUint64("gno.land/r/sys/params.foo:nummber.uint64", 100)
 			},
 			expectedMsg: `keeper key <foo> does not exist`,
 		},
 		{
 			name: "SetBytes should panic",
 			setFunc: func() {
-				params.SetBytes("gno.land/r/sys/params.foo_name.bytes", []byte("foo"))
+				params.SetBytes("gno.land/r/sys/params.foo:name.bytes", []byte("foo"))
 			},
 			expectedMsg: `keeper key <foo> does not exist`,
 		},
