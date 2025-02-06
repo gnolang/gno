@@ -120,28 +120,32 @@ func TestRecordSave(t *testing.T) {
 
 	storage := NewStorage("foo", WithDefaultIndex(nameIdx))
 	cases := []struct {
-		name       string
-		id         uint64
-		fieldValue string
-		setup      func(Storage) Record
+		name        string
+		id          uint64
+		fieldValue  string
+		storageSize int
+		setup       func(Storage) Record
 	}{
 		{
-			name:       "create first record",
-			id:         1,
-			fieldValue: "foo",
-			setup:      func(s Storage) Record { return s.NewRecord() },
+			name:        "create first record",
+			id:          1,
+			fieldValue:  "foo",
+			storageSize: 1,
+			setup:       func(s Storage) Record { return s.NewRecord() },
 		},
 		{
-			name:       "create second record",
-			id:         2,
-			fieldValue: "bar",
-			setup:      func(s Storage) Record { return s.NewRecord() },
+			name:        "create second record",
+			id:          2,
+			fieldValue:  "bar",
+			storageSize: 2,
+			setup:       func(s Storage) Record { return s.NewRecord() },
 		},
 		{
-			name:       "update second record",
-			id:         2,
-			fieldValue: "baz",
-			setup:      func(s Storage) Record { return storage.GetFirst("bar") },
+			name:        "update second record",
+			id:          2,
+			fieldValue:  "baz",
+			storageSize: 2,
+			setup:       func(s Storage) Record { return storage.GetFirst("bar") },
 		},
 	}
 
@@ -152,6 +156,7 @@ func TestRecordSave(t *testing.T) {
 
 			urequire.Equal(t, nil, storage.GetFirst(tc.fieldValue), "record not found")
 			urequire.True(t, r.Save(), "save success")
+			uassert.Equal(t, tc.storageSize, storage.Size())
 
 			r = storage.GetFirst(tc.fieldValue)
 			urequire.NotEqual(t, nil, r, "record found")

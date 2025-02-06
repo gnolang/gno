@@ -16,6 +16,7 @@ func TestStorageDefaults(t *testing.T) {
 	uassert.Equal(t, name, storage.Name())
 	uassert.Equal(t, collection.IDIndex, storage.CurrentIndex())
 	uassert.NotEqual(t, nil, storage.Collection())
+	uassert.Equal(t, 0, storage.Size())
 
 	s := storage.Schema()
 	uassert.NotEqual(t, nil, s)

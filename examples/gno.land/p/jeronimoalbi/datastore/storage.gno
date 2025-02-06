@@ -43,6 +43,10 @@ func (s Storage) Schema() *Schema {
 	return s.schema
 }
 
+func (s Storage) Size() int {
+	return s.collection.GetIndex(collection.IDIndex).Size()
+}
+
 func (s Storage) NewRecord() Record {
 	r := &record{
 		schema:     s.schema,
