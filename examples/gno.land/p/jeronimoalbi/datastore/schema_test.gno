@@ -35,10 +35,8 @@ func TestSchemaNew(t *testing.T) {
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			// Act
 			s := NewSchema("Foo", tc.options...)
 
-			// Assert
 			uassert.Equal(t, "Foo", s.Name())
 			uassert.Equal(t, tc.strict, s.IsStrict())
 			urequire.Equal(t, len(tc.fields), s.Size(), "field count")
@@ -89,13 +87,10 @@ func TestSchemaAddField(t *testing.T) {
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			// Arrange
 			s := NewSchema("Foo", tc.options...)
 
-			// Act
 			index, added := s.AddField(tc.fieldName, nil)
 
-			// Assert
 			if tc.success {
 				uassert.Equal(t, tc.fieldIndex, index)
 				uassert.True(t, added)
