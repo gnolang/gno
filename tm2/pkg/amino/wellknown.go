@@ -342,10 +342,7 @@ func encodeReflectBinaryWellKnown(w io.Writer, info *TypeInfo, rv reflect.Value,
 	// Maybe recurse with length-prefixing.
 	if !bare {
 		buf := poolBytesBuffer.Get()
-		defer func() {
-			buf.Reset()
-			poolBytesBuffer.Put(buf)
-		}()
+		defer poolBytesBuffer.Put(buf)
 
 		ok, err = encodeReflectBinaryWellKnown(buf, info, rv, fopts, true)
 		if err != nil {

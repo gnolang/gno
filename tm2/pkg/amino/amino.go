@@ -220,10 +220,7 @@ func (cdc *Codec) MarshalSized(o interface{}) ([]byte, error) {
 
 	// Write the bytes here.
 	buf := poolBytesBuffer.Get()
-	defer func() {
-		buf.Reset()
-		poolBytesBuffer.Put(buf)
-	}()
+	defer poolBytesBuffer.Put(buf)
 
 	// Write the bz without length-prefixing.
 	bz, err := cdc.Marshal(o)
@@ -276,11 +273,7 @@ func (cdc *Codec) MarshalAnySized(o interface{}) ([]byte, error) {
 
 	// Write the bytes here.
 	buf := poolBytesBuffer.Get()
-	defer func() {
-		buf.Reset()
-		poolBytesBuffer.Put(buf)
-	}()
-
+	defer poolBytesBuffer.Put(buf)
 	// Write the bz without length-prefixing.
 	bz, err := cdc.MarshalAny(o)
 	if err != nil {
@@ -366,10 +359,7 @@ func (cdc *Codec) MarshalReflect(o interface{}) ([]byte, error) {
 	// Encode Amino:binary bytes.
 	var bz []byte
 	buf := poolBytesBuffer.Get()
-	defer func() {
-		buf.Reset()
-		poolBytesBuffer.Put(buf)
-	}()
+	defer poolBytesBuffer.Put(buf)
 
 	rt := rv.Type()
 	info, err := cdc.getTypeInfoWLock(rt)
@@ -457,10 +447,7 @@ func (cdc *Codec) MarshalAny(o interface{}) ([]byte, error) {
 
 	// Encode as interface.
 	buf := poolBytesBuffer.Get()
-	defer func() {
-		buf.Reset()
-		poolBytesBuffer.Put(buf)
-	}()
+	defer poolBytesBuffer.Put(buf)
 	err = cdc.encodeReflectBinaryInterface(buf, iinfo, reflect.ValueOf(&ivar).Elem(), FieldOptions{}, true)
 	if err != nil {
 		return nil, err
@@ -788,10 +775,7 @@ func (cdc *Codec) JSONMarshal(o interface{}) ([]byte, error) {
 	}
 	rt := rv.Type()
 	w := poolBytesBuffer.Get()
-	defer func() {
-		w.Reset()
-		poolBytesBuffer.Put(w)
-	}()
+	defer poolBytesBuffer.Put(w)
 	info, err := cdc.getTypeInfoWLock(rt)
 	if err != nil {
 		return nil, err
@@ -831,10 +815,7 @@ func (cdc *Codec) MarshalJSONAny(o interface{}) ([]byte, error) {
 
 	// Encode as interface.
 	buf := poolBytesBuffer.Get()
-	defer func() {
-		buf.Reset()
-		poolBytesBuffer.Put(buf)
-	}()
+	defer poolBytesBuffer.Put(buf)
 
 	err = cdc.encodeReflectJSONInterface(buf, iinfo, reflect.ValueOf(&ivar).Elem(), FieldOptions{})
 	if err != nil {

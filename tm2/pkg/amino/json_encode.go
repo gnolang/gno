@@ -156,10 +156,7 @@ func (cdc *Codec) encodeReflectJSONInterface(w io.Writer, iinfo *TypeInfo, rv re
 
 	// Write Value to buffer
 	buf := poolBytesBuffer.Get()
-	defer func() {
-		buf.Reset()
-		poolBytesBuffer.Put(buf)
-	}()
+	defer poolBytesBuffer.Put(buf)
 
 	cdc.encodeReflectJSON(buf, cinfo, crv, fopts)
 	value := buf.Bytes()

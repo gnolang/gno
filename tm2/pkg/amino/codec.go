@@ -113,10 +113,7 @@ func (info *TypeInfo) String() string {
 		return "<new TypeInfo>"
 	}
 	buf := poolBytesBuffer.Get()
-	defer func() {
-		buf.Reset()
-		poolBytesBuffer.Put(buf)
-	}()
+	defer poolBytesBuffer.Put(buf)
 
 	buf.Write([]byte("TypeInfo{"))
 	buf.Write([]byte(fmt.Sprintf("Type:%v,", info.Type)))
