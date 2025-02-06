@@ -2,7 +2,6 @@ package datastore
 
 import (
 	"encoding/binary"
-	"strings"
 
 	"gno.land/p/demo/avl"
 	"gno.land/p/demo/avl/list"
