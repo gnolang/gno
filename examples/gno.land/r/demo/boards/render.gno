@@ -13,7 +13,6 @@ func RenderBoard(bid BoardID) string {
 	if board == nil {
 		return "missing board"
 	}
-
 	return board.RenderBoard()
 }
 
@@ -27,7 +26,6 @@ func Render(path string) string {
 		})
 		return str
 	}
-
 	parts := strings.Split(path, "/")
 	if len(parts) == 1 {
 		// /r/demo/boards:BOARD_NAME
