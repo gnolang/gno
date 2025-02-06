@@ -212,7 +212,7 @@ func (n *Node) SetPackagePaths(paths ...string) {
 }
 
 // GetBlockTransactions returns the transactions contained
-// within the specified block, if any
+// within the specified block, if any.
 func (n *Node) GetBlockTransactions(blockNum uint64) ([]gnoland.TxWithMetadata, error) {
 	n.muNode.RLock()
 	defer n.muNode.RUnlock()
@@ -221,7 +221,7 @@ func (n *Node) GetBlockTransactions(blockNum uint64) ([]gnoland.TxWithMetadata, 
 }
 
 // GetBlockTransactions returns the transactions contained
-// within the specified block, if any
+// within the specified block, if any.
 func (n *Node) getBlockTransactions(blockNum uint64) ([]gnoland.TxWithMetadata, error) {
 	int64BlockNum := int64(blockNum)
 	b, err := n.client.Block(&int64BlockNum)
@@ -249,8 +249,8 @@ func (n *Node) getBlockTransactions(blockNum uint64) ([]gnoland.TxWithMetadata, 
 }
 
 // GetBlockTransactions returns the transactions contained
-// within the specified block, if any
-// GetLatestBlockNumber returns the latest block height from the chain
+// within the specified block, if any.
+// GetLatestBlockNumber returns the latest block height from the chain.
 func (n *Node) GetLatestBlockNumber() (uint64, error) {
 	n.muNode.RLock()
 	defer n.muNode.RUnlock()
