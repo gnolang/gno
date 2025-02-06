@@ -290,7 +290,7 @@ func testParseDump(t *testing.T, tests []parseTest, flags Flags) {
 }
 
 // dump prints a string representation of the regexp showing
-// the structure exicitly.
+// the structure explicitly.
 func dump(re *Regexp) string {
 	var b strings.Builder
 	dumpRegexp(&b, re)
