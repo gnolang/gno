@@ -4,7 +4,6 @@ import (
 	"testing"
 
 	"gno.land/p/demo/uassert"
-	"gno.land/p/demo/urequire"
 	"gno.land/p/moul/collection"
 )
 
