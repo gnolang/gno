@@ -1,3 +1,3 @@
-package a
+package aa
 
 type SA struct{}

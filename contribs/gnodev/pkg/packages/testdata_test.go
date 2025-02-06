@@ -7,37 +7,37 @@ package packages
 // testdata
 // ├── abc.xy
 // ├── nested
-// │   ├── a
+// │   ├── aa
 // │   │   └── gno.mod
 // │   └── nested
-// │       ├── b
+// │       ├── bb
 // │       │   └── gno.mod
-// │       └── c
+// │       └── cc
 // │           └── gno.mod
 // └── pkg
-//     ├── a
+//     ├── aa
 //     │   ├── file1.gno
 //     │   └── gno.mod
-//     ├── b // depends on a
+//     ├── bb // depends on aa
 //     │   ├── file1.gno
 //     │   └── gno.mod
-//     └── c // depends on b
+//     └── cc // depends on bb
 //         ├── file1.gno
 //         └── gno.mod
 
 const (
-	TestdataPkgA = "abc.xy/pkg/a"
-	TestdataPkgB = "abc.xy/pkg/b"
-	TestdataPkgC = "abc.xy/pkg/c"
+	TestdataPkgA = "abc.xy/pkg/aa"
+	TestdataPkgB = "abc.xy/pkg/bb"
+	TestdataPkgC = "abc.xy/pkg/cc"
 )
 
 // List of testdata package paths
 var testdataPkgs = []string{TestdataPkgA, TestdataPkgB, TestdataPkgC}
 
 const (
-	TestdataNestedA = "abc.xy/nested/a"        // Path to nested package A
-	TestdataNestedB = "abc.xy/nested/nested/b" // Path to nested package B
-	TestdataNestedC = "abc.xy/nested/nested/c" // Path to nested package C
+	TestdataNestedA = "abc.xy/nested/aa"        // Path to nested package A
+	TestdataNestedB = "abc.xy/nested/nested/bb" // Path to nested package B
+	TestdataNestedC = "abc.xy/nested/nested/cc" // Path to nested package C
 )
 
 // List of nested package paths
