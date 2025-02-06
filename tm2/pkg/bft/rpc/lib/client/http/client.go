@@ -9,6 +9,7 @@ import (
 	"io"
 	"net"
 	"net/http"
+	"reflect"
 	"strings"
 
 	types "github.com/gnolang/gno/tm2/pkg/bft/rpc/lib/types"
@@ -113,9 +114,11 @@ func sendRequestCommon[T requestType, R responseType](
 	request T,
 ) (R, error) {
 	// Marshal the request
+	fmt.Printf("#### HOW OFTEN DOES THIS HAPPEN +++++####\n")
 	requestBytes, err := json.Marshal(request)
 	if err != nil {
-		return nil, fmt.Errorf("unable to JSON-marshal the request, %w", err)
+		var zero R
+		return zero, fmt.Errorf("unable to JSON-marshal the request, %w", err)
 	}
 
 	// Craft the request
@@ -125,7 +128,8 @@ func sendRequestCommon[T requestType, R responseType](
 		bytes.NewBuffer(requestBytes),
 	)
 	if err != nil {
-		return nil, fmt.Errorf("unable to create request, %w", err)
+		var zero R
+		return zero, fmt.Errorf("unable to create request, %w", err)
 	}
 
 	// Set the header content type
@@ -134,25 +138,41 @@ func sendRequestCommon[T requestType, R responseType](
 	// Execute the request
 	httpResponse, err := client.Do(req.WithContext(ctx))
 	if err != nil {
-		return nil, fmt.Errorf("unable to send request, %w", err)
+		var zero R
+		return zero, fmt.Errorf("unable to send request, %w", err)
 	}
 	defer httpResponse.Body.Close() //nolint: errcheck
 
 	// Parse the response code
 	if !isOKStatus(httpResponse.StatusCode) {
-		return nil, fmt.Errorf("invalid status code received, %d", httpResponse.StatusCode)
+		var zero R
+		return zero, fmt.Errorf("invalid status code received, %d", httpResponse.StatusCode)
 	}
 
 	// Parse the response body
 	responseBytes, err := io.ReadAll(httpResponse.Body)
 	if err != nil {
-		return nil, fmt.Errorf("unable to read response body, %w", err)
+		var zero R
+		return zero, fmt.Errorf("unable to read response body, %w", err)
 	}
 
 	var response R
 
 	if err := json.Unmarshal(responseBytes, &response); err != nil {
-		return nil, fmt.Errorf("unable to unmarshal response body, %w", err)
+		// If unmarshal fails, and if R is a slice, try to unmarshal as a single element.
+		var zero R
+		rType := reflect.TypeOf(zero)
+		if rType.Kind() == reflect.Slice {
+			elemType := rType.Elem()
+			singlePtr := reflect.New(elemType).Interface()
+			if err2 := json.Unmarshal(responseBytes, singlePtr); err2 == nil {
+				newSlice := reflect.MakeSlice(rType, 0, 1)
+				newSlice = reflect.Append(newSlice, reflect.ValueOf(singlePtr).Elem())
+				response = newSlice.Interface().(R)
+				return response, nil
+			}
+		}
+		return zero, fmt.Errorf("unable to unmarshal response body, %w", err)
 	}
 
 	return response, nil
