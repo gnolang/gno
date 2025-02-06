@@ -9,6 +9,10 @@ import (
 )
 
 func TestNoTestingStdlibImport(t *testing.T) {
+	// See: https://github.com/gnolang/gno/issues/3585
+	// The gno.land binary should not import testing stdlibs, which contain unsafe
+	// code in the respective native bindings.
+
 	res, err := exec.Command("go", "list", "-f", `{{ join .Deps "\n" }}`, ".").CombinedOutput()
 	require.NoError(t, err)
 	assert.Contains(t, string(res), "github.com/gnolang/gno/gnovm/stdlibs\n", "should contain normal stdlibs")
