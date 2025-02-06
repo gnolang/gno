@@ -14,6 +14,7 @@ func TestRecordDefaults(t *testing.T) {
 	r := storage.NewRecord()
 
 	uassert.Equal(t, uint64(0), r.ID())
+	uassert.Equal(t, "0000000", r.Key())
 	uassert.Equal(t, "Foo", r.Type())
 	uassert.Equal(t, nil, r.Fields())
 	uassert.True(t, r.IsEmpty())
@@ -120,15 +121,16 @@ func TestRecordSave(t *testing.T) {
 
 	storage := NewStorage("foo", WithDefaultIndex(nameIdx))
 	cases := []struct {
-		name        string
-		id          uint64
-		fieldValue  string
-		storageSize int
-		setup       func(Storage) Record
+		name            string
+		id              uint64
+		fieldValue, key string
+		storageSize     int
+		setup           func(Storage) Record
 	}{
 		{
 			name:        "create first record",
 			id:          1,
+			key:         "0000001",
 			fieldValue:  "foo",
 			storageSize: 1,
 			setup:       func(s Storage) Record { return s.NewRecord() },
@@ -136,6 +138,7 @@ func TestRecordSave(t *testing.T) {
 		{
 			name:        "create second record",
 			id:          2,
+			key:         "0000002",
 			fieldValue:  "bar",
 			storageSize: 2,
 			setup:       func(s Storage) Record { return s.NewRecord() },
@@ -143,6 +146,7 @@ func TestRecordSave(t *testing.T) {
 		{
 			name:        "update second record",
 			id:          2,
+			key:         "0000002",
 			fieldValue:  "baz",
 			storageSize: 2,
 			setup:       func(s Storage) Record { return storage.GetFirst("bar") },
@@ -161,6 +165,7 @@ func TestRecordSave(t *testing.T) {
 			r = storage.GetFirst(tc.fieldValue)
 			urequire.NotEqual(t, nil, r, "record found")
 			uassert.Equal(t, tc.id, r.ID())
+			uassert.Equal(t, tc.key, r.Key())
 			uassert.Equal(t, tc.fieldValue, r.MustGet(fieldName))
 		})
 	}

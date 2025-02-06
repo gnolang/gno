@@ -4,6 +4,7 @@ import (
 	"errors"
 
 	"gno.land/p/demo/avl"
+	"gno.land/p/demo/seqid"
 	"gno.land/p/moul/collection"
 )
 
@@ -12,6 +13,7 @@ var ErrUndefinedField = errors.New("undefined field")
 type (
 	ReadOnlyRecord interface {
 		ID() uint64
+		Key() string
 		Type() string
 		Fields() []string
 		IsEmpty() bool
@@ -37,6 +39,10 @@ type record struct {
 
 func (r record) ID() uint64 {
 	return r.id
+}
+
+func (r record) Key() string {
+	return seqid.ID(r.id).String()
 }
 
 func (r record) Type() string {
