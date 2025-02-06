@@ -65,7 +65,6 @@ func setupDevNodeConfig(
 	config.Logger = logger
 	config.Emitter = emitter
 	config.BalancesList = balances.List()
-	// config.PackagesModifier = pkgspath
 	config.TMConfig.RPC.ListenAddress = cfg.nodeRPCListenerAddr
 	config.NoReplay = cfg.noReplay
 	config.MaxGasPerBlock = cfg.maxGas
