@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
+	"go/parser"
 	"go/token"
 	"path/filepath"
 	"strings"
@@ -15,11 +16,13 @@ import (
 
 type remoteResolver struct {
 	*client.RPCClient // Root folder
+	fset              *token.FileSet
 }
 
 func NewRemoteResolver(cl *client.RPCClient) Resolver {
 	return &remoteResolver{
 		RPCClient: cl,
+		fset:      token.NewFileSet(),
 	}
 }
 
@@ -62,32 +65,19 @@ func (res *remoteResolver) Resolve(fset *token.FileSet, path string) (*Package, 
 		}
 		body := qres.Response.Data
 
-		if isGnoFile(fname) {
-			memfile, pkgname, err := parseGnoFile(fset, fname, body)
+		// Check package name
+		if name == "" && isGnoFile(fname) && !isTestFile(fname) {
+			// Check package name
+			f, err := parser.ParseFile(fset, fname, body, parser.PackageClauseOnly)
 			if err != nil {
 				return nil, fmt.Errorf("unable to parse file %q: %w", fname, err)
 			}
-
-			if !isTestFile(fname) {
-				if name != "" && name != pkgname {
-					return nil, fmt.Errorf("conflict package name between %q and %q", name, memfile.Name)
-				}
-				name = pkgname
-			}
-
-			memFiles = append(memFiles, memfile)
-			continue
+			name = f.Name.Name
 		}
 
-		if isValidPackageFile(fname) {
-			memFiles = append(memFiles, &gnovm.MemFile{
-				Name: fname, Body: string(body),
-			})
-
-			continue
-		}
-
-		// skip, not supported file
+		memFiles = append(memFiles, &gnovm.MemFile{
+			Name: fname, Body: string(body),
+		})
 	}
 
 	return &Package{

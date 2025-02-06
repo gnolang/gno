@@ -46,7 +46,7 @@ func TestResolver_ResolveRemote(t *testing.T) {
 		pkg, err := remoteResolver.Resolve(token.NewFileSet(), mempkg.Path)
 		require.NoError(t, err)
 		require.NotNil(t, pkg)
-		assert.Equal(t, pkg.MemPackage, mempkg)
+		assert.Equal(t, mempkg, pkg.MemPackage)
 	})
 
 	t.Run("invalid package", func(t *testing.T) {

@@ -4,12 +4,11 @@ import (
 	"fmt"
 	"go/parser"
 	"go/token"
-	"io/fs"
 	"os"
 	"path/filepath"
-	"strings"
 
 	"github.com/gnolang/gno/gnovm"
+	"github.com/gnolang/gno/gnovm/pkg/gnolang"
 	"github.com/gnolang/gno/gnovm/pkg/gnomod"
 )
 
@@ -28,122 +27,76 @@ type Package struct {
 }
 
 func ReadPackageFromDir(fset *token.FileSet, path, dir string) (*Package, error) {
-	files, err := os.ReadDir(dir)
-	if err != nil {
-		if os.IsNotExist(err) {
-			return nil, ErrResolverPackageNotFound
+	modpath := filepath.Join(dir, "gno.mod")
+	if _, err := os.Stat(modpath); err == nil {
+		draft, err := isDraftFile(modpath)
+		if err != nil {
+			return nil, err
 		}
 
-		return nil, fmt.Errorf("unable to read dir %q: %w", dir, err)
+		// Skip draft package
+		// XXX: We could potentially do that in a middleware, but doing this
+		// here avoid to potentially parse broken files
+		if draft {
+			return nil, ErrResolverPackageSkip
+		}
 	}
 
-	draft, err := isDraftPackages(dir, files)
-	if err != nil {
+	mempkg, err := gnolang.ReadMemPackage(dir, path)
+	switch {
+	case err == nil: // ok
+	case os.IsNotExist(err):
+		return nil, ErrResolverPackageNotFound
+	default:
+		return nil, fmt.Errorf("unable to read package %q: %w", dir, err)
+	}
+
+	if err := validateMemPackage(fset, mempkg); err != nil {
 		return nil, err
 	}
 
-	// Skip draft package
-	// XXX: We could potentially do that in a middleware, but doing this
-	// here avoid to potentially parse broken files
-	if draft {
-		return nil, ErrResolverPackageSkip
-	}
-
-	var name string
-	memFiles := []*gnovm.MemFile{}
-	for _, file := range files {
-		if file.IsDir() {
-			continue
-		}
-
-		fname := file.Name()
-		filepath := filepath.Join(dir, fname)
-		body, err := os.ReadFile(filepath)
-		if err != nil {
-			return nil, fmt.Errorf("unable to read file %q: %w", filepath, err)
-		}
-
-		if isGnoFile(fname) {
-			memfile, pkgname, err := parseGnoFile(fset, fname, body)
-			if err != nil {
-				return nil, fmt.Errorf("unable to parse file %q: %w", fname, err)
-			}
-
-			if !isTestFile(fname) {
-				if name != "" && name != pkgname {
-					return nil, fmt.Errorf("conflict package name between %q and %q", name, memfile.Name)
-				}
-				name = pkgname
-			}
-
-			memFiles = append(memFiles, memfile)
-			continue
-		}
-
-		if isValidPackageFile(fname) {
-			memFiles = append(memFiles, &gnovm.MemFile{
-				Name: fname, Body: string(body),
-			})
-
-			continue
-		}
-
-		// skip, not supported file
-	}
-
-	// Empty package, skipping
-	if name == "" {
-		return nil, fmt.Errorf("empty package: %w", ErrResolverPackageSkip)
-	}
-
 	return &Package{
-		MemPackage: gnovm.MemPackage{
-			Name:  name,
-			Path:  path,
-			Files: memFiles,
-		},
-		Location: dir,
-		Kind:     PackageKindFS,
+		MemPackage: *mempkg,
+		Location:   dir,
+		Kind:       PackageKindFS,
 	}, nil
 }
 
-func isDraftPackages(dir string, files []fs.DirEntry) (bool, error) {
-	for _, file := range files {
-		fname := file.Name()
-		if !isModFile(fname) {
+func validateMemPackage(fset *token.FileSet, mempkg *gnovm.MemPackage) error {
+	if mempkg.IsEmpty() {
+		return fmt.Errorf("empty package: %w", ErrResolverPackageSkip)
+	}
+
+	// Validate package name
+	for _, file := range mempkg.Files {
+		if !isGnoFile(file.Name) && isTestFile(file.Name) {
 			continue
 		}
 
-		filepath := filepath.Join(dir, fname)
-		body, err := os.ReadFile(filepath)
+		f, err := parser.ParseFile(fset, file.Name, file.Body, parser.PackageClauseOnly)
 		if err != nil {
-			return false, fmt.Errorf("unable to read file %q: %w", filepath, err)
+			return fmt.Errorf("unable to parse file %q: %w", file.Name, err)
 		}
 
-		mod, err := gnomod.Parse(fname, body)
-		if err != nil {
-			return false, fmt.Errorf("unable to parse `gno.mod`: %w", err)
+		if f.Name.Name != mempkg.Name {
+			return fmt.Errorf("%q package name conflict, expected %q found %q",
+				mempkg.Name, mempkg.Path, f.Name.Name)
 		}
-
-		return mod.Draft, nil
 	}
 
-	return false, nil
+	return nil
 }
 
-func parseGnoFile(fset *token.FileSet, fname string, body []byte) (*gnovm.MemFile, string, error) {
-	f, err := parser.ParseFile(fset, fname, body, parser.PackageClauseOnly)
+func isDraftFile(modpath string) (bool, error) {
+	modfile, err := os.ReadFile(modpath)
 	if err != nil {
-		return nil, "", fmt.Errorf("unable to parse file %q: %w", fname, err)
+		return false, fmt.Errorf("unable to read file %q: %w", modpath, err)
 	}
 
-	pkgname := f.Name.Name
-	if isTestFile(fname) {
-		pkgname, _, _ = strings.Cut(pkgname, "_")
+	mod, err := gnomod.Parse(modpath, modfile)
+	if err != nil {
+		return false, fmt.Errorf("unable to parse `gno.mod`: %w", err)
 	}
 
-	return &gnovm.MemFile{
-		Name: fname,
-		Body: string(body),
-	}, f.Name.Name, nil
+	return mod.Draft, nil
 }

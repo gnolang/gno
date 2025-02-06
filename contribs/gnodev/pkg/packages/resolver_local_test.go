@@ -20,7 +20,7 @@ func TestResolverLocal_Resolve(t *testing.T) {
 		pkg, err := localResolver.Resolve(token.NewFileSet(), anotherPath)
 		require.NoError(t, err)
 		require.NotNil(t, pkg)
-		require.Equal(t, pkg.Name, "a")
+		require.Equal(t, pkg.Name, "aa")
 	})
 
 	t.Run("invalid package", func(t *testing.T) {

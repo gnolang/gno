@@ -15,8 +15,8 @@ func TestLoader_Glob(t *testing.T) {
 	}{
 		{"abc.xy/pkg/*", []string{TestdataPkgA, TestdataPkgB, TestdataPkgC}},
 		{"abc.xy/nested/*", []string{TestdataNestedA}},
-		{"abc.xy/**/c", []string{TestdataNestedC, TestdataPkgA, TestdataPkgB, TestdataPkgC}},
-		{"abc.xy/*/a", []string{TestdataNestedA, TestdataPkgA}},
+		{"abc.xy/**/cc", []string{TestdataNestedC, TestdataPkgA, TestdataPkgB, TestdataPkgC}},
+		{"abc.xy/*/aa", []string{TestdataNestedA, TestdataPkgA}},
 	}
 
 	fsresolver := NewFSResolver("./testdata")

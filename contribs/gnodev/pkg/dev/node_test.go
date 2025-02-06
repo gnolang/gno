@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	mock "github.com/gnolang/gno/contribs/gnodev/internal/mock"
+	mock "github.com/gnolang/gno/contribs/gnodev/internal/mock/emitter"
 	"github.com/gnolang/gno/contribs/gnodev/pkg/events"
 	"github.com/gnolang/gno/contribs/gnodev/pkg/packages"
 	"github.com/gnolang/gno/gno.land/pkg/gnoclient"
