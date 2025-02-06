@@ -139,7 +139,7 @@ func TestMustGetFunctions(t *testing.T) {
 
 	token, _ := grc20.NewToken("Must Token", "MUST", 6)
 	RegisterToken(token.Getter(), "must_token")
-	
+
 	retrievedToken := MustGetToken("gno.land/r/matijamarjanovic/home.must_token")
 	uassert.Equal(t, "Must Token", retrievedToken.GetName(), "Token name should match")
 
@@ -192,5 +192,3 @@ func TestGetAddressForUsername(t *testing.T) {
 	addr = getAddressForUsername(invalidInput)
 	uassert.Equal(t, "", addr.String(), "Should return empty address for invalid input")
 }
-
-
