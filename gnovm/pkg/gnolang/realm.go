@@ -624,6 +624,7 @@ func (rlm *Realm) incRefCreatedDescendants(store Store, oo Object) {
 	// package block not real now.
 	// TODO: correct this
 	// TODO: avoid duplicate check with DidUpdate...
+	// maybe a flag: CrossRealm, and guard
 	_, ok1 := oo.(*PackageValue)
 	_, ok2 := oo.(*Block) // package block
 	if !ok1 && !ok2 {
