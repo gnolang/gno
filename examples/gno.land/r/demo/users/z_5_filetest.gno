@@ -9,21 +9,24 @@ import (
 	"gno.land/r/demo/users"
 )
 
-const admin = std.Address("g1u7y667z64x2h7vc6fmpcprgey4ck233jaww9zq")
+const admin = std.Address("g1manfred47kzduec920z88wfr64ylksmdcedlf5")
 
 func main() {
 	caller := std.GetOrigCaller() // main
 	users.Register("", "gnouser", "my profile")
 	// as admin, grant invites to gnouser
 	std.TestSetOrigCaller(admin)
+	std.TestSetRealm(std.NewUserRealm(admin))
 	users.GrantInvites(caller.String() + ":1")
 	// switch back to caller
 	std.TestSetOrigCaller(caller)
+	std.TestSetRealm(std.NewUserRealm(caller))
 	// invite another addr
 	test1 := testutils.TestAddress("test1")
 	users.Invite(test1.String())
 	// switch to test1
 	std.TestSetOrigCaller(test1)
+	std.TestSetRealm(std.NewUserRealm(test1))
 	std.TestSetOrigSend(std.Coins{{"dontcare", 1}}, nil)
 	users.Register(caller, "satoshi", "my other profile")
 	println(users.Render(""))
@@ -38,7 +41,7 @@ func main() {
 }
 
 // Output:
-// * [archives](/r/demo/users:archives)
+//  * [archives](/r/demo/users:archives)
 //  * [demo](/r/demo/users:demo)
 //  * [gno](/r/demo/users:gno)
 //  * [gnoland](/r/demo/users:gnoland)

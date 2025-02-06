@@ -6,19 +6,20 @@ import (
 
 	"gno.land/p/demo/grc/grc20"
 	"gno.land/p/demo/ufmt"
-	pusers "gno.land/p/demo/users"
-	"gno.land/r/demo/users"
+
+	"gno.land/r/demo/grc20reg"
 )
 
-var (
-	banker *grc20.Banker = grc20.NewBanker("wrapped GNOT", "wugnot", 0)
-	Token                = banker.Token()
-)
+var Token, adm = grc20.NewToken("wrapped GNOT", "wugnot", 0)
 
 const (
 	ugnotMinDeposit  uint64 = 1000
 	wugnotMinDeposit uint64 = 1
 )
+
+func init() {
+	grc20reg.Register(Token.Getter(), "")
+}
 
 func Deposit() {
 	caller := std.PrevRealm().Addr()
@@ -26,7 +27,8 @@ func Deposit() {
 	amount := sent.AmountOf("ugnot")
 
 	require(uint64(amount) >= ugnotMinDeposit, ufmt.Sprintf("Deposit below minimum: %d/%d ugnot.", amount, ugnotMinDeposit))
-	checkErr(banker.Mint(caller, uint64(amount)))
+
+	checkErr(adm.Mint(caller, uint64(amount)))
 }
 
 func Withdraw(amount uint64) {
@@ -41,7 +43,7 @@ func Withdraw(amount uint64) {
 	stdBanker := std.GetBanker(std.BankerTypeRealmSend)
 	send := std.Coins{{"ugnot", int64(amount)}}
 	stdBanker.SendCoins(pkgaddr, caller, send)
-	checkErr(banker.Burn(caller, amount))
+	checkErr(adm.Burn(caller, amount))
 }
 
 func Render(path string) string {
@@ -50,7 +52,7 @@ func Render(path string) string {
 
 	switch {
 	case path == "":
-		return banker.RenderHome()
+		return Token.RenderHome()
 	case c == 2 && parts[0] == "balance":
 		owner := std.Address(parts[1])
 		balance := Token.BalanceOf(owner)
@@ -62,31 +64,27 @@ func Render(path string) string {
 
 func TotalSupply() uint64 { return Token.TotalSupply() }
 
-func BalanceOf(owner pusers.AddressOrName) uint64 {
-	ownerAddr := users.Resolve(owner)
-	return Token.BalanceOf(ownerAddr)
+func BalanceOf(owner std.Address) uint64 {
+	return Token.BalanceOf(owner)
 }
 
-func Allowance(owner, spender pusers.AddressOrName) uint64 {
-	ownerAddr := users.Resolve(owner)
-	spenderAddr := users.Resolve(spender)
-	return Token.Allowance(ownerAddr, spenderAddr)
+func Allowance(owner, spender std.Address) uint64 {
+	return Token.Allowance(owner, spender)
 }
 
-func Transfer(to pusers.AddressOrName, amount uint64) {
-	toAddr := users.Resolve(to)
-	checkErr(Token.Transfer(toAddr, amount))
+func Transfer(to std.Address, amount uint64) {
+	userTeller := Token.CallerTeller()
+	checkErr(userTeller.Transfer(to, amount))
 }
 
-func Approve(spender pusers.AddressOrName, amount uint64) {
-	spenderAddr := users.Resolve(spender)
-	checkErr(Token.Approve(spenderAddr, amount))
+func Approve(spender std.Address, amount uint64) {
+	userTeller := Token.CallerTeller()
+	checkErr(userTeller.Approve(spender, amount))
 }
 
-func TransferFrom(from, to pusers.AddressOrName, amount uint64) {
-	fromAddr := users.Resolve(from)
-	toAddr := users.Resolve(to)
-	checkErr(Token.TransferFrom(fromAddr, toAddr, amount))
+func TransferFrom(from, to std.Address, amount uint64) {
+	userTeller := Token.CallerTeller()
+	checkErr(userTeller.TransferFrom(from, to, amount))
 }
 
 func require(condition bool, msg string) {

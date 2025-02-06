@@ -92,7 +92,7 @@ func execMakeRun(cfg *MakeRunCfg, args []string, cmdio commands.IO) error {
 			return fmt.Errorf("could not read source path: %q, %w", sourcePath, err)
 		}
 		if info.IsDir() {
-			memPkg = gno.ReadMemPackage(sourcePath, "")
+			memPkg = gno.MustReadMemPackage(sourcePath, "")
 		} else { // is file
 			b, err := os.ReadFile(sourcePath)
 			if err != nil {

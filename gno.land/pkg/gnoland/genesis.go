@@ -12,16 +12,23 @@ import (
 	bft "github.com/gnolang/gno/tm2/pkg/bft/types"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
 	osm "github.com/gnolang/gno/tm2/pkg/os"
+	"github.com/gnolang/gno/tm2/pkg/sdk/auth"
 	"github.com/gnolang/gno/tm2/pkg/std"
+	"github.com/pelletier/go-toml"
 )
 
+const initGasPrice = "1ugnot/1000gas"
+
 // LoadGenesisBalancesFile loads genesis balances from the provided file path.
-func LoadGenesisBalancesFile(path string) ([]Balance, error) {
+func LoadGenesisBalancesFile(path string) (Balances, error) {
 	// each balance is in the form: g1xxxxxxxxxxxxxxxx=100000ugnot
-	content := osm.MustReadFile(path)
+	content, err := osm.ReadFile(path)
+	if err != nil {
+		return nil, err
+	}
 	lines := strings.Split(string(content), "\n")
 
-	balances := make([]Balance, 0, len(lines))
+	balances := make(Balances, len(lines))
 	for _, line := range lines {
 		line = strings.TrimSpace(line)
 
@@ -49,13 +56,49 @@ func LoadGenesisBalancesFile(path string) ([]Balance, error) {
 			return nil, fmt.Errorf("invalid balance coins %s: %w", parts[1], err)
 		}
 
-		balances = append(balances, Balance{
-			Address: addr,
-			Amount:  coins,
-		})
+		balances.Set(addr, coins)
 	}
 
 	return balances, nil
+}
+
+// LoadGenesisParamsFile loads genesis params from the provided file path.
+func LoadGenesisParamsFile(path string) ([]Param, error) {
+	// each param is in the form: key.kind=value
+	content, err := osm.ReadFile(path)
+	if err != nil {
+		return nil, err
+	}
+
+	m := map[string] /*category*/ map[string] /*key*/ map[string] /*kind*/ interface{} /*value*/ {}
+	err = toml.Unmarshal(content, &m)
+	if err != nil {
+		return nil, err
+	}
+
+	params := make([]Param, 0)
+	for category, keys := range m {
+		for key, kinds := range keys {
+			for kind, val := range kinds {
+				param := Param{
+					key:  category + "." + key,
+					kind: kind,
+				}
+				switch kind {
+				case "uint64": // toml
+					param.value = uint64(val.(int64))
+				default:
+					param.value = val
+				}
+				if err := param.Verify(); err != nil {
+					return nil, err
+				}
+				params = append(params, param)
+			}
+		}
+	}
+
+	return params, nil
 }
 
 // LoadGenesisTxsFile loads genesis transactions from the provided file path.
@@ -63,7 +106,10 @@ func LoadGenesisBalancesFile(path string) ([]Balance, error) {
 func LoadGenesisTxsFile(path string, chainID string, genesisRemote string) ([]TxWithMetadata, error) {
 	txs := make([]TxWithMetadata, 0)
 
-	txsBz := osm.MustReadFile(path)
+	txsBz, err := osm.ReadFile(path)
+	if err != nil {
+		return nil, err
+	}
 	txsLines := strings.Split(string(txsBz), "\n")
 	for _, txLine := range txsLines {
 		if txLine == "" {
@@ -122,7 +168,7 @@ func LoadPackage(pkg gnomod.Pkg, creator bft.Address, fee std.Fee, deposit std.C
 	var tx std.Tx
 
 	// Open files in directory as MemPackage.
-	memPkg := gno.ReadMemPackage(pkg.Dir, pkg.Name)
+	memPkg := gno.MustReadMemPackage(pkg.Dir, pkg.Name)
 	err := memPkg.Validate()
 	if err != nil {
 		return tx, fmt.Errorf("invalid package: %w", err)
@@ -140,4 +186,21 @@ func LoadPackage(pkg gnomod.Pkg, creator bft.Address, fee std.Fee, deposit std.C
 	tx.Signatures = make([]std.Signature, len(tx.GetSigners()))
 
 	return tx, nil
+}
+
+func DefaultGenState() GnoGenesisState {
+	authGen := auth.DefaultGenesisState()
+	gp, err := std.ParseGasPrice(initGasPrice)
+	if err != nil {
+		panic(err)
+	}
+	authGen.Params.InitialGasPrice = gp
+
+	gs := GnoGenesisState{
+		Balances: []Balance{},
+		Txs:      []TxWithMetadata{},
+		Auth:     authGen,
+	}
+
+	return gs
 }

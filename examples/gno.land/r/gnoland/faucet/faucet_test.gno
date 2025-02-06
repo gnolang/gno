@@ -1,4 +1,4 @@
-package faucet
+package faucet_test
 
 import (
 	"std"
@@ -28,7 +28,7 @@ func TestPackage(t *testing.T) {
 	)
 	// deposit 1000gnot to faucet contract
 	std.TestIssueCoins(faucetaddr, std.Coins{{"ugnot", 1000000000}})
-	assertBalance(t, faucetaddr, 1200000000)
+	assertBalance(t, faucetaddr, 1000000000)
 
 	// by default, balance is empty, and as a user I cannot call Transfer, or Admin commands.
 
@@ -43,7 +43,7 @@ func TestPackage(t *testing.T) {
 	// as an admin, add the controller to contract and deposit more 2000gnot to contract
 	std.TestSetOrigCaller(adminaddr)
 	assertNoErr(t, faucet.AdminAddController(controlleraddr1))
-	assertBalance(t, faucetaddr, 1200000000)
+	assertBalance(t, faucetaddr, 1000000000)
 
 	// now, send some tokens as controller.
 	std.TestSetOrigCaller(controlleraddr1)
@@ -51,7 +51,7 @@ func TestPackage(t *testing.T) {
 	assertBalance(t, test1addr, 1000000)
 	assertNoErr(t, faucet.Transfer(test1addr, 1000000))
 	assertBalance(t, test1addr, 2000000)
-	assertBalance(t, faucetaddr, 1198000000)
+	assertBalance(t, faucetaddr, 998000000)
 
 	// remove controller
 	// as an admin, remove controller

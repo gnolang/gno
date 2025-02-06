@@ -1,0 +1,70 @@
+package haystack
+
+import (
+	"encoding/hex"
+	"std"
+	"testing"
+
+	"gno.land/p/demo/testutils"
+	"gno.land/p/demo/urequire"
+	"gno.land/p/n2p5/haystack"
+	"gno.land/p/n2p5/haystack/needle"
+)
+
+func TestHaystack(t *testing.T) {
+	t.Parallel()
+	// needleHex returns a hex-encoded needle and its hash for a given index.
+	genNeedleHex := func(i int) (string, string) {
+		b := make([]byte, needle.PayloadLength)
+		b[0] = byte(i)
+		n, _ := needle.New(b)
+		return hex.EncodeToString(n.Bytes()), hex.EncodeToString(n.Hash())
+	}
+
+	u1 := testutils.TestAddress("u1")
+	u2 := testutils.TestAddress("u2")
+
+	t.Run("Add", func(t *testing.T) {
+		t.Parallel()
+
+		n1, _ := genNeedleHex(1)
+		n2, _ := genNeedleHex(2)
+		n3, _ := genNeedleHex(3)
+
+		std.TestSetOrigCaller(u1)
+		urequire.NotPanics(t, func() { Add(n1) })
+		urequire.PanicsWithMessage(t,
+			haystack.ErrorDuplicateNeedle.Error(),
+			func() {
+				Add(n1)
+			})
+		std.TestSetOrigCaller(u2)
+		urequire.NotPanics(t, func() { Add(n2) })
+		urequire.NotPanics(t, func() { Add(n3) })
+	})
+
+	t.Run("Get", func(t *testing.T) {
+		t.Parallel()
+
+		n1, h1 := genNeedleHex(4)
+		_, h2 := genNeedleHex(5)
+
+		std.TestSetOrigCaller(u1)
+		urequire.NotPanics(t, func() { Add(n1) })
+		urequire.NotPanics(t, func() {
+			result := Get(h1)
+			urequire.Equal(t, n1, result)
+		})
+
+		std.TestSetOrigCaller(u2)
+		urequire.NotPanics(t, func() {
+			result := Get(h1)
+			urequire.Equal(t, n1, result)
+		})
+		urequire.PanicsWithMessage(t,
+			haystack.ErrorNeedleNotFound.Error(),
+			func() {
+				Get(h2)
+			})
+	})
+}

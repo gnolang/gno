@@ -58,11 +58,11 @@ func TestKeyManagement(t *testing.T) {
 	has, err = cstore.HasByName(n3)
 	require.NoError(t, err)
 	require.False(t, has)
-	has, err = cstore.HasByAddress(toAddr(i2))
+	has, err = cstore.HasByAddress(i2.GetPubKey().Address())
 	require.NoError(t, err)
 	require.True(t, has)
 	// Also check with HasByNameOrAddress
-	has, err = cstore.HasByNameOrAddress(crypto.AddressToBech32(toAddr(i2)))
+	has, err = cstore.HasByNameOrAddress(crypto.AddressToBech32(i2.GetPubKey().Address()))
 	require.NoError(t, err)
 	require.True(t, has)
 	addr, err := crypto.AddressFromBech32("g1frtkxv37nq7arvyz5p0mtjqq7hwuvd4dnt892p")
@@ -149,10 +149,11 @@ func TestSignVerify(t *testing.T) {
 	i2, err := cstore.CreateAccount(n2, mn2, bip39Passphrase, p2, 0, 0)
 	require.Nil(t, err)
 
+	i3Key := ed25519.GenPrivKey()
+
 	// Import a public key
-	armor, err := cstore.ExportPubKey(n2)
-	require.Nil(t, err)
-	cstore.ImportPubKey(n3, armor)
+	_, err = cstore.CreateOffline(n3, i3Key.PubKey())
+	require.NoError(t, err)
 	i3, err := cstore.GetByName(n3)
 	require.NoError(t, err)
 	require.Equal(t, i3.GetName(), n3)
@@ -174,6 +175,7 @@ func TestSignVerify(t *testing.T) {
 	s21, pub2, err := cstore.Sign(n2, p2, d1)
 	require.Nil(t, err)
 	require.Equal(t, i2.GetPubKey(), pub2)
+	require.Equal(t, i3.GetPubKey(), i3Key.PubKey())
 
 	s22, pub2, err := cstore.Sign(n2, p2, d2)
 	require.Nil(t, err)
@@ -218,39 +220,6 @@ func assertPassword(t *testing.T, cstore Keybase, name, pass, badpass string) {
 	require.Nil(t, err, "%+v", err)
 }
 
-// TestExportImport tests exporting and importing
-func TestExportImport(t *testing.T) {
-	t.Parallel()
-
-	// make the storage with reasonable defaults
-	cstore := NewInMemory()
-
-	mn1 := `lounge napkin all odor tilt dove win inject sleep jazz uncover traffic hint require cargo arm rocket round scan bread report squirrel step lake`
-	bip39Passphrase := ""
-
-	info, err := cstore.CreateAccount("john", mn1, bip39Passphrase, "secretcpw", 0, 0)
-	require.NoError(t, err)
-	require.Equal(t, info.GetName(), "john")
-
-	john, err := cstore.GetByName("john")
-	require.NoError(t, err)
-	require.Equal(t, info.GetName(), "john")
-	johnAddr := info.GetPubKey().Address()
-
-	armor, err := cstore.Export("john")
-	require.NoError(t, err)
-
-	err = cstore.Import("john2", armor)
-	require.NoError(t, err)
-
-	john2, err := cstore.GetByName("john2")
-	require.NoError(t, err)
-
-	require.Equal(t, john.GetPubKey().Address(), johnAddr)
-	require.Equal(t, john.GetName(), "john")
-	require.Equal(t, john, john2)
-}
-
 func TestExportImportPubKey(t *testing.T) {
 	t.Parallel()
 
@@ -271,36 +240,28 @@ func TestExportImportPubKey(t *testing.T) {
 	require.Equal(t, john.GetName(), "john")
 	require.Equal(t, john.GetPubKey().Address(), addr)
 
-	// Export the public key only
-	armor, err := cstore.ExportPubKey("john")
-	require.NoError(t, err)
 	// Import it under a different name
-	err = cstore.ImportPubKey("john-pubkey-only", armor)
+	_, err = cstore.CreateOffline("john-pubkey-only", john.GetPubKey())
 	require.NoError(t, err)
 	// Ensure consistency
 	john2, err := cstore.GetByName("john-pubkey-only")
 	require.NoError(t, err)
 	// Compare the public keys
 	require.True(t, john.GetPubKey().Equals(john2.GetPubKey()))
-	// Ensure the original key hasn't changed
-	john, err = cstore.GetByName("john")
+	// Ensure that storing with the address of "john-pubkey-only" removed the entry for "john"
+	has, err := cstore.HasByName("john")
 	require.NoError(t, err)
-	require.Equal(t, john.GetPubKey().Address(), addr)
-	require.Equal(t, john.GetName(), "john")
-
-	// Ensure keys cannot be overwritten
-	err = cstore.ImportPubKey("john-pubkey-only", armor)
-	require.NotNil(t, err)
+	require.False(t, has)
 }
 
-// TestAdvancedKeyManagement verifies rotate, import, export functionality
+// TestAdvancedKeyManagement verifies rotate functionality
 func TestAdvancedKeyManagement(t *testing.T) {
 	t.Parallel()
 
 	// make the storage with reasonable defaults
 	cstore := NewInMemory()
 
-	n1, n2 := "old-name", "new name"
+	n1 := "old-name"
 	p1, p2 := "1234", "foobar"
 	mn1 := `lounge napkin all odor tilt dove win inject sleep jazz uncover traffic hint require cargo arm rocket round scan bread report squirrel step lake`
 	bip39Passphrase := ""
@@ -321,26 +282,6 @@ func TestAdvancedKeyManagement(t *testing.T) {
 	require.NoError(t, err)
 	// p2 is now the proper one!
 	assertPassword(t, cstore, n1, p2, p1)
-
-	// exporting requires the proper name and passphrase
-	_, err = cstore.Export(n1 + ".notreal")
-	require.NotNil(t, err)
-	_, err = cstore.Export(" " + n1)
-	require.NotNil(t, err)
-	_, err = cstore.Export(n1 + " ")
-	require.NotNil(t, err)
-	_, err = cstore.Export("")
-	require.NotNil(t, err)
-	exported, err := cstore.Export(n1)
-	require.Nil(t, err, "%+v", err)
-
-	// import succeeds
-	err = cstore.Import(n2, exported)
-	require.NoError(t, err)
-
-	// second import fails
-	err = cstore.Import(n2, exported)
-	require.NotNil(t, err)
 }
 
 // TestSeedPhrase verifies restoring from a seed phrase
@@ -421,6 +362,92 @@ func ExampleNew() {
 	// signed by Bob
 }
 
-func toAddr(info Info) crypto.Address {
-	return info.GetPubKey().Address()
+func TestKeybase_ImportPrivKey(t *testing.T) {
+	t.Parallel()
+
+	t.Run("unable to overwrite key", func(t *testing.T) {
+		t.Parallel()
+
+		var (
+			cstore      = NewInMemory()
+			privKey     = ed25519.GenPrivKey()
+			name        = "key-name"
+			encryptPass = "password"
+		)
+
+		// Import the private key
+		require.NoError(t, cstore.ImportPrivKey(name, privKey, encryptPass))
+
+		// Attempt to import a key with the same name
+		assert.ErrorIs(
+			t,
+			cstore.ImportPrivKey(name, ed25519.GenPrivKey(), encryptPass),
+			errCannotOverwrite,
+		)
+	})
+
+	t.Run("valid key import", func(t *testing.T) {
+		t.Parallel()
+
+		var (
+			cstore      = NewInMemory()
+			privKey     = ed25519.GenPrivKey()
+			name        = "key-name"
+			encryptPass = "password"
+		)
+
+		// Import the private key
+		require.NoError(t, cstore.ImportPrivKey(name, privKey, encryptPass))
+
+		// Make sure the key is present
+		info, err := cstore.GetByName(name)
+		require.NoError(t, err)
+
+		assert.Equal(t, name, info.GetName())
+		assert.True(t, privKey.PubKey().Equals(info.GetPubKey()))
+	})
+}
+
+func TestKeybase_ExportPrivKey(t *testing.T) {
+	t.Parallel()
+
+	t.Run("missing key", func(t *testing.T) {
+		t.Parallel()
+
+		var (
+			cstore      = NewInMemory()
+			name        = "key-name"
+			decryptPass = "password"
+		)
+
+		keys, err := cstore.List()
+		require.NoError(t, err)
+
+		// Make sure the keybase is empty
+		require.Empty(t, keys)
+
+		// Attempt to export a missing key
+		_, err = cstore.ExportPrivKey(name, decryptPass)
+		assert.True(t, keyerror.IsErrKeyNotFound(err))
+	})
+
+	t.Run("valid key export", func(t *testing.T) {
+		t.Parallel()
+
+		var (
+			cstore      = NewInMemory()
+			name        = "key-name"
+			key         = ed25519.GenPrivKey()
+			encryptPass = "password"
+		)
+
+		// Add the key
+		require.NoError(t, cstore.ImportPrivKey(name, key, encryptPass))
+
+		// Export the key
+		exportedKey, err := cstore.ExportPrivKey(name, encryptPass)
+		require.NoError(t, err)
+
+		assert.True(t, key.Equals(exportedKey))
+	})
 }

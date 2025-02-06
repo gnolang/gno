@@ -8,7 +8,9 @@ import (
 
 	"gno.land/r/demo/art/gnoface"
 	"gno.land/r/demo/art/millipede"
+	"gno.land/r/demo/mirror"
 	"gno.land/r/leon/config"
+	"gno.land/r/leon/hof"
 )
 
 var (
@@ -17,7 +19,24 @@ var (
 	abtMe      [2]string
 )
 
+func Render(path string) string {
+	out := "# Leon's Homepage\n\n"
+
+	out += renderAboutMe()
+	out += renderBlogPosts()
+	out += "\n\n"
+	out += renderArt()
+	out += "\n\n"
+	out += config.Banner()
+	out += "\n\n"
+
+	return out
+}
+
 func init() {
+	hof.Register()
+	mirror.Register(std.CurrentRealm().PkgPath(), Render)
+
 	pfp = "https://i.imgflip.com/91vskx.jpg"
 	pfpCaption = "[My favourite painting & pfp](https://en.wikipedia.org/wiki/Wanderer_above_the_Sea_of_Fog)"
 	abtMe = [2]string{
@@ -28,13 +47,12 @@ life-long learner, and sharer of knowledge.`,
 My contributions to gno.land can mainly be found 
 [here](https://github.com/gnolang/gno/issues?q=sort:updated-desc+author:leohhhn).
 
-TODO import r/gh
-`,
+TODO import r/gh`,
 	}
 }
 
 func UpdatePFP(url, caption string) {
-	if !isAuthorized(std.PrevRealm().Addr()) {
+	if !config.IsAuthorized(std.PrevRealm().Addr()) {
 		panic(config.ErrUnauthorized)
 	}
 
@@ -43,23 +61,12 @@ func UpdatePFP(url, caption string) {
 }
 
 func UpdateAboutMe(col1, col2 string) {
-	if !isAuthorized(std.PrevRealm().Addr()) {
+	if !config.IsAuthorized(std.PrevRealm().Addr()) {
 		panic(config.ErrUnauthorized)
 	}
 
 	abtMe[0] = col1
 	abtMe[1] = col2
-}
-
-func Render(path string) string {
-	out := "# Leon's Homepage\n\n"
-
-	out += renderAboutMe()
-	out += renderBlogPosts()
-	out += "\n\n"
-	out += renderArt()
-
-	return out
 }
 
 func renderBlogPosts() string {
@@ -124,8 +131,4 @@ func renderMillipede() string {
 	out += "</div>\n\n"
 
 	return out
-}
-
-func isAuthorized(addr std.Address) bool {
-	return addr == config.Address() || addr == config.Backup()
 }

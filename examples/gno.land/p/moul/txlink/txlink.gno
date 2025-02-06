@@ -5,7 +5,7 @@
 // flexible arguments, allowing users to build dynamic links that integrate
 // seamlessly with various Gno clients.
 //
-// The primary function, URL, is designed to produce markdown links for
+// The primary function, Call, is designed to produce markdown links for
 // transaction functions in the current "relative realm". By specifying a custom
 // Realm, you can generate links that either use the current realm path or a
 // fully qualified path for another realm.
@@ -15,16 +15,17 @@
 package txlink
 
 import (
+	"net/url"
 	"std"
 	"strings"
 )
 
 const chainDomain = "gno.land" // XXX: std.ChainDomain (#2911)
 
-// URL returns a URL for the specified function with optional key-value
+// Call returns a URL for the specified function with optional key-value
 // arguments, for the current realm.
-func URL(fn string, args ...string) string {
-	return Realm("").URL(fn, args...)
+func Call(fn string, args ...string) string {
+	return Realm("").Call(fn, args...)
 }
 
 // Realm represents a specific realm for generating tx links.
@@ -48,27 +49,29 @@ func (r Realm) prefix() string {
 	return "https://" + string(r)
 }
 
-// URL returns a URL for the specified function with optional key-value
+// Call returns a URL for the specified function with optional key-value
 // arguments.
-func (r Realm) URL(fn string, args ...string) string {
-	// Start with the base query
-	url := r.prefix() + "$help&func=" + fn
+func (r Realm) Call(fn string, args ...string) string {
+	if len(args) == 0 {
+		return r.prefix() + "$help&func=" + fn
+	}
+
+	// Create url.Values to properly encode parameters.
+	// But manage &func=fn as a special case to keep it as the first argument.
+	values := url.Values{}
 
 	// Check if args length is even
 	if len(args)%2 != 0 {
-		// If not even, we can choose to handle the error here.
-		// For example, we can just return the URL without appending
-		// more args.
-		return url
+		values.Add("error", "odd number of arguments")
+	} else {
+		// Add key-value pairs to values
+		for i := 0; i < len(args); i += 2 {
+			key := args[i]
+			value := args[i+1]
+			values.Add(key, value)
+		}
 	}
 
-	// Append key-value pairs to the URL
-	for i := 0; i < len(args); i += 2 {
-		key := args[i]
-		value := args[i+1]
-		// XXX: escape keys and args
-		url += "&" + key + "=" + value
-	}
-
-	return url
+	// Build the base URL and append encoded query parameters
+	return r.prefix() + "$help&func=" + fn + "&" + values.Encode()
 }

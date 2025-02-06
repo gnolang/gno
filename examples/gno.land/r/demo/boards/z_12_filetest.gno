@@ -4,6 +4,9 @@ package boards_test
 // SEND: 200000000ugnot
 
 import (
+	"std"
+
+	"gno.land/p/demo/testutils"
 	"gno.land/r/demo/boards"
 	"gno.land/r/demo/users"
 )
@@ -15,6 +18,8 @@ var (
 )
 
 func init() {
+	caller := testutils.TestAddress("caller")
+	std.TestSetRealm(std.NewUserRealm(caller))
 	users.Register("", "gnouser", "my profile")
 
 	bid1 = boards.CreateBoard("test_board1")
@@ -23,6 +28,8 @@ func init() {
 }
 
 func main() {
+	caller := testutils.TestAddress("caller")
+	std.TestSetRealm(std.NewUserRealm(caller))
 	rid := boards.CreateRepost(bid1, pid, "", "Check this out", bid2)
 	println(rid)
 	println(boards.Render("test_board2"))
@@ -37,4 +44,6 @@ func main() {
 // ## [First Post (title)](/r/demo/boards:test_board1/1)
 //
 // Body of the first post. (body)
-// \- [@gnouser](/r/demo/users:gnouser), [2009-02-13 11:31pm UTC](/r/demo/boards:test_board1/1) \[[x](/r/demo/boards$help&func=DeletePost&bid=1&threadid=1&postid=1)] (0 replies) (1 reposts)
+// \- [@gnouser](/r/demo/users:gnouser), [2009-02-13 11:31pm UTC](/r/demo/boards:test_board1/1) \[[x](/r/demo/boards$help&func=DeletePost&bid=1&postid=1&threadid=1)] (0 replies) (1 reposts)
+//
+//
