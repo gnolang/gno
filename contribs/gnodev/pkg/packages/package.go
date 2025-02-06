@@ -69,7 +69,7 @@ func validateMemPackage(fset *token.FileSet, mempkg *gnovm.MemPackage) error {
 
 	// Validate package name
 	for _, file := range mempkg.Files {
-		if !isGnoFile(file.Name) && isTestFile(file.Name) {
+		if !isGnoFile(file.Name) || isTestFile(file.Name) {
 			continue
 		}
 
@@ -80,7 +80,7 @@ func validateMemPackage(fset *token.FileSet, mempkg *gnovm.MemPackage) error {
 
 		if f.Name.Name != mempkg.Name {
 			return fmt.Errorf("%q package name conflict, expected %q found %q",
-				mempkg.Name, mempkg.Path, f.Name.Name)
+				mempkg.Path, mempkg.Name, f.Name.Name)
 		}
 	}
 
