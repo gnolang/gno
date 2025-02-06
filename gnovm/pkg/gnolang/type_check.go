@@ -270,7 +270,7 @@ Main:
 						switch {
 						case fv.Name == "len":
 							at := evalStaticTypeOf(store, last, currExpr.Args[0])
-							if _, ok := baseOf(at).(*ArrayType); ok {
+							if _, ok := unwrapPointerType(baseOf(at)).(*ArrayType); ok {
 								// ok
 								break Main
 							}
@@ -278,7 +278,7 @@ Main:
 							break Main
 						case fv.Name == "cap":
 							at := evalStaticTypeOf(store, last, currExpr.Args[0])
-							if _, ok := baseOf(at).(*ArrayType); ok {
+							if _, ok := unwrapPointerType(baseOf(at)).(*ArrayType); ok {
 								// ok
 								break Main
 							}
