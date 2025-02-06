@@ -213,7 +213,7 @@ func (rlm *Realm) DidUpdate(store Store, po, xo, co Object) {
 			}
 			// check cross realm for non escaped objects
 			debug2.Println2("=========po is real, check cross realm for non escaped objects========")
-			checkCrossRealm(rlm, store, co, co.GetOriginValue(), false)
+			checkCrossRealm(rlm, store, co, false)
 		}
 	}
 
@@ -227,71 +227,6 @@ func (rlm *Realm) DidUpdate(store Store, po, xo, co Object) {
 	}
 }
 
-//// checkReferenceCrossRealm checks if object is real recursively
-//func checkReferenceCrossRealm(rlm *Realm, store Store, oo Object, refValue Value) {
-//	debug2.Println2("checkReferenceCrossRealm, oo: ", oo, reflect.TypeOf(oo))
-//	debug2.Println2("refValue: ", refValue, reflect.TypeOf(refValue))
-//
-//	if refValue == nil {
-//		panic("should be a reference value")
-//	}
-//	// reference to unreal array, map, closure,
-//	// check elems...
-//	if oo.GetOriginRealm().IsZero() {
-//		debug2.Println2("originRealm is zero, unreal, check elems...")
-//	} else {
-//		if rlm.ID != oo.GetOriginRealm() { // crossing realm
-//			// must be real
-//			if !oo.GetIsReal() {
-//				panic("cannot attach a reference to an unreal object from an external realm")
-//			} else {
-//				debug2.Println2("oo is real, also check elems...")
-//			}
-//		}
-//	}
-//
-//	switch v := oo.(type) {
-//	case *StructValue:
-//		// check fields
-//		for _, fv := range v.Fields {
-//			checkCrossRealm2(rlm, store, &fv)
-//		}
-//	case *MapValue:
-//		debug2.Println2("MapValue, v: ", v)
-//		for cur := v.List.Head; cur != nil; cur = cur.Next {
-//			checkCrossRealm2(rlm, store, &cur.Key)
-//			checkCrossRealm2(rlm, store, &cur.Value)
-//		}
-//	case *BoundMethodValue:
-//	// TODO: complete this, check receiver, and?
-//	case *Block:
-//		debug2.Println2("BlockValue, v: ", v)
-//		// XXX, also captures?
-//		for _, tv := range v.Values {
-//			checkCrossRealm2(rlm, store, &tv)
-//		}
-//	case *HeapItemValue:
-//		checkCrossRealm2(rlm, store, &v.Value)
-//	case *ArrayValue:
-//		if sv, ok := refValue.(*SliceValue); ok {
-//			debug2.Println2("1, slice, check elems of ArrayValue, sv: ", sv, sv.Offset, sv.Length)
-//			// only check referenced elem
-//			for i := sv.Offset; i < sv.Length; i++ {
-//				checkCrossRealm2(rlm, store, &v.List[i])
-//			}
-//		} else {
-//			debug2.Println2("2, check elems of ArrayValue, v: ", v)
-//			if v.Data == nil {
-//				for _, e := range v.List {
-//					checkCrossRealm2(rlm, store, &e)
-//				}
-//			}
-//		}
-//	default:
-//		panic("should not happen, oo is not object")
-//	}
-//}
-
 // check cross realm recursively
 func checkCrossRealm2(rlm *Realm, store Store, tv *TypedValue, isLastRef bool) {
 	debug2.Println2("checkCrossRealm2, tv: ", tv, reflect.TypeOf(tv.V))
@@ -300,7 +235,7 @@ func checkCrossRealm2(rlm *Realm, store Store, tv *TypedValue, isLastRef bool) {
 		debug2.Println2("is object")
 		// set origin realm for embedded value
 		oo.SetOriginRealm(tv2.GetOriginPkg(store))
-		checkCrossRealm(rlm, store, oo, nil, isLastRef)
+		checkCrossRealm(rlm, store, oo, isLastRef)
 	} else { // reference to object
 		switch rv := tv.V.(type) {
 		case *SliceValue, PointerValue: // if reference object from external realm
@@ -309,7 +244,8 @@ func checkCrossRealm2(rlm *Realm, store Store, tv *TypedValue, isLastRef bool) {
 			debug2.Println2("is reference to object, reo: ", reo)
 			// if base escaped, do nothing
 			reo.SetOriginRealm(tv2.GetOriginPkg(store))
-			checkCrossRealm(rlm, store, reo, rv, true)
+			reo.SetOriginValue(rv)
+			checkCrossRealm(rlm, store, reo, true)
 		}
 	}
 	// else nothing to do
@@ -319,9 +255,9 @@ func checkCrossRealm2(rlm *Realm, store Store, tv *TypedValue, isLastRef bool) {
 // refValue is required to handle cases where the value is a slice.
 // The `len` and `offset` are needed to validate proper elements of the underlying array.
 // NOTE, oo can be real or unreal.
-func checkCrossRealm(rlm *Realm, store Store, oo Object, refValue Value, isLastRef bool) {
+func checkCrossRealm(rlm *Realm, store Store, oo Object, isLastRef bool) {
 	debug2.Println2("checkCrossRealm, oo: ", oo, reflect.TypeOf(oo))
-	if refValue != nil {
+	if oo.GetOriginValue() != nil {
 		isLastRef = true
 	}
 
@@ -333,7 +269,7 @@ func checkCrossRealm(rlm *Realm, store Store, oo Object, refValue Value, isLastR
 			debug2.Println2("crossing realm, check oo, then elems")
 			// reference value
 			if isLastRef {
-				debug2.Println2("Reference to object: ", refValue, reflect.TypeOf(refValue))
+				debug2.Println2("Reference to object: ", oo.GetOriginValue(), reflect.TypeOf(oo.GetOriginValue()))
 				if !oo.GetIsReal() {
 					panic(fmt.Sprintf("cannot attach a reference to an unreal object from an external realm: %v", oo))
 				} else {
@@ -375,7 +311,7 @@ func checkCrossRealm(rlm *Realm, store Store, oo Object, refValue Value, isLastR
 					if oo.GetIsReal() && !oo.GetIsDirty() {
 						// ok
 					} else {
-						if refValue != nil {
+						if isLastRef {
 							panic("cannot attach a reference to dirty object from an external realm")
 						} else {
 							panic("cannot attach dirty object from an external realm")
@@ -404,7 +340,7 @@ func checkCrossRealm(rlm *Realm, store Store, oo Object, refValue Value, isLastR
 		} else { // unreal object, see 28c, 30
 			isLastRef = false
 		}
-		if sv, ok := refValue.(*SliceValue); ok {
+		if sv, ok := oo.GetOriginValue().(*SliceValue); ok {
 			debug2.Println2("1, slice, check elems of ArrayValue, sv: ", sv, sv.Offset, sv.Length)
 			// only check referenced elem
 			for i := sv.Offset; i < sv.Length; i++ {
@@ -441,7 +377,7 @@ func (rlm *Realm) MarkNewEscapedCheckCrossRealm(store Store, oo Object, originVa
 
 	if !oo.GetOriginRealm().IsZero() && oo.GetOriginRealm() != rlm.ID { // crossing realm
 		if originValue != nil {
-			checkCrossRealm(rlm, store, oo, originValue, true)
+			checkCrossRealm(rlm, store, oo, true)
 		} else {
 			panic("cannot attach objects by value from external realm")
 		}
@@ -692,8 +628,7 @@ func (rlm *Realm) incRefCreatedDescendants(store Store, oo Object) {
 	_, ok2 := oo.(*Block) // package block
 	if !ok1 && !ok2 {
 		debug2.Println2("===incRefCreatedDescendants, checkCrossRealm")
-		isLastRef := oo.GetOriginValue() != nil
-		checkCrossRealm(rlm, store, oo, oo.GetOriginValue(), isLastRef)
+		checkCrossRealm(rlm, store, oo, false)
 	}
 
 	// RECURSE GUARD
