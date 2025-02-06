@@ -23,4 +23,4 @@ func main() {
 }
 
 // Error:
-// cannot attach a value of a type defined by another realm
+// cannot attach a reference to an unreal object from an external realm: struct{("local_fooer" string)}

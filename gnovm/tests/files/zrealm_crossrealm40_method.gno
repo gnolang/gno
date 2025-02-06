@@ -11,4 +11,4 @@ func main() {
 }
 
 // Error:
-// cannot attach a value of a type defined by another realm
+// cannot attach a value of a type defined by another realm: <*gno.land/r/demo/tests/crossrealm/func.MyStruct>.M(sv *gno.land/r/demo/tests/crossrealm/func.MyStruct)( string)

@@ -38,6 +38,7 @@ func (m *Machine) doOpEval() {
 			lb := m.LastBlock()
 			// Push value, done.
 			ptr := lb.GetPointerToMaybeHeapUse(m.Store, nx)
+			//debug2.Println2("ptr.Deref(): ", ptr.Deref())
 			m.PushValue(ptr.Deref())
 			return
 		}

@@ -17,4 +17,4 @@ func main() {
 }
 
 // Error:
-// cannot attach a reference to an unreal object from an external realm
+// cannot attach a reference to an unreal object from an external realm: heapitem((struct{(22 int)} gno.land/r/demo/tests/crossrealm/struct.Bar))

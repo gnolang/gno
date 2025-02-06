@@ -2,18 +2,15 @@
 package crossrealm_test
 
 import (
-	"std"
-
 	crossrealm "gno.land/r/demo/tests/crossrealm"
 )
 
 type container struct{ f *fooer }
 
-func (container) Foo() { println("hello container " + std.CurrentRealm().PkgPath()) }
+func (container) Foo() { println("hello") }
 
 type fooer struct{ name string }
 
-var f *fooer
 var c = &container{}
 
 func main() {
@@ -21,12 +18,12 @@ func main() {
 	// while attempting to attach it to external realm,
 	// check recursively.
 	// also see xxx_crossrealm21.gno
-	f = &fooer{name: "local_foo"}
-	c.f = f
+	ff := &fooer{name: "local_foo"}
+	c.f = ff
 	crossrealm.SetFooer(c)
 	crossrealm.CallFooerFoo()
 	print(".")
 }
 
 // Error:
-// cannot attach a reference to an unreal object from an external realm
+// cannot attach a reference to dirty object from an external realm

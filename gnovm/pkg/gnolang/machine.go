@@ -534,6 +534,7 @@ func (m *Machine) runFileDecls(fns ...*FileNode) []TypedValue {
 	// recursive function for var declarations.
 	var runDeclarationFor func(fn *FileNode, decl Decl)
 	runDeclarationFor = func(fn *FileNode, decl Decl) {
+		debug2.Println2("runDeclarationFor, d: ", decl)
 		// get fileblock of fn.
 		// fb := pv.GetFileBlock(nil, fn.Name)
 		// get dependencies of decl.

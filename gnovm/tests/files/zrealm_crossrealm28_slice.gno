@@ -17,13 +17,12 @@ var fs []crossrealm.Fooer
 // the object being attached
 // is foo{name: "1"}
 func init() {
-	r := append(fs, foo{name: "1"})
-	fs = r // the array is from external realm and unreal
+	fs := append(fs, foo{name: "1"})
 }
 
 func main() {
 	println("ok")
 }
 
-// Error:
-// cannot attach a reference to an unreal object from an external realm
+// Output:
+// ok

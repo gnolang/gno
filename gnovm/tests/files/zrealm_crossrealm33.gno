@@ -2,8 +2,6 @@
 package crossrealm_test
 
 import (
-	"std"
-
 	crossrealm "gno.land/r/demo/tests/crossrealm/slice"
 )
 
@@ -19,4 +17,4 @@ func main() {
 }
 
 // Error:
-// cannot attach un-real object from external realm: struct{("0" string)}
+// cannot attach a reference to an unreal object from an external realm: struct{("0" string)}

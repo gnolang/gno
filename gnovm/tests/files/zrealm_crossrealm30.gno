@@ -8,7 +8,7 @@ import (
 var SS []crossrealm.XYZ
 
 func main() {
-	SS = crossrealm.GetSlice() // attaching xxx.XYZ zero value, panic
+	SS = crossrealm.GetSlice()
 	println(".")
 }
 

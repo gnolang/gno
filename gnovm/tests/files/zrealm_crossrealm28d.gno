@@ -22,7 +22,5 @@ func main() {
 	println("ok")
 }
 
-// Output:
-// &(struct{("2" string)} gno.land/r/crossrealm_test.foo)
-// &(struct{("3" string)} gno.land/r/crossrealm_test.foo)
-// ok
+// Error:
+// cannot attach a reference to an unreal object from an external realm: heapitem((struct{("2" string)} gno.land/r/crossrealm_test.foo))

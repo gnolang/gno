@@ -14,4 +14,4 @@ func main() {
 }
 
 // Error:
-// cannot attach un-real object from external realm: struct{("d" string)}
+// cannot attach a reference to dirty object from an external realm

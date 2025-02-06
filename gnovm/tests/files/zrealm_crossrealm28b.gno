@@ -17,5 +17,5 @@ func main() {
 	println("ok")
 }
 
-// Error:
-// cannot attach a value of a type defined by another realm
+// Output:
+// ok

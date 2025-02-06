@@ -24,7 +24,5 @@ func main() {
 	println("ok")
 }
 
-// Output:
-// (struct{("2" string)} gno.land/r/crossrealm_test.foo)
-// (struct{("3" string)} gno.land/r/crossrealm_test.foo)
-// ok
+// Error:
+// cannot attach a value of a type defined by another realm: struct{("2" string)}

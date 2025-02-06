@@ -447,12 +447,12 @@ func (tv *TypedValue) GetOriginPkg(store Store) (originPkg PkgID) {
 			originPkg = getPkgId(pv.TV.T)
 		}
 		return
-	case *MapValue, *StructValue:
+	case *MapValue, *StructValue, *ArrayValue:
 		originPkg = getPkgId(tv.T) // if it's declared type, otherwise zero
 		return
-	case *ArrayValue:
-		originPkg = getPkgId(tv.T.Elem())
-		return
+	//case *ArrayValue:
+	//	originPkg = getPkgId(tv.T.Elem())
+	//	return
 	default:
 		// do nothing
 	}

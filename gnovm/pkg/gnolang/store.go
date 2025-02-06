@@ -471,7 +471,7 @@ func (ds *defaultStore) loadObjectSafe(oid ObjectID) Object {
 // NOTE: unlike GetObject(), SetObject() is also used to persist updated
 // package values.
 func (ds *defaultStore) SetObject(oo Object) {
-	//debug2.Println2("SetObject: ", oo)
+	debug2.Println2("SetObject: ", oo)
 	if bm.OpsEnabled {
 		bm.PauseOpCode()
 		defer bm.ResumeOpCode()

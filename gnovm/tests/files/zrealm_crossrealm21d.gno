@@ -2,21 +2,21 @@
 package crossrealm_test
 
 import (
-	"std"
-
 	crossrealm "gno.land/r/demo/tests/crossrealm/iface"
 )
 
 type fooer struct {
 	name string
+	bar
 }
+type bar struct{ name string }
 
-func (fooer) Foo() { println("hello " + std.CurrentRealm().PkgPath()) }
+func (fooer) Foo() { println("hello") }
 
-var f fooer
+var f = fooer{name: "local_fooer"}
 
 func main() {
-	f = fooer{name: "local_fooer"} // f is dirty
+	f.bar = bar{name: "local_bar"} // this makes f dirty, it's real
 	crossrealm.SetContainer2(&f)
 	crossrealm.RunF()
 	print(".")

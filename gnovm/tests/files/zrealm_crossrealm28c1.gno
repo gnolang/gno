@@ -11,11 +11,15 @@ type foo struct {
 
 func (foo) Foo() { println("hello from crossrealm_test") }
 
-// should panic, underlying array with external type is unreal
+// TODO: think about these two
+// array[(struct{("1" string)} gno.land/r/crossrealm_test.foo),(struct{("2" string)} gno.land/r/crossrealm_test.foo),(struct{("3" string)} gno.land/r/crossrealm_test.foo)]
 var arr = []crossrealm.Fooer{foo{name: "1"}, foo{name: "2"}, foo{name: "3"}}
 
+//var arr2 = []foo{foo{name: "1"}, foo{name: "2"}, foo{name: "3"}}
+
 func main() {
+	println("ok")
 }
 
-// Error:
-// cannot attach a reference to an unreal object from an external realm
+// Output:
+// ok

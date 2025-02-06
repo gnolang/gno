@@ -5,10 +5,10 @@ import (
 	crossrealm "gno.land/r/demo/tests/crossrealm/slice"
 )
 
-var SS []crossrealm.XYZ
+var SS []*crossrealm.XYZ
 
 func main() {
-	SS = crossrealm.GetSlice3()
+	SS = crossrealm.GetSlice5()
 	println(".")
 }
 
