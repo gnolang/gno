@@ -60,6 +60,7 @@ func execBalancesExport(cfg *balancesCfg, io commands.IO, args []string) error {
 	if err != nil {
 		return fmt.Errorf("unable to create output file, %w", err)
 	}
+	defer outputFile.Close()
 
 	// Save the balances
 	for _, balance := range state.Balances {

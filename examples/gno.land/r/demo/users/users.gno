@@ -260,7 +260,7 @@ func GetUserByAddressOrName(input users.AddressOrName) *users.User {
 // Get a list of user names starting from the given prefix. Limit the
 // number of results to maxResults. (This can be used for a name search tool.)
 func ListUsersByPrefix(prefix string, maxResults int) []string {
-	return avlhelpers.ListByteStringKeysByPrefix(name2User, prefix, maxResults)
+	return avlhelpers.ListByteStringKeysByPrefix(&name2User, prefix, maxResults)
 }
 
 func Resolve(input users.AddressOrName) std.Address {
@@ -328,14 +328,14 @@ func Render(fullPath string) string {
 func renderHome(path string) string {
 	doc := ""
 
-	page := pager.NewPager(&name2User, 50).MustGetPageByPath(path)
+	page := pager.NewPager(&name2User, 50, false).MustGetPageByPath(path)
 
 	for _, item := range page.Items {
 		user := item.Value.(*users.User)
 		doc += " * [" + user.Name + "](/r/demo/users:" + user.Name + ")\n"
 	}
 	doc += "\n"
-	doc += page.Selector()
+	doc += page.Picker()
 	return doc
 }
 

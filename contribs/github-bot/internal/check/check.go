@@ -101,7 +101,8 @@ func processPRList(gh *client.GitHub, prs []*github.PullRequest) error {
 		go func(pr *github.PullRequest) {
 			defer wg.Done()
 			commentContent := CommentContent{}
-			commentContent.allSatisfied = true
+			commentContent.AutoAllSatisfied = true
+			commentContent.ManualAllSatisfied = true
 
 			// Iterate over all automatic rules in config.
 			for _, autoRule := range autoRules {
@@ -120,7 +121,7 @@ func processPRList(gh *client.GitHub, prs []*github.PullRequest) error {
 					thenDetails.SetValue(fmt.Sprintf("%s Requirement satisfied", utils.Success))
 					c.Satisfied = true
 				} else {
-					commentContent.allSatisfied = false
+					commentContent.AutoAllSatisfied = false
 				}
 
 				c.ConditionDetails = ifDetails.String()
@@ -160,8 +161,14 @@ func processPRList(gh *client.GitHub, prs []*github.PullRequest) error {
 					},
 				)
 
-				if checkedBy == "" {
-					commentContent.allSatisfied = false
+				// If this check is the special one, store its state in the dedicated var.
+				if manualRule.Description == config.ForceSkipDescription {
+					if checkedBy != "" {
+						commentContent.ForceSkip = true
+					}
+				} else if checkedBy == "" {
+					// Or if its a normal check, just verify if it was checked by someone.
+					commentContent.ManualAllSatisfied = false
 				}
 			}
 
@@ -224,9 +231,20 @@ func logResults(logger logger.Logger, prNum int, commentContent CommentContent) 
 	}
 
 	logger.Infof("Conclusion:")
-	if commentContent.allSatisfied {
-		logger.Infof("%s All requirements are satisfied\n", utils.Success)
+
+	if commentContent.AutoAllSatisfied {
+		logger.Infof("%s All automated checks are satisfied", utils.Success)
 	} else {
-		logger.Infof("%s Not all requirements are satisfied\n", utils.Fail)
+		logger.Infof("%s Some automated checks are not satisfied", utils.Fail)
+	}
+
+	if commentContent.ManualAllSatisfied {
+		logger.Infof("%s All manual checks are satisfied\n", utils.Success)
+	} else {
+		logger.Infof("%s Some manual checks are not satisfied\n", utils.Fail)
+	}
+
+	if commentContent.ForceSkip {
+		logger.Infof("%s Bot checks are force skipped\n", utils.Success)
 	}
 }

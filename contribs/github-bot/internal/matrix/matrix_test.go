@@ -55,6 +55,15 @@ func TestProcessEvent(t *testing.T) {
 			utils.PRList{1},
 			false,
 		}, {
+			"valid pull_request_review event",
+			&githubactions.GitHubContext{
+				EventName: utils.EventPullRequestReview,
+				Event:     map[string]any{"pull_request": map[string]any{"number": 1.}},
+			},
+			prs,
+			utils.PRList{1},
+			false,
+		}, {
 			"valid pull_request_target event",
 			&githubactions.GitHubContext{
 				EventName: utils.EventPullRequestTarget,

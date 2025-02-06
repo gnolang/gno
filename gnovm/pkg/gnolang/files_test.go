@@ -45,9 +45,9 @@ func TestFiles(t *testing.T) {
 			Error:   io.Discard,
 			Sync:    *withSync,
 		}
-		o.BaseStore, o.TestStore = test.Store(
-			rootDir, true,
-			nopReader{}, o.WriterForStore(), io.Discard,
+		o.BaseStore, o.TestStore = test.StoreWithOptions(
+			rootDir, nopReader{}, o.WriterForStore(), io.Discard,
+			test.StoreOptions{WithExtern: true},
 		)
 		return o
 	}
@@ -138,7 +138,7 @@ func TestStdlibs(t *testing.T) {
 		}
 
 		fp := filepath.Join(dir, path)
-		memPkg := gnolang.ReadMemPackage(fp, path)
+		memPkg := gnolang.MustReadMemPackage(fp, path)
 		t.Run(strings.ReplaceAll(memPkg.Path, "/", "-"), func(t *testing.T) {
 			capture, opts := sharedCapture, sharedOpts
 			switch memPkg.Path {

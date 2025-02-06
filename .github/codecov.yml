@@ -4,7 +4,7 @@ codecov:
     wait_for_ci: true
 
 comment:
-  require_changes: false
+  require_changes: true
 
 coverage:
   round: down
@@ -18,7 +18,7 @@ coverage:
         if_no_uploads: error
         if_not_found: success
         if_ci_failed: error
-        only_pulls: false
+        only_pulls: true # Only check patch coverage on PRs
 
 flag_management:
   default_rules:

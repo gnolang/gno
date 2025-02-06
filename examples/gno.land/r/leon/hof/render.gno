@@ -38,7 +38,7 @@ func (e Exhibition) Render(path string, dashboard bool) string {
 
 	out += "<div class='columns-2'>\n\n"
 
-	page := pager.NewPager(e.itemsSorted, pageSize).MustGetPageByPath(path)
+	page := pager.NewPager(e.itemsSorted, pageSize, false).MustGetPageByPath(path)
 
 	for i := len(page.Items) - 1; i >= 0; i-- {
 		item := page.Items[i]
@@ -52,7 +52,7 @@ func (e Exhibition) Render(path string, dashboard bool) string {
 
 	out += "</div><!-- /columns-2 -->\n\n"
 
-	out += page.Selector()
+	out += page.Picker()
 
 	return out
 }
@@ -80,9 +80,9 @@ func renderDashboard() string {
 	out += "## Dashboard\n\n"
 	out += ufmt.Sprintf("Total submissions: %d\n\n", exhibition.items.Size())
 
-	out += ufmt.Sprintf("Exhibition admin: %s\n\n", owner.Owner().String())
+	out += ufmt.Sprintf("Exhibition admin: %s\n\n", Ownable.Owner().String())
 
-	if !exhibition.IsPaused() {
+	if !Pausable.IsPaused() {
 		out += ufmt.Sprintf("[Pause exhibition](%s)\n\n", txlink.Call("Pause"))
 	} else {
 		out += ufmt.Sprintf("[Unpause exhibition](%s)\n\n", txlink.Call("Unpause"))

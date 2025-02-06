@@ -11,7 +11,18 @@ import (
 var (
 	d       *simpledao.SimpleDAO  // the current active DAO implementation
 	members membstore.MemberStore // the member store
+
+	// GovDAO exposes all functions of this contract as methods
+	GovDAO = &DAO{}
 )
+
+// DAO is an empty struct that allows all
+// functions of this realm to be methods instead of functions
+// This allows a registry, such as r/gov/dao/bridge
+// to take this object and match it to a required interface
+type DAO struct{}
+
+const daoPkgPath = "gno.land/r/gov/dao/v2"
 
 func init() {
 	// Example initial member set (just test addresses)
@@ -23,7 +34,7 @@ func init() {
 	}
 
 	// Set the member store
-	members = membstore.NewMembStore(membstore.WithInitialMembers(set))
+	members = membstore.NewMembStore(membstore.WithInitialMembers(set), membstore.WithDAOPkgPath(daoPkgPath))
 
 	// Set the DAO implementation
 	d = simpledao.New(members)
@@ -31,7 +42,7 @@ func init() {
 
 // Propose is designed to be called by another contract or with
 // `maketx run`, not by a `maketx call`.
-func Propose(request dao.ProposalRequest) uint64 {
+func (_ DAO) Propose(request dao.ProposalRequest) uint64 {
 	idx, err := d.Propose(request)
 	if err != nil {
 		panic(err)
@@ -41,25 +52,25 @@ func Propose(request dao.ProposalRequest) uint64 {
 }
 
 // VoteOnProposal casts a vote for the given proposal
-func VoteOnProposal(id uint64, option dao.VoteOption) {
+func (_ DAO) VoteOnProposal(id uint64, option dao.VoteOption) {
 	if err := d.VoteOnProposal(id, option); err != nil {
 		panic(err)
 	}
 }
 
 // ExecuteProposal executes the proposal
-func ExecuteProposal(id uint64) {
+func (_ DAO) ExecuteProposal(id uint64) {
 	if err := d.ExecuteProposal(id); err != nil {
 		panic(err)
 	}
 }
 
 // GetPropStore returns the active proposal store
-func GetPropStore() dao.PropStore {
+func (_ DAO) GetPropStore() dao.PropStore {
 	return d
 }
 
 // GetMembStore returns the active member store
-func GetMembStore() membstore.MemberStore {
+func (_ DAO) GetMembStore() membstore.MemberStore {
 	return members
 }
