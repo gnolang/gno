@@ -8,25 +8,50 @@ import (
 	"gno.land/p/moul/collection"
 )
 
+// ErrUndefinedField indicates that a field in not defined in a record's schema.
 var ErrUndefinedField = errors.New("undefined field")
 
 type (
-	ReadOnlyRecord interface {
-		ID() uint64
-		Key() string
-		Type() string
-		Fields() []string
-		IsEmpty() bool
-		HasField(name string) bool
-		Get(field string) (value interface{}, found bool)
-		MustGet(field string) interface{}
-	}
-
+	// Record stores values for one or more fields.
 	Record interface {
 		ReadOnlyRecord
 
+		// Set assings a value to a record field.
+		// If the field doesn't exist it's created if the underlying schema allows it.
+		// Storage schema can optionally be strict in which case no new fields other than
+		// the ones that were previously defined are allowed.
 		Set(field string, value interface{}) error
+
+		// Save assigns an ID to newly created records and update storage indexes.
 		Save() bool
+	}
+
+	// ReadOnlyRecord defines an interface for read-only records.
+	ReadOnlyRecord interface {
+		// ID returns record's ID
+		ID() uint64
+
+		// Key returns a string representation of the record's ID.
+		// It's used to be able to search records within the ID index.
+		Key() string
+
+		// Type returns the record's type.
+		Type() string
+
+		// Fields returns the list of the record's field names.
+		Fields() []string
+
+		// IsEmpty checks if the record has no values.
+		IsEmpty() bool
+
+		// HasField checks if the record has a specific field.
+		HasField(name string) bool
+
+		// Get returns the value of a record's field.
+		Get(field string) (value interface{}, found bool)
+
+		// MustGet returns the value of a record's field or panics when the field is not found.
+		MustGet(field string) interface{}
 	}
 )
 
@@ -37,30 +62,41 @@ type record struct {
 	values     avl.Tree // string(field index) -> interface{}
 }
 
+// ID returns record's ID
 func (r record) ID() uint64 {
 	return r.id
 }
 
+// Key returns a string representation of the record's ID.
+// It's used to be able to search records within the ID index.
 func (r record) Key() string {
 	return seqid.ID(r.id).String()
 }
 
+// Type returns the record's type.
 func (r record) Type() string {
 	return r.schema.Name()
 }
 
+// Fields returns the list of the record's field names.
 func (r record) Fields() []string {
 	return r.schema.Fields()
 }
 
+// IsEmpty checks if the record has no values.
 func (r record) IsEmpty() bool {
 	return r.values.Size() == 0
 }
 
+// HasField checks if the record has a specific field.
 func (r record) HasField(name string) bool {
 	return r.schema.HasField(name)
 }
 
+// Set assings a value to a record field.
+// If the field doesn't exist it's created if the underlying schema allows it.
+// Storage schema can optionally be strict in which case no new fields other than
+// the ones that were previously defined are allowed.
 func (r *record) Set(field string, value interface{}) error {
 	i := r.schema.GetFieldIndex(field)
 	if i == -1 {
@@ -76,6 +112,7 @@ func (r *record) Set(field string, value interface{}) error {
 	return nil
 }
 
+// Get returns the value of a record's field.
 func (r record) Get(field string) (value interface{}, found bool) {
 	i := r.schema.GetFieldIndex(field)
 	if i == -1 {
@@ -86,6 +123,7 @@ func (r record) Get(field string) (value interface{}, found bool) {
 	return r.values.Get(key)
 }
 
+// MustGet returns the value of a record's field or panics when the field is not found.
 func (r record) MustGet(field string) interface{} {
 	v, found := r.Get(field)
 	if !found {
@@ -94,6 +132,7 @@ func (r record) MustGet(field string) interface{} {
 	return v
 }
 
+// Save assigns an ID to newly created records and update storage indexes.
 func (r *record) Save() bool {
 	if r.id == 0 {
 		r.id = r.collection.Set(r)

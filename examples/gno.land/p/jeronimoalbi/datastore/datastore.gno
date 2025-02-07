@@ -8,12 +8,27 @@ import (
 
 // TODO: Write unit test for Datastore
 
+// ErrStorageExists indicates that a storage exists with the same name.
 var ErrStorageExists = errors.New("a storage with the same name exists")
 
+// Datastore is a store that can contain multiple named storages.
+// A storage is a collection of records.
+//
+// Example usage:
+//
+//	// Create an empty storage to store user records
+//	var db Datastore
+//	storage := db.CreateStorage("users")
+//
+//	// Get a storage that has been created before
+//	// and search a user by record ID.
+//	storage = db.GetStorage("users")
+//	user := storage.GetFirst(user.Key())
 type Datastore struct {
 	storages avl.Tree // string(name) -> *Storage
 }
 
+// CreateStorage creates a new named storage within the data store.
 func (ds *Datastore) CreateStorage(name string, options ...StorageOption) *Storage {
 	if ds.storages.Has(name) {
 		return nil
@@ -24,10 +39,13 @@ func (ds *Datastore) CreateStorage(name string, options ...StorageOption) *Stora
 	return &s
 }
 
+// HasStorage checks if data store contains a storage with a specific name.
 func (ds Datastore) HasStorage(name string) bool {
 	return ds.storages.Has(name)
 }
 
+// GetStorage returns a storage that has been created with a specific name.
+// It returns nil when a storage with the specified name is not found.
 func (ds Datastore) GetStorage(name string) *Storage {
 	if v, found := ds.storages.Get(name); found {
 		return v.(*Storage)
