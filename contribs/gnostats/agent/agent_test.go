@@ -71,19 +71,19 @@ func (m *mockPushDataClient) SendMsg(msg any) error                 { panic("sho
 func (m *mockPushDataClient) RecvMsg(msg any) error                 { panic("should never happen") }
 
 // Helpers that generate random string and int
-func randomIntInRange(t *testing.T, min, max int) int {
+func randomIntInRange(t *testing.T, minVal, maxVal int) int {
 	t.Helper()
 
-	require.Less(t, min, max)
+	require.Less(t, minVal, maxVal)
 
-	diff := int64(max - min + 1)
+	diff := int64(maxVal - minVal + 1)
 
 	require.Greater(t, diff, int64(0))
 
 	n, err := rand.Int(rand.Reader, big.NewInt(diff))
 	require.NoError(t, err)
 
-	return int(n.Int64()) + min
+	return int(n.Int64()) + minVal
 }
 
 func randomStringOfLength(t *testing.T, length int) string {
@@ -102,10 +102,10 @@ func randomStringOfLength(t *testing.T, length int) string {
 	return string(randBytes)
 }
 
-func randomStringOfLengthInRange(t *testing.T, min, max int) string {
+func randomStringOfLengthInRange(t *testing.T, minVal, maxVal int) string {
 	t.Helper()
 
-	return randomStringOfLength(t, randomIntInRange(t, min, max))
+	return randomStringOfLength(t, randomIntInRange(t, minVal, maxVal))
 }
 
 func randomNodeInfo(t *testing.T) p2pTypes.NodeInfo {

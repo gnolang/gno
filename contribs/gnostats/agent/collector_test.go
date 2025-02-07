@@ -262,7 +262,9 @@ func TestCollector_DynamicTimeout(t *testing.T) {
 	mockBatch.On("BlockResults", (*uint64)(nil)).Return(nil)
 
 	// Set up a context and a sendLatency that will trigger a timeout
-	ctx, _ := context.WithTimeout(context.Background(), time.Millisecond)
+	ctx, cancelFn := context.WithTimeout(context.Background(), time.Millisecond)
+	defer cancelFn()
+
 	mockBatch.sendLatency = time.Second
 	mockBatch.On("Send", ctx).Return([]any{})
 
@@ -340,7 +342,9 @@ func TestCollector_StaticTimeout(t *testing.T) {
 	mockBatch.On("Status").Return(nil)
 
 	// Set up a context and a sendLatency that will trigger a timeout
-	ctx, _ := context.WithTimeout(context.Background(), time.Millisecond)
+	ctx, cancelFn := context.WithTimeout(context.Background(), time.Millisecond)
+	defer cancelFn()
+
 	mockBatch.sendLatency = time.Second
 	mockBatch.On("Send", ctx).Return([]any{})
 
