@@ -82,6 +82,23 @@ func TestProxy(t *testing.T) {
 		}
 	})
 
+	t.Run("valid_vm_query_file", func(t *testing.T) {
+		cli, err := client.NewHTTPClient(interceptor.TargetAddress())
+		require.NoError(t, err)
+
+		res, err := cli.ABCIQuery("vm/qfile", []byte(filepath.Join(targetPath, "foo.gno")))
+		require.NoError(t, err)
+		assert.Nil(t, res.Response.Error)
+
+		select {
+		case paths := <-pathChan:
+			require.Len(t, paths, 1)
+			assert.Equal(t, []string{targetPath}, paths)
+		default:
+			t.Fatal("paths not captured")
+		}
+	})
+
 	t.Run("simulate_tx_paths", func(t *testing.T) {
 		// Build transaction with multiple messages
 		var tx std.Tx
