@@ -2,10 +2,8 @@ package microposts
 
 import (
 	"std"
-	"time"
 	"strconv"
-
-	"gno.land/p/demo/ufmt"
+	"time"
 )
 
 var posts []*Post
@@ -25,4 +23,3 @@ func Render(_ string) string {
 	}
 	return out
 }
-
