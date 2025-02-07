@@ -5,6 +5,7 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"io"
 	"os"
 	"strings"
 	"text/tabwriter"
@@ -78,6 +79,12 @@ func NewCommand(
 	}
 
 	return command
+}
+
+// SetOutput sets the destination for usage and error messages.
+// If output is nil, [os.Stderr] is used.
+func (c *Command) SetOutput(output io.Writer) {
+	c.flagSet.SetOutput(output)
 }
 
 // AddSubCommands adds a variable number of subcommands
