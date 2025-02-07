@@ -1132,6 +1132,8 @@ type FuncType struct {
 
 	typeid TypeID
 	bound  *FuncType
+
+	IsClosure bool
 }
 
 // true for predefined func types that are not filled in yet.
@@ -1465,6 +1467,13 @@ func baseOf(t Type) Type {
 	} else {
 		return t
 	}
+}
+
+func unwrapPointerType(t Type) Type {
+	if pt, ok := t.(*PointerType); ok {
+		return pt.Elem()
+	}
+	return t
 }
 
 // NOTE: it may be faster to switch on baseOf().

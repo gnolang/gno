@@ -39,10 +39,12 @@ jobs:
   define-prs-matrix:
     name: Define PRs matrix
     # Skip this workflow if:
+    #   - the bot is not configured on this repo/fork
     #   - the bot is retriggering itself
     #   - the event is emitted by codecov
     #   - the event is a review on a pull request from a fork (see save-pr-number job below)
     if: |
+      vars.GH_BOT_LOGIN != '' &&
       github.actor != vars.GH_BOT_LOGIN &&
       github.actor != 'codecov[bot]' &&
       (github.event_name != 'pull_request_review' || github.event.pull_request.base.repo.full_name == github.event.pull_request.head.repo.full_name)

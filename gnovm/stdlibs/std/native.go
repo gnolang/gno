@@ -7,12 +7,12 @@ import (
 )
 
 func AssertOriginCall(m *gno.Machine) {
-	if !IsOriginCall(m) {
+	if !isOriginCall(m) {
 		m.Panic(typedString("invalid non-origin call"))
 	}
 }
 
-func IsOriginCall(m *gno.Machine) bool {
+func isOriginCall(m *gno.Machine) bool {
 	n := m.NumFrames()
 	if n == 0 {
 		return false

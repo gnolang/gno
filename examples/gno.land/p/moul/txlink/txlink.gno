@@ -15,6 +15,7 @@
 package txlink
 
 import (
+	"net/url"
 	"std"
 	"strings"
 )
@@ -51,24 +52,26 @@ func (r Realm) prefix() string {
 // Call returns a URL for the specified function with optional key-value
 // arguments.
 func (r Realm) Call(fn string, args ...string) string {
-	// Start with the base query
-	url := r.prefix() + "$help&func=" + fn
+	if len(args) == 0 {
+		return r.prefix() + "$help&func=" + fn
+	}
+
+	// Create url.Values to properly encode parameters.
+	// But manage &func=fn as a special case to keep it as the first argument.
+	values := url.Values{}
 
 	// Check if args length is even
 	if len(args)%2 != 0 {
-		// If not even, we can choose to handle the error here.
-		// For example, we can just return the URL without appending
-		// more args.
-		return url
+		values.Add("error", "odd number of arguments")
+	} else {
+		// Add key-value pairs to values
+		for i := 0; i < len(args); i += 2 {
+			key := args[i]
+			value := args[i+1]
+			values.Add(key, value)
+		}
 	}
 
-	// Append key-value pairs to the URL
-	for i := 0; i < len(args); i += 2 {
-		key := args[i]
-		value := args[i+1]
-		// XXX: escape keys and args
-		url += "&" + key + "=" + value
-	}
-
-	return url
+	// Build the base URL and append encoded query parameters
+	return r.prefix() + "$help&func=" + fn + "&" + values.Encode()
 }
