@@ -210,7 +210,7 @@ func (p *Presentation) LastSlide() string {
 	out.WriteString(md.H1(p.Title))
 	out.WriteString(md.H2("Thank You!"))
 	out.WriteString(md.Paragraph(p.Author))
-	fullPath := "https://" + std.GetChainDomain() + localPath(p.Slug, nil)
+	fullPath := "https://" + std.ChainDomain() + localPath(p.Slug, nil)
 	out.WriteString(md.Paragraph("🔗 " + md.Link(fullPath, fullPath)))
 	// XXX: QRCode
 	return out.String()
