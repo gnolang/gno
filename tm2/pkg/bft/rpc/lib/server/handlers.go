@@ -141,7 +141,7 @@ func makeJSONRPCHandler(funcMap map[string]*RPCFunc, logger *slog.Logger) http.H
 		}
 
 		// --- Branch 1: Attempt to Unmarshal as a Batch (Slice) of Requests ---
-		var requests []types.RPCRequest
+		var requests types.RPCRequests
 		if err := json.Unmarshal(b, &requests); err == nil {
 			var responses types.RPCResponses
 			for _, req := range requests {
@@ -170,10 +170,9 @@ func makeJSONRPCHandler(funcMap map[string]*RPCFunc, logger *slog.Logger) http.H
 	}
 }
 
-// parseAndFilterRequest checks and processes a single JSON-RPC request.
+// processRequest checks and processes a single JSON-RPC request.
 // If the request should produce a response, it returns a pointer to that response.
-// Otherwise (e.g. if the request is a notification or fails validation),
-// it returns nil.
+// Otherwise (e.g. if the request is a notification or fails validation), it returns nil.
 func processRequest(r *http.Request, req types.RPCRequest, funcMap map[string]*RPCFunc, logger *slog.Logger) *types.RPCResponse {
 	// Skip notifications (an empty ID indicates no response should be sent)
 	if req.ID == types.JSONRPCStringID("") {
