@@ -727,7 +727,7 @@ func TestMultiplexSwitch_DialPeers(t *testing.T) {
 		// as the transport (node)
 		p.NodeInfoFn = func() types.NodeInfo {
 			return types.NodeInfo{
-				PeerID: addr.ID,
+				NetAddress: &addr,
 			}
 		}
 
