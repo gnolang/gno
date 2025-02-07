@@ -11,6 +11,38 @@ import (
 	"github.com/xlab/treeprint"
 )
 
+// deduplicateReviews returns a list of reviews with at most 1 review per
+// author, where approval/changes requested reviews are preferred over comments
+// and later reviews are preferred over earlier ones.
+func deduplicateReviews(reviews []*github.PullRequestReview) []*github.PullRequestReview {
+	added := make(map[string]int)
+	result := make([]*github.PullRequestReview, 0, len(reviews))
+	for _, rev := range reviews {
+		idx, ok := added[rev.User.GetLogin()]
+		switch utils.ReviewState(rev.GetState()) {
+		case utils.ReviewStateApproved, utils.ReviewStateChangesRequested:
+			// this review changes the "approval state", and is more relevant,
+			// so substitute it with the previous one if it exists.
+			if ok {
+				result[idx] = rev
+			} else {
+				result = append(result, rev)
+				added[rev.User.GetLogin()] = len(result) - 1
+			}
+		case utils.ReviewStateCommented:
+			// this review does not change the "approval state", so only append
+			// it if a previous review doesn't exist.
+			if !ok {
+				result = append(result, rev)
+				added[rev.User.GetLogin()] = len(result) - 1
+			}
+		default:
+			panic(fmt.Sprintf("invalid review state %q", rev.GetState()))
+		}
+	}
+	return result
+}
+
 // ReviewByUserRequirement asserts that there is a review by the given user,
 // and if given that the review matches the desiredState.
 type ReviewByUserRequirement struct {
@@ -27,6 +59,23 @@ func (r *ReviewByUserRequirement) IsSatisfied(pr *github.PullRequest, details tr
 	if r.desiredState != "" {
 		detail += fmt.Sprintf(" (with state %q)", r.desiredState)
 	}
+
+	// Check if user already approved this PR.
+	reviews, err := r.gh.ListPRReviews(pr.GetNumber())
+	if err != nil {
+		r.gh.Logger.Errorf("unable to check if user %s already approved this PR: %v", r.user, err)
+		return utils.AddStatusNode(false, detail, details)
+	}
+	reviews = deduplicateReviews(reviews)
+
+	for _, review := range reviews {
+		if review.GetUser().GetLogin() == r.user {
+			r.gh.Logger.Debugf("User %s already reviewed PR %d with state %s", r.user, pr.GetNumber(), review.GetState())
+			result := r.desiredState == "" || review.GetState() == r.desiredState
+			return utils.AddStatusNode(result, detail, details)
+		}
+	}
+	r.gh.Logger.Debugf("User %s has not reviewed PR %d yet", r.user, pr.GetNumber())
 
 	// If not a dry run, make the user a reviewer if he's not already.
 	if !r.gh.DryRun {
@@ -61,22 +110,6 @@ func (r *ReviewByUserRequirement) IsSatisfied(pr *github.PullRequest, details tr
 			}
 		}
 	}
-
-	// Check if user already approved this PR.
-	reviews, err := r.gh.ListPRReviews(pr.GetNumber())
-	if err != nil {
-		r.gh.Logger.Errorf("unable to check if user %s already approved this PR: %v", r.user, err)
-		return utils.AddStatusNode(false, detail, details)
-	}
-
-	for _, review := range reviews {
-		if review.GetUser().GetLogin() == r.user {
-			r.gh.Logger.Debugf("User %s already reviewed PR %d with state %s", r.user, pr.GetNumber(), review.GetState())
-			result := r.desiredState == "" || review.GetState() == r.desiredState
-			return utils.AddStatusNode(result, detail, details)
-		}
-	}
-	r.gh.Logger.Debugf("User %s has not reviewed PR %d yet", r.user, pr.GetNumber())
 
 	return utils.AddStatusNode(false, detail, details)
 }
@@ -123,6 +156,14 @@ func (r *ReviewByTeamMembersRequirement) IsSatisfied(pr *github.PullRequest, det
 		return utils.AddStatusNode(false, detail, details)
 	}
 
+	reviews, err := r.gh.ListPRReviews(pr.GetNumber())
+	if err != nil {
+		r.gh.Logger.Errorf("unable to fetch existing reviews of pr %d: %v", r.team, err)
+		return utils.AddStatusNode(false, detail, details)
+	}
+
+	reviews = deduplicateReviews(reviews)
+
 	// If not a dry run, request a team review if no member has reviewed yet,
 	// and the team review has not been requested.
 	if !r.gh.DryRun {
@@ -144,10 +185,16 @@ func (r *ReviewByTeamMembersRequirement) IsSatisfied(pr *github.PullRequest, det
 
 		if !teamRequested {
 			for _, user := range reviewers.Users {
-				if slices.ContainsFunc(teamMembers, func(memb *github.User) bool {
-					return memb.GetID() == user.GetID()
-				}) {
+				if containsUserWithLogin(teamMembers, user.GetLogin()) {
 					usersRequested = append(usersRequested, user.GetLogin())
+				}
+			}
+
+			for _, rev := range reviews {
+				// if not already requested and user is a team member...
+				if !slices.Contains(usersRequested, rev.User.GetLogin()) &&
+					containsUserWithLogin(teamMembers, rev.User.GetLogin()) {
+					usersRequested = append(usersRequested, rev.User.GetLogin())
 				}
 			}
 		}
@@ -176,31 +223,32 @@ func (r *ReviewByTeamMembersRequirement) IsSatisfied(pr *github.PullRequest, det
 
 	// Check how many members of this team already reviewed this PR.
 	reviewCount := uint(0)
-	reviews, err := r.gh.ListPRReviews(pr.GetNumber())
-	if err != nil {
-		r.gh.Logger.Errorf("unable to check if a member of team %s already reviewed this PR: %v", r.team, err)
-		return utils.AddStatusNode(false, detail, details)
-	}
 
 	stateStr := ""
 	if r.desiredState != "" {
 		stateStr = fmt.Sprintf("%q ", r.desiredState)
 	}
 	for _, review := range reviews {
-		for _, member := range teamMembers {
-			if review.GetUser().GetLogin() == member.GetLogin() {
-				if desired := r.desiredState; desired == "" || desired == review.GetState() {
-					reviewCount += 1
-				}
-				r.gh.Logger.Debugf(
-					"Member %s from team %s already reviewed PR %d with state %s (%d/%d required %sreview(s))",
-					member.GetLogin(), r.team, pr.GetNumber(), review.GetState(), reviewCount, r.count, stateStr,
-				)
+		login := review.GetUser().GetLogin()
+		if containsUserWithLogin(teamMembers, login) {
+			if desired := r.desiredState; desired == "" || desired == review.GetState() {
+				reviewCount += 1
 			}
+			r.gh.Logger.Debugf(
+				"Member %s from team %s already reviewed PR %d with state %s (%d/%d required %sreview(s))",
+				login, r.team, pr.GetNumber(), review.GetState(), reviewCount, r.count, stateStr,
+			)
+
 		}
 	}
 
 	return utils.AddStatusNode(reviewCount >= r.count, detail, details)
+}
+
+func containsUserWithLogin(users []*github.User, login string) bool {
+	return slices.ContainsFunc(users, func(u *github.User) bool {
+		return u.GetLogin() == login
+	})
 }
 
 // WithCount specifies the number of required reviews.
@@ -262,6 +310,7 @@ func (r *ReviewByOrgMembersRequirement) IsSatisfied(pr *github.PullRequest, deta
 		r.gh.Logger.Errorf("unable to check number of reviews on this PR: %v", err)
 		return utils.AddStatusNode(false, detail, details)
 	}
+	reviews = deduplicateReviews(reviews)
 
 	stateStr := ""
 	if r.desiredState != "" {
