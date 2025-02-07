@@ -243,7 +243,9 @@ func TestPeer_Properties(t *testing.T) {
 								},
 							},
 							nodeInfo: types.NodeInfo{
-								PeerID: id,
+								NetAddress: &types.NetAddress{
+									ID: id,
+								},
 							},
 							connInfo: &ConnInfo{
 								Outbound: testCase.outbound,
