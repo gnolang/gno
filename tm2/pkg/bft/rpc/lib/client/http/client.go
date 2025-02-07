@@ -111,67 +111,50 @@ func sendRequestCommon[T requestType, R responseType](
 	client *http.Client,
 	rpcURL string,
 	request T,
-) (res R, err error) {
+) (response R, err error) {
 	// Marshal the request
 	requestBytes, err := json.Marshal(request)
 	if err != nil {
-		return res, fmt.Errorf("unable to JSON-marshal the request, %w", err)
+		return response, fmt.Errorf("unable to JSON-marshal the request, %w", err)
 	}
 
 	// Craft the request
 	req, err := http.NewRequest(http.MethodPost, rpcURL, bytes.NewBuffer(requestBytes))
 	if err != nil {
-		return res, fmt.Errorf("unable to create request: %w", err)
+		return response, fmt.Errorf("unable to create request, %w", err)
 	}
 	req.Header.Set("Content-Type", "application/json")
 
 	// Execute the request
 	httpResponse, err := client.Do(req.WithContext(ctx))
 	if err != nil {
-		return res, fmt.Errorf("unable to send request: %w", err)
+		return response, fmt.Errorf("unable to send request, %w", err)
 	}
 	defer httpResponse.Body.Close()
 
 	// Parse the response code
 	if !isOKStatus(httpResponse.StatusCode) {
-		return res, fmt.Errorf("invalid status code received: %d", httpResponse.StatusCode)
+		return response, fmt.Errorf("invalid status code received, %d", httpResponse.StatusCode)
 	}
 
 	// Parse the response body
 	responseBytes, err := io.ReadAll(httpResponse.Body)
 	if err != nil {
-		return res, fmt.Errorf("unable to read response body: %w", err)
+		return response, fmt.Errorf("unable to read response body, %w", err)
 	}
 
 	// Attempt to unmarshal into the expected response type.
-	var zero R
-	switch any(zero).(type) {
-	case *types.RPCResponse:
-		// Expected type is a pointer to a single RPCResponse.
-		var singleResponse types.RPCResponse
-		if err = json.Unmarshal(responseBytes, &singleResponse); err != nil {
-			return zero, fmt.Errorf("unable to unmarshal response body: %w", err)
-		}
-		res = any(&singleResponse).(R)
-	case types.RPCResponses:
-		// Expected type is a slice of RPCResponse.
-		var responses types.RPCResponses
-		// First, try unmarshalling as a slice.
-		if err = json.Unmarshal(responseBytes, &responses); err != nil {
-			// If that fails, try unmarshalling as a single element.
-			var response types.RPCResponse
-			if err2 := json.Unmarshal(responseBytes, &response); err2 == nil {
-				responses = types.RPCResponses{response}
-			} else {
-				return zero, fmt.Errorf("unable to unmarshal response body: %w", err)
-			}
-		}
-		res = any(responses).(R)
-	default:
-		return zero, fmt.Errorf("unexpected response type")
+	var singleResponse types.RPCResponse
+	var batchResponse types.RPCResponses
+	if err = json.Unmarshal(responseBytes, &batchResponse); err == nil {
+		response = any(batchResponse).(R)
+	} else if err = json.Unmarshal(responseBytes, &singleResponse); err == nil {
+		response = any(singleResponse).(R)
+	} else {
+		return response, fmt.Errorf("unable to unmarshal response body: %w", err)
 	}
 
-	return res, nil
+	return response, nil
 }
 
 // DefaultHTTPClient is used to create an http client with some default parameters.
