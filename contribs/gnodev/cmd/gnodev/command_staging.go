@@ -67,7 +67,7 @@ func execStagingCmd(cfg *StagingAppConfig, args []string, io commands.IO) error 
 		}
 
 		exampleRoot := filepath.Join(gnoroot, "examples")
-		cfg.AppConfig.resolvers = append(cfg.AppConfig.resolvers, packages.NewFSResolver(exampleRoot))
+		cfg.AppConfig.resolvers = append(cfg.AppConfig.resolvers, packages.NewRootResolver(exampleRoot))
 	}
 
 	return runApp(&cfg.AppConfig, io, args...)

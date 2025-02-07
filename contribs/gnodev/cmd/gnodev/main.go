@@ -27,7 +27,10 @@ If no command is provided, gnodev will automatically start in <local> mode.
 For more information and flags usage description, use 'gnodev local -h'.`,
 		},
 		nil,
-		func(ctx context.Context, _ []string) error { return nil },
+		func(ctx context.Context, _ []string) error {
+			localcmd.Execute(ctx, os.Args[1:])
+			return nil
+		},
 	)
 
 	cmd.AddSubCommands(localcmd)

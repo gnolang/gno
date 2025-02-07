@@ -43,9 +43,10 @@ func setupDevNode(ctx context.Context, cfg *AppConfig, nodeConfig *gnodev.NodeCo
 		logger.Info("genesis file loaded", "path", cfg.genesisFile, "txs", len(stateTxs))
 	}
 
-	logger.Info("packages", "paths", paths)
-	if len(paths) == 0 {
-		logger.Debug("no path to load")
+	if len(paths) > 0 {
+		logger.Info("packages", "paths", paths)
+	} else {
+		logger.Debug("no path(s) provided")
 	}
 
 	return gnodev.NewDevNode(ctx, nodeConfig, paths...)

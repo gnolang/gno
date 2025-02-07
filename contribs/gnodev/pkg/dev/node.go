@@ -97,7 +97,7 @@ func DefaultNodeConfig(rootdir, domain string) *NodeConfig {
 	}
 
 	exampleFolder := filepath.Join(gnoenv.RootDir(), "example") // XXX: we should avoid having to hardcoding this here
-	defaultLoader := packages.NewLoader(packages.NewFSResolver(exampleFolder))
+	defaultLoader := packages.NewLoader(packages.NewRootResolver(exampleFolder))
 
 	return &NodeConfig{
 		Logger:                log.NewNoopLogger(),

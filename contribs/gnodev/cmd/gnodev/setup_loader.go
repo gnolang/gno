@@ -33,10 +33,10 @@ func (va *varResolver) Set(value string) error {
 			return fmt.Errorf("invalid resolver remote: %q", location)
 		}
 
-		res = packages.NewRemoteResolver(rpc)
-	case "root":
-		res = packages.NewFSResolver(location)
-	case "dir":
+		res = packages.NewRemoteResolver(location, rpc)
+	case "root": // process everyting from a root directory
+		res = packages.NewRootResolver(location)
+	case "local": // process a signle directory
 		path, ok := guessPathGnoMod(location)
 		if !ok {
 			return fmt.Errorf("unable to read module path from gno.mod in %q", location)

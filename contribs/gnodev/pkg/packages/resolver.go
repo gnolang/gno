@@ -44,21 +44,17 @@ func ChainResolvers(rs ...Resolver) Resolver {
 }
 
 func (cr ChainedResolver) Name() string {
-	var name strings.Builder
-
-	for i, r := range cr {
+	names := make([]string, 0, len(cr))
+	for _, r := range cr {
 		rname := r.Name()
 		if rname == "" {
 			continue
 		}
 
-		if i > 0 {
-			name.WriteRune('/')
-		}
-		name.WriteString(rname)
+		names = append(names, rname)
 	}
 
-	return name.String()
+	return strings.Join(names, "/")
 }
 
 func (cr ChainedResolver) Resolve(fset *token.FileSet, path string) (*Package, error) {

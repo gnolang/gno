@@ -15,19 +15,21 @@ import (
 )
 
 type remoteResolver struct {
-	*client.RPCClient // Root folder
-	fset              *token.FileSet
+	*client.RPCClient
+	name string
+	fset *token.FileSet
 }
 
-func NewRemoteResolver(cl *client.RPCClient) Resolver {
+func NewRemoteResolver(name string, cl *client.RPCClient) Resolver {
 	return &remoteResolver{
 		RPCClient: cl,
+		name:      name,
 		fset:      token.NewFileSet(),
 	}
 }
 
 func (res *remoteResolver) Name() string {
-	return fmt.Sprintf("remote")
+	return fmt.Sprintf("remote<%s>", res.name)
 }
 
 func (res *remoteResolver) Resolve(fset *token.FileSet, path string) (*Package, error) {

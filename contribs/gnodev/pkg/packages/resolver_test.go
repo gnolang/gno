@@ -5,9 +5,14 @@ import (
 	"errors"
 	"go/token"
 	"log/slog"
+	"path/filepath"
 	"testing"
 
+	"github.com/gnolang/gno/gno.land/pkg/integration"
 	"github.com/gnolang/gno/gnovm"
+	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
+	"github.com/gnolang/gno/tm2/pkg/bft/rpc/client"
+	"github.com/gnolang/gno/tm2/pkg/crypto/secp256k1"
 	"github.com/gnolang/gno/tm2/pkg/log"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -185,5 +190,101 @@ func TestPackageCheckerMiddleware(t *testing.T) {
 
 		_, err := resolver.Resolve(token.NewFileSet(), nonGnoPkg.Path)
 		require.NoError(t, err)
+	})
+}
+
+func TestResolverLocal_Resolve(t *testing.T) {
+	t.Parallel()
+
+	const anotherPath = "abc.xy/another/path"
+	localResolver := NewLocalResolver(anotherPath, filepath.Join("./testdata", TestdataPkgA))
+
+	t.Run("valid package", func(t *testing.T) {
+		t.Parallel()
+
+		pkg, err := localResolver.Resolve(token.NewFileSet(), anotherPath)
+		require.NoError(t, err)
+		require.NotNil(t, pkg)
+		require.Equal(t, pkg.Name, "aa")
+	})
+
+	t.Run("invalid package", func(t *testing.T) {
+		t.Parallel()
+
+		pkg, err := localResolver.Resolve(token.NewFileSet(), "abc.xy/wrong/package")
+		require.Nil(t, pkg)
+		require.Error(t, err)
+		require.ErrorIs(t, err, ErrResolverPackageNotFound)
+	})
+}
+
+func TestResolver_ResolveRemote(t *testing.T) {
+	const targetPath = "gno.land/r/target/path"
+
+	mempkg := gnovm.MemPackage{
+		Name: "foo",
+		Path: targetPath,
+		Files: []*gnovm.MemFile{
+			{
+				Name: "foo.gno",
+				Body: `package foo; func Render(_ string) string { return "bar" }`,
+			},
+			{Name: "gno.mod", Body: `module ` + targetPath},
+		},
+	}
+
+	rootdir := gnoenv.RootDir()
+	cfg := integration.TestingMinimalNodeConfig(rootdir)
+	logger := log.NewTestingLogger(t)
+
+	// Setup genesis state
+	privKey := secp256k1.GenPrivKey()
+	cfg.Genesis.AppState = integration.GenerateTestinGenesisState(privKey, mempkg)
+
+	_, address := integration.TestingInMemoryNode(t, logger, cfg)
+	cl, err := client.NewHTTPClient(address)
+	require.NoError(t, err)
+
+	remoteResolver := NewRemoteResolver(address, cl)
+	t.Run("valid package", func(t *testing.T) {
+		pkg, err := remoteResolver.Resolve(token.NewFileSet(), mempkg.Path)
+		require.NoError(t, err)
+		require.NotNil(t, pkg)
+		assert.Equal(t, mempkg, pkg.MemPackage)
+	})
+
+	t.Run("invalid package", func(t *testing.T) {
+		pkg, err := remoteResolver.Resolve(token.NewFileSet(), "gno.land/r/not/a/valid/package")
+		require.Nil(t, pkg)
+		require.Error(t, err)
+		require.ErrorIs(t, err, ErrResolverPackageNotFound)
+	})
+}
+
+func TestResolverRoot_Resolve(t *testing.T) {
+	t.Parallel()
+
+	fsResolver := NewRootResolver("./testdata")
+	t.Run("valid packages", func(t *testing.T) {
+		t.Parallel()
+
+		for _, tpkg := range []string{TestdataPkgA, TestdataPkgB, TestdataPkgC} {
+			t.Run(tpkg, func(t *testing.T) {
+				pkg, err := fsResolver.Resolve(token.NewFileSet(), tpkg)
+				require.NoError(t, err)
+				require.NotNil(t, pkg)
+				require.Equal(t, tpkg, pkg.Path)
+				require.Equal(t, filepath.Base(tpkg), pkg.Name)
+			})
+		}
+	})
+
+	t.Run("invalid packages", func(t *testing.T) {
+		t.Parallel()
+
+		pkg, err := fsResolver.Resolve(token.NewFileSet(), "abc.xy/wrong/package")
+		require.Nil(t, pkg)
+		require.Error(t, err)
+		require.ErrorIs(t, err, ErrResolverPackageNotFound)
 	})
 }

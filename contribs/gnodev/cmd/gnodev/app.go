@@ -185,7 +185,7 @@ func (ds *App) Setup(ctx context.Context, dirs ...string) (err error) {
 	case "":
 		if len(ds.paths) > 0 {
 			ds.webHomePath = strings.TrimPrefix(ds.paths[0], ds.cfg.chainDomain)
-			ds.logger.Info("using default package", "path", ds.paths[0])
+			ds.logger.WithGroup(WebLogName).Info("using default package", "path", ds.paths[0])
 		}
 	case "/", ":none:": // skip
 	default:
@@ -219,6 +219,8 @@ func (ds *App) Setup(ctx context.Context, dirs ...string) (err error) {
 			"proxy_addr", ds.proxy.ProxyAddress(),
 			"target_addr", ds.proxy.TargetAddress(),
 		)
+
+		proxyLogger.Info("lazy loading is enabled. packages will be loaded only upon a request via a query or transaction.", "loader", ds.loader.Name())
 	} else {
 		nodeCfg.TMConfig.RPC.ListenAddress = fmt.Sprintf("%s://%s", address.Network(), address.String())
 	}

@@ -18,6 +18,10 @@ func NewGlobLoader(rootpath string, res ...Resolver) *GlobLoader {
 	return &GlobLoader{rootpath, ChainResolvers(res...)}
 }
 
+func (l GlobLoader) Name() string {
+	return l.Resolver.Name()
+}
+
 func (l GlobLoader) MatchPaths(globs ...string) ([]string, error) {
 	if l.Root == "" {
 		return globs, nil

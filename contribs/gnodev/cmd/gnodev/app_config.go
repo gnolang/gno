@@ -113,7 +113,7 @@ func (c *AppConfig) RegisterFlagsWith(fs *flag.FlagSet, defaultCfg AppConfig) {
 	fs.Var(
 		&c.resolvers,
 		"resolver",
-		"list of additional resolvers (`root`, `dir` or `remote`), will be executed in the given order",
+		"list of additional resolvers (`root`, `local` or `remote`), will be executed in the given order",
 	)
 
 	fs.StringVar(
