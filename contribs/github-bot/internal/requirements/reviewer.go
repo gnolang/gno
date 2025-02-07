@@ -238,7 +238,6 @@ func (r *ReviewByTeamMembersRequirement) IsSatisfied(pr *github.PullRequest, det
 				"Member %s from team %s already reviewed PR %d with state %s (%d/%d required %sreview(s))",
 				login, r.team, pr.GetNumber(), review.GetState(), reviewCount, r.count, stateStr,
 			)
-
 		}
 	}
 
