@@ -293,6 +293,8 @@ func (ds *App) setupHandlers(ctx context.Context) (http.Handler, error) {
 			ds.devNode.AddPackagePaths(ds.pathManager.List()...)
 
 			// Check if the node needs to be reloaded
+			// XXX: This part can likely be optimized if we believe
+			// it significantly impacts performance.
 			for _, path := range paths {
 				if ds.devNode.HasPackageLoaded(path) {
 					continue
