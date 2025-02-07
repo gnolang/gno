@@ -1,6 +1,6 @@
-# Run gno transpile with valid gno files
+# Run gno tool transpile with valid gno files
 
-gno transpile .
+gno tool transpile .
 
 ! stdout .+
 ! stderr .+

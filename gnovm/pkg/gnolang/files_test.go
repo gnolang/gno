@@ -46,9 +46,9 @@ func TestFiles(t *testing.T) {
 			Error:   io.Discard,
 			Sync:    *withSync,
 		}
-		o.BaseStore, o.TestStore = test.Store(
-			rootDir, true,
-			nopReader{}, o.WriterForStore(), io.Discard,
+		o.BaseStore, o.TestStore = test.StoreWithOptions(
+			rootDir, nopReader{}, o.WriterForStore(), io.Discard,
+			test.StoreOptions{WithExtern: true},
 		)
 		return o
 	}

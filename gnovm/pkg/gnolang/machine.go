@@ -462,6 +462,51 @@ func (m *Machine) RunFiles(fns ...*FileNode) {
 	m.runInitFromUpdates(pv, updates)
 }
 
+// PreprocessFiles runs Preprocess on the given files. It is used to detect
+// compile-time errors in the package.
+func (m *Machine) PreprocessFiles(pkgName, pkgPath string, fset *FileSet, save, withOverrides bool) (*PackageNode, *PackageValue) {
+	if !withOverrides {
+		if err := checkDuplicates(fset); err != nil {
+			panic(fmt.Errorf("running package %q: %w", pkgName, err))
+		}
+	}
+	pn := NewPackageNode(Name(pkgName), pkgPath, fset)
+	pv := pn.NewPackage()
+	pb := pv.GetBlock(m.Store)
+	m.SetActivePackage(pv)
+	m.Store.SetBlockNode(pn)
+	PredefineFileSet(m.Store, pn, fset)
+	for _, fn := range fset.Files {
+		fn = Preprocess(m.Store, pn, fn).(*FileNode)
+		// After preprocessing, save blocknodes to store.
+		SaveBlockNodes(m.Store, fn)
+		// Make block for fn.
+		// Each file for each *PackageValue gets its own file *Block,
+		// with values copied over from each file's
+		// *FileNode.StaticBlock.
+		fb := m.Alloc.NewBlock(fn, pb)
+		fb.Values = make([]TypedValue, len(fn.StaticBlock.Values))
+		copy(fb.Values, fn.StaticBlock.Values)
+		pv.AddFileBlock(fn.Name, fb)
+	}
+	// Get new values across all files in package.
+	pn.PrepareNewValues(pv)
+	// save package value.
+	var throwaway *Realm
+	if save {
+		// store new package values and types
+		throwaway = m.saveNewPackageValuesAndTypes()
+		if throwaway != nil {
+			m.Realm = throwaway
+		}
+		m.resavePackageValues(throwaway)
+		if throwaway != nil {
+			m.Realm = nil
+		}
+	}
+	return pn, pv
+}
+
 // Add files to the package's *FileSet and run decls in them.
 // This will also run each init function encountered.
 // Returns the updated typed values of package.
@@ -2147,6 +2192,10 @@ func (m *Machine) Printf(format string, args ...interface{}) {
 }
 
 func (m *Machine) String() string {
+	if m == nil {
+		return "Machine:nil"
+	}
+
 	// Calculate some reasonable total length to avoid reallocation
 	// Assuming an average length of 32 characters per string
 	var (
@@ -2161,25 +2210,26 @@ func (m *Machine) String() string {
 		totalLength = vsLength + ssLength + xsLength + bsLength + obsLength + fsLength + exceptionsLength
 	)
 
-	var builder strings.Builder
+	var sb strings.Builder
+	builder := &sb // Pointer for use in fmt.Fprintf.
 	builder.Grow(totalLength)
 
-	builder.WriteString(fmt.Sprintf("Machine:\n    PreprocessorMode: %v\n    Op: %v\n    Values: (len: %d)\n", m.PreprocessorMode, m.Ops[:m.NumOps], m.NumValues))
+	fmt.Fprintf(builder, "Machine:\n    PreprocessorMode: %v\n    Op: %v\n    Values: (len: %d)\n", m.PreprocessorMode, m.Ops[:m.NumOps], m.NumValues)
 
 	for i := m.NumValues - 1; i >= 0; i-- {
-		builder.WriteString(fmt.Sprintf("          #%d %v\n", i, m.Values[i]))
+		fmt.Fprintf(builder, "          #%d %v\n", i, m.Values[i])
 	}
 
 	builder.WriteString("    Exprs:\n")
 
 	for i := len(m.Exprs) - 1; i >= 0; i-- {
-		builder.WriteString(fmt.Sprintf("          #%d %v\n", i, m.Exprs[i]))
+		fmt.Fprintf(builder, "          #%d %v\n", i, m.Exprs[i])
 	}
 
 	builder.WriteString("    Stmts:\n")
 
 	for i := len(m.Stmts) - 1; i >= 0; i-- {
-		builder.WriteString(fmt.Sprintf("          #%d %v\n", i, m.Stmts[i]))
+		fmt.Fprintf(builder, "          #%d %v\n", i, m.Stmts[i])
 	}
 
 	builder.WriteString("    Blocks:\n")
@@ -2196,17 +2246,17 @@ func (m *Machine) String() string {
 		if pv, ok := b.Source.(*PackageNode); ok {
 			// package blocks have too much, so just
 			// print the pkgpath.
-			builder.WriteString(fmt.Sprintf("          %s(%d) %s\n", gens, gen, pv.PkgPath))
+			fmt.Fprintf(builder, "          %s(%d) %s\n", gens, gen, pv.PkgPath)
 		} else {
 			bsi := b.StringIndented("            ")
-			builder.WriteString(fmt.Sprintf("          %s(%d) %s\n", gens, gen, bsi))
+			fmt.Fprintf(builder, "          %s(%d) %s\n", gens, gen, bsi)
 
 			if b.Source != nil {
 				sb := b.GetSource(m.Store).GetStaticBlock().GetBlock()
-				builder.WriteString(fmt.Sprintf(" (s vals) %s(%d) %s\n", gens, gen, sb.StringIndented("            ")))
+				fmt.Fprintf(builder, " (s vals) %s(%d) %s\n", gens, gen, sb.StringIndented("            "))
 
 				sts := b.GetSource(m.Store).GetStaticBlock().Types
-				builder.WriteString(fmt.Sprintf(" (s typs) %s(%d) %s\n", gens, gen, sts))
+				fmt.Fprintf(builder, " (s typs) %s(%d) %s\n", gens, gen, sts)
 			}
 		}
 
@@ -2217,7 +2267,7 @@ func (m *Machine) String() string {
 		case *Block:
 			b = bp
 		case RefValue:
-			builder.WriteString(fmt.Sprintf("            (block ref %v)\n", bp.ObjectID))
+			fmt.Fprintf(builder, "            (block ref %v)\n", bp.ObjectID)
 			b = nil
 		default:
 			panic("should not happen")
@@ -2236,12 +2286,12 @@ func (m *Machine) String() string {
 		if _, ok := b.Source.(*PackageNode); ok {
 			break // done, skip *PackageNode.
 		} else {
-			builder.WriteString(fmt.Sprintf("          #%d %s\n", i,
-				b.StringIndented("            ")))
+			fmt.Fprintf(builder, "          #%d %s\n", i,
+				b.StringIndented("            "))
 			if b.Source != nil {
 				sb := b.GetSource(m.Store).GetStaticBlock().GetBlock()
-				builder.WriteString(fmt.Sprintf(" (static) #%d %s\n", i,
-					sb.StringIndented("            ")))
+				fmt.Fprintf(builder, " (static) #%d %s\n", i,
+					sb.StringIndented("            "))
 			}
 		}
 	}
@@ -2249,17 +2299,17 @@ func (m *Machine) String() string {
 	builder.WriteString("    Frames:\n")
 
 	for i := len(m.Frames) - 1; i >= 0; i-- {
-		builder.WriteString(fmt.Sprintf("          #%d %s\n", i, m.Frames[i]))
+		fmt.Fprintf(builder, "          #%d %s\n", i, m.Frames[i])
 	}
 
 	if m.Realm != nil {
-		builder.WriteString(fmt.Sprintf("    Realm:\n      %s\n", m.Realm.Path))
+		fmt.Fprintf(builder, "    Realm:\n      %s\n", m.Realm.Path)
 	}
 
 	builder.WriteString("    Exceptions:\n")
 
 	for _, ex := range m.Exceptions {
-		builder.WriteString(fmt.Sprintf("      %s\n", ex.Sprint(m)))
+		fmt.Fprintf(builder, "      %s\n", ex.Sprint(m))
 	}
 
 	return builder.String()

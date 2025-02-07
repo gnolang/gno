@@ -2,7 +2,7 @@ package main
 
 import (
 	"fmt"
-	"io/ioutil"
+	"io"
 	"os"
 
 	markdown "github.com/MichaelMure/go-term-markdown"
@@ -11,14 +11,14 @@ import (
 func main() {
 	// If no arguments are provided, read from stdin
 	if len(os.Args) <= 1 {
-		fileContent, err := ioutil.ReadAll(os.Stdin)
+		fileContent, err := io.ReadAll(os.Stdin)
 		checkErr(err)
 		renderMarkdown("stdin.gno", fileContent)
 	}
 
 	// Iterate through command-line arguments (file paths)
 	for _, filePath := range os.Args[1:] {
-		fileContent, err := ioutil.ReadFile(filePath)
+		fileContent, err := os.ReadFile(filePath)
 		checkErr(err)
 		renderMarkdown(filePath, fileContent)
 	}

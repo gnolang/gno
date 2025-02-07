@@ -189,6 +189,85 @@ func main() {
 //         "RefCount": "1"
 //     }
 // }
+// u[a8ada09dee16d791fd406d629fe29bb0ed084a30:5]={
+//     "Fields": [
+//         {
+//             "T": {
+//                 "@type": "/gno.RefType",
+//                 "ID": "github.com/gnolang/gno/_test/timtadh/data_structures/types.String"
+//             },
+//             "V": {
+//                 "@type": "/gno.StringValue",
+//                 "value": "key0"
+//             }
+//         },
+//         {
+//             "T": {
+//                 "@type": "/gno.PrimitiveType",
+//                 "value": "16"
+//             },
+//             "V": {
+//                 "@type": "/gno.StringValue",
+//                 "value": "value0"
+//             }
+//         },
+//         {
+//             "N": "AQAAAAAAAAA=",
+//             "T": {
+//                 "@type": "/gno.PrimitiveType",
+//                 "value": "32"
+//             }
+//         },
+//         {
+//             "T": {
+//                 "@type": "/gno.PointerType",
+//                 "Elt": {
+//                     "@type": "/gno.RefType",
+//                     "ID": "github.com/gnolang/gno/_test/timtadh/data_structures/tree/avl.AvlNode"
+//                 }
+//             }
+//         },
+//         {
+//             "T": {
+//                 "@type": "/gno.PointerType",
+//                 "Elt": {
+//                     "@type": "/gno.RefType",
+//                     "ID": "github.com/gnolang/gno/_test/timtadh/data_structures/tree/avl.AvlNode"
+//                 }
+//             }
+//         }
+//     ],
+//     "ObjectInfo": {
+//         "ID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:5",
+//         "ModTime": "9",
+//         "OwnerID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:4",
+//         "RefCount": "1"
+//     }
+// }
+// u[a8ada09dee16d791fd406d629fe29bb0ed084a30:4]={
+//     "ObjectInfo": {
+//         "ID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:4",
+//         "ModTime": "9",
+//         "OwnerID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:2",
+//         "RefCount": "1"
+//     },
+//     "Value": {
+//         "AllocationInfo": {
+//             "AllocType": false,
+//             "AllocValue": true,
+//             "RefCount": "0"
+//         },
+//         "T": {
+//             "@type": "/gno.RefType",
+//             "ID": "github.com/gnolang/gno/_test/timtadh/data_structures/tree/avl.AvlNode"
+//         },
+//         "V": {
+//             "@type": "/gno.RefValue",
+//             "Hash": "d7fbb234dca9f194f35fe5409a62db9daf39b0fc",
+//             "ObjectID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:5"
+//         }
+//     }
+// }
 // u[a8ada09dee16d791fd406d629fe29bb0ed084a30:8]={
 //     "ObjectInfo": {
 //         "ID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:8",
@@ -259,7 +338,7 @@ func main() {
 //                 "@type": "/gno.PointerValue",
 //                 "Base": {
 //                     "@type": "/gno.RefValue",
-//                     "Hash": "6eb6da0ee67d9e0691e6e5de1c470c725795d540",
+//                     "Hash": "194978fa0a568e3d821788a35a15c4035afd9be5",
 //                     "ObjectID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:4"
 //                 },
 //                 "Index": "0",
@@ -298,61 +377,6 @@ func main() {
 //         "RefCount": "1"
 //     }
 // }
-// u[a8ada09dee16d791fd406d629fe29bb0ed084a30:5]={
-//     "Fields": [
-//         {
-//             "T": {
-//                 "@type": "/gno.RefType",
-//                 "ID": "github.com/gnolang/gno/_test/timtadh/data_structures/types.String"
-//             },
-//             "V": {
-//                 "@type": "/gno.StringValue",
-//                 "value": "key0"
-//             }
-//         },
-//         {
-//             "T": {
-//                 "@type": "/gno.PrimitiveType",
-//                 "value": "16"
-//             },
-//             "V": {
-//                 "@type": "/gno.StringValue",
-//                 "value": "value0"
-//             }
-//         },
-//         {
-//             "N": "AQAAAAAAAAA=",
-//             "T": {
-//                 "@type": "/gno.PrimitiveType",
-//                 "value": "32"
-//             }
-//         },
-//         {
-//             "T": {
-//                 "@type": "/gno.PointerType",
-//                 "Elt": {
-//                     "@type": "/gno.RefType",
-//                     "ID": "github.com/gnolang/gno/_test/timtadh/data_structures/tree/avl.AvlNode"
-//                 }
-//             }
-//         },
-//         {
-//             "T": {
-//                 "@type": "/gno.PointerType",
-//                 "Elt": {
-//                     "@type": "/gno.RefType",
-//                     "ID": "github.com/gnolang/gno/_test/timtadh/data_structures/tree/avl.AvlNode"
-//                 }
-//             }
-//         }
-//     ],
-//     "ObjectInfo": {
-//         "ID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:5",
-//         "ModTime": "9",
-//         "OwnerID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:4",
-//         "RefCount": "1"
-//     }
-// }
 // u[a8ada09dee16d791fd406d629fe29bb0ed084a30:6]={
 //     "ObjectInfo": {
 //         "ID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:6",
@@ -372,126 +396,8 @@ func main() {
 //         },
 //         "V": {
 //             "@type": "/gno.RefValue",
-//             "Hash": "2d5fc3ad9ced9de648442095f92c1640d12e4209",
+//             "Hash": "4d388079817095a7ae3dca4ec1726a6bd595a054",
 //             "ObjectID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:7"
 //         }
 //     }
-// }
-// u[a8ada09dee16d791fd406d629fe29bb0ed084a30:2]={
-//     "Blank": {},
-//     "ObjectInfo": {
-//         "ID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:2",
-//         "IsEscaped": true,
-//         "ModTime": "9",
-//         "RefCount": "2"
-//     },
-//     "Parent": null,
-//     "Source": {
-//         "@type": "/gno.RefNode",
-//         "BlockNode": null,
-//         "Location": {
-//             "Column": "0",
-//             "File": "",
-//             "Line": "0",
-//             "PkgPath": "gno.land/r/test"
-//         }
-//     },
-//     "Values": [
-//         {
-//             "AllocationInfo": {
-//                 "AllocType": false,
-//                 "AllocValue": false,
-//                 "RefCount": "6"
-//             },
-//             "T": {
-//                 "@type": "/gno.PointerType",
-//                 "Elt": {
-//                     "@type": "/gno.RefType",
-//                     "ID": "github.com/gnolang/gno/_test/timtadh/data_structures/tree/avl.AvlNode"
-//                 }
-//             },
-//             "V": {
-//                 "@type": "/gno.PointerValue",
-//                 "Base": {
-//                     "@type": "/gno.RefValue",
-//                     "Hash": "b7af7fe889ae86a3f6b6eeffea560c09a32a31e0",
-//                     "ObjectID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:6"
-//                 },
-//                 "Index": "0",
-//                 "TV": null
-//             }
-//         },
-//         {
-//             "T": {
-//                 "@type": "/gno.FuncType",
-//                 "Params": [],
-//                 "Results": []
-//             },
-//             "V": {
-//                 "@type": "/gno.FuncValue",
-//                 "Closure": {
-//                     "@type": "/gno.RefValue",
-//                     "Escaped": true,
-//                     "ObjectID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:3"
-//                 },
-//                 "FileName": "files/zrealm7.gno",
-//                 "IsMethod": false,
-//                 "Name": "init.1",
-//                 "NativeName": "",
-//                 "NativePkg": "",
-//                 "PkgPath": "gno.land/r/test",
-//                 "Source": {
-//                     "@type": "/gno.RefNode",
-//                     "BlockNode": null,
-//                     "Location": {
-//                         "Column": "1",
-//                         "File": "files/zrealm7.gno",
-//                         "Line": "11",
-//                         "PkgPath": "gno.land/r/test"
-//                     }
-//                 },
-//                 "Type": {
-//                     "@type": "/gno.FuncType",
-//                     "Params": [],
-//                     "Results": []
-//                 }
-//             }
-//         },
-//         {
-//             "T": {
-//                 "@type": "/gno.FuncType",
-//                 "Params": [],
-//                 "Results": []
-//             },
-//             "V": {
-//                 "@type": "/gno.FuncValue",
-//                 "Closure": {
-//                     "@type": "/gno.RefValue",
-//                     "Escaped": true,
-//                     "ObjectID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:3"
-//                 },
-//                 "FileName": "files/zrealm7.gno",
-//                 "IsMethod": false,
-//                 "Name": "main",
-//                 "NativeName": "",
-//                 "NativePkg": "",
-//                 "PkgPath": "gno.land/r/test",
-//                 "Source": {
-//                     "@type": "/gno.RefNode",
-//                     "BlockNode": null,
-//                     "Location": {
-//                         "Column": "1",
-//                         "File": "files/zrealm7.gno",
-//                         "Line": "17",
-//                         "PkgPath": "gno.land/r/test"
-//                     }
-//                 },
-//                 "Type": {
-//                     "@type": "/gno.FuncType",
-//                     "Params": [],
-//                     "Results": []
-//                 }
-//             }
-//         }
-//     ]
 // }

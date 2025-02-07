@@ -20,5 +20,5 @@ func main() {
 
 // Output:
 // (struct{("foo" string)} gno.land/r/test.Foo) map{("a" string):(ref(a8ada09dee16d791fd406d629fe29bb0ed084a30:3) gno.land/r/test.Foo)}
-// memstats in main before GC:  Allocator{maxBytes:50000, bytes:45444}
-// memstats in main after GC:  Allocator{maxBytes:50000, bytes:19730}
+// memstats in main before GC:  Allocator{maxBytes:50000, bytes:45484}
+// memstats in main after GC:  Allocator{maxBytes:50000, bytes:19750}

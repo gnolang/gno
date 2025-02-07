@@ -139,10 +139,7 @@ func NewTestOptions(rootDir string, stdin io.Reader, stdout, stderr io.Writer) *
 		Output:  stdout,
 		Error:   stderr,
 	}
-	opts.BaseStore, opts.TestStore = Store(
-		rootDir, false,
-		stdin, opts.WriterForStore(), stderr,
-	)
+	opts.BaseStore, opts.TestStore = Store(rootDir, stdin, opts.WriterForStore(), stderr)
 	return opts
 }
 
