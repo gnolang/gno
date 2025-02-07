@@ -31,13 +31,18 @@ func main() {
 //         "RefCount": "1"
 //     },
 //     "Value": {
+//         "AllocationInfo": {
+//             "AllocType": false,
+//             "AllocValue": true,
+//             "RefCount": "0"
+//         },
 //         "T": {
 //             "@type": "/gno.RefType",
 //             "ID": "gno.land/p/demo/avl.Node"
 //         },
 //         "V": {
 //             "@type": "/gno.RefValue",
-//             "Hash": "ba7550123807b8da857e38b72f66204b1ec582a2",
+//             "Hash": "3fdc50953e16fbabddcd10cdadfff2598d7fd163",
 //             "ObjectID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:8"
 //         }
 //     }
@@ -50,13 +55,18 @@ func main() {
 //         "RefCount": "1"
 //     },
 //     "Value": {
+//         "AllocationInfo": {
+//             "AllocType": false,
+//             "AllocValue": true,
+//             "RefCount": "0"
+//         },
 //         "T": {
 //             "@type": "/gno.RefType",
 //             "ID": "gno.land/p/demo/avl.Node"
 //         },
 //         "V": {
 //             "@type": "/gno.RefValue",
-//             "Hash": "3cb8485664c356fcb5c88dfb96b7455133a6b022",
+//             "Hash": "a5f95f8600374b3a58ec042072bb92e615ecd54d",
 //             "ObjectID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:10"
 //         }
 //     }
@@ -195,7 +205,7 @@ func main() {
 //                 "@type": "/gno.PointerValue",
 //                 "Base": {
 //                     "@type": "/gno.RefValue",
-//                     "Hash": "360ea9d15f5db5ab54e2eef9641a91078a477be9",
+//                     "Hash": "ea2666b67e64f6a134d386325c3acc9c856941ce",
 //                     "ObjectID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:9"
 //                 },
 //                 "Index": "0",
@@ -248,7 +258,7 @@ func main() {
 //         },
 //         "V": {
 //             "@type": "/gno.RefValue",
-//             "Hash": "ca10cceb88b91e4911fcfe2ba83cde3fb0ce3247",
+//             "Hash": "8486b0e3ef273cc5229c43ae73b15a5ce89911cc",
 //             "ObjectID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:14"
 //         }
 //     }
@@ -297,7 +307,7 @@ func main() {
 //                 "@type": "/gno.PointerValue",
 //                 "Base": {
 //                     "@type": "/gno.RefValue",
-//                     "Hash": "f501dae5c88d59c77f08cd0a943c0b829b09dbe4",
+//                     "Hash": "2f2795e82824a034e54c81beb9bf4f41bedcdbd9",
 //                     "ObjectID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:7"
 //                 },
 //                 "Index": "0",
@@ -321,7 +331,7 @@ func main() {
 //                 "@type": "/gno.PointerValue",
 //                 "Base": {
 //                     "@type": "/gno.RefValue",
-//                     "Hash": "988ba944841d81e49623b828bb3027e142be6270",
+//                     "Hash": "3b72f211046c003d7b9db81b7fc52153a2b23a96",
 //                     "ObjectID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:13"
 //                 },
 //                 "Index": "0",
@@ -355,7 +365,7 @@ func main() {
 //         },
 //         "V": {
 //             "@type": "/gno.RefValue",
-//             "Hash": "07a72dab52b1d71ce8b9642c3f347ee6f9e691b3",
+//             "Hash": "57064c54e18b604ab23c2daf2d23e0f4c0f4c85d",
 //             "ObjectID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:12"
 //         }
 //     }
@@ -379,7 +389,7 @@ func main() {
 //                 "@type": "/gno.PointerValue",
 //                 "Base": {
 //                     "@type": "/gno.RefValue",
-//                     "Hash": "f9f988d84bf1e4e2cd7605e3e869e1a73edbff1c",
+//                     "Hash": "cd047a6b5623fcd959478a529620d773a3d4a1ff",
 //                     "ObjectID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:11"
 //                 },
 //                 "Index": "0",

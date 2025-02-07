@@ -132,49 +132,12 @@ func (alloc *Allocator) GC() {
 		}
 		debug2.Println2("------------after gc, memStats:", alloc.MemStats())
 	}()
+
 	debug2.Println2("---gc, MemStats:", alloc.MemStats())
 
 	// throwaway allocator
 	debug2.Println2("m: ", alloc.m)
 	debug2.Println2("=====================================================================")
-
-	// the actual slice value are in
-	// blocks, so no allcation here.
-	for i, fr := range alloc.m.Frames {
-		debug2.Printf2("frames[%d]: %v \n", i, fr)
-
-		debug2.Println2("fr.defers: ", fr.Defers)
-
-		//fv := fr.Func
-		//debug2.Println2("fv: ", fv)
-		//if fv != nil {
-		//	ft := fv.GetType(alloc.m.Store)
-		//	if ft.HasVarg() {
-		//		debug2.Println2("has varg")
-		//		pts := ft.Params
-		//		numParams := len(pts)
-		//		isMethod := 0 // 1 if true
-		//		nvar := fr.NumArgs - (numParams - 1 - isMethod)
-		//		throwaway.AllocateSlice()
-		//		throwaway.AllocateListArray(int64(nvar))
-		//	}
-		//}
-		// defer func
-		//for _, dfr := range fr.Defers {
-		//	debug2.Println2("has defer...")
-		//	fv := dfr.Func
-		//	ft := fv.GetType(alloc.m.Store)
-		//	debug2.Println2("ft: ", ft)
-		//	if ft.HasVarg() {
-		//		debug2.Println2("has defer, has varg")
-		//		numParams := len(ft.Params)
-		//		numArgs := len(dfr.Args)
-		//		nvar := numArgs - (numParams - 1)
-		//		throwaway.AllocateSlice()
-		//		throwaway.AllocateListArray(int64(nvar))
-		//	}
-		//}
-	}
 
 	// scan blocks
 	for i, b := range alloc.m.Blocks {

@@ -25,6 +25,11 @@ func main() {
 // c[67c479d3d51d4056b2f4111d5352912a00be311e:11]={
 //     "Fields": [
 //         {
+//             "AllocationInfo": {
+//                 "AllocType": false,
+//                 "AllocValue": false,
+//                 "RefCount": "1"
+//             },
 //             "T": {
 //                 "@type": "/gno.RefType",
 //                 "ID": "std.Address"
@@ -92,7 +97,7 @@ func main() {
 //         },
 //         "V": {
 //             "@type": "/gno.RefValue",
-//             "Hash": "02df322f4d74a1b078106d37d0a99616ac4e9600",
+//             "Hash": "599823b8602f6b9b538366d23cd11e623685a1e5",
 //             "ObjectID": "67c479d3d51d4056b2f4111d5352912a00be311e:11"
 //         }
 //     }
@@ -126,7 +131,7 @@ func main() {
 //                 "@type": "/gno.PointerValue",
 //                 "Base": {
 //                     "@type": "/gno.RefValue",
-//                     "Hash": "634933c69b1fc2340983008134fb1ca580c95d2e",
+//                     "Hash": "e0fc1cd9129ca79fe506ef07969d2fd3d1ce3db4",
 //                     "ObjectID": "67c479d3d51d4056b2f4111d5352912a00be311e:10"
 //                 },
 //                 "Index": "0",
@@ -201,7 +206,7 @@ func main() {
 //         },
 //         "V": {
 //             "@type": "/gno.RefValue",
-//             "Hash": "0de90f76ee02ab7656b1765499bfbf2c287f9d3d",
+//             "Hash": "61cce82a08d5094f50abc085b994ec74bd757e28",
 //             "ObjectID": "67c479d3d51d4056b2f4111d5352912a00be311e:9"
 //         }
 //     }
@@ -225,7 +230,7 @@ func main() {
 //                 "@type": "/gno.PointerValue",
 //                 "Base": {
 //                     "@type": "/gno.RefValue",
-//                     "Hash": "815e826cb0527620cb35ca0bbaeb30c15cdae3be",
+//                     "Hash": "3f70f17218216b15b0a5f5682b0b44bf28f753b4",
 //                     "ObjectID": "67c479d3d51d4056b2f4111d5352912a00be311e:8"
 //                 },
 //                 "Index": "0",
@@ -267,7 +272,7 @@ func main() {
 //             },
 //             "V": {
 //                 "@type": "/gno.RefValue",
-//                 "Hash": "b256504b4429432d570d59a910e24eb5c7d88102",
+//                 "Hash": "24f45c0d83de34c6e69de3fb73423144a50aa082",
 //                 "ObjectID": "67c479d3d51d4056b2f4111d5352912a00be311e:5"
 //             }
 //         },

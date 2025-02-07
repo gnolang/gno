@@ -100,7 +100,7 @@ func main() {
 //             "AllocationInfo": {
 //                 "AllocType": false,
 //                 "AllocValue": false,
-//                 "RefCount": "5"
+//                 "RefCount": "4"
 //             },
 //             "T": {
 //                 "@type": "/gno.PointerType",
@@ -188,7 +188,7 @@ func main() {
 //         },
 //         "V": {
 //             "@type": "/gno.RefValue",
-//             "Hash": "e37ab662918dc1c109af1d3b2bf54d0cb61dfbef",
+//             "Hash": "058e434aa765400600dd89ba2172cf69d88e94f1",
 //             "ObjectID": "f6dbf411da22e67d74cd7ddba6a76cd7e14a4822:125"
 //         }
 //     }
@@ -261,7 +261,7 @@ func main() {
 //                 "@type": "/gno.PointerValue",
 //                 "Base": {
 //                     "@type": "/gno.RefValue",
-//                     "Hash": "929edb908e87ff67126f350f12e518bf2bfc43ac",
+//                     "Hash": "36cf1b292a7ce9d5ab49af117dd3612e8fffe29c",
 //                     "ObjectID": "f6dbf411da22e67d74cd7ddba6a76cd7e14a4822:124"
 //                 },
 //                 "Index": "0",
@@ -295,7 +295,7 @@ func main() {
 //         },
 //         "V": {
 //             "@type": "/gno.RefValue",
-//             "Hash": "954cd4dad2f3b09b2d431b4c77b0ff3635df0085",
+//             "Hash": "264aab81b69bca8a74ab42feaf1c4813d6e0fadd",
 //             "ObjectID": "f6dbf411da22e67d74cd7ddba6a76cd7e14a4822:123"
 //         }
 //     }
@@ -721,7 +721,7 @@ func main() {
 //             "AllocationInfo": {
 //                 "AllocType": false,
 //                 "AllocValue": false,
-//                 "RefCount": "5"
+//                 "RefCount": "4"
 //             },
 //             "T": {
 //                 "@type": "/gno.PointerType",
@@ -809,7 +809,7 @@ func main() {
 //         },
 //         "V": {
 //             "@type": "/gno.RefValue",
-//             "Hash": "39459a521012b76c8bf52135f5b4e1f24a6216de",
+//             "Hash": "2fc06acf60e37acd61469f2573a14d85ddabfee9",
 //             "ObjectID": "f6dbf411da22e67d74cd7ddba6a76cd7e14a4822:136"
 //         }
 //     }
@@ -882,7 +882,7 @@ func main() {
 //                 "@type": "/gno.PointerValue",
 //                 "Base": {
 //                     "@type": "/gno.RefValue",
-//                     "Hash": "280b1fedeb25911e0da5bb7c920159e0ba96e176",
+//                     "Hash": "1c0078b11258a82120e90996dd997843429b190b",
 //                     "ObjectID": "f6dbf411da22e67d74cd7ddba6a76cd7e14a4822:135"
 //                 },
 //                 "Index": "0",
@@ -916,7 +916,7 @@ func main() {
 //         },
 //         "V": {
 //             "@type": "/gno.RefValue",
-//             "Hash": "9895299722dea03b37fe8e0c7e70a14687df549e",
+//             "Hash": "38a3aa8a1703ca01646ee24c2aae42633b51ad07",
 //             "ObjectID": "f6dbf411da22e67d74cd7ddba6a76cd7e14a4822:134"
 //         }
 //     }
@@ -972,7 +972,7 @@ func main() {
 //             },
 //             "V": {
 //                 "@type": "/gno.RefValue",
-//                 "Hash": "6255b4419bf1efb26a5f814b7f97ef0cbb06a12c",
+//                 "Hash": "1d517d5b2f2b4da229f57892809b4d06e3b51221",
 //                 "ObjectID": "f6dbf411da22e67d74cd7ddba6a76cd7e14a4822:86"
 //             }
 //         },
@@ -1047,7 +1047,7 @@ func main() {
 //                 "@type": "/gno.PointerValue",
 //                 "Base": {
 //                     "@type": "/gno.RefValue",
-//                     "Hash": "c79ae85ae1a83a83f26ca77f56a8cd71da21b048",
+//                     "Hash": "0f979614e2f07247b38a7a5bc12a3fbb8d085b6e",
 //                     "ObjectID": "f6dbf411da22e67d74cd7ddba6a76cd7e14a4822:122"
 //                 },
 //                 "Index": "0",
@@ -1081,7 +1081,7 @@ func main() {
 //                 "@type": "/gno.PointerValue",
 //                 "Base": {
 //                     "@type": "/gno.RefValue",
-//                     "Hash": "b5ba8121a349d27ecac26b774f254640d19297a7",
+//                     "Hash": "17244fa182f5364a9fdfa9ceb31b853ee1fa2b96",
 //                     "ObjectID": "f6dbf411da22e67d74cd7ddba6a76cd7e14a4822:133"
 //                 },
 //                 "Index": "0",
@@ -1104,13 +1104,18 @@ func main() {
 //         "RefCount": "6"
 //     },
 //     "Value": {
+//         "AllocationInfo": {
+//             "AllocType": false,
+//             "AllocValue": true,
+//             "RefCount": "0"
+//         },
 //         "T": {
 //             "@type": "/gno.RefType",
 //             "ID": "gno.land/r/demo/boards.Board"
 //         },
 //         "V": {
 //             "@type": "/gno.RefValue",
-//             "Hash": "a88a9b837af217656ee27084309f7cd02cd94cb3",
+//             "Hash": "4620b48b64ba16f16c26bbc3f989f88e53797add",
 //             "ObjectID": "f6dbf411da22e67d74cd7ddba6a76cd7e14a4822:85"
 //         }
 //     }
