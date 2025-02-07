@@ -26,6 +26,7 @@ export default {
     borderRadius: {
       sm: `${pxToRem(4)}rem`,
       DEFAULT: `${pxToRem(6)}rem`,
+      full: "9999px",
     },
     colors: {
       light: "#FFFFFF",

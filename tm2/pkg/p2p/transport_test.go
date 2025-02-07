@@ -122,14 +122,12 @@ func TestMultiplexTransport_Accept(t *testing.T) {
 
 		transport := NewMultiplexTransport(ni, nk, mCfg, logger)
 
-		p, err := transport.Accept(context.Background(), nil)
+		ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
+		defer cancel()
 
+		p, err := transport.Accept(ctx, nil)
 		assert.Nil(t, p)
-		assert.ErrorIs(
-			t,
-			err,
-			errTransportInactive,
-		)
+		assert.ErrorIs(t, err, context.DeadlineExceeded)
 	})
 
 	t.Run("transport closed", func(t *testing.T) {
