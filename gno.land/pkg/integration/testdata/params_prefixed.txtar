@@ -1,0 +1,69 @@
+# test for params with prefixed key
+
+gnoland start
+
+# ---- 1 Test sys/params.SetPrefixedXXX when called from gno.land/r/sys/params
+
+gnokey maketx addpkg -pkgdir $WORK/prefixed -pkgpath gno.land/r/sys/params -gas-fee 1000000ugnot -gas-wanted 100000000 -broadcast -chainid=tendermint_test test1
+
+## lock transfer
+gnokey maketx call -pkgpath gno.land/r/sys/params -func SetLockTransfer -args "ugnot" -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test test1
+gnokey query params/vm/gno.land/r/sys/params.bank:lockTransfer.string
+stdout 'data: "ugnot"'
+
+# unlock transfer
+gnokey maketx call -pkgpath gno.land/r/sys/params -func SetLockTransfer -args "" -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test test1
+gnokey query params/vm/gno.land/r/sys/params.bank:lockTransfer.string
+stdout 'data: '
+
+# set non-exists keeper params key
+! gnokey maketx call -pkgpath gno.land/r/sys/params -func SetPrefixBank -args "foo" -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test test1
+stderr 'invalid bank parameter key: foo.string'
+
+gnokey query params/vm/gno.land/r/sys/params.bank:foo.string
+stdout 'data: '
+
+# set invalid key
+! gnokey maketx call -pkgpath gno.land/r/sys/params -func SetInvalidKey -args "ugnot" -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test test1
+stderr 'invalid bank parameter key: bank:lockTransfer.string'
+
+gnokey query params/vm/gno.land/r/sys/params.bank:lockTransfer.string
+stdout 'data: '
+
+gnokey query params/vm/gno.land/r/sys/params.bank:bank:lockTransfer.string
+stdout 'data: '
+
+
+# ---- 2 Test sys/params.SetPrefixedXXX when called outside of gno.land/r/sys/params
+gnokey maketx addpkg -pkgdir $WORK/prefixed -pkgpath gno.land/r/myrealm -gas-fee 1000000ugnot -gas-wanted 100000000 -broadcast -chainid=tendermint_test test1
+
+## can not call SetPrefixXXX out side of gno.land/r/params
+gnokey maketx call -pkgpath gno.land/r/myrealm -func SetPrefixedString -args "foo" -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test test1
+
+gnokey query params/vm/gno.land/r/myrealm.bank:foo.string
+stdout 'data: "foo"'
+
+-- prefixed/setter.gno --
+package params
+
+import (
+	"sys/params"
+)
+
+// This should success if it is called from gno.land/r/sys/params
+func SetLockTransfer(denom string) { params.SetPrefixedString("bank","lockTransfer.string", denom) }
+
+// SetPrefixedXXX must be called from gno.land/r/sys/params; otherwise it panics
+// This should fail because the parameter does not exists
+func SetPrefixBank(newFoo string) { params.SetPrefixedString("bank","foo.string", newFoo) }
+
+
+// This should fail because the key "bank:lockTransfer.string" is not valid
+func SetInvalidKey(denom string)  { params.SetPrefixedString("bank", "bank:lockTransfer.string", "ugnot") }
+
+
+func SetPrefixedString(s string) { params.SetPrefixedString("bank","foo.string", s) }
+func SetPrefixedBool(b  bool)   { params.SetPrefixedBool("bank","bar.bool", b) }
+func SetPrefixedInt64(i int64)  { params.SetPrefixedInt64("bank","baz.int64", i) }
+func SetPrefixedUint64(u uint64)  { params.SetPrefixedUint64("bank","baz.uint64", u) }
+func SetPrefixedBytes()  { params.SetPrefixedBytes("bank","baz.bytes", []byte{255,255}) }

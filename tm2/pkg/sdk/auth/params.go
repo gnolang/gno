@@ -138,4 +138,5 @@ func (ak AccountKeeper) GetParamfulKey() string {
 // WillSetParam checks if the key contains the module's parameter key prefix and updates the module parameter accordingly.
 func (ak AccountKeeper) WillSetParam(ctx sdk.Context, key string, value interface{}) {
 	// TODO: add parameter settings here.
+	panic("setting params for auth is not supported yet")
 }

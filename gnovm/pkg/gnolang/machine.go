@@ -416,9 +416,8 @@ func (m *Machine) Stacktrace() (stacktrace Stacktrace) {
 	for i := len(m.Frames) - 1; i >= 0; i-- {
 		if m.Frames[i].IsCall() {
 			stm := m.Stmts[nextStmtIndex]
-			// TODO: fin dout why stm might not be *bodyStmt.
+			// TODO: find out why stm might not be *bodyStmt.
 			if bs, ok := stm.(*bodyStmt); ok {
-				fmt.Printf("Type: %T: %v\n", stm, *bs)
 				stm = bs.Body[bs.NextBodyIndex-1]
 				calls = append(calls, StacktraceCall{
 					Stmt:  stm,

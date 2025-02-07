@@ -117,44 +117,14 @@ func (prm *SDKParams) SetBytes(key string, value []byte) {
 	prm.pmk.SetBytes(prm.ctx, key, value)
 }
 
-func (prm *SDKParams) SetPrefixedString(keeperPrefix, key, value string) {
-	prm.assertRealmAccess(key)
-	prm.willSetKeeperParams(prm.ctx, key, value)
-	prm.pmk.SetString(prm.ctx, key, value)
-}
-
-// Set a boolean parameter in the format of realmPath.parameter.bool
-func (prm *SDKParams) SetPrefixedBool(keeperPrefix, key string, value bool) {
-	prm.assertRealmAccess(key)
-	prm.willSetKeeperParams(prm.ctx, key, value)
-	prm.pmk.SetBool(prm.ctx, key, value)
-}
-
-func (prm *SDKParams) SetPrefixedInt64(keeperPrefix, key string, value int64) {
-	prm.assertRealmAccess(key)
-	prm.willSetKeeperParams(prm.ctx, key, value)
-	prm.pmk.SetInt64(prm.ctx, key, value)
-}
-
-func (prm *SDKParams) SetPrefixedUint64(keeperPrefix, key string, value uint64) {
-	prm.assertRealmAccess(key)
-	prm.willSetKeeperParams(prm.ctx, key, value)
-	prm.pmk.SetUint64(prm.ctx, key, value)
-}
-
-func (prm *SDKParams) SetPrefixedBytes(keeperPrefix, key string, value []byte) {
-	prm.assertRealmAccess(key)
-	prm.willSetKeeperParams(prm.ctx, key, value)
-	prm.pmk.SetBytes(prm.ctx, key, value)
-}
-
 // willSetKeeperParams parses the parameter key and sets the keeper it matches the keeper key
-// The format is sysParamsRealm.[module:]keyName.keyType
+// For the system params, the internal key format is sysParamsRealm.[keeperKeyPrefix:]keyName.keyType
 // Ex. gno.lang/r/sys/params.bank:lockStrn.string
-// The "module:" is optional. If "module:" is presented in the key,
-// it must match the keeper's module names; otherwise it will panic and revert the transaction.
+// The "keeperKeyPrefix:" is optional.
+// If "keeperKeyPrefix:" is presented in the key,
+// it must match the keeper's paramKeyPrefix; otherwise it will panic and revert the transaction.
 func (prm *SDKParams) willSetKeeperParams(ctx sdk.Context, key string, value interface{}) {
-	// key is in the format of realm.module:keyname.type
+	// key is in the format of <realm>:<keyname>.<type>
 	realmPrefix := gno.ReRealmPath.FindString(key)
 	if realmPrefix == "" {
 		panic(fmt.Sprintf("set parameter %s must be accessed from a realm.", key))

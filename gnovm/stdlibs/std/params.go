@@ -8,37 +8,18 @@ import (
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
 )
 
-type ParamsInterface interface {
-	ParamSetter
-	ParamPrefixedSetter
-}
-
 // ParamsSetterInterface is the interface through which Gno is capable of accessing
 // the blockchain's params.
 //
 // The name is what it is to avoid a collision with Gno's Params, when
 // transpiling.
 
-type ParamSetter interface {
+type ParamsInterface interface {
 	SetString(key, val string)
 	SetBool(key string, val bool)
 	SetInt64(key string, val int64)
 	SetUint64(key string, val uint64)
 	SetBytes(key string, val []byte)
-}
-
-// ParamsPrefixSetter is the interface through which Gno is capable of accessing
-// the app module's params.
-//
-// The name is what it is to avoid a collision with Gno's Params, when
-// transpiling.
-
-type ParamPrefixedSetter interface {
-	SetPrefixedString(modPrefix, key, val string)
-	SetPrefixedBool(modPrefix, key string, val bool)
-	SetPrefixedInt64(modPrefix, key string, val int64)
-	SetPrefixedUint64(modPrefix, key string, val uint64)
-	SetPrefixedBytes(modPrefix, key string, val []byte)
 }
 
 func X_setParamString(m *gno.Machine, key, val string) {

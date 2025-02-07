@@ -53,7 +53,7 @@ func pkey(m *gno.Machine, keeperPrefix, key string, kind string) string {
 			m.Panic(std.TypedString("invalid param key: " + key))
 		}
 	}
-
+	// validate keeperPrefix
 	first = rune(keeperPrefix[0])
 	if !unicode.IsLetter(first) && first != '_' {
 		m.Panic(std.TypedString("invalid module prefix: " + keeperPrefix))

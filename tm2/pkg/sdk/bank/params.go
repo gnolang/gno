@@ -80,5 +80,7 @@ func (bank BankKeeper) WillSetParam(ctx sdk.Context, key string, value interface
 		} else { // unlock sending ugnot
 			bank.DelAllRestrictedDenoms(ctx)
 		}
+	} else {
+		panic(fmt.Sprintf("invalid bank parameter key: %s", key))
 	}
 }
