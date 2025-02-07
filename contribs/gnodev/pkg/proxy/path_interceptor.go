@@ -10,7 +10,7 @@ import (
 	"log/slog"
 	"net"
 	"net/http"
-	"net/url"
+	"path/filepath"
 	"strings"
 	"sync"
 
@@ -312,11 +312,14 @@ func handleQuery(path string, data []byte, upaths uniqPaths) error {
 
 	case "vm/qrender", "vm/qfile", "vm/qfuncs", "vm/qeval":
 		path, _, _ := strings.Cut(string(data), ":") // Cut arguments out
-		u, err := url.Parse(path)
-		if err != nil {
-			return fmt.Errorf("unable to parse path: %w", err)
+		path = filepath.Clean(path)
+
+		// If path is a file, grab the directory instead
+		if ext := filepath.Ext(path); ext != "" {
+			path = filepath.Dir(path)
 		}
-		upaths.add(strings.TrimSpace(u.Path))
+
+		upaths.add(path)
 		return nil
 
 	default:
