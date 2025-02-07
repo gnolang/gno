@@ -104,15 +104,65 @@ func (s Storage) WithIndex(name string) Storage {
 	return s
 }
 
-// ForEach iterates each storage record using the current index.
-func (s Storage) ForEach(fn func(Record) bool) bool {
+// Iterate iterates each storage record using the current index.
+func (s Storage) Iterate(start, end string, fn func(Record) bool) bool {
 	idx := s.collection.GetIndex(s.currentIndex)
 	if idx == nil {
 		return false
 	}
 
-	return idx.Iterate("", "", func(_ string, v interface{}) bool {
-		return fn(v.(Record))
+	// Actual record references are stored in the ID index
+	recordsIdx := s.collection.GetIndex(collection.IDIndex)
+
+	return idx.Iterate(start, end, func(_ string, v interface{}) bool {
+		keys := castIfaceToRecordKeys(v)
+		if keys == nil {
+			// Skip unknown key formats
+			return false
+		}
+
+		for _, k := range keys {
+			v, found := recordsIdx.Get(k)
+			if !found {
+				continue
+			}
+
+			if fn(v.(Record)) {
+				return true
+			}
+		}
+		return false
+	})
+}
+
+// ReverseIterate iterates each storage record using the current index.
+func (s Storage) ReverseIterate(start, end string, fn func(Record) bool) bool {
+	idx := s.collection.GetIndex(s.currentIndex)
+	if idx == nil {
+		return false
+	}
+
+	// Actual record references are stored in the ID index
+	recordsIdx := s.collection.GetIndex(collection.IDIndex)
+
+	return idx.ReverseIterate(start, end, func(_ string, v interface{}) bool {
+		keys := castIfaceToRecordKeys(v)
+		if keys == nil {
+			// Skip unknown key formats
+			return false
+		}
+
+		for i := len(keys) - 1; i >= 0; i-- {
+			v, found := recordsIdx.Get(keys[i])
+			if !found {
+				continue
+			}
+
+			if fn(v.(Record)) {
+				return true
+			}
+		}
+		return false
 	})
 }
 
@@ -144,4 +194,14 @@ func (s Storage) GetFirst(key string) Record {
 // Delete deletes a record from the storage.
 func (s Storage) Delete(id uint64) bool {
 	return s.collection.Delete(id)
+}
+
+func castIfaceToRecordKeys(v interface{}) []string {
+	switch k := v.(type) {
+	case []string:
+		return k
+	case string:
+		return []string{k}
+	}
+	return nil
 }
