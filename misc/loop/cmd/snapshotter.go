@@ -203,7 +203,7 @@ func (s snapshotter) backupTXs(ctx context.Context, rpcURL string) error {
 	cfg.Watch = false
 
 	// We want to skip failed txs on the Portal Loop reset,
-	// because they might (unexpectedly succeed)
+	// because they might (unexpectedly) succeed
 	cfg.SkipFailedTx = true
 
 	instanceBackupFile, err := os.Create(s.instanceBackupFile)
