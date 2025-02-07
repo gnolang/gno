@@ -5,7 +5,9 @@ package gnolang
 import (
 	"fmt"
 	"io"
+	"path"
 	"reflect"
+	"runtime"
 	"slices"
 	"strconv"
 	"strings"
@@ -2146,8 +2148,10 @@ func (m *Machine) Panic(ex TypedValue) {
 func (m *Machine) Println(args ...interface{}) {
 	if debug {
 		if enabled {
-			s := strings.Repeat("|", m.NumOps)
-			debug.Println(append([]interface{}{s}, args...)...)
+			_, file, line, _ := runtime.Caller(2) // get caller info
+			caller := fmt.Sprintf("DEBUG: %s:%d:", path.Base(file), line)
+			s := caller + strings.Repeat("|", m.NumOps)
+			fmt.Println(append([]interface{}{s}, args...)...)
 		}
 	}
 }
@@ -2155,8 +2159,10 @@ func (m *Machine) Println(args ...interface{}) {
 func (m *Machine) Printf(format string, args ...interface{}) {
 	if debug {
 		if enabled {
-			s := strings.Repeat("|", m.NumOps)
-			debug.Printf(s+" "+format, args...)
+			_, file, line, _ := runtime.Caller(2) // get caller info
+			caller := fmt.Sprintf("DEBUG: %s:%d:", path.Base(file), line)
+			s := caller + strings.Repeat("|", m.NumOps)
+			fmt.Printf(s+" "+format, args...)
 		}
 	}
 }
