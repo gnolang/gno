@@ -18,6 +18,8 @@ type HeaderData struct {
 	RealmURL   weburl.GnoURL
 	Breadcrumb BreadcrumbData
 	Links      []HeaderLink
+	ChainId    string
+	Remote     string
 }
 
 func StaticHeaderLinks(u weburl.GnoURL) []HeaderLink {

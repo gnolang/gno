@@ -123,6 +123,8 @@ func (h *WebHandler) prepareIndexBodyView(r *http.Request, indexData *components
 	indexData.HeaderData = components.HeaderData{
 		Breadcrumb: breadcrumb,
 		RealmURL:   *gnourl,
+		ChainId:    h.Static.ChainId,
+		Remote:     h.Static.RemoteHelp,
 	}
 
 	switch {
