@@ -9,8 +9,8 @@ import (
 	mock "github.com/gnolang/gno/contribs/gnodev/internal/mock/emitter"
 	"github.com/gnolang/gno/contribs/gnodev/pkg/events"
 	"github.com/gnolang/gno/gno.land/pkg/gnoland"
-	"github.com/gnolang/gno/gno.land/pkg/integration"
 	"github.com/gnolang/gno/gno.land/pkg/sdk/vm"
+	"github.com/gnolang/gno/gnovm"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -140,10 +140,7 @@ func TestExportState(t *testing.T) {
 func testingCounterRealm(t *testing.T, inc int) (*Node, *mock.ServerEmitter) {
 	t.Helper()
 
-	const (
-		// foo package
-		counterPath = "gno.land/r/dev/counter"
-		counterFile = `
+	const counterFile = `
 package counter
 
 import "strconv"
@@ -152,10 +149,14 @@ var value int = 0
 func Inc(v int) { value += v } // method to increment value
 func Render(_ string) string { return strconv.Itoa(value) }
 `
-	)
 
-	// Generate package counter
-	counterPkg := integration.GenerateMemPackage(counterPath, "foo.gno", counterFile)
+	counterPkg := gnovm.MemPackage{
+		Name: "counter",
+		Path: "gno.land/r/dev/counter",
+		Files: []*gnovm.MemFile{
+			{Name: "file.gno", Body: counterFile},
+		},
+	}
 
 	// Call NewDevNode with no package should work
 	node, emitter := newTestingDevNode(t, &counterPkg)

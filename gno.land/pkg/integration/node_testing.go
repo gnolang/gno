@@ -189,32 +189,6 @@ func DefaultTestingTMConfig(gnoroot string) *tmcfg.Config {
 	return tmconfig
 }
 
-func GenerateMemPackage(path string, pairNameFile ...string) gnovm.MemPackage {
-	if len(pairNameFile)%2 != 0 {
-		panic("Generate testing packages require paired arguments.")
-	}
-
-	// Guess the name based on dir
-	// Don't bother parsing files to actually guess the name of the package
-	name := filepath.Base(path)
-
-	files := make([]*gnovm.MemFile, 0, len(pairNameFile)/2)
-	for i := 0; i < len(pairNameFile); i += 2 {
-		name := pairNameFile[i]
-		content := pairNameFile[i+1]
-		files = append(files, &gnovm.MemFile{
-			Name: name,
-			Body: content,
-		})
-	}
-
-	return gnovm.MemPackage{
-		Name:  name,
-		Path:  path,
-		Files: files,
-	}
-}
-
 func GenerateTestinGenesisState(creator crypto.PrivKey, pkgs ...gnovm.MemPackage) gnoland.GnoGenesisState {
 	txs := make([]gnoland.TxWithMetadata, len(pkgs))
 	for i, pkg := range pkgs {

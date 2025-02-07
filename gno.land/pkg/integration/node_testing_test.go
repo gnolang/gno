@@ -18,8 +18,20 @@ func TestGenerateTestinGenesisState(t *testing.T) {
 	creatorAddr := privKey.PubKey().Address()
 
 	// Create sample packages
-	pkg1 := GenerateMemPackage("pkg1", "file.gno", "package1")
-	pkg2 := GenerateMemPackage("pkg2", "file.gno", "package2")
+	pkg1 := gnovm.MemPackage{
+		Name: "pkg1",
+		Path: "pkg1",
+		Files: []*gnovm.MemFile{
+			{Name: "file.gno", Body: "package1"},
+		},
+	}
+	pkg2 := gnovm.MemPackage{
+		Name: "pkg2",
+		Path: "pkg2",
+		Files: []*gnovm.MemFile{
+			{Name: "file.gno", Body: "package2"},
+		},
+	}
 
 	t.Run("single package genesis", func(t *testing.T) {
 		genesis := GenerateTestinGenesisState(privKey, pkg1)
@@ -59,38 +71,5 @@ func TestGenerateTestinGenesisState(t *testing.T) {
 			require.True(t, ok, "expected MsgAddPackage")
 			assert.Equal(t, expectedPkg, *msg.Package, "package mismatch in tx %d", i)
 		}
-	})
-}
-
-func TestGenerateMemPackage(t *testing.T) {
-	t.Run("valid file pairs", func(t *testing.T) {
-		// Create a MemPackage with valid file pairs
-		pkg := GenerateMemPackage(
-			"test/path",
-			"file1.gno", "content1",
-			"file2.gno", "content2",
-		)
-
-		// Verify the package metadata
-		assert.Equal(t, "path", pkg.Name)
-		assert.Equal(t, "test/path", pkg.Path)
-
-		// Verify the included files
-		require.Len(t, pkg.Files, 2)
-		assert.Equal(t, "file1.gno", pkg.Files[0].Name)
-		assert.Equal(t, "content1", pkg.Files[0].Body)
-		assert.Equal(t, "file2.gno", pkg.Files[1].Name)
-		assert.Equal(t, "content2", pkg.Files[1].Body)
-	})
-
-	t.Run("odd number of pairs panics", func(t *testing.T) {
-		// Ensure the function panics with odd number of arguments
-		defer func() {
-			if r := recover(); r == nil {
-				t.Error("expected panic for odd number of file pairs")
-			}
-		}()
-
-		GenerateMemPackage("test/path", "file1.gno") // Invalid: missing content
 	})
 }
