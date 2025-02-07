@@ -157,10 +157,14 @@ func (m *Machine) doOpCall() {
 			vart := pts[numParams-1].Type.(*SliceType)
 			debug2.Println2("has varg")
 			varg := m.Alloc.NewSliceFromList(list)
-			m.PushValue(TypedValue{
+			tv := TypedValue{
 				T: vart,
 				V: varg,
-			})
+			}
+			if m.Alloc != nil {
+				tv.SetAllocValue(true)
+			}
+			m.PushValue(tv)
 		}
 	}
 	// Assign non-receiver parameters in forward order.
@@ -283,6 +287,7 @@ func (m *Machine) doOpReturnToBlock() {
 }
 
 func (m *Machine) doOpReturnCallDefers() {
+	debug2.Println2("doOpReturnCallDefers")
 	cfr := m.MustLastCallFrame(1)
 	dfr, ok := cfr.PopDefer()
 	if !ok {
@@ -354,13 +359,17 @@ func (m *Machine) doOpReturnCallDefers() {
 				vart := pts[len(pts)-1].Type.(*SliceType)
 				vargs := make([]TypedValue, nvar)
 				copy(vargs, dfr.Args[numArgs-nvar:numArgs])
-				debug2.Println2("---defer")
+				debug2.Println2("---defer, vargs: ", vargs)
 				varg := m.Alloc.NewSliceFromList(vargs)
 				dfr.Args = dfr.Args[:numArgs-nvar]
-				dfr.Args = append(dfr.Args, TypedValue{
+				tv := TypedValue{
 					T: vart,
 					V: varg,
-				})
+				}
+				if m.Alloc != nil {
+					tv.SetAllocValue(true)
+				}
+				dfr.Args = append(dfr.Args, tv)
 			}
 		}
 		copy(b.Values, dfr.Args)

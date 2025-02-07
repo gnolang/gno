@@ -12,10 +12,11 @@ import (
 // (optionally?) condensed (objects to be GC'd will be discarded),
 // but for now, allocations strictly increment across the whole tx.
 type Allocator struct {
-	m         *Machine
-	maxBytes  int64
-	bytes     int64
-	throwAway bool
+	m          *Machine
+	maxBytes   int64
+	bytes      int64
+	throwAway  bool
+	allocTimes int64 // times allocation for gc
 }
 
 // for gonative, which doesn't consider the allocator.
@@ -113,56 +114,66 @@ func (alloc *Allocator) MemStats() string {
 }
 
 func (alloc *Allocator) GC() {
-	gasCPU := overflow.Mul64p(16, GasFactorCPU)
-	if alloc.m.GasMeter != nil { //  no gas meter for test
-		debug2.Println2("Consuming gas for GC")
-		alloc.m.GasMeter.ConsumeGas(gasCPU, "GC")
-	}
-	debug2.Println2("---gc, MemStats:", alloc.MemStats())
-	defer func() {
-		debug2.Println2("------------after gc, memStats:", alloc.MemStats())
-	}()
-
-	// TODO: why this matters, think this defer is not gc'd
-	//defer fmt.Println("------------after gc, memStats:", alloc.MemStats())
-
-	// throwaway allocator
+	// using a throwaway allocator to recalculate memory usages
 	throwaway := NewAllocator(alloc.maxBytes, alloc.m)
 	throwaway.throwAway = true
+
+	// XXX, This is a rough implementation that
+	// estimates consumption based on the number
+	// of allocation cycles. A benchmark should
+	// be introduced for precise measurement, but
+	// that will be addressed in the future.
+	defer func() {
+		debug2.Println2("GC done, allocTimes: ", throwaway.allocTimes)
+		gasCPU := overflow.Mul64p(throwaway.allocTimes, GasFactorCPU)
+		if alloc.m.GasMeter != nil { //  no gas meter for test
+			debug2.Println2("Consuming gas for GC, gasCPU: ", gasCPU)
+			alloc.m.GasMeter.ConsumeGas(gasCPU, "GC")
+		}
+		debug2.Println2("------------after gc, memStats:", alloc.MemStats())
+	}()
+	debug2.Println2("---gc, MemStats:", alloc.MemStats())
+
+	// throwaway allocator
 	debug2.Println2("m: ", alloc.m)
 	debug2.Println2("=====================================================================")
 
-	// scan frames
+	// the actual slice value are in
+	// blocks, so no allcation here.
 	for i, fr := range alloc.m.Frames {
 		debug2.Printf2("frames[%d]: %v \n", i, fr)
 
-		fv := fr.Func
-		debug2.Println2("fv: ", fv)
-		if fv != nil {
-			ft := fv.GetType(alloc.m.Store)
-			if ft.HasVarg() {
-				debug2.Println2("has varg")
-				pts := ft.Params
-				numParams := len(pts)
-				isMethod := 0 // 1 if true
-				nvar := fr.NumArgs - (numParams - 1 - isMethod)
-				throwaway.AllocateSlice()
-				throwaway.AllocateListArray(int64(nvar))
-			}
-		}
+		debug2.Println2("fr.defers: ", fr.Defers)
+
+		//fv := fr.Func
+		//debug2.Println2("fv: ", fv)
+		//if fv != nil {
+		//	ft := fv.GetType(alloc.m.Store)
+		//	if ft.HasVarg() {
+		//		debug2.Println2("has varg")
+		//		pts := ft.Params
+		//		numParams := len(pts)
+		//		isMethod := 0 // 1 if true
+		//		nvar := fr.NumArgs - (numParams - 1 - isMethod)
+		//		throwaway.AllocateSlice()
+		//		throwaway.AllocateListArray(int64(nvar))
+		//	}
+		//}
 		// defer func
-		for _, dfr := range fr.Defers {
-			fv := dfr.Func
-			ft := fv.GetType(alloc.m.Store)
-			if ft.HasVarg() {
-				debug2.Println2("has defer, has varg")
-				numParams := len(ft.Params)
-				numArgs := len(dfr.Args)
-				nvar := numArgs - (numParams - 1)
-				throwaway.AllocateSlice()
-				throwaway.AllocateListArray(int64(nvar))
-			}
-		}
+		//for _, dfr := range fr.Defers {
+		//	debug2.Println2("has defer...")
+		//	fv := dfr.Func
+		//	ft := fv.GetType(alloc.m.Store)
+		//	debug2.Println2("ft: ", ft)
+		//	if ft.HasVarg() {
+		//		debug2.Println2("has defer, has varg")
+		//		numParams := len(ft.Params)
+		//		numArgs := len(dfr.Args)
+		//		nvar := numArgs - (numParams - 1)
+		//		throwaway.AllocateSlice()
+		//		throwaway.AllocateListArray(int64(nvar))
+		//	}
+		//}
 	}
 
 	// scan blocks
@@ -274,6 +285,7 @@ func (alloc *Allocator) Allocate(size int64) {
 
 	// measure current memory usage
 	if alloc.throwAway {
+		alloc.allocTimes++ // metric gc
 		alloc.bytes += size
 		if alloc.bytes > alloc.maxBytes {
 			panic("should not happen")
