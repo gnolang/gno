@@ -323,11 +323,13 @@ func parseLocSpec(m *Machine, arg string) (loc Location, err error) {
 				return loc, err
 			}
 			loc.File = path.Clean(loc.File)
-			loc.File = strings.TrimPrefix(loc.File, m.Debugger.rootDir+"/gnovm/stdlibs/")
-			loc.File = strings.TrimPrefix(loc.File, m.Debugger.rootDir+"/examples/")
-			loc.File = strings.TrimPrefix(loc.File, m.Debugger.rootDir+"/")
-			loc.PkgPath = path.Dir(loc.File)
-			loc.File = path.Base(loc.File)
+			if m.Debugger.rootDir != "" && strings.HasPrefix(loc.File, m.Debugger.rootDir) {
+				loc.File = strings.TrimPrefix(loc.File, m.Debugger.rootDir+"/gnovm/stdlibs/")
+				loc.File = strings.TrimPrefix(loc.File, m.Debugger.rootDir+"/examples/")
+				loc.File = strings.TrimPrefix(loc.File, m.Debugger.rootDir+"/")
+				loc.PkgPath = path.Dir(loc.File)
+				loc.File = path.Base(loc.File)
+			}
 		}
 		if line, err = strconv.Atoi(strs[1]); err != nil {
 			return loc, err
