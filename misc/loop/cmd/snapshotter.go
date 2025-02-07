@@ -18,7 +18,7 @@ import (
 	"github.com/docker/docker/client"
 	"github.com/docker/go-connections/nat"
 	"github.com/gnolang/tx-archive/backup"
-	"github.com/gnolang/tx-archive/backup/client/http"
+	"github.com/gnolang/tx-archive/backup/client/rpc"
 	"github.com/gnolang/tx-archive/backup/writer/standard"
 )
 
@@ -202,6 +202,10 @@ func (s snapshotter) backupTXs(ctx context.Context, rpcURL string) error {
 	cfg.FromBlock = 1
 	cfg.Watch = false
 
+	// We want to skip failed txs on the Portal Loop reset,
+	// because they might (unexpectedly succeed)
+	cfg.SkipFailedTx = true
+
 	instanceBackupFile, err := os.Create(s.instanceBackupFile)
 	if err != nil {
 		return err
@@ -211,7 +215,7 @@ func (s snapshotter) backupTXs(ctx context.Context, rpcURL string) error {
 	w := standard.NewWriter(instanceBackupFile)
 
 	// Create the tx-archive backup service
-	c, err := http.NewClient(rpcURL)
+	c, err := rpc.NewHTTPClient(rpcURL)
 	if err != nil {
 		return fmt.Errorf("could not create tx-archive client, %w", err)
 	}
