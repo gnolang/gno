@@ -139,6 +139,7 @@ func (mt *MultiplexTransport) Close() error {
 	}
 
 	mt.cancelFn()
+
 	return mt.listener.Close()
 }
 
