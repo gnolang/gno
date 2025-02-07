@@ -99,12 +99,11 @@ func init() {
 		"list":        {debugList, listUsage, listShort, listLong},
 		"print":       {debugPrint, printUsage, printShort, ""},
 		"stack":       {debugStack, stackUsage, stackShort, ""},
-		// NOTE: the difference between continue, next, step and stepi is handled within
-		// the main Debug() loop.
-		"next":  {debugContinue, nextUsage, nextShort, ""},
-		"step":  {debugContinue, stepUsage, stepShort, ""},
-		"stepi": {debugContinue, stepiUsage, stepiShort, ""},
-		"up":    {debugUp, upUsage, upShort, ""},
+		"next":        {debugContinue, nextUsage, nextShort, ""},
+		"step":        {debugContinue, stepUsage, stepShort, ""},
+		"stepi":       {debugContinue, stepiUsage, stepiShort, ""},
+		"stepout":     {debugContinue, stepoutUsage, stepoutShort, ""},
+		"up":          {debugUp, upUsage, upShort, ""},
 	}
 
 	// Sort command names for help.
@@ -127,6 +126,7 @@ func init() {
 	debugCmds["q"] = debugCmds["exit"]
 	debugCmds["s"] = debugCmds["step"]
 	debugCmds["si"] = debugCmds["stepi"]
+	debugCmds["so"] = debugCmds["stepout"]
 }
 
 // Debug is the debug callback invoked at each VM execution step. It implements the DebugState FSA.
@@ -144,6 +144,9 @@ loop:
 				fmt.Fprintln(m.Debugger.out, "Command failed:", err)
 			}
 		case DebugAtRun:
+			if !m.Debugger.enabled {
+				break loop
+			}
 			switch m.Debugger.lastCmd {
 			case "si", "stepi":
 				m.Debugger.state = DebugAtCmd
@@ -158,6 +161,13 @@ loop:
 			case "n", "next":
 				if m.Debugger.loc != m.Debugger.prevLoc && m.Debugger.loc.File != "" &&
 					(m.Debugger.nextDepth == 0 || !sameLine(m.Debugger.loc, m.Debugger.nextLoc) && callDepth(m) <= m.Debugger.nextDepth) {
+					m.Debugger.state = DebugAtCmd
+					m.Debugger.prevLoc = m.Debugger.loc
+					debugList(m, "")
+					continue loop
+				}
+			case "stepout", "so":
+				if callDepth(m) < m.Debugger.nextDepth {
 					m.Debugger.state = DebugAtCmd
 					m.Debugger.prevLoc = m.Debugger.loc
 					debugList(m, "")
@@ -419,24 +429,22 @@ func debugClear(m *Machine, arg string) error {
 }
 
 // ---------------------------------------
+// NOTE: the difference between continue, next, step, stepi and stepout is handled within the Debug() loop.
 const (
 	continueUsage = `continue|c`
 	continueShort = `Run until breakpoint or program termination.`
-)
 
-const (
 	nextUsage = `next|n`
 	nextShort = `Step over to next source line.`
-)
 
-const (
 	stepUsage = `step|s`
 	stepShort = `Single step through program.`
-)
 
-const (
 	stepiUsage = `stepi|si`
 	stepiShort = `Single step a single VM instruction.`
+
+	stepoutUsage = `stepout|so`
+	stepoutShort = `Step out of the current function.`
 )
 
 func debugContinue(m *Machine, arg string) error {
