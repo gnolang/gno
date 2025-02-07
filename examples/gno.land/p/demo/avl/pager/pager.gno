@@ -5,13 +5,13 @@ import (
 	"net/url"
 	"strconv"
 
-	"gno.land/p/demo/avl"
+	"gno.land/p/demo/avl/rotree"
 	"gno.land/p/demo/ufmt"
 )
 
 // Pager is a struct that holds the AVL tree and pagination parameters.
 type Pager struct {
-	Tree            avl.ITree
+	Tree            rotree.IReadOnlyTree
 	PageQueryParam  string
 	SizeQueryParam  string
 	DefaultPageSize int
@@ -37,7 +37,7 @@ type Item struct {
 }
 
 // NewPager creates a new Pager with default values.
-func NewPager(tree avl.ITree, defaultPageSize int, reversed bool) *Pager {
+func NewPager(tree rotree.IReadOnlyTree, defaultPageSize int, reversed bool) *Pager {
 	return &Pager{
 		Tree:            tree,
 		PageQueryParam:  "page",
