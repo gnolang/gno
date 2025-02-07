@@ -13,7 +13,7 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/bft/types"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
 	"github.com/gnolang/gno/tm2/pkg/crypto/ed25519"
-	"github.com/gnolang/gno/tm2/pkg/p2p"
+	p2pTypes "github.com/gnolang/gno/tm2/pkg/p2p/types"
 	"github.com/gnolang/gnostats/proto"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
@@ -78,34 +78,18 @@ func (m *MockRPCBatch) Send(ctx context.Context) ([]any, error) {
 	}
 }
 
-// mockNetAddr is a mock used for p2p.NewNetAddress()
-type mockNetAddr struct {
-	network string
-	str     string
-}
-
-func (m mockNetAddr) Network() string { return m.network }
-func (m mockNetAddr) String() string  { return m.str }
-
 // Helper that generates a valid RPC batch result
 func getBatchResults(t *testing.T) []any {
 	t.Helper()
 
 	// Generate peers for NetInfo request
-	peers := make([]p2p.NodeInfo, 3)
-	for i, info := range []struct{ moniker, address string }{
-		{"peer1", "1.1.1.1"},
-		{"peer2", "2.2.2.2"},
-		{"peer3", "3.3.3.3"},
-	} {
-		peers[i].Moniker = info.moniker
-		peers[i].NetAddress = p2p.NewNetAddress(
-			crypto.ID(info.moniker),
-			mockNetAddr{
-				network: "tcp",
-				str:     info.address,
-			},
-		)
+	var (
+		numPeers = 10
+		peers    = make([]p2pTypes.NodeInfo, numPeers)
+	)
+
+	for i := 0; i < numPeers; i++ {
+		peers[i] = randomNodeInfo(t)
 	}
 
 	// Generate validators for Validators request
@@ -118,18 +102,11 @@ func getBatchResults(t *testing.T) []any {
 		validators[i] = types.NewValidator(pubKey, 42)
 	}
 
+	info := randomNodeInfo(t)
+
 	return []any{
 		&ctypes.ResultStatus{
-			NodeInfo: p2p.NodeInfo{
-				Moniker: "self",
-				NetAddress: p2p.NewNetAddress(
-					crypto.ID("self"),
-					mockNetAddr{
-						network: "tcp",
-						str:     "0.0.0.0",
-					},
-				),
-			},
+			NodeInfo: info,
 			ValidatorInfo: ctypes.ValidatorInfo{
 				Address:     validators[2].Address,
 				PubKey:      validators[2].PubKey,

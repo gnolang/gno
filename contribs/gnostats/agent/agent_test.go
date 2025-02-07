@@ -2,8 +2,10 @@ package agent
 
 import (
 	"context"
+	"crypto/rand"
 	"fmt"
-	mrand "math/rand"
+	"math/big"
+	"net"
 	"testing"
 	"time"
 
@@ -12,9 +14,11 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/bft/state"
 	"github.com/gnolang/gno/tm2/pkg/bft/types"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
-	"github.com/gnolang/gno/tm2/pkg/p2p"
+	"github.com/gnolang/gno/tm2/pkg/crypto/ed25519"
+	p2pTypes "github.com/gnolang/gno/tm2/pkg/p2p/types"
 	"github.com/gnolang/gnostats/proto"
 	"github.com/stretchr/testify/mock"
+	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/protobuf/types/known/emptypb"
@@ -67,72 +71,91 @@ func (m *mockPushDataClient) SendMsg(msg any) error                 { panic("sho
 func (m *mockPushDataClient) RecvMsg(msg any) error                 { panic("should never happen") }
 
 // Helpers that generate random string and int
-func randomIntInRange(t *testing.T, random *mrand.Rand, min, max int) int {
+func randomIntInRange(t *testing.T, min, max int) int {
 	t.Helper()
 
-	return random.Intn(max-min+1) + min
+	require.Less(t, min, max)
+
+	diff := int64(max - min + 1)
+
+	require.Greater(t, diff, int64(0))
+
+	n, err := rand.Int(rand.Reader, big.NewInt(diff))
+	require.NoError(t, err)
+
+	return int(n.Int64()) + min
 }
 
-func randomStringOfLength(t *testing.T, random *mrand.Rand, length int) string {
+func randomStringOfLength(t *testing.T, length int) string {
 	t.Helper()
 
 	const charset = "abcdefghijklmnopqrstuvwxyz" + "ABCDEFGHIJKLMNOPQRSTUVWXYZ" + "0123456789"
 
 	randBytes := make([]byte, length)
 	for i := range randBytes {
-		randBytes[i] = charset[random.Intn(len(charset))]
+		num, err := rand.Int(rand.Reader, big.NewInt(int64(len(charset))))
+		require.NoError(t, err)
+
+		randBytes[i] = charset[num.Uint64()]
 	}
 
 	return string(randBytes)
 }
 
-func randomStringOfLengthInRange(t *testing.T, random *mrand.Rand, min, max int) string {
+func randomStringOfLengthInRange(t *testing.T, min, max int) string {
 	t.Helper()
 
-	return randomStringOfLength(t, random, randomIntInRange(t, random, min, max))
+	return randomStringOfLength(t, randomIntInRange(t, min, max))
 }
 
-func randomNodeInfo(t *testing.T, random *mrand.Rand) p2p.NodeInfo {
+func randomNodeInfo(t *testing.T) p2pTypes.NodeInfo {
 	t.Helper()
 
-	return p2p.NodeInfo{
-		Moniker: randomStringOfLengthInRange(t, random, 1, 128),
-		NetAddress: p2p.NewNetAddress(
-			crypto.ID(randomStringOfLengthInRange(t, random, 64, 128)),
-			mockNetAddr{
-				network: randomStringOfLengthInRange(t, random, 3, 6),
-				str: fmt.Sprintf(
-					"%d.%d.%d.%d",
-					randomIntInRange(t, random, 1, 255),
-					randomIntInRange(t, random, 0, 255),
-					randomIntInRange(t, random, 0, 255),
-					randomIntInRange(t, random, 0, 255),
-				),
-			},
-		),
+	key := ed25519.GenPrivKey()
+
+	tcpAddr, err := net.ResolveTCPAddr("tcp", fmt.Sprintf(
+		"%d.%d.%d.%d:%d",
+		randomIntInRange(t, 1, 255),
+		randomIntInRange(t, 0, 255),
+		randomIntInRange(t, 0, 255),
+		randomIntInRange(t, 0, 255),
+		randomIntInRange(t, 0, 255),
+	))
+	require.NoError(t, err)
+
+	addr, err := p2pTypes.NewNetAddress(key.PubKey().Address().ID(), tcpAddr)
+	require.NoError(t, err)
+
+	return p2pTypes.NodeInfo{
+		Moniker:    randomStringOfLengthInRange(t, 1, 128),
+		NetAddress: addr,
 	}
 }
 
 // Helper that generates a valid random RPC batch result
-func getRandomBatchResults(t *testing.T, random *mrand.Rand) []any {
+func getRandomBatchResults(t *testing.T) []any {
 	t.Helper()
 
 	// Generate peers for NetInfo request
-	peers := make([]ctypes.Peer, randomIntInRange(t, random, 1, 32))
+	peers := make([]ctypes.Peer, randomIntInRange(t, 1, 32))
 	for i := range peers {
-		peers[i] = ctypes.Peer{NodeInfo: randomNodeInfo(t, random)}
+		peers[i] = ctypes.Peer{NodeInfo: randomNodeInfo(t)}
 	}
 
 	// Generate random validators
-	validators := make([]*types.Validator, randomIntInRange(t, random, 3, 32))
+	validators := make([]*types.Validator, randomIntInRange(t, 3, 32))
 	for i := range validators {
 		validators[i], _ = types.RandValidator(false, 42)
 	}
 
 	// Get node validator info from validators list or create a new one
 	var validator *types.Validator
-	if random.Intn(2) == 0 {
-		validator = validators[randomIntInRange(t, random, 0, len(validators)-1)]
+
+	num, err := rand.Int(rand.Reader, big.NewInt(int64(len(validators))))
+	require.NoError(t, err)
+
+	if num.Uint64()%2 == 0 {
+		validator = validators[randomIntInRange(t, 0, len(validators)-1)]
 	} else {
 		validator, _ = types.RandValidator(false, 42)
 	}
@@ -143,24 +166,24 @@ func getRandomBatchResults(t *testing.T, random *mrand.Rand) []any {
 	}
 
 	// Generate random deliverTxs
-	deliverTxs := make([]abci.ResponseDeliverTx, randomIntInRange(t, random, 0, 32))
+	deliverTxs := make([]abci.ResponseDeliverTx, randomIntInRange(t, 0, 32))
 	for i := range deliverTxs {
 		deliverTxs[i] = abci.ResponseDeliverTx{
-			GasUsed:   int64(randomIntInRange(t, random, 5, 1000)),
-			GasWanted: int64(randomIntInRange(t, random, 5, 1000)),
+			GasUsed:   int64(randomIntInRange(t, 5, 1000)),
+			GasWanted: int64(randomIntInRange(t, 5, 1000)),
 		}
 	}
 
 	return []any{
-		&ctypes.ResultStatus{NodeInfo: randomNodeInfo(t, random), ValidatorInfo: validatorInfo},
+		&ctypes.ResultStatus{NodeInfo: randomNodeInfo(t), ValidatorInfo: validatorInfo},
 		&ctypes.ResultValidators{Validators: validators},
 		&ctypes.ResultNetInfo{Peers: peers},
-		&ctypes.ResultUnconfirmedTxs{Total: randomIntInRange(t, random, 0, 100)},
+		&ctypes.ResultUnconfirmedTxs{Total: randomIntInRange(t, 0, 100)},
 
 		&ctypes.ResultBlock{
 			Block: &types.Block{
 				Header: types.Header{
-					Height:          int64(randomIntInRange(t, random, 1, 10000000)),
+					Height:          int64(randomIntInRange(t, 1, 10000000)),
 					Time:            time.Now(),
 					ProposerAddress: crypto.Address{},
 				},
@@ -200,11 +223,8 @@ func TestAgent_E2E(t *testing.T) {
 	// Inject both mocks of the clients into a new agent
 	agent := NewAgent(mockHub, mockCaller, WithPollInterval(20*time.Millisecond))
 
-	// Init a new random source
-	random := mrand.New(mrand.NewSource(time.Now().UnixNano()))
-
 	// Setup a first random batch result
-	results := getRandomBatchResults(t, random)
+	results := getRandomBatchResults(t)
 	status := results[0].(*ctypes.ResultStatus)
 	mockBatch.On("Send", mock.Anything).Return(results, nil)
 
@@ -221,7 +241,7 @@ func TestAgent_E2E(t *testing.T) {
 		dynamic := <-mockStream.dynamic
 		compareBatchResultToDynamicInfo(t, results, dynamic)
 
-		results = getRandomBatchResults(t, random)
+		results = getRandomBatchResults(t)
 		mockBatch.On("Send").Unset() // Clear previous expected results
 		mockBatch.On("Send", mock.Anything).Return(results, nil)
 	}
