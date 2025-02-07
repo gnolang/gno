@@ -184,7 +184,7 @@ func TestPrevRealmIsOrigin(t *testing.T) {
 			assert := assert.New(t)
 
 			addr, pkgPath := X_getRealm(tt.machine, 1)
-			isOrigin := IsOriginCall(tt.machine)
+			isOrigin := isOriginCall(tt.machine)
 
 			assert.Equal(string(tt.expectedAddr), addr)
 			assert.Equal(tt.expectedPkgPath, pkgPath)
