@@ -51,7 +51,7 @@ func (va *varResolver) Set(value string) error {
 	return nil
 }
 
-func setupPackagesResolver(logger *slog.Logger, cfg *devCfg, dirs ...string) (packages.Resolver, []string) {
+func setupPackagesResolver(logger *slog.Logger, cfg *AppConfig, dirs ...string) (packages.Resolver, []string) {
 	// Add root resolvers
 	localResolvers := make([]packages.Resolver, len(dirs))
 
@@ -97,7 +97,7 @@ func guessPathGnoMod(dir string) (path string, ok bool) {
 
 var reInvalidChar = regexp.MustCompile(`[^\w_-]`)
 
-func guessPath(cfg *devCfg, dir string) (path string) {
+func guessPath(cfg *AppConfig, dir string) (path string) {
 	if path, ok := guessPathGnoMod(dir); ok {
 		return path
 	}

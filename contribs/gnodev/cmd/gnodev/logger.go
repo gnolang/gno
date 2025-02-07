@@ -12,7 +12,7 @@ import (
 	"go.uber.org/zap/zapcore"
 )
 
-func setuplogger(cfg *devCfg, out io.Writer) (*slog.Logger, error) {
+func setuplogger(cfg *AppConfig, out io.Writer) (*slog.Logger, error) {
 	level := slog.LevelInfo
 	if cfg.verbose {
 		level = slog.LevelDebug

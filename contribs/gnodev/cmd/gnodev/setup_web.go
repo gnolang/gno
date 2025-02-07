@@ -9,7 +9,7 @@ import (
 )
 
 // setupGnowebServer initializes and starts the Gnoweb server.
-func setupGnoWebServer(logger *slog.Logger, cfg *devCfg, remoteAddr string) (http.Handler, error) {
+func setupGnoWebServer(logger *slog.Logger, cfg *AppConfig, remoteAddr string) (http.Handler, error) {
 	if cfg.noWeb {
 		return http.HandlerFunc(http.NotFound), nil
 	}

@@ -9,7 +9,7 @@ import (
 	osm "github.com/gnolang/gno/tm2/pkg/os"
 )
 
-func setupAddressBook(logger *slog.Logger, cfg *devCfg) (*address.Book, error) {
+func setupAddressBook(logger *slog.Logger, cfg *AppConfig) (*address.Book, error) {
 	book := address.NewBook()
 
 	// Check for home folder

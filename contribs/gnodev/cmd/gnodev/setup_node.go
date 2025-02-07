@@ -15,7 +15,7 @@ import (
 )
 
 // setupDevNode initializes and returns a new DevNode.
-func setupDevNode(ctx context.Context, cfg *devCfg, nodeConfig *gnodev.NodeConfig, paths ...string) (*gnodev.Node, error) {
+func setupDevNode(ctx context.Context, cfg *AppConfig, nodeConfig *gnodev.NodeConfig, paths ...string) (*gnodev.Node, error) {
 	logger := nodeConfig.Logger
 
 	if cfg.txsFile != "" { // Load txs files
@@ -53,7 +53,7 @@ func setupDevNode(ctx context.Context, cfg *devCfg, nodeConfig *gnodev.NodeConfi
 
 // setupDevNodeConfig creates and returns a new dev.NodeConfig.
 func setupDevNodeConfig(
-	cfg *devCfg,
+	cfg *AppConfig,
 	logger *slog.Logger,
 	emitter emitter.Emitter,
 	balances gnoland.Balances,
@@ -71,8 +71,8 @@ func setupDevNodeConfig(
 	config.ChainID = cfg.chainId
 
 	// other listeners
-	config.TMConfig.P2P.ListenAddress = defaultDevOptions.nodeP2PListenerAddr
-	config.TMConfig.ProxyApp = defaultDevOptions.nodeProxyAppListenerAddr
+	config.TMConfig.P2P.ListenAddress = defaultLocalAppConfig.nodeP2PListenerAddr
+	config.TMConfig.ProxyApp = defaultLocalAppConfig.nodeProxyAppListenerAddr
 
 	return config
 }

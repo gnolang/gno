@@ -7,7 +7,7 @@ import (
 
 var noopRestore = func() error { return nil }
 
-func setupRawTerm(cfg *devCfg, io commands.IO) (*rawterm.RawTerm, func() error, error) {
+func setupRawTerm(cfg *AppConfig, io commands.IO) (*rawterm.RawTerm, func() error, error) {
 	rt := rawterm.NewRawTerm()
 	restore := noopRestore
 	if cfg.interactive {

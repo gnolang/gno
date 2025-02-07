@@ -10,11 +10,11 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/commands"
 )
 
-type stagingCfg struct {
-	dev devCfg
+type StagingAppConfig struct {
+	AppConfig
 }
 
-var defaultStagingOptions = devCfg{
+var defaultStagingOptions = AppConfig{
 	chainId:             "dev",
 	chainDomain:         DefaultDomain,
 	logFormat:           "json",
@@ -37,7 +37,7 @@ var defaultStagingOptions = devCfg{
 }
 
 func NewStagingCmd(io commands.IO) *commands.Command {
-	var cfg stagingCfg
+	var cfg StagingAppConfig
 
 	return commands.NewCommand(
 		commands.Metadata{
@@ -54,21 +54,21 @@ func NewStagingCmd(io commands.IO) *commands.Command {
 	)
 }
 
-func (c *stagingCfg) RegisterFlags(fs *flag.FlagSet) {
-	c.dev.registerFlagsWithDefault(defaultStagingOptions, fs)
+func (c *StagingAppConfig) RegisterFlags(fs *flag.FlagSet) {
+	c.AppConfig.RegisterFlagsWith(fs, defaultStagingOptions)
 }
 
-func execStagingCmd(cfg *stagingCfg, args []string, io commands.IO) error {
+func execStagingCmd(cfg *StagingAppConfig, args []string, io commands.IO) error {
 	// If no resolvers is defined, use gno example as root resolver
-	if len(cfg.dev.resolvers) == 0 {
+	if len(cfg.AppConfig.resolvers) == 0 {
 		gnoroot, err := gnoenv.GuessRootDir()
 		if err != nil {
 			return err
 		}
 
 		exampleRoot := filepath.Join(gnoroot, "examples")
-		cfg.dev.resolvers = append(cfg.dev.resolvers, packages.NewFSResolver(exampleRoot))
+		cfg.AppConfig.resolvers = append(cfg.AppConfig.resolvers, packages.NewFSResolver(exampleRoot))
 	}
 
-	return runApp(&cfg.dev, io, args...)
+	return runApp(&cfg.AppConfig, io, args...)
 }

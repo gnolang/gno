@@ -19,14 +19,33 @@ import (
 	"github.com/gnolang/gno/contribs/gnodev/pkg/proxy"
 	"github.com/gnolang/gno/contribs/gnodev/pkg/rawterm"
 	"github.com/gnolang/gno/contribs/gnodev/pkg/watcher"
+	"github.com/gnolang/gno/gno.land/pkg/integration"
 	"github.com/gnolang/gno/tm2/pkg/commands"
+	"github.com/gnolang/gno/tm2/pkg/crypto"
 	osm "github.com/gnolang/gno/tm2/pkg/os"
+)
+
+const (
+	DefaultDeployerName = integration.DefaultAccount_Name
+	DefaultDeployerSeed = integration.DefaultAccount_Seed
+)
+
+var defaultDeployerAddress = crypto.MustAddressFromString(integration.DefaultAccount_Address)
+
+const (
+	NodeLogName        = "Node"
+	WebLogName         = "GnoWeb"
+	KeyPressLogName    = "KeyPress"
+	EventServerLogName = "Event"
+	AccountsLogName    = "Accounts"
+	LoaderLogName      = "Loader"
+	ProxyLogName       = "Proxy"
 )
 
 type App struct {
 	io          commands.IO
 	start       time.Time // Time when the server started
-	cfg         *devCfg
+	cfg         *AppConfig
 	logger      *slog.Logger
 	pathManager *pathManager
 	// Contains all the deferred functions of the app.
@@ -47,7 +66,7 @@ type App struct {
 	exported uint
 }
 
-func runApp(cfg *devCfg, cio commands.IO, dirs ...string) (err error) {
+func runApp(cfg *AppConfig, cio commands.IO, dirs ...string) (err error) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
@@ -93,7 +112,7 @@ func runApp(cfg *devCfg, cio commands.IO, dirs ...string) (err error) {
 	return app.RunServer(ctx, rt)
 }
 
-func NewApp(logger *slog.Logger, cfg *devCfg, io commands.IO) *App {
+func NewApp(logger *slog.Logger, cfg *AppConfig, io commands.IO) *App {
 	return &App{
 		start:       time.Now(),
 		deferred:    func() {},
@@ -507,7 +526,7 @@ func (ds *App) handleKeyPress(ctx context.Context, key rawterm.KeyPress) {
 }
 
 // XXX: packages modifier does not support glob yet
-func resolvePackagesModifier(cfg *devCfg, bk *address.Book, qpaths []string) ([]gnodev.QueryPath, []string, error) {
+func resolvePackagesModifier(cfg *AppConfig, bk *address.Book, qpaths []string) ([]gnodev.QueryPath, []string, error) {
 	if cfg.deployKey == "" {
 		return nil, nil, fmt.Errorf("default deploy key cannot be empty")
 	}
