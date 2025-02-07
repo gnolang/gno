@@ -1,5 +1,5 @@
-// foo20 is a GRC20 token contract where all the GRC20 methods are proxified
-// with top-level functions. see also gno.land/r/demo/bar20.
+// foo20 is a GRC20 token contract where all the grc20.Teller methods are
+// proxified with top-level functions. see also gno.land/r/demo/bar20.
 package foo20
 
 import (
@@ -9,50 +9,42 @@ import (
 	"gno.land/p/demo/grc/grc20"
 	"gno.land/p/demo/ownable"
 	"gno.land/p/demo/ufmt"
-	pusers "gno.land/p/demo/users"
-	"gno.land/r/demo/users"
+	"gno.land/r/demo/grc20reg"
 )
 
 var (
-	banker *grc20.Banker
-	admin  *ownable.Ownable
-	token  grc20.Token
+	Token, privateLedger = grc20.NewToken("Foo", "FOO", 4)
+	UserTeller           = Token.CallerTeller()
+	Ownable              = ownable.NewWithAddress("g1manfred47kzduec920z88wfr64ylksmdcedlf5") // @manfred
 )
 
 func init() {
-	admin = ownable.NewWithAddress("g1u7y667z64x2h7vc6fmpcprgey4ck233jaww9zq") // @manfred
-	banker = grc20.NewBanker("Foo", "FOO", 4)
-	banker.Mint(admin.Owner(), 1000000*10000) // @administrator (1M)
-	token = banker.Token()
+	privateLedger.Mint(Ownable.Owner(), 1_000_000*10_000) // @privateLedgeristrator (1M)
+	grc20reg.Register(Token.Getter(), "")
 }
 
-func TotalSupply() uint64 { return token.TotalSupply() }
-
-func BalanceOf(owner pusers.AddressOrName) uint64 {
-	ownerAddr := users.Resolve(owner)
-	return token.BalanceOf(ownerAddr)
+func TotalSupply() uint64 {
+	return UserTeller.TotalSupply()
 }
 
-func Allowance(owner, spender pusers.AddressOrName) uint64 {
-	ownerAddr := users.Resolve(owner)
-	spenderAddr := users.Resolve(spender)
-	return token.Allowance(ownerAddr, spenderAddr)
+func BalanceOf(owner std.Address) uint64 {
+	return UserTeller.BalanceOf(owner)
 }
 
-func Transfer(to pusers.AddressOrName, amount uint64) {
-	toAddr := users.Resolve(to)
-	checkErr(token.Transfer(toAddr, amount))
+func Allowance(owner, spender std.Address) uint64 {
+	return UserTeller.Allowance(owner, spender)
 }
 
-func Approve(spender pusers.AddressOrName, amount uint64) {
-	spenderAddr := users.Resolve(spender)
-	checkErr(token.Approve(spenderAddr, amount))
+func Transfer(to std.Address, amount uint64) {
+	checkErr(UserTeller.Transfer(to, amount))
 }
 
-func TransferFrom(from, to pusers.AddressOrName, amount uint64) {
-	fromAddr := users.Resolve(from)
-	toAddr := users.Resolve(to)
-	checkErr(token.TransferFrom(fromAddr, toAddr, amount))
+func Approve(spender std.Address, amount uint64) {
+	checkErr(UserTeller.Approve(spender, amount))
+}
+
+func TransferFrom(from, to std.Address, amount uint64) {
+	checkErr(UserTeller.TransferFrom(from, to, amount))
 }
 
 // Faucet is distributing foo20 tokens without restriction (unsafe).
@@ -60,19 +52,17 @@ func TransferFrom(from, to pusers.AddressOrName, amount uint64) {
 func Faucet() {
 	caller := std.PrevRealm().Addr()
 	amount := uint64(1_000 * 10_000) // 1k
-	checkErr(banker.Mint(caller, amount))
+	checkErr(privateLedger.Mint(caller, amount))
 }
 
-func Mint(to pusers.AddressOrName, amount uint64) {
-	admin.AssertCallerIsOwner()
-	toAddr := users.Resolve(to)
-	checkErr(banker.Mint(toAddr, amount))
+func Mint(to std.Address, amount uint64) {
+	Ownable.AssertCallerIsOwner()
+	checkErr(privateLedger.Mint(to, amount))
 }
 
-func Burn(from pusers.AddressOrName, amount uint64) {
-	admin.AssertCallerIsOwner()
-	fromAddr := users.Resolve(from)
-	checkErr(banker.Burn(fromAddr, amount))
+func Burn(from std.Address, amount uint64) {
+	Ownable.AssertCallerIsOwner()
+	checkErr(privateLedger.Burn(from, amount))
 }
 
 func Render(path string) string {
@@ -81,11 +71,10 @@ func Render(path string) string {
 
 	switch {
 	case path == "":
-		return banker.RenderHome()
+		return Token.RenderHome()
 	case c == 2 && parts[0] == "balance":
-		owner := pusers.AddressOrName(parts[1])
-		ownerAddr := users.Resolve(owner)
-		balance := banker.BalanceOf(ownerAddr)
+		owner := std.Address(parts[1])
+		balance := UserTeller.BalanceOf(owner)
 		return ufmt.Sprintf("%d\n", balance)
 	default:
 		return "404\n"

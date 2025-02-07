@@ -5,8 +5,10 @@ import (
 	"fmt"
 	"net/url"
 	"path/filepath"
+	"time"
 
 	"github.com/gnolang/gno/contribs/gnodev/pkg/address"
+	"github.com/gnolang/gno/gno.land/pkg/gnoland"
 	vmm "github.com/gnolang/gno/gno.land/pkg/sdk/vm"
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
 	"github.com/gnolang/gno/gnovm/pkg/gnomod"
@@ -118,7 +120,7 @@ func (pm PackagesMap) toList() gnomod.PkgList {
 	return list
 }
 
-func (pm PackagesMap) Load(fee std.Fee) ([]std.Tx, error) {
+func (pm PackagesMap) Load(fee std.Fee, start time.Time) ([]gnoland.TxWithMetadata, error) {
 	pkgs := pm.toList()
 
 	sorted, err := pkgs.Sort()
@@ -127,7 +129,8 @@ func (pm PackagesMap) Load(fee std.Fee) ([]std.Tx, error) {
 	}
 
 	nonDraft := sorted.GetNonDraftPkgs()
-	txs := []std.Tx{}
+
+	metatxs := make([]gnoland.TxWithMetadata, 0, len(nonDraft))
 	for _, modPkg := range nonDraft {
 		pkg := pm[modPkg.Dir]
 		if pkg.Creator.IsZero() {
@@ -135,7 +138,7 @@ func (pm PackagesMap) Load(fee std.Fee) ([]std.Tx, error) {
 		}
 
 		// Open files in directory as MemPackage.
-		memPkg := gno.ReadMemPackage(modPkg.Dir, modPkg.Name)
+		memPkg := gno.MustReadMemPackage(modPkg.Dir, modPkg.Name)
 		if err := memPkg.Validate(); err != nil {
 			return nil, fmt.Errorf("invalid package: %w", err)
 		}
@@ -153,8 +156,15 @@ func (pm PackagesMap) Load(fee std.Fee) ([]std.Tx, error) {
 		}
 
 		tx.Signatures = make([]std.Signature, len(tx.GetSigners()))
-		txs = append(txs, tx)
+		metatx := gnoland.TxWithMetadata{
+			Tx: tx,
+			Metadata: &gnoland.GnoTxMetadata{
+				Timestamp: start.Unix(),
+			},
+		}
+
+		metatxs = append(metatxs, metatx)
 	}
 
-	return txs, nil
+	return metatxs, nil
 }

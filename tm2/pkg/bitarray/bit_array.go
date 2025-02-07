@@ -394,8 +394,12 @@ func (bA *BitArray) UnmarshalJSON(bz []byte) error {
 	if b == "null" {
 		// This is required e.g. for encoding/json when decoding
 		// into a pointer with pre-allocated BitArray.
+		bA.mtx.Lock()
+		defer bA.mtx.Unlock()
+
 		bA.Bits = 0
 		bA.Elems = nil
+
 		return nil
 	}
 
@@ -414,6 +418,12 @@ func (bA *BitArray) UnmarshalJSON(bz []byte) error {
 			bA2.SetIndex(i, true)
 		}
 	}
-	*bA = *bA2 //nolint:govet
+
+	bA.mtx.Lock()
+	defer bA.mtx.Unlock()
+
+	bA.Bits = bA2.Bits
+	bA.Elems = bA2.Elems
+
 	return nil
 }

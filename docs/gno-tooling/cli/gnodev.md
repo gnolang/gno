@@ -105,7 +105,7 @@ A specific deposit amount can also be set with the following pattern:
 gnodev ./myrealm?deposit=42ugnot
 ```
 
-This patten can be expanded to accommodate both options:
+This pattern can be expanded to accommodate both options:
 
 ```
 gnodev ./myrealm?creator=<addr>&deposit=<amount>

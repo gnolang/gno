@@ -32,6 +32,17 @@ func TestCleanApp(t *testing.T) {
 			testDir:              "../../tests/integ/minimalist_gnomod",
 			simulateExternalRepo: true,
 		},
+		{
+			args:                 []string{"clean", "-modcache"},
+			testDir:              "../../tests/integ/empty_dir",
+			simulateExternalRepo: true,
+		},
+		{
+			args:                 []string{"clean", "-modcache", "-n"},
+			testDir:              "../../tests/integ/empty_dir",
+			simulateExternalRepo: true,
+			stdoutShouldContain:  "rm -rf ",
+		},
 	}
 	testMainCaseRun(t, tc)
 

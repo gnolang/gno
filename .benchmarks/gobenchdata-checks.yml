@@ -1,9 +1,0 @@
-checks:
-    - name: Benchmark regression checks on Ns per OP
-      description: |-
-        It checks speed per OP performance regressions.
-      package: .
-      benchmarks: [ '.' ]
-      diff: (current.NsPerOp - base.NsPerOp) / base.NsPerOp * 100
-      thresholds:
-        max: 10

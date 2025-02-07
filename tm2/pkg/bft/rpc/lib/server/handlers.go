@@ -145,6 +145,11 @@ func makeJSONRPCHandler(funcMap map[string]*RPCFunc, logger *slog.Logger) http.H
 			requests  types.RPCRequests
 			responses types.RPCResponses
 		)
+
+		// isRPCRequestArray is used to determine if the incoming payload is an array of requests.
+		// This flag helps decide whether to return an array of responses (for batch requests) or a single response.
+		isRPCRequestArray := true
+
 		if err := json.Unmarshal(b, &requests); err != nil {
 			// next, try to unmarshal as a single request
 			var request types.RPCRequest
@@ -153,6 +158,7 @@ func makeJSONRPCHandler(funcMap map[string]*RPCFunc, logger *slog.Logger) http.H
 				return
 			}
 			requests = []types.RPCRequest{request}
+			isRPCRequestArray = false
 		}
 
 		for _, request := range requests {
@@ -191,9 +197,16 @@ func makeJSONRPCHandler(funcMap map[string]*RPCFunc, logger *slog.Logger) http.H
 			}
 			responses = append(responses, types.NewRPCSuccessResponse(request.ID, result))
 		}
-		if len(responses) > 0 {
-			WriteRPCResponseArrayHTTP(w, responses)
+		if len(responses) == 0 {
+			return
 		}
+
+		if isRPCRequestArray {
+			WriteRPCResponseArrayHTTP(w, responses)
+			return
+		}
+
+		WriteRPCResponseHTTP(w, responses[0])
 	}
 }
 
@@ -939,7 +952,7 @@ func writeListOfEndpoints(w http.ResponseWriter, r *http.Request, funcMap map[st
 
 	for _, name := range noArgNames {
 		link := fmt.Sprintf("//%s/%s", r.Host, name)
-		buf.WriteString(fmt.Sprintf("<a href=\"%s\">%s</a></br>", link, link))
+		fmt.Fprintf(buf, "<a href=\"%s\">%s</a></br>", link, link)
 	}
 
 	buf.WriteString("<br>Endpoints that require arguments:<br>")
@@ -952,7 +965,7 @@ func writeListOfEndpoints(w http.ResponseWriter, r *http.Request, funcMap map[st
 				link += "&"
 			}
 		}
-		buf.WriteString(fmt.Sprintf("<a href=\"%s\">%s</a></br>", link, link))
+		fmt.Fprintf(buf, "<a href=\"%s\">%s</a></br>", link, link)
 	}
 	buf.WriteString("</body></html>")
 	w.Header().Set("Content-Type", "text/html")

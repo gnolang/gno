@@ -8,7 +8,7 @@ import (
 )
 
 func main() {
-	std.TestSetOrigCaller("g1u7y667z64x2h7vc6fmpcprgey4ck233jaww9zq")
+	std.TestSetOrigCaller("g1manfred47kzduec920z88wfr64ylksmdcedlf5")
 	home.AdminSetOverride("Hello World!")
 	println(home.Render(""))
 	home.AdminTransferOwnership(testutils.TestAddress("newAdmin"))
@@ -21,4 +21,4 @@ func main() {
 
 // Output:
 // Hello World!
-// r:  unauthorized; caller is not owner
+// r:  ownable: caller is not owner
