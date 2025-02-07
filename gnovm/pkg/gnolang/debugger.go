@@ -51,9 +51,11 @@ type Debugger struct {
 	lastArg     string                      // last debugger command arguments
 	loc         Location                    // source location of the current machine instruction
 	prevLoc     Location                    // source location of the previous machine instruction
+	nextLoc     Location                    // source location at the 'next' command
 	breakpoints []Location                  // list of breakpoints set by user, as source locations
 	call        []Location                  // for function tracking, ideally should be provided by machine frame
 	frameLevel  int                         // frame level of the current machine instruction
+	nextDepth   int                         // function call depth at the 'next' command
 	getSrc      func(string, string) string // helper to access source from repl or others
 	rootDir     string
 }
@@ -97,8 +99,9 @@ func init() {
 		"list":        {debugList, listUsage, listShort, listLong},
 		"print":       {debugPrint, printUsage, printShort, ""},
 		"stack":       {debugStack, stackUsage, stackShort, ""},
-		// NOTE: the difference between continue, step and stepi is handled within
+		// NOTE: the difference between continue, next, step and stepi is handled within
 		// the main Debug() loop.
+		"next":  {debugContinue, nextUsage, nextShort, ""},
 		"step":  {debugContinue, stepUsage, stepShort, ""},
 		"stepi": {debugContinue, stepiUsage, stepiShort, ""},
 		"up":    {debugUp, upUsage, upShort, ""},
@@ -118,6 +121,7 @@ func init() {
 	debugCmds["c"] = debugCmds["continue"]
 	debugCmds["h"] = debugCmds["help"]
 	debugCmds["l"] = debugCmds["list"]
+	debugCmds["n"] = debugCmds["next"]
 	debugCmds["p"] = debugCmds["print"]
 	debugCmds["quit"] = debugCmds["exit"]
 	debugCmds["q"] = debugCmds["exit"]
@@ -151,6 +155,14 @@ loop:
 					debugList(m, "")
 					continue loop
 				}
+			case "n", "next":
+				if m.Debugger.loc != m.Debugger.prevLoc && m.Debugger.loc.File != "" &&
+					(m.Debugger.nextDepth == 0 || !sameLine(m.Debugger.loc, m.Debugger.nextLoc) && callDepth(m) <= m.Debugger.nextDepth) {
+					m.Debugger.state = DebugAtCmd
+					m.Debugger.prevLoc = m.Debugger.loc
+					debugList(m, "")
+					continue loop
+				}
 			default:
 				if atBreak(m) {
 					m.Debugger.state = DebugAtCmd
@@ -175,6 +187,23 @@ loop:
 	case OpReturn, OpReturnFromBlock:
 		m.Debugger.call = m.Debugger.call[:len(m.Debugger.call)-1]
 	}
+}
+
+// callDepth returns the function call depth.
+func callDepth(m *Machine) int {
+	n := 0
+	for _, f := range m.Frames {
+		if f.Func == nil {
+			continue
+		}
+		n++
+	}
+	return n
+}
+
+// sameLine returns true if both arguments are at the same line.
+func sameLine(loc1, loc2 Location) bool {
+	return loc1.PkgPath == loc2.PkgPath && loc1.File == loc2.File && loc1.Line == loc2.Line
 }
 
 // atBreak returns true if current machine location matches a breakpoint, false otherwise.
@@ -396,6 +425,11 @@ const (
 )
 
 const (
+	nextUsage = `next|n`
+	nextShort = `Step over to next source line.`
+)
+
+const (
 	stepUsage = `step|s`
 	stepShort = `Single step through program.`
 )
@@ -408,6 +442,8 @@ const (
 func debugContinue(m *Machine, arg string) error {
 	m.Debugger.state = DebugAtRun
 	m.Debugger.frameLevel = 0
+	m.Debugger.nextDepth = callDepth(m)
+	m.Debugger.nextLoc = m.Debugger.loc
 	return nil
 }
 
