@@ -9,7 +9,6 @@ import (
 	"io"
 	"net"
 	"net/http"
-	"reflect"
 	"strings"
 
 	types "github.com/gnolang/gno/tm2/pkg/bft/rpc/lib/types"
@@ -112,69 +111,67 @@ func sendRequestCommon[T requestType, R responseType](
 	client *http.Client,
 	rpcURL string,
 	request T,
-) (R, error) {
+) (res R, err error) {
 	// Marshal the request
 	requestBytes, err := json.Marshal(request)
 	if err != nil {
-		var zero R
-		return zero, fmt.Errorf("unable to JSON-marshal the request, %w", err)
+		return res, fmt.Errorf("unable to JSON-marshal the request, %w", err)
 	}
 
 	// Craft the request
-	req, err := http.NewRequest(
-		http.MethodPost,
-		rpcURL,
-		bytes.NewBuffer(requestBytes),
-	)
+	req, err := http.NewRequest(http.MethodPost, rpcURL, bytes.NewBuffer(requestBytes))
 	if err != nil {
-		var zero R
-		return zero, fmt.Errorf("unable to create request, %w", err)
+		return res, fmt.Errorf("unable to create request: %w", err)
 	}
-
-	// Set the header content type
 	req.Header.Set("Content-Type", "application/json")
 
 	// Execute the request
 	httpResponse, err := client.Do(req.WithContext(ctx))
 	if err != nil {
-		var zero R
-		return zero, fmt.Errorf("unable to send request, %w", err)
+		return res, fmt.Errorf("unable to send request: %w", err)
 	}
-	defer httpResponse.Body.Close() //nolint: errcheck
+	defer httpResponse.Body.Close()
 
 	// Parse the response code
 	if !isOKStatus(httpResponse.StatusCode) {
-		var zero R
-		return zero, fmt.Errorf("invalid status code received, %d", httpResponse.StatusCode)
+		return res, fmt.Errorf("invalid status code received: %d", httpResponse.StatusCode)
 	}
 
 	// Parse the response body
 	responseBytes, err := io.ReadAll(httpResponse.Body)
 	if err != nil {
-		var zero R
-		return zero, fmt.Errorf("unable to read response body, %w", err)
+		return res, fmt.Errorf("unable to read response body: %w", err)
 	}
 
-	var response R
-
-	if err := json.Unmarshal(responseBytes, &response); err != nil {
-		// If unmarshal fails, and if R is a slice, try to unmarshal as a single element.
-		var zero R
-		rType := reflect.TypeOf(zero)
-		if rType.Kind() == reflect.Slice {
-			elemType := rType.Elem()
-			singlePtr := reflect.New(elemType).Interface()
-			if err2 := json.Unmarshal(responseBytes, singlePtr); err2 == nil {
-				newSlice := reflect.MakeSlice(rType, 0, 1)
-				newSlice = reflect.Append(newSlice, reflect.ValueOf(singlePtr).Elem())
-				response = newSlice.Interface().(R)
-				return response, nil
+	// Attempt to unmarshal into the expected response type.
+	var zero R
+	switch any(zero).(type) {
+	case *types.RPCResponse:
+		// Expected type is a pointer to a single RPCResponse.
+		var singleResponse types.RPCResponse
+		if err = json.Unmarshal(responseBytes, &singleResponse); err != nil {
+			return zero, fmt.Errorf("unable to unmarshal response body: %w", err)
+		}
+		res = any(&singleResponse).(R)
+	case types.RPCResponses:
+		// Expected type is a slice of RPCResponse.
+		var responses types.RPCResponses
+		// First, try unmarshalling as a slice.
+		if err = json.Unmarshal(responseBytes, &responses); err != nil {
+			// If that fails, try unmarshalling as a single element.
+			var response types.RPCResponse
+			if err2 := json.Unmarshal(responseBytes, &response); err2 == nil {
+				responses = types.RPCResponses{response}
+			} else {
+				return zero, fmt.Errorf("unable to unmarshal response body: %w", err)
 			}
 		}
-		return zero, fmt.Errorf("unable to unmarshal response body, %w", err)
+		res = any(responses).(R)
+	default:
+		return zero, fmt.Errorf("unexpected response type")
 	}
 
-	return response, nil
+	return res, nil
 }
 
 // DefaultHTTPClient is used to create an http client with some default parameters.
