@@ -21,7 +21,7 @@ const (
 	defaultOutputPath = "./backup.jsonl"
 	defaultFromBlock  = 1
 	defaultToBlock    = -1 // no limit
-	defaultBatchSize  = 1  // no batch / fetch one by one
+	defaultBatchSize  = backup.DefaultBatchSize
 
 	defaultRemoteAddress = "http://127.0.0.1:26657"
 )

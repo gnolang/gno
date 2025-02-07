@@ -15,6 +15,8 @@ import (
 	"github.com/gnolang/tx-archive/log/noop"
 )
 
+const DefaultBatchSize = 1000
+
 // Service is the chain backup service
 type Service struct {
 	client client.Client
@@ -41,7 +43,7 @@ func NewService(client client.Client, writer writer.Writer, opts ...Option) *Ser
 
 	// Batch size needs to be at least 1
 	if s.batchSize == 0 {
-		s.batchSize = 1
+		s.batchSize = DefaultBatchSize
 	}
 
 	return s

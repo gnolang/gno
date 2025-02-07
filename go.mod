@@ -5,7 +5,7 @@ go 1.22.0
 toolchain go1.23.5
 
 require (
-	github.com/gnolang/gno v0.0.0-20250203085347-dc0b608d46ab
+	github.com/gnolang/gno v0.0.0-20250207014304-47395b1a95e3
 	github.com/peterbourgon/ff/v3 v3.4.0
 	github.com/stretchr/testify v1.10.0
 	go.uber.org/zap v1.27.0
