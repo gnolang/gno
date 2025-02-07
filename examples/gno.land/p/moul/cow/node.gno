@@ -132,10 +132,6 @@ func (node *Node) Set(key string, value interface{}) (newSelf *Node, updated boo
 
 	// Always create a new node for leaf nodes
 	if node.height == 0 {
-		if key == node.key {
-			// Create new node even when updating
-			return NewNode(key, value), true
-		}
 		return node.setLeaf(key, value)
 	}
 
