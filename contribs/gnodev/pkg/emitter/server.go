@@ -108,5 +108,4 @@ func (s *Server) logEvent(evt events.Event) {
 		"clients", len(s.clients),
 		"type", evt.Type(),
 		"event", logEvt)
-
 }
