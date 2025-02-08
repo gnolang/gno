@@ -27,7 +27,7 @@ type writeNopCloser struct{ io.Writer }
 func (writeNopCloser) Close() error { return nil }
 
 // TODO (Marc): move evalTest to gnovm/tests package and remove code duplicates
-func evalTest(debugAddr, in, file string, getter gnolang.MemPackageGetter) (out, err string) {
+func evalTest(debugAddr, in, file string, pkgs packages.PkgList) (out, err string) {
 	bout := bytes.NewBufferString("")
 	berr := bytes.NewBufferString("")
 	stdin := bytes.NewBufferString(in)
@@ -42,7 +42,7 @@ func evalTest(debugAddr, in, file string, getter gnolang.MemPackageGetter) (out,
 		err = strings.TrimSpace(strings.ReplaceAll(err, "../../tests/files/", "files/"))
 	}()
 
-	_, testStore := test.Store(gnoenv.RootDir(), getter, false, stdin, stdout, stderr)
+	_, testStore := test.Store(gnoenv.RootDir(), pkgs, stdin, stdout, stderr)
 
 	f := gnolang.MustReadFile(file)
 
@@ -71,12 +71,12 @@ func evalTest(debugAddr, in, file string, getter gnolang.MemPackageGetter) (out,
 	return
 }
 
-func runDebugTest(t *testing.T, targetPath string, tests []dtest, getter gnolang.MemPackageGetter) {
+func runDebugTest(t *testing.T, targetPath string, tests []dtest, pkgs packages.PkgList) {
 	t.Helper()
 
 	for _, test := range tests {
 		t.Run("", func(t *testing.T) {
-			out, err := evalTest("", test.in, targetPath, getter)
+			out, err := evalTest("", test.in, targetPath, pkgs)
 			t.Log("in:", test.in, "out:", out, "err:", err)
 			if !strings.Contains(out, test.out) {
 				t.Errorf("unexpected output\nwant\"%s\"\n  got \"%s\"", test.out, out)

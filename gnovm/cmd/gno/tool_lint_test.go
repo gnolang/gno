@@ -10,15 +10,18 @@ func TestLintApp(t *testing.T) {
 		{
 			args:        []string{"tool", "lint"},
 			errShouldBe: "flag: help requested",
-		}, {
+		},
+		{
 			args:                []string{"tool", "lint", "../../tests/integ/run_main/"},
 			stderrShouldContain: "../../tests/integ/run_main: gno.mod file not found in current or any parent directory (code=1)",
 			errShouldBe:         "exit code: 1",
-		}, {
+		},
+		{
 			args:                []string{"tool", "lint", "../../tests/integ/undefined_variable_test/undefined_variables_test.gno"},
 			stderrShouldContain: "undefined_variables_test.gno:6:28: name toto not declared (code=2)",
 			errShouldBe:         "exit code: 1",
-		}, {
+		},
+		{
 			args:                []string{"tool", "lint", "../../tests/integ/package_not_declared/main.gno"},
 			stderrShouldContain: "../../tests/integ/package_not_declared/main.gno:4:2: undefined: fmt (code=4)\n",
 			errShouldBe:         "exit code: 1",
@@ -38,7 +41,8 @@ func TestLintApp(t *testing.T) {
 				return strings.Join(lines, "\n") + "\n"
 			}(),
 			errShouldBe: "exit code: 1",
-		}, {
+		},
+		{
 			args: []string{"tool", "lint", "../../tests/integ/minimalist_gnomod/"},
 			// TODO: raise an error because there is a gno.mod, but no .gno files
 		}, {
@@ -53,6 +57,11 @@ func TestLintApp(t *testing.T) {
 			args:           []string{"tool", "lint", "../../tests/integ/typecheck_missing_return/"},
 			stderrShouldBe: "../../tests/integ/typecheck_missing_return/main.gno:5:1: missing return (code=4)\n",
 			errShouldBe:    "exit code: 1",
+		},
+		{
+			args: []string{"tool", "lint", "../../tests/integ/init/"},
+			// stderr / stdout should be empty; the init function and statements
+			// should not be executed
 		},
 
 		// TODO: 'gno mod' is valid?

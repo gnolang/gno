@@ -24,19 +24,51 @@ import (
 	storetypes "github.com/gnolang/gno/tm2/pkg/store/types"
 )
 
+type StoreOptions struct {
+	// WithExtern interprets imports of packages under "github.com/gnolang/gno/_test/"
+	// as imports under the directory in gnovm/tests/files/extern.
+	// This should only be used for GnoVM internal filetests (gnovm/tests/files).
+	WithExtern bool
+
+	// PreprocessOnly instructs the PackageGetter to run the imported files using
+	// [gno.Machine.PreprocessFiles]. It avoids executing code for contexts
+	// which only intend to perform a type check, ie. `gno lint`.
+	PreprocessOnly bool
+}
+
 // NOTE: this isn't safe, should only be used for testing.
 func Store(
 	rootDir string,
-	getter gno.MemPackageGetter,
-	withExtern bool,
+	pkgs packages.PkgList,
 	stdin io.Reader,
 	stdout, stderr io.Writer,
 ) (
 	baseStore storetypes.CommitStore,
 	resStore gno.Store,
 ) {
-	if getter == nil {
-		getter = packages.PkgList{}
+	return StoreWithOptions(rootDir, pkgs, stdin, stdout, stderr, StoreOptions{})
+}
+
+// StoreWithOptions is a variant of [Store] which additionally accepts a
+// [StoreOptions] argument.
+func StoreWithOptions(
+	rootDir string,
+	pkgs packages.PkgList,
+	stdin io.Reader,
+	stdout, stderr io.Writer,
+	opts StoreOptions,
+) (
+	baseStore storetypes.CommitStore,
+	resStore gno.Store,
+) {
+	processMemPackage := func(m *gno.Machine, memPkg *gnovm.MemPackage, save bool) (*gno.PackageNode, *gno.PackageValue) {
+		return m.RunMemPackage(memPkg, save)
+	}
+	if opts.PreprocessOnly {
+		processMemPackage = func(m *gno.Machine, memPkg *gnovm.MemPackage, save bool) (*gno.PackageNode, *gno.PackageValue) {
+			m.Store.AddMemPackage(memPkg)
+			return m.PreprocessFiles(memPkg.Name, memPkg.Path, gno.ParseMemPackage(memPkg), save, false)
+		}
 	}
 	getPackage := func(pkgPath string, store gno.Store) (pn *gno.PackageNode, pv *gno.PackageValue) {
 		// fmt.Println("getting pkg", pkgPath)
@@ -45,7 +77,7 @@ func Store(
 			panic(errors.New("invalid zero package path in testStore().pkgGetter"))
 		}
 
-		if withExtern {
+		if opts.WithExtern {
 			// if _test package...
 			const testPath = "github.com/gnolang/gno/_test/"
 			if strings.HasPrefix(pkgPath, testPath) {
@@ -59,7 +91,7 @@ func Store(
 					Store:   store,
 					Context: ctx,
 				})
-				return m2.RunMemPackage(memPkg, true)
+				return processMemPackage(m2, memPkg, true)
 			}
 		}
 
@@ -134,13 +166,13 @@ func Store(
 		}
 
 		// Load normal stdlib.
-		pn, pv = loadStdlib(rootDir, pkgPath, store, stdout)
+		pn, pv = loadStdlib(rootDir, pkgPath, store, stdout, opts.PreprocessOnly)
 		if pn != nil {
 			return
 		}
 
 		// if known package
-		if memPkg := getter.GetMemPackage(pkgPath); memPkg != nil {
+		if memPkg := pkgs.GetMemPackage(pkgPath); memPkg != nil {
 			if memPkg.IsEmpty() {
 				fmt.Fprintln(os.Stderr, string(debug.Stack()))
 				panic(fmt.Sprintf("found an empty package %q", pkgPath))
@@ -156,8 +188,7 @@ func Store(
 				Store:   store,
 				Context: ctx,
 			})
-			pn, pv = m2.RunMemPackage(memPkg, true)
-			return
+			return processMemPackage(m2, memPkg, true)
 		}
 
 		return nil, nil
@@ -171,7 +202,7 @@ func Store(
 	return
 }
 
-func loadStdlib(rootDir, pkgPath string, store gno.Store, stdout io.Writer) (*gno.PackageNode, *gno.PackageValue) {
+func loadStdlib(rootDir, pkgPath string, store gno.Store, stdout io.Writer, preprocessOnly bool) (*gno.PackageNode, *gno.PackageValue) {
 	dirs := [...]string{
 		// Normal stdlib path.
 		filepath.Join(rootDir, "gnovm", "stdlibs", pkgPath),
@@ -209,6 +240,11 @@ func loadStdlib(rootDir, pkgPath string, store gno.Store, stdout io.Writer) (*gn
 		Output:  stdout,
 		Store:   store,
 	})
+	if preprocessOnly {
+		m2.Store.AddMemPackage(memPkg)
+		return m2.PreprocessFiles(memPkg.Name, memPkg.Path, gno.ParseMemPackage(memPkg), true, true)
+	}
+	// TODO: make this work when using gno lint.
 	return m2.RunMemPackageWithOverrides(memPkg, true)
 }
 

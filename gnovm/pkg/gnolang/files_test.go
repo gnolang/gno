@@ -50,7 +50,7 @@ func TestFiles(t *testing.T) {
 			Sync:    *withSync,
 		}
 		o.BaseStore, o.TestStore = test.Store(
-			rootDir, pkgs, true,
+			rootDir, pkgs,
 			nopReader{}, o.WriterForStore(), io.Discard,
 		)
 		return o

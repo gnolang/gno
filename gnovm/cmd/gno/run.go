@@ -101,7 +101,7 @@ func execRun(cfg *runCfg, args []string, io commands.IO) error {
 
 	// init store and machine
 	_, testStore := test.Store(
-		cfg.rootDir, pkgs, false,
+		cfg.rootDir, pkgs,
 		stdin, stdout, stderr)
 	if cfg.verbose {
 		testStore.SetLogStoreOps(true)
