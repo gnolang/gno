@@ -2,9 +2,9 @@ package vm
 
 import (
 	"fmt"
-	"strings"
 
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
+	gstd "github.com/gnolang/gno/gnovm/stdlibs/std"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
 	"github.com/gnolang/gno/tm2/pkg/sdk"
 	"github.com/gnolang/gno/tm2/pkg/sdk/params"
@@ -86,84 +86,61 @@ func NewSDKParams(pmk *params.ParamsKeeper, ctx sdk.Context) *SDKParams {
 	}
 }
 
-func (prm *SDKParams) SetString(key, value string) {
+func (prm *SDKParams) SetString(key gstd.ParamKey, value string) {
 	prm.assertRealmAccess(key)
 	prm.willSetKeeperParams(prm.ctx, key, value)
-	prm.pmk.SetString(prm.ctx, key, value)
+	prm.pmk.SetString(prm.ctx, key.String(), value)
 }
 
 // Set a boolean parameter in the format of realmPath.parameter.bool
-func (prm *SDKParams) SetBool(key string, value bool) {
+func (prm *SDKParams) SetBool(key gstd.ParamKey, value bool) {
 	prm.assertRealmAccess(key)
 	prm.willSetKeeperParams(prm.ctx, key, value)
-	prm.pmk.SetBool(prm.ctx, key, value)
+	prm.pmk.SetBool(prm.ctx, key.String(), value)
 }
 
-func (prm *SDKParams) SetInt64(key string, value int64) {
+func (prm *SDKParams) SetInt64(key gstd.ParamKey, value int64) {
 	prm.assertRealmAccess(key)
 	prm.willSetKeeperParams(prm.ctx, key, value)
-	prm.pmk.SetInt64(prm.ctx, key, value)
+	prm.pmk.SetInt64(prm.ctx, key.String(), value)
 }
 
-func (prm *SDKParams) SetUint64(key string, value uint64) {
+func (prm *SDKParams) SetUint64(key gstd.ParamKey, value uint64) {
 	prm.assertRealmAccess(key)
 	prm.willSetKeeperParams(prm.ctx, key, value)
-	prm.pmk.SetUint64(prm.ctx, key, value)
+	prm.pmk.SetUint64(prm.ctx, key.String(), value)
 }
 
-func (prm *SDKParams) SetBytes(key string, value []byte) {
+func (prm *SDKParams) SetBytes(key gstd.ParamKey, value []byte) {
 	prm.assertRealmAccess(key)
 	prm.willSetKeeperParams(prm.ctx, key, value)
-	prm.pmk.SetBytes(prm.ctx, key, value)
+	prm.pmk.SetBytes(prm.ctx, key.String(), value)
 }
 
-// willSetKeeperParams parses the parameter key and sets the keeper it matches the keeper key
-// For the system params, the internal key format is sysParamsRealm.[keeperKeyPrefix:]keyName.keyType
-// Ex. gno.lang/r/sys/params.bank:lockStrn.string
-// The "keeperKeyPrefix:" is optional.
-// If "keeperKeyPrefix:" is presented in the key,
-// it must match the keeper's paramKeyPrefix; otherwise it will panic and revert the transaction.
-func (prm *SDKParams) willSetKeeperParams(ctx sdk.Context, key string, value interface{}) {
-	// key is in the format of <realm>:<keyname>.<type>
-	realmPrefix := gno.ReRealmPath.FindString(key)
-	if realmPrefix == "" {
-		panic(fmt.Sprintf("set parameter %s must be accessed from a realm.", key))
-	}
+// ParamKey's prefix must match the keeper's paramKeyPrefix; otherwise it will panic and revert the transaction.
+func (prm *SDKParams) willSetKeeperParams(ctx sdk.Context, key gstd.ParamKey, value interface{}) {
+	kp := key.Prefix
 	// ParamfulKeeper can be accessed from SysParamsRealmPath only
-	if realmPrefix != SysParamsRealmPath {
+	if key.Realm != SysParamsRealmPath || kp == "" {
 		return
 	}
 
-	k, ok := strings.CutPrefix(key, realmPrefix)
-	if !ok {
-		return
+	if !prm.pmk.IsRegistered(kp) {
+		panic(fmt.Sprintf("keeper key <%s> does not exist", kp))
 	}
-
-	parts := strings.SplitN(k, ".", 2)
-	paramKey := parts[1]
-	parts = strings.SplitN(paramKey, ":", 2)
-	keeperKeyPrefix := ""
-
-	if len(parts) == 2 {
-		keeperKeyPrefix = parts[0]
-		paramKey = parts[1]
-	} else {
-		// no keeperKeyPrefix
-		return
-	}
-
-	if !prm.pmk.IsRegistered(keeperKeyPrefix) {
-		panic(fmt.Sprintf("keeper key <%s> does not exist", keeperKeyPrefix))
-	}
-	kpr := prm.pmk.GetRegisteredKeeper(keeperKeyPrefix)
+	kpr := prm.pmk.GetRegisteredKeeper(kp)
 	if kpr != nil {
-		kpr.WillSetParam(prm.ctx, paramKey, value)
+		kpr.WillSetParam(prm.ctx, key.Key, value)
 	}
 }
 
-func (prm *SDKParams) assertRealmAccess(key string) {
-	realm := gno.ReRealmPath.FindString(key)
+func (prm *SDKParams) assertRealmAccess(key gstd.ParamKey) {
+	realm := gno.ReRealmPath.FindString(key.Realm)
 	if realm == "" {
-		panic(fmt.Sprintf("Set parameters must be accessed from a realm"))
+		panic(fmt.Sprintf("parameters must be set in a valid realm"))
+	}
+
+	if key.Realm != SysParamsRealmPath && key.Prefix != "" {
+		panic(fmt.Sprintf("prefixed parameter %q with keeper prefix %q must be set in %q", key.Key, key.Prefix, SysParamsRealmPath))
 	}
 }

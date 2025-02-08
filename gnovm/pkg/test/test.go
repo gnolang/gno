@@ -18,6 +18,7 @@ import (
 	"github.com/gnolang/gno/gnovm"
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
 	"github.com/gnolang/gno/gnovm/stdlibs"
+	gstd "github.com/gnolang/gno/gnovm/stdlibs/std"
 	teststd "github.com/gnolang/gno/gnovm/tests/stdlibs/std"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
 	"github.com/gnolang/gno/tm2/pkg/sdk"
@@ -87,16 +88,11 @@ func newTestParams() *testParams {
 	return &testParams{}
 }
 
-func (tp *testParams) SetBool(key string, val bool)                           { /* noop */ }
-func (tp *testParams) SetBytes(key string, val []byte)                        { /* noop */ }
-func (tp *testParams) SetInt64(key string, val int64)                         { /* noop */ }
-func (tp *testParams) SetUint64(key string, val uint64)                       { /* noop */ }
-func (tp *testParams) SetString(key string, val string)                       { /* noop */ }
-func (tp *testParams) SetPrefixedBool(keeperPrefix, key string, val bool)     { /* noop */ }
-func (tp *testParams) SetPrefixedBytes(keeperPrefix, key string, val []byte)  { /* noop */ }
-func (tp *testParams) SetPrefixedInt64(keeperPrefix, key string, val int64)   { /* noop */ }
-func (tp *testParams) SetPrefixedUint64(keeperPrefix, key string, val uint64) { /* noop */ }
-func (tp *testParams) SetPrefixedString(keeperPrefix, key string, val string) { /* noop */ }
+func (tp *testParams) SetBool(key gstd.ParamKey, val bool)     { /* noop */ }
+func (tp *testParams) SetBytes(key gstd.ParamKey, val []byte)  { /* noop */ }
+func (tp *testParams) SetInt64(key gstd.ParamKey, val int64)   { /* noop */ }
+func (tp *testParams) SetUint64(key gstd.ParamKey, val uint64) { /* noop */ }
+func (tp *testParams) SetString(key gstd.ParamKey, val string) { /* noop */ }
 
 // ----------------------------------------
 // main test function

@@ -68,7 +68,7 @@ stdout 'data: "-31337"'
 
 # It is impossible to call std.SetParamXXX with a pararmeter key in the <key_prefix>:<key> format (e.g. "bank:Transfer.string") because it is an invalid key.
 ! gnokey maketx call -pkgpath gno.land/r/sys/params -func SetLockTransfer -args ugnot -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test test1
-stderr 'invalid param key: bank:lockTransfer.string'
+stderr 'invalid parameter key: bank:lockTransfer.string'
 
 
 # ---- 2 Test std.SetParamXXX when called outside of gno.land/r/sys/params
@@ -109,7 +109,7 @@ stdout 'data: "-31337"'
 
 # It is impossible to call std.SetParamXXX with a parameter key in the <key_prefix>:<key> format (e.g. "bank:Transfer.string") because it is an invalid key.
 ! gnokey maketx call -pkgpath gno.land/r/myrealm -func SetLockTransfer -args ugnot -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test test1
-stderr 'Data: invalid param key: bank:lockTransfer.string'
+stderr 'Data: invalid parameter key: bank:lockTransfer.string'
 
 -- params/setter.gno --
 package params

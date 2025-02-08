@@ -25,7 +25,7 @@ stdout 'data: '
 
 # set invalid key
 ! gnokey maketx call -pkgpath gno.land/r/sys/params -func SetInvalidKey -args "ugnot" -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test test1
-stderr 'invalid bank parameter key: bank:lockTransfer.string'
+stderr 'invalid parameter key: bank:lockTransfer.string'
 
 gnokey query params/vm/gno.land/r/sys/params.bank:lockTransfer.string
 stdout 'data: '
@@ -38,10 +38,37 @@ stdout 'data: '
 gnokey maketx addpkg -pkgdir $WORK/prefixed -pkgpath gno.land/r/myrealm -gas-fee 1000000ugnot -gas-wanted 100000000 -broadcast -chainid=tendermint_test test1
 
 ## can not call SetPrefixXXX out side of gno.land/r/params
-gnokey maketx call -pkgpath gno.land/r/myrealm -func SetPrefixedString -args "foo" -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test test1
+! gnokey maketx call -pkgpath gno.land/r/myrealm -func SetPrefixedString -args "foo" -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test test1
+stderr 'Data: prefixed parameter "foo.string" with keeper prefix "bank" must be set in "gno.land/r/sys/params"'
 
 gnokey query params/vm/gno.land/r/myrealm.bank:foo.string
-stdout 'data: "foo"'
+stdout 'data: '
+
+
+! gnokey maketx call -pkgpath gno.land/r/myrealm -func SetPrefixedBool -args true -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test test1
+stderr 'Data: prefixed parameter "bar.bool" with keeper prefix "bank" must be set in "gno.land/r/sys/params"'
+
+gnokey query params/vm/gno.land/r/myrealm.bank:bar.bool
+stdout 'data: '
+
+! gnokey maketx call -pkgpath gno.land/r/myrealm -func SetPrefixedInt64 -args -100 -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test test1
+stderr 'Data: prefixed parameter "baz.int64" with keeper prefix "bank" must be set in "gno.land/r/sys/params"'
+
+gnokey query params/vm/gno.land/r/myrealm.bank:baz.int64
+stdout 'data: '
+
+! gnokey maketx call -pkgpath gno.land/r/myrealm -func SetPrefixedUint64 -args 100 -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test test1
+stderr 'Data: prefixed parameter "baz.uint64" with keeper prefix "bank" must be set in "gno.land/r/sys/params"'
+
+gnokey query params/vm/gno.land/r/myrealm.bank:baz.uint64
+stdout 'data: '
+
+! gnokey maketx call -pkgpath gno.land/r/myrealm -func SetPrefixedBytes -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test test1
+stderr 'Data: prefixed parameter "baz.bytes" with keeper prefix "bank" must be set in "gno.land/r/sys/params"'
+
+gnokey query params/vm/gno.land/r/myrealm.bank:baz.bytes
+stdout 'data: '
+
 
 -- prefixed/setter.gno --
 package params

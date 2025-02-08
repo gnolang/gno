@@ -416,14 +416,12 @@ func (m *Machine) Stacktrace() (stacktrace Stacktrace) {
 	for i := len(m.Frames) - 1; i >= 0; i-- {
 		if m.Frames[i].IsCall() {
 			stm := m.Stmts[nextStmtIndex]
-			// TODO: find out why stm might not be *bodyStmt.
-			if bs, ok := stm.(*bodyStmt); ok {
-				stm = bs.Body[bs.NextBodyIndex-1]
-				calls = append(calls, StacktraceCall{
-					Stmt:  stm,
-					Frame: m.Frames[i],
-				})
-			}
+			bs := stm.(*bodyStmt)
+			stm = bs.Body[bs.NextBodyIndex-1]
+			calls = append(calls, StacktraceCall{
+				Stmt:  stm,
+				Frame: m.Frames[i],
+			})
 		}
 		// if the frame is a call, the next statement is the last statement of the frame.
 		nextStmtIndex = m.Frames[i].NumStmts - 1

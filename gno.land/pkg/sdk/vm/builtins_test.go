@@ -3,6 +3,7 @@ package vm
 import (
 	"testing"
 
+	gstd "github.com/gnolang/gno/gnovm/stdlibs/std"
 	"github.com/stretchr/testify/require"
 )
 
@@ -18,35 +19,66 @@ func TestParamsRestrictedRealm(t *testing.T) {
 		{
 			name: "SetString should panic",
 			setFunc: func() {
-				params.SetString("gno.land/p/foo.bank.name.string", "foo")
+				pk := gstd.ParamKey{
+					Realm:  "gno.land/p/foo",
+					Prefix: "bank",
+					Key:    "name",
+					Type:   "string",
+				}
+				params.SetString(pk, "foo")
 			},
 			expectedMsg: "Set parameters must be accessed from a realm",
 		},
 		{
 			name: "SetBool should panic",
 			setFunc: func() {
-				params.SetBool("gno.land/p/foo.bank.isFoo.bool", true)
+				pk := gstd.ParamKey{
+					Realm:  "gno.land/p/foo",
+					Prefix: "bank",
+					Key:    "isFoo",
+					Type:   "bool",
+				}
+				params.SetBool(pk, true)
 			},
 			expectedMsg: "Set parameters must be accessed from a realm",
 		},
 		{
 			name: "SetInt64 should panic",
 			setFunc: func() {
-				params.SetInt64("gno.land/p/foo.bank.nummber.int64", -100)
+				pk := gstd.ParamKey{
+					Realm:  "gno.land/p/foo",
+					Prefix: "bank",
+					Key:    "number",
+					Type:   "int64",
+				}
+				params.SetInt64(pk, -100)
 			},
 			expectedMsg: "Set parameters must be accessed from a realm",
 		},
 		{
 			name: "SetUint64 should panic",
 			setFunc: func() {
-				params.SetUint64("gno.land/p/foo.bank.nummber.uint64", 100)
+				pk := gstd.ParamKey{
+					Realm:  "gno.land/p/foo",
+					Prefix: "bank",
+					Key:    "number",
+					Type:   "uint64",
+				}
+				params.SetUint64(pk, 100)
 			},
 			expectedMsg: "Set parameters must be accessed from a realm",
 		},
 		{
 			name: "SetBytes should panic",
 			setFunc: func() {
-				params.SetBytes("gno.land/p/foo.bank.name.bytes", []byte("foo"))
+				pk := gstd.ParamKey{
+					Realm:  "gno.land/p/foo",
+					Prefix: "bank",
+					Key:    "name",
+					Type:   "bytes",
+				}
+
+				params.SetBytes(pk, []byte("foo"))
 			},
 			expectedMsg: "Set parameters must be accessed from a realm",
 		},
@@ -71,35 +103,65 @@ func TestParamsKeeper(t *testing.T) {
 		{
 			name: "SetString should panic",
 			setFunc: func() {
-				params.SetString("gno.land/r/sys/params.foo:name.string", "foo")
+				pk := gstd.ParamKey{
+					Realm:  "gno.land/p/foo",
+					Prefix: "foo",
+					Key:    "name",
+					Type:   "string",
+				}
+				params.SetString(pk, "foo")
 			},
 			expectedMsg: `keeper key <foo> does not exist`,
 		},
 		{
 			name: "SetBool should panic",
 			setFunc: func() {
-				params.SetBool("gno.land/r/sys/params.foo:isFoo.bool", true)
+				pk := gstd.ParamKey{
+					Realm:  "gno.land/p/foo",
+					Prefix: "foo",
+					Key:    "isFoo",
+					Type:   "bool",
+				}
+				params.SetBool(pk, true)
 			},
 			expectedMsg: `keeper key <foo> does not exist`,
 		},
 		{
 			name: "SetInt64 should panic",
 			setFunc: func() {
-				params.SetInt64("gno.land/r/sys/params.foo:nummber.int64", -100)
+				pk := gstd.ParamKey{
+					Realm:  "gno.land/p/foo",
+					Prefix: "foo",
+					Key:    "number",
+					Type:   "int64",
+				}
+				params.SetInt64(pk, -100)
 			},
 			expectedMsg: `keeper key <foo> does not exist`,
 		},
 		{
 			name: "SetUint64 should panic",
 			setFunc: func() {
-				params.SetUint64("gno.land/r/sys/params.foo:nummber.uint64", 100)
+				pk := gstd.ParamKey{
+					Realm:  "gno.land/p/foo",
+					Prefix: "foo",
+					Key:    "number",
+					Type:   "uint64",
+				}
+				params.SetUint64(pk, 100)
 			},
 			expectedMsg: `keeper key <foo> does not exist`,
 		},
 		{
 			name: "SetBytes should panic",
 			setFunc: func() {
-				params.SetBytes("gno.land/r/sys/params.foo:name.bytes", []byte("foo"))
+				pk := gstd.ParamKey{
+					Realm:  "gno.land/p/foo",
+					Prefix: "foo",
+					Key:    "name",
+					Type:   "bytes",
+				}
+				params.SetBytes(pk, []byte("foo"))
 			},
 			expectedMsg: `keeper key <foo> does not exist`,
 		},
