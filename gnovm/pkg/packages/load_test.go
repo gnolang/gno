@@ -169,9 +169,8 @@ func TestSortPkgs(t *testing.T) {
 func TestLoadNonDraftExamples(t *testing.T) {
 	examples := filepath.Join("..", "..", "..", "examples", "...")
 	conf := LoadConfig{
-		Deps:          true,
-		Fetcher:       pkgdownload.NewNoopFetcher(),
-		SelfContained: true,
+		Deps:    true,
+		Fetcher: pkgdownload.NewNoopFetcher(),
 	}
 
 	pkgs, err := Load(&conf, examples)

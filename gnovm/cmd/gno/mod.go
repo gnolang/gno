@@ -352,7 +352,7 @@ func execModWhy(args []string, io commands.IO) error {
 		return flag.ErrHelp
 	}
 
-	conf := &packages.LoadConfig{SelfContained: true, Fetcher: testPackageFetcher}
+	conf := &packages.LoadConfig{Fetcher: testPackageFetcher}
 	pkgs, err := packages.Load(conf, ".")
 	if err != nil {
 		return err

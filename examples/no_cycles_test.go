@@ -24,7 +24,7 @@ var injectedTestingLibs = []string{"encoding/json", "fmt", "os", "internal/os_te
 // TestNoCycles checks that there is no import cycles in stdlibs and non-draft examples
 func TestNoCycles(t *testing.T) {
 	// find examples and stdlibs
-	cfg := &packages.LoadConfig{SelfContained: true, Deps: true, Fetcher: pkgdownload.NewNoopFetcher()}
+	cfg := &packages.LoadConfig{Deps: true, Fetcher: pkgdownload.NewNoopFetcher()}
 	pkgs, err := packages.Load(cfg, filepath.Join(gnoenv.RootDir(), "examples", "..."))
 	require.NoError(t, err)
 

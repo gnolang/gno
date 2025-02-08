@@ -22,14 +22,13 @@ import (
 // FIXME: should not include pkgs imported in test except for matches and only when Test flag is set
 
 type LoadConfig struct {
-	IO            commands.IO
-	Fetcher       pkgdownload.PackageFetcher
-	Deps          bool
-	Cache         PkgList
-	SelfContained bool
-	AllowEmpty    bool
-	DepsPatterns  []string
-	Fset          *token.FileSet
+	IO           commands.IO
+	Fetcher      pkgdownload.PackageFetcher
+	Deps         bool
+	Cache        PkgList
+	AllowEmpty   bool
+	DepsPatterns []string
+	Fset         *token.FileSet
 }
 
 var injectedTestingLibs = []string{"encoding/json", "fmt", "internal/os_test", "os"}
@@ -158,14 +157,6 @@ func Load(conf *LoadConfig, patterns ...string) (PkgList, error) {
 					pkg.Errors = append(pkg.Errors, err)
 				}
 				markForVisit(readPkgDir(dir, imp.PkgPath, conf.Fset))
-				continue
-			}
-
-			if conf.SelfContained {
-				pkg.Errors = append(pkg.Errors, &Error{
-					Pos: pkg.Dir,
-					Msg: fmt.Sprintf("package %q not found (self-contained)", imp.PkgPath),
-				})
 				continue
 			}
 

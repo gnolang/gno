@@ -88,8 +88,7 @@ func (pl *PkgsLoader) LoadPackages(creatorKey crypto.PrivKey, fee std.Fee, depos
 
 func (pl *PkgsLoader) LoadAllPackagesFromDir(path string) error {
 	// list all packages from target path
-	cfg := &packages.LoadConfig{SelfContained: true}
-	pkgslist, err := packages.Load(cfg, filepath.Join(path, "..."))
+	pkgslist, err := packages.Load(nil, filepath.Join(path, "..."))
 	if err != nil {
 		return fmt.Errorf("listing gno packages: %w", err)
 	}
@@ -105,7 +104,7 @@ func (pl *PkgsLoader) LoadAllPackagesFromDir(path string) error {
 
 func (pl *PkgsLoader) LoadPackage(pkgDir string, name string) error {
 	examples := filepath.Join(gnoenv.RootDir(), "examples", "...")
-	cfg := &packages.LoadConfig{Deps: true, SelfContained: true, DepsPatterns: []string{examples}}
+	cfg := &packages.LoadConfig{Deps: true, DepsPatterns: []string{examples}}
 	pkgs, err := packages.Load(cfg, pkgDir)
 	if err != nil {
 		return fmt.Errorf("%q: loading: %w", pkgDir, err)

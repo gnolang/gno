@@ -426,7 +426,7 @@ func generateGenesisFile(io commands.IO, genesisFile string, privKey crypto.Priv
 
 	// Load examples folder
 	examplesDir := filepath.Join(c.gnoRootDir, "examples")
-	loadCfg := &packages.LoadConfig{IO: io, SelfContained: true}
+	loadCfg := &packages.LoadConfig{IO: io}
 	pkgsTxs, err := gnoland.LoadPackagesFromDir(loadCfg, examplesDir, txSender, genesisDeployFee)
 	if err != nil {
 		return fmt.Errorf("unable to load examples folder: %w", err)

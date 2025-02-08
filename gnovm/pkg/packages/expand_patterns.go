@@ -90,12 +90,6 @@ func expandPatterns(conf *LoadConfig, patterns ...string) ([]*pkgMatch, error) {
 		switch patKind {
 		case patternKindRecursiveRemote:
 			return nil, fmt.Errorf("%s: recursive remote patterns are not supported", match)
-
-		case patternKindRemote:
-			// XXX: weird
-			if conf.SelfContained {
-				return nil, fmt.Errorf("%s: remote patterns are not supported in self-contained mode", match)
-			}
 		case patternKindSingleFile:
 			return nil, fmt.Errorf("unexpected single pattern at this point")
 		}
