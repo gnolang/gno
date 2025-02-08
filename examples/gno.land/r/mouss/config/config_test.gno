@@ -10,7 +10,7 @@ import (
 
 var (
 	mainAddr         = Address()
-	backupAddr       = testutils.TestAddress("backup")
+	backupAddr       = Backup()
 	unauthorizedAddr = testutils.TestAddress("unauthorized")
 )
 
@@ -21,43 +21,73 @@ func TestAddress(t *testing.T) {
 }
 
 func TestSetBackup(t *testing.T) {
-	// Test setting backup as main address
-	std.TestSetOrigCaller(mainAddr)
-	validAddr := testutils.TestAddress("validbackup")
-	err := SetBackup(validAddr)
-	uassert.NoError(t, err, "main address should be able to set backup")
-
-	// Test setting invalid address format
-	err = SetBackup(std.Address("invalid"))
-	uassert.ErrorIs(t, err, ErrorInvalidAddr, "should reject invalid address format")
-
-	// Test setting empty address
-	err = SetBackup(std.Address(""))
-	uassert.ErrorIs(t, err, ErrorInvalidAddr, "should reject empty address")
-
-	// Test unauthorized caller
-	std.TestSetOrigCaller(unauthorizedAddr)
-	err = SetBackup(validAddr)
-	uassert.ErrorIs(t, err, ErrorUnauthorized, "should reject unauthorized caller")
+	addr := Backup()
+	expected := std.Address("g1wq2h93ppkf2gkgncz5unayrsmt7pl8npktnznd")
+	uassert.Equal(t, expected, addr, "Backup() should return initialized main address")
 }
 
-func TestCheckAuthorized(t *testing.T) {
-	// Test main address authorization
+func TestAddConfig(t *testing.T) {
+	// Test unauthorized add
+	std.TestSetOrigCaller(unauthorizedAddr)
+	defer func() {
+		if r := recover(); r != ErrUnauthorized {
+			t.Errorf("Expected unauthorized panic")
+		}
+	}()
+	AddConfig("test", "test content")
+	t.Error("Expected panic")
+
+	// Test successful add
 	std.TestSetOrigCaller(mainAddr)
-	err := checkAuthorized()
-	uassert.NoError(t, err, "main address should be authorized")
+	AddConfig("config1", "content1")
+
+	// Test duplicate name
+	defer func() {
+		if r := recover(); r == nil {
+			t.Errorf("Expected duplicate name panic")
+		}
+	}()
+	AddConfig("config1", "content2")
+	t.Error("Expected panic")
+}
+func TestRemoveConfig(t *testing.T) {
+	// Setup test config
+	std.TestSetOrigCaller(mainAddr)
+	AddConfig("test", "test content")
+
+	// Test unauthorized remove
+	std.TestSetOrigCaller(unauthorizedAddr)
+	defer func() {
+		if r := recover(); r != ErrUnauthorized {
+			t.Errorf("Expected unauthorized panic")
+		}
+	}()
+	RemoveConfig("test")
+	t.Error("Expected panic")
+
+	// Test successful remove
+	std.TestSetOrigCaller(mainAddr)
+	RemoveConfig("test")
+
+	// Test remove non-existent
+	defer func() {
+		if r := recover(); r == nil {
+			t.Errorf("Expected non-existent config panic")
+		}
+	}()
+	RemoveConfig("test")
+	t.Error("Expected panic")
+}
+func TestIsAuthorized(t *testing.T) {
+	// Test main address
+	auth := IsAuthorized(Address())
+	uassert.Equal(t, true, auth, "main address should be authorized")
+
+	// Test backup address
+	auth = IsAuthorized(Backup())
+	uassert.Equal(t, true, auth, "backup address should be authorized")
 
 	// Test unauthorized address
-	std.TestSetOrigCaller(unauthorizedAddr)
-	err = checkAuthorized()
-	uassert.ErrorIs(t, err, ErrorUnauthorized, "random address should not be authorized")
-
-	// Set and test backup address authorization
-	std.TestSetOrigCaller(mainAddr)
-	err = SetBackup(backupAddr)
-	uassert.NoError(t, err, "setting backup address should succeed")
-
-	std.TestSetOrigCaller(backupAddr)
-	err = checkAuthorized()
-	uassert.NoError(t, err, "backup address should be authorized")
+	auth = IsAuthorized(unauthorizedAddr)
+	uassert.Equal(t, false, auth, "random address should not be authorized")
 }

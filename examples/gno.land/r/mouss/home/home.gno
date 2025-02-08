@@ -100,6 +100,22 @@ func AddRecipe(name, origin, ingredients, instructions, tips string) string {
 	return "Recipe added successfully!"
 }
 
+func UpdateAboutMe(about string) error {
+	if !config.IsAuthorized(std.PrevRealm().Addr()) {
+		return config.ErrUnauthorized
+	}
+	profile.AboutMe = about
+	return nil
+}
+
+func UpdateAvatar(avatar string) error {
+	if !config.IsAuthorized(std.PrevRealm().Addr()) {
+		return config.ErrUnauthorized
+	}
+	profile.Avatar = avatar
+	return nil
+}
+
 // validateRecipe checks if the provided recipe details are valid.
 func validateRecipe(name, ingredients, instructions string) error {
 	if name == "" {
@@ -122,7 +138,7 @@ func validateRecipe(name, ingredients, instructions string) error {
 func Follow(addr std.Address) error {
 	caller := std.PrevRealm().Addr()
 	if !isUser(caller) {
-		return config.ErrorUnauthorized
+		return config.ErrUnauthorized
 	}
 	if profile.Followers.Has(addr) {
 		return ufmt.Errorf("address %s is already following", addr)
@@ -135,7 +151,7 @@ func Follow(addr std.Address) error {
 func Unfollow(addr std.Address) error {
 	caller := std.PrevRealm().Addr()
 	if !isUser(caller) {
-		return config.ErrorUnauthorized
+		return config.ErrUnauthorized
 	}
 	if !profile.Followers.Has(addr) {
 		return ufmt.Errorf("address %s is not following", addr)
@@ -145,11 +161,7 @@ func Unfollow(addr std.Address) error {
 }
 
 func isUser(addr std.Address) bool {
-	return !isAuthorized(addr)
-}
-
-func isAuthorized(addr std.Address) bool {
-	return addr == config.Address() || addr == config.Backup()
+	return !config.IsAuthorized(addr)
 }
 
 func renderRecipes(res *mux.ResponseWriter, req *mux.Request) {
