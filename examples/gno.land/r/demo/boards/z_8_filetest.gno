@@ -28,6 +28,7 @@ func init() {
 }
 
 func main() {
+	std.TestSetRealm(std.NewUserRealm(std.Address("g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm")))
 	boards.CreateReply(bid, pid, pid, "Second reply of the second post\n")
 	rid2 := boards.CreateReply(bid, pid, rid, "First reply of the first reply\n")
 	println(boards.Render("test_board/" + strconv.Itoa(int(pid)) + "/" + strconv.Itoa(int(rid2))))
@@ -37,11 +38,11 @@ func main() {
 // _[see thread](/r/demo/boards:test_board/2)_
 //
 // Reply of the second post
-// \- [@gnouser123](/u/gnouser123), [2009-02-13 11:31pm (UTC)](/r/demo/boards:test_board/2/3) \[[reply](/r/demo/boards$help&func=CreateReply&bid=1&threadid=2&postid=3)] \[[x](/r/demo/boards$help&func=DeletePost&bid=1&threadid=2&postid=3)]
+// \- [@gnouser123](/u/gnouser123), [2009-02-13 11:31pm (UTC)](/r/demo/boards:test_board/2/3) \[[reply](/r/demo/boards$help&func=CreateReply&bid=1&postid=3&threadid=2)] \[[x](/r/demo/boards$help&func=DeletePost&bid=1&postid=3&threadid=2)]
 //
 // _[see all 1 replies](/r/demo/boards:test_board/2/3)_
 //
 // > First reply of the first reply
 // >
-// > \- [@gnouser123](/u/gnouser123), [2009-02-13 11:31pm (UTC)](/r/demo/boards:test_board/2/5) \[[reply](/r/demo/boards$help&func=CreateReply&bid=1&threadid=2&postid=5)] \[[x](/r/demo/boards$help&func=DeletePost&bid=1&threadid=2&postid=5)]
+// > \- [@gnouser123](/u/gnouser123), [2009-02-13 11:31pm (UTC)](/r/demo/boards:test_board/2/5) \[[reply](/r/demo/boards$help&func=CreateReply&bid=1&postid=5&threadid=2)] \[[x](/r/demo/boards$help&func=DeletePost&bid=1&postid=5&threadid=2)]
 //

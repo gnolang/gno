@@ -26,6 +26,7 @@ func init() {
 }
 
 func main() {
+	std.TestSetRealm(std.NewUserRealm(std.Address("g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm")))
 	rid := boards.CreateRepost(bid1, pid, "", "Check this out", bid2)
 	println(rid)
 	println(boards.Render("test_board2"))
@@ -40,6 +41,6 @@ func main() {
 // ## [First Post (title)](/r/demo/boards:test_board1/1)
 //
 // Body of the first post. (body)
-// \- [@gnouser123](/u/gnouser123), [2009-02-13 11:31pm UTC](/r/demo/boards:test_board1/1) \[[x](/r/demo/boards$help&func=DeletePost&bid=1&threadid=1&postid=1)] (0 replies) (1 reposts)
+// \- [@gnouser123](/u/gnouser123), [2009-02-13 11:31pm UTC](/r/demo/boards:test_board1/1) \[[x](/r/demo/boards$help&func=DeletePost&bid=1&postid=1&threadid=1)] (0 replies) (1 reposts)
 //
 //

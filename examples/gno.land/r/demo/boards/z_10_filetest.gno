@@ -26,6 +26,7 @@ func init() {
 
 func main() {
 	println(boards.Render("test_board/" + strconv.Itoa(int(pid))))
+	std.TestSetRealm(std.NewUserRealm(std.Address("g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm")))
 	boards.DeletePost(bid, pid, pid, "")
 	println("----------------------------------------------------")
 	println(boards.Render("test_board/" + strconv.Itoa(int(pid))))
@@ -35,7 +36,7 @@ func main() {
 // # First Post in (title)
 //
 // Body of the first post. (body)
-// \- [@gnouser123](/u/gnouser123), [2009-02-13 11:31pm (UTC)](/r/demo/boards:test_board/1) \[[reply](/r/demo/boards$help&func=CreateReply&bid=1&threadid=1&postid=1)] \[[repost](/r/demo/boards$help&func=CreateRepost&bid=1&postid=1)] \[[x](/r/demo/boards$help&func=DeletePost&bid=1&threadid=1&postid=1)]
+// \- [@gnouser123](/u/gnouser123), [2009-02-13 11:31pm (UTC)](/r/demo/boards:test_board/1) \[[reply](/r/demo/boards$help&func=CreateReply&bid=1&postid=1&threadid=1)] \[[repost](/r/demo/boards$help&func=CreateRepost&bid=1&postid=1)] \[[x](/r/demo/boards$help&func=DeletePost&bid=1&postid=1&threadid=1)]
 //
 // ----------------------------------------------------
 // thread does not exist with id: 1
