@@ -253,7 +253,7 @@ func (pv PointerValue) Assign2(alloc *Allocator, store Store, rlm *Realm, tv2 Ty
 								panic("should not happen")
 							}
 							if nv, ok := tv2.V.(*NativeValue); !ok ||
-								nv.Value.Kind() != reflect.Func {
+									nv.Value.Kind() != reflect.Func {
 								panic("should not happen")
 							}
 						}
@@ -2279,7 +2279,7 @@ func (tv *TypedValue) GetSlice(alloc *Allocator, low, high int) TypedValue {
 			}
 		}
 		sv := tv.V.(*SliceValue)
-		return TypedValue{
+		tv := TypedValue{
 			T: tv.T,
 			V: alloc.NewSlice(
 				sv.Base,       // base
@@ -2288,6 +2288,10 @@ func (tv *TypedValue) GetSlice(alloc *Allocator, low, high int) TypedValue {
 				sv.Maxcap-low, // maxcap
 			),
 		}
+		if alloc != nil {
+			tv.SetAllocValue(true)
+		}
+		return tv
 	default:
 		panic(fmt.Sprintf("unexpected type for GetSlice(): %s",
 			tv.T.String()))
@@ -2364,7 +2368,7 @@ func (tv *TypedValue) GetSlice2(alloc *Allocator, lowVal, highVal, maxVal int) T
 			}
 		}
 		sv := tv.V.(*SliceValue)
-		return TypedValue{
+		tv := TypedValue{
 			T: tv.T,
 			V: alloc.NewSlice(
 				sv.Base,          // base
@@ -2373,6 +2377,10 @@ func (tv *TypedValue) GetSlice2(alloc *Allocator, lowVal, highVal, maxVal int) T
 				maxVal-lowVal,    // maxcap
 			),
 		}
+		if alloc != nil {
+			tv.SetAllocValue(true)
+		}
+		return tv
 	default:
 		panic(fmt.Sprintf("unexpected type for GetSlice2(): %s",
 			tv.T.String()))
