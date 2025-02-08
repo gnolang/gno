@@ -573,13 +573,6 @@ func (fv *FuncValue) IsNative() bool {
 func (fv *FuncValue) Copy(alloc *Allocator) *FuncValue {
 	debug2.Println2("Copy, fv: ", fv)
 	debug2.Println2("allocator: ", alloc)
-	debug2.Println2("fv.clo: ", fv.Closure)
-	if b, ok := fv.Closure.(*Block); ok {
-		debug2.Println2("containing block of fv is: ", b)
-		if b != nil {
-			debug2.Println2("fv...source, type of source", b.Source, reflect.TypeOf(b.Source))
-		}
-	}
 	alloc.AllocateFunc()
 	return &FuncValue{
 		Type:       fv.Type,
@@ -2211,7 +2204,6 @@ func (tv *TypedValue) GetCapacity() int {
 	}
 }
 
-// New type
 func (tv *TypedValue) GetSlice(alloc *Allocator, low, high int) TypedValue {
 	debug2.Println2("GetSlice, low, high: ", low, high)
 	if low < 0 {
@@ -2302,7 +2294,6 @@ func (tv *TypedValue) GetSlice(alloc *Allocator, low, high int) TypedValue {
 	}
 }
 
-// TODO: new type
 func (tv *TypedValue) GetSlice2(alloc *Allocator, lowVal, highVal, maxVal int) TypedValue {
 	debug2.Println2("GetSlice2, lowVal, highVal: ", lowVal, highVal)
 

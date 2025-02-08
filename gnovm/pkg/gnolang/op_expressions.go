@@ -121,13 +121,11 @@ func (m *Machine) doOpSlice() {
 		sv := xv.GetSlice(m.Alloc, lowVal, highVal)
 		debug2.Println2("doOpSlice, xv.AllocationInfo, 1: ", xv.AllocationInfo)
 		sv.AllocationInfo = xv.AllocationInfo
-		//sv.IncRefCount()
 		m.PushValue(sv)
 	} else {
 		sv := xv.GetSlice2(m.Alloc, lowVal, highVal, maxVal)
 		debug2.Println2("doOpSlice, xv.AllocationInfo, 2: ", xv.AllocationInfo)
 		sv.AllocationInfo = xv.AllocationInfo
-		//sv.IncRefCount()
 		m.PushValue(sv)
 	}
 }

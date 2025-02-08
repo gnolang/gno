@@ -288,7 +288,6 @@ func Gno2GoValue(tv *TypedValue, rv reflect.Value) (ret reflect.Value) {
 // call go2GnoValue2(), which is used by the implementation of
 // ConvertTo().
 // Unlike go2GnoValue2(), rv may be invalid.
-// TODO: consider native for GC...
 func go2GnoValue(alloc *Allocator, rv reflect.Value) (tv TypedValue) {
 	if !rv.IsValid() {
 		return

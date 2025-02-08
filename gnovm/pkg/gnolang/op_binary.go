@@ -692,7 +692,6 @@ func addAssign(alloc *Allocator, lv, rv *TypedValue) {
 	switch baseOf(lv.T) {
 	case StringType, UntypedStringType:
 		lv.V = alloc.NewString(lv.GetString() + rv.GetString())
-		//if !alloc.m.PreprocessorMode {
 		if alloc != nil { // preprocess
 			lv.SetAllocValue(true)
 		}

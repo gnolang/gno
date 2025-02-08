@@ -523,38 +523,6 @@ var nativeFuncs = [...]NativeFunc{
 	},
 	{
 		"std",
-		"GC",
-		[]gno.FieldTypeExpr{},
-		[]gno.FieldTypeExpr{},
-		true,
-		func(m *gno.Machine) {
-			libs_std.GC(
-				m,
-			)
-		},
-	},
-	{
-		"std",
-		"MemStats",
-		[]gno.FieldTypeExpr{},
-		[]gno.FieldTypeExpr{
-			{Name: gno.N("r0"), Type: gno.X("string")},
-		},
-		true,
-		func(m *gno.Machine) {
-			r0 := libs_std.MemStats(
-				m,
-			)
-
-			m.PushValue(gno.Go2GnoValue(
-				m.Alloc,
-				m.Store,
-				reflect.ValueOf(&r0).Elem(),
-			))
-		},
-	},
-	{
-		"std",
 		"origSend",
 		[]gno.FieldTypeExpr{},
 		[]gno.FieldTypeExpr{

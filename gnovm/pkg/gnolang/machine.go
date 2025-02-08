@@ -134,7 +134,6 @@ var machinePool = sync.Pool{
 // Machines initialized through this constructor must be finalized with
 // [Machine.Release].
 func NewMachineWithOptions(opts MachineOptions) *Machine {
-	debug2.Println2("NewMachineWithOptions start")
 	preprocessorMode := opts.PreprocessorMode
 	readOnly := opts.ReadOnly
 	maxCycles := opts.MaxCycles
@@ -185,7 +184,6 @@ func NewMachineWithOptions(opts MachineOptions) *Machine {
 	if pv != nil {
 		mm.SetActivePackage(pv)
 	}
-	debug2.Println2("NewMachineWithOptions end, Memstats: ", mm.Alloc.MemStats())
 	return mm
 }
 
@@ -235,8 +233,6 @@ func (m *Machine) SetActivePackage(pv *PackageValue) {
 // NOTE: package paths not beginning with gno.land will be allowed to override,
 // to support cases of stdlibs processed through [RunMemPackagesWithOverrides].
 func (m *Machine) PreprocessAllFilesAndSaveBlockNodes() {
-	debug2.Println2("=======PreprocessAllFilesAndSaveBlockNodes")
-	defer debug2.Println2("=========Done PreprocessAllFilesAndSaveBlockNodes")
 	ch := m.Store.IterMemPackage()
 	for memPkg := range ch {
 		fset := ParseMemPackage(memPkg)
@@ -453,7 +449,6 @@ func (m *Machine) Stacktrace() (stacktrace Stacktrace) {
 // must happen after persistence and realm finalization,
 // then changes from init persisted again.
 func (m *Machine) RunFiles(fns ...*FileNode) {
-	debug2.Println2("RunFiles, m: ", m)
 	pv := m.Package
 	if pv == nil {
 		panic("RunFiles requires Machine.Package")
@@ -514,7 +509,9 @@ func (m *Machine) runFileDecls(fns ...*FileNode) []TypedValue {
 	debug2.Println2("===runFileDecls, fns: ", fns)
 	debug2.Println2("===machine: ", m)
 	debug2.Println2("Memstats: ", m.Alloc.MemStats())
-	defer debug2.Println2("=======Done runFileDecls========")
+	defer func() {
+		debug2.Println2("=======Done runFileDecls========")
+	}()
 	// Files' package names must match the machine's active one.
 	// if there is one.
 	for _, fn := range fns {
@@ -722,7 +719,6 @@ func (m *Machine) resavePackageValues(rlm *Realm) {
 }
 
 func (m *Machine) RunFunc(fn Name) {
-	debug2.Println2("Running func", fn)
 	defer func() {
 		if r := recover(); r != nil {
 			switch r := r.(type) {
@@ -740,7 +736,6 @@ func (m *Machine) RunFunc(fn Name) {
 }
 
 func (m *Machine) RunMain() {
-	debug2.Println2("Running main")
 	defer func() {
 		r := recover()
 
@@ -869,8 +864,6 @@ func (m *Machine) EvalStaticTypeOf(last BlockNode, x Expr) Type {
 func (m *Machine) RunStatement(s Stmt) {
 	sn := m.LastBlock().GetSource(m.Store)
 	s = Preprocess(m.Store, sn, s).(Stmt)
-	debug2.Println2("==========Machine.RunStatement, s: ", s)
-	debug2.Println2("memstats: ", m.Alloc.MemStats())
 	//debug2.Println2("current machine: ", m)
 	m.PushOp(OpHalt)
 	m.PushStmt(s)
@@ -1923,7 +1916,6 @@ func (m *Machine) PopFrame() Frame {
 }
 
 func (m *Machine) PopFrameAndReset() {
-	debug2.Println2("PopFrameAndReset")
 	fr := m.PopFrame()
 	fr.Popped = true
 	m.NumOps = fr.NumOps
@@ -2084,7 +2076,6 @@ func (m *Machine) PushForPointer(lx Expr) {
 }
 
 func (m *Machine) PopAsPointer(lx Expr) PointerValue {
-	debug2.Println2("PopAsPointer", lx, reflect.TypeOf(lx))
 	switch lx := lx.(type) {
 	case *NameExpr:
 		switch lx.Type {

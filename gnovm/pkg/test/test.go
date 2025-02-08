@@ -283,8 +283,7 @@ func (opts *TestOptions) runTestFiles(
 	tests := loadTestFuncs(memPkg.Name, files)
 
 	var alloc *gno.Allocator
-	//if opts.Metrics {
-	if true {
+	if opts.Metrics {
 		alloc = gno.NewAllocator(math.MaxInt64, m)
 	}
 	// reset store ops, if any - we only need them for some filetests.

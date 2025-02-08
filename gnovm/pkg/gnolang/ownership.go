@@ -117,8 +117,8 @@ type Object interface {
 	GetIsNewDeleted() bool
 	SetIsNewDeleted(bool)
 	GetIsTransient() bool
-	SetByteSize(int)
-	GetByteSize() int
+	SetByteSize(int64)
+	GetByteSize() int64
 
 	// Saves to realm along the way if owned, and also (dirty
 	// or new).
@@ -147,7 +147,7 @@ type ObjectInfo struct {
 	isNewReal    bool
 	isNewEscaped bool
 	isNewDeleted bool
-	byteSize     int
+	byteSize     int64
 
 	// XXX huh?
 	owner Object // mem reference to owner.
@@ -204,11 +204,11 @@ func (oi *ObjectInfo) SetObjectID(oid ObjectID) {
 	oi.ID = oid
 }
 
-func (oi *ObjectInfo) SetByteSize(size int) {
+func (oi *ObjectInfo) SetByteSize(size int64) {
 	oi.byteSize = size
 }
 
-func (oi *ObjectInfo) GetByteSize() int {
+func (oi *ObjectInfo) GetByteSize() int64 {
 	return oi.byteSize
 }
 

@@ -10,9 +10,6 @@ func GetChainID() string     // injected
 func GetChainDomain() string // injected
 func GetHeight() int64       // injected
 
-func GC()
-func MemStats() string
-
 func GetOrigSend() Coins {
 	den, amt := origSend()
 	coins := make(Coins, len(den))

@@ -130,14 +130,10 @@ func (alloc *Allocator) GC() {
 			debug2.Println2("Consuming gas for GC, gasCPU: ", gasCPU)
 			alloc.m.GasMeter.ConsumeGas(gasCPU, "GC")
 		}
-		debug2.Println2("------------after gc, memStats:", alloc.MemStats())
+		debug2.Println2("---after gc, memStats:", alloc.MemStats())
 	}()
 
 	debug2.Println2("---gc, MemStats:", alloc.MemStats())
-
-	// throwaway allocator
-	debug2.Println2("m: ", alloc.m)
-	debug2.Println2("=====================================================================")
 
 	// scan blocks
 	for i, b := range alloc.m.Blocks {
@@ -170,26 +166,21 @@ func (throwaway *Allocator) allocateTV(tv TypedValue) {
 
 func (throwaway *Allocator) allocateValue(v Value) {
 	debug2.Println2("allocateValue: ", v, reflect.TypeOf(v))
-	// alloc amino
-	// if ref value, allocate amino
+	// if RefValue, allocate amino
 	if oo, ok := v.(Object); ok {
 		if oid := oo.GetObjectID(); !oid.IsZero() {
 			debug2.Println2("oid: ", oid)
 			debug2.Printf2("oo: %v \n", oo)
 			debug2.Println2("byteSize of oo: ", oo.GetByteSize())
-			throwaway.AllocateAmino(int64(oo.GetByteSize()))
-		} else {
-			debug2.Println2("oid: ", oid)
+			throwaway.AllocateAmino(oo.GetByteSize())
 		}
 	}
 	switch vv := v.(type) {
 	case *StructValue:
 		throwaway.AllocateStructFields(int64(len(vv.Fields)))
 		throwaway.AllocateStruct()
-
 		// alloc fields
 		for _, field := range vv.Fields {
-			debug2.Println2("alloc field: ", field)
 			throwaway.allocateTV(field)
 		}
 	case *FuncValue:
@@ -215,7 +206,6 @@ func (throwaway *Allocator) allocateValue(v Value) {
 	case *Block:
 		throwaway.AllocateBlock(int64(vv.Source.GetNumNames()))
 		for _, tv := range vv.Values {
-			debug2.Println2("allocate values of block")
 			throwaway.allocateTV(tv)
 		}
 	case StringValue:
@@ -234,7 +224,7 @@ func (throwaway *Allocator) allocateValue(v Value) {
 	case *NativeValue:
 		throwaway.AllocateNative()
 	default:
-		//debug2.Println2("---default, do nothing: ", vv)
+		// do nothing
 	}
 }
 

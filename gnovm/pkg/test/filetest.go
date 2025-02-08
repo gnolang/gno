@@ -35,7 +35,6 @@ var reEndOfLineSpaces = func() *regexp.Regexp {
 }()
 
 func (opts *TestOptions) runFiletest(filename string, source []byte) (string, error) {
-	//fmt.Println("========runFiletest=========")
 	dirs, err := ParseDirectives(bytes.NewReader(source))
 	if err != nil {
 		return "", fmt.Errorf("error parsing directives: %w", err)
@@ -56,7 +55,6 @@ func (opts *TestOptions) runFiletest(filename string, source []byte) (string, er
 	if err != nil {
 		return "", fmt.Errorf("could not parse MAXALLOC directive: %w", err)
 	}
-	//fmt.Printf("maxAlloc: %d\n", maxAlloc)
 
 	// Create machine for execution and run test
 	cw := opts.BaseStore.CacheWrap()
@@ -66,7 +64,6 @@ func (opts *TestOptions) runFiletest(filename string, source []byte) (string, er
 		Context:       ctx,
 		MaxAllocBytes: maxAlloc,
 	})
-
 	defer m.Release()
 	result := opts.runTest(m, pkgPath, filename, source)
 
@@ -183,7 +180,6 @@ type runResult struct {
 }
 
 func (opts *TestOptions) runTest(m *gno.Machine, pkgPath, filename string, content []byte) (rr runResult) {
-	//fmt.Println("runTest")
 	pkgName := gno.Name(pkgPath[strings.LastIndexByte(pkgPath, '/')+1:])
 
 	// Eagerly load imports.
@@ -236,7 +232,6 @@ func (opts *TestOptions) runTest(m *gno.Machine, pkgPath, filename string, conte
 		m.SetActivePackage(pv)
 		n := gno.MustParseFile(filename, string(content))
 		m.RunFiles(n)
-		//fmt.Println("======after RunFiles, m.Alloc.Memstats: ", m.Alloc.MemStats())
 
 		m.RunStatement(gno.S(gno.Call(gno.X("main"))))
 	} else {
@@ -262,16 +257,13 @@ func (opts *TestOptions) runTest(m *gno.Machine, pkgPath, filename string, conte
 		m.Store = tx
 		// Run decls and init functions.
 		m.RunMemPackage(memPkg, true)
-		//fmt.Println("---after RunMemPackage, m: ", m)
-		//fmt.Println("---after RunMemPackage, m.Alloc: ", m.Alloc)
-		//fmt.Println("---after RunMemPackage, m.Store.Alloc: ", m.Store.GetAllocator())
 		// Clear store cache and reconstruct machine from committed info
 		// (mimicking on-chain behaviour).
 		tx.Write()
 		m.Store = orig
 
-		// set allocator for test
-		// allocating for restore objects
+		// set allocator for test, it's
+		// used for allocating for RefValue
 		m.Store.SetAllocator(m.Alloc)
 
 		pv2 := m.Store.GetPackage(pkgPath, false)

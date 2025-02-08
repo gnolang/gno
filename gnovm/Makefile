@@ -123,6 +123,7 @@ _test.stdlibs:
 _test.filetest:;
 	go test pkg/gnolang/files_test.go -test.short -run 'TestFiles$$/' $(GOTEST_FLAGS)
 
+.PHONY: _test.filetest.sync
 _test.filetest.sync:;
 	go test pkg/gnolang/files_test.go -update-golden-tests -test.short -run 'TestFiles$$/' $(GOTEST_FLAGS)
 

@@ -151,8 +151,6 @@ type defaultStore struct {
 	gasConfig GasConfig
 }
 
-var _ Store = (*defaultStore)(nil) // or simply MyStruct{}
-
 func NewStore(alloc *Allocator, baseStore, iavlStore store.Store) *defaultStore {
 	ds := &defaultStore{
 		baseStore: baseStore,
@@ -455,7 +453,6 @@ func (ds *defaultStore) loadObjectSafe(oid ObjectID) Object {
 		}()
 	}
 	key := backendObjectKey(oid)
-	debug2.Println2("key: ", key)
 	hashbz := ds.baseStore.Get([]byte(key))
 	if hashbz != nil {
 		size = len(hashbz)
@@ -472,9 +469,8 @@ func (ds *defaultStore) loadObjectSafe(oid ObjectID) Object {
 					oid, oo.GetObjectID()))
 			}
 		}
-		debug2.Println2("oo: ", oo)
 		oo.SetHash(ValueHash{NewHashlet(hash)})
-		oo.SetByteSize(len(bz))
+		oo.SetByteSize(int64(len(bz)))
 		ds.cacheObjects[oid] = oo
 		_ = fillTypesOfValue(ds, oo)
 		return oo

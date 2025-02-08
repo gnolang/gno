@@ -193,7 +193,6 @@ func makeUverseNode() {
 						Vrd: true,
 					}),
 					V: m.Alloc.NewSlice(newArrayValue, 0, len(arg1String), len(arg1String)), // TODO: pool?
-					//AllocFlag: AllocTypeFlag,
 				}
 				if m.Alloc != nil {
 					tv.SetAllocType(true)

@@ -43,7 +43,6 @@ func (m *Machine) doOpAssign() {
 				}
 			}
 		}
-
 		lv.Assign2(m.Alloc, m.Store, m.Realm, rvs[i], true)
 	}
 }
