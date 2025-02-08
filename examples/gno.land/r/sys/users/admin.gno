@@ -3,50 +3,42 @@ package users
 import (
 	"std"
 
-	"gno.land/p/demo/ownable"
-	"gno.land/p/demo/pausable"
+	"gno.land/p/demo/dao"
 	"gno.land/p/moul/addrset"
+
+	"gno.land/r/gov/dao/bridge"
 )
 
-const (
-	adminAddr    = "g1u7y667z64x2h7vc6fmpcprgey4ck233jaww9zq" // @moul > will be GovDAO managed soon, see #3523 & #3546
-	gnolandUsers = "gno.land/r/gnoland/users/v1"              // preregistered with store write perms
-)
+const gusersv1 = "gno.land/r/gnoland/users/v1" // preregistered with store write perms
 
-var (
-	callerWhitelist = addrset.Set{}
-
-	// Safe objects
-	Ownable  = ownable.NewWithAddress(adminAddr)
-	Pausable = pausable.NewFromOwnable(Ownable)
-)
+var callerWhitelist = addrset.Set{}
 
 func init() {
-	callerWhitelist.Add(std.DerivePkgAddr(gnolandUsers)) // initially whitelisted
-}
-
-// AddToWhitelist adds a new address to the caller whitelist
-func AddToWhitelist(addr std.Address) error {
-	if !Ownable.CallerIsOwner() {
-		return ownable.ErrUnauthorized
-	}
-
-	return addToWhitelist(addr)
-}
-
-// DelFromWhitelist removes a caller from the whitelist
-func DelFromWhitelist(addr std.Address) error {
-	if !Ownable.CallerIsOwner() {
-		return ownable.ErrUnauthorized
-	}
-
-	return deleteFromwhitelist(addr)
+	callerWhitelist.Add(std.DerivePkgAddr(gusersv1)) // initially whitelisted
 }
 
 // IsOnWhitelist checks if the given address has
 // permission to write to the user store
 func IsOnWhitelist(addr std.Address) bool {
 	return callerWhitelist.Has(addr)
+}
+
+// NewAddWhitelistedAddrExecutor allows GovDAO to add a whitelisted caller
+func NewAddWhitelistedAddrExecutor(addr std.Address) dao.Executor {
+	cb := func() error {
+		return addToWhitelist(addr)
+	}
+
+	return bridge.GovDAO().NewGovDAOExecutor(cb)
+}
+
+// NewDeleteWhitelistedAddrExecutor allows GovDAO to add a whitelisted caller
+func NewDeleteWhitelistedAddrExecutor(addr std.Address) dao.Executor {
+	cb := func() error {
+		return deleteFromwhitelist(addr)
+	}
+
+	return bridge.GovDAO().NewGovDAOExecutor(cb)
 }
 
 // Helpers
@@ -67,10 +59,10 @@ func addToWhitelist(newCaller std.Address) error {
 	if !newCaller.IsValid() {
 		return ErrInvalidAddress
 	}
-	if callerWhitelist.Has(newCaller) {
+
+	if !callerWhitelist.Add(newCaller) {
 		return ErrAlreadyWhitelisted
 	}
 
-	callerWhitelist.Add(newCaller)
 	return nil
 }

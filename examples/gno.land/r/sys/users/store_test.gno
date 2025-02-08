@@ -16,8 +16,7 @@ var (
 	bob       = "bob"
 	bobAddr   = testutils.TestAddress(bob)
 
-	whitelistedCallerAddr = std.DerivePkgAddr(gnolandUsers)
-	adminRealm            = std.NewUserRealm(adminAddr)
+	whitelistedCallerAddr = std.DerivePkgAddr(gusersv1)
 )
 
 func TestRegister(t *testing.T) {

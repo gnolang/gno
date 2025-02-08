@@ -143,10 +143,6 @@ func validateCall() error {
 		return ErrNotWhitelisted
 	}
 
-	if Pausable.IsPaused() {
-		panic("paused")
-	}
-
 	return nil
 }
 
