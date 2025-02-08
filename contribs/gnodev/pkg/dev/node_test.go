@@ -22,6 +22,7 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/crypto/keys"
 	tm2events "github.com/gnolang/gno/tm2/pkg/events"
 	"github.com/gnolang/gno/tm2/pkg/log"
+	tm2std "github.com/gnolang/gno/tm2/pkg/std"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -223,6 +224,89 @@ func Render(_ string) string { return str }
 	require.Equal(t, render, "foo")
 
 	assert.Equal(t, mock.EvtNull, emitter.NextEvent().Type())
+}
+
+func TestTxGasFailure(t *testing.T) {
+	const (
+		// foo package
+		foobarGnoMod = "module gno.land/r/dev/foo\n"
+		fooFile      = `package foo
+import "strconv"
+
+var i int
+func Inc() { i++ } // method to increment i
+func Render(_ string) string { return strconv.Itoa(i) }
+`
+	)
+
+	// Generate package foo
+	foopkg := generateTestingPackage(t, "gno.mod", foobarGnoMod, "foo.gno", fooFile)
+
+	// Call NewDevNode with no package should work
+	// Call NewDevNode with no package should work
+	cfg := createDefaultTestingNodeConfig(foopkg)
+
+	// XXX(gfanton): Setting this to `false` somehow makes the time block
+	// drift from the time spanned by the VM.
+	cfg.TMConfig.Consensus.SkipTimeoutCommit = false
+	cfg.TMConfig.Consensus.TimeoutCommit = 500 * time.Millisecond
+	cfg.TMConfig.Consensus.TimeoutPropose = 100 * time.Millisecond
+	cfg.TMConfig.Consensus.CreateEmptyBlocks = true
+
+	node, emitter := newTestingDevNodeWithConfig(t, cfg)
+	assert.Len(t, node.ListPkgs(), 1)
+
+	// Test rendering
+	render, err := testingRenderRealm(t, node, "gno.land/r/dev/foo")
+	require.NoError(t, err)
+	require.Equal(t, "0", render)
+
+	// Call `Inc` to update counter
+	msg := vm.MsgCall{
+		PkgPath: "gno.land/r/dev/foo",
+		Func:    "Inc",
+		Args:    nil,
+		Send:    nil,
+	}
+
+	res, err := testingCallRealm(t, node, msg)
+	require.NoError(t, err)
+	require.NoError(t, res.CheckTx.Error)
+	require.NoError(t, res.DeliverTx.Error)
+	assert.Equal(t, emitter.NextEvent().Type(), events.EvtTxResult)
+
+	// Check for correct render update
+	render, err = testingRenderRealm(t, node, "gno.land/r/dev/foo")
+	require.NoError(t, err)
+	require.Equal(t, "1", render)
+
+	// Not Enough gas wanted
+	callCfg := gnoclient.BaseTxCfg{
+		GasFee: ugnot.ValueString(10000), // Gas fee
+
+		// Ensure sufficient gas is provided for the transaction to be committed.
+		// However, avoid providing too much gas to allow the
+		// transaction to succeed (OutOfGasError).
+		GasWanted: 100_000,
+	}
+
+	res, err = testingCallRealmWithConfig(t, node, callCfg, msg)
+	require.Error(t, err)
+	require.ErrorAs(t, err, &tm2std.OutOfGasError{})
+
+	// Transaction should be commited regardless the error
+	require.Equal(t, emitter.NextEvent().Type(), events.EvtTxResult,
+		"(probably) not enough gas for the transaction to be committed")
+
+	// Reload the node
+	err = node.Reload(context.Background())
+	require.NoError(t, err)
+	assert.Equal(t, events.EvtReload, emitter.NextEvent().Type())
+
+	// Check for correct render update
+	render, err = testingRenderRealm(t, node, "gno.land/r/dev/foo")
+	require.NoError(t, err)
+	require.Equal(t, "1", render)
 }
 
 func TestTxTimestampRecover(t *testing.T) {
@@ -430,15 +514,21 @@ func testingRenderRealm(t *testing.T, node *Node, rlmpath string) (string, error
 func testingCallRealm(t *testing.T, node *Node, msgs ...vm.MsgCall) (*core_types.ResultBroadcastTxCommit, error) {
 	t.Helper()
 
+	defaultCfg := gnoclient.BaseTxCfg{
+		GasFee:    ugnot.ValueString(1000000), // Gas fee
+		GasWanted: 3_000_000,                  // Gas wanted
+	}
+
+	return testingCallRealmWithConfig(t, node, defaultCfg, msgs...)
+}
+
+func testingCallRealmWithConfig(t *testing.T, node *Node, bcfg gnoclient.BaseTxCfg, msgs ...vm.MsgCall) (*core_types.ResultBroadcastTxCommit, error) {
+	t.Helper()
+
 	signer := newInMemorySigner(t, node.Config().ChainID())
 	cli := gnoclient.Client{
 		Signer:    signer,
 		RPCClient: node.Client(),
-	}
-
-	txcfg := gnoclient.BaseTxCfg{
-		GasFee:    ugnot.ValueString(1000000), // Gas fee
-		GasWanted: 3_000_000,                  // Gas wanted
 	}
 
 	// Set Caller in the msgs
@@ -449,7 +539,7 @@ func testingCallRealm(t *testing.T, node *Node, msgs ...vm.MsgCall) (*core_types
 		vmMsgs = append(vmMsgs, vm.NewMsgCall(caller.GetAddress(), msg.Send, msg.PkgPath, msg.Func, msg.Args))
 	}
 
-	return cli.Call(txcfg, vmMsgs...)
+	return cli.Call(bcfg, vmMsgs...)
 }
 
 func generateTestingPackage(t *testing.T, nameFile ...string) PackagePath {
