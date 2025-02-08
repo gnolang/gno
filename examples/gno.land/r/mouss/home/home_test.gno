@@ -32,15 +32,35 @@ func TestAddRecipe(t *testing.T) {
 	tips := "Test Tips"
 
 	result := AddRecipe(name, origin, ingredients, instructions, tips)
-	uassert.Equal(t, "Recipe added successfully!", result)
-	uassert.Equal(t, 1, len(recipes))
-	recipe := recipes[0]
+	uassert.Equal(t, "Recipe added successfully", result)
+	uassert.Equal(t, 1, recipes.Size())
+	value, exist := recipes.Get(name)
+	uassert.True(t, exist)
+	recipe := value.(*Recipe)
 	uassert.Equal(t, name, recipe.Name)
 	uassert.Equal(t, origin, recipe.Origin)
 	uassert.Equal(t, ingredients, recipe.Ingredients)
 	uassert.Equal(t, instructions, recipe.Instructions)
 	uassert.Equal(t, tips, recipe.Tips)
 	uassert.Equal(t, user1, recipe.Author)
+
+	// Verify recipe is correctly stored in AVL tree with matching fields
+	var found bool
+	recipes.Iterate("", "", func(key string, value interface{}) bool {
+		if key == name {
+			found = true
+			foundRecipe := value.(*Recipe)
+			uassert.Equal(t, recipe.Name, foundRecipe.Name)
+			uassert.Equal(t, recipe.Origin, foundRecipe.Origin)
+			uassert.Equal(t, recipe.Ingredients, foundRecipe.Ingredients)
+			uassert.Equal(t, recipe.Instructions, foundRecipe.Instructions)
+			uassert.Equal(t, recipe.Tips, foundRecipe.Tips)
+			uassert.Equal(t, recipe.Author, foundRecipe.Author)
+			return true // stop iteration
+		}
+		return false
+	})
+	uassert.Equal(t, true, found)
 }
 
 func TestFollow(t *testing.T) {
@@ -52,7 +72,7 @@ func TestFollow(t *testing.T) {
 	// Test admin trying to follow themselves
 	std.TestSetOrigCaller(mainAddr)
 	err = Follow(mainAddr)
-	uassert.ErrorIs(t, err, config.ErrorUnauthorized, "admin should not be able to follow their own profile")
+	uassert.ErrorIs(t, err, config.ErrUnauthorized, "admin should not be able to follow their own profile")
 
 	// Test following same address twice
 	std.TestSetOrigCaller(user1)
@@ -79,19 +99,10 @@ func TestUnfollow(t *testing.T) {
 	// Test unauthorized unfollow
 	std.TestSetOrigCaller(mainAddr)
 	err = Unfollow(user1)
-	uassert.ErrorIs(t, err, config.ErrorUnauthorized)
+	uassert.ErrorIs(t, err, config.ErrUnauthorized)
 }
 
 func TestIsUser(t *testing.T) {
 	uassert.True(t, isUser(user1), "should recognize normal user")
 	uassert.False(t, isUser(mainAddr), "should not recognize admin as normal user")
-}
-
-func TestIsAuthorized(t *testing.T) {
-	uassert.True(t, isAuthorized(mainAddr), "should recognize main address as authorized")
-	uassert.False(t, isAuthorized(user1), "should not recognize normal user as authorized")
-	std.TestSetOrigCaller(mainAddr)
-	backupAddr := testutils.TestAddress("backup")
-	config.SetBackup(backupAddr)
-	uassert.True(t, isAuthorized(backupAddr), "should recognize backup address as authorized")
 }

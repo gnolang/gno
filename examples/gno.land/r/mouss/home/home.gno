@@ -5,9 +5,9 @@ import (
 	"strconv"
 	"strings"
 
+	"gno.land/p/demo/avl"
 	"gno.land/p/demo/mux"
 	"gno.land/p/demo/ufmt"
-
 	"gno.land/p/moul/addrset"
 	"gno.land/p/moul/md"
 	"gno.land/r/leon/hof"
@@ -52,9 +52,10 @@ const (
 )
 
 var (
-	router          = mux.NewRouter()
-	profile         Profile
-	recipes         []*Recipe
+	router  = mux.NewRouter()
+	profile Profile
+	recipes = avl.NewTree()
+	// Pager           = p.NewPager(recipes, 1, false)
 	margheritaPizza *Recipe
 )
 
@@ -96,8 +97,8 @@ func AddRecipe(name, origin, ingredients, instructions, tips string) string {
 		Instructions: instructions,
 		Tips:         tips,
 	}
-	recipes = append(recipes, recipe)
-	return "Recipe added successfully!"
+	recipes.Set(name, recipe)
+	return "Recipe added successfully"
 }
 
 func UpdateAboutMe(about string) error {
@@ -165,18 +166,20 @@ func isUser(addr std.Address) bool {
 }
 
 func renderRecipes(res *mux.ResponseWriter, req *mux.Request) {
-	var b strings.Builder
-	b.WriteString("## World Kitchen\n\n------\n\n")
-	b.WriteString(margheritaPizza.Render())
-	if len(recipes) == 0 {
-		b.WriteString("No recipes yet. Be the first to add one!\n")
-		res.Write(b.String())
+	var out string
+	out += "## World Kitchen\n\n------\n\n"
+	out += margheritaPizza.Render()
+	if recipes.Size() == 0 {
+		out += "No recipes yet. Be the first to add one!\n"
+		res.Write(out)
 		return
 	}
-	for _, recipe := range recipes {
-		b.WriteString(recipe.Render())
-	}
-	res.Write(b.String())
+	recipes.Iterate("", "", func(key string, value interface{}) bool {
+		recipe := value.(*Recipe)
+		out += recipe.Render()
+		return false // continue iterating
+	})
+	res.Write(out)
 }
 
 func (r Recipe) Render() string {
