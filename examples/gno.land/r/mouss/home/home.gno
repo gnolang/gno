@@ -55,7 +55,7 @@ var (
 	router  = mux.NewRouter()
 	profile Profile
 	recipes = avl.NewTree()
-	// Pager           = p.NewPager(recipes, 1, false)
+	//Pager           = p.NewPager(recipes, 1, false)
 	margheritaPizza *Recipe
 )
 
@@ -65,6 +65,7 @@ var (
 func init() {
 	router.HandleFunc("", renderHomepage)
 	router.HandleFunc("recipe/", renderRecipes)
+	router.HandleFunc("recipe/{name}", renderRecipe)
 	profile = Profile{
 		AboutMe:   "👋 I'm Mustapha, a contributor to gno.land project from France. I'm passionate about coding, exploring new technologies, and contributing to open-source projects. Besides my tech journey, I'm also a pizzaiolo 🍕 who loves cooking and savoring good food.",
 		Avatar:    "https://github.com/mous1985/assets/blob/master/avatar.png?raw=true",
@@ -165,25 +166,49 @@ func isUser(addr std.Address) bool {
 	return !config.IsAuthorized(addr)
 }
 
+// renderRecipes renders the list of recipes.
 func renderRecipes(res *mux.ResponseWriter, req *mux.Request) {
 	var out string
+	Header(&out)
 	out += "## World Kitchen\n\n------\n\n"
-	out += margheritaPizza.Render()
-	if recipes.Size() == 0 {
-		out += "No recipes yet. Be the first to add one!\n"
-		res.Write(out)
+
+	// Link to margarita pizza recipe
+	out += "### Available Recipes:\n\n"
+	out += "* " + md.Link(margheritaPizza.Name, Rec+"margheritaPizza") + "By : " + string(margheritaPizza.Author) + "\n"
+
+	// The list of all other recipes with clickable links
+	if recipes.Size() > 0 {
+		recipes.Iterate("", "", func(key string, value interface{}) bool {
+			recipe := value.(*Recipe)
+			out += "* " + md.Link(recipe.Name, Rec+recipe.Name) + " By : " + recipe.Author.String() + "\n"
+			return false // continue iterating
+		})
+		out += "\n------\n\n"
+	} else {
+		out += "\nNo additional recipes yet. Be the first to add one!\n"
+	}
+	res.Write(out)
+}
+
+// renderRecipe renders the recipe details.
+func renderRecipe(res *mux.ResponseWriter, req *mux.Request) {
+	name := req.GetVar("name")
+	if name == "margheritaPizza" {
+		res.Write(margheritaPizza.Render())
 		return
 	}
-	recipes.Iterate("", "", func(key string, value interface{}) bool {
-		recipe := value.(*Recipe)
-		out += recipe.Render()
-		return false // continue iterating
-	})
-	res.Write(out)
+	value, exists := recipes.Get(name)
+	if !exists {
+		res.Write("Recipe not found")
+		return
+	}
+	recipe := value.(*Recipe)
+	res.Write(recipe.Render())
 }
 
 func (r Recipe) Render() string {
 	var out string
+	Header(&out)
 	out += md.H2(r.Name)
 	out += md.Bold("Author:") + "\n" + r.Author.String() + "\n\n"
 	out += md.Bold("Origin:") + "\n" + r.Origin + "\n\n"
@@ -198,7 +223,7 @@ func (r Recipe) Render() string {
 
 func renderHomepage(res *mux.ResponseWriter, req *mux.Request) {
 	var out string
-	writeNavigation(&out)
+	Header(&out)
 	out += profile.Render()
 	res.Write(out)
 }
@@ -222,9 +247,9 @@ func (p Profile) Render() string {
 	return out
 }
 
-func writeNavigation(out *string) {
+func Header(out *string) {
 	navItems := []string{
-		md.Link("Home", ""),
+		md.Link("Home", RealmURL),
 		md.Link("World Kitchen", Rec),
 		md.Link("Hackerspace", "https://github.com/gnolang/hackerspace/issues/86#issuecomment-2535795751"),
 	}
