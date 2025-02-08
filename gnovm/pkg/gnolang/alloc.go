@@ -148,23 +148,23 @@ func (alloc *Allocator) GC() {
 	debug2.Println2("---after reset, alloc.bytes: ", alloc.bytes)
 }
 
-func (throwaway *Allocator) allocateTV(tv TypedValue) {
+func (alloc *Allocator) allocateTV(tv TypedValue) {
 	debug2.Println2("allocateTV, tv: ", tv)
 	debug2.Println2("allocInfo: ", tv.AllocationInfo.String())
 
 	if tv.GetRefCount() < 2 {
 		if tv.AllocType {
-			throwaway.AllocateType()
+			alloc.AllocateType()
 		}
 		if tv.AllocValue {
-			throwaway.allocateValue(tv.V)
+			alloc.allocateValue(tv.V)
 		}
 	} else {
 		debug2.Println2("escaped, do nothing, allocInfo: ", tv.AllocationInfo.String())
 	}
 }
 
-func (throwaway *Allocator) allocateValue(v Value) {
+func (alloc *Allocator) allocateValue(v Value) {
 	debug2.Println2("allocateValue: ", v, reflect.TypeOf(v))
 	// if RefValue, allocate amino
 	if oo, ok := v.(Object); ok {
@@ -172,57 +172,57 @@ func (throwaway *Allocator) allocateValue(v Value) {
 			debug2.Println2("oid: ", oid)
 			debug2.Printf2("oo: %v \n", oo)
 			debug2.Println2("byteSize of oo: ", oo.GetByteSize())
-			throwaway.AllocateAmino(oo.GetByteSize())
+			alloc.AllocateAmino(oo.GetByteSize())
 		}
 	}
 	switch vv := v.(type) {
 	case *StructValue:
-		throwaway.AllocateStructFields(int64(len(vv.Fields)))
-		throwaway.AllocateStruct()
+		alloc.AllocateStructFields(int64(len(vv.Fields)))
+		alloc.AllocateStruct()
 		// alloc fields
 		for _, field := range vv.Fields {
-			throwaway.allocateTV(field)
+			alloc.allocateTV(field)
 		}
 	case *FuncValue:
-		throwaway.AllocateFunc()
+		alloc.AllocateFunc()
 	case PointerValue:
-		throwaway.AllocatePointer()
-		throwaway.allocateValue(vv.Base)
+		alloc.AllocatePointer()
+		alloc.allocateValue(vv.Base)
 	case *HeapItemValue:
-		throwaway.AllocateHeapItem()
-		throwaway.allocateValue(vv.Value.V)
+		alloc.AllocateHeapItem()
+		alloc.allocateValue(vv.Value.V)
 	case *SliceValue:
-		throwaway.AllocateSlice()
-		throwaway.allocateValue(vv.Base)
+		alloc.AllocateSlice()
+		alloc.allocateValue(vv.Base)
 	case *ArrayValue:
 		if vv.Data == nil {
-			throwaway.AllocateListArray(int64(len(vv.List)))
+			alloc.AllocateListArray(int64(len(vv.List)))
 			for _, elem := range vv.List {
-				throwaway.allocateTV(elem)
+				alloc.allocateTV(elem)
 			}
 		} else {
-			throwaway.AllocateDataArray(int64(len(vv.Data)))
+			alloc.AllocateDataArray(int64(len(vv.Data)))
 		}
 	case *Block:
-		throwaway.AllocateBlock(int64(vv.Source.GetNumNames()))
+		alloc.AllocateBlock(int64(vv.Source.GetNumNames()))
 		for _, tv := range vv.Values {
-			throwaway.allocateTV(tv)
+			alloc.allocateTV(tv)
 		}
 	case StringValue:
-		throwaway.AllocateString(int64(len(vv)))
+		alloc.AllocateString(int64(len(vv)))
 	case *MapValue:
-		throwaway.AllocateMap(int64(vv.List.Size))
+		alloc.AllocateMap(int64(vv.List.Size))
 		for cur := vv.List.Head; cur != nil; cur = cur.Next {
-			throwaway.allocateTV(cur.Key)
-			throwaway.allocateTV(cur.Value)
+			alloc.allocateTV(cur.Key)
+			alloc.allocateTV(cur.Value)
 		}
 	case *BoundMethodValue:
-		throwaway.AllocateBoundMethod()
+		alloc.AllocateBoundMethod()
 		// TODO: tests for this
-		throwaway.allocateValue(vv.Func)
-		throwaway.allocateTV(vv.Receiver)
+		alloc.allocateValue(vv.Func)
+		alloc.allocateTV(vv.Receiver)
 	case *NativeValue:
-		throwaway.AllocateNative()
+		alloc.AllocateNative()
 	default:
 		// do nothing
 	}

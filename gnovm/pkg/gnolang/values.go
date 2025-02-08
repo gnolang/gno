@@ -253,7 +253,7 @@ func (pv PointerValue) Assign2(alloc *Allocator, store Store, rlm *Realm, tv2 Ty
 								panic("should not happen")
 							}
 							if nv, ok := tv2.V.(*NativeValue); !ok ||
-									nv.Value.Kind() != reflect.Func {
+								nv.Value.Kind() != reflect.Func {
 								panic("should not happen")
 							}
 						}
@@ -974,11 +974,11 @@ type TypedValue struct {
 	AllocationInfo `json:",omitempty"`
 }
 
-func (n *TypedValue) SetAllocValue(shouldAllocate bool) {
-	(&n.AllocationInfo).SetAllocValue(shouldAllocate)
+func (tv *TypedValue) SetAllocValue(shouldAllocate bool) {
+	(&tv.AllocationInfo).SetAllocValue(shouldAllocate)
 }
-func (n *TypedValue) SetAllocType(shouldAllocate bool) {
-	n.AllocationInfo.SetAllocType(shouldAllocate)
+func (tv *TypedValue) SetAllocType(shouldAllocate bool) {
+	tv.AllocationInfo.SetAllocType(shouldAllocate)
 }
 
 func (tv *TypedValue) IsDefined() bool {
