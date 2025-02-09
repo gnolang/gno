@@ -28,7 +28,7 @@ type PrivilegedActionHandler func(title string, action PrivilegedAction) error
 // Authority encapsulates ownership and access control.
 type Authority struct {
 	typeOf          OwnerType
-	walletAddr      std.Address             // only when type is OwnerTypeWallet
+	ownerAddr       std.Address
 	contractPath    string                  // only when type is OwnerTypeContract
 	contractHandler PrivilegedActionHandler // only when type is OwnerTypeContract
 }
@@ -37,8 +37,8 @@ type Authority struct {
 // and defaults to a wallet-based admin.
 func New() *Authority {
 	return &Authority{
-		walletAddr: std.PrevRealm().Addr(),
-		typeOf:     OwnerTypeWallet,
+		ownerAddr: std.PrevRealm().Addr(),
+		typeOf:    OwnerTypeWallet,
 	}
 }
 
@@ -46,8 +46,8 @@ func New() *Authority {
 // The type defaults to a wallet-based admin.
 func NewWithAddress(addr std.Address) *Authority {
 	return &Authority{
-		walletAddr: addr,
-		typeOf:     OwnerTypeWallet,
+		ownerAddr: addr,
+		typeOf:    OwnerTypeWallet,
 	}
 }
 
@@ -58,7 +58,7 @@ func (a *Authority) Owner() string {
 	}
 	switch a.typeOf {
 	case OwnerTypeWallet:
-		return a.walletAddr.String()
+		return a.ownerAddr.String()
 	case OwnerTypeContract:
 		return a.contractPath
 	default:
@@ -77,12 +77,12 @@ func (a *Authority) Do(title string, action PrivilegedAction) error {
 	switch a.typeOf {
 	case OwnerTypeWallet:
 		caller := std.PrevRealm().Addr()
-		if caller != a.walletAddr {
+		if caller != a.ownerAddr {
 			return errors.New("unauthorized")
 		}
 		std.Emit(EventSubmit,
 			"owner_type", "wallet",
-			"owner", a.walletAddr.String(),
+			"owner", a.ownerAddr.String(),
 			"title", title,
 		)
 		if err := action(); err != nil {
@@ -90,7 +90,7 @@ func (a *Authority) Do(title string, action PrivilegedAction) error {
 		}
 		std.Emit(EventExecute,
 			"owner_type", "wallet",
-			"owner", a.walletAddr.String(),
+			"owner", a.ownerAddr.String(),
 			"title", title,
 		)
 
@@ -99,15 +99,15 @@ func (a *Authority) Do(title string, action PrivilegedAction) error {
 			return errors.New("unauthorized: no handler")
 		}
 
-		std.Emit(EventExecute,
+		std.Emit(EventSubmit,
 			"owner_type", "contract",
 			"owner", a.contractPath,
 			"title", title,
 		)
 
 		wrappedAction := func() error {
-			caller := std.PrevRealm().PkgPath()
-			if caller != a.contractPath {
+			caller := std.PrevRealm().Addr()
+			if caller != a.ownerAddr {
 				return errors.New("unauthorized: invalid contract caller")
 			}
 			if ret := action(); ret != nil {
@@ -133,21 +133,21 @@ func (a *Authority) Do(title string, action PrivilegedAction) error {
 }
 
 // TransferToWallet transfers authority to a new wallet address.
-func (a *Authority) TransferToWallet(walletAddr std.Address) error {
-	if !walletAddr.IsValid() {
+func (a *Authority) TransferToWallet(ownerAddr std.Address) error {
+	if !ownerAddr.IsValid() {
 		return errors.New("invalid address")
 	}
 
 	prevOwner := a.Owner()
 	return a.Do("TransferToWallet", func() error {
-		a.walletAddr = walletAddr
+		a.ownerAddr = ownerAddr
 		a.contractPath = ""
 		a.typeOf = OwnerTypeWallet
 		a.contractHandler = nil
 
 		std.Emit("AuthorityTransfer",
 			"from", prevOwner,
-			"to", walletAddr.String(),
+			"to", ownerAddr.String(),
 			"type", "wallet",
 		)
 		return nil
@@ -165,10 +165,11 @@ func (a *Authority) TransferToContract(pkgPath string, handler PrivilegedActionH
 
 	prevOwner := a.Owner()
 	return a.Do("TransferToContract", func() error {
-		a.walletAddr = ""
+		a.ownerAddr = ""
 		a.contractPath = pkgPath
 		a.typeOf = OwnerTypeContract
 		a.contractHandler = handler
+		a.ownerAddr = std.DerivePkgAddr(pkgPath)
 
 		std.Emit("AuthorityTransfer",
 			"from", prevOwner,
@@ -183,7 +184,7 @@ func (a *Authority) TransferToContract(pkgPath string, handler PrivilegedActionH
 func (a *Authority) Drop() error {
 	prevOwner := a.Owner()
 	return a.Do("Drop", func() error {
-		a.walletAddr = ""
+		a.ownerAddr = ""
 		a.contractPath = ""
 		a.typeOf = OwnerTypeDropped
 		a.contractHandler = nil

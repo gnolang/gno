@@ -71,10 +71,8 @@ func TestDo_WalletType(t *testing.T) {
 func TestDo_ContractType(t *testing.T) {
 	a := NewWithAddress(alice)
 
-	realm := std.NewUserRealm(alice)
-
 	std.TestSetOrigCaller(alice)
-
+	realm := std.NewUserRealm(alice)
 	std.TestSetRealm(realm)
 
 	var handlerCalled bool
@@ -92,6 +90,7 @@ func TestDo_ContractType(t *testing.T) {
 
 	realm = std.NewCodeRealm(testPkgPath)
 	std.TestSetRealm(realm)
+	std.TestSetOrigCaller(realm.Addr())
 
 	var executed bool
 	err = a.Do("ContractAction", func() error {
@@ -105,6 +104,7 @@ func TestDo_ContractType(t *testing.T) {
 		t.Errorf("handler received title = %v, want %v", receivedTitle, "ContractAction")
 	}
 	uassert.True(t, executed, "action should be executed")
+
 }
 
 func TestTransferToWallet(t *testing.T) {
@@ -166,7 +166,7 @@ func TestDrop(t *testing.T) {
 	uassert.Empty(t, a.Owner())
 
 	// Check against the correct type constant
-	if a.typeOf != 0 { // OwnerTypeNone should be 0
+	if a.typeOf != OwnerTypeDropped { // OwnerTypeNone should be 0
 		t.Errorf("typeOf after drop = %v, want %v", a.typeOf, 0)
 	}
 }
@@ -205,8 +205,9 @@ func TestDo_ContractActionError(t *testing.T) {
 	std.TestSetRealm(realm)
 	expectedErr := errors.New("action failed")
 
+	var handlerExecuted bool
 	handler := func(title string, action PrivilegedAction) error {
-		println("Handler called with title:", title)
+		handlerExecuted = true
 		return action()
 	}
 
@@ -225,4 +226,5 @@ func TestDo_ContractActionError(t *testing.T) {
 
 	// We expect the exact error returned from the action
 	uassert.Error(t, err)
+	uassert.True(t, handlerExecuted, "handler should have been executed")
 }
