@@ -39,7 +39,7 @@ func TestFiles(t *testing.T) {
 	rootDir, err := filepath.Abs(filepath.FromSlash("../../.."))
 	require.NoError(t, err)
 
-	pkgs, err := packages.Load(&packages.LoadConfig{}, filepath.Join(rootDir, "examples", "..."))
+	pkgs, err := packages.Load(nil, filepath.Join(rootDir, "examples", "..."))
 	require.NoError(t, err)
 
 	newOpts := func() *test.TestOptions {
