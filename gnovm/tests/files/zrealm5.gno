@@ -53,11 +53,6 @@ func main() {
 //             }
 //         },
 //         {
-//             "AllocationInfo": {
-//                 "AllocType": false,
-//                 "AllocValue": true,
-//                 "RefCount": "0"
-//             },
 //             "T": {
 //                 "@type": "/gno.PointerType",
 //                 "Elt": {
@@ -67,11 +62,6 @@ func main() {
 //             }
 //         },
 //         {
-//             "AllocationInfo": {
-//                 "AllocType": false,
-//                 "AllocValue": true,
-//                 "RefCount": "0"
-//             },
 //             "T": {
 //                 "@type": "/gno.PointerType",
 //                 "Elt": {
@@ -107,7 +97,7 @@ func main() {
 //         },
 //         "V": {
 //             "@type": "/gno.RefValue",
-//             "Hash": "e72116019af0da5afc49e9b98fbd1aede262990e",
+//             "Hash": "8a86634afa28ef7d7a1f4272255637f16daae2cd",
 //             "ObjectID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:7"
 //         }
 //     }
@@ -142,11 +132,6 @@ func main() {
 //             }
 //         },
 //         {
-//             "AllocationInfo": {
-//                 "AllocType": false,
-//                 "AllocValue": true,
-//                 "RefCount": "0"
-//             },
 //             "T": {
 //                 "@type": "/gno.PointerType",
 //                 "Elt": {
@@ -172,7 +157,7 @@ func main() {
 //                 "@type": "/gno.PointerValue",
 //                 "Base": {
 //                     "@type": "/gno.RefValue",
-//                     "Hash": "01db2314f9fe326ceacacfaa0de0bc13f3ca8f01",
+//                     "Hash": "b2dc81389a0e7fde84b54c29b37aefc88b55137a",
 //                     "ObjectID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:6"
 //                 },
 //                 "Index": "0",
@@ -206,7 +191,7 @@ func main() {
 //         },
 //         "V": {
 //             "@type": "/gno.RefValue",
-//             "Hash": "0c0d16a4778198cf3eaf6ef1f53a0914c3720649",
+//             "Hash": "06d403c450cda90fdbfc1b9fccdd7d2fdc054549",
 //             "ObjectID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:5"
 //         }
 //     }

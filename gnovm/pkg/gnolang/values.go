@@ -1085,7 +1085,7 @@ func (tv TypedValue) unrefCopy(alloc *Allocator, store Store) (cp TypedValue) {
 		cp = tv.Copy(alloc)
 		// for underlying array reallocation,
 		// does not increase ref count
-		cp.RefCount--
+		cp.DecRefCount()
 	}
 
 	return
@@ -1666,7 +1666,6 @@ func (tv *TypedValue) Assign(alloc *Allocator, tv2 TypedValue, cu bool) {
 	}
 }
 
-// TODO: new type
 // NOTE: Allocation for PointerValue is not immediate,
 // as usually PointerValues are temporary for assignment
 // or binary operations. When a pointer is to be
@@ -1848,15 +1847,11 @@ func (tv *TypedValue) GetPointerToFromTV(alloc *Allocator, store Store, path Val
 			Func:     mv,
 			Receiver: dtv2,
 		}
-		tv2 := &TypedValue{
-			T: mt.BoundType(),
-			V: bmv,
-		}
-		if alloc != nil {
-			tv2.SetAllocValue(true)
-		}
 		return PointerValue{
-			TV:   tv2,
+			TV: &TypedValue{
+				T: mt.BoundType(),
+				V: bmv,
+			},
 			Base: nil, // a bound method is free floating.
 		}
 	case VPPtrMethod:
@@ -2002,7 +1997,6 @@ func (tv *TypedValue) GetPointerToFromTV(alloc *Allocator, store Store, path Val
 	}
 }
 
-// TODO: new type
 // Convenience for GetPointerAtIndex().  Slow.
 func (tv *TypedValue) GetPointerAtIndexInt(store Store, ii int) PointerValue {
 	iv := TypedValue{T: IntType}
@@ -2659,7 +2653,6 @@ func defaultStructFields(alloc *Allocator, st *StructType) []TypedValue {
 		if ft.Type.Kind() != InterfaceKind {
 			tvs[i].T = ft.Type
 			tvs[i].V = defaultValue(alloc, ft.Type)
-			tvs[i].SetAllocValue(true)
 		}
 	}
 	return tvs

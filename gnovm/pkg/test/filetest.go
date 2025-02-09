@@ -232,7 +232,6 @@ func (opts *TestOptions) runTest(m *gno.Machine, pkgPath, filename string, conte
 		m.SetActivePackage(pv)
 		n := gno.MustParseFile(filename, string(content))
 		m.RunFiles(n)
-
 		m.RunStatement(gno.S(gno.Call(gno.X("main"))))
 	} else {
 		// Realm case.

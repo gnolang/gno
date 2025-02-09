@@ -498,6 +498,10 @@ func (ai *AllocationInfo) IncRefCount() {
 	ai.RefCount++
 }
 
+func (ai *AllocationInfo) DecRefCount() {
+	ai.RefCount--
+}
+
 func (ai *AllocationInfo) GetRefCount() int {
 	return ai.RefCount
 }

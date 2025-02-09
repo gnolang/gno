@@ -1769,7 +1769,6 @@ func (m *Machine) PushBlock(b *Block) {
 	if debug {
 		m.Println("+B")
 	}
-	m.Println("+B")
 	m.Blocks = append(m.Blocks, b)
 }
 
@@ -1777,7 +1776,6 @@ func (m *Machine) PopBlock() (b *Block) {
 	if debug {
 		m.Println("-B")
 	}
-	m.Println("-B")
 	numBlocks := len(m.Blocks)
 	b = m.Blocks[numBlocks-1]
 	m.Blocks = m.Blocks[:numBlocks-1]

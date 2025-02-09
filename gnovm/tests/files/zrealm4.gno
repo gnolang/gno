@@ -53,11 +53,6 @@ func main() {
 //             }
 //         },
 //         {
-//             "AllocationInfo": {
-//                 "AllocType": false,
-//                 "AllocValue": true,
-//                 "RefCount": "0"
-//             },
 //             "T": {
 //                 "@type": "/gno.PointerType",
 //                 "Elt": {
@@ -67,11 +62,6 @@ func main() {
 //             }
 //         },
 //         {
-//             "AllocationInfo": {
-//                 "AllocType": false,
-//                 "AllocValue": true,
-//                 "RefCount": "0"
-//             },
 //             "T": {
 //                 "@type": "/gno.PointerType",
 //                 "Elt": {
@@ -107,7 +97,7 @@ func main() {
 //         },
 //         "V": {
 //             "@type": "/gno.RefValue",
-//             "Hash": "3140bc6787bcfee33a674a61c817b8cda5ab9b16",
+//             "Hash": "d57ee28f5030eb8c612b374155fd545675633288",
 //             "ObjectID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:5"
 //         }
 //     }
