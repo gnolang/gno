@@ -673,6 +673,7 @@ func (m *Machine) runInitFromUpdates(pv *PackageValue, updates []TypedValue) {
 // Returns a throwaway realm package is not a realm,
 // such as stdlibs or /p/ packages.
 func (m *Machine) saveNewPackageValuesAndTypes() (throwaway *Realm) {
+	debug2.Println2("saving new package values and types")
 	// save package value and dependencies.
 	pv := m.Package
 	if pv.IsRealm() {
@@ -1825,7 +1826,7 @@ func (m *Machine) PushFrameBasic(s Stmt) {
 // ensure the counts are consistent, otherwise we mask
 // bugs with frame pops.
 func (m *Machine) PushFrameCall(cx *CallExpr, fv *FuncValue, recv TypedValue) {
-	debug2.Println2("PushFrameCall, cx: ", cx)
+	debug2.Println2("PushFrameCall, cx, fv, recv: ", cx, fv, recv)
 	fr := &Frame{
 		Source:      cx,
 		NumOps:      m.NumOps,

@@ -1677,6 +1677,7 @@ func (tv *TypedValue) Assign(alloc *Allocator, tv2 TypedValue, cu bool) {
 // allocated, *Allocator.AllocatePointer() is called separately,
 // as in OpRef.
 func (tv *TypedValue) GetPointerToFromTV(alloc *Allocator, store Store, path ValuePath) PointerValue {
+	debug2.Println2("GetPointerToFromTV, tv: ", tv)
 	if debug {
 		if tv.IsUndefined() {
 			panic("GetPointerToFromTV() on undefined value")
@@ -1837,29 +1838,39 @@ func (tv *TypedValue) GetPointerToFromTV(alloc *Allocator, store Store, path Val
 				dtv.T.String(), reflect.TypeOf(dtv.T)))
 		}
 	case VPValMethod:
+		debug2.Println2("VpValMethod")
 		dt := dtv.T.(*DeclaredType)
 		mtv := dt.GetValueAt(alloc, store, path)
 		mv := mtv.GetFunc()
+		debug2.Println2("mv: ", mv)
 		mt := mv.GetType(store)
 		if debug {
 			if mt.HasPointerReceiver() {
 				panic("should not happen")
 			}
 		}
+		debug2.Println2("dtv: ", dtv)
 		dtv2 := dtv.Copy(alloc)
+		debug2.Println2("dtv2: ", dtv2)
+		debug2.Println2("val, going to alloc for bound method, alloc: ", alloc)
 		alloc.AllocateBoundMethod()
 		bmv := &BoundMethodValue{
 			Func:     mv,
 			Receiver: dtv2,
 		}
+		tv2 := &TypedValue{
+			T: mt.BoundType(),
+			V: bmv,
+		}
+		if alloc != nil {
+			tv2.SetAllocValue(true)
+		}
 		return PointerValue{
-			TV: &TypedValue{
-				T: mt.BoundType(),
-				V: bmv,
-			},
+			TV:   tv2,
 			Base: nil, // a bound method is free floating.
 		}
 	case VPPtrMethod:
+		debug2.Println2("VPPtrMethod")
 		dt := tv.T.(*PointerType).Elt.(*DeclaredType)
 		// ^ support nil receivers, vs:
 		// dt := dtv.T.(*DeclaredType)
@@ -1877,6 +1888,7 @@ func (tv *TypedValue) GetPointerToFromTV(alloc *Allocator, store Store, path Val
 				panic("should not happen")
 			}
 		}
+		debug2.Println2("pointer, going to alloc for bound method, alloc: ", alloc)
 		alloc.AllocateBoundMethod()
 		bmv := &BoundMethodValue{
 			Func:     mv,
@@ -2205,7 +2217,7 @@ func (tv *TypedValue) GetCapacity() int {
 }
 
 func (tv *TypedValue) GetSlice(alloc *Allocator, low, high int) TypedValue {
-	debug2.Println2("GetSlice, low, high: ", low, high)
+	debug2.Println2("GetSlice, low, high: ", low, high, reflect.TypeOf(baseOf(tv.T)))
 	if low < 0 {
 		panic(&Exception{Value: typedString(fmt.Sprintf(
 			"invalid slice index %d (index must be non-negative)",
@@ -2244,11 +2256,12 @@ func (tv *TypedValue) GetSlice(alloc *Allocator, low, high int) TypedValue {
 				low, high, tv.GetLength()))})
 		}
 		av := tv.V.(*ArrayValue)
+		debug2.Println2("array type, av: ", av)
 		st := alloc.NewType(&SliceType{
 			Elt: t.Elt,
 			Vrd: false,
 		})
-		tv := TypedValue{
+		tv2 := TypedValue{
 			T: st,
 			V: alloc.NewSlice(
 				av,                   // base
@@ -2257,11 +2270,14 @@ func (tv *TypedValue) GetSlice(alloc *Allocator, low, high int) TypedValue {
 				av.GetCapacity()-low, // maxcap
 			),
 		}
+		debug2.Println2("ArrayType, tv: ", tv)
 		if alloc != nil {
-			tv.SetAllocType(true)
-			tv.SetAllocValue(true)
+			debug2.Println2("set alloc info")
+			tv2.SetAllocType(true)
+			tv2.SetAllocValue(true)
 		}
-		return tv
+		debug2.Println2("tv2.AllocInfo ", tv2.AllocationInfo)
+		return tv2
 	case *SliceType:
 		if tv.GetCapacity() < high {
 			panic(&Exception{Value: typedString(fmt.Sprintf(

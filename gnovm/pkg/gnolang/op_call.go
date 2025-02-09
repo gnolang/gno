@@ -7,9 +7,10 @@ import (
 )
 
 func (m *Machine) doOpPrecall() {
-	debug2.Println2("doOpPrecall()")
 	cx := m.PopExpr().(*CallExpr)
+	debug2.Println2("doOpPrecall(), cx: ", cx)
 	v := m.PeekValue(1 + cx.NumArgs).V
+	debug2.Println2("v: ", v)
 	if debug {
 		if v == nil {
 			// This may happen due to an undefined uverse or

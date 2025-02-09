@@ -135,6 +135,29 @@ func (alloc *Allocator) GC() {
 
 	debug2.Println2("---gc, MemStats:", alloc.MemStats())
 
+	for i, fr := range alloc.m.Frames {
+		debug2.Printf2("Frame[%d] is %v \n", i, fr)
+		if !fr.Receiver.IsUndefined() {
+			debug2.Println2("receiver: ", fr.Receiver)
+			debug2.Println2("func: ", fr.Func)
+			if pv, ok := fr.Receiver.V.(PointerValue); ok {
+				if _, ok := pv.Base.(*HeapItemValue); !ok {
+					// only alloc pointer for implicit address-taking,
+					// while val invoke ptr method.
+					throwaway.AllocatePointer()
+				} else {
+					throwaway.allocateValue(fr.Receiver.V)
+				}
+			}
+			if fr.Func != nil {
+				throwaway.allocateValue(fr.Func)
+			} else if fr.GoFunc != nil {
+				throwaway.allocateValue(fr.GoFunc)
+			}
+			// by default
+			throwaway.AllocateBoundMethod()
+		}
+	}
 	// scan blocks
 	for i, b := range alloc.m.Blocks {
 		debug2.Printf2("allocate blocks[%d]: %v \n", i, b)

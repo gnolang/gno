@@ -88,6 +88,7 @@ func (m *Machine) doOpSelector() {
 
 func (m *Machine) doOpSlice() {
 	sx := m.PopExpr().(*SliceExpr)
+	debug2.Println2("doOpSlice, sx: ", sx)
 	var lowVal, highVal, maxVal int = -1, -1, -1
 	// max
 	if sx.Max != nil {
@@ -119,13 +120,9 @@ func (m *Machine) doOpSlice() {
 	// all low:high:max cases
 	if maxVal == -1 {
 		sv := xv.GetSlice(m.Alloc, lowVal, highVal)
-		debug2.Println2("doOpSlice, xv.AllocationInfo, 1: ", xv.AllocationInfo)
-		sv.AllocationInfo = xv.AllocationInfo
 		m.PushValue(sv)
 	} else {
 		sv := xv.GetSlice2(m.Alloc, lowVal, highVal, maxVal)
-		debug2.Println2("doOpSlice, xv.AllocationInfo, 2: ", xv.AllocationInfo)
-		sv.AllocationInfo = xv.AllocationInfo
 		m.PushValue(sv)
 	}
 }
@@ -516,6 +513,7 @@ func (m *Machine) doOpCompositeLit() {
 func (m *Machine) doOpArrayLit() {
 	// assess performance TODO
 	x := m.PopExpr().(*CompositeLitExpr)
+	debug2.Println2("doOpArrayLit, x: ", x)
 	ne := len(x.Elts)
 	// peek array type.
 	at := m.PeekValue(1 + ne).V.(TypeValue).Type
