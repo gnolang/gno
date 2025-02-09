@@ -44,7 +44,7 @@ func (grc *token) OwnerOf(tokenId grc721.TokenID) (std.Address, error) {
 	if !exists {
 		return "", errors.New("token not found")
 	}
-	nft := token.(*NFToken)
+	nft := token.(NFToken)
 	return nft.Owner, nil
 }
 
@@ -70,7 +70,7 @@ func (grc *token) GetApproved(tokenId grc721.TokenID) (std.Address, error) {
 }
 
 func (grc *token) IsApprovedForAll(owner, operator std.Address) bool {
-	return false // For now, we don't support operator approvals
+	return false // operator approvals
 }
 
 var (
@@ -103,6 +103,15 @@ func CreatePOAP(name, description string, date time.Time, maxMints int) uint64 {
 
 	poaps.Set(strconv.FormatUint(poapCount, 10), &poap)
 	return poapCount
+}
+
+// CreatePOAPFromString converts an RFC3339 date string into time.Time and calls CreatePOAP
+func CreatePOAPFromString(name, description, dateStr string, maxMints int) uint64 {
+	t, err := time.Parse(time.RFC3339, dateStr)
+	if err != nil {
+		panic("invalid date format, expected RFC3339")
+	}
+	return CreatePOAP(name, description, t, maxMints)
 }
 
 // retrieve POAP by ID
