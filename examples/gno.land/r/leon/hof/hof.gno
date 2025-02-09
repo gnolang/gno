@@ -14,6 +14,11 @@ import (
 	"gno.land/r/leon/config"
 )
 
+const (
+	maxTitleLength       = 30
+	maxDescriptionLength = 100
+)
+
 var (
 	exhibition *Exhibition
 
@@ -31,11 +36,13 @@ type (
 	}
 
 	Item struct {
-		id       seqid.ID
-		pkgpath  string
-		blockNum int64
-		upvote   *avl.Tree // std.Addr > struct{}{}
-		downvote *avl.Tree // std.Addr > struct{}{}
+		id          seqid.ID
+		title       string
+		description string
+		pkgpath     string
+		blockNum    int64
+		upvote      *avl.Tree // std.Addr > struct{}{}
+		downvote    *avl.Tree // std.Addr > struct{}{}
 	}
 )
 
@@ -51,7 +58,7 @@ func init() {
 
 // Register registers your realm to the Hall of Fame
 // Should be called from within code
-func Register() {
+func Register(title, description string) {
 	if Pausable.IsPaused() {
 		return
 	}
@@ -69,13 +76,25 @@ func Register() {
 		return
 	}
 
+	//Title must be between 1 maxTitleLength long
+	if len(title) == 0 || len(title) > maxTitleLength {
+		return
+	}
+
+	//Description must be between 1 maxDescriptionLength long
+	if len(description) == 0 || len(description) > maxDescriptionLength {
+		return
+	}
+
 	id := exhibition.itemCounter.Next()
 	i := &Item{
-		id:       id,
-		pkgpath:  pkgpath,
-		blockNum: std.GetHeight(),
-		upvote:   avl.NewTree(),
-		downvote: avl.NewTree(),
+		id:          id,
+		title:       title,
+		description: description,
+		pkgpath:     pkgpath,
+		blockNum:    std.GetHeight(),
+		upvote:      avl.NewTree(),
+		downvote:    avl.NewTree(),
 	}
 
 	exhibition.items.Set(pkgpath, i)
