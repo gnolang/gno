@@ -59,7 +59,8 @@ func (e Exhibition) Render(path string, dashboard bool) string {
 }
 
 func (i Item) Render(dashboard bool) string {
-	out := ufmt.Sprintf("\n```\n%s\n```\n\n", i.pkgpath)
+	out := ufmt.Sprintf("\n%s\n\n", md.CodeBlock(i.pkgpath))
+	// out := ufmt.Sprintf("\n```\n%s\n```\n\n", i.pkgpath)
 	out += ufmt.Sprintf("by %s\n\n", strings.Split(i.pkgpath, "/")[2])
 	out += ufmt.Sprintf("[View realm](%s)\n\n", strings.TrimPrefix(i.pkgpath, "gno.land")) // gno.land/r/leon/home > /r/leon/home
 	out += ufmt.Sprintf("Submitted at Block #%d\n\n", i.blockNum)
