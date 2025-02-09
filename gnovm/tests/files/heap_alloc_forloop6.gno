@@ -1,8 +1,7 @@
 package main
 
-var fns []func() int
-
 func main() {
+	var fns []func() int
 
 	for i := 0; i < 3; i++ {
 		z := i
