@@ -132,7 +132,7 @@ _test.filetest.sync:;
 # TODO: move _dev.stringer to go:generate instructions, simplify generate
 #       to just go generate.
 .PHONY: generate
-generate: _dev.stringer _dev.generate _dev.docs
+generate: _dev.stringer _dev.generate _dev.docs fmt imports
 
 .PHONY: _dev.docs
 _dev.docs:
