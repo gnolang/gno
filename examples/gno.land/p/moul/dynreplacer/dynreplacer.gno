@@ -1,11 +1,12 @@
-// Package dynreplacer provides a simple template engine for handling dynamic content replacement.
-// It is similar to strings.Replacer but with lazy execution of replacements, making it more
-// optimization-friendly in several cases. While strings.Replacer requires all replacement values
-// to be computed upfront, dynreplacer only executes the callback functions for placeholders
-// that actually exist in the template, avoiding unnecessary computations.
+// Package dynreplacer provides a simple template engine for handling dynamic
+// content replacement. It is similar to strings.Replacer but with lazy
+// execution of replacements, making it more optimization-friendly in several
+// cases. While strings.Replacer requires all replacement values to be computed
+// upfront, dynreplacer only executes the callback functions for placeholders
+// that actually exist in the template, avoiding unnecessary computations. 
 //
-// The package ensures efficient, non-recursive replacement of placeholders in a single pass.
-// This lazy evaluation approach is particularly beneficial when:
+// The package ensures efficient, non-recursive replacement of placeholders in a
+// single pass. This lazy evaluation approach is particularly beneficial when:
 // - Some replacement values are expensive to compute
 // - Not all placeholders are guaranteed to be present in the template
 // - Templates are reused with different content
@@ -15,8 +16,9 @@
 //	r := New(":name:", func() string { return "World" })
 //	result := r.Replace("Hello :name:!") // Returns "Hello World!"
 //
-// The replacer caches computed values, so subsequent calls with the same placeholder
-// will reuse the cached value instead of executing the callback again:
+// The replacer caches computed values, so subsequent calls with the same
+// placeholder will reuse the cached value instead of executing the callback
+// again: 
 //
 //	r := New(":expensive:", func() string { return "computed" })
 //	r.Replace("Value1: :expensive:") // Computes the value
@@ -28,16 +30,23 @@ import (
 	"strings"
 )
 
-// Replacer manages dynamic placeholders, their associated functions, and cached values.
+// Replacer manages dynamic placeholders, their associated functions, and cached
+// values.
 type Replacer struct {
 	callbacks    map[string]func() string
 	cachedValues map[string]string
 }
 
 // New creates a new Replacer instance with optional initial replacements.
-// It accepts pairs of arguments where each pair consists of a placeholder string
-// and its corresponding callback function.
-// Example: New(":name:", func() string { return "World" }, ":greeting:", func() string { return "Hello" })
+// It accepts pairs of arguments where each pair consists of a placeholder
+// string and its corresponding callback function.
+// 
+// Example:
+//
+//        New(
+//            ":name:", func() string { return "World" },
+//            ":greeting:", func() string { return "Hello" },
+//        )
 func New(pairs ...interface{}) *Replacer {
 	if len(pairs)%2 != 0 {
 		panic("dynreplacer.New: odd argument count")
@@ -65,12 +74,14 @@ func New(pairs ...interface{}) *Replacer {
 	return r
 }
 
-// RegisterCallback associates a placeholder with a function to generate its content.
+// RegisterCallback associates a placeholder with a function to generate its
+// content.
 func (r *Replacer) RegisterCallback(placeholder string, callback func() string) {
 	r.callbacks[placeholder] = callback
 }
 
-// Replace processes the given layout, replacing placeholders with cached or newly computed values.
+// Replace processes the given layout, replacing placeholders with cached or
+// newly computed values.
 func (r *Replacer) Replace(layout string) string {
 	replacements := []string{}
 
