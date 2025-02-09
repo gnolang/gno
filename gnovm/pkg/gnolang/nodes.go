@@ -1508,7 +1508,6 @@ func (x *PackageNode) NewPackage() *PackageValue {
 // NOTE: declared methods do not get their closures set here. See
 // *DeclaredType.GetValueAt() which returns a filled copy.
 func (x *PackageNode) PrepareNewValues(pv *PackageValue) []TypedValue {
-	debug2.Println2("PrepareNewValues")
 	if pv.PkgPath == "" {
 		// nothing to prepare for throwaway packages.
 		// TODO: double check to see if still relevant.
@@ -1541,7 +1540,6 @@ func (x *PackageNode) PrepareNewValues(pv *PackageValue) []TypedValue {
 		for i, tv := range nvs {
 			if fv, ok := tv.V.(*FuncValue); ok {
 				// copy function value and assign closure from package value.
-				debug2.Println2("Copy fv: ", fv)
 				fv = fv.Copy(nilAllocator)
 				fv.Closure = pv.fBlocksMap[fv.FileName]
 				if fv.Closure == nil {

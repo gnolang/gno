@@ -19,7 +19,7 @@ func xyz() {
 			println(a.n)
 		}
 		fns = append(fns, fv)
-		runtime.GC()
+		//runtime.GC()
 	}
 }
 
@@ -28,7 +28,9 @@ func main() {
 	for _, fn := range fns {
 		fn()
 	}
+	println("memstats in main before GC: ", runtime.MemStats())
 	runtime.GC()
+	println("memstats in main after GC: ", runtime.MemStats())
 }
 
 // Output:
@@ -37,3 +39,5 @@ func main() {
 // 2
 // 3
 // 4
+// memstats in main before GC:  Allocator{maxBytes:50000, bytes:20136}
+// memstats in main after GC:  Allocator{maxBytes:50000, bytes:5064}

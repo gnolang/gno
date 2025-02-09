@@ -124,26 +124,20 @@ func (alloc *Allocator) GC() {
 	// be introduced for precise measurement, but
 	// that will be addressed in the future.
 	defer func() {
-		debug2.Println2("GC done, allocTimes: ", throwaway.allocTimes)
 		gasCPU := overflow.Mul64p(throwaway.allocTimes, GasFactorCPU)
 		if alloc.m.GasMeter != nil { //  no gas meter for test
-			debug2.Println2("Consuming gas for GC, gasCPU: ", gasCPU)
 			alloc.m.GasMeter.ConsumeGas(gasCPU, "GC")
 		}
-		debug2.Println2("---after gc, memStats:", alloc.MemStats())
 	}()
 
-	debug2.Println2("---gc, MemStats:", alloc.MemStats())
-
-	for i, fr := range alloc.m.Frames {
-		debug2.Printf2("Frame[%d] is %v \n", i, fr)
+	// scan frames primarily to count occurrences of BoundMethod
+	for _, fr := range alloc.m.Frames {
 		if !fr.Receiver.IsUndefined() {
-			debug2.Println2("receiver: ", fr.Receiver)
-			debug2.Println2("func: ", fr.Func)
 			if pv, ok := fr.Receiver.V.(PointerValue); ok {
 				if _, ok := pv.Base.(*HeapItemValue); !ok {
-					// only alloc pointer for implicit address-taking,
-					// while val invoke ptr method.
+					// only alloc pointer for implicit
+					// address-taking, while using val
+					// invoke ptr method
 					throwaway.AllocatePointer()
 				} else {
 					throwaway.allocateValue(fr.Receiver.V)
@@ -158,23 +152,17 @@ func (alloc *Allocator) GC() {
 			throwaway.AllocateBoundMethod()
 		}
 	}
+
 	// scan blocks
-	for i, b := range alloc.m.Blocks {
-		debug2.Printf2("allocate blocks[%d]: %v \n", i, b)
+	for _, b := range alloc.m.Blocks {
 		throwaway.allocateValue(b)
 	}
 
 	// reset allocator
-	debug2.Println2("---throwaway.bytes: ", throwaway.bytes)
-	debug2.Println2("---before reset, alloc.bytes: ", alloc.bytes)
 	alloc.bytes = throwaway.bytes
-	debug2.Println2("---after reset, alloc.bytes: ", alloc.bytes)
 }
 
 func (alloc *Allocator) allocateTV(tv TypedValue) {
-	debug2.Println2("allocateTV, tv: ", tv)
-	debug2.Println2("allocInfo: ", tv.AllocationInfo.String())
-
 	if tv.GetRefCount() < 2 {
 		if tv.AllocType {
 			alloc.AllocateType()
@@ -182,34 +170,13 @@ func (alloc *Allocator) allocateTV(tv TypedValue) {
 		if tv.AllocValue {
 			alloc.allocateValue(tv.V)
 		}
-	} else {
-		//if fv, ok := tv.V.(*FuncValue); ok {
-		//	debug2.Println2("allocateTV, fv: ", fv)
-		//	debug2.Println2("allocateTV, fv.Captures: ", fv.Captures)
-		//	for _, c := range fv.Captures {
-		//		debug2.Println2("allocate capture, allocInfo: ", c.AllocationInfo)
-		//		if c.GetRefCount() < 2 {
-		//			if c.AllocationInfo.AllocType {
-		//				alloc.AllocateType()
-		//			}
-		//			if c.AllocationInfo.AllocValue {
-		//				alloc.allocateValue(c.V)
-		//			}
-		//		}
-		//	}
-		//}
-		debug2.Println2("escaped, do nothing, allocInfo: ", tv.AllocationInfo.String())
 	}
 }
 
 func (alloc *Allocator) allocateValue(v Value) {
-	debug2.Println2("allocateValue: ", v, reflect.TypeOf(v))
 	// if RefValue, allocate amino
 	if oo, ok := v.(Object); ok {
 		if oid := oo.GetObjectID(); !oid.IsZero() {
-			debug2.Println2("oid: ", oid)
-			debug2.Printf2("oo: %v \n", oo)
-			debug2.Println2("byteSize of oo: ", oo.GetByteSize())
 			alloc.AllocateAmino(oo.GetByteSize())
 		}
 	}
@@ -222,11 +189,8 @@ func (alloc *Allocator) allocateValue(v Value) {
 			alloc.allocateTV(field)
 		}
 	case *FuncValue:
-		debug2.Println2("allocateTV, fv: ", vv)
 		alloc.AllocateFunc()
-		debug2.Println2("allocateTV, fv.Captures: ", vv.Captures)
 		for _, c := range vv.Captures {
-			debug2.Println2("allocate capture, allocInfo: ", c.AllocationInfo)
 			if c.GetRefCount() < 2 {
 				if c.AllocationInfo.AllocType {
 					alloc.AllocateType()
@@ -277,8 +241,6 @@ func (alloc *Allocator) allocateValue(v Value) {
 }
 
 func (alloc *Allocator) Allocate(size int64) {
-	debug2.Println2("Allocate, size: ", size)
-	debug2.Println2("MemStats: ", alloc.MemStats())
 	if alloc == nil {
 		// this can happen for map items just prior to assignment.
 		return
@@ -286,94 +248,77 @@ func (alloc *Allocator) Allocate(size int64) {
 
 	// measure current memory usage
 	if alloc.throwAway {
-		alloc.allocTimes++ // metric gc
+		alloc.allocTimes++ // metric gc cycles
 		alloc.bytes += size
 		if alloc.bytes > alloc.maxBytes {
 			panic("should not happen")
 		}
-		debug2.Println2("throwaway, After allocating, size is: ", alloc.bytes)
 	} else {
 		if alloc.bytes+size > alloc.maxBytes {
-			debug2.Printf2("%d exceeds memory size, GC \n", alloc.bytes+size)
 			alloc.GC()
 		}
 		alloc.bytes += size
 		if alloc.bytes > alloc.maxBytes {
 			panic("allocation limit exceeded")
 		}
-		debug2.Println2("=== After allocating, size is: ", alloc.bytes)
 	}
 }
 
 func (alloc *Allocator) AllocateString(size int64) {
-	debug2.Println2("AllocateString, size: ", size)
 	alloc.Allocate(allocString + allocStringByte*size)
 }
 
 func (alloc *Allocator) AllocatePointer() {
-	debug2.Println2("AllocatePointer")
 	alloc.Allocate(allocPointer)
 }
 
 func (alloc *Allocator) AllocateDataArray(size int64) {
-	debug2.Println2("AllocateDataArray")
 	alloc.Allocate(allocArray + size)
 }
 
 func (alloc *Allocator) AllocateListArray(items int64) {
-	debug2.Println2("AllocateListArray, items: ", items)
 	alloc.Allocate(allocArray + allocArrayItem*items)
 }
 
 func (alloc *Allocator) AllocateSlice() {
-	debug2.Println2("AllocateSlice")
 	alloc.Allocate(allocSlice)
 }
 
 // NOTE: fields must be allocated separately.
 func (alloc *Allocator) AllocateStruct() {
-	debug2.Println2("AllocateStruct")
 	alloc.Allocate(allocStruct)
 }
 
 func (alloc *Allocator) AllocateStructFields(fields int64) {
-	debug2.Println2("AllocateStructFields")
 	alloc.Allocate(allocStructField * fields)
 }
 
 func (alloc *Allocator) AllocateFunc() {
-	debug2.Println2("AllocateFunc")
 	alloc.Allocate(allocFunc)
 }
 
 func (alloc *Allocator) AllocateMap(items int64) {
-	debug2.Println2("AllocateMap, items: ", items)
 	alloc.Allocate(allocMap + allocMapItem*items)
 }
 
 func (alloc *Allocator) AllocateMapItem() {
-	debug2.Println2("AllocateMapItem")
 	alloc.Allocate(allocMapItem)
 }
 
 func (alloc *Allocator) AllocateBoundMethod() {
-	debug2.Println2("AllocateBoundMethod")
 	alloc.Allocate(allocBoundMethod)
 }
 
 func (alloc *Allocator) AllocateBlock(items int64) {
-	debug2.Println2("AllocateBlock, items: ", items)
 	alloc.Allocate(allocBlock + allocBlockItem*items)
 }
 
 func (alloc *Allocator) AllocateBlockItems(items int64) {
-	debug2.Println2("AllocateBlockItems, items: ", items)
 	alloc.Allocate(allocBlockItem * items)
 }
 
 // NOTE: does not allocate for the underlying value.
 func (alloc *Allocator) AllocateNative() {
-	debug2.Println2("AllocateNative")
 	alloc.Allocate(allocNative)
 }
 
@@ -384,18 +329,15 @@ func (alloc *Allocator) AllocateDataByte() {
 */
 
 func (alloc *Allocator) AllocateType() {
-	debug2.Println2("AllocateType")
 	alloc.Allocate(allocType)
 }
 
 // NOTE: a reasonable max-bounds calculation for simplicity.
 func (alloc *Allocator) AllocateAmino(l int64) {
-	debug2.Println2("AllocateAmino, l: ", l)
 	alloc.Allocate(allocAmino + allocAminoByte*l)
 }
 
 func (alloc *Allocator) AllocateHeapItem() {
-	debug2.Println2("AllocateHeapItem")
 	alloc.Allocate(allocHeapItem)
 }
 
@@ -403,13 +345,11 @@ func (alloc *Allocator) AllocateHeapItem() {
 // constructor utilities.
 
 func (alloc *Allocator) NewString(s string) StringValue {
-	debug2.Printf2("NewString, s: \"%s\" \n", s)
 	alloc.AllocateString(int64(len(s)))
 	return StringValue(s)
 }
 
 func (alloc *Allocator) NewListArray(n int) *ArrayValue {
-	debug2.Println2("NewListArray: ", n)
 	if n < 0 {
 		panic(&Exception{Value: typedString("len out of range")})
 	}
@@ -420,7 +360,6 @@ func (alloc *Allocator) NewListArray(n int) *ArrayValue {
 }
 
 func (alloc *Allocator) NewDataArray(n int) *ArrayValue {
-	debug2.Println2("NewDataArray: ", n)
 	if n < 0 {
 		panic(&Exception{Value: typedString("len out of range")})
 	}
@@ -432,14 +371,12 @@ func (alloc *Allocator) NewDataArray(n int) *ArrayValue {
 }
 
 func (alloc *Allocator) NewArrayFromData(data []byte) *ArrayValue {
-	debug2.Println2("NewArrayFromData: ", len(data))
 	av := alloc.NewDataArray(len(data))
 	copy(av.Data, data)
 	return av
 }
 
 func (alloc *Allocator) NewSlice(base Value, offset, length, maxcap int) *SliceValue {
-	debug2.Println2("NewSlice: ", base)
 	alloc.AllocateSlice()
 	return &SliceValue{
 		Base:   base,
@@ -456,7 +393,6 @@ func (alloc *Allocator) NewSlice(base Value, offset, length, maxcap int) *SliceV
 // to allocate the space for the `TypedValue` list before doing the allocation
 // in the go runtime -- see the `make()` code in uverse.go.
 func (alloc *Allocator) NewSliceFromList(list []TypedValue) *SliceValue {
-	debug2.Println2("NewSliceFromList: ", len(list))
 	alloc.AllocateSlice()
 	alloc.AllocateListArray(int64(cap(list)))
 	fullList := list[:cap(list)]
@@ -474,7 +410,6 @@ func (alloc *Allocator) NewSliceFromList(list []TypedValue) *SliceValue {
 // value populated from `data`. See the doc for `NewSliceFromList` for
 // correct usage notes.
 func (alloc *Allocator) NewSliceFromData(data []byte) *SliceValue {
-	debug2.Println2("NewSliceFromData: ", len(data))
 	alloc.AllocateSlice()
 	alloc.AllocateDataArray(int64(cap(data)))
 	fullData := data[:cap(data)]
@@ -490,7 +425,6 @@ func (alloc *Allocator) NewSliceFromData(data []byte) *SliceValue {
 
 // NOTE: fields must be allocated (e.g. from NewStructFields)
 func (alloc *Allocator) NewStruct(fields []TypedValue) *StructValue {
-	debug2.Println2("NewStruct: ", fields)
 	alloc.AllocateStruct()
 	return &StructValue{
 		Fields: fields,
@@ -498,21 +432,18 @@ func (alloc *Allocator) NewStruct(fields []TypedValue) *StructValue {
 }
 
 func (alloc *Allocator) NewStructFields(fields int) []TypedValue {
-	debug2.Println2("NewStructFields", fields)
 	alloc.AllocateStructFields(int64(fields))
 	return make([]TypedValue, fields)
 }
 
 // NOTE: fields will be allocated.
 func (alloc *Allocator) NewStructWithFields(fields ...TypedValue) *StructValue {
-	debug2.Println2("NewStructWithFields", fields)
 	tvs := alloc.NewStructFields(len(fields))
 	copy(tvs, fields)
 	return alloc.NewStruct(tvs)
 }
 
 func (alloc *Allocator) NewMap(size int) *MapValue {
-	debug2.Println2("NewMap, size: ", size)
 	alloc.AllocateMap(int64(size))
 	mv := &MapValue{}
 	mv.MakeMap(size)
@@ -520,13 +451,11 @@ func (alloc *Allocator) NewMap(size int) *MapValue {
 }
 
 func (alloc *Allocator) NewBlock(source BlockNode, parent *Block) *Block {
-	debug2.Printf2("NewBlock, source: %v, source...Names: %v\n", source, source.GetBlockNames())
 	alloc.AllocateBlock(int64(source.GetNumNames()))
 	return NewBlock(source, parent)
 }
 
 func (alloc *Allocator) NewNative(rv reflect.Value) *NativeValue {
-	debug2.Println2("NewNative", rv)
 	alloc.AllocateNative()
 	return &NativeValue{
 		Value: rv,
@@ -534,13 +463,11 @@ func (alloc *Allocator) NewNative(rv reflect.Value) *NativeValue {
 }
 
 func (alloc *Allocator) NewType(t Type) Type {
-	debug2.Println2("NewType:", t)
 	alloc.AllocateType()
 	return t
 }
 
 func (alloc *Allocator) NewHeapItem(tv TypedValue) *HeapItemValue {
-	debug2.Println2("NewHeapItem", tv)
 	alloc.AllocateHeapItem()
 	return &HeapItemValue{Value: tv}
 }

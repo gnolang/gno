@@ -686,7 +686,6 @@ func isGeq(lv, rv *TypedValue) bool {
 
 // for doOpAdd and doOpAddAssign.
 func addAssign(alloc *Allocator, lv, rv *TypedValue) {
-	debug2.Println2("addAssign, lv, alloc: ", lv, alloc)
 	// set the result in lv.
 	// NOTE this block is replicated in op_assign.go
 	switch baseOf(lv.T) {

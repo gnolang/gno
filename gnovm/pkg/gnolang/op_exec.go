@@ -56,8 +56,6 @@ func (m *Machine) doOpExec(op Op) {
 		debug.Printf("PEEK STMT: %v\n", s)
 		debug.Printf("%v\n", m)
 	}
-	debug2.Printf2("PEEK STMT: %v\n", s)
-	debug2.Printf2("%v\n", m)
 
 	// NOTE this could go in the switch statement, and we could
 	// use the EXEC_SWITCH to jump back, rather than putting this
@@ -433,7 +431,6 @@ EXEC_SWITCH:
 	if debug {
 		debug.Printf("EXEC: %v\n", s)
 	}
-	debug2.Printf2("EXEC: %v, type of s: %v \n", s, reflect.TypeOf(s))
 	switch cs := s.(type) {
 	case *AssignStmt:
 		switch cs.Op {
@@ -496,7 +493,6 @@ EXEC_SWITCH:
 		m.PushExpr(cs.X)
 		m.PushOp(OpEval)
 	case *ForStmt:
-		debug2.Println2("ForStmt: ", cs)
 		m.PushFrameBasic(cs)
 		b := m.Alloc.NewBlock(cs, m.LastBlock())
 		b.bodyStmt = bodyStmt{

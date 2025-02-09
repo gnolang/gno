@@ -88,7 +88,6 @@ func (m *Machine) doOpSelector() {
 
 func (m *Machine) doOpSlice() {
 	sx := m.PopExpr().(*SliceExpr)
-	debug2.Println2("doOpSlice, sx: ", sx)
 	var lowVal, highVal, maxVal int = -1, -1, -1
 	// max
 	if sx.Max != nil {
@@ -185,7 +184,6 @@ func (m *Machine) doOpStar() {
 // XXX this is wrong, for var i interface{}; &i is *interface{}.
 func (m *Machine) doOpRef() {
 	rx := m.PopExpr().(*RefExpr)
-	debug2.Println2("doOpRef, rx: ", rx)
 	m.Alloc.AllocatePointer()
 	xv := m.PopAsPointer(rx.X)
 	if nv, ok := xv.TV.V.(*NativeValue); ok {
@@ -205,7 +203,6 @@ func (m *Machine) doOpRef() {
 	if elt == DataByteType {
 		elt = xv.TV.V.(DataByteValue).ElemType
 	}
-	debug2.Println2("doOpRef, new type")
 	tv := TypedValue{
 		T: m.Alloc.NewType(&PointerType{Elt: elt}),
 		V: xv,
@@ -513,7 +510,6 @@ func (m *Machine) doOpCompositeLit() {
 func (m *Machine) doOpArrayLit() {
 	// assess performance TODO
 	x := m.PopExpr().(*CompositeLitExpr)
-	debug2.Println2("doOpArrayLit, x: ", x)
 	ne := len(x.Elts)
 	// peek array type.
 	at := m.PeekValue(1 + ne).V.(TypeValue).Type
@@ -575,7 +571,6 @@ func (m *Machine) doOpArrayLit() {
 func (m *Machine) doOpSliceLit() {
 	// assess performance TODO
 	x := m.PopExpr().(*CompositeLitExpr)
-	debug2.Println2("doOpSliceLit, x: ", x)
 	el := len(x.Elts)
 	// peek slice type.
 	st := m.PeekValue(1 + el).V.(TypeValue).Type
@@ -593,7 +588,6 @@ func (m *Machine) doOpSliceLit() {
 		m.PopValue()
 	}
 	sv := m.Alloc.NewSliceFromList(es)
-	debug2.Printf2("addr of sv: %p \n", sv)
 	tv := TypedValue{
 		T: st,
 		V: sv,
@@ -603,7 +597,6 @@ func (m *Machine) doOpSliceLit() {
 }
 
 func (m *Machine) doOpSliceLit2() {
-	debug2.Println2("doOpSliceLit2")
 	// assess performance TODO
 	x := m.PopExpr().(*CompositeLitExpr)
 	el := len(x.Elts)
@@ -655,7 +648,6 @@ func (m *Machine) doOpSliceLit2() {
 
 func (m *Machine) doOpMapLit() {
 	x := m.PopExpr().(*CompositeLitExpr)
-	debug2.Println2("doOpMapLit, x: ", x)
 	ne := len(x.Elts)
 	// peek map type.
 	mt := m.PeekValue(1 + ne*2).V.(TypeValue).Type
@@ -697,7 +689,6 @@ func (m *Machine) doOpMapLit() {
 func (m *Machine) doOpStructLit() {
 	// assess performance TODO
 	x := m.PopExpr().(*CompositeLitExpr)
-	debug2.Println2("doOpStructLit, x: ", x)
 	el := len(x.Elts) // may be incomplete
 	// peek struct type.
 	xt := m.PeekValue(1 + el).V.(TypeValue).Type
@@ -786,7 +777,6 @@ func (m *Machine) doOpFuncLit() {
 	x := m.PopExpr().(*FuncLitExpr)
 	ft := m.PopValue().V.(TypeValue).Type.(*FuncType)
 	lb := m.LastBlock()
-	debug2.Println2("doOpFuncLit, x: ", x)
 	m.Alloc.AllocateFunc()
 
 	// First copy closure captured heap values
@@ -822,7 +812,6 @@ func (m *Machine) doOpFuncLit() {
 			nativeBody: nil,
 		},
 	}
-	debug2.Println2("doOpFuncLit, captures: ", fv.V.(*FuncValue).Captures)
 	fv.SetAllocValue(true)
 	m.PushValue(fv)
 }
