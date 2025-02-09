@@ -22,14 +22,13 @@ func ResolveName(name string) (data *UserData, isLatest bool) {
 }
 
 // ResolveAddress returns the latest UserData of a specific user by address
-func ResolveAddress(addr std.Address) (data *UserData) {
+func ResolveAddress(addr std.Address) *UserData {
 	raw, ok := addressStore.Get(addr.String())
 	if !ok {
 		return nil
 	}
 
-	data = raw.(*UserData)
-	if data.deleted {
+	if raw.(*UserData).deleted {
 		return nil
 	}
 

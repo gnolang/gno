@@ -80,12 +80,16 @@ func RegisterUser(name string, address std.Address) error {
 	nameStore.Set(name, data)
 	addressStore.Set(address.String(), data)
 
-	std.Emit(RegisterUserEvent, "name", name, "address", address.String())
+	std.Emit(RegisterUserEvent,
+		"name", name,
+		"address", address.String(),
+	)
 	return nil
 }
 
 // UpdateName adds a name that is associated with a specific address
-// All previous names are preserved and resolvable
+// All previous names are preserved and resolvable.
+// The new name is the default value returned for address lookups.
 func UpdateName(newName string, address std.Address) error {
 	// Validate caller
 	if err := validateCall(); err != nil {
