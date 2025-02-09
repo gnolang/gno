@@ -72,7 +72,6 @@ func (i Item) Render(dashboard bool) string {
 		out += md.Link("Delete", txlink.Call("Delete", "pkgpath", i.pkgpath))
 	}
 
-
 	return out
 }
 
