@@ -228,3 +228,27 @@ func TestDo_ContractActionError(t *testing.T) {
 	uassert.Error(t, err)
 	uassert.True(t, handlerExecuted, "handler should have been executed")
 }
+
+func TestNewWithContract(t *testing.T) {
+	handler := func(title string, action PrivilegedAction) error { return nil }
+
+	// Test successful creation
+	a, err := NewWithContract(testPkgPath, handler)
+	uassert.NoError(t, err)
+	if a.Owner() != testPkgPath {
+		t.Errorf("NewWithContract() owner = %v, want %v", a.Owner(), testPkgPath)
+	}
+	if a.typeOf != OwnerTypeContract {
+		t.Errorf("NewWithContract() typeOf = %v, want %v", a.typeOf, OwnerTypeContract)
+	}
+
+	// Test with empty package path
+	a, err = NewWithContract("", handler)
+	uassert.Error(t, err)
+	uassert.Nil(t, a)
+
+	// Test with nil handler
+	a, err = NewWithContract(testPkgPath, nil)
+	uassert.Error(t, err)
+	uassert.Nil(t, a)
+}

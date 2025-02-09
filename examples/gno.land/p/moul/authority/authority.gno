@@ -51,6 +51,23 @@ func NewWithAddress(addr std.Address) *Authority {
 	}
 }
 
+// NewWithContract creates a new Authority instance with the specified contract as the owner.
+func NewWithContract(pkgPath string, handler PrivilegedActionHandler) (*Authority, error) {
+	if pkgPath == "" {
+		return nil, errors.New("invalid package path")
+	}
+	if handler == nil {
+		return nil, errors.New("handler required")
+	}
+
+	return &Authority{
+		ownerAddr:       std.DerivePkgAddr(pkgPath),
+		typeOf:          OwnerTypeContract,
+		contractPath:    pkgPath,
+		contractHandler: handler,
+	}, nil
+}
+
 // Owner returns the current authority owner.
 func (a *Authority) Owner() string {
 	if a == nil {
