@@ -1,12 +1,15 @@
-// Package authority provides a flexible ownership and access control system for Gno contracts.
-// It supports both wallet-based and contract-based ownership models, allowing for
-// secure management of privileged operations. The package enables ownership transfers
-// between wallets and contracts, and includes support for dropping ownership entirely.
+// Package authority provides a flexible ownership and access control system for
+// Gno contracts.
 //
-// The main type is Authority, which encapsulates ownership information and provides
-// methods for executing privileged actions and transferring control. Actions can be
-// executed directly for wallet-based ownership, or through a handler for contract-based
-// ownership.
+// It supports both wallet-based and contract-based ownership models, allowing
+// for secure management of privileged operations. The package enables ownership
+// transfers between wallets and contracts, and includes support for dropping
+// ownership entirely.
+//
+// The main type is Authority, which encapsulates ownership information and
+// provides methods for executing privileged actions and transferring
+// control. Actions can be executed directly for wallet-based ownership, or
+// through a handler for contract-based ownership.
 //
 // Example usage with wallet ownership:
 //
@@ -58,7 +61,8 @@ const (
 // PrivilegedAction defines a function that performs a privileged action.
 type PrivilegedAction func() error
 
-// PrivilegedActionHandler is called by contract-based authorities to handle privileged actions.
+// PrivilegedActionHandler is called by contract-based authorities to handle
+// privileged actions.
 type PrivilegedActionHandler func(title string, action PrivilegedAction) error
 
 // Authority encapsulates ownership and access control.
@@ -69,8 +73,8 @@ type Authority struct {
 	contractHandler PrivilegedActionHandler // only when type is OwnerTypeContract
 }
 
-// New creates a new Authority instance with the initial owner set to the current caller
-// and defaults to a wallet-based admin.
+// New creates a new Authority instance with the initial owner set to the
+// current caller and defaults to a wallet-based admin.
 func New() *Authority {
 	return &Authority{
 		ownerAddr: std.PrevRealm().Addr(),
@@ -78,8 +82,8 @@ func New() *Authority {
 	}
 }
 
-// NewWithAddress creates a new Authority instance with the specified address as the owner.
-// The type defaults to a wallet-based admin.
+// NewWithAddress creates a new Authority instance with the specified address as
+// the owner. The type defaults to a wallet-based admin.
 func NewWithAddress(addr std.Address) *Authority {
 	return &Authority{
 		ownerAddr: addr,
@@ -87,7 +91,8 @@ func NewWithAddress(addr std.Address) *Authority {
 	}
 }
 
-// NewWithContract creates a new Authority instance with the specified contract as the owner.
+// NewWithContract creates a new Authority instance with the specified contract
+// as the owner.
 func NewWithContract(pkgPath string, handler PrivilegedActionHandler) (*Authority, error) {
 	if pkgPath == "" {
 		return nil, errors.New("invalid package path")
@@ -120,8 +125,10 @@ func (a *Authority) Owner() string {
 }
 
 // Do executes a privileged action.
-// For wallet-based admins, the action is executed immediately if the caller is authorized.
-// For contract-based authorities, the action is passed to the handler for processing.
+// For wallet-based admins, the action is executed immediately if the caller is
+// authorized.
+// For contract-based authorities, the action is passed to the handler for
+// processing.
 func (a *Authority) Do(title string, action PrivilegedAction) error {
 	if a == nil {
 		return errors.New("unauthorized")
