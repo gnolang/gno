@@ -8,6 +8,7 @@ import (
 	"gno.land/p/demo/seqid"
 	"gno.land/p/demo/ufmt"
 	"gno.land/p/moul/txlink"
+	"gno.land/p/moul/md"
 )
 
 const (
@@ -15,7 +16,8 @@ const (
 )
 
 func Render(path string) string {
-	out := "# Hall of Fame\n\n"
+	out := md.H1("Hall of Fame\n\n")
+	//out := "# Hall of Fame\n\n"
 
 	dashboardEnabled := path == "dashboard"
 
@@ -43,7 +45,8 @@ func (e Exhibition) Render(path string, dashboard bool) string {
 	for _, item := range page.Items {
 		out += "<div>\n\n"
 		id, _ := seqid.FromString(item.Key)
-		out += ufmt.Sprintf("### Submission #%d\n\n", int(id))
+		out += md.H3(ufmt.Sprintf("Submission #%d\n\n", int(id)))
+		// out += ufmt.Sprintf("### Submission #%d\n\n", int(id))
 		out += item.Value.(*Item).Render(dashboard)
 		out += "</div>"
 	}
@@ -61,32 +64,43 @@ func (i Item) Render(dashboard bool) string {
 	out += ufmt.Sprintf("[View realm](%s)\n\n", strings.TrimPrefix(i.pkgpath, "gno.land")) // gno.land/r/leon/home > /r/leon/home
 	out += ufmt.Sprintf("Submitted at Block #%d\n\n", i.blockNum)
 
-	out += ufmt.Sprintf("**[%d👍](%s) - [%d👎](%s)**\n\n",
-		i.upvote.Size(), txlink.Call("Upvote", "pkgpath", i.pkgpath),
-		i.downvote.Size(), txlink.Call("Downvote", "pkgpath", i.pkgpath),
-	)
+	out += md.Bold(ufmt.Sprintf("[%d👍](%s) - [%d👎](%s)",
+	i.upvote.Size(), txlink.Call("Upvote", "pkgpath", i.pkgpath),
+	i.downvote.Size(), txlink.Call("Downvote", "pkgpath", i.pkgpath),
+	))
+
+	// out += ufmt.Sprintf("**[%d👍](%s) - [%d👎](%s)**\n\n",
+	// 	i.upvote.Size(), txlink.Call("Upvote", "pkgpath", i.pkgpath),
+	// 	i.downvote.Size(), txlink.Call("Downvote", "pkgpath", i.pkgpath),
+	// )
 
 	if dashboard {
-		out += ufmt.Sprintf("[Delete](%s)", txlink.Call("Delete", "pkgpath", i.pkgpath))
+		out += md.Link("Delete", txlink.Call("Delete", "pkgpath", i.pkgpath))
+		// out += ufmt.Sprintf("[Delete](%s)", txlink.Call("Delete", "pkgpath", i.pkgpath))
 	}
 
 	return out
 }
 
 func renderDashboard() string {
-	out := "---\n\n"
-	out += "## Dashboard\n\n"
+	out := md.HorizontalRule()
+	// out := "---\n\n"
+	out += md.H2("Dashboard\n\n")
+	// out += "## Dashboard\n\n"
 	out += ufmt.Sprintf("Total submissions: %d\n\n", exhibition.items.Size())
 
 	out += ufmt.Sprintf("Exhibition admin: %s\n\n", Ownable.Owner().String())
 
 	if !Pausable.IsPaused() {
-		out += ufmt.Sprintf("[Pause exhibition](%s)\n\n", txlink.Call("Pause"))
+		out += md.Link("Pause exhibition", txlink.Call("Pause"))
+		// out += ufmt.Sprintf("[Pause exhibition](%s)\n\n", txlink.Call("Pause"))
 	} else {
-		out += ufmt.Sprintf("[Unpause exhibition](%s)\n\n", txlink.Call("Unpause"))
+		out += md.Link("Unpause exhibition", txlink.Call("Unpause"))
+		// out += ufmt.Sprintf("[Unpause exhibition](%s)\n\n", txlink.Call("Unpause"))
 	}
 
-	out += "---\n\n"
+	out += md.HorizontalRule()
+	// out += "---\n\n"
 
 	return out
 }
