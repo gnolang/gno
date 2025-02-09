@@ -105,6 +105,58 @@ func createTestServer(
 	return s
 }
 
+// This test covers bug https://github.com/gnolang/gno/issues/3676
+// TestSendRequestCommon_BatchSingleResponse simulates a batch call where the batch
+// contains a single request. This test stays on the client side.
+func TestSendRequestCommon_BatchSingleResponse(t *testing.T) {
+	t.Parallel()
+
+	// Step 1: Create a dummy batch request with a single item.
+	singleRequest := types.RPCRequest{
+		JSONRPC: "2.0",
+		ID:      types.JSONRPCStringID("1"),
+	}
+	batchRequest := types.RPCRequests{singleRequest} // types.RPCRequests is defined as []RPCRequest
+
+	// Step 2: Create the expected batch response.
+	expectedResp := types.RPCResponse{
+		JSONRPC: "2.0",
+		ID:      singleRequest.ID,
+	}
+	expectedBatchResponse := types.RPCResponses{expectedResp} // types.RPCResponses is defined as []*RPCResponse
+
+	// Step 3: Marshal the expected batch response as a JSON array.
+	respBytes, err := json.Marshal(expectedBatchResponse)
+	require.NoError(t, err)
+
+	// Step 4: Create a test HTTP server that always returns the JSON array.
+	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		_, err := w.Write(respBytes)
+		require.NoError(t, err)
+	})
+	ts := httptest.NewServer(handler)
+	defer ts.Close()
+
+	// Step 5: Create an HTTP client and a context with timeout.
+	httpClient := ts.Client()
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	// Step 6: Call sendRequestCommon with the batch request.
+	// We choose R to be types.RPCResponses so we expect a batch (slice) in return.
+	actualBatchResponse, err := sendRequestCommon[types.RPCRequests, types.RPCResponses](ctx, httpClient, ts.URL, batchRequest)
+	require.NoError(t, err)
+
+	// Step 7: Verify that the returned value is a slice with one element.
+	assert.Len(t, actualBatchResponse, 1, "expected the batch response slice to have length one")
+
+	// Step 8: Verify that the returned response fields match the expected values.
+	assert.Equal(t, expectedBatchResponse[0].ID, actualBatchResponse[0].ID)
+	assert.Equal(t, expectedBatchResponse[0].JSONRPC, actualBatchResponse[0].JSONRPC)
+}
+
 func TestClient_SendRequest(t *testing.T) {
 	t.Parallel()
 
