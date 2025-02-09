@@ -7,8 +7,8 @@ import (
 	"gno.land/p/demo/fqname"
 	"gno.land/p/demo/seqid"
 	"gno.land/p/demo/ufmt"
-	"gno.land/p/moul/txlink"
 	"gno.land/p/moul/md"
+	"gno.land/p/moul/txlink"
 )
 
 const (
@@ -66,8 +66,8 @@ func (i Item) Render(dashboard bool) string {
 	out += ufmt.Sprintf("Submitted at Block #%d\n\n", i.blockNum)
 
 	out += md.Bold(ufmt.Sprintf("[%d👍](%s) - [%d👎](%s)",
-	i.upvote.Size(), txlink.Call("Upvote", "pkgpath", i.pkgpath),
-	i.downvote.Size(), txlink.Call("Downvote", "pkgpath", i.pkgpath),
+		i.upvote.Size(), txlink.Call("Upvote", "pkgpath", i.pkgpath),
+		i.downvote.Size(), txlink.Call("Downvote", "pkgpath", i.pkgpath),
 	))
 
 	// out += ufmt.Sprintf("**[%d👍](%s) - [%d👎](%s)**\n\n",
