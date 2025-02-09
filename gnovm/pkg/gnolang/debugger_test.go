@@ -39,7 +39,7 @@ func evalTest(debugAddr, in, file string) (out, err string) {
 		err = strings.TrimSpace(strings.ReplaceAll(err, "../../tests/files/", "files/"))
 	}()
 
-	_, testStore := test.Store(gnoenv.RootDir(), false, stdin, stdout, stderr)
+	_, testStore := test.Store(gnoenv.RootDir(), stdin, stdout, stderr)
 
 	f := gnolang.MustReadFile(file)
 

@@ -454,6 +454,51 @@ func (m *Machine) RunFiles(fns ...*FileNode) {
 	m.runInitFromUpdates(pv, updates)
 }
 
+// PreprocessFiles runs Preprocess on the given files. It is used to detect
+// compile-time errors in the package.
+func (m *Machine) PreprocessFiles(pkgName, pkgPath string, fset *FileSet, save, withOverrides bool) (*PackageNode, *PackageValue) {
+	if !withOverrides {
+		if err := checkDuplicates(fset); err != nil {
+			panic(fmt.Errorf("running package %q: %w", pkgName, err))
+		}
+	}
+	pn := NewPackageNode(Name(pkgName), pkgPath, fset)
+	pv := pn.NewPackage()
+	pb := pv.GetBlock(m.Store)
+	m.SetActivePackage(pv)
+	m.Store.SetBlockNode(pn)
+	PredefineFileSet(m.Store, pn, fset)
+	for _, fn := range fset.Files {
+		fn = Preprocess(m.Store, pn, fn).(*FileNode)
+		// After preprocessing, save blocknodes to store.
+		SaveBlockNodes(m.Store, fn)
+		// Make block for fn.
+		// Each file for each *PackageValue gets its own file *Block,
+		// with values copied over from each file's
+		// *FileNode.StaticBlock.
+		fb := m.Alloc.NewBlock(fn, pb)
+		fb.Values = make([]TypedValue, len(fn.StaticBlock.Values))
+		copy(fb.Values, fn.StaticBlock.Values)
+		pv.AddFileBlock(fn.Name, fb)
+	}
+	// Get new values across all files in package.
+	pn.PrepareNewValues(pv)
+	// save package value.
+	var throwaway *Realm
+	if save {
+		// store new package values and types
+		throwaway = m.saveNewPackageValuesAndTypes()
+		if throwaway != nil {
+			m.Realm = throwaway
+		}
+		m.resavePackageValues(throwaway)
+		if throwaway != nil {
+			m.Realm = nil
+		}
+	}
+	return pn, pv
+}
+
 // Add files to the package's *FileSet and run decls in them.
 // This will also run each init function encountered.
 // Returns the updated typed values of package.

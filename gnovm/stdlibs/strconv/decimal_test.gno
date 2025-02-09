@@ -2,9 +2,10 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package strconv
+package strconv_test
 
 import (
+	"strconv"
 	"testing"
 )
 
@@ -31,7 +32,7 @@ var shifttests = []shiftTest{
 func TestDecimalShift(t *testing.T) {
 	for i := 0; i < len(shifttests); i++ {
 		test := &shifttests[i]
-		d := NewDecimal(test.i)
+		d := strconv.NewDecimal(test.i)
 		d.Shift(test.shift)
 		s := d.String()
 		if s != test.out {
@@ -69,21 +70,21 @@ var roundtests = []roundTest{
 func TestDecimalRound(t *testing.T) {
 	for i := 0; i < len(roundtests); i++ {
 		test := &roundtests[i]
-		d := NewDecimal(test.i)
+		d := strconv.NewDecimal(test.i)
 		d.RoundDown(test.nd)
 		s := d.String()
 		if s != test.down {
 			t.Errorf("Decimal %v RoundDown %d = %v, want %v",
 				test.i, test.nd, s, test.down)
 		}
-		d = NewDecimal(test.i)
+		d = strconv.NewDecimal(test.i)
 		d.Round(test.nd)
 		s = d.String()
 		if s != test.round {
 			t.Errorf("Decimal %v Round %d = %v, want %v",
 				test.i, test.nd, s, test.down)
 		}
-		d = NewDecimal(test.i)
+		d = strconv.NewDecimal(test.i)
 		d.RoundUp(test.nd)
 		s = d.String()
 		if s != test.up {
@@ -115,7 +116,7 @@ var roundinttests = []roundIntTest{
 func TestDecimalRoundedInteger(t *testing.T) {
 	for i := 0; i < len(roundinttests); i++ {
 		test := roundinttests[i]
-		d := NewDecimal(test.i)
+		d := strconv.NewDecimal(test.i)
 		d.Shift(test.shift)
 		num := d.RoundedInteger()
 		if num != test.int {

@@ -6,7 +6,7 @@
 // BinaryMarshaler, BinaryUnmarshaler,
 // and lock in the current representations.
 
-package hash
+package hash_test
 
 import (
 	"bytes"

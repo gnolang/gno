@@ -26,7 +26,7 @@ type RealmOverride struct {
 }
 
 func AssertOriginCall(m *gno.Machine) {
-	if !IsOriginCall(m) {
+	if !isOriginCall(m) {
 		m.Panic(typedString("invalid non-origin call"))
 	}
 }
@@ -37,7 +37,7 @@ func typedString(s gno.StringValue) gno.TypedValue {
 	return tv
 }
 
-func IsOriginCall(m *gno.Machine) bool {
+func isOriginCall(m *gno.Machine) bool {
 	tname := m.Frames[0].Func.Name
 	switch tname {
 	case "main": // test is a _filetest
