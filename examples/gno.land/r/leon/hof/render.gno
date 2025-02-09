@@ -5,7 +5,6 @@ import (
 
 	"gno.land/p/demo/avl/pager"
 	"gno.land/p/demo/fqname"
-	"gno.land/p/demo/seqid"
 	"gno.land/p/demo/ufmt"
 	"gno.land/p/moul/md"
 	"gno.land/p/moul/txlink"
@@ -44,10 +43,9 @@ func (e Exhibition) Render(path string, dashboard bool) string {
 
 	for _, item := range page.Items {
 		out += "<div>\n\n"
-		id, _ := seqid.FromString(item.Key)
-		out += md.H3(ufmt.Sprintf("Submission #%d\n\n", int(id)))
-		// out += ufmt.Sprintf("### Submission #%d\n\n", int(id))
-		out += item.Value.(*Item).Render(dashboard)
+		itemValue := item.Value.(*Item)
+		out += md.H3(itemValue.title + "\n\n")
+		out += itemValue.Render(dashboard)
 		out += "</div>"
 	}
 
@@ -60,9 +58,9 @@ func (e Exhibition) Render(path string, dashboard bool) string {
 
 func (i Item) Render(dashboard bool) string {
 	out := ufmt.Sprintf("\n%s\n\n", md.CodeBlock(i.pkgpath))
-	// out := ufmt.Sprintf("\n```\n%s\n```\n\n", i.pkgpath)
+	out += ufmt.Sprintf("%s\n\n", i.description)
 	out += ufmt.Sprintf("by %s\n\n", strings.Split(i.pkgpath, "/")[2])
-	out += ufmt.Sprintf("[View realm](%s)\n\n", strings.TrimPrefix(i.pkgpath, "gno.land")) // gno.land/r/leon/home > /r/leon/home
+	out += md.Link("View Realm", strings.TrimPrefix(i.pkgpath, "gno.land")) + "\n\n"
 	out += ufmt.Sprintf("Submitted at Block #%d\n\n", i.blockNum)
 
 	out += md.Bold(ufmt.Sprintf("[%d👍](%s) - [%d👎](%s)",
@@ -70,15 +68,10 @@ func (i Item) Render(dashboard bool) string {
 		i.downvote.Size(), txlink.Call("Downvote", "pkgpath", i.pkgpath),
 	))
 
-	// out += ufmt.Sprintf("**[%d👍](%s) - [%d👎](%s)**\n\n",
-	// 	i.upvote.Size(), txlink.Call("Upvote", "pkgpath", i.pkgpath),
-	// 	i.downvote.Size(), txlink.Call("Downvote", "pkgpath", i.pkgpath),
-	// )
-
 	if dashboard {
 		out += md.Link("Delete", txlink.Call("Delete", "pkgpath", i.pkgpath))
-		// out += ufmt.Sprintf("[Delete](%s)", txlink.Call("Delete", "pkgpath", i.pkgpath))
 	}
+
 
 	return out
 }
