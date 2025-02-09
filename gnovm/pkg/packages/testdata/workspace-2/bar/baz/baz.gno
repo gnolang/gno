@@ -1,0 +1,5 @@
+package baz
+
+func Baz() {
+
+}

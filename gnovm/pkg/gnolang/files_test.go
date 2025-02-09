@@ -12,6 +12,7 @@ import (
 	"testing"
 
 	"github.com/gnolang/gno/gnovm/pkg/gnolang"
+	"github.com/gnolang/gno/gnovm/pkg/packages"
 	"github.com/gnolang/gno/gnovm/pkg/test"
 	"github.com/stretchr/testify/require"
 )
@@ -35,7 +36,10 @@ func (nopReader) Read(p []byte) (int, error) { return 0, io.EOF }
 func TestFiles(t *testing.T) {
 	t.Parallel()
 
-	rootDir, err := filepath.Abs("../../../")
+	rootDir, err := filepath.Abs(filepath.FromSlash("../../.."))
+	require.NoError(t, err)
+
+	pkgs, err := packages.Load(nil, filepath.Join(rootDir, "examples", "..."))
 	require.NoError(t, err)
 
 	newOpts := func() *test.TestOptions {
@@ -45,9 +49,9 @@ func TestFiles(t *testing.T) {
 			Error:   io.Discard,
 			Sync:    *withSync,
 		}
-		o.BaseStore, o.TestStore = test.StoreWithOptions(
-			rootDir, nopReader{}, o.WriterForStore(), io.Discard,
-			test.StoreOptions{WithExtern: true},
+		o.BaseStore, o.TestStore = test.Store(
+			rootDir, pkgs,
+			nopReader{}, o.WriterForStore(), io.Discard,
 		)
 		return o
 	}
@@ -121,7 +125,7 @@ func TestStdlibs(t *testing.T) {
 			capture = new(bytes.Buffer)
 			out = capture
 		}
-		opts = test.NewTestOptions(rootDir, nopReader{}, out, out)
+		opts = test.NewTestOptions(rootDir, nil, nopReader{}, out, out)
 		opts.Verbose = true
 		return
 	}
@@ -138,7 +142,7 @@ func TestStdlibs(t *testing.T) {
 		}
 
 		fp := filepath.Join(dir, path)
-		memPkg := gnolang.MustReadMemPackage(fp, path)
+		memPkg := gnolang.MustReadMemPackage(fp, path, nil)
 		t.Run(strings.ReplaceAll(memPkg.Path, "/", "-"), func(t *testing.T) {
 			capture, opts := sharedCapture, sharedOpts
 			switch memPkg.Path {

@@ -6,13 +6,16 @@ import (
 	"fmt"
 	"io"
 	"net"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
 
 	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
 	"github.com/gnolang/gno/gnovm/pkg/gnolang"
+	"github.com/gnolang/gno/gnovm/pkg/packages"
 	"github.com/gnolang/gno/gnovm/pkg/test"
+	"github.com/stretchr/testify/require"
 )
 
 type dtest struct{ in, out string }
@@ -24,7 +27,7 @@ type writeNopCloser struct{ io.Writer }
 func (writeNopCloser) Close() error { return nil }
 
 // TODO (Marc): move evalTest to gnovm/tests package and remove code duplicates
-func evalTest(debugAddr, in, file string) (out, err string) {
+func evalTest(debugAddr, in, file string, pkgs packages.PkgList) (out, err string) {
 	bout := bytes.NewBufferString("")
 	berr := bytes.NewBufferString("")
 	stdin := bytes.NewBufferString(in)
@@ -39,7 +42,7 @@ func evalTest(debugAddr, in, file string) (out, err string) {
 		err = strings.TrimSpace(strings.ReplaceAll(err, "../../tests/files/", "files/"))
 	}()
 
-	_, testStore := test.Store(gnoenv.RootDir(), stdin, stdout, stderr)
+	_, testStore := test.Store(gnoenv.RootDir(), pkgs, stdin, stdout, stderr)
 
 	f := gnolang.MustReadFile(file)
 
@@ -68,12 +71,12 @@ func evalTest(debugAddr, in, file string) (out, err string) {
 	return
 }
 
-func runDebugTest(t *testing.T, targetPath string, tests []dtest) {
+func runDebugTest(t *testing.T, targetPath string, tests []dtest, pkgs packages.PkgList) {
 	t.Helper()
 
 	for _, test := range tests {
 		t.Run("", func(t *testing.T) {
-			out, err := evalTest("", test.in, targetPath)
+			out, err := evalTest("", test.in, targetPath, pkgs)
 			t.Log("in:", test.in, "out:", out, "err:", err)
 			if !strings.Contains(out, test.out) {
 				t.Errorf("unexpected output\nwant\"%s\"\n  got \"%s\"", test.out, out)
@@ -86,6 +89,9 @@ func TestDebug(t *testing.T) {
 	brk := "break 7\n"
 	cont := brk + "continue\n"
 	cont2 := "break 21\ncontinue\n"
+
+	pkgs, err := packages.Load(nil, filepath.FromSlash("../../../examples/..."))
+	require.NoError(t, err)
 
 	runDebugTest(t, debugTarget, []dtest{
 		{in: "\n", out: "Welcome to the Gnovm debugger. Type 'help' for list of commands."},
@@ -143,18 +149,18 @@ func TestDebug(t *testing.T) {
 		{in: "b 27\nc\np b\n", out: `("!zero" string)`},
 		{in: "b 22\nc\np t.A[3]\n", out: "Command failed: &{(\"slice index out of bounds: 3 (len=3)\" string) <nil> }"},
 		{in: "b 43\nc\nc\nc\np i\ndetach\n", out: "(1 int)"},
-	})
+	}, pkgs)
 
 	runDebugTest(t, "../../tests/files/a1.gno", []dtest{
 		{in: "l\n", out: "unknown source file"},
 		{in: "b 5\n", out: "unknown source file"},
-	})
+	}, pkgs)
 
 	runDebugTest(t, "../../tests/integ/debugger/sample2.gno", []dtest{
 		{in: "s\np tests\n", out: "(package(tests gno.land/p/demo/tests) package{})"},
 		{in: "s\np tests.World\n", out: `("world" <untyped> string)`},
 		{in: "s\np tests.xxx\n", out: "Command failed: invalid selector: xxx"},
-	})
+	}, pkgs)
 }
 
 const debugAddress = "localhost:17358"
@@ -166,7 +172,7 @@ func TestRemoteDebug(t *testing.T) {
 		retry int
 	)
 
-	go evalTest(debugAddress, "", debugTarget)
+	go evalTest(debugAddress, "", debugTarget, nil)
 
 	for retry = 100; retry > 0; retry-- {
 		conn, err = net.Dial("tcp", debugAddress)
@@ -189,7 +195,7 @@ func TestRemoteDebug(t *testing.T) {
 }
 
 func TestRemoteError(t *testing.T) {
-	_, err := evalTest(":xxx", "", debugTarget)
+	_, err := evalTest(":xxx", "", debugTarget, nil)
 	t.Log("err:", err)
 	if !strings.Contains(err, "tcp/xxx: unknown port") &&
 		!strings.Contains(err, "tcp/xxx: nodename nor servname provided, or not known") {

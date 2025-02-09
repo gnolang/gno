@@ -3,7 +3,7 @@
 ! gno test -v .
 
 ! stdout .+
-stderr 'contract.gno:3:8: unknown import path foobarbaz'
+stderr 'contract.gno:3:8: package foobarbaz is not in std'
 
 -- contract.gno --
 package contract

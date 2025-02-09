@@ -29,7 +29,7 @@ func NewMsgAddPackage(creator crypto.Address, pkgPath string, files []*gnovm.Mem
 	var pkgName string
 	for _, file := range files {
 		if strings.HasSuffix(file.Name, ".gno") {
-			pkgName = string(gno.MustPackageNameFromFileBody(file.Name, file.Body))
+			pkgName = string(gno.MustPackageNameFromFileBody(file.Name, file.Body, nil))
 			break
 		}
 	}
@@ -156,7 +156,7 @@ var _ std.Msg = MsgRun{}
 func NewMsgRun(caller crypto.Address, send std.Coins, files []*gnovm.MemFile) MsgRun {
 	for _, file := range files {
 		if strings.HasSuffix(file.Name, ".gno") {
-			pkgName := string(gno.MustPackageNameFromFileBody(file.Name, file.Body))
+			pkgName := string(gno.MustPackageNameFromFileBody(file.Name, file.Body, nil))
 			if pkgName != "main" {
 				panic("package name should be 'main'")
 			}

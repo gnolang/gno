@@ -5,17 +5,16 @@ import (
 	"flag"
 	"fmt"
 	goio "io"
-	"log"
+	"os"
 	"path/filepath"
-	"strings"
 	"time"
 
 	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
 	"github.com/gnolang/gno/gnovm/pkg/gnomod"
+	"github.com/gnolang/gno/gnovm/pkg/packages"
 	"github.com/gnolang/gno/gnovm/pkg/test"
 	"github.com/gnolang/gno/tm2/pkg/commands"
-	"github.com/gnolang/gno/tm2/pkg/random"
 )
 
 type testCfg struct {
@@ -156,14 +155,29 @@ func execTest(cfg *testCfg, args []string, io commands.IO) error {
 		cfg.rootDir = gnoenv.RootDir()
 	}
 
-	paths, err := targetsFromPatterns(args)
-	if err != nil {
-		return fmt.Errorf("list targets from patterns: %w", err)
-	}
+	depsPatterns := []string{}
 
-	if len(paths) == 0 {
-		io.ErrPrintln("no packages to test")
-		return nil
+	// include local modules
+	workspaceDir := "."
+	cwd, err := os.Getwd()
+	if err == nil {
+		workspaceDir, err = gnomod.FindRootDir(cwd)
+		if err != nil {
+			workspaceDir = "."
+		}
+	}
+	depsPatterns = append(depsPatterns, filepath.Join(workspaceDir, "..."))
+
+	// Find targets for test.
+	conf := &packages.LoadConfig{
+		Out:          io.Err(),
+		Fetcher:      testPackageFetcher,
+		DepsPatterns: depsPatterns,
+		Deps:         true,
+	}
+	pkgs, err := packages.Load(conf, args...)
+	if err != nil {
+		return err
 	}
 
 	if cfg.timeout > 0 {
@@ -173,17 +187,12 @@ func execTest(cfg *testCfg, args []string, io commands.IO) error {
 		}()
 	}
 
-	subPkgs, err := gnomod.SubPkgsFromPaths(paths)
-	if err != nil {
-		return fmt.Errorf("list sub packages: %w", err)
-	}
-
 	// Set up options to run tests.
 	stdout := goio.Discard
 	if cfg.verbose {
 		stdout = io.Out()
 	}
-	opts := test.NewTestOptions(cfg.rootDir, io.In(), stdout, io.Err())
+	opts := test.NewTestOptions(cfg.rootDir, pkgs, io.In(), stdout, io.Err())
 	opts.RunFlag = cfg.run
 	opts.Sync = cfg.updateGoldenTests
 	opts.Verbose = cfg.verbose
@@ -192,29 +201,43 @@ func execTest(cfg *testCfg, args []string, io commands.IO) error {
 
 	buildErrCount := 0
 	testErrCount := 0
-	for _, pkg := range subPkgs {
-		if len(pkg.TestGnoFiles) == 0 && len(pkg.FiletestGnoFiles) == 0 {
-			io.ErrPrintfln("?       %s \t[no test files]", pkg.Dir)
+	for _, pkg := range pkgs {
+		// ignore deps
+		if len(pkg.Match) == 0 {
 			continue
 		}
-		// Determine gnoPkgPath by reading gno.mod
-		var gnoPkgPath string
-		modfile, err := gnomod.ParseAt(pkg.Dir)
-		if err == nil {
-			gnoPkgPath = modfile.Module.Mod.Path
-		} else {
-			gnoPkgPath = pkgPathFromRootDir(pkg.Dir, cfg.rootDir)
-			if gnoPkgPath == "" {
-				// unable to read pkgPath from gno.mod, generate a random realm path
-				io.ErrPrintfln("--- WARNING: unable to read package path from gno.mod or gno root directory; try creating a gno.mod file")
-				gnoPkgPath = "gno.land/r/" + strings.ToLower(random.RandStr(8)) // XXX: gno.land hardcoded for convenience.
+
+		if len(pkg.Errors) != 0 {
+			for _, err := range pkg.Errors {
+				io.ErrPrintln(err)
+				buildErrCount++
 			}
+			continue
 		}
 
-		memPkg := gno.MustReadMemPackage(pkg.Dir, gnoPkgPath)
+		if !pkg.Draft && pkg.Files.Size() == 0 {
+			return fmt.Errorf("no Gno files in %s", pkg.Dir)
+		}
+
+		label := pkg.ImportPath
+		if label == "" {
+			label = tryRelativize(pkg.Dir)
+		}
+
+		if len(pkg.Files[packages.FileKindTest]) == 0 && len(pkg.Files[packages.FileKindXTest]) == 0 && len(pkg.Files[packages.FileKindFiletest]) == 0 {
+			io.ErrPrintfln("?       %s \t[no test files]", label)
+			continue
+		}
+
+		memPkg, err := gno.ReadMemPackage(pkg.Dir, label, conf.Fset)
+		if err != nil {
+			io.ErrPrintln(err)
+			buildErrCount++
+			continue
+		}
 
 		startedAt := time.Now()
-		hasError := catchRuntimeError(gnoPkgPath, io.Err(), func() {
+		hasError := catchRuntimeError(pkg.Dir, io.Err(), func() {
 			err = test.Test(memPkg, pkg.Dir, opts)
 		})
 
@@ -223,14 +246,14 @@ func execTest(cfg *testCfg, args []string, io commands.IO) error {
 
 		if hasError || err != nil {
 			if err != nil {
-				io.ErrPrintfln("%s: test pkg: %v", pkg.Dir, err)
+				io.ErrPrintfln("%s: test pkg: %v", label, err)
 			}
 			io.ErrPrintfln("FAIL")
-			io.ErrPrintfln("FAIL    %s \t%s", pkg.Dir, dstr)
+			io.ErrPrintfln("FAIL    %s \t%s", label, dstr)
 			io.ErrPrintfln("FAIL")
 			testErrCount++
 		} else {
-			io.ErrPrintfln("ok      %s \t%s", pkg.Dir, dstr)
+			io.ErrPrintfln("ok      %s \t%s", label, dstr)
 		}
 	}
 	if testErrCount > 0 || buildErrCount > 0 {
@@ -239,33 +262,4 @@ func execTest(cfg *testCfg, args []string, io commands.IO) error {
 	}
 
 	return nil
-}
-
-// attempts to determine the full gno pkg path by analyzing the directory.
-func pkgPathFromRootDir(pkgPath, rootDir string) string {
-	abPkgPath, err := filepath.Abs(pkgPath)
-	if err != nil {
-		log.Printf("could not determine abs path: %v", err)
-		return ""
-	}
-	abRootDir, err := filepath.Abs(rootDir)
-	if err != nil {
-		log.Printf("could not determine abs path: %v", err)
-		return ""
-	}
-	abRootDir += string(filepath.Separator)
-	if !strings.HasPrefix(abPkgPath, abRootDir) {
-		return ""
-	}
-	impPath := strings.ReplaceAll(abPkgPath[len(abRootDir):], string(filepath.Separator), "/")
-	for _, prefix := range [...]string{
-		"examples/",
-		"gnovm/stdlibs/",
-		"gnovm/tests/stdlibs/",
-	} {
-		if strings.HasPrefix(impPath, prefix) {
-			return impPath[len(prefix):]
-		}
-	}
-	return ""
 }

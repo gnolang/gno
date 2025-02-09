@@ -1,6 +1,6 @@
 # Run gno test without path argument on an empty dir 
 
-gno test
+! gno test
 
 ! stdout .+
-stderr '[no test files]'
+stderr '^no Gno files in .+$'

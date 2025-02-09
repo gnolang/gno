@@ -499,7 +499,6 @@ func newTestingDevNodeWithConfig(t *testing.T, cfg *NodeConfig) (*Node, *mock.Se
 
 	node, err := NewDevNode(ctx, cfg)
 	require.NoError(t, err)
-	assert.Len(t, node.ListPkgs(), len(cfg.PackagesPathList))
 
 	t.Cleanup(func() {
 		node.Close()

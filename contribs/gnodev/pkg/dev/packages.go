@@ -10,8 +10,8 @@ import (
 	"github.com/gnolang/gno/contribs/gnodev/pkg/address"
 	"github.com/gnolang/gno/gno.land/pkg/gnoland"
 	vmm "github.com/gnolang/gno/gno.land/pkg/sdk/vm"
-	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
-	"github.com/gnolang/gno/gnovm/pkg/gnomod"
+	"github.com/gnolang/gno/gnovm/pkg/gnolang"
+	"github.com/gnolang/gno/gnovm/pkg/packages"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
 	"github.com/gnolang/gno/tm2/pkg/std"
 )
@@ -63,7 +63,7 @@ func ResolvePackagePathQuery(bk *address.Book, path string) (PackagePath, error)
 }
 
 type Package struct {
-	gnomod.Pkg
+	*packages.Package
 	Creator crypto.Address
 	Deposit std.Coins
 }
@@ -75,7 +75,7 @@ var (
 	ErrEmptyDepositPackage = errors.New("no deposit specified for package")
 )
 
-func NewPackagesMap(ppaths []PackagePath) (PackagesMap, error) {
+func NewPackagesMap(cfg *packages.LoadConfig, ppaths []PackagePath) (PackagesMap, error) {
 	pkgs := make(map[string]Package)
 	for _, ppath := range ppaths {
 		if ppath.Creator.IsZero() {
@@ -88,7 +88,7 @@ func NewPackagesMap(ppaths []PackagePath) (PackagesMap, error) {
 		}
 
 		// list all packages from target path
-		pkgslist, err := gnomod.ListPkgs(abspath)
+		pkgslist, err := packages.Load(cfg, filepath.Join(abspath, "..."))
 		if err != nil {
 			return nil, fmt.Errorf("listing gno packages: %w", err)
 		}
@@ -102,7 +102,7 @@ func NewPackagesMap(ppaths []PackagePath) (PackagesMap, error) {
 				continue // skip
 			}
 			pkgs[pkg.Dir] = Package{
-				Pkg:     pkg,
+				Package: pkg,
 				Creator: ppath.Creator,
 				Deposit: ppath.Deposit,
 			}
@@ -112,10 +112,10 @@ func NewPackagesMap(ppaths []PackagePath) (PackagesMap, error) {
 	return pkgs, nil
 }
 
-func (pm PackagesMap) toList() gnomod.PkgList {
-	list := make([]gnomod.Pkg, 0, len(pm))
+func (pm PackagesMap) toList() packages.PkgList {
+	list := make([]*packages.Package, 0, len(pm))
 	for _, pkg := range pm {
-		list = append(list, pkg.Pkg)
+		list = append(list, pkg.Package)
 	}
 	return list
 }
@@ -123,7 +123,7 @@ func (pm PackagesMap) toList() gnomod.PkgList {
 func (pm PackagesMap) Load(fee std.Fee, start time.Time) ([]gnoland.TxWithMetadata, error) {
 	pkgs := pm.toList()
 
-	sorted, err := pkgs.Sort()
+	sorted, err := pkgs.Sort(true)
 	if err != nil {
 		return nil, fmt.Errorf("unable to sort pkgs: %w", err)
 	}
@@ -132,13 +132,17 @@ func (pm PackagesMap) Load(fee std.Fee, start time.Time) ([]gnoland.TxWithMetada
 
 	metatxs := make([]gnoland.TxWithMetadata, 0, len(nonDraft))
 	for _, modPkg := range nonDraft {
+		if modPkg.ImportPath == "" || gnolang.IsStdlib(modPkg.ImportPath) {
+			continue
+		}
+
 		pkg := pm[modPkg.Dir]
 		if pkg.Creator.IsZero() {
 			return nil, fmt.Errorf("no creator set for %q", pkg.Dir)
 		}
 
 		// Open files in directory as MemPackage.
-		memPkg := gno.MustReadMemPackage(modPkg.Dir, modPkg.Name)
+		memPkg := gnolang.MustReadMemPackage(modPkg.Dir, modPkg.ImportPath, nil)
 		if err := memPkg.Validate(); err != nil {
 			return nil, fmt.Errorf("invalid package: %w", err)
 		}
