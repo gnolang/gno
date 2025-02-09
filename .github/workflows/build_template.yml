@@ -26,7 +26,7 @@ jobs:
               make generate
 
               if [ "$(git status -s)" != "" ]; then
-                echo "command 'go generate' creates file that differ from git tree, please run 'go generate' and commit:"
+                echo "command 'make generate' creates file that differ from git tree, please run 'make generate' and commit:"
                 git status -s
                 exit 1
               fi
