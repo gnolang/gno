@@ -183,6 +183,21 @@ func (alloc *Allocator) allocateTV(tv TypedValue) {
 			alloc.allocateValue(tv.V)
 		}
 	} else {
+		//if fv, ok := tv.V.(*FuncValue); ok {
+		//	debug2.Println2("allocateTV, fv: ", fv)
+		//	debug2.Println2("allocateTV, fv.Captures: ", fv.Captures)
+		//	for _, c := range fv.Captures {
+		//		debug2.Println2("allocate capture, allocInfo: ", c.AllocationInfo)
+		//		if c.GetRefCount() < 2 {
+		//			if c.AllocationInfo.AllocType {
+		//				alloc.AllocateType()
+		//			}
+		//			if c.AllocationInfo.AllocValue {
+		//				alloc.allocateValue(c.V)
+		//			}
+		//		}
+		//	}
+		//}
 		debug2.Println2("escaped, do nothing, allocInfo: ", tv.AllocationInfo.String())
 	}
 }
@@ -207,7 +222,20 @@ func (alloc *Allocator) allocateValue(v Value) {
 			alloc.allocateTV(field)
 		}
 	case *FuncValue:
+		debug2.Println2("allocateTV, fv: ", vv)
 		alloc.AllocateFunc()
+		debug2.Println2("allocateTV, fv.Captures: ", vv.Captures)
+		for _, c := range vv.Captures {
+			debug2.Println2("allocate capture, allocInfo: ", c.AllocationInfo)
+			if c.GetRefCount() < 2 {
+				if c.AllocationInfo.AllocType {
+					alloc.AllocateType()
+				}
+				if c.AllocationInfo.AllocValue {
+					alloc.allocateValue(c.V)
+				}
+			}
+		}
 	case PointerValue:
 		alloc.AllocatePointer()
 		alloc.allocateValue(vv.Base)
@@ -240,10 +268,7 @@ func (alloc *Allocator) allocateValue(v Value) {
 			alloc.allocateTV(cur.Value)
 		}
 	case *BoundMethodValue:
-		alloc.AllocateBoundMethod()
-		// TODO: tests for this
-		alloc.allocateValue(vv.Func)
-		alloc.allocateTV(vv.Receiver)
+		// this is handled in frame scan
 	case *NativeValue:
 		alloc.AllocateNative()
 	default:

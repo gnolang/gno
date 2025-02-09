@@ -253,7 +253,7 @@ func (pv PointerValue) Assign2(alloc *Allocator, store Store, rlm *Realm, tv2 Ty
 								panic("should not happen")
 							}
 							if nv, ok := tv2.V.(*NativeValue); !ok ||
-								nv.Value.Kind() != reflect.Func {
+									nv.Value.Kind() != reflect.Func {
 								panic("should not happen")
 							}
 						}
@@ -1090,6 +1090,9 @@ func (tv TypedValue) unrefCopy(alloc *Allocator, store Store) (cp TypedValue) {
 		}
 	default:
 		cp = tv.Copy(alloc)
+		// for underlying array reallocation,
+		// does not increase ref count
+		cp.RefCount--
 	}
 
 	return
@@ -2536,6 +2539,7 @@ func (b *Block) GetPointerTo(store Store, path ValuePath) PointerValue {
 
 // Convenience
 func (b *Block) GetPointerToMaybeHeapUse(store Store, nx *NameExpr) PointerValue {
+	debug2.Println2("GetPointerToMaybeHeapUse, nx.Type: ", nx.Type)
 	switch nx.Type {
 	case NameExprTypeNormal:
 		return b.GetPointerTo(store, nx.Path)
@@ -2565,7 +2569,14 @@ func (b *Block) GetPointerToMaybeHeapDefine(store Store, nx *NameExpr) PointerVa
 // First defines a new HeapItemValue.
 // This gets called from NameExprTypeHeapDefine name expressions.
 func (b *Block) GetPointerToHeapDefine(store Store, path ValuePath) PointerValue {
+	debug2.Println2("GetPointerToHeapDefine")
 	ptr := b.GetPointerTo(store, path)
+
+	// alloc type and value for heap item
+	// (for every iteration).
+	store.GetAllocator().AllocateType()
+	store.GetAllocator().AllocateHeapItem()
+
 	hiv := &HeapItemValue{}
 	// point to a heapItem
 	*ptr.TV = TypedValue{
@@ -2573,6 +2584,11 @@ func (b *Block) GetPointerToHeapDefine(store Store, path ValuePath) PointerValue
 		V: hiv,
 	}
 
+	// set alloc info
+	(*ptr.TV).SetAllocType(true)
+	(*ptr.TV).SetAllocValue(true)
+
+	debug2.Printf2("addr of new defined hiv: %p \n", ptr.TV)
 	return PointerValue{
 		TV:    &hiv.Value,
 		Base:  hiv,
@@ -2583,6 +2599,7 @@ func (b *Block) GetPointerToHeapDefine(store Store, path ValuePath) PointerValue
 // Assumes a HeapItemValue, and gets inner pointer.
 // This gets called from NameExprTypeHeapUse name expressions.
 func (b *Block) GetPointerToHeapUse(store Store, path ValuePath) PointerValue {
+	debug2.Println2("GetPointerToHeapUse, path: ", path)
 	ptr := b.GetPointerTo(store, path)
 	if _, ok := ptr.TV.T.(heapItemType); !ok {
 		panic("should not happen, should be heapItemType")

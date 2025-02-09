@@ -822,6 +822,7 @@ func (m *Machine) doOpFuncLit() {
 			nativeBody: nil,
 		},
 	}
+	debug2.Println2("doOpFuncLit, captures: ", fv.V.(*FuncValue).Captures)
 	fv.SetAllocValue(true)
 	m.PushValue(fv)
 }

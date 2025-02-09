@@ -77,7 +77,7 @@ func main() {
 //             "AllocationInfo": {
 //                 "AllocType": false,
 //                 "AllocValue": false,
-//                 "RefCount": "4"
+//                 "RefCount": "1"
 //             },
 //             "T": {
 //                 "@type": "/gno.PointerType",
@@ -101,7 +101,7 @@ func main() {
 //             "AllocationInfo": {
 //                 "AllocType": false,
 //                 "AllocValue": false,
-//                 "RefCount": "3"
+//                 "RefCount": "1"
 //             },
 //             "T": {
 //                 "@type": "/gno.PointerType",
@@ -125,7 +125,7 @@ func main() {
 //             "AllocationInfo": {
 //                 "AllocType": false,
 //                 "AllocValue": false,
-//                 "RefCount": "2"
+//                 "RefCount": "1"
 //             },
 //             "T": {
 //                 "@type": "/gno.PointerType",
